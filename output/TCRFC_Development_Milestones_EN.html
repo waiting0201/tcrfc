@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>TCRFC Development Milestones</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --brand:#D70292; --blue:#2C6BE8;
+    --ink:#12060F; --text:#1A1016; --muted:#6B5F66; --line:#E6E0E3;
+    --s1:#D70292; --s2:#2C6BE8; --s3:#00A88F; --s4:#F08B00; --post:#8A8A94;
+    --font: "PingFang TC","Noto Sans TC","Helvetica Neue",Arial,sans-serif;
+  }
+  html,body{ width:297mm; height:210mm; }
+  body{ font-family:var(--font); color:var(--text); background:#fff;
+        padding:8mm 9mm 6mm; display:flex; flex-direction:column; }
+
+  header{ display:flex; align-items:flex-end; justify-content:space-between;
+          border-bottom:2.2px solid var(--ink); padding-bottom:2.6mm; }
+  .kicker{ font-size:7.4pt; letter-spacing:.22em; color:var(--brand);
+           font-weight:800; text-transform:uppercase; }
+  h1{ font-size:15.5pt; font-weight:800; letter-spacing:-.01em; }
+  h1 span{ font-size:9.5pt; font-weight:600; color:var(--muted); margin-left:2mm; }
+  .meta{ text-align:right; font-size:7.2pt; color:var(--muted); line-height:1.5; }
+  .meta b{ color:var(--text); font-weight:700; }
+  .meta .go{ color:var(--brand); font-weight:800; }
+
+  .strip{ display:grid; grid-template-columns:repeat(4,1fr) 1.2fr; gap:2.2mm; margin:2.6mm 0 2.4mm; }
+  .card{ border:1px solid var(--line); border-top:2.6px solid var(--c); border-radius:1.4mm;
+         padding:1.9mm 2.4mm; }
+  .card .ph{ font-size:6.6pt; font-weight:800; letter-spacing:.14em; color:var(--c); }
+  .card .nm{ font-size:8.4pt; font-weight:700; margin-top:.5mm; }
+  .card .du{ font-size:6.6pt; color:var(--muted); margin-top:.7mm; }
+  .card .du b{ color:var(--text); }
+  .card.post{ background:#F7F6F7; }
+
+  .gantt{ flex:1; display:flex; flex-direction:column; min-height:0; }
+  .row{ display:grid; grid-template-columns:66mm 1fr; align-items:center;
+        border-bottom:.6px solid #F1EDEF; }
+  .row.head{ border-bottom:1.2px solid var(--ink); }
+  .row.grp{ background:#FAF7F9; border-bottom:.6px solid var(--line); }
+  .lbl{ font-size:6.9pt; padding:1.35mm 2.5mm 1.35mm 4.4mm; line-height:1.2; position:relative; }
+  .lbl .en{ color:var(--muted); font-size:5.4pt; }
+  .row.grp .lbl{ font-size:7.5pt; font-weight:800; padding-left:2.6mm; color:var(--c); white-space:nowrap; }
+  .lbl.sub::before{ content:""; position:absolute; left:2.6mm; top:50%; width:1.4mm; height:1.4mm;
+        border-radius:50%; background:var(--c); transform:translateY(-50%); }
+
+  .track{ position:relative; height:100%; }
+  .row.head .track{ height:9mm; }
+  .grid{ position:absolute; inset:0; display:grid; }
+  .grid i{ border-left:.5px solid #EFEBED; }
+  .grid i.hol{ background:#FFF6FB; }
+  .grid i.post{ background:#F7F6F7; border-left:.8px solid #D5CED2; }
+
+  .wk{ position:absolute; left:0; right:0; top:0; display:grid; }
+  .wk s{ text-decoration:none; font-size:5.5pt; color:var(--muted); text-align:center;
+         border-left:.5px solid #EFEBED; padding:.5mm 0; line-height:1.25; }
+  .wk s b{ display:block; font-size:6pt; color:var(--text); font-weight:700; }
+  .sbar{ position:absolute; left:0; right:0; top:5.4mm; height:3.4mm; }
+  .sbar b{ position:absolute; height:100%; border-radius:.7mm; color:#fff;
+           font-size:6.2pt; font-weight:700; display:flex; align-items:center;
+           justify-content:center; letter-spacing:.04em; }
+
+  .bar{ position:absolute; top:50%; transform:translateY(-50%); height:2.5mm;
+        border-radius:1.25mm; background:var(--c); }
+  .bar.dash{ background:repeating-linear-gradient(90deg,var(--c) 0 1.4mm,transparent 1.4mm 2.8mm);
+             border-radius:0; }
+
+  .msrow{ display:grid; grid-template-columns:66mm 1fr; border-top:1.2px solid var(--ink); }
+  .msrow .lbl{ font-size:7.2pt; font-weight:800; padding-top:2mm; }
+  .msrow .track{ height:11.2mm; }
+  .ms{ position:absolute; top:1.4mm; transform:translateX(-50%); text-align:center; width:34mm; }
+  .ms .dia{ width:2.8mm; height:2.8mm; background:var(--c); margin:0 auto .9mm;
+            transform:rotate(45deg); border-radius:.4mm; }
+  .ms .id{ font-size:6.3pt; font-weight:800; color:var(--c); letter-spacing:.06em; }
+  .ms .tx{ font-size:6.2pt; line-height:1.25; margin-top:.3mm; }
+  .ms .tx em{ font-style:normal; color:var(--muted); font-size:5.5pt; display:block; }
+  .ms .stem{ position:absolute; left:50%; top:-1.4mm; width:.6px; height:1.4mm; background:var(--c); }
+
+  footer{ display:flex; justify-content:space-between; align-items:center;
+          margin-top:2mm; padding-top:1.8mm; border-top:.8px solid var(--line);
+          font-size:6.4pt; color:var(--muted); }
+  .legend{ display:flex; gap:4mm; align-items:center; flex:0 0 auto; }
+  .legend span{ display:flex; align-items:center; gap:1.2mm; white-space:nowrap; }
+  .legend i{ width:5mm; height:2mm; border-radius:1mm; background:var(--c); display:block; }
+  .legend i.d{ background:repeating-linear-gradient(90deg,var(--post) 0 1.4mm,transparent 1.4mm 2.8mm); }
+  .legend i.dia{ width:2.4mm; height:2.4mm; border-radius:.3mm; transform:rotate(45deg); background:var(--ink); }
+  .legend i.hol{ background:#FFF6FB; border:.5px solid #F0C7DF; border-radius:.4mm; height:2.4mm; }
+  .note{ text-align:right; line-height:1.45; padding-left:6mm; }
+  .note b{ color:var(--text); }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="kicker">TCRFC · Delivery Roadmap</div>
+    <h1>Development Milestones<span>Website Delivery Roadmap</span></h1>
+  </div>
+  <div class="meta">
+    Duration <b>2 months · 9 weeks</b> (kick-off <b>1 Sep 2026</b> → <span class="go">go-live 30 Oct 2026</span>)<br>
+    Scope = <b>MVP</b> (spec Phase 1 + lite Partners area) ｜ member system, charity, culture, EN content <b>from Nov</b>
+  </div>
+</header>
+
+<div class="strip">
+  <div class="card" style="--c:var(--s1)">
+    <div class="ph">SPRINT 1</div>
+    <div class="nm">Foundations</div>
+    <div class="du"><b>1–13 Sep</b> · 2 wks ｜ design, scaffold</div>
+  </div>
+  <div class="card" style="--c:var(--s2)">
+    <div class="ph">SPRINT 2</div>
+    <div class="nm">Core build</div>
+    <div class="du"><b>14 Sep–4 Oct</b> · 3 wks ｜ site, admin</div>
+  </div>
+  <div class="card" style="--c:var(--s3)">
+    <div class="ph">SPRINT 3</div>
+    <div class="nm">Content &amp; integration</div>
+    <div class="du"><b>5–25 Oct</b> · 3 wks ｜ schedule, content</div>
+  </div>
+  <div class="card" style="--c:var(--s4)">
+    <div class="ph">SPRINT 4</div>
+    <div class="nm">UAT &amp; launch</div>
+    <div class="du"><b>26–30 Oct</b> · 1 wk ｜ UAT, deploy</div>
+  </div>
+  <div class="card post" style="--c:var(--post)">
+    <div class="ph">POST-LAUNCH · PHASE 2</div>
+    <div class="nm">Member system &amp; content</div>
+    <div class="du"><b>From Nov</b> ｜ member + LINE, charity, culture, EN</div>
+  </div>
+</div>
+
+<div class="gantt" id="gantt"></div>
+
+<footer>
+  <div class="legend">
+    <span style="--c:var(--s1)"><i></i>Sprint 1</span>
+    <span style="--c:var(--s2)"><i></i>Sprint 2</span>
+    <span style="--c:var(--s3)"><i></i>Sprint 3</span>
+    <span style="--c:var(--s4)"><i></i>Sprint 4</span>
+    <span style="--c:var(--post)"><i class="d"></i>Post-launch</span>
+    <span><i class="dia"></i>Milestone</span>
+    <span><i class="hol"></i>Holiday week</span>
+  </div>
+  <div class="note">
+    The 9-week plan assumes <b>1 designer, 2 front-end, 1 back-end, 1 content/PM in parallel</b>, with club content delivered before M2; Shopify still handles commerce.<br>
+    Holiday weeks <b>25 Sep</b> (Mid-Autumn) and <b>9–10 Oct</b> (National Day) are buffered. Top risks: content production, third-party access (LINE / GA4 / domain).
+  </div>
+</footer>
+
+<script>
+const COLS = 10;                          // W1..W9 + 上線後
+const pct = c => (c - 1) / COLS * 100;
+const wid = (a,b) => (b - a + 1) / COLS * 100;
+
+const WEEKS = [
+  ['W1','1 Sep'],['W2','7 Sep'],['W3','14 Sep'],['W4','21 Sep'],['W5','28 Sep'],
+  ['W6','5 Oct'],['W7','12 Oct'],['W8','19 Oct'],['W9','26 Oct'],['—','from Nov']
+];
+const HOLIDAY = [4, 6];                   // W4 中秋、W6 國慶連假
+
+const SPRINTS = [
+  { c:'var(--s1)', t:'SPRINT 1', a:1, b:2 },
+  { c:'var(--s2)', t:'SPRINT 2', a:3, b:5 },
+  { c:'var(--s3)', t:'SPRINT 3', a:6, b:8 },
+  { c:'var(--s4)', t:'SPRINT 4', a:9, b:9 },
+  { c:'var(--post)', t:'POST-LAUNCH', a:10, b:10 },
+];
+
+const GROUPS = [
+  { c:'var(--s1)', name:'A · Design & front-end scaffold', rows:[
+      ['視覺設計定稿（首頁＋內頁樣板、設計系統）','Visual design sign-off &amp; design system',1,2],
+      ['前端框架、切版基礎、多語系與 URL 結構','Front-end scaffold, i18n &amp; URL structure',2,3],
+  ]},
+  { c:'var(--s2)', name:'B · Public site build', rows:[
+      ['首頁、02 關於磐石、03.1 一線隊（基本）','Homepage, 02 About, 03.1 First Team (basic)',2,4],
+      ['04 學院、05 課程（5.1／5.2）、06 女足頁','04 Academy, 05 Programs, 06 Women’s Football',3,5],
+      ['07 新聞中心、10 表單中心（9 類）、12 FAQ','07 Newsroom, 10 Forms hub (9), 12 FAQ',4,6],
+      ['13 賽事行事曆（D1／U15／U14／U12、.ics）','13 Schedule: D1 / U15 / U14 / U12, .ics',5,7],
+      ['09 合作夥伴與贊助（精簡版＋提案下載）','09 Partners &amp; Sponsors (lite + deck download)',6,7],
+  ]},
+  { c:'var(--s2)', name:'C · Admin build', rows:[
+      ['後台框架、權限、媒體庫','Admin scaffold, permissions, media library',2,4],
+      ['內容／新聞／球隊球員教練／課程與報名','CMS: news, teams, players, registrations',4,6],
+      ['行事曆總覽、詢問收件匣、SEO 基礎','Master calendar, enquiry inbox, SEO basics',6,7],
+  ]},
+  { c:'var(--s3)', name:'D · Content, QA & launch', rows:[
+      ['內容匯入與素材整備（俱樂部提供）','Content migration &amp; asset preparation',5,8],
+      ['整合測試、效能／SEO 檢查、修正','Integration testing, performance &amp; SEO QA',7,8],
+      ['UAT 驗收與修正','UAT and fixes',8,9],
+      ['正式部署、網域切換、監測設定','Production deploy, DNS cutover, monitoring',9,9],
+  ]},
+  { c:'var(--post)', name:'E · Post-launch (from Nov)', rows:[
+      ['會員系統＋LINE、慈善與文化單元、英文內容','Member system + LINE, charity, culture, EN',10,10,'dash'],
+  ]},
+];
+
+const MS = [
+  [2, 'M1','11 Sep','設計定稿與框架就位','Design sign-off &amp; scaffold','var(--s1)'],
+  [5, 'M2','2 Oct','前台核心頁＋後台可用（內部預覽）','Core pages &amp; admin ready (preview)','var(--s2)'],
+  [7, 'M3','16 Oct','功能凍結、內容匯入完成','Feature freeze, content loaded','var(--s3)'],
+  [9, 'M4','30 Oct','正式上線 Go-live','Public launch (go-live)','var(--s4)'],
+];
+
+const gridCells = () => {
+  let s = '<div class="grid" style="grid-template-columns:repeat(' + COLS + ',1fr)">';
+  for (let i = 1; i <= COLS; i++)
+    s += '<i class="' + (i === COLS ? 'post' : (HOLIDAY.includes(i) ? 'hol' : '')) + '"></i>';
+  return s + '</div>';
+};
+
+let h = '<div class="row head"><div class="lbl" style="font-weight:800;font-size:7.6pt">Workstream</div>'
+      + '<div class="track">' + gridCells()
+      + '<div class="wk" style="grid-template-columns:repeat(' + COLS + ',1fr)">';
+WEEKS.forEach(w => { h += '<s><b>' + w[0] + '</b>' + w[1] + '</s>'; });
+h += '</div><div class="sbar">';
+SPRINTS.forEach(s => {
+  h += '<b style="left:' + pct(s.a) + '%;width:' + wid(s.a,s.b) + '%;background:' + s.c
+     + (s.c === 'var(--post)' ? ';opacity:.6' : '') + '">' + s.t + '</b>';
+});
+h += '</div></div></div>';
+
+GROUPS.forEach(g => {
+  h += '<div class="row grp" style="--c:' + g.c + '"><div class="lbl">' + g.name
+     + '</div><div class="track">' + gridCells() + '</div></div>';
+  g.rows.forEach(r => {
+    const [zh, en, a, b, st] = r;
+    h += '<div class="row" style="--c:' + g.c + '"><div class="lbl sub">' + en
+       + '</div><div class="track">' + gridCells()
+       + '<div class="bar ' + (st || '') + '" style="left:' + pct(a) + '%;width:' + wid(a,b) + '%"></div>'
+       + '</div></div>';
+  });
+});
+
+h += '<div class="msrow"><div class="lbl">Key milestones</div>'
+   + '<div class="track">' + gridCells();
+MS.forEach(m => {
+  const [c, id, date, zh, en, col] = m;
+  h += '<div class="ms" style="--c:' + col + ';left:' + (pct(c) + wid(c,c)) + '%"><div class="stem"></div>'
+     + '<div class="dia"></div><div class="id">' + id + ' · ' + date + ' (Fri)</div>'
+     + '<div class="tx">' + en + '</div></div>';
+});
+h += '</div></div>';
+
+document.getElementById('gantt').innerHTML = h;
+</script>
+</body>
+</html>
