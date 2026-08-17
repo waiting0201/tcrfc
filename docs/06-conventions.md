@@ -1,6 +1,7 @@
 # 06 — 慣例與術語
 
 > 執行層文件。術語表源自規劃書；設計 tokens 源自 [`../mockup/index.html`](../mockup/index.html)。
+> **品牌色的唯一真實來源是 [`../reference/TCR_logo_CMYK.ai`](../reference/TCR_logo_CMYK.ai)**，衍生資產與說明見 [`../brand/README.md`](../brand/README.md)。
 
 ---
 
@@ -31,19 +32,34 @@
 取自 mockup 的 `:root`。實作網站時**直接沿用**，不要另起一套。
 
 ### 色彩
+
+**兩個品牌基準色**直接來自 logo 主檔，不得自行調整：
+
+| | 印刷 | 網頁 |
+|---|---|---|
+| 品牌桃紅 | PANTONE 225 C／`C5 M90 Y0 K0` | `#E0218A` |
+| 品牌黑 | `C0 M0 Y0 K100` | `#231916`（**暖調近黑，不是深藍**） |
+
+其餘 token 皆由上述兩色推導：
+
 | Token | 值 | 用途 |
 |---|---|---|
-| `--brand` | `#FF007F` | 品牌桃紅正色：色塊填色、深底文字、大型標題 |
-| `--brand-ink` | `#D70292` | **白底小字專用**（4.87:1 通過 AA） |
-| `--brand-bright` | `#FF57B0` | hover 提亮 |
-| `--brand-deep` | `#C40062` | 實心按鈕 hover |
-| `--ink` / `--ink-2` | `#0E1428` / `#1A2138` | 深色底 |
-| `--navy-trim` / `--navy-trim-dk` | `#0E1428` / `#26314F` | 切角三角（淺底／深底） |
-| `--paper` / `--paper-2` / `--paper-3` | `#FFFFFF` / `#F5F5F5` / `#F8F9FA` | 淺色面 |
-| `--heading` / `--text` / `--muted` | `#0E1428` / `#333333` / `#666666` | 文字階層 |
+| `--brand` | `#E0218A` | 品牌桃紅正色：色塊填色、深底文字、**大型**標題（≥18.66px bold 或 ≥24px） |
+| `--brand-aa` | `#D61E83` | **AA 安全版 4.80:1** — 白底小字，或承載白色小字的實心底 |
+| `--brand-bright` | `#E85BA9` | hover 提亮（深底上 5.32:1） |
+| `--brand-deep` | `#AE186B` | 實心按鈕 hover（白字 6.68:1） |
+| `--ink` / `--ink-2` | `#231916` / `#31231F` | 深色底 |
+| `--ink-trim` / `--ink-trim-dk` | `#231916` / `#4C3630` | 切角三角（淺底／深底） |
+| `--paper` / `--paper-2` / `--paper-3` | `#FFFFFF` / `#F5F5F5` / `#F8F7F6` | 淺色面 |
+| `--heading` / `--text` / `--muted` | `#231916` / `#333333` / `#666666` | 文字階層 |
+| `--muted-dark` | `#BFB4AF` | 深底上的次要文字（8.48:1） |
 | `--rule` / `--ghost` | `#E0E0E0` / `#CCCCCC` | 分隔線與裝飾數字 |
 
-> ⚠️ **`--brand` 桃紅在白底放小字對比不足**，白底小字一律用 `--brand-ink`。這是無障礙 AA 的硬性要求（規劃書 §8）。
+> ⚠️ **`--brand` 對白底只有 4.42:1**，通過大字 AA 但未達小字的 4.5:1。
+> 兩種情境一律改用 `--brand-aa`：①白底粉色小字 ②粉底白色小字（按鈕、標籤、徽章）。
+> 兩色肉眼幾乎無差別，但這是無障礙 AA 的硬性要求（規劃書 §8）。
+
+> 舊 token `--brand-ink`／`--navy-trim`／`--navy-trim-dk` 已分別更名為 `--brand-aa`／`--ink-trim`／`--ink-trim-dk`，見 [`08-roadmap-decisions.md`](08-roadmap-decisions.md) §2。
 
 ### 字型與尺度
 - 字體：`Montserrat`（英數）+ `Noto Sans TC`（中文），fallback `PingFang TC`
@@ -53,8 +69,8 @@
 
 ### 三個標誌性視覺手法（沿用自 mockup，勿隨意替換）
 1. **Programme pagination** — 每個區塊帶超大幽靈數字，像賽事節目單的頁碼
-2. **Kit-trim cut** — 卡片切角，後方襯深藍三角
-3. **Floodlight ink** — 深色帶用單一平塗深藍（`#0E1428` / `#1A2138`），**無漸層、無材質**
+2. **Kit-trim cut** — 卡片切角，後方襯品牌黑三角
+3. **Floodlight ink** — 深色帶用單一平塗品牌黑（`#231916` / `#31231F`），**無漸層、無材質**
 
 > 形狀語言為**硬邊直角**（rect ≫ roundRect），零漸層——這是品牌簡報的既定調性。
 
@@ -91,6 +107,9 @@ news-trencin.jpg     partners/04-joma.png    home-hero.jpg
 慈善：{YYYY-MM-DD}_{團體名}  → 2026-04-02_台中家扶中心
 夥伴／贊助：{公司名}
 ```
+
+**品牌資產**：不套用上述規則，一律沿用 [`../brand/`](../brand/) 既有檔名（`tcrfc-{組合}-{色}.svg`、`favicon.*`、`icon-*.png`、`og-image.png`）。
+標誌檔案**不得手工修改**，`.ai` 更新時整批重產。
 
 **專案文件**：`docs/{兩位數序號}-{kebab-case}.md`
 

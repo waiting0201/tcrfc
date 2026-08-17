@@ -15,6 +15,7 @@
 |---|---|
 | 功能規劃 | ✅ 完成（規劃書 v1.8，中英雙版） |
 | 視覺方向 | ✅ 單頁 mockup 已完成並部署（Cloudflare Pages 專案 `tcrfc-mockup`，全站 `noindex`） |
+| 品牌資產 | ✅ [`brand/`](brand/) 已由 logo 主檔萃取完成；design tokens 已校正為 `.ai` 品牌色 |
 | 技術選型 | ❌ **未定案**（規劃書第 10 節明確排除在範圍外） |
 | 網站本體 | ❌ 尚未開發 |
 | 內容 | 🔄 **收件中** — 客戶依 [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) 的結構放入既有檔案 |
@@ -32,7 +33,8 @@
 | [`output/`](output/) | 規劃書、開發里程碑（中英 × md/html/pdf） | **交付物，唯一真實來源** |
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
 | [`mockup/`](mockup/) | 單頁視覺 mockup（`index.html` 1330 行，內含 design tokens）與示意圖 | 視覺基準 |
-| [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo、參考網站截圖 | 客戶提供素材 |
+| [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
+| [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖 | 客戶提供素材 |
 | [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) | 給客戶放既有檔案的分類結構（83 個資料夾，對應 13 單元） | 內容收件 |
 | `.wrangler/` | Cloudflare Pages 部署快取 | 工具產生，勿手動改 |
 
@@ -58,6 +60,8 @@
 
 - **隊別代號**：`D1`（＝ First Team 一線隊，全站僅一支）／`U15`／`U14`／`U12`。
   `D1` 是代號，對外顯示一律寫 `First Team / 一線隊`。女足**不建立**球隊資料。
+- **品牌色**：桃紅 `#E0218A`（PANTONE 225 C／C5 M90 Y0 K0）＋ 品牌黑 `#231916`（K100，**暖調近黑，不是深藍**）。
+  唯一來源是 [`reference/TCR_logo_CMYK.ai`](reference/TCR_logo_CMYK.ai)。小字情境改用 AA 安全版 `#D61E83`。
 - **雙語**：繁中（預設）＋英文，URL 以 `/zh/`、`/en/` 區隔，架構須預留第三語系。
 - **不做的事**：站內電商、金流、購物車、訂單、庫存（全數導向 Shopify）；票務；女足名單與賽程（導向女足官網）。
 - **賽事資料全部人工維護**，不串接外部 API，提供 CSV 批次匯入。
