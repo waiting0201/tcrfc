@@ -6,7 +6,7 @@
 
 ```bash
 node site/build.mjs      # 建置 → site/dist/
-npx wrangler pages deploy site/dist --project-name tcrfc-site
+npx wrangler pages deploy site/dist --project-name tcrfc-mockup --branch main
 ```
 
 ## 結構

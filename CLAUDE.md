@@ -14,7 +14,7 @@
 | 項目 | 狀態 |
 |---|---|
 | 功能規劃 | ✅ 完成（規劃書 v1.8，中英雙版） |
-| 視覺方向 | ✅ 單頁 mockup 已完成並部署（Cloudflare Pages 專案 `tcrfc-mockup`，全站 `noindex`） |
+| 視覺方向 | ✅ 單頁 mockup 已完成（Cloudflare Pages 專案 `tcrfc-mockup` 目前部署的是 `site/dist` 74 頁前台，全站 `noindex`） |
 | 品牌資產 | ✅ [`brand/`](brand/) 已由 logo 主檔萃取完成；design tokens 已校正為 `.ai` 品牌色 |
 | 技術選型 | ❌ **未定案**（規劃書第 10 節明確排除在範圍外） |
 | 網站本體 | ❌ 尚未開發 |
