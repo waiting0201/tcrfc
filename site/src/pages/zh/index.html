@@ -8,8 +8,19 @@
 }
 -->
 <section class="hero" id="top" aria-label="首頁主視覺">
-  <div class="hero__media">
-    <img src="{{ROOT}}/assets/img/home-hero.jpg" alt="台中磐石足球俱樂部一線隊球員賽前於場邊圍圈激勵士氣，場邊懸掛桃紅色 TCRFC 布條" width="1920" height="1280">
+  <div class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" aria-label="首頁主視覺輪播，共 3 張">
+    <ul class="hero__slides">
+      <li class="hero__slide is-active" role="group" aria-roledescription="slide" aria-label="第 1 張，共 3 張">
+        <img src="{{ROOT}}/assets/img/hero-01.jpg" alt="台中磐石球員於夜間賽事中振臂吶喊慶祝，場邊看板可見桃紅色 TCRFC 字樣" width="2400" height="1600" loading="eager" fetchpriority="high" style="object-position:58% 35%">
+      </li>
+      <li class="hero__slide" aria-hidden="true" role="group" aria-roledescription="slide" aria-label="第 2 張，共 3 張">
+        <img src="{{ROOT}}/assets/img/hero-02.jpg" alt="台中磐石5號球員於夜間賽事中揮腳觸球，身後可見場邊看台的球員與觀眾" width="2400" height="1600" loading="lazy" style="object-position:56% 30%">
+      </li>
+      <li class="hero__slide" aria-hidden="true" role="group" aria-roledescription="slide" aria-label="第 3 張，共 3 張">
+        <img src="{{ROOT}}/assets/img/hero-03.jpg" alt="台中磐石一線隊球員賽前肩併肩圍成一圈，互相激勵士氣" width="2400" height="1600" loading="lazy" style="object-position:55% 42%">
+      </li>
+    </ul>
+    <p class="visually-hidden" id="hero-slide-status" aria-live="off" aria-atomic="true">目前顯示第 1 張，共 3 張</p>
   </div>
   <div class="hero__scrim" aria-hidden="true"></div>
   <span class="ghost-num" aria-hidden="true">01</span>
@@ -23,6 +34,19 @@
           <div class="hero__ctas">
             <a class="btn btn--primary" href="{{ROOT}}/zh/charity/">加入球隊</a>
             <a class="btn btn--light" href="{{ROOT}}/zh/culture/">認識磐石</a>
+          </div>
+          <div class="hero__slider-nav">
+            <button type="button" class="hero__arrow hero__arrow--prev" data-hero-prev aria-controls="hero-slider" aria-label="上一張主視覺圖片">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+            </button>
+            <div class="hero__dots" role="tablist" aria-label="選擇主視覺圖片">
+              <button type="button" class="hero__dot is-active" role="tab" aria-selected="true" aria-controls="hero-slider" aria-label="第 1 張，共 3 張" data-hero-goto="0"></button>
+              <button type="button" class="hero__dot" role="tab" aria-selected="false" aria-controls="hero-slider" aria-label="第 2 張，共 3 張" data-hero-goto="1"></button>
+              <button type="button" class="hero__dot" role="tab" aria-selected="false" aria-controls="hero-slider" aria-label="第 3 張，共 3 張" data-hero-goto="2"></button>
+            </div>
+            <button type="button" class="hero__arrow hero__arrow--next" data-hero-next aria-controls="hero-slider" aria-label="下一張主視覺圖片">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+            </button>
           </div>
         </div>
         <div class="hero__news">

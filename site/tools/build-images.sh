@@ -29,7 +29,12 @@ conv() {
 }
 
 echo "▸ 首頁主視覺與導覽用圖"
-conv "$IN/01_HOME_首頁★/01_Hero主視覺（橫向大圖或影片，長邊2400px以上）/260308_1938_TCRFC_MS103557.jpg" "$OUT/home-hero.jpg" 2400
+HERO="$IN/01_HOME_首頁★/01_Hero主視覺（橫向大圖或影片，長邊2400px以上）"
+# 首頁 hero 輪播（規劃書 §3.1：最多 5 則）。客戶放了 6 張，其中 3 張為直式、
+# 在寬版 hero 會裁切過度，因此只取橫式三張。
+conv "$HERO/260308_1938_TCRFC_MS103557.jpg" "$OUT/hero-01.jpg" 2400
+conv "$HERO/260308_1909_TCRFC_MS103383.jpg" "$OUT/hero-02.jpg" 2400
+conv "$HERO/260308_1931_TCRFC_MS103465.jpg" "$OUT/hero-03.jpg" 2400
 i=0
 for f in "$IN/00_品牌與共用素材★/03_通用照片（球場、訓練、觀眾、空拍）"/*.jpg; do
   case $i in

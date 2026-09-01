@@ -348,8 +348,70 @@ input{ font:inherit; }
   display:flex; align-items:flex-end;
   background:var(--ink);
 }
-.hero__media{ position:absolute; inset:0; z-index:0; }
-.hero__media img{ width:100%; height:100%; object-fit:cover; object-position:58% 35%; }
+.hero__media{ position:absolute; inset:0; z-index:0; overflow:hidden; background:var(--ink); }
+
+/* Slides — stacked absolutely, only .is-active is visible. .hero__slide--front is a
+   transient class the JS adds to the INCOMING slide during a transition, lifting it
+   above the outgoing slide (which stays .is-active/opaque underneath). The dismantle
+   tiles on top paint crops of the outgoing photo; as they fade away they reveal the
+   incoming slide now sitting just beneath them, not the outgoing one. */
+.hero__slides{ position:absolute; inset:0; margin:0; padding:0; list-style:none; }
+.hero__slide{ position:absolute; inset:0; opacity:0; z-index:1; }
+.hero__slide.is-active{ opacity:1; z-index:2; }
+.hero__slide.hero__slide--front{ z-index:3; }
+.hero__slide img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+/* "方塊拆解" transition — a same-image mosaic overlay, built by JS only for the
+   duration of a slide change (see site.js). Each .hero__tile paints a crop of the
+   OUTGOING photo via background-position (one shared <img> request, no per-tile
+   fetch), sized/positioned in JS to match that photo's real object-fit:cover
+   geometry so the mosaic sits pixel-perfect over the real image beneath it. The
+   corner clip echoes the site's kit-trim cut at tile scale. */
+.hero__tiles{
+  position:absolute; inset:0; z-index:4;
+  display:grid;
+  grid-template-columns:repeat(var(--tile-cols), 1fr);
+  grid-template-rows:repeat(var(--tile-rows), 1fr);
+  pointer-events:none;
+}
+.hero__tile{
+  position:relative;
+  background-repeat:no-repeat;
+  opacity:1;
+  transform:scale(1) translate(0,0);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%);
+  transition:opacity .52s var(--ease), transform .52s var(--ease);
+  will-change:opacity, transform;
+}
+.hero__tiles.is-out .hero__tile{
+  opacity:0;
+  transform:scale(.86) translate(var(--tx,0), var(--ty,0));
+}
+
+/* Slider controls — square kit-trim buttons + bar-style dots (no circles, keeps
+   the site's hard-edge language) sitting under the hero CTAs. */
+.hero__slider-nav{ display:flex; align-items:center; gap:.9rem; margin-top:1.9rem; }
+.hero__arrow{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:38px; height:38px; flex:0 0 auto; padding:0;
+  background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.28);
+  cursor:pointer;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%);
+  transition:background var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.hero__arrow svg{ width:18px; height:18px; }
+.hero__arrow:hover{ background:rgba(255,255,255,.22); border-color:rgba(255,255,255,.5); }
+.hero__arrow:focus-visible{ outline:2px solid var(--brand-bright); outline-offset:2px; }
+.hero__dots{ display:flex; align-items:center; gap:.5rem; }
+.hero__dot{
+  width:26px; height:4px; padding:0; border:0; cursor:pointer;
+  background:rgba(255,255,255,.3);
+  transition:background var(--dur-fast) var(--ease), width var(--dur-fast) var(--ease);
+}
+.hero__dot:hover{ background:rgba(255,255,255,.55); }
+.hero__dot.is-active{ background:var(--brand); width:38px; }
+.hero__dot:focus-visible{ outline:2px solid var(--brand-bright); outline-offset:3px; }
+
 .hero__scrim{
   position:absolute; inset:0;
   background:
@@ -408,6 +470,8 @@ input{ font:inherit; }
   .hero-card{ flex-direction:column; }
   .hero-card__media{ width:100%; aspect-ratio:16/9; }
   .hero-card__body{ padding:.9rem 1rem 1.1rem; }
+  .hero__slider-nav{ margin-top:1.4rem; gap:.7rem; }
+  .hero__arrow{ width:34px; height:34px; }
 }
 
 /* ============================================================
