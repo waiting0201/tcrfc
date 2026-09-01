@@ -126,10 +126,6 @@
       </div>
     </div>
 
-    <div class="member-note">
-      <p><strong>與 Shopify 不做單一登入（SSO）</strong>：會員身分不會自動同步到官方商店，會員優惠一律以折扣碼方式發送。</p>
-    </div>
-
     <h2 class="section-title" style="margin-top:4rem;">會員三種層級</h2>
     <div class="grid grid--3" style="margin-top:1.5rem;">
       <div class="tier-card">
@@ -147,16 +143,40 @@
     </div>
 
     <h2 class="section-title" style="margin-top:4rem;">登入後可以做什麼</h2>
-    <ul class="member-feature-list">
-      <li>我的報名</li>
-      <li>我的捐款紀錄</li>
-      <li>我的學員（一位家長可綁定多名）</li>
-      <li>球迷會專區（含 QR Code 會員卡）</li>
-      <li>我的行事曆（標記「我要參加」的賽事）</li>
-      <li>通知中心與訂閱管理（Email／LINE／站內可分別設定）</li>
-      <li>第三方帳號綁定管理（LINE／Google）</li>
-      <li>帳號刪除申請</li>
-    </ul>
+    <div class="member-features">
+      <div class="feature-card">
+        <p class="feature-card__title">我的報名</p>
+        <p class="feature-card__desc">課程、營隊、試訓與活動的報名紀錄與狀態，並可下載報名確認單。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">我的捐款</p>
+        <p class="feature-card__desc">歷次捐款紀錄與感謝訊息。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">我的學員</p>
+        <p class="feature-card__desc">一位家長可綁定多名學員，報名時一鍵帶入資料。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">球迷會專區</p>
+        <p class="feature-card__desc">會員卡（含會員編號與 QR Code）、福利清單與專屬活動報名。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">我的行事曆</p>
+        <p class="feature-card__desc">已報名課程與標記參加的賽事集中檢視，可下載 .ics 或訂閱。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">通知中心</p>
+        <p class="feature-card__desc">報名狀態變更、活動提醒與俱樂部公告。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">訂閱管理</p>
+        <p class="feature-card__desc">各類通知可分別設定要走 Email、LINE 或站內。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">帳號管理</p>
+        <p class="feature-card__desc">修改密碼、第三方帳號綁定（LINE／Google）、刪除帳號。</p>
+      </div>
+    </div>
     
   </div>
 </section>
@@ -178,19 +198,24 @@
 
 .member-alt-login{ margin-top:1.25rem; }
 
-.member-note{
-  max-width:72ch; margin-top:2.5rem; padding:1.25rem 1.5rem; background:var(--paper-2);
-  border-left:4px solid var(--brand-aa); font-size:.88rem; line-height:1.75; color:var(--text);
-}
-
 .tier-card{ background:var(--paper-2); border:1px solid var(--rule); padding:1.5rem; }
 .tier-card__title{ font-weight:800; color:var(--heading); margin-bottom:.5rem; }
 .tier-card__desc{ font-size:.85rem; color:var(--text); line-height:1.6; }
 .tier-card__desc a{ color:var(--brand-aa); text-decoration:underline; }
 
-.member-feature-list{ list-style:disc; padding-left:1.3rem; columns:2; column-gap:2.5rem; max-width:640px; }
-.member-feature-list li{ font-size:.92rem; line-height:2; color:var(--text); break-inside:avoid; }
-@media (max-width:560px){ .member-feature-list{ columns:1; } }
+/* 功能卡：與上方 .tier-card 同一家族，但改白底＋頂部品牌色細線，
+   讓「層級」與「功能」兩區有層次差異而不各自為政。
+   原本是 640px 寬的雙欄項目符號清單，在 1168px 容器裡只佔左半、右側開天窗。 */
+.member-features{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:1.25rem; margin-top:1.5rem;
+}
+.feature-card{
+  background:var(--paper); border:1px solid var(--rule); border-top:3px solid var(--brand);
+  padding:1.4rem 1.5rem 1.5rem;
+}
+.feature-card__title{ font-weight:800; color:var(--heading); margin-bottom:.5rem; font-size:.98rem; }
+.feature-card__desc{ font-size:.85rem; line-height:1.7; color:var(--text); text-wrap:pretty; }
 
 /* channel-card／form 元件（同 charity/index.html） */
 .channel-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; margin-bottom:1rem; }
