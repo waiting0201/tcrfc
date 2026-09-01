@@ -137,7 +137,7 @@
   var COLS = 6, ROWS = 4;
   var TILE_DURATION = 520;   // ms — matches the CSS transition on .hero__tile
   var STAGGER_SPAN = 420;    // ms — spread of transition-delay across the grid
-  var AUTOPLAY_MS = 6500;
+  var AUTOPLAY_MS = 4400;
 
   var current = 0;
   var isAnimating = false;
