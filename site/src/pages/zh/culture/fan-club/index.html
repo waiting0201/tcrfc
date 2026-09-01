@@ -1,0 +1,150 @@
+<!--meta
+{
+  "title": "磐石球迷會 Fan Club｜磐石文化｜台中磐石足球俱樂部",
+  "description": "加入台中磐石球迷會：入會表單、會員福利分級對照，以及球迷活動報名與回顧。",
+  "nav": "culture",
+  "unit": "8.2"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/culture/">磐石文化</a></li>
+      <li aria-current="page">磐石球迷會</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="{{ROOT}}/assets/img/fanclub/fanclub-event-04.jpg" alt="台中磐石球員、學員與球迷於球場合影留念" width="1600" height="900">
+  <div class="container">
+    <p class="page-hero__eyebrow">8.2 Fan Club</p>
+    <h1>磐石球迷會<span class="en">Fan Club</span></h1>
+    <p class="page-hero__lede">與台中磐石一起在場邊吶喊。加入球迷會，享有會員福利並優先參與球迷活動。</p>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.2 — Join the Fan Club 入會表單 -->
+<section class="band" id="join" aria-labelledby="join-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">JOIN THE FAN CLUB</p>
+        <h2 class="section-title" id="join-title">加入球迷會</h2>
+      </div>
+    </div>
+
+    <form class="form-grid" onsubmit="return false;" style="margin-top:1.75rem">
+      <div class="form-field">
+        <label for="fc-name">姓名</label>
+        <input type="text" id="fc-name" name="name" autocomplete="name" required>
+      </div>
+      <div class="form-field">
+        <label for="fc-email">Email</label>
+        <input type="email" id="fc-email" name="email" autocomplete="email" required>
+      </div>
+      <div class="form-field">
+        <label for="fc-phone">聯絡電話</label>
+        <input type="tel" id="fc-phone" name="phone" autocomplete="tel" required>
+      </div>
+      <div class="form-field">
+        <label for="fc-plan">方案選擇</label>
+        <select id="fc-plan" name="plan" required>
+          <option value="" selected>方案內容準備中，請先留下聯絡資料</option>
+        </select>
+      </div>
+      <div class="form-field form-field--full">
+        <button class="btn btn--primary" type="submit">送出入會申請</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.2 — Fan Benefits 福利分級對照表 -->
+<section class="band grain" id="benefits" aria-labelledby="benefits-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">FAN BENEFITS</p>
+        <h2 class="section-title" id="benefits-title" style="color:#fff">會員福利</h2>
+      </div>
+    </div>
+
+    <div class="table-scroll">
+      <table class="benefit-table">
+        <thead>
+          <tr>
+            <th scope="col">福利項目</th>
+            <th scope="col">方案一</th>
+            <th scope="col">方案二</th>
+            <th scope="col">方案三</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th scope="row">—</th><td colspan="3">福利分級對照表準備中，稍後將於本頁公布。</td></tr>
+        </tbody>
+      </table>
+    </div>
+    
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.2 — Fan Events 活動列表 + 報名 + 回顧 -->
+<section class="band" id="events" aria-labelledby="events-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">FAN EVENTS</p>
+        <h2 class="section-title" id="events-title">球迷活動</h2>
+      </div>
+    </div>
+
+    <div class="grid grid--2">
+      <article class="event-card">
+        
+        <a class="btn btn--dark btn--sm" href="#join">我要報名</a>
+      </article>
+      <article class="event-card">
+        
+        <a class="btn btn--dark btn--sm" href="#join">我要報名</a>
+      </article>
+    </div>
+
+    <h3 style="margin-top:2.5rem;font-size:1.15rem;font-weight:800;color:var(--heading)">活動回顧</h3>
+    <div class="grid grid--4" style="margin-top:1.25rem">
+      <figure class="event-photo">
+        <img src="{{ROOT}}/assets/img/fanclub/fanclub-event-01.jpg" alt="球迷會周邊展示：主場球衣、TCRFC 球帽、背包與造型抱枕" loading="lazy" width="1600" height="1067">
+      </figure>
+      <figure class="event-photo">
+        <img src="{{ROOT}}/assets/img/fanclub/fanclub-event-02.jpg" alt="學院學員身著台中磐石球衣於球場圍網前合影" loading="lazy" width="1600" height="1067">
+      </figure>
+      <figure class="event-photo">
+        <img src="{{ROOT}}/assets/img/fanclub/fanclub-event-03.jpg" alt="三位學員手持桃紅色 TCRFC 加油棒於戶外合影" loading="lazy" width="1600" height="1067">
+      </figure>
+      <figure class="event-photo">
+        <img src="{{ROOT}}/assets/img/fanclub/fanclub-event-04.jpg" alt="球員、學員與球迷於球場大合照" loading="lazy" width="1600" height="1067">
+      </figure>
+    </div>
+    
+  </div>
+</section>
+
+<style>
+/* 表單欄位格線（form-grid）：建議收進共用 CSS，10.x 表單頁都會用到 */
+.form-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.25rem 1.5rem; }
+
+/* 福利對照表（骨架）：建議收進共用 CSS */
+.table-scroll{ overflow-x:auto; margin-top:1.5rem; }
+.benefit-table{ width:100%; min-width:520px; border-collapse:collapse; background:var(--ink); color:#fff; }
+.benefit-table th, .benefit-table td{ padding:.85rem 1.1rem; border:1px solid rgba(255,255,255,.12); font-size:.88rem; text-align:left; }
+.benefit-table thead th{ background:rgba(255,255,255,.06); font-weight:800; }
+.benefit-table td{ color:var(--muted-dark); }
+
+/* 活動卡骨架 */
+.event-card{ background:var(--paper-2); border:1px solid var(--rule); padding:1.5rem; display:flex; flex-direction:column; gap:1rem; }
+.event-card__title{ flex:1; }
+
+.event-photo{ margin:0; aspect-ratio:3/2; overflow:hidden; background:var(--paper-2); }
+.event-photo img{ width:100%; height:100%; object-fit:cover; }
+</style>

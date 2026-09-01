@@ -1,0 +1,210 @@
+<!--meta
+{
+  "title": "International Player Enquiries 國際球員詢問｜Join / Contact｜Taichung Cornerstone RFC",
+  "description": "Interested in playing for Taichung Cornerstone RFC (TCRFC) in Taiwan? Submit your football background, video highlights and visa status. Our International department will get back to you.",
+  "nav": "",
+  "unit": "10.5"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑 Breadcrumb">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁 Home</a></li>
+      <li><a href="{{ROOT}}/zh/join/">加入與聯絡 Join / Contact</a></li>
+      <li aria-current="page">International Player Enquiries</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10.5</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">10.5 International Department</p>
+    <h1 lang="en">International Player Enquiries<span class="zh-sub" lang="zh-Hant">國際球員詢問</span></h1>
+    <p class="page-hero__lede" lang="en">Interested in playing for TCRFC in Taiwan? Tell us about your football background, highlight videos and visa status, and our International department will follow up with you.</p>
+    <p class="page-hero__lede zh-sub-para" lang="zh-Hant">有意加入台中磐石足球俱樂部的國際球員，請填寫以下表單，國際部將盡快與你聯繫。</p>
+  </div>
+</section>
+
+<section class="band form-band" aria-labelledby="form-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="form-title" lang="en">International Player Enquiry Form</h2>
+    <div class="form-layout form-layout--split">
+      <form class="tcrfc-form" action="" method="post" novalidate lang="en">
+        <!-- action left empty: this is a static site. Actual submission (auto-reply, notification email, backend record) is handled by a server or third-party form service. This markup is the front-end field layout and validation scaffold only. -->
+
+        <fieldset>
+          <legend>Player Information <span class="zh-sub-inline" lang="zh-Hant">球員基本資料</span></legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="ip-name">Full Name <span class="zh-sub-inline" lang="zh-Hant">姓名</span><span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="ip-name" name="full_name" required autocomplete="name" aria-describedby="ip-name-error">
+              <p class="field-error" id="ip-name-error" role="alert">Please enter your full name</p>
+            </div>
+            <div class="form-field">
+              <label for="ip-dob">Date of Birth <span class="zh-sub-inline" lang="zh-Hant">出生日期</span><span class="req" aria-hidden="true">*</span></label>
+              <input type="date" id="ip-dob" name="dob" required aria-describedby="ip-dob-error">
+              <p class="field-error" id="ip-dob-error" role="alert">Please enter your date of birth</p>
+            </div>
+            <div class="form-field">
+              <label for="ip-nationality">Nationality <span class="zh-sub-inline" lang="zh-Hant">國籍</span><span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="ip-nationality" name="nationality" required autocomplete="country-name" aria-describedby="ip-nationality-error">
+              <p class="field-error" id="ip-nationality-error" role="alert">Please enter your nationality</p>
+            </div>
+            <div class="form-field">
+              <label for="ip-passport">Passport Number <span class="zh-sub-inline" lang="zh-Hant">護照號碼（選填）</span></label>
+              <input type="text" id="ip-passport" name="passport_number" autocomplete="off" aria-describedby="ip-passport-hint">
+              <p class="field-hint" id="ip-passport-hint">Optional at enquiry stage; may be requested later if we proceed with a trial or contract.</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Football Background <span class="zh-sub-inline" lang="zh-Hant">足球背景</span></legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="ip-position">Position <span class="zh-sub-inline" lang="zh-Hant">場上位置</span><span class="req" aria-hidden="true">*</span></label>
+              <select id="ip-position" name="position" required aria-describedby="ip-position-error">
+                <option value="">Select</option>
+                <option value="gk">Goalkeeper (GK)</option>
+                <option value="cb">Centre Back (CB)</option>
+                <option value="fb">Full Back (FB)</option>
+                <option value="dm">Defensive Midfielder (DM)</option>
+                <option value="cm">Central Midfielder (CM)</option>
+                <option value="wg">Winger (WG)</option>
+                <option value="st">Striker (ST)</option>
+              </select>
+              <p class="field-error" id="ip-position-error" role="alert">Please select your position</p>
+            </div>
+            <div class="form-field">
+              <label for="ip-club">Current Club / Team</label>
+              <input type="text" id="ip-club" name="current_club" autocomplete="off">
+            </div>
+            <div class="form-field form-field--full">
+              <label for="ip-level">Playing Level / League</label>
+              <input type="text" id="ip-level" name="playing_level" placeholder="e.g. semi-professional, university league, national youth team">
+            </div>
+            <div class="form-field form-field--full">
+              <label for="ip-experience">Career Summary <span class="zh-sub-inline" lang="zh-Hant">足球經歷簡述</span><span class="req" aria-hidden="true">*</span></label>
+              <textarea id="ip-experience" name="career_summary" required aria-describedby="ip-experience-hint ip-experience-error"></textarea>
+              <p class="field-hint" id="ip-experience-hint">Clubs, leagues, honours or representative caps — a brief summary is enough.</p>
+              <p class="field-error" id="ip-experience-error" role="alert">Please summarise your football career</p>
+            </div>
+            <div class="form-field form-field--full">
+              <label for="ip-video">Video Highlight Link <span class="zh-sub-inline" lang="zh-Hant">影片連結</span><span class="req" aria-hidden="true">*</span></label>
+              <input type="url" id="ip-video" name="video_url" required placeholder="https://" aria-describedby="ip-video-hint ip-video-error">
+              <p class="field-hint" id="ip-video-hint">A publicly viewable link (YouTube, cloud drive, etc.) speeds up our evaluation.</p>
+              <p class="field-error" id="ip-video-error" role="alert">Please provide a video link</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Visa &amp; Representation <span class="zh-sub-inline" lang="zh-Hant">簽證與經紀</span></legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="ip-visa">Current Visa Status <span class="zh-sub-inline" lang="zh-Hant">簽證狀態</span><span class="req" aria-hidden="true">*</span></label>
+              <select id="ip-visa" name="visa_status" required aria-describedby="ip-visa-error">
+                <option value="">Select</option>
+                <option value="not_in_taiwan">Not currently in Taiwan</option>
+                <option value="arc">Holds ARC / resident visa in Taiwan</option>
+                <option value="needs_sponsorship">Would need sponsorship / work permit</option>
+                <option value="other">Other</option>
+              </select>
+              <p class="field-error" id="ip-visa-error" role="alert">Please select your visa status</p>
+            </div>
+            <div class="form-field">
+              <label for="ip-agent">Agent / Representative Contact</label>
+              <input type="text" id="ip-agent" name="agent_contact" autocomplete="off" aria-describedby="ip-agent-hint">
+              <p class="field-hint" id="ip-agent-hint">Optional — name and contact of your agent, if represented.</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Contact Information <span class="zh-sub-inline" lang="zh-Hant">聯絡方式</span></legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="ip-email">Email<span class="req" aria-hidden="true">*</span></label>
+              <input type="email" id="ip-email" name="email" required autocomplete="email" aria-describedby="ip-email-error">
+              <p class="field-error" id="ip-email-error" role="alert">Please enter a valid email address</p>
+            </div>
+            <div class="form-field">
+              <label for="ip-phone">Phone / WhatsApp<span class="req" aria-hidden="true">*</span></label>
+              <input type="tel" id="ip-phone" name="phone" required autocomplete="tel" aria-describedby="ip-phone-error">
+              <p class="field-error" id="ip-phone-error" role="alert">Please enter a phone or WhatsApp number</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Uploads <span class="zh-sub-inline" lang="zh-Hant">上傳資料（選填）</span></legend>
+          <div class="form-grid">
+            <div class="form-field form-field--full file-field">
+              <label for="ip-cv-file">CV / Resume</label>
+              <input type="file" id="ip-cv-file" name="cv_file" accept=".pdf,.doc,.docx" aria-describedby="ip-cv-hint">
+              <p class="field-hint" id="ip-cv-hint">PDF, DOC or DOCX.</p>
+            </div>
+            <div class="form-field form-field--full file-field">
+              <label for="ip-doc-file">Additional Documents</label>
+              <input type="file" id="ip-doc-file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="ip-doc-hint">
+              <p class="field-hint" id="ip-doc-hint">Optional — e.g. passport photo page, playing statistics. PDF, JPG or PNG.</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="consent-block">
+          <div class="checkbox-field">
+            <input type="checkbox" id="ip-consent" name="consent" required aria-describedby="ip-consent-error">
+            <label for="ip-consent">I have read and agree to the <a href="{{ROOT}}/zh/privacy/">Privacy Policy</a>, and consent to Taichung Cornerstone RFC collecting the personal data submitted in this form for the purpose of processing this player enquiry. <span class="req" aria-hidden="true">*</span><span class="zh-sub-inline" lang="zh-Hant">本人已閱讀並同意隱私權政策，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次國際球員詢問。</span></label>
+          </div>
+          <p class="field-error" id="ip-consent-error" role="alert">Please check the consent box to continue</p>
+          
+        </div>
+
+        <div class="form-turnstile">
+          <!-- Cloudflare Turnstile anti-bot widget: sitekey pending client's Cloudflare account setup, see https://developers.cloudflare.com/turnstile/ -->
+          <div class="cf-turnstile" data-sitekey="" role="group" aria-label="Bot verification"></div>
+          <p class="field-hint">This form is protected by Cloudflare Turnstile; the widget activates once a sitekey is configured.</p>
+        </div>
+
+        <button class="btn btn--primary btn--block" type="submit">Submit Enquiry</button>
+
+        <div class="form-submit-note">
+          <p><strong>What happens after you submit?</strong> You will receive an automatic confirmation email immediately. Our International department will also receive a notification and follow up with you directly regarding next steps.</p>
+        </div>
+      </form>
+
+      <aside class="form-sidebar">
+        <div class="form-sidebar__sticky">
+        <div class="form-sidebar__card">
+          <p class="form-sidebar__dept">Handled by <span class="zh-sub-inline" lang="zh-Hant">收件單位</span></p>
+          <h2 lang="en">International Department</h2>
+          
+        </div>
+        <div class="form-sidebar__card">
+          <h2 lang="en">Before you apply</h2>
+          <ul lang="en">
+            <li>A recent match or training video link</li>
+            <li>A short summary of your football career</li>
+            <li>An email and phone/WhatsApp we can reach you on</li>
+          </ul>
+        </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<style>
+/* 本頁專用：英文優先版型的中文輔助文字（規劃書行 320 明訂 10.5 英文優先，中文輔助） */
+.zh-sub{
+  display:block; font-size:.42em; font-weight:700; letter-spacing:.08em;
+  color:var(--muted-dark); margin-top:.75rem; text-transform:none;
+}
+.zh-sub-para{ color:rgba(255,255,255,.6); font-size:.88rem; margin-top:.6rem; }
+.zh-sub-inline{
+  display:inline-block; font-weight:500; color:var(--muted); font-size:.85em; margin-left:.5em;
+}
+.pending .zh-sub-inline{ display:inline; margin-left:.4em; }
+</style>

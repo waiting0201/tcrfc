@@ -1,0 +1,23 @@
+[
+  {
+    "role_zh": "青訓教練",
+    "name_zh": "許志傑",
+    "name_en": "",
+    "has_photo": true,
+    "bio_zh": null
+  },
+  {
+    "role_zh": "青訓教練",
+    "name_zh": "黃聖傑",
+    "name_en": "",
+    "has_photo": false,
+    "bio_zh": null
+  },
+  {
+    "role_zh": "青訓總監",
+    "name_zh": "徐翊",
+    "name_en": "",
+    "has_photo": false,
+    "bio_zh": null
+  }
+]

@@ -1,0 +1,175 @@
+<!--meta
+{
+  "title": "合作夥伴洽詢 Partner with TCRFC｜加入與聯絡｜台中磐石足球俱樂部",
+  "description": "與台中磐石足球俱樂部洽談合作。填寫公司資料與合作方向，商務部將盡快與你聯繫討論合作內容。",
+  "nav": "",
+  "unit": "10.6"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/join/">加入與聯絡</a></li>
+      <li aria-current="page">合作夥伴洽詢</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10.6</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">10.6 Partner with TCRFC</p>
+    <h1>合作夥伴洽詢<span class="en">Partner with TCRFC</span></h1>
+    <p class="page-hero__lede">攜手台中磐石，透過職業足球平台觸及在地社群，共創品牌與社區的雙贏價值。填寫以下資料，商務部將盡快與你聯繫討論合作內容。</p>
+  </div>
+</section>
+
+<section class="band form-band" aria-labelledby="form-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="form-title">合作夥伴洽詢表單</h2>
+    <div class="form-layout form-layout--split">
+      <form class="tcrfc-form" action="" method="post" novalidate>
+        <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
+
+        <fieldset>
+          <legend>公司／機構資料</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="pn-company">公司／機構名稱<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="pn-company" name="company_name" required autocomplete="organization" aria-describedby="pn-company-error">
+              <p class="field-error" id="pn-company-error" role="alert">請填寫公司／機構名稱</p>
+            </div>
+            <div class="form-field">
+              <label for="pn-tax-id">統一編號</label>
+              <input type="text" id="pn-tax-id" name="tax_id" inputmode="numeric">
+            </div>
+            <div class="form-field form-field--full">
+              <label for="pn-industry">產業別</label>
+              <select id="pn-industry" name="industry">
+                <option value="">請選擇</option>
+                <option value="brand">品牌／零售</option>
+                <option value="education">教育</option>
+                <option value="tech">科技</option>
+                <option value="media">媒體／娛樂</option>
+                <option value="finance">金融／保險</option>
+                <option value="sports">運動產業</option>
+                <option value="public">政府／公益機構</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>聯絡人資料</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="pn-contact-name">聯絡人姓名<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="pn-contact-name" name="contact_name" required autocomplete="name" aria-describedby="pn-contact-name-error">
+              <p class="field-error" id="pn-contact-name-error" role="alert">請填寫聯絡人姓名</p>
+            </div>
+            <div class="form-field">
+              <label for="pn-contact-title">職稱</label>
+              <input type="text" id="pn-contact-title" name="contact_title" autocomplete="organization-title">
+            </div>
+            <div class="form-field">
+              <label for="pn-phone">聯絡電話<span class="req" aria-hidden="true">*</span></label>
+              <input type="tel" id="pn-phone" name="phone" required autocomplete="tel" aria-describedby="pn-phone-error">
+              <p class="field-error" id="pn-phone-error" role="alert">請填寫聯絡電話</p>
+            </div>
+            <div class="form-field">
+              <label for="pn-email">Email<span class="req" aria-hidden="true">*</span></label>
+              <input type="email" id="pn-email" name="email" required autocomplete="email" aria-describedby="pn-email-error">
+              <p class="field-error" id="pn-email-error" role="alert">請填寫有效的 Email</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>合作方向</legend>
+          <div class="checkbox-group" role="group" aria-labelledby="pn-direction-legend">
+            <p id="pn-direction-legend" class="field-hint" style="margin-top:0">可複選，若不確定也歡迎在下方說明構想。</p>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-dir-strategic" name="direction" value="strategic">
+              <label for="pn-dir-strategic">策略夥伴</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-dir-international" name="direction" value="international">
+              <label for="pn-dir-international">國際夥伴</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-dir-training" name="direction" value="training">
+              <label for="pn-dir-training">訓練夥伴</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-dir-education" name="direction" value="education">
+              <label for="pn-dir-education">教育夥伴</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-dir-brand" name="direction" value="brand">
+              <label for="pn-dir-brand">品牌夥伴</label>
+            </div>
+          </div>
+          <div class="form-grid" style="margin-top:1.5rem">
+            <div class="form-field form-field--full">
+              <label for="pn-idea">合作構想說明<span class="req" aria-hidden="true">*</span></label>
+              <textarea id="pn-idea" name="proposal" required aria-describedby="pn-idea-error"></textarea>
+              <p class="field-error" id="pn-idea-error" role="alert">請說明合作構想</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>上傳資料（選填）</legend>
+          <div class="form-grid">
+            <div class="form-field form-field--full file-field">
+              <label for="pn-doc-file">提案文件</label>
+              <input type="file" id="pn-doc-file" name="doc_file" accept=".pdf,.ppt,.pptx,.doc,.docx" aria-describedby="pn-doc-hint">
+              <p class="field-hint" id="pn-doc-hint">支援 PDF／PPT／PPTX／DOC／DOCX。</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="consent-block">
+          <div class="checkbox-field">
+            <input type="checkbox" id="pn-consent" name="consent" required aria-describedby="pn-consent-error">
+            <label for="pn-consent">我已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之聯絡人個人資料，用於處理本次合作洽詢之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
+          </div>
+          <p class="field-error" id="pn-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
+          
+        </div>
+
+        <div class="form-turnstile">
+          <!-- Cloudflare Turnstile 防機器人驗證：sitekey 待客戶申請 Cloudflare 帳號後設定，見 https://developers.cloudflare.com/turnstile/ -->
+          <div class="cf-turnstile" data-sitekey="" role="group" aria-label="機器人驗證"></div>
+          <p class="field-hint">此表單由 Cloudflare Turnstile 防護，驗證元件將於 sitekey 設定後生效。</p>
+        </div>
+
+        <button class="btn btn--primary btn--block" type="submit">送出洽詢</button>
+
+        <div class="form-submit-note">
+          <p><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到你填寫的 Email，確認我們已收到資料；商務部窗口會另外收到通知信，並安排後續討論會議。</p>
+        </div>
+      </form>
+
+      <aside class="form-sidebar">
+        <div class="form-sidebar__sticky">
+        <div class="form-sidebar__card">
+          <p class="form-sidebar__dept">收件單位</p>
+          <h2>商務部</h2>
+          
+        </div>
+        <div class="form-sidebar__card">
+          <h2>延伸閱讀</h2>
+          <ul>
+            <li><a href="{{ROOT}}/zh/partners/our-partners/">合作夥伴 Our Partners</a></li>
+            <li><a href="{{ROOT}}/zh/partners/become-a-partner/">成為合作夥伴 Become a Partner</a></li>
+          </ul>
+        </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+

@@ -1,0 +1,164 @@
+<!--meta
+{
+  "title": "兒童訓練 Children's Training｜加入與聯絡｜台中磐石足球俱樂部",
+  "description": "為孩子報名台中磐石兒童足球訓練課程，分為混齡、初學、技巧發展三種分級。填寫學員與家長資料，課程部將盡快與家長聯繫安排。",
+  "nav": "",
+  "unit": "10.3"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/join/">加入與聯絡</a></li>
+      <li aria-current="page">兒童訓練</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10.3</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">10.3 Children's Training</p>
+    <h1>兒童訓練<span class="en">Children's Training</span></h1>
+    <p class="page-hero__lede">依混齡、初學、技巧發展三種分級，由專業教練帶領孩子建立運動習慣與足球基礎。請家長協助填寫以下資料，課程部將盡快與家長聯繫。</p>
+  </div>
+</section>
+
+<section class="band form-band" aria-labelledby="form-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="form-title">兒童訓練報名表單</h2>
+    <div class="form-layout form-layout--split">
+      <form class="tcrfc-form" action="" method="post" novalidate>
+        <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
+
+        <fieldset>
+          <legend>學員資料</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="c-name">學員姓名<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="c-name" name="student_name" required autocomplete="name" aria-describedby="c-name-error">
+              <p class="field-error" id="c-name-error" role="alert">請填寫學員姓名</p>
+            </div>
+            <div class="form-field">
+              <label for="c-dob">學員出生日期<span class="req" aria-hidden="true">*</span></label>
+              <input type="date" id="c-dob" name="student_dob" required aria-describedby="c-dob-error">
+              <p class="field-error" id="c-dob-error" role="alert">請填寫學員出生日期</p>
+            </div>
+            <div class="form-field">
+              <label for="c-class">偏好班別<span class="req" aria-hidden="true">*</span></label>
+              <select id="c-class" name="class_type" required aria-describedby="c-class-error">
+                <option value="">請選擇</option>
+                <option value="mixed">混齡班</option>
+                <option value="beginner">初學班</option>
+                <option value="skill">技巧發展班</option>
+                <option value="unsure">不確定，請協助建議</option>
+              </select>
+              <p class="field-error" id="c-class-error" role="alert">請選擇偏好班別</p>
+            </div>
+            <div class="form-field">
+              <label for="c-location">偏好受訓地點</label>
+              <select id="c-location" name="location_preference">
+                <option value="">尚無偏好，請協助安排</option>
+                <option value="xitun">西屯足球場（主場）</option>
+              </select>
+              <p class="field-hint">如需查詢其他受訓地點，請見<a href="{{ROOT}}/zh/join/location/">場地位置與地圖</a>。</p>
+            </div>
+            <div class="form-field form-field--full">
+              <label for="c-experience">過往足球或運動經驗（選填）</label>
+              <textarea id="c-experience" name="experience"></textarea>
+            </div>
+            <div class="form-field form-field--full">
+              <label for="c-health">特殊健康狀況說明（選填）</label>
+              <textarea id="c-health" name="health_note" aria-describedby="c-health-hint"></textarea>
+              <p class="field-hint" id="c-health-hint">如過敏、氣喘、慢性病或需特別留意的事項，有助於教練提前準備。</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>家長／監護人聯絡資料</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="c-parent-name">家長／監護人姓名<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="c-parent-name" name="parent_name" required autocomplete="name" aria-describedby="c-parent-name-error">
+              <p class="field-error" id="c-parent-name-error" role="alert">請填寫家長／監護人姓名</p>
+            </div>
+            <div class="form-field">
+              <label for="c-parent-relation">與學員關係</label>
+              <select id="c-parent-relation" name="parent_relation">
+                <option value="">請選擇</option>
+                <option value="father">父親</option>
+                <option value="mother">母親</option>
+                <option value="guardian">法定監護人</option>
+                <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="c-parent-phone">家長聯絡電話<span class="req" aria-hidden="true">*</span></label>
+              <input type="tel" id="c-parent-phone" name="parent_phone" required autocomplete="tel" aria-describedby="c-parent-phone-error">
+              <p class="field-error" id="c-parent-phone-error" role="alert">請填寫家長聯絡電話</p>
+            </div>
+            <div class="form-field">
+              <label for="c-parent-email">家長 Email<span class="req" aria-hidden="true">*</span></label>
+              <input type="email" id="c-parent-email" name="parent_email" required autocomplete="email" aria-describedby="c-parent-email-error">
+              <p class="field-error" id="c-parent-email-error" role="alert">請填寫有效的 Email</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>上傳資料（選填）</legend>
+          <div class="form-grid">
+            <div class="form-field form-field--full file-field">
+              <label for="c-doc-file">健康聲明或其他文件</label>
+              <input type="file" id="c-doc-file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="c-doc-hint">
+              <p class="field-hint" id="c-doc-hint">支援 PDF／JPG／PNG，非必填。</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="consent-block">
+          <div class="checkbox-field">
+            <input type="checkbox" id="c-consent" name="consent" required aria-describedby="c-consent-error">
+            <label for="c-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集學員與家長之個人資料，用於處理本次兒童訓練報名之聯繫與課程安排。<span class="req" aria-hidden="true">*</span></label>
+          </div>
+          <p class="field-error" id="c-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
+          
+        </div>
+
+        <div class="form-turnstile">
+          <!-- Cloudflare Turnstile 防機器人驗證：sitekey 待客戶申請 Cloudflare 帳號後設定，見 https://developers.cloudflare.com/turnstile/ -->
+          <div class="cf-turnstile" data-sitekey="" role="group" aria-label="機器人驗證"></div>
+          <p class="field-hint">此表單由 Cloudflare Turnstile 防護，驗證元件將於 sitekey 設定後生效。</p>
+        </div>
+
+        <button class="btn btn--primary btn--block" type="submit">送出報名</button>
+
+        <div class="form-submit-note">
+          <p><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；課程部窗口會另外收到通知信，並與家長聯繫確認開課時段與後續安排。</p>
+        </div>
+      </form>
+
+      <aside class="form-sidebar">
+        <div class="form-sidebar__sticky">
+        <div class="form-sidebar__card">
+          <p class="form-sidebar__dept">收件單位</p>
+          <h2>課程部</h2>
+          
+        </div>
+        <div class="form-sidebar__card">
+          <h2>三種分級</h2>
+          <ul>
+            <li>混齡班</li>
+            <li>初學班</li>
+            <li>技巧發展班</li>
+          </ul>
+          <p class="field-hint">不確定適合哪個班別也沒關係，可選擇「不確定」，課程部會依學員年齡與程度建議。</p>
+        </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+

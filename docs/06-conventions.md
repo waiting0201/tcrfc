@@ -16,7 +16,7 @@
 | 一線隊 | 一線隊 | First Team | **`D1`** | 對外顯示用「一線隊／First Team」，`D1` 僅作代號 |
 | 學院梯隊 | U15／U14／U12 梯隊 | Academy Teams | `U15`/`U14`/`U12` | 日後可增 U18／U10 |
 | 學院 | 磐石足球學院 | TCRFC Academy | | |
-| 女子足球 | 台中藍鯨女子隊 | Women's Football | — | **不建球隊資料**，單頁導流 |
+| 女子足球 | 台中藍鯨女子隊 | Women's Football | — | **不建球隊資料**，單頁導流至 [`https://www.tcbw2014.com/`](https://www.tcbw2014.com/) |
 | 課程與活動 | 課程與活動 | Programs | 後台 `P1–P4` | 原編 `D1–D4`，已因撞名改號 |
 | 慈善 | 慈善與社會影響 | Charity & Impact | | |
 | 球迷會 | 磐石球迷會 | Fan Club | `fan_club` | 是會員層級，不是獨立名單 |

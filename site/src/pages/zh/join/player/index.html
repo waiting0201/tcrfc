@@ -1,0 +1,188 @@
+<!--meta
+{
+  "title": "加入球隊 Join as a Player｜加入與聯絡｜台中磐石足球俱樂部",
+  "description": "台中磐石足球俱樂部持續招募一線隊與各梯隊球員。填寫加入球隊表單，提供你的基本資料、足球背景與比賽影片連結，競技部將盡快與你聯繫。",
+  "nav": "",
+  "unit": "10.1"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/join/">加入與聯絡</a></li>
+      <li aria-current="page">加入球隊</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10.1</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">10.1 Join as a Player</p>
+    <h1>加入球隊<span class="en">Join as a Player</span></h1>
+    <p class="page-hero__lede">具備競技實力、渴望在企甲聯賽舞台證明自己？台中磐石一線隊與各梯隊持續招募新血，填寫以下表單，讓競技部認識你。</p>
+  </div>
+</section>
+
+<section class="band form-band" aria-labelledby="form-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="form-title">加入球隊報名表單</h2>
+    <div class="form-layout form-layout--split">
+      <form class="tcrfc-form" action="" method="post" novalidate>
+        <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
+
+        <fieldset>
+          <legend>球員基本資料</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="p-name-zh">中文姓名<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="p-name-zh" name="name_zh" required autocomplete="name" aria-describedby="p-name-zh-error">
+              <p class="field-error" id="p-name-zh-error" role="alert">請填寫中文姓名</p>
+            </div>
+            <div class="form-field">
+              <label for="p-name-en">英文姓名</label>
+              <input type="text" id="p-name-en" name="name_en" autocomplete="off">
+            </div>
+            <div class="form-field">
+              <label for="p-dob">出生日期<span class="req" aria-hidden="true">*</span></label>
+              <input type="date" id="p-dob" name="dob" required aria-describedby="p-dob-error">
+              <p class="field-error" id="p-dob-error" role="alert">請填寫出生日期</p>
+            </div>
+            <div class="form-field">
+              <label for="p-gender">性別<span class="req" aria-hidden="true">*</span></label>
+              <select id="p-gender" name="gender" required aria-describedby="p-gender-error">
+                <option value="">請選擇</option>
+                <option value="male">男</option>
+                <option value="female">女</option>
+                <option value="undisclosed">不願透露</option>
+              </select>
+              <p class="field-error" id="p-gender-error" role="alert">請選擇性別</p>
+            </div>
+            <div class="form-field form-field--full">
+              <label for="p-city">目前居住城市</label>
+              <input type="text" id="p-city" name="city" autocomplete="address-level2">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>足球背景</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="p-position">場上位置<span class="req" aria-hidden="true">*</span></label>
+              <select id="p-position" name="position" required aria-describedby="p-position-error">
+                <option value="">請選擇</option>
+                <option value="gk">門將 GK</option>
+                <option value="cb">中後衛 CB</option>
+                <option value="fb">邊後衛 FB</option>
+                <option value="dm">後腰 DM</option>
+                <option value="cm">中場 CM</option>
+                <option value="wg">邊鋒 WG</option>
+                <option value="st">前鋒 ST</option>
+              </select>
+              <p class="field-error" id="p-position-error" role="alert">請選擇場上位置</p>
+            </div>
+            <div class="form-field">
+              <label for="p-foot">慣用腳</label>
+              <select id="p-foot" name="preferred_foot">
+                <option value="">請選擇</option>
+                <option value="right">右腳</option>
+                <option value="left">左腳</option>
+                <option value="both">雙腳皆可</option>
+              </select>
+            </div>
+            <div class="form-field form-field--full">
+              <label for="p-current-team">目前所屬球隊／最高層級聯賽經歷</label>
+              <input type="text" id="p-current-team" name="current_team" placeholder="例：某某高中足球隊、企乙聯賽等">
+            </div>
+            <div class="form-field form-field--full">
+              <label for="p-experience">足球經歷簡述<span class="req" aria-hidden="true">*</span></label>
+              <textarea id="p-experience" name="experience" required aria-describedby="p-experience-hint p-experience-error"></textarea>
+              <p class="field-hint" id="p-experience-hint">曾效力的球隊、參加過的聯賽或代表隊經歷，簡述即可。</p>
+              <p class="field-error" id="p-experience-error" role="alert">請簡述你的足球經歷</p>
+            </div>
+            <div class="form-field form-field--full">
+              <label for="p-video">比賽或訓練影片連結<span class="req" aria-hidden="true">*</span></label>
+              <input type="url" id="p-video" name="video_url" required placeholder="https://" aria-describedby="p-video-hint p-video-error">
+              <p class="field-hint" id="p-video-hint">YouTube、雲端硬碟等可公開觀看的連結，有助於加快評估。</p>
+              <p class="field-error" id="p-video-error" role="alert">請提供影片連結</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>聯絡方式</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="p-phone">聯絡電話<span class="req" aria-hidden="true">*</span></label>
+              <input type="tel" id="p-phone" name="phone" required autocomplete="tel" aria-describedby="p-phone-error">
+              <p class="field-error" id="p-phone-error" role="alert">請填寫聯絡電話</p>
+            </div>
+            <div class="form-field">
+              <label for="p-email">Email<span class="req" aria-hidden="true">*</span></label>
+              <input type="email" id="p-email" name="email" required autocomplete="email" aria-describedby="p-email-error">
+              <p class="field-error" id="p-email-error" role="alert">請填寫有效的 Email</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>上傳資料（選填）</legend>
+          <div class="form-grid">
+            <div class="form-field form-field--full file-field">
+              <label for="p-resume-file">簡歷／經歷說明文件</label>
+              <input type="file" id="p-resume-file" name="resume_file" accept=".pdf,.doc,.docx" aria-describedby="p-resume-hint">
+              <p class="field-hint" id="p-resume-hint">支援 PDF／DOC／DOCX。</p>
+            </div>
+            <div class="form-field form-field--full file-field">
+              <label for="p-photo-file">個人照片</label>
+              <input type="file" id="p-photo-file" name="photo_file" accept=".jpg,.jpeg,.png" aria-describedby="p-photo-hint">
+              <p class="field-hint" id="p-photo-hint">支援 JPG／PNG。</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="consent-block">
+          <div class="checkbox-field">
+            <input type="checkbox" id="p-consent" name="consent" required aria-describedby="p-consent-error">
+            <label for="p-consent">我已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次加入球隊申請之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
+          </div>
+          <p class="field-error" id="p-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
+          
+        </div>
+
+        <div class="form-turnstile">
+          <!-- Cloudflare Turnstile 防機器人驗證：sitekey 待客戶申請 Cloudflare 帳號後設定，見 https://developers.cloudflare.com/turnstile/ -->
+          <div class="cf-turnstile" data-sitekey="" role="group" aria-label="機器人驗證"></div>
+          <p class="field-hint">此表單由 Cloudflare Turnstile 防護，驗證元件將於 sitekey 設定後生效。</p>
+        </div>
+
+        <button class="btn btn--primary btn--block" type="submit">送出報名</button>
+
+        <div class="form-submit-note">
+          <p><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到你填寫的 Email，確認我們已收到資料；競技部窗口會另外收到通知信，並視評估結果安排後續聯繫（如試訓邀請）。</p>
+        </div>
+      </form>
+
+      <aside class="form-sidebar">
+        <div class="form-sidebar__sticky">
+        <div class="form-sidebar__card">
+          <p class="form-sidebar__dept">收件單位</p>
+          <h2>競技部</h2>
+          
+        </div>
+        <div class="form-sidebar__card">
+          <h2>填寫前可以先準備</h2>
+          <ul>
+            <li>近期比賽或訓練影片連結</li>
+            <li>簡歷或經歷說明文件（PDF，非必填）</li>
+            <li>可聯絡到本人的電話與 Email</li>
+          </ul>
+        </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+

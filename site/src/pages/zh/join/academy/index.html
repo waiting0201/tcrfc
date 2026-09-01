@@ -1,0 +1,176 @@
+<!--meta
+{
+  "title": "加入學院 Join the Academy｜加入與聯絡｜台中磐石足球俱樂部",
+  "description": "為孩子申請加入磐石足球學院 U12／U14／U15 梯隊。填寫學員基本資料、意向梯隊與足球經歷，學院部將盡快與家長聯繫試訓安排。",
+  "nav": "",
+  "unit": "10.2"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/join/">加入與聯絡</a></li>
+      <li aria-current="page">加入學院</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10.2</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">10.2 Join the Academy</p>
+    <h1>加入學院<span class="en">Join the Academy</span></h1>
+    <p class="page-hero__lede">從基礎技術到比賽觀念，磐石足球學院提供 U12／U14／U15 各年齡層系統化訓練課程。請家長協助填寫以下資料，學院部將安排後續試訓與說明。</p>
+  </div>
+</section>
+
+<section class="band form-band" aria-labelledby="form-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="form-title">加入學院申請表單</h2>
+    <div class="form-layout form-layout--split">
+      <form class="tcrfc-form" action="" method="post" novalidate>
+        <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
+
+        <fieldset>
+          <legend>學員基本資料</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="a-name-zh">學員中文姓名<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="a-name-zh" name="student_name_zh" required autocomplete="name" aria-describedby="a-name-zh-error">
+              <p class="field-error" id="a-name-zh-error" role="alert">請填寫學員中文姓名</p>
+            </div>
+            <div class="form-field">
+              <label for="a-name-en">學員英文姓名</label>
+              <input type="text" id="a-name-en" name="student_name_en" autocomplete="off">
+            </div>
+            <div class="form-field">
+              <label for="a-dob">學員出生日期<span class="req" aria-hidden="true">*</span></label>
+              <input type="date" id="a-dob" name="student_dob" required aria-describedby="a-dob-error">
+              <p class="field-error" id="a-dob-error" role="alert">請填寫學員出生日期</p>
+            </div>
+            <div class="form-field">
+              <label for="a-gender">性別<span class="req" aria-hidden="true">*</span></label>
+              <select id="a-gender" name="student_gender" required aria-describedby="a-gender-error">
+                <option value="">請選擇</option>
+                <option value="male">男</option>
+                <option value="female">女</option>
+                <option value="undisclosed">不願透露</option>
+              </select>
+              <p class="field-error" id="a-gender-error" role="alert">請選擇性別</p>
+            </div>
+            <div class="form-field">
+              <label for="a-team">意向梯隊<span class="req" aria-hidden="true">*</span></label>
+              <select id="a-team" name="target_team" required aria-describedby="a-team-error">
+                <option value="">請選擇</option>
+                <option value="u12">U12 梯隊</option>
+                <option value="u14">U14 梯隊</option>
+                <option value="u15">U15 梯隊</option>
+                <option value="undecided">尚未確定，需要建議</option>
+              </select>
+              <p class="field-error" id="a-team-error" role="alert">請選擇意向梯隊</p>
+            </div>
+            <div class="form-field">
+              <label for="a-city">居住地區</label>
+              <input type="text" id="a-city" name="city" autocomplete="address-level2">
+            </div>
+            <div class="form-field form-field--full">
+              <label for="a-experience">足球經歷（選填）</label>
+              <textarea id="a-experience" name="experience" aria-describedby="a-experience-hint"></textarea>
+              <p class="field-hint" id="a-experience-hint">是否曾參加校隊、社區球隊或其他訓練課程，簡述即可；沒有經驗也歡迎報名。</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>家長／監護人聯絡資料</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="a-parent-name">家長／監護人姓名<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="a-parent-name" name="parent_name" required autocomplete="name" aria-describedby="a-parent-name-error">
+              <p class="field-error" id="a-parent-name-error" role="alert">請填寫家長／監護人姓名</p>
+            </div>
+            <div class="form-field">
+              <label for="a-parent-relation">與學員關係<span class="req" aria-hidden="true">*</span></label>
+              <select id="a-parent-relation" name="parent_relation" required aria-describedby="a-parent-relation-error">
+                <option value="">請選擇</option>
+                <option value="father">父親</option>
+                <option value="mother">母親</option>
+                <option value="guardian">法定監護人</option>
+                <option value="other">其他</option>
+              </select>
+              <p class="field-error" id="a-parent-relation-error" role="alert">請選擇與學員關係</p>
+            </div>
+            <div class="form-field">
+              <label for="a-parent-phone">家長聯絡電話<span class="req" aria-hidden="true">*</span></label>
+              <input type="tel" id="a-parent-phone" name="parent_phone" required autocomplete="tel" aria-describedby="a-parent-phone-error">
+              <p class="field-error" id="a-parent-phone-error" role="alert">請填寫家長聯絡電話</p>
+            </div>
+            <div class="form-field">
+              <label for="a-parent-email">家長 Email<span class="req" aria-hidden="true">*</span></label>
+              <input type="email" id="a-parent-email" name="parent_email" required autocomplete="email" aria-describedby="a-parent-email-error">
+              <p class="field-error" id="a-parent-email-error" role="alert">請填寫有效的 Email</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>上傳資料（選填）</legend>
+          <div class="form-grid">
+            <div class="form-field form-field--full file-field">
+              <label for="a-photo-file">學員照片</label>
+              <input type="file" id="a-photo-file" name="photo_file" accept=".jpg,.jpeg,.png" aria-describedby="a-photo-hint">
+              <p class="field-hint" id="a-photo-hint">支援 JPG／PNG。</p>
+            </div>
+            <div class="form-field form-field--full file-field">
+              <label for="a-doc-file">相關證明文件</label>
+              <input type="file" id="a-doc-file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="a-doc-hint">
+              <p class="field-hint" id="a-doc-hint">例如過去參賽證明或訓練紀錄，非必填。支援 PDF／JPG／PNG。</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="consent-block">
+          <div class="checkbox-field">
+            <input type="checkbox" id="a-consent" name="consent" required aria-describedby="a-consent-error">
+            <label for="a-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集學員與家長之個人資料，用於處理本次加入學院申請之聯繫與試訓安排。<span class="req" aria-hidden="true">*</span></label>
+          </div>
+          <p class="field-error" id="a-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
+          
+        </div>
+
+        <div class="form-turnstile">
+          <!-- Cloudflare Turnstile 防機器人驗證：sitekey 待客戶申請 Cloudflare 帳號後設定，見 https://developers.cloudflare.com/turnstile/ -->
+          <div class="cf-turnstile" data-sitekey="" role="group" aria-label="機器人驗證"></div>
+          <p class="field-hint">此表單由 Cloudflare Turnstile 防護，驗證元件將於 sitekey 設定後生效。</p>
+        </div>
+
+        <button class="btn btn--primary btn--block" type="submit">送出申請</button>
+
+        <div class="form-submit-note">
+          <p><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；學院部窗口會另外收到通知信，並與家長聯繫安排試訓與說明會。</p>
+        </div>
+      </form>
+
+      <aside class="form-sidebar">
+        <div class="form-sidebar__sticky">
+        <div class="form-sidebar__card">
+          <p class="form-sidebar__dept">收件單位</p>
+          <h2>學院部</h2>
+          
+        </div>
+        <div class="form-sidebar__card">
+          <h2>梯隊分級</h2>
+          <ul>
+            <li>U12 梯隊</li>
+            <li>U14 梯隊</li>
+            <li>U15 梯隊</li>
+          </ul>
+          <p class="field-hint">不確定適合哪個梯隊也沒關係，可選擇「尚未確定」，學院部會依學員年齡與程度建議。</p>
+        </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+

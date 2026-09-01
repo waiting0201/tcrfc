@@ -1,0 +1,3 @@
+# 正式上線前全站不索引。上線時連同 _headers 的 X-Robots-Tag 一併移除。
+User-agent: *
+Disallow: /

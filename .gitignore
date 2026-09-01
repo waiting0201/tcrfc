@@ -32,3 +32,11 @@ build/
 *.tmp
 *.bak
 ~$*
+
+# 網站建置產物
+site/dist/
+
+# 客戶照片：從收件夾轉檔的衍生物，含未成年學員肖像。
+# 授權未逐項確認前不納入有遠端的版控。
+# 重建方式：bash site/tools/build-images.sh
+site/src/assets/img/

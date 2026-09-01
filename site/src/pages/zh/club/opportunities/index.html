@@ -1,0 +1,122 @@
+<!--meta
+{
+  "title": "球員機會 Player Opportunities｜磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC",
+  "description": "台中磐石足球俱樂部球員機會：加入磐石一線隊的資格與報名方式、試訓場次列表與線上報名、外籍球員招募管道（英文優先）。",
+  "nav": "club",
+  "unit": "3.3"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/club/">俱樂部</a></li>
+      <li aria-current="page">球員機會</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="{{ROOT}}/assets/img/trencin-04.jpg" alt="" width="1920" height="1279">
+  <div class="container">
+    <p class="page-hero__eyebrow">3.3 Player Opportunities</p>
+    <h1>球員機會<span class="en">Player Opportunities</span></h1>
+    <p class="page-hero__lede">從加入球隊、參加試訓，到外籍球員的招募管道，這裡整理台中磐石一線隊球員機會的完整入口。</p>
+  </div>
+</section>
+
+<section class="band" id="join" aria-labelledby="join-title">
+  <div class="band-inner container">
+    <div class="prose">
+      <h2 id="join-title">加入磐石 Join TCRFC</h2>
+      <p>台中磐石一線隊代表俱樂部出戰企業甲級聯賽，持續招募具備競技實力的球員加入陣容。填寫報名表後，將由競技部（10.1 表單收件單位）與您聯繫後續評估流程。</p>
+      
+    </div>
+    <a class="btn btn--primary" href="{{ROOT}}/zh/join/player/" style="margin-top:1.5rem">填寫加入球隊報名表</a>
+  </div>
+</section>
+
+<section class="band paper-2-band" id="trials" aria-labelledby="trials-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">TRIALS</p>
+        <h2 class="section-title" id="trials-title">試訓場次</h2>
+      </div>
+      <p class="section-lede">日期、地點、對象、名額與報名截止，開放場次將公告於此。</p>
+    </div>
+
+    <div class="table-wrap">
+      <table class="trial-table">
+        <caption class="visually-hidden">試訓場次列表</caption>
+        <thead>
+          <tr>
+            <th scope="col">日期</th>
+            <th scope="col">地點</th>
+            <th scope="col">對象</th>
+            <th scope="col">名額</th>
+            <th scope="col">報名截止</th>
+            <th scope="col">狀態</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="trial-table__pending-row">
+            <td colspan="6">目前尚無公告中的試訓場次，請關注官方社群公告。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <a class="btn btn--dark btn--sm" href="{{ROOT}}/zh/join/player/" style="margin-top:1.5rem">登記試訓意願</a>
+  </div>
+</section>
+
+<section class="band foreign-band" id="foreign-players" aria-labelledby="foreign-players-title" lang="en">
+  <div class="band-inner container">
+    <div class="prose">
+      <p class="kicker">FOR INTERNATIONAL PLAYERS</p>
+      <h2 id="foreign-players-title">Foreign Player Recruitment</h2>
+      <p>Taichung Cornerstone RFC (TCRFC) First Team competes in Taiwan's Enterprise Premier League (企業甲級聯賽). We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our International Department will follow up.</p>
+      
+    </div>
+    <a class="btn btn--primary" href="{{ROOT}}/zh/join/international-player/" style="margin-top:1.5rem">International Player Enquiry</a>
+  </div>
+</section>
+
+<section class="band grain cta-band" id="opp-cta" aria-labelledby="opp-cta-title">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="opp-cta-title">相關頁面</h2>
+    <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div class="cta-card">
+        <p class="cta-card__num">3.1</p>
+        <p class="cta-card__title">認識一線隊</p>
+        <p class="cta-card__desc">加入前，先了解一線隊陣容、教練團與賽程。</p>
+        <a class="btn btn--primary" href="{{ROOT}}/zh/club/first-team/">前往一線隊</a>
+      </div>
+      <div class="cta-card">
+        <p class="cta-card__num">3.4</p>
+        <p class="cta-card__title">國際發展通道</p>
+        <p class="cta-card__desc">了解球員如何透過磐石通往歐洲、日本、香港的舞台。</p>
+        <a class="btn btn--primary" href="{{ROOT}}/zh/club/international-pathways/">查看國際通道</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* 3.3 球員機會 — 試訓表格 pending 狀態、英文優先段落
+   .trial-table 與 3.1 .sched-table 結構相近，未來若試訓資料到位可考慮合併樣式收進共用 CSS */
+.paper-2-band{ background:var(--paper-2); }
+.table-wrap{ overflow-x:auto; }
+.trial-table{ width:100%; min-width:640px; border-collapse:collapse; font-size:.86rem; }
+.trial-table th{
+  padding:.85rem 1rem; text-align:left; font-size:.68rem; font-weight:800;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--muted); background:var(--paper); border-bottom:1px solid var(--rule);
+}
+.trial-table__pending-row td{ padding:1.5rem 1rem; }
+
+.foreign-band{ background:var(--ink); color:#fff; padding-block:clamp(4rem,7vw,6rem); }
+.foreign-band h2{ color:#fff; font-size:var(--fs-h3); font-weight:900; }
+.foreign-band .kicker{ color:var(--brand-bright); }
+.foreign-band p{ color:var(--muted-dark); }
+.foreign-band .pending{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.35); color:var(--muted-dark); }
+</style>

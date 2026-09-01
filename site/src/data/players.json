@@ -1,0 +1,254 @@
+[
+  {
+    "number": 25,
+    "position": "GK",
+    "name_zh": "伊戈・澤維斯",
+    "name_en": "Igor Zavis",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 70,
+    "position": "GK",
+    "name_zh": "安德烈亞・柏思祺",
+    "name_en": "Andrea Boschi",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 99,
+    "position": "GK",
+    "name_zh": "林駿樺",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 4,
+    "position": "DF",
+    "name_zh": "蔡俊昇",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 6,
+    "position": "DF",
+    "name_zh": "孫恩祈",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 12,
+    "position": "DF",
+    "name_zh": "李毓霖",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 24,
+    "position": "DF",
+    "name_zh": "多米尼克・林普瑞希特",
+    "name_en": "Dominik Limprecht",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 48,
+    "position": "DF",
+    "name_zh": "王義友",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 66,
+    "position": "DF",
+    "name_zh": "曾畇浩",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 78,
+    "position": "DF",
+    "name_zh": "羅倫佐・柯思達",
+    "name_en": "Lorenzo Costa",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 5,
+    "position": "MF",
+    "name_zh": "周宇杰",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 7,
+    "position": "MF",
+    "name_zh": "龔致宇",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 10,
+    "position": "MF",
+    "name_zh": "菲利普・希梅哲克",
+    "name_en": "Filip Šimeček",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 11,
+    "position": "MF",
+    "name_zh": "楊朝景",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 13,
+    "position": "MF",
+    "name_zh": "陳柏崴",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 16,
+    "position": "MF",
+    "name_zh": "魏志荃",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 18,
+    "position": "MF",
+    "name_zh": "尼基塔・若桑",
+    "name_en": "Nichita Josan",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 27,
+    "position": "MF",
+    "name_zh": "施靖堂",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 29,
+    "position": "MF",
+    "name_zh": "江均堯",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 32,
+    "position": "MF",
+    "name_zh": "柯岳廷",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 35,
+    "position": "MF",
+    "name_zh": "李鴻均",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 37,
+    "position": "MF",
+    "name_zh": "梁顥騰",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 45,
+    "position": "MF",
+    "name_zh": "胡淯翔",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 9,
+    "position": "FW",
+    "name_zh": "劉建緯",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 14,
+    "position": "FW",
+    "name_zh": "李偉綸",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 28,
+    "position": "FW",
+    "name_zh": "陳治瑋",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 44,
+    "position": "FW",
+    "name_zh": "山內大空",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  },
+  {
+    "number": 77,
+    "position": "FW",
+    "name_zh": "林偉傑",
+    "name_en": "",
+    "photo": null,
+    "bio_zh": null,
+    "bio_en": null
+  }
+]

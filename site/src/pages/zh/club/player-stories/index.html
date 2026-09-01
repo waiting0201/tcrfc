@@ -1,0 +1,154 @@
+<!--meta
+{
+  "title": "球員故事 Player Stories｜磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC",
+  "description": "台中磐石足球俱樂部球員故事案例，可依學院、一線隊、海外、女足篩選，記錄選手從加入磐石到邁向更大舞台的真實歷程。",
+  "nav": "club",
+  "unit": "3.5"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/club/">俱樂部</a></li>
+      <li aria-current="page">球員故事</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="{{ROOT}}/assets/img/trencin-02.jpg" alt="" width="1920" height="1279">
+  <div class="container">
+    <p class="page-hero__eyebrow">3.5 Player Stories</p>
+    <h1>球員故事<span class="en">Player Stories</span></h1>
+    <p class="page-hero__lede">每一位選手都有自己的磐石歷程。這裡收錄學院、一線隊、海外與女足球員的真實案例，目前已建立 3 個案例，內容陸續補齊中。</p>
+  </div>
+</section>
+
+<section class="band" id="stories" aria-labelledby="stories-title">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="stories-title">球員故事案例</h2>
+
+    <div class="pos-filter" role="group" aria-label="依類別篩選球員故事">
+      <button type="button" class="pos-chip" data-cat-filter="ALL" aria-pressed="true">全部 3</button>
+      <button type="button" class="pos-chip" data-cat-filter="academy" aria-pressed="false">學院 0</button>
+      <button type="button" class="pos-chip" data-cat-filter="first-team" aria-pressed="false">一線隊 2</button>
+      <button type="button" class="pos-chip" data-cat-filter="overseas" aria-pressed="false">海外 1</button>
+      <button type="button" class="pos-chip" data-cat-filter="womens" aria-pressed="false">女足 0</button>
+    </div>
+
+    <div class="story-grid" id="story-grid">
+      <article class="story-card clip-card" data-cat="first-team">
+        <div class="story-card__visual">
+          <img class="story-card__crest" src="{{ROOT}}/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
+          <span class="story-card__num">6</span>
+        </div>
+        <div class="story-card__body">
+          <span class="story-card__tag">一線隊 First Team</span>
+          <p class="story-card__name">孫恩祈<span class="story-card__pos">後衛 DF · 背號 6</span></p>
+          
+        </div>
+      </article>
+
+      <article class="story-card clip-card" data-cat="first-team">
+        <div class="story-card__visual">
+          <img class="story-card__crest" src="{{ROOT}}/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
+          <span class="story-card__num">44</span>
+        </div>
+        <div class="story-card__body">
+          <span class="story-card__tag">一線隊 First Team</span>
+          <p class="story-card__name">山內大空<span class="story-card__pos">前鋒 FW · 背號 44</span></p>
+          
+        </div>
+      </article>
+
+      <article class="story-card clip-card" data-cat="overseas">
+        <div class="story-card__visual">
+          <img class="story-card__crest" src="{{ROOT}}/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
+          <span class="story-card__num">11</span>
+        </div>
+        <div class="story-card__body">
+          <span class="story-card__tag">海外 Overseas</span>
+          <p class="story-card__name">楊朝景<span class="story-card__pos">中場 MF · 背號 11 · 現效力香港九龍城</span></p>
+          
+        </div>
+      </article>
+    </div>
+
+    <div class="story-empty-note">
+      <p><b>學院</b>與<b>女足</b>類別目前尚無已建立的球員故事案例。女足球員名單與賽程不建立於本站，相關內容請見<a href="https://www.tcbw2014.com/" target="_blank" rel="noopener">台中藍鯨女子隊官網</a>（另開新分頁）。</p>
+    </div>
+  </div>
+</section>
+
+<section class="band grain cta-band" id="stories-cta" aria-labelledby="stories-cta-title">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="stories-cta-title">分享你的故事</h2>
+    <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div class="cta-card">
+        <p class="cta-card__num">3.1</p>
+        <p class="cta-card__title">認識一線隊</p>
+        <p class="cta-card__desc">查看完整球員名單、教練團與本季賽程。</p>
+        <a class="btn btn--primary" href="{{ROOT}}/zh/club/first-team/">前往一線隊</a>
+      </div>
+      <div class="cta-card">
+        <p class="cta-card__num">3.4</p>
+        <p class="cta-card__title">國際發展通道</p>
+        <p class="cta-card__desc">了解球員通往歐洲、日本、香港的完整路徑。</p>
+        <a class="btn btn--primary" href="{{ROOT}}/zh/club/international-pathways/">查看國際通道</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* 3.5 球員故事 — story-card / pos-filter（與 3.1 相同結構，重複定義於本頁樣式區）
+   story-card 與 player-card 為近親元件，建議之後合併收進共用 CSS */
+.pos-filter{ display:flex; gap:.6rem; flex-wrap:wrap; margin:2rem 0 2.25rem; }
+.pos-chip{
+  min-height:42px; padding:0 1.15rem; font-weight:800; font-size:.82rem;
+  border:2px solid var(--rule); color:var(--muted); background:var(--paper);
+  transition:all var(--dur-fast) var(--ease);
+}
+.pos-chip:hover{ border-color:var(--brand-aa); color:var(--brand-deep); }
+.pos-chip[aria-pressed="true"]{ background:var(--brand-aa); border-color:var(--brand-aa); color:#fff; }
+
+.story-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.5rem; }
+.story-card{ background:var(--paper-2); display:flex; flex-direction:column; }
+.story-card[hidden]{ display:none; }
+.story-card__visual{
+  position:relative; aspect-ratio:16/9; background:var(--paper-3);
+  display:flex; align-items:center; justify-content:center; overflow:hidden;
+}
+.story-card__crest{ position:absolute; inset:0; margin:auto; width:34%; height:34%; object-fit:contain; opacity:.06; }
+.story-card__num{ position:relative; font-size:3rem; font-weight:900; color:var(--brand-aa); font-variant-numeric:tabular-nums; }
+.story-card__body{ padding:1.25rem 1.35rem 1.5rem; display:flex; flex-direction:column; gap:.6rem; }
+.story-card__tag{ font-size:.66rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--brand-aa); }
+.story-card__name{ font-size:1.15rem; font-weight:900; color:var(--heading); display:flex; flex-direction:column; gap:.3rem; }
+.story-card__pos{ font-size:.78rem; font-weight:600; color:var(--muted); }
+.story-card .pending{ font-size:.8rem; }
+
+.story-empty-note{
+  margin-top:2rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-size:.85rem; color:var(--muted); line-height:1.7;
+}
+.story-empty-note a{ color:var(--brand-aa); font-weight:700; }
+</style>
+
+<script>
+(function(){
+  "use strict";
+  var chips = document.querySelectorAll('#stories .pos-chip');
+  var cards = document.querySelectorAll('#story-grid .story-card');
+  chips.forEach(function(chip){
+    chip.addEventListener('click', function(){
+      chips.forEach(function(c){ c.setAttribute('aria-pressed','false'); });
+      chip.setAttribute('aria-pressed','true');
+      var cat = chip.dataset.catFilter;
+      cards.forEach(function(card){
+        card.hidden = !(cat === 'ALL' || card.dataset.cat === cat);
+      });
+    });
+  });
+})();
+</script>

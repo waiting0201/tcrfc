@@ -1,0 +1,132 @@
+<!--meta
+{
+  "title": "11 楊朝景（球員詳情頁範本）｜一線隊｜台中磐石足球俱樂部 TCRFC",
+  "description": "球員詳情頁範本，以一線隊 11 號球員楊朝景示範正式站球員詳情頁的資料結構：基本資料、生涯數據、本季出賽、相關新聞與影片，正式站由 CMS 依球員名單自動產生。",
+  "nav": "club",
+  "unit": "3.1"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/club/">俱樂部</a></li>
+      <li><a href="{{ROOT}}/zh/club/first-team/">一線隊</a></li>
+      <li aria-current="page">球員詳情頁範本</li>
+    </ol>
+  </div>
+</nav>
+
+<div class="template-banner">
+  <div class="container template-banner__inner">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <p><b>本頁為球員詳情頁範本。</b>以一線隊 11 號球員楊朝景的真實名單資料示範版型結構，正式站上線後，28 名球員的詳情頁將由後台 CMS 依球員名單資料自動產生，不需逐頁手工建置。</p>
+  </div>
+</div>
+
+<section class="player-hero" aria-labelledby="player-name">
+  <div class="container player-hero__inner">
+    <div class="player-hero__visual clip-card clip-card--on-dark">
+      <img class="player-hero__crest" src="{{ROOT}}/assets/brand/svg/tcrfc-mark-white.svg" alt="" width="140" height="146" aria-hidden="true">
+      <span class="player-hero__num">11</span>
+    </div>
+    <div class="player-hero__info">
+      <p class="player-hero__pos">中場 · MF</p>
+      <h1 id="player-name">楊朝景</h1>
+      <p class="player-hero__meta">一線隊 First Team · 背號 11 · <span class="badge badge--on-dark">旅外 · 香港九龍城</span></p>
+    </div>
+  </div>
+</section>
+
+<section class="band" id="player-basic" aria-labelledby="player-basic-title">
+  <div class="band-inner container">
+    <h2 class="section-title" id="player-basic-title">基本資料</h2>
+    <dl class="def-grid">
+      <div><dt>背號</dt><dd>11</dd></div>
+      <div><dt>位置</dt><dd>中場 Midfielder（MF）</dd></div>
+      <div><dt>所屬隊伍</dt><dd>一線隊 First Team</dd></div>
+      <div><dt>目前狀態</dt><dd>旅外 · 香港九龍城（Kowloon City）</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="band paper-2-band" id="player-stats" aria-labelledby="player-stats-title">
+  <div class="band-inner container">
+    <h2 class="section-title" id="player-stats-title">生涯數據</h2>
+    <p>完整生涯數據準備中，稍後將於本頁公開。</p>
+  </div>
+</section>
+
+<section class="band" id="player-season" aria-labelledby="player-season-title">
+  <div class="band-inner container">
+    <h2 class="section-title" id="player-season-title">本季出賽</h2>
+    <p>2026/27 企甲賽季首場賽事為 2026/09/13，本頁建置時賽季尚未開打，暫無出賽紀錄可顯示。</p>
+  </div>
+</section>
+
+<section class="band paper-2-band" id="player-news" aria-labelledby="player-news-title">
+  <div class="band-inner container">
+    <h2 class="section-title" id="player-news-title">相關新聞</h2>
+    <p>尚無相關新聞。</p>
+  </div>
+</section>
+
+<section class="band" id="player-video" aria-labelledby="player-video-title">
+  <div class="band-inner container">
+    <h2 class="section-title" id="player-video-title">影片</h2>
+    <p>尚無相關影片。</p>
+  </div>
+</section>
+
+<section class="band grain cta-band" id="player-cta" aria-labelledby="player-cta-title">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="player-cta-title">回到一線隊</h2>
+    <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+      <div class="cta-card">
+        <p class="cta-card__num">3.1</p>
+        <p class="cta-card__title">回到球員名單</p>
+        <p class="cta-card__desc">查看一線隊完整 28 人名單，並依守備位置篩選。</p>
+        <a class="btn btn--primary" href="{{ROOT}}/zh/club/first-team/#roster">返回球員名單</a>
+      </div>
+      <div class="cta-card">
+        <p class="cta-card__num">3.5</p>
+        <p class="cta-card__title">球員故事</p>
+        <p class="cta-card__desc">楊朝景旅外香港的故事收錄在球員故事單元。</p>
+        <a class="btn btn--primary" href="{{ROOT}}/zh/club/player-stories/">查看球員故事</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* 3.1 球員詳情頁範本專用元件：template-banner / player-hero / def-grid
+   若日後其他人物詳情頁（教練、學院球員）也採同一版型，建議收進共用 CSS */
+.template-banner{
+  background:rgba(224,33,138,.06); border-bottom:1px dashed var(--brand);
+}
+.template-banner__inner{
+  display:flex; align-items:flex-start; gap:.75rem; padding-block:.85rem; font-size:.85rem; color:var(--brand-deep); line-height:1.6;
+}
+.template-banner svg{ width:20px; height:20px; flex:none; margin-top:.1em; }
+.template-banner b{ font-weight:800; }
+
+.player-hero{ background:var(--ink); color:#fff; padding-block:clamp(3rem,6vw,5rem); }
+.player-hero__inner{ display:flex; align-items:center; gap:2.5rem; flex-wrap:wrap; }
+.player-hero__visual{
+  position:relative; width:160px; height:160px; flex:none; background:var(--ink-2);
+  display:flex; align-items:center; justify-content:center;
+}
+.player-hero__crest{ position:absolute; inset:0; margin:auto; width:70%; height:70%; object-fit:contain; opacity:.1; }
+.player-hero__num{ position:relative; font-size:4rem; font-weight:900; color:var(--brand-bright); font-variant-numeric:tabular-nums; }
+.player-hero__pos{ font-size:.78rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-bright); }
+.player-hero h1{ font-size:var(--fs-h2); font-weight:900; margin-top:.3rem; letter-spacing:-.01em; }
+.player-hero__meta{ margin-top:.75rem; font-size:.92rem; color:var(--muted-dark); display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; }
+
+.def-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1.25rem;
+  margin:1.75rem 0 1.5rem; padding:0; max-width:900px;
+}
+.def-grid > div{ border-top:2px solid var(--ink); padding-top:.6rem; }
+.def-grid dt{ font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.def-grid dd{ margin:.35rem 0 0; font-size:1.05rem; font-weight:700; color:var(--heading); }
+</style>

@@ -1,0 +1,61 @@
+<!--meta
+{
+  "title": "球員故事 Player Stories｜新聞 News｜台中磐石足球俱樂部",
+  "description": "台中磐石球員故事與人物專訪，內容尚待客戶提供，目前為空狀態頁面。",
+  "nav": "news",
+  "unit": "7.4"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/news/">新聞 News</a></li>
+      <li aria-current="page">球員故事</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="{{ROOT}}/assets/img/nav-news.jpg" alt="" width="1920" height="1279">
+  <div class="container">
+    <p class="page-hero__eyebrow">7.4 Player Stories</p>
+    <h1>球員故事<span class="en">Player Stories</span></h1>
+    <p class="page-hero__lede">球員的成長歷程與心路歷程專訪，內容陸續建置中。</p>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="cat-news-title">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="cat-news-title">球員故事 文章列表</h2>
+
+    <div class="news-toolbar">
+      <nav class="cat-tabs" aria-label="新聞分類">
+  <a href="{{ROOT}}/zh/news/club/">7.1 俱樂部新聞</a>
+  <a href="{{ROOT}}/zh/news/match/">7.2 比賽報導</a>
+  <a href="{{ROOT}}/zh/news/academy/">7.3 學院新聞</a>
+  <a href="{{ROOT}}/zh/news/player-stories/" aria-current="page">7.4 球員故事</a>
+  <a href="{{ROOT}}/zh/news/international/">7.5 國際動態</a>
+  <a href="{{ROOT}}/zh/news/camps-events/">7.6 營隊與活動</a>
+  <a href="{{ROOT}}/zh/news/community/">7.7 社區活動</a>
+  <a href="{{ROOT}}/zh/news/media/">7.8 媒體專區</a>
+</nav>
+    </div>
+
+    <div class="news-empty">
+      <p style="margin-bottom:1rem">本分類目前尚無已發布之文章。</p>
+      
+    </div>
+  </div>
+</section>
+
+<style>
+/* ============================================================
+   News listing components (07 NEWS & STORIES)
+   Used on: news/ hub + all 7.x category pages + 7.8 media.
+   Repeats identically across 9 pages — candidate for promotion
+   into shared tcrfc.css, see build report.
+   ============================================================ */
+.news-toolbar{ display:flex; flex-direction:column; gap:1.25rem; margin-bottom:1.75rem; }
+
+</style>

@@ -1,0 +1,172 @@
+<!--meta
+{
+  "title": "營隊報名 Camp Registration｜加入與聯絡｜台中磐石足球俱樂部",
+  "description": "報名台中磐石寒暑假足球營隊。填寫學員資料、希望報名的梯次、健康聲明與緊急聯絡人，課程部將盡快與家長確認梯次與名額。",
+  "nav": "",
+  "unit": "10.4"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/join/">加入與聯絡</a></li>
+      <li aria-current="page">營隊報名</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10.4</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">10.4 Camp Registration</p>
+    <h1>營隊報名<span class="en">Camp Registration</span></h1>
+    <p class="page-hero__lede">寒暑假期間的短期足球營隊，讓孩子在密集訓練中快速累積比賽經驗。請家長協助填寫以下資料，課程部將確認梯次與名額後與你聯繫。</p>
+  </div>
+</section>
+
+<section class="band form-band" aria-labelledby="form-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="form-title">營隊報名表單</h2>
+    <div class="form-layout form-layout--split">
+      <form class="tcrfc-form" action="" method="post" novalidate>
+        <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
+
+        <fieldset>
+          <legend>營隊梯次</legend>
+          <div class="form-grid">
+            <div class="form-field form-field--full">
+              <label for="cp-session">希望報名的梯次<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="cp-session" name="camp_session" required placeholder="例：2027 年暑假足球營" aria-describedby="cp-session-hint cp-session-error">
+              <p class="field-hint" id="cp-session-hint">目前梯次日期尚未公布，請填寫大略期望時段（如寒假／暑假），課程部會與最新開課資訊比對後回覆。</p>
+              <p class="field-error" id="cp-session-error" role="alert">請填寫希望報名的梯次</p>
+            </div>
+          </div>
+          
+        </fieldset>
+
+        <fieldset>
+          <legend>學員資料</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="cp-name">學員姓名<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="cp-name" name="student_name" required autocomplete="name" aria-describedby="cp-name-error">
+              <p class="field-error" id="cp-name-error" role="alert">請填寫學員姓名</p>
+            </div>
+            <div class="form-field">
+              <label for="cp-dob">學員出生日期<span class="req" aria-hidden="true">*</span></label>
+              <input type="date" id="cp-dob" name="student_dob" required aria-describedby="cp-dob-error">
+              <p class="field-error" id="cp-dob-error" role="alert">請填寫學員出生日期</p>
+            </div>
+            <div class="form-field form-field--full">
+              <label for="cp-health">健康聲明<span class="req" aria-hidden="true">*</span></label>
+              <textarea id="cp-health" name="health_declaration" required aria-describedby="cp-health-hint cp-health-error"></textarea>
+              <p class="field-hint" id="cp-health-hint">請說明過敏史、慢性病、目前服用藥物或其他需要教練與隨隊人員留意的健康狀況；若無請填寫「無」。</p>
+              <p class="field-error" id="cp-health-error" role="alert">請填寫健康聲明（若無請填寫「無」）</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>家長聯絡資料</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="cp-parent-name">家長／監護人姓名<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="cp-parent-name" name="parent_name" required autocomplete="name" aria-describedby="cp-parent-name-error">
+              <p class="field-error" id="cp-parent-name-error" role="alert">請填寫家長／監護人姓名</p>
+            </div>
+            <div class="form-field">
+              <label for="cp-parent-phone">家長聯絡電話<span class="req" aria-hidden="true">*</span></label>
+              <input type="tel" id="cp-parent-phone" name="parent_phone" required autocomplete="tel" aria-describedby="cp-parent-phone-error">
+              <p class="field-error" id="cp-parent-phone-error" role="alert">請填寫家長聯絡電話</p>
+            </div>
+            <div class="form-field form-field--full">
+              <label for="cp-parent-email">家長 Email<span class="req" aria-hidden="true">*</span></label>
+              <input type="email" id="cp-parent-email" name="parent_email" required autocomplete="email" aria-describedby="cp-parent-email-error">
+              <p class="field-error" id="cp-parent-email-error" role="alert">請填寫有效的 Email</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>緊急聯絡人</legend>
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="cp-emg-name">緊急聯絡人姓名<span class="req" aria-hidden="true">*</span></label>
+              <input type="text" id="cp-emg-name" name="emergency_name" required autocomplete="name" aria-describedby="cp-emg-name-error">
+              <p class="field-error" id="cp-emg-name-error" role="alert">請填寫緊急聯絡人姓名</p>
+            </div>
+            <div class="form-field">
+              <label for="cp-emg-phone">緊急聯絡人電話<span class="req" aria-hidden="true">*</span></label>
+              <input type="tel" id="cp-emg-phone" name="emergency_phone" required autocomplete="tel" aria-describedby="cp-emg-phone-error">
+              <p class="field-error" id="cp-emg-phone-error" role="alert">請填寫緊急聯絡人電話</p>
+            </div>
+            <div class="form-field form-field--full">
+              <label for="cp-emg-relation">與學員關係<span class="req" aria-hidden="true">*</span></label>
+              <select id="cp-emg-relation" name="emergency_relation" required aria-describedby="cp-emg-relation-error">
+                <option value="">請選擇</option>
+                <option value="father">父親</option>
+                <option value="mother">母親</option>
+                <option value="grandparent">祖父母／外祖父母</option>
+                <option value="relative">其他親屬</option>
+                <option value="other">其他</option>
+              </select>
+              <p class="field-error" id="cp-emg-relation-error" role="alert">請選擇與學員關係</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>上傳資料（選填）</legend>
+          <div class="form-grid">
+            <div class="form-field form-field--full file-field">
+              <label for="cp-doc-file">健康聲明書或其他文件</label>
+              <input type="file" id="cp-doc-file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="cp-doc-hint">
+              <p class="field-hint" id="cp-doc-hint">支援 PDF／JPG／PNG，非必填。</p>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="consent-block">
+          <div class="checkbox-field">
+            <input type="checkbox" id="cp-consent" name="consent" required aria-describedby="cp-consent-error">
+            <label for="cp-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集學員、家長與緊急聯絡人之個人資料及健康聲明內容，用於處理本次營隊報名之聯繫、安全與應變作業。<span class="req" aria-hidden="true">*</span></label>
+          </div>
+          <p class="field-error" id="cp-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
+          
+        </div>
+
+        <div class="form-turnstile">
+          <!-- Cloudflare Turnstile 防機器人驗證：sitekey 待客戶申請 Cloudflare 帳號後設定，見 https://developers.cloudflare.com/turnstile/ -->
+          <div class="cf-turnstile" data-sitekey="" role="group" aria-label="機器人驗證"></div>
+          <p class="field-hint">此表單由 Cloudflare Turnstile 防護，驗證元件將於 sitekey 設定後生效。</p>
+        </div>
+
+        <button class="btn btn--primary btn--block" type="submit">送出報名</button>
+
+        <div class="form-submit-note">
+          <p><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；課程部窗口會另外收到通知信，並與家長確認梯次、名額與繳費方式。</p>
+        </div>
+      </form>
+
+      <aside class="form-sidebar">
+        <div class="form-sidebar__sticky">
+        <div class="form-sidebar__card">
+          <p class="form-sidebar__dept">收件單位</p>
+          <h2>課程部</h2>
+          
+        </div>
+        <div class="form-sidebar__card">
+          <h2>填寫前可以先準備</h2>
+          <ul>
+            <li>學員的健康與過敏史資訊</li>
+            <li>一位可隨時聯絡到的緊急聯絡人</li>
+            <li>希望報名的梯次或時段</li>
+          </ul>
+        </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+

@@ -1,0 +1,99 @@
+<!--meta
+{
+  "title": "磐石文化 Culture｜漫畫、球迷會、官方商品｜台中磐石足球俱樂部",
+  "description": "認識台中磐石足球俱樂部的文化單元：免費線上閱讀的磐石漫畫、磐石球迷會入會與福利，以及官方商品品牌櫥窗。",
+  "nav": "culture",
+  "unit": "08"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li aria-current="page">磐石文化</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="{{ROOT}}/assets/img/nav-culture.jpg" alt="" width="1600" height="900">
+  <div class="container">
+    <p class="page-hero__eyebrow">08 TCRFC Culture</p>
+    <h1>磐石文化<span class="en">Culture</span></h1>
+    <p class="page-hero__lede">從漫畫世界觀、球迷會到官方商品，磐石文化是台中磐石與球迷、社群之間最直接的情感連結。</p>
+  </div>
+</section>
+
+<!-- SPEC 3.8 — 單元 landing：導覽卡連往 8.1–8.3 -->
+<section class="band" aria-labelledby="culture-hub-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">EXPLORE</p>
+        <h2 class="section-title" id="culture-hub-title">磐石文化三大單元</h2>
+      </div>
+      <p class="section-lede">點選卡片深入了解磐石漫畫、球迷會與官方商品。</p>
+    </div>
+
+    <div class="unit-grid">
+      <a class="unit-card" href="{{ROOT}}/zh/culture/manga/">
+        <div class="unit-card__scrim" aria-hidden="true"></div>
+        <div class="unit-card__body">
+          <p class="unit-card__num">8.1</p>
+          <p class="unit-card__title">磐石漫畫<span class="en">TCRFC Manga</span></p>
+          <p class="unit-card__desc">世界觀企劃、角色卡牆與集數線上閱讀器——全部免費，不需登入。</p>
+          <span class="unit-card__link">開始閱讀 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </div>
+      </a>
+      <a class="unit-card" href="{{ROOT}}/zh/culture/fan-club/">
+        <img src="{{ROOT}}/assets/img/fanclub/fanclub-event-04.jpg" alt="" loading="lazy" width="1600" height="1067">
+        <div class="unit-card__scrim" aria-hidden="true"></div>
+        <div class="unit-card__body">
+          <p class="unit-card__num">8.2</p>
+          <p class="unit-card__title">磐石球迷會<span class="en">Fan Club</span></p>
+          <p class="unit-card__desc">入會方案、福利分級對照與球迷活動報名、回顧。</p>
+          <span class="unit-card__link">加入球迷會 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </div>
+      </a>
+      <a class="unit-card" href="{{ROOT}}/zh/culture/merchandise/">
+        <img src="{{ROOT}}/assets/img/merch/merch-jersey-01.jpg" alt="" loading="lazy" width="1600" height="1067">
+        <div class="unit-card__scrim" aria-hidden="true"></div>
+        <div class="unit-card__body">
+          <p class="unit-card__num">8.3</p>
+          <p class="unit-card__title">官方商品<span class="en">Merchandise</span></p>
+          <p class="unit-card__desc">俱樂部、學院、球迷三大系列商品櫥窗，選購請至 Shopify 商店。</p>
+          <span class="unit-card__link">看商品 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+/* 單元 landing 導覽卡（culture/ 與 partners/ 共用寫法，建議收進共用 CSS） */
+.unit-grid{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:1.5rem; margin-top:2.5rem;
+}
+.unit-card{
+  position:relative; display:flex; flex-direction:column; justify-content:flex-end;
+  min-height:340px; background:var(--ink-2); color:#fff; overflow:hidden; text-decoration:none;
+  clip-path:polygon(0 0,100% 0,100% calc(100% - 28px),calc(100% - 28px) 100%,0 100%);
+  transition:transform var(--dur) var(--ease);
+}
+.unit-card:hover{ transform:translateY(-4px); }
+.unit-card::after{
+  content:""; position:absolute; right:0; bottom:0; width:34px; height:34px;
+  background:var(--ink-trim-dk); clip-path:polygon(100% 0,100% 100%,0 100%); z-index:2;
+}
+.unit-card img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:.6; transition:transform .6s var(--ease); }
+.unit-card:hover img{ transform:scale(1.08); }
+.unit-card__scrim{ position:absolute; inset:0; background:linear-gradient(0deg,rgba(35,25,22,.96) 0%,rgba(35,25,22,.6) 55%,rgba(35,25,22,.2) 100%); }
+.unit-card__body{ position:relative; z-index:1; padding:1.85rem 1.6rem; }
+.unit-card__num{ font-size:.72rem; font-weight:800; letter-spacing:.08em; color:var(--brand); text-transform:uppercase; }
+.unit-card__title{ font-size:1.4rem; font-weight:900; margin-top:.5rem; letter-spacing:-.01em; }
+.unit-card__title .en{ display:block; font-size:.6em; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted-dark); margin-top:.25em; }
+.unit-card__desc{ font-size:.85rem; color:var(--muted-dark); margin-top:.6rem; line-height:1.6; }
+.unit-card__link{ display:inline-flex; align-items:center; gap:.4em; margin-top:1.1rem; font-weight:700; font-size:.85rem; color:#fff; }
+.unit-card__link svg{ width:14px; height:14px; transition:transform var(--dur-fast) var(--ease); }
+.unit-card:hover .unit-card__link svg{ transform:translateX(4px); }
+</style>

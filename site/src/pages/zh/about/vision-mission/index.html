@@ -1,0 +1,60 @@
+<!--meta
+{
+  "title": "願景與使命 Vision & Mission｜關於磐石｜台中磐石足球俱樂部",
+  "description": "台中磐石足球俱樂部的願景與使命：透過專業化培育體系，讓台中在地選手邁向職業舞台，並以足球讓世界看見台灣。",
+  "nav": "about",
+  "unit": "2.2"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/about/">關於磐石</a></li>
+      <li aria-current="page">願景與使命</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="{{ROOT}}/assets/img/nav-about.jpg" alt="" width="1600" height="900">
+  <div class="container">
+    <p class="page-hero__eyebrow">2.2 About TCRFC</p>
+    <h1>願景與使命<span class="en">Vision &amp; Mission</span></h1>
+    <p class="page-hero__lede">從台中出發：培育本土選手邁向職業、成為在地榮耀的來源，並以足球讓世界看見台灣。</p>
+  </div>
+</section>
+
+<section class="band vm-band" aria-labelledby="vm-title">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="vm-title">願景與使命</h2>
+    <div class="vm-grid">
+      <div class="vm-col">
+        <p class="kicker">VISION</p>
+        <h2 class="vm-col__title">願景</h2>
+        <p class="vm-col__text">從台中出發，培育本土選手邁向職業舞台，成為在地榮耀的來源。</p>
+      </div>
+
+      <div class="vm-col">
+        <p class="kicker">MISSION</p>
+        <h2 class="vm-col__title">使命</h2>
+        <p class="vm-col__text">以扎實的訓練體系與國際連結，讓世界看見台灣足球。</p>
+      </div>
+    </div>
+
+    <p class="vm-footnote">俱樂部品牌主張與五大核心價值可先參考 <a href="{{ROOT}}/zh/about/philosophy/">2.3 足球理念</a>。</p>
+  </div>
+</section>
+
+<style>
+/* 【2.2 Vision & Mission】雙欄式版型 + 圖示條列骨架 */
+.vm-band{ background:var(--paper); padding-block:clamp(3.5rem,6vw,6rem); }
+.vm-grid{
+  display:grid; gap:clamp(2rem,4vw,3.5rem);
+  grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+}
+.vm-col__title{ font-size:var(--fs-h3); font-weight:900; color:var(--heading); margin:.4rem 0 1.25rem; }
+.vm-col__text{ font-size:1rem; line-height:1.75; color:var(--text); max-width:44ch; }
+.vm-footnote{ margin-top:3rem; font-size:.88rem; color:var(--muted); }
+.vm-footnote a{ color:var(--brand-aa); font-weight:700; }
+</style>

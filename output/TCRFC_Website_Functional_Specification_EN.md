@@ -58,7 +58,7 @@ The following assets must be inventoried before launch to determine migration sc
 | Instagram | [@tcr_fc_2024](https://www.instagram.com/tcr_fc_2024) | Linked in footer and contact page; recent posts may be embedded on the homepage or news pages |
 | Facebook | [TCRFC2024](https://www.facebook.com/TCRFC2024) | Linked in footer and contact page; events and news cross-posted |
 | YouTube | [@TCRFC-2024](https://www.youtube.com/@TCRFC-2024) | Linked in footer; videos embedded in team pages, match highlights, player stories, manga animations |
-| Women's team official website | TBC | Outbound target for section 06 Women's Football |
+| Women's team official website | [Taichung Blue Whale](https://www.tcbw2014.com/) | Outbound target for section 06 Women's Football |
 | Shopify store | TBC | Outbound target for the 08.3 product showcase |
 
 **Migration principle**: inventory and classify existing content first (keep / rewrite / discard), and migrate only what is still current and of sufficient quality. For news, keeping the last 1–2 years is recommended; older articles are not migrated item by item, but their URLs are still redirected.
@@ -244,7 +244,7 @@ Eight module pages: technical & tactical analysis, physical conditioning, game r
 
 > Consequently, the `Team / Player / Match` data models serve only the First Team and academy age groups. Responsibility for women's team information rests with the women's website, so this site does not mirror its roster or fixtures — avoiding inconsistency between the two sites.
 >
-> **Pending**: the women's team official website URL.
+> **Women's team official website**: [Taichung Blue Whale](https://www.tcbw2014.com/) (provided by the club, 2026-09-01).
 
 ---
 
@@ -857,7 +857,7 @@ TCRFC Admin
 - **External service links**:
   - Shopify store URL
   - **Social platforms**: Instagram [`@tcr_fc_2024`](https://www.instagram.com/tcr_fc_2024), Facebook [`TCRFC2024`](https://www.facebook.com/TCRFC2024), YouTube [`@TCRFC-2024`](https://www.youtube.com/@TCRFC-2024)
-  - **Women's team official website** URL (for the 06 outbound link)
+  - **Women's team official website** URL (for the 06 outbound link): [`https://www.tcbw2014.com/`](https://www.tcbw2014.com/)
   - EDM platform configuration
 - **Global settings**: logo, brand colours, favicon, cookie policy, privacy policy, **membership terms**, maintenance-mode toggle
 
@@ -1128,16 +1128,16 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 
 ### Still to confirm
 
-1. **Women's team website URL**: the outbound target for section 06.
-2. **Shopify store URL**: the target for the 08.3 showcase and the donation item; if the store is not yet open, confirm the expected launch date.
-3. **LINE Official Account plan and message quota**: the monthly push allowance determines which notifications go via LINE and which via email (see 4.11 K4).
-4. **Whether donation receipts are required**: issuing formal receipts or supporting tax deductions involves public-fundraising eligibility and regulatory process, and needs separate assessment; this plan covers thank-you messages and annual reporting of fund usage only.
-5. **Whether fan club membership is paid**: if so, is payment handled as a Shopify membership product or by offline transfer?
-6. **Migration scope for the existing site**: which content on [www.tcrfc.tw](https://www.tcrfc.tw/) should be kept, rewritten, or discarded? For news, keeping the last 1–2 years is recommended.
-7. **How English content will be produced**: supplied by the club, outsourced for translation, or launched for priority pages first? This affects the Phase 2 timeline.
-8. **Whether charity amounts are published**: organisation name, donation content, and imagery are confirmed; monetary amounts are private by default — are there specific cases that should be public?
-9. **Whether trials appear in the calendar**: off by default (kept on the recruitment pages); can be enabled in the admin if desired.
-10. **Ticketing and broadcast information**: are there ticketing channels or broadcast platforms to display on fixture cards?
+1. **Shopify store URL**: the target for the 08.3 showcase and the donation item; if the store is not yet open, confirm the expected launch date.
+2. **LINE Official Account plan and message quota**: the monthly push allowance determines which notifications go via LINE and which via email (see 4.11 K4).
+3. **Whether donation receipts are required**: issuing formal receipts or supporting tax deductions involves public-fundraising eligibility and regulatory process, and needs separate assessment; this plan covers thank-you messages and annual reporting of fund usage only.
+4. **Whether fan club membership is paid**: if so, is payment handled as a Shopify membership product or by offline transfer?
+5. **Migration scope for the existing site**: which content on [www.tcrfc.tw](https://www.tcrfc.tw/) should be kept, rewritten, or discarded? For news, keeping the last 1–2 years is recommended.
+6. **How English content will be produced**: supplied by the club, outsourced for translation, or launched for priority pages first? This affects the Phase 2 timeline.
+7. **Whether charity amounts are published**: organisation name, donation content, and imagery are confirmed; monetary amounts are private by default — are there specific cases that should be public?
+8. **Whether trials appear in the calendar**: off by default (kept on the recruitment pages); can be enabled in the admin if desired.
+9. **Ticketing and broadcast information**: are there ticketing channels or broadcast platforms to display on fixture cards?
+10. **Personal data retention period**: §3.10 and §9 both require forms to display a retention notice and for a retention policy to be defined, but **the actual duration is unspecified**. All nine forms need it; it is a personal-data compliance item and must be confirmed by the club and its legal advisers.
 11. **Manga release cadence**: the publishing rhythm of episodes, which shapes the "latest episode" block and homepage exposure.
 
 ---

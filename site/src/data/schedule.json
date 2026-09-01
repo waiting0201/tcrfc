@@ -1,0 +1,212 @@
+[
+  {
+    "round": "1",
+    "match_no": "3",
+    "date": "2026-09-13",
+    "weekday": "SUN",
+    "kickoff": "19:00",
+    "home_away": "AWAY",
+    "opponent_zh": "高雄先鋒",
+    "venue_zh": "楠梓足球場"
+  },
+  {
+    "round": "2",
+    "match_no": "6",
+    "date": "2026-09-20",
+    "weekday": "SUN",
+    "kickoff": "16:30",
+    "home_away": "HOME",
+    "opponent_zh": "台灣電力",
+    "venue_zh": "西屯足球場"
+  },
+  {
+    "round": "3",
+    "match_no": "12",
+    "date": "2026-10-11",
+    "weekday": "SUN",
+    "kickoff": "16:00",
+    "home_away": "AWAY",
+    "opponent_zh": "陽信北競",
+    "venue_zh": "汐止綜合運動場"
+  },
+  {
+    "round": "4",
+    "match_no": "13",
+    "date": "2026-10-18",
+    "weekday": "SUN",
+    "kickoff": "18:30",
+    "home_away": "AWAY",
+    "opponent_zh": "南市台鋼",
+    "venue_zh": "台南市立足球場"
+  },
+  {
+    "round": "5",
+    "match_no": "20",
+    "date": "2026-10-25",
+    "weekday": "SUN",
+    "kickoff": "19:00",
+    "home_away": "HOME",
+    "opponent_zh": "台中FUTURO",
+    "venue_zh": "西屯足球場"
+  },
+  {
+    "round": "6",
+    "match_no": "22",
+    "date": "2026-11-01",
+    "weekday": "SUN",
+    "kickoff": "19:00",
+    "home_away": "AWAY",
+    "opponent_zh": "新北航源",
+    "venue_zh": "輔仁大學足球場"
+  },
+  {
+    "round": "7",
+    "match_no": "27",
+    "date": "2026-11-22",
+    "weekday": "SUN",
+    "kickoff": "15:30",
+    "home_away": "HOME",
+    "opponent_zh": "大同足球",
+    "venue_zh": "TBC"
+  },
+  {
+    "round": "8",
+    "match_no": "31",
+    "date": "2026-11-29",
+    "weekday": "SUN",
+    "kickoff": "19:00",
+    "home_away": "HOME",
+    "opponent_zh": "高雄先鋒",
+    "venue_zh": "西屯足球場"
+  },
+  {
+    "round": "9",
+    "match_no": "34",
+    "date": "2026-12-06",
+    "weekday": "SUN",
+    "kickoff": "15:30",
+    "home_away": "AWAY",
+    "opponent_zh": "台灣電力",
+    "venue_zh": "楠梓足球場"
+  },
+  {
+    "round": "10",
+    "match_no": "40",
+    "date": "2026-12-13",
+    "weekday": "SUN",
+    "kickoff": "19:00",
+    "home_away": "HOME",
+    "opponent_zh": "陽信北競",
+    "venue_zh": "西屯足球場"
+  },
+  {
+    "round": "11",
+    "match_no": "41",
+    "date": "2027-01-24",
+    "weekday": "SUN",
+    "kickoff": "16:00",
+    "home_away": "HOME",
+    "opponent_zh": "南市台鋼",
+    "venue_zh": "西屯足球場"
+  },
+  {
+    "round": "12",
+    "match_no": "48",
+    "date": "2027-01-31",
+    "weekday": "SUN",
+    "kickoff": "19:00",
+    "home_away": "AWAY",
+    "opponent_zh": "台中FUTURO",
+    "venue_zh": "西屯足球場"
+  },
+  {
+    "round": "13",
+    "match_no": "50",
+    "date": "2027-02-21",
+    "weekday": "SUN",
+    "kickoff": "19:00",
+    "home_away": "HOME",
+    "opponent_zh": "新北航源",
+    "venue_zh": "西屯足球場"
+  },
+  {
+    "round": "14",
+    "match_no": "55",
+    "date": "2027-02-28",
+    "weekday": "SUN",
+    "kickoff": "16:00",
+    "home_away": "AWAY",
+    "opponent_zh": "大同足球",
+    "venue_zh": "輔仁大學足球場"
+  },
+  {
+    "round": "15",
+    "match_no": "59",
+    "date": "2027-03-07",
+    "weekday": "SUN",
+    "kickoff": "19:00",
+    "home_away": "AWAY",
+    "opponent_zh": "高雄先鋒",
+    "venue_zh": "楠梓足球場"
+  },
+  {
+    "round": "16",
+    "match_no": "62",
+    "date": "2027-03-14",
+    "weekday": "SUN",
+    "kickoff": "16:00",
+    "home_away": "HOME",
+    "opponent_zh": "台灣電力",
+    "venue_zh": "西屯足球場"
+  },
+  {
+    "round": "17",
+    "match_no": "68",
+    "date": "2027-03-21",
+    "weekday": "SUN",
+    "kickoff": "15:30",
+    "home_away": "AWAY",
+    "opponent_zh": "陽信北競",
+    "venue_zh": "汐止綜合運動場"
+  },
+  {
+    "round": "18",
+    "match_no": "69",
+    "date": "2027-04-11",
+    "weekday": "SUN",
+    "kickoff": "18:30",
+    "home_away": "AWAY",
+    "opponent_zh": "南市台鋼",
+    "venue_zh": "台南市立足球場"
+  },
+  {
+    "round": "19",
+    "match_no": "76",
+    "date": "2027-04-18",
+    "weekday": "SUN",
+    "kickoff": "19:00",
+    "home_away": "HOME",
+    "opponent_zh": "台中FUTURO",
+    "venue_zh": "西屯足球場"
+  },
+  {
+    "round": "20",
+    "match_no": "78",
+    "date": "2027-04-25",
+    "weekday": "SUN",
+    "kickoff": "15:30",
+    "home_away": "AWAY",
+    "opponent_zh": "新北航源",
+    "venue_zh": "台北田徑場"
+  },
+  {
+    "round": "21",
+    "match_no": "83",
+    "date": "2027-05-02",
+    "weekday": "SUN",
+    "kickoff": "16:30",
+    "home_away": "HOME",
+    "opponent_zh": "大同足球",
+    "venue_zh": "西屯足球場"
+  }
+]

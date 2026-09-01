@@ -1,0 +1,224 @@
+<!--meta
+{
+  "title": "團隊成員 Our People｜關於磐石｜台中磐石足球俱樂部",
+  "description": "認識台中磐石足球俱樂部的教練團與顧問團隊：總教練、教練、守門員教練、體能教練、青訓總監、青訓教練與技術顧問。",
+  "nav": "about",
+  "unit": "2.4"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/about/">關於磐石</a></li>
+      <li aria-current="page">團隊成員</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="{{ROOT}}/assets/img/nav-about.jpg" alt="" width="1600" height="900">
+  <div class="container">
+    <p class="page-hero__eyebrow">2.4 About TCRFC</p>
+    <h1>團隊成員<span class="en">Our People</span></h1>
+    <p class="page-hero__lede">支撐台中磐石一線隊運作的教練團與顧問團隊。點選任一成員可查看詳細資料。</p>
+  </div>
+</section>
+
+<section class="band people-band" aria-labelledby="people-coaching-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">COACHING STAFF</p>
+        <h2 class="section-title" id="people-coaching-title">教練團</h2>
+      </div>
+    </div>
+
+    <div class="people-grid">
+      <button type="button" class="people-card" data-person="matino">
+        
+        <span class="people-card__role">總教練</span>
+        <span class="people-card__name">瑪蒂諾<span class="en">Matino Sofia</span></span>
+      </button>
+
+      <button type="button" class="people-card" data-person="thomas">
+        
+        <span class="people-card__role">教練</span>
+        <span class="people-card__name">托馬斯・卡斯泰洛<span class="en">Thomas Castello</span></span>
+      </button>
+
+      <button type="button" class="people-card" data-person="juliano">
+        
+        <span class="people-card__role">守門員教練</span>
+        <span class="people-card__name">儒利亞諾・羅德里格斯<span class="en">Juliano Rodrigues</span></span>
+      </button>
+
+      <button type="button" class="people-card" data-person="jiang">
+        
+        <span class="people-card__role">體能教練</span>
+        <span class="people-card__name">江奕璠</span>
+      </button>
+
+      <button type="button" class="people-card" data-person="xu">
+        
+        <span class="people-card__role">青訓總監</span>
+        <span class="people-card__name">徐翊</span>
+      </button>
+
+      <button type="button" class="people-card" data-person="xu-zhijie">
+        
+        <span class="people-card__role">青訓教練</span>
+        <span class="people-card__name">許志傑</span>
+      </button>
+
+      <button type="button" class="people-card" data-person="huang">
+        
+        <span class="people-card__role">青訓教練</span>
+        <span class="people-card__name">黃聖傑</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<section class="band grain grain--2 people-band people-band--advisory" aria-labelledby="people-advisory-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">ADVISORY</p>
+        <h2 class="section-title" id="people-advisory-title" style="color:#fff;">顧問</h2>
+      </div>
+    </div>
+
+    <div class="people-grid people-grid--on-dark">
+      <button type="button" class="people-card people-card--on-dark" data-person="chen">
+        
+        <span class="people-card__role">技術顧問</span>
+        <span class="people-card__name">陳曉明</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- 人員詳情彈窗 -->
+<div class="people-modal" id="people-modal" hidden>
+  <div class="people-modal__scrim" data-close></div>
+  <div class="people-modal__panel" role="dialog" aria-modal="true" aria-labelledby="people-modal-name">
+    <button type="button" class="people-modal__close" data-close aria-label="關閉">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+    <span class="people-modal__photo" id="people-modal-photo" aria-hidden="true"></span>
+    <p class="people-modal__role" id="people-modal-role"></p>
+    <h3 class="people-modal__name" id="people-modal-name"></h3>
+    <p class="people-modal__bio" id="people-modal-bio"></p>
+  </div>
+</div>
+
+<style>
+/* 【2.4 Our People】人員卡片列表 + 彈窗詳情 —— 若球員/教練頁也需要同款彈窗，建議收進共用 CSS/JS */
+.people-band{ background:var(--paper); padding-block:clamp(3.5rem,6vw,5.5rem); }
+.people-band--advisory{ color:#fff; }
+.people-band--advisory .section-lede{ color:var(--muted-dark); }
+
+.people-grid{
+  display:grid; gap:1.5rem;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+}
+.people-card{
+  display:flex; flex-direction:column; align-items:center; text-align:center; gap:.6rem;
+  background:var(--paper-2); border:1px solid var(--rule); padding:1.75rem 1.25rem;
+  cursor:pointer; transition:transform var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.people-card:hover{ transform:translateY(-4px); border-color:var(--brand-aa); }
+.people-card--on-dark{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.15); }
+.people-card--on-dark:hover{ border-color:var(--brand-bright); }
+.people-card__photo{
+  width:84px; height:84px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  font-size:1.6rem; font-weight:800; color:var(--muted);
+}
+.people-card__photo--pending{ background:var(--rule); }
+.people-card--on-dark .people-card__photo--pending{ background:rgba(255,255,255,.12); color:var(--muted-dark); }
+.people-card__role{ font-size:.72rem; font-weight:800; letter-spacing:.06em; color:var(--brand-aa); text-transform:uppercase; }
+.people-card--on-dark .people-card__role{ color:var(--brand); }
+.people-card__name{ font-size:1rem; font-weight:800; color:var(--heading); }
+.people-card--on-dark .people-card__name{ color:#fff; }
+.people-card__name .en{ display:block; font-size:.76rem; font-weight:600; color:var(--muted); margin-top:.2rem; }
+.people-card--on-dark .people-card__name .en{ color:var(--muted-dark); }
+
+/* 彈窗 */
+.people-modal{ position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center; padding:1.25rem; }
+.people-modal[hidden]{ display:none; }
+.people-modal__scrim{ position:absolute; inset:0; background:rgba(35,25,22,.7); }
+.people-modal__panel{
+  position:relative; z-index:1; background:var(--paper); max-width:440px; width:100%;
+  padding:2.5rem 2rem 2rem; text-align:center;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%);
+}
+.people-modal__close{
+  position:absolute; top:1rem; right:1rem; width:36px; height:36px;
+  display:flex; align-items:center; justify-content:center; color:var(--muted);
+}
+.people-modal__close:hover{ color:var(--brand-aa); }
+.people-modal__photo{
+  display:block; width:96px; height:96px; border-radius:50%; margin:0 auto 1.1rem;
+  background:var(--rule);
+}
+.people-modal__role{ font-size:.76rem; font-weight:800; letter-spacing:.06em; color:var(--brand-aa); text-transform:uppercase; }
+.people-modal__name{ font-size:1.4rem; font-weight:900; color:var(--heading); margin:.4rem 0 1.25rem; }
+.people-modal__bio{ text-align:left; font-size:.9rem; line-height:1.7; color:var(--muted); }
+</style>
+
+<script>
+(function(){
+  "use strict";
+  // 團隊成員資料 —— bio_zh 全數為 null（見 site/src/data/staff.json），彈窗以中性文字說明簡介尚未公開
+  var PEOPLE = {
+    matino: { name: "瑪蒂諾 Matino Sofia", role: "總教練", bio: null },
+    thomas: { name: "托馬斯・卡斯泰洛 Thomas Castello", role: "教練", bio: null },
+    juliano: { name: "儒利亞諾・羅德里格斯 Juliano Rodrigues", role: "守門員教練", bio: null },
+    jiang: { name: "江奕璠", role: "體能教練", bio: null },
+    xu: { name: "徐翊", role: "青訓總監", bio: null },
+    "xu-zhijie": { name: "許志傑", role: "青訓教練", bio: null },
+    huang: { name: "黃聖傑", role: "青訓教練", bio: null },
+    chen: {
+      name: "陳曉明", role: "技術顧問",
+      bio: "依俱樂部 2025 年 11 月 3 日發布之消息，陳曉明先生自該日起出任台中磐石足球俱樂部技術顧問。"
+    }
+  };
+  var BIO_PLACEHOLDER = "簡介準備中，稍後將於本頁公開。";
+
+  var modal = document.getElementById('people-modal');
+  var elPhoto = document.getElementById('people-modal-photo');
+  var elRole = document.getElementById('people-modal-role');
+  var elName = document.getElementById('people-modal-name');
+  var elBio = document.getElementById('people-modal-bio');
+  var lastFocused = null;
+
+  function openModal(key){
+    var p = PEOPLE[key];
+    if(!p) return;
+    elPhoto.textContent = '';
+    elRole.textContent = p.role;
+    elName.textContent = p.name;
+    elBio.textContent = p.bio || BIO_PLACEHOLDER;
+    modal.hidden = false;
+    lastFocused = document.activeElement;
+    modal.querySelector('.people-modal__close').focus();
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal(){
+    modal.hidden = true;
+    document.body.style.overflow = '';
+    if(lastFocused) lastFocused.focus();
+  }
+
+  document.querySelectorAll('.people-card').forEach(function(card){
+    card.addEventListener('click', function(){ openModal(card.dataset.person); });
+  });
+  modal.querySelectorAll('[data-close]').forEach(function(el){
+    el.addEventListener('click', closeModal);
+  });
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && !modal.hidden) closeModal();
+  });
+})();
+</script>

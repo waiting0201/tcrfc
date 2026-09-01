@@ -18,10 +18,10 @@
 | 品牌資產 | ✅ [`brand/`](brand/) 已由 logo 主檔萃取完成；design tokens 已校正為 `.ai` 品牌色 |
 | 技術選型 | ❌ **未定案**（規劃書第 10 節明確排除在範圍外） |
 | 網站本體 | ❌ 尚未開發 |
-| 內容 | 🔄 **收件中** — 客戶依 [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) 的結構放入既有檔案 |
-| 版本控制 | ❌ 本目錄**不是 git repo**。覆寫或刪除檔案前務必先看過內容 |
+| 內容 | 🔄 **已首批交件**（456MB／212 張原始照片／113 篇文稿）。盤點見 [`docs/09-intake-inventory.md`](docs/09-intake-inventory.md)。**阻塞：文稿全為 `.gdoc` 捷徑，本機讀不到** |
+| 版本控制 | ✅ 已 `git init`（branch `master`）。收件夾與大型素材未納管，覆寫或刪除前仍請先看過內容 |
 
-**目前的主線工作**：等客戶把既有素材放進收件夾 → 盤點 → 改寫成網頁文案 → 套入網站。
+**目前的主線工作**：首批素材已到、盤點完成 → **取回 113 篇 Google Docs 文稿**（阻塞中）→ 改寫成網頁文案 → 套入網站。
 流程見 [`docs/07-content-pipeline.md`](docs/07-content-pipeline.md)。
 
 ---
@@ -36,6 +36,7 @@
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
 | [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖 | 客戶提供素材 |
 | [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) | 給客戶放既有檔案的分類結構（83 個資料夾，對應 13 單元） | 內容收件 |
+| [`content/`](content/) | 抽出的結構化資料：2026/27 企甲賽程、舊官網 128 筆 URL 盤點 | 抽取產物 |
 | `.wrangler/` | Cloudflare Pages 部署快取 | 工具產生，勿手動改 |
 
 ---
@@ -53,6 +54,7 @@
 | [`docs/06-conventions.md`](docs/06-conventions.md) | 命名、術語、色彩字級、日期與檔名格式 |
 | [`docs/07-content-pipeline.md`](docs/07-content-pipeline.md) | 處理客戶交來的素材 |
 | [`docs/08-roadmap-decisions.md`](docs/08-roadmap-decisions.md) | 排程、已定案前提、待確認事項 |
+| [`docs/09-intake-inventory.md`](docs/09-intake-inventory.md) | 要知道客戶交了什麼、缺什麼、哪裡卡住 |
 
 ---
 
@@ -65,7 +67,8 @@
 - **雙語**：繁中（預設）＋英文，URL 以 `/zh/`、`/en/` 區隔，架構須預留第三語系。
 - **不做的事**：站內電商、金流、購物車、訂單、庫存（全數導向 Shopify）；票務；女足名單與賽程（導向女足官網）。
 - **賽事資料全部人工維護**，不串接外部 API，提供 CSV 批次匯入。
-- **既有數位資產**：官網 www.tcrfc.tw（待遷移）、IG `@tcr_fc_2024`、FB `TCRFC2024`、YouTube `@TCRFC-2024`。
+- **既有數位資產**：官網 www.tcrfc.tw（待遷移）、IG `@tcr_fc_2024`、FB `TCRFC2024`、YouTube `@TCRFC-2024`、
+  女足官網 [台中藍鯨](https://www.tcbw2014.com/)（06 頁導流目標，本站不維護其名單與賽程）。
 - **成立年份 2024**，2024 全國乙級聯賽冠軍。
 
 ---

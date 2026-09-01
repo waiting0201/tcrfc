@@ -1,0 +1,149 @@
+<!--meta
+{
+  "title": "校園與社區 School & Community｜課程與活動｜台中磐石足球俱樂部",
+  "description": "台中磐石校園合作方案、社區計畫與教練培訓，歡迎學校與社區單位洽談合作，填寫表單由專人聯繫。",
+  "nav": "programs",
+  "unit": "5.5"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/programs/">課程與活動</a></li>
+      <li aria-current="page">校園與社區</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">5.5</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">5.5 Programs</p>
+    <h1>校園與社區<span class="en">School &amp; Community</span></h1>
+    <p class="page-hero__lede">磐石與學校、社區單位合作推廣足球運動，提供校園方案、社區計畫與教練培訓，並協助培育在地師資。</p>
+  </div>
+</section>
+
+<section class="band">
+  <div class="container">
+    <div class="grid grid--3">
+      <div class="prose">
+        <h2>校園合作方案</h2>
+        
+      </div>
+      <div class="prose">
+        <h2>社區計畫</h2>
+        
+      </div>
+      <div class="prose">
+        <h2>教練培訓</h2>
+        
+      </div>
+    </div>
+    
+  </div>
+</section>
+
+<section class="band" style="background:var(--paper-2);" aria-labelledby="sch-list-title">
+  <div class="container">
+    <div class="prose" style="margin-bottom:1.5rem;">
+      <h2 id="sch-list-title">合作學校列表</h2>
+      <p>合作學校名單將於客戶確認後公告於此處。</p>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th scope="col">學校／單位</th><th scope="col">合作內容</th><th scope="col">合作年度</th></tr>
+        </thead>
+        <tbody>
+          <tr></tr>
+          <tr></tr>
+          <tr></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="sch-form-title">
+  <div class="container">
+    <div class="prose" style="margin-bottom:1.75rem;max-width:60ch;">
+      <h2 id="sch-form-title">洽談合作</h2>
+      <p>學校或社區單位如有合作意願，歡迎填寫以下表單，磐石團隊將盡快與您聯繫。</p>
+    </div>
+
+    <form class="inquiry-form" onsubmit="return false;">
+      <div class="field">
+        <label for="sch-org">學校／單位名稱 <span aria-hidden="true">*</span></label>
+        <input type="text" id="sch-org" name="org" autocomplete="organization" required>
+      </div>
+      <div class="field">
+        <label for="sch-contact">聯絡人姓名 <span aria-hidden="true">*</span></label>
+        <input type="text" id="sch-contact" name="contact" autocomplete="name" required>
+      </div>
+      <div class="field">
+        <label for="sch-phone">聯絡電話 <span aria-hidden="true">*</span></label>
+        <input type="tel" id="sch-phone" name="phone" autocomplete="tel" required>
+      </div>
+      <div class="field">
+        <label for="sch-email">Email <span aria-hidden="true">*</span></label>
+        <input type="email" id="sch-email" name="email" autocomplete="email" required>
+      </div>
+      <div class="field field--full">
+        <label for="sch-type">合作類型</label>
+        <select id="sch-type" name="type">
+          <option value="">請選擇</option>
+          <option value="school">校園合作方案</option>
+          <option value="community">社區計畫</option>
+          <option value="coach-training">教練培訓</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div class="field field--full">
+        <label for="sch-message">洽談需求說明</label>
+        <textarea id="sch-message" name="message" rows="5"></textarea>
+      </div>
+      <div class="field field--full">
+        <button class="btn btn--primary" type="submit">送出洽談需求</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+<section class="band grain cta-band" aria-labelledby="sch-cta-title">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">5.5</span>
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">PARTNER WITH US</p>
+        <h2 class="section-title" id="sch-cta-title">與磐石一起推廣足球</h2>
+      </div>
+    </div>
+    <div class="hero__ctas" style="margin-top:1.5rem;">
+      <a class="btn btn--light" href="{{ROOT}}/zh/programs/">回課程總覽</a>
+      <a class="btn btn--light" href="{{ROOT}}/zh/partners/">合作夥伴與贊助</a>
+    </div>
+  </div>
+</section>
+
+<style>
+/* PROGRAMS 單元共用元件（5.1–5.5 共用，重複三頁以上，建議收進 tcrfc.css） */
+.table-wrap{ overflow-x:auto; }
+.data-table{ width:100%; border-collapse:collapse; min-width:560px; }
+.data-table th, .data-table td{ padding:.85rem 1rem; text-align:left; border-bottom:1px solid var(--rule); font-size:.85rem; }
+.data-table thead th{ background:var(--ink); color:#fff; font-weight:700; letter-spacing:.03em; }
+.data-table td.is-pending{ color:var(--muted); font-style:italic; }
+
+/* 洽談表單（介面結構，非客戶內容） */
+.inquiry-form{ background:var(--paper-2); padding:clamp(1.75rem,4vw,2.75rem); display:grid; gap:1.25rem; grid-template-columns:repeat(2,1fr); }
+.inquiry-form .field{ display:flex; flex-direction:column; gap:.4rem; }
+.inquiry-form .field--full{ grid-column:1/-1; }
+.inquiry-form label{ font-size:.8rem; font-weight:700; color:var(--heading); }
+.inquiry-form input, .inquiry-form select, .inquiry-form textarea{
+  border:1px solid var(--rule); background:#fff; padding:.75rem .9rem; font:inherit; color:var(--text);
+}
+.inquiry-form input:focus, .inquiry-form select:focus, .inquiry-form textarea:focus{ outline:2px solid var(--brand-aa); outline-offset:1px; }
+.inquiry-form textarea{ resize:vertical; min-height:120px; }
+@media (max-width:640px){ .inquiry-form{ grid-template-columns:1fr; } }
+</style>

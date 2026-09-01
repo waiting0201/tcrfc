@@ -1,0 +1,230 @@
+<!--meta
+{
+  "title": "會員中心 Member｜台中磐石足球俱樂部",
+  "description": "台中磐石足球俱樂部會員中心：登入、註冊，以及 Email、LINE 官方帳號 QR Code、Google 帳號三種入會管道說明。",
+  "nav": "",
+  "unit": "14"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li aria-current="page">會員中心</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">14</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">Member Centre</p>
+    <h1>會員中心<span class="en">Member</span></h1>
+    <p class="page-hero__lede">登入查看你的報名、捐款與行事曆紀錄；還不是會員？用最方便的方式加入台中磐石。</p>
+  </div>
+</section>
+
+<section class="band member-band" aria-labelledby="member-title">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="member-title">會員登入與註冊</h2>
+
+    <div class="member-tabs" data-member-tabs>
+      <div class="member-tabs__list" role="tablist" aria-label="登入或註冊">
+        <button type="button" role="tab" id="tab-login" aria-controls="panel-login" aria-selected="true" class="member-tabs__tab">會員登入</button>
+        <button type="button" role="tab" id="tab-register" aria-controls="panel-register" aria-selected="false" class="member-tabs__tab" tabindex="-1">加入會員</button>
+      </div>
+
+      <div class="member-tabs__panel" id="panel-login" role="tabpanel" aria-labelledby="tab-login" tabindex="0">
+        <div class="form-layout form-layout--narrow">
+          <form class="tcrfc-form" action="" method="post" novalidate>
+            <fieldset>
+              <legend>會員登入</legend>
+              <div class="form-grid" style="grid-template-columns:1fr;">
+                <div class="form-field">
+                  <label for="m-login-email">Email<span class="req" aria-hidden="true">*</span></label>
+                  <input type="email" id="m-login-email" name="email" required autocomplete="email">
+                </div>
+                <div class="form-field">
+                  <label for="m-login-password">密碼<span class="req" aria-hidden="true">*</span></label>
+                  <input type="password" id="m-login-password" name="password" required autocomplete="current-password">
+                </div>
+              </div>
+            </fieldset>
+            <button class="btn btn--primary btn--block" type="submit">登入</button>
+            <p class="member-alt-login">
+              <button type="button" class="btn btn--dark btn--block" disabled aria-disabled="true">以 LINE 登入（開發中）</button>
+              <button type="button" class="btn btn--dark btn--block" disabled aria-disabled="true" style="margin-top:.75rem;">以 Google 登入（開發中）</button>
+            </p>
+          </form>
+        </div>
+      </div>
+
+      <div class="member-tabs__panel" id="panel-register" role="tabpanel" aria-labelledby="tab-register" tabindex="0" hidden>
+
+        <p class="section-lede" style="margin-bottom:2rem;">三種入會管道，建立同一套會員資料（以 Email 或手機比對合併，避免重複名單）。</p>
+
+        <div class="channel-grid">
+          <div class="channel-card clip-card">
+            <p class="channel-card__num">A</p>
+            <h3>Email 註冊</h3>
+            <p>直接於官網填寫註冊表單，建立帳號密碼登入的一般會員。</p>
+          </div>
+          <div class="channel-card clip-card">
+            <p class="channel-card__num">B</p>
+            <h3>LINE 官方帳號 <span class="en">QR Code</span></h3>
+            <p>掃碼加好友 → 收到自動歡迎訊息 → 點連結於 LINE 內開啟入會表單 → 建立會員並綁定 LINE → 之後可透過圖文選單查詢會員資訊。適合現場招生、賽事、營隊與校園推廣場景，表單欄位刻意精簡（姓名、手機、Email、身分別），降低現場掃碼放棄率。</p>
+          </div>
+          <div class="channel-card clip-card">
+            <p class="channel-card__num">C</p>
+            <h3>Google 帳號</h3>
+            <p>以既有 Google 帳號一鍵註冊 / 登入。</p>
+          </div>
+        </div>
+
+        <div class="form-layout">
+          <form class="tcrfc-form" action="" method="post" novalidate>
+            <fieldset>
+              <legend>Email 註冊表單</legend>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label for="m-reg-name">姓名<span class="req" aria-hidden="true">*</span></label>
+                  <input type="text" id="m-reg-name" name="name" required autocomplete="name">
+                </div>
+                <div class="form-field">
+                  <label for="m-reg-phone">手機<span class="req" aria-hidden="true">*</span></label>
+                  <input type="tel" id="m-reg-phone" name="phone" required autocomplete="tel">
+                </div>
+                <div class="form-field">
+                  <label for="m-reg-email">Email<span class="req" aria-hidden="true">*</span></label>
+                  <input type="email" id="m-reg-email" name="email" required autocomplete="email">
+                </div>
+                <div class="form-field">
+                  <label for="m-reg-role">身分別<span class="req" aria-hidden="true">*</span></label>
+                  <select id="m-reg-role" name="role" required>
+                    <option value="">請選擇</option>
+                    <option value="fan">一般球迷</option>
+                    <option value="parent">學員家長</option>
+                    <option value="player">球員 / 學員本人</option>
+                    <option value="other">其他</option>
+                  </select>
+                </div>
+                <div class="form-field">
+                  <label for="m-reg-password">設定密碼<span class="req" aria-hidden="true">*</span></label>
+                  <input type="password" id="m-reg-password" name="password" required autocomplete="new-password">
+                </div>
+              </div>
+            </fieldset>
+            <div class="consent-block">
+              <div class="checkbox-field">
+                <input type="checkbox" id="m-reg-consent" name="consent" required>
+                <label for="m-reg-consent">我已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>與會員條款，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。<span class="req" aria-hidden="true">*</span></label>
+              </div>
+            </div>
+            <button class="btn btn--primary btn--block" type="submit">建立會員</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="member-note">
+      <p><strong>與 Shopify 不做單一登入（SSO）</strong>：會員身分不會自動同步到官方商店，會員優惠一律以折扣碼方式發送。</p>
+    </div>
+
+    <h2 class="section-title" style="margin-top:4rem;">會員三種層級</h2>
+    <div class="grid grid--3" style="margin-top:1.5rem;">
+      <div class="tier-card">
+        <p class="tier-card__title">一般會員<span class="en">Registered</span></p>
+        <p class="tier-card__desc">完成註冊即可使用會員中心基本功能。</p>
+      </div>
+      <div class="tier-card">
+        <p class="tier-card__title">球迷會員<span class="en">Fan Club</span></p>
+        <p class="tier-card__desc">加入 <a href="{{ROOT}}/zh/culture/fan-club/">8.2 磐石球迷會</a> 後升級，享會員卡與專屬活動。</p>
+      </div>
+      <div class="tier-card">
+        <p class="tier-card__title">學員家長<span class="en">Parent</span></p>
+        <p class="tier-card__desc">可綁定多名學員，查看報名與課程相關資訊。</p>
+      </div>
+    </div>
+
+    <h2 class="section-title" style="margin-top:4rem;">登入後可以做什麼</h2>
+    <ul class="member-feature-list">
+      <li>我的報名</li>
+      <li>我的捐款紀錄</li>
+      <li>我的學員（一位家長可綁定多名）</li>
+      <li>球迷會專區（含 QR Code 會員卡）</li>
+      <li>我的行事曆（標記「我要參加」的賽事）</li>
+      <li>通知中心與訂閱管理（Email／LINE／站內可分別設定）</li>
+      <li>第三方帳號綁定管理（LINE／Google）</li>
+      <li>帳號刪除申請</li>
+    </ul>
+    
+  </div>
+</section>
+
+<style>
+/* ── MEMBER 專屬元件：member-tabs（沿用 4.2 .team-tabs 的頁籤模式）、tier-card ──
+   .channel-card／.tcrfc-form 系列與 11 CHARITY 頁共用，見 charity/index.html。 */
+.member-band{ padding-block:clamp(3.5rem,6vw,6rem); }
+
+.member-tabs__list{ display:flex; gap:.5rem; border-bottom:2px solid var(--rule); margin-bottom:2.25rem; }
+.member-tabs__tab{
+  padding:.85rem 1.4rem; font-weight:800; font-size:.92rem; color:var(--muted);
+  border-bottom:3px solid transparent; margin-bottom:-2px;
+  transition:color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.member-tabs__tab:hover{ color:var(--brand-aa); }
+.member-tabs__tab[aria-selected="true"]{ color:var(--heading); border-bottom-color:var(--brand); }
+.member-tabs__panel[hidden]{ display:none; }
+
+.member-alt-login{ margin-top:1.25rem; }
+
+.member-note{
+  max-width:72ch; margin-top:2.5rem; padding:1.25rem 1.5rem; background:var(--paper-2);
+  border-left:4px solid var(--brand-aa); font-size:.88rem; line-height:1.75; color:var(--text);
+}
+
+.tier-card{ background:var(--paper-2); border:1px solid var(--rule); padding:1.5rem; }
+.tier-card__title{ font-weight:800; color:var(--heading); margin-bottom:.5rem; }
+.tier-card__desc{ font-size:.85rem; color:var(--text); line-height:1.6; }
+.tier-card__desc a{ color:var(--brand-aa); text-decoration:underline; }
+
+.member-feature-list{ list-style:disc; padding-left:1.3rem; columns:2; column-gap:2.5rem; max-width:640px; }
+.member-feature-list li{ font-size:.92rem; line-height:2; color:var(--text); break-inside:avoid; }
+@media (max-width:560px){ .member-feature-list{ columns:1; } }
+
+/* channel-card／form 元件（同 charity/index.html） */
+.channel-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; margin-bottom:1rem; }
+@media (max-width:900px){ .channel-grid{ grid-template-columns:1fr; } }
+.channel-card{ background:var(--paper); border:1px solid var(--rule); padding:1.75rem 1.5rem; }
+.channel-card__num{ font-size:.72rem; font-weight:800; color:var(--muted); letter-spacing:.08em; margin-bottom:.5rem; }
+.channel-card h3{ font-size:1.05rem; font-weight:800; color:var(--heading); margin-bottom:.6rem; }
+.channel-card p{ font-size:.86rem; line-height:1.7; color:var(--text); }
+</style>
+
+<script>
+(function(){
+  "use strict";
+  var tabs = Array.prototype.slice.call(document.querySelectorAll('#tab-login,#tab-register'));
+  function select(tab){
+    tabs.forEach(function(t){
+      var selected = t === tab;
+      t.setAttribute('aria-selected', selected ? 'true' : 'false');
+      t.tabIndex = selected ? 0 : -1;
+      var panel = document.getElementById(t.getAttribute('aria-controls'));
+      if(panel) panel.hidden = !selected;
+    });
+    tab.focus();
+  }
+  tabs.forEach(function(tab, i){
+    tab.addEventListener('click', function(){ select(tab); });
+    tab.addEventListener('keydown', function(e){
+      var idx = i;
+      if(e.key === 'ArrowRight'){ idx = (i+1) % tabs.length; }
+      else if(e.key === 'ArrowLeft'){ idx = (i-1+tabs.length) % tabs.length; }
+      else { return; }
+      e.preventDefault();
+      select(tabs[idx]);
+    });
+  });
+})();
+</script>

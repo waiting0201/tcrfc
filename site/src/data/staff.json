@@ -1,0 +1,58 @@
+[
+  {
+    "role_zh": "守門員教練",
+    "name_zh": "儒利亞諾・羅德里格斯",
+    "name_en": "Juliano Rodrigues",
+    "has_photo": false,
+    "bio_zh": null
+  },
+  {
+    "role_zh": "教練",
+    "name_zh": "托馬斯・卡斯泰洛",
+    "name_en": "Thomas Castello",
+    "has_photo": false,
+    "bio_zh": null
+  },
+  {
+    "role_zh": "總教練",
+    "name_zh": "瑪蒂諾",
+    "name_en": "Matino Sofia",
+    "has_photo": false,
+    "bio_zh": null
+  },
+  {
+    "role_zh": "青訓教練",
+    "name_zh": "許志傑",
+    "name_en": "",
+    "has_photo": true,
+    "bio_zh": null
+  },
+  {
+    "role_zh": "青訓教練",
+    "name_zh": "黃聖傑",
+    "name_en": "",
+    "has_photo": false,
+    "bio_zh": null
+  },
+  {
+    "role_zh": "青訓總監",
+    "name_zh": "徐翊",
+    "name_en": "",
+    "has_photo": false,
+    "bio_zh": null
+  },
+  {
+    "role_zh": "顧問",
+    "name_zh": "陳曉明",
+    "name_en": "",
+    "has_photo": false,
+    "bio_zh": null
+  },
+  {
+    "role_zh": "體能教練",
+    "name_zh": "江奕璠",
+    "name_en": "",
+    "has_photo": false,
+    "bio_zh": null
+  }
+]

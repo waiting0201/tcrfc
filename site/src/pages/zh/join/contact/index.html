@@ -1,0 +1,120 @@
+<!--meta
+{
+  "title": "聯絡資訊 Contact Information｜加入與聯絡｜台中磐石足球俱樂部",
+  "description": "台中磐石足球俱樂部聯絡資訊：電話、Email、地址、營業時間、各部門分機與社群連結。",
+  "nav": "",
+  "unit": "10-contact"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/join/">加入與聯絡</a></li>
+      <li aria-current="page">聯絡資訊</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">Contact Information</p>
+    <h1>聯絡資訊<span class="en">Contact Information</span></h1>
+    <p class="page-hero__lede">電話、Email、地址、營業時間與各部門分機，方便你依需求找到對應窗口。若是特定申請或洽詢，建議直接使用<a href="{{ROOT}}/zh/join/">對應的表單</a>，處理速度會更快。</p>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="contact-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="contact-title">聯絡資訊列表</h2>
+    <div class="contact-grid">
+      <div class="contact-item">
+        <p class="contact-item__label">電話</p>
+        
+      </div>
+
+      <div class="contact-item">
+        <p class="contact-item__label">Email</p>
+        
+      </div>
+
+      <div class="contact-item">
+        <p class="contact-item__label">地址</p>
+        <p class="contact-item__value">台中市北屯區崇平路二段景谷巷 11 弄 41 號</p>
+        <p class="field-hint">主場：西屯足球場。各場地詳細位置見<a href="{{ROOT}}/zh/join/location/">場地位置與地圖</a>。</p>
+      </div>
+
+      <div class="contact-item">
+        <p class="contact-item__label">營業時間</p>
+        
+      </div>
+
+      <div class="contact-item contact-item--full">
+        <p class="contact-item__label">各部門分機</p>
+        
+      </div>
+
+      <div class="contact-item contact-item--full">
+        <p class="contact-item__label">社群連結</p>
+        <ul class="contact-social">
+          <li>
+            <a href="https://www.facebook.com/TCRFC2024" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 9h3V5h-3c-2.2 0-4 1.8-4 4v2H7v4h3v7h4v-7h3l1-4h-4v-2c0-.6.4-1 1-1z"/></svg>
+              Facebook<span class="contact-social__handle">@TCRFC2024</span>
+            </a>
+          </li>
+          <li>
+            <a href="https://www.instagram.com/tcr_fc_2024" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1"/></svg>
+              Instagram<span class="contact-social__handle">@tcr_fc_2024</span>
+            </a>
+          </li>
+          <li>
+            <a href="https://www.youtube.com/@TCRFC-2024" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="2" y="5.5" width="20" height="13" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 9.5l6 2.5-6 2.5z"/></svg>
+              YouTube<span class="contact-social__handle">@TCRFC-2024</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band grain" aria-labelledby="cta-title">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10</span>
+  <div class="band-inner container" style="text-align:center">
+    <p class="kicker kicker--on-dark" style="justify-content:center">找不到你要的資訊？</p>
+    <h2 class="section-title" id="cta-title" style="color:#fff">直接透過表單聯絡我們</h2>
+    <p class="section-lede on-dark" style="margin-inline:auto">九種表單各自送達對應部門，會比一般聯絡信箱更快得到回覆。</p>
+    <div style="margin-top:2rem">
+      <a class="btn btn--primary" href="{{ROOT}}/zh/join/">查看所有表單</a>
+    </div>
+  </div>
+</section>
+
+<style>
+/* 僅本頁使用：聯絡資訊卡片與社群列表 */
+.contact-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:clamp(1rem,2.5vw,1.75rem); }
+@media (max-width:700px){ .contact-grid{ grid-template-columns:1fr; } }
+.contact-item{ padding:1.75rem clamp(1.25rem,3vw,2rem); background:var(--paper-2); border:1px solid var(--rule); }
+.contact-item--full{ grid-column:1 / -1; }
+.contact-item__label{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); margin-bottom:.75rem; }
+.contact-item__value{ font-size:1.05rem; font-weight:700; color:var(--heading); line-height:1.6; }
+.contact-item .field-hint{ margin-top:.6rem; }
+.contact-item .field-hint a{ color:var(--brand-aa); text-decoration:underline; }
+.contact-item .pending{ font-size:.85rem; }
+.contact-item .pending a{ color:var(--brand-deep); text-decoration:underline; }
+
+.contact-social{ display:flex; flex-wrap:wrap; gap:1rem; }
+.contact-social li{ flex:1 1 200px; }
+.contact-social a{
+  display:flex; align-items:center; gap:.75rem; padding:1rem 1.25rem;
+  background:var(--paper); border:1px solid var(--rule); font-weight:700; color:var(--heading);
+  transition:border-color var(--dur-fast) var(--ease);
+}
+.contact-social a:hover{ border-color:var(--brand-aa); }
+.contact-social svg{ width:22px; height:22px; flex:none; color:var(--brand-aa); }
+.contact-social__handle{ display:block; font-size:.78rem; font-weight:500; color:var(--muted); }
+</style>

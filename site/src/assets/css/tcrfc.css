@@ -1,0 +1,1022 @@
+/* ============================================================
+   TCRFC — Design tokens
+   Signature devices:
+   1) "Programme pagination" — oversized ghost numerals mark each
+      band the way a matchday programme paginates its sections.
+   2) "Kit-trim cut" — cards carry a clipped corner with an ink
+      sliver behind it, echoing the deck's flat, hard-edged shape
+      language (rect >> roundRect, zero gradients).
+   3) "Floodlight ink" — dark bands sit on a single flat ink fill
+      (#231916 / #31231F), matching the deck's untextured surfaces.
+
+   色彩基準：reference/TCR_logo_CMYK.ai（唯一真實來源）
+     粉  PANTONE 225 C ／ CMYK 5-90-0-0  → #E0218A
+     黑  CMYK 0-0-0-100                 → #231916
+   ============================================================ */
+:root{
+  /* 品牌桃紅 — 取自 logo 主檔 */
+  --brand:#E0218A;        /* 品牌正色：色塊填色、深底文字、大型標題（≥18.66px bold 或 ≥24px） */
+  --brand-aa:#D61E83;     /* AA 安全版 4.80:1 — 白底小字，或承載白色小字的實心底 */
+  --brand-bright:#E85BA9; /* hover 提亮（深底上 5.32:1） */
+  --brand-deep:#AE186B;   /* 實心按鈕 hover（白字 6.68:1） */
+
+  /* 深色 — 取自 logo 主檔 K100 */
+  --ink:#231916;
+  --ink-2:#31231F;
+  --ink-trim:#231916;     /* 淺底切角三角 */
+  --ink-trim-dk:#4C3630;  /* 深底切角三角 */
+
+  /* 淺色面 */
+  --paper:#FFFFFF;
+  --paper-2:#F5F5F5;
+  --paper-3:#F8F7F6;
+
+  /* 文字 */
+  --heading:#231916;
+  --text:#333333;
+  --muted:#666666;
+  --muted-2:#777777;
+  --muted-dark:#BFB4AF;
+
+  /* 線與裝飾 */
+  --rule:#E0E0E0;
+  --ghost:#CCCCCC;
+
+  --font: "Montserrat", "Noto Sans TC", -apple-system, "PingFang TC", sans-serif;
+  /* 字重可用性（見 shell.html 的 Google Fonts 載入清單）：
+     Montserrat 500/600/700/800/900 —— 英數字元皆可用真實字重。
+     Noto Sans TC 400/500/700/900 —— 沒有 600、沒有 800。
+     中文標題若宣告 700～899 之間找不到的字重（例如 800），瀏覽器的字重比對
+     會往「較重」的方向找最近可用字重，因此會直接吃到 900，視覺上跟宣告 900
+     沒有兩樣——等於白宣告。所以中文為主的標題只有 700 / 900 兩檔真正有差別；
+     要做出「變細」的效果必須直接降到 700，不能指望 800 當中繼值。
+     英文（多半包在 <span class="en">）不受此限，800 是真實可用的字重，
+     可以獨立於中文本文做更細緻的階層。全站標題字重已依此原則統一收斂為
+     700（主標題／卡片標題）與 900（僅保留給純數字或裝飾用途，如
+     .stat__num、.ghost-num）。 */
+
+  --container: 1280px;
+  --edge: clamp(1.25rem, 4vw, 3.5rem);
+
+  --fs-hero: clamp(2.6rem, 4.6vw + 1.2rem, 6.2rem);
+  --fs-h2: clamp(2rem, 1.6vw + 1.5rem, 3.4rem);
+  --fs-h3: clamp(1.3rem, 0.6vw + 1.1rem, 1.7rem);
+  --fs-stat: clamp(3.2rem, 5vw + 1rem, 6.8rem);
+  --fs-ghost: clamp(7rem, 18vw, 15rem);
+
+  --dur-fast: .18s;
+  --dur: .32s;
+  --ease: cubic-bezier(.2,.7,.2,1);
+
+  color-scheme: light;
+}
+
+@media (prefers-reduced-motion: reduce){
+  *, *::before, *::after{
+    animation-duration:.001ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;
+    scroll-behavior:auto !important;
+  }
+}
+
+*,*::before,*::after{ box-sizing:border-box; min-width:0; }
+/* 這裡原本是 overflow-x:hidden（單軸），沒有同時宣告 overflow-y。CSS Overflow 規範規定：
+   只要一軸不是 visible/clip，另一軸即使寫成 visible，瀏覽器也會強制把它的「計算值」
+   改算成 auto（這條規則連你自己明寫 overflow-y:visible 都蓋得掉，親測過，不是筆誤）。
+   html／body 因此變成一個（沒有捲動軸卻仍算 auto 的）捲動容器，而 position:sticky 元素
+   一旦離它「最近的捲動祖先」變成 html／body 而不是視覺 viewport，sticky 就會整個失效、
+   乖乖跟著版面捲動——包括全站的 sticky 表頭在內（此為既有問題，非本次表單改版新增；
+   本次為了讓 join 表單頁的側欄 sticky 生效才在這裡一併修掉）。
+   正確解法：改用 overflow-x:clip 而不是 hidden。clip 一樣會裁切、不會出現橫向捲軸，
+   但規範把 clip 跟 visible 視為同一類「非捲動」值，兩者搭配不會觸發上面那條強制 auto
+   規則，overflow-y:visible 才能真的如實生效。 */
+html{ scroll-behavior:smooth; overflow-x:clip; overflow-y:visible; max-width:100%; }
+body{
+  margin:0;
+  font-family:var(--font);
+  background:var(--paper);
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  line-height:1.5;
+  overflow-x:clip;
+  overflow-y:visible;
+  max-width:100%;
+}
+img{ max-width:100%; display:block; }
+a{ color:inherit; text-decoration:none; }
+ul{ margin:0; padding:0; list-style:none; }
+h1,h2,h3,h4,p,figure{ margin:0; }
+button{ font:inherit; color:inherit; background:none; border:0; cursor:pointer; }
+input{ font:inherit; }
+
+:focus-visible{ outline:3px solid var(--brand); outline-offset:3px; border-radius:1px; }
+
+.visually-hidden{
+  position:absolute; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;
+}
+
+.skip-link{
+  position:absolute; left:1rem; top:-4rem;
+  background:var(--brand-aa); color:#fff; padding:.85rem 1.25rem;
+  z-index:999; transition:top var(--dur-fast) var(--ease);
+  font-weight:700; font-size:.9rem;
+}
+.skip-link:focus{ top:1rem; }
+
+.container{
+  max-width:var(--container);
+  margin-inline:auto;
+  padding-inline:var(--edge);
+}
+
+/* Kickers -------------------------------------------------- */
+.kicker{
+  display:inline-flex; align-items:center; gap:.6em;
+  font-size:.72rem; font-weight:800; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--brand-aa);
+}
+.kicker--on-dark{ color:var(--brand); }
+
+/* Buttons ---------------------------------------------------*/
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:.5em;
+  min-height:48px; padding:0 1.6rem;
+  font-weight:800; font-size:.92rem; letter-spacing:.02em;
+  border:2px solid transparent; white-space:nowrap;
+  transition:transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
+}
+.btn:hover{ transform:translateY(-2px); }
+.btn--primary{ background:var(--brand-aa); color:#fff; }
+.btn--primary:hover{ background:var(--brand-deep); }
+/* Secondary buttons are filled, not outlined — a border cannot follow the
+   clip-path, so an outlined button reads as a broken corner rather than a
+   deliberate cut. --dark sits on light bands, --light sits on dark bands. */
+.btn--dark{ background:var(--ink); color:#fff; }
+.btn--dark:hover{ background:var(--ink-2); }
+.btn--light{ background:var(--paper); color:var(--ink); }
+.btn--light:hover{ background:var(--rule); }
+.btn--sm{ min-height:40px; padding:0 1.1rem; font-size:.82rem; }
+.btn--block{ width:100%; }
+
+/* Illustrative-data badge -----------------------------------*/
+.mock-flag{
+  display:inline-flex; align-items:center; gap:.4em;
+  font-size:.66rem; font-weight:800; letter-spacing:.06em;
+  color:var(--muted); background:var(--paper-2);
+  border:1px solid var(--rule);
+  padding:.25em .6em; white-space:nowrap;
+}
+.mock-flag--on-dark{
+  color:var(--muted-dark); background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.18);
+}
+
+/* Ghost numerals (programme pagination) ----------------------*/
+.ghost-num{
+  position:absolute; z-index:0; pointer-events:none; user-select:none;
+  font-weight:900; line-height:.8; font-size:var(--fs-ghost);
+  letter-spacing:-.04em;
+  /* 預設落點與淡色。少了這段，任何沒有區塊專屬規則的容器
+     （.cta-band、.stats-band…）會讓數字以「繼承來的實色」停在
+     靜態位置，直接壓在標題上。color-mix 讓它自動適應深淺底。 */
+  top:0; right:var(--edge); bottom:auto; left:auto;
+  color:rgba(128,128,128,.07);
+  color:color-mix(in srgb, currentColor 7%, transparent);
+}
+.ghost-num--dark{ color:rgba(255,255,255,.05); }
+.ghost-num--light{ color:rgba(14,20,40,.05); }
+
+/* Kit-trim clipped card ---------------------------------------*/
+.clip-card{
+  position:relative;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 28px), calc(100% - 28px) 100%, 0 100%);
+}
+.clip-card::after{
+  content:""; position:absolute; right:0; bottom:0; width:34px; height:34px;
+  background:var(--ink-trim);
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  z-index:2;
+}
+.clip-card--on-dark::after{ background:var(--ink-trim-dk); }
+
+/* Floodlight bands (dark, flat fill) ---------------------------------*/
+.grain{
+  position:relative;
+  background-color:var(--ink);
+}
+.grain--2{ background-color:var(--ink-2); }
+
+/* Section scaffolding --------------------------------------- */
+/* .band 本身預設就要留出上下呼吸空間。mockup 時代每個區塊都是靠
+   .match-band／.stats-band／.values-band 這類專屬修飾類別各自給
+   padding-block，所以純寫 <section class="band"> 沒有任何間距——
+   新頁面一旦忘了疊修飾類別（或忘了在頁面自己的 <style> 補 padding-block），
+   就會直接貼著上一個區塊（常見於 .page-hero 後面第一個 .band）。
+   這裡給一個與 .values-band 等既有修飾類別協調的預設值；修飾類別、頁面
+   自帶 <style>（見 AGENT_BRIEF §6）都在原始碼順序上晚於這裡，同一屬性
+   仍會照 cascade 規則覆寫掉這個預設值，不需要额外拉高 specificity。 */
+.band{ position:relative; overflow:hidden; padding-block:clamp(4rem,7vw,6.5rem); }
+.band-inner{ position:relative; z-index:1; }
+/* 想要比預設更緊湊／更寬鬆時疊加使用，例如 <section class="band band--tight"> */
+.band--tight{ padding-block:clamp(2.5rem,4vw,3.5rem); }
+.band--loose{ padding-block:clamp(5rem,9vw,8rem); }
+.eyebrow-row{
+  display:flex; align-items:flex-end; justify-content:space-between;
+  gap:1.5rem; flex-wrap:wrap; margin-bottom:2.25rem;
+}
+.eyebrow-row .kicker{ margin-bottom:.3rem; }
+.section-title{
+  font-size:var(--fs-h2); font-weight:700; letter-spacing:-.01em; line-height:1.02;
+  color:var(--heading);
+}
+.section-lede{ color:var(--muted); max-width:46ch; font-size:1rem; }
+/* 兩種寫法都要成立：.on-dark 放在祖先（原設計），或直接掛在元素上
+   （實務上更常這樣寫）。原本只有後代選擇器，導致 4 個頁面把
+   class="section-lede on-dark" 寫在同一個元素上時完全不生效，
+   深底上留下 #666 的文字（對比僅約 2.3:1，遠低於 AA 4.5:1）。 */
+.on-dark .section-lede,
+.section-lede.on-dark{ color:var(--muted-dark); }
+
+/* ============================================================
+   0. Utility bar
+   ============================================================ */
+.utility-bar{
+  background:var(--ink); color:var(--muted-dark);
+  font-size:.76rem; font-weight:600;
+}
+.utility-bar .container{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:1rem; min-height:40px; padding-block:.4rem;
+}
+.utility-bar__left, .utility-bar__right{ display:flex; align-items:center; gap:1.1rem; }
+.lang-switch{ display:flex; align-items:center; gap:.4em; }
+.lang-switch button{ color:var(--muted-dark); padding:.2em; min-height:auto; }
+.lang-switch button[aria-current="true"]{ color:#fff; font-weight:800; }
+.lang-switch span{ color:rgba(255,255,255,.25); }
+.utility-bar a:hover{ color:var(--brand-bright); }
+.social-row{ display:flex; align-items:center; gap:.85rem; }
+.social-row a{
+  width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center;
+  color:var(--muted-dark); transition:color var(--dur-fast) var(--ease);
+}
+.social-row a:hover{ color:var(--brand-bright); }
+.social-row svg{ width:16px; height:16px; }
+.utility-bar__member a{ color:var(--muted-dark); }
+.utility-bar__member a:hover{ color:var(--brand-bright); }
+.utility-bar__member .divider{ color:rgba(255,255,255,.25); margin-inline:.15rem; }
+
+/* ============================================================
+   1. Header
+   ============================================================ */
+.site-header{
+  position:sticky; top:0; z-index:100;
+  background:rgba(255,255,255,.92);
+  backdrop-filter:saturate(160%) blur(10px);
+  -webkit-backdrop-filter:saturate(160%) blur(10px);
+  border-bottom:1px solid rgba(14,20,40,.08);
+  transition:box-shadow var(--dur) var(--ease);
+}
+.site-header.is-scrolled{ box-shadow:0 8px 24px rgba(14,20,40,.1); }
+.site-header .container{
+  display:flex; align-items:center; gap:1.5rem;
+  min-height:76px;
+}
+.brand-lockup{ display:flex; align-items:center; gap:.6rem; flex:0 0 auto; margin-right:.5rem; }
+.brand-lockup img{ height:40px; width:38px; }
+.brand-lockup .wordmark{ display:flex; flex-direction:column; line-height:1.05; }
+.brand-lockup .wordmark strong{ font-size:1.05rem; font-weight:900; letter-spacing:.01em; }
+.brand-lockup .wordmark small{ font-size:.6rem; font-weight:700; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
+
+.main-nav{ flex:1 1 auto; min-width:0; }
+.main-nav ul{ display:flex; align-items:center; gap:clamp(.65rem,1.4vw,1.35rem); flex-wrap:wrap; }
+.main-nav a{
+  font-size:.8rem; font-weight:700; letter-spacing:.01em; white-space:nowrap;
+  padding:.6rem .1rem; position:relative;
+}
+.main-nav a::after{
+  content:""; position:absolute; left:0; right:100%; bottom:.25rem; height:2px;
+  background:var(--brand); transition:right var(--dur) var(--ease);
+}
+.main-nav a:hover::after, .main-nav a:focus-visible::after{ right:0; }
+
+.header-actions{ display:flex; align-items:center; gap:.9rem; flex:0 0 auto; }
+.icon-btn{
+  width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center;
+  color:var(--text);
+}
+.icon-btn:hover{ color:var(--brand); }
+.icon-btn svg{ width:20px; height:20px; }
+.hamburger{ display:none; }
+.hamburger svg{ width:24px; height:24px; }
+
+@media (max-width:1080px){
+  .main-nav{ display:none; }
+  .hamburger{ display:inline-flex; }
+  .header-actions .btn--primary{ display:none; }
+}
+
+/* Mobile nav drawer */
+.mobile-nav{
+  position:fixed; inset:0; z-index:200;
+  background:var(--ink); color:#fff;
+  display:flex; flex-direction:column;
+  transform:translateX(100%);
+  transition:transform var(--dur) var(--ease);
+  visibility:hidden;
+}
+.mobile-nav.is-open{ transform:translateX(0); visibility:visible; }
+.mobile-nav__top{ display:flex; align-items:center; justify-content:space-between; padding:1.1rem var(--edge); border-bottom:1px solid rgba(255,255,255,.1); }
+.mobile-nav__top img{ height:34px; width:33px; }
+.mobile-nav__close{ width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center; color:#fff; }
+.mobile-nav__close svg{ width:22px; height:22px; }
+.mobile-nav ul{ padding:1.5rem var(--edge); display:flex; flex-direction:column; gap:.2rem; overflow-y:auto; }
+.mobile-nav a{
+  display:block; padding:.9rem 0; font-size:1.15rem; font-weight:800;
+  border-bottom:1px solid rgba(255,255,255,.08);
+}
+.mobile-nav a:hover{ color:var(--brand-bright); }
+.mobile-nav__cta{ margin-top:auto; padding:1.5rem var(--edge) 2rem; display:flex; flex-direction:column; gap:.75rem; }
+
+/* ============================================================
+   2. Hero
+   ============================================================ */
+.hero{
+  position:relative; color:#fff;
+  min-height:min(92vh, 880px);
+  display:flex; align-items:flex-end;
+  background:var(--ink);
+}
+.hero__media{ position:absolute; inset:0; z-index:0; }
+.hero__media img{ width:100%; height:100%; object-fit:cover; object-position:58% 35%; }
+.hero__scrim{
+  position:absolute; inset:0;
+  background:
+    linear-gradient(90deg, rgba(14,20,40,.88) 0%, rgba(14,20,40,.55) 32%, rgba(14,20,40,.15) 55%, rgba(14,20,40,.4) 100%),
+    linear-gradient(0deg, rgba(14,20,40,.95) 0%, rgba(14,20,40,.55) 28%, rgba(14,20,40,0) 55%);
+}
+.hero .ghost-num{ left:var(--edge); right:auto; top:auto; bottom:-2.6rem; color:rgba(255,255,255,.08); }
+
+.hero__inner{
+  position:relative; z-index:1; width:100%;
+  padding-block:clamp(6rem,18vh,9rem) clamp(2.5rem,6vh,4rem);
+}
+.hero__grid{
+  display:grid; grid-template-columns:minmax(0,1.15fr) minmax(280px,.85fr);
+  gap:2.5rem; align-items:end;
+}
+.hero__copy .kicker{ margin-bottom:.35rem; }
+.hero__headline{
+  font-size:var(--fs-hero); font-weight:700; letter-spacing:-.01em; line-height:.98;
+  margin-bottom:1.1rem; text-wrap:balance;
+}
+.hero__sub{
+  font-size:clamp(.95rem,1vw + .6rem,1.15rem); color:var(--muted-dark);
+  max-width:46ch; margin-bottom:1.75rem; font-weight:500; text-wrap:balance;
+}
+.hero__sub b{ color:#fff; font-weight:800; white-space:nowrap; }
+.hero__ctas{ display:flex; gap:1rem; flex-wrap:wrap; }
+
+.hero__news{
+  position:relative; display:flex; flex-direction:column; gap:1rem;
+  padding-top:2rem;
+}
+.hero-card{
+  position:relative; background:var(--ink-2); overflow:hidden;
+  display:flex; gap:.9rem; align-items:stretch;
+  border:1px solid rgba(255,255,255,.08);
+  transition:transform var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.hero-card:hover{ transform:translateY(-4px); border-color:rgba(255,87,176,.5); }
+.hero-card:nth-child(2){ margin-left:clamp(0px,4vw,2.5rem); }
+.hero-card__media{ width:38%; flex:0 0 auto; aspect-ratio:4/3; overflow:hidden; }
+.hero-card__media img{ width:100%; height:100%; object-fit:cover; transition:transform .5s var(--ease); }
+.hero-card:hover .hero-card__media img{ transform:scale(1.08); }
+.hero-card__body{ padding:.9rem 1rem .9rem 0; display:flex; flex-direction:column; justify-content:center; gap:.4rem; min-width:0; }
+.hero-card__tag{ font-size:.62rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand); }
+.hero-card__title{ font-size:.92rem; font-weight:800; line-height:1.35; }
+
+@media (max-width:900px){
+  .hero__grid{ grid-template-columns:1fr; }
+  .hero__news{ padding-top:1rem; }
+  .hero-card:nth-child(2){ margin-left:clamp(0px,10vw,3rem); }
+}
+@media (max-width:560px){
+  .hero{ min-height:auto; padding-bottom:1rem; }
+  .hero__inner{ padding-block:5.5rem 2rem; }
+  .hero-card{ flex-direction:column; }
+  .hero-card__media{ width:100%; aspect-ratio:16/9; }
+  .hero-card__body{ padding:.9rem 1rem 1.1rem; }
+}
+
+/* ============================================================
+   3. Match band
+   ============================================================ */
+.match-band{ color:#fff; padding-block:clamp(3.5rem,6vw,5.5rem); }
+.match-band .section-title{ color:#fff; }
+.match-band .ghost-num{ right:var(--edge); top:1rem; color:rgba(255,255,255,.05); }
+
+.team-chips{ display:flex; gap:.6rem; flex-wrap:wrap; margin-bottom:2.25rem; }
+.team-chip{
+  min-height:44px; padding:0 1.25rem; font-weight:800; font-size:.85rem;
+  border:2px solid rgba(255,255,255,.18); color:var(--muted-dark);
+  transition:all var(--dur-fast) var(--ease);
+}
+.team-chip:hover{ border-color:rgba(255,255,255,.45); color:#fff; }
+.team-chip[aria-pressed="true"]{ background:var(--brand-aa); border-color:var(--brand-aa); color:#fff; }
+
+.match-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; margin-bottom:2.25rem; }
+.match-grid[hidden]{ display:none; }
+.match-card{
+  background:var(--ink); border:1px solid rgba(255,255,255,.08);
+  padding:1.6rem 1.5rem 1.75rem; display:flex; flex-direction:column; gap:1rem; min-height:100%;
+}
+.match-card__label{
+  display:flex; align-items:center; justify-content:space-between; gap:.5rem;
+  font-size:.68rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand);
+}
+.match-card__meta{ font-size:.78rem; color:var(--muted-dark); line-height:1.6; }
+.match-card__fixture{
+  display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+  padding-block:.5rem; border-top:1px solid rgba(255,255,255,.08); border-bottom:1px solid rgba(255,255,255,.08);
+}
+.match-card__team{ font-weight:800; font-size:.95rem; flex:1; }
+.match-card__team--away{ text-align:right; }
+.match-card__score{ font-weight:900; font-size:1.7rem; letter-spacing:.02em; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.match-card__score .sep{ color:var(--muted-dark); font-weight:700; margin-inline:.15em; }
+.match-card__vs{ font-weight:900; font-size:1.1rem; color:var(--muted-dark); white-space:nowrap; }
+.match-card__scorers{ font-size:.8rem; color:var(--muted-dark); }
+.match-card__scorers b{ color:#fff; font-weight:700; }
+.match-card--next{ position:relative; }
+.match-card--next .mock-flag{ align-self:flex-start; }
+.match-card--placeholder{ align-items:center; justify-content:center; text-align:center; color:var(--muted-dark); font-size:.85rem; gap:.75rem; min-height:260px; }
+
+.match-band__actions{ display:flex; gap:1rem; flex-wrap:wrap; }
+
+@media (max-width:980px){
+  .match-grid{ grid-template-columns:1fr; }
+}
+
+/* ============================================================
+   4. Stats strip
+   ============================================================ */
+.stats-band{ color:#fff; padding-block:clamp(3.5rem,6vw,5.5rem); border-top:1px solid rgba(255,255,255,.06); }
+.stats-grid{
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2rem 1.5rem;
+  padding-bottom:clamp(2.5rem,5vw,3.5rem); border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:clamp(2rem,4vw,3rem);
+}
+.stat{ display:flex; flex-direction:column; gap:.35rem; }
+.stat__num{ font-size:var(--fs-stat); font-weight:900; letter-spacing:-.03em; line-height:.9; color:#fff; }
+.stat__num span{ color:var(--brand); }
+.stat__label{ font-size:.82rem; color:var(--muted-dark); font-weight:600; line-height:1.4; }
+
+.roster-strip__head{ display:flex; align-items:baseline; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1.5rem; }
+.roster-strip__head h3{ font-size:1.1rem; font-weight:800; }
+.roster-strip__head a{ font-size:.82rem; font-weight:700; color:var(--brand); }
+.roster-row{ display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); gap:1.25rem; }
+.roster-card{ text-align:center; }
+.roster-card__photo{
+  aspect-ratio:1/1.15; background:var(--paper-2); overflow:hidden; margin-bottom:.6rem;
+  position:relative;
+}
+.roster-card__photo img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
+.roster-card__num{
+  position:absolute; top:.4rem; left:.4rem; background:var(--brand-aa); color:#fff;
+  font-weight:900; font-size:.78rem; width:24px; height:24px; display:flex; align-items:center; justify-content:center;
+}
+.roster-card__name{ font-size:.78rem; font-weight:700; color:var(--muted-dark); }
+
+@media (max-width:980px){
+  .stats-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .roster-row{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem 1rem; }
+}
+@media (max-width:520px){
+  .roster-row{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:.75rem .6rem; }
+}
+
+/* ============================================================
+   5. Core values
+   ============================================================ */
+.values-band{ background:var(--paper); padding-block:clamp(4rem,7vw,6.5rem); }
+.values-band .ghost-num{ right:var(--edge); left:auto; top:auto; bottom:-1.5rem; }
+.values-band .section-title{ color:var(--text); }
+.values-grid{
+  display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:1px;
+  background:rgba(14,20,40,.1); border:1px solid rgba(14,20,40,.1);
+  margin-top:2.5rem;
+}
+.value-card{ background:var(--paper); padding:2rem 1.5rem; display:flex; flex-direction:column; gap:.9rem; min-height:220px; }
+.value-card__num{ font-size:.72rem; font-weight:800; color:var(--muted); letter-spacing:.08em; }
+.value-card__en{ font-size:1.02rem; font-weight:800; letter-spacing:-.01em; color:var(--brand-aa); }
+.value-card__zh{ font-size:1.05rem; font-weight:700; }
+.value-card__desc{ font-size:.85rem; color:var(--muted); line-height:1.65; }
+
+@media (max-width:1080px){ .values-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:640px){ .values-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } .value-card{ min-height:auto; } }
+
+/* ============================================================
+   6. Four pillars
+   ============================================================ */
+.pillars-band{ padding-block:clamp(4rem,7vw,6.5rem); color:#fff; }
+.pillars-band .ghost-num{ left:var(--edge); right:auto; top:0; color:rgba(255,255,255,.05); }
+.pillars-band .section-title{ color:#fff; }
+.pillars-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1.5rem; margin-top:2.5rem; }
+.pillar-card{
+  position:relative; aspect-ratio:3/4; overflow:hidden; display:flex; align-items:flex-end;
+  background:var(--ink-2);
+}
+.pillar-card img{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 65%; transition:transform .6s var(--ease); }
+.pillar-card:hover img{ transform:scale(1.08); }
+.pillar-card__scrim{ position:absolute; inset:0; background:linear-gradient(0deg, rgba(14,20,40,.94) 0%, rgba(14,20,40,.45) 45%, rgba(14,20,40,.05) 75%); }
+.pillar-card__body{ position:relative; z-index:1; padding:1.5rem 1.35rem; display:flex; flex-direction:column; gap:.5rem; width:100%; }
+.pillar-card__flags{ display:flex; gap:.4rem; flex-wrap:wrap; }
+.pillar-card__en{ font-size:.66rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand); }
+.pillar-card__zh{ font-size:1.25rem; font-weight:700; letter-spacing:-.01em; }
+.pillar-card__link{ font-size:.78rem; font-weight:700; color:var(--muted-dark); display:inline-flex; align-items:center; gap:.35em; margin-top:.15rem; }
+.pillar-card__link svg{ width:14px; height:14px; transition:transform var(--dur-fast) var(--ease); }
+.pillar-card:hover .pillar-card__link svg{ transform:translateX(4px); }
+
+@media (max-width:980px){ .pillars-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:560px){ .pillars-grid{ grid-template-columns:1fr; } .pillar-card{ aspect-ratio:16/10; } }
+
+/* ============================================================
+   7. News mosaic
+   ============================================================ */
+.news-band{ background:var(--paper); padding-block:clamp(4rem,7vw,6.5rem); }
+.news-band .section-title{ color:var(--text); }
+.news-mosaic{
+  display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); grid-auto-rows:minmax(120px,auto); gap:1.5rem;
+  margin-top:2.5rem;
+}
+.news-card{
+  position:relative; overflow:hidden; background:var(--paper-2);
+  display:flex; flex-direction:column;
+  transition:transform var(--dur) var(--ease);
+}
+.news-card:hover{ transform:translateY(-4px); }
+.news-card__media{ position:relative; overflow:hidden; flex:1 1 auto; min-height:150px; }
+.news-card__media img{ width:100%; height:100%; object-fit:cover; transition:transform .5s var(--ease); }
+.news-card:hover .news-card__media img{ transform:scale(1.07); }
+.news-card__tag{
+  position:absolute; top:.85rem; left:.85rem; z-index:2;
+  font-size:.62rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  background:var(--brand-aa); color:#fff; padding:.35em .7em;
+}
+.news-card__body{ padding:1.1rem 1.2rem 1.3rem; display:flex; flex-direction:column; gap:.5rem; }
+.news-card__meta{ font-size:.72rem; color:var(--muted); font-weight:700; letter-spacing:.03em; display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; }
+.news-card__title{ font-size:1rem; font-weight:800; line-height:1.4; }
+.news-card--feature{ grid-column:span 4; grid-row:span 2; }
+.news-card--feature .news-card__media{ min-height:260px; }
+.news-card--feature .news-card__title{ font-size:1.3rem; }
+.news-card--wide{ grid-column:span 3; }
+.news-card--wide .news-card__inner{ display:flex; flex:1 1 auto; min-height:0; }
+.news-card--wide .news-card__media{ width:42%; flex:0 0 42%; min-height:auto; }
+.news-card--wide .news-card__body{ width:58%; justify-content:center; }
+.news-card--sml{ grid-column:span 2; }
+
+@media (max-width:1080px){
+  .news-mosaic{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .news-card--feature{ grid-column:span 2; grid-row:span 1; }
+  .news-card--wide, .news-card--sml{ grid-column:span 1; }
+  .news-card--feature .news-card__media{ max-height:340px; }
+  .news-card--wide .news-card__inner{ display:block; }
+  .news-card--wide .news-card__media, .news-card--wide .news-card__body{ width:100%; }
+}
+@media (max-width:640px){
+  .news-mosaic{ grid-template-columns:1fr; }
+  .news-card--feature, .news-card--wide, .news-card--sml{ grid-column:span 1; }
+}
+
+/* ============================================================
+   8. Official store band
+   ============================================================ */
+.store-band{ color:#fff; padding-block:clamp(4rem,7vw,6rem); }
+.store-band .ghost-num{ right:var(--edge); top:50%; transform:translateY(-50%); color:rgba(255,255,255,.05); }
+.store-band__grid{ display:grid; grid-template-columns:1.1fr .9fr; gap:2.5rem; align-items:center; }
+.store-band .section-title{ color:#fff; margin-bottom:1rem; }
+.store-band p{ color:var(--muted-dark); max-width:42ch; margin-bottom:1.75rem; }
+.store-band__fine{ font-size:.72rem; color:var(--muted-dark); margin-top:.9rem; opacity:.8; }
+.store-visual{ position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--ink-2); }
+.store-visual img{ width:100%; height:100%; object-fit:cover; }
+.store-visual__badge{
+  position:absolute; bottom:1.25rem; left:1.25rem; background:var(--brand-aa);
+  color:#fff; font-weight:900; padding:.6em 1em; font-size:.85rem; letter-spacing:.02em;
+}
+
+@media (max-width:900px){
+  .store-band__grid{ grid-template-columns:1fr; }
+  .store-visual{ order:-1; aspect-ratio:16/9; }
+}
+
+/* ============================================================
+   9. Sponsor wall
+   ============================================================ */
+.sponsor-band{ background:var(--paper-2); padding-block:clamp(3.5rem,6vw,5.5rem); }
+.sponsor-band .section-title{ color:var(--text); }
+.sponsor-grid{
+  display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:1px; background:rgba(14,20,40,.1);
+  border:1px solid rgba(14,20,40,.1); margin-top:2.5rem;
+}
+.sponsor-tile{
+  background:var(--paper); aspect-ratio:16/10; display:flex; align-items:center; justify-content:center; padding:1.5rem;
+}
+.sponsor-tile img{
+  max-width:100%; max-height:100%; object-fit:contain;
+  filter:grayscale(1) opacity(.55); transition:filter var(--dur) var(--ease);
+}
+.sponsor-tile:hover img{ filter:grayscale(0) opacity(1); }
+
+@media (max-width:900px){ .sponsor-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media (max-width:520px){ .sponsor-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+/* ============================================================
+   10. Bottom CTA trio
+   ============================================================ */
+.cta-band{ color:#fff; padding-block:clamp(4rem,7vw,6rem); }
+.cta-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; }
+.cta-card{
+  position:relative; padding:2.25rem 1.75rem 2rem; background:var(--ink);
+  border:1px solid rgba(255,255,255,.08); display:flex; flex-direction:column; gap:1rem;
+  transition:transform var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.cta-card:hover{ transform:translateY(-5px); border-color:rgba(255,87,176,.4); }
+.cta-card__num{ font-size:.72rem; font-weight:800; letter-spacing:.08em; color:var(--brand); text-transform:uppercase; }
+.cta-card__title{ font-size:1.4rem; font-weight:700; letter-spacing:-.01em; }
+.cta-card__desc{ font-size:.88rem; color:var(--muted-dark); line-height:1.6; flex:1; }
+
+@media (max-width:900px){ .cta-grid{ grid-template-columns:1fr; } }
+
+/* ============================================================
+   11. Footer
+   ============================================================ */
+.site-footer{ background:var(--ink); color:var(--muted-dark); padding-top:clamp(3.5rem,6vw,5.5rem); }
+/* 5 個區塊（品牌／3 個連結欄／電子報）對應 5 條 track，電子報不再 span 2，
+   改成自己吃一條較寬的 track，同一列排開，右側才不會空一大塊。 */
+.footer-top{ display:grid; grid-template-columns:1.2fr .85fr .85fr .85fr 1.15fr; gap:2.5rem; padding-bottom:3rem; border-bottom:1px solid rgba(255,255,255,.08); }
+.footer-brand img{ height:42px; width:40px; margin-bottom:1rem; }
+.footer-brand p{ font-size:.85rem; line-height:1.7; max-width:32ch; margin-bottom:1.25rem; }
+.footer-brand address{ font-style:normal; font-size:.82rem; line-height:1.7; margin-bottom:1.25rem; }
+.footer-social{ display:flex; gap:.75rem; }
+.footer-social a{ width:38px; height:38px; display:inline-flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,.15); color:var(--muted-dark); }
+.footer-social a:hover{ border-color:var(--brand-bright); color:var(--brand-bright); }
+.footer-social svg{ width:16px; height:16px; }
+
+.footer-col h4{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#fff; margin-bottom:1.1rem; }
+.footer-col ul{ display:flex; flex-direction:column; gap:.65rem; }
+.footer-col a{ font-size:.85rem; }
+.footer-col a:hover{ color:var(--brand-bright); }
+
+.newsletter h4{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#fff; margin-bottom:.6rem; }
+.newsletter p{ font-size:.82rem; margin-bottom:1rem; max-width:34ch; }
+/* 電子報現在吃自己的一條較窄 track（桌機約 230～250px），輸入框與按鈕
+   改直向堆疊、各自滿版寬度，比原本「橫排、按鈕擠在右邊」在窄欄位裡更好按
+   也更好讀；斷點收合成 2 欄／1 欄時這欄本來就會變寬，直向堆疊一樣適用。 */
+.newsletter form{ display:flex; flex-direction:column; gap:.6rem; max-width:320px; }
+.newsletter input{
+  width:100%; min-height:46px; background:var(--ink-2); border:1px solid rgba(255,255,255,.15);
+  color:#fff; padding:0 1rem; font-size:.85rem;
+}
+.newsletter input::placeholder{ color:var(--muted-dark); }
+.newsletter button{
+  width:100%; min-height:46px; padding:0 1.1rem; background:var(--brand-aa); color:#fff; font-weight:800; font-size:.82rem;
+}
+.newsletter button:hover{ background:var(--brand-deep); }
+
+.footer-bottom{
+  display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;
+  padding-block:1.75rem; font-size:.76rem;
+}
+.footer-bottom .legal-links{ display:flex; gap:1.25rem; flex-wrap:wrap; }
+.footer-bottom a:hover{ color:var(--brand-bright); }
+.footer-lang{ display:flex; align-items:center; gap:.4em; }
+.footer-lang button{ color:var(--muted-dark); }
+.footer-lang button[aria-current="true"]{ color:#fff; font-weight:800; }
+
+@media (max-width:1080px){
+  .footer-top{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .newsletter{ grid-column:span 2; }
+}
+@media (max-width:640px){
+  .footer-top{ grid-template-columns:1fr; }
+  .newsletter{ grid-column:span 1; }
+  .footer-bottom{ flex-direction:column; align-items:flex-start; }
+}
+
+/* ============================================================
+   Mockup corner badge + mobile sticky CTA
+   ============================================================ */
+
+.mobile-sticky-cta{
+  display:none; position:fixed; left:0; right:0; bottom:0; z-index:150;
+  background:var(--ink); border-top:1px solid rgba(255,255,255,.1);
+  padding:.6rem .75rem; gap:.6rem;
+  padding-bottom:calc(.6rem + env(safe-area-inset-bottom));
+}
+.mobile-sticky-cta a{ flex:1; }
+@media (max-width:767px){
+  .mobile-sticky-cta{ display:flex; }
+  body{ padding-bottom:64px; }
+}
+
+/* Section id scroll offset (sticky header) */
+section[id]{ scroll-margin-top:90px; }
+
+/* ============================================================
+   全站頁面新增元件（mockup 之外，依規劃書 §2.2 導覽規格）
+   ============================================================ */
+
+/* Mega Menu — 主分類展開第二層 + 主視覺 + 該分類主 CTA */
+.main-nav li{ position:static; }
+.main-nav .has-mega > a::after{
+  content:""; display:inline-block; width:.4em; height:.4em; margin-left:.45em;
+  border-right:2px solid currentColor; border-bottom:2px solid currentColor;
+  transform:translateY(-2px) rotate(45deg); opacity:.55;
+}
+/* 死區橋接：.mega 定位基準是 .site-header（見上一條規則的註解），連結底緣
+   到 .mega 頂緣之間因 header 置中對齊留有空隙，游標略過時會先離開 <li> 的
+   命中範圍而觸發 mouseleave。這裡在觸發連結正下方補一塊不可見的可命中區，
+   讓 hover 範圍實際連續；只在該分類已展開（.is-open）時才存在，避免平時
+   蓋住 header 正下方的頁面內容。定位基準是 <a> 本身（position:relative），
+   不會影響 .mega 相對 header 的全寬定位。實際關閉時機仍由 site.js 的
+   關閉延遲機制決定，這塊橋接只是把死區「墊平」，兩者互為保險。 */
+.main-nav .has-mega > a{ position:relative; }
+.main-nav .has-mega.is-open > a::before{
+  content:""; position:absolute; left:0; right:0; top:100%; height:28px; z-index:60;
+}
+.mega{
+  position:absolute; left:0; right:0; top:100%;
+  background:var(--paper); border-top:1px solid var(--rule);
+  box-shadow:0 24px 48px rgba(35,25,22,.13);
+  z-index:60;
+}
+.mega[hidden]{ display:none; }
+/* 右欄（照片＋CTA）給固定寬度的 grid track（非 auto），不論左邊清單有
+   幾項、佔多寬，這條 track 的寬度與起點都不變，照片落點才會跨選單一致。
+   .mega__feature 本身改為 width:100% 撐滿這條 track，不再自己重複定義寬度。 */
+/* 選擇器必須是 .mega .mega__inner（0,2,0）而非單一 .mega__inner（0,1,0）：
+   這個元素同時帶 container class 且位在 .site-header 內，會被上面
+   .site-header .container{ display:flex }（0,2,0）蓋掉 display:grid。
+   與 .mega__list 被 .main-nav ul 蓋掉是同一個陷阱的第二個實例。 */
+.mega .mega__inner{
+  display:grid; grid-template-columns:1fr min(340px,32vw); gap:clamp(2rem,5vw,5rem);
+  padding-block:2.25rem 2.5rem; align-items:start; min-height:340px;
+}
+/* 連結清單改成固定 2 欄、由上往下流（grid-auto-flow:column + 固定
+   grid-template-rows），行數永遠是 4 列不隨項目數變動，各選單（3～8 項）
+   高度差距因此收斂；欄寬用 minmax 夾住、不撐滿整個 1fr 區域，避免項目數
+   少的選單把欄距硬拉開。不再用 auto-fit，就不會出現「最後一項自己一列、
+   旁邊留一大片空白」的孤兒問題。
+   選擇器特意寫成 .main-nav .mega__list（兩個 class）而不是單純
+   .mega__list：因為 .mega__list 本身是 <ul>，巢狀在 .main-nav 底下，
+   會被上面 .main-nav ul{ display:flex; flex-wrap:wrap; }（class+tag，
+   specificity 0,1,1）蓋掉 .mega__list 單一 class 的 display:grid
+   （specificity 0,1,0）——這正是原本孤兒項目 bug 的真正成因：整個選單
+   其實從未真的用 grid 排過，一直是 flex-wrap 在自由換行。這裡拉高
+   specificity 到 0,2,0 蓋過它，不用 !important。 */
+.main-nav .mega__list{
+  display:grid; grid-auto-flow:column;
+  grid-template-columns:repeat(2,minmax(190px,240px));
+  grid-template-rows:repeat(4,auto);
+  gap:.15rem 2.5rem;
+  justify-content:start; align-content:start;
+}
+.mega__list a{
+  display:block; padding:.6rem .25rem; font-size:.95rem; font-weight:600;
+  color:var(--heading); border-bottom:1px solid transparent;
+  transition:color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.mega__list a:hover, .mega__list a:focus-visible{
+  color:var(--brand-aa); border-bottom-color:var(--brand);
+}
+.mega__feature{ width:100%; display:grid; gap:1rem; align-content:start; }
+.mega__feature img{ width:100%; height:auto; aspect-ratio:11/7; object-fit:cover; }
+.mega__feature .btn{ justify-self:start; }
+@media (max-width:1100px){ .mega{ display:none !important; } }
+
+/* 行動版底部固定 CTA Bar */
+.mobile-cta-bar{
+  position:fixed; left:0; right:0; bottom:0; z-index:70;
+  display:none; gap:.6rem; padding:.7rem clamp(.9rem,4vw,1.25rem);
+  background:rgba(255,255,255,.96); backdrop-filter:blur(8px);
+  border-top:1px solid var(--rule);
+}
+.mobile-cta-bar .btn{ flex:1; justify-content:center; }
+@media (max-width:760px){
+  .mobile-cta-bar{ display:flex; }
+  body{ padding-bottom:4.25rem; }
+}
+
+/* ── 頁面通用版型 ───────────────────────────────────── */
+
+/* 頁首橫幅（各單元 landing 與子頁共用） */
+.page-hero{
+  position:relative; background:var(--ink); color:#fff;
+  padding-block:clamp(3.5rem,8vw,7rem);
+  overflow:hidden; isolation:isolate;
+}
+.page-hero--media::before{
+  content:""; position:absolute; inset:0; z-index:-1;
+  background:linear-gradient(90deg,rgba(35,25,22,.94) 0%,rgba(35,25,22,.72) 55%,rgba(35,25,22,.45) 100%);
+}
+.page-hero__bg{
+  position:absolute; inset:0; z-index:-2; width:100%; height:100%; object-fit:cover;
+}
+.page-hero__eyebrow{
+  font-size:.8rem; font-weight:800; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--brand-bright); margin-bottom:.9rem;
+}
+.page-hero h1{
+  font-size:var(--fs-h2); font-weight:700; line-height:1.06; letter-spacing:-.01em;
+  text-wrap:balance;
+}
+.page-hero h1 .en{
+  display:block; font-size:.42em; font-weight:700; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--muted-dark); margin-top:.75rem;
+}
+.page-hero__lede{
+  margin-top:1.5rem; max-width:60ch; font-size:1.05rem; line-height:1.75;
+  color:rgba(255,255,255,.82); text-wrap:pretty;
+}
+
+/* 麵包屑 */
+.breadcrumb{ background:var(--paper-2); border-bottom:1px solid var(--rule); }
+.breadcrumb ol{
+  display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;
+  padding-block:.85rem; font-size:.82rem; color:var(--muted); list-style:none; margin:0;
+}
+.breadcrumb li+li::before{ content:"/"; margin-right:.5rem; color:var(--ghost); }
+.breadcrumb a:hover{ color:var(--brand-aa); }
+.breadcrumb [aria-current]{ color:var(--heading); font-weight:600; }
+
+/* 內文區塊 */
+.prose{ max-width:72ch; }
+.prose > * + *{ margin-top:1.35rem; }
+.prose p{ line-height:1.85; color:var(--text); text-wrap:pretty; }
+.prose h2{ font-size:var(--fs-h3); font-weight:700; color:var(--heading); margin-top:2.75rem; }
+.prose h3{ font-size:1.15rem; font-weight:700; color:var(--heading); margin-top:2rem; }
+.prose ul{ list-style:disc; padding-left:1.35rem; }
+.prose li+li{ margin-top:.5rem; }
+.prose blockquote{
+  border-left:4px solid var(--brand); padding:.35rem 0 .35rem 1.5rem;
+  font-size:1.15rem; font-weight:600; color:var(--heading); line-height:1.6;
+}
+
+/* 通用卡片格 */
+.grid{ display:grid; gap:clamp(1rem,2.5vw,1.75rem); }
+.grid--2{ grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); }
+.grid--3{ grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); }
+.grid--4{ grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); }
+
+/* 空的 Logo 格位（客戶尚未提供夥伴 Logo 時的佔位） */
+.sponsor-tile--empty{
+  background:repeating-linear-gradient(45deg,var(--paper-2),var(--paper-2) 8px,var(--paper-3) 8px,var(--paper-3) 16px);
+  border:1px solid var(--rule); min-height:72px;
+}
+
+
+
+/* ============================================================
+   共用元件（由各頁面 <style> 合併上提）
+   表單系統原重複於 13 頁、新聞列表系統原重複於 9 頁。
+   ============================================================ */
+
+/* ── 表單系統（10.x 九類表單、球迷會入會、志工報名、贊助洽詢） ──────────────────────────────────────── */
+.tcrfc-form fieldset{ border:0; padding:0; margin:0 0 2.5rem; }
+.tcrfc-form legend{ width:100%; font-size:.78rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); padding-bottom:.75rem; margin-bottom:1.5rem; border-bottom:1px solid var(--rule); }
+.form-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:1.25rem 1.5rem; }
+.form-field{ display:flex; flex-direction:column; }
+.form-field--full{ grid-column:1 / -1; }
+.form-field label{ font-size:.85rem; font-weight:700; color:var(--heading); margin-bottom:.4rem; }
+.form-field .req{ color:var(--brand-aa); margin-left:.2rem; }
+.form-field input[type=text],
+.form-field input[type=email],
+.form-field input[type=tel],
+.form-field input[type=date],
+.form-field input[type=url],
+.form-field input[type=number],
+.form-field select,
+.form-field textarea{ width:100%; border:1px solid var(--rule); background:var(--paper); padding:.75rem .9rem; font-size:.95rem; font-family:inherit; color:var(--text); }
+.form-field textarea{ min-height:8.5rem; resize:vertical; }
+.field-hint{ font-size:.78rem; color:var(--muted); margin-top:.4rem; line-height:1.5; }
+.field-error{ display:none; font-size:.8rem; font-weight:700; color:var(--brand-deep); margin-top:.4rem; }
+.file-field{ border:1px dashed var(--rule); padding:1.1rem 1.25rem; background:var(--paper-2); }
+.file-field input[type=file]{ width:100%; font-size:.85rem; }
+.checkbox-group{ display:flex; flex-direction:column; gap:.65rem; }
+.checkbox-field{ display:flex; align-items:flex-start; gap:.65rem; }
+.checkbox-field input{ width:auto; margin-top:.3rem; flex:none; }
+.checkbox-field label{ font-size:.9rem; color:var(--text); font-weight:500; }
+.consent-block{ border:1px solid var(--rule); background:var(--paper-2); padding:1.5rem 1.75rem; margin:2.5rem 0; }
+.consent-block .checkbox-field{ margin-bottom:0; }
+.consent-block .checkbox-field label a{ color:var(--brand-aa); text-decoration:underline; }
+.form-turnstile{ margin:2rem 0 1.5rem; }
+.form-submit-note{ margin-top:1.75rem; padding:1.25rem 1.5rem; background:var(--paper-2); border-left:4px solid var(--brand-aa); font-size:.88rem; line-height:1.75; color:var(--text); }
+.form-sidebar__card{ background:var(--paper-2); border:1px solid var(--rule); padding:clamp(1.5rem,3vw,2.25rem); }
+.form-sidebar__card + .form-sidebar__card{ margin-top:1.5rem; }
+.form-sidebar__card h2{ font-size:1rem; font-weight:800; color:var(--heading); margin-bottom:.9rem; }
+.form-sidebar__card ul{ list-style:disc; padding-left:1.2rem; display:flex; flex-direction:column; gap:.5rem; }
+.form-sidebar__card li{ font-size:.88rem; line-height:1.6; color:var(--text); }
+.form-sidebar__card li a{ color:var(--brand-aa); text-decoration:underline; }
+.form-sidebar__dept{ display:inline-flex; align-items:center; font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); margin-bottom:.6rem; }
+.consent-block .zh-sub-inline{ display:block; margin-left:0; margin-top:.5rem; font-size:.85rem; }
+.form-field input, .form-field select, .form-field textarea{ width:100%; border:1px solid var(--rule); background:var(--paper); padding:.75rem .9rem; font-size:.95rem; font-family:inherit; color:var(--text); }
+.consent-block a{ color:var(--brand-aa); text-decoration:underline; }
+.form-field input{ min-height:48px; padding:0 1rem; border:1px solid var(--rule); background:var(--paper); font-size:.95rem; color:var(--text); }
+.form-field input:focus{ outline:2px solid var(--brand-aa); outline-offset:1px; }
+.form-field button:disabled{ opacity:.55; cursor:not-allowed; }
+.form-field input, .form-field select{ min-height:48px; padding:0 1rem; border:1px solid var(--rule); background:var(--paper); font-size:.95rem; color:var(--text); }
+.form-field input:focus, .form-field select:focus{ outline:2px solid var(--brand-aa); outline-offset:1px; }
+
+/* .form-layout 版型系統 —— 三種用法，靠 modifier class 區分，避免同一顆 class 在不同頁面被迫長成不同形狀：
+   1) 基礎（無 modifier）：單欄置中短表單。捐款／志工報名（charity）、會員註冊（member）。
+   2) --narrow：更窄、帶卡片底色，適合登入這類極短表單。會員登入（member）。
+   3) --split：長表單＋側欄兩欄式，10.1–10.9 九個 join 表單頁共用。側欄改用 fr 吃滿容器剩餘寬度，
+      不再靠 max-width 硬夾——那正是先前「表單歪一邊、右邊空一大塊」的成因。 */
+.form-layout{ max-width:680px; margin-inline:auto; }
+
+.form-layout--narrow{
+  max-width:440px; margin-inline:auto;
+  background:var(--paper-2); border:1px solid var(--rule); padding:clamp(1.75rem,4vw,2.5rem);
+}
+
+.form-layout--split{
+  max-width:none; margin-inline:0;
+  display:grid; grid-template-columns:minmax(0,660px) minmax(280px,1fr);
+  gap:clamp(2rem,4vw,3.5rem);
+  /* 注意：這裡刻意不設 align-items:start。.form-sidebar（grid item）維持預設 stretch，
+     格身跟表單欄一樣高——這不會多出視覺色塊，因為 .form-sidebar 本身沒有背景／邊框
+     （背景都畫在 .form-sidebar__card 上）。sticky 真正要吃到「格身高度」當活動範圍，
+     必須放在格身*裡面*的子層（.form-sidebar__sticky），而不能直接放在格身本身：
+     如果 sticky 元素跟它自己的 containing block 一樣高，等於沒有可移動的空間，
+     只會卡在門檻那一瞬間就失效（曾經踩過這個坑，見下面 .form-sidebar__sticky）。 */
+}
+.form-sidebar__sticky{ position:sticky; top:6rem; }
+@media (max-width:900px){
+  .form-layout--split{ grid-template-columns:1fr; }
+  .form-sidebar__sticky{ position:static; top:auto; }
+}
+/* .band 預設 overflow:hidden（給 ghost-num 大數字裁邊用），但任何祖先只要 overflow 不是
+   visible，position:sticky 的子孫就會整個失效（黏不住，這是 CSS 規範行為，不是瀏覽器 bug）。
+   9 個 join 表單頁的 .band 裡沒有需要裁邊的 ghost-num，改用 .form-band 這顆修飾類別
+   單獨解除 overflow，不動到全站共用的 .band 本身（見各 join 表單頁的 <section>）。
+   小心：這段註解本身踩過一次雷——寫成含萬用字元的路徑（join/星號/index.html）會在註解裡
+   組出字面上的 "星號+斜線"，提前把這個 CSS 註解關掉，害後面的 .form-band 規則整個解析失敗、
+   完全不生效（而且瀏覽器不會報錯，只會默默沒作用）。CSS 註解一律避免在文字裡出現路徑萬用字元。 */
+.form-band{ overflow:visible; }
+@media (max-width:640px){ .form-grid{ grid-template-columns:1fr; } }
+
+/* ── 新聞列表系統（07 單元 9 個列表頁） ──────────────────────────────────────── */
+.cat-tabs{ display:flex; flex-wrap:wrap; gap:.6rem; }
+.cat-tabs a, .cat-tabs button{ display:inline-flex; align-items:center; min-height:40px; padding:0 1.1rem; font-size:.8rem; font-weight:700; letter-spacing:.02em; background:var(--paper-2); color:var(--text); border:0; transition:background var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+.cat-tabs a:hover, .cat-tabs button:hover{ background:var(--rule); }
+.cat-tabs a[aria-current="page"], .cat-tabs button[aria-pressed="true"]{ background:var(--brand-aa); color:#fff; }
+.filter-row{ display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end; padding:1.25rem; background:var(--paper-2); }
+.filter-field{ display:flex; flex-direction:column; gap:.4rem; }
+.filter-field label{ font-size:.68rem; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); }
+.filter-field select, .filter-field input[type="search"]{ min-height:44px; padding:0 .9rem; border:1px solid var(--rule); background:var(--paper); color:var(--text); font-size:.88rem; min-width:140px; font-family:var(--font); }
+.filter-field--search{ flex:1 1 240px; }
+.filter-field--search input{ width:100%; }
+.result-count{ font-size:.82rem; color:var(--muted); font-weight:700; margin:1.5rem 0 1rem; }
+.news-list-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1.5rem; }
+.news-list-grid .news-card__media, .featured-grid .news-card__media{ aspect-ratio:3/2; flex:none; min-height:0; }
+.news-card__media--noimg{ display:flex; align-items:center; justify-content:center; background:var(--ink); }
+.news-card__media--noimg img{ width:30%; height:auto; object-fit:contain; opacity:.4; }
+.news-empty{ padding:3rem 1.5rem; text-align:center; color:var(--muted); background:var(--paper-2); font-size:.92rem; }
+.editorial-note{ border:1px dashed var(--rule); background:var(--paper-2); padding:1rem 1.15rem; font-size:.87rem; color:var(--muted); line-height:1.6; }
+.editorial-note code{ font-size:.92em; background:rgba(0,0,0,.05); padding:.1em .35em; }
+.load-more-row{ text-align:center; margin-top:2.5rem; }
+.featured-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; margin-top:2rem; }
+.featured-grid .news-card__title{ font-size:1.05rem; }
+@media (max-width:900px){ .featured-grid{ grid-template-columns:1fr; } }
+@media (max-width:640px){ .filter-row{ flex-direction:column; align-items:stretch; } }
+
+/* ── 隊別／分類頁籤（4.2 學院隊伍、13 賽事行事曆共用） ── */
+/* ── 4.2 專屬元件：年齡層頁籤 ──────────────────────────
+   三頁以上若都需要頁籤切換（例如 5.x 課程梯次、9.x 贊助方案），
+   建議收進 tcrfc.css 成為共用 .tabset 元件。 */
+.team-tabs__list{
+  display:flex; flex-wrap:wrap; gap:.5rem; border-bottom:2px solid var(--rule); margin-bottom:2.25rem;
+}
+.team-tabs__tab{
+  padding:.85rem 1.4rem; font-weight:800; font-size:.92rem; color:var(--muted);
+  border-bottom:3px solid transparent; margin-bottom:-2px;
+  transition:color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.team-tabs__tab:hover{ color:var(--brand-aa); }
+.team-tabs__tab[aria-selected="true"]{ color:var(--heading); border-bottom-color:var(--brand); }
+.team-tabs__panel[hidden]{ display:none; }
+.team-tabs__panel h3{ font-size:1.05rem; font-weight:800; color:var(--heading); }
+
+/* 中性標籤。外觀沿用 .mock-flag，但語意是「內容標籤」而非「示意資料」——
+   .mock-flag 是 mockup 用來標示假資料的，不可拿來標真實內容。 */
+.badge{
+  display:inline-flex; align-items:center; gap:.4em;
+  font-size:.66rem; font-weight:800; letter-spacing:.06em;
+  color:var(--muted); background:var(--paper-2);
+  border:1px solid var(--rule);
+  padding:.25em .6em; white-space:nowrap;
+}
+.badge--on-dark{
+  color:var(--muted-dark); background:rgba(255,255,255,.06);
+  border-color:rgba(255,255,255,.18);
+}

@@ -1,0 +1,136 @@
+<!--meta
+{
+  "title": "學院發展路徑 Academy Pathway｜磐石足球學院｜台中磐石足球俱樂部",
+  "description": "磐石足球學院的階梯式發展路徑：U12 → U15 → 一線隊／海外，點擊各階段了解升上一階的方向（詳細內容資料收集中）。",
+  "nav": "academy",
+  "unit": "4.3"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/academy/">足球學院</a></li>
+      <li aria-current="page">學院發展路徑</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="{{ROOT}}/assets/img/academy/life-08.jpg" alt="" width="1600" height="900">
+  <div class="container">
+    <p class="page-hero__eyebrow">4.3 Academy Pathway</p>
+    <h1>學院發展路徑<span class="en">Academy Pathway</span></h1>
+    <p class="page-hero__lede">
+      從 U12 起步，經 U15 深化，到一線隊或海外舞台——磐石足球學院提供階梯式的發展路徑。
+      點擊下方各階段，了解學員如何逐步銜接下一個層級。
+    </p>
+  </div>
+</section>
+
+<section class="band">
+  <div class="container">
+
+    <ol class="path-track">
+      <li class="path-step">
+        <details>
+          <summary>
+            <span class="path-step__num" aria-hidden="true">01</span>
+            <span class="path-step__body">
+              <span class="path-step__en">Stage 1 · U12</span>
+              <span class="path-step__zh">起步階段</span>
+            </span>
+            <span class="path-step__chevron" aria-hidden="true">＋</span>
+          </summary>
+          <div class="path-step__detail">
+            <p>詳細說明準備中，稍後將於本頁公布。</p>
+          </div>
+        </details>
+      </li>
+      <li class="path-step">
+        <details>
+          <summary>
+            <span class="path-step__num" aria-hidden="true">02</span>
+            <span class="path-step__body">
+              <span class="path-step__en">Stage 2 · U15</span>
+              <span class="path-step__zh">深化階段</span>
+            </span>
+            <span class="path-step__chevron" aria-hidden="true">＋</span>
+          </summary>
+          <div class="path-step__detail">
+            <p>詳細說明準備中，稍後將於本頁公布。</p>
+          </div>
+        </details>
+      </li>
+      <li class="path-step">
+        <details>
+          <summary>
+            <span class="path-step__num" aria-hidden="true">03</span>
+            <span class="path-step__body">
+              <span class="path-step__en">Stage 3 · First Team / Overseas</span>
+              <span class="path-step__zh">一線隊／海外</span>
+            </span>
+            <span class="path-step__chevron" aria-hidden="true">＋</span>
+          </summary>
+          <div class="path-step__detail">
+            <p>詳細說明準備中，稍後將於本頁公布。</p>
+          </div>
+        </details>
+      </li>
+    </ol>
+
+  </div>
+</section>
+
+<section class="band grain cta-band">
+  <div class="container">
+    <div class="cta-grid">
+      <a class="cta-card" href="{{ROOT}}/zh/academy/teams/">
+        <span class="cta-card__num">4.2</span>
+        <span class="cta-card__title">學院隊伍</span>
+        <p class="cta-card__desc">查看 U15／U14／U12 各梯隊</p>
+      </a>
+      <a class="cta-card" href="{{ROOT}}/zh/academy/curriculum/">
+        <span class="cta-card__num">4.4</span>
+        <span class="cta-card__title">訓練課程與課綱</span>
+        <p class="cta-card__desc">五大訓練面向與週期規劃</p>
+      </a>
+      <a class="cta-card" href="{{ROOT}}/zh/academy/join/">
+        <span class="cta-card__num">4.7</span>
+        <span class="cta-card__title">加入學院</span>
+        <p class="cta-card__desc">招生對象與遴選流程</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+/* ── 4.3 專屬元件：階梯路徑（<details> 逐階展開，無需 JS）──
+   3.4 國際發展通道也需要「路徑圖，各階段可點擊」，建議把 .path-track 收進 tcrfc.css 共用。 */
+.path-track{ list-style:none; max-width:60rem; position:relative; }
+.path-track::before{
+  content:""; position:absolute; left:1.85rem; top:2.5rem; bottom:2.5rem; width:2px; background:var(--rule);
+}
+.path-step{ position:relative; margin-bottom:1.25rem; }
+.path-step details{ background:var(--paper-2); border:1px solid var(--rule); }
+.path-step summary{
+  list-style:none; cursor:pointer; display:flex; align-items:center; gap:1.25rem;
+  padding:1.5rem 1.75rem; position:relative; z-index:1;
+}
+.path-step summary::-webkit-details-marker{ display:none; }
+.path-step__num{
+  flex:0 0 auto; width:3.7rem; height:3.7rem; border-radius:50%; background:var(--ink); color:#fff;
+  display:flex; align-items:center; justify-content:center; font-weight:900; font-size:1.1rem;
+}
+.path-step__body{ display:flex; flex-direction:column; gap:.2rem; flex:1 1 auto; min-width:0; }
+.path-step__en{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); }
+.path-step__zh{ font-size:1.25rem; font-weight:900; color:var(--heading); }
+.path-step__chevron{ flex:0 0 auto; font-size:1.4rem; font-weight:300; color:var(--muted); transition:transform var(--dur-fast) var(--ease); }
+.path-step details[open] .path-step__chevron{ transform:rotate(45deg); }
+.path-step details[open] summary{ border-bottom:1px solid var(--rule); }
+.path-step__detail{ padding:1.5rem 1.75rem 1.75rem calc(1.75rem + 3.7rem + 1.25rem); }
+@media (max-width:640px){
+  .path-track::before{ display:none; }
+  .path-step__detail{ padding-left:1.75rem; }
+}
+</style>

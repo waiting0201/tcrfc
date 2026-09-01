@@ -1,0 +1,211 @@
+<!--meta
+{
+  "title": "磐石漫畫 TCRFC Manga｜磐石文化｜台中磐石足球俱樂部",
+  "description": "磐石漫畫是台中磐石足球俱樂部的原創漫畫企劃：世界觀設定、角色卡牆與集數線上閱讀器，全部免費開放、不需登入。",
+  "nav": "culture",
+  "unit": "8.1"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/culture/">磐石文化</a></li>
+      <li aria-current="page">磐石漫畫</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="container">
+    <p class="page-hero__eyebrow">8.1 TCRFC Manga / Comics</p>
+    <h1>磐石漫畫<span class="en">Manga / Comics</span></h1>
+    <p class="page-hero__lede">以台中磐石為原型的原創漫畫企劃，角色設定與球員故事交織。全部集數<b style="color:#fff">免費開放、不需登入、無付費牆</b>。</p>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.1 — About the Project 關於企劃 -->
+<section class="band" id="about-project" aria-labelledby="about-project-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">ABOUT THE PROJECT</p>
+        <h2 class="section-title" id="about-project-title">關於企劃</h2>
+      </div>
+    </div>
+    <div class="prose">
+      <p>企劃介紹準備中，稍後將於本頁公開。</p>
+    </div>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.1 — Characters 角色卡牆 -->
+<section class="band grain" id="characters" aria-labelledby="characters-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">CHARACTERS</p>
+        <h2 class="section-title" id="characters-title" style="color:#fff">角色介紹</h2>
+      </div>
+      <p class="section-lede">角色設定可關聯一線隊原型球員，詳情頁待角色資料到位後另建。</p>
+    </div>
+
+    <div class="grid grid--4 char-wall">
+      <div class="char-card">
+        <div class="char-card__portrait" aria-hidden="true">?</div>
+        <p class="char-card__pending">角色 01 尚未公開</p>
+      </div>
+      <div class="char-card">
+        <div class="char-card__portrait" aria-hidden="true">?</div>
+        <p class="char-card__pending">角色 02 尚未公開</p>
+      </div>
+      <div class="char-card">
+        <div class="char-card__portrait" aria-hidden="true">?</div>
+        <p class="char-card__pending">角色 03 尚未公開</p>
+      </div>
+      <div class="char-card">
+        <div class="char-card__portrait" aria-hidden="true">?</div>
+        <p class="char-card__pending">角色 04 尚未公開</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.1 — Episodes 集數列表 -->
+<section class="band" id="episodes" aria-labelledby="episodes-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">EPISODES</p>
+        <h2 class="section-title" id="episodes-title">集數列表</h2>
+      </div>
+    </div>
+    <div class="grid grid--3">
+      <article class="ep-card">
+        <div class="ep-card__cover" aria-hidden="true"><span>EP01</span></div>
+        <p class="ep-card__title">尚未發布</p>
+      </article>
+      <article class="ep-card">
+        <div class="ep-card__cover" aria-hidden="true"><span>EP02</span></div>
+        <p class="ep-card__title">尚未發布</p>
+      </article>
+      <article class="ep-card">
+        <div class="ep-card__cover" aria-hidden="true"><span>EP03</span></div>
+        <p class="ep-card__title">尚未發布</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.1 — Online Reader 線上閱讀器（分頁／捲動雙模式、上下集導覽、行動手勢） -->
+<section class="band grain grain--2" id="reader" aria-labelledby="reader-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">ONLINE READER</p>
+        <h2 class="section-title" id="reader-title" style="color:#fff">線上閱讀器</h2>
+      </div>
+      <p class="section-lede">切換分頁／捲動模式，行動裝置支援左右滑動換頁與上下滑動捲動閱讀。</p>
+    </div>
+
+    <div class="reader" id="manga-reader">
+      <div class="reader__toolbar">
+        <div class="reader__modes" role="group" aria-label="切換閱讀模式">
+          <button type="button" class="reader__mode-btn" data-mode="paginated" aria-pressed="true">分頁模式</button>
+          <button type="button" class="reader__mode-btn" data-mode="scroll" aria-pressed="false">捲動模式</button>
+        </div>
+        <div class="reader__nav">
+          <button type="button" class="reader__nav-btn" disabled aria-label="上一集">← 上一集</button>
+          <button type="button" class="reader__nav-btn" disabled aria-label="下一集">下一集 →</button>
+        </div>
+      </div>
+      <div class="reader__frame" aria-live="polite">
+        <p>尚無可預覽集數</p>
+        <p class="reader__frame-note">集數原稿到位後，此處將顯示分頁或捲動式閱讀畫面，並支援行動裝置手勢滑動。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SPEC 3.1 — 頁尾 CTA -->
+<section class="band" aria-labelledby="manga-cta-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="manga-cta-title">加入球迷會看更多磐石文化內容</h2>
+    <div class="grid grid--2">
+      <div class="cta-card" style="background:var(--ink)">
+        <p class="cta-card__num">8.2</p>
+        <p class="cta-card__title">加入磐石球迷會</p>
+        <p class="cta-card__desc">成為球迷會成員，第一時間收到新集數上線通知與角色設定花絮。</p>
+        <a class="btn btn--primary" href="{{ROOT}}/zh/culture/fan-club/">前往球迷會</a>
+      </div>
+      <div class="cta-card" style="background:var(--ink)">
+        <p class="cta-card__num">8.3</p>
+        <p class="cta-card__title">官方商品</p>
+        <p class="cta-card__desc">把磐石漫畫角色與球隊主場球衣一起帶回家。</p>
+        <a class="btn btn--primary" href="{{ROOT}}/zh/culture/merchandise/">看官方商品</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+/* 角色卡牆（char-wall）：無照片時的骨架卡，建議收進共用 CSS */
+.char-wall{ margin-top:1rem; }
+.char-card{ background:rgba(255,255,255,.04); border:1px dashed rgba(255,255,255,.25); padding:1.25rem; text-align:center; }
+.char-card__portrait{
+  aspect-ratio:3/4; display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.05); color:rgba(255,255,255,.3); font-size:2.5rem; font-weight:900;
+}
+.char-card__pending{ margin-top:.85rem; font-size:.82rem; color:var(--muted-dark); }
+
+/* 集數卡骨架 */
+.ep-card{ background:var(--paper-2); border:1px solid var(--rule); }
+.ep-card__cover{
+  aspect-ratio:3/4; display:flex; align-items:center; justify-content:center;
+  background:var(--ink-2); color:rgba(255,255,255,.3); font-weight:900; font-size:1.3rem; letter-spacing:.06em;
+}
+.ep-card__title{ padding:1rem 1.1rem; font-size:.85rem; }
+
+/* 線上閱讀器：建議收進共用 CSS（其他集數頁與角色詳情頁都會用到） */
+.reader{ background:var(--ink); border:1px solid rgba(255,255,255,.1); }
+.reader__toolbar{
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;
+  padding:1.1rem 1.25rem; border-bottom:1px solid rgba(255,255,255,.1);
+}
+.reader__modes{ display:flex; gap:.5rem; }
+.reader__mode-btn{
+  min-height:40px; padding:0 1rem; font-size:.8rem; font-weight:800;
+  background:transparent; border:2px solid rgba(255,255,255,.18); color:var(--muted-dark);
+  transition:all var(--dur-fast) var(--ease);
+}
+.reader__mode-btn[aria-pressed="true"]{ background:var(--brand-aa); border-color:var(--brand-aa); color:#fff; }
+.reader__nav{ display:flex; gap:.5rem; }
+.reader__nav-btn{
+  min-height:40px; padding:0 1rem; font-size:.8rem; font-weight:700;
+  background:transparent; border:1px solid rgba(255,255,255,.18); color:var(--muted-dark);
+}
+.reader__nav-btn:disabled{ opacity:.4; cursor:not-allowed; }
+.reader__frame{
+  min-height:360px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6rem;
+  padding:2.5rem 1.5rem; text-align:center; color:var(--muted-dark);
+}
+.reader__frame p:first-child{ font-size:1.05rem; font-weight:800; color:#fff; }
+.reader__frame-note{ font-size:.82rem; max-width:44ch; line-height:1.7; }
+.reader.is-scroll .reader__frame{ min-height:520px; }
+</style>
+
+<script>
+(function(){
+  "use strict";
+  var reader = document.getElementById('manga-reader');
+  if(!reader) return;
+  var buttons = reader.querySelectorAll('.reader__mode-btn');
+  buttons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      buttons.forEach(function(b){ b.setAttribute('aria-pressed','false'); });
+      btn.setAttribute('aria-pressed','true');
+      reader.classList.toggle('is-scroll', btn.dataset.mode === 'scroll');
+    });
+  });
+})();
+</script>
