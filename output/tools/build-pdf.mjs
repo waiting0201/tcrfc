@@ -47,6 +47,30 @@ const DOCS = {
     // 英文版以拉丁字型打頭，中文詞彙再 fallback 到 PingFang
     font: '"Helvetica Neue",Helvetica,Arial,"PingFang TC","Noto Sans TC",sans-serif',
   },
+  'charity-zh': {
+    md: 'TCRFC_慈善捐款平台功能規劃書.md',
+    pdf: 'TCRFC_慈善捐款平台功能規劃書.pdf',
+    lang: 'zh-Hant',
+    club: '台中磐石足球俱樂部',
+    title: ['慈善捐款平台', '功能規劃書'],
+    promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.　在地扎根 · 放眼世界',
+    labels: { version: '文件版本', date: '建立日期' },
+    runningHead: (v) => `TCRFC 慈善捐款平台功能規劃書 ${v}`,
+    runningFoot: '台中磐石足球俱樂部 TCRFC',
+    font: '"PingFang TC","Noto Sans TC","Hiragino Sans","Helvetica Neue",Arial,sans-serif',
+  },
+  'charity-en': {
+    md: 'TCRFC_Charity_Donation_Platform_Specification_EN.md',
+    pdf: 'TCRFC_Charity_Donation_Platform_Specification_EN.pdf',
+    lang: 'en',
+    club: 'Taichung Rocks FC',
+    title: ['Charity Donation Platform', 'Functional Specification'],
+    promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.',
+    labels: { version: 'Document version', date: 'Date' },
+    runningHead: (v) => `TCRFC Charity Donation Platform Specification ${v}`,
+    runningFoot: 'Taichung Rocks FC — TCRFC',
+    font: '"Helvetica Neue",Helvetica,Arial,"PingFang TC","Noto Sans TC",sans-serif',
+  },
 };
 
 // ── Markdown ────────────────────────────────────────────────────────────────

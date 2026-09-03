@@ -1,9 +1,17 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v2.0
-> **Date**: 2026-08-14 (v2.0 revision: 2026-09-03)
+> **Document version**: v2.1
+> **Date**: 2026-08-14 (v2.1 revision: 2026-09-03)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.0*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.1*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v2.1 revision summary — donations move to a separate platform**
+> 1. **A separate Charity Donation Platform is introduced**, specified in its own document, [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md): its own domain and its own public-site project, **sharing this site's admin and database**. Partner venues' QR codes are the entry point; it integrates LINE Pay and issues e-invoices or donation receipts.
+> 2. **Section 11 on this site narrows to editorial content and referral**: 11.1 commitment, 11.2 programmes, 11.3 impact stories and 11.4 impact metrics are unchanged; **all on-site donation mechanisms (Shopify donation item, bank transfer, in-kind donation, the transfer report form) are removed**, and fan donation links out to the Charity Donation Platform.
+> 3. **Volunteer signup is out of scope**: the section 11 CTA narrows from three routes to two (corporate partnership / fan donation), the G2 inbox no longer has a volunteer tab, and the `Enquiry` type drops the volunteer category.
+> 4. **"No payment gateway" now applies to this site only**: the Charity Donation Platform integrates the LINE Pay Online API properly, within that project's scope. This site still builds no cart, integrates no gateway, and manages no orders or inventory.
+> 5. **The donation receipt question is answered**: the former open item "whether donation receipts are required" is now specified in Charity Donation Platform §5 (both e-invoices and donation receipts, chosen per project); fundraising eligibility is elevated to a **launch precondition** for that platform.
+> 6. The `Donation` type's definition moves to Charity Donation Platform §9; this site no longer creates donation records.
 
 > **v2.0 revision summary — member system scope narrowed**
 > 1. **The member system now carries membership alone**: a free tier and a paid tier, with **partner-store discounts** for members and a **jersey** for paying members. The earlier positioning — connecting fan club, program registration, event signup, and newsletter — is withdrawn.
@@ -62,9 +70,10 @@
 - **Public site**: 13 top-level sections, ~60+ sub-pages, 7 CTA conversion forms, a **Member Centre and partner store directory**, and **two languages (Traditional Chinese / English)**.
 - **Admin CMS**: content management, teams & fixtures, registrations & rosters, **member management**, FAQ management, charity impact records, enquiry inbox, merchandise & partners, SEO & site settings, permissions & audit.
 - **Out of scope for this engagement**:
-  - **E-commerce and payments** — all shopping is routed to **Shopify**. This site builds no cart, integrates no payment gateway, and manages no orders or inventory; it maintains a product showcase and outbound links only (see 3.8 / 4.6).
+  - **E-commerce and payments** — all shopping is routed to **Shopify**. This site builds no cart, integrates no payment gateway, and manages no orders or inventory; it maintains a product showcase and outbound links only (see 3.8 / 4.6). **This premise applies to this site only**: charity donation payments are handled by the separate Charity Donation Platform, see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md).
   - **Technology selection** — this document defines functional requirements only; it does not decide framework, CMS, or hosting.
   - **Ticketing and match packages**, **loyalty points**, **e-wallet**, and **partner-store scan-to-redeem with redemption reporting** (recommended for later evaluation).
+  - **On-site donations and volunteer signup** — fan donations move to the Charity Donation Platform (separate domain, see above); **volunteer signup is not built**, and any such need is handled by the general contact form (10.7).
 
 ### 1.4 Existing digital assets
 
@@ -392,26 +401,22 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 | 11.2 | Charity Programs | **Program list** (cover, name, beneficiaries, period, status: ongoing / completed); detail pages cover the programme's origin, **recipient charity name**, **what was donated**, delivery narrative, **event photo gallery**, and related coverage |
 | 11.3 | Impact Stories | **Timeline / card list**; every record presents three core data points: **① charity organisation name ② what was donated ③ event photography**, plus date, location, and a short description; filterable by year |
 | 11.4 | Our Impact | Cumulative statistics: number of partner charities, total donation instances, areas served; presented as a **logo wall / list of organisations** with representative imagery. Monetary figures are hidden by default; visibility is decided per item in the admin |
-| CTA | Get Involved | Three participation routes: **corporate charity partnership** (routes to 10.5) / **fan donation** (see below) / **volunteer signup** (form) |
+| CTA | Get Involved | Two participation routes: **corporate charity partnership** (routes to 10.5) / **fan donation** (links out to the Charity Donation Platform, see below) |
 
-#### Fan donation mechanism
+#### Fan donation: routing to the Charity Donation Platform
 
-Fans can support the club's charitable programmes directly. Because the site carries no payment gateway, donations are handled through existing channels:
+Fan donations are **not handled on this site**. They link out to the **Charity Donation Platform** on its own domain (see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md)). That platform's main entry point is a QR code displayed by partner venues; it integrates LINE Pay properly and issues an e-invoice or a donation receipt depending on the project.
 
-| Channel | How it works | Best for |
-|---|---|---|
-| **Shopify donation item** (recommended primary channel) | List a "support our charity work" item on Shopify with several fixed amounts (e.g. NT$300 / 500 / 1,000 / 3,000); fans pay exactly as they would for a purchase | General fans, small donations, immediate online completion |
-| **Bank transfer** | Publish the donation account details on the site with a follow-up form (name, amount, last five digits of the transfer, designated programme, named or anonymous) | Large donations, corporate giving, those who cannot pay online |
-| **In-kind donation** | A form to register the items and quantities offered; the club follows up | Equipment, kit, supplies |
+This site has three responsibilities and no more:
 
-**Donation page functionality**:
-- Explains how funds are used (donors may designate a specific charity programme or leave it undesignated)
-- Amount option cards + "other amount"
-- **Acknowledgement**: donors choose to be **named or anonymous**; named donors appear on a **public donor roll** (name only, no amounts)
-- A thank-you message is sent after donating (email / LINE), and the use of funds is published annually
-- Donations by fan members are attributed to their member account and visible in the Member Centre
+| Item | Approach |
+|---|---|
+| Referral | Every "fan donation" CTA in section 11 links to the Charity Donation Platform; the URL is configured in admin B6 and **never hard-coded into a template** |
+| Impact feedback | Donation projects on that platform can link to this site's `CharityProgram` records; how funds were used continues to be presented as structured content in 11.2 / 11.3 |
+| Consistency | This site shows no amount options, hosts no donation form, and publishes no bank account details |
 
-> Note: given no payment gateway is being built, a Shopify item is the fastest route to accepting donations. If formal receipts or tax-deductible status are required later (which involves public fundraising eligibility), the legal and procedural implications need separate assessment — not included in this scope.
+> **The premise that this site builds no payment gateway is unchanged.** Payments, invoicing, revenue share and reporting all belong to the Charity Donation Platform; the two share an admin and a database, but their public sites are entirely separate.
+> The three channels from v2.0 (Shopify donation item, bank transfer, in-kind donation) and the on-site transfer report form have **all been removed** and are no longer part of this specification.
 
 **Content cross-linking**:
 - Shares the news library with **7.7 Community**: timely reporting of charity activity is published in 7.7, while the Charity section presents programmes and impact records in structured, long-lived form. The two cross-link rather than duplicating content.
@@ -692,7 +697,7 @@ TCRFC Admin
 │   └── F2 Fan Club events (member lists live in module K)
 ├── G. Forms & Enquiries
 │   ├── G1 Form Designer
-│   ├── G2 Inbox (9 enquiry types + volunteer / donation)
+│   ├── G2 Inbox (7 form types + deck downloads + donation enquiries)
 │   └── G3 Newsletter Subscribers
 ├── H. SEO & Marketing
 ├── I. Site Settings (menus / footer / languages / contact info / venues / Shopify links)
@@ -762,8 +767,8 @@ TCRFC Admin
 - **Impact Record**: three required fields — **charity organisation name**, **what was donated** (free text, e.g. "50 footballs, 100 training bibs" or "N scholarships"), and **event photography** (multiple images); plus date, location, short description, and optionally the parent programme
 - **Charity organisation records**: name, description, logo or representative image, website, contact person, collaboration history; reusable across multiple impact records to avoid re-entry
 - **Impact metrics**: custom statistics (name, unit, value, public visibility); **monetary metrics are private by default**
-- **Donation settings**: Shopify donation item link, amount options, bank account details, in-kind donation form, donor roll management (named / anonymous, display toggle)
-- **Get Involved settings**: copy and destinations for the three CTAs (corporate partnership / fan donation / volunteering)
+- **Donation referral settings**: the Charity Donation Platform URL (**never hard-coded into a template**) and the CTA copy. Donation records, amount options, invoicing and the donor roll are all maintained in that platform's `N` module and are not duplicated here
+- **Get Involved settings**: copy and destinations for **two** CTAs (corporate partnership / fan donation); volunteer signup is out of scope
 - Display control: ordering and pinning within the charity section (**no fixed charity slot on the homepage**; for temporary exposure, use the hero carousel or publish a news article)
 
 ---
@@ -872,7 +877,7 @@ TCRFC Admin
 - Per form: notification recipients (multiple allowed), auto-reply template, CAPTCHA toggle, post-submission redirect
 
 #### G2 Enquiry Inbox
-- A unified inbox with tabs by form type (10.1–10.7 + deck downloads + **volunteer signups / donation enquiries**)
+- A unified inbox with tabs by form type (10.1–10.7 + deck downloads + **donation enquiries**)
 - Fields: source form, name, contact details, message summary, source page, UTM source, submission time
 - Status workflow: `New → In progress → Replied → Closed / Invalid`
 - Assignee, internal notes, tags
@@ -1037,14 +1042,14 @@ TCRFC Admin
 | `ProductShowcase` | Showcase item (display + Shopify link only, **not an e-commerce entity**) | Collection |
 | `ComicEpisode` / `ComicCharacter` | Manga episode / character | Player (inspiration) |
 | `FanEvent` | Fan event | Member |
-| `Enquiry` | Form submission (10 types + volunteer / donation) | Form, Assignee |
+| `Enquiry` | Form submission (7 form types + deck downloads + donation enquiries) | Form, Assignee |
 | `Venue` | Venue | Program, Match, Trial |
 | `MediaAsset` | Media asset | Global |
 | `Faq` / `FaqCategory` | FAQ / topic category | Page (embed location) |
 | `CharityProgram` | Charity programme | Charity, Partner, Article, ImpactRecord |
 | `ImpactRecord` | Impact record (organisation, donation, imagery) | Charity, CharityProgram |
 | `Charity` | Recipient organisation (name, description, logo, website) | CharityProgram, ImpactRecord |
-| `Donation` | Donation record (source, amount, designated programme, named/anonymous, status) | Member, CharityProgram |
+| `Donation` | Donation record. **Defined in the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §9**; this site creates no donation records and only aggregates them for 11.4 impact metrics | CharityProgram, DonationProject |
 | `ImpactMetric` | Impact statistic | CharityProgram |
 | `Member` | Member account: tier (`registered` / `fan_club`), member number, **card token**, membership dates, jersey size and fulfilment status, registration source, **LINE link identifier** (encrypted) | MembershipPlan, MembershipPayment, FanEvent |
 | `MembershipPlan` | Membership plan: price, season, term, `card_quota`, `jersey_quota`, mid-season pricing rule | Member, MembershipPayment |
@@ -1168,7 +1173,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Item | Decision |
 |---|---|
 | Technology selection | Deferred; this document defines functional requirements only |
-| Payments and shopping | No on-site e-commerce; all shopping is routed to **Shopify** |
+| Payments and shopping | **This site** builds no on-site e-commerce; all shopping is routed to **Shopify**. The premise **applies to this site only**: charity donation payments are handled by the separate Charity Donation Platform, which integrates LINE Pay properly |
 | Languages | **Traditional Chinese (default) / English**; Japanese is out of scope, with the architecture left extensible |
 | Member system | **Required**, delivered in Phase 2. Scope narrowed to **membership** alone: a free tier and a paid tier, with partner-store discounts for members and a jersey for paying members. Signup channels are **email registration + one-tap LINE sign-in** (no Google) |
 | Out of scope for the member system | ✗ Loyalty points ✗ E-wallet ✗ Ticketing and match packages ✗ Store scan-to-redeem and redemption reports ✗ Shopify SSO ✗ Booking attribution and form pre-filling ✗ Parent–student linking ✗ On-site notification centre and LINE push |
@@ -1177,7 +1182,8 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | How discounts are used | Members **show the digital card** in store and staff check it visually; the QR points to a public read-only verification page. **No scan-to-redeem, no redemption counts, no store-side account or software** |
 | LINE Official Account | **Already exists** — integrate with the current account; no new application needed. Used here for sign-in and linking only |
 | Member offers | Partner-store discounts are maintained on this site (8.4); any future Shopify store offer is handled by **issuing discount codes**, with no account integration |
-| Fan donations | **Accepted**, via a Shopify donation item and bank transfer (see 3.11) |
+| Fan donations | **Moved to a separate Charity Donation Platform** (its own domain, sharing this site's admin and database), entered through partner venues' QR codes, integrating LINE Pay and issuing e-invoices or donation receipts. Section 11 here is editorial and referral only — see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md) |
+| Volunteer signup | **Not built**. The section 11 CTA narrows from three routes to two; any volunteering need is handled by the general contact form (10.7) |
 | FAQ | Standalone section 12, centrally managed and embedded across pages |
 | Charity records | Section 11; every record carries three core data points — **charity organisation name, what was donated, event photography** |
 | Women's football | A single introductory page **routing to the women's team website**; this site does not maintain their roster or fixtures |
@@ -1187,14 +1193,15 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 
 ### Still to confirm
 
-1. **Shopify store URL**: the target for the 08.3 showcase and the donation item; if the store is not yet open, confirm the expected launch date.
+1. **Shopify store URL**: the target for the 08.3 showcase; if the store is not yet open, confirm the expected launch date. (The donation item left this site's scope along with fan donations.)
 2. **Initial partner store roster**: this site does not do ticketing or match packages, so the value of paid membership rests on **store discounts and the jersey**. The **number and quality of the launch roster directly determines whether the paid tier is viable** and must be secured before launch (see 8.4).
 3. **Annual fee and plan design**: price of the individual plan? Is there a family plan (1 adult + N children)? How many jerseys does each include?
 4. **Season dates and mid-season pricing**: membership runs by season, so the season start and end dates need confirming, along with whether mid-season joiners are charged pro rata.
-5. **LINE Pay collection method**: a **payment link / official account invoice** (no payment processing on the website, with manual reconciliation and activation — the approach assumed here), or a LINE Pay API checkout? The latter is additional scope, requires amending the "no on-site payments" decision above, and brings merchant onboarding, reconciliation, and refund workflows.
+5. **LINE Pay collection method for membership fees**: a **payment link / official account invoice** for **membership fees** (no payment processing on this website, with manual reconciliation and activation — the approach assumed here), or a LINE Pay API checkout as used by the Charity Donation Platform? The latter is additional scope.
+   Note: the Charity Donation Platform is **already committed to a proper LINE Pay API integration**; once merchant onboarding is done, whether membership fees reuse it can be assessed separately.
 6. **Member number format**: `TCR-<season>-<serial>` suggested; to be confirmed.
 7. **Jersey size chart and stock levels**: the size range offered to members (adult / youth) and the stocking strategy by size.
-8. **Whether donation receipts are required**: issuing formal receipts or supporting tax deductions involves public-fundraising eligibility and regulatory process, and needs separate assessment; this plan covers thank-you messages and annual reporting of fund usage only.
+8. **Donation receipts and fundraising eligibility**: now specified in the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §5 (both e-invoices and donation receipts, chosen per project). **Fundraising eligibility and legal entity are a launch precondition for that platform**, to be confirmed by the club with its accountant and legal advisers — see §11 and §13 of that document.
 9. **Migration scope for the existing site**: which content on [www.tcrfc.tw](https://www.tcrfc.tw/) should be kept, rewritten, or discarded? For news, keeping the last 1–2 years is recommended.
 10. **How English content will be produced**: supplied by the club, outsourced for translation, or launched for priority pages first? This affects the Phase 2 timeline.
 11. **Whether charity amounts are published**: organisation name, donation content, and imagery are confirmed; monetary amounts are private by default — are there specific cases that should be public?

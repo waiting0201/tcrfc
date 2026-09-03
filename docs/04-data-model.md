@@ -1,6 +1,7 @@
 # 04 — 資料模型與內容型別
 
-> 來源：規劃書 §5（行 1009–1054）
+> 來源：規劃書 §5（行 1015–1060）。
+> **慈善捐款平台的新增型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 
 ---
 
@@ -27,14 +28,14 @@
 | `ProductShowcase` | 商品櫥窗（**僅展示 + Shopify 連結，非電商實體**） | Collection |
 | `ComicEpisode` / `ComicCharacter` | 漫畫集數／角色 | Player（原型） |
 | `FanEvent` | 球迷活動 | Member |
-| `Enquiry` | 表單詢問（10 類 + 志工／捐助） | Form、Assignee |
+| `Enquiry` | 表單詢問（7 類表單 + 提案下載 + 捐助洽詢） | Form、Assignee |
 | `Venue` | 場地 | Program、Match、Trial |
 | `MediaAsset` | 媒體資產 | 全域 |
 | `Faq` / `FaqCategory` | 常見問題／主題分類 | Page（嵌入位置） |
 | `CharityProgram` | 慈善計畫 | Charity、Partner、Article、ImpactRecord |
 | `ImpactRecord` | 慈善事蹟紀錄 | Charity、CharityProgram |
 | `Charity` | 受贈公益團體 | CharityProgram、ImpactRecord |
-| `Donation` | 捐款紀錄 | Member、CharityProgram |
+| `Donation` | 捐款紀錄。**主檔定義在慈善捐款平台規劃書 §9**，主站不新增捐款紀錄 | CharityProgram、DonationProject |
 | `ImpactMetric` | 影響力統計項目 | CharityProgram |
 | `Member` | 會員帳號：層級（`registered`／`fan_club`）、會員編號、**會員卡 token**、會籍起訖、球衣尺寸與發放狀態、註冊來源、**LINE 綁定識別碼**（加密） | MembershipPlan、MembershipPayment、FanEvent |
 | `MembershipPlan` | 會籍方案：費用、球季、期間、`card_quota` 發卡數、`jersey_quota` 球衣件數、季中計價 | Member、MembershipPayment |
@@ -72,6 +73,9 @@
 | 學院梯隊 | `Team.type = academy`，U15／U14／U12 各一筆 |
 | 球迷會員 | **不是獨立名單**，是 `Member` 上的 `fan_club` 層級標記；**付費會員即球迷會員**，不是兩種身分 |
 | 特約店家 | `PartnerStore` 是**獨立型別**，與 B2B 的 `Partner`（Logo 牆）不共用資料：受眾、欄位、維護節奏都不同 |
+| **兩種「店家」** | `PartnerStore`＝會員折扣（8.4，無金流無分潤）；`DonationStore`＝慈善站掃碼引流（**有分潤、有金流**）。**不同表，同一家實體店各建一筆，不共用紀錄** |
+| **兩種「項目／計畫」** | `DonationProject`＝募款標的（慈善站）；`CharityProgram`＝已執行的公益計畫（主站 11.2）。前者可關聯後者，反向不成立 |
+| 捐款人與會員 | **只用 Email 軟性比對後標示**，不寫入 `Member`、不建關聯欄位、不做歸戶 |
 | 家庭會籍 | 只是 `MembershipPlan` 的 `card_quota`／`jersey_quota` 不同，**不需要學員綁定關係** |
 | 慈善報導 | 即時報導發布於 `Article`（7.7 社區活動），慈善單元用 `CharityProgram`／`ImpactRecord` 長期陳列，兩者互連**不重複建置** |
 | 商品 | `ProductShowcase` 只有展示欄位 + Shopify 連結，**沒有庫存、價格同步、訂單** |

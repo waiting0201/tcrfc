@@ -964,7 +964,7 @@ section[id]{ scroll-margin-top:90px; }
    表單系統原重複於 13 頁、新聞列表系統原重複於 9 頁。
    ============================================================ */
 
-/* ── 表單系統（10.x 七類表單、球迷會入會、志工報名、贊助洽詢） ──────────────────────────────────────── */
+/* ── 表單系統（10.x 七類表單、球迷會入會、贊助洽詢） ──────────────────────────────────────── */
 .tcrfc-form fieldset{ border:0; padding:0; margin:0 0 2.5rem; }
 .tcrfc-form legend{ width:100%; font-size:.78rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); padding-bottom:.75rem; margin-bottom:1.5rem; border-bottom:1px solid var(--rule); }
 .form-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:1.25rem 1.5rem; }
@@ -1011,7 +1011,7 @@ section[id]{ scroll-margin-top:90px; }
 .form-field input:focus, .form-field select:focus{ outline:2px solid var(--brand-aa); outline-offset:1px; }
 
 /* .form-layout 版型系統 —— 三種用法，靠 modifier class 區分，避免同一顆 class 在不同頁面被迫長成不同形狀：
-   1) 基礎（無 modifier）：單欄置中短表單。捐款／志工報名（charity）、會員註冊（member）。
+   1) 基礎（無 modifier）：單欄置中短表單。會員註冊（member）。
    2) --narrow：更窄、帶卡片底色，適合登入這類極短表單。會員登入（member）。
    3) --split：長表單＋側欄兩欄式，10.1–10.7 七個 join 表單頁共用。側欄改用 fr 吃滿容器剩餘寬度，
       不再靠 max-width 硬夾——那正是先前「表單歪一邊、右邊空一大塊」的成因。 */
