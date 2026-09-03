@@ -64,17 +64,17 @@
         <p class="section-lede" style="margin-bottom:2rem;">三種入會管道，建立同一套會員資料（以 Email 或手機比對合併，避免重複名單）。</p>
 
         <div class="channel-grid">
-          <div class="channel-card clip-card">
+          <div class="channel-card clip-card clip-card--outlined">
             <p class="channel-card__num">A</p>
             <h3>Email 註冊</h3>
             <p>直接於官網填寫註冊表單，建立帳號密碼登入的一般會員。</p>
           </div>
-          <div class="channel-card clip-card">
+          <div class="channel-card clip-card clip-card--outlined">
             <p class="channel-card__num">B</p>
             <h3>LINE 官方帳號 <span class="en">QR Code</span></h3>
             <p>掃碼加好友 → 收到自動歡迎訊息 → 點連結於 LINE 內開啟入會表單 → 建立會員並綁定 LINE → 之後可透過圖文選單查詢會員資訊。適合現場招生、賽事、營隊與校園推廣場景，表單欄位刻意精簡（姓名、手機、Email、身分別），降低現場掃碼放棄率。</p>
           </div>
-          <div class="channel-card clip-card">
+          <div class="channel-card clip-card clip-card--outlined">
             <p class="channel-card__num">C</p>
             <h3>Google 帳號</h3>
             <p>以既有 Google 帳號一鍵註冊 / 登入。</p>
@@ -220,7 +220,7 @@
 /* channel-card／form 元件（同 charity/index.html） */
 .channel-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; margin-bottom:1rem; }
 @media (max-width:900px){ .channel-grid{ grid-template-columns:1fr; } }
-.channel-card{ background:var(--paper); border:1px solid var(--rule); padding:1.75rem 1.5rem; }
+.channel-card{ --clip-fill:var(--paper); padding:1.75rem 1.5rem; }
 .channel-card__num{ font-size:.72rem; font-weight:800; color:var(--muted); letter-spacing:.08em; margin-bottom:.5rem; }
 .channel-card h3{ font-size:1.05rem; font-weight:800; color:var(--heading); margin-bottom:.6rem; }
 .channel-card p{ font-size:.86rem; line-height:1.7; color:var(--text); }

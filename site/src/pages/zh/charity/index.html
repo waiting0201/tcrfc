@@ -136,7 +136,7 @@
     </div>
 
     <div class="channel-grid">
-      <div class="channel-card clip-card">
+      <div class="channel-card clip-card clip-card--outlined">
         <p class="channel-card__num">01</p>
         <h3>Shopify 捐款品項</h3>
         <p>於官方商店上架「公益支持」品項，設定固定金額選項，如同購物般完成付款，適合一般球迷小額捐款、線上即時完成。</p>
@@ -149,13 +149,13 @@
         </div>
         
       </div>
-      <div class="channel-card clip-card">
+      <div class="channel-card clip-card clip-card--outlined">
         <p class="channel-card__num">02</p>
         <h3>銀行匯款</h3>
         <p>適合大額捐款、企業捐助或不便線上付款者。匯款後請填寫下方回報表單，我們會核對入帳並寄送感謝訊息。</p>
         
       </div>
-      <div class="channel-card clip-card">
+      <div class="channel-card clip-card clip-card--outlined">
         <p class="channel-card__num">03</p>
         <h3>物資捐贈</h3>
         <p>球具、裝備或其他物資，請填寫下方表單登記捐贈品項與數量，由俱樂部聯繫後續交付方式。</p>
@@ -346,7 +346,7 @@
 
 .channel-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; margin-top:2rem; }
 @media (max-width:900px){ .channel-grid{ grid-template-columns:1fr; } }
-.channel-card{ background:var(--paper); border:1px solid var(--rule); padding:1.75rem 1.5rem; }
+.channel-card{ --clip-fill:var(--paper); padding:1.75rem 1.5rem; }
 .channel-card__num{ font-size:.72rem; font-weight:800; color:var(--muted); letter-spacing:.08em; margin-bottom:.5rem; }
 .channel-card h3{ font-size:1.05rem; font-weight:800; color:var(--heading); margin-bottom:.6rem; }
 .channel-card p{ font-size:.88rem; line-height:1.7; color:var(--text); margin-bottom:1rem; }

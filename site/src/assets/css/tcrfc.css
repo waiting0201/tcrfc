@@ -201,6 +201,21 @@ input{ font:inherit; }
 }
 .clip-card--on-dark::after{ background:var(--ink-trim-dk); }
 
+/* 描邊版切角卡 —— 給「白底 + 1px 描邊」的卡片用。
+   直接把 .clip-card 疊在描邊卡上會壞兩件事：clip-path 連 border 的右下角一起切掉，
+   斜邊上不會留下任何線；而 ::after 的實色三角在淺色描邊卡上會變成一塊突兀的黑角。
+   這裡改成父層整片鋪邊框色、::before 內縮 1px 鋪卡面，1px 線就會沿著斜切邊一起走。
+   用法：卡片本身不要再寫 border，改用 --clip-fill 指定卡面顏色（預設 --paper）。 */
+.clip-card--outlined{ background:var(--rule); }
+.clip-card--outlined::after{ content:none; }
+.clip-card--outlined::before{
+  content:""; position:absolute; inset:1px; z-index:0;
+  background:var(--clip-fill,var(--paper));
+  /* 27.4px＝28px 斜邊往內推 1px（垂直距離 1px 換算到 x+y 軸上是 √2） */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 27.4px), calc(100% - 27.4px) 100%, 0 100%);
+}
+.clip-card--outlined > *{ position:relative; z-index:1; }
+
 /* Floodlight bands (dark, flat fill) ---------------------------------*/
 .grain{
   position:relative;

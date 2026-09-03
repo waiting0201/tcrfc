@@ -31,7 +31,7 @@
   <div class="container">
     <div class="grid grid--3 person-grid">
 
-      <article class="person-card clip-card">
+      <article class="person-card clip-card clip-card--outlined">
         <div class="person-card__photo person-card__photo--empty">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
         </div>
@@ -41,7 +41,7 @@
         </div>
       </article>
 
-      <article class="person-card clip-card">
+      <article class="person-card clip-card clip-card--outlined">
         <div class="person-card__photo">
           <img src="{{ROOT}}/assets/img/academy/coach-hsu-chih-chieh.jpg" alt="青訓教練許志傑" width="800" height="800" loading="lazy">
         </div>
@@ -51,7 +51,7 @@
         </div>
       </article>
 
-      <article class="person-card clip-card">
+      <article class="person-card clip-card clip-card--outlined">
         <div class="person-card__photo person-card__photo--empty">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
         </div>
@@ -95,7 +95,7 @@
    2.4 團隊成員、3.1 一線隊教練團等頁面都需要同款「照片＋職稱＋姓名＋簡介」卡片，
    強烈建議把 .person-card 收進 tcrfc.css 成為全站共用元件。 */
 .person-grid{ align-items:start; }
-.person-card{ background:var(--paper-2); border:1px solid var(--rule); }
+.person-card{ --clip-fill:var(--paper-2); }
 .person-card__photo{ aspect-ratio:1/1; overflow:hidden; background:var(--paper-3); }
 .person-card__photo img{ width:100%; height:100%; object-fit:cover; object-position:top center; }
 .person-card__photo--empty{ display:flex; align-items:center; justify-content:center; }
