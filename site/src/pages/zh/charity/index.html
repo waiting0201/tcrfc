@@ -127,18 +127,42 @@
         <p class="kicker">SUPPORT TCRFC</p>
         <h2 class="section-title" id="donate-title">球迷捐款</h2>
       </div>
-      <p class="section-lede">球迷捐款由獨立的<strong>慈善捐款平台</strong>承接。該平台以合作店家的 QR Code 為主要入口，可線上完成付款並開立電子發票或捐贈收據；官網本身不處理金流。</p>
+      <p class="section-lede">球迷捐款由獨立的<strong>慈善捐款平台</strong>承接，以合作店家的 QR Code 為主要入口，可線上完成付款並開立電子發票或捐贈收據；官網本身不處理金流。</p>
     </div>
+
+    <!-- 三步驟流程，樣式沿用 /zh/perks/ 的 .usage-steps（同一種「怎麼做」版型，跨頁一致） -->
+    <ol class="usage-steps">
+      <li>
+        <span class="usage-steps__num">1</span>
+        <div>
+          <h3>掃碼或前往平台</h3>
+          <p>在合作的餐廳、飲料店掃描店內的 QR Code，或直接前往慈善捐款平台。</p>
+        </div>
+      </li>
+      <li>
+        <span class="usage-steps__num">2</span>
+        <div>
+          <h3>選擇捐款項目</h3>
+          <p>瀏覽平台上的捐款項目，選擇想支持的項目並讀完說明。</p>
+        </div>
+      </li>
+      <li>
+        <span class="usage-steps__num">3</span>
+        <div>
+          <h3>完成捐款</h3>
+          <p>於頁面下方完成捐款。<strong>不需要註冊、不需要登入</strong>。</p>
+        </div>
+      </li>
+    </ol>
 
     <div class="donate-note">
-      <p><strong>怎麼捐：</strong>在合作的餐廳、飲料店掃描店內的 QR Code，或直接前往慈善捐款平台，選擇想支持的捐款項目，讀完說明後於頁面下方完成捐款。<strong>不需要註冊、不需要登入</strong>。</p>
-      <p><strong>具名／匿名：</strong>捐款者可選擇具名或匿名。具名者將列於捐款徵信名單，<strong>僅顯示姓名，不顯示金額</strong>；金額類數據原則上不公開（見 <a href="{{ROOT}}/zh/charity/our-impact/">11.4 影響力數據</a>）。款項的運用成果會回到 <a href="{{ROOT}}/zh/charity/impact-stories/">11.3 慈善事蹟紀錄</a> 長期陳列。</p>
-      <p class="pending-inline">慈善捐款平台網域待補 —— 客戶尚未確認網域名稱，捐款平台亦尚未開發。下方按鈕目前為 disabled 佔位。</p>
+      <p><strong>具名／匿名：</strong>捐款者可選擇具名或匿名，具名者將列於捐款徵信名單，僅顯示姓名、不顯示金額；金額類數據原則上不公開（見 <a href="{{ROOT}}/zh/charity/our-impact/">11.4 影響力數據</a>）。款項的運用成果會回到 <a href="{{ROOT}}/zh/charity/impact-stories/">11.3 慈善事蹟紀錄</a> 長期陳列。</p>
     </div>
 
-    <p class="donate-action">
+    <div class="donate-action">
       <button class="btn btn--primary" type="button" disabled aria-disabled="true">前往慈善捐款平台（網域待定）</button>
-    </p>
+      <p class="pending-inline">慈善捐款平台網域待補 —— 客戶尚未確認網域名稱，捐款平台亦尚未開發。上方按鈕目前為 disabled 佔位。</p>
+    </div>
   </div>
 </section>
 
@@ -199,16 +223,30 @@
 @media (max-width:980px){ .charity-nav-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:560px){ .charity-nav-grid{ grid-template-columns:1fr; } }
 
-/* ── 11 CHARITY 專屬元件：donate-note 捐款說明框 ──
+/* ── 11 CHARITY 專屬元件：donate-band 捐款導流區 ──
    v2.1 起球迷捐款改由獨立的慈善捐款平台承接，本頁不再放捐款管道卡、金額選項與表單，
-   原 .channel-grid／.channel-card／.amount-chips 與志工報名表單樣式已一併移除。 */
+   原 .channel-grid／.channel-card／.amount-chips 與志工報名表單樣式已一併移除。
+   v2.2：拔掉表單後版面單薄，改拆成「三步驟流程＋次要說明＋CTA」三段結構。 */
 .donate-band{ background:var(--paper-2); padding-block:clamp(4rem,6vw,6rem); }
-.donate-action{ margin-top:2rem; }
 
+/* 三步驟流程：與 perks/index.html 的 .usage-steps 完全同款（同一套「怎麼做」語彙），
+   CSS 逐頁各自維護，改版型時記得兩邊一起改。 */
+.usage-steps{ list-style:none; padding:0; margin:2.5rem 0 0; display:grid; gap:1.5rem; }
+@media (min-width:900px){ .usage-steps{ grid-template-columns:repeat(3,1fr); } }
+.usage-steps li{ display:flex; gap:1rem; align-items:flex-start; }
+.usage-steps__num{
+  flex:0 0 auto; width:2rem; height:2rem; display:grid; place-items:center;
+  background:var(--brand-aa); color:#fff; font-weight:800; font-size:.9rem;
+}
+.usage-steps h3{ font-size:1rem; font-weight:800; color:var(--heading); margin-bottom:.4rem; }
+.usage-steps p{ font-size:.86rem; line-height:1.7; color:var(--text); }
+
+/* 具名／匿名與徵信規則：次要說明，刻意壓低層級——純文字＋上緣分隔線，不再用色框強調 */
 .donate-note{
-  max-width:72ch; margin-top:2rem; padding:1.25rem 1.5rem; background:var(--paper);
-  border-left:4px solid var(--brand-aa); font-size:.88rem; line-height:1.75; color:var(--text);
+  max-width:72ch; margin-top:2.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-size:.82rem; line-height:1.75; color:var(--muted);
 }
 .donate-note a{ color:var(--brand-aa); text-decoration:underline; }
-.donate-note p + p{ margin-top:.75rem; }
+
+.donate-action{ margin-top:2rem; display:flex; flex-direction:column; align-items:flex-start; gap:.6rem; }
 </style>
