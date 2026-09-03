@@ -1,6 +1,6 @@
 # 04 — 資料模型與內容型別
 
-> 來源：規劃書 §5（行 1015–1060）。
+> 來源：規劃書 §5（行 1019–1064）。
 > **慈善捐款平台的新增型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 
 ---

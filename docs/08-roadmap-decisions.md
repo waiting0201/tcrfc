@@ -1,6 +1,6 @@
 # 08 — 開發階段、已定案前提與待確認事項
 
-> 來源：規劃書 §9（行 1127–1161）、§10（行 1162–1208）。
+> 來源：規劃書 §9（行 1131–1165）、§10（行 1166–1212）。
 > 慈善捐款平台自有一套 Phase 與待確認事項，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 > 另有里程碑文件：[`../output/TCRFC_開發里程碑_Milestone.html`](../output/TCRFC_開發里程碑_Milestone.html)（英文版 `TCRFC_Development_Milestones_EN.html`）
 

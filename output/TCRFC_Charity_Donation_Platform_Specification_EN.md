@@ -1,4 +1,4 @@
-# TCRFC Taichung Rocks FC — Charity Donation Platform Functional Specification
+# TCRFC Taichung Rock FC — Charity Donation Platform Functional Specification
 
 > **Document version**: v1.0
 > **Date**: 2026-09-03
@@ -152,7 +152,7 @@ Whether a venue earns its share depends on whether "which venue this scan came f
 
 | Block | Content |
 |---|---|
-| Venue identity | **Venue name (required)**, venue logo or photo (optional), a line of thanks (e.g. "Thank you for doing good with Taichung Rocks at ○○○"). **With no logo, degrade to a text-only venue block — never an empty frame** |
+| Venue identity | **Venue name (required)**, venue logo or photo (optional), a line of thanks (e.g. "Thank you for doing good with Taichung Rock at ○○○"). **With no logo, degrade to a text-only venue block — never an empty frame** |
 | Introduction | A short editable explanation of what the platform does and how donations are used |
 | **Project list** | Card wall: cover image, project name, one-line description, fundraising progress (can be hidden per project), and a "read more and donate" button |
 | Trust block | Club introduction, registration details, and a link to the impact records in main site section 11 |

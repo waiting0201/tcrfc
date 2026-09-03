@@ -1,9 +1,13 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v2.1
-> **Date**: 2026-08-14 (v2.1 revision: 2026-09-03)
+> **Document version**: v2.2
+> **Date**: 2026-08-14 (v2.2 revision: 2026-09-03)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.1*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.2*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v2.2 revision summary — English club name corrected**
+> 1. The club's English name is corrected from `Taichung Rocks FC` to **`Taichung Rock FC`** (long form `TAICHUNG ROCK FOOTBALL CLUB`).
+> 2. This revision changes wording only — scope, data model and page architecture are unchanged. All documents, the mockup and the public-site skeleton have been updated; any remaining `Rocks` spelling is an error.
 
 > **v2.1 revision summary — donations move to a separate platform**
 > 1. **A separate Charity Donation Platform is introduced**, specified in its own document, [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md): its own domain and its own public-site project, **sharing this site's admin and database**. Partner venues' QR codes are the entry point; it integrates LINE Pay and issues e-invoices or donation receipts.
@@ -29,7 +33,7 @@
 > 3. The first-team squad list is **ordered by squad number, with no position grouping or filter**.
 > 4. **The homepage stat strip is removed entirely** (the strips on the 03 Football Club landing page and 11.4 Our Impact remain).
 > 5. Section 10 forms merged from nine to seven (10.2 + 10.3, and 10.6 + 10.7); numbering closes up.
-> 6. The club's English name is `Taichung Rocks FC` throughout (the Brand Deck footer's `TAICHUNG ROCKS FOOTBALL CLUB` is the long form of the same name). Every previous use of `Taichung Cornerstone RFC` has been replaced.
+> 6. The club's English name is `Taichung Rock FC` throughout (the Brand Deck footer's `TAICHUNG ROCK FOOTBALL CLUB` is the long form of the same name). Every previous use of `Taichung Cornerstone RFC` has been replaced.
 
 ---
 

@@ -1,10 +1,10 @@
 # CLAUDE.md — TCRFC 官方網站專案
 
-台中磐石足球俱樂部（Taichung Rocks FC，**TCRFC**）官方網站建置專案。
+台中磐石足球俱樂部（Taichung Rock FC，**TCRFC**）官方網站建置專案。
 品牌主張：**LOCAL ROOTS. GLOBAL PATHWAYS.｜在地扎根 · 放眼世界**
 
 > **本檔是索引，不是規格書。** 規格的真實來源是兩份規劃書：
-> [`output/TCRFC_前後台功能規劃書.md`](output/TCRFC_前後台功能規劃書.md)（v2.1，1208 行，官網主站）與
+> [`output/TCRFC_前後台功能規劃書.md`](output/TCRFC_前後台功能規劃書.md)（v2.2，1212 行，官網主站）與
 > [`output/TCRFC_慈善捐款平台功能規劃書.md`](output/TCRFC_慈善捐款平台功能規劃書.md)（v1.0，672 行，獨立網域的掃碼捐款平台）。
 > `docs/` 是為了讓 AI 與新進人員快速上手，從規劃書拆解出來的**導航層與執行規範**。
 > **兩者衝突時，一律以規劃書為準**，並回頭修正 `docs/`。
@@ -15,7 +15,7 @@
 
 | 項目 | 狀態 |
 |---|---|
-| 功能規劃 | ✅ 完成（規劃書 v2.1，中英雙版 md／PDF 皆已更新）。**v2.1 將球迷捐款移出主站，志工報名移出範圍** |
+| 功能規劃 | ✅ 完成（規劃書 v2.2，中英雙版 md／PDF 皆已更新）。**v2.2 更正英文隊名為 `Taichung Rock FC`；v2.1 將球迷捐款移出主站，志工報名移出範圍** |
 | 慈善捐款平台 | 📄 **規格已完成**（獨立規劃書 v1.0，中英雙版）。獨立網域、共用主站後台與資料庫、串接 LINE Pay 與電子發票。**尚未開發；網域與勸募資格未定** |
 | 視覺方向 | ✅ 單頁 mockup 已完成（Cloudflare Pages 專案 `tcrfc-mockup` 目前部署的是 `site/dist` 73 頁前台，全站 `noindex`） |
 | 品牌資產 | ✅ [`brand/`](brand/) 已由 logo 主檔萃取完成；design tokens 已校正為 `.ai` 品牌色 |
@@ -68,8 +68,8 @@
   `D1` 是代號，對外顯示一律寫 `First Team / 一線隊`。女足**不建立**球隊資料。
 - **品牌色**：桃紅 `#E0218A`（PANTONE 225 C／C5 M90 Y0 K0）＋ 品牌黑 `#231916`（K100，**暖調近黑，不是深藍**）。
   唯一來源是 [`reference/TCR_logo_CMYK.ai`](reference/TCR_logo_CMYK.ai)。小字情境改用 AA 安全版 `#D61E83`。
-- **名稱寫法**：中文簡稱一律「**台中磐石**」，不單獨用「磐石」。英文名一律 `Taichung Rocks FC`
-  （全稱 `TAICHUNG ROCKS FOOTBALL CLUB`）。舊稿的 `Taichung Cornerstone RFC` 已汰換，看到視為錯誤。
+- **名稱寫法**：中文簡稱一律「**台中磐石**」，不單獨用「磐石」。英文名一律 `Taichung Rock FC`
+  （全稱 `TAICHUNG ROCK FOOTBALL CLUB`）。舊稿的 `Taichung Cornerstone RFC` 已汰換，看到視為錯誤。
 - **標誌**：只用 [`brand/svg/`](brand/svg/) 由 `.ai` 萃取的三種組合（隊徽／隊徽＋TCRFC 英文版／隊徽＋TCRFC＋台中磐石足球俱樂部 中文版）。
   **不得自行排字、不得加 `SINCE` 或年份。**
 - **雙語**：繁中（預設）＋英文，URL 以 `/zh/`、`/en/` 區隔，架構須預留第三語系。
