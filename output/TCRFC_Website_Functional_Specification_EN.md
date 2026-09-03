@@ -1,9 +1,17 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v2.2
-> **Date**: 2026-08-14 (v2.2 revision: 2026-09-03)
+> **Document version**: v2.3
+> **Date**: 2026-08-14 (v2.3 revision: 2026-09-03)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.2*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.3*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v2.3 revision summary — prize draw entitlement for paying members**
+> 1. **The "Fan Club Prize Draw" is added as a paid-membership benefit**: at a draw's **eligibility snapshot time**, every paying member (`fan_club`) with a valid membership is **automatically included in the eligible roster — the member does nothing at all**: no entry, no sign-up, no points, no accumulation. One entry is added to the benefits comparison table under the existing "events" group (**no new group**), maintained as before in K4.
+> 2. **The system does not draw winners**: the physical draw is **performed by people, on site or on a live stream**, and what is drawn is the **draw serial number** the system issued. The system only **freezes the roster into a snapshot** at the snapshot time, issues consecutive serial numbers, and exports a CSV for use at the event; winners are then **ticked in manually** in the admin.
+> 3. **New admin module `K5 Prize draw rosters`**, placed under K Members (the roster comes from membership, it is maintained by the same support/administration staff, and prize fulfilment mirrors K3). **This `K5` is a recycled identifier**: v2.0 narrowed module K from K1–K5 to K1–K4, freeing it; it has no relationship to the former K5.
+> 4. **Two new data types: `MemberDraw` (draw) and `DrawRoster` (eligible roster snapshot)**. `DrawRoster` is an **immutable snapshot**: it copies the name, member number, tier, and membership expiry as values at snapshot time, cannot be added to or deleted from once locked, and can only be voided and regenerated in full if wrong; a **roster hash** is stored for audit. It is deliberately not named `Ticket` (which would blur into the excluded ticketing scope) or `Entry` (which would imply members must enter).
+> 5. **Winners are announced through News only** (category 7.1 Club News plus a new `Fan Club Prize Draw` tag — **no ninth news category**), always masked to "serial number + member number + masked name". **No winner notification email** (the five system emails are unchanged), no on-site notification, no LINE push. The public site has **no** draw page, no "my draws", no serial-number lookup, no winners list page, and no online draw animation.
+> 6. **Tax and personal data follow data minimisation**: a winner's national ID number is collected only where a single prize reaches the withholding threshold (encrypted, masked, audited, destroyed at end of retention), and **the first draws' prize values are recommended to sit below the threshold so nothing need be collected at all**; the member terms must add a collection notice for the draw. Section 10 gains open items 16–20.
 
 > **v2.2 revision summary — English club name corrected**
 > 1. The club's English name is corrected from `Taichung Rocks FC` to **`Taichung Rock FC`** (long form `TAICHUNG ROCK FOOTBALL CLUB`).
@@ -76,7 +84,7 @@
 - **Out of scope for this engagement**:
   - **E-commerce and payments** — all shopping is routed to **Shopify**. This site builds no cart, integrates no payment gateway, and manages no orders or inventory; it maintains a product showcase and outbound links only (see 3.8 / 4.6). **This premise applies to this site only**: charity donation payments are handled by the separate Charity Donation Platform, see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md).
   - **Technology selection** — this document defines functional requirements only; it does not decide framework, CMS, or hosting.
-  - **Ticketing and match packages**, **loyalty points**, **e-wallet**, and **partner-store scan-to-redeem with redemption reporting** (recommended for later evaluation).
+  - **Ticketing and match packages**, **loyalty points**, **e-wallet**, and **partner-store scan-to-redeem with redemption reporting** (recommended for later evaluation). The paying-member prize draw (3.14 / admin K5) is **none of these**: eligibility is a boolean derived from membership, the draw serial number is not a ticket, and prizes exclude tickets — see 3.14.
   - **On-site donations and volunteer signup** — fan donations move to the Charity Donation Platform (separate domain, see above); **volunteer signup is not built**, and any such need is handled by the general contact form (10.7).
 
 ### 1.4 Existing digital assets
@@ -320,6 +328,7 @@ A **unified newsroom** segmented into eight categories:
 | Partner Perks | Current number of partner stores and a selection of them, linking through to the full list in 8.4 |
 | Join / Upgrade | Routes to registration or the upgrade flow in the Member Centre; signed-in visitors go straight to the upgrade page |
 | Fan Events | Event list + registration (can be restricted to paying members) + event recaps |
+| Member Draw | **An explanatory block, not an interactive one**: states that a valid membership **confers prize-draw eligibility automatically, with no entry or sign-up**, and that the prizes, quantities, **eligibility snapshot time**, draw time, and collection method for each draw are announced in News. This page has **no** draw entry, serial-number lookup, or winners list (see 3.14) |
 
 > Fan club members are members flagged `fan_club` in the member system — **no separate list is maintained** (see 3.14 and 4.11 K).
 
@@ -582,7 +591,7 @@ The calendar is organised primarily **by team**:
 | Code | Display name | How it's obtained | Benefits |
 |---|---|---|---|
 | `registered` | Member | Free registration + email verification | Digital membership card; discounts at partner stores marked "all members" |
-| `fan_club` | Fan Club Member (paid) | Annual fee, activated by the admin after payment | The above + discounts marked "paying members only" + **a jersey** (quantity per plan) + priority booking for fan events |
+| `fan_club` | Fan Club Member (paid) | Annual fee, activated by the admin after payment | The above + discounts marked "paying members only" + **a jersey** (quantity per plan) + priority booking for fan events + **prize draw eligibility** (automatic while the membership is valid, with no sign-up) |
 
 > A paying member **is** a fan club member (8.2) — not a separate identity, and no separate list is maintained. The former "Parent" tier has been removed.
 
@@ -618,6 +627,27 @@ The calendar is organised primarily **by team**:
 - **Visible without signing in.** Benefits and the partner store list are the incentive to join; requiring registration to see them defeats the purpose.
 - **Must not be delivered as images.** Benefits require zh/en fields, must be indexable by search engines, and must be readable by screen readers.
 
+#### Fan Club Prize Draw (eligibility is automatic)
+
+- **Eligibility**: at a draw's **eligibility snapshot time**, every paying member (`fan_club`) with a valid membership is **automatically included in the eligible roster**. The member **does nothing at all** — no entry, no sign-up, no check-in, and nothing to accumulate.
+- **How the draw runs**: the physical draw is **performed by people, on site or on a live stream**, and what is drawn is the **draw serial number** issued by the system. The system only freezes the roster into a **snapshot** at the snapshot time, issues consecutive serial numbers, and exports the list for use at the event. It runs **no random-selection algorithm** and produces no random result.
+- **Announcement**: winners are announced **through News only** (category 7.1 Club News, tagged `Fan Club Prize Draw`), always masked (serial number + member number + masked name). No system email, no on-site notification, no LINE push.
+- **Prizes**: physical items supplied by the club, shipped or collected in person, fulfilled the same way as jerseys (admin K3). No tickets, no partner-store redemption, no cash or cash equivalent.
+- **Admin workflow**: see 4.11 K5 Prize draw rosters.
+- **Not built on the public site**: a draw page or entry button, "my draws / my serial number" in the Member Centre, any lookup of a serial number or win status, an on-site winners list page, an online draw animation or wheel, a live counter of eligible members, and any share-or-invite mechanism that would improve someone's chances.
+
+##### How the draw stays inside the decisions already made
+
+| Already ruled out | Why this design does not breach it |
+|---|---|
+| ✗ **Loyalty points** | Eligibility is a **boolean**: valid membership at the snapshot time, or not. **One person, one serial number** — spending, checking in, sharing, inviting, or taking part more often never improves the odds. No points, balance, accrual, or weighting field exists, and the roster snapshot holds no count column |
+| ✗ **Ticketing and match packages** | The draw serial number is only the snapshot's running number: **no face value, non-transferable, non-tradable, not scanned for entry, no QR code, never shown on the public site**. Prizes explicitly exclude tickets and packages |
+| ✗ **Store scan-to-redeem and redemption reports** | Collection happens at the club and is recorded by **ticking a status in the admin** (pending / shipped / collected, exactly as K3). Nothing is scanned or counted, no store report is produced, and partner stores are not involved at all; the response from the card verification page `/m/<token>` is **unchanged**, with no new fields |
+| ✗ **On-site notification centre and LINE push** | Winners are announced **through News only**. The five system emails stand, with **no sixth added**; there is no on-site messaging, no notification preferences, and no LINE push. Contacting an individual winner is done by support staff by phone or a written message, outside any system template and never recorded in `EmailLog` |
+| ✗ **This site takes no payments** | The draw **sells nothing, charges nothing, and has no paid entry**. What is paid for is the membership itself, still collected by LINE Pay payment link or in person and activated after reconciliation. Prizes are the club's own physical goods; the system handles no prize payments, refunds, or invoices |
+| ✗ **Booking attribution and form pre-filling** | The draw has **no form**. Eligibility is automatic and nothing is filled in, so neither applies |
+| ✗ **System-run random selection** (added by this revision) | The draw is performed by people, on site or on a live stream, where it can be witnessed. The system only freezes the roster, issues serial numbers, and exports them — it **produces no random result**, which keeps the club clear of disputes over the fairness of an electronic draw and of the burden of proving it |
+
 #### Jersey fulfilment
 
 - Once a paid membership is activated, the member enters a **size** and **collection method** (shipping / in-person) in the Member Centre; shipping requires recipient name, phone, and address.
@@ -650,7 +680,7 @@ The calendar is organised primarily **by team**:
 | **Jersey registration** | Enter size and collection method; view fulfilment status |
 | Renewal | Renewal prompt and payment instructions ahead of expiry |
 
-> The following are **not included** after review: form pre-filling, my bookings, my donations, my students (parent linking), my calendar (.ics), on-site notification centre, notification preference centre, and the members-only content area.
+> The following are **not included** after review: form pre-filling, my bookings, my donations, my students (parent linking), my calendar (.ics), on-site notification centre, notification preference centre, the members-only content area, **"my draws" (serial-number and win lookup)**, **an on-site winners list page**, and **an online draw or random-selection tool**.
 
 #### Email notifications (five only, all with zh/en templates)
 
@@ -710,7 +740,8 @@ TCRFC Admin
 │   ├── K1 Member list and detail
 │   ├── K2 Membership and plans
 │   ├── K3 Jersey fulfilment
-│   └── K4 Partner stores and benefits
+│   ├── K4 Partner stores and benefits
+│   └── K5 Prize draw rosters (roster and export only; no random selection)
 └── L. Schedule
     ├── L1 Master calendar (cross-module aggregate view)
     ├── L2 Custom events (club events)
@@ -968,6 +999,62 @@ TCRFC Admin
 - **Benefits comparison entries**: entry name (zh / en), description (zh / en), group (card / store discounts / jersey / events), value for the free tier, value for the paid tier (tick / cross / text such as "10% off", "one"), sort order, publish state
 - The benefits data is **shared by three public placements** — the join page (3.14), the fan club page (8.2), and the upgrade page — and this is the single point of maintenance
 
+#### K5 Prize draw rosters (Fan Club Prize Draw)
+
+> **Positioning**: one of the benefits of paid membership. The system **only builds the eligible roster, freezes it, issues serial numbers, and exports the list**; the **physical draw is performed by people, on site or on a live stream**, and winners are ticked in afterwards in the admin. The system runs **no random-selection algorithm** and produces no random result.
+> This `K5` is a **recycled identifier**: v2.0 narrowed module K from K1–K5 to K1–K4, freeing it; it has no relationship to the former K5.
+
+**① Create a draw**
+- Fields: draw name (zh / en), prizes and quantities (zh / en, itemised), **eligibility snapshot time** (date + time, defaulting to 00:00 on the day of the draw), draw time, setting (home match day / live stream / other), **collection deadline and how unclaimed prizes are handled**, rules and notices (zh / en), cover image, internal notes
+- Status flow: `draft → roster locked → drawn → announced → closed`, plus `voided`
+- The rules are **mandatory** and must state: prizes, quantities, eligibility, snapshot time, draw time and setting, collection deadline, and the extent to which the organiser reserves the right to make changes
+
+**② Build the eligible roster (snapshot)**
+- The condition is fixed: **tier is `fan_club`, the membership is valid (`paid_until` covers the snapshot time), and the account is active at the snapshot time**. It is **not configurable in the admin**, so that no one can adjust who qualifies
+- **The member does nothing**: no entry, no sign-up, no check-in, no points threshold
+- On execution the system writes the snapshot in one pass: **consecutive serial numbers 1…N issued in ascending member-number order**, one per person, copying the name, member number, tier, and membership expiry as they stand
+- The roster **locks** immediately: **rows cannot be added or removed**. A roster that is wrong can only be **voided and regenerated in full** (`roster_version` +1, with the old version retained for audit)
+- The snapshot time, eligible count, roster hash, and operator are recorded, and the action is written to the audit log
+- A **dry run** is available beforehand: it returns the eligible count only, writing no data and issuing no serial numbers
+
+**③ Export the draw lists (two CSVs, different permissions)**
+
+| Purpose | Filename | Columns | Permission |
+|---|---|---|---|
+| **For the draw itself / safe to project** | `draw-<code>-v<version>-public.csv` | Serial number, member number, **masked name**, draw code, roster version, snapshot time | Same level as K1 viewing |
+| **Contacting winners (restricted)** | `draw-<code>-v<version>-winners.csv` | Serial number, member number, name, mobile, email, collection method, delivery details, prize | **Separate authorisation**, written to the audit log |
+
+- The restricted export covers **only winners already ticked in**; the full personal data of the entire eligible roster is never exported (data minimisation)
+- Both exports record who, when, how many records, and the stated purpose
+
+**④ Drawing the winners (outside the system)**
+- The **serial number** drawn physically decides the winner (balls, a ballot box, a wheel, and so on); recording or streaming the draw is recommended as evidence
+- The system provides **no** online draw tool, no draw animation, and never decides a winner on the club's behalf
+
+**⑤ Tick in the winners**
+- Search the roster by **serial number** and tick the winner, entering the prize name; several can be ticked at once
+- The system checks in real time whether the serial number exists, has already won, and belongs to this roster version, and refuses anything that fails
+- Ticking in is audited (who, when, whom, what changed); after announcement, any change requires a stated reason
+- **Reserves** can be marked, to step in when a winner does not claim in time; reserves are drawn physically and ticked in the same way
+
+**⑥ Prize fulfilment (mirrors K3)**
+- Pending list: winner name, prize, collection method (shipping / in person), delivery details
+- Status marking: `pending / shipped / collected`, the same states and handling as K3 jersey fulfilment
+- **Unclaimed**: automatically marked `overdue` past the draw's collection deadline and handled as the rules state
+- Fulfilment list CSV export (permission-gated, written to the audit log)
+- **Prizes are always the club's own physical goods**, shipped or collected in person; never tickets, partner-store redemptions, cash, or cash equivalents
+
+**⑦ Announce the winners (handed over to B2)**
+- Announcement goes **through B2 News only**: category 7.1 Club News, tagged `Fan Club Prize Draw`. **No new news category is added**
+- K5 offers "generate announcement draft", carrying the draw name, prizes, snapshot time, eligible count, and the **masked winners list** (serial number + member number + masked name) into B2 as a draft for communications staff to polish and publish
+- The published article is linked back, and the K5 list shows announcement status and a link
+- **Announcements are always masked**: never a phone number, email, address, date of birth, or full name
+- **No winner notification email, no on-site message, no LINE push** (the five system emails stand). Contacting an individual winner is done by support staff by phone or a written message, outside any system template and never recorded in `EmailLog`
+
+**List and audit**
+- Draw list columns: draw name, snapshot time, eligible count, roster version, status, number of winners, number fulfilled, announcement link, creator
+- Every roster keeps its full version history; voided versions cannot be deleted
+
 #### Email notifications
 - Five system emails only, all with Chinese and English templates: **registration verification, password reset, membership activation confirmation, 30-day expiry reminder, expiry notice**
 - Delivery log (recipient, type, time, outcome)
@@ -983,6 +1070,19 @@ TCRFC Admin
 - The **LINE link identifier** (a user's account-specific ID) is treated as personal data: stored encrypted, never displayed publicly, never included in general exports
 - The **membership card QR token** must not be derivable from the member number; the public verification page `/m/<token>` returns only the first character of the name, the member number, the tier, and validity status, and no other personal data
 - Registration and signup forms must state the purpose of data collection and consent terms
+
+#### Personal data and tax requirements for the draw (K5)
+
+- **Collection notice**: the member terms and registration consent (maintained in admin I) must add a notice — "while your membership is valid you will automatically be included in the Fan Club Prize Draw roster; if you win, your name will be published in News in masked form". **No draw may be held until this notice is in place**
+- **Masked announcements**: announcements carry only the **serial number, member number, and masked name**. Never a phone number, email, address, date of birth, or full name
+- **Prize value and withholding**: prizes won by chance are taxable income. The specification follows **data minimisation** —
+  1. where a single prize is **below the withholding threshold**, the system **does not collect the winner's national ID number**; only the name and delivery details are needed;
+  2. only where a single prize **reaches the withholding or reporting threshold** are the details needed for a withholding certificate (national ID number, registered address) collected in **restricted fields** on the roster snapshot — **encrypted, masked by default, never merged into the `Member` record, and never present in a general export** — with every view and export written to the audit log and a retention period set to the statutory life of the certificate, after which the data is destroyed;
+  3. **non-residents** are subject to different withholding rules with no starting threshold, which must be stated in the rules.
+  > The actual threshold, withholding rate, and filing method **must be confirmed by an accountant** (see open item 16 in section 10). **Keeping the first draws' prize values below the threshold is recommended**, as it removes the need to collect a national ID number at all — the cheapest and lowest-risk option
+- **Minors**: registration by anyone under 18 continues to require guardian consent; where an additional cardholder on a family plan is a minor, the **prize and any tax certificate go to the adult primary account holder**
+- **Image rights**: photographs of a prize being collected or presented that are used in News or on social media require **separate consent for that use**; where the subject is a minor, written guardian consent is required. This extends the club's existing handling of material featuring minors rather than relaxing it
+- **Retention of the rules**: each draw's rules, snapshot time, roster snapshot, roster hash, and announcement are retained together, for the same period as the audit log
 
 ---
 
@@ -1055,17 +1155,20 @@ TCRFC Admin
 | `Charity` | Recipient organisation (name, description, logo, website) | CharityProgram, ImpactRecord |
 | `Donation` | Donation record. **Defined in the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §9**; this site creates no donation records and only aggregates them for 11.4 impact metrics | CharityProgram, DonationProject |
 | `ImpactMetric` | Impact statistic | CharityProgram |
-| `Member` | Member account: tier (`registered` / `fan_club`), member number, **card token**, membership dates, jersey size and fulfilment status, registration source, **LINE link identifier** (encrypted) | MembershipPlan, MembershipPayment, FanEvent |
+| `Member` | Member account: tier (`registered` / `fan_club`), member number, **card token**, membership dates, jersey size and fulfilment status, registration source, **LINE link identifier** (encrypted) | MembershipPlan, MembershipPayment, FanEvent, DrawRoster |
 | `MembershipPlan` | Membership plan: price, season, term, `card_quota`, `jersey_quota`, mid-season pricing rule | Member, MembershipPayment |
 | `MembershipPayment` | Membership payment and activation record: method, amount, date, transaction note, handler, activation dates | Member, MembershipPlan |
 | `MembershipBenefit` | Benefits comparison entry: group, free-tier value, paid-tier value, sort order (shared by 3.14 / 8.2 / upgrade page) | MembershipPlan |
 | `PartnerStore` | **Partner store**: category, address, phone, opening hours, map link, offer, applicable tier, partnership dates | — |
+| `MemberDraw` | **Fan Club Prize Draw**: name (zh / en), prizes and quantities (zh / en), **eligibility snapshot time `snapshot_at`**, draw time and setting (on site / live stream), collection deadline and unclaimed handling, rules and notices (zh / en), status (draft / roster locked / drawn / announced / closed / voided), `roster_version`, `total_count` eligible members, `roster_hash`, the linked announcement article, creator and locker | Member, DrawRoster, Article |
+| `DrawRoster` | **Eligible roster snapshot (one row per eligible member)**: `serial_no` draw serial number (issued consecutively in ascending member-number order at snapshot time, one per person), member number, **name snapshot**, tier snapshot, membership expiry snapshot, won or not, prize name, collection method (shipping / in person), fulfilment status (pending / shipped / collected / overdue), **withholding details (collected only above the threshold; encrypted, masked by default)**, notes. **Written by the system in one pass at the snapshot time — members cannot create rows; once locked, rows cannot be added or removed and only the win and fulfilment fields may be filled in** | MemberDraw, Member |
 | `EmailLog` | Delivery record for the five system emails | Member |
 | `CalendarEvent` | **Calendar event (aggregate view)**: points at a Match via `source_type` + `source_id`, or is a `custom` club event; carries **`team_codes[]` (D1 / U15 / U14 / U12)** as its first-level category | Match, Team, Venue |
 | `EventType` | Match / event type (icon, colour, display rules) | CalendarEvent |
 
 > Every type with a public-facing presentation must support **zh / en bilingual fields**, with room to add a third language.
 > `CalendarEvent` should be implemented as a **view or index table** rather than duplicated data, keeping it in sync with its source module and avoiding two sources of truth.
+> `DrawRoster` is the opposite — **immutable snapshot data**, deliberately copying values from `Member` rather than resolving a foreign key: a member who later changes their name, merges accounts, or asks for deletion must not alter a locked historical roster, so that the audit trail of who was eligible at the draw survives. On account deletion the snapshot keeps only the member number and a masked name; everything else is erased.
 
 ---
 
@@ -1087,6 +1190,7 @@ TCRFC Admin
 - Content editing follows a **submit-for-review → publish** workflow; only designated roles may publish.
 - **Member personal data (email / phone / date of birth / minors' details) is restricted**: only system administrators and support/administration staff see it in full; other roles see masked values (e.g. `a***@gmail.com`).
 - **Exporting** member lists requires separate authorisation, and every export is written to the audit log (who, when, how many records, stated purpose).
+- **Draw rosters (K5) are treated as member personal data**: building and locking a roster is limited to system administrators and support/administration staff, and the restricted winners export requires separate authorisation and is audited. Communications staff writing the announcement receive **the masked roster only**, and gain no access to the member module by doing so.
 - ※ The translator role may edit `en` fields only, and may not modify the Chinese source or publication status.
 - **Calendar permissions follow the source module**: which events a user can edit on the calendar depends on their permissions over the underlying match data (e.g. an academy manager may reschedule their own squad's fixtures but not the first team's).
 
@@ -1158,6 +1262,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 
 ### Phase 3 — Culture and community (approx. 6 weeks)
 - 08 TCRFC Culture: manga reader, fan club 8.2 (paid membership introduction and join page, integrated with the member system), **product showcase + Shopify referral**
+- **Member management K5 Prize draw rosters**: roster snapshots and serial numbers, the two CSV exports, ticking in winners, prize fulfilment, and handing the announcement to B2. (Eligibility itself is a K4 benefits entry and ships with the Phase 2 benefits table)
 - League tables, automatic aggregation of player statistics
 - Newsletter integration
 
@@ -1181,6 +1286,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Languages | **Traditional Chinese (default) / English**; Japanese is out of scope, with the architecture left extensible |
 | Member system | **Required**, delivered in Phase 2. Scope narrowed to **membership** alone: a free tier and a paid tier, with partner-store discounts for members and a jersey for paying members. Signup channels are **email registration + one-tap LINE sign-in** (no Google) |
 | Out of scope for the member system | ✗ Loyalty points ✗ E-wallet ✗ Ticketing and match packages ✗ Store scan-to-redeem and redemption reports ✗ Shopify SSO ✗ Booking attribution and form pre-filling ✗ Parent–student linking ✗ On-site notification centre and LINE push |
+| Paying-member prize draw | **Built**. Eligibility follows membership **automatically, with no sign-up** (every paying member valid at the snapshot time is included); the system only **freezes the eligible roster, issues serial numbers, and exports a CSV**, while the **physical draw is performed by people, on site or on a live stream** and winners are ticked in afterwards. Winners are announced **through News only** (masked); prizes are **physical items**, shipped or collected in person, fulfilled as jerseys are. ✗ System-run random selection ✗ Public draw page or "my draws" ✗ Winner notification emails and push ✗ Paid entries ✗ Ticket or store-redemption prizes |
 | Membership term | **Season-based** (e.g. 2026/27); everyone expires together and renewals are handled at season end |
 | Membership fees | **LINE Pay** (payment link / official account invoice) and in-person payment; the website takes no payments, and the admin activates membership after reconciliation |
 | How discounts are used | Members **show the digital card** in store and staff check it visually; the QR points to a public read-only verification page. **No scan-to-redeem, no redemption counts, no store-side account or software** |
@@ -1213,6 +1319,11 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 13. **Ticketing and broadcast information**: are there ticketing channels or broadcast platforms to display on fixture cards?
 14. **Personal data retention period**: §3.10 and §9 both require forms to display a retention notice and for a retention policy to be defined, but **the actual duration is unspecified**. All seven forms need it; it is a personal-data compliance item and must be confirmed by the club and its legal advisers.
 15. **Manga release cadence**: the publishing rhythm of episodes, which shapes the "latest episode" block and homepage exposure.
+16. **Prize value ceiling and the withholding threshold**: should a single prize be kept deliberately below the withholding threshold, removing the need to collect a winner's national ID number? The actual threshold, the withholding rate, any obligation to report even where withholding does not apply, and the rules for non-residents must be confirmed by an **accountant** and written into the draw rules (see 4.11 K5).
+17. **Draw frequency and setting**: once a quarter, once a season, or alongside particular home matches? Will draws be streamed and the recording kept as evidence?
+18. **Collection deadline and unclaimed prizes**: how many days? Once the deadline passes, does a reserve step in, is the prize redrawn, voided, or rolled into the next draw? This must be stated in the rules.
+19. **Collection and tax certificates for minors who win**: where an additional cardholder on a family plan wins, the prize and any tax certificate go to the adult primary account holder (this specification's default) — does that match the club's practice?
+20. **Approval of the draw rules and member terms**: the template rules and the collection notice to be added to the member terms must be approved by **legal advisers** before the first draw is held.
 
 ---
 

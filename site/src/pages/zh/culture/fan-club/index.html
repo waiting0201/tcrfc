@@ -133,8 +133,42 @@
   </div>
 </section>
 
+<!-- SPEC 3.8 §8.2 / 3.14 — Member Draw 球迷會員抽獎（純說明段落，非互動區塊）
+     規劃書明訂前台不做：抽獎頁與報名按鈕、我的抽獎、序號查詢、中獎名單頁、線上開獎動畫。
+     此區塊只說明機制，不得加入任何按鈕或表單。 -->
+<section class="band paper-2-band" id="draw" aria-labelledby="draw-title">
+  <div class="container">
+    <p class="kicker">MEMBER DRAW</p>
+    <h2 class="section-title" id="draw-title">球迷會員抽獎</h2>
+    <p class="section-lede">
+      會籍有效期間<strong>自動具備抽獎資格，不需報名也不需登記</strong>。
+      每次抽獎在資格基準時間當下，將所有會籍有效的球迷會員全數列入合格名單並配發抽獎序號。
+    </p>
+    <ul class="draw-points">
+      <li><strong>不需要做任何事</strong>——沒有報名表單、不必累積點數、參加次數多寡不影響中獎機會，一人一號。</li>
+      <li><strong>現場或直播人工開獎</strong>，抽出的是抽獎序號，過程公開可見證。</li>
+      <li><strong>獎品為實體物品</strong>，人工寄送或現場領取，領取方式比照入會球衣。</li>
+      <li><strong>結果公布於最新消息</strong>，名單一律遮罩（抽獎序號、會員編號、姓名遮罩）。</li>
+    </ul>
+    <p class="benefits__note">
+      各次抽獎的獎品、名額、資格基準時間與開獎時間，一律於最新消息公布。
+      <a href="{{ROOT}}/zh/news/">前往最新消息 →</a>
+    </p>
+
+    <div class="pending-note">
+      首波抽獎的獎品內容、開獎時間與場合、領獎期限與活動辦法待補
+      —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 16–20 點。
+    </div>
+  </div>
+</section>
+
 <style>
 .paper-2-band{ background:var(--paper-2); }
+
+/* 球迷會員抽獎說明 */
+.draw-points{ list-style:none; padding:0; margin:1.75rem 0 0; font-size:.9rem; line-height:1.9; color:var(--text); }
+.draw-points li{ padding-left:1.4rem; position:relative; margin-bottom:.5rem; }
+.draw-points li::before{ content:"—"; position:absolute; left:0; color:var(--brand-aa); font-weight:800; }
 
 /* 會籍方案卡 */
 .plan-grid{ margin-top:1.75rem; }

@@ -37,11 +37,13 @@
 | `Charity` | 受贈公益團體 | CharityProgram、ImpactRecord |
 | `Donation` | 捐款紀錄。**主檔定義在慈善捐款平台規劃書 §9**，主站不新增捐款紀錄 | CharityProgram、DonationProject |
 | `ImpactMetric` | 影響力統計項目 | CharityProgram |
-| `Member` | 會員帳號：層級（`registered`／`fan_club`）、會員編號、**會員卡 token**、會籍起訖、球衣尺寸與發放狀態、註冊來源、**LINE 綁定識別碼**（加密） | MembershipPlan、MembershipPayment、FanEvent |
+| `Member` | 會員帳號：層級（`registered`／`fan_club`）、會員編號、**會員卡 token**、會籍起訖、球衣尺寸與發放狀態、註冊來源、**LINE 綁定識別碼**（加密） | MembershipPlan、MembershipPayment、FanEvent、DrawRoster |
 | `MembershipPlan` | 會籍方案：費用、球季、期間、`card_quota` 發卡數、`jersey_quota` 球衣件數、季中計價 | Member、MembershipPayment |
 | `MembershipPayment` | 會籍付款與開通紀錄：方式、金額、日期、交易備註、經辦人、開通起訖 | Member、MembershipPlan |
 | `MembershipBenefit` | 權益對照條目：分組、免費層值、付費層值、排序（3.14／8.2／升級頁共用） | MembershipPlan |
 | `PartnerStore` | **特約店家**：類別、地址、電話、營業時間、地圖、優惠內容、適用層級、合作起訖 | — |
+| `MemberDraw` | **球迷會員抽獎活動**：名稱／獎品與名額（中英）、**資格基準時間 `snapshot_at`**、開獎時間與場合、領獎期限、活動辦法、狀態（草稿／名單已鎖定／已抽出／已公布／已結案／作廢）、`roster_version`、`total_count`、`roster_hash`、關聯公布新聞 | Member、DrawRoster、Article |
+| `DrawRoster` | **合格名單快照，一列一位合格會員**：`serial_no` 抽獎序號、會員編號、**姓名快照**、層級快照、會籍到期日快照、是否中獎、獎項、領獎方式、發放狀態、扣繳所需資料（僅達門檻時蒐集，加密遮罩）。**系統一次性寫入，鎖定後不可增刪** | MemberDraw、Member |
 | `EmailLog` | 五封系統信的寄送紀錄 | Member |
 | `CalendarEvent` | **行事曆事件（彙整視圖）** | Match、Team、Venue |
 | `EventType` | 賽事／活動類型（圖示、色彩、顯示規則） | CalendarEvent |
@@ -77,6 +79,8 @@
 | **兩種「項目／計畫」** | `DonationProject`＝募款標的（慈善站）；`CharityProgram`＝已執行的公益計畫（主站 11.2）。前者可關聯後者，反向不成立 |
 | 捐款人與會員 | **只用 Email 軟性比對後標示**，不寫入 `Member`、不建關聯欄位、不做歸戶 |
 | 家庭會籍 | 只是 `MembershipPlan` 的 `card_quota`／`jersey_quota` 不同，**不需要學員綁定關係** |
+| **抽獎名單** | `DrawRoster` 是**不可變快照**，不是即時 query 也不是外鍵解析：值複製當下的姓名與會籍狀態，會員日後改名、合併或刪帳號都不得改動已鎖定的名單。**不要「優化」成關聯查詢**——那會讓開獎失去稽核能力，也無法穩定配發序號 |
+| **抽獎資格** | 是 `Member` 層級的**布林判定**（基準時間 `fan_club` 且會籍有效且帳號啟用），**不存在「抽獎報名」「抽獎券」「點數」型別**。一人一號，無次數或加權欄位 |
 | 慈善報導 | 即時報導發布於 `Article`（7.7 社區活動），慈善單元用 `CharityProgram`／`ImpactRecord` 長期陳列，兩者互連**不重複建置** |
 | 商品 | `ProductShowcase` 只有展示欄位 + Shopify 連結，**沒有庫存、價格同步、訂單** |
 | 課程時段 | 屬 `Session`，**不進 `CalendarEvent`** |
