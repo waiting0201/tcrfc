@@ -9,7 +9,7 @@
 > 1. The club mark must always be one of the three lockups extracted from `reference/TCR_logo_CMYK.ai` (mark / mark + TCRFC "English" lockup / mark + TCRFC + 台中磐石足球俱樂部 "Chinese" lockup). **Never set the club name in type alongside it, and never add "SINCE" or a founding year.** The public-site header carries the mark alone; the footer carries the full Chinese lockup.
 > 2. The Chinese short name is always **台中磐石**, never 磐石 on its own.
 > 3. The first-team squad list is **ordered by squad number, with no position grouping or filter**.
-> 4. The homepage stat strip drops the two 2024 figures (founding year, national Division 2 title).
+> 4. **The homepage stat strip is removed entirely** (the strips on the 03 Football Club landing page and 11.4 Our Impact remain).
 > 5. Section 10 forms merged from nine to seven (10.2 + 10.3, and 10.6 + 10.7); numbering closes up.
 > 6. `TAICHUNG ROCKS FOOTBALL CLUB` is a brand slogan, **not the club's formal English name**, which remains `Taichung Cornerstone RFC`.
 

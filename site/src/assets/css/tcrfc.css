@@ -530,9 +530,9 @@ input{ font:inherit; }
    4. Stats strip
    ============================================================ */
 .stats-band{ color:#fff; padding-block:clamp(3.5rem,6vw,5.5rem); border-top:1px solid rgba(255,255,255,.06); }
-/* 兩項數據，靠左並排即可；用 grid 撐滿四欄會留下大片空白 */
+/* 首頁已不放數據區塊；目前只有 03 俱樂部 landing 與 11.4 影響力數據使用，兩者皆四項 */
 .stats-grid{
-  display:flex; flex-wrap:wrap; gap:2rem clamp(3rem,8vw,7rem);
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2rem 1.5rem;
   padding-bottom:clamp(2.5rem,5vw,3.5rem); border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:clamp(2rem,4vw,3rem);
 }
 .stat{ display:flex; flex-direction:column; gap:.35rem; }
@@ -557,6 +557,7 @@ input{ font:inherit; }
 .roster-card__name{ font-size:.78rem; font-weight:700; color:var(--muted-dark); }
 
 @media (max-width:980px){
+  .stats-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
   .roster-row{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem 1rem; }
 }
 @media (max-width:520px){
