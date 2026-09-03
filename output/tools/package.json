@@ -1,0 +1,13 @@
+{
+  "name": "tcrfc-doc-tools",
+  "version": "1.0.0",
+  "description": "規劃書 Markdown → PDF（品牌樣式）",
+  "scripts": {
+    "pdf": "node build-pdf.mjs"
+  },
+  "type": "module",
+  "dependencies": {
+    "marked": "^15.0.12"
+  },
+  "private": true
+}

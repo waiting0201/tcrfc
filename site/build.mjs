@@ -83,7 +83,7 @@ const build = async () => {
   if (existsSync(join(SRC, 'assets'))) {
     await cp(join(SRC, 'assets'), join(DIST, 'assets'), { recursive: true });
   }
-  for (const f of ['_headers', 'robots.txt']) {
+  for (const f of ['_headers', '_redirects', 'robots.txt']) {
     if (existsSync(join(SRC, f))) await cp(join(SRC, f), join(DIST, f));
   }
 

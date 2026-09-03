@@ -3,7 +3,7 @@
 台中磐石足球俱樂部（Taichung Cornerstone RFC，**TCRFC**）官方網站建置專案。
 品牌主張：**LOCAL ROOTS. GLOBAL PATHWAYS.｜在地扎根 · 放眼世界**
 
-> **本檔是索引，不是規格書。** 規格的唯一真實來源是 [`output/TCRFC_前後台功能規劃書.md`](output/TCRFC_前後台功能規劃書.md)（v1.8，1138 行）。
+> **本檔是索引，不是規格書。** 規格的唯一真實來源是 [`output/TCRFC_前後台功能規劃書.md`](output/TCRFC_前後台功能規劃書.md)（v1.9，1148 行）。
 > `docs/` 是為了讓 AI 與新進人員快速上手，從規劃書拆解出來的**導航層與執行規範**。
 > **兩者衝突時，一律以規劃書為準**，並回頭修正 `docs/`。
 
@@ -13,8 +13,8 @@
 
 | 項目 | 狀態 |
 |---|---|
-| 功能規劃 | ✅ 完成（規劃書 v1.8，中英雙版） |
-| 視覺方向 | ✅ 單頁 mockup 已完成（Cloudflare Pages 專案 `tcrfc-mockup` 目前部署的是 `site/dist` 74 頁前台，全站 `noindex`） |
+| 功能規劃 | ✅ 完成（規劃書 v1.9，中英雙版 md／PDF 皆已更新） |
+| 視覺方向 | ✅ 單頁 mockup 已完成（Cloudflare Pages 專案 `tcrfc-mockup` 目前部署的是 `site/dist` 72 頁前台，全站 `noindex`） |
 | 品牌資產 | ✅ [`brand/`](brand/) 已由 logo 主檔萃取完成；design tokens 已校正為 `.ai` 品牌色 |
 | 技術選型 | ❌ **未定案**（規劃書第 10 節明確排除在範圍外） |
 | 網站本體 | ❌ 尚未開發 |
@@ -30,7 +30,7 @@
 
 | 路徑 | 內容 | 性質 |
 |---|---|---|
-| [`output/`](output/) | 規劃書、開發里程碑（中英 × md/html/pdf） | **交付物，唯一真實來源** |
+| [`output/`](output/) | 規劃書、開發里程碑（中英 × md/html/pdf）。PDF 由 [`output/tools/`](output/tools/README.md) 產生，勿手改 | **交付物，唯一真實來源** |
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
 | [`mockup/`](mockup/) | 單頁視覺 mockup（`index.html` 1330 行，內含 design tokens）與示意圖 | 視覺基準 |
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
@@ -64,6 +64,10 @@
   `D1` 是代號，對外顯示一律寫 `First Team / 一線隊`。女足**不建立**球隊資料。
 - **品牌色**：桃紅 `#E0218A`（PANTONE 225 C／C5 M90 Y0 K0）＋ 品牌黑 `#231916`（K100，**暖調近黑，不是深藍**）。
   唯一來源是 [`reference/TCR_logo_CMYK.ai`](reference/TCR_logo_CMYK.ai)。小字情境改用 AA 安全版 `#D61E83`。
+- **名稱寫法**：中文簡稱一律「**台中磐石**」，不單獨用「磐石」。英文正式名 `Taichung Cornerstone RFC`；
+  `TAICHUNG ROCKS FOOTBALL CLUB` 是**標語**，不是正式英文名。
+- **標誌**：只用 [`brand/svg/`](brand/svg/) 由 `.ai` 萃取的三種組合（隊徽／隊徽＋TCRFC 英文版／隊徽＋TCRFC＋台中磐石足球俱樂部 中文版）。
+  **不得自行排字、不得加 `SINCE` 或年份。**
 - **雙語**：繁中（預設）＋英文，URL 以 `/zh/`、`/en/` 區隔，架構須預留第三語系。
 - **不做的事**：站內電商、金流、購物車、訂單、庫存（全數導向 Shopify）；票務；女足名單與賽程（導向女足官網）。
 - **賽事資料全部人工維護**，不串接外部 API，提供 CSV 批次匯入。

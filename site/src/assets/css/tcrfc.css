@@ -281,13 +281,20 @@ input{ font:inherit; }
 .site-header.is-scrolled{ box-shadow:0 8px 24px rgba(14,20,40,.1); }
 .site-header .container{
   display:flex; align-items:center; gap:1.5rem;
-  min-height:76px;
+  min-height:112px;
+  transition:min-height var(--dur) var(--ease);
 }
-.brand-lockup{ display:flex; align-items:center; gap:.6rem; flex:0 0 auto; margin-right:.5rem; }
-.brand-lockup img{ height:40px; width:38px; }
-.brand-lockup .wordmark{ display:flex; flex-direction:column; line-height:1.05; }
-.brand-lockup .wordmark strong{ font-size:1.05rem; font-weight:900; letter-spacing:.01em; }
-.brand-lockup .wordmark small{ font-size:.6rem; font-weight:700; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
+.site-header.is-scrolled .container{ min-height:72px; }
+
+/* 標誌一律直接引用 logo 主檔萃取的組合，站上不另外排字。
+   完整中文版（隊徽＋TCRFC＋台中磐石足球俱樂部）需要足夠高度才看得清中文，
+   所以 header 加高；捲動後與窄螢幕改用隊徽單獨版。 */
+.brand-lockup{ display:flex; align-items:center; flex:0 0 auto; margin-right:.5rem; }
+.brand-lockup img{ width:auto; }
+.brand-lockup__full{ display:block; height:92px; transition:height var(--dur) var(--ease); }
+.brand-lockup__mark{ display:none; height:40px; }
+.site-header.is-scrolled .brand-lockup__full{ display:none; }
+.site-header.is-scrolled .brand-lockup__mark{ display:block; }
 
 .main-nav{ flex:1 1 auto; min-width:0; }
 .main-nav ul{ display:flex; align-items:center; gap:clamp(.65rem,1.4vw,1.35rem); flex-wrap:wrap; }
@@ -315,6 +322,14 @@ input{ font:inherit; }
   .main-nav{ display:none; }
   .hamburger{ display:inline-flex; }
   .header-actions .btn--primary{ display:none; }
+  .site-header .container{ min-height:96px; }
+  .brand-lockup__full{ height:76px; }
+}
+@media (max-width:640px){
+  .site-header .container,
+  .site-header.is-scrolled .container{ min-height:64px; }
+  .brand-lockup__full{ display:none; }
+  .brand-lockup__mark{ display:block; }
 }
 
 /* Mobile nav drawer */
@@ -526,8 +541,9 @@ input{ font:inherit; }
    4. Stats strip
    ============================================================ */
 .stats-band{ color:#fff; padding-block:clamp(3.5rem,6vw,5.5rem); border-top:1px solid rgba(255,255,255,.06); }
+/* 兩項數據，靠左並排即可；用 grid 撐滿四欄會留下大片空白 */
 .stats-grid{
-  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2rem 1.5rem;
+  display:flex; flex-wrap:wrap; gap:2rem clamp(3rem,8vw,7rem);
   padding-bottom:clamp(2.5rem,5vw,3.5rem); border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:clamp(2rem,4vw,3rem);
 }
 .stat{ display:flex; flex-direction:column; gap:.35rem; }
@@ -552,7 +568,6 @@ input{ font:inherit; }
 .roster-card__name{ font-size:.78rem; font-weight:700; color:var(--muted-dark); }
 
 @media (max-width:980px){
-  .stats-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
   .roster-row{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem 1rem; }
 }
 @media (max-width:520px){
@@ -718,7 +733,7 @@ input{ font:inherit; }
 /* 5 個區塊（品牌／3 個連結欄／電子報）對應 5 條 track，電子報不再 span 2，
    改成自己吃一條較寬的 track，同一列排開，右側才不會空一大塊。 */
 .footer-top{ display:grid; grid-template-columns:1.2fr .85fr .85fr .85fr 1.15fr; gap:2.5rem; padding-bottom:3rem; border-bottom:1px solid rgba(255,255,255,.08); }
-.footer-brand img{ height:42px; width:40px; margin-bottom:1rem; }
+.footer-brand__logo{ display:block; height:120px; width:auto; margin-bottom:1.25rem; }
 .footer-brand p{ font-size:.85rem; line-height:1.7; max-width:32ch; margin-bottom:1.25rem; }
 .footer-brand address{ font-style:normal; font-size:.82rem; line-height:1.7; margin-bottom:1.25rem; }
 .footer-social{ display:flex; gap:.75rem; }
@@ -945,7 +960,7 @@ section[id]{ scroll-margin-top:90px; }
    表單系統原重複於 13 頁、新聞列表系統原重複於 9 頁。
    ============================================================ */
 
-/* ── 表單系統（10.x 九類表單、球迷會入會、志工報名、贊助洽詢） ──────────────────────────────────────── */
+/* ── 表單系統（10.x 七類表單、球迷會入會、志工報名、贊助洽詢） ──────────────────────────────────────── */
 .tcrfc-form fieldset{ border:0; padding:0; margin:0 0 2.5rem; }
 .tcrfc-form legend{ width:100%; font-size:.78rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); padding-bottom:.75rem; margin-bottom:1.5rem; border-bottom:1px solid var(--rule); }
 .form-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:1.25rem 1.5rem; }
@@ -994,7 +1009,7 @@ section[id]{ scroll-margin-top:90px; }
 /* .form-layout 版型系統 —— 三種用法，靠 modifier class 區分，避免同一顆 class 在不同頁面被迫長成不同形狀：
    1) 基礎（無 modifier）：單欄置中短表單。捐款／志工報名（charity）、會員註冊（member）。
    2) --narrow：更窄、帶卡片底色，適合登入這類極短表單。會員登入（member）。
-   3) --split：長表單＋側欄兩欄式，10.1–10.9 九個 join 表單頁共用。側欄改用 fr 吃滿容器剩餘寬度，
+   3) --split：長表單＋側欄兩欄式，10.1–10.7 七個 join 表單頁共用。側欄改用 fr 吃滿容器剩餘寬度，
       不再靠 max-width 硬夾——那正是先前「表單歪一邊、右邊空一大塊」的成因。 */
 .form-layout{ max-width:680px; margin-inline:auto; }
 

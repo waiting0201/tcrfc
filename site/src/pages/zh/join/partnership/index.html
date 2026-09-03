@@ -1,9 +1,9 @@
 <!--meta
 {
-  "title": "合作夥伴洽詢 Partner with TCRFC｜加入與聯絡｜台中磐石足球俱樂部",
-  "description": "與台中磐石足球俱樂部洽談合作。填寫公司資料與合作方向，商務部將盡快與你聯繫討論合作內容。",
+  "title": "合作夥伴與贊助洽詢 Partnership & Sponsorship｜加入與聯絡｜台中磐石足球俱樂部",
+  "description": "與台中磐石足球俱樂部洽談合作或贊助。一份表單填寫公司資料、合作方向或感興趣的贊助方案與預算區間，商務部將盡快與你聯繫。",
   "nav": "",
-  "unit": "10.6"
+  "unit": "10.5"
 }
 -->
 <nav class="breadcrumb" aria-label="麵包屑">
@@ -11,26 +11,43 @@
     <ol>
       <li><a href="{{ROOT}}/zh/">首頁</a></li>
       <li><a href="{{ROOT}}/zh/join/">加入與聯絡</a></li>
-      <li aria-current="page">合作夥伴洽詢</li>
+      <li aria-current="page">合作夥伴與贊助洽詢</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero">
-  <span class="ghost-num ghost-num--dark" aria-hidden="true">10.6</span>
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10.5</span>
   <div class="container">
-    <p class="page-hero__eyebrow">10.6 Partner with TCRFC</p>
-    <h1>合作夥伴洽詢<span class="en">Partner with TCRFC</span></h1>
-    <p class="page-hero__lede">攜手台中磐石，透過職業足球平台觸及在地社群，共創品牌與社區的雙贏價值。填寫以下資料，商務部將盡快與你聯繫討論合作內容。</p>
+    <p class="page-hero__eyebrow">10.5 Partnership &amp; Sponsorship</p>
+    <h1>合作夥伴與贊助洽詢<span class="en">Partnership &amp; Sponsorship</span></h1>
+    <p class="page-hero__lede">攜手台中磐石，透過職業足球平台觸及在地社群，共創品牌與社區的雙贏價值。不論你想談的是長期合作夥伴關係，或是特定的贊助方案，都在這一份表單完成。填寫以下資料，商務部將盡快與你聯繫討論細節。</p>
   </div>
 </section>
 
 <section class="band form-band" aria-labelledby="form-title">
   <div class="container">
-    <h2 class="visually-hidden" id="form-title">合作夥伴洽詢表單</h2>
+    <h2 class="visually-hidden" id="form-title">合作夥伴與贊助洽詢表單</h2>
     <div class="form-layout form-layout--split">
       <form class="tcrfc-form" action="" method="post" novalidate>
         <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
+
+        <fieldset>
+          <legend>洽詢類型</legend>
+          <div class="form-grid">
+            <div class="form-field form-field--full">
+              <label for="pn-type">這次想洽詢的是<span class="req" aria-hidden="true">*</span></label>
+              <select id="pn-type" name="enquiry_type" required aria-describedby="pn-type-error pn-type-hint">
+                <option value="">請選擇</option>
+                <option value="partnership">合作夥伴關係</option>
+                <option value="sponsorship">贊助方案</option>
+                <option value="both">兩者都想了解</option>
+              </select>
+              <p class="field-error" id="pn-type-error" role="alert">請選擇洽詢類型</p>
+              <p class="field-hint" id="pn-type-hint">合作夥伴偏向長期資源互換與共同計畫，贊助則對應特定方案與權益。下方兩區可依需求擇一或同時勾選。</p>
+            </div>
+          </div>
+        </fieldset>
 
         <fieldset>
           <legend>公司／機構資料</legend>
@@ -44,7 +61,7 @@
               <label for="pn-tax-id">統一編號</label>
               <input type="text" id="pn-tax-id" name="tax_id" inputmode="numeric">
             </div>
-            <div class="form-field form-field--full">
+            <div class="form-field">
               <label for="pn-industry">產業別</label>
               <select id="pn-industry" name="industry">
                 <option value="">請選擇</option>
@@ -56,6 +73,17 @@
                 <option value="sports">運動產業</option>
                 <option value="public">政府／公益機構</option>
                 <option value="other">其他</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label for="pn-budget">預算區間</label>
+              <select id="pn-budget" name="budget_range">
+                <option value="">請選擇（選填）</option>
+                <option value="under-100k">NT$10 萬以下</option>
+                <option value="100k-500k">NT$10 萬–50 萬</option>
+                <option value="500k-1m">NT$50 萬–100 萬</option>
+                <option value="over-1m">NT$100 萬以上</option>
+                <option value="undecided">尚未定案，希望先了解方案</option>
               </select>
             </div>
           </div>
@@ -89,7 +117,7 @@
         <fieldset>
           <legend>合作方向</legend>
           <div class="checkbox-group" role="group" aria-labelledby="pn-direction-legend">
-            <p id="pn-direction-legend" class="field-hint" style="margin-top:0">可複選，若不確定也歡迎在下方說明構想。</p>
+            <p id="pn-direction-legend" class="field-hint" style="margin-top:0">可複選；若這次只洽詢贊助方案，本區可略過。</p>
             <div class="checkbox-field">
               <input type="checkbox" id="pn-dir-strategic" name="direction" value="strategic">
               <label for="pn-dir-strategic">策略夥伴</label>
@@ -111,11 +139,54 @@
               <label for="pn-dir-brand">品牌夥伴</label>
             </div>
           </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>感興趣的贊助方案</legend>
+          <div class="checkbox-group" role="group" aria-labelledby="pn-plan-legend">
+            <p id="pn-plan-legend" class="field-hint" style="margin-top:0">可複選；若這次只洽詢合作夥伴關係，本區可略過。</p>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-plan-club" name="plan" value="club">
+              <label for="pn-plan-club">俱樂部贊助</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-plan-academy" name="plan" value="academy">
+              <label for="pn-plan-academy">學院贊助</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-plan-team" name="plan" value="team">
+              <label for="pn-plan-team">球隊贊助</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-plan-camp" name="plan" value="camp">
+              <label for="pn-plan-camp">營隊贊助</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-plan-international" name="plan" value="international">
+              <label for="pn-plan-international">國際計畫贊助</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-plan-manga" name="plan" value="manga">
+              <label for="pn-plan-manga">漫畫內容合作</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-plan-merch" name="plan" value="merchandise">
+              <label for="pn-plan-merch">商品合作</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-plan-fanclub" name="plan" value="fan_club">
+              <label for="pn-plan-fanclub">球迷會贊助</label>
+            </div>
+            <div class="checkbox-field">
+              <input type="checkbox" id="pn-plan-naming" name="plan" value="naming_rights">
+              <label for="pn-plan-naming">場館冠名</label>
+            </div>
+          </div>
           <div class="form-grid" style="margin-top:1.5rem">
             <div class="form-field form-field--full">
-              <label for="pn-idea">合作構想說明<span class="req" aria-hidden="true">*</span></label>
+              <label for="pn-idea">合作構想或洽詢內容<span class="req" aria-hidden="true">*</span></label>
               <textarea id="pn-idea" name="proposal" required aria-describedby="pn-idea-error"></textarea>
-              <p class="field-error" id="pn-idea-error" role="alert">請說明合作構想</p>
+              <p class="field-error" id="pn-idea-error" role="alert">請說明合作構想或洽詢內容</p>
             </div>
           </div>
         </fieldset>
@@ -124,7 +195,7 @@
           <legend>上傳資料（選填）</legend>
           <div class="form-grid">
             <div class="form-field form-field--full file-field">
-              <label for="pn-doc-file">提案文件</label>
+              <label for="pn-doc-file">提案或相關文件</label>
               <input type="file" id="pn-doc-file" name="doc_file" accept=".pdf,.ppt,.pptx,.doc,.docx" aria-describedby="pn-doc-hint">
               <p class="field-hint" id="pn-doc-hint">支援 PDF／PPT／PPTX／DOC／DOCX。</p>
             </div>
@@ -134,10 +205,10 @@
         <div class="consent-block">
           <div class="checkbox-field">
             <input type="checkbox" id="pn-consent" name="consent" required aria-describedby="pn-consent-error">
-            <label for="pn-consent">我已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之聯絡人個人資料，用於處理本次合作洽詢之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
+            <label for="pn-consent">我已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之聯絡人個人資料，用於處理本次合作與贊助洽詢之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="pn-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
-          
+
         </div>
 
         <div class="form-turnstile">
@@ -158,13 +229,15 @@
         <div class="form-sidebar__card">
           <p class="form-sidebar__dept">收件單位</p>
           <h2>商務部</h2>
-          
+
         </div>
         <div class="form-sidebar__card">
           <h2>延伸閱讀</h2>
           <ul>
             <li><a href="{{ROOT}}/zh/partners/our-partners/">合作夥伴 Our Partners</a></li>
             <li><a href="{{ROOT}}/zh/partners/become-a-partner/">成為合作夥伴 Become a Partner</a></li>
+            <li><a href="{{ROOT}}/zh/partners/opportunities/">贊助方案 Sponsorship Opportunities</a></li>
+            <li><a href="{{ROOT}}/zh/partners/our-sponsors/">贊助商 Our Sponsors</a></li>
           </ul>
         </div>
         </div>
@@ -172,4 +245,3 @@
     </div>
   </div>
 </section>
-

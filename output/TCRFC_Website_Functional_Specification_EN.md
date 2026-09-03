@@ -1,9 +1,17 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v1.8
-> **Date**: 2026-08-14
+> **Document version**: v1.9
+> **Date**: 2026-08-14 (v1.9 revision: 2026-09-03)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v1.8*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v1.9*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v1.9 revision summary**
+> 1. The club mark must always be one of the three lockups extracted from `reference/TCR_logo_CMYK.ai` (mark / mark + TCRFC "English" lockup / mark + TCRFC + 台中磐石足球俱樂部 "Chinese" lockup). **Never set the club name in type alongside it, and never add "SINCE" or a founding year.**
+> 2. The Chinese short name is always **台中磐石**, never 磐石 on its own.
+> 3. The first-team squad list is **ordered by squad number, with no position grouping or filter**.
+> 4. The homepage stat strip drops the two 2024 figures (founding year, national Division 2 title).
+> 5. Section 10 forms merged from nine to seven (10.2 + 10.3, and 10.6 + 10.7); numbering closes up.
+> 6. `TAICHUNG ROCKS FOOTBALL CLUB` is a brand slogan, **not the club's formal English name**, which remains `Taichung Cornerstone RFC`.
 
 ---
 
@@ -41,7 +49,7 @@
 
 ### 1.3 System scope
 
-- **Public site**: 13 top-level sections, ~60+ sub-pages, 9 CTA conversion forms, a **Member Centre**, and **two languages (Traditional Chinese / English)**.
+- **Public site**: 13 top-level sections, ~60+ sub-pages, 7 CTA conversion forms, a **Member Centre**, and **two languages (Traditional Chinese / English)**.
 - **Admin CMS**: content management, teams & fixtures, registrations & rosters, **member management**, FAQ management, charity impact records, enquiry inbox, merchandise & partners, SEO & site settings, permissions & audit.
 - **Out of scope for this engagement**:
   - **E-commerce and payments** — all shopping is routed to **Shopify**. This site builds no cart, integrates no payment gateway, and manages no orders or inventory; it maintains a product showcase and outbound links only (see 3.8 / 4.6).
@@ -77,7 +85,7 @@ The following assets must be inventoried before launch to determine migration sc
 ├── 07 NEWS & STORIES                 (7.1 ~ 7.8)
 ├── 08 TCRFC CULTURE                  (8.1 ~ 8.3)
 ├── 09 PARTNERS & SPONSORS            (9.1 ~ 9.4 + 2 CTAs)
-├── 10 JOIN / CONTACT                 (10.1 ~ 10.9 + map / contact info)
+├── 10 JOIN / CONTACT                 (10.1 ~ 10.7 + map / contact info)
 ├── 11 CHARITY & IMPACT               (11.1 ~ 11.4)
 ├── 12 FAQ                            (standalone section, cross-topic)
 ├── 13 SCHEDULE                       (fixtures and results by team)
@@ -168,7 +176,7 @@ The following assets must be inventoried before launch to determine migration sc
 | Sub-item | Public-site functionality |
 |---|---|
 | Team Overview | Team introduction + key visual + headline stats for the season |
-| Players | Player card list (squad number / position / nationality / photo), filterable by position (GK/DF/MF/FW); clicking opens a **player detail page** (profile, career stats, appearances this season, related news, video) |
+| Players | Player card list (squad number / position / nationality / photo), **ordered by squad number, with no position grouping or filter**; clicking opens a **player detail page** (profile, career stats, appearances this season, related news, video) |
 | Coaches | Coach card list + detail (coaching history, licences) |
 | Fixtures | Grouped by season and competition, showing date, opponent, venue, home/away; sourced from the same data as calendar category `D1`, with "View full schedule" and "Subscribe to D1 fixtures (.ics)" |
 | Results & Standings | Results list (score, scorers) + league table (maintained automatically or manually) |
@@ -184,7 +192,7 @@ Eight module pages: technical & tactical analysis, physical conditioning, game r
 
 - Join TCRFC: eligibility criteria + routing to form 10.1
 - Trials: **trial session list** (date, venue, target group, capacity, registration deadline) + online registration
-- Foreign Players: English-first version + routing to form 10.5
+- Foreign Players: English-first version + routing to form 10.4
 
 #### 3.4 International Pathways
 
@@ -261,7 +269,7 @@ A **unified newsroom** segmented into eight categories:
 | 7.5 International | Overseas partnerships / player news | Linked country / partner |
 | 7.6 Camps & Events | Event previews and recaps | Linked program item |
 | 7.7 Community | Community initiatives | Linked partner organisation |
-| 7.8 Media | Media resource centre | **Press release downloads, brand identity pack (logo / CIS), high-resolution image library, media contact (routes to 10.8)** |
+| 7.8 Media | Media resource centre | **Press release downloads, brand identity pack (logo / CIS), high-resolution image library, media contact (routes to 10.6)** |
 
 **Public-site functionality**:
 - List page: category tabs, tag filter, year/month filter, keyword search, infinite scroll or pagination
@@ -311,25 +319,25 @@ A **unified newsroom** segmented into eight categories:
 | 9.3 | Become a Partner | Six value arguments: why partner, audience analysis (**data visualisation**: followers, reach, student numbers), brand exposure, social impact, intermediary influence, international reach |
 | 9.4 | Sponsorship Opportunities | **Nine sponsorship package cards**: club / academy / team / camp / international programme / manga content / merchandise / fan club / stadium naming. Each covers what it includes, the rights schedule, who it suits, and an enquiry CTA |
 | CTA | Sponsorship Deck download | **Gated download form**: company / name / email → download link issued (creates a lead record; supports A/B versions) |
-| CTA | Contact Us | Routes to the 10.7 sponsorship enquiry form |
+| CTA | Contact Us | Routes to the 10.5 partnership & sponsorship enquiry form |
 
 ---
 
 ### 3.10 【10】JOIN / CONTACT
 
-A **forms hub** with nine forms, each with its own fields and recipients:
+A **forms hub** with seven forms, each with its own fields and recipients:
 
 | No. | Form | Key fields | Recipient team |
 |---|---|---|---|
 | 10.1 | Join as a Player | Name, date of birth, position, experience, video link, contact details | Football operations |
-| 10.2 | Join the Academy | Student name, age, preferred age group, parent contact, football background | Academy |
-| 10.3 | Children's Training | Student details, class, preferred venue, parent details | Programs |
-| 10.4 | Camp Registration | Camp session, student details, health declaration, emergency contact | Programs |
-| 10.5 | International Player Enquiries | Name (English), nationality, passport, experience, video, visa status | International |
-| 10.6 | Partner with TCRFC | Company, industry, contact person, proposed collaboration | Commercial |
-| 10.7 | Sponsorship Enquiries | Company, budget range, packages of interest, contact person | Commercial |
-| 10.8 | Media Enquiries | Outlet, journalist name, topic, deadline | PR |
-| 10.9 | General Contact | Name, email, subject, message | Administration |
+| 10.2 | Academy & Children's Training | **Programme selected (Academy U12 / U14 / U15 age groups, or Children's Training mixed-age / beginner / skill-development classes)**, student details, preferred venue, parent contact, football background, health notes | Academy / Programs (routed by programme selected) |
+| 10.3 | Camp Registration | Camp session, student details, health declaration, emergency contact | Programs |
+| 10.4 | International Player Enquiries | Name (English), nationality, passport, experience, video, visa status | International |
+| 10.5 | Partnership & Sponsorship | **Enquiry type (partnership / sponsorship / both)**, company, industry, budget range, proposed collaboration, packages of interest, contact person | Commercial |
+| 10.6 | Media Enquiries | Outlet, journalist name, topic, deadline | PR |
+| 10.7 | General Contact | Name, email, subject, message | Administration |
+
+> **v1.9 change**: former 10.2 (Join the Academy) and 10.3 (Children's Training) are merged into a single form, routed to the Academy or Programs department by the "programme selected" field; former 10.6 (Partner with TCRFC) and 10.7 (Sponsorship Enquiries) are merged into a single form, both already handled by Commercial and separated by the "enquiry type" field. The forms hub drops from nine to seven and the numbering closes up.
 
 **Shared mechanisms**:
 - Bot protection (reCAPTCHA / Turnstile), required-field validation, file upload (CV / video link)
@@ -352,7 +360,7 @@ A **forms hub** with nine forms, each with its own fields and recipients:
 | 11.2 | Charity Programs | **Program list** (cover, name, beneficiaries, period, status: ongoing / completed); detail pages cover the programme's origin, **recipient charity name**, **what was donated**, delivery narrative, **event photo gallery**, and related coverage |
 | 11.3 | Impact Stories | **Timeline / card list**; every record presents three core data points: **① charity organisation name ② what was donated ③ event photography**, plus date, location, and a short description; filterable by year |
 | 11.4 | Our Impact | Cumulative statistics: number of partner charities, total donation instances, areas served; presented as a **logo wall / list of organisations** with representative imagery. Monetary figures are hidden by default; visibility is decided per item in the admin |
-| CTA | Get Involved | Three participation routes: **corporate charity partnership** (routes to 10.6) / **fan donation** (see below) / **volunteer signup** (form) |
+| CTA | Get Involved | Three participation routes: **corporate charity partnership** (routes to 10.5) / **fan donation** (see below) / **volunteer signup** (form) |
 
 #### Fan donation mechanism
 
@@ -387,11 +395,11 @@ Fans can support the club's charitable programmes directly. Because the site car
 | Item | Public-site functionality |
 |---|---|
 | FAQ home | Topic navigation cards: `Joining the club`, `Academy admissions`, `Program & camp registration`, `Fees & refunds`, `Trials`, `International pathways & foreign players`, `Women's football`, `Fan club & merchandise`, `Partnership & sponsorship`, `Other` |
-| Search | Live keyword search (across question and answer text); no-result searches route to the 10.9 general contact form |
+| Search | Live keyword search (across question and answer text); no-result searches route to the 10.7 general contact form |
 | Presentation | Accordion, with **deep links to individual questions** (`/faq/#q-123`) so support staff can send a link to a single answer |
 | Category pages | Each topic has its own page with independent SEO settings |
 | Helpfulness feedback | "Was this helpful? 👍 / 👎" under each answer, with results written back to the admin for optimisation |
-| Unresolved routing | A persistent CTA at the bottom of each page: contact us (10.9) or the form specific to that topic |
+| Unresolved routing | A persistent CTA at the bottom of each page: contact us (10.7) or the form specific to that topic |
 | Embeddable block (G-12) | 4.7 Academy admissions, the 5.x programs, 3.3 trials, and 9.4 sponsorship automatically embed the top five FAQs for their topic plus a "see all" link |
 | SEO | Emits **FAQPage schema** to compete for FAQ rich results and citation by AI engines |
 
@@ -590,7 +598,7 @@ The calendar is organised primarily **by team**:
 
 #### Integration with existing modules
 
-- **Forms (10.1–10.9)**: when signed in, name / email / phone are pre-filled, reducing the fields to complete.
+- **Forms (10.1–10.7)**: when signed in, name / email / phone are pre-filled, reducing the fields to complete.
 - **Program registration (P3)**: bookings are automatically attributed to the member account, so the admin can view a member's full booking history.
 - **Fan club (F2)**: fan club members are simply members flagged `fan_club` in the member system — no separate list is maintained.
 - **Shopify**: website accounts and Shopify accounts remain **independent**; no single sign-on is implemented. **Member-exclusive offers are handled by issuing Shopify discount codes**, distributed via LINE push or email, with the admin setting the target audience (tier / list) and validity period.
@@ -816,7 +824,7 @@ TCRFC Admin
 - Per form: notification recipients (multiple allowed), auto-reply template, CAPTCHA toggle, post-submission redirect
 
 #### G2 Enquiry Inbox
-- A unified inbox with tabs by form type (10.1–10.9 + deck downloads + **volunteer signups / donation enquiries**)
+- A unified inbox with tabs by form type (10.1–10.7 + deck downloads + **volunteer signups / donation enquiries**)
 - Fields: source form, name, contact details, message summary, source page, UTM source, submission time
 - Status workflow: `New → In progress → Replied → Closed / Invalid`
 - Assignee, internal notes, tags
@@ -1137,7 +1145,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 7. **Whether charity amounts are published**: organisation name, donation content, and imagery are confirmed; monetary amounts are private by default — are there specific cases that should be public?
 8. **Whether trials appear in the calendar**: off by default (kept on the recruitment pages); can be enabled in the admin if desired.
 9. **Ticketing and broadcast information**: are there ticketing channels or broadcast platforms to display on fixture cards?
-10. **Personal data retention period**: §3.10 and §9 both require forms to display a retention notice and for a retention policy to be defined, but **the actual duration is unspecified**. All nine forms need it; it is a personal-data compliance item and must be confirmed by the club and its legal advisers.
+10. **Personal data retention period**: §3.10 and §9 both require forms to display a retention notice and for a retention policy to be defined, but **the actual duration is unspecified**. All seven forms need it; it is a personal-data compliance item and must be confirmed by the club and its legal advisers.
 11. **Manga release cadence**: the publishing rhythm of episodes, which shapes the "latest episode" block and homepage exposure.
 
 ---

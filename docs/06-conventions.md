@@ -11,16 +11,28 @@
 
 | 概念 | 中文 | English | 代號／識別 | 備註 |
 |---|---|---|---|---|
-| 俱樂部 | 台中磐石足球俱樂部 | Taichung Cornerstone RFC | TCRFC | 2024 創立 |
+| 俱樂部 | 台中磐石足球俱樂部 | Taichung Cornerstone RFC | TCRFC | 2024 創立。中文簡稱一律「**台中磐石**」，不單用「磐石」 |
 | 品牌主張 | 在地扎根 · 放眼世界 | LOCAL ROOTS. GLOBAL PATHWAYS. | | |
+| 品牌標語 | — | TAICHUNG ROCKS FOOTBALL CLUB | | 出自 Brand Deck 頁尾，**是標語不是正式英文名**；正式名一律用 `Taichung Cornerstone RFC` |
 | 一線隊 | 一線隊 | First Team | **`D1`** | 對外顯示用「一線隊／First Team」，`D1` 僅作代號 |
 | 學院梯隊 | U15／U14／U12 梯隊 | Academy Teams | `U15`/`U14`/`U12` | 日後可增 U18／U10 |
-| 學院 | 磐石足球學院 | TCRFC Academy | | |
+| 學院 | 台中磐石足球學院 | TCRFC Academy | | |
 | 女子足球 | 台中藍鯨女子隊 | Women's Football | — | **不建球隊資料**，單頁導流至 [`https://www.tcbw2014.com/`](https://www.tcbw2014.com/) |
 | 課程與活動 | 課程與活動 | Programs | 後台 `P1–P4` | 原編 `D1–D4`，已因撞名改號 |
 | 慈善 | 慈善與社會影響 | Charity & Impact | | |
-| 球迷會 | 磐石球迷會 | Fan Club | `fan_club` | 是會員層級，不是獨立名單 |
-| 漫畫 | 磐石漫畫 | TCRFC Manga / Comics | | 全部免費公開 |
+| 球迷會 | 台中磐石球迷會 | Fan Club | `fan_club` | 是會員層級，不是獨立名單 |
+| 漫畫 | 台中磐石漫畫 | TCRFC Manga / Comics | | 全部免費公開 |
+
+### 名稱與標誌的硬性規則
+
+1. **中文簡稱一律「台中磐石」。** 站上任何位置都不單獨出現「磐石」——`關於台中磐石`、`台中磐石文化`、`台中磐石足球學院`、`台中磐石球迷會`、`台中磐石漫畫` 皆同。
+2. **標誌只用 logo 主檔萃取的三種組合**（見 [`../brand/README.md`](../brand/README.md)）：
+   - `tcrfc-mark-*.svg` 隊徽
+   - `tcrfc-stacked-*.svg` 隊徽＋`TCRFC`（**英文版**）
+   - `tcrfc-full-*.svg` 隊徽＋`TCRFC`＋`台中磐石足球俱樂部`（**中文版**）
+3. **不得在標誌旁自行排字**（含「台中磐石」文字 wordmark），**不得加註 `SINCE` 或創立年份**。
+   完整中文版縮小後中文會糊掉，因此 header 需要足夠高度（桌機 112px、捲動後縮為隊徽、≤640px 直接用隊徽）。
+4. `TAICHUNG ROCKS FOOTBALL CLUB` 是標語，不是正式英文名。
 
 **五大核心價值**（同時是全站內容標籤）
 `Players First 以球員為本`｜`Excellence 追求卓越`｜`Global Pathways 國際發展`｜`Community 社區共好`｜`Integrity 誠信專業`
@@ -103,7 +115,7 @@ news-trencin.jpg     partners/04-joma.png    home-hero.jpg
 分類資訊由**路徑**承載，客戶不需改檔名。需建立子資料夾的地方遵循：
 ```
 球員：{背號}_{姓名}          → 09_劉大明
-新聞：{YYYY-MM-DD}_{標題}    → 2026-05-20_磐石作客特倫欽
+新聞：{YYYY-MM-DD}_{標題}    → 2026-05-20_台中磐石作客特倫欽
 慈善：{YYYY-MM-DD}_{團體名}  → 2026-04-02_台中家扶中心
 夥伴／贊助：{公司名}
 ```

@@ -253,13 +253,20 @@ input{ font:inherit; }
 .site-header.is-scrolled{ box-shadow:0 8px 24px rgba(14,20,40,.1); }
 .site-header .container{
   display:flex; align-items:center; gap:1.5rem;
-  min-height:76px;
+  min-height:112px;
+  transition:min-height var(--dur) var(--ease);
 }
-.brand-lockup{ display:flex; align-items:center; gap:.6rem; flex:0 0 auto; margin-right:.5rem; }
-.brand-lockup img{ height:40px; width:38px; }
-.brand-lockup .wordmark{ display:flex; flex-direction:column; line-height:1.05; }
-.brand-lockup .wordmark strong{ font-size:1.05rem; font-weight:900; letter-spacing:.01em; }
-.brand-lockup .wordmark small{ font-size:.6rem; font-weight:700; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
+.site-header.is-scrolled .container{ min-height:72px; }
+
+/* 標誌一律直接引用 logo 主檔萃取的組合，站上不另外排字。
+   完整中文版需要足夠高度才看得清中文，所以 header 加高；
+   捲動後與窄螢幕改用隊徽單獨版。 */
+.brand-lockup{ display:flex; align-items:center; flex:0 0 auto; margin-right:.5rem; }
+.brand-lockup img{ width:auto; }
+.brand-lockup__full{ display:block; height:92px; transition:height var(--dur) var(--ease); }
+.brand-lockup__mark{ display:none; height:40px; }
+.site-header.is-scrolled .brand-lockup__full{ display:none; }
+.site-header.is-scrolled .brand-lockup__mark{ display:block; }
 
 .main-nav{ flex:1 1 auto; min-width:0; }
 .main-nav ul{ display:flex; align-items:center; gap:clamp(.65rem,1.4vw,1.35rem); flex-wrap:wrap; }
@@ -287,6 +294,14 @@ input{ font:inherit; }
   .main-nav{ display:none; }
   .hamburger{ display:inline-flex; }
   .header-actions .btn--primary{ display:none; }
+  .site-header .container{ min-height:96px; }
+  .brand-lockup__full{ height:76px; }
+}
+@media (max-width:640px){
+  .site-header .container,
+  .site-header.is-scrolled .container{ min-height:64px; }
+  .brand-lockup__full{ display:none; }
+  .brand-lockup__mark{ display:block; }
 }
 
 /* Mobile nav drawer */
@@ -434,8 +449,9 @@ input{ font:inherit; }
    4. Stats strip
    ============================================================ */
 .stats-band{ color:#fff; padding-block:clamp(3.5rem,6vw,5.5rem); border-top:1px solid rgba(255,255,255,.06); }
+/* 兩項數據，靠左並排即可；用 grid 撐滿四欄會留下大片空白 */
 .stats-grid{
-  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:2rem 1.5rem;
+  display:flex; flex-wrap:wrap; gap:2rem clamp(3rem,8vw,7rem);
   padding-bottom:clamp(2.5rem,5vw,3.5rem); border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:clamp(2rem,4vw,3rem);
 }
 .stat{ display:flex; flex-direction:column; gap:.35rem; }
@@ -460,7 +476,6 @@ input{ font:inherit; }
 .roster-card__name{ font-size:.78rem; font-weight:700; color:var(--muted-dark); }
 
 @media (max-width:980px){
-  .stats-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
   .roster-row{ grid-template-columns:repeat(3,minmax(0,1fr)); gap:1rem 1rem; }
 }
 @media (max-width:520px){
@@ -624,7 +639,7 @@ input{ font:inherit; }
    ============================================================ */
 .site-footer{ background:var(--ink); color:var(--muted-dark); padding-top:clamp(3.5rem,6vw,5.5rem); }
 .footer-top{ display:grid; grid-template-columns:1.3fr repeat(4,minmax(0,1fr)); gap:2.5rem; padding-bottom:3rem; border-bottom:1px solid rgba(255,255,255,.08); }
-.footer-brand img{ height:42px; width:40px; margin-bottom:1rem; }
+.footer-brand__logo{ display:block; height:120px; width:auto; margin-bottom:1.25rem; }
 .footer-brand p{ font-size:.85rem; line-height:1.7; max-width:32ch; margin-bottom:1.25rem; }
 .footer-brand address{ font-style:normal; font-size:.82rem; line-height:1.7; margin-bottom:1.25rem; }
 .footer-social{ display:flex; gap:.75rem; }
@@ -727,19 +742,19 @@ section[id]{ scroll-margin-top:90px; }
 <header class="site-header" id="site-header">
   <div class="container">
     <a class="brand-lockup" href="#top" aria-label="台中磐石足球俱樂部 首頁">
-      <img src="assets/brand/tcrfc-mark-pink.svg" alt="台中磐石足球俱樂部隊徽" width="38" height="40">
-      <span class="wordmark"><strong>台中磐石</strong><small>TCRFC · SINCE 2024</small></span>
+      <img class="brand-lockup__full" src="assets/brand/tcrfc-full-pink.svg" alt="" aria-hidden="true" width="74" height="92">
+      <img class="brand-lockup__mark" src="assets/brand/tcrfc-mark-pink.svg" alt="" aria-hidden="true" width="38" height="40">
     </a>
     <nav class="main-nav" aria-label="主要導覽">
       <ul>
-        <li><a href="#culture">關於磐石 <span class="visually-hidden">ABOUT</span></a></li>
+        <li><a href="#culture">關於台中磐石 <span class="visually-hidden">ABOUT</span></a></li>
         <li><a href="#club">俱樂部 <span class="visually-hidden">CLUB</span></a></li>
         <li><a href="#academy">足球學院 <span class="visually-hidden">ACADEMY</span></a></li>
         <li><a href="#programs">課程 <span class="visually-hidden">PROGRAMS</span></a></li>
         <li><a href="#womens">女子足球 <span class="visually-hidden">WOMEN'S</span></a></li>
         <li><a href="#schedule">賽事 <span class="visually-hidden">SCHEDULE</span></a></li>
         <li><a href="#news">新聞 <span class="visually-hidden">NEWS</span></a></li>
-        <li><a href="#culture">磐石文化 <span class="visually-hidden">CULTURE</span></a></li>
+        <li><a href="#culture">台中磐石文化 <span class="visually-hidden">CULTURE</span></a></li>
         <li><a href="#partners">夥伴 <span class="visually-hidden">PARTNERS</span></a></li>
         <li><a href="#charity">慈善 <span class="visually-hidden">CHARITY</span></a></li>
       </ul>
@@ -766,14 +781,14 @@ section[id]{ scroll-margin-top:90px; }
   </div>
   <nav aria-label="行動主要導覽">
     <ul>
-      <li><a href="#culture">關於磐石 ABOUT</a></li>
+      <li><a href="#culture">關於台中磐石 ABOUT</a></li>
       <li><a href="#club">俱樂部 CLUB</a></li>
       <li><a href="#academy">足球學院 ACADEMY</a></li>
       <li><a href="#programs">課程 PROGRAMS</a></li>
       <li><a href="#womens">女子足球 WOMEN'S</a></li>
       <li><a href="#schedule">賽事 SCHEDULE</a></li>
       <li><a href="#news">新聞 NEWS</a></li>
-      <li><a href="#culture">磐石文化 CULTURE</a></li>
+      <li><a href="#culture">台中磐石文化 CULTURE</a></li>
       <li><a href="#partners">夥伴 PARTNERS</a></li>
       <li><a href="#charity">慈善 CHARITY</a></li>
     </ul>
@@ -806,7 +821,7 @@ section[id]{ scroll-margin-top:90px; }
           <p class="hero__sub">台中磐石足球俱樂部 · <b>2024 年創立</b> · <b>2024 全國乙級聯賽冠軍</b></p>
           <div class="hero__ctas">
             <a class="btn btn--primary" href="#charity">加入球隊</a>
-            <a class="btn btn--light" href="#culture">認識磐石</a>
+            <a class="btn btn--light" href="#culture">認識台中磐石</a>
           </div>
         </div>
         <div class="hero__news">
@@ -906,14 +921,6 @@ section[id]{ scroll-margin-top:90px; }
   <h2 class="visually-hidden" id="stats-title">俱樂部數據</h2>
   <div class="band-inner container">
     <div class="stats-grid">
-      <div class="stat">
-        <p class="stat__num">2024</p>
-        <p class="stat__label">創立年份</p>
-      </div>
-      <div class="stat">
-        <p class="stat__num"><span>2024</span></p>
-        <p class="stat__label">全國乙級聯賽冠軍</p>
-      </div>
       <div class="stat">
         <p class="stat__num">25</p>
         <p class="stat__label">一線隊球員</p>
@@ -1021,16 +1028,16 @@ section[id]{ scroll-margin-top:90px; }
         <div class="pillar-card__scrim" aria-hidden="true"></div>
         <div class="pillar-card__body">
           <p class="pillar-card__en">FOOTBALL CLUB</p>
-          <p class="pillar-card__zh">磐石足球俱樂部</p>
+          <p class="pillar-card__zh">台中磐石足球俱樂部</p>
           <span class="pillar-card__link">了解一線隊 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
       <a class="pillar-card clip-card clip-card--on-dark" id="academy" href="#academy">
-        <img src="assets/trencin-04.jpg" alt="磐石足球學院青少年球員於斯洛伐克進行交流賽" loading="lazy" width="1920" height="1279">
+        <img src="assets/trencin-04.jpg" alt="台中磐石足球學院青少年球員於斯洛伐克進行交流賽" loading="lazy" width="1920" height="1279">
         <div class="pillar-card__scrim" aria-hidden="true"></div>
         <div class="pillar-card__body">
           <p class="pillar-card__en">ACADEMY</p>
-          <p class="pillar-card__zh">磐石足球學院</p>
+          <p class="pillar-card__zh">台中磐石足球學院</p>
           <span class="pillar-card__link">認識學院 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
@@ -1139,13 +1146,13 @@ section[id]{ scroll-margin-top:90px; }
       <div>
         <p class="kicker kicker--on-dark">TEAM UP IN STYLE</p>
         <h2 class="section-title" id="store-title">官方商店</h2>
-        <p>主客場球衣、周邊配件與訓練服飾，穿上磐石桃紅，與球隊一起在場邊、場上同進退。</p>
+        <p>主客場球衣、周邊配件與訓練服飾，穿上台中磐石桃紅，與球隊一起在場邊、場上同進退。</p>
         <a class="btn btn--primary" href="https://tcrfc-store.example.com" target="_blank" rel="noopener">前往商店 STORE</a>
         <p class="store-band__fine">結帳由 Shopify 平台代為處理，將另開新視窗前往。</p>
       </div>
       <div class="store-visual clip-card clip-card--on-dark">
         <img src="assets/player-09-liu.jpg" alt="球員身著台中磐石主場球衣" loading="lazy" width="620" height="620">
-        <span class="store-visual__badge">磐石主場球衣</span>
+        <span class="store-visual__badge">台中磐石主場球衣</span>
       </div>
     </div>
   </div>
@@ -1190,7 +1197,7 @@ section[id]{ scroll-margin-top:90px; }
       <div class="cta-card">
         <p class="cta-card__num">10.2</p>
         <p class="cta-card__title">加入學院</p>
-        <p class="cta-card__desc">從基礎技術到比賽觀念，磐石足球學院提供各年齡層系統化的足球訓練課程。</p>
+        <p class="cta-card__desc">從基礎技術到比賽觀念，台中磐石足球學院提供各年齡層系統化的足球訓練課程。</p>
         <a class="btn btn--primary" href="#">預約試訓</a>
       </div>
       <div class="cta-card">
@@ -1210,7 +1217,7 @@ section[id]{ scroll-margin-top:90px; }
   <div class="container">
     <div class="footer-top">
       <div class="footer-brand">
-        <img src="assets/brand/tcrfc-mark-white.svg" alt="台中磐石足球俱樂部隊徽" width="40" height="42">
+        <img class="footer-brand__logo" src="assets/brand/tcrfc-full-white.svg" alt="台中磐石足球俱樂部" width="97" height="120">
         <p>台中磐石足球俱樂部致力於透過專業模式，培育選手追求卓越，讓世界看見台灣足球。</p>
         <address style="text-wrap:balance">
           台中市北屯區崇平路二段<span style="white-space:nowrap">景谷巷 11 弄 41 號</span>
@@ -1225,7 +1232,7 @@ section[id]{ scroll-margin-top:90px; }
       <div class="footer-col">
         <h4>俱樂部</h4>
         <ul>
-          <li><a href="#culture">關於磐石</a></li>
+          <li><a href="#culture">關於台中磐石</a></li>
           <li><a href="#club">一線隊</a></li>
           <li><a href="#schedule">賽事行事曆</a></li>
           <li><a href="#news">最新消息</a></li>
@@ -1242,7 +1249,7 @@ section[id]{ scroll-margin-top:90px; }
       </div>
       <div class="footer-col newsletter">
         <h4>訂閱電子報</h4>
-        <p>第一時間收到磐石賽事戰報與活動資訊。</p>
+        <p>第一時間收到台中磐石賽事戰報與活動資訊。</p>
         <form onsubmit="return false;">
           <label class="visually-hidden" for="newsletter-email">電子郵件地址</label>
           <input type="email" id="newsletter-email" placeholder="輸入您的 Email" autocomplete="email" required>
