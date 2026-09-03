@@ -330,7 +330,7 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 | No. | Form | Key fields | Recipient team |
 |---|---|---|---|
 | 10.1 | Join as a Player | Name, date of birth, position, experience, video link, contact details | Football operations |
-| 10.2 | Academy & Children's Training | **Programme selected (Academy U12 / U14 / U15 age groups, or Children's Training mixed-age / beginner / skill-development classes)**, student details, preferred venue, parent contact, football background, health notes | Academy / Programs (routed by programme selected) |
+| 10.2 | Academy & Children's Training | **Programme selected (Academy U12 / U14 / U15 age groups, Children's Training mixed-age / beginner / skill-development classes, or the six Specialist Training disciplines)**, student details, preferred venue, parent contact, football background, health notes | Academy / Programs (routed by programme selected) |
 | 10.3 | Camp Registration | Camp session, student details, health declaration, emergency contact | Programs |
 | 10.4 | International Player Enquiries | Name (English), nationality, passport, experience, video, visa status | International |
 | 10.5 | Partnership & Sponsorship | **Enquiry type (partnership / sponsorship / both)**, company, industry, budget range, proposed collaboration, packages of interest, contact person | Commercial |

@@ -240,6 +240,11 @@
     });
     tab.focus();
   }
+  // header 的「註冊」連到 /zh/member/#tab-register，進站時直接切到加入會員分頁
+  if(location.hash === '#tab-register'){
+    var initial = document.getElementById('tab-register');
+    if(initial) select(initial);
+  }
   tabs.forEach(function(tab, i){
     tab.addEventListener('click', function(){ select(tab); });
     tab.addEventListener('keydown', function(e){

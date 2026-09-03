@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// 建置後自檢：抓出 token 殘留、h1 數量、缺 alt、寫死色碼、以及統計 .pending。
-import { readFile, readdir } from 'node:fs/promises';
+// 建置後自檢：抓出 token 殘留、h1 數量、缺 alt、寫死色碼、站內斷鏈，以及統計 .pending。
+import { readFile, readdir, stat } from 'node:fs/promises';
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -50,6 +50,28 @@ for (const f of files) {
   if (!isRedirect && (!desc || desc[1].trim().length < 20)) problems.push([rel, 'meta description 太短或缺漏']);
 
   pendingTotal += (html.match(/class="pending"/g) || []).length;
+}
+
+// 站內斷鏈：href 指到 dist 裡不存在的檔案（header/footer 的連結會複製到每一頁，
+// 一個錯字就是 72 頁同時壞掉，所以這裡用「斷鏈種類」而不是出現次數來回報）
+const exists = async (p) => { try { await stat(p); return true; } catch { return false; } };
+const brokenLinks = new Map();
+for (const f of files) {
+  const html = await readFile(f, 'utf8');
+  for (const m of html.matchAll(/href="([^"]*)"/g)) {
+    const href = m[1];
+    if (!href || /^(https?:|mailto:|tel:|#|data:|javascript:)/i.test(href)) continue;
+    const path = href.split('#')[0].split('?')[0];
+    if (!path) continue;
+    const target = join(dirname(f), path);
+    if (await exists(target) || await exists(join(target, 'index.html'))) continue;
+    if (!brokenLinks.has(href)) brokenLinks.set(href, []);
+    brokenLinks.get(href).push(relative(DIST, f));
+  }
+}
+for (const [href, pages] of brokenLinks) {
+  const where = pages.length > 3 ? `${pages[0]} 等 ${pages.length} 頁` : pages.join('、');
+  problems.push([where.split(' ')[0], `站內斷鏈 ${href}（共 ${pages.length} 頁）`]);
 }
 
 // Lorem / 佔位廢話偵測
