@@ -38,10 +38,30 @@ function fill(tpl, vars) {
   return tpl.replace(/\{\{(\w+)\}\}/g, (_, k) => (k in vars ? vars[k] : ''));
 }
 
+// 內容片段：頁面寫 {{>membership-benefits}} 即插入 src/partials/membership-benefits.html。
+// 用於同一段內容要出現在多個頁面、且必須同步維護的情形（如會籍權益對照表）。
+// 一層展開即可，片段內不再遞迴 include。
+function applyIncludes(html, partials) {
+  return html.replace(/\{\{>\s*([\w-]+)\s*\}\}/g, (_, name) => {
+    if (!(name in partials)) throw new Error(`找不到內容片段 partials/${name}.html`);
+    return partials[name];
+  });
+}
+
 const build = async () => {
   const shell = await read(join(SRC, 'partials/shell.html'));
   const header = await read(join(SRC, 'partials/header.html'));
   const footer = await read(join(SRC, 'partials/footer.html'));
+
+  // src/partials/ 內除了 shell / header / footer 之外的檔案，都可用 {{>檔名}} 插入頁面
+  const reserved = new Set(['shell', 'header', 'footer']);
+  const partials = {};
+  for (const e of await readdir(join(SRC, 'partials'), { withFileTypes: true })) {
+    if (!e.isFile() || !e.name.endsWith('.html')) continue;
+    const name = e.name.slice(0, -5);
+    if (reserved.has(name)) continue;
+    partials[name] = await read(join(SRC, 'partials', e.name));
+  }
 
   const pagesDir = join(SRC, 'pages');
   const files = await walk(pagesDir);
@@ -64,7 +84,7 @@ const build = async () => {
       SCHEMA: meta.schema ? `<script type="application/ld+json">${JSON.stringify(meta.schema)}</script>` : '',
       HEADER: fill(header, { ROOT: root, NAV: meta.nav ?? '' }),
       FOOTER: fill(footer, { ROOT: root }),
-      CONTENT: fill(body, { ROOT: root }),
+      CONTENT: fill(applyIncludes(body, partials), { ROOT: root }),
     };
 
     // 導覽列目前分頁標記

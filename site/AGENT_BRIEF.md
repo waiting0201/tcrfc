@@ -36,7 +36,7 @@
 台中磐石足球俱樂部（TCRFC）官方網站，靜態 HTML，延續已完成的視覺 mockup。
 
 - **品牌主張**：LOCAL ROOTS. GLOBAL PATHWAYS.｜在地扎根 · 放眼世界
-- **規格唯一真實來源**：`output/TCRFC_前後台功能規劃書.md`（v1.8）
+- **規格唯一真實來源**：`output/TCRFC_前後台功能規劃書.md`（v2.0）
 - **頁面規格摘要**：`docs/02-frontend-spec.md`（有對應規劃書行號，需要細節時回讀原文）
 - **視覺基準**：`mockup/index.html`（1327 行，design tokens 已抽到共用 CSS）
 
@@ -50,7 +50,7 @@
 site/
 ├── build.mjs                 建置腳本（零相依，勿改）
 ├── src/
-│   ├── partials/             shell / header / footer（共用，勿改）
+│   ├── partials/             shell / header / footer（共用，勿改）＋ 可插入的內容片段，見 §3.1
 │   ├── assets/css/tcrfc.css  全站樣式（勿改；要加樣式時見 §6）
 │   ├── assets/js/site.js     全站 JS
 │   ├── assets/img/           圖片
@@ -108,6 +108,21 @@ site/
 `nav` 欄位可用值（決定導覽列高亮）：
 `home` `about` `club` `academy` `programs` `womens` `schedule` `news` `culture` `partners` `charity`
 
+### 3.1 共用內容片段
+
+同一段內容要出現在多個頁面、且必須同步維護時（例如會籍權益對照表），
+放進 `src/partials/<名稱>.html`，頁面用 `{{>名稱}}` 插入：
+
+```html
+{{>membership-benefits}}
+```
+
+`shell` / `header` / `footer` 是保留名稱，不會被當成片段。
+片段內的 `{{ROOT}}` 照常代換，但片段裡不能再 include 其他片段（只展開一層）。
+
+**不要為了「這段看起來很像」就抽片段**——只有規格明文要求同步的內容才值得抽，
+否則各頁自己寫，維護反而單純。
+
 ---
 
 ## 4. 有哪些真實資料可以用
@@ -163,6 +178,9 @@ site/
 先看 `tcrfc.css` 有沒有現成的。真的需要新元件，**加在你自己頁面的
 `<style>` 區塊裡並註明用途**，不要改共用 CSS（會撞其他 agent）。
 若某元件三頁以上都要用，在回報裡說明，我統一收進共用 CSS。
+
+**內容片段自帶樣式**：`{{>片段名}}` 插入的片段若有專屬樣式，寫在片段檔自己的
+`<style>` 裡（隨片段一起帶走），引用它的頁面不要再抄一份，否則同一頁會出現重複規則。
 
 ---
 
