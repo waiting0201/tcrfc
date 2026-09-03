@@ -253,20 +253,13 @@ input{ font:inherit; }
 .site-header.is-scrolled{ box-shadow:0 8px 24px rgba(14,20,40,.1); }
 .site-header .container{
   display:flex; align-items:center; gap:1.5rem;
-  min-height:112px;
-  transition:min-height var(--dur) var(--ease);
+  min-height:76px;
 }
-.site-header.is-scrolled .container{ min-height:72px; }
 
-/* 標誌一律直接引用 logo 主檔萃取的組合，站上不另外排字。
-   完整中文版需要足夠高度才看得清中文，所以 header 加高；
-   捲動後與窄螢幕改用隊徽單獨版。 */
+/* header 只放隊徽，不排任何文字（規劃書 v1.9）。
+   俱樂部名稱由 .brand-lockup 的 aria-label 提供給輔助技術。 */
 .brand-lockup{ display:flex; align-items:center; flex:0 0 auto; margin-right:.5rem; }
-.brand-lockup img{ width:auto; }
-.brand-lockup__full{ display:block; height:92px; transition:height var(--dur) var(--ease); }
-.brand-lockup__mark{ display:none; height:40px; }
-.site-header.is-scrolled .brand-lockup__full{ display:none; }
-.site-header.is-scrolled .brand-lockup__mark{ display:block; }
+.brand-lockup img{ display:block; width:auto; height:44px; }
 
 .main-nav{ flex:1 1 auto; min-width:0; }
 .main-nav ul{ display:flex; align-items:center; gap:clamp(.65rem,1.4vw,1.35rem); flex-wrap:wrap; }
@@ -294,14 +287,10 @@ input{ font:inherit; }
   .main-nav{ display:none; }
   .hamburger{ display:inline-flex; }
   .header-actions .btn--primary{ display:none; }
-  .site-header .container{ min-height:96px; }
-  .brand-lockup__full{ height:76px; }
 }
 @media (max-width:640px){
-  .site-header .container,
-  .site-header.is-scrolled .container{ min-height:64px; }
-  .brand-lockup__full{ display:none; }
-  .brand-lockup__mark{ display:block; }
+  .site-header .container{ min-height:64px; }
+  .brand-lockup img{ height:36px; }
 }
 
 /* Mobile nav drawer */
@@ -742,8 +731,7 @@ section[id]{ scroll-margin-top:90px; }
 <header class="site-header" id="site-header">
   <div class="container">
     <a class="brand-lockup" href="#top" aria-label="台中磐石足球俱樂部 首頁">
-      <img class="brand-lockup__full" src="assets/brand/tcrfc-full-pink.svg" alt="" aria-hidden="true" width="74" height="92">
-      <img class="brand-lockup__mark" src="assets/brand/tcrfc-mark-pink.svg" alt="" aria-hidden="true" width="38" height="40">
+      <img src="assets/brand/tcrfc-mark-pink.svg" alt="" aria-hidden="true" width="42" height="44">
     </a>
     <nav class="main-nav" aria-label="主要導覽">
       <ul>

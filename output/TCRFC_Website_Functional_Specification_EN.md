@@ -6,7 +6,7 @@
 > **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v1.9*. Section numbering matches the Traditional Chinese edition 1:1.
 
 > **v1.9 revision summary**
-> 1. The club mark must always be one of the three lockups extracted from `reference/TCR_logo_CMYK.ai` (mark / mark + TCRFC "English" lockup / mark + TCRFC + 台中磐石足球俱樂部 "Chinese" lockup). **Never set the club name in type alongside it, and never add "SINCE" or a founding year.**
+> 1. The club mark must always be one of the three lockups extracted from `reference/TCR_logo_CMYK.ai` (mark / mark + TCRFC "English" lockup / mark + TCRFC + 台中磐石足球俱樂部 "Chinese" lockup). **Never set the club name in type alongside it, and never add "SINCE" or a founding year.** The public-site header carries the mark alone; the footer carries the full Chinese lockup.
 > 2. The Chinese short name is always **台中磐石**, never 磐石 on its own.
 > 3. The first-team squad list is **ordered by squad number, with no position grouping or filter**.
 > 4. The homepage stat strip drops the two 2024 figures (founding year, national Division 2 title).

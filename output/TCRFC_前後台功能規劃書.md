@@ -5,7 +5,7 @@
 > **品牌主張**：LOCAL ROOTS. GLOBAL PATHWAYS. 在地扎根 · 放眼世界
 
 > **v1.9 修訂摘要**
-> 1. 標誌一律直接引用 [`reference/TCR_logo_CMYK.ai`](../reference/TCR_logo_CMYK.ai) 萃取的三種組合（隊徽／隊徽＋TCRFC 英文版／隊徽＋TCRFC＋台中磐石足球俱樂部 中文版），**不得自行排字、不得加註 SINCE 或年份**。
+> 1. 標誌一律直接引用 [`reference/TCR_logo_CMYK.ai`](../reference/TCR_logo_CMYK.ai) 萃取的三種組合（隊徽／隊徽＋TCRFC 英文版／隊徽＋TCRFC＋台中磐石足球俱樂部 中文版），**不得自行排字、不得加註 SINCE 或年份**。前台 header 只放隊徽，footer 放完整中文版。
 > 2. 中文簡稱一律寫「**台中磐石**」，不單獨使用「磐石」。
 > 3. 一線隊球員名單**依背號排序，不做位置分類與篩選**。
 > 4. 首頁數據區塊移除兩項 2024 年份數據（創立年份、全國乙級聯賽冠軍）。

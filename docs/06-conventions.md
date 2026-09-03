@@ -31,8 +31,11 @@
    - `tcrfc-stacked-*.svg` 隊徽＋`TCRFC`（**英文版**）
    - `tcrfc-full-*.svg` 隊徽＋`TCRFC`＋`台中磐石足球俱樂部`（**中文版**）
 3. **不得在標誌旁自行排字**（含「台中磐石」文字 wordmark），**不得加註 `SINCE` 或創立年份**。
-   完整中文版縮小後中文會糊掉，因此 header 需要足夠高度（桌機 112px、捲動後縮為隊徽、≤640px 直接用隊徽）。
-4. `TAICHUNG ROCKS FOOTBALL CLUB` 是標語，不是正式英文名。
+4. **前台各處用哪一種**：
+   - **header 只放隊徽**，不放任何文字（俱樂部名稱由 `.brand-lockup` 的 `aria-label` 提供給輔助技術）
+   - **footer 放完整中文版**（`tcrfc-full-white.svg`）
+   - 完整中文版縮小後中文會糊掉，任何情境用它都要留足高度（footer 目前 120px）
+5. `TAICHUNG ROCKS FOOTBALL CLUB` 是標語，不是正式英文名。
 
 **五大核心價值**（同時是全站內容標籤）
 `Players First 以球員為本`｜`Excellence 追求卓越`｜`Global Pathways 國際發展`｜`Community 社區共好`｜`Integrity 誠信專業`
