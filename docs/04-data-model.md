@@ -1,6 +1,6 @@
 # 04 — 資料模型與內容型別
 
-> 來源：規劃書 §5（行 966–1010）
+> 來源：規劃書 §5（行 1009–1054）
 
 ---
 
@@ -36,13 +36,14 @@
 | `Charity` | 受贈公益團體 | CharityProgram、ImpactRecord |
 | `Donation` | 捐款紀錄 | Member、CharityProgram |
 | `ImpactMetric` | 影響力統計項目 | CharityProgram |
-| `Member` | 會員帳號，含註冊來源、**LINE 綁定識別碼**、通知偏好 | Registration、FanEvent、StudentLink、LineEntryCode |
-| `StudentLink` | 家長 ↔ 學員綁定關係 | Member、Registration |
-| `Notification` | 通知／推播紀錄 | Member |
-| `LineEntryCode` | LINE 入會 QR Code（帶參數，用於來源追蹤） | Member |
+| `Member` | 會員帳號：層級（`registered`／`fan_club`）、會員編號、**會員卡 token**、會籍起訖、球衣尺寸與發放狀態、註冊來源、**LINE 綁定識別碼**（加密） | MembershipPlan、MembershipPayment、FanEvent |
+| `MembershipPlan` | 會籍方案：費用、球季、期間、`card_quota` 發卡數、`jersey_quota` 球衣件數、季中計價 | Member、MembershipPayment |
+| `MembershipPayment` | 會籍付款與開通紀錄：方式、金額、日期、交易備註、經辦人、開通起訖 | Member、MembershipPlan |
+| `MembershipBenefit` | 權益對照條目：分組、免費層值、付費層值、排序（3.14／8.2／升級頁共用） | MembershipPlan |
+| `PartnerStore` | **特約店家**：類別、地址、電話、營業時間、地圖、優惠內容、適用層級、合作起訖 | — |
+| `EmailLog` | 五封系統信的寄送紀錄 | Member |
 | `CalendarEvent` | **行事曆事件（彙整視圖）** | Match、Team、Venue |
 | `EventType` | 賽事／活動類型（圖示、色彩、顯示規則） | CalendarEvent |
-| `EventInterest` | 會員「我要參加」／提醒設定 | Member、CalendarEvent |
 
 ---
 
@@ -69,7 +70,9 @@
 | 女子足球 | `Page` 型別，**不建 `Team`／`Player`／`Match`**。型別預留 `women` 但不啟用 |
 | 一線隊 | `Team.code = D1`、`type = first_team`，**全站僅一筆** |
 | 學院梯隊 | `Team.type = academy`，U15／U14／U12 各一筆 |
-| 球迷會員 | **不是獨立名單**，是 `Member` 上的 `fan_club` 層級標記 |
+| 球迷會員 | **不是獨立名單**，是 `Member` 上的 `fan_club` 層級標記；**付費會員即球迷會員**，不是兩種身分 |
+| 特約店家 | `PartnerStore` 是**獨立型別**，與 B2B 的 `Partner`（Logo 牆）不共用資料：受眾、欄位、維護節奏都不同 |
+| 家庭會籍 | 只是 `MembershipPlan` 的 `card_quota`／`jersey_quota` 不同，**不需要學員綁定關係** |
 | 慈善報導 | 即時報導發布於 `Article`（7.7 社區活動），慈善單元用 `CharityProgram`／`ImpactRecord` 長期陳列，兩者互連**不重複建置** |
 | 商品 | `ProductShowcase` 只有展示欄位 + Shopify 連結，**沒有庫存、價格同步、訂單** |
 | 課程時段 | 屬 `Session`，**不進 `CalendarEvent`** |
@@ -104,4 +107,4 @@
 | FAQ 題目 | B5（匯入 + 匯出） |
 | 301 轉址對照 | H SEO（舊站遷移用） |
 
-匯出需求：報名名單 Excel、簽到表、Lead 名單 CSV、詢問 CSV、會員 CSV（需權限 + 稽核）、賽事 CSV/.ics。
+匯出需求：報名名單 Excel、簽到表、Lead 名單 CSV、詢問 CSV、會員 CSV（**需額外授權** + 稽核）、球衣出貨清單 CSV、續會名單 CSV、賽事 CSV/.ics。
