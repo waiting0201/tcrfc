@@ -11,9 +11,9 @@
 
 | 概念 | 中文 | English | 代號／識別 | 備註 |
 |---|---|---|---|---|
-| 俱樂部 | 台中磐石足球俱樂部 | Taichung Cornerstone RFC | TCRFC | 2024 創立。中文簡稱一律「**台中磐石**」，不單用「磐石」 |
+| 俱樂部 | 台中磐石足球俱樂部 | Taichung Rocks FC | TCRFC | 2024 創立。中文簡稱一律「**台中磐石**」，不單用「磐石」 |
 | 品牌主張 | 在地扎根 · 放眼世界 | LOCAL ROOTS. GLOBAL PATHWAYS. | | |
-| 品牌標語 | — | TAICHUNG ROCKS FOOTBALL CLUB | | 出自 Brand Deck 頁尾，**是標語不是正式英文名**；正式名一律用 `Taichung Cornerstone RFC` |
+| 俱樂部（全稱寫法） | — | TAICHUNG ROCKS FOOTBALL CLUB | | Brand Deck 頁尾用法；一般情境一律用 `Taichung Rocks FC` |
 | 一線隊 | 一線隊 | First Team | **`D1`** | 對外顯示用「一線隊／First Team」，`D1` 僅作代號 |
 | 學院梯隊 | U15／U14／U12 梯隊 | Academy Teams | `U15`/`U14`/`U12` | 日後可增 U18／U10 |
 | 學院 | 台中磐石足球學院 | TCRFC Academy | | |
@@ -35,7 +35,7 @@
    - **header 只放隊徽**，不放任何文字（俱樂部名稱由 `.brand-lockup` 的 `aria-label` 提供給輔助技術）
    - **footer 放完整中文版**（`tcrfc-full-white.svg`）
    - 完整中文版縮小後中文會糊掉，任何情境用它都要留足高度（footer 目前 120px）
-5. `TAICHUNG ROCKS FOOTBALL CLUB` 是標語，不是正式英文名。
+5. **英文名一律 `Taichung Rocks FC`**（全稱 `TAICHUNG ROCKS FOOTBALL CLUB`）。舊稿的 `Taichung Cornerstone RFC` 已全數汰換，看到一律視為錯誤。
 
 **五大核心價值**（同時是全站內容標籤）
 `Players First 以球員為本`｜`Excellence 追求卓越`｜`Global Pathways 國際發展`｜`Community 社區共好`｜`Integrity 誠信專業`

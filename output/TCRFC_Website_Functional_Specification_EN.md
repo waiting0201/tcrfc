@@ -11,7 +11,7 @@
 > 3. The first-team squad list is **ordered by squad number, with no position grouping or filter**.
 > 4. **The homepage stat strip is removed entirely** (the strips on the 03 Football Club landing page and 11.4 Our Impact remain).
 > 5. Section 10 forms merged from nine to seven (10.2 + 10.3, and 10.6 + 10.7); numbering closes up.
-> 6. `TAICHUNG ROCKS FOOTBALL CLUB` is a brand slogan, **not the club's formal English name**, which remains `Taichung Cornerstone RFC`.
+> 6. The club's English name is `Taichung Rocks FC` throughout (the Brand Deck footer's `TAICHUNG ROCKS FOOTBALL CLUB` is the long form of the same name). Every previous use of `Taichung Cornerstone RFC` has been replaced.
 
 ---
 

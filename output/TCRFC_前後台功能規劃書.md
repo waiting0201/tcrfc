@@ -10,7 +10,7 @@
 > 3. 一線隊球員名單**依背號排序，不做位置分類與篩選**。
 > 4. **首頁數據區塊整個移除**（03 俱樂部 landing 與 11.4 影響力數據的數據區塊保留）。
 > 5. 單元 10 表單由 9 種併為 7 種（10.2＋10.3 合併、10.6＋10.7 合併），編號依序遞補。
-> 6. `TAICHUNG ROCKS FOOTBALL CLUB` 為品牌標語，**非俱樂部英文正式名稱**；英文正式名稱維持 `Taichung Cornerstone RFC`。
+> 6. 俱樂部英文名稱一律 `Taichung Rocks FC`（Brand Deck 頁尾的 `TAICHUNG ROCKS FOOTBALL CLUB` 為其全稱寫法）。原先文件與站上使用的 `Taichung Cornerstone RFC` 全數汰換。
 
 ---
 

@@ -1,6 +1,6 @@
 # CLAUDE.md — TCRFC 官方網站專案
 
-台中磐石足球俱樂部（Taichung Cornerstone RFC，**TCRFC**）官方網站建置專案。
+台中磐石足球俱樂部（Taichung Rocks FC，**TCRFC**）官方網站建置專案。
 品牌主張：**LOCAL ROOTS. GLOBAL PATHWAYS.｜在地扎根 · 放眼世界**
 
 > **本檔是索引，不是規格書。** 規格的唯一真實來源是 [`output/TCRFC_前後台功能規劃書.md`](output/TCRFC_前後台功能規劃書.md)（v1.9，1148 行）。
@@ -64,8 +64,8 @@
   `D1` 是代號，對外顯示一律寫 `First Team / 一線隊`。女足**不建立**球隊資料。
 - **品牌色**：桃紅 `#E0218A`（PANTONE 225 C／C5 M90 Y0 K0）＋ 品牌黑 `#231916`（K100，**暖調近黑，不是深藍**）。
   唯一來源是 [`reference/TCR_logo_CMYK.ai`](reference/TCR_logo_CMYK.ai)。小字情境改用 AA 安全版 `#D61E83`。
-- **名稱寫法**：中文簡稱一律「**台中磐石**」，不單獨用「磐石」。英文正式名 `Taichung Cornerstone RFC`；
-  `TAICHUNG ROCKS FOOTBALL CLUB` 是**標語**，不是正式英文名。
+- **名稱寫法**：中文簡稱一律「**台中磐石**」，不單獨用「磐石」。英文名一律 `Taichung Rocks FC`
+  （全稱 `TAICHUNG ROCKS FOOTBALL CLUB`）。舊稿的 `Taichung Cornerstone RFC` 已汰換，看到視為錯誤。
 - **標誌**：只用 [`brand/svg/`](brand/svg/) 由 `.ai` 萃取的三種組合（隊徽／隊徽＋TCRFC 英文版／隊徽＋TCRFC＋台中磐石足球俱樂部 中文版）。
   **不得自行排字、不得加 `SINCE` 或年份。**
 - **雙語**：繁中（預設）＋英文，URL 以 `/zh/`、`/en/` 區隔，架構須預留第三語系。

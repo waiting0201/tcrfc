@@ -108,7 +108,7 @@
 }
 ```
 
-`name` 的英文版請用 `Taichung Cornerstone RFC`（見 [`../docs/06-conventions.md`](../docs/06-conventions.md) §1 術語表）。
+`name` 的英文版請用 `Taichung Rocks FC`（見 [`../docs/06-conventions.md`](../docs/06-conventions.md) §1 術語表）。
 
 ### 頁面內
 
