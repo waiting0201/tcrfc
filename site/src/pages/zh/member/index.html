@@ -1,7 +1,7 @@
 <!--meta
 {
   "title": "會員中心 Member｜台中磐石足球俱樂部",
-  "description": "台中磐石足球俱樂部會員中心：登入、註冊，以及 Email、LINE 官方帳號 QR Code、Google 帳號三種入會管道說明。",
+  "description": "台中磐石足球俱樂部會員中心：登入與加入會員。會員享特約店家折扣，付費球迷會員另可獲得球衣。",
   "nav": "",
   "unit": "14"
 }
@@ -20,16 +20,16 @@
   <div class="container">
     <p class="page-hero__eyebrow">Member Centre</p>
     <h1>會員中心<span class="en">Member</span></h1>
-    <p class="page-hero__lede">登入查看你的報名、捐款與行事曆紀錄；還不是會員？用最方便的方式加入台中磐石。</p>
+    <p class="page-hero__lede">加入台中磐石會員，到特約店家出示會員卡即享折扣；升級付費球迷會員，另可獲得球衣。</p>
   </div>
 </section>
 
 <section class="band member-band" aria-labelledby="member-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="member-title">會員登入與註冊</h2>
+    <h2 class="visually-hidden" id="member-title">會員登入與加入會員</h2>
 
     <div class="member-tabs" data-member-tabs>
-      <div class="member-tabs__list" role="tablist" aria-label="登入或註冊">
+      <div class="member-tabs__list" role="tablist" aria-label="登入或加入會員">
         <button type="button" role="tab" id="tab-login" aria-controls="panel-login" aria-selected="true" class="member-tabs__tab">會員登入</button>
         <button type="button" role="tab" id="tab-register" aria-controls="panel-register" aria-selected="false" class="member-tabs__tab" tabindex="-1">加入會員</button>
       </div>
@@ -53,31 +53,36 @@
             <button class="btn btn--primary btn--block" type="submit">登入</button>
             <p class="member-alt-login">
               <button type="button" class="btn btn--dark btn--block" disabled aria-disabled="true">以 LINE 登入（開發中）</button>
-              <button type="button" class="btn btn--dark btn--block" disabled aria-disabled="true" style="margin-top:.75rem;">以 Google 登入（開發中）</button>
             </p>
+            <p class="member-forgot"><a href="#">忘記密碼？</a></p>
           </form>
         </div>
       </div>
 
       <div class="member-tabs__panel" id="panel-register" role="tabpanel" aria-labelledby="tab-register" tabindex="0" hidden>
 
-        <p class="section-lede" style="margin-bottom:2rem;">三種入會管道，建立同一套會員資料（以 Email 或手機比對合併，避免重複名單）。</p>
+        <!-- 權益先於表單：規劃書 3.14 要求加入頁必須讓人先看到「能得到什麼」，且未登入即可檢視 -->
+        {{>membership-benefits}}
 
-        <div class="channel-grid">
+        <div class="perks-teaser">
+          <h3 class="perks-teaser__title">特約店家</h3>
+          <p class="pending-cell">合作店家名單待補 —— 客戶尚未提供，屬上線前必須談定的項目（見規劃書 8.4 上線前提）。</p>
+          <a class="btn btn--dark btn--sm" href="{{ROOT}}/zh/perks/">前往特約店家清單</a>
+        </div>
+
+        <h2 class="section-title" style="margin-top:4rem;">兩種入會管道</h2>
+        <p class="section-lede">兩種管道建立的是同一套會員資料，以 Email 或手機比對後合併，不會產生重複帳號。</p>
+
+        <div class="channel-grid channel-grid--2">
           <div class="channel-card clip-card clip-card--outlined">
             <p class="channel-card__num">A</p>
             <h3>Email 註冊</h3>
-            <p>直接於官網填寫註冊表單，建立帳號密碼登入的一般會員。</p>
+            <p>於下方表單填寫並設定密碼，收到驗證信後啟用帳號。</p>
           </div>
           <div class="channel-card clip-card clip-card--outlined">
             <p class="channel-card__num">B</p>
-            <h3>LINE 官方帳號 <span class="en">QR Code</span></h3>
-            <p>掃碼加好友 → 收到自動歡迎訊息 → 點連結於 LINE 內開啟入會表單 → 建立會員並綁定 LINE → 之後可透過圖文選單查詢會員資訊。適合現場招生、賽事、營隊與校園推廣場景，表單欄位刻意精簡（姓名、手機、Email、身分別），降低現場掃碼放棄率。</p>
-          </div>
-          <div class="channel-card clip-card clip-card--outlined">
-            <p class="channel-card__num">C</p>
-            <h3>Google 帳號</h3>
-            <p>以既有 Google 帳號一鍵註冊 / 登入。</p>
+            <h3>LINE 一鍵註冊</h3>
+            <p>以既有 LINE 帳號授權建立會員並完成綁定，免記密碼。之後可用 LINE 一鍵登入。</p>
           </div>
         </div>
 
@@ -99,16 +104,6 @@
                   <input type="email" id="m-reg-email" name="email" required autocomplete="email">
                 </div>
                 <div class="form-field">
-                  <label for="m-reg-role">身分別<span class="req" aria-hidden="true">*</span></label>
-                  <select id="m-reg-role" name="role" required>
-                    <option value="">請選擇</option>
-                    <option value="fan">一般球迷</option>
-                    <option value="parent">學員家長</option>
-                    <option value="player">球員 / 學員本人</option>
-                    <option value="other">其他</option>
-                  </select>
-                </div>
-                <div class="form-field">
                   <label for="m-reg-password">設定密碼<span class="req" aria-hidden="true">*</span></label>
                   <input type="password" id="m-reg-password" name="password" required autocomplete="new-password">
                 </div>
@@ -117,7 +112,7 @@
             <div class="consent-block">
               <div class="checkbox-field">
                 <input type="checkbox" id="m-reg-consent" name="consent" required>
-                <label for="m-reg-consent">我已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>與會員條款，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。<span class="req" aria-hidden="true">*</span></label>
+                <label for="m-reg-consent">我已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>與會員條款，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
               </div>
             </div>
             <button class="btn btn--primary btn--block" type="submit">建立會員</button>
@@ -126,64 +121,38 @@
       </div>
     </div>
 
-    <h2 class="section-title" style="margin-top:4rem;">會員三種層級</h2>
-    <div class="grid grid--3" style="margin-top:1.5rem;">
-      <div class="tier-card">
-        <p class="tier-card__title">一般會員<span class="en">Registered</span></p>
-        <p class="tier-card__desc">完成註冊即可使用會員中心基本功能。</p>
-      </div>
-      <div class="tier-card">
-        <p class="tier-card__title">球迷會員<span class="en">Fan Club</span></p>
-        <p class="tier-card__desc">加入 <a href="{{ROOT}}/zh/culture/fan-club/">8.2 台中磐石球迷會</a> 後升級，享會員卡與專屬活動。</p>
-      </div>
-      <div class="tier-card">
-        <p class="tier-card__title">學員家長<span class="en">Parent</span></p>
-        <p class="tier-card__desc">可綁定多名學員，查看報名與課程相關資訊。</p>
-      </div>
-    </div>
-
     <h2 class="section-title" style="margin-top:4rem;">登入後可以做什麼</h2>
     <div class="member-features">
       <div class="feature-card">
-        <p class="feature-card__title">我的報名</p>
-        <p class="feature-card__desc">課程、營隊、試訓與活動的報名紀錄與狀態，並可下載報名確認單。</p>
+        <p class="feature-card__title">電子會員卡</p>
+        <p class="feature-card__desc">會員編號、QR Code、層級與有效期限。到特約店家出示即可，店家目視查驗，不需掃碼核銷。</p>
       </div>
       <div class="feature-card">
-        <p class="feature-card__title">我的捐款</p>
-        <p class="feature-card__desc">歷次捐款紀錄與感謝訊息。</p>
+        <p class="feature-card__title">特約店家</p>
+        <p class="feature-card__desc">依類別與地區瀏覽合作店家，每家標示優惠內容與適用層級。</p>
       </div>
       <div class="feature-card">
-        <p class="feature-card__title">我的學員</p>
-        <p class="feature-card__desc">一位家長可綁定多名學員，報名時一鍵帶入資料。</p>
+        <p class="feature-card__title">會籍與續會</p>
+        <p class="feature-card__desc">升級付費會籍、查看有效期限，球季末辦理續會。</p>
       </div>
       <div class="feature-card">
-        <p class="feature-card__title">球迷會專區</p>
-        <p class="feature-card__desc">會員卡（含會員編號與 QR Code）、福利清單與專屬活動報名。</p>
-      </div>
-      <div class="feature-card">
-        <p class="feature-card__title">我的行事曆</p>
-        <p class="feature-card__desc">已報名課程與標記參加的賽事集中檢視，可下載 .ics 或訂閱。</p>
-      </div>
-      <div class="feature-card">
-        <p class="feature-card__title">通知中心</p>
-        <p class="feature-card__desc">報名狀態變更、活動提醒與俱樂部公告。</p>
-      </div>
-      <div class="feature-card">
-        <p class="feature-card__title">訂閱管理</p>
-        <p class="feature-card__desc">各類通知可分別設定要走 Email、LINE 或站內。</p>
-      </div>
-      <div class="feature-card">
-        <p class="feature-card__title">帳號管理</p>
-        <p class="feature-card__desc">修改密碼、第三方帳號綁定（LINE／Google）、刪除帳號。</p>
+        <p class="feature-card__title">球衣登記</p>
+        <p class="feature-card__desc">付費會籍開通後填寫尺寸與領取方式（寄送或到場領取），並查看發放狀態。</p>
       </div>
     </div>
-    
+
+    <div class="pending-note" style="margin-top:2rem;">
+      LINE 一鍵登入、會員卡 QR 與會籍付款流程屬後端開發項目，本頁僅完成前端版型與流程說明骨架。
+      會費採 LINE Pay 收款連結與現場收款，官網不接金流（見規劃書 3.14）。
+    </div>
+
   </div>
 </section>
 
 <style>
-/* ── MEMBER 專屬元件：member-tabs（沿用 4.2 .team-tabs 的頁籤模式）、tier-card ──
-   .channel-card／.tcrfc-form 系列與 11 CHARITY 頁共用，見 charity/index.html。 */
+/* ── MEMBER 專屬元件：member-tabs（沿用 4.2 .team-tabs 的頁籤模式）、feature-card ──
+   .channel-card／.tcrfc-form 系列與 11 CHARITY 頁共用，見 charity/index.html。
+   權益對照表的樣式隨 partials/membership-benefits.html 一起帶入，此處不重複。 */
 .member-band{ padding-block:clamp(3.5rem,6vw,6rem); }
 
 .member-tabs__list{ display:flex; gap:.5rem; border-bottom:2px solid var(--rule); margin-bottom:2.25rem; }
@@ -197,15 +166,17 @@
 .member-tabs__panel[hidden]{ display:none; }
 
 .member-alt-login{ margin-top:1.25rem; }
+.member-forgot{ margin-top:1rem; text-align:center; font-size:.85rem; }
+.member-forgot a{ color:var(--brand-aa); text-decoration:underline; }
 
-.tier-card{ background:var(--paper-2); border:1px solid var(--rule); padding:1.5rem; }
-.tier-card__title{ font-weight:800; color:var(--heading); margin-bottom:.5rem; }
-.tier-card__desc{ font-size:.85rem; color:var(--text); line-height:1.6; }
-.tier-card__desc a{ color:var(--brand-aa); text-decoration:underline; }
+/* 加入頁的特約店家預告：緊接在權益表之後，把「折扣」這個誘因落到具體店家上 */
+.perks-teaser{
+  margin-top:2rem; padding:1.5rem; background:var(--paper-2); border:1px solid var(--rule);
+}
+.perks-teaser__title{ font-weight:800; color:var(--heading); margin-bottom:.5rem; }
+.perks-teaser .btn{ margin-top:1rem; }
 
-/* 功能卡：與上方 .tier-card 同一家族，但改白底＋頂部品牌色細線，
-   讓「層級」與「功能」兩區有層次差異而不各自為政。
-   原本是 640px 寬的雙欄項目符號清單，在 1168px 容器裡只佔左半、右側開天窗。 */
+/* 功能卡：白底＋頂部品牌色細線 */
 .member-features{
   display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
   gap:1.25rem; margin-top:1.5rem;
@@ -219,7 +190,8 @@
 
 /* channel-card／form 元件（同 charity/index.html） */
 .channel-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; margin-bottom:1rem; }
-@media (max-width:900px){ .channel-grid{ grid-template-columns:1fr; } }
+.channel-grid--2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (max-width:900px){ .channel-grid, .channel-grid--2{ grid-template-columns:1fr; } }
 .channel-card{ --clip-fill:var(--paper); padding:1.75rem 1.5rem; }
 .channel-card__num{ font-size:.72rem; font-weight:800; color:var(--muted); letter-spacing:.08em; margin-bottom:.5rem; }
 .channel-card h3{ font-size:1.05rem; font-weight:800; color:var(--heading); margin-bottom:.6rem; }
