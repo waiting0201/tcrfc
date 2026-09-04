@@ -1,9 +1,17 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v2.4
-> **Date**: 2026-08-14 (v2.4 revision: 2026-09-04)
+> **Document version**: v2.5
+> **Date**: 2026-08-14 (v2.5 revision: 2026-09-04)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.3*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.5*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v2.5 revision summary — a Mobile App specification is added; four assumptions are scoped accordingly**
+> 1. **A third specification is added**, [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) (v1.0): the official iOS/Android app, **sharing this site's admin and database**, adding an `M. Mobile App` admin module and extending the `E` commercial module with E5–E7 (advertising). The three specifications divide as follows — this site is the content and SEO body, the Charity Donation Platform is the Association's separate collection site, and the Mobile App is the pocket interface for membership and fixtures.
+> 2. **"No separate fixed slots" is scoped to this site's public web front end**: the Mobile App sells **its own advertising slots** (slots, flights, rotation weights, impression and click measurement, advertiser reporting). This is app scope and **does not change this site's homepage composition**. One exception stands unchanged: **there is no fixed charity slot on the homepage, and the app does not carry one either** — the Charity Donation Platform is run and collected for by the Association, so this club's app must not sell or grant charity-related placements.
+> 3. **"No payment gateway" is scoped a second time**: section 3.14 previously stated that LINE Pay API checkout was out of scope and that adopting it "would require amending the assumption in section 10". **This revision performs exactly that amendment** — **in-app membership payment via LINE Pay is now confirmed** (membership fees only; not course fees, merchandise, or donations), with **this club** as the collecting entity, using **the club's own LINE Pay merchant account, never the Association's**. This site's public web front end keeps payment links and in-person collection, and **"no card data" remains globally applicable**. `POST /api/membership/activate` is promoted from "reserved, not enabled" to "triggered by the app's successful-payment callback" — delivering exactly what its original design promised.
+> 4. **"No push notifications or notification centre" is scoped to LINE push and on-site web messaging**: the Mobile App provides **native push (APNs/FCM) and an in-app notification centre**. This site's public web front end still has no notification centre, no notification preferences, and no LINE push. **The five system emails are unchanged.** **The prize-draw commitments are untouched**: winners are still announced through masked News posts only, and **app push must never be used for individual winner notifications**.
+> 5. **"No booking attribution or form pre-filling" is partially lifted, for the app only**: the Mobile App provides **form pre-filling** and **"my bookings"** (the member's own data only). `Registration` gains a nullable `member_id`, and the admin P3 booking list gains a "member" column. This site's public web front end still does neither, and **parent–student linking remains excluded across the website, the app, and the admin**. This is the only substantive functional change in v2.5; the other three are scope qualifications.
+> 6. **Data-model completion and extensions**: `Sponsor` / `SponsorPackage` / `Partner` are promoted from one-line descriptions to field tables (tidying only, no new functionality); `PartnerStore` and `Venue` gain geographic coordinates (for the app's nearby-store and venue navigation); `Match` gains `opponent_en` / `venue_en`, and `competition` / `status` are promoted to formal fields. App-specific types are defined in the Mobile App specification, section 10.
 
 > **v2.4 revision summary — the Charity Donation Platform is run by the Association, not this club**
 > 1. From v1.4 of its own specification, the Charity Donation Platform is **organised, fundraised and collected for by 台灣足球策略發展協會** (the Association), not by Taichung Rock FC. This site is only a **traffic source** and the **admin host**.
@@ -38,7 +46,7 @@
 > 4. **The benefits comparison table is now a stated requirement**: structured data, maintained in the admin, visible without signing in, and **never delivered as images**; one dataset shared by the join page, 8.2, and the upgrade page.
 > 5. **Membership runs by season**, with everyone expiring together; individual and family plans are supported via `card_quota` / `jersey_quota`.
 > 6. **Fees are collected via LINE Pay payment links and in person**; the website takes no payments, and the admin activates membership after reconciliation. An automation hook is reserved.
-> 7. **Moved out of scope**: loyalty points, e-wallet, ticketing and match packages, **store scan-to-redeem and redemption reporting**, Shopify SSO, booking attribution and form pre-filling, parent–student linking, on-site notification centre, LINE push and parameterised QR source tracking, Google sign-in, member calendar and "I'm attending".
+> 7. **Moved out of scope**: loyalty points, e-wallet, ticketing and match packages, **store scan-to-redeem and redemption reporting**, Shopify SSO, booking attribution and form pre-filling (**from v2.5 provided in the Mobile App; this site still does neither**), parent–student linking (**still excluded everywhere**), on-site notification centre, LINE push and parameterised QR source tracking, Google sign-in, member calendar and "I'm attending".
 > 8. Admin module K goes from K1–K5 to **K1 Member list / K2 Membership and plans / K3 Jersey fulfilment / K4 Partner stores and benefits**. The data model gains `MembershipPlan`, `MembershipPayment`, `MembershipBenefit`, `PartnerStore`, and `EmailLog`, and drops `StudentLink`, `LineEntryCode`, `Notification`, and `EventInterest`.
 
 > **v1.9 revision summary**
@@ -88,8 +96,11 @@
 - **Public site**: 13 top-level sections, ~60+ sub-pages, 7 CTA conversion forms, a **Member Centre and partner store directory**, and **two languages (Traditional Chinese / English)**.
 - **Admin CMS**: content management, teams & fixtures, registrations & rosters, **member management**, FAQ management, charity impact records, enquiry inbox, merchandise & partners, SEO & site settings, permissions & audit.
 - **Out of scope for this engagement**:
-  - **E-commerce and payments** — all shopping is routed to **Shopify**. This site builds no cart, integrates no payment gateway, and manages no orders or inventory; it maintains a product showcase and outbound links only (see 3.8 / 4.6). **This premise applies to this site only**: charity donation payments are handled by the separate Charity Donation Platform, see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md).
+  - **E-commerce and payments** — all shopping is routed to **Shopify**. This site builds no cart, integrates no payment gateway, and manages no orders or inventory; it maintains a product showcase and outbound links only (see 3.8 / 4.6). **This premise applies to this site's public web front end only**: charity donation payments are handled by the separate Charity Donation Platform (collected for by the Association), see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md); **in-app membership payment uses LINE Pay** (collected by this club, membership fees only), see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 5.
   - **Technology selection** — this document defines functional requirements only; it does not decide framework, CMS, or hosting.
+  - **Fixed advertising slots** — **this site's public web front end** has no separate fixed slots; seasonal content is surfaced through the hero carousel or latest news (see 3.1 / 4.2 B4). **The Mobile App's own advertising slots are app scope**, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 7.
+  - **Native push and notification centre** — this site builds no notification centre, no notification preferences, and no LINE push; **the Mobile App's native push and in-app notification centre are app scope**, see the app specification, section 6.
+  - **Booking attribution and form pre-filling** — not built on this site's public web front end; **the Mobile App provides form pre-filling and "my bookings"** (the member's own data only), see the app specification, section 3.9. **Parent–student linking is excluded everywhere.**
   - **Ticketing and match packages**, **loyalty points**, **e-wallet**, and **partner-store scan-to-redeem with redemption reporting** (recommended for later evaluation). The paying-member prize draw (3.14 / admin K5) is **none of these**: eligibility is a boolean derived from membership, the draw serial number is not a ticket, and prizes exclude tickets — see 3.14.
   - **On-site donations and volunteer signup** — fan donations move to the Charity Donation Platform (separate domain, see above); **volunteer signup is not built**, and any such need is handled by the general contact form (10.7).
 
@@ -165,7 +176,7 @@ The following assets must be inventoried before launch to determine migration sc
 | G-08 | Accessibility | WCAG 2.1 AA, keyboard operation, image alt text, contrast checks |
 | G-09 | Newsletter signup | Persistent in the footer, integrated with an EDM platform |
 | G-10 | 404 / maintenance pages | Branded error pages with links to popular destinations |
-| G-11 | Member status bar | Header shows sign-in / register or a member menu (card / membership / sign out); supports one-tap LINE sign-in. No form pre-filling |
+| G-11 | Member status bar | Header shows sign-in / register or a member menu (card / membership / sign out); supports one-tap LINE sign-in. No form pre-filling on this site (**the Mobile App provides it**, see the app specification, section 3.9) |
 | G-12 | FAQ quick block | Attachable to the bottom of any page, automatically pulling the FAQs for the relevant topic (see 3.12) |
 
 ---
@@ -186,7 +197,7 @@ The following assets must be inventoried before launch to determine migration sc
 | Official store entry | Links to the Shopify store (new tab) | Settings |
 | Bottom CTA strip | Join the Club / Join the Academy / Become a Partner | CTA component |
 
-> The homepage follows a single line of argument: brand position → match activity → latest news → conversion. Seasonal content (a new manga chapter, a major charity event, an enrolment window) is surfaced through the hero carousel or the latest-news block rather than through dedicated fixed slots.
+> The homepage follows a single line of argument: brand position → match activity → latest news → conversion. Seasonal content (a new manga chapter, a major charity event, an enrolment window) is surfaced through the hero carousel or the latest-news block rather than through dedicated fixed slots — **this applies to this site's public web front end**. The Mobile App's own advertising slots are app scope, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 7, and do not affect this homepage.
 
 ---
 
@@ -590,7 +601,7 @@ The calendar is organised primarily **by team**:
 
 ### 3.14 MEMBER CENTRE
 
-**Positioning**: the member system carries **one thing — membership**. Anyone who joins gets discounts at partner stores; paying members additionally receive a jersey. The member system does not handle registration attribution, student records, or newsletter campaigns.
+**Positioning**: the member system carries **one thing — membership**. Anyone who joins gets discounts at partner stores; paying members additionally receive a jersey. The member system does not handle student records or newsletter campaigns; **this site's public web front end** does not handle booking attribution (the Mobile App provides "my bookings", see the app specification, section 3.9).
 
 > **Explicitly out of scope**: loyalty points, e-wallet, ticketing and match packages, partner-store scan-to-redeem and redemption reporting, and single sign-on with Shopify.
 
@@ -615,11 +626,12 @@ The calendar is organised primarily **by team**:
 | Item | Approach |
 |---|---|
 | Payment method | **LINE Pay** (payment link / official account invoice), plus in-person payment (matchdays, recruitment events) |
-| Role of the website | Presents plans and payment instructions and accepts upgrade requests; **no cart, no payment gateway, no card data** (per the confirmed assumption in 1.3) |
+| Role of the website | Presents plans and payment instructions and accepts upgrade requests; **this site's public web front end builds no cart and integrates no payment gateway** (per the confirmed assumption in 1.3). **"No card data" remains globally applicable** — the Mobile App stores no card data either |
+| Mobile App | **Membership payment is completed in-app via LINE Pay** (membership fees only); a successful-payment callback activates the membership automatically, see the app specification, section 5. The collecting entity is **this club**, using **the club's own merchant account — never the Association's** |
 | Activation | Customer service activates the membership in the admin after reconciling payment, recording payment method, amount, date, transaction note, and handler; the system writes a payment record for reconciliation and audit |
-| Automation hook | An internal endpoint `POST /api/membership/activate` (credential-protected) is reserved so that automated collection can be added later without changing the member module |
+| Automation hook | An internal endpoint `POST /api/membership/activate` (credential-protected, and required to be idempotent). **From v2.5 it is triggered by the Mobile App's successful-payment callback**, with manual activation by support staff retained; the original promise — "only the trigger changes, the member module does not" — is delivered here. Calling conventions are in the app specification, section 9.7 |
 
-> LINE Pay API checkout, refunds, and reconciliation are **out of scope for this phase**; adopting them would require amending the "no on-site payment processing" assumption in section 10.
+> LINE Pay API **web checkout**, refunds, and reconciliation remain **out of scope for this site**. The original text required that adopting them "would require amending the assumption in section 10" — **v2.5 performs exactly that amendment**: in-app membership payment via LINE Pay is confirmed, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 5. This site's public web front end keeps payment links and in-person collection.
 
 #### Digital membership card and how discounts are used
 
@@ -631,7 +643,7 @@ The calendar is organised primarily **by team**:
 #### Benefits comparison table (the core of signup conversion)
 
 - A **line-by-line comparison** of free versus paid benefits, maintained as structured content in the admin (K4).
-- **One dataset, three placements**: ① the join page, ② Fan Benefits on the fan club page (8.2), ③ the upgrade page in the Member Centre. All three share one component and one dataset.
+- **One dataset, three placements (from v2.5, three plus the Mobile App)**: ① the join page, ② Fan Benefits on the fan club page (8.2), ③ the upgrade page in the Member Centre, plus ④ the app's upgrade screen. All share one component and one dataset; **the app must not hard-code any benefit text**.
 - **Visible without signing in.** Benefits and the partner store list are the incentive to join; requiring registration to see them defeats the purpose.
 - **Must not be delivered as images.** Benefits require zh/en fields, must be indexable by search engines, and must be readable by screen readers.
 
@@ -643,6 +655,7 @@ The calendar is organised primarily **by team**:
 - **Prizes**: physical items supplied by the club, shipped or collected in person, fulfilled the same way as jerseys (admin K3). No tickets, no partner-store redemption, no cash or cash equivalent.
 - **Admin workflow**: see 4.11 K5 Prize draw rosters.
 - **Not built on the public site**: a draw page or entry button, "my draws / my serial number" in the Member Centre, any lookup of a serial number or win status, an on-site winners list page, an online draw animation or wheel, a live counter of eligible members, and any share-or-invite mechanism that would improve someone's chances.
+- **In the Mobile App**: only a read-only display of the member's own **eligibility boolean**, the rules and prizes, and the draw time and setting; results always link out to the News post. See [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 3.11. **Every exclusion above applies equally in the app — not one is relaxed**, and the app must not read `DrawRoster`.
 
 ##### How the draw stays inside the decisions already made
 
@@ -651,7 +664,7 @@ The calendar is organised primarily **by team**:
 | ✗ **Loyalty points** | Eligibility is a **boolean**: valid membership at the snapshot time, or not. **One person, one serial number** — spending, checking in, sharing, inviting, or taking part more often never improves the odds. No points, balance, accrual, or weighting field exists, and the roster snapshot holds no count column |
 | ✗ **Ticketing and match packages** | The draw serial number is only the snapshot's running number: **no face value, non-transferable, non-tradable, not scanned for entry, no QR code, never shown on the public site**. Prizes explicitly exclude tickets and packages |
 | ✗ **Store scan-to-redeem and redemption reports** | Collection happens at the club and is recorded by **ticking a status in the admin** (pending / shipped / collected, exactly as K3). Nothing is scanned or counted, no store report is produced, and partner stores are not involved at all; the response from the card verification page `/m/<token>` is **unchanged**, with no new fields |
-| ✗ **On-site notification centre and LINE push** | Winners are announced **through News only**. The five system emails stand, with **no sixth added**; there is no on-site messaging, no notification preferences, and no LINE push. Contacting an individual winner is done by support staff by phone or a written message, outside any system template and never recorded in `EmailLog` |
+| ✗ **On-site notification centre and LINE push** | Winners are announced **through News only**. The five system emails stand, with **no sixth added**; there is no on-site messaging, no notification preferences, and no LINE push. Contacting an individual winner is done by support staff by phone or a written message, outside any system template and never recorded in `EmailLog`. **This commitment stands in v2.5: the Mobile App's native push must never be used for individual winner notifications**, and admin M3 must block this at system level |
 | ✗ **This site takes no payments** | The draw **sells nothing, charges nothing, and has no paid entry**. What is paid for is the membership itself, still collected by LINE Pay payment link or in person and activated after reconciliation. Prizes are the club's own physical goods; the system handles no prize payments, refunds, or invoices |
 | ✗ **Booking attribution and form pre-filling** | The draw has **no form**. Eligibility is automatic and nothing is filled in, so neither applies |
 | ✗ **System-run random selection** (added by this revision) | The draw is performed by people, on site or on a live stream, where it can be witnessed. The system only freezes the roster, issues serial numbers, and exports them — it **produces no random result**, which keeps the club clear of disputes over the fairness of an electronic draw and of the burden of proving it |
@@ -688,12 +701,15 @@ The calendar is organised primarily **by team**:
 | **Jersey registration** | Enter size and collection method; view fulfilment status |
 | Renewal | Renewal prompt and payment instructions ahead of expiry |
 
-> The following are **not included** after review: form pre-filling, my bookings, my donations, my students (parent linking), my calendar (.ics), on-site notification centre, notification preference centre, the members-only content area, **"my draws" (serial-number and win lookup)**, **an on-site winners list page**, and **an online draw or random-selection tool**.
+> The following are **not included on this site's public web front end** after review: form pre-filling, my bookings, my donations, my students (parent linking), my calendar (.ics), on-site notification centre, notification preference centre, the members-only content area, **"my draws" (serial-number and win lookup)**, **an on-site winners list page**, and **an online draw or random-selection tool**.
+>
+> **The v2.5 exceptions**: the Mobile App provides **form pre-filling** and **my bookings** (see the app specification, section 3.9), plus an **in-app notification centre and preferences** (section 6.4). **My donations, my students (parent linking), my draws, the winners list page, and any online draw tool remain excluded in the app as well.**
 
 #### Email notifications (five only, all with zh/en templates)
 
 Registration verification, password reset, membership activation confirmation, 30-day expiry reminder, and expiry notice.
 **Not included**: on-site messaging, LINE push, newsletter campaigns. Marketing emails must carry an unsubscribe link.
+**The five system emails stand unchanged and are neither increased nor reduced by the Mobile App's native push (APNs/FCM)** — push is a second channel for existing notifications, not a new class of notification. See [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 6.
 
 #### Integration with existing modules
 
@@ -750,11 +766,17 @@ TCRFC Admin
 │   ├── K3 Jersey fulfilment
 │   ├── K4 Partner stores and benefits
 │   └── K5 Prize draw rosters (roster and export only; no random selection)
-└── L. Schedule
-    ├── L1 Master calendar (cross-module aggregate view)
-    ├── L2 Custom events (club events)
-    ├── L3 Categories & display settings
-    └── L4 Subscription & export (iCal / .ics)
+├── L. Schedule
+│   ├── L1 Master calendar (cross-module aggregate view)
+│   ├── L2 Custom events (club events)
+│   ├── L3 Categories & display settings
+│   └── L4 Subscription & export (iCal / .ics)
+└── M. Mobile App (added in v2.5; defined in the Mobile App specification, section 8)
+    ├── M1 App releases & version management
+    ├── M2 App composition & deep links
+    ├── M3 Push notification management
+    ├── M4 Devices & push tokens
+    └── M5 App settings, certificates & diagnostics
 ```
 
 > **Numbering note**: the programs module was originally numbered `D1–D4`, which clashed confusingly with the **team code `D1`** (First Team). It has been renumbered **`P1–P4` (Programs)**, and all references throughout this document have been updated.
@@ -794,7 +816,7 @@ TCRFC Admin
 - **For the media centre (7.8)**: assets flagged "publicly downloadable" — press releases, brand identity packs, high-resolution images
 
 #### B4 Homepage slots / Banners
-- Hero carousel management (order, image/video, headline, CTA, display period); **seasonal content (new manga chapters, charity campaigns, enrolment windows) is surfaced here** instead of via dedicated fixed slots
+- Hero carousel management (order, image/video, headline, CTA, display period); **seasonal content (new manga chapters, charity campaigns, enrolment windows) is surfaced here** instead of via dedicated fixed slots (**this applies to this site's public web front end**; the Mobile App's own advertising slots are covered by the app specification, section 7, and admin E5–E7)
 - Toggles and ordering for each homepage block, plus featured-content selection (current blocks: hero, core values, pillar cards, latest match, upcoming fixtures, latest news, sponsor logo wall, store entry, bottom CTA)
 
 #### B5 FAQ Management
@@ -812,7 +834,7 @@ TCRFC Admin
 - **Impact metrics**: custom statistics (name, unit, value, public visibility); **monetary metrics are private by default**
 - **Donation referral settings**: the Charity Donation Platform URL (**never hard-coded into a template**) and the CTA copy. Donation records, amount options, invoicing and the donor roll are all maintained in that platform's `N` module and are not duplicated here
 - **Get Involved settings**: copy and destinations for **two** CTAs (corporate partnership / fan donation); volunteer signup is out of scope
-- Display control: ordering and pinning within the charity section (**no fixed charity slot on the homepage**; for temporary exposure, use the hero carousel or publish a news article)
+- Display control: ordering and pinning within the charity section (**no fixed charity slot on the homepage**; for temporary exposure, use the hero carousel or publish a news article). **The Mobile App carries no charity slot either** — the Charity Donation Platform is run and collected for by the Association, so this club's app must not sell or grant charity-related placements
 
 ---
 
@@ -860,7 +882,7 @@ TCRFC Admin
 - The public site automatically shows "Register now / Join waitlist / Closed" based on status
 
 #### P3 Registrations
-- Registration list: filters (program, session, status, date), keyword search
+- Registration list: filters (program, session, status, date, **member or not**), keyword search, and a **"member" column** (added in v2.5; `Registration.member_id` is nullable — non-members may still register)
 - Registration detail: student details, parent contact, health declaration, notes
 - Status workflow: `Pending → Confirmed → Paid → Completed / Cancelled / Waitlisted`
   - Payment is handled **offline** (imported transfer records or on-site collection, then marked by staff); the site accepts no payments
@@ -894,6 +916,16 @@ TCRFC Admin
 - Site-wide Shopify store URL (shared by header, footer, and homepage)
 - Link health checks: periodic detection of broken links with alerts
 - **Not included**: inventory, orders, payments, shipping, returns, coupons (all handled in Shopify's own admin)
+
+#### E5–E7 Mobile App Advertising (added in v2.5)
+
+- **E5 Advertisers & slots**: maintenance of `Advertiser` (which may link to an existing `Sponsor`) and `AdSlot`
+- **E6 Advertising flights & creatives**: the `AdCampaign` state machine, creative review, flight-conflict view, emergency pause
+- **E7 Advertising performance reports**: impressions, clicks, CTR, unique devices; exports must be written to the audit log
+
+> Full fields, state machine, impression definitions, and privacy rules are defined in [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) sections 7 and 8.6–8.8.
+> **These sit in E rather than M for permission minimisation**: selling advertising should not also grant app release and push-sending rights.
+> **The sponsor logo wall (E1/E2) counts no impressions and never enters advertising reports**; if a sponsorship contract includes app placements, create an `Advertiser` in E5 linked back via `sponsor_id` and open an `AdCampaign`.
 
 ---
 
@@ -1005,7 +1037,8 @@ TCRFC Admin
 - **Partner store CRUD**: name (zh / en), photo / logo, category, address (zh / en), phone, opening hours, map link, website or social link, offer (zh / en), **applicable tier** (all members / paying members only), partnership dates, sort order, publish state
 - Maintains the category and area filters used by the public 8.4 list
 - **Benefits comparison entries**: entry name (zh / en), description (zh / en), group (card / store discounts / jersey / events), value for the free tier, value for the paid tier (tick / cross / text such as "10% off", "one"), sort order, publish state
-- The benefits data is **shared by three public placements** — the join page (3.14), the fan club page (8.2), and the upgrade page — and this is the single point of maintenance
+- The benefits data is **shared by three public placements** — the join page (3.14), the fan club page (8.2), and the upgrade page — plus the Mobile App's upgrade screen from v2.5 (four in total), and this is the single point of maintenance
+- **Geographic coordinates (added in v2.5)**: `PartnerStore` gains `lat` / `lng` plus a "locate from address" helper, **saved after human confirmation** (no run-time geocoding). Used by the app's nearby-store distance sorting, see the app specification, section 3.8
 
 #### K5 Prize draw rosters (Fan Club Prize Draw)
 
@@ -1140,22 +1173,22 @@ TCRFC Admin
 | `Team` | Team, carrying the **team code**: `D1` (= First Team) / `U15` / `U14` / `U12`; unused by the women's team for now | Player, Coach, Match, Season, CalendarEvent |
 | `Player` | Player | Team, Article, Stats, Pathway |
 | `Staff` | Coaches and staff | Team, Program |
-| `Match` | Match | Team, Season, Article (match report) |
+| `Match` | Match. **v2.5 adds** `opponent_en` / `venue_en`, and promotes `competition` / `status` to formal fields | Team, Season, Article (match report) |
 | `Standing` | League table | Season, Team |
 | `Achievement` | Honour | Team, Season |
 | `Milestone` | Milestone | — |
 | `Program` | Course / camp / specialist training | Session, Staff, Venue, Partner |
 | `Session` | Session / intake | Program, Venue, Registration |
-| `Registration` | Registration | Session, Contact |
+| `Registration` | Registration. **v2.5 adds a nullable `member_id`** — non-members may still register | Session, Contact, Member |
 | `Trial` | Trial session | Team, Venue, Registration |
-| `Partner` | Partner | Article, Program |
-| `Sponsor` | Sponsor | SponsorPackage, Article |
-| `SponsorPackage` | Sponsorship package (9 types) | Enquiry |
+| `Partner` | Partner: name (zh/en), logo (**dark and light variants**), type, country, partnership content and dates, website link, display order, whether shown in the footer / homepage | Article, Program |
+| `Sponsor` | Sponsor: name (zh/en), logo (both variants), **tier** (title / official / supporting), contract dates, sponsorship content, contact, expiry reminder, display order | SponsorPackage, Article, Advertiser |
+| `SponsorPackage` | Sponsorship package (9 types): name (zh/en), content, benefit list, target audience, price band (**may be withheld**), order, publication state | Enquiry |
 | `ProductShowcase` | Showcase item (display + Shopify link only, **not an e-commerce entity**) | Collection |
 | `ComicEpisode` / `ComicCharacter` | Manga episode / character | Player (inspiration) |
 | `FanEvent` | Fan event | Member |
 | `Enquiry` | Form submission (7 form types + deck downloads + donation enquiries) | Form, Assignee |
-| `Venue` | Venue | Program, Match, Trial |
+| `Venue` | Venue. **v2.5 adds `lat` / `lng`**, for the app's venue navigation and course locations | Program, Match, Trial |
 | `MediaAsset` | Media asset | Global |
 | `Faq` / `FaqCategory` | FAQ / topic category | Page (embed location) |
 | `CharityProgram` | Charity programme | Charity, Partner, Article, ImpactRecord |
@@ -1167,10 +1200,14 @@ TCRFC Admin
 | `MembershipPlan` | Membership plan: price, season, term, `card_quota`, `jersey_quota`, mid-season pricing rule | Member, MembershipPayment |
 | `MembershipPayment` | Membership payment and activation record: method, amount, date, transaction note, handler, activation dates | Member, MembershipPlan |
 | `MembershipBenefit` | Benefits comparison entry: group, free-tier value, paid-tier value, sort order (shared by 3.14 / 8.2 / upgrade page) | MembershipPlan |
-| `PartnerStore` | **Partner store**: category, address, phone, opening hours, map link, offer, applicable tier, partnership dates | — |
+| `PartnerStore` | **Partner store**: category, address, phone, opening hours, map link, offer, applicable tier, partnership dates. **v2.5 adds `lat` / `lng`** (saved in admin K4 after human confirmation) for the app's nearby-store distance sorting | — |
 | `MemberDraw` | **Fan Club Prize Draw**: name (zh / en), prizes and quantities (zh / en), **eligibility snapshot time `snapshot_at`**, draw time and setting (on site / live stream), collection deadline and unclaimed handling, rules and notices (zh / en), status (draft / roster locked / drawn / announced / closed / voided), `roster_version`, `total_count` eligible members, `roster_hash`, the linked announcement article, creator and locker | Member, DrawRoster, Article |
 | `DrawRoster` | **Eligible roster snapshot (one row per eligible member)**: `serial_no` draw serial number (issued consecutively in ascending member-number order at snapshot time, one per person), member number, **name snapshot**, tier snapshot, membership expiry snapshot, won or not, prize name, collection method (shipping / in person), fulfilment status (pending / shipped / collected / overdue), **withholding details (collected only above the threshold; encrypted, masked by default)**, notes. **Written by the system in one pass at the snapshot time — members cannot create rows; once locked, rows cannot be added or removed and only the win and fulfilment fields may be filled in** | MemberDraw, Member |
 | `EmailLog` | Delivery record for the five system emails | Member |
+
+> **Mobile App types** (`AdSlot` / `Advertiser` / `AdCampaign` / `AdCreative` / `AdEvent` / `AdDailyStat` / `AppDevice` / `PushTopicSubscription` / `PushMessage` / `AppRelease`) are **not in this table**; see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 10.
+>
+> **Five "commercial counterparties" must not be conflated**: `Partner` (B2B logo wall) / `Sponsor` / `PartnerStore` (member discounts, no payments, no revenue share) / `DonationStore` (charity site scan-in, **payments and revenue share**) / `Advertiser` (**app advertiser, impressions counted**). One real company may be several of these at once — **create a separate record for each, never share one**. The only exception is `Advertiser.sponsor_id`, which links back to a `Sponsor` to avoid maintaining duplicate contacts; it is **a link, not a merge**.
 | `CalendarEvent` | **Calendar event (aggregate view)**: points at a Match via `source_type` + `source_id`, or is a `custom` club event; carries **`team_codes[]` (D1 / U15 / U14 / U12)** as its first-level category | Match, Team, Venue |
 | `EventType` | Match / event type (icon, colour, display rules) | CalendarEvent |
 
@@ -1182,19 +1219,24 @@ TCRFC Admin
 
 ## 6. Roles & Permissions Matrix
 
-| Role | Content | FAQ | Charity | Teams / Matches | Programs / Registrations | Schedule | Members | Business / Sponsors | Enquiries | SEO / Settings | System |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| System administrator | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full |
-| Content editor | ✔ Edit / publish | ✔ Full | ✔ Edit | Read-only | Read-only | Custom events | — | Read-only | — | Per-page SEO | — |
-| Football / team manager | Draft | Relevant topics | — | ✔ Full | Read-only | Match events | — | — | — | — | — |
-| Academy / programs manager | Draft | Relevant topics | — | Academy squads | ✔ Full | Squad matches | Parent view | — | Program enquiries | — | — |
-| Commercial / sponsorship | Draft | Relevant topics | Read-only | Read-only | Read-only | Read-only | — | ✔ Full | Partnership / sponsorship enquiries | — | — |
-| PR / media | ✔ Edit | Read-only | ✔ Edit | Read-only | — | Custom events | — | Read-only | Media enquiries | — | — |
-| Support / administration | — | ✔ Edit | — | — | Registration handling | Read-only | ✔ View / handle | — | ✔ Full | — | — |
-| Translator ※ | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | — | Translation fields only | — | UI string table | — |
-| Viewer | Read-only | Read-only | Read-only | Read-only | Read-only | Read-only | — | Read-only | Read-only | — | — |
+| Role | Content | FAQ | Charity | Teams / Matches | Programs / Registrations | Schedule | Members | Business / Sponsors | Advertising | Mobile App | Enquiries | SEO / Settings | System |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| System administrator | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full |
+| Content editor | ✔ Edit / publish | ✔ Full | ✔ Edit | Read-only | Read-only | Custom events | — | Read-only | — | — | M2 composition | Per-page SEO | — |
+| Football / team manager | Draft | Relevant topics | — | ✔ Full | Read-only | Match events | — | — | — | — | — | — | — |
+| Academy / programs manager | Draft | Relevant topics | — | Academy squads | ✔ Full | Squad matches | — | — | Program enquiries | — | — | — | — |
+| Commercial / sponsorship | Draft | Relevant topics | Read-only | Read-only | Read-only | Read-only | — | ✔ Full | Partnership / sponsorship enquiries | **✔ Full** | — | — | — |
+| PR / media | ✔ Edit | Read-only | ✔ Edit | Read-only | — | Custom events | — | Read-only | Media enquiries | Reports (read) | M3 draft (**needs approval**) | — | — |
+| Support / administration | — | ✔ Edit | — | — | Registration handling | Read-only | ✔ View / handle | — | ✔ Full | — | M4 view (masked) | — | — |
+| Translator ※ | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | — | Translation fields only | — | Creative translation fields | Push copy translation | UI string table | — |
+| Viewer | Read-only | Read-only | Read-only | Read-only | Read-only | Read-only | — | Read-only | Read-only | Read-only (no amounts) | Read-only | — | — |
 
 **Additional rules**:
+- **App releases and forced updates (M1) are restricted to system administrators** — a wrong minimum supported version locks every user out.
+- **Push sending (M3) requires two-person approval**: PR/media may draft and preview; a system administrator must approve the send. Push is an irreversible, audience-wide action.
+- **Push tokens and device identifiers (M4) count as personal data**; only system administrators see full values, other roles see masked ones.
+- **Advertising contract amounts** are visible only to commercial/sponsorship and finance; advertising report exports must be written to the audit log (who, when, which flight, stated purpose), mirroring the member-list export rule.
+- **Member module (K) permissions are not widened by the Mobile App**: still restricted to system administrators and support/administration.
 - Content editing follows a **submit-for-review → publish** workflow; only designated roles may publish.
 - **Member personal data (email / phone / date of birth / minors' details) is restricted**: only system administrators and support/administration staff see it in full; other roles see masked values (e.g. `a***@gmail.com`).
 - **Exporting** member lists requires separate authorisation, and every export is written to the audit log (who, when, how many records, stated purpose).
@@ -1277,7 +1319,9 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 ### Phase 4 — Optimisation and expansion (ongoing)
 - FAQ performance optimisation, zero-result search feedback loop
 - Deeper analytics dashboards, A/B testing, personalised recommendations
-- Optional evaluations: Shopify Storefront API product sync, ticketing, loyalty points, **partner-store scan-to-redeem with performance reporting**, **LINE Pay API checkout**, expanding women's football into a full team area
+- Optional evaluations: Shopify Storefront API product sync, ticketing, loyalty points, **partner-store scan-to-redeem with performance reporting**, expanding women's football into a full team area
+- **Removed from optional**: `LINE Pay API checkout` was confirmed in v2.5 — **in-app membership payment uses LINE Pay** (see the app specification, section 5); this site's public web front end still does not
+- **Mobile App**: a separate project with its own phasing, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 15
 
 > Note: the phase plan excludes e-commerce and payment development (all shopping is handled by Shopify). The member system's scope was narrowed in v2.0 to "membership × partner discounts × jersey", reducing its effort relative to v1.9.
 
@@ -1289,11 +1333,14 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 
 | Item | Decision |
 |---|---|
-| Technology selection | Deferred; this document defines functional requirements only |
-| Payments and shopping | **This site** builds no on-site e-commerce; all shopping is routed to **Shopify**. The premise **applies to this site only**: charity donation payments are handled by the separate Charity Donation Platform, which integrates LINE Pay properly |
+| Technology selection | Deferred; this document defines functional requirements only (the app specification follows the same premise, expressed as "platform capability requirements") |
+| Payments and shopping | **This site's public web front end** builds no on-site e-commerce; all shopping is routed to **Shopify**. Payments now divide **three ways**: ① **this site's web front end** takes no payments (payment links and in-person collection); ② the **Charity Donation Platform** integrates LINE Pay, collected for by the **Association**; ③ the **Mobile App** integrates LINE Pay for **membership fees only**, collected by **this club**, using the club's own merchant account and **never the Association's**. **"No card data" applies globally** |
+| Advertising slots | **This site's public web front end** has no separate fixed slots; seasonal content uses the hero carousel or news. **The Mobile App sells its own advertising slots with performance measurement** (admin E5–E7): **no third-party ad networks, no advertising identifiers, no behavioural targeting, no splash ads**. **Neither the website nor the app carries charity slots** |
+| Push notifications | **This site's public web front end** has no notification centre, no notification preferences, and no LINE push. **The Mobile App provides native push (APNs/FCM) and an in-app notification centre.** **The five system emails are unchanged**; **push must never be used for individual winner notifications** |
+| Mobile App | **Yes**, with its own specification, [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) (v1.0): **shares this site's admin and database**, adding admin module `M` and `E5–E7`. Both the operating entity and the collecting entity are **this club**, entirely separate from the Association's charity platform |
 | Languages | **Traditional Chinese (default) / English**; Japanese is out of scope, with the architecture left extensible |
 | Member system | **Required**, delivered in Phase 2. Scope narrowed to **membership** alone: a free tier and a paid tier, with partner-store discounts for members and a jersey for paying members. Signup channels are **email registration + one-tap LINE sign-in** (no Google) |
-| Out of scope for the member system | ✗ Loyalty points ✗ E-wallet ✗ Ticketing and match packages ✗ Store scan-to-redeem and redemption reports ✗ Shopify SSO ✗ Booking attribution and form pre-filling ✗ Parent–student linking ✗ On-site notification centre and LINE push |
+| Out of scope for the member system | ✗ Loyalty points ✗ E-wallet ✗ Ticketing and match packages ✗ Store scan-to-redeem and redemption reports ✗ Shopify SSO ✗ **Parent–student linking (website, app, and admin alike)** ✗ Web notification centre and LINE push<br>**The two v2.5 exceptions (Mobile App only)**: ✔ Form pre-filling ✔ My bookings (`Registration.member_id`). This site's web front end still does neither |
 | Paying-member prize draw | **Built**. Eligibility follows membership **automatically, with no sign-up** (every paying member valid at the snapshot time is included); the system only **freezes the eligible roster, issues serial numbers, and exports a CSV**, while the **physical draw is performed by people, on site or on a live stream** and winners are ticked in afterwards. Winners are announced **through News only** (masked); prizes are **physical items**, shipped or collected in person, fulfilled as jerseys are. ✗ System-run random selection ✗ Public draw page or "my draws" ✗ Winner notification emails and push ✗ Paid entries ✗ Ticket or store-redemption prizes |
 | Membership term | **Season-based** (e.g. 2026/27); everyone expires together and renewals are handled at season end |
 | Membership fees | **LINE Pay** (payment link / official account invoice) and in-person payment; the website takes no payments, and the admin activates membership after reconciliation |
@@ -1315,7 +1362,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 2. **Initial partner store roster**: this site does not do ticketing or match packages, so the value of paid membership rests on **store discounts and the jersey**. The **number and quality of the launch roster directly determines whether the paid tier is viable** and must be secured before launch (see 8.4).
 3. **Annual fee and plan design**: price of the individual plan? Is there a family plan (1 adult + N children)? How many jerseys does each include?
 4. **Season dates and mid-season pricing**: membership runs by season, so the season start and end dates need confirming, along with whether mid-season joiners are charged pro rata.
-5. **LINE Pay collection method for membership fees**: a **payment link / official account invoice** for **membership fees** (no payment processing on this website, with manual reconciliation and activation — the approach assumed here), or a LINE Pay API checkout as used by the Charity Donation Platform? The latter is additional scope.
+5. **The club's own LINE Pay merchant account**: settled in v2.5 — the website keeps payment links and in-person collection, while **the Mobile App uses LINE Pay API checkout**. What remains open is **onboarding the club's own merchant account** (the charity platform uses the Association's, which **must not be shared**) and the App Store in-app-purchase determination; see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 16.2.
    Note: the Charity Donation Platform is **already committed to a proper LINE Pay API integration**; once merchant onboarding is done, whether membership fees reuse it can be assessed separately.
 6. **Member number format**: `TCR-<season>-<serial>` suggested; to be confirmed.
 7. **Jersey size chart and stock levels**: the size range offered to members (adult / youth) and the stocking strategy by size.
