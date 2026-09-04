@@ -40,3 +40,20 @@ site/dist/
 # 授權未逐項確認前不納入有遠端的版控。
 # 重建方式：bash site/tools/build-images.sh
 site/src/assets/img/
+
+# ── 客戶提供素材 ─────────────────────────────────
+# Logo 主檔 TCR_logo_CMYK.ai、品牌簡報 pptx、sitemap 圖、參考網站截圖，
+# 以及台灣足球策略發展協會的立案證書與負責人當選證明（含負責人姓名與出生日期）。
+# 屬客戶資產且含個資，不進版控——GitHub repo 是公開的。
+# 備份走 NAS 的檔案層（Remote_NAS 只是離線備份 remote，內容與 GitHub 相同）。
+# 文件裡引用它的路徑仍然有效，只是 clone 下來不會有檔案。
+reference/
+
+# ── 交付物的產生物 ───────────────────────────────
+# 真實來源是母檔：規劃書與里程碑的 .md、里程碑的 .html、output/tools/ 的腳本。
+# 以下是產生物，不進版控，隨時可重建：
+#   node output/tools/build-pdf.mjs          → 八份 PDF
+#   python3 output/tools/build-sitemap.py    → 站台地圖中英 HTML
+output/*.pdf
+output/TCRFC_慈善捐款站台地圖.html
+output/TCRFC_Charity_Donation_Sitemap_EN.html

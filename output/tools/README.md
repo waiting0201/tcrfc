@@ -2,6 +2,9 @@
 
 `output/` 的八份 PDF 都由這裡的腳本產生，**不要手動改 PDF**：改來源檔（`.md` / `.html`）再重跑。
 
+> **PDF 與站台地圖的 HTML 不納版控**（見 `.gitignore`）——它們是產生物，母檔才是真實來源。
+> 剛 clone 下來的專案沒有這些檔案，跑一次下面的指令就會全部出現。
+
 ```bash
 npm i --prefix output/tools        # 首次或換機時安裝相依（只有 marked）
 node output/tools/build-pdf.mjs    # 產出全部八份

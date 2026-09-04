@@ -33,10 +33,10 @@
 
 | 路徑 | 內容 | 性質 |
 |---|---|---|
-| [`output/`](output/) | **兩份規劃書**（主站＋慈善捐款平台）、開發里程碑、**慈善捐款站台地圖**（客戶說明用，含手機示意畫面）。中英 × md/html/pdf；PDF 由 [`output/tools/`](output/tools/README.md) 產生，勿手改 | **交付物，真實來源** |
+| [`output/`](output/) | **兩份規劃書**（主站＋慈善捐款平台）、開發里程碑、**慈善捐款站台地圖**（客戶說明用，含手機示意畫面）。中英雙版。**只有母檔（`.md`、里程碑 `.html`、`tools/`）納版控，PDF 與站台地圖 HTML 是產生物不納管**，見 [`output/tools/`](output/tools/README.md) | **交付物，真實來源** |
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
-| [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖 | 客戶提供素材 |
+| [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖、協會立案證書。**不納版控**（客戶資產且含個資，GitHub repo 是公開的），clone 下來不會有這個資料夾 | 客戶提供素材 |
 | [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) | 給客戶放既有檔案的分類結構（83 個資料夾，對應 13 單元） | 內容收件 |
 | [`content/`](content/) | 抽出的結構化資料：2026/27 企甲賽程、舊官網 128 筆 URL 盤點 | 抽取產物 |
 | `.wrangler/` | Cloudflare Pages 部署快取 | 工具產生，勿手動改 |
@@ -115,5 +115,10 @@
 4. **`D1` 的雙重身分要小心。** 後台課程模組原編號 `D1–D4` 已因撞名改為 `P1–P4`，看到舊文件寫 `D1 課程` 一律視為錯誤。
 5. **所有前台可見的內容型別都要有 `zh` / `en` 雙欄位**，英文可空但欄位必須存在。
 6. **`noindex` 不要拿掉**（[`site/src/_headers`](site/src/_headers)），正式站上線前它不該被索引。
-7. **收件夾與大型素材未納版控。** git 已初始化（branch `master`），但這些內容不在版控內，覆寫或刪除前先看過。
+7. **版控範圍要記住**（`.gitignore` 有完整註解）：
+   - **不納管**：[`TCRFC_資料收件夾/`](TCRFC_資料收件夾/)、`reference/`、`site/src/assets/img/`、`output/*.pdf`、站台地圖的 `.html`
+   - **納管**：規劃書與里程碑的母檔、`output/tools/`、[`docs/`](docs/)、[`brand/`](brand/)、[`site/src/`](site/src/) 其餘部分
+   - 產生物隨時可重建：`node output/tools/build-pdf.mjs`、`python3 output/tools/build-sitemap.py`
+   - **兩個 remote 內容相同**：`Remote_GitHub`（公開）與 `Remote_NAS`（離線備份）。git 無法針對不同 remote 忽略不同檔案，未納管的素材備份走 NAS 的檔案層
+   - 覆寫或刪除未納管的內容前先看過，git 救不回來
 8. **客戶素材涉及個資與肖像權**（未成年學員照片、會員資料）。處理收件夾內容時不要外傳、不要放進會被公開的檔案。
