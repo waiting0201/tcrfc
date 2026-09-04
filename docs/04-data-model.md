@@ -1,7 +1,8 @@
 # 04 — 資料模型與內容型別
 
-> 來源：規劃書 §5（行 1019–1064）。
+> 來源：規劃書 §5（**行 1160–1212**）。
 > **慈善捐款平台的新增型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
+> **行動 App 的新增型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`）不在本檔，見 [`11-mobile-app.md`](11-mobile-app.md)。
 
 ---
 
@@ -14,22 +15,22 @@
 | `Team` | 球隊，含隊別代號 `D1`／`U15`／`U14`／`U12`；女足暫不使用 | Player、Coach、Match、Season、CalendarEvent |
 | `Player` | 球員 | Team、Article、Stats、Pathway |
 | `Staff` | 教練與團隊成員 | Team、Program |
-| `Match` | 賽事 | Team、Season、Article（賽後報導） |
+| `Match` | 賽事。**v2.5 補** `opponent_en`／`venue_en`；`competition`／`status` 升格為正式欄位 | Team、Season、Article（賽後報導） |
 | `Standing` | 積分榜 | Season、Team |
 | `Achievement` | 榮譽 | Team、Season |
 | `Milestone` | 里程碑 | — |
 | `Program` | 課程／營隊／專項 | Session、Staff、Venue、Partner |
 | `Session` | 梯次／場次 | Program、Venue、Registration |
-| `Registration` | 報名 | Session、Contact |
+| `Registration` | 報名。**v2.5 新增 `member_id`（可為空）**——非會員仍可報名 | Session、Contact、Member |
 | `Trial` | 試訓場次 | Team、Venue、Registration |
-| `Partner` | 合作夥伴 | Article、Program |
-| `Sponsor` | 贊助商 | SponsorPackage、Article |
-| `SponsorPackage` | 贊助方案（9 種） | Enquiry |
+| `Partner` | 合作夥伴：名稱（中／英）、Logo（深底／淺底兩版）、類型、國家、合作內容與期間、官網連結、排序、是否於 Footer／首頁曝光 | Article、Program |
+| `Sponsor` | 贊助商：名稱（中／英）、Logo（兩版）、**等級**（主贊助／官方／支持）、合約期間、贊助內容、聯絡窗口、到期提醒、排序 | SponsorPackage、Article、**Advertiser** |
+| `SponsorPackage` | 贊助方案（9 種）：名稱（中／英）、內容、權益清單、適合對象、價格區間（可不公開）、排序、上下架 | Enquiry |
 | `ProductShowcase` | 商品櫥窗（**僅展示 + Shopify 連結，非電商實體**） | Collection |
 | `ComicEpisode` / `ComicCharacter` | 漫畫集數／角色 | Player（原型） |
 | `FanEvent` | 球迷活動 | Member |
 | `Enquiry` | 表單詢問（7 類表單 + 提案下載 + 捐助洽詢） | Form、Assignee |
-| `Venue` | 場地 | Program、Match、Trial |
+| `Venue` | 場地。**v2.5 新增 `lat` / `lng`**（App 場地導航與課程地點） | Program、Match、Trial |
 | `MediaAsset` | 媒體資產 | 全域 |
 | `Faq` / `FaqCategory` | 常見問題／主題分類 | Page（嵌入位置） |
 | `CharityProgram` | 慈善計畫 | Charity、Partner、Article、ImpactRecord |
@@ -41,7 +42,7 @@
 | `MembershipPlan` | 會籍方案：費用、球季、期間、`card_quota` 發卡數、`jersey_quota` 球衣件數、季中計價 | Member、MembershipPayment |
 | `MembershipPayment` | 會籍付款與開通紀錄：方式、金額、日期、交易備註、經辦人、開通起訖 | Member、MembershipPlan |
 | `MembershipBenefit` | 權益對照條目：分組、免費層值、付費層值、排序（3.14／8.2／升級頁共用） | MembershipPlan |
-| `PartnerStore` | **特約店家**：類別、地址、電話、營業時間、地圖、優惠內容、適用層級、合作起訖 | — |
+| `PartnerStore` | **特約店家**：類別、地址、電話、營業時間、地圖、優惠內容、適用層級、合作起訖。**v2.5 新增 `lat` / `lng`**（後台 K4 人工確認後儲存，供 App 附近店家距離排序） | — |
 | `MemberDraw` | **球迷會員抽獎活動**：名稱／獎品與名額（中英）、**資格基準時間 `snapshot_at`**、開獎時間與場合、領獎期限、活動辦法、狀態（草稿／名單已鎖定／已抽出／已公布／已結案／作廢）、`roster_version`、`total_count`、`roster_hash`、關聯公布新聞 | Member、DrawRoster、Article |
 | `DrawRoster` | **合格名單快照，一列一位合格會員**：`serial_no` 抽獎序號、會員編號、**姓名快照**、層級快照、會籍到期日快照、是否中獎、獎項、領獎方式、發放狀態、扣繳所需資料（僅達門檻時蒐集，加密遮罩）。**系統一次性寫入，鎖定後不可增刪** | MemberDraw、Member |
 | `EmailLog` | 五封系統信的寄送紀錄 | Member |
@@ -75,15 +76,17 @@
 | 學院梯隊 | `Team.type = academy`，U15／U14／U12 各一筆 |
 | 球迷會員 | **不是獨立名單**，是 `Member` 上的 `fan_club` 層級標記；**付費會員即球迷會員**，不是兩種身分 |
 | 特約店家 | `PartnerStore` 是**獨立型別**，與 B2B 的 `Partner`（Logo 牆）不共用資料：受眾、欄位、維護節奏都不同 |
-| **兩種「店家」** | `PartnerStore`＝會員折扣（8.4，無金流無分潤）；`DonationStore`＝慈善站掃碼引流（**有分潤、有金流**）。**不同表，同一家實體店各建一筆，不共用紀錄** |
+| **五種「商業對象」** | `Partner`（B2B Logo 牆）／`Sponsor`（贊助商）／`PartnerStore`（特約店家，會員折扣，**無金流無分潤**）／`DonationStore`（慈善站掃碼，**有金流有分潤**）／`Advertiser`（**App 廣告主，計曝光**）。**五個不同表**，同一家實體公司可能同時是數種，**各建一筆、不共用紀錄**。唯一例外：`Advertiser.sponsor_id` 可關聯回 `Sponsor`（避免重複維護聯絡窗口，**不是合併成一筆**） |
+| 廣告曝光 vs 贊助曝光 | `AdEvent` 只記錄 `AdCreative` 的曝光。**贊助商 Logo 牆不產生任何 `AdEvent`、不進廣告報表** |
+| 裝置 vs 會員 | `AppDevice` 可獨立存在（未登入亦註冊），`member_id` 為**可空的弱關聯**，登出即解除 |
 | **兩種「項目／計畫」** | `DonationProject`＝募款標的（慈善站）；`CharityProgram`＝已執行的公益計畫（主站 11.2）。前者可關聯後者，反向不成立 |
 | 捐款人與會員 | **只用 Email 軟性比對後標示**，不寫入 `Member`、不建關聯欄位、不做歸戶 |
-| 家庭會籍 | 只是 `MembershipPlan` 的 `card_quota`／`jersey_quota` 不同，**不需要學員綁定關係** |
+| 家庭會籍 | 只是 `MembershipPlan` 的 `card_quota`／`jersey_quota` 不同，**不需要學員綁定關係**。**學員家長綁定於網頁、App、後台三方皆不做** |
 | **抽獎名單** | `DrawRoster` 是**不可變快照**，不是即時 query 也不是外鍵解析：值複製當下的姓名與會籍狀態，會員日後改名、合併或刪帳號都不得改動已鎖定的名單。**不要「優化」成關聯查詢**——那會讓開獎失去稽核能力，也無法穩定配發序號 |
 | **抽獎資格** | 是 `Member` 層級的**布林判定**（基準時間 `fan_club` 且會籍有效且帳號啟用），**不存在「抽獎報名」「抽獎券」「點數」型別**。一人一號，無次數或加權欄位 |
 | 慈善報導 | 即時報導發布於 `Article`（7.7 社區活動），慈善單元用 `CharityProgram`／`ImpactRecord` 長期陳列，兩者互連**不重複建置** |
 | 商品 | `ProductShowcase` 只有展示欄位 + Shopify 連結，**沒有庫存、價格同步、訂單** |
-| 課程時段 | 屬 `Session`，**不進 `CalendarEvent`** |
+| 課程時段 | 屬 `Session`，**不進 `CalendarEvent`**。App 的「我的報名」可顯示梯次時間，但**不得寫入 `CalendarEvent`**，也不得出現在賽程分頁 |
 | 試訓 | `Trial` 型別，預設**不同步**至行事曆（後台可開啟） |
 
 ---
