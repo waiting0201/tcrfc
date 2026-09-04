@@ -55,10 +55,10 @@ CSS = """
 @page{ size:A4; margin:14mm 13mm 13mm; }
 *{ box-sizing:border-box; margin:0; padding:0; }
 :root{
-  --brand:#3F4A5A; --brand-aa:#36404E; --ink:#1F242B;
-  --text:#2B3138; --muted:#5F6873; --faint:#8B939C;
-  --line:#DCE0E5; --line-2:#EAEDF0; --wire:#E3E7EB; --wire-2:#CFD5DC;
-  --soft:#EAEEF3; --soft-line:#C6CFDA; --ok:#1F7A5C; --ok-soft:#E3F3ED;
+  --brand:#E0218A; --brand-aa:#D61E83; --ink:#231916;
+  --text:#2E2422; --muted:#6E5F5C; --faint:#9A8B88;
+  --line:#E4DBDC; --line-2:#EFE8E9; --wire:#E8E1E2; --wire-2:#D9D0D1;
+  --soft:#FBE7F2; --soft-line:#F2C3DD; --ok:#1F7A5C; --ok-soft:#E3F3ED;
   --warn:#9A5B00; --warn-soft:#FBEEDC;
   --font:%(font)s;
 }
@@ -180,8 +180,8 @@ ul.keyed .sub{ display:block; color:var(--faint); font-size:7.6pt; line-height:1
 /* ── 桌卡 ── */
 .poster{ background:#fff; border:.6px solid var(--wire-2); border-radius:2mm;
          padding:4.5mm 4mm; text-align:center; color:var(--ink); }
-.poster .pm{ width:16mm; height:8mm; border-radius:1.2mm; border:.6px dashed #CFD5DC;
-             color:#8B939C; font-weight:700; font-size:5.6pt; display:flex; align-items:center;
+.poster .pm{ width:16mm; height:8mm; border-radius:1.2mm; border:.6px dashed #D9D0D1;
+             color:#9A8B88; font-weight:700; font-size:5.6pt; display:flex; align-items:center;
              justify-content:center; margin:0 auto 2.6mm; letter-spacing:.1em; }
 .poster .pt{ font-size:9pt; font-weight:800; line-height:1.4; }
 .poster .ps{ font-size:6.6pt; color:var(--muted); margin-top:1.2mm; }
@@ -320,7 +320,7 @@ C['zh'] = dict(
       [('bt','發票規則'),('bars',['w75']),('bt','款項用途'),('bars',['w90'])]],
     colophon='台灣足球策略發展協會　·　慈善捐款平台<br>'
              '依據《慈善捐款平台功能規劃書》v1.5　·　前台 8 頁　·　中英雙語，架構預留第三語系<br>'
-             '<b>協會品牌資產尚未提供：本文件的標誌與色彩皆為佔位，不代表最終視覺。</b>',
+             '<b>協會標誌尚未提供，文件中以虛線方框佔位。</b>本文件的用色為說明文件用色，非平台最終視覺。',
     # 手機畫面文案
     p01=dict(store='好味小館　和平店', thanks='感謝好味小館與協會一起做公益',
              about='關於這個平台', pick='選擇想支持的項目',
@@ -488,8 +488,7 @@ C['en'] = dict(
     colophon='台灣足球策略發展協會　·　Charity Donation Platform<br>'
              'Based on the Charity Donation Platform Functional Specification v1.5　·　8 public pages　·　'
              'Chinese and English, with room for a third language<br>'
-             '<b>The Association’s brand assets have not been supplied: the logo and colours here are '
-             'placeholders and do not represent the final design.</b>',
+             '<b>The Association’s logo has not been supplied; a dashed box stands in for it.</b> The colours here belong to this document, not to the platform’s final design.',
     p01=dict(store='Haowei Diner — Heping', thanks='Thank you, Haowei Diner, for supporting the Association’s charity work',
              about='About this platform', pick='Choose a project to support',
              pj1='Football boots for schoolchildren', pj1s='So every child has boots that fit',
