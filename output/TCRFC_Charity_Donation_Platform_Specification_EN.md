@@ -1,7 +1,7 @@
 # TCRFC Taichung Rock FC — Charity Donation Platform Functional Specification
 
-> **Document version**: v1.1
-> **Date**: 2026-09-03 (v1.1 revision: 2026-09-04)
+> **Document version**: v1.2
+> **Date**: 2026-09-03 (v1.2 revision: 2026-09-04)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **What this document covers**
@@ -9,6 +9,12 @@
 > 2. It is **complementary to, not overlapping with**, the [Website Functional Specification](TCRFC_Website_Functional_Specification_EN.md) (v2.1 onwards). The main site no longer handles any donation payments; section 11 "Charity & Impact" retains only the **editorial** content — commitment, programmes, impact stories and impact metrics — and routes "fan donation" to this platform.
 > 3. Main specification v2.1 revises three premises accordingly: **donations no longer run through Shopify items or bank transfer**, **volunteer signup is out of scope**, and **"no payment gateway" now applies to the main site only**.
 > 4. This is a functional specification and **does not cover framework, CMS, or deployment decisions** (per the standing premise in main specification §1.3).
+
+> **v1.2 revision summary — fundraising progress removed**
+> 1. **The public site does not show fundraising progress**: the project card wall (3.1) and the project page (3.2) **drop** the progress bar, the raised-to-date and target amounts, and the donation count. Donors see what the project does and where the money goes, not a running total.
+> 2. **Removed from the admin too**: the "fundraising target" field and the "progress is public" display control in N2 are **both gone**, and `DonationProject` no longer carries a target amount.
+> 3. **The numbers are still available internally**: donation counts and totals per project come from **N6 donation reporting** (§7); they are simply not published. What was removed is the **public display**, not the ability to measure.
+> 4. Open item 14 in section 10, "whether fundraising progress is public", is **decided as not doing it** — removed from the open list and recorded in the decided-premises table.
 
 > **v1.1 revision summary — no SEO / GEO optimisation**
 > 1. **This platform does no SEO or GEO optimisation**: no keyword research or content programme, no structured data (`Schema.org` markup), no sitemap submission or indexing monitoring, no AI-search (GEO) optimisation, and **no search-ranking acceptance criteria of any kind**. Section 7 of the main specification (SEO / GEO) **does not apply to this platform**.
@@ -167,7 +173,7 @@ Whether a venue earns its share depends on whether "which venue this scan came f
 |---|---|
 | Venue identity | **Venue name (required)**, venue logo or photo (optional), a line of thanks (e.g. "Thank you for doing good with Taichung Rock at ○○○"). **With no logo, degrade to a text-only venue block — never an empty frame** |
 | Introduction | A short editable explanation of what the platform does and how donations are used |
-| **Project list** | Card wall: cover image, project name, one-line description, fundraising progress (can be hidden per project), and a "read more and donate" button |
+| **Project list** | Card wall: cover image, project name, one-line description, and a "read more and donate" button. **No fundraising progress** |
 | Trust block | Club introduction, registration details, and a link to the impact records in main site section 11 |
 | Footer | Privacy policy, donation terms, contact |
 
@@ -179,12 +185,13 @@ Whether a venue earns its share depends on whether "which venue this scan came f
 Top to bottom:
 
 1. **Cover and title**: project name and a one-line appeal
-2. **Fundraising progress** (can be hidden per project): raised vs target, number of donations, progress bar
-3. **Project description**: block editor layout supporting rich text, images, pull quotes and lists
-4. **Use of funds**: an explicit statement of where the money goes
-5. **Linked charity programme** (optional): links to the corresponding `CharityProgram` in main site 11.2, so donors can see past results
-6. **Donation form** (see 3.3) — **at the very bottom of the page, as required**
-7. **FAQ**: invoices, refunds, use of funds
+2. **Project description**: block editor layout supporting rich text, images, pull quotes and lists
+3. **Use of funds**: an explicit statement of where the money goes
+4. **Linked charity programme** (optional): links to the corresponding `CharityProgram` in main site 11.2, so donors can see past results
+5. **Donation form** (see 3.3) — **at the very bottom of the page, as required**
+6. **FAQ**: invoices, refunds, use of funds
+
+> **No fundraising progress on the public site**: no progress bar, no raised-to-date, no target, no donation count. Per-project totals live in N6 donation reporting (§7) and are not shown to donors.
 
 > When the visitor arrives with venue attribution, the page should state "you are donating via ○○○" — clearly, but without overshadowing the project itself.
 
@@ -395,11 +402,11 @@ N. Charity Donation Platform
 | Feature | Notes |
 |---|---|
 | Project fields | Name (**zh / en**), cover image, one-line description, body content (block editor), use of funds, `project_slug` |
-| Amounts | Preset amount chips, per-donation minimum and maximum, fundraising target |
+| Amounts | Preset amount chips, per-donation minimum and maximum. **No fundraising target** |
 | **Revenue share** | `project_share_pct` and the **recipient** (which may link to a `Charity` organisation) |
 | **Invoice mode** | `invoice_mode`: `b2c_invoice` or `donation_receipt` |
 | Links | May link to a main-site `CharityProgram`, shown publicly as delivered impact |
-| Display | Publish state, ordering, whether fundraising progress is public |
+| Display | Publish state, ordering |
 | Validation | On save, verify that **`store_share_pct` + `project_share_pct` ≤ 100%**, blocking the save if not |
 
 ### 6.3 N3 Donation records
@@ -534,7 +541,7 @@ Constraint: store_share_pct + project_share_pct ≤ 100%
 | Type | Description | Key relations |
 |---|---|---|
 | `DonationStore` | **Donation partner venue**: name (zh/en), logo, category, address, contact, `store_slug`, **`store_share_pct`**, partnership dates, status | Donation, Settlement |
-| `DonationProject` | **Donation project**: name (zh/en), cover, description, use of funds, `project_slug`, amount options, min/max, target, **`project_share_pct`**, recipient, **`invoice_mode`**, publish state and ordering | Charity, CharityProgram, Donation |
+| `DonationProject` | **Donation project**: name (zh/en), cover, description, use of funds, `project_slug`, amount options, min/max, **`project_share_pct`**, recipient, **`invoice_mode`**, publish state and ordering | Charity, CharityProgram, Donation |
 | `DonationPayment` | **Gateway transaction**: gateway transaction ID, request and confirm timestamps, amount, state, response summary | Donation |
 | `DonationInvoice` | **Invoice / receipt**: type, number, issue time, carrier or tax ID or receipt details, state, void and credit records | Donation |
 | `Settlement` | **Settlement run**: period, payee type (`store` / `project`), payee, count, gross donations, amount payable, state, transfer record | DonationStore, DonationProject, SettlementLine |
@@ -655,6 +662,7 @@ Donor roll, impact page, **the English version**, and the finer parts of N7 site
 | Public site | A **fully separate project**; does not share the main site's 73-page build |
 | Languages | **Traditional Chinese (default) and English**, with room for a third |
 | SEO | **No SEO / GEO optimisation** (no keyword programme, structured data, sitemap submission or GEO). Pages **remain indexable**; `hreflang` and the required `noindex` rules still apply |
+| Fundraising progress | **Not shown on the public site** (no progress bar, raised-to-date, target or donation count). Totals live in N6 donation reporting and are not published |
 | Payments | **Proper LINE Pay Online API integration**, so payment results arrive automatically. The main specification's "no payment gateway" premise is **narrowed to the main site only** |
 | Documents | **Both e-invoices and donation receipts**, chosen **per donation project** |
 | Donor identity | **No login, no registration**; name and email only. The admin **softly matches** emails against members as a label, with **no attribution** |
@@ -672,14 +680,13 @@ Donor roll, impact page, **the English version**, and the finer parts of N7 site
 4. **Invoicing provider**: affects integration effort and cost; the specification abstracts it behind one interface, so switching provider affects nothing else.
 5. **LINE Pay merchant account**: application progress, fee rate, settlement cycle.
 6. **The first wave of partner venues**: how many, which categories and areas — this drives the first print run and the print template.
-7. **The first donation projects**: names, descriptions, targets, and the amount chip values.
+7. **The first donation projects**: names, descriptions, and the amount chip values.
 8. **The actual share percentages**: venue rate, project rate, and whether every venue gets the same rate or each is negotiated.
 9. **Who absorbs payment fees**: club retention by default (§8.2) — to be confirmed.
 10. **How the public site is built**: its relationship to the main `site/` scaffold, hosting, and domain arrangements.
 11. **Donor data retention period**: to be confirmed alongside the form retention periods in main specification §3.10.
 12. **Whether receipts need a national ID**: it brings encrypted storage and retention duties; if it is not required, we recommend not collecting it.
 13. **Recurring donations**: out of scope now — should they be assessed later?
-14. **Whether fundraising progress is public**: target and raised-to-date can be set per project; the default needs confirming.
 
 ---
 
