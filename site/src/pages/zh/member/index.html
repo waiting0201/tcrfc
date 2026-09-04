@@ -139,11 +139,15 @@
         <p class="feature-card__title">球衣登記</p>
         <p class="feature-card__desc">付費會籍開通後填寫尺寸與領取方式（寄送或到場領取），並查看發放狀態。</p>
       </div>
+      <div class="feature-card">
+        <p class="feature-card__title">我的訂單</p>
+        <p class="feature-card__desc"><a href="{{ROOT}}/zh/shop/">官方商店</a>的訂單一覽：品項、金額、付款與出貨狀態、物流單號、電子發票號碼，以及退換貨申請入口。非會員請用<a href="{{ROOT}}/zh/order/lookup/">訂單查詢</a>。</p>
+      </div>
     </div>
 
     <div class="pending-note" style="margin-top:2rem;">
       LINE 一鍵登入、會員卡 QR 與會籍付款流程屬後端開發項目，本頁僅完成前端版型與流程說明骨架。
-      會費採 LINE Pay 收款連結與現場收款，官網不接金流（見規劃書 3.14）。
+      會費採 LINE Pay 收款連結與現場收款，不走商店結帳（見規劃書 3.14）；商店的商品才走站內 LINE Pay 結帳。付費會籍的權益不含商品折扣。
     </div>
 
   </div>

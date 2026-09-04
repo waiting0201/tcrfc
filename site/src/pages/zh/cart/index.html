@@ -1,0 +1,102 @@
+<!--meta
+{
+  "title": "購物車 Cart｜官方商店｜台中磐石足球俱樂部",
+  "description": "台中磐石官方商店購物車：確認商品、規格與數量後前往結帳，以 LINE Pay 付款並開立電子發票。",
+  "nav": "culture",
+  "unit": "8.3"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/shop/">官方商店</a></li>
+      <li aria-current="page">購物車</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="container">
+    <p class="page-hero__eyebrow">Cart</p>
+    <h1>購物車<span class="en">Your Cart</span></h1>
+    <p style="margin-top:1.25rem"><span class="mock-flag">流程骨架 — 品項為示意內容，數量與金額不會即時計算</span></p>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.3 — 購物車：修改數量、刪除、小計與運費試算 -->
+<section class="band" aria-labelledby="cart-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="cart-title">購物車內容</h2>
+
+    <div class="shop-layout">
+      <div>
+        <table class="cart-table">
+          <caption class="visually-hidden">購物車商品清單</caption>
+          <thead>
+            <tr>
+              <th scope="col">商品</th>
+              <th scope="col">數量</th>
+              <th scope="col" class="num">小計</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <div class="cart-item">
+                  <img src="{{ROOT}}/assets/img/merch/merch-jersey-01.jpg" alt="台中磐石主場球衣 2026 賽季" loading="lazy" width="200" height="200">
+                  <div>
+                    <p class="cart-item__name"><a href="{{ROOT}}/zh/shop/home-jersey-2026/">台中磐石主場球衣｜2026 賽季</a></p>
+                    <p class="cart-item__variant">尺寸 M ・ NT$1,200（原價 NT$1,600）</p>
+                    <button class="cart-item__remove" type="button">移除</button>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="qty">
+                  <button type="button" aria-label="減少數量">−</button>
+                  <input type="number" value="1" min="1" aria-label="主場球衣數量">
+                  <button type="button" aria-label="增加數量">＋</button>
+                </div>
+              </td>
+              <td class="num">NT$1,200</td>
+            </tr>
+            <tr>
+              <td>
+                <div class="cart-item">
+                  <img src="{{ROOT}}/assets/img/merch/merch-socks-03.jpg" alt="厚底緩震機能襪 經典紅" loading="lazy" width="200" height="200">
+                  <div>
+                    <p class="cart-item__name"><a href="{{ROOT}}/zh/shop/cushioned-socks/">厚底緩震機能襪</a></p>
+                    <p class="cart-item__variant">經典紅 ・ 尺寸 L ・ NT$120</p>
+                    <button class="cart-item__remove" type="button">移除</button>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="qty">
+                  <button type="button" aria-label="減少數量">−</button>
+                  <input type="number" value="2" min="1" aria-label="機能襪數量">
+                  <button type="button" aria-label="增加數量">＋</button>
+                </div>
+              </td>
+              <td class="num">NT$240</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p style="margin-top:1.75rem"><a class="btn btn--light btn--sm" href="{{ROOT}}/zh/shop/">← 繼續選購</a></p>
+      </div>
+
+      <aside class="shop-layout__aside">
+        <div class="summary">
+          <h2>金額摘要</h2>
+          <p class="summary__line"><span>商品小計</span><strong>NT$1,440</strong></p>
+          <p class="summary__line"><span>運費</span><span class="pending-inline">金額待確認</span></p>
+          <p class="summary__line summary__total"><span>合計</span><span>NT$1,440＋運費</span></p>
+          <a class="btn btn--primary btn--block" href="{{ROOT}}/zh/checkout/">前往結帳</a>
+          <p class="summary__note">結帳時以 LINE Pay 付款並開立電子發票。運費金額與免運門檻待確認後於此顯示。</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>

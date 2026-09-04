@@ -1,6 +1,6 @@
 # 04 — 資料模型與內容型別
 
-> 來源：規劃書 §5（**行 1160–1212**）。
+> 來源：規劃書 §5（**行 1245–1306**）。**行號依 v2.6（1489 行）重算。**
 > **慈善捐款平台的新增型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 > **行動 App 的新增型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`）不在本檔，見 [`11-mobile-app.md`](11-mobile-app.md)。
 
@@ -26,7 +26,15 @@
 | `Partner` | 合作夥伴：名稱（中／英）、Logo（深底／淺底兩版）、類型、國家、合作內容與期間、官網連結、排序、是否於 Footer／首頁曝光 | Article、Program |
 | `Sponsor` | 贊助商：名稱（中／英）、Logo（兩版）、**等級**（主贊助／官方／支持）、合約期間、贊助內容、聯絡窗口、到期提醒、排序 | SponsorPackage、Article、**Advertiser** |
 | `SponsorPackage` | 贊助方案（9 種）：名稱（中／英）、內容、權益清單、適合對象、價格區間（可不公開）、排序、上下架 | Enquiry |
-| `ProductShowcase` | 商品櫥窗（**僅展示 + Shopify 連結，非電商實體**） | Collection |
+| `Product` | **商品**（v2.6 取代已退役的 `ProductShowcase`）：雙語名稱、Collection、標籤、圖集、敘事、尺碼表、狀態、排序、SEO | ProductVariant、OrderItem |
+| `ProductVariant` | **SKU**：尺寸／顏色、貨號、售價、**促銷價（可空）**、成本（受限）、庫存量。**無會員價欄位** | Product、InventoryMovement、OrderItem |
+| `InventoryMovement` | 庫存異動：類型（進貨／銷售／退貨回補／盤點／報損／調整）、數量、原因、經辦人、時間 | ProductVariant、Order |
+| `Cart` | 購物車：會員或匿名 token、品項與數量；登入後合併 | Member、ProductVariant |
+| `Order` | **訂單**：訂單編號、`member_id`（**可為空，非會員可結帳**）、收件人姓名／電話／地址（**受限**）、金額明細（小計／運費）、**LINE Pay 交易編號與付款狀態**、出貨狀態、發票號碼、查詢 token | Member、OrderItem、Shipment、StoreInvoice |
+| `OrderItem` | 訂單品項：**SKU 快照**（名稱、規格、單價**值複製**）、數量、小計 | Order、ProductVariant |
+| `Shipment` | 出貨：物流方式、單號、出貨與送達時間、超商門市代碼、自取領取狀態 | Order |
+| `RefundRequest` | 退貨退款申請：品項、原因、狀態、退款金額與方式、發票作廢或折讓紀錄 | Order |
+| `StoreInvoice` | **電子發票**：號碼、載具／統編／捐贈碼、開立結果與重試、作廢與折讓狀態。**抬頭為俱樂部**，與協會發票不同字軌 | Order |
 | `ComicEpisode` / `ComicCharacter` | 漫畫集數／角色 | Player（原型） |
 | `FanEvent` | 球迷活動 | Member |
 | `Enquiry` | 表單詢問（7 類表單 + 提案下載 + 捐助洽詢） | Form、Assignee |
@@ -85,7 +93,8 @@
 | **抽獎名單** | `DrawRoster` 是**不可變快照**，不是即時 query 也不是外鍵解析：值複製當下的姓名與會籍狀態，會員日後改名、合併或刪帳號都不得改動已鎖定的名單。**不要「優化」成關聯查詢**——那會讓開獎失去稽核能力，也無法穩定配發序號 |
 | **抽獎資格** | 是 `Member` 層級的**布林判定**（基準時間 `fan_club` 且會籍有效且帳號啟用），**不存在「抽獎報名」「抽獎券」「點數」型別**。一人一號，無次數或加權欄位 |
 | 慈善報導 | 即時報導發布於 `Article`（7.7 社區活動），慈善單元用 `CharityProgram`／`ImpactRecord` 長期陳列，兩者互連**不重複建置** |
-| 商品 | `ProductShowcase` 只有展示欄位 + Shopify 連結，**沒有庫存、價格同步、訂單** |
+| **商品與訂單（v2.6）** | `Product` + `ProductVariant`（SKU）+ `Order` 是真的電商實體。**`OrderItem` 是值複製快照**（同 `DrawRoster` 的理由）：商品改名或改價**不得改動歷史訂單**，不要「優化」成外鍵解析 |
+| **訂單與會員** | `Order.member_id` **可為空**——非會員能結帳，與 `Registration.member_id` 同理，這兩條不得更動 |
 | 課程時段 | 屬 `Session`，**不進 `CalendarEvent`**。App 的「我的報名」可顯示梯次時間，但**不得寫入 `CalendarEvent`**，也不得出現在賽程分頁 |
 | 試訓 | `Trial` 型別，預設**不同步**至行事曆（後台可開啟） |
 
@@ -116,6 +125,7 @@
 | 整季賽程（`Match`） | C4 賽事管理 / L4 行事曆 — 共用機制 |
 | 積分榜（`Standing`） | C4 |
 | FAQ 題目 | B5（匯入 + 匯出） |
-| 301 轉址對照 | H SEO（舊站遷移用） |
+| 301 轉址對照 | H SEO（舊站遷移用，**含舊 Wix 商店的 5 個商品與分類網址**） |
+| 物流單號（`Shipment`） | S4 出貨與物流（**v2.6：不串接物流商 API，以 CSV 回填**） |
 
 匯出需求：報名名單 Excel、簽到表、Lead 名單 CSV、詢問 CSV、會員 CSV（**需額外授權** + 稽核）、球衣出貨清單 CSV、續會名單 CSV、賽事 CSV/.ics。

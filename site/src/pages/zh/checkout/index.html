@@ -1,0 +1,137 @@
+<!--meta
+{
+  "title": "結帳 Checkout｜官方商店｜台中磐石足球俱樂部",
+  "description": "台中磐石官方商店結帳：填寫收件資料、選擇配送方式與發票開立方式，確認後以 LINE Pay 完成付款。支援非會員結帳。",
+  "nav": "culture",
+  "unit": "8.3"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/shop/">官方商店</a></li>
+      <li><a href="{{ROOT}}/zh/cart/">購物車</a></li>
+      <li aria-current="page">結帳</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="container">
+    <p class="page-hero__eyebrow">Checkout</p>
+    <h1>結帳<span class="en">Checkout</span></h1>
+    <p style="margin-top:1.25rem"><span class="mock-flag">流程骨架 — 表單不會送出，也不會真的跳轉 LINE Pay</span></p>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.3 — 結帳：收件資料 → 配送方式 → 發票開立方式 → 確認 → 轉 LINE Pay。支援非會員結帳 -->
+<section class="band form-band" aria-labelledby="checkout-title">
+  <div class="container">
+    <h2 class="visually-hidden" id="checkout-title">結帳流程</h2>
+
+    <ol class="steps">
+      <li data-done>購物車</li>
+      <li aria-current="step">填寫資料</li>
+      <li>LINE Pay 付款</li>
+      <li>完成</li>
+    </ol>
+
+    <div class="shop-layout">
+      <div>
+        <form class="tcrfc-form" action="" method="post" novalidate>
+          <!-- action 留空：純靜態站，實際送出（建立訂單、呼叫 LINE Pay Request、開立電子發票）由後端接手 -->
+
+          <fieldset>
+            <legend>訂購人</legend>
+            <p class="field-hint">已是會員？<a href="{{ROOT}}/zh/member/">登入</a>後可自動帶入收件資料並於「我的訂單」查詢。<strong>未註冊也可以直接結帳</strong>，填 Email 即可。</p>
+            <div class="form-grid">
+              <div class="form-field">
+                <label for="co-name">姓名<span class="req" aria-hidden="true">*</span></label>
+                <input type="text" id="co-name" name="name" required autocomplete="name" aria-describedby="co-name-error">
+                <p class="field-error" id="co-name-error" role="alert">請填寫姓名</p>
+              </div>
+              <div class="form-field">
+                <label for="co-email">Email<span class="req" aria-hidden="true">*</span></label>
+                <input type="email" id="co-email" name="email" required autocomplete="email" aria-describedby="co-email-error">
+                <p class="field-error" id="co-email-error" role="alert">請填寫有效的 Email</p>
+                <p class="field-hint">訂單確認信與查詢連結會寄到這個信箱。</p>
+              </div>
+              <div class="form-field">
+                <label for="co-phone">手機<span class="req" aria-hidden="true">*</span></label>
+                <input type="tel" id="co-phone" name="phone" required autocomplete="tel" aria-describedby="co-phone-error">
+                <p class="field-error" id="co-phone-error" role="alert">請填寫手機號碼</p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>配送方式</legend>
+            <div class="checkbox-group">
+              <label class="checkbox-field"><input type="radio" name="shipping" value="home" checked><span>宅配到府</span></label>
+              <label class="checkbox-field"><input type="radio" name="shipping" value="cvs"><span>超商取貨（不付款）</span></label>
+              <label class="checkbox-field"><input type="radio" name="shipping" value="pickup"><span>主場賽事日或俱樂部現場自取</span></label>
+            </div>
+            <p class="field-hint"><span class="pending-inline">運費金額、免運門檻與離島配送規則待確認。</span></p>
+
+            <div class="form-grid" style="margin-top:1.25rem">
+              <div class="form-field form-field--full">
+                <label for="co-addr">收件地址<span class="req" aria-hidden="true">*</span></label>
+                <input type="text" id="co-addr" name="address" required autocomplete="shipping street-address" placeholder="例：臺中市西屯區…" aria-describedby="co-addr-error">
+                <p class="field-error" id="co-addr-error" role="alert">請填寫收件地址</p>
+                <p class="field-hint">選超商取貨時，此欄改為門市選擇；選現場自取時不需填寫。</p>
+              </div>
+              <div class="form-field form-field--full">
+                <label for="co-note">訂單備註（選填）</label>
+                <textarea id="co-note" name="note" rows="3"></textarea>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>電子發票</legend>
+            <div class="checkbox-group">
+              <label class="checkbox-field"><input type="radio" name="invoice" value="carrier" checked><span>手機條碼載具</span></label>
+              <label class="checkbox-field"><input type="radio" name="invoice" value="tax-id"><span>統一編號（公司報帳）</span></label>
+              <label class="checkbox-field"><input type="radio" name="invoice" value="donate"><span>捐贈發票</span></label>
+            </div>
+            <div class="form-grid" style="margin-top:1.25rem">
+              <div class="form-field">
+                <label for="co-carrier">手機條碼</label>
+                <input type="text" id="co-carrier" name="carrier" placeholder="/ABC1234" autocomplete="off">
+              </div>
+            </div>
+            <p class="field-hint">發票抬頭為<strong>台中磐石足球俱樂部</strong>，付款完成後以 Email 通知。退貨時同步作廢或折讓。</p>
+          </fieldset>
+
+          <fieldset>
+            <legend>條款</legend>
+            <div class="consent-block">
+              <label class="checkbox-field">
+                <input type="checkbox" name="agree" required>
+                <span>我已閱讀並同意<a href="{{ROOT}}/zh/privacy/">隱私權政策</a>與交易條款，並瞭解七日猶豫期的退換貨規定。<span class="pending-inline">交易條款與退換貨政策條文待補。</span></span>
+              </label>
+            </div>
+          </fieldset>
+
+          <div class="form-submit-note">
+            <button class="btn btn--linepay" type="submit">以 LINE Pay 付款</button>
+            <p class="field-hint" style="margin-top:.85rem">點擊後將轉往 LINE Pay 完成付款，本站不會取得也不會儲存你的信用卡資料。付款成功後自動返回本站並開立電子發票。</p>
+          </div>
+        </form>
+      </div>
+
+      <aside class="shop-layout__aside">
+        <div class="summary">
+          <h2>訂單摘要</h2>
+          <p class="summary__line"><span>主場球衣｜M ×1</span><strong>NT$1,200</strong></p>
+          <p class="summary__line"><span>機能襪｜經典紅 L ×2</span><strong>NT$240</strong></p>
+          <p class="summary__line"><span>商品小計</span><strong>NT$1,440</strong></p>
+          <p class="summary__line"><span>運費</span><span class="pending-inline">待確認</span></p>
+          <p class="summary__line summary__total"><span>應付金額</span><span>NT$1,440＋運費</span></p>
+          <p class="summary__note">收款方為台中磐石足球俱樂部。慈善捐款由台灣足球策略發展協會於獨立平台收受，與本商店分開結帳。</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>

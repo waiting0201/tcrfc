@@ -1,7 +1,7 @@
 <!--meta
 {
   "title": "官方商品 Merchandise｜台中磐石文化｜台中磐石足球俱樂部",
-  "description": "台中磐石足球俱樂部官方商品櫥窗：俱樂部、學院、球迷三大系列。網站僅作品牌展示，選購請至官方商店。",
+  "description": "台中磐石足球俱樂部官方商品：俱樂部、學院、球迷三大系列。線上商店建置中，屆時可直接於本站選購。",
   "nav": "culture",
   "unit": "8.3"
 }
@@ -21,7 +21,7 @@
   <div class="container">
     <p class="page-hero__eyebrow">8.3 Merchandise</p>
     <h1>官方商品<span class="en">Merchandise</span></h1>
-    <p class="page-hero__lede">官網僅作為品牌櫥窗，展示商品形象與系列故事；加入購物車、結帳、付款、運送與退換貨，全數由 Shopify 商店承接。</p>
+    <p class="page-hero__lede">俱樂部、學院、球迷三大系列的官方商品。要選購請前往<a href="{{ROOT}}/zh/shop/" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
   </div>
 </section>
 
@@ -61,7 +61,7 @@
             </table>
           </div>
           <p class="merch-card__fine">尺寸單位公分，因量測方式不同存在 1–3 公分誤差，屬合理範圍。</p>
-          <a class="btn btn--primary btn--block" href="#" aria-disabled="true">立即選購 </a>
+          <a class="btn btn--primary btn--block" href="{{ROOT}}/zh/shop/home-jersey-2026/">選購 NT$1,200</a>
         </div>
       </article>
 
@@ -90,7 +90,7 @@
               </tbody>
             </table>
           </div>
-          <a class="btn btn--primary btn--block" href="#" aria-disabled="true">立即選購 </a>
+          <a class="btn btn--primary btn--block" href="{{ROOT}}/zh/shop/cushioned-socks/">選購 NT$120</a>
         </div>
       </article>
     </div>
@@ -125,9 +125,10 @@
       <div>
         <p class="kicker kicker--on-dark">ONLINE STORE</p>
         <h2 class="section-title" id="store-cta-title">前往官方商店</h2>
-        <p>結帳、付款、運送與退換貨皆由 Shopify 平台代為處理，將另開新視窗前往。</p>
-        <a class="btn btn--primary" href="#" aria-disabled="true">前往 Shopify 商店 </a>
-        <p class="store-band__fine">過渡期間可先透過舊官網 <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a> 的 Wix 商店選購。</p>
+        <p>選尺寸與顏色、加入購物車，以 <strong>LINE Pay</strong> 付款並自動開立<strong>電子發票</strong>，可宅配、超商取貨或現場自取；訂單於會員中心查詢，未註冊者以訂單編號與 Email 查詢。</p>
+        <p style="margin:1.25rem 0"><a class="btn btn--primary" href="{{ROOT}}/zh/shop/">前往官方商店</a></p>
+        <p><span class="mock-flag mock-flag--on-dark">商店為前端流程骨架，尚未串接金流與後端</span></p>
+        <p class="store-band__fine">正式上線前，仍可透過舊官網 <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a> 的商店選購；站內商店上線後舊商店將停售。</p>
       </div>
     </div>
   </div>
@@ -144,7 +145,6 @@
 .merch-card__fine{ font-size:.74rem; color:var(--muted); margin-top:.5rem; }
 .merch-card__body .btn{ margin-top:1.25rem; }
 .merch-card--empty{ align-items:flex-start; gap:.85rem; padding:1.75rem; }
-.pending-inline{ font-size:.78em; font-weight:700; opacity:.85; }
 
 /* 顏色色票列 */
 .swatch-row{ display:flex; flex-wrap:wrap; gap:.75rem; list-style:none; margin:.75rem 0 0; padding:0; }

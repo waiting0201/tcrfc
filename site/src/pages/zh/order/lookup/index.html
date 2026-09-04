@@ -1,0 +1,60 @@
+<!--meta
+{
+  "title": "訂單查詢 Order Lookup｜官方商店｜台中磐石足球俱樂部",
+  "description": "以訂單編號與 Email 查詢台中磐石官方商店的訂單狀態、物流單號與電子發票；會員可直接於會員中心的「我的訂單」查看。",
+  "nav": "culture",
+  "unit": "8.3"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/shop/">官方商店</a></li>
+      <li aria-current="page">訂單查詢</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <div class="container">
+    <p class="page-hero__eyebrow">Order Lookup</p>
+    <h1>訂單查詢<span class="en">Order Lookup</span></h1>
+    <p class="page-hero__lede">沒有註冊會員也能查詢：輸入訂單編號與下單時填寫的 Email 即可。</p>
+    <p style="margin-top:1.25rem"><span class="mock-flag">流程骨架 — 查詢功能尚未串接後端</span></p>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.3 — 非會員以訂單編號 + Email 查詢；會員走會員中心「我的訂單」 -->
+<section class="band form-band" aria-labelledby="lookup-title">
+  <div class="container">
+    <div class="form-layout form-layout--narrow">
+      <form class="tcrfc-form" action="" method="post" novalidate>
+        <h2 id="lookup-title" class="section-title">查詢我的訂單</h2>
+        <div class="form-grid" style="margin-top:1.5rem">
+          <div class="form-field form-field--full">
+            <label for="ol-no">訂單編號<span class="req" aria-hidden="true">*</span></label>
+            <input type="text" id="ol-no" name="order_no" required placeholder="TCR-SHOP-000001" aria-describedby="ol-no-error">
+            <p class="field-error" id="ol-no-error" role="alert">請填寫訂單編號</p>
+          </div>
+          <div class="form-field form-field--full">
+            <label for="ol-email">下單時填寫的 Email<span class="req" aria-hidden="true">*</span></label>
+            <input type="email" id="ol-email" name="email" required autocomplete="email" aria-describedby="ol-email-error">
+            <p class="field-error" id="ol-email-error" role="alert">請填寫有效的 Email</p>
+          </div>
+        </div>
+        <div class="form-submit-note">
+          <button class="btn btn--primary" type="submit">查詢訂單</button>
+          <p class="field-hint" style="margin-top:.85rem">查得的內容包含品項、金額、付款狀態、出貨狀態與物流單號、電子發票號碼，以及退換貨申請方式。</p>
+        </div>
+      </form>
+
+      <div class="editorial-note" style="margin-top:2.5rem">
+        <h3>已經是會員？</h3>
+        <p>登入後於<a href="{{ROOT}}/zh/member/">會員中心</a>的「我的訂單」可直接看到全部訂單，不需要逐筆輸入編號。</p>
+        <h3 style="margin-top:1.5rem">要退貨或換貨？</h3>
+        <p>依消費者保護法享七日猶豫期。請以<a href="{{ROOT}}/zh/join/general/">一般聯絡表單</a>或客服信箱提出申請，我們會人工確認後處理退款與發票作廢或折讓。<span class="pending-inline">退換貨政策條文與客服信箱待補。</span></p>
+      </div>
+    </div>
+  </div>
+</section>

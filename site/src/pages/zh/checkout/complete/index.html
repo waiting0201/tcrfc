@@ -1,0 +1,52 @@
+<!--meta
+{
+  "title": "訂單完成｜官方商店｜台中磐石足球俱樂部",
+  "description": "台中磐石官方商店訂單完成頁：顯示訂單編號、付款結果與電子發票開立狀態，並提供訂單查詢入口。",
+  "nav": "culture",
+  "unit": "8.3"
+}
+-->
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="{{ROOT}}/zh/">首頁</a></li>
+      <li><a href="{{ROOT}}/zh/shop/">官方商店</a></li>
+      <li aria-current="page">訂單完成</li>
+    </ol>
+  </div>
+</nav>
+
+<!-- SPEC 3.8 §8.3 — 付款成功回呼後的完成頁（訂單編號、發票、後續查詢） -->
+<section class="band" aria-labelledby="done-title">
+  <div class="container">
+    <ol class="steps">
+      <li data-done>購物車</li>
+      <li data-done>填寫資料</li>
+      <li data-done>LINE Pay 付款</li>
+      <li aria-current="step">完成</li>
+    </ol>
+
+    <div class="order-done">
+      <p><span class="mock-flag">流程骨架 — 訂單編號與金額為示意內容</span></p>
+      <div class="order-done__check" aria-hidden="true">✓</div>
+      <h1 id="done-title">訂單已成立</h1>
+      <p style="margin-top:.85rem">付款已完成，我們已將訂單確認信寄到你填寫的 Email。電子發票開立後會另行通知。</p>
+      <p class="order-done__no" style="margin-top:1.5rem">訂單編號　TCR-SHOP-000001</p>
+
+      <ul class="order-meta">
+        <li><span>付款方式</span><span>LINE Pay</span></li>
+        <li><span>付款狀態</span><span>已付款</span></li>
+        <li><span>應付金額</span><span>NT$1,440＋運費</span></li>
+        <li><span>配送方式</span><span>宅配到府</span></li>
+        <li><span>出貨狀態</span><span>備貨中</span></li>
+        <li><span>電子發票</span><span>開立中，將以 Email 通知</span></li>
+      </ul>
+
+      <p style="margin-top:2rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
+        <a class="btn btn--primary" href="{{ROOT}}/zh/order/lookup/">查詢訂單</a>
+        <a class="btn btn--light" href="{{ROOT}}/zh/shop/">繼續選購</a>
+      </p>
+      <p class="field-hint" style="margin-top:1.5rem">會員可於<a href="{{ROOT}}/zh/member/">會員中心</a>的「我的訂單」查看；非會員請以訂單編號與 Email 查詢，或使用訂單信中的連結。</p>
+    </div>
+  </div>
+</section>

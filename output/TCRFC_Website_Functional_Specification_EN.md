@@ -1,9 +1,19 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v2.5
-> **Date**: 2026-08-14 (v2.5 revision: 2026-09-04)
+> **Document version**: v2.6
+> **Date**: 2026-08-14 (v2.6 revision: 2026-09-04)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.5*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.6*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v2.6 revision summary — e-commerce is brought in-house; "no payment gateway" is scoped a third time**
+> 1. **This site now runs its own shop, at the same functional scale as the old site's existing store**: 8.3 is rewritten from "Shopify referral showcase" into an **on-site official store** — product catalogue (with categories and size/colour filters), product detail (size/colour SKUs, list and sale price, size chart), cart, checkout, **payment by LINE Pay**, **e-invoicing**, fulfilment, order lookup, and returns, **collected for by this club**. **Deliberately nothing more elaborate than the old store** (see point 7). The "e-commerce and payments" bullet is **removed** from the out-of-scope list in 1.3 and replaced by a statement of the shop's boundaries.
+> 2. **A new `S. Shop` admin module (S1–S6)**: S1 products & SKUs / S2 inventory / S3 orders / S4 fulfilment & shipping / S5 returns & refunds / S6 shop settings & reports, defined in 4.13. **The letter `S` (Shop) is used** — `D` was retired because it collides with the team code `D1`, `N` belongs to the Charity Donation Platform, and `M` belongs to the Mobile App.
+> 3. **`E4 Product Showcase` is folded into `S1`** and the `ProductShowcase` type is retired (display fields and an outbound link cannot carry SKUs, inventory, or orders). **The `E4` identifier is retired and will not be reused**, so that products have exactly one place of maintenance.
+> 4. **"No payment gateway" is scoped a third time; the boundary now divides four ways**: ① **shop checkout on this website takes payments, and the only payment method is LINE Pay** (collected by this club); ② **membership fees still do not go through on-site checkout** (the website keeps payment links and in-person collection; the app uses LINE Pay), with a possible move to shop checkout listed as an open item in section 10; ③ the Charity Donation Platform integrates LINE Pay (collected for by the **Association**); ④ the Mobile App's membership payment (collected by **this club**). **"No card data" remains globally applicable** — payment always completes on LINE Pay's side and this site renders no card fields. **All four payment flows use LINE Pay, but the collecting entities differ, so merchant accounts and invoice tracks must never be shared.**
+> 5. **Every checkout issues an e-invoice**: **carrier, tax ID, or donation code**, made out to **this club**, on a **different invoice track from the Association's** charity invoices; voided or credit-noted on a return. **LINE Pay does not issue invoices itself**, so a separate invoicing service is required (an open item in section 10).
+> 6. **New data types**: `Product`, `ProductVariant`, `InventoryMovement`, `Cart`, `Order`, `OrderItem`, `Shipment`, `RefundRequest`, `StoreInvoice`. `Order.member_id` **may be empty** — **guest checkout is supported**, mirroring `Registration`; `OrderItem` is a **value-copied snapshot**, so renaming or repricing a product must never alter historical orders. The Member Centre gains **"My orders"**; the v2.0 premise "no SSO with Shopify" **lapses with the external store**.
+> 7. **Deliberately not built (keeping to the old store's scale rather than building a large shop in version one)**: **multiple payment methods** (no card, convenience-store code, ATM transfer, or cash on delivery — **LINE Pay only**), **member pricing and discount codes** (products carry only a list price and a sale price; paid membership keeps partner-store discounts and the jersey and **does not include merchandise discounts**), a **shipping-rate engine** (a single flat rate plus a free-shipping threshold only), subscriptions and recurring billing, cross-border sales and multi-currency, marketplace/multi-vendor, resale or consignment, points redemption and e-wallet, **ticketing and match packages**, tying merchandise to membership or draw eligibility, carrier API integration (tracking numbers entered manually or by CSV), and product reviews or ratings.
+> 8. **The old site's Wix store becomes a transitional channel**: it keeps selling until the on-site shop launches, then closes, with `/product-page/…` and `/category/…` 301-redirected to their on-site equivalents. **Shopify is no longer the referral target.**
 
 > **v2.5 revision summary — a Mobile App specification is added; four assumptions are scoped accordingly**
 > 1. **A third specification is added**, [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) (v1.0): the official iOS/Android app, **sharing this site's admin and database**, adding an `M. Mobile App` admin module and extending the `E` commercial module with E5–E7 (advertising). The three specifications divide as follows — this site is the content and SEO body, the Charity Donation Platform is the Association's separate collection site, and the Mobile App is the pocket interface for membership and fixtures.
@@ -93,10 +103,10 @@
 
 ### 1.3 System scope
 
-- **Public site**: 13 top-level sections, ~60+ sub-pages, 7 CTA conversion forms, a **Member Centre and partner store directory**, and **two languages (Traditional Chinese / English)**.
-- **Admin CMS**: content management, teams & fixtures, registrations & rosters, **member management**, FAQ management, charity impact records, enquiry inbox, merchandise & partners, SEO & site settings, permissions & audit.
+- **Public site**: 13 top-level sections, ~60+ sub-pages, 7 CTA conversion forms, a **Member Centre and partner store directory**, an **on-site official store (catalogue / cart / checkout / order lookup)**, and **two languages (Traditional Chinese / English)**.
+- **Admin CMS**: content management, teams & fixtures, registrations & rosters, **member management**, **shop and order management**, FAQ management, charity impact records, enquiry inbox, partners & sponsorship, SEO & site settings, permissions & audit.
 - **Out of scope for this engagement**:
-  - **E-commerce and payments** — all shopping is routed to **Shopify**. This site builds no cart, integrates no payment gateway, and manages no orders or inventory; it maintains a product showcase and outbound links only (see 3.8 / 4.6). **This premise applies to this site's public web front end only**: charity donation payments are handled by the separate Charity Donation Platform (collected for by the Association), see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md); **in-app membership payment uses LINE Pay** (collected by this club, membership fees only), see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 5.
+  - **Boundaries of the shop (from v2.6 e-commerce is in scope, so this is no longer an exclusion)** — this site runs its own **official store**: products, cart, checkout, **payment by LINE Pay**, **e-invoicing**, shipping, orders, and returns are all handled here, **collected for by this club** (see 3.8 and 4.13). **Kept to the same scale as the old site's store; excluded**: multiple payment methods (**LINE Pay only**), member pricing and discount codes, a shipping-rate engine, subscriptions and recurring billing, cross-border sales and multi-currency, marketplace/multi-vendor, resale or consignment, points redemption and e-wallet, and tying merchandise to membership or draw eligibility; **ticketing and match packages remain excluded**. **"No card data" applies globally** — payment completes on LINE Pay's side and this site never renders its own card fields. The other collecting entities stay separate: charity donation payments are handled by the separate Charity Donation Platform (collected for by the **Association**), see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md); **in-app membership payment uses LINE Pay** (collected by this club, membership fees only), see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 5. **Membership fees do not go through shop checkout** and keep payment links and in-person collection.
   - **Technology selection** — this document defines functional requirements only; it does not decide framework, CMS, or hosting.
   - **Fixed advertising slots** — **this site's public web front end** has no separate fixed slots; seasonal content is surfaced through the hero carousel or latest news (see 3.1 / 4.2 B4). **The Mobile App's own advertising slots are app scope**, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 7.
   - **Native push and notification centre** — this site builds no notification centre, no notification preferences, and no LINE push; **the Mobile App's native push and in-app notification centre are app scope**, see the app specification, section 6.
@@ -115,7 +125,7 @@ The following assets must be inventoried before launch to determine migration sc
 | Facebook | [TCRFC2024](https://www.facebook.com/TCRFC2024) | Linked in footer and contact page; events and news cross-posted |
 | YouTube | [@TCRFC-2024](https://www.youtube.com/@TCRFC-2024) | Linked in footer; videos embedded in team pages, match highlights, player stories, manga animations |
 | Women's team official website | [Taichung Blue Whale](https://www.tcbw2014.com/) | Outbound target for section 06 Women's Football |
-| Shopify store | TBC | Outbound target for the 08.3 product showcase |
+| The old site's Wix store | www.tcrfc.tw `/product-page/…`, `/category/…` | **Transitional channel**: keeps selling until the on-site shop (8.3) launches, then closes; the five product and category URLs are 301-redirected to their on-site equivalents. **Shopify is no longer the referral target from v2.6** |
 
 **Migration principle**: inventory and classify existing content first (keep / rewrite / discard), and migrate only what is still current and of sufficient quality. For news, keeping the last 1–2 years is recommended; older articles are not migrated item by item, but their URLs are still redirected.
 
@@ -137,7 +147,12 @@ The following assets must be inventoried before launch to determine migration sc
 ├── 11 CHARITY & IMPACT               (11.1 ~ 11.4)
 ├── 12 FAQ                            (standalone section, cross-topic)
 ├── 13 SCHEDULE                       (fixtures and results by team)
+├── SHOP                              (the 8.3 transaction flow, added in v2.6)
+│   ├── Product list / product detail
+│   ├── Cart /cart, checkout /checkout, confirmation
+│   └── Order lookup /order/lookup     (guests: order number + email)
 └── MEMBER CENTRE                     (authenticated area, entry point at the right of the header)
+    ├── My orders                      (added in v2.6)
     └── Card verification /m/<token>   (public, read-only, for stores to check validity)
 ```
 
@@ -148,15 +163,15 @@ The following assets must be inventoried before launch to determine migration sc
 | **Main page** | Homepage | Modular slot composition (page builder) |
 | **Main category** | Landing page of each top-level section | Fixed template + editable blocks |
 | **Sub-page** | 2.1, 3.1, etc. | Fixed template + editable blocks |
-| **Content / item page** | Players, coaches, news, matches, products, manga episodes | Data-driven CRUD (list + detail) |
+| **Content / item page** | Players, coaches, news, matches, products, manga episodes | Data-driven CRUD (list + detail); **products additionally carry SKUs, inventory, and the transaction flow, see 4.13** |
 | **CTA page** | The 10.x forms, sponsorship deck download | Form designer + submission inbox |
 
 ### 2.2 Global navigation
 
-- **Primary menu (desktop)**: ABOUT / CLUB / ACADEMY / PROGRAMS / WOMEN'S / SCHEDULE / NEWS / CULTURE / PARTNERS / CHARITY, with a persistent right-hand group: `JOIN` (accent button), `Sign in / Member Centre`, and the language switch `繁中 / EN`.
+- **Primary menu (desktop)**: ABOUT / CLUB / ACADEMY / PROGRAMS / WOMEN'S / SCHEDULE / NEWS / CULTURE / PARTNERS / CHARITY, with a persistent right-hand group: `JOIN` (accent button), **`Cart` (with item count, added in v2.6)**, `Sign in / Member Centre`, and the language switch `繁中 / EN`.
 - **Mega menu**: each top-level category expands to show its second level plus one key visual and one primary CTA for that category. Women's Football and Charity are single pages and link directly without expanding.
-- **Mobile**: full-screen hamburger drawer (including language switch and member entry), plus a sticky bottom CTA bar (`Join the Club` / `Contact Us`).
-- **Footer**: four-column sitemap (including FAQ and Charity), social links, sponsor logo carousel, Shopify store link, contact details, privacy / cookie policy, language switch.
+- **Mobile**: full-screen hamburger drawer (including language switch, member entry, and **the cart**), plus a sticky bottom CTA bar (`Join the Club` / `Contact Us`); **on product detail pages the CTA bar becomes "Add to cart"**.
+- **Footer**: four-column sitemap (including FAQ and Charity), social links, sponsor logo carousel, **official store entry with links to the shopping guide and returns policy**, contact details, privacy / cookie policy, language switch.
 
 ---
 
@@ -178,6 +193,7 @@ The following assets must be inventoried before launch to determine migration sc
 | G-10 | 404 / maintenance pages | Branded error pages with links to popular destinations |
 | G-11 | Member status bar | Header shows sign-in / register or a member menu (card / membership / sign out); supports one-tap LINE sign-in. No form pre-filling on this site (**the Mobile App provides it**, see the app specification, section 3.9) |
 | G-12 | FAQ quick block | Attachable to the bottom of any page, automatically pulling the FAQs for the relevant topic (see 3.12) |
+| G-13 | Cart status bar (**added in v2.6**) | The header shows the cart item count and a quick view; guests can add to cart (held under a browser-side token) and the cart is merged into the account on sign-in. Checkout flow: see 8.3 |
 
 ---
 
@@ -194,7 +210,7 @@ The following assets must be inventoried before launch to determine migration sc
 | Upcoming fixtures | Summary of the next 30 days, with `D1 / U15 / U14 / U12` team quick-filter chips, linking to 13 Schedule | Calendar module |
 | Latest news | Pulls the newest 3–6 items from 7.x; featured items can be pinned | News module |
 | Sponsor logo wall | Carousel ordered by tier, clicking through to 9.1 | Partners module |
-| Official store entry | Links to the Shopify store (new tab) | Settings |
+| Official store entry | Featured products and collection entry points, linking to the **on-site shop** (8.3; from v2.6 on-site, no longer a new tab) | Shop module S1 |
 | Bottom CTA strip | Join the Club / Join the Academy / Become a Partner | CTA component |
 
 > The homepage follows a single line of argument: brand position → match activity → latest news → conversion. Seasonal content (a new manga chapter, a major charity event, an enrolment window) is surfaced through the hero carousel or the latest-news block rather than through dedicated fixed slots — **this applies to this site's public web front end**. The Mobile App's own advertising slots are app scope, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 7, and do not affect this homepage.
@@ -349,18 +365,29 @@ A **unified newsroom** segmented into eight categories:
 
 > Fan club members are members flagged `fan_club` in the member system — **no separate list is maintained** (see 3.14 and 4.11 K).
 
-#### 8.3 Merchandise (**Shopify referral — no shop functionality on this site**)
+#### 8.3 Merchandise & Online Store (**built on this site from v2.6; no external store**)
 
 | Item | Description |
 |---|---|
-| Positioning | The website acts purely as a **brand showcase**, presenting product imagery and collection stories; every purchase action (add to cart, checkout, payment, shipping, returns, inventory) is **handled entirely by Shopify** |
-| Category display | Club Collection / Academy Collection / Fan Collection |
-| Product showcase | Featured product cards (image, name, optional price) + collection story; "Shop now" opens that product's Shopify page in a new tab |
-| Online Store | Primary CTA linking to the Shopify storefront; entry points also placed in the header, footer, and homepage |
-| Data maintenance | Showcase items are created manually in the admin with a Shopify product link (see 4.6 E4). **Inventory and price are not synchronised**, to avoid inconsistency; the price field should be optional or marked "see store page for current pricing" |
-| Not included | ✗ On-site cart ✗ Payment integration ✗ Order management ✗ Inventory ✗ Shipping and returns |
+| Positioning | The website is both a **brand showcase** and an **online store**: collection stories and imagery keep their editorial quality, while every purchase action (add to cart, checkout, payment, invoicing, fulfilment, returns) is **handled here**, **collected for by this club** |
+| Categories | Club Collection / Academy Collection / Fan Collection, each with its own brand narrative block; products may carry further tags (jersey / accessory / memorabilia) |
+| Product list | Card wall (hero image, name, price, **sale price and "new" flag**, out-of-stock flag), filterable and sortable by category, price, size, and colour (**the same filters the old store already has**) |
+| Product detail | Gallery, product narrative, **variant selection (size / colour, mapped to SKUs)**, size chart, **list price and sale price**, stock status, shipping and returns notes, add to cart. Emits **Product schema** (see section 7) |
+| Cart | Persists across pages (account-bound when signed in, browser token otherwise, merged on sign-in), quantity editing, removal, subtotal and shipping estimate |
+| Checkout | Delivery details → shipping method → **invoice option** → confirm → hand off to LINE Pay. **Guest checkout is supported** (email only; `Order.member_id` may be empty); signed-in members get pre-filled delivery details. **There is no payment-method step** — LINE Pay is the only option |
+| Payment method | **LINE Pay only** (`Request → Confirm`, collected by **this club**). **No** card, convenience-store code, ATM transfer, or cash on delivery. Payment completes on LINE Pay's side; **this site renders no card fields and stores no card data** (global premise). Callbacks must be **signature-verified and idempotent**, and unpaid orders are cancelled on timeout with stock released |
+| Invoicing | An **e-invoice** (B2C) is issued at checkout — **carrier, tax ID, or donation code** — made out to **this club**, notified by email, and voided or credit-noted on a return. It uses a **different invoice track from the Association's charity invoices and must never be shared**. **LINE Pay does not issue invoices**, so a separate invoicing service is used (see section 10) |
+| Shipping | Home delivery, convenience-store pickup (**pickup only, no pay-on-collection**), and **collection at a home match or the club**; **a single flat rate plus a free-shipping threshold** (configured in admin S6 — **no weight or banded rates**). **No carrier API integration** — tracking numbers are entered manually or by CSV |
+| Order lookup | Members use **"My orders"** in the Member Centre; **guests look up an order with the order number and email at `/order/lookup`**, or follow the time-limited link in the order confirmation email |
+| Returns | The statutory seven-day cooling-off period applies (**a legal duty, not trimmed away with the rest of the scope**). The public site provides a **returns policy page** and a request channel (form or support email — **no dedicated returns wizard**); admin S5 handles review, inspection, refund, and **invoice voiding or credit notes**. Refunds go **back through LINE Pay**. **Exclusions (e.g. customised goods) must be stated on the product page** |
+| Members and the shop | The shop is on this site, so the **member account is the shop account** and no SSO is needed; members see orders under "My orders". **No member pricing and no discount codes this time round** — paid membership keeps **partner-store discounts and the jersey** (see 3.14 / K4) and **does not include merchandise discounts**; adding them later requires amending the assumption in section 10 first |
+| Transactional email | Shop emails are **a separate set**: order placed, payment received, shipped, refunded. **They are counted separately from the member system's five system emails, which remain five** |
+| Not included | ✗ Payment methods other than LINE Pay ✗ Member pricing and discount codes ✗ Weight-based or banded shipping rates ✗ Subscriptions / recurring billing ✗ Cross-border sales and multi-currency ✗ Marketplace / multi-vendor ✗ Resale or consignment ✗ Points redemption and e-wallet ✗ Ticketing and match packages ✗ Tying merchandise to membership or draw eligibility ✗ Live chat support ✗ Product reviews and ratings |
 
-> If automatic product synchronisation becomes necessary later, the Shopify Storefront API could be evaluated to pull the product list — a Phase 4 option, outside the current scope.
+> **Boundary with membership**: the shop sells **physical goods only**. **Membership fees do not go through shop checkout** — they keep payment links and in-person collection (and LINE Pay inside the app). Whether membership should move into the shop is an open item in section 10.
+> **Boundary with the Charity Donation Platform**: both use LINE Pay, but the shop collects for the **club** and the platform for the **Association**; **merchant accounts, credentials, and invoice tracks must never be shared**. The shop must not sell donation items or take donations under the guise of merchandise.
+> **Where the scope line sits**: the goal this time is to **move the old Wix store into this site as it stands and put our own payment and invoicing behind it** — not to build a bigger shop. Anything beyond what the old store already does (member pricing, discount codes, extra payment methods, banded shipping rates, subscriptions) requires amending the assumption in section 10 first.
+> **Retirement of the old store**: the old site's Wix store is a transitional channel and closes once the on-site shop launches, with 301 redirects (see 1.4). The former "evaluate Shopify Storefront API product sync" option **is cancelled along with the external store**.
 
 #### 8.4 Partner Perks (member discounts)
 
@@ -447,7 +474,7 @@ This site has three responsibilities and no more:
 | Impact feedback | Donation projects on that platform can link to this site's `CharityProgram` records; how funds were used continues to be presented as structured content in 11.2 / 11.3 |
 | Consistency | This site shows no amount options, hosts no donation form, and publishes no bank account details |
 
-> **The premise that this site builds no payment gateway is unchanged.** Payments, invoicing, revenue share and reporting all belong to the Charity Donation Platform; the two share an admin and a database, but their public sites are entirely separate.
+> **This site takes no donation payments — unchanged by v2.6.** The shop's payment integration covers **physical merchandise only, collected for by the club**; donation payments, invoicing, revenue share and reporting all belong to the Charity Donation Platform, collected for by the **Association**. The two share an admin and a database, but their public sites, merchant accounts, and invoice tracks are entirely separate, and **the shop must never sell donation items**.
 > The three channels from v2.0 (Shopify donation item, bank transfer, in-kind donation) and the on-site transfer report form have **all been removed** and are no longer part of this specification.
 
 **Content cross-linking**:
@@ -603,7 +630,8 @@ The calendar is organised primarily **by team**:
 
 **Positioning**: the member system carries **one thing — membership**. Anyone who joins gets discounts at partner stores; paying members additionally receive a jersey. The member system does not handle student records or newsletter campaigns; **this site's public web front end** does not handle booking attribution (the Mobile App provides "my bookings", see the app specification, section 3.9).
 
-> **Explicitly out of scope**: loyalty points, e-wallet, ticketing and match packages, partner-store scan-to-redeem and redemption reporting, and single sign-on with Shopify.
+> **Explicitly out of scope**: loyalty points, e-wallet, ticketing and match packages, and partner-store scan-to-redeem and redemption reporting.
+> **From v2.6 "no SSO with Shopify" lapses** — the external store is gone and the shop is on this site (8.3), so the member account *is* the shop account and no second account exists.
 
 #### Membership tiers (two)
 
@@ -626,12 +654,12 @@ The calendar is organised primarily **by team**:
 | Item | Approach |
 |---|---|
 | Payment method | **LINE Pay** (payment link / official account invoice), plus in-person payment (matchdays, recruitment events) |
-| Role of the website | Presents plans and payment instructions and accepts upgrade requests; **this site's public web front end builds no cart and integrates no payment gateway** (per the confirmed assumption in 1.3). **"No card data" remains globally applicable** — the Mobile App stores no card data either |
+| Role of the website | Presents plans and payment instructions and accepts upgrade requests; **membership fees do not go through shop checkout** — v2.6 opens on-site payments, but **for physical merchandise only**, while membership keeps payment links and in-person collection. **"No card data" remains globally applicable** — the Mobile App stores no card data either |
 | Mobile App | **Membership payment is completed in-app via LINE Pay** (membership fees only); a successful-payment callback activates the membership automatically, see the app specification, section 5. The collecting entity is **this club**, using **the club's own merchant account — never the Association's** |
 | Activation | Customer service activates the membership in the admin after reconciling payment, recording payment method, amount, date, transaction note, and handler; the system writes a payment record for reconciliation and audit |
 | Automation hook | An internal endpoint `POST /api/membership/activate` (credential-protected, and required to be idempotent). **From v2.5 it is triggered by the Mobile App's successful-payment callback**, with manual activation by support staff retained; the original promise — "only the trigger changes, the member module does not" — is delivered here. Calling conventions are in the app specification, section 9.7 |
 
-> LINE Pay API **web checkout**, refunds, and reconciliation remain **out of scope for this site**. The original text required that adopting them "would require amending the assumption in section 10" — **v2.5 performs exactly that amendment**: in-app membership payment via LINE Pay is confirmed, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 5. This site's public web front end keeps payment links and in-person collection.
+> **Web checkout for membership is still not built (v2.6).** The payment assumption has now been amended twice — v2.5 for the Mobile App, v2.6 for the on-site shop — both following the rule of amending section 10 before implementing. **Whether membership moves to shop checkout is a third amendment that has not been made**; it is listed as an open item in section 10 and must not be implemented before it is settled.
 
 #### Digital membership card and how discounts are used
 
@@ -665,7 +693,7 @@ The calendar is organised primarily **by team**:
 | ✗ **Ticketing and match packages** | The draw serial number is only the snapshot's running number: **no face value, non-transferable, non-tradable, not scanned for entry, no QR code, never shown on the public site**. Prizes explicitly exclude tickets and packages |
 | ✗ **Store scan-to-redeem and redemption reports** | Collection happens at the club and is recorded by **ticking a status in the admin** (pending / shipped / collected, exactly as K3). Nothing is scanned or counted, no store report is produced, and partner stores are not involved at all; the response from the card verification page `/m/<token>` is **unchanged**, with no new fields |
 | ✗ **On-site notification centre and LINE push** | Winners are announced **through News only**. The five system emails stand, with **no sixth added**; there is no on-site messaging, no notification preferences, and no LINE push. Contacting an individual winner is done by support staff by phone or a written message, outside any system template and never recorded in `EmailLog`. **This commitment stands in v2.5: the Mobile App's native push must never be used for individual winner notifications**, and admin M3 must block this at system level |
-| ✗ **This site takes no payments** | The draw **sells nothing, charges nothing, and has no paid entry**. What is paid for is the membership itself, still collected by LINE Pay payment link or in person and activated after reconciliation. Prizes are the club's own physical goods; the system handles no prize payments, refunds, or invoices |
+| ✗ **The draw itself involves no payments** | The draw **sells nothing, charges nothing, and has no paid entry**. What is paid for is the membership itself, still collected by LINE Pay payment link or in person and activated after reconciliation. Prizes are the club's own physical goods; the system handles no prize payments, refunds, or invoices. **Opening shop payments in v2.6 changes nothing here**: the shop sells physical goods only and **must not sell draw entries, must not let spend increase the chance of winning, and must not list or discount prizes** — eligibility remains a boolean derived from membership |
 | ✗ **Booking attribution and form pre-filling** | The draw has **no form**. Eligibility is automatic and nothing is filled in, so neither applies |
 | ✗ **System-run random selection** (added by this revision) | The draw is performed by people, on site or on a live stream, where it can be witnessed. The system only freezes the roster, issues serial numbers, and exports them — it **produces no random result**, which keeps the club clear of disputes over the fairness of an electronic draw and of the burden of proving it |
 
@@ -700,6 +728,7 @@ The calendar is organised primarily **by team**:
 | **Upgrade to paid membership** | Plan comparison (individual / family), payment instructions, upgrade request, status display (pending / active / expired) |
 | **Jersey registration** | Enter size and collection method; view fulfilment status |
 | Renewal | Renewal prompt and payment instructions ahead of expiry |
+| **My orders** (added in v2.6) | Shop order list and detail: items, amount breakdown, payment and fulfilment status, tracking number, invoice number, and the entry point for return requests (see 8.3 and 4.13) |
 
 > The following are **not included on this site's public web front end** after review: form pre-filling, my bookings, my donations, my students (parent linking), my calendar (.ics), on-site notification centre, notification preference centre, the members-only content area, **"my draws" (serial-number and win lookup)**, **an on-site winners list page**, and **an online draw or random-selection tool**.
 >
@@ -715,7 +744,7 @@ Registration verification, password reset, membership activation confirmation, 3
 
 - **Fan club (8.2 / F2)**: fan club members are members flagged `fan_club`; no separate list is maintained, and page 8.2 is the introduction and join page for paid membership.
 - **Partner stores (8.4)**: the content source for the discount benefit, publicly browsable.
-- **Shopify**: website accounts and Shopify accounts remain **independent**; no single sign-on is implemented. Any future online-store offer for members is handled by issuing discount codes.
+- **Official store (8.3 / admin S)**: the shop is on this site, so the **member account is the shop account** — there is no second account and no SSO to build, and orders appear under "My orders". **Guest checkout remains supported**, so `Order.member_id` may be empty. **Paid membership does not include a merchandise discount** — no member pricing and no discount codes this time round; the benefits stay partner-store discounts and the jersey (see the benefits table, K4).
 - **LINE Official Account**: used only for sign-in and account linking — not as a separate contact database, and with no parameterised QR source tracking.
 
 ---
@@ -749,7 +778,7 @@ TCRFC Admin
 │   ├── E1 Partners
 │   ├── E2 Sponsors & Packages
 │   ├── E3 Sponsorship Deck & Download Tracking
-│   └── E4 Product Showcase (Shopify link maintenance)
+│   └── E4 Product Showcase (**folded into S1 in v2.6; identifier retired**)
 ├── F. Culture
 │   ├── F1 Manga project / characters / episodes
 │   └── F2 Fan Club events (member lists live in module K)
@@ -758,7 +787,7 @@ TCRFC Admin
 │   ├── G2 Inbox (7 form types + deck downloads + donation enquiries)
 │   └── G3 Newsletter Subscribers
 ├── H. SEO & Marketing
-├── I. Site Settings (menus / footer / languages / contact info / venues / Shopify links)
+├── I. Site Settings (menus / footer / languages / contact info / venues / external services)
 ├── J. System (accounts / roles / audit / backup)
 ├── K. Members
 │   ├── K1 Member list and detail
@@ -771,15 +800,23 @@ TCRFC Admin
 │   ├── L2 Custom events (club events)
 │   ├── L3 Categories & display settings
 │   └── L4 Subscription & export (iCal / .ics)
-└── M. Mobile App (added in v2.5; defined in the Mobile App specification, section 8)
-    ├── M1 App releases & version management
-    ├── M2 App composition & deep links
-    ├── M3 Push notification management
-    ├── M4 Devices & push tokens
-    └── M5 App settings, certificates & diagnostics
+├── M. Mobile App (added in v2.5; defined in the Mobile App specification, section 8)
+│   ├── M1 App releases & version management
+│   ├── M2 App composition & deep links
+│   ├── M3 Push notification management
+│   ├── M4 Devices & push tokens
+│   └── M5 App settings, certificates & diagnostics
+└── S. Shop (added in v2.6; defined in 4.13)
+    ├── S1 Products & variants (SKUs)
+    ├── S2 Inventory
+    ├── S3 Orders
+    ├── S4 Fulfilment & shipping
+    ├── S5 Returns & refunds
+    └── S6 Shop settings & reports
 ```
 
 > **Numbering note**: the programs module was originally numbered `D1–D4`, which clashed confusingly with the **team code `D1`** (First Team). It has been renumbered **`P1–P4` (Programs)**, and all references throughout this document have been updated.
+> **Why the shop module takes `S` (Shop)**: `D` is retired because of that clash, `N` belongs to the Charity Donation Platform, and `M` belongs to the Mobile App, so a new letter is used rather than a recycled one. **`E4` is retired once folded into `S1` and will not be reused** — recycling it would give "where are products maintained?" two answers.
 
 ---
 
@@ -885,7 +922,7 @@ TCRFC Admin
 - Registration list: filters (program, session, status, date, **member or not**), keyword search, and a **"member" column** (added in v2.5; `Registration.member_id` is nullable — non-members may still register)
 - Registration detail: student details, parent contact, health declaration, notes
 - Status workflow: `Pending → Confirmed → Paid → Completed / Cancelled / Waitlisted`
-  - Payment is handled **offline** (imported transfer records or on-site collection, then marked by staff); the site accepts no payments
+  - Payment is handled **offline** (imported transfer records or on-site collection, then marked by staff). **Course fees do not go through shop checkout** — the v2.6 payment scope covers physical merchandise only; **the Mobile App does not take course fees either**, its LINE Pay flow being limited to membership, see the app specification, section 3.9
 - Actions: confirm / cancel, move to another session, add to waitlist, add notes, send templated notification emails
 - **Excel export**: roster export (with grouping columns) and printable attendance sheets
 - Capacity control: automatic closure when full, waitlist promotion alerts
@@ -910,12 +947,10 @@ TCRFC Admin
 - Upload the deck PDF (multiple versions / languages), configure the download form fields
 - **Lead list**: who downloaded, company, timestamp, source page; exportable to CSV with follow-up status flags
 
-#### E4 Product Showcase (Shopify referral)
-- Showcase item: name, category (club / academy / fan), gallery, description, price (**optional**, or marked "see store page"), **Shopify product link**, order, published status
-- Collection copy: brand narrative block for each collection
-- Site-wide Shopify store URL (shared by header, footer, and homepage)
-- Link health checks: periodic detection of broken links with alerts
-- **Not included**: inventory, orders, payments, shipping, returns, coupons (all handled in Shopify's own admin)
+#### E4 Product Showcase (**folded into S1 in v2.6; identifier retired**)
+
+From v2.6 products are maintained in the **`S. Shop` admin module** (products and variants in S1, collection copy in S1, store entry and policies in S6); this module no longer holds product data.
+The `ProductShowcase` type is retired with it — display fields and an outbound link cannot carry SKUs, inventory, or orders. **The `E4` identifier is retired and not recycled**; anything describing "E4 Product Showcase (Shopify referral)" is pre-v2.6 material.
 
 #### E5–E7 Mobile App Advertising (added in v2.5)
 
@@ -990,8 +1025,8 @@ TCRFC Admin
   - Date / number formatting and font settings
 - **Contact information**: phone, email, address, opening hours, departmental contacts, social links
 - **Venue management**: venue name, address, coordinates, travel notes, photos (used by 5.1 training locations and Location & Map)
+- **Shop settings**: whether the store entry is shown, and links to the shopping-guide and returns-policy pages (content maintained in S6). **LINE Pay and invoicing credentials are not here; they live in S6 and are visible to system administrators only**
 - **External service links**:
-  - Shopify store URL
   - **Social platforms**: Instagram [`@tcr_fc_2024`](https://www.instagram.com/tcr_fc_2024), Facebook [`TCRFC2024`](https://www.facebook.com/TCRFC2024), YouTube [`@TCRFC-2024`](https://www.youtube.com/@TCRFC-2024)
   - **Women's team official website** URL (for the 06 outbound link): [`https://www.tcbw2014.com/`](https://www.tcbw2014.com/)
   - EDM platform configuration
@@ -1164,6 +1199,56 @@ TCRFC Admin
 
 ---
 
+### 4.13 S. Shop (added in v2.6)
+
+> The letter `S` (Shop) is used. **The former `E4 Product Showcase` is folded into S1** and the `ProductShowcase` type is retired.
+
+#### S1 Products & variants (SKUs)
+- **Product**: name (zh/en), collection (club / academy / fan), tags, gallery, product narrative (zh/en), size chart, publication state, ordering, SEO fields (title / description / structured data)
+- **Variants (SKUs)**: size × colour combinations, each with its own **SKU code, price, sale price (optional), and stock level**; the cost field is visible to authorised roles only. **No member-price field** (no member discounts this time round)
+- Product states: `draft / published / out of stock (derived from inventory) / unpublished`; out-of-stock items can be set to "visible but not purchasable" or hidden automatically; items can be flagged "new"
+- Collection copy: the brand narrative block for each collection (this is where 8.3's showcase quality is maintained)
+
+#### S2 Inventory
+- Tracked **per SKU**; **stock is reserved and deducted at order placement and released automatically if payment fails or times out**, and restored on cancellation or return
+- Receipts, stocktakes, write-offs, and adjustments are all written to `InventoryMovement`, with quantity, reason, and operator traceable for every change
+- Low-stock thresholds and replenishment alerts
+- **Not included**: multiple warehouses, batch/expiry tracking, pre-orders and backorder scheduling
+
+#### S3 Orders
+- List: order number, placed at, amount, payment status, fulfilment status, shipping method, **member or guest**; filterable by status and period
+- Detail: items and SKUs, amount breakdown (subtotal / shipping), **LINE Pay transaction ID and payment time**, invoice number, tracking number, customer notes and internal notes
+- State machine: `awaiting payment → paid → picking → shipped → completed`, with branches `cancelled` / `return in progress` / `refunded`
+- Supports **manual order creation and back-entry** (in-person sales, match-day stalls), flagged as in-person payment
+- CSV export **requires separate authorisation and is written to the audit log** (who, when, how many records, stated purpose), mirroring the member-list export rule
+
+#### S4 Fulfilment & shipping
+- Printing of picking and packing slips, bulk "mark as shipped", and **tracking numbers entered manually or imported by CSV**
+- Convenience-store pickup codes and arrival notices; collection status for in-person pickup (`awaiting collection / collected / expired`)
+- **No carrier API integration in v2.6**; whether to integrate is deferred for evaluation
+
+#### S5 Returns & refunds
+- Handles return requests raised on the public site (**arriving by form or support email — there is no dedicated returns wizard**): case list, review, goods inspection, refund execution
+- **Invoice voiding or credit notes** are processed alongside (a tax requirement, never skipped for policy reasons)
+- Refunds always go **back through LINE Pay** (full or partial); in-person orders are refunded manually and logged with the operator
+- **Not included**: automated refund scheduling, unconditional full shipping refunds
+
+#### S6 Shop settings & reports
+- **LINE Pay configuration and credentials** (Channel ID / Secret, **visible to system administrators only**), sandbox toggle, key-rotation log. **The collecting entity is the club; the Association's merchant account must never be entered here**
+- **E-invoicing service configuration and credentials**: invoice track, donation-code list, issue/void retry settings
+- **Shipping settings**: a single flat rate plus a free-shipping threshold, outlying islands and non-serviced areas. **No weight-based or banded rates**
+- Bilingual maintenance of the store entry and policy content: shopping guide, shipping information, returns policy, terms of sale
+- Reports: revenue, order count, average order value, best-selling SKUs, stock, return rate; **exports are written to the audit log**
+- **Division of labour with the A dashboard**: A shows summary figures only; detail always lives in S6
+- **Not in this module**: discount-code and member-price settings (not built this time), payment-method settings (LINE Pay only)
+
+> **Payments and personal data**: payment always completes on **LINE Pay's** side; **this site renders no card fields and stores no card data** (global premise). Callbacks must be signature-verified and idempotent, and orders whose `Confirm` fails or times out are cancelled with stock released.
+> Orders contain the **recipient's name, phone number, and address** and are **treated as member personal data**: full values are visible only to system administrators, support/administration, and fulfilment roles; other roles see masked values, and exports require separate authorisation and are audited.
+> **Transaction records and invoices are retained under tax law** (the retention period is an open item in section 10), and that duty **is not extinguished by a data-subject deletion request** — on account deletion an order keeps only the legally required fields and the rest of the personal data is cleared, mirroring the `DrawRoster` approach.
+> **Shared admin with the charity platform's `N` module, but fully separated books**: both use LINE Pay, but the collecting entity, **merchant account**, credentials, invoice track, and statements are all separate. **Wrong credentials mean money reaching the wrong legal entity**, so S6 must label this module as the club's.
+
+---
+
 ## 5. Data Model & Content Types
 
 | Type | Description | Key relationships |
@@ -1184,7 +1269,15 @@ TCRFC Admin
 | `Partner` | Partner: name (zh/en), logo (**dark and light variants**), type, country, partnership content and dates, website link, display order, whether shown in the footer / homepage | Article, Program |
 | `Sponsor` | Sponsor: name (zh/en), logo (both variants), **tier** (title / official / supporting), contract dates, sponsorship content, contact, expiry reminder, display order | SponsorPackage, Article, Advertiser |
 | `SponsorPackage` | Sponsorship package (9 types): name (zh/en), content, benefit list, target audience, price band (**may be withheld**), order, publication state | Enquiry |
-| `ProductShowcase` | Showcase item (display + Shopify link only, **not an e-commerce entity**) | Collection |
+| `Product` | **Product**: name (zh/en), collection, tags, gallery, narrative, size chart, state, ordering, SEO fields. **Replaces the retired `ProductShowcase` in v2.6** | ProductVariant, OrderItem |
+| `ProductVariant` | **Variant (SKU)**: size / colour, SKU code, price, **sale price (optional)**, cost (restricted), stock level | Product, InventoryMovement, OrderItem |
+| `InventoryMovement` | Stock movement: type (receipt / sale / return restock / stocktake / write-off / adjustment), quantity, reason, operator, timestamp | ProductVariant, Order |
+| `Cart` | Cart: owner (member or anonymous token), line items and quantities, updated at; merged into the account cart on sign-in | Member, ProductVariant |
+| `Order` | **Order**: order number, `member_id` (**may be empty — guest checkout is supported**), recipient name / phone / address (**restricted fields**), amount breakdown (subtotal / shipping), **LINE Pay transaction ID and payment status**, shipping method and fulfilment status, invoice number, lookup token | Member, OrderItem, Shipment, StoreInvoice |
+| `OrderItem` | Order line: **SKU snapshot** (product name, variant, unit price, all **value-copied**), quantity, line total | Order, ProductVariant |
+| `Shipment` | Shipment: method, tracking number, shipped and delivered timestamps, pickup store code, collection status | Order |
+| `RefundRequest` | Return/refund request: items, reason, status (requested / under review / approved / refunded / rejected), refund amount and method, invoice voiding or credit-note record | Order |
+| `StoreInvoice` | **E-invoice**: number, issued at, **carrier / tax ID / donation code**, issue result and retries, voiding and credit-note status. **Made out to the club**, on a different invoice track from the Association's charity invoices | Order |
 | `ComicEpisode` / `ComicCharacter` | Manga episode / character | Player (inspiration) |
 | `FanEvent` | Fan event | Member |
 | `Enquiry` | Form submission (7 form types + deck downloads + donation enquiries) | Form, Assignee |
@@ -1219,24 +1312,26 @@ TCRFC Admin
 
 ## 6. Roles & Permissions Matrix
 
-| Role | Content | FAQ | Charity | Teams / Matches | Programs / Registrations | Schedule | Members | Business / Sponsors | Advertising | Mobile App | Enquiries | SEO / Settings | System |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| System administrator | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full |
-| Content editor | ✔ Edit / publish | ✔ Full | ✔ Edit | Read-only | Read-only | Custom events | — | Read-only | — | — | M2 composition | Per-page SEO | — |
-| Football / team manager | Draft | Relevant topics | — | ✔ Full | Read-only | Match events | — | — | — | — | — | — | — |
-| Academy / programs manager | Draft | Relevant topics | — | Academy squads | ✔ Full | Squad matches | — | — | Program enquiries | — | — | — | — |
-| Commercial / sponsorship | Draft | Relevant topics | Read-only | Read-only | Read-only | Read-only | — | ✔ Full | Partnership / sponsorship enquiries | **✔ Full** | — | — | — |
-| PR / media | ✔ Edit | Read-only | ✔ Edit | Read-only | — | Custom events | — | Read-only | Media enquiries | Reports (read) | M3 draft (**needs approval**) | — | — |
-| Support / administration | — | ✔ Edit | — | — | Registration handling | Read-only | ✔ View / handle | — | ✔ Full | — | M4 view (masked) | — | — |
-| Translator ※ | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | — | Translation fields only | — | Creative translation fields | Push copy translation | UI string table | — |
-| Viewer | Read-only | Read-only | Read-only | Read-only | Read-only | Read-only | — | Read-only | Read-only | Read-only (no amounts) | Read-only | — | — |
+| Role | Content | FAQ | Charity | Teams / Matches | Programs / Registrations | Schedule | Members | Business / Sponsors | Shop | Advertising | Mobile App | Enquiries | SEO / Settings | System |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| System administrator | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full |
+| Content editor | ✔ Edit / publish | ✔ Full | ✔ Edit | Read-only | Read-only | Custom events | — | Read-only | S1 copy / imagery | — | — | M2 composition | Per-page SEO | — |
+| Football / team manager | Draft | Relevant topics | — | ✔ Full | Read-only | Match events | — | — | — | — | — | — | — | — |
+| Academy / programs manager | Draft | Relevant topics | — | Academy squads | ✔ Full | Squad matches | — | — | — | Program enquiries | — | — | — | — |
+| Commercial / sponsorship | Draft | Relevant topics | Read-only | Read-only | Read-only | Read-only | — | ✔ Full | S1 / S6 (**order PII masked**) | Partnership / sponsorship enquiries | **✔ Full** | — | — | — |
+| PR / media | ✔ Edit | Read-only | ✔ Edit | Read-only | — | Custom events | — | Read-only | Read-only | Media enquiries | Reports (read) | M3 draft (**needs approval**) | — | — |
+| Support / administration | — | ✔ Edit | — | — | Registration handling | Read-only | ✔ View / handle | — | **✔ S2–S5** | ✔ Full | — | M4 view (masked) | — | — |
+| Translator ※ | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | — | Translation fields only | Translation fields only | — | Creative translation fields | Push copy translation | UI string table | — |
+| Viewer | Read-only | Read-only | Read-only | Read-only | Read-only | Read-only | — | Read-only | Read-only (no amounts) | Read-only | Read-only (no amounts) | Read-only | — | — |
 
 **Additional rules**:
 - **App releases and forced updates (M1) are restricted to system administrators** — a wrong minimum supported version locks every user out.
 - **Push sending (M3) requires two-person approval**: PR/media may draft and preview; a system administrator must approve the send. Push is an irreversible, audience-wide action.
 - **Push tokens and device identifiers (M4) count as personal data**; only system administrators see full values, other roles see masked ones.
 - **Advertising contract amounts** are visible only to commercial/sponsorship and finance; advertising report exports must be written to the audit log (who, when, which flight, stated purpose), mirroring the member-list export rule.
-- **Member module (K) permissions are not widened by the Mobile App**: still restricted to system administrators and support/administration.
+- **Order recipient data (name / phone / address) is treated as member personal data**: full values are visible only to system administrators, support/administration, and fulfilment roles; other roles see masked values, and order exports require separate authorisation and are audited.
+- **Refund execution (S5) and shop credentials (S6: LINE Pay and invoicing) are restricted to system administrators** — a refund is an irreversible movement of money, leaked credentials amount to losing the shop, and a wrong merchant account sends money to the wrong legal entity. Commercial/sponsorship may work on products and reports but **gains no access to order personal data and no refund rights**.
+- **Member module (K) permissions are not widened by the Mobile App or the shop**: still restricted to system administrators and support/administration.
 - Content editing follows a **submit-for-review → publish** workflow; only designated roles may publish.
 - **Member personal data (email / phone / date of birth / minors' details) is restricted**: only system administrators and support/administration staff see it in full; other roles see masked values (e.g. `a***@gmail.com`).
 - **Exporting** member lists requires separate authorisation, and every export is written to the audit log (who, when, how many records, stated purpose).
@@ -1254,7 +1349,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 |---|---|
 | Clear site architecture and hierarchy | URLs mirror the site hierarchy, e.g. `/en/academy/join/` |
 | Keyword-led content strategy | Each page can be assigned a primary keyword in the admin, with usage checks (title / H1 / opening paragraph) |
-| Structured data / schema markup | Automatic output of Organization, SportsTeam, SportsEvent, Event, Person, Article, Course, FAQPage, BreadcrumbList (Product schema is Shopify's responsibility and is not emitted here) |
+| Structured data / schema markup | Automatic output of Organization, SportsTeam, SportsEvent, Event, Person, Article, Course, FAQPage, BreadcrumbList, **plus Product and Offer (v2.6: the shop is on this site, so Product schema — price, currency, availability — is now emitted here)** |
 | Internal linking strategy | Articles can be related to players / teams / programs, generating cross-link blocks automatically; orphan-page detection |
 | Mobile-friendly design | Mobile-first, touch targets ≥ 44px, mobile CTA bar |
 | Fast loading | WebP images with lazy loading, CDN, inlined critical CSS; targets of LCP < 2.5s, CLS < 0.1, INP < 200ms |
@@ -1281,11 +1376,11 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Performance | Homepage LCP < 2.5s (4G), Lighthouse Performance ≥ 85 |
 | Compatibility | Latest two versions of Chrome / Safari / Edge / Firefox; iOS 15+, Android 10+ |
 | Accessibility | WCAG 2.1 AA |
-| Security | Forced HTTPS, 2FA on the admin, CSRF / XSS / SQL injection protection, upload type and size limits, optional admin IP allowlist; **member system**: password hashing, session timeout, lockout after failed sign-ins, brute-force protection |
-| Personal data | Registrations, enquiries, and **member data** (including LINE link identifiers) stored encrypted, with a retention policy and a data-subject deletion process; **minors' data requires guardian consent** |
+| Security | Forced HTTPS, 2FA on the admin, CSRF / XSS / SQL injection protection, upload type and size limits, optional admin IP allowlist; **member system**: password hashing, session timeout, lockout after failed sign-ins, brute-force protection; **shop**: checkout redirected to the payment provider's hosted page or SDK, **no card data stored**, payment callbacks signature-verified and **idempotent**, order-lookup tokens non-derivable and time-limited, dual authorisation for refunds and exports |
+| Personal data | Registrations, enquiries, **member data** (including LINE link identifiers), and **order recipient data** stored encrypted, with a retention policy and a data-subject deletion process; **minors' data requires guardian consent**. **Transaction records and invoices carry a statutory retention duty that takes precedence over deletion requests**: on account deletion an order keeps only the legally required fields and the rest is cleared |
 | Availability | 99.5% uptime target; daily backups retained off-site for 30 days |
-| Extensibility | Content types must be extensible (new age groups / seasons / program types / languages without code changes); if the women's team is later upgraded to a full team area, the existing team module can be reused directly |
-| Monitoring | Error tracking (Sentry-class), uptime monitoring, alerts on form submission failures |
+| Extensibility | Content types must be extensible (new age groups / seasons / program types / languages without code changes); if the women's team is later upgraded to a full team area, the existing team module can be reused directly; **the shop's payment provider, invoice provider, and shipping methods must be swappable — no provider's specifics may be hard-wired into the order flow** |
+| Monitoring | Error tracking (Sentry-class), uptime monitoring, alerts on form submission failures; **the shop additionally needs alerts on payment failure rates, failed payment callbacks, and negative stock** |
 
 ---
 
@@ -1311,7 +1406,9 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 - **English content goes live**
 
 ### Phase 3 — Culture and community (approx. 6 weeks)
-- 08 TCRFC Culture: manga reader, fan club 8.2 (paid membership introduction and join page, integrated with the member system), **product showcase + Shopify referral**
+- 08 TCRFC Culture: manga reader, fan club 8.2 (paid membership introduction and join page, integrated with the member system)
+- **The on-site official store (8.3 + admin module S, added in v2.6)**: products and SKUs, inventory, cart, checkout, **LINE Pay integration**, **e-invoicing**, fulfilment and shipping, order lookup, returns and refunds, shop reports. **Scoped to match the old site's existing store** — no member pricing, discount codes, or extra payment methods, so the effort is far below a full e-commerce build. **Depends on the member system (Phase 2) being live**; **the club's LINE Pay merchant account and the invoicing service must be onboarded from Phase 2 onwards** or they will block this phase
+- **Retirement of the old store**: the old site's Wix store closes when the on-site shop launches, and its product and category URLs are 301-redirected (bulk import in module H)
 - **Member management K5 Prize draw rosters**: roster snapshots and serial numbers, the two CSV exports, ticking in winners, prize fulfilment, and handing the announcement to B2. (Eligibility itself is a K4 benefits entry and ships with the Phase 2 benefits table)
 - League tables, automatic aggregation of player statistics
 - Newsletter integration
@@ -1319,11 +1416,12 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 ### Phase 4 — Optimisation and expansion (ongoing)
 - FAQ performance optimisation, zero-result search feedback loop
 - Deeper analytics dashboards, A/B testing, personalised recommendations
-- Optional evaluations: Shopify Storefront API product sync, ticketing, loyalty points, **partner-store scan-to-redeem with performance reporting**, expanding women's football into a full team area
+- Optional evaluations: ticketing, loyalty points, **partner-store scan-to-redeem with performance reporting**, **carrier API integration**, **moving membership fees into shop checkout**, expanding women's football into a full team area
+- **Cancelled**: `Shopify Storefront API product sync` falls away with the external store in v2.6
 - **Removed from optional**: `LINE Pay API checkout` was confirmed in v2.5 — **in-app membership payment uses LINE Pay** (see the app specification, section 5); this site's public web front end still does not
 - **Mobile App**: a separate project with its own phasing, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 15
 
-> Note: the phase plan excludes e-commerce and payment development (all shopping is handled by Shopify). The member system's scope was narrowed in v2.0 to "membership × partner discounts × jersey", reducing its effort relative to v1.9.
+> Note: **from v2.6 e-commerce and payments are part of Phase 3** (the earlier plan excluded them because all shopping went to Shopify — that premise has lapsed). This is **the largest single increase in Phase 3 effort** relative to the previous version, and it introduces this site's first outbound collection of money. The member system's scope was narrowed in v2.0 to "membership × partner discounts × jersey", reducing its effort relative to v1.9; v2.3 added draw eligibility, but the system only builds and exports rosters, so the increase is small.
 
 ---
 
@@ -1334,19 +1432,20 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Item | Decision |
 |---|---|
 | Technology selection | Deferred; this document defines functional requirements only (the app specification follows the same premise, expressed as "platform capability requirements") |
-| Payments and shopping | **This site's public web front end** builds no on-site e-commerce; all shopping is routed to **Shopify**. Payments now divide **three ways**: ① **this site's web front end** takes no payments (payment links and in-person collection); ② the **Charity Donation Platform** integrates LINE Pay, collected for by the **Association**; ③ the **Mobile App** integrates LINE Pay for **membership fees only**, collected by **this club**, using the club's own merchant account and **never the Association's**. **"No card data" applies globally** |
+| Payments and shopping | **From v2.6 this site runs its own shop** (8.3 / admin module S); the former premise that "all shopping is routed to Shopify" **has lapsed**. Payments now divide **four ways**: ① **shop checkout on this website takes payments, by LINE Pay only** (collected by **this club**); ② **membership fees still do not go through on-site checkout** (payment links and in-person collection); ③ the **Charity Donation Platform** integrates LINE Pay, collected for by the **Association**; ④ the **Mobile App** integrates LINE Pay for **membership fees only**, collected by **this club**. **All four flows use LINE Pay, but merchant accounts, credentials, and invoice tracks are never shared between entities**; **"no card data" applies globally**, with payment always completing on LINE Pay's side |
+| On-site shop (added in v2.6) | **Yes, at the same functional scale as the old site's store.** Products and SKUs, inventory, cart, checkout, **LINE Pay payment**, **e-invoicing**, fulfilment and shipping, order lookup, and returns are all handled here, under the `S. Shop` admin module (S1–S6); `E4` is folded into `S1` and `ProductShowcase` is retired. **Guest checkout is supported.** ✗ **Payment methods other than LINE Pay** ✗ **Member pricing and discount codes** (paid membership includes no merchandise discount) ✗ **Weight-based or banded shipping rates** (flat rate plus free-shipping threshold only) ✗ Subscriptions / recurring billing ✗ Cross-border and multi-currency ✗ Marketplace / multi-vendor ✗ Resale or consignment ✗ Points redemption and e-wallet ✗ Ticketing and match packages ✗ Tying merchandise to membership or draw eligibility ✗ Carrier API integration ✗ Product reviews and ratings |
 | Advertising slots | **This site's public web front end** has no separate fixed slots; seasonal content uses the hero carousel or news. **The Mobile App sells its own advertising slots with performance measurement** (admin E5–E7): **no third-party ad networks, no advertising identifiers, no behavioural targeting, no splash ads**. **Neither the website nor the app carries charity slots** |
 | Push notifications | **This site's public web front end** has no notification centre, no notification preferences, and no LINE push. **The Mobile App provides native push (APNs/FCM) and an in-app notification centre.** **The five system emails are unchanged**; **push must never be used for individual winner notifications** |
 | Mobile App | **Yes**, with its own specification, [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) (v1.0): **shares this site's admin and database**, adding admin module `M` and `E5–E7`. Both the operating entity and the collecting entity are **this club**, entirely separate from the Association's charity platform |
 | Languages | **Traditional Chinese (default) / English**; Japanese is out of scope, with the architecture left extensible |
 | Member system | **Required**, delivered in Phase 2. Scope narrowed to **membership** alone: a free tier and a paid tier, with partner-store discounts for members and a jersey for paying members. Signup channels are **email registration + one-tap LINE sign-in** (no Google) |
-| Out of scope for the member system | ✗ Loyalty points ✗ E-wallet ✗ Ticketing and match packages ✗ Store scan-to-redeem and redemption reports ✗ Shopify SSO ✗ **Parent–student linking (website, app, and admin alike)** ✗ Web notification centre and LINE push<br>**The two v2.5 exceptions (Mobile App only)**: ✔ Form pre-filling ✔ My bookings (`Registration.member_id`). This site's web front end still does neither |
+| Out of scope for the member system | ✗ Loyalty points ✗ E-wallet ✗ Ticketing and match packages ✗ Store scan-to-redeem and redemption reports ✗ **Parent–student linking (website, app, and admin alike)** ✗ Web notification centre and LINE push<br>**The two v2.5 exceptions (Mobile App only)**: ✔ Form pre-filling ✔ My bookings (`Registration.member_id`). This site's web front end still does neither<br>**One item removed in v2.6**: "✗ Shopify SSO" lapses with the external store — the shop is on this site, the **member account is the shop account**, and the Member Centre gains "My orders" |
 | Paying-member prize draw | **Built**. Eligibility follows membership **automatically, with no sign-up** (every paying member valid at the snapshot time is included); the system only **freezes the eligible roster, issues serial numbers, and exports a CSV**, while the **physical draw is performed by people, on site or on a live stream** and winners are ticked in afterwards. Winners are announced **through News only** (masked); prizes are **physical items**, shipped or collected in person, fulfilled as jerseys are. ✗ System-run random selection ✗ Public draw page or "my draws" ✗ Winner notification emails and push ✗ Paid entries ✗ Ticket or store-redemption prizes |
 | Membership term | **Season-based** (e.g. 2026/27); everyone expires together and renewals are handled at season end |
-| Membership fees | **LINE Pay** (payment link / official account invoice) and in-person payment; the website takes no payments, and the admin activates membership after reconciliation |
+| Membership fees | **LINE Pay** (payment link / official account invoice) and in-person payment; **membership does not go through shop checkout**, and the admin activates it after reconciliation |
 | How discounts are used | Members **show the digital card** in store and staff check it visually; the QR points to a public read-only verification page. **No scan-to-redeem, no redemption counts, no store-side account or software** |
 | LINE Official Account | **Already exists** — integrate with the current account; no new application needed. Used here for sign-in and linking only |
-| Member offers | Partner-store discounts are maintained on this site (8.4); any future Shopify store offer is handled by **issuing discount codes**, with no account integration |
+| Member offers | Partner-store discounts are maintained on this site (8.4). **The on-site shop gives members no discount this time round** — no member pricing, no codes; paid membership keeps **partner-store discounts and the jersey**. The former "issue Shopify discount codes" approach lapses with the external store. Adding a merchandise discount later requires amending this assumption |
 | Fan donations | **Moved to a separate Charity Donation Platform** (**organised and collected for by 台灣足球策略發展協會**, on its own domain, sharing this site's admin and database), entered through partner venues' QR codes, integrating LINE Pay and issuing e-invoices or donation receipts. Section 11 here is editorial and referral only, and the CTA must name the recipient — see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md) |
 | Volunteer signup | **Not built**. The section 11 CTA narrows from three routes to two; any volunteering need is handled by the general contact form (10.7) |
 | FAQ | Standalone section 12, centrally managed and embedded across pages |
@@ -1358,7 +1457,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 
 ### Still to confirm
 
-1. **Shopify store URL**: the target for the 08.3 showcase; if the store is not yet open, confirm the expected launch date. (The donation item left this site's scope along with fan donations.)
+1. **Retiring the old Wix store, and the redirects**: v2.6 confirms an on-site shop, so **Shopify is no longer the referral target** and that open item is closed. What remains open: when does the old Wix store stop selling, how are its outstanding orders and stock handed over before the on-site shop launches, and who signs off the 301 mapping for the five `/product-page/…` and `/category/…` URLs?
 2. **Initial partner store roster**: this site does not do ticketing or match packages, so the value of paid membership rests on **store discounts and the jersey**. The **number and quality of the launch roster directly determines whether the paid tier is viable** and must be secured before launch (see 8.4).
 3. **Annual fee and plan design**: price of the individual plan? Is there a family plan (1 adult + N children)? How many jerseys does each include?
 4. **Season dates and mid-season pricing**: membership runs by season, so the season start and end dates need confirming, along with whether mid-season joiners are charged pro rata.
@@ -1379,6 +1478,17 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 18. **Collection deadline and unclaimed prizes**: how many days? Once the deadline passes, does a reserve step in, is the prize redrawn, voided, or rolled into the next draw? This must be stated in the rules.
 19. **Collection and tax certificates for minors who win**: where an additional cardholder on a family plan wins, the prize and any tax certificate go to the adult primary account holder (this specification's default) — does that match the club's practice?
 20. **Approval of the draw rules and member terms**: the template rules and the collection notice to be added to the member terms must be approved by **legal advisers** before the first draw is held.
+
+**Added in v2.6 (the on-site shop)**
+
+21. **The club's LINE Pay merchant account**: the payment method is settled — **LINE Pay only**. What remains open is **the merchant account itself**: the collecting entity is **the club** and it **must never share the Association's charity account**; the shop and the Mobile App's membership payments both belong to the club, so it must be decided whether they share one merchant account (if so, orders need a prefix or product naming that keeps reconciliation readable), along with fees and the settlement cycle. **Onboarding has a lead time and must start during Phase 2**, or it will block Phase 3.
+22. **How e-invoices are issued**: **LINE Pay does not issue invoices**, so it must be decided whether to register directly with the Ministry of Finance e-invoice platform or use an invoicing service provider. Invoice tracks, the donation-code list, and the voiding/credit-note process need confirming, and **the track must not be shared with the Association**.
+23. **Shipping methods and the flat rate**: which of home delivery, convenience-store pickup, and in-person collection are offered? Which carrier, what **flat shipping fee**, and what **free-shipping threshold**? Are outlying islands served? (No weight-based or banded rates this time round.)
+24. **The actual returns policy**: the seven-day cooling-off period is statutory, but the **exclusions** (customised goods; whether socks and similar items are excluded), who pays return shipping, and whether exchanges are offered must be decided by the club and cleared by legal advisers before the policy page is written.
+25. **Fulfilment staffing and space**: who picks, packs, and ships? How often (daily, or a few times a week)? Where is stock held? **This determines the S4 workflow and the delivery-time promise on the public site.**
+26. **Launch assortment and stock levels**: only a jersey and performance socks are on sale today. How many SKUs at launch, how much stock per size and colour, and when do the Academy and Fan collections get products?
+27. **Statutory retention period for transaction records**: orders, invoices, and refund records must be retained for several years under tax law; the actual period and "which fields survive an account deletion" must be confirmed by the accountant and legal advisers and written into the retention policy (handle together with item 15).
+28. **Whether membership fees should move to shop checkout**: now that payments exist on the site, should membership be sold online and activated automatically? **Deferred in v2.6** (payment links and in-person collection stand). Adopting it requires **amending the assumption in this section first**, following the established procedure, and assessing the overlap and reconciliation against the Mobile App's LINE Pay flow.
 
 ---
 

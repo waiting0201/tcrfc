@@ -318,6 +318,7 @@ input{ font:inherit; }
 
 .header-actions{ display:flex; align-items:center; gap:.9rem; flex:0 0 auto; }
 .icon-btn{
+  position:relative;
   width:44px; height:44px; display:inline-flex; align-items:center; justify-content:center;
   color:var(--text);
 }
@@ -1102,4 +1103,143 @@ section[id]{ scroll-margin-top:90px; }
 .badge--on-dark{
   color:var(--muted-dark); background:rgba(255,255,255,.06);
   border-color:rgba(255,255,255,.18);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SHOP 官方商店（規劃書 v2.6 §8.3 ／後台 S1–S6）
+   涵蓋商品列表、商品詳情、購物車、結帳、完成頁與訂單查詢。
+   目前為前端流程骨架：無後端、無金流、無庫存，按鈕不送出。
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── 商品卡（列表用） ── */
+.product-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:2rem; }
+.product-card{ display:flex; flex-direction:column; background:var(--paper); border:1px solid var(--rule); }
+.product-card__media{ position:relative; aspect-ratio:1/1; overflow:hidden; background:var(--paper-2); }
+.product-card__media img{ width:100%; height:100%; object-fit:cover; transition:transform var(--dur) var(--ease); }
+.product-card:hover .product-card__media img{ transform:scale(1.04); }
+.product-card__flag{ position:absolute; top:0; left:0; background:var(--brand); color:#fff; font-size:.66rem; font-weight:800; letter-spacing:.08em; padding:.35em .75em; }
+.product-card__body{ padding:1.25rem 1.25rem 1.5rem; display:flex; flex-direction:column; gap:.5rem; flex:1; }
+.product-card__name{ font-size:1.02rem; font-weight:700; color:var(--heading); line-height:1.4; }
+.product-card__opts{ font-size:.74rem; color:var(--muted); }
+.product-card__foot{ margin-top:auto; padding-top:.85rem; display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap; }
+
+/* ── 價格 ── */
+.price{ font-size:1.15rem; font-weight:800; color:var(--heading); }
+.price--sale{ color:var(--brand-aa); }
+.price__was{ font-size:.82rem; color:var(--muted); text-decoration:line-through; font-weight:500; }
+
+/* ── 商品詳情 ── */
+.product-detail{ display:grid; grid-template-columns:1fr; gap:2.5rem; }
+@media (min-width:900px){ .product-detail{ grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr); gap:3.5rem; align-items:start; } }
+.product-gallery__main{ aspect-ratio:1/1; overflow:hidden; background:var(--paper-2); border:1px solid var(--rule); }
+.product-gallery__main img{ width:100%; height:100%; object-fit:cover; }
+.product-gallery__thumbs{ display:flex; gap:.6rem; margin-top:.75rem; flex-wrap:wrap; list-style:none; padding:0; }
+.product-gallery__thumbs img{ width:72px; height:72px; object-fit:cover; border:1px solid var(--rule); background:var(--paper-2); }
+.product-info__title{ font-size:clamp(1.6rem,1.2vw + 1.3rem,2.2rem); font-weight:700; color:var(--heading); line-height:1.25; }
+.product-info__price{ display:flex; align-items:baseline; gap:.75rem; flex-wrap:wrap; margin:.85rem 0 0; }
+.product-info__stock{ font-size:.78rem; font-weight:700; color:var(--brand-aa); }
+.product-info hr{ border:0; border-top:1px solid var(--rule); margin:1.75rem 0; }
+
+/* ── 規格選擇（尺寸／顏色 = SKU） ── */
+.variant-group{ margin-bottom:1.5rem; }
+.variant-group__label{ display:flex; justify-content:space-between; align-items:baseline; gap:1rem; font-size:.8rem; font-weight:800; color:var(--heading); margin-bottom:.6rem; }
+.variant-group__label a{ font-size:.74rem; font-weight:600; color:var(--brand-aa); text-decoration:underline; }
+.variant-opts{ display:flex; flex-wrap:wrap; gap:.5rem; list-style:none; padding:0; margin:0; }
+.variant-opt{ min-width:3.25rem; padding:.6rem .9rem; text-align:center; font-size:.85rem; font-weight:700; color:var(--heading); background:var(--paper); border:1px solid var(--rule); cursor:pointer; transition:border-color var(--dur-fast) var(--ease), color var(--dur-fast) var(--ease); }
+.variant-opt:hover{ border-color:var(--brand); color:var(--brand-aa); }
+.variant-opt[aria-pressed="true"]{ border-color:var(--brand); background:var(--brand); color:#fff; }
+.variant-opt[disabled]{ color:var(--ghost); border-style:dashed; cursor:not-allowed; text-decoration:line-through; }
+.variant-swatches{ display:flex; flex-wrap:wrap; gap:.85rem; list-style:none; padding:0; margin:0; }
+.variant-swatch{ display:flex; flex-direction:column; align-items:center; gap:.35rem; width:68px; background:none; border:0; cursor:pointer; padding:0; }
+.variant-swatch img{ width:60px; height:60px; object-fit:cover; border:2px solid transparent; outline:1px solid var(--rule); }
+.variant-swatch[aria-pressed="true"] img{ border-color:var(--brand); }
+.variant-swatch span{ font-size:.68rem; color:var(--muted); line-height:1.3; text-align:center; }
+
+/* ── 數量 ── */
+.qty{ display:inline-flex; align-items:stretch; border:1px solid var(--rule); }
+.qty button{ width:2.6rem; font-size:1.1rem; font-weight:700; color:var(--heading); background:var(--paper-2); cursor:pointer; border:0; }
+.qty button:hover{ color:var(--brand-aa); }
+.qty input{ width:3.25rem; text-align:center; font-weight:700; border:0; border-left:1px solid var(--rule); border-right:1px solid var(--rule); font-family:inherit; font-size:.95rem; }
+.qty input::-webkit-outer-spin-button, .qty input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+.qty input[type=number]{ -moz-appearance:textfield; }
+
+.buy-row{ display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-top:1.5rem; }
+
+/* ── 商品頁的資訊清單（運送、退換貨） ── */
+.info-list{ list-style:none; padding:0; margin:1.5rem 0 0; border-top:1px solid var(--rule); }
+.info-list li{ padding:.9rem 0; border-bottom:1px solid var(--rule); font-size:.85rem; color:var(--text); display:flex; gap:.75rem; }
+.info-list strong{ flex:0 0 5.5rem; color:var(--heading); font-weight:800; font-size:.8rem; }
+
+/* ── 結帳步驟指示 ── */
+.steps{ display:flex; flex-wrap:wrap; gap:.25rem 1.5rem; list-style:none; padding:0; margin:0 0 2.5rem; counter-reset:step; border-bottom:1px solid var(--rule); padding-bottom:1.25rem; }
+.steps li{ counter-increment:step; display:flex; align-items:center; gap:.5rem; font-size:.82rem; font-weight:700; color:var(--ghost); }
+.steps li::before{ content:counter(step); display:grid; place-items:center; width:1.6rem; height:1.6rem; border-radius:50%; background:var(--paper-2); color:var(--muted); font-size:.72rem; font-weight:800; }
+.steps li[aria-current="step"]{ color:var(--heading); }
+.steps li[aria-current="step"]::before{ background:var(--brand); color:#fff; }
+.steps li[data-done]{ color:var(--muted); }
+.steps li[data-done]::before{ content:"✓"; background:var(--ink); color:#fff; }
+
+/* ── 購物車與結帳的兩欄版 ── */
+.shop-layout{ display:grid; grid-template-columns:1fr; gap:2.5rem; align-items:start; }
+@media (min-width:960px){ .shop-layout{ grid-template-columns:minmax(0,1.6fr) minmax(300px,.85fr); gap:3rem; } }
+.shop-layout__aside{ position:sticky; top:6rem; }
+
+/* ── 購物車列 ── */
+.cart-table{ width:100%; border-collapse:collapse; }
+.cart-table th{ text-align:left; font-size:.72rem; font-weight:800; letter-spacing:.06em; color:var(--muted); padding:0 0 .85rem; border-bottom:1px solid var(--rule); }
+.cart-table td{ padding:1.25rem 0; border-bottom:1px solid var(--rule); vertical-align:top; }
+.cart-item{ display:flex; gap:1rem; }
+.cart-item img{ width:88px; height:88px; object-fit:cover; border:1px solid var(--rule); flex:0 0 auto; }
+.cart-item__name{ font-weight:700; color:var(--heading); font-size:.95rem; line-height:1.4; }
+.cart-item__variant{ font-size:.78rem; color:var(--muted); margin-top:.3rem; }
+.cart-item__remove{ font-size:.74rem; color:var(--muted); text-decoration:underline; margin-top:.5rem; display:inline-block; background:none; border:0; padding:0; cursor:pointer; }
+.cart-table .num{ text-align:right; font-weight:700; color:var(--heading); white-space:nowrap; }
+
+/* ── 金額摘要 ── */
+.summary{ background:var(--paper-2); border:1px solid var(--rule); padding:1.75rem; }
+.summary h2{ font-size:1rem; font-weight:800; color:var(--heading); margin:0 0 1.25rem; }
+.summary__line{ display:flex; justify-content:space-between; gap:1rem; font-size:.88rem; padding:.5rem 0; color:var(--text); }
+.summary__line strong{ color:var(--heading); }
+.summary__total{ border-top:1px solid var(--rule); margin-top:.85rem; padding-top:1rem; font-size:1.05rem; font-weight:800; color:var(--heading); }
+.summary__note{ font-size:.74rem; color:var(--muted); line-height:1.6; margin-top:1rem; }
+.summary .btn{ margin-top:1.25rem; }
+
+/* ── LINE Pay 付款鈕（品牌綠僅用於此按鈕，屬第三方服務識別） ── */
+.btn--linepay{ background:#06C755; color:#fff; border-color:#06C755; }
+.btn--linepay:hover{ background:#05a648; border-color:#05a648; color:#fff; }
+
+/* ── 訂單完成頁 ── */
+.order-done{ max-width:640px; margin:0 auto; text-align:center; }
+.order-done__check{ width:64px; height:64px; margin:0 auto 1.5rem; display:grid; place-items:center; border-radius:50%; background:var(--brand); color:#fff; font-size:1.75rem; }
+.order-done__no{ font-family:var(--font); font-size:1.35rem; font-weight:800; letter-spacing:.04em; color:var(--heading); }
+.order-meta{ list-style:none; padding:0; margin:2rem 0 0; text-align:left; border-top:1px solid var(--rule); }
+.order-meta li{ display:flex; justify-content:space-between; gap:1rem; padding:.85rem 0; border-bottom:1px solid var(--rule); font-size:.85rem; }
+.order-meta span:first-child{ color:var(--muted); }
+.order-meta span:last-child{ font-weight:700; color:var(--heading); text-align:right; }
+
+/* ── 空狀態 ── */
+.shop-empty{ text-align:center; padding:4rem 1rem; border:1px dashed var(--rule); color:var(--muted); }
+.shop-empty p{ margin:0 0 1.25rem; }
+
+/* Header 購物車件數（SHOP 入口）
+   定位基準是「圖示的右上角」，不是按鈕容器的右上角：
+   .icon-btn 是 44×44 的觸控目標，但 svg 只有 20×20 置中，圖示四周各有 12px 空白。
+   badge 若貼容器角落（top/right ≈ 0）會離圖示約 14px，看起來像兩個不相干的元素，
+   因此 offset 取 3px，讓 badge 中心落在圖示右上角並與之相切。 */
+.icon-btn .cart-count{
+  position:absolute; top:3px; right:3px;
+  min-width:15px; height:15px;
+  display:grid; place-items:center; padding:0 .28em;
+  background:var(--brand); color:#fff; border-radius:999px;
+  font-size:.58rem; font-weight:800; line-height:1;
+  box-shadow:0 0 0 2px rgba(255,255,255,.92); /* 與 header 底色同色的描邊，讓 badge 疊在圖示上仍清楚 */
+}
+
+/* ── 待補內容標記（.pending 家族） ──────────────────────────
+   verify.mjs 會統計這些類別的出現次數當作「上線前必須清空」的清單。
+   原本各頁自行定義，商店流程頁上線後改為共用，避免同一個標記在不同頁長得不一樣。 */
+.pending-inline{ font-size:.78em; font-weight:700; opacity:.85; }
+.pending-note{
+  margin-top:1.5rem; padding:.9rem 1.1rem; border-left:3px solid var(--brand);
+  background:var(--paper-2); font-size:.82rem; line-height:1.7; color:var(--muted);
 }
