@@ -1,9 +1,45 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v1.9
-> **Date**: 2026-08-14 (v1.9 revision: 2026-09-03)
+> **Document version**: v2.4
+> **Date**: 2026-08-14 (v2.4 revision: 2026-09-04)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v1.9*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.3*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v2.4 revision summary — the Charity Donation Platform is run by the Association, not this club**
+> 1. From v1.4 of its own specification, the Charity Donation Platform is **organised, fundraised and collected for by 台灣足球策略發展協會** (the Association), not by Taichung Rock FC. This site is only a **traffic source** and the **admin host**.
+> 2. **The section 11 "fan donation" CTA must say where it leads**: it goes to the Association's donation platform, and the copy must make clear who receives the money. **It must not read as donating to this club.**
+> 3. This site's scope, page architecture and data model are **unchanged**; 11.1–11.4 and the `CharityProgram` linkage stay exactly as they are.
+> 4. In section 10, "donation receipts and fundraising eligibility" now turns on the Association rather than the club.
+
+> **v2.3 revision summary — prize draw entitlement for paying members**
+> 1. **The "Fan Club Prize Draw" is added as a paid-membership benefit**: at a draw's **eligibility snapshot time**, every paying member (`fan_club`) with a valid membership is **automatically included in the eligible roster — the member does nothing at all**: no entry, no sign-up, no points, no accumulation. One entry is added to the benefits comparison table under the existing "events" group (**no new group**), maintained as before in K4.
+> 2. **The system does not draw winners**: the physical draw is **performed by people, on site or on a live stream**, and what is drawn is the **draw serial number** the system issued. The system only **freezes the roster into a snapshot** at the snapshot time, issues consecutive serial numbers, and exports a CSV for use at the event; winners are then **ticked in manually** in the admin.
+> 3. **New admin module `K5 Prize draw rosters`**, placed under K Members (the roster comes from membership, it is maintained by the same support/administration staff, and prize fulfilment mirrors K3). **This `K5` is a recycled identifier**: v2.0 narrowed module K from K1–K5 to K1–K4, freeing it; it has no relationship to the former K5.
+> 4. **Two new data types: `MemberDraw` (draw) and `DrawRoster` (eligible roster snapshot)**. `DrawRoster` is an **immutable snapshot**: it copies the name, member number, tier, and membership expiry as values at snapshot time, cannot be added to or deleted from once locked, and can only be voided and regenerated in full if wrong; a **roster hash** is stored for audit. It is deliberately not named `Ticket` (which would blur into the excluded ticketing scope) or `Entry` (which would imply members must enter).
+> 5. **Winners are announced through News only** (category 7.1 Club News plus a new `Fan Club Prize Draw` tag — **no ninth news category**), always masked to "serial number + member number + masked name". **No winner notification email** (the five system emails are unchanged), no on-site notification, no LINE push. The public site has **no** draw page, no "my draws", no serial-number lookup, no winners list page, and no online draw animation.
+> 6. **Tax and personal data follow data minimisation**: a winner's national ID number is collected only where a single prize reaches the withholding threshold (encrypted, masked, audited, destroyed at end of retention), and **the first draws' prize values are recommended to sit below the threshold so nothing need be collected at all**; the member terms must add a collection notice for the draw. Section 10 gains open items 16–20.
+
+> **v2.2 revision summary — English club name corrected**
+> 1. The club's English name is corrected from `Taichung Rocks FC` to **`Taichung Rock FC`** (long form `TAICHUNG ROCK FOOTBALL CLUB`).
+> 2. This revision changes wording only — scope, data model and page architecture are unchanged. All documents, the mockup and the public-site skeleton have been updated; any remaining `Rocks` spelling is an error.
+
+> **v2.1 revision summary — donations move to a separate platform**
+> 1. **A separate Charity Donation Platform is introduced**, specified in its own document, [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md): its own domain and its own public-site project, **sharing this site's admin and database**. Partner venues' QR codes are the entry point; it integrates LINE Pay and issues e-invoices or donation receipts.
+> 2. **Section 11 on this site narrows to editorial content and referral**: 11.1 commitment, 11.2 programmes, 11.3 impact stories and 11.4 impact metrics are unchanged; **all on-site donation mechanisms (Shopify donation item, bank transfer, in-kind donation, the transfer report form) are removed**, and fan donation links out to the Charity Donation Platform.
+> 3. **Volunteer signup is out of scope**: the section 11 CTA narrows from three routes to two (corporate partnership / fan donation), the G2 inbox no longer has a volunteer tab, and the `Enquiry` type drops the volunteer category.
+> 4. **"No payment gateway" now applies to this site only**: the Charity Donation Platform integrates the LINE Pay Online API properly, within that project's scope. This site still builds no cart, integrates no gateway, and manages no orders or inventory.
+> 5. **The donation receipt question is answered**: the former open item "whether donation receipts are required" is now specified in Charity Donation Platform §5 (both e-invoices and donation receipts, chosen per project); fundraising eligibility is elevated to a **launch precondition** for that platform.
+> 6. The `Donation` type's definition moves to Charity Donation Platform §9; this site no longer creates donation records.
+
+> **v2.0 revision summary — member system scope narrowed**
+> 1. **The member system now carries membership alone**: a free tier and a paid tier, with **partner-store discounts** for members and a **jersey** for paying members. The earlier positioning — connecting fan club, program registration, event signup, and newsletter — is withdrawn.
+> 2. **New section 8.4 Partner Perks** (a public page) plus admin module K4. This is an entirely new content type, `PartnerStore`, which shares no data with 9.1 Partners (the B2B logo wall).
+> 3. **A paying member is a fan club member**, not a separate identity; page 8.2 becomes the introduction and join page for paid membership. The former "Parent" tier is removed.
+> 4. **The benefits comparison table is now a stated requirement**: structured data, maintained in the admin, visible without signing in, and **never delivered as images**; one dataset shared by the join page, 8.2, and the upgrade page.
+> 5. **Membership runs by season**, with everyone expiring together; individual and family plans are supported via `card_quota` / `jersey_quota`.
+> 6. **Fees are collected via LINE Pay payment links and in person**; the website takes no payments, and the admin activates membership after reconciliation. An automation hook is reserved.
+> 7. **Moved out of scope**: loyalty points, e-wallet, ticketing and match packages, **store scan-to-redeem and redemption reporting**, Shopify SSO, booking attribution and form pre-filling, parent–student linking, on-site notification centre, LINE push and parameterised QR source tracking, Google sign-in, member calendar and "I'm attending".
+> 8. Admin module K goes from K1–K5 to **K1 Member list / K2 Membership and plans / K3 Jersey fulfilment / K4 Partner stores and benefits**. The data model gains `MembershipPlan`, `MembershipPayment`, `MembershipBenefit`, `PartnerStore`, and `EmailLog`, and drops `StudentLink`, `LineEntryCode`, `Notification`, and `EventInterest`.
 
 > **v1.9 revision summary**
 > 1. The club mark must always be one of the three lockups extracted from `reference/TCR_logo_CMYK.ai` (mark / mark + TCRFC "English" lockup / mark + TCRFC + 台中磐石足球俱樂部 "Chinese" lockup). **Never set the club name in type alongside it, and never add "SINCE" or a founding year.** The public-site header carries the mark alone; the footer carries the full Chinese lockup.
@@ -11,7 +47,7 @@
 > 3. The first-team squad list is **ordered by squad number, with no position grouping or filter**.
 > 4. **The homepage stat strip is removed entirely** (the strips on the 03 Football Club landing page and 11.4 Our Impact remain).
 > 5. Section 10 forms merged from nine to seven (10.2 + 10.3, and 10.6 + 10.7); numbering closes up.
-> 6. The club's English name is `Taichung Rocks FC` throughout (the Brand Deck footer's `TAICHUNG ROCKS FOOTBALL CLUB` is the long form of the same name). Every previous use of `Taichung Cornerstone RFC` has been replaced.
+> 6. The club's English name is `Taichung Rock FC` throughout (the Brand Deck footer's `TAICHUNG ROCK FOOTBALL CLUB` is the long form of the same name). Every previous use of `Taichung Cornerstone RFC` has been replaced.
 
 ---
 
@@ -49,12 +85,13 @@
 
 ### 1.3 System scope
 
-- **Public site**: 13 top-level sections, ~60+ sub-pages, 7 CTA conversion forms, a **Member Centre**, and **two languages (Traditional Chinese / English)**.
+- **Public site**: 13 top-level sections, ~60+ sub-pages, 7 CTA conversion forms, a **Member Centre and partner store directory**, and **two languages (Traditional Chinese / English)**.
 - **Admin CMS**: content management, teams & fixtures, registrations & rosters, **member management**, FAQ management, charity impact records, enquiry inbox, merchandise & partners, SEO & site settings, permissions & audit.
 - **Out of scope for this engagement**:
-  - **E-commerce and payments** — all shopping is routed to **Shopify**. This site builds no cart, integrates no payment gateway, and manages no orders or inventory; it maintains a product showcase and outbound links only (see 3.8 / 4.6).
+  - **E-commerce and payments** — all shopping is routed to **Shopify**. This site builds no cart, integrates no payment gateway, and manages no orders or inventory; it maintains a product showcase and outbound links only (see 3.8 / 4.6). **This premise applies to this site only**: charity donation payments are handled by the separate Charity Donation Platform, see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md).
   - **Technology selection** — this document defines functional requirements only; it does not decide framework, CMS, or hosting.
-  - Ticketing, member points, and e-wallet (recommended for later evaluation).
+  - **Ticketing and match packages**, **loyalty points**, **e-wallet**, and **partner-store scan-to-redeem with redemption reporting** (recommended for later evaluation). The paying-member prize draw (3.14 / admin K5) is **none of these**: eligibility is a boolean derived from membership, the draw serial number is not a ticket, and prizes exclude tickets — see 3.14.
+  - **On-site donations and volunteer signup** — fan donations move to the Charity Donation Platform (separate domain, see above); **volunteer signup is not built**, and any such need is handled by the general contact form (10.7).
 
 ### 1.4 Existing digital assets
 
@@ -83,13 +120,14 @@ The following assets must be inventoried before launch to determine migration sc
 ├── 05 PROGRAMS                       (5.1 ~ 5.5)
 ├── 06 WOMEN'S FOOTBALL               single introductory page (no roster / fixtures / results)
 ├── 07 NEWS & STORIES                 (7.1 ~ 7.8)
-├── 08 TCRFC CULTURE                  (8.1 ~ 8.3)
+├── 08 TCRFC CULTURE                  (8.1 ~ 8.4)
 ├── 09 PARTNERS & SPONSORS            (9.1 ~ 9.4 + 2 CTAs)
 ├── 10 JOIN / CONTACT                 (10.1 ~ 10.7 + map / contact info)
 ├── 11 CHARITY & IMPACT               (11.1 ~ 11.4)
 ├── 12 FAQ                            (standalone section, cross-topic)
 ├── 13 SCHEDULE                       (fixtures and results by team)
 └── MEMBER CENTRE                     (authenticated area, entry point at the right of the header)
+    └── Card verification /m/<token>   (public, read-only, for stores to check validity)
 ```
 
 ### 2.1 Page-type taxonomy
@@ -127,7 +165,7 @@ The following assets must be inventoried before launch to determine migration sc
 | G-08 | Accessibility | WCAG 2.1 AA, keyboard operation, image alt text, contrast checks |
 | G-09 | Newsletter signup | Persistent in the footer, integrated with an EDM platform |
 | G-10 | 404 / maintenance pages | Branded error pages with links to popular destinations |
-| G-11 | Member status bar | Header shows sign-in / register or an avatar menu; when signed in, forms pre-fill basic details; supports one-tap login with LINE and Google |
+| G-11 | Member status bar | Header shows sign-in / register or a member menu (card / membership / sign out); supports one-tap LINE sign-in. No form pre-filling |
 | G-12 | FAQ quick block | Attachable to the bottom of any page, automatically pulling the FAQs for the relevant topic (see 3.12) |
 
 ---
@@ -287,11 +325,18 @@ A **unified newsroom** segmented into eight categories:
 - **Episodes / Stories**: episode list (cover, episode number, publish date) + an **online reader** (paged and scroll modes, previous/next navigation, mobile gestures); **entirely free, no sign-in required**
 - **Latest Episode**: pinned block, also surfaced on the homepage
 
-#### 8.2 Fan Club
+#### 8.2 Fan Club (the introduction and join page for **paid membership**)
 
-- Join the Fan Club: membership form (member details, plan selection)
-- Fan Benefits: tiered benefits comparison table
-- Fan Events: event list + registration + event recaps
+| Block | Content |
+|---|---|
+| Membership Plans | Individual and family plan cards: price, season term, cards included, jerseys included, benefit summary |
+| Fan Benefits | The **free versus paid benefits comparison table**, sourced from the same data as 3.14 (maintained in admin K4), visible without signing in |
+| Partner Perks | Current number of partner stores and a selection of them, linking through to the full list in 8.4 |
+| Join / Upgrade | Routes to registration or the upgrade flow in the Member Centre; signed-in visitors go straight to the upgrade page |
+| Fan Events | Event list + registration (can be restricted to paying members) + event recaps |
+| Member Draw | **An explanatory block, not an interactive one**: states that a valid membership **confers prize-draw eligibility automatically, with no entry or sign-up**, and that the prizes, quantities, **eligibility snapshot time**, draw time, and collection method for each draw are announced in News. This page has **no** draw entry, serial-number lookup, or winners list (see 3.14) |
+
+> Fan club members are members flagged `fan_club` in the member system — **no separate list is maintained** (see 3.14 and 4.11 K).
 
 #### 8.3 Merchandise (**Shopify referral — no shop functionality on this site**)
 
@@ -305,6 +350,21 @@ A **unified newsroom** segmented into eight categories:
 | Not included | ✗ On-site cart ✗ Payment integration ✗ Order management ✗ Inventory ✗ Shipping and returns |
 
 > If automatic product synchronisation becomes necessary later, the Shopify Storefront API could be evaluated to pull the product list — a Phase 4 option, outside the current scope.
+
+#### 8.4 Partner Perks (member discounts)
+
+| Item | Description |
+|---|---|
+| Positioning | The content source for the discount benefit and the primary incentive to join. **A public page, browsable without signing in** |
+| Store list | Card wall, filterable by **category** (dining, sportswear, health, education, services, etc.) and **area** |
+| Store detail | Name, photo / logo, category, address, phone, opening hours, map link, website or social link |
+| Offer | Each store states its offer and the **applicable tier** (all members / paying members only) |
+| How to use | Show the digital membership card in store. The page sets out usage notes and caveats (e.g. not combinable with other offers, store terms prevail) |
+| Not included | ✗ Scan-to-redeem ✗ Redemption counts ✗ Store-side accounts or admin ✗ Loyalty points ✗ E-wallet |
+
+> This is a **different content type** from 9.1 Partners (the B2B logo wall): different audience, fields, and maintenance cadence, with no shared data (see `PartnerStore` and `Partner` in section 5).
+
+> **Launch prerequisite**: the value proposition of paid membership rests on partner discounts and the jersey (this site does not do ticketing or match packages), so **the size and quality of the initial partner store roster directly determines whether the paid tier is viable**. It must be secured before launch (see section 10).
 
 ---
 
@@ -360,26 +420,24 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 | 11.2 | Charity Programs | **Program list** (cover, name, beneficiaries, period, status: ongoing / completed); detail pages cover the programme's origin, **recipient charity name**, **what was donated**, delivery narrative, **event photo gallery**, and related coverage |
 | 11.3 | Impact Stories | **Timeline / card list**; every record presents three core data points: **① charity organisation name ② what was donated ③ event photography**, plus date, location, and a short description; filterable by year |
 | 11.4 | Our Impact | Cumulative statistics: number of partner charities, total donation instances, areas served; presented as a **logo wall / list of organisations** with representative imagery. Monetary figures are hidden by default; visibility is decided per item in the admin |
-| CTA | Get Involved | Three participation routes: **corporate charity partnership** (routes to 10.5) / **fan donation** (see below) / **volunteer signup** (form) |
+| CTA | Get Involved | Two participation routes: **corporate charity partnership** (routes to 10.5) / **fan donation** (links out to the Charity Donation Platform, see below) |
 
-#### Fan donation mechanism
+#### Fan donation: routing to the Charity Donation Platform
 
-Fans can support the club's charitable programmes directly. Because the site carries no payment gateway, donations are handled through existing channels:
+Fan donations are **not handled on this site**. They link out to the **Charity Donation Platform** on its own domain (see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md)). That platform's main entry point is a QR code displayed by partner venues; it integrates LINE Pay properly and issues an e-invoice or a donation receipt depending on the project.
 
-| Channel | How it works | Best for |
-|---|---|---|
-| **Shopify donation item** (recommended primary channel) | List a "support our charity work" item on Shopify with several fixed amounts (e.g. NT$300 / 500 / 1,000 / 3,000); fans pay exactly as they would for a purchase | General fans, small donations, immediate online completion |
-| **Bank transfer** | Publish the donation account details on the site with a follow-up form (name, amount, last five digits of the transfer, designated programme, named or anonymous) | Large donations, corporate giving, those who cannot pay online |
-| **In-kind donation** | A form to register the items and quantities offered; the club follows up | Equipment, kit, supplies |
+> **That platform is organised and collected for by 台灣足球策略發展協會 (the Association), not by this club** (Charity Donation Platform specification v1.4). The CTA copy must therefore name where it leads and who receives the donation, and **must never read as donating to Taichung Rock FC**.
 
-**Donation page functionality**:
-- Explains how funds are used (donors may designate a specific charity programme or leave it undesignated)
-- Amount option cards + "other amount"
-- **Acknowledgement**: donors choose to be **named or anonymous**; named donors appear on a **public donor roll** (name only, no amounts)
-- A thank-you message is sent after donating (email / LINE), and the use of funds is published annually
-- Donations by fan members are attributed to their member account and visible in the Member Centre
+This site has three responsibilities and no more:
 
-> Note: given no payment gateway is being built, a Shopify item is the fastest route to accepting donations. If formal receipts or tax-deductible status are required later (which involves public fundraising eligibility), the legal and procedural implications need separate assessment — not included in this scope.
+| Item | Approach |
+|---|---|
+| Referral | Every "fan donation" CTA in section 11 links to the Charity Donation Platform; the URL is configured in admin B6 and **never hard-coded into a template**. **The copy must state that the Association receives the donation** |
+| Impact feedback | Donation projects on that platform can link to this site's `CharityProgram` records; how funds were used continues to be presented as structured content in 11.2 / 11.3 |
+| Consistency | This site shows no amount options, hosts no donation form, and publishes no bank account details |
+
+> **The premise that this site builds no payment gateway is unchanged.** Payments, invoicing, revenue share and reporting all belong to the Charity Donation Platform; the two share an admin and a database, but their public sites are entirely separate.
+> The three channels from v2.0 (Shopify donation item, bank transfer, in-kind donation) and the on-site transfer report form have **all been removed** and are no longer part of this specification.
 
 **Content cross-linking**:
 - Shares the news library with **7.7 Community**: timely reporting of charity activity is published in 7.7, while the Charity section presents programmes and impact records in structured, long-lived form. The two cross-link rather than duplicating content.
@@ -532,77 +590,117 @@ The calendar is organised primarily **by team**:
 
 ### 3.14 MEMBER CENTRE
 
-**Positioning**: use membership to connect four existing scenarios — fan club, program registration, event signup, and newsletter — reducing repeat form-filling and accumulating a first-party contact database.
+**Positioning**: the member system carries **one thing — membership**. Anyone who joins gets discounts at partner stores; paying members additionally receive a jersey. The member system does not handle registration attribution, student records, or newsletter campaigns.
 
-#### Three parallel signup channels
+> **Explicitly out of scope**: loyalty points, e-wallet, ticketing and match packages, partner-store scan-to-redeem and redemption reporting, and single sign-on with Shopify.
 
-| Channel | Use case | Description |
-|---|---|---|
-| **A. Email registration on the website** | Users registering or joining the fan club on their own initiative | Email + password, activated by a verification email |
-| **B. LINE Official Account QR code** | On-site recruitment, matchdays, camps, school outreach, printed collateral | Scan the QR code to add the official account, then follow the prompts to complete signup and linking |
-| **C. Google account** | Google-ecosystem users and international visitors | One-tap authorisation creates the account, no password required |
+#### Membership tiers (two)
 
-> All three channels create records in **the same member database**. If someone registers by email and later signs in via QR code or Google, the accounts are **merged into one** by matching on email or mobile number, preventing duplicate records.
+| Code | Display name | How it's obtained | Benefits |
+|---|---|---|---|
+| `registered` | Member | Free registration + email verification | Digital membership card; discounts at partner stores marked "all members" |
+| `fan_club` | Fan Club Member (paid) | Annual fee, activated by the admin after payment | The above + discounts marked "paying members only" + **a jersey** (quantity per plan) + priority booking for fan events + **prize draw eligibility** (automatic while the membership is valid, with no sign-up) |
 
-#### LINE Official Account signup flow
+> A paying member **is** a fan club member (8.2) — not a separate identity, and no separate list is maintained. The former "Parent" tier has been removed.
 
-```
-① Scan the QR code
-   (on-site signage / print collateral / website / registration confirmation page / email signature)
-        ↓
-② Add the official account as a friend
-        ↓
-③ Automatic welcome message
-   "Welcome to TCRFC! Tap here to complete your registration and access your bookings and fixture alerts."
-        ↓
-④ Tap through to the signup form (opens inside LINE)
-   Fields: name, mobile, email, role (fan / parent), teams of interest
-        ↓
-⑤ The system creates the member record and links the LINE account
-        ↓
-⑥ Done: the member can self-serve from the LINE rich menu, and the club can push notifications
-```
+#### Membership term and plans
 
-**QR code placement**: signage at training grounds and the home stadium, camps and trial events, recruitment posters and flyers, the website footer and contact page, registration confirmation pages (encouraging signup to receive follow-ups), the fan club signup page, and matchday programmes.
+- **Season-based term**: membership runs by season (e.g. 2026/27); `paid_until` comes from the plan rather than being calculated from the join date. Everyone expires together and renewals are handled in one batch at season end.
+- **Plan settings** (admin K2): plan name, price, season code, start and end dates, `card_quota` (cards issued per membership), `jersey_quota` (jerseys included), mid-season pricing rule, benefit description, sort order, publish state.
+- **Family plans** are simply different records of the same entity (e.g. 1 adult + 2 children = `card_quota` 3, `jersey_quota` 3). Names and jersey sizes for additional cardholders are captured during jersey registration — **no parent–student linking mechanism is required**.
+- **Mid-season pricing** (pro-rata, full price, or otherwise) is defined per plan.
 
-**Suggested LINE rich menu items**: `My bookings`, `Upcoming fixtures`, `Program registration`, `Latest news`, `Contact us`, `Official store`.
+#### Membership fees (no payment processing on this site)
 
-> **Design principle**: the LINE signup form is **deliberately minimal** (name, mobile, email, role only) to reduce abandonment when scanning on site; the remaining details are collected when the person actually registers for a program.
+| Item | Approach |
+|---|---|
+| Payment method | **LINE Pay** (payment link / official account invoice), plus in-person payment (matchdays, recruitment events) |
+| Role of the website | Presents plans and payment instructions and accepts upgrade requests; **no cart, no payment gateway, no card data** (per the confirmed assumption in 1.3) |
+| Activation | Customer service activates the membership in the admin after reconciling payment, recording payment method, amount, date, transaction note, and handler; the system writes a payment record for reconciliation and audit |
+| Automation hook | An internal endpoint `POST /api/membership/activate` (credential-protected) is reserved so that automated collection can be added later without changing the member module |
 
-#### Membership tiers
+> LINE Pay API checkout, refunds, and reconciliation are **out of scope for this phase**; adopting them would require amending the "no on-site payment processing" assumption in section 10.
 
-| Tier | How it's obtained | Benefits |
-|---|---|---|
-| Registered | Free registration | Pre-filled registration forms, booking history, newsletter preferences |
-| Fan Club | Joining the fan club (see 8.2) | All of the above + priority booking for fan events, member benefits, exclusive content area |
-| Parent | Linked after completing a program or academy registration | All Registered benefits + student attendance and course information, payment status, notifications |
+#### Digital membership card and how discounts are used
+
+- **Card contents**: member number, QR code, name, tier, expiry date.
+- **In store**: the member shows the digital card and staff check it visually. The QR code points to a public verification page `/m/<token>` that displays **only** the first character of the name, the member number, the tier, and valid / expired status — no other personal data.
+- **No scan-to-redeem**: the system does not count redemptions, does not produce store performance reports, and stores need no account and no software. The verification page is read-only.
+- **Token security**: the token cannot be derived from the member number, and members can regenerate it from the Member Centre if a card is leaked.
+
+#### Benefits comparison table (the core of signup conversion)
+
+- A **line-by-line comparison** of free versus paid benefits, maintained as structured content in the admin (K4).
+- **One dataset, three placements**: ① the join page, ② Fan Benefits on the fan club page (8.2), ③ the upgrade page in the Member Centre. All three share one component and one dataset.
+- **Visible without signing in.** Benefits and the partner store list are the incentive to join; requiring registration to see them defeats the purpose.
+- **Must not be delivered as images.** Benefits require zh/en fields, must be indexable by search engines, and must be readable by screen readers.
+
+#### Fan Club Prize Draw (eligibility is automatic)
+
+- **Eligibility**: at a draw's **eligibility snapshot time**, every paying member (`fan_club`) with a valid membership is **automatically included in the eligible roster**. The member **does nothing at all** — no entry, no sign-up, no check-in, and nothing to accumulate.
+- **How the draw runs**: the physical draw is **performed by people, on site or on a live stream**, and what is drawn is the **draw serial number** issued by the system. The system only freezes the roster into a **snapshot** at the snapshot time, issues consecutive serial numbers, and exports the list for use at the event. It runs **no random-selection algorithm** and produces no random result.
+- **Announcement**: winners are announced **through News only** (category 7.1 Club News, tagged `Fan Club Prize Draw`), always masked (serial number + member number + masked name). No system email, no on-site notification, no LINE push.
+- **Prizes**: physical items supplied by the club, shipped or collected in person, fulfilled the same way as jerseys (admin K3). No tickets, no partner-store redemption, no cash or cash equivalent.
+- **Admin workflow**: see 4.11 K5 Prize draw rosters.
+- **Not built on the public site**: a draw page or entry button, "my draws / my serial number" in the Member Centre, any lookup of a serial number or win status, an on-site winners list page, an online draw animation or wheel, a live counter of eligible members, and any share-or-invite mechanism that would improve someone's chances.
+
+##### How the draw stays inside the decisions already made
+
+| Already ruled out | Why this design does not breach it |
+|---|---|
+| ✗ **Loyalty points** | Eligibility is a **boolean**: valid membership at the snapshot time, or not. **One person, one serial number** — spending, checking in, sharing, inviting, or taking part more often never improves the odds. No points, balance, accrual, or weighting field exists, and the roster snapshot holds no count column |
+| ✗ **Ticketing and match packages** | The draw serial number is only the snapshot's running number: **no face value, non-transferable, non-tradable, not scanned for entry, no QR code, never shown on the public site**. Prizes explicitly exclude tickets and packages |
+| ✗ **Store scan-to-redeem and redemption reports** | Collection happens at the club and is recorded by **ticking a status in the admin** (pending / shipped / collected, exactly as K3). Nothing is scanned or counted, no store report is produced, and partner stores are not involved at all; the response from the card verification page `/m/<token>` is **unchanged**, with no new fields |
+| ✗ **On-site notification centre and LINE push** | Winners are announced **through News only**. The five system emails stand, with **no sixth added**; there is no on-site messaging, no notification preferences, and no LINE push. Contacting an individual winner is done by support staff by phone or a written message, outside any system template and never recorded in `EmailLog` |
+| ✗ **This site takes no payments** | The draw **sells nothing, charges nothing, and has no paid entry**. What is paid for is the membership itself, still collected by LINE Pay payment link or in person and activated after reconciliation. Prizes are the club's own physical goods; the system handles no prize payments, refunds, or invoices |
+| ✗ **Booking attribution and form pre-filling** | The draw has **no form**. Eligibility is automatic and nothing is filled in, so neither applies |
+| ✗ **System-run random selection** (added by this revision) | The draw is performed by people, on site or on a live stream, where it can be witnessed. The system only freezes the roster, issues serial numbers, and exports them — it **produces no random result**, which keeps the club clear of disputes over the fairness of an electronic draw and of the burden of proving it |
+
+#### Jersey fulfilment
+
+- Once a paid membership is activated, the member enters a **size** and **collection method** (shipping / in-person) in the Member Centre; shipping requires recipient name, phone, and address.
+- Fulfilment status: `pending / shipped / collected`, visible to the member and maintained by the admin in K3.
+- Family plans capture a size for each jersey per `jersey_quota`.
+
+#### Signup channels (two)
+
+| Channel | Description |
+|---|---|
+| **A. Email registration** | Email + password, activated by a verification email |
+| **B. One-tap LINE sign-in / registration** | Authorise with LINE to create and link the account |
+
+> Both channels create records in **the same member database**; when the same person arrives via a different channel, accounts are merged by matching on email or mobile number. Google sign-in is not used.
 
 #### Public-site functionality
 
 | Feature | Description |
 |---|---|
-| Registration | ① Email + password; ② **LINE Official Account QR code signup** (flow above); ③ **quick registration with Google**. All three create records in the same member database |
-| Email verification | Account activated by a verification email after registration (also sent for LINE signups that include an email) |
-| Sign in / out | Email + password; **one-tap LINE sign-in** and **Google sign-in** (no password to remember); remember me; failed-attempt limits |
-| Forgotten password | Time-limited reset link by email; LINE-linked members can verify via LINE instead |
-| Linked-account management | The Member Centre shows LINE / Google link status and allows linking and unlinking; unlinking preserves the account and booking history (at least one sign-in method must remain) |
-| Profile | Name, contact details, date of birth, area, avatar, language preference, notification preferences |
-| My bookings | Program / camp / trial / event booking history and status (pending / confirmed / paid / completed / cancelled), with downloadable confirmations |
-| My donations | Donation history and thank-you messages (see the fan donation mechanism in 3.11) |
-| My students | Parents can link multiple students and pre-fill their details when registering |
-| Fan club area | Membership card (member number / QR code), benefits list, exclusive event booking, exclusive content |
-| My calendar | Booked programs and fixtures marked "attending" in one view, downloadable as .ics or subscribable (see 3.13) |
-| Notification centre | On-site notifications: booking status changes, event reminders, club announcements |
-| Subscription management | Toggles for newsletter and notification types; each notification type can be routed to **email / LINE / on-site** |
-| Account management | Change password, delete account (personal-data deletion request workflow) |
+| Registration | ① Email + password; ② one-tap LINE registration |
+| Email verification | Verification email activates the account |
+| Sign in / out | Email + password, one-tap LINE sign-in; remember me; failed-attempt limits |
+| Forgotten password | Time-limited reset link by email |
+| LINE link management | Shows link status and allows linking and unlinking; at least one sign-in method must remain |
+| Profile | Name, mobile, email, date of birth, language preference; change password, delete account (personal-data deletion request workflow) |
+| **Digital membership card** | Member number, QR code, tier, expiry date; QR can be regenerated |
+| **Benefits comparison** | Free versus paid, line by line, visible without signing in |
+| **Partner store list** | Browse by category and area, each store marked with the applicable tier and offer (see 8.4) |
+| **Upgrade to paid membership** | Plan comparison (individual / family), payment instructions, upgrade request, status display (pending / active / expired) |
+| **Jersey registration** | Enter size and collection method; view fulfilment status |
+| Renewal | Renewal prompt and payment instructions ahead of expiry |
+
+> The following are **not included** after review: form pre-filling, my bookings, my donations, my students (parent linking), my calendar (.ics), on-site notification centre, notification preference centre, the members-only content area, **"my draws" (serial-number and win lookup)**, **an on-site winners list page**, and **an online draw or random-selection tool**.
+
+#### Email notifications (five only, all with zh/en templates)
+
+Registration verification, password reset, membership activation confirmation, 30-day expiry reminder, and expiry notice.
+**Not included**: on-site messaging, LINE push, newsletter campaigns. Marketing emails must carry an unsubscribe link.
 
 #### Integration with existing modules
 
-- **Forms (10.1–10.7)**: when signed in, name / email / phone are pre-filled, reducing the fields to complete.
-- **Program registration (P3)**: bookings are automatically attributed to the member account, so the admin can view a member's full booking history.
-- **Fan club (F2)**: fan club members are simply members flagged `fan_club` in the member system — no separate list is maintained.
-- **Shopify**: website accounts and Shopify accounts remain **independent**; no single sign-on is implemented. **Member-exclusive offers are handled by issuing Shopify discount codes**, distributed via LINE push or email, with the admin setting the target audience (tier / list) and validity period.
-- **LINE Official Account**: serves as a signup channel and notification channel, not as a separate contact database — every LINE friend who completes signup is written into the member database (see 4.11 K5).
+- **Fan club (8.2 / F2)**: fan club members are members flagged `fan_club`; no separate list is maintained, and page 8.2 is the introduction and join page for paid membership.
+- **Partner stores (8.4)**: the content source for the discount benefit, publicly browsable.
+- **Shopify**: website accounts and Shopify accounts remain **independent**; no single sign-on is implemented. Any future online-store offer for members is handled by issuing discount codes.
+- **LINE Official Account**: used only for sign-in and account linking — not as a separate contact database, and with no parameterised QR source tracking.
 
 ---
 
@@ -641,17 +739,17 @@ TCRFC Admin
 │   └── F2 Fan Club events (member lists live in module K)
 ├── G. Forms & Enquiries
 │   ├── G1 Form Designer
-│   ├── G2 Inbox (9 enquiry types + volunteer / donation)
+│   ├── G2 Inbox (7 form types + deck downloads + donation enquiries)
 │   └── G3 Newsletter Subscribers
 ├── H. SEO & Marketing
 ├── I. Site Settings (menus / footer / languages / contact info / venues / Shopify links)
 ├── J. System (accounts / roles / audit / backup)
 ├── K. Members
 │   ├── K1 Member list and detail
-│   ├── K2 Tiers & fan club
-│   ├── K3 Parent–student links
-│   ├── K4 Notifications & messaging (on-site / email / LINE)
-│   └── K5 LINE Official Account integration
+│   ├── K2 Membership and plans
+│   ├── K3 Jersey fulfilment
+│   ├── K4 Partner stores and benefits
+│   └── K5 Prize draw rosters (roster and export only; no random selection)
 └── L. Schedule
     ├── L1 Master calendar (cross-module aggregate view)
     ├── L2 Custom events (club events)
@@ -712,8 +810,8 @@ TCRFC Admin
 - **Impact Record**: three required fields — **charity organisation name**, **what was donated** (free text, e.g. "50 footballs, 100 training bibs" or "N scholarships"), and **event photography** (multiple images); plus date, location, short description, and optionally the parent programme
 - **Charity organisation records**: name, description, logo or representative image, website, contact person, collaboration history; reusable across multiple impact records to avoid re-entry
 - **Impact metrics**: custom statistics (name, unit, value, public visibility); **monetary metrics are private by default**
-- **Donation settings**: Shopify donation item link, amount options, bank account details, in-kind donation form, donor roll management (named / anonymous, display toggle)
-- **Get Involved settings**: copy and destinations for the three CTAs (corporate partnership / fan donation / volunteering)
+- **Donation referral settings**: the Charity Donation Platform URL (**never hard-coded into a template**) and the CTA copy. Donation records, amount options, invoicing and the donor roll are all maintained in that platform's `N` module and are not duplicated here
+- **Get Involved settings**: copy and destinations for **two** CTAs (corporate partnership / fan donation); volunteer signup is out of scope
 - Display control: ordering and pinning within the charity section (**no fixed charity slot on the homepage**; for temporary exposure, use the hero carousel or publish a news article)
 
 ---
@@ -766,7 +864,6 @@ TCRFC Admin
 - Registration detail: student details, parent contact, health declaration, notes
 - Status workflow: `Pending → Confirmed → Paid → Completed / Cancelled / Waitlisted`
   - Payment is handled **offline** (imported transfer records or on-site collection, then marked by staff); the site accepts no payments
-- **Member attribution**: registrations submitted while signed in are linked to that member account (K1 can look up all of a member's registrations); guest registrations can be merged later by email matching
 - Actions: confirm / cancel, move to another session, add to waitlist, add notes, send templated notification emails
 - **Excel export**: roster export (with grouping columns) and printable attendance sheets
 - Capacity control: automatic closure when full, waitlist promotion alerts
@@ -809,11 +906,10 @@ TCRFC Admin
 - **All episodes are free to read**, with no paywall and no sign-in requirement
 - Readership statistics
 
-#### F2 Fan Club (events and benefits)
-- **Member lists are maintained centrally in module K** (fan club members = members with the `fan_club` tier); no separate list is kept here
-- Benefits configuration: tiered benefits table (used by 8.2 Fan Benefits on the public site)
-- Fan events: event CRUD, registrant list (can be restricted to fan club members), event recaps (linked galleries and articles)
-- Membership plan settings: plan name, period, fee description (payment handled offline or via a Shopify membership product)
+#### F2 Fan Club (events)
+- **Member lists, membership plans, and the benefits table are all maintained in module K** (fan club members = paying members with the `fan_club` tier); no separate list and no separate plans are kept here
+- Fan events: event CRUD, registrant list (can be restricted to paying members), event recaps (linked galleries and articles)
+- The plan cards and benefits table required by page 8.2 are sourced from K2 (plans) and K4 (benefit entries)
 
 ---
 
@@ -824,7 +920,7 @@ TCRFC Admin
 - Per form: notification recipients (multiple allowed), auto-reply template, CAPTCHA toggle, post-submission redirect
 
 #### G2 Enquiry Inbox
-- A unified inbox with tabs by form type (10.1–10.7 + deck downloads + **volunteer signups / donation enquiries**)
+- A unified inbox with tabs by form type (10.1–10.7 + deck downloads + **donation enquiries**)
 - Fields: source form, name, contact details, message summary, source page, UTM source, submission time
 - Status workflow: `New → In progress → Replied → Closed / Invalid`
 - Assignee, internal notes, tags
@@ -884,50 +980,117 @@ TCRFC Admin
 ### 4.11 K. Members
 
 #### K1 Member list and detail
-- List columns: member number, name, email, tier, **registration source (website / LINE / Google / fan club / program registration)**, **LINE / Google link status**, registration date, last sign-in, status (active / disabled / unverified)
-- Filters: tier, status, registration source, **LINE linked or not**, registration period, language preference, newsletter subscription
-- **Duplicate detection**: identifies likely duplicate accounts by email or mobile number and offers merging (bookings and links transfer with the merge)
-- **Member detail**: profile, linked students, booking history, fan club information, notification history, sign-in history
-- Actions: disable / enable, resend verification email, send a password reset on their behalf, add internal notes
-- CSV export (permission-gated and written to the audit log)
+- List columns: member number, name, email, tier (free / paid), **membership expiry**, **jersey status**, registration source (website / LINE / in person), LINE link status, registration date, last sign-in, status (active / disabled / unverified)
+- Filters: tier, status, registration source, LINE linked or not, registration period, **membership season**, **expiring soon**, jersey status, language preference
+- **Duplicate detection**: identifies likely duplicate accounts by email or mobile number and offers merging (membership and payment records transfer with the merge)
+- **Member detail**: profile, membership and payment history, card status, jersey registration and fulfilment history, sign-in history, internal notes
+- Actions: disable / enable, resend verification email, send a password reset on their behalf, **regenerate the membership card QR token**, add internal notes
+- CSV export (**requires additional authorisation** and is written to the audit log)
 
-#### K2 Tiers & fan club
-- Tier definitions and benefit configuration (Registered / Fan Club / Parent)
-- Fan club members: join date, plan, expiry, **expiry reminders and renewal notices**
-- Member number and QR code generation rules
+#### K2 Membership and plans
+- **Plan settings**: plan name (zh / en), price, season code, start and end dates, `card_quota` (cards issued), `jersey_quota` (jerseys included), mid-season pricing rule, benefit description, sort order, publish state
+- **Activation and renewal**: activate a membership manually, recording payment method (LINE Pay / in person), amount, payment date, transaction note, and handler; the system writes a payment record for reconciliation and audit
+- **Automation hook**: an internal endpoint `POST /api/membership/activate` (credential-protected) is reserved for future automated collection, not enabled in this phase
+- Expiry reminder list, **end-of-season batch expiry**, and renewal list export
 - Manual tier adjustment (with a reason recorded)
+- Member number generation rules
 
-#### K3 Parent–student links
-- Manages parent ↔ student relationships; one parent may link several students, and one student may have several parents
-- Link approval (preventing arbitrary linking to someone else's child): matched against registration records or approved manually
-- Provides a view of each student's attendance and registration history
+#### K3 Jersey fulfilment
+- Pending list: member and additional cardholder names, size, collection method (shipping / in person), delivery details
+- Status marking: pending / shipped / collected, reflected back to the member
+- **Quantity by size** for procurement planning
+- Fulfilment list CSV export (permission-gated, written to the audit log)
 
-#### K4 Notifications & messaging
-- **Three channels**: on-site notification, email, and **LINE push**; each message can specify a channel (or follow the member's preference automatically)
-- Audiences: everyone / a tier / parents of a given squad / a given program session / a custom list
-- Template management (Chinese / English): registration verification, password reset, booking status change, event reminder, cancelled session, fan club expiry
-- **LINE push considerations**: an official account's monthly message allowance depends on its plan, with charges above the quota. Recommended approach:
-  - **Routine, personalised** notifications (booking confirmation, cancellations, fixture reminders) go via LINE
-  - **Mass broadcasts** (newsletters, campaign promotion) go via email first, to avoid burning through the quota
-  - The admin shows **messages used this month and quota remaining**, and estimates consumption before a broadcast
-- Delivery records and statistics: delivered count, open rate (email), read and click counts (LINE)
+#### K4 Partner stores and benefits
+- **Partner store CRUD**: name (zh / en), photo / logo, category, address (zh / en), phone, opening hours, map link, website or social link, offer (zh / en), **applicable tier** (all members / paying members only), partnership dates, sort order, publish state
+- Maintains the category and area filters used by the public 8.4 list
+- **Benefits comparison entries**: entry name (zh / en), description (zh / en), group (card / store discounts / jersey / events), value for the free tier, value for the paid tier (tick / cross / text such as "10% off", "one"), sort order, publish state
+- The benefits data is **shared by three public placements** — the join page (3.14), the fan club page (8.2), and the upgrade page — and this is the single point of maintenance
 
-#### K5 LINE Official Account integration
-- **QR code management**: generate signup QR codes, with **multiple parameterised links** per use case (e.g. `summer camp on site`, `school recruitment`, `home matchday`, `website footer`) to track channel performance
-- **Channel performance report**: scans, completed signups, and conversion rate per QR code
-- **Welcome message settings**: the auto-reply and signup link shown after a friend is added (Chinese / English)
-- **Rich menu settings**: menu items and destinations, with different menus by member role (general / parent)
-- **Keyword auto-replies**: e.g. "fixtures" returns upcoming matches, "register" returns the program list
-- **Link management**: view members' LINE link status, unlink manually, resolve linking anomalies
-- **Friends who never completed signup**: people who added the account but never submitted the form are tracked separately with optional reminder messages (within quota); this list **does not count towards the member total**
+#### K5 Prize draw rosters (Fan Club Prize Draw)
+
+> **Positioning**: one of the benefits of paid membership. The system **only builds the eligible roster, freezes it, issues serial numbers, and exports the list**; the **physical draw is performed by people, on site or on a live stream**, and winners are ticked in afterwards in the admin. The system runs **no random-selection algorithm** and produces no random result.
+> This `K5` is a **recycled identifier**: v2.0 narrowed module K from K1–K5 to K1–K4, freeing it; it has no relationship to the former K5.
+
+**① Create a draw**
+- Fields: draw name (zh / en), prizes and quantities (zh / en, itemised), **eligibility snapshot time** (date + time, defaulting to 00:00 on the day of the draw), draw time, setting (home match day / live stream / other), **collection deadline and how unclaimed prizes are handled**, rules and notices (zh / en), cover image, internal notes
+- Status flow: `draft → roster locked → drawn → announced → closed`, plus `voided`
+- The rules are **mandatory** and must state: prizes, quantities, eligibility, snapshot time, draw time and setting, collection deadline, and the extent to which the organiser reserves the right to make changes
+
+**② Build the eligible roster (snapshot)**
+- The condition is fixed: **tier is `fan_club`, the membership is valid (`paid_until` covers the snapshot time), and the account is active at the snapshot time**. It is **not configurable in the admin**, so that no one can adjust who qualifies
+- **The member does nothing**: no entry, no sign-up, no check-in, no points threshold
+- On execution the system writes the snapshot in one pass: **consecutive serial numbers 1…N issued in ascending member-number order**, one per person, copying the name, member number, tier, and membership expiry as they stand
+- The roster **locks** immediately: **rows cannot be added or removed**. A roster that is wrong can only be **voided and regenerated in full** (`roster_version` +1, with the old version retained for audit)
+- The snapshot time, eligible count, roster hash, and operator are recorded, and the action is written to the audit log
+- A **dry run** is available beforehand: it returns the eligible count only, writing no data and issuing no serial numbers
+
+**③ Export the draw lists (two CSVs, different permissions)**
+
+| Purpose | Filename | Columns | Permission |
+|---|---|---|---|
+| **For the draw itself / safe to project** | `draw-<code>-v<version>-public.csv` | Serial number, member number, **masked name**, draw code, roster version, snapshot time | Same level as K1 viewing |
+| **Contacting winners (restricted)** | `draw-<code>-v<version>-winners.csv` | Serial number, member number, name, mobile, email, collection method, delivery details, prize | **Separate authorisation**, written to the audit log |
+
+- The restricted export covers **only winners already ticked in**; the full personal data of the entire eligible roster is never exported (data minimisation)
+- Both exports record who, when, how many records, and the stated purpose
+
+**④ Drawing the winners (outside the system)**
+- The **serial number** drawn physically decides the winner (balls, a ballot box, a wheel, and so on); recording or streaming the draw is recommended as evidence
+- The system provides **no** online draw tool, no draw animation, and never decides a winner on the club's behalf
+
+**⑤ Tick in the winners**
+- Search the roster by **serial number** and tick the winner, entering the prize name; several can be ticked at once
+- The system checks in real time whether the serial number exists, has already won, and belongs to this roster version, and refuses anything that fails
+- Ticking in is audited (who, when, whom, what changed); after announcement, any change requires a stated reason
+- **Reserves** can be marked, to step in when a winner does not claim in time; reserves are drawn physically and ticked in the same way
+
+**⑥ Prize fulfilment (mirrors K3)**
+- Pending list: winner name, prize, collection method (shipping / in person), delivery details
+- Status marking: `pending / shipped / collected`, the same states and handling as K3 jersey fulfilment
+- **Unclaimed**: automatically marked `overdue` past the draw's collection deadline and handled as the rules state
+- Fulfilment list CSV export (permission-gated, written to the audit log)
+- **Prizes are always the club's own physical goods**, shipped or collected in person; never tickets, partner-store redemptions, cash, or cash equivalents
+
+**⑦ Announce the winners (handed over to B2)**
+- Announcement goes **through B2 News only**: category 7.1 Club News, tagged `Fan Club Prize Draw`. **No new news category is added**
+- K5 offers "generate announcement draft", carrying the draw name, prizes, snapshot time, eligible count, and the **masked winners list** (serial number + member number + masked name) into B2 as a draft for communications staff to polish and publish
+- The published article is linked back, and the K5 list shows announcement status and a link
+- **Announcements are always masked**: never a phone number, email, address, date of birth, or full name
+- **No winner notification email, no on-site message, no LINE push** (the five system emails stand). Contacting an individual winner is done by support staff by phone or a written message, outside any system template and never recorded in `EmailLog`
+
+**List and audit**
+- Draw list columns: draw name, snapshot time, eligible count, roster version, status, number of winners, number fulfilled, announcement link, creator
+- Every roster keeps its full version history; voided versions cannot be deleted
+
+#### Email notifications
+- Five system emails only, all with Chinese and English templates: **registration verification, password reset, membership activation confirmation, 30-day expiry reminder, expiry notice**
+- Delivery log (recipient, type, time, outcome)
+- **Not included**: on-site notification centre, LINE push, newsletter campaigns, notification preference centre. Marketing emails must carry an unsubscribe link
+
+> Parent–student linking, the three-channel messaging centre, and parameterised LINE QR codes with channel performance reporting have been moved out of scope (see 3.14). LINE is retained for sign-in and account linking only.
 
 #### Member data security requirements
 - Passwords stored hashed (irreversible), strength rules, lockout after failed attempts
 - Viewing member personal data in the admin requires the corresponding permission, and every view and export is written to the audit log
 - A defined process and timeframe for member-initiated account deletion (in line with personal-data legislation)
-- Data for minors must be held under a parent account, with guardian consent obtained
-- The **LINE link identifier** (a user's account-specific ID) is treated as personal data: never displayed publicly and never included in general exports
-- The signup form must state the purpose of data collection and consent terms, to the same standard as website registration
+- **Registration by anyone under 18 requires guardian consent**; where an additional cardholder on a family plan is a minor, their name and size are entered by, and are the responsibility of, the primary account holder
+- The **LINE link identifier** (a user's account-specific ID) is treated as personal data: stored encrypted, never displayed publicly, never included in general exports
+- The **membership card QR token** must not be derivable from the member number; the public verification page `/m/<token>` returns only the first character of the name, the member number, the tier, and validity status, and no other personal data
+- Registration and signup forms must state the purpose of data collection and consent terms
+
+#### Personal data and tax requirements for the draw (K5)
+
+- **Collection notice**: the member terms and registration consent (maintained in admin I) must add a notice — "while your membership is valid you will automatically be included in the Fan Club Prize Draw roster; if you win, your name will be published in News in masked form". **No draw may be held until this notice is in place**
+- **Masked announcements**: announcements carry only the **serial number, member number, and masked name**. Never a phone number, email, address, date of birth, or full name
+- **Prize value and withholding**: prizes won by chance are taxable income. The specification follows **data minimisation** —
+  1. where a single prize is **below the withholding threshold**, the system **does not collect the winner's national ID number**; only the name and delivery details are needed;
+  2. only where a single prize **reaches the withholding or reporting threshold** are the details needed for a withholding certificate (national ID number, registered address) collected in **restricted fields** on the roster snapshot — **encrypted, masked by default, never merged into the `Member` record, and never present in a general export** — with every view and export written to the audit log and a retention period set to the statutory life of the certificate, after which the data is destroyed;
+  3. **non-residents** are subject to different withholding rules with no starting threshold, which must be stated in the rules.
+  > The actual threshold, withholding rate, and filing method **must be confirmed by an accountant** (see open item 16 in section 10). **Keeping the first draws' prize values below the threshold is recommended**, as it removes the need to collect a national ID number at all — the cheapest and lowest-risk option
+- **Minors**: registration by anyone under 18 continues to require guardian consent; where an additional cardholder on a family plan is a minor, the **prize and any tax certificate go to the adult primary account holder**
+- **Image rights**: photographs of a prize being collected or presented that are used in News or on social media require **separate consent for that use**; where the subject is a minor, written guardian consent is required. This extends the club's existing handling of material featuring minors rather than relaxing it
+- **Retention of the rules**: each draw's rules, snapshot time, roster snapshot, roster hash, and announcement are retained together, for the same period as the audit log
 
 ---
 
@@ -991,25 +1154,29 @@ TCRFC Admin
 | `ProductShowcase` | Showcase item (display + Shopify link only, **not an e-commerce entity**) | Collection |
 | `ComicEpisode` / `ComicCharacter` | Manga episode / character | Player (inspiration) |
 | `FanEvent` | Fan event | Member |
-| `Enquiry` | Form submission (10 types + volunteer / donation) | Form, Assignee |
+| `Enquiry` | Form submission (7 form types + deck downloads + donation enquiries) | Form, Assignee |
 | `Venue` | Venue | Program, Match, Trial |
 | `MediaAsset` | Media asset | Global |
 | `Faq` / `FaqCategory` | FAQ / topic category | Page (embed location) |
 | `CharityProgram` | Charity programme | Charity, Partner, Article, ImpactRecord |
 | `ImpactRecord` | Impact record (organisation, donation, imagery) | Charity, CharityProgram |
 | `Charity` | Recipient organisation (name, description, logo, website) | CharityProgram, ImpactRecord |
-| `Donation` | Donation record (source, amount, designated programme, named/anonymous, status) | Member, CharityProgram |
+| `Donation` | Donation record. **Defined in the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §9**; this site creates no donation records and only aggregates them for 11.4 impact metrics | CharityProgram, DonationProject |
 | `ImpactMetric` | Impact statistic | CharityProgram |
-| `Member` | Member account, incl. registration source, **LINE link identifier**, notification preferences | Registration, FanEvent, StudentLink, LineEntryCode |
-| `StudentLink` | Parent ↔ student relationship | Member, Registration |
-| `Notification` | Notification / push record (on-site / email / LINE) | Member |
-| `LineEntryCode` | LINE signup QR code (parameterised, for source tracking and reporting) | Member |
+| `Member` | Member account: tier (`registered` / `fan_club`), member number, **card token**, membership dates, jersey size and fulfilment status, registration source, **LINE link identifier** (encrypted) | MembershipPlan, MembershipPayment, FanEvent, DrawRoster |
+| `MembershipPlan` | Membership plan: price, season, term, `card_quota`, `jersey_quota`, mid-season pricing rule | Member, MembershipPayment |
+| `MembershipPayment` | Membership payment and activation record: method, amount, date, transaction note, handler, activation dates | Member, MembershipPlan |
+| `MembershipBenefit` | Benefits comparison entry: group, free-tier value, paid-tier value, sort order (shared by 3.14 / 8.2 / upgrade page) | MembershipPlan |
+| `PartnerStore` | **Partner store**: category, address, phone, opening hours, map link, offer, applicable tier, partnership dates | — |
+| `MemberDraw` | **Fan Club Prize Draw**: name (zh / en), prizes and quantities (zh / en), **eligibility snapshot time `snapshot_at`**, draw time and setting (on site / live stream), collection deadline and unclaimed handling, rules and notices (zh / en), status (draft / roster locked / drawn / announced / closed / voided), `roster_version`, `total_count` eligible members, `roster_hash`, the linked announcement article, creator and locker | Member, DrawRoster, Article |
+| `DrawRoster` | **Eligible roster snapshot (one row per eligible member)**: `serial_no` draw serial number (issued consecutively in ascending member-number order at snapshot time, one per person), member number, **name snapshot**, tier snapshot, membership expiry snapshot, won or not, prize name, collection method (shipping / in person), fulfilment status (pending / shipped / collected / overdue), **withholding details (collected only above the threshold; encrypted, masked by default)**, notes. **Written by the system in one pass at the snapshot time — members cannot create rows; once locked, rows cannot be added or removed and only the win and fulfilment fields may be filled in** | MemberDraw, Member |
+| `EmailLog` | Delivery record for the five system emails | Member |
 | `CalendarEvent` | **Calendar event (aggregate view)**: points at a Match via `source_type` + `source_id`, or is a `custom` club event; carries **`team_codes[]` (D1 / U15 / U14 / U12)** as its first-level category | Match, Team, Venue |
 | `EventType` | Match / event type (icon, colour, display rules) | CalendarEvent |
-| `EventInterest` | Member "I'm attending" marker and reminder settings | Member, CalendarEvent |
 
 > Every type with a public-facing presentation must support **zh / en bilingual fields**, with room to add a third language.
 > `CalendarEvent` should be implemented as a **view or index table** rather than duplicated data, keeping it in sync with its source module and avoiding two sources of truth.
+> `DrawRoster` is the opposite — **immutable snapshot data**, deliberately copying values from `Member` rather than resolving a foreign key: a member who later changes their name, merges accounts, or asks for deletion must not alter a locked historical roster, so that the audit trail of who was eligible at the draw survives. On account deletion the snapshot keeps only the member number and a masked name; everything else is erased.
 
 ---
 
@@ -1031,6 +1198,7 @@ TCRFC Admin
 - Content editing follows a **submit-for-review → publish** workflow; only designated roles may publish.
 - **Member personal data (email / phone / date of birth / minors' details) is restricted**: only system administrators and support/administration staff see it in full; other roles see masked values (e.g. `a***@gmail.com`).
 - **Exporting** member lists requires separate authorisation, and every export is written to the audit log (who, when, how many records, stated purpose).
+- **Draw rosters (K5) are treated as member personal data**: building and locking a roster is limited to system administrators and support/administration staff, and the restricted winners export requires separate authorisation and is audited. Communications staff writing the announcement receive **the masked roster only**, and gain no access to the member module by doing so.
 - ※ The translator role may edit `en` fields only, and may not modify the Chinese source or publication status.
 - **Calendar permissions follow the source module**: which events a user can edit on the calendar depends on their permissions over the underlying match data (e.g. an academy manager may reschedule their own squad's fixtures but not the first team's).
 
@@ -1090,27 +1258,28 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 - Admin: content management, news, media library, teams / players / coaches, programs and registrations, FAQ management, master calendar and custom events, enquiry inbox, SEO basics, permissions
 - **Multilingual framework** (Chinese content launches first, with English fields and URL structure in place, and room for a third language)
 
-### Phase 2 — Commercial, membership, and deeper content (approx. 8–10 weeks)
+### Phase 2 — Commercial, membership, and deeper content (approx. 6–8 weeks)
 - The full 09 Partners & Sponsors area (including deck downloads and lead tracking)
 - 03.2–03.5 Player Development, International Pathways, Player Stories
 - **The full 11 Charity & Impact area**
 - 05.3–05.5 Winter Camp, Specialist Training, School & Community
-- **Member system (module K)**: email registration and sign-in, **LINE Official Account QR signup and linking**, one-tap LINE sign-in, Member Centre, booking attribution, student linking
+- **Member system (module K)**: email registration and sign-in, one-tap LINE sign-in and linking, two membership tiers, **digital card and public verification page**, **benefits comparison table**, **partner store directory (8.4)**, upgrade and renewal flows, jersey registration
 - **Advanced schedule**: per-team subscription URLs (webcal), member "I'm attending" and reminders, admin swimlane view / clash detection / drag-to-reschedule
-- Admin: business modules, charity module, trial management, advanced registration (waitlists / exports / attendance sheets), member management, **LINE integration (QR management / rich menu / push)**, advanced calendar
+- Admin: business modules, charity module, trial management, advanced registration (waitlists / exports / attendance sheets), **member management K1–K4 (list / membership and plans / jersey fulfilment / partner stores and benefits)**, advanced calendar
 - **English content goes live**
 
 ### Phase 3 — Culture and community (approx. 6 weeks)
-- 08 TCRFC Culture: manga reader, fan club (integrated with the member system), **product showcase + Shopify referral**
+- 08 TCRFC Culture: manga reader, fan club 8.2 (paid membership introduction and join page, integrated with the member system), **product showcase + Shopify referral**
+- **Member management K5 Prize draw rosters**: roster snapshots and serial numbers, the two CSV exports, ticking in winners, prize fulfilment, and handing the announcement to B2. (Eligibility itself is a K4 benefits entry and ships with the Phase 2 benefits table)
 - League tables, automatic aggregation of player statistics
-- Notification centre, newsletter integration
+- Newsletter integration
 
 ### Phase 4 — Optimisation and expansion (ongoing)
 - FAQ performance optimisation, zero-result search feedback loop
 - Deeper analytics dashboards, A/B testing, personalised recommendations
-- Optional evaluations: Shopify Storefront API product sync, ticketing, member points, expanding women's football into a full team area
+- Optional evaluations: Shopify Storefront API product sync, ticketing, loyalty points, **partner-store scan-to-redeem with performance reporting**, **LINE Pay API checkout**, expanding women's football into a full team area
 
-> Note: the phase plan excludes e-commerce and payment development (all shopping is handled by Shopify); that effort has been reallocated to the member system and the charity section.
+> Note: the phase plan excludes e-commerce and payment development (all shopping is handled by Shopify). The member system's scope was narrowed in v2.0 to "membership × partner discounts × jersey", reducing its effort relative to v1.9.
 
 ---
 
@@ -1121,12 +1290,18 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Item | Decision |
 |---|---|
 | Technology selection | Deferred; this document defines functional requirements only |
-| Payments and shopping | No on-site e-commerce; all shopping is routed to **Shopify** |
+| Payments and shopping | **This site** builds no on-site e-commerce; all shopping is routed to **Shopify**. The premise **applies to this site only**: charity donation payments are handled by the separate Charity Donation Platform, which integrates LINE Pay properly |
 | Languages | **Traditional Chinese (default) / English**; Japanese is out of scope, with the architecture left extensible |
-| Member system | **Required**, delivered in Phase 2; signup channels are **email registration + LINE Official Account QR code + Google sign-in** |
-| LINE Official Account | **Already exists** — integrate with the current account; no new application needed |
-| Member offers | Handled exclusively by **issuing Shopify discount codes**; no account integration |
-| Fan donations | **Accepted**, via a Shopify donation item and bank transfer (see 3.11) |
+| Member system | **Required**, delivered in Phase 2. Scope narrowed to **membership** alone: a free tier and a paid tier, with partner-store discounts for members and a jersey for paying members. Signup channels are **email registration + one-tap LINE sign-in** (no Google) |
+| Out of scope for the member system | ✗ Loyalty points ✗ E-wallet ✗ Ticketing and match packages ✗ Store scan-to-redeem and redemption reports ✗ Shopify SSO ✗ Booking attribution and form pre-filling ✗ Parent–student linking ✗ On-site notification centre and LINE push |
+| Paying-member prize draw | **Built**. Eligibility follows membership **automatically, with no sign-up** (every paying member valid at the snapshot time is included); the system only **freezes the eligible roster, issues serial numbers, and exports a CSV**, while the **physical draw is performed by people, on site or on a live stream** and winners are ticked in afterwards. Winners are announced **through News only** (masked); prizes are **physical items**, shipped or collected in person, fulfilled as jerseys are. ✗ System-run random selection ✗ Public draw page or "my draws" ✗ Winner notification emails and push ✗ Paid entries ✗ Ticket or store-redemption prizes |
+| Membership term | **Season-based** (e.g. 2026/27); everyone expires together and renewals are handled at season end |
+| Membership fees | **LINE Pay** (payment link / official account invoice) and in-person payment; the website takes no payments, and the admin activates membership after reconciliation |
+| How discounts are used | Members **show the digital card** in store and staff check it visually; the QR points to a public read-only verification page. **No scan-to-redeem, no redemption counts, no store-side account or software** |
+| LINE Official Account | **Already exists** — integrate with the current account; no new application needed. Used here for sign-in and linking only |
+| Member offers | Partner-store discounts are maintained on this site (8.4); any future Shopify store offer is handled by **issuing discount codes**, with no account integration |
+| Fan donations | **Moved to a separate Charity Donation Platform** (**organised and collected for by 台灣足球策略發展協會**, on its own domain, sharing this site's admin and database), entered through partner venues' QR codes, integrating LINE Pay and issuing e-invoices or donation receipts. Section 11 here is editorial and referral only, and the CTA must name the recipient — see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md) |
+| Volunteer signup | **Not built**. The section 11 CTA narrows from three routes to two; any volunteering need is handled by the general contact form (10.7) |
 | FAQ | Standalone section 12, centrally managed and embedded across pages |
 | Charity records | Section 11; every record carries three core data points — **charity organisation name, what was donated, event photography** |
 | Women's football | A single introductory page **routing to the women's team website**; this site does not maintain their roster or fixtures |
@@ -1136,17 +1311,27 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 
 ### Still to confirm
 
-1. **Shopify store URL**: the target for the 08.3 showcase and the donation item; if the store is not yet open, confirm the expected launch date.
-2. **LINE Official Account plan and message quota**: the monthly push allowance determines which notifications go via LINE and which via email (see 4.11 K4).
-3. **Whether donation receipts are required**: issuing formal receipts or supporting tax deductions involves public-fundraising eligibility and regulatory process, and needs separate assessment; this plan covers thank-you messages and annual reporting of fund usage only.
-4. **Whether fan club membership is paid**: if so, is payment handled as a Shopify membership product or by offline transfer?
-5. **Migration scope for the existing site**: which content on [www.tcrfc.tw](https://www.tcrfc.tw/) should be kept, rewritten, or discarded? For news, keeping the last 1–2 years is recommended.
-6. **How English content will be produced**: supplied by the club, outsourced for translation, or launched for priority pages first? This affects the Phase 2 timeline.
-7. **Whether charity amounts are published**: organisation name, donation content, and imagery are confirmed; monetary amounts are private by default — are there specific cases that should be public?
-8. **Whether trials appear in the calendar**: off by default (kept on the recruitment pages); can be enabled in the admin if desired.
-9. **Ticketing and broadcast information**: are there ticketing channels or broadcast platforms to display on fixture cards?
-10. **Personal data retention period**: §3.10 and §9 both require forms to display a retention notice and for a retention policy to be defined, but **the actual duration is unspecified**. All seven forms need it; it is a personal-data compliance item and must be confirmed by the club and its legal advisers.
-11. **Manga release cadence**: the publishing rhythm of episodes, which shapes the "latest episode" block and homepage exposure.
+1. **Shopify store URL**: the target for the 08.3 showcase; if the store is not yet open, confirm the expected launch date. (The donation item left this site's scope along with fan donations.)
+2. **Initial partner store roster**: this site does not do ticketing or match packages, so the value of paid membership rests on **store discounts and the jersey**. The **number and quality of the launch roster directly determines whether the paid tier is viable** and must be secured before launch (see 8.4).
+3. **Annual fee and plan design**: price of the individual plan? Is there a family plan (1 adult + N children)? How many jerseys does each include?
+4. **Season dates and mid-season pricing**: membership runs by season, so the season start and end dates need confirming, along with whether mid-season joiners are charged pro rata.
+5. **LINE Pay collection method for membership fees**: a **payment link / official account invoice** for **membership fees** (no payment processing on this website, with manual reconciliation and activation — the approach assumed here), or a LINE Pay API checkout as used by the Charity Donation Platform? The latter is additional scope.
+   Note: the Charity Donation Platform is **already committed to a proper LINE Pay API integration**; once merchant onboarding is done, whether membership fees reuse it can be assessed separately.
+6. **Member number format**: `TCR-<season>-<serial>` suggested; to be confirmed.
+7. **Jersey size chart and stock levels**: the size range offered to members (adult / youth) and the stocking strategy by size.
+8. **Donation receipts and fundraising eligibility**: now specified in the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §5 (both e-invoices and donation receipts, chosen per project). **Fundraising eligibility and legal entity are a launch precondition for that platform**, and now turn on **台灣足球策略發展協會**, to be confirmed by the Association with its accountant and legal advisers — see §11 and §13 of that document.
+9. **Migration scope for the existing site**: which content on [www.tcrfc.tw](https://www.tcrfc.tw/) should be kept, rewritten, or discarded? For news, keeping the last 1–2 years is recommended.
+10. **How English content will be produced**: supplied by the club, outsourced for translation, or launched for priority pages first? This affects the Phase 2 timeline.
+11. **Whether charity amounts are published**: organisation name, donation content, and imagery are confirmed; monetary amounts are private by default — are there specific cases that should be public?
+12. **Whether trials appear in the calendar**: off by default (kept on the recruitment pages); can be enabled in the admin if desired.
+13. **Ticketing and broadcast information**: are there ticketing channels or broadcast platforms to display on fixture cards?
+14. **Personal data retention period**: §3.10 and §9 both require forms to display a retention notice and for a retention policy to be defined, but **the actual duration is unspecified**. All seven forms need it; it is a personal-data compliance item and must be confirmed by the club and its legal advisers.
+15. **Manga release cadence**: the publishing rhythm of episodes, which shapes the "latest episode" block and homepage exposure.
+16. **Prize value ceiling and the withholding threshold**: should a single prize be kept deliberately below the withholding threshold, removing the need to collect a winner's national ID number? The actual threshold, the withholding rate, any obligation to report even where withholding does not apply, and the rules for non-residents must be confirmed by an **accountant** and written into the draw rules (see 4.11 K5).
+17. **Draw frequency and setting**: once a quarter, once a season, or alongside particular home matches? Will draws be streamed and the recording kept as evidence?
+18. **Collection deadline and unclaimed prizes**: how many days? Once the deadline passes, does a reserve step in, is the prize redrawn, voided, or rolled into the next draw? This must be stated in the rules.
+19. **Collection and tax certificates for minors who win**: where an additional cardholder on a family plan wins, the prize and any tax certificate go to the adult primary account holder (this specification's default) — does that match the club's practice?
+20. **Approval of the draw rules and member terms**: the template rules and the collection notice to be added to the member terms must be approved by **legal advisers** before the first draw is held.
 
 ---
 

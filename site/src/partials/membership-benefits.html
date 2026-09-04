@@ -1,0 +1,94 @@
+<!-- 會籍權益對照表 —— 規劃書 3.14 要求「一份資料、三處使用」（加入會員頁／8.2 球迷會頁／升級頁），
+     且必須是可被搜尋引擎索引、可被螢幕閱讀器朗讀的 HTML 文字，**不得做成圖片**。
+     正式站改由後台 K4 產生；此處為靜態骨架。修改請改這一支，勿在各頁另抄一份。 -->
+<div class="benefits">
+  <p class="kicker">MEMBER BENEFITS</p>
+  <h2 class="section-title" id="benefits-title">會員權益對照</h2>
+  <p class="section-lede">加入會員即可享特約店家折扣；升級付費會籍另可獲得球衣。以下權益未登入亦可查看。</p>
+
+  <div class="table-scroll">
+    <table class="benefits-table">
+      <caption class="visually-hidden">一般會員與球迷會員（付費）的權益對照表</caption>
+      <thead>
+        <tr>
+          <th scope="col">權益項目</th>
+          <th scope="col">一般會員 <span class="en">Registered</span><span class="benefits-table__price">免費</span></th>
+          <th scope="col">球迷會員 <span class="en">Fan Club</span><span class="benefits-table__price pending-inline">年費待定</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">電子會員卡</th>
+          <td><span class="tick">✓</span><span class="visually-hidden">有</span></td>
+          <td><span class="tick">✓</span><span class="visually-hidden">有</span></td>
+        </tr>
+        <tr>
+          <th scope="row">特約店家折扣（標示「全會員適用」）</th>
+          <td><span class="tick">✓</span><span class="visually-hidden">有</span></td>
+          <td><span class="tick">✓</span><span class="visually-hidden">有</span></td>
+        </tr>
+        <tr>
+          <th scope="row">特約店家折扣（標示「限付費會員」）</th>
+          <td><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">無</span></td>
+          <td><span class="tick">✓</span><span class="visually-hidden">有</span></td>
+        </tr>
+        <tr>
+          <th scope="row">入會球衣</th>
+          <td><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">無</span></td>
+          <td class="pending-cell">件數依方案，內容待定</td>
+        </tr>
+        <tr>
+          <th scope="row">球迷活動優先報名</th>
+          <td><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">無</span></td>
+          <td><span class="tick">✓</span><span class="visually-hidden">有</span></td>
+        </tr>
+        <tr>
+          <th scope="row">球迷會員抽獎</th>
+          <td><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">無</span></td>
+          <td>會籍有效期間自動具備，不需登記</td>
+        </tr>
+        <tr>
+          <th scope="row">會籍效期</th>
+          <td>不限</td>
+          <td>以球季計，全體同時到期，球季末續會</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="benefits__note">
+    到店<strong>出示電子會員卡</strong>即可享折扣，不需額外手續。
+    <a href="{{ROOT}}/zh/perks/">查看特約店家清單 →</a>
+  </p>
+
+  <div class="pending-note">
+    年費金額、方案內容（是否設家庭方案、各含幾件球衣）、球季起訖日、球衣尺碼表，
+    以及抽獎的獎品內容、開獎時間與活動辦法待補
+    —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 3、4、5、7、8 點與第 16–20 點。
+  </div>
+</div>
+
+<style>
+/* benefits：會籍權益對照表（隨 partial 一起帶走的樣式，勿在頁面另抄） */
+.benefits .section-lede{ margin-top:.5rem; }
+.benefits .table-scroll{ overflow-x:auto; margin-top:1.75rem; }
+.benefits-table{ width:100%; min-width:560px; border-collapse:collapse; background:var(--paper); }
+.benefits-table th, .benefits-table td{
+  padding:.9rem 1.1rem; border:1px solid var(--rule); font-size:.88rem; text-align:left; vertical-align:top;
+}
+.benefits-table thead th{ background:var(--paper-2); font-weight:800; color:var(--heading); line-height:1.5; }
+.benefits-table thead th .en{ display:block; font-size:.72rem; color:var(--muted); font-weight:700; }
+.benefits-table__price{ display:block; margin-top:.35rem; font-size:.75rem; font-weight:700; color:var(--brand-aa); }
+.benefits-table tbody th{ font-weight:700; color:var(--heading); }
+.benefits-table td{ color:var(--text); }
+.benefits-table .tick{ color:var(--brand-aa); font-weight:800; }
+.benefits-table .cross{ color:var(--muted); }
+.benefits__note{ margin-top:1.25rem; font-size:.88rem; color:var(--text); }
+.benefits__note a{ color:var(--brand-aa); font-weight:700; text-decoration:underline; }
+.pending-cell{ color:var(--muted); font-style:italic; }
+.pending-inline{ font-size:.78em; font-weight:700; opacity:.85; }
+.pending-note{
+  margin-top:1.25rem; padding:.9rem 1.1rem; border-left:3px solid var(--brand);
+  background:var(--paper-2); font-size:.82rem; line-height:1.7; color:var(--muted);
+}
+</style>

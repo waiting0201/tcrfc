@@ -21,72 +21,75 @@
   <div class="container">
     <p class="page-hero__eyebrow">8.2 Fan Club</p>
     <h1>台中磐石球迷會<span class="en">Fan Club</span></h1>
-    <p class="page-hero__lede">與台中磐石一起在場邊吶喊。加入球迷會，享有會員福利並優先參與球迷活動。</p>
+    <p class="page-hero__lede">與台中磐石一起在場邊吶喊。球迷會即台中磐石的付費會籍，除了球衣，還能在特約店家享有更多折扣，並優先參與球迷活動。</p>
   </div>
 </section>
 
-<!-- SPEC 3.8 §8.2 — Join the Fan Club 入會表單 -->
+<!-- SPEC 3.8 §8.2 — Membership Plans 會籍方案 -->
 <section class="band" id="join" aria-labelledby="join-title">
   <div class="container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker">JOIN THE FAN CLUB</p>
-        <h2 class="section-title" id="join-title">加入球迷會</h2>
+        <p class="kicker">MEMBERSHIP PLANS</p>
+        <h2 class="section-title" id="join-title">會籍方案</h2>
       </div>
     </div>
 
-    <form class="form-grid" onsubmit="return false;" style="margin-top:1.75rem">
-      <div class="form-field">
-        <label for="fc-name">姓名</label>
-        <input type="text" id="fc-name" name="name" autocomplete="name" required>
-      </div>
-      <div class="form-field">
-        <label for="fc-email">Email</label>
-        <input type="email" id="fc-email" name="email" autocomplete="email" required>
-      </div>
-      <div class="form-field">
-        <label for="fc-phone">聯絡電話</label>
-        <input type="tel" id="fc-phone" name="phone" autocomplete="tel" required>
-      </div>
-      <div class="form-field">
-        <label for="fc-plan">方案選擇</label>
-        <select id="fc-plan" name="plan" required>
-          <option value="" selected>方案內容準備中，請先留下聯絡資料</option>
-        </select>
-      </div>
-      <div class="form-field form-field--full">
-        <button class="btn btn--primary" type="submit">送出入會申請</button>
-      </div>
-    </form>
+    <p class="section-lede" style="margin-top:.75rem">
+      球迷會員即台中磐石的付費會籍，以<strong>球季</strong>為單位計算，全體同時到期，於球季末辦理續會。
+      會費以 LINE Pay 收款連結或現場收款繳交，完成後由俱樂部開通會籍。
+    </p>
+
+    <div class="grid grid--2 plan-grid">
+      <article class="plan-card">
+        <h3 class="plan-card__name">單人方案</h3>
+        <p class="plan-card__price pending-cell">年費待定</p>
+        <ul class="plan-card__list">
+          <li>電子會員卡 1 張</li>
+          <li>入會球衣（件數待定）</li>
+          <li>特約店家折扣，含「限付費會員」品項</li>
+          <li>球迷活動優先報名</li>
+        </ul>
+        <a class="btn btn--primary btn--block" href="{{ROOT}}/zh/member/#tab-register">加入會員後升級</a>
+      </article>
+      <article class="plan-card">
+        <h3 class="plan-card__name">家庭方案</h3>
+        <p class="plan-card__price pending-cell">是否開放與費用待定</p>
+        <ul class="plan-card__list">
+          <li>電子會員卡多張（1 位成人 + 數位小童）</li>
+          <li>入會球衣，每張卡各一件</li>
+          <li>特約店家折扣，含「限付費會員」品項</li>
+          <li>球迷活動優先報名</li>
+        </ul>
+        <a class="btn btn--dark btn--block" href="{{ROOT}}/zh/join/general/">洽詢家庭方案</a>
+      </article>
+    </div>
+
+    <div class="pending-note">
+      年費金額、是否開設家庭方案、各方案含幾件球衣、球季起訖日與球衣尺碼表待補
+      —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 3、4、5、7、8 點。
+    </div>
   </div>
 </section>
 
-<!-- SPEC 3.8 §8.2 — Fan Benefits 福利分級對照表 -->
-<section class="band grain" id="benefits" aria-labelledby="benefits-title">
-  <div class="band-inner container">
-    <div class="eyebrow-row">
-      <div>
-        <p class="kicker kicker--on-dark">FAN BENEFITS</p>
-        <h2 class="section-title" id="benefits-title" style="color:#fff">會員福利</h2>
-      </div>
-    </div>
+<!-- SPEC 3.8 §8.2 — Fan Benefits 福利對照表（與 3.14 加入頁、升級頁共用同一份資料） -->
+<section class="band" id="benefits" aria-labelledby="benefits-title">
+  <div class="container">
+    {{>membership-benefits}}
+  </div>
+</section>
 
-    <div class="table-scroll">
-      <table class="benefit-table">
-        <thead>
-          <tr>
-            <th scope="col">福利項目</th>
-            <th scope="col">方案一</th>
-            <th scope="col">方案二</th>
-            <th scope="col">方案三</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><th scope="row">—</th><td colspan="3">福利分級對照表準備中，稍後將於本頁公布。</td></tr>
-        </tbody>
-      </table>
+<!-- SPEC 3.8 §8.4 — 特約店家導引 -->
+<section class="band paper-2-band" aria-labelledby="perks-title">
+  <div class="container">
+    <div class="perks-lead">
+      <div>
+        <p class="kicker">PARTNER PERKS</p>
+        <h2 class="section-title" id="perks-title">特約店家折扣</h2>
+        <p class="section-lede">到店出示電子會員卡即可享折扣，店家目視查驗，不需額外手續。付費會員另可使用標示「限付費會員」的優惠。</p>
+      </div>
+      <a class="btn btn--dark" href="{{ROOT}}/zh/perks/">查看完整店家清單</a>
     </div>
-    
   </div>
 </section>
 
@@ -103,11 +106,11 @@
     <div class="grid grid--2">
       <article class="event-card">
         
-        <a class="btn btn--dark btn--sm" href="#join">我要報名</a>
+        <a class="btn btn--dark btn--sm" href="{{ROOT}}/zh/member/">我要報名</a>
       </article>
       <article class="event-card">
         
-        <a class="btn btn--dark btn--sm" href="#join">我要報名</a>
+        <a class="btn btn--dark btn--sm" href="{{ROOT}}/zh/member/">我要報名</a>
       </article>
     </div>
 
@@ -130,16 +133,54 @@
   </div>
 </section>
 
-<style>
-/* 表單欄位格線（form-grid）：建議收進共用 CSS，10.x 表單頁都會用到 */
-.form-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1.25rem 1.5rem; }
+<!-- SPEC 3.8 §8.2 / 3.14 — Member Draw 球迷會員抽獎（純說明段落，非互動區塊）
+     規劃書明訂前台不做：抽獎頁與報名按鈕、我的抽獎、序號查詢、中獎名單頁、線上開獎動畫。
+     此區塊只說明機制，不得加入任何按鈕或表單。 -->
+<section class="band paper-2-band" id="draw" aria-labelledby="draw-title">
+  <div class="container">
+    <p class="kicker">MEMBER DRAW</p>
+    <h2 class="section-title" id="draw-title">球迷會員抽獎</h2>
+    <p class="section-lede">
+      會籍有效期間<strong>自動具備抽獎資格，不需報名也不需登記</strong>。
+      每次抽獎在資格基準時間當下，將所有會籍有效的球迷會員全數列入合格名單並配發抽獎序號。
+    </p>
+    <ul class="draw-points">
+      <li><strong>不需要做任何事</strong>——沒有報名表單、不必累積點數、參加次數多寡不影響中獎機會，一人一號。</li>
+      <li><strong>現場或直播人工開獎</strong>，抽出的是抽獎序號，過程公開可見證。</li>
+      <li><strong>獎品為實體物品</strong>，人工寄送或現場領取，領取方式比照入會球衣。</li>
+      <li><strong>結果公布於最新消息</strong>，名單一律遮罩（抽獎序號、會員編號、姓名遮罩）。</li>
+    </ul>
+    <p class="benefits__note">
+      各次抽獎的獎品、名額、資格基準時間與開獎時間，一律於最新消息公布。
+      <a href="{{ROOT}}/zh/news/">前往最新消息 →</a>
+    </p>
 
-/* 福利對照表（骨架）：建議收進共用 CSS */
-.table-scroll{ overflow-x:auto; margin-top:1.5rem; }
-.benefit-table{ width:100%; min-width:520px; border-collapse:collapse; background:var(--ink); color:#fff; }
-.benefit-table th, .benefit-table td{ padding:.85rem 1.1rem; border:1px solid rgba(255,255,255,.12); font-size:.88rem; text-align:left; }
-.benefit-table thead th{ background:rgba(255,255,255,.06); font-weight:800; }
-.benefit-table td{ color:var(--muted-dark); }
+    <div class="pending-note">
+      首波抽獎的獎品內容、開獎時間與場合、領獎期限與活動辦法待補
+      —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 16–20 點。
+    </div>
+  </div>
+</section>
+
+<style>
+.paper-2-band{ background:var(--paper-2); }
+
+/* 球迷會員抽獎說明 */
+.draw-points{ list-style:none; padding:0; margin:1.75rem 0 0; font-size:.9rem; line-height:1.9; color:var(--text); }
+.draw-points li{ padding-left:1.4rem; position:relative; margin-bottom:.5rem; }
+.draw-points li::before{ content:"—"; position:absolute; left:0; color:var(--brand-aa); font-weight:800; }
+
+/* 會籍方案卡 */
+.plan-grid{ margin-top:1.75rem; }
+.plan-card{ background:var(--paper); border:1px solid var(--rule); border-top:3px solid var(--brand); padding:1.75rem 1.5rem; }
+.plan-card__name{ font-size:1.15rem; font-weight:800; color:var(--heading); margin-bottom:.4rem; }
+.plan-card__price{ font-size:.95rem; font-weight:700; margin-bottom:1rem; }
+.plan-card__list{ list-style:none; padding:0; margin:0 0 1.5rem; font-size:.86rem; line-height:1.9; color:var(--text); }
+.plan-card__list li{ padding-left:1.2rem; position:relative; }
+.plan-card__list li::before{ content:"✓"; position:absolute; left:0; color:var(--brand-aa); font-weight:800; }
+
+.perks-lead{ display:flex; flex-wrap:wrap; gap:1.5rem; align-items:center; justify-content:space-between; }
+
 
 /* 活動卡骨架 */
 .event-card{ background:var(--paper-2); border:1px solid var(--rule); padding:1.5rem; display:flex; flex-direction:column; gap:1rem; }

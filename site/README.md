@@ -1,6 +1,6 @@
 # TCRFC 官方網站
 
-靜態 HTML，延續 [`../mockup/`](../mockup/) 的視覺系統。無框架、零 npm 相依。
+靜態 HTML，無框架、零 npm 相依。視覺系統的 design tokens 定義於 [`src/assets/css/tcrfc.css`](src/assets/css/tcrfc.css) 的 `:root`。
 
 ## 指令
 
@@ -14,7 +14,7 @@ npx wrangler pages deploy site/dist --project-name tcrfc-mockup --branch main
 | 路徑 | 說明 |
 |---|---|
 | `build.mjs` | 建置腳本。把 `src/pages/` 的頁面包進共用外殼，輸出純靜態 HTML |
-| `src/partials/` | `shell.html`（頁面外殼）／`header.html`（含 Mega Menu）／`footer.html` |
+| `src/partials/` | `shell.html`（頁面外殼）／`header.html`（含 Mega Menu）／`footer.html`；其餘 `.html` 為可插入的內容片段，頁面用 `{{>檔名}}` 引用（如 `membership-benefits`） |
 | `src/assets/css/tcrfc.css` | 全站樣式。前 675 行由 mockup 抽出，其後為各頁面共用元件 |
 | `src/assets/js/site.js` | Sticky header、行動選單、Mega Menu |
 | `src/data/*.json` | 由客戶收件夾抽出的真實資料，見下表 |
@@ -45,7 +45,7 @@ npx wrangler pages deploy site/dist --project-name tcrfc-mockup --branch main
 **上線前必須把所有 `.pending` 清空**：
 
 ```bash
-grep -rn 'class="pending"' site/src/pages/ | wc -l
+node site/verify.mjs      # 最後一行會報出 .pending 及其變體的總數
 ```
 
 ## ⚠️ 肖像權：上線前的阻斷條件

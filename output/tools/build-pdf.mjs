@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // output/ 交付物的 PDF 產出。
 //   規劃書：Markdown → 品牌樣式 HTML → PDF（中英雙版共用樣式）
-//   里程碑：既有的 HTML 交付物直接 → PDF（A4 橫式單頁，尺寸由 @page 決定）
+//   里程碑／站台地圖：既有的 HTML 交付物直接 → PDF（尺寸與方向由各自的 @page 決定）
 //
 //   node output/tools/build-pdf.mjs                        # 全部
-//   node output/tools/build-pdf.mjs zh en mile-zh mile-en  # 指定項目
+//   node output/tools/build-pdf.mjs zh en mile-zh sitemap-zh  # 指定項目
 //
 // 相依：marked（output/tools/node_modules，已 gitignore；重裝跑 npm i --prefix output/tools）
 // 排版：本機 Chrome headless，透過 CDP Page.printToPDF 才能設定頁首頁尾樣板。
@@ -38,13 +38,37 @@ const DOCS = {
     md: 'TCRFC_Website_Functional_Specification_EN.md',
     pdf: 'TCRFC_Website_Functional_Specification_EN.pdf',
     lang: 'en',
-    club: 'Taichung Rocks FC',
+    club: 'Taichung Rock FC',
     title: ['Official Website', 'Functional Specification'],
     promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.',
     labels: { version: 'Document version', date: 'Date' },
     runningHead: (v) => `TCRFC Website Functional Specification ${v}`,
-    runningFoot: 'Taichung Rocks FC — TCRFC',
+    runningFoot: 'Taichung Rock FC — TCRFC',
     // 英文版以拉丁字型打頭，中文詞彙再 fallback 到 PingFang
+    font: '"Helvetica Neue",Helvetica,Arial,"PingFang TC","Noto Sans TC",sans-serif',
+  },
+  'charity-zh': {
+    md: 'TCRFC_慈善捐款平台功能規劃書.md',
+    pdf: 'TCRFC_慈善捐款平台功能規劃書.pdf',
+    lang: 'zh-Hant',
+    club: '台中磐石足球俱樂部',
+    title: ['慈善捐款平台', '功能規劃書'],
+    promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.　在地扎根 · 放眼世界',
+    labels: { version: '文件版本', date: '建立日期' },
+    runningHead: (v) => `TCRFC 慈善捐款平台功能規劃書 ${v}`,
+    runningFoot: '台中磐石足球俱樂部 TCRFC',
+    font: '"PingFang TC","Noto Sans TC","Hiragino Sans","Helvetica Neue",Arial,sans-serif',
+  },
+  'charity-en': {
+    md: 'TCRFC_Charity_Donation_Platform_Specification_EN.md',
+    pdf: 'TCRFC_Charity_Donation_Platform_Specification_EN.pdf',
+    lang: 'en',
+    club: 'Taichung Rock FC',
+    title: ['Charity Donation Platform', 'Functional Specification'],
+    promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.',
+    labels: { version: 'Document version', date: 'Date' },
+    runningHead: (v) => `TCRFC Charity Donation Platform Specification ${v}`,
+    runningFoot: 'Taichung Rock FC — TCRFC',
     font: '"Helvetica Neue",Helvetica,Arial,"PingFang TC","Noto Sans TC",sans-serif',
   },
 };
@@ -200,10 +224,17 @@ ${renderBody(body)}
 </body></html>`;
 }
 
-// 里程碑是既有的 HTML 交付物，只需照 @page 印出來，不套規劃書樣式也不加頁首頁尾。
+// 既有的 HTML 交付物，只需照 @page 印出來，不套規劃書樣式也不加頁首頁尾。
+// opts 直接餵給 Page.printToPDF：里程碑是 A4 橫式單頁，站台地圖是 A4 直式多頁。
 const HTML_DOCS = {
-  'mile-zh': { html: 'TCRFC_開發里程碑_Milestone.html', pdf: 'TCRFC_開發里程碑_Milestone.pdf' },
-  'mile-en': { html: 'TCRFC_Development_Milestones_EN.html', pdf: 'TCRFC_Development_Milestones_EN.pdf' },
+  'mile-zh': { html: 'TCRFC_開發里程碑_Milestone.html', pdf: 'TCRFC_開發里程碑_Milestone.pdf',
+    opts: { preferCSSPageSize: true, landscape: true } },
+  'mile-en': { html: 'TCRFC_Development_Milestones_EN.html', pdf: 'TCRFC_Development_Milestones_EN.pdf',
+    opts: { preferCSSPageSize: true, landscape: true } },
+  'sitemap-zh': { html: 'TCRFC_慈善捐款站台地圖.html', pdf: 'TCRFC_慈善捐款站台地圖.pdf',
+    opts: { preferCSSPageSize: true } },
+  'sitemap-en': { html: 'TCRFC_Charity_Donation_Sitemap_EN.html', pdf: 'TCRFC_Charity_Donation_Sitemap_EN.pdf',
+    opts: { preferCSSPageSize: true } },
 };
 
 // ── Chrome / CDP ────────────────────────────────────────────────────────────
@@ -285,9 +316,7 @@ try {
     const doc = all[k];
     let pdf, note;
     if (HTML_DOCS[k]) {
-      pdf = await toPdf(client, pathToFileURL(join(OUT, doc.html)).href, {
-        preferCSSPageSize: true, landscape: true,
-      });
+      pdf = await toPdf(client, pathToFileURL(join(OUT, doc.html)).href, doc.opts);
     } else {
       const parsed = split(await readFile(join(OUT, doc.md), 'utf8'));
       const tmp = join(tmpdir(), `tcrfc-build-${k}.html`);

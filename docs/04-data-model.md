@@ -1,6 +1,7 @@
 # 04 — 資料模型與內容型別
 
-> 來源：規劃書 §5（行 966–1010）
+> 來源：規劃書 §5（行 1019–1064）。
+> **慈善捐款平台的新增型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 
 ---
 
@@ -27,22 +28,25 @@
 | `ProductShowcase` | 商品櫥窗（**僅展示 + Shopify 連結，非電商實體**） | Collection |
 | `ComicEpisode` / `ComicCharacter` | 漫畫集數／角色 | Player（原型） |
 | `FanEvent` | 球迷活動 | Member |
-| `Enquiry` | 表單詢問（10 類 + 志工／捐助） | Form、Assignee |
+| `Enquiry` | 表單詢問（7 類表單 + 提案下載 + 捐助洽詢） | Form、Assignee |
 | `Venue` | 場地 | Program、Match、Trial |
 | `MediaAsset` | 媒體資產 | 全域 |
 | `Faq` / `FaqCategory` | 常見問題／主題分類 | Page（嵌入位置） |
 | `CharityProgram` | 慈善計畫 | Charity、Partner、Article、ImpactRecord |
 | `ImpactRecord` | 慈善事蹟紀錄 | Charity、CharityProgram |
 | `Charity` | 受贈公益團體 | CharityProgram、ImpactRecord |
-| `Donation` | 捐款紀錄 | Member、CharityProgram |
+| `Donation` | 捐款紀錄。**主檔定義在慈善捐款平台規劃書 §9**，主站不新增捐款紀錄 | CharityProgram、DonationProject |
 | `ImpactMetric` | 影響力統計項目 | CharityProgram |
-| `Member` | 會員帳號，含註冊來源、**LINE 綁定識別碼**、通知偏好 | Registration、FanEvent、StudentLink、LineEntryCode |
-| `StudentLink` | 家長 ↔ 學員綁定關係 | Member、Registration |
-| `Notification` | 通知／推播紀錄 | Member |
-| `LineEntryCode` | LINE 入會 QR Code（帶參數，用於來源追蹤） | Member |
+| `Member` | 會員帳號：層級（`registered`／`fan_club`）、會員編號、**會員卡 token**、會籍起訖、球衣尺寸與發放狀態、註冊來源、**LINE 綁定識別碼**（加密） | MembershipPlan、MembershipPayment、FanEvent、DrawRoster |
+| `MembershipPlan` | 會籍方案：費用、球季、期間、`card_quota` 發卡數、`jersey_quota` 球衣件數、季中計價 | Member、MembershipPayment |
+| `MembershipPayment` | 會籍付款與開通紀錄：方式、金額、日期、交易備註、經辦人、開通起訖 | Member、MembershipPlan |
+| `MembershipBenefit` | 權益對照條目：分組、免費層值、付費層值、排序（3.14／8.2／升級頁共用） | MembershipPlan |
+| `PartnerStore` | **特約店家**：類別、地址、電話、營業時間、地圖、優惠內容、適用層級、合作起訖 | — |
+| `MemberDraw` | **球迷會員抽獎活動**：名稱／獎品與名額（中英）、**資格基準時間 `snapshot_at`**、開獎時間與場合、領獎期限、活動辦法、狀態（草稿／名單已鎖定／已抽出／已公布／已結案／作廢）、`roster_version`、`total_count`、`roster_hash`、關聯公布新聞 | Member、DrawRoster、Article |
+| `DrawRoster` | **合格名單快照，一列一位合格會員**：`serial_no` 抽獎序號、會員編號、**姓名快照**、層級快照、會籍到期日快照、是否中獎、獎項、領獎方式、發放狀態、扣繳所需資料（僅達門檻時蒐集，加密遮罩）。**系統一次性寫入，鎖定後不可增刪** | MemberDraw、Member |
+| `EmailLog` | 五封系統信的寄送紀錄 | Member |
 | `CalendarEvent` | **行事曆事件（彙整視圖）** | Match、Team、Venue |
 | `EventType` | 賽事／活動類型（圖示、色彩、顯示規則） | CalendarEvent |
-| `EventInterest` | 會員「我要參加」／提醒設定 | Member、CalendarEvent |
 
 ---
 
@@ -69,7 +73,14 @@
 | 女子足球 | `Page` 型別，**不建 `Team`／`Player`／`Match`**。型別預留 `women` 但不啟用 |
 | 一線隊 | `Team.code = D1`、`type = first_team`，**全站僅一筆** |
 | 學院梯隊 | `Team.type = academy`，U15／U14／U12 各一筆 |
-| 球迷會員 | **不是獨立名單**，是 `Member` 上的 `fan_club` 層級標記 |
+| 球迷會員 | **不是獨立名單**，是 `Member` 上的 `fan_club` 層級標記；**付費會員即球迷會員**，不是兩種身分 |
+| 特約店家 | `PartnerStore` 是**獨立型別**，與 B2B 的 `Partner`（Logo 牆）不共用資料：受眾、欄位、維護節奏都不同 |
+| **兩種「店家」** | `PartnerStore`＝會員折扣（8.4，無金流無分潤）；`DonationStore`＝慈善站掃碼引流（**有分潤、有金流**）。**不同表，同一家實體店各建一筆，不共用紀錄** |
+| **兩種「項目／計畫」** | `DonationProject`＝募款標的（慈善站）；`CharityProgram`＝已執行的公益計畫（主站 11.2）。前者可關聯後者，反向不成立 |
+| 捐款人與會員 | **只用 Email 軟性比對後標示**，不寫入 `Member`、不建關聯欄位、不做歸戶 |
+| 家庭會籍 | 只是 `MembershipPlan` 的 `card_quota`／`jersey_quota` 不同，**不需要學員綁定關係** |
+| **抽獎名單** | `DrawRoster` 是**不可變快照**，不是即時 query 也不是外鍵解析：值複製當下的姓名與會籍狀態，會員日後改名、合併或刪帳號都不得改動已鎖定的名單。**不要「優化」成關聯查詢**——那會讓開獎失去稽核能力，也無法穩定配發序號 |
+| **抽獎資格** | 是 `Member` 層級的**布林判定**（基準時間 `fan_club` 且會籍有效且帳號啟用），**不存在「抽獎報名」「抽獎券」「點數」型別**。一人一號，無次數或加權欄位 |
 | 慈善報導 | 即時報導發布於 `Article`（7.7 社區活動），慈善單元用 `CharityProgram`／`ImpactRecord` 長期陳列，兩者互連**不重複建置** |
 | 商品 | `ProductShowcase` 只有展示欄位 + Shopify 連結，**沒有庫存、價格同步、訂單** |
 | 課程時段 | 屬 `Session`，**不進 `CalendarEvent`** |
@@ -104,4 +115,4 @@
 | FAQ 題目 | B5（匯入 + 匯出） |
 | 301 轉址對照 | H SEO（舊站遷移用） |
 
-匯出需求：報名名單 Excel、簽到表、Lead 名單 CSV、詢問 CSV、會員 CSV（需權限 + 稽核）、賽事 CSV/.ics。
+匯出需求：報名名單 Excel、簽到表、Lead 名單 CSV、詢問 CSV、會員 CSV（**需額外授權** + 稽核）、球衣出貨清單 CSV、續會名單 CSV、賽事 CSV/.ics。

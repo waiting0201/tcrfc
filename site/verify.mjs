@@ -49,7 +49,8 @@ for (const f of files) {
   const desc = html.match(/<meta name="description" content="([^"]*)"/);
   if (!isRedirect && (!desc || desc[1].trim().length < 20)) problems.push([rel, 'meta description 太短或缺漏']);
 
-  pendingTotal += (html.match(/class="pending"/g) || []).length;
+  // .pending 及其變體（pending-cell／pending-inline／pending-note）都算待補
+  pendingTotal += (html.match(/class="[^"]*\bpending(?:-[a-z]+)?\b/g) || []).length;
 }
 
 // 站內斷鏈：href 指到 dist 裡不存在的檔案（header/footer 的連結會複製到每一頁，
