@@ -3,9 +3,10 @@
 台中磐石足球俱樂部（Taichung Rock FC，**TCRFC**）官方網站建置專案。
 品牌主張：**LOCAL ROOTS. GLOBAL PATHWAYS.｜在地扎根 · 放眼世界**
 
-> **本檔是索引，不是規格書。** 規格的真實來源是兩份規劃書：
-> [`output/TCRFC_前後台功能規劃書.md`](output/TCRFC_前後台功能規劃書.md)（v2.3，1323 行，官網主站）與
-> [`output/TCRFC_慈善捐款平台功能規劃書.md`](output/TCRFC_慈善捐款平台功能規劃書.md)（v1.5，755 行，協會主辦的獨立網域掃碼捐款平台）。
+> **本檔是索引，不是規格書。** 規格的真實來源是**三份規劃書**：
+> [`output/TCRFC_前後台功能規劃書.md`](output/TCRFC_前後台功能規劃書.md)（**v2.5，1378 行**，官網主站）、
+> [`output/TCRFC_慈善捐款平台功能規劃書.md`](output/TCRFC_慈善捐款平台功能規劃書.md)（v1.5，755 行，協會主辦的獨立網域掃碼捐款平台）與
+> [`output/TCRFC_行動App功能規劃書.md`](output/TCRFC_行動App功能規劃書.md)（**v1.0，1463 行**，iOS／Android App，主體是俱樂部）。
 > `docs/` 是為了讓 AI 與新進人員快速上手，從規劃書拆解出來的**導航層與執行規範**。
 > **兩者衝突時，一律以規劃書為準**，並回頭修正 `docs/`。
 
@@ -15,7 +16,8 @@
 
 | 項目 | 狀態 |
 |---|---|
-| 功能規劃 | ✅ 完成（規劃書 v2.3，中英雙版 md／PDF 皆已更新）。**v2.3 新增付費會員抽獎（後台 K5）；v2.2 更正英文隊名為 `Taichung Rock FC`；v2.1 將球迷捐款移出主站，志工報名移出範圍** |
+| 功能規劃 | ✅ 完成（規劃書 **v2.5**，中文母檔與 PDF 已更新，**英文版待同步**）。**v2.5 因行動 App 限定四項前提（廣告版位／金流／推播／報名歸戶）**；v2.4 慈善平台主體改為協會；v2.3 新增付費會員抽獎（K5）；v2.2 更正英文隊名為 `Taichung Rock FC`；v2.1 將球迷捐款移出主站 |
+| **行動 App** | 📄 **規格已完成**（獨立規劃書 v1.0，1463 行，中文母檔與 PDF）。**主體與收款是俱樂部，不是協會**；共用主站後台與資料庫，新增後台 `M` 模組與 `E5–E7` 廣告。**尚未開發；英文版待產出；IAP 判定、俱樂部 LINE Pay 商店號、開發者帳號主體、Wallet 憑證、店家座標均未定** |
 | 慈善捐款平台 | 📄 **規格已完成**（獨立規劃書 v1.5，中英雙版）。**主辦與收款主體是台灣足球策略發展協會，不是磐石**；獨立網域、共用主站後台與資料庫、串接 LINE Pay 與電子發票。**尚未開發；網域、協會品牌資產、協會法人登記與統編未定** |
 | 視覺方向 | ✅ 已定案並落實於 [`site/src/assets/css/tcrfc.css`](site/src/assets/css/tcrfc.css)（design tokens 在 `:root`）。Cloudflare Pages 專案 `tcrfc-mockup` 部署 `site/dist` 73 頁前台，全站 `noindex`。**單頁 mockup 已退役刪除** |
 | 品牌資產 | ✅ [`brand/`](brand/) 已由 logo 主檔萃取完成；design tokens 已校正為 `.ai` 品牌色 |
@@ -33,7 +35,7 @@
 
 | 路徑 | 內容 | 性質 |
 |---|---|---|
-| [`output/`](output/) | **兩份規劃書**（主站＋慈善捐款平台）、開發里程碑、**慈善捐款站台地圖**（客戶說明用，含手機示意畫面）。中英雙版。**只有母檔（`.md`、里程碑 `.html`、`tools/`）納版控，PDF 與站台地圖 HTML 是產生物不納管**，見 [`output/tools/`](output/tools/README.md) | **交付物，真實來源** |
+| [`output/`](output/) | **三份規劃書**（主站＋慈善捐款平台＋行動 App）、開發里程碑、**慈善捐款站台地圖**（客戶說明用，含手機示意畫面）。中英雙版。**只有母檔（`.md`、里程碑 `.html`、`tools/`）納版控，PDF 與站台地圖 HTML 是產生物不納管**，見 [`output/tools/`](output/tools/README.md) | **交付物，真實來源** |
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
 | [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖、協會立案證書。**不納版控**（客戶資產且含個資，GitHub repo 是公開的），clone 下來不會有這個資料夾 | 客戶提供素材 |
@@ -58,6 +60,7 @@
 | [`docs/08-roadmap-decisions.md`](docs/08-roadmap-decisions.md) | 排程、已定案前提、待確認事項 |
 | [`docs/09-intake-inventory.md`](docs/09-intake-inventory.md) | 要知道客戶交了什麼、缺什麼、哪裡卡住 |
 | [`docs/10-charity-donation-site.md`](docs/10-charity-donation-site.md) | **慈善捐款平台的任何工作**（掃碼、捐款、LINE Pay、發票、分潤、報表） |
+| [`docs/11-mobile-app.md`](docs/11-mobile-app.md) | **行動 App 的任何工作**（會員卡與 Wallet、賽程、附近店家、課程報名、推播、廣告版位） |
 
 ---
 
@@ -72,8 +75,12 @@
 - **標誌**：只用 [`brand/svg/`](brand/svg/) 由 `.ai` 萃取的三種組合（隊徽／隊徽＋TCRFC 英文版／隊徽＋TCRFC＋台中磐石足球俱樂部 中文版）。
   **不得自行排字、不得加 `SINCE` 或年份。**
 - **雙語**：繁中（預設）＋英文，URL 以 `/zh/`、`/en/` 區隔，架構須預留第三語系。
-- **主站不做的事**：站內電商、金流、購物車、訂單、庫存（全數導向 Shopify）；票務與門票套票；會員點數與電子錢包；特約店家掃碼核銷；**站內捐款與志工報名**（v2.1 移出）；女足名單與賽程（導向女足官網）；**系統隨機開獎、前台抽獎頁與「我的抽獎」、中獎通知信**（v2.3）。
-  「**不接金流**」這一條**只適用於主站**——慈善捐款平台正式串接 LINE Pay Online API。
+- **主站不做的事**：站內電商、購物車、訂單、庫存（全數導向 Shopify）；票務與門票套票；會員點數與電子錢包；特約店家掃碼核銷；**站內捐款與志工報名**（v2.1 移出）；女足名單與賽程（導向女足官網）；**系統隨機開獎、前台抽獎頁與「我的抽獎」、中獎通知信**（v2.3）。
+- **三條「不做」現在都有適用範圍，別再當全域禁令用**（v2.5）：
+  - **金流**：主站網頁不接；**慈善平台接**（協會收款）；**行動 App 接**（俱樂部收款，**僅限會籍費用**）。「不存卡號」全域適用。
+  - **廣告版位**：主站網頁不設固定版位；**行動 App 做自售版位含成效統計**。**慈善版位網頁與 App 皆不做**。
+  - **推播與通知中心**：主站網頁不做（含 LINE 推播）；**行動 App 做原生推播與 App 內通知中心**。系統信維持五封。
+- **報名歸戶只解除兩項**（v2.5）：App 提供**表單自動帶入**與**我的報名**（僅限會員本人資料）；**學員家長綁定網頁、App、後台三方皆維持不做**。`Registration.member_id` 可為空——非會員仍可報名。
 - **會員系統只做會籍**：免費與付費兩層，會員享特約店家折扣，付費會員（＝球迷會員 `fan_club`，不是另一種身分）另獲球衣與**抽獎資格**。
   會籍採球季制，會費走 LINE Pay 收款連結與現場收款，官網不接金流。**不做**報名歸戶、表單自動帶入、學員家長綁定、通知中心、LINE 推播、Google 登入。
 - **付費會員抽獎（v2.3，後台 K5）**：資格是**布林值**——基準時間會籍有效即**自動具備，會員零操作**，一人一號，不因消費／簽到／分享／參加次數增加機會（**所以不是點數**）。
@@ -83,7 +90,12 @@
   協會身分：社會團體，內政部**台內團字第 1150283692 號**，2025-10-08 成立，會址臺中市潭子區勝利三街 95 號。**立案 ≠ 法人登記**——勸募團體須是公益性社團法人，法人登記與統編未確認前**不得公開勸募、不得印 QR**。負責人姓名與出生日期屬個資，只留在 [`reference/`](reference/)，不得寫入任何文件。
   獨立網域、獨立前台專案，**共用主站後台與資料庫**（新增 `N` 模組）。合作店家貼 QR → 客人掃碼看到店名 → 選捐款項目 → 讀說明 → 頁尾以 **LINE Pay** 捐款 → 自動開**電子發票或捐贈收據**（依項目設定）。
   捐款人**不登入不註冊**，只填姓名與 Email。**店家分潤與項目分潤相加、分別入帳**，系統結算並產對帳單，**實際匯款人工執行**。**不做店家帳號、不做掃碼核銷、不做 SEO／GEO 優化**（v1.1；入口是 QR 掃碼，但頁面仍維持可被索引）、**前台不做募款進度**（v1.2；無進度條、目標金額與捐款筆數，數字只在後台 N6 報表）、**對外不受理退款**（v1.3；但後台保留人工退款供誤捐個案，發票作廢折讓依稅法保留，項目不得附回饋品）。
-- **兩種「店家」不要搞混**：`DonationStore`（慈善站掃碼引流，有分潤有金流）≠ `PartnerStore`（主站 8.4 特約店家，會員折扣，無金流無分潤）。同一家實體店在兩邊各建一筆，不共用紀錄。
+- **五種「商業對象」不要搞混**：`Partner`（B2B Logo 牆）／`Sponsor`（贊助商）／`PartnerStore`（主站 8.4 特約店家，會員折扣，**無金流無分潤**）／`DonationStore`（慈善站掃碼引流，**有金流有分潤**）／`Advertiser`（**App 廣告主，計曝光**）。
+  同一家實體公司可能同時是數種，**各建一筆、不共用紀錄**。唯一例外是 `Advertiser.sponsor_id` 可關聯回 `Sponsor`，那是關聯不是合併。**贊助商 Logo 牆不計曝光、不進廣告報表。**
+- **行動 App（v1.0）**：主體與收款是**俱樂部**，**LINE Pay 商店號不得與協會共用**。後台模組 `M`（版本／內容編排／推播／裝置／設定憑證），廣告放 `E5–E7`（權限最小化：業務賣廣告不該拿到版本發布與推播發送權）。
+  **不接第三方廣告聯播網、不用廣告識別碼、不做行為定向、不做開屏廣告**；`AdEvent` 原始事件只留 90 天，之後只留日聚合。
+  會員卡的 **Wallet pass 與 App 內卡片共用同一 token**；離線可出示但須標示同步時間。**App 抽獎只顯示個人資格布林**，不顯示序號、不做查詢與名單頁、**不得讀取 `DrawRoster`**；**推播不得用於個別中獎通知**（後台 M3 須系統層阻擋）。
+  `PartnerStore` 與 `Venue` 已加座標欄位但**資料要人工標**。後台模組 `M` 與會員卡驗證頁 `/m/<token>` 無關。
 - **賽事資料全部人工維護**，不串接外部 API，提供 CSV 批次匯入。
 - **既有數位資產**：官網 www.tcrfc.tw（待遷移）、IG `@tcr_fc_2024`、FB `TCRFC2024`、YouTube `@TCRFC-2024`、
   女足官網 [台中藍鯨](https://www.tcbw2014.com/)（06 頁導流目標，本站不維護其名單與賽程）。
@@ -101,10 +113,10 @@
 
    | # | 動作 | 檔案 |
    |---|---|---|
-   | 1 | 改規格本體，並**提高版本號**、在開頭補「修訂摘要」 | [`output/TCRFC_前後台功能規劃書.md`](output/TCRFC_前後台功能規劃書.md)／[`output/TCRFC_慈善捐款平台功能規劃書.md`](output/TCRFC_慈善捐款平台功能規劃書.md) |
-   | 2 | 同步英文版（中文為主、英文為譯本） | [`output/TCRFC_Website_Functional_Specification_EN.md`](output/TCRFC_Website_Functional_Specification_EN.md)／[`output/TCRFC_Charity_Donation_Platform_Specification_EN.md`](output/TCRFC_Charity_Donation_Platform_Specification_EN.md) |
-   | 3 | 重產 PDF（**勿手改 PDF**） | `node output/tools/build-pdf.mjs zh en charity-zh charity-en`（只跑改到的那幾個即可） |
-   | 4 | 同步導航層，含**重算行號對照表**與踩雷點 | [`docs/`](docs/)（尤其 [`00-harness.md`](docs/00-harness.md)、慈善站改動另加 [`10-charity-donation-site.md`](docs/10-charity-donation-site.md)） |
+   | 1 | 改規格本體，並**提高版本號**、在開頭補「修訂摘要」 | [`output/TCRFC_前後台功能規劃書.md`](output/TCRFC_前後台功能規劃書.md)／[`output/TCRFC_慈善捐款平台功能規劃書.md`](output/TCRFC_慈善捐款平台功能規劃書.md)／[`output/TCRFC_行動App功能規劃書.md`](output/TCRFC_行動App功能規劃書.md) |
+   | 2 | 同步英文版（中文為主、英文為譯本） | [`output/TCRFC_Website_Functional_Specification_EN.md`](output/TCRFC_Website_Functional_Specification_EN.md)／[`output/TCRFC_Charity_Donation_Platform_Specification_EN.md`](output/TCRFC_Charity_Donation_Platform_Specification_EN.md)／`output/TCRFC_Mobile_App_Specification_EN.md` |
+   | 3 | 重產 PDF（**勿手改 PDF**） | `node output/tools/build-pdf.mjs zh en charity-zh charity-en app-zh app-en`（只跑改到的那幾個即可） |
+   | 4 | 同步導航層，含**重算行號對照表**與踩雷點 | [`docs/`](docs/)（尤其 [`00-harness.md`](docs/00-harness.md)；慈善站另加 [`10-charity-donation-site.md`](docs/10-charity-donation-site.md)，App 另加 [`11-mobile-app.md`](docs/11-mobile-app.md)） |
    | 5 | 改前台骨架並跑建置與自檢 | [`site/`](site/)；`node site/build.mjs && node site/verify.mjs` |
    | 6 | 登記新的待補項目、刪掉已過期的 | [`content/migration/待補內容清單.csv`](content/migration/待補內容清單.csv) |
    | 7 | 若異動涉及全站前提或「不做的事」，回寫本檔的速查與現況表 | `CLAUDE.md` |
