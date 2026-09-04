@@ -1,9 +1,15 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v2.3
-> **Date**: 2026-08-14 (v2.3 revision: 2026-09-03)
+> **Document version**: v2.4
+> **Date**: 2026-08-14 (v2.4 revision: 2026-09-04)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 > **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.3*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v2.4 revision summary — the Charity Donation Platform is run by the Association, not this club**
+> 1. From v1.4 of its own specification, the Charity Donation Platform is **organised, fundraised and collected for by 台灣足球策略發展協會** (the Association), not by Taichung Rock FC. This site is only a **traffic source** and the **admin host**.
+> 2. **The section 11 "fan donation" CTA must say where it leads**: it goes to the Association's donation platform, and the copy must make clear who receives the money. **It must not read as donating to this club.**
+> 3. This site's scope, page architecture and data model are **unchanged**; 11.1–11.4 and the `CharityProgram` linkage stay exactly as they are.
+> 4. In section 10, "donation receipts and fundraising eligibility" now turns on the Association rather than the club.
 
 > **v2.3 revision summary — prize draw entitlement for paying members**
 > 1. **The "Fan Club Prize Draw" is added as a paid-membership benefit**: at a draw's **eligibility snapshot time**, every paying member (`fan_club`) with a valid membership is **automatically included in the eligible roster — the member does nothing at all**: no entry, no sign-up, no points, no accumulation. One entry is added to the benefits comparison table under the existing "events" group (**no new group**), maintained as before in K4.
@@ -420,11 +426,13 @@ A **forms hub** with seven forms, each with its own fields and recipients:
 
 Fan donations are **not handled on this site**. They link out to the **Charity Donation Platform** on its own domain (see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md)). That platform's main entry point is a QR code displayed by partner venues; it integrates LINE Pay properly and issues an e-invoice or a donation receipt depending on the project.
 
+> **That platform is organised and collected for by 台灣足球策略發展協會 (the Association), not by this club** (Charity Donation Platform specification v1.4). The CTA copy must therefore name where it leads and who receives the donation, and **must never read as donating to Taichung Rock FC**.
+
 This site has three responsibilities and no more:
 
 | Item | Approach |
 |---|---|
-| Referral | Every "fan donation" CTA in section 11 links to the Charity Donation Platform; the URL is configured in admin B6 and **never hard-coded into a template** |
+| Referral | Every "fan donation" CTA in section 11 links to the Charity Donation Platform; the URL is configured in admin B6 and **never hard-coded into a template**. **The copy must state that the Association receives the donation** |
 | Impact feedback | Donation projects on that platform can link to this site's `CharityProgram` records; how funds were used continues to be presented as structured content in 11.2 / 11.3 |
 | Consistency | This site shows no amount options, hosts no donation form, and publishes no bank account details |
 
@@ -1292,7 +1300,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | How discounts are used | Members **show the digital card** in store and staff check it visually; the QR points to a public read-only verification page. **No scan-to-redeem, no redemption counts, no store-side account or software** |
 | LINE Official Account | **Already exists** — integrate with the current account; no new application needed. Used here for sign-in and linking only |
 | Member offers | Partner-store discounts are maintained on this site (8.4); any future Shopify store offer is handled by **issuing discount codes**, with no account integration |
-| Fan donations | **Moved to a separate Charity Donation Platform** (its own domain, sharing this site's admin and database), entered through partner venues' QR codes, integrating LINE Pay and issuing e-invoices or donation receipts. Section 11 here is editorial and referral only — see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md) |
+| Fan donations | **Moved to a separate Charity Donation Platform** (**organised and collected for by 台灣足球策略發展協會**, on its own domain, sharing this site's admin and database), entered through partner venues' QR codes, integrating LINE Pay and issuing e-invoices or donation receipts. Section 11 here is editorial and referral only, and the CTA must name the recipient — see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md) |
 | Volunteer signup | **Not built**. The section 11 CTA narrows from three routes to two; any volunteering need is handled by the general contact form (10.7) |
 | FAQ | Standalone section 12, centrally managed and embedded across pages |
 | Charity records | Section 11; every record carries three core data points — **charity organisation name, what was donated, event photography** |
@@ -1311,7 +1319,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
    Note: the Charity Donation Platform is **already committed to a proper LINE Pay API integration**; once merchant onboarding is done, whether membership fees reuse it can be assessed separately.
 6. **Member number format**: `TCR-<season>-<serial>` suggested; to be confirmed.
 7. **Jersey size chart and stock levels**: the size range offered to members (adult / youth) and the stocking strategy by size.
-8. **Donation receipts and fundraising eligibility**: now specified in the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §5 (both e-invoices and donation receipts, chosen per project). **Fundraising eligibility and legal entity are a launch precondition for that platform**, to be confirmed by the club with its accountant and legal advisers — see §11 and §13 of that document.
+8. **Donation receipts and fundraising eligibility**: now specified in the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §5 (both e-invoices and donation receipts, chosen per project). **Fundraising eligibility and legal entity are a launch precondition for that platform**, and now turn on **台灣足球策略發展協會**, to be confirmed by the Association with its accountant and legal advisers — see §11 and §13 of that document.
 9. **Migration scope for the existing site**: which content on [www.tcrfc.tw](https://www.tcrfc.tw/) should be kept, rewritten, or discarded? For news, keeping the last 1–2 years is recommended.
 10. **How English content will be produced**: supplied by the club, outsourced for translation, or launched for priority pages first? This affects the Phase 2 timeline.
 11. **Whether charity amounts are published**: organisation name, donation content, and imagery are confirmed; monetary amounts are private by default — are there specific cases that should be public?

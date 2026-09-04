@@ -1,14 +1,30 @@
-# TCRFC Taichung Rock FC — Charity Donation Platform Functional Specification
+# 台灣足球策略發展協會 — Charity Donation Platform Functional Specification
 
-> **Document version**: v1.3
-> **Date**: 2026-09-03 (v1.3 revision: 2026-09-04)
+> **Document version**: v1.5
+> **Date**: 2026-09-03 (v1.5 revision: 2026-09-04)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **What this document covers**
-> 1. This document specifies the **Charity Donation Platform**: a donation site on its own domain, entered by scanning a QR code in physical venues, which **shares the official website's admin and database**.
+> 1. This document specifies the **Charity Donation Platform**: a donation site on its own domain, entered by scanning a QR code in physical venues, organised and collected for by **台灣足球策略發展協會** (the Association), which **shares the admin and database of the Taichung Rock FC website**.
 > 2. It is **complementary to, not overlapping with**, the [Website Functional Specification](TCRFC_Website_Functional_Specification_EN.md) (v2.1 onwards). The main site no longer handles any donation payments; section 11 "Charity & Impact" retains only the **editorial** content — commitment, programmes, impact stories and impact metrics — and routes "fan donation" to this platform.
 > 3. Main specification v2.1 revises three premises accordingly: **donations no longer run through Shopify items or bank transfer**, **volunteer signup is out of scope**, and **"no payment gateway" now applies to the main site only**.
 > 4. This is a functional specification and **does not cover framework, CMS, or deployment decisions** (per the standing premise in main specification §1.3).
+
+> **v1.5 revision summary — the Association's registration is on file; the remaining blocker is incorporation**
+> 1. **The Association's registration details are recorded in §1.2**: full name 台灣足球策略發展協會, a social organisation, Ministry of the Interior reference **台內團字第 1150283692 號**, established 8 October 2025, registered address 臺中市潭子區勝利三街 95 號. The trust block and donation terms can quote these directly.
+> 2. **The fundraising open item narrows**: registration under the Civil Associations Act **is complete**, but **registration is not incorporation**. The Charity Donations Act limits fundraising bodies to public schools, administrative juridical persons, **incorporated public-interest associations** and foundations — so whether the Association has completed **incorporation at court** still has to be confirmed. **No public fundraising and no QR printing until it is.**
+> 3. **Receipt eligibility is still open**: registration does not by itself confer recipient status under the Income Tax Act for educational, cultural, public-interest or charitable bodies. An accountant must confirm it; `donation_receipt` mode stays disabled until then.
+> 4. **The tax ID is still missing**: neither certificate carries one, so it must be obtained separately from the tax authority. Invoice titles, receipts and settlement statements all need it — a launch precondition.
+> 5. **The chair's personal data stays out of the specification**: name and date of birth are personal data, held in `reference/` for administrative use, and **must never appear in this document, on the public site, or in any file that may be published**.
+> 6. Section 10 goes from 17 open items to 16: the former "registration details and tax ID" splits — registration is confirmed and removed, while the tax ID and incorporation stand on their own.
+
+> **v1.4 revision summary — the Association becomes the organising body**
+> 1. **The platform is organised, fundraised and collected for by 台灣足球策略發展協會** (the "**Association**"; official English name to be confirmed, §13), no longer by Taichung Rock FC. The public site is the Association throughout: site name, logo, trust block, invoice and receipt titles, email signatures and settlement statements.
+> 2. **The club leaves the public site**: Taichung Rock FC no longer appears as a principal here. Its remaining roles are **traffic source** (from unit 11 of its own site) and **admin host**. Where the club delivers a funded project it appears as an ordinary delivery partner or recipient, on the same footing as any other.
+> 3. **Admin and database are still shared with the club's website** (the `N` module is unchanged). That is an operational choice, but **the data controller under privacy law is the Association** — a written processing agreement between the Association and the club is required, see §11.1 and §13.
+> 4. **TCRFC brand assets are no longer used**: logo, colour and type come from the Association's own assets. **Those assets have not been supplied**, so until they are, the public site and the print QR template carry placeholders. **Do not reuse the TCRFC lockups in `brand/svg/`, and do not typeset a logo for the Association.**
+> 5. **Terminology**: "club retention" becomes "**Association retention**" throughout (§1.4, §8.1–8.3), and the data model field `club_amount` is renamed `association_amount`. Payment fees still come out of that retention.
+> 6. Section 10 gains four open items: the Association's official English name, its brand assets, its registration and tax ID details, and the written agreements between the Association and the club. "Receipt eligibility" and "fundraising eligibility" now turn on the Association, not the club.
 
 > **v1.3 revision summary — no refunds offered on the public site**
 > 1. **Refunds are not offered**: the donation terms page states plainly that a completed donation is not normally refundable. The public site carries no refund policy, no refund request route and no refund promise.
@@ -69,10 +85,33 @@ Three premises shape the whole site:
 | **Public site** | A **fully separate project**; it does not share the main site's 73-page build pipeline |
 | **Admin** | **Shares the official website admin**, via a new `N. Charity Donations` module (see §6) |
 | **Database** | **Shares the same database**, so it can relate to existing types such as `CharityProgram`, `Charity` and `Member` |
-| **Visual design** | Uses TCRFC brand assets and design tokens (magenta `#E0218A` / brand black `#231916`), but its own layout and navigation |
+| **Principal** | The **Association** organises, fundraises and collects. The club **does not appear as a principal on the public site**; it is only a traffic source and the admin host |
+| **Visual design** | **The Association's own brand assets**, no longer TCRFC's logo or design tokens. Until those assets arrive, everything carries placeholders, see §13 |
 | **The main site's role** | Section 11 becomes editorial and referral only: 11.1 commitment, 11.2 programmes, 11.3 impact stories and 11.4 impact metrics are unchanged; the CTA narrows from three routes to two (corporate partnership / fan donation), and **fan donation always links out to this platform** |
 
-> **Why a separate domain rather than a section of the main site**: the landing page must be minimal with the shortest possible conversion path, and should not carry the main site's mega menu and 13-unit navigation. The platform also handles payments and invoicing, so a separate security boundary is simpler.
+> **Why a separate domain rather than a section of the club site**: the landing page must be minimal with the shortest possible conversion path, and should not carry the main site's mega menu and 13-unit navigation; the platform handles payments and invoicing, so a separate security boundary is simpler; **and the organising body is the Association, not the club, so sitting under the club's domain would confuse who is fundraising**.
+>
+> **Why the admin is still shared**: one team operates both, and two systems would mean two sets of venue and project records. But **the data controller under privacy law is the Association**, so a processing agreement between the Association and the club is required and must be disclosed in the privacy policy, see §11.1.
+
+**The organising body** (from the Ministry of the Interior certificates held in `reference/`):
+
+| Field | Value |
+|---|---|
+| Full name | **台灣足球策略發展協會** |
+| Type | National civil association — **social organisation** (Ministry of the Interior) |
+| Registration | **台內團字第 1150283692 號** (reissued under a new name, June 2026) |
+| Established | 8 October 2025 |
+| Registered address | 臺中市潭子區勝利三街 95 號 |
+| Tax ID | **To be supplied** (not on the certificates; needed for invoices, receipts and statements) |
+| English name | **To be confirmed** (the English text says "the Association" throughout) |
+| Incorporation | **To be confirmed** — see the warning below |
+
+> **Registration is not incorporation, and this is the launch blocker.** The certificates show the Association
+> is **registered** under the Civil Associations Act. The Charity Donations Act limits fundraising bodies to public
+> schools, administrative juridical persons, **incorporated public-interest associations** and foundations, which
+> requires a separate **incorporation at court**. **No fundraising and no QR printing until it is confirmed.**
+>
+> **The chair's name and date of birth are personal data.** They stay in `reference/` for administrative use and **must not appear in this specification, on the public site, or in any file that may be published.**
 
 ### 1.3 Scope
 
@@ -86,11 +125,11 @@ Three premises shape the whole site:
 
 **Out of scope**:
 
-- **Venue accounts and a venue login area** — venues do not register, do not log in, do not see the admin. Rebate statements are supplied by the club
+- **Venue accounts and a venue login area** — venues do not register, do not log in, do not see the admin. Rebate statements are supplied by the Association
 - **Scan-based redemption, redemption counts, live venue dashboards** (consistent with the standing premise for 8.4 Partner Perks on the main site)
 - **Recurring donations** (monthly auto-debit) — deferred for later assessment
 - **Posting physical receipts**, printing paper invoices
-- **Regulatory filing for public fundraising** (the system does not file on the club's behalf; it provides reports for manual filing)
+- **Regulatory filing for public fundraising** (the system does not file on the Association's behalf; it provides reports for manual filing)
 - **A refund request route on the public site** — the terms page states donations are not refundable; mistaken donations are handled by customer service and refunded from the admin, see §4.4
 - **Rewards for donating** — projects must not offer jerseys, gifts or anything else in return; a reward makes the donation arguably a sale or a gift with a charge, which contradicts the no-refund premise
 - **Donor accounts and a donation history area** — donors do not log in; records are emailed
@@ -109,7 +148,7 @@ Other terms:
 
 - **Venue share (`store_share_pct`)**: the proportion of a donation returned to the referring venue. This is real income for the venue.
 - **Project share (`project_share_pct`)**: the proportion paid out to the project's designated recipient (a charity organisation or delivery partner).
-- **Club retention**: what remains after both of the above.
+- **Association retention**: what remains after both of the above, belonging to 台灣足球策略發展協會.
 - **Donation (`Donation`)**: the record of one donation, reusing and extending the existing `Donation` type from the main specification.
 
 ---
@@ -182,7 +221,7 @@ Whether a venue earns its share depends on whether "which venue this scan came f
 | Venue identity | **Venue name (required)**, venue logo or photo (optional), a line of thanks (e.g. "Thank you for doing good with Taichung Rock at ○○○"). **With no logo, degrade to a text-only venue block — never an empty frame** |
 | Introduction | A short editable explanation of what the platform does and how donations are used |
 | **Project list** | Card wall: cover image, project name, one-line description, and a "read more and donate" button. **No fundraising progress** |
-| Trust block | Club introduction, registration details, and a link to the impact records in main site section 11 |
+| Trust block | **The Association's introduction, registration number (台內團字第 1150283692 號), date of establishment, registered address and tax ID (pending)**, its fundraising permit number once granted, and a link to the impact records in section 11 of the club site |
 | Footer | Privacy policy, donation terms, contact |
 
 - If the partnership has ended, the URL still opens but **the venue block is omitted** — it behaves as the general entry
@@ -246,7 +285,7 @@ Fill in form → Submit → Donation created (created)
 |---|---|---|
 | 1 | Donation thank-you | Immediately on successful payment; includes order number, amount, project and use of funds |
 | 2 | E-invoice / receipt notification | Once the invoice is issued; includes the number and a link to view it |
-| 3 | Issuing failure alert (to the club) | Invoice issuing failed; admin staff need to issue it manually |
+| 3 | Issuing failure alert (to the Association) | Invoice issuing failed; admin staff need to issue it manually |
 | 4 | Refund notification | Sent to the donor after the admin completes a refund |
 
 Every send is written to `EmailLog` (the existing main-site type).
@@ -337,7 +376,7 @@ Each project carries an `invoice_mode` that determines which document all its do
 | **`b2c_invoice` e-invoice** | A cloud B2C invoice; treated as sales revenue for tax purposes | General fundraising projects |
 | **`donation_receipt` donation receipt** | A donation receipt the donor can use for itemised deduction | Projects run under an eligible recipient status |
 
-> **Precondition**: whether receipts can be issued at all depends on the club's legal status and recipient eligibility. This mode must not be enabled until the client and their accountant confirm it (see §11 and §13).
+> **Precondition**: whether receipts can be issued at all depends on the **Association's** legal status and recipient eligibility. This mode must not be enabled until the client and their accountant confirm it (see §11 and §13).
 
 ### 5.2 Fields switch on the mode
 
@@ -504,7 +543,7 @@ Only `paid` donations are counted by default; a toggle includes refunded donatio
 ```
 Venue rebate    = donation amount × store_share_pct
 Project payout  = donation amount × project_share_pct
-Club retention  = donation amount − venue rebate − project payout
+Association     = donation amount − venue rebate − project payout
 
 Constraint: store_share_pct + project_share_pct ≤ 100%
 ```
@@ -515,13 +554,13 @@ Constraint: store_share_pct + project_share_pct ≤ 100%
 ### 8.2 Basis of calculation
 
 - Shares are calculated on the **gross donation**, not on the net after payment fees
-- **Payment fees come out of the club's retention.** If the two share rates are set so high that retention cannot cover the fees, the admin warns at save time but does not hard-block
+- **Payment fees come out of the Association's retention.** If the two share rates are set so high that retention cannot cover the fees, the admin warns at save time but does not hard-block
 - The final decision on fee allocation is an open item (§13)
 
 ### 8.3 Rounding
 
 - Both share amounts are **rounded down to whole dollars**
-- The rounding remainder falls to club retention
+- The rounding remainder falls to Association retention
 - Report totals must equal the sum of the individual rows — rounding must never make a statement fail to add up
 
 ### 8.4 Percentage changes are not retroactive
@@ -571,7 +610,7 @@ Constraint: store_share_pct + project_share_pct ≤ 100%
 | Core | `order_no`, amount, state, created and paid timestamps |
 | Relations | `project_id`, `store_id` (**nullable**), `charity_program_id` |
 | Donor | Name, email, named / anonymous. **No account, no attribution to a member record** |
-| **Share snapshot** | `store_share_pct_snapshot`, `project_share_pct_snapshot`, `store_amount`, `project_amount`, `club_amount` |
+| **Share snapshot** | `store_share_pct_snapshot`, `project_share_pct_snapshot`, `store_amount`, `project_amount`, `association_amount` |
 | Invoice | `invoice_mode`, the mode's fields, and the related `DonationInvoice` |
 | Audit | State history, refund reason and responsible staff member |
 
@@ -628,6 +667,7 @@ The nine roles from main specification §6 gain one more column:
 - **National ID must be stored encrypted**, masked by default in the admin, and used only as far as issuing the receipt requires
 - The privacy policy must state the purpose, the scope of use, and the **retention period** (the actual term is to be confirmed with the client and their legal advisers, see §13)
 - The donor roll publishes names only, and only with the donor's explicit consent
+- **The Association is the data controller**, while the data physically sits in the club website's database. The two need a written **data processing agreement**, and the privacy policy must disclose the processor and where data is held. This is a document required before launch, see §13
 
 ### 11.2 Security
 
@@ -641,7 +681,7 @@ The nine roles from main specification §6 gain one more column:
 ### 11.3 Regulation
 
 - **Soliciting donations from the general public may fall under the Charity Donations Act**; whether a permit is needed, and under what legal entity, directly determines whether this platform can go live
-- **Eligibility to issue donation receipts** depends on the club's legal status and recipient status
+- **Eligibility to issue donation receipts** depends on the Association's legal status and recipient status
 - Both must be confirmed by the client with their accountant and legal advisers. **These are launch preconditions, not ordinary open items** (see §13)
 
 ---
@@ -672,9 +712,11 @@ Donor roll, impact page, **the English version**, and the finer parts of N7 site
 
 | Item | Decision |
 |---|---|
-| Domain | **Its own domain**, separate from the main website |
-| Admin and database | **Shares the official website admin and database**, via a new `N` module |
+| **Organising and collecting body** | **台灣足球策略發展協會** (the Association). The public logo, invoice and receipt titles, email signatures and settlement statements are all the Association's; Taichung Rock FC **does not appear as a principal on the public site** |
+| Domain | **Its own domain**, separate from the club website |
+| Admin and database | **Shares the club website admin and database**, via a new `N` module. The Association remains the data controller and a processing agreement is required |
 | Public site | A **fully separate project**; does not share the main site's 73-page build |
+| Visual design | **The Association's brand assets**, no longer TCRFC's logo or design tokens; placeholders until they arrive, and no logo may be typeset for the Association |
 | Languages | **Traditional Chinese (default) and English**, with room for a third |
 | SEO | **No SEO / GEO optimisation** (no keyword programme, structured data, sitemap submission or GEO). Pages **remain indexable**; `hreflang` and the required `noindex` rules still apply |
 | Fundraising progress | **Not shown on the public site** (no progress bar, raised-to-date, target or donation count). Totals live in N6 donation reporting and are not published |
@@ -685,24 +727,28 @@ Donor roll, impact page, **the English version**, and the finer parts of N7 site
 | Revenue share | The venue share is a **rebate to the referring venue**; venue % and project % are **added together and paid separately**, settled as two statements |
 | Rebate payment | The system calculates and produces statements and CSV; **transfers are made manually**, with the system recording status only |
 | Venue side | **No venue accounts, no venue login area, no scan-based redemption** |
-| The main site's role | Section 11 keeps the editorial content only (commitment / programmes / impact stories / metrics); **fan donation routes to this platform** and **volunteer signup is out of scope** |
+| The club site's role | Section 11 keeps the editorial content only (commitment / programmes / impact stories / metrics); **fan donation routes to this platform** and **volunteer signup is out of scope** |
 | Technology | Not discussed here; this document defines functional requirements only |
 
 ### To be confirmed
 
 1. **The charity site's domain name**: it determines the QR codes and the main site's outbound links, and **a printed QR code is hard to change**, so this is the most urgent item.
-2. **Fundraising eligibility and legal entity**: whether the Charity Donations Act applies, whether a permit is required, and under what entity. **This is a launch precondition** — QR codes should not go to print before it is settled.
-3. **Eligibility to issue donation receipts**: determines whether `donation_receipt` mode can be enabled at all; if not, every project runs on `b2c_invoice`.
+2. **The Association's incorporation and fundraising permit**: civil-association registration is complete (see §1.2), but **registration is not incorporation** — confirm whether the Association has completed **incorporation at court**, and whether a separate fundraising permit is needed. **This is a launch precondition** — QR codes should not go to print before it is settled.
+3. **Eligibility to issue donation receipts**: registration alone does not confer recipient status under the Income Tax Act; an accountant must confirm it. Without it, every project runs on `b2c_invoice`.
 4. **Invoicing provider**: affects integration effort and cost; the specification abstracts it behind one interface, so switching provider affects nothing else.
-5. **LINE Pay merchant account**: application progress, fee rate, settlement cycle.
+5. **LINE Pay merchant account**: **must be opened in the Association's name**; application progress, fee rate, settlement cycle.
 6. **The first wave of partner venues**: how many, which categories and areas — this drives the first print run and the print template.
 7. **The first donation projects**: names, descriptions, and the amount chip values.
 8. **The actual share percentages**: venue rate, project rate, and whether every venue gets the same rate or each is negotiated.
-9. **Who absorbs payment fees**: club retention by default (§8.2) — to be confirmed.
+9. **Who absorbs payment fees**: Association retention by default (§8.2) — to be confirmed.
 10. **How the public site is built**: its relationship to the main `site/` scaffold, hosting, and domain arrangements.
 11. **Donor data retention period**: to be confirmed alongside the form retention periods in main specification §3.10.
 12. **Whether receipts need a national ID**: it brings encrypted storage and retention duties; if it is not required, we recommend not collecting it.
-13. **Recurring donations**: out of scope now — should they be assessed later?
+13. **The Association's official English name**: it drives every English page, the English invoice title and the signature on each language version. The English text calls it "the Association" throughout until the official name is settled.
+14. **The Association's brand assets**: logo files, brand colours and type. Until they arrive, the public site and the print QR template carry placeholders — **do not reuse the TCRFC logo and do not typeset one**.
+15. **The Association's tax ID**: neither certificate carries one, so it must be obtained from the tax authority. The trust block, invoice titles, receipts and settlement statements all need it — a launch precondition.
+16. **Written agreements between the Association and the club**: the data processing agreement (§11.1), how responsibility for the shared admin and database is divided, and the basis for paying the club when it is a recipient or delivery partner.
+17. **Recurring donations**: out of scope now — should they be assessed later?
 
 ---
 
