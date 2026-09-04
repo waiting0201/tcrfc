@@ -1,13 +1,13 @@
 # output/tools — 交付物 PDF 產出
 
-`output/` 的八份 PDF 都由這裡的腳本產生，**不要手動改 PDF**：改來源檔（`.md` / `.html`）再重跑。
+`output/` 的十份 PDF 都由這裡的腳本產生，**不要手動改 PDF**：改來源檔（`.md` / `.html`）再重跑。
 
 > **PDF 與站台地圖的 HTML 不納版控**（見 `.gitignore`）——它們是產生物，母檔才是真實來源。
 > 剛 clone 下來的專案沒有這些檔案，跑一次下面的指令就會全部出現。
 
 ```bash
 npm i --prefix output/tools        # 首次或換機時安裝相依（只有 marked）
-node output/tools/build-pdf.mjs    # 產出全部八份
+node output/tools/build-pdf.mjs    # 產出全部十份
 ```
 
 只產指定項目：
@@ -19,6 +19,8 @@ node output/tools/build-pdf.mjs mile-zh     # TCRFC_開發里程碑_Milestone.pd
 node output/tools/build-pdf.mjs mile-en     # TCRFC_開發里程碑（英文）
 node output/tools/build-pdf.mjs charity-zh # TCRFC_慈善捐款平台功能規劃書.pdf
 node output/tools/build-pdf.mjs charity-en # TCRFC_Charity_Donation_Platform_Specification_EN.pdf
+node output/tools/build-pdf.mjs app-zh     # TCRFC_行動App功能規劃書.pdf
+node output/tools/build-pdf.mjs app-en     # TCRFC_Mobile_App_Specification_EN.pdf
 node output/tools/build-pdf.mjs sitemap-zh # TCRFC_慈善捐款站台地圖.pdf
 node output/tools/build-pdf.mjs sitemap-en # TCRFC_Charity_Donation_Sitemap_EN.pdf
 ```
@@ -41,6 +43,7 @@ node output/tools/build-pdf.mjs sitemap-zh sitemap-en    # 再轉 PDF
 |---|---|---|
 | `zh` / `en` 規劃書 | `output/*.md` | Markdown → 品牌樣式 HTML → A4 直式，含封面、頁首頁尾與頁碼 |
 | `charity-zh` / `charity-en` 慈善站規劃書 | `output/*.md` | 同上 |
+| `app-zh` / `app-en` 行動 App 規劃書 | `output/*.md` | 同上 |
 | `mile-zh` / `mile-en` 里程碑 | `output/*.html` | 既有 HTML 交付物直接列印，A4 橫式單頁 |
 | `sitemap-zh` / `sitemap-en` 站台地圖 | `build-sitemap.py` → `output/*.html` | HTML 直接列印，A4 直式多頁 |
 

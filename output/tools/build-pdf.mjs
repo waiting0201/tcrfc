@@ -71,6 +71,30 @@ const DOCS = {
     runningFoot: 'Taichung Rock FC — TCRFC',
     font: '"Helvetica Neue",Helvetica,Arial,"PingFang TC","Noto Sans TC",sans-serif',
   },
+  'app-zh': {
+    md: 'TCRFC_行動App功能規劃書.md',
+    pdf: 'TCRFC_行動App功能規劃書.pdf',
+    lang: 'zh-Hant',
+    club: '台中磐石足球俱樂部',
+    title: ['行動 App', '功能規劃書'],
+    promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.　在地扎根 · 放眼世界',
+    labels: { version: '文件版本', date: '建立日期' },
+    runningHead: (v) => `TCRFC 行動 App 功能規劃書 ${v}`,
+    runningFoot: '台中磐石足球俱樂部 TCRFC',
+    font: '"PingFang TC","Noto Sans TC","Hiragino Sans","Helvetica Neue",Arial,sans-serif',
+  },
+  'app-en': {
+    md: 'TCRFC_Mobile_App_Specification_EN.md',
+    pdf: 'TCRFC_Mobile_App_Specification_EN.pdf',
+    lang: 'en',
+    club: 'Taichung Rock FC',
+    title: ['Mobile App', 'Functional Specification'],
+    promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.',
+    labels: { version: 'Document version', date: 'Date' },
+    runningHead: (v) => `TCRFC Mobile App Specification ${v}`,
+    runningFoot: 'Taichung Rock FC — TCRFC',
+    font: '"Helvetica Neue",Helvetica,Arial,"PingFang TC","Noto Sans TC",sans-serif',
+  },
 };
 
 // ── Markdown ────────────────────────────────────────────────────────────────
