@@ -4,6 +4,12 @@
 
 獨立網域的掃碼捐款平台，**共用官網後台與資料庫**。主站單元 11 只做介紹與導流，捐款金流全在這裡。
 
+> **客戶說明用的站台地圖**：[`../output/TCRFC_慈善捐款站台地圖.html`](../output/TCRFC_慈善捐款站台地圖.html)
+> 與英文版 [`TCRFC_Charity_Donation_Sitemap_EN.html`](../output/TCRFC_Charity_Donation_Sitemap_EN.html)
+> ——把八個前台頁面依捐款動線排開，每站附手機示意畫面。**HTML 是母檔，PDF 由
+> `node output/tools/build-pdf.mjs sitemap-zh sitemap-en` 產生，勿手改 PDF。**
+> 規格有異動時這兩份要一併更新（頁面清單、畫面區塊、版本戳記）。
+
 ---
 
 ## 1. 一分鐘理解

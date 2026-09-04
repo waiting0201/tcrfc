@@ -33,7 +33,7 @@
 
 | 路徑 | 內容 | 性質 |
 |---|---|---|
-| [`output/`](output/) | **兩份規劃書**（主站＋慈善捐款平台）、開發里程碑（中英 × md/html/pdf）。PDF 由 [`output/tools/`](output/tools/README.md) 產生，勿手改 | **交付物，真實來源** |
+| [`output/`](output/) | **兩份規劃書**（主站＋慈善捐款平台）、開發里程碑、**慈善捐款站台地圖**（客戶說明用，含手機示意畫面）。中英 × md/html/pdf；PDF 由 [`output/tools/`](output/tools/README.md) 產生，勿手改 | **交付物，真實來源** |
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
 | [`mockup/`](mockup/) | 單頁視覺 mockup（`index.html` 1330 行，內含 design tokens）與示意圖 | 視覺基準 |
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
