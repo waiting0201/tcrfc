@@ -1,6 +1,6 @@
 # TCRFC 官方網站
 
-靜態 HTML，延續 [`../mockup/`](../mockup/) 的視覺系統。無框架、零 npm 相依。
+靜態 HTML，無框架、零 npm 相依。視覺系統的 design tokens 定義於 [`src/assets/css/tcrfc.css`](src/assets/css/tcrfc.css) 的 `:root`。
 
 ## 指令
 

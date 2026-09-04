@@ -17,7 +17,7 @@
 |---|---|
 | 功能規劃 | ✅ 完成（規劃書 v2.3，中英雙版 md／PDF 皆已更新）。**v2.3 新增付費會員抽獎（後台 K5）；v2.2 更正英文隊名為 `Taichung Rock FC`；v2.1 將球迷捐款移出主站，志工報名移出範圍** |
 | 慈善捐款平台 | 📄 **規格已完成**（獨立規劃書 v1.5，中英雙版）。**主辦與收款主體是台灣足球策略發展協會，不是磐石**；獨立網域、共用主站後台與資料庫、串接 LINE Pay 與電子發票。**尚未開發；網域、協會品牌資產、協會法人登記與統編未定** |
-| 視覺方向 | ✅ 單頁 mockup 已完成（Cloudflare Pages 專案 `tcrfc-mockup` 目前部署的是 `site/dist` 73 頁前台，全站 `noindex`） |
+| 視覺方向 | ✅ 已定案並落實於 [`site/src/assets/css/tcrfc.css`](site/src/assets/css/tcrfc.css)（design tokens 在 `:root`）。Cloudflare Pages 專案 `tcrfc-mockup` 部署 `site/dist` 73 頁前台，全站 `noindex`。**單頁 mockup 已退役刪除** |
 | 品牌資產 | ✅ [`brand/`](brand/) 已由 logo 主檔萃取完成；design tokens 已校正為 `.ai` 品牌色 |
 | 技術選型 | ❌ **未定案**（規劃書第 10 節明確排除在範圍外） |
 | 網站本體 | ❌ 尚未開發 |
@@ -35,7 +35,6 @@
 |---|---|---|
 | [`output/`](output/) | **兩份規劃書**（主站＋慈善捐款平台）、開發里程碑、**慈善捐款站台地圖**（客戶說明用，含手機示意畫面）。中英 × md/html/pdf；PDF 由 [`output/tools/`](output/tools/README.md) 產生，勿手改 | **交付物，真實來源** |
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
-| [`mockup/`](mockup/) | 單頁視覺 mockup（`index.html` 1330 行，內含 design tokens）與示意圖 | 視覺基準 |
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
 | [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖 | 客戶提供素材 |
 | [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) | 給客戶放既有檔案的分類結構（83 個資料夾，對應 13 單元） | 內容收件 |
@@ -115,6 +114,6 @@
    否則下次會被當成漏寫再加回來。
 4. **`D1` 的雙重身分要小心。** 後台課程模組原編號 `D1–D4` 已因撞名改為 `P1–P4`，看到舊文件寫 `D1 課程` 一律視為錯誤。
 5. **所有前台可見的內容型別都要有 `zh` / `en` 雙欄位**，英文可空但欄位必須存在。
-6. **mockup 的 `noindex` 不要拿掉**（[`mockup/_headers`](mockup/_headers)），正式站上線前它不該被索引。
+6. **`noindex` 不要拿掉**（[`site/src/_headers`](site/src/_headers)），正式站上線前它不該被索引。
 7. **收件夾與大型素材未納版控。** git 已初始化（branch `master`），但這些內容不在版控內，覆寫或刪除前先看過。
 8. **客戶素材涉及個資與肖像權**（未成年學員照片、會員資料）。處理收件夾內容時不要外傳、不要放進會被公開的檔案。

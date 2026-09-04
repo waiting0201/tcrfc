@@ -88,14 +88,14 @@
 | 任務 | 建議載入 |
 |---|---|
 | 了解專案、接手工作 | `CLAUDE.md` → 本檔 |
-| 做某一個前台頁面 | [`02-frontend-spec.md`](02-frontend-spec.md) 對應段落 → 規劃書該節行號 → [`../mockup/index.html`](../mockup/index.html) 找對應區塊樣式 |
+| 做某一個前台頁面 | [`02-frontend-spec.md`](02-frontend-spec.md) 對應段落 → 規劃書該節行號 → [`../site/src/`](../site/src/) 既有頁面找對應區塊樣式 |
 | 做後台模組 | [`03-admin-spec.md`](03-admin-spec.md) → 規劃書 4.x → [`04-data-model.md`](04-data-model.md) |
 | 設計資料表 / 匯入格式 | [`04-data-model.md`](04-data-model.md) → 規劃書 1119–1167 |
 | 處理雙語或 SEO | [`05-i18n-seo.md`](05-i18n-seo.md) → 規劃書 1192–1234 |
 | 寫文案 / 處理客戶素材 | [`07-content-pipeline.md`](07-content-pipeline.md) → [`06-conventions.md`](06-conventions.md) |
 | 排程、報價、跟客戶討論範圍 | [`08-roadmap-decisions.md`](08-roadmap-decisions.md) → 規劃書 1235–1323 |
 | **慈善捐款平台任何工作** | [`10-charity-donation-site.md`](10-charity-donation-site.md) → 慈善站規劃書該節行號 |
-| 視覺、色彩、字級 | [`06-conventions.md`](06-conventions.md) §設計 tokens → `mockup/index.html` 的 `:root` |
+| 視覺、色彩、字級 | [`06-conventions.md`](06-conventions.md) §設計 tokens → `site/src/assets/css/tcrfc.css` 的 `:root` |
 
 ---
 

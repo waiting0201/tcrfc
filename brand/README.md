@@ -16,7 +16,7 @@
 `.ai` 色票面板另存有 50 餘個 Illustrator 預設色庫色票，**未使用於畫面**，不屬於品牌色。
 
 網頁完整 token 表（含 hover、AA 安全版、深淺階層）見 [`../docs/06-conventions.md`](../docs/06-conventions.md) §2，
-實作基準在 [`../mockup/index.html`](../mockup/index.html) 的 `:root`。
+實作基準在 [`../site/src/assets/css/tcrfc.css`](../site/src/assets/css/tcrfc.css) 的 `:root`。
 
 ### 無障礙注意事項
 

@@ -1,6 +1,6 @@
 # 06 — 慣例與術語
 
-> 執行層文件。術語表源自規劃書；設計 tokens 源自 [`../mockup/index.html`](../mockup/index.html)。
+> 執行層文件。術語表源自規劃書；設計 tokens 的實作基準是 [`../site/src/assets/css/tcrfc.css`](../site/src/assets/css/tcrfc.css) 的 `:root`。
 > **品牌色的唯一真實來源是 [`../reference/TCR_logo_CMYK.ai`](../reference/TCR_logo_CMYK.ai)**，衍生資產與說明見 [`../brand/README.md`](../brand/README.md)。
 
 ---
@@ -107,7 +107,7 @@
 
 ## 4. 檔名慣例
 
-**媒體資產**（沿用 [`../mockup/assets/`](../mockup/assets/) 既有規則）：
+**媒體資產**（規則沿用自已退役的單頁 mockup，現行檔案見 [`../site/src/assets/img/`](../site/src/assets/img/)）：
 ```
 {型別}-{編號}-{識別}.{副檔名}
 player-09-liu.jpg    coach-ezoe.jpg    match-01.jpg

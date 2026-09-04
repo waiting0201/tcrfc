@@ -38,7 +38,7 @@
 - **品牌主張**：LOCAL ROOTS. GLOBAL PATHWAYS.｜在地扎根 · 放眼世界
 - **規格唯一真實來源**：`output/TCRFC_前後台功能規劃書.md`（v2.0）
 - **頁面規格摘要**：`docs/02-frontend-spec.md`（有對應規劃書行號，需要細節時回讀原文）
-- **視覺基準**：`mockup/index.html`（1327 行，design tokens 已抽到共用 CSS）
+- **視覺基準**：`src/assets/css/tcrfc.css` 的 `:root`（design tokens 的唯一定義處；單頁 mockup 已退役刪除）
 
 ---
 
