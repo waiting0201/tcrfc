@@ -1,7 +1,7 @@
 # TCRFC Taichung Rock FC — Charity Donation Platform Functional Specification
 
-> **Document version**: v1.2
-> **Date**: 2026-09-03 (v1.2 revision: 2026-09-04)
+> **Document version**: v1.3
+> **Date**: 2026-09-03 (v1.3 revision: 2026-09-04)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **What this document covers**
@@ -9,6 +9,12 @@
 > 2. It is **complementary to, not overlapping with**, the [Website Functional Specification](TCRFC_Website_Functional_Specification_EN.md) (v2.1 onwards). The main site no longer handles any donation payments; section 11 "Charity & Impact" retains only the **editorial** content — commitment, programmes, impact stories and impact metrics — and routes "fan donation" to this platform.
 > 3. Main specification v2.1 revises three premises accordingly: **donations no longer run through Shopify items or bank transfer**, **volunteer signup is out of scope**, and **"no payment gateway" now applies to the main site only**.
 > 4. This is a functional specification and **does not cover framework, CMS, or deployment decisions** (per the standing premise in main specification §1.3).
+
+> **v1.3 revision summary — no refunds offered on the public site**
+> 1. **Refunds are not offered**: the donation terms page states plainly that a completed donation is not normally refundable. The public site carries no refund policy, no refund request route and no refund promise.
+> 2. **The admin keeps the ability to refund**: mistaken amounts, duplicate charges and payments made by someone else are handled case by case — customer service takes the request and an operator refunds it in N3. Refunds still need **separate authorisation** and an audit entry; §8.5 rebate reversal and the fourth system email are unchanged.
+> 3. **Invoice voiding and credit notes are unaffected**: §5.4 is a tax requirement, and an invoice issued with wrong details has to be voided regardless of refunds. It stays as specified.
+> 4. Donation projects **must not carry rewards**: a reward makes the donation arguably a sale or a gift with a charge, which brings consumer-protection withdrawal rights into play and contradicts the no-refund premise. This is recorded as out of scope in §1.3.
 
 > **v1.2 revision summary — fundraising progress removed**
 > 1. **The public site does not show fundraising progress**: the project card wall (3.1) and the project page (3.2) **drop** the progress bar, the raised-to-date and target amounts, and the donation count. Donors see what the project does and where the money goes, not a running total.
@@ -85,6 +91,8 @@ Three premises shape the whole site:
 - **Recurring donations** (monthly auto-debit) — deferred for later assessment
 - **Posting physical receipts**, printing paper invoices
 - **Regulatory filing for public fundraising** (the system does not file on the club's behalf; it provides reports for manual filing)
+- **A refund request route on the public site** — the terms page states donations are not refundable; mistaken donations are handled by customer service and refunded from the admin, see §4.4
+- **Rewards for donating** — projects must not offer jerseys, gifts or anything else in return; a reward makes the donation arguably a sale or a gift with a charge, which contradicts the no-refund premise
 - **Donor accounts and a donation history area** — donors do not log in; records are emailed
 - **Technology selection** — framework, CMS, hosting and deployment are all outside this document
 
@@ -121,7 +129,7 @@ Languages are separated by `/zh/` and `/en/`, with the structure reserving room 
 | Donor roll | `/{lang}/donors/` | Named donors (names only, no amounts). Can be disabled site-wide in the admin |
 | Impact | `/{lang}/impact/` | Summary of linked charity programmes, routing back to main site 11.3 |
 | Privacy policy | `/{lang}/privacy/` | A separate domain needs its own, covering donor data and invoice details |
-| Donation terms | `/{lang}/terms/` | Refund rules, invoice rules, how funds are used |
+| Donation terms | `/{lang}/terms/` | **That donations are not refundable**, invoice rules, how funds are used |
 
 ### 2.2 How venue attribution is carried
 
@@ -189,7 +197,7 @@ Top to bottom:
 3. **Use of funds**: an explicit statement of where the money goes
 4. **Linked charity programme** (optional): links to the corresponding `CharityProgram` in main site 11.2, so donors can see past results
 5. **Donation form** (see 3.3) — **at the very bottom of the page, as required**
-6. **FAQ**: invoices, refunds, use of funds
+6. **FAQ**: invoices, use of funds, **and that a completed donation is not refundable**
 
 > **No fundraising progress on the public site**: no progress bar, no raised-to-date, no target, no donation count. Per-project totals live in N6 donation reporting (§7) and are not shown to donors.
 
@@ -300,9 +308,15 @@ LINE Pay uses a two-step Request (create) / Confirm (capture) flow:
 
 ### 4.4 Refunds
 
-- Initiated in the admin (see §6 N3), requiring a reason and the responsible staff member
+**No refunds on the public site**: the donation terms page states that a completed donation is not normally refundable. There is no refund request form, no refund policy and no refund promise anywhere on the site.
+
+**The admin keeps the ability to refund**, for cases customer service accepts: a mistyped amount, a duplicate charge, a payment made by someone other than the account holder. The rules:
+
+- Always initiated in the admin (see §6 N3), requiring a reason and the responsible staff member; it needs **separate authorisation** and writes an audit entry
 - A refund cascades to three things: **voiding or crediting the invoice** (§5.4), **reversing the rebate** (§8.5), and **sending the refund notification**
 - Partial refunds are out of scope; full refunds only
+
+> Why the admin keeps it: a mistaken donation may amount to unjust enrichment or a mistaken declaration of intent under civil law, so an obligation to return the money can still arise case by case, and payment providers' merchant agreements generally require cooperation on disputed charges. **Not promising refunds publicly** and **being able to make one** are two different things.
 
 ### 4.5 Reconciliation
 
@@ -356,6 +370,7 @@ Each project carries an `invoice_mode` that determines which document all its do
 ### 5.4 Voiding and credit notes
 
 - Triggered by refunds: void within the same period, issue a credit note across periods
+- **Issuing errors** (wrong title, tax ID or carrier) are voided or credited the same way — nothing to do with refunds
 - Both record a reason and the responsible staff member
 - An already-voided invoice cannot be voided again
 
@@ -663,6 +678,7 @@ Donor roll, impact page, **the English version**, and the finer parts of N7 site
 | Languages | **Traditional Chinese (default) and English**, with room for a third |
 | SEO | **No SEO / GEO optimisation** (no keyword programme, structured data, sitemap submission or GEO). Pages **remain indexable**; `hreflang` and the required `noindex` rules still apply |
 | Fundraising progress | **Not shown on the public site** (no progress bar, raised-to-date, target or donation count). Totals live in N6 donation reporting and are not published |
+| Refunds | **Not offered publicly** (stated on the donation terms page). The admin keeps a manual refund for mistaken donations, under separate authorisation; invoice voiding and credit notes stay as tax law requires. Projects **must not carry rewards** |
 | Payments | **Proper LINE Pay Online API integration**, so payment results arrive automatically. The main specification's "no payment gateway" premise is **narrowed to the main site only** |
 | Documents | **Both e-invoices and donation receipts**, chosen **per donation project** |
 | Donor identity | **No login, no registration**; name and email only. The admin **softly matches** emails against members as a label, with **no attribution** |
