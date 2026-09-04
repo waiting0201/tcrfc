@@ -1,7 +1,7 @@
 # TCRFC Taichung Rock FC — Charity Donation Platform Functional Specification
 
-> **Document version**: v1.0
-> **Date**: 2026-09-03
+> **Document version**: v1.1
+> **Date**: 2026-09-03 (v1.1 revision: 2026-09-04)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **What this document covers**
@@ -9,6 +9,11 @@
 > 2. It is **complementary to, not overlapping with**, the [Website Functional Specification](TCRFC_Website_Functional_Specification_EN.md) (v2.1 onwards). The main site no longer handles any donation payments; section 11 "Charity & Impact" retains only the **editorial** content — commitment, programmes, impact stories and impact metrics — and routes "fan donation" to this platform.
 > 3. Main specification v2.1 revises three premises accordingly: **donations no longer run through Shopify items or bank transfer**, **volunteer signup is out of scope**, and **"no payment gateway" now applies to the main site only**.
 > 4. This is a functional specification and **does not cover framework, CMS, or deployment decisions** (per the standing premise in main specification §1.3).
+
+> **v1.1 revision summary — no SEO / GEO optimisation**
+> 1. **This platform does no SEO or GEO optimisation**: no keyword research or content programme, no structured data (`Schema.org` markup), no sitemap submission or indexing monitoring, no AI-search (GEO) optimisation, and **no search-ranking acceptance criteria of any kind**. Section 7 of the main specification (SEO / GEO) **does not apply to this platform**.
+> 2. **Pages remain indexable**: landing and project pages are not marked `noindex`, all three `hreflang` values are still required (so the two language versions are not treated as duplicates), and the `noindex` rules for `/result/` and the donor roll are unchanged.
+> 3. This revision changes only the **expected outcomes and the scope of work**. The page list, URL structure, bilingual field rules and every other feature are **unchanged**.
 
 ---
 
@@ -136,13 +141,21 @@ Whether a venue earns its share depends on whether "which venue this scan came f
 | Print template | TCRFC logo, venue name, a short call to action, and the code itself. Only the three lockups in `brand/svg/` may be used — **no custom typesetting, no SINCE or year** |
 | Regeneration | The admin can reissue a venue's `store_slug`. **Existing printed QR codes stop working immediately**, so this needs an explicit warning and an audit record of who did it |
 
-### 2.4 Languages and SEO
+### 2.4 Languages and search engines
 
 - `hreflang` must provide all three of `zh-Hant`, `en` and `x-default`
 - Every publicly visible type (venue name, project name and description, site copy) needs **`zh` / `en` fields**; English may be empty but the field must exist
 - When English is empty, fall back to Chinese and label the page as having no version in that language
 - Switching language stays on the equivalent page rather than returning to the home page
-- Landing and project pages should be indexable; `/result/` pages must be `noindex`
+- Landing and project pages **remain indexable**; `/result/` pages must be `noindex`
+
+> **This platform does no SEO / GEO optimisation.**
+> Traffic comes from **QR codes scanned in physical venues** and from unit 11 of the main site; search visibility is not a success metric here.
+> So there is **no** keyword research or content programme, **no** structured data (`Schema.org` markup), **no** sitemap submission or
+> indexing monitoring, **no** AI-search (GEO) optimisation, and **no** search-ranking acceptance criteria.
+> What remains is basic legibility only: a correct `<title>` on every page, basic `og:title` / `og:description` / `og:image` tags
+> (**sharing on LINE is a primary distribution path** — a broken card costs donations directly), the `hreflang` set above, and the `noindex` rules where required.
+> Section 7 of the main specification (SEO / GEO) **does not apply to this platform**.
 
 ---
 
@@ -641,6 +654,7 @@ Donor roll, impact page, **the English version**, and the finer parts of N7 site
 | Admin and database | **Shares the official website admin and database**, via a new `N` module |
 | Public site | A **fully separate project**; does not share the main site's 73-page build |
 | Languages | **Traditional Chinese (default) and English**, with room for a third |
+| SEO | **No SEO / GEO optimisation** (no keyword programme, structured data, sitemap submission or GEO). Pages **remain indexable**; `hreflang` and the required `noindex` rules still apply |
 | Payments | **Proper LINE Pay Online API integration**, so payment results arrive automatically. The main specification's "no payment gateway" premise is **narrowed to the main site only** |
 | Documents | **Both e-invoices and donation receipts**, chosen **per donation project** |
 | Donor identity | **No login, no registration**; name and email only. The admin **softly matches** emails against members as a label, with **no attribution** |
