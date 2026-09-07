@@ -111,10 +111,10 @@
 | 了解專案、接手工作 | `CLAUDE.md` → 本檔 |
 | 做某一個前台頁面 | [`02-frontend-spec.md`](02-frontend-spec.md) 對應段落 → 規劃書該節行號 → [`../site/src/`](../site/src/) 既有頁面找對應區塊樣式 |
 | 做後台模組 | [`03-admin-spec.md`](03-admin-spec.md) → 規劃書 4.x → [`04-data-model.md`](04-data-model.md) |
-| 設計資料表 / 匯入格式 | [`04-data-model.md`](04-data-model.md) → 規劃書 1160–1212（App 型別見 App 規劃書 1155–1232） |
-| 處理雙語或 SEO | [`05-i18n-seo.md`](05-i18n-seo.md) → 規劃書 1242–1284 |
+| 設計資料表 / 匯入格式 | [`04-data-model.md`](04-data-model.md)（型別清單）→ [`12-database-schema.md`](12-database-schema.md)（**資料表綱要與 ERD**）→ 規劃書 1245–1306（App 型別見 App 規劃書 1155–1232） |
+| 處理雙語或 SEO | [`05-i18n-seo.md`](05-i18n-seo.md) → 規劃書 1338–1365 |
 | 寫文案 / 處理客戶素材 | [`07-content-pipeline.md`](07-content-pipeline.md) → [`06-conventions.md`](06-conventions.md) |
-| 排程、報價、跟客戶討論範圍 | [`08-roadmap-decisions.md`](08-roadmap-decisions.md) → 規劃書 1285–1378 |
+| 排程、報價、跟客戶討論範圍 | [`08-roadmap-decisions.md`](08-roadmap-decisions.md) → 規劃書 1381–1421 |
 | **慈善捐款平台任何工作** | [`10-charity-donation-site.md`](10-charity-donation-site.md) → 慈善站規劃書該節行號 |
 | **行動 App 任何工作** | [`11-mobile-app.md`](11-mobile-app.md) → App 規劃書該節行號 |
 | 視覺、色彩、字級 | [`06-conventions.md`](06-conventions.md) §設計 tokens → `site/src/assets/css/tcrfc.css` 的 `:root` |
@@ -147,7 +147,7 @@
 3. **行事曆是彙整層不是資料源**：賽事在 C4 維護，行事曆（L）只提供統一檢視。不要設計成兩份資料。
 4. **課程不進行事曆**：課程時段屬 `Session`，留在 05 課程頁；行事曆只放比賽與俱樂部活動。
 5. **電商已在站內，「Shopify 邊界」是舊規格（v2.6）**：購物車、結帳、金流、庫存、訂單、出貨、退換貨**全部由本站承接**（8.3／後台 `S` 模組）。看到「官網只做櫥窗與導流」「導向 Shopify」一律是 v2.5 以前的文字。**Shopify 從未開站，舊官網的 Wix 商店是過渡通路，上線後停售並 301 轉址。**
-6. **會員與商店不需要 SSO**：商店在站內，**會員帳號即商店帳號**；付費會員折扣以**會員價自動套用**（S6），**不發折扣碼**。原「Shopify SSO」與「發折扣碼」兩條已隨外部商店退場失效。**非會員仍可結帳**（`Order.member_id` 可為空）。
+6. **會員與商店不需要 SSO**：商店在站內，**會員帳號即商店帳號**。原「Shopify SSO」與「發折扣碼」兩條已隨外部商店退場失效。**v2.6 定案：站內商店不做會員價、不發折扣碼**（規劃書行 377、379、741、1201）——**付費會籍權益不含商品折扣**，看到「會員價自動套用」一律是早期草稿殘留。**非會員仍可結帳**（`Order.member_id` 可為空）。
 7. **付費會員＝球迷會員，不是兩種身分**（`fan_club` 層級），球迷會不另建名單。
 8. **會員系統只做會籍**：折扣 × 球衣 × 抽獎資格。不做點數、電子錢包、票務、店家掃碼核銷、學員家長綁定。
 9. **五種「商業對象」不要搞混**：`Partner`（B2B Logo 牆）／`Sponsor`（贊助商）／`PartnerStore`（特約店家，會員折扣，無金流無分潤）／`DonationStore`（慈善站掃碼，**有金流有分潤**）／`Advertiser`（**App 廣告主，計曝光**）。同一家實體公司可能同時是數種，**各建一筆、不共用紀錄**；唯一例外是 `Advertiser.sponsor_id` 可關聯回 `Sponsor`，那是關聯不是合併。

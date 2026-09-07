@@ -22,7 +22,8 @@
 | **站內商店** | 📄 **規格已完成**（主站規劃書 v2.6：前台 8.3、後台 `S1–S6`）。**功能規模比照舊官網 Wix 商店**，收款主體是俱樂部，**付款只用 LINE Pay、必開電子發票**。**前台已有 7 頁流程骨架**（`/zh/shop/`、兩頁商品詳情、`/zh/cart/`、`/zh/checkout/`、完成頁、`/zh/order/lookup/`），**但沒有後端、沒有金流、沒有庫存，按鈕不送出**。俱樂部 LINE Pay 商店號、發票開立管道、物流與固定運費、退換貨政策條文、出貨人力、首波 SKU 與備貨量、稅法保存年限均未定 |
 | 視覺方向 | ✅ 已定案並落實於 [`site/src/assets/css/tcrfc.css`](site/src/assets/css/tcrfc.css)（design tokens 在 `:root`）。Cloudflare Pages 專案 `tcrfc-mockup` 部署 `site/dist` **80 頁**前台（含 **7 頁商店流程骨架**），全站 `noindex`。**單頁 mockup 已退役刪除** |
 | 品牌資產 | ✅ [`brand/`](brand/) 已由 logo 主檔萃取完成；design tokens 已校正為 `.ai` 品牌色 |
-| 技術選型 | ❌ **未定案**（規劃書第 10 節明確排除在範圍外） |
+| **資料庫綱要** | ✅ **已完成**（[`docs/12-database-schema.md`](docs/12-database-schema.md)，**技術中立邏輯模型**，108 張表＋約 40 張 i18n 側表、17 張 ERD）。涵蓋主站（含商店 `S`）＋慈善 `N` ＋後台帳號權限 `J`；**不含行動 App 十型別、沒有任何日誌表**。**尚未轉成 DDL**——待 DBMS 定案 |
+| 技術選型 | ❌ **未定案**（規劃書第 10 節明確排除在範圍外）。資料庫綱要已刻意寫成技術中立，選型後只需回頭處理 `docs/12` §1.4 的四件事 |
 | 網站本體 | ❌ 尚未開發 |
 | 內容 | 🔄 **已首批交件**（456MB／212 張原始照片／113 篇文稿）。盤點見 [`docs/09-intake-inventory.md`](docs/09-intake-inventory.md)。**阻塞：文稿全為 `.gdoc` 捷徑，本機讀不到** |
 | 版本控制 | ✅ 已 `git init`（branch `master`）。收件夾與大型素材未納管，覆寫或刪除前仍請先看過內容 |
@@ -54,7 +55,7 @@
 | [`docs/01-site-architecture.md`](docs/01-site-architecture.md) | 需要知道網站有哪些頁、層級怎麼分、URL 怎麼定 |
 | [`docs/02-frontend-spec.md`](docs/02-frontend-spec.md) | 要做前台任一頁面／區塊 |
 | [`docs/03-admin-spec.md`](docs/03-admin-spec.md) | 要做後台模組或處理權限 |
-| [`docs/04-data-model.md`](docs/04-data-model.md) | 要設計資料表、內容型別、匯入格式 |
+| [`docs/04-data-model.md`](docs/04-data-model.md) | 要知道有哪些內容型別、哪些關係不能搞錯、匯入格式（**實際資料表看 `docs/12`**） |
 | [`docs/05-i18n-seo.md`](docs/05-i18n-seo.md) | 處理雙語、SEO/GEO、效能與無障礙 |
 | [`docs/06-conventions.md`](docs/06-conventions.md) | 命名、術語、色彩字級、日期與檔名格式 |
 | [`docs/07-content-pipeline.md`](docs/07-content-pipeline.md) | 處理客戶交來的素材 |
@@ -62,6 +63,7 @@
 | [`docs/09-intake-inventory.md`](docs/09-intake-inventory.md) | 要知道客戶交了什麼、缺什麼、哪裡卡住 |
 | [`docs/10-charity-donation-site.md`](docs/10-charity-donation-site.md) | **慈善捐款平台的任何工作**（掃碼、捐款、LINE Pay、發票、分潤、報表） |
 | [`docs/11-mobile-app.md`](docs/11-mobile-app.md) | **行動 App 的任何工作**（會員卡與 Wallet、賽程、附近店家、課程報名、推播、廣告版位） |
+| [`docs/12-database-schema.md`](docs/12-database-schema.md) | **要設計或實作資料表**（技術中立邏輯綱要、108 張表、ERD、權限模型、受限欄位盤點）。**不含行動 App 型別、沒有日誌表** |
 
 ---
 
@@ -106,6 +108,14 @@
   **不接第三方廣告聯播網、不用廣告識別碼、不做行為定向、不做開屏廣告**；`AdEvent` 原始事件只留 90 天，之後只留日聚合。
   會員卡的 **Wallet pass 與 App 內卡片共用同一 token**；離線可出示但須標示同步時間。**App 抽獎只顯示個人資格布林**，不顯示序號、不做查詢與名單頁、**不得讀取 `DrawRoster`**；**推播不得用於個別中獎通知**（後台 M3 須系統層阻擋）。
   `PartnerStore` 與 `Venue` 已加座標欄位但**資料要人工標**。後台模組 `M` 與會員卡驗證頁 `/m/<token>` 無關。
+- **資料庫綱要的四項執行層決定**（見 [`docs/12-database-schema.md`](docs/12-database-schema.md)，**規劃書未改版**）：
+  - **不建任何日誌表**（`AuditLog`／`LoginLog`／`ExportLog`／`OperationLog`）——與規劃書 §4.10 J「操作稽核記錄保存 ≥ 12 個月」及 §6 四處「匯出須寫稽核」**衝突**，落差與後果列於 `docs/12` §13.1。
+    但 **`EmailLog`、`InventoryMovement`、`PageVersion`、`FaqSearchMiss` 不是日誌是功能單元**，一律保留。
+  - **後台帳號用 `username` 登入不用 Email**：`AdminUser.username` UNIQUE，`email` 只作通知、不唯一、不作登入鍵。
+    種子超管 `sa@system.local`／`Admin@123`（雜湊儲存、強制首次更換）——**它長得像 Email 但存在 `username` 欄**。
+    **前台 `Member` 維持 Email ＋ LINE 登入不變，兩套帳號完全獨立。**
+  - **雙語採 `<entity>_i18n` 側表**，不是並排 `zh_*`／`en_*` 欄位——為兌現「加第三語系不改程式」。快照表、後台角色表、UI 字串不走側表。
+  - **金額一律 `int` 存「元」**，只有百分比用 `decimal(5,2)`。台幣無角分且慈善分潤明訂無條件捨去至整數元。
 - **賽事資料全部人工維護**，不串接外部 API，提供 CSV 批次匯入。
 - **既有數位資產**：官網 www.tcrfc.tw（待遷移）、IG `@tcr_fc_2024`、FB `TCRFC2024`、YouTube `@TCRFC-2024`、
   女足官網 [台中藍鯨](https://www.tcbw2014.com/)（06 頁導流目標，本站不維護其名單與賽程）。
