@@ -1,8 +1,12 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v1.0
-> **Date**: 2026-09-04
+> **Document version**: v1.4
+> **Date**: 2026-09-04 (v1.4 revision: 2026-09-09)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v1.1 revision summary — the store link now points to the website's own shop**
+> 1. **The rationale for excluding "on-site commerce, cart, orders, inventory" is updated** (1.3): it previously read "merchandise is routed to Shopify", but website specification v2.6 has **brought e-commerce into the website's scope** (front end 8.3, admin module `S`), and **Shopify never launched and is no longer the referral target**. The app's scope is **unchanged** — it still builds no commerce, cart, orders, or inventory; purchases complete in the **website's own shop**, and the app only provides the entry point.
+> 2. **Store link wording corrected** (2.1 "More" tab, 3.1 home shortcuts): "outbound to Shopify" becomes "to the website's own shop". The website shop is also collected for by the club, but it is a **separate checkout flow** from in-app payment — the in-app LINE Pay of section 5 **remains limited to membership fees** and does not extend to merchandise.
 
 > **Purpose of this document**
 > 1. This document specifies the **Taichung Rock FC mobile app** (iOS / Android): the official application built around membership, fixtures, partner stores, and owned advertising slots, **sharing the official website's admin and database**.
@@ -43,7 +47,7 @@ Whether a feature belongs in the app is decided on two criteria; meeting either 
 
 | Criterion | Description |
 |---|---|
-| **Only a phone can do it** | Requires location, offline storage, push, a mobile wallet, the lock screen, the native calendar, or the camera |
+| **Only a phone can do it** | Requires location, offline storage, push, the native calendar, or the camera |
 | **The data already exists in the specification** | Reuses an existing content type from the website admin, so nothing new has to be produced by the client before launch |
 
 Anything meeting neither is excluded — building it would only produce something slower than the website and harder to maintain.
@@ -82,18 +86,17 @@ How the three specifications divide:
 
 | # | Feature | Description |
 |---|---|---|
-| 1 | Membership | Registration and sign-in, member profile, digital card and **mobile wallet**, jersey registration, renewal, benefits comparison table |
+| 1 | Membership | Registration and sign-in, member profile, digital membership card, jersey registration, renewal, benefits comparison table |
 | 2 | In-app payment | Paid membership completed via LINE Pay with automatic activation (**membership fees only**) |
 | 3 | Fixtures and results | Squad tabs, filters, match detail, add to calendar, kick-off reminders, venue navigation |
 | 4 | Partner stores | Nearby stores by distance, map, one-tap navigation and calling, category and area filters |
 | 5 | Programs and camps | Reuses the website's existing booking mechanism, adding form pre-filling and "my bookings" |
 | 6 | News and stories | List, article, offline reading, category push subscriptions, sharing |
 | 7 | Squads and players | First team and academy squads, player detail |
-| 8 | Manga reader | Vertical scrolling, per-episode offline download, reading position |
-| 9 | Push notifications | Fixture reminders, results, news, membership expiry, jersey status |
-| 10 | **Owned advertising slots** | Slot management, flights, rotation weights, impression and click measurement, advertiser reporting |
-| 11 | Partners and sponsors | Logo wall and detail pages, outbound links |
-| 12 | Prize draw information | Read-only display of personal eligibility and the rules (see the strict boundary in 3.11) |
+| 8 | Push notifications | Fixture reminders, results, news, membership expiry, jersey status |
+| 9 | **Owned advertising slots** | Slot management, flights, rotation weights, impression and click measurement, advertiser reporting |
+| 10 | Partners and sponsors | Logo wall and detail pages, outbound links |
+| 11 | Prize draw information | Read-only display of personal eligibility and the rules (see the strict boundary in 3.10) |
 
 **Out of scope**
 
@@ -108,7 +111,7 @@ How the three specifications divide:
 | **Splash advertising** | The placement most likely to generate negative reviews, and it harms both launch experience and review impressions |
 | **Live score updates** | Fixture data is maintained entirely by hand; "live" is not achievable and claiming it would only break trust |
 | **Third-party ad networks** | See 7.8. Selling directly is a deliberate choice, not a limitation |
-| **On-site commerce, cart, orders, inventory** | Merchandise is routed to Shopify, as on the website |
+| **On-site commerce, cart, orders, inventory** | Purchases complete in the **website's own shop** (website 8.3 / admin module `S`); the app only provides the entry point. **Shopify is no longer the referral target** (website v2.6) |
 | **Women's football squads and fixtures** | Routed to the Taichung Blue Whale website, as on the website |
 | **SEO / GEO** | App content is not indexed. The website's app download page still follows the website SEO rules |
 | **Technology selection** | This document defines functional requirements only |
@@ -124,7 +127,6 @@ How the three specifications divide:
 | **Device** | One app installation, identified by `device_install_id`. Invalidated on uninstall; never shared across apps or devices |
 | **Deep link** | A link that opens a specific screen inside the app, either via the custom scheme or a Universal Link |
 | **Forced update** | An older app version is taken out of service for compatibility or security reasons and prompts the user to update on launch |
-| **Mobile wallet** | Apple Wallet and Google Wallet. The digital membership card can be written there and shown from the lock screen |
 | **Eligibility cut-off** | The moment a prize-draw roster is frozen; reuses the website's `MemberDraw.snapshot_at` |
 
 ### 1.5 Platform capability requirements (in place of technology selection)
@@ -138,12 +140,11 @@ Technology selection is out of scope, but functional feasibility has a floor. Th
 | 3 | **Deep links and Universal Links** | Push landing, sharing back from the web, advertising creatives pointing to in-app screens |
 | 4 | **Foreground visibility measurement** | The premise of the impression definition in 7.5. Without accurate visible-area and duration measurement, advertising performance cannot be reconciled |
 | 5 | **Device location permission (foreground only)** | Distance sorting for nearby partner stores (3.8) |
-| 6 | **Wallet pass writing and remote update** | The digital membership card (3.6) |
-| 7 | **Writing to the system calendar** | Adding fixtures to the calendar (3.2) |
-| 8 | **A compliant path for in-app purchase or an external payment link** | Section 5.5 |
-| 9 | **Biometric unlock** (optional) | Fast access to the membership card |
+| 6 | **Writing to the system calendar** | Adding fixtures to the calendar (3.2) |
+| 7 | **A compliant path for in-app purchase or an external payment link** | Section 5.5 |
+| 8 | **Biometric unlock** (optional) | Fast access to the membership card |
 
-> This list effectively rules out a pure WebView shell (items 4 and 6 are hard to achieve accurately), but it does so **as a consequence of functional needs**, not as a technical preference.
+> This list effectively rules out a pure WebView shell (items 2 and 4 are hard to achieve accurately), but it does so **as a consequence of functional needs**, not as a technical preference.
 
 ---
 
@@ -159,7 +160,7 @@ Five fixed bottom tabs, never more than three levels deep:
 | **Fixtures** | Squad tabs, fixtures/results toggle, match detail | No |
 | **Member** | Signed out: how to join. Signed in: card, membership, my bookings, jersey, prize-draw information | Partly |
 | **News** | Category list, article, offline reading | No |
-| **More** | Squads, partner stores, program booking, manga, partners and sponsors, charity (outbound), store (outbound), FAQ, settings | No |
+| **More** | Squads, partner stores, program booking, partners and sponsors, charity (outbound), store (to the website shop), FAQ, settings | No |
 
 **Design principle**: signed-out users must be able to browse fixtures, news, squads, partner stores, and program information in full. **The sign-in wall stands in exactly four places**: the membership card, my bookings, renewal, and prize-draw eligibility. The partner-store directory itself stays public — it is the main driver of paid conversion — with the applicable-tier label telling users which offers require a paid membership.
 
@@ -184,12 +185,11 @@ Five fixed bottom tabs, never more than three levels deep:
 | S15 | Program list | `Program` / `Session` | No | No |
 | S16 | Booking form | `Registration` | No | No |
 | S17 | My bookings | `Registration` | Yes | No |
-| S18 | Manga shelf / reader | `ComicEpisode` | No | Yes (downloaded) |
-| S19 | Prize-draw information | `MemberDraw` | Yes | No |
-| S20 | Partners and sponsors | `Partner` / `Sponsor` | No | Partial |
-| S21 | Notification centre | `PushMessage` | No | Yes |
-| S22 | Settings | Local | No | Yes |
-| S23 | FAQ | `Faq` | No | Partial |
+| S18 | Prize-draw information | `MemberDraw` | Yes | No |
+| S19 | Partners and sponsors | `Partner` / `Sponsor` | No | Partial |
+| S20 | Notification centre | `PushMessage` | No | Yes |
+| S21 | Settings | Local | No | Yes |
+| S22 | FAQ | `Faq` | No | Partial |
 
 ### 2.3 Deep links and Universal Links
 
@@ -224,7 +224,6 @@ Five fixed bottom tabs, never more than three levels deep:
 | Article | Cached once opened | 30 days | Yes |
 | Partner stores | Refreshed on launch | 24 hours | Yes (without live distance) |
 | Squads and players | Refreshed on launch | 24 hours | Yes |
-| Manga episodes | Downloaded on request | Until the user deletes them | Yes |
 | Membership status and draw eligibility | Refreshed on entering the screen | Never presented from cache as "valid" | No |
 | Advertising creatives | Pre-fetched for the day's flights | Cleared when the flight ends | No (no impressions offline) |
 | Program sessions and places | Not cached | — | No |
@@ -274,14 +273,14 @@ Block order from top to bottom (order and visibility controlled by admin M2):
 | # | Block | Data source | Notes |
 |---|---|---|---|
 | 1 | Next fixture | `Match` | Countdown, opponent, time, venue; one tap to add to calendar or navigate |
-| 2 | Advertising slot `home_top` | `AdCampaign` | See 3.13 |
+| 2 | Advertising slot `home_top` | `AdCampaign` | See 3.12 |
 | 3 | Latest news (3) | `Article` | Horizontally scrolling cards |
 | 4 | Membership card shortcut | `Member` | Shown when signed in with a valid membership; otherwise "Join" |
 | 5 | Upcoming fixtures (3) | `Match` | Filtered by subscribed squads |
 | 6 | Advertising slot `home_mid` | `AdCampaign` | |
 | 7 | Partner stores (3 nearby) | `PartnerStore` | By distance where location is granted; otherwise by admin order |
-| 8 | Shortcuts | — | Program booking, manga, store (outbound to Shopify) |
-| 9 | Sponsor logo wall | `Sponsor` / `Partner` | **No impressions counted, never in advertising reports** (see 3.12) |
+| 8 | Shortcuts | — | Program booking, store (to the website shop) |
+| 9 | Sponsor logo wall | `Sponsor` / `Partner` | **No impressions counted, never in advertising reports** (see 3.11) |
 
 **No fixed charity slot on the home screen** — consistent with the website rule. The charity entry point sits in the More tab and must state that the recipient is the Association.
 
@@ -357,14 +356,12 @@ All fields and rules carry over from website 3.14; the app adds no member data f
 | Renewal prompt | A banner in the Member tab from 30 days before expiry, plus a push (see 6.2) |
 | Jersey registration | Size, collection method (post or in person), delivery details; status shown as pending / dispatched / collected |
 | My bookings | See 3.9 |
-| Prize-draw information | See 3.11 |
+| Prize-draw information | See 3.10 |
 | Benefits table | See 3.7 |
 
 **Explicitly not built** (matching the website 3.14 exclusion list): my donations, my students, my calendar, on-site messaging beyond notification preferences, a members-only content area, my draw serial number, and win lookup.
 
-### 3.6 Digital membership card and mobile wallet
-
-#### In-app card
+### 3.6 Digital membership card
 
 Card face: member number, QR code, name, tier, expiry date, **last synced time**.
 
@@ -373,23 +370,10 @@ Card face: member number, QR code, name, tier, expiry date, **last synced time**
 | QR contents | The public verification URL `/m/<token>`, identical to the website |
 | Verification response | **Unchanged**: first character of the name, member number, tier, valid or expired. **The app must not request any additional field** |
 | Offline | The card face and QR are presentable offline, but validity reflects the last sync; a warning is required after seven days without one |
-| Token regeneration | Members may regenerate it; the old token is invalidated immediately and **the wallet pass must be updated in step** |
+| Token regeneration | Members may regenerate it; the old token is invalidated immediately |
 | Fast access | Biometric unlock or a shortcut may be offered (optional) |
 
 **No scan-to-redeem**: stores still verify by eye; the app provides no store-side scanner, no counting, no store reports, and stores need no account — identical to website 8.4.
-
-#### Wallet pass
-
-The membership card can be written to Apple Wallet and Google Wallet and shown from the lock screen. This is the single largest experience difference for a paying member standing at a store counter.
-
-| Item | Rule |
-|---|---|
-| Pass fields | Identical to the card face: member number, name, tier, expiry, QR |
-| **QR token** | **Must be the same token as the in-app card.** Issuing two is forbidden — two tokens mean two revocable states, and one will inevitably be missed on revocation |
-| Updates | On renewal, tier change, or token regeneration, the server pushes a pass update; **the user need not re-add it** |
-| Revocation | The pass must be invalidated on account deletion or membership termination |
-| Certificates | The Apple Pass Type ID and Google Wallet Issuer certificates are held in admin M5, with expiry tracked and rotation written to the audit log |
-| **Not built** | No coupons in the pass, no points balance, **no location-triggered reminders** (which would reintroduce the excluded points and redemption concepts) |
 
 ### 3.7 Joining and upgrading
 
@@ -462,22 +446,7 @@ Only three small items were moved out of scope in website v2.0, and only two of 
 
 **Trials**: `Trial` shares `Registration` and is covered by the same mechanism; no separate flow.
 
-### 3.10 Manga reader
-
-Vertical scrolling on a phone is the natural medium for manga — one of the few places where the app is plainly better than the website.
-
-| Feature | Description |
-|---|---|
-| Shelf | Episode list, covers, new-episode markers |
-| Reader | Vertical scroll, pinch zoom, immersive mode hiding the chrome |
-| Offline | Per-episode download on request, deletable by the user |
-| Progress | Reading position remembered locally; no cross-device sync required |
-| Languages | Switching per the rules in 2.5 |
-| Characters | Character pages, linked to the players they are based on |
-
-**Launch prerequisite**: the state of the manga assets and their digital distribution rights is unconfirmed (see 16.2). This section sits in Phase D.
-
-### 3.11 Prize-draw information (read-only)
+### 3.10 Prize-draw information (read-only)
 
 The website has explicitly excluded an entire list of public prize-draw features. **The design goal here is to let a paying member know they are eligible without breaching any item on that list.**
 
@@ -507,7 +476,7 @@ The website has explicitly excluded an entire list of public prize-draw features
 
 **Data restriction**: the app reads live membership status from `Member` and the public fields of `MemberDraw`. It **must not read `DrawRoster`** — the roster snapshot is an admin audit asset and is not exposed to any front end.
 
-### 3.12 Partners and sponsors
+### 3.11 Partners and sponsors
 
 | Block | Content |
 |---|---|
@@ -517,7 +486,7 @@ The website has explicitly excluded an entire list of public prize-draw features
 
 **Sponsor exposure is not advertising** — the boundary most easily confused in implementation:
 
-| | Sponsor logo wall (this section) | Advertising slots (3.13) |
+| | Sponsor logo wall (this section) | Advertising slots (3.12) |
 |---|---|---|
 | Source | `Sponsor` / `Partner` | `AdCampaign` / `AdCreative` |
 | Position | Fixed partner area and lower home screen | Designated slots, rotating |
@@ -529,7 +498,7 @@ Where a sponsorship contract includes "N app placements", the correct approach i
 
 **Asset red line**: no partner or sponsor names and logos have been supplied. Until they are, **neither the app nor the store screenshots may carry placeholder logos** — doing so would assert commercial relationships that do not exist. Empty positions use a "partnership enquiries welcome" placeholder instead.
 
-### 3.13 How advertising appears
+### 3.12 How advertising appears
 
 | Item | Rule |
 |---|---|
@@ -542,9 +511,9 @@ Where a sponsorship contract includes "N app placements", the correct approach i
 | User control | Settings include a "why am I seeing advertising?" explanation |
 | **Not built** | Splash advertising, interstitials, video pre-roll, dismissible floating ads |
 
-**Restriction on child-facing content**: **no advertising slots are placed** on manga, academy, or program screens. These have audiences that include minors and sit alongside photographs of minors; commercial messaging does not belong there.
+**Restriction on child-facing content**: **no advertising slots are placed** on academy or program screens. These have audiences that include minors and sit alongside photographs of minors; commercial messaging does not belong there.
 
-### 3.14 Notification centre and preferences
+### 3.13 Notification centre and preferences
 
 | Feature | Description |
 |---|---|
@@ -556,7 +525,7 @@ Where a sponsorship contract includes "N app placements", the correct approach i
 
 **This is the app's notification centre, not the website's** — the website still has no on-site messaging or notification preferences, and that rule is unchanged.
 
-### 3.15 Settings and account
+### 3.14 Settings and account
 
 Language, push permission and categories, location permission explanation, clear cache, offline content management, privacy policy, terms of service, "why am I seeing advertising?", version and update check, contact us, sign out, and **delete account**.
 
@@ -574,7 +543,7 @@ Language, push permission and categories, location permission explanation, clear
 |---|---|
 | One dataset | A member who registers in the app appears in admin K1 exactly as a web registrant does, distinguished only by a `registration source` value of `App` |
 | One number | Member numbering rules are unchanged by the app |
-| One card | One membership card token, shared by the app, the mobile wallet, and the website |
+| One card | One membership card token, shared by the app and the website |
 | One set of benefits | Admin K4 remains the single point of maintenance for the benefits table |
 
 **A paying member is a fan club member**, not a second identity, and the fan club keeps no separate roster — as on the website.
@@ -631,7 +600,7 @@ The website rules carry over, implemented in the app:
 |---|---|
 | Path | Completable directly in the app; a write-to-us-only route is not acceptable |
 | Confirmation | Two-step confirmation explaining the consequences for membership, jersey records, and bookings |
-| Erased | `Member` personal data, `AppDevice` binding and push token, wallet pass invalidation, membership card token revocation |
+| Erased | `Member` personal data, `AppDevice` binding and push token, membership card token revocation |
 | **Retained** | A locked `DrawRoster` snapshot **retains only the member number and masked name**, with everything else erased; `MembershipPayment` is retained per accounting requirements |
 | Irreversible | **Locked historical draw rosters must never be altered** — doing so would destroy the auditability of the draw |
 
@@ -699,7 +668,6 @@ Also: Refunded (initiated only from the admin)
 | 4 | The server **verifies the callback origin and the amount** and marks the order paid |
 | 5 | The server calls `POST /api/membership/activate` to activate the membership |
 | 6 | The "membership activated" email is sent (one of the existing five system emails) and a push is delivered |
-| 7 | A wallet pass update is pushed (see 3.6) |
 
 **Three hard rules**:
 
@@ -849,7 +817,7 @@ A slot is a long-lived asset, rarely changed once created.
 | **Fallback creative** | Club content shown when there is no flight or a load fails, so **a slot is never blank** |
 | Enabled | Published or withdrawn |
 
-**No slots on child-facing screens**: no `AdSlot` is created for manga, academy, or program screens (see 3.13).
+**No slots on child-facing screens**: no `AdSlot` is created for academy or program screens (see 3.12).
 
 ### 7.3 Advertisers and contracts
 
@@ -957,7 +925,7 @@ Three decisions that between them settle three classes of problem:
 2. Creatives must not use club marks or imply official endorsement unless the advertiser is genuinely a sponsor and the contract says so.
 3. Creatives must pass admin review before going live; there must be an **immediate takedown mechanism** for violations or complaints (any single flight can be paused at once).
 4. **Not accepted**: tobacco and alcohol, gambling, adult content, medical efficacy claims, financial investment solicitation.
-5. No advertising is placed on screens with underage audiences (see 3.13 and 7.2).
+5. No advertising is placed on screens with underage audiences (see 3.12 and 7.2).
 
 ---
 
@@ -1028,7 +996,7 @@ E. Commercial                        (extends the existing module)
 ### 8.5 M5 App settings, certificates and diagnostics
 
 - App feature flags: remotely disable a single feature without shipping a new release
-- **Certificate management**: APNs certificates, FCM configuration, **Apple Pass Type ID**, **Google Wallet Issuer** — expiry tracked with an alert 60 days ahead, and rotation written to the audit log
+- **Certificate management**: APNs certificates and FCM configuration — expiry tracked with an alert 60 days ahead, and rotation written to the audit log
 - Diagnostics: aggregate views of crash rate, API error rate, and launch duration
 - Receipt and review of app-side error reports
 
@@ -1085,12 +1053,10 @@ This is the project's first API specification. It sits here rather than in a fou
 | Program booking | Create | Anonymous or member | Writes `member_id` when signed in |
 | My bookings | List | Member | |
 | Partners and sponsors | List | Anonymous | |
-| Manga | List / episode | Anonymous | |
 | FAQ | List | Anonymous | |
 | Register / sign in / refresh | Create | Anonymous | |
 | Member profile | Read / update | Member | |
 | Membership card | Read / regenerate token | Member | |
-| Wallet pass | Issue / update | Member | |
 | Plans and benefits | List | Anonymous | Sourced from admin K4 |
 | Payment order | Create / query | Member | See 5.4 |
 | **Membership activation** | Create | **Server internal** | `POST /api/membership/activate`, credential-protected |
@@ -1105,8 +1071,8 @@ This is the project's first API specification. It sits here rather than in a fou
 
 | Level | Scope | Method |
 |---|---|---|
-| **Anonymous read** | Fixtures, news, squads, stores, programs, partners, manga, FAQ, advertising delivery, settings | No sign-in, but a device identifier is required |
-| **Member token** | Member profile, card, wallet, payment, jersey, my bookings, prize-draw information | Access token (4.3) |
+| **Anonymous read** | Fixtures, news, squads, stores, programs, partners, FAQ, advertising delivery, settings | No sign-in, but a device identifier is required |
+| **Member token** | Member profile, card, payment, jersey, my bookings, prize-draw information | Access token (4.3) |
 | **Admin** | All administrative write operations | The admin's existing role-based permissions |
 | **Server internal** | `POST /api/membership/activate` | Credential-protected, **never publicly exposed** |
 
@@ -1145,7 +1111,7 @@ This is the project's first API specification. It sits here rather than in a fou
 | Triggers | The app's successful LINE Pay callback, and manual activation by support in the admin (existing) |
 | Authentication | Credential-protected, callable only from within the server |
 | Idempotency | Required, keyed on the order number |
-| Side effects | Writes `MembershipPayment`, updates `Member.paid_until`, sends the activation email, pushes a wallet pass update, sends a push notification |
+| Side effects | Writes `MembershipPayment`, updates `Member.paid_until`, sends the activation email, sends a push notification |
 | Audit | Records the trigger source, the operator or order number, and the membership state before and after |
 
 > The note made when the website designed this endpoint — "should automated collection be adopted later, only the trigger changes and the member module does not" — is delivered here in full. **Not one line of the member module's activation logic needs to change.**
@@ -1189,7 +1155,7 @@ Ten app-specific types: six for advertising, four for app operations.
 | `Registration` | `member_id` (**nullable**) | My bookings, form pre-filling | 3.9 |
 | `Match` | `opponent_en`, `venue_en`, `competition`, `status` | English display; front-end attributes promoted to formal fields | 3.2 |
 | `Member` | `registration source` gains an `App` value | Identification in admin K1 | 4.1 |
-| `Sponsor` / `Partner` | High-resolution assets (@2x / @3x), dark-mode logo variant, in-app ordering | Logo rendering in the app | 3.12 |
+| `Sponsor` / `Partner` | High-resolution assets (@2x / @3x), dark-mode logo variant, in-app ordering | Logo rendering in the app | 3.11 |
 
 > The **base field definitions** for `Sponsor` / `SponsorPackage` / `Partner` are completed **in the website specification, section 5** (v2.5 promoted the admin E1/E2 lists to field tables). This document defines only the app-specific extensions and **does not redefine website types here** — that would create a second source of truth.
 
@@ -1288,7 +1254,7 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 | Player likenesses | Consent must be confirmed to cover the app and the store listing |
 | Alt text | Describes the scene only and **never names an individual** — the existing website rule |
 | Underage members | Registration requires guardian consent (4.5) |
-| Child-facing screens | No advertising on manga, academy, or program screens (3.13, 7.2) |
+| Child-facing screens | No advertising on academy or program screens (3.12, 7.2) |
 
 **The consent status of every store screenshot asset must be confirmed individually** before launch; this is a mandatory check and cannot be taken lightly.
 
@@ -1298,9 +1264,8 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 |---|---|
 | Transport | Encrypted end to end; downgrades refused |
 | Token storage | Held in the device's secure storage, never landed in plain text |
-| Membership card token | **Must not be derivable from the member number**; members may regenerate it, and the old token and old wallet pass are invalidated immediately |
-| Wallet pass | The pass and the in-app card **share one token** (see 3.6) |
-| Certificate rotation | APNs, FCM, Pass Type ID, and Wallet Issuer certificates are managed in admin M5, alerted 60 days before expiry, with rotation written to the audit log |
+| Membership card token | **Must not be derivable from the member number**; members may regenerate it, and the old token is invalidated immediately |
+| Certificate rotation | APNs and FCM certificates are managed in admin M5, alerted 60 days before expiry, with rotation written to the audit log |
 | Jailbreak / root detection | Optional. Warn of the risk on detection; **do not block outright** |
 | Error messages | Must never leak internal implementation details |
 | Audit retention | Website rules carry over; audit logs retained at least 12 months |
@@ -1311,7 +1276,7 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 |---|---|
 | Age rating | Must be confirmed whether content involving minors places the app in a children's category (see 16.2). This specification's "no ad networks, no behavioural targeting, no advertising identifiers" position already aligns with those restrictions |
 | Privacy labels | Declared accurately. Since no advertising identifier is used and no cross-app tracking occurs, "no tracking" may be declared |
-| **Account deletion** | **Must be completable inside the app** (3.15); this is a hard requirement |
+| **Account deletion** | **Must be completable inside the app** (3.14); this is a hard requirement |
 | External payment | See 5.5 |
 | Third-party sign-in | Where LINE sign-in is offered, confirm whether Sign in with Apple is required alongside |
 | Privacy policy and terms | App-specific versions must be written and linked from the store listing |
@@ -1324,9 +1289,9 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 |---|---|
 | **Launch time** | Cold launch to an interactive home screen within 3 seconds (mid-range device, normal network) |
 | **Responsiveness** | Tab switching within 300 ms; list scrolling without dropped frames |
-| **Offline availability** | The membership card, cached fixtures, read articles, and downloaded manga are fully usable offline (2.4) |
+| **Offline availability** | The membership card, cached fixtures, and read articles are fully usable offline (2.4) |
 | **Install size** | 60 MB or less recommended; assets are loaded remotely rather than bundled |
-| **Data usage** | Typical use under 50 MB per month (excluding manga and video downloads); list images compressed and served per device resolution |
+| **Data usage** | Typical use under 50 MB per month; list images compressed and served per device resolution |
 | **Battery** | No background location, no background polling; background work is limited to receiving push |
 | **Crash rate** | Crash-free sessions at or above 99.5% |
 | **Supported versions** | iOS 15+, Android 10+ (matching the website's existing compatibility statement) |
@@ -1345,7 +1310,7 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 |---|---|
 | Apple Developer Program | A corporate account requires a D-U-N-S number; allow time for the application |
 | Google Play Console | Corporate account |
-| **Account holder** | **Must be confirmed as the club or the Association** (see 16.2). This decision also determines the payment entity, the contents of the `.well-known` files, the data controller named in the privacy policy, and the entity applying for the wallet and push certificates |
+| **Account holder** | **Must be confirmed as the club or the Association** (see 16.2). This decision also determines the payment entity, the contents of the `.well-known` files, the data controller named in the privacy policy, and the entity applying for the push certificates |
 | Store display name | "Taichung Rock FC" recommended |
 
 ### 14.2 Store assets
@@ -1363,7 +1328,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | Location permission | The purpose string must be specific; vague wording such as "to provide a better service" is not acceptable |
 | Push permission | A pre-permission explanation screen is required before the first request |
 | Age rating | Declare the nature of the content accurately |
-| Empty content | **If partners, sponsors, manga, or player photographs are still absent at review time, empty-state screens must be complete and show no broken images**, or the app is easily judged unfinished |
+| Empty content | **If partners, sponsors, or player photographs are still absent at review time, empty-state screens must be complete and show no broken images**, or the app is easily judged unfinished |
 
 ### 14.4 Release cadence and forced-update policy
 
@@ -1379,14 +1344,14 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | Phase | Contents | Prerequisites |
 |---|---|---|
 | **A — Foundation** | Fixtures and results, news list, squads (read-only), partners and sponsors, FAQ, deep links and Universal Links, both languages, `AppDevice` registration, settings | None |
-| **B — Membership** | Registration and sign-in, member centre, digital card and mobile wallet, **partner stores and the nearby map**, plans and benefits, in-app LINE Pay payment, read-only prize-draw information | IAP determination (R1), club merchant account (R2), wallet certificates (R23), store coordinates (R24) |
+| **B — Membership** | Registration and sign-in, member centre, digital membership card, **partner stores and the nearby map**, plans and benefits, in-app LINE Pay payment, read-only prize-draw information | IAP determination and the club's LINE Pay merchant account (16.2, items 1–2), store coordinates (16.2, item 6) |
 | **C — Engagement and revenue** | Push notifications, advertising slots and measurement, match-day reminders, **program booking (pre-filling and my bookings)** | Website v2.5 finalised, member terms updated, first advertisers (R4) |
-| **D — Content-dependent** | Manga reader, player photographs and biographies, full article text and offline reading | 113 draft articles unblocked, manga assets and rights (R26), player assets (R27) |
+| **D — Content-dependent** | Player photographs and biographies, full article text and offline reading | The 113 draft articles unblocked (16.2, item 24), player assets (16.2, item 23) |
 
 **Two notes**:
 
 1. **Partner stores sit in Phase B rather than later** because the feature is inexpensive, has no content blocker, and directly supports the value proposition of a paid membership — it belongs to the same experience as the digital card, and separating them would halve Phase B's persuasiveness.
-2. **Content-dependent features form their own Phase D** so that the delivery schedule for the 113 draft articles and the manga assets does not hold up the app's launch.
+2. **Content-dependent features form their own Phase D** so that the delivery schedule for the 113 draft articles and the player assets does not hold up the app's launch.
 
 ---
 
@@ -1417,47 +1382,45 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 |---|---|---|
 | 1 | **In-app purchase determination**: may paid membership use external LINE Pay? The predominantly physical benefits give grounds to argue so, but it is a review judgement | **The single largest launch risk.** A fallback must be prepared in parallel (5.5) |
 | 2 | **The club's own LINE Pay merchant account** (the Association's must not be shared) | Without it, none of section 5 can be implemented |
-| 3 | **Developer account holder**: are the Apple and Google accounts held by the club or the Association? What is the store display name? | Determines items 1 and 4, and the data controller in the privacy policy |
-| 4 | **Wallet certificates**: Apple Pass Type ID and Google Wallet Issuer (dependent on item 3) | Without them the wallet feature in 3.6 cannot be built |
-| 5 | **Do first advertisers exist?** | No advertisers means no advertising. The fallback-creative mechanism is already specified so the feature can launch regardless |
-| 6 | **Partner and sponsor assets**: no names, logos, or partnership descriptions have been supplied | Section 3.12 cannot be signed off. **Placeholder logos must not be used** |
-| 7 | **Geographic coordinates for partner stores and venues**: current data holds addresses only | Distance sorting in 3.8 cannot be built. A "locate from address" helper with human confirmation is recommended |
+| 3 | **Developer account holder**: are the Apple and Google accounts held by the club or the Association? What is the store display name? | Determines item 1, the entity applying for push certificates, and the data controller in the privacy policy |
+| 4 | **Do first advertisers exist?** | No advertisers means no advertising. The fallback-creative mechanism is already specified so the feature can launch regardless |
+| 5 | **Partner and sponsor assets**: no names, logos, or partnership descriptions have been supplied | Section 3.11 cannot be signed off. **Placeholder logos must not be used** |
+| 6 | **Geographic coordinates for partner stores and venues**: current data holds addresses only | Distance sorting in 3.8 cannot be built. A "locate from address" helper with human confirmation is recommended |
 
 **Commercial decisions**
 
 | # | Item |
 |---|---|
-| 8 | **Advertising pricing**: CPM, flight buyout, or bundled into sponsorship packages? This determines whether `AdCampaign` needs an amount field; priced separately, it also creates an invoicing and tax workflow |
-| 9 | **Expected daily active devices**: needed to size the event volume and reporting cost (the assumptions in 7.6 must be replaced with real estimates) |
-| 10 | **The definitive slot list and rate card** |
-| 11 | **Membership fee amounts and plan design** (a website open item): affects the amounts shown in section 5 and the argument in item 1 |
+| 7 | **Advertising pricing**: CPM, flight buyout, or bundled into sponsorship packages? This determines whether `AdCampaign` needs an amount field; priced separately, it also creates an invoicing and tax workflow |
+| 8 | **Expected daily active devices**: needed to size the event volume and reporting cost (the assumptions in 7.6 must be replaced with real estimates) |
+| 9 | **The definitive slot list and rate card** |
+| 10 | **Membership fee amounts and plan design** (a website open item): affects the amounts shown in section 5 and the argument in item 1 |
 
 **Regulatory and personal data**
 
 | # | Item |
 |---|---|
-| 12 | **App Store age rating**: with U12/U14/U15 content and photographs of minors, does the app fall into a children's category? If so, advertising restrictions tighten considerably (this specification is already aligned) |
-| 13 | **The three additions to the member terms** (push token, booking attribution, location purpose) require legal sign-off |
-| 14 | **Whether guardian consent for photographs of minors covers "store screenshots"**, a newly public exposure surface |
-| 15 | **Whether player likeness consent covers the app and the store listing** |
-| 16 | **Whether Sign in with Apple is required** alongside LINE sign-in under current rules |
-| 17 | **The wording of the location permission purpose string**, which must state the purpose and scope specifically |
+| 11 | **App Store age rating**: with U12/U14/U15 content and photographs of minors, does the app fall into a children's category? If so, advertising restrictions tighten considerably (this specification is already aligned) |
+| 12 | **The three additions to the member terms** (push token, booking attribution, location purpose) require legal sign-off |
+| 13 | **Whether guardian consent for photographs of minors covers "store screenshots"**, a newly public exposure surface |
+| 14 | **Whether player likeness consent covers the app and the store listing** |
+| 15 | **Whether Sign in with Apple is required** alongside LINE sign-in under current rules |
+| 16 | **The wording of the location permission purpose string**, which must state the purpose and scope specifically |
 
 **Technical prerequisites (not technology selection, but client decisions or provisions)**
 
 | # | Item |
 |---|---|
-| 18 | **Push services**: APNs certificates (dependent on item 3), FCM project ownership, whether a third-party provider is used (with cross-border transfer disclosure) |
-| 19 | **Deployment rights for `.well-known` on the website domain**: a hard dependency for Universal Links |
-| 20 | **Whether the app's API is hosted by the website admin**: the existing premise is that the charity platform shares the website admin and database, and the app should follow the same model, but this must be confirmed |
+| 17 | **Push services**: APNs certificates (dependent on item 3), FCM project ownership, whether a third-party provider is used (with cross-border transfer disclosure) |
+| 18 | **Deployment rights for `.well-known` on the website domain**: a hard dependency for Universal Links |
+| 19 | **Whether the app's API is hosted by the website admin**: the existing premise is that the charity platform shares the website admin and database, and the app should follow the same model, but this must be confirmed |
 
 **Existing data gaps**
 
 | # | Item |
 |---|---|
-| 21 | **English fixture fields**: `opponent_en` / `venue_en` have not been supplied; the display and notification rules for round 7's `TBC` venue need confirming |
-| 22 | **Member number format** (a website open item): required by the app card and the wallet pass |
-| 23 | **Season start and end dates** (a website open item): affects membership status display and renewal prompt timing |
-| 24 | **Manga assets and digital distribution rights** |
-| 25 | **Player photographs and biographies**: all 28 players currently have empty photo and biography fields |
-| 26 | **Progress on unblocking the 113 draft articles**: affects article bodies and the Phase D schedule |
+| 20 | **English fixture fields**: `opponent_en` / `venue_en` have not been supplied; the display and notification rules for round 7's `TBC` venue need confirming |
+| 21 | **Member number format** (a website open item): required by the app membership card |
+| 22 | **Season start and end dates** (a website open item): affects membership status display and renewal prompt timing |
+| 23 | **Player photographs and biographies**: all 28 players currently have empty photo and biography fields |
+| 24 | **Progress on unblocking the 113 draft articles**: affects article bodies and the Phase D schedule |

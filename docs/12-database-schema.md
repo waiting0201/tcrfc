@@ -1056,7 +1056,7 @@ erDiagram
   }
 ```
 
-> ⚠️ **`member_card` 的 `token` 只有一組**：行動錢包 pass 與 App 內卡片**共用同一 token**。發兩組等於兩份可撤銷狀態，撤銷必然漏一邊。token **不可由 `member_no` 推導**。
+> ⚠️ **`member_card` 的 `token` 只有一組**：官網驗證頁與 App 內卡片**共用同一 token**。發兩組等於兩份可撤銷狀態，撤銷必然漏一邊。token **不可由 `member_no` 推導**。
 > ⚠️ **付費會員＝球迷會員**（`tier = 'fan_club'`），**不是兩種身分**，球迷會不另建名單。
 > ⚠️ **家庭會籍只是 `card_quota`／`jersey_quota` 不同，不建立學員綁定關係**——網頁、App、後台三方皆不做。
 > ⚠️ `partner_store` **與 `product` 是完全不同的東西**：前者是會員到店出示卡片的折扣店家（**無金流**），後者是本站自己賣的商品（**有金流**）。
@@ -1618,7 +1618,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 |---|---|
 | 列數 | **一張卡一列**，數量上限為 `MembershipPlan.card_quota`（家庭方案可為 3） |
 | `token` | UNIQUE，**不可由 `member_no` 推導**。公開驗證頁 `/m/<token>` 使用 |
-| 唯一性 | **一張卡只有一組 token**，行動錢包 pass 與 App 內卡片共用。發兩組＝兩份可撤銷狀態，撤銷必漏一邊 |
+| 唯一性 | **一張卡只有一組 token**，官網驗證頁與 App 內卡片共用。發兩組＝兩份可撤銷狀態，撤銷必漏一邊 |
 | 折扣使用 | 到店**出示卡片目視即可**，QR 指向公開唯讀驗證頁。**不核銷、不計次、店家不需系統**——所以沒有 `redemption` 任何表 |
 
 ### 6.4 `MemberDraw` / `DrawRoster`
@@ -1988,7 +1988,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 6. **管理員登入識別是 `username` 不是 Email**。種子超管 `sa@system.local` **長得像 Email，但存在 `username` 欄**。`AdminUser.email` 不設唯一索引、不作登入查詢鍵。**前台 `Member.email` 是另一套系統，維持 Email 登入不變。**
 7. **`Team.code` 唯一且只有 `D1`／`U15`／`U14`／`U12`**，全站**沒有 `D2`**。女足是 `Page`，**不建 `Team`／`Player`／`Match`**，`type` 預留 `women` 但不啟用。對手球隊是**字串不是實體**。
 8. **`D1` 有雙重身分**：`D1` 是隊別代號（一線隊）。後台課程模組原編 `D1–D4` 已改 `P1–P4`，看到「D1 課程管理」一律是舊資料。**權限碼的 `module_code` 禁用 `D`／`U`／`O`／`M`。**
-9. **一份會籍可能多張卡、多件球衣**（`card_quota`／`jersey_quota` 可 > 1，家庭方案），所以 `MemberCard` 與 `JerseyIssue` 是表不是欄位。**每張卡只有一組 token**，Wallet pass 與 App 卡片共用；發兩組＝兩份可撤銷狀態，撤銷必漏一邊。token **不可由 `member_no` 推導**。
+9. **一份會籍可能多張卡、多件球衣**（`card_quota`／`jersey_quota` 可 > 1，家庭方案），所以 `MemberCard` 與 `JerseyIssue` 是表不是欄位。**每張卡只有一組 token**，官網驗證頁與 App 卡片共用；發兩組＝兩份可撤銷狀態，撤銷必漏一邊。token **不可由 `member_no` 推導**。
 10. **抽獎資格是算出來的布林值不是表**：沒有 `DrawEntry`／`Ticket`／`Point`／`Weight` 任何表或欄位。`serial_no` 於 `snapshot_at` 依 `member_no` 升冪**一次性配發**，鎖定後不得重排；有誤只能**整份作廢重產**（`roster_version` +1，舊版保留）。**系統不抽出**，`is_winner` 人工回填。
 11. **捐款人沒有帳號**：`Donation` **不得有 `member_id` 外鍵**。Email 軟比對只在 N3 查詢當下做，**不寫入 `Member`、不建關聯欄位、不做歸戶**。
 12. **分潤五欄是成立當下的快照**：改設定**不追溯**。退款以**負項 `SettlementLine`（`is_clawback = true`）沖回下一期**，**不改原列、不重算已付款期間**。`store_id` 為空時 `store_share_pct_snapshot = 0` 仍能結算。
