@@ -83,30 +83,6 @@ const DOCS = {
     runningFoot: '台中磐石足球俱樂部 TCRFC',
     font: '"PingFang TC","Noto Sans TC","Hiragino Sans","Helvetica Neue",Arial,sans-serif',
   },
-  'app-brief-zh': {
-    md: 'TCRFC_行動App功能說明_客戶版.md',
-    pdf: 'TCRFC_行動App功能說明_客戶版.pdf',
-    lang: 'zh-Hant',
-    club: '台中磐石足球俱樂部',
-    title: ['行動 App', '功能說明（客戶版）'],
-    promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.　在地扎根 · 放眼世界',
-    labels: { version: '文件版本', date: '建立日期' },
-    runningHead: (v) => `TCRFC 行動 App 功能說明（客戶版） ${v}`,
-    runningFoot: '台中磐石足球俱樂部 TCRFC',
-    font: '"PingFang TC","Noto Sans TC","Hiragino Sans","Helvetica Neue",Arial,sans-serif',
-  },
-  'app-brief-en': {
-    md: 'TCRFC_Mobile_App_Feature_Overview_EN.md',
-    pdf: 'TCRFC_Mobile_App_Feature_Overview_EN.pdf',
-    lang: 'en',
-    club: 'Taichung Rock FC',
-    title: ['Mobile App', 'Feature Overview (Client Edition)'],
-    promise: 'LOCAL ROOTS. GLOBAL PATHWAYS.',
-    labels: { version: 'Document version', date: 'Date' },
-    runningHead: (v) => `TCRFC Mobile App Feature Overview ${v}`,
-    runningFoot: 'Taichung Rock FC — TCRFC',
-    font: '"Helvetica Neue",Helvetica,Arial,"PingFang TC","Noto Sans TC",sans-serif',
-  },
   'app-en': {
     md: 'TCRFC_Mobile_App_Specification_EN.md',
     pdf: 'TCRFC_Mobile_App_Specification_EN.pdf',
@@ -282,6 +258,11 @@ const HTML_DOCS = {
   'sitemap-zh': { html: 'TCRFC_慈善捐款站台地圖.html', pdf: 'TCRFC_慈善捐款站台地圖.pdf',
     opts: { preferCSSPageSize: true } },
   'sitemap-en': { html: 'TCRFC_Charity_Donation_Sitemap_EN.html', pdf: 'TCRFC_Charity_Donation_Sitemap_EN.pdf',
+    opts: { preferCSSPageSize: true } },
+  // 客戶版自 v2.0 起改為版面式文件（同站台地圖），HTML 母檔由 build-app-brief.py 產生。
+  'app-brief-zh': { html: 'TCRFC_行動App功能說明_客戶版.html', pdf: 'TCRFC_行動App功能說明_客戶版.pdf',
+    opts: { preferCSSPageSize: true } },
+  'app-brief-en': { html: 'TCRFC_Mobile_App_Feature_Overview_EN.html', pdf: 'TCRFC_Mobile_App_Feature_Overview_EN.pdf',
     opts: { preferCSSPageSize: true } },
 };
 
