@@ -10,7 +10,7 @@
 > **DBMS 未定案**（規劃書第 10 節明列技術選型不在範圍）。本檔**不寫 DDL、不用任何廠商專屬型別、不附 seed SQL**，
 > 與 DBMS 相關的抉擇集中在 [§1.4](#14-選型才拍板的四件事)。
 >
-> **不含行動 App 的十個型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／
+> **不含行動 App 的十二個型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／
 > `AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`），見 [`11-mobile-app.md`](11-mobile-app.md)。
 > **App 開發前不得建立這些表**，屆時另出延伸設計。
 >
@@ -23,7 +23,7 @@
 | 項目 | 內容 |
 |---|---|
 | 涵蓋範圍 | 主站全部（含 v2.6 站內商店 `S`）＋ 慈善捐款平台 `N` ＋ 後台帳號與權限 `J` |
-| 排除範圍 | **行動 App 的十個型別**（`M` 模組與 `E5–E7`）——日後另出 |
+| 排除範圍 | **行動 App 的十二個型別**（`M` 模組與 `E5–E7`，**含 v2.0 新增的 `Club`／`Competition`**）——日後另出 |
 | 型別覆蓋 | 規劃書 §5 的 **48 個** ＋ 慈善站 §9 的 **6 個** ＝ **54／54 全覆蓋**（對照表見 [§14](#14-型別--資料表對照檢核表)） |
 | 資料表 | **108 張**（其中 `CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表 |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
@@ -705,6 +705,7 @@ erDiagram
 
 > ⚠️ **`team` 全站只有四筆**（`D1`／`U15`／`U14`/`U12`）。`match.opponent` 與 `standing.team_name` 是**自由文字**，不建對手球隊表——賽事全部人工維護、不串外部 API。
 > ⚠️ 女足**不建 `team`／`player`／`match`**，是 `page`；`team.type` 預留 `women` 但不啟用。
+> 🔴 **此條已被行動 App 規劃書 v2.0 推翻，但本檔尚未同步。**客戶已確認台中藍鯨為 App 的共同主體，藍鯨的 `team`／`player`／`match` 會建在**這套共用資料庫**裡（新增 `club` 與 `competition` 兩張表、隊別代號 `BW1`）。官網前台是否呈現另議——客戶指示先改 App。**轉 DDL 前必須先處理此落差**，見 `CLAUDE.md`「主站與 App 的雙隊落差」。
 
 ### 5.3 L 行事曆（視圖）
 
@@ -1987,6 +1988,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 5. **本檔沒有任何日誌表**，是委託方指示的刻意落差（[§13.1](#131-沒有稽核與登入日誌表)）。反過來說：**`EmailLog`、`InventoryMovement`、`PageVersion`、`FaqSearchMiss`、訂單與捐款的狀態欄位不是日誌，是功能單元**，不得一併刪除。
 6. **管理員登入識別是 `username` 不是 Email**。種子超管 `sa@system.local` **長得像 Email，但存在 `username` 欄**。`AdminUser.email` 不設唯一索引、不作登入查詢鍵。**前台 `Member.email` 是另一套系統，維持 Email 登入不變。**
 7. **`Team.code` 唯一且只有 `D1`／`U15`／`U14`／`U12`**，全站**沒有 `D2`**。女足是 `Page`，**不建 `Team`／`Player`／`Match`**，`type` 預留 `women` 但不啟用。對手球隊是**字串不是實體**。
+   🔴 **後半段已被 App v2.0 推翻**：藍鯨一線隊會以 `BW1` 建為正式 `Team`（`code` 仍**全站唯一**，不改複合鍵）。轉 DDL 前須同步，見 `CLAUDE.md`「主站與 App 的雙隊落差」。
 8. **`D1` 有雙重身分**：`D1` 是隊別代號（一線隊）。後台課程模組原編 `D1–D4` 已改 `P1–P4`，看到「D1 課程管理」一律是舊資料。**權限碼的 `module_code` 禁用 `D`／`U`／`O`／`M`。**
 9. **一份會籍可能多張卡、多件球衣**（`card_quota`／`jersey_quota` 可 > 1，家庭方案），所以 `MemberCard` 與 `JerseyIssue` 是表不是欄位。**每張卡只有一組 token**，官網驗證頁與 App 卡片共用；發兩組＝兩份可撤銷狀態，撤銷必漏一邊。token **不可由 `member_no` 推導**。
 10. **抽獎資格是算出來的布林值不是表**：沒有 `DrawEntry`／`Ticket`／`Point`／`Weight` 任何表或欄位。`serial_no` 於 `snapshot_at` 依 `member_no` 升冪**一次性配發**，鎖定後不得重排；有誤只能**整份作廢重產**（`roster_version` +1，舊版保留）。**系統不抽出**，`is_winner` 人工回填。
@@ -2007,7 +2009,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 25. **`Registration` 同時服務 `session` 與 `trial`**，兩個外鍵**恰有一個非空**。不要為試訓另建報名表。
 26. **`Enquiry` 涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢**，**Lead 名單不另建表**。**沒有志工報名表**（v2.1 移出範圍）。
 27. **行事曆權限跟隨來源模組**：`RolePermission.scope_type = 'own_teams'`。學院管理者可調整所屬梯隊賽程，**但不能改一線隊賽程**——這條在資料模型上沒有欄位可擋，只能靠權限 scope。
-28. **本檔不含行動 App 的十個型別**。App 開發前**不得建立**這些表；`Member`／`PartnerStore`／`Venue`／`Registration`／`Match` 上 v2.5 為 App 加的欄位（`lat`／`lng`／`member_id`／英文欄位／`signup_source = 'app'`）**已經在綱要裡**，屆時不必改表結構。
+28. **本檔不含行動 App 的十二個型別**。App 開發前**不得建立**這些表；`Member`／`PartnerStore`／`Venue`／`Registration`／`Match` 上 v2.5 為 App 加的欄位（`lat`／`lng`／`member_id`／英文欄位／`signup_source = 'app'`）**已經在綱要裡**，屆時不必改表結構。
 
 ---
 
@@ -2057,7 +2059,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 
 > **本落差尚未回寫規劃書**（主站維持 v2.6、慈善站維持 v1.5）。實作前若要正式收斂範圍，須依 [`../CLAUDE.md`](../CLAUDE.md) 工作守則 #3 跑完改版鏈。
 
-### 13.2 不含行動 App 的十個型別
+### 13.2 不含行動 App 的十二個型別
 
 `AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease` **不在本檔**，見 [`11-mobile-app.md`](11-mobile-app.md)。
 
@@ -2187,7 +2189,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | `TicketOrder` `Seat` | **不做票務與門票套票** |
 | `VolunteerApplication` | v2.1 移出範圍 |
 | `OpponentTeam` | 賽事人工維護，對手是字串 |
-| App 十型別 | 見 §13.2 |
+| App 十二型別 | 見 §13.2 |
 
 ---
 
@@ -2231,6 +2233,6 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | [`04-data-model.md`](04-data-model.md) | **本檔的上游**：型別清單與三條結構原則 |
 | [`03-admin-spec.md`](03-admin-spec.md) | 後台模組代號與權限矩陣的上游 |
 | [`10-charity-donation-site.md`](10-charity-donation-site.md) | N 模組導航層 |
-| [`11-mobile-app.md`](11-mobile-app.md) | **本檔排除的十個型別在此** |
+| [`11-mobile-app.md`](11-mobile-app.md) | **本檔排除的十二個型別在此** |
 | [`06-conventions.md`](06-conventions.md) | 命名、術語、日期與檔名格式 |
 | [`00-harness.md`](00-harness.md) | 規劃書行號對照與全站踩雷點 |

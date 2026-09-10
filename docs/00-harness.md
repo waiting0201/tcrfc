@@ -13,7 +13,7 @@
 |---|---|---|---|
 | [`../output/TCRFC_前後台功能規劃書.md`](../output/TCRFC_前後台功能規劃書.md) | **v2.6，1489 行** | 官網主站前後台（**含站內商店**） | 俱樂部 |
 | [`../output/TCRFC_慈善捐款平台功能規劃書.md`](../output/TCRFC_慈善捐款平台功能規劃書.md) | v1.5，755 行 | 獨立網域掃碼捐款平台，共用主站後台與資料庫 | **協會** |
-| [`../output/TCRFC_行動App功能規劃書.md`](../output/TCRFC_行動App功能規劃書.md) | v1.3，1466 行 | iOS／Android App，共用主站後台與資料庫 | 俱樂部 |
+| [`../output/TCRFC_行動App功能規劃書.md`](../output/TCRFC_行動App功能規劃書.md) | **v2.0，1661 行** | iOS／Android App，**台中磐石 × 台中藍鯨雙隊共同平台**，共用主站後台與資料庫 | 內容：**兩隊**／收款：俱樂部 |
 
 它對人類閱讀是好的（一份文件、線性、可直接交付客戶），但對 AI 工作有兩個問題：
 
@@ -97,7 +97,7 @@
 
 **其他兩份規劃書的行號對照**：
 - **慈善捐款平台**（v1.5，755 行）見 [`10-charity-donation-site.md`](10-charity-donation-site.md)
-- **行動 App**（v1.0，1463 行）見 [`11-mobile-app.md`](11-mobile-app.md)
+- **行動 App**（**v2.0，1661 行**，雙隊共同主體）見 [`11-mobile-app.md`](11-mobile-app.md)
 
 > 英文版 [`../output/TCRFC_Website_Functional_Specification_EN.md`](../output/TCRFC_Website_Functional_Specification_EN.md) 章節結構相同，行號略有位移。
 > **中文版為主，英文版為譯本**；規格若有修改，先改中文版。
@@ -111,7 +111,7 @@
 | 了解專案、接手工作 | `CLAUDE.md` → 本檔 |
 | 做某一個前台頁面 | [`02-frontend-spec.md`](02-frontend-spec.md) 對應段落 → 規劃書該節行號 → [`../site/src/`](../site/src/) 既有頁面找對應區塊樣式 |
 | 做後台模組 | [`03-admin-spec.md`](03-admin-spec.md) → 規劃書 4.x → [`04-data-model.md`](04-data-model.md) |
-| 設計資料表 / 匯入格式 | [`04-data-model.md`](04-data-model.md)（型別清單）→ [`12-database-schema.md`](12-database-schema.md)（**資料表綱要與 ERD**）→ 規劃書 1245–1306（App 型別見 App 規劃書 1155–1232） |
+| 設計資料表 / 匯入格式 | [`04-data-model.md`](04-data-model.md)（型別清單）→ [`12-database-schema.md`](12-database-schema.md)（**資料表綱要與 ERD**）→ 規劃書 1245–1306（App 型別見 App 規劃書 **1291–1388**） |
 | 處理雙語或 SEO | [`05-i18n-seo.md`](05-i18n-seo.md) → 規劃書 1338–1365 |
 | 寫文案 / 處理客戶素材 | [`07-content-pipeline.md`](07-content-pipeline.md) → [`06-conventions.md`](06-conventions.md) |
 | 排程、報價、跟客戶討論範圍 | [`08-roadmap-decisions.md`](08-roadmap-decisions.md) → 規劃書 1381–1421 |
