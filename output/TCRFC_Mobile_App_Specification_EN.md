@@ -1,8 +1,14 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.1
-> **Date**: 2026-09-04 (v3.1 revision: 2026-09-10)
+> **Document version**: v3.2
+> **Date**: 2026-09-04 (v3.2 revision: 2026-09-10)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.2 revision summary — corrects two membership statements left unsynchronised in v3.0**
+> **No functional specification changes**; this corrects two pieces of residual wording that contradicted the current dual-membership rules in 3.5 and 3.6.
+> 1. **1.1 design premises table**: "One app, two clubs, **one membership**" becomes "**one membership per club**". The original contradicted the "Boundaries of joint principals" table immediately below it, which v3.0 had already written correctly as "one per club".
+> 2. **3.7 coverage statement**: "one membership covers both Taichung Rock and Taichung Blue Whale" becomes "membership is one per club and runs on its own term, so the club must be chosen before purchase". The rule that the collecting party is always the club (collection on behalf) is unchanged.
+> 3. **The Mobile App Feature Overview (client edition) has been rebuilt to match**: that laid-out document previously followed v2.0 and is now updated to v3.2.
 
 > **v3.1 revision summary — focused on app functionality; administrative and legal matters removed**
 > **No functional specification changes; only the document's scope.**
@@ -94,7 +100,7 @@ Three design premises shape the whole app:
 | **The app shares one dataset with the website** | The app creates no parallel content-editing interface. Everything is still maintained in the website admin; the app is a second presentation surface, not a second source of truth |
 | **Members use it at the ground and at store counters** | Signal is often absent. The digital membership card, cached fixtures, and already-read news **must work offline** |
 | **Advertising is sold directly, not through a network** | Slots are sold to local businesses and measured by our own system. No ad SDK, no tracking permission prompt, no behavioural targeting |
-| **One app, two clubs, one membership** | Both clubs' content appears as equals, but there is **only one account system, one membership, and one collection flow**. The app builds no second member roster, no second card, and no second checkout |
+| **One app, two clubs, one membership per club** | Both clubs' content appears as equals and there is **only one account system and one collection flow**, but **membership and the membership card are one per club** (v3.0). The app builds no second member roster and no second checkout |
 
 **Where "co-principal" starts and stops** — the line most easily misread in this version:
 
@@ -532,7 +538,7 @@ Card face: **the club's logo**, member number, QR code, name, tier, expiry date,
 | Block | Content |
 |---|---|
 | Tier explanation | The difference between a registered member (free) and a fan club member (paid). **Two tiers remain; no tier is added for the second club** |
-| **Coverage statement** | States plainly that one membership covers both Taichung Rock and Taichung Blue Whale, and that **the collecting party is Taichung Rock FC** (5.2) |
+| **Coverage statement** (corrected in v3.2) | States plainly that **membership is one per club and runs on its own term**, so the club must be chosen before purchase; and that **the collecting party is always Taichung Rock FC** (Blue Whale memberships are collected on its behalf, see 5.2). **It must not be worded as "one membership covers both clubs"** — that wording was retired in v3.0 |
 | Plan comparison | Fee, season period, `card_quota`, `jersey_quota`, family plans |
 | **Benefits table** | Grouping (card / store discounts / jersey / events), free-tier value, paid-tier value |
 | Payment | See section 5 |

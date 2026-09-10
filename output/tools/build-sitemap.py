@@ -227,8 +227,8 @@ C['zh'] = dict(
     stand='這份文件把慈善捐款平台的每一頁攤開來看：客人在店裡掃到 QR Code 之後，會經過哪些畫面、'
           '每個畫面上放什麼、哪些欄位由後台維護。畫面為<b>功能示意</b>，用來確認架構與流程是否正確，'
           '尚未進入視覺設計。',
-    stamps=[('依據　','慈善捐款平台功能規劃書 v1.5'),('前台頁面　','8 頁　×　中英雙語'),
-            ('系統信　','4 封'),('後台模組　','N1–N7（共用官網後台）')],
+    stamps=[('依據　','慈善捐款平台功能規劃書 v2.0'),('前台頁面　','8 頁　×　中英雙語'),
+            ('系統信　','4 封'),('後台模組　','N1–N7（獨立後台）')],
     eyebrow1='Sitemap', h2_1='站台地圖：三種頁面，只有一條主線',
     p1='八個頁面分成三組。中間那一組是<b>捐款主幹</b>——客人真正會走完的路；左右兩組是入口與支援頁面。'
        '每一頁都有繁體中文與英文兩個版本。',
@@ -298,7 +298,7 @@ C['zh'] = dict(
              ('3','未完成','說明可能原因、提供重試按鈕與聯絡方式。'),
              ('!','處理中不能無限轉圈','自動輪詢，但逾時上限與逾時後的文案要事先定義；文案不得讓人誤以為失敗而重複付款。')],
       admin='<b>後台維護</b>　N3 捐款紀錄　／　N5 發票與收據管理'),
-    st05=dict(h='系統信：四封，不多也不少', u='寄送紀錄一律寫入官網既有的寄信紀錄',
+    st05=dict(h='系統信：四封，不多也不少', u='寄送紀錄一律寫入本平台自己的寄信紀錄',
       th=['#','信件','寄給誰','什麼時候寄'],
       rows=[('01','捐款感謝信','含單號、金額、項目與款項用途','捐款人','付款成功後立即'),
             ('02','電子發票／捐贈收據通知','含發票號碼或收據編號與檢視連結','捐款人','開立成功後'),
@@ -319,7 +319,7 @@ C['zh'] = dict(
       [('bt','個人資料蒐集告知'),('bars',['w90','w75','w90','w45'])],
       [('bt','發票規則'),('bars',['w75']),('bt','款項用途'),('bars',['w90'])]],
     colophon='台灣足球策略發展協會　·　慈善捐款平台<br>'
-             '依據《慈善捐款平台功能規劃書》v1.5　·　前台 8 頁　·　中英雙語，架構預留第三語系<br>'
+             '依據《慈善捐款平台功能規劃書》v2.0　·　前台 8 頁　·　中英雙語，架構預留第三語系<br>'
              '<b>協會標誌尚未提供，文件中以虛線方框佔位。</b>本文件的用色為說明文件用色，非平台最終視覺。',
     # 手機畫面文案
     p01=dict(store='好味小館　和平店', thanks='感謝好味小館與協會一起做公益',
@@ -352,9 +352,9 @@ C['en'] = dict(
           'scanning the QR code in a venue, what sits on each screen, and which fields the admin maintains. '
           'The screens are <b>functional wireframes</b> for confirming structure and flow. Visual design has '
           'not started.',
-    stamps=[('Based on　','Charity Donation Platform Specification v1.5'),
+    stamps=[('Based on　','Charity Donation Platform Specification v2.0'),
             ('Public pages　','8　×　Chinese and English'),
-            ('System emails　','4'),('Admin modules　','N1–N7 (shared club admin)')],
+            ('System emails　','4'),('Admin modules　','N1–N7 (standalone admin)')],
     eyebrow1='Sitemap', h2_1='Sitemap: three groups of pages, one main line',
     p1='The eight pages fall into three groups. The middle group is the <b>donation line</b> — the route a '
        'customer actually walks. The other two are entry points and supporting pages. Every page exists in '
@@ -458,7 +458,7 @@ C['en'] = dict(
               'after it must be defined in advance — and the copy must never read as failure, or people pay '
               'twice.')],
       admin='<b>Admin</b>　N3 Donation records　/　N5 Invoices and receipts'),
-    st05=dict(h='System emails: four, no more', u='Every send is written to the club’s existing email log',
+    st05=dict(h='System emails: four, no more', u='Every send is written to this platform’s own email log',
       th=['#','Email','To','When'],
       rows=[('01','Donation thank-you','Order number, amount, project and use of funds','Donor',
              'Immediately after payment'),
@@ -486,7 +486,7 @@ C['en'] = dict(
       [('bt','Personal data notice'),('bars',['w90','w75','w90','w45'])],
       [('bt','Invoice rules'),('bars',['w75']),('bt','Use of funds'),('bars',['w90'])]],
     colophon='台灣足球策略發展協會　·　Charity Donation Platform<br>'
-             'Based on the Charity Donation Platform Functional Specification v1.5　·　8 public pages　·　'
+             'Based on the Charity Donation Platform Functional Specification v2.0　·　8 public pages　·　'
              'Chinese and English, with room for a third language<br>'
              '<b>The Association’s logo has not been supplied; a dashed box stands in for it.</b> The colours here belong to this document, not to the platform’s final design.',
     p01=dict(store='Haowei Diner — Heping', thanks='Thank you, Haowei Diner, for supporting the Association’s charity work',
