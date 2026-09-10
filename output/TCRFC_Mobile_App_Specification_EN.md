@@ -1,10 +1,33 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v2.0
-> **Date**: 2026-09-04 (v2.0 revision: 2026-09-10)
+> **Document version**: v3.1
+> **Date**: 2026-09-04 (v3.1 revision: 2026-09-10)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
+> **v3.1 revision summary — focused on app functionality; administrative and legal matters removed**
+> **No functional specification changes; only the document's scope.**
+> 1. **Removed the discussion of legal-entity ownership, authorisation documents, data-processing agreements and accounting treatment** (5.2, 12.1, 16.2): these are the client's administrative and legal matters, not app functional specification. What remains is what **determines how the system is built** — a single collecting entity, the invoice title, payment records carrying the beneficiary club.
+> 2. **16.2's blocking list is trimmed** to items that bear directly on app development.
+> 3. **Section 11's "Partner club manager" role need not have users in the first phase**: data scope still has to be built (foundation work), but **it does not block launch**.
+
+> **v3.0 revision summary — dual membership, and the Blue Whale website is confirmed**
+> This version overturns the three data-model boundaries v2.0 called "the ones most worth holding", hence another major version bump. **They are overturned by a client decision, not because the original design was wrong** — v2.0's "one card covers both clubs" rested on the premise that Blue Whale had no members of its own, and that premise no longer holds.
+> 1. **Membership moves from "one card covers both clubs" to dual membership** (3.5, 3.6, 3.7, 10): a member may hold a Taichung Rock membership and a Taichung Blue Whale membership separately, each with its own term and renewal. **v2.0's "`Member` must not gain a `club_id`" becomes "`Member` still does not gain one; the club dimension is carried by the new `Membership` type"** — the same conclusion (one account per person), but membership becomes its own type. It is defined in the main-site specification §5.
+> 2. **One card per membership** (3.6): a member holding both memberships has two cards, each carrying that club's logo and brand colours, switched by swiping. **v2.0's "neutral dual-logo card face" is retired.**
+>    **Two existing constraints are unchanged**: "one card, one `token`" constrains **card-to-token as 1:1**, not person-to-card (`card_quota` has always allowed several cards per person); and the verification page `/m/<token>` **still must not gain an "applicable team" field**, because the token already implies the club.
+> 3. **The collecting entity is still only the club** (5.2, conclusion unchanged): Blue Whale memberships are sold on a **collect-and-remit** basis — one LINE Pay merchant account, one invoice title. Payment records gain a "beneficiary club" and a "collecting entity" field for reconciliation. **The system still does not split revenue between the clubs.**
+> 4. **Draws are run per club** (3.10): the app still shows **only a personal eligibility boolean**, but now **per club**. It still shows no serial number, builds no lookup or roster screen, **must not read `DrawRoster`**, and **push must still never be used for individual prize notifications**.
+> 5. **The `Club` and `Competition` types move to the main-site specification §5** (10.1): `Team.club_id` is a mandatory foreign key and `Team` is a main-site type — a main-site table cannot point at a type that "does not belong to the main site". This document now references them.
+> 6. **Admin module `M6 Clubs and partner-club management` moves to the main site's `J4 Clubs & authorisation`** (8.6): club records and admin authorisation are system administration, and the type is now a main-site type. `M` returns to M1–M5.
+> 7. **Two blocking items in 16.2 are resolved**:
+>    - Item 5, "whether the website follows suit" — **the client has decided to build the Taichung Blue Whale website** (its own domain, bilingual; see [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md)). That is **option A** in 2.3, and Blue Whale fixtures, rosters and news all gain a fallback target.
+>    - Item 6, "the main site's `J` module data scope" — **the main-site specification v3.0 has added it** (`AdminUserClub` / `AdminUserTeam`, `scope_mode`, data-access-layer enforcement).
+>    ⚠️ **But a new technical condition appears**: the Blue Whale site is on **its own domain**, and a Universal Link can only be bound to a domain you control. That domain **must be held by a controllable party** and able to serve `.well-known/apple-app-site-association` and `assetlinks.json`, or Blue Whale deep links still cannot fall back (2.3).
+> 8. **Section 11's "partner-club accounts never touch member data (module K)" is rewritten**: once Blue Whale has its own members, Blue Whale's own support staff being unable to see them makes the system unusable. It becomes "**may reach only their own `Membership` / `Order` / `Registration`; the `Member` master record is always masked; and they can never see any membership row belonging to the other club**".
+> 9. **The Charity Donation Platform moves to its own admin and database** (1.2): no direct bearing on this app, but the three-way division of the specifications must stay in step.
+
 > **v2.0 revision summary — Taichung Blue Whale joins as a co-principal**
+> ⚠️ **The text below is as written for v2.0. Point 3's "one card covers both clubs" became dual membership in v3.0; point 5's `Club` / `Competition` moved to the main-site specification; point 7's M6 moved to the main site's `J4`; and point 9's website gap has been resolved. Historical summaries are kept for traceability and are not the current specification.**
 > This version is a **change of principal**, not a feature addition, hence the major version bump.
 > 1. **The app changes from a single club principal to a joint platform: Taichung Rock FC × Taichung Blue Whale** (1.1, 1.2, 1.3). Both clubs' fixtures, squads, and news appear as equals, and users choose to follow either or both.
 > 2. **"Women's football squads and fixtures" is removed from the out-of-scope list** (1.3). It was previously excluded because it routed to the Blue Whale website; from this version the content is built inside the app.
@@ -78,7 +101,8 @@ Three design premises shape the whole app:
 | Aspect | Principal | Notes |
 |---|---|---|
 | **Content and brand** | **Both clubs** | Fixtures, squads, and news presented as equals; a neutral app name with both crests |
-| **Membership and collection** | **Taichung Rock FC only** | One card covering both clubs, one LINE Pay merchant account, one invoice header. Blue Whale issues no membership and collects nothing |
+| **Membership** | **One per club** (v3.0) | A member may hold a Rock membership and a Blue Whale membership separately — separate terms, separate renewals, **one card each**. The account is still one per person |
+| **Collection and invoicing** | **Taichung Rock FC only** | Blue Whale memberships are sold on a **collect-and-remit** basis: one LINE Pay merchant account, one invoice header, settled by beneficiary afterwards. **The system performs no revenue splitting** |
 | **Legal and accounts** | **Taichung Rock FC only** | Developer account, push certificates, and the data controller named in the privacy policy |
 | **Content maintenance** | **Each club its own** | Blue Whale holds accounts in the shared admin, limited to its own content (8.6) |
 
@@ -92,7 +116,8 @@ Three design premises shape the whole app:
 | **Database** | **Shares one database**; the app reads the same `Match`, `Article`, `Member`, and `PartnerStore` records maintained in the website admin |
 | **Content principals** | **Taichung Rock FC × Taichung Blue Whale**, presented as equals |
 | **Collecting and legal entity** | **Taichung Rock FC only**, **entirely separate from the Association that runs the Charity Donation Platform** |
-| **Blue Whale's role** | **Content provider and co-signatory of the brand, not a collecting party.** Blue Whale holds accounts in the shared admin and maintains its own `Team` / `Player` / `Staff` / `Match` / `Article` records (8.6). Brand use and content provision **require written authorisation** (16.2) |
+| **Blue Whale's role** | **Content provider, co-signatory of the brand, and membership beneficiary — not a collecting party.** Blue Whale holds accounts in the shared admin and maintains its own `Team` / `Player` / `Staff` / `Match` / `Article` records (section 11). Brand use and content provision **require written authorisation** (16.2) |
+| **Official websites** | **One each.** The Taichung Rock site and the **Taichung Blue Whale site** (its own domain, bilingual) share one admin and database — see [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md) |
 | **Role of the website** | The website remains the body for SEO and outward content. The app carries no SEO responsibility; the website must additionally host an app download page and the Universal Link verification files (see 2.3) |
 | **Role of the Charity Donation Platform** | **The app carries no donation payments whatsoever.** At most it links out, and must state plainly that the recipient is the Taiwan Football Strategic Development Association, never implying a donation to the club |
 
@@ -101,7 +126,8 @@ How the three specifications divide:
 | Document | What it carries | Entity |
 |---|---|---|
 | `TCRFC_Website_Functional_Specification_EN.md` | Website public site (13 sections), admin modules A–L, definitions of every content type | Club |
-| `TCRFC_Charity_Donation_Platform_Specification_EN.md` | Scan-to-donate site, LINE Pay, e-invoices, settlement, admin module N | **Association** |
+| `TCRFC_Charity_Donation_Platform_Specification_EN.md` | Scan-to-donate site, LINE Pay, e-invoices, settlement. **From its v2.0 it has its own admin and its own database and no longer shares the main site's admin** | **Association** |
+| `TCRFC_台中藍鯨官網功能規劃書.md` (new in v3.0) | The Taichung Blue Whale website: its own domain, its own front-end project, bilingual, **sharing the main site's admin and database** | Content: Blue Whale; collection: the club |
 | `TCRFC_Mobile_App_Specification_EN.md` (this document) | App front end, admin module M and E5–E7, app-specific types, API conventions | Content: **both clubs** / collection: club |
 
 **Conflict rule**: definitions of content types and existing admin modules always defer to the website specification; this document only defines app-specific additions and extensions.
@@ -137,7 +163,8 @@ How the three specifications divide:
 | **Loyalty points, stored-value wallet, ticketing and match packages** | Already excluded on the website; unchanged by the app |
 | **Fan photo walls, user-generated uploads, comment boards** | Assets include minors; opening uploads would place the moderation burden on the club |
 | **In-app donations** | The collecting entity is the Association, not the club. A club app collecting charitable funds runs straight into the public-fundraising eligibility question. Outbound links only |
-| **A separate Blue Whale membership and collection** | Membership is **one card covering both clubs**, collected by the club alone. Two memberships would mean two checkouts, two cards, and two IAP arguments (5.2) |
+| **Independent collection for Blue Whale** | **Membership was split into two in v3.0, but the collecting entity is still the club alone** (collect-and-remit). For Blue Whale to collect independently it would need its own merchant account and invoice track, and sections 5.2 and 5.5's IAP argument would have to be rewritten — a major scope change |
+| **Revenue splitting and settlement statements between the clubs** | An offline contract. The system records the beneficiary and offers aggregation and export, **but builds no settlement type** — that is a charity-platform feature and must not be transplanted here |
 | **A separate app per club** | One app is the core premise of this version. Two apps mean two reviews, two certificate sets, and two maintenance streams |
 | **Course fees paid online** | Website P3 states course payment is offline. Refund rules for courses are far more complex than for membership; including them would turn section 5 into two problems |
 | **Parent–student linking** | Creates a durable adult-to-minor association, a step up in sensitivity. Family memberships deliberately avoided this design |
@@ -261,13 +288,17 @@ Five fixed bottom tabs, never more than three levels deep:
 2. The website must add app download pages (`/zh/app/`, `/en/app/`) and a footer link.
 3. On devices without the app, every deep link must fall back to its website URL and **must never show an error page**.
 
-> 🔴 **The unresolved v2.0 gap — Blue Whale content has no website fallback**
-> The website's section 06 Women's Football is a single outbound page today, with **no Blue Whale fixture, player, or news pages**. Consequently:
-> - `tcrfc://schedule/bw1`, `tcrfc://match/{Blue Whale match}`, and `tcrfc://player/{Blue Whale player}` have **nowhere to fall back to** on devices without the app, breaking rule 3 above.
-> - Sharing Blue Whale content from the app (G-09 requires sharing the website URL) **produces a dead link**.
+> ✅ **The v2.0 gap is resolved — the client has decided to build the Taichung Blue Whale website**
+> In v2.0 the website's section 06 was a single outbound page with no Blue Whale fixture, player or news pages, so `tcrfc://schedule/bw1`, `tcrfc://match/{Blue Whale match}` and `tcrfc://player/{Blue Whale player}` had nowhere to fall back to on devices without the app, and shared links were dead.
+> **The client has chosen option A of the three**: build the **Taichung Blue Whale official website** (its own domain, bilingual — see [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md)), giving fixtures, rosters and news proper fallback targets.
 >
-> **Three possible resolutions, one to be chosen by the client** (see 16.2): the website adds Blue Whale fixture, squad, and news pages / Blue Whale content falls back to [`https://www.tcbw2014.com/`](https://www.tcbw2014.com/) (workable, but the landing content will not correspond) / Blue Whale content offers no sharing or deep links (functionally incomplete).
-> **Until the client decides, deep links and sharing for Blue Whale content must not ship.**
+> ⚠️ **A separate domain brings one new technical condition that must be handled**:
+> - **Universal Links and App Links can only be bound to domains you own.** If the Blue Whale site uses a domain other than `tcrfc.tw`, that domain **must be held by a controllable party** able to serve `.well-known/apple-app-site-association` and `.well-known/assetlinks.json` from its root.
+> - Both domains need their own association files, and both carry the **same** Team ID and package name (it is one app).
+> - **The deep link scheme stays `tcrfc://`** — a scheme is the app's internal identifier and has nothing to do with the domain; changing it would break existing links.
+> - If ownership or DNS control of the Blue Whale domain rests with a third party, **Universal Links for Blue Whale content must not ship**, and the custom scheme with a web fallback should be used instead.
+>
+> **Launch prerequisite**: ownership and DNS control of the Blue Whale domain must be confirmed (main-site specification section 10, item 39).
 
 ### 2.4 Offline and caching strategy
 
@@ -437,7 +468,7 @@ Adding U18 or U10 later requires only a new record in admin C1, with no app rele
 
 **Launch prerequisite**: player photographs and biographies have not yet been supplied (`photo` and `bio` fields are empty). **The Blue Whale roster, photographs, and biographies are likewise outstanding**, and come from Blue Whale rather than the club (16.2). Until they arrive this section sits in Phase D, and the list must not be padded with placeholder images — **a text-only card showing number and name is preferable to a fake photo**.
 
-Player likeness consent must be confirmed first (see 16.2). **Consent for Blue Whale players is Blue Whale's to obtain**; the club must not assert it on their behalf. Without it, that player carries no photograph and must not appear in store screenshots.
+Player likeness consent must be confirmed first (see 16.2): **consent is required**, with a guardian's consent for minors. Without it, that player carries no photograph and must not appear in store screenshots.
 
 ### 3.4 News and stories
 
@@ -461,15 +492,18 @@ Player likeness consent must be confirmed first (see 16.2). **Consent for Blue W
 
 All fields and rules carry over from website 3.14; the app adds no member data fields of its own.
 
-**One card covers both clubs**: there is **a single membership**, its benefits apply to both clubs, and **following one club or the other changes nothing**. The app draws no distinction between a "Rock member" and a "Blue Whale member", and **`Member` gains no club field** — adding one would immediately be read as two memberships, and then the "bought only one club" state would have to be handled.
+**Dual membership (v3.0)**: membership is **one per person per club** — a member may hold only Rock, only Blue Whale, or both. **The account is still single**: `Member` **still gains no club field** (email is the login key and the LINE binding is 1:1 with a person); the club dimension is carried by the `Membership` type in the main-site specification §5.
+
+> **What changed from v2.0**: v2.0 specified a single membership covering both clubs and refused to split it on the grounds that "adding `club_id` means having to handle the bought-only-one-club state". **From v3.0 that state is exactly what is expected**, so the reasoning no longer applies.
+> **But the underlying worry still has to be addressed**, only elsewhere: the interface must always make clear **which club a membership belongs to and when it expires**. A screen that says only "membership active" without naming the club is not acceptable.
 
 | Feature | Description |
 |---|---|
 | Member profile | Name, mobile, email, date of birth, language preference; change password, delete account |
-| **Follow preferences** | The list of followed squads — the same data as S23 |
-| Membership status | Tier, member number, expiry date, state (pending / active / expired) |
-| Renewal prompt | A banner in the Member tab from 30 days before expiry, plus a push (see 6.2) |
-| Jersey registration | Size, collection method (post or in person), delivery details; status shown as pending / dispatched / collected |
+| **Follow preferences** | The list of followed squads — the same data as S23. **Independent of membership** — you may follow the club whose membership you have not bought |
+| **Membership status** | **Listed per club**: club, tier, member number, expiry date, state (pending / active / expired). **A club you have no membership with shows a join entry point rather than being hidden** |
+| Renewal prompt | A banner in the Member tab from 30 days before expiry, plus a push (see 6.2). **The two clubs' seasons are not aligned, so each fires separately**; the push copy must name the club |
+| Jersey registration | Size, collection method (post or in person), delivery details; status shown as pending / dispatched / collected. **Registered per membership** — two memberships means two jerseys |
 | My bookings | See 3.9 |
 | Prize-draw information | See 3.10 |
 | Benefits table | See 3.7 |
@@ -478,14 +512,15 @@ All fields and rules carry over from website 3.14; the app adds no member data f
 
 ### 3.6 Digital membership card
 
-Card face: member number, QR code, name, tier, expiry date, **last synced time**.
+Card face: **the club's logo**, member number, QR code, name, tier, expiry date, **last synced time**.
 
-**Card branding**: a **neutral Taichung Football identity with both crests side by side**, never either club's own key visual. One card covers both clubs, and a card favouring one of them invites the other's stores and staff to question its validity. The design waits on Blue Whale's brand assets (16.2).
+**One card per membership (v3.0)**: a member holding both memberships has two cards, **each carrying that club's logo and brand colours**, switched by swiping or tabbing. **v2.0's neutral dual-logo single card is retired** — its concern was that "a card favouring one club invites the other's stores to question its validity", and two cards resolve that from the other direction: Blue Whale's stores see a Blue Whale card. The design waits on Blue Whale's brand assets (16.2).
 
 | Rule | Description |
 |---|---|
 | QR contents | The public verification URL `/m/<token>`, identical to the website |
-| Verification response | **Unchanged**: first character of the name, member number, tier, valid or expired. **The app must not request any additional field** — including **no "applicable club" field**, since the membership already covers both |
+| **One card, one token** | **Unchanged.** This constrains **card-to-token as 1:1** — issuing two tokens for one card creates two revocable states and revoking will always miss one. **It has never meant one card per person**: `MembershipPlan.card_quota` on a family plan has always allowed three |
+| Verification response | **Unchanged**: first character of the name, member number, tier, valid or expired. **No "applicable club" field may be added** — the token already implies the club, so scanning it shows that club's status.<br>⚠️ Conversely, **"one card showing two memberships" is not an option**: without displaying "Rock valid / Blue Whale expired" staff cannot decide, and displaying it *is* adding an applicable-team field |
 | Offline | The card face and QR are presentable offline, but validity reflects the last sync; a warning is required after seven days without one |
 | Token regeneration | Members may regenerate it; the old token is invalidated immediately |
 | Fast access | Biometric unlock or a shortcut may be offered (optional) |
@@ -570,10 +605,12 @@ The website has explicitly excluded an entire list of public prize-draw features
 
 **The app does exactly four things**:
 
+> **v3.0: draws are run per club.** The presentation is unchanged, but it is now shown **per club** — the boolean answers "is your membership *at this club* valid at this draw's cut-off?". A member holding both paid memberships sees themselves eligible for both draws.
+
 | # | Displayed | Source |
 |---|---|---|
-| 1 | **Personal eligibility (boolean)**: "your membership is valid at the eligibility cut-off and you will be entered automatically", or "your membership does not cover the cut-off" | Existing `Member` membership status |
-| 2 | Rules, prizes and quantities, notes (both languages) | Existing public `MemberDraw` fields |
+| 1 | **Personal eligibility (boolean, per club)**: "your Taichung Blue Whale membership is valid at the eligibility cut-off and you will be entered automatically", or "your membership does not cover the cut-off" | That club's live `Membership` status |
+| 2 | Rules, prizes and quantities, notes (both languages), **the organising club** | Existing public `MemberDraw` fields |
 | 3 | Draw time and setting (in person or livestream) | `MemberDraw` |
 | 4 | Once results are published, **a link to the News post** | `Article` |
 
@@ -592,7 +629,9 @@ The website has explicitly excluded an entire list of public prize-draw features
 
 > **The grey area, stated plainly**: a **personal boolean** answering "am I eligible?" is not the same as a **live counter of eligible members**. The former simply presents existing membership status and creates no new data; the latter discloses a total that invites "join now to dilute the odds" or "join while numbers are low" dynamics. **The app shows the former and explicitly does not build the latter.**
 
-**Data restriction**: the app reads live membership status from `Member` and the public fields of `MemberDraw`. It **must not read `DrawRoster`** — the roster snapshot is an admin audit asset and is not exposed to any front end.
+**Data restriction**: the app reads live status from that club's `Membership` and the public fields of `MemberDraw`. It **must not read `DrawRoster`** — the roster snapshot is an admin audit asset and is not exposed to any front end.
+
+> ⚠️ **One sentence that must appear under dual membership**: the draw rules must state that **holding both clubs' memberships allows entry to both draws**. Without it, it reads as "pay twice for better odds", which breaks the main site's promise that spending never increases your chances. **"One person, one entry" still holds within each draw.**
 
 ### 3.11 Partners and sponsors
 
@@ -754,22 +793,22 @@ The website specification originally stated "no cart, no payment gateway, no car
 
 | Entity | Role in this app | Collects | LINE Pay merchant account | Invoice header |
 |---|---|---|---|---|
-| **Taichung Rock FC** | A content principal, **the sole collecting party**, the legal entity | **Yes — all membership fees** | The club's own (to be applied for) | The club |
-| **Taichung Blue Whale** | A content principal, co-signatory of the brand | **No** | **None applied for, none used** | — |
-| Taiwan Football Strategic Development Association | Unrelated to this app | No | Charity platform only | The Association |
+| **Taichung Rock FC** | A content principal, **the sole collecting party**, the legal entity | **Yes — all membership fees, including Blue Whale memberships** | The club's own (to be applied for) | The club |
+| **Taichung Blue Whale** | A content principal, co-signatory of the brand, **membership beneficiary** | **No** | **None applied for, none used** | — |
+| Taiwan Football Strategic Development Association | Unrelated to this app | No | Charity platform only (**its own admin and database**) | The Association |
 
 The Charity Donation Platform uses the **Taiwan Football Strategic Development Association's** LINE Pay merchant account. This app's membership fees are collected by **Taichung Rock FC**, which **must apply for and use the club's own merchant account — never a shared one**.
 
 Getting the collecting entity wrong breaches two things at once: tax attribution of revenue, and the Charity Donation Act — the Association's fundraising merchant account must not be used to collect the club's commercial membership fees.
 
-**Adding Blue Whale as a co-principal changes none of this**:
+**v3.0's dual membership changes none of this**:
 
-1. **No second merchant account is opened.** One card covers both clubs, one fee produces one invoice, and the collecting party is always the club.
-2. **Every payment screen must name Taichung Rock FC as the collecting party.** The user is paying under a neutral "Taichung Football" brand; without the statement, "who am I paying?" becomes a dispute, and the invoice header will appear not to match.
+1. **No second merchant account is opened.** Membership is now two records, but **the collecting party is still always the club** — the club takes payment, issues the invoice under its own title, and settles by beneficiary afterwards. Payment records carry both a "collecting entity" (always the club) and a "beneficiary club" field.
+2. **Every payment screen must name Taichung Rock FC as the collecting party.** The user is paying under a neutral "Taichung Football" brand; without the statement, "who am I paying?" becomes a dispute, and the invoice header will appear not to match. **This matters most when buying a Blue Whale membership**: the screen must state both "you are buying a Taichung Blue Whale membership" and "payment and the invoice are handled by Taichung Rock FC".
 3. **Any revenue sharing between the clubs is a contractual and banking matter handled offline; the system does not process it.** This app performs **no settlement calculations and produces no settlement statements** — that is a function of the charity platform's `N` module and must not be transplanted here.
 4. **Should Blue Whale later collect independently, that is a major scope change**, requiring this section, the IAP argument in 5.5, and the membership card design to be rewritten. It is not solved by adding a merchant account.
 
-**Launch prerequisite**: the club's LINE Pay merchant account has not yet been applied for (see 16.2). **Written authorisation from Blue Whale is also required**, covering brand use, content provision, and acceptance of the membership benefits (16.2, blocking) — until it is in place, the promise that "one card covers both clubs" does not bind Blue Whale.
+**Launch prerequisite**: the club's LINE Pay merchant account has not yet been applied for (see 16.2). Until it exists, none of this section can be implemented.
 
 Invoicing responsibility rests with the club, in the club's name, entirely separate from the Association's invoicing on the charity platform.
 
@@ -1080,8 +1119,9 @@ M. Mobile App                        (new top-level module)
 ├─ M2 App composition and deep links
 ├─ M3 Push notification management
 ├─ M4 Devices and push tokens
-├─ M5 App settings, certificates and diagnostics
-└─ M6 **Clubs and partner-club management**   (new in v2.0)
+└─ M5 App settings, certificates and diagnostics
+
+　　(v2.0's M6 Clubs and partner-club management moved to the main site's J4 in v3.0)
 
 E. Commercial                        (extends the existing module)
 ├─ E1 Partners                        (existing)
@@ -1097,7 +1137,9 @@ E. Commercial                        (extends the existing module)
 
 > **Naming note**: the admin module code `M` and the membership card's public verification path `/m/<token>` are **different namespaces** and are unrelated.
 
-**Why Blue Whale's content maintenance adds no module**: Blue Whale maintains existing types (`Team` / `Player` / `Staff` / `Match` / `Article`) through existing modules (B content, C squads and fixtures). **What is needed is not a module but row-level data scoping** — one module, different accounts seeing different subsets of the data (section 11). A new module would instead create a second player-editing interface, contradicting the premise that the app builds no parallel content-editing interface. M6 governs only club records and authorisation scope, never the content itself.
+**Why Blue Whale's content maintenance adds no module**: Blue Whale maintains existing types (`Team` / `Player` / `Staff` / `Match` / `Article`) through existing modules (B content, C squads and fixtures). **What is needed is not a module but row-level data scoping** — one module, different accounts seeing different subsets of the data (section 11). A new module would instead create a second player-editing interface, contradicting the premise that the app builds no parallel content-editing interface.
+
+> **v3.0: M6 moves to the main site's `J4 Clubs & authorisation`.** The reason is the same as for moving the `Club` type: club records and admin authorisation are **system administration and have nothing to do with the app** (the website's admin needs them too). Leaving them in `M` would hide club settings from anyone building the website without the app. `M` returns to M1–M5.
 
 ### 8.1 M1 App releases and version management
 
@@ -1142,26 +1184,15 @@ E. Commercial                        (extends the existing module)
 - Diagnostics: aggregate views of crash rate, API error rate, and launch duration
 - Receipt and review of app-side error reports
 
-### 8.6 M6 Clubs and partner-club management (new in v2.0)
+### 8.6 Clubs and partner-club management (moved to the main site's J4 in v3.0)
 
-Manages `Club` records and partner clubs' admin access scope. **System administrators only.**
-
-| Feature | Description |
-|---|---|
-| Club records | Name (zh/en), crest (with @2x/@3x and dark variants), brand colour, website URL, description, ordering, active state |
-| Squads | The `Team` records under that club (read-only; maintained in C1) |
-| **Data scope authorisation** | Grants an admin account the right to maintain one `Club`'s content. Unauthorised clubs' content is read-only |
-| Scope detail | Per type: `Team` / `Player` / `Staff` / `Match` / `Article` / `Sponsor` |
-| Authorisation period | The partnership dates; expiry revokes access automatically and notifies the system administrator |
-
-**Four rules**:
-
-1. **Scope is an allow-list, not a deny-list**: an account has no editing rights to any club until explicitly granted.
-2. **Scope must be enforced at the API layer, never by hiding interface elements.** Hidden controls do not stop direct endpoint calls.
-3. **No access to member data (module K) is granted.** Blue Whale accounts **must not see the member roster, membership status, jersey registrations, or draw eligibility** — membership is the club's collection relationship, and Blue Whale is a content provider.
-4. **No push-sending rights (M3) and no advertising modules (E5–E7).** Push is an audience-wide action, and the dual approval in section 11 stands.
-
-> ⚠️ **This section depends on module `J` of the website specification gaining row-level data scoping.** The current permission model has only "role × module" and **no row-level scope**, so it cannot express "may edit only its own squads". This is a gap in the website specification and is recorded in 16.2. **Until `J` is extended, Blue Whale accounts must not be provisioned** — content can only be entered by club staff on their behalf.
+> **This section has left this document.** Club records (`Club`) and admin accounts' data-scope authorisation are, from v3.0, defined in the **main-site specification `4.10 J4 Clubs & authorisation`**.
+>
+> **The main-site gap flagged in v2.0 has been closed**: at the time, `J` had only "role × module" with no row-level scope, so this section noted that "until `J` is extended, Blue Whale accounts must not be provisioned — content can only be entered by club staff on their behalf". **The main-site specification v3.0 now adds** `AdminUserClub` (with grant and expiry dates, expiring automatically), `AdminUserTeam`, `AdminRole.scope_mode` and data-access-layer enforcement. The corresponding blocking item in 16.2 is therefore resolved.
+>
+> ⚠️ **Data scope is a precondition of the multi-club architecture, not an optimisation that can wait**: once `club_id` reaches roughly 40 tables, every admin list query has to decide whether to filter. Build it single-club now and adding it later means rewriting the whole query layer.
+>
+> Only one thing here concerns the app: **`Club`'s high-density raster (@2x/@3x) and dark-variant crests are an app-specific requirement** — the web only needs SVG. They must be uploaded when the `Club` record is created; see 10.1 and 16.2.
 
 ### 8.7 E5 Advertisers and slots
 
@@ -1292,7 +1323,9 @@ This is the project's first API specification. It sits here rather than in a fou
 
 ### 10.1 New types
 
-**Twelve** app-specific types: six for advertising, four for app operations, and **two for the two-club structure introduced in v2.0**.
+**Ten** app-specific types: six for advertising and four for app operations.
+
+> **Changed in v3.0**: `Club` and `Competition`, added in v2.0, **have moved to the main-site specification §5** and are no longer app-specific types. The reason is that `Team.club_id` is a mandatory foreign key and `Team` is a main-site type — **a main-site table cannot point at a type that "does not belong to the main site"**, which is wrong at the schema level. This document now references them; their field definitions live in the main-site specification.
 
 **Advertising**
 
@@ -1305,12 +1338,16 @@ This is the project's first API specification. It sits here rather than in a fou
 | `AdEvent` | Raw event | `type` (`impression` / `click`), `creative_id`, `campaign_id`, `slot_id`, `occurred_at`, `device_install_id`, platform, app version, language, `aggregated_at`. **Stores no `member_id`, no full IP, no location coordinates, no advertising identifier** | AdCreative, AdCampaign, AdSlot |
 | `AdDailyStat` | Daily aggregate | Date × `campaign_id` × `creative_id` × `slot_id` × platform × language → `impressions`, `clicks`, `unique_devices`, `ctr` | AdCampaign, AdCreative, AdSlot |
 
-**Two-club structure (new in v2.0)**
+**Two-club structure — moved to the main-site specification §5 (v3.0)**
 
-| Type | Description | Key fields | Relations |
-|---|---|---|---|
-| `Club` | Club | `code` (`TCRFC` / `TCBW`), name (zh/en), crest (with @2x/@3x and dark variants), brand colour, website URL, description (zh/en), ordering, enabled | Team, Article, Sponsor, Partner |
-| `Competition` | Competition | `code`, name (zh/en), type (matching the four values of `Match.competition`), `season_id`, organiser, ordering, enabled | Match, Season |
+`Club` and `Competition` are defined in **main-site specification §5.1**. What this app needs from them is listed below; **it is not redefined here**:
+
+| Type | Fields the app needs | Use in the app |
+|---|---|---|
+| `Club` | `code`, name (zh/en), crest (**with @2x/@3x and dark variants**), brand colour | Dual crests side by side, content-source labelling, **membership card branding (one card per membership from v3.0)**, sponsor zoning |
+| `Competition` | `code`, name (zh/en), type, `season_id` | Competition filtering across the twelve-month fixture list |
+
+> ⚠️ **High-density raster and dark-variant crests are an app-specific requirement** — the web only needs SVG. They must be uploaded when the `Club` record is created in the main site's `J4`; see 16.2.
 
 > **`Competition` and `Match.competition` coexist and do not replace one another**: the latter is a four-value category (league / cup / friendly / other), the former is a named competition. Fixture cards show the `Competition` name; the filter sheet still uses the enum. **Both are kept** so that existing data and the website fixture page are not broken.
 
@@ -1342,7 +1379,19 @@ This is the project's first API specification. It sits here rather than in a fou
 | **`Match`** (v2.0) | **`competition_id`** (nullable) | Competition filtering and the 12-month calendar | 3.2 |
 | **`Article`** (v2.0) | **`club_id`** (nullable; empty = shared) | News source labelling and follow filtering | 3.4 |
 
-> **`Member` deliberately gains no `club_id`**: membership is one card covering both clubs (3.5). A club field would immediately be read as two memberships, and the "bought only one club" and "different prices per club" states would inevitably follow. **This is the data-model boundary most worth defending in this version.**
+> **`Member` still gains no `club_id` (v3.0: same conclusion, different reason)**
+> v2.0's reason was "membership is one card covering both clubs, so a club field would be read as two memberships". **From v3.0 there really are two memberships**, so that reason no longer applies.
+> The conclusion is the same: **the club dimension belongs on `Membership`, not on `Member`.** The new reason is that `Member.email` is the **login key** — adding a club dimension would mean two passwords to remember, two LINE bindings and two account-deletion flows; and `line_user_id` is 1:1 with a LINE account and cannot be duplicated. **Under privacy law the data subject is the person, not the membership.**
+> `Membership` is defined in the main-site specification §5.1.
+
+> **Existing types extended in v3.0** (again defined in the main-site specification §5; only what the app uses is listed here):
+>
+> | Type | New fields | Use in the app |
+> |---|---|---|
+> | **`Membership`** (new type) | `member_id` × `club_id` × `season_id`, tier, dates, status | 3.5 membership status listed per club; 3.7 joining and renewing separately |
+> | **`MemberCard`** | **`membership_id` (mandatory)** | 3.6 one card per membership, switched by swiping |
+> | **`MembershipPayment`** | `club_id` (beneficiary), `collecting_club_id` (collecting entity) | 5.2 the basis for collect-and-remit reconciliation |
+> | **`MemberDraw`** | `club_id` (mandatory) | 3.10 eligibility shown per club |
 
 > The **base field definitions** for `Sponsor` / `SponsorPackage` / `Partner` are completed **in the website specification, section 5** (v2.5 promoted the admin E1/E2 lists to field tables). This document defines only the app-specific extensions and **does not redefine website types here** — that would create a second source of truth.
 
@@ -1411,11 +1460,14 @@ The website's nine roles carry over, with two new columns — **Mobile App** and
 | C1 Squads / C2 Players / C3 Coaching staff | Maintain squads, players, and staff **under its own `Club`** |
 | C4 Fixtures | Maintain fixtures and results for **its own squads** |
 | E1 / E2 Partners and sponsors | Maintain entries with **its own `club_id`** (subject to consent, see 3.11) |
-| **K Members (all)** | **No permission of any kind** — no viewing, no export, not even masked values |
+| **K Members (rewritten in v3.0)** | **Own club only**: may view and handle `Membership` / `MembershipPayment` / `JerseyIssue` / `MemberDraw` records whose `club_id` is their own. **The `Member` master fields (name, email, phone, date of birth, LINE binding) are always masked**; full values require separate authorisation. **They can never see any membership row belonging to the other club** |
+| P Programmes and registrations | Maintain **their own** programmes, sessions and registrations (personal data, subject to the masking rule above) |
+| S Shop | Maintain products, stock and orders with **their own `selling_club_id`**. **No refund execution (S5), no shop credentials (S6)** — the collecting entity is the club |
 | **M3 Push** | **No permission** |
 | **E5–E7 Advertising** | **No permission** |
 | **M1 / M5 Releases and certificates** | **No permission** |
-| All other modules | Read-only or none, granted item by item in M6 |
+| **J System (including J4)** | **No permission** — otherwise the role could escalate its own privileges |
+| All other modules | Read-only or none, granted item by item in the main site's `J4` |
 
 **Eight additional rules**:
 
@@ -1425,12 +1477,17 @@ The website's nine roles carry over, with two new columns — **Mobile App** and
 4. **Advertising contract amounts** are visible only to commercial/sponsorship and finance; other roles see "withheld".
 5. **Advertising report exports must be written to the audit log** (who, when, which flight, stated purpose), mirroring the existing member-list export rule.
 6. **Data scope must be enforced at the API layer** (v2.0). Hiding interface elements does not count — it stops neither direct endpoint calls nor export functions.
-7. **Partner-club accounts never touch member data** (v2.0). Membership is a collection relationship between the club and its members; letting a partner see the member roster is third-party disclosure of personal data without consent.
-8. **Partner-club authorisations carry start and end dates** (v2.0) and lapse automatically. Relying on someone remembering to disable an account when a partnership ends guarantees it will be missed.
+7. **Partner-club accounts reach only their own club's member data, with the `Member` master record masked** (rewritten in v3.0).
+   v2.0 said "never touch member data", on the grounds that "membership is a collection relationship between the club and its members, and Blue Whale is only a content provider". **From v3.0 Blue Whale has memberships of its own**, so that premise fails — **Blue Whale's own support staff being unable to see their own members makes the system unusable.**
+   It becomes: **may reach their own `club_id`'s memberships, payments, jerseys and registrations; the `Member` master record's name, email, phone, date of birth and LINE binding are always returned masked**, with full values requiring separate authorisation and an audit entry; **and no membership row belonging to the other club is ever visible.**
+   ⚠️ **Before provisioning, settle the scope of collaboration and which fields are reachable**, and set the authorisation dates in the main site's `J4`.
+8. **Partner-club authorisations carry start and end dates** (v2.0) and lapse automatically. Relying on someone remembering to disable an account when a partnership ends guarantees it will be missed. Implemented as `AdminUserClub.expires_on`.
+9. **Shared content (`club_id` null) is read-only to this role** (new in v3.0). Otherwise "can see shared content" and "cannot edit someone else's content" cannot both hold — see main-site specification 5.4.
 
-**Unchanged**: member data (module K) permissions are **not widened by the app** — still restricted to system administrators and support/administration, with masked values for other roles and exports requiring separate authorisation and an audit entry.
+**Unchanged**: the other club's member data, push, advertising and system administration remain closed to this role; dual membership does not relax any of these.
 
-> ⚠️ **Module `J` of the website specification does not yet support row-level data scoping.** The current model has only "role × module" and no row-level scope, so it cannot express "may edit only its own squads". **This is a gap in the website specification and requires a matching amendment** (16.2). Until it is closed, the partner-club manager role must not be provisioned, and Blue Whale content can only be entered by club staff on their behalf.
+> ✅ **The main-site gap flagged in v2.0 was closed by the main-site specification v3.0**: the `AdminUserClub` / `AdminUserTeam` authorisation tables, `AdminRole.scope_mode`, `Permission.is_club_scoped`, and the runtime rule that data scope must be enforced at the data-access layer. **`RolePermission.scope_value` has been removed** (it was JSON and write-only).
+> **The role need not have users in the first phase** — if Blue Whale's content is maintained by the existing team under their own accounts, no partner-club account is needed. Data scope is still built (it is foundation work), but it does not block launch. See 8.6.
 
 ---
 
@@ -1445,7 +1502,7 @@ The website's nine roles carry over, with two new columns — **Mobile App** and
 | **Device identifier** | Quasi-personal data | Generated at install, invalidated on uninstall, never shared across apps; used only for deduplication and diagnostics |
 | **Advertising impression events** | De-identified | No `member_id`, no full IP, no location coordinates, no advertising identifier; raw events deleted after 90 days |
 | **Location coordinates** | Personal data | **Never uploaded, never stored**; distance is computed on the device |
-| **Blue Whale players' likeness and personal data** | Personal data | **Consent is Blue Whale's to obtain**; the club must not assert it on their behalf. Without it, no photograph may be shown and none may appear in store screenshots (3.3) |
+| **Blue Whale players' likeness and personal data** | Personal data | **Likeness consent is required** (a guardian's consent for minors). Without it, no photograph may be shown and none may appear in store screenshots (3.3) |
 | LINE link identifier | Personal data | Website rules carry over; encrypted at rest |
 | Payment data | Personal data | **No card data stored**; only transaction reference, amount, time, and status |
 
@@ -1582,8 +1639,8 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 |---|---|
 | **Co-principal** (v2.0) | The app is a joint platform for **Taichung Rock × Taichung Blue Whale**. **Content and brand are shared; the collecting and legal entity is the club alone** (1.1) |
 | Squads | `D1` (Rock first team) / **`BW1` (Blue Whale first team, new in v2.0)** / `U15` / `U14` / `U12`. **No `D2` is added.** `Team.code` **stays globally unique**, and the list is generated in the admin |
-| **Membership** (v2.0) | **One card covers both clubs.** Two tiers remain, free and paid; **no tier is added for the second club and no separate Blue Whale membership is created** |
-| **Blue Whale's role** (v2.0) | **Content provider and co-signatory of the brand, not a collecting party.** Holds accounts in the shared admin limited to its own content, and **never touches member data** |
+| **Membership** (rewritten in v3.0) | **One per person per club** (the `Membership` type, defined in the main-site specification §5). Two tiers remain, free and paid; **no tier is added for the second club**. **One card per membership**; "one card, one token" and "no applicable-team field on the verification page" both **stand unchanged** |
+| **Blue Whale's role** (rewritten in v3.0) | **Content provider, co-signatory of the brand, and membership beneficiary — but not a collecting party.** Holds accounts in the shared admin limited to its own content; **may reach its own memberships and orders, but the `Member` master record is masked and no membership row belonging to the other club is ever visible** |
 | **App name and accounts** (v2.0) | The store display name is the neutral **"Taichung Football"**; **the developer account, certificates, and collection account all sit with the club**. The deep-link scheme stays `tcrfc://` |
 | Admin and database | **Shares the website admin and database**, adding module `M` and extending `E` (E5–E7) |
 | Payments | **Membership fees only**; not course fees, merchandise, or donations. **No inter-club settlement calculation or statements** |
@@ -1601,22 +1658,24 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 
 **Blocking — the corresponding feature cannot be built or launched until resolved**
 
-**The four items added in v2.0 (1–4) all concern Blue Whale, and all block Phase A.**
+**The first three Blue Whale items block Phase A.**
 
 | # | Item | Impact |
 |---|---|---|
-| 1 | **Blue Whale's written authorisation**, covering (i) brand and crest use, (ii) content provision and maintenance responsibility, (iii) acceptance of the "one card covers both clubs" benefit, and (iv) the trade-mark statement for store submission | **Blocks the whole of v2.0.** Without it the two-club claim has no legal basis and store submission carries trade-mark complaint risk (14.3) |
-| 2 | **Blue Whale's brand assets**: crest in vector form (with dark and high-resolution variants), brand colours, formal English name | Needed by first-run onboarding, club sections, the membership card face, and the app icon. **Never redraw the crest and never trace it from a website screenshot** |
-| 3 | **Blue Whale's 12 months of fixtures**: dates, opponents, venues, home or away, for league and every cup competition | 3.2 is the app's first feature. **`content/` currently holds only the 2026/27 Premier League schedule; neither club's cup fixtures nor the Blue Whale league schedule have been supplied** |
-| 4 | **Blue Whale's players and coaching staff**: names (zh/en), numbers, positions, photographs, biographies, **and likeness consent** | 3.3 cannot be signed off. Consent is Blue Whale's to obtain; the club must not assert it on their behalf |
-| 5 | **Whether the website also becomes two-club**: Blue Whale content currently has no website fallback, so deep links and sharing produce dead links | One of the three resolutions in 2.3 must be chosen. **Until then, deep links and sharing for Blue Whale content must not ship** |
-| 6 | **Row-level data scoping in the website's `J` module**: the current model has no row-level scope and cannot express "may edit only its own squads" | The partner-club manager role in 8.6 and section 11 cannot be provisioned. **Requires amending the website specification**; until then Blue Whale content is entered on their behalf |
-| 7 | **In-app purchase determination**: may paid membership use external LINE Pay? The predominantly physical benefits give grounds to argue so, but it is a review judgement | **The single largest launch risk.** A fallback must be prepared in parallel (5.5) |
-| 8 | **The club's own LINE Pay merchant account** (the Association's must not be shared) | Without it, none of section 5 can be implemented |
-| 9 | **Do first advertisers exist?** | No advertisers means no advertising. The fallback-creative mechanism is already specified so the feature can launch regardless |
-| 10 | **Partner and sponsor assets**: no names, logos, or partnership descriptions have been supplied | Section 3.11 cannot be signed off. **Placeholder logos must not be used** |
-| 11 | **Geographic coordinates for partner stores and venues**: current data holds addresses only | Distance sorting in 3.8 cannot be built. A "locate from address" helper with human confirmation is recommended |
+| 1 | **Blue Whale brand assets**: vector logo master (with dark and **high-density @2x/@3x raster** variants), brand colour values, official English name | Needed by first-run onboarding, club sections, **the membership card face (from v3.0 Blue Whale memberships have their own card)**, and the app icon. **It must be a vector master — never redraw the crest, never trace it from a website screenshot, never scale up a raster and pass it off as vector** |
+| 2 | **Blue Whale's 12 months of fixtures**: dates, opponents, venues, home or away, for league and every cup competition | 3.2 is the app's first feature. **`content/` currently holds only the 2026/27 Premier League schedule; neither club's cup fixtures nor the Blue Whale league schedule have been supplied** |
+| 3 | **Blue Whale's players and coaching staff**: names (zh/en), numbers, positions, photographs, biographies, **and likeness consent** | 3.3 cannot be signed off. Minors require a guardian's consent |
+| 4 | **Ownership and DNS control of the Blue Whale website's domain** | 2.3. A Universal Link can only be bound to a domain you own; without control, **Blue Whale deep links must not ship** |
+| 5 | **In-app purchase determination**: may paid membership use external LINE Pay? The predominantly physical benefits give grounds to argue so, but it is a review judgement | **The single largest launch risk.** A fallback must be prepared in parallel (5.5). ⚠️ **v3.0's dual membership complicates this**: two memberships are two purchasable items, so a ruling that IAP is required doubles the exposure |
+| 6 | **The club's own LINE Pay merchant account** (the Association's must not be shared) | Without it, none of section 5 can be implemented |
+| 7 | **Do first advertisers exist?** | No advertisers means no advertising. The fallback-creative mechanism is already specified so the feature can launch regardless |
+| 8 | **Partner and sponsor assets**: no names, logos, or partnership descriptions have been supplied | Section 3.11 cannot be signed off. **Placeholder logos must not be used** |
+| 9 | **Geographic coordinates for partner stores and venues**: current data holds addresses only | Distance sorting in 3.8 cannot be built. A "locate from address" helper with human confirmation is recommended |
 
+> **Two items were resolved in v3.0**:
+> - v2.0 item 5, "**whether the website also becomes two-club**" — the client has decided to build the Taichung Blue Whale website (option A in 2.3), giving Blue Whale fixtures, rosters and news proper fallback targets. **It does, however, produce item 4** (domain ownership and DNS control).
+> - v2.0 item 6, "**row-level data scoping in the website's `J` module**" — added by the main-site specification v3.0 (`AdminUserClub` / `AdminUserTeam` / `scope_mode` / data-access-layer enforcement).
+>
 > **The developer account holder was settled as the club in v2.0** and is removed from this list (see 16.1).
 
 **Commercial decisions**

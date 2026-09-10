@@ -1,8 +1,9 @@
 # 12 — 資料庫綱要（技術中立邏輯模型）
 
-> 來源：規劃書 §5（**行 1245–1306**）、§6（**行 1307–1337**）、§4（**行 746–1244**）、§8（**行 1366–1380**）；
-> 慈善捐款平台規劃書 §6（**行 424–510**）、§8（**行 537–590**）、§9（**行 591–636**）、§10（**行 637–661**）。
-> **行號依主站 v2.6（1489 行）／慈善站 v1.5（755 行）。**
+> 來源：規劃書 §5（**行 1331–1463**）、§6（**行 1464–1510**）、§4（**行 774–1330**）、§8（**行 1539–1553**）。
+> **行號依主站 v3.0（1691 行）。**
+>
+> 🔴 **本檔尚未完成 v3.0 的同步——動工前必讀下方「v3.0 落差」段落。**
 >
 > **本檔是 [`04-data-model.md`](04-data-model.md) 的實作展開**：`04` 說「有哪些型別、哪些關係不能搞錯」，
 > 本檔說「落到資料表長什麼樣」。衝突時序：**規劃書 → `04` → 本檔**。
@@ -10,11 +11,43 @@
 > **DBMS 未定案**（規劃書第 10 節明列技術選型不在範圍）。本檔**不寫 DDL、不用任何廠商專屬型別、不附 seed SQL**，
 > 與 DBMS 相關的抉擇集中在 [§1.4](#14-選型才拍板的四件事)。
 >
-> **不含行動 App 的十二個型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／
+> **不含行動 App 的十個型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／
 > `AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`），見 [`11-mobile-app.md`](11-mobile-app.md)。
 > **App 開發前不得建立這些表**，屆時另出延伸設計。
+> （**舊版寫「十二個」但只列出十個**——漏掉的 `Club` 與 `Competition` 已於主站 v3.0 移入主站型別表，**它們現在屬於本檔範圍**。）
 >
 > **本檔沒有任何日誌表**（委託方指示），代價與補償見 [§13.1](#131-沒有稽核與登入日誌表)。
+
+---
+
+## 🔴 v3.0 落差——本檔尚未完成同步
+
+主站規劃書已升 **v3.0**（多俱樂部架構）、慈善規劃書已升 **v2.0**（獨立後台與資料庫）、App 規劃書已升 **v3.0**（雙會籍）。
+**本檔的表結構、ERD 與欄位清單尚未逐一改寫。** 在完成前，遇到下列事項一律**以規劃書為準**，不要照本檔實作：
+
+| # | 本檔現在怎麼寫 | 正確的是什麼 | 依據 |
+|---|---|---|---|
+| 1 | 「女足是 `Page`，不建 `Team`／`Player`／`Match`」「`team.type` 預留 `women` 但不啟用」 | **已推翻。** 藍鯨是第二個俱樂部，`Team`（`BW1`）／`Player`／`Staff`／`Match`／`Season` 全部建立。**`type` 的 `women` 值廢除，改用獨立的 `Team.gender`（`men`／`women`／`mixed`）**；`first_team` 由「全站僅一筆」改為「每俱樂部至多一筆」 | 主站 v3.0 §3.6、4.3 C1、5.1 |
+| 2 | 沒有 `Club`／`Competition` 兩張表 | **必須新增。** `Team.club_id` 是必填外鍵，主站表不能指向本檔沒有的型別 | 主站 v3.0 §5.1 |
+| 3 | 108 張表沒有任何租戶維度 | **約 40 張必填 `club_id`、8 張可為空（＝兩隊共同）、其餘不加。** 判定準則與逐表清單見主站 v3.0 **§5.4** | 主站 v3.0 §5.4 |
+| 4 | `Member` 帶 `tier`／`membership_start_on`／`membership_end_on` | **三欄移入新的 `Membership` 表**（`member_id` × `club_id` × `season_id`）。`Member` 維持一人一帳號、**不加 `club_id`** | 主站 v3.0 §5.1 |
+| 5 | `MemberCard` 掛在 `Member` 上 | **`membership_id` 必填——每份會籍一張卡。**「一張卡一組 token」與「驗證頁不得加適用球隊欄位」**兩條未變** | 主站 v3.0 §5.1、§3.14 |
+| 6 | `RolePermission.scope_value json`（只存不查） | **刪除。** 改由新增的 `AdminUserClub`（含授權起訖）與 `AdminUserTeam` 承載；`AdminRole` 加 `scope_mode`、`AdminUser` 加 `primary_club_id`、`Permission` 加 `is_club_scoped` | 主站 v3.0 §5.3、§6 |
+| 7 | `PaymentChannel.subject enum(club, association)` | **改為 `owner_club_id`**，唯一鍵改 `(owner_club_id, channel_type, environment)`。主站只會有俱樂部一列 | 主站 v3.0 §5.1 |
+| 8 | 含慈善 `N` 模組 8 張表 | **移出本檔。** 慈善平台已改為獨立後台與獨立資料庫（另約 23 張表：8 張 `N` ＋ 約 15 張機制表），`Donation` 完全不屬於本系統 | 慈善 v2.0 §2 |
+| 9 | `EmailLog.type` 有 13 個值 | **降為 9 個**（會員 5 ＋ 商店 4）。慈善的 4 封隨獨立後台移出 | 主站 v3.0 §5.1 |
+| 10 | `Order` 只有 `member_id` | **加 `selling_club_id`（受益方）與 `collecting_club_id`（收款法人）**，`OrderItem`／`StoreInvoice` 一併值複製；`Cart.club_id` 必填（**不得跨俱樂部混買**） | 主站 v3.0 §5.1、4.13 |
+| 11 | 唯一鍵：`Page.slug`／`Setting.setting_key`／`Redirect.from_path`／`Season.code`／`NewsletterSubscriber.email` 單欄唯一 | **全部改為 `(club_id, …)` 複合唯一。** 但 `Team.code`／`Article.slug`／`ProductVariant.sku`／`Order.order_no`／`Member.email` **維持全站唯一** | 主站 v3.0 §5.4 |
+| 12 | §1.4「選型才拍板的四件事」 | **加第五件**：可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意（PostgreSQL／MySQL 視多個 NULL 互不相等，SQL Server 相反） | 主站 v3.0 §5.4 |
+
+**尚待完成的工作**（轉 DDL 前必做）：
+- §4 資料表總覽逐張標註 `club_id` 欄位
+- §5 的 17 張 ERD 重繪（加 `Club`、`Membership`、`AdminUserClub`／`AdminUserTeam`；移除 `N` 群）
+- §6 的 `Team`／`Member`／`MemberCard`／`Order`／`PaymentChannel` 五節重寫
+- §7 權限模型加資料範圍小節（**下方 §7 已先行更新**）
+- §11.1 唯一鍵表重寫
+- §14 型別對照檢核表重算
+- 慈善獨立庫另出 `docs/14-charity-schema.md`
 
 ---
 
@@ -22,19 +55,20 @@
 
 | 項目 | 內容 |
 |---|---|
-| 涵蓋範圍 | 主站全部（含 v2.6 站內商店 `S`）＋ 慈善捐款平台 `N` ＋ 後台帳號與權限 `J` |
-| 排除範圍 | **行動 App 的十二個型別**（`M` 模組與 `E5–E7`，**含 v2.0 新增的 `Club`／`Competition`**）——日後另出 |
-| 型別覆蓋 | 規劃書 §5 的 **48 個** ＋ 慈善站 §9 的 **6 個** ＝ **54／54 全覆蓋**（對照表見 [§14](#14-型別--資料表對照檢核表)） |
-| 資料表 | **108 張**（其中 `CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表 |
+| 涵蓋範圍 | 主站全部（含站內商店 `S`）＋ 後台帳號與權限 `J`。⚠️ **慈善 `N` 已於 v3.0 移出**（獨立資料庫） |
+| 排除範圍 | **行動 App 的十個型別**（`M` 模組與 `E5–E7`）；**慈善捐款平台的全部資料表**（獨立系統） |
+| 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam`，移出慈善 6 個 |
+| 資料表 | ⚠️ **待重算**：原 108 張 −8 張 `N` ＋約 6 張新表 ≈ **106 張**（其中 `CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表 |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
 | ER 圖 | 12 張 `erDiagram` ＋ 2 張 `flowchart`，每張 ≤ 12 實體 |
 
-**四條硬規則，一句話版**
+**五條硬規則，一句話版**
 
-1. **值複製快照不得回頭 join**：`OrderItem`、`DrawRoster`、`SettlementLine`、`StoreInvoice`、`DonationInvoice` 是凍結的歷史，母表改名改價一律不追溯。
+1. **值複製快照不得回頭 join**：`OrderItem`、`DrawRoster`、`StoreInvoice`、`MembershipPayment` 是凍結的歷史，母表改名改價一律不追溯。
 2. **`Order.member_id` 與 `Registration.member_id` 可為空**：非會員能結帳、能報名，任何 `NOT NULL` 都是錯的。
 3. **`CalendarEvent` 是視圖不是資料表**：唯一的行事曆自有資料是 `CalendarCustomEvent`。
-4. **五種商業對象五張表、彼此零外鍵**：`Partner`／`Sponsor`／`PartnerStore`／`DonationStore`（／`Advertiser`，本檔不建）。
+4. **五種商業對象五張表、彼此零外鍵**：`Partner`／`Sponsor`／`PartnerStore`／`DonationStore`（／`Advertiser`，本檔不建）。**`Club` 不是第六種**——它是內容主體，不計曝光、無金流、無分潤。
+5. **（v3.0）`club_id` 為空＝兩隊共同，且對受範圍限制的帳號一律唯讀**：只有超管能建立與修改。否則「查得到共同內容」與「不能改到別人的內容」無法同時成立。
 
 ---
 
@@ -94,16 +128,17 @@
 
 **核心價值標籤**：`value_tags[]`（五大核心價值，可掛任何內容型別）以 `ValueTagLink(entity_type, entity_id, value_tag)` 多型關聯表實作，**不用陣列欄位**（見 §1.4）。
 
-### 1.4 選型才拍板的四件事
+### 1.4 選型才拍板的五件事
 
-本檔刻意迴避的四個 DBMS 相依決策。**選定 DBMS 前不要提早決定，選定後回頭改這四處即可，不影響其餘綱要。**
+本檔刻意迴避的五個 DBMS 相依決策。**選定 DBMS 前不要提早決定，選定後回頭改這五處即可，不影響其餘綱要。**
 
 | # | 議題 | 本檔的技術中立做法 | 選型後可能的優化 |
 |---|---|---|---|
 | 1 | **陣列欄位** | 一律以關聯表表達：`team_codes[]` → `CalendarEventTeam`；`value_tags[]` → `ValueTagLink`；FAQ 複選分類 → `FaqCategoryLink` | PostgreSQL 可改陣列欄位 ＋ GIN 索引；MySQL／SQL Server 不行，維持關聯表 |
-| 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content`、`RolePermission.scope_value`、`DonationPayment.raw_response`。任何需要篩選、排序、統計的資料都拉成實欄位 | PostgreSQL `jsonb` + GIN、MySQL 8 functional index 可放寬此限；SQLite／D1 不建議 |
+| 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content` 等。任何需要篩選、排序、統計的資料都拉成實欄位。⚠️ **`RolePermission.scope_value` 已於 v3.0 刪除**——它正是「只存不查」害的：資料範圍需要能被查詢，改由 `AdminUserClub`／`AdminUserTeam` 承載 | PostgreSQL `jsonb` + GIN、MySQL 8 functional index 可放寬此限；SQLite／D1 不建議 |
 | 3 | **`CalendarEvent` 的實作形式** | 定義為**視圖**（`source_type` + `source_id` UNION）。若效能不足，改為**索引表**並以來源模組的寫入觸發同步 | PostgreSQL 可用 materialized view + REFRESH；MySQL 只有一般 VIEW，量大時直接走索引表 |
 | 4 | **全文檢索**（G-02 站內搜尋） | 綱要不含任何搜尋索引表，搜尋屬應用層 | PostgreSQL `tsvector`＋GIN／MySQL FULLTEXT／外掛 Meilisearch、Typesense 三選一 |
+| **5** | **可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意**（v3.0 新增） | 技術中立寫法：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」。綱要只寫語意，不指定實作 | PostgreSQL／MySQL 的 UNIQUE 索引把**多個 NULL 視為互不相等**（`(NULL,'about')` 可重複插入），**SQL Server 相反**。實作以 ①部分唯一索引 ②functional index ③sentinel 值 三選一 |
 
 ---
 
@@ -271,7 +306,7 @@ flowchart LR
 
 | 表 | 用途 | 標記 | 後台 |
 |---|---|---|---|
-| `Page` | 靜態頁面主檔。**女足介紹頁亦屬此型別**（不建 `Team`／`Player`／`Match`） | 🌐 | B1 |
+| `Page` | 靜態頁面主檔。**藍鯨官網入口頁亦屬此型別**。⚠️ **v3.0：`club_id` 必填，`slug` 唯一鍵改為 `(club_id, slug)`** | 🌐 | B1 |
 | `PageBlock` | 頁面區塊（13 種型別），`content json`（**只存不查**）、`sort_order` | 🌐 | B1 |
 | `PageVersion` | 版本歷程與還原點、預覽分享 token。**這是內容版本不是操作日誌** | | B1 |
 | `Article` | 新聞與故事 | 🌐 | B2 |
@@ -295,7 +330,7 @@ flowchart LR
 | 表 | 用途 | 標記 |
 |---|---|---|
 | `Season` | 賽季（`code` 如 `2026-27`、起訖日）。**規劃書只在關聯欄提到，本檔升為實體表**——`Match`／`Standing`／`Achievement`／`MembershipPlan` 都以賽季為軸 | 🌐 |
-| `Team` | 球隊。**`code` UNIQUE，值域只有 `D1`／`U15`／`U14`／`U12`**；`type` = `first_team`／`academy`／`women`（**`women` 預留不啟用**） | 🌐 |
+| `Team` | 球隊。**`code` UNIQUE（全站唯一，不得改複合鍵）**，值域 `D1`／**`BW1`**／`U15`／`U14`／`U12`；`type` = `first_team`／`academy`（⚠️ **v3.0 廢除 `women`**）。**v3.0 新增 `club_id` 必填與 `gender`（`men`／`women`／`mixed`）**；`first_team` 由「全站僅一筆」改為「**每俱樂部至多一筆**」 | 🌐 |
 | `Player` | 球員：背號、位置、生日、身高體重、國籍、慣用腳、加入日期、狀態（現役／離隊／外借／海外發展） | 🌐 |
 | `PlayerSeasonStat` | 逐季數據 `(player_id, season_id)` | |
 | `Staff` | 教練與團隊成員：證照（AFC A/B/C）、專長、分組（管理層／行政／醫療／後勤） | 🌐 |
@@ -704,7 +739,7 @@ erDiagram
 ```
 
 > ⚠️ **`team` 全站只有四筆**（`D1`／`U15`／`U14`/`U12`）。`match.opponent` 與 `standing.team_name` 是**自由文字**，不建對手球隊表——賽事全部人工維護、不串外部 API。
-> ⚠️ 女足**不建 `team`／`player`／`match`**，是 `page`；`team.type` 預留 `women` 但不啟用。
+> ⚠️ **此註記已於 v3.0 作廢。** 藍鯨是第二個俱樂部，`team`（`BW1`）／`player`／`staff`／`match`／`season` **全部建立**，以 `club_id` 區隔。**`team.type` 的 `women` 值已廢除**，改用獨立的 `team.gender`。
 > 🔴 **此條已被行動 App 規劃書 v2.0 推翻，但本檔尚未同步。**客戶已確認台中藍鯨為 App 的共同主體，藍鯨的 `team`／`player`／`match` 會建在**這套共用資料庫**裡（新增 `club` 與 `competition` 兩張表、隊別代號 `BW1`）。官網前台是否呈現另議——客戶指示先改 App。**轉 DDL 前必須先處理此落差**，見 `CLAUDE.md`「主站與 App 的雙隊落差」。
 
 ### 5.3 L 行事曆（視圖）
@@ -1595,7 +1630,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | 項目 | 規則 |
 |---|---|
 | `code` | **UNIQUE**。值域**只有** `D1`／`U15`／`U14`／`U12`。**全站沒有 `D2`** |
-| `type` | `first_team`（**全站僅一筆，即 `D1`**）／`academy`（U15／U14／U12）／`women`（**預留不啟用**） |
+| `type` | `first_team`（⚠️ **v3.0 改為「每俱樂部至多一筆」**：磐石是 `D1`、藍鯨是 `BW1`）／`academy`（U15／U14／U12）。⚠️ **`women` 值已廢除**——性別改用獨立的 `gender` 欄位（`men`／`women`／`mixed`） |
 | 用途 | 行事曆第一層分類、篩選標籤、訂閱網址 `/schedule/d1/`。新增梯隊（U18／U10）只需 C1 新增一筆，前台分類自動出現 |
 | 對外顯示 | `D1` 是代號，前台一律顯示 `First Team / 一線隊` |
 
@@ -1721,11 +1756,36 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 
 ## 7. 權限模型（J 模組）
 
-### 7.1 五張表
+### 7.1 七張表（v3.0：由五張增為七張）
 
-`AdminUser` → `AdminUserRole` → `AdminRole` → `RolePermission` → `Permission`
+**能做什麼**：`AdminUser` → `AdminUserRole` → `AdminRole` → `RolePermission` → `Permission`
+**對誰做**：`AdminUser` → **`AdminUserClub`** ／ **`AdminUserTeam`**
 
 有效權限 ＝ 使用者所有角色的權限**聯集**；`is_super_admin = true` 者**跳過整個查詢**。
+
+```
+AdminUserClub(admin_user_id PK, club_id PK, granted_on, expires_on NULL, granted_by, is_active)
+AdminUserTeam(admin_user_id PK, team_id PK, expires_on NULL, is_active)
+AdminRole   + scope_mode enum(all_clubs, own_clubs) NOT NULL DEFAULT 'all_clubs'
+AdminUser   + primary_club_id uuid NULL FK → Club     -- 站台切換器預設值，不是 club_id
+Permission  + is_club_scoped bool
+RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
+```
+
+**為什麼授權掛在「人」不是「角色」**：把俱樂部放在 `AdminRole` 上，每多一個俱樂部就要複製整組九個角色，第三個俱樂部進來就是 27 個。**角色定義「能做什麼」，`AdminUserClub` 定義「對誰做」。**
+
+**為什麼 `scope_value` 直接刪而不是改成關聯表**：「哪些具體對象」現在全由上面兩張關聯表承載（在人身上），角色只需宣告「這個權限受不受範圍限制」。這符合 §1.4 第 1 條「陣列一律以關聯表表達」。
+
+**`AdminUserTeam` 順帶補掉一個既有的坑**：§12 踩雷點 27 自承「學院管理者不能改一線隊這條，資料模型上沒有欄位可擋」——現在有了。
+
+### 7.1b 資料範圍的執行期規則（v3.0 新增）
+
+- **有效範圍 ＝ `AdminUserClub` 中 `is_active` 且 `expires_on` 未到期的 `club_id` 集合。**
+- 所有清單查詢一律 `WHERE resource.club_id IN (:allowed)`，且**必須在資料存取層強制**——介面隱藏不算數，擋不住直接呼叫端點與匯出。
+- **`club_id IS NULL` 的列對 `scope_mode = 'own_clubs'` 一律唯讀**，只有 `is_super_admin` 能建立與修改。
+- **匯出先套資料範圍，再套 `is_restricted` 的二次授權**——兩道關卡，不可互相取代。
+- `is_super_admin = true` 跳過整個範圍查詢。
+- **`expires_on` 到期自動失效**，不需人工回收。這兌現了 App 規劃書「授權有起訖日」的承諾——舊版綱要沒有欄位可以落實。
 
 ### 7.2 九個角色是資料不是列舉
 
@@ -1743,6 +1803,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `support` | 客服／行政 | 會員與商店 S2–S5 |
 | `translator` | 翻譯人員 | `scope_type = translate_only` |
 | `viewer` | 檢視者 | 唯讀，商店不含金額 |
+| **`partner_club_manager`** | **合作球隊管理**（v3.0 新增） | **`scope_mode = own_clubs`**。可維護自家內容、球隊、課程、夥伴贊助與商品訂單；**可存取自家會籍但 `Member` 主檔遮罩**；**無推播、無廣告、無版本憑證、無 `J` 系統管理**。⚠️ **開通前提：資料範圍已落地 ＋ 兩法人間的個資委託處理約定已簽署** |
 
 ### 7.3 權限碼命名
 
@@ -1750,12 +1811,12 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 
 | `Permission` 欄位 | 值域 |
 |---|---|
-| `module_code` | `A` `B` `C` `E` `F` `G` `H` `I` `J` `K` `L` `P` `S` `N`。**禁用 `D`（撞 `D1`）／`U`（撞 `U15`）／`O`（形近 `0`）／`M`（App，本檔不含）** |
-| `submodule_code` | `B1`–`B6`、`C1`–`C5`、`P1`–`P4`、`E1`–`E3`（**`E4` 停用不回收**）、`F1`–`F2`、`G1`–`G3`、`K1`–`K5`、`L1`–`L4`、`S1`–`S6`、`N1`–`N7` |
-| `domain` | `content` `faq` `charity` `team` `program` `calendar` `member` `business` `shop` `donation` `enquiry` `seo` `system`（§6 十二欄 ＋ 慈善站第十三欄 `donation`） |
+| `module_code` | `A` `B` `C` `E` `F` `G` `H` `I` `J` `K` `L` `P` `S`。⚠️ **v3.0 移除 `N`**（慈善已獨立）。**禁用 `D`（撞 `D1`）／`U`（撞 `U15`）／`O`（形近 `0`）／`M`（App，本檔不含）** |
+| `submodule_code` | `B1`–`B6`、`C1`–`C5`、`P1`–`P4`、`E1`–`E3`（**`E4` 停用不回收**）、`F1`–`F2`、`G1`–`G3`、**`J1`–`J4`（v3.0：`J4` 為俱樂部與授權管理）**、`K1`–`K5`、`L1`–`L4`、`S1`–`S6`。⚠️ **v3.0 移除 `N1`–`N7`** |
+| `domain` | `content` `faq` `charity` `team` `program` `calendar` `member` `business` `shop` `enquiry` `seo` `system`。⚠️ **v3.0 移除 `donation`**（慈善已獨立） |
 | `action` | `view` `create` `update` `delete` `publish` `export` `translate` `execute` `reveal` |
 | `is_restricted` | **須額外授權**：會員名單匯出、訂單匯出、K5 winners 匯出、慈善明細匯出、分潤設定 |
-| `sysadmin_only` | **僅系統管理員**：`shop.refund.execute`、`shop.credential.*`、`donation.refund.execute`、`donation.share.update` |
+| `sysadmin_only` | **僅系統管理員**：`shop.refund.execute`、`shop.credential.*`、**`system.club.*`（v3.0：`J4` 俱樂部與授權管理）**。⚠️ **v3.0 移除 `donation.*`** |
 
 ### 7.4 §6 權限矩陣 → 權限碼對照
 
@@ -1987,7 +2048,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 4. **五種商業對象五張表、彼此零外鍵**：`Partner`（B2B Logo 牆）／`Sponsor`（贊助商）／`PartnerStore`（特約店家，**無金流無分潤**）／`DonationStore`（慈善站掃碼，**有金流有分潤**）／`Advertiser`（App 廣告主，**本檔不建**）。同一家公司同時是數種就**各建一筆**。唯一允許的關聯 `Advertiser.sponsor_id` 屬 App 範圍。
 5. **本檔沒有任何日誌表**，是委託方指示的刻意落差（[§13.1](#131-沒有稽核與登入日誌表)）。反過來說：**`EmailLog`、`InventoryMovement`、`PageVersion`、`FaqSearchMiss`、訂單與捐款的狀態欄位不是日誌，是功能單元**，不得一併刪除。
 6. **管理員登入識別是 `username` 不是 Email**。種子超管 `sa@system.local` **長得像 Email，但存在 `username` 欄**。`AdminUser.email` 不設唯一索引、不作登入查詢鍵。**前台 `Member.email` 是另一套系統，維持 Email 登入不變。**
-7. **`Team.code` 唯一且只有 `D1`／`U15`／`U14`／`U12`**，全站**沒有 `D2`**。女足是 `Page`，**不建 `Team`／`Player`／`Match`**，`type` 預留 `women` 但不啟用。對手球隊是**字串不是實體**。
+7. **`Team.code` 全站唯一**，值域 `D1`／**`BW1`**／`U15`／`U14`／`U12`，**沒有 `D2`**。⚠️ **v3.0：藍鯨建立完整的 `Team`／`Player`／`Match`**（`club_id` 區隔），`type` 的 `women` 值已廢除改用 `gender`。**`code` 不得改成「俱樂部 × 代號」複合鍵**——它是行事曆訂閱網址與 `/schedule/d1/` 的識別鍵，已在外流通。對手球隊仍是**字串不是實體**。
    🔴 **後半段已被 App v2.0 推翻**：藍鯨一線隊會以 `BW1` 建為正式 `Team`（`code` 仍**全站唯一**，不改複合鍵）。轉 DDL 前須同步，見 `CLAUDE.md`「主站與 App 的雙隊落差」。
 8. **`D1` 有雙重身分**：`D1` 是隊別代號（一線隊）。後台課程模組原編 `D1–D4` 已改 `P1–P4`，看到「D1 課程管理」一律是舊資料。**權限碼的 `module_code` 禁用 `D`／`U`／`O`／`M`。**
 9. **一份會籍可能多張卡、多件球衣**（`card_quota`／`jersey_quota` 可 > 1，家庭方案），所以 `MemberCard` 與 `JerseyIssue` 是表不是欄位。**每張卡只有一組 token**，官網驗證頁與 App 卡片共用；發兩組＝兩份可撤銷狀態，撤銷必漏一邊。token **不可由 `member_no` 推導**。
@@ -2084,7 +2145,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 
 | # | 規劃書型別 | 本檔資料表 | 備註 |
 |---:|---|---|---|
-| 1 | `Page` | `Page` `PageBlock` `PageVersion` | 女足介紹頁亦屬此型別 |
+| 1 | `Page` | `Page` `PageBlock` `PageVersion` | 藍鯨官網入口頁亦屬此型別 |
 | 2 | `Article` | `Article` `ArticleCategory` `Tag` `ArticleTag` `ArticleRelation` | 分類／標籤在關聯欄提到但未列型別 |
 | 3 | `Team` | `Team` | `code` 唯一，四筆 |
 | 4 | `Player` | `Player` `PlayerSeasonStat` | 逐季數據拆表 |

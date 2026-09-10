@@ -1,7 +1,8 @@
 # 04 — 資料模型與內容型別
 
-> 來源：規劃書 §5（**行 1245–1306**）。**行號依 v2.6（1489 行）重算。**
-> **慈善捐款平台的新增型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
+> 來源：規劃書 §5（**行 1331–1463**）。**行號依 v3.0（1691 行）重算。**
+> 🔴 **v3.0：多俱樂部架構。** 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam` 六個型別；**約 40 張表新增 `club_id`**。判定準則見規劃書 **§5.4（行 1416–1462）**。
+> **慈善捐款平台的型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔。⚠️ **自慈善規劃書 v2.0 起它們屬於獨立的資料庫，完全不在本系統內**，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 > **行動 App 的新增型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`）不在本檔，見 [`11-mobile-app.md`](11-mobile-app.md)。
 > **實作用的資料表綱要（欄位、主外鍵、索引、ERD）見 [`12-database-schema.md`](12-database-schema.md)**——本檔說「有哪些型別、哪些關係不能搞錯」，`12` 說「落到資料表長什麼樣」。
 
@@ -11,9 +12,11 @@
 
 | 型別 | 說明 | 主要關聯 |
 |---|---|---|
-| `Page` | 靜態頁面（含區塊）；**女足介紹頁亦屬此型別** | SEO、多語系 |
-| `Article` | 新聞與故事 | Category、Tag、Player、Team、Match、Program |
-| `Team` | 球隊，含隊別代號 `D1`／`U15`／`U14`／`U12`；女足暫不使用 | Player、Coach、Match、Season、CalendarEvent |
+| `Club` | **俱樂部（v3.0 新增）**：代號（`TCRFC`／`TCBW`）、名稱、標誌、品牌色、前台網域，**另含法人欄位**（法人全名、型態、統編、是否為收款主體）。**內容主體與收款法人在此第一次分離** | Team、Article、Sponsor、Partner、Membership、Order |
+| `Competition` | **賽事系列（v3.0 新增）**：與 `Match.competition` 四值 enum **並存不取代**。🏛 必填 | Match、Season、Club |
+| `Page` | 靜態頁面（含區塊）；**藍鯨官網入口頁亦屬此型別**。🏛 必填 | SEO、多語系 |
+| `Article` | 新聞與故事。🏛 **可為空＝兩隊共同** | Category、Tag、Player、Team、Match、Program |
+| `Team` | 球隊，含隊別代號 `D1`／**`BW1`**／`U15`／`U14`／`U12`。🏛 必填。**`code` 全站唯一不得改複合鍵**；**v3.0 新增 `gender`，廢除 `type` 的 `women` 值** | Club、Player、Coach、Match、Season、CalendarEvent |
 | `Player` | 球員 | Team、Article、Stats、Pathway |
 | `Staff` | 教練與團隊成員 | Team、Program |
 | `Match` | 賽事。**v2.5 補** `opponent_en`／`venue_en`；`competition`／`status` 升格為正式欄位 | Team、Season、Article（賽後報導） |
@@ -47,7 +50,9 @@
 | `Charity` | 受贈公益團體 | CharityProgram、ImpactRecord |
 | `Donation` | 捐款紀錄。**主檔定義在慈善捐款平台規劃書 §9**，主站不新增捐款紀錄 | CharityProgram、DonationProject |
 | `ImpactMetric` | 影響力統計項目 | CharityProgram |
-| `Member` | 會員帳號：層級（`registered`／`fan_club`）、會員編號、**會員卡 token**、會籍起訖、球衣尺寸與發放狀態、註冊來源、**LINE 綁定識別碼**（加密） | MembershipPlan、MembershipPayment、FanEvent、DrawRoster |
+| `Member` | **會員帳號（一人一組，不分俱樂部）**：會員編號、姓名、Email（**登入鍵**）、電話、生日、LINE 綁定、狀態。⚠️ **v3.0 將 `tier`／會籍起訖三欄移入 `Membership`**；**`Member` 不加 `club_id`** | Membership、FanEvent、Order |
+| `Membership` | **會籍（v3.0 新增）**：`member_id` × `club_id` × `season_id`、層級、起訖、狀態。🏛 必填。**一人在每個俱樂部各有一份**，兩隊球季不同步 | Member、Club、Season、MembershipPlan、MemberCard |
+| `MemberCard` | **電子會員卡**：`token`（全站唯一，一張卡一組）。🏛 必填。**v3.0 起 `membership_id` 必填——每份會籍一張卡**。「一張卡一組 token」與「驗證頁不得加適用球隊欄位」**兩條未變** | Membership |
 | `MembershipPlan` | 會籍方案：費用、球季、期間、`card_quota` 發卡數、`jersey_quota` 球衣件數、季中計價 | Member、MembershipPayment |
 | `MembershipPayment` | 會籍付款與開通紀錄：方式、金額、日期、交易備註、經辦人、開通起訖 | Member、MembershipPlan |
 | `MembershipBenefit` | 權益對照條目：分組、免費層值、付費層值、排序（3.14／8.2／升級頁共用） | MembershipPlan |
@@ -60,19 +65,34 @@
 
 ---
 
-## 2. 三條必守的結構原則
+## 2. 四條必守的結構原則
 
 **① 所有前台可見型別都要有 `zh` / `en` 雙語欄位**
 英文可以留空（fallback 繁中並標示），但**欄位必須存在**，且架構要能再加第三語系而不改程式。
 
 **② `CalendarEvent` 用視圖或索引表實作，不要複製資料**
 以 `source_type` + `source_id` 指向 `Match`，或標為 `custom`（俱樂部自建活動）；
-含 `team_codes[]`（`D1`／`U15`／`U14`／`U12`）作為第一層分類。
+含 `team_codes[]`（`D1`／**`BW1`**／`U15`／`U14`／`U12`）作為第一層分類。
 複製一份賽事資料到行事曆＝製造兩個真實來源，必然不同步。
 
 **③ 隊別代號是識別鍵**
-`Team.code` 需唯一，直接用於行事曆分類、篩選標籤與訂閱網址（`/schedule/d1/`）。
+`Team.code` 需**全站唯一**，直接用於行事曆分類、篩選標籤與訂閱網址（`/schedule/d1/`）。
 新增梯隊（U18／U10）只需在 C1 新增一筆，前台分類自動出現。
+⚠️ **不得改成「俱樂部 × 代號」的複合鍵**——訂閱網址已在外流通。所以藍鯨一線隊是 **`BW1`**，不是第二個 `D1`。
+
+**④ 租戶維度：`club_id`（v3.0 新增）**
+每張表都要回答「這筆資料屬於哪一個俱樂部」，**但不是每張表都該加欄位**：
+
+> 只有滿足任一條件才加：①後台有獨立清單頁需要過濾　②前台有獨立路由　③承載個資或金流且歸屬須可稽核。
+> **能經父表推導的一律不加**——同一事實存兩處必然不同步。
+> **加了就必須同時決定「唯一鍵、後台清單預設過濾、前台站台路由」三件事**，否則欄位是死的。
+
+- **可為空＝兩隊共同**，只在 8 張成立（`Article`／`MediaAsset`／`MediaFolder`／`Faq`／`Staff`／`Charity`／`CharityProgram`／`ImpactRecord`）。
+- **四類絕不可空**：有唯一路徑衝突者、承載個資者、有金流稅務歸屬者、**所有值複製快照表**（快照的意義是凍結歸屬，NULL 是「未知」不是「共同」）。
+- **三個刻意不加**：`ArticleCategory`／`Tag`／`FaqCategory`（分類是內容主題，不是歸屬——加了八個變十六個）、`Venue`（地理實體，兩隊共用同一座球場）、`Member`（登入鍵不分俱樂部，**會籍才分**）。
+- 🔴 **共同內容對受範圍限制的帳號一律唯讀**，只有超管能建立與修改。否則「查得到共同內容」與「不能改到別人的內容」無法同時成立。
+
+完整清單與受影響的唯一鍵見規劃書 **§5.4（行 1416–1462）**。
 
 ---
 
@@ -80,7 +100,7 @@
 
 | 情況 | 正確做法 |
 |---|---|
-| 女子足球 | `Page` 型別，**不建 `Team`／`Player`／`Match`**。型別預留 `women` 但不啟用 |
+| 女子足球 | ⚠️ **v3.0 改寫**：台中藍鯨是第二個俱樂部，**建立完整的 `Team`（`BW1`）／`Player`／`Staff`／`Match`／`Season`**（以 `club_id` 區隔），由獨立網域的藍鯨官網呈現。主站 06 只剩一頁入口（`Page` 型別）。**`type` 的 `women` 值已廢除**，改用獨立的 `Team.gender` |
 | 一線隊 | `Team.code = D1`、`type = first_team`，**全站僅一筆** |
 | 學院梯隊 | `Team.type = academy`，U15／U14／U12 各一筆 |
 | 球迷會員 | **不是獨立名單**，是 `Member` 上的 `fan_club` 層級標記；**付費會員即球迷會員**，不是兩種身分 |

@@ -1,9 +1,29 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v2.6
-> **Date**: 2026-08-14 (v2.6 revision: 2026-09-04)
+> **Document version**: v3.1
+> **Date**: 2026-08-14 (v3.1 revision: 2026-09-10)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v2.6*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.1*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.1 revision summary — focused on website functionality; administrative and legal matters removed**
+> **No functional specification changes; only the document's scope.**
+> 1. **Removed the discussion of legal-entity ownership, authorisation documents, data-processing agreements and accounting treatment**: these are the client's administrative and legal matters, not website functional specification. What remains is only what **determines how the system is built** — a single collecting entity, the invoice title, `club_id` partitioning, and orders recording the beneficiary club.
+> 2. **Section 10's open items are trimmed**: items with no direct bearing on building the site are removed; "whether orders must be split by club at checkout" stays, as a technical decision.
+> 3. **The "Partner club manager" role need not have users in the first phase** (section 6): data scope still has to be built (`club_id` is already spread across ~40 tables and it is foundation work), but **it does not block launch**.
+
+> **v3.0 revision summary — multi-club architecture; Taichung Blue Whale joins the system**
+> 1. **The system moves from "one club, one site" to a multi-club architecture**: a new **Taichung Blue Whale official website** (separate domain, separate front-end project, bilingual) **shares this admin and database, but the two clubs' data flows are separated**. It has its own specification: [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md) (v1.0). This site's own pages and section structure are **unchanged**.
+> 2. **New `Club` and `Competition` types**, moved from the Mobile App specification §10.1 into this document as first-class main-site types. `Club` carries both the **content identity** (name, logo, brand colours, domain) and the **fields needed to issue documents** (`legal_entity_name` / `tax_id` / `is_payment_subject`) — **the first time these two are separated**, because a brand name and an invoice title are not necessarily the same, and only the club flagged as the collecting entity appears in checkout and invoicing.
+> 3. **`club_id` becomes a system-wide dimension**: roughly 40 tables gain a mandatory `club_id`, 8 allow it to be null (**null means "shared by both clubs"**), and the rest derive it from a parent and do not store it. Criteria and the full list are in 5.4. **`Team.club_id` is mandatory**, while **`Team.code` stays globally unique and must not become a composite key** (it is the calendar-subscription identifier and the `/schedule/d1/` path, already in public circulation). Blue Whale's first team is `BW1`.
+> 4. **`Team.type`'s `women` value is retired in favour of a new `Team.gender`** (`men` / `women` / `mixed`) — gender is an attribute of a team, not a kind of team. The old "exactly one `first_team` site-wide" constraint becomes "**at most one per club**". Section 3.6 【06】 Women's Football is **rewritten**: from "a single referral page; this site does not create women's team data" to **an entry point to the Blue Whale site**, with Blue Whale's `Team` / `Player` / `Match` records all created in this database.
+> 5. **Membership moves from "one per person" to "one per person per club"**: a new `Membership` type (`member_id` × `club_id` × `season_id`); `Member`'s `tier` / `membership_start_on` / `membership_end_on` **move into it**. **`Member` remains one account per person** (email is the login key, the LINE binding is 1:1 with a person, and the data subject under privacy law is the person, not the membership). The two clubs' **seasons are not aligned**; expiry and renewal are calculated separately.
+> 6. **One card per membership**: `MemberCard.membership_id` is mandatory. **The "one card, one token" rule is unchanged** — it constrains card-to-token as 1:1, not person-to-card (`MembershipPlan.card_quota` has always allowed several cards per person). The verification page `/m/<token>` returns **exactly the same fields as before**, because the token already implies the club, so an "applicable team" field is **neither needed nor permitted**.
+> 7. **Draws (K5) are run per club**: `MemberDraw.club_id` is mandatory and eligibility is evaluated against **that club's** paid membership. It is **still a boolean, still a roster snapshot, still no points and no weighting**. Someone holding both clubs' paid memberships appears once in each roster, so **the rules must state explicitly that holding both memberships allows entry to both draws** — otherwise it reads as buying extra chances.
+> 8. **The shop keeps a single collecting entity; Blue Whale goods are sold on a collect-and-remit basis**: `Order` gains `selling_club_id` (the beneficiary) and `collecting_club_id` (the collecting legal entity, always this club), value-copied onto `OrderItem` and `StoreInvoice`. **The LINE Pay merchant account, invoice track and invoice title stay single.** **Carts must not mix clubs** (`Cart.club_id` mandatory) — the current shipping rule is a single flat fee plus a free-shipping threshold, and a mixed cart has no defined answer for either. **Shop-level settlement and revenue splitting are explicitly out of scope**; the system only aggregates and exports by `selling_club_id`.
+> 9. **`J` gains row-level data scope** (it previously had only "role × module"): new `AdminUserClub` (with **grant and expiry dates, expiring automatically**) and `AdminUserTeam` association tables; `AdminRole` gains `scope_mode`, `AdminUser` gains `primary_club_id`, `Permission` gains `is_club_scoped`; **`RolePermission.scope_value` is removed** (it was JSON and write-only, unusable for filtering). **The permission matrix gains a "data scope" column and a tenth role, "Partner club manager".** Scope **must be enforced at the data-access layer — hiding it in the UI does not count**.
+> 10. **Shared content (`club_id` null) is read-only to any scope-limited account**; only super administrators may create or modify it. Otherwise "can see shared content" and "cannot edit someone else's content" cannot both hold.
+> 11. **The Charity Donation Platform moves to its own admin and its own database** (its specification v2.0): the `N` module, the `donation` permission domain and the eight donation tables **leave this document entirely**; this site's `B6` types (`Charity` / `CharityProgram` / `ImpactRecord` / `ImpactMetric`) **stay here as the master records**, with the charity platform holding read-only snapshots. System emails drop from 13 to **9** (5 membership + 4 shop). `PaymentChannel.subject` becomes `owner_club_id`, with the unique key `(owner_club_id, channel_type, environment)`.
+> 12. **Section 10 gains open items 29 onwards**: whether orders are split at checkout, the actual invoice title and tax ID, member numbering, Blue Whale's membership plans and season dates, fulfilment staffing for Blue Whale goods, the Blue Whale domain and brand assets, and canonical attribution for shared content.
 
 > **v2.6 revision summary — e-commerce is brought in-house; "no payment gateway" is scoped a third time**
 > 1. **This site now runs its own shop, at the same functional scale as the old site's existing store**: 8.3 is rewritten from "Shopify referral showcase" into an **on-site official store** — product catalogue (with categories and size/colour filters), product detail (size/colour SKUs, list and sale price, size chart), cart, checkout, **payment by LINE Pay**, **e-invoicing**, fulfilment, order lookup, and returns, **collected for by this club**. **Deliberately nothing more elaborate than the old store** (see point 7). The "e-commerce and payments" bullet is **removed** from the out-of-scope list in 1.3 and replaced by a statement of the shop's boundaries.
@@ -42,6 +62,7 @@
 > 2. This revision changes wording only — scope, data model and page architecture are unchanged. All documents, the mockup and the public-site skeleton have been updated; any remaining `Rocks` spelling is an error.
 
 > **v2.1 revision summary — donations move to a separate platform**
+> ⚠️ **Point 1's "sharing this site's admin and database" became a separate admin and database in the charity specification v2.0. Historical summaries are kept for traceability and are not the current specification.**
 > 1. **A separate Charity Donation Platform is introduced**, specified in its own document, [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md): its own domain and its own public-site project, **sharing this site's admin and database**. Partner venues' QR codes are the entry point; it integrates LINE Pay and issues e-invoices or donation receipts.
 > 2. **Section 11 on this site narrows to editorial content and referral**: 11.1 commitment, 11.2 programmes, 11.3 impact stories and 11.4 impact metrics are unchanged; **all on-site donation mechanisms (Shopify donation item, bank transfer, in-kind donation, the transfer report form) are removed**, and fan donation links out to the Charity Donation Platform.
 > 3. **Volunteer signup is out of scope**: the section 11 CTA narrows from three routes to two (corporate partnership / fan donation), the G2 inbox no longer has a volunteer tab, and the `Enquiry` type drops the volunteer category.
@@ -105,6 +126,7 @@
 
 - **Public site**: 13 top-level sections, ~60+ sub-pages, 7 CTA conversion forms, a **Member Centre and partner store directory**, an **on-site official store (catalogue / cart / checkout / order lookup)**, and **two languages (Traditional Chinese / English)**.
 - **Admin CMS**: content management, teams & fixtures, registrations & rosters, **member management**, **shop and order management**, FAQ management, charity impact records, enquiry inbox, partners & sponsorship, SEO & site settings, permissions & audit.
+- **Multi-club architecture (v3.0)**: this admin and database **carry two clubs' official websites** — this site (Taichung Rock, `TCRFC`) and the **Taichung Blue Whale website** (`TCBW`, separate domain and separate front-end project, see [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md)). The two sites **share one admin login**, with a site switcher after sign-in; **but their data flows are separated** — content, teams, programme registrations, members and orders are all partitioned by `club_id`, and scope-limited accounts can only reach their own club's data. **The collecting entity stays single (this club)**: one LINE Pay merchant account, one invoice title, with orders and membership payments additionally recording the **beneficiary club** for settlement. The system only partitions data and records attribution; **revenue splitting and settlement between the two clubs are out of scope.**
 - **Out of scope for this engagement**:
   - **Boundaries of the shop (from v2.6 e-commerce is in scope, so this is no longer an exclusion)** — this site runs its own **official store**: products, cart, checkout, **payment by LINE Pay**, **e-invoicing**, shipping, orders, and returns are all handled here, **collected for by this club** (see 3.8 and 4.13). **Kept to the same scale as the old site's store; excluded**: multiple payment methods (**LINE Pay only**), member pricing and discount codes, a shipping-rate engine, subscriptions and recurring billing, cross-border sales and multi-currency, marketplace/multi-vendor, resale or consignment, points redemption and e-wallet, and tying merchandise to membership or draw eligibility; **ticketing and match packages remain excluded**. **"No card data" applies globally** — payment completes on LINE Pay's side and this site never renders its own card fields. The other collecting entities stay separate: charity donation payments are handled by the separate Charity Donation Platform (collected for by the **Association**), see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md); **in-app membership payment uses LINE Pay** (collected by this club, membership fees only), see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 5. **Membership fees do not go through shop checkout** and keep payment links and in-person collection.
   - **Technology selection** — this document defines functional requirements only; it does not decide framework, CMS, or hosting.
@@ -124,7 +146,7 @@ The following assets must be inventoried before launch to determine migration sc
 | Instagram | [@tcr_fc_2024](https://www.instagram.com/tcr_fc_2024) | Linked in footer and contact page; recent posts may be embedded on the homepage or news pages |
 | Facebook | [TCRFC2024](https://www.facebook.com/TCRFC2024) | Linked in footer and contact page; events and news cross-posted |
 | YouTube | [@TCRFC-2024](https://www.youtube.com/@TCRFC-2024) | Linked in footer; videos embedded in team pages, match highlights, player stories, manga animations |
-| Women's team official website | [Taichung Blue Whale](https://www.tcbw2014.com/) | Outbound target for section 06 Women's Football |
+| Taichung Blue Whale's existing website | [Taichung Blue Whale](https://www.tcbw2014.com/) (Google Sites) | **Content migration source**: from v3.0 this system takes it over and rebuilds it as a bilingual site on its own domain (see the Blue Whale specification). Its existing 10 sections must be inventoried and imported; the old URLs are 301-redirected once live |
 | The old site's Wix store | www.tcrfc.tw `/product-page/…`, `/category/…` | **Transitional channel**: keeps selling until the on-site shop (8.3) launches, then closes; the five product and category URLs are 301-redirected to their on-site equivalents. **Shopify is no longer the referral target from v2.6** |
 
 **Migration principle**: inventory and classify existing content first (keep / rewrite / discard), and migrate only what is still current and of sufficient quality. For news, keeping the last 1–2 years is recommended; older articles are not migrated item by item, but their URLs are still redirected.
@@ -139,7 +161,7 @@ The following assets must be inventoried before launch to determine migration sc
 ├── 03 FOOTBALL CLUB                  (3.1 ~ 3.5)
 ├── 04 TCRFC ACADEMY                  (4.1 ~ 4.7)
 ├── 05 PROGRAMS                       (5.1 ~ 5.5)
-├── 06 WOMEN'S FOOTBALL               single introductory page (no roster / fixtures / results)
+├── 06 WOMEN'S FOOTBALL               introduction + entry point to the Taichung Blue Whale site (roster and fixtures live there)
 ├── 07 NEWS & STORIES                 (7.1 ~ 7.8)
 ├── 08 TCRFC CULTURE                  (8.1 ~ 8.4)
 ├── 09 PARTNERS & SPONSORS            (9.1 ~ 9.4 + 2 CTAs)
@@ -305,19 +327,19 @@ Eight module pages: technical & tactical analysis, physical conditioning, game r
 
 ### 3.6 【06】WOMEN'S FOOTBALL
 
-> **Section positioning**: this section is a **single introductory page**. No roster, fixture list, results, or league table functionality is built here.
+> **Section positioning (rewritten in v3.0)**: this section is the **entry point to the Taichung Blue Whale website**. From v3.0 Taichung Blue Whale is the **second club carried by this system** (`TCBW`); its teams, players, staff, fixtures and news are **all created in this database** and presented on the **Blue Whale website on its own domain**. This site keeps one introductory page and an entry point, and does not duplicate Blue Whale's roster or fixtures.
 
 | Item | Public-site functionality |
 |---|---|
 | Page type | Single content page, composed with the block editor |
-| Suggested blocks | ① Key visual and headline ② Introduction to the Taichung Blue Whale women's team (history, positioning, significance) ③ Image gallery / video embed ④ A prominent **"Visit the women's team website"** button (opens in a new tab) ⑤ Bottom CTA |
-| **Outbound link** | The page's primary action is to route visitors to the **women's team official website** (a separate site), which owns the roster, fixtures, and results. This site provides introduction and referral only |
-| Not included | ✗ Roster ✗ Coaching staff page ✗ Fixtures and results ✗ League table ✗ Online scholarship application |
-| Admin handling | Managed under **B1 Page Management**, identical to the 2.x static pages; the women's site URL is maintained in the admin |
+| Suggested blocks | ① Key visual and headline ② Introduction to the Taichung Blue Whale women's team (history, positioning, significance) ③ Image gallery / video embed ④ A prominent **"Visit the Taichung Blue Whale website"** button (opens in a new tab) ⑤ Bottom CTA |
+| **Relationship between the sites** | The page's primary action routes visitors to the **Taichung Blue Whale official website**. That site **shares this admin and database** but is a **separate domain and a separate front-end project**; the two sites' content, teams and member data are partitioned by `club_id` |
+| Not included | ✗ Blue Whale roster ✗ Blue Whale coaching staff page ✗ Blue Whale fixtures and results ✗ Blue Whale league table ✗ Online scholarship application (all presented on the Blue Whale site — **this is not the same as not holding the data**) |
+| Admin handling | This entry page is managed under **B1 Page Management**; **Blue Whale's team and fixture data belong to `C` Team Management** (partitioned by `club_id = TCBW`), and the Blue Whale site URL is maintained under `I` Site Settings |
 
-> Consequently, the `Team / Player / Match` data models serve only the First Team and academy age groups. Responsibility for women's team information rests with the women's website, so this site does not mirror its roster or fixtures — avoiding inconsistency between the two sites.
+> **What changed from v2.6**: before v3.0 the rule was "the `Team / Player / Match` models serve only the First Team and academy age groups" and "this site does not create women's team data" — **that rule is retired as of v3.0**. Blue Whale's `Team` (code `BW1`), `Player`, `Staff`, `Match` and `Season` records all live in this database, partitioned by `club_id` rather than by a separate database. **The original goal — avoiding inconsistency between two sites — is now met by having a single source of truth**, rather than by not holding the data at all.
 >
-> **Women's team official website**: [Taichung Blue Whale](https://www.tcbw2014.com/) (provided by the club, 2026-09-01).
+> **Taichung Blue Whale official website**: specified in [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md). The existing Google Sites site at [www.tcbw2014.com](https://www.tcbw2014.com/) is the content migration source and will be 301-redirected once the new site goes live.
 
 ---
 
@@ -635,6 +657,8 @@ The calendar is organised primarily **by team**:
 
 #### Membership tiers (two)
 
+> **v3.0: membership becomes "one per person per club".** The account is still single (email sign-in, LINE linking), but **memberships belong to Taichung Rock and Taichung Blue Whale separately** — a person may hold one, the other, or both. The tiers and benefits below **apply within each club independently**.
+
 | Code | Display name | How it's obtained | Benefits |
 |---|---|---|---|
 | `registered` | Member | Free registration + email verification | Digital membership card; discounts at partner stores marked "all members" |
@@ -644,7 +668,8 @@ The calendar is organised primarily **by team**:
 
 #### Membership term and plans
 
-- **Season-based term**: membership runs by season (e.g. 2026/27); `paid_until` comes from the plan rather than being calculated from the join date. Everyone expires together and renewals are handled in one batch at season end.
+- **Season-based term**: membership runs by season (e.g. 2026/27); the expiry date comes from the plan rather than being calculated from the join date. Within a club, all members expire together.
+- ⚠️ **The two clubs' seasons are not aligned** (the TFPL and the Taiwan Mulan Football League run to different calendars): **expiry, renewal reminders and end-of-season batch processing are calculated per club**, and the Member Centre no longer shows a single expiry date but lists each membership. The knock-on effect is that **manual activation is no longer concentrated at the start of a season but spread across the year** — whether membership should move to shop checkout is an open item in section 10.
 - **Plan settings** (admin K2): plan name, price, season code, start and end dates, `card_quota` (cards issued per membership), `jersey_quota` (jerseys included), mid-season pricing rule, benefit description, sort order, publish state.
 - **Family plans** are simply different records of the same entity (e.g. 1 adult + 2 children = `card_quota` 3, `jersey_quota` 3). Names and jersey sizes for additional cardholders are captured during jersey registration — **no parent–student linking mechanism is required**.
 - **Mid-season pricing** (pro-rata, full price, or otherwise) is defined per plan.
@@ -663,10 +688,16 @@ The calendar is organised primarily **by team**:
 
 #### Digital membership card and how discounts are used
 
-- **Card contents**: member number, QR code, name, tier, expiry date.
+- **One card per membership (v3.0)**: a member holding both clubs' memberships has two cards, each carrying that club's logo and brand colours. The Member Centre and the app switch between them by swiping or tabbing.
+- **Card contents**: **the club's logo**, member number, QR code, name, tier, expiry date.
 - **In store**: the member shows the digital card and staff check it visually. The QR code points to a public verification page `/m/<token>` that displays **only** the first character of the name, the member number, the tier, and valid / expired status — no other personal data.
 - **No scan-to-redeem**: the system does not count redemptions, does not produce store performance reports, and stores need no account and no software. The verification page is read-only.
 - **Token security**: the token cannot be derived from the member number, and members can regenerate it from the Member Centre if a card is leaked.
+
+> 🔴 **Two constraints that must not be misread (clarified in v3.0)**
+> **"One card, one token" is unchanged** — it constrains **card-to-token as 1:1** (issuing two tokens for one card creates two revocable states, and revoking will always miss one). **It has never meant one card per person**: `card_quota` on a family plan has always allowed three.
+> **The verification page `/m/<token>` returns exactly the same fields as before, and must not gain an "applicable team" field** — the token already implies the club, so scanning it shows that club's membership status.
+> Conversely, **"one card showing two memberships" is not an option**: without displaying "Rock valid / Blue Whale expired" staff cannot make a decision, and displaying it *is* adding an applicable-team field — a direct breach of the rule above.
 
 #### Benefits comparison table (the core of signup conversion)
 
@@ -722,7 +753,7 @@ The calendar is organised primarily **by team**:
 | Forgotten password | Time-limited reset link by email |
 | LINE link management | Shows link status and allows linking and unlinking; at least one sign-in method must remain |
 | Profile | Name, mobile, email, date of birth, language preference; change password, delete account (personal-data deletion request workflow) |
-| **Digital membership card** | Member number, QR code, tier, expiry date; QR can be regenerated |
+| **Digital membership card** | **One card per membership** (switchable when holding both clubs'); member number, QR code, tier, expiry date; QR can be regenerated |
 | **Benefits comparison** | Free versus paid, line by line, visible without signing in |
 | **Partner store list** | Browse by category and area, each store marked with the applicable tier and offer (see 8.4) |
 | **Upgrade to paid membership** | Plan comparison (individual / family), payment instructions, upgrade request, status display (pending / active / expired) |
@@ -754,17 +785,18 @@ Registration verification, password reset, membership activation confirmation, 3
 ### 4.0 Admin structure overview
 
 ```
-TCRFC Admin
+TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
+├── [global] Site switcher — choose the club you are working on after sign-in
 ├── A. Dashboard
 ├── B. Content
-│   ├── B1 Pages (static pages / blocks, incl. the women's football page)
+│   ├── B1 Pages (static pages / blocks, incl. the Blue Whale site entry page)
 │   ├── B2 News & Stories
 │   ├── B3 Media Library
 │   ├── B4 Homepage slots / Banners
 │   ├── B5 FAQ Management
 │   └── B6 Charity & Impact Records
 ├── C. Teams
-│   ├── C1 Teams (first team / academy squads)
+│   ├── C1 Teams (first team / academy squads / **Blue Whale first team BW1**)
 │   ├── C2 Players
 │   ├── C3 Coaches & Staff
 │   ├── C4 Matches (fixtures / results / standings)
@@ -788,7 +820,11 @@ TCRFC Admin
 │   └── G3 Newsletter Subscribers
 ├── H. SEO & Marketing
 ├── I. Site Settings (menus / footer / languages / contact info / venues / external services)
-├── J. System (accounts / roles / audit / backup)
+├── J. System
+│   ├── J1 Accounts
+│   ├── J2 Roles & permissions
+│   ├── J3 Audit & backup
+│   └── J4 **Clubs & authorisation** (new in v3.0: club brand and legal-entity data, club and team authorisation for admin accounts)
 ├── K. Members
 │   ├── K1 Member list and detail
 │   ├── K2 Membership and plans
@@ -817,6 +853,14 @@ TCRFC Admin
 
 > **Numbering note**: the programs module was originally numbered `D1–D4`, which clashed confusingly with the **team code `D1`** (First Team). It has been renumbered **`P1–P4` (Programs)**, and all references throughout this document have been updated.
 > **Why the shop module takes `S` (Shop)**: `D` is retired because of that clash, `N` belongs to the Charity Donation Platform, and `M` belongs to the Mobile App, so a new letter is used rather than a recycled one. **`E4` is retired once folded into `S1` and will not be reused** — recycling it would give "where are products maintained?" two answers.
+> **From v3.0 `N` (charity donations) is no longer a module of this admin** — the Charity Donation Platform now has its own admin and its own database, taking the `N` identifier and the `donation` permission domain with it. **What stays here is `B6 Charity Impact Records`** (the content of section 11); the two are different things.
+
+> **Site switcher (new in v3.0)**
+> This admin carries two clubs' websites. Users sign in with **the same account through the same entry point** and pick the club they are working on from a **site switcher** at the top of the screen; after switching, every list, editor and report **shows only that club's data**.
+> - The switcher lists only the clubs that account is **authorised for and whose authorisation has not expired** (see 5.3 `AdminUserClub`). It is hidden for accounts authorised for a single club.
+> - It defaults to `AdminUser.primary_club_id`.
+> - **Shared content (`club_id` null) is visible under either site but read-only to scope-limited accounts** (see 5.4).
+> - ⚠️ **The switcher is a convenience, not a security boundary.** Data scope must be enforced at the data-access layer and must never rely on the switcher's current selection.
 
 ---
 
@@ -837,7 +881,7 @@ TCRFC Admin
 ### 4.2 B. Content
 
 #### B1 Pages
-- Covers every static page (2.x, 3.2–3.4, 4.x, 5.x, **06 Women's Football**, 9.3, 11.1, etc.)
+- Covers every static page (2.x, 3.2–3.4, 4.x, 5.x, **06 Blue Whale site entry page**, 9.3, 11.1, etc.)
 - **Block editor**: text, image-with-text, gallery, video embed, pull quote, CTA, FAQ accordion, timeline, step bar, stat cards, tables, file downloads
 - Each page carries: status (draft / published / scheduled), SEO settings, language versions, revision history with rollback, and a preview link (shareable before publishing)
 
@@ -878,12 +922,14 @@ TCRFC Admin
 ### 4.3 C. Teams
 
 #### C1 Teams
-- Team record: name, **team code (D1 / U15 / U14 / U12 …)**, type (`first_team` / `academy`), age group, season, description, key visual, brand colour, display order
-  - **`D1` = `first_team` (First Team)**, of which there is exactly one site-wide; U15 / U14 / U12 and any future squads are `academy`
-  - Team codes must be unique — they are the identifier for calendar categories and subscription URLs (e.g. `/schedule/d1/`)
+- Team record: **club**, name, **team code (D1 / BW1 / U15 / U14 / U12 …)**, type (`first_team` / `academy`), **gender (`men` / `women` / `mixed`)**, age group, season, description, key visual, brand colour, display order
+  - **`D1` = Taichung Rock First Team**, **`BW1` = Taichung Blue Whale First Team (new in v3.0)**; U15 / U14 / U12 and any future squads are `academy`
+  - **`type = first_team` becomes "at most one per club"** (before v2.6 it was "exactly one site-wide", which no longer holds once Blue Whale joins)
+  - **Team codes must be globally unique** — they are the identifier for calendar categories and subscription URLs (e.g. `/schedule/d1/`). ⚠️ **They must not become a "club × code" composite key**: subscription URLs are already in public circulation and changing them would break existing subscriptions. This is why Blue Whale's first team is `BW1` rather than a second `D1`
 - **Team codes drive calendar categorisation**: teams created here automatically become filter options and subscription sources in the public Schedule (13)
 - Supports adding new age groups (matching "other age groups" in 4.2 — adding U18 or U10 later requires only a new record here)
-- **Women's football (06) has no team record**; it is managed as a single page (B1). The `women` type is reserved so it can be enabled later
+- **From v3.0 women's football has full team records**: Taichung Blue Whale's teams, players, staff and fixtures are all maintained in this module (partitioned by `club_id`) and presented on the Blue Whale website. **The `women` value of `type` is retired**, replaced by a separate `gender` field — gender is an attribute of a team, not a kind of team (Blue Whale's first team is `TCBW`'s `first_team`, not this club's women's team)
+- **Data scope**: scope-limited accounts may only maintain their own club's teams, and can be narrowed further to specific teams via `AdminUserTeam` (e.g. an academy manager may not change first-team fixtures)
 
 #### C2 Players
 - Profile: name (Chinese and English), squad number, position, date of birth, height and weight, nationality, preferred foot, join date, photo
@@ -1028,7 +1074,7 @@ The `ProductShowcase` type is retired with it — display fields and an outbound
 - **Shop settings**: whether the store entry is shown, and links to the shopping-guide and returns-policy pages (content maintained in S6). **LINE Pay and invoicing credentials are not here; they live in S6 and are visible to system administrators only**
 - **External service links**:
   - **Social platforms**: Instagram [`@tcr_fc_2024`](https://www.instagram.com/tcr_fc_2024), Facebook [`TCRFC2024`](https://www.facebook.com/TCRFC2024), YouTube [`@TCRFC-2024`](https://www.youtube.com/@TCRFC-2024)
-  - **Women's team official website** URL (for the 06 outbound link): [`https://www.tcbw2014.com/`](https://www.tcbw2014.com/)
+  - **Taichung Blue Whale official website** URL (for the 06 entry point). ⚠️ **From v3.0 the Blue Whale site is built by this system** on its own domain, so this holds the new domain; the existing [`https://www.tcbw2014.com/`](https://www.tcbw2014.com/) is 301-redirected once the new site is live
   - EDM platform configuration
 - **Global settings**: logo, brand colours, favicon, cookie policy, privacy policy, **membership terms**, maintenance-mode toggle
 
@@ -1036,21 +1082,45 @@ The `ProductShowcase` type is retired with it — display fields and an outbound
 
 ### 4.10 J. System
 
-- **Account management**: create / disable accounts, password policy, two-factor authentication (2FA)
-- **Roles and permissions**: role creation with per-feature permission checkboxes (see section 6)
+**J1 Accounts**
+- Create / disable accounts, password policy, two-factor authentication (2FA)
+- **New in v3.0**: set an account's **default club** `primary_club_id` (the site switcher's initial value)
+
+**J2 Roles and permissions**
+- Role creation with per-feature permission checkboxes (see section 6)
+- **New in v3.0**: a role's **data scope mode** `scope_mode` — `all_clubs` (cross-club, e.g. system administrator) or `own_clubs` (authorised clubs only)
+
+**J3 Audit and backups**
 - **Audit log**: who changed what, when (create / update / delete / publish), retained for ≥ 12 months
 - **Sign-in log and anomaly alerts**
 - **Backups**: daily automatic backups with manual restore points
+
+**J4 Clubs & authorisation (new in v3.0)**
+
+| Feature | Description |
+|---|---|
+| Club records | Create and maintain `Club`: code, name and intro (zh/en), **logos (light/dark), favicon, OG image, primary and secondary brand colours**, front-end domain, website URL, default locale, sort order, status |
+| **Invoicing details** | Invoice title, tax ID, **whether it is a collecting entity**. ⚠️ **Only this club is currently a collecting entity**; setting this wrongly would misattribute funds and invoices |
+| **Club authorisation** | Assign which clubs an admin account may reach (`AdminUserClub`), with **grant and expiry dates**. Expiry is automatic — nobody has to remember to revoke it |
+| **Team authorisation** | Assign which teams an account may maintain (`AdminUserTeam`), for row-level limits such as "an academy manager may not change first-team fixtures" |
+| Permissions | **System administrators only.** The partner club manager role must not reach this module — otherwise it could escalate its own privileges |
+
+> **When brand assets are not yet available**: until a `Club`'s logo and brand colours are supplied, the corresponding areas of the front end **are not rendered**. **Do not substitute placeholder imagery, do not leave an empty logo box, and never draw a substitute mark or trace one from a screenshot.**
 
 ---
 
 ### 4.11 K. Members
 
+> **v3.0 multi-club premise**: **`Member` is one account per person, not per club** (email is the login key and the LINE binding is 1:1 with a person); **`Membership` is what belongs to a club**, one per person per club.
+> This module therefore has two layers: **K1 the member list** is account-level (cross-club; scope-limited accounts see only members who hold a membership at their own club, with the `Member` master record masked), while **K2 memberships** is club-level (`club_id` mandatory, own club only).
+> **The two clubs' seasons are not aligned**; expiry, renewal reminders and end-of-season batch processing are **calculated separately**.
+
 #### K1 Member list and detail
-- List columns: member number, name, email, tier (free / paid), **membership expiry**, **jersey status**, registration source (website / LINE / in person), LINE link status, registration date, last sign-in, status (active / disabled / unverified)
-- Filters: tier, status, registration source, LINE linked or not, registration period, **membership season**, **expiring soon**, jersey status, language preference
+- List columns: member number, name, email, **each club's membership tier and expiry (a person may have two membership rows)**, **jersey status**, registration source (website / LINE / in person), LINE link status, registration date, last sign-in, status (active / disabled / unverified)
+- Filters: **club**, tier, status, registration source, LINE linked or not, registration period, **membership season**, **expiring soon**, jersey status, language preference
+- **Data scope**: scope-limited accounts (such as a partner club manager) see only members **holding a membership at their own club**, and the `Member` master fields (name, email, phone, date of birth, LINE binding) are **masked**; **they can never see any membership row belonging to the other club**
 - **Duplicate detection**: identifies likely duplicate accounts by email or mobile number and offers merging (membership and payment records transfer with the merge)
-- **Member detail**: profile, membership and payment history, card status, jersey registration and fulfilment history, sign-in history, internal notes
+- **Member detail**: profile, **each club's membership and payment history (shown in separate zones)**, **card status per membership**, jersey registration and fulfilment history, sign-in history, internal notes
 - Actions: disable / enable, resend verification email, send a password reset on their behalf, **regenerate the membership card QR token**, add internal notes
 - CSV export (**requires additional authorisation** and is written to the audit log)
 
@@ -1202,6 +1272,11 @@ The `ProductShowcase` type is retired with it — display fields and an outbound
 ### 4.13 S. Shop (added in v2.6)
 
 > The letter `S` (Shop) is used. **The former `E4 Product Showcase` is folded into S1** and the `ProductShowcase` type is retired.
+>
+> **v3.0 multi-club premise — separated product data, one collecting entity**
+> Products, inventory, carts, orders, fulfilment and returns are **all partitioned by `club_id`**; neither club can see the other's catalogue, stock or orders.
+> **But the LINE Pay merchant account, the invoice track and the invoice title stay single**, and Blue Whale goods are sold on a **collect-and-remit** basis: this club takes payment and issues the invoice, then aggregates by `selling_club_id` for settlement.
+> ⚠️ **Whether orders must be split by club at checkout is not yet settled** (section 10, item 29). The current design **forbids mixed carts** (`Cart.club_id` mandatory), so it does not arise; but if mixed carts are ever opened up, this must be answered first — it changes the checkout flow, the shipment documents and how return credit notes are handled. The field design here (`selling_club_id` value-copied onto `OrderItem`) **can carry either answer**.
 
 #### S1 Products & variants (SKUs)
 - **Product**: name (zh/en), collection (club / academy / fan), tags, gallery, product narrative (zh/en), size chart, publication state, ordering, SEO fields (title / description / structured data)
@@ -1245,17 +1320,33 @@ The `ProductShowcase` type is retired with it — display fields and an outbound
 > **Payments and personal data**: payment always completes on **LINE Pay's** side; **this site renders no card fields and stores no card data** (global premise). Callbacks must be signature-verified and idempotent, and orders whose `Confirm` fails or times out are cancelled with stock released.
 > Orders contain the **recipient's name, phone number, and address** and are **treated as member personal data**: full values are visible only to system administrators, support/administration, and fulfilment roles; other roles see masked values, and exports require separate authorisation and are audited.
 > **Transaction records and invoices are retained under tax law** (the retention period is an open item in section 10), and that duty **is not extinguished by a data-subject deletion request** — on account deletion an order keeps only the legally required fields and the rest of the personal data is cleared, mirroring the `DrawRoster` approach.
-> **Shared admin with the charity platform's `N` module, but fully separated books**: both use LINE Pay, but the collecting entity, **merchant account**, credentials, invoice track, and statements are all separate. **Wrong credentials mean money reaching the wrong legal entity**, so S6 must label this module as the club's.
+> **Fully separate from the Charity Donation Platform**: from that platform's specification v2.0 it has **its own admin and its own database**, so the two no longer share an admin. Both use LINE Pay, but the collecting entity, **merchant account**, credentials, invoice track, and statements are all separate. **Wrong credentials mean money reaching the wrong legal entity**, so S6 must label this module's collecting entity as Taichung Rock FC.
+>
+> **Carts must not mix clubs** (`Cart.club_id` mandatory; switching site switches cart). Four reasons:
+> ① **Shipping has no defined answer in a mixed cart** — the current rule is a single flat fee plus a free-shipping threshold. "One fee or two?" and "is the threshold combined or per club?" both require a shipping-tier field, and a tier engine is explicitly out of scope;
+> ② **Fulfilment is separate** — the two clubs' stock and picking staff are separate, so a mixed order always splits into two shipments and the public delivery estimate cannot be honoured;
+> ③ **Returns and credit notes** must be split by club, or the credited amount cannot be matched;
+> ④ the two sites are **separate front-end projects on separate domains**, so a shared cart would need cross-domain sessions and third-party cookies — directly at odds with that premise.
+> The cost is that a member wanting both clubs' merchandise places two orders and pays shipping twice; this must be explained wherever the two sites link to each other. **If mixed carts are ever required, `Order` must become a parent/child structure (payment on the parent, fulfilment and returns on the children) — a major structural change that must not be squeezed into this phase.**
+>
+> **No revenue splitting**: the system goes as far as "orders can be aggregated and exported by `selling_club_id`". **No settlement type, no payable calculation, no remittance workflow** — splitting revenue between the clubs is an offline contract. (The charity platform's settlement feature **must not be copied into this module.**)
 
 ---
 
 ## 5. Data Model & Content Types
 
+### 5.1 Type overview
+
+> **From v3.0 every type in this table must answer a new question: which club does this record belong to?**
+> The criteria and the full list are in **5.4**. Types carrying `club_id` are marked 🏛 mandatory or 🏛 nullable; unmarked types either derive it from a parent or are shared system-wide.
+
 | Type | Description | Key relationships |
 |---|---|---|
-| `Page` | Static page (with blocks); **the women's football page is also this type** | SEO, languages |
+| `Club` | **Club (new in v3.0)**: code (`TCRFC` / `TCBW`), name and intro (zh/en), logos (light/dark), favicon, OG image, primary and secondary brand colours, **front-end domain**, website URL, default locale, sort order, status. **Plus the fields needed to issue documents**: invoice title, tax ID, and **`is_payment_subject`**. **This is where the brand name and the invoice title are separated** — only the club flagged as the collecting entity appears in checkout and invoicing | Team, Article, Sponsor, Partner, Membership, Order, AdminUserClub |
+| `Competition` | **Competition series (new in v3.0)**: code, name (zh/en), type (mapping to `Match.competition`'s four values), season, organiser, sort order, status. 🏛 mandatory. **Coexists with `Match.competition` rather than replacing it** — the latter is a coarse enum, the former is a named actual competition (TFPL, Taiwan Mulan Football League, President's Cup…); when both clubs play a same-named cup, **each gets its own record** | Match, Season, Club |
+| `Page` | Static page (with blocks); **the Blue Whale site entry page is also this type**. 🏛 mandatory (both sites will have `about` / `contact` / `privacy`, so the `slug` unique key becomes `(club_id, slug)`) | SEO, languages |
 | `Article` | News and stories | Category, Tag, Player, Team, Match, Program |
-| `Team` | Team, carrying the **team code**: `D1` (= First Team) / `U15` / `U14` / `U12`; unused by the women's team for now | Player, Coach, Match, Season, CalendarEvent |
+| `Team` | Team, carrying the **team code**: `D1` (Taichung Rock First Team) / **`BW1` (Taichung Blue Whale First Team, new in v3.0)** / `U15` / `U14` / `U12`. 🏛 mandatory. **`code` stays globally unique and must not become a "club × code" composite** — it is the calendar-subscription identifier and the `/schedule/d1/` path, already in public circulation. **v3.0 adds `gender`** (`men` / `women` / `mixed`) and **retires `type`'s `women` value** (gender is an attribute of a team, not a kind of team); the "exactly one `first_team` site-wide" constraint becomes "**at most one per club**" | Club, Player, Coach, Match, Season, CalendarEvent |
 | `Player` | Player | Team, Article, Stats, Pathway |
 | `Staff` | Coaches and staff | Team, Program |
 | `Match` | Match. **v2.5 adds** `opponent_en` / `venue_en`, and promotes `competition` / `status` to formal fields | Team, Season, Article (match report) |
@@ -1272,8 +1363,8 @@ The `ProductShowcase` type is retired with it — display fields and an outbound
 | `Product` | **Product**: name (zh/en), collection, tags, gallery, narrative, size chart, state, ordering, SEO fields. **Replaces the retired `ProductShowcase` in v2.6** | ProductVariant, OrderItem |
 | `ProductVariant` | **Variant (SKU)**: size / colour, SKU code, price, **sale price (optional)**, cost (restricted), stock level | Product, InventoryMovement, OrderItem |
 | `InventoryMovement` | Stock movement: type (receipt / sale / return restock / stocktake / write-off / adjustment), quantity, reason, operator, timestamp | ProductVariant, Order |
-| `Cart` | Cart: owner (member or anonymous token), line items and quantities, updated at; merged into the account cart on sign-in | Member, ProductVariant |
-| `Order` | **Order**: order number, `member_id` (**may be empty — guest checkout is supported**), recipient name / phone / address (**restricted fields**), amount breakdown (subtotal / shipping), **LINE Pay transaction ID and payment status**, shipping method and fulfilment status, invoice number, lookup token | Member, OrderItem, Shipment, StoreInvoice |
+| `Cart` | Cart: owner (member or anonymous token), line items and quantities, updated at; merged into the account cart on sign-in. 🏛 mandatory — **carts must not mix clubs**; switching site switches cart (rationale in 4.13) | Club, Member, ProductVariant |
+| `Order` | **Order**: order number (**prefixed `TR-` / `BW-` per club but still globally unique** — a single merchant account must not see duplicate numbers), `member_id` (**may be empty — guest checkout is supported**), recipient name / phone / address (**restricted fields**), amount breakdown (subtotal / shipping), **LINE Pay transaction ID and payment status**, shipping method and fulfilment status, invoice number, lookup token. **v3.0 adds `selling_club_id`** (the seller and settlement beneficiary) **and `collecting_club_id`** (the collecting legal entity, always this club), plus `settlement_status` / `settled_on` / `settle_note` as a **manual flag, not a state machine** | Club, Member, OrderItem, Shipment, StoreInvoice |
 | `OrderItem` | Order line: **SKU snapshot** (product name, variant, unit price, all **value-copied**), quantity, line total | Order, ProductVariant |
 | `Shipment` | Shipment: method, tracking number, shipped and delivered timestamps, pickup store code, collection status | Order |
 | `RefundRequest` | Return/refund request: items, reason, status (requested / under review / approved / refunded / rejected), refund amount and method, invoice voiding or credit-note record | Order |
@@ -1287,22 +1378,28 @@ The `ProductShowcase` type is retired with it — display fields and an outbound
 | `CharityProgram` | Charity programme | Charity, Partner, Article, ImpactRecord |
 | `ImpactRecord` | Impact record (organisation, donation, imagery) | Charity, CharityProgram |
 | `Charity` | Recipient organisation (name, description, logo, website) | CharityProgram, ImpactRecord |
-| `Donation` | Donation record. **Defined in the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §9**; this site creates no donation records and only aggregates them for 11.4 impact metrics | CharityProgram, DonationProject |
+| `Donation` | Donation record. **From v3.0 it does not belong to this system at all** — the Charity Donation Platform now has its own admin and its own database, see the [Charity Donation Platform Specification](TCRFC_Charity_Donation_Platform_Specification_EN.md) §9. Impact figures for 11.4 are supplied by that platform or entered manually | (not in this system) |
 | `ImpactMetric` | Impact statistic | CharityProgram |
-| `Member` | Member account: tier (`registered` / `fan_club`), member number, **card token**, membership dates, jersey size and fulfilment status, registration source, **LINE link identifier** (encrypted) | MembershipPlan, MembershipPayment, FanEvent, DrawRoster |
-| `MembershipPlan` | Membership plan: price, season, term, `card_quota`, `jersey_quota`, mid-season pricing rule | Member, MembershipPayment |
+| `Member` | **Member account (one per person, not per club)**: member number, name, email (**the login key, globally unique**), phone, date of birth, jersey size, registration source, **LINE link identifier** (encrypted), account status. **v3.0 moves `tier` / `membership_start_on` / `membership_end_on` into `Membership`** — once membership is its own type, leaving those here creates a second source of truth. **No `club_id`**: the login key is club-agnostic, the LINE binding is 1:1 with a person, and the data subject under privacy law is the person, not the membership | Membership, FanEvent, Order |
+| `Membership` | **Membership (new in v3.0)**: `member_id` × `club_id` × `season_id` (unique together), plan, tier (`registered` / `fan_club`), start and end dates, status. 🏛 mandatory. **One membership per club per person**; the two clubs' **seasons are not aligned**, so expiry and renewal reminders are calculated separately | Member, Club, Season, MembershipPlan, MemberCard |
+| `MemberCard` | **Digital membership card**: `token` (**globally unique, one per card**), card status, issue and revocation times, last sync time. 🏛 mandatory. **From v3.0 `membership_id` is mandatory — one card per membership**. The "one card, one token" rule is **unchanged** (it constrains card-to-token as 1:1, not person-to-card; `card_quota` has always allowed several cards per person). The verification page `/m/<token>` returns **exactly the same fields as before**, because the token already implies the club — an "applicable team" field is **neither needed nor permitted** | Membership |
+| `MembershipPlan` | Membership plan: price, season, term, `card_quota`, `jersey_quota`, mid-season pricing rule. 🏛 mandatory (each club sets its own fees, card quotas and season rules) | Membership, MembershipPayment |
 | `MembershipPayment` | Membership payment and activation record: method, amount, date, transaction note, handler, activation dates | Member, MembershipPlan |
 | `MembershipBenefit` | Benefits comparison entry: group, free-tier value, paid-tier value, sort order (shared by 3.14 / 8.2 / upgrade page) | MembershipPlan |
 | `PartnerStore` | **Partner store**: category, address, phone, opening hours, map link, offer, applicable tier, partnership dates. **v2.5 adds `lat` / `lng`** (saved in admin K4 after human confirmation) for the app's nearby-store distance sorting | — |
 | `MemberDraw` | **Fan Club Prize Draw**: name (zh / en), prizes and quantities (zh / en), **eligibility snapshot time `snapshot_at`**, draw time and setting (on site / live stream), collection deadline and unclaimed handling, rules and notices (zh / en), status (draft / roster locked / drawn / announced / closed / voided), `roster_version`, `total_count` eligible members, `roster_hash`, the linked announcement article, creator and locker | Member, DrawRoster, Article |
 | `DrawRoster` | **Eligible roster snapshot (one row per eligible member)**: `serial_no` draw serial number (issued consecutively in ascending member-number order at snapshot time, one per person), member number, **name snapshot**, tier snapshot, membership expiry snapshot, won or not, prize name, collection method (shipping / in person), fulfilment status (pending / shipped / collected / overdue), **withholding details (collected only above the threshold; encrypted, masked by default)**, notes. **Written by the system in one pass at the snapshot time — members cannot create rows; once locked, rows cannot be added or removed and only the win and fulfilment fields may be filled in** | MemberDraw, Member |
-| `EmailLog` | Delivery record for the five system emails | Member |
+| `EmailLog` | System email delivery record. 🏛 mandatory — **Blue Whale's support staff should see their own renewal emails, and should not see this club's**. **v3.0 drops system emails from 13 to 9** (5 membership + 4 shop): the four charity emails leave with the separate charity admin | Member, Club |
 
 > **Mobile App types** (`AdSlot` / `Advertiser` / `AdCampaign` / `AdCreative` / `AdEvent` / `AdDailyStat` / `AppDevice` / `PushTopicSubscription` / `PushMessage` / `AppRelease`) are **not in this table**; see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 10.
+> **`Club` and `Competition` were originally defined in the app specification §10.1; from v3.0 they move here as first-class main-site types** — `Team.club_id` is a mandatory foreign key, and a main-site table cannot point at a type that "does not belong to the main site".
 >
 > **Five "commercial counterparties" must not be conflated**: `Partner` (B2B logo wall) / `Sponsor` / `PartnerStore` (member discounts, no payments, no revenue share) / `DonationStore` (charity site scan-in, **payments and revenue share**) / `Advertiser` (**app advertiser, impressions counted**). One real company may be several of these at once — **create a separate record for each, never share one**. The only exception is `Advertiser.sponsor_id`, which links back to a `Sponsor` to avoid maintaining duplicate contacts; it is **a link, not a merge**.
-| `CalendarEvent` | **Calendar event (aggregate view)**: points at a Match via `source_type` + `source_id`, or is a `custom` club event; carries **`team_codes[]` (D1 / U15 / U14 / U12)** as its first-level category | Match, Team, Venue |
+> **`Club` is not a sixth commercial counterparty** — it is a content subject: no impressions, no payments, no revenue share. **The two clubs' sponsors and partners must be shown in separate zones and never mixed** (the contracts are signed separately); where one company sponsors both clubs, the same "one record each" rule applies.
+| `CalendarEvent` | **Calendar event (aggregate view)**: points at a Match via `source_type` + `source_id`, or is a `custom` club event; carries **`team_codes[]` (D1 / **BW1** / U15 / U14 / U12)** as its first-level category. **The view projects `club_id`** from its source rather than storing it | Match, Team, Venue, Club |
 | `EventType` | Match / event type (icon, colour, display rules) | CalendarEvent |
+
+### 5.2 Structural principles
 
 > Every type with a public-facing presentation must support **zh / en bilingual fields**, with room to add a third language.
 > `CalendarEvent` should be implemented as a **view or index table** rather than duplicated data, keeping it in sync with its source module and avoiding two sources of truth.
@@ -1310,19 +1407,98 @@ The `ProductShowcase` type is retired with it — display fields and an outbound
 
 ---
 
+### 5.3 Admin account and authorisation types (new in v3.0)
+
+| Type | Description |
+|---|---|
+| `AdminUserClub` | **Club authorisation for an admin account**: account × club, granted date, **expiry date (nullable = no expiry)**, granted by, active flag. **One person may be authorised for several clubs** (give this club's administrator two rows when they also maintain Blue Whale content). **Expires automatically.** |
+| `AdminUserTeam` | **Team authorisation for an admin account**: account × team, expiry date, active flag. Used for row-level limits such as "an academy manager may adjust their own age groups' fixtures but not the first team's" — **a rule that existed before v2.6 but had no field in the data model to enforce it**. |
+
+> **Why authorisation attaches to the person, not the role**: putting the club on `AdminRole` would mean duplicating all nine roles per club (`content_editor_tcrfc` / `content_editor_tcbw`…), and a third club would make it twenty-seven.
+> **A role defines what you can do; `AdminUserClub` defines who you may do it to.**
+>
+> Related changes: `AdminRole` gains `scope_mode` (`all_clubs` / `own_clubs`); `AdminUser` gains `primary_club_id` (the site switcher's default — **not** a `club_id`, since one person may serve both clubs); `Permission` gains `is_club_scoped` (whether the resource behind that permission code carries a `club_id`).
+> **`RolePermission.scope_value` is removed** — it was JSON and write-only, so it could never be used to filter a query; "which specific objects" is now carried by the two association tables above.
+
+### 5.4 Criteria for `club_id` (new in v3.0)
+
+Under a multi-club architecture every table must answer "which club does this belong to". **That does not mean every table gets a column.**
+
+> **A type gains `club_id` only if it meets one of these:**
+> ① the admin has a separate list view that needs filtering by club
+> ② the public site has a separate route (one per site)
+> ③ it carries personal data or money, and its attribution must be auditable
+>
+> **If it can be derived from a parent, do not store it** — the same fact in two places will drift apart.
+> **Adding `club_id` obliges you to settle three things at once: the unique key, the admin list's default filter, and the public route.** Otherwise the column is dead.
+
+**Mandatory (~40 tables)**: all team and fixture types (`Team` / `Player` / `Match` / `Standing` / `Achievement` / `Milestone` / `Season` / `Competition`), site-level content (`Page` / `Banner` / `HomeSection` / `MenuItem` / `Redirect` / `Setting` / `EmailTemplate` / `Form`), personal data (`Registration` / `Trial` / `Enquiry` / `NewsletterSubscriber` / `FanEventRegistration` / `Membership` / `MemberCard` / `MembershipPayment` / `JerseyIssue` / `MemberDraw` / `DrawRoster`), commercial counterparties (`Partner` / `Sponsor` / `SponsorPackage` / `Proposal`), programmes (`Program` / `Session`), the shop (`Collection` / `Product` / `ProductVariant` / `Cart` / `Order` / `OrderItem` / `Shipment` / `RefundRequest` / `StoreInvoice` / `InventoryMovement`), plus `EmailLog`, `FaqSearchMiss`, `CalendarCustomEvent`, `ComicCharacter` / `ComicEpisode` / `FanEvent`.
+
+**Nullable, meaning "shared by both clubs" (8 tables)**: `Article`, `MediaAsset`, `MediaFolder`, `Faq`, `Staff`, `Charity`, `CharityProgram`, `ImpactRecord` / `ImpactMetric`.
+
+**Not added (~60 tables)**: anything derivable from a parent, anything shared system-wide (`Locale` / `UiString` / `ValueTagLink` / `InvoiceDonationCode`), and three **deliberate** exclusions:
+
+| Type | Why not |
+|---|---|
+| `ArticleCategory` / `Tag` / `FaqCategory` | A category is a **content topic**; club ownership is **a different dimension**. Adding it turns eight categories into sixteen |
+| `Venue` | A venue is a **physical place** and both clubs use the same grounds. Duplicating it produces two sets of coordinates — and coordinates are entered by hand |
+| `Member` | See 5.1 — the login key is club-agnostic; the membership is what belongs to a club |
+
+**Four categories that must never be nullable**: ① anything with a unique path (a null would turn `(club_id, slug)` into a routing black hole) ② anything carrying personal data (null means both legal entities can see it — third-party disclosure without consent) ③ anything with a money or tax attribution (null means the split cannot be computed) ④ **every value-copied snapshot table** (a snapshot exists to freeze attribution; null means "unknown", not "shared").
+
+> 🔴 **Who may edit shared content (must be enforced in the API layer)**
+> "Nullable means shared" is in direct tension with scope filtering: Blue Whale's admin queries `WHERE club_id = TCBW` and cannot see shared content; change it to `OR club_id IS NULL` and Blue Whale can now **edit and even delete** shared content.
+> **Therefore: records with a null `club_id` are read-only to any scope-limited account (`scope_mode = own_clubs`); only super administrators may create or modify them.**
+
+**Unique keys affected**:
+
+| Type | v2.6 | v3.0 | Rationale |
+|---|---|---|---|
+| `Team.code` | globally unique | **unchanged** | Calendar subscription URLs are already in public circulation — a hard constraint |
+| `Page.slug` | unique | `(club_id, slug)` | Both sites will inevitably have `about` / `contact` / `privacy` |
+| `Article.slug` | globally unique | **unchanged** | Shared articles need **one** canonical URL, or the two sites become duplicate content; app sharing can only emit one link |
+| `ProductVariant.sku` | globally unique | **unchanged** | The SKU is the picking and stock identifier; cross-store uniqueness prevents shipping the wrong item |
+| `Order.order_no` | unique | **unchanged** (prefixed) | A single merchant account must not see duplicate numbers |
+| `Member.email` / `member_no` | globally unique | **unchanged** | One account per person |
+| `Setting.setting_key` | unique | `(club_id, setting_key)` | Contact details, social links and shipping settings differ per site |
+| `Redirect.from_path` | unique | `(club_id, from_path)` | Both sites will have `/zh/about/` |
+| `Season.code` | unique | `(club_id, code)` | The two clubs' seasons are not aligned |
+| `NewsletterSubscriber.email` | unique | `(club_id, email)` | **Compliance**: consent and unsubscribe must stand separately — someone may unsubscribe from one site only |
+
+⚠️ **Section 1.4's "four things settled at technology selection" gains a fifth**: the NULL semantics of a nullable `club_id` inside a unique key. PostgreSQL and MySQL treat multiple NULLs as distinct; SQL Server does not. The technology-neutral wording is "`(club_id, slug)` is unique, and when `club_id` is null the `slug` must also be globally unique"; the implementation choice between a partial unique index, a functional index, and a sentinel value belongs to technology selection.
+
+---
+
 ## 6. Roles & Permissions Matrix
 
-| Role | Content | FAQ | Charity | Teams / Matches | Programs / Registrations | Schedule | Members | Business / Sponsors | Shop | Advertising | Mobile App | Enquiries | SEO / Settings | System |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| System administrator | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full |
-| Content editor | ✔ Edit / publish | ✔ Full | ✔ Edit | Read-only | Read-only | Custom events | — | Read-only | S1 copy / imagery | — | — | M2 composition | Per-page SEO | — |
-| Football / team manager | Draft | Relevant topics | — | ✔ Full | Read-only | Match events | — | — | — | — | — | — | — | — |
-| Academy / programs manager | Draft | Relevant topics | — | Academy squads | ✔ Full | Squad matches | — | — | — | Program enquiries | — | — | — | — |
-| Commercial / sponsorship | Draft | Relevant topics | Read-only | Read-only | Read-only | Read-only | — | ✔ Full | S1 / S6 (**order PII masked**) | Partnership / sponsorship enquiries | **✔ Full** | — | — | — |
-| PR / media | ✔ Edit | Read-only | ✔ Edit | Read-only | — | Custom events | — | Read-only | Read-only | Media enquiries | Reports (read) | M3 draft (**needs approval**) | — | — |
-| Support / administration | — | ✔ Edit | — | — | Registration handling | Read-only | ✔ View / handle | — | **✔ S2–S5** | ✔ Full | — | M4 view (masked) | — | — |
-| Translator ※ | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | — | Translation fields only | Translation fields only | — | Creative translation fields | Push copy translation | UI string table | — |
-| Viewer | Read-only | Read-only | Read-only | Read-only | Read-only | Read-only | — | Read-only | Read-only (no amounts) | Read-only | Read-only (no amounts) | Read-only | — | — |
+| Role | **Data scope** | Content | FAQ | Charity | Teams / Matches | Programs / Registrations | Schedule | Members | Business / Sponsors | Shop | Advertising | Mobile App | Enquiries | SEO / Settings | System |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| System administrator | **All clubs** | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full | ✔ Full |
+| Content editor | Authorised clubs | ✔ Edit / publish | ✔ Full | ✔ Edit | Read-only | Read-only | Custom events | — | Read-only | S1 copy / imagery | — | — | M2 composition | Per-page SEO | — |
+| Football / team manager | Authorised clubs | Draft | Relevant topics | — | ✔ Full | Read-only | Match events | — | — | — | — | — | — | — | — |
+| Academy / programs manager | Authorised clubs **and teams** | Draft | Relevant topics | — | Academy squads | ✔ Full | Squad matches | — | — | — | Program enquiries | — | — | — | — |
+| Commercial / sponsorship | Authorised clubs | Draft | Relevant topics | Read-only | Read-only | Read-only | Read-only | — | ✔ Full | S1 / S6 (**order PII masked**) | Partnership / sponsorship enquiries | **✔ Full** | — | — | — |
+| PR / media | Authorised clubs | ✔ Edit | Read-only | ✔ Edit | Read-only | — | Custom events | — | Read-only | Read-only | Media enquiries | Reports (read) | M3 draft (**needs approval**) | — | — |
+| Support / administration | Authorised clubs | — | ✔ Edit | — | — | Registration handling | Read-only | ✔ View / handle | — | **✔ S2–S5** | ✔ Full | — | M4 view (masked) | — | — |
+| Translator ※ | Authorised clubs | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | Translation fields only | — | Translation fields only | Translation fields only | — | Creative translation fields | Push copy translation | UI string table | — |
+| Viewer | Authorised clubs | Read-only | Read-only | Read-only | Read-only | Read-only | Read-only | — | Read-only | Read-only (no amounts) | Read-only | Read-only (no amounts) | Read-only | — | — |
+| **Partner club manager** (new in v3.0) | **Own club only** | ✔ Own content | Own topics | — | ✔ Own teams | ✔ Own programmes | Own events | **Own memberships only; `Member` master record masked** | ✔ Own partners and sponsors | Own products and orders | — | **✗** | Own forms | Own per-page SEO | **✗** |
+
+**Data scope rules (new in v3.0)**:
+
+- **Effective scope = the set of clubs in `AdminUserClub` that are active and not expired.** Every admin list query appends `WHERE club_id IN (authorised set)`, and **this must be enforced at the data-access layer — hiding it in the UI does not count**, because that stops neither direct endpoint calls nor exports.
+- **Exports apply data scope first**, then the existing restricted-field authorisation. These are two separate gates and neither substitutes for the other.
+- **Shared content (`club_id` null) is read-only to scope-limited accounts**; only system administrators may create or modify it (rationale in 5.4).
+- **Authorisations carry grant and expiry dates and expire automatically** (`AdminUserClub.expires_on`). Partner club accounts should be given an expiry that tracks the contract term.
+- System administrators (`is_super_admin`) bypass data-scope filtering entirely.
+
+**Boundaries of the "Partner club manager" role (new in v3.0)**:
+
+- This role is for **Taichung Blue Whale's own staff** and can reach only records whose `club_id` is their own.
+- **They may work with their own `Membership` / `Order` / `Registration` records, but the `Member` master record (name, email, phone, date of birth, LINE binding) is returned masked**; full values require separate authorisation. **They can never see any membership row belonging to the other club.**
+- **No advertising rights (E5–E7), no push rights (M3), no release or credential rights (M1 / M5), no system administration.** Least privilege — someone selling advertising should not also be able to publish app releases and send pushes, and a partner maintaining content certainly should not.
+- ⚠️ **This role may only be enabled once data-scope enforcement is in place** (the two association tables in 5.3 and the runtime rules above).
+- **It need not have any users in the first phase**: if Blue Whale's content is maintained by the existing team under their own accounts, no partner-club account is needed. **But data scope still has to be built** — `club_id` reaches roughly 40 tables and every admin list query has to decide whether to filter, which is foundation work. **Define the role now, assign nobody to it — it does not block launch.**
 
 **Additional rules**:
 - **App releases and forced updates (M1) are restricted to system administrators** — a wrong minimum supported version locks every user out.
@@ -1379,19 +1555,25 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Security | Forced HTTPS, 2FA on the admin, CSRF / XSS / SQL injection protection, upload type and size limits, optional admin IP allowlist; **member system**: password hashing, session timeout, lockout after failed sign-ins, brute-force protection; **shop**: checkout redirected to the payment provider's hosted page or SDK, **no card data stored**, payment callbacks signature-verified and **idempotent**, order-lookup tokens non-derivable and time-limited, dual authorisation for refunds and exports |
 | Personal data | Registrations, enquiries, **member data** (including LINE link identifiers), and **order recipient data** stored encrypted, with a retention policy and a data-subject deletion process; **minors' data requires guardian consent**. **Transaction records and invoices carry a statutory retention duty that takes precedence over deletion requests**: on account deletion an order keeps only the legally required fields and the rest is cleared |
 | Availability | 99.5% uptime target; daily backups retained off-site for 30 days |
-| Extensibility | Content types must be extensible (new age groups / seasons / program types / languages without code changes); if the women's team is later upgraded to a full team area, the existing team module can be reused directly; **the shop's payment provider, invoice provider, and shipping methods must be swappable — no provider's specifics may be hard-wired into the order flow** |
+| Extensibility | Content types must be extensible (new age groups / seasons / program types / languages without code changes); **adding a third club must require only a new `Club` record and its authorisations, never a change to the table structure** (the `club_id` dimension and `AdminUserClub` are designed for exactly this); **the shop's payment provider, invoice provider, and shipping methods must be swappable — no provider's specifics may be hard-wired into the order flow** |
 | Monitoring | Error tracking (Sentry-class), uptime monitoring, alerts on form submission failures; **the shop additionally needs alerts on payment failure rates, failed payment callbacks, and negative stock** |
 
 ---
 
 ## 9. Delivery Phases & Priorities
 
+> 🔴 **v3.0 scheduling premise — multi-club is foundation work, not a later extension**
+> Once `club_id` reaches roughly 40 tables, **every admin list query has to decide whether to filter by club**. Build it single-club now and those queries get written unfiltered; adding it later means **rewriting the admin's entire query layer**.
+> Therefore the **`Club` type, the `club_id` dimension and `AdminUserClub` data scope all go into Phase 1**, even if the Blue Whale site itself launches later.
+> By the same logic, **the `Membership` type must be built with the membership system** (Phase 2) — extracting membership from `Member` is a structural change, not an added field.
+
 ### Phase 1 — Brand foundation and conversion (MVP, approx. 8–10 weeks)
+- **Multi-club foundation (new in v3.0, highest priority)**: the `Club` and `Competition` types, the `club_id` dimension across ~40 tables, the admin **site switcher**, `AdminUserClub` / `AdminUserTeam` with **data-access-layer enforcement**, and `J4 Clubs & authorisation`
 - Homepage, 02 About, 03.1 First Team (basic), 04 Academy (4.1 / 4.2 / 4.7), 05 Programs (5.1 / 5.2)
-- **06 Women's Football page** (single page, low cost, delivered alongside)
+- **06 Blue Whale site entry page** (single page, low cost, delivered alongside)
 - 07 Newsroom (all categories), 10 Forms hub (all 9), Location & Map
 - **12 Standalone FAQ section** (starting with 3–4 high-frequency topics)
-- **13 Schedule**: **team-first categorisation by D1 / U15 / U14 / U12**, fixtures/results toggle, list and calendar views, per-match .ics download
+- **13 Schedule**: **team-first categorisation by D1 / U15 / U14 / U12** (Blue Whale's `BW1` appears on the Blue Whale site), fixtures/results toggle, list and calendar views, per-match .ics download
 - Admin: content management, news, media library, teams / players / coaches, programs and registrations, FAQ management, master calendar and custom events, enquiry inbox, SEO basics, permissions
 - **Multilingual framework** (Chinese content launches first, with English fields and URL structure in place, and room for a third language)
 
@@ -1400,10 +1582,11 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 - 03.2–03.5 Player Development, International Pathways, Player Stories
 - **The full 11 Charity & Impact area**
 - 05.3–05.5 Winter Camp, Specialist Training, School & Community
-- **Member system (module K)**: email registration and sign-in, one-tap LINE sign-in and linking, two membership tiers, **digital card and public verification page**, **benefits comparison table**, **partner store directory (8.4)**, upgrade and renewal flows, jersey registration
+- **Member system (module K)**: email registration and sign-in, one-tap LINE sign-in and linking, **the `Membership` dual-membership structure (v3.0)**, two membership tiers, **digital card and public verification page (one card per membership)**, **benefits comparison table**, **partner store directory (8.4)**, upgrade and renewal flows, jersey registration
 - **Advanced schedule**: per-team subscription URLs (webcal), member "I'm attending" and reminders, admin swimlane view / clash detection / drag-to-reschedule
 - Admin: business modules, charity module, trial management, advanced registration (waitlists / exports / attendance sheets), **member management K1–K4 (list / membership and plans / jersey fulfilment / partner stores and benefits)**, advanced calendar
 - **English content goes live**
+- **The Taichung Blue Whale website (new in v3.0)**: a bilingual front-end project on its own domain, see [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md) §9. **Depends on the Phase 1 multi-club foundation**; launch also requires Blue Whale's written authorisation, brand assets, rosters and fixture data
 
 ### Phase 3 — Culture and community (approx. 6 weeks)
 - 08 TCRFC Culture: manga reader, fan club 8.2 (paid membership introduction and join page, integrated with the member system)
@@ -1416,7 +1599,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 ### Phase 4 — Optimisation and expansion (ongoing)
 - FAQ performance optimisation, zero-result search feedback loop
 - Deeper analytics dashboards, A/B testing, personalised recommendations
-- Optional evaluations: ticketing, loyalty points, **partner-store scan-to-redeem with performance reporting**, **carrier API integration**, **moving membership fees into shop checkout**, expanding women's football into a full team area
+- Optional evaluations: ticketing, loyalty points, **partner-store scan-to-redeem with performance reporting**, **carrier API integration**, **moving membership fees into shop checkout** (higher priority from v3.0, see section 10 item 28), **independent collection for Blue Whale** (requires the accounting and legal-entity questions to be settled first, see section 10 item 29), **cross-club mixed carts** (requires a parent/child order structure)
 - **Cancelled**: `Shopify Storefront API product sync` falls away with the external store in v2.6
 - **Removed from optional**: `LINE Pay API checkout` was confirmed in v2.5 — **in-app membership payment uses LINE Pay** (see the app specification, section 5); this site's public web front end still does not
 - **Mobile App**: a separate project with its own phasing, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 15
@@ -1441,7 +1624,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Member system | **Required**, delivered in Phase 2. Scope narrowed to **membership** alone: a free tier and a paid tier, with partner-store discounts for members and a jersey for paying members. Signup channels are **email registration + one-tap LINE sign-in** (no Google) |
 | Out of scope for the member system | ✗ Loyalty points ✗ E-wallet ✗ Ticketing and match packages ✗ Store scan-to-redeem and redemption reports ✗ **Parent–student linking (website, app, and admin alike)** ✗ Web notification centre and LINE push<br>**The two v2.5 exceptions (Mobile App only)**: ✔ Form pre-filling ✔ My bookings (`Registration.member_id`). This site's web front end still does neither<br>**One item removed in v2.6**: "✗ Shopify SSO" lapses with the external store — the shop is on this site, the **member account is the shop account**, and the Member Centre gains "My orders" |
 | Paying-member prize draw | **Built**. Eligibility follows membership **automatically, with no sign-up** (every paying member valid at the snapshot time is included); the system only **freezes the eligible roster, issues serial numbers, and exports a CSV**, while the **physical draw is performed by people, on site or on a live stream** and winners are ticked in afterwards. Winners are announced **through News only** (masked); prizes are **physical items**, shipped or collected in person, fulfilled as jerseys are. ✗ System-run random selection ✗ Public draw page or "my draws" ✗ Winner notification emails and push ✗ Paid entries ✗ Ticket or store-redemption prizes |
-| Membership term | **Season-based** (e.g. 2026/27); everyone expires together and renewals are handled at season end |
+| Membership term | **Season-based** (e.g. 2026/27); within a club everyone expires together. **From v3.0 the two clubs' seasons are not aligned** and are calculated separately |
 | Membership fees | **LINE Pay** (payment link / official account invoice) and in-person payment; **membership does not go through shop checkout**, and the admin activates it after reconciliation |
 | How discounts are used | Members **show the digital card** in store and staff check it visually; the QR points to a public read-only verification page. **No scan-to-redeem, no redemption counts, no store-side account or software** |
 | LINE Official Account | **Already exists** — integrate with the current account; no new application needed. Used here for sign-in and linking only |
@@ -1450,7 +1633,9 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Volunteer signup | **Not built**. The section 11 CTA narrows from three routes to two; any volunteering need is handled by the general contact form (10.7) |
 | FAQ | Standalone section 12, centrally managed and embedded across pages |
 | Charity records | Section 11; every record carries three core data points — **charity organisation name, what was donated, event photography** |
-| Women's football | A single introductory page **routing to the women's team website**; this site does not maintain their roster or fixtures |
+| Women's football (rewritten in v3.0) | **Taichung Blue Whale is the second club carried by this system** (`TCBW`); its teams, players, staff and fixtures **live in this database** and are presented on a **separate-domain Blue Whale website**, see [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md). Section 06 on this site keeps one introductory page and an entry point and does not duplicate the roster or fixtures. **The pre-v3.0 rule "this site does not create women's team data" is retired** |
+| **Multi-club architecture (new in v3.0)** | This admin and database carry two clubs' websites, with **one login entry point and data separated by `club_id`**. ✔ Separate content, teams, programme registrations, members and orders ✔ Admin data scope (`AdminUserClub` / `AdminUserTeam`, with grant and expiry dates) ✔ A tenth role, "Partner club manager" (**need not have users in the first phase**) ✗ **Revenue splitting and settlement between the clubs** (out of scope) ✗ Independent collection for Blue Whale (**the collecting entity stays single**; merchant account and invoice track are not separated) |
+| **Dual membership (new in v3.0)** | Membership moves from "one per person" to "**one per person per club**" (new `Membership` type). **`Member` remains one account per person** (email is the login key, the LINE binding is 1:1). **One card per membership**; "one card, one token" and "no applicable-team field on the verification page" both **stand unchanged**. The two clubs' **seasons are not aligned**; expiry and renewal are calculated separately |
 | Match data | **Entirely manual**, no external API integration; CSV bulk import provided |
 | Schedule | **Match-centric**; academy courses, camps, and specialist training are excluded. Calendar content must be **bilingual** |
 | TCRFC manga | **Entirely free and public**, with no paywall and no sign-in |
@@ -1488,7 +1673,21 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 25. **Fulfilment staffing and space**: who picks, packs, and ships? How often (daily, or a few times a week)? Where is stock held? **This determines the S4 workflow and the delivery-time promise on the public site.**
 26. **Launch assortment and stock levels**: only a jersey and performance socks are on sale today. How many SKUs at launch, how much stock per size and colour, and when do the Academy and Fan collections get products?
 27. **Statutory retention period for transaction records**: orders, invoices, and refund records must be retained for several years under tax law; the actual period and "which fields survive an account deletion" must be confirmed by the accountant and legal advisers and written into the retention policy (handle together with item 15).
-28. **Whether membership fees should move to shop checkout**: now that payments exist on the site, should membership be sold online and activated automatically? **Deferred in v2.6** (payment links and in-person collection stand). Adopting it requires **amending the assumption in this section first**, following the established procedure, and assessing the overlap and reconciliation against the Mobile App's LINE Pay flow.
+28. **Whether membership fees should move to shop checkout**: now that payments exist on the site, should membership be sold online and activated automatically? **Deferred in v2.6** (payment links and in-person collection stand). Adopting it requires **amending the assumption in this section first**, following the established procedure, and assessing the overlap and reconciliation against the Mobile App's LINE Pay flow. **v3.0 raises its priority** — with the two clubs' seasons unaligned, manual activation is now spread across the whole year and doubled in volume.
+
+**New in v3.0 (multi-club architecture)**
+
+29. **Whether orders must be split by club at checkout**: if Blue Whale goods and this club's goods ever appear in one checkout, is that one order settled afterwards by `selling_club_id`, or two orders split at checkout? **The current design forbids mixed carts (`Cart.club_id` mandatory), so it does not arise; but if mixed carts are ever opened up this must be answered first** — it changes the checkout flow, the shipment documents and how return credit notes are handled.
+30. **The actual invoice title and tax ID**: the `Club` record's invoicing fields need the correct values for invoices, statements and receipts.
+31. **Blue Whale's membership plans and season dates**: price, `card_quota`, `jersey_quota`, mid-season pricing, season code and dates — the Blue Whale equivalents of items 3 and 4.
+32. **Member numbering**: does `member_no` stay globally unique at the account level, or does each club get its own membership numbering? **This decides draw serial-number allocation, the `DrawRoster` unique key and what appears on the membership card.**
+33. **Fulfilment staffing and stock location for Blue Whale goods**: who picks and packs, and where is the stock held? **This decides whether Blue Whale merchandise can be sold at all, and what delivery estimate the public site can promise** (cf. item 25).
+34. **Who holds the Blue Whale admin accounts, and their authorisation dates**: an empty `AdminUserClub.expires_on` means an indefinite grant. If a partner-club account is ever provisioned, it should track the partnership term so that it lapses automatically.
+35. **Which sections the Blue Whale site includes**: do draws (K5), the comic (F), partner stores (K4) and the five core values apply to Blue Whale? **This affects scope estimation and pricing.**
+36. **Shared content and canonical attribution**: articles with a null `club_id` appear on both sites — which site owns the canonical URL? The recommendation is this site, with the Blue Whale site linking across; to be confirmed.
+37. **The Blue Whale domain**: name, who owns it, who manages DNS. ⚠️ If the app is to support deep links into Blue Whale content, **that domain must be controlled by a party who can place** `.well-known/apple-app-site-association` and `assetlinks.json` on it.
+38. **Blue Whale brand assets**: vector logo master (with a dark variant and @2x / @3x raster), primary and secondary brand colour values, official English name, favicon, OG image. **It must be a vector master** — never draw a substitute mark, never trace one from a screenshot, never scale up a raster and pass it off as vector; until it arrives the corresponding areas are not rendered, with no placeholder imagery and no empty logo box.
+
 
 ---
 
