@@ -1,14 +1,20 @@
 # Taichung Blue Whale — Official Website Functional Specification
 
-> **Document version**: v1.1
-> **Date**: 2026-09-10 (v1.1 revision: 2026-09-10)
+> **Document version**: v1.3
+> **Date**: 2026-09-10 (v1.3 revision: 2026-09-12)
 > **Content principal**: Taichung Blue Whale Women's Football Team
 > **System principal**: **shares the admin and database** of the Taichung Rock FC official website
-> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.1*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.3*. Section numbering matches the Traditional Chinese edition 1:1.
 
-> **v1.1 revision summary — focused on building the website; administrative and legal matters removed**
-> 1. **Removed the discussion of legal-entity ownership, authorisation documents, data-processing agreements and accounting treatment**: these are the client's administrative and legal matters, not website functional specification. What remains is only what **determines how the system is built** — a single collecting entity, the invoice title, orders recording the beneficiary club, and data partitioned by `club_id`.
-> 2. **§1.2 becomes a function-oriented table of principals**; **§10 is trimmed to items that bear directly on building the site**.
+> **v1.3 revision summary — advertising module identifiers**
+> **No functional changes; identifiers only.** The advertising module is **`E4–E6`**, in step with website specification v3.3.
+
+> **v1.2 revision summary — the document describes the current specification only**
+> **No functional specification changes.** Revision summaries and body text state **what is to be built now**; content that was adjusted away is not recorded.
+
+> **v1.1 revision summary — document scope focused on building the website**
+> 1. **This document specifies website functionality only**: everything that **determines how the system is built** is retained — a single collecting entity, the invoice title, orders recording the beneficiary club, and data partitioned by `club_id`.
+> 2. **§1.2 is a function-oriented table of principals**; **§10 covers items that bear directly on building the site**.
 > 3. Functional scope, section structure, data model and admin design are **unchanged**.
 
 > **What this document covers**
@@ -55,7 +61,7 @@ The goal is to bring Blue Whale's content up to the same level as the Taichung R
 
 ### 2.1 Sections
 
-Mirrors the main site's 13 sections, **removing two and adapting two**:
+Mirrors the main site's 13 sections, **omitting two and adapting two**:
 
 ```
 Taichung Blue Whale official website (its own domain)
@@ -75,8 +81,8 @@ Taichung Blue Whale official website (its own domain)
 
 | Main-site section | Blue Whale site | Notes |
 |---|---|---|
-| **06 WOMEN'S FOOTBALL** | **Removed** | **Self-referential** — this entire site is women's football. The main site's 06 is the entry point to it; this site does not need one of its own |
-| **11 CHARITY & IMPACT** | **Removed** | Organised and collected for by the Taiwan Football Strategic Development Association; no bearing on Blue Whale |
+| **06 WOMEN'S FOOTBALL** | **Not built** | **Self-referential** — this entire site is women's football. The main site's 06 is the entry point to it; this site does not need one of its own |
+| **11 CHARITY & IMPACT** | **Not built** | Organised and collected for by the Taiwan Football Strategic Development Association; no bearing on Blue Whale |
 | 04 ACADEMY | **Becomes YOUTH** | Blue Whale's existing structure is U15 and U12 girls' teams, not Taichung Rock's academy system. **The admissions and programme-registration architecture is not carried over** |
 | 09 PARTNERS | **Must be zoned** | The two clubs' sponsorship contracts are signed separately and **must never be mixed** (main-site specification §5.1) |
 
@@ -196,7 +202,7 @@ Uses the main site's tenth role, **Partner club manager** (main-site specificati
 |---|---|
 | Create, edit and publish their own articles and pages | Reach **any** data belonging to the other club |
 | Maintain their own teams, players, staff and fixtures | See unmasked `Member` master records (**always masked**) |
-| Maintain their own programmes, sessions and registrations | Send pushes (M3) or touch advertising (E5–E7) |
+| Maintain their own programmes, sessions and registrations | Send pushes (M3) or touch advertising (E4–E6) |
 | Maintain their own partners and sponsors | App releases and certificates (M1 / M5) |
 | View and handle their own memberships, payments, jerseys and orders | System administration and authorisation (J, including J4) — otherwise they could escalate their own privileges |
 | — | Execute refunds (S5) or hold shop credentials (S6) — the collecting entity is the club |

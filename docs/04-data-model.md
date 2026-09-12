@@ -1,7 +1,7 @@
 # 04 — 資料模型與內容型別
 
-> 來源：規劃書 §5（**行 1331–1463**）。**行號依 v3.0（1691 行）重算。**
-> 🔴 **v3.0：多俱樂部架構。** 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam` 六個型別；**約 40 張表新增 `club_id`**。判定準則見規劃書 **§5.4（行 1416–1462）**。
+> 來源：規劃書 §5（**行 1328–1460**）。**行號依 v3.0（1691 行）重算。**
+> 🔴 **v3.0：多俱樂部架構。** 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam` 六個型別；**約 40 張表新增 `club_id`**。判定準則見規劃書 **§5.4（行 1413–1459）**。
 > **慈善捐款平台的型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔。⚠️ **自慈善規劃書 v2.0 起它們屬於獨立的資料庫，完全不在本系統內**，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 > **行動 App 的新增型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`）不在本檔，見 [`11-mobile-app.md`](11-mobile-app.md)。
 > **實作用的資料表綱要（欄位、主外鍵、索引、ERD）見 [`12-database-schema.md`](12-database-schema.md)**——本檔說「有哪些型別、哪些關係不能搞錯」，`12` 說「落到資料表長什麼樣」。
@@ -92,7 +92,7 @@
 - **三個刻意不加**：`ArticleCategory`／`Tag`／`FaqCategory`（分類是內容主題，不是歸屬——加了八個變十六個）、`Venue`（地理實體，兩隊共用同一座球場）、`Member`（登入鍵不分俱樂部，**會籍才分**）。
 - 🔴 **共同內容對受範圍限制的帳號一律唯讀**，只有超管能建立與修改。否則「查得到共同內容」與「不能改到別人的內容」無法同時成立。
 
-完整清單與受影響的唯一鍵見規劃書 **§5.4（行 1416–1462）**。
+完整清單與受影響的唯一鍵見規劃書 **§5.4（行 1413–1459）**。
 
 ---
 

@@ -1,25 +1,26 @@
 # 台灣足球策略發展協會 — Charity Donation Platform Functional Specification
 
-> **Document version**: v2.0
-> **Date**: 2026-09-03 (v2.0 revision: 2026-09-10)
+> **Document version**: v2.1
+> **Date**: 2026-09-03 (v2.1 revision: 2026-09-12)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v2.1 revision summary — the document describes the current specification only**
+> **No functional specification changes.** Revision summaries and body text state **what is to be built now**; content that was adjusted away is not recorded.
 
 > **v2.0 revision summary — the admin and database become independent; this platform is now a standalone system**
 > This version is an **architectural change**, not a feature addition, hence the major version bump. **Not one item of functional scope has changed** — the donation flow, revenue sharing, invoicing and reporting are all as specified in v1.5.
-> 1. **The admin and database move from "shared with the club's website" to fully independent** (§2): `N. Charity Donations` is no longer one module inside the main admin but this platform's own admin, and donation tables no longer share a database with the main site.
-> 2. **Compliance risk drops as a result, and that is the principal gain of this change** (§11.1): under v1.5 the **data controller was the Association while the database belonged to the club**, which had to be papered over with a broad data-processing agreement. Now that the Association controls its own database, **the mandate narrows to plain operational services**.
-> 3. **Relationships to the main site are replaced by value-copied snapshots and external reference keys** (§9): `DonationProject` gains `charity_ref_code`, `charity_name_snapshot` and `charity_program_ref_code`. **This is an improvement, not a regression** — the recipient's name is printed on statements and donation receipts and should always have been a snapshot rather than something that changes when the main site renames a record.
+> 1. **The admin and database are fully independent** (§2): `N. Charity Donations` is this platform's own admin module, and donation tables sit in their own database.
+> 2. **Compliance risk drops as a result, and that is the principal gain of this change** (§11.1): the Association controls its own database, so **the mandate is plain operational services**.
+> 3. **Relationships to the main site are carried by value-copied snapshots and external reference keys** (§9): `DonationProject` gains `charity_ref_code`, `charity_name_snapshot` and `charity_program_ref_code`. The recipient's name is printed on statements and donation receipts and should always be a snapshot rather than something that changes when the main site renames a record.
 > 4. **The main site's `Charity` / `CharityProgram` / `ImpactRecord` / `ImpactMetric` remain there as the master records** (they are the content of main-site section 11). This platform holds read-only snapshots; **where the two diverge the main site prevails**, and **live joins are explicitly forbidden**.
-> 5. **Of the three reasons v1.5 gave for sharing, the `Member` one never held**: §9 here and three places in the main-site schema state plainly that **`Donation` must not carry a `member_id`** and donations are never attributed to accounts. Separating the databases therefore **loses nothing on that count**.
-> 6. **Mechanism tables this platform now builds for itself**: `Locale` / `UiString` / `Setting` / `EmailTemplate` / `EmailLog` / `MediaAsset` / `PaymentChannel` and a complete admin account and permission set. **The mechanism is copied; the data is not shared** — the same shapes, but two separate sets of data.
-> 7. **An independent admin needs its own account hierarchy**: a second seed super administrator, its own 2FA and its own backups. **Who holds it and who operates it must be confirmed** (§13).
-> 8. **The main-site specification v3.0 is already in step**: the `N` module, the `donation` permission domain and the eight donation tables have been removed from that document, and its system emails drop from 13 to 9 (5 membership + 4 shop), with the four charity emails belonging here.
+> 5. **Mechanism tables this platform builds for itself**: `Locale` / `UiString` / `Setting` / `EmailTemplate` / `EmailLog` / `MediaAsset` / `PaymentChannel` and a complete admin account and permission set. **The mechanism is copied; the data is not shared** — the same shapes, but two separate sets of data.
+> 6. **An independent admin needs its own account hierarchy**: a second seed super administrator, its own 2FA and its own backups. **Who holds it and who operates it must be confirmed** (§13).
+> 7. **The main-site specification v3.0 is in step**: the `N` module, the `donation` permission domain and the eight donation tables belong to this document, and the main site carries 9 system emails (5 membership + 4 shop), with the four charity emails belonging here.
 
 > **What this document covers**
-> 1. This document specifies the **Charity Donation Platform**: a donation site on its own domain, entered by scanning a QR code in physical venues, organised and collected for by **台灣足球策略發展協會** (the Association). **From v2.0 it is a fully independent system — its own domain, its own front end, its own admin and its own database** — sharing no runtime environment with the Taichung Rock FC website.
-> 2. It is **complementary to, not overlapping with**, the [Website Functional Specification](TCRFC_Website_Functional_Specification_EN.md) (v2.1 onwards). The main site no longer handles any donation payments; section 11 "Charity & Impact" retains only the **editorial** content — commitment, programmes, impact stories and impact metrics — and routes "fan donation" to this platform.
-> 3. Main specification v2.1 revises three premises accordingly: **donations no longer run through Shopify items or bank transfer**, **volunteer signup is out of scope**, and **"no payment gateway" now applies to the main site only**.
-> 4. This is a functional specification and **does not cover framework, CMS, or deployment decisions** (per the standing premise in main specification §1.3).
+> 1. This document specifies the **Charity Donation Platform**: a donation site on its own domain, entered by scanning a QR code in physical venues, organised and collected for by **台灣足球策略發展協會** (the Association). **It is a fully independent system — its own domain, its own front end, its own admin and its own database** — sharing no runtime environment with the Taichung Rock FC website.
+> 2. It is **complementary to, not overlapping with**, the [Website Functional Specification](TCRFC_Website_Functional_Specification_EN.md) (v2.1 onwards). All donation payments are handled here; section 11 "Charity & Impact" on the main site carries only the **editorial** content — commitment, programmes, impact stories and impact metrics — and routes "fan donation" to this platform.
+> 3. This is a functional specification and **does not cover framework, CMS, or deployment decisions** (per the standing premise in main specification §1.3).
 
 > **v1.5 revision summary — the Association's registration is on file; the remaining blocker is incorporation**
 > 1. **The Association's registration details are recorded in §1.2**: full name 台灣足球策略發展協會, a social organisation, Ministry of the Interior reference **台內團字第 1150283692 號**, established 8 October 2025, registered address 臺中市潭子區勝利三街 95 號. The trust block and donation terms can quote these directly.
@@ -27,15 +28,15 @@
 > 3. **Receipt eligibility is still open**: registration does not by itself confer recipient status under the Income Tax Act for educational, cultural, public-interest or charitable bodies. An accountant must confirm it; `donation_receipt` mode stays disabled until then.
 > 4. **The tax ID is still missing**: neither certificate carries one, so it must be obtained separately from the tax authority. Invoice titles, receipts and settlement statements all need it — a launch precondition.
 > 5. **The chair's personal data stays out of the specification**: name and date of birth are personal data, held in `reference/` for administrative use, and **must never appear in this document, on the public site, or in any file that may be published**.
-> 6. Section 10 goes from 17 open items to 16: the former "registration details and tax ID" splits — registration is confirmed and removed, while the tax ID and incorporation stand on their own.
+> 6. Section 10 carries 16 open items; the tax ID and incorporation stand as separate entries.
 
 > **v1.4 revision summary — the Association becomes the organising body**
-> 1. **The platform is organised, fundraised and collected for by 台灣足球策略發展協會** (the "**Association**"; official English name to be confirmed, §13), no longer by Taichung Rock FC. The public site is the Association throughout: site name, logo, trust block, invoice and receipt titles, email signatures and settlement statements.
-> 2. **The club leaves the public site**: Taichung Rock FC no longer appears as a principal here. **From v3.0 its only remaining role is traffic source** (from unit 11 of its own site) — the admin-host role ended with the move to an independent admin. Where the club delivers a funded project it appears as an ordinary delivery partner or recipient, on the same footing as any other.
-> 3. ~~Admin and database are still shared with the club's website~~ **From v2.0 both are independent**; see the v2.0 revision summary above and §2.
-> 4. **TCRFC brand assets are no longer used**: logo, colour and type come from the Association's own assets. **Those assets have not been supplied**, so until they are, the public site and the print QR template carry placeholders. **Do not reuse the TCRFC lockups in `brand/svg/`, and do not typeset a logo for the Association.**
-> 5. **Terminology**: "club retention" becomes "**Association retention**" throughout (§1.4, §8.1–8.3), and the data model field `club_amount` is renamed `association_amount`. Payment fees still come out of that retention.
-> 6. Section 10 gains four open items: the Association's official English name, its brand assets, its registration and tax ID details, and the written agreements between the Association and the club. "Receipt eligibility" and "fundraising eligibility" now turn on the Association, not the club.
+> 1. **The platform is organised, fundraised and collected for by 台灣足球策略發展協會** (the "**Association**"; official English name to be confirmed, §13). The public site is the Association throughout: site name, logo, trust block, invoice and receipt titles, email signatures and settlement statements.
+> 2. **The club is not a principal on the public site**: its only role is **traffic source** (from unit 11 of its own site). Where the club delivers a funded project it appears as an ordinary delivery partner or recipient, on the same footing as any other.
+> 3. **The admin and the database are this platform's own**; see the v2.0 revision summary above and §2.
+> 4. **Brand assets come from the Association**: logo, colour and type are all its own. **Those assets have not been supplied**, so until they are, the public site and the print QR template carry placeholders. **Do not reuse the TCRFC lockups in `brand/svg/`, and do not typeset a logo for the Association.**
+> 5. **Terminology**: the retained share is "**Association retention**" throughout (§1.4, §8.1–8.3), carried by the field `association_amount`. Payment fees come out of that retention.
+> 6. Section 10 gains four open items: the Association's official English name, its brand assets, its registration and tax ID details, and the written agreements between the Association and the club. "Receipt eligibility" and "fundraising eligibility" turn on the Association.
 
 > **v1.3 revision summary — no refunds offered on the public site**
 > 1. **Refunds are not offered**: the donation terms page states plainly that a completed donation is not normally refundable. The public site carries no refund policy, no refund request route and no refund promise.
@@ -43,11 +44,11 @@
 > 3. **Invoice voiding and credit notes are unaffected**: §5.4 is a tax requirement, and an invoice issued with wrong details has to be voided regardless of refunds. It stays as specified.
 > 4. Donation projects **must not carry rewards**: a reward makes the donation arguably a sale or a gift with a charge, which brings consumer-protection withdrawal rights into play and contradicts the no-refund premise. This is recorded as out of scope in §1.3.
 
-> **v1.2 revision summary — fundraising progress removed**
-> 1. **The public site does not show fundraising progress**: the project card wall (3.1) and the project page (3.2) **drop** the progress bar, the raised-to-date and target amounts, and the donation count. Donors see what the project does and where the money goes, not a running total.
-> 2. **Removed from the admin too**: the "fundraising target" field and the "progress is public" display control in N2 are **both gone**, and `DonationProject` no longer carries a target amount.
-> 3. **The numbers are still available internally**: donation counts and totals per project come from **N6 donation reporting** (§7); they are simply not published. What was removed is the **public display**, not the ability to measure.
-> 4. Open item 14 in section 10, "whether fundraising progress is public", is **decided as not doing it** — removed from the open list and recorded in the decided-premises table.
+> **v1.2 revision summary — no fundraising progress on the public site**
+> 1. **The public site does not show fundraising progress**: the project card wall (3.1) and the project page (3.2) carry **no** progress bar, raised-to-date or target amount, and no donation count. Donors see what the project does and where the money goes, not a running total.
+> 2. **The admin matches**: N2 carries no "fundraising target" field and no "progress is public" display control, and `DonationProject` carries no target amount.
+> 3. **The numbers are still available internally**: donation counts and totals per project come from **N6 donation reporting** (§7); they are simply not published. What is withheld is the **public display**, not the ability to measure.
+> 4. "Whether fundraising progress is public" is **decided as not doing it**, and recorded in the decided-premises table.
 
 > **v1.1 revision summary — no SEO / GEO optimisation**
 > 1. **This platform does no SEO or GEO optimisation**: no keyword research or content programme, no structured data (`Schema.org` markup), no sitemap submission or indexing monitoring, no AI-search (GEO) optimisation, and **no search-ranking acceptance criteria of any kind**. Section 7 of the main specification (SEO / GEO) **does not apply to this platform**.
@@ -97,7 +98,7 @@ Three premises shape the whole site:
 | **Admin** | **Its own admin** (changed in v2.0). Built around the `N. Charity Donations` module, plus its own accounts and permissions, media library and system settings |
 | **Database** | **Its own database** (changed in v2.0). Relationships to main-site types are replaced by **value-copied snapshots and external reference keys**, see §9 |
 | **Principal** | The **Association** organises, fundraises and collects, **and from v2.0 also controls the system and the database**. The club **does not appear as a principal on the public site**; it is only a traffic source |
-| **Visual design** | **The Association's own brand assets**, no longer TCRFC's logo or design tokens. Until those assets arrive, everything carries placeholders, see §13 |
+| **Visual design** | **The Association's own brand assets**; TCRFC's logo and design tokens must not be used. Until those assets arrive, everything carries placeholders, see §13 |
 | **The main site's role** | Section 11 becomes editorial and referral only: 11.1 commitment, 11.2 programmes, 11.3 impact stories and 11.4 impact metrics are unchanged; the CTA narrows from three routes to two (corporate partnership / fan donation), and **fan donation always links out to this platform** |
 
 > **Why a separate domain rather than a section of the club site**: the landing page must be minimal with the shortest possible conversion path, and should not carry the main site's mega menu and 13-unit navigation; the platform handles payments and invoicing, so a separate security boundary is simpler; **and the organising body is the Association, not the club, so sitting under the club's domain would confuse who is fundraising**.
@@ -622,7 +623,7 @@ Constraint: store_share_pct + project_share_pct ≤ 100%
 
 ### 9.2 Extending existing types
 
-**`Donation`** (the existing type at main specification line 1039) is extended to become this platform's donation record. Since the main site's donation channels have been retired, reusing it avoids two sources of truth:
+**`Donation`** (the existing type at main specification line 1039) is extended to become this platform's donation record. Since every donation channel lives here, reusing it avoids two sources of truth:
 
 | Field group | Content |
 |---|---|
@@ -737,7 +738,7 @@ Donor roll, impact page, **the English version**, and the finer parts of N7 site
 | Admin and database | **Its own admin and its own database** (changed in v2.0), built around the `N` module plus its own accounts, media library and settings. **The data controller and the custodian are now both the Association** |
 | Relationship to the main site | Replaced by **value-copied snapshots and external reference keys** (§9). The main site's `Charity` / `CharityProgram` are the master records; this platform holds read-only snapshots and **must not join live** |
 | Public site | A **fully separate project**; does not share the main site's 73-page build |
-| Visual design | **The Association's brand assets**, no longer TCRFC's logo or design tokens; placeholders until they arrive, and no logo may be typeset for the Association |
+| Visual design | **The Association's brand assets**; TCRFC's logo and design tokens must not be used; placeholders until they arrive, and no logo may be typeset for the Association |
 | Languages | **Traditional Chinese (default) and English**, with room for a third |
 | SEO | **No SEO / GEO optimisation** (no keyword programme, structured data, sitemap submission or GEO). Pages **remain indexable**; `hreflang` and the required `noindex` rules still apply |
 | Fundraising progress | **Not shown on the public site** (no progress bar, raised-to-date, target or donation count). Totals live in N6 donation reporting and are not published |

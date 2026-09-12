@@ -1,6 +1,6 @@
 # 12 — 資料庫綱要（技術中立邏輯模型）
 
-> 來源：規劃書 §5（**行 1331–1463**）、§6（**行 1464–1510**）、§4（**行 774–1330**）、§8（**行 1539–1553**）。
+> 來源：規劃書 §5（**行 1328–1460**）、§6（**行 1461–1507**）、§4（**行 777–1327**）、§8（**行 1536–1550**）。
 > **行號依主站 v3.0（1691 行）。**
 >
 > 🔴 **本檔尚未完成 v3.0 的同步——動工前必讀下方「v3.0 落差」段落。**
@@ -56,7 +56,7 @@
 | 項目 | 內容 |
 |---|---|
 | 涵蓋範圍 | 主站全部（含站內商店 `S`）＋ 後台帳號與權限 `J`。⚠️ **慈善 `N` 已於 v3.0 移出**（獨立資料庫） |
-| 排除範圍 | **行動 App 的十個型別**（`M` 模組與 `E5–E7`）；**慈善捐款平台的全部資料表**（獨立系統） |
+| 排除範圍 | **行動 App 的十個型別**（`M` 模組與 `E4–E6`）；**慈善捐款平台的全部資料表**（獨立系統） |
 | 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam`，移出慈善 6 個 |
 | 資料表 | ⚠️ **待重算**：原 108 張 −8 張 `N` ＋約 6 張新表 ≈ **106 張**（其中 `CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表 |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
@@ -146,7 +146,7 @@
 
 ### 2.1 為什麼不用並排的 `zh_*` / `en_*` 欄位
 
-規劃書**同一頁**寫了兩件互相拉扯的事（行 1300、行 1303，`docs/04` §2 原則①，`docs/05` §1）：
+規劃書**同一頁**寫了兩件互相拉扯的事（行 1297、行 1300，`docs/04` §2 原則①，`docs/05` §1）：
 
 > 所有具前台展示的型別皆需支援 **zh / en 雙語欄位**，並保留擴充第三語系的能力。
 > 英文可以留空（fallback 繁中並標示），但**欄位必須存在**，且架構要能再加第三語系**而不改程式**。
@@ -155,7 +155,7 @@
 |---|---|---|
 | 加第三語系 | **改 DDL、改每個查詢、改每個表單**——直接違反「不改程式」 | **`INSERT` 一列 `Locale`**，零 DDL |
 | 翻譯人員權限（§6：僅能編輯 `en` 欄位） | **欄位級 ACL**，多數框架做不好，只能靠 UI 硬擋 | **列級 ACL**：`WHERE locale <> 'zh-Hant'`，權限系統天然支援 |
-| I 模組「翻譯狀態總覽矩陣」（行 1015–1017） | 要逐表 count 數十個 nullable `en_*` 欄位，新增欄位就漏 | 一次 `LEFT JOIN` 算出缺哪個語系，新欄位自動納入 |
+| I 模組「翻譯狀態總覽矩陣」（行 1013–1015） | 要逐表 count 數十個 nullable `en_*` 欄位，新增欄位就漏 | 一次 `LEFT JOIN` 算出缺哪個語系，新欄位自動納入 |
 | Fallback 規則（未翻譯顯示繁中或隱藏） | 每個欄位各自 `COALESCE` | 查不到列就 fallback，**一條規則管全站** |
 | 讀取成本 | 少一次 join | 多一次 join（可用視圖包起來） |
 | 與規劃書字面一致 | ✅ 完全一致 | ❌ **需記為執行層決定**，見 [§13](#13-與規劃書的已知落差) |
@@ -187,17 +187,17 @@ Article                          article_i18n
 | 例外 | 做法 | 理由 |
 |---|---|---|
 | **快照表** | 直接存字串，不做 i18n | `OrderItem`、`DrawRoster`、`SettlementLine`、`StoreInvoice`、`DonationInvoice`、`MembershipPayment` 是**值複製當下的字串**，不隨語系變、不隨母表變 |
-| **後台專用表** | 用並排 `name_zh` / `name_en` 欄位 | `AdminRole`、`Permission`。規劃書的雙語要求範圍是「**所有具前台展示的型別**」（行 1300），後台角色名稱不在其中；後台介面文案走 `UiString` |
+| **後台專用表** | 用並排 `name_zh` / `name_en` 欄位 | `AdminRole`、`Permission`。規劃書的雙語要求範圍是「**所有具前台展示的型別**」（行 1297），後台角色名稱不在其中；後台介面文案走 `UiString` |
 | **UI 字串** | `UiString` + `UiStringTranslation` | I 模組「字串翻譯表」（按鈕、表單標籤、提示、錯誤訊息）與內容翻譯是**兩套機制**，不要混用 |
 
 ### 2.4 與規劃書字面寫法的對應
 
 | 規劃書欄位 | 本檔落點 |
 |---|---|
-| `Match.opponent_en`、`venue_en`（v2.5 新增，行 1254） | `match_i18n(match_id, locale, opponent, venue)`。**對手與場地是自由文字不是實體**，仍照側表走 |
-| K5 各欄「中／英」（行 1290） | `member_draw_i18n(name, prize_description, rules, notes)` |
-| `MembershipBenefit`「須 zh／en 雙欄位、不得做成圖片」（行 670） | `membership_benefit_i18n(group_label, free_value, paid_value)` |
-| `Partner`／`Sponsor`「名稱（中／英）」（行 1262–1263） | `partner_i18n`、`sponsor_i18n` |
+| `Match.opponent_en`、`venue_en`（v2.5 新增，行 1251） | `match_i18n(match_id, locale, opponent, venue)`。**對手與場地是自由文字不是實體**，仍照側表走 |
+| K5 各欄「中／英」（行 1287） | `member_draw_i18n(name, prize_description, rules, notes)` |
+| `MembershipBenefit`「須 zh／en 雙欄位、不得做成圖片」（行 673） | `membership_benefit_i18n(group_label, free_value, paid_value)` |
+| `Partner`／`Sponsor`「名稱（中／英）」（行 1259–1260） | `partner_i18n`、`sponsor_i18n` |
 | 慈善站 §9.4「zh / en 雙欄位」 | `donation_store_i18n`、`donation_project_i18n`；站台文案走 `Setting` + `setting_i18n` |
 
 ### 2.5 翻譯狀態矩陣與翻譯人員權限怎麼落地
@@ -291,18 +291,18 @@ flowchart LR
 
 | 表 | 用途 | 標記 | 出處 |
 |---|---|---|---|
-| `Locale` | 啟用語系（`code`、名稱、是否預設、fallback 對象、排序）。**加第三語系＝INSERT 一列** | | 行 1014–1019 |
-| `UiString` | 介面字串鍵（按鈕、標籤、提示、錯誤訊息）與所屬分組 | | 行 1017 |
-| `UiStringTranslation` | `(ui_string_id, locale) → value` | | 行 1017 |
+| `Locale` | 啟用語系（`code`、名稱、是否預設、fallback 對象、排序）。**加第三語系＝INSERT 一列** | | 行 1012–1017 |
+| `UiString` | 介面字串鍵（按鈕、標籤、提示、錯誤訊息）與所屬分組 | | 行 1015 |
+| `UiStringTranslation` | `(ui_string_id, locale) → value` | | 行 1015 |
 | `ValueTagLink` | 五大核心價值標籤的多型關聯 `(entity_type, entity_id, value_tag)` | | `docs/04` §4 |
-| `Setting` | 全域設定鍵值（含商店設定、聯絡資訊、社群連結、政策頁、維護模式）；文案類另有 `setting_i18n` | 🌐 | 行 1011–1027 |
-| `EmailTemplate` | 系統信樣板 | 🌐 | 行 731–735、378、慈善站 §9.2 |
-| `EmailLog` | 系統信寄送紀錄。**`type` 值域是 13 個不是 5 個**：會員五封（行 731–735）＋商店四封（行 378）＋慈善四封（慈善站 §9.2） | 🔒 | 行 1292 |
+| `Setting` | 全域設定鍵值（含商店設定、聯絡資訊、社群連結、政策頁、維護模式）；文案類另有 `setting_i18n` | 🌐 | 行 1009–1025 |
+| `EmailTemplate` | 系統信樣板 | 🌐 | 行 734–738、378、慈善站 §9.2 |
+| `EmailLog` | 系統信寄送紀錄。**`type` 值域是 13 個不是 5 個**：會員五封（行 734–738）＋商店四封（行 382）＋慈善四封（慈善站 §9.2） | 🔒 | 行 1289 |
 
 > ⚠️ `EmailLog` **不是操作日誌，是功能單元**（後台要查「這封信寄出去了沒」）。不在本檔移除日誌表的範圍內。
-> ⚠️ **中獎人的人工聯繫不得寫入 `EmailLog`**（行 1101 附近）——系統信維持既有封數，抽獎不新增通知信。
+> ⚠️ **中獎人的人工聯繫不得寫入 `EmailLog`**（行 1099 附近）——系統信維持既有封數，抽獎不新增通知信。
 
-### 4.1 B 內容管理 ＋ H SEO 與行銷（18）　行 831–871／996–1010
+### 4.1 B 內容管理 ＋ H SEO 與行銷（18）　行 836–876／996–1010
 
 | 表 | 用途 | 標記 | 後台 |
 |---|---|---|---|
@@ -325,7 +325,7 @@ flowchart LR
 | `FaqSearchMiss` | 零結果搜尋關鍵字與次數。**這是成效統計不是日誌** | | B5 |
 | `Redirect` | 301 對照（`from_path`、`to_path`、`is_active`）。**含舊 Wix 商店的 5 個商品與分類網址**，CSV 批次匯入 | | H |
 
-### 4.2 C 球隊管理（14）　行 872–904
+### 4.2 C 球隊管理（14）　行 877–909
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -346,7 +346,7 @@ flowchart LR
 
 > ⚠️ **`Team` 只有本會四筆**（`D1`／`U15`／`U14`／`U12`）。`Match.opponent`、`Standing` 的對手都是**字串**，不建對手球隊表——規劃書沒有這個型別，賽事全部人工維護。
 
-### 4.3 P 課程與活動（6）　行 905–928
+### 4.3 P 課程與活動（6）　行 910–933
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -357,7 +357,7 @@ flowchart LR
 | `Registration` | 報名。**`member_id` 可為空**（非會員可報名）；狀態 `待確認→已確認→已繳費→完成／取消／候補`；**繳費線下**，Excel 匯出與簽到表列印 | 🔒 |
 | `Trial` | 試訓場次：日期、場地、對象、名額、截止。**是否同步行事曆由 L3 開關決定，預設關閉** | 🌐 |
 
-### 4.4 E 商業模組（5）　行 929–960
+### 4.4 E 商業模組（5）　行 934–965
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -368,9 +368,9 @@ flowchart LR
 | `ProposalFile` | `(proposal_id, locale, media_asset_id, version)` | |
 
 > ⚠️ **提案下載的 Lead 名單仍走 `Enquiry`**（規劃書 §5 明寫 `Enquiry` 涵蓋「7 類表單 + 提案下載 + 捐助洽詢」），不另建 Lead 表。
-> ⚠️ `E4 商品櫥窗` **已於 v2.6 併入 `S1`、代號停用不回收**，`ProductShowcase` 型別退役——**綱要中不存在**。
+> ⚠️ 商品一律在 `S1` 維護，`ProductShowcase` **綱要中不存在**。**`E4` 現在是「廣告主與版位管理」**，看到舊文件寫 `E4 商品櫥窗` 一律視為錯誤。
 
-### 4.5 F 文化模組（5）　行 961–976
+### 4.5 F 文化模組（5）　行 966–981
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -383,7 +383,7 @@ flowchart LR
 > ⚠️ 漫畫**全部免費公開、不設付費牆、不需登入**——沒有任何權限或購買欄位。
 > ⚠️ **會員名單、會籍方案與權益對照表在 `K`，不在 `F`**。付費會員＝球迷會員，不另建名單。
 
-### 4.6 G 表單與詢問（5）　行 977–995
+### 4.6 G 表單與詢問（5）　行 982–997
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -395,7 +395,7 @@ flowchart LR
 
 > ⚠️ **沒有志工報名表**（v2.1 移出範圍）。11 章 CTA 由三種收斂為兩種，有需求走 10.7 一般聯絡表單。
 
-### 4.7 I 網站設定（2）　行 1011–1030
+### 4.7 I 網站設定（2）　行 1009–1028
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -405,7 +405,7 @@ flowchart LR
 > 其餘 I 模組內容（多語系、聯絡資訊、外部服務、全域設定、商店設定）走 `Locale`／`UiString`／`Setting`。
 > ⚠️ **LINE Pay 與發票憑證不在 `Setting`**，在 `PaymentChannel`（S6／N7，僅系統管理員）。
 
-### 4.8 J 系統管理（5）　行 1031–1040
+### 4.8 J 系統管理（5）　行 1029–1038
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -417,7 +417,7 @@ flowchart LR
 
 明細見 [§7](#7-權限模型j-模組)。**本模組不含 `AuditLog`、`LoginLog`、`ExportLog`**，見 [§13.1](#131-沒有稽核與登入日誌表)。
 
-### 4.9 K 會員管理（9）　行 1041–1158
+### 4.9 K 會員管理（9）　行 1039–1155
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -433,7 +433,7 @@ flowchart LR
 
 > ⚠️ **抽獎資格是算出來的布林值**（`snapshot_at` 當下 `fan_club` ＋ 會籍有效 ＋ 帳號啟用），**沒有 `DrawEntry`／`Ticket`／`Point`／`Weight` 任何表或欄位**。一人一號，不因消費／簽到／分享增加機會。
 
-### 4.10 L 行事曆管理（5，含 1 視圖）　行 1159–1194
+### 4.10 L 行事曆管理（5，含 1 視圖）　行 1156–1191
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -443,10 +443,10 @@ flowchart LR
 | `CalendarEventException` | L2 重複規則（每週／每兩週／每月）的例外日期 | |
 | `EventType` | 賽事／活動類型：圖示、色彩、顯示規則、是否公開 | 🌐 |
 
-> ⚠️ **行事曆是彙整層不是資料源。** 賽事在 C4 維護，複製一份到行事曆＝兩個真實來源，必然不同步（行 1304）。
+> ⚠️ **行事曆是彙整層不是資料源。** 賽事在 C4 維護，複製一份到行事曆＝兩個真實來源，必然不同步（行 1301）。
 > ⚠️ **`Session` 課程時段永不進入**；`Trial` 由 L3 開關決定、**預設關閉**。
 
-### 4.11 S 商店（15）　行 1195–1244
+### 4.11 S 商店（15）　行 1192–1241
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -469,7 +469,7 @@ flowchart LR
 > ⚠️ **付款只有 LINE Pay**——沒有信用卡、超商代碼、ATM、貨到付款欄位。**不存卡號**，結帳導轉金流商代管頁面。
 > ⚠️ **不做會員價、折扣碼、運費級距**——`Order` 只有**單一固定運費 ＋ 免運門檻**（設定在 `Setting`），沒有 `discount_code`、`member_price`、`shipping_tier` 任何欄位。
 
-### 4.12 B6 慈善內容（主站，4）　行 850–871
+### 4.12 B6 慈善內容（主站，4）　行 855–876
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -478,7 +478,7 @@ flowchart LR
 | `ImpactRecord` | 慈善事蹟紀錄。**三項核心資料必填**：公益團體名稱、捐助內容、活動圖片 | 🌐 |
 | `ImpactMetric` | 影響力統計項目（**金額類預設不公開**） | 🌐 |
 
-### 4.13 N 慈善捐款平台（8）　慈善站行 424–510／591–636
+### 4.13 N 慈善捐款平台（8）　慈善站行 428–513／591–636
 
 **主辦與收款主體是「台灣足球策略發展協會」，不是台中磐石。**
 
@@ -855,7 +855,7 @@ erDiagram
   }
 ```
 
-> ⚠️ **`registration.member_id` 可為空**——非會員仍可報名（v2.5，行 1260）。**這條不得更動。**
+> ⚠️ **`registration.member_id` 可為空**——非會員仍可報名（v2.5，行 1257）。**這條不得更動。**
 > ⚠️ **繳費線下**：`registration` 沒有金流欄位，狀態走 `待確認→已確認→已繳費→完成／取消／候補`，`已繳費` 由後台人工標記。
 > ⚠️ `registration` 同時服務 `session` 與 `trial`，兩個外鍵**恰有一個非空**。
 
@@ -1812,7 +1812,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `Permission` 欄位 | 值域 |
 |---|---|
 | `module_code` | `A` `B` `C` `E` `F` `G` `H` `I` `J` `K` `L` `P` `S`。⚠️ **v3.0 移除 `N`**（慈善已獨立）。**禁用 `D`（撞 `D1`）／`U`（撞 `U15`）／`O`（形近 `0`）／`M`（App，本檔不含）** |
-| `submodule_code` | `B1`–`B6`、`C1`–`C5`、`P1`–`P4`、`E1`–`E3`（**`E4` 停用不回收**）、`F1`–`F2`、`G1`–`G3`、**`J1`–`J4`（v3.0：`J4` 為俱樂部與授權管理）**、`K1`–`K5`、`L1`–`L4`、`S1`–`S6`。⚠️ **v3.0 移除 `N1`–`N7`** |
+| `submodule_code` | `B1`–`B6`、`C1`–`C5`、`P1`–`P4`、`E1`–`E6`（**E4–E6 為 App 廣告**）、`F1`–`F2`、`G1`–`G3`、**`J1`–`J4`（v3.0：`J4` 為俱樂部與授權管理）**、`K1`–`K5`、`L1`–`L4`、`S1`–`S6`。⚠️ **v3.0 移除 `N1`–`N7`** |
 | `domain` | `content` `faq` `charity` `team` `program` `calendar` `member` `business` `shop` `enquiry` `seo` `system`。⚠️ **v3.0 移除 `donation`**（慈善已獨立） |
 | `action` | `view` `create` `update` `delete` `publish` `export` `translate` `execute` `reveal` |
 | `is_restricted` | **須額外授權**：會員名單匯出、訂單匯出、K5 winners 匯出、慈善明細匯出、分潤設定 |
@@ -1882,19 +1882,19 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 | 表 | 欄位 | 級 | 完整值可見角色 | 出處 |
 |---|---|---|---|---|
-| `Member` | `email`、`phone`、`birth_on` | 🔒 | 系統管理員、客服／行政 | 行 1323 |
-| `Member` | `line_user_id_encrypted` | 🔐 | 系統管理員 | 行 1285 |
+| `Member` | `email`、`phone`、`birth_on` | 🔒 | 系統管理員、客服／行政 | 行 1320 |
+| `Member` | `line_user_id_encrypted` | 🔐 | 系統管理員 | 行 1282 |
 | `JerseyIssue` | `recipient_name`、`address` | 🔒 | 系統管理員、客服／行政、出貨角色 | K3 |
-| `Order` | `recipient_name`、`recipient_phone`、`recipient_address` | 🔒 ⚖️ | 系統管理員、客服／行政、出貨角色 | 行 1330 |
+| `Order` | `recipient_name`、`recipient_phone`、`recipient_address` | 🔒 ⚖️ | 系統管理員、客服／行政、出貨角色 | 行 1327 |
 | `OrderItem`／`StoreInvoice` | 全表 | ⚖️ | — | 稅法保存，年限待確認第 28 點 |
 | `StoreInvoice` | `carrier_id_encrypted` | 🔐 | 系統管理員 | S6 |
 | `ProductVariant` | `cost` | 🔒 | 系統管理員、商務／贊助 | S1 |
 | `PaymentChannel` | `credential_encrypted` | 🔐 | **僅系統管理員** | S6／N7 |
-| `DrawRoster` | `name_snapshot` | 🔒 | 系統管理員、客服／行政（公關只拿遮罩版） | 行 1325 |
-| `DrawRoster` | `withholding_data_encrypted` | 🔐 ⚖️ | **僅系統管理員**，達扣繳門檻才蒐集 | 行 1144–1158 |
+| `DrawRoster` | `name_snapshot` | 🔒 | 系統管理員、客服／行政（公關只拿遮罩版） | 行 1322 |
+| `DrawRoster` | `withholding_data_encrypted` | 🔐 ⚖️ | **僅系統管理員**，達扣繳門檻才蒐集 | 行 1142–1155 |
 | `Donation` | `donor_name`、`donor_email` | 🔒 ⚖️ | 系統管理員、客服／行政 | 慈善站 N3 |
 | `DonationInvoice` | `carrier_id_encrypted`、`tax_id` | 🔐 ⚖️ | 系統管理員 | 慈善站 §5 |
-| `Registration`／`Enquiry`／`EnquiryAnswer` | 姓名、電話、Email、生日 | 🔒 | 依模組權限 | 行 1323 |
+| `Registration`／`Enquiry`／`EnquiryAnswer` | 姓名、電話、Email、生日 | 🔒 | 依模組權限 | 行 1320 |
 | `NewsletterSubscriber` | `email` | 🔒 | 系統管理員、公關／媒體 | G3 |
 | `AdminUser` | `password_hash`、`two_factor_secret_encrypted` | 🔐 | **不可讀取，僅比對** | J |
 | `AdminUser` | `email` | 🔒 | **不作登入鍵**，僅通知用 | 本檔決定 |
@@ -2042,7 +2042,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 比照 [`00-harness.md`](00-harness.md) §5 的編號慣例。**這些不是建議，是踩過或必然會踩的坑。**
 
-1. **值複製快照不得回頭 join**：`OrderItem`、`DrawRoster`、`SettlementLine`、`StoreInvoice`、`DonationInvoice`。商品改名改價、會員改名合併刪帳號**都不得改動歷史列**。看到 `orderItem.variant.name` 一律視為錯誤（行 1301–1306）。
+1. **值複製快照不得回頭 join**：`OrderItem`、`DrawRoster`、`SettlementLine`、`StoreInvoice`、`DonationInvoice`。商品改名改價、會員改名合併刪帳號**都不得改動歷史列**。看到 `orderItem.variant.name` 一律視為錯誤（行 1298–1303）。
 2. **`Order.member_id` 與 `Registration.member_id` 可為空**——非會員可結帳、可報名。任何 `NOT NULL` 都是錯的；**報表與統計不得用 inner join**，否則非會員訂單會憑空消失。
 3. **`CalendarEvent` 是視圖或索引表**，唯一的行事曆自有資料是 `CalendarCustomEvent`。**`Session` 課程時段永不進入**；`Trial` 由 L3 開關決定、**預設關閉**。複製賽事資料進行事曆 ＝ 兩個真實來源。
 4. **五種商業對象五張表、彼此零外鍵**：`Partner`（B2B Logo 牆）／`Sponsor`（贊助商）／`PartnerStore`（特約店家，**無金流無分潤**）／`DonationStore`（慈善站掃碼，**有金流有分潤**）／`Advertiser`（App 廣告主，**本檔不建**）。同一家公司同時是數種就**各建一筆**。唯一允許的關聯 `Advertiser.sponsor_id` 屬 App 範圍。
@@ -2057,7 +2057,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 12. **分潤五欄是成立當下的快照**：改設定**不追溯**。退款以**負項 `SettlementLine`（`is_clawback = true`）沖回下一期**，**不改原列、不重算已付款期間**。`store_id` 為空時 `store_share_pct_snapshot = 0` 仍能結算。
 13. **`DonationProject` 沒有目標金額、已募得金額、捐款筆數欄位**（v1.2）。前台不做募款進度，累計數字只從 N6 報表算。**不要為了前台顯示回頭加欄位。**
 14. **商店與慈善的金流憑證不得同列**：`PaymentChannel.subject` 只能是 `club` 或 `association`，`(subject, channel_type, environment)` 唯一，發票字軌一併分離。**填錯＝款項進錯法人**，同時踩稅務與《公益勸募條例》。
-15. **`ProductShowcase` 已退役、`E4` 停用不回收**——綱要中不存在。`S` 是新代號不是回收（與 `K5` 的回收案例相反）。看到「E4 商品櫥窗（Shopify 導流）」一律是舊規格。
+15. **`ProductShowcase` 綱要中不存在**——商品與 SKU 在 `S1`。**`E4` 現在是「廣告主與版位管理」**，看到「E4 商品櫥窗（Shopify 導流）」一律是錯的。
 16. **商店沒有的欄位**：`discount_code`、`member_price`、`points_used`、`card_no`、`shipping_tier`、`subscription_*`、`currency`。**付費會籍權益不含商品折扣**；付款只有 LINE Pay；單一固定運費 ＋ 免運門檻。看到「會員價」「折扣碼」「信用卡」一律是 v2.6 早期草稿殘留。
 17. **`Season` 是本檔新增的表**（規劃書只在關聯欄提到 Season，未列為型別），不要當多餘刪掉——`Match`／`Standing`／`Achievement`／`MembershipPlan` 都以它為軸。
 18. **刪帳號是欄位清除不是刪列**：`DrawRoster` 只保留 `member_no_snapshot` 與遮罩姓名；`Order` 只留稅法必要欄位。**交易紀錄的保存義務優先於刪除請求。**
@@ -2065,7 +2065,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 20. **`json` 欄位只存不查**：`PageBlock.content`、`RolePermission.scope_value`、`DonationPayment.raw_response`。需要篩選、排序、統計的資料一律拉成實欄位。
 21. **i18n 側表不入 ER 圖不代表不存在**，[§4](#4-資料表總覽) 總覽表的 🌐 欄才是權威清單。快照表、後台角色表、UI 字串**不走側表**（[§2.3](#23-三個例外不走側表)）。
 22. **金額一律 `int` 存「元」**，只有百分比用 `decimal(5,2)`。台幣無角分，慈善分潤明訂無條件捨去至整數元；用 `decimal(10,2)` 會製造永遠對不上的尾差。
-23. **`EmailLog.type` 值域是 13 個不是 5 個**：會員系統五封（行 731–735）＋商店交易四封（行 378）＋慈善平台四封（慈善站 §9.2）。**不要誤縮成五封。** 中獎人的人工聯繫**不得寫入 `EmailLog`**。
+23. **`EmailLog.type` 值域是 13 個不是 5 個**：會員系統五封（行 734–738）＋商店交易四封（行 382）＋慈善平台四封（慈善站 §9.2）。**不要誤縮成五封。** 中獎人的人工聯繫**不得寫入 `EmailLog`**。
 24. **`Standing` 的對手是自由文字**：`Team` 只放本會四隊，積分榜其餘球隊是 `team_name` 字串。硬要建對手球隊表會憑空長出規劃書沒有的維護負擔。
 25. **`Registration` 同時服務 `session` 與 `trial`**，兩個外鍵**恰有一個非空**。不要為試訓另建報名表。
 26. **`Enquiry` 涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢**，**Lead 名單不另建表**。**沒有志工報名表**（v2.1 移出範圍）。
@@ -2087,13 +2087,13 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 | 出處 | 條文 |
 |---|---|
-| 主站 §4.10 J（**行 1035**） | 「**操作稽核記錄**：誰在何時對哪筆資料做了什麼（新增／修改／刪除／發布），保存 **≥ 12 個月**」 |
-| 主站 §4.10 J（**行 1036**） | 「**登入紀錄與異常提醒**」 |
-| 主站 §6（**行 1324**） | 「會員名單**匯出**須額外授權，且每次匯出寫入稽核日誌（誰、何時、匯出幾筆、用途備註）」 |
-| 主站 §6（**行 1325**） | 抽獎名單受限版匯出「須額外授權並寫入稽核」 |
-| 主站 §6（**行 1330**） | 「訂單匯出須額外授權並寫入稽核日誌」 |
-| 主站 K5（**行 1086–1125**） | 名單產生、中獎回填、版本歷程「全程稽核」；作廢版本不得刪除 |
-| 主站 S6（**行 1231**） | LINE Pay 金鑰輪替紀錄 |
+| 主站 §4.10 J（**行 1033**） | 「**操作稽核記錄**：誰在何時對哪筆資料做了什麼（新增／修改／刪除／發布），保存 **≥ 12 個月**」 |
+| 主站 §4.10 J（**行 1034**） | 「**登入紀錄與異常提醒**」 |
+| 主站 §6（**行 1321**） | 「會員名單**匯出**須額外授權，且每次匯出寫入稽核日誌（誰、何時、匯出幾筆、用途備註）」 |
+| 主站 §6（**行 1322**） | 抽獎名單受限版匯出「須額外授權並寫入稽核」 |
+| 主站 §6（**行 1327**） | 「訂單匯出須額外授權並寫入稽核日誌」 |
+| 主站 K5（**行 1084–1123**） | 名單產生、中獎回填、版本歷程「全程稽核」；作廢版本不得刪除 |
+| 主站 S6（**行 1228**） | LINE Pay 金鑰輪替紀錄 |
 | 慈善站 §11.2 | 「後台的**退款、分潤設定、匯出**三類操作全數留下稽核軌跡」 |
 
 **保留下來的補償**（**不是等價替代**）
@@ -2133,7 +2133,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 
 ### 13.4 規劃書 J 模組的「資料備份」不在綱要內
 
-「每日自動備份，可手動還原點」（行 1037）屬**基礎設施設定**，不是資料表，選定 DBMS 與託管環境後再定。
+「每日自動備份，可手動還原點」（行 1035）屬**基礎設施設定**，不是資料表，選定 DBMS 與託管環境後再定。
 
 ---
 
@@ -2141,7 +2141,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 
 **規劃書 §5 的 48 個型別 ＋ 慈善站 §9 的 6 個型別 ＝ 54 個，全數覆蓋。**
 
-### 14.1 主站 §5（行 1245–1306）48 個
+### 14.1 主站 §5（行 1242–1303）48 個
 
 | # | 規劃書型別 | 本檔資料表 | 備註 |
 |---:|---|---|---|
@@ -2194,7 +2194,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | 47 | `CalendarEvent` | `CalendarEvent`（**視圖**）`CalendarCustomEvent` `CalendarEventTeam` `CalendarEventException` | 見 14.3 |
 | 48 | `EventType` | `EventType` | |
 
-### 14.2 慈善站 §9（行 591–636）6 個
+### 14.2 慈善站 §9（行 594–639）6 個
 
 | # | 規劃書型別 | 本檔資料表 | 備註 |
 |---:|---|---|---|
@@ -2213,34 +2213,34 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 
 | 本檔表 | 來源 | 為什麼需要 |
 |---|---|---|
-| `Season` | 行 1251–1256 關聯欄提到 Season | `Match`／`Standing`／`Achievement`／`MembershipPlan` 的軸 |
-| `ArticleCategory` `Tag` `ArticleTag` `ArticleRelation` | 行 1250 關聯欄列 Category／Tag | B2 的分類、標籤與多型關聯 |
+| `Season` | 行 1248–1253 關聯欄提到 Season | `Match`／`Standing`／`Achievement`／`MembershipPlan` 的軸 |
+| `ArticleCategory` `Tag` `ArticleTag` `ArticleRelation` | 行 1247 關聯欄列 Category／Tag | B2 的分類、標籤與多型關聯 |
 | `ValueTagLink` | `docs/04` §4 `value_tags[]` | 五大核心價值可掛任何型別 |
-| `PageBlock` `PageVersion` | B1（行 833–837） | 13 種區塊、版本還原點、預覽 token |
-| `Banner` `HomeSection` | B4（行 849–852） | Hero 輪播與首頁區塊開關 |
-| `MediaFolder` `MediaUsage` | B3（行 844–848） | 資料夾與使用處追蹤（刪除前警告） |
-| `FaqCategoryLink` `FaqSearchMiss` | B5（行 853–860） | 一題多分類、零結果關鍵字排行 |
-| `Redirect` | H（行 1004–1006） | 301 批次匯入 |
-| `PlayerSeasonStat` `MatchTeam` `MatchGoal` `MatchCard` `MatchLineup` | C2／C4（行 884–899） | 逐季數據、進球、卡、名單 |
+| `PageBlock` `PageVersion` | B1（行 838–842） | 13 種區塊、版本還原點、預覽 token |
+| `Banner` `HomeSection` | B4（行 854–857） | Hero 輪播與首頁區塊開關 |
+| `MediaFolder` `MediaUsage` | B3（行 849–853） | 資料夾與使用處追蹤（刪除前警告） |
+| `FaqCategoryLink` `FaqSearchMiss` | B5（行 857–865） | 一題多分類、零結果關鍵字排行 |
+| `Redirect` | H（行 1002–1004） | 301 批次匯入 |
+| `PlayerSeasonStat` `MatchTeam` `MatchGoal` `MatchCard` `MatchLineup` | C2／C4（行 889–904） | 逐季數據、進球、卡、名單 |
 | `StaffTeam` `ProgramStaff` `ProgramPartner` `SponsorPackageLink` | C3／P1／E2 | 多對多 |
-| `ComicPage` | F1（行 963–969） | 內頁批次上傳與排序 |
-| `Form` `FormField` `EnquiryAnswer` | G1（行 979–985） | 表單設計器的動態欄位 |
-| `Proposal` `ProposalFile` | E3（行 938–943） | 多版本多語 PDF。**Lead 仍走 `Enquiry`** |
-| `MemberCard` | 3.14 電子會員卡；`card_quota`（行 1286） | 一份會籍可多張卡，每張一組 token |
-| `JerseyIssue` | K3（行 1058–1063） | `jersey_quota` 可 > 1，逐件登記 |
-| `Collection` `ProductImage` `CartItem` `RefundRequestItem` `InvoiceDonationCode` | S1／S5／S6（行 1195–1244） | 一對多與捐贈碼名單 |
-| `PaymentChannel` | S6（行 1229–1233）／N7（慈善站 §6.7） | **憑證分離，`subject` 二選一** |
-| `CalendarCustomEvent` `CalendarEventTeam` `CalendarEventException` | L2／L3（行 1170–1186） | 自建事件、隊別分類、重複規則例外 |
+| `ComicPage` | F1（行 968–974） | 內頁批次上傳與排序 |
+| `Form` `FormField` `EnquiryAnswer` | G1（行 984–990） | 表單設計器的動態欄位 |
+| `Proposal` `ProposalFile` | E3（行 943–948） | 多版本多語 PDF。**Lead 仍走 `Enquiry`** |
+| `MemberCard` | 3.14 電子會員卡；`card_quota`（行 1283） | 一份會籍可多張卡，每張一組 token |
+| `JerseyIssue` | K3（行 1056–1061） | `jersey_quota` 可 > 1，逐件登記 |
+| `Collection` `ProductImage` `CartItem` `RefundRequestItem` `InvoiceDonationCode` | S1／S5／S6（行 1192–1241） | 一對多與捐贈碼名單 |
+| `PaymentChannel` | S6（行 1226–1230）／N7（慈善站 §6.7） | **憑證分離，`subject` 二選一** |
+| `CalendarCustomEvent` `CalendarEventTeam` `CalendarEventException` | L2／L3（行 1167–1183） | 自建事件、隊別分類、重複規則例外 |
 | `DonationAmountOption` | 慈善站 N2 | 金額選項卡 |
-| `Locale` `UiString` `UiStringTranslation` `Setting` `MenuItem` `EmailTemplate` | I（行 1011–1027） | 選單、多語系、字串翻譯表、全域設定 |
-| `AdminUser` `AdminRole` `AdminUserRole` `Permission` `RolePermission` | J（行 1031–1034）／§6（行 1307–1337） | **規劃書只有行為描述沒有型別**；「角色建立與功能權限勾選」要求角色是資料 |
-| 約 40 張 `*_i18n` | 行 1300、1303 | 雙語與第三語系擴充 |
+| `Locale` `UiString` `UiStringTranslation` `Setting` `MenuItem` `EmailTemplate` | I（行 1009–1025） | 選單、多語系、字串翻譯表、全域設定 |
+| `AdminUser` `AdminRole` `AdminUserRole` `Permission` `RolePermission` | J（行 1029–1032）／§6（行 1304–1334） | **規劃書只有行為描述沒有型別**；「角色建立與功能權限勾選」要求角色是資料 |
+| 約 40 張 `*_i18n` | 行 1297、1303 | 雙語與第三語系擴充 |
 
 ### 14.4 刻意不存在的表
 
 | 不建 | 理由 |
 |---|---|
-| `ProductShowcase` | v2.6 退役，`E4` 併入 `S1` 且代號停用不回收 |
+| `ProductShowcase` | 綱要中不存在；商品與 SKU 在 `S1` |
 | `AuditLog` `LoginLog` `ExportLog` `OperationLog` | 委託方指示，見 §13.1 |
 | `DrawEntry` `Ticket` `Point` `Wallet` | 抽獎資格是布林值；**不做點數與電子錢包** |
 | `Redemption` `StoreCheckin` | **不做店家掃碼核銷與成效報表** |
@@ -2261,31 +2261,31 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | 本檔 | 規劃書行號 | 章節 |
 |---|---|---|
 | §4.1 B 內容 ＋ H SEO | 831–871、996–1010 | 4.2 B 內容管理、4.8 H SEO |
-| §4.2 C 球隊 | 872–904 | 4.3 C 球隊管理 |
-| §4.3 P 課程 | 905–928 | 4.4 P 課程與活動 |
-| §4.4 E 商業 | 929–960 | 4.5 E 商業模組（**E4 併入 S1：944–950**） |
-| §4.5 F 文化 | 961–976 | 4.6 F 文化模組 |
-| §4.6 G 表單 | 977–995 | 4.7 G 表單與詢問 |
-| §4.7 I 設定 | 1011–1030 | 4.9 I 網站設定 |
+| §4.2 C 球隊 | 878–910 | 4.3 C 球隊管理 |
+| §4.3 P 課程 | 911–934 | 4.4 P 課程與活動 |
+| §4.4 E 商業 | 983–1007 | 4.5 E 商業模組（E1–E3 ＋ E4–E6；**商品在 `S1`**） |
+| §4.5 F 文化 | 967–982 | 4.6 F 文化模組 |
+| §4.6 G 表單 | 983–1001 | 4.7 G 表單與詢問 |
+| §4.7 I 設定 | 1017–1036 | 4.9 I 網站設定 |
 | §4.8／§7 J 系統與權限 | 1031–1040、1307–1337 | 4.10 J 系統管理、6 權限與角色矩陣 |
-| §4.9 K 會員 | 1041–1158 | 4.11 K 會員管理（**K4：1065–1071、K5：1072–1127、抽獎個資與稅務：1144–1158**） |
-| §4.10 L 行事曆 | 1159–1194 | 4.12 L 行事曆管理 |
-| §4.11 S 商店 | 1195–1244 | 4.13 S 商店（**S1–S6，沒有 S7**） |
+| §4.9 K 會員 | 1047–1164 | 4.11 K 會員管理（**K4：1065–1071、K5：1072–1127、抽獎個資與稅務：1144–1158**） |
+| §4.10 L 行事曆 | 1165–1200 | 4.12 L 行事曆管理 |
+| §4.11 S 商店 | 1201–1250 | 4.13 S 商店（**S1–S6，沒有 S7**） |
 | §4.12 B6 慈善內容 | 850–871、447–482 | B6 慈善事蹟管理、3.11 CHARITY |
-| §6／§14.1 型別定義 | 1245–1306 | 5 資料模型與內容型別 |
+| §6／§14.1 型別定義 | 1251–1312 | 5 資料模型與內容型別 |
 | §8 受限欄位 | 1320–1337、1366–1380 | 6 補充規則、8 非功能性需求 |
 | §2 雙語 | 1300–1303、1338–1365 | 5 結語、7 SEO／GEO 與多語系 |
-| §13 落差 | 1422–1489 | 10 待確認事項 |
+| §13 落差 | 1428–1495 | 10 待確認事項 |
 
 ### 15.2 本檔各節 ↔ 慈善捐款平台規劃書（v1.5，755 行）
 
 | 本檔 | 慈善站行號 | 章節 |
 |---|---|---|
-| §4.13 N 模組 | 424–510 | 6 後台功能規劃（N1–N7） |
-| §6.9／§6.10 分潤 | 537–590 | 8 分潤與帳務規則（**進位：560–565、不追溯：566–573、退款沖回：574–581**） |
-| §14.2 型別 | 591–636 | 9 資料模型與內容型別 |
-| §7 權限 | 637–661 | 10 權限與角色 |
-| §8 受限欄位 | 662–688 | 11 個資、安全與法規 |
+| §4.13 N 模組 | 427–513 | 6 後台功能規劃（N1–N7） |
+| §6.9／§6.10 分潤 | 540–593 | 8 分潤與帳務規則（**進位：560–565、不追溯：566–573、退款沖回：574–581**） |
+| §14.2 型別 | 594–639 | 9 資料模型與內容型別 |
+| §7 權限 | 640–664 | 10 權限與角色 |
+| §8 受限欄位 | 665–691 | 11 個資、安全與法規 |
 
 ### 15.3 相關文件
 
