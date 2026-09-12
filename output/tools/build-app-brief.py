@@ -322,7 +322,7 @@ C['zh'] = dict(
           '哪些內容由後台維護。畫面為<b>功能示意</b>，用來確認架構與流程是否正確，'
           '尚未進入視覺設計。',
     stamps=[('依據　', '行動 App 功能規劃書 v3.2'), ('分頁　', '5 個　×　畫面 23 個'),
-            ('語言　', '繁中／英文雙語'), ('後台模組　', 'M1–M5　＋　E5–E7（共用官網後台）')],
+            ('語言　', '繁中／英文雙語'), ('後台模組　', 'M1–M5　＋　E4–E6（共用官網後台）')],
 
     eyebrow1='App map', h2_1='五個分頁：功能切分，不是球隊切分',
     p1='底部固定五個分頁，任何功能最多點三層就到得了。<b>沒有「磐石分頁」與「藍鯨分頁」</b>——'
@@ -386,7 +386,7 @@ C['zh'] = dict(
                      ('5', '附近店家', '已授權定位時依距離排序，未授權時依後台排序。'),
                      ('6', '贊助商 Logo 牆', '<b>不計曝光、不進廣告報表</b>——那是對不出來的數字。')],
               admin='<b>未設定追蹤時怎麼辦</b><br>兩隊權重相同，各取一線隊最近一場，<b>不得預設偏向任一隊</b>。'
-                    '<br><br><b>後台維護</b>　M2 首頁區塊開關與排序　／　E5–E7 廣告'),
+                    '<br><br><b>後台維護</b>　M2 首頁區塊開關與排序　／　E4–E6 廣告'),
 
     st02=dict(h='賽程：兩隊、12 個月、所有賽事', u='這是整個 App 的第一功能', tag='使用頻率最高',
               lede='兩隊所有球隊的賽程集中在一個地方，是讓人<b>每週</b>打開 App 的主要理由——'
@@ -747,7 +747,7 @@ C['en'] = dict(
           'what sits on each screen, and which content is maintained in the admin. The screens are '
           '<b>functional sketches</b> for confirming structure and flow; visual design has not started.',
     stamps=[('Based on　', 'Mobile App Specification v3.2'), ('Tabs　', '5　×　23 screens'),
-            ('Languages　', 'Chinese / English'), ('Admin modules　', 'M1–M5　＋　E5–E7 (shared admin)')],
+            ('Languages　', 'Chinese / English'), ('Admin modules　', 'M1–M5　＋　E4–E6 (shared admin)')],
 
     eyebrow1='App map', h2_1='Five tabs, split by function rather than by club',
     p1='Five fixed tabs along the bottom; nothing is more than three taps deep. '
@@ -820,7 +820,7 @@ C['en'] = dict(
                      ('6', 'Sponsor logo wall', '<b>No impressions counted, never in advertising reports</b> — that number reconciles with nothing.')],
               admin='<b>When nothing is followed yet</b><br>Both clubs carry equal weight and each first team’s next '
                     'match is shown. <b>No default bias toward either club.</b><br><br><b>Maintained in</b>　'
-                    'M2 home blocks and ordering　/　E5–E7 advertising'),
+                    'M2 home blocks and ordering　/　E4–E6 advertising'),
 
     st02=dict(h='Fixtures: two clubs, 12 months, every competition',
               u="This is the app's number one feature", tag='Opened most often',

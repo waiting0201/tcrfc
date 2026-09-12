@@ -43,7 +43,7 @@ node output/tools/build-pdf.mjs app-brief-zh app-brief-en    # 再轉 PDF
 兩支腳本的結構相同：規格異動時改腳本裡的 `C['zh']` / `C['en']` 兩份資料，**改一邊就要改另一邊**；
 直接改產出的 HTML 會在下次執行時被覆蓋。QR 是編譯期產生的示意圖案，不是真的可掃描碼。
 
-> **`build-app-brief.py` 的內容真實來源是 [`../TCRFC_行動App功能規劃書.md`](../TCRFC_行動App功能規劃書.md)（v3.2）**，
+> **`build-app-brief.py` 的內容真實來源是 [`../TCRFC_行動App功能規劃書.md`](../TCRFC_行動App功能規劃書.md)（v3.4）**，
 > 與慈善站台地圖對規劃書的關係一致：腳本裡的文案是**為客戶改寫過的濃縮版**，不是規格本身。
 > 規格異動時先改規劃書，再回頭同步腳本。
 >
