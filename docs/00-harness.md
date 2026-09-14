@@ -178,7 +178,7 @@ App 客戶版原本的 Decisions 一節已從 [`output/tools/build-app-brief.py`
 | 了解專案、接手工作 | `CLAUDE.md` → 本檔 |
 | 做某一個前台頁面 | [`02-frontend-spec.md`](02-frontend-spec.md) 對應段落 → 規劃書該節行號 → [`../site/src/`](../site/src/) 既有頁面找對應區塊樣式 |
 | 做後台模組 | [`03-admin-spec.md`](03-admin-spec.md) → 規劃書 4.x → [`04-data-model.md`](04-data-model.md) |
-| 設計資料表 / 匯入格式 | [`04-data-model.md`](04-data-model.md)（型別清單）→ [`12-database-schema.md`](12-database-schema.md)（**資料表綱要與 ERD**）→ 規劃書 **1337–1469**（App 型別見 App 規劃書 **1328–1443**） |
+| 設計資料表 / 匯入格式 | [`04-data-model.md`](04-data-model.md)（型別清單）→ [`12-database-schema.md`](12-database-schema.md)（＋ ERD 在 [`12a`](12a-database-erd.md)、欄位在 [`12b`](12b-database-tables.md)）（**資料表綱要與 ERD**）→ 規劃書 **1337–1469**（App 型別見 App 規劃書 **1328–1443**） |
 | **任何涉及「這筆資料屬於哪一隊」的設計** | 規劃書 **5.4（1416–1462）判定準則** → `docs/12` → 該型別所在模組 |
 | 處理雙語或 SEO | [`05-i18n-seo.md`](05-i18n-seo.md) → 規劃書 1519–1546 |
 | 寫文案 / 處理客戶素材 | [`07-content-pipeline.md`](07-content-pipeline.md) → [`06-conventions.md`](06-conventions.md) |
