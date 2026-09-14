@@ -183,20 +183,24 @@ Membership covers **one thing only — belonging**, at two tiers:
 
 ## 6. Who can do what
 
-The admin has **ten roles**, each seeing only what it needs.
+The admin is organised by role, so **each person sees only what they need**. Six roles are used in practice:
 
-| Role | Main work | Worth noting |
+| Role | Responsible for | Typically held by |
 |---|---|---|
-| **System administrator** | Everything | The only role that can issue refunds, release app versions, or manage payment credentials |
-| **Content editor** | News, pages, FAQ, product copy | Works through submit-then-publish |
-| **Team manager** | Teams, players, fixtures, results | Only for their own teams |
-| **Academy manager** | Courses, intakes, registrations, age-group fixtures | Cannot touch first-team fixtures |
-| **Commercial / sponsorship** | Partners, sponsors, advertising | **Sees products and reports but not order personal data, and has no refund rights** |
-| **Press / media** | News, media assets, push copy | Can compose a push but **an administrator must approve sending it** |
-| **Support / administration** | Members, registrations, orders, dispatch, returns | The only non-administrator role that sees member personal data in full |
-| **Translator** | English fields only | Cannot alter the Chinese original or publish |
-| **Viewer** | Read only | Cannot see amounts |
-| **Partner club manager** | Blue Whale's own content, teams, memberships and orders | **Cannot see any Taichung Rock membership**; member record fields are always masked |
+| **System administrator** | Everything, including accounts, payment settings and refunds | One or two people, no more |
+| **Content and press** | News, pages, FAQ, media assets, product copy | The marketing or content contact |
+| **Teams and programmes** | Teams, players, fixtures, results, course intakes, registrations | Coaching staff or administration |
+| **Commercial / sponsorship** | Partners, sponsorship packages, advertising | The commercial contact |
+| **Support / administration** | Members, memberships, orders, dispatch, returns, registrations | The day-to-day operational core |
+| **Partner club manager** | Blue Whale's own content, teams, memberships and orders | Blue Whale's own maintainers |
+
+Two further roles are available if the division of work calls for them: **translator** (English fields only, cannot alter the Chinese original) and **viewer** (read-only, cannot see amounts).
+
+**Three safeguards**:
+
+- **Refunds, payment settings and app releases are restricted to the system administrator.** These are irreversible actions, so the permission is deliberately kept as narrow as possible.
+- **Push notifications take two people.** One composes, the administrator approves before anything is sent — a push cannot be recalled.
+- **Content goes through submit-then-publish**; not everyone can put something live.
 
 **Three rules about personal data**:
 
@@ -212,10 +216,10 @@ A website is not finished when it launches. The table below is a realistic staff
 
 | What | How often | Who | If it slips |
 |---|---|---|---|
-| **Fixtures and results** | **Weekly in season** | Team manager | The schedule is the most-read content on the site; a delay is felt immediately |
-| **News and stories** | One to two a week | Content editor / press | The home page starts to look abandoned |
-| **Squad and staff** | Each season, and on any transfer | Team manager | An out-of-date squad is worse than no squad |
-| **Courses and intakes** | Every intake | Academy manager | Parents are looking at last term's dates |
+| **Fixtures and results** | **Weekly in season** | Teams and programmes | The schedule is the most-read content on the site; a delay is felt immediately |
+| **News and stories** | One to two a week | Content and press | The home page starts to look abandoned |
+| **Squad and staff** | Each season, and on any transfer | Teams and programmes | An out-of-date squad is worse than no squad |
+| **Courses and intakes** | Every intake | Teams and programmes | Parents are looking at last term's dates |
 | **Form submissions** | **Daily** | Support | Parents who wait for a reply go elsewhere |
 | **Products and stock** | On new lines and restocks | Commercial / support | Overselling has to be cleaned up by hand |
 | **Orders and dispatch** | **Daily** | Support | Late dispatch turns straight into complaints |

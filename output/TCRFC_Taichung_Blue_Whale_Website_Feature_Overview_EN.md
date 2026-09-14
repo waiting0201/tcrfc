@@ -153,7 +153,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 
 ## 5. Who can do what
 
-The admin has ten roles in total (described in full in the Taichung Rock feature overview). The one that concerns Blue Whale directly is the tenth:
+The admin is organised by role, with six in practical use (described in full in the Taichung Rock feature overview). The one that concerns Blue Whale directly is this:
 
 ### Partner club manager
 
