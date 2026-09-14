@@ -1,10 +1,15 @@
 # Taichung Blue Whale — Official Website Functional Specification
 
-> **Document version**: v1.3
-> **Date**: 2026-09-10 (v1.3 revision: 2026-09-12)
+> **Document version**: v1.4
+> **Date**: 2026-09-10 (v1.4 revision: 2026-09-14)
 > **Content principal**: Taichung Blue Whale Women's Football Team
 > **System principal**: **shares the admin and database** of the Taichung Rock FC official website
-> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.3*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.4*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v1.4 revision summary — brand colours settled, sampled from the crest**
+> 1. **Brand colours follow the crest** (§8.1): primary `#2196D5`, AA-safe variant for small text `#1A78AA`, dark `#040000`. All seven brand variables are listed with their contrast verification.
+> 2. **§8.2 Brand assets**: a **raster master** of the crest is in hand (3299 × 3243 at 300dpi, transparent PNG), sufficient for the web, @2x / @3x rasters, the favicon and the OG image; **the vector original and the official English name are still outstanding**.
+> 3. **§10 item 2** narrows to those two outstanding items.
 
 > **v1.3 revision summary — advertising module identifiers**
 > **No functional changes; identifiers only.** The advertising module is **`E4–E6`**, in step with website specification v3.3.
@@ -288,19 +293,42 @@ The main site's front end concentrates all colour in one set of design tokens, a
 
 > **Contrast is a hard requirement**: the AA-safe variant and the solid-button hover variant must be verified at **4.5:1**. Blue Whale's primary colour is in the blue range and its lightness distribution differs from Taichung Rock's magenta, so **the same tonal steps must not simply be reused** — they have to be recalculated.
 
+**Brand variable values (sampled from the crest)**
+
+Every value is **sampled from the crest** rather than chosen freely. The primary and dark colours are the ones actually used on the crest; the other four are derived from the primary to meet contrast requirements.
+
+| Variable | Value | Source | Contrast check |
+|---|---|---|---|
+| `--brand` | `#2196D5` | **Crest blue** (the modal value, 92.8% of the crest's blue pixels) | 3.29:1 on white — **passes large-text AA** (≥18.66px bold or ≥24px), **fails small-text AA** |
+| `--brand-aa` | `#1A78AA` | Primary at 20% lower lightness | **4.87:1** on white — passes small-text AA |
+| `--brand-bright` | `#50B0E4` | Primary at 25% higher lightness | Hover on dark; 8.63:1 against `--ink` |
+| `--brand-deep` | `#156088` | Primary at 36% lower lightness | Solid-button hover carrying small white text at **6.86:1** |
+| `--ink` | `#040000` | **Crest black** (the whale and the lettering) | 20.89:1 on white |
+| `--ink-2` | `#1D1919` | One step lighter than `--ink` (matching the main site's lightness delta) | Dark-ground layering; 17.42:1 on white |
+| `--ink-trim` | `#040000` | Same as `--ink` | Clipped-corner triangle on light grounds |
+
+`shell.html`'s `<meta name="theme-color">` becomes `#2196D5` as well.
+
+> **Small text always uses `--brand-aa`**: the primary is 3.29:1 on white, so small text in the primary colour on a white ground breaks WCAG AA. This is the same rule as the main site's "small text uses `#D61E83`", but the gap is wider here — **Taichung Rock's primary sits just short of 4.5:1, Blue Whale's falls well short**, which makes it easier to misuse.
+>
+> **Official print colour references (PANTONE / CMYK) for the crest blue are still outstanding.** The table above holds **web values sampled from the raster master**, which is sufficient for screens; **print work must not be commissioned against them until the official references arrive.**
+
 ### 8.2 Brand assets
 
 | Asset | Status |
 |---|---|
-| Vector logo (with a dark variant) | 🔴 **Not supplied** |
-| High-density raster @2x / @3x | 🔴 **Not supplied** (needed for the app's membership card face) |
-| Brand colours (colour values) | 🔴 **Not supplied** |
+| **Raster** logo master | ✅ **In hand**: 3299 × 3243 at 300dpi, transparent RGBA PNG, held in `brand/blue-whale/` |
+| **Vector** logo (with a dark variant) | 🔴 **Not supplied** |
+| High-density raster @2x / @3x | ✅ **Derivable from the raster master** (3299px covers the app's card face and the app icon) |
+| Brand colours (web values) | ✅ **Settled**: sampled from the crest, see §8.1 |
+| Brand colours (print references, PANTONE / CMYK) | 🔴 **Not supplied** — print work must not be commissioned against the web values |
 | Official English name | 🔴 **Unconfirmed** (the existing site says `Taichung Blue Whale`; whether that is the formal full name needs confirming) |
-| favicon / OG image | 🔴 **Not supplied** |
+| favicon / OG image | ✅ **Derivable from the raster master** |
 
-> 🔴 **The logo must be a vector master** (`.ai` / `.svg` / `.eps`). **Never draw a substitute mark, never trace one from a website screenshot, never set the name in type yourself, and never scale up a raster and pass it off as vector.**
-> If only a low-resolution raster is available, **go back for the original design file or have it remade** rather than making do — the second-generation logo has been in use since 2016, so an original should exist.
-> Until it arrives the corresponding areas **are not rendered** — **no placeholder imagery and no empty logo box.**
+> 🔴 **The vector master is still to be obtained** (`.ai` / `.svg` / `.eps`). **Never draw a substitute mark, never trace one from a website screenshot, never set the name in type yourself, and never scale up a raster and pass it off as vector.**
+> The raster master in hand is **the original image file downloaded from the existing website** — not a screenshot and not a trace — and its resolution covers every on-screen size.
+> **Large-format print, single-colour and reversed-out variants, and anything that needs recolouring or extracting part of the mark still require the vector file.** The second-generation logo has been in use since 2016, so an original should exist.
+> Where an asset is still missing, the corresponding areas **are not rendered** — **no placeholder imagery and no empty logo box.**
 > This matches the main site's existing rule (its `brand/` marks are all extracted from the master `.ai` file and never set by hand).
 
 ---
@@ -311,7 +339,7 @@ The main site's front end concentrates all colour in one set of design tokens, a
 
 | Phase | Content |
 |---|---|
-| **Prerequisites** | The domain, brand vector masters, squad and coaching-staff data (with likeness consent), and twelve months of fixtures |
+| **Prerequisites** | The domain, squad and coaching-staff data (with likeness consent), and twelve months of fixtures. **Brand colours and the crest are ready to build against** (§8.1); the vector master blocks print work only |
 | **Phase B1** | Copy the front-end skeleton and swap the brand variables; 01 Home, 02 About, 03 First Team, 07 News, 13 Schedule (**these five are precisely the app's deep-link fallback targets, so they come first**) |
 | **Phase B2** | 04 Youth, 05 Programs, 09 Partners, 10 Join / Contact, 12 FAQ; English content |
 | **Phase B3** | MEMBER Member Centre and Blue Whale membership; 08 Culture |
@@ -330,7 +358,7 @@ The main site's front end concentrates all colour in one set of design tokens, a
 | # | Item | Blocks |
 |---|---|---|
 | 1 | **The domain**: name, who owns it, who manages DNS. ⚠️ **App deep links require a controllable domain** (§2.3) | Launch and app deep links |
-| 2 | **Blue Whale brand assets**: vector logo master (with a dark variant), @2x / @3x raster, primary and secondary brand colour values, favicon, OG image, **official English name** | Visual sign-off and every page (§8.2) |
+| 2 | **The two remaining Blue Whale brand assets**: the **vector** logo master (with a dark variant) and the **official English name**. Web colour values, high-density rasters, the favicon and the OG image are all covered by the raster master (§8.1, §8.2) | Print work, single-colour and reversed-out variants; bylines on the English pages |
 | 3 | **Player and coaching-staff data**: names (zh/en), numbers, positions, photographs, biographies, **likeness consent** | 03 First Team, 04 Youth (§3.3) |
 | 4 | **Twelve months of fixture data**: Mulan League, cups and international invitationals — dates, opponents, venues, home or away | 13 Schedule (§3.7) |
 | 5 | **Whether orders must be split by club at checkout** | The shop's checkout flow, shipment documents and return credit notes (§5.2) |

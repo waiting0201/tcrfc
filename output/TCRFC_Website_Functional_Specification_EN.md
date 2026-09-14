@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.3
-> **Date**: 2026-08-14 (v3.3 revision: 2026-09-12)
+> **Document version**: v3.4
+> **Date**: 2026-08-14 (v3.4 revision: 2026-09-14)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.3*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.4*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.4 revision summary — Blue Whale brand colours settled**
+> **No functional changes.** Item 38 in section 10 narrows: Blue Whale's **web colour values are settled** (sampled from the crest; values in the Blue Whale specification §8.1), and a **raster master** of the crest now covers high-density rasters, the favicon and the OG image. **Still outstanding: the vector master, print colour references, and the official English name.**
 
 > **v3.3 revision summary — identifiers in the `E` business module**
 > **No functional changes; identifiers only.** `E` runs **E1–E6**: E1 Partners / E2 Sponsors & Packages / E3 Sponsorship Deck & Download Tracking / **E4–E6 mobile app advertising** (advertisers & slots, flights & creatives, performance reports). Products and SKUs are maintained in `S1`. The admin module tree lists E1–E6 in full.
@@ -1684,7 +1687,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 35. **Which sections the Blue Whale site includes**: do draws (K5), the comic (F), partner stores (K4) and the five core values apply to Blue Whale? **This affects scope estimation and pricing.**
 36. **Shared content and canonical attribution**: articles with a null `club_id` appear on both sites — which site owns the canonical URL? The recommendation is this site, with the Blue Whale site linking across; to be confirmed.
 37. **The Blue Whale domain**: name, who owns it, who manages DNS. ⚠️ If the app is to support deep links into Blue Whale content, **that domain must be controlled by a party who can place** `.well-known/apple-app-site-association` and `assetlinks.json` on it.
-38. **Blue Whale brand assets**: vector logo master (with a dark variant and @2x / @3x raster), primary and secondary brand colour values, official English name, favicon, OG image. **It must be a vector master** — never draw a substitute mark, never trace one from a screenshot, never scale up a raster and pass it off as vector; until it arrives the corresponding areas are not rendered, with no placeholder imagery and no empty logo box.
+38. **The three Blue Whale brand assets still outstanding**: the **vector** logo master (with a dark variant), **print colour references** (PANTONE / CMYK), and the **official English name**. Web colour values are settled (sampled from the crest) and the raster master already covers @2x / @3x rasters, the favicon and the OG image — values and status in the Blue Whale specification §8.1 and §8.2. **The vector file, when obtained, must not be a redrawn mark, a screenshot trace, or an upscaled raster**; where an asset is still missing the corresponding areas are not rendered, with no placeholder imagery and no empty logo box.
 
 
 ---

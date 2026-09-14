@@ -1,8 +1,13 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.4
-> **Date**: 2026-09-04 (v3.4 revision: 2026-09-12)
+> **Document version**: v3.5
+> **Date**: 2026-09-04 (v3.5 revision: 2026-09-14)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.5 revision summary — Blue Whale brand colours settled**
+> **No functional changes.**
+> 1. **§13 brand consistency**: Blue Whale's colours now cite the settled values in the Blue Whale specification §8.1 (primary `#2196D5`, AA-safe `#1A78AA` for small text, dark `#040000`).
+> 2. **§16.2 item 1** narrows: the raster master of the crest is in hand, so **the app icon and the membership card face (including @2x / @3x) are no longer blocked**; the vector master and the official English name remain outstanding.
 
 > **v3.4 revision summary — advertising module identifiers**
 > **No functional changes; identifiers only.** The three advertising submodules are **`E4` (advertisers & slots) / `E5` (flights & creatives) / `E6` (performance reports)**, defined in sections 8.7–8.9, in step with website specification v3.3.
@@ -1570,7 +1575,7 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 | **Accessibility** | System text-size support, screen reader support, AA contrast, readable labels on every tappable element; **the benefits table and fixture information must never be delivered as images** |
 | **Monitoring** | Aggregate views of crashes, API error rate, launch duration, and push delivery (admin M5) |
 | **Data retention** | Advertising raw events 90 days; notification centre 90 days; audit logs at least 12 months |
-| **Brand consistency** | Rock: brand pink `#E0218A` and brand black `#231916`; the AA-safe `#D61E83` for small text; only the existing lockups from `brand/svg/` — **no hand-set type, no added year**. **Blue Whale's crest and brand colours must be supplied by Blue Whale as vector files** — **never redrawn and never traced from a website screenshot** (16.2) |
+| **Brand consistency** | Rock: brand pink `#E0218A` and brand black `#231916`; the AA-safe `#D61E83` for small text; only the existing lockups from `brand/svg/` — **no hand-set type, no added year**. Blue Whale: **crest blue `#2196D5`**, **AA-safe `#1A78AA`** for small text, **crest black `#040000`** (settled values in the Blue Whale specification §8.1 — **always sampled from the crest, never chosen freely**); the crest itself only from `brand/blue-whale/` — **never redrawn and never traced from a website screenshot** (16.2) |
 
 ---
 
@@ -1666,7 +1671,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 
 | # | Item | Impact |
 |---|---|---|
-| 1 | **Blue Whale brand assets**: vector logo master (with dark and **high-density @2x/@3x raster** variants), brand colour values, official English name | Needed by first-run onboarding, club sections, **the membership card face (from v3.0 Blue Whale memberships have their own card)**, and the app icon. **It must be a vector master — never redraw the crest, never trace it from a website screenshot, never scale up a raster and pass it off as vector** |
+| 1 | **The two Blue Whale brand assets still outstanding**: the **vector** logo master (with a dark variant) and the **official English name** | First-run onboarding, club sections, **the membership card face** and the app icon **can now be built** — the raster master (3299 × 3243 at 300dpi) covers @2x / @3x and the 1024 app icon, and the brand colours are settled (Blue Whale specification §8.1). The vector master blocks **dark and single-colour card faces, and any print work**. **Never redraw the crest, never trace it from a website screenshot, never scale up a raster and pass it off as vector** |
 | 2 | **Blue Whale's 12 months of fixtures**: dates, opponents, venues, home or away, for league and every cup competition | 3.2 is the app's first feature. **`content/` currently holds only the 2026/27 Premier League schedule; neither club's cup fixtures nor the Blue Whale league schedule have been supplied** |
 | 3 | **Blue Whale's players and coaching staff**: names (zh/en), numbers, positions, photographs, biographies, **and likeness consent** | 3.3 cannot be signed off. Minors require a guardian's consent |
 | 4 | **Ownership and DNS control of the Blue Whale website's domain** | 2.3. A Universal Link can only be bound to a domain you own; without control, **Blue Whale deep links must not ship** |
