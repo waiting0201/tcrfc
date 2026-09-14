@@ -740,7 +740,7 @@ erDiagram
 
 > ⚠️ **`team` 全站只有四筆**（`D1`／`U15`／`U14`/`U12`）。`match.opponent` 與 `standing.team_name` 是**自由文字**，不建對手球隊表——賽事全部人工維護、不串外部 API。
 > ⚠️ **此註記已於 v3.0 作廢。** 藍鯨是第二個俱樂部，`team`（`BW1`）／`player`／`staff`／`match`／`season` **全部建立**，以 `club_id` 區隔。**`team.type` 的 `women` 值已廢除**，改用獨立的 `team.gender`。
-> 🔴 **此條已被行動 App 規劃書 v2.0 推翻，但本檔尚未同步。**客戶已確認台中藍鯨為 App 的共同主體，藍鯨的 `team`／`player`／`match` 會建在**這套共用資料庫**裡（新增 `club` 與 `competition` 兩張表、隊別代號 `BW1`）。官網前台是否呈現另議——客戶指示先改 App。**轉 DDL 前必須先處理此落差**，見 `CLAUDE.md`「主站與 App 的雙隊落差」。
+> 🔴 **此條已被行動 App 規劃書 v2.0 推翻，但本檔尚未同步。**客戶已確認台中藍鯨為 App 的共同主體，藍鯨的 `team`／`player`／`match` 會建在**這套共用資料庫**裡（新增 `club` 與 `competition` 兩張表、隊別代號 `BW1`）。官網前台是否呈現另議——客戶指示先改 App。**轉 DDL 前必須先處理此落差**，見 [`14-invariants.md`](14-invariants.md)。
 
 ### 5.3 L 行事曆（視圖）
 
@@ -2049,7 +2049,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 5. **本檔沒有任何日誌表**，是委託方指示的刻意落差（[§13.1](#131-沒有稽核與登入日誌表)）。反過來說：**`EmailLog`、`InventoryMovement`、`PageVersion`、`FaqSearchMiss`、訂單與捐款的狀態欄位不是日誌，是功能單元**，不得一併刪除。
 6. **管理員登入識別是 `username` 不是 Email**。種子超管 `sa@system.local` **長得像 Email，但存在 `username` 欄**。`AdminUser.email` 不設唯一索引、不作登入查詢鍵。**前台 `Member.email` 是另一套系統，維持 Email 登入不變。**
 7. **`Team.code` 全站唯一**，值域 `D1`／**`BW1`**／`U15`／`U14`／`U12`，**沒有 `D2`**。⚠️ **v3.0：藍鯨建立完整的 `Team`／`Player`／`Match`**（`club_id` 區隔），`type` 的 `women` 值已廢除改用 `gender`。**`code` 不得改成「俱樂部 × 代號」複合鍵**——它是行事曆訂閱網址與 `/schedule/d1/` 的識別鍵，已在外流通。對手球隊仍是**字串不是實體**。
-   🔴 **後半段已被 App v2.0 推翻**：藍鯨一線隊會以 `BW1` 建為正式 `Team`（`code` 仍**全站唯一**，不改複合鍵）。轉 DDL 前須同步，見 `CLAUDE.md`「主站與 App 的雙隊落差」。
+   🔴 **後半段已被 App v2.0 推翻**：藍鯨一線隊會以 `BW1` 建為正式 `Team`（`code` 仍**全站唯一**，不改複合鍵）。轉 DDL 前須同步，見 [`14-invariants.md`](14-invariants.md)。
 8. **`D1` 有雙重身分**：`D1` 是隊別代號（一線隊）。後台課程模組原編 `D1–D4` 已改 `P1–P4`，看到「D1 課程管理」一律是舊資料。**權限碼的 `module_code` 禁用 `D`／`U`／`O`／`M`。**
 9. **一份會籍可能多張卡、多件球衣**（`card_quota`／`jersey_quota` 可 > 1，家庭方案），所以 `MemberCard` 與 `JerseyIssue` 是表不是欄位。**每張卡只有一組 token**，官網驗證頁與 App 卡片共用；發兩組＝兩份可撤銷狀態，撤銷必漏一邊。token **不可由 `member_no` 推導**。
 10. **抽獎資格是算出來的布林值不是表**：沒有 `DrawEntry`／`Ticket`／`Point`／`Weight` 任何表或欄位。`serial_no` 於 `snapshot_at` 依 `member_no` 升冪**一次性配發**，鎖定後不得重排；有誤只能**整份作廢重產**（`roster_version` +1，舊版保留）。**系統不抽出**，`is_winner` 人工回填。
@@ -2118,7 +2118,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 4. **登入異常提醒做不到**（只有 `last_login_at` 單點）。
 5. 若日後法遵或客戶要求補上，**只需新增表，不需改動既有綱要**——所有必要的關聯（`admin_user_id`、`entity_type`／`entity_id`）都已存在。
 
-> **本落差尚未回寫規劃書**（主站維持 v2.6、慈善站維持 v1.5）。實作前若要正式收斂範圍，須依 [`../CLAUDE.md`](../CLAUDE.md) 工作守則 #3 跑完改版鏈。
+> **本落差尚未回寫規劃書**（主站維持 v2.6、慈善站維持 v1.5）。實作前若要正式收斂範圍，須依 [`00-harness.md`](00-harness.md) §2.5 的同步鏈 跑完改版鏈。
 
 ### 13.2 不含行動 App 的十二個型別
 
