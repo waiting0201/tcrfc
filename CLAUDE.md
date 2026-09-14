@@ -41,7 +41,7 @@
 
 | 路徑 | 內容 | 性質 |
 |---|---|---|
-| [`output/`](output/) | **四份規劃書**（主站＋**台中藍鯨官網**＋慈善捐款平台＋行動 App）、開發里程碑，以及**兩份版面式客戶文件**——**慈善捐款站台地圖**與**行動 App 功能說明（客戶版）**，皆含手機示意畫面、由 `tools/` 的 Python 腳本產生。中英雙版。**只有母檔（`.md`、里程碑 `.html`、`tools/`）納版控，PDF 與兩組產生的 HTML 不納管**，見 [`output/tools/`](output/tools/README.md) | **交付物，真實來源** |
+| [`output/`](output/) | **四份規劃書**（主站＋**台中藍鯨官網**＋慈善捐款平台＋行動 App）、開發里程碑，以及**四份客戶版文件**：**兩份版面式**（慈善捐款站台地圖、行動 App 功能說明，含手機示意畫面，由 `tools/` 的 Python 腳本產生）＋ **兩份純文字**（**官網功能說明**、**台中藍鯨官網功能說明**，Markdown 母檔，**含後台完整模組一覽**）。中英雙版。**只有母檔（`.md`、里程碑 `.html`、`tools/`）納版控，PDF 與兩組產生的 HTML 不納管**，見 [`output/tools/`](output/tools/README.md) | **交付物，真實來源** |
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
 | [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖、協會立案證書。**不納版控**（客戶資產且含個資，GitHub repo 是公開的），clone 下來不會有這個資料夾 | 客戶提供素材 |

@@ -21,6 +21,8 @@ node output/tools/build-pdf.mjs charity-zh # TCRFC_慈善捐款平台功能規�
 node output/tools/build-pdf.mjs charity-en # TCRFC_Charity_Donation_Platform_Specification_EN.pdf
 node output/tools/build-pdf.mjs app-zh     # TCRFC_行動App功能規劃書.pdf
 node output/tools/build-pdf.mjs app-en     # TCRFC_Mobile_App_Specification_EN.pdf
+node output/tools/build-pdf.mjs brief-zh    # TCRFC_官網功能說明_客戶版.pdf
+node output/tools/build-pdf.mjs bw-brief-zh # TCRFC_台中藍鯨官網功能說明_客戶版.pdf
 node output/tools/build-pdf.mjs app-brief-zh  # TCRFC_行動App功能說明_客戶版.pdf（來源是 HTML，見下）
 node output/tools/build-pdf.mjs app-brief-en  # TCRFC_Mobile_App_Feature_Overview_EN.pdf（同上）
 node output/tools/build-pdf.mjs sitemap-zh # TCRFC_慈善捐款站台地圖.pdf
@@ -57,6 +59,9 @@ node output/tools/build-pdf.mjs app-brief-zh app-brief-en    # 再轉 PDF
 | `zh` / `en` 規劃書 | `output/*.md` | Markdown → 品牌樣式 HTML → A4 直式，含封面、頁首頁尾與頁碼 |
 | `charity-zh` / `charity-en` 慈善站規劃書 | `output/*.md` | 同上 |
 | `app-zh` / `app-en` 行動 App 規劃書 | `output/*.md` | 同上 |
+| `bw-zh` / `bw-en` 台中藍鯨官網規劃書 | `output/*.md` | 同上 |
+| **`brief-zh` / `brief-en` 官網功能說明（客戶版）** | `output/*.md` | 同上。**純文字摘要，不畫示意圖** |
+| **`bw-brief-zh` / `bw-brief-en` 藍鯨官網功能說明（客戶版）** | `output/*.md` | 同上 |
 | `app-brief-zh` / `app-brief-en` 行動 App 功能說明（客戶版） | `build-app-brief.py` → `output/*.html` | HTML 直接列印，A4 直式多頁 |
 | `mile-zh` / `mile-en` 里程碑 | `output/*.html` | 既有 HTML 交付物直接列印，A4 橫式單頁 |
 | `sitemap-zh` / `sitemap-en` 站台地圖 | `build-sitemap.py` → `output/*.html` | HTML 直接列印，A4 直式多頁 |
