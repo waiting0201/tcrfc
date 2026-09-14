@@ -170,7 +170,7 @@ A role designed for Blue Whale's own staff:
 
 **Member personal data has a further layer of protection**: even for their own memberships, **the member record's fields — email, phone, date of birth, address — are always masked**. A member account is one person's account across both clubs, so buying a Blue Whale membership must not expose that person's details to the other side.
 
-> **No one has to be assigned to this role in the first phase.** Blue Whale is currently maintained by Taichung Rock's staff using their existing accounts. Defining the role without assigning it does not hold up launch.
+> **No one has to be assigned to this role yet.** Blue Whale is currently maintained by Taichung Rock's staff using their existing accounts; the role sits defined and unassigned until Blue Whale has maintainers of its own.
 
 ---
 
