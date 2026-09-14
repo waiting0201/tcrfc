@@ -243,8 +243,6 @@ td.c{ text-align:center; }
 .yes{ color:var(--ok); font-weight:700; }
 .no{ color:var(--faint); }
 .part{ color:var(--warn); font-weight:700; font-size:7pt; }
-tr.blue td{ background:var(--soft); }
-tr.blue td:first-child{ color:var(--brand-aa); }
 
 /* ── 支援畫面 ── */
 .grid4{ display:grid; grid-template-columns:repeat(2,1fr); gap:4mm; }
@@ -512,42 +510,6 @@ C['zh'] = dict(
              '表格裡的「付費會員」讀作「<b>在該俱樂部持有有效付費會籍</b>」：'
              '只買磐石的人，在藍鯨的合作店家就是免費會員，這一點介面上必須隨時講清楚，'
              '<b>不得出現只寫「會籍有效」而不說哪一隊的畫面</b>。',
-
-    eyebrow5='Decisions', h2_5='需要決定或提供的事',
-    p5='下面每一項都會直接影響某項功能能不能做、什麼時候能做。'
-       '<b>前四項擋住第一階段的開發</b>——粉紅色那幾列。'
-       '<b>原本列在這裡的「官網要不要也改成兩隊」與「後台的合作球隊權限」兩項已經解決</b>：'
-       '客戶已決定建置台中藍鯨官網，後台的資料範圍權限也已納入官網規劃書。',
-    dec_th=['#', '事項', '沒有的話會怎樣'],
-    dec_rows=[
-        ('01', True, '<b>台中藍鯨的品牌素材</b>',
-         '標誌的<b>向量原始檔</b>（含深色版與 @2x／@3x 高倍圖）、品牌色、正式英文名稱。首次啟動引導、球隊分區、'
-         '<b>藍鯨會籍的會員卡卡面</b>、App 圖示全都要用到。'
-         '<b>不會自己畫標誌、不會從網頁截圖描摹，也不會把點陣圖放大充當向量。</b>'),
-        ('02', True, '<b>台中藍鯨未來 12 個月的賽程</b>',
-         '日期、對手、場地、主客場，聯賽與各項盃賽都要。賽程是這個 App 的第一功能；'
-         '目前只有 2026/27 企甲賽程，<b>兩隊的盃賽與藍鯨的聯賽賽程都還沒有</b>。'),
-        ('03', True, '<b>台中藍鯨的球員與教練名單</b>',
-         '中英文姓名、背號、位置、照片、簡介，以及<b>肖像同意</b>（未成年球員須有監護人同意）。'
-         '沒有這些，藍鯨的球隊頁無法驗收。'),
-        ('04', True, '<b>藍鯨官網網域的持有與 DNS 管理權</b>',
-         '從 App 分享出去的藍鯨連結，要能在沒裝 App 的手機上打開對應網頁、裝了 App 的手機上直接跳回 App。'
-         '這件事<b>只能綁在自己持有、且能放設定檔的網域</b>上。控制權不到位，藍鯨的深連結不會上線。'),
-        ('05', False, 'App 商店對「付費會籍」的認定',
-         '付費入會能不能走 LINE Pay，而不是走 Apple／Google 的內購？會籍權益以實體為主（球衣、店家折扣、現場活動）'
-         '有主張空間，但最終是商店的審查判斷。<b>這是上架最大的單一風險</b>，需要同時準備替代方案。'
-         '<b>兩隊各一份會籍等於兩個付費項目，若被判定須走內購，影響面加倍。</b>'),
-        ('06', False, '俱樂部自己的 LINE Pay 特約商店號',
-         '不能和協會共用。沒有的話，App 內付費入會整段做不了。'),
-        ('07', False, '第一批廣告主是否已經有了',
-         '沒有廣告主就沒有廣告可放。不過版位本身可以先上線，空檔期會自動顯示俱樂部自家內容。'),
-        ('08', False, '夥伴與贊助商的名稱與 Logo',
-         '目前一份都沒有，該頁面無法驗收，而且<b>不會用假 Logo 充數</b>。'),
-        ('09', False, '特約店家與球場的地理座標',
-         '目前只有地址文字，附近店家的距離排序做不了。')],
-    dec_foot='<b>開發者帳號的名義已經確定用俱樂部</b>，商店顯示名稱為中性的「台中足球 Taichung Football」，'
-             '所以不在這張表裡。<b>兩隊之間的會費收入怎麼分</b>也不在這張表——'
-             '那是線下的合約與匯款，系統只把「這筆是哪一隊的會籍」記下來，不做分潤計算。',
 
     colophon='台中磐石足球俱樂部　×　台中藍鯨女子隊　·　行動 App 功能說明（客戶版）<br>'
              '依據《TCRFC 行動 App 功能規劃書》v3.2　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
@@ -964,48 +926,6 @@ C['en'] = dict(
              '"Paid member" in this table reads as <b>holding a valid paid membership at that club</b>: someone who '
              'bought Rock only is a free member at Blue Whale’s partner stores. The interface must say so at all '
              'times — <b>no screen may state "membership valid" without naming the club</b>.',
-
-    eyebrow5='Decisions', h2_5='What needs deciding or supplying',
-    p5='Every item below directly affects whether a feature can be built, and when. '
-       '<b>The first four block the first phase</b> — the pink rows. '
-       '<b>Two items that used to sit here are resolved</b>: the client has decided to build the Taichung Blue Whale '
-       'website, and the admin’s per-club data scope is now covered by that specification.',
-    dec_th=['#', 'Item', 'What happens without it'],
-    dec_rows=[
-        ('01', True, '<b>Blue Whale’s brand assets</b>',
-         'The crest as a <b>vector original</b> (with dark and @2x / @3x variants), brand colours, and the formal '
-         'English name. Needed by onboarding, the club sections, <b>the card face for a Blue Whale membership</b>, '
-         'and the app icon. <b>The crest will not be redrawn, will not be traced from a website screenshot, and a '
-         'bitmap will not be scaled up and passed off as a vector.</b>'),
-        ('02', True, '<b>Blue Whale’s fixtures for the next 12 months</b>',
-         'Dates, opponents, venues, home or away, league and every cup competition. Fixtures are this app’s number '
-         'one feature; only the 2026/27 Premier League schedule exists today, and <b>neither club’s cup fixtures nor '
-         'Blue Whale’s league schedule have been supplied</b>.'),
-        ('03', True, '<b>Blue Whale’s players and coaching staff</b>',
-         'Names in both languages, numbers, positions, photographs, biographies, and <b>image-rights consent</b> '
-         '(guardian consent for minors). Without them their squad screen cannot be signed off.'),
-        ('04', True, '<b>Ownership and DNS control of the Blue Whale website domain</b>',
-         'A Blue Whale link shared out of the app has to open the matching web page on a phone without the app, and '
-         'jump straight back into the app on one that has it. That <b>can only be bound to a domain you own and can '
-         'place a configuration file on</b>. Without that control, Blue Whale deep links will not ship.'),
-        ('05', False, 'How the app stores treat a paid membership',
-         'May joining be paid via LINE Pay rather than Apple’s or Google’s in-app purchase? The benefits are '
-         'predominantly physical (jersey, store discounts, in-person events), which gives grounds to argue it, but '
-         'the stores make the judgement. <b>The single largest launch risk</b>; a fallback must be prepared in '
-         'parallel. <b>One membership per club means two paid items, so a ruling against doubles the impact.</b>'),
-        ('06', False, 'The club’s own LINE Pay merchant account',
-         'The Association’s cannot be shared. Without it, joining and paying inside the app cannot be built at all.'),
-        ('07', False, 'Whether the first advertisers are in place',
-         'No advertisers means nothing to show. The slots themselves can still launch — an empty flight shows the '
-         'club’s own content.'),
-        ('08', False, 'Partner and sponsor names and logos',
-         'None received so far. That section cannot be signed off, and <b>placeholder logos will not be used</b>.'),
-        ('09', False, 'Coordinates for partner stores and grounds',
-         'Only text addresses exist today, so sorting nearby stores by distance cannot be built.')],
-    dec_foot='<b>The developer account holder is settled as the club</b>, with the neutral store name '
-             '"Taichung Football", so it no longer appears in this table. <b>How membership revenue is divided '
-             'between the clubs</b> is not here either — that is a contract and a bank transfer handled offline; '
-             'the system only records which club a membership was for, and performs no settlement calculation.',
 
     colophon='Taichung Rock FC　×　Taichung Blue Whale　·　Mobile App Feature Overview (Client Edition)<br>'
              'Based on the TCRFC Mobile App Functional Specification v3.2　·　five tabs　·　'
@@ -1483,12 +1403,6 @@ def build(c):
         '<tr><td>%s</td>%s%s%s</tr>' % (feat, cell(a), cell(b), cell(d))
         for feat, a, b, d in c['acc_rows'])
 
-    # ── 待決事項表 ─────────────────────────────────────────────────────────
-    dec_rows = ''.join(
-        '<tr class="%s"><td class="n">%s</td><td>%s</td><td>%s</td></tr>'
-        % ('blue' if blue else '', no, item, impact)
-        for no, blue, item, impact in c['dec_rows'])
-
     stamps = ''.join('<span class="stamp">%s<b>%s</b></span>' % s for s in c['stamps'])
     th = lambda hs: ''.join('<th>%s</th>' % h for h in hs)
 
@@ -1540,12 +1454,6 @@ def build(c):
   <div class="note"><h4>{acc_note_h}</h4><p>{acc_note}</p></div>
 </section>
 
-<section class="np">
-  <div class="sec-head"><div class="eyebrow">{eyebrow5}</div><h2>{h2_5}</h2><p>{p5}</p></div>
-  <div class="tbl tight"><table><thead><tr>{dec_th}</tr></thead><tbody>{dec_rows}</tbody></table></div>
-  <div class="admin">{dec_foot}</div>
-</section>
-
 <div class="colophon">{colophon}</div>
 
 </body>
@@ -1569,8 +1477,6 @@ def build(c):
         eyebrow4=c['eyebrow4'], h2_4=c['h2_4'], p4=c['p4'],
         acc_th=th(c['acc_th']), acc_rows=acc_rows,
         acc_note_h=c['acc_note_h'], acc_note=c['acc_note'],
-        eyebrow5=c['eyebrow5'], h2_5=c['h2_5'], p5=c['p5'],
-        dec_th=th(c['dec_th']), dec_rows=dec_rows, dec_foot=c['dec_foot'],
         colophon=c['colophon'])
 
 
