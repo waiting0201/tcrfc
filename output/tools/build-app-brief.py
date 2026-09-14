@@ -75,9 +75,6 @@ b,strong{ font-weight:700; color:var(--ink); }
 .crest .mk{ width:12mm; height:8mm; border-radius:1.2mm; border:.6px solid var(--ink);
             color:var(--ink); font-weight:800; font-size:5.6pt; display:flex;
             align-items:center; justify-content:center; letter-spacing:.08em; flex:none; }
-.crest .mk.pl{ border-style:dashed; border-color:var(--wire-2); color:var(--faint);
-               font-weight:700; width:16mm; }
-.crest .x{ color:var(--faint); font-size:8pt; }
 .crest .tx{ font-size:7.4pt; letter-spacing:.14em; color:var(--muted); text-transform:uppercase;
             margin-left:1.4mm; }
 .cover h1{ font-size:20pt; font-weight:800; letter-spacing:-.01em; margin-bottom:3mm; }
@@ -209,7 +206,6 @@ ul.keyed .sub{ display:block; color:var(--faint); font-size:7.6pt; line-height:1
 .card .cm{ height:4.4mm; min-width:6.6mm; border-radius:.8mm; border:.5px solid var(--ink);
            color:var(--ink); font-size:4.6pt; font-weight:800; display:flex; align-items:center;
            justify-content:center; padding:0 .8mm; flex:none; }
-.card .cm.pl{ border-style:dashed; border-color:var(--wire-2); color:var(--faint); font-weight:700; }
 .card .cn{ font-size:5.4pt; letter-spacing:.1em; color:var(--faint); margin-left:auto; }
 .card.bw{ border-color:#20537F; }
 .card.bw .tierp{ background:#20537F; }
@@ -313,7 +309,7 @@ C['zh'] = dict(
     lang='zh-Hant', chip='zh ▾',
     font='"PingFang TC","Noto Sans TC","Hiragino Sans","Helvetica Neue",Arial,sans-serif',
     doctitle='台中足球 App 功能說明（客戶版）',
-    mark1='TCRFC', mark2='藍鯨標誌待提供',
+    mark1='TCRFC',
     crest='台中磐石足球俱樂部　×　台中藍鯨女子隊',
     h1='一個 App，<em>兩支球隊</em>，各自一份會籍。',
     stand='這份文件把行動 App 攤開來看：使用者打開 App 之後會看到哪些畫面、每個畫面上放什麼、'
@@ -404,8 +400,7 @@ C['zh'] = dict(
     st03=dict(h='電子會員卡', u='付費會員在店家櫃檯感受最直接的一項', tag='離線可出示',
               lede='<b>每份會籍一張卡</b>——買了兩隊的人有兩張，各自帶該俱樂部的標誌與品牌色，左右滑動切換。'
                    '這樣藍鯨的合作店家看到的就是藍鯨的卡，<b>不會有「這張卡在我這裡到底能不能用」的疑問</b>。',
-              items=[('1', '卡面就是那一隊的識別', '磐石的卡用磐石的標誌與桃紅，藍鯨的卡用藍鯨的。'
-                            '<b>藍鯨標誌待提供，目前留佔位。</b>'),
+              items=[('1', '卡面就是那一隊的識別', '磐石的卡用磐石的標誌與桃紅，藍鯨的卡用藍鯨的。'),
                      ('2', '左右滑動切換', '只有一份會籍就只有一張卡，不會出現空白的第二張。'
                             '<b>沒買的那一隊顯示加入入口，不會被藏起來。</b>'),
                      ('3', 'QR 與會員編號', '店員目視驗卡，或掃 QR 開啟公開驗證頁，上面只顯示姓名首字、會員編號、層級、有效或已過期。'),
@@ -513,7 +508,7 @@ C['zh'] = dict(
 
     colophon='台中磐石足球俱樂部　×　台中藍鯨女子隊　·　行動 App 功能說明（客戶版）<br>'
              '依據《TCRFC 行動 App 功能規劃書》v3.2　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
-             '<b>台中藍鯨標誌尚未提供，文件中以虛線方框佔位。</b>本文件的用色為說明文件用色，非 App 最終視覺。',
+             '本文件的用色為說明文件用色，非 App 最終視覺。',
 
 
     # ── 全部畫面 S01–S23（gallery）──────────────────────────────────────
@@ -570,7 +565,7 @@ C['zh'] = dict(
                  ('抽獎資格','磐石 具備')]),
         ('pl',[('bs','兩隊球季不同步，續會提醒各自於到期前 30 天顯示')])]),
       ('S09','電子會員卡','每份會籍一張，左右滑動切換，沒訊號也能出示。',2,True,[
-        ('card',('TCRFC',False,'台中磐石','有效至　2027/06/30',False,True)),
+        ('card',('TCRFC','台中磐石','有效至　2027/06/30',False,True)),
         ('swipe',(['台中磐石','台中藍鯨'],0))]),
       ('S10','會籍方案與升級','先選俱樂部再選方案；未登入就看得到。',2,False,[
         ('blk',[('bt','一般會員'),('bs','免費'),('bs','· 最新消息與賽程')]),
@@ -702,7 +697,7 @@ C['en'] = dict(
     lang='en', chip='en ▾',
     font='"Helvetica Neue",Helvetica,Arial,"Noto Sans",sans-serif',
     doctitle='Taichung Football App — Feature Overview (Client Edition)',
-    mark1='TCRFC', mark2='Blue Whale crest TBC',
+    mark1='TCRFC',
     crest='Taichung Rock FC　×　Taichung Blue Whale',
     h1='One app, <em>two clubs</em>, one membership each.',
     stand='This document lays the mobile app out screen by screen: what a user sees after opening it, '
@@ -808,7 +803,7 @@ C['en'] = dict(
               lede='<b>One card per membership</b> — someone holding both clubs’ memberships has two cards, each '
                    'carrying that club’s crest and colours, switched by swiping. A Blue Whale partner store therefore '
                    'sees a Blue Whale card, and <b>nobody has to wonder whether this card works here</b>.',
-              items=[('1', 'The card face is that club’s identity', 'Rock’s card uses Rock’s crest and magenta; Blue Whale’s uses its own. <b>Blue Whale’s crest is outstanding and shown as a placeholder.</b>'),
+              items=[('1', 'The card face is that club’s identity', 'Rock’s card uses Rock’s crest and magenta; Blue Whale’s uses its own.'),
                      ('2', 'Swipe to switch', 'One membership means one card; there is never a blank second card. <b>The club not yet joined shows a join entry rather than being hidden.</b>'),
                      ('3', 'QR and member number', 'Staff check by eye, or scan the QR to open a public verification page showing only the first character of the name, member number, tier, and valid or expired.'),
                      ('4', 'Last synced time', 'Always printed on the card face, with a warning after seven days without a sync — otherwise an expired member could present a stale card in airplane mode.'),
@@ -930,7 +925,6 @@ C['en'] = dict(
     colophon='Taichung Rock FC　×　Taichung Blue Whale　·　Mobile App Feature Overview (Client Edition)<br>'
              'Based on the TCRFC Mobile App Functional Specification v3.2　·　five tabs　·　'
              'Chinese and English, with the architecture ready for a third language<br>'
-             '<b>Blue Whale’s crest has not been supplied and is shown as a dashed placeholder.</b> '
              'The colours here belong to this document, not to the app’s final visual design.',
 
 
@@ -989,7 +983,7 @@ C['en'] = dict(
                  ('Prize-draw eligibility','Rock — eligible')]),
         ('pl',[('bs','Seasons are not aligned; each renewal prompt appears 30 days before its own expiry')])]),
       ('S09','Digital membership card','One per membership, swipe to switch, presentable with no signal.',2,True,
-        [('card',('TCRFC',False,'Taichung Rock','Valid to　30 Jun 2027',False,True)),
+        [('card',('TCRFC','Taichung Rock','Valid to　30 Jun 2027',False,True)),
          ('swipe',(['Taichung Rock','Taichung Blue Whale'],0))]),
       ('S10','Plans and upgrade','Choose the club, then the plan; visible without signing in.',2,False,[
         ('blk',[('bt','Registered member'),('bs','Free'),('bs','· News and fixtures')]),
@@ -1219,17 +1213,17 @@ def items(spec, ph):
                    ph['fx_home'] if is_home else ph['fx_away'], tm)
                 for d, cls, me, opp, cmp_, is_home, tm in val))
         elif kind == 'card':
-            # (標誌文字, 是否為佔位框, 俱樂部名, 有效期, 是否藍鯨色系, 是否顯示卡背)
-            mk, isph, club, exp, bw, peek = val
+            # (標誌文字, 俱樂部名, 有效期, 是否藍鯨色系, 是否顯示卡背)
+            mk, club, exp, bw, peek = val
             out.append(
                 '<div class="cardwrap">%s<div class="card%s">'
-                '<div class="ch"><span class="cm%s">%s</span>'
+                '<div class="ch"><span class="cm">%s</span>'
                 '<span class="cn">%s</span></div>'
                 '<div class="qrw">%s</div><div style="text-align:center">'
                 '<div class="nm">%s</div><div class="tierp">%s</div></div>'
                 '<div class="meta">%s　%s<br>%s<br><b>%s</b></div></div></div>'
                 % ('<div class="peek"></div>' if peek else '', ' bw' if bw else '',
-                   ' pl' if isph else '', mk, club, QR, ph['card_nm'], ph['card_tier'],
+                   mk, club, QR, ph['card_nm'], ph['card_tier'],
                    ph['card_no'], ph['card_nov'], exp, ph['card_sync']))
         elif kind == 'swipe':
             labels, act = val
@@ -1416,7 +1410,7 @@ def build(c):
 <body>
 
 <header class="cover">
-  <div class="crest"><div class="mk">{mark1}</div><div class="x">×</div><div class="mk pl">{mark2}</div><div class="tx">{crest}</div></div>
+  <div class="crest"><div class="mk">{mark1}</div><div class="tx">{crest}</div></div>
   <h1>{h1}</h1>
   <p class="stand">{stand}</p>
   <div class="stamps">{stamps}</div>
@@ -1460,7 +1454,7 @@ def build(c):
 </html>
 """.format(
         lang=c['lang'], doctitle=c['doctitle'], css=CSS.replace('__FONT__', c['font']),
-        mark1=c['mark1'], mark2=c['mark2'], crest=c['crest'],
+        mark1=c['mark1'], crest=c['crest'],
         h1=c['h1'], stand=c['stand'], stamps=stamps,
         eyebrow1=c['eyebrow1'], h2_1=c['h2_1'], p1=c['p1'], tree=tree,
         eyebrow2=c['eyebrow2'], h2_2=c['h2_2'], p2=c['p2'],
