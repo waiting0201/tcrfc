@@ -12,9 +12,28 @@ C['zh'] / C['en'] 兩份資料，**不要直接改產出的 HTML**（會被下�
 排版沿用 build-sitemap.py 的視覺語言（A4 直式、手機示意、動線站卡片），
 但這份講的是 App 五個分頁的畫面，不是網站的頁面地圖。
 """
-import io, os
+import io, os, base64
 
 OUT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(OUT)
+
+
+def _crest_tcrfc():
+    """TCRFC 隊徽：brand/svg/ 的向量原檔，直接內嵌。"""
+    with io.open(os.path.join(ROOT, 'brand', 'svg', 'tcrfc-mark-black.svg'),
+                 encoding='utf-8') as f:
+        svg = f.read()
+    return svg.replace('<svg ', '<svg class="lg" ', 1)
+
+
+def _crest_bw():
+    """台中藍鯨隊徽：目前只有點陣主檔（brand/blue-whale/README.md 記來源與限制）。"""
+    with open(os.path.join(ROOT, 'brand', 'blue-whale', 'bw-crest-256.png'), 'rb') as f:
+        b64 = base64.b64encode(f.read()).decode('ascii')
+    return ('<img class="lg bw" alt="台中藍鯨隊徽" src="data:image/png;base64,%s">' % b64)
+
+
+CREST_TCRFC, CREST_BW = _crest_tcrfc(), _crest_bw()
 
 
 # ── 決定性假 QR：三個定位點 + 種子雜訊，避免 PDF 依賴 JS ──────────────────
@@ -72,9 +91,9 @@ b,strong{ font-weight:700; color:var(--ink); }
 /* ── 報頭 ── */
 .cover{ border-bottom:2.2px solid var(--ink); padding-bottom:5mm; margin-bottom:7mm; }
 .crest{ display:flex; align-items:center; gap:2.4mm; margin-bottom:4mm; }
-.crest .mk{ width:12mm; height:8mm; border-radius:1.2mm; border:.6px solid var(--ink);
-            color:var(--ink); font-weight:800; font-size:5.6pt; display:flex;
-            align-items:center; justify-content:center; letter-spacing:.08em; flex:none; }
+.crest .lg{ height:9mm; width:auto; flex:none; display:block; }
+.crest .lg.bw{ height:10mm; }
+.crest .x{ color:var(--faint); font-size:8pt; }
 .crest .tx{ font-size:7.4pt; letter-spacing:.14em; color:var(--muted); text-transform:uppercase;
             margin-left:1.4mm; }
 .cover h1{ font-size:20pt; font-weight:800; letter-spacing:-.01em; margin-bottom:3mm; }
@@ -1410,7 +1429,7 @@ def build(c):
 <body>
 
 <header class="cover">
-  <div class="crest"><div class="mk">{mark1}</div><div class="tx">{crest}</div></div>
+  <div class="crest">{crest_r}<div class="x">×</div>{crest_b}<div class="tx">{crest}</div></div>
   <h1>{h1}</h1>
   <p class="stand">{stand}</p>
   <div class="stamps">{stamps}</div>
@@ -1454,7 +1473,7 @@ def build(c):
 </html>
 """.format(
         lang=c['lang'], doctitle=c['doctitle'], css=CSS.replace('__FONT__', c['font']),
-        mark1=c['mark1'], crest=c['crest'],
+        crest_r=CREST_TCRFC, crest_b=CREST_BW, crest=c['crest'],
         h1=c['h1'], stand=c['stand'], stamps=stamps,
         eyebrow1=c['eyebrow1'], h2_1=c['h2_1'], p1=c['p1'], tree=tree,
         eyebrow2=c['eyebrow2'], h2_2=c['h2_2'], p2=c['p2'],

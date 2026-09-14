@@ -1,5 +1,7 @@
 # TCRFC 品牌資產
 
+> **台中藍鯨的資產不在本說明的範圍內**，另見 [`blue-whale/README.md`](blue-whale/README.md)——那是自既有官網取得的**點陣**主檔，來源、可用範圍與限制都寫在那裡；**向量原始檔仍待客戶提供**。
+
 全部由 [`../reference/TCR_logo_CMYK.ai`](../reference/TCR_logo_CMYK.ai)（Illustrator 28.3，2024-07-11，文字已轉外框）**直接向量萃取**，未經重繪或描邊。
 `.ai` 是唯一色彩與造型真實來源；本資料夾的檔案若與 `.ai` 衝突，以 `.ai` 為準並回頭重產。
 
