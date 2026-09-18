@@ -1,10 +1,19 @@
 # Taichung Blue Whale — Official Website Functional Specification
 
-> **Document version**: v1.5
-> **Date**: 2026-09-10 (v1.5 revision: 2026-09-18)
+> **Document version**: v1.7
+> **Date**: 2026-09-10 (v1.7 revision: 2026-09-18)
 > **Content principal**: Taichung Blue Whale Women's Football Team
 > **System principal**: **shares the admin and database** of the Taichung Rock FC official website
-> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.5*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.7*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v1.7 revision summary — the admin design rule applies here too**
+> **No functional changes.** This site shares the main site's admin, so the **admin design rule** in website specification v3.7 §4.0 applies in full:
+> modules divided by public-site section, the same name front and back, everyday language throughout, no codes or technical terms in the interface.
+> Switching the site switcher to Blue Whale shows the same module names and field labels as the main site — part of what §1.3's governing rule means by "the same website".
+
+> **v1.6 revision summary — GEO implemented to the same standard as the main site**
+> **§7 gains a fourth point**: `GEO-01`–`GEO-09` from main-site specification v3.6 are **implemented here in full** — this site's own `llms.txt` (both languages) and `robots.txt`, its own single source of fact, complete schema output.
+> For shared content the factual account belongs to whichever site holds the canonical, and this site does not restate it. No change to functional scope.
 
 > **v1.5 revision summary — stated explicitly: the same website as the main site, differing only in colour**
 > 1. **§1.3 adds a governing rule**: the Blue Whale site's templates, components, page structure, interaction behaviour and functionality **match the main site exactly**; **the only brand difference is colour** (seven variables sampled from the crest). Whatever the main site has, this site has; any detail this document does not state is identical to the same section of the main-site specification.
@@ -292,11 +301,13 @@ Records that must be created:
 
 ## 7. SEO and Languages
 
-Follows main-site specification chapter 7. Three points specific to this site:
+Follows main-site specification chapter 7 (**both the nine SEO foundations and `GEO-01`–`GEO-09` apply**). Four points specific to this site:
 
 1. **Both languages launch together** (`/zh/` and `/en/`). The existing Blue Whale site is Chinese only, and an English edition materially helps visibility for an AFC-licensed club playing international invitationals. **Blue Whale must supply the official English name and the full English copy.**
 2. **Canonical attribution for shared content**: articles with a null `club_id` appear on both sites. **One site must own the canonical URL** (the recommendation is the main site, with this site linking across), or two canonicals amount to duplicate content. To be confirmed (§10).
 3. **301 redirects from the old site**: the existing Google Sites sections must be mapped one by one to preserve search equity. Its URLs contain Chinese-language paths, so the mapping has to be compiled by hand.
+4. **GEO files are this site's own** (main-site `GEO-01`, `GEO-02`, `GEO-09`): this site has **its own `llms.txt` in both languages and its own `robots.txt`**, shared with nothing. Its key facts — **founded 2014-04-12, AFC club licence, the Taiwan Mulan Football League, home grounds at Taiyuan Football Field and Fengyuan Stadium, the mascot Bruwei** — follow `GEO-03` (one place of maintenance site-wide) and `GEO-04` (structured data and explicit text together). **For shared content (`club_id` null), the factual account belongs to whichever site holds the canonical; this site links across and does not restate it.**
+   ⚠️ `GEO-02`'s exclusions apply here too: **the paths holding photographs of the U15 and U12 players are always excluded**, and material without image consent must not be public in the first place.
 
 ---
 

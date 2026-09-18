@@ -1,8 +1,8 @@
 # Taichung Rock FC — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.1
-> **Date**: 2026-09-14 (v1.1 revision: 2026-09-18)
-> **Corresponds to**: *TCRFC Website Functional Specification* v3.5
+> **Document version**: v1.3
+> **Date**: 2026-09-14 (v1.3 revision: 2026-09-18)
+> **Corresponds to**: *TCRFC Website Functional Specification* v3.7
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **How to read this document**
@@ -119,65 +119,67 @@ Membership covers **one thing only — belonging**, at two tiers:
 
 ## 5. The admin: every module
 
+**Every admin module corresponds to somewhere on the website.** Module names match what visitors see, and the interface is written in everyday words — no codes, no technical terms.
+
 **One entrance, two clubs kept apart.** After signing in, a switcher at the top of the screen selects which club is being worked on; every list and report then shows only that club's data. Anyone authorised for a single club never sees the switcher.
 
 | Module | Submodule | What it does |
 |---|---|---|
-| **A Dashboard** | — | Tasks, latest submissions, key figures |
-| **B Content** | B1 Pages | Static pages and editable blocks (including the Blue Whale entrance page) |
-| | B2 News & Stories | Writing, scheduled publishing, categories and tags |
-| | B3 Home blocks / banners | Order of the home page blocks and the hero |
-| | B4 FAQ | Questions and answers, including reports of failed searches |
-| | B5 Charity records | The descriptive content and impact figures for section 11 |
-| | B6 Press & media resources | Press releases, brand identity packs and high-resolution images for the media section |
-| **C Teams** | C1 Teams | First team, academy age groups, Blue Whale first team |
-| | C2 Players | Squad, numbers, positions, photographs, biographies |
-| | C3 Coaches and staff | Coaching and administrative staff |
-| | C4 Fixtures | **Fixtures, results, tables** (bulk import supported) |
-| | C5 Honours and milestones | Titles and notable records |
-| **P Programmes** | P1 Courses and camps | Regular courses and short camps |
-| | P2 Intakes and sessions | Dates and places available |
-| | P3 Registrations | Intake, review, exports |
-| | P4 Trial sessions | Trial dates and sign-ups |
-| **E Business** | E1 Partners | The B2B partner wall |
-| | E2 Sponsors and packages | Tiers and entitlements |
-| | E3 Proposal and download tracking | Who downloaded the sponsorship proposal |
-| | E4 Advertisers and slots | **Directly sold advertising in the mobile app** |
-| | E5 Flights and creatives | Scheduling and creative management |
-| | E6 Performance reports | Impressions and clicks |
-| **F Culture** | F1 Comic | Characters, episodes, reading settings |
-| | F2 Supporters' club events | Event scheduling (the roster lives in module K) |
-| **G Enquiries** | G1 Form designer | Building form fields |
-| | G2 Inbox | Seven form types plus proposal downloads and donation enquiries |
-| | G3 Newsletter list | Subscriptions and unsubscribes |
-| **H SEO & marketing** | — | Titles and descriptions, sitemap, structured data |
-| **I Site settings** | — | Menus, footer, languages, contact details, venues, external services |
-| **J System** | J1 Accounts | Admin accounts |
-| | J2 Roles and permissions | Who can do what |
-| | J3 Audit and backup | Operation records and backups |
-| | J4 Clubs and authorisation | **Club branding and legal details; each account's club authorisations** |
-| **K Members** | K1 Member list | Member records (personal data masked by role) |
-| | K2 Memberships and plans | Activation, renewal, expiry |
-| | K3 Shirt fulfilment | Sizes and issue records |
-| | K4 Partner stores and benefits | Store list and discount terms |
-| | K5 Prize draw rosters | Building rosters, issuing numbers, exporting (**no random selection**) |
-| **L Calendar** | L1 Overview calendar | A combined view across modules |
-| | L2 Own events | Club events |
-| | L3 Categories and display | Colours and grouping |
-| | L4 Subscription and export | Lets supporters subscribe from their phones |
-| **M Mobile app** | M1 Versions and releases | App versions and forced updates |
-| | M2 Content and deep links | Arranging the app's content |
-| | M3 Push notifications | Sending pushes (**two-person approval required**) |
-| | M4 Devices and push tokens | Device management |
-| | M5 Settings, certificates, diagnostics | App configuration and troubleshooting |
-| **S Shop** | S1 Products and variants | Products, sizes and colours, prices |
-| | S2 Stock | Movements and safety levels |
-| | S3 Orders | Order status and support handling |
-| | S4 Dispatch and delivery | Dispatch notes and tracking |
-| | S5 Returns and refunds | Return requests and refunds |
-| | S6 Shop settings and reports | Shipping, payment and invoice settings, sales reports |
+| **Dashboard** | — | Tasks, latest submissions, key figures |
+| **Content** | Pages | Static pages and editable blocks (including the Blue Whale entrance page) |
+| | News & Stories | Writing, scheduled publishing, categories and tags |
+| | Home layout | Order of the home page blocks and the hero |
+| | FAQ | Questions and answers, including reports of failed searches |
+| | Charity & Impact | The descriptive content and impact figures for section 11 |
+| | Press & Media | Press releases, brand identity packs and high-resolution images for the media section |
+| **Teams** | Teams | First team, academy age groups, Blue Whale first team |
+| | Players | Squad, numbers, positions, photographs, biographies |
+| | Coaches and staff | Coaching and administrative staff |
+| | Fixtures & Results | **Fixtures, results, tables** (bulk import supported) |
+| | Honours and milestones | Titles and notable records |
+| **Programmes** | Courses and camps | Regular courses and short camps |
+| | Intakes and sessions | Dates and places available |
+| | Registrations | Intake, review, exports |
+| | Trial sessions | Trial dates and sign-ups |
+| **Business** | Partners | The B2B partner wall |
+| | Sponsors and packages | Tiers and entitlements |
+| | Proposal and download tracking | Who downloaded the sponsorship proposal |
+| | Advertisers and slots | **Directly sold advertising in the mobile app** |
+| | Flights and creatives | Scheduling and creative management |
+| | Performance reports | Impressions and clicks |
+| **Culture** | Comic | Characters, episodes, reading settings |
+| | Supporters' club events | Event scheduling (the roster lives in module K) |
+| **Enquiries** | Form designer | Building form fields |
+| | Inbox | Seven form types plus proposal downloads and donation enquiries |
+| | Newsletter list | Subscriptions and unsubscribes |
+| **Search & AI visibility** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** |
+| **Site settings** | — | Menus, footer, languages, contact details, venues, external services |
+| **System** | Accounts | Admin accounts |
+| | Roles and permissions | Who can do what |
+| | Audit and backup | Operation records and backups |
+| | Clubs and authorisation | **Club branding and legal details; each account's club authorisations** |
+| **Members** | Member list | Member records (personal data masked by role) |
+| | Memberships and plans | Activation, renewal, expiry |
+| | Shirt fulfilment | Sizes and issue records |
+| | Partner stores and benefits | Store list and discount terms |
+| | Prize draw rosters | Building rosters, issuing numbers, exporting (**no random selection**) |
+| **Calendar** | Overview calendar | A combined view across modules |
+| | Own events | Club events |
+| | Categories and display | Colours and grouping |
+| | Subscription and export | Lets supporters subscribe from their phones |
+| **Mobile app** | Versions and releases | App versions and forced updates |
+| | Content and deep links | Arranging the app's content |
+| | Push notifications | Sending pushes (**two-person approval required**) |
+| | Push devices | Device management |
+| | App settings & connection check | App configuration and troubleshooting |
+| **Shop** | Products & options | Products, sizes and colours, prices |
+| | Stock | Movements and safety levels |
+| | Orders | Order status and support handling |
+| | Dispatch and delivery | Dispatch notes and tracking |
+| | Returns and refunds | Return requests and refunds |
+| | Shop settings and reports | Shipping, payment and invoice settings, sales reports |
 
-> The charity donation platform is run by the Taiwan Football Strategic Development Association and is **an entirely separate system with its own admin**; it is not part of this one. What module `B5` maintains here is the **descriptive page** on the website — a different thing.
+> The charity donation platform is run by the Taiwan Football Strategic Development Association and is **an entirely separate system with its own admin**; it is not part of this one. What "Charity & Impact" maintains here is the **descriptive page** on the website — a different thing.
 
 ---
 
@@ -240,5 +242,5 @@ A website is not finished when it launches. The table below is a realistic staff
 
 ---
 
-> Taichung Rock Football Club　·　Official Website Feature Overview (Client Edition) v1.1
-> Based on the *TCRFC Website Functional Specification* v3.5　·　13 sections plus shop and member area　·　Chinese and English
+> Taichung Rock Football Club　·　Official Website Feature Overview (Client Edition) v1.3
+> Based on the *TCRFC Website Functional Specification* v3.7　·　13 sections plus shop and member area　·　Chinese and English

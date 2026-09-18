@@ -1,14 +1,28 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.5
-> **Date**: 2026-08-14 (v3.5 revision: 2026-09-18)
+> **Document version**: v3.7
+> **Date**: 2026-08-14 (v3.7 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.5*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.7*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.7 revision summary — the admin is shaped by the public site, and speaks plain language**
+> 1. **§4.0 adds an admin design rule**: admin modules are divided by **public-site section**, not by database table. Every module states at the top of its page **which public page or block it produces**, with a preview link.
+> 2. **The same name front and back**: one thing has one name across the public site and the admin. **§4.0 adds a front-to-back mapping table.**
+> 3. **Plain language in the interface**: no table or column names, no module codes, no permission codes, no English technical terms. Necessary technical concepts are rendered in everyday words (`slug` → "URL name", and so on). CSV exports follow the same rule.
+> 4. **Codes never reach the interface**: `B1` / `K4` / `S3`, `shop.order.export`, `D1` / `BW1` exist only in **the specification, the code and the audit log**.
+> 5. **Nine submodules renamed to echo the public site**: Home layout, FAQ, Charity & Impact, Press & Media, Fixtures & Results, Search & AI visibility, Push devices, App settings & connection check, Products & options. **Codes and functional scope are unchanged.**
+
+> **v3.6 revision summary — GEO becomes a specification, not a recommendation**
+> 1. **§7's GEO section becomes the itemised requirements `GEO-01`–`GEO-09`**, on a par with the nine SEO foundations and verifiable item by item.
+> 2. **`llms.txt`** (one per site, in both languages, maintained in the admin and regenerated on publish) and the **AI crawler permission list** (`robots.txt`) enter the specification. **Crawling is allowed site-wide, excluding personal data and minors' material.**
+> 3. **Single source of fact, presented twice**: founding year, home grounds, squads, contact details, charity impact figures and the like have exactly one place of maintenance site-wide, and always appear as structured data and as explicit text.
+> 4. **Three additions to admin module `H`**: `llms.txt` maintenance, AI crawler permissions, structured-data completeness check. **No new types** (settings live in `Setting`).
+> 5. **Out of scope**: an on-site AI chatbot, AI content generation, a separate API or MCP endpoint for AI, and an `llms-full.txt` full-text export.
 
 > **v3.5 revision summary — admin images are uploaded per field; there is no media library**
 > 1. **§4.0 adds an image-upload rule for the whole admin**: an image always belongs to the record it describes; **there is no shared image library**. Each image field is a group of columns (object key, width, height, bilingual alt text); multi-image cases are carried by child tables.
 > 2. **Picking a file does not upload it; saving does.** Choosing an image in an admin form renders a preview in the browser, with the file held only in browser memory; pressing **Save** submits it with the rest of the form and writes it to object storage (blob), and only a successful write updates the record. Leaving or cancelling the form leaves no file behind.
-> 3. **The `B` module is `B1–B6`**: `B1 Pages` / `B2 News` / `B3 Homepage slots & Banners` / `B4 FAQ` / `B5 Charity & Impact Records` / **`B6 Press & Media Resources`** (the press releases, brand identity packs and high-resolution images behind public-site section 7.8).
+> 3. **The `B` module is `B1–B6`**: `B1 Pages` / `B2 News & Stories` / `B3 Home layout` / `B4 FAQ` / `B5 Charity & Impact` / **`B6 Press & Media`** (the press releases, brand identity packs and high-resolution images behind public-site section 7.8).
 > 4. **Type changes**: `PressResource` is added. Image fields become columns on their own table rather than foreign keys, in 10 places (`Article` cover, `Banner`, `Partner` / `Sponsor` dual-tone logos, `ProposalFile`, `ProductImage`, `ComicPage`, `Charity` logo).
 > 5. **§5.4 nullable `club_id`** narrows to **7 tables**.
 
@@ -563,10 +577,10 @@ The calendar is organised primarily **by team**:
 
 | Code | Team | Covers | Source data |
 |---|---|---|---|
-| **D1** | **First Team** | League and cup fixtures, results, first-team public events | C1 Team (`first_team`), C4 Matches |
-| **U15** | U15 squad | That squad's fixtures and results | C1 Team (`academy` / U15), C4 Matches |
-| **U14** | U14 squad | As above | C1 Team (`academy` / U14), C4 Matches |
-| **U12** | U12 squad | As above | C1 Team (`academy` / U12), C4 Matches |
+| **D1** | **First Team** | League and cup fixtures, results, first-team public events | C1 Team (`first_team`), C4 Fixtures & Results |
+| **U15** | U15 squad | That squad's fixtures and results | C1 Team (`academy` / U15), C4 Fixtures & Results |
+| **U14** | U14 squad | As above | C1 Team (`academy` / U14), C4 Fixtures & Results |
+| **U12** | U12 squad | As above | C1 Team (`academy` / U12), C4 Fixtures & Results |
 
 **Categorisation rules**:
 
@@ -804,15 +818,15 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ├── B. Content
 │   ├── B1 Pages (static pages / blocks, incl. the Blue Whale site entry page)
 │   ├── B2 News & Stories
-│   ├── B3 Homepage slots / Banners
-│   ├── B4 FAQ Management
-│   ├── B5 Charity & Impact Records
-│   └── B6 Press & Media Resources
+│   ├── B3 Home layout
+│   ├── B4 FAQ
+│   ├── B5 Charity & Impact
+│   └── B6 Press & Media
 ├── C. Teams
 │   ├── C1 Teams (first team / academy squads / **Blue Whale first team BW1**)
 │   ├── C2 Players
 │   ├── C3 Coaches & Staff
-│   ├── C4 Matches (fixtures / results / standings)
+│   ├── C4 Fixtures & Results (incl. standings)
 │   └── C5 Honours & Milestones
 ├── P. Programs
 │   ├── P1 Programs / Camps
@@ -833,7 +847,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 │   ├── G1 Form Designer
 │   ├── G2 Inbox (7 form types + deck downloads + donation enquiries)
 │   └── G3 Newsletter Subscribers
-├── H. SEO & Marketing
+├── H. Search & AI Visibility
 ├── I. Site Settings (menus / footer / languages / contact info / venues / external services)
 ├── J. System
 │   ├── J1 Accounts
@@ -855,10 +869,10 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 │   ├── M1 App releases & version management
 │   ├── M2 App composition & deep links
 │   ├── M3 Push notification management
-│   ├── M4 Devices & push tokens
-│   └── M5 App settings, certificates & diagnostics
+│   ├── M4 Push devices
+│   └── M5 App settings & connection check
 └── S. Shop (added in v2.6; defined in 4.13)
-    ├── S1 Products & variants (SKUs)
+    ├── S1 Products & options
     ├── S2 Inventory
     ├── S3 Orders
     ├── S4 Fulfilment & shipping
@@ -868,7 +882,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 > **Numbering note**: the programs module was originally numbered `D1–D4`, which clashed confusingly with the **team code `D1`** (First Team). It has been renumbered **`P1–P4` (Programs)**, and all references throughout this document have been updated.
 > **Why the shop module takes `S` (Shop)**: `N` belongs to the Charity Donation Platform and `M` to the Mobile App, so a new letter is used.
-> **The Charity Donation Platform has its own admin and its own database and is not a module of this admin.** **What this site carries is `B5 Charity Impact Records`** (the content of section 11); the two are different things.
+> **The Charity Donation Platform has its own admin and its own database and is not a module of this admin.** **What this site carries is `B5 Charity & Impact`** (the content of section 11); the two are different things.
 
 > **Site switcher (new in v3.0)**
 > This admin carries two clubs' websites. Users sign in with **the same account through the same entry point** and pick the club they are working on from a **site switcher** at the top of the screen; after switching, every list, editor and report **shows only that club's data**.
@@ -876,6 +890,50 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > - It defaults to `AdminUser.primary_club_id`.
 > - **Shared content (`club_id` null) is visible under either site but read-only to scope-limited accounts** (see 5.4).
 > - ⚠️ **The switcher is a convenience, not a security boundary.** Data scope must be enforced at the data-access layer and must never rely on the switcher's current selection.
+
+> **Admin design rule (new in v3.7, applies to the whole admin)**
+> **The admin exists to produce the public site.** Every module and every field must be able to answer: **where does this appear on the website?**
+>
+> | Item | Rule |
+> |---|---|
+> | **Shaped by the public site** | Modules are divided by **public-site section**, **not by database table or technical boundary**. Every module states at the top of its page **which public page or block it produces**, with a preview link to it |
+> | **The same name front and back** | One thing has **one name** across the public site and the admin. If the public site says "News Centre", the admin does not say "Article management"; if it says "FAQ", the admin does not say "the FAQ module" |
+> | **Plain language** | Module names, field labels, buttons, hints and error messages are written in **everyday language**. ⚠️ **Never in the interface**: table or column names, English technical terms (`slug` / `canonical` / `token` / `SKU` / `blob` / `WebP` / `Schema` / `club_id` and the like) |
+> | **Codes stay out of the interface** | **Module codes** (`B1` / `K4` / `S3`), **permission codes** (`shop.order.export`) and **team codes** (`D1` / `BW1`) exist only in **the specification, the code and the audit log**, and are **never shown in the admin**. The role-permission screen describes each permission in words (e.g. "Export the order list") |
+> | **Translate the concept, don't drop it** | `slug` → "URL name" / `canonical` → "primary URL" / `noindex` → "keep this out of search engines" / `alt` → "image description" / `SKU` → "product option code" / `hreflang` → "language version mapping" |
+> | **Exports follow the same rule** | CSV column headings are written in words, **not as database column names** |
+>
+> ⚠️ **This rule governs interface text, not the data structure.** Table names, column names and permission codes stay in English `snake_case` (see §5 and §6); the two are different layers, and this rule is never a reason to rename anything in the database.
+
+> **Front-to-back mapping (new in v3.7)** — what each admin module produces on the public site. **A module that maps to nothing has been carved out wrongly.**
+>
+> | Admin module | What it produces on the public site |
+> |---|---|
+> | Dashboard | **Nothing public** (for admin use) |
+> | Pages | 02 About, 03.2–03.5, 04 Academy, 05 Programs, 06 Blue Whale entry, 9.3, 11.1 and other static pages |
+> | News & Stories | 07 News & Stories (7.1–7.7), latest news on the home page |
+> | Home layout | 01 Home (hero carousel and the nine blocks) |
+> | FAQ | 12 FAQ and every FAQ quick block (G-12) |
+> | Charity & Impact | 11 Charity & Impact |
+> | Press & Media | 7.8 Media |
+> | Teams / Players / Coaches & staff | 03 First Team, 04 Academy squads; Blue Whale site 03 and 04 |
+> | Fixtures & Results | 13 Schedule, latest and upcoming matches on the home page |
+> | Honours & Milestones | 02 About |
+> | Programs, Sessions | 05 Programs pages |
+> | Registrations, Trials | Registration on 05, trials on 03 (**data arrives in the admin; the public site only submits**) |
+> | Partners, Sponsors, Proposal downloads | 09 Partners & Sponsors, the sponsor logo wall, the footer |
+> | Advertisers & slots, Campaigns, Performance | **The mobile app's slots** (this site's web front end has no fixed slots) |
+> | Comic, Fan club events | 08 Culture |
+> | Form designer, Enquiry inbox | The seven enquiry forms under 10 Join / Contact (**data arrives in the admin**) |
+> | Newsletter | The footer subscription block |
+> | Search & AI visibility | **The whole site** (no single page): meta and OG tags, sitemap, `robots.txt`, `llms.txt`, structured data, redirects |
+> | Site settings | Site-wide navigation, footer, contact details, venues, the shop entry, external links |
+> | System administration | **Nothing public** (for admin use) |
+> | Members, Memberships & plans, Jersey issue, Draw rosters | MEMBER Member Centre, the digital card and its public verification page |
+> | Partner stores & benefits | 8.4 Partner store list, the membership benefits table |
+> | Calendar | 13 Schedule (subscription and export) |
+> | App releases, App content, Push, Push devices, App settings & connection check | **The mobile app** (not the web front end) |
+> | Products & options, Stock, Orders, Shipments, Returns & refunds, Shop settings & reports | 8.3 the on-site shop, My Orders in the Member Centre |
 
 > **Admin image-upload rule (new in v3.5, applies to the whole admin)**
 > **This admin has no media library.** An image always belongs to the record it describes — a player photo sits on the player record, a product image on the product-image record, a sponsor logo on the sponsor record. **There is no image library shared across records and no central image browser.**
@@ -922,11 +980,11 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Scheduled publishing, featured pinning (max 3), view counts
 - Bulk actions: recategorise, bulk publish / unpublish
 
-#### B3 Homepage slots / Banners
+#### B3 Home layout
 - Hero carousel management (order, image/video, headline, CTA, display period); **seasonal content (new manga chapters, charity campaigns, enrolment windows) is surfaced here** instead of via dedicated fixed slots (**this applies to this site's public web front end**; the Mobile App's own advertising slots are covered by the app specification, section 7, and admin E4–E6)
 - Toggles and ordering for each homepage block, plus featured-content selection (current blocks: hero, core values, pillar cards, latest match, upcoming fixtures, latest news, sponsor logo wall, store entry, bottom CTA)
 
-#### B4 FAQ Management
+#### B4 FAQ
 - **Topic categories**: create / reorder / disable categories (joining the club, academy admissions, program registration, fees & refunds, trials, international pathways, women's football, fan club & merchandise, partnership & sponsorship, other)
 - **Question CRUD**: question, answer (rich text with links / images / files), categories (multi-select), sort weight, status (visible / hidden), bilingual versions
 - **Embedding**: specify which pages' FAQ quick blocks (G-12) a question may appear in, or map automatically by category
@@ -934,7 +992,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Zero-result search terms**: a ranking of searches that returned nothing, used to decide which FAQs to add
 - Bulk actions: recategorise, show / hide, CSV import and export
 
-#### B5 Charity & Impact Records
+#### B5 Charity & Impact
 - **Charity Program**: name, cover, beneficiaries, period, status (ongoing / completed), background and content (block editor), **recipient charity** (linked to the organisation records below), **what was donated**, gallery, related coverage (7.7)
 - **Impact Record**: three required fields — **charity organisation name**, **what was donated** (free text, e.g. "50 footballs, 100 training bibs" or "N scholarships"), and **event photography** (multiple images); plus date, location, short description, and optionally the parent programme
 - **Charity organisation records**: name, description, logo or representative image, website, contact person, collaboration history; reusable across multiple impact records to avoid re-entry
@@ -943,7 +1001,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Get Involved settings**: copy and destinations for **two** CTAs (corporate partnership / fan donation); volunteer signup is out of scope
 - Display control: ordering and pinning within the charity section (**no fixed charity slot on the homepage**; for temporary exposure, use the hero carousel or publish a news article). **The Mobile App carries no charity slot either** — the Charity Donation Platform is run and collected for by the Association, so this club's app must not sell or grant charity-related placements
 
-#### B6 Press & Media Resources
+#### B6 Press & Media
 - **Backs public-site section 7.8**: press releases, brand identity packs (logo / CIS) and high-resolution images
 - Resource CRUD: bilingual title and description, category, file, cover thumbnail, publication date, status (visible / hidden), sort order
 - The file and its cover sit on the resource record under the **admin image-upload rule** (see 4.0); download counts are recorded
@@ -974,7 +1032,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Coaches: name, title, licences (AFC A/B/C etc.), specialisms, history, assigned squad, photo
 - Staff (2.4 Our People): group (management / administration / medical / operations), title, bio
 
-#### C4 Matches
+#### C4 Fixtures & Results
 - Match record: season, competition (league / cup), date and time, home/away, opponent, venue, status (upcoming / live / finished / postponed)
 - Result: score, scorers with timings, cards, line-up, link to the match report (7.2)
 - **League table**: maintained manually or imported from CSV
@@ -1072,7 +1130,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 ---
 
-### 4.8 H. SEO & Marketing
+### 4.8 H. Search & AI Visibility
 
 | Feature | Description |
 |---|---|
@@ -1084,6 +1142,9 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | 301 redirect management | Old-to-new URL mapping with bulk import |
 | Tracking tags | GA4, GTM, Meta Pixel, LINE Tag placement configuration |
 | Internal linking suggestions | Flags orphan pages that nothing links to, based on the site hierarchy |
+| **`llms.txt` maintenance (v3.6)** | What the site is, representative pages, a summary of key facts, licensing and citation terms; **one file per language, maintained separately for each of the two sites**, regenerated on publish |
+| **AI crawler permissions (v3.6)** | The AI user-agent list with allow / deny settings and the **exclusion path list**, emitted into `robots.txt`. Exclusions cover the member area, forms, order lookup, the card verification page and paths holding minors' material |
+| **Structured-data completeness check (v3.6)** | Lists pages and types with required properties missing; **those types are not emitted at all** |
 
 ---
 
@@ -1304,7 +1365,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > **But the LINE Pay merchant account, the invoice track and the invoice title stay single**, and Blue Whale goods are sold on a **collect-and-remit** basis: this club takes payment and issues the invoice, then aggregates by `selling_club_id` for settlement.
 > ⚠️ **Whether orders must be split by club at checkout is not yet settled** (section 10, item 29). The current design **forbids mixed carts** (`Cart.club_id` mandatory), so it does not arise; but if mixed carts are ever opened up, this must be answered first — it changes the checkout flow, the shipment documents and how return credit notes are handled. The field design here (`selling_club_id` value-copied onto `OrderItem`) **can carry either answer**.
 
-#### S1 Products & variants (SKUs)
+#### S1 Products & options
 - **Product**: name (zh/en), collection (club / academy / fan), tags, gallery, product narrative (zh/en), size chart, publication state, ordering, SEO fields (title / description / structured data)
 - **Variants (SKUs)**: size × colour combinations, each with its own **SKU code, price, sale price (optional), and stock level**; the cost field is visible to authorised roles only. **No member-price field** (no member discounts this time round)
 - Product states: `draft / published / out of stock (derived from inventory) / unpublished`; out-of-stock items can be set to "visible but not purchasable" or hidden automatically; items can be flagged "new"
@@ -1563,11 +1624,28 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 
 > A Japanese edition is **deferred for later evaluation** and is not implemented here; the data structure and URL rules must nonetheless leave room for it, so enabling it later requires no re-architecture.
 
-**GEO (generative engine optimisation) recommendations**:
-- **The standalone FAQ section (12) is the core GEO asset**: the Q&A format is the easiest for AI engines to extract and cite, so FAQPage schema must be emitted completely
-- Give every page a clear H2/H3 structure and an FAQ block, making it easy for AI to summarise
-- Present key facts (founding year, squads, venues, contact details, charity impact figures) both as structured data and as explicit text
-- Maintain an `llms.txt` describing the site's key content and licensing terms
+### GEO (generative engine optimisation)
+
+**This site's content must be readable, understandable and citable by AI engines.** The nine items below sit on a par with the nine SEO foundations above and are verifiable item by item.
+**Each of the two websites (the main site and the Taichung Blue Whale site) implements a complete set of its own.**
+
+| Code | Item | Requirement |
+|---|---|---|
+| **GEO-01** | **`llms.txt`** | At the domain root, **one in Traditional Chinese and one in English**. Contents: what the site is, its sections with representative pages, a summary of key facts, **content licensing and how to cite**, and a contact. **Maintained in admin module `H` and regenerated on publish**; never hand-edited as a file |
+| **GEO-02** | **AI crawler permissions** | `robots.txt` names the AI user agents that are allowed (e.g. `GPTBot` / `ClaudeBot` / `PerplexityBot` / `Google-Extended` / `CCBot`; the list is maintained in the admin and can be extended). **Crawling is allowed site-wide, with these always excluded**: the member area, the seven enquiry forms, order lookup, the **public membership-card verification page `/m/<token>`**, and the paths holding **academy and programme participants' photographs and photographs of minors** |
+| **GEO-03** | **Single source of fact** | Key facts (founding year, home grounds and venues, squad composition, competitions entered, contact details, charity impact figures) have **exactly one place of maintenance site-wide** (admin `I` Site settings or the owning module), and every page draws from it. **The same fact is never written out in two places** — contradictory versions reaching an AI undermine the credibility of the whole site |
+| **GEO-04** | **Facts presented twice** | Everything under GEO-03 appears **as structured data and as explicit text**, and **never only inside an image, a video or a PDF** |
+| **GEO-05** | **Complete structured data** | Emitted per type (the list is under the SEO foundations above). **Required properties are never left empty**; where the data is insufficient, **the type is not emitted at all** rather than emitted incomplete |
+| **GEO-06** | **FAQ as the core asset** | Section 12 and every FAQ quick block (G-12) **always emit FAQPage schema**. Questions are written as complete sentences, not keyword fragments, and **an answer leads with its conclusion** before elaborating |
+| **GEO-07** | **Extractable structure** | **One H1 per page**; H2/H3 levels never skip. A content page's opening paragraph is **a summary that stands on its own** without surrounding context. Lists and figures use semantic list and table markup and **never carry text as image layout** |
+| **GEO-08** | **Citation metadata** | Every page emits a canonical URL, **published and last-updated timestamps**, and its content language; article-type content also emits an author or attributed body |
+| **GEO-09** | **Two independent sites** | Each site has its own `llms.txt` and `robots.txt`. **For shared content (`club_id` null), the factual account belongs to whichever site holds the canonical**, with the other linking across and **not restating the same facts** |
+
+**Out of scope for GEO**: ✗ an on-site AI chatbot　✗ AI content generation or rewriting　✗ a separate API or MCP endpoint for AI　✗ an `llms-full.txt` full-text export　✗ any acceptance criterion based on search or citation ranking
+
+> **No new types.** The `llms.txt` content and the AI crawler permission list live in `Setting`; GEO-03's facts reuse existing fields (`Setting` / `Club` / `Team` / `Venue` / `ImpactMetric`).
+> ⚠️ **GEO-02's exclusions are a personal-data boundary, not an SEO setting.** The exclusion of photographs of minors and of academy participants **is never relaxed to "let the AI see more"**; material without image consent must not be public in the first place.
+> ⚠️ **This section does not apply to the Charity Donation Platform**, which explicitly does no SEO or GEO work (see its specification §3).
 
 ---
 

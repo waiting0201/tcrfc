@@ -1,8 +1,8 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.2
-> **Date**: 2026-09-14 (v1.2 revision: 2026-09-18)
-> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.5
+> **Document version**: v1.4
+> **Date**: 2026-09-14 (v1.4 revision: 2026-09-18)
+> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.7
 > **Content principal**: Taichung Blue Whale Women's Football Team
 
 > **How to read this document**
@@ -107,51 +107,53 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 
 ## 4. The admin: every module
 
+**Every admin module corresponds to somewhere on the website**, its name matches what visitors see, and the interface is written in everyday words — no codes, no technical terms.
+
 **It is the same admin as the Taichung Rock site.** The table lists every module; those marked as shared hold data that is not divided by club, while every other module shows only Blue Whale's data when the Blue Whale site is selected.
 
 | Module | Submodule | What it does | Under Blue Whale |
 |---|---|---|---|
-| **A Dashboard** | — | Tasks, latest submissions, key figures | Blue Whale only |
-| **B Content** | B1 Pages | Static pages and editable blocks | Blue Whale's pages |
-| | B2 News & Stories | Writing, scheduled publishing, categories | Blue Whale's news |
-| | B3 Home blocks / banners | Home page block order and hero | Blue Whale's home |
-| | B4 FAQ | Questions and answers | Blue Whale's entries |
-| | B5 Charity records | The website's charity section content | **Not used on this site** |
-| | B6 Press & media resources | Press releases, brand packs, high-resolution images | Blue Whale's assets |
-| **C Teams** | C1 Teams | Blue Whale first team, U15, U12 | Blue Whale's teams |
-| | C2 Players | Squad, numbers, positions, photographs, biographies | Blue Whale's players |
-| | C3 Coaches and staff | Coaching and administrative staff | Blue Whale's staff |
-| | C4 Fixtures | **Fixtures, results, tables** (bulk import supported) | Blue Whale's fixtures |
-| | C5 Honours and milestones | Titles and notable records | Blue Whale's records |
-| **P Programmes** | P1–P4 | Courses, intakes, registrations, trials | Used if Blue Whale runs outreach |
-| **E Business** | E1 Partners | The partner wall | **Blue Whale's own partners** |
-| | E2 Sponsors and packages | Tiers and entitlements | **Blue Whale's own sponsors** |
-| | E3 Proposal and download tracking | Who downloaded the proposal | Blue Whale's proposal |
-| | E4–E6 Advertising | App advertising, flights, performance | **Shared; no Blue Whale access** |
-| **F Culture** | F1 Comic | Characters, episodes | Used if Blue Whale has one |
-| | F2 Supporters' club events | Event scheduling | Blue Whale's events |
-| **G Enquiries** | G1 Form designer | Building form fields | Blue Whale's forms |
-| | G2 Inbox | Form submissions | Blue Whale's submissions |
-| | G3 Newsletter list | Subscriptions and unsubscribes | Blue Whale's list |
-| **H SEO & marketing** | — | Titles and descriptions, sitemap, structured data | Blue Whale's pages |
-| **I Site settings** | — | Menus, footer, languages, contact details, venues | This site's settings |
-| **J System** | J1 Accounts | Admin accounts | **Shared; administrators only** |
-| | J2 Roles and permissions | Who can do what | **Shared; administrators only** |
-| | J3 Audit and backup | Operation records and backups | **Shared; administrators only** |
-| | J4 Clubs and authorisation | Club branding, legal details, account authorisations | **Shared; administrators only** |
-| **K Members** | K1 Member list | Member records (personal data masked by role) | **Blue Whale memberships only** |
-| | K2 Memberships and plans | Activation, renewal, expiry | Blue Whale's memberships |
-| | K3 Shirt fulfilment | Sizes and issue records | Blue Whale's fulfilment |
-| | K4 Partner stores and benefits | Store list and discount terms | Blue Whale's stores |
-| | K5 Prize draw rosters | Rosters, numbers, exports | Blue Whale runs its own draw |
-| **L Calendar** | L1–L4 | Overview, own events, categories, subscription | Blue Whale's events |
-| **M Mobile app** | M1–M5 | Versions, content, push, devices, settings | **Shared; no Blue Whale push rights** |
-| **S Shop** | S1 Products and variants | Products, sizes and colours, prices | Blue Whale's products |
-| | S2 Stock | Movements and safety levels | Blue Whale's stock |
-| | S3 Orders | Order status and support handling | Blue Whale's orders |
-| | S4 Dispatch and delivery | Dispatch notes and tracking | Blue Whale's dispatch |
-| | S5 Returns and refunds | Returns and refunds | **Refunds: administrators only** |
-| | S6 Shop settings and reports | Shipping, payment and invoice settings, reports | **Payment settings shared; administrators only** |
+| **Dashboard** | — | Tasks, latest submissions, key figures | Blue Whale only |
+| **Content** | Pages | Static pages and editable blocks | Blue Whale's pages |
+| | News & Stories | Writing, scheduled publishing, categories | Blue Whale's news |
+| | Home layout | Home page block order and hero | Blue Whale's home |
+| | FAQ | Questions and answers | Blue Whale's entries |
+| | Charity & Impact | The website's charity section content | **Not used on this site** |
+| | Press & Media | Press releases, brand packs, high-resolution images | Blue Whale's assets |
+| **Teams** | Teams | Blue Whale first team, U15, U12 | Blue Whale's teams |
+| | Players | Squad, numbers, positions, photographs, biographies | Blue Whale's players |
+| | Coaches and staff | Coaching and administrative staff | Blue Whale's staff |
+| | Fixtures & Results | **Fixtures, results, tables** (bulk import supported) | Blue Whale's fixtures |
+| | Honours and milestones | Titles and notable records | Blue Whale's records |
+| **Programmes** | All | Courses, intakes, registrations, trials | Used if Blue Whale runs outreach |
+| **Business** | Partners | The partner wall | **Blue Whale's own partners** |
+| | Sponsors and packages | Tiers and entitlements | **Blue Whale's own sponsors** |
+| | Proposal and download tracking | Who downloaded the proposal | Blue Whale's proposal |
+| | Advertising slots | App advertising, flights, performance | **Shared; no Blue Whale access** |
+| **Culture** | Comic | Characters, episodes | Used if Blue Whale has one |
+| | Supporters' club events | Event scheduling | Blue Whale's events |
+| **Enquiries** | Form designer | Building form fields | Blue Whale's forms |
+| | Inbox | Form submissions | Blue Whale's submissions |
+| | Newsletter list | Subscriptions and unsubscribes | Blue Whale's list |
+| **Search & AI visibility** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** | Blue Whale's pages (**its own settings**) |
+| **Site settings** | — | Menus, footer, languages, contact details, venues | This site's settings |
+| **System** | Accounts | Admin accounts | **Shared; administrators only** |
+| | Roles and permissions | Who can do what | **Shared; administrators only** |
+| | Audit and backup | Operation records and backups | **Shared; administrators only** |
+| | Clubs and authorisation | Club branding, legal details, account authorisations | **Shared; administrators only** |
+| **Members** | Member list | Member records (personal data masked by role) | **Blue Whale memberships only** |
+| | Memberships and plans | Activation, renewal, expiry | Blue Whale's memberships |
+| | Shirt fulfilment | Sizes and issue records | Blue Whale's fulfilment |
+| | Partner stores and benefits | Store list and discount terms | Blue Whale's stores |
+| | Prize draw rosters | Rosters, numbers, exports | Blue Whale runs its own draw |
+| **Calendar** | All | Overview, own events, categories, subscription | Blue Whale's events |
+| **Mobile app** | All | Versions, content, push, push devices, app settings | **Shared; no Blue Whale push rights** |
+| **Shop** | Products & options | Products, sizes and colours, prices | Blue Whale's products |
+| | Stock | Movements and safety levels | Blue Whale's stock |
+| | Orders | Order status and support handling | Blue Whale's orders |
+| | Dispatch and delivery | Dispatch notes and tracking | Blue Whale's dispatch |
+| | Returns and refunds | Returns and refunds | **Refunds: administrators only** |
+| | Shop settings and reports | Shipping, payment and invoice settings, reports | **Payment settings shared; administrators only** |
 
 ---
 
@@ -170,7 +172,7 @@ A role designed for Blue Whale's own staff:
 | Their own partners and sponsors | See Rock's sponsorship agreements |
 | Their own products and orders | Issue refunds or change payment settings |
 | **Their own membership records** | **See any Taichung Rock membership at all** |
-| Their own forms and per-page SEO | Send pushes, manage advertising, or administer the system |
+| Their own forms and per-page search settings | Send pushes, manage advertising, or administer the system |
 
 **Member personal data has a further layer of protection**: even for their own memberships, **the member record's fields — email, phone, date of birth, address — are always masked**. A member account is one person's account across both clubs, so buying a Blue Whale membership must not expose that person's details to the other side.
 
@@ -220,6 +222,6 @@ The Blue Whale site reuses the Taichung Rock site's **layout system** — cards,
 
 ---
 
-> Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.2
-> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.5　·　11 sections plus the member area　·　Chinese and English
+> Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.4
+> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.7　·　11 sections plus the member area　·　Chinese and English
 > **Shares the admin and database of the Taichung Rock FC website; content and brand remain separate.**

@@ -1,8 +1,13 @@
 # 台灣足球策略發展協會 — Charity Donation Platform Functional Specification
 
-> **Document version**: v2.2
-> **Date**: 2026-09-03 (v2.2 revision: 2026-09-18)
+> **Document version**: v2.3
+> **Date**: 2026-09-03 (v2.3 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v2.3 revision summary — the admin interface speaks plain language**
+> **No functional changes.** This platform's admin also follows the **admin design rule** in website specification v3.7 §4.0: modules divided by public-facing function, the same name front and back,
+> everyday language throughout, **no module codes (`N1`–`N7`), permission codes or English technical terms in the interface**, and CSV column headings written in words.
+> The codes remain in use in the specification, the code and the audit log.
 
 > **v2.2 revision summary — admin images are uploaded per field; there is no media library**
 > **The same rule as the main site** (main-site specification v3.5, §4.0). This platform's admin has no media library: an image always belongs to the record it describes and sits in that table's own group of columns (object key, width, height, bilingual alt text);
@@ -99,7 +104,7 @@ Three premises shape the whole site:
 |---|---|
 | **Domain** | **Its own domain** (name TBC, see §13), separate from `www.tcrfc.tw` |
 | **Public site** | A **fully separate project**; it does not share the main site's 73-page build pipeline |
-| **Admin** | **Its own admin** (changed in v2.0). Built around the `N. Charity Donations` module, plus its own accounts and permissions and system settings. **Admin images are uploaded per field under the main-site rule in §4.0; there is no media library** |
+| **Admin** | **Its own admin** (changed in v2.0). Built around the `N. Charity Donations` module, plus its own accounts and permissions and system settings. **Admin images are uploaded per field under the main-site rule in §4.0 and there is no media library; the interface text follows the admin design rule in the same section, showing no codes or technical terms** |
 | **Database** | **Its own database** (changed in v2.0). Relationships to main-site types are replaced by **value-copied snapshots and external reference keys**, see §9 |
 | **Principal** | The **Association** organises, fundraises and collects, **and from v2.0 also controls the system and the database**. The club **does not appear as a principal on the public site**; it is only a traffic source |
 | **Visual design** | **The Association's own brand assets**; TCRFC's logo and design tokens must not be used. Until those assets arrive, everything carries placeholders, see §13 |

@@ -334,7 +334,7 @@ C['zh'] = dict(
     stand='這份文件把行動 App 攤開來看：使用者打開 App 之後會看到哪些畫面、每個畫面上放什麼、'
           '哪些內容由後台維護。畫面為<b>功能示意</b>，用來確認架構與流程是否正確，'
           '尚未進入視覺設計。',
-    stamps=[('依據　', '行動 App 功能規劃書 v3.6'), ('分頁　', '5 個　×　畫面 23 個'),
+    stamps=[('依據　', '行動 App 功能規劃書 v3.7'), ('分頁　', '5 個　×　畫面 23 個'),
             ('語言　', '繁中／英文雙語'), ('後台模組　', 'M1–M5　＋　E4–E6（共用官網後台）')],
 
     eyebrow1='App map', h2_1='五個分頁：功能切分，不是球隊切分',
@@ -526,7 +526,7 @@ C['zh'] = dict(
              '<b>不得出現只寫「會籍有效」而不說哪一隊的畫面</b>。',
 
     colophon='台中磐石足球俱樂部　×　台中藍鯨女子隊　·　行動 App 功能說明（客戶版）<br>'
-             '依據《TCRFC 行動 App 功能規劃書》v3.6　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
+             '依據《TCRFC 行動 App 功能規劃書》v3.7　·　五個分頁　·　中英雙語，架構預留第三語系<br>'
              '本文件的用色為說明文件用色，非 App 最終視覺。',
 
 
@@ -722,7 +722,7 @@ C['en'] = dict(
     stand='This document lays the mobile app out screen by screen: what a user sees after opening it, '
           'what sits on each screen, and which content is maintained in the admin. The screens are '
           '<b>functional sketches</b> for confirming structure and flow; visual design has not started.',
-    stamps=[('Based on　', 'Mobile App Specification v3.6'), ('Tabs　', '5　×　23 screens'),
+    stamps=[('Based on　', 'Mobile App Specification v3.7'), ('Tabs　', '5　×　23 screens'),
             ('Languages　', 'Chinese / English'), ('Admin modules　', 'M1–M5　＋　E4–E6 (shared admin)')],
 
     eyebrow1='App map', h2_1='Five tabs, split by function rather than by club',
@@ -942,7 +942,7 @@ C['en'] = dict(
              'times — <b>no screen may state "membership valid" without naming the club</b>.',
 
     colophon='Taichung Rock FC　×　Taichung Blue Whale　·　Mobile App Feature Overview (Client Edition)<br>'
-             'Based on the TCRFC Mobile App Functional Specification v3.6　·　five tabs　·　'
+             'Based on the TCRFC Mobile App Functional Specification v3.7　·　five tabs　·　'
              'Chinese and English, with the architecture ready for a third language<br>'
              'The colours here belong to this document, not to the app’s final visual design.',
 

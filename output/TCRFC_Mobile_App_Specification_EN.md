@@ -1,8 +1,12 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.6
-> **Date**: 2026-09-04 (v3.6 revision: 2026-09-18)
+> **Document version**: v3.7
+> **Date**: 2026-09-04 (v3.7 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.7 revision summary — the admin interface speaks plain language**
+> **No functional changes.** Under the admin design rule in website specification v3.7 §4.0, the admin shows neither module codes nor technical terms.
+> Two `M` submodules are renamed: **`M4 Push devices`** and **`M5 App settings & connection check`**. Codes and scope are unchanged.
 
 > **v3.6 revision summary — admin identifiers and the image-upload rule**
 > **No functional changes.**
@@ -1138,8 +1142,8 @@ M. Mobile App                        (new top-level module)
 ├─ M1 App releases and version management
 ├─ M2 App composition and deep links
 ├─ M3 Push notification management
-├─ M4 Devices and push tokens
-└─ M5 App settings, certificates and diagnostics
+├─ M4 Push devices
+└─ M5 App settings & connection check
 
 E. Commercial                        (extends the existing module)
 ├─ E1 Partners                        (existing)
@@ -1187,14 +1191,14 @@ E. Commercial                        (extends the existing module)
 
 **System-level blocking**: M3 must block any push targeting a winners list, and must block automatic pushes for articles tagged `Fan Club Prize Draw` (see 6.8).
 
-### 8.4 M4 Devices and push tokens
+### 8.4 M4 Push devices
 
 - Device list: platform, OS version, app version, language, push permission state, bound member, last active
 - Statistics: device distribution by platform and version (to inform the minimum supported version)
 - Cleanup of invalid tokens
 - **Permissions**: push tokens and device identifiers count as personal data; only system administrators see full values, other roles see masked ones
 
-### 8.5 M5 App settings, certificates and diagnostics
+### 8.5 M5 App settings & connection check
 
 - App feature flags: remotely disable a single feature without shipping a new release
 - **Certificate management**: APNs certificates and FCM configuration — expiry tracked with an alert 60 days ahead, and rotation written to the audit log
