@@ -14,7 +14,7 @@
 >
 > **本檔只放三件事**：一分鐘現況、目錄與文件索引、全域規定。
 > 事實與踩雷點在 [`docs/14-invariants.md`](docs/14-invariants.md)，非交付物的記錄在 [`docs/15-out-of-scope-record.md`](docs/15-out-of-scope-record.md)，
-> 工作流程在 [`docs/00-harness.md`](docs/00-harness.md)。
+> **做錯過的事在 [`docs/18-work-errors.md`](docs/18-work-errors.md)**，工作流程在 [`docs/00-harness.md`](docs/00-harness.md)。
 
 ---
 
@@ -84,6 +84,7 @@
 | [`docs/13-blue-whale-site.md`](docs/13-blue-whale-site.md) | **台中藍鯨官網的任何工作**（單元取捨、藍鯨方帳號權限、藍鯨會籍與商店、前台建置的技術判斷） |
 | [`docs/14-invariants.md`](docs/14-invariants.md) | **動手前掃一次**。全站不變量與踩雷速查：代號、品牌色、命名、範圍邊界、五種商業對象、資料庫執行層決定 |
 | [`docs/15-out-of-scope-record.md`](docs/15-out-of-scope-record.md) | **規劃書查不到某功能時先看這裡**。已移出範圍的功能，以及法人歸屬、授權、個資委託等行政法務背景（都是非交付物） |
+| [`docs/18-work-errors.md`](docs/18-work-errors.md) | **做錯過的事**。實際犯過的失誤、根因與防呆位置（`E-01`–`E-10`）。**動手前與 [`docs/14`](docs/14-invariants.md) 一起掃**；改規格、改共用區塊、順移代號、重產客戶版之前**一定要看**。與 `docs/14`（改錯會出事）、[`docs/00`](docs/00-harness.md) §5（舊規格會誤導）分工不同 |
 | [`docs/17-deployment.md`](docs/17-deployment.md) | **部署、基礎設施、技術選型的任何工作**。拓撲與容器佈局、VNet 與服務端點、**LINE Pay 固定出口 IP**、**快取策略與「不得讀快取」清單**、DBMS 的連帶決定、已知風險與驗證程序。**這是執行層決定，不是規格** |
 
 ---
@@ -124,6 +125,11 @@
     部署與 CI/CD→`deployment-engineer`；資料表與技術文件→`system-analyst`；需求與藍圖→`software-architect-blueprint`；
     版面與視覺→`visual-design-architect`；程式審查→`code-review-optimizer`；測試與品質把關→`qa-test-engineer`；
     大範圍搜尋→`Explore`。多個互不相依的任務要**同一則訊息一次派出**並行跑。
+13. **出錯就記到 [`docs/18-work-errors.md`](docs/18-work-errors.md)，同一次交付內補上。**
+    不論是使用者當場指正、審查抓到、驗證腳本抓到，還是流程跑完才發現漏了一環，都要留一筆：
+    **日期／錯在哪／為什麼會錯（根因，寫成可以被改掉的行為，不准寫「不小心」）／下次怎麼避免／防呆在哪（沒有就寫「無」）**。
+    **同一類錯犯第二次不要再加一筆**——回頭把那筆升級成防呆或寫進 [`docs/14-invariants.md`](docs/14-invariants.md)；
+    記了兩次還在犯，代表要的是機制不是記錄。**這條的目的是不要犯第二次，不是檢討。**
 
 ---
 
