@@ -1,8 +1,13 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.7
-> **Date**: 2026-09-04 (v3.7 revision: 2026-09-18)
+> **Document version**: v3.8
+> **Date**: 2026-09-04 (v3.8 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.8 revision summary — the LINE Pay egress-IP prerequisite**
+> **No functional changes.** Under website specification v3.8: LINE Pay production requires the **payment-server egress IP**
+> to be registered in the merchant portal, so the backend carrying in-app membership payment **must have a fixed egress IP**.
+> It lands in the launch prerequisites of §5.2.
 
 > **v3.7 revision summary — the admin interface speaks plain language**
 > **No functional changes.** Under the admin design rule in website specification v3.7 §4.0, the admin shows neither module codes nor technical terms.
@@ -833,6 +838,11 @@ Getting the collecting entity wrong breaches two things at once: tax attribution
 4. **Should Blue Whale later collect independently, that is a major scope change**, requiring this section, the IAP argument in 5.5, and the membership card design to be rewritten. It is not solved by adding a merchant account.
 
 **Launch prerequisite**: the club's LINE Pay merchant account has not yet been applied for (see 16.2). Until it exists, none of this section can be implemented.
+
+**Second launch prerequisite — a fixed egress IP**: LINE Pay production requires the **payment-server egress IP** to be registered
+in the merchant portal (sandbox does not), so the backend carrying in-app membership payment **must have a fixed egress IP**, registered
+once the merchant account exists before production can be switched on. `confirmUrlType` is **CLIENT** (the server calls Confirm once the
+user returns), so no inbound allowlist is needed; this matches §5.4's rule that activation follows the server-side callback only.
 
 Invoicing responsibility rests with the club, in the club's name, entirely separate from the Association's invoicing on the charity platform.
 

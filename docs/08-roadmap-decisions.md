@@ -141,8 +141,8 @@
 
 **規劃書未列、但實務上必須決定的**
 
-- **技術選型**：規劃書明確排除，但內容套版前必須定案，否則改寫產物可能要轉兩次格式（見 [`07-content-pipeline.md`](07-content-pipeline.md) 階段四）
-- **正式站的部署環境與網域切換方式**：現有 mockup 已部署於 Cloudflare Pages（專案 `tcrfc-mockup`，全站 `noindex`）
+- **技術選型**：✅ **已於 2026-09-18 定案**（Nuxt 3 SSR ＋ .NET／EF Core ＋ Azure SQL ＋ Azure Blob ＋ Redis ＋ 單一 Azure VM），見 [`17-deployment.md`](17-deployment.md)。規劃書仍明確排除，選型結果只記在導航層
+- **正式站的部署環境與網域切換方式**：✅ 部署環境已定（單一 Azure VM，West US 2，Cloudflare 在前）。⚠️ **網域切換方式仍未定**；現有 mockup 部署於 Cloudflare Pages（專案 `tcrfc-mockup`，全站 `noindex`），將隨前台改 Nuxt 退場
 
 ---
 
@@ -159,7 +159,7 @@
 | 客戶資料收件夾 | ✅ 已建立，待客戶放入素材 | 2026-08-15 |
 | 品牌資產庫 [`../brand/`](../brand/) | ✅ 由 `.ai` 萃取完成（SVG／favicon／PWA icon／OG 圖） | 2026-08-17 |
 | 設計 tokens 校正為 `.ai` 品牌色 | ✅ mockup 與 [`06-conventions.md`](06-conventions.md) 已同步 | 2026-08-17 |
-| 技術選型 | ⬜ 未開始 | |
+| 技術選型 | ✅ 已定案（見 [`17-deployment.md`](17-deployment.md)） | 2026-09-18 |
 | 網站開發 | ⬜ 未開始 | |
 
 > 此表請隨進度更新；新增決議時同步回寫 §2 已定案前提，並在規劃書修訂時提高版本號。

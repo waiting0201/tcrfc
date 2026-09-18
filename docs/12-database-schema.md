@@ -8,8 +8,9 @@
 > **本檔是 [`04-data-model.md`](04-data-model.md) 的實作展開**：`04` 說「有哪些型別、哪些關係不能搞錯」，
 > 本檔說「落到資料表長什麼樣」。衝突時序：**規劃書 → `04` → 本檔**。
 >
-> **DBMS 未定案**（規劃書第 10 節明列技術選型不在範圍）。本檔**不寫 DDL、不用任何廠商專屬型別、不附 seed SQL**，
-> 與 DBMS 相關的抉擇集中在 [§1.4](#14-選型才拍板的五件事)。
+> 🔵 **DBMS 已定案為 Azure SQL Database**（2026-09-18，見 [`17-deployment.md`](17-deployment.md)）。
+> 規劃書仍不涉及技術選型，選型結果只記在導航層。本檔**仍不寫 DDL、不附 seed SQL**，邏輯模型維持可攜；
+> 與 DBMS 相關的抉擇集中在 [§1.4](#14-dbms-相依的五件事已定案)，**型別對照見 [§1.1](#11-型別對照)**。
 >
 > **不含行動 App 的十個型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／
 > `AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`），見 [`11-mobile-app.md`](11-mobile-app.md)。
@@ -48,7 +49,7 @@
 | 9 | `EmailLog.type` 有 13 個值 | **降為 9 個**（會員 5 ＋ 商店 4）。慈善的 4 封隨獨立後台移出 | 主站 v3.0 §5.1 |
 | 10 | `Order` 只有 `member_id` | **加 `selling_club_id`（受益方）與 `collecting_club_id`（收款法人）**，`OrderItem`／`StoreInvoice` 一併值複製；`Cart.club_id` 必填（**不得跨俱樂部混買**） | 主站 v3.0 §5.1、4.13 |
 | 11 | 唯一鍵：`Page.slug`／`Setting.setting_key`／`Redirect.from_path`／`Season.code`／`NewsletterSubscriber.email` 單欄唯一 | **全部改為 `(club_id, …)` 複合唯一。** 但 `Team.code`／`Article.slug`／`ProductVariant.sku`／`Order.order_no`／`Member.email` **維持全站唯一** | 主站 v3.0 §5.4 |
-| 12 | §1.4「選型才拍板的四件事」 | **加第五件**：可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意（PostgreSQL／MySQL 視多個 NULL 互不相等，SQL Server 相反） | 主站 v3.0 §5.4 |
+| 12 | ✅ **已結案**（2026-09-18） | §1.4 已補滿五件並隨 **Azure SQL** 定案，見 [§1.4](#14-dbms-相依的五件事已定案)。⚠️ 第 5 件的**規則語意**仍待釐清，是轉 DDL 的前置 | 主站 v3.0 §5.4 |
 | 13 | 圖片以 `media_asset_id` 外鍵指向 `MediaAsset`，另有 `MediaFolder`／`MediaUsage` | **三張表全部移除。** 圖片改為**該表自己的欄位組**（`*_key` 物件鍵、`*_width`、`*_height`、`*_alt_zh`／`*_alt_en`）；多圖以子表承載。已知須改的外鍵 10 處：`Article` 封面、`Banner`、`Partner`／`Sponsor` 的 `logo_dark_id`／`logo_light_id`、`ProposalFile`、`ProductImage`、`ComicPage`、`Charity.logo_id`。**新增 `PressResource`**（7.8 媒體專區）。`club_id` 可為空由 8 張降為 **7 張** | 主站 v3.5 §4.0、§5.1、§5.4 |
 
 **尚待完成的工作**（轉 DDL 前必做）：
@@ -88,17 +89,17 @@
 
 ### 1.1 型別對照
 
-| 本檔寫法 | 意思 | 選定 DBMS 後的對應 |
+| 本檔寫法 | 意思 | Azure SQL 的對應（已定案） |
 |---|---|---|
-| `uuid` | 128-bit 識別碼 | PostgreSQL `uuid`／MySQL `binary(16)` 或 `char(36)`／SQL Server `uniqueidentifier` |
-| `string(n)` | 有長度上限的單行文字 | 一律以 Unicode 字元數計，非位元組 |
-| `text` | 無長度上限的多行文字 | 富文本與區塊內容另見 `json` |
-| `int` | 整數。**所有金額欄位都是 `int`，單位「元」** | 見 [§1.3](#13-共通欄位) 的金額規則 |
-| `decimal(5,2)` | 百分比，`0.00`–`100.00` | **只有分潤百分比用**，金額不用 |
-| `bool` | 真／假 | |
-| `date` / `datetime` | 日期／時間戳。`datetime` 一律存 **UTC**，前台依 `Asia/Taipei` 呈現 | |
-| `json` | 結構化但不需查詢的資料（區塊內容、`scope_value`） | **只存不查**，見 §1.4 |
-| `enum(a,b,c)` | 有限值域 | 可用原生 enum、`string` + CHECK、或查表，屬選型決定 |
+| `uuid` | 128-bit 識別碼 | **`uniqueidentifier`**。⚠️ 主鍵設為**非叢集**，另加不對外的 `bigint IDENTITY` 叢集鍵，見 [§1.2](#12-主鍵外鍵與命名慣例) |
+| `string(n)` | 有長度上限的單行文字 | **`nvarchar(n)`**——一律以 Unicode 字元數計，非位元組 |
+| `text` | 無長度上限的多行文字 | **`nvarchar(max)`**。富文本與區塊內容另見 `json` |
+| `int` | 整數。**所有金額欄位都是 `int`，單位「元」** | **`int`**。見 [§1.3](#13-共通欄位) 的金額規則 |
+| `decimal(5,2)` | 百分比，`0.00`–`100.00` | **`decimal(5,2)`**。**只有分潤百分比用**，金額不用 |
+| `bool` | 真／假 | **`bit`** |
+| `date` / `datetime` | 日期／時間戳。`datetime` 一律存 **UTC**，前台依 `Asia/Taipei` 呈現 | **`date`** / **`datetime2(3)`**。⚠️ SQL Server 沒有 `timestamptz`，時區語意由應用層保證（EF Core 設 `DateTimeKind.Utc` convention） |
+| `json` | 結構化但不需查詢的資料（區塊內容） | **原生 `json` 型別**（Azure SQL 已 GA，二進位儲存），不用 `nvarchar(max)`。**設計紀律仍是「只存不查」**，見 §1.4 |
+| `enum(a,b,c)` | 有限值域 | **`nvarchar` ＋ CHECK 約束**（不用查表、不用數字碼）——值域演進最容易，且後台介面要顯示日常中文（[`06`](06-conventions.md)） |
 | `slug` | `string(160)`，`[a-z0-9-]`，**全站唯一或表內唯一**（逐表註明） | |
 
 ### 1.2 主鍵、外鍵與命名慣例
@@ -106,8 +107,9 @@
 | 項目 | 規則 |
 |---|---|
 | 主鍵 | 一律 `id uuid`。**不用自增整數**——匯入客戶素材與跨環境搬移時會撞號 |
+| **叢集鍵**（Azure SQL 定案） | 🔴 **主鍵設為非叢集，另加一欄不對外的 `bigint IDENTITY` 當叢集鍵。** SQL Server 的 `uniqueidentifier` **比較位元組的順序是反的**（先比 byte 10–15，byte 0–3 最後），所以連 **UUIDv7 也無法**取得索引區域性——它的時間戳正好落在最低優先的位元組。`NEWSEQUENTIALID()` 由伺服器端產生，應用層無法在 INSERT 前先知道 id。<br>**這不違反上一列的「不用自增整數」**——那句針對的是對外識別碼，`bigint` 叢集鍵**不對外、不進 API、不進 URL**。詳見 [`17-deployment.md`](17-deployment.md) §6 |
 | 外鍵 | `<單數表名>_id`，如 `team_id`、`order_id` |
-| 表名 | 文中用 PascalCase（`ProductVariant`）以對應規劃書型別名；實作時的物理表名建議 snake_case 複數（`product_variants`），**選型時一併定案** |
+| 表名 | 文中用 PascalCase（`ProductVariant`）以對應規劃書型別名；**物理表名定為 snake_case 複數**（`product_variants`） |
 | 關聯表 | `<A><B>` 或 `<A>_<B>`，複合主鍵，如 `ArticleTag(article_id, tag_id)` |
 | i18n 側表 | `<entity>_i18n`，複合主鍵 `(<entity>_id, locale)` |
 | 布林欄位 | `is_*` / `has_*` / `can_*` |
@@ -140,17 +142,29 @@
 
 **核心價值標籤**：`value_tags[]`（五大核心價值，可掛任何內容型別）以 `ValueTagLink(entity_type, entity_id, value_tag)` 多型關聯表實作，**不用陣列欄位**（見 §1.4）。
 
-### 1.4 選型才拍板的五件事
+### 1.4 DBMS 相依的五件事（已定案）
 
-本檔刻意迴避的五個 DBMS 相依決策。**選定 DBMS 前不要提早決定，選定後回頭改這五處即可，不影響其餘綱要。**
+本檔刻意迴避的五個 DBMS 相依決策。**DBMS 已定於 Azure SQL Database**，以下為定案結果；
+完整脈絡與取捨理由見 [`17-deployment.md`](17-deployment.md) §6。
 
-| # | 議題 | 本檔的技術中立做法 | 選型後可能的優化 |
+| # | 議題 | 本檔的技術中立寫法 | **Azure SQL 定案** |
 |---|---|---|---|
-| 1 | **陣列欄位** | 一律以關聯表表達：`team_codes[]` → `CalendarEventTeam`；`value_tags[]` → `ValueTagLink`；FAQ 複選分類 → `FaqCategoryLink` | PostgreSQL 可改陣列欄位 ＋ GIN 索引；MySQL／SQL Server 不行，維持關聯表 |
-| 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content` 等。任何需要篩選、排序、統計的資料都拉成實欄位。⚠️ **`RolePermission.scope_value` 已於 v3.0 刪除**——它正是「只存不查」害的：資料範圍需要能被查詢，改由 `AdminUserClub`／`AdminUserTeam` 承載 | PostgreSQL `jsonb` + GIN、MySQL 8 functional index 可放寬此限；SQLite／D1 不建議 |
-| 3 | **`CalendarEvent` 的實作形式** | 定義為**視圖**（`source_type` + `source_id` UNION）。若效能不足，改為**索引表**並以來源模組的寫入觸發同步 | PostgreSQL 可用 materialized view + REFRESH；MySQL 只有一般 VIEW，量大時直接走索引表 |
-| 4 | **全文檢索**（G-02 站內搜尋） | 綱要不含任何搜尋索引表，搜尋屬應用層 | PostgreSQL `tsvector`＋GIN／MySQL FULLTEXT／外掛 Meilisearch、Typesense 三選一 |
-| **5** | **可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意**（v3.0 新增） | 技術中立寫法：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」。綱要只寫語意，不指定實作 | PostgreSQL／MySQL 的 UNIQUE 索引把**多個 NULL 視為互不相等**（`(NULL,'about')` 可重複插入），**SQL Server 相反**。實作以 ①部分唯一索引 ②functional index ③sentinel 值 三選一 |
+| 1 | **陣列欄位** | 一律以關聯表表達：`team_codes[]` → `CalendarEventTeam`；`value_tags[]` → `ValueTagLink`；FAQ 複選分類 → `FaqCategoryLink` | **維持關聯表。** SQL Server 無陣列型別，且 `ValueTagLink` 是多型關聯、要能反查「哪些內容掛了這個標籤」，關聯表本來就是對的形狀 |
+| 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content` 等。任何需要篩選、排序、統計的資料都拉成實欄位。⚠️ **`RolePermission.scope_value` 已於 v3.0 刪除**——它正是「只存不查」害的：資料範圍需要能被查詢，改由 `AdminUserClub`／`AdminUserTeam` 承載 | **用原生 `json` 型別**（已 GA，二進位儲存、`JSON_VALUE` 相容、JSON 索引推出中），不用 `nvarchar(max)`。**「只存不查」維持為設計紀律**，原生型別只是保留逃生口 |
+| 3 | **`CalendarEvent` 的實作形式** | 定義為**視圖**（`source_type` + `source_id` UNION）。若效能不足，改為**索引表**並以來源模組的寫入觸發同步 | **第一期用一般 VIEW。** 🔴 **SQL Server 的 indexed view 明文禁止 `UNION`／`UNION ALL`**，所以**沒有 materialized view 這條升級路**——不要去試。效能不足時直接走索引表 ＋ 寫入時同步，或先由 Redis 吸收 |
+| 4 | **全文檢索**（G-02 站內搜尋） | 綱要不含任何搜尋索引表，搜尋屬應用層 | **第一期用跨表 `LIKE` 比對**，不建搜尋索引表、不預先加索引（資料量在數百至數千列，掃描可接受）。升級路徑是 **Azure SQL 內建全文檢索**（有中文斷詞），**不需要外掛 Meilisearch／Typesense**。⚠️ 第一期做不到 G-02 要求的分類篩選與關鍵字高亮，屬**已知功能落差** |
+| **5** | **可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意** | 技術中立寫法：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」 | **用篩選唯一索引**（`CREATE UNIQUE INDEX … WHERE club_id IS NULL`，SQL Server 支援）。🔴 **但規則本身要先釐清**，見下 |
+
+> 🔴 **第 5 件：規則的語意必須先釐清再實作。**
+> 「`club_id` 為空時 `slug` 亦須全站唯一」有強弱兩種讀法，在 SQL Server 上差異是實質的：
+> - **弱讀法**：`club_id` 為 NULL 的那些列之間，`slug` 不得重複 → 篩選唯一索引即可。
+> - **強讀法**：某列 `club_id` 為 NULL 且 `slug='about'` 時，**任何俱樂部都不得再有 `slug='about'`** → 篩選唯一索引不夠，需要觸發器或應用層約束。
+>
+> **強讀法才能保證 URL 路由唯一解**（`/about/` 只對應一頁），從路由需求推測應為強讀法，
+> 但這是推測不是確認。**定案前不得轉 DDL**，定案後回寫本節與 [`12b` §11.1](12b-database-tables.md)。
+
+> ⛔ **另有一份「不得讀快取」清單**——庫存、金流回呼冪等檢查、會員卡 `/m/<token>` 驗證、會籍與訂單狀態、購物車
+> 一律不得走 Redis。清單與規格依據在 [`17-deployment.md`](17-deployment.md) §4，[§12 踩雷點](#12-踩雷點)亦有提示。
 
 ---
 
@@ -534,7 +548,7 @@ flowchart LR
 16. **商店沒有的欄位**：`discount_code`、`member_price`、`points_used`、`card_no`、`shipping_tier`、`subscription_*`、`currency`。**付費會籍權益不含商品折扣**；付款只有 LINE Pay；單一固定運費 ＋ 免運門檻。看到「會員價」「折扣碼」「信用卡」一律是 v2.6 早期草稿殘留。
 17. **`Season` 是本檔新增的表**（規劃書只在關聯欄提到 Season，未列為型別），不要當多餘刪掉——`Match`／`Standing`／`Achievement`／`MembershipPlan` 都以它為軸。
 18. **刪帳號是欄位清除不是刪列**：`DrawRoster` 只保留 `member_no_snapshot` 與遮罩姓名；`Order` 只留稅法必要欄位。**交易紀錄的保存義務優先於刪除請求。**
-19. **陣列欄位一律以關聯表表達**（`team_codes[]` → `CalendarEventTeam`、`value_tags[]` → `ValueTagLink`、FAQ 複選分類 → `FaqCategoryLink`）。選 PostgreSQL 後可改陣列＋GIN，MySQL 不行——屬 [§1.4](#14-選型才拍板的五件事)。
+19. **陣列欄位一律以關聯表表達**（`team_codes[]` → `CalendarEventTeam`、`value_tags[]` → `ValueTagLink`、FAQ 複選分類 → `FaqCategoryLink`）。**DBMS 已定為 Azure SQL，此項維持關聯表，沒有陣列欄位這個選項**——屬 [§1.4](#14-dbms-相依的五件事已定案)。
 20. **`json` 欄位只存不查**：`PageBlock.content`、`RolePermission.scope_value`、`DonationPayment.raw_response`。需要篩選、排序、統計的資料一律拉成實欄位。
 21. **i18n 側表不入 ER 圖不代表不存在**，[§4](#4-資料表總覽) 總覽表的 🌐 欄才是權威清單。快照表、後台角色表、UI 字串**不走側表**（[§2.3](#23-三個例外不走側表)）。
 22. **金額一律 `int` 存「元」**，只有百分比用 `decimal(5,2)`。台幣無角分，慈善分潤明訂無條件捨去至整數元；用 `decimal(10,2)` 會製造永遠對不上的尾差。
@@ -544,6 +558,8 @@ flowchart LR
 26. **`Enquiry` 涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢**，**Lead 名單不另建表**。**沒有志工報名表**（v2.1 移出範圍）。
 27. **行事曆權限跟隨來源模組**：`RolePermission.scope_type = 'own_teams'`。學院管理者可調整所屬梯隊賽程，**但不能改一線隊賽程**——這條在資料模型上沒有欄位可擋，只能靠權限 scope。
 28. **本檔不含行動 App 的十二個型別**。App 開發前**不得建立**這些表；`Member`／`PartnerStore`／`Venue`／`Registration`／`Match` 上 v2.5 為 App 加的欄位（`lat`／`lng`／`member_id`／英文欄位／`signup_source = 'app'`）**已經在綱要裡**，屆時不必改表結構。
+29. ⛔ **有五類資料不得讀快取**：庫存與商品可購買狀態、金流回呼的冪等檢查、會員卡 `/m/<token>` 驗證、會籍與訂單付款狀態、購物車。會員卡那條是**安全問題**——讀到陳舊值等於 token 撤銷機制失效。清單與規格依據在 [`17-deployment.md`](17-deployment.md) §4。
+30. 🔴 **`CalendarEvent` 不要試 indexed view**——SQL Server 明文禁止 indexed view 含 `UNION`／`UNION ALL`，而本表的定義就是 UNION。見 [§1.4](#14-dbms-相依的五件事已定案) 第 3 件。
 
 ---
 

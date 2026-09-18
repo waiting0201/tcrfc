@@ -1,8 +1,17 @@
 # 台灣足球策略發展協會 — Charity Donation Platform Functional Specification
 
-> **Document version**: v2.3
-> **Date**: 2026-09-03 (v2.3 revision: 2026-09-18)
+> **Document version**: v2.4
+> **Date**: 2026-09-03 (v2.4 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v2.4 revision summary — the LINE Pay egress-IP prerequisite, and what "independent" covers**
+> **No change of scope.** Two things:
+> 1. **§4 gains the LINE Pay egress-IP prerequisite** — production requires the payment-server egress IP to be registered
+>    in the merchant portal, so the runtime carrying this platform's payments must have a fixed egress IP. This is an
+>    existing requirement of an external service, not a technology choice.
+> 2. **§1 and §9.4 state what this platform's independence covers**: its own domain, public site, admin and database, with
+>    donor personal data collected and controlled by the Association; cross-system references never join live and this
+>    platform never holds a connection to the main site's database.
 
 > **v2.3 revision summary — the admin interface speaks plain language**
 > **No functional changes.** This platform's admin also follows the **admin design rule** in website specification v3.7 §4.0: modules divided by public-facing function, the same name front and back,
@@ -27,7 +36,7 @@
 > 7. **The main-site specification v3.0 is in step**: the `N` module, the `donation` permission domain and the eight donation tables belong to this document, and the main site carries 9 system emails (5 membership + 4 shop), with the four charity emails belonging here.
 
 > **What this document covers**
-> 1. This document specifies the **Charity Donation Platform**: a donation site on its own domain, entered by scanning a QR code in physical venues, organised and collected for by **台灣足球策略發展協會** (the Association). **It is a fully independent system — its own domain, its own front end, its own admin and its own database** — sharing no runtime environment with the Taichung Rock FC website.
+> 1. This document specifies the **Charity Donation Platform**: a donation site on its own domain, entered by scanning a QR code in physical venues, organised and collected for by **台灣足球策略發展協會** (the Association). **It is a fully independent system — its own domain, its own front end, its own admin and its own database** — with donor personal data collected and controlled by the Association, and no data shared with the Taichung Rock FC website.
 > 2. It is **complementary to, not overlapping with**, the [Website Functional Specification](TCRFC_Website_Functional_Specification_EN.md) (v2.1 onwards). All donation payments are handled here; section 11 "Charity & Impact" on the main site carries only the **editorial** content — commitment, programmes, impact stories and impact metrics — and routes "fan donation" to this platform.
 > 3. This is a functional specification and **does not cover framework, CMS, or deployment decisions** (per the standing premise in main specification §1.3).
 
@@ -333,6 +342,12 @@ Every send is written to `EmailLog` (the existing main-site type).
 
 > **This is a scope change relative to the main specification.** The v2.0 premise "the site carries no payment gateway" is **narrowed to the main site only**. This platform **integrates the LINE Pay Online API properly**, so payment results, invoice issuing and reporting are all automatic. The already-decided table in main specification v2.1 has been amended to match.
 
+> ⚠️ **Integration prerequisite: a fixed egress IP.** LINE Pay's production environment requires the **payment-server egress IP**
+> to be registered in the merchant portal (sandbox does not), so the runtime carrying this platform's payments **must have a
+> fixed egress IP**. The Association's merchant account and the club's merchant account **register their own separately**.
+> `confirmUrlType` is **CLIENT** (the server calls Confirm once the donor returns, i.e. the flow in §4.2), so **no inbound
+> allowlist is needed** for LINE Pay callbacks.
+
 ### 4.1 Donation state machine
 
 | State | Meaning | Can move to |
@@ -623,7 +638,7 @@ Constraint: store_share_pct + project_share_pct ≤ 100%
 
 > 🔴 **Three rules for cross-system references (new in v2.0)**
 > 1. **The main site is the single master for charities and charity programmes.** `charity_name_snapshot` here is a **read-only copy**; where the two diverge the main site prevails. **This platform must never become a second source of truth.**
-> 2. **No live joins and no synchronous queries against the main site's database.** The two systems are deployed independently, and neither going down may affect the other's donation flow. Register synchronisation is by CSV import in the `N2` admin, or by periodically pulling a read-only main-site API.
+> 2. **No live joins and no synchronous queries against the main site's database.** The two databases are independent of each other, and this platform never holds a connection to the main site's database. Register synchronisation is by CSV import in the `N2` admin, or by periodically pulling a read-only main-site API.
 > 3. **The snapshot is deliberate, not a compromise.** Recipient names are printed on statements and donation receipts — documents already issued — and **must not change when the main site later renames a record**. This is consistent with the existing snapshot rules for `SettlementLine` and `DonationInvoice`.
 | `DonationPayment` | **Gateway transaction**: gateway transaction ID, request and confirm timestamps, amount, state, response summary | Donation |
 | `DonationInvoice` | **Invoice / receipt**: type, number, issue time, carrier or tax ID or receipt details, state, void and credit records | Donation |

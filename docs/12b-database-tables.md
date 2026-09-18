@@ -369,7 +369,15 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 ## 11. 索引與唯一鍵建議
 
-技術中立寫法。**部分索引、覆蓋索引、GIN 等屬選型後的優化，不在此指定。**
+邏輯層寫法。**DBMS 已定為 Azure SQL**（見 [`17-deployment.md`](17-deployment.md)），以下為隨之而來的兩條實作規則：
+
+- 🔴 **每張表另加一欄不對外的 `bigint IDENTITY` 當叢集鍵，主鍵 `id uniqueidentifier` 設為非叢集。**
+  SQL Server 的 `uniqueidentifier` 比較位元組的順序是反的，連 UUIDv7 也拿不到索引區域性。
+  理由與替代方案的取捨見 [`12` §1.2](12-database-schema.md#12-主鍵外鍵與命名慣例)。
+- **可為空 `club_id` 的複合唯一鍵用篩選唯一索引**（`CREATE UNIQUE INDEX … WHERE club_id IS NULL`）。
+  ⚠️ **規則語意尚待釐清**（強讀法 vs 弱讀法），見 [`12` §1.4](12-database-schema.md#14-dbms-相依的五件事已定案) 第 5 件——**定案前不得轉 DDL**。
+
+覆蓋索引與篩選索引的細部調校仍屬實作階段，不在此指定。
 
 ### 11.1 唯一鍵（違反即資料錯誤）
 
