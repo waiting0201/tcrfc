@@ -1,10 +1,15 @@
 # Taichung Blue Whale — Official Website Functional Specification
 
-> **Document version**: v1.7
-> **Date**: 2026-09-10 (v1.7 revision: 2026-09-18)
+> **Document version**: v1.8
+> **Date**: 2026-09-10 (v1.8 revision: 2026-09-18)
 > **Content principal**: Taichung Blue Whale Women's Football Team
 > **System principal**: **shares the admin and database** of the Taichung Rock FC official website
-> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.7*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.8*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v1.8 revision summary — uploaded images are always saved as resized derivatives**
+> **No functional changes.** This site shares the main site's admin, so the **image-upload rule** in website specification **v3.9 §4.0** applies in full:
+> the server always re-encodes to WebP, with a **2560px** long-edge cap, **the original is not retained**, and EXIF (including GPS) is stripped;
+> **1280 / 640 / 320** and a **160px square** admin-list thumbnail are always produced, with the public site picking the matching size per placement, always carrying width/height, and lazy-loading below the fold.
 
 > **v1.7 revision summary — the admin design rule applies here too**
 > **No functional changes.** This site shares the main site's admin, so the **admin design rule** in website specification v3.7 §4.0 applies in full:

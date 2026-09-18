@@ -35,7 +35,7 @@
 | 結構化資料 | Organization、SportsTeam、SportsEvent、Event、Person、Article、Course、FAQPage、BreadcrumbList，**以及 Product 與 Offer**（v2.6：商店已在站內，商品頁由本站輸出 Product Schema，含價格、幣別與供貨狀態） |
 | 內部連結 | 文章關聯球員／球隊／課程並自動產生互連區塊；**孤立頁面偵測** |
 | 行動友善 | Mobile First、觸控目標 ≥ 44px、行動版 CTA Bar |
-| 載入速度 | 圖片 WebP／lazy load、CDN、關鍵 CSS 內聯；**LCP < 2.5s、CLS < 0.1、INP < 200ms** |
+| 載入速度 | 圖片**一律取用後台 §4.0 通則產生的衍生檔**（WebP、依版位挑 1280／640／320、**不得直接引用主檔**、必帶寬高、首屏外 lazy load）、CDN、關鍵 CSS 內聯；**LCP < 2.5s、CLS < 0.1、INP < 200ms** |
 | 高品質原創內容 | 球員故事、比賽報導、漫畫、**慈善事蹟**為差異化資產 |
 | 定期更新 | 排程發布 + 內容行事曆檢視 |
 | 多語系 | 見上節 |

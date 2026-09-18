@@ -1,8 +1,13 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.8
-> **Date**: 2026-09-04 (v3.8 revision: 2026-09-18)
+> **Document version**: v3.9
+> **Date**: 2026-09-04 (v3.9 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.9 revision summary — the app consumes the website's derivative sizes**
+> **No functional changes.** Under website specification **v3.9 §4.0**: the admin always re-encodes uploaded images to WebP server-side,
+> with a **2560px** long-edge cap, no original retained, and always producing **1280 / 640 / 320** sizes.
+> **The app always picks the matching size for the screen placement and device resolution, and never fetches the master**; the `M` module's app content composition and advertising-slot images follow the same rule. It lands in the Data usage row of §16 resources and performance.
 
 > **v3.8 revision summary — the LINE Pay egress-IP prerequisite**
 > **No functional changes.** Under website specification v3.8: LINE Pay production requires the **payment-server egress IP**
@@ -1587,7 +1592,7 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 | **Responsiveness** | Tab switching within 300 ms; list scrolling without dropped frames |
 | **Offline availability** | The membership card, cached fixtures, and read articles are fully usable offline (2.4) |
 | **Install size** | 60 MB or less recommended; assets are loaded remotely rather than bundled |
-| **Data usage** | Typical use under 50 MB per month; list images compressed and served per device resolution |
+| **Data usage** | Typical use under 50 MB per month; list images **use the derivative sizes produced by the website's §4.0 rule** (1280 / 640 / 320, picked by screen placement and device resolution, **never the master**) |
 | **Battery** | No background location, no background polling; background work is limited to receiving push |
 | **Crash rate** | Crash-free sessions at or above 99.5% |
 | **Supported versions** | iOS 15+, Android 10+ (matching the website's existing compatibility statement) |

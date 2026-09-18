@@ -1,8 +1,14 @@
 # 台灣足球策略發展協會 — Charity Donation Platform Functional Specification
 
-> **Document version**: v2.4
-> **Date**: 2026-09-03 (v2.4 revision: 2026-09-18)
+> **Document version**: v2.5
+> **Date**: 2026-09-03 (v2.5 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v2.5 revision summary — uploaded images are always saved as resized derivatives**
+> **No change of scope.** This platform's admin images also follow the **upload rule** in website specification **v3.9 §4.0**:
+> the server always **re-encodes to WebP** on write, scaling down proportionally if the long edge exceeds **2560px**, **the uploaded original is not retained**,
+> and **EXIF metadata (including GPS location) is stripped**; beyond the master, **1280 / 640 / 320** and a **160px square** admin-list thumbnail are always produced.
+> The public site must never reference the master directly and always picks the matching size per placement. **Stripping location data matters especially here** — photos from donation events often carry the shoot location.
 
 > **v2.4 revision summary — the LINE Pay egress-IP prerequisite, and what "independent" covers**
 > **No change of scope.** Two things:

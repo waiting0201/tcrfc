@@ -1,8 +1,8 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.4
-> **Date**: 2026-09-14 (v1.4 revision: 2026-09-18)
-> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.7
+> **Document version**: v1.5
+> **Date**: 2026-09-14 (v1.5 revision: 2026-09-18)
+> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.8
 > **Content principal**: Taichung Blue Whale Women's Football Team
 
 > **How to read this document**
@@ -108,6 +108,8 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 ## 4. The admin: every module
 
 **Every admin module corresponds to somewhere on the website**, its name matches what visitors see, and the interface is written in everyday words — no codes, no technical terms.
+
+**You do not need to compress images before uploading them.** Choose a picture, press Save, and the system resizes it to a web-friendly size, converts it to a lighter format, and prepares smaller copies for mobile screens and list views; any location data embedded in the photo is stripped at the same time. Each page then loads the size it actually needs, so phones never download the large version — pages open faster and storage stays small.
 
 **It is the same admin as the Taichung Rock site.** The table lists every module; those marked as shared hold data that is not divided by club, while every other module shows only Blue Whale's data when the Blue Whale site is selected.
 

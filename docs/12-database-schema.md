@@ -50,7 +50,7 @@
 | 10 | `Order` 只有 `member_id` | **加 `selling_club_id`（受益方）與 `collecting_club_id`（收款法人）**，`OrderItem`／`StoreInvoice` 一併值複製；`Cart.club_id` 必填（**不得跨俱樂部混買**） | 主站 v3.0 §5.1、4.13 |
 | 11 | 唯一鍵：`Page.slug`／`Setting.setting_key`／`Redirect.from_path`／`Season.code`／`NewsletterSubscriber.email` 單欄唯一 | **全部改為 `(club_id, …)` 複合唯一。** 但 `Team.code`／`Article.slug`／`ProductVariant.sku`／`Order.order_no`／`Member.email` **維持全站唯一** | 主站 v3.0 §5.4 |
 | 12 | ✅ **已結案**（2026-09-18） | §1.4 已補滿五件並隨 **Azure SQL** 定案，見 [§1.4](#14-dbms-相依的五件事已定案)。⚠️ 第 5 件的**規則語意**仍待釐清，是轉 DDL 的前置 | 主站 v3.0 §5.4 |
-| 13 | 圖片以 `media_asset_id` 外鍵指向 `MediaAsset`，另有 `MediaFolder`／`MediaUsage` | **三張表全部移除。** 圖片改為**該表自己的欄位組**（`*_key` 物件鍵、`*_width`、`*_height`、`*_alt_zh`／`*_alt_en`）；多圖以子表承載。已知須改的外鍵 10 處：`Article` 封面、`Banner`、`Partner`／`Sponsor` 的 `logo_dark_id`／`logo_light_id`、`ProposalFile`、`ProductImage`、`ComicPage`、`Charity.logo_id`。**新增 `PressResource`**（7.8 媒體專區）。`club_id` 可為空由 8 張降為 **7 張** | 主站 v3.5 §4.0、§5.1、§5.4 |
+| 13 | 圖片以 `media_asset_id` 外鍵指向 `MediaAsset`，另有 `MediaFolder`／`MediaUsage` | **三張表全部移除。** 圖片改為**該表自己的欄位組**（`*_key` 物件鍵、`*_width`、`*_height`、`*_alt_zh`／`*_alt_en`）；多圖以子表承載。已知須改的外鍵 10 處：`Article` 封面、`Banner`、`Partner`／`Sponsor` 的 `logo_dark_id`／`logo_light_id`、`ProposalFile`、`ProductImage`、`ComicPage`、`Charity.logo_id`。**新增 `PressResource`**（7.8 媒體專區）。`club_id` 可為空由 8 張降為 **7 張**。⚠️ **`*_width`／`*_height` 存的是縮圖後的主檔尺寸**（長邊 ≤ 2560px），不是上傳檔的原始尺寸；1280／640／320 與 160px 方形縮圖的鍵由主鍵推導，**不另存欄位**（v3.9） | 主站 v3.9 §4.0、§5.1、§5.4 |
 
 **尚待完成的工作**（轉 DDL 前必做）：
 - **§5 ERD 與 §6 明細移除 `media_asset`／`media_folder`／`media_usage`，受影響的 9 處外鍵改為欄位組**（第 13 項）

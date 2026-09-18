@@ -1,9 +1,17 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.8
-> **Date**: 2026-08-14 (v3.8 revision: 2026-09-18)
+> **Document version**: v3.9
+> **Date**: 2026-08-14 (v3.9 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.8*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.9*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.9 revision summary — uploaded images are always saved as resized derivatives**
+> **No change of scope.** This fills in §4.0's admin image-upload rule, whose "Derivatives" row previously said only one sentence.
+> 1. **Always re-encoded; the original is not kept**: on receipt the server always re-encodes the image to WebP, scaling it down proportionally first if its long edge exceeds **2560px**; **the uploaded original is not retained**.
+> 2. **Four fixed sizes**: beyond the master (long edge 2560), three further sizes are always produced — **1280 / 640 / 320** — plus a **160px square thumbnail** for admin list views; object keys are always derived from the master's object key, **not stored as a separate column**.
+> 3. **The public site must never reference the master directly**: it always picks the matching size for its placement, every image carries its width and height, and everything below the fold is lazy-loaded.
+> 4. **Metadata is stripped**: re-encoding **removes EXIF (including GPS location and capture device)**, keeping only the corrected pixels.
+> 5. **Where it lands**: §4.0 admin image-upload rule, adding the **Upload limits / Always re-encoded / Derivative sizes / Width and height stored on the record / Public-site usage / Interface wording** rows, and rewriting **Replacing and deleting** and **Two rounds of validation**.
 
 > **v3.8 revision summary — the LINE Pay egress-IP prerequisite**
 > **No change of scope.** LINE Pay's production environment requires the merchant's **payment-server egress IP** to be
@@ -949,12 +957,18 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > | **Field shape** | Each image field is **a group of columns**: object key, width, height, **bilingual alt text**. Multi-image cases (product images, proposal files, galleries) are carried by a **child table**, one image field group plus a sort order per row |
 > | **Picking does not upload** | Choosing an image in an admin form **renders a preview in the browser**; the file is held only in browser memory and is **neither submitted nor written to storage** |
 > | **Saving uploads** | Pressing **Save** submits the image with the rest of the form and writes it to **object storage (blob)**; **only a successful write updates the record**. Leaving or cancelling the form **leaves no file behind** |
-> | **Replacing and deleting** | The old object is deleted only after the new one is written successfully; deleting a record deletes its image objects with it |
-> | **Two rounds of validation** | The browser checks extension, file size and minimum dimensions with immediate feedback; **the server revalidates every time** and never trusts the client's result |
-> | **Derivatives** | Compression, WebP conversion and multi-size crops are produced **server-side on write**; derivative object keys are derived from the primary key and are not stored as columns |
+> | **Replacing and deleting** | The old object is deleted only after the new one is written successfully, **taking the master and every one of its derivatives down together**; deleting a record deletes its image objects with it |
+> | **Two rounds of validation** | The browser checks extension, file size and minimum dimensions with immediate feedback; **the server revalidates every time** and never trusts the client's result. The server also **determines the format from the actual file header**, not from the extension |
+> | **Upload limits** | Each file **≤ 10 MB**, accepting JPG / PNG / WebP / HEIC. The **minimum dimension** is set per placement (hero-type images must be at least 1600px wide); anything under the minimum is **rejected outright**, never upscaled to fit |
+> | **Always re-encoded** | The server **always re-encodes** on write and never keeps the uploaded file as-is: auto-rotate per its EXIF orientation → scale down proportionally to a **2560px** long edge if larger → save as the **master** in **WebP**. **The uploaded original is not retained.** The re-encode also **strips EXIF metadata** (including **GPS location**, capture device and timestamp), keeping only the pixels |
+> | **Derivative sizes** | Beyond the master, three further long-edge sizes are always produced — **1280 / 640 / 320** — plus a **160px square thumbnail** for admin list views (centre-cropped). All are WebP, **produced in one pass server-side on write**; their object keys are derived from the master's object key and are not stored as separate columns |
+> | **Width/height stored on the record** | The width and height stored in the image field group are the **master's** dimensions (after scaling down), not the uploaded file's original dimensions |
+> | **Public-site usage** | The public site must **never reference the master directly**; it always picks the matching size for its placement (**`srcset`** multi-size candidates). Every image **must carry width/height attributes** to avoid layout shift, and everything below the fold is **lazy-loaded** |
 > | **Inline images** | For image blocks in the block editor, the object key and alt text live in that block's `content json` and are **also subject to "saving uploads"** |
+> | **Interface wording** | Per this section's admin design rule, the screen never shows **`WebP` / `blob` / `EXIF` / `srcset`**: next to the upload field it reads "The system automatically resizes your image for the web and removes location data from the photo"; when a file is over the limit it reads "This image file is too large (10 MB limit) — please choose another or compress it first" |
 >
-> **Out of scope for this rule**: a media browser, folders and tags, usage tracking and delete-time warnings, image reuse across records, resumable upload progress.
+> **Out of scope for this rule**: a media browser, folders and tags, usage tracking and delete-time warnings, image reuse across records, resumable upload progress, **keeping the uploaded original**, and **manual or focal-point cropping in the admin**.
+> ⚠️ **Not keeping the original is a deliberate trade-off**: the saving is on the order of 100% or more of storage; the cost is that adding a new size tier later can only be regenerated from the 2560px-long-edge master, with no way back to the original quality. **Before adjusting the tiers, confirm 2560px is enough.**
 > ⚠️ **One image belongs to one record.** To show the same image in two places, upload it twice — a deliberate trade, bought with never having to ask "is anything else still using this?" when deleting a record.
 
 ---
@@ -1621,7 +1635,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Structured data / schema markup | Automatic output of Organization, SportsTeam, SportsEvent, Event, Person, Article, Course, FAQPage, BreadcrumbList, **plus Product and Offer (v2.6: the shop is on this site, so Product schema — price, currency, availability — is now emitted here)** |
 | Internal linking strategy | Articles can be related to players / teams / programs, generating cross-link blocks automatically; orphan-page detection |
 | Mobile-friendly design | Mobile-first, touch targets ≥ 44px, mobile CTA bar |
-| Fast loading | WebP images with lazy loading, CDN, inlined critical CSS; targets of LCP < 2.5s, CLS < 0.1, INP < 200ms |
+| Fast loading | Images **always use the derivative sizes produced by the §4.0 rule** (WebP, sized per placement, lazy-loaded below the fold, always with width/height), CDN, inlined critical CSS; targets of LCP < 2.5s, CLS < 0.1, INP < 200ms |
 | High-quality original content | Player stories, match reports, manga content, and **charity impact records** are the differentiating assets |
 | Regularly updated news and stories | Scheduled publishing plus a content calendar view in the admin |
 | Multilingual support | **Traditional Chinese / English**: `hreflang="zh-Hant" / "en"` + `x-default`, distinct URLs, and language switching that stays on the equivalent page |
