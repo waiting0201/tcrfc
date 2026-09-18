@@ -90,7 +90,7 @@
 
 ## 全域規定
 
-> 這九條是**跨全專案**的。細節在導航層，本檔只留規則本身與指標。
+> 這十二條是**跨全專案**的。細節在導航層，本檔只留規則本身與指標。
 
 1. **不要整份讀規劃書。** 先查 [`docs/00-harness.md`](docs/00-harness.md) 的行號對照表，只讀需要的章節。
 2. **規劃書是唯一真實來源。** [`docs/`](docs/) 只做導航與濃縮，**不得引入規劃書沒有的新規格**；
@@ -112,6 +112,18 @@
 9. **動手改東西前掃一次 [`docs/14-invariants.md`](docs/14-invariants.md)。** 那裡是「改錯會出事」的清單：
    隊別代號全站唯一、品牌色的唯一來源、名稱寫法、五種商業對象不可混用、`D1` 的雙重身分
    （後台課程模組已改編為 `P1–P4`，看到舊文件寫 `D1 課程` 一律視為錯誤）。
+10. **一律用繁體中文回應。** 對使用者的所有回覆、說明、提交訊息與文件內文都用繁體中文（台灣用語）；
+    程式碼、識別字、指令與既有英文專有名詞維持原文，不要硬翻。
+11. **改了程式或規則，文件一定要跟著改**——同一次交付內完成，不留「之後再補」。
+    改**規格**走第 3 條的同步鏈（先改規劃書再同步 `docs/`）；改**程式或執行層決定**（部署、設定、腳本、
+    建置流程）則同步更新導航層對應檔案（[`docs/`](docs/)、[`docs/14-invariants.md`](docs/14-invariants.md)、
+    [`docs/17-deployment.md`](docs/17-deployment.md)）與 [`STATUS.md`](STATUS.md) 的進度列。
+    **文件沒改＝這件事沒做完。**
+12. **該叫 agent 的事就叫 agent 做，不要自己硬幹。** 依任務性質派工：
+    後端與資料庫→`backend-engineer`；前台 Nuxt／Vue→`frontend-architect`；行動 App→`mobile-app-engineer`；
+    部署與 CI/CD→`deployment-engineer`；資料表與技術文件→`system-analyst`；需求與藍圖→`software-architect-blueprint`；
+    版面與視覺→`visual-design-architect`；程式審查→`code-review-optimizer`；測試與品質把關→`qa-test-engineer`；
+    大範圍搜尋→`Explore`。多個互不相依的任務要**同一則訊息一次派出**並行跑。
 
 ---
 
