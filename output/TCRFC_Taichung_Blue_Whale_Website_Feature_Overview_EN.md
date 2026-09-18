@@ -1,8 +1,8 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.0
-> **Date**: 2026-09-14
-> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.4
+> **Document version**: v1.1
+> **Date**: 2026-09-14 (v1.1 revision: 2026-09-18)
+> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.5
 > **Content principal**: Taichung Blue Whale Women's Football Team
 
 > **How to read this document**
@@ -26,6 +26,10 @@
 ---
 
 ## 1. How this site relates to the Taichung Rock site
+
+**The Blue Whale site is the same website as the Taichung Rock site; only the colours differ.**
+The templates, page structure, the arrangement of every block, the way it is operated and the admin functionality **all match the Taichung Rock site** — nothing is designed separately. **The only things replaced are the brand colours and the crest**, with the colours taken from the Blue Whale crest (section 6).
+Four sections differ, because the two teams are not alike: there is no "Women's Football" section (the whole site is women's football), no "Charity & Impact" section, "Academy" becomes **Youth** (the U15 and U12 girls' teams), and "Partners & Sponsors" is **shown separately** from Taichung Rock's.
 
 Taichung Blue Whale has **its own address, its own front-end site, and its own colours and crest**, in Chinese and English.
 
@@ -217,5 +221,5 @@ The Blue Whale site reuses the Taichung Rock site's **layout system** — cards,
 ---
 
 > Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.0
-> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.4　·　11 sections plus the member area　·　Chinese and English
+> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.5　·　11 sections plus the member area　·　Chinese and English
 > **Shares the admin and database of the Taichung Rock FC website; content and brand remain separate.**

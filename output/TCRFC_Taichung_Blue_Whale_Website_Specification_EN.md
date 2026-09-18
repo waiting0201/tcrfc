@@ -1,10 +1,15 @@
 # Taichung Blue Whale — Official Website Functional Specification
 
-> **Document version**: v1.4
-> **Date**: 2026-09-10 (v1.4 revision: 2026-09-14)
+> **Document version**: v1.5
+> **Date**: 2026-09-10 (v1.5 revision: 2026-09-18)
 > **Content principal**: Taichung Blue Whale Women's Football Team
 > **System principal**: **shares the admin and database** of the Taichung Rock FC official website
-> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.4*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.5*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v1.5 revision summary — stated explicitly: the same website as the main site, differing only in colour**
+> 1. **§1.3 adds a governing rule**: the Blue Whale site's templates, components, page structure, interaction behaviour and functionality **match the main site exactly**; **the only brand difference is colour** (seven variables sampled from the crest). Whatever the main site has, this site has; any detail this document does not state is identical to the same section of the main-site specification.
+> 2. **The rule has exactly four exceptions**, all at section level (§2.1): 06 and 11 are not built, 04 is YOUTH, and 09 must be zoned. Nothing outside those four is designed separately.
+> 3. **§2.1 and §8.1 refer back to the rule.** Functional scope, section structure, data model and admin design are **unchanged**.
 
 > **v1.4 revision summary — brand colours settled, sampled from the crest**
 > 1. **Brand colours follow the crest** (§8.1): primary `#2196D5`, AA-safe variant for small text `#1A78AA`, dark `#040000`. All seven brand variables are listed with their contrast verification.
@@ -51,6 +56,14 @@ The goal is to bring Blue Whale's content up to the same level as the Taichung R
 
 ### 1.3 System scope
 
+> 🔵 **Governing rule — this site and the main site are the same website; only the colour differs**
+> The Blue Whale site is built on **the main site's skeleton**: templates, components, page structure, interaction behaviour and public-site/admin functionality **match the main site exactly**, and are not designed separately.
+> **The only brand difference is colour** — the seven brand variables take their values from the Blue Whale crest (§8.1); everything else in the styling is carried over unchanged.
+> **Whatever the main site has, this site has; whatever the main site does not have, this site does not build.**
+>
+> **The rule has exactly four exceptions**, all at section level (§2.1): `06 WOMEN'S FOOTBALL` is not built, `11 CHARITY & IMPACT` is not built, `04` is **YOUTH** rather than the academy, and `09 PARTNERS` must be **zoned** separately from Taichung Rock.
+> Outside those four, any detail this document does not state is **identical to the same section of the main-site specification** — it is not an omission.
+
 - **Public site**: 11 top-level sections, two languages (Traditional Chinese / English), Member Centre, on-site shop.
 - **Admin**: **no new modules**. Blue Whale's content, teams, programmes, members and orders are all maintained in the main site's existing modules, partitioned by `club_id` and by data-scope permissions (§4).
 - **Out of scope**:
@@ -90,6 +103,8 @@ Taichung Blue Whale official website (its own domain)
 | **11 CHARITY & IMPACT** | **Not built** | Organised and collected for by the Taiwan Football Strategic Development Association; no bearing on Blue Whale |
 | 04 ACADEMY | **Becomes YOUTH** | Blue Whale's existing structure is U15 and U12 girls' teams, not Taichung Rock's academy system. **The admissions and programme-registration architecture is not carried over** |
 | 09 PARTNERS | **Must be zoned** | The two clubs' sponsorship contracts are signed separately and **must never be mixed** (main-site specification §5.1) |
+
+> **These four are the *complete* set of exceptions to the governing rule in §1.3.** Outside them, each section's page structure, block arrangement and functionality match the main site and are not designed separately.
 
 > **The section numbers deliberately preserve the main site's mapping** (skipping 06 and 11) rather than renumbering to 01–11. Because the two sites share one admin, **consistent section numbers substantially reduce mistakes** when staff switch between sites in the same interface.
 
@@ -288,6 +303,8 @@ Follows main-site specification chapter 7. Three points specific to this site:
 ## 8. Visual Identity and Brand
 
 ### 8.1 Reuse the main site's templates; replace only the brand variables
+
+> **This section *is* the "only brand difference" referred to in §1.3.** Apart from the seven variables below and the crest, the Blue Whale site's visual design is identical to the main site: **no separate design proposal, no layout changes, no different typeface or spacing system**.
 
 The main site's front end concentrates all colour in one set of design tokens, and its layout components (cards, clipped corners, oversized numerals, colour bands) are brand-agnostic. **This site reuses the same templates and components and replaces only the brand variables**: the primary colour, an AA-safe variant, a hover-brightened variant, a solid-button hover variant, and three dark neutrals.
 
