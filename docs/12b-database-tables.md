@@ -340,7 +340,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 |---|---|---|
 | 整季賽程 | `Match`（＋`MatchTeam`、`match_i18n`） | C4／L4 共用機制 |
 | 積分榜 | `Standing` | C4 |
-| FAQ 題目 | `Faq`＋`FaqCategoryLink`＋`faq_i18n`（匯入 ＋ 匯出） | B5 |
+| FAQ 題目 | `Faq`＋`FaqCategoryLink`＋`faq_i18n`（匯入 ＋ 匯出） | B4 |
 | 301 轉址對照 | `Redirect`。**含舊 Wix 商店的 5 個商品與分類網址** | H |
 | 物流單號 | `Shipment.tracking_no`。**v2.6 不串物流商 API，以 CSV 回填** | S4 |
 | 店家名單 | `DonationStore`（＋`donation_store_i18n`） | 慈善站 N1 |
@@ -388,6 +388,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `DrawRoster` | `(member_draw_id, serial_no)`、`(member_draw_id, member_no_snapshot)` |
 | `Locale` | `code` |
 | `Redirect` | `from_path` |
+| `PressResource` | `slug` |
 | 所有 `*_i18n` | `(<entity>_id, locale)` |
 | 所有內容表 | `slug`（表內唯一） |
 

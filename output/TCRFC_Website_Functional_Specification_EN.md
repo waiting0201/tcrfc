@@ -1,9 +1,16 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.4
-> **Date**: 2026-08-14 (v3.4 revision: 2026-09-14)
+> **Document version**: v3.5
+> **Date**: 2026-08-14 (v3.5 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.4*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.5*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.5 revision summary — admin images are uploaded per field; there is no media library**
+> 1. **§4.0 adds an image-upload rule for the whole admin**: an image always belongs to the record it describes; **there is no shared image library**. Each image field is a group of columns (object key, width, height, bilingual alt text); multi-image cases are carried by child tables.
+> 2. **Picking a file does not upload it; saving does.** Choosing an image in an admin form renders a preview in the browser, with the file held only in browser memory; pressing **Save** submits it with the rest of the form and writes it to object storage (blob), and only a successful write updates the record. Leaving or cancelling the form leaves no file behind.
+> 3. **The `B` module is `B1–B6`**: `B1 Pages` / `B2 News` / `B3 Homepage slots & Banners` / `B4 FAQ` / `B5 Charity & Impact Records` / **`B6 Press & Media Resources`** (the press releases, brand identity packs and high-resolution images behind public-site section 7.8).
+> 4. **Type changes**: `PressResource` is added. Image fields become columns on their own table rather than foreign keys, in 10 places (`Article` cover, `Banner`, `Partner` / `Sponsor` dual-tone logos, `ProposalFile`, `ProductImage`, `ComicPage`, `Charity` logo).
+> 5. **§5.4 nullable `club_id`** narrows to **7 tables**.
 
 > **v3.4 revision summary — Blue Whale brand colours settled**
 > **No functional changes.** Item 38 in section 10 narrows: Blue Whale's **web colour values are settled** (sampled from the crest; values in the Blue Whale specification §8.1), and a **raster master** of the crest now covers high-density rasters, the favicon and the OG image. **Still outstanding: the vector master, print colour references, and the official English name.**
@@ -31,7 +38,7 @@
 > 8. **The shop keeps a single collecting entity; Blue Whale goods are sold on a collect-and-remit basis**: `Order` gains `selling_club_id` (the beneficiary) and `collecting_club_id` (the collecting legal entity, always this club), value-copied onto `OrderItem` and `StoreInvoice`. **The LINE Pay merchant account, invoice track and invoice title stay single.** **Carts must not mix clubs** (`Cart.club_id` mandatory) — the current shipping rule is a single flat fee plus a free-shipping threshold, and a mixed cart has no defined answer for either. **Shop-level settlement and revenue splitting are explicitly out of scope**; the system only aggregates and exports by `selling_club_id`.
 > 9. **Row-level data scope in `J`**: new `AdminUserClub` (with **grant and expiry dates, expiring automatically**) and `AdminUserTeam` association tables; `AdminRole` gains `scope_mode`, `AdminUser` gains `primary_club_id`, `Permission` gains `is_club_scoped`. **The permission matrix gains a "data scope" column and a tenth role, "Partner club manager".** Scope **must be enforced at the data-access layer — hiding it in the UI does not count**.
 > 10. **Shared content (`club_id` null) is read-only to any scope-limited account**; only super administrators may create or modify it. Otherwise "can see shared content" and "cannot edit someone else's content" cannot both hold.
-> 11. **The Charity Donation Platform has its own admin and its own database** (its specification v2.0): this site's `B6` types (`Charity` / `CharityProgram` / `ImpactRecord` / `ImpactMetric`) **stay here as the master records**, with the charity platform holding read-only snapshots. There are **9** system emails (5 membership + 4 shop). `PaymentChannel` carries `owner_club_id`, with the unique key `(owner_club_id, channel_type, environment)`.
+> 11. **The Charity Donation Platform has its own admin and its own database** (its specification v2.0): this site's `B5` types (`Charity` / `CharityProgram` / `ImpactRecord` / `ImpactMetric`) **stay here as the master records**, with the charity platform holding read-only snapshots. There are **9** system emails (5 membership + 4 shop). `PaymentChannel` carries `owner_club_id`, with the unique key `(owner_club_id, channel_type, environment)`.
 > 12. **Section 10 gains open items 29 onwards**: whether orders are split at checkout, the actual invoice title and tax ID, member numbering, Blue Whale's membership plans and season dates, fulfilment staffing for Blue Whale goods, the Blue Whale domain and brand assets, and canonical attribution for shared content.
 
 > **v2.6 revision summary — e-commerce is brought in-house; "no payment gateway" is scoped a third time**
@@ -137,7 +144,7 @@
 - **Out of scope for this engagement**:
   - **Boundaries of the shop** — this site runs its own **official store**: products, cart, checkout, **payment by LINE Pay**, **e-invoicing**, shipping, orders, and returns are all handled here, **collected for by this club** (see 3.8 and 4.13). **Kept to the same scale as the old site's store; excluded**: multiple payment methods (**LINE Pay only**), member pricing and discount codes, a shipping-rate engine, subscriptions and recurring billing, cross-border sales and multi-currency, marketplace/multi-vendor, resale or consignment, points redemption and e-wallet, and tying merchandise to membership or draw eligibility; **ticketing and match packages remain excluded**. **"No card data" applies globally** — payment completes on LINE Pay's side and this site never renders its own card fields. The other collecting entities stay separate: charity donation payments are handled by the separate Charity Donation Platform (collected for by the **Association**), see [`TCRFC_Charity_Donation_Platform_Specification_EN.md`](TCRFC_Charity_Donation_Platform_Specification_EN.md); **in-app membership payment uses LINE Pay** (collected by this club, membership fees only), see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 5. **Membership fees do not go through shop checkout** and keep payment links and in-person collection.
   - **Technology selection** — this document defines functional requirements only; it does not decide framework, CMS, or hosting.
-  - **Fixed advertising slots** — **this site's public web front end** has no separate fixed slots; seasonal content is surfaced through the hero carousel or latest news (see 3.1 / 4.2 B4). **The Mobile App's own advertising slots are app scope**, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 7.
+  - **Fixed advertising slots** — **this site's public web front end** has no separate fixed slots; seasonal content is surfaced through the hero carousel or latest news (see 3.1 / 4.2 B3). **The Mobile App's own advertising slots are app scope**, see [`TCRFC_Mobile_App_Specification_EN.md`](TCRFC_Mobile_App_Specification_EN.md) section 7.
   - **Native push and notification centre** — this site builds no notification centre, no notification preferences, and no LINE push; **the Mobile App's native push and in-app notification centre are app scope**, see the app specification, section 6.
   - **Booking attribution and form pre-filling** — not built on this site's public web front end; **the Mobile App provides form pre-filling and "my bookings"** (the member's own data only), see the app specification, section 3.9. **Parent–student linking is excluded everywhere.**
   - **Ticketing and match packages**, **loyalty points**, **e-wallet**, and **partner-store scan-to-redeem with redemption reporting** (recommended for later evaluation). The paying-member prize draw (3.14 / admin K5) is **none of these**: eligibility is a boolean derived from membership, the draw serial number is not a ticket, and prizes exclude tickets — see 3.14.
@@ -499,7 +506,7 @@ This site has three responsibilities and no more:
 
 | Item | Approach |
 |---|---|
-| Referral | Every "fan donation" CTA in section 11 links to the Charity Donation Platform; the URL is configured in admin B6 and **never hard-coded into a template**. **The copy must state that the Association receives the donation** |
+| Referral | Every "fan donation" CTA in section 11 links to the Charity Donation Platform; the URL is configured in admin B5 and **never hard-coded into a template**. **The copy must state that the Association receives the donation** |
 | Impact feedback | Donation projects on that platform can link to this site's `CharityProgram` records; how funds were used continues to be presented as structured content in 11.2 / 11.3 |
 | Consistency | This site shows no amount options, hosts no donation form, and publishes no bank account details |
 
@@ -797,10 +804,10 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ├── B. Content
 │   ├── B1 Pages (static pages / blocks, incl. the Blue Whale site entry page)
 │   ├── B2 News & Stories
-│   ├── B3 Media Library
-│   ├── B4 Homepage slots / Banners
-│   ├── B5 FAQ Management
-│   └── B6 Charity & Impact Records
+│   ├── B3 Homepage slots / Banners
+│   ├── B4 FAQ Management
+│   ├── B5 Charity & Impact Records
+│   └── B6 Press & Media Resources
 ├── C. Teams
 │   ├── C1 Teams (first team / academy squads / **Blue Whale first team BW1**)
 │   ├── C2 Players
@@ -861,7 +868,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 > **Numbering note**: the programs module was originally numbered `D1–D4`, which clashed confusingly with the **team code `D1`** (First Team). It has been renumbered **`P1–P4` (Programs)**, and all references throughout this document have been updated.
 > **Why the shop module takes `S` (Shop)**: `N` belongs to the Charity Donation Platform and `M` to the Mobile App, so a new letter is used.
-> **The Charity Donation Platform has its own admin and its own database and is not a module of this admin.** **What this site carries is `B6 Charity Impact Records`** (the content of section 11); the two are different things.
+> **The Charity Donation Platform has its own admin and its own database and is not a module of this admin.** **What this site carries is `B5 Charity Impact Records`** (the content of section 11); the two are different things.
 
 > **Site switcher (new in v3.0)**
 > This admin carries two clubs' websites. Users sign in with **the same account through the same entry point** and pick the club they are working on from a **site switcher** at the top of the screen; after switching, every list, editor and report **shows only that club's data**.
@@ -869,6 +876,22 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > - It defaults to `AdminUser.primary_club_id`.
 > - **Shared content (`club_id` null) is visible under either site but read-only to scope-limited accounts** (see 5.4).
 > - ⚠️ **The switcher is a convenience, not a security boundary.** Data scope must be enforced at the data-access layer and must never rely on the switcher's current selection.
+
+> **Admin image-upload rule (new in v3.5, applies to the whole admin)**
+> **This admin has no media library.** An image always belongs to the record it describes — a player photo sits on the player record, a product image on the product-image record, a sponsor logo on the sponsor record. **There is no image library shared across records and no central image browser.**
+>
+> | Item | Rule |
+> |---|---|
+> | **Field shape** | Each image field is **a group of columns**: object key, width, height, **bilingual alt text**. Multi-image cases (product images, proposal files, galleries) are carried by a **child table**, one image field group plus a sort order per row |
+> | **Picking does not upload** | Choosing an image in an admin form **renders a preview in the browser**; the file is held only in browser memory and is **neither submitted nor written to storage** |
+> | **Saving uploads** | Pressing **Save** submits the image with the rest of the form and writes it to **object storage (blob)**; **only a successful write updates the record**. Leaving or cancelling the form **leaves no file behind** |
+> | **Replacing and deleting** | The old object is deleted only after the new one is written successfully; deleting a record deletes its image objects with it |
+> | **Two rounds of validation** | The browser checks extension, file size and minimum dimensions with immediate feedback; **the server revalidates every time** and never trusts the client's result |
+> | **Derivatives** | Compression, WebP conversion and multi-size crops are produced **server-side on write**; derivative object keys are derived from the primary key and are not stored as columns |
+> | **Inline images** | For image blocks in the block editor, the object key and alt text live in that block's `content json` and are **also subject to "saving uploads"** |
+>
+> **Out of scope for this rule**: a media browser, folders and tags, usage tracking and delete-time warnings, image reuse across records, resumable upload progress.
+> ⚠️ **One image belongs to one record.** To show the same image in two places, upload it twice — a deliberate trade, bought with never having to ask "is anything else still using this?" when deleting a record.
 
 ---
 
@@ -899,16 +922,11 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Scheduled publishing, featured pinning (max 3), view counts
 - Bulk actions: recategorise, bulk publish / unpublish
 
-#### B3 Media Library
-- Image / video / PDF upload with automatic compression, WebP conversion, and multi-size cropping
-- Folders, tags, alt text (multilingual), usage tracking (warning before deletion)
-- **For the media centre (7.8)**: assets flagged "publicly downloadable" — press releases, brand identity packs, high-resolution images
-
-#### B4 Homepage slots / Banners
+#### B3 Homepage slots / Banners
 - Hero carousel management (order, image/video, headline, CTA, display period); **seasonal content (new manga chapters, charity campaigns, enrolment windows) is surfaced here** instead of via dedicated fixed slots (**this applies to this site's public web front end**; the Mobile App's own advertising slots are covered by the app specification, section 7, and admin E4–E6)
 - Toggles and ordering for each homepage block, plus featured-content selection (current blocks: hero, core values, pillar cards, latest match, upcoming fixtures, latest news, sponsor logo wall, store entry, bottom CTA)
 
-#### B5 FAQ Management
+#### B4 FAQ Management
 - **Topic categories**: create / reorder / disable categories (joining the club, academy admissions, program registration, fees & refunds, trials, international pathways, women's football, fan club & merchandise, partnership & sponsorship, other)
 - **Question CRUD**: question, answer (rich text with links / images / files), categories (multi-select), sort weight, status (visible / hidden), bilingual versions
 - **Embedding**: specify which pages' FAQ quick blocks (G-12) a question may appear in, or map automatically by category
@@ -916,7 +934,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Zero-result search terms**: a ranking of searches that returned nothing, used to decide which FAQs to add
 - Bulk actions: recategorise, show / hide, CSV import and export
 
-#### B6 Charity & Impact Records
+#### B5 Charity & Impact Records
 - **Charity Program**: name, cover, beneficiaries, period, status (ongoing / completed), background and content (block editor), **recipient charity** (linked to the organisation records below), **what was donated**, gallery, related coverage (7.7)
 - **Impact Record**: three required fields — **charity organisation name**, **what was donated** (free text, e.g. "50 footballs, 100 training bibs" or "N scholarships"), and **event photography** (multiple images); plus date, location, short description, and optionally the parent programme
 - **Charity organisation records**: name, description, logo or representative image, website, contact person, collaboration history; reusable across multiple impact records to avoid re-entry
@@ -924,6 +942,12 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Donation referral settings**: the Charity Donation Platform URL (**never hard-coded into a template**) and the CTA copy. Donation records, amount options, invoicing and the donor roll are all maintained in that platform's `N` module and are not duplicated here
 - **Get Involved settings**: copy and destinations for **two** CTAs (corporate partnership / fan donation); volunteer signup is out of scope
 - Display control: ordering and pinning within the charity section (**no fixed charity slot on the homepage**; for temporary exposure, use the hero carousel or publish a news article). **The Mobile App carries no charity slot either** — the Charity Donation Platform is run and collected for by the Association, so this club's app must not sell or grant charity-related placements
+
+#### B6 Press & Media Resources
+- **Backs public-site section 7.8**: press releases, brand identity packs (logo / CIS) and high-resolution images
+- Resource CRUD: bilingual title and description, category, file, cover thumbnail, publication date, status (visible / hidden), sort order
+- The file and its cover sit on the resource record under the **admin image-upload rule** (see 4.0); download counts are recorded
+- Bulk actions: recategorise, show / hide
 
 ---
 
@@ -1375,7 +1399,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `FanEvent` | Fan event | Member |
 | `Enquiry` | Form submission (7 form types + deck downloads + donation enquiries) | Form, Assignee |
 | `Venue` | Venue. **v2.5 adds `lat` / `lng`**, for the app's venue navigation and course locations | Program, Match, Trial |
-| `MediaAsset` | Media asset | Global |
+| `PressResource` | Press & media resource (press releases / brand identity packs / high-resolution images), backing 7.8 | Page (7.8) |
 | `Faq` / `FaqCategory` | FAQ / topic category | Page (embed location) |
 | `CharityProgram` | Charity programme | Charity, Partner, Article, ImpactRecord |
 | `ImpactRecord` | Impact record (organisation, donation, imagery) | Charity, CharityProgram |
@@ -1436,7 +1460,7 @@ Under a multi-club architecture every table must answer "which club does this be
 
 **Mandatory (~40 tables)**: all team and fixture types (`Team` / `Player` / `Match` / `Standing` / `Achievement` / `Milestone` / `Season` / `Competition`), site-level content (`Page` / `Banner` / `HomeSection` / `MenuItem` / `Redirect` / `Setting` / `EmailTemplate` / `Form`), personal data (`Registration` / `Trial` / `Enquiry` / `NewsletterSubscriber` / `FanEventRegistration` / `Membership` / `MemberCard` / `MembershipPayment` / `JerseyIssue` / `MemberDraw` / `DrawRoster`), commercial counterparties (`Partner` / `Sponsor` / `SponsorPackage` / `Proposal`), programmes (`Program` / `Session`), the shop (`Collection` / `Product` / `ProductVariant` / `Cart` / `Order` / `OrderItem` / `Shipment` / `RefundRequest` / `StoreInvoice` / `InventoryMovement`), plus `EmailLog`, `FaqSearchMiss`, `CalendarCustomEvent`, `ComicCharacter` / `ComicEpisode` / `FanEvent`.
 
-**Nullable, meaning "shared by both clubs" (8 tables)**: `Article`, `MediaAsset`, `MediaFolder`, `Faq`, `Staff`, `Charity`, `CharityProgram`, `ImpactRecord` / `ImpactMetric`.
+**Nullable, meaning "shared by both clubs" (7 tables)**: `Article`, `PressResource`, `Faq`, `Staff`, `Charity`, `CharityProgram`, `ImpactRecord` / `ImpactMetric`.
 
 **Not added (~60 tables)**: anything derivable from a parent, anything shared system-wide (`Locale` / `UiString` / `ValueTagLink` / `InvoiceDonationCode`), and three **deliberate** exclusions:
 
@@ -1576,7 +1600,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 - 07 Newsroom (all categories), 10 Forms hub (all 9), Location & Map
 - **12 Standalone FAQ section** (starting with 3–4 high-frequency topics)
 - **13 Schedule**: **team-first categorisation by D1 / U15 / U14 / U12** (Blue Whale's `BW1` appears on the Blue Whale site), fixtures/results toggle, list and calendar views, per-match .ics download
-- Admin: content management, news, media library, teams / players / coaches, programs and registrations, FAQ management, master calendar and custom events, enquiry inbox, SEO basics, permissions
+- Admin: content management, news, teams / players / coaches, programs and registrations, FAQ management, master calendar and custom events, enquiry inbox, SEO basics, permissions. **Images are uploaded per field under the rule in 4.0**
 - **Multilingual framework** (Chinese content launches first, with English fields and URL structure in place, and room for a third language)
 
 ### Phase 2 — Commercial, membership, and deeper content (approx. 6–8 weeks)

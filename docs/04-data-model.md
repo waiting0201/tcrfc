@@ -43,7 +43,7 @@
 | `FanEvent` | 球迷活動 | Member |
 | `Enquiry` | 表單詢問（7 類表單 + 提案下載 + 捐助洽詢） | Form、Assignee |
 | `Venue` | 場地。**v2.5 新增 `lat` / `lng`**（App 場地導航與課程地點） | Program、Match、Trial |
-| `MediaAsset` | 媒體資產 | 全域 |
+| `PressResource` | 媒體資源（新聞稿／品牌識別包／高解析圖），對應 7.8 | Page（7.8） |
 | `Faq` / `FaqCategory` | 常見問題／主題分類 | Page（嵌入位置） |
 | `CharityProgram` | 慈善計畫 | Charity、Partner、Article、ImpactRecord |
 | `ImpactRecord` | 慈善事蹟紀錄 | Charity、CharityProgram |
@@ -87,7 +87,7 @@
 > **能經父表推導的一律不加**——同一事實存兩處必然不同步。
 > **加了就必須同時決定「唯一鍵、後台清單預設過濾、前台站台路由」三件事**，否則欄位是死的。
 
-- **可為空＝兩隊共同**，只在 8 張成立（`Article`／`MediaAsset`／`MediaFolder`／`Faq`／`Staff`／`Charity`／`CharityProgram`／`ImpactRecord`）。
+- **可為空＝兩隊共同**，只在 7 張成立（`Article`／`PressResource`／`Faq`／`Staff`／`Charity`／`CharityProgram`／`ImpactRecord`）。
 - **四類絕不可空**：有唯一路徑衝突者、承載個資者、有金流稅務歸屬者、**所有值複製快照表**（快照的意義是凍結歸屬，NULL 是「未知」不是「共同」）。
 - **三個刻意不加**：`ArticleCategory`／`Tag`／`FaqCategory`（分類是內容主題，不是歸屬——加了八個變十六個）、`Venue`（地理實體，兩隊共用同一座球場）、`Member`（登入鍵不分俱樂部，**會籍才分**）。
 - 🔴 **共同內容對受範圍限制的帳號一律唯讀**，只有超管能建立與修改。否則「查得到共同內容」與「不能改到別人的內容」無法同時成立。

@@ -1,8 +1,8 @@
 # Taichung Rock FC — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.0
-> **Date**: 2026-09-14
-> **Corresponds to**: *TCRFC Website Functional Specification* v3.4
+> **Document version**: v1.1
+> **Date**: 2026-09-14 (v1.1 revision: 2026-09-18)
+> **Corresponds to**: *TCRFC Website Functional Specification* v3.5
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 
 > **How to read this document**
@@ -126,10 +126,10 @@ Membership covers **one thing only — belonging**, at two tiers:
 | **A Dashboard** | — | Tasks, latest submissions, key figures |
 | **B Content** | B1 Pages | Static pages and editable blocks (including the Blue Whale entrance page) |
 | | B2 News & Stories | Writing, scheduled publishing, categories and tags |
-| | B3 Media library | Images and video, shared by every module |
-| | B4 Home blocks / banners | Order of the home page blocks and the hero |
-| | B5 FAQ | Questions and answers, including reports of failed searches |
-| | B6 Charity records | The descriptive content and impact figures for section 11 |
+| | B3 Home blocks / banners | Order of the home page blocks and the hero |
+| | B4 FAQ | Questions and answers, including reports of failed searches |
+| | B5 Charity records | The descriptive content and impact figures for section 11 |
+| | B6 Press & media resources | Press releases, brand identity packs and high-resolution images for the media section |
 | **C Teams** | C1 Teams | First team, academy age groups, Blue Whale first team |
 | | C2 Players | Squad, numbers, positions, photographs, biographies |
 | | C3 Coaches and staff | Coaching and administrative staff |
@@ -177,7 +177,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 | | S5 Returns and refunds | Return requests and refunds |
 | | S6 Shop settings and reports | Shipping, payment and invoice settings, sales reports |
 
-> The charity donation platform is run by the Taiwan Football Strategic Development Association and is **an entirely separate system with its own admin**; it is not part of this one. What module `B6` maintains here is the **descriptive page** on the website — a different thing.
+> The charity donation platform is run by the Taiwan Football Strategic Development Association and is **an entirely separate system with its own admin**; it is not part of this one. What module `B5` maintains here is the **descriptive page** on the website — a different thing.
 
 ---
 
@@ -240,5 +240,5 @@ A website is not finished when it launches. The table below is a realistic staff
 
 ---
 
-> Taichung Rock Football Club　·　Official Website Feature Overview (Client Edition) v1.0
-> Based on the *TCRFC Website Functional Specification* v3.4　·　13 sections plus shop and member area　·　Chinese and English
+> Taichung Rock Football Club　·　Official Website Feature Overview (Client Edition) v1.1
+> Based on the *TCRFC Website Functional Specification* v3.5　·　13 sections plus shop and member area　·　Chinese and English

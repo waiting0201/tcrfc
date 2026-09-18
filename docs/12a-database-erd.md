@@ -21,6 +21,9 @@
 - ERD 屬性型別**不帶括號**（`string_64`），長度回 §4／§6 查。
 - **i18n 側表一律不入圖**（否則 12 張變 24 張且看不懂），§4 的 🌐 欄才是權威清單。
 - 標 `GHOST` 的實體是**其他圖擁有的表**，在此只畫關係不畫欄位。
+- 🔵 **圖片沒有外鍵。** 全系統不設媒體庫（規劃書 §4.0），圖片是**該表自己的欄位組**：
+  `<名稱>_key`（物件儲存鍵，`string_500`）＋ `<名稱>_width`／`<名稱>_height` ＋ `<名稱>_alt_zh`／`<名稱>_alt_en`（走 i18n 側表，故不入圖）。
+  **ERD 只畫 `_key`**，寬高與 Alt 為省版面略去；多圖情境（`product_image`／`proposal_file`／圖集）以子表承載，每列一組欄位加 `sort_order`。
 
 ### 5.1 B 內容管理 — 頁面與新聞
 
@@ -32,8 +35,6 @@ erDiagram
   article ||--o{ article_tag : ""
   tag ||--o{ article_tag : ""
   article ||--o{ article_relation : "多型關聯"
-  article }o--o| media_asset : "封面 GHOST"
-  banner }o--o| media_asset : "GHOST"
   home_section ||--o| banner : "精選指定"
   page {
     uuid id PK
@@ -100,28 +101,24 @@ erDiagram
 
 > `redirect` 無關聯，獨立於圖中。`article_relation.target_type` 指向 `player`／`team`／`match`／`program`／`partner`／`charity`，**刻意用多型而非六個外鍵**——關聯型別會隨內容策略增減。
 
-### 5.1b B 媒體庫與 FAQ
+### 5.1b B 媒體資源與 FAQ
 
 ```mermaid
 erDiagram
-  media_folder ||--o{ media_folder : "巢狀"
-  media_folder ||--o{ media_asset : ""
-  media_asset ||--o{ media_usage : "使用處追蹤"
   faq ||--o{ faq_category_link : ""
   faq_category ||--o{ faq_category_link : ""
-  media_asset {
+  press_resource {
     uuid id PK
-    uuid media_folder_id FK
-    string_32 asset_type
-    string_500 file_path
-    int width
-    int height
-    bool is_public_download
-  }
-  media_usage {
-    uuid media_asset_id FK
-    string_32 entity_type
-    uuid entity_id
+    slug slug UK
+    string_32 resource_type
+    string_500 file_key
+    int file_bytes
+    string_500 cover_key
+    int cover_width
+    int cover_height
+    date published_on
+    int download_count
+    enum status
   }
   faq {
     uuid id PK
@@ -432,8 +429,8 @@ erDiagram
     slug slug UK
     string_32 partner_type
     string_32 country
-    uuid logo_dark_id FK
-    uuid logo_light_id FK
+    string_500 logo_dark_key
+    string_500 logo_light_key
     date start_on
     date end_on
     string_500 website_url
@@ -445,8 +442,8 @@ erDiagram
     uuid id PK
     slug slug UK
     enum tier
-    uuid logo_dark_id FK
-    uuid logo_light_id FK
+    string_500 logo_dark_key
+    string_500 logo_light_key
     date contract_start_on
     date contract_end_on
     string_64 contact_name
@@ -478,7 +475,8 @@ erDiagram
     uuid id PK
     uuid proposal_id FK
     string_10 locale
-    uuid media_asset_id FK
+    string_500 file_key
+    int file_bytes
   }
 ```
 
@@ -678,7 +676,9 @@ erDiagram
   product_image {
     uuid id PK
     uuid product_id FK
-    uuid media_asset_id FK
+    string_500 image_key
+    int width
+    int height
     int sort_order
   }
   product_variant {
@@ -835,7 +835,7 @@ erDiagram
   charity {
     uuid id PK
     slug slug UK
-    uuid logo_id FK
+    string_500 logo_key
     string_500 website_url
   }
   charity_program {

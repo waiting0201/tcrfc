@@ -1,7 +1,7 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.1
-> **Date**: 2026-09-14 (v1.1 revision: 2026-09-18)
+> **Document version**: v1.2
+> **Date**: 2026-09-14 (v1.2 revision: 2026-09-18)
 > **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.5
 > **Content principal**: Taichung Blue Whale Women's Football Team
 
@@ -114,10 +114,10 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | **A Dashboard** | — | Tasks, latest submissions, key figures | Blue Whale only |
 | **B Content** | B1 Pages | Static pages and editable blocks | Blue Whale's pages |
 | | B2 News & Stories | Writing, scheduled publishing, categories | Blue Whale's news |
-| | B3 Media library | Images and video | Blue Whale's assets |
-| | B4 Home blocks / banners | Home page block order and hero | Blue Whale's home |
-| | B5 FAQ | Questions and answers | Blue Whale's entries |
-| | B6 Charity records | The website's charity section content | **Not used on this site** |
+| | B3 Home blocks / banners | Home page block order and hero | Blue Whale's home |
+| | B4 FAQ | Questions and answers | Blue Whale's entries |
+| | B5 Charity records | The website's charity section content | **Not used on this site** |
+| | B6 Press & media resources | Press releases, brand packs, high-resolution images | Blue Whale's assets |
 | **C Teams** | C1 Teams | Blue Whale first team, U15, U12 | Blue Whale's teams |
 | | C2 Players | Squad, numbers, positions, photographs, biographies | Blue Whale's players |
 | | C3 Coaches and staff | Coaching and administrative staff | Blue Whale's staff |
@@ -220,6 +220,6 @@ The Blue Whale site reuses the Taichung Rock site's **layout system** — cards,
 
 ---
 
-> Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.0
+> Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.2
 > Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.5　·　11 sections plus the member area　·　Chinese and English
 > **Shares the admin and database of the Taichung Rock FC website; content and brand remain separate.**

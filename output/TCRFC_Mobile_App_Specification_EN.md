@@ -1,8 +1,13 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.5
-> **Date**: 2026-09-04 (v3.5 revision: 2026-09-14)
+> **Document version**: v3.6
+> **Date**: 2026-09-04 (v3.6 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.6 revision summary — admin identifiers and the image-upload rule**
+> **No functional changes.**
+> 1. **Banner management in the website admin is `B3`**, in step with the website specification v3.5.
+> 2. **Admin images are uploaded per field under the rule in website specification §4.0** (preview in the browser on pick, write to blob on save); the `M` module's app content composition and placement images follow the same rule.
 
 > **v3.5 revision summary — Blue Whale brand colours settled**
 > **No functional changes.**
@@ -987,7 +992,7 @@ Three aggregate figures only: **sent, delivered, opened**, by batch × platform 
 
 ### 7.1 Scope-change statement
 
-The website specification states in two places that there are "no separate fixed slots" (homepage composition and admin B4 banner management). Its subject is **the composition of seasonal content on the website homepage**, and its intent is to stop the homepage being sliced up by placements.
+The website specification states in two places that there are "no separate fixed slots" (homepage composition and admin B3 banner management). Its subject is **the composition of seasonal content on the website homepage**, and its intent is to stop the homepage being sliced up by placements.
 
 Website specification v2.5 has scoped this to "**this site's public web front end** has no separate fixed slots", noting that the app's owned advertising slots are app scope and **do not affect the website homepage**.
 

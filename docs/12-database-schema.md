@@ -32,7 +32,7 @@
 
 ## 🔴 v3.0 落差——本檔尚未完成同步
 
-主站規劃書已升 **v3.0**（多俱樂部架構）、慈善規劃書已升 **v2.0**（獨立後台與資料庫）、App 規劃書已升 **v3.0**（雙會籍）。
+主站規劃書已升 **v3.5**（多俱樂部架構 v3.0、**後台圖片欄位直傳 v3.5**）、慈善規劃書已升 **v2.2**、App 規劃書已升 **v3.6**。
 **本檔的表結構、ERD 與欄位清單尚未逐一改寫。** 在完成前，遇到下列事項一律**以規劃書為準**，不要照本檔實作：
 
 | # | 本檔現在怎麼寫 | 正確的是什麼 | 依據 |
@@ -44,13 +44,15 @@
 | 5 | `MemberCard` 掛在 `Member` 上 | **`membership_id` 必填——每份會籍一張卡。**「一張卡一組 token」與「驗證頁不得加適用球隊欄位」**兩條未變** | 主站 v3.0 §5.1、§3.14 |
 | 6 | `RolePermission.scope_value json`（只存不查） | **刪除。** 改由新增的 `AdminUserClub`（含授權起訖）與 `AdminUserTeam` 承載；`AdminRole` 加 `scope_mode`、`AdminUser` 加 `primary_club_id`、`Permission` 加 `is_club_scoped` | 主站 v3.0 §5.3、§6 |
 | 7 | `PaymentChannel.subject enum(club, association)` | **改為 `owner_club_id`**，唯一鍵改 `(owner_club_id, channel_type, environment)`。主站只會有俱樂部一列 | 主站 v3.0 §5.1 |
-| 8 | 含慈善 `N` 模組 8 張表 | **移出本檔。** 慈善平台已改為獨立後台與獨立資料庫（另約 23 張表：8 張 `N` ＋ 約 15 張機制表），`Donation` 完全不屬於本系統 | 慈善 v2.0 §2 |
+| 8 | 含慈善 `N` 模組 8 張表 | **移出本檔。** 慈善平台已改為獨立後台與獨立資料庫（另約 22 張表：8 張 `N` ＋ 約 14 張機制表），`Donation` 完全不屬於本系統 | 慈善 v2.0 §2 |
 | 9 | `EmailLog.type` 有 13 個值 | **降為 9 個**（會員 5 ＋ 商店 4）。慈善的 4 封隨獨立後台移出 | 主站 v3.0 §5.1 |
 | 10 | `Order` 只有 `member_id` | **加 `selling_club_id`（受益方）與 `collecting_club_id`（收款法人）**，`OrderItem`／`StoreInvoice` 一併值複製；`Cart.club_id` 必填（**不得跨俱樂部混買**） | 主站 v3.0 §5.1、4.13 |
 | 11 | 唯一鍵：`Page.slug`／`Setting.setting_key`／`Redirect.from_path`／`Season.code`／`NewsletterSubscriber.email` 單欄唯一 | **全部改為 `(club_id, …)` 複合唯一。** 但 `Team.code`／`Article.slug`／`ProductVariant.sku`／`Order.order_no`／`Member.email` **維持全站唯一** | 主站 v3.0 §5.4 |
 | 12 | §1.4「選型才拍板的四件事」 | **加第五件**：可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意（PostgreSQL／MySQL 視多個 NULL 互不相等，SQL Server 相反） | 主站 v3.0 §5.4 |
+| 13 | 圖片以 `media_asset_id` 外鍵指向 `MediaAsset`，另有 `MediaFolder`／`MediaUsage` | **三張表全部移除。** 圖片改為**該表自己的欄位組**（`*_key` 物件鍵、`*_width`、`*_height`、`*_alt_zh`／`*_alt_en`）；多圖以子表承載。已知須改的外鍵 10 處：`Article` 封面、`Banner`、`Partner`／`Sponsor` 的 `logo_dark_id`／`logo_light_id`、`ProposalFile`、`ProductImage`、`ComicPage`、`Charity.logo_id`。**新增 `PressResource`**（7.8 媒體專區）。`club_id` 可為空由 8 張降為 **7 張** | 主站 v3.5 §4.0、§5.1、§5.4 |
 
 **尚待完成的工作**（轉 DDL 前必做）：
+- **§5 ERD 與 §6 明細移除 `media_asset`／`media_folder`／`media_usage`，受影響的 9 處外鍵改為欄位組**（第 13 項）
 - §4 資料表總覽逐張標註 `club_id` 欄位
 - §5 的 17 張 ERD 重繪（加 `Club`、`Membership`、`AdminUserClub`／`AdminUserTeam`；移除 `N` 群）
 - §6 的 `Team`／`Member`／`MemberCard`／`Order`／`PaymentChannel` 五節重寫
@@ -227,7 +229,7 @@ flowchart LR
     L["Locale / UiString / Setting<br/>EmailTemplate / EmailLog"]
   end
   subgraph B["B 內容 + H SEO"]
-    B1["Page / Article / MediaAsset<br/>Faq / Banner / Redirect"]
+    B1["Page / Article / PressResource<br/>Faq / Banner / Redirect"]
   end
   subgraph C["C 球隊"]
     C1["Season / Team / Player / Staff<br/>Match / Standing / Achievement"]
@@ -324,12 +326,10 @@ flowchart LR
 | `Tag` | 標籤 | 🌐 | B2 |
 | `ArticleTag` | `(article_id, tag_id)` | | B2 |
 | `ArticleRelation` | 文章的多型關聯 `(article_id, target_type, target_id)` → `Player`／`Team`／`Match`／`Program`／`Partner`／`Charity` | | B2 |
-| `MediaAsset` | 媒體資產（圖／影／PDF）、多尺寸裁切、`is_public_download`（7.8 媒體中心） | 🌐 alt | B3 |
-| `MediaFolder` | 資料夾階層 | | B3 |
-| `MediaUsage` | 使用處追蹤 `(media_asset_id, entity_type, entity_id)`，刪除前警告 | | B3 |
-| `Banner` | 首頁 Hero 輪播（≤5）：素材、CTA、上下架期間、排序 | 🌐 | B4 |
-| `HomeSection` | 首頁九大區塊的開關、排序與精選指定 | | B4 |
-| `Faq` | 常見問題；👍／👎 計數 | 🌐 | B5 |
+| `PressResource` | 媒體資源（新聞稿／品牌識別包／高解析圖）：類別、檔案、封面、下載數，對應 7.8 | 🌐 | B6 |
+| `Banner` | 首頁 Hero 輪播（≤5）：素材、CTA、上下架期間、排序 | 🌐 | B3 |
+| `HomeSection` | 首頁九大區塊的開關、排序與精選指定 | | B3 |
+| `Faq` | 常見問題；👍／👎 計數 | 🌐 | B4 |
 | `FaqCategory` | 主題分類（10 個） | 🌐 | B5 |
 | `FaqCategoryLink` | `(faq_id, faq_category_id)`——**一題可屬多分類** | | B5 |
 | `FaqSearchMiss` | 零結果搜尋關鍵字與次數。**這是成效統計不是日誌** | | B5 |
@@ -375,7 +375,7 @@ flowchart LR
 | `Sponsor` | 贊助商：Logo 兩版、**等級**（主贊助／官方／支持）、合約期間、贊助內容、聯絡窗口、到期提醒、排序 | 🌐 |
 | `SponsorPackage` | 贊助方案（9 種）：內容、權益清單、適合對象、價格區間（**可設不公開**）、上下架 | 🌐 |
 | `Proposal` | 提案簡介（多版本、多語 PDF） | 🌐 |
-| `ProposalFile` | `(proposal_id, locale, media_asset_id, version)` | |
+| `ProposalFile` | `(proposal_id, locale, file_key, version)` | |
 
 > ⚠️ **提案下載的 Lead 名單仍走 `Enquiry`**（規劃書 §5 明寫 `Enquiry` 涵蓋「7 類表單 + 提案下載 + 捐助洽詢」），不另建 Lead 表。
 > ⚠️ 商品一律在 `S1` 維護，`ProductShowcase` **綱要中不存在**。**`E4` 現在是「廣告主與版位管理」**，看到舊文件寫 `E4 商品櫥窗` 一律視為錯誤。
@@ -386,7 +386,7 @@ flowchart LR
 |---|---|---|
 | `ComicCharacter` | 漫畫角色，`player_id` **可為空**（可對應真實球員為原型） | 🌐 |
 | `ComicEpisode` | 集數、閱讀數 | 🌐 |
-| `ComicPage` | 內頁 `(episode_id, sort_order, media_asset_id)` ——F1 要求批次上傳與排序 | |
+| `ComicPage` | 內頁 `(episode_id, sort_order, image_key)` ——F1 要求批次上傳與排序 | |
 | `FanEvent` | 球迷會活動 | 🌐 |
 | `FanEventRegistration` | 活動報名，`member_id` 可為空 | 🔒 |
 
@@ -462,7 +462,7 @@ flowchart LR
 |---|---|---|
 | `Collection` | 商品分類，含品牌敘事區塊 | 🌐 |
 | `Product` | 商品：分類、標籤、敘事、尺碼表、狀態（草稿／上架／缺貨（自動）／下架）、「新上市」標記、排序、SEO。**無會員價欄位** | 🌐 |
-| `ProductImage` | 圖集 `(product_id, sort_order, media_asset_id)` | |
+| `ProductImage` | 圖集 `(product_id, sort_order, image_key)` | |
 | `ProductVariant` | **SKU**：尺寸／顏色、貨號（UNIQUE）、售價、**促銷價（可空）**、**成本（受限）**、庫存量、預留量 | 🔒 |
 | `InventoryMovement` | 庫存異動：類型（進貨／銷售／退貨回補／盤點／報損／調整）、數量、原因、**經辦人**、時間、關聯訂單 | |
 | `Cart` | 購物車：`member_id`（可空）或 `anonymous_token`；**登入後合併** | |
@@ -648,7 +648,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | 28 | `FanEvent` | `FanEvent` `FanEventRegistration` | |
 | 29 | `Enquiry` | `Enquiry` `EnquiryAnswer` `Form` `FormField` | G1 設計器要求動態欄位 |
 | 30 | `Venue` | `Venue` | `lat`／`lng`（v2.5） |
-| 31 | `MediaAsset` | `MediaAsset` `MediaFolder` `MediaUsage` | 使用處追蹤拆表 |
+| 31 | `PressResource` | `PressResource` | 檔案與封面為本表欄位組 |
 | 32 | `Faq` | `Faq` `FaqSearchMiss` | 零結果統計 |
 | 33 | `FaqCategory` | `FaqCategory` `FaqCategoryLink` | **一題可多分類** |
 | 34 | `CharityProgram` | `CharityProgram` | |
@@ -690,9 +690,8 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | `ArticleCategory` `Tag` `ArticleTag` `ArticleRelation` | 行 1247 關聯欄列 Category／Tag | B2 的分類、標籤與多型關聯 |
 | `ValueTagLink` | `docs/04` §4 `value_tags[]` | 五大核心價值可掛任何型別 |
 | `PageBlock` `PageVersion` | B1（行 838–842） | 13 種區塊、版本還原點、預覽 token |
-| `Banner` `HomeSection` | B4（行 854–857） | Hero 輪播與首頁區塊開關 |
-| `MediaFolder` `MediaUsage` | B3（行 849–853） | 資料夾與使用處追蹤（刪除前警告） |
-| `FaqCategoryLink` `FaqSearchMiss` | B5（行 857–865） | 一題多分類、零結果關鍵字排行 |
+| `Banner` `HomeSection` | B3 | Hero 輪播與首頁區塊開關 |
+| `FaqCategoryLink` `FaqSearchMiss` | B4 | 一題多分類、零結果關鍵字排行 |
 | `Redirect` | H（行 1002–1004） | 301 批次匯入 |
 | `PlayerSeasonStat` `MatchTeam` `MatchGoal` `MatchCard` `MatchLineup` | C2／C4（行 889–904） | 逐季數據、進球、卡、名單 |
 | `StaffTeam` `ProgramStaff` `ProgramPartner` `SponsorPackageLink` | C3／P1／E2 | 多對多 |

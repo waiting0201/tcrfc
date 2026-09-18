@@ -9,7 +9,7 @@
 > **v1.5 revision summary — stated explicitly: the same website as the main site, differing only in colour**
 > 1. **§1.3 adds a governing rule**: the Blue Whale site's templates, components, page structure, interaction behaviour and functionality **match the main site exactly**; **the only brand difference is colour** (seven variables sampled from the crest). Whatever the main site has, this site has; any detail this document does not state is identical to the same section of the main-site specification.
 > 2. **The rule has exactly four exceptions**, all at section level (§2.1): 06 and 11 are not built, 04 is YOUTH, and 09 must be zoned. Nothing outside those four is designed separately.
-> 3. **§2.1 and §8.1 refer back to the rule.** Functional scope, section structure, data model and admin design are **unchanged**.
+> 3. **§2.1 and §8.1 refer back to the rule**, and **§10's scope questions narrow from 12 to 11** (draws, the comic and partner stores are built as on the main site under the rule). Functional scope, section structure, data model and admin design are **unchanged**.
 
 > **v1.4 revision summary — brand colours settled, sampled from the crest**
 > 1. **Brand colours follow the crest** (§8.1): primary `#2196D5`, AA-safe variant for small text `#1A78AA`, dark `#040000`. All seven brand variables are listed with their contrast verification.
@@ -391,11 +391,10 @@ Every value is **sampled from the crest** rather than chosen freely. The primary
 | 10 | **Fulfilment staffing and stock location for the Blue Whale shop**: who picks and packs, and where is the stock held? **This decides whether the shop opens at all, and what delivery estimate the site can promise** |
 | 11 | **First product range and stock levels** |
 | 12 | **Canonical attribution for shared content**: articles with a null `club_id` appear on both sites — which owns the canonical URL? The recommendation is the main site, with this site linking across |
-| 13 | **Does this site need draws (K5), the comic (F) or partner stores (K4)?** This affects scope estimation and pricing |
-| 14 | **Do the five core values apply to Blue Whale?** The main site's `ValueTagLink` is Taichung Rock's brand vocabulary; does Blue Whale adopt it or define its own? |
-| 15 | **The 301 redirect map from the old Google Sites site**: ten sections with Chinese-language URLs, to be compiled by hand |
-| 16 | **Which social accounts to present**: Facebook, Instagram `tcbw2014`, YouTube, the LINE official account and the existing email address — are they all retained and shown in the footer? |
-| 17 | **The actual invoice title and tax ID**: the `Club` record's invoicing fields need the correct values |
+| 13 | **Blue Whale's wording for the five core values**: the `ValueTagLink` mechanism is built as on the main site under the §1.3 rule; what is open is **the label text itself** — adopt Taichung Rock's five, or let Blue Whale define its own |
+| 14 | **The 301 redirect map from the old Google Sites site**: ten sections with Chinese-language URLs, to be compiled by hand |
+| 15 | **Which social accounts to present**: Facebook, Instagram `tcbw2014`, YouTube, the LINE official account and the existing email address — are they all retained and shown in the footer? |
+| 16 | **The actual invoice title and tax ID**: the `Club` record's invoicing fields need the correct values |
 
 ---
 

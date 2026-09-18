@@ -1,8 +1,12 @@
 # 台灣足球策略發展協會 — Charity Donation Platform Functional Specification
 
-> **Document version**: v2.1
-> **Date**: 2026-09-03 (v2.1 revision: 2026-09-12)
+> **Document version**: v2.2
+> **Date**: 2026-09-03 (v2.2 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v2.2 revision summary — admin images are uploaded per field; there is no media library**
+> **The same rule as the main site** (main-site specification v3.5, §4.0). This platform's admin has no media library: an image always belongs to the record it describes and sits in that table's own group of columns (object key, width, height, bilingual alt text);
+> choosing a file renders a preview in the browser, and **only pressing Save writes it to object storage (blob)**. Leaving or cancelling the form leaves no file behind. The mechanism tables this platform builds for itself narrow to **fourteen**. No change to functional scope.
 
 > **v2.1 revision summary — the document describes the current specification only**
 > **No functional specification changes.** Revision summaries and body text state **what is to be built now**; content that was adjusted away is not recorded.
@@ -13,7 +17,7 @@
 > 2. **Compliance risk drops as a result, and that is the principal gain of this change** (§11.1): the Association controls its own database, so **the mandate is plain operational services**.
 > 3. **Relationships to the main site are carried by value-copied snapshots and external reference keys** (§9): `DonationProject` gains `charity_ref_code`, `charity_name_snapshot` and `charity_program_ref_code`. The recipient's name is printed on statements and donation receipts and should always be a snapshot rather than something that changes when the main site renames a record.
 > 4. **The main site's `Charity` / `CharityProgram` / `ImpactRecord` / `ImpactMetric` remain there as the master records** (they are the content of main-site section 11). This platform holds read-only snapshots; **where the two diverge the main site prevails**, and **live joins are explicitly forbidden**.
-> 5. **Mechanism tables this platform builds for itself**: `Locale` / `UiString` / `Setting` / `EmailTemplate` / `EmailLog` / `MediaAsset` / `PaymentChannel` and a complete admin account and permission set. **The mechanism is copied; the data is not shared** — the same shapes, but two separate sets of data.
+> 5. **Mechanism tables this platform builds for itself**: `Locale` / `UiString` / `Setting` / `EmailTemplate` / `EmailLog` / `PaymentChannel` and a complete admin account and permission set. **The mechanism is copied; the data is not shared** — the same shapes, but two separate sets of data.
 > 6. **An independent admin needs its own account hierarchy**: a second seed super administrator, its own 2FA and its own backups. **Who holds it and who operates it must be confirmed** (§13).
 > 7. **The main-site specification v3.0 is in step**: the `N` module, the `donation` permission domain and the eight donation tables belong to this document, and the main site carries 9 system emails (5 membership + 4 shop), with the four charity emails belonging here.
 
@@ -95,7 +99,7 @@ Three premises shape the whole site:
 |---|---|
 | **Domain** | **Its own domain** (name TBC, see §13), separate from `www.tcrfc.tw` |
 | **Public site** | A **fully separate project**; it does not share the main site's 73-page build pipeline |
-| **Admin** | **Its own admin** (changed in v2.0). Built around the `N. Charity Donations` module, plus its own accounts and permissions, media library and system settings |
+| **Admin** | **Its own admin** (changed in v2.0). Built around the `N. Charity Donations` module, plus its own accounts and permissions and system settings. **Admin images are uploaded per field under the main-site rule in §4.0; there is no media library** |
 | **Database** | **Its own database** (changed in v2.0). Relationships to main-site types are replaced by **value-copied snapshots and external reference keys**, see §9 |
 | **Principal** | The **Association** organises, fundraises and collects, **and from v2.0 also controls the system and the database**. The club **does not appear as a principal on the public site**; it is only a traffic source |
 | **Visual design** | **The Association's own brand assets**; TCRFC's logo and design tokens must not be used. Until those assets arrive, everything carries placeholders, see §13 |
@@ -106,7 +110,7 @@ Three premises shape the whole site:
 > **Why v2.0 moves to an independent admin and database**: v1.5 shared them so that one team could operate both and avoid two systems, but the price was that **the data controller (the Association) and the database's custodian (the club) were different legal entities**, which had to be papered over with a broad processing agreement.
 > **Once independent, the Association controls the data it collects itself**, the mandate narrows to plain operational services, and compliance risk drops materially (§11.1). Fundraising engages the Charity Donations Act and donors' personal data; that boundary is worth an independent environment.
 >
-> **The cost, stated plainly**: this platform must build about fifteen mechanism tables of its own (locales, UI strings, settings, email templates and logs, media library, gateway credentials, admin accounts and permissions), plus its own deployment, backups, 2FA and account administration. **Relationships to the main site become snapshots, and live joins are explicitly forbidden.**
+> **The cost, stated plainly**: this platform must build about fourteen mechanism tables of its own (locales, UI strings, settings, email templates and logs, gateway credentials, admin accounts and permissions), plus its own deployment, backups, 2FA and account administration. **Relationships to the main site become snapshots, and live joins are explicitly forbidden.**
 
 **The organising body** (from the Ministry of the Interior certificates held in `reference/`):
 
@@ -735,7 +739,7 @@ Donor roll, impact page, **the English version**, and the finer parts of N7 site
 |---|---|
 | **Organising and collecting body** | **台灣足球策略發展協會** (the Association). The public logo, invoice and receipt titles, email signatures and settlement statements are all the Association's; Taichung Rock FC **does not appear as a principal on the public site** |
 | Domain | **Its own domain**, separate from the club website |
-| Admin and database | **Its own admin and its own database** (changed in v2.0), built around the `N` module plus its own accounts, media library and settings. **The data controller and the custodian are now both the Association** |
+| Admin and database | **Its own admin and its own database** (changed in v2.0), built around the `N` module plus its own accounts and settings. **The data controller and the custodian are now both the Association** |
 | Relationship to the main site | Replaced by **value-copied snapshots and external reference keys** (§9). The main site's `Charity` / `CharityProgram` are the master records; this platform holds read-only snapshots and **must not join live** |
 | Public site | A **fully separate project**; does not share the main site's 73-page build |
 | Visual design | **The Association's brand assets**; TCRFC's logo and design tokens must not be used; placeholders until they arrive, and no logo may be typeset for the Association |
