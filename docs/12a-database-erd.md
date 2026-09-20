@@ -217,6 +217,36 @@ erDiagram
     string_16 team_color
     int sort_order
   }
+  player_season_stat {
+    uuid id PK
+    uuid player_id FK
+    uuid season_id FK
+    int appearances
+    int goals
+    int assists
+    int yellow_cards
+    int red_cards
+  }
+  match_goal {
+    uuid id PK
+    uuid match_id FK
+    uuid player_id FK
+    int minute
+    enum goal_type
+  }
+  match_card {
+    uuid id PK
+    uuid match_id FK
+    uuid player_id FK
+    enum card_type
+    int minute
+  }
+  match_lineup {
+    uuid id PK
+    uuid match_id FK
+    uuid player_id FK
+    bool is_starter
+  }
   player {
     uuid id PK
     uuid club_id FK
@@ -972,6 +1002,13 @@ erDiagram
     int retry_count
     enum void_status
   }
+  invoice_donation_code {
+    uuid id PK
+    string_16 code UK
+    string_128 org_name
+    bool is_active
+    int sort_order
+  }
   payment_channel {
     uuid id PK
     uuid owner_club_id FK
@@ -1195,6 +1232,13 @@ erDiagram
     uuid ui_string_id FK
     string_10 locale FK
     text value
+  }
+  venue {
+    uuid id PK
+    decimal_9_6 lat
+    decimal_9_6 lng
+    string_500 photo_key
+    int sort_order
   }
   menu_item {
     uuid id PK
