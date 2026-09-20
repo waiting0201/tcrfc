@@ -76,7 +76,7 @@
 | S0-3 | ✅ | 全部 | **資料庫綱要 13 項落差已補完**（2026-09-20）：§4 總覽逐張標 `club_id`、14 張 ERD 重繪、§6 明細重寫、§11 唯一鍵與索引、§14 檢核表重算 | `docs/12` 檔頭 | — |
 | **S0-3b** | 🔄 | 全部 | **39 張側表欄位已起草**（2026-09-20，[`docs/12c`](docs/12c-i18n-tables.md)，`system-analyst` 逐欄附規劃書行號與信心度）。⚠️ **§5 列出 7 項問題待裁決**，其中三項是實質的欄位缺漏不是寫法之爭，見 S0-3c | 主站 §4、§5.1 | — |
 | **S0-3c** | 🔄 | 全部 | **全表核對完成**（2026-09-20，[`docs/12d`](docs/12d-field-audit.md)）：104 張全過一遍，**26 張有缺漏、約 43 筆**，其中 **6 張在 ERD 裡連屬性方塊都沒有**。最嚴重五筆：**`Member` 整表沒有姓名欄位**（K1 行 1233 與 §5.1 行 1500 都明列）；`Venue` 無屬性方塊；**「贊助活動 Activations」整個型別不存在**（前台 9.2 行 486 ＋ 後台 E2 行 1107 都要求）；`MatchGoal`／`MatchCard`／`MatchLineup`／`PlayerSeasonStat` 四張只有關聯線沒有欄位；`ImpactRecord` 三欄 ＋ 多圖子表全缺 | 主站 §3／§4／§5.1 | — |
-| **S0-3d** | ⬜ | 全部 | **依 [`docs/12d`](docs/12d-field-audit.md) 補 ERD 與側表定義**，再重產 DDL。⚠️ **補欄位前要先確認規劃書本身有沒有缺**（例如 Activations 從未進過型別總表，可能要走同步鏈補 §5.1） | [`docs/12d`](docs/12d-field-audit.md) | S0-3c |
+| **S0-3d** | ⬜ | 全部 | **依 [`docs/12d`](docs/12d-field-audit.md) 補 ERD 與側表定義**，再重產 DDL。✅ **43 筆已分類完畢（2026-09-20）：全部是導航層補件，不需要跑同步鏈**——見下方說明 | [`docs/12d`](docs/12d-field-audit.md) | S0-3c |
 | S0-4 | ✅ | 全部 | **`media_asset` 三表已移除、落差第 13 項結案**（2026-09-20）。10 處外鍵全部成為欄位組；查證時另補回三處被誤刪的圖片欄位：`Article.cover_key`、`Banner.image_key`、`ImpactRecord.image_key`（`ImpactRecord` 不在原本列的 10 處內） | 主站 §4.0、`docs/12` 第 13 項 | — |
 | **S0-4b** | ✅ | 全部 | **ERD 圖片欄位盤點完成**（2026-09-20，`system-analyst` 逐條回查規劃書、我方逐行核對）：補 `Player.photo_key`／`Staff.photo_key`／`Program.cover_key`／`CalendarCustomEvent.cover_key`／`CharityProgram.cover_key`＋新子表 `CharityProgramImage`／`MemberDraw.cover_key`。`Page` **本來就沒有**（內文插圖存於 `PageBlock.content json`）、`Venue` 刻意不加。表數 103 → **104** | 主站 §4.0、§5.1 | — |
 | **S0-4c** | ✅ | 全部 | **兩項規劃書內部矛盾已修**（2026-09-20，主站 **v3.11**）：① §4.12 L3 補上「圖示（自預設圖示集選擇，**不是上傳圖片**）」——確認 ERD 的 `event_type.icon string_64` 是對的 ② §5.1 `MemberDraw` 補上「封面圖」，與 §4.11 K5 一致 | 主站 §4.12／§5.1 | — |
@@ -98,6 +98,18 @@
 
 ## 2. 階段 1 — 主站 MVP ＋ 多俱樂部地基（約 8–10 週）
 
+> 🔵 **S0-3d 的 43 筆分類結果（2026-09-20）**：**全部規劃書都寫了，缺的是 ERD，所以一次同步鏈都不用跑。**
+>
+> | 類別 | 筆數 | 怎麼處理 |
+> |---|---|---|
+> | **A. ERD 漏畫** —— 規劃書明文有、ERD 沒有 | **41** | 直接補 [`12a`](docs/12a-database-erd.md) 的屬性方塊與 [`12c`](docs/12c-i18n-tables.md) 的側表欄位。**不動規劃書** |
+> | **B. 型別總表沒有，但功能在後台章節** | **1**（贊助活動 Activations，後台 E2 行 1107「活動名稱、日期、圖集、成效摘要」） | 走 [`12` §14.3](docs/12-database-schema.md) 的既有先例——該節原文就是「**每一筆都是把規劃書已有的功能落到資料表，不是新增規格**」，`Season`／`PageBlock`／`Banner` 等 21 張都是這樣處理的。**同樣不動規劃書** |
+> | **C. 語意待確認** | **1**（`FanEvent` 的「活動回顧（**關聯**圖集與文章）」——「關聯」可能指連到既有 `Article`，不是自己的圖集子表） | **先不建子表**，確認後再說 |
+>
+> ⚠️ **但 6 張「整表無欄位定義」要小心**（`PlayerSeasonStat`／`MatchGoal`／`MatchCard`／`MatchLineup`／`Venue`／`InvoiceDonationCode`）：
+> 規劃書只給了功能敘述（如「出賽、進球、助攻、黃紅牌」），**沒給欄位名與型別**，補的時候容易變成發明。
+> `InvoiceDonationCode` 尤其單薄——行 1429 只寫「捐贈碼名單」四個字。
+>
 > 🔴 **多俱樂部是地基不是後期擴充。** `club_id` 一旦鋪到 50 張表，後台每一個清單查詢都要決定要不要過濾；
 > 先當單一俱樂部做、日後再補＝**重寫整個後台查詢層**。即使藍鯨官網晚上線，地基也排這裡。
 
