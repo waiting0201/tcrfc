@@ -58,10 +58,10 @@
 |---|---|
 | ✅ | §0 一分鐘理解、§1.4 五件事、§7 權限模型與資料範圍 |
 | ✅ | **§4 資料表總覽**（2026-09-20）：逐張標 `club_id`、加入 `Club`／`Competition`／`Membership`／`AdminUserClub`／`AdminUserTeam`、移出 `N` 模組 8 張、`EmailLog` 降為 9 個值、`PaymentChannel` 改 `owner_club_id` |
-| ⬜ | **§11.1 唯一鍵表**重寫（[`12b`](12b-database-tables.md)） |
-| ⬜ | **§6 明細**：`Team`／`Member`／`MemberCard`／`Order`／`PaymentChannel` 五節重寫，移除 `Donation`／`Settlement`（隨 `N` 移出）（[`12b`](12b-database-tables.md)） |
+| ✅ | **§11 唯一鍵、索引與外鍵行為**重寫（2026-09-20，[`12b`](12b-database-tables.md)） |
+| ✅ | **§6 關鍵資料表明細**重寫（2026-09-20）：`Team`／`Member`／`MemberCard`／`Order`／`PaymentChannel` 五節更新，新增 `Club`／`Membership` 兩節，移除 `Donation`／`Settlement`（[`12b`](12b-database-tables.md)） |
 | ⬜ | **§5 的 ERD 重繪**（[`12a`](12a-database-erd.md)）：加 `Club`／`Membership`／`AdminUserClub`／`AdminUserTeam`；移除 `N` 群（5.10）與 media 三表 |
-| ⬜ | **§14 型別對照檢核表**重算 |
+| ✅ | **§14 型別對照檢核表**重算（2026-09-20）：主站 §5.1 現列 50 個型別，49 建表、`Donation` 依規劃書明文不在本系統 |
 | ⬜ | 慈善獨立庫另出 [`16-charity-schema.md`](16-charity-schema.md)（`STATUS.md` S0-5） |
 
 > 🟡 **§4.13 的三張表（`MembershipPlan`／`MembershipBenefit`／`PartnerStore`）須先補進規劃書 §5.4** 再轉 DDL。
@@ -671,73 +671,76 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 
 ## 14. 型別 → 資料表對照（檢核表）
 
-**規劃書 §5 的 48 個型別 ＋ 慈善站 §9 的 6 個型別 ＝ 54 個，全數覆蓋。**
+**主站規劃書 §5.1 現列 50 個型別**（行 1447–1506），本檔全數覆蓋或明確標示不在範圍。
+**慈善站的型別已隨獨立資料庫移出本檔**，見 [`16-charity-schema.md`](16-charity-schema.md)（`STATUS.md` S0-5）。
 
-### 14.1 主站 §5（行 1242–1303）48 個
+### 14.1 主站 §5.1 的 50 個型別
 
-| # | 規劃書型別 | 本檔資料表 | 備註 |
-|---:|---|---|---|
-| 1 | `Page` | `Page` `PageBlock` `PageVersion` | 藍鯨官網入口頁亦屬此型別 |
-| 2 | `Article` | `Article` `ArticleCategory` `Tag` `ArticleTag` `ArticleRelation` | 分類／標籤在關聯欄提到但未列型別 |
-| 3 | `Team` | `Team` | `code` 唯一，四筆 |
-| 4 | `Player` | `Player` `PlayerSeasonStat` | 逐季數據拆表 |
-| 5 | `Staff` | `Staff` `StaffTeam` | 多對多 |
-| 6 | `Match` | `Match` `MatchTeam` `MatchGoal` `MatchCard` `MatchLineup` | 賽果細項拆表 |
-| 7 | `Standing` | `Standing` | 對手是字串 |
-| 8 | `Achievement` | `Achievement` | |
-| 9 | `Milestone` | `Milestone` | |
-| 10 | `Program` | `Program` `ProgramStaff` `ProgramPartner` | |
-| 11 | `Session` | `Session` | **永不進 `CalendarEvent`** |
-| 12 | `Registration` | `Registration` | `member_id` 可為空；同時服務 `Session` 與 `Trial` |
-| 13 | `Trial` | `Trial` | |
-| 14 | `Partner` | `Partner` | |
-| 15 | `Sponsor` | `Sponsor` `SponsorPackageLink` | |
-| 16 | `SponsorPackage` | `SponsorPackage` | |
-| 17 | `Product` | `Product` `ProductImage` `Collection` | 圖集與分類拆表 |
-| 18 | `ProductVariant` | `ProductVariant` | 無會員價欄位 |
-| 19 | `InventoryMovement` | `InventoryMovement` | **功能單元不是日誌** |
-| 20 | `Cart` | `Cart` `CartItem` | 一對多 |
-| 21 | `Order` | `Order` | `member_id` 可為空 |
-| 22 | `OrderItem` | `OrderItem` | 📸 值複製快照 |
-| 23 | `Shipment` | `Shipment` | 單號 CSV 回填 |
-| 24 | `RefundRequest` | `RefundRequest` `RefundRequestItem` | 支援部分退款 |
-| 25 | `StoreInvoice` | `StoreInvoice` `InvoiceDonationCode` `PaymentChannel` | 憑證與捐贈碼拆表 |
-| 26 | `ComicEpisode` | `ComicEpisode` `ComicPage` | 內頁排序拆表 |
-| 27 | `ComicCharacter` | `ComicCharacter` | `player_id` 可為空 |
-| 28 | `FanEvent` | `FanEvent` `FanEventRegistration` | |
-| 29 | `Enquiry` | `Enquiry` `EnquiryAnswer` `Form` `FormField` | G1 設計器要求動態欄位 |
-| 30 | `Venue` | `Venue` | `lat`／`lng`（v2.5） |
-| 31 | `PressResource` | `PressResource` | 檔案與封面為本表欄位組 |
-| 32 | `Faq` | `Faq` `FaqSearchMiss` | 零結果統計 |
-| 33 | `FaqCategory` | `FaqCategory` `FaqCategoryLink` | **一題可多分類** |
-| 34 | `CharityProgram` | `CharityProgram` | |
-| 35 | `ImpactRecord` | `ImpactRecord` | 三項核心資料必填 |
-| 36 | `Charity` | `Charity` | |
-| 37 | `Donation` | `Donation` | **主檔定義在慈善站 §9.2**，見 14.2 |
-| 38 | `ImpactMetric` | `ImpactMetric` | 金額類預設不公開 |
-| 39 | `Member` | `Member` | |
-| 40 | `MembershipPlan` | `MembershipPlan` | |
-| 41 | `MembershipPayment` | `MembershipPayment` | |
-| 42 | `MembershipBenefit` | `MembershipBenefit` | 單一維護點 |
-| 43 | `PartnerStore` | `PartnerStore` | 無金流無分潤 |
-| 44 | `MemberDraw` | `MemberDraw` | |
-| 45 | `DrawRoster` | `DrawRoster` | 📸 不可變快照 |
-| 46 | `EmailLog` | `EmailLog` `EmailTemplate` | **功能單元不是日誌**，`type` 13 個 |
-| 47 | `CalendarEvent` | `CalendarEvent`（**視圖**）`CalendarCustomEvent` `CalendarEventTeam` `CalendarEventException` | 見 14.3 |
-| 48 | `EventType` | `EventType` | |
+`club_id` 欄同 [§4](#4-資料表總覽) 的圖例：**●** 必填｜**○** 可為空｜**—** 不加｜**?** 待確認。
 
-### 14.2 慈善站 §9（行 594–639）6 個
+| # | 規劃書型別 | `club_id` | 本檔資料表 | 備註 |
+|---:|---|---|---|---|
+| 1 | `Club` | — | `Club` | **俱樂部主檔，它自己就是俱樂部**（後台 `J4`） |
+| 2 | `Competition` | **●** | `Competition` | **賽事系列**；與 `Match.competition` 四值 enum **並存不互相取代** |
+| 3 | `Page` | **●** | `Page` `PageBlock` `PageVersion` | 藍鯨官網入口頁亦屬此型別；唯一鍵 `(club_id, slug)` |
+| 4 | `Article` | **○** | `Article` `ArticleCategory` `Tag` `ArticleTag` `ArticleRelation` | **`slug` 維持全站唯一**（共同文章須單一 canonical）；分類與標籤**刻意不帶 `club_id`** |
+| 5 | `Team` | **●** | `Team` | `code` **全站唯一不得改複合鍵**；`gender` 取代已廢除的 `type='women'` |
+| 6 | `Player` | **●** | `Player` `PlayerSeasonStat` | 逐季數據拆表 |
+| 7 | `Staff` | **○** | `Staff` `StaffTeam` | 空＝兩隊共同（行政與醫療多為共用） |
+| 8 | `Match` | **●** | `Match` `MatchTeam` `MatchGoal` `MatchCard` `MatchLineup` | 賽果細項拆表；`competition_id` 可空 |
+| 9 | `Standing` | **●** | `Standing` | 對手是字串不是 `Team` |
+| 10 | `Achievement` | **●** | `Achievement` | |
+| 11 | `Milestone` | **●** | `Milestone` | |
+| 12 | `Program` | **●** | `Program` `ProgramStaff` `ProgramPartner` | |
+| 13 | `Session` | **●** | `Session` | **永不進 `CalendarEvent`** |
+| 14 | `Registration` | **●** | `Registration` | `member_id` 可為空；同時服務 `Session` 與 `Trial` |
+| 15 | `Trial` | **●** | `Trial` | |
+| 16 | `Partner` | **●** | `Partner` | **兩隊分區不得混列** |
+| 17 | `Sponsor` | **●** | `Sponsor` `SponsorPackageLink` | 同上 |
+| 18 | `SponsorPackage` | **●** | `SponsorPackage` | |
+| 19 | `Product` | **●** | `Product` `ProductImage` `Collection` | 圖集與分類拆表 |
+| 20 | `ProductVariant` | **●** | `ProductVariant` | `sku` **維持全站唯一**；無會員價欄位 |
+| 21 | `InventoryMovement` | **●** | `InventoryMovement` | **功能單元不是日誌** |
+| 22 | `Cart` | **●** | `Cart` `CartItem` | 🔴 **不得跨俱樂部混買** |
+| 23 | `Order` | **●** | `Order` | ＋ `selling_club_id`／`collecting_club_id`；`order_no` **維持全站唯一** |
+| 24 | `OrderItem` | **●** | `OrderItem` | 📸 快照，`club_id` 值複製，**絕對不可為空** |
+| 25 | `Shipment` | **●** | `Shipment` | CSV 回填，不串物流商 API |
+| 26 | `RefundRequest` | **●** | `RefundRequest` `RefundRequestItem` | 支援部分退款 |
+| 27 | `StoreInvoice` | **●** | `StoreInvoice` `InvoiceDonationCode` | 📸；捐贈碼名單全系統共用 |
+| 28 | `ComicEpisode` | **●** | `ComicEpisode` `ComicCharacter` `ComicPage` | 角色與內頁拆表 |
+| 29 | `FanEvent` | **●** | `FanEvent` `FanEventRegistration` | 報名 `member_id` 可空 |
+| 30 | `Enquiry` | **●** | `Enquiry` `EnquiryAnswer` `Form` `FormField` | 涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢 |
+| 31 | `Venue` | — | `Venue` | 🔴 **刻意不加**——場地是地理實體，兩隊共用同一座球場 |
+| 32 | `PressResource` | **○** | `PressResource` | 7.8 媒體專區 |
+| 33 | `Faq` | **○** | `Faq` `FaqCategory` `FaqCategoryLink` `FaqSearchMiss` | 一題多分類；分類**刻意不帶 `club_id`** |
+| 34 | `CharityProgram` | **○** | `CharityProgram` | **主檔留主站**，慈善庫只有唯讀快照 |
+| 35 | `ImpactRecord` | **○** | `ImpactRecord` | 同上 |
+| 36 | `Charity` | **○** | `Charity` | 同上 |
+| 37 | `Donation` | — | 🔴 **不在本檔** | 規劃書明寫「**不屬於本系統**」——慈善為獨立後台與獨立資料庫 |
+| 38 | `ImpactMetric` | **○** | `ImpactMetric` | 金額類預設不公開 |
+| 39 | `Member` | — | `Member` | 🔴 **刻意不加**——登入鍵不分俱樂部，會籍才分 |
+| 40 | `Membership` | **●** | `Membership` | **v3.0 新增**，`(member_id, club_id, season_id)` 唯一 |
+| 41 | `MemberCard` | **●** | `MemberCard` | **`membership_id` 必填——每份會籍一張卡** |
+| 42 | `MembershipPlan` | **?** | `MembershipPlan` | ⚠️ §5.4 未歸類，見 [§4.13](#413-club_id-尚未歸類的三張表) |
+| 43 | `MembershipPayment` | **●** | `MembershipPayment` | ＋ `collecting_club_id` 供代收代付分帳 |
+| 44 | `MembershipBenefit` | **?** | `MembershipBenefit` | ⚠️ §5.4 未歸類，同上 |
+| 45 | `PartnerStore` | **?** | `PartnerStore` | ⚠️ §5.4 未歸類；主站 §3.14 寫「適用範圍可設單一俱樂部或兩隊共同」 |
+| 46 | `MemberDraw` | **●** | `MemberDraw` | **各俱樂部各自舉辦** |
+| 47 | `DrawRoster` | **●** | `DrawRoster` | 📸 不可變名單 |
+| 48 | `EmailLog` | **●** | `EmailLog` `EmailTemplate` | **功能單元不是日誌**；`type` **9 個值**（會員 5 ＋ 商店 4） |
+| 49 | `CalendarEvent` | — | `CalendarEvent`（**視圖**）`CalendarCustomEvent` `CalendarEventTeam` `CalendarEventException` | `club_id` 由來源推導；見 [14.3](#143-本檔新增規劃書未列為型別的表) |
+| 50 | `EventType` | — | `EventType` | |
 
-| # | 規劃書型別 | 本檔資料表 | 備註 |
-|---:|---|---|---|
-| 49 | `DonationStore` | `DonationStore` | `store_slug` 不可由 id 推導 |
-| 50 | `DonationProject` | `DonationProject` `DonationAmountOption` | 金額選項拆表；**無目標金額** |
-| 51 | `DonationPayment` | `DonationPayment` | `raw_response` 只存不查 |
-| 52 | `DonationInvoice` | `DonationInvoice` | 📸 |
-| 53 | `Settlement` | `Settlement` | 店家與項目分開結算 |
-| 54 | `SettlementLine` | `SettlementLine` | 📸；退款為負項 |
+> **覆蓋率**：49／50 建表，`Donation` 依規劃書明文不在本系統。
+> **`Season` 不在 §5.1 的型別表內**但本檔升為實體表，理由見 [14.3](#143-本檔新增規劃書未列為型別的表)。
 
-> `Donation`（#37）由慈善站 §9.2 擴充為本平台的捐款主檔，**重用而非新建**——主站的捐款管道已收掉，避免兩份真實來源。
+### 14.2 慈善捐款平台的型別
+
+🔴 **全部不在本檔。** 慈善平台自 v2.0 起是**獨立後台與獨立資料庫**（約 22 張表：8 張 `N` ＋ 約 14 張機制表），
+另出 [`16-charity-schema.md`](16-charity-schema.md)。
+
+⚠️ **唯一的交界**是主站 B6 的 `Charity`／`CharityProgram`／`ImpactRecord`／`ImpactMetric` 四張——
+**主檔留在主站**，慈善庫只持有唯讀快照。**兩邊不同步時以主站為準，不得即時 join**（Azure SQL 也不支援跨庫查詢）。
 
 ### 14.3 本檔新增、規劃書未列為型別的表
 

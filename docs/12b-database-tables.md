@@ -14,38 +14,67 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 
 | 項目 | 規則 |
 |---|---|
-| `code` | **UNIQUE**。值域**只有** `D1`／`U15`／`U14`／`U12`。**全站沒有 `D2`** |
-| `type` | `first_team`（⚠️ **v3.0 改為「每俱樂部至多一筆」**：磐石是 `D1`、藍鯨是 `BW1`）／`academy`（U15／U14／U12）。⚠️ **`women` 值已廢除**——性別改用獨立的 `gender` 欄位（`men`／`women`／`mixed`） |
-| 用途 | 行事曆第一層分類、篩選標籤、訂閱網址 `/schedule/d1/`。新增梯隊（U18／U10）只需 C1 新增一筆，前台分類自動出現 |
-| 對外顯示 | `D1` 是代號，前台一律顯示 `First Team / 一線隊` |
+| `club_id` | **必填**。磐石與藍鯨各自的隊伍 |
+| `code` | **UNIQUE（全站唯一，不得改成 `(club_id, code)`）**。值域 `D1`／**`BW1`**／`U15`／`U14`／`U12`。**沒有 `D2`** |
+| 為什麼不加複合鍵 | `code` 是行事曆訂閱網址與 `/schedule/d1/` 的識別鍵，**已在外流通**。藍鯨一線隊是 `BW1` 不是第二個 `D1` |
+| `type` | `first_team`（**每俱樂部至多一筆**）／`academy`。⚠️ **`women` 值已廢除** |
+| `gender` | **`men`／`women`／`mixed`**（v3.0 新增，取代 `type` 的 `women`） |
+| 對外顯示 | `D1` 是代號，前台一律顯示 `First Team / 一線隊`。🔴 **兩隊都有「一線隊」，任何同時呈現兩隊的畫面每張卡片都必須標球隊** |
 
-### 6.2 `Member`
+### 6.2 `Club`
+
+| 項目 | 規則 |
+|---|---|
+| 定位 | **俱樂部主檔**（後台 `J4`）。**它自己不帶 `club_id`** |
+| `code` | UNIQUE |
+| `domain` | UNIQUE。每個俱樂部一個獨立網域，前台站台以此對應 |
+| 標誌 | 需**點陣高倍圖（@2x／@3x）與深色版**——網頁用 SVG 即可，但 App 需要點陣資源 |
+| 邊界 | 🔴 **`Club` 不是第六種商業對象**。它是內容主體，不計曝光、無金流、無分潤，**不與 `Partner`／`Sponsor` 合併** |
+| 刪除 | **`RESTRICT`**——有任何帶 `club_id` 的資料就不得刪 |
+
+### 6.3 `Member`
 
 | 欄位 | 值域與約束 |
 |---|---|
-| `tier` | `registered`（免費）／`fan_club`（付費＝球迷會員）。**不是兩種身分，是同一個 `Member` 上的層級標記** |
-| `member_no` | UNIQUE。格式建議 `TCR-<球季>-<流水號>`（待確認事項第 7 點） |
+| `club_id` | 🔴 **刻意不加**。Email 是登入鍵（加了等於一個人要記兩組密碼、做兩次 LINE 綁定、走兩次刪帳號流程）；`line_user_id` 與 LINE 帳號 1:1 複製不了；**個資法上的當事人是「人」不是「會籍」**。俱樂部維度在 `Membership` |
+| `member_no` | UNIQUE。格式待確認（主站待確認事項） |
 | `email` | UNIQUE，🔒 受限。**前台登入識別**（與後台 `AdminUser.username` 無關） |
 | `signup_source` | `web`／`line`／`admin`／`app`。**不含 `google`**——不採用 Google 登入 |
 | `line_user_id_encrypted` | 🔒 加密儲存，**不得匯出** |
 | `status` | `active`／`suspended`／`deleted` |
-| 會籍計期 | **球季制**，全體同時到期；`membership_start_on`／`membership_end_on` 由 `MembershipPayment` 開通時寫入 |
-| 抽獎資格 | **算出來的布林值**：`tier = 'fan_club'` AND `membership_end_on >= snapshot_at` AND `status = 'active'`。**沒有欄位、沒有表** |
+| 🔴 **已移出的三欄** | **`tier`／`membership_start_on`／`membership_end_on` 已移入 `Membership`**。看到還寫在 `Member` 上的是舊規格 |
 | 刪帳號 | **欄位清除不是刪列**：保留 `member_no` 與遮罩姓名，其餘個資清除。稅法要求保留的訂單與發票**優先於刪除請求** |
 
-### 6.3 `MemberCard`
+### 6.4 `Membership`（v3.0 新增）
 
 | 項目 | 規則 |
 |---|---|
+| 唯一鍵 | **`(member_id, club_id, season_id)`**——**一人每俱樂部每季一份** |
+| `club_id` | **必填**（承載個資與金流歸屬，絕對不可為空） |
+| `tier` | `registered`（免費）／`fan_club`（付費＝球迷會員） |
+| 計期 | **球季制**，同一俱樂部的會籍全體同時到期。**兩隊球季不同步**（`Season` 也帶 `club_id`） |
+| `membership_start_on`／`membership_end_on` | 由 `MembershipPayment` 開通時寫入 |
+| 抽獎資格 | **算出來的布林值**：該俱樂部的 `tier = 'fan_club'` AND `membership_end_on >= snapshot_at` AND `Member.status = 'active'`。**沒有欄位、沒有表** |
+| 雙會籍 | 同時持有兩隊付費會籍者**在兩份抽獎名單各佔一號**，活動辦法須明示可分別參加 |
+| 刪除 | `Member` → `Membership` 是 **`RESTRICT`**——會籍涉金流與發票，刪帳號不得連帶刪會籍 |
+
+### 6.5 `MemberCard`
+
+| 項目 | 規則 |
+|---|---|
+| `membership_id` | 🔴 **必填——每份會籍一張卡**。持兩隊會籍者有兩張卡，各帶該俱樂部標誌與品牌色 |
+| `club_id` | **必填**（值複製自 `Membership`，供後台過濾與卡面品牌） |
 | 列數 | **一張卡一列**，數量上限為 `MembershipPlan.card_quota`（家庭方案可為 3） |
 | `token` | UNIQUE，**不可由 `member_no` 推導**。公開驗證頁 `/m/<token>` 使用 |
 | 唯一性 | **一張卡只有一組 token**，官網驗證頁與 App 內卡片共用。發兩組＝兩份可撤銷狀態，撤銷必漏一邊 |
-| 折扣使用 | 到店**出示卡片目視即可**，QR 指向公開唯讀驗證頁。**不核銷、不計次、店家不需系統**——所以沒有 `redemption` 任何表 |
+| 驗證頁欄位 | 🔴 **不得新增「適用球隊」欄位**——token 已隱含俱樂部。「一張卡標示兩種會籍」不可採 |
+| 折扣使用 | 到店**出示卡片目視即可**。**不核銷、不計次、店家不需系統**——所以沒有 `redemption` 任何表 |
 
-### 6.4 `MemberDraw` / `DrawRoster`
+### 6.6 `MemberDraw` / `DrawRoster`
 
 | 項目 | 規則 |
 |---|---|
+| `club_id` | **兩張都必填**。**各俱樂部各自舉辦抽獎** |
 | `MemberDraw.status` | `draft`／`roster_locked`／`drawn`／`announced`／`closed`／`voided` |
 | `snapshot_at` | 資格基準時間。名單於此刻**一次性寫入**，會員無法自行建立 |
 | `roster_version` | 名單版本。有誤只能**整份作廢重產**（版本 +1），**舊版保留不刪** |
@@ -56,86 +85,76 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `withholding_data_encrypted` | 🔒 **僅達扣繳門檻時蒐集**，加密、預設遮罩 |
 | 通知 | **不發中獎通知信、不推播**。中獎只以最新消息公布（7.1 ＋`球迷會員抽獎` 標籤，遮罩） |
 
-### 6.5 `Order`
+### 6.7 `Order`
 
 | 欄位 | 值域與約束 |
 |---|---|
-| `order_no` | UNIQUE。**若商店與 App 會籍付款共用 LINE Pay 商店號，須以訂單前綴區分以利對帳**（待確認事項第 22 點） |
+| `club_id` | **必填** |
+| **`selling_club_id`** | **受益方**（v3.0）——這筆訂單的營收算誰的 |
+| **`collecting_club_id`** | **收款法人**（v3.0）。藍鯨採**代收代付**，收款方仍是俱樂部；**系統不做分潤計算**，只記歸屬並提供加總匯出 |
+| `order_no` | UNIQUE（**維持全站唯一**）。加俱樂部前綴以利對帳，**不改鍵** |
 | `member_id` | **可為空**——非會員可結帳。**這條不得更動** |
 | `lookup_token` | UNIQUE。非會員訂單查詢用（`/zh/order/lookup/`） |
 | `payment_status` | `pending`／`paid`／`failed`／`expired`／`refunded`。**逾時未付款自動取消並釋回庫存** |
 | `order_status` | `待付款`／`已付款`／`備貨中`／`已出貨`／`已完成`／`已取消`／`退貨處理中`／`已退款` |
-| `delivery_method` | `home_delivery`／`cvs_pickup`／`onsite_pickup`（實際開哪幾種待確認第 24 點） |
+| `delivery_method` | `home_delivery`／`cvs_pickup`／`onsite_pickup` |
 | `shipping_fee` | **單一固定運費**，免運門檻另存 `Setting`。**沒有級距、沒有重量計費** |
 | `is_manual` | 現場銷售補登（S3），退款人工執行並記 `handled_by` |
 | 收件人三欄 | 🔒 **視同會員個資**：完整值僅系統管理員、客服／行政與出貨角色可見 |
 | 不存在的欄位 | `discount_code`、`member_price`、`points_used`、`card_no`、`shipping_tier` ——**一律沒有** |
 
-### 6.6 `OrderItem`（📸 快照）
+> 🔴 **`Cart.club_id` 必填，不得跨俱樂部混買**，切換站台即切換購物車。
+> ⚠️ **「訂單是否於結帳時依俱樂部拆單」尚未定案**（`STATUS.md` B-8，繫於代收代付的稅務認定）。
+> 現行禁止混買故不會發生，**開放混買前必須先答**。
+
+### 6.8 `OrderItem`（📸 快照）
 
 | 項目 | 規則 |
 |---|---|
+| `club_id` | **必填，值複製自 `Order`**。🔴 **快照表的 `club_id` 絕對不可為空**——快照的意義是凍結歸屬，NULL 是「未知」不是「共同」 |
 | 快照四欄 | `product_name_snapshot`／`variant_label_snapshot`／`sku_snapshot`／`unit_price_snapshot`，建單當下**值複製** |
 | `product_variant_id` | **僅供追溯**。讀取訂單時**不得回頭 join 取名稱與價格** |
 | 理由 | 商品改名、改價、下架**都不得改動歷史訂單**，否則對帳與客訴舉證失去依據 |
-| 同類 | `DrawRoster`、`SettlementLine`、`StoreInvoice`、`DonationInvoice` 適用同一原則 |
+| 同類 | `DrawRoster`、`StoreInvoice` 適用同一原則 |
 
-### 6.7 `StoreInvoice`
+### 6.9 `StoreInvoice`
 
 | 項目 | 規則 |
 |---|---|
+| `club_id` | **必填，值複製自 `Order`** |
 | 抬頭 | **俱樂部**。與協會發票**分屬不同字軌**，不得共用 |
 | 三選一 | `carrier_type`＋`carrier_id_encrypted`（載具）／`tax_id`（統編）／`donation_code`（捐贈碼）——**恰有一組非空** |
 | `issue_status` | `pending`／`issued`／`failed`，失敗可重試（`retry_count`） |
 | `void_status` | `none`／`voided`（作廢）／`allowance`（折讓）。**退貨必須作廢或折讓** |
-| 前提 | **LINE Pay 本身不開發票**，須另接發票服務（待確認第 23 點） |
+| 前提 | **LINE Pay 本身不開發票**，須另接發票服務（`STATUS.md` B-10） |
 
-### 6.8 `PaymentChannel`
+### 6.10 `PaymentChannel`
 
 | 項目 | 規則 |
 |---|---|
-| `subject` | **`club`（俱樂部）／`association`（協會）二選一** |
-| 唯一鍵 | `(subject, channel_type, environment)` UNIQUE |
+| **`owner_club_id`** | 🔴 **v3.0 取代原本的 `subject enum(club, association)`**。主站只會有**俱樂部一列** |
+| 唯一鍵 | **`(owner_club_id, channel_type, environment)`** UNIQUE |
 | `channel_type` | `linepay`／`einvoice` |
 | `environment` | `sandbox`／`production` |
-| 憑證 | 🔒 加密儲存，**僅系統管理員可見**（S6／N7）。輪替記 `rotated_at` |
+| 憑證 | 🔒 加密儲存，**僅系統管理員可見**（S6）。輪替記 `rotated_at` |
+| 協會的憑證 | **不在本庫**——慈善平台是獨立資料庫，見 [`16-charity-schema.md`](16-charity-schema.md)。🔴 **三方的 LINE Pay 商店號一律不得共用** |
 | 風險 | **填錯商店號＝款項進錯法人**，同時踩稅務與《公益勸募條例》 |
-
-### 6.9 `Donation`
-
-| 項目 | 規則 |
-|---|---|
-| 收款主體 | **協會**。發票與收據抬頭、系統信署名、對帳單一律為協會 |
-| `store_id` | **可為空**（非掃碼進入時）。為空時 `store_share_pct_snapshot = 0`，仍能結算 |
-| 分潤五欄 | `store_share_pct_snapshot`／`project_share_pct_snapshot`（`decimal(5,2)`）→ `store_amount`／`project_amount`／`association_amount`（`int`，元）。**無條件捨去至整數元**，三者相加須等於 `amount` |
-| 約束 | `store_share_pct + project_share_pct <= 100`（N2 驗證） |
-| 捐款人 | 只有 `donor_name`／`donor_email`／`is_anonymous`。**不建帳號、不歸戶、不得有 `member_id`** |
-| `invoice_mode` | `b2c_invoice`／`donation_receipt`，**由 `DonationProject` 決定**，建單時快照 |
-| 退款 | **對外不受理**，後台保留人工退款供誤捐個案，記 `refund_reason` 與 `refunded_by` |
-
-### 6.10 `Settlement` / `SettlementLine`
-
-| 項目 | 規則 |
-|---|---|
-| `payee_type` | **`store`／`project` 二選一，兩份不同的對帳單** |
-| 計算基準 | **只計 `status = 'paid'` 的捐款**，用**捐款當下的快照百分比**，改設定不追溯 |
-| 退款沖回 | 以**負項** `SettlementLine`（`is_clawback = true`）進入下一期，**不改原列、不重算已付款期間** |
-| `status` | `待結算`／`已結算`／`已付款`。**實際匯款人工執行**，系統只登記 `remitted_on` 與 `remit_note` |
-| 職責分離 | 標記「已付款」的人與執行匯款的人**不得為同一人**（慈善站 §10）——以權限碼分離，不落資料表 |
+| 出口 IP | ⚠️ 正式環境須於商店管理後台登記**付款伺服器的出口 IP**，見 [`17-deployment.md`](17-deployment.md) §3 |
 
 ### 6.11 `CalendarEvent`（視圖）
 
 | 項目 | 規則 |
 |---|---|
-| 實作 | **視圖或索引表**，以 `source_type` + `source_id` 指向來源，**不複製資料** |
+| 實作 | **第一期用一般 VIEW**，以 `source_type` + `source_id` 指向來源，**不複製資料**。`club_id` 由來源推導不另存 |
+| ⚠️ 升級路徑 | 🔴 **SQL Server 的 indexed view 明文禁止 `UNION`／`UNION ALL`**——沒有 materialized view 這條路。效能不足直接走索引表 ＋ 寫入時同步 |
 | `source_type` | `match`（來源 C4）／`trial`（**L3 開關，預設關閉**）／`custom`（來源 `CalendarCustomEvent`） |
 | 隊別分類 | `CalendarEventTeam` 關聯表（`team_codes[]` 的實作），第一層分類 |
 | **永不進入** | **`Session` 課程時段**——行事曆以比賽為核心，學院課程、營隊、專項訓練不納入 |
-| 權限 | **跟隨來源模組**：能編輯哪些事件取決於對賽事資料的權限（學院管理者可改梯隊賽程、不能改一線隊） |
+| 權限 | **跟隨來源模組**：能編輯哪些事件取決於對賽事資料的權限 |
 
 ### 6.12 `AdminUser`
 
-見 [§7.6](#76-管理員用-username-不用-email)。
+見 [§7.6](#76-管理員用-username-不用-email)。⚠️ **`primary_club_id` 只是站台切換器的預設值，不是資料範圍**——範圍在 `AdminUserClub`。
 
 ---
 
@@ -274,11 +293,10 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `OrderItem`／`StoreInvoice` | 全表 | ⚖️ | — | 稅法保存，年限待確認第 28 點 |
 | `StoreInvoice` | `carrier_id_encrypted` | 🔐 | 系統管理員 | S6 |
 | `ProductVariant` | `cost` | 🔒 | 系統管理員、商務／贊助 | S1 |
-| `PaymentChannel` | `credential_encrypted` | 🔐 | **僅系統管理員** | S6／N7 |
+| `PaymentChannel` | `credential_encrypted` | 🔐 | **僅系統管理員** | S6 |
 | `DrawRoster` | `name_snapshot` | 🔒 | 系統管理員、客服／行政（公關只拿遮罩版） | 行 1322 |
 | `DrawRoster` | `withholding_data_encrypted` | 🔐 ⚖️ | **僅系統管理員**，達扣繳門檻才蒐集 | 行 1142–1155 |
-| `Donation` | `donor_name`、`donor_email` | 🔒 ⚖️ | 系統管理員、客服／行政 | 慈善站 N3 |
-| `DonationInvoice` | `carrier_id_encrypted`、`tax_id` | 🔐 ⚖️ | 系統管理員 | 慈善站 §5 |
+| `Membership` | `tier`、`membership_end_on` | 🔒 | 系統管理員、客服／行政、**合作球隊管理（僅自家 `club_id`）** | K1 |
 | `Registration`／`Enquiry`／`EnquiryAnswer` | 姓名、電話、Email、生日 | 🔒 | 依模組權限 | 行 1320 |
 | `NewsletterSubscriber` | `email` | 🔒 | 系統管理員、公關／媒體 | G3 |
 | `AdminUser` | `password_hash`、`two_factor_secret_encrypted` | 🔐 | **不可讀取，僅比對** | J |
@@ -294,7 +312,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 ### 9.1 值複製快照：讀取不得回頭 join
 
-適用：`OrderItem`、`DrawRoster`、`SettlementLine`、`StoreInvoice`、`DonationInvoice`。
+適用：`OrderItem`、`DrawRoster`、`StoreInvoice`。**全部必填 `club_id`**——快照凍結的包含歸屬。
 
 | 情境 | 若做成外鍵解析會怎樣 |
 |---|---|
@@ -343,7 +361,6 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | FAQ 題目 | `Faq`＋`FaqCategoryLink`＋`faq_i18n`（匯入 ＋ 匯出） | B4 |
 | 301 轉址對照 | `Redirect`。**含舊 Wix 商店的 5 個商品與分類網址** | H |
 | 物流單號 | `Shipment.tracking_no`。**v2.6 不串物流商 API，以 CSV 回填** | S4 |
-| 店家名單 | `DonationStore`（＋`donation_store_i18n`） | 慈善站 N1 |
 
 > ⚠️ 目前 [`../content/migration/舊官網URL盤點.csv`](../content/migration/舊官網URL盤點.csv) 的「客戶決定」與「新站對應頁面」兩欄**全空**，301 對照表尚無法產生。
 
@@ -361,9 +378,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | **抽獎名單 CSV（兩種）** | `DrawRoster`：公開遮罩版／受限中獎人版 | 受限版 ✔ |
 | **訂單 CSV** | `Order` + `OrderItem` | ✔ |
 | 商店報表 | `Order` 彙總 | ✔ |
-| 發票會計 CSV | `StoreInvoice`／`DonationInvoice` | ✔ |
-| 對帳單 ＋ CSV | `Settlement` + `SettlementLine` | ✔ |
-| **QR 批次 zip** | `DonationStore`（PNG／SVG／印刷版 PDF） | |
+| 發票會計 CSV | `StoreInvoice` | ✔ |
 
 ---
 
@@ -381,41 +396,71 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 
 ### 11.1 唯一鍵（違反即資料錯誤）
 
+**維持全站唯一（v3.0 不變）**——這五個是刻意不改成複合鍵的，各有硬理由：
+
+| 表 | 唯一鍵 | 為什麼不加 `club_id` |
+|---|---|---|
+| `Team` | `code` | 行事曆訂閱網址與 `/schedule/d1/` 的識別鍵，**已在外流通**。藍鯨一線隊是 `BW1` 不是第二個 `D1` |
+| `Article` | `slug` | 共同文章必須有**單一 canonical**，否則兩站兩份等於重複內容；App 分享也只能送出一條連結 |
+| `ProductVariant` | `sku` | 揀貨與庫存識別鍵，跨店唯一才不會出錯貨 |
+| `Order` | `order_no`、`lookup_token` | 單一商店號對帳不得重號（加俱樂部前綴，不改鍵） |
+| `Member` | `member_no`、`email` | **一人一帳號**；`Member` 本身不帶 `club_id`，俱樂部維度在 `Membership` |
+
+**改為 `(club_id, …)` 複合唯一（v3.0）**：
+
+| 表 | v2.6 | v3.0 | 理由 |
+|---|---|---|---|
+| `Page` | `slug` | **`(club_id, slug)`** | 兩站必然都有 `about`／`contact`／`privacy` |
+| `Setting` | `setting_key` | **`(club_id, setting_key)`** | 聯絡資訊、社群連結、運費設定兩站不同 |
+| `Redirect` | `from_path` | **`(club_id, from_path)`** | 兩站都會有 `/zh/about/` |
+| `Season` | `code` | **`(club_id, code)`** | 兩隊球季不同步 |
+| `NewsletterSubscriber` | `email` | **`(club_id, email)`** | **法遵**：訂閱同意與退訂須分別成立，同一人可以只退訂其中一站 |
+
+⚠️ **`club_id` 可為空的表（`Article`／`PressResource`／`Faq`／`Staff`／`Charity`／`CharityProgram`／`ImpactRecord`／`ImpactMetric`）**
+用 `UNIQUE (club_id, slug)` 即可——**SQL Server 的唯一索引把 NULL 當成相等**，不需要篩選唯一索引。
+`(NULL,'x')`、`(1,'x')`、`(2,'x')` 允許併存，網址對應哪一筆由**路由優先順序**解決（俱樂部專屬優先、回退共同）。
+🔴 **但 `Article.slug` 是上表的例外，維持全站唯一**，不走這條。
+
+**其餘唯一鍵**：
+
 | 表 | 唯一鍵 |
 |---|---|
-| `Team` | `code` |
-| `Member` | `member_no`、`email` |
-| `MemberCard` | `token` |
-| `AdminUser` | **`username`**（**`email` 不設唯一**） |
+| `Club` | `code`、`domain` |
+| `Competition` | `(club_id, code)` |
+| `Membership` | **`(member_id, club_id, season_id)`**——一人每俱樂部每季一份 |
+| `MemberCard` | `token`（**不可由會員編號推導**） |
+| `AdminUser` | **`username`**（**`email` 不設唯一**，只作通知用） |
 | `AdminRole` / `Permission` | `code` |
-| `ProductVariant` | `sku` |
-| `Order` | `order_no`、`lookup_token` |
-| `DonationStore` / `DonationProject` | `store_slug` / `project_slug` |
-| `Donation` | `order_no` |
-| `PaymentChannel` | `(subject, channel_type, environment)` |
+| `AdminUserClub` | `(admin_user_id, club_id)` |
+| `AdminUserTeam` | `(admin_user_id, team_id)` |
+| `PaymentChannel` | **`(owner_club_id, channel_type, environment)`** |
 | `DrawRoster` | `(member_draw_id, serial_no)`、`(member_draw_id, member_no_snapshot)` |
 | `Locale` | `code` |
-| `Redirect` | `from_path` |
-| `PressResource` | `slug` |
+| `PressResource` | `(club_id, slug)` |
 | 所有 `*_i18n` | `(<entity>_id, locale)` |
-| 所有內容表 | `slug`（表內唯一） |
+| 其餘內容表 | `(club_id, slug)`（`club_id` 必填者）或 `slug`（不帶 `club_id` 者） |
+
+> ⚠️ **`MembershipPlan`／`MembershipBenefit`／`PartnerStore` 的唯一鍵待 `club_id` 歸類定案後補**，
+> 見 [`12` §4.13](12-database-schema.md#413-club_id-尚未歸類的三張表)。
+> ⚠️ **慈善的 `DonationStore`／`DonationProject`／`Donation` 已移出本檔**（獨立資料庫），見 [`16-charity-schema.md`](16-charity-schema.md)。
 
 ### 11.2 查詢索引
 
 | 表 | 索引 | 用途 |
 |---|---|---|
-| `Article` | `(status, published_at desc)`、`(article_category_id, published_at desc)` | 新聞列表與分類頁 |
+| `Article` | `(status, published_at desc)`、`(article_category_id, published_at desc)`、**`(club_id, status, published_at desc)`** | 新聞列表與分類頁、**依俱樂部與追蹤過濾** |
 | `Match` | `(season_id, match_on)`、`(status, match_on)` | 賽程／賽果切換 |
 | `CalendarEventTeam` | `(team_id, source_type)` | 行事曆隊別篩選 |
 | `Registration` | `(session_id, status)`、`(member_id)` | 報名管理與我的報名 |
-| `Order` | `(member_id, created_at desc)`、`(order_status)`、`(payment_status, created_at)` | 我的訂單、出貨佇列、逾時清理 |
+| `Order` | `(member_id, created_at desc)`、`(order_status)`、`(payment_status, created_at)`、**`(club_id, created_at desc)`** | 我的訂單、出貨佇列、逾時清理、**後台依俱樂部過濾** |
 | `OrderItem` | `(order_id)` | |
 | `InventoryMovement` | `(product_variant_id, occurred_at desc)` | 庫存異動查詢 |
-| `Donation` | `(status, paid_at)`、`(donation_store_id, paid_at)`、`(donation_project_id, paid_at)` | N4 結算與 N6 報表 |
-| `SettlementLine` | `(settlement_id)`、`(donation_id)` | 沖回對應 |
+| `Membership` | `(club_id, status, membership_end_on)`、`(member_id)` | 會籍到期提醒、會員中心逐俱樂部列出 |
 | `DrawRoster` | `(member_draw_id, serial_no)` | 名單匯出 |
 | `EmailLog` | `(member_id, sent_at desc)`、`(type, sent_at)` | |
 | `Enquiry` | `(form_id, status, created_at desc)`、`(assignee_admin_user_id)` | 收件匣 |
+| `AdminUserClub` | `(admin_user_id, is_active)` | **每個請求都要算資料範圍，這條是熱路徑** |
+| 帶 `club_id` 的內容表 | `(slug, club_id)` | 路由解析：俱樂部專屬優先、回退共同 |
 | 所有 `*_i18n` | `(locale)` | 翻譯狀態矩陣 |
 
 ### 11.3 外鍵刪除行為
@@ -427,7 +472,12 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `MemberDraw` → `DrawRoster` | **`RESTRICT`**（不可變名單） |
 | `Member` → `Order`／`Registration` | **`SET NULL`**（刪帳號後訂單與報名仍在） |
 | `Product` → `OrderItem` | **無外鍵約束的刪除行為**——`OrderItem` 是快照，商品下架不影響歷史訂單 |
-| `Settlement` → `SettlementLine` | `RESTRICT` |
+| `Member` → `Membership` | **`RESTRICT`**（會籍涉金流與發票，刪帳號不得連帶刪會籍） |
+| `Membership` → `MemberCard` | **`CASCADE`**（每份會籍一張卡，會籍沒了卡就該失效） |
+| `Club` → 任何帶 `club_id` 的表 | **`RESTRICT`**（俱樂部是主檔，有資料就不得刪） |
+| `AdminUser` → `AdminUserClub`／`AdminUserTeam` | `CASCADE` |
 | `Cart` → `CartItem` | `CASCADE` |
 
 ---
+
+> ⚠️ **慈善捐款平台的資料表全部不在本檔**（獨立後台與獨立資料庫），另出 [`16-charity-schema.md`](16-charity-schema.md)。
