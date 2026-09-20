@@ -1,8 +1,13 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.11
-> **Date**: 2026-09-04 (v3.11 revision: 2026-09-20)
+> **Document version**: v3.12
+> **Date**: 2026-09-04 (v3.12 revision: 2026-09-20)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.12 revision summary — the app's API is hosted by the website admin**
+> **No functional changes.** The app and the website **share one backend API**, the same model as the shared admin
+> and shared database (the Blue Whale website is the precedent). 16.1 gains an "API hosting" row, and 16.2's
+> technical prerequisites are therefore items 17–18, with the existing data gaps at 19–23.
 
 > **v3.11 revision summary — four specification gaps closed**
 > **No new features; what is added is the place to hold, and the implementable definition of, requirements that already existed.**
@@ -1690,7 +1695,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | **A — Foundation** | **`Club` and `Competition` records**, **both clubs' fixtures and results (12 months)**, **first-run onboarding and follow preferences (S23)**, news list, squads (read-only), partners and sponsors, FAQ, deep links and Universal Links, both languages, `AppDevice` registration, settings | **Blue Whale's written authorisation, brand assets, and fixture data** (16.2, items 1–4) |
 | **B — Membership** | Registration and sign-in, member centre, **digital membership card (one per membership)**, **partner stores and the nearby map**, plans and benefits, **joining and upgrading through an external browser**, read-only prize-draw information | Store coordinates (16.2, item 9) |
 | **C — Engagement and revenue** | Push notifications, advertising slots and measurement, match-day reminders, **program booking (pre-filling and my bookings)** | The three additions to the member terms (16.2, item 12), first advertisers (16.2, item 7) |
-| **D — Content-dependent** | Player photographs and biographies, full article text and offline reading | The 113 draft articles unblocked (16.2, item 24), player assets (16.2, item 23) |
+| **D — Content-dependent** | Player photographs and biographies, full article text and offline reading | The 113 draft articles unblocked (16.2, item 23), player assets (16.2, item 22) |
 | **E — In-app payment** | **In-app LINE Pay payment (section 5)**; external-browser payment is retained as the fallback | IAP determination and the club's LINE Pay merchant account (16.2, items 5–6) |
 
 **Five notes**:
@@ -1724,6 +1729,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | Donations | The app **carries no donation payments**; outbound links only, stating that the recipient is the Association |
 | Prize draw | The front end shows only the personal eligibility boolean and the rules — **no serial numbers, no lookup, no list page, no counter** |
 | Winner notification | **Push must never be used for individual winner notifications**; the five system emails stand |
+| **API hosting** (v3.12) | The app and the website **share one backend API**; no separate service is built. The reasoning matches the shared admin and shared database (1.2) — domain logic and permissions have a single implementation, and membership, fixture, and store data have a single source of truth. What the endpoints must do is defined in section 9 |
 | Technology selection | Out of scope; replaced by the platform capability requirements in 1.5 |
 
 ### 16.2 Still to be confirmed
@@ -1779,14 +1785,13 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 |---|---|
 | 17 | **Push services**: APNs certificates (dependent on item 3), FCM project ownership, whether a third-party provider is used (with cross-border transfer disclosure) |
 | 18 | **Deployment rights for `.well-known` on the website domain**: a hard dependency for Universal Links |
-| 19 | **Whether the app's API is hosted by the website admin**: the existing premise is that the charity platform shares the website admin and database, and the app should follow the same model, but this must be confirmed |
 
 **Existing data gaps**
 
 | # | Item |
 |---|---|
-| 20 | **English fixture fields**: `opponent_en` / `venue_en` have not been supplied; the display and notification rules for round 7's `TBC` venue need confirming |
-| 21 | **Member number format** (a website open item): required by the app membership card |
-| 22 | **Season start and end dates** (a website open item): affects membership status display and renewal prompt timing |
-| 23 | **Player photographs and biographies**: all 28 Rock players currently have empty photo and biography fields (Blue Whale is covered by blocking item 4) |
-| 24 | **Progress on unblocking the 113 draft articles**: affects article bodies and the Phase D schedule |
+| 19 | **English fixture fields**: `opponent_en` / `venue_en` have not been supplied; the display and notification rules for round 7's `TBC` venue need confirming |
+| 20 | **Member number format** (a website open item): required by the app membership card |
+| 21 | **Season start and end dates** (a website open item): affects membership status display and renewal prompt timing |
+| 22 | **Player photographs and biographies**: all 28 Rock players currently have empty photo and biography fields (Blue Whale is covered by blocking item 4) |
+| 23 | **Progress on unblocking the 113 draft articles**: affects article bodies and the Phase D schedule |

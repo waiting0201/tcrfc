@@ -34,7 +34,7 @@
 | 2 | **共用後台 Admin** | 一個入口＋站台切換器，15 個模組字母 | **本體** | — | 同上 §4 |
 | 3 | **台中藍鯨官網前台** | **獨立網域**，11 單元，中英雙語 | **共用 ②**（`club_id` 分資料） | 內容藍鯨／收款俱樂部 | [藍鯨規劃書](output/TCRFC_台中藍鯨官網功能規劃書.md) v1.8 |
 | 4 | **慈善捐款平台** | **獨立網域**，掃碼捐款前台＋自己的後台 | **完全獨立**（自建約 22 張表） | **台灣足球策略發展協會** | [慈善規劃書](output/TCRFC_慈善捐款平台功能規劃書.md) v2.5 |
-| 5 | **行動 App** | **原生 iOS（Swift／SwiftUI）＋ Android（Kotlin／Compose）**，雙隊共同平台 | 共用 ②（後台 `M1–M5`） | 俱樂部（**首版不含 App 內付款**） | [App 規劃書](output/TCRFC_行動App功能規劃書.md) v3.11、[`docs/19`](docs/19-app-tech-stack.md) |
+| 5 | **行動 App** | **原生 iOS（Swift／SwiftUI）＋ Android（Kotlin／Compose）**，雙隊共同平台 | 共用 ②（後台 `M1–M5`） | 俱樂部（**首版不含 App 內付款**） | [App 規劃書](output/TCRFC_行動App功能規劃書.md) v3.12、[`docs/19`](docs/19-app-tech-stack.md) |
 
 > **③ 藍鯨站與主站是同一套網站，只有配色不同**（藍鯨規劃書 §1.3 總則）。前端複製 `site/` 骨架、換 7 個 CSS 變數；
 > 例外只有四項單元取捨。**不要為藍鯨站另做設計。**
@@ -60,7 +60,7 @@
 | **B-11** | 🚫 | **上線（全平台）** | **個資跨境存放的法遵確認**：會員與**捐款人**個資將存於美國（VM、Azure SQL、Blob 全在 West US 2）。個資法的跨境傳輸限制，以及協會與俱樂部間的委託處理約定須載明境外存放 | 法務 |
 | **B-12** | 🚫 | **轉 DDL** | **`docs/12` §1.4 第 5 件的規則語意未定**：「`club_id` 為空時 `slug` 亦須全站唯一」有強弱兩種讀法，在 SQL Server 上實作差異是實質的（篩選唯一索引 vs 另加觸發器） | 我方 |
 | ~~B-13~~ | ✅ | ~~iOS 上架、深連結~~ | **開發者帳號已到位**（2026-09-20）：D-U-N-S 已有，**Apple Developer 與 Google Play 法人／組織帳號均已註冊**。**Team ID 與 package name 在手，官網的 `.well-known` 兩個關聯檔可以直接產** | — |
-| **B-14** | 🚫 | **App 全部技術實作** | **App 的 API 是否由官網後台承載未確認**（App §16.2 技術前提第 19 項）。[`docs/19`](docs/19-app-tech-stack.md) 的所有決定都假設「是」；若答案是「否」，該檔 §2、§3、§7、§8 全部要重寫 | 我方／客戶 |
+| ~~B-14~~ | ✅ | ~~App 全部技術實作~~ | **App 與官方網站共用同一套後端 API**（2026-09-20 拍板，已寫入 App 規劃書 v3.12 §16.1）。不另建獨立服務——領域邏輯與權限只有一份實作，資料也只有一個真實來源。[`docs/19`](docs/19-app-tech-stack.md) 的前提因此成立 | — |
 
 > 其餘待確認見 [`docs/08`](docs/08-roadmap-decisions.md) §3；藍鯨另有項目見其規劃書 §10；App 另有 9 項見其規劃書 §16.2。
 > **行政與法務背景**（法人歸屬、授權、個資委託）不寫進規劃書，記在 [`docs/15`](docs/15-out-of-scope-record.md)。
@@ -230,7 +230,7 @@
 | AP-6 | ⬜ | **首次上架**：App Store／Google Play 審查、隱私標籤、商店素材 | App §14 | AP-3、AP-9 |
 | **AP-3b** | ⬜ | **Phase E — App 內 LINE Pay 付款**：`payment_mode` 由 `external` 切為 `inapp`，共用 AP-3 已做好的訂單與開通邏輯。🔴 **只能降級不得反向**（不得以 `external` 送審後遠端開啟未審查的 `inapp`） | App §5、§15 Phase E、[`docs/19`](docs/19-app-tech-stack.md) §10 | AP-6、B-8、B-10 |
 | **AP-7** | ⬜ | **兩個 private repo 與 CI/CD 管線**：`tcrfc-app-ios`（Xcode Cloud 或 Actions＋fastlane）、`tcrfc-app-android`（Actions＋Gradle→Play internal）。🔴 **必須 private**（含 `.p8`、keystore、service account JSON）；**每次 release 歸檔 dSYM 與 `mapping.txt`** | [`docs/19`](docs/19-app-tech-stack.md) §9 | AP-9 |
-| **AP-8** | ⬜ | **`shared/` 契約目錄**：OpenAPI 產 DTO、共用 SQLite DDL、快取時效、深連結對照、錯誤碼、**可見度量測 fixtures**。CI 須有漂移檢查（`git diff --exit-code`） | [`docs/19`](docs/19-app-tech-stack.md) §2 | B-14 |
+| **AP-8** | ⬜ | **`shared/` 契約目錄**：OpenAPI 產 DTO、共用 SQLite DDL、快取時效、深連結對照、錯誤碼、**可見度量測 fixtures**。CI 須有漂移檢查（`git diff --exit-code`） | [`docs/19`](docs/19-app-tech-stack.md) §2 | AP-1 |
 | **AP-9** | ⬜ | **商店帳號設定與 `.well-known` 產出**：帳號本身已註冊（B-13），本列做的是——填入 Team ID 與 package name 產出 `apple-app-site-association` 與 `assetlinks.json` 並部署到官網、建立 APNs `.p8` 金鑰與 FCM 專案、開 TestFlight 與 Play 內測軌道 | App §2.3、§14.1、[`docs/19`](docs/19-app-tech-stack.md) §9 | S0-9 |
 
 > ⚠️ **AP-9 要排到 AP-2 之前**——深連結是 Phase A 的項目，`.well-known` 關聯檔要先部署到官網才驗證得了。
