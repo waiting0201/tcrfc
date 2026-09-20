@@ -17,7 +17,7 @@
 | 項目 | 決定 |
 |---|---|
 | 資料庫 | **`sqldb-charity`，與 `sqldb-club` 完全獨立**（Azure SQL，各自單庫） |
-| 表數 | **23 張** ＋ 4 張 `*_i18n` 側表 |
+| 表數 | **25 張** ＋ 4 張 `*_i18n` 側表 |
 | 租戶維度 | **沒有 `club_id`**——單一法人，不是多俱樂部架構 |
 | 會員 | **沒有 `Member`**——捐款人不登入不註冊，只填姓名與 Email |
 | 稽核 | 🔴 **有 `AuditLog`**（與主站相反，理由見 [§9](#9-與主站綱要的四項差異)） |
@@ -62,7 +62,7 @@
 
 ---
 
-## 2. 資料表總覽（23）
+## 2. 資料表總覽（25）
 
 圖例：🌐 有 i18n 側表｜🔒 含受限或加密欄位｜📸 值複製快照，不可回頭 join。
 
@@ -70,14 +70,29 @@
 
 | 表 | 用途 | 標記 | 後台 |
 |---|---|---|---|
-| `DonationStore` | **捐款合作店家**：名稱、Logo、類別、地址、聯絡人與電話、合作起訖、狀態、**`store_share_pct`**、**`store_slug`**（全站唯一、**不可由編號推導**、可重產且舊 QR 立即失效） | 🌐 🔒 | N1 |
+| `DonationStore` | **捐款合作店家**：名稱、**`logo_key` Logo 或照片**、類別、地址、聯絡人與電話、合作起訖、狀態、**`store_share_pct`**、**`store_slug`**（全站唯一、**不可由編號推導**、可重產且舊 QR 立即失效） | 🌐 🔒 | N1 |
 | `DonationProject` | **捐款項目**：名稱、封面、一句話說明、說明內文、款項用途、`project_slug`、最低／最高金額、**`project_share_pct`**、**`invoice_mode`**、上下架與排序、**撥付對象與慈善計畫的四個快照欄位** | 🌐 | N2 |
 | `DonationAmountOption` | 金額選項卡 `(donation_project_id, amount, sort_order)` | | N2 |
 | `Donation` | **捐款主檔**：`order_no`、金額、狀態、建立與付款時間、`donation_project_id`、`donation_store_id`（**可為空**）、捐款人姓名與 Email、具名／匿名、**分潤五欄快照**、發票欄位、退款原因與經辦人 | 🔒 📸 | N3 |
 | `DonationPayment` | 金流交易：交易識別碼、請求與確認時間、金額、狀態、`raw_response json`（**只存不查**） | 🔒 | N3 |
-| `DonationInvoice` | 發票／收據：類型、號碼、開立時間、載具或統編或收據資訊、狀態、作廢或折讓 | 🔒 📸 | N5 |
-| `Settlement` | 結算單：期間、`payee_type`（`store`／`project`）、對象、筆數、捐款總額、應付金額、狀態、匯款登記 | | N4 |
-| `SettlementLine` | 結算明細：逐筆捐款的分潤金額，**含退款沖回的負項** | 📸 | N4 |
+| `DonationInvoice` | 發票／收據：類型、號碼、開立時間、載具或統編或收據資訊、狀態、**發票抬頭**（統編模式必填）、**收據抬頭**（預設帶入捐款人姓名**可修改**）、**年度彙總開立旗標**、作廢或折讓＋**原因與經辦人** | 🔒 📸 | N5 |
+| `Settlement` | 結算單：期間、`payee_type`（`store`／`project`）、對象、筆數、捐款總額、應付金額、狀態、匯款登記（**日期、方式、備註**三項） | | N4 |
+| `SettlementLine` | 結算明細：逐筆捐款的分潤金額，**含退款沖回的負項**與**沖回原因** | 📸 | N4 |
+
+### 2.1b 對帳（2）
+
+規劃書 §4.5（行 402–406）：「每日將本站的 `paid` 捐款單與 LINE Pay 的交易明細比對／
+差異情形（**本站有金流無、金流有本站無、金額不符**）列為異常清單供人工處理／**對帳結果保留供稽核**」。
+N3 的異常佇列（行 517）也把「對帳差異」列為三類待人工處理之一。
+
+| 表 | 用途 | 標記 | 後台 |
+|---|---|---|---|
+| `ReconciliationRun` | **每日對帳批次**：對帳日、來源、比對筆數、相符筆數、差異筆數、執行時間、狀態 | | N3 |
+| `ReconciliationDiscrepancy` | **對帳差異明細**：差異類型（三值）、`donation_id`（可空）、金流端交易識別碼（可空）、本站金額、金流端金額、處理狀態、處理人與備註 | 🔒 | N3 |
+
+> 🔴 **「對帳結果保留供稽核」＝這兩張表不可清除**，比照 `AuditLog` 的 append-only 性質；
+> `ReconciliationDiscrepancy` 的處理狀態可更新，**但差異本身的記錄不得刪除**。
+> ⚠️ 三種差異類型對應規劃書字面：`site_only`（本站有金流無）／`gateway_only`（金流有本站無）／`amount_mismatch`（金額不符）。
 
 ### 2.2 主站主檔的唯讀複本（2）
 
@@ -151,6 +166,8 @@ erDiagram
   donation_store ||--o{ donation : "可為空（非掃碼進入）"
   donation ||--|| donation_payment : ""
   donation ||--o| donation_invoice : ""
+  reconciliation_run ||--o{ reconciliation_discrepancy : "差異明細"
+  donation ||--o{ reconciliation_discrepancy : "可為空（金流有本站無時）"
   donation ||--o{ settlement_line : "一筆捐款進兩份結算（店家＋項目）"
   settlement ||--o{ settlement_line : ""
   charity_ref ||--o{ charity_program_ref : ""
@@ -164,6 +181,7 @@ erDiagram
   ui_string ||--o{ ui_string_translation : ""
   donation_store {
     uuid id PK
+    string_500 logo_key
     slug store_slug UK
     string_128 name_zh
     string_32 category
@@ -177,6 +195,7 @@ erDiagram
   }
   donation_project {
     uuid id PK
+    string_500 cover_key
     slug project_slug UK
     string_128 name_zh
     int min_amount
@@ -238,8 +257,13 @@ erDiagram
     string_16 tax_id
     string_255 national_id_encrypted
     string_500 receipt_address
+    string_128 invoice_title
+    string_128 receipt_title
+    bool is_annual_summary
     enum issue_status
     enum void_status
+    string_255 void_reason
+    uuid voided_by FK
   }
   settlement {
     uuid id PK
@@ -252,6 +276,7 @@ erDiagram
     int payable_amount
     enum status
     date remitted_on
+    string_32 remit_method
     string_255 remit_note
   }
   settlement_line {
@@ -260,6 +285,29 @@ erDiagram
     uuid donation_id FK
     int share_amount
     bool is_clawback
+    string_255 clawback_reason
+  }
+  reconciliation_run {
+    uuid id PK
+    date run_on
+    string_32 source
+    int compared_count
+    int matched_count
+    int discrepancy_count
+    datetime ran_at
+    enum status
+  }
+  reconciliation_discrepancy {
+    uuid id PK
+    uuid reconciliation_run_id FK
+    enum discrepancy_type
+    uuid donation_id FK
+    string_64 gateway_transaction_id
+    int site_amount
+    int gateway_amount
+    enum resolution_status
+    uuid resolved_by FK
+    string_255 resolve_note
   }
   charity_ref {
     uuid id PK

@@ -1,5 +1,5 @@
--- ⚠️ 慈善庫不在 S0-3c 的核對範圍（那次只查主站 ERD），但主站的缺漏模式
--- （ERD 漏了規劃書明文要求的欄位）在本庫同樣可能存在，建庫前應比照做一次核對。
+-- ✅ 已於 2026-09-20 做過欄位核對（docs/16a-charity-field-audit.md），查出的 7 張
+-- 缺漏已全數補上，含新增對帳兩張表。
 
 /* ============================================================================
    TCRFC 慈善捐款平台資料庫 — Azure SQL DDL
@@ -224,6 +224,50 @@ CREATE TABLE role_permissions (
 -- 就要有地方放）建表；若日後改為「每次在 N2 現場貼上名稱」，則這兩張表可能
 -- 不需要獨立存在，屆時走同步鏈改規劃書與本檔。
 --
+-- 每日對帳批次（規劃書 §4.5 行 402–406：每日與 LINE Pay 交易明細比對）。
+-- 🔴「對帳結果保留供稽核」——本表與 reconciliation_discrepancies 不得清除。
+CREATE TABLE reconciliation_runs (
+    id                      uniqueidentifier NOT NULL DEFAULT NEWID(),
+    row_seq                 bigint IDENTITY(1,1) NOT NULL,
+    run_on                  date             NOT NULL,
+    source                  nvarchar(32)     NOT NULL DEFAULT ('linepay'),
+    compared_count          int              NOT NULL DEFAULT 0,
+    matched_count           int              NOT NULL DEFAULT 0,
+    discrepancy_count       int              NOT NULL DEFAULT 0,
+    ran_at                  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    status                  nvarchar(16)     NOT NULL,
+    created_at              datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    updated_at              datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    created_by              uniqueidentifier NULL,
+    updated_by              uniqueidentifier NULL,
+    CONSTRAINT PK_reconciliation_runs PRIMARY KEY NONCLUSTERED (id),
+    CONSTRAINT UQ_reconciliation_runs_seq UNIQUE CLUSTERED (row_seq),
+    CONSTRAINT UQ_reconciliation_runs_run_on UNIQUE (run_on, source)
+);
+
+-- 對帳差異明細。三種類型對應規劃書字面：本站有金流無／金流有本站無／金額不符。
+CREATE TABLE reconciliation_discrepancies (
+    id                      uniqueidentifier NOT NULL DEFAULT NEWID(),
+    row_seq                 bigint IDENTITY(1,1) NOT NULL,
+    reconciliation_run_id   uniqueidentifier NOT NULL,
+    discrepancy_type        nvarchar(24)     NOT NULL,
+    donation_id             uniqueidentifier NULL,       -- 金流有本站無時為空
+    gateway_transaction_id  nvarchar(64)     NULL,       -- 本站有金流無時為空
+    site_amount             int              NULL,
+    gateway_amount          int              NULL,
+    resolution_status       nvarchar(16)     NOT NULL DEFAULT ('pending'),
+    resolved_by             uniqueidentifier NULL,
+    resolve_note            nvarchar(255)    NULL,
+    created_at              datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    updated_at              datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    created_by              uniqueidentifier NULL,
+    updated_by              uniqueidentifier NULL,
+    CONSTRAINT PK_reconciliation_discrepancies PRIMARY KEY NONCLUSTERED (id),
+    CONSTRAINT UQ_reconciliation_discrepancies_seq UNIQUE CLUSTERED (row_seq),
+    CONSTRAINT CK_reconciliation_discrepancies_type
+        CHECK (discrepancy_type IN ('site_only', 'gateway_only', 'amount_mismatch'))
+);
+
 -- 🔴 CharityRef／CharityProgramRef 是主站 Charity／CharityProgram 主檔的
 --    唯讀複本，不是本庫的真實來源。DonationProject 絕對不得以外鍵指向
 --    這兩張表——只能在選定撥付對象當下把 ref_code 與名稱值複製進
@@ -424,8 +468,13 @@ CREATE TABLE donation_invoices (
     tax_id                  nvarchar(16)     NULL,
     national_id_encrypted   nvarchar(255)    NULL,       -- 🔐 加密欄位，身分證字號
     receipt_address         nvarchar(500)    NULL,
+    invoice_title            nvarchar(128)    NULL,       -- 統編模式必填（行 433）
+    receipt_title            nvarchar(128)    NULL,       -- 預設帶入捐款人姓名，可修改（行 439）
+    is_annual_summary        bit              NOT NULL DEFAULT 0,  -- 單筆／年度彙總（行 442）
     issue_status            nvarchar(16)     NOT NULL DEFAULT ('pending'),
     void_status              nvarchar(16)     NOT NULL DEFAULT ('none'),
+    void_reason              nvarchar(255)    NULL,       -- 作廢／折讓原因（行 455）
+    voided_by                uniqueidentifier NULL,       -- 經辦人（行 455）
         created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
         updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
@@ -452,6 +501,7 @@ CREATE TABLE settlements (
     payable_amount   int              NOT NULL DEFAULT (0),
     status           nvarchar(16)     NOT NULL DEFAULT ('pending'),  -- pending(待結算)／settled(已結算)／paid(已付款)
     remitted_on      date             NULL,
+    remit_method             nvarchar(32)     NULL,       -- 匯款方式（行 529「日期、方式與備註」）
     remit_note       nvarchar(255)    NULL,
         created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
         updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
@@ -472,6 +522,7 @@ CREATE TABLE settlement_lines (
     donation_id    uniqueidentifier NOT NULL,
     share_amount   int              NOT NULL,
     is_clawback    bit              NOT NULL DEFAULT (0),
+    clawback_reason          nvarchar(255)    NULL,       -- 沖回原因（行 622「明列沖回原因」）
         created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
         updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
         created_by  uniqueidentifier NULL,           -- → admin_users.id，系統自動產生的列為空
@@ -676,6 +727,8 @@ ALTER TABLE email_templates ADD CONSTRAINT UQ_email_templates_code UNIQUE (code)
 
 -- invoice_no：已開立者唯一，未開立為空 → 篩選唯一索引（docs/16 §6 明文要求）
 CREATE UNIQUE NONCLUSTERED INDEX UX_donation_invoices_invoice_no
+CREATE INDEX IX_reconciliation_runs_run_on ON reconciliation_runs (run_on DESC);
+CREATE INDEX IX_reconciliation_discrepancies_status ON reconciliation_discrepancies (resolution_status, reconciliation_run_id);
     ON donation_invoices (invoice_no)
     WHERE invoice_no IS NOT NULL;
 
@@ -762,6 +815,18 @@ ALTER TABLE donation_invoices
 ALTER TABLE settlement_lines
     ADD CONSTRAINT FK_settlement_lines_settlement
     FOREIGN KEY (settlement_id) REFERENCES settlements (id);
+
+ALTER TABLE reconciliation_discrepancies
+    ADD CONSTRAINT FK_reconciliation_discrepancies_run
+    FOREIGN KEY (reconciliation_run_id) REFERENCES reconciliation_runs (id);
+
+ALTER TABLE reconciliation_discrepancies
+    ADD CONSTRAINT FK_reconciliation_discrepancies_donation
+    FOREIGN KEY (donation_id) REFERENCES donations (id);
+
+ALTER TABLE donation_invoices
+    ADD CONSTRAINT FK_donation_invoices_voided_by
+    FOREIGN KEY (voided_by) REFERENCES admin_users (id);
     -- Settlement → SettlementLine：RESTRICT（docs/16 §6）
 
 ALTER TABLE settlement_lines
