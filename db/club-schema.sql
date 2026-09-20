@@ -89,6 +89,13 @@
    ============================================================================ */
 
 -- 啟用語系字典。加第三語系＝ INSERT 一列，不改 DDL。
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+-- ⚠️ 上面兩個 SET 是必要的，不是樣板：篩選索引（WHERE ... IS NOT NULL）、
+-- 檢視上的索引與計算欄位索引都要求 QUOTED_IDENTIFIER ON，否則建立時會失敗
+-- （Msg 1934）。sqlcmd 與部分用戶端預設不是 ON。
+
 CREATE TABLE locales (
   code            nvarchar(10)     NOT NULL,
   name            nvarchar(64)     NOT NULL,
@@ -999,7 +1006,7 @@ CREATE TABLE sponsors (
   club_id           uniqueidentifier NOT NULL,
   slug              nvarchar(160)    NOT NULL,
   tier              nvarchar(32)     NULL
-                      CHECK (tier IN (N'主贊助',N'官方贊助',N'支持夥伴)),
+                      CHECK (tier IN (N'主贊助',N'官方贊助',N'支持夥伴')),
   logo_dark_key     nvarchar(500)    NULL,
   logo_light_key    nvarchar(500)    NULL,
   contract_start_on date             NULL,
@@ -2440,8 +2447,6 @@ CREATE INDEX IX_impact_metrics_i18n_locale           ON impact_metrics_i18n (loc
    ============================================================================ */
 
 -- created_by／updated_by 一律 → admin_users(id)，可為空，NO ACTION（未特別列出行為者維持預設）
-ALTER TABLE  ADD CONSTRAINT FK__created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
-ALTER TABLE  ADD CONSTRAINT FK__updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE achievements ADD CONSTRAINT FK_achievements_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
 ALTER TABLE achievements ADD CONSTRAINT FK_achievements_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE admin_roles ADD CONSTRAINT FK_admin_roles_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);

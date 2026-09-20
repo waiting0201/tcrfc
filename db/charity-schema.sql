@@ -107,6 +107,13 @@
 
 -- 啟用語系字典。加第三語系＝INSERT 一列，零 DDL。以 code 為自然鍵，供全庫
 -- 所有 *_i18n 側表以 locale 外鍵參照，不另建 uuid 主鍵。
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+-- ⚠️ 上面兩個 SET 是必要的，不是樣板：篩選索引（WHERE ... IS NOT NULL）、
+-- 檢視上的索引與計算欄位索引都要求 QUOTED_IDENTIFIER ON，否則建立時會失敗
+-- （Msg 1934）。sqlcmd 與部分用戶端預設不是 ON。
+
 CREATE TABLE locales (
     code            nvarchar(10)    NOT NULL,
     name_zh         nvarchar(50)    NOT NULL,
@@ -727,10 +734,12 @@ ALTER TABLE email_templates ADD CONSTRAINT UQ_email_templates_code UNIQUE (code)
 
 -- invoice_no：已開立者唯一，未開立為空 → 篩選唯一索引（docs/16 §6 明文要求）
 CREATE UNIQUE NONCLUSTERED INDEX UX_donation_invoices_invoice_no
-CREATE INDEX IX_reconciliation_runs_run_on ON reconciliation_runs (run_on DESC);
-CREATE INDEX IX_reconciliation_discrepancies_status ON reconciliation_discrepancies (resolution_status, reconciliation_run_id);
     ON donation_invoices (invoice_no)
     WHERE invoice_no IS NOT NULL;
+
+-- 對帳（規劃書 §4.5）
+CREATE INDEX IX_reconciliation_runs_run_on ON reconciliation_runs (run_on DESC);
+CREATE INDEX IX_reconciliation_discrepancies_status ON reconciliation_discrepancies (resolution_status, reconciliation_run_id);
 
 -- ⚠️ 依主站 PaymentChannel 的對應唯一鍵設計類推而來，docs/16 未明文列出（見上方表定義註解）
 ALTER TABLE payment_channels
