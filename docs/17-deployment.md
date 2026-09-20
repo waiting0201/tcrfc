@@ -211,18 +211,26 @@ Redis 的實際收益集中在**共用小資料**與**登入後頁面**，而登
 | 2 | **JSON 欄位** | 用 **Azure SQL 原生 `json` 型別**（已 GA，二進位儲存、`JSON_VALUE` 相容、JSON 索引推出中），不用 `nvarchar(max)`。**維持「只存不查」作為設計紀律**，但原生型別保留逃生口 |
 | 3 | **`CalendarEvent`** | 第一期用**一般 VIEW**（UNION）。⚠️ **SQL Server 的 indexed view 明文禁止 UNION／UNION ALL**，所以沒有 materialized view 這條升級路；效能不足時走**索引表 ＋ 來源模組寫入時同步**，或先靠 Redis 吸收 |
 | 4 | **全文檢索** | **第一期用跨表 `LIKE` 比對**，不建搜尋索引表、不預先加索引（資料量在數百至數千列，掃描可接受）。升級路徑是 **Azure SQL 內建全文檢索**（有中文斷詞），**不需要外掛 Meilisearch** |
-| 5 | **NULL 語意** | 用**篩選唯一索引**（`CREATE UNIQUE INDEX … WHERE club_id IS NULL`，SQL Server 支援）。⚠️ **規則本身要先釐清**，見下 |
+| 5 | **NULL 語意** | **弱讀法：`UNIQUE (club_id, slug)` 就夠**——SQL Server 的唯一索引把 NULL 當成相等，不需要篩選唯一索引、不需要觸發器。網址對應哪一筆由路由優先順序解決，見下 |
 
-### 🔴 §1.4 第 5 件的語意必須先釐清再實作
+### ✅ §1.4 第 5 件（2026-09-20 定案）
 
-綱要寫的是：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」。這句有強弱兩種讀法：
+綱要寫的是：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」。
 
-- **弱讀法**：`club_id` 為 NULL 的那些列之間，`slug` 不得重複。→ 篩選唯一索引即可。
-- **強讀法**：某列 `club_id` 為 NULL 且 `slug='about'` 時，**任何俱樂部都不得再有 `slug='about'`**。
-  → 篩選唯一索引不夠，需要觸發器或應用層約束。
+⚠️ **SQL Server 的唯一索引把 NULL 當成相等**（與 PostgreSQL 相反），
+所以 `UNIQUE (club_id, slug)` 本身就擋掉了兩筆 `(NULL, 'about')`——**不需要篩選唯一索引。**
 
-**強讀法才能保證 URL 路由唯一解**（`/about/` 只對應一頁），從路由需求推測應為強讀法，
-但這是推測不是確認。**實作前必須定案並回寫 [`12`](12-database-schema.md) §1.4。**
+`(NULL,'about')`、`(1,'about')`、`(2,'about')` **允許併存**；某個站台的 `/about/` 對應哪一筆，
+由查詢的優先順序解決——**俱樂部專屬優先，沒有才回退共同內容**：
+
+```sql
+WHERE slug = @slug AND (club_id = @club_id OR club_id IS NULL)
+ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
+```
+
+索引 `(slug, club_id)` 支撐這個查詢。連帶得到的行為是**共同內容可被單一俱樂部覆寫**。
+不採「任何俱樂部都不得再有同名 slug」的強讀法——那無法用唯一索引表達、要加並行安全的觸發器，
+**維護成本高過它擋掉的風險**（頁面數十筆、由自己人在後台維護）。
 
 ### 資料庫層級與容量
 
@@ -290,7 +298,6 @@ Redis 的實際收益集中在**共用小資料**與**登入後頁面**，而登
 
 ## 8. 本檔不決定的事
 
-- **§1.4 第 5 件的強弱讀法** —— 必須先釐清才能寫 DDL
 - **網站與 API 的 CI 管線** —— 目前無 `.github/`，部署是人工；Nuxt ＋ .NET 的建置與推送流程另案。**App 的兩條管線見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §9**
 - **Azure SQL 定序的具體值** —— 建庫前定，建庫後不可改
 - **Redis 是否需要持久化** —— 採 cache-aside 後可視為純快取，預設不開 AOF；若日後拿它存 session 再重新評估

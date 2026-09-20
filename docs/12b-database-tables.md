@@ -374,8 +374,8 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 - 🔴 **每張表另加一欄不對外的 `bigint IDENTITY` 當叢集鍵，主鍵 `id uniqueidentifier` 設為非叢集。**
   SQL Server 的 `uniqueidentifier` 比較位元組的順序是反的，連 UUIDv7 也拿不到索引區域性。
   理由與替代方案的取捨見 [`12` §1.2](12-database-schema.md#12-主鍵外鍵與命名慣例)。
-- **可為空 `club_id` 的複合唯一鍵用篩選唯一索引**（`CREATE UNIQUE INDEX … WHERE club_id IS NULL`）。
-  ⚠️ **規則語意尚待釐清**（強讀法 vs 弱讀法），見 [`12` §1.4](12-database-schema.md#14-dbms-相依的五件事已定案) 第 5 件——**定案前不得轉 DDL**。
+- **可為空 `club_id` 的複合唯一鍵直接用 `UNIQUE (club_id, slug)` 即可**——SQL Server 的唯一索引把 NULL 當成相等，**不需要篩選唯一索引**。
+  `(NULL,'about')`、`(1,'about')`、`(2,'about')` 允許併存；網址對應哪一筆由**路由優先順序**（俱樂部專屬優先、回退共同）解決，另加索引 `(slug, club_id)`。見 [`12` §1.4](12-database-schema.md#14-dbms-相依的五件事已定案) 第 5 件。
 
 覆蓋索引與篩選索引的細部調校仍屬實作階段，不在此指定。
 

@@ -49,7 +49,7 @@
 | 9 | `EmailLog.type` 有 13 個值 | **降為 9 個**（會員 5 ＋ 商店 4）。慈善的 4 封隨獨立後台移出 | 主站 v3.0 §5.1 |
 | 10 | `Order` 只有 `member_id` | **加 `selling_club_id`（受益方）與 `collecting_club_id`（收款法人）**，`OrderItem`／`StoreInvoice` 一併值複製；`Cart.club_id` 必填（**不得跨俱樂部混買**） | 主站 v3.0 §5.1、4.13 |
 | 11 | 唯一鍵：`Page.slug`／`Setting.setting_key`／`Redirect.from_path`／`Season.code`／`NewsletterSubscriber.email` 單欄唯一 | **全部改為 `(club_id, …)` 複合唯一。** 但 `Team.code`／`Article.slug`／`ProductVariant.sku`／`Order.order_no`／`Member.email` **維持全站唯一** | 主站 v3.0 §5.4 |
-| 12 | ✅ **已結案**（2026-09-18） | §1.4 已補滿五件並隨 **Azure SQL** 定案，見 [§1.4](#14-dbms-相依的五件事已定案)。⚠️ 第 5 件的**規則語意**仍待釐清，是轉 DDL 的前置 | 主站 v3.0 §5.4 |
+| 12 | ✅ **已結案**（2026-09-20） | §1.4 五件全部定案，見 [§1.4](#14-dbms-相依的五件事已定案)。第 5 件採**弱讀法 ＋ 路由優先順序**，不再擋轉 DDL | 主站 v3.0 §5.4 |
 | 13 | 圖片以 `media_asset_id` 外鍵指向 `MediaAsset`，另有 `MediaFolder`／`MediaUsage` | **三張表全部移除。** 圖片改為**該表自己的欄位組**（`*_key` 物件鍵、`*_width`、`*_height`、`*_alt_zh`／`*_alt_en`）；多圖以子表承載。已知須改的外鍵 10 處：`Article` 封面、`Banner`、`Partner`／`Sponsor` 的 `logo_dark_id`／`logo_light_id`、`ProposalFile`、`ProductImage`、`ComicPage`、`Charity.logo_id`。**新增 `PressResource`**（7.8 媒體專區）。`club_id` 可為空由 8 張降為 **7 張**。⚠️ **`*_width`／`*_height` 存的是縮圖後的主檔尺寸**（長邊 ≤ 2560px），不是上傳檔的原始尺寸；1280／640／320 與 160px 方形縮圖的鍵由主鍵推導，**不另存欄位**（v3.9） | 主站 v3.9 §4.0、§5.1、§5.4 |
 
 **尚待完成的工作**（轉 DDL 前必做）：
@@ -153,15 +153,28 @@
 | 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content` 等。任何需要篩選、排序、統計的資料都拉成實欄位。⚠️ **`RolePermission.scope_value` 已於 v3.0 刪除**——它正是「只存不查」害的：資料範圍需要能被查詢，改由 `AdminUserClub`／`AdminUserTeam` 承載 | **用原生 `json` 型別**（已 GA，二進位儲存、`JSON_VALUE` 相容、JSON 索引推出中），不用 `nvarchar(max)`。**「只存不查」維持為設計紀律**，原生型別只是保留逃生口 |
 | 3 | **`CalendarEvent` 的實作形式** | 定義為**視圖**（`source_type` + `source_id` UNION）。若效能不足，改為**索引表**並以來源模組的寫入觸發同步 | **第一期用一般 VIEW。** 🔴 **SQL Server 的 indexed view 明文禁止 `UNION`／`UNION ALL`**，所以**沒有 materialized view 這條升級路**——不要去試。效能不足時直接走索引表 ＋ 寫入時同步，或先由 Redis 吸收 |
 | 4 | **全文檢索**（G-02 站內搜尋） | 綱要不含任何搜尋索引表，搜尋屬應用層 | **第一期用跨表 `LIKE` 比對**，不建搜尋索引表、不預先加索引（資料量在數百至數千列，掃描可接受）。升級路徑是 **Azure SQL 內建全文檢索**（有中文斷詞），**不需要外掛 Meilisearch／Typesense**。⚠️ 第一期做不到 G-02 要求的分類篩選與關鍵字高亮，屬**已知功能落差** |
-| **5** | **可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意** | 技術中立寫法：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」 | **用篩選唯一索引**（`CREATE UNIQUE INDEX … WHERE club_id IS NULL`，SQL Server 支援）。🔴 **但規則本身要先釐清**，見下 |
+| **5** | **可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意** | 技術中立寫法：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」 | **採弱讀法，`UNIQUE (club_id, slug)` 就夠**——SQL Server 的唯一索引**把 NULL 當成相等**，複合唯一鍵本身已擋掉兩筆 `(NULL, 'about')`。**不加篩選唯一索引、不加觸發器**；「哪一筆對應這個網址」由路由的優先順序解決，見下 |
 
-> 🔴 **第 5 件：規則的語意必須先釐清再實作。**
-> 「`club_id` 為空時 `slug` 亦須全站唯一」有強弱兩種讀法，在 SQL Server 上差異是實質的：
-> - **弱讀法**：`club_id` 為 NULL 的那些列之間，`slug` 不得重複 → 篩選唯一索引即可。
-> - **強讀法**：某列 `club_id` 為 NULL 且 `slug='about'` 時，**任何俱樂部都不得再有 `slug='about'`** → 篩選唯一索引不夠，需要觸發器或應用層約束。
+> ✅ **第 5 件已定案（2026-09-20）：弱讀法 ＋ 路由優先順序。**
 >
-> **強讀法才能保證 URL 路由唯一解**（`/about/` 只對應一頁），從路由需求推測應為強讀法，
-> 但這是推測不是確認。**定案前不得轉 DDL**，定案後回寫本節與 [`12b` §11.1](12b-database-tables.md)。
+> ⚠️ **SQL Server 的唯一索引把 NULL 當成相等**（與 PostgreSQL 相反）。所以 `UNIQUE (club_id, slug)`
+> 本身就擋掉了兩筆 `(NULL, 'about')`——**不需要另加 `WHERE club_id IS NULL` 的篩選唯一索引。**
+>
+> **允許併存**：`(NULL, 'about')`、`(1, 'about')`、`(2, 'about')`。
+> 「某個站台的 `/about/` 對應哪一筆」不靠唯一鍵解決，靠**查詢的優先順序**——
+> **俱樂部專屬優先，沒有才回退共同內容**：
+>
+> ```sql
+> WHERE slug = @slug AND (club_id = @club_id OR club_id IS NULL)
+> ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
+> ```
+>
+> 這同時換到一個有用的行為：**共同內容可以被單一俱樂部覆寫**（藍鯨想自己寫一份〈關於〉就建一筆專屬的，
+> 不必動共同那筆）。索引 `(slug, club_id)` 支撐這個查詢。
+>
+> **為什麼不採強讀法**（「有 `(NULL,'about')` 時任何俱樂部都不得再有 `about`」）：它無法用唯一索引表達，
+> 得加並行安全的觸發器。頁面是數十筆、由自己人在後台維護，**維護成本高過它擋掉的風險**。
+> 🟡 後台可在建立專屬頁遮蔽到同名共同頁時給一句提示，**屬選配，不是約束**。
 
 > ⛔ **另有一份「不得讀快取」清單**——庫存、金流回呼冪等檢查、會員卡 `/m/<token>` 驗證、會籍與訂單狀態、購物車
 > 一律不得走 Redis。清單與規格依據在 [`17-deployment.md`](17-deployment.md) §4，[§12 踩雷點](#12-踩雷點)亦有提示。
