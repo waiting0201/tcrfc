@@ -24,6 +24,18 @@
 | 快取 | 🔴 **完全不接 Redis**（[`14-invariants.md`](14-invariants.md)） |
 | 金額 | `int` 存「元」；百分比 `decimal(5,2)`。**分潤無條件捨去至整數元** |
 | 主鍵 | `id uniqueidentifier` **非叢集** ＋ 另一欄 `bigint IDENTITY` 當叢集鍵（同主站，理由見 [`12` §1.2](12-database-schema.md#12-主鍵外鍵與命名慣例)） |
+| **共通欄位** | 🔴 **沿用 [`12` §1.3](12-database-schema.md#13-共通欄位)**：所有實體表都有 `id`／`created_at`／`updated_at`／`created_by`／`updated_by`。**本庫有 `AuditLog` 不代表可以省略這四欄**——稽核記的是「發生過什麼動作」，共通欄位記的是「這一列現在的歸屬與時間」，兩者用途不同 |
+| **命名與型別慣例** | 沿用 [`12` §1.2](12-database-schema.md#12-主鍵外鍵與命名慣例)（表名、欄位名、外鍵命名）與 §1.3 的金額規則 |
+
+> ⚠️ **三類表不套共通欄位**——判準是**結構**不是名稱：
+>
+> | 類型 | 表 | 為什麼 |
+> |---|---|---|
+> | **純關聯表** | `AdminUserRole`、`RolePermission` | 複合主鍵即足，沒有自己的生命週期 |
+> | **翻譯側表** | 四張 `*_i18n` **＋ `UiStringTranslation`** | 形狀同 [`12` §2.2](12-database-schema.md#22-側表形狀) 的 `article_i18n`——複合主鍵 ＋ 內容欄位，**主站的側表也沒有這四欄**。`UiStringTranslation` 雖然列在 §2.5 的共通機制，但它**結構上就是側表** |
+> | 🔴 **`AuditLog`** | | **稽核紀錄是 append-only**。有 `updated_at`／`updated_by` 等於宣告稽核可以被改，**軌跡就失去意義**——而它正是勸募法遵要求的東西。另外 `created_at` 與 `occurred_at`、`created_by` 與 `admin_user_id` 語意重複 |
+>
+> **`Locale` 以 `code` 為自然鍵**（所有側表的 `locale` 欄直接指向它），不另設 `uuid` 主鍵。
 
 ---
 
@@ -89,6 +101,9 @@
 | `RolePermission` | `(admin_role_id, permission_id)` | |
 
 > 🔴 **沒有 `AdminUserClub`／`AdminUserTeam`**——本平台是單一法人，沒有資料範圍維度。
+> 🔴 **`Permission` 與主站同形**（[`12b` §7.3](12b-database-tables.md#73-權限碼命名)）：保留 `module_code`／`submodule_code`／`domain`／`action` 四欄分解
+> ——本庫的 `module_code` 是 `N`、`submodule_code` 是 `N1`–`N7`，有實際值域。
+> **唯一不要的是 `is_club_scoped`**（沒有俱樂部維度）。
 > 🔴 **這是另一套帳號**，與主站後台完全獨立、不共用表、不共用登入（[`17` §5](17-deployment.md)）。
 
 ### 2.4 稽核（1）
@@ -99,6 +114,7 @@
 
 > 🔴 **主站刻意沒有日誌表，本平台刻意有。** 慈善規劃書 §11.2 明訂
 > **退款、分潤百分比設定、含個資的明細匯出三類操作全數留下稽核軌跡**，這是勸募法遵的要求不是可選項。
+> 🔴 **`AuditLog` 是 append-only**：**不得有 `updated_at`／`updated_by`**，也不重複 `created_at`（用 `occurred_at`）與 `created_by`（用 `admin_user_id`）。
 > 完整差異見 [§9](#9-與主站綱要的四項差異)。
 
 ### 2.5 共通機制（7）

@@ -53,6 +53,7 @@
 | [`output/`](output/) | **四份規劃書**（主站＋**台中藍鯨官網**＋慈善捐款平台＋行動 App）、開發里程碑，以及**四份客戶版文件**：**兩份版面式**（慈善捐款站台地圖、行動 App 功能說明，含手機示意畫面，由 `tools/` 的 Python 腳本產生）＋ **兩份純文字**（**官網功能說明**、**台中藍鯨官網功能說明**，Markdown 母檔，**含後台完整模組一覽**）。中英雙版。**只有母檔（`.md`、里程碑 `.html`、`tools/`）納版控，PDF 與兩組產生的 HTML 不納管**，見 [`output/tools/`](output/tools/README.md) | **交付物，真實來源** |
 | [`STATUS.md`](STATUS.md) | **工作追蹤表**：五個平台、阻塞清單、階段 0–4 的逐項工作 | 執行層（本專案自用） |
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
+| [`db/`](db/) | **資料庫 DDL**：`club-schema.sql`（主站）與 `charity-schema.sql`（慈善獨立庫）。**綱要的真實來源是 [`docs/12`](docs/12-database-schema.md)／[`docs/16`](docs/16-charity-schema.md)，改綱要要先改文件再改 DDL** | 交付物 |
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
 | [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖、協會立案證書。**不納版控**（客戶資產且含個資，GitHub repo 是公開的），clone 下來不會有這個資料夾 | 客戶提供素材 |
 | [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) | 給客戶放既有檔案的分類結構（83 個資料夾，對應 13 單元） | 內容收件 |
@@ -105,7 +106,7 @@
 5. **`noindex` 不要拿掉**（[`site/src/_headers`](site/src/_headers)），正式站上線前它不該被索引。
 6. **版控範圍**（`.gitignore` 有完整註解）：
    - **不納管**：[`TCRFC_資料收件夾/`](TCRFC_資料收件夾/)、`reference/`、`site/src/assets/img/`、`output/*.pdf`、產生的 `.html`
-   - **納管**：規劃書與客戶版母檔、里程碑母檔、`output/tools/`、[`docs/`](docs/)、[`brand/`](brand/)、[`site/src/`](site/src/) 其餘部分
+   - **納管**：規劃書與客戶版母檔、里程碑母檔、`output/tools/`、[`docs/`](docs/)、[`db/`](db/)、[`brand/`](brand/)、[`site/src/`](site/src/) 其餘部分
    - **兩個 remote 內容相同**：`Remote_GitHub`（公開）與 `Remote_NAS`（離線備份）。未納管的素材備份走 NAS 的檔案層
    - **覆寫或刪除未納管的內容前先看過，git 救不回來**
 7. **客戶素材涉及個資與肖像權**（未成年學員照片、會員資料）。不要外傳、不要放進會被公開的檔案。
