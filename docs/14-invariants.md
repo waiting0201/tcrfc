@@ -96,6 +96,9 @@
   會員卡那條是**安全問題**不是新鮮度問題——規劃書明訂會員可重新產生 token 以在卡片外流時自保，讀到陳舊值等於**撤銷機制失效**。
   讀取一律 **cache-aside ＋ SQL fallback**（不得讓 Redis 成為唯一讀取路徑），寫入一律 **write-invalidate**（先寫 SQL、成功後刪 key）。
   **慈善平台完全不接快取。** 清單與規格依據見 [`17-deployment.md`](17-deployment.md) §4。
+  ⛔ **實作三條**（同節）：**Redis 連線失敗必須回源不得讓請求失敗**（斷線與 cache miss 是兩回事）；
+  **失效用嵌在 key 裡的版本號遞增，絕對不得用 `KEYS` 掃**（會阻塞整個 Redis）；
+  **五類禁用的 repository 根本不注入快取服務**——靠人記半年後一定會破。
 - 🔵 **技術選型已定案**（2026-09-18）：Nuxt 3 SSR ＋ .NET／EF Core＋Dapper ＋ **Azure SQL** ＋ Azure Blob ＋ Redis，
   跑在**單一 Azure VM（West US 2）** 的 Docker 上，Cloudflare 在前。**規劃書仍不記技術選型**，結果只在 [`17-deployment.md`](17-deployment.md)。
   ⚠️ 隨之而來的三條硬限制：`uniqueidentifier` 主鍵須**非叢集**（UUIDv7 在 SQL Server 無效）、
