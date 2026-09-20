@@ -83,7 +83,8 @@
 | [`docs/12a-database-erd.md`](docs/12a-database-erd.md) | 要看**關聯圖**（§5，15 張 ER 圖） |
 | [`docs/12b-database-tables.md`](docs/12b-database-tables.md) | 要寫**欄位**（§6–§11：明細、權限模型、受限與加密欄位、快照、匯入匯出、索引與唯一鍵） |
 | [`docs/12c-i18n-tables.md`](docs/12c-i18n-tables.md) | 要寫 **`*_i18n` 側表**：47 張側表的欄位清單，每欄附規劃書行號與信心度 |
-| [`docs/12d-field-audit.md`](docs/12d-field-audit.md) | 🔴 **ERD 對規劃書的欄位缺漏盤點**（104 張全表核對）。**轉 DDL 前必看**——26 張有缺漏、約 43 筆 |
+| [`docs/12d-field-audit.md`](docs/12d-field-audit.md) | 🔴 **主站 ERD 的欄位缺漏盤點**（104 張全表核對）。43 筆已於 S0-3d 補完 |
+| [`docs/16a-charity-field-audit.md`](docs/16a-charity-field-audit.md) | 🔴 **慈善庫的欄位缺漏盤點**（23 張）。**建庫前必看**——含「對帳結果無資料結構」 |
 | [`docs/16-charity-schema.md`](docs/16-charity-schema.md) | **慈善捐款平台的資料表**（獨立資料庫，23 張表）。與 `docs/12` 平行且互不包含；四項刻意的差異在 §9 |
 | [`docs/13-blue-whale-site.md`](docs/13-blue-whale-site.md) | **台中藍鯨官網的任何工作**（單元取捨、藍鯨方帳號權限、藍鯨會籍與商店、前台建置的技術判斷） |
 | [`docs/14-invariants.md`](docs/14-invariants.md) | **動手前掃一次**。全站不變量與踩雷速查：代號、品牌色、命名、範圍邊界、五種商業對象、資料庫執行層決定 |
