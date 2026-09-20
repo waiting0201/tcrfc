@@ -30,7 +30,7 @@
 
 | # | 平台 | 型態 | 後台與資料庫 | 收款主體 | 規格 |
 |---|---|---|---|---|---|
-| 1 | **TCRFC 官網主站前台** | 現有網域，13 單元＋站內商店，中英雙語 | 共用 ② | 俱樂部 | [主站規劃書](output/TCRFC_前後台功能規劃書.md) v3.10 §3 |
+| 1 | **TCRFC 官網主站前台** | 現有網域，13 單元＋站內商店，中英雙語 | 共用 ② | 俱樂部 | [主站規劃書](output/TCRFC_前後台功能規劃書.md) v3.11 §3 |
 | 2 | **共用後台 Admin** | 一個入口＋站台切換器，15 個模組字母 | **本體** | — | 同上 §4 |
 | 3 | **台中藍鯨官網前台** | **獨立網域**，11 單元，中英雙語 | **共用 ②**（`club_id` 分資料） | 內容藍鯨／收款俱樂部 | [藍鯨規劃書](output/TCRFC_台中藍鯨官網功能規劃書.md) v1.8 |
 | 4 | **慈善捐款平台** | **獨立網域**，掃碼捐款前台＋自己的後台 | **完全獨立**（自建約 22 張表） | **台灣足球策略發展協會** | [慈善規劃書](output/TCRFC_慈善捐款平台功能規劃書.md) v2.5 |
@@ -76,8 +76,8 @@
 | S0-3 | ✅ | 全部 | **資料庫綱要 13 項落差已補完**（2026-09-20）：§4 總覽逐張標 `club_id`、14 張 ERD 重繪、§6 明細重寫、§11 唯一鍵與索引、§14 檢核表重算 | `docs/12` 檔頭 | — |
 | S0-4 | ✅ | 全部 | **`media_asset` 三表已移除、落差第 13 項結案**（2026-09-20）。10 處外鍵全部成為欄位組；查證時另補回三處被誤刪的圖片欄位：`Article.cover_key`、`Banner.image_key`、`ImpactRecord.image_key`（`ImpactRecord` 不在原本列的 10 處內） | 主站 §4.0、`docs/12` 第 13 項 | — |
 | **S0-4b** | ✅ | 全部 | **ERD 圖片欄位盤點完成**（2026-09-20，`system-analyst` 逐條回查規劃書、我方逐行核對）：補 `Player.photo_key`／`Staff.photo_key`／`Program.cover_key`／`CalendarCustomEvent.cover_key`／`CharityProgram.cover_key`＋新子表 `CharityProgramImage`／`MemberDraw.cover_key`。`Page` **本來就沒有**（內文插圖存於 `PageBlock.content json`）、`Venue` 刻意不加。表數 103 → **104** | 主站 §4.0、§5.1 | — |
-| **S0-4c** | ⬜ | 全部 | 🟡 **兩項規劃書內部矛盾待裁決**：① `EventType` 圖示（§5.1 行 1511 有、§4.12 L3 行 1363 沒有）——ERD 現為 `icon string_64`（預設圖示代碼）維持不動 ② `MemberDraw` 封面圖（§4.11 K5 行 1262 有、§5.1 行 1501 沒有）——已依 §4 補 `cover_key`。**兩項都不擋轉 DDL**，但要走同步鏈把規劃書改一致 | 主站 §4.11／§4.12／§5.1 | — |
-| **S0-4d** | ⬜ | 全部 | 🟡 **`F` 漫畫三表沒有 ERD**：`ComicCharacter`／`ComicEpisode`／`ComicPage` 在 `docs/12` §4.5 與 §14 都在，但 [`12a`](docs/12a-database-erd.md) **整張沒畫**。不是缺欄位是缺圖 | `docs/12` §4.5 | — |
+| **S0-4c** | ✅ | 全部 | **兩項規劃書內部矛盾已修**（2026-09-20，主站 **v3.11**）：① §4.12 L3 補上「圖示（自預設圖示集選擇，**不是上傳圖片**）」——確認 ERD 的 `event_type.icon string_64` 是對的 ② §5.1 `MemberDraw` 補上「封面圖」，與 §4.11 K5 一致 | 主站 §4.12／§5.1 | — |
+| **S0-4d** | ✅ | 全部 | **`F` 漫畫 ERD 已補**（2026-09-20）：[`12a`](docs/12a-database-erd.md) 新增 **§5.5b F 文化模組 — 漫畫**（`ComicCharacter`／`ComicEpisode`／`ComicPage`），ERD 由 14 張增為 **15 張** | `docs/12` §4.5、主站 §4.6 F1 | — |
 | S0-5 | ✅ | 慈善 | **慈善獨立庫綱要已完成**（2026-09-20，[`docs/16`](docs/16-charity-schema.md)）：**23 張表** ＋ 4 張 i18n 側表。🔴 **有 `AuditLog`**（勸募法遵要求，與主站相反）、**沒有 `club_id`／`Member`**、`Charity`／`CharityProgram` 是**唯讀快照不是外鍵** | 慈善規劃書 §9 | — |
 | S0-6 | ⬜ | 全部 | **轉 DDL 並建庫**（104 張 ＋ 慈善庫 23 張） | `docs/12`／`12a`／`12b`／[`16`](docs/16-charity-schema.md) | — |
 | S0-7 | ⬜ | 全部 | **專案骨架與部署管線**：Docker Compose **八個容器**（反向代理／`nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity`／`admin-web`／`admin-charity`／`api`／`redis`）、VNet ＋ 服務端點、靜態 Public IP、NSG。🔵 **`redis` 的 compose 定義已寫好可直接抄**（[`docs/17`](docs/17-deployment.md) §1「Redis 怎麼裝」）——⛔ **絕對不要寫 `ports:`** | [`docs/17`](docs/17-deployment.md) §1–§2 | — |

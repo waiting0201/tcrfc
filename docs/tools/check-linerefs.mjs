@@ -100,7 +100,7 @@ for (const file of readdirSync(DOCS).filter((f) => f.endsWith('.md'))) {
       if (FIX && (badV || badN)) {
         let out = line;
         if (badV) out = out.replace(decl[2], spec.version);
-        if (badN) out = out.replace(new RegExp(`(共\\s*)${decl[3]}(\\s*行)`), `$1${spec.lineCount}$2`);
+        if (badN) out = out.replace(new RegExp(`(共\\s*)?${decl[3]}(\\s*行)`), `$1${spec.lineCount}$2`);
         if (out !== line) { lines[idx] = out; dirty++; return; }
       }
       if (badV) errors.push(`${at} 版本寫 ${decl[2]}，實際是 ${spec.version}（${rel}）`);

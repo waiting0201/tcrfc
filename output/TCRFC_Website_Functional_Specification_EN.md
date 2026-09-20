@@ -1,9 +1,16 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.10
+> **Document version**: v3.11
 > **Date**: 2026-08-14 (v3.9 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 > **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.9*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.11 revision summary — two field descriptions brought into line across sections**
+> **No new functionality; the same thing is now written the same way in both places.**
+> ① 4.12 L3's competition-type fields gain "icon" — 5.1 already stated that `EventType` has an icon,
+> but L3 omitted it from the maintainable fields, leaving "where is the icon maintained" unanswerable.
+> **The icon is chosen from a preset set, not uploaded.**
+> ② 5.1's `MemberDraw` gains "cover image" — 4.11 K5's field list already had it; the type table omitted it.
 
 > **v3.10 revision summary — 5.4's `club_id` lists gain three missing types**
 > **No functional changes.** 5.4's three lists had omitted `MembershipPlan`, `MembershipBenefit`, and `PartnerStore`.
@@ -1365,7 +1372,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 #### L3 Categories & display settings
 - **Team categories**: populated automatically from C1 teams (D1 / U15 / U14 / U12 …); this screen maintains the public display name (Chinese / English), order, colour, and visibility
-- Competition types: names, identifying colours, order for league / cup / friendly etc.
+- Competition types: names, identifying colours, **icon** (chosen from the system's preset icon set, **not uploaded**), order for league / cup / friendly etc.
 - Public defaults: default view (list or calendar), default date range, default selected team
 - Default filters for each embeddable block (which teams show on the homepage, D1 fixed on the first-team page, each squad's own page showing that squad)
 - **Whether trials sync to the calendar**: a toggle (off by default, keeping trial information on the recruitment pages)
@@ -1501,7 +1508,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `MembershipPayment` | Membership payment and activation record: method, amount, date, transaction note, handler, activation dates | Member, MembershipPlan |
 | `MembershipBenefit` | Benefits comparison entry: group, free-tier value, paid-tier value, sort order (shared by 3.14 / 8.2 / upgrade page) | MembershipPlan |
 | `PartnerStore` | **Partner store**: category, address, phone, opening hours, map link, offer, applicable tier, partnership dates. **v2.5 adds `lat` / `lng`** (saved in admin K4 after human confirmation) for the app's nearby-store distance sorting | — |
-| `MemberDraw` | **Fan Club Prize Draw**: name (zh / en), prizes and quantities (zh / en), **eligibility snapshot time `snapshot_at`**, draw time and setting (on site / live stream), collection deadline and unclaimed handling, rules and notices (zh / en), status (draft / roster locked / drawn / announced / closed / voided), `roster_version`, `total_count` eligible members, `roster_hash`, the linked announcement article, creator and locker | Member, DrawRoster, Article |
+| `MemberDraw` | **Fan Club Prize Draw**: name (zh / en), prizes and quantities (zh / en), **eligibility snapshot time `snapshot_at`**, draw time and setting (on site / live stream), collection deadline and unclaimed handling, rules and notices (zh / en), status (draft / roster locked / drawn / announced / closed / voided), `roster_version`, `total_count` eligible members, `roster_hash`, **cover image**, the linked announcement article, creator and locker | Member, DrawRoster, Article |
 | `DrawRoster` | **Eligible roster snapshot (one row per eligible member)**: `serial_no` draw serial number (issued consecutively in ascending member-number order at snapshot time, one per person), member number, **name snapshot**, tier snapshot, membership expiry snapshot, won or not, prize name, collection method (shipping / in person), fulfilment status (pending / shipped / collected / overdue), **withholding details (collected only above the threshold; encrypted, masked by default)**, notes. **Written by the system in one pass at the snapshot time — members cannot create rows; once locked, rows cannot be added or removed and only the win and fulfilment fields may be filled in** | MemberDraw, Member |
 | `EmailLog` | System email delivery record. 🏛 mandatory — **Blue Whale's support staff should see their own renewal emails, and should not see this club's**. **v3.0 drops system emails from 13 to 9** (5 membership + 4 shop): the four charity emails leave with the separate charity admin | Member, Club |
 
@@ -1511,7 +1518,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > **Five "commercial counterparties" must not be conflated**: `Partner` (B2B logo wall) / `Sponsor` / `PartnerStore` (member discounts, no payments, no revenue share) / `DonationStore` (charity site scan-in, **payments and revenue share**) / `Advertiser` (**app advertiser, impressions counted**). One real company may be several of these at once — **create a separate record for each, never share one**. The only exception is `Advertiser.sponsor_id`, which links back to a `Sponsor` to avoid maintaining duplicate contacts; it is **a link, not a merge**.
 > **`Club` is not a sixth commercial counterparty** — it is a content subject: no impressions, no payments, no revenue share. **The two clubs' sponsors and partners must be shown in separate zones and never mixed** (the contracts are signed separately); where one company sponsors both clubs, the same "one record each" rule applies.
 | `CalendarEvent` | **Calendar event (aggregate view)**: points at a Match via `source_type` + `source_id`, or is a `custom` club event; carries **`team_codes[]` (D1 / **BW1** / U15 / U14 / U12)** as its first-level category. **The view projects `club_id`** from its source rather than storing it | Match, Team, Venue, Club |
-| `EventType` | Match / event type (icon, colour, display rules) | CalendarEvent |
+| `EventType` | Match / event type (**icon** — chosen from a preset set, not uploaded; colour, display rules) | CalendarEvent |
 
 ### 5.2 Structural principles
 

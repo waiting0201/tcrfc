@@ -557,6 +557,48 @@ flowchart TB
 > ⚠️ **同一家實體公司可能同時是數種，各建一筆、不共用紀錄。** 後台介面也必須把名稱分清楚（慈善站 §6.1 明訂）。
 > ⚠️ **贊助商 Logo 牆不計曝光、不進廣告報表。**
 
+### 5.5b F 文化模組 — 漫畫
+
+```mermaid
+erDiagram
+  club ||--o{ comic_character : "GHOST 必填"
+  club ||--o{ comic_episode : "GHOST 必填"
+  comic_episode ||--o{ comic_page : "內頁批次上傳與排序"
+  comic_character }o--o| player : "GHOST 可為空（以真實球員為原型）"
+  comic_character {
+    uuid id PK
+    uuid club_id FK
+    uuid player_id FK
+    string_500 image_key
+    int sort_order
+  }
+  comic_episode {
+    uuid id PK
+    uuid club_id FK
+    int episode_no
+    string_500 cover_key
+    date published_on
+    enum status
+    bool is_latest
+    int view_count
+  }
+  comic_page {
+    uuid id PK
+    uuid comic_episode_id FK
+    string_500 image_key
+    int sort_order
+  }
+```
+
+> ⚠️ **漫畫全部免費公開、不設付費牆、不需登入**——**沒有任何權限或購買欄位**。
+> ⚠️ **`is_latest` 是自動判定不是人工勾選**（主站 §4.6 F1）。
+> ⚠️ `comic_character.player_id` **可為空**——角色不一定對應真實球員。
+> ⚠️ **8.1 About 的世界觀說明頁是 `Page` 不是漫畫表**。
+> ⚠️ `comic_page` **不帶 `club_id`**，由 `comic_episode` 推導（§5.4 判定準則）。
+> 🔵 角色名與設定、集數標題走 `*_i18n` 側表，**不入圖**。
+
+---
+
 ### 5.6 K 會員、會籍與特約店家
 
 ```mermaid
