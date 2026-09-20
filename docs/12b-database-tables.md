@@ -468,6 +468,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 關係 | 行為 |
 |---|---|
 | 母表 → `*_i18n` | `CASCADE` |
+| 母表 → 圖集子表（`ProductImage`／`CharityProgramImage`／`ComicPage`／`ProposalFile`） | **`CASCADE`**（圖集依附母體，母體沒了圖集無意義） |
 | `Order` → `OrderItem`／`Shipment`／`StoreInvoice` | **`RESTRICT`**（⚖️ 法定保存，不得刪） |
 | `MemberDraw` → `DrawRoster` | **`RESTRICT`**（不可變名單） |
 | `Member` → `Order`／`Registration` | **`SET NULL`**（刪帳號後訂單與報名仍在） |

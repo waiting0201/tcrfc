@@ -222,12 +222,14 @@ erDiagram
     date birth_on
     string_32 nationality
     enum status
+    string_500 photo_key
   }
   staff {
     uuid id PK
     uuid club_id FK
     string_32 staff_group
     string_64 licence
+    string_500 photo_key
   }
   staff_team {
     uuid staff_id FK
@@ -317,6 +319,7 @@ erDiagram
     bool is_all_day
     string_32 repeat_rule
     bool is_public
+    string_500 cover_key
   }
   calendar_event_team {
     string_16 source_type
@@ -365,6 +368,7 @@ erDiagram
     int age_min
     int age_max
     enum status
+    string_500 cover_key
   }
   session {
     uuid id PK
@@ -702,6 +706,7 @@ erDiagram
     uuid announcement_article_id FK
     uuid locked_by FK
     datetime locked_at
+    string_500 cover_key
   }
   draw_roster {
     uuid id PK
@@ -926,6 +931,7 @@ erDiagram
 ```mermaid
 erDiagram
   charity ||--o{ charity_program : "撥付對象"
+  charity_program ||--o{ charity_program_image : "圖集"
   charity_program ||--o{ impact_record : ""
   charity ||--o{ impact_record : ""
   charity_program ||--o{ impact_metric : ""
@@ -938,6 +944,12 @@ erDiagram
     string_500 logo_key
     string_500 website_url
   }
+  charity_program_image {
+    uuid id PK
+    uuid charity_program_id FK
+    string_500 image_key
+    int sort_order
+  }
   charity_program {
     uuid id PK
     uuid club_id FK
@@ -946,6 +958,7 @@ erDiagram
     date start_on
     date end_on
     enum status
+    string_500 cover_key
   }
   impact_record {
     uuid id PK
@@ -971,6 +984,8 @@ erDiagram
 > ⚠️ **慈善金額預設不公開**（`impact_metric.is_public` 預設 `false`）。
 > ⚠️ **主站不做站內捐款**——這四張表只做陳列，捐款走慈善捐款平台（[§5.10](#510-慈善捐款平台不在本檔)）。
 > 🔴 **這四張是主檔留在主站**，慈善獨立庫只有唯讀快照；`club_id` **可為空＝兩隊共同**。
+> ⚠️ **`charity_program` 有兩種圖片情境**（主站 §4.2 B5 行 1018）：單張 `cover_key`（封面）＋ 多張 `charity_program_image` 子表（圖集／§3.11 的「活動圖片藝廊」，兩處措辭不同指同一件事）。
+> 多圖一律以子表承載、每列一組欄位加 `sort_order`，比照 `product_image`／`proposal_file`。
 
 ### 5.10 慈善捐款平台（不在本檔）
 

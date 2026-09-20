@@ -63,9 +63,18 @@
 | ✅ | **§5 ERD 重繪**（2026-09-20，[`12a`](12a-database-erd.md)）：加 `Club`／`Competition`／`Membership`／`AdminUserClub`／`AdminUserTeam`，56 處補上 `club_id`；移除 `N` 群（5.10 改為指向 `docs/16`）。**14 張圖** |
 | ✅ | **§14 型別對照檢核表**重算（2026-09-20）：主站 §5.1 現列 50 個型別，49 建表、`Donation` 依規劃書明文不在本系統 |
 | ✅ | 慈善獨立庫已另出 [`16-charity-schema.md`](16-charity-schema.md)（2026-09-20，**23 張表**） |
-| ⬜ | 🟡 **ERD 的圖片欄位盤點**（`STATUS.md` **S0-4b**）：§5 圖例寫「ERD 只畫 `_key`」，但 `page`／`player`／`staff`／`program`／`event_type`／`calendar_custom_event`／`charity_program` 七個實體一個 `_key` 都沒有。**移除 media 三表時是把外鍵刪掉而不是轉成欄位組**，`Article`／`Banner`／`ImpactRecord` 三處已於 2026-09-20 補回，其餘七個**須逐一回查規劃書確認欄位名再補，不得自行命名**。⚠️ **轉 DDL 前要做完** |
+| ⬜ | 🟡 **兩項待裁決**（S0-4b 查證時發現的規劃書內部矛盾，見下方說明） |
+| ⬜ | 🟡 **`F` 漫畫三表沒有 ERD**：`ComicCharacter`／`ComicEpisode`／`ComicPage` 在 §4.5 與 §14 都在，但 [`12a`](12a-database-erd.md) **整張沒畫**。這不是缺欄位是缺圖 |
+| ✅ | **ERD 圖片欄位盤點完成**（2026-09-20，S0-4b）：補回 `Player.photo_key`／`Staff.photo_key`／`Program.cover_key`／`CalendarCustomEvent.cover_key`／`CharityProgram.cover_key`＋新子表 `CharityProgramImage`／`MemberDraw.cover_key`。`Page` 經查證**本來就沒有**（內文插圖存於 `PageBlock.content json`，主站 §4.0 行 969）；`Venue` 是刻意不加。⚠️ **兩項待裁決見下** |
 
 > ✅ **`MembershipPlan`／`MembershipBenefit`／`PartnerStore` 已於主站 v3.10 補進 §5.4**，本檔隨之標註完成。
+>
+> 🟡 **S0-4b 查證時發現的兩處規劃書內部矛盾（本檔不自行調和）**：
+>
+> | # | 矛盾 | 現況處理 |
+> |---|---|---|
+> | 1 | **`EventType` 的圖示**：§5.1 型別總表（行 1511）寫「圖示、色彩、顯示規則」，但後台 §4.12 L3（行 1363）只列「名稱、**識別色**、排序」，**隻字未提圖示怎麼維護** | ERD 現為 `icon string_64`，讀起來是**預設圖示代碼**不是上傳圖片，**維持不動**。若要改成可上傳的小圖示，須先改規劃書把 L3 的欄位補齊 |
+> | 2 | **`MemberDraw` 的封面圖**：後台 §4.11 K5（行 1262）明列「封面圖」，但 §5.1 型別總表（行 1501）沒有呼應 | **已補 `cover_key`**——§4 的後台欄位清單是實際要做的欄位，§5.1 的說明欄是摘要不是窮舉。若判定不需要，回頭刪掉並改 §4.11 |
 
 ---
 
@@ -76,7 +85,7 @@
 | 涵蓋範圍 | 主站全部（含站內商店 `S`）＋ 後台帳號與權限 `J`。⚠️ **慈善 `N` 已於 v3.0 移出**（獨立資料庫） |
 | 排除範圍 | **行動 App 的十一個型別**（`M` 模組與 `E4–E6`）；**慈善捐款平台的全部資料表**（獨立系統） |
 | 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam`，移出慈善 6 個 |
-| 資料表 | **103 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽) |
+| 資料表 | **104 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽) |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
 | ER 圖 | 12 張 `erDiagram` ＋ 2 張 `flowchart`，每張 ≤ 12 實體 |
 
@@ -329,7 +338,7 @@ flowchart LR
 
 ## 4. 資料表總覽
 
-**103 張**（`CalendarEvent` 是視圖），另有約 40 張 `*_i18n` 側表。
+**104 張**（`CalendarEvent` 是視圖），另有約 40 張 `*_i18n` 側表。
 圖例：🌐 有 i18n 側表｜🔒 含受限或加密欄位｜📸 值複製快照，不可回頭 join。
 **`club_id` 欄**：**●** 必填｜**○** 可為空（＝兩隊共同）｜**—** 不加。
 判定準則與逐表清單見主站規劃書 **§5.4**（行 1533–1579）。
@@ -537,12 +546,13 @@ flowchart LR
 > 🔴 **`PaymentChannel` 主站只會有俱樂部一列**；協會的憑證在慈善獨立庫，兩邊不共用。
 > ⚠️ **「訂單是否於結帳時依俱樂部拆單」尚未定案**（`STATUS.md` B-8）。現行禁止混買故不會發生，**開放混買前必須先答**。
 
-### 4.12 B6 慈善內容（主站，4）
+### 4.12 B6 慈善內容（主站，5）
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
 | `Charity` | **○** | 受贈公益團體：名稱、簡介、Logo、官網 | 🌐 |
-| `CharityProgram` | **○** | **已執行的公益計畫**（11.2）：封面、對象、期間、狀態、流程、圖集 | 🌐 |
+| `CharityProgram` | **○** | **已執行的公益計畫**（11.2）：**`cover_key` 封面**、對象、期間、狀態、流程 | 🌐 |
+| `CharityProgramImage` | — | **圖集**（§3.11 的「活動圖片藝廊」）`(charity_program_id, image_key, sort_order)` | |
 | `ImpactRecord` | **○** | 慈善事蹟紀錄。**三項核心資料必填**：公益團體名稱、捐助內容、活動圖片 | 🌐 |
 | `ImpactMetric` | **○** | 影響力統計項目（**金額類預設不公開**） | 🌐 |
 
