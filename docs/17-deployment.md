@@ -21,9 +21,15 @@
 | 快取 | **Redis 一個 instance，只服務俱樂部**；cache-aside ＋ SQL fallback |
 | DBMS | **Azure SQL Database**，兩個獨立單庫，先用 Basic |
 | 物件儲存 | **Azure Blob Storage** |
-| 執行環境 | **單一 Azure VM（West US 2）＋ Docker**，前台、後台、API、Redis 全在此 VM |
+| 執行環境 | **單一 Azure VM（Japan East／東京）＋ Docker**，前台、後台、API、Redis 全在此 VM |
 | 網路 | **單一 VNet**，PaaS 以 **VNet Service Endpoint** 接入 |
 | 邊緣 | Cloudflare（DNS／CDN／WAF，proxy 回源 VM） |
+
+> 🔵 **區域：Japan East（東京）**，2026-09-20 由 West US 2 改定。
+> **趕在申請 LINE Pay 商店號之前決定**——換區域＝換出口 IP＝改白名單，是有前置期的變更（見 [§7](#7-已知風險) 風險 4、9）。
+> **台中↔東京 RTT 由 130–160ms 降到約 30–50ms**，SSR 首屏的往返成本降到約三分之一。
+> ⚠️ **兩個代價**：① **Japan East 的單價高於 West US 2**（VM 與 Azure SQL 都是），上線前要重估月成本
+> ② **個資仍存於境外**（[`STATUS.md`](../STATUS.md) B-11 不因此解除，只是接受度可能與美國不同，**結論要法務給**）。
 
 **這個架構的起點是一個外部約束**：**LINE Pay Online API 正式環境要求商家登記付款伺服器的出口 IP**
 （商店管理後台的「管理付款伺服器 IP」，sandbox 不需要）。這條否決了無固定出口 IP 的執行環境
@@ -41,7 +47,7 @@
    │ VNet ─ snet-app（Service Endpoint: Microsoft.Sql / .Storage）│
    │                                                              │
    │  ┌────────────────────────────────────────────────────────┐  │
-   │  │ Azure VM（West US 2）Ubuntu LTS ＋ Docker Compose       │  │
+   │  │ Azure VM（Japan East）Ubuntu LTS ＋ Docker Compose      │  │
    │  │ ★ Standard SKU 靜態 Public IP                           │──┼──▶ LINE Pay API
    │  │   ＝ 兩個商店號登記的同一個出口 IP                       │  │
    │  │                                                        │  │
@@ -368,13 +374,13 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 |---|---|---|---|
 | 1 | **宿主機與 API 單點故障** | 一台 VM、一個 API 行程承載五個平台與兩個收款主體 | 資料在 Azure SQL 與 Blob（不隨 VM 毀損）；備份與重建程序必須演練並記錄 RTO |
 | 2 | **兩法人憑證同行程** | 協會與俱樂部的 LINE Pay 憑證與資料庫連線字串在同一個 .NET 行程 | `DbContext` 完全分離、慈善 context 不含俱樂部型別、設定來源分離、不啟用 Elastic Query、慈善不接 Redis |
-| 3 | **West US 2 延遲** | 台中↔美西 RTT 約 130–160ms，且 **SSR 首屏必須往返** | Cloudflare 快取內容頁 ＋ `stale-while-revalidate`；結帳流程壓低往返次數 |
+| 3 | ~~West US 2 延遲~~ **已於 2026-09-20 改為 Japan East** | 台中↔東京 RTT 約 **30–50ms**（原美西 130–160ms）。SSR 首屏仍須往返，但成本降到約三分之一 | Cloudflare 快取內容頁 ＋ `stale-while-revalidate` 仍照做；結帳流程壓低往返次數仍照做 |
 | 4 | **出口 IP 綁死機器** | 換 VM／換區域即需改 LINE Pay 白名單 | 靜態 Public IP 獨立於 VM 生命週期；變更視為需事前申請的停機事件 |
-| 5 | **個資跨境存放** | 會員與**捐款人**個資存於美國（VM、Azure SQL、Blob 全在 West US 2） | ⚠️ **法務待確認**：個資法跨境傳輸限制，以及協會與俱樂部間的委託處理約定須載明境外存放 |
+| 5 | **個資跨境存放** | 會員與**捐款人**個資存於日本（VM、Azure SQL、Blob 全在 Japan East） | ⚠️ **法務待確認**：個資法的跨境傳輸限制，以及協會與俱樂部間的委託處理約定須載明境外存放。⚠️ **改日本不等於解除這條**——仍是境外，只是接受度可能與美國不同，**結論要法務給不是我們推定** |
 | 6 | **Basic 層 2 GB 硬上限** | 寫滿即寫入失敗（非降速） | 儲存空間告警設在 1.5 GB；層級變更是線上作業，可即時升 S0 |
 | 7 | **快取陳舊造成錯誤決策** | 有人把 §4 禁用清單裡的資料加進快取 | 清單於 [`12`](12-database-schema.md) §12 與 [`14`](14-invariants.md) 交叉引用；write-invalidate ＋ TTL 兜底；驗證項逐條實測 |
 | 8 | **G-02 搜尋第一期不完整** | `LIKE` 比對做不到分類篩選與關鍵字高亮 | 登記為已知落差；升級路徑為 Azure SQL 內建全文檢索 |
-| 9 | **區域延遲與出口 IP 的時序耦合** | 唯一能真正解決 130–160ms 的是把 VM 移到亞洲區，但換區域＝換出口 IP＝改 LINE Pay 白名單 | 🔴 **要遷區域必須在申請商店號並登記出口 IP 之前決定完**；過了那個點，遷移成本高一個數量級 |
+| 9 | ~~區域延遲與出口 IP 的時序耦合~~ **已解除** | **2026-09-20 於申請商店號前改為 Japan East**，正好趕在登記出口 IP 之前定案 | ✅ 此後再遷區域仍要改 LINE Pay 白名單，成本照舊高——**視同停機事件，不要再動** |
 | 10 | **App 在 API 全滅時無法宣告維護中** | 用來宣告「維護中」的設定端點與 API 同一個行程 | App 的設定、最低支援版本與維護模式另有一份**靜態備援放在 Cloudflare**（Workers KV／R2），不經 VM；強制更新畫面的版面與雙語文案打包進 App。見 [`19`](19-app-tech-stack.md) §7
 
 ---

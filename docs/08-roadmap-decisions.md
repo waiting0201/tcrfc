@@ -149,7 +149,7 @@
 - **技術選型**：✅ **已於 2026-09-18 定案**（Nuxt 3 SSR ＋ .NET／EF Core ＋ Azure SQL ＋ Azure Blob ＋ Redis ＋ 單一 Azure VM），見 [`17-deployment.md`](17-deployment.md)。**App 客戶端於 2026-09-20 定案為原生 Swift ＋ Kotlin**，見 [`19-app-tech-stack.md`](19-app-tech-stack.md)。規劃書仍明確排除，選型結果只記在導航層
 - **macOS CI 的承擔方式**（2026-09-20 新增）：iOS 的建置與送審管線要用 **Xcode Cloud 訂閱**，還是**自有 Mac 當 self-hosted runner**？App repo 必須 private，GitHub 的 macOS runner 要付費且分鐘數計價數倍於 Linux
 - **Google Maps API 的帳單帳戶歸屬**（2026-09-20 新增）：Android 的地圖需要金鑰與帳單帳戶——掛俱樂部還是我方代管？金鑰須綁套件名與 SHA-1 並設每日配額上限
-- **正式站的部署環境與網域切換方式**：✅ 部署環境已定（單一 Azure VM，West US 2，Cloudflare 在前）。⚠️ **網域切換方式仍未定**；現有 mockup 部署於 Cloudflare Pages（專案 `tcrfc-mockup`，全站 `noindex`），將隨前台改 Nuxt 退場
+- **正式站的部署環境與網域切換方式**：✅ 部署環境已定（單一 Azure VM，**Japan East／東京**，Cloudflare 在前）。⚠️ **網域切換方式仍未定**；現有 mockup 部署於 Cloudflare Pages（專案 `tcrfc-mockup`，全站 `noindex`），將隨前台改 Nuxt 退場
 
 ---
 

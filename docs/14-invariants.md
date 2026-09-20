@@ -102,7 +102,7 @@
   **失效用嵌在 key 裡的版本號遞增，絕對不得用 `KEYS` 掃**（會阻塞整個 Redis）；
   **五類禁用的 repository 根本不注入快取服務**——靠人記半年後一定會破。
 - 🔵 **技術選型已定案**（2026-09-18）：Nuxt 3 SSR ＋ .NET／EF Core＋Dapper ＋ **Azure SQL** ＋ Azure Blob ＋ Redis，
-  跑在**單一 Azure VM（West US 2）** 的 Docker 上，Cloudflare 在前。**規劃書仍不記技術選型**，結果只在 [`17-deployment.md`](17-deployment.md)。
+  跑在**單一 Azure VM（Japan East／東京，2026-09-20 由 West US 2 改定）** 的 Docker 上，Cloudflare 在前。**規劃書仍不記技術選型**，結果只在 [`17-deployment.md`](17-deployment.md)。
   ⚠️ 隨之而來的三條硬限制：`uniqueidentifier` 主鍵須**非叢集**（UUIDv7 在 SQL Server 無效）、
   `CalendarEvent` **不能用 indexed view**（禁 UNION）、Azure SQL **不支援跨庫查詢**（這反而讓慈善的邊界變硬）。
 - **五種「商業對象」不要搞混**：`Partner`（B2B Logo 牆）／`Sponsor`（贊助商）／`PartnerStore`（主站 8.4 特約店家，會員折扣，**無金流無分潤**）／`DonationStore`（慈善站掃碼引流，**有金流有分潤**）／`Advertiser`（**App 廣告主，計曝光**）。
