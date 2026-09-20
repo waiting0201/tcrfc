@@ -1,7 +1,7 @@
 # 04 — 資料模型與內容型別
 
 > 來源：規劃書 §5（**行 1328–1460**）。**行號依 v3.0（1691 行）重算。**
-> 🔴 **v3.0：多俱樂部架構。** 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam` 六個型別；**約 40 張表新增 `club_id`**。判定準則見規劃書 **§5.4（行 1413–1459）**。
+> 🔴 **v3.0：多俱樂部架構。** 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam` 六個型別；**50 張必填 `club_id`、9 張可為空（＝兩隊共同）**。判定準則見規劃書 **§5.4（行 1533–1579）**；逐張清單見 [`12` §4](12-database-schema.md#4-資料表總覽)。
 > **慈善捐款平台的型別**（`DonationStore`／`DonationProject`／`DonationPayment`／`DonationInvoice`／`Settlement`／`SettlementLine`）不在本檔。⚠️ **自慈善規劃書 v2.0 起它們屬於獨立的資料庫，完全不在本系統內**，見 [`10-charity-donation-site.md`](10-charity-donation-site.md)。
 > **行動 App 的新增型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`）不在本檔，見 [`11-mobile-app.md`](11-mobile-app.md)。
 > **實作用的資料表綱要見 [`12-database-schema.md`](12-database-schema.md)（入口）、[`12a-database-erd.md`](12a-database-erd.md)（ERD）與 [`12b-database-tables.md`](12b-database-tables.md)（欄位、索引）**——本檔說「有哪些型別、哪些關係不能搞錯」，`12` 說「落到資料表長什麼樣」。
