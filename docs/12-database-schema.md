@@ -12,10 +12,10 @@
 > 規劃書仍不涉及技術選型，選型結果只記在導航層。本檔**仍不寫 DDL、不附 seed SQL**，邏輯模型維持可攜；
 > 與 DBMS 相關的抉擇集中在 [§1.4](#14-dbms-相依的五件事已定案)，**型別對照見 [§1.1](#11-型別對照)**。
 >
-> **不含行動 App 的十個型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／
-> `AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`），見 [`11-mobile-app.md`](11-mobile-app.md)。
+> **不含行動 App 的十一個型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／
+> `AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`／`AppDiagnosticReport`），見 [`11-mobile-app.md`](11-mobile-app.md)。
 > **App 開發前不得建立這些表**，屆時另出延伸設計。
-> （**舊版寫「十二個」但只列出十個**——漏掉的 `Club` 與 `Competition` 已於主站 v3.0 移入主站型別表，**它們現在屬於本檔範圍**。）
+> ⚠️ **`Club` 與 `Competition` 屬於本檔範圍**（主站 v3.0 起定義於主站型別表），不在上列十個之中。
 >
 > **本檔沒有任何日誌表**（委託方指示），代價與補償見 [§13.1](#131-沒有稽核與登入日誌表)。
 >
@@ -33,7 +33,7 @@
 
 ## 🔴 v3.0 落差——本檔尚未完成同步
 
-主站規劃書已升 **v3.5**（多俱樂部架構 v3.0、**後台圖片欄位直傳 v3.5**）、慈善規劃書已升 **v2.2**、App 規劃書已升 **v3.6**。
+主站規劃書已升 **v3.9**（多俱樂部架構 v3.0、後台圖片欄位直傳 v3.5、**上傳即縮圖 v3.9**）、藍鯨規劃書 **v1.8**、慈善規劃書 **v2.5**、App 規劃書 **v3.10**。
 **本檔的表結構、ERD 與欄位清單尚未逐一改寫。** 在完成前，遇到下列事項一律**以規劃書為準**，不要照本檔實作：
 
 | # | 本檔現在怎麼寫 | 正確的是什麼 | 依據 |
@@ -69,7 +69,7 @@
 | 項目 | 內容 |
 |---|---|
 | 涵蓋範圍 | 主站全部（含站內商店 `S`）＋ 後台帳號與權限 `J`。⚠️ **慈善 `N` 已於 v3.0 移出**（獨立資料庫） |
-| 排除範圍 | **行動 App 的十個型別**（`M` 模組與 `E4–E6`）；**慈善捐款平台的全部資料表**（獨立系統） |
+| 排除範圍 | **行動 App 的十一個型別**（`M` 模組與 `E4–E6`）；**慈善捐款平台的全部資料表**（獨立系統） |
 | 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam`，移出慈善 6 個 |
 | 資料表 | ⚠️ **待重算**：原 108 張 −8 張 `N` ＋約 6 張新表 ≈ **106 張**（其中 `CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表 |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
@@ -557,7 +557,7 @@ flowchart LR
 25. **`Registration` 同時服務 `session` 與 `trial`**，兩個外鍵**恰有一個非空**。不要為試訓另建報名表。
 26. **`Enquiry` 涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢**，**Lead 名單不另建表**。**沒有志工報名表**（v2.1 移出範圍）。
 27. **行事曆權限跟隨來源模組**：`RolePermission.scope_type = 'own_teams'`。學院管理者可調整所屬梯隊賽程，**但不能改一線隊賽程**——這條在資料模型上沒有欄位可擋，只能靠權限 scope。
-28. **本檔不含行動 App 的十二個型別**。App 開發前**不得建立**這些表；`Member`／`PartnerStore`／`Venue`／`Registration`／`Match` 上 v2.5 為 App 加的欄位（`lat`／`lng`／`member_id`／英文欄位／`signup_source = 'app'`）**已經在綱要裡**，屆時不必改表結構。
+28. **本檔不含行動 App 的十一個型別**。App 開發前**不得建立**這些表；`Member`／`PartnerStore`／`Venue`／`Registration`／`Match` 上 v2.5 為 App 加的欄位（`lat`／`lng`／`member_id`／英文欄位／`signup_source = 'app'`）**已經在綱要裡**，屆時不必改表結構。
 29. ⛔ **有五類資料不得讀快取**：庫存與商品可購買狀態、金流回呼的冪等檢查、會員卡 `/m/<token>` 驗證、會籍與訂單付款狀態、購物車。會員卡那條是**安全問題**——讀到陳舊值等於 token 撤銷機制失效。清單與規格依據在 [`17-deployment.md`](17-deployment.md) §4。
 30. 🔴 **`CalendarEvent` 不要試 indexed view**——SQL Server 明文禁止 indexed view 含 `UNION`／`UNION ALL`，而本表的定義就是 UNION。見 [§1.4](#14-dbms-相依的五件事已定案) 第 3 件。
 
@@ -609,12 +609,12 @@ flowchart LR
 
 > **本落差尚未回寫規劃書**（主站維持 v2.6、慈善站維持 v1.5）。實作前若要正式收斂範圍，須依 [`00-harness.md`](00-harness.md) §2.5 的同步鏈 跑完改版鏈。
 
-### 13.2 不含行動 App 的十二個型別
+### 13.2 不含行動 App 的十一個型別
 
-`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease` **不在本檔**，見 [`11-mobile-app.md`](11-mobile-app.md)。
+`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`／`AppDiagnosticReport` **不在本檔**，見 [`11-mobile-app.md`](11-mobile-app.md)。
 
 App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不含 App，**提前建表只會產生沒人維護的空表**。
-**v2.5 為 App 加在既有型別上的欄位已經在綱要裡**（`PartnerStore.lat`／`lng`、`Venue.lat`／`lng`、`Registration.member_id`、`Match` 英文欄位與 `competition`／`status`、`Member.signup_source` 含 `app`），所以 App 開發時**不必改動既有表結構**，只需新增那十張表。
+**v2.5 為 App 加在既有型別上的欄位已經在綱要裡**（`PartnerStore.lat`／`lng`、`Venue.lat`／`lng`、`Registration.member_id`、`Match` 英文欄位與 `competition`／`status`、`Member.signup_source` 含 `app`），所以 App 開發時**不必改動既有表結構**，只需新增那十一張表。
 
 ### 13.3 雙語採側表而非並排欄位
 
@@ -782,6 +782,6 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | [`04-data-model.md`](04-data-model.md) | **本檔的上游**：型別清單與三條結構原則 |
 | [`03-admin-spec.md`](03-admin-spec.md) | 後台模組代號與權限矩陣的上游 |
 | [`10-charity-donation-site.md`](10-charity-donation-site.md) | N 模組導航層 |
-| [`11-mobile-app.md`](11-mobile-app.md) | **本檔排除的十二個型別在此** |
+| [`11-mobile-app.md`](11-mobile-app.md) | **本檔排除的十一個型別在此**；App 的技術實作見 [`19-app-tech-stack.md`](19-app-tech-stack.md) |
 | [`06-conventions.md`](06-conventions.md) | 命名、術語、日期與檔名格式 |
 | [`00-harness.md`](00-harness.md) | 規劃書行號對照與全站踩雷點 |

@@ -1,8 +1,24 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.9
-> **Date**: 2026-09-04 (v3.9 revision: 2026-09-18)
+> **Document version**: v3.11
+> **Date**: 2026-09-04 (v3.11 revision: 2026-09-20)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.11 revision summary — four specification gaps closed**
+> **No new features; what is added is the place to hold, and the implementable definition of, requirements that already existed.**
+> ① 10.1 adds four refresh-token columns to `AppDevice` — 4.3 requires refresh tokens to be server-revocable, and no type held them.
+> ② 10.1 adds `AppDiagnosticReport` — 8.5 requires M5 to receive and review app-side error reports, and no type held them. App-specific types therefore number **eleven**.
+> ③ 6.6 defines "delivered" as "accepted by the push service and not reported as an invalid token" — neither APNs nor FCM gives a device-level receipt.
+> ④ 8.5 and 12.3 base push-key alerting on a **self-defined rotation interval**, with the three credentials tracked separately.
+> ⑤ 3.8 rule 3 defines the manual address lookup as a text match against store data already held, consistent with "no runtime geocoding".
+> ⑥ 13 adds the procedure for changing the minimum supported version.
+
+> **v3.10 revision summary — how the first released version takes payment, and the membership wording in the 10.3 boundary table**
+> **No scope is removed; this is phasing.**
+> ① The in-app payment in section 5 arrives with **Phase E**; **the first released version completes payment in an external browser** (5.5, option B).
+> Both routes share one order and activation path, and the payment flow must still be built to be switchable per 5.5.
+> ② Section 15's phase table follows, and 16.2 items 5 and 6 now state that they block Phase E rather than the first release.
+> ③ The 10.3 boundary table expresses the membership-to-club relationship through `Membership`, consistent with 3.5 / 3.6 / 3.7 / 10.2.
 
 > **v3.9 revision summary — the app consumes the website's derivative sizes**
 > **No functional changes.** Under website specification **v3.9 §4.0**: the admin always re-encodes uploaded images to WebP server-side,
@@ -595,7 +611,7 @@ This is where the app differs most sharply in value from the website. A member o
 
 1. Location is used **in the foreground only**; **no background tracking**.
 2. Permission is requested only after explaining the purpose in context, never in a prompt on launch.
-3. Where the user declines, **the feature must not break**: fall back to manual area filtering plus the admin ordering, and keep an entry point for looking up an address by hand.
+3. Where the user declines, **the feature must not break**: fall back to manual area filtering plus the admin ordering, and keep an entry point for looking up an address by hand. **That lookup is a text match against store names, addresses, and areas already held, and never converts the entered address into coordinates** — consistent with "no runtime geocoding" below.
 4. **Coordinates are never uploaded and never stored**; distance is calculated on the device.
 
 **Data prerequisite**: `PartnerStore` today holds only an address string and **no geographic coordinates**, so distance sorting cannot be built. The data model adds `lat` / `lng` (see 10.2), and admin K4 gains coordinate fields plus a "locate from address" helper, **saved after human confirmation** — no run-time geocoding, which would be slow, costly on every app launch, and would send user positions outward.
@@ -819,6 +835,9 @@ The website specification originally stated "no cart, no payment gateway, no car
 
 **This section covers membership fees only.** Course fees, merchandise, and donations are all out of scope.
 
+**Phasing**: the in-app payment described here arrives with **Phase E (section 15)**. **The first released version completes payment in an external browser** — the app shows plans and benefits, and payment itself is handed to the website (5.5, option B).
+Order creation, server-side price recalculation, and the idempotent `POST /api/membership/activate` **must be in place by Phase B**; both payment routes share the same order and activation logic (5.4, 5.5).
+
 ### 5.2 Collecting entity and merchant account
 
 > **This is the easiest thing in this section to get wrong, and the most serious.**
@@ -985,6 +1004,16 @@ Scheduled sending, pre-send preview (one per language), test sends to designated
 ### 6.6 Delivery statistics
 
 Three aggregate figures only: **sent, delivered, opened**, by batch × platform × language.
+
+**What the three figures mean** — neither APNs nor FCM provides a receipt confirming arrival on a device, so:
+
+| Figure | Definition |
+|---|---|
+| Sent | Messages handed to the push service |
+| **Delivered** | **Messages the push service accepted (2xx) without reporting the token invalid** — that is, **handed over to the push service**, not arrived on the device |
+| Opened | Notification-open events reported by the app |
+
+**Admin M3's reporting must use this wording**, so that "delivered" is never read as "reached the user".
 
 **No individual-level push behaviour tracking** — the system does not record whether a given member opened a given push, and push-open behaviour is never used for subsequent segmentation.
 
@@ -1216,7 +1245,7 @@ E. Commercial                        (extends the existing module)
 ### 8.5 M5 App settings & connection check
 
 - App feature flags: remotely disable a single feature without shipping a new release
-- **Certificate management**: APNs certificates and FCM configuration — expiry tracked with an alert 60 days ahead, and rotation written to the audit log
+- **Key and certificate management**: the APNs key, the FCM credentials, and the developer-account membership are tracked **separately**, each with its creation date, last rotation, and next due date. **Some keys carry no expiry, so alerting is based on a self-defined rotation interval**; alerts fire 60 days before expiry or before the interval falls due, and rotation is written to the audit log
 - Diagnostics: aggregate views of crash rate, API error rate, and launch duration
 - Receipt and review of app-side error reports
 
@@ -1389,10 +1418,18 @@ This is the project's first API specification. It sits here rather than in a fou
 
 | Type | Description | Key fields | Relations |
 |---|---|---|---|
-| `AppDevice` | Device | `device_install_id`, platform, OS version, app version, language, push token (encrypted), push permission state, `member_id` (nullable), first and last active times | Member, PushTopicSubscription |
+| `AppDevice` | Device | `device_install_id`, platform, OS version, app version, language, push token (encrypted), push permission state, `member_id` (nullable), first and last active times, **refresh-token hash**, **refresh-token expiry**, **last rotated at**, **revoked at (nullable)** | Member, PushTopicSubscription |
 | `PushTopicSubscription` | **Follow and push subscription** | `device_install_id`, `member_id` (nullable), topic type (**squad** / news category / **club**), topic value, **`is_following`**, **`is_push_enabled`** | AppDevice, Member, Team, Club |
 | `PushMessage` | Push batch | Title and body (zh/en), image, deep link, segmentation, scheduled time, status, operator, sent / delivered / opened counts | — |
 | `AppRelease` | App release | Platform, version, build, release date, state, minimum-supported flag, release notes (zh/en), forced or recommended | — |
+| **`AppDiagnosticReport`** | **App-side diagnostics and error reports** (what M5 receives, 8.5) | `device_install_id`, platform, app version, build, OS version, occurred at, kind (crash / abnormal exit / API error / launch time / user report), summary, technical detail, handling state | AppDevice |
+
+> **Refresh tokens hang off `AppDevice` rather than a table of their own**: 4.4 already establishes that a device binds to at most one member at a time, so the token chain is naturally 1:1 with the device.
+> **The server stores only a hash, never the value.** Each use rotates the token, and **re-use of a superseded token is treated as compromise**: the device's whole chain is revoked immediately and sign-in is required again.
+> "Sign out of all devices" revokes every chain under that member; a password change enforces it.
+
+> ⚠️ **`AppDiagnosticReport` must hold no personal data**: no `member_id`, no full IP address, no coordinates, and no free text beyond what the user deliberately submits;
+> where a user submits text, the app states plainly before sending that it will be transmitted. Retention matches raw advertising events at **90 days**.
 
 > **Follow preferences reuse `PushTopicSubscription`; no new type is added.** Following and push segmentation draw on the same "which squads does this user care about" data, and splitting them into two tables would immediately produce a synchronisation problem. v2.0 replaces the single "subscription state" with two booleans — `is_following` (whether it appears on the home screen and in lists) and `is_push_enabled` (whether push is sent) — making "follow without push" a valid combination.
 > A nullable `member_id` is also added: while signed out the preference binds to the device, and after sign-in it binds to the account and travels between devices.
@@ -1453,7 +1490,7 @@ One real company may be several of these at once; **create a separate record for
 | Family memberships | Only a different `card_quota` / `jersey_quota` on `MembershipPlan`; **no student linking relationship is created** |
 | **Club vs squad** | `Club` is the legal entity and brand (Rock, Blue Whale); `Team` is a squad (D1, BW1, U15…). **One `Club` has many `Team`s.** Deep links and calendar subscriptions use `Team.code`; crests and sectioning use `Club` |
 | **`Club` vs the five commercial parties** | `Club` is a **content principal**, not a sixth commercial party. It counts no impressions, carries no payments or revenue share, and is never merged with `Partner` / `Sponsor` — Blue Whale is a co-principal, not a sponsor or partner of the club |
-| **Membership vs club** | Membership belongs to `Member` and has **no relation to `Club`**. There is no "Rock membership" and no "Blue Whale membership" |
+| **Membership vs club** | Membership is `Membership`, **one per person per club**, with `club_id` required; `Member` carries no `club_id` (email is the sign-in key, the LINE binding is 1:1, and under personal-data law the data subject is the person, not the membership). The member centre lists membership status club by club, and **each membership has its own card** |
 | Advertising vs sponsor exposure | `AdEvent` records impressions of `AdCreative` only. The sponsor logo wall **generates no `AdEvent` whatsoever** |
 | Device vs member | `AppDevice` exists independently (registered even when signed out); `member_id` is a **nullable weak link** released on sign-out |
 
@@ -1566,7 +1603,7 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 | Transport | Encrypted end to end; downgrades refused |
 | Token storage | Held in the device's secure storage, never landed in plain text |
 | Membership card token | **Must not be derivable from the member number**; members may regenerate it, and the old token is invalidated immediately |
-| Certificate rotation | APNs and FCM certificates are managed in admin M5, alerted 60 days before expiry, with rotation written to the audit log |
+| Key and certificate rotation | The APNs key, the FCM credentials, and the developer-account membership are tracked **separately** in admin M5. **A key may carry no expiry of its own, so alerting is based on a self-defined rotation interval** (60 days before expiry or before the interval falls due); every rotation is written to the audit log |
 | Jailbreak / root detection | Optional. Warn of the risk on detection; **do not block outright** |
 | Error messages | Must never leak internal implementation details |
 | Audit retention | Website rules carry over; audit logs retained at least 12 months |
@@ -1595,7 +1632,7 @@ The app introduces an exposure surface **the website's `noindex` cannot protect*
 | **Data usage** | Typical use under 50 MB per month; list images **use the derivative sizes produced by the website's §4.0 rule** (1280 / 640 / 320, picked by screen placement and device resolution, **never the master**) |
 | **Battery** | No background location, no background polling; background work is limited to receiving push |
 | **Crash rate** | Crash-free sessions at or above 99.5% |
-| **Supported versions** | iOS 15+, Android 10+ (matching the website's existing compatibility statement) |
+| **Supported versions** | iOS 15+, Android 10+ (matching the website's existing compatibility statement). **Raising the minimum supported version is a specification change** and this row must be revised first; admin M1's "minimum supported version" only governs released versions within this range and must never be used to step past it |
 | **Accessibility** | System text-size support, screen reader support, AA contrast, readable labels on every tappable element; **the benefits table and fixture information must never be delivered as images** |
 | **Monitoring** | Aggregate views of crashes, API error rate, launch duration, and push delivery (admin M5) |
 | **Data retention** | Advertising raw events 90 days; notification centre 90 days; audit logs at least 12 months |
@@ -1651,16 +1688,18 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | Phase | Contents | Prerequisites |
 |---|---|---|
 | **A — Foundation** | **`Club` and `Competition` records**, **both clubs' fixtures and results (12 months)**, **first-run onboarding and follow preferences (S23)**, news list, squads (read-only), partners and sponsors, FAQ, deep links and Universal Links, both languages, `AppDevice` registration, settings | **Blue Whale's written authorisation, brand assets, and fixture data** (16.2, items 1–4) |
-| **B — Membership** | Registration and sign-in, member centre, digital membership card, **partner stores and the nearby map**, plans and benefits, in-app LINE Pay payment, read-only prize-draw information | IAP determination and the club's LINE Pay merchant account (16.2, items 1–2), store coordinates (16.2, item 6) |
-| **C — Engagement and revenue** | Push notifications, advertising slots and measurement, match-day reminders, **program booking (pre-filling and my bookings)** | Website v2.5 finalised, member terms updated, first advertisers (R4) |
+| **B — Membership** | Registration and sign-in, member centre, **digital membership card (one per membership)**, **partner stores and the nearby map**, plans and benefits, **joining and upgrading through an external browser**, read-only prize-draw information | Store coordinates (16.2, item 9) |
+| **C — Engagement and revenue** | Push notifications, advertising slots and measurement, match-day reminders, **program booking (pre-filling and my bookings)** | The three additions to the member terms (16.2, item 12), first advertisers (16.2, item 7) |
 | **D — Content-dependent** | Player photographs and biographies, full article text and offline reading | The 113 draft articles unblocked (16.2, item 24), player assets (16.2, item 23) |
+| **E — In-app payment** | **In-app LINE Pay payment (section 5)**; external-browser payment is retained as the fallback | IAP determination and the club's LINE Pay merchant account (16.2, items 5–6) |
 
-**Four notes**:
+**Five notes**:
 
 1. **Partner stores sit in Phase B rather than later** because the feature is inexpensive, has no content blocker, and directly supports the value proposition of a paid membership — it belongs to the same experience as the digital card, and separating them would halve Phase B's persuasiveness.
 2. **Content-dependent features form their own Phase D** so that the delivery schedule for the 113 draft articles and the player assets does not hold up the app's launch.
 3. **Phase A carries four prerequisites** (16.2, items 1–4). This is the most direct cost of the two-club principal: Phase A waits on Blue Whale's authorisation and data. **The schedule risk does not sit on our side.**
 4. **Blue Whale's admin accounts are not in Phase A.** They depend on row-level data scoping in the website's `J` module (8.6) and sit after Phase C; through Phases A and B, Blue Whale content is entered by club staff on their behalf. **If that arrangement runs beyond a season it becomes permanent in practice**, so `J` should not be scheduled too late.
+5. **In-app payment forms its own Phase E, and the first released version does not include it.** Payment is completed in an external browser instead (5.5, option B), so **the single largest launch risk does not fall on the first submission**. Both routes share one order and activation path (5.4): Phase B already delivers order creation, price recalculation, and idempotent activation, and **Phase E only changes how the payment page is opened**.
 
 ---
 
@@ -1699,8 +1738,8 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 | 2 | **Blue Whale's 12 months of fixtures**: dates, opponents, venues, home or away, for league and every cup competition | 3.2 is the app's first feature. **`content/` currently holds only the 2026/27 Premier League schedule; neither club's cup fixtures nor the Blue Whale league schedule have been supplied** |
 | 3 | **Blue Whale's players and coaching staff**: names (zh/en), numbers, positions, photographs, biographies, **and likeness consent** | 3.3 cannot be signed off. Minors require a guardian's consent |
 | 4 | **Ownership and DNS control of the Blue Whale website's domain** | 2.3. A Universal Link can only be bound to a domain you own; without control, **Blue Whale deep links must not ship** |
-| 5 | **In-app purchase determination**: may paid membership use external LINE Pay? The predominantly physical benefits give grounds to argue so, but it is a review judgement | **The single largest launch risk.** A fallback must be prepared in parallel (5.5). ⚠️ **v3.0's dual membership complicates this**: two memberships are two purchasable items, so a ruling that IAP is required doubles the exposure |
-| 6 | **The club's own LINE Pay merchant account** (the Association's must not be shared) | Without it, none of section 5 can be implemented |
+| 5 | **In-app purchase determination**: may paid membership use external LINE Pay? The predominantly physical benefits give grounds to argue so, but it is a review judgement | **The single largest launch risk.** A fallback must be prepared in parallel (5.5). ⚠️ **v3.0's dual membership complicates this**: two memberships are two purchasable items, so a ruling that IAP is required doubles the exposure. **This item blocks Phase E (section 15), not the first release** |
+| 6 | **The club's own LINE Pay merchant account** (the Association's must not be shared) | Without it, none of section 5 can be implemented. **This item blocks Phase E (section 15), not the first release** |
 | 7 | **Do first advertisers exist?** | No advertisers means no advertising. The fallback-creative mechanism is already specified so the feature can launch regardless |
 | 8 | **Partner and sponsor assets**: no names, logos, or partnership descriptions have been supplied | Section 3.11 cannot be signed off. **Placeholder logos must not be used** |
 | 9 | **Geographic coordinates for partner stores and venues**: current data holds addresses only | Distance sorting in 3.8 cannot be built. A "locate from address" helper with human confirmation is recommended |
