@@ -17,7 +17,7 @@
 | `}o--o{` 實線 | 多對多（經關聯表） |
 | `..` **虛線** | **軟關聯，沒有外鍵**：跨圖 ghost 節點、`Donation` 對 `Member` 的 Email 軟比對、`CalendarEvent` 對來源的視圖引用 |
 
-- 實體名一律**英文 snake_case 物理表名**；中文名回 [§4](12-database-schema.md#4-資料表總覽) 查。
+- 實體名用**英文 snake_case 單數**便於閱讀；🔴 **物理表名是 `snake_case` 複數**（`article` → `articles`，見 [`12` §1.2](12-database-schema.md#12-主鍵外鍵與命名慣例)）。中文名回 [§4](12-database-schema.md#4-資料表總覽) 查。
 - ERD 屬性型別**不帶括號**（`string_64`），長度回 §4／§6 查。
 - **i18n 側表一律不入圖**（否則 12 張變 24 張且看不懂），§4 的 🌐 欄才是權威清單。
 - 標 `GHOST` 的實體是**其他圖擁有的表**，在此只畫關係不畫欄位。**`club` 的欄位只畫在 [5.11](#511-j-系統管理與共通機制)**。
@@ -1199,7 +1199,10 @@ erDiagram
 
 ### 5.12 i18n 機制示例
 
-其餘約 40 張 `*_i18n` 側表形狀相同，**不再入圖**。
+其餘約 40 張 `*_i18n` 側表**結構形狀相同**（複合主鍵 `(<entity>_id, locale)` ＋ 內容欄位），**不再入圖**。
+🔴 **但「形狀相同」不等於「欄位相同」**——每張側表各自放哪些內容欄位，**目前只有 8 張寫明**
+（`article`／`faq`／`match`／`member_draw`／`membership_benefit`／`partner`／`sponsor`／`setting`）。
+**其餘約 38 張的欄位清單尚未定義，轉 DDL 前必須補**（`STATUS.md` **S0-3b**）。
 
 ```mermaid
 erDiagram

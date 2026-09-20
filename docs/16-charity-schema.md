@@ -23,6 +23,7 @@
 | 稽核 | 🔴 **有 `AuditLog`**（與主站相反，理由見 [§9](#9-與主站綱要的四項差異)） |
 | 快取 | 🔴 **完全不接 Redis**（[`14-invariants.md`](14-invariants.md)） |
 | 金額 | `int` 存「元」；百分比 `decimal(5,2)`。**分潤無條件捨去至整數元** |
+| **表名** | 🔴 **`snake_case` 複數**（`donation_stores`／`donations`／`settlements`），同 [`12` §1.2](12-database-schema.md#12-主鍵外鍵與命名慣例)。ERD 用單數只是為了好讀 |
 | 主鍵 | `id uniqueidentifier` **非叢集** ＋ 另一欄 `bigint IDENTITY` 當叢集鍵（同主站，理由見 [`12` §1.2](12-database-schema.md#12-主鍵外鍵與命名慣例)） |
 | **共通欄位** | 🔴 **沿用 [`12` §1.3](12-database-schema.md#13-共通欄位)**：所有實體表都有 `id`／`created_at`／`updated_at`／`created_by`／`updated_by`。**本庫有 `AuditLog` 不代表可以省略這四欄**——稽核記的是「發生過什麼動作」，共通欄位記的是「這一列現在的歸屬與時間」，兩者用途不同 |
 | **命名與型別慣例** | 沿用 [`12` §1.2](12-database-schema.md#12-主鍵外鍵與命名慣例)（表名、欄位名、外鍵命名）與 §1.3 的金額規則 |
