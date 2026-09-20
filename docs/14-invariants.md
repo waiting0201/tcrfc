@@ -130,8 +130,8 @@
   8. ⛔ **`payment_mode` 只能從 `inapp` 降級回 `external`，不得反向**。以 `external` 送審、通過後再遠端開啟未經審查的 `inapp` 是違規，會下架。§5.5「不得寫死成只支援其中一種」的目的是**審查打回時能退回可用狀態**，不是為了繞過審查。
 
 - **資料庫綱要的執行層決定**（見 [`docs/12-database-schema.md`](12-database-schema.md)）：
-  - ✅ **`docs/12` 的 v3.0 同步已於 2026-09-20 完成**（§4 總覽、14 張 ERD、§6 明細、§11 唯一鍵與索引、§14 檢核表）。
-    ⚠️ **僅餘三張表的 `club_id` 歸類未定**：`MembershipPlan`／`MembershipBenefit`／`PartnerStore`——**主站規劃書 §5.4 的必填、可為空、不加三份清單都沒列到它們**。`docs/` 不得自行決定，**須走同步鏈補進 §5.4 再轉 DDL**（見 `docs/12` §4.13）。
+  - ✅ **`docs/12` 的 v3.0 同步已於 2026-09-20 完成**（§4 總覽、14 張 ERD、§6 明細、§11 唯一鍵與索引、§14 檢核表），**可以轉 DDL**。
+    `club_id`：**50 張必填、9 張可為空（＝兩隊共同）、43 張不加**，與主站 §5.4 逐名一致。
   - **不建任何日誌表**（`AuditLog`／`LoginLog`／`ExportLog`／`OperationLog`）——與規劃書「操作稽核記錄保存 ≥ 12 個月」及「匯出須寫稽核」**衝突**，落差列於 `docs/12` §13.1。
     但 **`EmailLog`、`InventoryMovement`、`PageVersion`、`FaqSearchMiss` 不是日誌是功能單元**，一律保留。
   - **後台帳號用 `username` 登入不用 Email**：`AdminUser.username` UNIQUE，`email` 只作通知、不唯一、不作登入鍵。

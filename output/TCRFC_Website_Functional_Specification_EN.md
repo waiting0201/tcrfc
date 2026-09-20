@@ -1,9 +1,16 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.9
+> **Document version**: v3.10
 > **Date**: 2026-08-14 (v3.9 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 > **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.9*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.10 revision summary — 5.4's `club_id` lists gain three missing types**
+> **No functional changes.** 5.4's three lists had omitted `MembershipPlan`, `MembershipBenefit`, and `PartnerStore`.
+> They are classified from this document's own wording: `MembershipPlan` **mandatory** (already marked in 5.1),
+> `MembershipBenefit` **not added** (derivable from its parent `MembershipPlan`), and
+> `PartnerStore` **nullable** (3.14: a store's applicable scope may be one club or both).
+> 5.4's table counts now match the enumerated names; 5.1's markers are positioned as highlights, with **5.4 as the authoritative per-table list**.
 
 > **v3.9 revision summary — uploaded images are always saved as resized derivatives**
 > **No change of scope.** This fills in §4.0's admin image-upload rule, whose "Derivatives" row previously said only one sentence.
@@ -1445,7 +1452,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ### 5.1 Type overview
 
 > **From v3.0 every type in this table must answer a new question: which club does this record belong to?**
-> The criteria and the full list are in **5.4**. Types carrying `club_id` are marked 🏛 mandatory or 🏛 nullable; unmarked types either derive it from a parent or are shared system-wide.
+> **The criteria and the authoritative per-table list are in 5.4.** The 🏛 mandatory / 🏛 nullable markers below are **highlights, not an exhaustive classification** — an unmarked type may still carry `club_id`.
 
 | Type | Description | Key relationships |
 |---|---|---|
@@ -1539,11 +1546,11 @@ Under a multi-club architecture every table must answer "which club does this be
 > **If it can be derived from a parent, do not store it** — the same fact in two places will drift apart.
 > **Adding `club_id` obliges you to settle three things at once: the unique key, the admin list's default filter, and the public route.** Otherwise the column is dead.
 
-**Mandatory (~40 tables)**: all team and fixture types (`Team` / `Player` / `Match` / `Standing` / `Achievement` / `Milestone` / `Season` / `Competition`), site-level content (`Page` / `Banner` / `HomeSection` / `MenuItem` / `Redirect` / `Setting` / `EmailTemplate` / `Form`), personal data (`Registration` / `Trial` / `Enquiry` / `NewsletterSubscriber` / `FanEventRegistration` / `Membership` / `MemberCard` / `MembershipPayment` / `JerseyIssue` / `MemberDraw` / `DrawRoster`), commercial counterparties (`Partner` / `Sponsor` / `SponsorPackage` / `Proposal`), programmes (`Program` / `Session`), the shop (`Collection` / `Product` / `ProductVariant` / `Cart` / `Order` / `OrderItem` / `Shipment` / `RefundRequest` / `StoreInvoice` / `InventoryMovement`), plus `EmailLog`, `FaqSearchMiss`, `CalendarCustomEvent`, `ComicCharacter` / `ComicEpisode` / `FanEvent`.
+**Mandatory (50 tables)**: all team and fixture types (`Team` / `Player` / `Match` / `Standing` / `Achievement` / `Milestone` / `Season` / `Competition`), site-level content (`Page` / `Banner` / `HomeSection` / `MenuItem` / `Redirect` / `Setting` / `EmailTemplate` / `Form`), personal data (`Registration` / `Trial` / `Enquiry` / `NewsletterSubscriber` / `FanEventRegistration` / `Membership` / `MemberCard` / `MembershipPayment` / `JerseyIssue` / `MemberDraw` / `DrawRoster`), commercial counterparties (`Partner` / `Sponsor` / `SponsorPackage` / `Proposal`), programmes (`Program` / `Session`), the shop (`Collection` / `Product` / `ProductVariant` / `Cart` / `Order` / `OrderItem` / `Shipment` / `RefundRequest` / `StoreInvoice` / `InventoryMovement`), plus `EmailLog`, `FaqSearchMiss`, `CalendarCustomEvent`, `ComicCharacter` / `ComicEpisode` / `FanEvent`, **`MembershipPlan`** (each club has its own fees, card quota, and season rules — see 5.1).
 
-**Nullable, meaning "shared by both clubs" (7 tables)**: `Article`, `PressResource`, `Faq`, `Staff`, `Charity`, `CharityProgram`, `ImpactRecord` / `ImpactMetric`.
+**Nullable, meaning "shared by both clubs" (9 tables)**: `Article`, `PressResource`, `Faq`, `Staff`, `Charity`, `CharityProgram`, `ImpactRecord`, `ImpactMetric`, **`PartnerStore`** (a store's applicable scope may be set to one club or both — see 3.14).
 
-**Not added (~60 tables)**: anything derivable from a parent, anything shared system-wide (`Locale` / `UiString` / `ValueTagLink` / `InvoiceDonationCode`), and three **deliberate** exclusions:
+**Not added**: anything derivable from a parent (including **`MembershipBenefit`**, whose parent `MembershipPlan` already carries `club_id`), anything shared system-wide (`Locale` / `UiString` / `ValueTagLink` / `InvoiceDonationCode`), and three **deliberate** exclusions:
 
 | Type | Why not |
 |---|---|

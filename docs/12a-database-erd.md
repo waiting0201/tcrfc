@@ -600,6 +600,7 @@ erDiagram
   }
   membership_plan {
     uuid id PK
+    uuid club_id FK
     uuid season_id FK
     int fee
     int card_quota
@@ -640,6 +641,7 @@ erDiagram
   }
   partner_store {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     string_32 category
     string_500 address
@@ -673,6 +675,7 @@ erDiagram
 > ⚠️ **付費會員＝球迷會員**（`membership.tier = 'fan_club'`），**不是兩種身分**，球迷會不另建名單。
 > ⚠️ **`membership_payment.collecting_club_id` 是收款法人**——藍鯨會籍採代收代付，收款方仍是俱樂部；**系統不做分潤計算**。
 > ⚠️ **家庭會籍只是 `card_quota`／`jersey_quota` 不同，不建立學員綁定關係**——網頁、App、後台三方皆不做。
+> ⚠️ **`partner_store.club_id` 可為空＝兩隊共同**（適用範圍可設單一俱樂部或兩隊共同，主站 §3.14）；`membership_benefit` **不帶 `club_id`**，由父表 `membership_plan` 推導。
 > ⚠️ `partner_store` **與 `product` 是完全不同的東西**：前者是會員到店出示卡片的折扣店家（**無金流**），後者是本站自己賣的商品（**有金流**）。
 
 ### 5.7 K5 抽獎（刻意單獨一張——重點是「沒有連線」）

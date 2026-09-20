@@ -440,8 +440,8 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 所有 `*_i18n` | `(<entity>_id, locale)` |
 | 其餘內容表 | `(club_id, slug)`（`club_id` 必填者）或 `slug`（不帶 `club_id` 者） |
 
-> ⚠️ **`MembershipPlan`／`MembershipBenefit`／`PartnerStore` 的唯一鍵待 `club_id` 歸類定案後補**，
-> 見 [`12` §4.13](12-database-schema.md#413-club_id-尚未歸類的三張表)。
+> `MembershipPlan` **`(club_id, season_id, code)`**；`PartnerStore` **`(club_id, slug)`**（可為空，NULL 視為相等故共同店家的 slug 亦唯一）；
+> `MembershipBenefit` 不帶 `club_id`，唯一鍵為 `(membership_plan_id, sort_order)`。
 > ⚠️ **慈善的 `DonationStore`／`DonationProject`／`Donation` 已移出本檔**（獨立資料庫），見 [`16-charity-schema.md`](16-charity-schema.md)。
 
 ### 11.2 查詢索引

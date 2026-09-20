@@ -1,8 +1,14 @@
 # TCRFC 台中磐石足球俱樂部 — 官方網站前後台功能規劃書
 
-> **文件版本**：v3.9
+> **文件版本**：v3.10
 > **建立日期**：2026-08-14（v3.9 修訂：2026-09-18）
 > **品牌主張**：LOCAL ROOTS. GLOBAL PATHWAYS. 在地扎根 · 放眼世界
+
+> **v3.10 修訂摘要——§5.4 的 `club_id` 清單補上三個型別**
+> **不改任何功能。** §5.4 的三份清單原先漏列 `MembershipPlan`、`MembershipBenefit`、`PartnerStore`，
+> 依本文件既有敘述歸入：`MembershipPlan` **必填**（§5.1 已標）、`MembershipBenefit` **不加**（父表 `MembershipPlan` 可推導）、
+> `PartnerStore` **可為空**（§3.14：適用範圍可設單一俱樂部或兩隊共同）。
+> §5.4 的張數改為與逐名清單一致；§5.1 的標示定位為重點提示，**逐表清單以 §5.4 為準**。
 
 > **v3.9 修訂摘要——上傳的圖片一律縮圖後保存**
 > **功能範圍一項未改**，補的是 §4.0「後台圖片上傳通則」原本只寫一句的〈衍生檔〉。
@@ -1443,7 +1449,7 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 ### 5.1 型別總表
 
 > **v3.0 起，本表所有型別都要回答一個新問題：這筆資料屬於哪一個俱樂部？**
-> 判定準則與逐表清單見 **5.4**。表中以「🏛 必填」「🏛 可空」標示帶 `club_id` 的型別，未標示者表示由父表推導或全系統共用。
+> **判定準則與逐表清單一律以 5.4 為準。** 本表的「🏛 必填」「🏛 可空」只是**重點提示，不是完整標示**——未標示不代表沒有 `club_id`。
 
 | 型別 | 說明 | 主要關聯 |
 |---|---|---|
@@ -1536,11 +1542,11 @@ TCRFC Admin（多俱樂部：台中磐石 TCRFC ／ 台中藍鯨 TCBW）
 > **能經由父表推導的一律不加**——同一事實存兩處必然不同步。
 > **加了 `club_id` 就必須同時決定「唯一鍵、後台清單預設過濾、前台站台路由」三件事**，否則這個欄位是死的。
 
-**必填（約 40 張）**：`Club` 相關的全部球隊與賽事型別（`Team`／`Player`／`Match`／`Standing`／`Achievement`／`Milestone`／`Season`／`Competition`）、站台級內容（`Page`／`Banner`／`HomeSection`／`MenuItem`／`Redirect`／`Setting`／`EmailTemplate`／`Form`）、個資（`Registration`／`Trial`／`Enquiry`／`NewsletterSubscriber`／`FanEventRegistration`／`Membership`／`MemberCard`／`MembershipPayment`／`JerseyIssue`／`MemberDraw`／`DrawRoster`）、商業對象（`Partner`／`Sponsor`／`SponsorPackage`／`Proposal`）、課程（`Program`／`Session`）、商店（`Collection`／`Product`／`ProductVariant`／`Cart`／`Order`／`OrderItem`／`Shipment`／`RefundRequest`／`StoreInvoice`／`InventoryMovement`）、`EmailLog`、`FaqSearchMiss`、`CalendarCustomEvent`、`ComicCharacter`／`ComicEpisode`／`FanEvent`。
+**必填（50 張）**：`Club` 相關的全部球隊與賽事型別（`Team`／`Player`／`Match`／`Standing`／`Achievement`／`Milestone`／`Season`／`Competition`）、站台級內容（`Page`／`Banner`／`HomeSection`／`MenuItem`／`Redirect`／`Setting`／`EmailTemplate`／`Form`）、個資（`Registration`／`Trial`／`Enquiry`／`NewsletterSubscriber`／`FanEventRegistration`／`Membership`／`MemberCard`／`MembershipPayment`／`JerseyIssue`／`MemberDraw`／`DrawRoster`）、商業對象（`Partner`／`Sponsor`／`SponsorPackage`／`Proposal`）、課程（`Program`／`Session`）、商店（`Collection`／`Product`／`ProductVariant`／`Cart`／`Order`／`OrderItem`／`Shipment`／`RefundRequest`／`StoreInvoice`／`InventoryMovement`）、`EmailLog`、`FaqSearchMiss`、`CalendarCustomEvent`、`ComicCharacter`／`ComicEpisode`／`FanEvent`、**`MembershipPlan`**（兩隊的費用、發卡數與球季規則各自獨立，見 5.1）。
 
-**可為空＝兩隊共同（7 張）**：`Article`、`PressResource`、`Faq`、`Staff`、`Charity`、`CharityProgram`、`ImpactRecord`／`ImpactMetric`。
+**可為空＝兩隊共同（9 張）**：`Article`、`PressResource`、`Faq`、`Staff`、`Charity`、`CharityProgram`、`ImpactRecord`、`ImpactMetric`、**`PartnerStore`**（適用範圍可設為單一俱樂部或兩隊共同，見 3.14）。
 
-**不加（其餘約 60 張）**：由父表推導者（`PageBlock`／`OrderItem` 以外的明細表／`MatchGoal`／`PlayerSeasonStat`…）、全系統共用者（`Locale`／`UiString`／`ValueTagLink`／`InvoiceDonationCode`），以及三個**刻意不加**的：
+**不加**：由父表推導者（`PageBlock`／`OrderItem` 以外的明細表／`MatchGoal`／`PlayerSeasonStat`／**`MembershipBenefit`**——父表 `MembershipPlan` 已帶 `club_id`）、全系統共用者（`Locale`／`UiString`／`ValueTagLink`／`InvoiceDonationCode`），以及三個**刻意不加**的：
 
 | 型別 | 為什麼不加 |
 |---|---|
