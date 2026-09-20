@@ -127,6 +127,8 @@
     部署與 CI/CD→`deployment-engineer`；資料表與技術文件→`system-analyst`；需求與藍圖→`software-architect-blueprint`；
     版面與視覺→`visual-design-architect`；程式審查→`code-review-optimizer`；測試與品質把關→`qa-test-engineer`；
     大範圍搜尋→`Explore`。多個互不相依的任務要**同一則訊息一次派出**並行跑。
+    **判準看產出的性質，不是「自己做得動嗎」**：從零設計資料表、ERD、架構、API 一律派；
+    照規劃書逐條搬運可自理。**覺得規定不適用時說出來讓使用者決定，不要自己判進判出**（`E-11`）。
 13. **出錯就記到 [`docs/18-work-errors.md`](docs/18-work-errors.md)，同一次交付內補上。**
     不論是使用者當場指正、審查抓到、驗證腳本抓到，還是流程跑完才發現漏了一環，都要留一筆：
     **日期／錯在哪／為什麼會錯（根因，寫成可以被改掉的行為，不准寫「不小心」）／下次怎麼避免／防呆在哪（沒有就寫「無」）**。
