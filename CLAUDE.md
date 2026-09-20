@@ -90,6 +90,7 @@
 | [`docs/14-invariants.md`](docs/14-invariants.md) | **動手前掃一次**。全站不變量與踩雷速查：代號、品牌色、命名、範圍邊界、五種商業對象、資料庫執行層決定 |
 | [`docs/15-out-of-scope-record.md`](docs/15-out-of-scope-record.md) | **規劃書查不到某功能時先看這裡**。已移出範圍的功能，以及法人歸屬、授權、個資委託等行政法務背景（都是非交付物） |
 | [`docs/18-work-errors.md`](docs/18-work-errors.md) | **做錯過的事**。實際犯過的失誤、根因與防呆位置（`E-01`–`E-10`）。**動手前與 [`docs/14`](docs/14-invariants.md) 一起掃**；改規格、改共用區塊、順移代號、重產客戶版之前**一定要看**。與 `docs/14`（改錯會出事）、[`docs/00`](docs/00-harness.md) §5（舊規格會誤導）分工不同 |
+| [`docs/20-cicd.md`](docs/20-cicd.md) | **CI/CD 的任何工作**：觸發與分支、GHCR、五個映像檔、self-hosted runner、資料庫遷移關卡、回滾、Secrets 清單。🔴 **公開 repo ＋ self-hosted runner 的防護鏈在 §4，第 0 條是地基** |
 | [`docs/17-deployment.md`](docs/17-deployment.md) | **部署、基礎設施、技術選型的任何工作**。拓撲與容器佈局、VNet 與服務端點、**LINE Pay 固定出口 IP**、**快取策略與「不得讀快取」清單**、DBMS 的連帶決定、已知風險與驗證程序。**這是執行層決定，不是規格** |
 | [`docs/19-app-tech-stack.md`](docs/19-app-tech-stack.md) | **行動 App 的技術實作、CI 與上架**。原生雙平台選型、`shared/` 契約目錄、權杖與安全儲存、推播傳輸、廣告可見度量測、設定下發的三層來源、監控、送審管線。**執行層決定，不是規格** |
 

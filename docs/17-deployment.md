@@ -387,7 +387,7 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 
 ## 8. 本檔不決定的事
 
-- **網站與 API 的 CI 管線** —— 目前無 `.github/`，部署是人工；Nuxt ＋ .NET 的建置與推送流程另案。**App 的兩條管線見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §9**
+- ~~網站與 API 的 CI 管線~~ ✅ **已規劃於 [`20-cicd.md`](20-cicd.md)**（2026-09-20）：GHCR ＋ VM 上的 self-hosted runner ＋ 需人工核准的資料庫遷移關卡。**workflow 檔尚未撰寫。App 的兩條管線見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §9**
 - **Azure SQL 定序的具體值** —— 建庫前定，建庫後不可改
 - **Redis 是否需要持久化** —— 採 cache-aside 後可視為純快取，預設不開 AOF；若日後拿它存 session 再重新評估
 - **各 entity 的快取 TTL 實際值** —— §4 只定了「先做共用小資料」的順序，數值待量測後定

@@ -124,6 +124,13 @@
   **會員卡只在 App 內出示**（離線可用、標示最後同步時間、**v3.0 起卡面帶該俱樂部標誌，中性雙標誌單卡已作廢**）。**App 抽獎只顯示個人資格布林**（v3.0 起**逐俱樂部顯示**），不顯示序號、不做查詢與名單頁、**不得讀取 `DrawRoster`**；**推播不得用於個別中獎通知**（後台 M3 須系統層阻擋）。
   `PartnerStore` 與 `Venue` 已加座標欄位但**資料要人工標**。後台模組 `M` 與會員卡驗證頁 `/m/<token>` 無關。
 
+- 🔴 **CI/CD：公開 repo ＋ self-hosted runner 的唯一地基**（見 [`20-cicd.md`](20-cicd.md) §4）：
+  **Repo 設定的「Fork pull request workflows → Require approval for all outside collaborators」必須是開的。**
+  ⛔ **不要以為「我們的 workflow 沒讓 fork 用 self-hosted」就安全**——fork PR 跑的是**該 fork 版本的 workflow 檔**，
+  惡意 fork 可以自己加上 `runs-on: self-hosted`，在正式 VM 上執行任意程式碼。
+  GitHub 公開 repo 的預設只擋「首次貢獻者」，**要手動改嚴**。
+  ⛔ **`pull_request_target` 一律不得使用**（它會把 workflow 檔本身的權限用在 fork 的程式碼上）。
+
 - 🔵 **行動 App 的執行層決定**（2026-09-20，見 [`19-app-tech-stack.md`](19-app-tech-stack.md)）。**規劃書 §1.3 明文排除技術選型**，以下是執行層決定不是規格，但改錯會出事：
   1. **客戶端是原生 Swift ＋ Kotlin**（iOS 15+／Android 10+），**不是 React Native、不是 Flutter、不是 WebView 外殼**。唯一來源是 `docs/19`，規劃書只寫 §1.5 的八項平台能力需求。
   2. ⛔ **廣告曝光判定的行為規格只有一份**（`shared/ad-viewability.md`：200ms 取樣、以單調時鐘累積連續 ≥50% 的時長、≥1000ms 成立）。**兩個平台不得各自解釋，必須跑同一份 fixtures**——判定分歧會直接變成對廣告主的對帳爭議。
