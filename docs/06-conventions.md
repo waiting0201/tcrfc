@@ -168,10 +168,15 @@
 | App 版本號 | 語意化 `主.次.修`，建置號另計 | `1.4.2 (231)` |
 | 裝置識別碼 | 安裝時產生的隨機值，**不使用廣告識別碼** | `device_install_id` |
 | 廣告事件時間 | 記錄**發生時間**非上傳時間；超過 24 小時伺服器端拒收 | |
+| **功能開關代號** | `{模組}_{功能}`，小寫蛇形 | `ads_enabled`、`payment_mode` |
+| **語系代碼** | API 與 `AppDevice.lang` 一律 `zh`／`en`；裝置的 `zh-Hant-TW` 映射為 `zh`（⚠️ 這同時服務 [`17-deployment.md`](17-deployment.md) §4「Redis key 必須含 `locale`」——語系值必須是有限集合，否則 key 爆炸） | `zh`、`en` |
+| **建置號** | CI run number，兩平台各自單調遞增，**不參與版本比較** | `231` |
 
 ---
 
 ## 4. 檔名慣例
+
+**App 建置產物歸檔**（見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §9）：`{平台}-{版本}-{建置號}.dSYM.zip`／`{平台}-{版本}-{建置號}-mapping.txt`，例 `ios-1.4.2-231.dSYM.zip`。
 
 **媒體資產**（規則沿用自已退役的單頁 mockup，現行檔案見 [`../site/src/assets/img/`](../site/src/assets/img/)）：
 ```

@@ -1,6 +1,6 @@
 # STATUS — 要做的事，一件一件來
 
-> **最後更新**：2026-09-18
+> **最後更新**：2026-09-20
 > **這是工作追蹤表，不是規格書。** 規格的真實來源永遠是 [`output/`](output/) 的四份規劃書；
 > 本檔只回答「**現在該做哪一件、做到哪了、卡在哪**」。
 > 文件分工見 [`CLAUDE.md`](CLAUDE.md)，工作流程見 [`docs/00-harness.md`](docs/00-harness.md)。
@@ -34,7 +34,7 @@
 | 2 | **共用後台 Admin** | 一個入口＋站台切換器，15 個模組字母 | **本體** | — | 同上 §4 |
 | 3 | **台中藍鯨官網前台** | **獨立網域**，11 單元，中英雙語 | **共用 ②**（`club_id` 分資料） | 內容藍鯨／收款俱樂部 | [藍鯨規劃書](output/TCRFC_台中藍鯨官網功能規劃書.md) v1.8 |
 | 4 | **慈善捐款平台** | **獨立網域**，掃碼捐款前台＋自己的後台 | **完全獨立**（自建約 22 張表） | **台灣足球策略發展協會** | [慈善規劃書](output/TCRFC_慈善捐款平台功能規劃書.md) v2.5 |
-| 5 | **行動 App** | iOS ＋ Android，雙隊共同平台 | 共用 ②（後台 `M1–M5`） | 俱樂部 | [App 規劃書](output/TCRFC_行動App功能規劃書.md) v3.9 |
+| 5 | **行動 App** | **原生 iOS（Swift／SwiftUI）＋ Android（Kotlin／Compose）**，雙隊共同平台 | 共用 ②（後台 `M1–M5`） | 俱樂部（**首版不含 App 內付款**） | [App 規劃書](output/TCRFC_行動App功能規劃書.md) v3.11、[`docs/19`](docs/19-app-tech-stack.md) |
 
 > **③ 藍鯨站與主站是同一套網站，只有配色不同**（藍鯨規劃書 §1.3 總則）。前端複製 `site/` 骨架、換 7 個 CSS 變數；
 > 例外只有四項單元取捨。**不要為藍鯨站另做設計。**
@@ -60,7 +60,10 @@
 | **B-11** | 🚫 | **上線（全平台）** | **個資跨境存放的法遵確認**：會員與**捐款人**個資將存於美國（VM、Azure SQL、Blob 全在 West US 2）。個資法的跨境傳輸限制，以及協會與俱樂部間的委託處理約定須載明境外存放 | 法務 |
 | **B-12** | 🚫 | **轉 DDL** | **`docs/12` §1.4 第 5 件的規則語意未定**：「`club_id` 為空時 `slug` 亦須全站唯一」有強弱兩種讀法，在 SQL Server 上實作差異是實質的（篩選唯一索引 vs 另加觸發器） | 我方 |
 
-> 其餘 40 項待確認見 [`docs/08`](docs/08-roadmap-decisions.md) §3；藍鯨另有 16 項見其規劃書 §10；App 另有 9 項見其規劃書 §16.2。
+| ~~B-13~~ | ✅ | ~~iOS 上架、深連結~~ | **開發者帳號已到位**（2026-09-20）：D-U-N-S 已有，**Apple Developer 與 Google Play 法人／組織帳號均已註冊**。**Team ID 與 package name 在手，官網的 `.well-known` 兩個關聯檔可以直接產** | — |
+| **B-14** | 🚫 | **App 全部技術實作** | **App 的 API 是否由官網後台承載未確認**（App §16.2 技術前提第 19 項）。[`docs/19`](docs/19-app-tech-stack.md) 的所有決定都假設「是」；若答案是「否」，該檔 §2、§3、§7、§8 全部要重寫 | 我方／客戶 |
+
+> 其餘待確認見 [`docs/08`](docs/08-roadmap-decisions.md) §3；藍鯨另有項目見其規劃書 §10；App 另有 9 項見其規劃書 §16.2。
 > **行政與法務背景**（法人歸屬、授權、個資委託）不寫進規劃書，記在 [`docs/15`](docs/15-out-of-scope-record.md)。
 
 ---
@@ -77,6 +80,7 @@
 | S0-6 | ⬜ | 全部 | **轉 DDL 並建庫** | `docs/12`／`12a`／`12b` | S0-2〜S0-5 |
 | S0-7 | ⬜ | 全部 | **專案骨架與部署管線**：Docker Compose **八個容器**（反向代理／`nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity`／`admin-web`／`admin-charity`／`api`／`redis`）、VNet ＋ 服務端點、靜態 Public IP、NSG | [`docs/17`](docs/17-deployment.md) §1–§2 | — |
 | **S0-9** | ⬜ | 主站／藍鯨／慈善 | 🔴 **前台骨架改 Nuxt 3 SSR**：現有 `site/` 的 80 頁靜態骨架、`build.mjs`、`verify.mjs` 與 `wrangler pages deploy` 全部退場。**`verify.mjs` 的六項檢查（token 殘留／h1 數量／缺 alt／寫死色碼／站內斷鏈／`.pending` 統計）須移植為 lint／test，不得直接丟棄**；`noindex` 與 `_redirects` 一併移植 | [`docs/17`](docs/17-deployment.md)、`docs/13` §6 | S0-7 |
+| **S0-11** | ✅ | App | **App 客戶端技術選型拍板**（2026-09-20）：原生 Swift／SwiftUI ＋ Kotlin／Compose；`shared/` 契約目錄、權杖機制、推播直送、可見度量測、設定下發三層、CI 管線全部定案。⚠️ **CI 的 macOS runner 承擔方式仍未定** | [`docs/19`](docs/19-app-tech-stack.md) | — |
 | **S0-10** | ⬜ | 全部 | **上線前壓測**：Azure SQL 先開 Basic（5 DTU／2 GB）。DTU 不足只是變慢且可線上升級，但 **2 GB 是硬上限、寫滿即寫入失敗**——**儲存空間告警須設在 1.5 GB** | [`docs/17`](docs/17-deployment.md) §6 | S0-6 |
 | S0-8 | ⬜ | 全部 | **圖片上傳共用元件**：選檔 → JS 預覽 → 表單儲存才寫 blob（**Azure Blob Storage**）；換圖成功才刪舊物件（**主檔＋衍生檔一起刪**）；前後端雙重驗證（伺服器端以檔頭判格式）；**伺服器端一律重新編碼**（轉正 → 長邊 > 2560px 等比縮小 → WebP → 去 EXIF 含 GPS，**不留原始檔**），一次產完 **1280／640／320 ＋ 160px 方形縮圖**，鍵由主鍵推導（**ImageSharp**——年營收 100 萬美元以下適用 Apache 2.0，本案符合） | **主站 §4.0 後台圖片上傳通則（v3.9）** | S0-7 |
 
@@ -212,19 +216,27 @@
 ## 7. 行動 App
 
 > **內容主體是台中磐石 × 台中藍鯨兩隊，收款與法律主體只有俱樂部。** 共用主站後台與資料庫。
-> **開發者帳號主體已定案為俱樂部。**
+> **開發者帳號已到位**：主體為俱樂部，D-U-N-S、Apple Developer 與 Google Play 法人／組織帳號均已完成，**Team ID 與 package name 在手**。
+> 🔵 **客戶端技術選型已定案**：原生 Swift／SwiftUI ＋ Kotlin／Compose，見 [`docs/19`](docs/19-app-tech-stack.md)。
+> ⚠️ **首個上架版本不含 App 內付款**（規劃書 v3.10），加入與升級以外部瀏覽器導回官網完成。
 
 | ID | 狀態 | 工作 | 規格在哪 | 前置 |
 |---|---|---|---|---|
 | AP-0 | ⬜ | **前置**：藍鯨品牌資產、兩隊 12 個月賽程、名單、**藍鯨網域 DNS 控制權**（Universal Link） | App §16.2 | B-4、B-5、B-6 |
 | AP-1 | ⬜ | **後台 `M1–M5`**：版本發布／內容編排／推播／推播裝置／App 設定與連線檢查 | 主站 §4 `M` 模組、App §8 | S1-3 |
 | AP-2 | ⬜ | **Phase A 骨幹**：`Club`／`Competition` 主檔、兩隊賽程賽果、首次啟動引導與追蹤偏好、新聞列表、球隊名單（唯讀）、夥伴贊助、FAQ、**深連結與 Universal Link**、雙語、`AppDevice` 註冊、設定 | App §15 | AP-0、AP-1、S1-8 |
-| AP-3 | ⬜ | **Phase B 會員**：註冊登入、會員中心、**電子會員卡（每份會籍一張）**、特約店家附近地圖、會籍方案與權益、**App 內 LINE Pay 付款（僅限會籍費用）**、抽獎資訊唯讀 | App §4、§5、§15 | AP-2、S2-11 |
+| AP-3 | ⬜ | **Phase B 會員（不含 App 內付款）**：註冊登入、會員中心、**電子會員卡（每份會籍一張）**、特約店家附近地圖、會籍方案與權益、**以外部瀏覽器完成入會與升級**、抽獎資訊唯讀。⚠️ **訂單建立（帶冪等鍵）與 `activate` 冪等開通在本列就要做完** | App §4、§5.1、§15、[`docs/19`](docs/19-app-tech-stack.md) §10 | AP-2、S2-11 |
 | AP-4 | ⬜ | **Phase C 互動與變現**：推播通知、賽事日行程包提醒、**廣告版位 `E4–E6` 與成效統計**、課程報名（帶入＋我的報名） | App §6、§7、主站 §4.5 | AP-3 |
 | AP-5 | ⬜ | **Phase D 內容相依**：球員照片與簡介、新聞全文與離線閱讀 | App §15 | B-3 |
-| AP-6 | ⬜ | **上架**：App Store／Google Play 審查、隱私標籤、IAP 判定結論 | App §14、§16.2 | AP-3 |
+| AP-6 | ⬜ | **首次上架**：App Store／Google Play 審查、隱私標籤、商店素材 | App §14 | AP-3、AP-9 |
+| **AP-3b** | ⬜ | **Phase E — App 內 LINE Pay 付款**：`payment_mode` 由 `external` 切為 `inapp`，共用 AP-3 已做好的訂單與開通邏輯。🔴 **只能降級不得反向**（不得以 `external` 送審後遠端開啟未審查的 `inapp`） | App §5、§15 Phase E、[`docs/19`](docs/19-app-tech-stack.md) §10 | AP-6、B-8、B-10 |
+| **AP-7** | ⬜ | **兩個 private repo 與 CI/CD 管線**：`tcrfc-app-ios`（Xcode Cloud 或 Actions＋fastlane）、`tcrfc-app-android`（Actions＋Gradle→Play internal）。🔴 **必須 private**（含 `.p8`、keystore、service account JSON）；**每次 release 歸檔 dSYM 與 `mapping.txt`** | [`docs/19`](docs/19-app-tech-stack.md) §9 | AP-9 |
+| **AP-8** | ⬜ | **`shared/` 契約目錄**：OpenAPI 產 DTO、共用 SQLite DDL、快取時效、深連結對照、錯誤碼、**可見度量測 fixtures**。CI 須有漂移檢查（`git diff --exit-code`） | [`docs/19`](docs/19-app-tech-stack.md) §2 | B-14 |
+| **AP-9** | ⬜ | **商店帳號設定與 `.well-known` 產出**：帳號本身已註冊（B-13），本列做的是——填入 Team ID 與 package name 產出 `apple-app-site-association` 與 `assetlinks.json` 並部署到官網、建立 APNs `.p8` 金鑰與 FCM 專案、開 TestFlight 與 Play 內測軌道 | App §2.3、§14.1、[`docs/19`](docs/19-app-tech-stack.md) §9 | S0-9 |
 
-> ⚠️ **IAP 判定未定**（實體權益的會籍費用能否走 LINE Pay 而非 Apple 內購）、**LINE Pay 商店號**、**店家座標**三項仍未確認。
+> ⚠️ **AP-9 要排到 AP-2 之前**——深連結是 Phase A 的項目，`.well-known` 關聯檔要先部署到官網才驗證得了。
+> ✅ **磐石網域的 Universal Link 不再受阻**（Team ID 已有）；**藍鯨網域的仍擋在 B-4**（DNS 控制權），未解則藍鯨深連結退回自訂 scheme ＋ 網頁回退。
+> ⚠️ **IAP 判定與 LINE Pay 商店號現在擋的是 AP-3b，不擋首次上架**；**店家座標仍擋 AP-3** 的附近地圖。
 > ⚠️ **店家座標與場地座標要人工標**，不做執行期即時 geocoding。
 
 ---
