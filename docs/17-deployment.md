@@ -70,6 +70,56 @@
 
 ⚠️ **叢發型的 CPU 額度要盯**：SSR 在持續流量下可能耗盡額度，上線後看額度餘額，不夠就換 `D2s_v5`。
 
+### Redis 怎麼裝
+
+🔴 **不是裝在主機上，是八個容器裡的一個。** ⛔ **不要 `apt install redis-server`**——
+那會多一套啟動方式、一套記錄位置、一套升級流程；而且容器裡的 `api` 要連主機上的 Redis 就得走
+bridge 網段，Redis 因此必須 `bind` 到對外介面上，**與 [§2](#2-網路)「不對外開任何連接埠」直接衝突**。
+Ubuntu 套件庫的版本也會落後。
+
+```yaml
+services:
+  redis:
+    image: redis:8-alpine          # 釘住次版本，不要用 latest
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+      --requirepass ${REDIS_PASSWORD}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "$$REDIS_PASSWORD", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 640M             # 512 ＋ 開銷，避免拖垮同機的其他容器
+```
+
+`api` 的連線目標就是 **`redis:6379`**（服務名即主機名）。
+
+**三條不能弄錯的**：
+
+| # | 規則 | 不照做會怎樣 |
+|---|---|---|
+| 1 | ⛔ **絕對不要寫 `ports:`** | Docker 發布連接埠會**繞過 UFW 直接改 iptables**——主機防火牆關了也擋不住。未授權的 Redis 被掃到是最常見的入侵途徑之一。同網路內用服務名互連即可，不需要發布連接埠 |
+| 2 | **`--save "" --appendonly no`（不開持久化）** | 在 8 GB 小機器上多一份 I/O 與記憶體壓力。**重開機資料掉光本來就可接受**——那正是 cache-aside ＋ SQL fallback 的意義（[§4](#4-快取策略)） |
+| 3 | **`maxmemory` 一定要設** | 不設會一路吃到 OOM killer 出手，**而它殺的不一定是 Redis**，可能是 `api` 或某個 `nuxt`。compose 的 `memory: 640M` 是第二道保險 |
+
+⚠️ **`requirepass` [§2](#2-網路) 沒要求**（它本來就不對外），但成本只有一行環境變數，
+擋掉的是「某個容器被打穿後 Redis 完全不設防」。**密碼放 `.env`，`.env` 不納版控。**
+
+⚠️ **映像檔**：`redis:8-alpine` 為 AGPLv3，**自用不散布不受影響**。
+要完全避開授權問題可換 `valkey/valkey:8-alpine`（BSD，協定相容，`StackExchange.Redis` 不用改）。**兩者皆可。**
+
+> 🔴 **什麼情況下才該改成主機原生安裝**：Redis 變成有狀態的關鍵元件時（存 session、當佇列、
+> 需要調 `vm.overcommit_memory` 之類的核心參數）。**採 cache-aside 後它是純快取，掉了就回源**，沒有這個需求。
+
 ---
 
 ## 2. 網路

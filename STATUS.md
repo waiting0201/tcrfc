@@ -77,7 +77,7 @@
 | S0-4 | ⬜ | 全部 | **移除 `media_asset` 三表、10 處外鍵改欄位組**（落差第 13 項，可與 S0-3 一起做） | 主站 §4.0、`docs/12` 第 13 項 | S0-3 |
 | S0-5 | ✅ | 慈善 | **慈善獨立庫綱要已完成**（2026-09-20，[`docs/16`](docs/16-charity-schema.md)）：**23 張表** ＋ 4 張 i18n 側表。🔴 **有 `AuditLog`**（勸募法遵要求，與主站相反）、**沒有 `club_id`／`Member`**、`Charity`／`CharityProgram` 是**唯讀快照不是外鍵** | 慈善規劃書 §9 | — |
 | S0-6 | ⬜ | 全部 | **轉 DDL 並建庫** | `docs/12`／`12a`／`12b` | S0-2〜S0-5 |
-| S0-7 | ⬜ | 全部 | **專案骨架與部署管線**：Docker Compose **八個容器**（反向代理／`nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity`／`admin-web`／`admin-charity`／`api`／`redis`）、VNet ＋ 服務端點、靜態 Public IP、NSG | [`docs/17`](docs/17-deployment.md) §1–§2 | — |
+| S0-7 | ⬜ | 全部 | **專案骨架與部署管線**：Docker Compose **八個容器**（反向代理／`nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity`／`admin-web`／`admin-charity`／`api`／`redis`）、VNet ＋ 服務端點、靜態 Public IP、NSG。🔵 **`redis` 的 compose 定義已寫好可直接抄**（[`docs/17`](docs/17-deployment.md) §1「Redis 怎麼裝」）——⛔ **絕對不要寫 `ports:`** | [`docs/17`](docs/17-deployment.md) §1–§2 | — |
 | **S0-9** | ⬜ | 主站／藍鯨／慈善 | 🔴 **前台骨架改 Nuxt 3 SSR**：現有 `site/` 的 80 頁靜態骨架、`build.mjs`、`verify.mjs` 與 `wrangler pages deploy` 全部退場。**`verify.mjs` 的六項檢查（token 殘留／h1 數量／缺 alt／寫死色碼／站內斷鏈／`.pending` 統計）須移植為 lint／test，不得直接丟棄**；`noindex` 與 `_redirects` 一併移植 | [`docs/17`](docs/17-deployment.md)、`docs/13` §6 | S0-7 |
 | **S0-11** | ✅ | App | **App 客戶端技術選型拍板**（2026-09-20）：原生 Swift／SwiftUI ＋ Kotlin／Compose；`shared/` 契約目錄、權杖機制、推播直送、可見度量測、設定下發三層、CI 管線全部定案。⚠️ **CI 的 macOS runner 承擔方式仍未定** | [`docs/19`](docs/19-app-tech-stack.md) | — |
 | **S0-10** | ⬜ | 全部 | **上線前壓測**：Azure SQL 先開 Basic（5 DTU／2 GB）。DTU 不足只是變慢且可線上升級，但 **2 GB 是硬上限、寫滿即寫入失敗**——**儲存空間告警須設在 1.5 GB** | [`docs/17`](docs/17-deployment.md) §6 | S0-6 |
