@@ -14,7 +14,7 @@
 | [`../output/TCRFC_前後台功能規劃書.md`](../output/TCRFC_前後台功能規劃書.md) | **v3.9，1814 行** | 官網主站前後台（含站內商店）＋**多俱樂部架構**＋**後台設計通則**＋**圖片上傳通則**＋**GEO 規格** | 俱樂部 |
 | [`../output/TCRFC_台中藍鯨官網功能規劃書.md`](../output/TCRFC_台中藍鯨官網功能規劃書.md) | **v1.8，429 行** | 台中藍鯨官網：獨立網域、獨立前台專案、雙語，**共用主站後台與資料庫**；**與主站同一套網站，只有配色不同**（§1.3 總則） | 內容：**藍鯨**／收款：俱樂部 |
 | [`../output/TCRFC_慈善捐款平台功能規劃書.md`](../output/TCRFC_慈善捐款平台功能規劃書.md) | **v2.5，806 行** | 獨立網域掃碼捐款平台。**獨立後台與獨立資料庫** | **協會** |
-| [`../output/TCRFC_行動App功能規劃書.md`](../output/TCRFC_行動App功能規劃書.md) | **v3.9，1753 行** | iOS／Android App，台中磐石 × 台中藍鯨雙隊共同平台，共用主站後台與資料庫 | 內容：**兩隊**／收款：俱樂部 |
+| [`../output/TCRFC_行動App功能規劃書.md`](../output/TCRFC_行動App功能規劃書.md) | **v3.11，1792 行** | iOS／Android App，台中磐石 × 台中藍鯨雙隊共同平台，共用主站後台與資料庫 | 內容：**兩隊**／收款：俱樂部 |
 
 **另有四份客戶版交付物**——**都不是規格來源**，改規格一律改規劃書，客戶版事後跟著改：
 
@@ -42,7 +42,7 @@
 |---|---|---|---|
 | **真實來源** | `output/TCRFC_前後台功能規劃書.md`<br>`output/TCRFC_台中藍鯨官網功能規劃書.md`<br>`output/TCRFC_慈善捐款平台功能規劃書.md`<br>`output/TCRFC_行動App功能規劃書.md` | 網站與 App 要有什麼功能 | 改動＝需求變更，須同步英文版與 PDF |
 | **導航層** | `docs/01`–`docs/05`、`docs/10`–`docs/13` | 規劃書的濃縮與索引，附行號指回原文 | 隨規劃書同步 |
-| **執行層** | `docs/06`–`docs/08`、`docs/14`–`docs/15`、`docs/17`–`docs/18` | 我們怎麼做：慣例、管線、排程、不變量、非交付物記錄、部署決定、**作業失誤紀錄** | 隨工作方式演進 |
+| **執行層** | `docs/06`–`docs/08`、`docs/14`–`docs/15`、`docs/17`–`docs/19` | 我們怎麼做：慣例、管線、排程、不變量、非交付物記錄、部署決定、**作業失誤紀錄**、**App 技術選型** | 隨工作方式演進 |
 | **索引層** | `CLAUDE.md` | **只有全域規定與文件索引**，不放規格也不放知識 | 很少改 |
 
 **衝突處理原則**：導航層與真實來源不一致時，以真實來源為準，並修正導航層。
@@ -52,7 +52,7 @@
 
 ## 2. 規劃書行號對照表
 
-檔案：[`../output/TCRFC_前後台功能規劃書.md`](../output/TCRFC_前後台功能規劃書.md)（**v3.8，共 1800 行**）
+檔案：[`../output/TCRFC_前後台功能規劃書.md`](../output/TCRFC_前後台功能規劃書.md)（**v3.9，共 1814 行**）
 用 `Read` 搭配 `offset` / `limit` 只取需要的區段。
 
 > ⚠️ **v3.0 大幅改版，行號全面位移。** 舊 session 記得的行號一律作廢。
@@ -94,7 +94,7 @@
 | 3.11 【11】CHARITY 慈善 | 511–545 | 理念、計畫、事蹟、影響力數據（**只做介紹與導流**） |
 | 3.12 【12】FAQ | 546–562 | 十主題 |
 | 3.13 【13】SCHEDULE 行事曆 | 563–685 | 隊別分類、訂閱、`.ics` |
-| **3.14 MEMBER 會員中心** | 686–819 | ⚠️ **v3.0 改為雙會籍**：層級（661–）／**球季制與兩隊不同步**（675–）／會費收款／**電子會員卡：每份會籍一張**（692–）／權益對照表／抽獎 |
+| **3.14 MEMBER 會員中心** | 686–819 | ⚠️ **v3.0 改為雙會籍**：會員層級（693–）／**會籍計期與方案**（705–）／**會費收款**（713–）／**電子會員卡：每份會籍一張**（725–）／權益對照表（738–）／**球迷會員抽獎**（745–） |
 | 4. 後台功能規劃 | 820–1440 | — |
 | └ **4.0 後台架構總覽** | 822–971 | 模組樹（**J 拆為 J1–J4**）、**站台切換器（v3.0）**、🧭 **後台設計通則（v3.7，行 904–917）**、🧭 **前後台對照表（v3.7，行 918–947）**、🖼 **後台圖片上傳通則（行 948–970，⚠️ v3.9 加上縮圖與衍生檔尺寸）**、`N` 模組已移出 |
 | └ 4.2 B 內容管理 | 986–1027 | **B1 頁面管理 988／B2 新聞與故事 993／B3 首頁編排 999／B4 常見問題 1003／B5 慈善與社會影響 1011／B6 媒體專區 1020** |
@@ -124,7 +124,7 @@
 |---|---|---|---|
 | **台中藍鯨官網**（v1.8） | 429 | [`13-blue-whale-site.md`](13-blue-whale-site.md) | 1 專案目標 66（**§1.3 總則 85**）／2 架構 106／3 前台 169／4 後台與資料範圍 231／5 會籍與商店 265／6 資料模型 302／**7 SEO＋GEO 321**／8 視覺 333／9 階段 383／10 待確認 399 |
 | **慈善捐款平台**（v2.5） | 806 | [`10-charity-donation-site.md`](10-charity-donation-site.md) | 1 目標 100／2 架構 193／3 前台 252／4 金流 345／5 發票 410／6 後台 466／7 報表 553／8 分潤 579／9 資料模型 633／10 權限 684／11 個資 709／12 階段 737／13 待確認 757 |
-| **行動 App**（v3.9） | 1753 | [`11-mobile-app.md`](11-mobile-app.md) | 1 目標 108／2 架構 245／3 前台 368／4 會員認證 729／5 付款 802／6 推播 923／7 廣告 1008／8 後台 1147／9 API 1265／10 資料模型 1354／11 權限 1469／12 個資 1527／13 非功能 1587／14 上架 1606／15 階段 1649／16 待確認 1667 |
+| **行動 App**（v3.11） | 1792 | [`11-mobile-app.md`](11-mobile-app.md) | 1 目標 124（**§1.5 平台能力 242**）／2 架構 261／3 前台 384／4 會員認證 745／5 付款 818／6 推播 942／7 廣告 1037／8 後台 1176／9 API 1294／10 資料模型 1383／11 權限 1506／12 個資 1564／13 非功能 1624／14 上架 1643／15 階段 1686／16 待確認 1706 |
 
 > 英文版 [`../output/TCRFC_Website_Functional_Specification_EN.md`](../output/TCRFC_Website_Functional_Specification_EN.md) 章節結構相同，行號略有位移。
 > **中文版為主，英文版為譯本**；規格若有修改，先改中文版。
@@ -145,8 +145,8 @@
 | 1 | 改規格本體，並**提高版本號**、在開頭補「修訂摘要」 | [主站](../output/TCRFC_前後台功能規劃書.md)／[藍鯨官網](../output/TCRFC_台中藍鯨官網功能規劃書.md)／[慈善](../output/TCRFC_慈善捐款平台功能規劃書.md)／[行動 App](../output/TCRFC_行動App功能規劃書.md)。⚠️ **主站是上游，改它通常要連動其餘三份** |
 | 2 | 同步英文版（中文為主、英文為譯本） | `TCRFC_Website_Functional_Specification_EN.md`／`TCRFC_Taichung_Blue_Whale_Website_Specification_EN.md`／`TCRFC_Charity_Donation_Platform_Specification_EN.md`／`TCRFC_Mobile_App_Specification_EN.md` |
 | 3 | 重產 PDF（**勿手改 PDF**） | `node output/tools/build-pdf.mjs zh en bw-zh bw-en charity-zh charity-en app-zh app-en`（只跑改到的那幾個即可） |
-| 4 | 同步導航層，含**重算行號對照表**與踩雷點 | [`docs/`]()（尤其 [`00-harness.md`](00-harness.md)；慈善另加 [`10`](10-charity-donation-site.md)、App 另加 [`11`](11-mobile-app.md)、資料表另加 [`12`](12-database-schema.md)、藍鯨另加 [`13`](13-blue-whale-site.md)） |
-| 5 | 改前台骨架並跑建置與自檢 | [`site/`](../site/)。⚠️ **前台已定為 Nuxt 3 SSR**（[`17-deployment.md`](17-deployment.md)），現有的 `build.mjs`／`verify.mjs` 與 `wrangler pages deploy` 將隨骨架重做退場；`verify.mjs` 的六項檢查須移植為 Nuxt 專案的 lint／test，**本列指令屆時一併更新** |
+| 4 | 同步導航層，含**重算行號對照表**與踩雷點。🔴 **收尾必跑 `node docs/tools/check-linerefs.mjs`**（E-03 已犯三次，非 0 就是沒做完） | [`docs/`]()（尤其 [`00-harness.md`](00-harness.md)；慈善另加 [`10`](10-charity-donation-site.md)、App 另加 [`11`](11-mobile-app.md)、資料表另加 [`12`](12-database-schema.md)、藍鯨另加 [`13`](13-blue-whale-site.md)） |
+| 5 | 改前台骨架並跑建置與自檢（**App 規格異動另須同步兩個 App repo 的 `shared/` 契約檔，見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §2**） | [`site/`](../site/)。⚠️ **前台已定為 Nuxt 3 SSR**（[`17-deployment.md`](17-deployment.md)），現有的 `build.mjs`／`verify.mjs` 與 `wrangler pages deploy` 將隨骨架重做退場；`verify.mjs` 的六項檢查須移植為 Nuxt 專案的 lint／test，**本列指令屆時一併更新** |
 | 6 | 登記新的待補項目、刪掉已過期的 | [`content/migration/待補內容清單.csv`](../content/migration/待補內容清單.csv) |
 | 7 | 若異動涉及全站前提或「不做的事」，回寫不變量速查與現況表 | [`14-invariants.md`](14-invariants.md)、`../CLAUDE.md` 的一分鐘現況 |
 
@@ -188,15 +188,16 @@ App 客戶版原本的 Decisions 一節已從 [`output/tools/build-app-brief.py`
 | 了解專案、接手工作 | `CLAUDE.md` → 本檔 |
 | 做某一個前台頁面 | [`02-frontend-spec.md`](02-frontend-spec.md) 對應段落 → 規劃書該節行號 → [`../site/src/`](../site/src/) 既有頁面找對應區塊樣式 |
 | 做後台模組 | [`03-admin-spec.md`](03-admin-spec.md) → 規劃書 4.x → [`04-data-model.md`](04-data-model.md) |
-| 設計資料表 / 匯入格式 | [`04-data-model.md`](04-data-model.md)（型別清單）→ [`12-database-schema.md`](12-database-schema.md)（＋ ERD 在 [`12a`](12a-database-erd.md)、欄位在 [`12b`](12b-database-tables.md)）（**資料表綱要與 ERD**）→ 規劃書 **1427–1558**（App 型別見 App 規劃書 **1349–1463**） |
-| **任何涉及「這筆資料屬於哪一隊」的設計** | 規劃書 **5.4（1513–1558）判定準則** → `docs/12` → 該型別所在模組 |
-| 處理雙語或 SEO | [`05-i18n-seo.md`](05-i18n-seo.md) → 規劃書 1609–1653 |
+| 設計資料表 / 匯入格式 | [`04-data-model.md`](04-data-model.md)（型別清單）→ [`12-database-schema.md`](12-database-schema.md)（＋ ERD 在 [`12a`](12a-database-erd.md)、欄位在 [`12b`](12b-database-tables.md)）（**資料表綱要與 ERD**）→ 規劃書 **1441–1573**（App 型別見 App 規劃書 **1364–1478**） |
+| **任何涉及「這筆資料屬於哪一隊」的設計** | 規劃書 **5.4（1527–1573）判定準則** → `docs/12` → 該型別所在模組 |
+| 處理雙語或 SEO | [`05-i18n-seo.md`](05-i18n-seo.md) → 規劃書 **1623–1667** |
 | 寫文案 / 處理客戶素材 | [`07-content-pipeline.md`](07-content-pipeline.md) → [`06-conventions.md`](06-conventions.md) |
-| 排程、報價、跟客戶討論範圍 | [`08-roadmap-decisions.md`](08-roadmap-decisions.md) → 規劃書 **1669–1717** |
+| 排程、報價、跟客戶討論範圍 | [`08-roadmap-decisions.md`](08-roadmap-decisions.md) → 規劃書 **1683–1731** |
 | **台中藍鯨官網任何工作** | [`13-blue-whale-site.md`](13-blue-whale-site.md) → 藍鯨規劃書該節行號 → **主站規劃書的對應章節**（藍鯨規劃書只寫差異） |
 | **慈善捐款平台任何工作** | [`10-charity-donation-site.md`](10-charity-donation-site.md) → 慈善站規劃書該節行號 |
 | **行動 App 任何工作** | [`11-mobile-app.md`](11-mobile-app.md) → App 規劃書該節行號 |
-| **部署、基礎設施、技術選型** | [`17-deployment.md`](17-deployment.md)（拓撲、固定出口 IP、快取策略與**不得讀快取清單**、DBMS 連帶決定）→ [`12-database-schema.md`](12-database-schema.md) §1.4 |
+| **部署、基礎設施、技術選型** | [`17-deployment.md`](17-deployment.md)（拓撲、固定出口 IP、快取策略與**不得讀快取清單**、DBMS 連帶決定）→ [`12-database-schema.md`](12-database-schema.md) §1.4。**App 客戶端見 [`19-app-tech-stack.md`](19-app-tech-stack.md)** |
+| **App 的技術實作、CI、上架** | [`19-app-tech-stack.md`](19-app-tech-stack.md)（原生雙平台、`shared/` 契約、權杖、推播傳輸、可見度量測、設定下發、CI/CD）→ [`11-mobile-app.md`](11-mobile-app.md) → App 規劃書 |
 | 視覺、色彩、字級 | [`06-conventions.md`](06-conventions.md) §設計 tokens → `site/src/assets/css/tcrfc.css` 的 `:root` |
 | **要改規格、改共用區塊、順移代號、重產客戶版** | 先掃 [`18-work-errors.md`](18-work-errors.md) §1 速查（這四件事各有前科）→ 本檔 §2.5 同步鏈 |
 
