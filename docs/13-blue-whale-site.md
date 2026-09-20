@@ -130,6 +130,52 @@
 
 ## 6. 前台建置的技術判斷
 
+### ✅ 主站與藍鯨共用一個 Nuxt 映像檔（2026-09-20 定案）
+
+**一個映像檔、兩個容器、靠 `NUXT_PUBLIC_CLUB` 環境變數切品牌。** 已由 `frontend-architect` 驗證可行，
+前提是現有 `site/src/assets/css/tcrfc.css` **全部用 CSS custom properties、沒有 Tailwind 也沒有 CSS-in-JS**
+（已實查：`:root` 外只有 4 個硬編碼色碼，是 LINE 的品牌綠，本來就不該是俱樂部變數）。
+
+**色彩切換用 `[data-club]` 屬性選擇器**，兩組色票都編譯進同一份 CSS：
+
+```css
+:root, :root[data-club="tcrfc"]{ --brand:#E0218A; --brand-aa:#D61E83; … }
+:root[data-club="bw"]        { --brand:#2196D5; --brand-aa:#1A78AA; … }
+```
+
+`app.vue` 用 `useHead({ htmlAttrs: { 'data-club': useRuntimeConfig().public.club } })`——
+**SSR 階段就決定、隨 HTML 一起吐出**，沒有 hydration mismatch 風險，也不需要動態組 `<style>` 字串。
+
+### 🔴 六條開發紀律（破了其中一條，共用就悄悄失效）
+
+| # | 紀律 | 不遵守會怎樣 |
+|---|---|---|
+| 1 | **色彩永遠只能是 CSS custom properties**，⛔ 不得引入任何把顏色編譯成字面值的工具（Tailwind JIT class、CSS-in-JS 靜態抽取） | 編譯後的 CSS 裡是 `#E0218A` 而不是 `var(--brand)`，**runtime 換色直接失效** |
+| 2 | **club 專屬靜態資產（favicon、OG 圖、apple-touch-icon）兩份都打包進同一映像檔**，`useHead` 依 runtime 變數選路徑 | 寫死 `/favicon.ico` 的話藍鯨站會顯示磐石的圖示 |
+| 3 | 🔴 **單元開關只能有一個真實來源**：寫一個 `isUnitEnabledForClub(unitCode, club)`，**route middleware、導覽選單、sitemap、`llms.txt`／`robots.txt` 四處都呼叫它** | 四處各寫一份判斷，新增頁面時漏掉一處 → 「頁面 404 了但還留在選單裡」或「選單拿掉了但 sitemap 還在遞交」 |
+| 4 | **選定 SEO 模組的第一件事就是實測 `NUXT_PUBLIC_SITE_URL` 能不能 runtime 覆寫** | ⚠️ **這是唯一「技術上真的可能做不到」的環節**，見下方 |
+| 5 | 🔴 **新增前台功能時預設問一句「這個功能兩站都該有嗎？」**——寫進 code review checklist | **單一映像檔會放大而不是縮小這個風險**：兩站永遠部署同一份程式碼，沒加 club 判斷就是**兩站同時見紅**；兩個映像檔反而只會讓藍鯨那邊維持舊版 |
+| 6 | **i18n 設定兩站一致是共用的前提之一** | 哪天藍鯨要加第三種語言，這塊會變成真正的建置期分岔，要回頭重新評估 |
+
+### ⚠️ 唯一還沒驗證的：SEO 模組的 canonical 能不能 runtime 覆寫
+
+本專案**尚未選定 Nuxt SEO 模組**，而 `site.url`／canonical 的行為**因套件與版本而異**。
+多數模組近年把 `site.url` 收進 `runtimeConfig.public.site.url`，理論上可用 `NUXT_PUBLIC_SITE_URL` 覆寫，
+部分也支援從請求的 `Host` header 動態算——**但這要實測，不能用推論當結論**。
+
+🔵 **驗證方式**：起一個最小 Nuxt 3 專案裝上候選模組，**build 一次**，用兩組不同的 `NUXT_PUBLIC_SITE_URL`
+啟兩個容器，檢查兩邊輸出的 canonical 與 sitemap 網址是否各自正確。約半天。
+
+**若驗證失敗，退路不是整個回到兩個映像檔**——可以先讓 SEO 輸出（sitemap、canonical）走
+「從請求 `Host` 動態算」而不是「讀設定值」，多數模組有這個逃生口。
+
+⚠️ `llms.txt`／`robots.txt` **不受此限**——[`05-i18n-seo.md`](05-i18n-seo.md) 的 `GEO-01` 已定為
+「由後台 `H` 維護並隨發布重產」，本來就是從資料庫動態產生，天生是 runtime 行為。
+
+---
+
+## 6a. 其他前台建置判斷
+
 🔴 **本節待改寫（2026-09-18）。** 前台已定為 **Nuxt 3 SSR**（[`17-deployment.md`](17-deployment.md)），
 現有 `site/` 的 80 頁靜態骨架與 `build.mjs`／`verify.mjs` 將隨之重做，**「複製 `site/` 骨架」這個做法不再適用**。
 取而代之的是**共用元件庫或 Nuxt layer ＋ 品牌 token 覆寫**，藍鯨站為獨立的 `nuxt-bw` instance。
