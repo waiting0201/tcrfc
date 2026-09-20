@@ -101,7 +101,7 @@
   ⛔ **實作三條**（`docs/17` §4）：**Redis 連線失敗必須回源不得讓請求失敗**（斷線與 cache miss 是兩回事）；
   **失效用嵌在 key 裡的版本號遞增，絕對不得用 `KEYS` 掃**（會阻塞整個 Redis）；
   **五類禁用的 repository 根本不注入快取服務**——靠人記半年後一定會破。
-- 🔵 **技術選型已定案**（2026-09-18）：Nuxt 3 SSR ＋ .NET／EF Core＋Dapper ＋ **Azure SQL** ＋ Azure Blob ＋ Redis，
+- 🔵 **技術選型已定案**（2026-09-18）：Nuxt 4 SSR ＋ .NET／EF Core＋Dapper ＋ **Azure SQL** ＋ Azure Blob ＋ Redis，
   跑在**單一 Azure VM（Japan East／東京，2026-09-20 由 West US 2 改定）** 的 Docker 上，Cloudflare 在前。**規劃書仍不記技術選型**，結果只在 [`17-deployment.md`](17-deployment.md)。
   ⚠️ 隨之而來的三條硬限制：`uniqueidentifier` 主鍵須**非叢集**（UUIDv7 在 SQL Server 無效）、
   `CalendarEvent` **不能用 indexed view**（禁 UNION）、Azure SQL **不支援跨庫查詢**（這反而讓慈善的邊界變硬）。
@@ -128,6 +128,7 @@
   ⛔ **色彩永遠只能是 CSS custom properties**——不得引入 Tailwind JIT class 或任何把顏色編譯成字面值的工具，否則 runtime 換色直接失效。
   ⛔ **單元開關（藍鯨不設 06／11）只能有一個真實來源**：`isUnitEnabledForClub()`，route middleware、選單、sitemap、`llms.txt`／`robots.txt` 四處都呼叫它。
   ⚠️ **單一映像檔放大而不是縮小「忘了加 club 判斷」的風險**——兩站永遠部署同一份程式碼，漏判斷就是**兩站同時見紅**。
+  ⛔ **`site.url` 不得寫進 `nuxt.config.ts`，`NUXT_PUBLIC_SITE_URL` 不得在 `docker build` 階段帶**——後者會被烤進 `.output` 當**預設回退值**，某個容器忘記帶環境變數時會**悄悄**用到錯的網域，**不是直接壞掉是靜默錯誤**。只在 `docker run` 時給。
 
 - 🔵 **HEIC 由前端瀏覽器轉 JPEG 再送**（2026-09-20 定案，`docs/17` §6）。ImageSharp 不解 HEIC，而伺服器端加 HEIF 解碼會牽進 **HEVC 專利授權**。
   ⛔ **但伺服器端仍要擋**：收到解不開的檔一律回絕，**不得假設前端一定轉過**——前端可能失敗、可能被繞過。

@@ -15,7 +15,7 @@
 
 | 層 | 選定 |
 |---|---|
-| 前台 | **Nuxt 3 SSR**（Vue 3）——主站、藍鯨、慈善**各一個 instance** |
+| 前台 | **Nuxt 4 SSR**（Vue 3）——主站、藍鯨、慈善**各一個 instance**。⚠️ **2026-09-18 定案時寫的是 Nuxt 3，2026-09-20 改為 4**：`npx nuxi init` 現在預設就是 v4（v4 目錄結構 `app/`），greenfield 專案沒有理由起手就鎖在舊的 major。S0-9b 的 SEO 實測是在 **Nuxt 4.5.2 ＋ `@nuxtjs/seo` 5.3.16** 上通過的 |
 | 後台 | Vue 3——官網、慈善**各一個 instance**（後台不需 SEO） |
 | API | **.NET / C#，EF Core ＋ Dapper**——**單一 instance**，持有兩個 `DbContext` |
 | 快取 | **Redis 一個 instance，只服務俱樂部**；cache-aside ＋ SQL fallback |

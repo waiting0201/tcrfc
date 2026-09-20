@@ -47,7 +47,7 @@
 
 | # | 狀態 | 擋住什麼 | 事項 | 誰能解 |
 |---|---|---|---|---|
-| ~~B-1~~ | ✅ | ~~全部開發~~ | **技術選型已定案**（2026-09-18）：Nuxt 3 SSR ＋ .NET／EF Core＋Dapper ＋ Azure SQL ＋ Azure Blob ＋ Redis，單一 Azure VM（**Japan East／東京**，2026-09-20 改定）＋ Docker。見 [`docs/17`](docs/17-deployment.md) | — |
+| ~~B-1~~ | ✅ | ~~全部開發~~ | **技術選型已定案**（2026-09-18）：Nuxt 4 SSR ＋ .NET／EF Core＋Dapper ＋ Azure SQL ＋ Azure Blob ＋ Redis，單一 Azure VM（**Japan East／東京**，2026-09-20 改定）＋ Docker。見 [`docs/17`](docs/17-deployment.md) | — |
 | ~~B-2~~ | ✅ | ~~建資料表~~ | **資料庫綱要 v3.0 同步完成**（2026-09-20）：§4 總覽、14 張 ERD、§6 明細、§11 唯一鍵與索引、§14 檢核表全部改寫；`club_id` **50 必填／9 可為空／43 不加**，與主站 §5.4 逐名一致（三張漏列的型別已於主站 v3.10 補齊）。**可以轉 DDL** | — |
 | B-3 | 🚫 | **113 篇文稿轉網頁文案** | 客戶交來的文稿全是 `.gdoc` 捷徑，**本機讀不到**（[`docs/09`](docs/09-intake-inventory.md)） | 客戶 |
 | B-4 | 🚫 | **藍鯨站上線、App 深連結** | **藍鯨網域**：名稱、持有人、DNS 控制權（Universal Link 只能綁自己持有的網域） | 客戶 |
@@ -71,7 +71,7 @@
 
 | ID | 狀態 | 平台 | 工作 | 規格在哪 | 前置 |
 |---|---|---|---|---|---|
-| S0-1 | ✅ | 全部 | **技術選型拍板**（2026-09-18）：Nuxt 3 SSR／.NET＋EF Core＋Dapper／**Azure SQL**／**Azure Blob**／Redis／單一 Azure VM。⚠️ **CI 仍未定**（目前無 `.github/`，部署是人工） | [`docs/17`](docs/17-deployment.md) | — |
+| S0-1 | ✅ | 全部 | **技術選型拍板**（2026-09-18）：Nuxt 4 SSR／.NET＋EF Core＋Dapper／**Azure SQL**／**Azure Blob**／Redis／單一 Azure VM。⚠️ **CI 仍未定**（目前無 `.github/`，部署是人工） | [`docs/17`](docs/17-deployment.md) | — |
 | S0-2 | ✅ | 全部 | **[`docs/12`](docs/12-database-schema.md) §1.4 五件事全部定案**（陣列→維持關聯表／JSON→原生 `json` 型別／`CalendarEvent`→一般 VIEW，**禁 indexed view**／全文檢索→第一期 `LIKE`／NULL 語意→**弱讀法 ＋ 路由優先順序**） | `docs/12` §1.4 | — |
 | S0-3 | ✅ | 全部 | **資料庫綱要 13 項落差已補完**（2026-09-20）：§4 總覽逐張標 `club_id`、14 張 ERD 重繪、§6 明細重寫、§11 唯一鍵與索引、§14 檢核表重算 | `docs/12` 檔頭 | — |
 | **S0-3b** | 🔄 | 全部 | **39 張側表欄位已起草**（2026-09-20，[`docs/12c`](docs/12c-i18n-tables.md)，`system-analyst` 逐欄附規劃書行號與信心度）。⚠️ **§5 列出 7 項問題待裁決**，其中三項是實質的欄位缺漏不是寫法之爭，見 S0-3c | 主站 §4、§5.1 | — |
@@ -86,11 +86,11 @@
 | **S0-6a** | ✅ | 全部 | **DDL 已重產**（2026-09-20）：[`db/club-schema.sql`](db/club-schema.sql) **144 張表 ＋ 1 視圖**（2,900 行），`⚠️ 待確認` 由 **64 處降為 8 處**；[`db/charity-schema.sql`](db/charity-schema.sql) 27 張。驗證：CONSTRAINT 無重名、FK 目標全部存在、括號配對、主鍵與叢集鍵逐表配對。**`Club`／`Competition` 的雙語定案走側表**，新增 `clubs_i18n`／`competitions_i18n`。原初版作廢原因：——DDL 是照 ERD 產的，而 ERD 經 S0-3c 查出 26 張有欄位缺漏，缺漏已傳進 DDL（`members` 沒有姓名欄、`player_season_stats` 除兩個外鍵外一個統計欄位都沒有）。**現有 `db/*.sql` 不得拿去建庫。** 原始產出紀錄：（2026-09-20，`backend-engineer` × 2 並行）：[`db/club-schema.sql`](db/club-schema.sql) **150 張表**（104 實體 ＋ 46 側表）＋ 1 視圖、3,504 行；[`db/charity-schema.sql`](db/charity-schema.sql) **27 張表**。硬性約束全數通過（無日誌表、無 media 三表、無 indexed view、`club_id` 50 必填／9 可為空、PK 非叢集、FK 來源與目標全部存在）。⚠️ **主站有 64 處 `⚠️ 待確認`**，大宗是 S0-3b | `docs/12`／`12a`／`12b`／[`16`](docs/16-charity-schema.md) | — |
 | S0-6 | ⏸ | 全部 | ⏸ **暫緩**（隨 S0-7）。**建 Azure SQL 正式庫** | 同上 | S0-6b、S0-7 |
 | **S0-7c** | ⬜ | 全部 | **CI/CD 規劃已完成**（2026-09-20，[`docs/20`](docs/20-cicd.md)），**workflow 檔待寫**。✅ **兩件已拍板（2026-09-20）**：① **self-hosted runner 裝在正式 VM**（接受「部署執行環境＝正式環境」的取捨，防護鏈見 `docs/20` §4，**第 0 條的 repo 設定是地基**） ③ **資料庫遷移定為 EF Core Migrations**。✅ ② **主站與藍鯨共用一個 Nuxt 映像檔**（`frontend-architect` 已驗證：現有 CSS 全是 custom properties、無 Tailwind，`[data-club]` 屬性選擇器切色。**六條開發紀律見 [`docs/13`](docs/13-blue-whale-site.md) §6**） | [`docs/20`](docs/20-cicd.md) | — |
-| **S0-9b** | ⬜ | 主站／藍鯨 | 🔵 **SEO 模組的 canonical runtime 覆寫實測**（約半天，不花錢）：起最小 Nuxt 3 專案裝候選 SEO 模組，**build 一次**用兩組 `NUXT_PUBLIC_SITE_URL` 啟兩個容器，檢查 canonical 與 sitemap 是否各自正確。⚠️ **這是單一映像檔方案裡唯一「技術上真的可能做不到」的環節**；失敗的退路是讓 SEO 輸出從請求 `Host` 動態算 | [`docs/13`](docs/13-blue-whale-site.md) §6 | — |
+| **S0-9b** | ✅ | 主站／藍鯨 | **實測通過**（2026-09-20）：同一份 build、兩個 process 帶不同 `NUXT_PUBLIC_SITE_URL`，canonical 與 sitemap 各自正確，偽造 `Host` 也蓋不掉。模組定為 **`@nuxtjs/seo`**，`site.url` 留空不寫進 `nuxt.config.ts`。**單一映像檔方案的最後一個不確定性歸零**。設定寫法與紀律 7、8 見 [`docs/13`](docs/13-blue-whale-site.md) §6 | [`docs/13`](docs/13-blue-whale-site.md) §6 | — |
 | **S0-7a** | ⬜ | 全部 | **本機骨架（不花錢）**：repo 結構、八個 `Dockerfile`、`docker-compose.yml`、`.env.example`、本機用 SQL Server 容器。**Azure 資源一個都不開** | [`docs/17`](docs/17-deployment.md) §1 | — |
 | **S0-6b** | ✅ | 全部 | **DDL 本機實測通過**（2026-09-20）：主站 **144 表／380 外鍵／1 視圖**、慈善 **29 表／65 外鍵**，兩份都零錯誤執行完成。⚠️ **驗證時須先把 `json` 換成 `nvarchar(max)`**——本機是 SQL Server 2022，原生 `json` 只有 Azure SQL 與 2025 有。原任務說明：🔵 **DDL 本機實測**：用 `mcr.microsoft.com/mssql/server` 容器實際跑一次兩份 `.sql`。**這是目前唯一能真正驗證 DDL 的方法**——正則只能查括號與名稱，查不出型別錯誤、外鍵順序、`CHECK` 語法。**不需要 Azure** | [`db/`](db/) | — |
 | S0-7 | ⏸ | 全部 | ⏸ **暫緩（2026-09-20 使用者指示：Azure 資源先不開）**。**專案骨架與部署管線**：Docker Compose **八個容器**（反向代理／`nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity`／`admin-web`／`admin-charity`／`api`／`redis`）、VNet ＋ 服務端點、靜態 Public IP、NSG。🔵 **`redis` 的 compose 定義已寫好可直接抄**（[`docs/17`](docs/17-deployment.md) §1「Redis 怎麼裝」）——⛔ **絕對不要寫 `ports:`** | [`docs/17`](docs/17-deployment.md) §1–§2 | — |
-| **S0-9** | ⬜ | 主站／藍鯨／慈善 | 🔵 **不需要 Azure，可本機進行**。🔴 **前台骨架改 Nuxt 3 SSR**：現有 `site/` 的 80 頁靜態骨架、`build.mjs`、`verify.mjs` 與 `wrangler pages deploy` 全部退場。**`verify.mjs` 的六項檢查（token 殘留／h1 數量／缺 alt／寫死色碼／站內斷鏈／`.pending` 統計）須移植為 lint／test，不得直接丟棄**；`noindex` 與 `_redirects` 一併移植 | [`docs/17`](docs/17-deployment.md)、`docs/13` §6 | S0-7 |
+| **S0-9** | ⬜ | 主站／藍鯨／慈善 | 🔵 **不需要 Azure，可本機進行**。🔴 **前台骨架改 Nuxt 4 SSR**：現有 `site/` 的 80 頁靜態骨架、`build.mjs`、`verify.mjs` 與 `wrangler pages deploy` 全部退場。**`verify.mjs` 的六項檢查（token 殘留／h1 數量／缺 alt／寫死色碼／站內斷鏈／`.pending` 統計）須移植為 lint／test，不得直接丟棄**；`noindex` 與 `_redirects` 一併移植 | [`docs/17`](docs/17-deployment.md)、`docs/13` §6 | S0-7 |
 | **S0-11** | ✅ | App | **App 客戶端技術選型拍板**（2026-09-20）：原生 Swift／SwiftUI ＋ Kotlin／Compose；`shared/` 契約目錄、權杖機制、推播直送、可見度量測、設定下發三層、CI 管線全部定案。⚠️ **CI 的 macOS runner 承擔方式仍未定** | [`docs/19`](docs/19-app-tech-stack.md) | — |
 | **S0-10** | ⬜ | 全部 | **上線前壓測**：Azure SQL 先開 Basic（5 DTU／2 GB）。DTU 不足只是變慢且可線上升級，但 **2 GB 是硬上限、寫滿即寫入失敗**——**儲存空間告警須設在 1.5 GB** | [`docs/17`](docs/17-deployment.md) §6 | S0-6 |
 | S0-8 | ⬜ | 全部 | ✅ **HEIC 已定案（2026-09-20）：前端瀏覽器轉 JPEG 再送**，伺服器端仍須擋解不開的檔（見 [`docs/17`](docs/17-deployment.md) §6）。**圖片上傳共用元件**：選檔 → JS 預覽 → 表單儲存才寫 blob（**Azure Blob Storage**）；換圖成功才刪舊物件（**主檔＋衍生檔一起刪**）；前後端雙重驗證（伺服器端以檔頭判格式）；**伺服器端一律重新編碼**（轉正 → 長邊 > 2560px 等比縮小 → WebP → 去 EXIF 含 GPS，**不留原始檔**），一次產完 **1280／640／320 ＋ 160px 方形縮圖**，鍵由主鍵推導（**ImageSharp**——年營收 100 萬美元以下適用 Apache 2.0，本案符合） | **主站 §4.0 後台圖片上傳通則（v3.9）** | S0-7 |

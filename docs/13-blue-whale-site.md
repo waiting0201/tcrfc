@@ -157,26 +157,60 @@
 | 5 | 🔴 **新增前台功能時預設問一句「這個功能兩站都該有嗎？」**——寫進 code review checklist | **單一映像檔會放大而不是縮小這個風險**：兩站永遠部署同一份程式碼，沒加 club 判斷就是**兩站同時見紅**；兩個映像檔反而只會讓藍鯨那邊維持舊版 |
 | 6 | **i18n 設定兩站一致是共用的前提之一** | 哪天藍鯨要加第三種語言，這塊會變成真正的建置期分岔，要回頭重新評估 |
 
-### ⚠️ 唯一還沒驗證的：SEO 模組的 canonical 能不能 runtime 覆寫
+### ✅ SEO 的 canonical 與 sitemap 已實測可 runtime 覆寫（2026-09-20）
 
-本專案**尚未選定 Nuxt SEO 模組**，而 `site.url`／canonical 的行為**因套件與版本而異**。
-多數模組近年把 `site.url` 收進 `runtimeConfig.public.site.url`，理論上可用 `NUXT_PUBLIC_SITE_URL` 覆寫，
-部分也支援從請求的 `Host` header 動態算——**但這要實測，不能用推論當結論**。
+**同一份 `build` 產物、兩個 process 帶不同環境變數，canonical 與 sitemap 各自正確、互不污染。** 實測輸出：
 
-🔵 **驗證方式**：起一個最小 Nuxt 3 專案裝上候選模組，**build 一次**，用兩組不同的 `NUXT_PUBLIC_SITE_URL`
-啟兩個容器，檢查兩邊輸出的 canonical 與 sitemap 網址是否各自正確。約半天。
+```
+# A：NUXT_PUBLIC_SITE_URL=https://tcrfc.tw
+<link rel="canonical" href="https://tcrfc.tw/">
+<loc>https://tcrfc.tw/</loc>   <loc>https://tcrfc.tw/about</loc>
 
-**若驗證失敗，退路不是整個回到兩個映像檔**——可以先讓 SEO 輸出（sitemap、canonical）走
-「從請求 `Host` 動態算」而不是「讀設定值」，多數模組有這個逃生口。
+# B：NUXT_PUBLIC_SITE_URL=https://tcbw.example.tw（同一份 build）
+<link rel="canonical" href="https://tcbw.example.tw/">
+<loc>https://tcbw.example.tw/</loc>   <loc>https://tcbw.example.tw/about</loc>
 
-⚠️ `llms.txt`／`robots.txt` **不受此限**——[`05-i18n-seo.md`](05-i18n-seo.md) 的 `GEO-01` 已定為
-「由後台 `H` 維護並隨發布重產」，本來就是從資料庫動態產生，天生是 runtime 行為。
+# 偽造 Host 攻擊 A：curl -H "Host: evil.example.com"
+<link rel="canonical" href="https://tcrfc.tw/">   ← 沒被蓋掉
+```
+
+**模組**：`@nuxtjs/seo`（官方統包，含 sitemap／robots／og-image／schema-org／site-config）。
+`site.url` 的 runtime 覆寫邏輯集中在 `nuxt-site-config`，有明確的 priority stack，行為可預期。
+
+**`nuxt.config.ts` 寫法**——🔴 **`site.url` 刻意留空**：
+
+```ts
+export default defineNuxtConfig({
+  modules: ['@nuxtjs/seo'],
+  site: { name: 'TCRFC' },   // ⛔ 不要寫 url
+})
+```
+
+容器啟動時各自帶：`NUXT_PUBLIC_SITE_URL=https://tcrfc.tw` ／ `=https://tcbw.example.tw`。
+與切品牌色的 `NUXT_PUBLIC_CLUB` 互不相干，並用。
+
+### 🔴 紀律第 7、8 條（實測時發現的陷阱，加進上面那份清單）
+
+| # | 紀律 | 不遵守會怎樣 |
+|---|---|---|
+| 7 | ⛔ **`site.url` 絕對不要寫進 `nuxt.config.ts`** | 會被烤進 build 產物 |
+| 8 | ⛔ **`docker build` 階段絕對不要帶 `NUXT_PUBLIC_SITE_URL`** | 它會被 `nuxt-site-config` 以較低優先權（`buildEnv`）烤進 `.output` 當**預設回退值**。**不會蓋掉 runtime 的值**，但一旦某個容器忘記帶環境變數，就會**悄悄**變成 build 時那個錯的網域——**不是直接壞掉，是靜默錯誤，更難查**。只在 `docker run` 時給 |
+
+> 🔵 **逃生口也實測過了，不需要但可以用**：完全不帶 `NUXT_PUBLIC_SITE_URL` 時，
+> `nuxt-site-config` **內建**會從請求的 `Host`／`X-Forwarded-Host` 動態算 canonical，不需要額外開發。
+> **但正式環境仍建議明確設環境變數**——優先權更高、行為更確定，也不必擔心 Cloudflare 代理層的 Host 轉發出錯。
+
+### ⚠️ 實測時踩到的建置坑
+
+`@nuxtjs/seo` 內建的 `nuxt-og-image` 在缺 renderer 時會**直接讓 `build` 失敗**
+（報 `takumi renderer missing dependencies`）。spike 額外裝 `@takumi-rs/core` 才過。
+**正式專案裝 `@nuxtjs/seo` 時要記得這個相依，或明確關掉 og-image 子模組**（若暫不需要動態產生 OG 圖）。
 
 ---
 
 ## 6a. 其他前台建置判斷
 
-🔴 **本節待改寫（2026-09-18）。** 前台已定為 **Nuxt 3 SSR**（[`17-deployment.md`](17-deployment.md)），
+🔴 **本節待改寫（2026-09-18）。** 前台已定為 **Nuxt 4 SSR**（[`17-deployment.md`](17-deployment.md)），
 現有 `site/` 的 80 頁靜態骨架與 `build.mjs`／`verify.mjs` 將隨之重做，**「複製 `site/` 骨架」這個做法不再適用**。
 取而代之的是**共用元件庫或 Nuxt layer ＋ 品牌 token 覆寫**，藍鯨站為獨立的 `nuxt-bw` instance。
 **下方的七個色彩變數與換膚原則一字未改**，改變的只是它們套用在哪一種專案結構上。

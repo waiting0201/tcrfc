@@ -146,7 +146,7 @@
 | 2 | 同步英文版（中文為主、英文為譯本） | `TCRFC_Website_Functional_Specification_EN.md`／`TCRFC_Taichung_Blue_Whale_Website_Specification_EN.md`／`TCRFC_Charity_Donation_Platform_Specification_EN.md`／`TCRFC_Mobile_App_Specification_EN.md` |
 | 3 | 重產 PDF（**勿手改 PDF**） | `node output/tools/build-pdf.mjs zh en bw-zh bw-en charity-zh charity-en app-zh app-en`（只跑改到的那幾個即可） |
 | 4 | 同步導航層，含**重算行號對照表**與踩雷點。🔴 **收尾必跑 `node docs/tools/check-linerefs.mjs`**（E-03 已犯三次，非 0 就是沒做完） | [`docs/`]()（尤其 [`00-harness.md`](00-harness.md)；慈善另加 [`10`](10-charity-donation-site.md)、App 另加 [`11`](11-mobile-app.md)、資料表另加 [`12`](12-database-schema.md)、藍鯨另加 [`13`](13-blue-whale-site.md)） |
-| 5 | 改前台骨架並跑建置與自檢（**App 規格異動另須同步兩個 App repo 的 `shared/` 契約檔，見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §2**） | [`site/`](../site/)。⚠️ **前台已定為 Nuxt 3 SSR**（[`17-deployment.md`](17-deployment.md)），現有的 `build.mjs`／`verify.mjs` 與 `wrangler pages deploy` 將隨骨架重做退場；`verify.mjs` 的六項檢查須移植為 Nuxt 專案的 lint／test，**本列指令屆時一併更新** |
+| 5 | 改前台骨架並跑建置與自檢（**App 規格異動另須同步兩個 App repo 的 `shared/` 契約檔，見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §2**） | [`site/`](../site/)。⚠️ **前台已定為 Nuxt 4 SSR**（[`17-deployment.md`](17-deployment.md)），現有的 `build.mjs`／`verify.mjs` 與 `wrangler pages deploy` 將隨骨架重做退場；`verify.mjs` 的六項檢查須移植為 Nuxt 專案的 lint／test，**本列指令屆時一併更新** |
 | 6 | 登記新的待補項目、刪掉已過期的 | [`content/migration/待補內容清單.csv`](../content/migration/待補內容清單.csv) |
 | 7 | 若異動涉及全站前提或「不做的事」，回寫不變量速查與現況表 | [`14-invariants.md`](14-invariants.md)、`../CLAUDE.md` 的一分鐘現況 |
 
