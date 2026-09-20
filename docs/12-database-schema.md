@@ -62,7 +62,7 @@
 | ✅ | **§6 關鍵資料表明細**重寫（2026-09-20）：`Team`／`Member`／`MemberCard`／`Order`／`PaymentChannel` 五節更新，新增 `Club`／`Membership` 兩節，移除 `Donation`／`Settlement`（[`12b`](12b-database-tables.md)） |
 | ✅ | **§5 ERD 重繪**（2026-09-20，[`12a`](12a-database-erd.md)）：加 `Club`／`Competition`／`Membership`／`AdminUserClub`／`AdminUserTeam`，56 處補上 `club_id`；移除 `N` 群（5.10 改為指向 `docs/16`）。**14 張圖** |
 | ✅ | **§14 型別對照檢核表**重算（2026-09-20）：主站 §5.1 現列 50 個型別，49 建表、`Donation` 依規劃書明文不在本系統 |
-| ⬜ | 慈善獨立庫另出 [`16-charity-schema.md`](16-charity-schema.md)（`STATUS.md` S0-5） |
+| ✅ | 慈善獨立庫已另出 [`16-charity-schema.md`](16-charity-schema.md)（2026-09-20，**23 張表**） |
 
 > ✅ **`MembershipPlan`／`MembershipBenefit`／`PartnerStore` 已於主站 v3.10 補進 §5.4**，本檔隨之標註完成。
 

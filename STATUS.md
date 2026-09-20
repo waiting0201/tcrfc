@@ -75,7 +75,7 @@
 | S0-2 | ✅ | 全部 | **[`docs/12`](docs/12-database-schema.md) §1.4 五件事全部定案**（陣列→維持關聯表／JSON→原生 `json` 型別／`CalendarEvent`→一般 VIEW，**禁 indexed view**／全文檢索→第一期 `LIKE`／NULL 語意→**弱讀法 ＋ 路由優先順序**） | `docs/12` §1.4 | — |
 | S0-3 | ✅ | 全部 | **資料庫綱要 13 項落差已補完**（2026-09-20）：§4 總覽逐張標 `club_id`、14 張 ERD 重繪、§6 明細重寫、§11 唯一鍵與索引、§14 檢核表重算 | `docs/12` 檔頭 | — |
 | S0-4 | ⬜ | 全部 | **移除 `media_asset` 三表、10 處外鍵改欄位組**（落差第 13 項，可與 S0-3 一起做） | 主站 §4.0、`docs/12` 第 13 項 | S0-3 |
-| S0-5 | ⬜ | 慈善 | **慈善獨立庫另出 `docs/16-charity-schema.md`**（約 22 張表：8 張 `N` ＋ 約 14 張機制表） | 慈善規劃書 §9 | S0-3 |
+| S0-5 | ✅ | 慈善 | **慈善獨立庫綱要已完成**（2026-09-20，[`docs/16`](docs/16-charity-schema.md)）：**23 張表** ＋ 4 張 i18n 側表。🔴 **有 `AuditLog`**（勸募法遵要求，與主站相反）、**沒有 `club_id`／`Member`**、`Charity`／`CharityProgram` 是**唯讀快照不是外鍵** | 慈善規劃書 §9 | — |
 | S0-6 | ⬜ | 全部 | **轉 DDL 並建庫** | `docs/12`／`12a`／`12b` | S0-2〜S0-5 |
 | S0-7 | ⬜ | 全部 | **專案骨架與部署管線**：Docker Compose **八個容器**（反向代理／`nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity`／`admin-web`／`admin-charity`／`api`／`redis`）、VNet ＋ 服務端點、靜態 Public IP、NSG | [`docs/17`](docs/17-deployment.md) §1–§2 | — |
 | **S0-9** | ⬜ | 主站／藍鯨／慈善 | 🔴 **前台骨架改 Nuxt 3 SSR**：現有 `site/` 的 80 頁靜態骨架、`build.mjs`、`verify.mjs` 與 `wrangler pages deploy` 全部退場。**`verify.mjs` 的六項檢查（token 殘留／h1 數量／缺 alt／寫死色碼／站內斷鏈／`.pending` 統計）須移植為 lint／test，不得直接丟棄**；`noindex` 與 `_redirects` 一併移植 | [`docs/17`](docs/17-deployment.md)、`docs/13` §6 | S0-7 |

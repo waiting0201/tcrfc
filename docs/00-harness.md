@@ -41,7 +41,7 @@
 | 層 | 檔案 | 職責 | 可否修改 |
 |---|---|---|---|
 | **真實來源** | `output/TCRFC_前後台功能規劃書.md`<br>`output/TCRFC_台中藍鯨官網功能規劃書.md`<br>`output/TCRFC_慈善捐款平台功能規劃書.md`<br>`output/TCRFC_行動App功能規劃書.md` | 網站與 App 要有什麼功能 | 改動＝需求變更，須同步英文版與 PDF |
-| **導航層** | `docs/01`–`docs/05`、`docs/10`–`docs/13` | 規劃書的濃縮與索引，附行號指回原文 | 隨規劃書同步 |
+| **導航層** | `docs/01`–`docs/05`、`docs/10`–`docs/13`、`docs/16` | 規劃書的濃縮與索引，附行號指回原文 | 隨規劃書同步 |
 | **執行層** | `docs/06`–`docs/08`、`docs/14`–`docs/15`、`docs/17`–`docs/19` | 我們怎麼做：慣例、管線、排程、不變量、非交付物記錄、部署決定、**作業失誤紀錄**、**App 技術選型** | 隨工作方式演進 |
 | **索引層** | `CLAUDE.md` | **只有全域規定與文件索引**，不放規格也不放知識 | 很少改 |
 
@@ -194,7 +194,7 @@ App 客戶版原本的 Decisions 一節已從 [`output/tools/build-app-brief.py`
 | 寫文案 / 處理客戶素材 | [`07-content-pipeline.md`](07-content-pipeline.md) → [`06-conventions.md`](06-conventions.md) |
 | 排程、報價、跟客戶討論範圍 | [`08-roadmap-decisions.md`](08-roadmap-decisions.md) → 規劃書 **1689–1737** |
 | **台中藍鯨官網任何工作** | [`13-blue-whale-site.md`](13-blue-whale-site.md) → 藍鯨規劃書該節行號 → **主站規劃書的對應章節**（藍鯨規劃書只寫差異） |
-| **慈善捐款平台任何工作** | [`10-charity-donation-site.md`](10-charity-donation-site.md) → 慈善站規劃書該節行號 |
+| **慈善捐款平台任何工作** | [`10-charity-donation-site.md`](10-charity-donation-site.md) → 慈善站規劃書該節行號。**資料表見 [`16-charity-schema.md`](16-charity-schema.md)** |
 | **行動 App 任何工作** | [`11-mobile-app.md`](11-mobile-app.md) → App 規劃書該節行號 |
 | **部署、基礎設施、技術選型** | [`17-deployment.md`](17-deployment.md)（拓撲、固定出口 IP、快取策略與**不得讀快取清單**、DBMS 連帶決定）→ [`12-database-schema.md`](12-database-schema.md) §1.4。**App 客戶端見 [`19-app-tech-stack.md`](19-app-tech-stack.md)** |
 | **App 的技術實作、CI、上架** | [`19-app-tech-stack.md`](19-app-tech-stack.md)（原生雙平台、`shared/` 契約、權杖、推播傳輸、可見度量測、設定下發、CI/CD）→ [`11-mobile-app.md`](11-mobile-app.md) → App 規劃書 |

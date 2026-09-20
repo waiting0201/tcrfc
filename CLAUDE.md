@@ -81,6 +81,7 @@
 | [`docs/12-database-schema.md`](docs/12-database-schema.md) | **要設計或實作資料表**（入口：型別詞彙、雙語策略、模組地圖、資料表總覽、踩雷點、檢核表）。⚠️ **v3.0 尚未逐張同步，檔頭有「v3.0 落差」段落必讀**。不含行動 App 型別、沒有日誌表 |
 | [`docs/12a-database-erd.md`](docs/12a-database-erd.md) | 要看**關聯圖**（§5，14 張 ER 圖） |
 | [`docs/12b-database-tables.md`](docs/12b-database-tables.md) | 要寫**欄位**（§6–§11：明細、權限模型、受限與加密欄位、快照、匯入匯出、索引與唯一鍵） |
+| [`docs/16-charity-schema.md`](docs/16-charity-schema.md) | **慈善捐款平台的資料表**（獨立資料庫，23 張表）。與 `docs/12` 平行且互不包含；四項刻意的差異在 §9 |
 | [`docs/13-blue-whale-site.md`](docs/13-blue-whale-site.md) | **台中藍鯨官網的任何工作**（單元取捨、藍鯨方帳號權限、藍鯨會籍與商店、前台建置的技術判斷） |
 | [`docs/14-invariants.md`](docs/14-invariants.md) | **動手前掃一次**。全站不變量與踩雷速查：代號、品牌色、命名、範圍邊界、五種商業對象、資料庫執行層決定 |
 | [`docs/15-out-of-scope-record.md`](docs/15-out-of-scope-record.md) | **規劃書查不到某功能時先看這裡**。已移出範圍的功能，以及法人歸屬、授權、個資委託等行政法務背景（都是非交付物） |
