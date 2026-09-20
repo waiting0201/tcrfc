@@ -1,0 +1,157 @@
+# deploy/ — 部署設定說明（S0-7a 本機骨架）
+
+> 對應 [`docs/17-deployment.md`](../docs/17-deployment.md)（拓撲、網路、快取、DBMS）與
+> [`docs/20-cicd.md`](../docs/20-cicd.md)（CI/CD、映像檔、部署方式、Secrets）。
+> 🔴 **這一階段（S0-7a）不開任何 Azure 資源**，全部是本機／repo 內的檔案。
+
+## 這個目錄有什麼
+
+| 檔案 | 用途 |
+|---|---|
+| [`Caddyfile`](Caddyfile) | 正式環境的 proxy 設定：依 Host 分流到五個上游、自動 TLS |
+| [`Caddyfile.dev`](Caddyfile.dev) | 本機開發用，明文 HTTP，`auto_https off` |
+| [`local-ddl.sh`](local-ddl.sh) | 把 `db/*.sql` 轉成本機 SQL Server 2022 相容版本（`json`→`nvarchar(max)`），不改動原始檔 |
+| [`dev/club.env.example`](dev/club.env.example)／[`dev/charity.env.example`](dev/charity.env.example) | 本機開發用機密範本，複製成同目錄下拿掉 `.example` 的檔名後使用（該檔名已被 `.gitignore` 排除） |
+
+`../docker-compose.yml`（正式）與 `../docker-compose.dev.yml`（本機開發 override）放在 repo 根目錄，不在這裡——
+和專案裡其他工具的慣例一致（`docs/`、`db/` 都在根目錄），`deploy/` 只放 proxy 與部署腳本相關的檔案。
+
+## 🔴 目前的限制：應用程式都還不存在
+
+`apps/web`、`apps/web-charity`、`apps/admin`、`apps/admin-charity`、`apps/api` 現在全部是空的
+（只有 `README.md`、`Dockerfile`、`.dockerignore`）。**`docker compose build` 現在會失敗，這是預期行為**——
+Dockerfile 假設的是專案建好之後的產物形狀（`.output/`、`dist/`、`.csproj` 的 publish 輸出），
+專案本身還沒建立。`docker compose config`（純語法驗證，不觸碰任何映像檔）可以正常跑。
+
+## 本機怎麼起（等 apps/* 建好之後）
+
+```bash
+# 1. 複製環境變數範本
+cp .env.example .env                                  # 填 REDIS_PASSWORD、MSSQL_DEV_SA_PASSWORD 等
+cp deploy/dev/club.env.example deploy/dev/club.env     # 填本機開發用的假機密
+cp deploy/dev/charity.env.example deploy/dev/charity.env
+
+# 2. 語法驗證（現在就能跑，不需要 apps/* 存在）
+docker compose -f docker-compose.yml config
+docker compose -f docker-compose.yml -f docker-compose.dev.yml config
+
+# 3. 起本機開發堆疊（要等 apps/* 有內容才 build 得起來）
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+
+# 4. 轉換並灌入本機用的 DDL（mssql-dev 容器要先跑起來）
+./deploy/local-ddl.sh --apply
+```
+
+啟動後：
+
+| 服務 | 本機網址 |
+|---|---|
+| 經 proxy（依 Host 分流，需要 `*.localhost` 能解析到 127.0.0.1，現代系統預設就會） | `http://localhost:8080`、`http://bw.localhost:8080`、`http://charity.localhost:8080`、`http://admin.localhost:8080`、`http://admin-charity.localhost:8080`、`http://api.localhost:8080` |
+| 略過 proxy，直接打各容器（方便單獨除錯） | `nuxt-tcrfc` → `:3001`／`nuxt-bw` → `:3002`／`nuxt-charity` → `:3003`／`admin-web` → `:8081`／`admin-charity` → `:8082` |
+| `mssql-dev`（取代 Azure SQL） | `localhost:14330`，帳號 `sa`，密碼是 `.env` 的 `MSSQL_DEV_SA_PASSWORD` |
+
+⚠️ **`redis` 本機也不開對外連接埠**——docs/17 §1 的三條規則在本機一樣適用，要查資料用
+`docker compose exec redis redis-cli`。
+
+## 🔴 本機兩個庫同一個 instance，正式是兩個獨立的 Azure SQL
+
+`docker-compose.dev.yml` 為了省資源，把 `tcrfc_club_dev` 與 `tcrfc_charity_dev` 放進**同一個**
+`mssql-dev` 容器。**正式環境不是這樣**——那是兩個完全獨立的 Azure SQL 單庫（`docs/17` §1）。
+
+⚠️ **這個差異會製造一種本機測得過、正式一定爆的錯**：
+
+```sql
+-- 本機跑得動（同 instance，三段式命名有效），正式環境直接失敗
+SELECT ... FROM tcrfc_charity_dev.dbo.donations d
+JOIN   tcrfc_club_dev.dbo.members m ON ...
+```
+
+Azure SQL Database **不支援跨庫查詢**（`docs/14`），所以上面這種寫法在正式環境無論如何都不會動。
+
+🔴 **但這條的重點不是相容性，是法遵。** 慈善平台的獨立資料庫是**刻意的邊界**——主辦與收款主體是
+台灣足球策略發展協會，不是俱樂部；協會自己控管自己蒐集的個資（`docs/14`、`docs/16` §9）。
+**跨庫 JOIN 等於把兩個法人的資料混在一起**，即使技術上做得到也不該做。
+
+⛔ **任何一句 SQL 只能碰一個庫。** 兩邊的資料要湊在一起，走應用層各自查詢再組合，不走資料庫。
+
+---
+
+## 🔴 既有的 `sqlserver` 容器——不要動
+
+本機已有一個獨立、非本專案 compose 管理的容器，名為 `sqlserver`，佔用 `1433` port。
+**這次新增的 `mssql-dev` 服務刻意選了不同的對外埠（`14330`）、不設 `container_name`**（讓 compose
+用專案名稱 `tcrfc` 自動加前綴），確保兩者可以同時存在、不衝突、不誤觸。`local-ddl.sh --apply`
+只認 compose service 名稱 `mssql-dev`，不會碰到 `sqlserver`。
+
+## VM 上怎麼起（等 Azure 資源開通之後，S0-7／S0-6 完成後）
+
+```bash
+# self-hosted runner 的 deploy job 會做這件事（docs/20-cicd.md §4）：
+docker compose -f docker-compose.yml pull nuxt-tcrfc nuxt-bw nuxt-charity admin-web admin-charity api
+docker compose -f docker-compose.yml up -d
+```
+
+⚠️ **`pull` 特意只列五個服務名稱，不是 `docker compose pull` 全部**——`proxy` 與 `redis` 用官方映像檔
+（`caddy:2.9.1-alpine`、`redis:8-alpine`），docker 會直接從 Docker Hub 拉，不需要、也不在 ghcr 的
+「五個映像檔」範圍內（`docs/20-cicd.md` §3 明文「五個映像檔，不是六個」，這裡延伸為「proxy／redis
+不算在內」）。全部服務首次啟動時 Docker 會依 `image:` 欄位自動決定去哪裡拉，不需要特殊處理。
+
+VM 上還需要（依 `docs/20-cicd.md` §9「開通 Azure 後要補的設定清單」）：
+
+1. `/opt/tcrfc/secrets/club.env`、`/opt/tcrfc/secrets/charity.env`（依 `docs/20` §7.2 建立，權限 `600`）
+2. `.env`（根目錄，含 `TCRFC_DOMAIN`／`BW_DOMAIN`／`CHARITY_DOMAIN`／`ADMIN_WEB_DOMAIN`／`ADMIN_CHARITY_DOMAIN`／`API_DOMAIN`／`ACME_EMAIL`／`REDIS_PASSWORD`／`GHCR_OWNER`／`IMAGE_TAG` 真實值）
+3. DNS：五個網域（主站、藍鯨、慈善、兩個後台子網域，`API_DOMAIN` 另計）的 A/AAAA 記錄指到 VM 的靜態 Public IP，**Cloudflare 代理（橘雲）**
+
+## Cloudflare 在前面，對 Caddy 的 TLS 有什麼影響——處理方式
+
+`docs/17-deployment.md` §1／§2 只畫了「Cloudflare（DNS + CDN + WAF）proxy 回源」這個事實，
+沒有寫到 Caddy 這一層的細節；以下是這次新增的決定，寫在 [`Caddyfile`](Caddyfile) 的註解裡，這裡是摘要：
+
+### 影響 1：Caddy 看到的來源 IP 是 Cloudflare 的邊緣節點，不是訪客真實 IP
+
+`Caddyfile` 全域選項設了 `trusted_proxies static <Cloudflare 官方 IP 段>` ＋
+`client_ip_headers CF-Connecting-IP X-Forwarded-For`（語法已用 WebFetch 對照 Caddy 官方文件核實）。
+Cloudflare 的 IP 段清單見 <https://www.cloudflare.com/ips/>，**這份清單會變動**，
+Cloudflare 改版時要回頭更新 `Caddyfile` 這段，也要同步核對 `docs/17` §2「NSG 入站 443／80 限
+Cloudflare IP 段」的白名單是否也要跟著改——兩處是同一組 IP 段的兩個不同用途。
+
+### 影響 2：Caddy 的自動 HTTPS（Let's Encrypt HTTP-01）要穿過 Cloudflare 才能簽出憑證
+
+**選擇維持 Caddy 預設的自動 HTTPS（HTTP-01 挑戰），不另外接 DNS-01 或手動憑證**，理由：
+HTTP-01 的挑戰請求會先進 Cloudflare 邊緣、再被正常轉送到本機（只要不是 Flexible 模式、
+沒有頁面規則攔截 `/.well-known/acme-challenge/*`），這是社群上驗證過可行的常見組合。
+
+**首次簽發憑證的建議步驟**（避免任何邊界情況，`README` 明列，不是自動化的一部分）：
+
+1. 該網域的 DNS 記錄**先設成「僅 DNS」（灰雲，不代理）**，直接指到 VM 的靜態 Public IP；
+2. 啟動 `proxy` 容器，等 Caddy 針對該網域完成一次成功的憑證簽發（看 log 或 `caddy_data` volume 有沒有寫入）；
+3. 確認 Cloudflare SSL/TLS 加密模式設為 **Full (strict)**（不是 Flexible——Flexible 會讓 Cloudflare
+   對本機講明文，撞上 Caddy 自動加的 http→https 轉址造成重導迴圈）；
+4. 把該筆 DNS 記錄改回「代理」（橘雲）。之後的憑證更新（每 60–90 天）就會照常透過代理路徑進行，
+   不需要每次都重複這個步驟——只有「這個網域第一次簽發」才需要。
+
+**沒有採用的替代方案**：DNS-01 挑戰（透過 Cloudflare API token 動態插入 DNS TXT 記錄）技術上更穩，
+不受代理狀態影響，但需要客製 Caddy build（`xcaddy` 加 `caddy-dns/cloudflare` 模組），多一個要維護的
+自建映像檔，且 `docs/20-cicd.md` §3 明文「五個映像檔，不是六個」，不想無故生出第六個。
+**若日後 HTTP-01 真的在正式環境出狀況，這是文件化的升級路徑**，改動範圍只在 `Caddyfile`（改用
+`tls { dns cloudflare {env.CLOUDFLARE_DNS_API_TOKEN} }`）與新增一個 proxy 的自建 Dockerfile，不影響
+其他服務。
+
+## 哪些是 placeholder，等什麼條件才能用
+
+| 項目 | 狀態 | 等什麼 |
+|---|---|---|
+| 五個 `Dockerfile` | 待 `apps/*` 專案建立才能 build | S0-7b／S0-9（`frontend-architect`／`backend-engineer` 建立各專案） |
+| `apps/api/Dockerfile` 的 `.NET 10`、`ENTRYPOINT ["dotnet","Tcrfc.Api.dll"]` | 版本與組件檔名為本次自行選定的預設值，未經 `docs/17`／`docs/20` 明文指定 | `backend-engineer` 建 `apps/api` 專案時確認／調整 |
+| `.env.example` 裡除 `TCRFC_DOMAIN` 外的網域 | 假網域格式範例 | STATUS.md 阻塞清單：藍鯨網域、慈善網域尚未確定 |
+| `deploy/Caddyfile` 實際簽出憑證 | 完全沒測過（本機無公開 IP、無真實網域） | Azure VM ＋ 靜態 Public IP 開通（S0-7）＋ 網域確定 |
+| VM 上的 self-hosted runner、`/opt/tcrfc/secrets/*` | 未建立 | S0-7（Azure 資源）、`docs/20-cicd.md` §9 |
+| `docker-compose.yml` 的 `env_file` 指向 `/opt/tcrfc/secrets/club.env`／`charity.env` | 這兩個絕對路徑在本機不存在，只有 VM 上會有 | 同上；本機開發用 `docker-compose.dev.yml` 覆寫成 `deploy/dev/*.env` |
+| `deploy/Dockerfile`／xcaddy 自訂 Caddy build（DNS-01 用） | **沒有建立**，只在本文件與 `Caddyfile` 註解裡記錄為「若 HTTP-01 出狀況的升級路徑」 | 只有 HTTP-01 真的行不通才需要 |
+
+## 相關文件
+
+- [`../docs/17-deployment.md`](../docs/17-deployment.md) — 部署拓撲、網路、快取策略、DBMS 連帶決定
+- [`../docs/20-cicd.md`](../docs/20-cicd.md) — CI/CD、映像檔、部署方式、Secrets 清單
+- [`../docs/13-blue-whale-site.md`](../docs/13-blue-whale-site.md) §6 — 主站／藍鯨共用映像檔的開發紀律
+- [`../apps/README.md`](../apps/README.md) — `apps/*` 目錄與映像檔的對照表

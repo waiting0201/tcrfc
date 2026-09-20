@@ -1,0 +1,16 @@
+# apps/admin-charity/.dockerignore — Vue 3 SPA 建置排除清單
+node_modules
+dist
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+.vscode
+.idea
+*.log
+npm-debug.log*
+.DS_Store
+README.md
+Dockerfile
+.dockerignore

@@ -27,6 +27,17 @@ build/
 .env
 .env.*
 !.env.example
+apps/*/.output/
+apps/*/.nuxt/
+apps/*/bin/
+apps/*/obj/
+
+# ── 部署（S0-7a）：本機開發用機密與轉檔產物，範本／設定本身要納管 ──────
+# docs/20-cicd.md §7.2：機密一律不進 git，只有 *.env.example 範本納管。
+deploy/dev/club.env
+deploy/dev/charity.env
+# deploy/local-ddl.sh 的輸出（db/*.sql 轉成本機 SQL Server 相容版），隨時可重跑重建
+deploy/dev/.local-ddl-output/
 
 # ── 暫存 ────────────────────────────────────────
 *.tmp

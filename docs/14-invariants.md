@@ -105,6 +105,7 @@
   跑在**單一 Azure VM（Japan East／東京，2026-09-20 由 West US 2 改定）** 的 Docker 上，Cloudflare 在前。**規劃書仍不記技術選型**，結果只在 [`17-deployment.md`](17-deployment.md)。
   ⚠️ 隨之而來的三條硬限制：`uniqueidentifier` 主鍵須**非叢集**（UUIDv7 在 SQL Server 無效）、
   `CalendarEvent` **不能用 indexed view**（禁 UNION）、Azure SQL **不支援跨庫查詢**（這反而讓慈善的邊界變硬）。
+  ⚠️ **本機開發把兩個庫放在同一個 `mssql-dev` 容器**（`docker-compose.dev.yml`，省資源），**跨庫 JOIN 在本機跑得動、正式一定爆**。但重點不是相容性是**法遵**——慈善庫的獨立是刻意的法人邊界，⛔ **任何一句 SQL 只能碰一個庫**，要合併走應用層各自查再組合（`deploy/README.md`）。
 - **五種「商業對象」不要搞混**：`Partner`（B2B Logo 牆）／`Sponsor`（贊助商）／`PartnerStore`（主站 8.4 特約店家，會員折扣，**無金流無分潤**）／`DonationStore`（慈善站掃碼引流，**有金流有分潤**）／`Advertiser`（**App 廣告主，計曝光**）。
   同一家實體公司可能同時是數種，**各建一筆、不共用紀錄**。唯一例外是 `Advertiser.sponsor_id` 可關聯回 `Sponsor`，那是關聯不是合併。**贊助商 Logo 牆不計曝光、不進廣告報表。**
   **`Club`（俱樂部型別，v3.0 已移入主站）不是第六種**——它是內容主體不是商業對象，不計曝光、無金流、無分潤。**兩隊的贊助商與夥伴須分區呈現不得混列**（合約是各自簽的）；同一家公司同時是兩隊的夥伴時，**比照上述原則各建一筆**。
@@ -123,6 +124,22 @@
   **不接第三方廣告聯播網、不用廣告識別碼、不做行為定向、不做開屏廣告**；`AdEvent` 原始事件只留 90 天，之後只留日聚合。
   **會員卡只在 App 內出示**（離線可用、標示最後同步時間、**v3.0 起卡面帶該俱樂部標誌，中性雙標誌單卡已作廢**）。**App 抽獎只顯示個人資格布林**（v3.0 起**逐俱樂部顯示**），不顯示序號、不做查詢與名單頁、**不得讀取 `DrawRoster`**；**推播不得用於個別中獎通知**（後台 M3 須系統層阻擋）。
   `PartnerStore` 與 `Venue` 已加座標欄位但**資料要人工標**。後台模組 `M` 與會員卡驗證頁 `/m/<token>` 無關。
+
+- 🔴 **前台改 Nuxt 後必須與現有 mockup 一模一樣**（2026-09-20 客戶指示）。**這是 S0-9 的驗收條件，不是努力目標。**
+  **基準線是 [`site/src`](../site/src)（131 檔，納管）＋ [`site/build.mjs`](../site/build.mjs)**；`site/dist` 只是產物（未納管，`node site/build.mjs` 可重產）。
+  ⛔ **[`site/src/assets/css/tcrfc.css`](../site/src/assets/css/tcrfc.css)（69KB）整份原封搬過去**——不拆檔、不轉 Tailwind、不改 scoped、不重新命名 class。它是視覺的唯一真實來源，**改 CSS ＝ 改視覺 ＝ 違反本條**。
+  ⛔ **body 的 DOM 結構、class 名稱、元素順序與文字內容一律不動。** 不得「順手」優化語意標籤、調整巢狀或重排區塊——**遷移不是重構的時機**。
+  ⚠️ **「一模一樣」指視覺與行為，不是 HTML 原始碼逐字元相同**（2026-09-20 切片實測，後者技術上做不到）。
+  **驗收要能被腳本驗證**，不是用眼睛看：Nuxt SSR 輸出與 `site/dist` 對應頁**正規化後逐頁 diff**，`<main>` 內容零差異。
+  **必然差異是封閉的四類**，逐條有理由且都已查證不影響視覺：`{{ROOT}}` 相對路徑 → Nuxt 絕對路徑；`<div id="__nuxt">` 包裹
+  （`tcrfc.css` 的 `body{}` 只有 margin／font／overflow，無 `body >` 子選擇器，多一層不改版面）；Nuxt 注入的 `modulepreload`／importmap；
+  **頁面 `<style>` 由 body 移到 SFC 頂層**（`<style>` 本身不渲染，內容一字不改）。
+  ⛔ **不得為了讓比對變綠而放寬正規化**——那會讓這道關卡變成擺設。**發現無法歸類的差異要停下來問，不得自行放行。**
+  ⛔ **`<style>`／`<script>` 不得留在 `<template>` 裡，移上去的 `<style>` 不得加 `scoped`**（紀律 9、10，[`13`](13-blue-whale-site.md) §6）——
+  **build 全綠但執行期壞掉**，CSS 那條還是無聲失效。
+  🔵 **`<head>` 不受本條約束**——mockup 是視覺骨架不是 SEO 實作（全站 `noindex`，`shell.html` **從未輸出過 canonical**，
+  `build.mjs` 算了 `CANONICAL` 變數卻沒人用）。**Nuxt 版必須補上 canonical、Schema、`hreflang`**（`GEO-08`，規劃書 §7），
+  **這是照規格補做，不是違反「一模一樣」**。
 
 - 🔴 **主站與藍鯨共用一個 Nuxt 映像檔**（2026-09-20 定案，六條紀律見 [`13-blue-whale-site.md`](13-blue-whale-site.md) §6）。兩條最容易破的：
   ⛔ **色彩永遠只能是 CSS custom properties**——不得引入 Tailwind JIT class 或任何把顏色編譯成字面值的工具，否則 runtime 換色直接失效。

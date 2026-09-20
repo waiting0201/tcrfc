@@ -1,0 +1,18 @@
+# apps/api/.dockerignore — .NET 建置排除清單
+bin
+obj
+**/bin
+**/obj
+.env
+.env.*
+!.env.example
+.git
+.gitignore
+.vscode
+.idea
+*.user
+*.log
+.DS_Store
+README.md
+Dockerfile
+.dockerignore

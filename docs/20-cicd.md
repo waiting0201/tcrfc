@@ -100,16 +100,18 @@
 **全部平行、無相依**，用 `paths-filter`（如 `dorny/paths-filter`）依目錄變動決定哪些映像檔要重建：
 
 ```
-apps/nuxt-club/**      → 建 nuxt-club
-apps/nuxt-charity/**   → 建 nuxt-charity
-apps/admin-web/**      → 建 admin-web
+apps/web/**            → 建 nuxt-club   （nuxt-tcrfc／nuxt-bw 共用）
+apps/web-charity/**    → 建 nuxt-charity
+apps/admin/**          → 建 admin-web
 apps/admin-charity/**  → 建 admin-charity
 apps/api/**            → 建 api
 deploy/**              → 不建映像檔，但要跑部署 job（compose／proxy 設定變了）
 ```
 
-> 🔵 **`apps/*` 目錄結構是待專案建立後才會出現的**（STATUS S0-7a／S0-9 尚未開始）；以上路徑是規劃用的命名慣例，
-> 實際建立專案骨架時可調整，但**目錄一對一映射映像檔**這個原則建議保留，`paths-filter` 才切得乾淨。
+> ✅ **`apps/*` 目錄結構已於 S0-7a（2026-09-20）建立骨架**（[`apps/README.md`](../apps/README.md) 有完整對照表）。
+> 原規劃的路徑是 `apps/nuxt-club`／`apps/admin-web`，本節當時已明文「實際建立專案骨架時可調整」——
+> S0-7a 實際採用上表這組更短的名稱（`web`／`web-charity`／`admin`／`admin-charity`／`api`），
+> 已回填本節；**目錄一對一映射映像檔**這個原則有保留，`paths-filter` 依然切得乾淨。
 
 **PR（`ci.yml`）**：`lint` → `unit test` → `docker build`（`push: false`，只驗證 Dockerfile 能建成）→ 整合測試（見 §1 的「CI 當 staging」）。
 **Push master（`deploy.yml`）**：同樣先 build，成功才 `push: true` 到 ghcr，再進部署 job。

@@ -1,0 +1,78 @@
+# deploy/Caddyfile — proxy：依 Host 分流到五個上游服務，自動 TLS
+#
+# 對應 docs/17-deployment.md §1（拓撲圖標的「proxy（Caddy／Traefik）TLS ＋ 依 Host 分流」）
+# 與 docs/17 §2（NSG 443/80 限 Cloudflare IP 段）。
+# 🔵 本檔的分流規則、TLS 取得方式、Cloudflare 真實 IP 處理，docs/17／docs/20 都沒有寫到這個細節層級，
+# 全部是 S0-7a 這次新增的決定——理由與取捨寫在下面的註解與 deploy/README.md。
+#
+# 網域一律用環境變數帶入（{$VAR}），不寫死真實網域——網域本身仍待確認（STATUS 阻塞清單），
+# 值在 .env（本機）或 VM 的 /opt/tcrfc/secrets/*.env（正式）設定，見 .env.example。
+
+{
+	# ── Cloudflare 在前面（橘雲代理）對這裡的兩個影響 ──────────────────────
+	#
+	# 影響 1／真實用戶端 IP：Caddy 預設看到的 remote_addr 會是 Cloudflare 邊緣節點的 IP，
+	# 不是訪客真實 IP。訪客真實 IP 由 Cloudflare 放在 `CF-Connecting-IP`（也會疊加進
+	# `X-Forwarded-For`）。下面把 Cloudflare 官方公告的 IP 段設為 trusted_proxies，
+	# Caddy 才會信任這兩個標頭、並在存取記錄與往後端的轉送裡帶正確的真實 IP。
+	# IP 段來源：https://www.cloudflare.com/ips/（會變動，見 deploy/README.md 的更新提醒）。
+	# ⚠️ 這份清單需與 docs/17 §2「NSG 入站 443／80 限 Cloudflare IP 段」的白名單保持一致，
+	# 兩處是同一組 IP 段的兩個用途（NSG 擋非 Cloudflare 來源、Caddy 認得 Cloudflare 是代理）。
+	servers {
+		trusted_proxies static \
+			173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
+			141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
+			197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
+			104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 \
+			2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 \
+			2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+		client_ip_headers CF-Connecting-IP X-Forwarded-For
+	}
+
+	# 影響 2／TLS：Caddy 的預設自動 HTTPS 用 Let's Encrypt HTTP-01 挑戰，走的是明文
+	# port 80。Cloudflare 代理模式下這條挑戰請求會先進 Cloudflare 邊緣、再被轉送到這裡
+	# ——只要 Cloudflare 的 SSL/TLS 模式不是 Flexible（那會讓 Cloudflare 對本機講明文，
+	# 撞上 Caddy 自動加的 http→https 轉址造成重導迴圈）、且沒有頁面規則攔截
+	# `/.well-known/acme-challenge/*`，這條路就會通。**設定順序見 deploy/README.md「首次
+	# 簽發憑證的步驟」**——第一次簽發建議先把該筆 DNS 記錄暫時改成「僅 DNS」（灰雲），
+	# 待 Caddy 成功簽出憑證後再改回代理（橘雲），可完全避開上述邊界情況。
+	# TLS-ALPN-01 挑戰（走 443）在代理模式下打不到本機（Cloudflare 在邊緣終止 TLS），
+	# 所以本檔依賴的是 HTTP-01，上面這條路徑必須保持暢通。
+	email {$ACME_EMAIL}
+}
+
+# ── 主站 ────────────────────────────────────────────────────────────
+{$TCRFC_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy nuxt-tcrfc:3000
+}
+
+# ── 台中藍鯨官網 ─────────────────────────────────────────────────────
+{$BW_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy nuxt-bw:3000
+}
+
+# ── 慈善捐款平台前台 ──────────────────────────────────────────────────
+{$CHARITY_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy nuxt-charity:3000
+}
+
+# ── 官網共用後台（noindex，不開 encode 壓縮以外的快取相關 header） ───────
+{$ADMIN_WEB_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy admin-web:8080
+}
+
+# ── 慈善平台獨立後台 ──────────────────────────────────────────────────
+{$ADMIN_CHARITY_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy admin-charity:8080
+}
+
+# ── API（給瀏覽器端的後台 SPA、行動 App 呼叫；SSR 容器內部呼叫走 Docker 內部
+#    網路的 api:8080，不經這裡，見 docker-compose.yml 的 NUXT_API_INTERNAL_BASE） ──
+{$API_DOMAIN} {
+	reverse_proxy api:8080
+}

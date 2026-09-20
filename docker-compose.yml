@@ -1,0 +1,249 @@
+# docker-compose.yml — 正式環境（VM 上跑）
+#
+# 對應 docs/17-deployment.md §1（八個容器、Redis 段落的 compose 片段照抄）、§2（網路，proxy 對外
+# 開 80/443、其餘不開 ports）、§4（快取策略）；docs/20-cicd.md §3（五個映像檔）、§4（部署方式：
+# self-hosted runner 在 VM 本機執行 `docker compose pull && up -d`）。
+#
+# 🔴 應用程式（apps/web、apps/web-charity、apps/admin、apps/admin-charity、apps/api）現在都是空的
+# ——`build:` 段落現在建不起來，是正常的，等 S0-7b／S0-9 之後的專案骨架才能真的 build。
+# 本檔設計成「開通 Azure、建好 apps/* 專案後，只需要填 .env 就能跑」。
+#
+# 🔴 正式部署（deploy.yml）走 `docker compose pull` 抓 ghcr 映像檔，**不在 VM 上 build**
+# （docs/20-cicd.md §0／§4：build 一律在 GitHub-hosted runner）。這裡同時保留 `build:` 段落，
+# 是為了本機開發／CI 整合測試（docs/20-cicd.md §1「CI runner 上跑一份完整 compose 做整合測試」）
+# 可以直接 `docker compose build` 出本機映像檔，兩種用法共用同一份檔案。
+#
+# ⚠️ `proxy` 用官方 caddy 映像檔，不在 ghcr 的五個映像檔範圍內（docs/20-cicd.md §3 明文「五個映像檔，
+# 不是六個」）——理由與 pull 時怎麼避免嘗試拉一個不存在的 tag，見 deploy/README.md。
+
+name: tcrfc
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+services:
+  # ── 邊緣：TLS 終止與依 Host 分流 ────────────────────────────────────────
+  proxy:
+    image: caddy:2.9.1-alpine # 釘住版本，不用 latest
+    restart: unless-stopped
+    depends_on:
+      nuxt-tcrfc: { condition: service_healthy }
+      nuxt-bw: { condition: service_healthy }
+      nuxt-charity: { condition: service_healthy }
+      admin-web: { condition: service_healthy }
+      admin-charity: { condition: service_healthy }
+      api: { condition: service_healthy }
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      ACME_EMAIL: ${ACME_EMAIL:?請在 .env 設定用於 Let's Encrypt 到期通知的信箱}
+      TCRFC_DOMAIN: ${TCRFC_DOMAIN:?}
+      BW_DOMAIN: ${BW_DOMAIN:?}
+      CHARITY_DOMAIN: ${CHARITY_DOMAIN:?}
+      ADMIN_WEB_DOMAIN: ${ADMIN_WEB_DOMAIN:?}
+      ADMIN_CHARITY_DOMAIN: ${ADMIN_CHARITY_DOMAIN:?}
+      API_DOMAIN: ${API_DOMAIN:?}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ── 前台：主站與藍鯨共用同一個映像檔（docs/13 §6、docs/20-cicd.md §3） ──────
+  nuxt-tcrfc:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NUXT_PUBLIC_CLUB: tcrfc
+      # ⛔ 只在這裡（run 階段）給，絕不在 build 階段給——docs/13 §6 紀律 7、8
+      NUXT_PUBLIC_SITE_URL: https://${TCRFC_DOMAIN}
+      NUXT_PUBLIC_API_BASE: https://${API_DOMAIN} # 瀏覽器端呼叫走公開網域
+      NUXT_API_INTERNAL_BASE: http://api:8080 # SSR 階段走 Docker 內部網路，不繞 Caddy／Cloudflare
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  nuxt-bw:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${IMAGE_TAG:-latest} # 與 nuxt-tcrfc 同一個映像檔
+    restart: unless-stopped
+    environment:
+      NUXT_PUBLIC_CLUB: bw
+      NUXT_PUBLIC_SITE_URL: https://${BW_DOMAIN}
+      NUXT_PUBLIC_API_BASE: https://${API_DOMAIN}
+      NUXT_API_INTERNAL_BASE: http://api:8080
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  nuxt-charity:
+    build:
+      context: ./apps/web-charity
+      dockerfile: Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-charity:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NUXT_PUBLIC_SITE_URL: https://${CHARITY_DOMAIN}
+      NUXT_PUBLIC_API_BASE: https://${API_DOMAIN}
+      NUXT_API_INTERNAL_BASE: http://api:8080
+      # ⛔ 慈善平台不得接觸 Redis（docs/17 §5 補償措施）——本服務刻意不給 REDIS_* 變數
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  # ── 後台 ──────────────────────────────────────────────────────────
+  admin-web:
+    build:
+      context: ./apps/admin
+      dockerfile: Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      # SPA 的 API 基底網址；若專案設計成建置期注入，這裡要改成傳給 build 的 ARG，需同步調整 Dockerfile
+      VITE_API_BASE: https://${API_DOMAIN}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+
+  admin-charity:
+    build:
+      context: ./apps/admin-charity
+      dockerfile: Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-charity:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE: https://${API_DOMAIN}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 96M
+
+  # ── API：單一行程，持兩個 DbContext ──────────────────────────────────
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      redis: { condition: service_healthy }
+    # 🔴 兩份機密分屬俱樂部與協會兩個主體，實體上拆成兩個檔案（docs/20-cicd.md §7.2）。
+    # 本機開發時這兩個路徑由 docker-compose.dev.yml 覆寫為 repo 內的檔案；正式環境指向
+    # VM 上 /opt/tcrfc/secrets/ 底下、不進版控的檔案。
+    # ⚠️ required: false 是刻意的：這個絕對路徑只在 VM 上存在（docs/20-cicd.md §7.2），本機或 CI
+    # 執行 `docker compose config` 語法驗證時不該因為路徑不存在就整份失敗。真正的「機密必須存在」
+    # 由 VM 上的部署程序與 api 的 /readyz 健康檢查把關（連不到資料庫、拿不到 LINE Pay 憑證會直接不健康），
+    # 不是靠 compose 解析階段擋。
+    env_file:
+      - path: /opt/tcrfc/secrets/club.env
+        required: false
+      - path: /opt/tcrfc/secrets/charity.env
+        required: false
+    environment:
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    networks: [internal]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/readyz"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  # ── 快取：只服務俱樂部（主站／藍鯨），慈善不得接觸（docs/17 §4／§5） ─────────
+  # 以下完整照抄 docs/17-deployment.md §1「Redis 怎麼裝」的 compose 片段，不自行更動設定值。
+  redis:
+    image: redis:8-alpine # 釘住次版本，不要用 latest
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+      --requirepass ${REDIS_PASSWORD:?請在 .env 設定 REDIS_PASSWORD}
+    environment:
+      # 只給 healthcheck 用；docs/17 §1 的 `--requirepass` 才是實際生效的密碼來源，兩者用同一個值。
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+    networks: [internal]
+    healthcheck:
+      # ⚠️ 與 docs/17-deployment.md §1 原文的差異：這裡改用 CMD-SHELL。原文的
+      # `["CMD", "redis-cli", "-a", "$$REDIS_PASSWORD", "ping"]` 是 exec form，不經過 shell，
+      # `$$REDIS_PASSWORD`（compose 轉譯後變成字面上的 `$REDIS_PASSWORD`）不會被展開成真正的密碼，
+      # healthcheck 會一直失敗。CMD-SHELL 會先過 /bin/sh -c，讓變數真正展開。
+      # 已在回報中說明這處修正；docs/17 §1 的原始片段建議回頭一併更正。
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 640M # 512 ＋ 開銷，避免拖垮同機的其他容器

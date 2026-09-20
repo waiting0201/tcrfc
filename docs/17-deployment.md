@@ -17,7 +17,7 @@
 |---|---|
 | 前台 | **Nuxt 4 SSR**（Vue 3）——主站、藍鯨、慈善**各一個 instance**。⚠️ **2026-09-18 定案時寫的是 Nuxt 3，2026-09-20 改為 4**：`npx nuxi init` 現在預設就是 v4（v4 目錄結構 `app/`），greenfield 專案沒有理由起手就鎖在舊的 major。S0-9b 的 SEO 實測是在 **Nuxt 4.5.2 ＋ `@nuxtjs/seo` 5.3.16** 上通過的 |
 | 後台 | Vue 3——官網、慈善**各一個 instance**（後台不需 SEO） |
-| API | **.NET / C#，EF Core ＋ Dapper**——**單一 instance**，持有兩個 `DbContext` |
+| API | **.NET 10（LTS）／C#，EF Core ＋ Dapper**——**單一 instance**，持有兩個 `DbContext`。⚠️ **版本於 2026-09-20 補定**：.NET 10 是 2025-11 發布的 LTS（支援至 2028-11），涵蓋本案的整個交付與初期維運期。組件名 `Tcrfc.Api.dll`（`apps/api/Dockerfile` 的 `ENTRYPOINT` 依此，建專案時要對齊） |
 | 快取 | **Redis 一個 instance，只服務俱樂部**；cache-aside ＋ SQL fallback |
 | DBMS | **Azure SQL Database**，兩個獨立單庫，先用 Basic |
 | 物件儲存 | **Azure Blob Storage** |
@@ -95,9 +95,13 @@ services:
       --save ""
       --appendonly no
       --requirepass ${REDIS_PASSWORD}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}   # 只給 healthcheck 用；真正生效的密碼來源是上面的 --requirepass
     networks: [internal]
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "$$REDIS_PASSWORD", "ping"]
+      # CMD-SHELL（不是 CMD）：exec form 不經過 shell，`$$REDIS_PASSWORD` 展開後只是字面上的
+      # `$REDIS_PASSWORD` 字串，redis-cli 不會做變數代換，healthcheck 會一直失敗（S0-7a 實作時發現）。
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG"]
       interval: 10s
       timeout: 3s
       retries: 5

@@ -1,0 +1,132 @@
+# docker-compose.dev.yml — 本機開發用 override
+#
+# 用法：docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+#
+# 對正式版（docker-compose.yml）做兩件事：
+#   1. 加一個 mssql-dev 容器取代 Azure SQL（本機沒有 Azure SQL，兩個資料庫先合併跑在同一個
+#      SQL Server 2022 容器裡的兩個資料庫，省資源；正式環境是兩個完全獨立的 Azure SQL 單庫）。
+#   2. 本機不需要 TLS——proxy 改掛 deploy/Caddyfile.dev（http:// 明文，auto_https off）。
+#
+# 🔴 本機已有一個名為 "sqlserver" 的既有容器占用 1433 port，與本 compose 專案無關，不要動它、
+# 也不要動裡面任何資料庫。這裡新增的 mssql-dev 服務刻意：
+#   - 不設 container_name，交給 compose 用專案名稱（tcrfc）自動加前綴，不會撞名；
+#   - 對外埠選 14330（不是 1433），兩者可以同時活著，互不干擾。
+#
+# ⚠️ Apple Silicon（arm64）上這個 SQL Server 映像檔只有 amd64，跑起來是透過模擬層，
+# 冷啟動可能要 30 秒以上，healthcheck 的 start_period 已放寬。
+
+name: tcrfc
+
+volumes:
+  mssql_dev_data:
+
+services:
+  # ── 本機開發用資料庫，取代 Azure SQL ──────────────────────────────────
+  mssql-dev:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    restart: unless-stopped
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_DEV_SA_PASSWORD:?請在 .env 設定 MSSQL_DEV_SA_PASSWORD（僅本機開發用，不得沿用任何正式密碼）}
+      MSSQL_PID: Developer
+    ports:
+      - "127.0.0.1:14330:1433" # 刻意避開既有 sqlserver 容器占用的 1433；⛔ 綁 127.0.0.1，不得對同網段開放
+    volumes:
+      - mssql_dev_data:/var/opt/mssql
+    networks: [internal]
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 2048M
+
+  # ── proxy：本機不需要 TLS，改用明文 HTTP、改本機慣用網域 ─────────────────
+  proxy:
+    # ⚠️ compose 疊加多個檔案時，list 型欄位（如 ports）預設是「串接」不是「取代」——
+    # 沒有 !override，這裡會變成同時發布 80／443／8080 三組，8080 只是多開一個，
+    # 443 依然在（且沒有對應的 TLS 憑證，容器可能因此啟動失敗或監聽卻無法完成 TLS 交握）。
+    # 用 !override 明確蓋掉正式版的 80/443，只留本機用的 8080（已實測確認語法有效）。
+    ports: !override
+      - "127.0.0.1:8080:80" # 正式版是 80/443；本機改成不需要 root/sudo 綁定的高位 port，且不開 443
+    volumes:
+      - ./deploy/Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      ACME_EMAIL: dev@example.invalid # dev 版不簽 TLS，此值不會被用到，留著只為滿足變數必填
+      TCRFC_DOMAIN: localhost
+      BW_DOMAIN: bw.localhost
+      CHARITY_DOMAIN: charity.localhost
+      ADMIN_WEB_DOMAIN: admin.localhost
+      ADMIN_CHARITY_DOMAIN: admin-charity.localhost
+      API_DOMAIN: api.localhost
+
+  # ── 前台／後台：改用本機網域，並額外開放對外埠方便單獨測試（不必每次都經過 proxy） ──
+  nuxt-tcrfc:
+    ports:
+      - "127.0.0.1:3001:3000"
+    environment:
+      NUXT_PUBLIC_SITE_URL: http://localhost:8080
+      NUXT_PUBLIC_API_BASE: http://api.localhost:8080
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-password}
+
+  nuxt-bw:
+    ports:
+      - "127.0.0.1:3002:3000"
+    environment:
+      NUXT_PUBLIC_SITE_URL: http://bw.localhost:8080
+      NUXT_PUBLIC_API_BASE: http://api.localhost:8080
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-password}
+
+  nuxt-charity:
+    ports:
+      - "127.0.0.1:3003:3000"
+    environment:
+      NUXT_PUBLIC_SITE_URL: http://charity.localhost:8080
+      NUXT_PUBLIC_API_BASE: http://api.localhost:8080
+
+  admin-web:
+    ports:
+      - "127.0.0.1:8081:8080"
+    environment:
+      VITE_API_BASE: http://api.localhost:8080
+
+  admin-charity:
+    ports:
+      - "127.0.0.1:8082:8080"
+    environment:
+      VITE_API_BASE: http://api.localhost:8080
+
+  # ── API：指到本機的兩個祕密檔（deploy/dev/*.env，不進版控）與 mssql-dev ──────
+  api:
+    depends_on:
+      redis: { condition: service_healthy }
+      mssql-dev: { condition: service_healthy }
+    # !override：同上，list 型欄位預設串接。這裡即使不加也不會真的壞（正式版那兩個 /opt 路徑
+    # 在本機不存在、required: false 會被跳過），但明確蓋掉比較不會誤導——api 在本機開發時
+    # 就是只吃這兩個檔案，不該讓人以為它同時也在讀 /opt 底下的東西。
+    env_file: !override
+      - path: ./deploy/dev/club.env
+        required: true
+      - path: ./deploy/dev/charity.env
+        required: true
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-password}
+
+  redis:
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+      --requirepass ${REDIS_PASSWORD:-dev-redis-password}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-password}
+    # 本機開發沿用正式版「不對外開連接埠」的紀律（docs/17 §1 三條不能弄錯的之一）——
+    # 要查資料改用 `docker compose exec redis redis-cli`，不靠發布連接埠。

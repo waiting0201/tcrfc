@@ -200,6 +200,38 @@ export default defineNuxtConfig({
 > `nuxt-site-config` **內建**會從請求的 `Host`／`X-Forwarded-Host` 動態算 canonical，不需要額外開發。
 > **但正式環境仍建議明確設環境變數**——優先權更高、行為更確定，也不必擔心 Cloudflare 代理層的 Host 轉發出錯。
 
+### 🔴 紀律第 9、10 條（2026-09-20 搬遷切片實測，**這兩條擋住 82/80 頁次**）
+
+mockup 的主要寫法是**每頁 body 內帶自己的 `<style>`**（65/80 頁）**與 `<script>`**（17/80 頁）。
+把 body 原封貼進 Vue SFC 的 `<template>` **不可行**，而且兩個編譯器的失敗方式不一樣：
+
+```
+SSR    編譯通過，內容被 HTML 跳脫 → 送出 .t[aria-selected=&quot;true&quot;]{} 與 a === &#39;x&#39;
+Client 直接報錯 code 64：Tags with side effect (<script> and <style>)
+       are ignored in client component templates
+```
+
+⚠️ **合起來比單一個壞更糟**：SSR 送出壞掉的樣式與腳本，hydration 時 client 端又認為這些標籤不該存在。
+**CSS 那一條最陰**——`[aria-selected=&quot;true&quot;]` 這種選擇器永遠不會 match，**樣式無聲失效，畫面上看不出來**。
+這是 Vue 的明確設計立場，不是 bug，**沒有 workaround**。
+
+| # | 紀律 | 不遵守會怎樣 |
+|---|---|---|
+| 9 | ⛔ **`<style>` 與 `<script>` 一律不得留在 `<template>` 裡**。`<style>` 移到 SFC **頂層** `<style>` 區塊（內容一字不改）；`<script>` 重寫為 `<script setup>` 的 `ref`／`onMounted`／事件綁定 | SSR 輸出被跳脫、client 端把標籤丟掉。**build 全綠**，壞在執行期 |
+| 10 | ⛔ **移上去的 `<style>` 絕對不得加 `scoped`** | `scoped` 會在每個選擇器後面補 `[data-v-xxxxxxx]`，**等於改寫 CSS 語意**——違反「`tcrfc.css` 與頁面樣式一字不改」。頁面樣式本來就靠 mockup 既有的 class 命名隔離，不需要 scoped |
+
+🔵 **`<script>` 的實際規模比頁數小得多**（2026-09-20 去重實測）：17 頁只有 **11 種**不同腳本——
+6 個 `zh/news/*` 頁共用同一份（59 行）、`milestones` 與 `impact-stories` 共用一份、根頁那份只有 2 行（重導向 stub，
+Nuxt 改用 `routeRules` 的 redirect，不需要腳本）。**實際要重寫的是 10 種**，其中只有 `zh/schedule/`（251 行）算大工程，
+其餘都在 15–62 行。⚠️ **共用的那幾份務必做成一個元件，不要複製六次**。
+
+### ⚠️ 開搬之前先跑一次 HTML 良構性檢查
+
+瀏覽器的 HTML5 解析器會默默修正不良巢狀，**Vue 的模板編譯器不會——它直接編譯失敗**。
+2026-09-20 切片時就掃出一個：`site/src/pages/zh/index.html` 尾端有個**孤立的 `</main>`**
+（`<main>` 由 `shell.html` 提供，頁面檔不該自己關），靜態站完全沒事，貼進 `<template>` 會直接炸。
+**已修正**（全站僅此一處，`verify.mjs` 六項檢查仍全過）。⚠️ `verify.mjs` 查不出這類問題，**搬之前要另外用 HTML parser 掃一次 `site/dist`**。
+
 ### ⚠️ 實測時踩到的建置坑
 
 `@nuxtjs/seo` 內建的 `nuxt-og-image` 在缺 renderer 時會**直接讓 `build` 失敗**

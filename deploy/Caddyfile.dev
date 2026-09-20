@@ -1,0 +1,37 @@
+# deploy/Caddyfile.dev — 本機開發用，明文 HTTP，不碰 TLS
+#
+# 任務指示「本機不需要 TLS」。用 http:// 前綴明確關閉該站台的自動 HTTPS，
+# 並整體關閉 auto_https，避免 Caddy 對 *.localhost 這類位址仍嘗試簽發（哪怕是走內建 CA
+# 自簽）而多一層不必要的複雜度。*.localhost 依 RFC 6761 保留給本機，現代作業系統與瀏覽器
+# 都會自動解析到 127.0.0.1，不需要另外改 /etc/hosts。
+#
+# 由 docker-compose.dev.yml 掛載取代正式的 deploy/Caddyfile；分流邏輯（依 Host 分流到五個
+# 上游）與正式版一致，只差 TLS 開關與網域改成本機慣例值。
+
+{
+	auto_https off
+}
+
+http://{$TCRFC_DOMAIN} {
+	reverse_proxy nuxt-tcrfc:3000
+}
+
+http://{$BW_DOMAIN} {
+	reverse_proxy nuxt-bw:3000
+}
+
+http://{$CHARITY_DOMAIN} {
+	reverse_proxy nuxt-charity:3000
+}
+
+http://{$ADMIN_WEB_DOMAIN} {
+	reverse_proxy admin-web:8080
+}
+
+http://{$ADMIN_CHARITY_DOMAIN} {
+	reverse_proxy admin-charity:8080
+}
+
+http://{$API_DOMAIN} {
+	reverse_proxy api:8080
+}
