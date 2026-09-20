@@ -21,6 +21,7 @@
 - ERD 屬性型別**不帶括號**（`string_64`），長度回 §4／§6 查。
 - **i18n 側表一律不入圖**（否則 12 張變 24 張且看不懂），§4 的 🌐 欄才是權威清單。
 - 標 `GHOST` 的實體是**其他圖擁有的表**，在此只畫關係不畫欄位。**`club` 的欄位只畫在 [5.11](#511-j-系統管理與共通機制)**。
+- 🔵 **`Club` 與 `Competition` 的名稱與簡介走 `*_i18n` 側表**（2026-09-20 定案），與其餘 37 張一致——`docs/12b` 的翻譯狀態矩陣靠 `LEFT JOIN` 側表計算，留特例就要在查詢層特判。
 - 🔵 **`club_id` 的必填／可為空是 [§4](12-database-schema.md#4-資料表總覽) 的權威清單**，ERD 只畫欄位存在與否，不畫是否可空。
 - 🔵 **圖片沒有外鍵。** 全系統不設媒體庫（規劃書 §4.0），圖片是**該表自己的欄位組**：
   `<名稱>_key`（物件儲存鍵，`string_500`）＋ `<名稱>_width`／`<名稱>_height` ＋ `<名稱>_alt_zh`／`<名稱>_alt_en`（走 i18n 側表，故不入圖）。
@@ -200,8 +201,6 @@ erDiagram
     uuid club_id FK
     uuid season_id FK
     string_16 code
-    string_64 name_zh
-    string_64 name_en
     enum comp_type
     int sort_order
     enum status
@@ -1136,8 +1135,6 @@ erDiagram
     uuid id PK
     string_16 code UK
     string_128 domain UK
-    string_64 name_zh
-    string_64 name_en
     string_255 logo_light_key
     string_255 logo_dark_key
     string_255 favicon_key
