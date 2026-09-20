@@ -226,7 +226,8 @@ CREATE TABLE role_permissions (
 -- 1. 主站主檔的唯讀複本（2）
 -- ----------------------------------------------------------------------------
 
--- ⚠️ 待確認（docs/16 §10）：這兩張表的存在形式規劃書沒有明文列為型別，只說
+-- ✅ 已定案（2026-09-20）：建這兩張表。規劃書 §9.3 說清單同步採 CSV 匯入或唯讀 API
+-- 拉取，匯入就要有地方放。以下為原始說明：
 -- 「清單同步採 CSV 匯入或唯讀 API 拉取」。本檔依 docs/16 目前的讀法（要匯入
 -- 就要有地方放）建表；若日後改為「每次在 N2 現場貼上名稱」，則這兩張表可能
 -- 不需要獨立存在，屆時走同步鏈改規劃書與本檔。
@@ -437,7 +438,8 @@ CREATE TABLE donations (
 
 -- 金流交易紀錄（LINE Pay 的 Request／Confirm 兩段式）。raw_response 用原生
 -- json 型別，只存不查。
--- ⚠️ 待確認：status 值域（requested／confirmed／failed）規劃書與 docs/16
+-- ✅ 已定案（2026-09-20）：四值。原推定三值另加 cancelled——對帳與客訴時「使用者取消」
+-- 與「金流失敗」是兩回事，混在一起會查不出差異原因。以下為原始說明：
 --    均未明文列舉，是依 §4.2「Request／Confirm 兩段式」流程與
 --    requested_at／confirmed_at 兩個時間欄位推得的技術判斷，非規格明文。
 CREATE TABLE donation_payments (
@@ -448,7 +450,7 @@ CREATE TABLE donation_payments (
     requested_at   datetime2(3)     NULL,
     confirmed_at   datetime2(3)     NULL,
     amount         int              NOT NULL,
-    status         nvarchar(16)     NOT NULL,   -- ⚠️ 待確認，見上方欄位註解
+    status         nvarchar(16)     NOT NULL,
     raw_response   json             NULL,       -- 只存不查
         created_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
         updated_at  datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
@@ -456,7 +458,7 @@ CREATE TABLE donation_payments (
         updated_by  uniqueidentifier NULL,           -- → admin_users.id
     CONSTRAINT PK_donation_payments PRIMARY KEY NONCLUSTERED (id),
     CONSTRAINT UQ_donation_payments_seq UNIQUE CLUSTERED (seq),
-    CONSTRAINT CK_donation_payments_status CHECK (status IN ('requested', 'confirmed', 'failed'))
+    CONSTRAINT CK_donation_payments_status CHECK (status IN ('requested', 'confirmed', 'failed', 'cancelled'))
 );
 
 -- 發票／收據。issue_status 與 void_status 是兩個獨立欄位（docs/16 §4.4 已

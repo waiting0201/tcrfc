@@ -124,6 +124,9 @@
   **會員卡只在 App 內出示**（離線可用、標示最後同步時間、**v3.0 起卡面帶該俱樂部標誌，中性雙標誌單卡已作廢**）。**App 抽獎只顯示個人資格布林**（v3.0 起**逐俱樂部顯示**），不顯示序號、不做查詢與名單頁、**不得讀取 `DrawRoster`**；**推播不得用於個別中獎通知**（後台 M3 須系統層阻擋）。
   `PartnerStore` 與 `Venue` 已加座標欄位但**資料要人工標**。後台模組 `M` 與會員卡驗證頁 `/m/<token>` 無關。
 
+- 🔵 **HEIC 由前端瀏覽器轉 JPEG 再送**（2026-09-20 定案，`docs/17` §6）。ImageSharp 不解 HEIC，而伺服器端加 HEIF 解碼會牽進 **HEVC 專利授權**。
+  ⛔ **但伺服器端仍要擋**：收到解不開的檔一律回絕，**不得假設前端一定轉過**——前端可能失敗、可能被繞過。
+
 - 🔴 **CI/CD：公開 repo ＋ self-hosted runner 的唯一地基**（見 [`20-cicd.md`](20-cicd.md) §4）：
   **Repo 設定的「Fork pull request workflows → Require approval for all outside collaborators」必須是開的。**
   ⛔ **不要以為「我們的 workflow 沒讓 fork 用 self-hosted」就安全**——fork PR 跑的是**該 fork 版本的 workflow 檔**，
