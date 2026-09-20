@@ -63,6 +63,7 @@ erDiagram
     uuid club_id FK
     slug slug UK
     uuid article_category_id FK
+    string_500 cover_key
     bool is_featured
     int view_count
     enum status
@@ -85,6 +86,7 @@ erDiagram
   banner {
     uuid id PK
     uuid club_id FK
+    string_500 image_key
     datetime start_at
     datetime end_at
     int sort_order
@@ -950,7 +952,9 @@ erDiagram
     uuid club_id FK
     uuid charity_program_id FK
     uuid charity_id FK
-    uuid image_id FK
+    string_500 image_key
+    int image_width
+    int image_height
     date happened_on
   }
   impact_metric {
