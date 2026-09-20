@@ -121,9 +121,9 @@
 | 主鍵 | 一律 `id uuid`。**不用自增整數**——匯入客戶素材與跨環境搬移時會撞號 |
 | **叢集鍵**（Azure SQL 定案） | 🔴 **主鍵設為非叢集，另加一欄不對外的 `bigint IDENTITY` 當叢集鍵。** SQL Server 的 `uniqueidentifier` **比較位元組的順序是反的**（先比 byte 10–15，byte 0–3 最後），所以連 **UUIDv7 也無法**取得索引區域性——它的時間戳正好落在最低優先的位元組。`NEWSEQUENTIALID()` 由伺服器端產生，應用層無法在 INSERT 前先知道 id。<br>**這不違反上一列的「不用自增整數」**——那句針對的是對外識別碼，`bigint` 叢集鍵**不對外、不進 API、不進 URL**。詳見 [`17-deployment.md`](17-deployment.md) §6 |
 | 外鍵 | `<單數表名>_id`，如 `team_id`、`order_id` |
-| 表名 | 文中用 PascalCase（`ProductVariant`）以對應規劃書型別名；**物理表名定為 snake_case 複數**（`product_variants`） |
+| 表名 | 文中用 PascalCase（`ProductVariant`）以對應規劃書型別名；**物理表名定為 snake_case 複數**（`product_variants`）。⚠️ **[`12a`](12a-database-erd.md) 的 ERD 用單數只是為了好讀，不是物理表名** |
 | 關聯表 | `<A><B>` 或 `<A>_<B>`，複合主鍵，如 `ArticleTag(article_id, tag_id)` |
-| i18n 側表 | `<entity>_i18n`，複合主鍵 `(<entity>_id, locale)` |
+| i18n 側表 | **物理表名同樣是複數 ＋ `_i18n`**（`articles_i18n`、`product_variants_i18n`），複合主鍵 `(<單數實體>_id, locale)`——**表名複數、外鍵欄位單數**。文中與 ERD 寫 `article_i18n` 是簡寫 |
 | 布林欄位 | `is_*` / `has_*` / `can_*` |
 | 時間欄位 | `*_at`（時間戳）／`*_on`（純日期） |
 | 排序 | `sort_order int`，小到大，預設 `0` |
