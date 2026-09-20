@@ -32,7 +32,7 @@
 | **SEO／GEO** | ✅ **規格已完成**（主站規劃書 §7）。SEO 九項基礎 ＋ **`GEO-01`–`GEO-09`**，**兩個官網各自完整實作一份**：各自的 `llms.txt`（雙語）與 `robots.txt`、事實單一來源、Schema 全輸出。**AI 爬蟲全站允許但排除個資與未成年素材**。後台 `H` 模組承接。⚠️ **慈善平台明文不做 SEO／GEO** |
 | 視覺方向 | ✅ 已定案並落實於 [`site/src/assets/css/tcrfc.css`](site/src/assets/css/tcrfc.css)（design tokens 在 `:root`）。Cloudflare Pages 專案 `tcrfc-mockup` 部署 `site/dist` **80 頁**前台，全站 `noindex`。**藍鯨站將複製骨架、只換 7 個品牌變數**（見 [`docs/13`](docs/13-blue-whale-site.md) §6） |
 | 品牌資產 | ✅ TCRFC 已由 logo 主檔萃取完成；design tokens 已校正為 `.ai` 品牌色。🟡 **藍鯨隊徽已取得點陣主檔**（2026-09-14 自既有官網下載原圖，3299×3243 去背 PNG，見 [`brand/blue-whale/`](brand/blue-whale/README.md)）——**足夠文件、網頁與 App 圖示，但不是向量**。✅ **網頁色值已自隊徽取樣定案**（七個變數）。🔴 **向量原始檔、印刷色票、英文正式全名仍未提供** |
-| **資料庫綱要** | ⚠️ **v3.0 尚未同步**（[`docs/12-database-schema.md`](docs/12-database-schema.md)）。檔頭「v3.0 落差」段已列 **13 項**必須以規劃書為準的事項（**第 13 項為 v3.5 的圖片欄位直傳：`MediaAsset`／`MediaFolder`／`MediaUsage` 三表移除、10 處外鍵改欄位組**）；**§0／§1.4／§7 權限模型／女足相關敘述已先行更新**，但 **§4 資料表總覽、17 張 ERD、§6 五節明細、§11.1 唯一鍵表、§14 檢核表尚未逐一改寫**。**轉 DDL 前必須完成** |
+| **資料庫綱要** | ✅ **v3.0 已同步**（2026-09-20，[`docs/12-database-schema.md`](docs/12-database-schema.md)）。原「v3.0 落差」的 **13 項**必須以規劃書為準的事項（**第 13 項為 v3.5 的圖片欄位直傳：`MediaAsset`／`MediaFolder`／`MediaUsage` 三表移除、10 處外鍵改欄位組**）；**§0／§1.4／§7 權限模型／女足相關敘述已先行更新**，但 **§4 資料表總覽、17 張 ERD、§6 五節明細、§11.1 唯一鍵表、§14 檢核表尚未逐一改寫**。**轉 DDL 前必須完成** |
 | **技術選型** | ✅ **已定案**（2026-09-18，見 [`docs/17`](docs/17-deployment.md)）：**Nuxt 3 SSR ＋ .NET／EF Core＋Dapper ＋ Azure SQL ＋ Azure Blob ＋ Redis**，跑在**單一 Azure VM（West US 2）** 的 Docker 上（前台三個、後台兩個、API 一個、快取一個），Cloudflare 在前。**規劃書仍不記技術選型**（§1.3 明文排除），結果只在導航層；**App 客戶端另見 [`docs/19`](docs/19-app-tech-stack.md)**。`docs/12` §1.4 的**五件事已全部定案** |
 | **部署與金流前提** | 🔴 **LINE Pay 正式環境須登記付款伺服器的出口 IP**——這條外部約束是選「自架 VM ＋ 靜態 Public IP」的原因，也是規劃書 v3.8／v2.4 唯一新增的內容。**改機器＝改白名單，等同停機事件**。⚠️ 另有**五類資料不得讀快取**（庫存、金流冪等、會員卡驗證、會籍與訂單狀態、購物車），見 [`docs/14`](docs/14-invariants.md) |
 | 網站本體 | ❌ 尚未開發。⚠️ **前台定為 Nuxt 3 SSR，現有 `site/` 的 80 頁靜態骨架與 `build.mjs`／`verify.mjs` 要重做**；`verify.mjs` 的六項檢查須移植為 Nuxt 專案的 lint／test，不要直接丟棄 |
@@ -79,7 +79,7 @@
 | [`docs/10-charity-donation-site.md`](docs/10-charity-donation-site.md) | **慈善捐款平台的任何工作**（掃碼、捐款、LINE Pay、發票、分潤、報表） |
 | [`docs/11-mobile-app.md`](docs/11-mobile-app.md) | **行動 App 的任何工作**（會員卡、賽程、附近店家、課程報名、推播、廣告版位） |
 | [`docs/12-database-schema.md`](docs/12-database-schema.md) | **要設計或實作資料表**（入口：型別詞彙、雙語策略、模組地圖、資料表總覽、踩雷點、檢核表）。⚠️ **v3.0 尚未逐張同步，檔頭有「v3.0 落差」段落必讀**。不含行動 App 型別、沒有日誌表 |
-| [`docs/12a-database-erd.md`](docs/12a-database-erd.md) | 要看**關聯圖**（§5，17 張 ER 圖） |
+| [`docs/12a-database-erd.md`](docs/12a-database-erd.md) | 要看**關聯圖**（§5，14 張 ER 圖） |
 | [`docs/12b-database-tables.md`](docs/12b-database-tables.md) | 要寫**欄位**（§6–§11：明細、權限模型、受限與加密欄位、快照、匯入匯出、索引與唯一鍵） |
 | [`docs/13-blue-whale-site.md`](docs/13-blue-whale-site.md) | **台中藍鯨官網的任何工作**（單元取捨、藍鯨方帳號權限、藍鯨會籍與商店、前台建置的技術判斷） |
 | [`docs/14-invariants.md`](docs/14-invariants.md) | **動手前掃一次**。全站不變量與踩雷速查：代號、品牌色、命名、範圍邊界、五種商業對象、資料庫執行層決定 |

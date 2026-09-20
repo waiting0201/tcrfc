@@ -20,7 +20,8 @@
 - 實體名一律**英文 snake_case 物理表名**；中文名回 [§4](12-database-schema.md#4-資料表總覽) 查。
 - ERD 屬性型別**不帶括號**（`string_64`），長度回 §4／§6 查。
 - **i18n 側表一律不入圖**（否則 12 張變 24 張且看不懂），§4 的 🌐 欄才是權威清單。
-- 標 `GHOST` 的實體是**其他圖擁有的表**，在此只畫關係不畫欄位。
+- 標 `GHOST` 的實體是**其他圖擁有的表**，在此只畫關係不畫欄位。**`club` 的欄位只畫在 [5.11](#511-j-系統管理與共通機制)**。
+- 🔵 **`club_id` 的必填／可為空是 [§4](12-database-schema.md#4-資料表總覽) 的權威清單**，ERD 只畫欄位存在與否，不畫是否可空。
 - 🔵 **圖片沒有外鍵。** 全系統不設媒體庫（規劃書 §4.0），圖片是**該表自己的欄位組**：
   `<名稱>_key`（物件儲存鍵，`string_500`）＋ `<名稱>_width`／`<名稱>_height` ＋ `<名稱>_alt_zh`／`<名稱>_alt_en`（走 i18n 側表，故不入圖）。
   **ERD 只畫 `_key`**，寬高與 Alt 為省版面略去；多圖情境（`product_image`／`proposal_file`／圖集）以子表承載，每列一組欄位加 `sort_order`。
@@ -38,6 +39,7 @@ erDiagram
   home_section ||--o| banner : "精選指定"
   page {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     enum status
     datetime published_at
@@ -58,6 +60,7 @@ erDiagram
   }
   article {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     uuid article_category_id FK
     bool is_featured
@@ -81,18 +84,21 @@ erDiagram
   }
   banner {
     uuid id PK
+    uuid club_id FK
     datetime start_at
     datetime end_at
     int sort_order
   }
   home_section {
     uuid id PK
+    uuid club_id FK
     string_32 section_code UK
     bool is_enabled
     int sort_order
   }
   redirect {
     uuid id PK
+    uuid club_id FK
     string_500 from_path UK
     string_500 to_path
     bool is_active
@@ -109,6 +115,7 @@ erDiagram
   faq_category ||--o{ faq_category_link : ""
   press_resource {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     string_32 resource_type
     string_500 file_key
@@ -122,6 +129,7 @@ erDiagram
   }
   faq {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     int helpful_count
     int unhelpful_count
@@ -139,6 +147,7 @@ erDiagram
   }
   faq_search_miss {
     uuid id PK
+    uuid club_id FK
     string_200 keyword
     int hit_count
     datetime last_searched_at
@@ -152,6 +161,12 @@ erDiagram
 
 ```mermaid
 erDiagram
+  club ||--o{ season : "GHOST 必填"
+  club ||--o{ team : "GHOST 必填"
+  club ||--o{ competition : "GHOST 必填"
+  club ||--o{ match : "GHOST 必填"
+  season ||--o{ competition : ""
+  competition ||--o{ match : "可為空"
   season ||--o{ match : ""
   season ||--o{ standing : ""
   season ||--o{ achievement : ""
@@ -171,19 +186,34 @@ erDiagram
   team ||--o{ achievement : ""
   season {
     uuid id PK
-    string_16 code UK
+    uuid club_id FK
+    string_16 code
     date start_on
     date end_on
   }
+  competition {
+    uuid id PK
+    uuid club_id FK
+    uuid season_id FK
+    string_16 code
+    string_64 name_zh
+    string_64 name_en
+    enum comp_type
+    int sort_order
+    enum status
+  }
   team {
     uuid id PK
+    uuid club_id FK
     string_8 code UK
     enum type
+    enum gender
     string_16 age_band
     int sort_order
   }
   player {
     uuid id PK
+    uuid club_id FK
     uuid team_id FK
     int shirt_no
     enum position
@@ -193,6 +223,7 @@ erDiagram
   }
   staff {
     uuid id PK
+    uuid club_id FK
     string_32 staff_group
     string_64 licence
   }
@@ -203,7 +234,9 @@ erDiagram
   }
   match {
     uuid id PK
+    uuid club_id FK
     uuid season_id FK
+    uuid competition_id FK
     uuid venue_id FK
     date match_on
     string_8 kickoff
@@ -221,6 +254,7 @@ erDiagram
   }
   standing {
     uuid id PK
+    uuid club_id FK
     uuid season_id FK
     string_128 team_name
     int rank
@@ -229,6 +263,7 @@ erDiagram
   }
   achievement {
     uuid id PK
+    uuid club_id FK
     uuid season_id FK
     uuid team_id FK
     int year
@@ -237,14 +272,20 @@ erDiagram
   }
   milestone {
     uuid id PK
+    uuid club_id FK
     date happened_on
     int sort_order
   }
 ```
 
-> ⚠️ **`team` 全站只有四筆**（`D1`／`U15`／`U14`/`U12`）。`match.opponent` 與 `standing.team_name` 是**自由文字**，不建對手球隊表——賽事全部人工維護、不串外部 API。
-> ⚠️ **此註記已於 v3.0 作廢。** 藍鯨是第二個俱樂部，`team`（`BW1`）／`player`／`staff`／`match`／`season` **全部建立**，以 `club_id` 區隔。**`team.type` 的 `women` 值已廢除**，改用獨立的 `team.gender`。
-> 🔴 **此條已被行動 App 規劃書 v2.0 推翻，但本檔尚未同步。**客戶已確認台中藍鯨為 App 的共同主體，藍鯨的 `team`／`player`／`match` 會建在**這套共用資料庫**裡（新增 `club` 與 `competition` 兩張表、隊別代號 `BW1`）。官網前台是否呈現另議——客戶指示先改 App。**轉 DDL 前必須先處理此落差**，見 [`14-invariants.md`](14-invariants.md)。
+> 🔴 **`team` 是兩隊各自的隊伍**：磐石 `D1`／`U15`／`U14`／`U12`，藍鯨 `BW1` 與其青年隊，以 `club_id` 區隔。
+> **`team.code` 維持全站唯一，不得改成 `(club_id, code)`**——它是行事曆訂閱網址與 `/schedule/d1/` 的識別鍵，已在外流通。
+> **藍鯨一線隊是 `BW1` 不是第二個 `D1`**；`first_team` 由「全站僅一筆」改為「**每俱樂部至多一筆**」。
+> 🔴 **性別用獨立的 `team.gender`（`men`／`women`／`mixed`）**，`type` 的 `women` 值已廢除。
+> 🔴 **兩隊都有「一線隊」**，所以任何同時呈現兩隊賽事的畫面，**每張卡片都必須標球隊**。
+> ⚠️ **`competition`（賽事系列）與 `match.competition` 四值 enum 並存不互相取代**：後者是粗分類，前者是有名字的實際賽事。
+> 賽程卡片顯示 `competition` 名稱，篩選面板的「賽事類型」仍用 enum。
+> ⚠️ `match.opponent` 與 `standing.team_name` 是**自由文字**，不建對手球隊表——賽事全部人工維護、不串外部 API。
 
 ### 5.3 L 行事曆（視圖）
 
@@ -266,6 +307,7 @@ erDiagram
   }
   calendar_custom_event {
     uuid id PK
+    uuid club_id FK
     uuid event_type_id FK
     uuid venue_id FK
     datetime starts_at
@@ -314,6 +356,7 @@ erDiagram
   registration }o..o| member : "member_id 可為空 GHOST"
   program {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     string_32 program_type
     string_32 audience
@@ -323,6 +366,7 @@ erDiagram
   }
   session {
     uuid id PK
+    uuid club_id FK
     uuid program_id FK
     uuid venue_id FK
     date start_on
@@ -338,6 +382,7 @@ erDiagram
   }
   registration {
     uuid id PK
+    uuid club_id FK
     uuid session_id FK
     uuid trial_id FK
     uuid member_id FK
@@ -350,6 +395,7 @@ erDiagram
   }
   trial {
     uuid id PK
+    uuid club_id FK
     uuid team_id FK
     uuid venue_id FK
     date trial_on
@@ -374,6 +420,7 @@ erDiagram
   enquiry }o--o| admin_user : "assignee GHOST"
   form {
     uuid id PK
+    uuid club_id FK
     string_32 form_code UK
     string_500 notify_emails
     bool captcha_enabled
@@ -390,6 +437,7 @@ erDiagram
   }
   enquiry {
     uuid id PK
+    uuid club_id FK
     uuid form_id FK
     uuid assignee_admin_user_id FK
     string_500 source_path
@@ -406,6 +454,7 @@ erDiagram
   }
   newsletter_subscriber {
     uuid id PK
+    uuid club_id FK
     string_255 email UK
     string_64 source
     enum status
@@ -426,6 +475,7 @@ erDiagram
   sponsor }o..o{ article : "贊助故事 GHOST"
   partner {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     string_32 partner_type
     string_32 country
@@ -440,6 +490,7 @@ erDiagram
   }
   sponsor {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     enum tier
     string_500 logo_dark_key
@@ -454,6 +505,7 @@ erDiagram
   }
   sponsor_package {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     int price_min
     int price_max
@@ -467,6 +519,7 @@ erDiagram
   }
   proposal {
     uuid id PK
+    uuid club_id FK
     string_128 title
     int version_no
     enum status
@@ -502,32 +555,43 @@ flowchart TB
 
 ```mermaid
 erDiagram
-  member ||--o{ member_card : "card_quota 可大於 1"
+  club ||--o{ membership : "GHOST 一人每俱樂部一份"
+  member ||--o{ membership : "一人可有多份會籍"
+  membership ||--o{ member_card : "每份會籍一張卡（card_quota 可大於 1）"
+  membership ||--o{ membership_payment : ""
   member ||--o{ jersey_issue : "jersey_quota 可大於 1"
-  member ||--o{ membership_payment : ""
   membership_plan ||--o{ membership_payment : ""
   membership_plan ||--o{ membership_benefit : ""
   membership_plan }o--|| season : "GHOST"
+  membership }o--|| season : ""
   member ||--o{ fan_event_registration : ""
   fan_event ||--o{ fan_event_registration : ""
   member {
     uuid id PK
     string_32 member_no UK
-    enum tier
     string_255 email UK
     string_255 password_hash
     string_32 phone
     date birth_on
     string_255 line_user_id_encrypted
-    date membership_start_on
-    date membership_end_on
     string_32 signup_source
     enum status
     datetime created_at
   }
-  member_card {
+  membership {
     uuid id PK
     uuid member_id FK
+    uuid club_id FK
+    uuid season_id FK
+    enum tier
+    date membership_start_on
+    date membership_end_on
+    enum status
+  }
+  member_card {
+    uuid id PK
+    uuid membership_id FK
+    uuid club_id FK
     string_64 holder_name
     string_64 token UK
     enum status
@@ -545,7 +609,9 @@ erDiagram
   }
   membership_payment {
     uuid id PK
-    uuid member_id FK
+    uuid membership_id FK
+    uuid club_id FK
+    uuid collecting_club_id FK
     uuid membership_plan_id FK
     string_32 method
     int amount
@@ -563,6 +629,7 @@ erDiagram
   }
   jersey_issue {
     uuid id PK
+    uuid club_id FK
     uuid member_id FK
     string_64 recipient_name
     string_16 size
@@ -585,12 +652,14 @@ erDiagram
   }
   fan_event {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     datetime starts_at
     int capacity
   }
   fan_event_registration {
     uuid id PK
+    uuid club_id FK
     uuid fan_event_id FK
     uuid member_id FK
     enum status
@@ -598,7 +667,11 @@ erDiagram
 ```
 
 > ⚠️ **`member_card` 的 `token` 只有一組**：官網驗證頁與 App 內卡片**共用同一 token**。發兩組等於兩份可撤銷狀態，撤銷必然漏一邊。token **不可由 `member_no` 推導**。
-> ⚠️ **付費會員＝球迷會員**（`tier = 'fan_club'`），**不是兩種身分**，球迷會不另建名單。
+> 🔴 **`tier`／`membership_start_on`／`membership_end_on` 在 `membership` 上，不在 `member` 上**（v3.0）。看到還畫在 `member` 的是舊規格。
+> 🔴 **`member` 不帶 `club_id`**——Email 是登入鍵、LINE 綁定 1:1、個資法上的當事人是「人」不是「會籍」。俱樂部維度在 `membership`。
+> 🔴 **每份會籍一張卡**：持兩隊會籍者有兩張卡，各帶該俱樂部標誌與品牌色。`member_card.membership_id` **必填**。
+> ⚠️ **付費會員＝球迷會員**（`membership.tier = 'fan_club'`），**不是兩種身分**，球迷會不另建名單。
+> ⚠️ **`membership_payment.collecting_club_id` 是收款法人**——藍鯨會籍採代收代付，收款方仍是俱樂部；**系統不做分潤計算**。
 > ⚠️ **家庭會籍只是 `card_quota`／`jersey_quota` 不同，不建立學員綁定關係**——網頁、App、後台三方皆不做。
 > ⚠️ `partner_store` **與 `product` 是完全不同的東西**：前者是會員到店出示卡片的折扣店家（**無金流**），後者是本站自己賣的商品（**有金流**）。
 
@@ -611,6 +684,7 @@ erDiagram
   draw_roster }o..o| member : "值複製快照, 非外鍵解析"
   member_draw {
     uuid id PK
+    uuid club_id FK
     string_32 draw_code UK
     datetime snapshot_at
     datetime drawn_at
@@ -626,6 +700,7 @@ erDiagram
   }
   draw_roster {
     uuid id PK
+    uuid club_id FK
     uuid member_draw_id FK
     int serial_no
     string_32 member_no_snapshot
@@ -661,12 +736,14 @@ erDiagram
   cart }o..o| member : "member_id 或 anonymous_token GHOST"
   collection {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     int sort_order
     enum status
   }
   product {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     uuid collection_id FK
     bool is_new_arrival
@@ -683,6 +760,7 @@ erDiagram
   }
   product_variant {
     uuid id PK
+    uuid club_id FK
     uuid product_id FK
     string_64 sku UK
     string_32 size
@@ -696,6 +774,7 @@ erDiagram
   }
   inventory_movement {
     uuid id PK
+    uuid club_id FK
     uuid product_variant_id FK
     uuid order_id FK
     enum movement_type
@@ -706,6 +785,7 @@ erDiagram
   }
   cart {
     uuid id PK
+    uuid club_id FK
     uuid member_id FK
     string_64 anonymous_token
     datetime updated_at
@@ -733,11 +813,16 @@ erDiagram
   order_item ||--o{ refund_request_item : ""
   order }o..o| member : "member_id 可為空 GHOST"
   order }o..o| product_variant : "僅供追溯, 讀取不得回頭 join"
-  store_invoice }o--|| payment_channel : "subject=club"
-  order }o--|| payment_channel : "subject=club"
+  store_invoice }o--|| payment_channel : "owner_club_id=俱樂部"
+  order }o--|| payment_channel : "owner_club_id=俱樂部"
+  club ||--o{ order : "GHOST 必填"
+  club ||--o{ payment_channel : "GHOST"
   order {
     uuid id PK
     string_32 order_no UK
+    uuid club_id FK
+    uuid selling_club_id FK
+    uuid collecting_club_id FK
     uuid member_id FK
     string_64 lookup_token UK
     string_64 recipient_name
@@ -756,6 +841,7 @@ erDiagram
   }
   order_item {
     uuid id PK
+    uuid club_id FK
     uuid order_id FK
     uuid product_variant_id FK
     string_200 product_name_snapshot
@@ -767,6 +853,7 @@ erDiagram
   }
   shipment {
     uuid id PK
+    uuid club_id FK
     uuid order_id FK
     string_32 carrier
     string_64 tracking_no
@@ -777,6 +864,7 @@ erDiagram
   }
   refund_request {
     uuid id PK
+    uuid club_id FK
     uuid order_id FK
     string_255 reason
     enum status
@@ -792,6 +880,7 @@ erDiagram
   }
   store_invoice {
     uuid id PK
+    uuid club_id FK
     uuid order_id FK
     uuid payment_channel_id FK
     string_32 invoice_no
@@ -806,7 +895,7 @@ erDiagram
   }
   payment_channel {
     uuid id PK
-    enum subject
+    uuid owner_club_id FK
     enum channel_type
     enum environment
     string_500 credential_encrypted
@@ -819,7 +908,12 @@ erDiagram
 > ⚠️ **`order.member_id` 可為空**——非會員能結帳。報表統計**不得用 inner join**。
 > ⚠️ **付款只有 LINE Pay**：沒有信用卡、超商代碼、ATM、貨到付款欄位；**不存卡號**。回呼須驗簽且冪等，未付款逾時取消並釋回庫存。
 > ⚠️ **沒有 `discount_code`、`member_price`、`shipping_tier`**：單一固定運費 ＋ 免運門檻，設定放 `setting`。
-> ⚠️ **`payment_channel.subject` 只能是 `club` 或 `association`**，`(subject, channel_type, environment)` 唯一。**填錯＝款項進錯法人**；發票字軌一併分離。
+> 🔴 **`payment_channel.owner_club_id`**（v3.0 取代原本的 `subject` enum），唯一鍵 `(owner_club_id, channel_type, environment)`。
+> **主站只會有俱樂部一列**；協會的憑證在慈善獨立庫，**三方的 LINE Pay 商店號一律不得共用**。**填錯＝款項進錯法人**，同時踩稅務與《公益勸募條例》；發票字軌一併分離。
+> 🔴 **`order.selling_club_id`（受益方）與 `collecting_club_id`（收款法人）**：藍鯨採**代收代付**，收款方仍是俱樂部。**系統不做分潤計算**，只記歸屬並提供加總匯出。
+> 🔴 **`order_item`／`store_invoice` 的 `club_id` 值複製自 `order`，絕對不可為空**——快照凍結的包含歸屬。
+> 🔴 **`cart.club_id` 必填，不得跨俱樂部混買**，切換站台即切換購物車。
+> ⚠️ **「訂單是否於結帳時依俱樂部拆單」尚未定案**（`STATUS.md` B-8）。現行禁止混買故不會發生，**開放混買前必須先答**。
 > ⚠️ **物流不串 API**：`shipment.tracking_no` 由人工或 CSV 回填。
 
 ### 5.9 B6 慈善內容（主站）
@@ -834,12 +928,14 @@ erDiagram
   charity_program }o..o{ article : "相關報導 GHOST"
   charity {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     string_500 logo_key
     string_500 website_url
   }
   charity_program {
     uuid id PK
+    uuid club_id FK
     slug slug UK
     uuid charity_id FK
     date start_on
@@ -848,6 +944,7 @@ erDiagram
   }
   impact_record {
     uuid id PK
+    uuid club_id FK
     uuid charity_program_id FK
     uuid charity_id FK
     uuid image_id FK
@@ -855,6 +952,7 @@ erDiagram
   }
   impact_metric {
     uuid id PK
+    uuid club_id FK
     uuid charity_program_id FK
     string_64 metric_key
     int metric_value
@@ -864,126 +962,16 @@ erDiagram
 
 > ⚠️ `impact_record` 的**三項核心資料必填**：公益團體名稱、捐助內容、活動圖片。
 > ⚠️ **慈善金額預設不公開**（`impact_metric.is_public` 預設 `false`）。
-> ⚠️ **主站不做站內捐款**——這四張表只做陳列，捐款走慈善捐款平台（[§5.10](#510-n-慈善捐款平台)）。
+> ⚠️ **主站不做站內捐款**——這四張表只做陳列，捐款走慈善捐款平台（[§5.10](#510-慈善捐款平台不在本檔)）。
+> 🔴 **這四張是主檔留在主站**，慈善獨立庫只有唯讀快照；`club_id` **可為空＝兩隊共同**。
 
-### 5.10 N 慈善捐款平台
+### 5.10 慈善捐款平台（不在本檔）
 
-```mermaid
-erDiagram
-  donation_project ||--o{ donation_amount_option : ""
-  donation_project ||--o{ donation : ""
-  donation_store ||--o{ donation : "store_id 可為空"
-  donation ||--o| donation_payment : ""
-  donation ||--o| donation_invoice : ""
-  donation ||--o{ settlement_line : ""
-  settlement ||--o{ settlement_line : ""
-  donation_project }o--o| charity : "撥付對象 GHOST"
-  donation_project }o--o| charity_program : "可關聯, 反向不成立 GHOST"
-  donation }o..o| member : "僅 Email 軟比對, 無外鍵 GHOST"
-  donation_payment }o--|| payment_channel : "subject=association GHOST"
-  donation_store {
-    uuid id PK
-    string_64 store_slug UK
-    string_32 category
-    string_500 address
-    string_64 contact_name
-    decimal_5_2 store_share_pct
-    date start_on
-    date end_on
-    enum status
-  }
-  donation_project {
-    uuid id PK
-    string_64 project_slug UK
-    uuid charity_id FK
-    uuid charity_program_id FK
-    int amount_min
-    int amount_max
-    decimal_5_2 project_share_pct
-    enum invoice_mode
-    int sort_order
-    enum status
-  }
-  donation_amount_option {
-    uuid id PK
-    uuid donation_project_id FK
-    int amount
-    int sort_order
-  }
-  donation {
-    uuid id PK
-    string_32 order_no UK
-    uuid donation_project_id FK
-    uuid donation_store_id FK
-    uuid charity_program_id FK
-    int amount
-    enum status
-    string_64 donor_name
-    string_255 donor_email
-    bool is_anonymous
-    decimal_5_2 store_share_pct_snapshot
-    decimal_5_2 project_share_pct_snapshot
-    int store_amount
-    int project_amount
-    int association_amount
-    enum invoice_mode
-    string_255 refund_reason
-    uuid refunded_by FK
-    datetime created_at
-    datetime paid_at
-  }
-  donation_payment {
-    uuid id PK
-    uuid donation_id FK
-    uuid payment_channel_id FK
-    string_64 transaction_id
-    datetime requested_at
-    datetime confirmed_at
-    int amount
-    enum status
-    json raw_response
-  }
-  donation_invoice {
-    uuid id PK
-    uuid donation_id FK
-    enum invoice_type
-    string_32 invoice_no
-    datetime issued_at
-    string_64 carrier_id_encrypted
-    string_16 tax_id
-    string_16 donation_code
-    enum status
-    enum void_status
-  }
-  settlement {
-    uuid id PK
-    date period_start_on
-    date period_end_on
-    enum payee_type
-    uuid payee_id
-    int donation_count
-    int donation_total
-    int payable_amount
-    enum status
-    date remitted_on
-    string_255 remit_note
-  }
-  settlement_line {
-    uuid id PK
-    uuid settlement_id FK
-    uuid donation_id FK
-    int share_amount
-    bool is_clawback
-  }
-```
+🔴 慈善平台自 v2.0 起是**獨立後台與獨立資料庫**，其約 22 張表（8 張 `N` ＋ 約 14 張機制表）
+與 ER 圖另出 [`16-charity-schema.md`](16-charity-schema.md)（`STATUS.md` S0-5）。
 
-> ⚠️ **主辦與收款主體是台灣足球策略發展協會**：前台標誌、發票與收據抬頭、系統信署名、對帳單一律為協會。分潤留存方是 `association_amount`。
-> ⚠️ **捐款人不登入不註冊**：`donation` **不得有 `member_id` 外鍵**。Email 軟比對只在 N3 查詢當下做，**不寫入 `member`、不歸戶**。
-> ⚠️ **分潤五欄是成立當下的快照**：`store_share_pct_snapshot`／`project_share_pct_snapshot` 決定三個金額，**改設定不追溯**。`store_id` 為空時 `store_share_pct_snapshot = 0` 仍能結算。
-> ⚠️ **退款以負項 `settlement_line`（`is_clawback = true`）沖回下一期**，**不改原列、不重算已付款期間**。
-> ⚠️ **`donation_project` 沒有目標金額、已募得、捐款筆數欄位**（v1.2）——前台不做募款進度，不要為了顯示回頭加。
-> ⚠️ **`settlement` 店家與項目分開結算**，`payee_type` 二選一，兩份不同的對帳單。**實際匯款人工執行**，系統只登記日期與方式。
-> ⚠️ **`donation_store` 與 `partner_store` 是兩張表**，同一家店既引流又給會員折扣就**兩邊各建一筆、不建外鍵**。
+⚠️ **唯一的交界**是 [5.9](#59-b6-慈善內容主站) 的 `charity`／`charity_program`／`impact_record`／`impact_metric` 四張——
+**主檔留在主站**，慈善庫只持有唯讀快照。**兩邊不同步時以主站為準、不得即時 join**（Azure SQL 不支援跨庫查詢）。
 
 ### 5.11 J 系統管理與共通機制
 
@@ -993,13 +981,37 @@ erDiagram
   admin_role ||--o{ admin_user_role : ""
   admin_role ||--o{ role_permission : ""
   permission ||--o{ role_permission : ""
+  admin_user ||--o{ admin_user_club : "資料範圍：對誰做"
+  club ||--o{ admin_user_club : ""
+  admin_user ||--o{ admin_user_team : "資料範圍：對哪一隊"
+  team ||--o{ admin_user_team : ""
+  club ||--o{ setting : ""
+  club ||--o{ menu_item : ""
+  club ||--o{ email_template : ""
+  club ||--o{ email_log : ""
   locale ||--o{ ui_string_translation : ""
   ui_string ||--o{ ui_string_translation : ""
   menu_item ||--o{ menu_item : "多層級"
   email_template ||--o{ email_log : ""
+  club {
+    uuid id PK
+    string_16 code UK
+    string_128 domain UK
+    string_64 name_zh
+    string_64 name_en
+    string_255 logo_light_key
+    string_255 logo_dark_key
+    string_16 brand_color
+    string_64 invoice_title
+    string_16 tax_id
+    bool is_collecting_subject
+    int sort_order
+    enum status
+  }
   admin_user {
     uuid id PK
     string_64 username UK
+    uuid primary_club_id FK
     string_255 password_hash
     bool must_change_password
     datetime password_changed_at
@@ -1020,8 +1032,23 @@ erDiagram
     string_64 code UK
     string_64 name_zh
     string_64 name_en
+    enum scope_mode
     bool is_system
     int sort_order
+  }
+  admin_user_club {
+    uuid admin_user_id FK
+    uuid club_id FK
+    date granted_on
+    date expires_on
+    uuid granted_by FK
+    bool is_active
+  }
+  admin_user_team {
+    uuid admin_user_id FK
+    uuid team_id FK
+    date expires_on
+    bool is_active
   }
   admin_user_role {
     uuid admin_user_id FK
@@ -1034,6 +1061,7 @@ erDiagram
     string_8 submodule_code
     string_32 domain
     string_16 action
+    bool is_club_scoped
     bool is_restricted
     bool sysadmin_only
     string_64 name_zh
@@ -1043,8 +1071,6 @@ erDiagram
   role_permission {
     uuid admin_role_id FK
     uuid permission_id FK
-    string_16 scope_type
-    json scope_value
   }
   locale {
     string_10 code PK
@@ -1066,6 +1092,7 @@ erDiagram
   }
   menu_item {
     uuid id PK
+    uuid club_id FK
     uuid parent_id FK
     string_16 menu_location
     string_500 url
@@ -1073,16 +1100,20 @@ erDiagram
     int sort_order
   }
   setting {
-    string_128 setting_key PK
+    uuid id PK
+    uuid club_id FK
+    string_128 setting_key
     text setting_value
     string_32 setting_group
   }
   email_template {
     uuid id PK
-    string_32 template_code UK
+    uuid club_id FK
+    string_32 template_code
   }
   email_log {
     uuid id PK
+    uuid club_id FK
     uuid email_template_id FK
     string_32 type
     string_255 to_email
@@ -1094,7 +1125,13 @@ erDiagram
 
 > ⚠️ **`admin_user.username` 是唯一登入識別，`email` 不是。** `email` 只作系統通知與密碼重設，**不設唯一索引、不作登入查詢鍵**。
 > ⚠️ **本圖沒有 `audit_log`、`login_log`、`export_log`** —— 見 [§13.1](12-database-schema.md#131-沒有稽核與登入日誌表)。`failed_attempt_count`／`locked_until`／`last_login_at` 是**狀態欄位不是日誌表**。
-> ⚠️ **`email_log` 是功能單元**（後台要查信寄出去了沒），`type` 值域 13 個。
+> ⚠️ **`email_log` 是功能單元**（後台要查信寄出去了沒），`type` 值域 **9 個**（會員 5 ＋ 商店 4）。
+> 🔴 **「能做什麼」與「對誰做」拆開**（v3.0）：能做什麼＝`admin_role` → `role_permission` → `permission`；
+> **對誰做＝ `admin_user_club`／`admin_user_team`，掛在「人」不掛在「角色」**——掛角色的話每多一個俱樂部就要複製九個角色。
+> 🔴 **`role_permission.scope_value json` 已刪除**——資料範圍需要能被查詢，`json` 的「只存不查」紀律做不到。
+> 🔴 **`admin_user.primary_club_id` 只是站台切換器的預設值，不是資料範圍。**
+> 🔴 **資料範圍必須在資料存取層強制**，介面隱藏不算數——擋不住直接呼叫端點與匯出。`expires_on` **到期自動失效，不需人工回收**。
+> ⚠️ `club_id` 為空的列（共同內容）對 `scope_mode = own_clubs` 的帳號**一律唯讀**，只有超管能建立與修改。
 
 ### 5.12 i18n 機制示例
 

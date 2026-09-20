@@ -31,10 +31,10 @@
 
 ---
 
-## 🔴 v3.0 落差——本檔尚未完成同步
+## ✅ v3.0 同步（2026-09-20 完成）
 
 主站規劃書已升 **v3.9**（多俱樂部架構 v3.0、後台圖片欄位直傳 v3.5、**上傳即縮圖 v3.9**）、藍鯨規劃書 **v1.8**、慈善規劃書 **v2.5**、App 規劃書 **v3.12**。
-**本檔的表結構、ERD 與欄位清單尚未逐一改寫。** 在完成前，遇到下列事項一律**以規劃書為準**，不要照本檔實作：
+**本檔的表結構、ERD 與欄位清單已逐一改寫完成。** 下表保留 13 項的對照供追溯；**僅第 3 項餘下三張表的 `club_id` 歸類待補**（見 [§4.13](#413-club_id-尚未歸類的三張表)）。
 
 | # | 本檔現在怎麼寫 | 正確的是什麼 | 依據 |
 |---|---|---|---|
@@ -60,7 +60,7 @@
 | ✅ | **§4 資料表總覽**（2026-09-20）：逐張標 `club_id`、加入 `Club`／`Competition`／`Membership`／`AdminUserClub`／`AdminUserTeam`、移出 `N` 模組 8 張、`EmailLog` 降為 9 個值、`PaymentChannel` 改 `owner_club_id` |
 | ✅ | **§11 唯一鍵、索引與外鍵行為**重寫（2026-09-20，[`12b`](12b-database-tables.md)） |
 | ✅ | **§6 關鍵資料表明細**重寫（2026-09-20）：`Team`／`Member`／`MemberCard`／`Order`／`PaymentChannel` 五節更新，新增 `Club`／`Membership` 兩節，移除 `Donation`／`Settlement`（[`12b`](12b-database-tables.md)） |
-| ⬜ | **§5 的 ERD 重繪**（[`12a`](12a-database-erd.md)）：加 `Club`／`Membership`／`AdminUserClub`／`AdminUserTeam`；移除 `N` 群（5.10）與 media 三表 |
+| ✅ | **§5 ERD 重繪**（2026-09-20，[`12a`](12a-database-erd.md)）：加 `Club`／`Competition`／`Membership`／`AdminUserClub`／`AdminUserTeam`，56 處補上 `club_id`；移除 `N` 群（5.10 改為指向 `docs/16`）。**14 張圖** |
 | ✅ | **§14 型別對照檢核表**重算（2026-09-20）：主站 §5.1 現列 50 個型別，49 建表、`Donation` 依規劃書明文不在本系統 |
 | ⬜ | 慈善獨立庫另出 [`16-charity-schema.md`](16-charity-schema.md)（`STATUS.md` S0-5） |
 
