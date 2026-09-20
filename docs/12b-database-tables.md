@@ -287,6 +287,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 表 | 欄位 | 級 | 完整值可見角色 | 出處 |
 |---|---|---|---|---|
 | `Member` | `email`、`phone`、`birth_on` | 🔒 | 系統管理員、客服／行政 | 行 1320 |
+| 🔴 **`Registration`** | **`health_declaration`**（健康聲明） | **🔐 建議** | ⚠️ **待法務確認** | 行 373、1087 |
 | `Member` | `line_user_id_encrypted` | 🔐 | 系統管理員 | 行 1282 |
 | `JerseyIssue` | `recipient_name`、`address` | 🔒 | 系統管理員、客服／行政、出貨角色 | K3 |
 | `Order` | `recipient_name`、`recipient_phone`、`recipient_address` | 🔒 ⚖️ | 系統管理員、客服／行政、出貨角色 | 行 1327 |
@@ -305,6 +306,13 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 **個資保存期限未定**：規劃書要求七類表單顯示保存期限說明，但實際年限未定（待確認第 15 點，法遵項目，**擋表單上線**）。交易紀錄的年限待會計師確認（第 28 點）。
 
 ---
+
+> 🔴 **`Registration.health_declaration` 的分級須由法務確認，不是設計決定。**
+> 課程與營隊的報名流程（行 373）明文要求填「**健康聲明與同意條款**」，後台 P3（行 1087）也列「健康聲明」。
+> **《個人資料保護法》§6 把病歷、醫療、健康檢查列為特種個資**，蒐集、處理與利用的條件比一般個資嚴格，
+> 且本表的當事人**多為未成年學員**。本檔先標 **🔐 加密**是保守作法，
+> **但真正要確認的是「能不能蒐集、要不要蒐集、保存多久」，那在儲存方式之前**——
+> 繫於 `STATUS.md` **B-9**（個資保存期限與條款未經法務核定）。
 
 ## 9. 快照、視圖與不可變資料
 

@@ -127,12 +127,14 @@ erDiagram
     int cover_height
     date published_on
     int download_count
+    int sort_order
     enum status
   }
   faq {
     uuid id PK
     uuid club_id FK
     slug slug UK
+    int view_count
     int helpful_count
     int unhelpful_count
     int sort_order
@@ -211,6 +213,8 @@ erDiagram
     enum type
     enum gender
     string_16 age_band
+    string_500 hero_key
+    string_16 team_color
     int sort_order
   }
   player {
@@ -220,7 +224,11 @@ erDiagram
     int shirt_no
     enum position
     date birth_on
+    int height_cm
+    int weight_kg
     string_32 nationality
+    enum preferred_foot
+    date joined_on
     enum status
     string_500 photo_key
   }
@@ -320,6 +328,7 @@ erDiagram
     string_32 repeat_rule
     bool is_public
     string_500 cover_key
+    string_500 cta_url
   }
   calendar_event_team {
     string_16 source_type
@@ -377,6 +386,7 @@ erDiagram
     uuid venue_id FK
     date start_on
     date end_on
+    json weekly_schedule
     int capacity
     int enrolled_count
     int price
@@ -388,6 +398,7 @@ erDiagram
   }
   registration {
     uuid id PK
+    string_32 registration_no UK
     uuid club_id FK
     uuid session_id FK
     uuid trial_id FK
@@ -396,6 +407,10 @@ erDiagram
     string_32 phone
     string_255 email
     date birth_on
+    string_64 guardian_name
+    string_32 guardian_phone
+    text health_declaration
+    text note
     enum status
     datetime created_at
   }
@@ -451,6 +466,7 @@ erDiagram
     string_255 utm_campaign
     enum status
     text internal_note
+    string_255 tags
     datetime created_at
   }
   enquiry_answer {
@@ -470,6 +486,7 @@ erDiagram
 
 > `enquiry` 涵蓋 **7 類表單 ＋ 提案下載 ＋ 捐助洽詢**（規劃書 §5）。**提案下載的 Lead 名單就是 `form_code = 'proposal_download'` 的 `enquiry`**，不另建表。
 > ⚠️ **沒有志工報名表**（v2.1 移出）。
+> 🔵 **S0-3d 新增 `enquiry.tags`**（行 1150：「指派負責人、內部備註、標籤」）：與「指派負責人」「內部備註」並列，屬**內部**分類用途（後台篩選），非前台顯示文字，故留在主表、不走 i18n 側表——與 `Product.tags`（前台可見的商品分類文案，見 `docs/12c` §3.11）性質不同。
 
 ### 5.5 E 商業模組 ＋ 五種商業對象的邊界
 
@@ -617,6 +634,7 @@ erDiagram
   member {
     uuid id PK
     string_32 member_no UK
+    string_64 name
     string_255 email UK
     string_255 password_hash
     string_32 phone
@@ -654,6 +672,7 @@ erDiagram
     int card_quota
     int jersey_quota
     string_255 mid_season_rule
+    int sort_order
     enum status
   }
   membership_payment {
@@ -681,6 +700,7 @@ erDiagram
     uuid club_id FK
     uuid member_id FK
     string_64 recipient_name
+    string_32 phone
     string_16 size
     string_32 delivery_method
     string_500 address
@@ -691,14 +711,19 @@ erDiagram
     uuid id PK
     uuid club_id FK
     slug slug UK
+    string_500 image_key
     string_32 category
     string_500 address
     decimal_9_6 lat
     decimal_9_6 lng
     string_32 phone
+    json business_hours
+    string_500 website_url
     enum applicable_tier
     date start_on
     date end_on
+    int sort_order
+    enum status
   }
   fan_event {
     uuid id PK
@@ -706,6 +731,7 @@ erDiagram
     slug slug UK
     datetime starts_at
     int capacity
+    bool is_paid_members_only
   }
   fan_event_registration {
     uuid id PK
@@ -799,6 +825,7 @@ erDiagram
     slug slug UK
     uuid collection_id FK
     bool is_new_arrival
+    json size_chart
     int sort_order
     enum status
   }
@@ -976,6 +1003,7 @@ erDiagram
   charity_program ||--o{ charity_program_image : "圖集"
   charity_program ||--o{ impact_record : ""
   charity ||--o{ impact_record : ""
+  impact_record ||--o{ impact_record_image : "圖集"
   charity_program ||--o{ impact_metric : ""
   charity_program }o..o{ partner : "GHOST"
   charity_program }o..o{ article : "相關報導 GHOST"
@@ -985,6 +1013,8 @@ erDiagram
     slug slug UK
     string_500 logo_key
     string_500 website_url
+    string_64 contact_name
+    string_32 contact_phone
   }
   charity_program_image {
     uuid id PK
@@ -1012,6 +1042,12 @@ erDiagram
     int image_height
     date happened_on
   }
+  impact_record_image {
+    uuid id PK
+    uuid impact_record_id FK
+    string_500 image_key
+    int sort_order
+  }
   impact_metric {
     uuid id PK
     uuid club_id FK
@@ -1028,6 +1064,8 @@ erDiagram
 > 🔴 **這四張是主檔留在主站**，慈善獨立庫只有唯讀快照；`club_id` **可為空＝兩隊共同**。
 > ⚠️ **`charity_program` 有兩種圖片情境**（主站 §4.2 B5 行 1018）：單張 `cover_key`（封面）＋ 多張 `charity_program_image` 子表（圖集／§3.11 的「活動圖片藝廊」，兩處措辭不同指同一件事）。
 > 多圖一律以子表承載、每列一組欄位加 `sort_order`，比照 `product_image`／`proposal_file`。
+> 🔵 **S0-3d 新增 `impact_record_image`**：規劃書行 1025「活動圖片（可多張）」原本無子表承接。`impact_record` 主表既有的
+> `image_key`／`image_width`／`image_height` 暫留作代表圖，比照 `charity_program` 的「封面＋圖集」雙軌模式；此為判斷（規劃書未明講兩者並存），待人工確認是否改為完全由子表取代。
 
 ### 5.10 慈善捐款平台（不在本檔）
 
@@ -1065,10 +1103,14 @@ erDiagram
     string_64 name_en
     string_255 logo_light_key
     string_255 logo_dark_key
+    string_255 favicon_key
+    string_255 og_image_key
     string_16 brand_color
+    string_16 brand_secondary_color
     string_64 invoice_title
     string_16 tax_id
     bool is_collecting_subject
+    string_10 default_locale
     int sort_order
     enum status
   }
