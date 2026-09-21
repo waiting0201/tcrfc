@@ -288,6 +288,7 @@ erDiagram
     int score_home
     int score_away
     int round_no
+    int match_no
   }
   match_team {
     uuid match_id FK

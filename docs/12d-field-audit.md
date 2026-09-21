@@ -316,8 +316,26 @@
 
 ---
 
+## §9 S0-6c 灌種子資料時新發現的落差（2026-09-21）
+
+> 這一節的核對基準與 §1–§8 不同：不是逐條核對規劃書文字，而是**實際把 `site/src/data/*.json`（mockup 用的
+> 球員／新聞／賽程等六個 JSON）灌進 `docs/12` 轉出的 DDL 時，發現 JSON 有欄位、資料表卻沒有對應落點**。
+> 這種落差 §1–§8 的核對方法查不到——規劃書文字本身沒錯，是**既有內容裡有一個具體資料點，
+> 剛好落在規劃書與 ERD 都沒展開到的顆粒度**。詳細操作見 [`../db/seed/README.md`](../db/seed/README.md)。
+
+| 表.欄位（JSON 來源） | 問題 |
+|---|---|
+| `Match`（`content/schedule/2026-27_企甲賽程.csv`／`site/src/data/schedule.json` 的 `match_no`） | ✅ **已解決（2026-09-21）**。每筆賽程都有聯賽官方配發的「場次編號」（如 `match_no: 3`），與 `round_no`（第幾輪）是兩個不同的東西——同一輪可能對應多場比賽，各有自己的官方編號。已跑完規格異動同步鏈：規劃書 C4（中英雙版）補上「場次編號」欄位並升版 v3.12、`docs/12`／`docs/12a`／`docs/12b` 補上欄位說明與 ERD 屬性、`db/club-schema.sql` 的 `matches` 表加 `match_no int NULL`（可為空，因盃賽等非聯賽賽事可能沒有官方編號）。**未新增唯一鍵**——`match_no` 只在同賽季同聯賽內唯一，且會有 NULL 並存，SQL Server 唯一索引把 NULL 當成相等會誤擋，留待實際需要時再設計篩選式唯一索引 |
+| `Article.article_category_id`（`site/src/data/news.json` 的 `category` 值 `intcup`） | 🟡 **落點存疑，非欄位缺漏**。News mockup 用的 6 個 `category` 值裡，`intcup`（台中磐石國際足球盃）沒有任何一個規劃書 7.1–7.8 的分類字面對得上。本次逐篇標題人工確認內容皆為賽事報導，**歸類到 7.2 Match Reports**——這是 seed 時的人工判斷不是規劃書規則，正式資料應由後台人工複核分類是否需要獨立看待「盃賽」與「聯賽」報導 |
+| `StaffTeam`（`site/src/data/coaches-academy.json`，青訓教練／青訓總監） | 🟡 **資料缺口，非欄位缺漏**。來源 JSON 沒有標明青訓教練是帶 `U15`／`U14`／`U12` 哪一隊，本次 seed **刻意不連結任何 `Team`**，避免臆測。連帶地本次也沒有建立這三支學院球隊（`Team.type = 'academy'`）——沒有球員名單可以佐證需要建隊，建了也是空殼 |
+| `Article.cover_key`／`Player.photo_key`（`news.json` 的 `cover`／`cover_web`，`players.json` 的 `photo`） | ✅ **不算缺，是已知的 pipeline 落差**。JSON 的 `cover_web` 是 mockup 靜態資源相對路徑，`players.json` 的 `photo` 全部是 `null`——兩者都不是走過「上傳即縮圖」pipeline（`docs/14`）後產生的 Blob object key，本次 seed 一律留 `NULL`，不把 mockup 路徑硬塞進 `_key` 欄位誤導未來開發者 |
+
+---
+
 ## 檔案版本
 
 | 版本 | 日期 | 變更 |
 |---|---|---|
 | v1.0 | 2026-09-20 | 首版，S0-3c 全表欄位盤點 |
+| v1.1 | 2026-09-21 | 新增 §9：S0-6c 灌種子資料時從實際 JSON 內容發現的落差（`Match.match_no` 真的缺；`intcup` 分類、學院教練隊別歸屬為資料缺口非欄位缺漏） |
+| v1.2 | 2026-09-21 | §9 `Match.match_no` 落差已解決：規格異動同步鏈跑完（規劃書 v3.12、`docs/12`／`12a`／`12b`、`db/club-schema.sql`），欄位補上 |

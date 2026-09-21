@@ -398,7 +398,7 @@ flowchart LR
 | `PlayerSeasonStat` | — | 逐季數據 `(player_id, season_id)`。**由 `Player` 推導** | |
 | `Staff` | **○** | 教練與團隊成員：證照、專長、分組。**空＝兩隊共同**（行政與醫療多為共用） | 🌐 |
 | `StaffTeam` | — | `(staff_id, team_id)` 帶職務 | |
-| `Match` | **●** | 賽事。`competition_id`（可空）、`status` 是正式欄位；對手與場地的英文走 `match_i18n` | 🌐 |
+| `Match` | **●** | 賽事。`competition_id`（可空）、`status` 是正式欄位；**`match_no`（場次編號，聯賽官方配發，與 `round_no`／輪次是兩回事，同一輪可能有多場、可為空）**；對手與場地的英文走 `match_i18n` | 🌐 |
 | `MatchTeam` | — | 本方參賽隊 `(match_id, team_id)` | |
 | `MatchGoal` | — | 進球（球員、時間、類型） | |
 | `MatchCard` | — | 黃紅牌 | |

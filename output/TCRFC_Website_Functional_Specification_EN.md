@@ -1,9 +1,15 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.11
+> **Document version**: v3.12
 > **Date**: 2026-08-14 (v3.9 revision: 2026-09-18)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 > **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.9*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.12 revision summary — C4 fixtures gain a "match number" field**
+> **No new functionality; a field-level addition.** 4.3 C4 Fixtures & Results' match record gains "match number":
+> the official fixture number assigned by the league, distinct from "round" — a single round can contain several
+> matches, each with its own official number. Recording round alone could not tell those matches apart.
+> Landing point: 4.3 C4.
 
 > **v3.11 revision summary — two field descriptions brought into line across sections**
 > **No new functionality; the same thing is now written the same way in both places.**
@@ -1067,7 +1073,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Staff (2.4 Our People): group (management / administration / medical / operations), title, bio
 
 #### C4 Fixtures & Results
-- Match record: season, competition (league / cup), date and time, home/away, opponent, venue, status (upcoming / live / finished / postponed)
+- Match record: season, competition (league / cup), date and time, home/away, opponent, venue, status (upcoming / live / finished / postponed), **match number** (the official fixture number assigned by the league, recorded separately from "round" — a single round can contain several matches, each with its own official number)
 - Result: score, scorers with timings, cards, line-up, link to the match report (7.2)
 - **League table**: maintained manually or imported from CSV
 - **Maintenance approach: entirely manual** (no external league API integration). Both **CSV bulk import** of a full season and single-match entry are provided to reduce data-entry effort

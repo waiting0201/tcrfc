@@ -692,6 +692,8 @@ CREATE TABLE staff_teams (
 );
 
 -- 賽事。competition_id 可空；對手與場地的英文走 matches_i18n。
+-- match_no：聯賽官方配發的場次編號，與 round_no（第幾輪）是兩回事——同一輪可能有多場比賽，
+-- 各自有各自的官方編號；非聯賽賽事（如盃賽、友誼賽）可能沒有官方編號，故可為空（docs/12d §9）。
 CREATE TABLE matches (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -708,6 +710,7 @@ CREATE TABLE matches (
   score_home      int              NULL,
   score_away      int              NULL,
   round_no        int              NULL,
+  match_no        int              NULL,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
