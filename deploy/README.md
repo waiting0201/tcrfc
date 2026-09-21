@@ -75,6 +75,13 @@ Azure SQL Database **不支援跨庫查詢**（`docs/14`），所以上面這種
 
 ⛔ **任何一句 SQL 只能碰一個庫。** 兩邊的資料要湊在一起，走應用層各自查詢再組合，不走資料庫。
 
+## 種子資料（S0-6c）
+
+`mssql-dev` 起來、DDL 灌完之後，`tcrfc_club_dev` 還是空的。要灌 mockup 的球員／新聞／賽程等種子資料，
+見 [`../db/seed/README.md`](../db/seed/README.md)：`./db/seed/apply-seed.sh`（讀
+[`../site/src/data/*.json`](../site/src/data/) 產生冪等 T-SQL 並套用）。**慈善庫沒有種子來源**，
+只有主站庫會被灌資料。
+
 ---
 
 ## 🔴 既有的 `sqlserver` 容器——不要動
