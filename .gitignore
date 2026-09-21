@@ -39,6 +39,10 @@ deploy/dev/charity.env
 # deploy/local-ddl.sh 的輸出（db/*.sql 轉成本機 SQL Server 相容版），隨時可重跑重建
 deploy/dev/.local-ddl-output/
 
+# db/seed/generate-club-seed-sql.py 的輸出：含 site/src/data/*.json 的球員／教練真實姓名，
+# 讀 JSON 產生的衍生檔，隨時可用 db/seed/apply-seed.sh 重新產生，不需要進版控。
+db/seed/.generated/
+
 # ── 暫存 ────────────────────────────────────────
 *.tmp
 *.bak
@@ -51,6 +55,12 @@ site/dist/
 # 授權未逐項確認前不納入有遠端的版控。
 # 重建方式：bash site/tools/build-images.sh
 site/src/assets/img/
+
+# 🔴 同一批照片在 Nuxt 專案裡的複本（S0-9 搬遷時自 site/src/assets/img/ rsync 過去，
+# 159 檔／59MB）。⛔ 這一條漏掉就等於把未成年學員肖像推上公開 repo——
+# 上面那條規則寫的是舊路徑，檔案換位置時規則不會自己跟過去（見 docs/18 E-26）。
+# 重建方式：rsync -a --ignore-existing site/src/assets/img/ apps/web/public/assets/img/
+apps/web/public/assets/img/
 
 # ── 客戶提供素材 ─────────────────────────────────
 # Logo 主檔 TCR_logo_CMYK.ai、品牌簡報 pptx、sitemap 圖、參考網站截圖，
