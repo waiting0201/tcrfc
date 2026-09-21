@@ -98,14 +98,26 @@
   **慈善平台完全不接快取。** 清單與規格依據見 [`17-deployment.md`](17-deployment.md) §4。
   ⛔ **部署**：Redis 是 compose 的一個容器，**不是 `apt install` 在主機上**；
   ⛔ **compose 絕對不要寫 `ports:`**——Docker 發布連接埠會繞過 UFW 直接改 iptables，主機防火牆擋不住（`docs/17` §1）。
-  ⛔ **實作三條**（`docs/17` §4）：**Redis 連線失敗必須回源不得讓請求失敗**（斷線與 cache miss 是兩回事）；
+  ⛔ **實作五條**（`docs/17` §4）：**Redis 連線失敗必須回源不得讓請求失敗**（斷線與 cache miss 是兩回事）；
   **失效用嵌在 key 裡的版本號遞增，絕對不得用 `KEYS` 掃**（會阻塞整個 Redis）；
-  **五類禁用的 repository 根本不注入快取服務**——靠人記半年後一定會破。
+  **每個 key 一定要有 TTL 兜底**；**single-flight**（per-key 鎖，同一個 key 的併發 miss 只讓一個打 SQL，
+  Basic 層 5 DTU 上是硬需求）；**五類禁用的 repository 根本不注入快取服務**——靠人記半年後一定會破。
+  ✅ **已於 S0-7d（2026-09-21）落地**：`apps/api/Caching/RedisQueryCache.cs`＋`IQueryCache.cs`
+  （四維度 key：`v{ver}:{club}:{locale}:{entity}:{qualifier}`；`InvalidateAsync(entity, club)` 遞增版本號，
+  供日後後台寫入層呼叫；TTL 預設 300 秒，可用 `QUERY_CACHE_TTL_SECONDS` 覆寫），見
+  [`apps/api/README.md`](../apps/api/README.md)「快取接縫」。✅ **S0-7d 續作（同日，使用者拍板）
+  已擴大到全部五個 `Features/*` repository**（`Clubs`／`Players`／`Staff`／`Articles`／`Matches`）——
+  「不得修改 repository」的本意是「接縫換 no-op↔Redis 不需要動它們」，不是「一行都不能碰」，
+  加一個 `IQueryCache` 建構子參數、對外契約不變，是接縫本來就預期的用法。⚠️ **`articles`／
+  `article-detail` 有一個必須記住的語意後果**：排程發布「時間到」沒有寫入事件可觸發失效，
+  排程發布的實際生效時間完全依賴 TTL，最多延後一個 TTL 週期（預設 300 秒）——不是 bug，
+  日後做後台排程發布功能時要嘛接受這個延遲、要嘛在該功能裡主動呼叫 `InvalidateAsync`。
 - 🔵 **技術選型已定案**（2026-09-18）：Nuxt 4 SSR ＋ .NET／EF Core＋Dapper ＋ **Azure SQL** ＋ Azure Blob ＋ Redis，
   跑在**單一 Azure VM（Japan East／東京，2026-09-20 由 West US 2 改定）** 的 Docker 上，Cloudflare 在前。**規劃書仍不記技術選型**，結果只在 [`17-deployment.md`](17-deployment.md)。
   ⚠️ 隨之而來的三條硬限制：`uniqueidentifier` 主鍵須**非叢集**（UUIDv7 在 SQL Server 無效）、
   `CalendarEvent` **不能用 indexed view**（禁 UNION）、Azure SQL **不支援跨庫查詢**（這反而讓慈善的邊界變硬）。
-  ⚠️ **本機開發把兩個庫放在同一個 `mssql-dev` 容器**（`docker-compose.dev.yml`，省資源），**跨庫 JOIN 在本機跑得動、正式一定爆**。但重點不是相容性是**法遵**——慈善庫的獨立是刻意的法人邊界，⛔ **任何一句 SQL 只能碰一個庫**，要合併走應用層各自查再組合（`deploy/README.md`）。
+  ⚠️ **本機開發把兩個庫放在同一個 SQL Server instance 裡**（2026-09-21 起併入宿主機上**既有、非本專案 compose 管理的 `sqlserver` 容器**——本機不再另開容器，見 `docker-compose.dev.yml`／`deploy/README.md`），**跨庫 JOIN 在本機跑得動、正式一定爆**。但重點不是相容性是**法遵**——慈善庫的獨立是刻意的法人邊界，⛔ **任何一句 SQL 只能碰一個庫**，要合併走應用層各自查再組合（`deploy/README.md`）。
+  🔴 **這個陷阱現在多一層**：那個既有 instance 裡除了 TCRFC 的兩個開發庫，還裝著**使用者另一個專案的約 25 個資料庫**——本機測試時打錯資料庫名稱，理論上真的連得到別的專案的資料，不只是「兩個 TCRFC 庫互相混淆」而已。防呆是**資料庫名稱寫死白名單**（`deploy/local-ddl.sh` 認 `tcrfc_club_dev`／`tcrfc_charity_dev`，`db/seed/apply-seed.sh` 只認 `tcrfc_club_dev`），且**該既有容器沒有掛 volume**——重建它會讓 TCRFC 這兩個庫連同別的專案的資料庫一起消失，細節見 `deploy/README.md`。
 - **五種「商業對象」不要搞混**：`Partner`（B2B Logo 牆）／`Sponsor`（贊助商）／`PartnerStore`（主站 8.4 特約店家，會員折扣，**無金流無分潤**）／`DonationStore`（慈善站掃碼引流，**有金流有分潤**）／`Advertiser`（**App 廣告主，計曝光**）。
   同一家實體公司可能同時是數種，**各建一筆、不共用紀錄**。唯一例外是 `Advertiser.sponsor_id` 可關聯回 `Sponsor`，那是關聯不是合併。**贊助商 Logo 牆不計曝光、不進廣告報表。**
   **`Club`（俱樂部型別，v3.0 已移入主站）不是第六種**——它是內容主體不是商業對象，不計曝光、無金流、無分潤。**兩隊的贊助商與夥伴須分區呈現不得混列**（合約是各自簽的）；同一家公司同時是兩隊的夥伴時，**比照上述原則各建一筆**。

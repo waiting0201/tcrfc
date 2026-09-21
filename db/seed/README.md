@@ -1,15 +1,19 @@
 # db/seed/ — 本機開發用種子資料（S0-6c）
 
 > 對應 [`../../docs/17-deployment.md`](../../docs/17-deployment.md)（本機開發環境）與
-> [`../../deploy/README.md`](../../deploy/README.md)（S0-7a 本機骨架、`mssql-dev` 容器）。
+> [`../../deploy/README.md`](../../deploy/README.md)（S0-7a 本機骨架、本機資料庫容器）。
 > 這裡只處理**主站庫（`tcrfc_club_dev`）**的種子資料。**慈善庫（`tcrfc_charity_dev`）沒有種子來源，本目錄不處理它。**
+>
+> 🔴 **2026-09-21 起：本機開發資料庫已合併進既有的 `sqlserver` 容器**（不再是本專案自己起的
+> `mssql-dev` 服務），詳見 [`../../deploy/README.md`](../../deploy/README.md)「本機開發資料庫已
+> 合併進既有的 `sqlserver` 容器」一節。本檔下方的指令已同步更新為新的容器與連線方式。
 
 ## 這個目錄有什麼
 
 | 檔案 | 用途 |
 |---|---|
 | [`generate-club-seed-sql.py`](generate-club-seed-sql.py) | 讀 [`site/src/data/*.json`](../../site/src/data/)（六個 mockup 資料檔），產生冪等的 T-SQL |
-| [`apply-seed.sh`](apply-seed.sh) | 呼叫上面那支腳本，再用 `sqlcmd` 把產生的 SQL 灌進 `mssql-dev` 容器的 `tcrfc_club_dev` |
+| [`apply-seed.sh`](apply-seed.sh) | 呼叫上面那支腳本，再用 `sqlcmd` 把產生的 SQL 灌進本機 SQL Server（既有 `sqlserver` 容器）的 `tcrfc_club_dev`；容器名稱可用 `LOCAL_MSSQL_CONTAINER` 環境變數覆寫，但目標資料庫寫死只認 `tcrfc_club_dev` |
 | `.generated/`（**不進版控**） | 產生出來的 `.sql`，含球員／教練真實姓名，隨時可重新產生，見 [`.gitignore`](../../.gitignore) |
 
 ## 為什麼種子資料用「讀 JSON 產生 SQL」而不是寫死在腳本裡
@@ -24,21 +28,24 @@
 ## 怎麼從零開始（本機第一次建置）
 
 ```bash
-# 0. 確認 .env 有 MSSQL_DEV_SA_PASSWORD（.env.example 已有預設值可直接用）
+# 0. 確認 .env 有 MSSQL_DEV_SA_PASSWORD，且與既有 sqlserver 容器的 SA 密碼一致
+#    （這不是本專案自訂的密碼——那是別的專案在用的既有容器，密碼請向其擁有者要，
+#      或用 `docker inspect sqlserver --format '{{range .Config.Env}}{{println .}}{{end}}'` 查）
 set -a && source .env && set +a
 
-# 1. 啟動本機資料庫容器（只需要 mssql-dev，其他服務要等 apps/* 建好才 build 得起來）
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d mssql-dev
+# 1. 確認既有的 sqlserver 容器已在跑（不是本專案啟動它，也不是本專案 compose 管理的服務）
+docker ps --filter name=sqlserver
 
-# 2. 等 healthy（Apple Silicon 上是 amd64 模擬，冷啟動可能超過 30 秒）
-docker compose -f docker-compose.yml -f docker-compose.dev.yml ps mssql-dev
-
-# 3. 灌 DDL（兩個庫都會建：tcrfc_club_dev、tcrfc_charity_dev）
+# 2. 灌 DDL（兩個庫都會建：tcrfc_club_dev、tcrfc_charity_dev，建在既有 sqlserver 容器裡）
 ./deploy/local-ddl.sh --apply
 
-# 4. 灌種子資料（只灌 tcrfc_club_dev）
+# 3. 灌種子資料（只灌 tcrfc_club_dev）
 ./db/seed/apply-seed.sh
 ```
+
+⚠️ **2026-09-21 之前**這裡第 1 步是啟動本專案自己的 `mssql-dev` 服務——那個服務已退場，
+現在改成「確認既有容器在跑」，本專案不負責啟動或管理它，見
+[`../../deploy/README.md`](../../deploy/README.md)。
 
 ## 怎麼重來一次（清掉重灌）
 
@@ -47,9 +54,11 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml ps mssql-dev
 
 ```bash
 set -a && source .env && set +a
-CID=$(docker compose -f docker-compose.yml -f docker-compose.dev.yml ps -q mssql-dev)
+CID=$(docker ps -q --filter "name=^/sqlserver\$")
 
 # 只丟 tcrfc_club_dev，不要動 tcrfc_charity_dev（慈善庫沒有種子來源，留著也沒用但不該順手清掉）
+# ⛔ 只准對這兩個名字動這種 DROP／CREATE，絕不對這個 instance 上其他資料庫做同樣的事
+#    （這個容器裡還有使用者另一個專案的約 25 個既有資料庫）。
 docker exec -i "$CID" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_DEV_SA_PASSWORD" -C \
   -Q "IF DB_ID('tcrfc_club_dev') IS NOT NULL DROP DATABASE tcrfc_club_dev; CREATE DATABASE [tcrfc_club_dev];"
 
@@ -59,19 +68,29 @@ docker exec -i "$CID" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQ
 ./db/seed/apply-seed.sh
 ```
 
-要完全砍掉重練（含 volume）：`docker compose -f docker-compose.yml -f docker-compose.dev.yml down -v`
-會連 `mssql_dev_data` 具名 volume 一起刪，下次 `up -d` 是全新容器，上面四步從頭做一次。
+⚠️ **2026-09-21 之前**「完全砍掉重練」的做法是 `docker compose down -v` 連 volume 一起刪、
+容器重建。**現在不能這樣做**——`sqlserver` 是既有容器，不是本專案 compose 管理的，`down -v`
+管不到它，而且那樣做等於刪除使用者另一個專案的全部資料庫（見
+[`../../deploy/README.md`](../../deploy/README.md)「⛔ 這個既有容器沒有掛 volume」）。
+本機重來的正確做法就是上面「只丟 `tcrfc_club_dev`」那段，只對這兩個資料庫本身動手，
+不對容器動手。
 
 ## 連線字串長什麼樣
 
 跟 [`deploy/dev/club.env.example`](../../deploy/dev/club.env.example) 一致：
 
 ```
-Server=mssql-dev,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;
+Server=host.docker.internal,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;
 ```
 
-**從宿主機（不是容器內）連線**：`Server=127.0.0.1,14330;...`（本機開發用埠，見
-[`docker-compose.dev.yml`](../../docker-compose.dev.yml)，只綁 `127.0.0.1`，不對區網開放）。
+**從宿主機（不是容器內）連線**：`Server=127.0.0.1,1433;...`（既有 `sqlserver` 容器對外發布的
+標準 SQL Server port）。
+
+⚠️ **2026-09-21 之前**這裡是 `Server=mssql-dev,1433`（容器間走 compose 服務名稱）／
+`Server=127.0.0.1,14330`（宿主機走本專案自訂的對外埠）。現在資料庫是宿主機上一個獨立於
+本專案 compose 的既有容器，容器之間無法用服務名稱互連，一律要透過 `host.docker.internal`
+連回宿主機（`docker-compose.dev.yml` 的 `api` 服務已加對應的 `extra_hosts`），且對外埠是
+標準的 `1433`（不是 `14330`）。
 
 ## 種了什麼資料
 
@@ -91,11 +110,15 @@ Server=mssql-dev,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MSSQL_DEV_SA_
 ## ⛔ 哪些事不能做
 
 - **不得對 `tcrfc_charity_dev` 執行任何跨庫 JOIN**（例如 `SELECT ... FROM tcrfc_charity_dev.dbo.x JOIN tcrfc_club_dev.dbo.y`）。
-  本機兩庫在同一個 `mssql-dev` instance 裡，這種寫法**本機測得過、正式環境的兩個獨立 Azure SQL 一定爆**，
+  本機兩庫在同一個 instance 裡，這種寫法**本機測得過、正式環境的兩個獨立 Azure SQL 一定爆**，
   而且違反的是法遵邊界不只是相容性——見 [`../../deploy/README.md`](../../deploy/README.md) 與
   [`../../docs/14-invariants.md`](../../docs/14-invariants.md)。
-- **不得直接對 `tcrfc-mssql-dev-1`（或任何 `mssql-dev` 相關容器）以外的容器下手**。
-  機器上另外還有一個名為 `sqlserver` 的既有容器，是別的專案在用，**不要停它、不要改它、不要在裡面建庫**。
+- **不得對這個既有 `sqlserver` 容器本身動手**：不得重建、不得改埠繫結、不得加 volume、
+  不得改任何設定、不得 `docker rm`／`docker restart`。它是使用者另一個專案在用，裡面還有
+  約 25 個既有資料庫，且**沒有掛任何 volume**（重建＝資料全滅，見
+  [`../../deploy/README.md`](../../deploy/README.md)）。本目錄的腳本只被授權在裡面操作
+  `tcrfc_club_dev`（`db/seed/apply-seed.sh`）與 `tcrfc_club_dev`／`tcrfc_charity_dev`
+  （`deploy/local-ddl.sh`）這兩個資料庫，寫死白名單、不接受呼叫端覆寫。
 - **不得把 `db/seed/.generated/*.sql` 加進版控**——它含真實姓名，`.gitignore` 已排除，不要用 `git add -f` 硬加。
 - **不得把種子資料當成正式內容的替代品**：`players.json`／`news.json` 等六個 JSON 檔本身是 mockup 骨架，
   不是後台維運後的真實資料——例如 `articles.cover_key` 全部是 `NULL`（沒有走過圖片上傳 pipeline）、
@@ -112,13 +135,14 @@ Server=mssql-dev,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MSSQL_DEV_SA_
 ## DDL 改了、既有本機庫沒跟上——以後一定會再發生
 
 `db/club-schema.sql`／`db/charity-schema.sql` 是持續在改的交付物（真實來源是 `docs/12`／`docs/16`），
-但本機的 `mssql-dev` 容器是「建好一次、之後重複重跑種子腳本」在用，**兩者不會自動保持同步**。
+但本機的資料庫（既有 `sqlserver` 容器裡的 `tcrfc_club_dev`／`tcrfc_charity_dev`）是「建好一次、
+之後重複重跑種子腳本」在用，**兩者不會自動保持同步**。
 2026-09-21（`matches.match_no` 補進規格與 DDL）就踩過一次：本機庫是在這個欄位補進 DDL 之前建的，
 `ALTER TABLE` 之類的 schema 變更不會自動套用到已存在的資料庫。
 
 判斷用哪一種方式補齊：
 
-- **新增欄位（可為 NULL 或有安全預設值）、且本機已有想保留的資料** → 手動對 `mssql-dev` 容器跑一句
+- **新增欄位（可為 NULL 或有安全預設值）、且本機已有想保留的資料** → 手動對該資料庫跑一句
   `ALTER TABLE ... ADD ...`（用 `db/club-schema.sql` 裡真正的欄位型別宣告，不要自己猜），
   再視情況修改 `generate-club-seed-sql.py` 補一句可重複執行的 `UPDATE`（見下方為什麼不能只加
   `INSERT`），最後重跑 `./db/seed/apply-seed.sh` 讓既有資料被補值。**優點**：不中斷本機正在跑的

@@ -3,48 +3,41 @@
 # 用法：docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 #
 # 對正式版（docker-compose.yml）做兩件事：
-#   1. 加一個 mssql-dev 容器取代 Azure SQL（本機沒有 Azure SQL，兩個資料庫先合併跑在同一個
-#      SQL Server 2022 容器裡的兩個資料庫，省資源；正式環境是兩個完全獨立的 Azure SQL 單庫）。
+#   1. 本機不接 Azure SQL，改連**宿主機上既有的 `sqlserver` 容器**（見下方大段說明）。
 #   2. 本機不需要 TLS——proxy 改掛 deploy/Caddyfile.dev（http:// 明文，auto_https off）。
 #
-# 🔴 本機已有一個名為 "sqlserver" 的既有容器占用 1433 port，與本 compose 專案無關，不要動它、
-# 也不要動裡面任何資料庫。這裡新增的 mssql-dev 服務刻意：
-#   - 不設 container_name，交給 compose 用專案名稱（tcrfc）自動加前綴，不會撞名；
-#   - 對外埠選 14330（不是 1433），兩者可以同時活著，互不干擾。
+# ⚠️ Apple Silicon（arm64）上這個 SQL Server 映像檔只有 amd64，跑起來是透過模擬層——這句話現在
+# 只跟宿主機上的 `sqlserver` 容器有關（不是本檔管理的服務），冷啟動可能要 30 秒以上。
 #
-# ⚠️ Apple Silicon（arm64）上這個 SQL Server 映像檔只有 amd64，跑起來是透過模擬層，
-# 冷啟動可能要 30 秒以上，healthcheck 的 start_period 已放寬。
+# 🔴🔴 2026-09-21：本機開發資料庫已合併進既有的 `sqlserver` 容器，`mssql-dev` 服務正式退場 🔴🔴
+#
+# 舊版本檔曾在這裡另開一個 `mssql-dev` 服務（獨立埠 14330、具名 volume `mssql_dev_data`），
+# 理由是「不確定能不能安全共用既有的 `sqlserver` 容器」。**使用者已明確拍板改用既有容器**
+# （見 docs/17-deployment.md §6「本機開發資料庫」、deploy/README.md）：
+#   - 既有 `sqlserver` 容器（`mcr.microsoft.com/mssql/server:2022-latest`，與舊 `mssql-dev`
+#     完全同映像檔）monopolize 宿主機 1433 port，供**使用者另一個專案**使用，裡面已有約 25 個
+#     資料庫。**不是本 compose 管理，不會出現在本檔或 `docker compose ps` 裡。**
+#   - 本專案現在只是**在這個既有 instance 裡新增兩個資料庫**（`tcrfc_club_dev`、
+#     `tcrfc_charity_dev`），不再另開第二個 SQL Server 容器。
+#   - ⛔ **這個容器沒有掛任何 volume**（資料在容器可寫層）。`docker rm sqlserver` 會讓
+#     `tcrfc_club_dev`／`tcrfc_charity_dev` 連同使用者另一個專案的全部資料庫一起消失。
+#     TCRFC 這兩個庫的復原方式是重跑 `deploy/local-ddl.sh --apply` ＋ `db/seed/apply-seed.sh`
+#     （見 deploy/README.md「`mssql_dev_data` 退場後的回收與復原」）；**別的專案的資料庫沒有
+#     這條復原路徑，這不是本專案能承擔的風險，只能記錄、不能替使用者決定要不要動這個容器。**
+#   - **風險性質也跟著變了**：以前怕的是「接到錯的容器」（靠寫死拒絕 `sqlserver` 這個名字防呆），
+#     現在兩個專案的資料庫住在同一個 instance 裡，怕的是「操作到錯的資料庫」。因此
+#     `deploy/local-ddl.sh`／`db/seed/apply-seed.sh` 的防呆改成：**目標容器可由環境變數指定
+#     （預設 `sqlserver`），但目標資料庫名稱寫死只允許 `tcrfc_club_dev`／`tcrfc_charity_dev`
+#     兩個，其他名稱一律拒絕執行**；建庫一律 `IF NOT EXISTS`，任何情況下都不對 `master` 以外的
+#     既有資料庫下 `DROP`／`ALTER`。
+#   - **連線方式也跟著變了**：`sqlserver` 不是 compose 服務，`api` 容器連不到「服務名稱」，
+#     改連宿主機的 `host.docker.internal`（見下方 `api` 服務的 `extra_hosts`）。
+#   - `mssql_dev_data` 這個具名 volume 仍留在 Docker 裡（本檔不再宣告它，但沒有主動刪除，
+#     裡面是舊版 `mssql-dev` 的資料）——是否清掉由使用者決定，回收指令見 deploy/README.md。
 
 name: tcrfc
 
-volumes:
-  mssql_dev_data:
-
 services:
-  # ── 本機開發用資料庫，取代 Azure SQL ──────────────────────────────────
-  mssql-dev:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    restart: unless-stopped
-    environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_SA_PASSWORD: ${MSSQL_DEV_SA_PASSWORD:?請在 .env 設定 MSSQL_DEV_SA_PASSWORD（僅本機開發用，不得沿用任何正式密碼）}
-      MSSQL_PID: Developer
-    ports:
-      - "127.0.0.1:14330:1433" # 刻意避開既有 sqlserver 容器占用的 1433；⛔ 綁 127.0.0.1，不得對同網段開放
-    volumes:
-      - mssql_dev_data:/var/opt/mssql
-    networks: [internal]
-    healthcheck:
-      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 40s
-    deploy:
-      resources:
-        limits:
-          memory: 2048M
-
   # ── proxy：本機不需要 TLS，改用明文 HTTP、改本機慣用網域 ─────────────────
   proxy:
     # ⚠️ compose 疊加多個檔案時，list 型欄位（如 ports）預設是「串接」不是「取代」——
@@ -102,12 +95,20 @@ services:
     environment:
       VITE_API_BASE: http://api.localhost:8080
 
-  # ── API：指到本機的兩個祕密檔（deploy/dev/*.env，不進版控）與 mssql-dev ──────
+  # ── API：指到本機的兩個祕密檔（deploy/dev/*.env，不進版控）與宿主機的 sqlserver 容器 ──
   api:
     depends_on:
       redis: { condition: service_healthy }
-      mssql-dev: { condition: service_healthy }
-    # !override：同上，list 型欄位預設串接。這裡即使不加也不會真的壞（正式版那兩個 /opt 路徑
+      # 🔴 不再有 mssql-dev 這個 compose 服務可以 depends_on——資料庫現在是宿主機上一個
+      # 獨立於本 compose 專案的既有容器（`sqlserver`），compose 管不到它的健康狀態。
+      # `api` 的 /readyz 本身會探測資料庫連線（docs/20-cicd.md §6），啟動順序交給它的
+      # healthcheck／retry 邏輯，不再靠 depends_on 的 condition 卡順序。
+    # extra_hosts：讓容器連得到宿主機。Docker Desktop（macOS／Windows）預設就會提供
+    # host.docker.internal，這行主要是為了 Linux 相容（Docker 20.10+ 用 host-gateway 這個
+    # 特殊值達成同樣效果）——兩種平台都適用，多寫不會壞。
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # !override：list 型欄位預設串接。這裡即使不加也不會真的壞（正式版那兩個 /opt 路徑
     # 在本機不存在、required: false 會被跳過），但明確蓋掉比較不會誤導——api 在本機開發時
     # 就是只吃這兩個檔案，不該讓人以為它同時也在讀 /opt 底下的東西。
     env_file: !override

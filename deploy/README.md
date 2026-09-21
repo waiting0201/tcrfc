@@ -24,6 +24,60 @@
 Dockerfile 假設的是專案建好之後的產物形狀（`.output/`、`dist/`、`.csproj` 的 publish 輸出），
 專案本身還沒建立。`docker compose config`（純語法驗證，不觸碰任何映像檔）可以正常跑。
 
+## 🔴🔴 2026-09-21：本機開發資料庫已合併進既有的 `sqlserver` 容器 🔴🔴
+
+> 這是一次**刻意的方向反轉**。S0-6c 當時的決定是「本機另開一個 `mssql-dev` 容器，絕對不要動
+> 既有的 `sqlserver` 容器」，理由是不確定共用是否安全。**使用者已於 2026-09-21 明確拍板改用
+> 既有容器**：`docker-compose.dev.yml` 的 `mssql-dev` 服務已移除，`tcrfc_club_dev`、
+> `tcrfc_charity_dev` 兩個資料庫現在建在宿主機上那個既有、非本專案 compose 管理的 `sqlserver`
+> 容器裡（`mcr.microsoft.com/mssql/server:2022-latest`，與舊 `mssql-dev` 完全同映像檔，
+> `MSSQL_PID=developer`，佔用宿主機 `1433` port）。**那個容器是使用者另一個專案在用的**，
+> 裡面已有約 25 個屬於別的專案的資料庫——本專案只是在同一個 instance 裡多開兩個資料庫，
+> **不得以任何方式改動、重建、停止或刪除這個容器本身**。
+
+### 為什麼要合併——省一個容器，代價是換一種要小心的方式
+
+舊方案（兩個容器）的好處是「風險徹底隔離、寫死拒絕接觸 `sqlserver`」，代價是本機多跑一個
+2GB 記憶體、amd64 模擬層的 SQL Server 容器。合併後代價與好處對調：**省了那個容器，但風險
+性質從「接錯容器」變成「動到錯的資料庫」**——因為現在兩個專案的資料庫住在同一個 instance 裡。
+
+### 防呆怎麼改（重要：讀完再動手）
+
+- `deploy/local-ddl.sh`、`db/seed/apply-seed.sh` 的目標容器現在可由環境變數
+  `LOCAL_MSSQL_CONTAINER` 指定，**預設 `sqlserver`**（不再寫死拒絕這個名字）。
+- ⛔ **資料庫名稱寫死白名單**：`deploy/local-ddl.sh` 只認 `tcrfc_club_dev`／`tcrfc_charity_dev`
+  兩個；`db/seed/apply-seed.sh` 只認 `tcrfc_club_dev` 一個。任何其他資料庫名稱一律被腳本拒絕
+  執行（`assert_allowed_database`／`TARGET_DATABASE` 常數），不接受呼叫端覆寫。
+- ⛔ **任何情況下都不對這個 instance 上的既有資料庫下 `DROP`／`ALTER`**。兩支腳本從頭到尾唯一
+  會執行的 DDL 動作是 `IF DB_ID(...) IS NULL CREATE DATABASE`（建庫，若不存在）與在
+  `tcrfc_club_dev`／`tcrfc_charity_dev` 內部建表，沒有任何程式碼路徑碰得到這兩個庫以外的物件。
+- 兩支腳本執行 `--apply` 時**開頭都會先印出目標容器與目標資料庫**，不悄悄動手。
+- **驗證方式**：操作前後各對 `sqlserver` 容器跑一次 `SELECT name FROM sys.databases`，
+  比對差異應該只有新增 `tcrfc_club_dev`／`tcrfc_charity_dev` 這兩筆，其他 25 個既有資料庫
+  一筆都不該變動。
+
+### ⛔ 這個既有容器沒有掛 volume——資料在容器可寫層
+
+跟舊的 `mssql-dev`（掛了具名 volume `mssql_dev_data`，容器可以自由重建）不同，**這個既有
+`sqlserver` 容器完全沒有掛任何 volume**（`docker inspect sqlserver` 的 `Mounts` 是空陣列）。
+這代表：
+
+- `docker rm sqlserver`（或任何導致這個容器被刪除重建的操作）會讓 `tcrfc_club_dev`、
+  `tcrfc_charity_dev`**連同使用者另一個專案的全部約 25 個資料庫一起消失**，且**沒有
+  volume 可以復原別的專案的資料**。
+- **這不是在警告使用者不要動這個容器**——那個容器是別的專案在用，何時重建、要不要重建，
+  是使用者的決定，本專案沒有立場也沒有必要阻止；**這裡只記錄一件事**：如果哪天 TCRFC 的
+  本機資料庫突然「憑空消失」，根因很可能是這個容器被重建過，而不是 TCRFC 這邊的程式碼或
+  資料庫哪裡壞了。
+- **TCRFC 這兩個庫的復原方式很簡單**（因為本來就是可重新產生的 mockup 資料，見
+  [`../db/seed/README.md`](../db/seed/README.md)）：
+  ```bash
+  ./deploy/local-ddl.sh --apply    # 重建 tcrfc_club_dev、tcrfc_charity_dev 的表結構
+  ./db/seed/apply-seed.sh          # 重灌主站庫的種子資料（慈善庫沒有種子來源，維持空表）
+  ```
+  **別的專案的資料庫沒有這條路**——它們不是本專案管理的，本專案也沒有它們的建置腳本，
+  這一點只能記錄、不能代為解決。
+
 ## 本機怎麼起（等 apps/* 建好之後）
 
 ```bash
@@ -36,10 +90,13 @@ cp deploy/dev/charity.env.example deploy/dev/charity.env
 docker compose -f docker-compose.yml config
 docker compose -f docker-compose.yml -f docker-compose.dev.yml config
 
-# 3. 起本機開發堆疊（要等 apps/* 有內容才 build 得起來）
+# 3. 確認宿主機既有的 sqlserver 容器已在跑（不是本專案啟動它，見上一節）
+docker ps --filter name=sqlserver
+
+# 4. 起本機開發堆疊（要等 apps/* 有內容才 build 得起來；不再包含資料庫，資料庫是上一步的既有容器）
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
-# 4. 轉換並灌入本機用的 DDL（mssql-dev 容器要先跑起來）
+# 5. 轉換並灌入本機用的 DDL（對既有 sqlserver 容器建 tcrfc_club_dev／tcrfc_charity_dev 兩個庫）
 ./deploy/local-ddl.sh --apply
 ```
 
@@ -49,15 +106,21 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 |---|---|
 | 經 proxy（依 Host 分流，需要 `*.localhost` 能解析到 127.0.0.1，現代系統預設就會） | `http://localhost:8080`、`http://bw.localhost:8080`、`http://charity.localhost:8080`、`http://admin.localhost:8080`、`http://admin-charity.localhost:8080`、`http://api.localhost:8080` |
 | 略過 proxy，直接打各容器（方便單獨除錯） | `nuxt-tcrfc` → `:3001`／`nuxt-bw` → `:3002`／`nuxt-charity` → `:3003`／`admin-web` → `:8081`／`admin-charity` → `:8082` |
-| `mssql-dev`（取代 Azure SQL） | `localhost:14330`，帳號 `sa`，密碼是 `.env` 的 `MSSQL_DEV_SA_PASSWORD` |
+| 資料庫（既有 `sqlserver` 容器，取代 Azure SQL，**不是本專案啟動的**） | `localhost:1433`，帳號 `sa`，密碼是 `.env` 的 `MSSQL_DEV_SA_PASSWORD`（**必須與該既有容器的 SA 密碼一致**，這不是本專案自訂的密碼） |
 
 ⚠️ **`redis` 本機也不開對外連接埠**——docs/17 §1 的三條規則在本機一樣適用，要查資料用
 `docker compose exec redis redis-cli`。
 
-## 🔴 本機兩個庫同一個 instance，正式是兩個獨立的 Azure SQL
+⚠️ **`api` 容器怎麼連到這個資料庫**：`sqlserver` 不是本專案 compose 管理的服務，容器間無法
+用服務名稱互連。`api` 服務改用 `host.docker.internal`（`docker-compose.dev.yml` 已加
+`extra_hosts: ["host.docker.internal:host-gateway"]`，macOS／Windows 的 Docker Desktop
+其實內建就有，這行主要是為了 Linux 相容）連回宿主機，打 `sqlserver` 容器對外發布的 `1433`
+port——見 `deploy/dev/club.env.example`／`charity.env.example` 的連線字串。
 
-`docker-compose.dev.yml` 為了省資源，把 `tcrfc_club_dev` 與 `tcrfc_charity_dev` 放進**同一個**
-`mssql-dev` 容器。**正式環境不是這樣**——那是兩個完全獨立的 Azure SQL 單庫（`docs/17` §1）。
+## 🔴 本機兩個庫同一個 instance，正式是兩個獨立的 Azure SQL——現在還多一層：這個 instance 裡還有別的專案的資料庫
+
+`tcrfc_club_dev` 與 `tcrfc_charity_dev` 現在放在**同一個** `sqlserver` 容器裡（省資源，且是
+既有容器，見上一節）。**正式環境不是這樣**——那是兩個完全獨立的 Azure SQL 單庫（`docs/17` §1）。
 
 ⚠️ **這個差異會製造一種本機測得過、正式一定爆的錯**：
 
@@ -75,21 +138,51 @@ Azure SQL Database **不支援跨庫查詢**（`docs/14`），所以上面這種
 
 ⛔ **任何一句 SQL 只能碰一個庫。** 兩邊的資料要湊在一起，走應用層各自查詢再組合，不走資料庫。
 
+🔴 **2026-09-21 起多一層風險，不只是「兩個 TCRFC 庫混淆」**：這個 instance 現在同時裝著
+TCRFC 的兩個開發庫**與使用者另一個專案的約 25 個資料庫**。寫 SQL、連線字串或任何腳本時，
+**資料庫名稱打錯字有可能真的連到別的專案的資料庫**（instance 層級沒有隔離，只靠資料庫名稱
+與應用層的連線字串正確性）。這是上面「防呆怎麼改」那段寫死白名單的直接原因。
+
 ## 種子資料（S0-6c）
 
-`mssql-dev` 起來、DDL 灌完之後，`tcrfc_club_dev` 還是空的。要灌 mockup 的球員／新聞／賽程等種子資料，
+DDL 灌完之後，`tcrfc_club_dev` 還是空的。要灌 mockup 的球員／新聞／賽程等種子資料，
 見 [`../db/seed/README.md`](../db/seed/README.md)：`./db/seed/apply-seed.sh`（讀
 [`../site/src/data/*.json`](../site/src/data/) 產生冪等 T-SQL 並套用）。**慈善庫沒有種子來源**，
 只有主站庫會被灌資料。
 
 ---
 
-## 🔴 既有的 `sqlserver` 容器——不要動
+## 🔴 既有的 `sqlserver` 容器——絕對不要動這個容器本身
 
-本機已有一個獨立、非本專案 compose 管理的容器，名為 `sqlserver`，佔用 `1433` port。
-**這次新增的 `mssql-dev` 服務刻意選了不同的對外埠（`14330`）、不設 `container_name`**（讓 compose
-用專案名稱 `tcrfc` 自動加前綴），確保兩者可以同時存在、不衝突、不誤觸。`local-ddl.sh --apply`
-只認 compose service 名稱 `mssql-dev`，不會碰到 `sqlserver`。
+本機已有一個獨立、非本專案 compose 管理的容器，名為 `sqlserver`，佔用 `1433` port，
+是**使用者另一個專案在用的**，裡面已有約 25 個既有資料庫，且**沒有掛任何 volume**（見上方
+「這個既有容器沒有掛 volume」）。**不得重建、不得改埠繫結、不得加 volume、不得改任何設定、
+不得 `docker rm`／`docker restart`。** 本專案只被授權**在裡面建立 `tcrfc_club_dev`／
+`tcrfc_charity_dev` 這兩個新資料庫**，不做任何其他事。
+
+`deploy/local-ddl.sh`、`db/seed/apply-seed.sh` 預設對到這個容器名稱（`LOCAL_MSSQL_CONTAINER`
+環境變數可覆寫容器名稱，但資料庫名稱白名單寫死不可覆寫，見上方「防呆怎麼改」）。
+
+## `mssql-dev` 退場後的回收與復原（舊 volume 怎麼處理）
+
+舊的 `mssql-dev` 服務與它的具名 volume `mssql_dev_data` 已從 `docker-compose.dev.yml` 移除，
+但**這個 volume 本身沒有被主動刪除**——它還在 Docker 裡，只是不再被任何 compose 檔引用。
+是否清掉、何時清掉，由使用者決定，不是本次任務代為決定的事：
+
+```bash
+# 查看舊容器／volume 現況（可能還在跑，也可能已經沒有容器只剩 volume）
+docker ps -a --filter "name=mssql-dev"
+docker volume ls --filter "name=mssql_dev_data"
+
+# 確認新環境（sqlserver 容器裡的 tcrfc_club_dev／tcrfc_charity_dev）已可用之後，
+# 要回收舊容器與 volume：
+docker stop tcrfc-mssql-dev-1        # 若容器名稱不同，以 docker ps -a 的實際名稱為準
+docker rm tcrfc-mssql-dev-1
+docker volume rm tcrfc_mssql_dev_data # 具名 volume 前綴是 compose 專案名稱 tcrfc
+```
+
+⚠️ **這是單向操作，volume 一旦刪除就是真的沒了**——但因為新環境已完整驗證可用（見本次交付
+報告的驗收數字），舊 volume 裡的資料已無留存必要，只是保守起見交給使用者親自執行。
 
 ## 正式網址到位前怎麼起（同一台 VM、真的 Azure 資源）
 

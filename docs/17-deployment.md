@@ -378,16 +378,28 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 > **這不違反 `12` §1.2 的「不用自增整數」**——那句針對的是對外識別碼（避免匯入與跨環境搬移撞號）。
 > 新增的 `bigint` 叢集鍵**不對外、不進 API、不進 URL**。
 
-### 本機開發資料庫（S0-6c，2026-09-21）
+### 本機開發資料庫（S0-6c，2026-09-21；**2026-09-21 併入既有容器，`deployment-engineer`**）
 
-`docker-compose.dev.yml` 的 `mssql-dev` 服務現在是**可持續使用、資料會持久化的本機開發庫**，
-不再只是拋棄式的 DDL 驗證環境（S0-6b 當時只驗證 `.sql` 能不能跑完）。具名 volume
-`mssql_dev_data`（compose 專案前綴為 `tcrfc_mssql_dev_data`）掛在 `/var/opt/mssql`，
-容器重啟資料不會掉；要清空重建才需要 `down -v`。
+🔴 **這一段已因使用者拍板而反轉一次方向，讀最新結論即可，不必照時間順序理解演變過程**：
+本機開發資料庫現在建在**宿主機上既有、非本專案 compose 管理的 `sqlserver` 容器**裡，
+`docker-compose.dev.yml` 原本自己起的 `mssql-dev` 服務**已移除**。理由與完整操作方式見
+[`../deploy/README.md`](../deploy/README.md)「本機開發資料庫已合併進既有的 `sqlserver` 容器」，
+本節只記錄對這份文件（拓撲、DBMS 選型）而言重要的事實：
 
-**兩個庫是同一個 `mssql-dev` instance 裡的兩個獨立 database**（`tcrfc_club_dev`、`tcrfc_charity_dev`），
-灌完 DDL 後的表數／外鍵數與 S0-6b 記錄的數字一致（主站 144 表／380 外鍵／1 視圖、慈善 29 表／65 外鍵），
-每次重灌都可以拿這組數字回歸比對。
+- **兩個庫是同一個既有 SQL Server 2022 instance 裡的兩個獨立 database**
+  （`tcrfc_club_dev`、`tcrfc_charity_dev`），這件事本身沒變——變的只是「這個 instance
+  是本專案自己開的容器」變成「這個 instance 是使用者另一個專案原本就在用的既有容器，
+  本專案借用來多開兩個資料庫」。**跟正式環境（兩個完全獨立的 Azure SQL 單庫）的落差因此
+  多了一層**：本機不只是「兩庫同 instance」，還是「同 instance 裡混了其他專案的資料庫」——
+  這一層在正式環境完全不存在，純粹是本機省資源與共用既有容器的產物，見
+  [`14-invariants.md`](14-invariants.md)。
+- ⛔ **這個既有容器沒有掛任何 volume**（資料在容器可寫層），跟舊 `mssql-dev` 的具名 volume
+  `mssql_dev_data`（已隨服務移除而停用，是否清掉由使用者決定）不同。這代表容器若被重建，
+  TCRFC 的兩個開發庫會跟著消失，但因為本來就是可重新產生的 DDL＋種子資料組合，復原成本低；
+  真正的風險在於**這個容器同時裝著使用者另一個專案的資料**，那些資料沒有這條復原路徑。
+- **灌完 DDL 後的表數／外鍵數與 S0-6b 記錄的數字一致**（主站 144 表／380 外鍵／1 視圖、
+  慈善 29 表／65 外鍵），**併入既有容器後已重新驗證一次、數字不變**——證明合併沒有改變
+  綱要本身，只換了資料庫所在的 instance。每次重灌都可以拿這組數字回歸比對。
 
 **主站庫已有種子資料**（`db/seed/`，見 [`../db/seed/README.md`](../db/seed/README.md)）：讀
 `site/src/data/*.json`（mockup 用的球員／新聞／賽程等六個 JSON）產生冪等 T-SQL 灌入，涵蓋
@@ -401,8 +413,9 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 `site/src/data/*.json` 與資料表之間的欄位落差（見 `docs/12d-field-audit.md` 本次新增的項目），
 比事後才發現划算。
 
-⛔ **本機開發、種子資料與跨庫查詢的所有紀律**（volume、既有 `sqlserver` 容器不得碰、
-兩庫必須各自獨立不得跨庫 JOIN）不變，完整版見 [`../deploy/README.md`](../deploy/README.md)。
+⛔ **本機開發、種子資料與跨庫查詢的所有紀律**（既有 `sqlserver` 容器本身不得碰、只能在裡面
+建 TCRFC 這兩個資料庫、兩庫必須各自獨立不得跨庫 JOIN）不變，完整版見
+[`../deploy/README.md`](../deploy/README.md)。
 
 ---
 
@@ -759,10 +772,12 @@ session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊�
 
 ---
 
-## 11. `api` 唯讀讀取端點骨架（S0-7b，2026-09-21）
+## 11. `api` 唯讀讀取端點骨架（S0-7b，2026-09-21；S0-7d 補強，2026-09-21）
 
 > 🔵 **執行層決定，不是規格**（同本檔通則）。範圍：球員、教練與職員、新聞、賽程與賽果、俱樂部主檔
-> 五組唯讀 GET 端點，讓 `apps/web` 能打真實資料庫。**不含**寫入、登入權限、商店金流、後台、慈善平台。
+> 五組唯讀 GET 端點，讓 `apps/web` 能打真實資料庫。**不含**寫入、登入權限、商店金流、後台、慈善平台的
+> 業務功能。**S0-7d（同日）補齊 S0-7b 刻意縮減的三個缺口**：`/readyz` 加慈善庫與 Redis 檢查（第 6 項）、
+> `IQueryCache` 接縫接上真正的 Redis 實作（第 3 項）、新增自動化測試專案（第 10、11 項）。
 > 完整端點清單、欄位公開性對照、驗收紀錄見 [`../apps/api/README.md`](../apps/api/README.md)，本節只記
 > 「日後接其他功能時必須沿用」的執行層決定。
 
@@ -770,12 +785,15 @@ session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊�
 |---|---|---|
 | 1 | **`club_id` 強制機制走型別系統，不是 code review 紀律**：`ClubScope`（`readonly struct`）建構子 `internal`，唯一產生者是 `IClubResolver`；所有 repository 方法簽章要求 `ClubScope` 而非 `Guid`／`string` | §4「五類禁用的 repository 根本不注入快取服務」用的是同一種「型別上做不到」而不是「記得別做」的思路，這裡把它套用到 `club_id` 過濾。**日後任何碰 `club_id` 範圍資料的新端點都必須沿用此模式**，不得自己另開一條「先拿 `club_id` 字串再查」的路 |
 | 2 | **9 張 `club_id` 可為空表的「俱樂部專屬優先、回退共同」SQL 片段集中在 `Data/ClubOrSharedSql.cs`** 兩個常數（`WhereClubOrShared`／`OrderClubBeforeShared`） | 對應本檔 §6 第 5 件事定案的 SQL 寫法；**只能有一個真實來源**，比照 §6「單元開關只能有一個真實來源」的同一個精神 |
-| 3 | **快取接縫已預留（`Caching/IQueryCache.cs`），本次注入 no-op** | 本次任務完全沒有後台可以觸發 write-invalidate（§4 的失效前提），接 Redis 會變成「永遠不失效的快取」。`IQueryCache` 的介面文件完整抄錄 §4 五類禁用清單，**日後接 Redis 只需要換一個 DI 註冊，端點與 repository 不用改** |
+| 3 | **快取接縫（`Caching/IQueryCache.cs`）：`REDIS_HOST` 有設定注入 `RedisQueryCache`，沒設定注入 `NoOpQueryCache`**（S0-7d，2026-09-21 起真的接了 Redis，取代原本「本次注入 no-op」的敘述） | S0-7b 當時沒有後台可以觸發 write-invalidate（§4 的失效前提），接 Redis 會變成「永遠不失效的快取」；S0-7d 補上後**改以 TTL 頂住這段空窗**（預設 300 秒，可用 `QUERY_CACHE_TTL_SECONDS` 覆寫），並新增 `IQueryCache.InvalidateAsync(entity, club, ct)` 給日後後台寫入層直接呼叫，**介面不用再改**。`GetOrCreateAsync` 改為四個字串維度（`entity`／`club`／`locale`／`qualifier`）組 key，對應 §4「key 命名必須含 club_id 與 locale 維度」；`Caching.CacheDimensions` 提供 `SharedClub`／`AnyLocale`／`NoQualifier` 三個共用常數。⚠️ **現況已不只 `Security/ClubResolver.cs`**（S0-7d 續作，同日，使用者拍板）：`ClubsRepository`／`PlayersRepository`／`StaffRepository`／`ArticlesRepository`／`MatchesRepository` 五個 `Features/*` repository 全部接上快取——之前把「端點與 repository 不得修改」解讀成「連建構子參數都不能加」是過度保守，使用者澄清那句話的本意是「接縫換 no-op↔Redis 不需要動它們」，加一個 `IQueryCache` 建構子參數且對外契約不變是接縫本來就預期的用法。**額外規則**：`factory` 回傳 `null` 不寫入快取（負向結果／404 不快取，見 [`apps/api/README.md`](../apps/api/README.md)）；`articles`／`article-detail` 兩個 entity 因為「排程發布時間到」沒有寫入事件可觸發失效，**排程發布的實際生效時間完全依賴 TTL**，最多延後一個 TTL 週期——這是已知取捨，寫進 README 供日後後台排程發布功能開發時對照 |
 | 4 | **對外語系參數固定 `zh`／`en`，資料庫實際存 `zh-Hant`／`en`**，轉換與逐欄位回退規則集中在 `Localization/RequestLocale.cs` | 對齊 [`06-conventions.md`](06-conventions.md)「語系代碼」一節（API 與 App 的 `lang` 一律 `zh`／`en`）；回退規則是「請求語系非空白用它，否則用 `zh-Hant`，兩者皆無回傳 `null`」——**逐欄位判斷，不是整筆記錄二選一**，已用種子資料的真實缺漏（`matches_i18n`／`competitions_i18n` 完全沒有英文列）驗證 |
 | 5 | **連線字串環境變數鍵名固定為 `CLUB_SQL_CONNECTION_STRING`**，直接讀（不繞 ASP.NET Core 慣用的 `ConnectionStrings:Club` 間接層） | 與 `deploy/dev/club.env`、`/opt/tcrfc/secrets/club.env`（[`20-cicd.md`](20-cicd.md) §7.2）既有鍵名一致，設定與程式碼不用互相翻譯 |
-| 6 | **`/readyz` 目前只驗證主站庫連線**，不含慈善庫與 Redis | 本次任務範圍不碰那兩者；慈善庫連線檢查與 Redis「連線失敗算警告不算失敗」（§4）留給那兩塊功能真正接上時補齊 |
+| 6 | **`/readyz` 已補齊慈善庫與 Redis 檢查**（S0-7d，2026-09-21 起，取代原本「目前只驗證主站庫連線」的敘述）：`club_db` 必檢查失敗即 not ready；`charity_db` 有設定 `CHARITY_SQL_CONNECTION_STRING` 才檢查（沒設定 `not_configured` 不影響 ready，設定了連不上算 `fail` 導致 not ready）；`redis` 有註冊 `IConnectionMultiplexer` 才檢查（沒註冊 `not_configured`，連不上 `degraded`，**兩種情況都不影響 ready**） | 慈善庫檢查只開連線查 `SELECT 1`，不建立任何 repository 或常駐連線工廠——`docs/14-invariants.md`、本檔 §5 明訂不得跨庫存取，這裡連「留一個可被誤用的管道」都不留。Redis 的「連不上不影響 ready」直接對應本節「連線失敗算警告不算失敗」；已用 `docker run` 起真正的映像檔＋`brew install redis` 的真實 `redis-server`，驗證過連線建立前就掛掉、連線建立後才掛掉兩種情境，見 [`apps/api/README.md`](../apps/api/README.md)「S0-7d 驗收紀錄」 |
 | 7 | **OpenAPI（`Microsoft.AspNetCore.OpenApi`）只在 `ASPNETCORE_ENVIRONMENT=Development` 掛載，未掛 Swagger UI** | 已用容器實測：`Production` 環境 `/openapi/v1.json` 回 404。日後要加互動式文件頁面（Scalar／Swashbuckle）再疊加，不影響此開關 |
 | 8 | ⚠️ **`InvariantGlobalization` 不得開**：`Microsoft.Data.SqlClient` 連線需要完整 ICU，開了會在 `SqlConnection.OpenAsync()` 直接丟 `NotSupportedException` | 本機實測踩到的坑，見 [`18-work-errors.md`](18-work-errors.md) E-19 |
 | 9 | ⚠️ **Dapper 用 record 具現化時，SQL `date`／`datetime` 欄位對應的屬性一律宣告 `DateTime`，不要宣告 `DateOnly`**，需要 `DateOnly` 語意在應用層轉 | ADO.NET 對 `date` 欄位回報的 CLR 型別永遠是 `DateTime`，`DateOnly` 屬性會讓 Dapper 找不到相符建構子而整支查詢丟例外。見 [`18-work-errors.md`](18-work-errors.md) E-20 |
+| 10 | **`apps/api` 的自動化測試用獨立子專案 `Tcrfc.Api.Tests`（同目錄、無 `.sln`），用 `WebApplicationFactory<Program>` 打真正的行程內主機，接真正的本機 `mssql-dev`，不 mock 資料庫與 Redis**（S0-7d，2026-09-21） | 主專案 `Tcrfc.Api.csproj` 要明確 `<Compile Remove="Tcrfc.Api.Tests/**/*.cs" />`——沒有 `.sln` 幫忙切開建置範圍時，SDK 專案預設的遞迴 `**/*.cs` 萬用字元會把子目錄的測試原始碼一起編譯進主專案。`apps/api/.dockerignore` 另外排除該目錄，`docker build -t x apps/api` 不受影響。**測試環境設定用行程環境變數（`Environment.SetEnvironmentVariable`）而非 `ConfigureAppConfiguration`**——因為 `Program.cs` 在 `builder.Build()` 之前就依 `REDIS_HOST` 決定 DI 注入哪個 `IQueryCache` 實作，那段程式碼跑在 `WebApplicationFactory` 的設定攔截點之前；測試組件因此用 `[assembly: CollectionBehavior(DisableTestParallelization = true)]` 停用平行化，避免不同 fixture 的環境變數互相污染 |
+| 11 | **資料庫不可用時，`apps/api` 的測試回報「失敗」而不是「略過」**（S0-7d） | fixture 的 `IAsyncLifetime.InitializeAsync()` 連不上資料庫就直接丟一個訊息清楚（含修復指令）的例外，xUnit 對每個測試都回報 `Failed`。刻意不引入 `Xunit.SkippableFact` 之類的第三方套件做「略過」——失敗比略過更難被 CI 儀表板悄悄忽略，且維持相依套件最少。**這是本次的執行層選擇，不是規格**；之後接上 CI 若情境不同（例如 CI 固定會提供資料庫），可重新評估 |
+| 12 | ⚠️ **這個開發環境的 Docker Desktop 對 Docker Hub 拉取異常緩慢**（`redis:8-alpine` 拉取超過 30 分鐘未完成，`registry-1.docker.io` 本身用 `curl` 直接測是正常的，問題出在 Docker VM 的網路路徑，不是 registry） | 遇到需要「真的跑一個 Redis 起來測試」但又不想空等的情況，`brew install redis`（Homebrew 的下載路徑走不同 CDN，實測正常）裝一個真正的 `redis-server` 二進位檔跑在本機某個 port，讓容器用 `host.docker.internal:<port>` 連過去，一樣是真實 Redis、不是 mock，且可控（能直接 `kill` 掉模擬「執行中掛掉」）。**只是這個環境的限制，不是專案本身要不要用 Docker 跑 Redis 的決定**——正式 VM 與一般開發機器的網路預期不會有這個問題 |
 
 

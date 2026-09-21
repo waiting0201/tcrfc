@@ -4,8 +4,8 @@
 # 為什麼需要這支腳本：
 #   db/club-schema.sql、db/charity-schema.sql 用的是 Azure SQL 原生 `json` 型別
 #   （docs/12-database-schema.md §1.4 第 2 件、docs/17-deployment.md §6）。
-#   本機開發用的是一般 SQL Server 2022 容器（docker-compose.dev.yml 的 mssql-dev 服務），
-#   **SQL Server 2022 沒有原生 json 型別**，直接執行原始 .sql 會建表失敗。
+#   本機開發用的是一般 SQL Server 2022 容器，**SQL Server 2022 沒有原生 json 型別**，
+#   直接執行原始 .sql 會建表失敗。
 #
 #   這支腳本只轉換「本機要用的副本」，絕不改動版控裡的原始 db/*.sql
 #   ——那兩份檔案的真實來源是 docs/12 系列文件，不能被本機環境的限制牽著走
@@ -20,12 +20,27 @@
 #
 # 用法：
 #   deploy/local-ddl.sh              只產生轉換後的 SQL，印出結果路徑
-#   deploy/local-ddl.sh --apply      產生後，額外對已啟動的 mssql-dev 容器執行 sqlcmd 建庫＋建表
-#                                    （需要 docker compose -f docker-compose.yml -f docker-compose.dev.yml
-#                                      的 mssql-dev 服務已經在跑；本腳本本身不會啟動任何容器）
+#   deploy/local-ddl.sh --apply      產生後，額外對本機 SQL Server instance 執行 sqlcmd 建庫＋建表
 #
-# 🔴 本腳本絕不觸碰名為 "sqlserver" 的既有容器（那是另一個、非本專案 compose 管理的既有環境，
-# 依任務指示不得動它或它裡面的任何資料庫）。--apply 只認 compose service 名稱 mssql-dev。
+# ──────────────────────────────────────────────────────────────────────────────
+# 🔴🔴 2026-09-21：安全模型變更——目標容器改為可設定，但目標資料庫名稱寫死白名單 🔴🔴
+#
+# 舊版本檔的防呆是「絕不碰名為 sqlserver 的既有容器」，因為當時本機開發資料庫跑在本專案
+# 自己起的 mssql-dev 容器裡，風險是「接錯容器」。**使用者已明確拍板改用既有的 `sqlserver`
+# 容器**（本機另一個專案在用，見 docker-compose.dev.yml、deploy/README.md）——本機開發資料庫
+# 現在直接建在那個既有 instance 裡，不再另開容器。
+#
+# 風險性質因此改變：不再是「接錯容器」（容器本來就是刻意共用的），而是「動到錯的資料庫」——
+# 那個既有 instance 裡還有大約 25 個屬於使用者其他專案的資料庫。防呆改成：
+#   - 目標容器名稱可由 LOCAL_MSSQL_CONTAINER 環境變數指定，預設 "sqlserver"（不再寫死拒絕它）。
+#   - ⛔ 目標資料庫名稱寫死只允許 tcrfc_club_dev、tcrfc_charity_dev 兩個（見下方 ALLOWED_DATABASES）。
+#     任何呼叫路徑上出現這兩個名字以外的資料庫，一律拒絕執行並印出錯誤。
+#   - 建庫一律 `IF DB_ID(...) IS NULL CREATE DATABASE`（本來就是），任何情況下都不對這個
+#     instance 上「非本專案兩個庫」的既有資料庫下 DROP／ALTER——本腳本從頭到尾唯一會執行的
+#     DDL 動作就是「建立這兩個資料庫（若不存在）」與「在這兩個資料庫裡跑 db/*.sql 的建表語句」，
+#     不會、也沒有任何程式碼路徑可以碰到 sqlcmd 目標資料庫以外的任何資料庫物件。
+#   - 執行前先印出「即將操作哪個容器、哪個資料庫」，不悄悄動手。
+# ──────────────────────────────────────────────────────────────────────────────
 
 set -euo pipefail
 
@@ -33,6 +48,25 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 SRC_DIR="${REPO_ROOT}/db"
 OUT_DIR="${REPO_ROOT}/deploy/dev/.local-ddl-output"
+
+# 本機 SQL Server 所在的容器名稱：預設用既有的 sqlserver 容器，可用環境變數覆寫
+# （例如指到別的本機 SQL Server 容器）。這不是白名單——白名單管的是「資料庫名稱」，見下方。
+LOCAL_MSSQL_CONTAINER="${LOCAL_MSSQL_CONTAINER:-sqlserver}"
+
+# ⛔ 資料庫名稱白名單。本腳本唯一允許建立／寫入的資料庫只有這兩個，不接受任何呼叫端覆寫。
+ALLOWED_DATABASES=("tcrfc_club_dev" "tcrfc_charity_dev")
+
+assert_allowed_database() {
+  local db="$1"
+  for allowed in "${ALLOWED_DATABASES[@]}"; do
+    if [[ "${db}" == "${allowed}" ]]; then
+      return 0
+    fi
+  done
+  echo "拒絕執行：資料庫名稱 '${db}' 不在允許清單內（${ALLOWED_DATABASES[*]}）。" >&2
+  echo "本腳本只允許操作 TCRFC 這兩個本機開發庫，不得誤觸同一個 SQL Server instance 裡的其他資料庫。" >&2
+  exit 1
+}
 
 APPLY=0
 if [[ "${1:-}" == "--apply" ]]; then
@@ -65,26 +99,33 @@ echo "    ${SRC_DIR}/charity-schema.sql"
 
 if [[ "${APPLY}" -eq 0 ]]; then
   echo
-  echo "只產生檔案，未執行。要灌進本機開發用資料庫，加 --apply（需先啟動 mssql-dev 服務）。"
+  echo "只產生檔案，未執行。要灌進本機開發用資料庫，加 --apply。"
   exit 0
 fi
 
 echo
-echo "==> --apply：對 mssql-dev 容器執行 sqlcmd"
+echo "==> --apply：即將操作的目標"
+echo "    容器（docker container name）：${LOCAL_MSSQL_CONTAINER}"
+echo "    資料庫（僅這兩個，寫死白名單）：${ALLOWED_DATABASES[*]}"
+echo
 
-# 只認 compose service 名稱 mssql-dev，不會、也不允許對到既有的 "sqlserver" 容器。
-CONTAINER_ID="$(docker compose -f "${REPO_ROOT}/docker-compose.yml" -f "${REPO_ROOT}/docker-compose.dev.yml" ps -q mssql-dev || true)"
+# 依「docker container 名稱」（不是 compose service 名稱——這個容器不是本專案 compose 管理的）
+# 精確比對容器名稱，避免子字串誤配到名稱相近的其他容器。
+CONTAINER_ID="$(docker ps -q --filter "name=^/${LOCAL_MSSQL_CONTAINER}\$" || true)"
 if [[ -z "${CONTAINER_ID}" ]]; then
-  echo "找不到執行中的 mssql-dev 容器。請先：" >&2
-  echo "  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d mssql-dev" >&2
+  echo "找不到執行中的容器 '${LOCAL_MSSQL_CONTAINER}'。" >&2
+  echo "若你要用的是既有的 sqlserver 容器，請確認它已在跑（docker ps）；" >&2
+  echo "若容器名稱不同，設定環境變數 LOCAL_MSSQL_CONTAINER 指到正確的容器名稱。" >&2
   exit 1
 fi
 
-: "${MSSQL_DEV_SA_PASSWORD:?請設定 MSSQL_DEV_SA_PASSWORD（要與 docker-compose.dev.yml 給 mssql-dev 的 SA 密碼一致，見 .env）}"
+: "${MSSQL_DEV_SA_PASSWORD:?請設定 MSSQL_DEV_SA_PASSWORD（須與 '${LOCAL_MSSQL_CONTAINER}' 容器的 SA 密碼一致，見 .env）}"
 
 run_sqlcmd() {
   local db="$1" sql_file="$2"
-  echo "    建庫與建表：${db}"
+  assert_allowed_database "${db}"
+  echo "    建庫（若不存在）與建表：${db}"
+  # 只建立、不存在才建立；絕不 DROP／ALTER 這個 instance 上任何既有資料庫。
   docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
     -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
     -Q "IF DB_ID('${db}') IS NULL CREATE DATABASE [${db}];"

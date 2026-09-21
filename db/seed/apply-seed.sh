@@ -4,13 +4,16 @@
 # 做兩件事：
 #   1. 執行 generate-club-seed-sql.py，讀 site/src/data/*.json 產生 db/seed/.generated/club-seed.local.sql
 #      （該檔含真實姓名，不進版控，見 .gitignore）
-#   2. 用 sqlcmd 對 mssql-dev 容器內的 tcrfc_club_dev 資料庫套用該檔
+#   2. 用 sqlcmd 對本機 SQL Server instance 內的 tcrfc_club_dev 資料庫套用該檔
 #
 # 冪等：整份 .sql 用「業務自然鍵 IF NOT EXISTS 才 INSERT」寫成，可重複執行。
 #
-# 🔴 只認 compose service 名稱 mssql-dev，絕不碰名為 "sqlserver" 的既有容器（另一個非本
-# 專案 compose 管理的環境）。只灌 tcrfc_club_dev，不動 tcrfc_charity_dev（慈善庫是獨立法人
-# 邊界，本腳本不處理慈善資料，也沒有慈善的種子來源）。
+# 🔴🔴 2026-09-21：本機開發資料庫已合併進既有的 sqlserver 容器（見 docker-compose.dev.yml、
+# deploy/README.md）。防呆模型因此改變：目標容器可由 LOCAL_MSSQL_CONTAINER 環境變數指定
+# （預設 "sqlserver"），但目標資料庫名稱寫死只允許 tcrfc_club_dev 一個——本腳本從來就只灌
+# 主站庫，不動 tcrfc_charity_dev（慈善庫是獨立法人邊界，本腳本不處理慈善資料，也沒有慈善
+# 的種子來源），這條白名單同時防止「打錯容器」與「打錯庫」兩種情況，兩者現在是同一個風險
+# 來源（同一個 instance 裡還有使用者其他專案的資料庫）。
 #
 # 用法：
 #   ./db/seed/apply-seed.sh            產生並套用
@@ -22,6 +25,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && cd .. && pwd)"
 OUT_DIR="${SCRIPT_DIR}/.generated"
 OUT_FILE="${OUT_DIR}/club-seed.local.sql"
+
+# 本機 SQL Server 所在的容器名稱：預設用既有的 sqlserver 容器，可用環境變數覆寫。
+LOCAL_MSSQL_CONTAINER="${LOCAL_MSSQL_CONTAINER:-sqlserver}"
+
+# ⛔ 本腳本唯一允許寫入的資料庫。與 deploy/local-ddl.sh 的白名單分開維護是刻意的——
+# 那支腳本管兩個庫的建表，這支腳本只管一個庫的種子資料，範圍本來就不同，不共用同一份清單
+# 反而更清楚「這支腳本能碰到的資料庫就只有這一個」。
+readonly TARGET_DATABASE="tcrfc_club_dev"
 
 mkdir -p "${OUT_DIR}"
 
@@ -36,22 +47,28 @@ if [[ "${1:-}" == "--dry-run" ]]; then
 fi
 
 echo
-echo "==> 套用到 mssql-dev 容器的 tcrfc_club_dev"
+echo "==> 即將操作的目標"
+echo "    容器（docker container name）：${LOCAL_MSSQL_CONTAINER}"
+echo "    資料庫（僅這一個，寫死）：${TARGET_DATABASE}"
 
-# 只認 compose service 名稱 mssql-dev。
-CONTAINER_ID="$(docker compose -f "${REPO_ROOT}/docker-compose.yml" -f "${REPO_ROOT}/docker-compose.dev.yml" ps -q mssql-dev || true)"
+# 依 docker container 名稱精確比對（不是 compose service 名稱——這個容器不是本專案 compose 管理的）。
+CONTAINER_ID="$(docker ps -q --filter "name=^/${LOCAL_MSSQL_CONTAINER}\$" || true)"
 if [[ -z "${CONTAINER_ID}" ]]; then
-  echo "找不到執行中的 mssql-dev 容器。請先：" >&2
-  echo "  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d mssql-dev" >&2
+  echo "找不到執行中的容器 '${LOCAL_MSSQL_CONTAINER}'。" >&2
+  echo "若你要用的是既有的 sqlserver 容器，請確認它已在跑（docker ps）；" >&2
+  echo "若容器名稱不同，設定環境變數 LOCAL_MSSQL_CONTAINER 指到正確的容器名稱。" >&2
   exit 1
 fi
 
-: "${MSSQL_DEV_SA_PASSWORD:?請設定 MSSQL_DEV_SA_PASSWORD（與 .env 一致，例如 set -a; source .env; set +a）}"
+: "${MSSQL_DEV_SA_PASSWORD:?請設定 MSSQL_DEV_SA_PASSWORD（須與 '${LOCAL_MSSQL_CONTAINER}' 容器的 SA 密碼一致，例如 set -a; source .env; set +a）}"
+
+echo
+echo "==> 套用到 ${TARGET_DATABASE}"
 
 # -f 65001：以 UTF-8 讀取輸入檔，種子資料含中文姓名／標題，不指定會被系統預設 codepage 誤譯。
 docker exec -i "${CONTAINER_ID}" /opt/mssql-tools18/bin/sqlcmd \
   -S localhost -U sa -P "${MSSQL_DEV_SA_PASSWORD}" -C \
-  -d tcrfc_club_dev -f 65001 -b \
+  -d "${TARGET_DATABASE}" -f 65001 -b \
   < "${OUT_FILE}"
 
 echo
