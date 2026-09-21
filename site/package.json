@@ -1,0 +1,16 @@
+{
+  "name": "tcrfc-site-tools",
+  "private": true,
+  "type": "module",
+  "description": "TCRFC 前台靜態站建置與搬遷前置工具（S0-9d）。build.mjs／verify.mjs 本身零相依，只有 tools/ 下的良構性掃描需要 parse5。",
+  "scripts": {
+    "build": "node build.mjs",
+    "verify": "node verify.mjs",
+    "check:wellformed": "node tools/check-wellformed.mjs",
+    "codemod:root": "node tools/codemod-root.mjs",
+    "compare:dom": "node tools/compare-dom.mjs"
+  },
+  "dependencies": {
+    "parse5": "7.3.0"
+  }
+}
