@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    apps/api/Tcrfc.Api.Tests — S0-7d（2026-09-21）新增，回歸保護 apps/api 的行為保證。
+
+    這個專案不進 Docker 映像檔（apps/api/.dockerignore 已排除本目錄），只在本機與日後 CI 的
+    「unit test」步驟跑（docs/20-cicd.md §1）。需要真實資料庫的測試依賴本機 mssql-dev 容器與
+    種子資料，見本目錄 README.md「怎麼跑」——資料庫不可用時測試回報失敗（不是悄悄略過看起來像通過），
+    訊息會清楚指出原因與如何補齊本機依賴。
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="10.0.12" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Tcrfc.Api.csproj" />
+  </ItemGroup>
+
+</Project>

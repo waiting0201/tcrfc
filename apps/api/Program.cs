@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http.Json;
+using StackExchange.Redis;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
@@ -20,8 +21,47 @@ builder.Services.Configure<JsonOptions>(options =>
 // ── 資料存取：唯讀查詢一律走 Dapper（本次任務範圍全是唯讀，docs/17-deployment.md §0） ──────
 builder.Services.AddSingleton<IClubSqlConnectionFactory, ClubSqlConnectionFactory>();
 
-// ── 快取接縫：本次不接 Redis，注入 no-op 實作（見 IQueryCache 上的完整說明） ──────────────
-builder.Services.AddSingleton<IQueryCache, NoOpQueryCache>();
+// ── 快取接縫：REDIS_HOST 有設定才接 Redis（S0-7d），沒設定注入 no-op ─────────────────
+// 本機 `dotnet run` 不需要 Redis 也能跑；docker-compose.yml／docker-compose.dev.yml 的 api
+// 服務一律有帶 REDIS_HOST，所以容器化跑法（本機或正式）一定會走 Redis 實作。見 IQueryCache 上的完整說明。
+var redisHost = builder.Configuration["REDIS_HOST"];
+if (!string.IsNullOrWhiteSpace(redisHost))
+{
+    var redisPort = builder.Configuration.GetValue<int?>("REDIS_PORT") ?? 6379;
+    var redisPassword = builder.Configuration["REDIS_PASSWORD"];
+    var redisOptions = new ConfigurationOptions
+    {
+        EndPoints = { { redisHost, redisPort } },
+        Password = string.IsNullOrEmpty(redisPassword) ? null : redisPassword,
+        // 🔴 起始連不上（VM 重開機時 redis 容器還沒 ready、Redis 短暫掛掉）不得讓行程無法啟動——
+        // fail-open 從「建立連線」這一刻就開始，不是只在查詢時才吞例外（docs/17 §4 硬規則 1）。
+        AbortOnConnectFail = false,
+        ConnectTimeout = 500,
+        SyncTimeout = 500,
+        ConnectRetry = 1,
+    };
+
+    try
+    {
+        var redisMultiplexer = ConnectionMultiplexer.Connect(redisOptions);
+        builder.Services.AddSingleton<IConnectionMultiplexer>(redisMultiplexer);
+        builder.Services.AddSingleton<IQueryCache, RedisQueryCache>();
+    }
+    catch (Exception ex)
+    {
+        // 已知這裡的例外面很窄（AbortOnConnectFail=false 時 Connect() 通常不因連不上而丟例外，
+        // 背景會自己重試），但組態本身畸形（例如空字串 host）等極端情況仍可能丟例外；即使如此
+        // 也不得讓服務無法啟動——退回 no-op，讓服務照樣用 SQL 直接回源。
+        using var startupLoggerFactory = LoggerFactory.Create(logging => logging.AddConsole());
+        startupLoggerFactory.CreateLogger("Startup")
+            .LogWarning(ex, "Redis 連線初始化失敗，改用 no-op 快取（服務仍會正常啟動，只是不快取）");
+        builder.Services.AddSingleton<IQueryCache, NoOpQueryCache>();
+    }
+}
+else
+{
+    builder.Services.AddSingleton<IQueryCache, NoOpQueryCache>();
+}
 
 // ── club_id 強制機制：唯一能建立已驗證 ClubScope 的地方 ──────────────────────────
 builder.Services.AddScoped<IClubResolver, ClubResolver>();
@@ -83,3 +123,8 @@ app.MapArticlesEndpoints();
 app.MapMatchesEndpoints();
 
 app.Run();
+
+// 讓測試專案能用 WebApplicationFactory<Program> 啟動這支服務（ASP.NET Core 標準作法，
+// 頂層陳述式的 Program 類別預設是 internal，測試組件看不到）——單純是測試基礎設施要求的樣板，
+// 不影響任何執行期行為。見 apps/api/Tcrfc.Api.Tests/README.md。
+public partial class Program;

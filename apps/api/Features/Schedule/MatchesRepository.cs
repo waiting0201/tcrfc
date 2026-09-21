@@ -1,4 +1,5 @@
 using Dapper;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Localization;
@@ -6,8 +7,11 @@ using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.Schedule;
 
-public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactory)
+public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
 {
+    private const string CacheEntity = "schedule";
+
+
     // ⚠️ MatchOn 用 DateTime 不是 DateOnly：見 PlayersRepository.PlayerRow 同款註解
     // （docs/18-work-errors.md E-20）——Microsoft.Data.SqlClient 對 SQL `date` 欄位回報的 CLR
     // 型別是 DateTime，Dapper 的 record 建構子具現化要求型別逐一相符。Map() 裡再轉成 DateOnly。
@@ -25,64 +29,76 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
     /// （本檔既有中文內容，不是側表），<c>matches_i18n</c> 只在需要覆寫其他語系時才有列——
     /// 這裡的回退鏈是「請求語系側表值 → 基礎表 opponent（等同中文預設）→ null」，
     /// 與其他實體「請求語系側表 → zh-Hant 側表 → null」的鏈不同，因為 matches 沒有 opponent 側表底值。
+    /// **快取**：qualifier 涵蓋 <paramref name="teamCode"/>／<paramref name="seasonCode"/>／
+    /// <paramref name="status"/>／<paramref name="page"/>／<paramref name="pageSize"/>——五個都會
+    /// 改變回傳結果，缺一個都會讓不同篩選條件的請求彼此互相拿到對方的快取結果。
     /// </summary>
     public async Task<PagedResult<MatchDto>> ListAsync(
         ClubScope scope, string? teamCode, string? seasonCode, string? status,
         string dbLocale, int page, int pageSize, CancellationToken cancellationToken)
     {
-        using var connection = connectionFactory.CreateConnection();
+        var qualifier = $"{teamCode ?? CacheDimensions.NoQualifier}:{seasonCode ?? CacheDimensions.NoQualifier}:" +
+            $"{status ?? CacheDimensions.NoQualifier}:{page}:{pageSize}";
 
-        var countSql = """
-            SELECT COUNT(*)
-            FROM matches m
-            JOIN seasons se ON se.id = m.season_id
-            JOIN match_teams mt ON mt.match_id = m.id
-            JOIN teams t ON t.id = mt.team_id
-            WHERE m.club_id = @ClubId
-              AND (@TeamCode IS NULL OR t.code = @TeamCode)
-              AND (@SeasonCode IS NULL OR se.code = @SeasonCode)
-              AND (@Status IS NULL OR m.status = @Status)
-            """;
+        return await cache.GetOrCreateAsync(
+            CacheEntity, scope.ClubCode, dbLocale, qualifier,
+            async ct =>
+            {
+                using var connection = connectionFactory.CreateConnection();
 
-        var listSql = """
-            SELECT m.id AS Id, m.competition_id AS CompetitionId, se.code AS SeasonCode, t.code AS TeamCode,
-                   m.match_on AS MatchOn, m.kickoff AS Kickoff, m.home_away AS HomeAway, m.opponent AS Opponent,
-                   m.competition AS CompetitionTag,
-                   m.status AS Status, m.score_home AS ScoreHome, m.score_away AS ScoreAway, m.round_no AS RoundNo,
-                   m.match_no AS MatchNo
-            FROM matches m
-            JOIN seasons se ON se.id = m.season_id
-            JOIN match_teams mt ON mt.match_id = m.id
-            JOIN teams t ON t.id = mt.team_id
-            WHERE m.club_id = @ClubId
-              AND (@TeamCode IS NULL OR t.code = @TeamCode)
-              AND (@SeasonCode IS NULL OR se.code = @SeasonCode)
-              AND (@Status IS NULL OR m.status = @Status)
-            ORDER BY m.match_on, m.kickoff
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
-            """;
+                var countSql = """
+                    SELECT COUNT(*)
+                    FROM matches m
+                    JOIN seasons se ON se.id = m.season_id
+                    JOIN match_teams mt ON mt.match_id = m.id
+                    JOIN teams t ON t.id = mt.team_id
+                    WHERE m.club_id = @ClubId
+                      AND (@TeamCode IS NULL OR t.code = @TeamCode)
+                      AND (@SeasonCode IS NULL OR se.code = @SeasonCode)
+                      AND (@Status IS NULL OR m.status = @Status)
+                    """;
 
-        var parameters = new
-        {
-            scope.ClubId, TeamCode = teamCode, SeasonCode = seasonCode, Status = status,
-            Offset = (page - 1) * pageSize, PageSize = pageSize,
-        };
+                var listSql = """
+                    SELECT m.id AS Id, m.competition_id AS CompetitionId, se.code AS SeasonCode, t.code AS TeamCode,
+                           m.match_on AS MatchOn, m.kickoff AS Kickoff, m.home_away AS HomeAway, m.opponent AS Opponent,
+                           m.competition AS CompetitionTag,
+                           m.status AS Status, m.score_home AS ScoreHome, m.score_away AS ScoreAway, m.round_no AS RoundNo,
+                           m.match_no AS MatchNo
+                    FROM matches m
+                    JOIN seasons se ON se.id = m.season_id
+                    JOIN match_teams mt ON mt.match_id = m.id
+                    JOIN teams t ON t.id = mt.team_id
+                    WHERE m.club_id = @ClubId
+                      AND (@TeamCode IS NULL OR t.code = @TeamCode)
+                      AND (@SeasonCode IS NULL OR se.code = @SeasonCode)
+                      AND (@Status IS NULL OR m.status = @Status)
+                    ORDER BY m.match_on, m.kickoff
+                    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+                    """;
 
-        var totalCount = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken));
-        var rows = (await connection.QueryAsync<MatchRow>(
-            new CommandDefinition(listSql, parameters, cancellationToken: cancellationToken))).AsList();
+                var parameters = new
+                {
+                    scope.ClubId, TeamCode = teamCode, SeasonCode = seasonCode, Status = status,
+                    Offset = (page - 1) * pageSize, PageSize = pageSize,
+                };
 
-        var matchIds = rows.Select(r => r.Id).ToList();
-        var i18nById = await LoadI18nAsync(connection, matchIds, dbLocale, cancellationToken);
-        var competitionIds = rows.Select(r => r.CompetitionId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
-        var competitionNameById = await LoadCompetitionNamesAsync(connection, competitionIds, dbLocale, cancellationToken);
+                var totalCount = await connection.ExecuteScalarAsync<int>(
+                    new CommandDefinition(countSql, parameters, cancellationToken: ct));
+                var rows = (await connection.QueryAsync<MatchRow>(
+                    new CommandDefinition(listSql, parameters, cancellationToken: ct))).AsList();
 
-        var items = rows
-            .Select(r => Map(r, i18nById.GetValueOrDefault(r.Id), competitionNameById, dbLocale))
-            .ToList();
+                var matchIds = rows.Select(r => r.Id).ToList();
+                var i18nById = await LoadI18nAsync(connection, matchIds, dbLocale, ct);
+                var competitionIds = rows.Select(r => r.CompetitionId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
+                var competitionNameById = await LoadCompetitionNamesAsync(connection, competitionIds, dbLocale, ct);
 
-        return new PagedResult<MatchDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+                var items = rows
+                    .Select(r => Map(r, i18nById.GetValueOrDefault(r.Id), competitionNameById, dbLocale))
+                    .ToList();
+
+                return new PagedResult<MatchDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+            },
+            cancellationToken);
     }
 
     private static async Task<Dictionary<Guid, Dictionary<string, MatchI18nRow>>> LoadI18nAsync(

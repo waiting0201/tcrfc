@@ -29,8 +29,13 @@ build/
 !.env.example
 apps/*/.output/
 apps/*/.nuxt/
-apps/*/bin/
-apps/*/obj/
+# ⚠️ 用 **（任意深度），不是 *（單一層）：S0-7d 新增的 apps/api/Tcrfc.Api.Tests/ 這種同目錄子專案，
+# 它的 bin／obj 在 apps/api/Tcrfc.Api.Tests/bin，`apps/*/bin/` 這種單層萬用字元擋不到
+# （曾經差點把整個 bin/obj 建置產物提交進去，見 docs/18-work-errors.md）。
+apps/**/bin/
+apps/**/obj/
+# TypeScript 專案參照的增量建置快取（apps/admin 的 vue-tsc 會產生），純本機產物
+apps/**/*.tsbuildinfo
 
 # ── 部署（S0-7a）：本機開發用機密與轉檔產物，範本／設定本身要納管 ──────
 # docs/20-cicd.md §7.2：機密一律不進 git，只有 *.env.example 範本納管。

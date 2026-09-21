@@ -1,4 +1,5 @@
 using Dapper;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Localization;
@@ -6,8 +7,12 @@ using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.News;
 
-public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFactory)
+public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
 {
+    private const string ListEntity = "articles";
+    private const string DetailEntity = "article-detail";
+
+
     private sealed record ArticleListRow(
         Guid Id, bool IsShared, string Slug, string CategoryCode, string? CoverKey, bool IsFeatured, DateTime? PublishedAt);
 
@@ -28,79 +33,94 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
     /// 新聞列表。⛔ 公開讀取 API 只回傳 <c>status = 'published'</c> 且已到發布時間的文章——
     /// 草稿與排程中的文章即使能被猜到 slug 也不對外，這是刻意的業務規則，不是遺漏。
     /// <c>articles.club_id</c> 是 9 張可為空表之一，套用「俱樂部專屬優先、回退共同」。
+    /// **快取**：qualifier 涵蓋 <paramref name="categoryCode"/>／<paramref name="page"/>／
+    /// <paramref name="pageSize"/>。
+    /// 🔴 **排程發布的語意後果**：「已到發布時間」（<c>a.published_at &lt;= SYSUTCDATETIME()</c>）
+    /// 這件事本身沒有任何寫入事件——後台排定 10:00 發布一篇文章，沒有人會在 10:00 那一刻呼叫
+    /// <see cref="IQueryCache.InvalidateAsync"/>。**TTL 是這個情境目前唯一的失效機制**：文章
+    /// 實際對外可見的時間點最多延後一個 TTL（預設 300 秒，見 <see cref="Caching.RedisQueryCache"/>）。
+    /// 這不是 bug，是本次任務範圍的已知取捨（見 apps/api/README.md「排程發布與快取」）。
     /// </summary>
     public async Task<PagedResult<ArticleListItemDto>> ListAsync(
         ClubScope scope, string? categoryCode, string dbLocale, int page, int pageSize, CancellationToken cancellationToken)
     {
-        using var connection = connectionFactory.CreateConnection();
+        var qualifier = $"{categoryCode ?? CacheDimensions.NoQualifier}:{page}:{pageSize}";
 
-        var countSql = $"""
-            SELECT COUNT(*)
-            FROM articles a
-            JOIN article_categories ac ON ac.id = a.article_category_id
-            WHERE {ClubOrSharedSql.WhereClubOrShared}
-              AND a.status = 'published' AND (a.published_at IS NULL OR a.published_at <= SYSUTCDATETIME())
-              AND (@CategoryCode IS NULL OR ac.code = @CategoryCode)
-            """;
-
-        var listSql = $"""
-            SELECT a.id AS Id,
-                   CASE WHEN a.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
-                   a.slug AS Slug, ac.code AS CategoryCode, a.cover_key AS CoverKey,
-                   a.is_featured AS IsFeatured, a.published_at AS PublishedAt
-            FROM articles a
-            JOIN article_categories ac ON ac.id = a.article_category_id
-            WHERE {ClubOrSharedSql.WhereClubOrShared}
-              AND a.status = 'published' AND (a.published_at IS NULL OR a.published_at <= SYSUTCDATETIME())
-              AND (@CategoryCode IS NULL OR ac.code = @CategoryCode)
-            -- 同一天發布的多篇文章要有穩定的次要排序鍵，否則同一天內的順序不保證。
-            -- 🔴 次要鍵刻意是 row_seq ASC，不是 DESC：row_seq 是 IDENTITY(1,1)，插入順序
-            -- 跟種子腳本讀 site/src/data/news.json 的陣列順序一致（db/seed/generate-club-seed-sql.py
-            -- 依序插入）；mockup（site/dist）同一天內的文章一律照 JSON 陣列的先後順序顯示
-            -- （2026-09-21 用 compare-dom.mjs 實跑 zh/news/club、zh/news/index 等頁核對過：
-            -- 2025-04-11 那天 061→063、2024-12-18 那天 079→080，皆為 row_seq 遞增），
-            -- 用 DESC 會把同一天內的順序整組反過來，害「主站與 mockup 一模一樣」的驗收關卡失敗。
-            ORDER BY a.published_at DESC, a.row_seq ASC
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
-            """;
-
-        var parameters = new
-        {
-            scope.ClubId, CategoryCode = categoryCode, Offset = (page - 1) * pageSize, PageSize = pageSize,
-        };
-
-        var totalCount = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken));
-        var rows = (await connection.QueryAsync<ArticleListRow>(
-            new CommandDefinition(listSql, parameters, cancellationToken: cancellationToken))).AsList();
-
-        var articleIds = rows.Select(r => r.Id).ToList();
-        var i18nById = await LoadArticleI18nAsync(connection, articleIds, dbLocale, cancellationToken);
-        var categoryCodes = rows.Select(r => r.CategoryCode).Distinct().ToList();
-        var categoryNameByCode = await LoadCategoryNamesAsync(connection, categoryCodes, dbLocale, cancellationToken);
-
-        var items = rows.Select(r =>
-        {
-            i18nById.TryGetValue(r.Id, out var i18n);
-            var fallback = i18n?.GetValueOrDefault(RequestLocale.DefaultDbLocale);
-            var requested = i18n?.GetValueOrDefault(dbLocale);
-
-            return new ArticleListItemDto
+        return await cache.GetOrCreateAsync(
+            ListEntity, scope.ClubCode, dbLocale, qualifier,
+            async ct =>
             {
-                Id = r.Id,
-                IsShared = r.IsShared,
-                Slug = r.Slug,
-                CategoryCode = r.CategoryCode,
-                CategoryName = categoryNameByCode.GetValueOrDefault(r.CategoryCode),
-                CoverKey = r.CoverKey,
-                IsFeatured = r.IsFeatured,
-                PublishedAt = r.PublishedAt,
-                Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
-                Summary = RequestLocale.Pick(requested?.Summary, fallback?.Summary),
-            };
-        }).ToList();
+                using var connection = connectionFactory.CreateConnection();
 
-        return new PagedResult<ArticleListItemDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+                var countSql = $"""
+                    SELECT COUNT(*)
+                    FROM articles a
+                    JOIN article_categories ac ON ac.id = a.article_category_id
+                    WHERE {ClubOrSharedSql.WhereClubOrShared}
+                      AND a.status = 'published' AND (a.published_at IS NULL OR a.published_at <= SYSUTCDATETIME())
+                      AND (@CategoryCode IS NULL OR ac.code = @CategoryCode)
+                    """;
+
+                var listSql = $"""
+                    SELECT a.id AS Id,
+                           CASE WHEN a.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
+                           a.slug AS Slug, ac.code AS CategoryCode, a.cover_key AS CoverKey,
+                           a.is_featured AS IsFeatured, a.published_at AS PublishedAt
+                    FROM articles a
+                    JOIN article_categories ac ON ac.id = a.article_category_id
+                    WHERE {ClubOrSharedSql.WhereClubOrShared}
+                      AND a.status = 'published' AND (a.published_at IS NULL OR a.published_at <= SYSUTCDATETIME())
+                      AND (@CategoryCode IS NULL OR ac.code = @CategoryCode)
+                    -- 同一天發布的多篇文章要有穩定的次要排序鍵，否則同一天內的順序不保證。
+                    -- 🔴 次要鍵刻意是 row_seq ASC，不是 DESC：row_seq 是 IDENTITY(1,1)，插入順序
+                    -- 跟種子腳本讀 site/src/data/news.json 的陣列順序一致（db/seed/generate-club-seed-sql.py
+                    -- 依序插入）；mockup（site/dist）同一天內的文章一律照 JSON 陣列的先後順序顯示
+                    -- （2026-09-21 用 compare-dom.mjs 實跑 zh/news/club、zh/news/index 等頁核對過：
+                    -- 2025-04-11 那天 061→063、2024-12-18 那天 079→080，皆為 row_seq 遞增），
+                    -- 用 DESC 會把同一天內的順序整組反過來，害「主站與 mockup 一模一樣」的驗收關卡失敗。
+                    ORDER BY a.published_at DESC, a.row_seq ASC
+                    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+                    """;
+
+                var parameters = new
+                {
+                    scope.ClubId, CategoryCode = categoryCode, Offset = (page - 1) * pageSize, PageSize = pageSize,
+                };
+
+                var totalCount = await connection.ExecuteScalarAsync<int>(
+                    new CommandDefinition(countSql, parameters, cancellationToken: ct));
+                var rows = (await connection.QueryAsync<ArticleListRow>(
+                    new CommandDefinition(listSql, parameters, cancellationToken: ct))).AsList();
+
+                var articleIds = rows.Select(r => r.Id).ToList();
+                var i18nById = await LoadArticleI18nAsync(connection, articleIds, dbLocale, ct);
+                var categoryCodes = rows.Select(r => r.CategoryCode).Distinct().ToList();
+                var categoryNameByCode = await LoadCategoryNamesAsync(connection, categoryCodes, dbLocale, ct);
+
+                var items = rows.Select(r =>
+                {
+                    i18nById.TryGetValue(r.Id, out var i18n);
+                    var fallback = i18n?.GetValueOrDefault(RequestLocale.DefaultDbLocale);
+                    var requested = i18n?.GetValueOrDefault(dbLocale);
+
+                    return new ArticleListItemDto
+                    {
+                        Id = r.Id,
+                        IsShared = r.IsShared,
+                        Slug = r.Slug,
+                        CategoryCode = r.CategoryCode,
+                        CategoryName = categoryNameByCode.GetValueOrDefault(r.CategoryCode),
+                        CoverKey = r.CoverKey,
+                        IsFeatured = r.IsFeatured,
+                        PublishedAt = r.PublishedAt,
+                        Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
+                        Summary = RequestLocale.Pick(requested?.Summary, fallback?.Summary),
+                    };
+                }).ToList();
+
+                return new PagedResult<ArticleListItemDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+            },
+            cancellationToken);
     }
 
     /// <summary>
@@ -108,68 +128,80 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
     /// <c>articles.slug</c> 全站唯一（跨俱樂部），若不過濾 club_id，猜到別俱樂部專屬文章的 slug
     /// 就能讀到內容，等於繞過俱樂部邊界。WHERE 子句與列表查詢用同一份
     /// <see cref="Data.ClubOrSharedSql"/> 常數，不是另外重寫的邏輯。
+    /// **快取**：qualifier 是 <paramref name="slug"/>。🔴 **查無資料（404）不快取**——
+    /// <see cref="IQueryCache.GetOrCreateAsync{T}"/> 對 <c>null</c> 回傳值一律不寫入快取，這裡是
+    /// 刻意依賴的行為：草稿文章排程發布後，若曾經被打過（例如猜測 slug 或提早分享連結）而快取住
+    /// 一個 404，一旦真正發布就必須立刻查得到，不能被 TTL 內的負向快取多擋一段時間。
+    /// 同一份排程發布的 TTL 延遲說明見 <see cref="ListAsync"/> 上的說明，兩者適用同一個 TTL，
+    /// 但 404 negative caching 完全不受影響（因為根本不會被快取）。
     /// </summary>
     public async Task<ArticleDetailDto?> GetBySlugAsync(
         ClubScope scope, string slug, string dbLocale, CancellationToken cancellationToken)
     {
-        using var connection = connectionFactory.CreateConnection();
+        return await cache.GetOrCreateAsync(
+            DetailEntity, scope.ClubCode, dbLocale, slug,
+            async ct =>
+            {
+                using var connection = connectionFactory.CreateConnection();
 
-        var sql = $"""
-            SELECT a.id AS Id,
-                   CASE WHEN a.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
-                   a.slug AS Slug, ac.code AS CategoryCode, a.cover_key AS CoverKey,
-                   a.is_featured AS IsFeatured, a.view_count AS ViewCount, a.published_at AS PublishedAt
-            FROM articles a
-            JOIN article_categories ac ON ac.id = a.article_category_id
-            WHERE a.slug = @Slug AND {ClubOrSharedSql.WhereClubOrShared}
-              AND a.status = 'published' AND (a.published_at IS NULL OR a.published_at <= SYSUTCDATETIME())
-            """;
+                var sql = $"""
+                    SELECT a.id AS Id,
+                           CASE WHEN a.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
+                           a.slug AS Slug, ac.code AS CategoryCode, a.cover_key AS CoverKey,
+                           a.is_featured AS IsFeatured, a.view_count AS ViewCount, a.published_at AS PublishedAt
+                    FROM articles a
+                    JOIN article_categories ac ON ac.id = a.article_category_id
+                    WHERE a.slug = @Slug AND {ClubOrSharedSql.WhereClubOrShared}
+                      AND a.status = 'published' AND (a.published_at IS NULL OR a.published_at <= SYSUTCDATETIME())
+                    """;
 
-        var article = await connection.QuerySingleOrDefaultAsync<ArticleDetailRow>(new CommandDefinition(
-            sql, new { scope.ClubId, Slug = slug }, cancellationToken: cancellationToken));
+                var article = await connection.QuerySingleOrDefaultAsync<ArticleDetailRow>(new CommandDefinition(
+                    sql, new { scope.ClubId, Slug = slug }, cancellationToken: ct));
 
-        if (article is null)
-        {
-            return null;
-        }
+                if (article is null)
+                {
+                    return null;
+                }
 
-        const string i18nSql = """
-            SELECT article_id AS ArticleId, locale AS Locale, title AS Title, summary AS Summary,
-                   seo_title AS SeoTitle, seo_description AS SeoDescription, CAST(body AS nvarchar(max)) AS Body
-            FROM articles_i18n
-            WHERE article_id = @ArticleId AND locale IN @Locales
-            """;
-        var locales = dbLocale == RequestLocale.DefaultDbLocale
-            ? new[] { dbLocale }
-            : new[] { dbLocale, RequestLocale.DefaultDbLocale };
+                const string i18nSql = """
+                    SELECT article_id AS ArticleId, locale AS Locale, title AS Title, summary AS Summary,
+                           seo_title AS SeoTitle, seo_description AS SeoDescription, CAST(body AS nvarchar(max)) AS Body
+                    FROM articles_i18n
+                    WHERE article_id = @ArticleId AND locale IN @Locales
+                    """;
+                var locales = dbLocale == RequestLocale.DefaultDbLocale
+                    ? new[] { dbLocale }
+                    : new[] { dbLocale, RequestLocale.DefaultDbLocale };
 
-        var i18nRows = (await connection.QueryAsync<ArticleDetailI18nRow>(new CommandDefinition(
-            i18nSql, new { ArticleId = article.Id, Locales = locales }, cancellationToken: cancellationToken))).ToList();
+                var i18nRows = (await connection.QueryAsync<ArticleDetailI18nRow>(new CommandDefinition(
+                    i18nSql, new { ArticleId = article.Id, Locales = locales }, cancellationToken: ct))).ToList();
 
-        var byLocale = i18nRows.ToDictionary(r => r.Locale);
-        byLocale.TryGetValue(RequestLocale.DefaultDbLocale, out var fallback);
-        byLocale.TryGetValue(dbLocale, out var requested);
+                var byLocale = i18nRows.ToDictionary(r => r.Locale);
+                byLocale.TryGetValue(RequestLocale.DefaultDbLocale, out var fallback);
+                byLocale.TryGetValue(dbLocale, out var requested);
 
-        var categoryName = (await LoadCategoryNamesAsync(connection, [article.CategoryCode], dbLocale, cancellationToken))
-            .GetValueOrDefault(article.CategoryCode);
+                var categoryName = (await LoadCategoryNamesAsync(connection, [article.CategoryCode], dbLocale, ct))
+                    .GetValueOrDefault(article.CategoryCode);
 
-        return new ArticleDetailDto
-        {
-            Id = article.Id,
-            IsShared = article.IsShared,
-            Slug = article.Slug,
-            CategoryCode = article.CategoryCode,
-            CategoryName = categoryName,
-            CoverKey = article.CoverKey,
-            IsFeatured = article.IsFeatured,
-            ViewCount = article.ViewCount,
-            PublishedAt = article.PublishedAt,
-            Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
-            Summary = RequestLocale.Pick(requested?.Summary, fallback?.Summary),
-            BodyJson = RequestLocale.Pick(requested?.Body, fallback?.Body),
-            SeoTitle = RequestLocale.Pick(requested?.SeoTitle, fallback?.SeoTitle),
-            SeoDescription = RequestLocale.Pick(requested?.SeoDescription, fallback?.SeoDescription),
-        };
+                return new ArticleDetailDto
+                {
+                    Id = article.Id,
+                    IsShared = article.IsShared,
+                    Slug = article.Slug,
+                    CategoryCode = article.CategoryCode,
+                    CategoryName = categoryName,
+                    CoverKey = article.CoverKey,
+                    IsFeatured = article.IsFeatured,
+                    ViewCount = article.ViewCount,
+                    PublishedAt = article.PublishedAt,
+                    Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
+                    Summary = RequestLocale.Pick(requested?.Summary, fallback?.Summary),
+                    BodyJson = RequestLocale.Pick(requested?.Body, fallback?.Body),
+                    SeoTitle = RequestLocale.Pick(requested?.SeoTitle, fallback?.SeoTitle),
+                    SeoDescription = RequestLocale.Pick(requested?.SeoDescription, fallback?.SeoDescription),
+                };
+            },
+            cancellationToken);
     }
 
     private static async Task<Dictionary<Guid, Dictionary<string, ArticleI18nRow>>> LoadArticleI18nAsync(

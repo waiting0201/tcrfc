@@ -1,4 +1,10 @@
 # apps/api/.dockerignore — .NET 建置排除清單
+
+# S0-7d 新增的測試專案：不進映像檔（不需要在正式容器裡跑測試），也避免多一個 csproj
+# 讓 build context 傳輸變慢——`dotnet publish` 不帶專案參數時只會找 WORKDIR 當層的 .csproj，
+# 子目錄裡的測試專案本來就不會被誤建，這裡排除純粹是為了乾淨與縮小 context。
+Tcrfc.Api.Tests
+
 bin
 obj
 **/bin

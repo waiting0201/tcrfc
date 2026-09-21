@@ -1,4 +1,5 @@
 using Dapper;
+using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Localization;
@@ -6,8 +7,11 @@ using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.Players;
 
-public sealed class PlayersRepository(IClubSqlConnectionFactory connectionFactory)
+public sealed class PlayersRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
 {
+    private const string CacheEntity = "players";
+
+
     // ⚠️ BirthOn 用 DateTime? 不是 DateOnly?：Microsoft.Data.SqlClient 對 SQL `date` 欄位回報的
     // CLR 型別是 DateTime，Dapper 用建構子做 record 具現化時要求逐一參數型別與 reader 回報型別
     // 完全相符，型別對不上會整個 QueryAsync<PlayerRow> 丟 InvalidOperationException（見 docs/18
@@ -22,44 +26,55 @@ public sealed class PlayersRepository(IClubSqlConnectionFactory connectionFactor
     /// 球員名單。<paramref name="scope"/> 型別是 <see cref="ClubScope"/>——不是 Guid、不是 string，
     /// 呼叫端唯一的取得方式是先經過 <see cref="IClubResolver"/>。<c>players.club_id</c> 是 50 張
     /// 必填 club_id 表之一，這裡用 <c>=</c> 硬過濾，不是「可為空、需回退共同內容」的 9 張表之一。
+    /// **快取**：qualifier 涵蓋 <paramref name="teamCode"/>／<paramref name="page"/>／
+    /// <paramref name="pageSize"/>——這三個都會改變回傳結果，缺一個就會讓換了篩選條件的請求
+    /// 拿到別的篩選條件快取住的結果。
     /// </summary>
     public async Task<PagedResult<PlayerDto>> ListAsync(
         ClubScope scope, string? teamCode, string dbLocale, int page, int pageSize, CancellationToken cancellationToken)
     {
-        using var connection = connectionFactory.CreateConnection();
+        var qualifier = $"{teamCode ?? CacheDimensions.NoQualifier}:{page}:{pageSize}";
 
-        const string countSql = """
-            SELECT COUNT(*)
-            FROM players p
-            JOIN teams t ON t.id = p.team_id
-            WHERE p.club_id = @ClubId
-              AND (@TeamCode IS NULL OR t.code = @TeamCode)
-            """;
+        return await cache.GetOrCreateAsync(
+            CacheEntity, scope.ClubCode, dbLocale, qualifier,
+            async ct =>
+            {
+                using var connection = connectionFactory.CreateConnection();
 
-        const string listSql = """
-            SELECT p.id AS Id, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
-                   p.birth_on AS BirthOn, p.height_cm AS HeightCm, p.weight_kg AS WeightKg,
-                   p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey
-            FROM players p
-            JOIN teams t ON t.id = p.team_id
-            WHERE p.club_id = @ClubId
-              AND (@TeamCode IS NULL OR t.code = @TeamCode)
-            ORDER BY t.sort_order, p.shirt_no
-            OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
-            """;
+                const string countSql = """
+                    SELECT COUNT(*)
+                    FROM players p
+                    JOIN teams t ON t.id = p.team_id
+                    WHERE p.club_id = @ClubId
+                      AND (@TeamCode IS NULL OR t.code = @TeamCode)
+                    """;
 
-        var parameters = new { scope.ClubId, TeamCode = teamCode, Offset = (page - 1) * pageSize, PageSize = pageSize };
+                const string listSql = """
+                    SELECT p.id AS Id, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
+                           p.birth_on AS BirthOn, p.height_cm AS HeightCm, p.weight_kg AS WeightKg,
+                           p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey
+                    FROM players p
+                    JOIN teams t ON t.id = p.team_id
+                    WHERE p.club_id = @ClubId
+                      AND (@TeamCode IS NULL OR t.code = @TeamCode)
+                    ORDER BY t.sort_order, p.shirt_no
+                    OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
+                    """;
 
-        var totalCount = await connection.ExecuteScalarAsync<int>(
-            new CommandDefinition(countSql, parameters, cancellationToken: cancellationToken));
-        var rows = (await connection.QueryAsync<PlayerRow>(
-            new CommandDefinition(listSql, parameters, cancellationToken: cancellationToken))).AsList();
+                var parameters = new { scope.ClubId, TeamCode = teamCode, Offset = (page - 1) * pageSize, PageSize = pageSize };
 
-        var i18nById = await LoadI18nAsync(connection, rows.Select(r => r.Id), dbLocale, cancellationToken);
+                var totalCount = await connection.ExecuteScalarAsync<int>(
+                    new CommandDefinition(countSql, parameters, cancellationToken: ct));
+                var rows = (await connection.QueryAsync<PlayerRow>(
+                    new CommandDefinition(listSql, parameters, cancellationToken: ct))).AsList();
 
-        var items = rows.Select(r => Map(r, i18nById.GetValueOrDefault(r.Id), dbLocale)).ToList();
+                var i18nById = await LoadI18nAsync(connection, rows.Select(r => r.Id), dbLocale, ct);
 
-        return new PagedResult<PlayerDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+                var items = rows.Select(r => Map(r, i18nById.GetValueOrDefault(r.Id), dbLocale)).ToList();
+
+                return new PagedResult<PlayerDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+            },
+            cancellationToken);
     }
 
     private static async Task<Dictionary<Guid, Dictionary<string, PlayerI18nRow>>> LoadI18nAsync(

@@ -13,12 +13,16 @@ public sealed class ClubResolver(IClubSqlConnectionFactory connectionFactory, IQ
     public async Task<ClubScope> ResolveAsync(string clubCode, CancellationToken cancellationToken)
     {
         // clubs 主檔幾乎不變（新增俱樂部是行政事件，不是日常操作），是 docs/17 §4「✅ 快取的甜蜜點」
-        // 明列的「每頁 SSR 都要、幾乎不變、量極小」資料——用快取接縫示範用法，no-op 實作下等於直接查庫。
+        // 明列的「每頁 SSR 都要、幾乎不變、量極小」資料。REDIS_HOST 有設定時這裡真的會走 Redis
+        // （S0-7d），沒設定時 NoOpQueryCache 讓它等同直接查庫，行為對呼叫端透明。
         var normalizedCode = clubCode.Trim().ToLowerInvariant();
 
         var clubId = await cache.GetOrCreateAsync(
-            $"club-id:{normalizedCode}",
-            async ct =>
+            entity: "club-scope",
+            club: normalizedCode,
+            locale: CacheDimensions.AnyLocale,
+            qualifier: CacheDimensions.NoQualifier,
+            factory: async ct =>
             {
                 using var connection = connectionFactory.CreateConnection();
                 // ⛔ 不 SELECT *：只取驗證與範圍建構所需的兩欄。
