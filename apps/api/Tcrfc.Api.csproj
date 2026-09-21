@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <!-- ⚠️ 不開 InvariantGlobalization：Microsoft.Data.SqlClient 連 SQL Server 需要完整 ICU
+         全球化支援，開了這個旗標會讓每次連線在 TryOpen 階段直接丟
+         System.NotSupportedException（本機實測發現，見 docs/18-work-errors.md）。 -->
+    <!-- apps/api/Dockerfile 的 build 階段假設 packages.lock.json 已提交且用 locked-mode 還原
+         （docs/20-cicd.md §3 NuGet 快取策略），這裡開啟鎖定檔生成。 -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+    <!-- apps/api/Dockerfile 的 ENTRYPOINT 寫死 Tcrfc.Api.dll，元件名稱不得改動。 -->
+    <AssemblyName>Tcrfc.Api</AssemblyName>
+    <RootNamespace>Tcrfc.Api</RootNamespace>
+    <UserSecretsId>3f8c9a9a-3f2c-4b1a-9e1a-tcrfc-api-dev</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Dapper" Version="2.1.86" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.0" />
+  </ItemGroup>
+
+</Project>
