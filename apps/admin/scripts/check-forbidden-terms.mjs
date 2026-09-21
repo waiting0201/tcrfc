@@ -167,6 +167,21 @@ function main() {
     }
   }
 
+  // 這支腳本只看得到 .vue 的 <template>，**看不到 Element Plus 元件庫自帶的文案**
+  // （分頁器的 Total／page、表格空資料的 No Data、ElMessageBox 的 OK／Cancel……）。
+  // 那些字串不設語系就會是英文，同樣違反規劃書 §4.0，而且畫面上看得到、腳本卻掃不到。
+  // 這是掃描範圍的盲點，只能改成檢查「語系有沒有設」來守住，見 docs/18 E-33。
+  const mainTs = readFileSync(join(SRC_DIR, 'main.ts'), 'utf-8')
+  if (!/app\.use\(\s*ElementPlus\s*,\s*\{[^}]*locale\s*:/.test(mainTs)) {
+    hasError = true
+    console.error('\n✗ src/main.ts')
+    console.error(
+      '  - Element Plus 沒有設繁體中文語系，元件庫自帶文案會是英文' +
+        '（分頁器 Total／page、表格 No Data、對話框 OK／Cancel 等）',
+    )
+    console.error("    修法：app.use(ElementPlus, { locale: zhTw })，zhTw 取自 element-plus/es/locale/lang/zh-tw")
+  }
+
   if (hasError) {
     console.error(
       '\n後台介面一律日常中文，不得出現模組代號／權限碼／隊別代號／英文技術詞' +

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import {
   TODO_REMINDERS,
   UPCOMING_EVENTS,
@@ -14,10 +15,11 @@ const router = useRouter()
 
 <template>
   <div class="dashboard">
-    <div class="dashboard__header">
-      <h1 class="dashboard__title">儀表板</h1>
-      <FrontendUnitBanner module-code="A" />
-    </div>
+    <PageHeader title="儀表板">
+      <template #meta>
+        <FrontendUnitBanner module-code="A" />
+      </template>
+    </PageHeader>
 
     <el-row :gutter="16">
       <el-col :xs="24" :md="12" :lg="6">
@@ -92,20 +94,6 @@ const router = useRouter()
 </template>
 
 <style scoped>
-.dashboard__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.dashboard__title {
-  font-size: 20px;
-  margin: 0;
-}
-
 .dashboard__stat-card {
   margin-bottom: 16px;
 }

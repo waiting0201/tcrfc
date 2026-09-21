@@ -18,6 +18,11 @@ const props = withDefaults(
     saving?: boolean
     /** 伺服器端二次驗證不通過時的錯誤訊息（mock：由外層手動觸發示範用） */
     saveError?: string | null
+    /**
+     * 中性看片台的底色（docs/21-admin-ui.md §9.1）：一般照片用中性灰、
+     * 可能含透明通道的圖片（隊徽、去背標誌）用棋盤格，讓透明邊緣清楚可辨。
+     */
+    variant?: 'photo' | 'logo'
   }>(),
   {
     existingUrl: null,
@@ -25,6 +30,7 @@ const props = withDefaults(
     minHeight: 900,
     saving: false,
     saveError: null,
+    variant: 'photo',
   },
 )
 
@@ -134,7 +140,11 @@ const fileSizeLabel = computed(() => {
       </p>
     </div>
 
-    <div v-else class="image-uploader__preview" :class="{ 'image-uploader__preview--error': !!saveError }">
+    <div
+      v-else
+      class="image-uploader__preview"
+      :class="[`image-uploader__preview--${variant}`, { 'image-uploader__preview--error': !!saveError }]"
+    >
       <img :src="previewUrl!" alt="" class="image-uploader__image">
       <button
         v-if="!saving"
@@ -169,42 +179,64 @@ const fileSizeLabel = computed(() => {
 }
 
 .image-uploader__dropzone {
-  border: 1px dashed var(--el-border-color);
+  border: 1px dashed var(--admin-border-input);
   border-radius: 4px;
   padding: 32px 16px;
   text-align: center;
   cursor: pointer;
-  background: var(--el-fill-color-blank);
+  background: var(--admin-bg-input);
 }
 
 .image-uploader__dropzone--drag-over {
-  border-color: var(--el-color-primary);
-  background: var(--el-color-primary-light-9);
+  border-color: var(--admin-primary);
+  background: rgb(64 158 255 / 8%);
 }
 
 .image-uploader__hint {
   margin: 8px 0 4px;
   font-size: 14px;
+  color: var(--admin-text-primary);
 }
 
 .image-uploader__note {
   margin: 0;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--admin-text-tertiary);
   line-height: 1.6;
 }
 
+/* 中性看片台（docs/21-admin-ui.md §9.1）：底色固定，不隨主題變化，讓照片判色與去背邊緣
+   永遠有一個恆定的參考面——與 §7 的四層背景色階脫鉤，就算之後真的加了淺色模式也不受影響 */
 .image-uploader__preview {
   position: relative;
   width: 160px;
   height: 160px;
   border-radius: 4px;
   overflow: hidden;
-  border: 1px solid var(--el-border-color);
+  border: 1px solid var(--admin-border);
+}
+
+.image-uploader__preview--photo {
+  background: var(--admin-lightbox-neutral);
+}
+
+.image-uploader__preview--logo {
+  background-image:
+    linear-gradient(45deg, var(--admin-lightbox-checker-b) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--admin-lightbox-checker-b) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--admin-lightbox-checker-b) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--admin-lightbox-checker-b) 75%);
+  background-size: 16px 16px;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
+  background-color: var(--admin-lightbox-checker-a);
 }
 
 .image-uploader__preview--error {
-  border-color: var(--el-color-danger);
+  border-color: var(--admin-danger-text);
 }
 
 .image-uploader__image {
@@ -223,7 +255,7 @@ const fileSizeLabel = computed(() => {
   border-radius: 50%;
   border: none;
   background: rgba(0, 0, 0, 0.55);
-  color: #fff;
+  color: #ffffff;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -233,16 +265,17 @@ const fileSizeLabel = computed(() => {
 .image-uploader__saving-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(20, 22, 26, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--admin-text-primary);
 }
 
 .image-uploader__meta {
   margin-top: 8px;
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--admin-text-tertiary);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -251,6 +284,6 @@ const fileSizeLabel = computed(() => {
 .image-uploader__error {
   margin: 8px 0 0;
   font-size: 12px;
-  color: var(--el-color-danger);
+  color: var(--admin-danger-text);
 }
 </style>

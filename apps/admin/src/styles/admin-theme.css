@@ -1,26 +1,113 @@
 /**
- * 後台操作型 design tokens（docs/21-admin-ui.md §7）。
- * 用 Element Plus 官方 CSS variable 覆寫，刻意不接 tcrfc.css 的 --brand（品牌桃紅／藍鯨藍）。
- * 理由：品牌色對白底小字對比度不足（磐石 4.42:1、藍鯨 3.29:1），後台是天天使用的操作介面，
- * 需要的是穩定可預期的操作色而不是行銷識別。詳見 docs/21 §7。
+ * 後台操作型 design tokens（docs/21-admin-ui.md v2，2026-09-21 深色重做）。
+ *
+ * 深色是唯一主題（§7.0 使用者已拍板）：不做主題切換開關、不寫淺色 token 分支。
+ * 實作策略（§7.1／§7.9）：main.ts 固定在 <html> 掛 class="dark"，載入 Element Plus 官方深色樣式表，
+ * 這裡只「覆寫」官方深色變數的值，不新增選擇器去蓋樣式。官方三層背景（--el-bg-color／
+ * --el-bg-color-page／--el-bg-color-overlay）沒有對應到的第四層（surface-2）額外自訂一個變數，
+ * 在需要的地方手動套用（§7.2）。
+ *
+ * ⚠️ 色值一律逐字抄自 docs/21-admin-ui.md §4／§7，不要自己調——每一組都已用 WCAG 相對亮度公式算過
+ * 對比度，且是對「四層背景裡最亮的那一層」驗過 AA（見 §13.8／§13.9／E-31：只驗常見層會漏掉 overlay
+ * 這個最嚴苛的情境）。改動任何一個值前，先確認新值對 overlay `#2A2E36` 是否仍然過 AA。
  */
-:root {
-  /* 主色沿用 Element Plus 預設中性藍，2026-09-21 使用者拍板（docs/21 §11） */
-  --el-color-primary: #409eff;
+html.dark {
+  /* ── 四層背景色階（§7.2）──────────────────────────────────────────── */
+  --admin-bg-canvas: #14161a; /* 內容區背景（路由容器），最暗 */
+  --admin-bg-surface: #1c1f24; /* 側欄、頁面列、el-card 預設底 */
+  --admin-bg-surface-2: #242830; /* 系統列、巢狀卡片、表格 hover／選中列、四態 tag 底、側欄選中態底——官方無對應變數，純自訂 */
+  --admin-bg-overlay: #2a2e36; /* el-dropdown／el-dialog／el-popover／el-tooltip／el-drawer，最亮 */
+  --admin-bg-input: #101215; /* el-input／el-select／el-textarea 等表單欄位底，比 canvas 更暗做出「凹陷」感 */
 
-  /* 危險／警告／成功維持 Element Plus 預設，不因品牌一致性更動 */
+  /* Element Plus 官方深色變數覆寫 */
+  --el-bg-color: var(--admin-bg-surface);
+  --el-bg-color-page: var(--admin-bg-canvas);
+  --el-bg-color-overlay: var(--admin-bg-overlay);
+  --el-fill-color-blank: var(--admin-bg-input);
 
-  /* 中文字體延續 tcrfc.css 的堆疊，但不沿用前台的行銷字體 Montserrat 與 clamp() 流體字級 */
-  --admin-font-family: 'Noto Sans TC', -apple-system, 'PingFang TC', sans-serif;
+  /* ── 文字階層（§7.3）──────────────────────────────────────────────── */
+  --admin-text-primary: #e8eaed; /* 刻意不用純白，避免長時間閱讀的暈光疲勞感 */
+  --admin-text-secondary: #abb2bf;
+  --admin-text-tertiary: #9299a8; /* ⚠️ 不是 #8B92A0：原色對 overlay 只有 4.35:1 過不了 AA，見 §13.8／E-31 */
+  --admin-text-disabled: #565c66;
 
-  /* 已停用狀態的自訂樣式（docs/21 §4）：比 Element Plus 預設 danger 淺一階，
-     避免跟「操作型」危險按鈕搶視覺權重 */
-  --admin-status-disabled-bg: #fef0f0;
-  --admin-status-disabled-text: #c45656;
+  --el-text-color-primary: var(--admin-text-primary);
+  --el-text-color-regular: var(--admin-text-secondary);
+  --el-text-color-secondary: var(--admin-text-tertiary);
+  --el-text-color-placeholder: var(--admin-text-tertiary);
+  --el-text-color-disabled: var(--admin-text-disabled);
 
-  /* 側欄寬度（docs/21 §1，240px 是實測值，最長模組名稱「搜尋與 AI 能見度」不會被截斷） */
+  /* ── 邊框（§7.4）──────────────────────────────────────────────────── */
+  --admin-border: #333840; /* 純裝飾性邊界（卡片、分隔線） */
+  --admin-border-input: #6b7280; /* 表單元件邊框，需要對底色達 3:1 */
+  --admin-border-focus: var(--admin-primary);
+
+  --el-border-color: var(--admin-border);
+  --el-border-color-light: var(--admin-border);
+  --el-border-color-lighter: var(--admin-border);
+  --el-border-color-extra-light: var(--admin-border);
+
+  /* ── 操作主色 primary（§7.5）：文字/連結用亮色，實心按鈕底用另一組暗色，兩者拆開 ── */
+  --admin-primary: #409eff;
+  --admin-primary-fill: #2c6799;
+  --admin-primary-fill-hover: #3579b3;
+  --admin-primary-fill-active: #24557f;
+
+  --el-color-primary: var(--admin-primary);
+  --el-color-primary-light-3: var(--admin-primary-fill-hover);
+  --el-color-primary-dark-2: var(--admin-primary-fill-active);
+
+  /* ── 四態語意色（§4.2，草稿／排程發布／已發布／已停用）────────────── */
+  --admin-status-draft-bg: #242830;
+  --admin-status-draft-text: #abb2bf;
+  --admin-status-scheduled-bg: #3a2e14;
+  --admin-status-scheduled-text: #ffb84d;
+  --admin-status-published-bg: #13301f;
+  --admin-status-published-text: #5fd68a;
+  --admin-status-disabled-bg: #33202b; /* 暗酒紅，刻意與下面的操作型危險色區隔（§4.2） */
+  --admin-status-disabled-text: #c98ba8;
+
+  /* ── 操作型語意色（§4.3：表格文字、按鈕、非四態的其他 tag）────────── */
+  --admin-danger-text: #ff9494;
+  --admin-danger-fill: #b3453f;
+  --admin-warning-text: #ffb84d;
+  --admin-warning-fill: #ffb84d;
+  --admin-warning-fill-text: var(--admin-bg-canvas); /* 警告按鈕刻意用深字，白字對琥珀底只有 1.72:1，見 §4.3 */
+  --admin-success-text: #5fd68a;
+  --admin-success-fill: #2e7d4f;
+  --admin-info-text: var(--admin-text-secondary);
+  --admin-info-fill: var(--admin-bg-surface-2);
+
+  --el-color-danger: var(--admin-danger-text);
+  --el-color-warning: var(--admin-warning-text);
+  --el-color-success: var(--admin-success-text);
+  --el-color-info: var(--admin-text-secondary);
+
+  /* ── 中性看片台（§9.1）：圖片預覽的固定參考面，刻意與上面四層背景脫鉤，不隨主題變化 ── */
+  --admin-lightbox-neutral: #4a4d52;
+  --admin-lightbox-checker-a: #4a4d52;
+  --admin-lightbox-checker-b: #5c5f65;
+
+  /* 側欄寬度（實測值，最長模組名稱「搜尋與 AI 能見度」不會被截斷） */
   --admin-sidebar-width-expanded: 240px;
   --admin-sidebar-width-collapsed: 64px;
+
+  /* 頂欄兩列高度（§1.2） */
+  --admin-topbar-system-height: 40px;
+  --admin-topbar-page-height: 64px;
+  --admin-topbar-mobile-height: 56px;
+
+  /* 間距尺度（§2.1）：全站只用這一組數字 */
+  --admin-space-1: 4px;
+  --admin-space-2: 8px;
+  --admin-space-3: 12px;
+  --admin-space-4: 16px;
+  --admin-space-5: 20px;
+  --admin-space-6: 24px;
+  --admin-space-7: 32px;
+  --admin-space-8: 48px;
+
+  --admin-font-family: 'Noto Sans TC', -apple-system, 'PingFang TC', sans-serif;
 }
 
 * {
@@ -36,21 +123,72 @@ body,
 }
 
 body {
-  background: #f5f7fa;
+  background: var(--admin-bg-canvas);
+  color: var(--admin-text-primary);
 }
 
-/* 主要按鈕縮小圓角，向前台「硬邊直角」語彙致意，但不整套覆寫 Element Plus 圓角（docs/21 §7） */
+/* 主要按鈕縮小圓角，向前台「硬邊直角」語彙致意，但不整套覆寫 Element Plus 圓角（§7.8） */
 .el-button--primary {
   border-radius: 2px;
+  --el-button-bg-color: var(--admin-primary-fill);
+  --el-button-border-color: var(--admin-primary-fill);
+  --el-button-hover-bg-color: var(--admin-primary-fill-hover);
+  --el-button-hover-border-color: var(--admin-primary-fill-hover);
+  --el-button-active-bg-color: var(--admin-primary-fill-active);
+  --el-button-active-border-color: var(--admin-primary-fill-active);
+}
+
+.el-button--danger {
+  --el-button-bg-color: var(--admin-danger-fill);
+  --el-button-border-color: var(--admin-danger-fill);
+  --el-button-text-color: #ffffff;
+}
+
+/* 警告色按鈕刻意用深字，見 --admin-warning-fill-text 的說明（§4.3） */
+.el-button--warning {
+  --el-button-bg-color: var(--admin-warning-fill);
+  --el-button-border-color: var(--admin-warning-fill);
+  --el-button-text-color: var(--admin-warning-fill-text);
+}
+
+.el-button--success {
+  --el-button-bg-color: var(--admin-success-fill);
+  --el-button-border-color: var(--admin-success-fill);
+  --el-button-text-color: #ffffff;
+}
+
+/* ── 四態狀態 tag（§4.2）：深色語意底＋亮色語意文字，不是 Element Plus 淺色 tag 樣式 ── */
+.admin-status-tag {
+  border: none;
+}
+
+.admin-status-tag--draft {
+  background-color: var(--admin-status-draft-bg) !important;
+  color: var(--admin-status-draft-text) !important;
+}
+
+.admin-status-tag--scheduled {
+  background-color: var(--admin-status-scheduled-bg) !important;
+  color: var(--admin-status-scheduled-text) !important;
+}
+
+.admin-status-tag--published {
+  background-color: var(--admin-status-published-bg) !important;
+  color: var(--admin-status-published-text) !important;
 }
 
 .admin-status-tag--disabled {
   background-color: var(--admin-status-disabled-bg) !important;
   color: var(--admin-status-disabled-text) !important;
-  border-color: var(--admin-status-disabled-bg) !important;
 }
 
-/* 手機寬度下的通用調整（docs/21 §8） */
+/* 表格列選中（勾選）：primary 12% 透明疊色，不整列反白（§2.4） */
+.el-table {
+  --el-table-current-row-bg-color: rgb(64 158 255 / 12%);
+  --el-table-row-hover-bg-color: var(--admin-bg-surface-2);
+}
+
+/* 手機寬度下的通用調整（§8） */
 @media (max-width: 767px) {
   .admin-hide-on-mobile {
     display: none !important;

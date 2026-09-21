@@ -2,7 +2,11 @@
 import { computed } from 'vue'
 import type { ContentStatus } from '@/types/common'
 
-/** 狀態四態的 el-tag 呈現（docs/21-admin-ui.md §4）。不是每個模組都有全部四態，但有這個語意的都共用這顆元件。 */
+/**
+ * 狀態四態的呈現（docs/21-admin-ui.md §4.2）。深色語意底＋亮色語意文字，不是 Element Plus
+ * 內建 el-tag 的淺色 type（那是為淺色底設計的，直接套進深色頁面會變成突兀的高亮方塊）。
+ * 色票用 admin-theme.css 定義的 .admin-status-tag--* 這組 class，不透過 el-tag 的 type prop。
+ */
 const props = defineProps<{
   status: ContentStatus
   /** 已發布：發布時間；排程發布：預計發布時間；已停用：下架時間 */
@@ -17,18 +21,7 @@ const STATUS_LABEL: Record<ContentStatus, string> = {
   disabled: '已停用',
 }
 
-const tagType = computed<'info' | 'warning' | 'success' | undefined>(() => {
-  switch (props.status) {
-    case 'draft':
-      return 'info'
-    case 'scheduled':
-      return 'warning'
-    case 'published':
-      return 'success'
-    default:
-      return undefined
-  }
-})
+const statusClass = computed(() => `admin-status-tag admin-status-tag--${props.status}`)
 
 const tooltip = computed(() => {
   if (props.status === 'scheduled' && props.statusAt) return `將於 ${props.statusAt} 發布`
@@ -42,20 +35,11 @@ const tooltip = computed(() => {
 
 <template>
   <el-tooltip v-if="tooltip" :content="tooltip" placement="top">
-    <el-tag
-      :type="tagType"
-      :class="{ 'admin-status-tag--disabled': status === 'disabled' }"
-      size="small"
-    >
+    <el-tag :class="statusClass" disable-transitions size="small">
       {{ STATUS_LABEL[status] }}
     </el-tag>
   </el-tooltip>
-  <el-tag
-    v-else
-    :type="tagType"
-    :class="{ 'admin-status-tag--disabled': status === 'disabled' }"
-    size="small"
-  >
+  <el-tag v-else :class="statusClass" disable-transitions size="small">
     {{ STATUS_LABEL[status] }}
   </el-tag>
 </template>

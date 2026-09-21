@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppTopbar from '@/components/AppTopbar.vue'
+import SiteSwitcher from '@/components/SiteSwitcher.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 
 const STORAGE_KEY = 'tcrfc-admin-sidebar-collapsed'
@@ -61,11 +62,16 @@ function handleNavigate() {
       :with-header="true"
       title="TCRFC 後台"
     >
+      <!-- 站台切換器移進抽屜頂部（docs/21 §8.2）：手機上一次只操作一個模組，
+           切換站台不是隨時要看到的資訊，藏進抽屜換一次點擊不算成本 -->
+      <div class="admin-layout__drawer-switcher">
+        <SiteSwitcher />
+      </div>
       <AppSidebar :collapse="false" @navigate="handleNavigate" />
     </el-drawer>
 
     <el-container class="admin-layout__body">
-      <el-header class="admin-layout__header" height="56px">
+      <el-header class="admin-layout__header" :height="isMobile ? 'var(--admin-topbar-mobile-height)' : 'var(--admin-topbar-system-height)'">
         <AppTopbar :is-mobile="isMobile" @toggle-sidebar="toggleSidebar" />
       </el-header>
       <el-main class="admin-layout__main">
@@ -78,12 +84,19 @@ function handleNavigate() {
 <style scoped>
 .admin-layout {
   height: 100vh;
+  background: var(--admin-bg-canvas);
 }
 
 .admin-layout__aside {
-  background: #fff;
-  border-right: 1px solid var(--el-border-color-lighter);
+  background: var(--admin-bg-surface);
+  border-right: 1px solid var(--admin-border);
   transition: width 0.2s;
+}
+
+.admin-layout__drawer-switcher {
+  padding: 0 var(--admin-space-4) var(--admin-space-4);
+  border-bottom: 1px solid var(--admin-border);
+  margin-bottom: var(--admin-space-2);
 }
 
 .admin-layout__body {
@@ -97,14 +110,14 @@ function handleNavigate() {
 }
 
 .admin-layout__main {
-  background: #f5f7fa;
+  background: var(--admin-bg-canvas);
   overflow-y: auto;
-  padding: 16px;
+  padding: var(--admin-space-6);
 }
 
 @media (max-width: 767px) {
   .admin-layout__main {
-    padding: 12px;
+    padding: var(--admin-space-4);
   }
 }
 </style>

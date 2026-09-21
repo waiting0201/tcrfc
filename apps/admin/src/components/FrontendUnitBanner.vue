@@ -79,7 +79,7 @@ const effectiveUrl = computed(() => {
 }
 
 .frontend-unit-banner__link {
-  color: var(--el-color-primary);
+  color: var(--admin-primary);
   text-decoration: none;
   display: inline-flex;
   align-items: center;
@@ -91,6 +91,6 @@ const effectiveUrl = computed(() => {
 }
 
 .frontend-unit-banner__muted {
-  color: var(--el-text-color-placeholder);
+  color: var(--admin-text-tertiary);
 }
 </style>

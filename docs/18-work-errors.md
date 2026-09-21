@@ -70,6 +70,11 @@
 | **E-26** | 2026-09-21 | 🔴 **差一步就把 158 張未成年學員照片推上公開 repo**。`.gitignore` 只寫了 `site/src/assets/img/`；S0-9 搬遷把同一批照片 rsync 到 `apps/web/public/assets/img/`（59MB），**新路徑沒有任何忽略規則**，提交前才發現 | ✅ `.gitignore` 已補上新路徑並加註「檔案換位置時規則不會自己跟過去」 |
 | E-27 | 2026-09-21 | `.gitignore` 的 `apps/*/bin/`／`apps/*/obj/` 用單層萬用字元 `*`，S0-7d 新增的同目錄子專案 `apps/api/Tcrfc.Api.Tests/bin`／`obj` 多了一層，規則擋不到，`git add` 會把整個建置產物（含第三方 DLL）一起納入待提交清單，提交前用 `git add -n` 核對才發現 | ✅ 已改用 `apps/**/bin/`／`apps/**/obj/`（任意深度） |
 | E-28 | 2026-09-21 | `STATUS.md` 寫「後台 15 個模組字母」，實際數規劃書 §4.0 的模組樹只有 **14** 個（`A B C P E F G H I J K L M S`）；多出來的一個疑似把獨立後台的慈善 `N` 算了進去，但規劃書明文它不在本後台之列 | ⚠️ 無 |
+| E-29 | 2026-09-21 | `nginx-spa.conf` 的 `X-Robots-Tag` 只寫在 server 層級，被每個 location 自己的 `add_header` 蓋掉，`noindex` 沒有真的送出 | ✅ 複製進每個 location，`docker build`＋`docker run`＋`curl -I` 實測過 |
+| E-30 | 2026-09-21 | `structuredClone()` 直接對 Vue `reactive()`／`ref()` 的 Proxy 呼叫丟 `DataCloneError`，頁面整片空白 | ✅ 改用 `toRaw()` + `shallowRef` |
+| E-31 | 2026-09-21 | 宣稱「對比度全部用公式實測過」，27 組裡 2 組沒驗到／驗錯（含反例數字、漏驗 overlay 層） | ✅ [`apps/admin/scripts/check-contrast.mjs`](../apps/admin/scripts/check-contrast.mjs)，已掛進 `npm run lint` |
+| E-32 | 2026-09-21 | 用 CDP 驗證深色 mockup 三斷點時，`/json/new` 在本機 Chrome 153 上只收 PUT，沿用舊版 GET 寫法直接 JSON parse 失敗 | ⚠️ 無 |
+| E-33 | 2026-09-21 | Element Plus 沒設語系，分頁器印出 `Total 8`／`20/page` 等英文——違反 §4.0，但禁用詞掃描只看 `.vue` 的 `<template>`，掃不到元件庫自帶文案 | ✅ `check-forbidden-terms.mjs` 加驗 `main.ts` 有設 `locale` |
 
 ---
 
@@ -633,15 +638,80 @@
   Testing Library）跑過這個元件的掛載測試，之後若要補測試，「掛載 `NewsEditView` 並斷言沒有
   `console.error`」會是最低成本能攔住這整類錯誤的一條測試。
 
+### E-31 宣稱「對比度全部用公式實測過」，實際有兩組沒驗到／驗錯（2026-09-21，S0-12 後台深色重新設計）
+
+- **錯在哪**：`docs/21-admin-ui.md` v2 的深色色票表寫明「所有色票的對比度都用 WCAG 相對亮度公式實測，
+  不是憑感覺估」。交付後逐組重跑驗算，**27 組裡 25 組精確吻合，2 組錯的**：
+  ① §4.3 用來論證「警告按鈕不能用白字」的反例數字寫 `4.06:1`，實算 **`1.72:1`**（差 2.4 倍）；
+  ② §7.3 `--admin-text-tertiary` 對 `surface` 寫 `4.88:1`，實算 `5.29:1`。第二筆還牽出一個**真正的
+  缺陷**：該 token 同時覆寫 `--el-text-color-placeholder`，而 placeholder 會出現在下拉選單、對話框、
+  抽屜這些底色是四層裡最亮的 `overlay` 容器上，原色 `#8B92A0` 對 `overlay` 只有 **4.35:1 過不了 AA**，
+  而色票表**只驗了 `surface` 與 `surface-2`，漏驗最嚴苛的那一層**。
+- **為什麼會錯（根因）**：不是「不小心算錯」——是**驗算的覆蓋範圍由產出者自己挑**。當同一個人既決定
+  「要驗哪幾組」又執行驗算，漏掉的組合不會被發現，因為它從來沒進過待驗清單；而「已經寫了腳本」這件事
+  會製造「這份表格整體可信」的錯覺，讓抽驗的動機下降。反例數字（①）更明顯：它是用來**支持**某個決定的
+  佐證，結論方向對的時候，佐證數字錯了沒有任何東西會反彈。
+- **下次怎麼避免**：色票表交付後，**由產出者以外的人（或下一個步驟）把表格裡每一組前景／背景組合機械
+  地重跑一次**，清單不從文件裡挑、而是從 token 定義做**笛卡兒積**（每一階文字色 × 每一層背景色），這樣
+  漏驗的組合會自己浮出來。**深色主題特別要驗最亮的那一層背景**：淺色主題容器越疊越暗、文字對比只會變好，
+  深色主題相反——容器越疊越亮、對比只會變差，所以 `overlay` 才是深色系統真正的門檻，不是 `surface`。
+  **反例數字也要驗**，不能因為「結論方向是對的」就跳過。
+- **防呆**：✅ **已補腳本**（同一次交付內完成）。修正本身：`--admin-text-tertiary` 改 `#9299A8`（四層全過）、
+  反例數字改 `1.72`、規則寫進 `docs/21` §13.8。自動化：**[`apps/admin/scripts/check-contrast.mjs`](../apps/admin/scripts/check-contrast.mjs)
+  已掛進 `npm run lint`**（`lint:contrast`），四種檢查：① **每階文字 × 每層背景跑笛卡兒積**——這是針對根因的那一項，
+  清單不由人挑，漏掉的組合會自己浮出來 ② 四態 tag／語意色按鈕／邊框等成對色票各自的門檻（含 UI 元件的 3:1）
+  ③ **把反例數字也釘住**（`1.72`／`2.78`），因為結論方向對的時候沒有東西會反彈，這正是①號錯誤混過去的原因
+  ④ `docs/21` §7 的色值 vs `admin-theme.css` 實際的值，不一致就失敗（抓規格與實作脫鉤）。
+  腳本用「塞回 E-31 的舊色值 `#8B92A0` 確認抓得到 overlay 那組 4.35:1、塞回錯誤的反例數字 `4.06` 確認抓得到，
+  再各自復原」實測過真的有作用，不是只看它印 pass。
+
+### E-32 用 CDP 驗證深色 mockup 時，`/json/new` 端點在新版 Chrome 上改成只收 PUT（2026-09-21，S0-12c 深色重做驗收）
+
+- **錯在哪**：依專案慣例（Persistent Agent Memory 已記過的手法）用 `curl -X GET
+  http://localhost:9333/json/new?about:blank` 向無頭 Chrome 開新分頁，回應不是 JSON 而是純文字
+  `Using unsafe HTTP verb GET to invoke /json/new. This action supports only PUT verb.`，
+  驅動腳本的 `res.json()` 直接丟 `SyntaxError: Unexpected token 'U'`。本機裝的是 Chrome 153，
+  舊筆記寫這招時的版本較舊，沒有這條限制。
+- **為什麼會錯**：把「以前這樣呼叫可以」當成「現在也可以」，沒有先用 `curl` 探一次端點的實際回應，
+  直接假設 `/json/new` 一律吃 GET——CDP 的 HTTP endpoint 這幾年逐步收緊成只接受 PUT（防止頁面上的
+  `<img src="http://localhost:9222/json/new">` 這類 CSRF 式攻擊誤觸發開分頁），是 Chrome 自己
+  的安全性變更，不是本專案的問題，但沿用舊寫法就會踩到。
+- **下次怎麼避免**：用 CDP HTTP endpoint（`/json/new`、`/json/close/<id>` 等會「造成動作」的端點）
+  一律先用 `curl -X PUT` 試，GET 只用在單純查詢用途的端點（`/json/version`、`/json/list`）。
+- **防呆**：⚠️ 無。這是本機瀏覽器版本相關的環境事實，不好寫進自動化，靠這筆記錄與「先 curl 探一次
+  端點」的習慣。
+
+### E-33 Element Plus 沒設語系，畫面上印出英文——而禁用詞掃描掃不到元件庫自帶的文案（2026-09-21，S0-12c 深色重做驗收）
+
+- **錯在哪**：後台新聞列表頁的分頁器印著 **`Total 8`** 與 **`20/page`**，違反規劃書 §4.0「介面一律日常
+  中文、不得出現英文技術詞」。`main.ts` 只寫 `app.use(ElementPlus)`、沒帶語系，元件庫自帶文案就全是英文
+  預設——除了分頁器，還有表格空資料的 `No Data`、`ElMessageBox` 的 `OK`／`Cancel`、日期選擇器的月份名稱。
+  **這個問題 v1 就存在**，不是深色重做引入的，是這次逐頁看截圖才發現。
+- **為什麼會錯（根因）**：`check-forbidden-terms.mjs` 的**掃描範圍**是 `.vue` 檔的 `<template>` 區塊，
+  隱含前提是「畫面上的字都寫在我們自己的樣板裡」。這個前提對元件庫不成立——分頁器的文案在 `node_modules`
+  裡，畫面上看得到、腳本看不到。**有腳本在跑，反而讓人以為這件事已經被守住了**：這跟 E-31 是同一個形狀
+  的錯，防護措施的**覆蓋範圍**與它給人的**信心**不相稱，而差距落在盲點裡，不會自己冒出來。
+- **下次怎麼避免**：加了自動檢查之後，**在腳本裡明確寫下它「掃不到什麼」**，不要只寫它掃什麼——盲點沒被
+  講出來，下一個人只會看到「有腳本」。凡是引入第三方 UI 元件庫，**第一件事是設語系**，不要等畫面上看到
+  英文才補。驗收時至少逐頁看一次截圖：**腳本過不等於畫面對**。
+- **防呆**：✅ **已補**。`main.ts` 改成 `app.use(ElementPlus, { locale: zhTw })`；
+  `check-forbidden-terms.mjs` 新增一項檢查——`main.ts` 沒設 `locale` 就讓 lint 失敗，並在腳本裡用註解
+  寫明「這支腳本看不到元件庫自帶文案，所以只能改成檢查語系有沒有設」。用「把 `locale` 拿掉確認腳本抓得到、
+  改回來確認會過」實測過。⚠️ **殘餘風險**：這只擋得住「語系沒設」，擋不住某個元件的中文翻譯本身不合我們
+  的用語規範，那仍要靠看畫面。
+
 ---
 
 ## 3. 目前沒有防呆的項目
 
-E-01／E-02／E-06／E-07／E-08／E-09／E-10／E-11／E-22／E-23／E-24 都還靠人記得。
+E-01／E-02／E-06／E-07／E-08／E-09／E-10／E-11／E-22／E-23／E-24／E-28／**E-32** 都還靠人記得。
 **E-03 已於 2026-09-20 補上腳本**（[`tools/check-linerefs.mjs`](tools/check-linerefs.mjs)，同步鏈第 4 環結束前必跑）；
 **E-21 已於 2026-09-21 補上腳本**（六類必然差異寫進 `site/tools/compare-dom.mjs` 的正規化規則）；
 **E-25 本來就受 E-21 的同一支腳本保護**（`id` 屬性差異一律視為真差異），這次是搬遷者在跑
-腳本前自行用 curl 核對到的。
+腳本前自行用 curl 核對到的；**E-29 已用 `docker build`＋`docker run`＋`curl -I` 實測驗證**；
+**E-30 已用無頭瀏覽器監聽 console 錯誤重新驗證**；**E-31 已於 2026-09-21 補上腳本**
+（`apps/admin/scripts/check-contrast.mjs`，掛進 `npm run lint`）；**E-33 已於 2026-09-21 補進
+`check-forbidden-terms.mjs`**（改為同時檢查 `main.ts` 有沒有設語系）。
 
 🔴 **E-26 沒有自動化防呆，而它的後果是個資外洩不是程式出錯**——最值得優先補的是 pre-commit 掛鉤：待提交檔案若有圖檔落在 `assets/img` 類路徑下就擋下來。
 

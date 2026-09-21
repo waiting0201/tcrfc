@@ -1,5 +1,7 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<!-- 深色是唯一主題（docs/21-admin-ui.md §7.0），固定在標記層就掛 class，main.ts 裡的
+     classList.add('dark') 是保險（idempotent），這裡先掛是避免任何延遲載入造成的白底閃爍 -->
+<html lang="zh-Hant" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

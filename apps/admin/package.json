@@ -9,7 +9,8 @@
     "typecheck": "vue-tsc -b --noEmit",
     "lint:eslint": "eslint .",
     "lint:forbidden-terms": "node scripts/check-forbidden-terms.mjs",
-    "lint": "npm run lint:eslint && npm run lint:forbidden-terms"
+    "lint": "npm run lint:eslint && npm run lint:forbidden-terms && npm run lint:contrast",
+    "lint:contrast": "node scripts/check-contrast.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "2.3.1",

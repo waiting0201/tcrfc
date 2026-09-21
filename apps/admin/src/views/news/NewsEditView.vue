@@ -3,6 +3,7 @@ import { computed, reactive, ref, shallowRef, toRaw } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
@@ -127,27 +128,28 @@ function handleImageFile(file: File | null) {
 
 <template>
   <div class="news-edit">
-    <div class="news-edit__header">
-      <div class="news-edit__header-top">
+    <PageHeader :title="pageTitle">
+      <template #back>
         <el-button text @click="handleBack">
           <el-icon><ArrowLeft /></el-icon>
           返回列表
         </el-button>
-        <h1 class="news-edit__title">{{ pageTitle }}</h1>
+      </template>
+      <template #meta>
         <FrontendUnitBanner
           module-code="B2"
           :record-published="form.status === 'published'"
           :record-url="previewUrl"
         />
-      </div>
-      <div class="news-edit__status-line">
-        <StatusTag :status="form.status" :status-at="form.statusAt" :status-by="form.statusBy" />
-        <span v-if="form.isSharedContent" class="news-edit__shared-note">
-          <el-tag type="info" size="small">共用內容（唯讀）</el-tag>
-          這是兩隊共用的內容，你的帳號僅能檢視
+        <span class="news-edit__status-line">
+          <StatusTag :status="form.status" :status-at="form.statusAt" :status-by="form.statusBy" />
+          <span v-if="form.isSharedContent" class="news-edit__shared-note">
+            <el-tag type="info" size="small">共用內容（唯讀）</el-tag>
+            這是兩隊共用的內容，你的帳號僅能檢視
+          </span>
         </span>
-      </div>
-    </div>
+      </template>
+    </PageHeader>
 
     <el-form label-position="top" class="news-edit__form">
       <el-card shadow="never" header="基本資訊" class="news-edit__section">
@@ -277,27 +279,12 @@ function handleImageFile(file: File | null) {
   margin: 0 auto 88px;
 }
 
-.news-edit__header-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.news-edit__title {
-  font-size: 18px;
-  margin: 0;
-  flex: 1;
-}
-
 .news-edit__status-line {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 8px 0 16px;
-  padding-left: 4px;
   font-size: 13px;
-  color: var(--el-text-color-secondary);
+  color: var(--admin-text-secondary);
   flex-wrap: wrap;
 }
 
@@ -327,8 +314,8 @@ function handleImageFile(file: File | null) {
   bottom: 0;
   left: var(--admin-sidebar-width-expanded);
   right: 0;
-  background: #fff;
-  border-top: 1px solid var(--el-border-color-lighter);
+  background: var(--admin-bg-surface-2);
+  border-top: 1px solid var(--admin-border);
   padding: 12px 24px;
   display: flex;
   justify-content: flex-end;

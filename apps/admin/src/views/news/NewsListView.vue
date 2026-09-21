@@ -3,6 +3,7 @@ import { computed, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { newsStore } from '@/data/newsStore'
@@ -172,10 +173,11 @@ async function handleBatchDelete() {
 
 <template>
   <div class="news-list">
-    <div class="news-list__header">
-      <h1 class="news-list__title">新聞與故事</h1>
-      <FrontendUnitBanner module-code="B2" />
-    </div>
+    <PageHeader title="新聞與故事">
+      <template #meta>
+        <FrontendUnitBanner module-code="B2" />
+      </template>
+    </PageHeader>
 
     <el-card shadow="never" class="news-list__filters">
       <div class="news-list__filter-row">
@@ -361,7 +363,7 @@ async function handleBatchDelete() {
             :total="filteredArticles.length"
             :page-sizes="[10, 20, 50, 100]"
             layout="total, sizes, prev, pager, next"
-            :small="isMobile"
+            :size="isMobile ? 'small' : 'default'"
           />
         </div>
       </el-card>
@@ -370,20 +372,6 @@ async function handleBatchDelete() {
 </template>
 
 <style scoped>
-.news-list__header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.news-list__title {
-  font-size: 20px;
-  margin: 0;
-}
-
 .news-list__filters,
 .news-list__toolbar {
   margin-bottom: 12px;
@@ -429,26 +417,29 @@ async function handleBatchDelete() {
   color: var(--el-text-color-secondary);
 }
 
+/* 表格列縮圖固定 48×48px（docs/21 §2.3：160px 是伺服器端衍生檔規格，不是表格顯示尺寸） */
 .news-list__thumb {
-  width: 64px;
-  height: 64px;
+  width: 48px;
+  height: 48px;
 }
 
 .news-list__thumb-img {
   width: 100%;
   height: 100%;
   border-radius: 4px;
+  /* 中性看片台（§9.1）：縮圖背後固定鋪中性灰，不隨主題色改變，避免透明區域誤判成純色 */
+  background: var(--admin-lightbox-neutral);
 }
 
 .news-list__thumb-placeholder {
   width: 100%;
   height: 100%;
-  background: var(--el-fill-color);
+  background: var(--admin-bg-surface-2);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--el-text-color-placeholder);
+  color: var(--admin-text-tertiary);
 }
 
 .news-list__shared-tag {
@@ -468,6 +459,12 @@ async function handleBatchDelete() {
 @media (max-width: 767px) {
   .news-list__pagination {
     justify-content: center;
+  }
+
+  /* 手機卡片式列表的縮圖比桌面表格略大（docs/21 §2.3） */
+  .news-list__thumb {
+    width: 56px;
+    height: 56px;
   }
 }
 
