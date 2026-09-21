@@ -57,6 +57,17 @@
 | E-11 | 2026-09-20 | **該派 agent 的工作自己做掉**（`docs/12` 四節改寫、14 張 ERD、`docs/16` 23 張表從零設計），違反全域規定第 12 條 | ⚠️ 無（已把界線寫進第 12 條） |
 | E-12 | 2026-09-20 | `docs/17` §1 的 Redis healthcheck 片段寫成 exec form，`$$REDIS_PASSWORD` 不會被展開，會一直回報不健康 | ✅ 已改 `CMD-SHELL`（`docs/17` 本體與 `docker-compose.yml` 皆已修正） |
 | E-13 | 2026-09-21 | **建了一個叫 `docker-compose.staging.yml` 的 override，與同一批文件裡「不建 staging 環境」直接牴觸**——功能沒錯，但檔名憑空多造出第三套環境的印象 | ✅ 已刪檔，改為 `.env` 的 `CADDYFILE`；環境數量寫進 [`14-invariants.md`](14-invariants.md) |
+| E-16 | 2026-09-21 | Vue SFC 註解裡寫出完整的 `script`／`style`／`template` 字面標籤，`build` 直接壞（誤判成 async setup 衝突，繞了一圈才找到真因） | ⚠️ 無（留給 S0-9 補 lint 檢查） |
+| E-17 | 2026-09-21 | `@nuxtjs/seo` 的 `nuxt-seo-utils` 子模組蓋掉元件層 `useHead` 設的 `<html lang>`，`tagPriority: 'high'` 也蓋不掉 | ✅ 改用 `nuxt.config.ts` 的 `app.head.htmlAttrs.lang` |
+| E-18 | 2026-09-21 | `@nuxtjs/sitemap` 的 runtime 動態來源在「一份 build、runtime 才決定 club」的架構下沒被偵測到，`/sitemap.xml` 永遠空 | ⚠️ **尚未解決**，資料端點本身（`/api/__sitemap__/urls`）已驗證正確 |
+| E-19 | 2026-09-21 | `apps/api/Tcrfc.Api.csproj` 加了 `<InvariantGlobalization>true</InvariantGlobalization>`，`Microsoft.Data.SqlClient` 一開連線就丟 `System.NotSupportedException: Globalization Invariant Mode is not supported` | ✅ 已移除該屬性，並在 csproj 留註解說明原因 |
+| E-20 | 2026-09-21 | Dapper 用建構子具現化 `record` DTO 時，`DateOnly`／`DateOnly?` 屬性對到 SQL `date` 欄位一律丟 `InvalidOperationException`（要求 `DateTime` 簽章）；`ArticlesRepository` 另有一張 i18n 查詢的 SELECT 欄位數與 `record` 建構子參數數對不上，同一種例外 | ✅ 兩處已修（`PlayerRow`／`MatchRow` 改用 `DateTime`、Map() 再轉 `DateOnly`；`ArticlesRepository` 統一欄位組），⚠️ 無自動檢查，日後新增 record 對應 SQL 查詢仍要人工核對型別與欄位數 |
+| E-21 | 2026-09-21 | 兩個 agent 各自判定「必然差異」以外的新差異（style 分號、v-model 顯式屬性）無害就自行放行，違反 `docs/14` 明文「發現無法歸類的差異要停下來問，不得自行放行」 | ✅ 六類差異已寫進 `site/tools/compare-dom.mjs` 正規化規則，工具報出的即是真差異，不留判斷空間 |
+| E-22 | 2026-09-21 | Nuxt 元件放在子目錄（`components/content/X.vue`）時頁面仍用未加前綴的標籤名引用，**不報錯不警告，該元件整塊悄悄不 render** | ⚠️ 無 |
+| E-23 | 2026-09-21 | 頁面搬遷後未重跑 `npx nuxt prepare` 就跑 `npm run lint`，link-checker 拿舊路由表比對新頁面，斷鏈數從 118 假性暴增到 415 | ⚠️ 無 |
+| E-24 | 2026-09-21 | `:style="undefined"` 在 Vue SSR 仍印出 `style=""`（空字串，不是省略屬性），與一般屬性的省略行為不同 | ⚠️ 無 |
+| E-25 | 2026-09-21 | 補 `match_no` 錨點 id 時，把 `haCode()`（給 `data-ha` 用的完整單字 `home`／`away`）誤套進 `fixtureId()`，id 變成 `fx-2026-09-13-away-3` 而不是 mockup 的 `fx-2026-09-13-a-3` | ✅ `compare-dom.mjs` 一定會抓到（`id` 屬性差異不在六類必然差異內），本次已用 curl 逐一核對 21 個 id 自行抓到並修正 |
+| **E-26** | 2026-09-21 | 🔴 **差一步就把 158 張未成年學員照片推上公開 repo**。`.gitignore` 只寫了 `site/src/assets/img/`；S0-9 搬遷把同一批照片 rsync 到 `apps/web/public/assets/img/`（59MB），**新路徑沒有任何忽略規則**，提交前才發現 | ✅ `.gitignore` 已補上新路徑並加註「檔案換位置時規則不會自己跟過去」 |
 
 ---
 
@@ -257,10 +268,276 @@
 - **防呆**：✅ 「只有兩套環境」已寫進 [`14-invariants.md`](14-invariants.md)，動手前必掃。
   ⚠️ 無自動檢查；`docs/17` §10.8 保留一列刪除記錄，避免日後有人「補回」這個檔案。
 
+### E-14 誤信 parse5 `onParseError` 會抓到孤立結束標籤／標籤未閉合（2026-09-21，S0-9d）
+
+- **錯在哪**：寫 `site/tools/check-wellformed.mjs`（HTML 良構性掃描）第一版時，設計是「用 parse5 解析、
+  靠 `onParseError` callback 回報孤立結束標籤與標籤未閉合」。實測發現**完全不會 fire**——連
+  `<main>...</main></main>`（就是 2026-09-20 切片踩到的那個孤立 `</main>` 回歸案例）這種明確案例都沒有錯誤回報。
+  原因是 HTML5 規格把「body 範圍內的孤立結束標籤」「標籤被隱性關閉」定義為**有明文規範的錯誤復原行為**，
+  不算 spec 定義的 parse error——`onParseError` 只回報少數真正的 parse error（例如缺 `<!DOCTYPE>`、
+  `<head>`／`<template>` 範圍內結束標籤不成對），這與「瀏覽器會默默修好，但 Vue 編譯器會失敗」這一類
+  問題幾乎不重疊。
+- **為什麼會錯**：**把「parse5 是忠實的 HTML5 解析器」直接等同於「parse5 會回報所有跟規格寫法不同的地方」**，
+  沒有在動手前用最小案例先驗證這個 API 真的會 fire。
+- **下次怎麼避免**：**用任何 library 的「錯誤回報」機制之前，先寫 2–3 個已知會觸發的最小案例跑一次確認
+  callback 真的被呼叫**，不要只看 API 文件的參數說明就假設行為。本例最後改用「解析後的 DOM 樹裡
+  每個元素有沒有 `sourceCodeLocation.endTag`」＋「原始文字裡的字面結束標籤數量 vs 樹上真的被採用的
+  結束標籤範圍」兩個自製訊號取代，兩者都先用合成案例驗證會 fire 才套到真實的 80 頁。
+- **防呆**：✅ 已寫進 `site/tools/check-wellformed.mjs` 檔頭註解（「偵測方法」段），並留 3 個自我測試案例
+  （孤立結束標籤／標籤未閉合／乾淨檔案）可重跑驗證，見 `site/tools/README.md`。⚠️ 沒有 CI 自動跑這些
+  自我測試，仍要靠人在改這支工具時手動重跑。
+
+### E-15 種子腳本的「冪等判斷」用錯了父列，partial failure 後永遠補不回子列（2026-09-21，S0-6c）
+
+- **錯在哪**：`db/seed/generate-club-seed-sql.py` 第一版種子腳本，`locales` 語系主檔忘了先種，
+  導致 `clubs_i18n`（FK 指向 `locales(code)`）第一次執行時因 FK 違反而整批失敗。但**同一個 GO 批次裡
+  先執行的 `INSERT INTO clubs` 已經照 autocommit 語意成功寫入**（沒有交易包住）。修好 `locales` 之後
+  重跑，腳本的冪等判斷是「`SELECT id FROM clubs WHERE code = 'tcrfc'`，查到就跳過整個區塊」——
+  查到了（上次失敗前已經插入），於是**連同本來就該重跑的 `clubs_i18n` 兩筆一起被跳過**，
+  台中磐石的中英文名稱因此在資料庫裡憑空消失、且無論重跑幾次都不會自己補回來。
+- **為什麼會錯**：**冪等判斷用來代表「這個區塊做完了」的那一列，跟這個區塊實際要保證存在的東西
+  不是同一組**——`clubs` 那一列存在，不代表 `clubs_i18n` 的兩列也存在；partial failure 就是專門
+  製造這種「父列有、子列沒有」的中間狀態的场景，而冪等檢查只看了父列。
+- **下次怎麼避免**：**「IF NOT EXISTS 才 INSERT」這種冪等寫法，必須讓被檢查的存在性和被保護的寫入
+  範圍完全對齊**；只要一個區塊會寫多張表，就要嘛把檢查條件擴大到涵蓋所有子列，要嘛把整個區塊包在
+  一個交易裡——**寧可整組回滾重來，不要留下半殘狀態讓「重跑」變得不可靠**。
+- **防呆**：✅ 已修正 `db/seed/generate-club-seed-sql.py` 的 `block()`：任何符合
+  「`IF ... IS NULL BEGIN ... END`」防呆插入樣式的區塊，自動包一層 `BEGIN TRANSACTION`／
+  `COMMIT TRANSACTION`，並在檔頭加一句 session 層級的 `SET XACT_ABORT ON;`（跨 `GO` 批次仍然有效，
+  不像變數會被清空）——任何一句 `INSERT` 失敗就整組回滾，下次重跑會照冪等邏輯正確地重新嘗試整個區塊，
+  不會再卡在「父列有、子列永遠補不回來」的狀態。已用**乾淨重建整個 `tcrfc_club_dev`＋連續套用種子腳本
+  兩次**驗證：兩次執行皆零錯誤、第二次執行資料筆數不變（真的冪等）。
+
+### E-16 Vue SFC 註解裡寫出完整的 `script`／`style`／`template` 字面標籤，build 直接壞（2026-09-21，S0-9a）
+
+- **錯在哪**：`apps/web/app/pages/index.vue` 第一版在 `<script setup>` 的註解裡，為了說明原始
+  mockup 的行為，逐字寫了 `// 原始頁面用 <script>location.replace('zh/');</script> 做純前端轉址`。
+  `npm run build` 直接報 `[@vue/compiler-sfc] <script> and <script setup> must have the same
+  language type`。一開始誤判是「`<script setup>` 頂層用了 `await navigateTo()` 讓 setup 變成
+  async，跟 Nuxt 抽取 `definePageMeta` 產生的第二個 script 區塊衝突」，改成具名 middleware
+  避開 top-level await後**錯誤訊息一字不變**，才發現真正原因是那行註解——Vue SFC 的區塊切分
+  是對**原始檔案文字**做標籤比對，不是先做 JS 語法分析再看「這在註解裡」；註解裡完整寫出
+  `<script>...</script>` 這種成對標籤，會被解析成第二個沒有 `lang="ts"` 的 `<script>` 區塊。
+  全檔案掃過一輪後，另外在 `app.vue`／`SiteHeader.vue`／`pages/zh/index.vue` 的註解裡也抓到
+  4 處類似的字面 `<style>`／`<script setup>`／`<template>` 提及，一併修掉。
+- **為什麼會錯**：**把「這段文字在 JS 註解裡」當成解析器也看得懂的語境**，沒意識到 SFC 的
+  區塊切分發生在 JS 語法分析**之前**、是純文字層級的標籤掃描。這與 `docs/18` 既有的
+  「Vue 模板裡的原始 script／style 會被逃逸」是同一族的坑（Persistent Agent Memory 裡也記過
+  `<template>` 內的版本），但這次是**在 `<script>` 區塊的註解裡**踩到，範圍更大——連
+  「純粹用文字描述某段程式碼長什麼樣子」的註解都算數。
+- **下次怎麼避免**：**.vue 檔的任何地方（含註解、含字串常值）都不要寫出完整的
+  `<script`／`<style`／`<template` 加對應 `>` 的字面文字**；要描述這些標籤時一律用中文詞彙代替
+  （「script 標籤」「樣板區塊」），或至少拆開成不構成合法標籤開頭的片段。動手搬遷別的
+  mockup 頁面、註解裡要引用原始 HTML 片段時，先掃一次有沒有這三個字首。
+- **防呆**：⚠️ 目前無。可以加一條 CI 檢查（grep `.vue` 檔案是否含有裸的
+  `<script>`／`<style>`／`<template>` 完整標籤字樣落在 `<script setup>` 或註解裡），
+  留給 S0-9 把 `verify.mjs` 六項檢查移植為 lint／test 時一併補上。
+
+### E-17 `@nuxtjs/seo` 的 `nuxt-seo-utils` 子模組會蓋掉元件層 `useHead` 設的 `<html lang>`（2026-09-21，S0-9a）
+
+- **錯在哪**：`app/app.vue` 一開始在動態 `useHead(() => ({ htmlAttrs: { lang: 'zh-Hant', ... } }))`
+  裡設 `lang`，實測輸出永遠是 `lang="en"`。追進 `node_modules/nuxt-seo-utils/dist/runtime/app/logic/
+  applyDefaults.js` 才發現它自己也對 `htmlAttrs.lang` 呼叫一次 `useHead`（依
+  `site.defaultLocale`／`currentLocale` 解析，預設回退 `'en'`），且原始碼註解明講
+  `tagPriority: 'low'`「give nuxt.config values higher priority」——但實測 `htmlAttrs`／
+  `bodyAttrs` 的合併是**依註冊順序、同一個 key 後蓋前**，不像一般 `<meta>` 標籤走
+  `tagPriority` 去重比大小；即使把自己那次 `useHead` 呼叫也加上 `tagPriority: 'high'` 一樣
+  蓋不掉。也試過在 `nuxt.config.ts` 設 `site.defaultLocale: 'zh-Hant'`，但沒能定位到它實際
+  怎麼沒被讀到（`nuxt-site-config` 用 stack／priority 機制解析，沒有再往下追）。
+- **為什麼會錯**：**看到 `tagPriority: 'low'` 的原始碼註解就假設整個 head 合併系統都遵守
+  同一套優先權規則**，沒有針對 `htmlAttrs`／`bodyAttrs` 這種「整個物件按 key 合併」的特例
+  另外驗證。
+- **下次怎麼避免**：**`<html>`／`<body>` 的屬性合併，改用 `nuxt.config.ts` 的
+  `app.head.htmlAttrs`／`app.head.bodyAttrs` 設定，不要指望元件層 `useHead` 的
+  `tagPriority` 能贏過模組自己註冊的預設值**——這是 `nuxt-seo-utils` 自己的原始碼註解
+  真正指的「nuxt.config values」，親測有效。全站固定不隨 club 變動的屬性（本例是
+  `lang`，兩個俱樂部都是 `zh-Hant`）放這裡；只有真的隨 club 變動的屬性（`data-club`）
+  才留在 `app.vue` 的動態 `useHead`。
+- **防呆**：✅ 已改為 `nuxt.config.ts` 的 `app.head.htmlAttrs.lang = 'zh-Hant'`，
+  `apps/web/app/app.vue` 只保留 `data-club`，並在兩處都留了逐字說明理由的註解，
+  下一個接手的人不會想「應該用 useHead 設就好」重踩一次。
+
+### E-18 `@nuxtjs/sitemap` 的 runtime 動態來源在單一 build／多容器情境下沒被偵測到（2026-09-21，S0-9a，⚠️ 尚未解決）
+
+- **錯在哪**：`nuxt.config.ts` 先後試過 `sitemap.urls`（行內函式）與
+  `sitemap.sources: ['/__sitemap__/urls']`（獨立 server route），`npm run build` 都印
+  `[@nuxtjs/sitemap] No dynamic sources detected`，實際請求 `/sitemap.xml` 永遠是空的
+  `<urlset></urlset>`——即使直接呼叫那支來源 route（`curl /__sitemap__/urls` 或改名為
+  `server/api/__sitemap__/urls.ts` 走官方零設定慣例）都能正確回傳依 `isUnitEnabledForClub`
+  過濾過的網址清單。研判：這個模組會在**建置階段**先求值一次來源（此時還沒有真正在跑的
+  HTTP server 可以回應 request-scoped 的 `NUXT_PUBLIC_CLUB`），把空結果寫進 `.output` 的
+  靜態資產快取，之後每個 request 都回放那份快取，不會因為 runtime 環境變數不同而重新求值。
+- **為什麼會錯**：本專案「一份 build、兩個容器各帶不同 `NUXT_PUBLIC_CLUB`」是刻意的架構決定
+  （`docs/13` §6 紀律 7、8 的同一個精神延伸到 club），但 `@nuxtjs/sitemap` 預設的效能優化
+  假設是「同一份 build 的 sitemap 內容不會因為 runtime 環境變數而不同」，兩者互相衝突，
+  沒有在選型時就查證這個模組的動態來源判定邏輯是否真的支援 runtime-env-driven 的網址清單。
+- **下次怎麼避免**：之後若要在同一份 build、runtime 才決定內容的情境下用這個模組的自動
+  sitemap.xml 產生功能，要先查 `nuxt-seo` 官方文件的 zero-runtime／dynamic sources 章節
+  確認求值時機，或乾脆放棄用模組產生 `/sitemap.xml`，改寫一支 Nitro server route 直接組
+  XML（來源仍是同一個 `getEnabledSiteUnits(club)`，不必依賴模組猜對）。
+- **防呆**：⚠️ 無，本項尚未解決。**單元開關呼叫點 3（sitemap）目前只有
+  `server/api/__sitemap__/urls.ts` 這個資料端點本身正確**（已用 curl 驗證 tcrfc／bw 兩邊
+  過濾結果正確），`/sitemap.xml` 的最終輸出還是空的。留給 S0-9 完整搬遷、真的需要
+  sitemap.xml 生效時處理，處理前 `/sitemap.xml` 不得被視為已完成。
+
+### E-19 `apps/api` 開了 `InvariantGlobalization`，`Microsoft.Data.SqlClient` 連線直接炸（2026-09-21，S0-10 API 骨架）
+
+- **錯在哪**：`Tcrfc.Api.csproj` 建專案時順手加了 `<InvariantGlobalization>true</InvariantGlobalization>`
+  （想法是體積小、啟動快，常見於不碰在地化的後端服務範本）。本機起 API 打 `/readyz`，
+  `SqlConnection.OpenAsync()` 在 `TryOpen` 階段直接丟 `System.NotSupportedException:
+  Globalization Invariant Mode is not supported`——`Microsoft.Data.SqlClient` 的連線與定序處理
+  依賴完整 ICU，開了不變全球化模式連一條連線都開不了，不是「某些在地化功能不能用」這種可接受的降級。
+- **為什麼會錯**：**套用了「後端 API 常見最佳化範本」，沒有針對本專案實際用的套件
+  （`Microsoft.Data.SqlClient`）查證相容性**——`InvariantGlobalization` 對純 HTTP／JSON 服務通常安全，
+  但只要相依鏈裡有需要定序或編碼轉換的資料庫驅動，就是地雷。沒有先問「這個旗標對我實際引入的
+  NuGet 套件有沒有已知不相容」，就把它當成無風險的效能選項加了進去。
+- **下次怎麼避免**：**加 `InvariantGlobalization`（或任何 trimming／AOT 類體積優化旗標）之前，
+  先確認專案的資料庫驅動與其他相依套件是否明文支援不變全球化模式**——`Microsoft.Data.SqlClient`
+  的文件與已知 issue 都有記載這條限制。不確定就先不開，等有實際的啟動時間／映像檔體積數字
+  證明有必要，再回頭針對性驗證。
+- **防呆**：✅ 已移除該屬性並在 `Tcrfc.Api.csproj` 留下說明性註解；本次已用本機
+  `dotnet run` 實測連線成功作為回歸依據（見本次任務回報）。⚠️ 無自動化測試防止有人日後重新加回去，
+  仍要靠 code review 與這筆記錄。
+
+### E-20 Dapper 的 record 建構子具現化對型別與欄位數要求比預期嚴格（2026-09-21，S0-10 API 骨架）
+
+- **錯在哪**：兩個獨立但同根源的失敗。① `PlayersRepository.PlayerRow`／`MatchesRepository.MatchRow`
+  把 `birth_on`／`match_on`（SQL `date` 型別）對應的屬性宣告成 `DateOnly?`／`DateOnly`，
+  `GET /api/v1/{club}/players`／`.../schedule` 一律 500，例外訊息是
+  `A parameterless default constructor or one matching signature (... System.DateTime BirthOn ...)
+  is required`。② `ArticlesRepository.GetBySlugAsync` 內的 `i18nSql` 只 SELECT 5 欄
+  （`locale, title, summary, seo_title, seo_description`），但拿去具現化的
+  `ArticleI18nRow` 建構子有 6 個參數（多一個 `ArticleId`，是給列表查詢那個批次版本用的）——
+  同一種例外，但根因是「兩個查詢共用了一個只有一邊欄位對得上的型別」。
+- **為什麼會錯**：① **假設 Dapper 對 C# 的 `DateOnly`（.NET 6 引入）有「跟屬性型別走」的自動轉換，
+  沒有意識到它的 record 具現化路徑是照 `IDataReader.GetFieldType()` 回報的實際 CLR 型別去比對建構子
+  參數型別**——而 ADO.NET／`Microsoft.Data.SqlClient` 對 SQL `date` 欄位回報的一律是 `System.DateTime`
+  （TDS 協定沒有原生 date-only 型別），兩者對不上，record 沒有 parameterless 建構子可以退而求其次。
+  ② **偷懶共用一個 DTO 型別給兩個「欄位子集不同」的查詢**，圖省事沒有各自宣告精確對應 SELECT 清單的型別。
+- **下次怎麼避免**：**Dapper ＋ record 的組合，任何對應 SQL `date`／`datetime` 欄位的屬性一律先宣告
+  成 `DateTime`／`DateTime?`，需要 `DateOnly` 語意時在應用層（Map 函式）用 `DateOnly.FromDateTime()`
+  轉，不要指望 Dapper 幫忙轉型別。且每個 `QueryAsync<TRow>` 呼叫前，**手動逐一核對 SELECT 的欄位順序
+  與數量跟 `TRow` 建構子參數是否完全一致**——record 只有一個建構子時，Dapper 沒有其他退路，
+  型別或數量錯一個就整支查詢炸掉，不會是「漏掉的欄位是 null」這種溫和的失敗模式。
+- **防呆**：✅ 已修正兩處（`PlayerRow`／`MatchRow` 改 `DateTime`，`ArticlesRepository` 拆出
+  `ArticleDetailI18nRow` 精確對應單篇查詢的 7 欄）；已用本機資料庫實際跑過全部端點驗證修復
+  （見本次任務回報的 curl 紀錄）。⚠️ 無自動化測試防止同類錯誤再發生，仍要靠這筆記錄與
+  「先跑過一次再交付」的紀律（同 E-12 的教訓）。
+
+---
+
+### E-21 發現「必然差異」以外的新差異時自行放行（2026-09-21，S0-9 前台搬遷比對）
+
+- **錯在哪**：Vue SSR 對靜態 `style="..."` 屬性一律補結尾分號、對 `<select>`／`<input>` 的
+  `v-model` 顯式印出 `selected=""`／`value=""`——這兩類差異都不在 [`14-invariants.md`](14-invariants.md)
+  原本封閉的四類「必然差異」清單裡。兩個 agent 分別遇到時，各自判定「這是必然差異、不影響視覺」
+  就直接放行比對關卡，**沒有停下來問**——而 `docs/14` 當時已經明文寫著「發現無法歸類的差異要停下來問，
+  不得自行放行」。事後 2026-09-21 由使用者拍板確認這兩類確實無害，正式列入第五、六類，
+  但**流程本身是錯的**：判斷結果對，不代表繞過使用者這一步是對的。
+- **為什麼會錯**：**把「我自己判斷得出這是無害的」當成「不用問」的理由**——但那條規則的存在
+  本來就是為了防止這種情況：判斷正確與否事後才能驗證，**規則設計上就是不該讓執行者自己兼任仲裁者**。
+  與 `E-11`（該派 agent 的工作自己做掉）是同一種行為模式的變形（自己把例外給了自己），
+  但這次的領域不同（驗收關卡放行，不是工作派遣），**不算同一筆重複**。
+- **下次怎麼避免**：驗收關卡（尤其是「一模一樣」這種以腳本判定通過與否的關卡）發現任何不在既有
+  封閉清單裡的差異，**一律先停下來回報使用者**，不論當下多有把握這是無害的——把「這是不是必然差異」
+  的判定權限收斂在使用者這一層，不是判斷力問題，是誰有權下這個結論的問題。
+- **防呆**：✅ 六類差異已直接寫進 [`site/tools/compare-dom.mjs`](../site/tools/compare-dom.mjs)
+  的正規化規則，工具會自動排除——**因此往後工具報出的任何差異都是真差異**，不再留給人
+  「這個算不算必然差異」的判斷空間。
+
+### E-22 Nuxt 元件放子目錄時標籤名要加目錄前綴，寫錯不報錯也不警告（2026-09-21，S0-9 前台搬遷）
+
+- **錯在哪**：`components/content/MembershipBenefits.vue` 這種放在 `components/` 子目錄的元件，
+  Nuxt 的 auto-import 會把它註冊成 `<ContentMembershipBenefits />`；頁面裡若仍沿用檔名寫
+  `<MembershipBenefits />`，Nuxt **不認得這個標籤，也不報錯、不警告**，那一整塊內容在 render 時
+  悄悄消失。今天的 `MembershipBenefits` 就是這樣被漏用，靠 compare-dom 抓到「一整段 DOM 消失」
+  才發現——**目視完全看不出來**，頁面看起來只是少了一塊，很容易被誤判成「內容本來就沒有」。
+- **為什麼會錯**：套用了「元件放在 `components/` 頂層時標籤名就是檔名」的直覺，沒有意識到
+  **子目錄名會被拼進元件標籤名**是 Nuxt auto-import 的既定慣例，而且這個慣例寫錯時是**靜默失敗**
+  不是報錯失敗。
+- **下次怎麼避免**：元件放進 `components/` 的任何子目錄，落筆引用前先確認實際標籤名是
+  「子目錄名 + 檔名」拼接後的 PascalCase（`components/content/X.vue` → `<ContentX />`），
+  不要憑檔名本身猜。
+- **防呆**：⚠️ 無。留給 S0-9 補 lint／test 時可考慮加一條掃描：`components/` 底下每個子目錄元件，
+  檢查有沒有頁面用「未加前綴」的標籤名引用它。
+
+### E-23 跑 `npm run lint` 前要先跑 `npx nuxt prepare`（2026-09-21，S0-9 前台搬遷）
+
+- **錯在哪**：`.nuxt/link-checker/routes.json` 是建置期產生的路由表快取。頁面搬遷後若沒有重新跑
+  `nuxt prepare`，link-checker 仍拿著搬遷前的舊路由表去比對新增頁面裡的連結，會把「目的頁其實
+  已經搬過去、只是路由表還沒更新」的連結全部誤判成斷鏈。今天回報的斷鏈數字一度從 118 暴增到 415，
+  重跑 `nuxt prepare` 後才降回真實的 65。
+- **為什麼會錯**：把 `npm run lint` 當成一個獨立、不需要前置動作的指令，**沒有意識到它依賴的路由表
+  是另一個獨立建置步驟的產物**，兩者之間沒有自動連動，改了路由不會自動觸發路由表重算。
+- **下次怎麼避免**：任何一輪頁面搬遷或路由變動後，**跑 lint 前固定先跑一次 `npx nuxt prepare`**，
+  當成 lint 的必要前置步驟，不是可省的動作。
+- **防呆**：⚠️ 無。可考慮把 `nuxt prepare` 併進 `package.json` 的 lint script（前置或直接串接），
+  留給 S0-9 補 lint／test 腳本時一併處理。
+
+### E-24 `:style="undefined"` 在 Vue SSR 仍印出 `style=""`，不是省略屬性（2026-09-21，S0-9 前台搬遷）
+
+- **錯在哪**：預期 `:style="condition ? {...} : undefined"` 在 `condition` 為 false 時，Vue SSR
+  會完全不輸出 `style` 屬性（等同 mockup 原本沒有這個屬性），但實測 Vue SSR 對 `:style="undefined"`
+  仍會印出空字串的 `style=""`——這跟一般屬性「值是 `undefined`／`null` 就省略」的行為不一致，
+  導致 compare-dom 抓到「多了一個空 `style` 屬性」的差異。
+- **為什麼會錯**：把 `:style` 的 `undefined` 處理直接類比成其他一般屬性（如 `:title="undefined"`
+  會省略）的行為，**沒有另外查證 `:style`／`:class` 這兩個物件型綁定的省略規則是否相同**。
+- **下次怎麼避免**：需要「條件成立才輸出 style」時改用 `v-bind="condition ? {style:'...'} : {}"`
+  的物件展開寫法，不要依賴 `:style="undefined"` 會被省略。
+- **防呆**：⚠️ 無，靠這筆記錄與 code review 時留意 `:style` 的條件式寫法。
+
+---
+
+### E-25 賽事卡片錨點 id 誤用 `data-ha` 的編碼函式，`home`／`away` 全字混進本該是單一字母的 id（2026-09-21，S0-9 場次編號補齊）
+
+- **錯在哪**：`app/utils/schedule.ts` 的 `fixtureId()` 補 `match_no` 時直接呼叫既有的 `haCode()`
+  （回傳完整單字 `home`／`away`，給 `data-ha` 屬性用），讓錨點 id 變成
+  `fx-2026-09-13-away-3`；mockup 實際是 `fx-2026-09-13-a-3`——id 裡的主客場是單一字母
+  `a`／`h`，跟 `data-ha` 的完整單字是兩套獨立的編碼，不是同一個值的兩種寫法。
+- **為什麼會錯**：看到「這頁已經有一個『主客場轉字串』的函式」就直接重用，**沒有先把 mockup
+  的 21 個 id 逐一列出來跟自己要組出來的字串比對**，等寫完程式碼才用 curl 抓渲染結果比對才發現
+  對不上——任務指示本來就明講「先去 `site/dist/.../schedule/index.html` 逐一核對 mockup 實際
+  的 21 個 id 長什麼樣，不要憑描述猜格式」，但「查過 id 格式」跟「查過『同一頁裡是不是已經有
+  一個看起來很像、但語意不同的編碼函式』」是兩件事，只做了前者。
+- **下次怎麼避免**：組字串型的識別碼（id、slug、key）如果打算重用既有函式，要先確認那個函式
+  的**呼叫端**（誰在用、用在哪個屬性）是不是同一個語意，不能只看函式名稱「看起來合用」。
+- **防呆**：✅ `compare-dom.mjs` 一定會抓到——`id` 屬性差異不在六類必然差異清單內，一律回報成
+  真差異；本次是在跑 `compare-dom.mjs` 之前先用 `curl | grep 'id="fx-'` 逐一核對才自己抓到。
+
+---
+
+### E-26 客戶照片換了路徑，`.gitignore` 沒跟著換——差一步推上公開 repo（2026-09-21，S0-9 搬遷）
+
+- **錯在哪**：`.gitignore` 有一條「客戶照片：從收件夾轉檔的衍生物，**含未成年學員肖像**，
+  授權未逐項確認前不納入有遠端的版控」，指向 `site/src/assets/img/`。S0-9 搬遷時因為
+  Nuxt 的 `<img src="/assets/...">` 會被 Vite 編譯成 import、指到不存在的檔案就是 build-time
+  硬錯誤，搬遷者用 `rsync` 把整份 `site/src/assets/{img,brand}` 複製進
+  `apps/web/public/assets/`（159 檔／59MB）。**新路徑不在任何忽略規則裡**，`git status`
+  把 199 個檔案列為待加入；若照常 commit＋push，這批照片就會進入 **公開的** GitHub repo。
+  提交前做例行檢查才攔下來。
+- **為什麼會錯**：忽略規則寫的是**路徑**，但它要保護的是**內容**（CLAUDE.md 第 7 條的個資與
+  肖像權）。搬檔案的人關心的是「build 過不過」，不會意識到自己同時把一條安全規則的作用範圍
+  繞開了——**規則綁在舊路徑上，檔案一搬，保護就自動失效，而且沒有任何東西會出聲**。
+  搬遷任務的指示裡也沒有一條「複製任何客戶素材前先確認忽略規則涵蓋目的地」。
+- **下次怎麼避免**：複製或移動**任何**客戶素材（照片、名單、證書、收件夾內容）到新位置時，
+  **先跑 `git check-ignore -v <新路徑>` 確認涵蓋，再動手**。派工給 agent 時，凡是會搬動素材的
+  任務都要在指示裡明寫這一條。
+- **防呆**：✅ `.gitignore` 已補上 `apps/web/public/assets/img/`，並在註解裡寫明「上面那條規則
+  寫的是舊路徑，檔案換位置時規則不會自己跟過去」，讓下一個讀到的人知道這裡有過一次事故。
+  ⚠️ **仍無自動化**——沒有東西會在「新增大量圖檔」時主動示警。**這是目前最值得寫成 pre-commit
+  掛鉤的一條**：掃描待提交檔案裡有沒有 `*.jpg`／`*.png` 落在 `assets/img` 這類路徑下。
+
+---
+
 ## 3. 目前沒有防呆的項目
 
-E-01／E-02／E-06／E-07／E-08／E-09／E-10／E-11 都還靠人記得。**E-03 已於 2026-09-20 補上腳本**
-（[`tools/check-linerefs.mjs`](tools/check-linerefs.mjs)，同步鏈第 4 環結束前必跑）。
+E-01／E-02／E-06／E-07／E-08／E-09／E-10／E-11／E-22／E-23／E-24 都還靠人記得。
+**E-03 已於 2026-09-20 補上腳本**（[`tools/check-linerefs.mjs`](tools/check-linerefs.mjs)，同步鏈第 4 環結束前必跑）；
+**E-21 已於 2026-09-21 補上腳本**（六類必然差異寫進 `site/tools/compare-dom.mjs` 的正規化規則）；
+**E-25 本來就受 E-21 的同一支腳本保護**（`id` 屬性差異一律視為真差異），這次是搬遷者在跑
+腳本前自行用 curl 核對到的。
+
+🔴 **E-26 沒有自動化防呆，而它的後果是個資外洩不是程式出錯**——最值得優先補的是 pre-commit 掛鉤：待提交檔案若有圖檔落在 `assets/img` 類路徑下就擋下來。
 
 **下一條最值得寫成腳本的是 E-01 的禁用字串掃描**：`Rocks`／`ROCKS`／`Cornerstone`／`D1 課程`／`E4 商品櫥窗`／`MediaAsset`。
 

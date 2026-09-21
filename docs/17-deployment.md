@@ -378,6 +378,32 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 > **這不違反 `12` §1.2 的「不用自增整數」**——那句針對的是對外識別碼（避免匯入與跨環境搬移撞號）。
 > 新增的 `bigint` 叢集鍵**不對外、不進 API、不進 URL**。
 
+### 本機開發資料庫（S0-6c，2026-09-21）
+
+`docker-compose.dev.yml` 的 `mssql-dev` 服務現在是**可持續使用、資料會持久化的本機開發庫**，
+不再只是拋棄式的 DDL 驗證環境（S0-6b 當時只驗證 `.sql` 能不能跑完）。具名 volume
+`mssql_dev_data`（compose 專案前綴為 `tcrfc_mssql_dev_data`）掛在 `/var/opt/mssql`，
+容器重啟資料不會掉；要清空重建才需要 `down -v`。
+
+**兩個庫是同一個 `mssql-dev` instance 裡的兩個獨立 database**（`tcrfc_club_dev`、`tcrfc_charity_dev`），
+灌完 DDL 後的表數／外鍵數與 S0-6b 記錄的數字一致（主站 144 表／380 外鍵／1 視圖、慈善 29 表／65 外鍵），
+每次重灌都可以拿這組數字回歸比對。
+
+**主站庫已有種子資料**（`db/seed/`，見 [`../db/seed/README.md`](../db/seed/README.md)）：讀
+`site/src/data/*.json`（mockup 用的球員／新聞／賽程等六個 JSON）產生冪等 T-SQL 灌入，涵蓋
+`clubs`（台中磐石＋台中藍鯨主檔）、`teams`（僅 D1）、`players`、`staff`、`matches`、`articles` 等表。
+**慈善庫沒有種子來源，維持空表。**
+
+**S0-9c 已拍板（2026-09-21，使用者指示）**：前台改 Nuxt 的資料串接**不做「讀 JSON 的 Nitro 過渡層」**，
+直接由本機這套資料庫供真實資料，Nuxt 端一律走 `useFetch` 打 `.NET API`（等 API 專案骨架建立後接上）。
+原本 `STATUS.md` S0-9c 列出的兩個選項（過渡層 vs 直接打 API）**選了後者**——理由是過渡層是一次性投入
+但之後要整個丟掉重寫，而本機資料庫現在已經是可持續使用的環境，直接對真實綱要開發可以及早暴露
+`site/src/data/*.json` 與資料表之間的欄位落差（見 `docs/12d-field-audit.md` 本次新增的項目），
+比事後才發現划算。
+
+⛔ **本機開發、種子資料與跨庫查詢的所有紀律**（volume、既有 `sqlserver` 容器不得碰、
+兩庫必須各自獨立不得跨庫 JOIN）不變，完整版見 [`../deploy/README.md`](../deploy/README.md)。
+
 ---
 
 ## 7. 已知風險
@@ -730,5 +756,26 @@ session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊�
 | 1 | **apex（`tcrfc.tw`）還是 `www.tcrfc.tw`為 canonical** | 牽涉既有品牌識別與外部素材更新成本，是行銷／品牌決定，不是技術決定 |
 | 2 | **上線前累積的資料，正式上線時是否清空重置** | 暫用網址背後就是正式資料庫（只有兩套環境的必然結果）。若這個階段就對客戶／真實使用者開放互動（試填表單、試辦會員），這些資料要不要保留、要不要當成正式資料的一部分，是業務決定；若保留，當時的個資蒐集告知與同意是否足夠，還要再確認一次法遵 |
 | 3 | **Wix 目前的 DNS 是否已代管於 Cloudflare** | 純屬未知事實，需要有網域註冊商登入權限的人去查，不是能從現有文件推導的 |
+
+---
+
+## 11. `api` 唯讀讀取端點骨架（S0-7b，2026-09-21）
+
+> 🔵 **執行層決定，不是規格**（同本檔通則）。範圍：球員、教練與職員、新聞、賽程與賽果、俱樂部主檔
+> 五組唯讀 GET 端點，讓 `apps/web` 能打真實資料庫。**不含**寫入、登入權限、商店金流、後台、慈善平台。
+> 完整端點清單、欄位公開性對照、驗收紀錄見 [`../apps/api/README.md`](../apps/api/README.md)，本節只記
+> 「日後接其他功能時必須沿用」的執行層決定。
+
+| # | 決定 | 為什麼 |
+|---|---|---|
+| 1 | **`club_id` 強制機制走型別系統，不是 code review 紀律**：`ClubScope`（`readonly struct`）建構子 `internal`，唯一產生者是 `IClubResolver`；所有 repository 方法簽章要求 `ClubScope` 而非 `Guid`／`string` | §4「五類禁用的 repository 根本不注入快取服務」用的是同一種「型別上做不到」而不是「記得別做」的思路，這裡把它套用到 `club_id` 過濾。**日後任何碰 `club_id` 範圍資料的新端點都必須沿用此模式**，不得自己另開一條「先拿 `club_id` 字串再查」的路 |
+| 2 | **9 張 `club_id` 可為空表的「俱樂部專屬優先、回退共同」SQL 片段集中在 `Data/ClubOrSharedSql.cs`** 兩個常數（`WhereClubOrShared`／`OrderClubBeforeShared`） | 對應本檔 §6 第 5 件事定案的 SQL 寫法；**只能有一個真實來源**，比照 §6「單元開關只能有一個真實來源」的同一個精神 |
+| 3 | **快取接縫已預留（`Caching/IQueryCache.cs`），本次注入 no-op** | 本次任務完全沒有後台可以觸發 write-invalidate（§4 的失效前提），接 Redis 會變成「永遠不失效的快取」。`IQueryCache` 的介面文件完整抄錄 §4 五類禁用清單，**日後接 Redis 只需要換一個 DI 註冊，端點與 repository 不用改** |
+| 4 | **對外語系參數固定 `zh`／`en`，資料庫實際存 `zh-Hant`／`en`**，轉換與逐欄位回退規則集中在 `Localization/RequestLocale.cs` | 對齊 [`06-conventions.md`](06-conventions.md)「語系代碼」一節（API 與 App 的 `lang` 一律 `zh`／`en`）；回退規則是「請求語系非空白用它，否則用 `zh-Hant`，兩者皆無回傳 `null`」——**逐欄位判斷，不是整筆記錄二選一**，已用種子資料的真實缺漏（`matches_i18n`／`competitions_i18n` 完全沒有英文列）驗證 |
+| 5 | **連線字串環境變數鍵名固定為 `CLUB_SQL_CONNECTION_STRING`**，直接讀（不繞 ASP.NET Core 慣用的 `ConnectionStrings:Club` 間接層） | 與 `deploy/dev/club.env`、`/opt/tcrfc/secrets/club.env`（[`20-cicd.md`](20-cicd.md) §7.2）既有鍵名一致，設定與程式碼不用互相翻譯 |
+| 6 | **`/readyz` 目前只驗證主站庫連線**，不含慈善庫與 Redis | 本次任務範圍不碰那兩者；慈善庫連線檢查與 Redis「連線失敗算警告不算失敗」（§4）留給那兩塊功能真正接上時補齊 |
+| 7 | **OpenAPI（`Microsoft.AspNetCore.OpenApi`）只在 `ASPNETCORE_ENVIRONMENT=Development` 掛載，未掛 Swagger UI** | 已用容器實測：`Production` 環境 `/openapi/v1.json` 回 404。日後要加互動式文件頁面（Scalar／Swashbuckle）再疊加，不影響此開關 |
+| 8 | ⚠️ **`InvariantGlobalization` 不得開**：`Microsoft.Data.SqlClient` 連線需要完整 ICU，開了會在 `SqlConnection.OpenAsync()` 直接丟 `NotSupportedException` | 本機實測踩到的坑，見 [`18-work-errors.md`](18-work-errors.md) E-19 |
+| 9 | ⚠️ **Dapper 用 record 具現化時，SQL `date`／`datetime` 欄位對應的屬性一律宣告 `DateTime`，不要宣告 `DateOnly`**，需要 `DateOnly` 語意在應用層轉 | ADO.NET 對 `date` 欄位回報的 CLR 型別永遠是 `DateTime`，`DateOnly` 屬性會讓 Dapper 找不到相符建構子而整支查詢丟例外。見 [`18-work-errors.md`](18-work-errors.md) E-20 |
 
 

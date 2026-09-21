@@ -203,6 +203,7 @@ export default defineNuxtConfig({
 ### 🔴 紀律第 9、10 條（2026-09-20 搬遷切片實測，**這兩條擋住 82/80 頁次**）
 
 mockup 的主要寫法是**每頁 body 內帶自己的 `<style>`**（65/80 頁）**與 `<script>`**（17/80 頁）。
+⚠️ **口徑說明（2026-09-21 `check-wellformed.mjs` 實測補正）**：「有 `<style>` 的頁數」是 **65**，但 `<main>` 內的 **`<style>` 標籤實例數是 67**——`src/partials/membership-benefits.html` 這個共用片段自己帶一個 `<style>`，被 `zh/member/`、`zh/culture/fan-club/` 兩頁 include 各多算一次（該兩頁本來就各有自己的 `<style>`，成為一頁 2 個標籤）。**去重後 `<style>` 有 58 種不同內容、`<script>` 11 種**（`<script>` 數字與下方原記錄一致）。違規總數 **84 筆（67 ＋ 17）分布於 66 個檔案**，掃描工具見 [`site/tools/README.md`](../site/tools/README.md)。
 把 body 原封貼進 Vue SFC 的 `<template>` **不可行**，而且兩個編譯器的失敗方式不一樣：
 
 ```
@@ -237,6 +238,37 @@ Nuxt 改用 `routeRules` 的 redirect，不需要腳本）。**實際要重寫�
 `@nuxtjs/seo` 內建的 `nuxt-og-image` 在缺 renderer 時會**直接讓 `build` 失敗**
 （報 `takumi renderer missing dependencies`）。spike 額外裝 `@takumi-rs/core` 才過。
 **正式專案裝 `@nuxtjs/seo` 時要記得這個相依，或明確關掉 og-image 子模組**（若暫不需要動態產生 OG 圖）。
+
+### ✅ `apps/web/` 骨架的執行層決定（2026-09-21，S0-9a，`frontend-architect`）
+
+以下是 `apps/web/` 實際建立骨架時定案的做法，補在上面的 spike 結論之後：
+
+- **選擇明確關閉 `nuxt-og-image`**（`nuxt.config.ts` 設 `ogImage: false`），沒有裝
+  `@takumi-rs/core`。理由：mockup 的 OG 圖是固定靜態檔（`shell.html` 的 `og:image`），
+  沒有「依文章標題動態產生 OG 卡片」這類需求；`@takumi-rs/core` 是原生二進位相依，
+  在 `node:22.12-alpine` 上會增加建置複雜度與映像檔體積，沒有對應功能需求就不引入。
+  之後真的要做動態 OG 圖，再回頭裝這個相依、打開這個子模組。
+- **藍鯨色票覆寫檔獨立成 `public/assets/css/club-bw.css`**，用
+  `:root[data-club='bw']{...}` 七個變數覆寫，**不改 `tcrfc.css` 本體**，載入順序固定在
+  `tcrfc.css` 之後（`app/app.vue` 的 `useHead` 兩個 `<link>` 依序排列）。兩站共用同一份
+  `<link>` 清單也安全——`tcrfc` 站台下這個檔案沒有任何選擇器會命中。
+- **`tcrfc.css` 整份放進 `public/`，不透過 Nuxt／Vite 的 `css:` 設定選項載入**，
+  一律用純靜態資源的 `<link rel="stylesheet">` 引入。原因：走 Vite 的 css pipeline
+  有被處理（例如被 PostCSS 轉寫、加雜湊檔名）的風險，跟「一個位元都不准改」互相矛盾；
+  純靜態資源複製不會被建置流程碰到。已用 SHA-256 比對確認 `public/assets/css/tcrfc.css`
+  與 `site/src/assets/css/tcrfc.css` 逐位元組相同。
+- **`<html lang>` 改放 `nuxt.config.ts` 的 `app.head.htmlAttrs.lang`，不放元件層 `useHead`**：
+  `@nuxtjs/seo` 的 `nuxt-seo-utils` 子模組會自己對 `htmlAttrs.lang` 設一次值（預設回退
+  `en`），實測它跟元件層 `useHead` 的合併是「後註冊的呼叫覆蓋同一個 key」，不受
+  `tagPriority` 影響；只有 `nuxt.config.ts` 的 `app.head` 才穩定生效。詳見
+  [`docs/18-work-errors.md`](18-work-errors.md) E-17。全站固定不隨 club 變動的屬性
+  （`lang`）放這裡，只有隨 club 變動的屬性（`data-club`）留在 `app.vue` 的動態 `useHead`。
+- 🔴 **`/sitemap.xml` 的實際輸出目前是空的，尚未解決**：`@nuxtjs/sitemap` 的動態來源
+  偵測（`sitemap.urls`／`sitemap.sources`／`server/api/__sitemap__/urls.ts` 官方慣例都試過）
+  在「一份 build、runtime 才由 `NUXT_PUBLIC_CLUB` 決定內容」的架構下沒被正確偵測為
+  request-scoped 動態來源，疑似在建置階段就求值一次並把空結果快取進 `.output`。
+  資料端點本身（`isUnitEnabledForClub` 過濾）已驗證兩站結果正確，只是沒有接進最終
+  `/sitemap.xml`。詳見 [`docs/18-work-errors.md`](18-work-errors.md) E-18，留給 S0-9 處理。
 
 ---
 
