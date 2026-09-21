@@ -149,7 +149,10 @@
 - **技術選型**：✅ **已於 2026-09-18 定案**（Nuxt 4 SSR ＋ .NET／EF Core ＋ Azure SQL ＋ Azure Blob ＋ Redis ＋ 單一 Azure VM），見 [`17-deployment.md`](17-deployment.md)。**App 客戶端於 2026-09-20 定案為原生 Swift ＋ Kotlin**，見 [`19-app-tech-stack.md`](19-app-tech-stack.md)。規劃書仍明確排除，選型結果只記在導航層
 - **macOS CI 的承擔方式**（2026-09-20 新增）：iOS 的建置與送審管線要用 **Xcode Cloud 訂閱**，還是**自有 Mac 當 self-hosted runner**？App repo 必須 private，GitHub 的 macOS runner 要付費且分鐘數計價數倍於 Linux
 - **Google Maps API 的帳單帳戶歸屬**（2026-09-20 新增）：Android 的地圖需要金鑰與帳單帳戶——掛俱樂部還是我方代管？金鑰須綁套件名與 SHA-1 並設每日配額上限
-- **正式站的部署環境與網域切換方式**：✅ 部署環境已定（單一 Azure VM，**Japan East／東京**，Cloudflare 在前）。⚠️ **網域切換方式仍未定**；現有 mockup 部署於 Cloudflare Pages（專案 `tcrfc-mockup`，全站 `noindex`），將隨前台改 Nuxt 退場
+- **正式站的部署環境與網域切換方式**：✅ 部署環境已定（單一 Azure VM，**Japan East／東京**，Cloudflare 在前）。✅ **網址從暫用網址到正式網址的策略已於 2026-09-20 規劃完成、2026-09-21 修訂**（[`17-deployment.md`](17-deployment.md) §10：上線前用 `tcrfc.tw` 子網域、網址單一真實來源盤點、換網址成本分級與三類不可逆、三層防護、cookie 作用域、主站切換程序）。🔴 **全專案只有本機開發與正式 VM 兩套環境，沒有 staging**——上線前只是同一套正式環境的一個階段，用 `.env` 的值切換（見 [`14-invariants.md`](14-invariants.md)）；現有 mockup 部署於 Cloudflare Pages（專案 `tcrfc-mockup`，全站 `noindex`），將隨前台改 Nuxt 退場
+- 🔴 **apex（`tcrfc.tw`）還是 `www.tcrfc.tw` 為主站 canonical**（2026-09-20 新增，見 [`17-deployment.md`](17-deployment.md) §10.6 第 2 點）：`.env.example` 目前用 apex，但既有文件多處稱既有官網為 `www.tcrfc.tw`。決定會牽動 sitemap、Schema、LINE Login callback、系統信連結等所有以站台網址為源頭的輸出，須在主站切換前定案，**是品牌／行銷決定不是技術決定**
+- 🔴 **`tcrfc.tw` 目前的 DNS 是否已代管於 Cloudflare**（2026-09-20 新增）：若仍由 Wix 託管，主站切換前須先把 Nameserver 轉去 Cloudflare，那本身是一次有 DNS 生效空窗的變更，需要有網域註冊商登入權限的人查證，見 `17` §10.6 前置確認第 1 點
+- **測試期（`stg.tcrfc.tw` 等）累積的資料，正式上線時是否清空重置**（2026-09-20 新增）：若測試期就對客戶／真實使用者開放互動，這些資料要不要保留、要不要當成正式資料的一部分，是業務決定；若保留，測試期的個資蒐集告知與同意是否足夠，需再確認法遵，見 `17` §10.9
 
 ---
 

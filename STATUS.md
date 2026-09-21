@@ -50,10 +50,10 @@
 | ~~B-1~~ | ✅ | ~~全部開發~~ | **技術選型已定案**（2026-09-18）：Nuxt 4 SSR ＋ .NET／EF Core＋Dapper ＋ Azure SQL ＋ Azure Blob ＋ Redis，單一 Azure VM（**Japan East／東京**，2026-09-20 改定）＋ Docker。見 [`docs/17`](docs/17-deployment.md) | — |
 | ~~B-2~~ | ✅ | ~~建資料表~~ | **資料庫綱要 v3.0 同步完成**（2026-09-20）：§4 總覽、14 張 ERD、§6 明細、§11 唯一鍵與索引、§14 檢核表全部改寫；`club_id` **50 必填／9 可為空／43 不加**，與主站 §5.4 逐名一致（三張漏列的型別已於主站 v3.10 補齊）。**可以轉 DDL** | — |
 | B-3 | 🚫 | **113 篇文稿轉網頁文案** | 客戶交來的文稿全是 `.gdoc` 捷徑，**本機讀不到**（[`docs/09`](docs/09-intake-inventory.md)） | 客戶 |
-| B-4 | 🚫 | **藍鯨站上線、App 深連結** | **藍鯨網域**：名稱、持有人、DNS 控制權（Universal Link 只能綁自己持有的網域） | 客戶 |
+| B-4 | 🚫 | **藍鯨站上線、App 深連結** | **藍鯨網域**：名稱、持有人、DNS 控制權（Universal Link 只能綁自己持有的網域）。**過渡期先用 `bw-stg.tcrfc.tw` 開發測試**（[`docs/17`](docs/17-deployment.md) §10.1），但**不解決** App 上架前需要最終網域這件事 | 客戶 |
 | B-5 | 🚫 | **藍鯨印刷品** | **藍鯨隊徽向量主檔**（`.ai`／`.svg`／`.eps`，含深色版）與**英文正式全名**。⚠️ 網頁色值與點陣主檔已到位，**網站與 App 不受阻** | 客戶 |
 | B-6 | 🚫 | **藍鯨一線隊／青年隊／行事曆** | **藍鯨球員與教練名單（含肖像同意）**、**12 個月賽程資料** | 客戶（藍鯨由磐石團隊營運，資料在自己手上） |
-| B-7 | 🚫 | **慈善平台全部** | **慈善網域、協會品牌資產、法人登記與統編、獨立後台的維運人力** | 客戶／協會 |
+| B-7 | 🚫 | **慈善平台全部** | **慈善網域、協會品牌資產、法人登記與統編、獨立後台的維運人力**。**過渡期先用 `charity-stg.tcrfc.tw` 開發測試，🔴 不得印上任何對外物料**（QR Code 必須等最終網域，[`docs/17`](docs/17-deployment.md) §10.3 不可逆類第②項） | 客戶／協會 |
 | B-8 | 🚫 | **藍鯨商店結帳** | **代收代付的稅務認定**（銷貨還是受託代銷）。此判定連帶決定「**訂單是否於結帳時依俱樂部拆單**」 | 會計師 |
 | B-9 | 🚫 | **表單上線、抽獎上線、課程報名上線** | **個資保存期限**未定；**抽獎辦法與會員條款**未經法務核定。🔴 **新增（2026-09-20）：課程報名的「健康聲明」可能構成《個資法》§6 的特種個資**（病歷／醫療／健康檢查），且當事人多為未成年學員——**要確認的是能不能蒐集、要不要蒐集、保存多久，那在「怎麼存」之前**。見 [`docs/12b`](docs/12b-database-tables.md) §8 | 法務 |
 | B-10 | 🚫 | **Phase 3 商店** | **俱樂部 LINE Pay 商店號**與**電子發票開立管道**（字軌不得與協會共用）。**申請有前置期，須於 Phase 2 就啟動**。⚠️ **取得商店號後須一併登記伺服器出口 IP 才能切正式環境** | 客戶 |
@@ -257,7 +257,7 @@
 | **AP-3b** | ⬜ | **Phase E — App 內 LINE Pay 付款**：`payment_mode` 由 `external` 切為 `inapp`，共用 AP-3 已做好的訂單與開通邏輯。🔴 **只能降級不得反向**（不得以 `external` 送審後遠端開啟未審查的 `inapp`） | App §5、§15 Phase E、[`docs/19`](docs/19-app-tech-stack.md) §10 | AP-6、B-8、B-10 |
 | **AP-7** | ⬜ | **兩個 private repo 與 CI/CD 管線**：`tcrfc-app-ios`（Xcode Cloud 或 Actions＋fastlane）、`tcrfc-app-android`（Actions＋Gradle→Play internal）。🔴 **必須 private**（含 `.p8`、keystore、service account JSON）；**每次 release 歸檔 dSYM 與 `mapping.txt`** | [`docs/19`](docs/19-app-tech-stack.md) §9 | AP-9 |
 | **AP-8** | ⬜ | **`shared/` 契約目錄**：OpenAPI 產 DTO、共用 SQLite DDL、快取時效、深連結對照、錯誤碼、**可見度量測 fixtures**。CI 須有漂移檢查（`git diff --exit-code`） | [`docs/19`](docs/19-app-tech-stack.md) §2 | AP-1 |
-| **AP-9** | ⬜ | **商店帳號設定與 `.well-known` 產出**：帳號本身已註冊（B-13），本列做的是——填入 Team ID 與 package name 產出 `apple-app-site-association` 與 `assetlinks.json` 並部署到官網、建立 APNs `.p8` 金鑰與 FCM 專案、開 TestFlight 與 Play 內測軌道 | App §2.3、§14.1、[`docs/19`](docs/19-app-tech-stack.md) §9 | S0-9 |
+| **AP-9** | ⬜ | **商店帳號設定與 `.well-known` 產出**：帳號本身已註冊（B-13），本列做的是——填入 Team ID 與 package name 產出 `apple-app-site-association` 與 `assetlinks.json` 並部署到官網、建立 APNs `.p8` 金鑰與 FCM 專案、開 TestFlight 與 Play 內測軌道。🔴 **2026-09-20 補充條件（`docs/17` §10.3 不可逆類第①項）：部署 `.well-known` 的網域必須是最終正式網域，不得是 `stg.tcrfc.tw`／`bw-stg.tcrfc.tw` 這類測試網址**——Universal Link 綁的是 App 簽署時的 Associated Domains entitlement，換網域要出新版本重新送審 | App §2.3、§14.1、[`docs/19`](docs/19-app-tech-stack.md) §9、[`docs/17`](docs/17-deployment.md) §10.3 | S0-9 |
 
 > ⚠️ **AP-9 要排到 AP-2 之前**——深連結是 Phase A 的項目，`.well-known` 關聯檔要先部署到官網才驗證得了。
 > ✅ **磐石網域的 Universal Link 不再受阻**（Team ID 已有）；**藍鯨網域的仍擋在 B-4**（DNS 控制權），未解則藍鯨深連結退回自訂 scheme ＋ 網頁回退。
@@ -283,6 +283,8 @@
 
 | 日期 | 事項 |
 |---|---|
+| 2026-09-21 | **環境數量定案：全專案只有本機開發與正式 VM 兩套，沒有 staging**（[`docs/14`](docs/14-invariants.md) 新增不變量、[`docs/17`](docs/17-deployment.md) §10、[`docs/20`](docs/20-cicd.md) §1）。前一日新增的 `docker-compose.staging.yml` **已刪除**——「正式網址到位前」是同一套正式環境的**階段**不是環境，改由 `.env` 的 `CADDYFILE` 指向 `deploy/Caddyfile.prelaunch`（原 `Caddyfile.staging`）達成，**同一份 compose、同一道指令**；`SITE_ENV` 的值由 `staging` 改為 `prelaunch`，`STAGING_BASIC_AUTH_*` 改名 `PRELAUNCH_BASIC_AUTH_*`（改為可為空，掛了 prelaunch 卻沒填值時 Caddy 直接啟動失敗）。已用 `caddy validate` 與三種 `.env` 組合的 `docker compose config` 驗證。失誤記為 [`docs/18`](docs/18-work-errors.md) `E-13` |
+| 2026-09-20 | **網址從暫用網址到正式網址的策略規劃完成**（[`docs/17-deployment.md`](docs/17-deployment.md) §10）：上線前用 `tcrfc.tw` 子網域（`stg`／`bw-stg`／`charity-stg`／`admin-stg`／`admin-charity-stg`）；換網址成本分級與三類不可逆（App Universal Link／慈善 QR Code／會員卡連結）；三層防護（`NUXT_PUBLIC_SITE_ENV` ＋ `robots.txt` ＋ Basic Auth／Cloudflare Access）；cookie 作用域陷阱與 `__Host-` 前綴；主站切換 www.tcrfc.tw 的具體步驟與回滾程序。新增 `deploy/Caddyfile.prelaunch`（**當日原名 `Caddyfile.staging`，另有 `docker-compose.staging.yml`，均於 2026-09-21 撤銷／改名**）；`docker-compose.yml` 的 `api` 補上網域與 `CORS_ALLOWED_ORIGINS` 變數（原本完全沒有）；`.env.example` 改為暫用網域預設值 |
 | 2026-09-18 | **後台上傳的圖片一律縮圖後保存**（主站 v3.9／藍鯨 v1.8／慈善 v2.5／App v3.9，中英雙版與 PDF 同步）：伺服器端重新編碼為 WebP、長邊上限 2560px、**不留原始檔**、去 EXIF（含 GPS）；固定產 1280／640／320 ＋ 後台 160px 方形縮圖；前台不得直接引用主檔 |
 | 2026-09-18 | **新增 [`docs/18-work-errors.md`](docs/18-work-errors.md) 作業失誤紀錄**：`E-01`–`E-10` 十筆（含根因與防呆位置），`CLAUDE.md` 全域規定加第 13 條、同步鏈加第二項收尾自檢 |
 | 2026-09-18 | **後台設計通則**（主站 v3.7／藍鯨 v1.7／慈善 v2.3／App v3.7）：後台依前台單元切分、前後台同名、介面用日常中文不顯示代號與技術詞；新增前後台對照表；九個子模組更名 |

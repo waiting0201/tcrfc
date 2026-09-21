@@ -150,6 +150,30 @@
 - 🔵 **HEIC 由前端瀏覽器轉 JPEG 再送**（2026-09-20 定案，`docs/17` §6）。ImageSharp 不解 HEIC，而伺服器端加 HEIF 解碼會牽進 **HEVC 專利授權**。
   ⛔ **但伺服器端仍要擋**：收到解不開的檔一律回絕，**不得假設前端一定轉過**——前端可能失敗、可能被繞過。
 
+- 🔴 **全專案只有兩套環境：本機開發與正式 VM。沒有 staging，也不准長出第三套**
+  （2026-09-21 定案，見 [`17-deployment.md`](17-deployment.md) §10、[`20-cicd.md`](20-cicd.md) §1、[`18`](18-work-errors.md) `E-13`）。
+  **本機開發**＝`docker-compose.yml` ＋ `docker-compose.dev.yml`（假資料庫、明文 HTTP）；
+  **正式 VM**＝`docker-compose.yml` 單獨跑。CI 的整合測試是**用完即丟的一次性堆疊**，不是環境。
+  ⛔ **「正式網址到位前」是同一套正式環境的一個階段，不是環境**——同一台 VM、同一批容器、
+  同一個資料庫、**同一份 compose 檔、同一道指令**，差異全部在 `.env` 的值
+  （`SITE_ENV=prelaunch`、`CADDYFILE=./deploy/Caddyfile.prelaunch`、六個暫用網域）。
+  ⛔ **不得新增 `docker-compose.<環境名>.yml` 之類用檔名區分階段的檔案**——`docker-compose.staging.yml`
+  已因此被刪除一次（`E-13`）。**階段用值切換，不用檔案切換。**
+  ⚠️ 例外只有既有的 `docker-compose.dev.yml`，因為它切的是真正的第二套環境。
+
+- 🔴 **網址：上線前到正式期，cookie 絕對不得設 `Domain` 屬性**（2026-09-20 定案，見 [`17-deployment.md`](17-deployment.md) §10.5）。
+  暫用網址（`stg.tcrfc.tw` 等）與未來的正式網址同屬 `tcrfc.tw`，**cookie 若設 `Domain=.tcrfc.tw`（前面帶點）會被瀏覽器送到所有子網域**，
+  暫用網址的登入 session 會被自動帶到正式站的後台（反之亦然）。⛔ **不得設定 `Set-Cookie` 的 `Domain` 屬性**（省略即 host-only，最安全的預設）；
+  **後台一律採 `__Host-` 前綴**（瀏覽器層級強制不得有 `Domain` 屬性，設錯直接整顆 cookie 失敗，不會悄悄放寬）。
+  `admin-stg.tcrfc.tw` 與 `admin.tcrfc.tw` 會有一段共存期（後台不受主站 Wix 切換時程限制，見 `17` §10.7），**這條在共存期特別危險**。
+  ⚠️ **上線前與正式期的 JWT 簽章金鑰建議用不同值**——即使 cookie 作用域設定不慎放寬，簽章金鑰不同仍能擋一次；但**不能假設這條永遠成立**，圖方便共用同一把 key 會讓這層防禦一起失效。
+- 🔴 **三類網址一旦「點火」就不可逆，先確認正式網址才能做**（2026-09-20，見 [`17-deployment.md`](17-deployment.md) §10.3）：
+  **①已上架 App 的 Universal Link**（送審前主站與藍鯨都必須是最終網域，事後換網域要出新版本送審，且舊版使用者深連結會失效一段時間）、
+  **②已印製的慈善 QR Code**（印出即物理不可修改，換網域＝全數作廢重印）、
+  **③已發出（系統信寄出或實體印出）的會員卡 `/m/<token>` 連結**（同理，且長期轉址對驗證性質的連結是額外的安全風險）。
+  **其餘一切**（前台內容、後台開發、API 開發、上線前的訪客互動）**都可以先用暫用網址做**，凡準備做上面三件事之一，先確認網址已是最終版本。
+  ⚠️ **暫用網址（`stg.tcrfc.tw` 等）不是假資料沙盒**——同一套 Azure SQL／Blob／Redis（只有兩套環境的必然結果），上線前若對外開放互動，那些資料就是未來正式資料，不會在切網域時自動清空（此事尚未定案，見 `17` §10.9）。
+  **上線前的站必須真的擋住**（HTTP 標頭 ＋ `robots.txt` ＋ Basic Auth／Cloudflare Access 三層，缺一不可，理由與被索引後的清理成本見 `17` §10.4）——不能只靠 meta `noindex`。**掛了 `Caddyfile.prelaunch` 卻沒填帳密，Caddy 會直接啟動失敗**，那是刻意的。
 - 🔴 **CI/CD：公開 repo ＋ self-hosted runner 的唯一地基**（見 [`20-cicd.md`](20-cicd.md) §4）：
   **Repo 設定的「Fork pull request workflows → Require approval for all outside collaborators」必須是開的。**
   ⛔ **不要以為「我們的 workflow 沒讓 fork 用 self-hosted」就安全**——fork PR 跑的是**該 fork 版本的 workflow 檔**，

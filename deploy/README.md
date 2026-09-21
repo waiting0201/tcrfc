@@ -9,6 +9,7 @@
 | 檔案 | 用途 |
 |---|---|
 | [`Caddyfile`](Caddyfile) | 正式環境的 proxy 設定：依 Host 分流到五個上游、自動 TLS |
+| [`Caddyfile.prelaunch`](Caddyfile.prelaunch) | **同一台正式 VM 在正式網址到位前**用（不是另一套環境），與 `Caddyfile` 幾乎相同，差異只有三個公開前台加 HTTP Basic Auth（[`docs/17-deployment.md`](../docs/17-deployment.md) §10.4）。用 `.env` 的 `CADDYFILE` 指定，**沒有第二份 compose 檔** |
 | [`Caddyfile.dev`](Caddyfile.dev) | 本機開發用，明文 HTTP，`auto_https off` |
 | [`local-ddl.sh`](local-ddl.sh) | 把 `db/*.sql` 轉成本機 SQL Server 2022 相容版本（`json`→`nvarchar(max)`），不改動原始檔 |
 | [`dev/club.env.example`](dev/club.env.example)／[`dev/charity.env.example`](dev/charity.env.example) | 本機開發用機密範本，複製成同目錄下拿掉 `.example` 的檔名後使用（該檔名已被 `.gitignore` 排除） |
@@ -83,6 +84,46 @@ Azure SQL Database **不支援跨庫查詢**（`docs/14`），所以上面這種
 用專案名稱 `tcrfc` 自動加前綴），確保兩者可以同時存在、不衝突、不誤觸。`local-ddl.sh --apply`
 只認 compose service 名稱 `mssql-dev`，不會碰到 `sqlserver`。
 
+## 正式網址到位前怎麼起（同一台 VM、真的 Azure 資源）
+
+> 🔴 **這不是第三套環境。** 本專案只有兩套：**本機開發**（上一節）與**正式 VM**（下一節）。
+> 這一節講的是同一台正式 VM、同一批容器、同一個資料庫，在藍鯨／慈善正式網域還沒到位、
+> 主站還沒從 Wix 切換前的**暫時設定**——對應 [`docs/17-deployment.md`](../docs/17-deployment.md) §10。
+> 跟下面「VM 上怎麼起」的差異全部在 `.env`：**指令一字不差，沒有第二份 compose 檔**。
+
+```bash
+# 1. .env 用上線前的值（.env.example 的預設值就是這一組，直接 cp 即可）
+cp .env.example .env
+#    其中三個值決定「現在是上線前階段」：
+#      SITE_ENV=prelaunch                       → Nuxt 輸出 robots.txt 全擋 ＋ noindex（第 1、2 層）
+#      CADDYFILE=./deploy/Caddyfile.prelaunch   → proxy 改掛加 Basic Auth 的設定（第 3 層）
+#      TCRFC_DOMAIN=stg.tcrfc.tw（等六個）      → 暫用的 tcrfc.tw 子網域
+#    另外填 PRELAUNCH_BASIC_AUTH_USER／PRELAUNCH_BASIC_AUTH_HASH，雜湊用下面這行產生：
+#      docker run --rm caddy:2.9.1-alpine caddy hash-password --plaintext '<密碼>'
+
+# 2. DNS：五個暫用子網域（stg／bw-stg／charity-stg／admin-stg／admin-charity-stg，
+#    API_DOMAIN 另計）的 A/AAAA 記錄指到 VM 的靜態 Public IP，Cloudflare 代理（橘雲）
+
+# 3. 起動指令與正式期完全相同
+docker compose pull nuxt-tcrfc nuxt-bw nuxt-charity admin-web admin-charity api
+docker compose up -d
+```
+
+**切到正式網址時**：只改 `.env`——六個網域值換成正式值、`SITE_ENV=production`、**把 `CADDYFILE`
+那一行註解掉**（回到預設的 `deploy/Caddyfile`），重新 `docker compose up -d`。只有 `proxy` 的
+掛載內容變了會被重建，其餘容器不受影響。**主站的完整切換步驟**（Wix DNS 現況確認、apex／`www`
+取捨、128 筆 301、回滾程序）見 [`docs/17-deployment.md`](../docs/17-deployment.md) §10.6，
+**不是改個 `.env` 就結束**。
+
+⚠️ **上線前的三層防護**（HTTP 標頭、`robots.txt`、Basic Auth／Cloudflare Access）**不是可有可無的裝飾**，
+見 [`docs/17-deployment.md`](../docs/17-deployment.md) §10.4「為什麼三層都要」與「被索引後的清理成本」。
+掛了 `Caddyfile.prelaunch` 卻沒填帳密，Caddy 會直接啟動失敗——那是刻意的，寧可起不來也不要
+悄悄變成沒有保護的公開站。
+兩個後台建議額外在 Cloudflare 端設定 Access（email 一次性驗證碼），這份檔案管不到，需要另外在
+Cloudflare Zero Trust 後台設定。
+
+---
+
 ## VM 上怎麼起（等 Azure 資源開通之後，S0-7／S0-6 完成後）
 
 ```bash
@@ -143,8 +184,9 @@ HTTP-01 的挑戰請求會先進 Cloudflare 邊緣、再被正常轉送到本機
 |---|---|---|
 | 五個 `Dockerfile` | 待 `apps/*` 專案建立才能 build | S0-7b／S0-9（`frontend-architect`／`backend-engineer` 建立各專案） |
 | `apps/api/Dockerfile` 的 `.NET 10`、`ENTRYPOINT ["dotnet","Tcrfc.Api.dll"]` | 版本與組件檔名為本次自行選定的預設值，未經 `docs/17`／`docs/20` 明文指定 | `backend-engineer` 建 `apps/api` 專案時確認／調整 |
-| `.env.example` 裡除 `TCRFC_DOMAIN` 外的網域 | 假網域格式範例 | STATUS.md 阻塞清單：藍鯨網域、慈善網域尚未確定 |
-| `deploy/Caddyfile` 實際簽出憑證 | 完全沒測過（本機無公開 IP、無真實網域） | Azure VM ＋ 靜態 Public IP 開通（S0-7）＋ 網域確定 |
+| `.env.example` 的網域值 | 現在填的是上線前暫用網域（`stg.tcrfc.tw` 等，見 `docs/17` §10.1），**可直接用**；正式網域範例留作註解，藍鯨與慈善網域尚未確定 | STATUS.md 阻塞清單 B-4／B-7；主站 apex／`www` 取捨見 `docs/17` §10.6 |
+| `deploy/Caddyfile`／`deploy/Caddyfile.prelaunch` 實際簽出憑證 | 完全沒測過（本機無公開 IP，暫用網域雖已可解析但尚未指向任何 VM） | Azure VM ＋ 靜態 Public IP 開通（S0-7） |
+| `CADDYFILE`／`PRELAUNCH_BASIC_AUTH_*` 端到端 | `caddy validate` 已在本機用 `caddy:2.9.1-alpine` 跑過、三種 `.env` 組合的 `docker compose config` 也已驗證；**真的用帳密登入一次**尚未測（沒有 VM） | 同上 |
 | VM 上的 self-hosted runner、`/opt/tcrfc/secrets/*` | 未建立 | S0-7（Azure 資源）、`docs/20-cicd.md` §9 |
 | `docker-compose.yml` 的 `env_file` 指向 `/opt/tcrfc/secrets/club.env`／`charity.env` | 這兩個絕對路徑在本機不存在，只有 VM 上會有 | 同上；本機開發用 `docker-compose.dev.yml` 覆寫成 `deploy/dev/*.env` |
 | `deploy/Dockerfile`／xcaddy 自訂 Caddy build（DNS-01 用） | **沒有建立**，只在本文件與 `Caddyfile` 註解裡記錄為「若 HTTP-01 出狀況的升級路徑」 | 只有 HTTP-01 真的行不通才需要 |

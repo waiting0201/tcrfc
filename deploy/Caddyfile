@@ -60,13 +60,18 @@
 }
 
 # ── 官網共用後台（noindex，不開 encode 壓縮以外的快取相關 header） ───────
+# 🔴 X-Robots-Tag 是永久規則，不分階段——後台從來不該被索引，不像三個公開前台的 noindex
+# 只在正式網址到位前需要（見 docs/17-deployment.md §10.4；那一段的開關是 NUXT_PUBLIC_SITE_ENV，
+# 但那只管前台，後台本節直接在 proxy 層一律加，兩者不衝突、也不重複同一份邏輯）。
 {$ADMIN_WEB_DOMAIN} {
+	header X-Robots-Tag "noindex, nofollow, noarchive"
 	encode zstd gzip
 	reverse_proxy admin-web:8080
 }
 
 # ── 慈善平台獨立後台 ──────────────────────────────────────────────────
 {$ADMIN_CHARITY_DOMAIN} {
+	header X-Robots-Tag "noindex, nofollow, noarchive"
 	encode zstd gzip
 	reverse_proxy admin-charity:8080
 }

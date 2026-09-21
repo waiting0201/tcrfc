@@ -42,11 +42,20 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      # 🔴 本專案只有兩套環境：本機開發（docker-compose.dev.yml）與這一套正式 VM。
+      # 「正式網址到位前」不是第三套環境，只是這台 VM 的 proxy 暫時改掛一份多加 Basic Auth
+      # 的設定（deploy/Caddyfile.prelaunch，docs/17 §10.4 第 3 層防護）——用 .env 換值即可，
+      # 不需要 override 檔。預設值＝正式版，所以正式期的 .env 完全不必提到這個變數。
+      - ${CADDYFILE:-./deploy/Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
       ACME_EMAIL: ${ACME_EMAIL:?請在 .env 設定用於 Let's Encrypt 到期通知的信箱}
+      # 只有 CADDYFILE 指向 Caddyfile.prelaunch 時才會被用到，所以可為空（正式期用不到）。
+      # ⚠️ 掛了 prelaunch 卻沒填值，Caddy 會在啟動時因雜湊解不出來而失敗——刻意的，
+      # 寧可起不來，也不要悄悄變成沒有帳密保護的公開站。產生方式見 .env.example。
+      PRELAUNCH_BASIC_AUTH_USER: ${PRELAUNCH_BASIC_AUTH_USER:-}
+      PRELAUNCH_BASIC_AUTH_HASH: ${PRELAUNCH_BASIC_AUTH_HASH:-}
       TCRFC_DOMAIN: ${TCRFC_DOMAIN:?}
       BW_DOMAIN: ${BW_DOMAIN:?}
       CHARITY_DOMAIN: ${CHARITY_DOMAIN:?}
@@ -75,6 +84,13 @@ services:
       NUXT_PUBLIC_CLUB: tcrfc
       # ⛔ 只在這裡（run 階段）給，絕不在 build 階段給——docs/13 §6 紀律 7、8
       NUXT_PUBLIC_SITE_URL: https://${TCRFC_DOMAIN}
+      # prelaunch／production 切換旗標（docs/17-deployment.md §10.4）：prelaunch 時輸出
+      # robots.txt Disallow: / 與 X-Robots-Tag noindex，蓋掉 GEO-02 正式規則。
+      # ⚠️ 這是同一套正式環境的兩個階段，不是兩套環境——環境只有本機開發與正式 VM 兩套。
+      # 🔴 刻意不給預設值。兩個方向的失誤都有代價（漏設 prelaunch → 還沒上線的站被 Google
+      # 收錄，要花時間清理；漏設 production → 正式站被擋索引，流量歸零），沒有一邊明顯較
+      # 安全，所以不猜——跟同檔的網域與密碼變數一樣強制必填，讓它在啟動時就報錯。
+      NUXT_PUBLIC_SITE_ENV: ${SITE_ENV:?請在 .env 設定 SITE_ENV=prelaunch 或 production（docs/17 §10.4）}
       NUXT_PUBLIC_API_BASE: https://${API_DOMAIN} # 瀏覽器端呼叫走公開網域
       NUXT_API_INTERNAL_BASE: http://api:8080 # SSR 階段走 Docker 內部網路，不繞 Caddy／Cloudflare
       REDIS_HOST: redis
@@ -100,6 +116,7 @@ services:
     environment:
       NUXT_PUBLIC_CLUB: bw
       NUXT_PUBLIC_SITE_URL: https://${BW_DOMAIN}
+      NUXT_PUBLIC_SITE_ENV: ${SITE_ENV:?請在 .env 設定 SITE_ENV=prelaunch 或 production（docs/17 §10.4）} # 見 nuxt-tcrfc 同名變數的註解
       NUXT_PUBLIC_API_BASE: https://${API_DOMAIN}
       NUXT_API_INTERNAL_BASE: http://api:8080
       REDIS_HOST: redis
@@ -124,6 +141,7 @@ services:
     restart: unless-stopped
     environment:
       NUXT_PUBLIC_SITE_URL: https://${CHARITY_DOMAIN}
+      NUXT_PUBLIC_SITE_ENV: ${SITE_ENV:?請在 .env 設定 SITE_ENV=prelaunch 或 production（docs/17 §10.4）} # 見 nuxt-tcrfc 同名變數的註解（docs/17 §10.4）
       NUXT_PUBLIC_API_BASE: https://${API_DOMAIN}
       NUXT_API_INTERNAL_BASE: http://api:8080
       # ⛔ 慈善平台不得接觸 Redis（docs/17 §5 補償措施）——本服務刻意不給 REDIS_* 變數
@@ -205,6 +223,19 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+      # ── 網域（docs/17-deployment.md §10.2）：補之前完全沒有的缺口 ──────────────
+      # 過去 api 容器收不到任何網域變數，系統信連結、CORS 允許來源都無處可取值，只能寫死。
+      # 這裡補上同一組六個網域變數，供 backend-engineer 建 api 專案時組信件連結、CORS 清單、
+      # 以及任何其他「api 需要知道自己網址」的用途；一改 .env 全部跟著改，不需要改程式碼。
+      TCRFC_DOMAIN: ${TCRFC_DOMAIN:?}
+      BW_DOMAIN: ${BW_DOMAIN:?}
+      CHARITY_DOMAIN: ${CHARITY_DOMAIN:?}
+      ADMIN_WEB_DOMAIN: ${ADMIN_WEB_DOMAIN:?}
+      ADMIN_CHARITY_DOMAIN: ${ADMIN_CHARITY_DOMAIN:?}
+      API_DOMAIN: ${API_DOMAIN:?}
+      # api 要接受瀏覽器端請求的來源清單（後台 SPA、三個 SSR 前台的 CSR 階段）；實際的 CORS
+      # 中介軟體設定由 backend-engineer 建專案時實作，這裡只保證它拿得到一份不必寫死的清單。
+      CORS_ALLOWED_ORIGINS: https://${TCRFC_DOMAIN},https://${BW_DOMAIN},https://${CHARITY_DOMAIN},https://${ADMIN_WEB_DOMAIN},https://${ADMIN_CHARITY_DOMAIN}
     networks: [internal]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/readyz"]

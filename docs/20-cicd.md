@@ -44,6 +44,18 @@
 
 **不建 staging 分支／環境。** 理由：
 
+> 🔵 **與 [`17-deployment.md`](17-deployment.md) §10「上線前的暫用網址」的關係（2026-09-20 補充，
+> 2026-09-21 更新）**：這裡講的「不建 staging」是**不另建一套基礎設施**做 CI 用的一次性整合測試；
+> `17` §10 講的是**這一套正式基礎設施本身**，在藍鯨／慈善正式網域到位前、主站尚未從 Wix
+> 切換前，先用 `tcrfc.tw` 子網域跑的過渡階段——同一台 VM、同一批容器、同一個資料庫，
+> 只是網域環境變數還沒換成最終值。兩者不衝突，也不是同一件事。
+>
+> 🔴 **兩邊都不會產生一個叫 staging 的環境。全專案只有兩套環境：本機開發
+> （`docker-compose.dev.yml`）與正式 VM（`docker-compose.yml`）。** `17` §10 那個過渡階段
+> **沒有自己的 compose 檔**，差異全部在 `.env` 的值（`SITE_ENV=prelaunch`、`CADDYFILE` 指向
+> `deploy/Caddyfile.prelaunch`、六個暫用網域）——2026-09-21 定案，原本規劃過的
+> `docker-compose.staging.yml` 已撤銷，理由見 [`18-work-errors.md`](18-work-errors.md) `E-13`。
+
 - VM 是 `Standard_B2ms`（2 vCPU／8 GB），八個正式容器已經要盯 CPU 額度（`17` §1）；再放一份 staging 容器組，不是搶資源就是要開第二台 VM（雙倍 Azure SQL／VM／IP 成本，且**多一個出口 IP 要不要也登記 LINE Pay** 又是一個決定）。
 - 用 **CI runner 本身當一次性 staging**：`ci.yml` 在 hosted runner 上用 `docker compose -f deploy/docker-compose.ci.yml up` 起一份完整堆疊（`api` ＋ 一個用完即丟的 SQL Server 容器，比照 S0-6b 本機驗證 DDL 的做法），跑整合測試後整組銷毀。**零常駐成本，且每次 PR 都測，比一個手動維護的 staging 環境更常被驗證。**
 - 前端純視覺變更可用 **Cloudflare Pages 的 PR 預覽**（免費、每個 PR 自動出一個網址）快速看畫面，但那是輔助工具不是正式 staging——它沒有 API／DB，SSR 資料層看不到。

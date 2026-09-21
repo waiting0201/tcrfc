@@ -425,3 +425,310 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 | 10 | **主鍵策略生效** | 寫入十萬列測試資料，叢集索引碎片率維持低檔（對照組：不加 `bigint` 叢集鍵的同結構表） |
 | 11 | **資料庫層級足夠** | 對首頁與新聞列表壓測，觀察 DTU 使用率與查詢等待；儲存空間告警已設定 |
 | 12 | **`noindex` 未遺失** | 回應標頭含 `X-Robots-Tag: noindex, nofollow`，`robots.txt` 為 `Disallow: /` |
+| 13 | **上線前三層防護生效**（§10.4） | 未持憑證訪問三個公開前台的 stg 網址得到 401；`curl -I` 任一 stg 網址含 `X-Robots-Tag: noindex, nofollow, noarchive`；兩個後台網址（stg 與正式）同樣含此標頭 |
+| 14 | **cookie 不跨網域環境**（§10.5） | 登入 `admin-stg.{$TCRFC_DOMAIN}` 後，瀏覽器開發者工具檢視 Set-Cookie 標頭**不含 `Domain` 屬性**（或使用 `__Host-` 前綴）；手動在瀏覽器把該 cookie 的 domain 改成 `.{$TCRFC_DOMAIN}` 重送請求到正式後台，**必須被拒** |
+| 15 | **切正式網址後 `SITE_ENV` 已改回 `production`、`CADDYFILE` 已取消** | 三個公開前台的 `robots.txt` 不再是 `Disallow: /`；`<head>` 的 `noindex` meta 已移除（呼應全域規定第 5 條）；`llms.txt` 可正常存取；`docker compose config` 顯示 `proxy` 掛的是 `deploy/Caddyfile`（不是 `.prelaunch`），未帶帳密也能正常存取前台 |
+
+---
+
+## 10. 網址：從暫用網址到正式網址的策略
+
+> 承接使用者提問「網址要怎麼設定，因為會先有測試網址，最後才會有正式網址」。
+>
+> 🔴 **全專案只有兩套環境：本機開發（`docker-compose.dev.yml`）與正式 VM（`docker-compose.yml`）。**
+> **本節不是第三套環境**，是同一台正式 VM、同一批容器、同一個資料庫，在藍鯨網域
+> （[`STATUS.md`](../STATUS.md) B-4）與慈善網域（B-7）尚未到位、主站尚未從 Wix 切換前的
+> **暫時設定**。這個階段與正式期的差異**全部在 `.env` 的值**（`SITE_ENV`、`CADDYFILE`、六個網域），
+> **沒有第二份 compose 檔、指令一字不差**——這是 2026-09-21 定案的做法
+> （原本規劃過的 `docker-compose.staging.yml` override 已撤銷，理由見 [`18`](18-work-errors.md) `E-13`）。
+>
+> 跟 [`20-cicd.md`](20-cicd.md) §1「不建持久 staging 環境」講的是兩件不同的事——那一條講的是
+> **不另建一套基礎設施**做 CI 用的一次性整合測試環境；本節講的是**這一套正式基礎設施本身**，
+> 在網域到位前先怎麼跑。兩者不衝突，且**都不會產生一個叫 staging 的環境**。
+>
+> 本節只規劃網址策略。**不開 Azure 資源、不改 DNS、不碰 Cloudflare、不真的部署**——
+> 下面的檔案異動全部是 repo 內的設定與程式碼骨架，執行時才需要真的動手做 DNS／Cloudflare 操作。
+
+### 10.1 上線前的暫用網址（已定案）
+
+一律用已持有、DNS 自控的 `tcrfc.tw` 子網域，**不臨時申請新網域、不用第三方免費子網域服務**：
+
+| 服務 | 上線前暫用網址 | 對應正式網址（六個中五個尚未定案） |
+|---|---|---|
+| 主站前台 | `stg.tcrfc.tw` | `tcrfc.tw` 或 `www.tcrfc.tw`——**尚未定案**，見 §10.6 |
+| 藍鯨官網前台 | `bw-stg.tcrfc.tw` | 藍鯨自己的網域，擋在 B-4 |
+| 慈善平台前台 | `charity-stg.tcrfc.tw` | 慈善自己的網域，擋在 B-7 |
+| 官網共用後台 | `admin-stg.tcrfc.tw` | `admin.tcrfc.tw`——**不受主站切換影響，可提前定案**（見 §10.7） |
+| 慈善獨立後台 | `admin-charity-stg.tcrfc.tw` | 依慈善網域決定 |
+| API | `api-stg.tcrfc.tw` | `api.tcrfc.tw` |
+
+**選這條路的理由**：`tcrfc.tw` 本身的 DNS 控制權已在手上（不像藍鯨與慈善還在等網域），子網域的 TLS 憑證用
+既有的 Caddy 自動 HTTPS 機制照樣簽得出來，且**切換時只需要改 `.env` 的值再重啟 `proxy`**——
+不需要換基礎設施、不需要換資料庫、不需要換 CI 設定。這正是 [`13-blue-whale-site.md`](13-blue-whale-site.md) §6
+紀律 7、8「網域只能在 `docker run` 階段給」這個既有設計換來的紅利：**上線前到正式期的切換，本質上只是換一次環境變數的值**。
+
+⚠️ **暫用網址不是「假資料的沙盒」**——它跑的是同一套 Azure SQL、同一套 Blob、同一套 Redis（除慈善外）。
+這正是「只有兩套環境」的必然結果：暫用網址背後就是正式資料庫。
+若在這個階段就對客戶／真實使用者開放（例如讓客戶用它試填表單、試辦會員），那些資料就是**未來正式站的真實資料**，
+不會在切換時自動清空。**這件事目前沒有定案**，列入 §10.9 待決事項。
+
+### 10.2 「網址只能有一個真實來源」的落實：全系統盤點
+
+⛔ **任何一處寫死網址都是錯的**。下表逐一指出真實來源；標「外部、只能手動改」的是誠實的例外——
+那些是第三方服務自己的設定介面，本系統管不到，只能列入上線檢查表。
+
+| 出現位置 | 真實來源 | 備註 |
+|---|---|---|
+| Nuxt canonical／sitemap／`hreflang` | `NUXT_PUBLIC_SITE_URL`（`docker run` 階段給，⛔ 絕不在 `docker build` 帶，[`13`](13-blue-whale-site.md) §6 紀律 7、8） | `@nuxtjs/seo` 統一從這個值算，已實測（S0-9b） |
+| `robots.txt`／`llms.txt` | 同上 `NUXT_PUBLIC_SITE_URL` ＋ **本次新增** `NUXT_PUBLIC_SITE_ENV`（`prelaunch`／`production`，見 §10.4） | 網域來自 `SITE_URL`，允不允許被索引來自 `SITE_ENV` |
+| Schema.org 輸出 | 同 `NUXT_PUBLIC_SITE_URL`（`@nuxtjs/seo` 的 schema-org 子模組吃同一個 `site.url`） | 不另外設定 |
+| 系統信裡的連結 | **缺口，本次補上**：`api` 容器過去完全沒收到任何網域環境變數（見 §10.8），已在 `docker-compose.yml` 補上六個網域變數，供 `backend-engineer` 建立 `api` 專案時組信件連結用 | 系統信連結若寫死主機名，上線前寄出的信全部指向錯的網址 |
+| LINE Login callback | 🔴 **外部、只能手動改**：LINE Developers Console 的 Callback URL 清單 | **建議同一個 Channel 同時登記 stg 與正式兩組 callback URL**（LINE 允許一個 Channel 有多筆），不要為上線前另開一個 Channel——否則兩邊的 LINE 綁定關係不通，上線前綁定過的帳號到正式站要重綁一次 |
+| LINE Pay `confirmUrl` | 由 `NUXT_PUBLIC_SITE_URL` 組出，**不需要外部登記網址本身**（`confirmUrlType: CLIENT`，[§3](#3-line-pay-的固定-ip)） | 需要外部登記的是**出口 IP**，不是網址；兩者是分開的兩件事，不要混為一談 |
+| 電子發票服務 callback | 🔴 **外部、只能手動改**：發票服務商後台登記的通知網址 | 待 B-10（俱樂部 LINE Pay 商店號與發票管道）取得帳號後才有介面可設定，**現在無法預先準備** |
+| 會員卡 `/m/<token>` | 同 `NUXT_PUBLIC_SITE_URL`（是主站路由的一部分，不是獨立設定） | 連結本身零成本可改，**但一旦印出或寄出就不可逆**，見 §10.3 |
+| App `apple-app-site-association`／`assetlinks.json` | 內容由 `shared/deeplinks.json`（[`docs/19`](19-app-tech-stack.md) §2）產生；**部署到哪個網域是一次性選擇** | 見 §10.3 不可逆類第一項 |
+| CORS 允許來源 | **缺口，本次補上**：`api` 容器新增 `CORS_ALLOWED_ORIGINS`，組成同一組網域環境變數（見 §10.8） | 之前完全沒有這個變數，是本次盤點抓到的洞 |
+| CSP | 尚未定案（`apps/*` 專案尚未建立）；**建議**沿用同一組網域環境變數 ＋ 固定的第三方清單（LINE、Cloudflare、字型服務等）組出 `Content-Security-Policy` | 留給 `frontend-architect`／`backend-engineer` 建專案時定案，本節只定原則：不寫死、來源與 CORS 同一組變數 |
+| cookie 作用域 | **不設定 `Domain` 屬性，或用 `__Host-` 前綴** | 這條的「單一來源」反而是「不要設來源」——host-only 就不會有作用域問題，見 §10.5 |
+| 舊官網 128 筆 301 | 後台 `H` 模組的「301 轉址批次匯入」（資料庫驅動） | 見 §10.6，**不建議**另外在 Nitro `routeRules` 或 Cloudflare 端常駐一份 |
+| Google Search Console／GA4 Property | 🔴 **外部、只能手動改** | 切網域時需另外用 Change of Address 工具或重新驗證 Property，超出本系統控制範圍，列入上線檢查表 |
+| 社群平台／名片等離線素材 | 🔴 **外部、只能手動改，且系統無法自動偵測遺漏** | LINE 官方帳號、FB／IG 簡介連結、Google 商家檔案、既有印刷品——上線檢查表需**人工列出**逐一核對 |
+
+### 10.3 換網址的成本分級表
+
+| 級別 | 項目 | 說明 |
+|---|---|---|
+| 零成本 | canonical／sitemap／`hreflang`／Schema／`robots.txt`／`llms.txt`／CORS／系統信連結／`/m/<token>` 連結本身 | 全部從 `NUXT_PUBLIC_SITE_URL`／`CORS_ALLOWED_ORIGINS` 這類環境變數算出，**改 `.env` 重啟即生效，不必改程式** |
+| 低成本 | DNS 記錄、TLS 憑證（Caddy 自動簽發）、Cloudflare Access／Page Rules 設定 | 有 TTL／簽發等待（分鐘到數小時），但可控、可重來，**不會造成永久性損失** |
+| 中成本 | LINE Login callback URL、電子發票服務 callback、Search Console／GA4 Property | 外部服務手動改，部分有生效延遲，但**沒有作廢風險**，改完即可用 |
+| 高成本 | 已印刷但尚未派發的品牌素材（倉庫裡的傳單／名片）、社群平台 bio 連結 | 需要人工逐一更新，麻煩但可行，**無不可逆風險** |
+| 🔴 **不可逆** | ① **已上架 App 的 Universal Link**　② **已印製的慈善 QR Code**　③ **已發出（系統信寄出或實體卡片印出）的會員卡 `/m/<token>` 連結** | 見下方逐項說明——**這張表存在的目的就是標出這一列** |
+
+#### 🔴 三類不可逆，逐項說明
+
+**① 已上架 App 的 Universal Link。**
+`apple-app-site-association` 部署在哪個網域，是 App 二進位檔簽署時的 **Associated Domains entitlement** 的一部分——
+綁定的是 Team ID ＋ 網域這組組合，寫入送審的 App 版本裡。事後想換網域，**不是改個檔案內容就好**：
+AASA 檔案「內容」（`paths` 清單）可以隨時更新、Apple 的 CDN 會重新抓取，這部分零成本；
+但 AASA「放在哪個網域」一旦變了，等於 Associated Domains entitlement 要跟著改，就要出一個新版本送審
+（Apple／Google 審查數天到數週），而且**已安裝舊版的使用者不會立刻更新**，網域切換後到使用者全部更新完之間，
+深連結會在一段時間內失效或退回網頁回退。**規則：App 送審前，主站（Team ID 已有）與（若含藍鯨深連結）
+藍鯨都必須已經是最終網域，不能先用 `stg.tcrfc.tw` 送審再換**——這直接影響 [`19`](19-app-tech-stack.md) §9 的
+`AP-9`／`AP-6` 時序。
+
+**② 已印製的慈善 QR Code。**
+QR Code 編碼的是固定字串（網址），一旦印出並分發給合作店家，**物理上無法修改**。網域若事後更換，
+所有已印出去的 QR Code 全部作廢，須重新印刷、重新分發給每一家合作店家；空窗期內若有人掃到舊 QR，
+只能落到「網域已停用」的失效頁面（除非刻意留長期 301，但那本身是額外負擔且有安全疑慮——
+掃碼付款的入口被長期轉址，是釣魚攻擊的天然溫床）。**規則與規劃書既有的「未完成社團法人登記前不得印製」
+是同一類前提的延伸：慈善網域必須在印製第一批 QR Code 前就已經是最終網域**，這對應 `STATUS.md` 的 `CH-0`／`B-7`。
+
+**③ 已發出的會員卡 `/m/<token>` 連結。**
+連結本身走 `NUXT_PUBLIC_SITE_URL`，改網域零成本；但一旦**印在實體會員卡上**或**透過系統信寄給會員**，
+物理上同樣無法回收。與 QR Code 同理，事後改網域＝所有已發出的卡與信一次作廢，
+且長期轉址一樣有安全疑慮——`/m/<token>` 本身是驗證性質的連結，轉址鏈越長，被偽冒的風險越高。
+**規則：會員卡（無論實體印刷或系統信寄發）第一次發出前，主站必須已經是最終網域**，對應 `STATUS.md` 的 `S2-11`。
+
+**這三類的共同用途**：它們是「點火開關」——按下去就回不去，而其他一切（前台內容、後台開發、API 開發、
+甚至整段上線前的訪客互動）都可以在 `stg.tcrfc.tw` 之類的暫用網址下先做。**用這張表回答「什麼可以先做、
+什麼要等正式網址」**：凡是還沒點火的，用暫用網址儘管做；凡是準備點火的（App 送審、QR 印製、會員卡首次發出），
+先確認網址已經是最終版本。
+
+### 10.4 🔴 上線前的站必須真的擋住：三層防護
+
+不能只靠 meta `noindex`。以下三層**缺一不可**，理由各自不同：
+
+| 層 | 做法 | 擋的是什麼 | 擋不住什麼 |
+|---|---|---|---|
+| 1．HTTP 標頭 | `X-Robots-Tag: noindex, nofollow, noarchive`（Nuxt 端由 `NUXT_PUBLIC_SITE_ENV=prelaunch` 觸發；兩個後台由 `deploy/Caddyfile` **永久**加，不分階段） | 涵蓋**非 HTML 資源**（PDF、圖片）——`<meta>` 標籤只在 HTML 的 `<head>` 有效，標頭則對任何回應都有效 | 只對**遵守規則**的爬蟲有效；不阻止人類訪客、不阻止惡意爬蟲、不阻止連結被分享 |
+| 2．`robots.txt` | `NUXT_PUBLIC_SITE_ENV=prelaunch` 時輸出 `Disallow: /`（覆蓋 `GEO-02` 平常「全站允許但排除特定路徑」的正式規則） | 涵蓋**遵守 `robots.txt` 的爬蟲**，包含 `GEO-02` 允許清單上的 AI 爬蟲 | 同上，是**自願遵守**的協議，不是技術屏障 |
+| 3．存取控制 | 三個公開前台（stg）：**HTTP Basic Auth**（`deploy/Caddyfile.prelaunch`，由 `.env` 的 `CADDYFILE` 指定，見 §10.8）；兩個後台（stg）：**建議 Cloudflare Access**（在 Cloudflare 端設定，email 一次性驗證碼，不改本檔案） | **真正的技術屏障**：沒有帳密／沒通過 Access 政策，連 HTML 本身都拿不到——爬蟲擋得住，意外分享的連結也擋得住 | 若設定有疏漏（例如忘記幫新開的子網域套用同一組保護），這層可能出現漏洞 |
+
+**為什麼三層都要，不能只做第 3 層**：
+第 3 層是唯一的技術屏障，但**它是靠人維護的設定**——漏了一個網域、Access 政策設錯放行條件，
+第 3 層可能悄悄失效。第 1、2 層是**寫進應用程式與代理層設定裡的預設值**，就算第 3 層某處出錯，
+守規矩的爬蟲仍然會被第 1、2 層擋下——這是 defense-in-depth，不是重複勞動。
+**⚠️ 第 3 層沒設好時會「大聲失敗」**：`PRELAUNCH_BASIC_AUTH_HASH` 在 `docker-compose.yml` 裡是可為空的
+（正式期用不到），所以掛了 `Caddyfile.prelaunch` 卻忘記填帳密時，Caddy 會在啟動時因 bcrypt 雜湊解不出來
+而拒絕啟動。**這是刻意的設計**——寧可整個 `proxy` 起不來（立刻被發現），也不要悄悄變成一個沒有帳密保護、
+卻自以為受保護的公開站。
+
+**後台不用 Basic Auth 是因為它本來就有自己的登入系統與 2FA**（既有的存取控制），第 3 層改用
+Cloudflare Access 是**再加一層在應用程式登入頁之前**的網路層防護，理由同上。
+
+**為什麼公開前台用 Basic Auth 而不是 Cloudflare Access**：這個階段的公開前台要給客戶窗口與非技術團隊成員
+（可能沒有 Google／GitHub 帳號可綁 Access 政策）隨時查看，一組帳密最低摩擦；後台的使用者是固定的內部團隊，
+Cloudflare Access 的 email 驗證碼摩擦可以接受、防護等級也更高（後台含這個階段累積的真實個資，風險更高）。
+
+#### ⚠️ 被索引後的清理成本
+
+如果站在防護生效前被爬過、被索引：
+
+- **Google Search Console 的移除要求是暫時的**（約 90 天），過後需要重新確認頁面已真的下線／`noindex`，
+  否則會重新出現在索引裡；**真正從索引消失，要等 Google 重新爬取並看到 `noindex`**，可能是數週後的事，
+  不是提交移除申請就立刻生效。
+- **暫用網址與正式網址在切換窗口期間會被判定為重複內容**，如果 canonical 設定有誤（例如上線前 `NUXT_PUBLIC_SITE_ENV`
+  忘了關掉 `noindex`，或反過來正式站上線初期 canonical 沒有正確指回自己），Google 甚至可能選錯 canonical，
+  用暫用網址代表這個內容——**稀釋、甚至誤導正式站上線後的排名**。
+- **若上線前已有真實使用者個資**（會員報名、表單留資）被索引，那已經不是 SEO 問題，是**個資外洩事件**。
+- **AI 爬蟲一旦抓取，可能已進入某些訓練資料的快照**，這類抓取沒有「請求移除」的機制可用——
+  這正是 `GEO-02` 要求「排除路徑」而不是「事後移除」的原因，上線前的站更需要在第一次部署就把三層防護做好，
+  不能想著「先上線，之後再擋」。
+
+### 10.5 🔴 cookie 作用域陷阱
+
+`stg.tcrfc.tw` 與（未來的）`www.tcrfc.tw` 同屬 `tcrfc.tw` 這個註冊網域。**cookie 若設定了
+`Domain=.tcrfc.tw`（前面帶點），瀏覽器會把它送到 `tcrfc.tw` 底下的任何子網域**——包含
+`stg.tcrfc.tw`、`admin.tcrfc.tw`、`api.tcrfc.tw`，全部共用同一顆 cookie。這代表：**暫用網址的登入
+session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊接的是完全不同的容器與（理論上）不同的簽章金鑰。
+
+**正確做法（擇一，第二個更保險）**：
+
+1. **完全不要設定 `Set-Cookie` 的 `Domain` 屬性。** 省略 `Domain` 時，瀏覽器預設是 **host-only**——
+   cookie 只送回設定它的那個確切主機名，`stg.tcrfc.tw` 設的 cookie 不會被送到 `admin.tcrfc.tw`
+   或 `www.tcrfc.tw`。這是最單純、也是本專案**唯一需要**的行為——沒有任何模組需要跨子網域共享登入狀態。
+
+2. **用 `__Host-` 前綴**（例如 `__Host-session`）——瀏覽器層級強制三件事：必須有 `Secure`、
+   必須 `Path=/`、**且不得含 `Domain` 屬性**（含了就整顆 cookie 直接被拒收，不是悄悄放寬）。
+   這比「記得別設 `Domain`」更保險，因為錯誤設定的後果從「悄悄跨網域生效」變成「cookie 直接失敗、
+   當場就看得出問題」，不會等到真的漏出去才發現。**建議後台（`admin-*`）一律採此前綴**——
+   後台的 session 一旦跨環境生效，後果比前台嚴重得多。
+
+⚠️ **這條在後台尤其危險，原因是時間軸**：`admin-stg.tcrfc.tw` 與 `admin.tcrfc.tw` 會**同時存在一段時間**
+（上線前到主站切換之間，後台不受 Wix 切換時程限制，很可能提前上線，見 §10.7）。如果 cookie 作用域設錯，
+**在暫用網址登入過的人，之後打開正式後台分頁會直接是登入狀態**——這不是理論風險，是這段共存期必然會發生的事。
+
+**深一層防禦（給 `backend-engineer` 建 `api` 專案時的提醒，不是本檔能寫的程式碼）**：
+即使 cookie 作用域設定不慎放寬，JWT／session 內容裡若綁定簽發時的 host（`aud` claim 或等效欄位），
+後端驗證時比對目前請求的 host 是否吻合，可以再擋一次。`docs/20-cicd.md` §7.2 已經把
+`JWT_SIGNING_KEY_CLUB` 定為只在 VM 本機的機密——**但這條本身不能假設上線前與正式期一定用不同的簽章金鑰**，
+若日後圖方便共用同一把 key，這層防禦就會失效。**建議上線前與正式期的 JWT 簽章金鑰使用不同值**
+（即使都存在同一份 `.env`，值本身也要不同），讓 cookie 作用域與簽章金鑰兩層防禦互相獨立，其中一層失守
+另一層還在。
+
+### 10.6 主站的切換程序：`www.tcrfc.tw` 現有 Wix 站
+
+> **這是寫給要執行切換的人看的步驟。** 前置確認沒做完，不要進入正式切換步驟。
+
+#### 前置確認（切換前至少一週完成）
+
+1. **查目前 `tcrfc.tw`／`www.tcrfc.tw` 的 DNS 現況**（🔴 目前未知，不可假設）：
+   ```bash
+   dig tcrfc.tw NS +short
+   dig www.tcrfc.tw CNAME +short
+   whois tcrfc.tw | grep -i "registrar\|name server"
+   ```
+   要確認兩件事：**(a) 網域註冊商是誰、登入帳號在誰手上**；**(b) Nameserver 現在是不是指向 Wix**——
+   若是，需要先把網域的 Nameserver 改指向 Cloudflare（DNS 代管），**這本身是一次有風險的變更**：
+   轉移期間會有 DNS 生效空窗（新舊 Nameserver 交接期間，不同使用者依 DNS 快取可能看到不同結果），
+   建議排在離峰時段，且與客戶提前約定時間窗口。
+
+2. **apex 與 `www` 的取捨（🔴 待使用者決定，不可由本檔代為決定）**：
+   目前 `.env.example` 的 `TCRFC_DOMAIN=tcrfc.tw` 是 apex（不帶 `www`）；但專案既有文件
+   （[`docs/14`](14-invariants.md) 多處）稱既有官網為「`www.tcrfc.tw`」，這是客戶既有品牌識別、
+   社群簡介、既有印刷品目前認知的版本。**建議擇一為 canonical**，另一個做永久 301：
+   - 選 `www.tcrfc.tw`：與既有品牌識別一致，不用更新其他外部素材；`.env.example` 的
+     `TCRFC_DOMAIN` 要改成 `www.tcrfc.tw`。
+   - 選 `tcrfc.tw`（apex）：現行 `.env.example` 的既有值，較現代的慣例，但要回頭盤點所有
+     已經在用 `www.tcrfc.tw` 的外部素材（名片、社群 bio、既有 Google 商家檔案等）一併更新。
+   **這個決定要在切換前定案**——它決定 §10.2 所有以 `NUXT_PUBLIC_SITE_URL` 為源頭的輸出
+   （sitemap、Schema、LINE Login callback、系統信連結……）填哪個值，事後更改等於再切換一次。
+
+3. **確認 C-4（既有內容遷移範圍拍板）與 C-5（128 筆 URL 的 301 對應表）已完成**——
+   沒有對應表，第 3 步的轉址無從實作。
+
+#### 切換步驟
+
+1. **正式 `.env` 就位**：`SITE_ENV=production`、**`CADDYFILE` 那一行註解掉**（回到預設的
+   `deploy/Caddyfile`，取消 Basic Auth）、六個網域依上面第 2 點的決定填正式值。
+   **先不接 DNS**，讓新站先用 `stg.tcrfc.tw` 之類的暫用網址完整驗證過一輪（內容、表單、
+   金流測試模式等），確認沒有明顯問題再進下一步。
+
+2. **先簽正式網域的 TLS 憑證**（[`deploy/README.md`](../deploy/README.md) 已有詳細步驟，摘要）：
+   該筆 DNS 記錄**先設成「僅 DNS」（灰雲，不代理）**直接指到 VM 的靜態 Public IP，
+   啟動 `proxy` 容器、等 Caddy 針對該網域成功簽出憑證，確認 Cloudflare SSL/TLS 模式為
+   **Full (strict)**，再把記錄改回「代理」（橘雲）。**這一步必須在把 DNS 從 Wix 切過來之前完成**——
+   否則使用者在 DNS 生效的那一刻會直接看到 TLS 錯誤（比502／503更糟，多數瀏覽器不給「忽略繼續」的選項）。
+
+3. **128 筆 301**：**建議走後台 `H` 模組的「301 轉址批次匯入」**（主站規劃書已有此功能，
+   `STATUS.md` `S1-12` 排在 Phase 1，屆時應已存在）——資料庫驅動、後台可持續維護、符合
+   規格「批次匯入」的語意。**不建議**另外在 Nuxt 的 `routeRules`（build 時期寫死，改一筆要
+   重新 build＋deploy，不符合「後台可持續維護」）或 Cloudflare Redirect Rules **常駐**一份
+   （會變成第二份要維護、兩處不同步就會踩坑的清單——[`docs/18`](18-work-errors.md) 已記錄過
+   類似的「兩處不同步」錯誤模式）。**例外**：若切換當下 `H` 模組還沒做完，可用 Cloudflare 的
+   redirect 機制**暫時頂著**（實際可用則數依當時的 Cloudflare 方案而定，執行前在 Cloudflare
+   後台核對，不要假設一個可能已經過時的數字），**待 `H` 模組上線後撤掉這份暫時的，改回資料庫
+   那份，不要兩份長期並存**。
+
+4. **DNS 切換本身**：把 `www.tcrfc.tw`／`tcrfc.tw`（依前置確認第 2 點的決定，其中一個為
+   canonical、另一個轉址過去）的記錄指到 VM 的靜態 Public IP，Cloudflare 代理（橘雲）開啟。
+   **切換前 24–48 小時把該筆記錄的 TTL 調低**（例如降到 300 秒）——這不影響切換本身，
+   但能把「回滾生效時間」從數小時壓縮到數分鐘。**保留舊 Wix DNS 設定的截圖或匯出**，回滾需要用。
+
+5. **切換後立即驗證**：
+   - 抽測 CSV 中 10–20 筆有代表性的舊網址（商品頁、新聞頁、分類頁），逐一確認 301 生效且
+     目的地正確；
+   - 確認首頁、canonical、sitemap 指向的是決定後的 canonical 網址（不是另一個）；
+   - `X-Robots-Tag`／`robots.txt` 已經是**正式版**（`NUXT_PUBLIC_SITE_ENV=production`，不是
+     `prelaunch` 的全擋）；
+   - **Basic Auth 已解除**（`CADDYFILE` 已註解掉）——沒帶帳密也能正常瀏覽，否則正式網域
+     一上線就是 401；
+   - `<head>` 的 `noindex` meta **已經移除**（全域規定第 5 條：noindex 在正式上線前不移除，
+     這一步就是移除的時間點——**不要提前移除，也不要忘記移除**）。
+
+6. **觀察窗口（建議 48–72 小時）**：盯 Cloudflare 的 4xx／5xx 錯誤率、`api`／`nuxt-*` 的健康檢查、
+   Google Search Console 是否回報新的爬取錯誤。
+
+#### 回滾程序
+
+若切換後發現嚴重問題（大量 404、金流頁面出錯、後台不可用），**回滾＝把 DNS 記錄改回步驟 4 保留的
+原始值（指回 Wix）**。生效時間取決於 DNS TTL——這正是切換步驟第 4 步要求**提前 24–48 小時調低 TTL** 的原因，
+把回滾生效時間從「數小時到一天」壓縮到「數分鐘」。⚠️ **回滾只解決「網址回到舊站」**，不解決切換窗口內
+已經在新站發生的事（新的訂單、新的會員報名）——那些資料留在新系統裡，回滾後舊站看不到，是後續要另外
+處理的營運問題，不是本節能解決的。
+
+#### ⚠️ 舊站還在賣東西：只點風險，不解決（營運決定）
+
+- 切換當下若 Wix 商店仍有進行中的未出貨訂單，**DNS 切走後客服／出貨團隊還能不能登入 Wix 後台處理**？
+  （Wix 帳號與網域是否綁定、之後是否續租網域會影響後台存取，需向 Wix 或代管方確認。）
+- Wix 綁定的既有金流（若有）在切換窗口內的交易對帳與撥款，要確認去哪裡查——Wix 後台在網域切走後
+  可能仍可存取一段時間，但**建議切換前先把進行中的訂單處理完或至少列出清單**，降低交接複雜度。
+- 建議：切換前一週公告「即將停止透過官網下單，請盡速完成現有訂單」，並在切換當天前確認 Wix 商店
+  沒有進行中的未結訂單。
+
+### 10.7 各平台網址時程表
+
+| 平台 | 現在用什麼網址 | 正式網址必須到位的時點 | 被什麼擋住 | 晚了卡到誰 |
+|---|---|---|---|---|
+| 主站前台 | `stg.tcrfc.tw`（S1 起可用） | `S3-7`（舊 Wix 商店退場）之前，且須晚於 `C-4`／`C-5`（內容遷移範圍與 301 對應表）完成 | Wix 現況 DNS 確認、apex／`www` 決定、`C-4`／`C-5` | `S3-6`／`S3-7`（商店上線與舊站退場）；App 的主站深連結（`.well-known` 須部署在最終網域） |
+| 藍鯨官網前台 | `bw-stg.tcrfc.tw`（`S1-2` 起可用） | **建議在 `BW-0` 之後即切**，不要拖到 App 上架才切 | **`B-4`**（藍鯨網域持有與 DNS 控制權） | `AP-2`（藍鯨 Universal Link）——未解則深連結退回自訂 scheme＋網頁回退，不阻塞 App 上架，但使用者體驗打折 |
+| 慈善平台前台 | `charity-stg.tcrfc.tw`（`CH-1` 後可用，**僅供開發測試，不得印上任何對外物料**） | **第一批 QR Code 印製前**（不可逆類第②項） | **`B-7`**（網域／協會品牌資產／法人登記與統編／勸募資格） | `CH-2` 以後全部——即使系統做完，沒有最終網域就不能印 QR、不能真的上線收款 |
+| 官網共用後台 | `admin-stg.tcrfc.tw` | **不受主站 Wix 切換時程限制**，`admin.tcrfc.tw` 是全新子網域、與 Wix 無關，**可提前定案並切換**，不需要等 `S3-7` | 無（不擋在既有阻塞清單上） | 提前切對其他平台沒有負面影響，只需確保切之前後台的兩層防護（Cloudflare Access）在上線前就已經是常態，不是切換那天才裝上 |
+| 慈善獨立後台 | `admin-charity-stg.tcrfc.tw` | 依慈善網域決定 | `B-7` | 同慈善前台 |
+| App | `stg`／`bw-stg` 供開發期測試 | **App 送審前**——主站（Team ID 已有）與（若含藍鯨深連結）藍鯨都必須是最終網域（不可逆類第①項） | 主站：同上主站列；藍鯨：`B-4` | `AP-9`／`AP-6`。⚠️ **`STATUS.md` 現有的 `AP-9` 只寫「填入 Team ID 與 package name 產出關聯檔」，沒有明文「必須是最終網域而非 `stg`」——本節找出的這個缺口已同步補進 `STATUS.md`（見 §10.8）** |
+
+### 10.8 本節新增／修改的設定檔
+
+| 檔案 | 異動 |
+|---|---|
+| [`docs/17-deployment.md`](17-deployment.md) | 新增本節（§10）；§9 驗證程序補三項（#13–15）。**2026-09-21 修訂**：撤銷 `docker-compose.staging.yml`，改為單一 compose ＋ `.env` 的 `CADDYFILE` 切換；`SITE_ENV` 的值由 `staging` 改為 `prelaunch` |
+| [`docs/14-invariants.md`](14-invariants.md) | 新增 cookie 作用域、三類不可逆網域切換兩則不變量 |
+| [`docs/20-cicd.md`](20-cicd.md) §1 | 加一段釐清文字：區分「不建持久 CI staging 環境」與本節「上線前的暫用網址」 |
+| [`STATUS.md`](../STATUS.md) | `AP-9` 補「必須是最終網域」的條件；`B-4`／`B-7` 加一行指向本節；新增待確認事項（apex／`www`、Wix DNS 現況、上線前累積的資料是否清空） |
+| [`.env.example`](../.env.example) | 新增 `SITE_ENV`（值為 `prelaunch`／`production`）；新增暫用網域區塊與正式網域註解；新增 `CADDYFILE`、`PRELAUNCH_BASIC_AUTH_USER`／`PRELAUNCH_BASIC_AUTH_HASH` |
+| [`docker-compose.yml`](../docker-compose.yml) | `nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity` 新增 `NUXT_PUBLIC_SITE_ENV`；`api` 新增六個網域變數與 `CORS_ALLOWED_ORIGINS`（過去完全沒有，是本次盤點抓到的缺口）；`proxy` 的 Caddyfile 掛載改為 `${CADDYFILE:-./deploy/Caddyfile}`，並帶入兩個可為空的 Basic Auth 變數 |
+| ~~`docker-compose.staging.yml`~~ | 🔴 **2026-09-21 撤銷、檔案已刪除**。理由：本專案只有本機開發與正式 VM 兩套環境，多一個名為 staging 的 compose 檔會讓人以為有第三套，與 [`20-cicd.md`](20-cicd.md) §1 直接牴觸。功能改由 `.env` 的 `CADDYFILE` 達成 |
+| [`deploy/Caddyfile`](../deploy/Caddyfile) | 兩個後台網址**永久**加 `X-Robots-Tag: noindex, nofollow, noarchive`（不分測試或正式，後台本來就不該被索引） |
+| `deploy/Caddyfile.prelaunch`（新檔，原名 `Caddyfile.staging`） | 三個公開前台加 HTTP Basic Auth（§10.4 第 3 層）。由 `.env` 的 `CADDYFILE` 指定掛載，**不需要 override 檔** |
+| [`deploy/README.md`](../deploy/README.md) | 新增「正式網址到位前怎麼起」一節（原名「測試環境怎麼起」，2026-09-21 改名並改寫，強調只有兩套環境） |
+
+### 10.9 待決事項（🔴 不可由本檔代為決定）
+
+| # | 事項 | 為什麼不能由部署層決定 |
+|---|---|---|
+| 1 | **apex（`tcrfc.tw`）還是 `www.tcrfc.tw`為 canonical** | 牽涉既有品牌識別與外部素材更新成本，是行銷／品牌決定，不是技術決定 |
+| 2 | **上線前累積的資料，正式上線時是否清空重置** | 暫用網址背後就是正式資料庫（只有兩套環境的必然結果）。若這個階段就對客戶／真實使用者開放互動（試填表單、試辦會員），這些資料要不要保留、要不要當成正式資料的一部分，是業務決定；若保留，當時的個資蒐集告知與同意是否足夠，還要再確認一次法遵 |
+| 3 | **Wix 目前的 DNS 是否已代管於 Cloudflare** | 純屬未知事實，需要有網域註冊商登入權限的人去查，不是能從現有文件推導的 |
+
+
