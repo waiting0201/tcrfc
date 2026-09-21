@@ -1,0 +1,163 @@
+import type { NavGroup, NavChild, NavModule } from '@/types/nav'
+
+/**
+ * 側欄導覽資料（docs/21-admin-ui.md §1）：14 個一級模組、6 組視覺分組。
+ * 有子模組的模組渲染成 el-sub-menu（手風琴 unique-opened）；沒有子模組的（A／H／I）是葉節點。
+ * `implemented: false` 的項目點進去會看到 PlaceholderView（「這個模組還沒做」），不是死連結。
+ */
+export const NAV_GROUPS: NavGroup[] = [
+  {
+    groupLabel: '總覽',
+    modules: [{ code: 'A', label: '儀表板', path: '/dashboard', implemented: true }],
+  },
+  {
+    groupLabel: '內容與網站',
+    modules: [
+      {
+        code: 'B',
+        label: '內容管理',
+        children: [
+          { code: 'B1', label: '頁面管理', path: '/content/pages', implemented: false },
+          { code: 'B2', label: '新聞與故事', path: '/content/news', implemented: true },
+          { code: 'B3', label: '首頁編排', path: '/content/homepage', implemented: false },
+          { code: 'B4', label: '常見問題', path: '/content/faq', implemented: false },
+          { code: 'B5', label: '慈善與社會影響', path: '/content/charity', implemented: false },
+          { code: 'B6', label: '媒體專區', path: '/content/media', implemented: false },
+        ],
+      },
+      { code: 'H', label: '搜尋與 AI 能見度', path: '/seo', implemented: false },
+      { code: 'I', label: '網站設定', path: '/settings/site', implemented: false },
+      {
+        code: 'L',
+        label: '行事曆管理',
+        children: [
+          { code: 'L1', label: '總覽', path: '/calendar/overview', implemented: false },
+          { code: 'L2', label: '自建事件', path: '/calendar/events', implemented: false },
+          { code: 'L3', label: '分類設定', path: '/calendar/categories', implemented: false },
+          { code: 'L4', label: '訂閱與匯出', path: '/calendar/subscriptions', implemented: false },
+        ],
+      },
+    ],
+  },
+  {
+    groupLabel: '球隊與活動',
+    modules: [
+      {
+        code: 'C',
+        label: '球隊管理',
+        children: [
+          { code: 'C1', label: '球隊', path: '/teams/clubs', implemented: false },
+          { code: 'C2', label: '球員', path: '/teams/players', implemented: false },
+          { code: 'C3', label: '教練與團隊成員', path: '/teams/staff', implemented: false },
+          { code: 'C4', label: '賽程與賽果', path: '/teams/matches', implemented: false },
+          { code: 'C5', label: '榮譽與里程碑', path: '/teams/honours', implemented: false },
+        ],
+      },
+      {
+        code: 'P',
+        label: '課程與活動',
+        children: [
+          { code: 'P1', label: '項目', path: '/programs/items', implemented: false },
+          { code: 'P2', label: '梯次', path: '/programs/sessions', implemented: false },
+          { code: 'P3', label: '報名', path: '/programs/enrollments', implemented: false },
+          { code: 'P4', label: '試訓場次', path: '/programs/trials', implemented: false },
+        ],
+      },
+    ],
+  },
+  {
+    groupLabel: '會員與商店',
+    modules: [
+      {
+        code: 'K',
+        label: '會員管理',
+        children: [
+          { code: 'K1', label: '名單', path: '/members/list', implemented: false },
+          { code: 'K2', label: '會籍與方案', path: '/members/plans', implemented: false },
+          { code: 'K3', label: '球衣發放', path: '/members/jerseys', implemented: false },
+          { code: 'K4', label: '特約店家與權益', path: '/members/partner-stores', implemented: false },
+          { code: 'K5', label: '抽獎名單管理', path: '/members/lottery', implemented: false },
+        ],
+      },
+      {
+        code: 'S',
+        label: '商店',
+        children: [
+          { code: 'S1', label: '商品與規格', path: '/shop/products', implemented: false },
+          { code: 'S2', label: '庫存', path: '/shop/inventory', implemented: false },
+          { code: 'S3', label: '訂單', path: '/shop/orders', implemented: false },
+          { code: 'S4', label: '出貨與物流', path: '/shop/shipping', implemented: false },
+          { code: 'S5', label: '退貨與退款', path: '/shop/returns', implemented: false },
+          { code: 'S6', label: '設定與報表', path: '/shop/settings', implemented: false },
+        ],
+      },
+    ],
+  },
+  {
+    groupLabel: '商業與社群',
+    modules: [
+      {
+        code: 'E',
+        label: '商業模組',
+        children: [
+          { code: 'E1', label: '夥伴', path: '/business/partners', implemented: false },
+          { code: 'E2', label: '贊助', path: '/business/sponsorships', implemented: false },
+          { code: 'E3', label: '提案下載', path: '/business/proposals', implemented: false },
+          { code: 'E4', label: '廣告主與版位', path: '/business/advertisers', implemented: false },
+          { code: 'E5', label: '投放檔期', path: '/business/campaigns', implemented: false },
+          { code: 'E6', label: '成效報表', path: '/business/ad-reports', implemented: false },
+        ],
+      },
+      {
+        code: 'F',
+        label: '文化模組',
+        children: [
+          { code: 'F1', label: '漫畫', path: '/culture/manga', implemented: false },
+          { code: 'F2', label: '球迷會活動', path: '/culture/fan-events', implemented: false },
+        ],
+      },
+      {
+        code: 'G',
+        label: '表單與詢問',
+        children: [
+          { code: 'G1', label: '設計器', path: '/inquiries/builder', implemented: false },
+          { code: 'G2', label: '收件匣', path: '/inquiries/inbox', implemented: false },
+          { code: 'G3', label: '電子報', path: '/inquiries/newsletter', implemented: false },
+        ],
+      },
+    ],
+  },
+  {
+    groupLabel: 'App 與系統',
+    modules: [
+      {
+        code: 'M',
+        label: '行動 App',
+        children: [
+          { code: 'M1', label: '版本發布', path: '/app/releases', implemented: false },
+          { code: 'M2', label: '內容編排', path: '/app/content', implemented: false },
+          { code: 'M3', label: '推播', path: '/app/push', implemented: false },
+          { code: 'M4', label: '推播裝置', path: '/app/devices', implemented: false },
+          { code: 'M5', label: 'App 設定與連線檢查', path: '/app/settings', implemented: false },
+        ],
+      },
+      {
+        code: 'J',
+        label: '系統管理',
+        children: [
+          { code: 'J1', label: '帳號', path: '/system/accounts', implemented: false },
+          { code: 'J2', label: '角色與權限', path: '/system/roles', implemented: false },
+          { code: 'J3', label: '稽核與備份', path: '/system/audit', implemented: false },
+          { code: 'J4', label: '俱樂部與授權管理', path: '/system/clubs', implemented: false },
+        ],
+      },
+    ],
+  },
+]
+
+/** 攤平所有子模組（路由設定用），沒有子模組的模組視同自己是一筆「子模組」 */
+export const ALL_NAV_ITEMS: NavChild[] = NAV_GROUPS.flatMap((group) =>
+  group.modules.flatMap((mod: NavModule) =>
+    mod.children ?? [{ code: mod.code, label: mod.label, path: mod.path!, implemented: mod.implemented ?? false }],
+  ),
+)

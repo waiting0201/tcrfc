@@ -1,0 +1,58 @@
+/**
+ * 後台操作型 design tokens（docs/21-admin-ui.md §7）。
+ * 用 Element Plus 官方 CSS variable 覆寫，刻意不接 tcrfc.css 的 --brand（品牌桃紅／藍鯨藍）。
+ * 理由：品牌色對白底小字對比度不足（磐石 4.42:1、藍鯨 3.29:1），後台是天天使用的操作介面，
+ * 需要的是穩定可預期的操作色而不是行銷識別。詳見 docs/21 §7。
+ */
+:root {
+  /* 主色沿用 Element Plus 預設中性藍，2026-09-21 使用者拍板（docs/21 §11） */
+  --el-color-primary: #409eff;
+
+  /* 危險／警告／成功維持 Element Plus 預設，不因品牌一致性更動 */
+
+  /* 中文字體延續 tcrfc.css 的堆疊，但不沿用前台的行銷字體 Montserrat 與 clamp() 流體字級 */
+  --admin-font-family: 'Noto Sans TC', -apple-system, 'PingFang TC', sans-serif;
+
+  /* 已停用狀態的自訂樣式（docs/21 §4）：比 Element Plus 預設 danger 淺一階，
+     避免跟「操作型」危險按鈕搶視覺權重 */
+  --admin-status-disabled-bg: #fef0f0;
+  --admin-status-disabled-text: #c45656;
+
+  /* 側欄寬度（docs/21 §1，240px 是實測值，最長模組名稱「搜尋與 AI 能見度」不會被截斷） */
+  --admin-sidebar-width-expanded: 240px;
+  --admin-sidebar-width-collapsed: 64px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  font-family: var(--admin-font-family);
+}
+
+body {
+  background: #f5f7fa;
+}
+
+/* 主要按鈕縮小圓角，向前台「硬邊直角」語彙致意，但不整套覆寫 Element Plus 圓角（docs/21 §7） */
+.el-button--primary {
+  border-radius: 2px;
+}
+
+.admin-status-tag--disabled {
+  background-color: var(--admin-status-disabled-bg) !important;
+  color: var(--admin-status-disabled-text) !important;
+  border-color: var(--admin-status-disabled-bg) !important;
+}
+
+/* 手機寬度下的通用調整（docs/21 §8） */
+@media (max-width: 767px) {
+  .admin-hide-on-mobile {
+    display: none !important;
+  }
+}

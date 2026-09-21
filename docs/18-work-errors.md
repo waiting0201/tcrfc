@@ -68,6 +68,8 @@
 | E-24 | 2026-09-21 | `:style="undefined"` 在 Vue SSR 仍印出 `style=""`（空字串，不是省略屬性），與一般屬性的省略行為不同 | ⚠️ 無 |
 | E-25 | 2026-09-21 | 補 `match_no` 錨點 id 時，把 `haCode()`（給 `data-ha` 用的完整單字 `home`／`away`）誤套進 `fixtureId()`，id 變成 `fx-2026-09-13-away-3` 而不是 mockup 的 `fx-2026-09-13-a-3` | ✅ `compare-dom.mjs` 一定會抓到（`id` 屬性差異不在六類必然差異內），本次已用 curl 逐一核對 21 個 id 自行抓到並修正 |
 | **E-26** | 2026-09-21 | 🔴 **差一步就把 158 張未成年學員照片推上公開 repo**。`.gitignore` 只寫了 `site/src/assets/img/`；S0-9 搬遷把同一批照片 rsync 到 `apps/web/public/assets/img/`（59MB），**新路徑沒有任何忽略規則**，提交前才發現 | ✅ `.gitignore` 已補上新路徑並加註「檔案換位置時規則不會自己跟過去」 |
+| E-27 | 2026-09-21 | `.gitignore` 的 `apps/*/bin/`／`apps/*/obj/` 用單層萬用字元 `*`，S0-7d 新增的同目錄子專案 `apps/api/Tcrfc.Api.Tests/bin`／`obj` 多了一層，規則擋不到，`git add` 會把整個建置產物（含第三方 DLL）一起納入待提交清單，提交前用 `git add -n` 核對才發現 | ✅ 已改用 `apps/**/bin/`／`apps/**/obj/`（任意深度） |
+| E-28 | 2026-09-21 | `STATUS.md` 寫「後台 15 個模組字母」，實際數規劃書 §4.0 的模組樹只有 **14** 個（`A B C P E F G H I J K L M S`）；多出來的一個疑似把獨立後台的慈善 `N` 算了進去，但規劃書明文它不在本後台之列 | ⚠️ 無 |
 
 ---
 
@@ -526,6 +528,110 @@
   寫的是舊路徑，檔案換位置時規則不會自己跟過去」，讓下一個讀到的人知道這裡有過一次事故。
   ⚠️ **仍無自動化**——沒有東西會在「新增大量圖檔」時主動示警。**這是目前最值得寫成 pre-commit
   掛鉤的一條**：掃描待提交檔案裡有沒有 `*.jpg`／`*.png` 落在 `assets/img` 這類路徑下。
+
+---
+
+### E-27 `.gitignore` 的 bin／obj 忽略規則是單層萬用字元，同目錄子專案的建置產物擋不到（2026-09-21，S0-7d）
+
+- **錯在哪**：`.gitignore` 原本寫 `apps/*/bin/`／`apps/*/obj/`——`*` 在 gitignore 語法裡不跨越 `/`，
+  只能匹配 `apps/<一層>/bin/`（例如 `apps/api/bin/`）。S0-7d 在 `apps/api/` 底下新增了**同目錄的
+  獨立子專案** `apps/api/Tcrfc.Api.Tests/`（沒有 `.sln` 把兩者的建置範圍切開，見本檔案 E-19 之後
+  同一個 session 的另一個坑），它的建置產物落在 `apps/api/Tcrfc.Api.Tests/bin/`，多了一層路徑，
+  舊規則完全擋不到。`git status` 一度把整包 xunit／`Microsoft.Data.SqlClient` 等第三方 DLL
+  （478 個檔案）列為待加入，提交前用 `git add -n apps/api/Tcrfc.Api.Tests/` 核對才發現。
+- **為什麼會錯**：寫 `.gitignore` 規則時心裡想的是「`apps/` 底下每個應用程式一層」這個當時成立的
+  目錄結構假設，沒有把「新專案可能巢狀在既有應用程式目錄底下」這個之後才出現的情況算進去——
+  跟 E-26 是同一個根因家族：**規則綁定在特定的目錄深度假設上，結構一變，規則就悄悄失效**，
+  而且沒有任何東西會出聲提醒。
+- **下次怎麼避免**：`.gitignore` 裡涉及建置產物（`bin/`／`obj/`／`dist/`／`.nuxt/` 這類）的規則，
+  預設一律用 `**`（任意深度）而不是 `*`（單一層），除非有明確理由需要限制層數。新增任何巢狀專案
+  （測試專案、子模組）之後，跑一次 `git add -n <新專案目錄>` 確認沒有 `bin/`／`obj/` 被列進去。
+- **防呆**：✅ 已改用 `apps/**/bin/`／`apps/**/obj/`，並用 `git check-ignore -v` 對兩層深度
+  （`apps/api/bin/...`、`apps/api/Tcrfc.Api.Tests/bin/...`）都驗證過涵蓋。⚠️ 仍無自動化——
+  跟 E-26 一樣，這類「規則涵蓋範圍隨結構改變而失效」的錯，目前都靠人手動跑 `git add -n` 核對，
+  沒有 pre-commit 掛鉤主動示警。
+
+---
+
+### E-28 後台模組數量寫成 15，實際是 14——把獨立後台的慈善模組算了進來（2026-09-21，後台介面版面決策）
+
+- **錯在哪**：[`STATUS.md`](../STATUS.md)「要做的是這五個」表格寫「共用後台 Admin：一個入口＋站台切換器，
+  **15 個模組字母**」。實際數規劃書 §4.0 與 [`03-admin-spec.md`](03-admin-spec.md) §1 的模組樹，
+  一級模組是 `A B C P E F G H I J K L M S` 共 **14 個**。多出來的那一個最可能是慈善捐款平台的 `N`
+  ——但規劃書 §4.0 明文「**慈善捐款平台是獨立後台與獨立資料庫，不在本後台的模組之列**」，
+  而 `STATUS.md` 同一張表裡慈善捐款平台本來就另外列為第 4 個平台，等於同一個模組被算了兩次。
+  由 `visual-design-architect` 在做後台版面決策、實際逐一點名模組時發現。
+- **為什麼會錯**：模組字母的數量是**人工維護的彙總數字**，而它的來源（模組樹）改過好幾次——
+  `D1–D4` 改編為 `P1–P4`、`N` 移出成獨立後台、`S` 商店在 v2.6 新增。
+  **每次改的是樹，沒有人回頭重數那個數字**，而數字寫在另一份檔案裡，不會因為樹改了就出錯或報警。
+  跟 [E-03](#e-03) 是同一個根因家族：**衍生數字與它的來源分處兩份檔案，來源變動時衍生值悄悄過期**。
+- **下次怎麼避免**：文件裡要寫「共 N 個」這種彙總數字時，**在同一句話裡把 N 個是哪些一併列出**
+  （本次已改成「14 個模組字母（`A B C P E F G H I J K L M S`；慈善的 `N` 是獨立後台不算在內）」）。
+  列出來之後，數字與清單對不上是**肉眼就看得到的矛盾**，不需要跨檔案核對才發現。
+- **防呆**：⚠️ 無自動化。已把清單與數字寫在一起降低再犯機率，但沒有任何腳本會在模組樹變動時
+  重新核對這個數字。
+
+---
+
+### E-29 `nginx-spa.conf` 的 `X-Robots-Tag` 只寫在 server 層級，被每個 location 自己的 add_header 蓋掉，`noindex` 沒有真的送出（2026-09-21，S0-12 後台外殼）
+
+- **錯在哪**：`apps/admin/nginx-spa.conf`（S0-7a 階段建立的骨架檔案）把
+  `add_header X-Robots-Tag "noindex, nofollow" always;` 放在 `server {}` 區塊最外層，
+  但 `location ~* \.(js|css|...)$` 與 `location /` 兩個實際會回應內容的 location 各自都有自己的
+  `add_header Cache-Control ...`。nginx 的 `add_header` 繼承規則是「子層級只要宣告了任何一個
+  `add_header`，就完全不繼承上層的整組 `add_header`」，不是逐條疊加。本次用 `docker build` 建出映像檔、
+  `docker run` 起容器、`curl -I` 實測首頁與一個真實的 `/assets/*.js`，**兩者的回應都沒有
+  `X-Robots-Tag`**，等於 CLAUDE.md 全域規定第 5 條「`noindex` 不要拿掉」在這個容器裡從建置完成的
+  第一天就沒有生效，一直沒被發現是因為先前的階段只做到「這個 Dockerfile 待 `apps/admin` 建立後才能
+  build」，沒有人實際 `docker run` 過去 `curl -I` 驗證過標頭。
+- **為什麼會錯**：寫這份 nginx 設定時，心裡的模型是「`add_header` 像 CSS 一樣會逐層疊加」，
+  但 nginx 官方文件明講的行為是「同層級沒有自己的 `add_header` 才會繼承上層，一旦自己宣告了，
+  上層整組作廢」，跟直覺不符，而且**這種不生效不會有任何錯誤或警告**——伺服器照常回 200，
+  頁面內容完全正常，只有標頭悄悄不見，光看畫面或看 `curl` 的 body 完全看不出來，一定要專門
+  `curl -I` 看標頭或用瀏覽器開發者工具的 Network 分頁核對才抓得到。
+- **下次怎麼避免**：任何 nginx 設定只要在 server 層級與 location 層級都用了 `add_header`，
+  就把 server 層級那個假設當作「不會生效」，直接把需要的標頭複製到每一個有自己 `add_header` 的
+  location 裡；寫完新的 nginx 設定，**建置映像檔、實際 `docker run` 起來、對每一種會回應內容的路徑各
+  跑一次 `curl -I` 核對關鍵標頭**（這裡是 `X-Robots-Tag`；其他專案可能是 CSP、CORS 等），
+  不能只驗證 `docker build` 成功或頁面內容正確就視為過關。
+- **防呆**：✅ 已修正——`X-Robots-Tag` 複製進兩個 location 各自的 `add_header` 清單，並用
+  `docker build` + `docker run` + `curl -I` 對首頁與一個真實的 hash 檔名 JS 資源都驗證過標頭存在。
+  ⚠️ 仍無自動化：這個修正只覆蓋了現在的兩個 location，之後如果再新增 location（例如給某個路徑另開
+  快取規則），一樣要記得複製 `X-Robots-Tag` 進去，沒有 CI 檢查會主動提醒。
+
+---
+
+### E-30 `structuredClone()` 直接對 Vue `reactive()`／`ref()` 包出來的 Proxy 呼叫會丟 `DataCloneError`（2026-09-21，S0-12 新聞編輯頁）
+
+- **錯在哪**：`NewsEditView.vue` 一開始寫
+  `const baseline = ref<NewsArticle>(structuredClone(existing ?? createEmptyArticle()))`，
+  `existing` 是從共用的 `newsStore`（一個 `reactive()` 陣列）裡 `find` 出來的項目——Vue 對
+  `reactive()` 物件的陣列做屬性存取時，回傳的元素本身就是被包過的 reactive Proxy。瀏覽器原生
+  `structuredClone()` 無法複製 Proxy，執行到這行直接在瀏覽器主控台丟出
+  `DataCloneError: Failed to execute 'structuredClone' on 'Window'`，導致整個 `setup()`
+  中斷、頁面渲染不出任何內容（表現為「新增文章」頁一片空白、`h1` 都抓不到），但 `npm run build`／
+  `vue-tsc` 型別檢查與 ESLint **完全不會發現這個問題**——這是純執行期的瀏覽器 API 行為，只有
+  實際在瀏覽器（或無頭瀏覽器）打開頁面才會踩到。是用 CDP 起無頭 Chrome、監聽
+  `Runtime.consoleAPICalled`／`Runtime.exceptionThrown` 事件才抓到的，單純看 `curl` 或截圖
+  （頁面回 200、DOM 存在但是空的）不會直接顯示原因。
+- **為什麼會錯**：寫的時候把 `structuredClone` 當成「深拷貝任何 JS 物件」的萬用工具，忽略了
+  Vue 3 的 `reactive()`／把物件放進 `ref()` 都會回傳 Proxy 包裝過的值，而 Proxy 不在
+  `structuredClone` 支援的可複製型別清單內（一般物件、陣列、Map、Date 等可以，Proxy exotic
+  object 不行）。这是「兩個各自成立的假設疊在一起才會爆」的典型：單獨看 `structuredClone` 沒問題、
+  單獨看 Vue reactivity 也沒問題，但「拿 reactive 來源的資料去 structuredClone」這個組合會爆，
+  而且爆的時間點是執行期，型別系統看不出來（`NewsArticle` 型別本身沒有變，TypeScript 不知道
+  一個值在執行期被 Proxy 包過）。
+- **下次怎麼避免**：任何時候要 `structuredClone()` 一個「可能來自 Vue `reactive()`／`ref()`
+  來源」的值之前，先用 `toRaw()`（`import { toRaw } from 'vue'`）拿回原始物件；`ref(obj)`
+  本身也會把 `obj` 深層轉成 reactive，所以拿來存「快照、之後要拿去跟目前狀態比對」用途的 ref，
+  改用 `shallowRef()`——它只追蹤 `.value` 的重新賦值，不會把賦進去的物件本身也變成 Proxy。
+  這份 mockup 沒有後端、資料完全在前端記憶體流轉（`newsStore`），這個模式之後其他模組的編輯頁
+  只要也是「從共用 store 讀一筆、複製一份到表單本地狀態」就會重複踩到，寫其他模組編輯頁時要
+  记得比照這個修法。
+- **防呆**：✅ 已修正（`toRaw()` + `shallowRef`），並用無頭瀏覽器監聽 console 錯誤事件重新驗證
+  過新增與編輯兩種模式都不再拋出例外、頁面正常渲染。⚠️ 無自動化：目前沒有測試框架（如 Vitest +
+  Testing Library）跑過這個元件的掛載測試，之後若要補測試，「掛載 `NewsEditView` 並斷言沒有
+  `console.error`」會是最低成本能攔住這整類錯誤的一條測試。
 
 ---
 
