@@ -1,0 +1,251 @@
+<script setup lang="ts">
+// app/pages/zh/member/index.vue — 由 site/src/pages/zh/member/index.html 轉來
+// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+// ⛔ 原頁 <script> 改寫為 script setup 的 onMounted，行為與原生 IIFE 等價：
+// 用 document.getElementById／querySelectorAll 依既有 id／class 綁定，未改用 template ref，
+// 因為原邏輯本來就是「進站時依 URL hash 決定初始分頁、點擊或方向鍵切換分頁」，跟版型無關，
+// 用 querySelector 綁定風險最低、與原始行為逐字對應。
+// 🔴 權益對照表原本用 {{>membership-benefits}} include（site/src/partials/membership-benefits.html），
+// 該片段被本頁與 zh/culture/fan-club/ 兩頁共用，已做成元件 app/components/content/MembershipBenefits.vue，
+// 不複製兩份。⚠️ Nuxt 元件自動匯入依目錄路徑加前綴，放在 components/content/ 底下的元件標籤是
+// <ContentMembershipBenefits />，不是 <MembershipBenefits />——用錯標籤名不會報錯，只會悄悄變成
+// 「解析不到元件、什麼都不 render」，compare-dom 比對時才會抓到這整塊消失（已修正，記入回報）。
+definePageMeta({ nav: '', unit: '14' })
+
+useSeoMeta({
+  title: '會員中心 Member｜台中磐石足球俱樂部',
+  description:
+    '台中磐石足球俱樂部會員中心：登入與加入會員。會員享特約店家折扣，付費球迷會員另可獲得球衣。',
+})
+
+onMounted(() => {
+  const tabs = Array.from(document.querySelectorAll<HTMLElement>('#tab-login,#tab-register'))
+
+  function select(tab: HTMLElement) {
+    tabs.forEach((t) => {
+      const selected = t === tab
+      t.setAttribute('aria-selected', selected ? 'true' : 'false')
+      t.tabIndex = selected ? 0 : -1
+      const panel = document.getElementById(t.getAttribute('aria-controls') ?? '')
+      if (panel) panel.hidden = !selected
+    })
+    tab.focus()
+  }
+
+  // header 的「註冊」連到 /zh/member/#tab-register，進站時直接切到加入會員分頁
+  if (location.hash === '#tab-register') {
+    const initial = document.getElementById('tab-register')
+    if (initial) select(initial)
+  }
+
+  tabs.forEach((tab, i) => {
+    tab.addEventListener('click', () => select(tab))
+    tab.addEventListener('keydown', (e: KeyboardEvent) => {
+      let idx = i
+      if (e.key === 'ArrowRight') idx = (i + 1) % tabs.length
+      else if (e.key === 'ArrowLeft') idx = (i - 1 + tabs.length) % tabs.length
+      else return
+      e.preventDefault()
+      select(tabs[idx]!)
+    })
+  })
+})
+</script>
+
+<template>
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="/zh/">首頁</a></li>
+      <li aria-current="page">會員中心</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">14</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">Member Centre</p>
+    <h1>會員中心<span class="en">Member</span></h1>
+    <p class="page-hero__lede">加入台中磐石會員，到特約店家出示會員卡即享折扣；升級付費球迷會員，另可獲得球衣。</p>
+  </div>
+</section>
+
+<section class="band member-band" aria-labelledby="member-title">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="member-title">會員登入與加入會員</h2>
+
+    <div class="member-tabs" data-member-tabs>
+      <div class="member-tabs__list" role="tablist" aria-label="登入或加入會員">
+        <button type="button" role="tab" id="tab-login" aria-controls="panel-login" aria-selected="true" class="member-tabs__tab">會員登入</button>
+        <button type="button" role="tab" id="tab-register" aria-controls="panel-register" aria-selected="false" class="member-tabs__tab" tabindex="-1">加入會員</button>
+      </div>
+
+      <div class="member-tabs__panel" id="panel-login" role="tabpanel" aria-labelledby="tab-login" tabindex="0">
+        <div class="form-layout form-layout--narrow">
+          <form class="tcrfc-form" action="" method="post" novalidate>
+            <fieldset>
+              <legend>會員登入</legend>
+              <div class="form-grid" style="grid-template-columns:1fr;">
+                <div class="form-field">
+                  <label for="m-login-email">Email<span class="req" aria-hidden="true">*</span></label>
+                  <input type="email" id="m-login-email" name="email" required autocomplete="email">
+                </div>
+                <div class="form-field">
+                  <label for="m-login-password">密碼<span class="req" aria-hidden="true">*</span></label>
+                  <input type="password" id="m-login-password" name="password" required autocomplete="current-password">
+                </div>
+              </div>
+            </fieldset>
+            <button class="btn btn--primary btn--block" type="submit">登入</button>
+            <p class="member-alt-login">
+              <button type="button" class="btn btn--dark btn--block" disabled aria-disabled="true">以 LINE 登入（開發中）</button>
+            </p>
+            <p class="member-forgot"><a href="#">忘記密碼？</a></p>
+          </form>
+        </div>
+      </div>
+
+      <div class="member-tabs__panel" id="panel-register" role="tabpanel" aria-labelledby="tab-register" tabindex="0" hidden>
+
+        <!-- 權益先於表單：規劃書 3.14 要求加入頁必須讓人先看到「能得到什麼」，且未登入即可檢視 -->
+        <ContentMembershipBenefits />
+
+        <div class="perks-teaser">
+          <h3 class="perks-teaser__title">特約店家</h3>
+          <p class="pending-cell">合作店家名單待補 —— 客戶尚未提供，屬上線前必須談定的項目（見規劃書 8.4 上線前提）。</p>
+          <a class="btn btn--dark btn--sm" href="/zh/perks/">前往特約店家清單</a>
+        </div>
+
+        <h2 class="section-title" style="margin-top:4rem;">兩種入會管道</h2>
+        <p class="section-lede">兩種管道建立的是同一套會員資料，以 Email 或手機比對後合併，不會產生重複帳號。</p>
+
+        <div class="channel-grid channel-grid--2">
+          <div class="channel-card clip-card clip-card--outlined">
+            <p class="channel-card__num">A</p>
+            <h3>Email 註冊</h3>
+            <p>於下方表單填寫並設定密碼，收到驗證信後啟用帳號。</p>
+          </div>
+          <div class="channel-card clip-card clip-card--outlined">
+            <p class="channel-card__num">B</p>
+            <h3>LINE 一鍵註冊</h3>
+            <p>以既有 LINE 帳號授權建立會員並完成綁定，免記密碼。之後可用 LINE 一鍵登入。</p>
+          </div>
+        </div>
+
+        <div class="form-layout">
+          <form class="tcrfc-form" action="" method="post" novalidate>
+            <fieldset>
+              <legend>Email 註冊表單</legend>
+              <div class="form-grid">
+                <div class="form-field">
+                  <label for="m-reg-name">姓名<span class="req" aria-hidden="true">*</span></label>
+                  <input type="text" id="m-reg-name" name="name" required autocomplete="name">
+                </div>
+                <div class="form-field">
+                  <label for="m-reg-phone">手機<span class="req" aria-hidden="true">*</span></label>
+                  <input type="tel" id="m-reg-phone" name="phone" required autocomplete="tel">
+                </div>
+                <div class="form-field">
+                  <label for="m-reg-email">Email<span class="req" aria-hidden="true">*</span></label>
+                  <input type="email" id="m-reg-email" name="email" required autocomplete="email">
+                </div>
+                <div class="form-field">
+                  <label for="m-reg-password">設定密碼<span class="req" aria-hidden="true">*</span></label>
+                  <input type="password" id="m-reg-password" name="password" required autocomplete="new-password">
+                </div>
+              </div>
+            </fieldset>
+            <div class="consent-block">
+              <div class="checkbox-field">
+                <input type="checkbox" id="m-reg-consent" name="consent" required>
+                <label for="m-reg-consent">我已閱讀並同意<a href="/zh/privacy/">隱私權政策</a>與會員條款，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
+              </div>
+            </div>
+            <button class="btn btn--primary btn--block" type="submit">建立會員</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="section-title" style="margin-top:4rem;">登入後可以做什麼</h2>
+    <div class="member-features">
+      <div class="feature-card">
+        <p class="feature-card__title">電子會員卡</p>
+        <p class="feature-card__desc">會員編號、QR Code、層級與有效期限。到特約店家出示即可，店家目視查驗，不需掃碼核銷。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">特約店家</p>
+        <p class="feature-card__desc">依類別與地區瀏覽合作店家，每家標示優惠內容與適用層級。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">會籍與續會</p>
+        <p class="feature-card__desc">升級付費會籍、查看有效期限，球季末辦理續會。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">球衣登記</p>
+        <p class="feature-card__desc">付費會籍開通後填寫尺寸與領取方式（寄送或到場領取），並查看發放狀態。</p>
+      </div>
+      <div class="feature-card">
+        <p class="feature-card__title">我的訂單</p>
+        <p class="feature-card__desc"><a href="/zh/shop/">官方商店</a>的訂單一覽：品項、金額、付款與出貨狀態、物流單號、電子發票號碼，以及退換貨申請入口。非會員請用<a href="/zh/order/lookup/">訂單查詢</a>。</p>
+      </div>
+    </div>
+
+    <div class="pending-note" style="margin-top:2rem;">
+      LINE 一鍵登入、會員卡 QR 與會籍付款流程屬後端開發項目，本頁僅完成前端版型與流程說明骨架。
+      會費採 LINE Pay 收款連結與現場收款，不走商店結帳（見規劃書 3.14）；商店的商品才走站內 LINE Pay 結帳。付費會籍的權益不含商品折扣。
+    </div>
+
+  </div>
+</section>
+</template>
+
+<style>
+/* ── MEMBER 專屬元件：member-tabs（沿用 4.2 .team-tabs 的頁籤模式）、feature-card ──
+   .channel-card／.tcrfc-form 系列與 11 CHARITY 頁共用，見 charity/index.html。
+   權益對照表的樣式隨 ContentMembershipBenefits 元件一起帶入，此處不重複。 */
+.member-band{ padding-block:clamp(3.5rem,6vw,6rem); }
+
+.member-tabs__list{ display:flex; gap:.5rem; border-bottom:2px solid var(--rule); margin-bottom:2.25rem; }
+.member-tabs__tab{
+  padding:.85rem 1.4rem; font-weight:800; font-size:.92rem; color:var(--muted);
+  border-bottom:3px solid transparent; margin-bottom:-2px;
+  transition:color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+.member-tabs__tab:hover{ color:var(--brand-aa); }
+.member-tabs__tab[aria-selected="true"]{ color:var(--heading); border-bottom-color:var(--brand); }
+.member-tabs__panel[hidden]{ display:none; }
+
+.member-alt-login{ margin-top:1.25rem; }
+.member-forgot{ margin-top:1rem; text-align:center; font-size:.85rem; }
+.member-forgot a{ color:var(--brand-aa); text-decoration:underline; }
+
+/* 加入頁的特約店家預告：緊接在權益表之後，把「折扣」這個誘因落到具體店家上 */
+.perks-teaser{
+  margin-top:2rem; padding:1.5rem; background:var(--paper-2); border:1px solid var(--rule);
+}
+.perks-teaser__title{ font-weight:800; color:var(--heading); margin-bottom:.5rem; }
+.perks-teaser .btn{ margin-top:1rem; }
+
+/* 功能卡：白底＋頂部品牌色細線 */
+.member-features{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:1.25rem; margin-top:1.5rem;
+}
+.feature-card{
+  background:var(--paper); border:1px solid var(--rule); border-top:3px solid var(--brand);
+  padding:1.4rem 1.5rem 1.5rem;
+}
+.feature-card__title{ font-weight:800; color:var(--heading); margin-bottom:.5rem; font-size:.98rem; }
+.feature-card__desc{ font-size:.85rem; line-height:1.7; color:var(--text); text-wrap:pretty; }
+
+/* channel-card／form 元件（同 charity/index.html） */
+.channel-grid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:1.5rem; margin-bottom:1rem; }
+.channel-grid--2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media (max-width:900px){ .channel-grid, .channel-grid--2{ grid-template-columns:1fr; } }
+.channel-card{ --clip-fill:var(--paper); padding:1.75rem 1.5rem; }
+.channel-card__num{ font-size:.72rem; font-weight:800; color:var(--muted); letter-spacing:.08em; margin-bottom:.5rem; }
+.channel-card h3{ font-size:1.05rem; font-weight:800; color:var(--heading); margin-bottom:.6rem; }
+.channel-card p{ font-size:.86rem; line-height:1.7; color:var(--text); }
+</style>

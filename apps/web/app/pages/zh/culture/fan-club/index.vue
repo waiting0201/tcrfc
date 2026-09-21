@@ -1,0 +1,197 @@
+<script setup lang="ts">
+// app/pages/zh/culture/fan-club/index.vue — 由 site/src/pages/zh/culture/fan-club/index.html 轉來
+// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+definePageMeta({ nav: 'culture', unit: '8.2' })
+
+useSeoMeta({
+  title: '台中磐石球迷會 Fan Club｜台中磐石文化｜台中磐石足球俱樂部',
+  description:
+    '加入台中磐石球迷會：入會表單、會員福利分級對照，以及球迷活動報名與回顧。',
+})
+</script>
+
+<template>
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="/zh/">首頁</a></li>
+      <li><a href="/zh/culture/">台中磐石文化</a></li>
+      <li aria-current="page">台中磐石球迷會</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="/assets/img/fanclub/fanclub-event-04.jpg" alt="台中磐石球員、學員與球迷於球場合影留念" width="1600" height="900">
+  <div class="container">
+    <p class="page-hero__eyebrow">8.2 Fan Club</p>
+    <h1>台中磐石球迷會<span class="en">Fan Club</span></h1>
+    <p class="page-hero__lede">與台中磐石一起在場邊吶喊。球迷會即台中磐石的付費會籍，除了球衣，還能在特約店家享有更多折扣，並優先參與球迷活動。</p>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.2 — Membership Plans 會籍方案 -->
+<section class="band" id="join" aria-labelledby="join-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">MEMBERSHIP PLANS</p>
+        <h2 class="section-title" id="join-title">會籍方案</h2>
+      </div>
+    </div>
+
+    <p class="section-lede" style="margin-top:.75rem">
+      球迷會員即台中磐石的付費會籍，以<strong>球季</strong>為單位計算，全體同時到期，於球季末辦理續會。
+      會費以 LINE Pay 收款連結或現場收款繳交，完成後由俱樂部開通會籍。
+    </p>
+
+    <div class="grid grid--2 plan-grid">
+      <article class="plan-card">
+        <h3 class="plan-card__name">單人方案</h3>
+        <p class="plan-card__price pending-cell">年費待定</p>
+        <ul class="plan-card__list">
+          <li>電子會員卡 1 張</li>
+          <li>入會球衣（件數待定）</li>
+          <li>特約店家折扣，含「限付費會員」品項</li>
+          <li>球迷活動優先報名</li>
+        </ul>
+        <a class="btn btn--primary btn--block" href="/zh/member/#tab-register">加入會員後升級</a>
+      </article>
+      <article class="plan-card">
+        <h3 class="plan-card__name">家庭方案</h3>
+        <p class="plan-card__price pending-cell">是否開放與費用待定</p>
+        <ul class="plan-card__list">
+          <li>電子會員卡多張（1 位成人 + 數位小童）</li>
+          <li>入會球衣，每張卡各一件</li>
+          <li>特約店家折扣，含「限付費會員」品項</li>
+          <li>球迷活動優先報名</li>
+        </ul>
+        <a class="btn btn--dark btn--block" href="/zh/join/general/">洽詢家庭方案</a>
+      </article>
+    </div>
+
+    <div class="pending-note">
+      年費金額、是否開設家庭方案、各方案含幾件球衣、球季起訖日與球衣尺碼表待補
+      —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 3、4、5、7、8 點。
+    </div>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.2 — Fan Benefits 福利對照表（與 3.14 加入頁、升級頁共用同一份資料） -->
+<section class="band" id="benefits" aria-labelledby="benefits-title">
+  <div class="container">
+    <ContentMembershipBenefits />
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.4 — 特約店家導引 -->
+<section class="band paper-2-band" aria-labelledby="perks-title">
+  <div class="container">
+    <div class="perks-lead">
+      <div>
+        <p class="kicker">PARTNER PERKS</p>
+        <h2 class="section-title" id="perks-title">特約店家折扣</h2>
+        <p class="section-lede">到店出示電子會員卡即可享折扣，店家目視查驗，不需額外手續。付費會員另可使用標示「限付費會員」的優惠。</p>
+      </div>
+      <a class="btn btn--dark" href="/zh/perks/">查看完整店家清單</a>
+    </div>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.2 — Fan Events 活動列表 + 報名 + 回顧 -->
+<section class="band" id="events" aria-labelledby="events-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">FAN EVENTS</p>
+        <h2 class="section-title" id="events-title">球迷活動</h2>
+      </div>
+    </div>
+
+    <div class="grid grid--2">
+      <article class="event-card">
+        
+        <a class="btn btn--dark btn--sm" href="/zh/member/">我要報名</a>
+      </article>
+      <article class="event-card">
+        
+        <a class="btn btn--dark btn--sm" href="/zh/member/">我要報名</a>
+      </article>
+    </div>
+
+    <h3 style="margin-top:2.5rem;font-size:1.15rem;font-weight:800;color:var(--heading)">活動回顧</h3>
+    <div class="grid grid--4" style="margin-top:1.25rem">
+      <figure class="event-photo">
+        <img src="/assets/img/fanclub/fanclub-event-01.jpg" alt="球迷會周邊展示：主場球衣、TCRFC 球帽、背包與造型抱枕" loading="lazy" width="1600" height="1067">
+      </figure>
+      <figure class="event-photo">
+        <img src="/assets/img/fanclub/fanclub-event-02.jpg" alt="學院學員身著台中磐石球衣於球場圍網前合影" loading="lazy" width="1600" height="1067">
+      </figure>
+      <figure class="event-photo">
+        <img src="/assets/img/fanclub/fanclub-event-03.jpg" alt="三位學員手持桃紅色 TCRFC 加油棒於戶外合影" loading="lazy" width="1600" height="1067">
+      </figure>
+      <figure class="event-photo">
+        <img src="/assets/img/fanclub/fanclub-event-04.jpg" alt="球員、學員與球迷於球場大合照" loading="lazy" width="1600" height="1067">
+      </figure>
+    </div>
+    
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.2 / 3.14 — Member Draw 球迷會員抽獎（純說明段落，非互動區塊）
+     規劃書明訂前台不做：抽獎頁與報名按鈕、我的抽獎、序號查詢、中獎名單頁、線上開獎動畫。
+     此區塊只說明機制，不得加入任何按鈕或表單。 -->
+<section class="band paper-2-band" id="draw" aria-labelledby="draw-title">
+  <div class="container">
+    <p class="kicker">MEMBER DRAW</p>
+    <h2 class="section-title" id="draw-title">球迷會員抽獎</h2>
+    <p class="section-lede">
+      會籍有效期間<strong>自動具備抽獎資格，不需報名也不需登記</strong>。
+      每次抽獎在資格基準時間當下，將所有會籍有效的球迷會員全數列入合格名單並配發抽獎序號。
+    </p>
+    <ul class="draw-points">
+      <li><strong>不需要做任何事</strong>——沒有報名表單、不必累積點數、參加次數多寡不影響中獎機會，一人一號。</li>
+      <li><strong>現場或直播人工開獎</strong>，抽出的是抽獎序號，過程公開可見證。</li>
+      <li><strong>獎品為實體物品</strong>，人工寄送或現場領取，領取方式比照入會球衣。</li>
+      <li><strong>結果公布於最新消息</strong>，名單一律遮罩（抽獎序號、會員編號、姓名遮罩）。</li>
+    </ul>
+    <p class="benefits__note">
+      各次抽獎的獎品、名額、資格基準時間與開獎時間，一律於最新消息公布。
+      <a href="/zh/news/">前往最新消息 →</a>
+    </p>
+
+    <div class="pending-note">
+      首波抽獎的獎品內容、開獎時間與場合、領獎期限與活動辦法待補
+      —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 16–20 點。
+    </div>
+  </div>
+</section>
+</template>
+
+<style>
+.paper-2-band{ background:var(--paper-2); }
+
+/* 球迷會員抽獎說明 */
+.draw-points{ list-style:none; padding:0; margin:1.75rem 0 0; font-size:.9rem; line-height:1.9; color:var(--text); }
+.draw-points li{ padding-left:1.4rem; position:relative; margin-bottom:.5rem; }
+.draw-points li::before{ content:"—"; position:absolute; left:0; color:var(--brand-aa); font-weight:800; }
+
+/* 會籍方案卡 */
+.plan-grid{ margin-top:1.75rem; }
+.plan-card{ background:var(--paper); border:1px solid var(--rule); border-top:3px solid var(--brand); padding:1.75rem 1.5rem; }
+.plan-card__name{ font-size:1.15rem; font-weight:800; color:var(--heading); margin-bottom:.4rem; }
+.plan-card__price{ font-size:.95rem; font-weight:700; margin-bottom:1rem; }
+.plan-card__list{ list-style:none; padding:0; margin:0 0 1.5rem; font-size:.86rem; line-height:1.9; color:var(--text); }
+.plan-card__list li{ padding-left:1.2rem; position:relative; }
+.plan-card__list li::before{ content:"✓"; position:absolute; left:0; color:var(--brand-aa); font-weight:800; }
+
+.perks-lead{ display:flex; flex-wrap:wrap; gap:1.5rem; align-items:center; justify-content:space-between; }
+
+
+/* 活動卡骨架 */
+.event-card{ background:var(--paper-2); border:1px solid var(--rule); padding:1.5rem; display:flex; flex-direction:column; gap:1rem; }
+.event-card__title{ flex:1; }
+
+.event-photo{ margin:0; aspect-ratio:3/2; overflow:hidden; background:var(--paper-2); }
+.event-photo img{ width:100%; height:100%; object-fit:cover; }
+</style>

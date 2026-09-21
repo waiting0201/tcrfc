@@ -1,0 +1,255 @@
+<script setup lang="ts">
+// app/pages/zh/charity/index.vue — 由 site/src/pages/zh/charity/index/index.html 轉來（S0-9 靜態頁搬遷）
+definePageMeta({ nav: "charity", unit: "11" })
+
+useSeoMeta({
+  title: "慈善與社會影響 Charity & Impact｜台中磐石足球俱樂部",
+  description: "台中磐石足球俱樂部的慈善與社會影響單元：慈善理念與投入領域、慈善計畫、事蹟紀錄、影響力數據，以及企業合作與球迷捐款兩種參與方式。",
+})
+</script>
+
+<template>
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="/zh/">首頁</a></li>
+      <li aria-current="page">慈善與社會影響</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="/assets/img/news/2026-01-12-community-017.jpg" alt="台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場" width="1600" height="1068">
+  <div class="container">
+    <p class="page-hero__eyebrow">11 Charity &amp; Impact</p>
+    <h1>慈善與社會影響<span class="en">Charity &amp; Impact</span></h1>
+    <p class="page-hero__lede">台中磐石足球俱樂部秉持「<strong>Community 社區共好</strong>」核心價值，以足球為媒介投入公益。這裡集結俱樂部的慈善理念、公益計畫、事蹟紀錄與影響力數據，也是企業合作與球迷捐款的入口。</p>
+  </div>
+</section>
+
+<section class="band grain pillars-band" aria-labelledby="charity-explore-title">
+  <span class="ghost-num" aria-hidden="true">11</span>
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">EXPLORE</p>
+        <h2 class="section-title" id="charity-explore-title">慈善單元導覽</h2>
+      </div>
+    </div>
+    <div class="charity-nav-grid">
+      <a class="charity-nav-card clip-card" href="/zh/charity/commitment/">
+        <div class="charity-nav-card__media">
+          <img src="/assets/img/trencin-03.jpg" alt="" width="1920" height="1280" loading="lazy">
+          <span class="badge charity-nav-card__num">11.1</span>
+        </div>
+        <div class="charity-nav-card__body">
+          <p class="charity-nav-card__en">Our Commitment</p>
+          <h3 class="charity-nav-card__zh">慈善理念</h3>
+          <p class="charity-nav-card__desc">理念與投入領域</p>
+          <span class="charity-nav-card__link">前往了解
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+      </a>
+      <a class="charity-nav-card clip-card" href="/zh/charity/programs/">
+        <div class="charity-nav-card__media">
+          <img src="/assets/img/news/2025-05-03-camps-056.jpg" alt="" width="1600" height="1200" loading="lazy">
+          <span class="badge charity-nav-card__num">11.2</span>
+        </div>
+        <div class="charity-nav-card__body">
+          <p class="charity-nav-card__en">Charity Programs</p>
+          <h3 class="charity-nav-card__zh">慈善計畫</h3>
+          <p class="charity-nav-card__desc">計畫列表與詳情</p>
+          <span class="charity-nav-card__link">前往了解
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+      </a>
+      <a class="charity-nav-card clip-card" href="/zh/charity/impact-stories/">
+        <div class="charity-nav-card__media">
+          <img src="/assets/img/news/2026-01-12-community-017.jpg" alt="" width="1600" height="1068" loading="lazy">
+          <span class="badge charity-nav-card__num">11.3</span>
+        </div>
+        <div class="charity-nav-card__body">
+          <p class="charity-nav-card__en">Impact Stories</p>
+          <h3 class="charity-nav-card__zh">慈善事蹟</h3>
+          <p class="charity-nav-card__desc">時間軸紀錄</p>
+          <span class="charity-nav-card__link">前往了解
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+      </a>
+      <a class="charity-nav-card clip-card" href="/zh/charity/our-impact/">
+        <div class="charity-nav-card__media">
+          <img src="/assets/img/news/2025-06-11-community-050.jpg" alt="" width="1600" height="1068" loading="lazy">
+          <span class="badge charity-nav-card__num">11.4</span>
+        </div>
+        <div class="charity-nav-card__body">
+          <p class="charity-nav-card__en">Our Impact</p>
+          <h3 class="charity-nav-card__zh">影響力數據</h3>
+          <p class="charity-nav-card__desc">累計統計與夥伴團體</p>
+          <span class="charity-nav-card__link">前往了解
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="band grain cta-band" aria-labelledby="involved-title">
+  <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">11</span>
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">GET INVOLVED</p>
+        <h2 class="section-title" id="involved-title">一起參與</h2>
+      </div>
+      <p class="section-lede">不論是企業還是球迷，都有合適的參與方式。</p>
+    </div>
+    <div class="cta-grid">
+      <a class="cta-card" href="/zh/partners/opportunities/">
+        <span class="cta-card__num">9.4</span>
+        <span class="cta-card__title">企業合作公益專案</span>
+        <p class="cta-card__desc">攜手企業推動長期公益方案，詳見合作夥伴的贊助方案頁面。</p>
+      </a>
+      <a class="cta-card" href="#donate">
+        <span class="cta-card__num">01</span>
+        <span class="cta-card__title">球迷捐款</span>
+        <p class="cta-card__desc">透過台灣足球策略發展協會的慈善捐款平台線上捐款，支持指定的捐款項目。</p>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section class="band donate-band" id="donate" aria-labelledby="donate-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">SUPPORT TCRFC</p>
+        <h2 class="section-title" id="donate-title">球迷捐款</h2>
+      </div>
+      <p class="section-lede">球迷捐款由<strong>台灣足球策略發展協會</strong>主辦的獨立<strong>慈善捐款平台</strong>承接，以合作店家的 QR Code 為主要入口，可線上完成付款並開立電子發票或捐贈收據；本站不處理金流。<strong>捐款由協會收受，不是捐給台中磐石。</strong></p>
+    </div>
+
+    <!-- 三步驟流程，樣式沿用 /zh/perks/ 的 .usage-steps（同一種「怎麼做」版型，跨頁一致） -->
+    <ol class="usage-steps">
+      <li>
+        <span class="usage-steps__num">1</span>
+        <div>
+          <h3>掃碼或前往平台</h3>
+          <p>在合作的餐廳、飲料店掃描店內的 QR Code，或直接前往協會的慈善捐款平台。</p>
+        </div>
+      </li>
+      <li>
+        <span class="usage-steps__num">2</span>
+        <div>
+          <h3>選擇捐款項目</h3>
+          <p>瀏覽平台上的捐款項目，選擇想支持的項目並讀完說明。</p>
+        </div>
+      </li>
+      <li>
+        <span class="usage-steps__num">3</span>
+        <div>
+          <h3>完成捐款</h3>
+          <p>於頁面下方完成捐款。<strong>不需要註冊、不需要登入</strong>。</p>
+        </div>
+      </li>
+    </ol>
+
+    <div class="donate-note">
+      <p><strong>具名／匿名：</strong>捐款者可選擇具名或匿名，具名者將列於捐款徵信名單，僅顯示姓名、不顯示金額；金額類數據原則上不公開（見 <a href="/zh/charity/our-impact/">11.4 影響力數據</a>）。款項的運用成果會回到 <a href="/zh/charity/impact-stories/">11.3 慈善事蹟紀錄</a> 長期陳列。</p>
+    </div>
+
+    <div class="donate-action">
+      <button class="btn btn--primary" type="button" disabled aria-disabled="true">前往協會慈善捐款平台（網域待定）</button>
+      <p class="pending-inline">慈善捐款平台網域待補 —— 客戶尚未確認網域名稱，捐款平台亦尚未開發。上方按鈕目前為 disabled 佔位。平台主辦與收款主體為台灣足球策略發展協會（規劃書 v1.4），CTA 文案須明示收受者。</p>
+    </div>
+  </div>
+</section>
+
+<section class="band grain cta-band" aria-labelledby="charity-cta-title">
+  <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">11</span>
+  <div class="band-inner container">
+    <h2 class="section-title" id="charity-cta-title">想進一步了解？</h2>
+    <div class="cta-grid">
+      <a class="cta-card" href="/zh/charity/impact-stories/">
+        <span class="cta-card__num">11.3</span>
+        <span class="cta-card__title">看看我們做過的事</span>
+        <p class="cta-card__desc">慈善事蹟時間軸紀錄</p>
+      </a>
+      <a class="cta-card" href="/zh/partners/opportunities/">
+        <span class="cta-card__num">9.4</span>
+        <span class="cta-card__title">洽談企業合作</span>
+        <p class="cta-card__desc">長期公益專案與贊助方案</p>
+      </a>
+      <a class="cta-card" href="/zh/join/general/">
+        <span class="cta-card__num">10.7</span>
+        <span class="cta-card__title">聯絡我們</span>
+        <p class="cta-card__desc">其他公益相關詢問</p>
+      </a>
+    </div>
+  </div>
+</section>
+</template>
+
+<style>
+/* ── 11 CHARITY 導覽卡：charity-nav-card ──
+   不沿用首頁 .pillar-card（文字疊壓在照片上的 scrim 卡），改為「照片 + 實色資訊面板」
+   兩段式結構：編號徽章疊在照片上（.badge 本身有底色，不靠 scrim 也能辨識），
+   英文小標／中文標題／說明文字都落在下方實色面板裡，彼此不會互相重疊。
+   三頁以上都要用同類「圖＋文」導覽卡的話，建議收進共用 tcrfc.css。 */
+.charity-nav-grid{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1.5rem; margin-top:2.5rem; }
+.charity-nav-card{
+  display:flex; flex-direction:column; background:var(--paper);
+  transition:transform var(--dur-fast) var(--ease);
+}
+.charity-nav-card:hover{ transform:translateY(-4px); }
+.charity-nav-card__media{ position:relative; aspect-ratio:4/3; overflow:hidden; background:var(--ink-2); }
+.charity-nav-card__media img{
+  position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center 30%;
+  transition:transform .6s var(--ease);
+}
+.charity-nav-card:hover .charity-nav-card__media img{ transform:scale(1.08); }
+.charity-nav-card__num{ position:absolute; top:.7rem; left:.7rem; z-index:1; }
+.charity-nav-card__body{ padding:1.25rem 1.35rem 1.5rem; display:flex; flex-direction:column; gap:.35rem; flex:1; }
+.charity-nav-card__en{ font-size:.66rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); }
+.charity-nav-card__zh{ font-size:1.15rem; font-weight:900; letter-spacing:-.01em; color:var(--heading); margin:0; }
+.charity-nav-card__desc{ font-size:.85rem; color:var(--muted); line-height:1.6; }
+.charity-nav-card__link{
+  font-size:.8rem; font-weight:700; color:var(--brand-aa); display:inline-flex; align-items:center; gap:.35em;
+  margin-top:auto; padding-top:.3rem;
+}
+.charity-nav-card__link svg{ width:14px; height:14px; transition:transform var(--dur-fast) var(--ease); }
+.charity-nav-card:hover .charity-nav-card__link svg{ transform:translateX(4px); }
+
+@media (max-width:980px){ .charity-nav-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width:560px){ .charity-nav-grid{ grid-template-columns:1fr; } }
+
+/* ── 11 CHARITY 專屬元件：donate-band 捐款導流區 ──
+   v2.1 起球迷捐款改由獨立的慈善捐款平台承接，本頁不再放捐款管道卡、金額選項與表單，
+   原 .channel-grid／.channel-card／.amount-chips 與志工報名表單樣式已一併移除。
+   v2.2：拔掉表單後版面單薄，改拆成「三步驟流程＋次要說明＋CTA」三段結構。 */
+.donate-band{ background:var(--paper-2); padding-block:clamp(4rem,6vw,6rem); }
+
+/* 三步驟流程：與 perks/index.html 的 .usage-steps 完全同款（同一套「怎麼做」語彙），
+   CSS 逐頁各自維護，改版型時記得兩邊一起改。 */
+.usage-steps{ list-style:none; padding:0; margin:2.5rem 0 0; display:grid; gap:1.5rem; }
+@media (min-width:900px){ .usage-steps{ grid-template-columns:repeat(3,1fr); } }
+.usage-steps li{ display:flex; gap:1rem; align-items:flex-start; }
+.usage-steps__num{
+  flex:0 0 auto; width:2rem; height:2rem; display:grid; place-items:center;
+  background:var(--brand-aa); color:#fff; font-weight:800; font-size:.9rem;
+}
+.usage-steps h3{ font-size:1rem; font-weight:800; color:var(--heading); margin-bottom:.4rem; }
+.usage-steps p{ font-size:.86rem; line-height:1.7; color:var(--text); }
+
+/* 具名／匿名與徵信規則：次要說明，刻意壓低層級——純文字＋上緣分隔線，不再用色框強調 */
+.donate-note{
+  max-width:72ch; margin-top:2.5rem; padding-top:1.5rem; border-top:1px solid var(--rule);
+  font-size:.82rem; line-height:1.75; color:var(--muted);
+}
+.donate-note a{ color:var(--brand-aa); text-decoration:underline; }
+
+.donate-action{ margin-top:2rem; display:flex; flex-direction:column; align-items:flex-start; gap:.6rem; }
+</style>

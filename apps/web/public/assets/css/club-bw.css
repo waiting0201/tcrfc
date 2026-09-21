@@ -1,0 +1,20 @@
+/* apps/web/public/assets/css/club-bw.css — 台中藍鯨的品牌色覆寫
+ *
+ * 🔴 只加這一份小檔案覆寫七個 CSS custom properties，絕對不改 tcrfc.css 本體
+ *   （docs/14-invariants.md「tcrfc.css 整份原封搬過去，改 CSS＝改視覺＝違反本條」）。
+ * 載入順序在 tcrfc.css 之後（見 app/app.vue），靠屬性選擇器的優先權覆寫 :root{} 的預設值，
+ * 不需要 !important。
+ *
+ * 值的唯一來源：docs/13-blue-whale-site.md §6a／docs/06-conventions.md §2／
+ * brand/blue-whale/README.md 三處一致（2026-09-14 定案，取自隊徽點陣主檔取樣）。
+ * 在 [data-club="tcrfc"]（或未設定 data-club）時，這個檔案不產生任何效果。
+ */
+:root[data-club='bw'] {
+  --brand: #2196d5; /* 隊徽藍，對白 3.29:1，只能用於大字與色塊 */
+  --brand-aa: #1a78aa; /* 對白 4.87:1 — 白底小字一律用這個 */
+  --brand-bright: #50b0e4; /* 深底 hover */
+  --brand-deep: #156088; /* 實心按鈕 hover，白字 6.86:1 */
+  --ink: #040000; /* 隊徽黑 */
+  --ink-2: #1d1919;
+  --ink-trim: #040000;
+}

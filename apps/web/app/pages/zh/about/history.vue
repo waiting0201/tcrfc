@@ -1,0 +1,44 @@
+<script setup lang="ts">
+// app/pages/zh/about/history.vue — 由 site/src/pages/zh/about/history/index.html 轉來（S0-9 靜態頁搬遷）
+definePageMeta({ nav: "about", unit: "02" })
+
+useSeoMeta({
+  title: "俱樂部歷程 Club History｜關於台中磐石｜台中磐石足球俱樂部",
+  description: "台中磐石足球俱樂部的圖文歷史敘事，記錄俱樂部自 2024 年成立以來的發展歷程。完整內文正在整理中。",
+})
+</script>
+
+<template>
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="/zh/">首頁</a></li>
+      <li><a href="/zh/about/">關於台中磐石</a></li>
+      <li aria-current="page">俱樂部歷程</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="/assets/img/nav-about.jpg" alt="" width="1600" height="900">
+  <div class="container">
+    <p class="page-hero__eyebrow">2.7 About TCRFC</p>
+    <h1>俱樂部歷程<span class="en">Club History</span></h1>
+    <p class="page-hero__lede">以圖文方式記錄台中磐石足球俱樂部的發展歷程。逐年重要大事，可先參考 <a href="/zh/about/milestones/" style="color:#fff;text-decoration:underline;">2.8 重要里程碑</a> 時間軸。</p>
+  </div>
+</section>
+
+<section class="band history-band" aria-labelledby="history-title">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="history-title">俱樂部歷程</h2>
+    <div class="prose">
+      <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>2024 年</strong>在台中成立，成立當年即拿下<strong>全國乙級聯賽冠軍</strong>，並持續擴展一線隊、學院與國際交流網絡。</p>
+
+    </div>
+  </div>
+</section>
+</template>
+
+<style>
+.history-band{ background:var(--paper); padding-block:clamp(3.5rem,6vw,6rem); }
+</style>

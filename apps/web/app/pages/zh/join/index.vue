@@ -1,0 +1,124 @@
+<script setup lang="ts">
+// app/pages/zh/join/index.vue — 由 site/src/pages/zh/join/index.html 轉來
+// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+definePageMeta({ nav: '', unit: '10' })
+
+useSeoMeta({
+  title: '加入與聯絡 Join / Contact｜台中磐石足球俱樂部',
+  description:
+    '台中磐石足球俱樂部加入與聯絡總覽：加入球隊、加入學院／兒童訓練、營隊報名、國際球員詢問、合作夥伴與贊助洽詢、媒體詢問、一般聯絡七種表單，以及場地位置與聯絡資訊。',
+})
+</script>
+
+<template>
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="/zh/">首頁</a></li>
+      <li aria-current="page">加入與聯絡</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">10</span>
+  <div class="container">
+    <p class="page-hero__eyebrow">10 Join / Contact</p>
+    <h1>加入與聯絡<span class="en">Join / Contact</span></h1>
+    <p class="page-hero__lede">不論你是想加入球隊的球員、想讓孩子接受系統化訓練的家長，還是想與台中磐石合作的企業與媒體，都可以在這裡找到對應的表單。七種表單各自送達不同部門，我們會盡快與你聯繫。</p>
+  </div>
+</section>
+
+<section class="band grain" aria-labelledby="join-forms-title">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">09</span>
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">七種表單</p>
+        <h2 class="section-title" id="join-forms-title" style="color:#fff">選擇最符合你需求的表單</h2>
+      </div>
+      <p class="section-lede on-dark">每個表單各自獨立設計欄位，並直接送達對應的負責部門處理。</p>
+    </div>
+
+    <div class="cta-grid">
+      <div class="cta-card">
+        <p class="cta-card__num">10.1</p>
+        <p class="cta-card__title">加入球隊</p>
+        <p class="cta-card__desc">具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊與各梯隊球員。</p>
+        <a class="btn btn--primary" href="/zh/join/player/">Join as a Player</a>
+      </div>
+      <div class="cta-card">
+        <p class="cta-card__num">10.2</p>
+        <p class="cta-card__title">加入學院／兒童訓練</p>
+        <p class="cta-card__desc">學院 U12／U14／U15 梯隊，或兒童訓練的混齡、初學、技巧發展班，同一份表單完成報名。</p>
+        <a class="btn btn--primary" href="/zh/join/academy/">Academy &amp; Children's Training</a>
+      </div>
+      <div class="cta-card">
+        <p class="cta-card__num">10.3</p>
+        <p class="cta-card__title">營隊報名</p>
+        <p class="cta-card__desc">寒暑假期間的短期足球營隊，讓孩子在密集訓練中快速累積比賽經驗。</p>
+        <a class="btn btn--primary" href="/zh/join/camp-registration/">Camp Registration</a>
+      </div>
+      <div class="cta-card">
+        <p class="cta-card__num">10.4</p>
+        <p class="cta-card__title">International Player Enquiries</p>
+        <p class="cta-card__desc">Interested in playing for TCRFC in Taiwan? Tell us about yourself and your football background.</p>
+        <a class="btn btn--primary" href="/zh/join/international-player/">International Enquiries</a>
+      </div>
+      <div class="cta-card">
+        <p class="cta-card__num">10.5</p>
+        <p class="cta-card__title">合作夥伴與贊助洽詢</p>
+        <p class="cta-card__desc">長期合作夥伴關係或特定贊助方案，都在同一份表單洽詢，由商務部統一接手。</p>
+        <a class="btn btn--primary" href="/zh/join/partnership/">Partnership &amp; Sponsorship</a>
+      </div>
+      <div class="cta-card">
+        <p class="cta-card__num">10.6</p>
+        <p class="cta-card__title">媒體詢問</p>
+        <p class="cta-card__desc">採訪邀約、新聞稿需求或媒體合作，公關團隊將盡快回覆採訪相關安排。</p>
+        <a class="btn btn--primary" href="/zh/join/media/">Media Enquiries</a>
+      </div>
+      <div class="cta-card">
+        <p class="cta-card__num">10.7</p>
+        <p class="cta-card__title">一般聯絡</p>
+        <p class="cta-card__desc">以上分類都不符合你的需求？透過一般聯絡表單，我們會轉交給對應窗口。</p>
+        <a class="btn btn--primary" href="/zh/join/general/">General Contact</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band" aria-labelledby="join-info-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">場地與聯絡資訊</p>
+        <h2 class="section-title" id="join-info-title">找到我們</h2>
+      </div>
+    </div>
+    <div class="grid grid--2">
+      <a class="clip-card join-info-card" href="/zh/join/location/">
+        <p class="join-info-card__num">Location</p>
+        <p class="join-info-card__title">場地位置與地圖</p>
+        <p class="join-info-card__desc">訓練基地、主場與學院場地的位置與交通指引。</p>
+      </a>
+      <a class="clip-card join-info-card" href="/zh/join/contact/">
+        <p class="join-info-card__num">Contact</p>
+        <p class="join-info-card__title">聯絡資訊</p>
+        <p class="join-info-card__desc">電話、Email、地址、營業時間與各部門分機。</p>
+      </a>
+    </div>
+  </div>
+</section>
+</template>
+
+<style>
+/* 僅本頁使用：Location／Contact 兩張淺色導覽卡（沿用 .clip-card 切角，但用亮底） */
+.join-info-card{
+  display:block; padding:2rem clamp(1.5rem,3vw,2.25rem); background:var(--paper-2);
+  border:1px solid var(--rule); transition:transform var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.join-info-card:hover{ transform:translateY(-4px); border-color:var(--brand-aa); }
+.join-info-card__num{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); margin-bottom:.6rem; }
+.join-info-card__title{ font-size:1.3rem; font-weight:900; letter-spacing:-.01em; color:var(--heading); margin-bottom:.5rem; }
+.join-info-card__desc{ font-size:.9rem; color:var(--muted); line-height:1.6; }
+</style>

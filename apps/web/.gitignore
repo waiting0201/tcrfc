@@ -1,0 +1,7 @@
+# Nuxt 建置產物與相依套件，不納版控（比照專案既有慣例：site/dist 也不納管）
+node_modules/
+.nuxt/
+.output/
+.env
+.DS_Store
+*.log

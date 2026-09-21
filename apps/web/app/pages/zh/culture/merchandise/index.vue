@@ -1,0 +1,167 @@
+<script setup lang="ts">
+// app/pages/zh/culture/merchandise/index.vue — 由 site/src/pages/zh/culture/merchandise/index.html 轉來
+// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+definePageMeta({ nav: 'culture', unit: '8.3' })
+
+useSeoMeta({
+  title: '官方商品 Merchandise｜台中磐石文化｜台中磐石足球俱樂部',
+  description:
+    '台中磐石足球俱樂部官方商品：俱樂部、學院、球迷三大系列。線上商店建置中，屆時可直接於本站選購。',
+})
+</script>
+
+<template>
+<nav class="breadcrumb" aria-label="麵包屑">
+  <div class="container">
+    <ol>
+      <li><a href="/zh/">首頁</a></li>
+      <li><a href="/zh/culture/">台中磐石文化</a></li>
+      <li aria-current="page">官方商品</li>
+    </ol>
+  </div>
+</nav>
+
+<section class="page-hero page-hero--media">
+  <img class="page-hero__bg" src="/assets/img/merch/merch-jersey-01.jpg" alt="球員身著台中磐石桃紅色主場球衣，胸前印有 Joma、TCRFC 隊徽與 San Pellegrino 贊助字樣" width="1600" height="900">
+  <div class="container">
+    <p class="page-hero__eyebrow">8.3 Merchandise</p>
+    <h1>官方商品<span class="en">Merchandise</span></h1>
+    <p class="page-hero__lede">俱樂部、學院、球迷三大系列的官方商品。要選購請前往<a href="/zh/shop/" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.3 — Club Collection 俱樂部商品（真實商品） -->
+<section class="band grain" id="club-collection" aria-labelledby="club-collection-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">CLUB COLLECTION</p>
+        <h2 class="section-title" id="club-collection-title" style="color:#fff">俱樂部商品</h2>
+      </div>
+      <p class="section-lede">主場球衣與訓練配件，桃紅戰袍是每一位台中磐石球迷的基本配備。</p>
+    </div>
+
+    <div class="grid grid--2">
+      <article class="merch-card">
+        <div class="merch-card__media">
+          <img src="/assets/img/merch/merch-jersey-01.jpg" alt="台中磐石主場球衣 2026 賽季，球員身著桃紅色球衣、藍色滾邊，胸口印有 Joma、TCRFC 隊徽與贊助商標誌" loading="lazy" width="1600" height="1067">
+        </div>
+        <div class="merch-card__body">
+          <p class="merch-card__name">台中磐石主場球衣｜2026 賽季</p>
+          <p class="merch-card__price">價格以商店頁面為準</p>
+          <div class="table-scroll" style="margin-top:1rem">
+            <table class="size-table">
+              <caption class="visually-hidden">男裝上衣尺碼表（單位：公分）</caption>
+              <thead>
+                <tr><th scope="col">尺碼</th><th scope="col">衣長</th><th scope="col">胸圍</th><th scope="col">擺圍</th><th scope="col">袖長</th><th scope="col">袖口圍 1/2</th></tr>
+              </thead>
+              <tbody>
+                <tr><th scope="row">S</th><td>68</td><td>98</td><td>96</td><td>42</td><td>15.3</td></tr>
+                <tr><th scope="row">M</th><td>70</td><td>102</td><td>100</td><td>43.5</td><td>15.9</td></tr>
+                <tr><th scope="row">L</th><td>72</td><td>106</td><td>104</td><td>45</td><td>16.5</td></tr>
+                <tr><th scope="row">XL</th><td>74</td><td>110</td><td>108</td><td>46.5</td><td>17.1</td></tr>
+                <tr><th scope="row">2XL</th><td>76</td><td>114</td><td>112</td><td>48</td><td>17.7</td></tr>
+                <tr><th scope="row">3XL</th><td>78</td><td>118</td><td>116</td><td>49.5</td><td>18.3</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="merch-card__fine">尺寸單位公分，因量測方式不同存在 1–3 公分誤差，屬合理範圍。</p>
+          <a class="btn btn--primary btn--block" href="/zh/shop/home-jersey-2026/">選購 NT$1,200</a>
+        </div>
+      </article>
+
+      <article class="merch-card">
+        <div class="merch-card__media">
+          <img src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" loading="lazy" width="1600" height="1600">
+        </div>
+        <div class="merch-card__body">
+          <p class="merch-card__name">厚底緩震機能襪</p>
+          <p class="merch-card__price">價格以商店頁面為準</p>
+          <ul class="swatch-row" aria-label="可選顏色">
+            <li><img src="/assets/img/merch/merch-socks-02.jpg" alt="向日黃" loading="lazy" width="200" height="200"><span>向日黃</span></li>
+            <li><img src="/assets/img/merch/merch-socks-03.jpg" alt="經典紅" loading="lazy" width="200" height="200"><span>經典紅</span></li>
+            <li><img src="/assets/img/merch/merch-socks-04.jpg" alt="櫻桃紅" loading="lazy" width="200" height="200"><span>櫻桃紅</span></li>
+            <li><img src="/assets/img/merch/merch-socks-05.jpg" alt="海軍藍" loading="lazy" width="200" height="200"><span>海軍藍</span></li>
+            <li><img src="/assets/img/merch/merch-socks-06.jpg" alt="極簡黑" loading="lazy" width="200" height="200"><span>極簡黑</span></li>
+            <li><img src="/assets/img/merch/merch-socks-07.jpg" alt="純淨白" loading="lazy" width="200" height="200"><span>純淨白</span></li>
+          </ul>
+          <div class="table-scroll" style="margin-top:1rem">
+            <table class="size-table">
+              <caption class="visually-hidden">襪子尺碼表</caption>
+              <thead><tr><th scope="col">尺碼</th><th scope="col">腳長</th><th scope="col">筒長</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">M</th><td>20–21 cm</td><td>15 cm</td></tr>
+                <tr><th scope="row">L</th><td>23–24 cm</td><td>17 cm</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <a class="btn btn--primary btn--block" href="/zh/shop/cushioned-socks/">選購 NT$120</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- SPEC 3.8 §8.3 — Academy / Fan Collection（尚無商品） -->
+<section class="band" id="other-collections" aria-labelledby="other-collections-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">MORE COLLECTIONS</p>
+        <h2 class="section-title" id="other-collections-title">學院商品／球迷商品</h2>
+      </div>
+    </div>
+    <div class="grid grid--2">
+      <div class="merch-card merch-card--empty">
+        <p class="merch-card__name">Academy Collection 學院商品</p>
+        <p class="pending-inline">商品開發中，敬請期待。</p>
+      </div>
+      <div class="merch-card merch-card--empty">
+        <p class="merch-card__name">Fan Collection 球迷商品</p>
+        <p class="pending-inline">商品開發中，敬請期待。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="band grain grain--2 store-band" aria-labelledby="store-cta-title">
+  <div class="band-inner container">
+    <div class="store-band__grid" style="grid-template-columns:1fr">
+      <div>
+        <p class="kicker kicker--on-dark">ONLINE STORE</p>
+        <h2 class="section-title" id="store-cta-title">前往官方商店</h2>
+        <p>選尺寸與顏色、加入購物車，以 <strong>LINE Pay</strong> 付款並自動開立<strong>電子發票</strong>，可宅配、超商取貨或現場自取；訂單於會員中心查詢，未註冊者以訂單編號與 Email 查詢。</p>
+        <p style="margin:1.25rem 0"><a class="btn btn--primary" href="/zh/shop/">前往官方商店</a></p>
+        <p><span class="mock-flag mock-flag--on-dark">商店為前端流程骨架，尚未串接金流與後端</span></p>
+        <p class="store-band__fine">正式上線前，仍可透過舊官網 <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a> 的商店選購；站內商店上線後舊商店將停售。</p>
+      </div>
+    </div>
+  </div>
+</section>
+</template>
+
+<style>
+/* 商品卡（merch-card）：建議收進共用 CSS */
+.merch-card{ background:var(--paper); border:1px solid var(--rule); display:flex; flex-direction:column; }
+.merch-card__media{ aspect-ratio:3/2; overflow:hidden; background:var(--paper-2); }
+.merch-card__media img{ width:100%; height:100%; object-fit:cover; }
+.merch-card__body{ padding:1.5rem 1.5rem 1.75rem; display:flex; flex-direction:column; gap:.4rem; }
+.merch-card__name{ font-size:1.1rem; font-weight:800; color:var(--heading); }
+.merch-card__price{ font-size:.82rem; color:var(--muted); }
+.merch-card__fine{ font-size:.74rem; color:var(--muted); margin-top:.5rem; }
+.merch-card__body .btn{ margin-top:1.25rem; }
+.merch-card--empty{ align-items:flex-start; gap:.85rem; padding:1.75rem; }
+
+/* 顏色色票列 */
+.swatch-row{ display:flex; flex-wrap:wrap; gap:.75rem; list-style:none; margin:.75rem 0 0; padding:0; }
+.swatch-row li{ display:flex; flex-direction:column; align-items:center; gap:.35rem; width:64px; }
+.swatch-row img{ width:56px; height:56px; object-fit:cover; border:1px solid var(--rule); }
+.swatch-row span{ font-size:.68rem; color:var(--muted); text-align:center; line-height:1.3; }
+
+/* 尺碼表 */
+.table-scroll{ overflow-x:auto; }
+.size-table{ width:100%; min-width:420px; border-collapse:collapse; font-size:.82rem; }
+.size-table th, .size-table td{ padding:.55rem .75rem; border:1px solid var(--rule); text-align:center; }
+.size-table thead th{ background:var(--paper-2); font-weight:800; color:var(--heading); }
+.size-table th[scope="row"]{ font-weight:800; background:var(--paper-2); }
+</style>
