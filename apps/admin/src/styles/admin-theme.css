@@ -1,5 +1,5 @@
 /**
- * 後台操作型 design tokens（docs/21-admin-ui.md v2，2026-09-21 深色重做）。
+ * 後台操作型 design tokens（docs/21-admin-ui.md v3，2026-09-22 配色改為品牌桃紅＋品牌黑）。
  *
  * 深色是唯一主題（§7.0 使用者已拍板）：不做主題切換開關、不寫淺色 token 分支。
  * 實作策略（§7.1／§7.9）：main.ts 固定在 <html> 掛 class="dark"，載入 Element Plus 官方深色樣式表，
@@ -7,17 +7,19 @@
  * --el-bg-color-page／--el-bg-color-overlay）沒有對應到的第四層（surface-2）額外自訂一個變數，
  * 在需要的地方手動套用（§7.2）。
  *
- * ⚠️ 色值一律逐字抄自 docs/21-admin-ui.md §4／§7，不要自己調——每一組都已用 WCAG 相對亮度公式算過
+ * ⚠️ 色值一律逐字抄自 docs/21-admin-ui.md §4／§7／§15，不要自己調——每一組都已用 WCAG 相對亮度公式算過
  * 對比度，且是對「四層背景裡最亮的那一層」驗過 AA（見 §13.8／§13.9／E-31：只驗常見層會漏掉 overlay
- * 這個最嚴苛的情境）。改動任何一個值前，先確認新值對 overlay `#2A2E36` 是否仍然過 AA。
+ * 這個最嚴苛的情境）。改動任何一個值前，先跑 `scripts/check-contrast.mjs` 確認新值對 overlay
+ * `#3F2D28` 仍然過門檻——`--admin-border-input` 就是同一個根因在 v3 又踩了一次（原稿的暖化換算值
+ * 對 overlay 只有 2.66:1，過不了 3:1，已改用門檻反推的 `#8A7E75`，見下方註解與 check-contrast.mjs）。
  */
 html.dark {
-  /* ── 四層背景色階（§7.2）──────────────────────────────────────────── */
-  --admin-bg-canvas: #14161a; /* 內容區背景（路由容器），最暗 */
-  --admin-bg-surface: #1c1f24; /* 側欄、頁面列、el-card 預設底 */
-  --admin-bg-surface-2: #242830; /* 系統列、巢狀卡片、表格 hover／選中列、四態 tag 底、側欄選中態底——官方無對應變數，純自訂 */
-  --admin-bg-overlay: #2a2e36; /* el-dropdown／el-dialog／el-popover／el-tooltip／el-drawer，最亮 */
-  --admin-bg-input: #101215; /* el-input／el-select／el-textarea 等表單欄位底，比 canvas 更暗做出「凹陷」感 */
+  /* ── 四層背景色階（§7.2：v3 起由品牌黑 --ink／--ink-2 推導，不再是與品牌無關的中性冷灰）──── */
+  --admin-bg-canvas: #150f0d; /* 內容區背景（路由容器），最暗。衍生值：--ink 同色相/彩度，L -4.5pp */
+  --admin-bg-surface: #231916; /* 側欄、頁面列、el-card 預設底。= --ink 原值 */
+  --admin-bg-surface-2: #31231f; /* 系統列、巢狀卡片、表格 hover／選中列、四態 tag 底、側欄選中態底——官方無對應變數，純自訂。= --ink-2 原值 */
+  --admin-bg-overlay: #3f2d28; /* el-dropdown／el-dialog／el-popover／el-tooltip／el-drawer，最亮。衍生值：--ink-2 同色相/彩度，L +4.5pp */
+  --admin-bg-input: #070504; /* el-input／el-select／el-textarea 等表單欄位底，比 canvas 更暗做出「凹陷」感。衍生值：canvas 再 -4.5pp */
 
   /* Element Plus 官方深色變數覆寫 */
   --el-bg-color: var(--admin-bg-surface);
@@ -25,11 +27,11 @@ html.dark {
   --el-bg-color-overlay: var(--admin-bg-overlay);
   --el-fill-color-blank: var(--admin-bg-input);
 
-  /* ── 文字階層（§7.3）──────────────────────────────────────────────── */
-  --admin-text-primary: #e8eaed; /* 刻意不用純白，避免長時間閱讀的暈光疲勞感 */
-  --admin-text-secondary: #abb2bf;
-  --admin-text-tertiary: #9299a8; /* ⚠️ 不是 #8B92A0：原色對 overlay 只有 4.35:1 過不了 AA，見 §13.8／E-31 */
-  --admin-text-disabled: #565c66;
+  /* ── 文字階層（§7.3：v3 暖化，色相從冷藍 ~220° 換成 H=25° 暖灰，相對亮度刻意不變）─────── */
+  --admin-text-primary: #ebe9e8; /* 刻意不用純白，避免長時間閱讀的暈光疲勞感 */
+  --admin-text-secondary: #b7b0ac;
+  --admin-text-tertiary: #a39b95; /* ⚠️ 不是等亮度換算值 #A09892：對 overlay 只剩 4.58、餘裕過薄，改用門檻反推版本留 0.25 餘裕，見 §7.3／E-31 */
+  --admin-text-disabled: #625a55;
 
   --el-text-color-primary: var(--admin-text-primary);
   --el-text-color-regular: var(--admin-text-secondary);
@@ -37,9 +39,9 @@ html.dark {
   --el-text-color-placeholder: var(--admin-text-tertiary);
   --el-text-color-disabled: var(--admin-text-disabled);
 
-  /* ── 邊框（§7.4）──────────────────────────────────────────────────── */
-  --admin-border: #333840; /* 純裝飾性邊界（卡片、分隔線） */
-  --admin-border-input: #6b7280; /* 表單元件邊框，需要對底色達 3:1 */
+  /* ── 邊框（§7.4：v3 暖化，同色相家族）─────────────────────────────── */
+  --admin-border: #3c3733; /* 純裝飾性邊界（卡片、分隔線），不需要 3:1（旁邊還有背景色階差異） */
+  --admin-border-input: #8a7e75; /* 表單元件邊框，需要對五層背景全部達 3:1。⚠️ 不是暖化等亮度換算的 #7A6F68：那個值對 overlay 只有 2.66:1 過不了 3:1（overlay 底的對話框／下拉選單裡，邊框是欄位邊界唯一辨識線索），已用門檻反推抓到 overlay 3.29:1、餘裕 0.29，與 §7.3 tertiary 同樣的做法 */
   --admin-border-focus: var(--admin-primary);
 
   --el-border-color: var(--admin-border);
@@ -47,29 +49,35 @@ html.dark {
   --el-border-color-lighter: var(--admin-border);
   --el-border-color-extra-light: var(--admin-border);
 
-  /* ── 操作主色 primary（§7.5）：文字/連結用亮色，實心按鈕底用另一組暗色，兩者拆開 ── */
-  --admin-primary: #409eff;
-  --admin-primary-fill: #2c6799;
-  --admin-primary-fill-hover: #3579b3;
-  --admin-primary-fill-active: #24557f;
+  /* ── 操作主色 primary（§7.5：v3 由 Element Plus 預設藍改為品牌桃紅系 --brand-*）────────
+     文字/連結用亮階（--brand-bright），實心按鈕底用暗階（--brand-aa／--brand-deep），兩者拆開
+     ——深色底下這兩層分工跟白底完全相反（見 §5.2），數值逐字抄自 site/src/assets/css/tcrfc.css
+     的 --brand-* 系，唯一來源仍是 reference/TCR_logo_CMYK.ai */
+  --admin-primary: #e85ba9; /* = --brand-bright，against surface 5.32:1 AA；⚠️ 對 overlay 只有 4.02:1，過不了小字 AA，此 token 目前實際用法（頁面列連結／側欄 accent bar／focus 外框）都不在 overlay 情境，見 §7.5／§6.3 */
+  --admin-primary-fill: #d61e83; /* = --brand-aa，白字 4.80:1 AA */
+  --admin-primary-fill-hover: #ae186b; /* = --brand-deep，白字 6.68:1 AA */
+  --admin-primary-fill-active: #841852; /* 衍生值：--brand-deep 與 --ink 以 7:3 混色，白字 9.40:1 AA（§7.5：既有品牌四階只有 --brand-aa／--brand-deep 撐得住白字 AA，第三個按下態需要另外衍生） */
 
   --el-color-primary: var(--admin-primary);
   --el-color-primary-light-3: var(--admin-primary-fill-hover);
   --el-color-primary-dark-2: var(--admin-primary-fill-active);
 
   /* ── 四態語意色（§4.2，草稿／排程發布／已發布／已停用）────────────── */
-  --admin-status-draft-bg: #242830;
-  --admin-status-draft-text: #abb2bf;
-  --admin-status-scheduled-bg: #3a2e14;
+  --admin-status-draft-bg: #31231f; /* = 新 --admin-bg-surface-2，跟著暖色階連動，不是獨立寫死 */
+  --admin-status-draft-text: #b7b0ac; /* = 新 --admin-text-secondary，同上 */
+  --admin-status-scheduled-bg: #3a2e14; /* 獨立配色，不隨中性色階變動，v3 未改值 */
   --admin-status-scheduled-text: #ffb84d;
-  --admin-status-published-bg: #13301f;
+  --admin-status-published-bg: #13301f; /* 獨立配色，v3 未改值 */
   --admin-status-published-text: #5fd68a;
-  --admin-status-disabled-bg: #33202b; /* 暗酒紅，刻意與下面的操作型危險色區隔（§4.2） */
+  --admin-status-disabled-bg: #33202b; /* 暗酒紅，刻意與下面的操作型危險色區隔（§4.2），v3 未改值 */
   --admin-status-disabled-text: #c98ba8;
 
-  /* ── 操作型語意色（§4.3：表格文字、按鈕、非四態的其他 tag）────────── */
-  --admin-danger-text: #ff9494;
-  --admin-danger-fill: #b3453f;
+  /* ── 操作型語意色（§4.3：表格文字、按鈕、非四態的其他 tag）─────────
+     v3 危險色橘紅化（H≈0°→14°，明度飽和度不變）：主色改桃紅後，危險色與主色同屬紅色系家族的疑慮
+     先發制人處理，是加碼保險不是修正錯誤（§4.3／§13.12），實測與品牌桃紅的色相距離從 30.71° 拉大到
+     49.69°、ΔE76 從 49.31 拉大到 65.03 */
+  --admin-danger-text: #ffad94;
+  --admin-danger-fill: #b35a3f;
   --admin-warning-text: #ffb84d;
   --admin-warning-fill: #ffb84d;
   --admin-warning-fill-text: var(--admin-bg-canvas); /* 警告按鈕刻意用深字，白字對琥珀底只有 1.72:1，見 §4.3 */
@@ -83,7 +91,9 @@ html.dark {
   --el-color-success: var(--admin-success-text);
   --el-color-info: var(--admin-text-secondary);
 
-  /* ── 中性看片台（§9.1）：圖片預覽的固定參考面，刻意與上面四層背景脫鉤，不隨主題變化 ── */
+  /* ── 中性看片台（§9.1）：圖片預覽的固定參考面，刻意與上面四層背景脫鉤，不隨主題變化 ──
+     ⚠️ v3 整批換色時這三個值明文不動：暖化後的品牌黑不能拿來當照片判色的參考面，
+     這裡必須維持中性冷灰，見 §9.1／§15.1（不變清單）*/
   --admin-lightbox-neutral: #4a4d52;
   --admin-lightbox-checker-a: #4a4d52;
   --admin-lightbox-checker-b: #5c5f65;
@@ -182,9 +192,11 @@ body {
   color: var(--admin-status-disabled-text) !important;
 }
 
-/* 表格列選中（勾選）：primary 12% 透明疊色，不整列反白（§2.4） */
+/* 表格列選中（勾選）：primary 12% 透明疊色，不整列反白（§2.4）
+   ⚠️ 這行本來就沒有透過 CSS 變數，是寫死的 rgb 字面值，整批換色時容易漏掉（§15.1）：
+   rgb(232 91 169 / 12%) = --admin-primary #E85BA9 的 rgb 等效值 */
 .el-table {
-  --el-table-current-row-bg-color: rgb(64 158 255 / 12%);
+  --el-table-current-row-bg-color: rgb(232 91 169 / 12%);
   --el-table-row-hover-bg-color: var(--admin-bg-surface-2);
 }
 

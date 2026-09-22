@@ -189,7 +189,9 @@ const fileSizeLabel = computed(() => {
 
 .image-uploader__dropzone--drag-over {
   border-color: var(--admin-primary);
-  background: rgb(64 158 255 / 8%);
+  /* rgb(232 91 169 / 8%) = --admin-primary #E85BA9 的 rgb 等效值。這是拖曳提示疊色，
+     不是 §9.1 的中性看片台（那是選圖後的預覽底色，兩者是不同區塊），整批換色時要跟著換 */
+  background: rgb(232 91 169 / 8%);
 }
 
 .image-uploader__hint {
@@ -265,7 +267,9 @@ const fileSizeLabel = computed(() => {
 .image-uploader__saving-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(20, 22, 26, 0.7);
+  /* rgba(21, 15, 13, 0.7) = --admin-bg-canvas #150F0D 的 rgb 等效值（半透明遮罩，不是 §9.1
+     的中性看片台本身，是儲存中狀態的暗化疊層，整批換色掃描時一併找到的寫死值） */
+  background: rgba(21, 15, 13, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;

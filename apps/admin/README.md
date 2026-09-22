@@ -8,7 +8,7 @@
 只回已發布內容，接了反而驗證不到草稿／排程發布／已停用這三種非公開狀態（見下方「假資料」）。
 
 規格的真實來源是規劃書與 [`docs/03-admin-spec.md`](../../docs/03-admin-spec.md)；版面與視覺規則是
-[`docs/21-admin-ui.md`](../../docs/21-admin-ui.md)（v2，901 行，`visual-design-architect` 產出，
+[`docs/21-admin-ui.md`](../../docs/21-admin-ui.md)（v3，`visual-design-architect` 產出，
 本次實作依它逐條核對）。
 
 🔴 **深色是唯一主題，不是淺色的延伸**（2026-09-21，`S0-12c` 依 `docs/21` v2 重做）：舊的淺色＋
@@ -16,6 +16,15 @@ Element Plus 預設藍版本已整批換掉，**不做主題切換開關，不�
 使用者已拍板）。版面骨架也不是換色而已——頂欄拆成系統列／頁面列兩層、側欄選中態改用 accent bar、
 狀態 tag 換成深色語意底＋亮色文字、編輯頁分段卡片改用四層背景色階（tonal elevation）取代陰影、
 圖片預覽區塊加了不隨主題變化的「中性看片台」。細節見下方各節與 `docs/21` §1–§9。
+
+🔴 **配色 v3（2026-09-22）：中性深灰＋Element Plus 藍 → 品牌黑＋品牌桃紅**（依 `docs/21` §4／§5／§7／§15
+重做）：四層背景色階改由品牌黑 `--ink`／`--ink-2` 推導、操作主色改用品牌桃紅系 `--brand-aa`／
+`--brand-bright`／`--brand-deep`、文字與邊框階跟著暖化、危險色橘紅化（`H≈0°→14°`）、站台切換器隊徽
+從純色色塊改用兩隊各自的真實隊徽圖像（`src/assets/brand/`）。**切換站台仍然不換主色**（`docs/21`
+§5.1／§5.1.1：後台永遠是磐石桃紅）。中性看片台（`--admin-lightbox-*`）明文不隨這次換色調整，維持
+中性冷灰。`--admin-border-input` 用的是**門檻反推值 `#8A7E75`**，不是暖化等亮度換算的 `#7A6F68`——
+後者對 `overlay` 只有 2.66:1，過不了 3:1 的 UI 元件門檻，這條與 E-31 同根因，已寫進
+`scripts/check-contrast.mjs` 的邊框笛卡兒積檢查（見下方「檢查腳本：對比度檢查」）。
 
 ---
 
@@ -115,10 +124,18 @@ apps/admin/
 
 ## 檢查腳本：對比度檢查
 
-`scripts/check-contrast.mjs`（`npm run lint:contrast`）針對 `docs/21-admin-ui.md` §7 的深色色票表
-逐一驗算 WCAG 對比度，防的是 [`docs/18` E-31](../../docs/18-work-errors.md)——那次色票表宣稱「全部
-實測過」，實際有兩組沒驗到／驗錯，其中一組還漏驗了四層背景裡最亮的 `overlay` 層。這支腳本不是本次
-交付的一部分（由主 session 並行處理），這裡只記錄它存在、掛在哪個 npm script。
+`scripts/check-contrast.mjs`（`npm run lint:contrast`）針對 `docs/21-admin-ui.md` §7／§4／§15 的深色
+色票表逐一驗算 WCAG 對比度，防的是 [`docs/18` E-31](../../docs/18-work-errors.md)——那次色票表宣稱
+「全部實測過」，實際有兩組沒驗到／驗錯，其中一組還漏驗了四層背景裡最亮的 `overlay` 層。
+
+v3 配色改版時同一個根因又踩了一次：`--admin-border-input` 的暖化換算值只驗了 `surface` 一層，沒驗到
+`overlay`（實際只有 2.66:1，過不了 3:1）。腳本因此擴大範圍，現在跑六類檢查：①文字 × 背景五層笛卡兒積
+（4.5:1）②**邊框 × 背景五層笛卡兒積（3:1，這次新補的洞）**③豁免 token（disabled、純裝飾邊框，逐層
+算出數字＋理由，不是默默跳過）④成對色票（四態 tag、語意色按鈕、primary 文字四層、focus 外框五層）
+⑤反例與已知限制釘住（含 `--admin-primary` 對 `overlay` 明文只有 4.02:1 這種「規格承認的已知限制」，
+以及 border-input 若誤用舊值 `#7A6F68` 的迴歸記錄）⑥規格 vs 實作比對。用「塞回錯誤值確認抓得到、
+再復原」驗證過兩次：一次改 `admin-theme.css` 的值（規格 vs 實作那關會抓到），一次改腳本自己的
+`BORDERS_CARTESIAN` 常數（笛卡兒積本身會抓到，不是只靠字串比對）。
 
 ## 響應式：三個斷點都手動驗證過
 
@@ -159,6 +176,12 @@ apps/admin/
 - **`ImageUploader` 新增 `variant: 'photo' | 'logo'` prop 控制中性看片台是純灰還是棋盤格**：
   `docs/21` §9.1 只描述兩種底色何時使用，沒有規定用什麼機制切換；預設 `'photo'`，之後有隊徽／去背
   類上傳情境時記得傳 `variant="logo"`。
+- **站台切換器隊徽圖檔放在 `src/assets/brand/`，不是直接引用 `apps/web/public/` 或專案根目錄 `brand/`
+  資料夾**（v3，`docs/21` §5.3）：`apps/admin` 是獨立的 Vite 專案，建置時只看得到自己目錄底下的檔案，
+  所以把磐石隊徽（`brand/svg/tcrfc-mark-pink.svg` 的複本）與藍鯨隊徽（`apps/web/public/assets/brand/bw/
+  favicon-48.png` 的複本）各拷貝一份進來，透過 Vite 的資源匯入機制取得建置後的網址。**這是複本，
+  不是唯一來源**——藍鯨隊徽的唯一來源仍是 `brand/blue-whale/`，磐石隊徽仍是 `reference/TCR_logo_CMYK.ai`
+  萃取出的 `brand/svg/`，日後那兩處的圖檔更新了，這裡的複本要跟著手動同步。
 
 ## 已知的 mockup 簡化（不是 bug，記錄給下一階段）
 

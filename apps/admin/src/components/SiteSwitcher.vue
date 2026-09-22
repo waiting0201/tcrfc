@@ -10,6 +10,10 @@ import { CURRENT_USER } from '@/data/session'
  *
  * ⚠️ 切換站台只換這裡的隊徽圖示與名稱文字，不整個換 Element Plus 主色（docs/21 §5／§7：
  * 「切換器是介面便利，不是安全邊界」）。
+ *
+ * v3（docs/21 §5.3）：隊徽小圖示改用真實隊徽圖像，不再是純色色塊——操作主色本身也改成品牌桃紅之後，
+ * 純色色塊會被同色系的按鈕、連結、focus 外框稀釋掉「這是俱樂部標記」的獨立辨識度，改用圖像後辨識
+ * 來源是圖形本身，不受 --admin-primary 系 token 支配。
  */
 const clubs = CURRENT_USER.authorizedClubs
 const activeClubId = ref(clubs[0]?.id)
@@ -28,7 +32,7 @@ function handleCommand(clubId: string) {
 <template>
   <el-dropdown v-if="canSwitch" trigger="click" @command="handleCommand">
     <span class="site-switcher">
-      <span class="site-switcher__mark" :style="{ backgroundColor: activeClub?.markColor }" />
+      <img class="site-switcher__mark" :src="activeClub?.crestUrl" :alt="`${activeClub?.name}隊徽`">
       <span class="site-switcher__name">{{ activeClub?.name }}</span>
       <el-icon class="site-switcher__arrow"><ArrowDown /></el-icon>
     </span>
@@ -41,13 +45,14 @@ function handleCommand(clubId: string) {
         >
           <el-icon v-if="club.id === activeClubId"><Check /></el-icon>
           <span v-else class="site-switcher__check-placeholder" />
+          <img class="site-switcher__mark site-switcher__mark--menu-item" :src="club.crestUrl" :alt="`${club.name}隊徽`">
           {{ club.name }}
         </el-dropdown-item>
       </el-dropdown-menu>
     </template>
   </el-dropdown>
   <span v-else class="site-switcher site-switcher--static">
-    <span class="site-switcher__mark" :style="{ backgroundColor: activeClub?.markColor }" />
+    <img class="site-switcher__mark" :src="activeClub?.crestUrl" :alt="`${activeClub?.name}隊徽`">
     <span class="site-switcher__name">{{ activeClub?.name }}</span>
   </span>
 </template>
@@ -73,8 +78,12 @@ function handleCommand(clubId: string) {
 .site-switcher__mark {
   width: 16px;
   height: 16px;
-  border-radius: 3px;
   flex-shrink: 0;
+  object-fit: contain;
+}
+
+.site-switcher__mark--menu-item {
+  margin-right: 4px;
 }
 
 .site-switcher__arrow {

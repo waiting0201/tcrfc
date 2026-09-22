@@ -19,8 +19,12 @@ export interface Bilingual {
 export interface ClubOption {
   id: string
   name: string
-  /** 16px 隊徽小圖示的顏色代表色，mock 用色塊代替真的隊徽圖檔 */
-  markColor: string
+  /**
+   * 16px 隊徽小圖示（docs/21-admin-ui.md §5.3，v3 起改用真實隊徽圖像，不是純色色塊）：
+   * 辨識來源是圖形本身，不受 --admin-primary 系 token 支配，操作主色改品牌桃紅後
+   * 仍能維持「這是哪一隊」的獨立辨識度。
+   */
+  crestUrl: string
 }
 
 export interface CurrentUser {
