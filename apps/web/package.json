@@ -8,7 +8,9 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "lint": "eslint ."
+    "lint": "npm run lint:club-copy && npm run lint:eslint",
+    "lint:eslint": "eslint .",
+    "lint:club-copy": "node scripts/check-club-copy.mjs"
   },
   "dependencies": {
     "@nuxtjs/seo": "5.3.16",
@@ -17,6 +19,7 @@
   "devDependencies": {
     "@nuxt/eslint": "1.4.1",
     "eslint": "9.36.0",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vue-tsc": "^3.3.11"
   }
 }
