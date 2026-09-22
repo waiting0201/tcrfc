@@ -90,6 +90,7 @@
 | 語系前綴 | `/zh/…`、`/en/…`，`hreflang` 含 `x-default` |
 | 行事曆隊別分類（可索引） | `/schedule/d1/`、`/schedule/u15/`、`/schedule/u14/`、`/schedule/u12/` |
 | 重要賽事獨立網址 | `/schedule/2026-03-15-tcrfc-vs-xxx` |
+| **新聞詳情（🔴 執行層決定，2026-09-22）** | `/zh/news/<網址名稱>/`，例：`/zh/news/2024-12-18-club-079/`。**規劃書沒有指定這個形狀**——它只要求「每篇文章有自己的 canonical」（§5.1 `Article.slug` 全站唯一的理由、`GEO-08` 每頁輸出 canonical），形狀由使用者於 2026-09-22 拍板，取與商品詳情 `/zh/shop/<商品代稱>/` 一致的扁平結構。⚠️ **代價**：07 單元底下已有 8 個分類路徑（`club`／`match`／…），網址名稱若等於其中之一就會撞——**由 `apps/api` 的寫入端驗證擋住**（`SlugPolicy`，回 400），不是靠約定 |
 | FAQ 單題深層連結 | `/faq/#q-123` |
 | **商店（v2.6）** | 商品列表 `/zh/shop/`、商品詳情 `/zh/shop/<商品代稱>/`、購物車 `/zh/cart/`、結帳 `/zh/checkout/`、完成頁 `/zh/checkout/complete/`、訂單查詢 `/zh/order/lookup/` |
 | 舊站轉址 | www.tcrfc.tw 既有網址 301 至新站對應頁（後台 H 模組批次匯入）；**舊 Wix 商店的 `/product-page/…` 對應到 `/zh/shop/<商品代稱>/`** |
