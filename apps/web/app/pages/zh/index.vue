@@ -8,10 +8,22 @@
 // （sticky header／行動選單／mega menu 屬於版型層級，已移到 app/components/SiteHeader.vue）。
 definePageMeta({ nav: 'home', unit: '01' })
 
+// 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：SEO、Hero 標語與
+// 底下幾個「真人真事」區塊（賽事戰績、球員名單、新聞、商店實拍照）分屬 shared/
+// utils/club-copy.ts 的資料層，或屬於動態內容（球員／新聞／賽程，見該檔檔頭
+// 說明 (c)）——藍鯨目前這些區塊 0 素材，一律不顯示，不沿用磐石的真人真事資料
+// 頂替（docs/13 踩雷點 8 同一道理：缺素材不放假的，直接不顯示這個區塊）。
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const assets = computed(() => getClubAssets(clubKey.value))
+const heroCopy = computed(() => HOME_HERO[clubKey.value])
+const pillars = computed(() => HOME_PILLARS[clubKey.value])
+const ctaTrio = computed(() => HOME_CTA_TRIO[clubKey.value])
+
 useSeoMeta({
-  title: '台中磐石足球俱樂部 TCRFC｜在地扎根．放眼世界',
-  description:
-    '台中磐石足球俱樂部（TCRFC）官方網站。2024 年創立，2024 全國乙級聯賽冠軍。一線隊、台中磐石足球學院、課程與活動、女子足球四大體系。',
+  title: computed(() => HOME_SEO[clubKey.value].title),
+  description: computed(() => HOME_SEO[clubKey.value].description),
 })
 
 // ---- Team chips（賽事行事曆的隊伍切換）----
@@ -162,7 +174,7 @@ function goTo(index: number) {
 }
 
 function startAutoplay() {
-  if (reduced() || total < 2) return
+  if (!isTcrfc.value || reduced() || total < 2) return
   stopAutoplay()
   timer = setInterval(() => goTo(current + 1), AUTOPLAY_MS)
   statusEl.value?.setAttribute('aria-live', 'off')
@@ -189,6 +201,7 @@ function onHeroFocusout(e: FocusEvent) {
 }
 
 onMounted(() => {
+  if (!isTcrfc.value) return // 藍鯨無 hero 輪播素材（首頁 hero 圖未下載、無授權狀態），本頁不掛載輪播行為
   slideEls.value = Array.from(sliderEl.value?.querySelectorAll<HTMLElement>('.hero__slide') ?? [])
   reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -213,7 +226,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section ref="heroSectionEl" class="hero" id="top" aria-label="首頁主視覺">
-    <div ref="sliderEl" class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" aria-label="首頁主視覺輪播，共 3 張">
+    <div v-if="isTcrfc" ref="sliderEl" class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" aria-label="首頁主視覺輪播，共 3 張">
       <ul class="hero__slides">
         <li class="hero__slide is-active" role="group" aria-roledescription="slide" aria-label="第 1 張，共 3 張">
           <img src="/assets/img/hero-01.jpg" alt="台中磐石球員於夜間賽事中振臂吶喊慶祝，場邊看板可見桃紅色 TCRFC 字樣" width="2400" height="1600" loading="eager" fetchpriority="high" style="object-position:58% 35%">
@@ -227,20 +240,23 @@ onBeforeUnmount(() => {
       </ul>
       <p ref="statusEl" class="visually-hidden" id="hero-slide-status" aria-live="off" aria-atomic="true">目前顯示第 1 張，共 3 張</p>
     </div>
+    <!-- 藍鯨首頁 hero 圖未下載、無授權狀態（content/blue-whale/gap-analysis.md §2），
+         不得沿用磐石的照片頂替，改用純色塊（docs/13 踩雷點 8 同一道理：缺素材不放假圖）。 -->
+    <div v-else class="hero__media hero__media--pending" aria-hidden="true"></div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <span class="ghost-num" aria-hidden="true">01</span>
     <div class="hero__inner">
       <div class="container">
         <div class="hero__grid">
           <div class="hero__copy">
-            <p class="kicker kicker--on-dark">LOCAL ROOTS. GLOBAL PATHWAYS.</p>
-            <h1 class="hero__headline">在地扎根<br>放眼世界</h1>
-            <p class="hero__sub">台中磐石足球俱樂部 · <b>2024 年創立</b> · <b>2024 全國乙級聯賽冠軍</b></p>
+            <p v-if="heroCopy.kickerEn" class="kicker kicker--on-dark">{{ heroCopy.kickerEn }}</p>
+            <h1 class="hero__headline" v-html="heroCopy.headlineZh"></h1>
+            <p class="hero__sub" v-html="heroCopy.factLineZh"></p>
             <div class="hero__ctas">
-              <a class="btn btn--primary" href="/zh/charity/">加入球隊</a>
-              <a class="btn btn--light" href="/zh/culture/">認識台中磐石</a>
+              <a class="btn btn--primary" href="/zh/join/player/">加入球隊</a>
+              <a class="btn btn--light" href="/zh/about/">{{ heroCopy.ctaSecondaryLabelZh }}</a>
             </div>
-            <div class="hero__slider-nav">
+            <div v-if="isTcrfc" class="hero__slider-nav">
               <button type="button" class="hero__arrow hero__arrow--prev" data-hero-prev aria-controls="hero-slider" aria-label="上一張主視覺圖片" @click="goTo(current - 1)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
               </button>
@@ -254,7 +270,8 @@ onBeforeUnmount(() => {
               </button>
             </div>
           </div>
-          <div class="hero__news">
+          <!-- 藍鯨新聞 07 單元自有全文 0 篇（gap-analysis.md §4 #3），不沿用磐石新聞頂替，本區塊不顯示。 -->
+          <div v-if="isTcrfc" class="hero__news">
             <a class="hero-card clip-card clip-card--on-dark" href="/zh/news/">
               <div class="hero-card__media">
                 <img src="/assets/img/news-trencin.jpg" alt="台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流" loading="lazy" width="1280" height="853">
@@ -279,8 +296,10 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <!-- SPEC 3.1 / 3.13 — Match band -->
-  <section class="band grain match-band" id="schedule" aria-labelledby="schedule-title">
+  <!-- SPEC 3.1 / 3.13 — Match band
+       藍鯨未來 12 個月賽程完全沒有（docs/13-blue-whale-site.md §5 擋開發第 4 項），
+       本區塊不沿用磐石賽事資料頂替，直接不顯示。 -->
+  <section v-if="isTcrfc" class="band grain match-band" id="schedule" aria-labelledby="schedule-title">
     <span class="ghost-num ghost-num--dark" aria-hidden="true">21</span>
     <div class="band-inner container">
       <div class="eyebrow-row">
@@ -344,8 +363,10 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <!-- 一線隊球員橫幅（沿用 .stats-band 的深色帶樣式；數據區塊已移除） -->
-  <section class="band grain grain--2 stats-band" aria-labelledby="roster-strip-title">
+  <!-- 一線隊球員橫幅（沿用 .stats-band 的深色帶樣式；數據區塊已移除）
+       球員名單屬動態內容（不進 club-copy.ts），藍鯨目前無已核可肖像可用的一線隊球員照片，
+       本區塊不顯示，不沿用磐石球員資料頂替。 -->
+  <section v-if="isTcrfc" class="band grain grain--2 stats-band" aria-labelledby="roster-strip-title">
     <div class="band-inner container">
       <div class="roster-strip">
         <div class="roster-strip__head">
@@ -378,8 +399,10 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <!-- SPEC 1.2 — Five core values -->
-  <section class="band values-band" id="values" aria-labelledby="values-title">
+  <!-- SPEC 1.2 — Five core values
+       五大核心價值是磐石自訂的品牌框架，舊站沒有陳述對等的架構，依內容紀律
+       不得自行創作藍鯨版的「五大核心價值」，本區塊不顯示。 -->
+  <section v-if="isTcrfc" class="band values-band" id="values" aria-labelledby="values-title">
     <span class="ghost-num ghost-num--light" aria-hidden="true">05</span>
     <div class="band-inner container">
       <div class="eyebrow-row">
@@ -434,49 +457,25 @@ onBeforeUnmount(() => {
           <h2 class="section-title" id="pillars-title">四大支柱</h2>
         </div>
       </div>
+      <!-- 四大支柱／三大體系圖卡沿用既有 mockup 圖片（人物照為磐石既有素材，藍鯨
+           無對應照片，兩站共用同一組通用足球場景照，不涉及任何俱樂部辨識內容）。 -->
       <div class="pillars-grid">
-        <a class="pillar-card clip-card clip-card--on-dark" href="/zh/schedule/">
-          <img src="/assets/img/news-mcu.jpg" alt="台中磐石一線隊夜間比賽出戰畫面" loading="lazy" width="1280" height="855">
+        <a v-for="(pillar, i) in pillars" :key="pillar.enLabel" class="pillar-card clip-card clip-card--on-dark" :href="pillar.href">
+          <img :src="['/assets/img/news-mcu.jpg', '/assets/img/trencin-04.jpg', '/assets/img/trencin-05.jpg', '/assets/img/news-w20.jpg'][i]" alt="" loading="lazy" width="1280" height="853">
           <div class="pillar-card__scrim" aria-hidden="true"></div>
           <div class="pillar-card__body">
-            <p class="pillar-card__en">FOOTBALL CLUB</p>
-            <p class="pillar-card__zh">台中磐石足球俱樂部</p>
-            <span class="pillar-card__link">了解一線隊 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
-          </div>
-        </a>
-        <a class="pillar-card clip-card clip-card--on-dark" id="academy" href="/zh/academy/">
-          <img src="/assets/img/trencin-04.jpg" alt="台中磐石足球學院青少年球員於斯洛伐克進行交流賽" loading="lazy" width="1920" height="1279">
-          <div class="pillar-card__scrim" aria-hidden="true"></div>
-          <div class="pillar-card__body">
-            <p class="pillar-card__en">ACADEMY</p>
-            <p class="pillar-card__zh">台中磐石足球學院</p>
-            <span class="pillar-card__link">認識學院 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
-          </div>
-        </a>
-        <a class="pillar-card clip-card clip-card--on-dark" id="programs" href="/zh/programs/">
-          <img src="/assets/img/trencin-05.jpg" alt="足球課程訓練現場，教練以障礙錐引導球員進行帶球練習" loading="lazy" width="1920" height="1279">
-          <div class="pillar-card__scrim" aria-hidden="true"></div>
-          <div class="pillar-card__body">
-            <p class="pillar-card__en">PROGRAMS</p>
-            <p class="pillar-card__zh">課程與活動</p>
-            <span class="pillar-card__link">查看課表 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
-          </div>
-        </a>
-        <a class="pillar-card clip-card clip-card--on-dark" id="womens" href="/zh/womens/">
-          <img src="/assets/img/news-w20.jpg" alt="女子足球比賽畫面" loading="lazy" width="1280" height="853">
-          <div class="pillar-card__scrim" aria-hidden="true"></div>
-          <div class="pillar-card__body">
-            <p class="pillar-card__en">WOMEN'S FOOTBALL</p>
-            <p class="pillar-card__zh">女子足球</p>
-            <span class="pillar-card__link">認識藍鯨 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
+            <p class="pillar-card__en">{{ pillar.enLabel }}</p>
+            <p class="pillar-card__zh">{{ pillar.zhLabel }}</p>
+            <span class="pillar-card__link">{{ pillar.linkLabelZh }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
           </div>
         </a>
       </div>
     </div>
   </section>
 
-  <!-- SPEC 3.7 — News mosaic -->
-  <section class="band news-band" id="news" aria-labelledby="news-title">
+  <!-- SPEC 3.7 — News mosaic
+       藍鯨新聞 07 單元自有全文 0 篇（gap-analysis.md §4 #3），本區塊不顯示。 -->
+  <section v-if="isTcrfc" class="band news-band" id="news" aria-labelledby="news-title">
     <div class="band-inner container">
       <div class="eyebrow-row">
         <div>
@@ -549,8 +548,9 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <!-- SPEC 3.8 — Official store band -->
-  <section class="band grain grain--2 store-band" aria-labelledby="store-title">
+  <!-- SPEC 3.8 — Official store band
+       藍鯨商店 0 商品、無物流與價格資訊（gap-analysis.md §4 #1），本區塊不顯示。 -->
+  <section v-if="isTcrfc" class="band grain grain--2 store-band" aria-labelledby="store-title">
     <span class="ghost-num ghost-num--dark" aria-hidden="true">08</span>
     <div class="band-inner container">
       <div class="store-band__grid">
@@ -577,7 +577,7 @@ onBeforeUnmount(() => {
           <p class="kicker">WITH THANKS TO</p>
           <h2 class="section-title" id="partners-title">合作夥伴</h2>
         </div>
-        <p class="section-lede">感謝以下夥伴支持台中磐石足球俱樂部的每一步成長。</p>
+        <p class="section-lede">感謝以下夥伴支持{{ assets.nameZh }}的每一步成長。</p>
       </div>
 
       <div class="sponsor-grid" aria-hidden="true">
@@ -598,27 +598,24 @@ onBeforeUnmount(() => {
   <!-- SPEC 3.1 — Bottom CTA trio (10.1 / 10.2 / 10.5) -->
   <section class="band grain cta-band" id="charity" aria-labelledby="cta-title">
     <div class="band-inner container">
-      <h2 class="visually-hidden" id="cta-title">加入台中磐石</h2>
+      <h2 class="visually-hidden" id="cta-title">加入{{ assets.nameZh }}</h2>
       <div class="cta-grid">
-        <div class="cta-card">
-          <p class="cta-card__num">10.1</p>
-          <p class="cta-card__title">加入球隊</p>
-          <p class="cta-card__desc">具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊與各梯隊球員。</p>
-          <a class="btn btn--primary" href="/zh/join/player/">填寫報名表</a>
-        </div>
-        <div class="cta-card">
-          <p class="cta-card__num">10.2</p>
-          <p class="cta-card__title">加入學院／兒童訓練</p>
-          <p class="cta-card__desc">從基礎技術到比賽觀念，台中磐石足球學院與兒童訓練課程提供各年齡層系統化的足球訓練。</p>
-          <a class="btn btn--primary" href="/zh/join/academy/">預約試訓</a>
-        </div>
-        <div class="cta-card">
-          <p class="cta-card__num">10.5</p>
-          <p class="cta-card__title">成為合作夥伴</p>
-          <p class="cta-card__desc">攜手台中磐石，透過職業足球平台觸及在地社群，共創品牌與社區的雙贏價值。</p>
-          <a class="btn btn--primary" href="/zh/join/partnership/">洽談合作</a>
+        <div v-for="card in ctaTrio" :key="card.num" class="cta-card">
+          <p class="cta-card__num">{{ card.num }}</p>
+          <p class="cta-card__title">{{ card.titleZh }}</p>
+          <p class="cta-card__desc">{{ card.descZh }}</p>
+          <a class="btn btn--primary" :href="card.href">{{ card.ctaLabelZh }}</a>
         </div>
       </div>
     </div>
   </section>
 </template>
+
+<style>
+/* 藍鯨首頁 hero 無授權照片可用時的純色回退（見 script setup 開頭說明）——
+   只用既有 --brand 系列 token，不引入新色碼，遵守「顏色只能是 CSS custom
+   properties」（docs/13-blue-whale-site.md §6 紀律 1）。 */
+.hero__media--pending {
+  background: linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%);
+}
+</style>

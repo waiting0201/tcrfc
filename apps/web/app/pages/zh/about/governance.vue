@@ -2,9 +2,14 @@
 // app/pages/zh/about/governance.vue — 由 site/src/pages/zh/about/governance/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "about", unit: "02" })
 
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const identity = computed(() => getClubIdentity(clubKey.value))
+const hero = computed(() => GOVERNANCE_HERO[clubKey.value])
+
 useSeoMeta({
-  title: "治理與管理 Governance｜關於台中磐石｜台中磐石足球俱樂部",
-  description: "台中磐石足球俱樂部治理相關資訊與公開文件下載區，內容持續更新中。",
+  title: computed(() => GOVERNANCE_SEO[clubKey.value].title),
+  description: computed(() => GOVERNANCE_SEO[clubKey.value].description),
 })
 </script>
 
@@ -13,7 +18,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">關於台中磐石</a></li>
+      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">治理與管理</li>
     </ol>
   </div>
@@ -22,9 +27,9 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <img class="page-hero__bg" src="/assets/img/nav-about.jpg" alt="" width="1600" height="900">
   <div class="container">
-    <p class="page-hero__eyebrow">2.5 About TCRFC</p>
-    <h1>治理與管理<span class="en">Governance</span></h1>
-    <p class="page-hero__lede">俱樂部治理相關資訊將陸續公布，以下為目前可提供的公開文件。</p>
+    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.5', clubKey) }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 

@@ -10,9 +10,14 @@
 //
 // 單元開關呼叫點 2／4：女子足球（06）與慈善（11）兩個 mega-menu 以外的單項連結，
 // 依 isUnitEnabledForClub 決定要不要出現在導覽（桌機／行動版共用同一份過濾結果）。
+//
+// 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：導覽本身的「關於＿＿」
+// 「＿＿文化」與社群連結網址含俱樂部名稱／官方帳號，屬於「俱樂部自己的事實」，
+// 從 shared/utils/club-copy.ts 的單一真實來源取值，不得在這裡另外硬編碼一份。
 const config = useRuntimeConfig()
 const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
+const identity = computed(() => getClubIdentity(club.value))
 const showWomens = computed(() => isUnitEnabledForClub('06', club.value))
 const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
 
@@ -143,13 +148,13 @@ onBeforeUnmount(() => {
       </div>
       <div class="utility-bar__right">
         <nav class="social-row" aria-label="社群媒體">
-          <a href="https://www.facebook.com/TCRFC2024" aria-label="前往 Facebook 粉絲專頁" target="_blank" rel="noopener">
+          <a v-if="identity.social.facebook" :href="identity.social.facebook" aria-label="前往 Facebook 粉絲專頁" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 9h3V5h-3c-2.2 0-4 1.8-4 4v2H7v4h3v7h4v-7h3l1-4h-4v-2c0-.6.4-1 1-1z" /></svg>
           </a>
-          <a href="https://www.instagram.com/tcr_fc_2024" aria-label="前往 Instagram" target="_blank" rel="noopener">
+          <a v-if="identity.social.instagram" :href="identity.social.instagram" aria-label="前往 Instagram" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.2" cy="6.8" r="1" /></svg>
           </a>
-          <a href="https://www.youtube.com/@TCRFC-2024" aria-label="前往 YouTube 頻道" target="_blank" rel="noopener">
+          <a v-if="identity.social.youtube" :href="identity.social.youtube" aria-label="前往 YouTube 頻道" target="_blank" rel="noopener">
             <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="2" y="5.5" width="20" height="13" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M10 9.5l6 2.5-6 2.5z" /></svg>
           </a>
         </nav>
@@ -166,7 +171,7 @@ onBeforeUnmount(() => {
       <nav ref="mainNavEl" class="main-nav" aria-label="主要導覽">
         <ul>
           <li class="has-mega">
-            <a href="/zh/about/" data-nav="about" :aria-current="activeNav === 'about' ? 'page' : undefined">關於台中磐石</a>
+            <a href="/zh/about/" data-nav="about" :aria-current="activeNav === 'about' ? 'page' : undefined">{{ identity.aboutLabelZh }}</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
@@ -181,7 +186,7 @@ onBeforeUnmount(() => {
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-about.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/about/our-story/">認識台中磐石</a>
+                  <a class="btn btn--primary btn--sm" href="/zh/about/our-story/">認識{{ assets.nameZh }}</a>
                 </div>
               </div>
             </div>
@@ -205,7 +210,7 @@ onBeforeUnmount(() => {
             </div>
           </li>
           <li class="has-mega">
-            <a href="/zh/academy/" data-nav="academy" :aria-current="activeNav === 'academy' ? 'page' : undefined">足球學院</a>
+            <a href="/zh/academy/" data-nav="academy" :aria-current="activeNav === 'academy' ? 'page' : undefined">{{ identity.academyLabelZh }}</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
@@ -266,12 +271,12 @@ onBeforeUnmount(() => {
             </div>
           </li>
           <li class="has-mega">
-            <a href="/zh/culture/" data-nav="culture" :aria-current="activeNav === 'culture' ? 'page' : undefined">台中磐石文化</a>
+            <a href="/zh/culture/" data-nav="culture" :aria-current="activeNav === 'culture' ? 'page' : undefined">{{ identity.cultureLabelZh }}</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/culture/manga/">8.1 台中磐石漫畫</a></li>
-                  <li><a href="/zh/culture/fan-club/">8.2 台中磐石球迷會</a></li>
+                  <li><a href="/zh/culture/manga/">8.1 {{ assets.nameZh }}漫畫</a></li>
+                  <li><a href="/zh/culture/fan-club/">8.2 {{ assets.nameZh }}球迷會</a></li>
                   <li><a href="/zh/culture/merchandise/">8.3 官方商品</a></li>
                   <li><a href="/zh/shop/">8.3 官方商店 SHOP</a></li>
                   <li><a href="/zh/perks/">8.4 特約店家</a></li>
@@ -329,14 +334,14 @@ onBeforeUnmount(() => {
     </div>
     <nav aria-label="行動主要導覽">
       <ul>
-        <li><a href="/zh/about/">關於台中磐石 ABOUT</a></li>
+        <li><a href="/zh/about/">{{ identity.aboutLabelZh }} ABOUT</a></li>
         <li><a href="/zh/club/">俱樂部 CLUB</a></li>
-        <li><a href="/zh/academy/">足球學院 ACADEMY</a></li>
+        <li><a href="/zh/academy/">{{ identity.academyLabelZh }} {{ identity.academyLabelEn }}</a></li>
         <li><a href="/zh/programs/">課程 PROGRAMS</a></li>
         <li v-if="showWomens"><a href="/zh/womens/">女子足球 WOMEN'S</a></li>
         <li><a href="/zh/schedule/">賽事 SCHEDULE</a></li>
         <li><a href="/zh/news/">新聞 NEWS</a></li>
-        <li><a href="/zh/culture/">台中磐石文化 CULTURE</a></li>
+        <li><a href="/zh/culture/">{{ identity.cultureLabelZh }} CULTURE</a></li>
         <li><a href="/zh/shop/">官方商店 SHOP</a></li>
         <li><a href="/zh/partners/">夥伴 PARTNERS</a></li>
         <li v-if="showCharity"><a href="/zh/charity/">慈善 CHARITY</a></li>

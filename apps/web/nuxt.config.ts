@@ -37,6 +37,15 @@ export default defineNuxtConfig({
   // htmlAttrs.lang 解析與合併順序，實測設這裡並不會連帶修正 lang 屬性）——
   // <html lang> 真正生效的設定在下面的 app.head.htmlAttrs.lang，兩處分工，
   // 詳見 docs/18-work-errors.md E-17。
+  //
+  // 🔴 site.name 這裡的 'TCRFC' 只是本機開發預設值，不是實際輸出值——
+  // 文案依俱樂部切換機制上線時發現：nuxt-site-config 對 name 用的是跟 url
+  // 完全同一套 priority-stack，NUXT_PUBLIC_SITE_NAME 這個 runtime 環境變數
+  // 會覆寫這裡的值（同一份 build、只改 env 就變更，已實測 og:site_name／
+  // <title> 後綴／Schema.org WebSite.name 三處都正確跟著換，見
+  // docs/13-blue-whale-site.md §6 紀律 11 與 apps/web/README.md 環境變數表）。
+  // 藍鯨容器啟動時必須明確帶 NUXT_PUBLIC_SITE_NAME=台中藍鯨，否則這三處會
+  // 悄悄顯示 'TCRFC'——不是規劃書規格，是這裡的預設值外洩。
   site: {
     name: 'TCRFC',
     defaultLocale: 'zh-Hant',

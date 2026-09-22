@@ -1,10 +1,20 @@
 <script setup lang="ts">
 // app/pages/zh/about/index.vue — 由 site/src/pages/zh/about/index/index.html 轉來（S0-9 靜態頁搬遷）
+//
+// 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：本頁 SEO／頁首／
+// 導覽卡描述一律取自 shared/utils/club-copy.ts，不在頁面內硬編碼俱樂部名稱。
 definePageMeta({ nav: "about", unit: "02" })
 
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const identity = computed(() => getClubIdentity(clubKey.value))
+const assets = computed(() => getClubAssets(clubKey.value))
+const hero = computed(() => ABOUT_INDEX_HERO[clubKey.value])
+const navDesc = computed(() => ABOUT_NAV_DESC[clubKey.value])
+
 useSeoMeta({
-  title: "關於台中磐石 About TCRFC｜台中磐石足球俱樂部",
-  description: "認識台中磐石足球俱樂部：我們的故事、願景與使命、足球理念、團隊成員、治理與管理、生態系、俱樂部歷程與重要里程碑。",
+  title: computed(() => ABOUT_INDEX_SEO[clubKey.value].title),
+  description: computed(() => ABOUT_INDEX_SEO[clubKey.value].description),
 })
 </script>
 
@@ -13,7 +23,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a href="/zh/">首頁</a></li>
-      <li aria-current="page">關於台中磐石</li>
+      <li aria-current="page">{{ identity.aboutLabelZh }}</li>
     </ol>
   </div>
 </nav>
@@ -21,9 +31,9 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <img class="page-hero__bg" src="/assets/img/nav-about.jpg" alt="" width="1600" height="900">
   <div class="container">
-    <p class="page-hero__eyebrow">02 About TCRFC</p>
-    <h1>關於台中磐石<span class="en">About TCRFC</span></h1>
-    <p class="page-hero__lede">LOCAL ROOTS. GLOBAL PATHWAYS.｜在地扎根 · 放眼世界。台中磐石足球俱樂部 2024 年於台中成立，以下八個篇章，帶你認識這支球隊從理念到組織的全貌。</p>
+    <p class="page-hero__eyebrow">{{ aboutEyebrow('02', clubKey) }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -33,9 +43,9 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">EIGHT CHAPTERS</p>
-        <h2 class="section-title" id="about-nav-title">認識台中磐石</h2>
+        <h2 class="section-title" id="about-nav-title">認識{{ assets.nameZh }}</h2>
       </div>
-      <p class="section-lede">從故事、理念到治理，逐篇了解台中磐石足球俱樂部。</p>
+      <p class="section-lede">從故事、理念到治理，逐篇了解{{ assets.nameZh }}。</p>
     </div>
 
     <div class="about-nav-grid">
@@ -43,28 +53,28 @@ useSeoMeta({
         <p class="about-nav-card__num">2.1</p>
         <p class="about-nav-card__en">Our Story</p>
         <p class="about-nav-card__zh">我們的故事</p>
-        <p class="about-nav-card__desc">認識台中磐石從創立至今的發展沿革。</p>
+        <p class="about-nav-card__desc">{{ navDesc.ourStory }}</p>
         <span class="about-nav-card__link">閱讀故事 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" href="/zh/about/vision-mission/">
         <p class="about-nav-card__num">2.2</p>
         <p class="about-nav-card__en">Vision &amp; Mission</p>
         <p class="about-nav-card__zh">願景與使命</p>
-        <p class="about-nav-card__desc">台中磐石的核心願景與俱樂部使命。</p>
+        <p class="about-nav-card__desc">{{ navDesc.visionMission }}</p>
         <span class="about-nav-card__link">了解願景 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" href="/zh/about/philosophy/">
         <p class="about-nav-card__num">2.3</p>
         <p class="about-nav-card__en">Our Philosophy</p>
         <p class="about-nav-card__zh">足球理念</p>
-        <p class="about-nav-card__desc">足球理念與五大核心價值。</p>
+        <p class="about-nav-card__desc">{{ navDesc.philosophy }}</p>
         <span class="about-nav-card__link">認識理念 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" href="/zh/about/our-people/">
         <p class="about-nav-card__num">2.4</p>
         <p class="about-nav-card__en">Our People</p>
         <p class="about-nav-card__zh">團隊成員</p>
-        <p class="about-nav-card__desc">認識台中磐石的教練團與行政團隊。</p>
+        <p class="about-nav-card__desc">{{ navDesc.ourPeople }}</p>
         <span class="about-nav-card__link">查看團隊 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" href="/zh/about/governance/">
@@ -76,16 +86,17 @@ useSeoMeta({
       </a>
       <a class="about-nav-card clip-card" href="/zh/about/ecosystem/">
         <p class="about-nav-card__num">2.6</p>
-        <p class="about-nav-card__en">TCRFC Ecosystem</p>
+        <p v-if="identity.brandTagEn" class="about-nav-card__en">{{ identity.brandTagEn }} Ecosystem</p>
+        <p v-else class="about-nav-card__en">Ecosystem</p>
         <p class="about-nav-card__zh">生態系</p>
-        <p class="about-nav-card__desc">一線隊、學院、課程、女足四大體系總覽。</p>
+        <p class="about-nav-card__desc">{{ navDesc.ecosystem }}</p>
         <span class="about-nav-card__link">查看生態系 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" href="/zh/about/history/">
         <p class="about-nav-card__num">2.7</p>
         <p class="about-nav-card__en">Club History</p>
         <p class="about-nav-card__zh">俱樂部歷程</p>
-        <p class="about-nav-card__desc">圖文紀錄台中磐石的發展歷程。</p>
+        <p class="about-nav-card__desc">{{ navDesc.history }}</p>
         <span class="about-nav-card__link">回顧歷程 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" href="/zh/about/milestones/">

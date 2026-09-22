@@ -12,9 +12,18 @@
 // 「資料驅動頁」搬遷——不要誤以為這裡漏接了 API。
 definePageMeta({ nav: 'about', unit: '02' })
 
+// 文案依俱樂部切換：hero／SEO 取自 club-copy.ts。藍鯨這一輪不重建本頁的年份
+// 篩選時間軸元件（12 年份、資料量與磐石的 3 年份差異太大，須另外設計互動），
+// 完整年度大事記改放在「俱樂部歷程」頁（見 history.vue），本頁對藍鯨只顯示
+// 指向該頁的說明，不沿用磐石的時間軸內容頂替。
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const identity = computed(() => getClubIdentity(clubKey.value))
+const hero = computed(() => MILESTONES_HERO[clubKey.value])
+
 useSeoMeta({
-  title: '重要里程碑 Key Milestones｜關於台中磐石｜台中磐石足球俱樂部',
-  description: '台中磐石足球俱樂部 2024～2026 年重要大事記時間軸，包含成軍、奪冠、國際合作備忘錄簽署與新血加盟等紀錄，支援年份篩選。',
+  title: computed(() => MILESTONES_SEO[clubKey.value].title),
+  description: computed(() => MILESTONES_SEO[clubKey.value].description),
 })
 
 const { activeYear, isPressed, isPanelHidden } = useYearChips()
@@ -25,7 +34,7 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
   <div class="container">
     <ol>
       <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">關於台中磐石</a></li>
+      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">重要里程碑</li>
     </ol>
   </div>
@@ -34,15 +43,22 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
 <section class="page-hero page-hero--media">
   <img class="page-hero__bg" src="/assets/img/nav-about.jpg" alt="" width="1600" height="900">
   <div class="container">
-    <p class="page-hero__eyebrow">2.8 About TCRFC</p>
-    <h1>重要里程碑<span class="en">Key Milestones</span></h1>
-    <p class="page-hero__lede">2024 年成立至今，台中磐石一步步建立起一線隊戰績、國際合作網絡與在地公益足跡。以下時間軸整理自俱樂部已發布消息，可依年份篩選查看。</p>
+    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.8', clubKey) }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
-<section class="band milestones-band" aria-labelledby="milestones-title">
+<section v-if="clubKey !== 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="milestones-title">重要里程碑時間軸</h2>
+    <h2 class="visually-hidden" id="milestones-title">重要里程碑</h2>
+    <p class="section-lede">本頁的年份篩選時間軸尚未依藍鯨資料重建，完整的 2014～2025 逐年沿革請見 <a href="/zh/about/history/">2.7 俱樂部歷程</a>。</p>
+  </div>
+</section>
+
+<section v-if="clubKey === 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title-tcrfc">
+  <div class="band-inner container">
+    <h2 class="visually-hidden" id="milestones-title-tcrfc">重要里程碑時間軸</h2>
 
     <div class="year-filter" role="group" aria-label="選擇年份">
       <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">全部</button>

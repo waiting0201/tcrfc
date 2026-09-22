@@ -1,10 +1,18 @@
 <script setup lang="ts">
 // app/pages/zh/about/our-story.vue — 由 site/src/pages/zh/about/our-story/index.html 轉來（S0-9 靜態頁搬遷）
+//
+// 文案依俱樂部切換：hero／SEO 取自 shared/utils/club-copy.ts；藍鯨版內文
+// （OUR_STORY_BODY_BW）逐字節錄 content/blue-whale/club-profile.md §1，未新增文字。
 definePageMeta({ nav: "about", unit: "02" })
 
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const identity = computed(() => getClubIdentity(clubKey.value))
+const hero = computed(() => OUR_STORY_HERO[clubKey.value])
+
 useSeoMeta({
-  title: "我們的故事 Our Story｜關於台中磐石｜台中磐石足球俱樂部",
-  description: "台中磐石足球俱樂部（TCRFC）於 2024 年在台中成立。這裡收錄俱樂部從創立至今的沿革故事，完整內文正在整理中。",
+  title: computed(() => OUR_STORY_SEO[clubKey.value].title),
+  description: computed(() => OUR_STORY_SEO[clubKey.value].description),
 })
 </script>
 
@@ -13,7 +21,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">關於台中磐石</a></li>
+      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">我們的故事</li>
     </ol>
   </div>
@@ -22,9 +30,9 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <img class="page-hero__bg" src="/assets/img/nav-about.jpg" alt="" width="1600" height="900">
   <div class="container">
-    <p class="page-hero__eyebrow">2.1 About TCRFC</p>
-    <h1>我們的故事<span class="en">Our Story</span></h1>
-    <p class="page-hero__lede">LOCAL ROOTS. GLOBAL PATHWAYS.｜台中磐石足球俱樂部 2024 年於台中成立。這裡是我們沿革故事的篇章，完整內文正在與俱樂部確認中。</p>
+    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.1', clubKey) }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -32,13 +40,14 @@ useSeoMeta({
   <div class="band-inner container">
     <h2 class="visually-hidden" id="story-title">我們的故事</h2>
     <div class="story-layout">
-      <div class="prose">
+      <div v-if="clubKey === 'tcrfc'" class="prose">
         <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>2024 年</strong>在台中成立，同年即拿下<strong>全國乙級聯賽冠軍</strong>。俱樂部主場設於西屯足球場，以「在地扎根．放眼世界」為品牌主張，逐步建立起一線隊、學院與課程並行的發展體系。</p>
 
         <h2>圖文段落</h2>
         <p>本頁版型為長文編輯，支援圖文混排與引言區塊；正式內文與圖片確認後，將依段落穿插俱樂部歷年照片。</p>
-
-        
+      </div>
+      <div v-else class="prose">
+        <p>{{ OUR_STORY_BODY_BW }}</p>
       </div>
     </div>
   </div>
@@ -51,13 +60,13 @@ useSeoMeta({
       <div class="cta-card">
         <p class="cta-card__num">2.2</p>
         <p class="cta-card__title">願景與使命</p>
-        <p class="cta-card__desc">了解台中磐石的核心願景與俱樂部使命。</p>
+        <p class="cta-card__desc">了解{{ ABOUT_NAV_DESC[clubKey].visionMission }}</p>
         <a class="btn btn--primary" href="/zh/about/vision-mission/">前往閱讀</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">2.7</p>
         <p class="cta-card__title">俱樂部歷程</p>
-        <p class="cta-card__desc">圖文紀錄台中磐石的發展歷程。</p>
+        <p class="cta-card__desc">{{ ABOUT_NAV_DESC[clubKey].history }}</p>
         <a class="btn btn--primary" href="/zh/about/history/">前往閱讀</a>
       </div>
       <div class="cta-card">

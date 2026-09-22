@@ -17,8 +17,14 @@
 //      對照表排序重建，仍是真實姓名資料只是補上顯示順序，不是編資料內容。
 definePageMeta({ nav: 'about', unit: '02' })
 
+// 文案依俱樂部切換：hero／SEO 取自 shared/utils/club-copy.ts；名單本身走既有 API
+// （動態內容，不進 club-copy.ts）——藍鯨 staff 表目前 0 筆真實資料（客戶尚未提供，
+// 不臆造），下方名單區塊會自然顯示空清單，不沿用磐石教練團頂替。
 const config = useRuntimeConfig()
 const club = config.public.club
+const clubKey = computed<'tcrfc' | 'bw'>(() => (club === 'bw' ? 'bw' : 'tcrfc'))
+const identity = computed(() => getClubIdentity(clubKey.value))
+const hero = computed(() => OUR_PEOPLE_HERO[clubKey.value])
 
 const [{ data: zhData }, { data: enData }] = await Promise.all([
   useFetch(`/api/backend/${club}/staff`, { query: { pageSize: 100, lang: 'zh' } }),
@@ -109,8 +115,8 @@ onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
 useSeoMeta({
-  title: '團隊成員 Our People｜關於台中磐石｜台中磐石足球俱樂部',
-  description: '認識台中磐石足球俱樂部的教練團與顧問團隊：總教練、教練、守門員教練、體能教練、青訓總監、青訓教練與技術顧問。',
+  title: computed(() => OUR_PEOPLE_SEO[clubKey.value].title),
+  description: computed(() => OUR_PEOPLE_SEO[clubKey.value].description),
 })
 </script>
 
@@ -119,7 +125,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">關於台中磐石</a></li>
+      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">團隊成員</li>
     </ol>
   </div>
@@ -128,9 +134,9 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <img class="page-hero__bg" src="/assets/img/nav-about.jpg" alt="" width="1600" height="900">
   <div class="container">
-    <p class="page-hero__eyebrow">2.4 About TCRFC</p>
-    <h1>團隊成員<span class="en">Our People</span></h1>
-    <p class="page-hero__lede">支撐台中磐石一線隊運作的教練團與顧問團隊。點選任一成員可查看詳細資料。</p>
+    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.4', clubKey) }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 

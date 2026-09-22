@@ -1,10 +1,19 @@
 <script setup lang="ts">
 // app/pages/zh/about/vision-mission.vue — 由 site/src/pages/zh/about/vision-mission/index.html 轉來（S0-9 靜態頁搬遷）
+//
+// 文案依俱樂部切換：磐石維持既有雙欄 Vision/Mission；藍鯨版改用 VISION_ITEMS
+// 逐字節錄 content/blue-whale/club-profile.md §5「發展願景」五節（見 club-copy.ts）。
 definePageMeta({ nav: "about", unit: "02" })
 
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const identity = computed(() => getClubIdentity(clubKey.value))
+const hero = computed(() => VISION_MISSION_HERO[clubKey.value])
+const items = computed(() => VISION_ITEMS[clubKey.value])
+
 useSeoMeta({
-  title: "願景與使命 Vision & Mission｜關於台中磐石｜台中磐石足球俱樂部",
-  description: "台中磐石足球俱樂部的願景與使命：透過專業化培育體系，讓台中在地選手邁向職業舞台，並以足球讓世界看見台灣。",
+  title: computed(() => VISION_MISSION_SEO[clubKey.value].title),
+  description: computed(() => VISION_MISSION_SEO[clubKey.value].description),
 })
 </script>
 
@@ -13,8 +22,8 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">關於台中磐石</a></li>
-      <li aria-current="page">願景與使命</li>
+      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
+      <li aria-current="page">{{ hero.h1Zh }}</li>
     </ol>
   </div>
 </nav>
@@ -22,30 +31,25 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <img class="page-hero__bg" src="/assets/img/nav-about.jpg" alt="" width="1600" height="900">
   <div class="container">
-    <p class="page-hero__eyebrow">2.2 About TCRFC</p>
-    <h1>願景與使命<span class="en">Vision &amp; Mission</span></h1>
-    <p class="page-hero__lede">從台中出發：培育本土選手邁向職業、成為在地榮耀的來源，並以足球讓世界看見台灣。</p>
+    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.2', clubKey) }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
 <section class="band vm-band" aria-labelledby="vm-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="vm-title">願景與使命</h2>
+    <h2 class="visually-hidden" id="vm-title">{{ hero.h1Zh }}</h2>
     <div class="vm-grid">
-      <div class="vm-col">
-        <p class="kicker">VISION</p>
-        <h2 class="vm-col__title">願景</h2>
-        <p class="vm-col__text">從台中出發，培育本土選手邁向職業舞台，成為在地榮耀的來源。</p>
-      </div>
-
-      <div class="vm-col">
-        <p class="kicker">MISSION</p>
-        <h2 class="vm-col__title">使命</h2>
-        <p class="vm-col__text">以扎實的訓練體系與國際連結，讓世界看見台灣足球。</p>
+      <div v-for="item in items" :key="item.titleZh" class="vm-col">
+        <p class="kicker">{{ item.kicker }}</p>
+        <h2 class="vm-col__title">{{ item.titleZh }}</h2>
+        <p class="vm-col__text">{{ item.textZh }}</p>
       </div>
     </div>
 
-    <p class="vm-footnote">俱樂部品牌主張與五大核心價值可先參考 <a href="/zh/about/philosophy/">2.3 足球理念</a>。</p>
+    <p v-if="clubKey === 'tcrfc'" class="vm-footnote">俱樂部品牌主張與五大核心價值可先參考 <a href="/zh/about/philosophy/">2.3 足球理念</a>。</p>
+    <p v-else class="vm-footnote">俱樂部口號與培訓精神可先參考 <a href="/zh/about/philosophy/">2.3 俱樂部口號與培訓精神</a>。</p>
   </div>
 </section>
 </template>

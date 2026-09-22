@@ -3,10 +3,16 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: '', unit: '10' })
 
+// 文案依俱樂部切換：hero／SEO 與 10.2 卡片取自 club-copy.ts（藍鯨依
+// docs/13-blue-whale-site.md §3 用「青年隊」，不沿用磐石學院的招生用詞）。
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const hero = computed(() => JOIN_INDEX_HERO[clubKey.value])
+const academyCard = computed(() => JOIN_ACADEMY_CARD[clubKey.value])
+
 useSeoMeta({
-  title: '加入與聯絡 Join / Contact｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部加入與聯絡總覽：加入球隊、加入學院／兒童訓練、營隊報名、國際球員詢問、合作夥伴與贊助洽詢、媒體詢問、一般聯絡七種表單，以及場地位置與聯絡資訊。',
+  title: computed(() => JOIN_INDEX_SEO[clubKey.value].title),
+  description: computed(() => JOIN_INDEX_SEO[clubKey.value].description),
 })
 </script>
 
@@ -24,8 +30,8 @@ useSeoMeta({
   <span class="ghost-num ghost-num--dark" aria-hidden="true">10</span>
   <div class="container">
     <p class="page-hero__eyebrow">10 Join / Contact</p>
-    <h1>加入與聯絡<span class="en">Join / Contact</span></h1>
-    <p class="page-hero__lede">不論你是想加入球隊的球員、想讓孩子接受系統化訓練的家長，還是想與台中磐石合作的企業與媒體，都可以在這裡找到對應的表單。七種表單各自送達不同部門，我們會盡快與你聯繫。</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -49,8 +55,8 @@ useSeoMeta({
       </div>
       <div class="cta-card">
         <p class="cta-card__num">10.2</p>
-        <p class="cta-card__title">加入學院／兒童訓練</p>
-        <p class="cta-card__desc">學院 U12／U14／U15 梯隊，或兒童訓練的混齡、初學、技巧發展班，同一份表單完成報名。</p>
+        <p class="cta-card__title">{{ academyCard.titleZh }}</p>
+        <p class="cta-card__desc">{{ academyCard.descZh }}</p>
         <a class="btn btn--primary" href="/zh/join/academy/">Academy &amp; Children's Training</a>
       </div>
       <div class="cta-card">
@@ -62,7 +68,7 @@ useSeoMeta({
       <div class="cta-card">
         <p class="cta-card__num">10.4</p>
         <p class="cta-card__title">International Player Enquiries</p>
-        <p class="cta-card__desc">Interested in playing for TCRFC in Taiwan? Tell us about yourself and your football background.</p>
+        <p class="cta-card__desc">Interested in playing for us in Taiwan? Tell us about yourself and your football background.</p>
         <a class="btn btn--primary" href="/zh/join/international-player/">International Enquiries</a>
       </div>
       <div class="cta-card">

@@ -3,10 +3,19 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'club', unit: '3.1' })
 
+// 文案依俱樂部切換：hero／SEO／球隊介紹段落取自 club-copy.ts。下方球員名單、
+// 教練團、賽程表、成績、榮譽時間軸都是動態內容（真人真事的名單／賽果，不進
+// club-copy.ts）——藍鯨目前這些區塊 0 素材（客戶尚未提供 2025 名單、12 個月
+// 賽程，docs/13-blue-whale-site.md §5 擋開發第 3、4 項），一律不顯示，不沿用
+// 磐石的球員／賽程資料頂替。
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const hero = computed(() => FIRST_TEAM_HERO[clubKey.value])
+
 useSeoMeta({
-  title: '一線隊 First Team｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
-  description:
-    '台中磐石足球俱樂部一線隊（First Team）：28 名註冊球員名單依背號排序、教練團陣容、2026/27 企業甲級聯賽完整賽程與 .ics 訂閱、榮譽紀錄時間軸。',
+  title: computed(() => FIRST_TEAM_SEO[clubKey.value].title),
+  description: computed(() => FIRST_TEAM_SEO[clubKey.value].description),
 })
 </script>
 
@@ -22,11 +31,13 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/club/first-team-01-squad.jpg" alt="台中磐石一線隊球員於西屯足球場合影" width="1920" height="1280">
+  <!-- 藍鯨無一線隊合影照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石球員合影頂替 -->
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/club/first-team-01-squad.jpg" alt="" width="1920" height="1280">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true"></div>
   <div class="container">
-    <p class="page-hero__eyebrow">3.1 First Team</p>
-    <h1>一線隊<span class="en">First Team</span></h1>
-    <p class="page-hero__lede">台中磐石一線隊代表俱樂部出戰企業甲級聯賽，是所有青訓與學院球員最終銜接的競技舞台。球隊 2024 年創立，同年即拿下全國乙級聯賽冠軍，主場為西屯足球場。</p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '3.1 First Team' : '3.1' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -34,13 +45,12 @@ useSeoMeta({
   <div class="band-inner container">
     <div class="prose">
       <h2 id="team-overview-title">球隊介紹</h2>
-      <p>台中磐石足球俱樂部一線隊於 2024 年隨俱樂部創立成軍，同年奪下全國乙級聯賽冠軍，現於企業甲級聯賽出賽。球隊主場設於西屯足球場，2026/27 賽季共排定 21 場企甲例行賽。</p>
-      
+      <p>{{ FIRST_TEAM_INTRO[clubKey] }}</p>
     </div>
   </div>
 </section>
 
-<section class="band paper-2-band" id="roster" aria-labelledby="roster-title">
+<section v-if="isTcrfc" class="band paper-2-band" id="roster" aria-labelledby="roster-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
@@ -366,7 +376,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band" id="coaches" aria-labelledby="coaches-title">
+<section v-if="isTcrfc" class="band" id="coaches" aria-labelledby="coaches-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
@@ -419,7 +429,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band grain paper-2-band" id="fixtures" aria-labelledby="fixtures-title">
+<section v-if="isTcrfc" class="band grain paper-2-band" id="fixtures" aria-labelledby="fixtures-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
@@ -428,6 +438,15 @@ useSeoMeta({
       </div>
       <div class="fixtures-actions">
         <a class="btn btn--dark btn--sm" href="/zh/schedule/">查看完整行事曆</a>
+        <!-- 這是 public/assets/ics/ 底下的靜態下載檔，不是路由。link-checker 的 ESLint 規則只比對
+             .nuxt/link-checker/routes.json 的路由清單、看不到 public/，所以任何指向靜態檔的 href
+             都會被判成 "does not match any known route"（該規則只接受 routesFile／rootDir 兩個選項，
+             nuxt.config 的 linkChecker.excludeLinks 對它無效，已實測）。
+             ⚠️ 2026-09-22 的教訓：這個誤判曾經掩蓋一個真的壞掉的連結——S0-9 搬遷 80 頁時漏把
+             site/src/assets/ics/first-team-2026-27.ics 複製到 public/assets/ics/，按鈕真的會 404，
+             但這條錯誤長期被當成既有雜訊，沒有人去看它在說什麼。檔案已於同日補上。
+             所以這裡用單行排除而不是關掉整條規則：下一個指向不存在靜態檔的連結仍然要被抓到。 -->
+        <!-- eslint-disable-next-line link-checker/valid-route -->
         <a class="btn btn--primary btn--sm" href="/assets/ics/first-team-2026-27.ics" download>訂閱一線隊賽程 (.ics)</a>
       </div>
     </div>
@@ -621,7 +640,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band" id="results" aria-labelledby="results-title">
+<section v-if="isTcrfc" class="band" id="results" aria-labelledby="results-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
@@ -634,7 +653,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band grain honours-band" id="honours" aria-labelledby="honours-title">
+<section v-if="isTcrfc" class="band grain honours-band" id="honours" aria-labelledby="honours-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">01</span>
   <div class="band-inner container">
     <div class="eyebrow-row">
@@ -693,6 +712,9 @@ useSeoMeta({
    .player-card 系列、.table-wrap + 資料表樣式、.timeline 系列 */
 
 .paper-2-band{ background:var(--paper-2); }
+
+/* 藍鯨無一線隊合影照片時的純色回退（見 script setup 開頭說明），只用既有 token */
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
 
 /* 球員卡 */
 .player-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:1.1rem; }

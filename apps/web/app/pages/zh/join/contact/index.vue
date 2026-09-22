@@ -3,11 +3,25 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: '', unit: '10-contact' })
 
+// 文案依俱樂部切換：hero／SEO 與社群連結取自 club-copy.ts。藍鯨無實體地址、
+// 電話與各部門分機（舊站盤點：content/blue-whale/gap-analysis.md §2 單元 10，
+// 「沒有任何實體地址、電話或聯絡表單」），這幾格本站一律不顯示。
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const identity = computed(() => getClubIdentity(clubKey.value))
+const hero = computed(() => JOIN_CONTACT_HERO[clubKey.value])
+
 useSeoMeta({
-  title: '聯絡資訊 Contact Information｜加入與聯絡｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部聯絡資訊：電話、Email、地址、營業時間、各部門分機與社群連結。',
+  title: computed(() => JOIN_CONTACT_SEO[clubKey.value].title),
+  description: computed(() => JOIN_CONTACT_SEO[clubKey.value].description),
 })
+
+/** 從社群網址推導顯示用帳號（沿用 mockup 既有的 @handle 呈現方式，不新增資料欄位）。 */
+function socialHandle(url: string): string {
+  const last = url.replace(/\/$/, '').split('/').pop() ?? ''
+  return last.startsWith('@') ? last : `@${last}`
+}
 </script>
 
 <template>
@@ -25,8 +39,8 @@ useSeoMeta({
   <span class="ghost-num ghost-num--dark" aria-hidden="true">10</span>
   <div class="container">
     <p class="page-hero__eyebrow">Contact Information</p>
-    <h1>聯絡資訊<span class="en">Contact Information</span></h1>
-    <p class="page-hero__lede">電話、Email、地址、營業時間與各部門分機，方便你依需求找到對應窗口。若是特定申請或洽詢，建議直接使用<a href="/zh/join/">對應的表單</a>，處理速度會更快。</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede" v-html="hero.lede"></p>
   </div>
 </section>
 
@@ -34,51 +48,53 @@ useSeoMeta({
   <div class="container">
     <h2 class="visually-hidden" id="contact-title">聯絡資訊列表</h2>
     <div class="contact-grid">
-      <div class="contact-item">
+      <div v-if="isTcrfc" class="contact-item">
         <p class="contact-item__label">電話</p>
-        
       </div>
 
-      <div class="contact-item">
+      <div v-if="isTcrfc || identity.social.email" class="contact-item">
         <p class="contact-item__label">Email</p>
-        
+        <p v-if="identity.social.email" class="contact-item__value">{{ identity.social.email }}</p>
       </div>
 
-      <div class="contact-item">
+      <div v-if="isTcrfc" class="contact-item">
         <p class="contact-item__label">地址</p>
         <p class="contact-item__value">台中市北屯區崇平路二段景谷巷 11 弄 41 號</p>
         <p class="field-hint">主場：西屯足球場。各場地詳細位置見<a href="/zh/join/location/">場地位置與地圖</a>。</p>
       </div>
 
-      <div class="contact-item">
+      <div v-if="isTcrfc" class="contact-item">
         <p class="contact-item__label">營業時間</p>
-        
       </div>
 
-      <div class="contact-item contact-item--full">
+      <div v-if="isTcrfc" class="contact-item contact-item--full">
         <p class="contact-item__label">各部門分機</p>
-        
       </div>
 
       <div class="contact-item contact-item--full">
         <p class="contact-item__label">社群連結</p>
         <ul class="contact-social">
-          <li>
-            <a href="https://www.facebook.com/TCRFC2024" target="_blank" rel="noopener">
+          <li v-if="identity.social.facebook">
+            <a :href="identity.social.facebook" target="_blank" rel="noopener">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 9h3V5h-3c-2.2 0-4 1.8-4 4v2H7v4h3v7h4v-7h3l1-4h-4v-2c0-.6.4-1 1-1z"/></svg>
-              Facebook<span class="contact-social__handle">@TCRFC2024</span>
+              Facebook<span class="contact-social__handle">{{ socialHandle(identity.social.facebook) }}</span>
             </a>
           </li>
-          <li>
-            <a href="https://www.instagram.com/tcr_fc_2024" target="_blank" rel="noopener">
+          <li v-if="identity.social.instagram">
+            <a :href="identity.social.instagram" target="_blank" rel="noopener">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1"/></svg>
-              Instagram<span class="contact-social__handle">@tcr_fc_2024</span>
+              Instagram<span class="contact-social__handle">{{ socialHandle(identity.social.instagram) }}</span>
             </a>
           </li>
-          <li>
-            <a href="https://www.youtube.com/@TCRFC-2024" target="_blank" rel="noopener">
+          <li v-if="identity.social.youtube">
+            <a :href="identity.social.youtube" target="_blank" rel="noopener">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="2" y="5.5" width="20" height="13" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M10 9.5l6 2.5-6 2.5z"/></svg>
-              YouTube<span class="contact-social__handle">@TCRFC-2024</span>
+              YouTube<span class="contact-social__handle">{{ socialHandle(identity.social.youtube) }}</span>
+            </a>
+          </li>
+          <li v-if="identity.social.line">
+            <a :href="identity.social.line" target="_blank" rel="noopener">
+              LINE 官方帳號
             </a>
           </li>
         </ul>
