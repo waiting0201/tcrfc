@@ -19,8 +19,12 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
 {
     private const string CategoryCode = "club"; // 種子資料確認存在的分類代碼（見 apps/api/README.md）
 
-    private static string UniqueSlug([System.Runtime.CompilerServices.CallerMemberName] string? caller = null)
-        => $"admin-write-test-{caller?.ToLowerInvariant()}-{Guid.NewGuid():N}";
+    // 🔴 本輪（slug 保留字驗證）改動：原本用 CallerMemberName 把測試方法名稱（中文，含底線）
+    // 直接嵌進網址名稱，這在新增 SlugPolicy 格式驗證（只准小寫英文字母、數字、連字號）之後
+    // 一律會被擋成 400——不是這裡的規則錯了，是舊版產生器本來就沒有遵守「合法網址名稱」的形狀，
+    // 只是在格式驗證出現之前沒有任何東西會發現。改成純 ASCII、不帶呼叫端方法名稱的亂數字串。
+    private static string UniqueSlug()
+        => $"admin-write-test-{Guid.NewGuid():N}";
 
     private static CreateArticleRequest NewDraftRequest(string slug, string title = "測試文章標題")
         => new()

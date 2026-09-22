@@ -124,6 +124,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         ClubScope scope, CreateArticleRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
+        SlugPolicy.Validate(request.Slug);
 
         var category = await ResolveCategoryAsync(request.CategoryCode, cancellationToken);
 
@@ -173,6 +174,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         ClubScope scope, Guid id, UpdateArticleRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
+        SlugPolicy.Validate(request.Slug);
 
         var article = await LoadTrackedForWriteAsync(scope, id, cancellationToken);
         if (article is null)

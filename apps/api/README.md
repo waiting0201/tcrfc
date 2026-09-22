@@ -579,9 +579,62 @@ migration，Up()/Down() 都是空的，且已用「套用前後表數不變」�
 | **共用內容唯讀** | `club_id IS NULL` 的文章：讀（`GetByIdAsync`）允許，**寫（Update／Delete）一律 403**（`SharedArticleReadOnlyException`）。目前**沒有任何管道能透過這組端點建立共用內容**——`CreateAsync` 寫死 `ClubId = scope.ClubId`，因為「共同內容只有超管能建立」（docs/14-invariants.md），而超管角色還不存在，這裡選擇完全不開這條路，不留半套的後門 |
 | **樂觀並行控制** | `articles.updated_at` 當並行權杖，用 EF Core `IsConcurrencyToken()`（`Data/ClubDbContextCustomizations.cs`）——寫入前把追蹤實體的「原始值」設成呼叫端宣稱看到的 `updatedAt`，`SaveChanges` 產生的 SQL 帶 `WHERE updated_at = @原始值`，0 筆命中就丟 `DbUpdateConcurrencyException`，`AdminArticlesRepository.SaveWithConcurrencyHandlingAsync` 接住轉成 `ArticleConcurrencyConflictException`（409）。⛔ 沒有「後寫的贏」 |
 | **slug 重複** | 建立與更新前先查 `SELECT ... WHERE slug = @Slug`（更新時排除自己），撞到就丟 `ArticleSlugConflictException`（409），回可讀訊息，不是讓 SQL Server 的 `UQ_articles_slug` 唯一鍵違反直接冒出 `SqlException` |
+| **slug 格式與保留字（本輪新增）** | 建立與更新前先呼叫 `SlugPolicy.Validate`（400，`AdminArticleValidationException`）。見下方「網址名稱（slug）保留字與格式驗證」整節 |
 | **雙語側表** | `AdminArticleContentInput.Zh` 必填（`Title` 不得空白，400），`En` 可省略。**PUT 是整份取代語意**：省略 `en`＝清掉既有英文列（不是「沒帶就維持原樣」），已用自動化測試涵蓋兩個方向 |
 | **狀態轉換** | 獨立端點（`/publish`、`/schedule`），不是 PUT 的一個欄位。轉換規則見下方「三態轉換規則（本輪判斷）」 |
 | **快取失效** | 寫入成功（`SaveChangesAsync` 交易完成）後呼叫 `IQueryCache.InvalidateAsync("articles", scope.ClubCode)` 與 `InvalidateAsync("article-detail", scope.ClubCode)`，跟公開讀取 API 用同一組 entity 名稱，讓下一次公開讀取立刻回新值。用真正的 `redis-server` 測過（見下方測試段落） |
+
+### 網址名稱（slug）保留字與格式驗證（本輪新增，`Features/AdminNews/SlugPolicy.cs`）
+
+使用者拍板新聞詳情頁的網址是扁平的 `/zh/news/<網址名稱>/`（跟商品詳情同形狀）。07 新聞單元底下
+另外已有 **9 個分類 landing 頁**（`apps/web/app/pages/zh/news/{club,match,academy,player-stories,
+international,camps-events,community,media,article}.vue`）。一篇文章的網址名稱如果（不分大小寫）
+剛好等於其中一個，前台路由就會跟分類頁撞在一起——使用者點進去的會是分類清單，不是文章。
+`SlugPolicy.Validate` 在建立（`CreateAsync`）與更新（`UpdateAsync`）兩條路徑最前面呼叫，
+擋到就丟 `AdminArticleValidationException`（400，中文可讀訊息，不含 `slug` 這種英文技術詞，
+docs/06 §1）。
+
+**擋兩類東西**：
+
+1. **保留字**（上述 9 個，不分大小寫）。
+2. **格式**：只准小寫英文字母、數字、連字號組成，不能開頭／結尾是連字號、不能連續兩個連字號、
+   不能整段只有數字。這一條規則同時擋掉了任務指示要求考慮的幾種危險形狀——**含斜線、含句點、
+   含空白、大小寫變形、純數字**——不需要為每一種各寫一條規則；大小寫變形因此**多數情況下是被
+   格式規則擋下（不是保留字比對），但結果一律是 400，不影響效果**。已用 83 篇既有文章的真實
+   slug 逐筆核對過，**全部符合這條格式規則**（見下方「既有資料核對」），所以套用不會影響現有內容。
+
+**🔴🔴🔴 保留字清單放哪裡、怎麼維護（這是本輪要自己判斷的重點）**：
+
+清單的**真實來源其實不是這個檔案**，而是 `apps/web` 的路由檔名——今天 `apps/web` 只要新增一個
+07 單元的分類頁，或替既有分類頁改檔名，`SlugPolicy.cs` 裡手動抄的這份清單就會悄悄過期，而且
+過期的方向永遠是「漏擋」（新分類頁沒被列進來），不會有任何編譯錯誤、測試失敗或執行期例外提醒
+維護者去補。這正是 [`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-36`
+「共用真實來源分裂成兩份」的同一種形狀。
+
+本輪**只做到**：把清單集中在單一檔案（`SlugPolicy.cs`）、把來源路徑與盤點日期寫死在該檔案的
+XML 文件註解裡，讓下一個改 `apps/web` 路由的人至少有機會搜到這裡。**⛔ 沒有做**跨專案的自動比對
+（例如讓 CI 讀 `apps/web` 的實際路由檔名去驗證這份清單是否過期）——一來 `apps/web` 本輪由另一個
+agent 在改，任務邊界不允許本輪觸碰；二來這需要「A 專案的檔案異動觸發 B 專案檢查」這種
+`docs/20-cicd.md` 目前還沒有的建置機制，屬於「需要跨專案改動才能真正解決」的情況，依任務邊界
+只回報建議、不動手發明。
+
+**回報給下一位／使用者的建議**（根治漂移的做法，其中一種，需要同時改 `apps/web`，本輪不做）：
+
+1. 把 9 個分類代碼與其路由片段抽成一份兩邊都讀的共用資料。這 9 個路由片段本來就跟
+   `article_categories.code`（7.1–7.8 分類代碼）同名，是本來就存在的同一份事實——`SlugPolicy.cs`
+   目前是重複硬編碼一份而不是查表，長期應該讓保留字清單直接查 `article_categories.code`
+   （這樣分類本身的異動至少會自動反映到保留字清單，不會漏掉「改分類代碼」這一種漂移；但「新增一個
+   不是分類、純粹是路由層級的頁面」這種漂移仍然擋不住，因為那不是資料庫裡的事實），或建一份
+   repo 根目錄的共用設定檔（例如 `content/news-category-slugs.json`），`apps/web` 的路由設定與
+   這裡都改成讀它。
+2. 或在 CI 加一道檢查：`apps/web` 的 07 單元路由檔名異動時，比對這個檔案的清單是否同步，
+   不一致就讓 CI 失敗（跟 `docs/18` `E-35`／`E-36` 已經記錄的「共用真實來源要有跨專案檢查」
+   同一個精神）。
+
+**既有資料核對**（實跑，2026-09-22）：對本機 `tcrfc_club_dev` 的 83 篇文章逐筆核對，
+**0 筆違反保留字清單、0 筆違反新格式規則**（含大小寫、斜線、句點、空白、純數字全部核對過）。
+83 篇全部是「日期開頭＋分類詞＋流水號」的形狀（例如 `2024-12-18-club-079`），分類詞出現在中段
+不是整段等於保留字，不受影響。
 
 ### 🔴 這一輪不做的部分（沒有畫面可驗，刻意不做）
 
@@ -1176,6 +1229,62 @@ Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容
 （已實跑驗證，見「S0-7d 驗收紀錄」與本輪「驗收紀錄」第 3 點——本輪特別因為新增了 EF Core
 套件與 `Data/Migrations/`／`Data/EfEntities/` 兩個新目錄，額外確認過 `docker build` 仍然成功，
 不是只跑 `dotnet build` 就假設容器也沒問題，見 `docs/18-work-errors.md` E-35 的教訓）。
+
+### 本輪驗收紀錄（slug 保留字驗證，2026-09-22）
+
+環境：本機既有 `sqlserver` 容器（同上），`tcrfc_club_dev`，套用前 `articles` **83 筆**。
+
+```
+$ dotnet build   # apps/api 與 apps/api/Tcrfc.Api.Tests
+建置成功。0 個警告 0 個錯誤
+
+$ dotnet test    # CLUB_SQL_CONNECTION_STRING 指向本機 tcrfc_club_dev
+已通過! - 失敗: 0，通過: 78，略過: 0，總計: 78
+# 78 = 既有 48（不變，見「開發過程踩的坑」段落末的「4 次全綠 48/48」）
+#    ＋ 本輪新增 30 項（9 個保留字逐一 × Theory ＋ 4 種大小寫變形 ＋ 10 種危險格式 ＋
+#      建立／更新兩條路徑各自的保留字與格式測試 ＋ 3 個合法 slug 不受誤擋的驗證）
+```
+
+⚠️ **過程中發現並修正一個既有測試的隱性缺陷**：`AdminNewsWriteTests.UniqueSlug()` 原本用
+`[CallerMemberName]` 把測試方法名稱（中文，含底線）直接嵌進網址名稱（例如
+`admin-write-test-完整生命週期_建立草稿到刪除-xxxx`）。這在本輪新增格式驗證之前沒有任何影響，
+新增之後**這些測試會被自己送出的 slug 卡在 400**——不是新規則寫錯，是舊的測試資料產生器本來就
+沒有產出合法的網址名稱，只是在格式驗證出現之前，沒有任何東西會檢查它合不合法。已改成純 ASCII
+亂數字串，不再嵌入呼叫端方法名稱（`apps/api/Tcrfc.Api.Tests/AdminNewsWriteTests.cs`）。
+
+實際打執行中的 API（`ASPNETCORE_ENVIRONMENT=Development` ＋ `ENABLE_UNSAFE_DEV_WRITES=true`）：
+
+```
+# 保留字 club（建立）
+$ curl -X POST /api/v1/admin/tcrfc/news -d '{"slug":"club",...}'
+400 {"detail":"網址名稱「club」是系統保留給分類頁面使用的名稱，...請換一個能代表這篇文章內容的網址名稱..."}
+
+# 保留字大小寫變形 Club（建立，被格式規則擋下，結果一致是 400）
+$ curl -X POST /api/v1/admin/tcrfc/news -d '{"slug":"Club",...}'
+400 {"detail":"網址名稱「Club」格式不正確：只能使用小寫英文字母、數字與連字號（-）組成..."}
+
+# 保留字 media（建立）
+400 {"detail":"網址名稱「media」是系統保留給分類頁面使用的名稱..."}
+
+# 含斜線 has/slash（建立）
+400 {"detail":"網址名稱「has/slash」格式不正確...（例如大寫字母、空白、斜線、句點都不能出現）"}
+
+# 純數字 20260922（建立）
+400 {"detail":"網址名稱「20260922」不能整段只有數字，請加入能代表文章內容的文字..."}
+
+# 合法網址名稱（建立）
+$ curl -X POST ... -d '{"slug":"curl-manual-verify-1790066402",...}'
+201 {"id":"822f5299-...","slug":"curl-manual-verify-1790066402",...}
+$ curl -X DELETE .../822f5299-...?expectedUpdatedAt=...
+204   # 清乾淨
+
+# 更新路徑改成保留字 international
+400 {"detail":"網址名稱「international」是系統保留給分類頁面使用的名稱..."}
+# 確認原文章沒有被改到：slug／title 皆原封不動
+```
+
+套用後 `articles` 仍是 **83 筆**（手動驗收建立的兩筆測試資料都已用 `DELETE` 清掉，實測核對過）；
+對 83 筆逐一核對，**0 筆違反保留字清單、0 筆違反新格式規則**。
 
 ---
 
