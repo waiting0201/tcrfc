@@ -1,0 +1,1141 @@
+{
+  "_comment": "本檔由 db/seed/emit-charity-fixtures.py 從 db/seed/generate-charity-seed-sql.py 產生，是衍生物不是手寫資料。⛔ 不要直接編輯本檔，也不要在前端另外手寫一份慈善假資料——要改就改 generate-charity-seed-sql.py，再重跑本檔與 apply-charity-seed.sh，資料庫與兩個前端才會是同一份資料。🔵 全部是本機開發用的虛構測試資料：姓名「測試用．…」、Email @example.test、電話與統編連續 0、*_encrypted 欄位是明講不是真加密的占位字串。",
+  "_source": "db/seed/generate-charity-seed-sql.py",
+  "roles": [
+    [
+      "system_admin",
+      "系統管理員",
+      "System Administrator",
+      true
+    ],
+    [
+      "content_editor",
+      "內容編輯",
+      "Content Editor",
+      true
+    ],
+    [
+      "team_competition",
+      "競技／球隊管理",
+      "Team & Competition Manager",
+      true
+    ],
+    [
+      "academy_program",
+      "學院／課程管理",
+      "Academy & Program Manager",
+      true
+    ],
+    [
+      "business_sponsorship",
+      "商務／贊助",
+      "Business & Sponsorship",
+      true
+    ],
+    [
+      "pr_media",
+      "公關／媒體",
+      "PR & Media",
+      true
+    ],
+    [
+      "customer_service_admin",
+      "客服／行政",
+      "Customer Service & Admin",
+      true
+    ],
+    [
+      "translator",
+      "翻譯人員",
+      "Translator",
+      true
+    ],
+    [
+      "viewer",
+      "檢視者",
+      "Viewer",
+      true
+    ]
+  ],
+  "permissions": [
+    [
+      "n1.donation_store.view",
+      "N1",
+      "store",
+      "view",
+      "檢視捐款店家",
+      "View Donation Stores",
+      false,
+      false
+    ],
+    [
+      "n1.donation_store.manage",
+      "N1",
+      "store",
+      "update",
+      "編輯捐款店家",
+      "Manage Donation Stores",
+      false,
+      false
+    ],
+    [
+      "n1.donation_store.share_pct",
+      "N1",
+      "store",
+      "execute",
+      "設定店家分潤比例",
+      "Set Store Share %",
+      true,
+      false
+    ],
+    [
+      "n1.donation_store.export",
+      "N1",
+      "store",
+      "export",
+      "匯出店家與 QR 清單",
+      "Export Stores & QR",
+      false,
+      false
+    ],
+    [
+      "n2.donation_project.view",
+      "N2",
+      "project",
+      "view",
+      "檢視捐款項目",
+      "View Donation Projects",
+      false,
+      false
+    ],
+    [
+      "n2.donation_project.manage",
+      "N2",
+      "project",
+      "update",
+      "編輯捐款項目",
+      "Manage Donation Projects",
+      false,
+      false
+    ],
+    [
+      "n2.donation_project.publish",
+      "N2",
+      "project",
+      "publish",
+      "上下架捐款項目",
+      "Publish Donation Projects",
+      false,
+      false
+    ],
+    [
+      "n2.donation_project.share_pct",
+      "N2",
+      "project",
+      "execute",
+      "設定項目分潤比例",
+      "Set Project Share %",
+      true,
+      false
+    ],
+    [
+      "n3.donation.view",
+      "N3",
+      "donation",
+      "view",
+      "檢視捐款紀錄（遮罩）",
+      "View Donations (Masked)",
+      false,
+      false
+    ],
+    [
+      "n3.donation.reveal",
+      "N3",
+      "donation",
+      "reveal",
+      "檢視捐款人完整個資",
+      "Reveal Donor PII",
+      true,
+      false
+    ],
+    [
+      "n3.donation.refund",
+      "N3",
+      "donation",
+      "execute",
+      "執行人工退款",
+      "Execute Manual Refund",
+      true,
+      true
+    ],
+    [
+      "n3.donation.export",
+      "N3",
+      "donation",
+      "export",
+      "匯出含個資之捐款明細",
+      "Export Donation PII",
+      true,
+      false
+    ],
+    [
+      "n4.settlement.view",
+      "N4",
+      "settlement",
+      "view",
+      "檢視結算單",
+      "View Settlements",
+      false,
+      false
+    ],
+    [
+      "n4.settlement.execute",
+      "N4",
+      "settlement",
+      "execute",
+      "執行結算與登記匯款",
+      "Execute Settlement",
+      false,
+      false
+    ],
+    [
+      "n4.settlement.export",
+      "N4",
+      "settlement",
+      "export",
+      "匯出對帳單",
+      "Export Settlement Reports",
+      false,
+      false
+    ],
+    [
+      "n5.donation_invoice.view",
+      "N5",
+      "invoice",
+      "view",
+      "檢視發票與收據",
+      "View Invoices",
+      false,
+      false
+    ],
+    [
+      "n5.donation_invoice.issue",
+      "N5",
+      "invoice",
+      "execute",
+      "開立或補開發票",
+      "Issue Invoice",
+      false,
+      false
+    ],
+    [
+      "n5.donation_invoice.void",
+      "N5",
+      "invoice",
+      "execute",
+      "作廢或折讓發票",
+      "Void / Allowance Invoice",
+      false,
+      false
+    ],
+    [
+      "n6.report.view",
+      "N6",
+      "report",
+      "view",
+      "檢視捐款報表",
+      "View Donation Reports",
+      false,
+      false
+    ],
+    [
+      "n6.report.export",
+      "N6",
+      "report",
+      "export",
+      "匯出捐款報表",
+      "Export Donation Reports",
+      false,
+      false
+    ],
+    [
+      "n7.setting.view",
+      "N7",
+      "setting",
+      "view",
+      "檢視站台設定",
+      "View Site Settings",
+      false,
+      false
+    ],
+    [
+      "n7.setting.manage",
+      "N7",
+      "setting",
+      "update",
+      "編輯站台設定與文案",
+      "Manage Site Settings",
+      false,
+      false
+    ],
+    [
+      "n7.payment_channel.manage",
+      "N7",
+      "setting",
+      "update",
+      "管理金流與發票憑證",
+      "Manage Payment Channels",
+      true,
+      true
+    ]
+  ],
+  "rolePermissionMap": {
+    "system_admin": [
+      "n1.donation_store.view",
+      "n1.donation_store.manage",
+      "n1.donation_store.share_pct",
+      "n1.donation_store.export",
+      "n2.donation_project.view",
+      "n2.donation_project.manage",
+      "n2.donation_project.publish",
+      "n2.donation_project.share_pct",
+      "n3.donation.view",
+      "n3.donation.reveal",
+      "n3.donation.refund",
+      "n3.donation.export",
+      "n4.settlement.view",
+      "n4.settlement.execute",
+      "n4.settlement.export",
+      "n5.donation_invoice.view",
+      "n5.donation_invoice.issue",
+      "n5.donation_invoice.void",
+      "n6.report.view",
+      "n6.report.export",
+      "n7.setting.view",
+      "n7.setting.manage",
+      "n7.payment_channel.manage"
+    ],
+    "customer_service_admin": [
+      "n3.donation.view",
+      "n3.donation.reveal",
+      "n3.donation.export",
+      "n5.donation_invoice.view",
+      "n5.donation_invoice.issue",
+      "n5.donation_invoice.void",
+      "n6.report.view"
+    ],
+    "business_sponsorship": [
+      "n1.donation_store.view",
+      "n1.donation_store.manage",
+      "n2.donation_project.view",
+      "n2.donation_project.manage",
+      "n2.donation_project.publish",
+      "n6.report.view"
+    ],
+    "viewer": [
+      "n1.donation_store.view",
+      "n2.donation_project.view",
+      "n3.donation.view",
+      "n4.settlement.view",
+      "n5.donation_invoice.view",
+      "n6.report.view",
+      "n7.setting.view"
+    ]
+  },
+  "adminUsers": [
+    [
+      "sa@charity.local",
+      null,
+      "系統管理員（測試帳號）",
+      "system_admin",
+      true
+    ],
+    [
+      "cs.admin@charity.local",
+      null,
+      "客服／行政（測試帳號）",
+      "customer_service_admin",
+      false
+    ],
+    [
+      "biz.admin@charity.local",
+      null,
+      "商務／贊助（測試帳號）",
+      "business_sponsorship",
+      false
+    ],
+    [
+      "viewer@charity.local",
+      null,
+      "唯讀檢視（測試帳號）",
+      "viewer",
+      false
+    ]
+  ],
+  "charityRefs": [
+    [
+      "TEST-CHARITY-A",
+      "測試用．公益機構Ａ（僅供本機開發顯示）"
+    ],
+    [
+      "TEST-CHARITY-B",
+      "測試用．公益機構Ｂ（僅供本機開發顯示）"
+    ]
+  ],
+  "charityProgramRefs": [
+    [
+      "TEST-PROGRAM-A1",
+      "TEST-CHARITY-A",
+      "測試用．公益計畫Ａ－１（僅供本機開發顯示）"
+    ],
+    [
+      "TEST-PROGRAM-A2",
+      "TEST-CHARITY-A",
+      "測試用．公益計畫Ａ－２（僅供本機開發顯示）"
+    ],
+    [
+      "TEST-PROGRAM-B1",
+      "TEST-CHARITY-B",
+      "測試用．公益計畫Ｂ－１（僅供本機開發顯示）"
+    ]
+  ],
+  "stores": [
+    {
+      "key": "store-a",
+      "name_zh": "測試用．早安豆漿店",
+      "name_en": "Test Breakfast Diner",
+      "category": "餐飲",
+      "address": "臺中市西區測試路 1 號（虛構地址）",
+      "contact_name": "測試用．店長甲",
+      "contact_phone": "04-00000001",
+      "share_pct": "5.00",
+      "has_logo": true,
+      "status": "active",
+      "start_on": "2026-06-01",
+      "end_on": null
+    },
+    {
+      "key": "store-b",
+      "name_zh": "測試用．巷口咖啡",
+      "name_en": "Test Corner Cafe",
+      "category": "飲料",
+      "address": "臺中市北區測試街 2 號（虛構地址）",
+      "contact_name": "測試用．店長乙",
+      "contact_phone": "04-00000002",
+      "share_pct": "8.00",
+      "has_logo": false,
+      "status": "active",
+      "start_on": "2026-06-15",
+      "end_on": null
+    },
+    {
+      "key": "store-c",
+      "name_zh": "測試用．已停止合作服飾行",
+      "name_en": "Test Ended Apparel Shop",
+      "category": "零售",
+      "address": "臺中市南區測試巷 3 號（虛構地址）",
+      "contact_name": "測試用．店長丙",
+      "contact_phone": "04-00000003",
+      "share_pct": "3.00",
+      "has_logo": false,
+      "status": "inactive",
+      "start_on": "2026-01-01",
+      "end_on": "2026-07-31"
+    }
+  ],
+  "storeSlugs": {
+    "store-a": "store-19c29e0fbf",
+    "store-b": "store-e64afe2e6c",
+    "store-c": "store-7d35025776"
+  },
+  "projects": [
+    {
+      "key": "project-a",
+      "name_zh": "測試用．兒童足球獎學金計畫",
+      "name_en": "Test Youth Football Scholarship",
+      "one_liner_zh": "讓偏鄉孩子也能踢上球（測試文案）",
+      "one_liner_en": "Helping children in rural areas play football (dev seed copy)",
+      "min_amount": 100,
+      "max_amount": 100000,
+      "share_pct": "10.00",
+      "invoice_mode": "b2c_invoice",
+      "charity_ref": "TEST-CHARITY-A",
+      "program_ref": "TEST-PROGRAM-A1",
+      "status": "published",
+      "sort_order": 0,
+      "fund_usage_zh": "款項用於球具採購與交通補助（測試占位文字）",
+      "fund_usage_en": "Funds are used for equipment and transport subsidies (dev seed placeholder)."
+    },
+    {
+      "key": "project-b",
+      "name_zh": "測試用．偏鄉球場整建計畫",
+      "name_en": "Test Rural Pitch Renovation",
+      "one_liner_zh": "修一座能安全踢球的場地（測試文案）",
+      "one_liner_en": "Rebuilding a safe pitch (dev seed copy)",
+      "min_amount": 200,
+      "max_amount": 200000,
+      "share_pct": "12.00",
+      "invoice_mode": "donation_receipt",
+      "charity_ref": "TEST-CHARITY-B",
+      "program_ref": "TEST-PROGRAM-B1",
+      "status": "published",
+      "sort_order": 1,
+      "fund_usage_zh": "款項用於場地整地與圍網修繕（測試占位文字）",
+      "fund_usage_en": "Funds are used for pitch grading and fence repair (dev seed placeholder)."
+    },
+    {
+      "key": "project-c",
+      "name_zh": "測試用．已下架示範項目",
+      "name_en": "Test Unpublished Sample Project",
+      "one_liner_zh": "示範已下架狀態（測試文案）",
+      "one_liner_en": "Demonstrates an unpublished project (dev seed copy)",
+      "min_amount": 100,
+      "max_amount": 50000,
+      "share_pct": "6.00",
+      "invoice_mode": "b2c_invoice",
+      "charity_ref": "TEST-CHARITY-A",
+      "program_ref": "TEST-PROGRAM-A2",
+      "status": "draft",
+      "sort_order": 2,
+      "fund_usage_zh": "（已下架，款項用途說明僅供介面示範）",
+      "fund_usage_en": "(Unpublished; description shown for UI demo only.)"
+    }
+  ],
+  "projectSlugs": {
+    "project-a": "project-0e3ffbf31d",
+    "project-b": "project-b35b011f64",
+    "project-c": "project-99e6630e75"
+  },
+  "amountOptions": {
+    "project-a": [
+      300,
+      500,
+      1000,
+      3000
+    ],
+    "project-b": [
+      500,
+      1000,
+      2000,
+      5000
+    ],
+    "project-c": [
+      200,
+      500
+    ]
+  },
+  "donations": [
+    {
+      "key": "D01",
+      "order_no": "DEVTEST-DN-0001",
+      "store": "store-a",
+      "project": "project-a",
+      "amount": 500,
+      "status": "paid",
+      "donor_name": "測試用．王小明",
+      "donor_email": "donor01@example.test",
+      "is_anonymous": false,
+      "created_at": "2026-08-03T10:00:00",
+      "paid_at": "2026-08-03T10:02:30"
+    },
+    {
+      "key": "D02",
+      "order_no": "DEVTEST-DN-0002",
+      "store": null,
+      "project": "project-a",
+      "amount": 1000,
+      "status": "paid",
+      "donor_name": "測試用．匿名捐款人",
+      "donor_email": "donor02@example.test",
+      "is_anonymous": true,
+      "created_at": "2026-08-05T14:00:00",
+      "paid_at": "2026-08-05T14:03:10"
+    },
+    {
+      "key": "D03",
+      "order_no": "DEVTEST-DN-0003",
+      "store": "store-b",
+      "project": "project-b",
+      "amount": 2000,
+      "status": "pending",
+      "donor_name": "測試用．陳小華",
+      "donor_email": "donor03@example.test",
+      "is_anonymous": false,
+      "created_at": "2026-09-20T09:00:00",
+      "paid_at": null
+    },
+    {
+      "key": "D04",
+      "order_no": "DEVTEST-DN-0004",
+      "store": "store-a",
+      "project": "project-b",
+      "amount": 300,
+      "status": "created",
+      "donor_name": "測試用．林小美",
+      "donor_email": "donor04@example.test",
+      "is_anonymous": false,
+      "created_at": "2026-09-21T16:30:00",
+      "paid_at": null
+    },
+    {
+      "key": "D05",
+      "order_no": "DEVTEST-DN-0005",
+      "store": "store-b",
+      "project": "project-a",
+      "amount": 1500,
+      "status": "failed",
+      "donor_name": "測試用．張小強",
+      "donor_email": "donor05@example.test",
+      "is_anonymous": false,
+      "created_at": "2026-08-10T11:00:00",
+      "paid_at": null
+    },
+    {
+      "key": "D06",
+      "order_no": "DEVTEST-DN-0006",
+      "store": null,
+      "project": "project-b",
+      "amount": 800,
+      "status": "expired",
+      "donor_name": "測試用．李小芳",
+      "donor_email": "donor06@example.test",
+      "is_anonymous": false,
+      "created_at": "2026-08-12T08:00:00",
+      "paid_at": null
+    },
+    {
+      "key": "D07",
+      "order_no": "DEVTEST-DN-0007",
+      "store": "store-a",
+      "project": "project-a",
+      "amount": 5000,
+      "status": "refunded",
+      "donor_name": "測試用．黃小龍",
+      "donor_email": "donor07@example.test",
+      "is_anonymous": false,
+      "created_at": "2026-08-15T13:00:00",
+      "paid_at": "2026-08-15T13:04:00",
+      "refund_reason": "捐款人誤捐重複扣款，經核可全額退款（測試情境）",
+      "refunded_by": "cs.admin@charity.local"
+    },
+    {
+      "key": "D08",
+      "order_no": "DEVTEST-DN-0008",
+      "store": "store-b",
+      "project": "project-b",
+      "amount": 1000,
+      "status": "paid",
+      "donor_name": "測試用．吳小婷",
+      "donor_email": "donor08@example.test",
+      "is_anonymous": false,
+      "created_at": "2026-08-18T15:00:00",
+      "paid_at": "2026-08-18T15:02:00"
+    },
+    {
+      "key": "D09",
+      "order_no": "DEVTEST-DN-0009",
+      "store": "store-a",
+      "project": "project-b",
+      "amount": 600,
+      "status": "paid",
+      "donor_name": "測試用．周小傑",
+      "donor_email": "donor09@example.test",
+      "is_anonymous": false,
+      "created_at": "2026-08-20T09:30:00",
+      "paid_at": "2026-08-20T09:33:00"
+    },
+    {
+      "key": "D10",
+      "order_no": "DEVTEST-DN-0010",
+      "store": null,
+      "project": "project-a",
+      "amount": 2500,
+      "status": "paid",
+      "donor_name": "測試用．鄭小玲",
+      "donor_email": "donor10@example.test",
+      "is_anonymous": true,
+      "created_at": "2026-08-25T17:00:00",
+      "paid_at": "2026-08-25T17:05:00"
+    }
+  ],
+  "donationSplits": {
+    "D01": [
+      25,
+      40,
+      435
+    ],
+    "D02": [
+      0,
+      80,
+      920
+    ],
+    "D03": [
+      160,
+      240,
+      1600
+    ],
+    "D04": [
+      15,
+      36,
+      249
+    ],
+    "D05": [
+      120,
+      120,
+      1260
+    ],
+    "D06": [
+      0,
+      96,
+      704
+    ],
+    "D07": [
+      250,
+      400,
+      4350
+    ],
+    "D08": [
+      80,
+      120,
+      800
+    ],
+    "D09": [
+      30,
+      72,
+      498
+    ],
+    "D10": [
+      0,
+      200,
+      2300
+    ]
+  },
+  "payments": {
+    "D01": {
+      "status": "confirmed",
+      "requested_at": "2026-08-03T10:00:05",
+      "confirmed_at": "2026-08-03T10:02:30"
+    },
+    "D02": {
+      "status": "confirmed",
+      "requested_at": "2026-08-05T14:00:05",
+      "confirmed_at": "2026-08-05T14:03:10"
+    },
+    "D03": {
+      "status": "requested",
+      "requested_at": "2026-09-20T09:00:05",
+      "confirmed_at": null
+    },
+    "D05": {
+      "status": "failed",
+      "requested_at": "2026-08-10T11:00:05",
+      "confirmed_at": null
+    },
+    "D06": {
+      "status": "cancelled",
+      "requested_at": "2026-08-12T08:00:05",
+      "confirmed_at": null
+    },
+    "D07": {
+      "status": "confirmed",
+      "requested_at": "2026-08-15T13:00:05",
+      "confirmed_at": "2026-08-15T13:04:00"
+    },
+    "D08": {
+      "status": "confirmed",
+      "requested_at": "2026-08-18T15:00:05",
+      "confirmed_at": "2026-08-18T15:02:00"
+    },
+    "D09": {
+      "status": "confirmed",
+      "requested_at": "2026-08-20T09:30:05",
+      "confirmed_at": "2026-08-20T09:33:00"
+    },
+    "D10": {
+      "status": "confirmed",
+      "requested_at": "2026-08-25T17:00:05",
+      "confirmed_at": "2026-08-25T17:05:00"
+    }
+  },
+  "invoices": {
+    "D01": {
+      "invoice_type": "b2c_invoice",
+      "invoice_no": "DEVTEST-INV-0001",
+      "issued_at": "2026-08-03T10:05:00",
+      "carrier_type": "手機條碼載具",
+      "carrier_id_encrypted": "ENC-PLACEHOLDER-NOT-REAL::D01-carrier",
+      "issue_status": "issued",
+      "void_status": "none"
+    },
+    "D02": {
+      "invoice_type": "b2c_invoice",
+      "invoice_no": "DEVTEST-INV-0002",
+      "issued_at": "2026-08-05T14:06:00",
+      "carrier_type": "統一編號",
+      "tax_id": "00000001",
+      "invoice_title": "測試用有限公司（虛構統編）",
+      "issue_status": "issued",
+      "void_status": "none"
+    },
+    "D07": {
+      "invoice_type": "b2c_invoice",
+      "invoice_no": "DEVTEST-INV-0007",
+      "issued_at": "2026-08-15T13:06:00",
+      "carrier_type": "捐贈發票",
+      "issue_status": "issued",
+      "void_status": "voided",
+      "void_reason": "捐款人申請退款，原發票配合作廢（測試情境）",
+      "voided_by": "cs.admin@charity.local"
+    },
+    "D08": {
+      "invoice_type": "donation_receipt",
+      "invoice_no": null,
+      "issued_at": null,
+      "national_id_encrypted": "ENC-PLACEHOLDER-NOT-REAL::D08-national-id",
+      "receipt_address": "臺中市西區測試路 8 號（虛構地址）",
+      "receipt_title": "測試用．吳小婷",
+      "issue_status": "pending",
+      "void_status": "none"
+    },
+    "D09": {
+      "invoice_type": "donation_receipt",
+      "invoice_no": null,
+      "issued_at": null,
+      "national_id_encrypted": "ENC-PLACEHOLDER-NOT-REAL::D09-national-id",
+      "receipt_address": "臺中市西區測試路 9 號（虛構地址）",
+      "receipt_title": "測試用．周小傑",
+      "issue_status": "failed",
+      "void_status": "none"
+    },
+    "D10": {
+      "invoice_type": "b2c_invoice",
+      "invoice_no": "DEVTEST-INV-0010",
+      "issued_at": "2026-08-25T17:06:00",
+      "carrier_type": "捐贈發票",
+      "issue_status": "issued",
+      "void_status": "allowance",
+      "void_reason": "金額誤植，開立折讓後將重新開立正確金額發票（測試情境）",
+      "voided_by": "sa@charity.local",
+      "is_annual_summary": true
+    }
+  },
+  "settlementPlan": [
+    [
+      "store",
+      "store-a",
+      [
+        "2026-08-01",
+        "2026-08-31"
+      ],
+      [
+        [
+          "D01",
+          false
+        ],
+        [
+          "D07",
+          false
+        ],
+        [
+          "D09",
+          false
+        ]
+      ],
+      "paid",
+      "2026-09-05",
+      "銀行轉帳",
+      "已電匯至店家指定帳戶（測試資料，帳戶資訊未實際存在）"
+    ],
+    [
+      "store",
+      "store-b",
+      [
+        "2026-08-01",
+        "2026-08-31"
+      ],
+      [
+        [
+          "D08",
+          false
+        ]
+      ],
+      "settled",
+      null,
+      null,
+      null
+    ],
+    [
+      "project",
+      "project-a",
+      [
+        "2026-08-01",
+        "2026-08-31"
+      ],
+      [
+        [
+          "D01",
+          false
+        ],
+        [
+          "D02",
+          false
+        ],
+        [
+          "D07",
+          false
+        ],
+        [
+          "D10",
+          false
+        ]
+      ],
+      "paid",
+      "2026-09-06",
+      "銀行轉帳",
+      "已撥付予公益計畫執行單位（測試資料，帳戶資訊未實際存在）"
+    ],
+    [
+      "project",
+      "project-b",
+      [
+        "2026-08-01",
+        "2026-08-31"
+      ],
+      [
+        [
+          "D08",
+          false
+        ],
+        [
+          "D09",
+          false
+        ]
+      ],
+      "settled",
+      null,
+      null,
+      null
+    ],
+    [
+      "store",
+      "store-a",
+      [
+        "2026-09-01",
+        "2026-09-15"
+      ],
+      [
+        [
+          "D07",
+          true
+        ]
+      ],
+      "pending",
+      null,
+      null,
+      null
+    ],
+    [
+      "project",
+      "project-a",
+      [
+        "2026-09-01",
+        "2026-09-15"
+      ],
+      [
+        [
+          "D07",
+          true
+        ]
+      ],
+      "pending",
+      null,
+      null,
+      null
+    ]
+  ],
+  "reconciliationRuns": [
+    {
+      "key": "clean",
+      "run_on": "2026-08-21",
+      "source": "linepay",
+      "compared_count": 5,
+      "matched_count": 5,
+      "discrepancy_count": 0,
+      "status": "completed"
+    },
+    {
+      "key": "with-diff",
+      "run_on": "2026-09-16",
+      "source": "linepay",
+      "compared_count": 10,
+      "matched_count": 7,
+      "discrepancy_count": 3,
+      "status": "completed"
+    }
+  ],
+  "reconciliationDiscrepancies": [
+    {
+      "run_key": "with-diff",
+      "discrepancy_type": "site_only",
+      "donation_key": "D09",
+      "donation_order_no": "DEVTEST-DN-0009",
+      "gateway_transaction_id": null,
+      "site_amount": 600,
+      "gateway_amount": null,
+      "resolution_status": "pending",
+      "resolved_by": null,
+      "resolve_note": null
+    },
+    {
+      "run_key": "with-diff",
+      "discrepancy_type": "gateway_only",
+      "donation_key": null,
+      "donation_order_no": null,
+      "gateway_transaction_id": "LP-TEST-GW-ORPHAN-0001",
+      "site_amount": null,
+      "gateway_amount": 350,
+      "resolution_status": "pending",
+      "resolved_by": null,
+      "resolve_note": null
+    },
+    {
+      "run_key": "with-diff",
+      "discrepancy_type": "amount_mismatch",
+      "donation_key": "D08",
+      "donation_order_no": "DEVTEST-DN-0008",
+      "gateway_transaction_id": "LP-TEST-GW-0008",
+      "site_amount": 1000,
+      "gateway_amount": 990,
+      "resolution_status": "resolved",
+      "resolved_by": "sa@charity.local",
+      "resolve_note": "人工核對為金流端先行扣除之銀行手續費，屬正常誤差已認列（測試資料）"
+    }
+  ],
+  "auditLogs": [
+    {
+      "admin_username": "cs.admin@charity.local",
+      "occurred_at": "2026-08-16T10:00:00",
+      "action": "refund",
+      "target_type": "donation",
+      "target_donation_order_no": "DEVTEST-DN-0007",
+      "target_project_key": null,
+      "change_summary": "退款金額 5000 元，捐款人誤捐重複扣款（測試情境）",
+      "purpose_note": null,
+      "source_ip": "203.0.113.10"
+    },
+    {
+      "admin_username": "sa@charity.local",
+      "occurred_at": "2026-09-01T09:00:00",
+      "action": "update_share_pct",
+      "target_type": "donation_project",
+      "target_donation_order_no": null,
+      "target_project_key": "project-a",
+      "change_summary": "project_share_pct 由 8.00% 調整為 10.00%（測試情境，此前建立的捐款單快照不受影響）",
+      "purpose_note": null,
+      "source_ip": "203.0.113.11"
+    },
+    {
+      "admin_username": "cs.admin@charity.local",
+      "occurred_at": "2026-09-18T15:00:00",
+      "action": "export_personal_data",
+      "target_type": "donation_list_export",
+      "target_donation_order_no": null,
+      "target_project_key": null,
+      "change_summary": "匯出含個資之捐款明細共 10 筆（測試情境）",
+      "purpose_note": "國稅局申報之捐款明細核對需求（測試占位用途）",
+      "source_ip": "203.0.113.12"
+    }
+  ],
+  "settings": [
+    [
+      "donation.default_min_amount",
+      "100"
+    ],
+    [
+      "donation.default_max_amount",
+      "1000000"
+    ],
+    [
+      "donation.credit_list_display_rule",
+      "named_unless_anonymous"
+    ]
+  ],
+  "settingsI18n": [
+    [
+      "donation.home_intro",
+      "（開發測試用首頁說明文案，正式文案待客戶與協會確認）",
+      "(Dev seed placeholder home intro copy, pending client/association confirmation.)"
+    ],
+    [
+      "donation.thank_you_message_template",
+      "感謝您的愛心捐款！（開發測試用感謝語樣板）",
+      "Thank you for your generous donation! (dev seed placeholder)"
+    ],
+    [
+      "donation.notice",
+      "本平台捐款一經完成，對外恕不受理退款申請（開發測試用捐款須知占位文字）。",
+      "Donations are final and non-refundable via the public site (dev seed placeholder notice)."
+    ],
+    [
+      "donation.privacy_policy",
+      "（開發測試用隱私權政策占位文字，正式內容待法務確認）",
+      "(Dev seed placeholder privacy policy, pending legal review.)"
+    ]
+  ],
+  "emailTemplates": [
+    [
+      "donation_thanks",
+      "感謝您的捐款（開發測試用樣板主旨）",
+      "感謝您對本次公益計畫的支持，這是開發測試用的樣板內文，正式文案待協會確認。",
+      "Thank you for your donation (dev seed placeholder subject)",
+      "Thank you for supporting this program. This is a dev seed placeholder body; final copy pending association review."
+    ],
+    [
+      "invoice_issued",
+      "您的電子發票／收據已開立（開發測試用樣板主旨）",
+      "您的憑證已開立，這是開發測試用的樣板內文，正式文案待協會確認。",
+      "Your invoice/receipt has been issued (dev seed placeholder subject)",
+      "Your document has been issued. This is a dev seed placeholder body; final copy pending association review."
+    ],
+    [
+      "invoice_failed",
+      "發票開立失敗通知（開發測試用樣板主旨）",
+      "您的憑證開立失敗，我們將盡快處理，這是開發測試用的樣板內文。",
+      "Invoice issuance failed (dev seed placeholder subject)",
+      "Your document failed to issue and will be retried. This is a dev seed placeholder body."
+    ],
+    [
+      "refund_notice",
+      "退款通知（開發測試用樣板主旨）",
+      "您的捐款已完成退款，這是開發測試用的樣板內文，正式文案待協會確認。",
+      "Refund notice (dev seed placeholder subject)",
+      "Your donation has been refunded. This is a dev seed placeholder body; final copy pending association review."
+    ]
+  ],
+  "emailLogs": [
+    [
+      "donation_thanks",
+      "D01",
+      "sent",
+      "2026-08-03T10:03:00"
+    ],
+    [
+      "invoice_issued",
+      "D01",
+      "sent",
+      "2026-08-03T10:06:00"
+    ],
+    [
+      "invoice_failed",
+      "D09",
+      "failed",
+      "2026-08-20T09:34:00"
+    ],
+    [
+      "refund_notice",
+      "D07",
+      "sent",
+      "2026-08-16T10:05:00"
+    ]
+  ]
+}

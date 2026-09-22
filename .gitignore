@@ -86,3 +86,7 @@ output/TCRFC_慈善捐款站台地圖.html
 output/TCRFC_Charity_Donation_Sitemap_EN.html
 output/TCRFC_行動App功能說明_客戶版.html
 output/TCRFC_Mobile_App_Feature_Overview_EN.html
+
+# Python 快取（db/seed/emit-charity-fixtures.py 用 importlib 載入種子腳本時產生）
+__pycache__/
+*.pyc

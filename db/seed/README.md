@@ -1,8 +1,11 @@
-# db/seed/ — 本機開發用種子資料（S0-6c）
+# db/seed/ — 本機開發用種子資料（S0-6c／S0-6d）
 
 > 對應 [`../../docs/17-deployment.md`](../../docs/17-deployment.md)（本機開發環境）與
 > [`../../deploy/README.md`](../../deploy/README.md)（S0-7a 本機骨架、本機資料庫容器）。
-> 這裡只處理**主站庫（`tcrfc_club_dev`）**的種子資料。**慈善庫（`tcrfc_charity_dev`）沒有種子來源，本目錄不處理它。**
+> 本目錄同時處理**兩個獨立資料庫**的種子資料，但用**兩支互不相干的腳本**：
+> 主站庫（`tcrfc_club_dev`，`apply-seed.sh`）與慈善庫（`tcrfc_charity_dev`，`apply-charity-seed.sh`）。
+> **這兩支腳本刻意不共用、不互相呼叫**——慈善捐款平台是獨立法人邊界（主辦與收款主體是
+> 台灣足球策略發展協會，不是台中磐石足球俱樂部），見下方「慈善庫的種子資料」一節。
 >
 > 🔴 **2026-09-21 起：本機開發資料庫已合併進既有的 `sqlserver` 容器**（不再是本專案自己起的
 > `mssql-dev` 服務），詳見 [`../../deploy/README.md`](../../deploy/README.md)「本機開發資料庫已
@@ -12,9 +15,11 @@
 
 | 檔案 | 用途 |
 |---|---|
-| [`generate-club-seed-sql.py`](generate-club-seed-sql.py) | 讀 [`site/src/data/*.json`](../../site/src/data/)（六個 mockup 資料檔），產生冪等的 T-SQL |
+| [`generate-club-seed-sql.py`](generate-club-seed-sql.py) | 讀 [`site/src/data/*.json`](../../site/src/data/)（六個 mockup 資料檔），產生 `tcrfc_club_dev` 冪等的 T-SQL |
 | [`apply-seed.sh`](apply-seed.sh) | 呼叫上面那支腳本，再用 `sqlcmd` 把產生的 SQL 灌進本機 SQL Server（既有 `sqlserver` 容器）的 `tcrfc_club_dev`；容器名稱可用 `LOCAL_MSSQL_CONTAINER` 環境變數覆寫，但目標資料庫寫死只認 `tcrfc_club_dev` |
-| `.generated/`（**不進版控**） | 產生出來的 `.sql`，含球員／教練真實姓名，隨時可重新產生，見 [`.gitignore`](../../.gitignore) |
+| [`generate-charity-seed-sql.py`](generate-charity-seed-sql.py) | 產生 `tcrfc_charity_dev` 冪等的 T-SQL。**資料直接寫在腳本內**（不像 club 腳本讀外部 JSON）——因為這批資料**從一開始就是虛構測試資料**，不是需要另外隔離的真人個資，見下方一節的說明 |
+| [`apply-charity-seed.sh`](apply-charity-seed.sh) | 呼叫上面那支腳本，灌進 `tcrfc_charity_dev`；目標資料庫寫死只認 `tcrfc_charity_dev`，與 `apply-seed.sh` 的白名單分開維護 |
+| `.generated/`（**不進版控**） | 兩支產生器的輸出（`club-seed.local.sql`／`charity-seed.local.sql`），隨時可重新產生，見 [`.gitignore`](../../.gitignore) |
 
 ## 為什麼種子資料用「讀 JSON 產生 SQL」而不是寫死在腳本裡
 
@@ -39,8 +44,11 @@ docker ps --filter name=sqlserver
 # 2. 灌 DDL（兩個庫都會建：tcrfc_club_dev、tcrfc_charity_dev，建在既有 sqlserver 容器裡）
 ./deploy/local-ddl.sh --apply
 
-# 3. 灌種子資料（只灌 tcrfc_club_dev）
+# 3a. 灌主站庫種子資料（只灌 tcrfc_club_dev）
 ./db/seed/apply-seed.sh
+
+# 3b. 灌慈善庫種子資料（只灌 tcrfc_charity_dev；兩支腳本互不相依，順序不影響結果）
+./db/seed/apply-charity-seed.sh
 ```
 
 ⚠️ **2026-09-21 之前**這裡第 1 步是啟動本專案自己的 `mssql-dev` 服務——那個服務已退場，
@@ -131,6 +139,51 @@ Server=host.docker.internal,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MS
 `clubs.domain` 用了一個明確標示「非真實」的技術佔位值（`bw-domain-pending.invalid`，`.invalid` 是 IANA
 保留給這類用途的 TLD）——`domain` 欄位是 `NOT NULL UNIQUE`，正式網域待 B-4 解除前無法留白，
 **這個值不得沿用到任何正式環境**，正式網域確定後由後台人工更新。
+
+## 慈善庫（`tcrfc_charity_dev`）的種子資料
+
+**與主站庫的種子資料是兩回事，不要混為一談**：
+
+- **這批資料全部是虛構測試資料**，不是像 club 種子那樣「mockup 用的真實骨架資料（球員名單、
+  新聞標題等）」。捐款人姓名、Email、電話、統一編號、身分證字號、「加密」欄位的內容，
+  一律是清楚標明假的占位值（姓名如「測試用．王小明」、Email 一律 `@example.test`、
+  電話與統編一律用連續 0 這種明顯不可能存在的號碼、`*_encrypted` 欄位是
+  `ENC-PLACEHOLDER-NOT-REAL::...` 這種明講「不是真的加密」的字串——加密是應用層職責，
+  本機種子階段尚未實作）。**正因為資料本身就是虛構的，不像 club 種子有真人個資需要隔離，
+  所以 `generate-charity-seed-sql.py` 把資料直接寫在腳本內，不像 club 腳本那樣讀外部 JSON。**
+- **`db/seed/apply-seed.sh` 與 `db/seed/apply-charity-seed.sh` 是兩支完全獨立的腳本**，
+  各自的目標資料庫白名單寫死、互不共用、互不呼叫。這不是疏漏，是刻意的——慈善捐款平台
+  自 v2.0 起是獨立法人邊界（主辦與收款主體是台灣足球策略發展協會，不是台中磐石足球俱樂部，
+  見 [`../../docs/16-charity-schema.md`](../../docs/16-charity-schema.md) §0／§9）。把兩庫的
+  種子混進同一支腳本，等於在程式碼層面抹掉這條邊界。
+- **不得對 `tcrfc_club_dev` 執行任何跨庫 JOIN**，也不得把兩個資料庫的種子腳本合併——理由同上一節。
+
+**種了什麼**（29 張表：25 主表 ＋ 4 張 `*_i18n`；`ui_strings`／`ui_string_translations` 刻意留空
+——本次任務範圍未列，也還沒有實際介面字串內容可種）：
+
+| 分類 | 表 | 筆數 | 涵蓋的狀態／分支 |
+|---|---|---|---|
+| 語系 | `locales` | 2 | zh-Hant／en |
+| 後台帳號權限 | `admin_roles`／`permissions`／`role_permissions`／`admin_users`／`admin_user_roles` | 9／23／43／4／4 | 沿用主站九個角色；5 個與慈善無對應職能的角色刻意不掛權限（見腳本註解） |
+| 主站唯讀複本 | `charity_refs`／`charity_program_refs` | 2／3 | 虛構占位（協會統編未定，不得沿用正式環境） |
+| 店家 | `donation_stores`（+i18n） | 3 | 不同類別、有／無 Logo、合作中／已停止 |
+| 項目 | `donation_projects`（+i18n）／`donation_amount_options` | 3／10 | 已上架 ×2（不同 `invoice_mode`）＋已下架 ×1（⚠️ 綱要沒有「已結束」狀態值，見腳本註解的已知缺口） |
+| 捐款 | `donations` | 10 | `created`／`pending`／`paid`×5／`failed`／`expired`／`refunded` 六種狀態全數涵蓋 |
+| 金流 | `donation_payments` | 9 | `requested`／`confirmed`／`failed`／`cancelled`；D04（`created`）刻意不建，示範「金流尚未起動」 |
+| 發票 | `donation_invoices` | 6 | 已開立／待開立／開立失敗／已作廢／折讓，涵蓋三種 `carrier_type`（手機條碼載具／統一編號／捐贈發票） |
+| 結算 | `settlements`／`settlement_lines` | 6／12 | 一個完整結算週期（2026-08，含 `paid`／`settled`）＋下一期（2026-09 上半）的退款沖回負項 |
+| 對帳 | `reconciliation_runs`／`reconciliation_discrepancies` | 2／3 | 一次乾淨、一次涵蓋三種差異類型（`site_only`／`gateway_only`／`amount_mismatch`） |
+| 稽核 | `audit_logs` | 3 | 退款／分潤百分比設定／含個資明細匯出三類法遵稽核 |
+| 機制表 | `settings`（+i18n）／`email_templates`（+i18n）／`email_logs`／`payment_channels` | 7／4／4／2 | 站台文案、四封系統信、寄送紀錄（`sent`／`failed`）、LINE Pay 與電子發票憑證（皆 sandbox 占位） |
+
+**已知的綱要缺口**（回報用，未動 `db/charity-schema.sql`，改綱要要先改 `docs/16` 再回頭改 DDL）：
+
+1. `donation_projects.status` 只有 `draft`／`published` 兩值（`CK_donation_projects_status`），
+   且沒有起訖日欄位——**無法區分「已下架」與「已結束」**，兩者在目前的資料模型裡是同一個
+   狀態值。本次種子用 `draft` 代表「已下架（含已結束的情形）」，不新增狀態值也不新增欄位。
+2. `docs/16a-charity-field-audit.md` 已盤點出的其餘缺漏（`DonationInvoice` 抬頭欄位、
+   `Settlement.remit_method`、`SettlementLine.clawback_reason` 等）**`db/charity-schema.sql`
+   已經補上**，本次種子直接使用，未發現新的缺口。
 
 ## DDL 改了、既有本機庫沒跟上——以後一定會再發生
 
