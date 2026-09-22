@@ -19,18 +19,18 @@
 # 改成 repo root，要嘛在 docker build 前的 CI 步驟裡把 db/seed/charity-fixtures.json 暫存進
 # 這個目錄下再建置。本檔沒有自行假設其中一種解法。
 
-FROM node:22.12-alpine AS deps
+FROM node:24.13.1-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:22.12-alpine AS build
+FROM node:24.13.1-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
-FROM node:22.12-alpine AS runtime
+FROM node:24.13.1-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     NITRO_PORT=3000 \

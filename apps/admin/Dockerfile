@@ -8,7 +8,7 @@
 # 是「非 root 使用者跑」這條要求最省事、最不容易漏掉的做法（本檔自行決定，docs 未指定 base image）。
 
 # ---- 1. build：Vite 產出靜態檔 ----
-FROM node:22.12-alpine AS build
+FROM node:24.13.1-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci

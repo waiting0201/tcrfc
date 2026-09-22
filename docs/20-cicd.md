@@ -132,7 +132,7 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 
 | 快取 | 做法 |
 |---|---|
-| npm | `actions/setup-node` 內建 `cache: 'npm'`，key 依各應用自己的 `package-lock.json`（五個應用各自快取，不共用） |
+| npm | `actions/setup-node` 內建 `cache: 'npm'`，key 依各應用自己的 `package-lock.json`（五個應用各自快取，不共用）。🔴 **`node-version` 必須與四個 Node 應用 `Dockerfile` 的 base image 版本一致**（[`17-deployment.md` §12](17-deployment.md#12-前端建置用的-nodejs-版本) 已定案 `24.13.1`）——`lint`／`unit test` 這兩個 CI 步驟不是在容器裡跑，若 `setup-node` 版本落後於 `Dockerfile`，會重演「本機／CI 環境比建置映像檔舊，直到 `docker build` 才炸」的同一種落差，只是把炸點從「開發機」換成「CI」，沒有解決根因 |
 | NuGet | `actions/setup-dotnet` 搭 `actions/cache`，key 依 `packages.lock.json`（`api` 專案要開 `--use-lock-file`） |
 | Docker layer | `docker/build-push-action` 的 `cache-from/cache-to: type=gha`。⚠️ GitHub Actions cache 每個 repo 上限約 10 GB 會被自動淘汰最舊的，五個映像檔共用這個額度，**上線後留意快取命中率，必要時分開 scope（`scope: <app名>`）避免互相擠掉** |
 

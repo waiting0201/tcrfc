@@ -4,7 +4,7 @@
 # 對應決定：docs/20-cicd.md §3「五個映像檔」——docs/17-deployment.md §5「獨立後台、獨立帳號體系、獨立 2FA」，
 # 與 apps/admin 功能模組不重疊，因此獨立映像檔，架構與 apps/admin/Dockerfile 相同。
 
-FROM node:22.12-alpine AS build
+FROM node:24.13.1-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci

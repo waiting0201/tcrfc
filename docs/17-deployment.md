@@ -24,6 +24,7 @@
 | 執行環境 | **單一 Azure VM（Japan East／東京）＋ Docker**，前台、後台、API、Redis 全在此 VM |
 | 網路 | **單一 VNet**，PaaS 以 **VNet Service Endpoint** 接入 |
 | 邊緣 | Cloudflare（DNS／CDN／WAF，proxy 回源 VM） |
+| 前端建置 Node.js | **`node:24.13.1-alpine`（四個 Node 應用一致）**，2026-09-22 定案，見 [§12](#12-前端建置用的-nodejs-版本) |
 
 > 🔵 **區域：Japan East（東京）**，2026-09-20 由 West US 2 改定。
 > **趕在申請 LINE Pay 商店號之前決定**——換區域＝換出口 IP＝改白名單，是有前置期的變更（見 [§7](#7-已知風險) 風險 4、9）。
@@ -796,4 +797,105 @@ session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊�
 | 11 | **資料庫不可用時，`apps/api` 的測試回報「失敗」而不是「略過」**（S0-7d） | fixture 的 `IAsyncLifetime.InitializeAsync()` 連不上資料庫就直接丟一個訊息清楚（含修復指令）的例外，xUnit 對每個測試都回報 `Failed`。刻意不引入 `Xunit.SkippableFact` 之類的第三方套件做「略過」——失敗比略過更難被 CI 儀表板悄悄忽略，且維持相依套件最少。**這是本次的執行層選擇，不是規格**；之後接上 CI 若情境不同（例如 CI 固定會提供資料庫），可重新評估 |
 | 12 | ⚠️ **這個開發環境的 Docker Desktop 對 Docker Hub 拉取異常緩慢**（`redis:8-alpine` 拉取超過 30 分鐘未完成，`registry-1.docker.io` 本身用 `curl` 直接測是正常的，問題出在 Docker VM 的網路路徑，不是 registry） | 遇到需要「真的跑一個 Redis 起來測試」但又不想空等的情況，`brew install redis`（Homebrew 的下載路徑走不同 CDN，實測正常）裝一個真正的 `redis-server` 二進位檔跑在本機某個 port，讓容器用 `host.docker.internal:<port>` 連過去，一樣是真實 Redis、不是 mock，且可控（能直接 `kill` 掉模擬「執行中掛掉」）。**只是這個環境的限制，不是專案本身要不要用 Docker 跑 Redis 的決定**——正式 VM 與一般開發機器的網路預期不會有這個問題 |
 
+---
+
+## 12. 前端建置用的 Node.js 版本
+
+> 🔴 **2026-09-22 補記的執行層決定。** 在此之前，四個 Node 應用（`apps/web`、`apps/admin`、
+> `apps/web-charity`、`apps/admin-charity`）的 `Dockerfile` 全部寫 `node:22.12-alpine`，
+> **但這個版本從沒有人選過、也沒有人記錄過理由**——是專案起手時複製貼上的值，本檔與
+> [`20-cicd.md`](20-cicd.md) 過去都沒提到它。這次是因為 `apps/web` 的 `docker build` 實際壞掉
+> 才回頭補上決定，見 [`18-work-errors.md`](18-work-errors.md) 對應條目。
+
+### 事發經過（為什麼要重新選版本）
+
+`docker build -f apps/web/Dockerfile apps/web` 的 `npm ci` 失敗，錯誤訊息表面上指向鎖檔（
+`Missing: eslint@9.39.5 from lock file`），但鎖檔本身沒有壞（`npm install --package-lock-only`
+重跑後 `git diff` 完全沒有變化）。**真正原因是 `EBADENGINE`**：相依樹裡多個套件
+（`@eslint/compat`、`@eslint/core`、`@nuxt/nitro-server` 等，隨 Nuxt 4／ESLint 9 一起進來）的
+`engines` 要求 `^20.19.0 || ^22.13.0 || >=24`，而 `node:22.12-alpine` 的 **22.12.0 不滿足
+`^22.13.0`**——差一個 patch 版本，npm 10.9.0（該映像檔內建版本）預設把它降級成一則容易被忽略的
+警告，`npm ci` 卻仍然失敗，只是錯誤訊息選了鎖檔當代罪羔羊。
+
+`apps/admin`／`apps/web-charity`／`apps/admin-charity` 當時相依樹比較輕、還沒踩到這個門檻，
+所以只有 `apps/web` 先炸——**這不是 `apps/web` 特有的問題，是四個應用共用的地基已經過期**，
+只是暴露的時間點不同。
+
+### 定案：`node:24.13.1-alpine`，四個 Dockerfile 一致
+
+| 項目 | 內容 |
+|---|---|
+| 版本 | **`node:24.13.1-alpine`**（Alpine 3.23），四個 `Dockerfile` 的 `deps`／`build`／`runtime` 階段一律套用同一個標籤 |
+| 適用範圍 | `apps/web/Dockerfile`、`apps/admin/Dockerfile`、`apps/web-charity/Dockerfile`、`apps/admin-charity/Dockerfile`（`apps/api` 是 .NET，不適用） |
+| 是否浮動標籤 | **否**——不用 `node:24-alpine`。可重現性優先：同一份 `Dockerfile` 在不同時間 `docker build` 必須拉到同一個 Node 版本，不因 Docker Hub 上游改點釋出而悄悄變動 |
+
+**為什麼是 Node 24、不是把 22 補到 `22.13.0`**：
+
+1. **滿足下限只是及格，不是長期解**——`^22.13.0` 是這次卡住的相依樹現在的要求，Nuxt／ESLint／
+   其他相依套件的 `engines` 門檻只會繼續往前推進，選一個貼著下限的版本明年大概率要重選一次。
+2. **本機開發版本是 Node 24.13.1／npm 11.8.0**（`node -v`／`npm -v` 實測）。**這次的根因能潛伏
+   三個交付都沒被發現，就是因為本機開發版本（24.x）與建置映像檔版本（22.12）差了一個 major，
+   本機從來不會跑到 `npm ci` 這條在建置映像檔裡才會走的路徑**（本機用 `npm install`／已存在的
+   `node_modules`，不會重新觸發 engines 檢查）。選 Node 24 讓建置環境與開發環境的 major 版本
+   一致，這個落差類的問題下次會在本機先炸，而不是等到 `docker build`。
+3. **Node 24「Krypton」的支援期比 22「Jod」長**：22 已於 2025 年 10 月進入 Maintenance LTS，
+   維護期到 **2027-04**；24 於 2025 年 10 月進入 Active LTS（**約 2026 年 10 月轉 Maintenance**），
+   維護期到 **2028-04**——多出約一年的支援期，涵蓋本案交付與初期維運期更有餘裕。
+   ⚠️ 月份為 Node.js 官方發布節奏的一般模式（每年 4 月 Current、10 月轉 LTS），實際切換日期
+   以 [nodejs.org 的 Release schedule](https://nodejs.org/en/about/previous-releases) 為準，
+   本節不代表精確到日的官方公告。
+4. **不是 Nitro／.NET 以外的專案有特殊需求**——四個 Node 應用（Nuxt 4 SSR 兩個、Vite SPA 兩個）
+   對 Node 版本沒有特殊上限，純粹是 `engines` 下限的問題，選一個滿足下限、支援期夠長、且貼近
+   本機開發版本的即可，不需要為某個框架單獨遷就。
+
+**為什麼精確釘到 `24.13.1`、不是釘另一個 24.x patch**：直接對齊本機開發版本的 patch
+（`node -v` → `v24.13.1`、`npm -v` → `11.8.0`），**把「本機能跑」與「建置映像檔能跑」收斂成同一個
+版本**，是徹底消除本次這種落差的最簡單做法。`docker pull node:24.13.1-alpine` 已驗證該標籤存在
+（Docker Hub 有發布對應的 Alpine 3.23 映像檔）。
+
+### 下次什麼情況要重新檢視
+
+- **`npm ci` 又出現 `EBADENGINE` 或看似指向鎖檔但鎖檔沒壞的失敗**——先懷疑 base image 版本，
+  不要重複這次繞了一圈才找到根因的過程。
+- **本機開發版本（`node -v`）升級到新的 major，且與 `24.13.1-alpine` 差距拉大**——這正是這次
+  問題潛伏的成因，本機升版時應同步評估是否要把四個 Dockerfile 一起升版並更新此節。
+- **Node 24 於 2026-10 前後轉入 Maintenance LTS**——不代表要立刻換，維護期到 2028-04
+  仍然涵蓋本案，但若屆時 Node 26（下一個預期於 2026-10 前後成為 Current 的版本）已發布且相依樹
+  的 `engines` 開始要求它，比照這次的判準重新選一次。
+- **四個應用之間版本又出現不一致**（例如只改了一個 `Dockerfile`）——立即視為缺陷，四個必須永遠
+  一致，這是這次任務刻意收斂的狀態。
+
+### 鎖檔：這次不需要重產
+
+升版後**四個 `package-lock.json` 一個字都沒改**——`docker build` 在新版映像檔下直接用既有鎖檔
+`npm ci` 成功（四個都驗證過），問題只出在 base image 滿不滿足 `engines`，與鎖檔內容無關。
+**若日後真的需要重產鎖檔，一律用與新映像檔相同的 Node／npm 版本產**（`docker run --rm -v
+"$PWD":/w -w /w node:24.13.1-alpine npm install --package-lock-only`），並逐一檢查版本變動幅度，
+不要讓它順手把整批相依套件升級。
+
+### 🔵 建議（未實作）：`.nvmrc`／`engines`／`packageManager` 綁定本機與建置版本
+
+這次問題能潛伏三個交付才被發現，根本原因是**本機開發版本與建置映像檔版本沒有任何機制互相校驗**
+——`node -v` 是 24.x，`Dockerfile` 是 22.12，兩者長期各走各的，直到 `docker build` 才會因為
+`engines` 門檻被撞出來。建議在四個 Node 應用各自的 `package.json` 加：
+
+```jsonc
+{
+  "engines": { "node": "24.13.1" },
+  "packageManager": "npm@11.8.0"
+}
+```
+
+並在專案根目錄（或各應用目錄）加 `.nvmrc`（內容 `24.13.1`），三者與 `Dockerfile` 的
+`FROM node:24.13.1-alpine` 四處同一個版本號。效果：
+
+- `npm ci`／`npm install` 在版本不符時可設定 `engine-strict=true`（`.npmrc`）直接擋下，
+  本機執行到就會失敗，不必等 `docker build`。
+- 團隊成員或 CI 若用 `nvm use`，會自動切到與建置映像檔相同的版本。
+- 四個版本號分散在四個地方（`Dockerfile`、`package.json` 兩處、`.nvmrc`）**要手動同步**，
+  這是它的代價——沒有單一事實來源會自動互相帶動，升版時四處都要改到，改漏一處這個機制就
+  失去校驗力。**這一步本次未實作**（範圍限制在 `Dockerfile` 與文件），是否要做、以及
+  `engine-strict` 要不要開（開了之後本機版本管理較嚴格，可能造成新加入者的摩擦）留給後續決定。
+
+---
 

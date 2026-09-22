@@ -15,13 +15,13 @@
 # 若專案實際採用其他 Nitro preset（如 bun、deno），此檔需要對應調整。
 
 # ---- 1. deps：只裝相依，最大化 layer cache 命中率 ----
-FROM node:22.12-alpine AS deps
+FROM node:24.13.1-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # ---- 2. build：帶入原始碼，產出 .output ----
-FROM node:22.12-alpine AS build
+FROM node:24.13.1-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -29,7 +29,7 @@ COPY . .
 RUN npm run build
 
 # ---- 3. runtime：最小化，非 root 使用者 ----
-FROM node:22.12-alpine AS runtime
+FROM node:24.13.1-alpine AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     NITRO_PORT=3000 \
