@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CURRENT_USER } from '@/data/session'
+import { activeClubId } from '@/data/activeClub'
 
 /**
  * 站台切換器（docs/21-admin-ui.md §5）。
@@ -14,9 +15,12 @@ import { CURRENT_USER } from '@/data/session'
  * v3（docs/21 §5.3）：隊徽小圖示改用真實隊徽圖像，不再是純色色塊——操作主色本身也改成品牌桃紅之後，
  * 純色色塊會被同色系的按鈕、連結、focus 外框稀釋掉「這是俱樂部標記」的獨立辨識度，改用圖像後辨識
  * 來源是圖形本身，不受 --admin-primary 系 token 支配。
+ *
+ * `activeClubId` 改拉到 `data/activeClub.ts` 的模組層級單例（本輪接後台新聞真實 API 時發現：
+ * 這裡原本是元件內部 ref，沒有任何地方讀得到「現在選的是哪一隊」，但 `/api/v1/admin/{club}/news`
+ * 這類端點一定要知道目前選的俱樂部）。
  */
 const clubs = CURRENT_USER.authorizedClubs
-const activeClubId = ref(clubs[0]?.id)
 
 const activeClub = computed(() => clubs.find((c) => c.id === activeClubId.value) ?? clubs[0])
 const canSwitch = computed(() => clubs.length > 1)

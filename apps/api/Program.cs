@@ -103,9 +103,12 @@ var corsOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 if (corsOrigins.Length == 0 && builder.Environment.IsDevelopment())
 {
-    // 本機開發若忘記帶 CORS_ALLOWED_ORIGINS，退回 apps/web 開發用的幾個常見 port，
+    // 本機開發若忘記帶 CORS_ALLOWED_ORIGINS，退回 apps/web／apps/admin 開發用的幾個常見 port，
     // 讓本機起步不必先去翻文件；正式環境沒有這個退回值，未設定就是沒有任何來源被允許。
-    corsOrigins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002"];
+    // 5174 是 apps/admin 的 vite dev server（apps/admin/vite.config.ts）——只有這個開發預設清單
+    // 是本輪（後台新聞接真實 API）唯一允許改動的 apps/api/ 檔案內容，正式環境走 CORS_ALLOWED_ORIGINS
+    // 環境變數，不受這裡影響（deploy/Caddyfile 的後台與 API 本來就是不同網域）。
+    corsOrigins = ["http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:5174"];
 }
 
 builder.Services.AddCors(options =>

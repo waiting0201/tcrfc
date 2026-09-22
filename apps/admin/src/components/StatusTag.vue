@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ContentStatus } from '@/types/common'
+import { formatDateTime } from '@/utils/formatDateTime'
 
 /**
  * 狀態四態的呈現（docs/21-admin-ui.md §4.2）。深色語意底＋亮色語意文字，不是 Element Plus
@@ -24,10 +25,11 @@ const STATUS_LABEL: Record<ContentStatus, string> = {
 const statusClass = computed(() => `admin-status-tag admin-status-tag--${props.status}`)
 
 const tooltip = computed(() => {
-  if (props.status === 'scheduled' && props.statusAt) return `將於 ${props.statusAt} 發布`
-  if (props.status === 'published' && props.statusAt) return `於 ${props.statusAt} 發布`
-  if (props.status === 'disabled' && props.statusAt) {
-    return props.statusBy ? `於 ${props.statusAt} 由 ${props.statusBy} 下架` : `於 ${props.statusAt} 下架`
+  const at = formatDateTime(props.statusAt)
+  if (props.status === 'scheduled' && at) return `將於 ${at} 發布`
+  if (props.status === 'published' && at) return `於 ${at} 發布`
+  if (props.status === 'disabled' && at) {
+    return props.statusBy ? `於 ${at} 由 ${props.statusBy} 下架` : `於 ${at} 下架`
   }
   return ''
 })

@@ -1,4 +1,13 @@
-/** 假資料：儀表板（docs/03-admin-spec.md §2 A 儀表板、docs/21-admin-ui.md §10） */
+/**
+ * 假資料：儀表板（docs/03-admin-spec.md §2 A 儀表板、docs/21-admin-ui.md §10）。
+ *
+ * 本輪（後台新聞接真實 API）刻意沒有動這個檔案：核對過畫面上實際渲染出來的數字
+ * （`DashboardView.vue` 只用到 `CONTENT_OVERVIEW.untranslatedCount`），沒有一個是「新聞與故事」
+ * 專屬的統計（`totalPublished` 定義了但目前沒有任何畫面在用），所以接上新聞真實資料後不會出現
+ * 「首頁數字跟新聞列表對不上」的矛盾。⚠️ 之後如果要在儀表板加一個「已發布新聞篇數」之類的卡片，
+ * 那張卡片要接真實 API（後台新聞清單 `status=published` 的 `totalCount`），不能沿用這裡的假資料，
+ * 否則就會製造出本輪任務要求排除的那種「說謊的數字」。
+ */
 
 export interface TodoReminder {
   id: string

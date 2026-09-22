@@ -1,98 +1,280 @@
 <script setup lang="ts">
-import { computed, reactive, ref, shallowRef, toRaw } from 'vue'
+import { computed, reactive, ref, shallowRef } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
-import ImageUploader from '@/components/ImageUploader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
-import { getNewsById, upsertNews, createEmptyArticle } from '@/data/newsStore'
+import { activeClubId } from '@/data/activeClub'
+import { checkGateStatus, invalidateGateCache } from '@/api/gate'
+import {
+  articleToSavePayload,
+  createAdminNews,
+  detailDtoToArticle,
+  getAdminNewsById,
+  publishAdminNews,
+  scheduleAdminNews,
+  updateAdminNews,
+} from '@/api/adminNews'
+import { AdminApiError } from '@/api/http'
 import { NEWS_CATEGORY_LABEL, type NewsArticle, type NewsCategory } from '@/types/news'
-import type { ContentStatus } from '@/types/common'
 
 const route = useRoute()
 const router = useRouter()
 
 const isCreate = route.name === 'news-new'
 const paramId = route.params.id as string | undefined
+/** 建立成功之後，接下來的寫入呼叫要用到的文章 id（建立前為 undefined）。
+ * 不直接依賴路由參數，因為建立成功後用 router.replace() 換網址，元件不會重新掛載。 */
+const currentId = ref<string | undefined>(paramId)
 
-// ⚠️ getNewsById 回傳的是 newsStore（reactive）裡的項目，本身是一個 Vue reactive Proxy。
-// 瀏覽器原生 structuredClone 沒辦法複製 Proxy（會丟 DataCloneError），要先用 toRaw() 拿回
-// 未包裝的原始物件才能複製。baseline 用 shallowRef 而不是 ref，同樣是為了不讓 Vue 把這份
-// 「用來比對是否變更過」的快照本身也變成深層 reactive Proxy。
-const existing = !isCreate && paramId ? getNewsById(paramId) : undefined
-const initialArticle = existing ? structuredClone(toRaw(existing)) : createEmptyArticle()
-const baseline = shallowRef<NewsArticle>(initialArticle)
-const form = reactive<NewsArticle>(structuredClone(initialArticle))
+function emptyArticle(): NewsArticle {
+  return {
+    id: '',
+    title: { zh: '', en: '' },
+    urlName: '',
+    category: 'club',
+    coverImageUrl: null,
+    coverKey: null,
+    isFeatured: false,
+    status: 'draft',
+    isSharedContent: false,
+    updatedAt: '',
+    content: { zh: '', en: '' },
+    summary: { zh: '', en: '' },
+    seoTitle: { zh: '', en: '' },
+    seoDescription: { zh: '', en: '' },
+  }
+}
 
-const pendingImageFile = ref<File | null>(null)
+type LoadState = 'loading' | 'gate-closed' | 'unreachable' | 'not-found' | 'error' | 'ready'
+const loadState = ref<LoadState>('loading')
+const loadErrorMessage = ref('')
+
+const baseline = shallowRef<NewsArticle>(emptyArticle())
+const form = reactive<NewsArticle>(emptyArticle())
+
+function applyLoadedArticle(article: NewsArticle) {
+  baseline.value = article
+  Object.assign(form, structuredClone(article))
+  currentId.value = article.id
+}
+
+async function loadArticle() {
+  loadState.value = 'loading'
+  const club = activeClubId.value
+  const gate = await checkGateStatus(club)
+  if (gate === 'closed') {
+    loadState.value = 'gate-closed'
+    return
+  }
+  if (gate === 'unreachable') {
+    loadState.value = 'unreachable'
+    return
+  }
+  if (isCreate) {
+    loadState.value = 'ready'
+    return
+  }
+  try {
+    const detail = await getAdminNewsById(club, currentId.value!)
+    applyLoadedArticle(detailDtoToArticle(detail))
+    loadState.value = 'ready'
+  } catch (error) {
+    if (error instanceof AdminApiError && error.kind === 'not-found') {
+      loadState.value = 'not-found'
+    } else {
+      loadErrorMessage.value = error instanceof AdminApiError ? error.message : '資料載入失敗，請稍後再試'
+      loadState.value = 'error'
+    }
+  }
+}
+
+loadArticle()
+
 const saving = ref(false)
-const imageSaveError = ref<string | null>(null)
+const slugError = ref<string | null>(null)
+const formError = ref<string | null>(null)
 const scheduleDialogVisible = ref(false)
 const scheduleDateTime = ref<Date | null>(null)
 
-const isDirty = computed(
-  () => JSON.stringify(form) !== JSON.stringify(baseline.value) || pendingImageFile.value !== null,
-)
+const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(form) !== JSON.stringify(baseline.value))
 useUnsavedChanges(isDirty)
 
+/** el-input 需要字串，form.coverKey 的型別是 `string | null`（對齊 API 的可為空欄位），
+ * 這裡只做顯示層的轉換，不影響實際存進 form 的值語意（空字串送出前一律轉回 null，見 articleToSavePayload 的呼叫端）。 */
+const coverKeyInput = computed({
+  get: () => form.coverKey ?? '',
+  set: (value: string) => {
+    form.coverKey = value || null
+  },
+})
+
 const pageTitle = computed(() => (isCreate ? '新增文章' : '編輯文章'))
-
-const mainActionLabel = computed(() => (form.status === 'draft' ? '發布' : '儲存變更'))
-
+// apps/api 的 /publish 同時接受 draft／scheduled 兩種起始狀態（見 apps/api/README.md「狀態轉換規則」），
+// 所以草稿與排程中都應該能直接按「發布」立刻生效（排程中的文章常見的操作就是「其實想現在就發」）。
+// 已發布的文章不重複提供這顆按鈕（原本互動就是這樣設計，避免跟「儲存變更」的語意混淆）。
+const mainActionLabel = computed(() => (form.status === 'published' ? '儲存變更' : '發布'))
 const canPreview = computed(() => form.status === 'published')
 const previewUrl = computed(() => (canPreview.value ? `/zh/news/${form.urlName}/` : undefined))
+const isReadOnly = computed(() => loadState.value === 'ready' && form.isSharedContent)
 
-function nowString(): string {
-  return new Date().toISOString().slice(0, 16).replace('T', ' ')
+function isEnEmpty(article: NewsArticle): boolean {
+  return (
+    !article.title.en.trim()
+    && !article.content.en.trim()
+    && !article.summary.en.trim()
+    && !article.seoTitle.en.trim()
+    && !article.seoDescription.en.trim()
+  )
 }
 
-function persist(nextStatus?: ContentStatus, scheduledAt?: string) {
+/** 原本有英文內容、現在四個英文欄位全部清空了：儲存會真的把英文版本從資料庫刪掉（PUT 是整份
+ * 取代語意），先跟使用者確認一次，不要讓這個動作在使用者沒意識到的情況下發生（任務指示）。 */
+async function confirmEnglishRemovalIfNeeded(): Promise<boolean> {
+  if (!isEnEmpty(baseline.value) && isEnEmpty(form)) {
+    try {
+      await ElMessageBox.confirm(
+        '偵測到英文內容的所有欄位都被清空了。儲存後，這篇文章的英文版本會被移除（不是暫時留白，是整份刪除）。確定要繼續嗎？',
+        '確認移除英文版本',
+        { confirmButtonText: '確定移除', cancelButtonText: '取消，先不儲存', type: 'warning' },
+      )
+      return true
+    } catch {
+      return false
+    }
+  }
+  return true
+}
+
+function validateBeforeSave(): boolean {
+  slugError.value = null
+  formError.value = null
+  if (!form.title.zh.trim()) {
+    formError.value = '請輸入中文標題'
+    return false
+  }
+  if (!form.urlName.trim()) {
+    formError.value = '請輸入網址名稱'
+    return false
+  }
+  return true
+}
+
+async function reloadFromServerDiscardingLocalChanges() {
+  await loadArticle()
+}
+
+async function handleSaveError(error: unknown) {
+  if (!(error instanceof AdminApiError)) {
+    ElMessage.error('儲存失敗，請稍後再試')
+    return
+  }
+  switch (error.kind) {
+    case 'slug-conflict':
+      slugError.value = error.message
+      break
+    case 'validation':
+      formError.value = error.message
+      break
+    case 'concurrency-conflict':
+      try {
+        await ElMessageBox.confirm(
+          '這篇文章已經被其他人（或你自己開的另一個分頁）變更過，繼續儲存會覆蓋掉對方的修改，系統不允許這樣做。'
+          + '你可以重新載入最新的內容（目前畫面上未儲存的修改會遺失），或是先留在這裡，自行把想保留的內容複製下來再手動處理。',
+          '資料已被變更',
+          { confirmButtonText: '重新載入最新內容', cancelButtonText: '留在這裡', type: 'warning' },
+        )
+        await reloadFromServerDiscardingLocalChanges()
+      } catch {
+        // 使用者選擇留在這裡，不動作。
+      }
+      break
+    case 'forbidden':
+      await ElMessageBox.alert(error.message, '沒有編輯權限', { confirmButtonText: '我知道了' })
+      break
+    case 'featured-limit':
+      await ElMessageBox.alert(error.message, '置頂精選已達上限', { confirmButtonText: '我知道了' })
+      break
+    case 'status-conflict':
+      await ElMessageBox.alert(error.message, '無法這樣操作', { confirmButtonText: '我知道了' })
+      break
+    case 'not-found':
+      await ElMessageBox.alert('這篇文章已經找不到了，可能已被刪除。', '找不到這篇文章', { confirmButtonText: '返回列表' })
+      router.push('/content/news')
+      break
+    case 'gate-closed-or-unreachable':
+    case 'network':
+      ElMessage.error(error.message)
+      break
+    default:
+      ElMessage.error(error.message || '儲存失敗，請稍後再試')
+  }
+}
+
+/**
+ * 統一的儲存流程：先確認英文清空的意圖 → 驗證必填 → 建立或整份取代內容 → （選擇性）呼叫狀態轉換。
+ * 建立與更新都可能改變 `updatedAt`（並行權杖），狀態轉換一律用「這次寫入拿回來的最新值」，
+ * 不是畫面上舊的 baseline，避免自己把自己判定成並行衝突。
+ */
+async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind: 'schedule'; publishAt: string }) {
+  if (isReadOnly.value) return
+  if (!validateBeforeSave()) return
+  if (!(await confirmEnglishRemovalIfNeeded())) return
+
   saving.value = true
-  imageSaveError.value = null
+  try {
+    const club = activeClubId.value
+    const payload = articleToSavePayload(form)
+    let saved: NewsArticle
 
-  // 模擬「按下儲存才真的上傳」：這裡沒有真的後端，用假的非同步延遲＋
-  // 用選檔時已經產生的預覽 URL 代替「上傳完成後拿到的正式圖片網址」
-  window.setTimeout(() => {
-    if (pendingImageFile.value) {
-      form.coverImageUrl = URL.createObjectURL(pendingImageFile.value)
+    if (isCreate && !currentId.value) {
+      const created = await createAdminNews(club, payload)
+      saved = detailDtoToArticle(created)
+    } else {
+      const updated = await updateAdminNews(club, currentId.value!, {
+        ...payload,
+        expectedUpdatedAt: baseline.value.updatedAt,
+      })
+      saved = detailDtoToArticle(updated)
     }
-    if (nextStatus === 'published') {
-      form.status = 'published'
-      form.statusAt = nowString()
-      form.statusBy = undefined
-    } else if (nextStatus === 'scheduled' && scheduledAt) {
-      form.status = 'scheduled'
-      form.statusAt = scheduledAt
+
+    if (transition?.kind === 'publish') {
+      const published = await publishAdminNews(club, saved.id, saved.updatedAt)
+      saved = detailDtoToArticle(published)
+    } else if (transition?.kind === 'schedule') {
+      const scheduled = await scheduleAdminNews(club, saved.id, saved.updatedAt, transition.publishAt)
+      saved = detailDtoToArticle(scheduled)
     }
-    form.updatedAt = nowString()
 
-    const saved = structuredClone(toRaw(form))
-    upsertNews(saved)
-    baseline.value = structuredClone(saved)
-    Object.assign(form, structuredClone(saved))
-    pendingImageFile.value = null
-    saving.value = false
+    const wasCreate = isCreate && !currentId.value
+    applyLoadedArticle(saved)
+    slugError.value = null
+    formError.value = null
 
-    ElMessage.success(nextStatus === 'published' ? '已發布' : nextStatus === 'scheduled' ? '已排程發布' : '已儲存')
+    ElMessage.success(transition?.kind === 'publish' ? '已發布' : transition?.kind === 'schedule' ? '已排程發布' : '已儲存')
 
-    if (isCreate) {
+    if (wasCreate) {
       router.replace(`/content/news/${saved.id}/edit`)
     }
-  }, 500)
+  } catch (error) {
+    await handleSaveError(error)
+  } finally {
+    saving.value = false
+  }
 }
 
 function handleSaveDraft() {
-  persist()
+  saveAndMaybeTransition()
 }
 
 function handleMainAction() {
-  if (form.status === 'draft') {
-    persist('published')
+  if (form.status === 'published') {
+    saveAndMaybeTransition()
   } else {
-    persist()
+    saveAndMaybeTransition({ kind: 'publish' })
   }
 }
 
@@ -106,9 +288,13 @@ function confirmSchedule() {
     ElMessage.warning('請選擇排程發布的日期與時間')
     return
   }
-  const iso = scheduleDateTime.value.toISOString().slice(0, 16).replace('T', ' ')
+  if (scheduleDateTime.value.getTime() <= Date.now()) {
+    ElMessage.warning('排程發布時間必須晚於現在')
+    return
+  }
+  const publishAt = scheduleDateTime.value.toISOString()
   scheduleDialogVisible.value = false
-  persist('scheduled', iso)
+  saveAndMaybeTransition({ kind: 'schedule', publishAt })
 }
 
 function handleBack() {
@@ -120,16 +306,16 @@ function handlePreview() {
   window.open(previewUrl.value, '_blank', 'noopener')
 }
 
-function handleImageFile(file: File | null) {
-  pendingImageFile.value = file
-  if (!file) form.coverImageUrl = existing?.coverImageUrl ?? null
+function retryLoad() {
+  invalidateGateCache(activeClubId.value)
+  loadArticle()
 }
 </script>
 
 <template>
   <div class="news-edit">
     <PageHeader :title="pageTitle">
-      <template #back>
+      <template v-if="loadState === 'ready'" #back>
         <el-button text @click="handleBack">
           <el-icon><ArrowLeft /></el-icon>
           返回列表
@@ -138,11 +324,11 @@ function handleImageFile(file: File | null) {
       <template #meta>
         <FrontendUnitBanner
           module-code="B2"
-          :record-published="form.status === 'published'"
+          :record-published="loadState === 'ready' ? form.status === 'published' : undefined"
           :record-url="previewUrl"
         />
-        <span class="news-edit__status-line">
-          <StatusTag :status="form.status" :status-at="form.statusAt" :status-by="form.statusBy" />
+        <span v-if="loadState === 'ready'" class="news-edit__status-line">
+          <StatusTag :status="form.status" :status-at="form.statusAt" />
           <span v-if="form.isSharedContent" class="news-edit__shared-note">
             <el-tag type="info" size="small">共用內容（唯讀）</el-tag>
             這是兩隊共用的內容，你的帳號僅能檢視
@@ -151,110 +337,142 @@ function handleImageFile(file: File | null) {
       </template>
     </PageHeader>
 
-    <el-form label-position="top" class="news-edit__form">
-      <el-card shadow="never" header="基本資訊" class="news-edit__section">
-        <el-form-item label="分類" required>
-          <el-select v-model="form.category" placeholder="請選擇分類" style="width: 240px; max-width: 100%">
-            <el-option
-              v-for="(label, value) in NEWS_CATEGORY_LABEL"
-              :key="value"
-              :label="label"
-              :value="value as NewsCategory"
-            />
-          </el-select>
-        </el-form-item>
+    <!-- 載入中：骨架，不是空白畫面（docs/21 §10） -->
+    <el-card v-if="loadState === 'loading'" shadow="never">
+      <el-skeleton :rows="8" animated />
+    </el-card>
 
-        <BilingualShortField
-          label="標題"
-          :zh="form.title.zh"
-          :en="form.title.en"
-          required
-          placeholder="請輸入標題"
-          @update:zh="(v) => (form.title.zh = v)"
-          @update:en="(v) => (form.title.en = v)"
-        />
-
-        <el-form-item label="網址名稱" required>
-          <el-input v-model="form.urlName" placeholder="例如：tcrfc-vs-trencin-2026" />
-        </el-form-item>
-      </el-card>
-
-      <el-card shadow="never" header="內容" class="news-edit__section">
-        <el-tabs class="news-edit__content-tabs">
-          <el-tab-pane label="中文內容">
-            <el-input
-              v-model="form.content.zh"
-              type="textarea"
-              :rows="10"
-              placeholder="請輸入中文內容（此 mockup 以文字框代替正式的富文本編輯器）"
-            />
-          </el-tab-pane>
-          <el-tab-pane>
-            <template #label>
-              英文內容
-              <el-tag v-if="!form.content.en.trim()" size="small" type="info">尚未翻譯</el-tag>
-            </template>
-            <el-input
-              v-model="form.content.en"
-              type="textarea"
-              :rows="10"
-              placeholder="Enter English content"
-            />
-          </el-tab-pane>
-        </el-tabs>
-      </el-card>
-
-      <el-card shadow="never" header="封面圖片" class="news-edit__section">
-        <div class="news-edit__image-row">
-          <ImageUploader
-            :existing-url="form.coverImageUrl"
-            :saving="saving"
-            :save-error="imageSaveError"
-            @update:file="handleImageFile"
-          />
-          <div class="news-edit__image-alt">
-            <BilingualShortField
-              label="圖片說明文字"
-              :zh="form.coverImageAlt.zh"
-              :en="form.coverImageAlt.en"
-              :required="Boolean(form.coverImageUrl)"
-              placeholder="描述這張圖片的內容"
-              @update:zh="(v) => (form.coverImageAlt.zh = v)"
-              @update:en="(v) => (form.coverImageAlt.en = v)"
-            />
-          </div>
-        </div>
-      </el-card>
-
-      <el-card shadow="never" header="發布設定" class="news-edit__section">
-        <el-form-item label="不讓搜尋引擎收錄">
-          <el-switch v-model="form.noIndex" />
-        </el-form-item>
-        <el-form-item label="正規網址（選填）">
-          <el-input v-model="form.canonicalUrl" placeholder="https://www.tcrfc.tw/..." />
-        </el-form-item>
-      </el-card>
-    </el-form>
-
-    <div class="news-edit__action-bar">
-      <el-tooltip v-if="!canPreview" content="尚未發布，暫不提供預覽" placement="top">
-        <span>
-          <el-button disabled>預覽</el-button>
-        </span>
-      </el-tooltip>
-      <el-button v-else @click="handlePreview">預覽</el-button>
-
-      <el-button :loading="saving" @click="handleSaveDraft">儲存草稿</el-button>
-
-      <el-dropdown trigger="click" split-button type="primary" :disabled="saving" @click="handleMainAction">
-        {{ mainActionLabel }}
-        <template #dropdown>
-          <el-dropdown-menu>
-            <el-dropdown-item @click="openScheduleDialog">排程發布</el-dropdown-item>
-          </el-dropdown-menu>
+    <!-- 開發環境寫入功能未開啟／完全連不上服務／找不到這篇文章／查詢失敗：各自給明確說明，不得只顯示空白或籠統的錯誤（任務指示第 2 點與 docs/21 §10） -->
+    <el-card v-else-if="loadState !== 'ready'" shadow="never">
+      <el-empty :image-size="96">
+        <template #image>
+          <el-icon :size="48" color="var(--admin-text-tertiary)"><WarningFilled /></el-icon>
         </template>
-      </el-dropdown>
-    </div>
+        <template #description>
+          <p v-if="loadState === 'gate-closed'" class="news-edit__state-text">
+            目前開發環境尚未開啟後台寫入功能，暫時無法新增或編輯新聞與故事。<br>
+            請洽負責後端開發的同仁確認開發環境設定後再試一次。
+          </p>
+          <p v-else-if="loadState === 'unreachable'" class="news-edit__state-text">
+            無法連線到後台服務，請確認服務是否已啟動、網路是否正常後再試一次。
+          </p>
+          <p v-else-if="loadState === 'not-found'" class="news-edit__state-text">
+            找不到這篇文章，可能已經被刪除，或不屬於目前選擇的俱樂部。
+          </p>
+          <p v-else class="news-edit__state-text">{{ loadErrorMessage }}</p>
+        </template>
+        <el-button v-if="loadState !== 'not-found'" type="primary" @click="retryLoad">重新載入</el-button>
+        <el-button v-else type="primary" @click="handleBack">返回列表</el-button>
+      </el-empty>
+    </el-card>
+
+    <template v-else>
+      <el-alert
+        v-if="formError"
+        :title="formError"
+        type="warning"
+        show-icon
+        class="news-edit__form-error"
+        @close="formError = null"
+      />
+
+      <el-form label-position="top" class="news-edit__form" :disabled="isReadOnly">
+        <el-card shadow="never" header="基本資訊" class="news-edit__section">
+          <el-form-item label="分類" required>
+            <el-select v-model="form.category" placeholder="請選擇分類" style="width: 240px; max-width: 100%">
+              <el-option
+                v-for="(label, value) in NEWS_CATEGORY_LABEL"
+                :key="value"
+                :label="label"
+                :value="value as NewsCategory"
+              />
+            </el-select>
+          </el-form-item>
+
+          <BilingualShortField
+            label="標題"
+            :zh="form.title.zh"
+            :en="form.title.en"
+            required
+            placeholder="請輸入標題"
+            @update:zh="(v) => (form.title.zh = v)"
+            @update:en="(v) => (form.title.en = v)"
+          />
+
+          <el-form-item label="網址名稱" required :error="slugError ?? undefined">
+            <el-input
+              v-model="form.urlName"
+              placeholder="例如：tcrfc-vs-trencin-2026"
+              @update:model-value="slugError = null"
+            />
+          </el-form-item>
+        </el-card>
+
+        <el-card shadow="never" header="內容" class="news-edit__section">
+          <el-tabs class="news-edit__content-tabs">
+            <el-tab-pane label="中文內容">
+              <el-input
+                v-model="form.content.zh"
+                type="textarea"
+                :rows="10"
+                placeholder="請輸入中文內容（此畫面以文字框代替正式的富文本編輯器）"
+              />
+            </el-tab-pane>
+            <el-tab-pane>
+              <template #label>
+                英文內容
+                <el-tag v-if="!form.content.en.trim()" size="small" type="info">尚未翻譯</el-tag>
+              </template>
+              <el-input
+                v-model="form.content.en"
+                type="textarea"
+                :rows="10"
+                placeholder="Enter English content"
+              />
+            </el-tab-pane>
+          </el-tabs>
+        </el-card>
+
+        <el-card shadow="never" header="封面圖片" class="news-edit__section">
+          <el-form-item label="封面圖片">
+            <el-input v-model="coverKeyInput" placeholder="圖片上傳功能尚未開放，暫時只能手動貼上既有的圖片位置" />
+          </el-form-item>
+          <p class="news-edit__hint">
+            這裡目前只接受手動貼上的位置字串，還沒有選檔上傳的功能（會另外實作，上線前不影響）。
+          </p>
+        </el-card>
+
+        <el-card shadow="never" header="發布設定" class="news-edit__section">
+          <el-form-item label="置頂精選">
+            <el-switch v-model="form.isFeatured" />
+          </el-form-item>
+          <p class="news-edit__hint">首頁置頂精選同時最多 3 篇（逐俱樂部各自計算），超過會在儲存時提醒。</p>
+        </el-card>
+      </el-form>
+
+      <div v-if="!isReadOnly" class="news-edit__action-bar">
+        <el-tooltip v-if="!canPreview" content="尚未發布，暫不提供預覽" placement="top">
+          <span>
+            <el-button disabled>預覽</el-button>
+          </span>
+        </el-tooltip>
+        <el-button v-else @click="handlePreview">預覽</el-button>
+
+        <el-button :loading="saving" @click="handleSaveDraft">儲存草稿</el-button>
+
+        <el-dropdown trigger="click" split-button type="primary" :disabled="saving" @click="handleMainAction">
+          {{ mainActionLabel }}
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="openScheduleDialog">排程發布</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
+      <div v-else class="news-edit__action-bar">
+        <el-button v-if="canPreview" @click="handlePreview">預覽</el-button>
+      </div>
+    </template>
 
     <el-dialog v-model="scheduleDialogVisible" title="排程發布" width="360px">
       <el-form-item label="發布日期與時間" style="margin-bottom: 0">
@@ -294,19 +512,23 @@ function handleImageFile(file: File | null) {
   gap: 6px;
 }
 
+.news-edit__state-text {
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.news-edit__form-error {
+  margin-bottom: 16px;
+}
+
 .news-edit__section {
   margin-bottom: 16px;
 }
 
-.news-edit__image-row {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.news-edit__image-alt {
-  flex: 1;
-  min-width: 240px;
+.news-edit__hint {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--admin-text-tertiary);
 }
 
 .news-edit__action-bar {
