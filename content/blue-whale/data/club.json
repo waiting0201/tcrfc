@@ -1,0 +1,15 @@
+{
+  "_comment": "來源：content/blue-whale/club-profile.md §1／§3／§9。僅補 clubs_i18n.description（既有欄位）——成立日期、口號、社群連結、隸屬協會在目前 db/club-schema.sql 的 clubs／clubs_i18n 沒有專屬欄位，此為已知綱要缺口，見本次回報，不在本檔或產生器中新增欄位。",
+  "code": "bw",
+  "founded_on": "2014-04-12",
+  "description_zh": "臺中市女子足球協會－台中藍鯨女子足球隊，簡稱台中藍鯨，成立於 2014 年 4 月 12 日，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。俱樂部口號：「藍色的天空是我們心中夢想的方向，閃爍的陽光是走向夢想的力量，草地上揮灑汗水是成長過往堅定信仰，有你在身旁就不再徬徨，此時此刻，我們與我們的球迷站在一起，一起迎向世界。」",
+  "english_name_note": "英文正式全名舊站有三種寫法並存（Taichung Bluewhale／Taichung Blue Whale Women's Football Team／Taichung blue whale），不自行挑一個，clubs_i18n 不插 en 列（docs/13 踩雷點 17）",
+  "social_links_not_seeded": {
+    "_comment": "以下事實已取得，但 Setting 機制目前沒有任何既有 setting_key 命名慣例可依循（tcrfc 自己都還沒有 seed 過這類設定），本次不自行發明 key 名稱寫入 settings 表，僅記錄於此供回報與未來建檔使用",
+    "email": "fbbh2014@gmail.com",
+    "facebook": "https://www.facebook.com/tbwfc",
+    "instagram": "https://instagram.com/tcbw2014",
+    "youtube": "https://www.youtube.com/@user-xu1wm3xx1w",
+    "line": "https://lin.ee/CS65qCR"
+  }
+}

@@ -1,0 +1,213 @@
+{
+  "_comment": "來源：content/blue-whale/partners.md（舊站首頁夥伴牆，標題「2024 合作夥伴」，已過時）。抓取日期 2026-09-22。舊站現有資料的原樣保留，不是新站定稿內容。\n🔴 綱要落點（2026-09-22 改正）：存入 partners／partners_i18n，不是 sponsors。\n  理由：① db/club-schema.sql 對 partners 的註解就是「合作夥伴（B2B Logo 牆）：Logo 兩版、類型、國家、合作內容與期間、官網、排序、曝光位置」——正是舊站首頁那面牆的樣子，且有結構化的 website_url。\n  ② sponsors 表要的是 tier（CHECK 限定 主贊助／官方贊助／支持夥伴）、合約起訖、聯絡窗口、到期提醒，而 gap-analysis.md 明載舊站「無分級、無方案與價目、無合約起訖」——放進去這些欄位會全部是 NULL。\n  ③ 前三筆是「指導單位」（教育部體育署、臺中市政府、臺中市政府運動局），那是主管機關不是贊助商。\n  ⚠️ 初版曾存進 sponsors 並把網址塞進 sponsors_i18n.content 的自由文字（「指導單位｜官網：https://…」），等於把分類與網址兩個結構化欄位混進一個沒人查得了的字串。已改正。\n🔴 這批是「2024 合作夥伴」，到 2026 年是否仍有效**全部要重新確認**（gap-analysis.md 09 單元）。\n🔴 不要據此推論贊助等級：舊站沒有分級資訊。日後若確認某些是有合約的贊助商，那要另外建 sponsors 記錄，需要合約起訖與聯絡窗口，目前都沒有。\nslug 採流水號（中文名稱無官方英文／羅馬拼音可用，不臆測轉寫）。官方合作夥伴清單「文字列 22 項、Logo 圖片列 23 項」數量不一致，採 23 項的較完整版本，見 partners.md。",
+  "partners": [
+    {
+      "slug": "bw-partner-01",
+      "partner_type": "指導單位",
+      "name_zh": "教育部體育署",
+      "website_url": "https://www.sa.gov.tw/",
+      "website_note": null,
+      "sort_order": 1
+    },
+    {
+      "slug": "bw-partner-02",
+      "partner_type": "指導單位",
+      "name_zh": "臺中市政府",
+      "website_url": "https://www.taichung.gov.tw/",
+      "website_note": null,
+      "sort_order": 2
+    },
+    {
+      "slug": "bw-partner-03",
+      "partner_type": "指導單位",
+      "name_zh": "臺中市政府運動局",
+      "website_url": "https://www.sport.taichung.gov.tw/System/main/Home/Index.php",
+      "website_note": null,
+      "sort_order": 3
+    },
+    {
+      "slug": "bw-partner-04",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "大力卜股份有限公司",
+      "website_url": null,
+      "website_note": "舊站未提供連結",
+      "sort_order": 4
+    },
+    {
+      "slug": "bw-partner-05",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "SKECHERS／思克威爾股份有限公司",
+      "website_url": "https://www.skechers-twn.com/zh-tw/home",
+      "website_note": null,
+      "sort_order": 5
+    },
+    {
+      "slug": "bw-partner-06",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "麗明營造",
+      "website_url": "http://www.best-giving.com/",
+      "website_note": null,
+      "sort_order": 6
+    },
+    {
+      "slug": "bw-partner-07",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "MIE Taiwan",
+      "website_url": "https://www.facebook.com/mietaiwan/",
+      "website_note": null,
+      "sort_order": 7
+    },
+    {
+      "slug": "bw-partner-08",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "原野運動用品",
+      "website_url": "https://www.facebook.com/yesports/",
+      "website_note": null,
+      "sort_order": 8
+    },
+    {
+      "slug": "bw-partner-09",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "緯思創國際有限公司",
+      "website_url": "https://www.i2tec.com/",
+      "website_note": null,
+      "sort_order": 9
+    },
+    {
+      "slug": "bw-partner-10",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "威康環保科技有限公司",
+      "website_url": "http://www.weikang.tw/",
+      "website_note": null,
+      "sort_order": 10
+    },
+    {
+      "slug": "bw-partner-11",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "恆春鄉村冬粉鴨",
+      "website_url": null,
+      "website_note": "舊站只寫「Facebook 專頁」，未提供網址",
+      "sort_order": 11
+    },
+    {
+      "slug": "bw-partner-12",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "桃園市私立雲鵬老人長期照顧中心(養護型)",
+      "website_url": "https://www.facebook.com/up888/",
+      "website_note": null,
+      "sort_order": 12
+    },
+    {
+      "slug": "bw-partner-13",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "時尚假期醫美集團",
+      "website_url": "https://www.fs-ks.com.tw/index.php",
+      "website_note": null,
+      "sort_order": 13
+    },
+    {
+      "slug": "bw-partner-14",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "程式方塊教育事業股份有限公司",
+      "website_url": null,
+      "website_note": "舊站未提供連結",
+      "sort_order": 14
+    },
+    {
+      "slug": "bw-partner-15",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "麒碩科技有限公司",
+      "website_url": null,
+      "website_note": "舊站未提供連結",
+      "sort_order": 15
+    },
+    {
+      "slug": "bw-partner-16",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "黃界銘環境工程技師事務所",
+      "website_url": null,
+      "website_note": "舊站未提供連結",
+      "sort_order": 16
+    },
+    {
+      "slug": "bw-partner-17",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "富立業工程顧問股份有限公司",
+      "website_url": "https://freeair.com.tw/",
+      "website_note": null,
+      "sort_order": 17
+    },
+    {
+      "slug": "bw-partner-18",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "國立臺灣體育運動大學體育學系",
+      "website_url": "https://pe.ntus.edu.tw/",
+      "website_note": null,
+      "sort_order": 18
+    },
+    {
+      "slug": "bw-partner-19",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "墨力國際股份有限公司",
+      "website_url": "https://www.inkism.com.tw/",
+      "website_note": null,
+      "sort_order": 19
+    },
+    {
+      "slug": "bw-partner-20",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "永康中醫 (台中水湳)",
+      "website_url": "https://www.facebook.com/YK0422918736",
+      "website_note": null,
+      "sort_order": 20
+    },
+    {
+      "slug": "bw-partner-21",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "講果語",
+      "website_url": "https://www.fruitwhisper.com/",
+      "website_note": null,
+      "sort_order": 21
+    },
+    {
+      "slug": "bw-partner-22",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "真匯吃-真正匯集台灣最好吃，嚴選在地台灣味",
+      "website_url": "https://www.foodmarket.com.tw/",
+      "website_note": null,
+      "sort_order": 22
+    },
+    {
+      "slug": "bw-partner-23",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "Defunc Taiwan",
+      "website_url": "https://www.facebook.com/DefuncTaiwan/",
+      "website_note": null,
+      "sort_order": 23
+    },
+    {
+      "slug": "bw-partner-24",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "寶礦力水得 Pocari Sweat",
+      "website_url": "https://www.pocari.com.tw/",
+      "website_note": null,
+      "sort_order": 24
+    },
+    {
+      "slug": "bw-partner-25",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "油漆熊工程行",
+      "website_url": "https://www.facebook.com/paintbear",
+      "website_note": null,
+      "sort_order": 25
+    },
+    {
+      "slug": "bw-partner-26",
+      "partner_type": "官方合作夥伴",
+      "name_zh": "台灣新世代關懷協會",
+      "website_url": "https://www.facebook.com/TaiwanNewGenerationCare",
+      "website_note": null,
+      "sort_order": 26
+    }
+  ]
+}

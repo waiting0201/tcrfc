@@ -1,0 +1,14 @@
+[
+  {
+    "code": "mulan",
+    "season_code": "2023",
+    "comp_type": "league",
+    "name_zh": "台灣木蘭女子足球聯賽"
+  },
+  {
+    "code": "presidents-cup",
+    "season_code": "2025",
+    "comp_type": "cup",
+    "name_zh": "2025全國總統盃足球錦標賽"
+  }
+]

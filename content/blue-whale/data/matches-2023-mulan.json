@@ -1,0 +1,22 @@
+{
+  "_comment": "來源：content/blue-whale/competitions.md §3（2023 木蘭聯賽 15 場完整戰績，奪冠球季）。score_home／score_away 為原表兩個數字的字面順序（原表是「藍鯨戰績表」，格式極可能是「藍鯨-對手」，但舊站未明文標示何者為主場，不強加 home/away 語意，home_away 一律留 NULL，不用場地名稱反推）。round_no＝原表「循環」欄，僅供資訊與排序用，不參與冪等比對的自然鍵（自然鍵是 club_id+season_id+match_on+opponent，本批 15 場皆足以唯一辨識）。match_no 留 NULL——原表「場次」只是循環內序位，非聯賽官方配發的場次編號，不可與 matches.match_no 的定義（官方配發）混用。氣溫欄位（原表有）目前 matches 綱要沒有對應欄位，本次未匯入，見回報。",
+  "season_code": "2023",
+  "competition_code": "mulan",
+  "matches": [
+    {"round_no": 1, "match_on": "2023-04-22", "opponent_zh": "花蓮", "score_home": 2, "score_away": 2, "venue_zh": "花蓮美崙國中足球場"},
+    {"round_no": 1, "match_on": "2023-04-29", "opponent_zh": "新北航源", "score_home": 0, "score_away": 1, "venue_zh": "新北輔仁大學足球場"},
+    {"round_no": 1, "match_on": "2023-04-29", "opponent_zh": "桃園戰神", "score_home": 2, "score_away": 0, "venue_zh": "新北輔仁大學足球場"},
+    {"round_no": 1, "match_on": "2023-05-13", "opponent_zh": "臺北熊讚", "score_home": 1, "score_away": 1, "venue_zh": "台中太原足球場"},
+    {"round_no": 1, "match_on": "2023-05-20", "opponent_zh": "高雄陽信銀行", "score_home": 1, "score_away": 1, "venue_zh": "高雄市立楠梓足球場"},
+    {"round_no": 2, "match_on": "2023-05-27", "opponent_zh": "花蓮", "score_home": 0, "score_away": 0, "venue_zh": "台中太原足球場"},
+    {"round_no": 2, "match_on": "2023-06-18", "opponent_zh": "新北航源", "score_home": 2, "score_away": 1, "venue_zh": "台中太原足球場"},
+    {"round_no": 2, "match_on": "2023-07-01", "opponent_zh": "桃園戰神", "score_home": 3, "score_away": 1, "venue_zh": "台中太原足球場"},
+    {"round_no": 2, "match_on": "2023-07-08", "opponent_zh": "臺北熊讚", "score_home": 1, "score_away": 3, "venue_zh": "桃園青埔足球場"},
+    {"round_no": 2, "match_on": "2023-11-04", "opponent_zh": "高雄陽信銀行", "score_home": 1, "score_away": 0, "venue_zh": "臺中太原足球場"},
+    {"round_no": 3, "match_on": "2023-12-02", "opponent_zh": "花蓮", "score_home": 1, "score_away": 2, "venue_zh": "花蓮美崙國中足球場"},
+    {"round_no": 3, "match_on": "2023-11-18", "opponent_zh": "新北航源", "score_home": 1, "score_away": 1, "venue_zh": "桃園龜山銘傳大學足球場"},
+    {"round_no": 3, "match_on": "2023-11-25", "opponent_zh": "桃園戰神 Mars", "score_home": 1, "score_away": 0, "venue_zh": "臺中太原足球場"},
+    {"round_no": 3, "match_on": "2023-12-09", "opponent_zh": "臺北熊讚", "score_home": 0, "score_away": 0, "venue_zh": "臺中太原足球場"},
+    {"round_no": 3, "match_on": "2023-12-16", "opponent_zh": "高雄陽信銀行", "score_home": 0, "score_away": 3, "venue_zh": "高雄市立楠梓足球場"}
+  ]
+}

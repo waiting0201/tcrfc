@@ -1,0 +1,13 @@
+{
+  "_comment": "來源：content/blue-whale/competitions.md §6（2025全國總統盃足球錦標賽，藍鯨獲亞軍）。原表以「X vs Y」文字明確標示對陣順序，home_away／score_home／score_away 依此字面順序推導：X＝主場方（score_home），Y＝客場方（score_away）；藍鯨在 X 位置時 home_away=HOME，在 Y 位置時 home_away=AWAY。match_no＝原表「第X場」的字面序號（B組4場＋四強賽＋冠亞軍賽依序編1-6），round_no留NULL（此賽制為分組＋淘汰賽混合，無循環/輪次概念可對應）。PK戰績（第5場 1-1，PK 3:2 由藍鯨獲勝）未存——matches 綱要沒有PK比分欄位，本次未匯入，見回報。",
+  "season_code": "2025",
+  "competition_code": "presidents-cup",
+  "matches": [
+    {"match_no": 1, "match_on": "2025-04-23", "kickoff": "16:00", "opponent_zh": "新北航源", "home_away": "HOME", "score_home": 4, "score_away": 0, "venue_zh": "台中北屯太原足球場"},
+    {"match_no": 2, "match_on": "2025-04-27", "kickoff": "13:00", "opponent_zh": "陽信北競", "home_away": "AWAY", "score_home": 2, "score_away": 7, "venue_zh": "台中西屯足球場"},
+    {"match_no": 3, "match_on": "2025-05-11", "kickoff": "16:00", "opponent_zh": "科學城女足", "home_away": "AWAY", "score_home": 0, "score_away": 2, "venue_zh": "台中北屯太原足球場"},
+    {"match_no": 4, "match_on": "2025-06-08", "kickoff": "16:00", "opponent_zh": "台中櫻花", "home_away": "HOME", "score_home": 2, "score_away": 1, "venue_zh": "台中北屯太原足球場"},
+    {"match_no": 5, "match_on": "2025-06-13", "kickoff": "16:00", "opponent_zh": "新竹STRIKERS", "home_away": "HOME", "score_home": 1, "score_away": 1, "venue_zh": "高雄楠梓足球場"},
+    {"match_no": 6, "match_on": "2025-06-15", "kickoff": "16:00", "opponent_zh": "高雄ATTACKERS", "home_away": "AWAY", "score_home": 1, "score_away": 0, "venue_zh": "高雄楠梓足球場"}
+  ]
+}
