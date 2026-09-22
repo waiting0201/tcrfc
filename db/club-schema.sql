@@ -57,31 +57,46 @@
 
    —— 本版與上一版的差異，以及本檔範圍內尚無法從文件消解的問題 ——
    上一版依不完整 ERD 產生，members 缺姓名欄位、player_season_stats 除
-   兩個外鍵外空無一欄，已於本版全數補齊（見任務回報）。本版另發現並記錄
-   以下無法單靠 docs/12 系列消解的問題，均以下方對應表格上方的行內註解
-   標註 "-- ⚠️ 待確認"：
-     (a) clubs 缺「簡介」欄位——規劃書明文要求「名稱與簡介（中／英）」，
-         但 docs/12a §5.11 的 club 主表與 docs/12c 起草的側表都沒有
-         description／intro 落點（docs/12c §5 第 2 點）。本檔不新增未經
-         文件定義的欄位，缺口原樣保留待補文件。
-     (b) clubs／competitions 的雙語作法與 docs/12 §2.1 側表原則衝突：
-         docs/12a 兩張主表 ERD 直接放 name_zh／name_en 並排欄位，不是側表
-         （docs/12c §5 第 1 點）。本檔尊重 ERD 既有決定（欄位與型別以
-         docs/12a 為主要來源），competitions 另補 organizer_zh／
-         organizer_en 沿用同一並排欄位慣例（規劃書僅給「主辦單位」單一
-         欄名，中英拆分寫法為本檔延伸，非文件字面）。
-     (c) registrations.health_declaration 的分級（🔒 明文存 vs 🔐 加密）
-         docs/12b §8 明文列為待法務確認事項，本檔先以 nvarchar(max) 明文
-         儲存（不預先加密，避免加密演算法與金鑰管理未定案卻搶先綁架欄位
-         型別），待法務確認後可能需改為應用層加密。
-     (d) page_blocks：docs/12 標🌐，但 docs/12a §5.1 的 page_block 主表已
-         把 content 放在主表（json），docs/12c §3.1 的側表草案重複提出
-         同一欄位——依 docs/12c §1 第 3 條「主表已放的欄位優先尊重主表」，
-         本檔不建 page_blocks_i18n。
-     (e) seasons／standings／achievements／sessions／proposals／trials／
-         form_fields／clubs／competitions：docs/12 標🌐但 docs/12c 逐一
-         核對後找不到任何可列的側表欄位（docs/12c §4／§5 第 4、5 點），
-         本檔不建對應 *_i18n 表。
+   兩個外鍵外空無一欄，已於本版全數補齊（見任務回報）。本版原本以 (a)–(e)
+   五組記錄無法單靠 docs/12 系列消解的問題，其中 9 處逐表以行內註解標註
+   "-- ⚠️ 待確認"。**2026-09-22 逐處核對 docs/12／12a／12c 與本檔的實際
+   內容後**：7 處行內標記已收斂為已確認並拿掉 "⚠️ 待確認" 字樣，只剩
+   `trials`／`form_fields` 兩處行內標記仍待確認；另外 (c) 是本來就沒有
+   行內標記、只記在此處的法務事項，同樣仍待確認——**合計仍待確認的共
+   3 處**（`trials`、`form_fields`、`health_declaration`），逐一說明如下：
+     (a) ✅ 已確認（2026-09-22）：clubs 的「簡介」欄位落點是
+         clubs_i18n.description（見下方 CREATE TABLE clubs_i18n）。
+         docs/12a §5.11 已補畫 club_i18n 實體，docs/12c §3.8 已標
+         「✅ 已定案：走側表」。此項原記錄的缺口已補齊，不再是問題。
+     (b) ✅ 已確認（2026-09-22）：clubs／competitions 的雙語作法最終走
+         側表（clubs_i18n／competitions_i18n），不是並排欄位。
+         docs/12a 的兩張主表 ERD 已移除 name_zh／name_en、補畫兩張側表；
+         docs/12c §3.2／§3.8 已標「✅ 已定案：走側表」。**本檔下方
+         CREATE TABLE clubs／competitions 之前殘留的舊行內註解（曾寫
+         「name 走並排欄位」）已一併更正**，organizer 中英拆分沿用
+         clubs_i18n／competitions_i18n 側表既有形狀，不再是本檔獨自延伸
+         的並排欄位命名。
+     (c) 🔴 **仍待確認**：registrations.health_declaration 的分級
+         （🔒 明文存 vs 🔐 加密）。docs/12b §8 明文列為待法務確認事項，
+         本檔先以 nvarchar(max) 明文儲存（不預先加密，避免加密演算法與
+         金鑰管理未定案卻搶先綁架欄位型別），待法務確認後可能需改為
+         應用層加密。**這是本檔唯一卡在法務事項、無法由 docs/12 系列
+         自行收斂的問題**（(e) 的 `trials`／`form_fields` 是產品範圍
+         待確認，性質不同），不屬於本輪 i18n 側表裁決範圍。
+     (d) ✅ 已確認：page_blocks 的 content 放在主表（json），docs/12c
+         §3.1 的側表草案與主表重複，依 docs/12c §1 第 3 條「主表已放的
+         欄位優先尊重主表」不建 page_blocks_i18n。無殘留疑義。
+     (e) seasons／standings／achievements／sessions／proposals：
+         ✅ 已確認（2026-09-22）不建對應 *_i18n 表——docs/12 曾標🌐，
+         但 docs/12c §5 第 4、5 點核對後找不到任何可列的側表欄位（規劃書
+         與 ERD 全文查無文字型欄位），docs/12 §4.2／§4.3／§4.4 已同步
+         拿掉這 5 個 🌐 標記。
+         🔴 **trials／form_fields 仍待確認**：docs/12c §4「信心度低的
+         欄位」各列了一個候選（trials 的 `audience`；form_fields 的
+         `label`／`placeholder`），本檔目前選擇不建 trials_i18n／
+         form_fields_i18n，但這只是「沒人要求所以先不做」的預設值，
+         不是對候選欄位是否要雙語做出的正面確認——留待下一輪明確裁決或
+         使用者拍板，**不要因為想讓待確認數字歸零就逕自標記為已確認**。
    ========================================================================== */
 
 /* ============================================================================
@@ -237,8 +252,9 @@ CREATE TABLE pages_i18n (
 );
 
 -- 頁面區塊（13 種型別），content 只存不查。由 Page 推導，不帶 club_id。
--- ⚠️ 待確認：docs/12 標🌐，但 content 已在本表（非側表），docs/12c 側表草案與本表重複，
+-- ✅ 已確認（2026-09-22）：content 已在本表（非側表），docs/12c §3.1 的側表草案與本表重複，
 -- 依 docs/12c §1 第 3 條「主表已放的欄位優先」不建 page_blocks_i18n。
+-- ⚠️ docs/12 §4.1（PageBlock 列）截至本次同步仍標 🌐，未隨本檔更新——不在本輪 i18n 裁決範圍內，留待下一輪同步。
 CREATE TABLE page_blocks (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -532,9 +548,7 @@ CREATE TABLE redirects (
    4.2 C 球隊管理
    ============================================================================ */
 
--- 賽事系列（v3.0 新增）：代號、名稱（中／英）、類型、所屬球季、主辦單位、排序、啟用狀態。
--- ⚠️ 待確認：name 走並排欄位（依 docs/12a §5.2 ERD 既有決定，非側表，見檔頭 (b)）；
--- organizer_zh／organizer_en 為本檔延伸命名（規劃書僅給「主辦單位」一詞，未拆中英欄名）。
+-- 賽事系列（v3.0 新增）：代號、類型、所屬球季、排序、啟用狀態；名稱與主辦單位走 competitions_i18n（見檔頭 (b)）。
 CREATE TABLE competitions (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -563,7 +577,8 @@ CREATE TABLE competitions_i18n (
 );
 
 -- 賽季。唯一鍵 (club_id, code)——兩隊球季不同步。
--- ⚠️ 待確認：docs/12 標🌐，但規劃書與 ERD 全文查無任何文字型欄位（docs/12c §3.2／§4），不建 seasons_i18n。
+-- ✅ 已確認（2026-09-22）：docs/12 曾標🌐，但規劃書與 ERD 全文查無任何文字型欄位（docs/12c §3.2／§5 第 4 點），
+-- 不建 seasons_i18n；docs/12 §4.2 已同步拿掉 🌐。
 CREATE TABLE seasons (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -783,7 +798,8 @@ CREATE TABLE match_lineups (
 );
 
 -- 積分榜。對手隊名是自由文字，不是 Team。
--- ⚠️ 待確認：docs/12 標🌐，但 team_name 已是主表自由文字，規劃書無其他文字欄位（docs/12c §3.2／§4），不建 standings_i18n。
+-- ✅ 已確認（2026-09-22）：docs/12 曾標🌐，但 team_name 已是主表自由文字，規劃書無其他文字欄位
+-- （docs/12c §3.2／§5 第 4 點），不建 standings_i18n；docs/12 §4.2 已同步拿掉 🌐。
 CREATE TABLE standings (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -802,7 +818,8 @@ CREATE TABLE standings (
 );
 
 -- 榮譽（年份、賽事、名次、隊伍）。
--- ⚠️ 待確認：docs/12 標🌐，但 competition_name／placing 已是主表欄位，規劃書無其他文字欄位，不建 achievements_i18n。
+-- ✅ 已確認（2026-09-22）：docs/12 曾標🌐，但 competition_name／placing 已是主表欄位，規劃書無其他文字欄位
+-- （docs/12c §5 第 4 點），不建 achievements_i18n；docs/12 §4.2 已同步拿掉 🌐。
 CREATE TABLE achievements (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -891,7 +908,8 @@ CREATE TABLE program_partners (
 );
 
 -- 梯次／場次：期間、時段、場地、名額、已報名數、價格、報名起訖、狀態。永不進 CalendarEvent。
--- ⚠️ 待確認：docs/12 標🌐，但規劃書與 ERD 全文查無任何文字型欄位（docs/12c §3.3／§4），不建 sessions_i18n。
+-- ✅ 已確認（2026-09-22）：docs/12 曾標🌐，但規劃書與 ERD 全文查無任何文字型欄位（docs/12c §3.3／§5 第 4 點），
+-- 不建 sessions_i18n；docs/12 §4.3 已同步拿掉 🌐。
 CREATE TABLE sessions (
   id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
@@ -1073,6 +1091,7 @@ CREATE TABLE sponsor_package_links (
 );
 
 -- 提案簡介（多版本、多語 PDF）。title 為單一欄位，多語需求由 proposal_files 承載，不建 proposals_i18n。
+-- ✅ 已確認（2026-09-22，docs/12c §5 第 5 點）：docs/12 §4.4 已同步拿掉 Proposal 的 🌐。
 CREATE TABLE proposals (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -1237,6 +1256,8 @@ CREATE TABLE forms (
 );
 
 -- 自動回覆信模板（docs/12c §3.6：未列出表單名稱／標題欄位，名稱較像固定介面文案，不進本側表）。
+-- ✅ 已拍板（2026-09-22，使用者決定，docs/12c §5 第 6 點）：表單顯示名稱維持規劃書 §3.10 固定表格寫死，
+-- 不建 forms_i18n.name、不開放後台編輯。
 CREATE TABLE forms_i18n (
   form_id           uniqueidentifier NOT NULL,
   locale            nvarchar(10)     NOT NULL,
@@ -1368,9 +1389,7 @@ CREATE TABLE venues_i18n (
    ============================================================================ */
 
 -- 俱樂部主檔（後台 J4）。它自己不帶 club_id。刪除 RESTRICT——有任何帶 club_id 的資料就不得刪。
--- ⚠️ 待確認：規劃書明文要求「簡介（中／英）」，但 docs/12a 主表與 docs/12c 側表草案都沒有對應欄位
--- （docs/12c §5 第 2 點）。本檔不新增未經文件定義的欄位，缺口原樣保留待補文件。
--- name 走並排欄位（依 docs/12a §5.11 ERD 既有決定，非側表，見檔頭 (b)）。
+-- 名稱與簡介走 clubs_i18n（見檔頭 (a)(b)），規劃書「簡介（中／英）」落點是 clubs_i18n.description。
 CREATE TABLE clubs (
   id                        uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,

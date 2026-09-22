@@ -40,7 +40,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
 
     private async Task<AdminArticleDetailDto> CreateDraftAsync(HttpClient client, string slug)
     {
-        var response = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", NewDraftRequest(slug), TestJson.WriteOptions);
+        var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(slug)));
         response.EnsureSuccessStatusCode();
         var created = await response.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options);
         Assert.NotNull(created);
@@ -61,7 +61,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     {
         using var client = fixture.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", NewDraftRequest(reservedWord), TestJson.WriteOptions);
+        var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(reservedWord)));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         var body = await response.Content.ReadAsStringAsync();
@@ -79,7 +79,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     {
         using var client = fixture.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", NewDraftRequest(variant), TestJson.WriteOptions);
+        var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(variant)));
 
         // 大寫變形會先被「只能小寫」的格式規則擋下（400），不需要先通過格式檢查才走到保留字比對，
         // 但無論被哪一條規則擋下，結果都必須是 400——這裡驗證的是「不會意外通過」，不指定是哪條規則。
@@ -103,7 +103,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     {
         using var client = fixture.CreateClient();
 
-        var response = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", NewDraftRequest(badSlug), TestJson.WriteOptions);
+        var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(badSlug)));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -127,7 +127,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
                 ExpectedUpdatedAt = created.UpdatedAt,
             };
 
-            var response = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{created.Id}", updateRequest, TestJson.WriteOptions);
+            var response = await client.PutAsync($"/api/v1/admin/tcrfc/news/{created.Id}", AdminArticleMultipart.Build(updateRequest));
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
 
             // 確認沒有半套：原本的網址名稱與標題都沒被改到。
@@ -160,7 +160,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
                 ExpectedUpdatedAt = created.UpdatedAt,
             };
 
-            var response = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{created.Id}", updateRequest, TestJson.WriteOptions);
+            var response = await client.PutAsync($"/api/v1/admin/tcrfc/news/{created.Id}", AdminArticleMultipart.Build(updateRequest));
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         }
         finally
@@ -180,7 +180,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
         using var client = fixture.CreateClient();
         var slug = $"{legalSlug}-{Guid.NewGuid():N}"; // 加隨機片段避免撞到既有 83 筆或跨測試重跑（articles.slug 是 nvarchar(160)，長度足夠）
 
-        var response = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", NewDraftRequest(slug), TestJson.WriteOptions);
+        var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(slug)));
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var created = await response.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options);
@@ -207,7 +207,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
                 ExpectedUpdatedAt = created.UpdatedAt,
             };
 
-            var response = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{created.Id}", updateRequest, TestJson.WriteOptions);
+            var response = await client.PutAsync($"/api/v1/admin/tcrfc/news/{created.Id}", AdminArticleMultipart.Build(updateRequest));
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         }
         finally

@@ -308,12 +308,12 @@ Nuxt 改用 `routeRules` 的 redirect，不需要腳本）。**實際要重寫�
   `tagPriority` 影響；只有 `nuxt.config.ts` 的 `app.head` 才穩定生效。詳見
   [`docs/18-work-errors.md`](18-work-errors.md) E-17。全站固定不隨 club 變動的屬性
   （`lang`）放這裡，只有隨 club 變動的屬性（`data-club`）留在 `app.vue` 的動態 `useHead`。
-- 🔴 **`/sitemap.xml` 的實際輸出目前是空的，尚未解決**：`@nuxtjs/sitemap` 的動態來源
-  偵測（`sitemap.urls`／`sitemap.sources`／`server/api/__sitemap__/urls.ts` 官方慣例都試過）
-  在「一份 build、runtime 才由 `NUXT_PUBLIC_CLUB` 決定內容」的架構下沒被正確偵測為
-  request-scoped 動態來源，疑似在建置階段就求值一次並把空結果快取進 `.output`。
-  資料端點本身（`isUnitEnabledForClub` 過濾）已驗證兩站結果正確，只是沒有接進最終
-  `/sitemap.xml`。詳見 [`docs/18-work-errors.md`](18-work-errors.md) E-18，留給 S0-9 處理。
+- ✅ **`/sitemap.xml` 已修好**（2026-09-22）。真正根因不是動態來源偵測，是
+  `@nuxtjs/sitemap` 內建路由會把命中全站 `X-Robots-Tag: noindex` route rule 的網址整批
+  排除（本站上線前必然全站 noindex，見 `CLAUDE.md` 第 5 條）。改法：`sitemap.enabled: false`
+  關閉該模組，改由 `server/routes/sitemap.xml.ts` 自組 XML（資料來源仍是同一份
+  `isUnitEnabledForClub` 過濾結果）。實測 tcrfc 93 筆／bw 8 筆，兩站皆送出
+  `X-Robots-Tag: noindex`。詳見 [`docs/18-work-errors.md`](18-work-errors.md) E-18。
 
 ---
 

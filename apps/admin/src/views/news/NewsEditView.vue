@@ -6,6 +6,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import ImageUploader from '@/components/ImageUploader.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/data/activeClub'
 import { checkGateStatus, invalidateGateCache } from '@/api/gate'
@@ -56,10 +57,23 @@ const loadErrorMessage = ref('')
 const baseline = shallowRef<NewsArticle>(emptyArticle())
 const form = reactive<NewsArticle>(emptyArticle())
 
+/**
+ * 封面圖片的「這次瀏覽階段的意圖」——刻意不放進 `form`（`NewsArticle` 沒有 `File` 這種欄位，
+ * 也不該有，`coverKey` 只在伺服器端寫入成功後才會有新值，見 `articleToSavePayload` 的說明）。
+ * `coverFile` 非 `null` 時是「選了要換的新圖」，`removeCover` 為真時是「儲存時清空封面圖片」，
+ * 兩者不會同時成立（`ImageUploader.vue` 選新檔案時會連帶取消 `removeCover`）。兩者都要在
+ * 載入資料與存檔成功後重置，見 `applyLoadedArticle`，這是「離開或取消表單不留下任何檔案」的
+ * 落地方式之一：這兩個值只是本機記憶體狀態，從來沒有被送出過就被捨棄，不留下任何痕跡。
+ */
+const coverFile = ref<File | null>(null)
+const removeCover = ref(false)
+
 function applyLoadedArticle(article: NewsArticle) {
   baseline.value = article
   Object.assign(form, structuredClone(article))
   currentId.value = article.id
+  coverFile.value = null
+  removeCover.value = false
 }
 
 async function loadArticle() {
@@ -100,17 +114,13 @@ const formError = ref<string | null>(null)
 const scheduleDialogVisible = ref(false)
 const scheduleDateTime = ref<Date | null>(null)
 
-const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(form) !== JSON.stringify(baseline.value))
+// 選了新封面圖片或標記清空封面，即使其餘欄位都沒變，也算未儲存的變更——不然「選了圖片但沒按
+// 儲存就離開」不會觸發離開提醒，使用者會誤以為圖片已經生效。
+const isDirty = computed(() =>
+  loadState.value === 'ready'
+  && (JSON.stringify(form) !== JSON.stringify(baseline.value) || coverFile.value !== null || removeCover.value),
+)
 useUnsavedChanges(isDirty)
-
-/** el-input 需要字串，form.coverKey 的型別是 `string | null`（對齊 API 的可為空欄位），
- * 這裡只做顯示層的轉換，不影響實際存進 form 的值語意（空字串送出前一律轉回 null，見 articleToSavePayload 的呼叫端）。 */
-const coverKeyInput = computed({
-  get: () => form.coverKey ?? '',
-  set: (value: string) => {
-    form.coverKey = value || null
-  },
-})
 
 const pageTitle = computed(() => (isCreate ? '新增文章' : '編輯文章'))
 // apps/api 的 /publish 同時接受 draft／scheduled 兩種起始狀態（見 apps/api/README.md「狀態轉換規則」），
@@ -231,13 +241,21 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
     let saved: NewsArticle
 
     if (isCreate && !currentId.value) {
-      const created = await createAdminNews(club, payload)
+      // 建立沒有「清空封面」這個概念（根本還沒有既有封面可清），coverFile 有值就附上，沒有就是
+      // 「這篇文章沒有封面圖片」（apps/api/README.md「給前端接的契約」）。
+      const created = await createAdminNews(club, payload, coverFile.value)
       saved = detailDtoToArticle(created)
     } else {
-      const updated = await updateAdminNews(club, currentId.value!, {
-        ...payload,
-        expectedUpdatedAt: baseline.value.updatedAt,
-      })
+      const updated = await updateAdminNews(
+        club,
+        currentId.value!,
+        {
+          ...payload,
+          expectedUpdatedAt: baseline.value.updatedAt,
+          removeCover: removeCover.value,
+        },
+        coverFile.value,
+      )
       saved = detailDtoToArticle(updated)
     }
 
@@ -435,11 +453,14 @@ function retryLoad() {
 
         <el-card shadow="never" header="封面圖片" class="news-edit__section">
           <el-form-item label="封面圖片">
-            <el-input v-model="coverKeyInput" placeholder="圖片上傳功能尚未開放，暫時只能手動貼上既有的圖片位置" />
+            <ImageUploader
+              v-model:file="coverFile"
+              v-model:remove-cover="removeCover"
+              :has-existing-image="!!form.coverKey"
+              :existing-preview-url="form.coverImageUrl"
+              :disabled="saving"
+            />
           </el-form-item>
-          <p class="news-edit__hint">
-            這裡目前只接受手動貼上的位置字串，還沒有選檔上傳的功能（會另外實作，上線前不影響）。
-          </p>
         </el-card>
 
         <el-card shadow="never" header="發布設定" class="news-edit__section">

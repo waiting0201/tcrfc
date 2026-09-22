@@ -11,7 +11,8 @@
     "lint:forbidden-terms": "node scripts/check-forbidden-terms.mjs",
     "lint:contrast": "node scripts/check-contrast.mjs",
     "lint:fixtures": "python3 ../../db/seed/emit-charity-fixtures.py --check",
-    "lint": "npm run lint:fixtures && npm run lint:eslint && npm run lint:forbidden-terms && npm run lint:contrast"
+    "lint": "npm run lint:node-version && npm run lint:fixtures && npm run lint:eslint && npm run lint:forbidden-terms && npm run lint:contrast",
+    "lint:node-version": "node ../../scripts/check-node-version.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "2.3.1",

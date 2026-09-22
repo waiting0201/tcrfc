@@ -12,6 +12,11 @@
 > 🔴 **Azure 資源目前一個都還沒開**（STATUS S0-6／S0-7 暫緩）。本檔設計成**開通前就能把 workflow 寫好、
 > 開通後只填 IP 與 secrets 就能跑**——凡是依賴實際 Azure 資源的步驟都標了「待補」，收在 §9。
 > 🔴 **這個 repo 是公開的**（`waiting0201/tcrfc`），所有設計以此為最高前提。
+>
+> ✅ **CI 段已實作**（S0-7c，2026-09-22）：`.github/workflows/` 已有 `ci.yml`／`deploy.yml`（含兩份
+> 內部可重用 workflow）、`.node-version`／`scripts/check-node-version.mjs`（S0-9h 版本防漂移）。
+> **CD（部署到正式 VM）段仍是 §9 那張表——workflow 檔裡的部署 job 目前 `if: false` 停用**，
+> 細節見 **§9a「實作進度」**。
 
 ---
 
@@ -294,6 +299,85 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 - **是否要做零停機部署（藍綠）**——現在的秒級空窗被判定可接受；量到使用者有感再升級，升級成本是雙倍容器資源
 - **db-migrate.yml 的自動觸發時機**——用「偵測到 `apps/api/Migrations/**` 有新檔就起草待核准」還是「完全手動 `workflow_dispatch`」，留給實作時依團隊習慣決定，兩者都符合「與例行部署脫鉤＋人工核准」這個硬性要求
 - **App 端（`tcrfc-app-ios`／`tcrfc-app-android`）的 CI**——已在 `19-app-tech-stack.md` §9 定案，與本檔的 self-hosted runner 無關，**App CI 不得共用這台 VM 的 runner**（macOS/Android 建置資源需求不同，也不該讓行動端建置佔用部署用的 runner）
+
+---
+
+## 9a. 實作進度（S0-7c，2026-09-22）
+
+> 對應 STATUS.md S0-7c。本節記錄「本檔設計的東西，實際落地到哪一步」，設計本身沒有變，
+> 只是把 §0–§8 的規劃兌現成檔案；發現需要偏離設計之處，都記在下面對應小節。
+
+### 已建立的檔案
+
+| 檔案 | 對應本檔哪一節 | 狀態 |
+|---|---|---|
+| [`.node-version`](../.node-version) | §3「快取」的 node-version 交叉參照 | ✅ 單一事實來源，見 [`17-deployment.md` §12](17-deployment.md#12-前端建置用的-nodejs-版本) |
+| [`scripts/check-node-version.mjs`](../scripts/check-node-version.mjs) | 同上 | ✅ 掛進四個 `package.json` 的 `lint`，S0-9h |
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | §1「觸發與分支」的 `ci.yml` | ✅ `pull_request` → 五個應用的 lint／build／docker build（`push: false`）／dotnet test |
+| [`.github/workflows/_node-app.yml`](../.github/workflows/_node-app.yml) | 同上（內部用） | ✅ 四個 Node 應用共用的可重用 workflow（`push: false` 版） |
+| [`.github/workflows/_node-app-deploy.yml`](../.github/workflows/_node-app-deploy.yml) | §1／§2「映像檔要放哪裡」 | ✅ 四個 Node 應用共用的可重用 workflow（`push: true` 版，供 `deploy.yml` 呼叫） |
+| [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | §1「觸發與分支」的 `deploy.yml` | 🟡 **只做了 build＋push 段**（現在能跑，不需要 VM）；**部署段整個 `if: false` 停用**，見下方「CD 段還缺什麼」 |
+
+**尚未建立**：`db-migrate.yml`、`rollback.yml`（§5／§6 設計的兩個手動觸發 workflow）——
+兩者都預設「self-hosted runner 已存在」，VM 隨 STATUS.md S0-6 暫緩，**沒有先做出兩個一定會失敗
+或永遠不會被觸發的空殼 workflow**，等 VM 就緒、`deploy.yml` 的部署段解禁時一併補上。
+
+### CI 段的設計決定（比 §0–§8 原文多出的細節）
+
+1. **`apps/api` 的 `dotnet test` 真的接一個用完即丟的 SQL Server 容器，不引入「沒資料庫就略過」
+   的語意**——回答了 `apps/api/README.md`「測試」一節留給接 CI 的人的那句話（「若之後接上 CI 且
+   CI 固定會提供資料庫，這個決定可以重新評估」）。用 GitHub Actions 原生 `services:`（給
+   `--name mssql-ci` 讓它有可預期的 docker container 名稱），**不是另外寫一份
+   `docker-compose.ci.yml`**——效果與 §1「CI 當 staging」設想的一致（用完即丟、零常駐成本），
+   但少維護一份 compose 檔；`deploy/local-ddl.sh --apply`／`db/seed/apply-seed.sh`／
+   `db/seed/apply-charity-seed.sh` 三支腳本本來就用 `LOCAL_MSSQL_CONTAINER` 環境變數指定目標
+   容器名稱（本機開發指向既有的 `sqlserver` 容器，CI 這裡換成指向 `mssql-ci`），**同一套腳本
+   兩種場景直接沿用，沒有另外寫一份 CI 專用的建庫邏輯**。
+   ✅ **已實測**（2026-09-22，本機用一個獨立於既有 `sqlserver` 容器之外的臨時容器驗證整條路徑：
+   `local-ddl.sh --apply` → 兩支種子腳本 → `dotnet test apps/api/Tcrfc.Api.Tests`，Debug 組態
+   下 78/78 全綠）。⚠️ **Release 組態的同一輪驗證跑到一半，`apps/api` 因為另一個 agent同時在改
+   上傳端點（`Program.cs` 參照到尚未建立的 `UnavailableImageStorageService`）而編譯失敗**——
+   這是暫時性的、與本次 CI/CD 任務無關的併發編輯狀態，不是 workflow 設計的問題；`ci.yml` 的
+   `api` job 語法已用 `actionlint` 驗證過，實際跑動需要等 `apps/api` 那頭的變更完成或合併。
+2. **兩個測試 fixture（`RedisEnabledApiFixture`／`AdminWriteRedisEnabledApiFixture`）需要真正的
+   `redis-server` 執行檔**——`ci.yml` 的 `api` job 加一步 `command -v redis-server || apt-get
+   install -y redis-server`，不假設 `ubuntu-latest` 一定內建。
+3. **`api` job 的 SA 密碼直接寫在 workflow 裡（`Ci_Throwaway_Str0ng!24`），沒有進 GitHub
+   Secrets**——它只活在這個 job 專屬、跑完即銷毀的服務容器裡，不是任何環境的真實憑證，跟
+   §7「Secrets 存放原則」的精神一致（能在「用完即丟的地方」解決的機密不需要進 Secrets），
+   只是這裡「用完即丟的地方」換成「這個 job」而不是「VM」。
+4. **四個 Node 應用抽成兩份可重用 workflow（`_node-app.yml`／`_node-app-deploy.yml`）**，
+   `ci.yml`／`deploy.yml` 分別呼叫四次——避免同一段 lint／docker build 步驟複製四份。
+   🔴 **刻意不用 `strategy.matrix` 讓四個應用共用一個 job**：GitHub 官方文件裡
+   `jobs.<job_id>.if` 可用的 context 清單不含 `matrix`（`matrix` context 只保證在 steps 層級的
+   `if:` 可用），若寫成 `if: matrix.app_dir == 'apps/web'` 這種 job 層級條件式，**語法上會通過
+   actionlint，但語意上不保證讀得到值**——這類「看起來對、實際上賭一個未保證行為」的寫法本身
+   就是本專案要避免的那種「防護的實際效力與它給人的信心不相稱」（[`18-work-errors.md`](18-work-errors.md)
+   E-34／E-35 那一族教訓的同一個精神，只是換了個技術細節）。改成四個各自獨立的 job／可重用
+   workflow 呼叫，每個都用 `needs.changes.outputs.X`（job 層級保證可用的 context）判斷。
+5. **`dorny/paths-filter@v3`** 偵測變動範圍，五個應用一對一輸出布林值，對應 §3「五個映像檔」；
+   `ci.yml`／`deploy.yml` 各自維護一份幾乎相同的 `changes` job（沒有抽成第三份可重用
+   workflow）——兩邊觸發的事件與下游動作不同（`ci.yml` 不需要 `deploy_config` 這個輸出），
+   抽出去要多傳一個「要不要這個輸出」的參數，判斷是不值得為了省 20 行再多一層間接。
+
+### CD 段還缺什麼（`deploy.yml` 的部署 job，`if: false`）
+
+- **VM 與 self-hosted runner 本身**（STATUS.md S0-6，Azure 資源尚未開通）——這是唯一的硬阻塞，
+  其餘都是「VM 就緒後把佔位內容填實」的文書工作：
+  1. 拿掉 `if: false`，`runs-on` 換成 `[self-hosted, tcrfc-vm]`；
+  2. `docker compose pull && up -d` 的實際部署目錄路徑（`deploy/README.md` 或屆時的 VM 佈署慣例）；
+  3. `/healthz`／`/readyz` 健康檢查的 retry 迴圈（§6 已設計，未寫成 shell）；
+  4. 失敗自動回滾讀 `/opt/tcrfc/deploy-state.env` 的實際邏輯；
+  5. Cloudflare 快取清除（需要 `CLOUDFLARE_API_TOKEN`，見 §7.1，此 secret 目前也還沒建立）；
+  6. 失敗通知的實際管道（§8「本檔不決定的事」，webhook URL 待使用者選）。
+- **`db-migrate.yml`／`rollback.yml`**：完全未開始，同樣卡在 self-hosted runner。
+- **§4 防護鏈第 0 條（GitHub repo 設定）**：「Actions → Fork pull request workflows → Require
+  approval for all outside collaborators」——這是**唯一不需要等 VM、現在就能做**的防護，因為它
+  是 repo 層級設定、不是 workflow 檔案能表達的東西。**本次任務沒有代為變更 GitHub repo 設定**
+  （不確定的帳號權限操作，且不在「撰寫 workflow 檔」的授權範圍內），留給使用者手動到
+  repo 的 Settings → Actions → General 確認並勾選。**建議現在就做，不必等 S0-6**——反正還沒有
+  self-hosted runner，這條設定現在生效與否對現況沒有實質差異，但晚做不如早做，之後忘記的風險
+  比現在花一分鐘設定的成本高。
 
 ---
 

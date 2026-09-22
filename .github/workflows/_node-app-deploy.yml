@@ -1,0 +1,64 @@
+# .github/workflows/_node-app-deploy.yml — 可重用 workflow：單一 Node 應用 lint ＋ docker build ＋ push
+#
+# 被 deploy.yml 的四個 Node 應用 job 呼叫（web／web-charity／admin／admin-charity），
+# 是 _node-app.yml（PR 用、push: false）的姊妹檔，差異只在多了 ghcr 登入與 push: true、
+# tag 多打一組（git SHA ＋ :master，docs/20-cicd.md §2）。刻意分成兩個檔案而不是共用一個
+# 加 `push` 參數，是因為「會不會推送映像檔到公開登錄」這件事希望從檔名就看得出來，
+# 不要藏在一個布林參數裡——這是本檔自行決定的寫法，docs/20 沒有規定。
+
+name: (internal) Node 應用 lint ＋ docker build ＋ push
+
+on:
+  workflow_call:
+    inputs:
+      app_dir:
+        description: 應用目錄，例如 apps/web
+        required: true
+        type: string
+      image_name:
+        description: GHCR 映像檔名稱（不含 owner／tag），例如 tcrfc-nuxt-club
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # 推送 ghcr 需要，僅此一項，不觸碰任何 Environment
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+          cache-dependency-path: '${{ inputs.app_dir }}/package-lock.json'
+
+      - name: npm ci ＋ lint（部署前再驗一次）
+        working-directory: ${{ inputs.app_dir }}
+        run: |
+          npm ci
+          npm run lint
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: docker build ＋ push（tag：git SHA 與 :master 兩種，docs/20-cicd.md §2）
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.app_dir }}
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:master
+          cache-from: type=gha,scope=${{ inputs.image_name }}
+          cache-to: type=gha,scope=${{ inputs.image_name }},mode=max

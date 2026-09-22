@@ -1,3 +1,4 @@
+using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
@@ -10,9 +11,20 @@ using Tcrfc.Api.Features.News;
 using Tcrfc.Api.Features.Players;
 using Tcrfc.Api.Features.Schedule;
 using Tcrfc.Api.Features.Staff;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── S0-8：Kestrel 請求主體上限，讓「檔案太大」一律得到我們自訂的友善訊息 ──────────────────
+// Kestrel 預設上限是 30 MB。若不調整，10–30 MB 之間的檔案會被 ImageUploadOptions.MaxUploadBytes
+// 的程式碼檢查擋下（回我們的中文訊息），但 >30 MB 的檔案會先被 Kestrel 自己擋下，回傳它自己的
+// 通用 413（本機驗證時兩者行為確實不同，見 apps/api/README.md）。改小上限（10 MB ＋ 1 MB 緩衝，
+// 緩衝是給 multipart 邊界字串與其他表單欄位用）讓兩種情況都回應同一種使用者看得懂的訊息。
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.Limits.MaxRequestBodySize = ImageUploadOptions.MaxUploadBytes + 1024 * 1024;
+});
 
 // ── JSON：日期一律 ISO 8601（DateOnly/DateTime 預設行為已是），欄位用 camelCase 給前端 ──────
 builder.Services.Configure<JsonOptions>(options =>
@@ -83,6 +95,28 @@ else
 
 // ── club_id 強制機制：唯一能建立已驗證 ClubScope 的地方 ──────────────────────────
 builder.Services.AddScoped<IClubResolver, ClubResolver>();
+
+// ── S0-8 圖片上傳共用元件：Azure Blob Storage（本機開發接 Azurite，連線字串格式相容） ──────
+// AZURE_BLOB_CONNECTION_STRING 未設定時**不得讓行程無法啟動**——跟 CLUB_SQL_CONNECTION_STRING
+// 不一樣：圖片上傳端點掛在 DevWriteGate 後面，本來就不是每個環境都會用到（既有 48 項唯讀端點
+// 測試、CI 的其他情境都完全不碰這條路），沒理由讓一個選用功能的缺漏設定拖垮整個服務啟動。
+// 真正需要它的呼叫（Features/AdminNews 建立／更新時處理封面圖片上傳、換圖或刪除時清理舊物件）
+// 沒設定時會在呼叫當下丟出訊息清楚的例外，不是在啟動階段就讓 healthz／readyz 都連帶壞掉。
+// 🔴 S0-8 修正（2026-09-22）：原本還有一個獨立的 Features/Uploads 上傳端點會用到這個服務，
+// 已經整支移除（見 Features/Uploads/UploadSlotPolicy.cs 上的說明）——現在唯一的呼叫端是
+// Features/AdminNews，未來其他模組接圖片上傳時也應該比照，直接在自己的端點內呼叫，
+// 不要重新開一個獨立的上傳端點。
+var blobConnectionString = builder.Configuration["AZURE_BLOB_CONNECTION_STRING"];
+if (!string.IsNullOrWhiteSpace(blobConnectionString))
+{
+    var blobContainerName = builder.Configuration["AZURE_BLOB_CONTAINER_IMAGES"] ?? "images";
+    builder.Services.AddSingleton(new BlobContainerClient(blobConnectionString, blobContainerName));
+    builder.Services.AddSingleton<IImageStorageService, BlobImageStorageService>();
+}
+else
+{
+    builder.Services.AddSingleton<IImageStorageService, UnavailableImageStorageService>();
+}
 
 // ── 各功能模組的 repository ──────────────────────────────────────────────
 builder.Services.AddScoped<ClubsRepository>();

@@ -1,0 +1,59 @@
+# .github/workflows/_node-app.yml — 可重用 workflow：單一 Node 應用的 lint ＋ docker build（不 push）
+#
+# 被 ci.yml 的四個 Node 應用 job（web／web-charity／admin／admin-charity）呼叫，四份設定除了
+# 目錄與映像檔名稱之外完全相同，抽成一份可重用 workflow 避免同一段步驟複製四次
+# （docs/20-cicd.md 沒有規定要不要抽共用檔，這是本檔自行決定的寫法，好處是四個應用的建置邏輯
+# 保證一致；壞處是除錯時要多點一層——四份都很短，這裡判斷利大於弊）。
+#
+# 🔴 `node-version` 的唯一事實來源是 repo 根目錄的 `.node-version`（S0-9h）：下面
+# `actions/setup-node` 用 `node-version-file`，不手動填版本號字串——這樣 CI 的版本只可能
+# 「跟 .node-version 一致」，不存在「CI 用了另一個版本」這種漂移路徑（scripts/check-node-version.mjs
+# 仍然掃這個檔案，是防「以後有人手滑改回硬編碼」的第二道防線，兩者互補不重複）。
+
+name: (internal) Node 應用 lint ＋ docker build
+
+on:
+  workflow_call:
+    inputs:
+      app_dir:
+        description: 應用目錄，例如 apps/web
+        required: true
+        type: string
+      image_name:
+        description: GHCR 映像檔名稱（不含 owner／tag），例如 tcrfc-nuxt-club
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+          cache: 'npm'
+          cache-dependency-path: '${{ inputs.app_dir }}/package-lock.json'
+
+      - name: npm ci
+        working-directory: ${{ inputs.app_dir }}
+        run: npm ci
+
+      - name: npm run lint（含 S0-9h 的 Node 版本防漂移檢查，見 scripts/check-node-version.mjs）
+        working-directory: ${{ inputs.app_dir }}
+        run: npm run lint
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: docker build（不 push——只驗證 Dockerfile 能建成，docs/18-work-errors.md E-35 的教訓）
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ inputs.app_dir }}
+          push: false
+          tags: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_name }}:ci
+          cache-from: type=gha,scope=${{ inputs.image_name }}
+          cache-to: type=gha,scope=${{ inputs.image_name }},mode=max

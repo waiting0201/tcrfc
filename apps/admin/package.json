@@ -9,12 +9,14 @@
     "typecheck": "vue-tsc -b --noEmit",
     "lint:eslint": "eslint .",
     "lint:forbidden-terms": "node scripts/check-forbidden-terms.mjs",
-    "lint": "npm run lint:eslint && npm run lint:forbidden-terms && npm run lint:contrast",
-    "lint:contrast": "node scripts/check-contrast.mjs"
+    "lint": "npm run lint:node-version && npm run lint:eslint && npm run lint:forbidden-terms && npm run lint:contrast",
+    "lint:contrast": "node scripts/check-contrast.mjs",
+    "lint:node-version": "node ../../scripts/check-node-version.mjs"
   },
   "dependencies": {
     "@element-plus/icons-vue": "2.3.1",
     "element-plus": "2.9.1",
+    "heic2any": "^0.0.4",
     "vue": "3.5.13",
     "vue-router": "4.5.0"
   },

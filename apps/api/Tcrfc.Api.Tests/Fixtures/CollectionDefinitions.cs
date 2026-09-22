@@ -33,3 +33,10 @@ public sealed class AdminWriteRedisEnabledCollection : ICollectionFixture<AdminW
 {
     public const string Name = "api-admin-write-redis-enabled";
 }
+
+/// <summary>S0-8 圖片上傳共用元件：真實 Azurite ＋ 開發寫入開關，見 <see cref="AdminWriteAzuriteEnabledApiFixture"/>。</summary>
+[CollectionDefinition(Name)]
+public sealed class AdminWriteAzuriteEnabledCollection : ICollectionFixture<AdminWriteAzuriteEnabledApiFixture>
+{
+    public const string Name = "api-admin-write-azurite-enabled";
+}

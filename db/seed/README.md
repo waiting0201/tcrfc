@@ -221,3 +221,10 @@ Server=host.docker.internal,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MS
   這個維度），`staff_teams` 刻意不連結；本次也沒有建立這三支學院球隊（無球員名單佐證需要建隊）。
 - 圖片一律沒有 `*_key`：`players.photo`／`staff.has_photo`／`news.cover` 都只是 mockup 靜態資源的存在旗標
   或相對路徑，不是走過「上傳即縮圖」pipeline（docs/14）後的 Blob object key，混用會誤導未來的開發者。
+- **`staff.json` 職稱「顧問」（陳曉明）歸類已拍板，但尚未真正填值**：規劃書 C3（後台 `Staff` 模組）只定義
+  四個分組——管理層／行政／醫療／後勤，`staff.json` 的「顧問」不屬於任何一個。**2026-09-22 使用者拍板：
+  歸入「管理層」**——這是執行層決定，不是規劃書明文，也**沒有跑同步鏈改規劃書**（使用者選的是不跑同步鏈
+  那一案）。目前 `generate-club-seed-sql.py` 第 7 節的 `staff` 建表邏輯還沒有寫入 `staff_group` 欄位
+  （`INSERT INTO staff (id, club_id)` 沒有這一欄），這個決定**要等 C3 模組實際開工、seed 腳本補上
+  `staff_group` 賦值時才會真正套用**，本次只記錄決定，不代表已經填值，也不要因此去改這支腳本或重灌資料庫。
+  同一筆記錄另見 [`../docs/12d-field-audit.md`](../docs/12d-field-audit.md) §9。

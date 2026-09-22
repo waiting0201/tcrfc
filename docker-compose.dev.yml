@@ -103,6 +103,7 @@ services:
       # 獨立於本 compose 專案的既有容器（`sqlserver`），compose 管不到它的健康狀態。
       # `api` 的 /readyz 本身會探測資料庫連線（docs/20-cicd.md §6），啟動順序交給它的
       # healthcheck／retry 邏輯，不再靠 depends_on 的 condition 卡順序。
+      azurite: { condition: service_started } # S0-8：圖片上傳的物件儲存，本機開發用 Azurite
     # extra_hosts：讓容器連得到宿主機。Docker Desktop（macOS／Windows）預設就會提供
     # host.docker.internal，這行主要是為了 Linux 相容（Docker 20.10+ 用 host-gateway 這個
     # 特殊值達成同樣效果）——兩種平台都適用，多寫不會壞。
@@ -118,6 +119,13 @@ services:
         required: true
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-password}
+      # S0-8：容器化跑法（本機 compose）走 azurite 這個服務名稱，不是 club.env 裡給
+      # 「直接 dotnet run（不經 Docker）」用的 UseDevelopmentStorage=true（那個值展開後永遠指向
+      # 127.0.0.1，容器內的 127.0.0.1 是容器自己，連不到另一個 azurite 容器，見 apps/api/README.md
+      # 「本機開發：Azurite」）。這裡覆寫 club.env 讀到的值，跟 CLUB_SQL_CONNECTION_STRING 完全
+      # 不需要為容器化跑法另外覆寫是同一份文件裡不同的兩種情況——SQL Server 是宿主機上的既有容器
+      # （用 host.docker.internal），Azurite 是這份 compose 自己起的服務（用服務名稱 azurite）。
+      AZURE_BLOB_CONNECTION_STRING: "DefaultEndpointsProtocol=http;AccountName=devstoreaccount1;AccountKey=Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw==;BlobEndpoint=http://azurite:10000/devstoreaccount1;"
 
   redis:
     command: >
@@ -131,3 +139,26 @@ services:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-password}
     # 本機開發沿用正式版「不對外開連接埠」的紀律（docs/17 §1 三條不能弄錯的之一）——
     # 要查資料改用 `docker compose exec redis redis-cli`，不靠發布連接埠。
+
+  # ── S0-8 圖片上傳共用元件：本機開發用 Azurite（Azure Blob Storage 模擬器） ─────────────
+  # 正式環境沒有這個服務——正式環境接真正的 Azure Blob Storage（連線字串在
+  # /opt/tcrfc/secrets/club.env，docs/20-cicd.md §7.2），只有本機開發需要一個可以就地啟動、
+  # 不必真的開 Azure 資源的替代品。發佈連接埠是刻意的（跟 sqlserver 容器對外發布 1433 同一類
+  # 例外）：Azurite 本身沒有機密可洩漏（帳號金鑰是 Azurite 專案公開文件的固定值，不是真正密鑰），
+  # 而且開發者可能需要用 Azure Storage Explorer 之類的工具直接查看本機上傳的圖片。
+  azurite:
+    image: mcr.microsoft.com/azure-storage/azurite:3.35.0
+    restart: unless-stopped
+    command: >
+      azurite-blob
+      --blobHost 0.0.0.0
+      --blobPort 10000
+      --skipApiVersionCheck
+    ports:
+      - "127.0.0.1:10000:10000"
+    volumes:
+      - azurite_data:/data
+    networks: [internal]
+
+volumes:
+  azurite_data:

@@ -36,7 +36,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
 
     private async Task<AdminArticleDetailDto> CreateDraftAsync(HttpClient client, string club, string slug)
     {
-        var response = await client.PostAsJsonAsync($"/api/v1/admin/{club}/news", NewDraftRequest(slug), TestJson.WriteOptions);
+        var response = await client.PostAsync($"/api/v1/admin/{club}/news", AdminArticleMultipart.Build(NewDraftRequest(slug)));
         response.EnsureSuccessStatusCode();
         var created = await response.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options);
         Assert.NotNull(created);
@@ -65,12 +65,16 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
 
         try
         {
-            // 2. 修改內容（PUT，不改狀態）
+            // 2. 修改內容（PUT，不改狀態）。🔴 S0-8 修正後封面圖片只能透過真的上傳檔案或
+            // RemoveCover 改變（見 CoverKeyUpdate），不能再塞任意字串——這個生命週期測試用的是
+            // 沒有接 Azurite 的 AdminWriteApiFixture，不夾檔案（維持 CoverKey 不變＝Keep），
+            // 封面圖片上傳的實際行為（真的寫進物件儲存、換圖清舊物件）改在
+            // AdminNewsCoverBlobCleanupTests（Azurite-enabled fixture）驗證，覆蓋範圍沒有縮小，
+            // 只是搬到更適合的測試檔。
             var updateRequest = new UpdateArticleRequest
             {
                 Slug = slug,
                 CategoryCode = CategoryCode,
-                CoverKey = "articles/2026/09/cover.webp",
                 IsFeatured = false,
                 Content = new AdminArticleContentInput
                 {
@@ -78,12 +82,12 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
                 },
                 ExpectedUpdatedAt = created.UpdatedAt,
             };
-            var updateResponse = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{created.Id}", updateRequest, TestJson.WriteOptions);
+            var updateResponse = await client.PutAsync($"/api/v1/admin/tcrfc/news/{created.Id}", AdminArticleMultipart.Build(updateRequest));
             Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
             var updated = await updateResponse.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options);
             Assert.NotNull(updated);
             Assert.Equal("改過的標題", updated!.Zh.Title);
-            Assert.Equal("articles/2026/09/cover.webp", updated.CoverKey);
+            Assert.Null(updated.CoverKey); // 沒有夾檔案、RemoveCover 預設 false → 維持不變（仍是 null）
             Assert.True(updated.UpdatedAt > created.UpdatedAt, "更新後 updated_at 應該往前推進");
 
             // 3. 排程發布
@@ -139,7 +143,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
         using var client = fixture.CreateClient();
         var request = NewDraftRequest(UniqueSlug()) with { CategoryCode = "not-a-real-category" };
 
-        var response = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", request, TestJson.WriteOptions);
+        var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(request));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -155,7 +159,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
             Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "   " } },
         };
 
-        var response = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", request, TestJson.WriteOptions);
+        var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(request));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -169,7 +173,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
 
         try
         {
-            var second = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", NewDraftRequest(slug), TestJson.WriteOptions);
+            var second = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(slug)));
             Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
         }
         finally
@@ -197,7 +201,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
 
             // 這篇文章屬於 tcrfc，改用 bw 的路由更新——WHERE club_id = @ClubId 應該找不到而回 404，
             // 不是「找到了但沒權限」的 403（不透露這個 id 存在於別的俱樂部）。
-            var response = await client.PutAsJsonAsync($"/api/v1/admin/bw/news/{created.Id}", updateRequest, TestJson.WriteOptions);
+            var response = await client.PutAsync($"/api/v1/admin/bw/news/{created.Id}", AdminArticleMultipart.Build(updateRequest));
             Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
 
             // 用 bw 路由讀單篇也一樣是 404。
@@ -252,7 +256,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
                 ExpectedUpdatedAt = DateTime.UtcNow,
             };
 
-            var response = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{sharedId}", updateRequest, TestJson.WriteOptions);
+            var response = await client.PutAsync($"/api/v1/admin/tcrfc/news/{sharedId}", AdminArticleMultipart.Build(updateRequest));
 
             Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
         }
@@ -316,7 +320,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
                 Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "第一次修改" } },
                 ExpectedUpdatedAt = created.UpdatedAt,
             };
-            var firstResponse = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{created.Id}", firstUpdate, TestJson.WriteOptions);
+            var firstResponse = await client.PutAsync($"/api/v1/admin/tcrfc/news/{created.Id}", AdminArticleMultipart.Build(firstUpdate));
             Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
             var afterFirst = await firstResponse.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options);
             Assert.NotNull(afterFirst);
@@ -324,7 +328,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
 
             // 再用「建立時那個已經過期的 updatedAt」寫第二次——模擬兩個編輯者同時打開同一篇。
             var staleUpdate = firstUpdate with { ExpectedUpdatedAt = created.UpdatedAt, Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "過期的第二次修改" } } };
-            var staleResponse = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{created.Id}", staleUpdate, TestJson.WriteOptions);
+            var staleResponse = await client.PutAsync($"/api/v1/admin/tcrfc/news/{created.Id}", AdminArticleMultipart.Build(staleUpdate));
 
             Assert.Equal(HttpStatusCode.Conflict, staleResponse.StatusCode);
 
@@ -422,7 +426,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
                 },
                 ExpectedUpdatedAt = created.UpdatedAt,
             };
-            var response1 = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{created.Id}", withEnglish, TestJson.WriteOptions);
+            var response1 = await client.PutAsync($"/api/v1/admin/tcrfc/news/{created.Id}", AdminArticleMultipart.Build(withEnglish));
             Assert.Equal(HttpStatusCode.OK, response1.StatusCode);
             var afterAddEnglish = await response1.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options);
             Assert.NotNull(afterAddEnglish);
@@ -430,7 +434,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
 
             // 省略英文＝清空（PUT 是整份取代語意，見 DTO 上的註解）
             var withoutEnglish = withEnglish with { Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "中文標題" } }, ExpectedUpdatedAt = afterAddEnglish.UpdatedAt };
-            var response2 = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{created.Id}", withoutEnglish, TestJson.WriteOptions);
+            var response2 = await client.PutAsync($"/api/v1/admin/tcrfc/news/{created.Id}", AdminArticleMultipart.Build(withoutEnglish));
             Assert.Equal(HttpStatusCode.OK, response2.StatusCode);
             var afterRemoveEnglish = await response2.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options);
             Assert.NotNull(afterRemoveEnglish);
@@ -465,7 +469,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
                     IsFeatured = true,
                     Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = $"置頂測試 {i}" } },
                 };
-                var response = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", request, TestJson.WriteOptions);
+                var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(request));
                 Assert.Equal(HttpStatusCode.Created, response.StatusCode);
                 var created = await response.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options);
                 Assert.NotNull(created);
@@ -480,7 +484,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
                 IsFeatured = true,
                 Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "超過上限" } },
             };
-            var overLimitResponse = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", overLimitRequest, TestJson.WriteOptions);
+            var overLimitResponse = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(overLimitRequest));
             Assert.Equal(HttpStatusCode.Conflict, overLimitResponse.StatusCode);
         }
         finally

@@ -26,7 +26,7 @@ public sealed class AdminNewsCacheInvalidationTests(AdminWriteRedisEnabledApiFix
             CategoryCode = "club",
             Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "快取失效測試：舊標題" } },
         };
-        var createResponse = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/news", createRequest, TestJson.WriteOptions);
+        var createResponse = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(createRequest));
         createResponse.EnsureSuccessStatusCode();
         var created = await createResponse.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options);
         Assert.NotNull(created);
@@ -59,7 +59,7 @@ public sealed class AdminNewsCacheInvalidationTests(AdminWriteRedisEnabledApiFix
                 Content = new AdminArticleContentInput { Zh = new AdminArticleLocaleContent { Title = "快取失效測試：新標題" } },
                 ExpectedUpdatedAt = published!.UpdatedAt,
             };
-            var updateResponse = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/news/{created.Id}", updateRequest, TestJson.WriteOptions);
+            var updateResponse = await client.PutAsync($"/api/v1/admin/tcrfc/news/{created.Id}", AdminArticleMultipart.Build(updateRequest));
             updateResponse.EnsureSuccessStatusCode();
 
             // 3. 🔴 關鍵斷言：公開 API 立刻回新標題，不是被 TTL 內的舊快取擋住。

@@ -71,7 +71,7 @@ function classifyByTitle(title: string | undefined, status: number, detail: stri
  * - 帶資料 id 的端點：呼叫端如果已經先用 gate.ts 確認過開關是開的，就傳 false，
  *   讓空 body 404 被視為「這筆資料真的找不到」而不是開關問題。
  */
-async function classifyErrorResponse(response: Response, ambiguousNotFoundIsRoute: boolean): Promise<AdminApiError> {
+export async function classifyErrorResponse(response: Response, ambiguousNotFoundIsRoute: boolean): Promise<AdminApiError> {
   const rawText = await response.text().catch(() => '')
 
   if (response.status === 404 && rawText.trim().length === 0) {
@@ -130,6 +130,59 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   if (response.status === 204) return undefined as T
+  const text = await response.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
+/**
+ * 帶檔案的建立／更新請求專用（S0-8 修正，2026-09-22：`apps/api/README.md`「圖片上傳共用元件」
+ * 整節改寫後的單一請求契約）：`multipart/form-data`，固定兩個欄位 `payload`（JSON 文字）與選填的
+ * `file`，不能走 `apiRequest`（那支固定送 JSON body）。⛔ **不是獨立的「上傳端點」呼叫**——舊版
+ * 兩段式設計（選檔後立刻呼叫獨立上傳端點拿 key）已經違反規劃書「選檔不上傳、儲存才上傳」被整支
+ * 移除，這支函式現在是各模組自己的建立／更新 API（例如 `adminNews.ts` 的 `createAdminNews`／
+ * `updateAdminNews`）在按下「儲存」那一刻才呼叫的唯一請求，圖片與其餘欄位一起送出。
+ *
+ * 錯誤分類邏輯與 `apiRequest` 共用同一套 `classifyErrorResponse`，唯一的差異是 413——**這個狀態碼
+ * 永遠是平台層級的空白回應，不是本服務的 ProblemDetails 格式**（見 apps/api/README.md「Kestrel
+ * 請求主體上限」），`classifyErrorResponse` 對非 404 空 body 會誤判成「伺服器發生未預期的錯誤」，
+ * 這裡先攔下來給正確的中文訊息。正常情況下不會真的打到這裡——前端在呼叫這支函式之前已經先擋過
+ * 10MB 上限，只有繞過前端檢查（例如直接呼叫 API）才會遇到。
+ */
+export interface UploadRequestOptions {
+  method?: 'POST' | 'PUT'
+  /** 見 classifyErrorResponse 的說明。預設 false——建立／更新端點的 404 大多是「這筆資料真的
+   * 找不到」（例如更新時 id 不存在），不是路由層級問題；呼叫端如果情境不同可自行覆寫。 */
+  ambiguousNotFoundIsRoute?: boolean
+  signal?: AbortSignal
+}
+
+export async function apiUploadRequest<T>(path: string, formData: FormData, options: UploadRequestOptions = {}): Promise<T> {
+  const { method = 'POST', ambiguousNotFoundIsRoute = false, signal } = options
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      // 🔴 不手動設定 Content-Type：交給瀏覽器依 FormData 內容自動加上 multipart 邊界字串，
+      // 手動設定反而會漏掉 boundary 導致伺服器端解析失敗。
+      headers: { 'X-Dev-Operator-Id': devOperatorId() },
+      body: formData,
+      signal,
+    })
+  } catch (cause) {
+    if (cause instanceof DOMException && cause.name === 'AbortError') throw cause
+    throw new AdminApiError('network', '無法連線到後台服務，請確認 apps/api 是否已啟動、網路是否正常。', {
+      detail: cause instanceof Error ? cause.message : String(cause),
+    })
+  }
+
+  if (!response.ok) {
+    if (response.status === 413) {
+      throw new AdminApiError('validation', '圖片檔案太大（上限 10 MB），請換一張或先壓縮。', { status: 413 })
+    }
+    throw await classifyErrorResponse(response, ambiguousNotFoundIsRoute)
+  }
+
   const text = await response.text()
   return (text ? JSON.parse(text) : undefined) as T
 }

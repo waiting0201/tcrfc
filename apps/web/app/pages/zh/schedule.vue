@@ -9,10 +9,16 @@
 //   - fixture-card 的 id 屬性已改用 matches.match_no（v3.11 補進規格與 DDL 的聯賽官方
 //     場次編號欄位）與 mockup 逐字元一致（fx-{日期}-{h|a}-{場次編號}），
 //     原本「API 未吐出 match_no、id 退化成 fx-{日期}-{h|a}」的落差已消除。
-//   - <head> 內的 SportsEvent JSON-LD（GEO-08）本次未實作動態版本，mockup 的 21 筆
-//     Schema 是 build.mjs 從同一份 JSON 手動產生、寫死在 meta 註解裡的；照 docs/14
-//     invariants「head 不受 DOM 一致性約束」，這不影響 compare-dom，但功能上是缺口，
-//     留給下一輪補（useSchemaOrg／useHead 動態產生 21 筆 SportsEvent）。
+//   - <head> 內的 SportsEvent JSON-LD（GEO-08）已改為動態產生（見檔尾 `sportsEvents`／
+//     `useHead`），比照 mockup 原本 `@context`＋`@graph` 的原始 JSON-LD 寫法直接組字串，
+//     刻意不透過 `useSchemaOrg`／`defineEvent`——後者是 schema-org-js 的通用 `Event`
+//     定義器，沒有 `SportsEvent` 專用型別，硬塞 `@type: 'SportsEvent'` 進去能不能穿過
+//     它的節點正規化未經查證，而 mockup 本來就是手刻原始 JSON-LD，直接複製這個已知
+//     可行的做法風險最低。逐場檢查 `matchOn`／`kickoff`／`homeAway`／`opponent`／
+//     `venue`／`competitionName` 六個欄位齊全才輸出該筆（GEO-05：資料不足時不輸出
+//     該型別，不得用假值填滿必填欄位），全部場次都不齊全時整個 head 區塊不輸出，
+//     不視為錯誤（藍鯨目前 21 場歷史賽果多數缺 `kickoff`／`homeAway`，正是這條路徑
+//     的實際案例）。
 //
 // 互動行為（隊別分頁、賽程／賽果切換、賽事類型與主客場篩選、列表／月曆檢視、
 // .ics 下載、分享連結、深層連結 #fx-... 定位）逐條照原 script 邏輯改寫，
@@ -311,6 +317,71 @@ useSeoMeta({
   title: '賽事行事曆 Schedule｜台中磐石足球俱樂部',
   description: '台中磐石足球俱樂部完整賽事行事曆：2026/27 企業甲級聯賽 21 場賽程，依隊別（一線隊／U15／U14／U12）分類，支援賽程賽果切換、月曆檢視與單場加入行事曆。',
 })
+
+// SportsEvent JSON-LD（GEO-08）。siteConfig.url 是 nuxt-site-config 的 priority-stack
+// 解出的值，S0-9b 已實測 NUXT_PUBLIC_SITE_URL 能在 runtime 正確覆寫（docs/13 §6 紀律 4）；
+// 這裡直接沿用同一個結論，兩站各自跑出自己網域的絕對網址，不寫死 tcrfc.tw。
+const siteConfig = useSiteConfig()
+const selfTeamName = computed(() => getClubAssets(club).nameZh)
+
+/** DB／API 的 status 字面值（'scheduled'／'played'／'postponed'／'cancelled'，見
+ * apps/api 回傳，2026-09-22 用真實藍鯨資料核對過 'played' 這個值）→ schema.org
+ * EventStatusType。⚠️ 刻意不重用 app/utils/schedule.ts 的 mapMatchStatus()——
+ * 那支是給畫面 status-pill 顯示文字用的（switch 對到的是 'finished' 不是 'played'，
+ * 兩者對不上，藍鯨的已完成賽事會落到 default 的「未開始」，這是既有顯示邏輯的另一個
+ * 缺口，不在本次任務範圍內，回報但不在此修）；JSON-LD 是全新程式碼，獨立寫一份
+ * 對應真實資料驗證過的 status 值，不要沿用可能有問題的既有對照表。 */
+const EVENT_STATUS_MAP: Record<string, string> = {
+  scheduled: 'https://schema.org/EventScheduled',
+  played: 'https://schema.org/EventCompleted',
+  postponed: 'https://schema.org/EventPostponed',
+  cancelled: 'https://schema.org/EventCancelled',
+}
+
+const sportsEvents = computed(() => {
+  const nodes: Record<string, unknown>[] = []
+  for (const m of matches.value as MatchItem[]) {
+    if (!m.matchOn || !m.kickoff || !m.homeAway || !m.opponent || !m.venue || !m.competitionName) continue
+    const isHome = m.homeAway === 'HOME'
+    const selfTeam = { '@type': 'SportsTeam', name: selfTeamName.value }
+    const oppTeam = { '@type': 'SportsTeam', name: m.opponent }
+    const homeTeam = isHome ? selfTeam : oppTeam
+    const awayTeam = isHome ? oppTeam : selfTeam
+    const roundLabel = m.roundNo ? `第${m.roundNo}輪：` : ''
+    nodes.push({
+      '@type': 'SportsEvent',
+      name: `${m.competitionName} ${roundLabel}${homeTeam.name} vs ${awayTeam.name}`,
+      startDate: `${m.matchOn}T${m.kickoff}:00+08:00`,
+      eventStatus: EVENT_STATUS_MAP[m.status ?? ''] ?? 'https://schema.org/EventScheduled',
+      eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
+      sport: 'Soccer',
+      location: {
+        '@type': 'Place',
+        name: m.venue,
+        address: { '@type': 'PostalAddress', addressCountry: 'TW' },
+      },
+      homeTeam,
+      awayTeam,
+      competitor: [selfTeam, oppTeam],
+      url: `${siteConfig.url}/zh/schedule/#${fixtureId(m.matchOn, m.homeAway, m.matchNo)}`,
+    })
+  }
+  return nodes
+})
+
+// 全部場次都不齊全時（GEO-05）回傳空物件，不輸出任何 <script> 標籤，不是輸出一個空
+// 的 @graph 陣列——「不輸出殘缺 Schema」也涵蓋「不輸出一個沒有任何節點的殼」。
+useHead(() => (
+  sportsEvents.value.length > 0
+    ? {
+        script: [{
+          key: 'schedule-sports-events',
+          type: 'application/ld+json',
+          innerHTML: JSON.stringify({ '@context': 'https://schema.org', '@graph': sportsEvents.value }),
+        }],
+      }
+    : {}
+))
 </script>
 
 <template>

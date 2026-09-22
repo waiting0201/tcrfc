@@ -134,7 +134,7 @@
 #### `Season` → `season_i18n`
 
 **規劃書全文找不到任何 `Season` 的文字型欄位**（`docs/12` §12 踩雷點 17 也說明 `Season` 是本檔新增、規劃書只在關聯欄提到）。
-無欄位可列。是否該標 🌐，見 [§5](#5-發現的問題)。
+無欄位可列，不建 `season_i18n`。✅ **已解決（2026-09-22）**：`docs/12` §4.2 已拿掉 🌐，見 [§5](#5-發現的問題) 第 4 點。
 
 #### `Team` → `team_i18n`
 
@@ -161,12 +161,14 @@
 #### `Standing` → `standing_i18n`
 
 **無欄位可列。** `docs/12a` §5.2 明訂 `standing.team_name` 是主表自由文字（「對手隊名是自由文字不是 `Team`」），
-規劃書 C4（行 1063–1068）也只寫「積分榜：手動維護表格」，沒有任何雙語欄位描述。標 🌐 可能是誤標，見 [§5](#5-發現的問題)。
+規劃書 C4（行 1063–1068）也只寫「積分榜：手動維護表格」，沒有任何雙語欄位描述，不建 `standing_i18n`。
+✅ **已解決（2026-09-22）**：`docs/12` §4.2 已拿掉 🌐，見 [§5](#5-發現的問題) 第 4 點。
 
 #### `Achievement` → `achievement_i18n`
 
 **無欄位可列。** `docs/12a` §5.2 的 `achievement` 主表把 `competition_name`／`placing` 都放在主表（非側表），
-規劃書 C5（行 1070）只寫「年份、賽事、名次、關聯球隊」，沒有雙語標記。標 🌐 可能是誤標，見 [§5](#5-發現的問題)。
+規劃書 C5（行 1070）只寫「年份、賽事、名次、關聯球隊」，沒有雙語標記，不建 `achievement_i18n`。
+✅ **已解決（2026-09-22）**：`docs/12` §4.2 已拿掉 🌐，見 [§5](#5-發現的問題) 第 4 點。
 
 #### `Milestone` → `milestone_i18n`
 
@@ -190,7 +192,8 @@
 #### `Session` → `session_i18n`
 
 **無欄位可列。** 行 1082：「梯次：期間、上課時間表、地點、名額上限…費用…狀態」全部是日期／數字／狀態，
-`docs/12a` §5.4 的 `session` 主表也完全沒有文字型欄位。標 🌐 可能是誤標，見 [§5](#5-發現的問題)。
+`docs/12a` §5.4 的 `session` 主表也完全沒有文字型欄位，不建 `session_i18n`。
+✅ **已解決（2026-09-22）**：`docs/12` §4.3 已拿掉 🌐，見 [§5](#5-發現的問題) 第 4 點。
 
 #### `Trial` → `trial_i18n`
 
@@ -223,7 +226,7 @@
 **不建議建立。** `docs/12a` §5.5 的 `proposal.title` 是**主表的單一欄位**（`string_128`，非側表），
 多語言需求已由子表 `ProposalFile(locale, file_key)` 承載（每語系各自一份 PDF）。
 行 1111「上傳提案 PDF（可多版本／多語系）」講的是 PDF 檔案本身的語系，不是 `Proposal` 標題要雙語。
-`docs/12` §4.4 標 `Proposal` 🌐 可能是把「多語 PDF」誤讀成「側表」，見 [§5](#5-發現的問題)。
+✅ **已解決（2026-09-22）**：`docs/12` §4.4 已拿掉 `Proposal` 的 🌐，見 [§5](#5-發現的問題) 第 5 點。
 
 ---
 
@@ -261,7 +264,8 @@
 
 > ⚠️ **沒有列出表單「名稱」／「標題」欄位。** `docs/12a` §5.4b 的 `form` 主表只有 `form_code`（代碼），
 > 7 類表單的顯示名稱在規劃書 3.10（行 494–522）以固定表格列出（如「10.1 Join as a Player」），
-> 較像是**寫死的介面文案（`UiString` 範疇）而非逐筆資料**，是否仍需要 `form_i18n.name` 待確認，見 [§5](#5-發現的問題)。
+> 較像是**寫死的介面文案（`UiString` 範疇）而非逐筆資料**。✅ **已拍板（2026-09-22，使用者決定）：維持寫死，
+不建 `form_i18n.name`、不給後台編輯**，見 [§5](#5-發現的問題) 第 6 點。
 
 #### `FormField` → `form_field_i18n`
 
@@ -390,7 +394,8 @@
 > 團體名稱透過關聯到 `Charity`／`charity_i18n` 取得，不重複儲存。
 > 🔴 **`location`／`brief_description`／`donation_content` 三欄在 `docs/12a` §5.9 的 `impact_record` 主表 ERD 完全沒有出現**
 > （主表只有 `image_key`／`image_width`／`image_height`／`happened_on` 四個非鍵欄位），不只是「側表沒畫出來」的正常省略，
-> 是**規劃書要求的三個文字欄位在整份 ERD 裡找不到落點**，見 [§5](#5-發現的問題)。
+> 是**規劃書要求的三個文字欄位在整份 ERD 裡找不到落點**。✅ **已解決（2026-09-20 建表，2026-09-22 補畫 ERD）**，
+落點就是本側表，`docs/12a` §5.9 已補畫 `impact_record_i18n`，見 [§5](#5-發現的問題) 第 3 點。
 
 #### `ImpactMetric` → `impact_metric_i18n`
 
@@ -418,40 +423,50 @@
 
 ## §5 發現的問題
 
-**這一節不擅自調和，只如實記錄。**
+> ⚠️ **本節標題沿用舊稿，但內容已全數改寫：這一節現在記錄的是已結案的裁決，不是待辦。**
+> 保留標題文字是為了不打斷本檔內其餘 9 處指向 `#5-發現的問題` 的錨點連結；**內容不要再依標題字面
+> 誤讀成「還沒解決的問題清單」**。起草時七項都寫成「尚待裁決」，但其中六項（1–5、7）
+> 在 `db/club-schema.sql`（S0-6a）、EF Core（`ClubDbContext.cs`／`ClubsRepository.cs`／`MatchesRepository.cs`）
+> 與本機開發資料庫（S0-6b／S0-6c／S0-6d）陸續建好之後就已經定案並跑進可執行的程式碼——**本節當時沒有回頭
+> 改寫，才會讓 `STATUS.md` 的 S0-3b／S0-3c 兩列白白卡在 🔄**（2026-09-22 核對後全數改寫）。唯一真正等到這次
+> 才拍板的是第 6 項。若同一節日後又出現「尚待裁決」字樣卻遲遲沒有回頭改寫，就是同一種同步鏈斷點重演，
+> 請直接依 `docs/18-work-errors.md` 的紀律補一筆。
 
-1. **`Club`／`Competition` 的雙語欄位寫法與 `docs/12` §2.1 的側表原則直接衝突**（規劃書要求分別如此）：
-   - `docs/12a` §5.2 的 `competition` 主表把 `name_zh`／`name_en` 直接放在主表；
-   - `docs/12a` §5.11 的 `club` 主表同樣把 `name_zh`／`name_en` 放在主表。
-   `docs/12` §2.3 明列的「不走側表」例外只有**快照表**、**後台專用表**（`AdminRole`／`Permission`）、**`UiString`**三種，
-   `Club` 與 `Competition` 都不屬於這三種——它們是**前台可見的內容主體**（`Club` 對應俱樂部品牌頁與站台識別、
-   `Competition` 對應賽事系列名稱），理論上應該和 `Team`／`Player` 一樣走側表。**本檔不判定哪一個寫法才對**，
-   只指出：若維持 ERD 現狀（主表並排欄位），則與 §2.1 論證的「加第三語系＝改 DDL」問題會在這兩張表重演；
-   若改為側表，`docs/12a` 的兩張 ERD 圖需要同步修正。
+1. **`Club`／`Competition` 的雙語欄位寫法** —— ✅ **已解決（2026-09-20 定案走側表；2026-09-22 核對 ERD 與 DDL
+   一致並補畫）**。`db/club-schema.sql` 已建 `clubs_i18n`（`name`／`description`）與 `competitions_i18n`
+   （`name`／`organizer`），`clubs`／`competitions` 主表都**不再有** `name_zh`／`name_en`；`docs/12a` §5.2／§5.11
+   的 ERD 已補畫這兩張側表（原本「圖沒跟上決定」的落差已補齊）。與其餘約 37 張側表同一套
+   `(<entity>_id, locale)` 形狀，不需要為這兩張另寫特例查詢（見第 7 項）。
 
-2. **`Club.description`（簡介）完全遺失**——不是側表 vs 主表的路線之爭，是**規劃書明文要求的欄位在 ERD 完全找不到**。
-   規劃書行 1216 寫「名稱**與簡介**（中／英）」，但 `docs/12a` §5.11 的 `club` 主表沒有 `description`／`intro`
-   任何對應欄位，本檔起草的 `club_i18n` 也是本次新補的，**代表這欄位過去被漏掉，不是刻意不做**。
+2. **`Club.description`（簡介）** —— ✅ **已解決（2026-09-20 建表，落點是 `clubs_i18n.description`）**。
+   `db/club-schema.sql` 已建欄位，`apps/api` 的 `ClubDbContext.cs`／`ClubsRepository.cs` 已讀寫
+   `ClubI18nRow.Description`／對外回傳 `ClubDto.Description`；`docs/12a` §5.11 已補畫 `club_i18n` 實體。
+   規劃書行 1216「名稱與簡介（中／英）」因此有了落點。
 
-3. **`impact_record` 的三個文字欄位（`location`／`brief_description`／`donation_content`）在整份 ERD 都不存在**。
-   規劃書行 1025 明文列出「另含日期、地點、簡述」與必填的「捐助內容」，但 `docs/12a` §5.9 的 `impact_record`
-   主表只有圖片與日期欄位。這比「該不該走側表」更根本——**這三個欄位無論放主表或側表都還沒有落點**。
+3. **`ImpactRecord` 的三個文字欄位（`location`／`brief_description`／`donation_content`）** —— ✅ **已解決
+   （S0-3d 起草、2026-09-20 建表，2026-09-22 核對 ERD 並補畫）**。`db/club-schema.sql` 已建
+   `impact_records_i18n`，`docs/12a` §5.9 已補畫 `impact_record_i18n` 實體。公益團體名稱透過 `charity_id`
+   關聯到 `Charity`／`charity_i18n` 取得，不重複儲存於本側表。
 
-4. **`Standing`／`Achievement`／`Session`／`Season` 四張表標了 🌐，但規劃書與既有 ERD 都找不到任何語系相關欄位**：
-   - `Standing.team_name`、`Achievement.competition_name`／`placing` 已經是 ERD 主表的自由文字欄位，不是側表候選；
-   - `Session` 全部欄位是日期／數字／狀態；
-   - `Season` 規劃書全文沒有描述任何文字欄位，只在關聯欄被提及（`docs/12` §12 第 17 點也承認 `Season` 是本檔新增）。
-   **這四張很可能是 🌐 標記過寬**——建議回頭核對 `docs/12` §4.2／§4.3 這四列，若沒有人補得出欄位就拿掉 🌐。
+4. **`Standing`／`Achievement`／`Session`／`Season` 四張表 🌐 標記過寬** —— ✅ **已解決（2026-09-22，
+   `docs/12` §4.2／§4.3 已拿掉這四個 🌐）**。`db/club-schema.sql` 逐表核實：規劃書與 ERD 全文查無任何文字型
+   欄位（`Standing.team_name`、`Achievement.competition_name`／`placing` 已是主表自由文字非側表候選；
+   `Session`／`Season` 全部欄位是日期／數字／狀態），不建 `standings_i18n`／`achievements_i18n`／
+   `sessions_i18n`／`seasons_i18n`，DDL 逐表留有理由註解。**規劃書沒有要求這四張雙語，🌐 是 `docs/12` 自己
+   標的**——這是文件勘誤，不是產品範圍決定；若日後規劃書真的新增雙語需求，才需要先改規劃書再補側表。
 
-5. **`Proposal` 的多語需求已經由 `ProposalFile(locale, file_key)` 承載**，`proposal.title` 在 ERD 主表是單一欄位。
-   規劃書行 1111「多版本／多語系」指的是 PDF 檔案本身，不是 `Proposal` 這筆資料要有雙語標題。
-   `docs/12` §4.4 標 `Proposal` 🌐 可能是把「檔案多語」誤讀成「側表多語」，建議確認後拿掉 🌐 或改標注清楚理由。
+5. **`Proposal` 🌐 誤標** —— ✅ **已解決（2026-09-22，`docs/12` §4.4 已拿掉 🌐）**。規劃書行 1111
+   「多版本／多語系」指的是 **PDF 檔案本身**的語系，由 `ProposalFile(locale, file_key)` 承載，
+   `proposal.title` 在 ERD 主表是單一欄位；`db/club-schema.sql` 已核實不建 `proposals_i18n`。
 
-6. **`Form` 的顯示名稱來源不明確**。規劃書 3.10（行 494–522）用固定表格列出 7 類表單的中英名稱
-   （如「10.1 Join as a Player 加入球隊」），這些名稱看起來更像**寫死的介面文案**（`UiString` 範疇，`docs/12` §2.3
-   第三個例外），而不是後台可編輯的逐筆資料。若 `Form` 真的需要後台可編的顯示名稱，才需要 `form_i18n.name`；
-   若名稱本來就固定不給後台改，則不需要側表、`docs/12` 標 🌐 也是過寬。**本檔兩案並陳，不代為決定。**
+6. **`Form` 顯示名稱來源** —— ✅ **已拍板（2026-09-22，使用者決定）：維持寫死，不給後台編輯**。
+   7 類表單（如「10.1 Join as a Player 加入球隊」）的中英文顯示名稱維持規劃書 §3.10 固定表格的樣子，
+   屬介面文案（`UiString` 範疇），後台只能管自動回覆信、通知信收件者、CAPTCHA、送出後導向；**不建
+   `forms_i18n.name`**。`forms_i18n` 因此只有 `auto_reply_body` 一欄語系化，`db/club-schema.sql` 與
+   `docs/12` §4.6 均已依此定案。若日後客戶要求開放後台編輯表單名稱，那是**新增規格**，要先改規劃書
+   §3.10／§4.6 再回頭補欄位（同步鏈第 3 條，`CLAUDE.md` 全域規定第 3 條）。
 
-7. **翻譯時態**：本檔沿用 `docs/12` §2.5「零列即缺英文」的判定方式，但 `Club`／`Competition` 若最終維持並排欄位
-   （問題 1），則無法套用同一套「翻譯狀態總覽以 `LEFT JOIN` 側表」的查詢邏輯，需要另外為這兩張表寫特例查詢——
-   這是問題 1 沒解決前，會連帶卡住 I 模組「翻譯狀態總覽」實作的下游影響，一併記錄於此。
+7. **翻譯時態——I 模組「翻譯狀態總覽」的下游卡點** —— ✅ **已解除（隨第 1 項一併解決）**。
+   `Club`／`Competition` 最終走側表，兩張表現在都是標準 `(<entity>_id, locale)` 形狀，跟其餘各表同一套
+   `LEFT JOIN Locale` 查詢邏輯，不需要任何特例查詢。這是「若第 1 項維持並排欄位」才會發生的假設性風險，
+   既然第 1 項已定案走側表，這條路徑沒有發生，不需要任何後續動作。

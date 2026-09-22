@@ -1,0 +1,45 @@
+namespace Tcrfc.Api.Features.Uploads;
+
+/// <summary>
+/// 圖片上傳允許寫入的「欄位插槽」允許清單，形狀比照 <c>Features/AdminNews/SlugPolicy.cs</c>：
+/// 一個獨立、集中、有清楚維護說明的檔案，而不是散在各處各自檢查。
+///
+/// 🔴🔴🔴 **S0-8 修正（2026-09-22）**：這個檔案原本是給一個獨立的「先上傳拿 key」HTTP 端點
+/// （<c>Features/Uploads/UploadsEndpoints.cs</c>）用的允許清單，但那個端點的存在本身就是
+/// 「選檔即上傳」的兩段式設計，違反規劃書 §4.0／第 53 行「選檔不上傳、儲存才上傳」——已經
+/// 整支移除（不再是 <c>Program.cs</c> 掛路由的對象）。這份允許清單留下來，改成由**每個模組自己
+/// 的建立／更新端點**在同一次 multipart 請求裡直接呼叫（見
+/// <c>Features/AdminNews/AdminArticlesEndpoints.cs</c> 的示範），純粹當一份「這個 entityType／
+/// field 真的有對應資料庫欄位」的集中檢查，不再對外開一個可以單獨打的路由。
+///
+/// 🔴🔴🔴 這份清單目前只有一格（<c>articles.cover</c>），刻意的：S0-8 的任務邊界是「把共用元件
+/// 做好＋用一個真的有畫面可驗的模組示範接線」，不是把全部圖片欄位一次接完（那是各模組寫入端點
+/// 自己的工作，等 B1／B6／K1／S1……等模組真的動工時，各自把自己的 <c>entityType</c>／
+/// <c>field</c> 加進這裡，並比照 <c>AdminArticlesEndpoints</c> 把封面圖片／照片欄位併進自己的
+/// 建立／更新端點，不要另外開一個獨立的上傳端點）。新增一格前先去
+/// <c>docs/12b-database-tables.md</c> 確認資料表真的有對應的 <c>_key</c> 欄位
+/// （docs/14-invariants.md「圖片一律欄位直傳」），不要假設。
+/// </summary>
+public static class UploadSlotPolicy
+{
+    private static readonly Dictionary<string, HashSet<string>> AllowedSlots =
+        new(StringComparer.Ordinal)
+        {
+            // articles.cover_key（見 db/club-schema.sql 第 280 行）；PUT /admin/{club}/news/{id}
+            // 的 CoverKey 欄位是目前唯一真的會把上傳結果寫回資料庫的地方。
+            ["articles"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
+        };
+
+    public static void Validate(string entityType, string field)
+    {
+        if (!AllowedSlots.TryGetValue(entityType, out var fields) || !fields.Contains(field))
+        {
+            throw new UploadSlotNotAllowedException(entityType, field);
+        }
+    }
+}
+
+/// <summary>不在允許清單內的 <c>entityType</c>／<c>field</c> 組合。對應 400——這不是「這筆資料不存在」
+/// （404），是「這個圖片欄位插槽根本沒有被定義」，兩者語意不同，故意分開。</summary>
+public sealed class UploadSlotNotAllowedException(string entityType, string field)
+    : Exception($"不支援的圖片欄位「{entityType}.{field}」。");

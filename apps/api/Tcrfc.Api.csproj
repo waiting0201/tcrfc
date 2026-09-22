@@ -29,6 +29,12 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <!-- S0-8 圖片上傳共用元件：伺服器端重新編碼（docs/17-deployment.md §6 已定案理由：
+         年營收 100 萬美元以下適用 Apache 2.0，俱樂部與協會均符合，此前提要記錄）。
+         ⚠️ ImageSharp 不解 HEIC/HEIF——伺服器端一律以此為準判斷「解不開＝格式不支援」。 -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
+    <!-- 物件儲存：正式環境接 Azure Blob，本機開發接 Azurite（見 README「本機開發：Azurite」）。 -->
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.29.2" />
   </ItemGroup>
 
   <!-- Tcrfc.Api.Tests（S0-7d）是本目錄底下的獨立子專案，沒有 .sln 把兩者的建置範圍分開，

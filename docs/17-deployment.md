@@ -24,7 +24,7 @@
 | 執行環境 | **單一 Azure VM（Japan East／東京）＋ Docker**，前台、後台、API、Redis 全在此 VM |
 | 網路 | **單一 VNet**，PaaS 以 **VNet Service Endpoint** 接入 |
 | 邊緣 | Cloudflare（DNS／CDN／WAF，proxy 回源 VM） |
-| 前端建置 Node.js | **`node:24.13.1-alpine`（四個 Node 應用一致）**，2026-09-22 定案，見 [§12](#12-前端建置用的-nodejs-版本) |
+| 前端建置 Node.js | **`node:24.13.1-alpine`（四個 Node 應用一致）**，2026-09-22 定案；**版本防漂移**（S0-9h）見 [§12](#12-前端建置用的-nodejs-版本) |
 
 > 🔵 **區域：Japan East（東京）**，2026-09-20 由 West US 2 改定。
 > **趕在申請 LINE Pay 商店號之前決定**——換區域＝換出口 IP＝改白名單，是有前置期的變更（見 [§7](#7-已知風險) 風險 4、9）。
@@ -417,6 +417,34 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 ⛔ **本機開發、種子資料與跨庫查詢的所有紀律**（既有 `sqlserver` 容器本身不得碰、只能在裡面
 建 TCRFC 這兩個資料庫、兩庫必須各自獨立不得跨庫 JOIN）不變，完整版見
 [`../deploy/README.md`](../deploy/README.md)。
+
+### 本機開發物件儲存（S0-8，2026-09-22；`backend-engineer`）
+
+圖片上傳共用元件（規劃書 §4.0，見 [`apps/api/README.md`](../apps/api/README.md)「圖片上傳共用元件」）
+正式環境接真正的 **Azure Blob Storage**，本機開發接 **Azurite**（Microsoft 官方的 Azure Storage 模擬器）：
+
+- `docker-compose.dev.yml` 新增 `azurite` 服務（`mcr.microsoft.com/azure-storage/azurite:3.35.0`，
+  只跑 Blob 服務），對外發布 `127.0.0.1:10000`——跟 `sqlserver` 容器對外發布 `1433` 同一類刻意例外
+  （Azurite 沒有機密可洩漏：帳號金鑰是 Azurite 專案公開文件的固定值，不是真正密鑰）。
+- `api` 服務容器化跑法（本機 compose 或正式 VM）連 `azurite` 這個服務名稱；**直接 `dotnet run`
+  （不經 Docker）連 `127.0.0.1:10000`**（`AZURE_BLOB_CONNECTION_STRING=UseDevelopmentStorage=true`
+  這個 Azure SDK 內建的簡寫值，本質就是展開成 `127.0.0.1:10000/10001/10002`）——跟 `sqlserver`
+  的「容器內用 `host.docker.internal`、宿主機直連用 `127.0.0.1`」是同一種本機／容器化二選一，
+  但反過來：**Azurite 是這份 compose 自己起的服務**（用服務名稱連），`sqlserver` 是宿主機上
+  既有、非本專案 compose 管理的容器（用 `host.docker.internal` 連）——兩者連線方式不同的原因
+  不是「哪個是資料庫哪個是物件儲存」，是「這個依賴由誰啟動」。
+- 🔴 **`Azure.Storage.Blobs` SDK 版本可能比本機 Azurite 認得的 API 版本新**（本機實測踩過：
+  SDK 12.29.2 預設送 `2026-06-06`，Azurite 3.35.0 尚未支援，回 400
+  `The API version ... is not supported by Azurite`）。兩個服務定義都加了
+  `--skipApiVersionCheck`——這是 Azurite 官方文件記載的本機開發解法，**只用在本機／測試，
+  不是正式環境的行為**（正式環境是真正的 Azure Blob Storage，沒有這個旗標）。
+- 本機沒有 Docker（或想更快的開發迴圈）時可用 `npm install -g azurite` 後執行
+  `azurite-blob --blobHost 127.0.0.1 --blobPort 10000 --skipApiVersionCheck --location <任一目錄>`，
+  效果等價。`Tcrfc.Api.Tests` 的整合測試（`AdminWriteAzuriteEnabledApiFixture`）就是用這個
+  npm 套件裝的 `azurite-blob` 執行檔，不用 Docker（沿用本專案「Redis 測試 fixture 用
+  `brew install redis` 而不是拉 `redis:8-alpine`」同一個理由：這個沙盒環境拉 Docker Hub 映像檔慢，
+  但 `mcr.microsoft.com/azure-storage/azurite` 本身經實測拉取正常，只有 `docker-compose.dev.yml`
+  常態跑的時候才用容器版本，測試追求的是啟動速度用 npm 套件版本）。
 
 ---
 
@@ -873,29 +901,40 @@ session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊�
 "$PWD":/w -w /w node:24.13.1-alpine npm install --package-lock-only`），並逐一檢查版本變動幅度，
 不要讓它順手把整批相依套件升級。
 
-### 🔵 建議（未實作）：`.nvmrc`／`engines`／`packageManager` 綁定本機與建置版本
+### ✅ 已實作（S0-9h，2026-09-22）：`.node-version` 單一事實來源 ＋ 檢查腳本掛進 `npm run lint`
 
-這次問題能潛伏三個交付才被發現，根本原因是**本機開發版本與建置映像檔版本沒有任何機制互相校驗**
-——`node -v` 是 24.x，`Dockerfile` 是 22.12，兩者長期各走各的，直到 `docker build` 才會因為
-`engines` 門檻被撞出來。建議在四個 Node 應用各自的 `package.json` 加：
+STATUS.md S0-9h 當時列了兩案：① `engines` + `engine-strict` ② 寫檢查腳本掛進 `npm run lint`。
+**採第二案**——理由是本專案既有慣例本來就是「檢查腳本掛 `lint`」（`check-contrast.mjs`、
+`check-forbidden-terms.mjs`、`emit-charity-fixtures.py --check`），跟這個機制同一套路；
+`engine-strict` 只在「別人 `npm install` 時」才會擋，且四個專案要重複設定四次、訊息又是
+npm 自己的格式，不會比腳本更早或更清楚地被看到。
 
-```jsonc
-{
-  "engines": { "node": "24.13.1" },
-  "packageManager": "npm@11.8.0"
-}
-```
+**單一事實來源**：repo 根目錄的 `.node-version`（純文字一行版本號，無 `v` 前綴）。選它的原因是
+`actions/setup-node` **原生支援** `node-version-file` 輸入直接讀這個檔案——CI 因此不需要在
+workflow YAML 裡再複製一份版本號字串，結構上不存在「CI 用了另一個版本」這條漂移路徑。四個
+`Dockerfile` 仍然手動維護 `FROM node:24.13.1-alpine`（Docker 語法無法用變數注入 `FROM` 的 base
+image tag，這是 Docker 本身的限制，不是本專案的選擇），所以還是需要一支檢查腳本補上這一段的校驗。
 
-並在專案根目錄（或各應用目錄）加 `.nvmrc`（內容 `24.13.1`），三者與 `Dockerfile` 的
-`FROM node:24.13.1-alpine` 四處同一個版本號。效果：
+**[`scripts/check-node-version.mjs`](../scripts/check-node-version.mjs)**（repo 根目錄，跨四個
+應用共用一份，不是各自維護一份）檢查兩件事：
+1. 四個 `Dockerfile` 的每一個 `FROM node:...` 是否等於 `.node-version` 內容 `+ -alpine`；
+2. `.github/workflows/*.yml` 每一個 `actions/setup-node` 步驟——優先要求
+   `node-version-file: .node-version`；若改用硬編碼 `node-version:`，該值必須與 `.node-version`
+   一致；兩者都沒有（版本來源不明）也視為錯誤。
 
-- `npm ci`／`npm install` 在版本不符時可設定 `engine-strict=true`（`.npmrc`）直接擋下，
-  本機執行到就會失敗，不必等 `docker build`。
-- 團隊成員或 CI 若用 `nvm use`，會自動切到與建置映像檔相同的版本。
-- 四個版本號分散在四個地方（`Dockerfile`、`package.json` 兩處、`.nvmrc`）**要手動同步**，
-  這是它的代價——沒有單一事實來源會自動互相帶動，升版時四處都要改到，改漏一處這個機制就
-  失去校驗力。**這一步本次未實作**（範圍限制在 `Dockerfile` 與文件），是否要做、以及
-  `engine-strict` 要不要開（開了之後本機版本管理較嚴格，可能造成新加入者的摩擦）留給後續決定。
+四個 `package.json` 各自新增 `"lint:node-version": "node ../../scripts/check-node-version.mjs"`，
+並放在各自 `lint` 這條 `&&` 鏈的**第一個**（不是隨意位置）——[`18-work-errors.md`](18-work-errors.md)
+E-34 的教訓是「串在可能非零離開碼的指令後面的檢查，事實上不會被執行」，排第一個保證它一定會跑，
+不受同一條鏈上其他檢查是否失敗影響。
+
+**兩個方向都已實測**（2026-09-22，`deployment-engineer`）：現況跑 `node
+scripts/check-node-version.mjs` 離開碼 0；分別故意改壞 `apps/admin/Dockerfile` 的版本號、
+與 workflow 裡 `setup-node` 的硬編碼版本，兩種情況都被抓到、離開碼 1，訊息指出確切檔案與行號。
+
+**未採用 `engine-strict`／`.nvmrc`／`packageManager` 三件套**（本節原本的建議）：
+`node-version-file` 讓 CI 不需要它；四個 `Dockerfile` 的 `FROM` 仍是唯一真正決定建置環境版本的
+地方，檢查腳本已經校驗它，多加 `.nvmrc`／`engines` 只是多幾個要手動同步的位置，卻沒有增加新的
+保護範圍——不做。
 
 ---
 

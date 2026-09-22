@@ -38,6 +38,49 @@ Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③
 
 ---
 
+**本輪（圖片上傳共用元件，2026-09-22，`backend-engineer`）**：`STATUS.md` S0-8——後台每一個表單
+的圖片欄位都會用到的共用後端元件，逐字對應規劃書 §4.0「後台圖片上傳通則」（v3.9）。新增：
+
+1. **`Images/`**：純轉檔邏輯（`ImageProcessor`，不碰任何 I/O）＋物件儲存接縫（`IImageStorageService`，
+   Azure Blob Storage 實作 `BlobImageStorageService`，本機開發接 Azurite）。伺服器端一律重新編碼、
+   去除全部中繼資料（含 EXIF GPS）、長邊超過 2560px 等比縮小、固定產 1280／640／320／160 四個衍生檔，
+   全部 WebP。
+2. **`Features/Uploads/`**：一個通用上傳端點（`POST /api/v1/admin/{club}/uploads/images/{entityType}/{entityId}/{field}`），
+   跟 `Features/AdminNews` 一樣掛在 `DevWriteGate` 後面。**這是共用元件，不是新聞專用**——見下方
+   「圖片上傳共用元件」整節的完整契約。
+3. **接線示範**：`Features/AdminNews/AdminArticlesRepository` 換圖（`UpdateAsync`）與刪除文章
+   （`DeleteAsync`）時呼叫 `IImageStorageService.DeleteAsync` 清掉舊物件——這是任務指示「用一個真實
+   模組示範接線」的落點，其他模組（球員照片、贊助商標誌……）之後照抄同一個模式即可，見下方
+   `UploadSlotPolicy` 的說明。
+
+---
+
+🔴🔴🔴 **本輪修正（上傳時機違反規劃書，2026-09-22，`backend-engineer`）**：上一輪把上傳做成
+「先呼叫獨立端點拿物件鍵、表單儲存時再把鍵塞進純 JSON 建立／更新請求」的兩段式設計，README
+當時也如實記錄了這是「本輪的判斷，不是規劃書明文」。**這個判斷是錯的**——規劃書第 53 行與
+第 972 行明文「選檔不上傳、儲存才上傳……離開或取消表單不留下任何檔案」，兩段式設計下「選檔」
+那一刻檔案就已經真的寫進物件儲存，違反這條規則。使用者拍板：改成符合規劃書，不是回頭改規格。
+本輪異動：
+
+1. **`Features/AdminNews` 的建立／更新端點改成單一 `multipart/form-data` 請求**（封面圖片跟
+   其餘欄位一起送出），新增 `AdminArticleRequestForm.cs`（解析 `payload`＋`file` 兩個表單欄位）、
+   `CoverKeyUpdate.cs`（封面圖片三態：維持不變／清空／換新值）。`CreateArticleRequest` 拿掉
+   `CoverKey` 欄位、`UpdateArticleRequest` 拿掉 `CoverKey` 改成 `RemoveCover`（布林）。
+2. **整支移除 `Features/Uploads` 的獨立上傳端點**（`UploadsEndpoints.cs`／`UploadDtos.cs`，
+   `Program.cs` 不再呼叫 `MapUploadsEndpoints`）——那個端點的存在本身就是「選檔即上傳」兩段式
+   設計的載體，留著就是留一個讓下一個模組複製同一個錯誤的樣板。`UploadSlotPolicy.cs`（欄位插槽
+   允許清單）留下來，改成由每個模組自己的建立／更新端點在同一次 multipart 請求裡直接呼叫。
+3. **失敗時的補償交易**：圖片已經上傳成功、但資料列寫入失敗（分類不存在、slug 重複、樂觀並行
+   衝突……）時，端點會刪掉剛剛上傳的物件，不留下孤兒物件——見下方「圖片上傳共用元件」整節與
+   `AdminNewsCoverUploadTests` 的自動化測試。
+4. **這是一筆規格違反，已記入 [`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-34`
+   升級段**（根因不是實作本身，是判斷被當成既定契約往下傳，見該檔案說明）。
+
+✅ **`apps/admin` 已跟進（2026-09-22）**：`ImageUploader.vue` 已改成受控元件（選檔只預覽、檔案留記憶體），由 `NewsEditView.vue` 在按「儲存」時組 multipart 一起送。下一棒
+`frontend-architect` 要照這份新契約重做，見下方「給前端接的契約」整節。
+
+---
+
 ## 目錄結構
 
 ```
@@ -70,14 +113,32 @@ apps/api/
 │   ├── PagedResult.cs / PagingQuery.cs
 │   ├── ApiExceptionHandler.cs     # 統一例外處理，不外流資料庫例外訊息；本輪擴充 AdminArticleException 家族
 │   └── HealthEndpoints.cs         # /healthz、/readyz（S0-7d 起含慈善庫與 Redis 檢查）
+├── Images/                         # 🔴🔴🔴 S0-8 本輪新增：圖片上傳共用元件
+│   ├── ImageUploadOptions.cs       #   數字常數（10MB／2560／1280,640,320／160／WebP 品質）唯一來源
+│   ├── ImageProcessor.cs           #   純轉檔邏輯：格式驗證→轉正→去中繼資料→縮放→WebP 編碼，不碰 I/O
+│   ├── ImageObjectKey.cs           #   衍生檔物件鍵推導規則（由主鍵算出，不另存欄位）
+│   ├── ProcessedImageSet.cs        #   ImageProcessor 的輸出型別
+│   ├── ImageProcessingExceptions.cs#   驗證失敗例外家族（400，日常中文訊息）
+│   ├── IImageStorageService.cs     #   儲存層接縫：UploadAsync／DeleteAsync
+│   ├── BlobImageStorageService.cs  #   Azure Blob Storage 實作（本機開發接 Azurite）
+│   └── UnavailableImageStorageService.cs  # AZURE_BLOB_CONNECTION_STRING 未設定時的替身
 └── Features/
     ├── Clubs/      (ClubDto, ClubsRepository, ClubsEndpoints)
     ├── Players/    (PlayerDto, PlayersRepository, PlayersEndpoints)
     ├── Staff/      (StaffDto, StaffRepository, StaffEndpoints)
     ├── News/       (ArticleListItemDto/ArticleDetailDto, ArticlesRepository, ArticlesEndpoints)   # 唯讀，Dapper，未改
     ├── Schedule/   (MatchDto, MatchesRepository, MatchesEndpoints)
-    └── AdminNews/  # 🔴🔴🔴 本輪新增，開發模式限定：AdminArticleDtos／AdminArticlesRepository（EF Core）／
-                     #   AdminArticlesEndpoints／AdminArticleExceptions，見下方整節說明
+    ├── AdminNews/  # 🔴🔴🔴 開發模式限定：AdminArticleDtos／AdminArticlesRepository（EF Core）／
+    │                #   AdminArticlesEndpoints／AdminArticleExceptions。
+    │                #   🔴 S0-8 修正（2026-09-22）新增：AdminArticleRequestForm（解析
+    │                #   multipart/form-data 的 payload＋file 兩個欄位）、CoverKeyUpdate
+    │                #   （封面圖片三態）。建立／更新端點在同一次請求裡處理封面圖片上傳與
+    │                #   失敗回滾，不再呼叫任何獨立的上傳端點。
+    └── Uploads/    # 🔴🔴🔴 S0-8 本輪新增：UploadSlotPolicy（欄位插槽允許清單，仿
+                     #   AdminNews/SlugPolicy.cs 的形狀）。⚠️ S0-8 修正（2026-09-22）：這裡原本
+                     #   還有一個獨立的上傳端點（UploadsEndpoints／UploadDtos），因為違反規劃書
+                     #   「選檔不上傳、儲存才上傳」已整支移除——現在只剩這份允許清單，由每個
+                     #   模組自己的建立／更新端點直接呼叫，不再對外開路由。
 
 apps/api/Tcrfc.Api.Tests/    # S0-7d：自動化測試專案（獨立 .csproj，不進 Docker 映像檔，見下方「測試」）
 ```
@@ -187,10 +248,12 @@ compose 網路裡）。
 | `ASPNETCORE_ENVIRONMENT` | 建議設 | `Development` 才會開 OpenAPI 端點，其餘值一律關閉 |
 | `ASPNETCORE_URLS` | 本機開發用 | 監聽位址，容器內固定用 `Dockerfile` 的 `ASPNETCORE_HTTP_PORTS=8080` |
 | `ENABLE_UNSAFE_DEV_WRITES` | 🔴 開發用，⛔ 正式環境不得設定 | 本輪新增。要同時滿足 `ASPNETCORE_ENVIRONMENT=Development` **且**這個值字面等於 `"true"`，`Features/AdminNews` 的寫入與後台讀取端點才會被註冊。見下方「寫入端點開發模式開關」整節 |
+| `AZURE_BLOB_CONNECTION_STRING` | 選填（S0-8） | 圖片上傳共用元件的物件儲存連線字串。**未設定不會讓服務無法啟動**（跟 `CLUB_SQL_CONNECTION_STRING` 不同）——只有真的呼叫圖片上傳／刪除時才會需要它，沒設定時注入 `UnavailableImageStorageService`（上傳丟出訊息清楚的例外，刪除安靜略過）。本機開發見下方「本機開發：Azurite」，正式環境見 VM 上 `/opt/tcrfc/secrets/club.env` |
+| `AZURE_BLOB_CONTAINER_IMAGES` | 選填（S0-8） | 圖片物件儲存的容器名稱，預設 `images` |
 
-⛔ **S0-7d 之後仍完全不碰 LINE Pay、JWT、Blob**——這些鍵名雖然已經在 `docker-compose.yml` 的
+⛔ **S0-8 之後仍完全不碰 LINE Pay、JWT**——這些鍵名雖然已經在 `docker-compose.yml` 的
 `api` 服務與 `deploy/dev/{club,charity}.env` 裡預留，但本檔的程式碼**沒有讀取它們**，留給接下來實作那些功能的
-session 使用。
+session 使用。**Blob 已在本輪接上**，見下方「圖片上傳共用元件」整節。
 
 ---
 
@@ -718,7 +781,161 @@ agent 在改，任務邊界不允許本輪觸碰；二來這需要「A 專案的
 
 ---
 
-## 開發過程踩的坑（已修正，記錄見 `docs/18-work-errors.md` E-19／E-20）
+## 圖片上傳共用元件（S0-8）
+
+規劃書 §4.0「後台圖片上傳通則」（v3.9）的後端落點。**這是全後台每一個表單共用的元件**——不是新聞
+模組專屬，`Features/AdminNews` 只是目前唯一有真實後台畫面可以驗收接線的示範。下一棒
+`frontend-architect` 接 `apps/admin` 的 `ImageUploader.vue` 時，照這份契約打就好。
+
+### 給前端接的契約（S0-8 修正，2026-09-22：單一請求）
+
+🔴🔴🔴 **這個契約整節改寫過**——舊版是「先呼叫獨立上傳端點拿 key、表單儲存時再把 key 塞進純
+JSON 的建立／更新請求」的兩段式設計，因為違反規劃書「選檔不上傳、儲存才上傳」已經整支移除。
+新契約：**建立／更新文章時，封面圖片跟其餘欄位在同一次 `multipart/form-data` 請求裡一起送出**。
+
+**端點**（形狀不變，路徑與方法本來就是這兩個）：
+- `POST /api/v1/admin/{club}/news`（建立，一律成草稿）
+- `PUT /api/v1/admin/{club}/news/{id}`（更新，不改狀態）
+
+（🔴 跟其餘 `Features/AdminNews` 端點一樣掛在 `DevWriteGate` 後面，關閉時 404）
+
+**請求**：`multipart/form-data`，固定兩個欄位：
+
+| 欄位名 | 必填 | 說明 |
+|---|---|---|
+| `payload` | ✅ | JSON 文字（camelCase），其餘欄位。建立用 `CreateArticleRequest` 的形狀（`slug`／`categoryCode`／`isFeatured`／`content`，**不含封面圖片**）；更新用 `UpdateArticleRequest` 的形狀（同上再加 `expectedUpdatedAt`／`removeCover`） |
+| `file` | 選填 | 封面圖片。**建立時**：有夾檔案就上傳成封面，沒夾就是「這篇文章沒有封面圖片」。**更新時**：見下方「封面圖片三態」 |
+
+**封面圖片三態（只影響 PUT）**：呼叫端不會、也不能直接指定物件鍵字串，只能表達「意圖」——
+
+| 這次請求 | 效果 |
+|---|---|
+| 有夾 `file`，`removeCover` 隨意（會被忽略，見下一列） | 換成新圖：新圖上傳成功才會更新資料列，資料列更新成功後才刪舊物件（換圖與刪除順序不變，見 `AdminArticlesRepository.UpdateAsync`） |
+| 沒夾 `file`，`payload.removeCover = true` | 清空封面圖片，並刪掉舊物件 |
+| 沒夾 `file`，`payload.removeCover = false`（預設） | 維持目前的封面圖片不變，完全不碰物件儲存 |
+| **同時**有夾 `file` **且** `payload.removeCover = true` | ⛔ 視為請求矛盾，回 400（「不能同時上傳新的封面圖片與移除封面圖片，請擇一。」），**不會**嘗試任何上傳 |
+
+**回應**：跟建立／更新端點本來的回應完全一樣（`AdminArticleDetailDto`，含 `coverKey`），**沒有另外的
+上傳回應格式**——這是這次修正的重點之一：不再有獨立的「上傳成功」這個中間狀態需要前端自己保管
+物件鍵字串，伺服器端把上傳結果直接寫進同一次回應的 `coverKey`。四個衍生檔（1280／640／320／160
+方形縮圖）的物件鍵由 `coverKey` 推導（`Images/ImageObjectKey.cs`：把副檔名前插入
+`-1280`／`-640`／`-320`／`-thumb`），前端需要顯示縮圖時自己用同一套規則從 `coverKey` 算出來。
+
+**錯誤（一律日常中文，`docs/06-conventions.md` §1）**：
+
+| HTTP | 情境 | `detail` 文案 |
+|---|---|---|
+| 400 | 請求不是 `multipart/form-data`，或缺少 `payload` 欄位 | 「請求格式錯誤，需要 multipart/form-data（欄位 payload ＋ 選填的 file）。」／「缺少 payload 欄位。」 |
+| 400 | `payload` 不是合法 JSON，或缺少必填欄位 | 「payload 欄位不是合法的 JSON，或缺少必填欄位。」 |
+| 400 | 更新時同時夾檔案又勾選移除封面 | 「不能同時上傳新的封面圖片與移除封面圖片，請擇一。」 |
+| 400 | 夾了檔案但是空檔案 | 「沒有收到圖片檔案，請重新選擇圖片。」 |
+| 400 | 夾的檔案超過 10 MB | 「圖片檔案太大（上限 10 MB），請換一張或先壓縮。」 |
+| 400 | 格式不支援（含假副檔名、HEIC） | 「圖片格式不支援，請上傳 JPG、PNG 或 WebP 格式的圖片（不支援 HEIC）。」 |
+| 404 | `club` 代碼不存在或非啟用 | 沿用既有 `ClubNotFoundException` 文案（**在任何上傳嘗試之前就會擋下**，不會浪費一次上傳） |
+| 409 | slug 重複／樂觀並行衝突／狀態轉換不合法／置頂精選已達上限 | 沿用既有文案（見上方各例外類別）。**若這次請求有夾檔案，圖片已經上傳成功但資料列寫入失敗時，伺服器端會自動刪掉剛剛上傳的物件**（補償交易，見下方「失敗回滾」），呼叫端不需要、也不應該自己再呼叫任何清理 |
+| 413 | **超過約 11 MB**（見下方「Kestrel 請求主體上限」） | 平台預設的空白 413，不是本服務的 JSON 錯誤格式 |
+| 404（路由不存在） | 開發模式開關關閉 | 沒有回應內容，見「寫入端點開發模式開關」 |
+
+### 失敗回滾（補償交易，不是真正的跨系統 atomic transaction）
+
+物件儲存（Azure Blob／Azurite）跟 SQL Server 是兩個獨立系統，做不到兩者要嘛都成功、要嘛都失敗
+的真正 atomic transaction。伺服器端用**補償交易**模擬同樣的使用者體感——`AdminArticlesEndpoints`
+的建立／更新處理常式裡：
+
+1. 若這次請求有夾 `file`：**先**呼叫 `IImageStorageService.UploadAsync`（寫入物件儲存），
+   成功才繼續下一步（規劃書「寫入 blob 成功才更新資料列」）。
+2. 呼叫 `AdminArticlesRepository.CreateAsync`／`UpdateAsync` 寫資料列——這一步本身是 EF Core
+   單一 `SaveChangesAsync`（單一 SQL transaction，多筆 INSERT／UPDATE 要嘛都成功要嘛都失敗）。
+3. **第 2 步丟例外，或（僅更新）回傳 `null`（找不到這篇文章）**：`catch` 區塊／`null` 分支呼叫
+   `IImageStorageService.DeleteAsync` 刪掉第 1 步剛剛上傳的物件（主檔＋四個衍生檔），再把原例外
+   原樣往上丟／回 404——不留下沒有任何資料列指著它的孤兒物件。
+
+已知的殘留缺口（見下方「已知缺口」第 4 點）：`BlobImageStorageService.UploadAsync` 本身在寫五個
+物件（主檔＋四個衍生檔）時是循序寫入，不是單一原子操作——如果寫到一半（例如寫完主檔＋兩個衍生檔）
+網路中斷，會留下**部分**衍生檔的孤兒物件，這個更深一層的缺口跟本次「兩段式改單一請求」的修正
+無關，本次沒有動手處理（見下方說明）。
+
+### `UploadSlotPolicy`：欄位插槽允許清單（`Features/Uploads/UploadSlotPolicy.cs`）
+
+跟 `Features/AdminNews/SlugPolicy.cs` 同一種形狀：一份集中、有清楚維護說明的允許清單，不是散在
+各處各自檢查。🔴🔴🔴 **目前只有一格**：`articles.cover`（對應 `articles.cover_key`，`AdminArticlesRepository`
+換圖時的清理也是唯一真的接上的示範）。**這是刻意的最小化**——S0-8 的任務邊界是「共用元件做好＋
+一個真實模組示範接線」，不是把後台全部圖片欄位一次接完。**⚠️ S0-8 修正（2026-09-22）：這份清單
+不再對應一個獨立的 HTTP 端點**——原本的 `Features/Uploads/UploadsEndpoints.cs` 已整支移除（那是
+「選檔即上傳」兩段式設計的載體）。之後其他模組（球員照片 `players.photo_key`、教練職員照片、
+贊助商雙色標誌、商品圖集……）真的動工時，各自：
+
+1. 先查 [`docs/12b-database-tables.md`](../../docs/12b-database-tables.md) §6 或
+   `db/club-schema.sql` 確認資料表真的有對應的 `_key` 欄位，**不要假設**。
+2. 在 `UploadSlotPolicy.AllowedSlots` 加一格 `entityType → { field, ... }`。
+3. **把封面／照片欄位併進自己模組的建立／更新端點，比照 `AdminArticlesEndpoints` 的做法**——
+   multipart 請求、`payload`＋`file` 兩欄位、上傳成功才寫資料列、失敗回滾——**不要另外開一個
+   獨立的上傳端點**，那正是這次要修正的錯誤設計。
+4. 在該模組自己的 repository 比照 `AdminArticlesRepository.UpdateAsync`／`DeleteAsync` 的寫法，
+   換圖或刪資料列時呼叫 `IImageStorageService.DeleteAsync` 清掉舊物件。
+
+### Kestrel 請求主體上限（本輪新增，`Program.cs`）
+
+全域設定 `MaxRequestBodySize = 10MB + 1MB`（`ImageUploadOptions.MaxUploadBytes` 加一點緩衝給
+multipart 邊界字串與其他表單欄位）。⚠️ **這只把「檔案太大」的邊界從 Kestrel 預設的 30MB 下移到
+約 11MB，沒有讓所有超過上限的檔案都得到本服務的友善訊息**——實測驗證過兩種情況：
+
+- **10–11 MB 之間**：程式碼裡的 `ImageUploadOptions.MaxUploadBytes` 檢查先跑到，回本服務的 400
+  JSON（「圖片檔案太大」）。
+- **超過約 11 MB**：Kestrel 在請求主體讀取階段就直接中止連線，回應是**平台內建的空白 413**，
+  不會進到本服務的任何程式碼、不會是 JSON 格式、不會有中文訊息。**這是已知且接受的落差**——
+  要讓所有超過 10MB 的檔案都得到一致的友善訊息，需要用 `IHttpMaxRequestBodySizeFeature` 搭配
+  中介軟體攔截 `BadHttpRequestException` 自己組回應，本輪判斷這個投資報酬率不高（10–11MB 那個窄
+  範圍已經涵蓋「使用者選錯檔、稍微超標」的常見情境，真正離譜過大的檔案回一個通用 413 也不算
+  太差的使用者體驗），沒有動手做，列為已知缺口。
+
+### 已知缺口（回報，不是自己判斷做或不做）
+
+1. 🔴🔴🔴 **多數帶圖片欄位的資料表沒有 `_width`／`_height`／雙語 `_alt` 欄位**——規劃書 §4.0
+   明訂每個圖片欄位是「一組欄位（物件鍵、寬、高、雙語 Alt 文字）」，但 `docs/12d-field-audit.md`
+   §11 已經記錄：`db/club-schema.sql` 裡多數 `*_key` 欄位旁邊都沒有 `_width`／`_height`（只有
+   `press_resources.cover_width`／`cover_height`、`impact_records.image_width`／`image_height`
+   兩張表有），**全庫沒有任何 `_alt` 欄位**。這代表：
+   - 本服務的上傳端點回應裡確實有算出真正的 `MainWidth`／`MainHeight`（`ImageProcessor` 的輸出），
+     但**呼叫端目前沒有資料庫欄位可以存這兩個值**（`articles.cover_key` 就是唯一的例子——只有
+     一個 `_key` 欄位，寬高算出來也沒地方寫回去）。
+   - 雙語 Alt 文字完全沒有落點——前台 `<img alt>` 目前只能留空或沿用標題，這是**無障礙缺口**。
+   - **這是資料庫綱要的落差，不是本次任務範圍能修的**——要補欄位得先走 `docs/00-harness.md`
+     §2.5 同步鏈（改規劃書確認 → 改 `docs/12b` → 改 `db/club-schema.sql` → 重新 scaffold EF Core）。
+     **本輪沒有自己加欄位**，只在這裡回報：`docs/12d-field-audit.md` §11 已經有一模一樣的結論，
+     這不是新發現，是重新確認同一個已知缺口在圖片上傳管線真的做出來之後確實會卡到。
+2. **沒有做「依版位設定尺寸下限」**：規劃書 §4.0「尺寸下限依版位另定……低於下限擋下不收，
+   不放大補齊」——這是一個依「這張圖要放在前台哪個版位」而變動的業務規則（例如主視覺類不得小於
+   1600px 寬），本服務目前是**通用元件**，沒有這一層「版位」概念，也就沒有實作這個下限檢查。
+   呼叫端（各模組自己的前端表單）如果需要，要嘛在前端擋（跟規劃書「兩道驗證」的前端那一道一致），
+   要嘛之後在 `UploadSlotPolicy` 的允許清單裡幫每個插槽加一個「最小尺寸」欄位，本輪沒有做，
+   因為只有一個插槽（新聞封面圖）在跑，規劃書也沒有明講新聞封面圖的下限是多少。
+3. **HEIC 拒絕只用手動測試驗證過，沒有進自動化測試**：`ImageProcessorTests`／`AdminNewsCoverUploadTests`
+   涵蓋「假副檔名文字檔」與「截斷的損毀 JPEG」兩種「格式不支援」情境（在任何機器上都能重現，
+   不依賴外部工具），但**沒有涵蓋真的 HEIC 檔案**——本機驗證時用 macOS 內建的 `sips` 工具產生了
+   一個真正的 HEIC 檔案（`sips -s format heic ...`）並實測確認被擋下（見上方驗收紀錄），但這個
+   產生方式是 macOS 專屬，寫進自動化測試會在 CI 的 Linux runner 上跑不動。**兩者的擋法完全相同**
+   （格式偵測得出容器格式，但 `ImageSharp` 沒有對應解碼器 → 同一個 `UnsupportedImageFormatException`
+   例外路徑），所以自動化測試涵蓋的兩種情境已經證明了同一段程式碼會攔下 HEIC，只是沒有對「HEIC
+   本身」這個具體格式跑一次可重複的自動化斷言。
+4. **孤兒物件**：🔴 S0-8 修正（2026-09-22）後，「先上傳拿 key、使用者取消表單」這個情境
+   **已經不存在**——改成單一 multipart 請求後，使用者不按「儲存」就不會有任何 HTTP 請求送出，
+   天然不會有任何物件被寫進儲存體；請求送出但資料列寫入失敗的情境也已經用補償交易回滾（見上方
+   「失敗回滾」，`AdminNewsCoverUploadTests` 有自動化測試釘住）。**殘留的孤兒物件來源縮小為兩種**：
+   - 換圖或刪除**舊**物件失敗時（`IImageStorageService.DeleteAsync` fail-open 吞例外）——這是
+     刻意的取捨（見該方法上的說明：資料庫的新值已經寫入成功，不該讓一個非關鍵的清理步驟讓
+     整個請求變成 500），舊物件因此可能永遠留在儲存體裡。
+   - `BlobImageStorageService.UploadAsync` 寫五個物件（主檔＋四個衍生檔）本身不是單一原子操作
+     （見上方「失敗回滾」末段）——寫到一半失敗會留下部分衍生檔的孤兒物件。這是比本次修正更深一層
+     的既有缺口，本輪沒有動手處理（不在「上傳時機」這個修正範圍內，需要另外評估要不要做，
+     例如改成先寫暫存前綴、全部成功才「原子性地」讓主鍵可見，或接受現狀）。
+
+   本服務沒有做孤兒物件的定期清理（例如比對資料庫實際引用的 key 集合，反查儲存體多出來的物件），
+   這是規劃書 §4.0 明文「不做」的範圍之一（「本通則不做：使用位置追蹤與刪除前警示」），不是漏做。
+
+---
+
+## 開發過程踩的坑（已修正，記錄見 `docs/18-work-errors.md` E-19／E-20／E-3?）
 
 1. **`InvariantGlobalization=true` 讓 `Microsoft.Data.SqlClient` 連線直接炸**（E-19）：
    這個旗標對純 HTTP／JSON 服務通常安全，但只要相依鏈裡有需要定序或編碼轉換的資料庫驅動就是地雷。
@@ -728,6 +945,16 @@ agent 在改，任務邊界不允許本輪觸碰；二來這需要「A 專案的
    找不到相符的建構子而整支查詢丟 `InvalidOperationException`；另外兩個查詢共用一個 record 型別
    但 SELECT 的欄位數不同，也是同一種例外。已修正（`PlayersRepository`／`MatchesRepository` 的
    內部 row 型別改用 `DateTime`，`Map()` 再轉 `DateOnly`；`ArticlesRepository` 拆出精確對應欄位的型別）。
+3. **本輪（S0-8）新踩到：容器「已確保存在」旗標在失敗時也被設成已完成，導致真正的錯誤被
+   後續呼叫的誤導性錯誤蓋掉**：`BlobImageStorageService.EnsureContainerAsync` 原本用
+   `Interlocked.CompareExchange` 在呼叫 `CreateIfNotExistsAsync` **之前**就把旗標設成「已確保」，
+   本機對 Azurite 實測時，第一次呼叫因為 `Azure.Storage.Blobs` SDK 版本比 Azurite 認得的 API
+   版本新而失敗（見 README「本機開發：Azurite」），但旗標已經被設成 true；**第二次呼叫因此跳過
+   容器建立**，改直接對一個從未真正建立成功的容器寫入，得到的錯誤變成「容器不存在」而不是
+   一開始那個真正的 API 版本不相容——排查時得先想到旗標邏輯本身可能有問題，不能只看最新一次的
+   錯誤訊息。已修正：改用 `SemaphoreSlim` 包住整段（`CreateIfNotExistsAsync` 之後才設旗標），
+   失敗時旗標維持未確保，下一次呼叫會重新嘗試。**這一類「先設完成旗標、再做真正會失敗的動作」
+   的寫法本身就是根因**，下次寫類似的「只做一次」快取旗標時要記得旗標必須在動作成功之後才設定。
 
 ---
 
@@ -1126,7 +1353,7 @@ tcrfc schedule 筆數: 21    （不變）
 
 ---
 
-## 測試（`apps/api/Tcrfc.Api.Tests`，共 48 項）
+## 測試（`apps/api/Tcrfc.Api.Tests`，共 96 項）
 
 S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄裡。S0-7d 新增獨立測試專案
 `Tcrfc.Api.Tests`（xUnit 2.9 + `Microsoft.AspNetCore.Mvc.Testing`），對 `Program`
@@ -1134,7 +1361,22 @@ S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄�
 本機 `mssql-dev`——不 mock 資料庫，也不 mock Redis：`RedisUnavailableApiFixture` 用「指向一個
 確定沒人聽的本機連接埠」讓失敗是真的失敗；`RedisEnabledApiFixture`（S0-7d 續作新增）直接啟動一個
 真正的 `redis-server` 子行程（`brew install redis` 裝的那個二進位檔），驗證 key／TTL／隔離這些
-「Redis 正常運作時該長什麼樣」的行為，不是靠讀程式碼推論。
+「Redis 正常運作時該長什麼樣」的行為，不是靠讀程式碼推論。**S0-8 沿用同一個原則接上真正的
+物件儲存**：`AdminWriteAzuriteEnabledApiFixture` 啟動一個真正的 `azurite-blob` 子行程
+（`npm install -g azurite` 裝的那個執行檔），不 mock `Azure.Storage.Blobs`。
+🔴 **`99 = 既有 78（零回歸）＋ 本輪新增 21`**（`ImageProcessorTests` 9 項純邏輯單元測試＋
+`AdminNewsCoverBlobCleanupTests` 5 項＋`AdminNewsCoverUploadTests` 7 項）。**S0-8 修正
+（2026-09-22，上傳時機改單一請求）把原本的 `UploadImagesEndpointTests`（6 項）／
+`UploadImagesGateClosedTests`（1 項）整批刪除**——這兩支測試打的是已經整支移除的獨立上傳端點，
+不是「測試變少了」，格式／大小／空檔案的驗證覆蓋改搬進 `AdminNewsCoverUploadTests`（透過建立
+文章端點觸發同一段驗證邏輯），另外新增了兩支舊契約下不可能寫的測試：「上傳成功但資料列寫入
+失敗時回滾、不留孤兒物件」（建立與更新各一支，這正是「取消表單不留下任何檔案」在後端的可驗證
+等價形式，見 `apps/api/README.md`「圖片上傳共用元件」§「失敗回滾」）。⚠️ **這個沙盒環境跑 99 項
+整套要 3–4 分鐘**（單獨跑
+一個測試類別通常在數百毫秒內完成，但 `dotnet test` 的行程啟動與 JIT 暖機開銷在這台開發機上
+明顯偏高——本輪驗證時第一次以為是卡死，用 macOS `sample` 對行程取樣後看到主執行緒卡在
+`WaitHandle_WaitOneCore`，才確認是「這台機器上等待真的很慢」而不是死鎖，耐心等到最後真的印出
+`Passed!` 為止，不要在還沒看到終端摘要前就判斷為卡住而砍掉）。
 
 ### 涵蓋範圍
 
@@ -1149,6 +1391,9 @@ S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄�
 | **`AdminNewsGateClosedTests`（本輪新增）** | 開發模式開關關閉時，後台清單／單篇／建立三個端點一律 404（不是 403），用既有的 `ApiFixture`（不設 `ENABLE_UNSAFE_DEV_WRITES`）驗證 |
 | **`AdminNewsWriteTests`（本輪新增）** | 完整生命週期（建立→改內容→排程→發布→刪除）、分類代碼不存在／中文標題空白回 400、slug 重複回 409、俱樂部範圍（另一俱樂部路由更新／刪除回 404 且本尊不變）、共用內容唯讀（更新／刪除回 403，且後台讀取看得到並標記 `isShared`）、樂觀並行控制（過期 `updatedAt` 回 409 且不是後寫的贏）、三態轉換（已發布不能再排程）、排程時間不在未來回 400、雙語側表（加英文／省略英文清空）、置頂精選超過 3 篇回 409 |
 | **`AdminNewsCacheInvalidationTests`（本輪新增）** | 用真正的 `redis-server`（`AdminWriteRedisEnabledApiFixture`）驗證：後台更新已發布文章後，公開 API 立刻反映新標題，不是被 TTL 內的舊快取值擋住 |
+| **`ImageProcessorTests`（S0-8 新增，純單元測試，不需要任何 fixture）** | 長邊超過 2560px 等比縮小、固定產出 4 個衍生檔（1280／640／320／160 方形縮圖）、全部輸出真的是 WebP、主檔與衍生檔的 EXIF／ICC／IPTC／XMP 全部清除、主檔小於目標尺寸時不放大補齊、接受 PNG／WebP 格式、假副檔名文字檔與損毀 JPEG 檔頭被擋（見 `TestImages.cs`，全部圖片用 ImageSharp 在記憶體現產，不依賴外部檔案，任何機器都能重現） |
+| **`AdminNewsCoverBlobCleanupTests`（S0-8 新增，S0-8 修正改寫）** | 圖片上傳共用元件跟 `Features/AdminNews` 實際接線後的行為，改用單一 multipart 請求：建立文章時附封面圖片、五個物件真的寫進儲存體且物件鍵含俱樂部與文章 id；換圖成功後舊的主檔與全部衍生檔被刪除、新的完整保留；`removeCover=true` 清空封面且刪舊物件；沒夾檔案也沒勾選移除時封面維持不變（Keep 語意）；刪除文章後圖片物件一併被刪除 |
+| **`AdminNewsCoverUploadTests`（S0-8 修正新增，2026-09-22）** | 🔴 這次修正的核心驗收：格式不支援／空檔案／超過 10MB／俱樂部不存在四種情境透過建立端點觸發，回 400／404 且不留下任何物件；**slug 重複時夾正常圖片**——圖片已上傳成功但建立失敗（409），驗證儲存體物件數量沒有增加（補償交易生效）；**並行衝突時夾正常圖片**——圖片已上傳成功但更新失敗（409），驗證沒有新增物件且舊封面不受影響；同時夾檔案又勾選移除封面回 400 且完全不嘗試上傳 |
 
 ### 怎麼跑
 
@@ -1166,6 +1411,13 @@ cd apps/api/Tcrfc.Api.Tests
 dotnet test
 ```
 
+🔴 **S0-8 起額外需要 `azurite-blob` 執行檔**（`AdminWriteAzuriteEnabledApiFixture` 用）：
+`npm install -g azurite`（macOS／Linux 預設裝在 `/usr/local/bin/azurite-blob`，找不到時可用
+`AZURITE_EXECUTABLE_PATH` 環境變數指到實際位置），沿用既有「找不到 `redis-server` 就丟清楚例外」
+同一種紀律，不悄悄跳過。⚠️ **這個沙盒環境整套 96 項測試實測約需 3–4 分鐘**（本輪驗收時第一次
+懷疑卡死，用 `sample <pid>` 對行程取樣看到主執行緒在 `WaitHandle_WaitOneCore` 才確認只是這台機器
+的 `dotnet test` 行程啟動開銷偏高，不是死鎖——耐心等到 `Passed!` 摘要列印出來為止）。
+
 **2026-09-21 驗收**：合併進 `sqlserver` 容器後重跑，30 項全綠（`Passed! - Failed: 0, Passed: 30,
 Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容器沒有改變任何行為。
 
@@ -1178,7 +1430,7 @@ Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容
 且相依套件數量維持最少；若之後接上 CI 且 CI 固定會提供資料庫，這個決定可以重新評估，
 本檔沒有代為決定 CI 一定要用哪一種語意。
 
-### 五個 fixture、五種環境設定
+### 六個 fixture、六種環境設定
 
 - `ApiFixture`：`REDIS_HOST` 清空（強制走 `NoOpQueryCache`），只驗證主站庫相關行為。
   **本輪起也是「開發模式開關關閉」狀態的代表**（不設 `ENABLE_UNSAFE_DEV_WRITES`），
@@ -1199,8 +1451,15 @@ Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容
 - **`AdminWriteRedisEnabledApiFixture`（本輪新增）**：`ENABLE_UNSAFE_DEV_WRITES=true` ＋真正的
   `redis-server` 子行程（跟 `RedisEnabledApiFixture` 同樣的啟動方式），專門驗證「寫入後公開快取
   真的失效」這件事，`AdminNewsCacheInvalidationTests` 用這個。
+- **`AdminWriteAzuriteEnabledApiFixture`（S0-8 新增）**：`ENABLE_UNSAFE_DEV_WRITES=true` ＋真正的
+  `azurite-blob` 子行程（同樣用 `TcpListener` 現抓現放的埠號；`--location` 指到
+  `Directory.CreateTempSubdirectory()` 產生的暫存目錄，避免像 `redis-server` 那樣有寫入目前
+  工作目錄的風險）＋`REDIS_HOST` 清空。`AdminNewsCoverBlobCleanupTests`／`AdminNewsCoverUploadTests`
+  用這個，並透過 `InspectorContainer`（獨立的 `BlobContainerClient`）直接核對物件是否存在，
+  不透過應用程式自己的連線斷言。找不到 `azurite-blob` 執行檔時同樣丟清楚例外
+  （可用 `AZURITE_EXECUTABLE_PATH` 覆寫），加了 `--skipApiVersionCheck`（見「本機開發：Azurite」）。
 
-五者都用**行程環境變數**（`Environment.SetEnvironmentVariable`）而不是
+六者都用**行程環境變數**（`Environment.SetEnvironmentVariable`）而不是
 `WebApplicationFactory.ConfigureWebHost` 的 `ConfigureAppConfiguration` 來傳遞設定——
 因為 `Program.cs` 在 `builder.Build()` 之前就會讀 `REDIS_HOST` 決定要不要注入
 `RedisQueryCache`，那段程式碼跑在測試主機的攔截點之前。因此測試組件用
@@ -1288,16 +1547,170 @@ $ curl -X DELETE .../822f5299-...?expectedUpdatedAt=...
 
 ---
 
+### S0-8 驗收紀錄（圖片上傳共用元件，2026-09-22）
+
+🔴🔴🔴 **這份紀錄是原始（兩段式）設計的驗收，如實保留、不回頭改寫歷史**——那個設計已經因為
+違反規劃書「選檔不上傳、儲存才上傳」被判定為規格違反並修正，見本檔最上方「本輪修正（上傳時機
+違反規劃書）」與下方「**S0-8 修正驗收紀錄（單一請求，2026-09-22）**」。這份舊紀錄裡提到的
+`POST .../uploads/images/...` 端點**已經整支移除**，照著這裡的 `curl` 指令打會得到 404——
+要驗證現在的行為請看下面的新紀錄。
+
+環境：本機既有 `sqlserver` 容器（`tcrfc_club_dev`），本機 `npx azurite --skipApiVersionCheck`
+（連線字串 `BlobEndpoint=http://127.0.0.1:11000/devstoreaccount1`）。
+
+#### 1. 建置
+
+```
+$ dotnet build   # apps/api
+建置成功。0 個警告 0 個錯誤
+
+$ docker build -t x apps/api
+...
+naming to docker.io/library/tcrfc-api-s08:latest done   # 成功
+```
+
+#### 2. 手動 curl 驗收（真實檔案，非模擬）
+
+用 Python Pillow＋piexif 現產一張 **3000×2000、帶 EXIF（相機廠牌、方向標記 6＝需要旋轉）與
+GPS 座標（24°9'0"N 120°41'0"E）**的 JPEG，另用 macOS `sips -s format heic` 從同一張圖轉出
+**真正的 HEIC 檔案**（不是模擬，是系統內建工具真的轉檔）：
+
+```
+# 正常 JPEG（3000x2000，有 GPS/EXIF，orientation=6）
+$ curl -X POST .../uploads/images/articles/<id>/cover -F "file=@big_with_gps.jpg"
+{"key":"tcrfc/articles/<id>/cover/035c0dbd....webp","width":1707,"height":2560,"sizeBytes":7464}
+# 1707x2560：3000x2000 因 orientation=6 轉正後變 2000x3000（縱向），長邊 3000 超過 2560 上限，
+# 等比縮小為 2560/3000*2000=1706.67→1707，與 ImageProcessorTests 的斷言一致
+
+# 正常 PNG（500x400）
+$ curl -X POST .../uploads/images/articles/<id>/cover -F "file=@small.png"
+{"key":"...webp","width":500,"height":400,"sizeBytes":432}
+
+# 假副檔名（純文字改名 .jpg）
+$ curl -X POST .../uploads/images/articles/<id>/cover -F "file=@fake.jpg"
+400 {"detail":"圖片格式不支援，請上傳 JPG、PNG 或 WebP 格式的圖片（不支援 HEIC）。"}
+
+# 真正的 HEIC 檔案（macOS sips 轉出）
+$ curl -X POST .../uploads/images/articles/<id>/cover -F "file=@real.heic"
+400 {"detail":"圖片格式不支援，請上傳 JPG、PNG 或 WebP 格式的圖片（不支援 HEIC）。"}
+
+# 不支援的欄位插槽
+$ curl -X POST .../uploads/images/players/<id>/photo -F "file=@small.png"
+400 {"detail":"不支援的圖片欄位「players.photo」。"}
+```
+
+**用 Python `azure-storage-blob` SDK 直接查 Azurite 容器內容**（不透過應用程式自己的連線），
+對 JPEG 那次上傳的五個物件逐一下載並用 Pillow 檢查：
+
+```
+main  size_bytes=7464  1707x2560  WEBP  exif_tags=0
+1280  size_bytes=1944   854x1280  WEBP  exif_tags=0
+640   size_bytes=546    427x640   WEBP  exif_tags=0
+320   size_bytes=200    213x320   WEBP  exif_tags=0
+thumb size_bytes=122    160x160   WEBP  exif_tags=0
+```
+
+**五個物件全部是真正的 WebP、尺寸比例正確、`exif_tags=0`（含 GPS 在內的全部中繼資料已清除）**。
+
+其餘實測（見上方「圖片上傳共用元件」整節引用的行為）：
+
+- **超過 10MB 上限**（11MB 測試檔）：`400`，友善訊息「圖片檔案太大（上限 10 MB）...」。
+- **超過約 11MB**（31MB 測試檔）：`413`（Kestrel 平台層級擋下，非本服務 JSON 格式，見「Kestrel
+  請求主體上限」）。
+- **空檔案**：`400`，「沒有收到圖片檔案，請重新選擇圖片。」
+- **不存在的俱樂部**：`404`。
+- **跨俱樂部鍵隔離**：`tcrfc` 與 `bw` 對同一個 `entityId` 各自上傳，物件鍵前綴分別是
+  `tcrfc/articles/.../cover/...` 與 `bw/articles/.../cover/...`，互不覆蓋。
+- **換圖成功才刪舊物件、主檔與衍生檔一起刪**：對一篇真實建立的文章（`AdminNews` API）上傳
+  封面圖 A、`PUT` 存入 `coverKey`，確認 A 的五個物件都在 Azurite 裡；再上傳封面圖 B、`PUT`
+  更新 `coverKey`，確認 **A 的五個物件全部消失，B 的五個物件完整保留**。
+- **刪除文章一併刪除圖片物件**：`DELETE` 該文章後，B 的五個物件也全部消失。
+- **開發模式開關關閉時上傳端點回 404**：確認跟 `Features/AdminNews` 同一套機制。
+
+#### 3. 自動化測試
+
+```
+$ cd apps/api/Tcrfc.Api.Tests && dotnet test
+已通過! - 失敗: 0，通過: 96，略過: 0，總計: 96，持續時間: 3 m 50 s
+# 96 = 既有 78（零回歸）＋ 本輪新增 18（ImageProcessorTests 9、UploadImagesEndpointTests 6、
+#      UploadImagesGateClosedTests 1、AdminNewsCoverBlobCleanupTests 2）
+```
+
+---
+
+### S0-8 修正驗收紀錄（上傳時機改單一請求，2026-09-22）
+
+環境跟上面一樣：本機既有 `sqlserver` 容器（`tcrfc_club_dev`，`127.0.0.1,1433`）、本機
+`azurite-blob`（`npm install -g azurite` 裝的執行檔，測試 fixture 自動啟動子行程，見
+`Fixtures/AdminWriteAzuriteEnabledApiFixture.cs`）。
+
+#### 1. 建置
+
+```
+$ cd apps/api && dotnet build
+建置成功。0 個警告 0 個錯誤
+
+$ cd apps/api && docker build -t tcrfc-api-test-build:s0-8fix .
+...
+naming to docker.io/library/tcrfc-api-test-build:s0-8fix done   # 成功
+```
+
+#### 2. 自動化測試（真實 HTTP 管線＋真實 SQL Server＋真實 Azurite，不 mock）
+
+```
+$ cd apps/api/Tcrfc.Api.Tests && dotnet test
+已通過! - 失敗: 0，通過: 99，略過: 0，總計: 99，持續時間: 29 s
+```
+
+這一次跑就是「實跑驗證」本身，不是另外用 `curl` 模擬一遍：`AdminNewsCoverBlobCleanupTests`／
+`AdminNewsCoverUploadTests` 兩支測試檔用真正的 `WebApplicationFactory<Program>`＋真正的
+`azurite-blob`＋真正的 SQL Server 走了 CLAUDE.md 任務指示要求的全部四個實跑情境：
+
+- **正常建立帶圖**：`建立文章時附封面圖片_五個物件都真的寫進儲存體_物件鍵含俱樂部與文章id`——
+  真的建立一篇文章、真的夾一張帶 EXIF／GPS 的 JPEG，確認回應的 `coverKey` 前綴是
+  `tcrfc/articles/<id>/cover/`、五個物件（主檔＋1280／640／320／160）真的存在於 Azurite。
+- **更新換圖（舊物件被清）**：`換圖成功後_舊的主檔與全部衍生檔被刪除_新的完整保留`——PUT 夾一張
+  新圖，確認新圖先上傳成功、資料列更新成功後舊圖的五個物件才被刪除，新圖五個物件完整保留。
+  另外新增 `更新時勾選移除封面圖片且不夾檔案_封面清空_舊物件被刪除`（`removeCover=true`）與
+  `更新時沒有夾檔案也沒有勾選移除_封面維持不變_物件不受影響`（Keep 語意），完整涵蓋封面圖片
+  三態，不只是「換圖」這一種情境。
+- **🔴 中途放棄不留物件**：規劃書「離開或取消表單不留下任何檔案」在單一請求契約下的天然結果是
+  「使用者不按儲存＝從來沒有這次請求」，不需要（也不可能）用後端測試模擬「使用者按了取消」這個
+  瀏覽器端動作。真正需要自動化釘住的是「請求送出了、圖片已經上傳成功，但後面的驗證失敗」這個
+  唯一可能留下孤兒物件的情境，這支測試檔專門針對這個情境：
+  - `建立文章_網址名稱重複但夾了正常圖片_圖片已上傳成功但建立失敗_回滾不留孤兒物件`：故意用
+    已存在的 slug 建立第二篇文章、夾一張完全正常的圖片，伺服器端先上傳成功、repository 才發現
+    slug 衝突丟 409，斷言**儲存體物件總數在請求前後完全相同**（沒有任何孤兒物件殘留）。
+  - `更新文章_並行衝突但夾了正常圖片_圖片已上傳成功但更新失敗_回滾不留孤兒物件_舊封面圖片不受影響`：
+    故意用過期的 `expectedUpdatedAt` 更新、夾一張新圖，伺服器端先上傳新圖成功、
+    樂觀並行檢查才發現版本不對丟 409，斷言物件總數不變**且**舊封面的物件維持存在（沒有被誤刪）。
+  - `建立文章_夾假副檔名文字檔_回400_不建立文章_不留下任何物件`／`夾空檔案`／`夾超過10MB的檔案`／
+    `不存在的俱樂部代碼`：四種在碰到資料庫之前就會失敗的情境，逐一驗證物件總數不變。
+  - `更新文章_同時夾檔案又勾選移除封面_回400_不嘗試上傳`：驗證這個矛盾請求連一次上傳嘗試都不會有。
+- **寫入失敗不留半套**：跟上面「中途放棄不留物件」是同一組測試——「半套」在這個情境下指的正是
+  「圖寫進去了但資料列沒更新」，兩支回滾測試已經涵蓋建立與更新兩條路徑。
+
+**99 = 既有 78（零回歸，`AdminNewsWriteTests`／`AdminNewsSlugPolicyTests`／
+`AdminNewsCacheInvalidationTests` 三支既有測試檔改用 multipart 呼叫，斷言強度不變或提高，
+見 `AdminArticleMultipart.cs`）＋ `ImageProcessorTests` 9（不受影響）＋
+`AdminNewsCoverBlobCleanupTests` 5（原 2 支＋新增 3 支涵蓋 `removeCover`／Keep 語意）＋
+`AdminNewsCoverUploadTests` 7（全新，取代刪掉的 `UploadImagesEndpointTests` 6＋
+`UploadImagesGateClosedTests` 1，並新增兩支回滾測試）**。
+
+---
+
 ## 相關文件
 
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表
 - [`docs/14-invariants.md`](../../docs/14-invariants.md) — `club_id` 維度、跨庫 JOIN 陷阱、不得讀快取清單
 - [`docs/17-deployment.md`](../../docs/17-deployment.md) §0／§1／§4／§6 — 技術選型、容器佈局、快取策略、本機開發資料庫
-- [`docs/18-work-errors.md`](../../docs/18-work-errors.md) E-19／E-20／E-35 — 本次與前次開發踩的坑
+- [`docs/18-work-errors.md`](../../docs/18-work-errors.md) E-19／E-20／E-35／E-38 — 本次與前次開發踩的坑
   （本輪的「兩個測試假設過期」與「programs 撞 Program」兩件事尚未寫進這份文件，見上方「已發現、
   未動手修改的既有落差」第 4 點——本輪邊界不含 `docs/`，麻煩使用者或下一位轉記）
 - [`docs/20-cicd.md`](../../docs/20-cicd.md) §5 — EF Core 與手寫 DDL 怎麼接軌（本輪執行的依據）
 - [`docs/03-admin-spec.md`](../../docs/03-admin-spec.md) B2 — 新聞模組規格（CRUD、分類、標籤、排程發布、置頂精選）
+- [`docs/12d-field-audit.md`](../../docs/12d-field-audit.md) §11 — 圖片欄位組缺 `_width`／`_height`／`_alt` 的資料庫綱要落差（S0-8 本輪再次確認，未動手加欄位）
 - [`db/seed/README.md`](../../db/seed/README.md) — 本機資料庫怎麼連、種了哪些資料、已知落差
 - [`apps/web/README.md`](../web/README.md) — 這支 API 唯讀端點的呼叫端（Nuxt 前台骨架）
-- [`apps/admin/src/views/news/`](../admin/src/views/news/) — 這支 API 後台端點要餵的畫面（`apps/admin` 尚未接上，下一輪工作）
+- [`apps/admin/src/views/news/`](../admin/src/views/news/) — 這支 API 後台端點要餵的畫面（✅ 已接上，2026-09-22）
+- [`apps/admin/src/`](../admin/src/) 的 `ImageUploader.vue` — S0-8 圖片上傳共用元件的契約消費端（✅ **已接上，2026-09-22**，走單一 multipart 契約「儲存才上傳」，契約見本檔「圖片上傳共用元件」整節）

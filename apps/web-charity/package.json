@@ -10,9 +10,10 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "lint": "npm run lint:fixtures-check && npm run lint:eslint",
+    "lint": "npm run lint:node-version && npm run lint:fixtures-check && npm run lint:eslint",
     "lint:eslint": "eslint .",
-    "lint:fixtures-check": "python3 ../../db/seed/emit-charity-fixtures.py --check"
+    "lint:fixtures-check": "python3 ../../db/seed/emit-charity-fixtures.py --check",
+    "lint:node-version": "node ../../scripts/check-node-version.mjs"
   },
   "dependencies": {
     "nuxt": "4.5.2"

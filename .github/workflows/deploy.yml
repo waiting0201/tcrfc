@@ -1,0 +1,195 @@
+# .github/workflows/deploy.yml — push master：build ＋ push ghcr（CI 段，現在能跑）
+#                                                  ↓
+#                                部署到正式 VM（CD 段，🔴 待 S0-6 正式 VM 就緒後補）
+#
+# 對應 docs/20-cicd.md §1「觸發與分支」：push → master 觸發本檔。§4「部署」設計的是
+# self-hosted runner 在 VM 本機執行 `docker compose pull && up -d`——**VM 還不存在**
+# （STATUS.md S0-6 暫緩），所以本檔的部署 job 整個用 `if: false` 停用，只留設計骨架與
+# 詳細註解，等 VM 與 self-hosted runner 就緒後把 `if: false` 拿掉、填上 secrets 即可跑。
+#
+# 🔴 本檔「build ＋ push ghcr」這一段不需要等 VM——GHCR 推送只需要 GITHUB_TOKEN
+# （docs/20-cicd.md §2），現在就能跑，所以先做起來（S0-7c 範圍）。
+#
+# ⚠️ 不重跑 ci.yml 的 lint／dotnet test：docs/20-cicd.md §1 的分工是「ci.yml 驗 PR、
+# deploy.yml 只管 push master 之後的建置與部署」，假設 master 已經在 PR 階段驗過。
+# 如果 master 允許直接 push（目前沒開分支保護，docs/20 §1「Fork PR 隔離」分支保護一列
+# 是「建議但不列為硬性關卡」），這裡就沒有再跑一次 lint／test 的安全網——這是本檔跟隨
+# docs/20 既有設計的取捨，不是本次任務另外做的決定，如需加固請回頭改 docs/20 §1 再同步這裡。
+
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ github.workflow }}
+  cancel-in-progress: false # 部署不能被半途取消，讓它跑完（成功或自動回滾都好過跑到一半被砍）
+
+jobs:
+  changes:
+    name: 偵測變動範圍
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+      web_charity: ${{ steps.filter.outputs.web_charity }}
+      admin: ${{ steps.filter.outputs.admin }}
+      admin_charity: ${{ steps.filter.outputs.admin_charity }}
+      api: ${{ steps.filter.outputs.api }}
+      deploy_config: ${{ steps.filter.outputs.deploy_config }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'apps/web/**'
+              - '.node-version'
+            web_charity:
+              - 'apps/web-charity/**'
+              - 'db/seed/emit-charity-fixtures.py'
+              - 'db/seed/charity-fixtures.json'
+              - '.node-version'
+            admin:
+              - 'apps/admin/**'
+              - '.node-version'
+            admin_charity:
+              - 'apps/admin-charity/**'
+              - 'db/seed/emit-charity-fixtures.py'
+              - 'db/seed/charity-fixtures.json'
+              - '.node-version'
+            api:
+              - 'apps/api/**'
+            # deploy/** 本身不建映像檔，但改了 compose／Caddy 設定，部署 job（待補）要重新
+            # `docker compose pull && up -d` 讓新設定生效（docs/20-cicd.md §3「Job 切法」）。
+            deploy_config:
+              - 'deploy/**'
+              - 'docker-compose.yml'
+
+  # ── build ＋ push：四個 Node 應用 ──────────────────────────────────────────
+  # 🔴 刻意不用 strategy.matrix：job 層級的 `if:` 條件式**不保證能讀到 matrix context**
+  # （GitHub 官方文件對 `jobs.<job_id>.if` 可用的 context 清單裡沒有 matrix，跟 steps 層級的
+  # `if:` 不同），寫成 `matrix.app_dir == 'apps/web'` 這種條件式風險是「看起來合理，實際上
+  # 條件永遠算不出預期結果」——這類錯誤 actionlint 不一定抓得到（語法合法，只是語意上下文
+  # 不保證有值）。改成四個各自獨立的 job，每個都用 `needs.changes.outputs.X` 判斷，
+  # 條件式本身在所有已知 GitHub Actions 版本都保證可用，不需要賭 matrix 在 job if 是否可讀。
+  build-node-web:
+    name: 建置並推送映像檔（tcrfc-nuxt-club）
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    uses: ./.github/workflows/_node-app-deploy.yml
+    with:
+      app_dir: apps/web
+      image_name: tcrfc-nuxt-club
+    secrets: inherit
+
+  build-node-web-charity:
+    name: 建置並推送映像檔（tcrfc-nuxt-charity）
+    needs: changes
+    if: needs.changes.outputs.web_charity == 'true'
+    uses: ./.github/workflows/_node-app-deploy.yml
+    with:
+      app_dir: apps/web-charity
+      image_name: tcrfc-nuxt-charity
+    secrets: inherit
+
+  build-node-admin:
+    name: 建置並推送映像檔（tcrfc-admin-web）
+    needs: changes
+    if: needs.changes.outputs.admin == 'true'
+    uses: ./.github/workflows/_node-app-deploy.yml
+    with:
+      app_dir: apps/admin
+      image_name: tcrfc-admin-web
+    secrets: inherit
+
+  build-node-admin-charity:
+    name: 建置並推送映像檔（tcrfc-admin-charity）
+    needs: changes
+    if: needs.changes.outputs.admin_charity == 'true'
+    uses: ./.github/workflows/_node-app-deploy.yml
+    with:
+      app_dir: apps/admin-charity
+      image_name: tcrfc-admin-charity
+    secrets: inherit
+
+  # ── build ＋ push：api（.NET）─────────────────────────────────────────────
+  # 🔴 這裡刻意不重跑 dotnet test（ci.yml 的 api job 已經跑過，見該檔說明「不重跑」的理由）。
+  build-api:
+    name: 建置並推送映像檔（tcrfc-api）
+    needs: changes
+    if: needs.changes.outputs.api == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: docker build ＋ push
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/tcrfc-api:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/tcrfc-api:master
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+  # ════════════════════════════════════════════════════════════════════════
+  # 🔴🔴🔴 CD 段：部署到正式 VM——待 S0-6 正式 VM 就緒後補，本 job 目前 `if: false` 停用 🔴🔴🔴
+  # ════════════════════════════════════════════════════════════════════════
+  #
+  # 下面是 docs/20-cicd.md §4／§6 設計的部署骨架，先把步驟的「形狀」寫下來，方便 VM 就緒後
+  # 直接把 if: false 拿掉、把佔位的 secrets／路徑填實。**目前不會被執行**（needs 的兩個 build
+  # job 就算成功，這個 job 也因為 if: false 直接被跳過，不會嘗試連線任何不存在的 self-hosted
+  # runner）。
+  #
+  # 就緒後要做的事（見 docs/20-cicd.md §9「開通 Azure 後要補的設定清單」）：
+  #   1. 拿掉 `if: false`
+  #   2. `runs-on: [self-hosted, tcrfc-vm]`（目前註解掉，避免 actionlint／GitHub 在 if:false
+  #      仍會嘗試排程 runner 而卡住——實際测試後確認 if:false 的 job 完全不會嘗試取得 runner，
+  #      這裡仍先註解是雙重保險，防止有人手滑只刪 if:false 沒注意 runs-on）
+  #   3. 加回 `environment: production`（Deployment branches：僅 master，docs/20 §4 防護 2）
+  #   4. 健康檢查、失敗自動回滾、清 Cloudflare 快取三段的實際指令（docs/20-cicd.md §4／§6）
+  #   5. 通知（webhook，管道待使用者選，docs/20-cicd.md §8「本檔不決定的事」）
+  #
+  # deploy:
+  #   name: 部署到正式 VM
+  #   needs: [changes, build-node-web, build-node-web-charity, build-node-admin, build-node-admin-charity, build-api]
+  #   if: false # 🔴 待 S0-6 完成後拿掉
+  #   # runs-on: [self-hosted, tcrfc-vm]
+  #   runs-on: ubuntu-latest # 佔位，if:false 不會真的排程
+  #   environment: production
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #     - name: docker compose pull ＋ up -d（VM 本機執行）
+  #       run: |
+  #         cd /opt/tcrfc # 或 runner 的 checkout 路徑，待確認實際部署目錄配置
+  #         IMAGE_TAG=${{ github.sha }} docker compose pull
+  #         IMAGE_TAG=${{ github.sha }} docker compose up -d
+  #     - name: 健康檢查（/healthz、/readyz，逐一 retry）
+  #       run: echo "待補：對每個換了的容器打健康檢查端點，失敗 retry，見 docs/20-cicd.md §6"
+  #     - name: 失敗自動回滾
+  #       if: failure()
+  #       run: echo "待補：讀 /opt/tcrfc/deploy-state.env 上一個成功 SHA，改回該 tag 重跑 up -d"
+  #     - name: 記錄本次成功部署的 SHA
+  #       run: echo "待補：寫入 /opt/tcrfc/deploy-state.env"
+  #     - name: 清 Cloudflare 快取（依哪個映像檔換了決定清哪個 zone）
+  #       env:
+  #         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  #       run: echo "待補：見 docs/20-cicd.md §4「部署後：清 Cloudflare 快取」"

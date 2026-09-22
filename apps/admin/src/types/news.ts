@@ -42,8 +42,10 @@ export interface NewsArticle {
   /** 網址名稱（畫面翻譯自 API 的 slug，見 docs/06 §1） */
   urlName: string
   category: NewsCategory
+  /** 目前恆為 null（見 api/adminNews.ts 的 detailDtoToArticle 說明），保留欄位給日後補上
+   * 「用 coverKey 換可顯示網址」的機制時使用，ImageUploader.vue 的 existingPreviewUrl 已經接好。 */
   coverImageUrl: string | null
-  /** 對應 API 的 coverKey，本輪不做上傳管線，先原樣存這個字串（見 apps/api/README.md） */
+  /** 對應 API 的 coverKey，圖片上傳共用元件（S0-8）的物件鍵，見 apps/api/README.md */
   coverKey: string | null
   /** 置頂精選（規劃書§3.7、docs/03-admin-spec.md「置頂精選（限 3）」），逐俱樂部最多 3 篇 */
   isFeatured: boolean

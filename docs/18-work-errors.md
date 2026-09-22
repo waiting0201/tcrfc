@@ -59,7 +59,7 @@
 | E-13 | 2026-09-21 | **建了一個叫 `docker-compose.staging.yml` 的 override，與同一批文件裡「不建 staging 環境」直接牴觸**——功能沒錯，但檔名憑空多造出第三套環境的印象 | ✅ 已刪檔，改為 `.env` 的 `CADDYFILE`；環境數量寫進 [`14-invariants.md`](14-invariants.md) |
 | E-16 | 2026-09-21 | Vue SFC 註解裡寫出完整的 `script`／`style`／`template` 字面標籤，`build` 直接壞（誤判成 async setup 衝突，繞了一圈才找到真因） | ⚠️ 無（留給 S0-9 補 lint 檢查） |
 | E-17 | 2026-09-21 | `@nuxtjs/seo` 的 `nuxt-seo-utils` 子模組蓋掉元件層 `useHead` 設的 `<html lang>`，`tagPriority: 'high'` 也蓋不掉 | ✅ 改用 `nuxt.config.ts` 的 `app.head.htmlAttrs.lang` |
-| E-18 | 2026-09-21 | `@nuxtjs/sitemap` 的 runtime 動態來源在「一份 build、runtime 才決定 club」的架構下沒被偵測到，`/sitemap.xml` 永遠空 | ⚠️ **尚未解決**，資料端點本身（`/api/__sitemap__/urls`）已驗證正確 |
+| E-18 | 2026-09-21<br>2026-09-22 | `@nuxtjs/sitemap` 的 runtime 動態來源在「一份 build、runtime 才決定 club」的架構下沒被偵測到，`/sitemap.xml` 永遠空；2026-09-22 查出**真正根因不是動態來源偵測**，是模組把命中全站 `noindex` route rule 的網址整批排除 | ✅ 已改自組 XML（`server/routes/sitemap.xml.ts`），繞過該模組的內建路由 |
 | E-19 | 2026-09-21 | `apps/api/Tcrfc.Api.csproj` 加了 `<InvariantGlobalization>true</InvariantGlobalization>`，`Microsoft.Data.SqlClient` 一開連線就丟 `System.NotSupportedException: Globalization Invariant Mode is not supported` | ✅ 已移除該屬性，並在 csproj 留註解說明原因 |
 | E-20 | 2026-09-21 | Dapper 用建構子具現化 `record` DTO 時，`DateOnly`／`DateOnly?` 屬性對到 SQL `date` 欄位一律丟 `InvalidOperationException`（要求 `DateTime` 簽章）；`ArticlesRepository` 另有一張 i18n 查詢的 SELECT 欄位數與 `record` 建構子參數數對不上，同一種例外 | ✅ 兩處已修（`PlayerRow`／`MatchRow` 改用 `DateTime`、Map() 再轉 `DateOnly`；`ArticlesRepository` 統一欄位組），⚠️ 無自動檢查，日後新增 record 對應 SQL 查詢仍要人工核對型別與欄位數 |
 | E-21 | 2026-09-21 | 兩個 agent 各自判定「必然差異」以外的新差異（style 分號、v-model 顯式屬性）無害就自行放行，違反 `docs/14` 明文「發現無法歸類的差異要停下來問，不得自行放行」 | ✅ 六類差異已寫進 `site/tools/compare-dom.mjs` 正規化規則，工具報出的即是真差異，不留判斷空間 |
@@ -75,6 +75,7 @@
 | E-31 | 2026-09-21 | 宣稱「對比度全部用公式實測過」，27 組裡 2 組沒驗到／驗錯（含反例數字、漏驗 overlay 層） | ✅ [`apps/admin/scripts/check-contrast.mjs`](../apps/admin/scripts/check-contrast.mjs)，已掛進 `npm run lint` |
 | E-32 | 2026-09-21 | 用 CDP 驗證深色 mockup 三斷點時，`/json/new` 在本機 Chrome 153 上只收 PUT，沿用舊版 GET 寫法直接 JSON parse 失敗 | ⚠️ 無 |
 | E-33 | 2026-09-21 | Element Plus 沒設語系，分頁器印出 `Total 8`／`20/page` 等英文——違反 §4.0，但禁用詞掃描只看 `.vue` 的 `<template>`，掃不到元件庫自帶文案 | ✅ `check-forbidden-terms.mjs` 加驗 `main.ts` 有設 `locale` |
+| E-38 | 2026-09-22 | `BlobImageStorageService` 的「容器已確保存在」旗標在呼叫 `CreateIfNotExistsAsync` **之前**就設成完成，第一次呼叫因故失敗後，旗標仍卡在「已完成」，之後每次呼叫都跳過建立、直接對不存在的容器寫入，得到的錯誤變成「容器不存在」蓋掉了真正的根因 | ✅ 改用 `SemaphoreSlim` 包住整段，`CreateIfNotExistsAsync` 成功後才設旗標 |
 
 ---
 
@@ -382,10 +383,48 @@
   sitemap.xml 產生功能，要先查 `nuxt-seo` 官方文件的 zero-runtime／dynamic sources 章節
   確認求值時機，或乾脆放棄用模組產生 `/sitemap.xml`，改寫一支 Nitro server route 直接組
   XML（來源仍是同一個 `getEnabledSiteUnits(club)`，不必依賴模組猜對）。
-- **防呆**：⚠️ 無，本項尚未解決。**單元開關呼叫點 3（sitemap）目前只有
-  `server/api/__sitemap__/urls.ts` 這個資料端點本身正確**（已用 curl 驗證 tcrfc／bw 兩邊
-  過濾結果正確），`/sitemap.xml` 的最終輸出還是空的。留給 S0-9 完整搬遷、真的需要
-  sitemap.xml 生效時處理，處理前 `/sitemap.xml` 不得被視為已完成。
+- **防呆**：✅ 見下方「2026-09-22 二次追查」——已解決，不再是本項的懸案。
+
+#### 2026-09-22 二次追查：真正根因與修法（S0-9 收尾，非本項首次記錄者所猜的原因）
+
+- **原記錄的推測是錯的**：上面寫的「建置階段就求值過一次、空結果被寫進 `.output` 快取」
+  只是猜測，**從未實際追查 `@nuxtjs/sitemap` 的原始碼**。這次逐行讀
+  `node_modules/@nuxtjs/sitemap/dist/runtime/server/sitemap/nitro.js` 的
+  `buildSitemapRenderPlan()` 才找到真正原因：它會對每一筆候選網址呼叫
+  `getPathRobotConfig(event, { path, skipSiteIndexable: true })`，**並額外檢查該路徑
+  命中的 Nitro route rule 有沒有帶 `X-Robots-Tag` 含 `noindex` 的 `headers`**——
+  有的話直接 `continue`（整筆排除），且原始碼裡**沒有任何設定能讓這筆網址被強制留下**
+  （`routeRules.sitemap` 只能用來排除，不能用來強制保留）。本站 `nuxt.config.ts` 對
+  `/**` 全站蓋一條 `X-Robots-Tag: noindex, nofollow`（CLAUDE.md 第 5 條，上線前必要），
+  這條規則命中**每一筆**候選網址，所以 `urlset` 恆為空——不是快取或求值順序問題，
+  是「這個模組的 robots 感知排除機制」與「全站 noindex 上線前」兩個各自合理的前提
+  正面衝突，且衝突無法透過設定調解。
+- **怎麼查證的**：先用 `dotnet run` 起 `apps/api`（讀本機 `sqlserver` 容器），
+  再 `npm run build` ＋ `node .output/server/index.mjs` 起兩個 club 的 process，
+  分別 curl `/sitemap.xml`（皆為空 `<urlset></urlset>`）與
+  `/api/__sitemap__/urls`（資料正確），確認落差確實發生在「資料到 XML 輸出」這一段；
+  再用 `npm run dev` 開 dev-mode（`import.meta.dev` 分支會印警告、且有 `/__sitemap__/debug`
+  可用）交叉核對，兩種模式結果一致，排除「只在 prod 建置才發生」的可能；
+  最後靜態讀模組原始碼找到 `hasRobotsDisabled` 那段判斷式，對照 `nuxt.config.ts`
+  `routeRules['/**'].headers` 的內容，確認命中條件完全吻合。
+  ⚠️ **沒有為了驗證而真的移除過 noindex 設定**——沙盒的自動分類器擋下了一次
+  意圖「暫時移除 noindex 標頭做 A/B 對照」的指令，這個防呆是對的（CLAUDE.md 第 5 條），
+  之後改用讀原始碼＋交叉核對兩種模式的方式驗證，不需要真的關掉 noindex。
+- **修法**：`nuxt.config.ts` 加 `sitemap: { enabled: false }`（模組本身支援的乾淨關閉開關，
+  `setup()` 開頭就 `return`，不掛任何路由／鉤子／prerender，與既有的 `ogImage: false`
+  是同一種模式）；新增 `server/routes/sitemap.xml.ts` 自己組 XML 接手最終輸出，
+  資料來源抽成 `server/utils/sitemap-urls.ts`（`server/api/__sitemap__/urls.ts` 改呼叫
+  同一支函式，保留作為可獨立 curl 驗證的資料端點，不再是 `@nuxtjs/sitemap` 的自動探索來源）。
+  自組路由一樣吃得到 `/**` 的 `X-Robots-Tag` 標頭（Nitro 的 routeRules 標頭依路徑疊加，
+  不看是哪個 handler 回應），noindex 沒有被繞過。
+- **實測結果（2026-09-22）**：tcrfc 站 93 筆（10 單元＋83 篇新聞）、bw 站 8 筆（單元，
+  正確排除 `06`／`11`，0 篇新聞不報錯）；兩站 `/sitemap.xml` 皆送出
+  `X-Robots-Tag: noindex, nofollow`；`/robots.txt` 與首頁功能不受影響；
+  兩份 XML 皆通過 `xml.dom.minidom` 良構性檢查。
+- **下次怎麼避免同類問題**：**任何「全站 noindex」與「SEO／sitemap 相關模組的自動化功能」
+  同時存在時，先假設兩者會互相排斥，去讀該模組原始碼確認它怎麼處理 noindex 的路徑**，
+  不要等模組輸出空結果才去猜原因；也不要停在第一個看起來合理的解釋（本項第一次就是
+  這樣被誤判成快取問題，擱置了一天）。
 
 ### E-19 `apps/api` 開了 `InvariantGlobalization`，`Microsoft.Data.SqlClient` 連線直接炸（2026-09-21，S0-10 API 骨架）
 
@@ -802,6 +841,98 @@ E-01／E-02／E-06／E-07／E-08／E-09／E-10／E-11／E-22／E-23／E-24／E-2
 
 ---
 
+#### 🔴 `E-34` 升級（2026-09-22，同日第二次盤點）：根因不只在 `lint`，在**二手轉述取代回查來源**
+
+**依 `CLAUDE.md` 全域規定 13，不新增 `E-39`**——同一類錯犯第二次要的是機制不是記錄。
+原始 `E-34` 的第二層根因寫的是「**轉述取代了查證**」。**同一天之內，同一個根因又出現三次，
+而且全部不在 `lint` 輸出裡，是在我們自己的文件裡**：
+
+| # | 轉述說的 | 回查原始來源後的事實 |
+|---|---|---|
+| 1 | `STATUS.md` 說種子資料 `articles.cover_key` 全 `NULL` 是「缺口」，並引用 `docs/12d` §9 當依據 | **`docs/12d` §9 的結論相反**：明寫「✅ 不算缺，是已知的 pipeline 落差」。`generate-club-seed-sql.py` 第 472 行的註解也寫明是刻意的 |
+| 2 | `docs/12c` §5 列了「7 項待裁決」，`STATUS.md` 據此把 `S0-3b`／`S0-3c` 鎖在 🔄 | **其中 6 項早已被 `S0-6a` 的 DDL 與 `S0-6c/d` 的種子資料做掉**，`clubs_i18n`／`competitions_i18n`／`impact_records_i18n` 三張側表都在 `db/club-schema.sql` 裡。§5 是**拍板前的舊稿，拍板後沒回頭改** |
+| 3 | `compare-dom.mjs` 多噴 10 頁差異，交接說明寫「抽查**像是** `S0-9f` 的自然後果」 | **是，但沒有人登記**。基準 `site/dist` 的新聞卡片仍是 mockup 寫死的 `../zh/news/article/`，`S0-9f` 刻意改成逐篇 slug 卻沒把受影響頁面登記成已批准差異 |
+
+- **根因（擴大後）**：**一份文件記下的結論，會在它的來源被改掉之後繼續被當成事實引用。**
+  `E-34` 原本把這個現象綁在「`lint` 長期紅燈」這個特定載體上，於是防呆也只做在 `lint`——
+  但載體從來不是重點。**只要一個結論被抄進第二個地方，它就開始獨立於來源老化**，
+  而老化不會發出任何信號：`STATUS.md` 不會因為 `docs/12d` 改了就變紅，
+  `docs/12c` §5 不會因為 DDL 建好了就自己劃掉。
+  ⚠️ 更糟的是**這三次都不是「誰寫錯了」**——每一份文件在**寫下的當下都是對的**。
+  錯的是我們沒有承認「轉述會過期」這件事，因此沒有任何一步去讓過期浮出來。
+- **為什麼 `E-34` 原本的防呆擋不住**：它的三條全部針對 `lint`（不准長期紅燈／說成誤判前要驗證／新增檢查要驗離開碼）。
+  第 2 條「**把既有結論說成 X 之前要先驗證**」才是可遷移的那一條，**但它被寫成 `lint` 專用**。
+  這正是 `E-31` 的失效模式重演：**局部套用的機制會給出全面的信心。**
+- **升級後的要求（適用全專案，不限 `lint`）**：
+  1. 🔴 **狀態類敘述在被當成行動依據之前，一律回查原始來源。**
+     「狀態類敘述」指 `STATUS.md` 的工作列與備註、`docs/` 裡的待辦／缺口／待裁決段落、
+     交接說明裡的「已知問題」——**這些是轉述，不是來源**。規格的來源是規劃書，
+     資料表的來源是 `db/*.sql`，程式行為的來源是程式碼。
+  2. 🔴 **轉述與來源衝突時，以來源為準，並在同一次交付內修掉轉述。**
+     發現矛盾不是「順手記一筆」，是**當場把過期的那一份改掉**——
+     留著它，下一個人會再調查一次同樣的事。
+  3. 🔴 **刻意偏離既有基準的交付，當下就要處理基準，不能留給下一輪去歸因。**
+     `S0-9f` 這種「我們刻意修掉 mockup 的簡化」的改動，必須在同一次交付裡讓
+     `compare-dom.mjs` 回到零差異——**做法是同步更新基準 `site/src` 並重新 build，
+     不是把差異登記成例外**。⛔ `compare-dom.mjs` 檔頭第 11–16 行是使用者 2026-09-21
+     拍板的封閉清單原則：**不提供 `--ignore`／`--allow`／`--tolerate` 旁路，永遠不會有**。
+     ⚠️ **本次待處理**：那 10 頁目前仍是紅的，處置方式待使用者裁決（見 `STATUS.md`）。
+  4. **寫進 [`docs/14-invariants.md`](14-invariants.md)**，因為這已經是「改錯會出事」的層級，
+     不再只是「做錯過的事」。
+- **下次再犯就不是補防呆的問題了**：若同一個根因出現第三類載體，代表要改的是
+  **文件結構本身**（例如禁止在 `STATUS.md` 寫結論、只准寫連結指向來源），不是再加一條紀律。
+
+> 🔴 **寫這段升級的當下就犯了同一條（2026-09-22）**：上面第 3 點的初稿寫成
+> 「已在 `compare-dom.mjs` 實作為 `approved-diffs` 清單」——**那個實作不存在，而且方向與
+> `compare-dom.mjs` 檔頭第 11–16 行使用者已拍板的「封閉清單、永不提供旁路」原則正面衝突**。
+> 成因與上表三例完全相同：**在沒有回查來源（這裡是腳本本身）的情況下，寫下一個聽起來合理的結論。**
+> 已當場改掉。留著這段是因為它是這條紀律最好的證據——**寫紀律的人在寫的當下就違反了它**，
+> 足見「回查來源」不是態度問題而是流程問題，必須靠機制不是靠自覺。
+
+> ✅ **同一天，這條紀律第一次擋下東西（2026-09-22）**：派工指示裡寫「拿掉 `docs/12` 的 `Form` 🌐 標記」，
+> 依據是分析報告轉述的「DDL 選了不建 `forms_i18n`」。接手的 `system-analyst` **沒有照做，先去查 `db/club-schema.sql`**——
+> `forms_i18n` **真的存在**（有 `auto_reply_body` 一欄），拿掉 🌐 會變成謊報 DDL 現況。
+> 它改為保留 🌐 並加註範圍（僅指自動回覆信文案，表單顯示名稱依拍板維持寫死），並在回報裡明說自己偏離了指示。
+> **這正是這條紀律要的行為**：上游的指示也是一種轉述，一樣會過期、一樣要回查。
+> ⚠️ 附帶的教訓給派工的人：**指示裡不要替執行者寫死「應該看到什麼」**，
+> 寫「核對後決定」比寫「拿掉它」更不容易把自己的錯誤前提傳染下去。
+
+> 🔴 **第四個載體（2026-09-22，`S0-8` 圖片上傳共用元件）**：`backend-engineer` 交付 `S0-8` 後端時，
+> 在報告的「沒做的部分與原因」明確標示了一段「**架構判斷（非規劃書明文，需要確認）**」——選擇
+> 「先呼叫上傳端點拿 key、前端再把 key 塞進原本純 JSON 的建立／更新請求」兩段式做法，而不是把
+> `AdminNews` 既有端點改成 multipart 單一請求，並具體寫明「若判斷結果是『一定要單一 multipart
+> 請求』……應該另外排工」。**這個標示本身完全正確**——它就是「回查來源前先誠實承認沒查」的示範。
+> **錯的是下一步**：派工的人把這段「待確認」原封當成既定契約往下傳給 `frontend-architect`，
+> 沒有先回查規劃書第 53 行／第 972 行「選檔不上傳、儲存才上傳……離開或取消表單不留下任何檔案」，
+> 前端因此依照這個未經查證的契約做成「選檔即上傳」，最終構成一筆**規格違反**（不是實作瑕疵）。
+> 跟前三個載體同一個根因：**一份帶著「待確認」標記的敘述，被當成行動依據往下傳時沒有回查來源**——
+> 差別只在來源不是別份文件（`docs/12d`／`docs/12c`／基準截圖），是規劃書本身。
+> ⚠️ **給派工的人的教訓跟上一個附帶教訓同方向但更進一步**：下游明確標示「需要確認」時，
+> **那正是回查來源的觸發點**，不是可以跳過的免責聲明——標記的目的是讓下一個讀到它的人回查，
+> 不是讓風險原封轉嫁給更下游。**修正**：後端已改成單一 `multipart/form-data` 請求（`Features/AdminNews`
+> 建立／更新端點），整支移除 `Features/Uploads` 的獨立上傳端點，並新增自動化測試釘住「上傳成功
+> 但資料列寫入失敗時回滾、不留孤兒物件」，見 [`apps/api/README.md`](../apps/api/README.md)
+> 「圖片上傳共用元件」整節。
+
+---
+
+> 🟢 **同一天第五次，這次踩在「防護根本沒跑」那一支上（2026-09-22，`S0-8` 收尾複驗）**：
+> 為了複驗 `backend-engineer` 報的「99/99 全綠」，在 **`apps/api/` 目錄**下跑 `dotnet test`——
+> **離開碼 0、輸出只有 `Determining projects to restore...`、一個測試都沒有執行。**
+> 根因：`Tcrfc.Api.csproj` 明確 `<Compile Remove>` 排除了測試子專案（`S0-7d` 的刻意設計，為了讓
+> `docker build` 不受影響），所以在那一層跑 `dotnet test` 找到的是**主專案**，沒有測試可跑，
+> 於是**回報成功**。⚠️ **這比紅燈危險得多**：紅燈至少會叫人去看，
+> 「綠燈 ＋ 零測試」給的是完整的信心而背後什麼都沒驗。
+> 正確跑法是**指向測試專案**：`dotnet test apps/api/Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj`，
+> 並且**要設 `CLUB_SQL_CONNECTION_STRING`**（設對之後實測 **99/99、Duration 29s**，數字屬實）。
+> ✅ **CI 沒有踩到**（`ci.yml` 第 201 行本來就指向 `.csproj`，已核對），這是**人工複驗**才會踩的坑。
+> 🔴 **可改的行為**：驗測試結果時，**離開碼 0 不算通過，要看到通過筆數**。
+> 「`Passed! - Failed: 0, Passed: 99`」才是通過，`exit 0` 不是。
+> 這條跟 `E-34` 原文第 3 點（新增檢查後要驗離開碼）是**一體兩面**——
+> 離開碼能抓到「跑了但失敗」，抓不到「根本沒跑」，**兩者都要看**。
+
+---
+
 ### E-35 前端專案的驗收只跑 `npm run build`，`docker build` 到交付後才發現是壞的（2026-09-22，慈善捐款前台）
 
 - **錯在哪**：慈善前台 `apps/web-charity/` 交付時 `npm run build`、`npm run lint`、逐頁 `curl`、
@@ -944,3 +1075,39 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 > ⚠️ 與 `E-31`／`E-34`／`E-35`／`E-36` 同屬一族：**防護的實際效力與它給人的信心不相稱。**
 > 這一筆特別的地方在於它**不是覆蓋範圍不足，是量錯了東西**——
 > 檢查本身跑得好好的，只是它保證的性質不是我們以為的那個。
+
+### E-38 「只做一次」的完成旗標在動作失敗時也被設成完成，真正的錯誤被下一次呼叫的誤導性錯誤蓋掉（2026-09-22，S0-8 圖片上傳共用元件）
+
+- **錯在哪**：`apps/api/Images/BlobImageStorageService.cs` 的 `EnsureContainerAsync`（容器不存在時
+  自動建立一次，避免每次上傳都打一次「容器是否存在」的 API）原本這樣寫：
+
+  ```csharp
+  private async Task EnsureContainerAsync(CancellationToken cancellationToken)
+  {
+      if (Interlocked.CompareExchange(ref _containerEnsured, 1, 0) == 0)
+      {
+          await container.CreateIfNotExistsAsync(PublicAccessType.None, cancellationToken: cancellationToken);
+      }
+  }
+  ```
+
+  `Interlocked.CompareExchange` 在呼叫 `CreateIfNotExistsAsync` **之前**就把旗標設成「已確保」。
+  本機對 Azurite 實測時，第一次上傳因為 `Azure.Storage.Blobs` SDK 版本比 Azurite 認得的 API 版本新
+  而失敗（`400 The API version ... is not supported by Azurite`，見
+  [`apps/api/README.md`](../apps/api/README.md)「本機開發：Azurite」），但旗標**已經被設成已完成**。
+  第二次呼叫因此完全跳過容器建立、直接對一個從未真正建立成功的容器寫入，得到的錯誤變成
+  `404 The specified container does not exist`——**跟一開始那個真正的 API 版本不相容問題完全無關**，
+  排查時完全被誤導，多花時間才想到要去查旗標邏輯本身，而不是繼續在 Azurite 版本相容性上打轉。
+- **為什麼會錯（根因）**：**把「這個動作只做一次」的旗標，設在「動作真正成功」之前，而不是之後。**
+  這種寫法在動作**一定會成功**（或失敗了也無所謂）時沒有問題，但只要動作可能失敗、而失敗後
+  還想要「下次重試」，旗標就必須綁定在「成功」這個結果上，不能綁在「呼叫過」這件事上。
+  `Interlocked.CompareExchange` 本身沒有錯，錯的是拿它保護一段**中間會 `await` 且可能失敗**的動作——
+  它只能安全地保護「同步、不會失敗」或「失敗了也不影響正確性」的一次性初始化。
+- **下次怎麼避免**：寫任何「只做一次」的快取／初始化旗標時，先問一句：**這個動作可能失敗嗎？
+  失敗之後我希望下次呼叫重試，還是永遠放棄？** 只要答案是「希望重試」，旗標就必須在動作的
+  `await` 完成、確認成功之後才設定，中間要嘛用 `SemaphoreSlim`（本次的修法）包住整段等待其他
+  呼叫端排隊，要嘛接受多個呼叫端同時各自嘗試一次（如果動作本身是 idempotent，像
+  `CreateIfNotExistsAsync` 這種情況）。
+- **防呆**：⚠️ 無自動化檢查（這類「旗標設定時機」的邏輯錯誤很難用靜態分析攔截）。已修正為
+  `SemaphoreSlim` 包住整段、旗標在 `CreateIfNotExistsAsync` 成功之後才設定，並在程式碼註解裡
+  寫明這個修法要解決的問題形狀，供下一個寫類似旗標的人對照。

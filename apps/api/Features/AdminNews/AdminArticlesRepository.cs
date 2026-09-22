@@ -3,6 +3,7 @@ using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -17,7 +18,7 @@ namespace Tcrfc.Api.Features.AdminNews;
 /// ⚠️ 寫入一律走 EF Core（<see cref="ClubDbContext"/>），唯讀查詢仍是 Dapper 的
 /// <see cref="Features.News.ArticlesRepository"/>——兩者刻意分開，不是這份檔案要取代那份。
 /// </summary>
-public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache cache)
+public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage)
 {
     /// <summary>公開讀取 API 用的 entity 名稱，寫入成功後要讓這兩個快取失效（docs/17 §4「write-invalidate」）。</summary>
     private const string PublicListEntity = "articles";
@@ -120,8 +121,16 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
     // ───────────────────────────── 寫入 ─────────────────────────────
 
+    /// <summary>
+    /// 🔴🔴🔴 S0-8 修正：<paramref name="articleId"/> 由呼叫端（<see cref="AdminArticlesEndpoints"/>）
+    /// 先產生，不是這裡臨時決定——因為單一請求契約下，封面圖片要在寫入資料列**之前**就先上傳
+    /// 成功（規劃書 §4.0「寫入成功才更新資料列」的另一半：blob 要先寫、資料列後寫），
+    /// 物件鍵路徑需要知道「這張圖屬於哪一筆將要建立的資料列」，id 因此必須提前決定。
+    /// <paramref name="coverKey"/> 是呼叫端已經上傳成功的物件鍵（沒有夾檔案時為 <c>null</c>）——
+    /// 這個方法本身完全不碰物件儲存，只負責把已知結果寫進資料列，職責跟舊版一致。
+    /// </summary>
     public async Task<AdminArticleDetailDto> CreateAsync(
-        ClubScope scope, CreateArticleRequest request, Guid? operatorId, CancellationToken cancellationToken)
+        ClubScope scope, Guid articleId, CreateArticleRequest request, string? coverKey, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
         SlugPolicy.Validate(request.Slug);
@@ -141,13 +150,13 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         var now = DateTime.UtcNow;
         var article = new Article
         {
-            Id = Guid.NewGuid(),
+            Id = articleId,
             ClubId = scope.ClubId, // 🔴 後台建立的文章一律歸屬呼叫端當下的俱樂部，不能建立共用（club_id NULL）
                                     // 內容——docs/14-invariants.md「共同內容...只有超管能建立」，
                                     // 目前沒有超管角色可以繞過，這裡直接不給這條路。
             Slug = request.Slug,
             ArticleCategoryId = category.Id,
-            CoverKey = request.CoverKey,
+            CoverKey = coverKey,
             IsFeatured = request.IsFeatured,
             Status = "draft", // 🔴 一律從草稿開始，狀態轉換是獨立端點（Publish／Schedule），不接受這裡帶入
             PublishedAt = null,
@@ -170,8 +179,15 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         return (await GetByIdAsync(scope, article.Id, cancellationToken))!;
     }
 
+    /// <summary>
+    /// 🔴🔴🔴 S0-8 修正：<paramref name="coverUpdate"/> 取代舊版直接讀 <c>request.CoverKey</c>——
+    /// 呼叫端（<see cref="AdminArticlesEndpoints"/>）已經把「這次請求要不要上傳新圖片／要不要清空」
+    /// 解成明確的三態（見 <see cref="CoverKeyUpdate"/>），這裡只負責套用，不重新判斷語意，
+    /// 也完全不碰物件儲存的上傳——**新圖片在呼叫這個方法之前就已經上傳成功**（規劃書 §4.0
+    /// 「寫入 blob 成功才更新資料列」）。
+    /// </summary>
     public async Task<AdminArticleDetailDto?> UpdateAsync(
-        ClubScope scope, Guid id, UpdateArticleRequest request, Guid? operatorId, CancellationToken cancellationToken)
+        ClubScope scope, Guid id, UpdateArticleRequest request, CoverKeyUpdate coverUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
         SlugPolicy.Validate(request.Slug);
@@ -197,9 +213,17 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
         ApplyConcurrencyToken(article, request.ExpectedUpdatedAt);
 
+        // 🔴 換圖成功才刪舊物件（規劃書 §4.0）：這裡先記住「換之前」的鍵，等 DB 寫入真的成功
+        // 之後才刪除——刪除順序不能提前，否則若後續的並行檢查／SaveChanges 失敗，舊圖已經被
+        // 刪掉但資料庫其實還指著它，會變成資料列引用一個不存在的物件鍵。
+        var previousCoverKey = article.CoverKey;
+        // CoverKeyUpdate.Keep 時直接沿用目前的值——effectiveCoverKey 會跟 previousCoverKey 相等，
+        // 下面「換了才刪舊物件」的比較自然不會觸發刪除，不需要另外寫一條「沒變就跳過」的分支。
+        var effectiveCoverKey = coverUpdate.Change ? coverUpdate.NewKey : article.CoverKey;
+
         article.Slug = request.Slug;
         article.ArticleCategoryId = category.Id;
-        article.CoverKey = request.CoverKey;
+        article.CoverKey = effectiveCoverKey;
         article.IsFeatured = request.IsFeatured;
         article.UpdatedAt = DateTime.UtcNow;
         article.UpdatedBy = operatorId;
@@ -218,6 +242,13 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
         await SaveWithConcurrencyHandlingAsync(cancellationToken);
         await InvalidatePublicCacheAsync(scope, cancellationToken);
+
+        if (!string.Equals(previousCoverKey, effectiveCoverKey, StringComparison.Ordinal))
+        {
+            // fail-open：IImageStorageService.DeleteAsync 內部自己吞例外並記警告日誌，
+            // 這裡不需要（也不應該）用 try/catch 再包一層讓一個非關鍵的清理步驟影響回應。
+            await imageStorage.DeleteAsync(previousCoverKey, cancellationToken);
+        }
 
         return await GetByIdAsync(scope, id, cancellationToken);
     }
@@ -294,10 +325,14 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         }
 
         ApplyConcurrencyToken(article, expectedUpdatedAt);
+        var coverKey = article.CoverKey;
         dbContext.Articles.Remove(article);
 
         await SaveWithConcurrencyHandlingAsync(cancellationToken);
         await InvalidatePublicCacheAsync(scope, cancellationToken);
+
+        // 刪除資料列一併刪除其圖片物件（規劃書 §4.0「換圖與刪除」）。
+        await imageStorage.DeleteAsync(coverKey, cancellationToken);
 
         return true;
     }

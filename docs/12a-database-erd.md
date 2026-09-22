@@ -19,9 +19,16 @@
 
 - 實體名用**英文 snake_case 單數**便於閱讀；🔴 **物理表名是 `snake_case` 複數**（`article` → `articles`，見 [`12` §1.2](12-database-schema.md#12-主鍵外鍵與命名慣例)）。中文名回 [§4](12-database-schema.md#4-資料表總覽) 查。
 - ERD 屬性型別**不帶括號**（`string_64`），長度回 §4／§6 查。
-- **i18n 側表一律不入圖**（否則 12 張變 24 張且看不懂），§4 的 🌐 欄才是權威清單。
+- **i18n 側表原則不入圖**（否則 12 張變 24 張且看不懂），§4 的 🌐 欄才是權威清單。**唯三例外**：
+  `club_i18n`（[§5.11](#511-j-系統管理與共通機制)）、`competition_i18n`（[§5.2](#52-c-球隊與賽事)）、
+  `impact_record_i18n`（[§5.9](#59-b6-慈善內容主站)）——這三張因為曾經被誤記為「主表並排欄位」或欄位曾經整個
+  遺失（`docs/12c` §5 第 1–3 點的裁決記錄），破例畫出實際欄位以留下稽核痕跡；**其餘約 40 張仍照原則不入圖**，
+  欄位定義查 [`docs/12c`](12c-i18n-tables.md) §2／§3。
 - 標 `GHOST` 的實體是**其他圖擁有的表**，在此只畫關係不畫欄位。**`club` 的欄位只畫在 [5.11](#511-j-系統管理與共通機制)**。
-- 🔵 **`Club` 與 `Competition` 的名稱與簡介走 `*_i18n` 側表**（2026-09-20 定案），與其餘 37 張一致——`docs/12b` 的翻譯狀態矩陣靠 `LEFT JOIN` 側表計算，留特例就要在查詢層特判。
+- 🔵 **`Club`／`Competition`／`ImpactRecord` 的雙語欄位已走 `*_i18n` 側表定案**（2026-09-20，`club_i18n`／
+  `competition_i18n` 於 S0-6a 建表，`impact_records_i18n` 三欄於 S0-3d 起草、S0-6a 建表），與其餘側表同一套
+  `(<entity>_id, locale)` 形狀一致——`docs/12b` 的翻譯狀態矩陣靠 `LEFT JOIN` 側表計算，不需為這三張另寫特例查詢。
+  三張的實際欄位已畫在各自的圖中（見上一點例外清單），`club`／`competition` 主表已不含 `name_zh`／`name_en`。
 - 🔵 **`club_id` 的必填／可為空是 [§4](12-database-schema.md#4-資料表總覽) 的權威清單**，ERD 只畫欄位存在與否，不畫是否可空。
 - 🔵 **圖片沒有外鍵。** 全系統不設媒體庫（規劃書 §4.0），圖片是**該表自己的欄位組**：
   `<名稱>_key`（物件儲存鍵，`string_500`）＋ `<名稱>_width`／`<名稱>_height` ＋ `<名稱>_alt_zh`／`<名稱>_alt_en`（走 i18n 側表，故不入圖）。
@@ -171,6 +178,7 @@ erDiagram
   club ||--o{ competition : "GHOST 必填"
   club ||--o{ match : "GHOST 必填"
   season ||--o{ competition : ""
+  competition ||--o{ competition_i18n : "zh-Hant 必存, en 可缺"
   competition ||--o{ match : "可為空"
   season ||--o{ match : ""
   season ||--o{ standing : ""
@@ -204,6 +212,12 @@ erDiagram
     enum comp_type
     int sort_order
     enum status
+  }
+  competition_i18n {
+    uuid competition_id FK
+    string_10 locale FK
+    string_64 name
+    string_128 organizer
   }
   team {
     uuid id PK
@@ -328,6 +342,8 @@ erDiagram
 > ⚠️ **`competition`（賽事系列）與 `match.competition` 四值 enum 並存不互相取代**：後者是粗分類，前者是有名字的實際賽事。
 > 賽程卡片顯示 `competition` 名稱，篩選面板的「賽事類型」仍用 enum。
 > ⚠️ `match.opponent` 與 `standing.team_name` 是**自由文字**，不建對手球隊表——賽事全部人工維護、不串外部 API。
+> 🔵 **`competition_i18n`（`name`／`organizer`）已補畫**——`docs/12c` §5 第 1 點的舊稿記錄「兩張 ERD 圖沒有補畫側表」，
+> 已於本次同步（S0-3b／S0-3c）解決，不再是待辦。
 
 ### 5.3 L 行事曆（視圖）
 
@@ -1041,6 +1057,7 @@ erDiagram
   charity_program ||--o{ impact_record : ""
   charity ||--o{ impact_record : ""
   impact_record ||--o{ impact_record_image : "圖集"
+  impact_record ||--o{ impact_record_i18n : "zh-Hant 必存, en 可缺"
   charity_program ||--o{ impact_metric : ""
   charity_program }o..o{ partner : "GHOST"
   charity_program }o..o{ article : "相關報導 GHOST"
@@ -1085,6 +1102,13 @@ erDiagram
     string_500 image_key
     int sort_order
   }
+  impact_record_i18n {
+    uuid impact_record_id FK
+    string_10 locale FK
+    text donation_content
+    string_128 location
+    text brief_description
+  }
   impact_metric {
     uuid id PK
     uuid club_id FK
@@ -1103,6 +1127,9 @@ erDiagram
 > 多圖一律以子表承載、每列一組欄位加 `sort_order`，比照 `product_image`／`proposal_file`。
 > 🔵 **S0-3d 新增 `impact_record_image`**：規劃書行 1025「活動圖片（可多張）」原本無子表承接。`impact_record` 主表既有的
 > `image_key`／`image_width`／`image_height` 暫留作代表圖，比照 `charity_program` 的「封面＋圖集」雙軌模式；此為判斷（規劃書未明講兩者並存），待人工確認是否改為完全由子表取代。
+> ✅ **`impact_record_i18n`（`donation_content`／`location`／`brief_description`）已補畫**——`docs/12c` §5 第 3 點記錄的
+> 「三個文字欄位在整份 ERD 都不存在」已解決，落點就是本側表（`db/club-schema.sql` 已建表）。公益團體名稱不重複儲存於此，
+> 透過 `charity_id` 關聯到 `Charity`／`charity_i18n` 取得。
 
 ### 5.10 慈善捐款平台（不在本檔）
 
@@ -1122,6 +1149,8 @@ erDiagram
   permission ||--o{ role_permission : ""
   admin_user ||--o{ admin_user_club : "資料範圍：對誰做"
   club ||--o{ admin_user_club : ""
+  club ||--o{ club_i18n : "zh-Hant 必存, en 可缺"
+  locale ||--o{ club_i18n : ""
   admin_user ||--o{ admin_user_team : "資料範圍：對哪一隊"
   team ||--o{ admin_user_team : ""
   club ||--o{ setting : ""
@@ -1148,6 +1177,12 @@ erDiagram
     string_10 default_locale
     int sort_order
     enum status
+  }
+  club_i18n {
+    uuid club_id FK
+    string_10 locale FK
+    string_64 name
+    text description
   }
   admin_user {
     uuid id PK
@@ -1280,13 +1315,17 @@ erDiagram
 > 🔴 **`admin_user.primary_club_id` 只是站台切換器的預設值，不是資料範圍。**
 > 🔴 **資料範圍必須在資料存取層強制**，介面隱藏不算數——擋不住直接呼叫端點與匯出。`expires_on` **到期自動失效，不需人工回收**。
 > ⚠️ `club_id` 為空的列（共同內容）對 `scope_mode = own_clubs` 的帳號**一律唯讀**，只有超管能建立與修改。
+> ✅ **`club_i18n`（`name`／`description`）已補畫**——`docs/12c` §5 第 2 點記錄的「`Club.description` 完全遺失」
+> 已解決，`club` 主表不再放 `name_zh`／`name_en`，兩者都在本側表；`db/club-schema.sql` 已建表。
 
 ### 5.12 i18n 機制示例
 
-其餘約 40 張 `*_i18n` 側表**結構形狀相同**（複合主鍵 `(<entity>_id, locale)` ＋ 內容欄位），**不再入圖**。
-🔴 **但「形狀相同」不等於「欄位相同」**——每張側表各自放哪些內容欄位，**目前只有 8 張寫明**
-（`article`／`faq`／`match`／`member_draw`／`membership_benefit`／`partner`／`sponsor`／`setting`）。
-**其餘約 38 張的欄位清單尚未定義，轉 DDL 前必須補**（`STATUS.md` **S0-3b**）。
+其餘約 37 張 `*_i18n` 側表**結構形狀相同**（複合主鍵 `(<entity>_id, locale)` ＋ 內容欄位），仍**不入本檔的圖**
+（`club_i18n`／`competition_i18n`／`impact_record_i18n` 三張除外，已破例畫在 §5.2／§5.9／§5.11，理由見 §5 開頭的例外清單）。
+🔴 **但「形狀相同」不等於「欄位相同」**——每張側表各自放哪些內容欄位，**已在 [`docs/12c`](12c-i18n-tables.md) §2**
+（8 張對照組：`article`／`faq`／`match`／`member_draw`／`membership_benefit`／`partner`／`sponsor`／`setting`）**與 §3**
+（39 張逐一核對，含 `club_i18n`／`competition_i18n`／`impact_record_i18n`）**寫明**——這是 `STATUS.md` **S0-3b 已完成的產出**，
+**不是待辦**；本節只保留 `article_i18n` 作機制示範，不代表其餘各表未定義。
 
 ```mermaid
 erDiagram

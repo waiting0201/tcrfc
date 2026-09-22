@@ -2,7 +2,7 @@
  * `apps/api` 後台新聞端點（`Features/AdminNews`）的型別與呼叫函式，
  * 對照 apps/api/README.md「端點清單」「後台新聞（B2）寫入垂直切片」。
  */
-import { apiRequest } from './http'
+import { apiRequest, apiUploadRequest } from './http'
 import type { NewsArticle, NewsCategory } from '@/types/news'
 import type { ContentStatus } from '@/types/common'
 
@@ -91,24 +91,57 @@ export function getAdminNewsById(club: string, id: string): Promise<AdminArticle
   return apiRequest<AdminArticleDetailDto>(`/api/v1/admin/${club}/news/${id}`)
 }
 
+/**
+ * 🔴🔴🔴 S0-8 修正（2026-09-22，規劃書「選檔不上傳、儲存才上傳」）：**不含封面圖片鍵**——
+ * 封面圖片改成建立／更新時跟這份 payload 一起放進同一個 `multipart/form-data` 請求的 `file`
+ * 欄位，由伺服器端處理上傳並把結果寫進 `coverKey`，呼叫端不會、也不能自己指定物件鍵字串
+ * （見 apps/api/README.md「圖片上傳共用元件」整節的新契約、`AdminArticleDtos.cs` 的
+ * `CreateArticleRequest`／`UpdateArticleRequest`）。
+ */
 export interface SaveArticlePayload {
   slug: string
   categoryCode: string
-  coverKey?: string | null
   isFeatured: boolean
   content: AdminArticleContentInputDto
 }
 
-export function createAdminNews(club: string, payload: SaveArticlePayload): Promise<AdminArticleDetailDto> {
-  return apiRequest<AdminArticleDetailDto>(`/api/v1/admin/${club}/news`, { method: 'POST', body: payload })
+/** PUT 專用：多了並行權杖與封面圖片三態裡「清空」那一態的旗標（`UpdateArticleRequest.RemoveCover`）。
+ * 「換新」與「維持不變」不需要欄位表達——換新看這次請求有沒有夾 `file`，維持不變是兩者都沒有時的
+ * 預設值。`removeCover` 與 `file` 同時出現時後端回 400（請求矛盾），呼叫端不應該讓兩者同時發生。 */
+export interface UpdateArticlePayload extends SaveArticlePayload {
+  expectedUpdatedAt: string
+  removeCover: boolean
+}
+
+/** 組出建立／更新文章共用的 `multipart/form-data`：固定 `payload`（JSON 文字）欄位，`coverFile`
+ * 非 `null` 時才附上 `file` 欄位——這正是「選檔不上傳、儲存才上傳」在請求層級的落地：呼叫這支函式
+ * 之前，圖片只存在瀏覽器記憶體（`ImageUploader.vue` 的本機預覽），沒有任何 HTTP 請求送出過。 */
+function buildArticleFormData(payload: SaveArticlePayload | UpdateArticlePayload, coverFile: File | null): FormData {
+  const form = new FormData()
+  form.append('payload', JSON.stringify(payload))
+  if (coverFile) form.append('file', coverFile)
+  return form
+}
+
+export function createAdminNews(club: string, payload: SaveArticlePayload, coverFile: File | null): Promise<AdminArticleDetailDto> {
+  return apiUploadRequest<AdminArticleDetailDto>(
+    `/api/v1/admin/${club}/news`,
+    buildArticleFormData(payload, coverFile),
+    { method: 'POST' },
+  )
 }
 
 export function updateAdminNews(
   club: string,
   id: string,
-  payload: SaveArticlePayload & { expectedUpdatedAt: string },
+  payload: UpdateArticlePayload,
+  coverFile: File | null,
 ): Promise<AdminArticleDetailDto> {
-  return apiRequest<AdminArticleDetailDto>(`/api/v1/admin/${club}/news/${id}`, { method: 'PUT', body: payload })
+  return apiUploadRequest<AdminArticleDetailDto>(
+    `/api/v1/admin/${club}/news/${id}`,
+    buildArticleFormData(payload, coverFile),
+    { method: 'PUT' },
+  )
 }
 
 export function publishAdminNews(club: string, id: string, expectedUpdatedAt: string): Promise<AdminArticleDetailDto> {
@@ -154,7 +187,11 @@ export function detailDtoToArticle(dto: AdminArticleDetailDto): NewsArticle {
     title: pair.title,
     urlName: dto.slug,
     category: dto.categoryCode as NewsCategory,
-    coverImageUrl: null, // 本輪不做上傳管線，coverKey 不是可直接顯示的網址，見 apps/api/README.md
+    // coverKey 不是可直接顯示的網址（物件儲存容器是私有的，也還沒有任何「用 key 換可顯示網址」
+    // 的端點），這裡先固定給 null；等這條路徑真的補上時，把這行換成真正算出來的網址即可，
+    // ImageUploader.vue 的 existingPreviewUrl 已經接好這個欄位，不需要再改呼叫端。見
+    // apps/admin/README.md「圖片上傳共用元件的前端接線」已知限制。
+    coverImageUrl: null,
     coverKey: dto.coverKey ?? null,
     isFeatured: dto.isFeatured,
     status: dto.status,
@@ -206,7 +243,6 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
   return {
     slug: article.urlName,
     categoryCode: article.category,
-    coverKey: article.coverKey,
     isFeatured: article.isFeatured,
     content: {
       zh: {

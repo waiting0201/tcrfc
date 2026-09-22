@@ -29,6 +29,12 @@ public sealed record AdminArticleContentInput
     public AdminArticleLocaleContent? En { get; init; }
 }
 
+/// <summary>
+/// 🔴🔴🔴 S0-8 修正（規劃書 §4.0／第 53 行「選檔不上傳、儲存才上傳」）：這是 <c>payload</c> 這個
+/// multipart 欄位的 JSON 內容，**不含封面圖片鍵**——封面圖片透過同一次請求的 <c>file</c> 欄位
+/// 一起送出，由 <see cref="AdminArticlesEndpoints"/> 處理上傳並把結果寫進資料列，呼叫端不會、
+/// 也不能自己指定物件鍵字串（見 apps/api/README.md「圖片上傳共用元件」整節的新契約）。
+/// </summary>
 public sealed record CreateArticleRequest
 {
     /// <summary>畫面上叫「網址名稱」（docs/03 §後台設計通則④），對應 <c>articles.slug</c>。</summary>
@@ -37,21 +43,28 @@ public sealed record CreateArticleRequest
     /// <summary>對應 <c>article_categories.code</c>（7.1–7.8 分類代碼），不是分類的 GUID。</summary>
     public required string CategoryCode { get; init; }
 
-    /// <summary>物件儲存鍵，先接欄位，⛔ 本輪不做上傳管線（見 README）。</summary>
-    public string? CoverKey { get; init; }
-
     public bool IsFeatured { get; init; }
 
     public required AdminArticleContentInput Content { get; init; }
 }
 
+/// <summary>
+/// 同上，這是 PUT 請求 <c>payload</c> 欄位的 JSON 內容。封面圖片的三態改變見
+/// <see cref="RemoveCover"/> 與 <see cref="CoverKeyUpdate"/>。
+/// </summary>
 public sealed record UpdateArticleRequest
 {
     public required string Slug { get; init; }
     public required string CategoryCode { get; init; }
-    public string? CoverKey { get; init; }
     public bool IsFeatured { get; init; }
     public required AdminArticleContentInput Content { get; init; }
+
+    /// <summary>
+    /// 勾選「移除封面圖片」。🔴 跟這次請求的 <c>file</c> 欄位互斥——兩個都有視為請求矛盾，
+    /// <see cref="AdminArticlesEndpoints"/> 回 400（<see cref="AdminArticleValidationException"/>）。
+    /// 兩者都沒有＝維持目前的封面圖片不變（<see cref="CoverKeyUpdate.Keep"/>）。
+    /// </summary>
+    public bool RemoveCover { get; init; }
 
     /// <summary>
     /// 樂觀並行控制權杖：呼叫端上次讀到的 <c>updated_at</c>（<see cref="AdminArticleDetailDto.UpdatedAt"/>）。

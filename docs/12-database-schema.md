@@ -392,7 +392,7 @@ flowchart LR
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
 | `Competition` | **●** | **賽事系列**（`code`、名稱、類型、`season_id`）。v3.0 新增，App 的賽事篩選與 12 個月完整賽程靠它 | 🌐 |
-| `Season` | **●** | 賽季（`code` 如 `2026-27`、起訖日）。唯一鍵 `(club_id, code)`——**兩隊球季不同步** | 🌐 |
+| `Season` | **●** | 賽季（`code` 如 `2026-27`、起訖日）。唯一鍵 `(club_id, code)`——**兩隊球季不同步** | |
 | `Team` | **●** | 球隊。**`code` UNIQUE（全站唯一，不得改複合鍵）**，值域 `D1`／**`BW1`**／`U15`／`U14`／`U12`；`type` = `first_team`／`academy`；**`gender`（`men`／`women`／`mixed`）**。`first_team` 為**每俱樂部至多一筆** | 🌐 |
 | `Player` | **●** | 球員：背號、位置、生日、身高體重、國籍、慣用腳、加入日期、狀態 | 🌐 |
 | `PlayerSeasonStat` | — | 逐季數據 `(player_id, season_id)`。**由 `Player` 推導** | |
@@ -403,13 +403,18 @@ flowchart LR
 | `MatchGoal` | — | 進球（球員、時間、類型） | |
 | `MatchCard` | — | 黃紅牌 | |
 | `MatchLineup` | — | 先發與替補名單 | |
-| `Standing` | **●** | 積分榜 `(season_id, team_name, ...)`。**對手隊名是自由文字不是 `Team`** | 🌐 |
-| `Achievement` | **●** | 榮譽（年份、賽事、名次、隊伍） | 🌐 |
+| `Standing` | **●** | 積分榜 `(season_id, team_name, ...)`。**對手隊名是自由文字不是 `Team`** | |
+| `Achievement` | **●** | 榮譽（年份、賽事、名次、隊伍） | |
 | `Milestone` | **●** | 里程碑時間軸 | 🌐 |
 
 > ⚠️ **`Team` 是兩隊各自的隊伍**：磐石 `D1`／`U15`／`U14`／`U12`，藍鯨 `BW1` 與其青年隊。
 > **兩隊都有「一線隊」，所以任何同時呈現兩隊賽事的畫面，每張卡片都必須標球隊。**
 > ⚠️ `Match.opponent`、`Standing` 的對手都是**字串**，不建對手球隊表——賽事全部人工維護。
+> ✅ **`Season`／`Standing`／`Achievement` 不建 `*_i18n` 側表**（2026-09-22 核實）：規劃書與 ERD 全文查無這三張的
+> 任何文字型欄位（`Standing.team_name`、`Achievement.competition_name`／`placing` 已是主表自由文字，非側表候選；
+> `Season` 全文沒有描述任何文字欄位）。此前 🌐 標記過寬，`db/club-schema.sql` 已核實不建 `seasons_i18n`／
+> `standings_i18n`／`achievements_i18n`（各表建表註解同理由）。若日後規劃書真的新增雙語需求（例如球季別名），
+> 才需要先改規劃書再補側表。
 
 ### 4.3 P 課程與活動（6）
 
@@ -418,9 +423,13 @@ flowchart LR
 | `Program` | **●** | 課程／營隊／專項項目：類型、對象、年齡區間、區塊內容 | 🌐 |
 | `ProgramStaff` | — | `(program_id, staff_id)` 教練團 | |
 | `ProgramPartner` | — | `(program_id, partner_id)` 合作單位 | |
-| `Session` | **●** | 梯次／場次：期間、時段、場地、名額、已報名數、價格、報名起訖、狀態。**永不進 `CalendarEvent`** | 🌐 |
+| `Session` | **●** | 梯次／場次：期間、時段、場地、名額、已報名數、價格、報名起訖、狀態。**永不進 `CalendarEvent`** | |
 | `Registration` | **●** | 報名。**`member_id` 可為空**（非會員可報名）；**繳費線下** | 🔒 |
 | `Trial` | **●** | 試訓場次：日期、場地、對象、名額、截止。**同步行事曆由 L3 開關決定，預設關閉** | 🌐 |
+
+> ✅ **`Session` 不建 `*_i18n` 側表**（2026-09-22 核實）：規劃書與 ERD 全文查無任何文字型欄位（全部是日期／數字／
+> 狀態），`db/club-schema.sql` 已核實不建 `sessions_i18n`。此前 🌐 標記過寬。**`Trial` 保留 🌐**——`docs/12c` §4
+> 列有低信心度候選欄位（`audience`），`db/club-schema.sql` 目前選擇不建 `trials_i18n`，仍待確認非本輪裁決範圍。
 
 ### 4.4 E 商業模組（5）
 
@@ -429,11 +438,14 @@ flowchart LR
 | `Partner` | **●** | 合作夥伴（B2B Logo 牆）：Logo **深底／淺底兩版**、類型、國家、合作內容與期間、官網、排序、曝光位置 | 🌐 |
 | `Sponsor` | **●** | 贊助商：Logo 兩版、**等級**、合約期間、贊助內容、聯絡窗口、到期提醒、排序 | 🌐 |
 | `SponsorPackage` | **●** | 贊助方案（9 種）：內容、權益清單、適合對象、價格區間（**可設不公開**）、上下架 | 🌐 |
-| `Proposal` | **●** | 提案簡介（多版本、多語 PDF） | 🌐 |
+| `Proposal` | **●** | 提案簡介（多版本、多語 PDF） | |
 | `ProposalFile` | — | `(proposal_id, locale, file_key, version)` | |
 
 > 🔴 **兩隊的夥伴與贊助商須分區呈現不得混列**（合約是各自簽的）。同一家公司同時是兩隊的夥伴時**各建一筆**。
 > ⚠️ **提案下載的 Lead 名單仍走 `Enquiry`**，不另建 Lead 表。
+> ✅ **`Proposal` 不建 `*_i18n` 側表**（2026-09-22 核實）：規劃書行 1111「多版本／多語系」指的是 **PDF 檔案本身**
+> 的語系，由 `ProposalFile(locale, file_key)` 承載；`proposal.title` 是單一欄位，不是要有中英文標題。此前 🌐
+> 標記是把「檔案多語」誤讀成「資料列多語」，`db/club-schema.sql` 已核實不建 `proposals_i18n`。
 > ⚠️ 商品一律在 `S1` 維護，`ProductShowcase` **綱要中不存在**。**`E4` 現在是「廣告主與版位管理」**（行動 App），看到舊文件寫 `E4 商品櫥窗` 一律視為錯誤。
 
 ### 4.5 F 文化模組（5）
@@ -460,6 +472,11 @@ flowchart LR
 | `NewsletterSubscriber` | **●** | 電子報名單：來源、訂閱／退訂狀態。唯一鍵 `(club_id, email)`——**法遵：同一人可以只退訂其中一站** | 🔒 |
 
 > ⚠️ **沒有志工報名表**。11 章 CTA 由三種收斂為兩種，有需求走 10.7 一般聯絡表單。
+> ✅ **`Form` 的 🌐 範圍已限縮並拍板（2026-09-22，使用者拍板）**：`forms_i18n` **只有 `auto_reply_body`**（自動回覆信文案）
+> 一個語系化欄位，`db/club-schema.sql` 已如此建表。**表單顯示名稱（如「10.1 Join as a Player 加入球隊」）維持規劃書
+> §3.10 固定表格寫死，不建 `name` 側表、不開放後台編輯**——規劃書 3.10 本來就用固定表格列出 7 類表單的中英名稱，
+> 屬介面文案（`UiString` 範疇），不是逐筆可管理的資料。`FormField` 的 🌐 維持原狀未決——`docs/12c` §4 僅列出低信心度
+> 候選欄位（`label`／`placeholder`），`db/club-schema.sql` 目前選擇不建 `form_fields_i18n`，非本輪裁決範圍。
 
 ### 4.7 I 網站設定（2）
 

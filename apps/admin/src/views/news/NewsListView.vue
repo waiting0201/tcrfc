@@ -173,17 +173,25 @@ async function handleDuplicate(row: NewsArticle) {
   const club = activeClubId.value
   try {
     const detail = await getAdminNewsById(club, row.id)
-    const created = await createAdminNews(club, {
-      slug: `${detail.slug}-copy-${Date.now()}`,
-      categoryCode: detail.categoryCode,
-      coverKey: detail.coverKey,
-      isFeatured: false, // 複製品刻意不繼承置頂精選，避免立刻撞到「逐俱樂部限 3」的上限
-      content: {
-        zh: detail.zh,
-        en: detail.en,
+    // 🔴 S0-8 修正後的連帶影響（不在本次任務範圍內動手改規格，回報見交付說明）：建立文章的
+    // payload 已經不接受 coverKey（後端 CreateArticleRequest 沒有這個欄位，圖片只能透過同一次
+    // 請求真的夾一個檔案上傳，不能用既有物件鍵直接複製一份）——複製品因此**不會**帶著原文章的
+    // 封面圖片，使用者需要自己在複製出來的草稿裡重新選一次封面圖。這是這次修正的必然結果，
+    // 不是本輪刻意拿掉這個功能。
+    const created = await createAdminNews(
+      club,
+      {
+        slug: `${detail.slug}-copy-${Date.now()}`,
+        categoryCode: detail.categoryCode,
+        isFeatured: false, // 複製品刻意不繼承置頂精選，避免立刻撞到「逐俱樂部限 3」的上限
+        content: {
+          zh: detail.zh,
+          en: detail.en,
+        },
       },
-    })
-    ElMessage.success('已建立一份複製的草稿，請修改網址名稱後再儲存')
+      null,
+    )
+    ElMessage.success('已建立一份複製的草稿，封面圖片未帶入，請重新選擇後再儲存')
     router.push(`/content/news/${created.id}/edit`)
   } catch (error) {
     ElMessage.error(error instanceof AdminApiError ? error.message : '複製失敗，請稍後再試')

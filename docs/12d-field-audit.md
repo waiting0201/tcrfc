@@ -329,6 +329,12 @@
 | `Article.article_category_id`（`site/src/data/news.json` 的 `category` 值 `intcup`） | 🟡 **落點存疑，非欄位缺漏**。News mockup 用的 6 個 `category` 值裡，`intcup`（台中磐石國際足球盃）沒有任何一個規劃書 7.1–7.8 的分類字面對得上。本次逐篇標題人工確認內容皆為賽事報導，**歸類到 7.2 Match Reports**——這是 seed 時的人工判斷不是規劃書規則，正式資料應由後台人工複核分類是否需要獨立看待「盃賽」與「聯賽」報導 |
 | `StaffTeam`（`site/src/data/coaches-academy.json`，青訓教練／青訓總監） | 🟡 **資料缺口，非欄位缺漏**。來源 JSON 沒有標明青訓教練是帶 `U15`／`U14`／`U12` 哪一隊，本次 seed **刻意不連結任何 `Team`**，避免臆測。連帶地本次也沒有建立這三支學院球隊（`Team.type = 'academy'`）——沒有球員名單可以佐證需要建隊，建了也是空殼 |
 | `Article.cover_key`／`Player.photo_key`（`news.json` 的 `cover`／`cover_web`，`players.json` 的 `photo`） | ✅ **不算缺，是已知的 pipeline 落差**。JSON 的 `cover_web` 是 mockup 靜態資源相對路徑，`players.json` 的 `photo` 全部是 `null`——兩者都不是走過「上傳即縮圖」pipeline（`docs/14`）後產生的 Blob object key，本次 seed 一律留 `NULL`，不把 mockup 路徑硬塞進 `_key` 欄位誤導未來開發者 |
+| `Staff.staff_group`（`site/src/data/staff.json` 職稱「顧問」） | ✅ **已拍板（2026-09-22，使用者決定），屬執行層決定不是規劃書明文**。規劃書 C3（後台 `Staff` 模組）只列出
+四個分組——管理層／行政／醫療／後勤——沒有「顧問」這個分組，`staff.json` 裡職稱「顧問」的一位人員（陳曉明）
+容不下這四個分組。**使用者拍板歸入「管理層」**。⚠️ **本次只記錄決定，不代表已經填值**：目前 `generate-club-seed-sql.py`
+的 `staff` 建表邏輯（第 7 節）**還沒有寫入 `staff_group` 欄位**（`INSERT INTO staff (id, club_id)` 沒有這一欄），
+這個決定要等 C3 模組實際開工、seed 腳本補上 `staff_group` 賦值時才會真正套用——**不要因為看到這行就去改
+`generate-club-seed-sql.py` 或重灌資料庫**。見 [`../db/seed/README.md`](../db/seed/README.md)「已知落差」一節。 |
 
 ---
 

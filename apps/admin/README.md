@@ -65,7 +65,7 @@ apps/admin/
 │   │   ├── UserMenu.vue
 │   │   ├── FrontendUnitBanner.vue # 「這裡管理的是：{前台單元} ↗」（規劃書 §4.0 硬性規定）
 │   │   ├── StatusTag.vue         # 草稿／排程發布／已發布／已停用 四態，深色語意底＋亮色文字（非 el-tag 預設 type）
-│   │   ├── ImageUploader.vue     # 選檔只預覽、按儲存才「上傳」；預覽框鋪中性看片台（docs/21 §9.1）
+│   │   ├── ImageUploader.vue     # S0-8 起接上真實上傳端點，見下方「圖片上傳共用元件的前端接線」；預覽框鋪中性看片台（docs/21 §9.1）
 │   │   └── BilingualShortField.vue # 雙語短欄位：桌面並排、手機自動變 tabs
 │   ├── views/
 │   │   ├── DashboardView.vue
@@ -183,15 +183,94 @@ v3 配色改版時同一個根因又踩了一次：`--admin-border-input` 的暖
   不是唯一來源**——藍鯨隊徽的唯一來源仍是 `brand/blue-whale/`，磐石隊徽仍是 `reference/TCR_logo_CMYK.ai`
   萃取出的 `brand/svg/`，日後那兩處的圖檔更新了，這裡的複本要跟著手動同步。
 
+## 圖片上傳共用元件的前端接線（S0-8 修正版，2026-09-22：單一請求）
+
+🔴🔴🔴 **本節整節改寫**：S0-8 原始接線（選檔後立刻呼叫獨立上傳端點拿物件鍵）被發現違反規劃書
+第 53 行／第 972 行「選檔不上傳、儲存才上傳……離開或取消表單不留下任何檔案」，`apps/api` 已把
+該兩段式端點整支移除，改成建立／更新文章時封面圖片跟其餘欄位一起送出的單一 `multipart/form-data`
+請求（契約見 [`apps/api/README.md`](../api/README.md)「圖片上傳共用元件」整節）。本節記錄跟進
+後的前端行為，取代舊版接線紀錄。目前仍只有新聞編輯頁的封面圖（`articles.cover`）這一個插槽真的
+接線——後端 `UploadSlotPolicy` 目前也只開放這一格，其餘模組的圖片欄位等各自動工時再依樣接。
+
+**流程**：選檔（或拖曳）→ HEIC 在瀏覽器端轉成 JPEG（[`docs/17-deployment.md`](../../docs/17-deployment.md)
+§6 定案，用 `heic2any`，動態 `import()` 避免那顆內建 WASM 解碼器拖大主要頁面的打包體積）→ 前端驗證
+格式／大小（10MB）／解析度（`minWidth`／`minHeight`，預設 1600×900）→ 立刻顯示本機預覽（`URL.
+createObjectURL`，檔案只存在瀏覽器記憶體，**不呼叫任何 API**）→ 把通過驗證的 `File` 物件透過
+`update:file` 交給外層表單（`ImageUploader.vue` 是完全受控元件，`file`／`removeCover` 都是
+`v-model` prop，不是內部 state）→ 使用者按下「儲存」時，`NewsEditView.vue` 才把這個 `File`
+（`coverFile` ref）跟其餘欄位的 JSON payload 組成同一個 multipart 請求，一次送給建立／更新 API
+（`apps/admin/src/api/adminNews.ts` 的 `createAdminNews`／`updateAdminNews`）。
+
+**封面圖片三態在前端怎麼表達**：`NewsEditView.vue` 用兩個獨立於 `form`（`NewsArticle`）之外的
+本機狀態 `coverFile: File | null` 與 `removeCover: boolean` 表達使用者這次瀏覽階段的意圖——
+選新檔案＝`coverFile` 有值（換新，同時把 `removeCover` 重置為 `false`）；點擊既有封面圖的移除
+按鈕＝`removeCover = true`（清空，等按下儲存才真的生效）；兩者都沒有＝維持不變。存檔成功或重新
+載入資料時（`applyLoadedArticle`）兩者都會重置為初始值，這是「離開或取消表單不留下任何檔案」
+在多次編輯之間仍然成立的關鍵——這兩個值只存在瀏覽器分頁的記憶體，從未送出就會被捨棄。
+
+**已知限制：編輯既有資料時，已經存過的封面圖沒有辦法在後台預覽**（這條不受本次修正影響，維持
+原樣）——物件儲存容器目前是私有（`PublicAccessType.None`），也還沒有任何「用物件鍵換可顯示網址」
+的端點，這是後端契約本身的邊界。畫面上這種情況顯示「已上傳圖片，目前系統還無法在後台預覽」的
+提示卡片，不是空的上傳框（避免誤以為沒有圖片），這次額外在這張卡片上補了一顆移除（×）按鈕——
+v1 規格「換圖/移除…全部沿用 v1」列出的既有行為裡，「移除」原本只在本機已選新檔案的預覽卡片上
+有按鈕，既有封面圖（無法預覽的那張卡片）沒有對應入口，這是舊版接線的既有落差，這次補齊，不是
+新設計（沿用同一顆 `.image-uploader__remove-btn`）。`ImageUploader.vue` 已經留了
+`existingPreviewUrl` 這個 prop，等後端補上換算網址的管道之後，呼叫端把算出來的網址傳進來就會
+自動改顯示真正的預覽圖，元件本身不需要再改。
+
+**實測**（本機環境：既有 `sqlserver` 容器 ＋ `npx azurite-blob --skipApiVersionCheck` ＋
+`dotnet run` 開 `ENABLE_UNSAFE_DEV_WRITES=true` 的 `apps/api` ＋ `npm run dev` 的這個專案，用
+headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 1440px）真的操作瀏覽器、
+攔截 `Network.requestWillBeSent`／`Network.getResponseBody`／`Network.getRequestPostData` 確認
+真實網路行為，不是模擬）：
+
+- 🔴 **核心驗收：選了封面圖片但沒按儲存就離開，Azurite 裡不留任何物件**——在「新增文章」頁選
+  中文標題、網址名稱，並選一張 2000×1400 的 JPEG 當封面（畫面確實顯示本機預覽），全程**攔截到
+  的 API 請求數是 0**；接著用 `Page.navigate` 做一次真正的整頁離開（不經過 Vue Router，等同關
+  分頁）。離開前後直接查 Azurite 容器內容：**物件數量不變（0 → 0，同一批基準測試環境下）**，
+  沒有任何孤兒物件——這正是「選檔不上傳、儲存才上傳」在單一請求契約下的天然結果：沒有送出過
+  請求，儲存體從來沒被寫入過。
+- **建立文章夾封面圖片**：選檔（不送請求）→ 填標題與網址名稱 → 按「儲存草稿」→ 攔截到
+  **恰好一個** `POST /api/v1/admin/tcrfc/news` 請求，`multipart/form-data` body 含 `payload`
+  （JSON）與 `file` 兩個欄位；回應的 `coverKey` 開頭是 `tcrfc/articles/<id>/cover/`；直接查
+  Azurite，五個物件（主檔＋1280／640／320／縮圖）全部存在。
+- **換圖（更新，夾新檔案）**：在已有封面圖 A 的編輯頁選封面圖 B → 按「儲存草稿」→ 攔截到
+  `PUT /api/v1/admin/{id}` 請求，回應 `coverKey` 換成 B 的鍵；查 Azurite，**A 的五個物件全部
+  消失，B 的五個物件完整保留**。
+- **清空封面（`removeCover`）**：在已有封面圖的編輯頁點擊既有封面卡片上新增的移除（×）按鈕
+  （畫面立刻變回空的拖放區）→ 按「儲存草稿」→ 用 `Network.getRequestPostData` 直接讀出這次 PUT
+  請求的原始 multipart body，確認 `payload` 內容是
+  `{"slug":"...","categoryCode":"club","isFeatured":false,"content":{...},"expectedUpdatedAt":"...","removeCover":true}`
+  **且完全沒有 `file` 這個 part**（沒有嘗試任何上傳）；回應 `coverKey` 是 `null`；查 Azurite，
+  該文章原本的五個物件全部消失。
+- **前端驗證仍在送出請求之前擋下**（沿用既有邏輯，逐一重測確認沒有回歸，四種情況攔截到的 API
+  請求數皆為 0）：解析度不足（400×300）「圖片解析度太低（至少需要 1600×900）…」；不支援格式
+  （`.bmp`）「圖片格式不支援，請上傳 JPG、PNG 或 WebP 格式的圖片（不支援 HEIC）。」；超過 10MB
+  「圖片檔案太大（上限 10 MB）…」；**真正的 HEIC 檔案**（非改副檔名）正確轉檔成 JPEG 並顯示本機
+  預覽，無錯誤訊息，同樣沒有送出任何請求。
+- 測試文章事後皆用 `DELETE` 清掉，確認資料庫與 Azurite 容器都恢復乾淨（最終物件數為 0）。
+
+**已知的其餘限制**（沿用後端 `apps/api/README.md`「已知缺口」，前端不重複列)：伺服器端沒有依
+版位設定尺寸下限（本元件的 `minWidth`／`minHeight` 是前端唯一一道尺寸把關）、圖片欄位沒有
+`_width`／`_height`／雙語 `_alt` 資料庫欄位（`form.coverImageUrl` 因此恆為 `null`，不是遺漏）。
+
+**這次修正的連帶影響（回報，未動手改規格）**：`NewsListView.vue` 的「複製」功能（`handleDuplicate`）
+原本會把來源文章的 `coverKey` 一併帶進新建立的草稿——`CreateArticleRequest` 已經不接受
+`coverKey`（封面圖片只能透過同一次請求真的夾一個檔案上傳），複製品因此**不會**帶著原文章的封面
+圖片，使用者需要自己在複製出來的草稿裡重新選一次封面圖。這是這次修正的必然結果（規劃書的圖片
+欄位只認得「同一次請求上傳的位元組」，不認物件鍵字串），不是本輪刻意拿掉這個功能，畫面的成功
+訊息已經跟著調整為「已建立一份複製的草稿，封面圖片未帶入，請重新選擇後再儲存」。
+
 ## 已知的 mockup 簡化（不是 bug，記錄給下一階段）
 
 - 「內容」的富文本編輯器用 `<textarea>` 代替——規劃書明文「不代為決定」實際編輯器選型，第二階段先
   用文字框佔位，畫面上也用中文說明這一點。
-- 圖片上傳沒有真的上傳到任何地方：按「儲存」時用 `URL.createObjectURL()` 產生的本機預覽網址取代
-  「伺服器回傳的正式圖片網址」，行為上模擬了「選檔只預覽、儲存才送出」，但沒有真的網路請求。
 - 「預覽」按鈕對已發布文章會 `window.open` 一個 `/zh/news/{網址名稱}/` 的網址，這個網址在本機開發
   環境下不保證能真的打開（`apps/web` 前台是否有跑、跑在哪個 port，跟這個 admin 專案無關）。
-- `newsStore` 只存在瀏覽器分頁的記憶體裡，重新整理頁面會重置回 `data/news.ts` 的初始假資料。
+- `newsStore` 只存在瀏覽器分頁的記憶體裡，重新整理頁面會重置回 `data/news.ts` 的初始假資料
+  （⚠️ 這一則現在只剩「假資料」場景成立——新聞編輯頁走的是真實 `apps/api`，見 S0-7i；`newsStore`
+  仍然存在但只有在 `apps/api` 沒開的情境下才會被用到，這裡的措辭是既有落差，本輪未動手修正，
+  一併回報）。
 
 ## 交付範圍與邊界
 

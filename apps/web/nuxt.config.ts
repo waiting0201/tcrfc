@@ -68,17 +68,17 @@ export default defineNuxtConfig({
     disallow: ['/'],
   },
 
-  // 單元開關呼叫點 3／4：sitemap 的網址清單同樣呼叫 isUnitEnabledForClub
-  // （經由 getEnabledSiteUnits 間接呼叫）。實際邏輯在 server/api/__sitemap__/urls.ts
-  // ——放在 server/api/__sitemap__/urls 是 @nuxtjs/sitemap 的零設定自動探索慣例，
-  // 會被視為「需要 runtime 求值」的動態來源。踩過的坑：① 先放在 nuxt.config.ts
-  // 的 sitemap.urls（函式），build 時印 "No dynamic sources detected"；
-  // ② 改放 server/routes/__sitemap__/urls.ts 並用 sitemap.sources 指過去，
-  // 直接呼叫該路由回應正確，但 /sitemap.xml 仍是空的 urlset——這代表 sources
-  // 清單在「伺服器還沒真的啟動」的建置階段就被求值過一次、結果（空陣列）被寫進
-  // .output 的靜態資產快取，之後每次請求都回放那份快取，不會再重新呼叫。
-  // 改用 server/api/__sitemap__/urls.ts 的自動探索慣例才會在每次請求時真的執行。
-  // 已記入 docs/18-work-errors.md。
+  // 🔴 2026-09-22：完全關閉 @nuxtjs/sitemap 的內建 /sitemap.xml 路由（docs/18-work-errors.md
+  // E-18 補上真正根因）。追查 node_modules 原始碼確認：它的產生邏輯會把「路徑命中
+  // X-Robots-Tag: noindex 的 route rule」的網址整批排除，本站上線前對 `/**` 全站蓋一條
+  // noindex 標頭（CLAUDE.md 第 5 條），所以每一筆候選網址都被排除、urlset 恆為空，
+  // 且沒有設定能繞過這個檢查。改由 server/routes/sitemap.xml.ts 自組 XML 接手，
+  // 資料來源是 server/utils/sitemap-urls.ts（單元開關呼叫點 3，仍是唯一一份
+  // isUnitEnabledForClub → getEnabledSiteUnits 的判斷，只是被兩處共用）。
+  // server/api/__sitemap__/urls.ts 保留作為可獨立 curl 驗證的資料端點。
+  sitemap: {
+    enabled: false,
+  },
 
   // 站內 <link rel="canonical"> 之外，同時要有 X-Robots-Tag 標頭雙重保險
   // （比照 site/src/_headers 的既有作法，改用 Nitro routeRules 移植）。

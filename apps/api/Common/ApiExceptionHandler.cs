@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Tcrfc.Api.Features.AdminNews;
+using Tcrfc.Api.Features.Uploads;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Common;
@@ -32,6 +34,12 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status409Conflict, "狀態轉換不允許", invalidTransition.Message),
             ArticleFeaturedLimitExceededException featuredLimit =>
                 (StatusCodes.Status409Conflict, "置頂精選已達上限", featuredLimit.Message),
+
+            // ── S0-8 圖片上傳共用元件（Features/Uploads、Images）─────────────────────────
+            ImageProcessingException imageProcessing =>
+                (StatusCodes.Status400BadRequest, "圖片無法處理", imageProcessing.Message),
+            UploadSlotNotAllowedException slotNotAllowed =>
+                (StatusCodes.Status400BadRequest, "不支援的圖片欄位", slotNotAllowed.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),

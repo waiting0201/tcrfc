@@ -1,4 +1,8 @@
+using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.Options;
 using Tcrfc.Api.Common;
+using Tcrfc.Api.Features.Uploads;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.AdminNews;
@@ -11,6 +15,14 @@ namespace Tcrfc.Api.Features.AdminNews;
 ///
 /// `created_by`／`updated_by` 由 <see cref="IDevOperatorResolver"/> 從 <c>X-Dev-Operator-Id</c>
 /// 標頭解析，🔴 這不是身分驗證，見該介面上的完整說明。
+///
+/// 🔴🔴🔴 **S0-8 修正（2026-09-22）**：建立／更新這兩個端點改成 <c>multipart/form-data</c>
+/// 單一請求——封面圖片跟其餘欄位一起送出，逐字對應規劃書 §4.0 與第 53 行「選檔不上傳、儲存才
+/// 上傳」。原本的「先呼叫 <c>Features/Uploads</c> 的獨立上傳端點拿 key、再把 key 塞進純 JSON 的
+/// 建立／更新請求」兩段式做法違反規劃書明文（選檔就已經真的把檔案寫進物件儲存，不是等按下
+/// 「儲存」），已停用並移除那個獨立端點（<c>Program.cs</c> 不再呼叫
+/// <c>UploadsEndpoints.MapUploadsEndpoints</c>）。新契約細節見 apps/api/README.md
+/// 「圖片上傳共用元件」整節。
 /// </summary>
 public static class AdminArticlesEndpoints
 {
@@ -48,39 +60,130 @@ public static class AdminArticlesEndpoints
         .Produces(StatusCodes.Status404NotFound);
 
         // POST /api/v1/admin/{club}/news  → 一律建立成草稿，狀態轉換是獨立端點。
+        // 🔴🔴🔴 S0-8 修正：multipart/form-data，固定兩個欄位——`payload`（JSON 文字，其餘欄位）
+        // 與可選的 `file`（封面圖片）。契約細節見 apps/api/README.md。
         group.MapPost("", async (
-            string club, CreateArticleRequest request, HttpContext httpContext,
+            string club, HttpRequest httpRequest, HttpContext httpContext,
             IClubResolver clubResolver, IDevOperatorResolver operatorResolver, AdminArticlesRepository repository,
+            IImageStorageService imageStorage, IOptions<JsonOptions> jsonOptions,
             CancellationToken cancellationToken) =>
         {
             var scope = await clubResolver.ResolveAsync(club, cancellationToken);
             var operatorId = await operatorResolver.ResolveAsync(httpContext, cancellationToken);
-            var created = await repository.CreateAsync(scope, request, operatorId, cancellationToken);
-            return Results.Created($"/api/v1/admin/{club}/news/{created.Id}", created);
+
+            var (request, file) = await AdminArticleRequestForm.ReadAsync<CreateArticleRequest>(
+                httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
+
+            // 🔴 id 必須在上傳之前就決定：物件鍵路徑（{club}/articles/{articleId}/cover/...）要指到
+            // 「這張圖屬於哪一筆將要建立的資料列」，見 AdminArticlesRepository.CreateAsync 上的說明。
+            var articleId = Guid.NewGuid();
+            string? coverKey = null;
+            if (file is not null)
+            {
+                UploadSlotPolicy.Validate("articles", "cover");
+                var uploaded = await UploadCoverAsync(scope, articleId, file, imageStorage, cancellationToken);
+                coverKey = uploaded.Key;
+            }
+
+            try
+            {
+                var created = await repository.CreateAsync(scope, articleId, request, coverKey, operatorId, cancellationToken);
+                return Results.Created($"/api/v1/admin/{club}/news/{created.Id}", created);
+            }
+            catch
+            {
+                // 🔴 失敗時不得留下半套（CLAUDE.md 任務指示）：圖片已經成功寫進物件儲存，
+                // 但這篇文章的資料列沒有寫成功（分類不存在、slug 重複、標題空白……）。
+                // 物件儲存跟 SQL 是兩個系統，做不到真正跨系統的 atomic transaction，
+                // 這裡是補償交易（compensating transaction）：刪掉剛剛上傳的物件，
+                // 不留下沒有任何資料列指著它的孤兒物件，再把原例外原樣往上丟。
+                if (coverKey is not null)
+                {
+                    await imageStorage.DeleteAsync(coverKey, cancellationToken);
+                }
+
+                throw;
+            }
         })
         .WithName("AdminCreateNewsArticle")
         .Produces<AdminArticleDetailDto>(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status404NotFound)
-        .Produces(StatusCodes.Status409Conflict);
+        .Produces(StatusCodes.Status409Conflict)
+        .DisableAntiforgery();
 
         // PUT /api/v1/admin/{club}/news/{id}  → 整份取代可編輯內容，不改狀態。
+        // 🔴🔴🔴 S0-8 修正：跟 POST 一樣改成 multipart/form-data。封面圖片三態見
+        // UpdateArticleRequest.RemoveCover／CoverKeyUpdate 上的說明。
         group.MapPut("/{id:guid}", async (
-            string club, Guid id, UpdateArticleRequest request, HttpContext httpContext,
+            string club, Guid id, HttpRequest httpRequest, HttpContext httpContext,
             IClubResolver clubResolver, IDevOperatorResolver operatorResolver, AdminArticlesRepository repository,
+            IImageStorageService imageStorage, IOptions<JsonOptions> jsonOptions,
             CancellationToken cancellationToken) =>
         {
             var scope = await clubResolver.ResolveAsync(club, cancellationToken);
             var operatorId = await operatorResolver.ResolveAsync(httpContext, cancellationToken);
-            var updated = await repository.UpdateAsync(scope, id, request, operatorId, cancellationToken);
-            return updated is null ? Results.NotFound() : Results.Ok(updated);
+
+            var (request, file) = await AdminArticleRequestForm.ReadAsync<UpdateArticleRequest>(
+                httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
+
+            if (file is not null && request.RemoveCover)
+            {
+                throw new AdminArticleValidationException("不能同時上傳新的封面圖片與移除封面圖片，請擇一。");
+            }
+
+            string? uploadedKey = null;
+            CoverKeyUpdate coverUpdate;
+            if (file is not null)
+            {
+                UploadSlotPolicy.Validate("articles", "cover");
+                var uploaded = await UploadCoverAsync(scope, id, file, imageStorage, cancellationToken);
+                uploadedKey = uploaded.Key;
+                coverUpdate = CoverKeyUpdate.Set(uploaded.Key);
+            }
+            else if (request.RemoveCover)
+            {
+                coverUpdate = CoverKeyUpdate.Set(null);
+            }
+            else
+            {
+                coverUpdate = CoverKeyUpdate.Keep;
+            }
+
+            try
+            {
+                var updated = await repository.UpdateAsync(scope, id, request, coverUpdate, operatorId, cancellationToken);
+                if (updated is null)
+                {
+                    // 找不到這篇文章（跨俱樂部或真的不存在）：圖片已經上傳成功，但不會有任何資料列
+                    // 指到它——同樣是補償交易，刪掉剛剛上傳的物件（見 POST 端點同一段說明）。
+                    if (uploadedKey is not null)
+                    {
+                        await imageStorage.DeleteAsync(uploadedKey, cancellationToken);
+                    }
+
+                    return Results.NotFound();
+                }
+
+                return Results.Ok(updated);
+            }
+            catch
+            {
+                if (uploadedKey is not null)
+                {
+                    await imageStorage.DeleteAsync(uploadedKey, cancellationToken);
+                }
+
+                throw;
+            }
         })
         .WithName("AdminUpdateNewsArticle")
         .Produces<AdminArticleDetailDto>()
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
-        .Produces(StatusCodes.Status409Conflict);
+        .Produces(StatusCodes.Status409Conflict)
+        .DisableAntiforgery();
 
         // POST /api/v1/admin/{club}/news/{id}/publish  → draft／scheduled → published，立即生效。
         group.MapPost("/{id:guid}/publish", async (
@@ -132,5 +235,39 @@ public static class AdminArticlesEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict);
+    }
+
+    /// <summary>
+    /// 🔴🔴🔴 S0-8 修正：把封面圖片讀進記憶體並交給 <see cref="IImageStorageService"/> 處理＋上傳，
+    /// 邏輯跟已經停用的 <c>Features/Uploads/UploadsEndpoints.cs</c> 完全相同（原地搬過來，不重寫
+    /// <see cref="ImageProcessor"/> 的轉檔邏輯）——差別只在這裡是被建立／更新端點在同一次請求裡
+    /// 直接呼叫，不再是一個獨立的 HTTP 往返。
+    /// </summary>
+    private static async Task<UploadedImageInfo> UploadCoverAsync(
+        ClubScope scope, Guid articleId, IFormFile file, IImageStorageService imageStorage, CancellationToken cancellationToken)
+    {
+        if (file.Length == 0)
+        {
+            throw new EmptyImageException();
+        }
+
+        // 🔴 宣告長度先擋一次超過上限的檔案，避免白白花時間讀進記憶體；實際位元組數在
+        // IImageStorageService.UploadAsync 內部還會再檢查一次，兩層都不信任呼叫端。
+        if (file.Length > ImageUploadOptions.MaxUploadBytes)
+        {
+            throw new ImageTooLargeException();
+        }
+
+        byte[] rawBytes;
+        using (var buffer = new MemoryStream())
+        {
+            await file.CopyToAsync(buffer, cancellationToken);
+            rawBytes = buffer.ToArray();
+        }
+
+        // 物件鍵前綴含俱樂部代碼＋實體型別＋實體 id＋欄位名，確保「一張圖只屬於一筆資料列」
+        // （docs/14-invariants.md）；用 scope.ClubCode（已驗證）而不是路由原始字串。
+        var objectKeyPrefix = $"{scope.ClubCode}/articles/{articleId}/cover";
+        return await imageStorage.UploadAsync(rawBytes, objectKeyPrefix, cancellationToken);
     }
 }
