@@ -17,4 +17,16 @@ public static class TestJson
     {
         PropertyNameCaseInsensitive = true,
     };
+
+    /// <summary>
+    /// 本輪（後台新聞寫入）新增：<c>PostAsJsonAsync</c>／<c>PutAsJsonAsync</c> 送出的請求主體要用
+    /// camelCase（Program.cs 的 <c>JsonOptions.SerializerOptions.PropertyNamingPolicy</c> 是
+    /// CamelCase，模型繫結解析請求主體用的是同一份設定），否則 PascalCase 的 C# record 屬性名稱
+    /// 送出去對不上，欄位會悄悄繫結成預設值而不是驗證失敗（跟上面 <see cref="Options"/> 的
+    /// 讀取端問題是同一種坑，只是方向相反）。
+    /// </summary>
+    public static readonly JsonSerializerOptions WriteOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+    };
 }

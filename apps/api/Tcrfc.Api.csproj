@@ -21,6 +21,14 @@
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.0" />
     <PackageReference Include="StackExchange.Redis" Version="3.3.0" />
+    <!-- 寫入端一次性 handoff（docs/20-cicd.md §5）：唯讀查詢仍走 Dapper，不受此影響。
+         Design 套件只在建置期（scaffold／migrations）用得到，執行期不需要，故 PrivateAssets="all"
+         （不會被打進最終輸出、也不會被下游專案間接參照）。 -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 
   <!-- Tcrfc.Api.Tests（S0-7d）是本目錄底下的獨立子專案，沒有 .sln 把兩者的建置範圍分開，

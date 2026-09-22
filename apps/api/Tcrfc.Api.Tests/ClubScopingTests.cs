@@ -17,8 +17,14 @@ namespace Tcrfc.Api.Tests;
 public sealed class ClubScopingTests(ApiFixture fixture)
 {
     [Fact]
-    public async Task 跨俱樂部讀清單_藍鯨球員數為零_主站不為零()
+    public async Task 跨俱樂部讀清單_球員名單彼此不重疊()
     {
+        // 🔴 本測試原本寫死「bw 球員數應為 0」，2026-09-22 因為 BW-0g（藍鯨舊站資料匯入本機開發
+        // 資料庫，見 git log）這個獨立且合法的任務把真實藍鯨球員資料灌進 tcrfc_club_dev，
+        // 這個假設從此不成立（bw 現在也有 28 名球員）。這不是 club_id 過濾失效——改成驗證
+        // 「兩隊球員 id 集合互不重疊」，不論兩邊各自有多少筆資料都能驗證範圍真的有隔離，
+        // 不會因為種子資料量變動就一直改測試（docs/18-work-errors.md 的精神：測試假設要挑
+        // 不隨資料量變動的不變量，不要挑會變動的絕對數字）。
         using var client = fixture.CreateClient();
 
         var tcrfcResult = await client.GetFromJsonAsync<PagedResult<PlayerDto>>("/api/v1/tcrfc/players?pageSize=200", TestJson.Options);
@@ -27,7 +33,10 @@ public sealed class ClubScopingTests(ApiFixture fixture)
         Assert.NotNull(tcrfcResult);
         Assert.NotNull(bwResult);
         Assert.True(tcrfcResult!.TotalCount > 0, "種子資料應該有 tcrfc 球員，若為 0 代表種子資料或連線設定有問題，不是本測試要驗證的行為");
-        Assert.Equal(0, bwResult!.TotalCount);
+
+        var tcrfcIds = tcrfcResult.Items.Select(p => p.Id).ToHashSet();
+        var bwIds = bwResult!.Items.Select(p => p.Id).ToHashSet();
+        Assert.Empty(tcrfcIds.Intersect(bwIds));
     }
 
     [Fact]

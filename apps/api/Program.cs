@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.Clubs;
 using Tcrfc.Api.Features.News;
 using Tcrfc.Api.Features.Players;
@@ -18,8 +20,24 @@ builder.Services.Configure<JsonOptions>(options =>
     options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
 });
 
-// ── 資料存取：唯讀查詢一律走 Dapper（本次任務範圍全是唯讀，docs/17-deployment.md §0） ──────
+// ── 資料存取：唯讀查詢一律走 Dapper（docs/17-deployment.md §0），寫入走 EF Core（本輪新增） ──
 builder.Services.AddSingleton<IClubSqlConnectionFactory, ClubSqlConnectionFactory>();
+
+// ── EF Core（docs/20-cicd.md §5 的一次性 handoff，本輪完成）────────────────────────
+// ⚠️ ClubDbContext 是對已存在資料庫跑 dotnet ef dbcontext scaffold 產出的，Data/EfEntities／
+// Data/ClubDbContext.cs 是產生檔，之後改綱要要先改 db/club-schema.sql 再重新 scaffold，
+// 不要手改產生檔（客製化寫在 Data/ClubDbContextCustomizations.cs 的 OnModelCreatingPartial）。
+// 🔴 DbContext 本身不論開發模式開關是否開啟都會註冊（跟其餘五個唯讀 repository 的既有慣例一致，
+// 只是描述怎麼連線，注入不代表會真的開連線）；真正需要關閉的是下面的「路由是否掛上去」，
+// 見本檔最下方「寫入端點開發模式開關」。
+builder.Services.AddDbContext<ClubDbContext>(options =>
+{
+    var connectionString = builder.Configuration["CLUB_SQL_CONNECTION_STRING"]
+        ?? throw new InvalidOperationException(
+            "找不到 CLUB_SQL_CONNECTION_STRING 設定值。請確認環境變數已提供" +
+            "（本機開發見 deploy/dev/club.env；正式環境見 /opt/tcrfc/secrets/club.env）。");
+    options.UseSqlServer(connectionString);
+});
 
 // ── 快取接縫：REDIS_HOST 有設定才接 Redis（S0-7d），沒設定注入 no-op ─────────────────
 // 本機 `dotnet run` 不需要 Redis 也能跑；docker-compose.yml／docker-compose.dev.yml 的 api
@@ -73,6 +91,12 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Staff.StaffRepository>();
 builder.Services.AddScoped<ArticlesRepository>();
 builder.Services.AddScoped<MatchesRepository>();
 
+// ── 後台新聞寫入（本輪新增）：repository／假操作者解析一律註冊，跟其餘 repository 同一慣例 ──
+// 🔴 註冊 ≠ 對外可用。真正決定「這組功能存不存在」的是下面 app.MapAdminNewsEndpoints() 前的
+// DevWriteGate 判斷式，DI 註冊本身只是描述「怎麼組出這個物件」，不會主動開任何連線或路由。
+builder.Services.AddScoped<AdminArticlesRepository>();
+builder.Services.AddScoped<IDevOperatorResolver, DevOperatorResolver>();
+
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 const string CorsPolicyName = "ClubFrontends";
 var corsOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
@@ -121,6 +145,18 @@ app.MapPlayersEndpoints();
 app.MapStaffEndpoints();
 app.MapArticlesEndpoints();
 app.MapMatchesEndpoints();
+
+// ── 🔴🔴🔴 寫入端點開發模式開關（見 Security/DevWriteGate.cs 的完整說明）─────────────────
+// 這組端點在接上登入與權限之前不得在任何對外環境啟用。關閉時（預設）這裡完全不會呼叫
+// MapAdminNewsEndpoints()，路由不存在，打了回 404——不是 403，不透露「這裡本來有東西」。
+// 開啟需要同時滿足：ASPNETCORE_ENVIRONMENT=Development ＋ ENABLE_UNSAFE_DEV_WRITES=true。
+if (DevWriteGate.IsEnabled(builder.Configuration, app.Environment))
+{
+    app.Logger.LogWarning(
+        "🔴 寫入端點開發模式開關已開啟（ENABLE_UNSAFE_DEV_WRITES=true）。" +
+        "這組端點沒有登入與權限保護，僅供本機開發測試，切勿在任何對外環境開啟此設定。");
+    app.MapAdminNewsEndpoints();
+}
 
 app.Run();
 

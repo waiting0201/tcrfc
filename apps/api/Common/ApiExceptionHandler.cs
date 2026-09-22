@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Common;
@@ -17,6 +18,21 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
         {
             ClubNotFoundException clubNotFound =>
                 (StatusCodes.Status404NotFound, "找不到俱樂部", clubNotFound.Message),
+
+            // ── 本輪新增：後台新聞寫入端點的例外（Features/AdminNews），集中在這裡轉狀態碼 ──────
+            AdminArticleValidationException validation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", validation.Message),
+            ArticleSlugConflictException slugConflict =>
+                (StatusCodes.Status409Conflict, "網址名稱重複", slugConflict.Message),
+            ArticleConcurrencyConflictException concurrencyConflict =>
+                (StatusCodes.Status409Conflict, "資料已被變更", concurrencyConflict.Message),
+            SharedArticleReadOnlyException sharedReadOnly =>
+                (StatusCodes.Status403Forbidden, "共用內容唯讀", sharedReadOnly.Message),
+            ArticleInvalidStatusTransitionException invalidTransition =>
+                (StatusCodes.Status409Conflict, "狀態轉換不允許", invalidTransition.Message),
+            ArticleFeaturedLimitExceededException featuredLimit =>
+                (StatusCodes.Status409Conflict, "置頂精選已達上限", featuredLimit.Message),
+
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),
         };

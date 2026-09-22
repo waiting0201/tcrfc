@@ -7,9 +7,28 @@
 Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③ 建立 `Tcrfc.Api.Tests` 自動化測試專案
 （S0-7b 為止零測試）。細節見下方各段落與「S0-7d 驗收紀錄」。
 
-🔴 **不含**：任何寫入、登入與權限、商店與金流、後台任何模組、慈善捐款平台的業務功能（S0-7d 對慈善庫
-只做「開一條連線探活」，不做任何查詢，見下方「`/readyz` 範圍」）。這些留給後續任務，屆時會用到本檔
-還沒接的 EF Core（寫入）與完整權限模型（[`docs/12b`](../../docs/12b-database-tables.md) §7）。
+🔴 **不含**：登入與權限、商店與金流、除新聞以外的後台模組、慈善捐款平台的業務功能（S0-7d 對慈善庫
+只做「開一條連線探活」，不做任何查詢，見下方「`/readyz` 範圍」）。這些留給後續任務，屆時會用到
+完整權限模型（[`docs/12b`](../../docs/12b-database-tables.md) §7）。
+
+---
+
+**本輪（新聞 B2 寫入垂直切片，2026-09-22，`backend-engineer`）**：讓 `apps/admin` 能從前端假資料
+改接真實資料庫，第一步先做**新聞（B2）**——刻意只做這一個模組，因為它是目前唯一有真實後台畫面
+（`apps/admin/src/views/news/`）的模組，做完才有畫面可以驗。新增：
+
+1. **EF Core 一次性 handoff**（`docs/20-cicd.md` §5）：對已用 `db/club-schema.sql` 建好的
+   `tcrfc_club_dev` 跑 `dotnet ef dbcontext scaffold`，產出 `Data/ClubDbContext.cs` ＋
+   `Data/EfEntities/`（138 個實體，對應全部 145 張表），並建立標記為已套用的空白基準 migration
+   `InitialBaseline`（`Data/Migrations/`）——**沒有對資料庫真的跑任何 DDL**，只在
+   `__EFMigrationsHistory` 插入一筆紀錄。細節與怎麼重做見下方「EF Core 一次性 handoff」。
+2. **後台新聞寫入端點**（`Features/AdminNews/`）＋**後台新聞讀取端點**（同一組檔案，補
+   `STATUS.md` S0-12 提到的缺口：既有五組 GET 只回已發布內容，後台驗證不到草稿／排程／已停用）。
+3. **寫入端點開發模式開關**（`Security/DevWriteGate.cs`）：🔴 這組端點在接上登入與權限之前
+   **不得在任何對外環境啟用**，見下方「寫入端點開發模式開關」整節。
+4. ⚠️ **讀取仍是 Dapper（既有五組 GET／repository 一行未動，除 `ClubScopingTests`／
+   `CacheBehaviorTests` 兩個因為藍鯨真實資料到位而過期的斷言外，見下方「發現的既有落差」），
+   寫入改走 EF Core**——docs/17-deployment.md §0 的技術選型「EF Core ＋ Dapper」本輪首次真正落地。
 
 🔴 **2026-09-21（`deployment-engineer`）：本機開發資料庫合併進既有的 `sqlserver` 容器**，
 `docker-compose.dev.yml` 的 `mssql-dev` 服務已退場（見 [`deploy/README.md`](../../deploy/README.md)）。
@@ -23,15 +42,24 @@ Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③
 
 ```
 apps/api/
-├── Program.cs                     # DI 註冊、middleware 管線、路由掛載
+├── Program.cs                     # DI 註冊、middleware 管線、路由掛載、寫入端點開發模式開關
 ├── Tcrfc.Api.csproj                # net10.0，Dapper + Microsoft.Data.SqlClient + AspNetCore.OpenApi
+│                                    #   + EF Core SqlServer/Design（本輪新增，只用在寫入與 migration）
 ├── Data/
-│   ├── IClubSqlConnectionFactory.cs / ClubSqlConnectionFactory.cs   # 唯一的主站庫連線來源
-│   └── ClubOrSharedSql.cs         # 「俱樂部專屬優先、回退共同」SQL 片段的唯一真實來源
+│   ├── IClubSqlConnectionFactory.cs / ClubSqlConnectionFactory.cs   # 唯一的主站庫連線來源（Dapper 用）
+│   ├── ClubOrSharedSql.cs         # 「俱樂部專屬優先、回退共同」SQL 片段的唯一真實來源
+│   ├── ClubDbContext.cs           # 🔴 產生檔（dotnet ef dbcontext scaffold），不要手改
+│   ├── ClubDbContextCustomizations.cs   # 客製化掛進 OnModelCreatingPartial（本輪：並行權杖設定）
+│   ├── EfEntities/                # 🔴 產生檔，138 個實體類別，對應 145 張表（含本輪新增的
+│   │                                #   __EFMigrationsHistory）。programs 表改名 TrainingProgram，
+│   │                                #   見下方「EF Core 一次性 handoff」的命名衝突說明
+│   └── Migrations/                # InitialBaseline：Up()/Down() 刻意留空，見下方說明
 ├── Security/
 │   ├── ClubScope.cs               # 已驗證的俱樂部範圍，建構子 internal，繞不過去
 │   ├── IClubResolver.cs / ClubResolver.cs   # 唯一能建立 ClubScope 的地方
-│   └── ClubNotFoundException.cs
+│   ├── ClubNotFoundException.cs
+│   ├── DevWriteGate.cs            # 🔴🔴🔴 本輪新增：寫入端點的唯一總開關
+│   └── IDevOperatorResolver.cs / DevOperatorResolver.cs   # 🔴 本輪新增：不是身分驗證，見檔案內說明
 ├── Localization/
 │   └── RequestLocale.cs           # zh/en ↔ zh-Hant/en 轉換與回退規則
 ├── Caching/
@@ -40,14 +68,16 @@ apps/api/
 │   └── RedisQueryCache.cs         # REDIS_HOST 有設定時的實作（S0-7d，fail-open／版本號失效／TTL／single-flight）
 ├── Common/
 │   ├── PagedResult.cs / PagingQuery.cs
-│   ├── ApiExceptionHandler.cs     # 統一例外處理，不外流資料庫例外訊息
+│   ├── ApiExceptionHandler.cs     # 統一例外處理，不外流資料庫例外訊息；本輪擴充 AdminArticleException 家族
 │   └── HealthEndpoints.cs         # /healthz、/readyz（S0-7d 起含慈善庫與 Redis 檢查）
 └── Features/
     ├── Clubs/      (ClubDto, ClubsRepository, ClubsEndpoints)
     ├── Players/    (PlayerDto, PlayersRepository, PlayersEndpoints)
     ├── Staff/      (StaffDto, StaffRepository, StaffEndpoints)
-    ├── News/       (ArticleListItemDto/ArticleDetailDto, ArticlesRepository, ArticlesEndpoints)
-    └── Schedule/   (MatchDto, MatchesRepository, MatchesEndpoints)
+    ├── News/       (ArticleListItemDto/ArticleDetailDto, ArticlesRepository, ArticlesEndpoints)   # 唯讀，Dapper，未改
+    ├── Schedule/   (MatchDto, MatchesRepository, MatchesEndpoints)
+    └── AdminNews/  # 🔴🔴🔴 本輪新增，開發模式限定：AdminArticleDtos／AdminArticlesRepository（EF Core）／
+                     #   AdminArticlesEndpoints／AdminArticleExceptions，見下方整節說明
 
 apps/api/Tcrfc.Api.Tests/    # S0-7d：自動化測試專案（獨立 .csproj，不進 Docker 映像檔，見下方「測試」）
 ```
@@ -156,6 +186,7 @@ compose 網路裡）。
 | `CORS_ALLOWED_ORIGINS` | 正式環境必填，本機可省略 | 逗號分隔的允許來源清單，來自 `docker-compose.yml` 的 `api` 服務定義（`docs/17-deployment.md` §10.2 的既有缺口，本次由前一任務補上）。本機開發若沒帶，`Development` 環境會退回 `localhost:3000/3001/3002` 三個 `apps/web` 常用埠；**正式環境沒有這個退回值**——沒設定就是沒有任何來源被允許，比「忘記設定就開放全部」安全 |
 | `ASPNETCORE_ENVIRONMENT` | 建議設 | `Development` 才會開 OpenAPI 端點，其餘值一律關閉 |
 | `ASPNETCORE_URLS` | 本機開發用 | 監聽位址，容器內固定用 `Dockerfile` 的 `ASPNETCORE_HTTP_PORTS=8080` |
+| `ENABLE_UNSAFE_DEV_WRITES` | 🔴 開發用，⛔ 正式環境不得設定 | 本輪新增。要同時滿足 `ASPNETCORE_ENVIRONMENT=Development` **且**這個值字面等於 `"true"`，`Features/AdminNews` 的寫入與後台讀取端點才會被註冊。見下方「寫入端點開發模式開關」整節 |
 
 ⛔ **S0-7d 之後仍完全不碰 LINE Pay、JWT、Blob**——這些鍵名雖然已經在 `docker-compose.yml` 的
 `api` 服務與 `deploy/dev/{club,charity}.env` 裡預留，但本檔的程式碼**沒有讀取它們**，留給接下來實作那些功能的
@@ -177,6 +208,13 @@ session 使用。
 | `GET /api/v1/{club}/news/{slug}` | 新聞單篇 | `lang` |
 | `GET /api/v1/{club}/schedule` | 賽程與賽果 | `team`、`season`（賽季代碼）、`status`、`lang`、`page`、`pageSize`（預設 20，上限 100） |
 | `GET /healthz` | 存活探針 | — |
+| 🔴 `GET /api/v1/admin/{club}/news` | **開發模式限定**（下方整節）。後台新聞清單，**含全部狀態**（草稿／排程／已發布） | `status`、`category`、`keyword`（搜中文標題）、`page`、`pageSize`（預設 20，上限 100） |
+| 🔴 `GET /api/v1/admin/{club}/news/{id}` | 後台單篇詳情（依 GUID，不是 slug），雙語內容不回退，原封回傳 | — |
+| 🔴 `POST /api/v1/admin/{club}/news` | 建立文章，一律從 `draft` 開始 | — |
+| 🔴 `PUT /api/v1/admin/{club}/news/{id}` | 整份取代可編輯內容，不改狀態（樂觀並行） | — |
+| 🔴 `POST /api/v1/admin/{club}/news/{id}/publish` | `draft`／`scheduled` → `published`，立即生效 | — |
+| 🔴 `POST /api/v1/admin/{club}/news/{id}/schedule` | `draft`／`scheduled` → `scheduled`（未來時間） | — |
+| 🔴 `DELETE /api/v1/admin/{club}/news/{id}` | 刪除（樂觀並行） | `expectedUpdatedAt`（必填，ISO 8601） |
 | `GET /readyz` | 就緒探針（真的開連線查主站庫，見下方「/readyz 範圍」） | — |
 
 `lang` 值域 `zh`／`en`（不帶預設 `zh`），與 [`docs/06-conventions.md`](../../docs/06-conventions.md)「語系代碼」一致，
@@ -426,6 +464,204 @@ club)`（或改用排程觸發器主動失效），否則使用者會持續看�
 - 其他任何例外 → `500`，回應固定是「伺服器發生未預期的錯誤，請稍後再試」，**完整例外（含堆疊）只寫進
   `ILogger`**，⛔ 不會出現在 HTTP 回應裡。本次開發期間實際踩過的兩個 500（見下方「開發過程踩的坑」）
   都是先看伺服器端日誌才找到根因，而不是看回應內容——這正是這個設計要達成的效果。
+
+---
+
+## 🔴🔴🔴 寫入端點開發模式開關
+
+專案還沒有登入與權限。**沒有權限把關的寫入端點如果被部署出去，就是任何人都能改資料庫**。
+`Features/AdminNews` 的所有端點（含後台專用的讀取端點）因此掛在一個明確、預設關閉的開關後面：
+
+```csharp
+// Security/DevWriteGate.cs
+public static bool IsEnabled(IConfiguration configuration, IHostEnvironment environment)
+    => environment.IsDevelopment()
+       && string.Equals(configuration[EnableFlagKey], "true", StringComparison.OrdinalIgnoreCase);
+```
+
+`Program.cs` 只在這個判斷式回傳 `true` 時才呼叫 `app.MapAdminNewsEndpoints()`。兩個條件缺一都算關閉：
+
+1. `ASPNETCORE_ENVIRONMENT=Development`——正式環境的 `docker-compose.yml`／`docs/20-cicd.md` §7.2
+   一律設 `Production`，就算忘記設下面那個旗標，光是環境判斷這關就先擋住。
+2. `ENABLE_UNSAFE_DEV_WRITES=true`——刻意用「unsafe」命名，且要求字面等於 `"true"`（不是「有設定
+   就算」），降低「複製一份 `.env` 忘記砍掉」被誤帶到正式環境的機率。
+
+**關閉時的行為是路由完全不註冊，回應是 404，不是 403**——不透露「這裡本來有一組寫入端點」這件事。
+已用三種方式實測（見下方「驗收紀錄」的完整輸出）：
+- `dotnet run`（`ASPNETCORE_ENVIRONMENT=Development`）不設 `ENABLE_UNSAFE_DEV_WRITES` → 404。
+- 同一個 `dotnet run` 設了 `ENABLE_UNSAFE_DEV_WRITES=true` → 端點出現，且啟動時印一則
+  `LogWarning` 級別的警告（訊息裡再講一次「不得在任何對外環境開啟」）。
+- **容器層級**（`ASPNETCORE_ENVIRONMENT=Production`，模擬正式部署，即使沒設
+  `ENABLE_UNSAFE_DEV_WRITES` 也一樣）→ 404，這是兩層防護裡更重要的那一層，因為正式環境的
+  `ASPNETCORE_ENVIRONMENT` 本來就固定是 `Production`。
+
+`created_by`／`updated_by` 這兩個稽核欄位由 `Security/IDevOperatorResolver.cs`
+（`DevOperatorResolver` 唯一實作）從請求標頭 `X-Dev-Operator-Id` 解析：
+
+> 🔴 **這不是身分驗證。** 沒有任何簽章、沒有 session，呼叫端說是誰就是誰。標頭值會先驗證在
+> `admin_users` 表真的存在（那兩個欄位的 FK 約束要求指向真實列），驗不到就回傳 `null`
+> （欄位本來就允許 NULL），不會讓外鍵違反炸成 500。**`admin_users` 目前是空表**（登入系統還沒做），
+> 所以現況下不管標頭給什麼值，`created_by`／`updated_by` 實際上都會是 `null`——這是正確、預期的
+> 行為，不是本輪沒做完。等登入系統做出來、`admin_users` 真的有資料時，這個機制不用改就能接上。
+
+---
+
+## EF Core 一次性 handoff（本輪完成，`docs/20-cicd.md` §5）
+
+`docs/20-cicd.md` §5 明訂：`api` 專案第一次要寫入時，對**已經用 `db/*.sql` 建好的資料庫**跑
+`dotnet ef dbcontext scaffold` 產出 Entity，並建立一個**標記為已套用的空白基準 migration**
+（`InitialBaseline`），不實際重跑 DDL；之後才進入「每次改動都是一個新 migration」的常態。
+
+### 怎麼做的
+
+```bash
+# 1. Scaffold：對本機 tcrfc_club_dev 反向工程出 DbContext 與 138 個實體類別
+cd apps/api
+dotnet ef dbcontext scaffold "$CLUB_SQL_CONNECTION_STRING" Microsoft.EntityFrameworkCore.SqlServer \
+  --context ClubDbContext --context-dir Data --output-dir Data/EfEntities \
+  --namespace Tcrfc.Api.Data.EfEntities --context-namespace Tcrfc.Api.Data \
+  --no-onconfiguring --force
+
+# 2. 建立基準 migration（此時 Up()/Down() 還是「建立全部 145 張表」的完整 DDL）
+dotnet ef migrations add InitialBaseline --context ClubDbContext \
+  -o Data/Migrations --namespace Tcrfc.Api.Data.Migrations
+
+# 3. 手動清空 Up()/Down() 的內容（只留註解），Designer.cs 的模型快照原封不動保留
+#    （這一步刻意不用工具自動化，直接編輯產生的 .cs 檔——見下方檔案內容）
+
+# 4. 套用：因為 Up() 是空的，這裡只會在 __EFMigrationsHistory 插入一筆紀錄，不會真的動任何 DDL
+dotnet ef database update --context ClubDbContext
+```
+
+**套用前後的資料庫表數比對**（實跑紀錄，見下方「驗收紀錄」有完整輸出）：套用前 `sys.tables`
+144 張、`articles` 83 筆；套用後 145 張（只多了 `__EFMigrationsHistory`）、`articles` 仍是 83 筆。
+
+### 🔴 命名衝突：`programs` 表撞到 ASP.NET Core 的頂層 `Program` 類別
+
+Scaffold 完 `dotnet build` 直接炸掉一百多個 `CS1061`，根因是 P1「課程與活動」模組的 `programs` 表
+被 scaffold 成類別 `Program`，跟 `Program.cs` 頂層陳述式產生的 `global::Program`（也是這個組件裡
+`WebApplicationFactory<Program>` 測試要用到的那個類別）同名。C# 名稱解析規則下，**全域命名空間的
+型別比 `using` 匯入的型別優先**，所以 `ClubDbContext.cs` 裡所有 `modelBuilder.Entity<Program>(...)`
+都被誤解析成頂層那個空的 `Program`。**處理方式**：把這一個實體類別（及所有參照它的巡覽屬性）
+改名成 `TrainingProgram`（`programs` 表在後台叫「課程項目」，這個名字語意上也更貼切），
+只改型別名稱，不改資料表名、不改任何欄位對應。**之後重新 scaffold 會再產生一次 `Program.cs`
+這個檔名**，要記得重做這個改名——這是產生流程的已知步驟，不是一次性修好就沒事。
+
+### 之後怎麼加真正會執行 DDL 的 migration（下一位接手者看這裡）
+
+```bash
+# 1. 先改 db/club-schema.sql（走 docs/12 的同步鏈，CLAUDE.md 第 2、3 條）
+# 2. 手動對本機資料庫套用那個 DDL 異動（或整個重建本機庫）
+# 3. 重新 scaffold（見上面第 1 步），這次會抓到新綱要
+# 4. dotnet ef migrations add <描述性名稱> --context ClubDbContext -o Data/Migrations
+#    這次不用清空 Up()/Down()——這是真正要執行的變更，讓它照常產生 DDL
+# 5. 正式環境套用走 docs/20-cicd.md 的 db-migrate.yml（需要 production-db 環境核准），
+#    不是在本機對正式庫下 dotnet ef database update
+```
+
+⚠️ **本輪只做了 handoff 本身，沒有新增任何真正的結構異動**——`InitialBaseline` 是唯一一個
+migration，Up()/Down() 都是空的，且已用「套用前後表數不變」實測驗證過。
+
+---
+
+## 後台新聞（B2）寫入垂直切片
+
+`Features/AdminNews/` 是這一輪的主體，也是之後其他模組（球員、教練、賽程、商店……）抄的樣板。
+四件套：`AdminArticleDtos.cs`（請求／回應）、`AdminArticlesRepository.cs`（EF Core 寫入邏輯）、
+`AdminArticlesEndpoints.cs`（路由）、`AdminArticleExceptions.cs`（業務例外，集中在
+`Common/ApiExceptionHandler.cs` 轉狀態碼）。
+
+### 通則（其他模組照抄的部分）
+
+| 關注點 | 落點 |
+|---|---|
+| **俱樂部範圍** | 沿用既有 `IClubResolver`／`ClubScope`（跟五組唯讀端點同一套，型別系統擋，不是 code review 記住）。寫入路徑另外用 `AdminArticlesRepository.LoadTrackedForWriteAsync` 統一擋「共用內容」與「跨俱樂部」兩種情況 |
+| **共用內容唯讀** | `club_id IS NULL` 的文章：讀（`GetByIdAsync`）允許，**寫（Update／Delete）一律 403**（`SharedArticleReadOnlyException`）。目前**沒有任何管道能透過這組端點建立共用內容**——`CreateAsync` 寫死 `ClubId = scope.ClubId`，因為「共同內容只有超管能建立」（docs/14-invariants.md），而超管角色還不存在，這裡選擇完全不開這條路，不留半套的後門 |
+| **樂觀並行控制** | `articles.updated_at` 當並行權杖，用 EF Core `IsConcurrencyToken()`（`Data/ClubDbContextCustomizations.cs`）——寫入前把追蹤實體的「原始值」設成呼叫端宣稱看到的 `updatedAt`，`SaveChanges` 產生的 SQL 帶 `WHERE updated_at = @原始值`，0 筆命中就丟 `DbUpdateConcurrencyException`，`AdminArticlesRepository.SaveWithConcurrencyHandlingAsync` 接住轉成 `ArticleConcurrencyConflictException`（409）。⛔ 沒有「後寫的贏」 |
+| **slug 重複** | 建立與更新前先查 `SELECT ... WHERE slug = @Slug`（更新時排除自己），撞到就丟 `ArticleSlugConflictException`（409），回可讀訊息，不是讓 SQL Server 的 `UQ_articles_slug` 唯一鍵違反直接冒出 `SqlException` |
+| **雙語側表** | `AdminArticleContentInput.Zh` 必填（`Title` 不得空白，400），`En` 可省略。**PUT 是整份取代語意**：省略 `en`＝清掉既有英文列（不是「沒帶就維持原樣」），已用自動化測試涵蓋兩個方向 |
+| **狀態轉換** | 獨立端點（`/publish`、`/schedule`），不是 PUT 的一個欄位。轉換規則見下方「三態轉換規則（本輪判斷）」 |
+| **快取失效** | 寫入成功（`SaveChangesAsync` 交易完成）後呼叫 `IQueryCache.InvalidateAsync("articles", scope.ClubCode)` 與 `InvalidateAsync("article-detail", scope.ClubCode)`，跟公開讀取 API 用同一組 entity 名稱，讓下一次公開讀取立刻回新值。用真正的 `redis-server` 測過（見下方測試段落） |
+
+### 🔴 這一輪不做的部分（沒有畫面可驗，刻意不做）
+
+- **標籤（`article_tags`）、關聯（`article_relations`）**：規劃書 B2 有提到，但 `NewsEditView.vue`／
+  `NewsListView.vue` 目前**完全沒有對應欄位**，做了也是沒有畫面可驗的端點——跟任務指示「不要順手做
+  球員／教練／賽程／商店」是同一個精神，只是套用在同一個模組內的子功能上。`db/club-schema.sql` 已有
+  這兩張表，下一輪 `apps/admin` 補上畫面時再一併做。
+- **圖片上傳管線**：`coverKey` 只是個欄位（存什麼字串都收），沒有「選檔→縮圖→WebP→去 EXIF」那一整套
+  （那是 `S0-8`）。
+
+### 🔴 我的判斷（規劃書沒定義，本輪做了選擇，需要使用者／下一位確認）
+
+1. **置頂精選「限 3」是逐俱樂部算，不是全站算。** 規劃書只寫「置頂精選（限 3）」，沒說是全站
+   共用一個上限還是每個俱樂部各自 3 篇。多俱樂部架構下我選了「逐俱樂部」（`EnsureFeaturedCapAsync`
+   只算 `club_id = scope.ClubId` 的筆數），理由：這組端點的其他每一條規則（讀、寫、快取失效）
+   全部是逐俱樂部隔離的，全站共用一個計數器會是唯一的例外，也會讓藍鯨官網的置頂精選被磐石的
+   文章佔滿額度，直覺上不合理。**這是本輪的假設，不是規劃書明文，需要業務判斷確認。**
+2. **狀態轉換規則**：`publish`／`schedule` 只接受從 `draft` 或 `scheduled` 出發；已經
+   `published` 的文章不能再呼叫 `/schedule`（會 409，理由：把一篇已經上線的文章排到未來，
+   等於讓它從公開站消失，這個操作應該要更明確，不該跟「第一次發布前的排程」共用同一個按鈕語意，
+   規劃書沒有講這種邊界情況）。`published` 文章仍可以呼叫 `/publish`（视为「立即重新發布」，
+   幂等地把 `published_at` 推進到現在——沒有測試涵蓋這個分支的必要性，因為它不影響資料正確性，
+   只是把時間戳推近）。**這組轉換規則沒有規劃書依據，是本輪的合理猜測，需要確認。**
+
+### 🔴🔴🔴 排程發布：時間到了，誰把狀態從 `scheduled` 改成 `published`？（回報，沒有動手發明）
+
+實測發現一個貫穿既有 README「排程發布與快取」段落與本輪新程式碼的邏輯落差：
+
+- 既有的公開讀取 `ArticlesRepository`（`Features/News/`，唯讀，Dapper，本輪未改）WHERE 子句是
+  `a.status = 'published' AND (a.published_at IS NULL OR a.published_at <= SYSUTCDATETIME())`——
+  **兩個條件都要成立**，`status` 必須字面等於 `'published'`。
+- 本輪新增的 `/schedule` 端點把文章狀態設成 `'scheduled'`（不是 `'published'`），`published_at`
+  設成未來時間，這是 `articles.status` CHECK 約束（`draft`／`published`／`scheduled`）唯一合法
+  的做法——不可能既符合「排程中」的業務語意又把 `status` 直接寫成 `published`。
+- **後果**：`published_at` 那個未來時間**真的到了之後，這篇文章的 `status` 仍然是 `'scheduled'`**，
+  不會自動符合公開 API 的 WHERE 條件，**不會自動出現在公開站上**，除非有某個東西主動把
+  `status` 改成 `published`。
+
+**已用 curl 實測驗證這個落差確實存在**（見下方驗收紀錄）：排程一篇文章到未來時間後，
+`GET /api/v1/tcrfc/news/{slug}`（公開 API）回 404；即使等到那個時間點過了，只要沒有人呼叫
+`/publish`，狀態仍是 `scheduled`，公開 API 仍然 404。
+
+**沒有找到任何規劃書段落定義「誰、什麼時候、用什麼機制」把 `scheduled` 轉成 `published`**
+（背景排程器？Azure Function 計時器觸發？後台頁面打開時順便檢查？）。**依任務指示，這裡不自己
+發明一個排程器**——這是一個需要業務判斷與架構決策的缺口，回報給使用者／下一位接手者：
+
+- 若要「時間到了自動生效」，需要一個會定期執行的背景工作（例如 Azure Function Timer Trigger，
+  或 VM 上的 cron 呼叫一支內部端點），把 `status='scheduled' AND published_at <= now()` 的文章
+  批次轉成 `published`，並呼叫 `IQueryCache.InvalidateAsync`。
+- 或者，改變既有公開讀取 API 的 WHERE 條件語意，讓 `status IN ('published', 'scheduled')` 都算
+  可見（只要 `published_at` 已過）——但這樣「排程中」這個狀態值本身的意義會變得模糊（它就只是
+  「有一個未來發布時間的已發布文章」，那 `scheduled` 存在的意義是什麼），且這條路要改既有
+  `Features/News/ArticlesRepository.cs`，本輪任務範圍明講「一行都不要動，除非發現真的 bug（發現就
+  回報）」——**這就是那個要回報的 bug／缺口**，不是本輪自己去改。
+
+### 已發現、未動手修改的既有落差（回報）
+
+1. **`apps/admin` 的 `ContentStatus` 型別有四態**（`draft`／`scheduled`／`published`／`disabled`，
+   `apps/admin/src/types/common.ts`），**但 `articles.status` 的 CHECK 約束只有三態**（沒有
+   `disabled`／下架）。`NewsListView.vue` 的下架按鈕、狀態篩選下拉選單在真的接上這組 API 之後
+   會有一個選項對不到任何資料庫狀態。⛔ 沒有自己加值域——CHECK 約束要改是規格變更，得先改
+   `docs/12` 再走同步鏈。
+2. **`NewsArticle`（`apps/admin/src/types/news.ts`）的三個欄位在資料庫找不到對應欄位**：
+   `coverImageAlt`（圖片替代文字，雙語）、`noIndex`（不讓搜尋引擎收錄）、`canonicalUrl`（正規網址）。
+   `articles`／`articles_i18n` 都沒有這三個欄位。本輪的 DTO 因此**不包含**這三個欄位（寫了也沒地方
+   存）。`coverImageAlt` 尤其值得注意：後台圖片上傳通則（規劃書 §4.0 v3.9）明講圖片要有雙語 Alt，
+   但 `articles`／`articles_i18n` 的欄位清單裡沒有這個位置——這可能是 `docs/12` 尚未逐張同步的
+   13 項落差之一（README 檔頭「v3.0 落差」有提到 `docs/12` §4／§6 明細尚未逐一改寫），也可能是
+   真的漏了，需要回頭核對 `docs/12b-database-tables.md` §6 的欄位明細。
+3. **`articles.slug` 是全站唯一（`UQ_articles_slug UNIQUE (slug)`），不是 `(club_id, slug)`
+   複合唯一**——這點既有 README 段落「`club_id` 強制機制」已經寫過、已經用 curl 實測過，本輪
+   只是再次確認：任務指示文字裡寫的「`UNIQUE (club_id, slug)`」跟 `db/club-schema.sql` 第 2309 行
+   實際的 DDL 不一致，這裡以資料庫實際的 DDL 為準（已重新用 `grep` 核對過原始檔）。
+4. **兩個既有測試假設過期，已修正**（不算本輪的錯，但在本輪執行 `dotnet test` 時才發現）：
+   `ClubScopingTests`／`CacheBehaviorTests` 各有一個測試斷言「藍鯨（`bw`）球員數應該是 0」，
+   這個假設在 BW-0g（藍鯨舊站資料匯入本機開發資料庫，見 `git log`，與本輪無關的獨立任務）之後
+   不再成立——`bw` 現在也有 28 名真實球員。已改成驗證「兩俱樂部球員 id 集合互不重疊」（不論資料
+   量怎麼變都能驗證 `club_id` 範圍真的有隔離，見測試檔內註解）。**這件事照 CLAUDE.md 第 13 條
+   應該記進 `docs/18-work-errors.md`，但本輪的邊界明講不能碰 `docs/`，這裡先在 README 交代清楚，
+   麻煩使用者或下一位轉記一筆。**
 
 ---
 
@@ -696,7 +932,148 @@ $ curl "/api/v1/tcrfc/schedule?pageSize=200" | jq '[.items[] | select(.matchNo =
 
 ---
 
-## 測試（S0-7d，`apps/api/Tcrfc.Api.Tests`，共 30 項）
+## 驗收紀錄（本輪，2026-09-22，後台新聞寫入垂直切片）
+
+環境：本機既有 `sqlserver` 容器（`tcrfc_club_dev`，`articles` 83 筆，`clubs` 2 筆：`tcrfc`／`bw`）。
+
+### 1. `dotnet build`／`dotnet test` 全過，既有測試不回歸
+
+```
+$ cd apps/api && dotnet build
+建置成功。0 個警告 0 個錯誤
+
+$ cd Tcrfc.Api.Tests && dotnet build
+建置成功。0 個警告 0 個錯誤
+
+$ export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=***;TrustServerCertificate=True;"
+$ dotnet test
+已通過! - 失敗: 0，通過: 48，略過: 0，總計: 48，持續時間: 21 s
+# 30 項既有（含本輪修正的 2 項過期斷言，見上方「已發現、未動手修改的既有落差」第 4 點）
+# + 18 項本輪新增（AdminNewsGateClosedTests 3、AdminNewsWriteTests 14、AdminNewsCacheInvalidationTests 1）
+```
+
+測完直接查資料庫確認測試自己建立的資料都清乾淨、沒有污染種子資料：
+
+```
+$ (查 slug LIKE 'admin-write-test-%' OR 'shared-test-%' OR 'cache-invalidate-test-%')
+leftover_test_articles: 0
+total_articles: 83   # 跟測試前一致
+```
+
+### 2. EF Core handoff 實測（見上方整節說明）
+
+```
+# 套用基準 migration 前
+table_count: 144　ef_history_exists: 0　articles_before: 83
+
+$ dotnet ef database update --context ClubDbContext
+Applying migration '20260922070223_InitialBaseline'.
+# 觀察到的 SQL 只有：CREATE TABLE __EFMigrationsHistory + INSERT 一筆紀錄，沒有其他 DDL
+
+# 套用後
+table_count: 145（只多 __EFMigrationsHistory）　articles_after: 83（不變）
+```
+
+### 3. 開發模式開關實測：關 → 404 → 開 → 可用 → 容器層級 Production 下仍是 404
+
+```
+# 情境一：dotnet run，Development，不設 ENABLE_UNSAFE_DEV_WRITES
+$ curl -o /dev/null -w "%{http_code}\n" /api/v1/admin/tcrfc/news
+404
+$ curl -o /dev/null -w "%{http_code}\n" -X POST /api/v1/admin/tcrfc/news -d '{...}'
+404
+$ curl /api/v1/tcrfc/news?pageSize=1   # 既有公開端點不受影響
+{"items":[...],"totalCount":83,...}
+
+# 情境二：dotnet run，Development，ENABLE_UNSAFE_DEV_WRITES=true
+$ curl -o /dev/null -w "%{http_code}\n" /api/v1/admin/tcrfc/news
+200
+# 啟動 log 印出：🔴 寫入端點開發模式開關已開啟...切勿在任何對外環境開啟此設定。
+
+# 情境三（更重要）：docker build 出來的映像檔，ASPNETCORE_ENVIRONMENT=Production
+#   （模擬正式部署，即使沒設 ENABLE_UNSAFE_DEV_WRITES，正式環境本來就不會設）
+$ docker build -t x apps/api   # 成功，Tcrfc.Api.Tests 未被送進 build context（.dockerignore 既有排除）
+$ docker run ... -e ASPNETCORE_ENVIRONMENT=Production ...
+$ curl -o /dev/null -w "%{http_code}\n" /api/v1/admin/tcrfc/news
+404
+$ curl /healthz
+{"status":"ok"}
+```
+
+### 4. 完整生命週期（建立草稿 → 改內容 → 排程 → 發布 → 刪除），每一步查資料庫
+
+```
+# 1. 建立草稿
+$ curl -X POST /api/v1/admin/tcrfc/news -d '{"slug":"curl-verify-article","categoryCode":"club",...}'
+{"id":"69fa9fae-...","status":"draft","updatedAt":"2026-09-22T07:15:13.883",...}
+$ SELECT id,slug,status,club_id,created_by,updated_by FROM articles WHERE slug='curl-verify-article'
+69FA9FAE-... curl-verify-article draft F7CB2444-...(tcrfc) NULL NULL
+$ SELECT locale,title FROM articles_i18n WHERE article_id='69fa9fae-...'
+zh-Hant  curl 驗證文章
+
+# 2. 改內容（PUT，帶 X-Dev-Operator-Id 標頭示範，admin_users 是空表故仍為 NULL）
+$ curl -X PUT .../news/69fa9fae-... -H "X-Dev-Operator-Id: <random-guid>" -d '{...expectedUpdatedAt:上一步的值...}'
+{"status":"draft","coverKey":"articles/2026/09/curl-cover.webp","zh":{"title":"curl 驗證文章（已編輯）"},"en":{"title":"Curl Verify Article (Edited)"},"updatedAt":"2026-09-22T07:15:53.661"}
+$ SELECT slug,cover_key,updated_by,updated_at FROM articles WHERE id='69fa9fae-...'
+curl-verify-article  articles/2026/09/curl-cover.webp  NULL  2026-09-22 07:15:53.661
+$ SELECT locale,title,summary FROM articles_i18n WHERE article_id='69fa9fae-...'
+en       Curl Verify Article (Edited)   NULL
+zh-Hant  curl 驗證文章（已編輯）          改過的摘要
+
+# 3. 排程發布（未來 30 分鐘）
+$ curl -X POST .../news/69fa9fae-.../schedule -d '{"expectedUpdatedAt":"...","publishAt":"<UTC+30min>"}'
+{"status":"scheduled","publishedAt":"2026-09-22T07:46:04.227",...}
+$ SELECT status,published_at,SYSUTCDATETIME() FROM articles WHERE id='69fa9fae-...'
+scheduled  2026-09-22 07:46:04.227  2026-09-22 07:16:04.44（確認 published_at 真的在未來）
+$ curl -o /dev/null -w "%{http_code}\n" /api/v1/tcrfc/news/curl-verify-article   # 排程中，公開 API 應該看不到
+404   # 🔴 見上方「排程發布：誰改狀態」整節——這個 404 會一直維持到有人呼叫 /publish 為止
+
+# 4. 發布（立即生效）
+$ curl -X POST .../news/69fa9fae-.../publish -d '{"expectedUpdatedAt":"..."}'
+{"status":"published","publishedAt":"2026-09-22T07:16:14.426",...}
+$ SELECT status,published_at FROM articles WHERE id='69fa9fae-...'
+published  2026-09-22 07:16:14.426
+$ curl /api/v1/tcrfc/news/curl-verify-article   # 公開 API 現在看得到了
+{"id":"69fa9fae-...","title":"curl 驗證文章（已編輯）","summary":"改過的摘要",...}
+
+# 5. 刪除
+$ curl -X DELETE ".../news/69fa9fae-...?expectedUpdatedAt=<url-encoded>"
+HTTP 204
+$ SELECT COUNT(*) FROM articles WHERE id='69fa9fae-...'          → 0
+$ SELECT COUNT(*) FROM articles_i18n WHERE article_id='69fa9fae-...' → 0（FK ON DELETE CASCADE）
+$ curl -o /dev/null -w "%{http_code}\n" /api/v1/tcrfc/news/curl-verify-article        → 404
+$ curl -o /dev/null -w "%{http_code}\n" /api/v1/admin/tcrfc/news/69fa9fae-...         → 404
+```
+
+### 5. 補充驗證（業務規則）
+
+```
+$ curl -X POST .../news -d '{"slug":"2026-08-10-international-000",...}'   # 撞既有文章的 slug
+{"title":"網址名稱重複","status":409,"detail":"網址名稱「2026-08-10-international-000」已經被使用，請換一個。"}
+
+$ curl -X POST .../news -d '{"categoryCode":"not-real",...}'
+{"title":"輸入內容有誤","status":400,"detail":"找不到分類代碼「not-real」。"}
+```
+
+俱樂部範圍（另一俱樂部路由改不到／刪不到）、共用內容唯讀（403）、樂觀並行衝突（409，且確認
+「不是後寫的贏」）、三態轉換（已發布不能再排程）、雙語側表整份取代語意、快取失效（真實 Redis，
+更新後公開 API 立刻反映新標題）——這幾項改用自動化測試涵蓋（見下方「測試」），不在這裡重複貼
+curl，測試本身也是對 `tcrfc_club_dev` 打真正的 HTTP 管線，不是 mock。
+
+### 6. 既有五組 GET 端點回歸比對（同一次跑，前後對照 S0-7d 驗收紀錄的數字）
+
+```
+clubs 清單筆數:      2     （不變）
+tcrfc players 筆數:  28    （不變）
+tcrfc staff 筆數:    8     （不變）
+tcrfc news 筆數:     83    （不變，且等於本輪操作完、測試清乾淨之後的筆數）
+tcrfc schedule 筆數: 21    （不變）
+/readyz:             {"status":"ready","club_db":"ok","charity_db":"not_configured","redis":"not_configured"}
+```
+
+---
+
+## 測試（`apps/api/Tcrfc.Api.Tests`，共 48 項）
 
 S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄裡。S0-7d 新增獨立測試專案
 `Tcrfc.Api.Tests`（xUnit 2.9 + `Microsoft.AspNetCore.Mvc.Testing`），對 `Program`
@@ -710,12 +1087,15 @@ S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄�
 
 | 測試檔 | 驗證什麼 |
 |---|---|
-| `ClubScopingTests` | 跨俱樂部讀清單為 0 筆、跨俱樂部讀已知 slug 的文章詳情回 404（不是內容）、不存在的俱樂部代碼回 404 |
+| `ClubScopingTests` | 跨俱樂部球員清單 id 集合互不重疊（2026-09-22 改法，見「已發現、未動手修改的既有落差」第 4 點）、跨俱樂部讀已知 slug 的文章詳情回 404（不是內容）、不存在的俱樂部代碼回 404 |
 | `LocalizationFallbackTests` | 語系逐欄位回退（同一筆記錄可以一半英文一半中文）；用 Unicode 範圍判斷中文／英文，不硬編碼種子資料的確切字串 |
 | `PagingNormalizationTests` | `page<=0`→1、`pageSize<=0`→端點預設值、超過上限截斷 |
 | `SqlInjectionTests` | 惡意 `team` 參數不炸、不回傳資料、資料表安然無恙 |
 | `CacheFailOpenTests` | Redis 不可用時，`ClubResolver`＋**五組接了快取的端點**（`clubs`／`players`／`staff`／`news` 列表與單篇／`schedule`）全部仍然成功；`/readyz` 仍回 `ready` 但 `redis` 標示 `degraded`（S0-7d 續作擴大涵蓋範圍，原本只驗證 `players` 一個端點） |
-| **`CacheBehaviorTests`（S0-7d 續作新增）** | qualifier 是否真的涵蓋每個會改變結果的參數（`pageSize`／`team`／`category`／`season`／`status`）、同參數兩次結果一致、文章單篇不同 slug 互不污染、**404 不寫入快取**、**用 `IConnectionMultiplexer` 直接核對 key 真的依 club／locale 隔離**、key 有 TTL 兜底 |
+| **`CacheBehaviorTests`（S0-7d 續作新增）** | qualifier 是否真的涵蓋每個會改變結果的參數（`pageSize`／`team`／`category`／`season`／`status`）、同參數兩次結果一致、文章單篇不同 slug 互不污染、**404 不寫入快取**、**用 `IConnectionMultiplexer` 直接核對 key 真的依 club／locale 隔離**（2026-09-22 同上改成 id 集合不重疊）、key 有 TTL 兜底 |
+| **`AdminNewsGateClosedTests`（本輪新增）** | 開發模式開關關閉時，後台清單／單篇／建立三個端點一律 404（不是 403），用既有的 `ApiFixture`（不設 `ENABLE_UNSAFE_DEV_WRITES`）驗證 |
+| **`AdminNewsWriteTests`（本輪新增）** | 完整生命週期（建立→改內容→排程→發布→刪除）、分類代碼不存在／中文標題空白回 400、slug 重複回 409、俱樂部範圍（另一俱樂部路由更新／刪除回 404 且本尊不變）、共用內容唯讀（更新／刪除回 403，且後台讀取看得到並標記 `isShared`）、樂觀並行控制（過期 `updatedAt` 回 409 且不是後寫的贏）、三態轉換（已發布不能再排程）、排程時間不在未來回 400、雙語側表（加英文／省略英文清空）、置頂精選超過 3 篇回 409 |
+| **`AdminNewsCacheInvalidationTests`（本輪新增）** | 用真正的 `redis-server`（`AdminWriteRedisEnabledApiFixture`）驗證：後台更新已發布文章後，公開 API 立刻反映新標題，不是被 TTL 內的舊快取值擋住 |
 
 ### 怎麼跑
 
@@ -745,9 +1125,11 @@ Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容
 且相依套件數量維持最少；若之後接上 CI 且 CI 固定會提供資料庫，這個決定可以重新評估，
 本檔沒有代為決定 CI 一定要用哪一種語意。
 
-### 三個 fixture、三種環境設定
+### 五個 fixture、五種環境設定
 
 - `ApiFixture`：`REDIS_HOST` 清空（強制走 `NoOpQueryCache`），只驗證主站庫相關行為。
+  **本輪起也是「開發模式開關關閉」狀態的代表**（不設 `ENABLE_UNSAFE_DEV_WRITES`），
+  `AdminNewsGateClosedTests` 就是刻意用這個 fixture，驗證「大多數測試在關閉狀態下跑」。
 - `RedisUnavailableApiFixture`：`REDIS_HOST=127.0.0.1`＋一個用 `TcpListener` 現抓現放的
   本機閒置連接埠（不是猜一個「應該沒人用」的埠號），讓 `RedisQueryCache` 真的拿到連線失敗，
   專門驗證 fail-open。
@@ -759,13 +1141,31 @@ Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容
   ⚠️ `--save ""` 是必要的——沒有它，`redis-server` 收到終止訊號時會在**目前工作目錄**寫一個
   `dump.rdb`（S0-7d 第一階段手動驗證時真的踩過這個坑，見 `docs/18-work-errors.md` E-27 附近的說明），
   用測試自動化跑的話這個風險更大（工作目錄通常就是專案根目錄）。
+- **`AdminWriteApiFixture`（本輪新增）**：`ENABLE_UNSAFE_DEV_WRITES=true` ＋ `REDIS_HOST` 清空，
+  是唯一開啟寫入端點但不驗證快取行為的 fixture，`AdminNewsWriteTests` 用這個。
+- **`AdminWriteRedisEnabledApiFixture`（本輪新增）**：`ENABLE_UNSAFE_DEV_WRITES=true` ＋真正的
+  `redis-server` 子行程（跟 `RedisEnabledApiFixture` 同樣的啟動方式），專門驗證「寫入後公開快取
+  真的失效」這件事，`AdminNewsCacheInvalidationTests` 用這個。
 
-三者都用**行程環境變數**（`Environment.SetEnvironmentVariable`）而不是
+五者都用**行程環境變數**（`Environment.SetEnvironmentVariable`）而不是
 `WebApplicationFactory.ConfigureWebHost` 的 `ConfigureAppConfiguration` 來傳遞設定——
 因為 `Program.cs` 在 `builder.Build()` 之前就會讀 `REDIS_HOST` 決定要不要注入
 `RedisQueryCache`，那段程式碼跑在測試主機的攔截點之前。因此測試組件用
 `[assembly: CollectionBehavior(DisableTestParallelization = true)]` 停用平行化，
 避免不同 fixture 的環境變數互相污染（測試數量少，停用平行化的時間成本可以接受）。
+
+> 🔴 **本輪實際踩到的坑，記錄下來給下一個加 fixture 的人**：`DisableTestParallelization`
+> 只保證**測試方法**不平行跑，**不保證不同 `[Collection]` 的 fixture 之間 `InitializeAsync`
+> 的執行順序**。加入 `AdminWriteApiFixture`（會把 `ENABLE_UNSAFE_DEV_WRITES` 設成 `"true"`）之後，
+> `AdminNewsGateClosedTests`（用 `ApiFixture`，預期這個變數是關閉的）開始**偶發**失敗——
+> 不是每次跑都會中，因為環境變數是行程全域的，`ApiFixture` 若剛好在 `AdminWriteApiFixture`
+> **之後**才呼叫 `_ = Server`，就會在變數已經被設成 `"true"` 的狀態下建立測試主機。
+> **修法**：每一個「這個開關應該是關的」fixture（`ApiFixture`／`RedisUnavailableApiFixture`／
+> `RedisEnabledApiFixture`）都在自己的 `InitializeAsync` 明確把 `ENABLE_UNSAFE_DEV_WRITES`
+> 設成 `null`——不依賴「反正我沒設定過就是關閉」，跟既有 `REDIS_HOST` 的處理方式一致（同一段
+> 已經在做的事，本輪只是多了一個新變數要比照辦理）。**下一次新增任何會動到行程環境變數的
+> fixture，都要檢查現有的「應該關閉」fixture 有沒有明確清掉那個變數**，不要假設「別的 fixture
+> 不會設定就不用管」。已用連續 4 次 `dotnet test` 重跑驗證修好（4 次全綠，`48/48`）。
 
 ### Docker 映像檔不受影響
 
@@ -773,7 +1173,9 @@ Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容
 已明確 `<Compile Remove="Tcrfc.Api.Tests/**/*.cs" />`（否則預設的遞迴萬用字元會把測試原始碼
 一起編進主專案，因為兩個 .csproj 在同一個目錄樹下、沒有解決方案檔幫忙切開建置範圍）；
 `apps/api/.dockerignore` 也排除了這個目錄，`docker build -t x apps/api` 不受影響
-（已實跑驗證，見「S0-7d 驗收紀錄」）。
+（已實跑驗證，見「S0-7d 驗收紀錄」與本輪「驗收紀錄」第 3 點——本輪特別因為新增了 EF Core
+套件與 `Data/Migrations/`／`Data/EfEntities/` 兩個新目錄，額外確認過 `docker build` 仍然成功，
+不是只跑 `dotnet build` 就假設容器也沒問題，見 `docs/18-work-errors.md` E-35 的教訓）。
 
 ---
 
@@ -782,6 +1184,11 @@ Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表
 - [`docs/14-invariants.md`](../../docs/14-invariants.md) — `club_id` 維度、跨庫 JOIN 陷阱、不得讀快取清單
 - [`docs/17-deployment.md`](../../docs/17-deployment.md) §0／§1／§4／§6 — 技術選型、容器佈局、快取策略、本機開發資料庫
-- [`docs/18-work-errors.md`](../../docs/18-work-errors.md) E-19／E-20 — 本次開發踩的坑
+- [`docs/18-work-errors.md`](../../docs/18-work-errors.md) E-19／E-20／E-35 — 本次與前次開發踩的坑
+  （本輪的「兩個測試假設過期」與「programs 撞 Program」兩件事尚未寫進這份文件，見上方「已發現、
+  未動手修改的既有落差」第 4 點——本輪邊界不含 `docs/`，麻煩使用者或下一位轉記）
+- [`docs/20-cicd.md`](../../docs/20-cicd.md) §5 — EF Core 與手寫 DDL 怎麼接軌（本輪執行的依據）
+- [`docs/03-admin-spec.md`](../../docs/03-admin-spec.md) B2 — 新聞模組規格（CRUD、分類、標籤、排程發布、置頂精選）
 - [`db/seed/README.md`](../../db/seed/README.md) — 本機資料庫怎麼連、種了哪些資料、已知落差
-- [`apps/web/README.md`](../web/README.md) — 這支 API 的呼叫端（Nuxt 前台骨架）
+- [`apps/web/README.md`](../web/README.md) — 這支 API 唯讀端點的呼叫端（Nuxt 前台骨架）
+- [`apps/admin/src/views/news/`](../admin/src/views/news/) — 這支 API 後台端點要餵的畫面（`apps/admin` 尚未接上，下一輪工作）

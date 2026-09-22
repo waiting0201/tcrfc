@@ -151,14 +151,20 @@ public sealed class CacheBehaviorTests(RedisEnabledApiFixture fixture)
         // 先把 tcrfc 打熱。
         var tcrfcResult = await client.GetFromJsonAsync<PagedResult<PlayerDto>>(
             "/api/v1/tcrfc/players?pageSize=50", TestJson.Options);
-        // 再打 bw——如果 club 維度沒隔離，這裡有可能誤命中 tcrfc 那把 key 並拿到 28 筆。
+        // 再打 bw——如果 club 維度沒隔離，這裡有可能誤命中 tcrfc 那把 key 並拿到同一批球員。
         var bwResult = await client.GetFromJsonAsync<PagedResult<PlayerDto>>(
             "/api/v1/bw/players?pageSize=50", TestJson.Options);
 
         Assert.NotNull(tcrfcResult);
         Assert.NotNull(bwResult);
         Assert.True(tcrfcResult!.TotalCount > 0);
-        Assert.Equal(0, bwResult!.TotalCount);
+        // 🔴 2026-09-22：原本這裡斷言 bw 一定是 0 筆，但 BW-0g（藍鯨舊站資料匯入，見 git log）
+        // 是獨立且合法的任務，已經把真實藍鯨球員資料灌進 tcrfc_club_dev，bw 現在也有球員了。
+        // 改成驗證「兩邊球員 id 不重疊」——不論資料量怎麼變都能驗證 club_id 範圍真的有隔離，
+        // 跟下面「Redis key 本身不重疊」是同一件事的兩種驗證角度（HTTP 回應層 ＋ 快取層）。
+        var tcrfcIds = tcrfcResult.Items.Select(p => p.Id).ToHashSet();
+        var bwIds = bwResult!.Items.Select(p => p.Id).ToHashSet();
+        Assert.Empty(tcrfcIds.Intersect(bwIds));
 
         // 直接用 Redis 用戶端核對：兩個俱樂部各自有一把不同的 key，且 key 字串本身就標明是哪個俱樂部。
         var playerKeys = server.Keys(pattern: "*:players:*").ToArray();

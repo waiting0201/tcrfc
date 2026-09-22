@@ -76,6 +76,8 @@ public sealed class RedisEnabledApiFixture : WebApplicationFactory<Program>, IAs
         Environment.SetEnvironmentVariable("REDIS_HOST", "127.0.0.1");
         Environment.SetEnvironmentVariable("REDIS_PORT", port.ToString());
         Environment.SetEnvironmentVariable("REDIS_PASSWORD", RedisPassword);
+        // 見 ApiFixture 同一行的註解：這個 fixture 不驗證寫入端點，明確清掉、不依賴「反正沒設定過」。
+        Environment.SetEnvironmentVariable("ENABLE_UNSAFE_DEV_WRITES", null);
 
         RedisInspector = await ConnectionMultiplexer.ConnectAsync($"127.0.0.1:{port},password={RedisPassword}");
 
