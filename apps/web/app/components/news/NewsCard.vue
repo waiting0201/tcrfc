@@ -7,6 +7,10 @@
 // DOM 結構、class 一律比照 mockup 不動；data-cat/data-year/data-month/data-title
 // 四個屬性原本由 build.mjs 從 JSON 算好烤進 HTML，這裡改成從 API 回傳的
 // ArticleListItemDto 即時算，值域與算法逐一對應 app/utils/news.ts。
+//
+// 🔴 S0-9e：href 原本寫死 /zh/news/article/（83 篇卡片全部連到同一篇範本文章），
+// 改為依 article.slug 動態組出逐篇網址 /zh/news/{slug}/，對應新增的動態路由
+// app/pages/zh/news/[slug]/index.vue。
 interface NewsCardArticle {
   slug: string
   categoryCode: string
@@ -23,7 +27,7 @@ const cover = computed(() => hasNewsCover(props.article.slug))
 <template>
   <a
     class="news-card clip-card"
-    href="/zh/news/article/"
+    :href="`/zh/news/${article.slug}/`"
     :hidden="hidden || undefined"
     :data-cat="article.categoryCode"
     :data-year="newsYearAttr(article.publishedAt)"

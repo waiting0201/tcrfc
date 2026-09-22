@@ -474,7 +474,12 @@ onBeforeUnmount(() => {
   </section>
 
   <!-- SPEC 3.7 — News mosaic
-       藍鯨新聞 07 單元自有全文 0 篇（gap-analysis.md §4 #3），本區塊不顯示。 -->
+       藍鯨新聞 07 單元自有全文 0 篇（gap-analysis.md §4 #3），本區塊不顯示。
+       🔴 S0-9e：本區塊內容逐字沿用 mockup（本頁檔頭註解「main 內容不動」），不是資料驅動——
+       5 張卡片的 href 原本寫死 /zh/news/article/，改為依各卡片自己 <img> 的檔名
+       （已對應 /assets/img/news/{slug}.jpg 的既有命名慣例）反推出真實 slug，
+       組成逐篇網址；沒有改成打 API，因為這個區塊本身就是精選 5 篇的靜態展示，
+       跟 news/index.vue 的資料驅動清單是兩回事。 -->
   <section v-if="isTcrfc" class="band news-band" id="news" aria-labelledby="news-title">
     <div class="band-inner container">
       <div class="eyebrow-row">
@@ -486,7 +491,7 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="news-mosaic">
-        <a class="news-card clip-card news-card--feature" href="/zh/news/article/">
+        <a class="news-card clip-card news-card--feature" href="/zh/news/2026-05-17-match-002/">
           <div class="news-card__media">
             <span class="news-card__tag">消息 News</span>
             <img src="/assets/img/news/2026-05-17-match-002.jpg" alt="企甲聯賽 台中磐石 1-2 陽信北競" loading="lazy" width="1280" height="853">
@@ -497,7 +502,7 @@ onBeforeUnmount(() => {
           </div>
         </a>
 
-        <a class="news-card clip-card news-card--sml" href="/zh/news/article/">
+        <a class="news-card clip-card news-card--sml" href="/zh/news/2026-05-10-match-003/">
           <div class="news-card__media">
             <span class="news-card__tag">比賽 Matches</span>
             <img src="/assets/img/news/2026-05-10-match-003.jpg" alt="企甲聯賽 台中磐石 2-4 南市台鋼" loading="lazy" width="1280" height="855">
@@ -508,7 +513,7 @@ onBeforeUnmount(() => {
           </div>
         </a>
 
-        <a class="news-card clip-card news-card--sml" href="/zh/news/article/">
+        <a class="news-card clip-card news-card--sml" href="/zh/news/2026-05-03-match-005/">
           <div class="news-card__media">
             <span class="news-card__tag">比賽 Matches</span>
             <img src="/assets/img/news/2026-05-03-match-005.jpg" alt="乙級聯賽 台中磐石預備隊 0-2 銘傳Desafio" loading="lazy" width="1280" height="855">
@@ -519,7 +524,7 @@ onBeforeUnmount(() => {
           </div>
         </a>
 
-        <a class="news-card clip-card news-card--wide" href="/zh/news/article/">
+        <a class="news-card clip-card news-card--wide" href="/zh/news/2026-08-10-international-000/">
           <div class="news-card__inner" style="display:flex;width:100%;">
             <div class="news-card__media">
               <span class="news-card__tag">國際動態 International</span>
@@ -532,7 +537,7 @@ onBeforeUnmount(() => {
           </div>
         </a>
 
-        <a class="news-card clip-card news-card--wide" href="/zh/news/article/">
+        <a class="news-card clip-card news-card--wide" href="/zh/news/2026-05-24-match-001/">
           <div class="news-card__inner" style="display:flex;width:100%;">
             <div class="news-card__media">
               <span class="news-card__tag">比賽 Matches</span>

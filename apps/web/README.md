@@ -106,6 +106,17 @@ curl -s http://127.0.0.1:3002/zh/ | grep -o 'data-club="[a-z]*"'   # bw
 - 🔴 **`/sitemap.xml` 的輸出目前是空的 `<urlset>`**（`@nuxtjs/sitemap` 的動態來源偵測與
   「一份 build、runtime 才決定 club」衝突），資料端點 `/api/__sitemap__/urls` 本身已驗證
   依 club 正確過濾，但模組沒有把它接進最終 XML。詳見 [`docs/18-work-errors.md`](../../docs/18-work-errors.md) E-18。
+  **S0-9e 更新**：資料端點本身已補上 83 篇新聞逐篇網址（實測 tcrfc 93 筆、bw 8 筆，只有單元
+  網址、0 篇文章符合現況），但這個既有的 XML 輸出缺口本身尚未解決，不在本次任務範圍。
+- 🔴 **新聞逐篇網址已做出來**（S0-9e，`/zh/news/{slug}/`），但有兩個跟著浮出的落差：
+  ① `apps/api` 的 `ArticleDetailDto` 沒有 `updatedAt`／`dateModified` 可用的欄位——DB 的
+  `articles.updated_at` 只在後台寫入端點當樂觀並行權杖，沒有經公開 API 輸出。文章詳情頁的
+  Article Schema（GEO-08）因此只輸出 `datePublished`，不輸出 `dateModified`（沒有真實資料
+  就不輸出，不拿發布時間頂替，見 `app/pages/zh/news/[slug]/index.vue` 檔頭說明）。
+  ② **共用文章（`club_id` 為空）的 canonical 該掛哪一站尚未定案**（規劃書第 10 章第 38 點／
+  `docs/05-i18n-seo.md` §4b①），文章詳情頁目前依 nuxt-seo-utils 預設行為（canonical 指向
+  當前這一站自己），刻意不預先替共用文章決定要掛哪一站——83 篇種子資料目前沒有任何一篇
+  `club_id` 為空，這個分支還沒有真實資料能驗證，見同一個檔案的檔頭說明。
 - 🟡 **藍鯨的 favicon／apple-touch-icon／OG 圖不是正式設計稿**：`brand/blue-whale/` 只有隊徽
   點陣主檔（3299×3243 去背 PNG），沒有向量、沒有專屬的 favicon／OG 設計。本骨架用「裁切成正方形
   ＋ 縮放」從官方點陣主檔產生 `public/assets/brand/bw/{favicon-32,favicon-48,apple-touch-icon}.png`
