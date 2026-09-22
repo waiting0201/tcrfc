@@ -799,3 +799,45 @@ E-01／E-02／E-06／E-07／E-08／E-09／E-10／E-11／E-22／E-23／E-24／E-2
 > ⚠️ **這一筆與 `E-31` 的關係**：`E-31` 是「防護的**覆蓋範圍**不足卻給出全面的信心」，
 > 這一筆是「防護**有跑但沒人看**，以及防護**根本沒跑**」。
 > 兩者的共同點是**防護的實際效力與它給人的信心不相稱**，但可改的行為不同，所以分開記。
+
+---
+
+### E-35 前端專案的驗收只跑 `npm run build`，`docker build` 到交付後才發現是壞的（2026-09-22，慈善捐款前台）
+
+- **錯在哪**：慈善前台 `apps/web-charity/` 交付時 `npm run build`、`npm run lint`、逐頁 `curl`、
+  三斷點實測**全部通過**，但 `docker build apps/web-charity` **直接失敗**：
+
+  ```
+  [sync-fixtures] 找不到來源檔案：/db/seed/charity-fixtures.json
+  ERROR: process "/bin/sh -c npm run build" did not complete successfully: exit code: 1
+  ```
+
+  原因是我把兩個前端共用的假資料放在 repo 根目錄的 `db/seed/charity-fixtures.json`，
+  而 [`20-cicd.md`](20-cicd.md) §3 的既有慣例是**以 app 目錄為 build context**
+  （`docker build -t x apps/admin` 已實測過）——那個檔案落在 build context 之外，容器內讀不到。
+  **本機跑得動是因為本機看得到整個 repo；容器看不到。**
+- **為什麼會錯（根因）**：兩層。
+  1. **新增跨專案共用的檔案時，沒有先確認它在不在各專案的 Docker build context 內。**
+     「跨專案共用」在 monorepo 的檔案系統裡是理所當然的事，在容器裡卻是預設做不到的事——
+     這個落差不會在任何本機指令裡浮現。
+  2. 🔴 **更要命的是驗收清單的形狀**：我派工時給前台的驗收是「`npm run build` ／ `lint` ／ `curl` ／
+     三斷點」，**沒有 `docker build`**；給後台的驗收**有**寫 `docker build`。同一輪、同一類專案、
+     兩份清單不一致，於是缺的那一邊就漏掉了。**驗收清單是人逐次手寫的，就會逐次不一樣。**
+- **下次怎麼避免**：
+  1. **前端專案的驗收一律包含 `docker build`**，不是只有 `npm run build`。
+     這兩件事驗的是不同的東西：前者驗「程式碼對不對」，後者驗「**這個專案能不能被部署**」。
+     Dockerfile 建不起來的交付物等於沒有交付。
+  2. **新增任何跨專案共用的檔案時，先問「它在 build context 裡嗎」。** 若不在，要嘛改 context，
+     要嘛在各專案內放一份由腳本產生、且有同步檢查的副本。
+  3. **不要每次手寫驗收清單。** 同一類專案的驗收項目應該是一份固定清單，逐項勾，不是憑印象列。
+- **防呆**：✅ **同一次交付內完成**。
+  ① `db/seed/emit-charity-fixtures.py` 改為同時輸出三份內容完全一致的檔案
+     （`db/seed/` 正本 ＋ 兩個 app 目錄內的副本，都納版控），`--check` 一次驗三份，
+     任一份過期就 exit 1，已掛進兩個前端的 `npm run lint`；
+  ② `apps/web-charity` 與 `apps/admin-charity` 都已 `docker build` ＋ `docker run` ＋ `curl -I` 實測，
+     兩者的 `X-Robots-Tag: noindex` 皆正確送出（`E-29` 無回歸）。
+
+> 🔵 **為什麼選「各 app 放副本」而不是「把 build context 改成 repo root」**：
+> 後者要改兩支 Dockerfile、要加根目錄 `.dockerignore` 擋掉 456MB 的收件夾與 `reference/`，
+> 並推翻 `20-cicd.md` 已記錄且已實測的慣例。副本最怕的是漂移，而漂移由 `--check` 擋住；
+> 改 context 要動的面則大得多。**這是執行層取捨，不是規格。**

@@ -1,0 +1,196 @@
+/**
+ * 慈善後台 design tokens（docs/22-charity-ui.md §1.6.2／§1.7，冷中性淺色）。
+ *
+ * ⛔ 不得沿用 apps/admin 的品牌桃紅／深色四層色階——慈善的收款與主辦主體是台灣足球策略
+ * 發展協會，是另一個法人，兩套系統長得一模一樣會製造真實的法人混淆風險（docs/22 §1.1）。
+ * 操作主色刻意用「墨色」（跟主文字同一個顏色），不是另一個色相——任何色相的強調色都有
+ * 被誤讀成「這是暫定的品牌色」的風險，等協會品牌資產到位，只需要替換這一個 token。
+ *
+ * 淺色系統不需要 docs/21 那套四層色階模擬海拔（overlay 另外調亮）的工程——box-shadow
+ * 在淺色底下本來就清楚可辨，這裡只有 3 層背景（page／surface／surface-2），對話框與
+ * 下拉選單直接用 surface + 陰影，不需要更亮的第 4 層（docs/22 §1.5）。
+ *
+ * ⚠️ 色值一律逐字抄自 docs/22-charity-ui.md §1.6／§1.7／§5，改動前先跑
+ * scripts/check-contrast.mjs——每一組都已用 WCAG 相對亮度公式驗過對比度笛卡兒積。
+ */
+:root {
+  /* ── 三層背景（§1.6.2，冷中性 H≈220°） ─────────────────────────────── */
+  --charity-admin-bg-page: #f3f4f7;
+  --charity-admin-bg-surface: #ffffff;
+  --charity-admin-bg-surface-2: #e8eaee;
+
+  /* ── 文字階層（§1.6.2） ────────────────────────────────────────────── */
+  --charity-admin-text-primary: #21242c;
+  --charity-admin-text-secondary: #505662;
+  --charity-admin-text-tertiary: #636874;
+  --charity-admin-text-disabled: #a0a4ab; /* 豁免 AA，不用於傳達資訊 */
+
+  /* ── 邊框（§1.6.2／§1.7.3） ────────────────────────────────────────── */
+  --charity-admin-border: #d0d4dc; /* 純裝飾性邊界，明文豁免 3:1（旁邊有背景色階差異輔助） */
+  --charity-admin-border-input: #778090; /* 表單元件邊框，對三層背景全過 3:1 */
+
+  /* ── 操作主色：墨色，刻意與 text-primary 同值（§1.6.2 說明） ──────────── */
+  --charity-admin-primary: #21242c;
+  --charity-admin-primary-hover: #343a46;
+  --charity-admin-primary-active: #111317;
+
+  /* ── 語意色：前後台共用同一組值（§1.6.3），不分暖冷 ───────────────────── */
+  --charity-success-text: #206f41;
+  --charity-success-bg: #e9f7ef;
+  --charity-danger-text: #9b3027;
+  --charity-danger-bg: #fbebe9;
+  --charity-warning-text: #8c5b07;
+  --charity-warning-bg: #fdf4d8;
+  --charity-info-text: #25527e;
+  --charity-info-bg: #ebf2fa;
+  --charity-refund-text: #7556a1;
+  --charity-refund-bg: #f2eff5;
+
+  /* ── 中性看片台（§3.6／§1.6.3 對照表最後一列）：與介面色相脫鉤，不隨主題變化 ── */
+  --charity-lightbox-neutral: #4a4d52;
+  --charity-lightbox-checker-a: #4a4d52;
+  --charity-lightbox-checker-b: #5c5f65;
+
+  /* 側欄寬度：只有 7 個一級模組、平鋪清單，不需要 apps/admin 那麼寬（docs/22 §3.3） */
+  --charity-admin-sidebar-width-expanded: 208px;
+  --charity-admin-sidebar-width-collapsed: 64px;
+
+  /* 單列頂欄（docs/22 §3.3：沒有站台切換器，56px 綽綽有餘，不做兩列頂欄） */
+  --charity-admin-topbar-height: 56px;
+  --charity-admin-topbar-mobile-height: 56px;
+
+  /* 間距尺度（沿用 docs/21 §2.1，純度量系統與配色無關，docs/22 §3.1 明文沿用） */
+  --charity-admin-space-1: 4px;
+  --charity-admin-space-2: 8px;
+  --charity-admin-space-3: 12px;
+  --charity-admin-space-4: 16px;
+  --charity-admin-space-5: 20px;
+  --charity-admin-space-6: 24px;
+  --charity-admin-space-7: 32px;
+  --charity-admin-space-8: 48px;
+
+  --charity-admin-font-family: 'Noto Sans TC', -apple-system, 'PingFang TC', sans-serif;
+
+  /* ── Element Plus 變數覆寫（淺色，覆寫「值」不新增選擇器，比照 docs/22 §1.5 的簡化） ── */
+  --el-bg-color: var(--charity-admin-bg-surface);
+  --el-bg-color-page: var(--charity-admin-bg-page);
+  --el-bg-color-overlay: var(--charity-admin-bg-surface);
+  --el-text-color-primary: var(--charity-admin-text-primary);
+  --el-text-color-regular: var(--charity-admin-text-secondary);
+  --el-text-color-secondary: var(--charity-admin-text-tertiary);
+  --el-text-color-placeholder: var(--charity-admin-text-tertiary);
+  --el-text-color-disabled: var(--charity-admin-text-disabled);
+  --el-border-color: var(--charity-admin-border);
+  --el-border-color-light: var(--charity-admin-border);
+  --el-border-color-lighter: var(--charity-admin-border);
+  --el-border-color-extra-light: var(--charity-admin-border);
+  --el-color-primary: var(--charity-admin-primary);
+  --el-color-primary-light-3: var(--charity-admin-primary-hover);
+  --el-color-primary-dark-2: var(--charity-admin-primary-active);
+  --el-color-success: var(--charity-success-text);
+  --el-color-danger: var(--charity-danger-text);
+  --el-color-warning: var(--charity-warning-text);
+  --el-color-info: var(--charity-admin-text-secondary);
+  --el-fill-color-blank: var(--charity-admin-bg-surface);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+  font-family: var(--charity-admin-font-family);
+}
+
+body {
+  background: var(--charity-admin-bg-page);
+  color: var(--charity-admin-text-primary);
+}
+
+.el-button--primary {
+  --el-button-bg-color: var(--charity-admin-primary);
+  --el-button-border-color: var(--charity-admin-primary);
+  --el-button-hover-bg-color: var(--charity-admin-primary-hover);
+  --el-button-hover-border-color: var(--charity-admin-primary-hover);
+  --el-button-active-bg-color: var(--charity-admin-primary-active);
+  --el-button-active-border-color: var(--charity-admin-primary-active);
+}
+
+.el-button--danger {
+  --el-button-bg-color: var(--charity-danger-text);
+  --el-button-border-color: var(--charity-danger-text);
+  --el-button-text-color: #ffffff;
+}
+
+.el-button--success {
+  --el-button-bg-color: var(--charity-success-text);
+  --el-button-border-color: var(--charity-success-text);
+  --el-button-text-color: #ffffff;
+}
+
+.el-button--warning {
+  --el-button-bg-color: var(--charity-warning-text);
+  --el-button-border-color: var(--charity-warning-text);
+  --el-button-text-color: #ffffff;
+}
+
+/* ── 語意色 tag（成功／危險／警告／資訊／已退款，docs/22 §1.6.3）── */
+.charity-tag {
+  border: none;
+  font-weight: 500;
+}
+
+.charity-tag--success {
+  background-color: var(--charity-success-bg) !important;
+  color: var(--charity-success-text) !important;
+}
+
+.charity-tag--danger {
+  background-color: var(--charity-danger-bg) !important;
+  color: var(--charity-danger-text) !important;
+}
+
+.charity-tag--warning {
+  background-color: var(--charity-warning-bg) !important;
+  color: var(--charity-warning-text) !important;
+}
+
+.charity-tag--info {
+  background-color: var(--charity-info-bg) !important;
+  color: var(--charity-info-text) !important;
+}
+
+.charity-tag--refund {
+  background-color: var(--charity-refund-bg) !important;
+  color: var(--charity-refund-text) !important;
+}
+
+.charity-tag--neutral {
+  background-color: var(--charity-admin-bg-surface-2) !important;
+  color: var(--charity-admin-text-secondary) !important;
+}
+
+.el-table {
+  --el-table-current-row-bg-color: var(--charity-admin-bg-surface-2);
+  --el-table-row-hover-bg-color: var(--charity-admin-bg-surface-2);
+}
+
+@media (max-width: 767px) {
+  .admin-hide-on-mobile {
+    display: none !important;
+  }
+}
+
+/* 🔴 踩過的坑，記在這裡避免重蹈覆轍：表格次要欄位「平板寬度隱藏」原本想用 CSS class
+   （display:none）做，實測發現行不通——el-table 的版面寬度是照每個 el-table-column 的
+   width／min-width 參數加總計算，不會因為某個儲存格被 CSS 藏起來就跟著縮小欄位總寬。
+   結果是儲存格看不到了，但 el-table__header-wrapper／body-wrapper 仍然维持原本的總寬，
+   內部產生橫向捲動，而且這個捲動完全不會反映在 document.documentElement.scrollWidth，
+   單純測頁面層級的 scrollWidth 抓不到，只有實際看畫面（或另外抓每個元素自己的
+   scrollWidth／clientWidth）才會發現「狀態」「操作」以外的欄位被捲到看不見的地方。
+   正確做法：平板寬度要隱藏的次要欄位改用 v-if="isDesktop" 整欄不渲染（見各列表頁面的
+   isDesktop computed），不要只用 CSS 隱藏儲存格。這裡不再放對應的 CSS class。 */
