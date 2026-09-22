@@ -1,0 +1,12 @@
+# Nuxt 建置產物與相依套件，不納版控（比照 apps/web 的既有慣例）
+node_modules/
+.nuxt/
+.output/
+.env
+.DS_Store
+*.log
+
+# db/seed/charity-fixtures.json 的本機建置期複本（scripts/sync-fixtures.mjs 產生）。
+# ⛔ 這不是第二份手寫假資料，是同一份唯一來源在建置時的暫存複本，每次 build/dev 前都會重新同步。
+# 真正的來源永遠是 db/seed/charity-fixtures.json（納版控，衍生自 db/seed/generate-charity-seed-sql.py）。
+.data/

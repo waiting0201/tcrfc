@@ -1,0 +1,567 @@
+/*
+ * apps/web-charity/app/assets/css/charity.css
+ * 慈善捐款平台前台視覺唯一來源。Design tokens 與色票數字逐一對應
+ * docs/22-charity-ui.md §1.6.1（前台 --charity-* 暖中性）與 §1.6.3（語意色，前後台共用）。
+ * 對比度驗算結果見該文件 §1.7，本檔不重新驗算，只落地既有定案的數字。
+ *
+ * 不使用 Tailwind／CSS-in-JS，純 CSS custom properties + 一般選擇器，與 apps/web 的紀律 1
+ * 精神一致（雖然本專案沒有跨站換膚需求，但「顏色只從變數流出」仍是好的維護習慣）。
+ */
+
+:root {
+  /* 背景 */
+  --charity-bg-page: #F9F7F6;
+  --charity-bg-surface: #FFFFFF;
+  --charity-bg-surface-2: #F0EDEA;
+
+  /* 文字 */
+  --charity-text-primary: #2C2621;
+  --charity-text-secondary: #625950;
+  --charity-text-tertiary: #726961;
+  --charity-text-disabled: #ABA6A0;
+
+  /* 邊框 */
+  --charity-border: #DED9D3;
+  --charity-border-input: #8C8073;
+
+  /* 操作主色（墨色，刻意不用有色相的強調色，見 docs/22 §1.6.1 說明） */
+  --charity-primary: #2C2621;
+  --charity-primary-hover: #463D34;
+  --charity-primary-active: #171411;
+
+  /* 語意色：文字色與實心底同一個 token（淺色系統下兩者都能過 AA，見 docs/22 §1.7.7） */
+  --charity-success: #206F41;
+  --charity-success-bg: #E9F7EF;
+  --charity-danger: #9B3027;
+  --charity-danger-bg: #FBEBE9;
+  --charity-warning: #8C5B07;
+  --charity-warning-bg: #FDF4D8;
+  --charity-info: #25527E;
+  --charity-info-bg: #EBF2FA;
+  --charity-refund: #7556A1;
+  --charity-refund-bg: #F2EFF5;
+
+  /* 密度與間距（docs/21 §2.1 沿用，與配色無關的度量系統） */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-pill: 999px;
+
+  --shadow-card: 0 1px 2px rgba(44, 38, 33, 0.06), 0 4px 12px rgba(44, 38, 33, 0.06);
+  --shadow-focus: 0 0 0 3px rgba(44, 38, 33, 0.25);
+
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--charity-bg-page);
+  color: var(--charity-text-primary);
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    'PingFang TC',
+    'Noto Sans TC',
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+a {
+  color: inherit;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.35;
+  margin: 0 0 var(--sp-3);
+}
+
+p {
+  margin: 0 0 var(--sp-3);
+}
+
+ul,
+ol {
+  margin: 0 0 var(--sp-3);
+  padding-inline-start: 1.25em;
+}
+
+/* 觸控目標與 focus 樣式（規劃書 §3.7、docs/22 §1.7.4，全站不得只靠瀏覽器預設 outline） */
+a,
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--charity-primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* skip link：鍵盤使用者可跳過重複的頁首直達主要內容 */
+.skip-link {
+  position: absolute;
+  left: var(--sp-3);
+  top: -48px;
+  background: var(--charity-primary);
+  color: #fff;
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-control);
+  z-index: 1000;
+  transition: top 0.15s ease;
+}
+
+.skip-link:focus {
+  top: var(--sp-3);
+}
+
+/* 版面容器 */
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 var(--sp-4);
+}
+
+.section {
+  padding: var(--sp-6) 0;
+}
+
+.section + .section {
+  border-top: 1px solid var(--charity-border);
+}
+
+/* 卡片 */
+.card {
+  background: var(--charity-bg-surface);
+  border: 1px solid var(--charity-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  padding: var(--sp-5);
+}
+
+/* 按鈕 */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+  padding: var(--sp-3) var(--sp-5);
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--charity-primary);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: var(--charity-primary-hover);
+}
+
+.btn-primary:active {
+  background: var(--charity-primary-active);
+}
+
+.btn-primary:disabled {
+  background: var(--charity-text-disabled);
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: transparent;
+  border-color: var(--charity-border-input);
+  color: var(--charity-text-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--charity-bg-surface-2);
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: var(--charity-text-primary);
+  text-decoration: underline;
+  min-height: 44px;
+  padding: var(--sp-2) 0;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* 表單 */
+.field {
+  margin-bottom: var(--sp-5);
+}
+
+.field-label {
+  display: block;
+  font-weight: 700;
+  margin-bottom: var(--sp-2);
+}
+
+.field-required::after {
+  content: ' *';
+  color: var(--charity-danger);
+}
+
+.field-hint {
+  color: var(--charity-text-tertiary);
+  font-size: 0.875rem;
+  margin-top: var(--sp-1);
+}
+
+.field-input {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--charity-border-input);
+  border-radius: var(--radius-control);
+  background: var(--charity-bg-surface);
+  color: var(--charity-text-primary);
+}
+
+.field-input:disabled {
+  background: var(--charity-bg-surface-2);
+  color: var(--charity-text-disabled);
+}
+
+/* 錯誤狀態：邊框變 2px 危險色（形狀改變，不只是變色）＋ 文字說明，見 docs/22 §1.8 */
+.field-input[aria-invalid='true'] {
+  border: 2px solid var(--charity-danger);
+}
+
+.field-error {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  color: var(--charity-danger);
+  font-size: 0.875rem;
+  margin-top: var(--sp-1);
+}
+
+.field-error .icon {
+  flex: none;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.radio-option {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-height: 44px;
+}
+
+.radio-option input[type='radio'],
+.checkbox-row input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--charity-primary);
+  flex: none;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  min-height: 44px;
+}
+
+.checkbox-row.is-invalid {
+  outline: 2px solid var(--charity-danger);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* 金額選項卡 */
+.amount-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+@media (min-width: 480px) {
+  .amount-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.amount-option {
+  min-height: 44px;
+  border: 1px solid var(--charity-border-input);
+  border-radius: var(--radius-control);
+  background: var(--charity-bg-surface);
+  color: var(--charity-text-primary);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.amount-option[aria-pressed='true'] {
+  background: var(--charity-primary);
+  border-color: var(--charity-primary);
+  color: #fff;
+}
+
+/* 徽章／標籤：一律文字＋符號，不單靠顏色（docs/22 §1.8） */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--sp-2);
+  border-radius: var(--radius-pill);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.tag-success {
+  background: var(--charity-success-bg);
+  color: var(--charity-success);
+}
+
+.tag-danger {
+  background: var(--charity-danger-bg);
+  color: var(--charity-danger);
+}
+
+.tag-warning {
+  background: var(--charity-warning-bg);
+  color: var(--charity-warning);
+}
+
+.tag-info {
+  background: var(--charity-info-bg);
+  color: var(--charity-info);
+}
+
+.tag-refund {
+  background: var(--charity-refund-bg);
+  color: var(--charity-refund);
+}
+
+.tag-neutral {
+  background: var(--charity-bg-surface-2);
+  color: var(--charity-text-secondary);
+}
+
+/* 提示列（低調的店家歸屬提示，不用語意色，見 docs/22 §2.4） */
+.notice-row {
+  background: var(--charity-bg-surface-2);
+  color: var(--charity-text-secondary);
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--radius-control);
+  font-size: 0.9375rem;
+}
+
+/* 摺疊區塊（信任區塊） */
+.disclosure summary {
+  cursor: pointer;
+  font-weight: 700;
+  padding: var(--sp-3) 0;
+  list-style: none;
+}
+
+.disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.disclosure summary::before {
+  content: '▸ ';
+}
+
+.disclosure[open] summary::before {
+  content: '▾ ';
+}
+
+.disclosure-body {
+  color: var(--charity-text-secondary);
+  padding-bottom: var(--sp-4);
+}
+
+.disclosure-body dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-1) var(--sp-4);
+  margin: 0;
+}
+
+.disclosure-body dt {
+  color: var(--charity-text-tertiary);
+}
+
+.disclosure-body dd {
+  margin: 0;
+}
+
+/* 骨架載入態（首次載入，不用轉圈圈，見 docs/22 §2.2 第 5 點） */
+.skeleton-card {
+  background: linear-gradient(90deg, var(--charity-bg-surface-2) 25%, var(--charity-bg-surface) 37%, var(--charity-bg-surface-2) 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: var(--radius-card);
+  height: 140px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-card {
+    animation: none;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* 結果頁圖示（非純色——形狀本身就是辨識手段，見 docs/22 §1.8） */
+.result-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  margin: 0 auto var(--sp-4);
+}
+
+.result-icon-success {
+  background: var(--charity-success-bg);
+  color: var(--charity-success);
+}
+
+.result-icon-warning {
+  background: var(--charity-warning-bg);
+  color: var(--charity-warning);
+}
+
+.result-icon-info {
+  background: var(--charity-info-bg);
+  color: var(--charity-info);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--charity-bg-surface-2);
+  border-top-color: var(--charity-info);
+  border-radius: 50%;
+  margin: 0 auto var(--sp-4);
+  animation: spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-secondary {
+  color: var(--charity-text-secondary);
+}
+
+.text-tertiary {
+  color: var(--charity-text-tertiary);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.lang-switch {
+  display: flex;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+  padding: var(--sp-2) 0;
+  font-size: 0.875rem;
+}
+
+.lang-switch a[aria-current='page'] {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-footer {
+  border-top: 1px solid var(--charity-border);
+  padding: var(--sp-6) 0 var(--sp-12);
+  color: var(--charity-text-secondary);
+  font-size: 0.9375rem;
+}
+
+.site-footer a {
+  color: var(--charity-text-secondary);
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-3);
+}
+
+/* 只給螢幕閱讀器讀到、畫面上不可見的文字（例如轉場頁的 spinner 狀態說明）。 */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

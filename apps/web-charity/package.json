@@ -1,0 +1,26 @@
+{
+  "name": "@tcrfc/web-charity",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "predev": "node scripts/sync-fixtures.mjs",
+    "dev": "nuxt dev",
+    "prebuild": "node scripts/sync-fixtures.mjs",
+    "build": "nuxt build",
+    "generate": "nuxt generate",
+    "preview": "nuxt preview",
+    "postinstall": "nuxt prepare",
+    "lint": "npm run lint:fixtures-check && npm run lint:eslint",
+    "lint:eslint": "eslint .",
+    "lint:fixtures-check": "python3 ../../db/seed/emit-charity-fixtures.py --check"
+  },
+  "dependencies": {
+    "nuxt": "4.5.2"
+  },
+  "devDependencies": {
+    "@nuxt/eslint": "1.4.1",
+    "eslint": "9.36.0",
+    "typescript": "5.9.2",
+    "vue-tsc": "^3.3.11"
+  }
+}
