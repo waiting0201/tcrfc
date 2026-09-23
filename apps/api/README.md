@@ -177,12 +177,69 @@ dotnet build
 #    （見 docs/18-work-errors.md，本次任務期間在本機驗證時才發現，非常隱蔽因為
 #    程式仍會啟動、仍會嘗試連線，只是連線字串缺了 Database／帳密／TrustServerCertificate）。
 export ASPNETCORE_ENVIRONMENT=Development
-export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;"
+export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;Encrypt=False;"
 export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001"
 export ASPNETCORE_URLS="http://127.0.0.1:5299"
 
 dotnet run --no-launch-profile
 ```
+
+> 🔴 **不要直接 source `deploy/dev/club.env` 的 `CLUB_SQL_CONNECTION_STRING`。**
+> 那份檔案是給 **Docker 容器**用的，`Server=host.docker.internal,1433`——在宿主機上直接
+> `dotnet run` 會解析不到那個主機名。要用它就得改兩個地方：
+> **`host.docker.internal` → `127.0.0.1`**，並**補上 `Encrypt=False;`**
+> （少了它會連到伺服器但卡在 `error: 35 - 攔截到內部例外狀況`／「登入前的信號交換時發生錯誤」）。
+>
+> ⚠️ **這個坑特別難發現，因為 `/healthz` 會騙你**：它只回報行程活著，**不碰資料庫**，
+> 所以連線壞掉時它照樣回 `{"status":"ok"}`。2026-09-23 就因此白跑了兩輪比對——
+> 前台頁面渲染成「共 0 場」「篩選器空白」，被誤判成前端的真差異。
+> **驗證連線一律用會真的查資料的端點**，不要只看 `/healthz`：
+> ```bash
+> curl -s http://127.0.0.1:5299/api/v1/tcrfc/schedule | head -c 200   # 要看到真的賽程 JSON
+> ```
+> 一行版（從 `club.env` 取密碼、自己組連線字串，不必把密碼寫進指令）：
+> ```bash
+> PW=$(grep "^CLUB_SQL_CONNECTION_STRING" ../../deploy/dev/club.env | sed -n 's/.*Password=\([^;]*\);.*/\1/p')
+> export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=${PW};TrustServerCertificate=True;Encrypt=False;"
+> ```
+
+### 要連真的 Redis（選用）
+
+不帶 `REDIS_HOST` 時注入的是 `NoOpQueryCache`，**快取路徑完全不會被執行**——
+要驗快取行為（版本號失效、TTL、single-flight、fail-open）就得接真的 Redis。
+
+```bash
+# 旗標與正式環境一致（docs/17-deployment.md §1）：512mb、allkeys-lru、不開持久化
+redis-server --port 16379 --requirepass dev-redis-password \
+  --maxmemory 512mb --maxmemory-policy allkeys-lru --save "" --appendonly no &
+
+export REDIS_HOST=127.0.0.1 REDIS_PORT=16379 REDIS_PASSWORD=dev-redis-password
+dotnet run --no-launch-profile
+```
+
+驗證（2026-09-23 實測）：
+
+```bash
+curl -s http://127.0.0.1:5299/readyz
+# {"status":"ready","club_db":"ok","charity_db":"not_configured","redis":"ok"}
+
+curl -s -o /dev/null http://127.0.0.1:5299/api/v1/tcrfc/schedule
+redis-cli -p 16379 -a dev-redis-password --no-auth-warning KEYS '*'
+# v0:tcrfc:zh-Hant:schedule::::1:20      ← 版本號:俱樂部:語系:entity:qualifier
+# v0:tcrfc:_any:club-scope:              ← _any 對應 9 張 club_id 可為空的共同資料表
+```
+
+🔴 **為什麼不用 `docker-compose.yml` 裡的 `redis` 服務？** 那個服務是
+`networks: [internal]` 且 ⛔ **絕對不能加 `ports:`**（`docs/17` §1 規則 1：Docker 發布
+連接埠會**繞過 UFW 直接改 iptables**，主機防火牆關了也擋不住）。而本機開發是
+**`dotnet run` 跑在宿主機上**，碰不到 internal 網路裡的容器。
+所以只有兩條路：**整套用 compose 跑（`api` 也進容器）**，或**在宿主機跑一個獨立的 Redis**。
+上面用的是後者，跟 `sqlserver` 已經是「宿主機上一個獨立於 compose 專案的容器」同一個模式。
+⛔ **不要為了本機方便就去 `docker-compose.yml` 的 `redis` 加 `ports:`**——那份檔案是正式環境用的。
+
+⚠️ **`16379` 不是預設的 `6379`**，刻意避開以免跟機器上其他東西撞；`REDIS_PORT` 可帶，不必改程式。
+⚠️ 密碼 `dev-redis-password` 與 `docker-compose.dev.yml` 的預設值一致，**僅限本機**，
+正式環境的 `REDIS_PASSWORD` 放 `.env`（不納版控）。
 
 驗證：
 ```bash
