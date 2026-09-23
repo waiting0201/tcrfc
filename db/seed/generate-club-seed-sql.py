@@ -112,6 +112,18 @@ TEAM_D1 = "(SELECT id FROM teams WHERE code = N'D1')"
 TEAM_BW1 = "(SELECT id FROM teams WHERE code = N'BW1')"
 
 
+def admin_sq(username: str) -> str:
+    return f"(SELECT id FROM admin_users WHERE username = N'{username}')"
+
+
+def role_sq(code: str) -> str:
+    return f"(SELECT id FROM admin_roles WHERE code = N'{code}')"
+
+
+def perm_sq(code: str) -> str:
+    return f"(SELECT id FROM permissions WHERE code = N'{code}')"
+
+
 def category_sq(code: str) -> str:
     return f"(SELECT id FROM article_categories WHERE code = N'{code}')"
 
@@ -741,6 +753,188 @@ BEGIN
   INSERT INTO partners_i18n (partner_id, locale, name) VALUES (@id, N'zh-Hant', {esc(pt["name_zh"])});
   -- 無 en 列：舊站全站 0 個英文字，夥伴名稱一律沒有官方英文寫法，不臆測轉寫（docs/13 踩雷點 17）。
 END
+""")
+
+# ============================================================================
+# 18. J1–J3 帳號、角色與權限（2026-09-23，backend-engineer，登入與授權地基任務）。
+#
+#     🔴 角色代碼刻意沿用 db/seed/generate-charity-seed-sql.py 已經在用的九個代碼
+#     （system_admin／content_editor／team_competition／academy_program／
+#     business_sponsorship／pr_media／customer_service_admin／translator／viewer）——
+#     慈善庫種子腳本的註解寫「沿用主站規劃書 §6 的九個角色」，但主站庫在本次之前從未
+#     真的種過這九個角色。docs/12b-database-tables.md §7.2 的角色代碼表用的是另一套命名
+#     （super_admin／team_manager／academy_manager／business／support），與慈善庫已經
+#     上線的代碼不一致。本次選擇跟慈善庫對齊（兩庫角色代碼一致，日後合併報表或人工比對
+#     不必再做一次轉換表），**但這代表 docs/12b §7.2 的角色代碼表已經與實際種子資料不同步，
+#     需要另外排程更新該文件**（backend-engineer 任務指示明文不得由本次交付自行修改
+#     docs/14／18／STATUS.md，docs/12b 的更新留給下一輪同步鏈处理，見任務回報）。
+#     第十個角色 partner_club_manager（合作球隊管理，scope_mode=own_clubs）兩份文件寫法一致，
+#     沿用不變。
+#
+#     權限碼本次只鋪兩類：J 系統管理本身（J1–J4，sysadmin_only）與 B2 新聞（content.article.*，
+#     這是本次唯一接上真實授權的既有模組）。其餘模組的權限碼留給日後對應模組接真實授權時再補，
+#     這是刻意的範圍縮減不是遺漏，見 apps/api/README.md「本輪沒做的部分」。
+# ============================================================================
+
+ROLES = [
+    # (code, name_zh, name_en, scope_mode)
+    ("system_admin", "系統管理員", "System Administrator", "all_clubs"),
+    ("content_editor", "內容編輯", "Content Editor", "all_clubs"),
+    ("team_competition", "競技／球隊管理", "Team & Competition Manager", "all_clubs"),
+    ("academy_program", "學院／課程管理", "Academy & Program Manager", "all_clubs"),
+    ("business_sponsorship", "商務／贊助", "Business & Sponsorship", "all_clubs"),
+    ("pr_media", "公關／媒體", "PR & Media", "all_clubs"),
+    ("customer_service_admin", "客服／行政", "Customer Service & Admin", "all_clubs"),
+    ("translator", "翻譯人員", "Translator", "all_clubs"),
+    ("viewer", "檢視者", "Viewer", "all_clubs"),
+    ("partner_club_manager", "合作球隊管理", "Partner Club Manager", "own_clubs"),
+]
+
+emit("-- ── 18.1 admin_roles：十個角色（九個沿用慈善庫代碼＋合作球隊管理） ──────────")
+for sort_order, (code, name_zh, name_en, scope_mode) in enumerate(ROLES):
+    role_id = new_id("admin_role", code)
+    block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM admin_roles WHERE code = {esc(code)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(role_id)};
+  INSERT INTO admin_roles (id, code, name_zh, name_en, scope_mode, is_system, sort_order)
+  VALUES (@id, {esc(code)}, {esc(name_zh)}, {esc(name_en)}, {esc(scope_mode)}, 1, {sort_order});
+END
+""")
+
+# permissions：(code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+PERMISSIONS = [
+    ("content.article.view", "B", "B2", "content", "view", 1, 0, 0, "檢視新聞與故事", "View News & Stories"),
+    ("content.article.create", "B", "B2", "content", "create", 1, 0, 0, "建立新聞與故事", "Create News & Stories"),
+    ("content.article.update", "B", "B2", "content", "update", 1, 0, 0, "編輯新聞與故事", "Edit News & Stories"),
+    ("content.article.publish", "B", "B2", "content", "publish", 1, 0, 0, "發布新聞與故事", "Publish News & Stories"),
+    ("content.article.delete", "B", "B2", "content", "delete", 1, 0, 0, "刪除新聞與故事", "Delete News & Stories"),
+    ("system.account.view", "J", "J1", "system", "view", 0, 0, 1, "檢視後台帳號", "View Admin Accounts"),
+    ("system.account.create", "J", "J1", "system", "create", 0, 0, 1, "新增後台帳號", "Create Admin Accounts"),
+    ("system.account.update", "J", "J1", "system", "update", 0, 0, 1, "停用／更新後台帳號", "Update Admin Accounts"),
+    ("system.role.view", "J", "J2", "system", "view", 0, 0, 1, "檢視角色與權限", "View Roles & Permissions"),
+    ("system.role.update", "J", "J2", "system", "update", 0, 0, 1, "建立角色與勾選權限", "Update Roles & Permissions"),
+    ("system.audit.view", "J", "J3", "system", "view", 0, 0, 1, "檢視操作稽核記錄", "View Audit Logs"),
+    ("system.club_grant.view", "J", "J4", "system", "view", 0, 0, 1, "檢視俱樂部授權", "View Club Grants"),
+    ("system.club_grant.update", "J", "J4", "system", "update", 0, 0, 1, "指派俱樂部授權", "Update Club Grants"),
+]
+
+emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
+for code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en in PERMISSIONS:
+    perm_id = new_id("permission", code)
+    block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = {esc(code)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(perm_id)};
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, {esc(code)}, {esc(module_code)}, {esc(submodule_code)}, {esc(domain)}, {esc(action)}, {esc(bool(is_club_scoped))}, {esc(bool(is_restricted))}, {esc(bool(sysadmin_only))}, {esc(name_zh)}, {esc(name_en)});
+END
+""")
+
+# role_permissions：系統管理員全給（雖然 is_super_admin 已經略過權限檢查，比照慈善庫慣例仍種）；
+# 內容編輯給新聞的檢視／建立／編輯／發布／刪除（矩陣寫「✔ 編輯／發布」，刪除自己編輯的草稿是
+# 內容管理的常態操作，本次工程判斷視為隱含在「編輯」權限內，見 apps/api/README.md 的說明）；
+# 檢視者只給檢視；合作球隊管理給自家內容的檢視／建立／編輯（矩陣「✔ 自家內容」，不含發布／刪除，
+# 發布與刪除留給日後有實際使用者指派時再依需求開放，屬保守預設）。
+ROLE_PERMISSIONS = [
+    ("system_admin", [p[0] for p in PERMISSIONS], "all"),
+    ("content_editor", ["content.article.view", "content.article.create", "content.article.update", "content.article.publish", "content.article.delete"], "all"),
+    ("viewer", ["content.article.view"], "all"),
+    ("partner_club_manager", ["content.article.view", "content.article.create", "content.article.update"], "own_clubs"),
+]
+
+emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")
+for role_code, perm_codes, scope_type in ROLE_PERMISSIONS:
+    for perm_code in perm_codes:
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = {role_sq(role_code)} AND permission_id = {perm_sq(perm_code)})
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ({role_sq(role_code)}, {perm_sq(perm_code)}, {esc(scope_type)});
+""")
+
+# admin_users：種子超管（docs/12b-database-tables.md §7.6 明文的帳號本身）＋ 四個「已可直接使用」
+# 的測試帳號（two_factor_enabled 直接設為 1、two_factor_secret_encrypted 留 NULL）。
+# 🔴 後兩者的密碼雜湊是本次用 apps/api 實際的 PasswordHasher（Argon2id）算出來的真雜湊，
+# 不是像慈善庫種子腳本那樣的占位字串——這批帳號可以真的登入。two_factor_secret_encrypted
+# 留 NULL 是刻意的：ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本在行程外
+# 執行，沒有能力產生「這個行程解得開」的密文；AdminClubAuthorizer 只檢查 two_factor_enabled
+# 布林值本身（見 Security/AdminClubAuthorizer.cs），不會去解密這個欄位，所以直接把布林值種為
+# 已完成即可讓這些帳號通過強制 2FA 檢查——真正要驗證「TOTP 碼本身對不對」的流程，
+# 走 sa@system.local 這個帳號實際呼叫 /2fa/setup、/2fa/confirm 兩個端點（測試見
+# apps/api/Tcrfc.Api.Tests/AdminAuthTests.cs）。
+ADMIN_USERS = [
+    # (username, display_name, password_hash, is_super_admin, must_change_password, two_factor_enabled, role_code, club_grants)
+    ("sa@system.local", "Super Admin", "$argon2id$v=19$m=65536,t=3,p=1$qA4b7/CNXFRrB044hvtBzQ==$j2coAMUKbu3mFe+Vyf1oXd4E1Rq8F1RHO/KHt4lDHQ4=",
+     True, True, False, "system_admin", []),
+    ("super.admin@tcrfc.test", "系統管理員（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$zi4N9bpx0UfKi4XF1FoSlA==$S/20fV7gT9mFmaGaZ2fcAuSBZ4Pb99QdKqEqrdp6uBA=",
+     True, False, True, "system_admin", []),
+    ("content.editor@tcrfc.test", "內容編輯（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, True, "content_editor", [("tcrfc", None)]),
+    ("viewer@tcrfc.test", "檢視者（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$Yas4MM7rRKPwY6uB3kh9NQ==$Ga0YQU8vLGh9mTJ6cbfVwDL66Guv54QyNHq44I46lD4=",
+     False, False, True, "viewer", [("tcrfc", None)]),
+    ("partner.club@tcrfc.test", "合作球隊管理（測試帳號，僅藍鯨）", "$argon2id$v=19$m=65536,t=3,p=1$QAl31fxqFgoUhEuvf6+j3w==$gtn5/eEYXVsALxi8DR1g4sWdzrnT3BQ1BI4m48MJjqc=",
+     False, False, True, "partner_club_manager", [("bw", None)]),
+    # 🔴 授權已過期的測試帳號：expires_on 給昨天日期，專門用來驗證「授權有起訖日，到期自動失效」
+    # （主站規劃書 §6「資料範圍規則」、AdminClubAuthorizer 的第③步）。
+    ("expired.grant@tcrfc.test", "已過期授權（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, True, "content_editor", [("tcrfc", "yesterday")]),
+    # 🔴 專供 AdminAuthTests 走完整登入鎖定／2FA 設定流程的帳號，狀態刻意跟 sa@system.local 一樣
+    # （must_change_password=1、two_factor_enabled=0），但不是正式的種子超管本身，避免測試改動
+    # 影響到 sa@system.local 這個「文件與客戶都認得」的帳號。測試結束後會把這個帳號重設回本狀態
+    # （見 AdminAuthTests 的清理邏輯），讓測試可重複執行。
+    ("fresh.setup@tcrfc.test", "尚未完成設定（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$qA4b7/CNXFRrB044hvtBzQ==$j2coAMUKbu3mFe+Vyf1oXd4E1Rq8F1RHO/KHt4lDHQ4=",
+     False, True, False, "viewer", [("tcrfc", None)]),
+    # 🔴 專供登入鎖定測試使用的獨立帳號——鎖定狀態是可變狀態，跟其他測試共用帳號會互相污染。
+    ("lockout.test@tcrfc.test", "鎖定測試專用（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$Yas4MM7rRKPwY6uB3kh9NQ==$Ga0YQU8vLGh9mTJ6cbfVwDL66Guv54QyNHq44I46lD4=",
+     False, False, True, "viewer", [("tcrfc", None)]),
+    # 🔴 唯一「兩階段驗證已停用」且「不需要先改密碼」的帳號——上面幾個「已可直接使用」的帳號
+    # two_factor_enabled 都直接種為 1 但沒有真正可解密的密鑰（見本節開頭說明，只能靠
+    # TestAdminTokens 直接簽權杖繞過登入本身），沒有一個帳號能真的完整走一次
+    # 「打 /login → 拿到存取權杖與更新權杖 Cookie」的 HTTP 往返。這個帳號專門補這個缺口，
+    # 供 AdminAuthTests 測登入、更新權杖輪替、登出這些不需要先過 2FA 關卡的端點行為。
+    ("clean.login@tcrfc.test", "登入流程測試專用（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$zi4N9bpx0UfKi4XF1FoSlA==$S/20fV7gT9mFmaGaZ2fcAuSBZ4Pb99QdKqEqrdp6uBA=",
+     True, False, False, "system_admin", []),
+]
+
+emit("-- ── 18.4 admin_users：種子超管（真雜湊，Admin@123）＋ 五個角色測試帳號（真雜湊） ──")
+emit("-- ⚠️ 這批雜湊是用 apps/api 的 PasswordHasher（Argon2id）實際算出來的，可以直接登入測試。")
+emit("-- 密碼明文（僅供本機開發測試，不得用於任何正式環境）：")
+emit("--   sa@system.local              / Admin@123")
+emit("--   super.admin@tcrfc.test       / SuperAdmin@123")
+emit("--   content.editor@tcrfc.test    / ContentEditor@123")
+emit("--   viewer@tcrfc.test            / Viewer@123")
+emit("--   partner.club@tcrfc.test      / PartnerClub@123")
+emit("--   expired.grant@tcrfc.test     / ContentEditor@123（沿用同一組雜湊，純測試帳號不需各自唯一密碼）")
+emit("--   fresh.setup@tcrfc.test       / Admin@123（沿用同一組雜湊）")
+emit("--   lockout.test@tcrfc.test      / Viewer@123（沿用同一組雜湊）")
+emit("--   clean.login@tcrfc.test       / SuperAdmin@123（沿用同一組雜湊，two_factor_enabled=0，唯一能走完整 /login 流程的帳號）")
+for username, display_name, password_hash, is_super, must_change, two_factor, role_code, club_grants in ADMIN_USERS:
+    user_id = new_id("admin_user", username)
+    block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM admin_users WHERE username = {esc(username)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(user_id)};
+  INSERT INTO admin_users (id, username, display_name, password_hash, must_change_password, is_super_admin, two_factor_enabled, status)
+  VALUES (@id, {esc(username)}, {esc(display_name)}, {esc(password_hash)}, {esc(must_change)}, {esc(is_super)}, {esc(two_factor)}, N'active');
+END
+""")
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM admin_user_roles WHERE admin_user_id = {admin_sq(username)} AND admin_role_id = {role_sq(role_code)})
+  INSERT INTO admin_user_roles (admin_user_id, admin_role_id) VALUES ({admin_sq(username)}, {role_sq(role_code)});
+""")
+    for club_code, expiry in club_grants:
+        club_ref = CLUB_TCRFC if club_code == "tcrfc" else CLUB_BW
+        expires_sql = "DATEADD(day, -1, CAST(SYSUTCDATETIME() AS date))" if expiry == "yesterday" else "NULL"
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM admin_user_clubs WHERE admin_user_id = {admin_sq(username)} AND club_id = {club_ref})
+  INSERT INTO admin_user_clubs (admin_user_id, club_id, granted_on, expires_on, is_active)
+  VALUES ({admin_sq(username)}, {club_ref}, CAST(SYSUTCDATETIME() AS date), {expires_sql}, 1);
 """)
 
 print("\n".join(out))

@@ -1155,6 +1155,8 @@ erDiagram
   locale ||--o{ club_i18n : ""
   admin_user ||--o{ admin_user_team : "資料範圍：對哪一隊"
   team ||--o{ admin_user_team : ""
+  admin_user ||--o{ admin_refresh_token : "登入工作階段"
+  admin_refresh_token |o--o| admin_refresh_token : "輪替鏈 replaced_by_id"
   club ||--o{ setting : ""
   club ||--o{ menu_item : ""
   club ||--o{ email_template : ""
@@ -1227,6 +1229,15 @@ erDiagram
     uuid team_id FK
     date expires_on
     bool is_active
+  }
+  admin_refresh_token {
+    uuid id PK
+    uuid admin_user_id FK
+    string_128 token_hash UK
+    datetime issued_at
+    datetime expires_at
+    datetime revoked_at
+    uuid replaced_by_id FK
   }
   admin_user_role {
     uuid admin_user_id FK
@@ -1310,6 +1321,7 @@ erDiagram
 
 > ⚠️ **`admin_user.username` 是唯一登入識別，`email` 不是。** `email` 只作系統通知與密碼重設，**不設唯一索引、不作登入查詢鍵**。
 > ⚠️ **本圖沒有 `audit_log`、`login_log`、`export_log`** —— 見 [§13.1](12-database-schema.md#131-沒有稽核與登入日誌表)。`failed_attempt_count`／`locked_until`／`last_login_at` 是**狀態欄位不是日誌表**。
+> 🔴 **`admin_refresh_token`（`S1-3` 新增，2026-09-23）是更新權杖輪替與重放偵測的必要狀態，不是被排除的日誌表**——刪掉它，登入工作階段就無法安全地輪替或撤銷（判準見 [`12b` §7.7](12b-database-tables.md#77-admin_refresh_tokens更新權杖的工作階段狀態s1-3-新增2026-09-23-補文件)）。⚠️ **它刻意不存來源 IP 與裝置字串**：原本有 `created_ip`／`user_agent` 兩欄，因為**只寫入、程式裡沒有任何地方讀取、也沒有清除機制**，等同一份持續增長的登入位置紀錄，與 §13.1 明文排除的「來源 IP」重疊，已依 **2026-09-23 使用者裁決拿掉**。日後若真要做裝置綁定或異常偵測再加回來——**那時它才有讀取端、才說得上是功能而不是紀錄**。
 > ⚠️ **`email_log` 是功能單元**（後台要查信寄出去了沒），`type` 值域 **9 個**（會員 5 ＋ 商店 4）。
 > 🔴 **「能做什麼」與「對誰做」拆開**（v3.0）：能做什麼＝`admin_role` → `role_permission` → `permission`；
 > **對誰做＝ `admin_user_club`／`admin_user_team`，掛在「人」不掛在「角色」**——掛角色的話每多一個俱樂部就要複製九個角色。

@@ -191,23 +191,25 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 - `is_super_admin = true` 跳過整個範圍查詢。
 - **`expires_on` 到期自動失效**，不需人工回收。這兌現了 App 規劃書「授權有起訖日」的承諾——舊版綱要沒有欄位可以落實。
 
-### 7.2 九個角色是資料不是列舉
+### 7.2 十個角色是資料不是列舉
 
 規劃書 §4.10 明寫「**角色建立與功能權限勾選**」——所以角色必須是**資料列**。
-§6 的九個角色只是 `is_system = true` 的**種子資料**：**不可刪除，但權限可調**；客戶可自建第十個角色。
+§6 現列**十個角色**（v3.0 新增合作球隊管理），全部是 `is_system = true` 的**種子資料**：**不可刪除，但權限可調**；客戶可再自建更多角色。
 
-| `code` | `name_zh` | 備註 |
-|---|---|---|
-| `super_admin` | 系統管理員 | 全模組全權限 |
-| `content_editor` | 內容編輯 | 送審→發布流程中具發布權 |
-| `team_manager` | 競技／球隊管理 | |
-| `academy_manager` | 學院／課程管理 | 賽事權限限 `scope_type = academy_only` |
-| `business` | 商務／贊助 | 商店限 S1／S6 且**訂單個資遮罩** |
-| `pr_media` | 公關／媒體 | |
-| `support` | 客服／行政 | 會員與商店 S2–S5 |
-| `translator` | 翻譯人員 | `scope_type = translate_only` |
-| `viewer` | 檢視者 | 唯讀，商店不含金額 |
-| **`partner_club_manager`** | **合作球隊管理**（v3.0 新增） | **`scope_mode = own_clubs`**。可維護自家內容、球隊、課程、夥伴贊助與商品訂單；**可存取自家會籍但 `Member` 主檔遮罩**；**無推播、無廣告、無版本憑證、無 `J` 系統管理**。⚠️ **開通前提：資料範圍已落地 ＋ 兩法人間的個資委託處理約定已簽署** |
+> ⚠️ **`code` 已於 2026-09-23 改為與實際種子一致**（`S1-3` 登入與權限地基，`db/seed/generate-club-seed-sql.py` §18.1）。舊版本表用的是 `super_admin`／`team_manager`／`academy_manager`／`business`／`support` 五個代碼，**規劃書本身沒有寫代碼，只有中文角色名稱**，這五個是本檔早期自行擬定、從未真的建過表；種子腳本改採**與慈善庫（`db/seed/generate-charity-seed-sql.py`）已上線的九個代碼對齊**，理由是兩庫角色代碼一致、日後合併報表或人工比對不必再做一次轉換表。`content_editor`／`pr_media`／`translator`／`viewer`／`partner_club_manager` 五碼本來就與種子一致，未變。下表已更新為與種子相同的十個代碼，並逐一核對規劃書 §6（1601–1610 行，十列角色矩陣）的中文角色名稱與 `scope_mode` 一致，**沒有落差**。
+
+| `code` | `name_zh` | `name_en` | `scope_mode` | 備註 |
+|---|---|---|---|---|
+| `system_admin` | 系統管理員 | System Administrator | `all_clubs` | 全模組全權限 |
+| `content_editor` | 內容編輯 | Content Editor | `all_clubs` | 送審→發布流程中具發布權 |
+| `team_competition` | 競技／球隊管理 | Team & Competition Manager | `all_clubs` | |
+| `academy_program` | 學院／課程管理 | Academy & Program Manager | `all_clubs` | 賽事權限限 `scope_type = academy_only` |
+| `business_sponsorship` | 商務／贊助 | Business & Sponsorship | `all_clubs` | 商店限 S1／S6 且**訂單個資遮罩** |
+| `pr_media` | 公關／媒體 | PR & Media | `all_clubs` | |
+| `customer_service_admin` | 客服／行政 | Customer Service & Admin | `all_clubs` | 會員與商店 S2–S5 |
+| `translator` | 翻譯人員 | Translator | `all_clubs` | `scope_type = translate_only` |
+| `viewer` | 檢視者 | Viewer | `all_clubs` | 唯讀，商店不含金額 |
+| **`partner_club_manager`** | **合作球隊管理**（v3.0 新增） | Partner Club Manager | **`own_clubs`** | 可維護自家內容、球隊、課程、夥伴贊助與商品訂單；**可存取自家會籍但 `Member` 主檔遮罩**；**無推播、無廣告、無版本憑證、無 `J` 系統管理**。⚠️ **開通前提：資料範圍已落地 ＋ 兩法人間的個資委託處理約定已簽署** |
 
 ### 7.3 權限碼命名
 
@@ -271,6 +273,35 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 系統保護 | 至少保留一筆 `is_super_admin = true` 且 `status = 'active'` 的帳號，**不可全數停用** |
 
 > ⚠️ **前台 `Member.email` 是另一件事**，會員維持 Email ＋ LINE 一鍵登入不變（**不用 Google**）。兩套帳號系統**完全獨立，不共用表、不共用登入**。
+
+### 7.7 `admin_refresh_tokens`：更新權杖的工作階段狀態（`S1-3` 新增，2026-09-23 補文件）
+
+`AdminUser` 的登入採**存取權杖（短效，簽在應用層，不落表）＋ 更新權杖（本表）**的雙權杖模式。本表**不是權限模型的一部分**（不參與角色與範圍判斷），是**登入工作階段能不能延續**的必要狀態——沒有它，發出去的更新權杖既無法輪替也無法撤銷，等於每個裝置的登入永遠有效直到過期，這比目前的設計更不安全。
+
+| 欄位 | 用途 |
+|---|---|
+| `token_hash` | **只存 SHA-256 雜湊，不存明文**；UNIQUE，登入時以雜湊查表 |
+| `issued_at`／`expires_at` | 核發與到期時間 |
+| `revoked_at` | 非空＝已撤銷（正常輪替、登出、或重放偵測觸發） |
+| `replaced_by_id` | 指向輪替後的新一筆，串出**輪替鏈** |
+
+**輪替與重放偵測**（`AdminAuthService.RefreshAsync`）：每次用更新權杖換取新的存取權杖，舊的一筆立刻標記 `revoked_at` 並填 `replaced_by_id` 指向新一筆；**若有人拿一把已經被標記 `revoked_at` 的權杖來用**（代表它被偷過、合法使用者早已換到新的一把），系統判定為重放攻擊，**撤銷該帳號名下全部有效更新權杖**，逼使用者全部裝置重新登入。
+
+> 🔵 **本表整體不是 [§13.1](12-database-schema.md#131-沒有稽核與登入日誌表) 排除的日誌表。**
+> §13.1 排除的是「事後查詢用的操作與登入歷程」；本表刪掉就無法完成登入輪替與重放偵測，是**功能運作必需**，
+> 與 `EmailLog`（§12 踩雷點 5：功能單元不是日誌）同一類判準，不是「誰在何時做了什麼」的旁路記錄。
+> **判準是「拿掉它系統還能不能運作」。**
+>
+> 🔴 **原本有 `created_ip`／`user_agent` 兩欄，已於 2026-09-23 依使用者裁決拿掉。**
+> 查證 `apps/api/Features/AdminAuth/AdminAuthService.cs` 與 `AdminAuthEndpoints.cs` 後確認：這兩欄
+> **只在核發時寫入，程式碼裡沒有任何地方讀取或用來做判斷**（不綁定裝置、不比對來源、不影響輪替或重放偵測的結果），
+> 且**沒有清除機制**，撤銷與過期的舊列會無限累積——功能上等同一份持續增長的登入位置紀錄，
+> 正好落在 §13.1 明文「不能回答：登入歷程、異常偵測、**來源 IP**」那一條上。
+> **日後若真要做裝置綁定或異常偵測再加回來**——那時它才有讀取端、才說得上是功能而不是紀錄。
+>
+> ⚠️ **這一筆的教訓**：「本表不是日誌表」這個判定**不是欄位層級的通行證**。
+> 表可以是功能單元，裡面仍然可以夾帶純紀錄性質的欄位——
+> **判準要逐欄問一次「有沒有讀取端」，不是整表過關就算數。**
 
 ---
 

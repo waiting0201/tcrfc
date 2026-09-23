@@ -5,13 +5,9 @@ using Xunit;
 namespace Tcrfc.Api.Tests.Fixtures;
 
 /// <summary>
-/// 🔴 唯一一個把 <c>ENABLE_UNSAFE_DEV_WRITES=true</c> 打開的 fixture——只有這裡的測試會打得到
-/// <c>Features/AdminNews</c> 的寫入端點。其餘所有 fixture（<see cref="ApiFixture"/> 等）刻意
-/// **不**設這個變數，用來驗證「預設關閉、路由根本不存在」這件事本身（見
-/// <c>AdminNewsGateClosedTests</c>）。
-///
-/// ⚠️ 不要把這個 fixture 拿去給既有的五組唯讀測試共用——保持「大多數測試在關閉狀態下跑」是
-/// 刻意的，這樣才能持續驗證「忘記開這個旗標＝這組端點真的不存在」，不是「反正測試環境永遠開著」。
+/// `AdminNews`／`AdminAuth` 相關測試共用的 fixture。⚠️ 不要把這個 fixture 拿去給既有的五組
+/// 唯讀測試共用——分開是為了讓「純唯讀端點」與「需要登入與授權的端點」各自的測試資料互不干擾，
+/// 不是因為有任何開發模式旗標需要區分（那個機制已於 2026-09-23 移除，見 apps/api/README.md「S1」）。
 /// </summary>
 public sealed class AdminWriteApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
@@ -39,7 +35,7 @@ public sealed class AdminWriteApiFixture : WebApplicationFactory<Program>, IAsyn
 
         Environment.SetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING", connectionString);
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-        Environment.SetEnvironmentVariable("ENABLE_UNSAFE_DEV_WRITES", "true");
+        Environment.SetEnvironmentVariable("JWT_SIGNING_KEY_CLUB", TestJwtSigningKey.Value);
         Environment.SetEnvironmentVariable("REDIS_HOST", null);
         Environment.SetEnvironmentVariable("REDIS_PASSWORD", null);
 

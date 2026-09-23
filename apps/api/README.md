@@ -7,9 +7,492 @@
 Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③ 建立 `Tcrfc.Api.Tests` 自動化測試專案
 （S0-7b 為止零測試）。細節見下方各段落與「S0-7d 驗收紀錄」。
 
-🔴 **不含**：登入與權限、商店與金流、除新聞以外的後台模組、慈善捐款平台的業務功能（S0-7d 對慈善庫
-只做「開一條連線探活」，不做任何查詢，見下方「`/readyz` 範圍」）。這些留給後續任務，屆時會用到
-完整權限模型（[`docs/12b`](../../docs/12b-database-tables.md) §7）。
+~~🔴 不含：登入與權限~~ ← **已於 S1（下方）補上**。仍不含：商店與金流、除新聞以外的後台模組寫入端點、
+慈善捐款平台的業務功能（S0-7d 對慈善庫只做「開一條連線探活」，不做任何查詢，見下方「`/readyz` 範圍」）。
+
+---
+
+## S1：J1–J3 登入與授權地基（2026-09-23，`backend-engineer`）
+
+**背景**：S0-7 到 S0-8 為止，`apps/api` 完全沒有身分驗證（grep `Authentication`／`Authorize`／
+`JwtBearer` 零命中），`Features/AdminNews` 的寫入端點只靠 `Security/DevWriteGate.cs`
+（環境旗標 `ENABLE_UNSAFE_DEV_WRITES`）擋住，`created_by`／`updated_by` 由
+`Security/IDevOperatorResolver.cs` 從呼叫端自報的 `X-Dev-Operator-Id` 標頭解析——
+**這代表這組端點在拿掉開發旗標之前無法在任何環境真正上線**。本輪補齊登入、角色與權限、
+資料範圍強制三塊地基，並把 `Features/AdminNews` 改走真實授權。
+
+> 🔴 **2026-09-23 事後更正（使用者裁決）**：本輪最初也做了 J3 操作稽核與登入紀錄
+> （`admin_audit_logs`／`admin_login_logs` 兩張表），但派工時沒有先查
+> [`docs/12-database-schema.md`](../../docs/12-database-schema.md) §13.1——那一節逐字記著
+> **委託方明文指示「本次資料庫設計不含 log」**，明定不建 `AuditLog`／`LoginLog`／`ExportLog`／
+> `OperationLog`。發現這個衝突後如實回報，使用者裁決**撤回這兩張表，回到文件記載的狀態**
+> （§13.1 本身寫著「若日後法遵或客戶要求補上，只需新增表，不需改動既有綱要」，撤回成本最低，
+> 等客戶重新確認再補）。下文已整份改寫為撤回後的現狀，**不再描述已撤回的 J3 稽核機制**，
+> 只在明確標註「已撤回」的地方留下記錄供之後參考。**帳號鎖定功能已查證不受影響**——
+> `AdminUser.FailedAttemptCount`／`LockedUntil` 兩個欄位本來就是唯一的鎖定判斷依據，
+> 從未讀寫過日誌表，見下方「密碼與鎖定」段落。
+
+### 讀到的規劃書條文
+
+| 章節 | 行號 | 內容 |
+|---|---|---|
+| 主站 §4.10 J | 1208–1214 | J1 帳號管理：新增／停用帳號、密碼政策、2FA、`primary_club_id` |
+| 主站 §6 權限與角色矩陣 | 1597–1643 | 十種角色、資料範圍欄、「合作球隊管理」邊界 |
+| 主站 §6 資料範圍規則 | 1627–1633 | 「有效範圍＝`AdminUserClub` 中啟用且未到期的俱樂部集合」「必須在資料存取層強制」「授權有起訖日，到期自動失效」 |
+| 主站 §5.3 | 1537–1549 | `AdminUserClub`／`AdminUserTeam` 兩張關聯表的設計理由；授權掛在人不掛在角色 |
+| docs/12b §7 | 全節 | 七張表、`scope_mode`、權限碼命名慣例、`username` 不用 Email、種子超管 `sa@system.local` |
+| docs/12 §13.1 | 626–666 | 🔴 **本版無稽核與登入日誌表，是委託方明文指示**——本輪應該先查這條再動工，沒有查是這次的疏漏，見上方「事後更正」 |
+
+### 我判斷的範圍切法
+
+任務指示原本按 `STATUS.md` 的 `S1-1`（多俱樂部地基）→`S1-2`（站台切換器／`AdminUserClub`／`J4`）→
+`S1-3`（`J1`／`J2`／`J3`）排序。`S1-1` 的核心機制（`ClubScope` 型別層強制）已在 S0-7b 做完；
+`J2` 要生效必須先有 `AdminUserClub` 才能測，所以這次一次做完「認證＋授權地基」，把 `J4`
+的**完整** CRUD（俱樂部主檔管理、法人資料維護）留給下一輪——本輪只做了 `AdminUserClub` 的
+**授權判斷邏輯**（`AdminClubAuthorizer` 讀取）與**種子資料**，沒有做「後台畫面點兩下就能發俱樂部
+授權」的公開管理端點，理由與後果見下方「本輪沒做的部分」。
+
+### 後台登入權杖設計（執行層決定，規劃書 §1.3 明文排除技術選型）
+
+**存取權杖（access token）：短效 JWT，15 分鐘。**
+- 簽章金鑰讀 `JWT_SIGNING_KEY_CLUB`——這個鍵名不是本輪新發明，`deploy/dev/club.env`／
+  `docs/20-cicd.md` §7.2 早就預留了（「官網前後台登入權杖簽章」），本輪是第一次真的讀它。
+- Claims 只放身分（`sub`／`username`／`is_super_admin`／`jti`），**不放權限與俱樂部範圍**。
+  這是刻意的：若把權限或範圍簽進 token，撤銷 `AdminUserClub` 授權或調整角色權限要等 token
+  過期才生效，直接牴觸規劃書「到期自動失效」「資料範圍必須在資料存取層強制」。15 分鐘是
+  「即使查詢層有快取空窗，最多暴露多久」的上限，每個受保護端點仍即時查 `admin_user_clubs`／
+  `role_permissions`（見 `AdminClubAuthorizer`），不快取授權判斷結果。
+- `AdminClubAuthorizer` 也**不信任 token 裡的 `is_super_admin` claim**——每次都重查
+  `admin_users.is_super_admin`／`status`／`must_change_password`／`two_factor_enabled`，
+  避免帳號在 token 簽發後被停用或降級，仍在 15 分鐘效期內誤判。
+
+**更新權杖（refresh token）：不透明亂數字串，不是 JWT。**
+- 比照 [`docs/19-app-tech-stack.md`](../../docs/19-app-tech-stack.md) 對 App 更新權杖的既有
+  硬性要求（「必須是可由伺服器端撤銷的不透明字串，不得用長效 JWT」）——後台採同一套哲學是
+  刻意的一致性選擇。伺服器只存 SHA-256 雜湊（`admin_refresh_tokens.token_hash`），原始值只在
+  核發當下出現一次。
+- **輪替＋重放偵測**：每次 `/auth/refresh` 成功就撤銷舊權杖、發一把新的（`replaced_by_id`
+  串成鏈）。若偵測到「已撤銷的權杖又被拿來用」（唯一可能是權杖外流被偷用），**立刻撤銷該帳號
+  名下全部有效權杖**，逼真正的使用者也要重新登入——寧可誤傷一次，不留一個持續有效的偷來的權杖。
+  見 `Features/AdminAuth/AdminAuthService.cs` 的 `RefreshAsync`，測試見
+  `AdminAuthTests.更新權杖_輪替後舊權杖失效_重用會被偵測且整批撤銷`。
+- **存放**：`__Host-` 前綴 Cookie（`docs/14-invariants.md` 明文規定），`HttpOnly`＋`Secure`＋
+  `Path=/`、⛔ 不設 `Domain`。存取權杖則回在 JSON body，由前端保存在記憶體（不建議 localStorage，
+  避免 XSS 竊取），這是常見的 SPA 安全模式（更新權杖 Cookie 拿不到就沒有東西可長期竊取）。
+- ⚠️ **`SameSite=None`（不是 `Lax`／`Strict`）**：`apps/admin`（後台前端）與本 API 是不同來源
+  （不同子網域，`docs/17-deployment.md` 的部署拓撲），跨站 `fetch` 要帶 Cookie 必須
+  `SameSite=None`，`Lax`／`Strict` 都會讓瀏覽器悄悄不送出這顆 Cookie，整條更新機制形同虛設。
+  這是 __Host- 前綴＋多網域拓撲下的必然取捨，CORS 已同步加 `AllowCredentials()`（`Program.cs`）。
+
+**密碼雜湊：Argon2id**（`docs/12b` §7.6「演算法待選型，優先 Argon2id，次選 bcrypt」——本輪選型落地）。
+用 `Konscious.Security.Cryptography.Argon2` 套件（純受控 C#，無原生相依，Docker 部署不會遇到
+「映像檔缺 .so」問題）。參數 `m=64MiB, t=3, p=1`（比 OWASP 2024 建議下限更保守），輸出 PHC 風格
+字串（含 salt 與參數，日後調參不影響舊雜湊的可驗證性）。見 `Security/PasswordHasher.cs`。
+
+**2FA：TOTP（RFC 6238）**，手刻不引套件（演算法本身只需要 `HMACSHA1` 與 Base32，.NET 內建已足夠）。
+密鑰用 ASP.NET Core **Data Protection API** 加密存 `two_factor_secret_encrypted`
+（`Security/TwoFactorSecretProtector.cs`）。
+
+🔴🔴🔴 **正式環境部署前置條件（本次程式碼無法保證，必須在部署時設定）**：Data Protection 預設把
+金鑰環存在容器本機檔案系統，**容器重建（不是重啟）沒有把金鑰目錄掛到持久化 volume，所有使用者的
+2FA 密鑰會永久無法解密**（不是可恢復的錯誤，是資料實質遺失）。部署時務必設定
+`DATA_PROTECTION_KEYS_PATH` 指向持久化 volume 路徑，細節見 `TwoFactorSecretProtector.cs` 檔頭。
+
+**強制密碼更換與強制 2FA 在哪裡擋**：`Security/AdminClubAuthorizer.cs` 對**每一個俱樂部範圍端點**
+（含 `Features/AdminNews` 全部路由）在授權檢查的第②③步之間插入這兩個檢查——
+`must_change_password=true` 或 `two_factor_enabled=false` 一律 403。`/auth/change-password`、
+`/auth/2fa/setup`、`/auth/2fa/confirm` 本身不是俱樂部範圍端點（沒有 `{club}` 路由段），
+不經過 `AdminClubAuthorizer`，才不會變成雞生蛋蛋生雞的死結。
+
+### `ClubScope` 與授權怎麼接
+
+沿用 S0-7b 的既有原則（型別系統擋掉「忘記驗證就查資料庫」），疊一層不取代：
+
+```
+公開唯讀端點（既有五組 GET）：  路由 → IClubResolver.ResolveAsync → ClubScope → repository
+後台俱樂部範圍端點（AdminNews）：路由 → IAdminClubAuthorizer.AuthorizeAsync → AdminClubScope → repository
+```
+
+`AdminClubScope`（`Security/AdminClubScope.cs`）是 `readonly struct`，建構子 `internal`，只有
+`AdminClubAuthorizer` 能建立，包一層 `ClubScope` ＋ `AdminIdentity`。`AdminClubAuthorizer.AuthorizeAsync`
+依序做四件事，任何一步失敗立刻丟例外（見 `Security/AdminClubAuthorizer.cs` 逐行註解）：
+
+1. **有沒有登入**——`AdminIdentity.FromClaimsPrincipal(httpContext.User)`，`null` 就丟
+   `AdminUnauthenticatedException`（401）。JWT 驗證本身由 `Program.cs` 註冊的 `AddJwtBearer`
+   中介軟體完成（簽章、`issuer`、`audience`、效期），這裡只讀解析後的 claims。
+2. **俱樂部存不存在**——沿用既有 `IClubResolver.ResolveAsync`，行為與既有公開端點**完全不變**
+   （含 Redis 快取）。
+3. **帳號目前狀態**——重查 `status`／`is_super_admin`／`must_change_password`／
+   `two_factor_enabled`（不信任 JWT claims，理由見上）；`is_super_admin=true` 跳過下一步
+   （規劃書 §6「系統管理員跳過整個資料範圍查詢」）。
+4. **資料範圍**——非超管查 `admin_user_clubs`：`WHERE admin_user_id=@id AND club_id=@clubId
+   AND is_active=1 AND (expires_on IS NULL OR expires_on >= 今天)`，查無列即 403。
+5. **權限碼**——委派 `IPermissionChecker.HasPermissionAsync`（`Security/PermissionChecker.cs`）：
+   展開 `AdminUser.AdminRoles`（隱式多對多，`admin_user_roles` 只有兩個 FK 沒有其他欄位，
+   EF Core scaffold 把它建模成跳躍導覽沒有獨立 `DbSet`）→ `AdminRole.RolePermissions` →
+   `Permission.Code`，查有沒有命中呼叫端要求的權限碼。
+
+⚠️ **公開唯讀端點的行為完全不變**——任何人仍可用網址指定俱樂部瀏覽公開內容，這條路徑一行都沒改，
+見 `AdminClubAuthorizerTests.額外情境_公開唯讀端點的行為完全不受影響` 與既有 `ClubScopingTests`。
+
+### `Features/AdminNews` 改走真實授權
+
+原本的 `Security/DevWriteGate.cs`／`IDevOperatorResolver` 機制已於 2026-09-23 整支刪除
+（見下方「開發模式開關：已刪除」），`AdminArticlesEndpoints` 現在的樣子：
+
+- 每個端點先呼叫 `IAdminClubAuthorizer.AuthorizeAsync(httpContext, club, 權限碼, ct)`，權限碼對應
+  docs/12b §7.3 命名慣例（`content.article.view/create/update/publish/delete`，`module_code=B`、
+  `submodule_code=B2`）。
+- `created_by`／`updated_by` 改用 `adminScope.Identity.AdminUserId`（真實登入者），不再讀任何
+  呼叫端可自報的標頭。
+- `Program.cs` 的 `app.MapAdminNewsEndpoints()` 一律呼叫，不再有任何環境旗標判斷式——路由一律
+  註冊，每個請求各自由授權層擋 401／403。這是本輪對既有安全邊界的異動，證據見下方
+  「開發模式開關：已刪除」。
+
+**權限碼的一個工程判斷**：規劃書 §6 矩陣寫「內容編輯 ✔ 編輯／發布」，沒有明文列出刪除。
+本輪判斷「刪除自己編輯的草稿」是內容管理的常態操作，視為隱含在編輯權限內，
+把 `content.article.delete` 也一併授予 `content_editor` 角色（見種子腳本 `18.3` 的註解）。
+若這個判斷不符合預期，改一行 `role_permissions` 種子資料即可，不影響任何程式碼。
+
+### 🔴🔴🔴 新增後台端點的必要形狀（2026-09-23，型別層強制授權，使用者裁決後的定案寫法）
+
+**背景**：2026-09-23 的複驗發現，光靠「每個端點自己記得在第一行呼叫 `AuthorizeAsync`」是慣例
+不是機制——`AdminArticlesRepository` 原本收的是解包後的裸 `ClubScope`，而 `ClubScope` 從公開的
+`IClubResolver.ResolveAsync` 就拿得到、完全不需要登入或授權。一支新端點只要忘記呼叫
+`AuthorizeAsync`、改呼叫 `IClubResolver`，就能編譯過、跑得動、繞過整套登入與授權，而且**不會有
+任何測試變紅**（原本的 7/7 端點都有正確呼叫，只是慣例剛好每次都對）。這是
+[`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-42` 系譜反覆點名的形狀：**當一類
+錯誤的特徵是「程式碼本身沒有錯」，再嚴格的靜態檢查都接不住它。** 下文是修正後、之後每個模組
+接真實授權時都要照抄的形狀。
+
+**1. `Security/AdminClubScope.cs`：`sealed class`（不是 `struct`），只暴露扁平化屬性。**
+```csharp
+public sealed class AdminClubScope
+{
+    private readonly ClubScope _club;           // 不對外
+    public Guid ClubId => _club.ClubId;          // 扁平化，跟 ClubScope 同名同型別
+    public string ClubCode => _club.ClubCode;
+    public AdminIdentity Identity { get; }
+    internal AdminClubScope(ClubScope club, AdminIdentity identity) { ... }  // 只有 AdminClubAuthorizer 能呼叫
+}
+```
+沒有 `.Club` 這個解包出口，代表**沒有任何一行程式碼能把「已授權」的 `AdminClubScope` 換成一個
+可以到處傳的裸 `ClubScope`**——想要俱樂部代碼或主鍵，只能用 `ClubId`／`ClubCode`。**是 `class`
+不是 `struct` 這件事本身是第二輪修正的重點**，見下方「`default` 破口是怎麼堵的」。
+
+**2. 後台 repository 的每一個公開方法與每一個私有輔助方法，一律收 `AdminClubScope`，不收
+`ClubScope`。** 這是真正的強制點——如果收的是 `ClubScope`，第 1 點做得再乾淨也沒用，因為呼叫端
+永遠可以繞過 `AdminClubScope` 直接生一個 `ClubScope` 塞進去。`AdminArticlesRepository` 的十個
+方法（含 `LoadTrackedForWriteAsync`／`EnsureFeaturedCapAsync`／`InvalidatePublicCacheAsync`
+這些私有輔助方法）全部是這個形狀，照抄即可，方法本體幾乎不用改（`scope.ClubId`／
+`scope.ClubCode` 這兩個屬性名稱在 `AdminClubScope` 上完全一樣）。
+
+**3. 端點層拿到 `AdminClubScope` 之後直接往下傳，不要自己再解包一次存成別的變數。** 舊寫法
+`var scope = adminScope.Club;` 已經連同 `.Club` 一起拿掉——這個習慣本身就是「把已授權的東西
+降級回未授權型別」的起點，即使當下無害，也不該留著讓下一個人照抄。
+
+### 型別強制的三層防線與誠實的覆蓋邊界（2026-09-23 第二輪修正）
+
+第一輪只做了「不收 `ClubScope`」，被使用者實測兩次戳破：① `new Tcrfc.Api.Security.AdminClubScope(...)`
+（完整命名空間，第一版的字串掃描 `IndexOf("new AdminClubScope(")` 找不到）② `=> default;`
+（`readonly struct` 的 `default` 語言規範保證完全不經過建構子，字串掃描從設計上就不可能抓到
+「沒有 `new` 這個字」的取值方式）。第二輪修正三件事，**每一件解決的問題不同，缺一都不完整**：
+
+| 防線 | 解決什麼 | 解決不了什麼 |
+|---|---|---|
+| ① `ClubScope`／`AdminClubScope` 改成 `sealed class`，不是 `readonly struct` | `default`／`default(T)` 破口——**這是型別本身的修正，不是測試**。`class` 的 `default` 是 `null`，用它存取任何屬性會立刻 `NullReferenceException`，從「悄悄拿到一個看似合法的零值範圍」降級成「立刻爆炸」。`new AdminClubScope()`（無參數）現在**直接編譯失敗**（`error CS7036`）——class 只要宣告了任何建構子，編譯器就不再合成公開的無參數建構子，這點 struct 做不到（struct 永遠有隱式無參數建構子） | 不解決「同組件內用 `new AdminClubScope(x, y)` 帶真實引數呼叫 internal 建構子」——這仍然編譯得過，見② |
+| ② `Tcrfc.Api.Tests/ArchitectureTests.cs` 改用 **Roslyn 語意模型**掃描，不是逐行字串比對 | 對**任何語法表面形式**都有效，因為比對的是編譯器解析後的型別符號，不是原始碼文字——完整命名空間、裸型別名稱、using 別名、逐字識別碼（`@AdminClubScope`）、C# 9 目標型別 `new()`、`default`／`null` 字面值，全部收斂成同一個語意檢查 | 只在 `dotnet test` 執行時抓到，不是編譯期；且僅涵蓋「原始碼裡看得出型別的建構／取值語法」 |
+| ③ 額外掃描反射繞過建構子的三個已知 API（`Activator.CreateInstance`／`RuntimeHelpers.GetUninitializedObject`／`FormatterServices.GetUninitializedObject`） | 這三個是 .NET 本身公開給序列化框架用的「故意不呼叫任何建構子」管道，**連 `internal` 存取層級都繞得過**（`Activator.CreateInstance(type, nonPublic: true)`），純語法掃描看不出「這是在建構 ClubScope」，因為呼叫端只是一般方法呼叫，要另外比對呼叫的方法與 `typeof()` 引數 | **這是有限枚舉，不是通用反射防護**——只認這三個文件記載的已知 API |
+
+**驗收：八種語法變形 ＋ 兩種反射變形，逐一實測「注入 → 測試變紅且點名檔案行號 → 復原 → 變綠」**（見下方逐字輸出）：完整命名空間、裸型別名稱、using 別名（`using ACS = ...; new ACS(...)`）、逐字識別碼（`new Tcrfc.Api.Security.@AdminClubScope(...)`）、C# 9 目標型別 `new(...)`、`default`、`null!`、以及對照組 `ClubScope`（不是只驗 `AdminClubScope`）——八種一次性混在同一支違規檔案裡，`dotnet test` 一次跑全部抓到，逐行標出檔案:行號:違規片段。另外 `Activator.CreateInstance(typeof(AdminClubScope), nonPublic: true)` 與 `RuntimeHelpers.GetUninitializedObject(typeof(ClubScope))` 兩種反射形狀單獨驗證，同樣抓到並標出行號。
+
+**這份反例清單是怎麼確認「涵蓋夠廣」的，誠實回答，不包裝成窮舉**：清單本身**不是**窮舉出來的——不可能窮舉 C# 所有能引用一個型別的語法形式。信心來自**解法的性質**：語意模型比對的是編譯器解析後的型別符號，不是原始碼文字表面形式，所以八種形狀能被同一段比對邏輯一次抓到，證明的是「這個機制對語法表面變形無感」，不是「剛好想到了全部可能的寫法」。這份清單刻意涵蓋幾個不同**類別**的變形（限定詞、別名、逐字識別碼、目標型別推斷、預設值、反射）來支持這個論證，但**沒有涵蓋、也明確承認涵蓋不到**：`unsafe` 指標轉型、`Marshal.PtrToStructure`、手刻 IL 產生器直接 emit 物件——這幾種在原始碼層級幾乎沒有可辨識特徵，純靜態分析做不到，本輪判斷投資報酬率不夠，沒有做，見 `ArchitectureTests.cs` 類別上的完整說明。
+
+**唯一真正解不掉、需要使用者決定要不要投資的洞**：同組件內直接呼叫 `internal` 建構子這件事本身
+（不管引數是真是假）**沒有辦法用型別系統解決**，只能靠把 `AdminClubScope`／`IAdminClubAuthorizer`
+（可能還要連同 `ClubScope`／`IClubResolver`，維持兩者強制力一致）搬進獨立的類別庫組件——這是
+比較大的結構異動（新專案檔、調整參照關係），本輪判斷不在核心範圍內，`ArchitectureTests.cs` 的
+CI 層防線是目前的替代方案。
+
+**之後 13 個模組接真實授權的檢查清單**：
+1. 該模組的 repository 每一個方法簽章用 `AdminClubScope`，不要用 `ClubScope`（連私有輔助方法也算）。
+2. 端點層一律 `var adminScope = await authorizer.AuthorizeAsync(httpContext, club, 權限碼, ct);`，
+   不要另外呼叫 `IClubResolver`。
+3. 權限碼命名照 docs/12b §7.3：`<domain>.<object>.<action>`，`module_code`／`submodule_code`
+   對應該模組的代號。
+4. 新增權限碼與角色授予寫進 `db/seed/generate-club-seed-sql.py`（沿用既有 `PERMISSIONS`／
+   `ROLE_PERMISSIONS` 清單的形狀）。
+5. 交付前跑一次 `dotnet test --filter FullyQualifiedName~ArchitectureTests`，確認沒有新增的
+   違規建構——這支測試涵蓋全部模組，不是只驗 `AdminNews`。
+
+### `ArchitectureTests` 逐字輸出（2026-09-23，八種語法變形 ＋ 兩種反射變形，全部單獨驗證過）
+
+**八種語法變形**（同一支違規檔案，一次跑全部抓到）：
+```
+$ dotnet test --filter FullyQualifiedName~ArchitectureTests
+[FAIL] 除了唯一產生者以外_沒有任何地方能產生ClubScope或AdminClubScope的實例
+發現不在允許清單內的地方能產生 ClubScope／AdminClubScope 的實例，這會繞過授權：
+.../Features/AdminNews/_ScratchBypassProof.cs:10: [new] new Tcrfc.Api.Security.AdminClubScope(default!, default!)
+.../Features/AdminNews/_ScratchBypassProof.cs:13: [new] new AdminClubScope(default!, default!)
+.../Features/AdminNews/_ScratchBypassProof.cs:22: [new] new ACS(default!, default!)
+.../Features/AdminNews/_ScratchBypassProof.cs:28: [new] new Tcrfc.Api.Security.@AdminClubScope(default!, default!)
+.../Features/AdminNews/_ScratchBypassProof.cs:31: [new] new Tcrfc.Api.Security.ClubScope(default, default!)
+.../Features/AdminNews/_ScratchBypassProof.cs:25: [new] new(default!, default!)
+.../Features/AdminNews/_ScratchBypassProof.cs:16: [default] default
+.../Features/AdminNews/_ScratchBypassProof.cs:19: [null] null
+（其餘 default! 引數本身也各自被記錄，略）
+失敗! - 失敗: 1，通過: 0
+
+$ rm .../Features/AdminNews/_ScratchBypassProof.cs
+$ dotnet test --filter FullyQualifiedName~ArchitectureTests
+已通過! - 失敗: 0，通過: 1，略過: 0，總計: 1
+```
+
+**兩種反射變形**：
+```
+$ dotnet test --filter FullyQualifiedName~ArchitectureTests
+[FAIL] 除了唯一產生者以外_沒有任何地方能產生ClubScope或AdminClubScope的實例
+.../Features/AdminNews/_ScratchReflectionProof.cs:7: [reflection:CreateInstance] System.Activator.CreateInstance(typeof(Tcrfc.Api.Security.AdminClubScope), nonPublic: true)
+.../Features/AdminNews/_ScratchReflectionProof.cs:10: [reflection:GetUninitializedObject] System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(Tcrfc.Api.Security.ClubScope))
+失敗! - 失敗: 1，通過: 0
+
+$ rm .../Features/AdminNews/_ScratchReflectionProof.cs
+$ dotnet test --filter FullyQualifiedName~ArchitectureTests
+已通過! - 失敗: 0，通過: 1，略過: 0，總計: 1
+```
+
+**`default` 破口的型別層修正**（不是測試層，是編譯器層與執行期行為）：
+```
+// 修正前（struct）：default 產生零值實例，看起來合法，NOT caught by anything unless the value is used carefully
+// 修正後（class）：
+$ echo 'private static Tcrfc.Api.Security.AdminClubScope Bypass() => new Tcrfc.Api.Security.AdminClubScope();' >> 測試檔
+$ dotnet build
+error CS7036: 未提供任何可對應到 'AdminClubScope.AdminClubScope(ClubScope, AdminIdentity)' 之必要參數 'club' 的引數
+（無參數建構已直接編譯失敗，class 不會像 struct 一樣自動合成公開無參數建構子）
+
+$ echo 'private static AdminClubScope Bypass() => default;' >> 測試檔  # 改用 default
+$ dotnet build   # 編譯成功（default 對 class 合法，是 null）
+建置成功，1 個警告（CS8603 可能有 Null 參考傳回）
+
+$ dotnet test --filter FullyQualifiedName~_TempNreProof   # 呼叫端試圖真的使用這個偽造值
+已通過! - Assert.Throws<NullReferenceException> 成立——forged.ClubId 這一行立刻丟例外
+```
+
+兩批違規檔案與臨時測試都已刪除，本節內容是實際執行輸出的逐字節錄（部分路徑截短為 `...` 方便閱讀）。
+
+### 四種擋下情境的實際輸出（2026-09-23，對本機 `tcrfc_club_dev` 實測，`ASPNETCORE_ENVIRONMENT=Production`）
+
+```
+$ curl -s -w "\nHTTP %{http_code}\n" http://127.0.0.1:5299/api/v1/admin/tcrfc/news
+{"title":"請先登入","status":401,"detail":"請先登入後台。","instance":"/api/v1/admin/tcrfc/news"}
+HTTP 401
+```
+
+```
+$ curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer <partner.club@tcrfc.test，只授權 bw>" \
+  http://127.0.0.1:5299/api/v1/admin/tcrfc/news
+{"title":"沒有權限","status":403,"detail":"你沒有被授權存取俱樂部「tcrfc」的後台資料。", ...}
+HTTP 403
+
+# 反向對照：同一個帳號打自己有授權的 bw，正常通過——證明上面擋下的原因確實是「範圍」。
+$ curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer <同一個 partner.club token>" \
+  http://127.0.0.1:5299/api/v1/admin/bw/news
+{"items":[],"page":1,"pageSize":20,"totalCount":0,"totalPages":0}
+HTTP 200
+```
+
+```
+$ curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer <expired.grant@tcrfc.test，tcrfc 授權 expires_on=昨天>" \
+  http://127.0.0.1:5299/api/v1/admin/tcrfc/news
+{"title":"沒有權限","status":403,"detail":"你沒有被授權存取俱樂部「tcrfc」的後台資料。", ...}
+HTTP 403
+```
+
+```
+$ curl -s -w "\nHTTP %{http_code}\n" -H "Authorization: Bearer <content.editor@tcrfc.test，真正有授權 tcrfc>" \
+  http://127.0.0.1:5299/api/v1/admin/tcrfc/news
+{"items":[{"id":"...","slug":"...", ...}], "page":1, ...}
+HTTP 200
+```
+
+⚠️ **`own_clubs` 角色打別的俱樂部**這一情境與「情境二」用的是同一個帳號
+（`partner.club@tcrfc.test`，角色 `partner_club_manager` 正是 `scope_mode=own_clubs` 那個角色）——
+機制上是同一段程式碼路徑，但驗的擔憂不同：情境二驗「一般帳號打沒授權的俱樂部」這個通用機制，
+這條額外驗「`own_clubs` 角色本身沒有任何特殊旁路能繞過範圍檢查」，見
+`AdminClubAuthorizerTests.情境四_own_clubs角色打別的俱樂部_擋下`。
+
+以上四段輸出對應的自動化測試見 `Tcrfc.Api.Tests/AdminClubAuthorizerTests.cs`（連同「未完成 2FA」
+「公開唯讀端點不受影響」兩個額外情境，共 7 個測試方法），token 由 `TestAdminTokens` 直接呼叫
+`AdminTokenService` 簽發（不必先真的完成登入＋2FA，理由見該檔案上的說明），curl 示範則是拿同一把
+`JWT_SIGNING_KEY_CLUB` 用等效邏輯手動簽出的 token 對真正在跑的行程實測，兩者互相印證。
+
+### 開發模式開關：已刪除（2026-09-23，使用者裁決）
+
+`Security/DevWriteGate.cs`／`IDevOperatorResolver.cs`／`DevOperatorResolver.cs` 與
+`ENABLE_UNSAFE_DEV_WRITES` 這整套「環境旗標決定路由存不存在」的機制**已整支刪除**（含
+`Program.cs` 的相關註冊、所有測試 fixture 對這個環境變數的設定）。原本的顧慮（任務指示「不要
+自己決定移除，提出證據讓使用者裁決」）已經走完：先把真實授權接上並讓 `AdminNews` 不再依賴
+`DevWriteGate`，用以下證據支持移除，交由使用者確認後才真的刪檔案：
+
+| 檢查 | 證據 |
+|---|---|
+| 未登入一律擋下 | 情境一 curl／`AdminClubAuthorizerTests.情境一`／`AdminNewsGateClosedTests`（5 個測試方法，涵蓋清單、建立、單篇、格式不正確的權杖、公開端點不受影響） |
+| 登入但無俱樂部授權一律擋下 | 情境二 curl／`AdminClubAuthorizerTests.情境二`＋反向對照 |
+| 授權已過期一律擋下 | 情境三 curl／`AdminClubAuthorizerTests.情境三` |
+| `own_clubs` 角色打別的俱樂部一律擋下 | 情境四 curl／`AdminClubAuthorizerTests.情境四` |
+| 未完成強制前提（改密碼／2FA）一律擋下 | `AdminClubAuthorizerTests.額外情境_已完成改密但尚未完成2FA_擋下俱樂部範圍端點` |
+| 正式環境（`ASPNETCORE_ENVIRONMENT=Production`）行為與開發環境一致 | 上面四段 curl 全部對 `ASPNETCORE_ENVIRONMENT=Production` 的行程實測，不是只測過 Development |
+| 既有公開唯讀端點不受影響 | `AdminClubAuthorizerTests.額外情境_公開唯讀端點的行為完全不受影響`＋既有 `ClubScopingTests`／`SqlInjectionTests` 全數通過 |
+| **刪除後重驗**：`dotnet test` 131/131 全過 | 見下方「測試結果」 |
+| **刪除後重驗**：`ASPNETCORE_ENVIRONMENT=Production`（不帶任何舊防線、不帶任何開發旗標）未登入打 `POST /api/v1/admin/tcrfc/news` 仍是 401 | `curl -i -X POST .../admin/tcrfc/news`（無 Authorization 標頭）→ `HTTP/1.1 401 Unauthorized`，`{"title":"請先登入",...}`——刪檔後親自重跑過，不是憑推論 |
+| **複驗（使用者發現）**：`ASPNETCORE_ENVIRONMENT=Production` **且刻意帶上已被刪除的 `ENABLE_UNSAFE_DEV_WRITES=true`**，寫入端點仍是 401 | 舊旗標不會讓任何東西重新開門——本輪再次親自複驗：`export ENABLE_UNSAFE_DEV_WRITES=true` 後起行程，`POST /api/v1/admin/tcrfc/news`（無 Authorization）仍回 `401`，`GET`／`DELETE` 同樣 401；帶著 `expectedUpdatedAt` 查詢參數的 `DELETE` 也是 401（不帶時是 400，那是 ASP.NET Core 參數繫結在 handler 執行前就失敗，跟授權無關，見下一節說明） |
+| **型別層強制授權**：忘記呼叫 `AuthorizeAsync`、改用公開 `IClubResolver` 取得 `ClubScope` 塞給後台 repository | `error CS1503`，編譯失敗——見上方「新增後台端點的必要形狀」的完整驗證 |
+
+### 稽核記錄（J3）：已撤回（2026-09-23，使用者裁決）
+
+`admin_audit_logs`（操作稽核）與 `admin_login_logs`（登入紀錄）**已撤回**，理由見本節最上方
+「S1」標題下的「事後更正」——委託方在 `docs/12` §13.1 明文指示本次資料庫設計不含 log，本輪一開始
+沒有查這條就先做了，發現衝突後如實回報，使用者裁決撤回。撤回範圍：`db/club-schema.sql` 的兩張
+表定義（含索引與 FK）、本機 `tcrfc_club_dev` 的實際表、`Security/AdminAuditLogger.cs`（整支刪除）
+與 `Features/AdminNews` 裡的呼叫點、`Features/AdminAuth/AdminAuthService.cs` 裡寫
+`admin_login_logs` 的呼叫點與 `RecordLoginLogAsync` 方法本身、EF scaffold 產物
+（`AdminAuditLog.cs`／`AdminLoginLog.cs` 實體類別、`ClubDbContext` 對應的 `DbSet`／
+`modelBuilder.Entity<>()` 設定）。**`admin_refresh_tokens` 不受影響、維持存在**——那張表跟
+「log」性質不同（是更新權杖輪替機制的必要狀態，不是操作紀錄），且屬於 J1 登入機制的核心部分，
+使用者裁決明確排除在撤回範圍外。
+
+🔴 **已查證：帳號鎖定功能不受這次撤回影響。** `AdminAuthService.RegisterFailedAttemptAsync` 從
+一開始就只讀寫 `AdminUser.FailedAttemptCount`／`LockedUntil` 兩個欄位（docs/12 §13.1 本來就把
+這兩欄列為「保留下來的補償」），從未依賴 `admin_login_logs`。`AdminAuthTests.
+登入_連續五次失敗後鎖定_第六次即使密碼正確也擋下` 這個測試在撤回後**照樣通過**，是這件事的
+直接證據，不是憑程式碼審查推論。
+
+**現在沒有的能力**（撤回的直接後果，如實記錄）：登入紀錄（誰、何時、成功或失敗原因、來源 IP）
+不再落地，`Features/AdminNews` 的寫入動作（建立／更新／發布／排程／刪除）也不再有任何操作留痕
+——除了 `articles.updated_at`／隱含的 `created_by`／`updated_by` 這種「最後一次是誰改的」之外，
+沒有變更歷程、沒有稽核軌跡。這與 docs/12 §13.1 原本記載的落差**完全一致**（畢竟就是回到那個狀態），
+不是新的缺口。日後若要重新補上，docs/12 §13.1 那句「只需新增表，不需改動既有綱要」仍然成立。
+
+### `admin_refresh_tokens.created_ip`／`user_agent`：已拿掉（2026-09-23，使用者裁決）
+
+`system-analyst` 補 `docs/12`／`docs/12a`／`docs/12b` 文件時發現、下游 grep 複核屬實：這兩欄
+**只在核發更新權杖時寫入，`AdminAuthService.cs`／`AdminAuthEndpoints.cs` 裡沒有任何地方讀取**
+（不做裝置綁定、不做來源比對、不影響輪替或重放偵測的判斷結果），而且**沒有清除機制**——撤銷與
+過期的舊列會無限累積，功能上等同一份持續增長的登入位置紀錄，跟 docs/12 §13.1「不能回答」清單裡
+的「來源 IP」正好重疊。使用者裁決拿掉，真的要做裝置綁定或異常偵測再加回來（屆時要有讀取端才說
+得上是功能，不是紀錄）。
+
+撤回範圍：`db/club-schema.sql` 的 `admin_refresh_tokens` 定義（表本身**維持存在**，只拿掉這兩欄
+——它跟「log」性質不同，是更新權杖輪替與重放偵測的必要狀態，不在撤回範圍）、本機
+`tcrfc_club_dev` 的實際欄位（`ALTER TABLE ... DROP COLUMN`）、EF scaffold 產物、
+`AdminAuthService.LoginAsync`／`RefreshAsync`／`IssueRefreshTokenAsync` 的 `ipAddress`／
+`userAgent` 參數、`AdminAuthEndpoints.ExtractClientInfo`（拿掉後沒有其他呼叫端，整支移除）。
+
+⚠️ **`docs/12`／`docs/12a`／`docs/12b` 三份文件目前記載的是拿掉前的狀態，需要使用者回頭更新**
+（本次交付不得自行修改 `docs/`）：
+- `docs/12-database-schema.md`：第 503、507、592、785 行提到 `created_ip`／`user_agent`
+  「待使用者裁決」，現在已經裁決＝拿掉，這幾處待決語氣需要改成past tense的定案敘述。
+- `docs/12a-database-erd.md`：第 1241–1242 行的 ERD 欄位列表（`string_64 created_ip`／
+  `string_255 user_agent`）需要從 `admin_refresh_token` 實體圖裡刪除；第 1326 行的說明文字
+  同樣需要更新。
+- `docs/12b-database-tables.md`：§7.7（277 行起）整段「`created_ip`／`user_agent` 的定位需要
+  使用者裁決」的查證記錄可以收斂成一句「已裁決拿掉」，287 行的欄位列表需要移除這兩欄。
+
+### 測試結果
+
+```
+已通過! - 失敗: 0，通過: 131，略過: 0，總計: 131，持續時間: ~35 秒 - Tcrfc.Api.Tests.dll (net10.0)
+```
+
+**131 = 既有 99 個（S0-8 為止的基準，全數維持通過，含因為改走真實授權而需要更新的既有測試）
+＋ 第一輪新增 31 個 ＋ 第二輪（型別層強制授權）新增 1 個**：
+- `PasswordHasherTests`（5）／`TotpServiceTests`（6）：純單元測試，不碰資料庫。
+- `AdminAuthTests`（7）：登入成功／密碼錯誤不洩露帳號存在與否／連續失敗鎖定／完整 2FA 設定
+  （設定前免驗證碼、設定後需要正確驗證碼、驗證錯誤碼會被拒）／更新權杖輪替與重放偵測／登出。
+- `AdminClubAuthorizerTests`（7）：四種必要情境＋反向對照＋未完成 2FA＋公開端點不受影響。
+- `AdminNewsGateClosedTests` 改寫（5，取代舊版驗「開關關閉回 404」的 3 個測試，見下方
+  「既有測試怎麼改的」）。
+- `ArchitectureTests`（1，第二輪新增）：純掃原始碼，不碰資料庫，確認整個 `apps/api` 除了兩個
+  唯一產生者以外沒有任何地方直接建構 `AdminClubScope`／`ClubScope`，見上方「新增後台端點的
+  必要形狀」。
+
+**既有測試怎麼改的**（改走真實授權後，原本用假操作者標頭的請求全部變成 401，這是預期中的破壞
+性變更，逐一修正而不是繞過）：
+
+1. `AdminNewsGateClosedTests` 整支重寫——舊版驗的是「`ENABLE_UNSAFE_DEV_WRITES` 關閉時回
+   404」，這個機制已經不適用於 `AdminNews`（路由一律註冊），新版驗「未登入回 401」「格式不正確
+   的權杖回 401」「公開端點不受影響」。
+2. `AdminNewsCoverBlobCleanupTests`／`AdminNewsCoverUploadTests`／`AdminNewsCacheInvalidationTests`／
+   `AdminNewsWriteTests`／`AdminNewsSlugPolicyTests` 這五個檔案的每一個 `fixture.CreateClient()`
+   之後，一律加一行 `client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+   "Bearer", await TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"))`
+   ——這些測試原本就是在驗 `AdminNews` 的業務邏輯（slug 政策、封面圖片上傳、快取失效……），
+   加真實授權不改變它們原本要驗的事，只是補上「這件事現在需要先登入」這個新前提。
+3. `AdminNewsWriteTests` 裡兩個「用另一俱樂部路由讀寫」的測試（驗 repository 層 `WHERE club_id`
+   過濾），改用 `super.admin@tcrfc.test`（`is_super_admin=true`，略過範圍檢查）而不是
+   `content.editor@tcrfc.test`——後者現在會先被 `AdminClubAuthorizer` 的範圍檢查擋在 403，
+   根本到不了 repository，測不出這兩個測試原本要驗的「repository 層本身有沒有正確過濾」。
+   授權層的範圍擋下行為另有專門測試（`AdminClubAuthorizerTests` 情境二／四）。
+
+### 種子測試帳號（`db/seed/generate-club-seed-sql.py` §18.4，本機開發專用）
+
+| `username` | 密碼 | 角色 | 俱樂部授權 | 狀態 | 用途 |
+|---|---|---|---|---|---|
+| `sa@system.local` | `Admin@123` | `system_admin` | — | `must_change_password=1`／`2FA 未啟用` | **真正的種子超管**（docs/12b §7.6 明文的帳號），走完整強制流程 |
+| `clean.login@tcrfc.test` | `SuperAdmin@123` | `system_admin` | — | 可直接登入 | 唯一能走完整 `/login` HTTP 往返的「已就緒」帳號（見下方原因） |
+| `super.admin@tcrfc.test` | `SuperAdmin@123` | `system_admin` | — | `2FA` 已標記啟用但無真實密鑰 | 供 `TestAdminTokens` 直接簽權杖用，略過登入 |
+| `content.editor@tcrfc.test` | `ContentEditor@123` | `content_editor` | `tcrfc` | 同上 | 大多數 AdminNews 測試預設用這個 |
+| `viewer@tcrfc.test` | `Viewer@123` | `viewer` | `tcrfc` | 同上 | 唯讀角色測試 |
+| `partner.club@tcrfc.test` | `PartnerClub@123` | `partner_club_manager`（`own_clubs`） | 僅 `bw` | 同上 | 情境二／四 |
+| `expired.grant@tcrfc.test` | `ContentEditor@123` | `content_editor` | `tcrfc`（**已過期**） | 同上 | 情境三 |
+| `fresh.setup@tcrfc.test` | `Admin@123` | `viewer` | `tcrfc` | `must_change_password=1`，`2FA 未啟用` | 完整 2FA 設定流程測試（`AdminAuthTests` 用完會重設回本狀態） |
+| `lockout.test@tcrfc.test` | `Viewer@123` | `viewer` | `tcrfc` | 同上 | 連續失敗鎖定測試專用（避免與其他測試共用帳號互相污染） |
+
+⚠️ **為什麼大多數「已就緒」帳號的 `two_factor_enabled` 是種子直接設 `1` 但沒有真正可解密的密鑰**：
+ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本在行程外執行，沒有能力產生「這個
+行程解得開」的密文。`AdminClubAuthorizer` 只檢查 `two_factor_enabled` 布林值本身，不會去解密這個
+欄位，所以直接種布林值就能讓這些帳號通過強制 2FA 檢查——**但這也代表這些帳號無法透過真正的
+`/login` 端點完成登入**（送出任何驗證碼都會被拒，因為沒有真實密鑰算得出正確答案）。需要測試
+「真正的登入 HTTP 往返」時，只能用 `two_factor_enabled=0` 的帳號（`sa@system.local`／
+`clean.login@tcrfc.test`／`fresh.setup@tcrfc.test`），或走完整的「設定 2FA」流程之後再登入
+（`AdminAuthTests.完整2FA設定流程...` 示範了後者）。
+
+### 本輪沒做的部分（誠實列出，不假裝做完）
+
+1. **`Features/AdminUsers`（J1 帳號 CRUD 端點）沒有實作**——新增／停用帳號、設定
+   `primary_club_id` 目前只能直接寫 SQL（種子腳本示範了寫法）。認證與授權的地基（密碼雜湊、
+   鎖定、2FA、JWT／refresh token）已經完整可用，但「後台畫面上管理帳號」這件事本身沒有 API。
+2. **`Features/AdminRoles`（J2 角色 CRUD 端點）沒有實作**——十個角色與權限碼是種子資料，
+   `PermissionChecker` 讀得到、驗證得到，但沒有「建立新角色」「勾選權限」的 API，這正是
+   docs/12b §7.2「九個角色是資料不是列舉……客戶可自建第十個角色」目前做不到的部分。
+3. **`Features/AdminClubGrants`（`AdminUserClub` 授予／撤銷）沒有公開端點**——`AdminClubAuthorizer`
+   讀取這張表做授權判斷，但「指派某個帳號可以存取哪個俱樂部」目前只能直接寫 SQL。這件事本來就
+   歸屬 `J4`（規劃書「俱樂部與授權管理，僅系統管理員」），本輪判斷不在範圍內，但因為它是授權
+   判斷的資料來源，這裡特別點名沒有它會卡在哪。
+4. **`role_permissions.scope_type` 的細粒度限制沒有實作**——`own_teams`／`academy_only`／
+   `masked`／`translate_only` 這幾種欄位與列層級規則（docs/12b §7.4）本輪只讀取但不強制執行，
+   `PermissionChecker` 目前只做「有沒有這個權限碼」的布林判斷。等對應模組真的接真實授權時
+   （例如翻譯人員只能碰 `*_i18n`）需要另外實作。
+5. **權限碼只鋪了兩個模組**：J 系統管理本身（`system.account.*`／`system.role.*`／
+   `system.audit.view`／`system.club_grant.*`）與 B2 新聞（`content.article.*`，本次唯一接真實
+   授權的既有模組）。K／S／E 等其餘模組的權限碼要等對應模組真的做寫入端點時再依同一套命名慣例
+   （`<domain>.<object>.<action>`）補上，不是遺漏，是刻意的範圍縮減。
+6. ✅ **已裁決（2026-09-23）**：`docs/12b-database-tables.md` §7.2 的角色代碼表原本與本次種子
+   資料不一致（本次沿用 `db/seed/generate-charity-seed-sql.py` 的九個代碼，docs/12b §7.2 是另一套
+   命名）。使用者裁決**以種子用的九個代碼為準**，`docs/12b` 由使用者自行更新，本檔不再重複記錄
+   細節（避免跟 `docs/12b` 本身兩處各寫一份、日後不同步）。
+7. ✅ **已裁決（2026-09-23）**：稽核記錄（`admin_audit_logs`／`admin_login_logs`）與 docs/12
+   §13.1「本版無稽核與登入日誌表」的政策衝突，使用者裁決**撤回**，已撤回完畢，見上方
+   「稽核記錄（J3）：已撤回」整節。
+8. **密碼政策是最小實作**：長度 ≥10、不得等於帳號本身。規劃書沒有寫死具體規則（字元類別要求、
+   歷史密碼比對、定期輪替），這是執行層判斷（見 `AdminAuthService.ValidatePasswordPolicy`），
+   沒有做業界常見的「不得與最近 N 組密碼相同」（需要密碼歷史表，本次判斷不在核心範圍內）。
+9. **鎖定門檻（5 次失敗鎖 15 分鐘）是執行層判斷**，規劃書沒有給具體數字，落在 OWASP
+   Authentication Cheat Sheet 建議範圍（3–5 次）內，但沒有經過使用者確認這個具體數字。
+10. **沒有「登入紀錄與異常提醒」**（規劃書 J3 的完整條文）——`admin_login_logs` 已撤回（見上方
+    「稽核記錄（J3）：已撤回」），目前完全沒有登入歷程可查，只剩 `AdminUser.last_login_at` 單點
+    紀錄（docs/12 §13.1 本來就記載的補償欄位，不是本輪新增）。異常提醒更是完全沒有，這兩項要
+    等稽核記錄的政策方向重新確認後才有地基可以做。
 
 ---
 
@@ -101,8 +584,19 @@ apps/api/
 │   ├── ClubScope.cs               # 已驗證的俱樂部範圍，建構子 internal，繞不過去
 │   ├── IClubResolver.cs / ClubResolver.cs   # 唯一能建立 ClubScope 的地方
 │   ├── ClubNotFoundException.cs
-│   ├── DevWriteGate.cs            # 🔴🔴🔴 本輪新增：寫入端點的唯一總開關
-│   └── IDevOperatorResolver.cs / DevOperatorResolver.cs   # 🔴 本輪新增：不是身分驗證，見檔案內說明
+│   ├── AdminIdentity.cs           # 🔴🔴🔴 S1 新增：JWT claims 解析出的身分（不含權限與範圍）
+│   ├── AdminAuthExceptions.cs     # 🔴🔴🔴 S1 新增：AdminUnauthenticatedException（401）／AdminForbiddenException（403）
+│   ├── AdminClubScope.cs          # 🔴🔴🔴 S1 新增：ClubScope ＋ AdminIdentity，建構子 internal
+│   ├── IAdminClubAuthorizer.cs / AdminClubAuthorizer.cs   # 🔴🔴🔴 S1 新增：AdminClubScope 的唯一產生者，四步檢查
+│   ├── IPermissionChecker.cs / PermissionChecker.cs       # 🔴🔴🔴 S1 新增：角色→權限碼查詢
+│   ├── AdminTokenService.cs       # 🔴🔴🔴 S1 新增：JWT 存取權杖簽發／驗證參數、更新權杖亂數與雜湊
+│   ├── PasswordHasher.cs          # 🔴🔴🔴 S1 新增：Argon2id
+│   ├── TotpService.cs             # 🔴🔴🔴 S1 新增：TOTP（RFC 6238），手刻不引套件
+│   └── TwoFactorSecretProtector.cs # 🔴🔴🔴 S1 新增：Data Protection 包裝，見檔頭的正式環境前置條件
+│
+│   ⚠️ 2026-09-23（使用者裁決）已刪除：DevWriteGate.cs／IDevOperatorResolver.cs／
+│   DevOperatorResolver.cs（開發模式開關機制，見「開發模式開關：已刪除」整節）、
+│   AdminAuditLogger.cs（J3 稽核記錄，見「稽核記錄（J3）：已撤回」整節）。
 ├── Localization/
 │   └── RequestLocale.cs           # zh/en ↔ zh-Hant/en 轉換與回退規則
 ├── Caching/
@@ -128,17 +622,15 @@ apps/api/
     ├── Staff/      (StaffDto, StaffRepository, StaffEndpoints)
     ├── News/       (ArticleListItemDto/ArticleDetailDto, ArticlesRepository, ArticlesEndpoints)   # 唯讀，Dapper，未改
     ├── Schedule/   (MatchDto, MatchesRepository, MatchesEndpoints)
-    ├── AdminNews/  # 🔴🔴🔴 開發模式限定：AdminArticleDtos／AdminArticlesRepository（EF Core）／
-    │                #   AdminArticlesEndpoints／AdminArticleExceptions。
-    │                #   🔴 S0-8 修正（2026-09-22）新增：AdminArticleRequestForm（解析
-    │                #   multipart/form-data 的 payload＋file 兩個欄位）、CoverKeyUpdate
-    │                #   （封面圖片三態）。建立／更新端點在同一次請求裡處理封面圖片上傳與
-    │                #   失敗回滾，不再呼叫任何獨立的上傳端點。
-    └── Uploads/    # 🔴🔴🔴 S0-8 本輪新增：UploadSlotPolicy（欄位插槽允許清單，仿
-                     #   AdminNews/SlugPolicy.cs 的形狀）。⚠️ S0-8 修正（2026-09-22）：這裡原本
-                     #   還有一個獨立的上傳端點（UploadsEndpoints／UploadDtos），因為違反規劃書
-                     #   「選檔不上傳、儲存才上傳」已整支移除——現在只剩這份允許清單，由每個
-                     #   模組自己的建立／更新端點直接呼叫，不再對外開路由。
+    ├── AdminNews/  # ⚠️ S1 起改走真實授權（IAdminClubAuthorizer），不再是「開發模式限定」：
+    │                #   AdminArticleDtos／AdminArticlesRepository（EF Core）／AdminArticlesEndpoints／
+    │                #   AdminArticleExceptions／AdminArticleRequestForm／CoverKeyUpdate。
+    ├── Uploads/    # S0-8：UploadSlotPolicy（欄位插槽允許清單，仿 AdminNews/SlugPolicy.cs 的形狀）。
+    │                #   ⚠️ 獨立上傳端點已移除，見下方 S0-8 段落，現在只剩這份允許清單。
+    └── AdminAuth/  # 🔴🔴🔴 S1 本輪新增：AdminAuthDtos／AdminAuthService（登入、更新權杖輪替、
+                     #   登出、變更密碼、2FA 設定／確認／停用的業務邏輯）／AdminAuthEndpoints
+                     #   （HTTP 形狀，含 __Host- 前綴 Cookie 讀寫）。不是俱樂部範圍端點，見該
+                     #   目錄檔頭說明為什麼不經過 IAdminClubAuthorizer。
 
 apps/api/Tcrfc.Api.Tests/    # S0-7d：自動化測試專案（獨立 .csproj，不進 Docker 映像檔，見下方「測試」）
 ```
@@ -304,13 +796,15 @@ compose 網路裡）。
 | `CORS_ALLOWED_ORIGINS` | 正式環境必填，本機可省略 | 逗號分隔的允許來源清單，來自 `docker-compose.yml` 的 `api` 服務定義（`docs/17-deployment.md` §10.2 的既有缺口，本次由前一任務補上）。本機開發若沒帶，`Development` 環境會退回 `localhost:3000/3001/3002` 三個 `apps/web` 常用埠；**正式環境沒有這個退回值**——沒設定就是沒有任何來源被允許，比「忘記設定就開放全部」安全 |
 | `ASPNETCORE_ENVIRONMENT` | 建議設 | `Development` 才會開 OpenAPI 端點，其餘值一律關閉 |
 | `ASPNETCORE_URLS` | 本機開發用 | 監聽位址，容器內固定用 `Dockerfile` 的 `ASPNETCORE_HTTP_PORTS=8080` |
-| `ENABLE_UNSAFE_DEV_WRITES` | 🔴 開發用，⛔ 正式環境不得設定 | 本輪新增。要同時滿足 `ASPNETCORE_ENVIRONMENT=Development` **且**這個值字面等於 `"true"`，`Features/AdminNews` 的寫入與後台讀取端點才會被註冊。見下方「寫入端點開發模式開關」整節 |
+| ~~`ENABLE_UNSAFE_DEV_WRITES`~~ | 2026-09-23 起不存在 | 舊機制的環境旗標，隨 `Security/DevWriteGate.cs` 一併刪除，本檔任何程式碼都不再讀取這個鍵名，見「開發模式開關：已刪除」整節 |
 | `AZURE_BLOB_CONNECTION_STRING` | 選填（S0-8） | 圖片上傳共用元件的物件儲存連線字串。**未設定不會讓服務無法啟動**（跟 `CLUB_SQL_CONNECTION_STRING` 不同）——只有真的呼叫圖片上傳／刪除時才會需要它，沒設定時注入 `UnavailableImageStorageService`（上傳丟出訊息清楚的例外，刪除安靜略過）。本機開發見下方「本機開發：Azurite」，正式環境見 VM 上 `/opt/tcrfc/secrets/club.env` |
 | `AZURE_BLOB_CONTAINER_IMAGES` | 選填（S0-8） | 圖片物件儲存的容器名稱，預設 `images` |
+| `JWT_SIGNING_KEY_CLUB` | 🔴🔴🔴 S1 起必填 | 後台存取權杖的簽章金鑰，**至少 32 字元，太短直接啟動失敗**（`AdminTokenService` 的建構期檢查，寧可啟動失敗也不要用弱金鑰悄悄跑起來）。鍵名不是本輪新發明，`deploy/dev/club.env`／`docs/20-cicd.md` §7.2 早就預留。⚠️ **上線前暫用網址與正式期建議用不同值**（`docs/14-invariants.md` 既有規則） |
+| `DATA_PROTECTION_KEYS_PATH` | 🔴🔴🔴 S1 起正式環境必填 | 2FA 密鑰加密金鑰環的持久化路徑。**沒設定不會讓服務無法啟動**（本機開發沒有也能跑，只是每次容器重建都要重設 2FA），但正式環境沒設定＝容器重建後全部使用者的 2FA 永久無法解密，見 `Security/TwoFactorSecretProtector.cs` 檔頭的完整說明，這是本次程式碼無法防呆的部署前置條件 |
 
-⛔ **S0-8 之後仍完全不碰 LINE Pay、JWT**——這些鍵名雖然已經在 `docker-compose.yml` 的
-`api` 服務與 `deploy/dev/{club,charity}.env` 裡預留，但本檔的程式碼**沒有讀取它們**，留給接下來實作那些功能的
-session 使用。**Blob 已在本輪接上**，見下方「圖片上傳共用元件」整節。
+⛔ **S0-8 之後仍完全不碰 LINE Pay**——這個鍵名雖然已經在 `docker-compose.yml` 的
+`api` 服務與 `deploy/dev/{club,charity}.env` 裡預留，但本檔的程式碼**沒有讀取它**，留給接下來實作商店金流的
+session 使用。**Blob 已在 S0-8 接上，JWT 已在 S1 接上**，見下方對應段落。
 
 ---
 
@@ -328,14 +822,24 @@ session 使用。**Blob 已在本輪接上**，見下方「圖片上傳共用元
 | `GET /api/v1/{club}/news/{slug}` | 新聞單篇 | `lang` |
 | `GET /api/v1/{club}/schedule` | 賽程與賽果 | `team`、`season`（賽季代碼）、`status`、`lang`、`page`、`pageSize`（預設 20，上限 100） |
 | `GET /healthz` | 存活探針 | — |
-| 🔴 `GET /api/v1/admin/{club}/news` | **開發模式限定**（下方整節）。後台新聞清單，**含全部狀態**（草稿／排程／已發布） | `status`、`category`、`keyword`（搜中文標題）、`page`、`pageSize`（預設 20，上限 100） |
-| 🔴 `GET /api/v1/admin/{club}/news/{id}` | 後台單篇詳情（依 GUID，不是 slug），雙語內容不回退，原封回傳 | — |
-| 🔴 `POST /api/v1/admin/{club}/news` | 建立文章，一律從 `draft` 開始 | — |
-| 🔴 `PUT /api/v1/admin/{club}/news/{id}` | 整份取代可編輯內容，不改狀態（樂觀並行） | — |
-| 🔴 `POST /api/v1/admin/{club}/news/{id}/publish` | `draft`／`scheduled` → `published`，立即生效 | — |
-| 🔴 `POST /api/v1/admin/{club}/news/{id}/schedule` | `draft`／`scheduled` → `scheduled`（未來時間） | — |
-| 🔴 `DELETE /api/v1/admin/{club}/news/{id}` | 刪除（樂觀並行） | `expectedUpdatedAt`（必填，ISO 8601） |
+| 🔒 `GET /api/v1/admin/{club}/news` | 需登入＋`content.article.view`。後台新聞清單，**含全部狀態**（草稿／排程／已發布） | `status`、`category`、`keyword`（搜中文標題）、`page`、`pageSize`（預設 20，上限 100） |
+| 🔒 `GET /api/v1/admin/{club}/news/{id}` | 需登入＋`content.article.view`。後台單篇詳情（依 GUID，不是 slug），雙語內容不回退，原封回傳 | — |
+| 🔒 `POST /api/v1/admin/{club}/news` | 需登入＋`content.article.create`。建立文章，一律從 `draft` 開始 | — |
+| 🔒 `PUT /api/v1/admin/{club}/news/{id}` | 需登入＋`content.article.update`。整份取代可編輯內容，不改狀態（樂觀並行） | — |
+| 🔒 `POST /api/v1/admin/{club}/news/{id}/publish` | 需登入＋`content.article.publish`。`draft`／`scheduled` → `published`，立即生效 | — |
+| 🔒 `POST /api/v1/admin/{club}/news/{id}/schedule` | 需登入＋`content.article.publish`。`draft`／`scheduled` → `scheduled`（未來時間） | — |
+| 🔒 `DELETE /api/v1/admin/{club}/news/{id}` | 需登入＋`content.article.delete`。刪除（樂觀並行） | `expectedUpdatedAt`（必填，ISO 8601） |
 | `GET /readyz` | 就緒探針（真的開連線查主站庫，見下方「/readyz 範圍」） | — |
+| 🔴🔴🔴 `POST /api/v1/admin/auth/login` | S1 新增。帳號密碼＋選填 2FA 碼登入 | — |
+| 🔴🔴🔴 `POST /api/v1/admin/auth/refresh` | S1 新增。用 `__Host-tcrfc-admin-rt` Cookie 換一把新的存取權杖（輪替更新權杖） | — |
+| 🔴🔴🔴 `POST /api/v1/admin/auth/logout` | S1 新增。撤銷更新權杖、清 Cookie | — |
+| 🔒 `POST /api/v1/admin/auth/change-password` | S1 新增。需登入（不需俱樂部授權）。首次登入強制更換走這裡 | — |
+| 🔒 `POST /api/v1/admin/auth/2fa/setup` | S1 新增。需登入。開始 2FA 設定，回傳 Base32 密鑰與 `otpauth://` URL | — |
+| 🔒 `POST /api/v1/admin/auth/2fa/confirm` | S1 新增。需登入。驗證第一組 TOTP 碼，通過才真的打開 2FA | — |
+| 🔒 `POST /api/v1/admin/auth/2fa/disable` | S1 新增。需登入＋重輸密碼 | — |
+
+🔒 標記的端點需要 `Authorization: Bearer <存取權杖>`，未登入回 401、已登入但無權回 403，
+見「S1：J1–J3 登入與授權地基」整節。
 
 `lang` 值域 `zh`／`en`（不帶預設 `zh`），與 [`docs/06-conventions.md`](../../docs/06-conventions.md)「語系代碼」一致，
 不是資料庫實際存的 `zh-Hant`／`en`（轉換邏輯見 `Localization/RequestLocale.cs`）。
@@ -587,7 +1091,15 @@ club)`（或改用排程觸發器主動失效），否則使用者會持續看�
 
 ---
 
-## 🔴🔴🔴 寫入端點開發模式開關
+## 🔴🔴🔴 寫入端點開發模式開關（❌ 2026-09-23 起已整支刪除，見上方「S1」整節「開發模式開關：已刪除」）
+
+> ⚠️ **本節是 S0-8 為止的歷史記錄，如實保留**（機制本身、`IDevOperatorResolver` 的行為描述都是
+> 當時的事實），**但下面描述的機制現在完全不存在**：`Security/DevWriteGate.cs`／
+> `Security/IDevOperatorResolver.cs`／`Security/DevOperatorResolver.cs` 三個檔案、
+> `ENABLE_UNSAFE_DEV_WRITES` 環境變數的所有讀取點、`Program.cs` 裡的相關註冊，皆已於 2026-09-23
+> 使用者裁決後刪除。`Features/AdminNews` 改由 `Security/AdminClubAuthorizer` 逐請求驗證登入與
+> 授權，`created_by`／`updated_by` 改用真實登入者的 `AdminClubScope.Identity.AdminUserId`。
+> 本節以下內容**純供歷史查閱**，不代表任何現存的程式碼路徑。
 
 專案還沒有登入與權限。**沒有權限把關的寫入端點如果被部署出去，就是任何人都能改資料庫**。
 `Features/AdminNews` 的所有端點（含後台專用的讀取端點）因此掛在一個明確、預設關閉的開關後面：
@@ -891,7 +1403,7 @@ JSON 的建立／更新請求」的兩段式設計，因為違反規劃書「選
 | 404 | `club` 代碼不存在或非啟用 | 沿用既有 `ClubNotFoundException` 文案（**在任何上傳嘗試之前就會擋下**，不會浪費一次上傳） |
 | 409 | slug 重複／樂觀並行衝突／狀態轉換不合法／置頂精選已達上限 | 沿用既有文案（見上方各例外類別）。**若這次請求有夾檔案，圖片已經上傳成功但資料列寫入失敗時，伺服器端會自動刪掉剛剛上傳的物件**（補償交易，見下方「失敗回滾」），呼叫端不需要、也不應該自己再呼叫任何清理 |
 | 413 | **超過約 11 MB**（見下方「Kestrel 請求主體上限」） | 平台預設的空白 413，不是本服務的 JSON 錯誤格式 |
-| 404（路由不存在） | 開發模式開關關閉 | 沒有回應內容，見「寫入端點開發模式開關」 |
+| 401 | 未登入（S1 起，取代舊版「開發模式開關關閉」的 404） | 「請先登入後台。」，見上方「S1」整節 |
 
 ### 失敗回滾（補償交易，不是真正的跨系統 atomic transaction）
 
@@ -1410,7 +1922,7 @@ tcrfc schedule 筆數: 21    （不變）
 
 ---
 
-## 測試（`apps/api/Tcrfc.Api.Tests`，共 96 項）
+## 測試（`apps/api/Tcrfc.Api.Tests`，共 130 項，S1 新增 31 項見上方「S1」整節「測試結果」）
 
 S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄裡。S0-7d 新增獨立測試專案
 `Tcrfc.Api.Tests`（xUnit 2.9 + `Microsoft.AspNetCore.Mvc.Testing`），對 `Program`
@@ -1445,7 +1957,7 @@ S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄�
 | `SqlInjectionTests` | 惡意 `team` 參數不炸、不回傳資料、資料表安然無恙 |
 | `CacheFailOpenTests` | Redis 不可用時，`ClubResolver`＋**五組接了快取的端點**（`clubs`／`players`／`staff`／`news` 列表與單篇／`schedule`）全部仍然成功；`/readyz` 仍回 `ready` 但 `redis` 標示 `degraded`（S0-7d 續作擴大涵蓋範圍，原本只驗證 `players` 一個端點） |
 | **`CacheBehaviorTests`（S0-7d 續作新增）** | qualifier 是否真的涵蓋每個會改變結果的參數（`pageSize`／`team`／`category`／`season`／`status`）、同參數兩次結果一致、文章單篇不同 slug 互不污染、**404 不寫入快取**、**用 `IConnectionMultiplexer` 直接核對 key 真的依 club／locale 隔離**（2026-09-22 同上改成 id 集合不重疊）、key 有 TTL 兜底 |
-| **`AdminNewsGateClosedTests`（本輪新增）** | 開發模式開關關閉時，後台清單／單篇／建立三個端點一律 404（不是 403），用既有的 `ApiFixture`（不設 `ENABLE_UNSAFE_DEV_WRITES`）驗證 |
+| **`AdminNewsGateClosedTests`（S0-8 原始版本已於 S1 整支重寫）** | ⚠️ **這一列描述的是 S0-8 時的行為，S1 起已不成立**（該機制不再擋 `AdminNews`）。現版驗「未登入回 401（不是 404，路由確實存在）」「格式不正確的權杖回 401」「公開唯讀端點不受影響」，見上方「S1」整節 |
 | **`AdminNewsWriteTests`（本輪新增）** | 完整生命週期（建立→改內容→排程→發布→刪除）、分類代碼不存在／中文標題空白回 400、slug 重複回 409、俱樂部範圍（另一俱樂部路由更新／刪除回 404 且本尊不變）、共用內容唯讀（更新／刪除回 403，且後台讀取看得到並標記 `isShared`）、樂觀並行控制（過期 `updatedAt` 回 409 且不是後寫的贏）、三態轉換（已發布不能再排程）、排程時間不在未來回 400、雙語側表（加英文／省略英文清空）、置頂精選超過 3 篇回 409 |
 | **`AdminNewsCacheInvalidationTests`（本輪新增）** | 用真正的 `redis-server`（`AdminWriteRedisEnabledApiFixture`）驗證：後台更新已發布文章後，公開 API 立刻反映新標題，不是被 TTL 內的舊快取值擋住 |
 | **`ImageProcessorTests`（S0-8 新增，純單元測試，不需要任何 fixture）** | 長邊超過 2560px 等比縮小、固定產出 4 個衍生檔（1280／640／320／160 方形縮圖）、全部輸出真的是 WebP、主檔與衍生檔的 EXIF／ICC／IPTC／XMP 全部清除、主檔小於目標尺寸時不放大補齊、接受 PNG／WebP 格式、假副檔名文字檔與損毀 JPEG 檔頭被擋（見 `TestImages.cs`，全部圖片用 ImageSharp 在記憶體現產，不依賴外部檔案，任何機器都能重現） |

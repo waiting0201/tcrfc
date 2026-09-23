@@ -53,6 +53,7 @@ public sealed class AdminNewsCoverBlobCleanupTests(AdminWriteAzuriteEnabledApiFi
     public async Task 建立文章時附封面圖片_五個物件都真的寫進儲存體_物件鍵含俱樂部與文章id()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftWithCoverAsync(client, UniqueSlug(), TestImages.JpegWithExifAndGps());
 
         try
@@ -72,6 +73,7 @@ public sealed class AdminNewsCoverBlobCleanupTests(AdminWriteAzuriteEnabledApiFi
     public async Task 換圖成功後_舊的主檔與全部衍生檔被刪除_新的完整保留()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftWithCoverAsync(client, UniqueSlug(), TestImages.SmallPng());
         var oldKey = created.CoverKey!;
         await AssertAllObjectsExistAsync(oldKey, shouldExist: true);
@@ -106,6 +108,7 @@ public sealed class AdminNewsCoverBlobCleanupTests(AdminWriteAzuriteEnabledApiFi
     public async Task 更新時勾選移除封面圖片且不夾檔案_封面清空_舊物件被刪除()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftWithCoverAsync(client, UniqueSlug(), TestImages.SmallPng());
         var oldKey = created.CoverKey!;
         await AssertAllObjectsExistAsync(oldKey, shouldExist: true);
@@ -136,6 +139,7 @@ public sealed class AdminNewsCoverBlobCleanupTests(AdminWriteAzuriteEnabledApiFi
     public async Task 更新時沒有夾檔案也沒有勾選移除_封面維持不變_物件不受影響()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftWithCoverAsync(client, UniqueSlug(), TestImages.SmallPng());
         var coverKey = created.CoverKey!;
 
@@ -164,6 +168,7 @@ public sealed class AdminNewsCoverBlobCleanupTests(AdminWriteAzuriteEnabledApiFi
     public async Task 刪除文章後_圖片物件一併被刪除()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftWithCoverAsync(client, UniqueSlug(), TestImages.SmallPng());
         var coverKey = created.CoverKey!;
         await AssertAllObjectsExistAsync(coverKey, shouldExist: true);

@@ -60,6 +60,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     public async Task 建立文章_網址名稱是保留字_回400且訊息可讀(string reservedWord)
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
 
         var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(reservedWord)));
 
@@ -78,6 +79,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     public async Task 建立文章_保留字大小寫變形_同樣回400(string variant)
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
 
         var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(variant)));
 
@@ -102,6 +104,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     public async Task 建立文章_危險或不合格式的網址名稱_回400(string badSlug)
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
 
         var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(badSlug)));
 
@@ -114,6 +117,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     public async Task 更新文章_把網址名稱改成保留字_回400且原資料不受影響()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftAsync(client, UniqueSlug());
 
         try
@@ -147,6 +151,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     public async Task 更新文章_網址名稱改成危險形狀_回400(string badSlug)
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftAsync(client, UniqueSlug());
 
         try
@@ -178,6 +183,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     public async Task 建立文章_合法網址名稱_成功建立且不受保留字規則誤擋(string legalSlug)
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var slug = $"{legalSlug}-{Guid.NewGuid():N}"; // 加隨機片段避免撞到既有 83 筆或跨測試重跑（articles.slug 是 nvarchar(160)，長度足夠）
 
         var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(slug)));
@@ -194,6 +200,7 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
     public async Task 更新文章_合法網址名稱不變更_不受新規則影響()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftAsync(client, UniqueSlug());
 
         try

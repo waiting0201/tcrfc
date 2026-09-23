@@ -67,6 +67,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
     public async Task 建立文章_夾假副檔名文字檔_回400_不建立文章_不留下任何物件()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var before = await CountBlobsUnderPrefixAsync();
 
         var response = await client.PostAsync(
@@ -84,6 +85,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
     public async Task 建立文章_夾空檔案_回400_不留下任何物件()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var before = await CountBlobsUnderPrefixAsync();
 
         var response = await client.PostAsync(
@@ -97,6 +99,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
     public async Task 建立文章_夾超過10MB的檔案_回400_不留下任何物件()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var before = await CountBlobsUnderPrefixAsync();
 
         var response = await client.PostAsync(
@@ -112,6 +115,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
     public async Task 不存在的俱樂部代碼_夾檔案_回404_不嘗試上傳()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var before = await CountBlobsUnderPrefixAsync();
 
         var response = await client.PostAsync(
@@ -127,6 +131,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
     public async Task 建立文章_網址名稱重複但夾了正常圖片_圖片已上傳成功但建立失敗_回滾不留孤兒物件()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var slug = UniqueSlug();
         var first = await CreateDraftWithCoverAsync(client, slug, TestImages.SmallPng()); // 先佔用這個 slug，不夾圖片幹擾計數更單純可讀
 
@@ -157,6 +162,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
     public async Task 更新文章_並行衝突但夾了正常圖片_圖片已上傳成功但更新失敗_回滾不留孤兒物件_舊封面圖片不受影響()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftWithCoverAsync(client, UniqueSlug(), TestImages.SmallPng());
 
         try
@@ -201,6 +207,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
     public async Task 更新文章_同時夾檔案又勾選移除封面_回400_不嘗試上傳()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftWithCoverAsync(client, UniqueSlug(), TestImages.SmallPng());
 
         try

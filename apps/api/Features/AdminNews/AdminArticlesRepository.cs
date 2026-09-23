@@ -16,7 +16,16 @@ namespace Tcrfc.Api.Features.AdminNews;
 /// <see cref="Data.ClubDbContextCustomizations"/>）、狀態轉換（draft／scheduled → published／scheduled）。
 ///
 /// ⚠️ 寫入一律走 EF Core（<see cref="ClubDbContext"/>），唯讀查詢仍是 Dapper 的
-/// <see cref="Features.News.ArticlesRepository"/>——兩者刻意分開，不是這份檔案要取代那份。
+/// <see cref="Features.News.ArticlesRepository"/>——兩者刻意分開，不是這份檔案要取代那份，
+/// 公開端點的行為與型別一行都沒有因為本次授權改動而變。
+///
+/// 🔴🔴🔴 2026-09-23（型別層強制授權）：**本類別每一個公開與私有方法一律收
+/// <see cref="Security.AdminClubScope"/>，不收 <see cref="Security.ClubScope"/>**——後者任何人
+/// 呼叫公開的 <see cref="Security.IClubResolver.ResolveAsync"/> 就拿得到、不需要登入也不需要
+/// 授權。若這裡收的是 <c>ClubScope</c>，一支忘記呼叫
+/// <see cref="Security.IAdminClubAuthorizer.AuthorizeAsync"/> 的新端點只要改呼叫
+/// <c>IClubResolver</c> 就能編譯過、跑得動、繞過整套登入與授權——這正是 2026-09-23 使用者裁決
+/// 要堵的洞。詳細設計理由見 apps/api/README.md「新增後台端點的必要形狀」。
 /// </summary>
 public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage)
 {
@@ -32,7 +41,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
     /// 排程／已停用）。全程 <c>AsNoTracking</c>，這條路徑不做寫入。
     /// </summary>
     public async Task<PagedResult<AdminArticleListItemDto>> ListAsync(
-        ClubScope scope, string? status, string? categoryCode, string? keyword,
+        AdminClubScope scope, string? status, string? categoryCode, string? keyword,
         int page, int pageSize, CancellationToken cancellationToken)
     {
         var query = dbContext.Articles.AsNoTracking()
@@ -104,7 +113,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
     /// <summary>後台單篇詳情。跨俱樂部（非共用、非本俱樂部）回傳 <c>null</c>（404），
     /// 不透露「這個 id 存在但屬於別的俱樂部」。</summary>
-    public async Task<AdminArticleDetailDto?> GetByIdAsync(ClubScope scope, Guid id, CancellationToken cancellationToken)
+    public async Task<AdminArticleDetailDto?> GetByIdAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
         var article = await dbContext.Articles.AsNoTracking()
             .Include(a => a.ArticleCategory)
@@ -130,7 +139,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
     /// 這個方法本身完全不碰物件儲存，只負責把已知結果寫進資料列，職責跟舊版一致。
     /// </summary>
     public async Task<AdminArticleDetailDto> CreateAsync(
-        ClubScope scope, Guid articleId, CreateArticleRequest request, string? coverKey, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid articleId, CreateArticleRequest request, string? coverKey, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
         SlugPolicy.Validate(request.Slug);
@@ -187,7 +196,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
     /// 「寫入 blob 成功才更新資料列」）。
     /// </summary>
     public async Task<AdminArticleDetailDto?> UpdateAsync(
-        ClubScope scope, Guid id, UpdateArticleRequest request, CoverKeyUpdate coverUpdate, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid id, UpdateArticleRequest request, CoverKeyUpdate coverUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
         SlugPolicy.Validate(request.Slug);
@@ -254,7 +263,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
     }
 
     public async Task<AdminArticleDetailDto?> PublishAsync(
-        ClubScope scope, Guid id, PublishArticleRequest request, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid id, PublishArticleRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
         var article = await LoadTrackedForWriteAsync(scope, id, cancellationToken);
         if (article is null)
@@ -282,7 +291,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
     }
 
     public async Task<AdminArticleDetailDto?> ScheduleAsync(
-        ClubScope scope, Guid id, ScheduleArticleRequest request, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid id, ScheduleArticleRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
         if (request.PublishAt <= DateTime.UtcNow)
         {
@@ -316,7 +325,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
     /// <summary>回傳 <c>null</c>＝找不到（含跨俱樂部），<c>true</c>＝刪除成功。
     /// 共用內容唯讀例外由 <see cref="LoadTrackedForWriteAsync"/> 統一擋下。</summary>
-    public async Task<bool?> DeleteAsync(ClubScope scope, Guid id, DateTime expectedUpdatedAt, CancellationToken cancellationToken)
+    public async Task<bool?> DeleteAsync(AdminClubScope scope, Guid id, DateTime expectedUpdatedAt, CancellationToken cancellationToken)
     {
         var article = await LoadTrackedForWriteAsync(scope, id, cancellationToken);
         if (article is null)
@@ -341,7 +350,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
     /// <summary>寫入路徑專用的載入：追蹤中、含 i18n。共用內容（<c>club_id IS NULL</c>）直接丟
     /// <see cref="SharedArticleReadOnlyException"/>，跨俱樂部回 <c>null</c>（讓呼叫端 404，不洩漏存在與否）。</summary>
-    private async Task<Article?> LoadTrackedForWriteAsync(ClubScope scope, Guid id, CancellationToken cancellationToken)
+    private async Task<Article?> LoadTrackedForWriteAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
         var article = await dbContext.Articles
             .Include(a => a.ArticlesI18ns)
@@ -414,7 +423,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
     /// <summary>置頂精選同時最多 3 篇（B2 規格）。🔴 判斷範圍是「這個俱樂部自己的文章」，
     /// 規格沒有明講是全站還是逐俱樂部限制，這是本輪的判斷——見 apps/api/README.md 說明。</summary>
-    private async Task EnsureFeaturedCapAsync(ClubScope scope, Guid? excludeArticleId, CancellationToken cancellationToken)
+    private async Task EnsureFeaturedCapAsync(AdminClubScope scope, Guid? excludeArticleId, CancellationToken cancellationToken)
     {
         var featuredCount = await dbContext.Articles.AsNoTracking()
             .Where(a => a.ClubId == scope.ClubId && a.IsFeatured && a.Id != excludeArticleId)
@@ -477,7 +486,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         };
     }
 
-    private async Task InvalidatePublicCacheAsync(ClubScope scope, CancellationToken cancellationToken)
+    private async Task InvalidatePublicCacheAsync(AdminClubScope scope, CancellationToken cancellationToken)
     {
         // docs/17-deployment.md §4「寫入：write-invalidate，不是 write-update」——
         // 先寫 SQL（上面 SaveChangesAsync 已交易成功）再失效，順序不可顛倒。

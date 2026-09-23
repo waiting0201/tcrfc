@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
@@ -20,6 +21,14 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
         {
             ClubNotFoundException clubNotFound =>
                 (StatusCodes.Status404NotFound, "找不到俱樂部", clubNotFound.Message),
+
+            // ── 本輪新增：登入與授權（Security/、Features/AdminAuth）─────────────────────
+            AdminUnauthenticatedException unauthenticated =>
+                (StatusCodes.Status401Unauthorized, "請先登入", unauthenticated.Message),
+            AdminForbiddenException forbidden =>
+                (StatusCodes.Status403Forbidden, "沒有權限", forbidden.Message),
+            AdminAuthValidationException authValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", authValidation.Message),
 
             // ── 本輪新增：後台新聞寫入端點的例外（Features/AdminNews），集中在這裡轉狀態碼 ──────
             AdminArticleValidationException validation =>

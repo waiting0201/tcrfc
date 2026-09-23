@@ -18,6 +18,7 @@ public sealed class AdminNewsCacheInvalidationTests(AdminWriteRedisEnabledApiFix
     public async Task 更新已發布文章後_公開API立刻看到新標題不是快取住的舊標題()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var slug = $"cache-invalidate-test-{Guid.NewGuid():N}";
 
         var createRequest = new CreateArticleRequest

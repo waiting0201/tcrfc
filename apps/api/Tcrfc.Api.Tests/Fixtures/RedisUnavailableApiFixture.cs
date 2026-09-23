@@ -38,12 +38,12 @@ public sealed class RedisUnavailableApiFixture : WebApplicationFactory<Program>,
 
         Environment.SetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING", connectionString);
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+        Environment.SetEnvironmentVariable("JWT_SIGNING_KEY_CLUB", TestJwtSigningKey.Value);
         Environment.SetEnvironmentVariable("REDIS_HOST", "127.0.0.1");
         Environment.SetEnvironmentVariable("REDIS_PORT", unusedPort.ToString());
         Environment.SetEnvironmentVariable("REDIS_PASSWORD", "unused-in-this-test");
         // 見 ApiFixture 同一行的註解：這個 fixture 也不該讓寫入端點開著，明確清掉，不依賴「反正
         // 沒設定過」——不同 [Collection] 的 fixture 之間 InitializeAsync 順序不保證。
-        Environment.SetEnvironmentVariable("ENABLE_UNSAFE_DEV_WRITES", null);
 
         _ = Server;
     }

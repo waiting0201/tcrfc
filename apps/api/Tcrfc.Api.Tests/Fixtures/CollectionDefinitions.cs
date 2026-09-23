@@ -20,7 +20,7 @@ public sealed class RedisEnabledCollection : ICollectionFixture<RedisEnabledApiF
     public const string Name = "api-redis-enabled";
 }
 
-/// <summary>本輪新增：唯一開啟 <c>ENABLE_UNSAFE_DEV_WRITES</c> 的 collection，見 <see cref="AdminWriteApiFixture"/>。</summary>
+/// <summary>`AdminNews`／`AdminAuth` 相關測試共用的 collection，見 <see cref="AdminWriteApiFixture"/>。</summary>
 [CollectionDefinition(Name)]
 public sealed class AdminWriteCollection : ICollectionFixture<AdminWriteApiFixture>
 {

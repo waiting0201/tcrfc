@@ -14,6 +14,8 @@ public partial class ClubDbContext : DbContext
 
     public virtual DbSet<Achievement> Achievements { get; set; }
 
+    public virtual DbSet<AdminRefreshToken> AdminRefreshTokens { get; set; }
+
     public virtual DbSet<AdminRole> AdminRoles { get; set; }
 
     public virtual DbSet<AdminUser> AdminUsers { get; set; }
@@ -349,6 +351,51 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AchievementUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_achievements_updated_by");
+        });
+
+        modelBuilder.Entity<AdminRefreshToken>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("admin_refresh_tokens");
+
+            entity.HasIndex(e => e.AdminUserId, "IX_admin_refresh_tokens_user");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_admin_refresh_tokens_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.HasIndex(e => e.TokenHash, "UQ_admin_refresh_tokens_token_hash").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.AdminUserId).HasColumnName("admin_user_id");
+            entity.Property(e => e.ExpiresAt)
+                .HasPrecision(3)
+                .HasColumnName("expires_at");
+            entity.Property(e => e.IssuedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("issued_at");
+            entity.Property(e => e.ReplacedById).HasColumnName("replaced_by_id");
+            entity.Property(e => e.RevokedAt)
+                .HasPrecision(3)
+                .HasColumnName("revoked_at");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.TokenHash)
+                .HasMaxLength(128)
+                .HasColumnName("token_hash");
+
+            entity.HasOne(d => d.AdminUser).WithMany(p => p.AdminRefreshTokens)
+                .HasForeignKey(d => d.AdminUserId)
+                .HasConstraintName("FK_admin_refresh_tokens_user");
+
+            entity.HasOne(d => d.ReplacedBy).WithMany(p => p.InverseReplacedBy)
+                .HasForeignKey(d => d.ReplacedById)
+                .HasConstraintName("FK_admin_refresh_tokens_replaced");
         });
 
         modelBuilder.Entity<AdminRole>(entity =>

@@ -1537,6 +1537,27 @@ CREATE TABLE role_permissions (
   CONSTRAINT PK_role_permissions PRIMARY KEY CLUSTERED (admin_role_id, permission_id)
 );
 
+-- 刷新權杖（J1 登入實作，2026-09-23 新增）：加值來源是 docs/12 §13.1「若日後法遵或客戶要求補上，
+-- 只需新增表，不需改動既有綱要」——這張是那句話的第一個兌現。token_hash 存 SHA-256，原始權杖
+-- 一律不落地；replaced_by_id 串成輪替鏈供偵測「舊權杖被重放」時一次撤銷整條鏈。
+-- ⚠️ 2026-09-23（使用者裁決）：拿掉原本的 created_ip／user_agent 兩欄——只寫入、程式裡沒有任何
+-- 地方讀取（不做裝置綁定、不做來源比對），且沒有清除機制、會無限累積，功能上等同一份持續增長
+-- 的登入位置紀錄，docs/12 §13.1「不能回答」清單裡正好列著「來源 IP」。真的要做裝置綁定或異常
+-- 偵測時再加回來（屆時要有讀取端才說得上是功能，不是紀錄）。
+CREATE TABLE admin_refresh_tokens (
+  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq           bigint IDENTITY(1,1) NOT NULL,
+  admin_user_id     uniqueidentifier NOT NULL,
+  token_hash        nvarchar(128)    NOT NULL,
+  issued_at         datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  expires_at        datetime2(3)     NOT NULL,
+  revoked_at        datetime2(3)     NULL,
+  replaced_by_id    uniqueidentifier NULL,
+  CONSTRAINT PK_admin_refresh_tokens PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_admin_refresh_tokens_row_seq UNIQUE CLUSTERED (row_seq),
+  CONSTRAINT UQ_admin_refresh_tokens_token_hash UNIQUE (token_hash)
+);
+
 /* ============================================================================
    4.9 K 會員管理
    ============================================================================ */
@@ -2411,6 +2432,7 @@ CREATE INDEX IX_memberships_member                      ON memberships (member_i
 CREATE INDEX IX_email_logs_member_sent                  ON email_logs (member_id, sent_at DESC);
 CREATE INDEX IX_email_logs_type_sent                    ON email_logs (type, sent_at);
 CREATE INDEX IX_enquiries_form_status_created           ON enquiries (form_id, status, created_at DESC);
+CREATE INDEX IX_admin_refresh_tokens_user               ON admin_refresh_tokens (admin_user_id);
 CREATE INDEX IX_enquiries_assignee                      ON enquiries (assignee_admin_user_id);
 CREATE INDEX IX_admin_user_clubs_user_active            ON admin_user_clubs (admin_user_id, is_active);
 
@@ -2794,6 +2816,8 @@ ALTER TABLE admin_user_teams   ADD CONSTRAINT FK_admin_user_teams_user        FO
 ALTER TABLE admin_user_teams   ADD CONSTRAINT FK_admin_user_teams_team        FOREIGN KEY (team_id) REFERENCES teams(id);
 ALTER TABLE role_permissions   ADD CONSTRAINT FK_role_permissions_role        FOREIGN KEY (admin_role_id) REFERENCES admin_roles(id) ON DELETE CASCADE;
 ALTER TABLE role_permissions   ADD CONSTRAINT FK_role_permissions_permission  FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE;
+ALTER TABLE admin_refresh_tokens ADD CONSTRAINT FK_admin_refresh_tokens_user      FOREIGN KEY (admin_user_id) REFERENCES admin_users(id) ON DELETE CASCADE;
+ALTER TABLE admin_refresh_tokens ADD CONSTRAINT FK_admin_refresh_tokens_replaced FOREIGN KEY (replaced_by_id) REFERENCES admin_refresh_tokens(id);
 
 -- 4.9 K 會員管理
 ALTER TABLE memberships             ADD CONSTRAINT FK_memberships_member          FOREIGN KEY (member_id) REFERENCES members(id);

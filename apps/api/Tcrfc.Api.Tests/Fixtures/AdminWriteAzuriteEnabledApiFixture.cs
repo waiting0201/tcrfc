@@ -10,9 +10,9 @@ namespace Tcrfc.Api.Tests.Fixtures;
 
 /// <summary>
 /// 圖片上傳共用元件（S0-8）的整合測試 fixture：真的啟動一個 <c>azurite-blob</c> 子行程
-/// （沿用本專案「不 mock 資料庫／不 mock 快取」的既有紀律，這裡是「不 mock 物件儲存」），
-/// 同時開啟 <c>ENABLE_UNSAFE_DEV_WRITES</c>（圖片上傳端點跟 <c>Features/AdminNews</c> 一樣掛在
-/// <see cref="Tcrfc.Api.Security.DevWriteGate"/> 後面）。
+/// （沿用本專案「不 mock 資料庫／不 mock 快取」的既有紀律，這裡是「不 mock 物件儲存」）。
+/// 圖片上傳走 <c>Features/AdminNews</c> 的建立／更新端點，一併需要真實授權（見
+/// <see cref="AdminWriteApiFixture"/>），本 fixture 沿用同樣的登入前提。
 ///
 /// ⚠️ 用 <c>azurite-blob</c>（只跑 Blob 服務）而不是完整的 <c>azurite</c>（含 Queue／Table），
 /// 本專案目前只需要 Blob。連線字串用 Azurite 的公開預設帳號（<c>devstoreaccount1</c>），
@@ -82,7 +82,7 @@ public sealed class AdminWriteAzuriteEnabledApiFixture : WebApplicationFactory<P
 
         Environment.SetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING", connectionString);
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-        Environment.SetEnvironmentVariable("ENABLE_UNSAFE_DEV_WRITES", "true");
+        Environment.SetEnvironmentVariable("JWT_SIGNING_KEY_CLUB", TestJwtSigningKey.Value);
         Environment.SetEnvironmentVariable("REDIS_HOST", null);
         Environment.SetEnvironmentVariable("REDIS_PASSWORD", null);
         Environment.SetEnvironmentVariable("AZURE_BLOB_CONNECTION_STRING", connectionStringForBlob);

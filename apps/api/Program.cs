@@ -1,10 +1,13 @@
 using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.Clubs;
 using Tcrfc.Api.Features.News;
@@ -96,10 +99,57 @@ else
 // ── club_id 強制機制：唯一能建立已驗證 ClubScope 的地方 ──────────────────────────
 builder.Services.AddScoped<IClubResolver, ClubResolver>();
 
+// ── 🔴🔴🔴 本輪新增（S1：J1–J3 登入與授權）：後台身分驗證與授權 ──────────────────────
+// 存取權杖是 JWT（AdminTokenService 簽發／驗證），更新權杖是不透明字串存 admin_refresh_tokens。
+// 設計理由與四種擋下情境的驗收見 apps/api/README.md「後台登入權杖設計」「驗收紀錄」兩節。
+builder.Services.AddSingleton<AdminTokenService>();
+builder.Services.AddScoped<AdminAuthService>();
+builder.Services.AddScoped<IAdminClubAuthorizer, AdminClubAuthorizer>();
+builder.Services.AddScoped<IPermissionChecker, PermissionChecker>();
+builder.Services.AddScoped<TwoFactorSecretProtector>();
+
+// Data Protection：加密 admin_users.two_factor_secret_encrypted（Security/TwoFactorSecretProtector.cs）。
+// 🔴 正式環境務必設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
+// 密鑰永久無法解密——見 TwoFactorSecretProtector.cs 檔頭的完整說明，這不是本次程式碼能防呆的事。
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("Tcrfc.Admin");
+var dataProtectionKeysPath = builder.Configuration["DATA_PROTECTION_KEYS_PATH"];
+if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+{
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+}
+
+// JWT Bearer：只驗證存取權杖（簽章、issuer、audience、效期），不做任何資料庫查詢——
+// 「這個人是誰」與「這個人能不能做這件事」分屬 AdminIdentity／IAdminClubAuthorizer，
+// 理由見 AdminTokenService.cs 檔頭「權杖設計」整段說明。
+// ⚠️ AdminTokenService 需要 JWT_SIGNING_KEY_CLUB 才能建構驗證參數，這裡直接讀
+// builder.Configuration（DI 容器此時還沒建好，不能注入），與 AdminTokenService 執行期
+// 讀同一把設定鍵是同一個值，行為一致。
+builder.Services
+    .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new AdminTokenService(builder.Configuration).GetValidationParameters();
+        // 不用預設的 401 挑戰行為（會回傳空白 body）——AdminClubAuthorizer／AdminAuthEndpoints
+        // 自己判斷 User.Identity.IsAuthenticated 並丟 AdminUnauthenticatedException，
+        // 交給 ApiExceptionHandler 統一格式化成含中文訊息的 JSON，兩者行為必須一致。
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse(); // 蓋掉框架預設行為，改成什麼都不做——中介軟體管線
+                                           // 往後走，User.Identity.IsAuthenticated 維持 false，
+                                           // 由端點自己的檢查負責回應。
+                return Task.CompletedTask;
+            },
+        };
+    });
+builder.Services.AddAuthorization();
+
 // ── S0-8 圖片上傳共用元件：Azure Blob Storage（本機開發接 Azurite，連線字串格式相容） ──────
 // AZURE_BLOB_CONNECTION_STRING 未設定時**不得讓行程無法啟動**——跟 CLUB_SQL_CONNECTION_STRING
-// 不一樣：圖片上傳端點掛在 DevWriteGate 後面，本來就不是每個環境都會用到（既有 48 項唯讀端點
-// 測試、CI 的其他情境都完全不碰這條路），沒理由讓一個選用功能的缺漏設定拖垮整個服務啟動。
+// 不一樣：圖片上傳只在 Features/AdminNews 的建立／更新端點內才會用到，本來就不是每個環境都會
+// 用到（既有 48 項唯讀端點測試、CI 的其他情境都完全不碰這條路），沒理由讓一個選用功能的缺漏
+// 設定拖垮整個服務啟動。
 // 真正需要它的呼叫（Features/AdminNews 建立／更新時處理封面圖片上傳、換圖或刪除時清理舊物件）
 // 沒設定時會在呼叫當下丟出訊息清楚的例外，不是在啟動階段就讓 healthz／readyz 都連帶壞掉。
 // 🔴 S0-8 修正（2026-09-22）：原本還有一個獨立的 Features/Uploads 上傳端點會用到這個服務，
@@ -125,11 +175,10 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Staff.StaffRepository>();
 builder.Services.AddScoped<ArticlesRepository>();
 builder.Services.AddScoped<MatchesRepository>();
 
-// ── 後台新聞寫入（本輪新增）：repository／假操作者解析一律註冊，跟其餘 repository 同一慣例 ──
-// 🔴 註冊 ≠ 對外可用。真正決定「這組功能存不存在」的是下面 app.MapAdminNewsEndpoints() 前的
-// DevWriteGate 判斷式，DI 註冊本身只是描述「怎麼組出這個物件」，不會主動開任何連線或路由。
+// ── 後台新聞寫入 ──────────────────────────────────────────────────────
+// created_by／updated_by 一律來自真實登入者（AdminClubScope.Identity.AdminUserId），
+// 見 Features/AdminNews/AdminArticlesEndpoints.cs 檔頭說明。
 builder.Services.AddScoped<AdminArticlesRepository>();
-builder.Services.AddScoped<IDevOperatorResolver, DevOperatorResolver>();
 
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 const string CorsPolicyName = "ClubFrontends";
@@ -151,7 +200,13 @@ builder.Services.AddCors(options =>
     {
         if (corsOrigins.Length > 0)
         {
-            policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod();
+            // AllowCredentials：本輪（S1）起後台更新權杖走 __Host- 前綴 Cookie（跨網域，
+            // apps/admin 與本 API 是不同來源），瀏覽器 fetch 要帶 Cookie 必須
+            // credentials: 'include' ＋ 伺服器端 Access-Control-Allow-Credentials: true，
+            // 兩者缺一都會讓 Cookie 被瀏覽器悄悄丟棄（不是 CORS 錯誤，是請求「送出但沒帶
+            // Cookie」，比較難察覺）。⛔ AllowCredentials 不能與 AllowAnyOrigin 併用
+            // （規格明文禁止），這裡一律搭配明確的 WithOrigins 清單，符合限制。
+            policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
         }
         // corsOrigins 為空（正式環境忘記設定）時刻意不呼叫 AllowAnyOrigin()——沒設定來源清單
         // 就是沒有任何瀏覽器來源被允許，比「忘記設定就開放全部」安全。
@@ -176,24 +231,28 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(CorsPolicyName);
 
+// 🔴 順序要求：UseAuthentication 必須在 UseAuthorization 之前，兩者都必須在會用到
+// HttpContext.User／[Authorize] 的端點對映之前——本輪 AdminClubAuthorizer 直接讀
+// httpContext.User，不靠 [Authorize] 觸發挑戰，但仍需要 UseAuthentication 先把 JWT
+// 解析進 HttpContext.User。UseAuthorization 目前沒有任何端點掛 [Authorize] metadata
+// （授權邏輯全部手動在 AdminClubAuthorizer／AdminAuthEndpoints 內），保留呼叫是為了
+// 讓管線形狀符合 ASP.NET Core 慣例、未來若改用宣告式 [Authorize] 不需要重新調整順序。
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.MapHealthEndpoints();
 app.MapClubsEndpoints();
 app.MapPlayersEndpoints();
 app.MapStaffEndpoints();
 app.MapArticlesEndpoints();
 app.MapMatchesEndpoints();
+app.MapAdminAuthEndpoints();
 
-// ── 🔴🔴🔴 寫入端點開發模式開關（見 Security/DevWriteGate.cs 的完整說明）─────────────────
-// 這組端點在接上登入與權限之前不得在任何對外環境啟用。關閉時（預設）這裡完全不會呼叫
-// MapAdminNewsEndpoints()，路由不存在，打了回 404——不是 403，不透露「這裡本來有東西」。
-// 開啟需要同時滿足：ASPNETCORE_ENVIRONMENT=Development ＋ ENABLE_UNSAFE_DEV_WRITES=true。
-if (DevWriteGate.IsEnabled(builder.Configuration, app.Environment))
-{
-    app.Logger.LogWarning(
-        "🔴 寫入端點開發模式開關已開啟（ENABLE_UNSAFE_DEV_WRITES=true）。" +
-        "這組端點沒有登入與權限保護，僅供本機開發測試，切勿在任何對外環境開啟此設定。");
-    app.MapAdminNewsEndpoints();
-}
+// 路由一律註冊，每個請求各自由 IAdminClubAuthorizer 驗證登入與授權（401／403）。
+// 2026-09-23（使用者裁決）：曾經把關這組端點的 DevWriteGate／ENABLE_UNSAFE_DEV_WRITES／
+// IDevOperatorResolver 機制已整支移除（確認真實授權已能證明四種擋下情境都有效，見
+// apps/api/README.md「S1」整節），本檔不再有任何殘留引用。
+app.MapAdminNewsEndpoints();
 
 app.Run();
 

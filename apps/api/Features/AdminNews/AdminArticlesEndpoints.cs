@@ -8,55 +8,66 @@ using Tcrfc.Api.Security;
 namespace Tcrfc.Api.Features.AdminNews;
 
 /// <summary>
-/// 🔴🔴🔴 後台新聞寫入與後台讀取端點。**這組端點在接上登入與權限之前不得在任何對外環境啟用**
-/// （CLAUDE.md 任務指示、<see cref="DevWriteGate"/>）。<c>Program.cs</c> 只在
-/// <see cref="DevWriteGate.IsEnabled"/> 回傳 <c>true</c> 時才呼叫 <see cref="MapAdminNewsEndpoints"/>——
-/// 關閉時這些路由完全不存在（404，不是 403，不透露端點存在）。
+/// 後台新聞寫入與後台讀取端點。
 ///
-/// `created_by`／`updated_by` 由 <see cref="IDevOperatorResolver"/> 從 <c>X-Dev-Operator-Id</c>
-/// 標頭解析，🔴 這不是身分驗證，見該介面上的完整說明。
+/// 每個端點一律先呼叫 <see cref="IAdminClubAuthorizer.AuthorizeAsync"/>，同時證明
+/// 「有登入」「這個俱樂部存在」「對這個俱樂部有授權」「有這個操作的權限碼」四件事，
+/// 缺一即擲例外（401／403，見 <c>Common/ApiExceptionHandler.cs</c>）。`created_by`／
+/// `updated_by` 一律取自 <see cref="AdminClubScope.Identity"/>，不讀任何呼叫端可自報的標頭。
+/// 舊有的開發模式開關（環境旗標決定路由存不存在）已於 2026-09-23 整支移除，見
+/// apps/api/README.md「S1」整節。
 ///
-/// 🔴🔴🔴 **S0-8 修正（2026-09-22）**：建立／更新這兩個端點改成 <c>multipart/form-data</c>
+/// 權限碼對應 docs/12b-database-tables.md §7.3 命名慣例（<c>&lt;domain&gt;.&lt;object&gt;.&lt;action&gt;</c>），
+/// module_code=B、submodule_code=B2（新聞與故事）。
+///
+/// 🔴🔴🔴 **S0-8 修正（2026-09-22）**：建立／更新這兩個端點是 <c>multipart/form-data</c>
 /// 單一請求——封面圖片跟其餘欄位一起送出，逐字對應規劃書 §4.0 與第 53 行「選檔不上傳、儲存才
-/// 上傳」。原本的「先呼叫 <c>Features/Uploads</c> 的獨立上傳端點拿 key、再把 key 塞進純 JSON 的
-/// 建立／更新請求」兩段式做法違反規劃書明文（選檔就已經真的把檔案寫進物件儲存，不是等按下
-/// 「儲存」），已停用並移除那個獨立端點（<c>Program.cs</c> 不再呼叫
-/// <c>UploadsEndpoints.MapUploadsEndpoints</c>）。新契約細節見 apps/api/README.md
-/// 「圖片上傳共用元件」整節。
+/// 上傳」，細節見 apps/api/README.md「圖片上傳共用元件」整節。
 /// </summary>
 public static class AdminArticlesEndpoints
 {
+    private const string PermissionView = "content.article.view";
+    private const string PermissionCreate = "content.article.create";
+    private const string PermissionUpdate = "content.article.update";
+    private const string PermissionPublish = "content.article.publish";
+    private const string PermissionDelete = "content.article.delete";
+
     public static void MapAdminNewsEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/admin/{club}/news")
             .WithTags("AdminNews")
-            .WithDescription("🔴 開發模式限定，接上登入與權限之前不得在對外環境啟用，見 Security/DevWriteGate.cs。");
+            .WithDescription("後台新聞讀寫，需要登入與俱樂部授權，見 Security/AdminClubAuthorizer.cs。");
 
         // GET /api/v1/admin/{club}/news?status=&category=&keyword=&page=&pageSize=
         // 補 STATUS.md S0-12 的缺口：公開 API 只回 published，後台要看得到草稿／排程中的文章。
         group.MapGet("", async (
             string club, string? status, string? category, string? keyword, int? page, int? pageSize,
-            IClubResolver clubResolver, AdminArticlesRepository repository, CancellationToken cancellationToken) =>
+            HttpContext httpContext, IAdminClubAuthorizer authorizer, AdminArticlesRepository repository, CancellationToken cancellationToken) =>
         {
-            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
             var (normalizedPage, normalizedPageSize) = PagingQuery.Normalize(page, pageSize, defaultPageSize: 20, maxPageSize: 100);
-            var result = await repository.ListAsync(scope, status, category, keyword, normalizedPage, normalizedPageSize, cancellationToken);
+            var result = await repository.ListAsync(adminScope, status, category, keyword, normalizedPage, normalizedPageSize, cancellationToken);
             return Results.Ok(result);
         })
         .WithName("AdminListNews")
         .Produces<PagedResult<AdminArticleListItemDto>>()
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
 
         // GET /api/v1/admin/{club}/news/{id}
         group.MapGet("/{id:guid}", async (
-            string club, Guid id, IClubResolver clubResolver, AdminArticlesRepository repository, CancellationToken cancellationToken) =>
+            string club, Guid id, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminArticlesRepository repository, CancellationToken cancellationToken) =>
         {
-            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var article = await repository.GetByIdAsync(scope, id, cancellationToken);
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
+            var article = await repository.GetByIdAsync(adminScope, id, cancellationToken);
             return article is null ? Results.NotFound() : Results.Ok(article);
         })
         .WithName("AdminGetNewsArticle")
         .Produces<AdminArticleDetailDto>()
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
 
         // POST /api/v1/admin/{club}/news  → 一律建立成草稿，狀態轉換是獨立端點。
@@ -64,12 +75,12 @@ public static class AdminArticlesEndpoints
         // 與可選的 `file`（封面圖片）。契約細節見 apps/api/README.md。
         group.MapPost("", async (
             string club, HttpRequest httpRequest, HttpContext httpContext,
-            IClubResolver clubResolver, IDevOperatorResolver operatorResolver, AdminArticlesRepository repository,
+            IAdminClubAuthorizer authorizer, AdminArticlesRepository repository,
             IImageStorageService imageStorage, IOptions<JsonOptions> jsonOptions,
             CancellationToken cancellationToken) =>
         {
-            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var operatorId = await operatorResolver.ResolveAsync(httpContext, cancellationToken);
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionCreate, cancellationToken);
+            var operatorId = adminScope.Identity.AdminUserId;
 
             var (request, file) = await AdminArticleRequestForm.ReadAsync<CreateArticleRequest>(
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
@@ -81,13 +92,13 @@ public static class AdminArticlesEndpoints
             if (file is not null)
             {
                 UploadSlotPolicy.Validate("articles", "cover");
-                var uploaded = await UploadCoverAsync(scope, articleId, file, imageStorage, cancellationToken);
+                var uploaded = await UploadCoverAsync(adminScope, articleId, file, imageStorage, cancellationToken);
                 coverKey = uploaded.Key;
             }
 
             try
             {
-                var created = await repository.CreateAsync(scope, articleId, request, coverKey, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(adminScope, articleId, request, coverKey, operatorId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/news/{created.Id}", created);
             }
             catch
@@ -108,6 +119,8 @@ public static class AdminArticlesEndpoints
         .WithName("AdminCreateNewsArticle")
         .Produces<AdminArticleDetailDto>(StatusCodes.Status201Created)
         .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict)
         .DisableAntiforgery();
@@ -117,12 +130,12 @@ public static class AdminArticlesEndpoints
         // UpdateArticleRequest.RemoveCover／CoverKeyUpdate 上的說明。
         group.MapPut("/{id:guid}", async (
             string club, Guid id, HttpRequest httpRequest, HttpContext httpContext,
-            IClubResolver clubResolver, IDevOperatorResolver operatorResolver, AdminArticlesRepository repository,
+            IAdminClubAuthorizer authorizer, AdminArticlesRepository repository,
             IImageStorageService imageStorage, IOptions<JsonOptions> jsonOptions,
             CancellationToken cancellationToken) =>
         {
-            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var operatorId = await operatorResolver.ResolveAsync(httpContext, cancellationToken);
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
+            var operatorId = adminScope.Identity.AdminUserId;
 
             var (request, file) = await AdminArticleRequestForm.ReadAsync<UpdateArticleRequest>(
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
@@ -137,7 +150,7 @@ public static class AdminArticlesEndpoints
             if (file is not null)
             {
                 UploadSlotPolicy.Validate("articles", "cover");
-                var uploaded = await UploadCoverAsync(scope, id, file, imageStorage, cancellationToken);
+                var uploaded = await UploadCoverAsync(adminScope, id, file, imageStorage, cancellationToken);
                 uploadedKey = uploaded.Key;
                 coverUpdate = CoverKeyUpdate.Set(uploaded.Key);
             }
@@ -152,7 +165,7 @@ public static class AdminArticlesEndpoints
 
             try
             {
-                var updated = await repository.UpdateAsync(scope, id, request, coverUpdate, operatorId, cancellationToken);
+                var updated = await repository.UpdateAsync(adminScope, id, request, coverUpdate, operatorId, cancellationToken);
                 if (updated is null)
                 {
                     // 找不到這篇文章（跨俱樂部或真的不存在）：圖片已經上傳成功，但不會有任何資料列
@@ -180,6 +193,7 @@ public static class AdminArticlesEndpoints
         .WithName("AdminUpdateNewsArticle")
         .Produces<AdminArticleDetailDto>()
         .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict)
@@ -188,16 +202,16 @@ public static class AdminArticlesEndpoints
         // POST /api/v1/admin/{club}/news/{id}/publish  → draft／scheduled → published，立即生效。
         group.MapPost("/{id:guid}/publish", async (
             string club, Guid id, PublishArticleRequest request, HttpContext httpContext,
-            IClubResolver clubResolver, IDevOperatorResolver operatorResolver, AdminArticlesRepository repository,
+            IAdminClubAuthorizer authorizer, AdminArticlesRepository repository,
             CancellationToken cancellationToken) =>
         {
-            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var operatorId = await operatorResolver.ResolveAsync(httpContext, cancellationToken);
-            var published = await repository.PublishAsync(scope, id, request, operatorId, cancellationToken);
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionPublish, cancellationToken);
+            var published = await repository.PublishAsync(adminScope, id, request, adminScope.Identity.AdminUserId, cancellationToken);
             return published is null ? Results.NotFound() : Results.Ok(published);
         })
         .WithName("AdminPublishNewsArticle")
         .Produces<AdminArticleDetailDto>()
+        .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict);
@@ -206,32 +220,34 @@ public static class AdminArticlesEndpoints
         // 🔴 「排程時間到了誰把狀態改成 published」目前沒有排程器，見 README「排程發布：誰改狀態」。
         group.MapPost("/{id:guid}/schedule", async (
             string club, Guid id, ScheduleArticleRequest request, HttpContext httpContext,
-            IClubResolver clubResolver, IDevOperatorResolver operatorResolver, AdminArticlesRepository repository,
+            IAdminClubAuthorizer authorizer, AdminArticlesRepository repository,
             CancellationToken cancellationToken) =>
         {
-            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var operatorId = await operatorResolver.ResolveAsync(httpContext, cancellationToken);
-            var scheduled = await repository.ScheduleAsync(scope, id, request, operatorId, cancellationToken);
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionPublish, cancellationToken);
+            var scheduled = await repository.ScheduleAsync(adminScope, id, request, adminScope.Identity.AdminUserId, cancellationToken);
             return scheduled is null ? Results.NotFound() : Results.Ok(scheduled);
         })
         .WithName("AdminScheduleNewsArticle")
         .Produces<AdminArticleDetailDto>()
         .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict);
 
         // DELETE /api/v1/admin/{club}/news/{id}?expectedUpdatedAt=2026-09-22T03:00:00Z
         group.MapDelete("/{id:guid}", async (
-            string club, Guid id, DateTime expectedUpdatedAt,
-            IClubResolver clubResolver, AdminArticlesRepository repository, CancellationToken cancellationToken) =>
+            string club, Guid id, DateTime expectedUpdatedAt, HttpContext httpContext,
+            IAdminClubAuthorizer authorizer, AdminArticlesRepository repository,
+            CancellationToken cancellationToken) =>
         {
-            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var deleted = await repository.DeleteAsync(scope, id, expectedUpdatedAt, cancellationToken);
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionDelete, cancellationToken);
+            var deleted = await repository.DeleteAsync(adminScope, id, expectedUpdatedAt, cancellationToken);
             return deleted is null ? Results.NotFound() : Results.NoContent();
         })
         .WithName("AdminDeleteNewsArticle")
         .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict);
@@ -244,7 +260,7 @@ public static class AdminArticlesEndpoints
     /// 直接呼叫，不再是一個獨立的 HTTP 往返。
     /// </summary>
     private static async Task<UploadedImageInfo> UploadCoverAsync(
-        ClubScope scope, Guid articleId, IFormFile file, IImageStorageService imageStorage, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid articleId, IFormFile file, IImageStorageService imageStorage, CancellationToken cancellationToken)
     {
         if (file.Length == 0)
         {

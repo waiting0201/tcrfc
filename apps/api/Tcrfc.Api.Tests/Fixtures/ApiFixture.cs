@@ -44,6 +44,7 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         // 用行程環境變數才保證在那個時間點就已經生效（assembly 已停用平行化，不會互相污染）。
         Environment.SetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING", connectionString);
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+        Environment.SetEnvironmentVariable("JWT_SIGNING_KEY_CLUB", TestJwtSigningKey.Value);
         Environment.SetEnvironmentVariable("REDIS_HOST", null);
         Environment.SetEnvironmentVariable("REDIS_PASSWORD", null);
         // 🔴 本輪新增：明確清掉這個變數，不能只靠「反正我沒設定過」。環境變數是行程全域的，
@@ -53,7 +54,6 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         // 從一開始就不成立。實際踩過這個坑：加 AdminNews 系列 fixture 前 AdminNewsGateClosedTests
         // 穩定通過，加了之後偶發失敗，才發現是這個順序問題（不是分頁與快取那批既有測試的鍋，
         // 那批完全不碰這個變數）。
-        Environment.SetEnvironmentVariable("ENABLE_UNSAFE_DEV_WRITES", null);
 
         // 立刻建立測試主機（而不是等第一個測試才觸發），確保上面設定的環境變數在 Program.cs
         // 執行的當下就是這個 fixture 要的值。

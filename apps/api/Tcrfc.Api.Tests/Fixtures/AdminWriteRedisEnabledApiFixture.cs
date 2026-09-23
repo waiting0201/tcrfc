@@ -13,7 +13,7 @@ namespace Tcrfc.Api.Tests.Fixtures;
 /// <see cref="AdminWriteApiFixture"/>（<c>REDIS_HOST</c> 清空、走 no-op 快取）驗不到這件事，
 /// no-op 快取永遠回源，不能證明「有寫入導致快取被清」跟「本來就沒有快取」的差別。
 /// 把 <see cref="AdminWriteApiFixture"/> 與 <see cref="RedisEnabledApiFixture"/> 兩者的設定合併：
-/// 真正在跑的 <c>redis-server</c> 子行程（不 mock）＋ <c>ENABLE_UNSAFE_DEV_WRITES=true</c>。
+/// 真正在跑的 <c>redis-server</c> 子行程（不 mock）。
 /// </summary>
 public sealed class AdminWriteRedisEnabledApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
@@ -66,7 +66,7 @@ public sealed class AdminWriteRedisEnabledApiFixture : WebApplicationFactory<Pro
 
         Environment.SetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING", connectionString);
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
-        Environment.SetEnvironmentVariable("ENABLE_UNSAFE_DEV_WRITES", "true");
+        Environment.SetEnvironmentVariable("JWT_SIGNING_KEY_CLUB", TestJwtSigningKey.Value);
         Environment.SetEnvironmentVariable("REDIS_HOST", "127.0.0.1");
         Environment.SetEnvironmentVariable("REDIS_PORT", port.ToString());
         Environment.SetEnvironmentVariable("REDIS_PASSWORD", RedisPassword);

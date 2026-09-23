@@ -53,6 +53,8 @@ public partial class AdminUser
 
     public virtual ICollection<Achievement> AchievementUpdatedByNavigations { get; set; } = new List<Achievement>();
 
+    public virtual ICollection<AdminRefreshToken> AdminRefreshTokens { get; set; } = new List<AdminRefreshToken>();
+
     public virtual ICollection<AdminRole> AdminRoleCreatedByNavigations { get; set; } = new List<AdminRole>();
 
     public virtual ICollection<AdminRole> AdminRoleUpdatedByNavigations { get; set; } = new List<AdminRole>();

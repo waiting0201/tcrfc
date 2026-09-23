@@ -54,6 +54,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 完整生命週期_建立草稿到刪除()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var slug = UniqueSlug();
 
         // 1. 建立草稿
@@ -141,6 +142,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 建立文章_分類代碼不存在_回400()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var request = NewDraftRequest(UniqueSlug()) with { CategoryCode = "not-a-real-category" };
 
         var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(request));
@@ -152,6 +154,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 建立文章_中文標題空白_回400()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var request = new CreateArticleRequest
         {
             Slug = UniqueSlug(),
@@ -168,6 +171,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 建立文章_網址名稱重複_回409()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var slug = UniqueSlug();
         var first = await CreateDraftAsync(client, "tcrfc", slug);
 
@@ -186,6 +190,13 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 俱樂部範圍_用另一俱樂部路由更新_回404()
     {
         using var client = fixture.CreateClient();
+        // 🔴 本輪（S1）起改走真實授權：content.editor@tcrfc.test 只被授權 tcrfc，換成 bw 路由會先在
+        // IAdminClubAuthorizer 那一關被擋下（403），根本到不了 repository 的 club_id 過濾邏輯——
+        // 這條測試原本要驗的是「repository 層的 WHERE club_id 過濾」本身，改用略過範圍檢查的
+        // super.admin@tcrfc.test（is_super_admin=true）才能讓請求真的走到 repository，
+        // 驗證找不到（404）而不是被授權層擋下（403）。授權層本身的擋下行為另有專門測試
+        // （見 AdminClubAuthorizerTests 的「own_clubs 角色打別的俱樂部」情境）。
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("super.admin@tcrfc.test"));
         var created = await CreateDraftAsync(client, "tcrfc", UniqueSlug());
 
         try
@@ -222,6 +233,9 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 俱樂部範圍_用另一俱樂部路由刪除_回404且本尊仍在()
     {
         using var client = fixture.CreateClient();
+        // 同上一個測試的理由：用 super.admin@tcrfc.test 略過授權層的俱樂部範圍檢查，
+        // 才能驗到 repository 層本身的 club_id 過濾。
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("super.admin@tcrfc.test"));
         var created = await CreateDraftAsync(client, "tcrfc", UniqueSlug());
 
         try
@@ -243,6 +257,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 共用內容_更新回403()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var sharedId = await InsertSharedArticleDirectlyAsync();
 
         try
@@ -270,6 +285,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 共用內容_刪除回403()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var sharedId = await InsertSharedArticleDirectlyAsync();
 
         try
@@ -289,6 +305,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 共用內容_後台可以讀到但標記為IsShared()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var sharedId = await InsertSharedArticleDirectlyAsync();
 
         try
@@ -307,6 +324,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 樂觀並行控制_用過期的updatedAt更新_回409()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftAsync(client, "tcrfc", UniqueSlug());
 
         try
@@ -350,6 +368,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 三態轉換_已發布的文章不能再排程_回409()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftAsync(client, "tcrfc", UniqueSlug());
 
         try
@@ -387,6 +406,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 排程時間不在未來_回400()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftAsync(client, "tcrfc", UniqueSlug());
 
         try
@@ -408,6 +428,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 雙語側表_只給中文_更新加上英文_再更新省略英文會清空()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var created = await CreateDraftAsync(client, "tcrfc", UniqueSlug());
         Assert.Null(created.En);
 
@@ -454,6 +475,7 @@ public sealed class AdminNewsWriteTests(AdminWriteApiFixture fixture)
     public async Task 置頂精選_超過3篇回409()
     {
         using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", await Tcrfc.Api.Tests.Fixtures.TestAdminTokens.IssueAccessTokenForSeededUserAsync("content.editor@tcrfc.test"));
         var alreadyFeatured = await CountFeaturedAsync("tcrfc");
         var createdIds = new List<(Guid Id, DateTime UpdatedAt)>();
 
