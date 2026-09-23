@@ -282,7 +282,7 @@
 | `MemberCard.status`（卡片狀態） | 規劃書多處提到「狀態」但從未列舉具體值（如 active／lost／revoked），`docs/12b` §6.5 也只講規則不給值域 |
 | `PressResource.resource_type`（媒體資源類別） | 規劃書 7.8／B6（行 408、1033）只用中文描述「新聞稿、品牌識別包（Logo／CIS）、高解析圖」三類，沒有給出對應的 enum 代碼值 |
 | `Member.status` 與 K1 用語不一致 | `docs/12a` §5.6 的 `member.status` 暗示值域為 `active`／`suspended`／`deleted`（`docs/12b` §6.3），但規劃書 K1（行 1233）列表欄位寫的是「狀態（**啟用／停用／未驗證**）」——兩處的值域用詞對不上（`未驗證` 在 `active/suspended/deleted` 三值裡沒有對應項），需要人工確認是否為同一組值的不同措辭 |
-| `Match.status` 兩處行文不一致 | C4（規劃書行 1064）給「未開始／進行中／已結束／延期」四值，前台 3.13（規劃書行 653）給「未開始／進行中／已結束／延期／取消」五值（多一個「取消」）。DDL 若只依 C4 會少一個狀態值 |
+| `Match.status` 兩處行文不一致 | C4（規劃書行 1075）給「未開始／進行中／已結束／延賽」四值，前台 3.13（規劃書行 664）給「未開始／進行中／已結束／延賽／取消」五值（多一個「取消」）。DDL 若只依 C4 會少一個狀態值 |
 | `Competition.comp_type` | 規劃書行 1463 只說「類型（對應 `Match.competition` 四值）」，四值本身要去 `Match.competition` 的定義處對照，`Competition` 自己的欄位描述沒有重複列出 |
 | `CalendarCustomEvent.repeat_rule` | 規劃書行 1365 給「每週／每兩週／每月」三種頻率，但沒有給出對應的 enum 代碼或是否採 RRULE 格式的技術決定 |
 

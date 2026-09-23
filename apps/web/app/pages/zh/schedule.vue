@@ -5,7 +5,9 @@
 // 🔴 SSR 打真實賽程 API（21 場，與 mockup 原本讀 site/src/data/schedule.json
 // 的 21 場一一對應，日期／輪次／對手／場地／主客場逐筆核對一致）。
 // 已知落差（回報用，見各自檔頭／行內註解）：
-//   - status-pill 除 upcoming 外其餘三種文字未經真實資料驗證（app/utils/schedule.ts）。
+//   - status-pill 的 finished（已結束）已於 2026-09-23（S0-9j）用藍鯨真實資料
+//     （21 場 status='played'）核對過；postponed／cancelled／live 三種仍未有真實
+//     資料可核對，細節見 app/utils/schedule.ts 的 MATCH_STATUS_MAP 檔頭註解。
 //   - fixture-card 的 id 屬性已改用 matches.match_no（v3.11 補進規格與 DDL 的聯賽官方
 //     場次編號欄位）與 mockup 逐字元一致（fx-{日期}-{h|a}-{場次編號}），
 //     原本「API 未吐出 match_no、id 退化成 fx-{日期}-{h|a}」的落差已消除。
@@ -324,19 +326,12 @@ useSeoMeta({
 const siteConfig = useSiteConfig()
 const selfTeamName = computed(() => getClubAssets(club).nameZh)
 
-/** DB／API 的 status 字面值（'scheduled'／'played'／'postponed'／'cancelled'，見
- * apps/api 回傳，2026-09-22 用真實藍鯨資料核對過 'played' 這個值）→ schema.org
- * EventStatusType。⚠️ 刻意不重用 app/utils/schedule.ts 的 mapMatchStatus()——
- * 那支是給畫面 status-pill 顯示文字用的（switch 對到的是 'finished' 不是 'played'，
- * 兩者對不上，藍鯨的已完成賽事會落到 default 的「未開始」，這是既有顯示邏輯的另一個
- * 缺口，不在本次任務範圍內，回報但不在此修）；JSON-LD 是全新程式碼，獨立寫一份
- * 對應真實資料驗證過的 status 值，不要沿用可能有問題的既有對照表。 */
-const EVENT_STATUS_MAP: Record<string, string> = {
-  scheduled: 'https://schema.org/EventScheduled',
-  played: 'https://schema.org/EventCompleted',
-  postponed: 'https://schema.org/EventPostponed',
-  cancelled: 'https://schema.org/EventCancelled',
-}
+// SportsEvent JSON-LD（GEO-08）的 status → schema.org 對照已收斂進
+// app/utils/schedule.ts 的 matchStatusSchemaOrg()（S0-9j）。此頁與畫面
+// status-pill（mapMatchStatus()）共用同一份 MATCH_STATUS_MAP，不再各自維護一份——
+// 舊版本頁曾經在這裡自己開一份 EVENT_STATUS_MAP，鍵值對到 'played'，
+// 但 mapMatchStatus() 當時的 switch 對到的是 'finished'，兩份表各寫各的、
+// 沒有任何機制互相對照，才會讓藍鯨 21 場已完成賽事在畫面上顯示成「未開始」。
 
 const sportsEvents = computed(() => {
   const nodes: Record<string, unknown>[] = []
@@ -352,7 +347,7 @@ const sportsEvents = computed(() => {
       '@type': 'SportsEvent',
       name: `${m.competitionName} ${roundLabel}${homeTeam.name} vs ${awayTeam.name}`,
       startDate: `${m.matchOn}T${m.kickoff}:00+08:00`,
-      eventStatus: EVENT_STATUS_MAP[m.status ?? ''] ?? 'https://schema.org/EventScheduled',
+      eventStatus: matchStatusSchemaOrg(m.status),
       eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
       sport: 'Soccer',
       location: {

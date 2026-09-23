@@ -1,8 +1,14 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.12
-> **Date**: 2026-09-04 (v3.12 revision: 2026-09-20)
+> **Document version**: v3.13
+> **Date**: 2026-09-04 (v3.13 revision: 2026-09-23)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.13 revision summary — match status wording aligned with the main site (Chinese only)**
+> **No functional change.** The main site specification settles the Chinese match-status term as "延賽" (the
+> football-industry term for a postponed fixture); 6.2's fixture-change scenario copy is aligned with it.
+> **The English term "postponed" was already correct and needs no change** — 6.2's wording here is unchanged.
+> Landing point: 6.2.
 
 > **v3.12 revision summary — the app's API is hosted by the website admin**
 > **No functional changes.** The app and the website **share one backend API**, the same model as the shared admin

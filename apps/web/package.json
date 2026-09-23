@@ -8,9 +8,10 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "lint": "npm run lint:node-version && npm run lint:club-copy && npm run lint:eslint",
+    "lint": "npm run lint:node-version && npm run lint:club-copy && npm run lint:match-status && npm run lint:eslint",
     "lint:eslint": "eslint .",
     "lint:club-copy": "node scripts/check-club-copy.mjs",
+    "lint:match-status": "node scripts/check-match-status.mjs",
     "lint:node-version": "node ../../scripts/check-node-version.mjs"
   },
   "dependencies": {

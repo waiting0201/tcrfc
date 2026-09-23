@@ -341,6 +341,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 俱樂部自建活動 | 寫 `CalendarCustomEvent`——這是行事曆**唯一的自有資料** |
 | 課程梯次 | **永不進入**。App 的「我的報名」可顯示梯次時間，但不得寫入 `CalendarEvent`，也不得出現在賽程分頁 |
 | 試訓 | `source_type = 'trial'`，由 L3 開關決定，**預設關閉** |
+| 賽事延賽（v3.13） | 原定日期時間存 `Match.original_match_on`／`original_kickoff`，**只有 `Match` 有這兩欄**；`CalendarEvent` 是彙整層不重複存放，一律反映 `Match` 現行的 `match_on`／`kickoff` |
 
 複製一份賽事資料到行事曆 ＝ **製造兩個真實來源，必然不同步**。
 

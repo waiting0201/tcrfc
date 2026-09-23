@@ -202,6 +202,84 @@ mockup 的 `site/dist/index.html` 是 client-side 導轉 stub（`<main>` 內只�
 由本次解決）；剩下 3 頁（`zh/news`／`zh/news/match`／`zh/news/camps-events`）全部是前述
 intcup 分類問題，沒有出現任何六類以外的新差異。
 
+### 2026-09-23：`S0-9f` 讓新聞卡片連結變成逐篇 slug 後，退化成 67/80——新增「退役頁面清單」機制
+
+**起因**：`S0-9f` 把新聞卡片連結從 mockup 寫死的 `{{ROOT}}/zh/news/article/`（單一佔位頁，
+mockup 從來沒有逐篇文章頁）改成 Nuxt 逐篇 `/zh/news/<slug>/`——**這是規格上正確的修正**，
+但 `site/dist` 這份比對基準沒有、也不會再跟著更新（它本來就要退場，見
+[`docs/14-invariants.md`](../../docs/14-invariants.md)「前台改 Nuxt」整節），於是全站比對從
+77/80 退成更差。`STATUS.md` `S0-9i` 轉述的「67/80」與「10 頁」是派工時的估計數字，
+**2026-09-23 實際重跑（`apps/web` build ＋ `node .output/server/index.mjs` ＋ `apps/api`
+連本機 `tcrfc_club_dev`）拿到的真實結果是 80 頁中 13 頁失敗**，逐頁人工核對後分成三組：
+
+1. **純粹是 `S0-9f` 的自然後果、且整頁只有這一種差異（5 頁）**：`zh/news/index.html`、
+   `zh/news/article/`（route 在 apps/web 已整支移除，抓取回 404）、`zh/news/club/`、
+   `zh/news/community/`、`zh/news/international/`（逐筆核對，**差異 100% 是 news-card 的
+   `href` 屬性**，其餘標籤／class／文字／圖片／日期零差異）。
+   🔴 **`zh/news/index.html` 一開始被錯誤地歸到第 2 組**（理由是「新聞單元那批都混著 intcup
+   分類落差」），2026-09-23 用 `--json` 輸出逐筆比對 expected／actual 後確認它的
+   **20 筆差異零例外全是 `/zh/news/article/` → `/zh/news/<slug>/`**，已補進清單。
+   **這是一次分組推論取代逐筆核對造成的誤判**（記為 [`docs/18`](../../docs/18-work-errors.md) `E-40`）——
+   方向與「連坐退役」相反卻同源，而且更難發現：**紅燈多一頁不會有人來查**。
+2. **同時混著 `S0-9f` 的 href 差異與另一個既有、無關的問題（2 頁）**：
+   `zh/news/match/index.html`、`zh/news/camps-events/index.html`——這 2 頁除了 href 之外，
+   還混著「台中磐石國際足球盃」6 篇文章分類歸屬（`camps-events` vs `match`）的既有落差
+   （上面 2026-09-21 的紀錄就已經點名這是「待客戶確認」的問題，`STATUS.md` `B-15`），
+   導致月份篩選器選項、文章篇數、卡片內容整批對不上，**不是單純 href 差異，不得退役**。
+3. **跟新聞連結完全無關的真差異（6 頁）**：`zh/index.html`（**混合**：5 個新聞卡片是
+   `S0-9f` 的 href 差異，但同一頁還有導覽連結錯誤、圖片 `alt` 缺失、圖片尺寸不對、
+   錨點 `id` 缺失、文案字數不同——這些都跟新聞連結無關）、`zh/about/ecosystem/index.html`、
+   `zh/about/index.html`、`zh/about/milestones/index.html`、`zh/club/first-team/index.html`、
+   `zh/join/index.html`——**這 6 頁全部與 `S0-9f` 無關，是其他真 bug，不得退役也不屬於
+   這次任務的修復範圍**（詳細差異內容見對應的交付報告，這裡不重複列出，避免文件跟程式碼
+   兩處各寫一份、之後對不上）。
+
+**只有第 1 組（5 頁）進了 `compare-dom.mjs` 的 `RETIRED_ROUTES`**，第 2、3 組（合計 8 頁）
+**維持在失敗清單裡**（第 3 組那 6 頁已登記為 `STATUS.md` 的 `S0-9k`），`npm run` 這支工具現在仍會對這 8 頁回報差異——這是刻意的：
+退役機制的目的是「基準本身不代表正確答案時換一種驗法」，不是「跟這次改動有關的差異都算了」。
+
+**退役頁面清單（`RETIRED_ROUTES`）的設計**，完整規則與逐條理由在
+[`compare-dom.mjs`](compare-dom.mjs) 檔頭「退役頁面清單」一節，這裡只列摘要：
+
+- 這是**跟六類必然差異完全不同的機制**，不要混為一談：六類管的是「同一頁之內，哪些差異
+  可以正規化掉」（兩側仍在比對）；退役清單管的是「這一整頁還能不能拿 `site/dist` 當基準」
+  （整頁不再進入 DOM 比對）。兩者都是封閉清單、都沒有 CLI 旁路，但退役清單多一條硬性規定：
+  **每一筆都必須同時有 `why`（為什麼不能再用 site/dist 當基準）與 `covered_by`（改由哪一個
+  檢查接手驗這一頁）**，缺一個工具就直接拒絕執行（`process.exit(1)`，在做任何比對之前）。
+- 4 筆的 `covered_by` 都是同一個真實存在、已核對過的檢查：`apps/web` 的 ESLint 規則
+  `link-checker/valid-route`（`npm run lint:eslint`，由 `@nuxtjs/seo` 內建的
+  `nuxt-link-checker` 模組提供，等級是 **error**）。2026-09-23 實測 `npx eslint .` 對這
+  5 頁全部回 0 個 `valid-route` error，證明目前產出的新聞卡片連結確實都指向真實路由；
+  如果之後有人手滑把連結改回寫死的 `/zh/news/article/`，這條規則會炸成 error 擋下 `lint`。
+  ⚠️ **範圍要老實承認**：`valid-route` 驗的是「連結格式指向的路由存在」，不是這 5 頁完整
+  DOM 內容的逐點正確性——這是誠實的降級，因為這 5 頁**目前唯一的已知差異就是 href**，
+  `covered_by` 精準對應被退役的那個差異本身；如果之後這幾頁的其他內容（卡片版型、圖片、
+  文字）另外壞掉，`link-checker/valid-route` 不會抓到，這是退役機制天生的盲區。
+- **報告輸出**：通過／失敗／退役三個數字分開印（`--json` 輸出新增 `retired` 欄位，
+  `results` 陣列裡退役項目帶 `retired: true`／`route`／`why`／`coveredBy`）。退役頁逐頁列出
+  route 與 `covered_by`；退役頁數不為 0 時，結尾摘要一定會印「N 頁已退出 site/dist
+  基準」，不會只印「全部通過」讓退役偽裝成乾淨。退役不計入通過或失敗，**結束碼只看
+  真正比對過的頁面**（`failed.length`），跟以前一樣。
+
+**2026-09-23 實測結果**（`apps/web` build ＋ 本機跑 ＋ `apps/api` 連 `tcrfc_club_dev`）：
+
+```
+比對 75 頁，另有 5 頁已退出 site/dist 基準
+共 8/75 頁有差異（67 頁乾淨）
+🔵 另有 5 頁已退出 site/dist 基準（不計入上面的通過或失敗數字）
+```
+
+**驗證方式**：① 暫時清空 `RETIRED_ROUTES` 重跑，結果與退役機制加入前完全一致（80 頁中
+13 頁失敗，逐頁 route 清單相同）——證明六類正規化與既有比對邏輯未受影響。② 暫時清空某一筆
+的 `covered_by` 重跑，工具在做任何比對之前就印錯誤訊息並 `exit 1`；復原後重跑回到
+`exit 1`（因為仍有 8 頁真差異未解決，這是預期行為，不是退役機制的問題）。
+
+**尚未做、留給後續**：上面第 2、3 組合計 8 頁**仍然是紅燈**，需要下一輪任務分別處理——
+第 2 組要等 intcup 6 篇文章的分類歸屬由客戶確認；第 3 組（含 `zh/index.html` 的非新聞部分）
+是與本次任務無關的既有 bug，需要另外派工排查（`zh/index.html`／`zh/about/*`／
+`zh/club/first-team/`／`zh/join/`）。這兩組**都不能比照這次的做法退役**——它們不是「基準本身
+不代表正確答案」，是「Nuxt 端還有東西沒做對」，繼續留著紅燈才是正確狀態。
+
 ---
 
 ## 搬頁時的正確順序

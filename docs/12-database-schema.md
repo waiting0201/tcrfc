@@ -398,7 +398,7 @@ flowchart LR
 | `PlayerSeasonStat` | — | 逐季數據 `(player_id, season_id)`。**由 `Player` 推導** | |
 | `Staff` | **○** | 教練與團隊成員：證照、專長、分組。**空＝兩隊共同**（行政與醫療多為共用） | 🌐 |
 | `StaffTeam` | — | `(staff_id, team_id)` 帶職務 | |
-| `Match` | **●** | 賽事。`competition_id`（可空）、`status` 是正式欄位；**`match_no`（場次編號，聯賽官方配發，與 `round_no`／輪次是兩回事，同一輪可能有多場、可為空）**；對手與場地的英文走 `match_i18n` | 🌐 |
+| `Match` | **●** | 賽事。`competition_id`（可空）、`status` 是正式欄位；**`match_no`（場次編號，聯賽官方配發，與 `round_no`／輪次是兩回事，同一輪可能有多場、可為空）**；**`original_match_on`／`original_kickoff`（v3.13 新增，僅 `status = 'postponed'` 時有值，記錄延賽前的原定日期時間，皆可為空、無 CHECK 約束）**；對手與場地的英文走 `match_i18n` | 🌐 |
 | `MatchTeam` | — | 本方參賽隊 `(match_id, team_id)` | |
 | `MatchGoal` | — | 進球（球員、時間、類型） | |
 | `MatchCard` | — | 黃紅牌 | |
@@ -615,6 +615,7 @@ flowchart LR
 28. **本檔不含行動 App 的十一個型別**。App 開發前**不得建立**這些表；`Member`／`PartnerStore`／`Venue`／`Registration`／`Match` 上 v2.5 為 App 加的欄位（`lat`／`lng`／`member_id`／英文欄位／`signup_source = 'app'`）**已經在綱要裡**，屆時不必改表結構。
 29. ⛔ **有五類資料不得讀快取**：庫存與商品可購買狀態、金流回呼的冪等檢查、會員卡 `/m/<token>` 驗證、會籍與訂單付款狀態、購物車。會員卡那條是**安全問題**——讀到陳舊值等於 token 撤銷機制失效。清單與規格依據在 [`17-deployment.md`](17-deployment.md) §4。
 30. 🔴 **`CalendarEvent` 不要試 indexed view**——SQL Server 明文禁止 indexed view 含 `UNION`／`UNION ALL`，而本表的定義就是 UNION。見 [§1.4](#14-dbms-相依的五件事已定案) 第 3 件。
+31. **`Match.original_match_on`／`original_kickoff`（v3.13）刻意沿用 `match_on`／`kickoff` 的兩欄配對寫法，不合併成單一 `datetime`**：這兩欄跟現行欄位一樣是「當地牆上時間」的展示值，不是可換算時區的時間戳（見 §1 型別詞彙表對 `datetime` 的定義——那是要求存 UTC 的時間戳，語意不同）；用 `datetime` 會讓同一張表同時存在兩種時間語意，前端也得寫兩套格式化邏輯。**兩欄皆可為空、不加 CHECK**——只有 `status = 'postponed'` 時才有意義，但 `matches.status` 本身沒有 CHECK 約束（值域四值／五值兩節行文還沒對齊，見 [`12d`](12d-field-audit.md) §6），在沒有 CHECK 的欄位上另立「當 status = 'postponed' 時 original_match_on 不得為空」的 CHECK 會等於幫一個未定案的字面值背書，是否必填交給後台 C4 表單驗證。
 
 ---
 

@@ -1,9 +1,17 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.12
-> **Date**: 2026-08-14 (v3.9 revision: 2026-09-18)
+> **Document version**: v3.13
+> **Date**: 2026-08-14 (v3.13 revision: 2026-09-23)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
 > **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.9*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.13 revision summary — match status wording (Chinese only), and `Match` gains "original date" / "original time" fields**
+> **Both changes are wording or field-level additions; no new functionality.** The Chinese edition now uses
+> "延賽" — the football-industry term for a postponed fixture — for the match status throughout. This settles
+> Chinese-language terminology only; the English term **"postponed" is already correct football usage and is unchanged**.
+> `Match` gains an "original date" and "original time" field: 3.13 has long required that a postponed fixture show
+> its original date, but no field ever carried it — this closes that gap. The fields are populated only when status
+> is "postponed", and are shown on the fixture card and in the C4 edit screen. Landing point: 3.13, 4.3 C4, 5.1 `Match`.
 
 > **v3.12 revision summary — C4 fixtures gain a "match number" field**
 > **No new functionality; a field-level addition.** 4.3 C4 Fixtures & Results' match record gains "match number":
@@ -1073,7 +1081,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Staff (2.4 Our People): group (management / administration / medical / operations), title, bio
 
 #### C4 Fixtures & Results
-- Match record: season, competition (league / cup), date and time, home/away, opponent, venue, status (upcoming / live / finished / postponed), **match number** (the official fixture number assigned by the league, recorded separately from "round" — a single round can contain several matches, each with its own official number)
+- Match record: season, competition (league / cup), date and time, home/away, opponent, venue, status (upcoming / live / finished / postponed), **match number** (the official fixture number assigned by the league, recorded separately from "round" — a single round can contain several matches, each with its own official number), **original date and original time** (populated only when status is "postponed"; records the date and time the fixture was originally scheduled for, so it can be shown here and on the fixture card)
 - Result: score, scorers with timings, cards, line-up, link to the match report (7.2)
 - **League table**: maintained manually or imported from CSV
 - **Maintenance approach: entirely manual** (no external league API integration). Both **CSV bulk import** of a full season and single-match entry are provided to reduce data-entry effort
@@ -1476,7 +1484,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 | `Team` | Team, carrying the **team code**: `D1` (Taichung Rock First Team) / **`BW1` (Taichung Blue Whale First Team, new in v3.0)** / `U15` / `U14` / `U12`. 🏛 mandatory. **`code` stays globally unique and must not become a "club × code" composite** — it is the calendar-subscription identifier and the `/schedule/d1/` path, already in public circulation. **v3.0 adds `gender`** (`men` / `women` / `mixed`) and **retires `type`'s `women` value** (gender is an attribute of a team, not a kind of team); the "exactly one `first_team` site-wide" constraint becomes "**at most one per club**" | Club, Player, Coach, Match, Season, CalendarEvent |
 | `Player` | Player | Team, Article, Stats, Pathway |
 | `Staff` | Coaches and staff | Team, Program |
-| `Match` | Match. **v2.5 adds** `opponent_en` / `venue_en`, and promotes `competition` / `status` to formal fields | Team, Season, Article (match report) |
+| `Match` | Match. **v2.5 adds** `opponent_en` / `venue_en`, and promotes `competition` / `status` to formal fields. **v3.13 adds** original date and original time (populated only when status is "postponed") | Team, Season, Article (match report) |
 | `Standing` | League table | Season, Team |
 | `Achievement` | Honour | Team, Season |
 | `Milestone` | Milestone | — |

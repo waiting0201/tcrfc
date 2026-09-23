@@ -709,27 +709,33 @@ CREATE TABLE staff_teams (
 -- 賽事。competition_id 可空；對手與場地的英文走 matches_i18n。
 -- match_no：聯賽官方配發的場次編號，與 round_no（第幾輪）是兩回事——同一輪可能有多場比賽，
 -- 各自有各自的官方編號；非聯賽賽事（如盃賽、友誼賽）可能沒有官方編號，故可為空（docs/12d §9）。
+-- original_match_on／original_kickoff（v3.13）：延賽前的原定日期時間，只有 status = 'postponed' 時有值，
+-- 沿用 match_on／kickoff 既有的兩欄配對寫法（皆為當地牆上時間展示值，不是 UTC 時間戳）；兩欄皆可為空、
+-- 不加 CHECK——status 本身沒有 CHECK 約束（值域仍待確認，見 docs/12d §6），是否必填交後台 C4 表單驗證
+-- （docs/12 §12 第 31 點）。
 CREATE TABLE matches (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
-  row_seq         bigint IDENTITY(1,1) NOT NULL,
-  club_id         uniqueidentifier NOT NULL,
-  season_id       uniqueidentifier NOT NULL,
-  competition_id  uniqueidentifier NULL,
-  venue_id        uniqueidentifier NULL,
-  match_on        date             NOT NULL,
-  kickoff         nvarchar(8)      NULL,
-  home_away       nvarchar(16)     NULL,
-  opponent        nvarchar(128)    NULL,
-  competition     nvarchar(16)     NULL,
-  status          nvarchar(16)     NULL,
-  score_home      int              NULL,
-  score_away      int              NULL,
-  round_no        int              NULL,
-  match_no        int              NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by      uniqueidentifier NULL,
-  updated_by      uniqueidentifier NULL,
+  id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq             bigint IDENTITY(1,1) NOT NULL,
+  club_id             uniqueidentifier NOT NULL,
+  season_id           uniqueidentifier NOT NULL,
+  competition_id      uniqueidentifier NULL,
+  venue_id            uniqueidentifier NULL,
+  match_on            date             NOT NULL,
+  kickoff             nvarchar(8)      NULL,
+  home_away           nvarchar(16)     NULL,
+  opponent            nvarchar(128)    NULL,
+  competition         nvarchar(16)     NULL,
+  status              nvarchar(16)     NULL,
+  score_home          int              NULL,
+  score_away          int              NULL,
+  round_no            int              NULL,
+  match_no            int              NULL,
+  original_match_on   date             NULL,
+  original_kickoff    nvarchar(8)      NULL,
+  created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by          uniqueidentifier NULL,
+  updated_by          uniqueidentifier NULL,
   CONSTRAINT PK_matches PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_matches_row_seq UNIQUE CLUSTERED (row_seq)
 );

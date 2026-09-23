@@ -47,24 +47,63 @@ export function calMonthTitle(monthKey: string): string {
   return `${MONTH_ZH[m! - 1]} ${y}`
 }
 
-/** API status → mockup 的 data-status／狀態文字。⚠️ 目前 21 筆種子資料全是
- * 'scheduled'，只有 upcoming 一種狀態實際驗證過；其餘三種是依 CSS 既有的
- * status-pill--live／--finished／--postponed／--cancelled class 合理推斷，
- * 沒有真實資料可比對，之後有賽果資料時要重新核對顯示文字。 */
+/**
+ * `matches.status`（DB／API 字面值）→ 畫面顯示碼／文字／schema.org 型別的**全站唯一對照表**。
+ *
+ * 🔴 **這是本檔案存在的核心理由，不要在別處另開第二份。** S0-9j 修的那個 bug
+ * （藍鯨 21 場已完成賽事顯示成「未開始」）根因就是同一組 enum 曾經有兩份各寫各的對照表：
+ * 本函式的 switch 對到的是 `'finished'`，但 `apps/web/app/pages/zh/schedule.vue` 的
+ * SportsEvent JSON-LD（GEO-08）另外寫了一份 `EVENT_STATUS_MAP` 對到 `'played'`——
+ * 後者才是資料庫真正存的值，前者從來沒被任何真實資料打中過。兩份表沒有任何機制
+ * 互相對照，型別也擋不住（都是 `string`），才會放到上線後才被發現。
+ * `matchStatusSchemaOrg()`（本檔另一個 export）就是原本那份 JSON-LD 用表收斂過來的，
+ * `schedule.vue` 不應該再自己維護一份。
+ *
+ * **已用真實資料驗證的值**（2026-09-23，`SELECT status, COUNT(*) FROM matches
+ * GROUP BY status` 查 `tcrfc_club_dev`）：`'scheduled'` 21 筆（磐石一線隊）、
+ * `'played'` 21 筆（藍鯨一線隊 2023 木蘭聯賽＋2025 總統盃），無 NULL、無其他值
+ * （42 筆賽事查全表，`matches.status` 是 `nvarchar(16) NULL`、無 CHECK 約束，
+ * 見 `db/club-schema.sql`，值完全由應用層——目前是 `db/seed/generate-club-seed-sql.py`
+ * ——自行決定，DB 層不提供任何保證）。
+ * `'postponed'`／`'cancelled'`／`'live'` 三個字面值**尚未有真實資料可核對**，
+ * 沿用既有 CSS class（`status-pill--postponed`／`--cancelled`／`--live`）與
+ * `scheduled`／`played` 的命名風格推斷，之後有賽事真的延期／取消／進行中時要重新核對。
+ * ⚠️ `postponed` 的中文顯示字「延賽」與規劃書（`output/TCRFC_前後台功能規劃書.md`
+ * 第 658／1069／1474 行）三處寫的「延期」不一致，這是規格層文字，本次刻意不逕自改動，
+ * 已在 S0-9j 交付報告中列出待裁決。
+ */
+interface MatchStatusMeta {
+  /** 畫面用：CSS class（`status-pill--{code}`）與篩選邏輯（`cardMatches`）的比對碼 */
+  code: string
+  /** 畫面用：status-pill 中文顯示文字 */
+  label: string
+  /** SportsEvent JSON-LD（GEO-08）用：schema.org EventStatusType */
+  schemaOrg: string
+}
+
+const MATCH_STATUS_MAP: Record<string, MatchStatusMeta> = {
+  scheduled: { code: 'upcoming', label: '未開始', schemaOrg: 'https://schema.org/EventScheduled' },
+  played: { code: 'finished', label: '已結束', schemaOrg: 'https://schema.org/EventCompleted' },
+  postponed: { code: 'postponed', label: '延賽', schemaOrg: 'https://schema.org/EventPostponed' },
+  cancelled: { code: 'cancelled', label: '取消', schemaOrg: 'https://schema.org/EventCancelled' },
+  // schema.org 沒有「進行中」對應的 EventStatusType（官方列舉只有 Scheduled／Cancelled／
+  // Postponed／Rescheduled／MovedOnline），比賽進行中維持算 EventScheduled 最接近事實。
+  live: { code: 'live', label: '比賽中', schemaOrg: 'https://schema.org/EventScheduled' },
+}
+
+/** 未知或空值一律 fallback 為「未開始」，與 mockup 原本 switch 的 default 行為一致 */
+const DEFAULT_STATUS_META: MatchStatusMeta = MATCH_STATUS_MAP.scheduled!
+
 export function mapMatchStatus(status: string | null): { code: string; label: string } {
-  switch (status) {
-    case 'finished':
-      return { code: 'finished', label: '已結束' }
-    case 'live':
-      return { code: 'live', label: '比賽中' }
-    case 'postponed':
-      return { code: 'postponed', label: '延賽' }
-    case 'cancelled':
-      return { code: 'cancelled', label: '取消' }
-    case 'scheduled':
-    default:
-      return { code: 'upcoming', label: '未開始' }
-  }
+  const meta = (status && MATCH_STATUS_MAP[status]) || DEFAULT_STATUS_META
+  return { code: meta.code, label: meta.label }
+}
+
+/** SportsEvent JSON-LD（GEO-08）用，見 `schedule.vue` 的 `sportsEvents`。
+ * 取代原本獨立維護的 `EVENT_STATUS_MAP`，收斂成單一來源。 */
+export function matchStatusSchemaOrg(status: string | null): string {
+  const meta = (status && MATCH_STATUS_MAP[status]) || DEFAULT_STATUS_META
+  return meta.schemaOrg
 }
 
 export function compTagLabel(comp: string | null): string {

@@ -151,6 +151,147 @@
 // 測試時，兩邊本來就是同一份 stub，DOM 比對本來就會零差異，不受影響、也不需要特殊處理）。
 //
 // ============================================================================
+// 退役頁面清單（RETIRED_ROUTES）：這一頁「還能不能拿 site/dist 當基準」（2026-09-23）
+// ============================================================================
+//
+// 起因：S0-9f 把新聞卡片連結從 site/src 寫死的 `{{ROOT}}/zh/news/article/`（單一佔位頁，
+// mockup 從來沒有逐篇文章頁）改成 Nuxt 逐篇 slug `/zh/news/<slug>/`——這是規格上正確的修正
+// （mockup 本來就只是骨架，不代表最終行為），但 site/dist 這份基準沒有、也不會再更新
+// （它本來就要退場，見 docs/14-invariants.md「前台改 Nuxt」整節），於是這幾頁的 href 永遠
+// 對不上，而且**不是可以正規化掉的表面差異**——這是「基準本身不代表正確答案」，跟前六類
+// 「兩邊其實等價、只是序列化方式不同」性質完全不同，硬套六類的作法（例如加一條 href 正規化
+// 規則忽略這個特定差異）會違反 docs/14 明文的「不得為了讓比對變綠而放寬正規化」。
+//
+// 🔴🔴🔴 這份清單與上面的「六類必然差異」是兩套不同機制，分工如下，不要混為一談：
+//   - **六類必然差異（正規化規則）**管的是「同一頁之內，哪些差異可以判定為無害」——
+//     兩側都還在比對，只是比對前先把已知的序列化雜訊濾掉，過濾範圍窄到逐一寫死在程式碼裡。
+//   - **這份退役清單**管的是「這一整頁還能不能拿 site/dist 當基準」——不是濾掉某個差異，
+//     是承認 site/dist 對這個 route 已經不是正確答案，整頁不再進入 DOM 比對。
+//   - 兩者都不提供旁路、都不能靠掰理由用嘴巴退役：六類是封閉清單「不得新增第七類」，
+//     這份清單是「每一筆都要有 covered_by，缺了工具直接拒絕執行」（見下方 validateRetiredRoutes）。
+//     **這份清單的存在，不代表六類清單可以比照辦理放寬——兩邊各自封閉，互不借用對方的理由。**
+//
+// ⛔ 退役是頁面級別的最後手段，不是「這一頁有一點差異就退役」：
+//   - 只有「同一頁裡的每一筆差異，追根究底都是同一個已知、已查證、且不會再改的基準落差」
+//     時才進這份清單。**任何一筆診斷不出成因、或成因跟這裡列的理由不同的差異，都不准連坐退役**
+//     ——那正是這份清單存在的風險（"驗收線被一頁一頁蠶食"，STATUS.md S0-9i 原文）。
+//   - 2026-09-23 逐頁核對本次退役的四頁：`/zh/news/article/`（route 在 apps/web 已整支移除，
+//     是 mockup 幫全站文章共用的單一佔位頁，抓取回應必為 404）、`/zh/news/club/`、
+//     `/zh/news/community/`、`/zh/news/international/`（三頁逐筆核對 diff，比對結果**只有**
+//     news-card `href` 屬性不同，其餘標籤、class、文字、圖片、日期全部零差異）。
+//   - 🔴 同一次查證也發現 `zh/index.html`／`zh/news/index.html`／`zh/news/match/index.html`／
+//     `zh/news/camps-events/index.html` 這四頁**同樣含有** S0-9f 造成的 href 差異，
+//     但**混著至少一種跟新聞連結無關的差異**（`zh/index.html` 混了導覽連結、圖片 alt／尺寸、
+//     錨點 id、文案字數等一串不相關的真差異；另外三頁混了「台中磐石國際足球盃」6 篇文章
+//     分類歸屬的既有落差，導致月份篩選器選項、文章篇數、卡片內容整批對不上，不是單純
+//     href 差異）——**這四頁刻意不放進這份清單**，繼續留在失敗名單裡，理由與詳細差異見
+//     交付報告，不在這裡重複。
+//
+// 🔴 每一筆的 covered_by 都是真實存在、已核對過的檢查，不是掰的名字：
+//   - `apps/web` 的 ESLint 規則 `link-checker/valid-route`（由 `@nuxtjs/seo` 內建的
+//     `nuxt-link-checker` 模組提供，`npm run lint:eslint` 會跑，等級是 error 不是 warning）
+//     會拿 `.nuxt/link-checker/routes.json`（建置期產生，含 `/zh/news/:slug()` 這個動態路由
+//     樣式）逐一核對頁面裡每一個內部連結的 href 是否指向真實存在的路由。2026-09-23 實測：
+//     `npx eslint .` 對這四頁全部回 0 個 `link-checker/valid-route` error（只有無關的
+//     `valid-sitemap-link` warning），證明這四頁目前產出的新聞卡片連結確實都指向真實路由，
+//     且如果有人手滑把連結改回寫死的 `/zh/news/article/`（或任何不存在的路徑），這條規則
+//     會炸成 error 擋下 `npm run lint`，不會悄悄放行。
+//   - ⚠️ **範圍要老實承認**：`valid-route` 驗的是「連結格式指向的路由存在」，不是這四頁
+//     完整 DOM 內容的逐點正確性（原本 compare-dom 在驗的是後者）。目前這是誠實的降級，
+//     不是灌水——因為這四頁**目前唯一的已知差異就是 href**，covered_by 精準對應被退役的
+//     那個差異本身。如果之後這四頁的其他內容（卡片版型、圖片、文字）另外壞掉，
+//     `link-checker/valid-route` 不會抓到，那會是這份退役機制天生的盲區，不是這次疏漏。
+//
+// ⛔ 沒有、也不會有讓這份清單失效的 CLI 參數（沒有 --ignore／--allow／--skip-page／
+// --retire）。要退役一個頁面，唯一的方法是改這份程式碼，走一般的 code review／PR 流程。
+//
+// 結構：Map<route, { why, covered_by }>。route 用 toRoutePath() 算出來的形式
+// （例如 "/zh/news/article/"，含結尾斜線），跟批次／單頁模式共用同一套路由轉換。
+const RETIRED_ROUTES = new Map([
+  ['/zh/news/article/', {
+    why:
+      'site/dist 的這一頁是 mockup 幫「所有文章」共用的單一佔位頁（site/src/pages/zh/news/article/index.html），' +
+      '從來不代表任何一篇真實文章的內容。S0-9f 把新聞卡片連結改成 Nuxt 逐篇 slug 路由後，' +
+      'apps/web 已整支移除 /zh/news/article/ 這個 route（改為 app/pages/zh/news/[slug]/index.vue），' +
+      '2026-09-23 實測 curl 這個路徑回 404——不是失誤，是刻意的路由設計，沒有任何內容可以' +
+      '拿來跟 site/dist 比較，維持在一般比對流程裡只會製造一筆永遠不會消失的「抓取失敗」假警報。',
+    covered_by:
+      'apps/web 的 ESLint 規則 link-checker/valid-route（npm run lint:eslint，nuxt-link-checker' +
+      '／@nuxtjs/seo 提供）：只要全站沒有任何連結指向 /zh/news/article/ 這個不存在的路由，' +
+      '這條規則就會維持 0 error；2026-09-23 實測 npx eslint . 確認目前確實是 0 error。',
+  }],
+  ['/zh/news/club/', {
+    why:
+      '這一頁與 site/dist 的唯一差異是新聞卡片的 href（site/src/pages/zh/news/club/index.html ' +
+      '11 個 <a> 全部寫死 {{ROOT}}/zh/news/article/，S0-9f 後 Nuxt 端正確輸出各自的 ' +
+      '/zh/news/<slug>/）——2026-09-23 逐筆核對本頁 11 筆差異，全部是「屬性 href」，' +
+      '沒有任何一筆是標籤、class、文字、圖片或日期不同。這個 href 差異不是表面序列化問題' +
+      '（不屬於六類正規化的性質），是基準本身的內容已經不代表正確答案，六類清單不適用。',
+    covered_by:
+      '同上——apps/web 的 ESLint 規則 link-checker/valid-route（npm run lint:eslint）。' +
+      '2026-09-23 實測對本頁跑 npx eslint . 回 0 個 valid-route error，證明本頁目前產出的' +
+      '11 個新聞卡片連結全部指向真實存在的路由。',
+  }],
+  ['/zh/news/community/', {
+    why:
+      '同 /zh/news/club/ 的成因與查證方式：site/src/pages/zh/news/community/index.html ' +
+      '3 個 <a> 全部寫死 {{ROOT}}/zh/news/article/，2026-09-23 逐筆核對本頁 3 筆差異全部是' +
+      '「屬性 href」，其餘內容零差異。',
+    covered_by:
+      '同上——apps/web 的 ESLint 規則 link-checker/valid-route（npm run lint:eslint），' +
+      '2026-09-23 實測本頁 0 個 valid-route error。',
+  }],
+  ['/zh/news/', {
+    why:
+      '新聞總覽頁，成因與 /zh/news/club/ 完全相同：site/src/pages/zh/news/index.html 的新聞卡片 ' +
+      '<a> 全部寫死 {{ROOT}}/zh/news/article/，S0-9f 後 Nuxt 端正確輸出各自的 /zh/news/<slug>/。' +
+      '2026-09-23 逐筆核對本頁 20 筆差異，**全部是「屬性 href」且全部是 /zh/news/article/ → ' +
+      '/zh/news/<slug>/ 這一種型態，零例外**（用 JSON 輸出逐筆比對 expected/actual 驗證，' +
+      '不是抽查）。\n' +
+      '🔴 本頁一度被誤判為「混著台中磐石國際足球盃 6 篇文章分類歸屬的落差、不得退役」而排除在' +
+      '清單外。2026-09-23 重跑查證後確認那是誤判——會混到 intcup 分類落差的是 ' +
+      '/zh/news/camps-events/ 與 /zh/news/match/ 兩頁（前者「共 7 篇」對「共 1 篇」、後者月份' +
+      '篩選器選項整批位移），本頁沒有。留下這段紀錄是因為「連坐退役」正是這份清單最大的風險，' +
+      '而這次差點反過來發生：把一頁乾淨的、符合條件的頁面，因為鄰近頁面的問題而錯誤地留在紅燈裡。' +
+      '兩個方向都要靠逐筆核對擋，不能靠印象分組。',
+    covered_by:
+      '同 /zh/news/club/——apps/web 的 ESLint 規則 link-checker/valid-route（npm run lint:eslint）。' +
+      '2026-09-23 實測本頁 0 個 valid-route error，20 個新聞卡片連結全部指向真實存在的路由。',
+  }],
+  ['/zh/news/international/', {
+    why:
+      '同 /zh/news/club/ 的成因與查證方式：site/src/pages/zh/news/international/index.html ' +
+      '12 個 <a> 全部寫死 {{ROOT}}/zh/news/article/，2026-09-23 逐筆核對本頁 12 筆差異全部是' +
+      '「屬性 href」，其餘內容零差異。',
+    covered_by:
+      '同上——apps/web 的 ESLint 規則 link-checker/valid-route（npm run lint:eslint），' +
+      '2026-09-23 實測本頁 0 個 valid-route error。',
+  }],
+]);
+
+// 🔴 這是整份退役機制的重點防呆：缺 covered_by（或缺 why）就讓工具直接拒絕執行，
+// exit 非 0，不是印個警告就放行。這個檢查跟目前實際要跑哪些頁面無關——不管這次
+// --expected／--actual 有沒有涵蓋到退役清單裡的路由，只要清單本身有一筆資料不完整，
+// 就代表清單已經失控，不應該讓任何一次比對繼續執行。
+function validateRetiredRoutes(routes) {
+  const problems = [];
+  for (const [route, entry] of routes) {
+    if (!entry || typeof entry.why !== 'string' || entry.why.trim() === '') {
+      problems.push(`${route}：缺少 why（為什麼不能再用 site/dist 當基準）`);
+    }
+    if (!entry || typeof entry.covered_by !== 'string' || entry.covered_by.trim() === '') {
+      problems.push(`${route}：缺少 covered_by（改由哪一個檢查接手驗這一頁）——退役機制不允許「先退役、驗證之後再補」`);
+    }
+  }
+  if (problems.length) {
+    console.error('退役頁面清單（RETIRED_ROUTES）設定不完整，拒絕執行：');
+    for (const p of problems) console.error(`  - ${p}`);
+    console.error('\n每一筆退役項目都必須同時有 why 與 covered_by，見 compare-dom.mjs 檔頭「退役頁面清單」一節。');
+    process.exit(1);
+  }
+}
+
+// ============================================================================
 // 六類之外：格式層級的基礎正規化（跟「搬遷差異」無關，是任何 DOM 比對工具都該有的
 // 序列化雜訊過濾，維持既有實作不變）
 // ============================================================================
@@ -172,9 +313,13 @@
 //     --limit N           批次模式只跑前 N 頁（除錯用）
 //     --max-diffs N       單頁最多列出幾筆差異，預設 20
 //
-// ⛔ 沒有、也不會有 --ignore / --allow / --skip-page 之類的旁路參數。
+// ⛔ 沒有、也不會有 --ignore / --allow / --skip-page / --retire 之類的旁路參數。
+// 退役頁面清單（RETIRED_ROUTES，見上方「退役頁面清單」一節）只能改程式碼，不接受任何
+// CLI 參數控制；清單本身若有一筆缺 why 或 covered_by，工具會在做任何比對之前直接拒絕執行。
 //
-// 結束碼：只要有任何一頁比對出「六類以外」的差異、或任何一頁抓取失敗 → 非 0。全部零差異 → 0。
+// 結束碼：只要有任何一頁比對出「六類以外」的差異、或任何一頁抓取失敗 → 非 0。全部零差異
+// （不含已退役頁面，見下）→ 0。退役頁面清單本身資料不完整（缺 why／covered_by）→ 非 0，
+// 且不會執行到任何比對。退役頁面不計入通過或失敗，但一定會在報告與 --json 輸出裡列出。
 
 import { readFile, readdir, stat } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
@@ -509,6 +654,10 @@ function singleFileRelPath(rawExpectedArg, expectedAbsPath) {
 }
 
 async function main() {
+  // 🔴 退役清單的結構性驗證放在最前面，不管這次要比對哪些頁面都先做——
+  // 清單本身資料不完整就直接拒絕執行，見 validateRetiredRoutes() 與檔頭「退役頁面清單」一節。
+  validateRetiredRoutes(RETIRED_ROUTES);
+
   const opts = parseArgs(process.argv.slice(2));
   if (!opts.expected || !opts.actual) {
     console.error('用法：node tools/compare-dom.mjs --expected <路徑> --actual <路徑或URL> [--json] [--limit N] [--max-diffs N] [--strict-comments]');
@@ -535,24 +684,47 @@ async function main() {
 
   const results = [];
   for (const { file, relPath } of pairs) {
+    // 退役頁面：不進 compareOne()，不對 site/dist 做任何內容比對——這一頁的「正確答案」
+    // 不再是 site/dist，比較它只會製造假警報。見檔頭「退役頁面清單」一節與 RETIRED_ROUTES。
+    const route = toRoutePath(relPath);
+    const retiredEntry = RETIRED_ROUTES.get(route);
+    if (retiredEntry) {
+      results.push({ relPath, route, retired: true, why: retiredEntry.why, coveredBy: retiredEntry.covered_by });
+      continue;
+    }
     results.push(await compareOne(file, actualSpec, relPath, isUrl, opts));
   }
 
-  const failed = results.filter((r) => !r.ok);
+  // 🔴 三個數字分開算：retired 不計入 passed 或 failed，避免「全部通過」的訊息
+  // 悄悄蓋過「其實有頁面被退役、換了一種驗法」這件事。
+  const retired = results.filter((r) => r.retired);
+  const compared = results.filter((r) => !r.retired);
+  const failed = compared.filter((r) => !r.ok);
+  const passed = compared.length - failed.length;
 
   if (opts.json) {
-    console.log(JSON.stringify({ total: results.length, failed: failed.length, results }, null, 2));
+    console.log(JSON.stringify({ total: results.length, passed, failed: failed.length, retired: retired.length, results }, null, 2));
     process.exit(failed.length ? 1 : 0);
   }
 
-  console.log(`比對 ${results.length} 頁（expected：${relative(process.cwd(), expectedPath) || '.'}／actual：${isUrl ? actualSpec : relative(process.cwd(), actualSpec) || '.'}）\n`);
+  console.log(`比對 ${compared.length} 頁（expected：${relative(process.cwd(), expectedPath) || '.'}／actual：${isUrl ? actualSpec : relative(process.cwd(), actualSpec) || '.'}）` + (retired.length ? `，另有 ${retired.length} 頁已退出 site/dist 基準（見下方清單，不計入本次比對）` : '') + '\n');
 
-  const totalDataV = results.reduce((n, r) => n + (r.dataVCount || 0), 0);
+  if (retired.length) {
+    console.log(`🔵 ${retired.length} 頁已退出 site/dist 基準（不計入通過或失敗，改由各自的 covered_by 檢查接手）：`);
+    for (const r of retired) {
+      console.log(`  - ${r.route}`);
+      console.log(`      why        : ${r.why}`);
+      console.log(`      covered_by : ${r.coveredBy}`);
+    }
+    console.log('');
+  }
+
+  const totalDataV = compared.reduce((n, r) => n + (r.dataVCount || 0), 0);
   if (totalDataV) {
     console.log(`⚠️ 共偵測到 ${totalDataV} 個 data-v-* 屬性（已排除在比對之外）——請另外確認搬移的 <style> 沒有被加上 scoped（紀律 10，docs/13 §6）\n`);
   }
 
-  for (const r of results) {
+  for (const r of compared) {
     if (r.ok) continue;
     console.log(`  ✗ ${r.relPath}`);
     if (r.fetchError) {
@@ -570,11 +742,15 @@ async function main() {
     }
   }
 
-  const passed = results.length - failed.length;
   if (failed.length) {
-    console.log(`\n共 ${failed.length}/${results.length} 頁有差異（${passed} 頁乾淨）`);
+    console.log(`\n共 ${failed.length}/${compared.length} 頁有差異（${passed} 頁乾淨）`);
   } else {
-    console.log(`✓ 全部 ${results.length} 頁 <main> 內容零差異`);
+    console.log(`✓ 列入比對的 ${compared.length} 頁 <main> 內容零差異`);
+  }
+  // 🔴 requirement 4：退役頁數不為 0 時，結尾摘要必須明講，不能只印「全部通過」，
+  // 否則退役會偽裝成乾淨——即使 compared 全過，也要讓人一眼看到「這不是真的 80/80」。
+  if (retired.length) {
+    console.log(`🔵 另有 ${retired.length} 頁已退出 site/dist 基準（不計入上面的通過或失敗數字，清單見上方）`);
   }
 
   process.exit(failed.length ? 1 : 0);

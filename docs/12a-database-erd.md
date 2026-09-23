@@ -303,6 +303,8 @@ erDiagram
     int score_away
     int round_no
     int match_no
+    date original_match_on
+    string_8 original_kickoff
   }
   match_team {
     uuid match_id FK
