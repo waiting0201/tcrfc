@@ -9,8 +9,21 @@ export type ClubCode = 'tcrfc' | 'bw'
 
 export interface ClubAssets {
   code: ClubCode
-  /** 中文簡稱，見 docs/14-invariants.md「名稱寫法」——台中磐石／台中藍鯨，不單獨簡稱 */
+  /**
+   * 中文全稱，用於需要完整法定名稱的語境（隊徽 alt、footer logo alt、首頁鎮包屑
+   * aria-label、SEO meta description 等）——磐石是「台中磐石足球俱樂部」。
+   */
   nameZh: string
+  /**
+   * 中文簡稱，見 docs/14-invariants.md「名稱寫法」——台中磐石／台中藍鯨，不單獨簡稱。
+   * 用於標題級的短句語境（「認識台中磐石」「加入台中磐石」「參與台中磐石」等）。
+   * 🔴 S0-9k 修正：舊版只有 nameZh 一個欄位卻身兼兩種語境，磐石的全稱與簡稱不同，
+   * 兩種語境硬共用同一欄位時必然有一邊被寫錯——這正是 mockup 比對抓到的回歸
+   * （「認識台中磐石」被誤植為「認識台中磐石足球俱樂部」）。藍鯨的全稱與簡稱目前
+   * 是同一個字串（英文正式全名待確認，見 docs/13-blue-whale-site.md §5），
+   * 兩欄位值相同不代表欄位可以合併。
+   */
+  shortNameZh: string
   themeColor: string
   favicon: { href: string; type: string; sizes?: string }[]
   appleTouchIcon: string
@@ -23,6 +36,7 @@ const CLUB_ASSETS: Record<ClubCode, ClubAssets> = {
   tcrfc: {
     code: 'tcrfc',
     nameZh: '台中磐石足球俱樂部',
+    shortNameZh: '台中磐石',
     themeColor: '#E0218A',
     favicon: [
       { href: '/assets/favicon.ico', type: 'image/x-icon', sizes: '16x16 32x32 48x48' },
@@ -36,6 +50,7 @@ const CLUB_ASSETS: Record<ClubCode, ClubAssets> = {
   bw: {
     code: 'bw',
     nameZh: '台中藍鯨',
+    shortNameZh: '台中藍鯨',
     themeColor: '#2196D5',
     // 🔴 藍鯨只有點陣隊徽主檔（brand/blue-whale/），沒有向量、沒有專屬 favicon／OG 設計。
     // 以下是由官方點陣主檔「裁切＋縮放」產生的網頁圖示（brand/blue-whale/README.md 明列

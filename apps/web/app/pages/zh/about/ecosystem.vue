@@ -12,6 +12,7 @@ const identity = computed(() => getClubIdentity(clubKey.value))
 const assets = computed(() => getClubAssets(clubKey.value))
 const hero = computed(() => ECOSYSTEM_HERO[clubKey.value])
 const nodes = computed(() => ECOSYSTEM_NODES[clubKey.value])
+const title = computed(() => ECOSYSTEM_TITLE[clubKey.value])
 
 useSeoMeta({
   title: computed(() => ECOSYSTEM_SEO[clubKey.value].title),
@@ -41,7 +42,7 @@ useSeoMeta({
 
 <section class="band eco-band" aria-labelledby="eco-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="eco-title">體系圖解</h2>
+    <h2 class="visually-hidden" id="eco-title">{{ title }}</h2>
 
     <div class="eco-diagram">
       <div class="eco-hub">
@@ -49,11 +50,11 @@ useSeoMeta({
         <span v-if="identity.brandTagEn">{{ identity.brandTagEn }}</span>
       </div>
 
-      <a v-for="node in nodes" :key="node.num" class="eco-node" :class="`eco-node--${node.num}`" :href="node.href">
+      <a v-for="node in nodes" :key="node.num" :class="['eco-node', `eco-node--${node.slug}`]" :href="node.href">
         <span class="eco-node__num">{{ node.num }}</span>
         <span class="eco-node__en">{{ node.enLabel }}</span>
         <span class="eco-node__zh">{{ node.zhLabel }}</span>
-        <span class="eco-node__desc">{{ node.descZh }}</span>
+        <span class="eco-node__desc">{{ node.descZh }}<span v-if="node.badgeZh" class="badge">{{ node.badgeZh }}</span></span>
       </a>
     </div>
 

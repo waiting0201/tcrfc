@@ -253,8 +253,8 @@ onBeforeUnmount(() => {
             <h1 class="hero__headline" v-html="heroCopy.headlineZh"></h1>
             <p class="hero__sub" v-html="heroCopy.factLineZh"></p>
             <div class="hero__ctas">
-              <a class="btn btn--primary" href="/zh/join/player/">加入球隊</a>
-              <a class="btn btn--light" href="/zh/about/">{{ heroCopy.ctaSecondaryLabelZh }}</a>
+              <a class="btn btn--primary" :href="heroCopy.ctaPrimaryHref">加入球隊</a>
+              <a class="btn btn--light" :href="heroCopy.ctaSecondaryHref">{{ heroCopy.ctaSecondaryLabelZh }}</a>
             </div>
             <div v-if="isTcrfc" class="hero__slider-nav">
               <button type="button" class="hero__arrow hero__arrow--prev" data-hero-prev aria-controls="hero-slider" aria-label="上一張主視覺圖片" @click="goTo(current - 1)">
@@ -460,8 +460,8 @@ onBeforeUnmount(() => {
       <!-- 四大支柱／三大體系圖卡沿用既有 mockup 圖片（人物照為磐石既有素材，藍鯨
            無對應照片，兩站共用同一組通用足球場景照，不涉及任何俱樂部辨識內容）。 -->
       <div class="pillars-grid">
-        <a v-for="(pillar, i) in pillars" :key="pillar.enLabel" class="pillar-card clip-card clip-card--on-dark" :href="pillar.href">
-          <img :src="['/assets/img/news-mcu.jpg', '/assets/img/trencin-04.jpg', '/assets/img/trencin-05.jpg', '/assets/img/news-w20.jpg'][i]" alt="" loading="lazy" width="1280" height="853">
+        <a v-for="(pillar, i) in pillars" :id="pillar.id" :key="pillar.enLabel" class="pillar-card clip-card clip-card--on-dark" :href="pillar.href">
+          <img :src="['/assets/img/news-mcu.jpg', '/assets/img/trencin-04.jpg', '/assets/img/trencin-05.jpg', '/assets/img/news-w20.jpg'][i]" :alt="pillar.imgAlt" loading="lazy" :width="pillar.imgWidth" :height="pillar.imgHeight">
           <div class="pillar-card__scrim" aria-hidden="true"></div>
           <div class="pillar-card__body">
             <p class="pillar-card__en">{{ pillar.enLabel }}</p>
@@ -603,7 +603,7 @@ onBeforeUnmount(() => {
   <!-- SPEC 3.1 — Bottom CTA trio (10.1 / 10.2 / 10.5) -->
   <section class="band grain cta-band" id="charity" aria-labelledby="cta-title">
     <div class="band-inner container">
-      <h2 class="visually-hidden" id="cta-title">加入{{ assets.nameZh }}</h2>
+      <h2 class="visually-hidden" id="cta-title">加入{{ assets.shortNameZh }}</h2>
       <div class="cta-grid">
         <div v-for="card in ctaTrio" :key="card.num" class="cta-card">
           <p class="cta-card__num">{{ card.num }}</p>

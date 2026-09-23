@@ -178,7 +178,18 @@ export interface HomeHeroCopy {
   headlineZh: string
   /** 「俱樂部名 · 成立年 · 頭銜」這行，只放已核實的既有事實，不臆測戰績 */
   factLineZh: string
+  /**
+   * 「加入球隊」CTA 的連結目標。🔴 磐石逐字沿用 mockup 既有連結 `/zh/charity/`
+   * （site/src/pages/zh/index.html 原文如此，S0-9k 查證：這是既有 mockup 的既定行為，
+   * 不是本次搬遷造成的新錯，依 docs/14-invariants.md「前台改 Nuxt 後必須與現有 mockup
+   * 一模一樣」不得順手改成看起來更合理的 `/zh/join/player/`）。藍鯨沒有 11 慈善單元
+   * （docs/13-blue-whale-site.md §3 已移除），沿用同一個路徑會是真的死連結，
+   * 改指向本站實際存在、語意對得上的加入球員頁。
+   */
+  ctaPrimaryHref: string
   ctaSecondaryLabelZh: string
+  /** 「認識＿＿」CTA 的連結目標，同上一併沿用 mockup 既有值（`/zh/culture/`），藍鯨改指向 about。 */
+  ctaSecondaryHref: string
 }
 
 export const HOME_SEO: ClubText<SeoCopy> = {
@@ -199,7 +210,9 @@ export const HOME_HERO: ClubText<HomeHeroCopy> = {
     kickerEn: 'LOCAL ROOTS. GLOBAL PATHWAYS.',
     headlineZh: '在地扎根<br>放眼世界',
     factLineZh: '台中磐石足球俱樂部 · <b>2024 年創立</b> · <b>2024 全國乙級聯賽冠軍</b>',
+    ctaPrimaryHref: '/zh/charity/',
     ctaSecondaryLabelZh: '認識台中磐石',
+    ctaSecondaryHref: '/zh/culture/',
   },
   bw: {
     kickerEn: 'Taichung Blue Whale rides the waves towards the open ocean',
@@ -208,29 +221,43 @@ export const HOME_HERO: ClubText<HomeHeroCopy> = {
     // 木蘭聯賽冠軍」明文出現次數的計數（2017／2018／2019／2021／2023 共五次），
     // 是核算既有原文，不是新臆測的戰績。
     factLineZh: '台中藍鯨女子足球隊 · <b>2014 年成立</b> · <b>隊史五度奪得木蘭聯賽冠軍</b>',
+    ctaPrimaryHref: '/zh/join/player/',
     ctaSecondaryLabelZh: '認識台中藍鯨',
+    ctaSecondaryHref: '/zh/about/',
   },
 }
 
 export interface PillarCopy {
+  /** 頁內錨點 id（供頁尾／導覽的 #academy 等連結使用）。不是每個支柱都有。 */
+  id?: string
   enLabel: string
   zhLabel: string
   linkLabelZh: string
   href: string
+  /**
+   * 卡片圖片的無障礙敘述。🔴 磐石逐字沿用 mockup 原文（描述真實照片內容）；
+   * 藍鯨目前重用同一組通用足球場景照（不是藍鯨自己的照片，見樣板檔頭註解），
+   * 依 WCAG 對「純裝飾、與旁邊文字敘述無關的重用圖片」的建議留空字串，
+   * 不得沿用磐石照片的敘述文字（那會誤植成藍鯨的真人真事）。
+   */
+  imgAlt: string
+  /** 卡片圖片的原始尺寸（縮圖後主檔尺寸），須與實際圖檔一致以避免 CLS。 */
+  imgWidth: number
+  imgHeight: number
 }
 
 /** 首頁四大支柱／三大體系。藍鯨移除自我指涉節點（女子足球），04 依 docs/13 §3 改為青年隊。 */
 export const HOME_PILLARS: ClubText<PillarCopy[]> = {
   tcrfc: [
-    { enLabel: 'FOOTBALL CLUB', zhLabel: '台中磐石足球俱樂部', linkLabelZh: '了解一線隊', href: '/zh/schedule/' },
-    { enLabel: 'ACADEMY', zhLabel: '台中磐石足球學院', linkLabelZh: '認識學院', href: '/zh/academy/' },
-    { enLabel: 'PROGRAMS', zhLabel: '課程與活動', linkLabelZh: '查看課表', href: '/zh/programs/' },
-    { enLabel: "WOMEN'S FOOTBALL", zhLabel: '女子足球', linkLabelZh: '認識藍鯨', href: '/zh/womens/' },
+    { enLabel: 'FOOTBALL CLUB', zhLabel: '台中磐石足球俱樂部', linkLabelZh: '了解一線隊', href: '/zh/schedule/', imgAlt: '台中磐石一線隊夜間比賽出戰畫面', imgWidth: 1280, imgHeight: 855 },
+    { id: 'academy', enLabel: 'ACADEMY', zhLabel: '台中磐石足球學院', linkLabelZh: '認識學院', href: '/zh/academy/', imgAlt: '台中磐石足球學院青少年球員於斯洛伐克進行交流賽', imgWidth: 1920, imgHeight: 1279 },
+    { id: 'programs', enLabel: 'PROGRAMS', zhLabel: '課程與活動', linkLabelZh: '查看課表', href: '/zh/programs/', imgAlt: '足球課程訓練現場，教練以障礙錐引導球員進行帶球練習', imgWidth: 1920, imgHeight: 1279 },
+    { id: 'womens', enLabel: "WOMEN'S FOOTBALL", zhLabel: '女子足球', linkLabelZh: '認識藍鯨', href: '/zh/womens/', imgAlt: '女子足球比賽畫面', imgWidth: 1280, imgHeight: 853 },
   ],
   bw: [
-    { enLabel: 'FIRST TEAM', zhLabel: '台中藍鯨一線隊', linkLabelZh: '了解一線隊', href: '/zh/club/first-team/' },
-    { enLabel: 'YOUTH', zhLabel: '青年隊', linkLabelZh: '認識青年隊', href: '/zh/academy/' },
-    { enLabel: 'PROGRAMS', zhLabel: '推廣活動', linkLabelZh: '查看活動', href: '/zh/programs/' },
+    { enLabel: 'FIRST TEAM', zhLabel: '台中藍鯨一線隊', linkLabelZh: '了解一線隊', href: '/zh/club/first-team/', imgAlt: '', imgWidth: 1280, imgHeight: 855 },
+    { id: 'academy', enLabel: 'YOUTH', zhLabel: '青年隊', linkLabelZh: '認識青年隊', href: '/zh/academy/', imgAlt: '', imgWidth: 1920, imgHeight: 1279 },
+    { id: 'programs', enLabel: 'PROGRAMS', zhLabel: '推廣活動', linkLabelZh: '查看活動', href: '/zh/programs/', imgAlt: '', imgWidth: 1920, imgHeight: 1279 },
   ],
 }
 
@@ -558,25 +585,49 @@ export const ECOSYSTEM_HERO: ClubText<HeroCopy> = {
 
 export interface EcoNode {
   num: string
+  /**
+   * 語意化的 CSS 修飾字（class 會拼成 `eco-node--${slug}`）。🔴 S0-9k 修正：舊版直接用
+   * `num`（3／4／5／6）拼 class，跟 mockup 的 `eco-node--club`／`--academy`／`--programs`／
+   * `--womens` 對不上——純粹是 DOM 命名忠實度問題（`tcrfc.css` 與頁內 `<style>` 都沒有任何
+   * 選擇器吃這幾個 class，grep 零命中，不影響視覺），不是文案，不受紀律 11 的內容規範約束。
+   */
+  slug: string
   enLabel: string
   zhLabel: string
   descZh: string
+  /**
+   * 只有磐石「女子足球」節點有的官網入口徽章（`<span class="badge">`，嵌在
+   * `eco-node__desc` 內、緊接在 descZh 文字後面）。藍鯨沒有這個節點，其餘節點皆無徽章。
+   */
+  badgeZh?: string
   href: string
 }
 
 /** 藍鯨拿掉自我指涉節點（女子足球→本站），04 依 docs/13 §3 改為青年隊。 */
 export const ECOSYSTEM_NODES: ClubText<EcoNode[]> = {
   tcrfc: [
-    { num: '3', enLabel: 'Football Club', zhLabel: '一線隊', descZh: '征戰企業甲級聯賽的球隊本體，代號 First Team / 一線隊。', href: '/zh/club/' },
-    { num: '4', enLabel: 'Academy', zhLabel: '台中磐石足球學院', descZh: 'U15／U14／U12 三個梯隊，銜接一線隊的青訓體系。', href: '/zh/academy/' },
-    { num: '5', enLabel: 'Programs', zhLabel: '課程與活動', descZh: '兒童足球訓練、夏／冬令營、專項訓練與校園社區計畫。', href: '/zh/programs/' },
-    { num: '6', enLabel: "Women's Football", zhLabel: '女子足球', descZh: '台中藍鯨女子隊，設有獨立的官方網站。', href: '/zh/womens/' },
+    { num: '3', slug: 'club', enLabel: 'Football Club', zhLabel: '一線隊', descZh: '征戰企業甲級聯賽的球隊本體，代號 First Team / 一線隊。', href: '/zh/club/' },
+    { num: '4', slug: 'academy', enLabel: 'Academy', zhLabel: '台中磐石足球學院', descZh: 'U15／U14／U12 三個梯隊，銜接一線隊的青訓體系。', href: '/zh/academy/' },
+    { num: '5', slug: 'programs', enLabel: 'Programs', zhLabel: '課程與活動', descZh: '兒童足球訓練、夏／冬令營、專項訓練與校園社區計畫。', href: '/zh/programs/' },
+    { num: '6', slug: 'womens', enLabel: "Women's Football", zhLabel: '女子足球', descZh: '台中藍鯨女子隊，設有獨立的官方網站。', badgeZh: '官網入口', href: '/zh/womens/' },
   ],
   bw: [
-    { num: '3', enLabel: 'First Team', zhLabel: '一線隊', descZh: '出戰台灣木蘭足球聯賽的球隊本體。', href: '/zh/club/' },
-    { num: '4', enLabel: 'Youth', zhLabel: '青年隊', descZh: 'U15／U12 青少年女子足球隊，銜接一線隊的青訓體系。', href: '/zh/academy/' },
-    { num: '5', enLabel: 'Programs', zhLabel: '推廣活動', descZh: '社區足球學校、運動熱區課程、教練講習與足球節。', href: '/zh/programs/' },
+    { num: '3', slug: 'club', enLabel: 'First Team', zhLabel: '一線隊', descZh: '出戰台灣木蘭足球聯賽的球隊本體。', href: '/zh/club/' },
+    { num: '4', slug: 'youth', enLabel: 'Youth', zhLabel: '青年隊', descZh: 'U15／U12 青少年女子足球隊，銜接一線隊的青訓體系。', href: '/zh/academy/' },
+    { num: '5', slug: 'programs', enLabel: 'Programs', zhLabel: '推廣活動', descZh: '社區足球學校、運動熱區課程、教練講習與足球節。', href: '/zh/programs/' },
   ],
+}
+
+/**
+ * 2.6 生態系頁 `<h2 id="eco-title">` 視覺隱藏標題——文字裡的「N 大」對應 ECOSYSTEM_NODES
+ * 節點數（磐石 4 個、藍鯨 3 個），是對既有資料的計數描述，不是新臆測的俱樂部事實，
+ * 不受紀律 11「藍鯨文案只能引用舊站原文」的限制（那條管的是俱樂部自己的敘事與事實，
+ * 不是這種依資料筆數而定的功能性標題）。🔴 S0-9k 修正：磐石那份原值應為「四大體系圖解」，
+ * 舊版被改寫成通用的「體系圖解」（回歸，見 docs/18-work-errors.md）。
+ */
+export const ECOSYSTEM_TITLE: ClubText<string> = {
+  tcrfc: '四大體系圖解',
+  bw: '三大體系圖解',
 }
 
 // 2.7 俱樂部歷程
@@ -839,6 +890,18 @@ export const JOIN_INDEX_HERO: ClubText<HeroCopy> = {
 export const JOIN_ACADEMY_CARD: ClubText<{ titleZh: string; descZh: string }> = {
   tcrfc: { titleZh: '加入學院／兒童訓練', descZh: '學院 U12／U14／U15 梯隊，或兒童訓練的混齡、初學、技巧發展班，同一份表單完成報名。' },
   bw: { titleZh: '加入青年隊', descZh: 'U15／U12 青少年女子足球隊招募，報名資格與費用請洽俱樂部。' },
+}
+
+/**
+ * 10.4 國際球員詢問卡片英文說明——磐石有確認的英文縮寫可用（TCRFC），藍鯨的英文正式全名
+ * 尚待客戶確認（`identity.brandTagEn` 對藍鯨一律 null，docs/13-blue-whale-site.md §5
+ * 第 2 項、踩雷點 17），不得自行挑一個填進句子裡，改沿用原句已有的中性寫法「for us」。
+ * 🔴 S0-9k 修正：舊版把這句英文寫死成「for us」套用給兩家，磐石那份因此遺失 mockup
+ * 原文裡的「TCRFC」（回歸，見 docs/18-work-errors.md）。
+ */
+export const JOIN_INTL_DESC: ClubText<string> = {
+  tcrfc: 'Interested in playing for TCRFC in Taiwan? Tell us about yourself and your football background.',
+  bw: 'Interested in playing for us in Taiwan? Tell us about yourself and your football background.',
 }
 
 export const JOIN_CONTACT_SEO: ClubText<SeoCopy> = {

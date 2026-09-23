@@ -267,6 +267,40 @@ const RETIRED_ROUTES = new Map([
       '同上——apps/web 的 ESLint 規則 link-checker/valid-route（npm run lint:eslint），' +
       '2026-09-23 實測本頁 0 個 valid-route error。',
   }],
+  ['/zh/', {
+    why:
+      '首頁。與上面幾頁同一種成因：site/src/pages/zh/index.html 的「最新消息」新聞卡片' +
+      '5 個 <a> 全部寫死 {{ROOT}}/zh/news/article/，S0-9f 後 Nuxt 端正確輸出各自的 ' +
+      '/zh/news/<slug>/。2026-09-23 S0-9k 收尾重跑，逐筆核對本頁僅存的 5 筆差異，' +
+      '**全部是「屬性 href」且全部是 /zh/news/article/ → /zh/news/<slug>/ 這一種型態，' +
+      '零例外**（用 --json 輸出逐筆比對 expected/actual 驗證，不是抽查）。\n' +
+      '🔴 本頁一度跟 /zh/news/club/ 等 4 頁一起被查過，但**刻意排除在當時的退役清單外**' +
+      '——原因是那時本頁同時混著至少一種跟新聞連結無關的真差異（S0-9k 逐筆核對確認：' +
+      '首頁 hero 兩個 CTA 連到錯的頁面、四大支柱卡片 4 張圖片 alt 被清空、其中 3 張' +
+      'width／height 不對、academy／programs／womens 三個錨點 id 消失）。S0-9k 把這些' +
+      '真差異全部修掉之後重跑比對，本頁現在跟上面幾頁一樣，唯一剩下的差異只有新聞卡片' +
+      'href——已經符合退役條件，這才補進本清單，不是繞過「先修真 bug 再退役」的原則。',
+    covered_by:
+      '**跟上面幾頁不同，不是只有 link-checker/valid-route**——本頁除了新聞卡片連結，' +
+      '還有 hero 兩個 CTA 與四大支柱卡片的 id／href／img alt／width／height（S0-9k 這次' +
+      '修的正是這些），這些內容退役後不會再跟 site/dist 比對，link-checker/valid-route ' +
+      '驗不到 alt／尺寸／錨點 id。所以本頁的 covered_by 是**兩項合起來**：\n' +
+      '① apps/web 的 ESLint 規則 link-checker/valid-route（npm run lint:eslint）——' +
+      '涵蓋新聞卡片 href 確實指向真實路由，2026-09-23 實測本頁 0 個 valid-route error；\n' +
+      '② apps/web 的 scripts/check-homepage-fidelity.mjs（npm run lint:homepage-fidelity，' +
+      '已掛進 npm run lint、排在 lint:eslint 之前）——直接讀 site/src/pages/zh/index.html ' +
+      '解析出 hero 兩個 CTA（ctaPrimaryHref／ctaSecondaryHref／ctaSecondaryLabelZh）與' +
+      '四張支柱卡片的 id／href／img alt／width／height 共 23 個欄位期望值，逐一核對' +
+      'shared/utils/club-copy.ts 的 HOME_HERO.tcrfc／HOME_PILLARS.tcrfc 對不對得上，' +
+      '對不上會指出是哪一張卡片的哪一個欄位。2026-09-23 用這次修過的四個真實回歸值' +
+      '（imgAlt 清空、id 拿掉、imgHeight 改錯、ctaPrimaryHref 改錯）逐一驗證過會被抓到、' +
+      '訊息指得出具體位置，修回去後 exit 0。\n' +
+      '⚠️ **範圍要老實承認**：這兩項合起來仍然**不是整頁的逐點核對**——CTA 三卡' +
+      '（10.1／10.2／10.5）、贊助商牆、官方商店帶、賽事行事曆帶、一線隊球員橫幅完全沒有' +
+      '自動驗收（這些是 API／動態資料驅動，或這次沒有改動過的內容，check-homepage-fidelity.mjs ' +
+      '檔頭「涵蓋範圍」一節有列清楚不涵蓋什麼）。如果之後這些區塊也發生類似的資料層回歸，' +
+      '不會被這兩項擋下來，需要另外查證後擴充覆蓋範圍，不能假設本頁已經全面受保護。',
+  }],
 ]);
 
 // 🔴 這是整份退役機制的重點防呆：缺 covered_by（或缺 why）就讓工具直接拒絕執行，

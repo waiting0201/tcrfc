@@ -9,6 +9,7 @@ const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const hero = computed(() => JOIN_INDEX_HERO[clubKey.value])
 const academyCard = computed(() => JOIN_ACADEMY_CARD[clubKey.value])
+const intlDesc = computed(() => JOIN_INTL_DESC[clubKey.value])
 
 useSeoMeta({
   title: computed(() => JOIN_INDEX_SEO[clubKey.value].title),
@@ -68,7 +69,7 @@ useSeoMeta({
       <div class="cta-card">
         <p class="cta-card__num">10.4</p>
         <p class="cta-card__title">International Player Enquiries</p>
-        <p class="cta-card__desc">Interested in playing for us in Taiwan? Tell us about yourself and your football background.</p>
+        <p class="cta-card__desc">{{ intlDesc }}</p>
         <a class="btn btn--primary" href="/zh/join/international-player/">International Enquiries</a>
       </div>
       <div class="cta-card">

@@ -234,9 +234,33 @@ mockup 從來沒有逐篇文章頁）改成 Nuxt 逐篇 `/zh/news/<slug>/`——
    這次任務的修復範圍**（詳細差異內容見對應的交付報告，這裡不重複列出，避免文件跟程式碼
    兩處各寫一份、之後對不上）。
 
-**只有第 1 組（5 頁）進了 `compare-dom.mjs` 的 `RETIRED_ROUTES`**，第 2、3 組（合計 8 頁）
-**維持在失敗清單裡**（第 3 組那 6 頁已登記為 `STATUS.md` 的 `S0-9k`），`npm run` 這支工具現在仍會對這 8 頁回報差異——這是刻意的：
-退役機制的目的是「基準本身不代表正確答案時換一種驗法」，不是「跟這次改動有關的差異都算了」。
+**當下只有第 1 組（5 頁）進了 `compare-dom.mjs` 的 `RETIRED_ROUTES`**，第 2、3 組（合計 8 頁）
+維持在失敗清單裡——退役機制的目的是「基準本身不代表正確答案時換一種驗法」，
+不是「跟這次改動有關的差異都算了」。
+
+### 🔵 同日稍晚：第 3 組那 6 頁**全部修掉了**，`zh/index.html` 隨後也符合退役條件
+
+第 3 組（`zh/index.html`／`zh/about/ecosystem/`／`zh/about/`／`zh/about/milestones/`／
+`zh/club/first-team/`／`zh/join/`）登記為 `STATUS.md` 的 `S0-9k` 之後立刻派工修完。
+**成因是同一件事**：這幾頁為了跟藍鯨共用而從靜態 HTML 改成資料驅動（`shared/utils/club-copy.ts`
+的 `ClubText<T>`），但**磐石那一份的值沒有照 mockup 原值填**——`PillarCopy` 介面少了
+`id`／`imgAlt`／`imgWidth`／`imgHeight` 四個欄位，首頁 12 筆差異有 11 筆出自這一個原因。
+⚠️ **這不是「一模一樣」與「兩站共用」互相衝突**：`ClubText` 的 `tcrfc` 那一份本來就該放
+mockup 的逐字原值，機制沒錯，是填錯了。
+
+修完之後 `zh/index.html` 只剩 5 筆新聞卡 href 差異、**逐筆核對零例外**，與第 1 組同一個成因。
+**使用者 2026-09-23 裁決：退役，但不准沿用其他 5 頁的 `covered_by`**——
+首頁退役等於整頁 DOM 不再比對，而 `link-checker/valid-route` 只驗得了連結，
+首頁的 hero、四大支柱、CTA 三卡從此沒有任何自動驗收。
+因此**先寫出接手的檢查才退役**：新增 `apps/web/scripts/check-homepage-fidelity.mjs`，
+從 `site/src/pages/zh/index.html`（選 `src` 不選 `dist`：前者納管、是真實來源，後者只是產物）
+解析出 hero 兩個 CTA 與四大支柱卡片的 `id`／`href`／`alt`／`width`／`height` 共 23 個欄位，
+逐一要求 `HOME_PILLARS.tcrfc`／`HOME_HERO.tcrfc` 對得上；
+**讀不到 mockup 時 fail-loud（exit 1）**，不會安靜跳過——`site/` 退場時這支腳本要一起處理，
+檔頭寫明了這個相依。
+
+**目前狀態：`passed=72 / failed=2 / retired=6`**，紅燈只剩第 2 組（`B-15`，等客戶確認
+intcup 6 篇文章的分類歸屬）。
 
 **退役頁面清單（`RETIRED_ROUTES`）的設計**，完整規則與逐條理由在
 [`compare-dom.mjs`](compare-dom.mjs) 檔頭「退役頁面清單」一節，這裡只列摘要：
@@ -246,7 +270,7 @@ mockup 從來沒有逐篇文章頁）改成 Nuxt 逐篇 `/zh/news/<slug>/`——
   （整頁不再進入 DOM 比對）。兩者都是封閉清單、都沒有 CLI 旁路，但退役清單多一條硬性規定：
   **每一筆都必須同時有 `why`（為什麼不能再用 site/dist 當基準）與 `covered_by`（改由哪一個
   檢查接手驗這一頁）**，缺一個工具就直接拒絕執行（`process.exit(1)`，在做任何比對之前）。
-- 4 筆的 `covered_by` 都是同一個真實存在、已核對過的檢查：`apps/web` 的 ESLint 規則
+- 新聞單元那 5 筆的 `covered_by` 都是同一個真實存在、已核對過的檢查：`apps/web` 的 ESLint 規則
   `link-checker/valid-route`（`npm run lint:eslint`，由 `@nuxtjs/seo` 內建的
   `nuxt-link-checker` 模組提供，等級是 **error**）。2026-09-23 實測 `npx eslint .` 對這
   5 頁全部回 0 個 `valid-route` error，證明目前產出的新聞卡片連結確實都指向真實路由；
@@ -255,6 +279,12 @@ mockup 從來沒有逐篇文章頁）改成 Nuxt 逐篇 `/zh/news/<slug>/`——
   DOM 內容的逐點正確性——這是誠實的降級，因為這 5 頁**目前唯一的已知差異就是 href**，
   `covered_by` 精準對應被退役的那個差異本身；如果之後這幾頁的其他內容（卡片版型、圖片、
   文字）另外壞掉，`link-checker/valid-route` 不會抓到，這是退役機制天生的盲區。
+- 🔴 **`/zh/`（首頁）那一筆的 `covered_by` 是兩項合起來**，刻意跟上面 5 筆不同：
+  ① `link-checker/valid-route`（涵蓋新聞卡 href）② `check-homepage-fidelity.mjs`（涵蓋 hero
+  CTA 與四大支柱的 `id`／`href`／`alt`／寬高）。**範圍一樣要老實承認**：兩項合起來仍不是整頁
+  逐點核對，CTA 三卡、贊助商牆、商店帶、賽事帶都沒有自動驗收。
+  ⚠️ 刻意**不**把涵蓋範圍做大——解析愈多，腳本對 mockup 的 HTML 結構就愈脆弱，
+  而 mockup 本來就要退場；釘住的是**這次真的回歸過的那批值**，不是「能釘多少釘多少」。
 - **報告輸出**：通過／失敗／退役三個數字分開印（`--json` 輸出新增 `retired` 欄位，
   `results` 陣列裡退役項目帶 `retired: true`／`route`／`why`／`coveredBy`）。退役頁逐頁列出
   route 與 `covered_by`；退役頁數不為 0 時，結尾摘要一定會印「N 頁已退出 site/dist
@@ -264,9 +294,9 @@ mockup 從來沒有逐篇文章頁）改成 Nuxt 逐篇 `/zh/news/<slug>/`——
 **2026-09-23 實測結果**（`apps/web` build ＋ 本機跑 ＋ `apps/api` 連 `tcrfc_club_dev`）：
 
 ```
-比對 75 頁，另有 5 頁已退出 site/dist 基準
-共 8/75 頁有差異（67 頁乾淨）
-🔵 另有 5 頁已退出 site/dist 基準（不計入上面的通過或失敗數字）
+比對 74 頁，另有 6 頁已退出 site/dist 基準
+共 2/74 頁有差異（72 頁乾淨）
+🔵 另有 6 頁已退出 site/dist 基準（不計入上面的通過或失敗數字）
 ```
 
 **驗證方式**：① 暫時清空 `RETIRED_ROUTES` 重跑，結果與退役機制加入前完全一致（80 頁中
@@ -274,11 +304,17 @@ mockup 從來沒有逐篇文章頁）改成 Nuxt 逐篇 `/zh/news/<slug>/`——
 的 `covered_by` 重跑，工具在做任何比對之前就印錯誤訊息並 `exit 1`；復原後重跑回到
 `exit 1`（因為仍有 8 頁真差異未解決，這是預期行為，不是退役機制的問題）。
 
-**尚未做、留給後續**：上面第 2、3 組合計 8 頁**仍然是紅燈**，需要下一輪任務分別處理——
-第 2 組要等 intcup 6 篇文章的分類歸屬由客戶確認；第 3 組（含 `zh/index.html` 的非新聞部分）
-是與本次任務無關的既有 bug，需要另外派工排查（`zh/index.html`／`zh/about/*`／
-`zh/club/first-team/`／`zh/join/`）。這兩組**都不能比照這次的做法退役**——它們不是「基準本身
-不代表正確答案」，是「Nuxt 端還有東西沒做對」，繼續留著紅燈才是正確狀態。
+**尚未做、留給後續**：只剩第 2 組 2 頁（`zh/news/camps-events/`、`zh/news/match/`）是紅燈，
+要等 intcup 6 篇文章的分類歸屬由客戶確認（`STATUS.md` `B-15`）。
+⛔ **這 2 頁不能比照首頁退役**——它們不是「基準本身不代表正確答案」，
+是「這批文章該歸哪一類還沒定案」，**紅燈是正確狀態**，定案之前不該讓它變綠。
+
+🔴 **另有一個涵蓋落差要知道**（`STATUS.md` `S0-9m`、`docs/18` `E-42`）：
+`docs/14-invariants.md` 的不變量寫的是「**body** 的 DOM 結構、class 名稱、元素順序與文字內容
+一律不動」，但這支工具**只比對 `<main>`**——**頁首與頁尾在不變量範圍內、卻在工具範圍外**。
+2026-09-23 已經真的漏掉一個（`ClubAssets.nameZh` 誤用讓頁首頁尾每一頁都印錯文案，
+被抓到純粹是因為同一個誤用剛好也命中了 `<main>` 裡的兩處）。**改 layout 層的東西時，
+這道關卡不會替你把關。**
 
 ---
 

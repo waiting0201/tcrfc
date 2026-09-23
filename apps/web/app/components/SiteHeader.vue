@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-about.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/about/our-story/">認識{{ assets.nameZh }}</a>
+                  <a class="btn btn--primary btn--sm" href="/zh/about/our-story/">認識{{ assets.shortNameZh }}</a>
                 </div>
               </div>
             </div>
@@ -275,8 +275,8 @@ onBeforeUnmount(() => {
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/culture/manga/">8.1 {{ assets.nameZh }}漫畫</a></li>
-                  <li><a href="/zh/culture/fan-club/">8.2 {{ assets.nameZh }}球迷會</a></li>
+                  <li><a href="/zh/culture/manga/">8.1 {{ assets.shortNameZh }}漫畫</a></li>
+                  <li><a href="/zh/culture/fan-club/">8.2 {{ assets.shortNameZh }}球迷會</a></li>
                   <li><a href="/zh/culture/merchandise/">8.3 官方商品</a></li>
                   <li><a href="/zh/shop/">8.3 官方商店 SHOP</a></li>
                   <li><a href="/zh/perks/">8.4 特約店家</a></li>

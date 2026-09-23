@@ -46,7 +46,7 @@ const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
           </ul>
         </div>
         <div class="footer-col">
-          <h4>參與{{ assets.nameZh }}</h4>
+          <h4>參與{{ assets.shortNameZh }}</h4>
           <ul>
             <li><a href="/zh/culture/">{{ identity.cultureLabelZh }}</a></li>
             <li><a href="/zh/shop/">官方商店</a></li>
@@ -59,7 +59,7 @@ const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
         </div>
         <div class="footer-col newsletter">
           <h4>訂閱電子報</h4>
-          <p>第一時間收到{{ assets.nameZh }}賽事戰報與活動資訊。</p>
+          <p>第一時間收到{{ assets.shortNameZh }}賽事戰報與活動資訊。</p>
           <form @submit.prevent>
             <label class="visually-hidden" for="newsletter-email">電子郵件地址</label>
             <input type="email" id="newsletter-email" placeholder="輸入您的 Email" autocomplete="email" required>

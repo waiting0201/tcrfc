@@ -43,7 +43,7 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">EIGHT CHAPTERS</p>
-        <h2 class="section-title" id="about-nav-title">認識{{ assets.nameZh }}</h2>
+        <h2 class="section-title" id="about-nav-title">認識{{ assets.shortNameZh }}</h2>
       </div>
       <p class="section-lede">從故事、理念到治理，逐篇了解{{ assets.nameZh }}。</p>
     </div>

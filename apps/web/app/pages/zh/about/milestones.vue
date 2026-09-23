@@ -49,16 +49,16 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
   </div>
 </section>
 
-<section v-if="clubKey !== 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title">
+<section v-if="clubKey !== 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title-bw">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="milestones-title">重要里程碑</h2>
+    <h2 class="visually-hidden" id="milestones-title-bw">重要里程碑</h2>
     <p class="section-lede">本頁的年份篩選時間軸尚未依藍鯨資料重建，完整的 2014～2025 逐年沿革請見 <a href="/zh/about/history/">2.7 俱樂部歷程</a>。</p>
   </div>
 </section>
 
-<section v-if="clubKey === 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title-tcrfc">
+<section v-if="clubKey === 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="milestones-title-tcrfc">重要里程碑時間軸</h2>
+    <h2 class="visually-hidden" id="milestones-title">重要里程碑時間軸</h2>
 
     <div class="year-filter" role="group" aria-label="選擇年份">
       <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">全部</button>
