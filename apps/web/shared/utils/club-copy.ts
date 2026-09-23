@@ -74,20 +74,33 @@ export interface ClubIdentity {
   aboutLabelZh: string
   /** 08 單元的「＿＿文化」文字（mega menu／footer 共用） */
   cultureLabelZh: string
-  /** 04 單元導覽標籤——磐石是「足球學院」，藍鯨依 docs/13-blue-whale-site.md §3 改為「青年隊」 */
+  /** 04 單元導覽標籤的**全名**——磐石是「足球學院」，藍鯨依 docs/13-blue-whale-site.md §3 改為「青年隊」 */
   academyLabelZh: string
   /** 04 單元的行動選單英文標籤——磐石 ACADEMY／藍鯨 YOUTH，同一條 §3 改名依據 */
   academyLabelEn: string
   /**
-   * SiteFooter「加入＿＿」複合句專用的短版標籤，不是 academyLabelZh 的同義詞。
-   * 🔴 S0-9m（2026-09-23）修的正是這兩個欄位被誤當同一個欄位用的 bug（E-42 同一根因
-   * 第二次現形）：mockup 的 footer.html 逐字是「加入學院」，不是「加入足球學院」——
-   * 「學院」是這一句自己的慣用縮寫，不是 academyLabelZh（「足球學院」）去掉「足球」
-   * 兩個字算出來的。磐石值 `學院` 逐字對應 mockup；藍鯨值沿用已核准的 academyLabelZh
-   * （`青年隊`）本身，不是新文案——藍鯨沒有既有的「加入＿＿」原文可以引用，用同一個
-   * 已核准的單元名稱組句是唯一不需要自行創作的作法（紀律 11）。
+   * 04 單元導覽標籤的**短名**，用於各種「＿＿ ＋ 後綴／前綴」的複合句
+   * （SiteFooter／SiteHeader 的「加入＿＿」「＿＿總覽」「＿＿隊伍」「＿＿發展路徑」
+   * 「＿＿教練團」「＿＿生活」「＿＿新聞」，以及 `pages/zh/join/index.vue` 的
+   * 「…與＿＿場地…」）。
+   *
+   * 🔴 跟 `academyLabelZh`（全名）的分界只有「全名／短名」，不是「join／非 join」——
+   * 名稱裡不再帶 `Join` 就是為了不讓下一個人誤以為它只管「加入＿＿」那一句
+   * （S0-9n（2026-09-23）把這個欄位從只用在 SiteFooter「加入＿＿」擴大到 SiteHeader
+   * 另外 8 處非 join 的複合句時，欄位名稱與這段 JSDoc 都沒跟著改，變成名字叫
+   * `academyJoinLabelZh` 卻承載六種非 join 語意——這正是 `E-42`「一個欄位身兼兩種
+   * 語境」同一個根因的第三次現形，發現後當場改名而不是留著錯的名字加註解了事）。
+   *
+   * 🔴 S0-9m（2026-09-23）修的是這個欄位跟 `academyLabelZh` 被誤當同一個欄位用的
+   * bug（`E-42` 第二次現形）：mockup 的 footer.html 逐字是「加入學院」，不是
+   * 「加入足球學院」——「學院」是這一句自己的慣用縮寫，不是 `academyLabelZh`
+   * （「足球學院」）去掉「足球」兩個字算出來的。磐石值 `學院` 逐字對應 mockup；
+   * 藍鯨值沿用已核准的 `academyLabelZh`（`青年隊`）本身，不是新文案——藍鯨沒有
+   * 「加入＿＿」原文可以引用，用同一個已核准的單元短名組句是唯一不需要自行創作
+   * 的作法（紀律 11）；藍鯨恰好全名＝短名（都是「青年隊」），這是巧合不是規則，
+   * 不代表兩個欄位可以合併。
    */
-  academyJoinLabelZh: string
+  academyShortLabelZh: string
   /**
    * 頁首 kicker／SEO 用的英文品牌縮寫。
    * 🔴 藍鯨一律 null——英文正式全名舊站有三種寫法並存，待客戶確認
@@ -116,7 +129,7 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
     cultureLabelZh: '台中磐石文化',
     academyLabelZh: '足球學院',
     academyLabelEn: 'ACADEMY',
-    academyJoinLabelZh: '學院',
+    academyShortLabelZh: '學院',
     brandTagEn: 'TCRFC',
     foundedZh: '2024 年創立',
     slogan: { zh: '在地扎根．放眼世界', en: 'LOCAL ROOTS. GLOBAL PATHWAYS.' },
@@ -135,7 +148,7 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
     cultureLabelZh: '台中藍鯨文化',
     academyLabelZh: '青年隊',
     academyLabelEn: 'YOUTH',
-    academyJoinLabelZh: '青年隊',
+    academyShortLabelZh: '青年隊',
     // 🔴 不得自行選定英文正式全名（舊站並存 Taichung Bluewhale／Taichung Blue
     // Whale Women's Football Team／Taichung blue whale 三種寫法，待客戶確認）。
     brandTagEn: null,

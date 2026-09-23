@@ -10,6 +10,10 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const hero = computed(() => JOIN_INDEX_HERO[clubKey.value])
 const academyCard = computed(() => JOIN_ACADEMY_CARD[clubKey.value])
 const intlDesc = computed(() => JOIN_INTL_DESC[clubKey.value])
+const identity = computed(() => getClubIdentity(clubKey.value))
+// S0-9n（2026-09-23）：10.6「場地位置與地圖」卡片說明字面寫死「學院場地」，藍鯨站因此
+// 殘留磐石 04 單元的舊詞——check-club-brand-leak.mjs 在已宣告完工的保護清單裡抓到。
+// 與 SiteHeader 同一種修法：沿用既有欄位 identity.academyShortLabelZh，不新造文案。
 
 useSeoMeta({
   title: computed(() => JOIN_INDEX_SEO[clubKey.value].title),
@@ -106,7 +110,7 @@ useSeoMeta({
       <a class="clip-card join-info-card" href="/zh/join/location/">
         <p class="join-info-card__num">Location</p>
         <p class="join-info-card__title">場地位置與地圖</p>
-        <p class="join-info-card__desc">訓練基地、主場與學院場地的位置與交通指引。</p>
+        <p class="join-info-card__desc">訓練基地、主場與{{ identity.academyShortLabelZh }}場地的位置與交通指引。</p>
       </a>
       <a class="clip-card join-info-card" href="/zh/join/contact/">
         <p class="join-info-card__num">Contact</p>

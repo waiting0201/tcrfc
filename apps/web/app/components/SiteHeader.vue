@@ -14,6 +14,19 @@
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：導覽本身的「關於＿＿」
 // 「＿＿文化」與社群連結網址含俱樂部名稱／官方帳號，屬於「俱樂部自己的事實」，
 // 從 shared/utils/club-copy.ts 的單一真實來源取值，不得在這裡另外硬編碼一份。
+//
+// S0-9n（2026-09-23）：04 學院 mega menu 主標籤本來就正確用 identity.academyLabelZh
+// （04 單元的全名），但底下 7 個子項目與 1 個 CTA 按鈕字面寫死「學院」，藍鯨站因此
+// 出現「標題說青年隊、子項目說學院」的自相矛盾；07 新聞 mega menu 的「7.3 學院新聞」
+// 同一個形狀，順手一併修。改用 identity.academyShortLabelZh（04 單元的**短名**，
+// club-copy.ts 既有欄位，磐石值＝「學院」逐字對應 mockup、藍鯨值＝「青年隊」）逐字
+// 替換這些位置裡的「學院」二字，磐石端因此渲染結果與 mockup 完全不變。
+// ⚠️ 這個欄位原本叫 academyJoinLabelZh、只給 SiteFooter「加入＿＿」一句用；這次把它
+// 用到本檔 8 處非 join 的複合句時，同一次交付內把欄位改名並改寫 JSDoc（見
+// club-copy.ts `ClubIdentity.academyShortLabelZh` 的說明），不是留著錯的名字加註解——
+// 名字錯了本身就是 E-42 那個根因（一個欄位身兼兩種語境）的同一種現形。
+// ⛔ 只是換詞消除矛盾，不是內容架構決策——這七個子項目該不該對藍鯨保留、藍鯨青年隊
+// 自己的課程架構怎麼寫，等 B-6 藍鯨素材到位後再決定（docs/13 §3）。
 const config = useRuntimeConfig()
 const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
@@ -214,17 +227,17 @@ onBeforeUnmount(() => {
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/academy/overview/">4.1 學院總覽</a></li>
-                  <li><a href="/zh/academy/teams/">4.2 學院隊伍</a></li>
-                  <li><a href="/zh/academy/pathway/">4.3 學院發展路徑</a></li>
+                  <li><a href="/zh/academy/overview/">4.1 {{ identity.academyShortLabelZh }}總覽</a></li>
+                  <li><a href="/zh/academy/teams/">4.2 {{ identity.academyShortLabelZh }}隊伍</a></li>
+                  <li><a href="/zh/academy/pathway/">4.3 {{ identity.academyShortLabelZh }}發展路徑</a></li>
                   <li><a href="/zh/academy/curriculum/">4.4 訓練課程與課綱</a></li>
-                  <li><a href="/zh/academy/coaches/">4.5 學院教練團</a></li>
-                  <li><a href="/zh/academy/life/">4.6 學院生活</a></li>
-                  <li><a href="/zh/academy/join/">4.7 加入學院</a></li>
+                  <li><a href="/zh/academy/coaches/">4.5 {{ identity.academyShortLabelZh }}教練團</a></li>
+                  <li><a href="/zh/academy/life/">4.6 {{ identity.academyShortLabelZh }}生活</a></li>
+                  <li><a href="/zh/academy/join/">4.7 加入{{ identity.academyShortLabelZh }}</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-academy.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/join/academy/">加入學院</a>
+                  <a class="btn btn--primary btn--sm" href="/zh/join/academy/">加入{{ identity.academyShortLabelZh }}</a>
                 </div>
               </div>
             </div>
@@ -256,7 +269,7 @@ onBeforeUnmount(() => {
                 <ul class="mega__list">
                   <li><a href="/zh/news/club/">7.1 俱樂部新聞</a></li>
                   <li><a href="/zh/news/match/">7.2 比賽報導</a></li>
-                  <li><a href="/zh/news/academy/">7.3 學院新聞</a></li>
+                  <li><a href="/zh/news/academy/">7.3 {{ identity.academyShortLabelZh }}新聞</a></li>
                   <li><a href="/zh/news/player-stories/">7.4 球員故事</a></li>
                   <li><a href="/zh/news/international/">7.5 國際動態</a></li>
                   <li><a href="/zh/news/camps-events/">7.6 營隊與活動</a></li>

@@ -42,7 +42,7 @@ const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
             <li><a href="/zh/programs/">課程與活動</a></li>
             <li v-if="showWomens"><a href="/zh/womens/">女子足球</a></li>
             <li><a href="/zh/join/player/">加入球隊</a></li>
-            <li><a href="/zh/academy/join/">加入{{ identity.academyJoinLabelZh }}</a></li>
+            <li><a href="/zh/academy/join/">加入{{ identity.academyShortLabelZh }}</a></li>
           </ul>
         </div>
         <div class="footer-col">
