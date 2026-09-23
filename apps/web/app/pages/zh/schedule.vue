@@ -27,7 +27,7 @@
 // 月曆檢視沿用原本「JS 組字串塞 innerHTML」的做法（原本就是純 client 產生的內容，
 // SSR 兩邊都是空 div，不影響 compare-dom，改用 Vue 樣板反而要多開一堆狀態
 // 對應不到任何驗收收益）。
-definePageMeta({ nav: 'schedule', unit: '13' })
+definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule' })
 
 const config = useRuntimeConfig()
 const club = config.public.club

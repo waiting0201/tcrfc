@@ -1,22 +1,33 @@
 #!/usr/bin/env node
-// S0-9d ③：DOM 比對回歸關卡（2026-09-21 硬化版）。
+// S0-9d ③：DOM 比對回歸關卡（2026-09-21 硬化版；2026-09-23 S0-9m 擴大比對範圍）。
 //
-// 目的：搬頁到 Nuxt 後，SSR 輸出的 <main id="main"> 內容必須與 site/dist 對應頁
-// 正規化後零差異（docs/14-invariants.md 行 128 附近：「驗收要能被腳本驗證，不是用眼睛看」）。
+// 目的：搬頁到 Nuxt 後，SSR 輸出的整個 <body> 內容必須與 site/dist 對應頁
+// 正規化後零差異（docs/14-invariants.md 行 128 附近：「驗收要能被腳本驗證，不是用眼睛看」；
+// 不變量原文寫的就是 **body** 的 DOM 結構、class 名稱、元素順序與文字內容一律不動，
+// 不是只有 <main>）。
+//
+// 🔴 2026-09-23（S0-9m）：比對範圍從只比 <main id="main"> 擴大到整個 <body>。
+// 起因：`docs/18-work-errors.md` `E-42` 實際發生過——`ClubAssets.nameZh` 誤用讓頁首
+// 頁尾**每一頁**都印錯文案，這道關卡完全沒反應，純粹是同一個誤用剛好也命中了 <main>
+// 裡的兩處才被抓到。不變量寫的範圍（body）本來就比這支工具驗的範圍（main）大一圈，
+// 差的那一圈（skip-link／utility-bar／header／mobile-nav／mobile-cta-bar／footer）
+// 是「每一頁都有」的區塊，錯了不會有任何東西變紅。以下六類（2026-09-21 拍板）加新增
+// 的第七類（2026-09-23 拍板），適用範圍從「<main> 子樹」一併擴大成「<body> 子樹」——
+// 這些差異的成因是框架機制本身，不是「main 特有」的現象，套用到整個 body 依然成立。
 //
 // 🔴 2026-09-21 定案（使用者拍板）：這支工具過去「列出所有差異讓人判斷」——78 頁幾乎頁頁
 // 有差異，逐頁判斷「這屬不屬於已知的必然差異」等於把腳本關卡退化回目視判斷。**現在的立場是：
-// 把已查證的六類必然差異寫死在下面的正規化規則裡，其餘一律硬性失敗（exit 非 0）。**
+// 把已查證的七類必然差異寫死在下面的正規化規則裡，其餘一律硬性失敗（exit 非 0）。**
 //
-// ⛔⛔⛔ 這六類是封閉清單，不是範例。⛔⛔⛔
+// ⛔⛔⛔ 這七類是封閉清單，不是範例。⛔⛔⛔
 //   - 不提供 --ignore／--allow／--tolerate 之類的旁路參數，永遠不會有。
-//   - 發現任何「看起來應該無害但不屬於這六類」的差異，正確做法是「停下來問」，
-//     不是在這支工具裡加第七類、也不是放寬既有規則的比對範圍。
+//   - 發現任何「看起來應該無害但不屬於這七類」的差異，正確做法是「停下來問」，
+//     不是在這支工具裡加第八類、也不是放寬既有規則的比對範圍。
 //   - 每一類規則的程式碼旁都寫死「為什麼無害」「怎麼查證的」「範圍邊界在哪」——
 //     這份註解是之後判斷「能不能再加一條」的唯一依據，不是裝飾。
 //
 // ============================================================================
-// 六類必然差異（逐條附查證方式與範圍邊界）
+// 七類必然差異（逐條附查證方式與範圍邊界）
 // ============================================================================
 //
 // 【類別 1】{{ROOT}} 相對路徑 → Nuxt 絕對路徑
@@ -33,27 +44,50 @@
 //   跑過這段轉換是恆等函式（value.startsWith('/') 直接原樣傳回），不會意外改動它。
 //   外部連結（http(s)://…）、mailto:、tel:、純錨點（#foo）一律原樣比對，不受影響。
 //
-// 【類別 2】<div id="__nuxt"> 包裹
+// 【類別 2】Nuxt 在 <body> 直屬層級注入的框架掛載／teleport 容器（<div id="__nuxt">、
+//   <div id="teleports">）
 //   為什麼無害：tcrfc.css 的 body{} 規則只有 margin／font／overflow，沒有任何
-//   `body > ` 子選擇器（已用 grep 核對 tcrfc.css 全文，見下方「查證」），多一層 <div>
-//   不會改變任何視覺呈現。
-//   怎麼查證：2026-09-21 實測 Nuxt SSR 輸出（node .output/server/index.mjs），
-//   結構是 <body><div id="__nuxt"><div>…(header/nav/…)<main id="main">…</main>…</div></div></body>。
-//   🔵 **這一類在本工具裡不需要任何正規化程式碼**——findMain() 是不限深度的遞迴搜尋
-//   （walkTree 逐節點比對 tagName === 'main' && id === 'main'），不管 <main> 外面包了
-//   幾層 <div>，找到的都是同一個 <main> 節點，比對範圍從 <main> 的子節點開始，
-//   包裹層本來就不會進入比對樹。這裡刻意保留這段說明性註解，而不是靜默略過，
-//   是因為使用者的六類清單明文列了這一條——沒寫程式碼不代表沒查證過，
-//   是查證結果為「這支工具的比對範圍設計已經免疫這個差異」。
+//   `body > ` 子選擇器（已用 grep 核對 tcrfc.css 全文，見下方「查證」），這兩個 <div>
+//   不會改變任何視覺呈現。`<div id="teleports">` 是 Nuxt 核心（NuxtRoot）無條件輸出的
+//   Vue `<Teleport>` 掛載目標，不管專案有沒有用到 `<Teleport>` 都會印出來；
+//   2026-09-23 實測 `grep -rn Teleport apps/web/app` 全專案零使用，目前這個節點
+//   在任何一頁都是空的（0 個子節點）。
+//   怎麼查證：2026-09-21 實測 Nuxt SSR 輸出（node .output/server/index.mjs），結構是
+//   <body><div id="__nuxt">…</div><div id="teleports"></div><script>…</script>…</body>。
+//   🔴 2026-09-23（S0-9m，比對範圍擴大到整個 <body> 時重新查證）：
+//   - **當時的巢狀層數紀錄已經過期**——舊註解寫的是 `<div id="__nuxt"><div>…</div></div>`
+//     兩層 `<div>`，那多出來的第二層其實是 `app/layouts/default.vue` **自己**的 template
+//     根節點（單一 `<div>` 包住 skip-link／SiteHeader／main／SiteFooter），不是 Nuxt
+//     框架本身的東西。比對範圍還只鎖定 `<main>` 時，這層包裹落在比對範圍外，沒人需要
+//     在意它的存在；但比對範圍要擴大到整個 `<body>` 時，`<body>` 直屬子節點的清單一多一層
+//     虛設的 `<div>` 就會變成真差異（mockup 的 `<body>` 底下 skip-link／utility-bar／
+//     header／mobile-nav／mobile-cta-bar／main／footer 是**直屬**子節點，完全沒有包裹層）。
+//     **做法是修掉根因，不是在工具裡疊第二層特例**：`default.vue` 的 template 改寫成
+//     Vue 3 合法的多根節點（fragment）寫法，不再包那層 `<div>`（那層 `<div>` 本來就沒有
+//     `class`／`id`，同樣已用 grep 核對 tcrfc.css 沒有任何選擇器依賴它存在，拿掉不影響
+//     任何樣式）。改完之後 2026-09-23 重新實測，`<div id="__nuxt">` 的直屬子節點就是
+//     skip-link／header／main／footer 這些真正的內容節點（外加 Vue 多根節點模板本來就會
+//     插入的 Fragment 註解標記 `<!--[-->`／`<!--]-->`，屬於註解節點，預設就不進比對），
+//     只剩 `<div id="__nuxt">` 這一層框架掛載點需要處理，`<div id="teleports">` 是它的
+//     同層手足，不是巢狀在裡面。
+//   - **正規化做法**：`normalizeChildren()`（見程式碼）在組一個節點的子節點清單時，
+//     只要遇到子節點是 `<div id="__nuxt">` 或 `<div id="teleports">`，就把**它自己的子節點**
+//     接進清單裡、取代它本身的位置——不是把這個 `<div>` 當成一個節點去跟 mockup 的某個
+//     節點比較（比較不出結果，mockup 根本沒有這個節點），是承認這個節點本來就不對應
+//     mockup 裡的任何東西，比對時整層跳過。條件寫死成「標籤是 `div` 且 `id` 剛好是
+//     `__nuxt` 或 `teleports`」這兩個值，不是「跳過所有 `<div>`」——這兩個 id 是 Nuxt
+//     核心保留給框架自己用的掛載點，理論上全站唯一，不會跟頁面內容的 `<div>` 撞名。
 //
 // 【類別 3】Nuxt 注入的 modulepreload／importmap 等標籤
 //   為什麼無害：這些標籤（<link rel="modulepreload">、<script type="importmap">）
 //   一律由 Nuxt 寫進 <head>，不會出現在 <body> 或 <main> 裡。
 //   怎麼查證：2026-09-21 對 zh/about/ 實測輸出，'modulepreload' 與 'importmap' 兩個
-//   字串只出現在 <head> 內；<main id="main"> 到 </main> 之間的子字串完全不含這兩個字串
-//   （用 Node 直接切片驗證，不是用肉眼掃）。
-//   🔵 跟類別 2 一樣：本工具只比對 <main> 子樹，這一類差異天生不會進入比對範圍，
-//   不需要正規化程式碼，這段註解是查證紀錄，不是待辦。
+//   字串只出現在 <head> 內；<body> 到 </body> 之間的子字串完全不含這兩個字串
+//   （用 Node 直接切片驗證，不是用肉眼掃；2026-09-23 比對範圍擴大到整個 <body> 後
+//   重新驗證過同一件事，結論不變——這兩個字串仍然只出現在 <head>）。
+//   🔵 這一類不需要正規化程式碼：<head> 本來就不在 <body> 的比對範圍內
+//   （findBody() 只找 <body> 元素，<head> 整個不會進入正規化後的比對樹），
+//   這段註解是查證紀錄，不是待辦。
 //
 // 【類別 4】頁面 <style>／<script> 由 <main> 內移到 SFC 頂層
 //   為什麼無害：<style>／<script> 本身不是可視內容（不渲染成畫面元素），搬到 SFC 頂層
@@ -126,8 +160,33 @@
 //       才會打開；第二個、第三個……option 上的任何 selected 差異，或反方向
 //       （expected 有 selected 但 actual 沒有）一律真差異，不套用這條規則。
 //
+// 【類別 7】<form onsubmit="return false;">（mockup）vs <form @submit.prevent>（Vue）
+//   （2026-09-23，S0-9m，使用者拍板新增；範圍刻意收到極窄，只認一種型態）
+//   為什麼無害：兩者是同一件事的兩種寫法。mockup 是純靜態 HTML，沒有框架可以攔截
+//   submit 事件，只能用內聯 `onsubmit="return false;"` 這種「回傳 false 取消預設送出行為」
+//   的舊式寫法；Vue 的 `@submit.prevent` 修飾子編譯成 `addEventListener('submit', e =>
+//   { e.preventDefault(); ... })` 這種事件監聽器，**不會**出現在 SSR 輸出的屬性列表裡
+//   （事件監聽器是 client-side JS 行為，不是靜態屬性），所以 Vue 端的 <form> 標籤上
+//   完全沒有 onsubmit 屬性。兩者實際行為完全相同（送出時都會阻止瀏覽器預設的整頁
+//   導轉／重新整理），差異只是「用內聯屬性表示」還是「用事件監聽器表示」。
+//   怎麼查證：2026-09-23 逐一核對 apps/web 全部 4 個 `<form>`——`SiteFooter.vue` 的
+//   訂閱電子報表單改用 `@submit.prevent`（SSR 輸出因此完全沒有 onsubmit 屬性）；
+//   `NewsFilterForm.vue`、`programs/school-community/index.vue`、
+//   `partners/opportunities/index.vue` 三個仍維持 mockup 原本的寫法，原封保留
+//   `onsubmit="return false;"` 字面屬性（這三個本來就零差異，不需要、也不會套用這條
+//   規則）。`site/dist` 全站 grep `onsubmit="[^"]*"` 只出現一種值，字面完全是
+//   `return false;`（含結尾分號），88 處零例外，沒有其他變體。
+//   🔴 為什麼範圍要收到只認「expected 有這個值、actual 完全沒有這個屬性」一種型態：
+//   這是行為性屬性（決定表單送出時的行為），跟類別 6 的 selected／value 同一種性質——
+//   放寬過頭會蓋掉真正的行為錯誤（例如某個表單本該可以正常送出卻被誤加了
+//   `@submit.prevent`、或 onsubmit 的值被改成別的字串）。
+//   範圍邊界：只有屬性名稱剛好是 `onsubmit`、expected 的值逐字剛好是 `return false;`、
+//   actual 完全沒有這個屬性（不是空字串，是 `undefined`）三個條件同時成立才視為無差異。
+//   值不同（哪怕只差一個字元或空白）、方向相反（expected 沒有但 actual 有，或兩邊
+//   都有但值不同）、actual 的值是空字串而非完全沒有這個屬性，一律照舊視為真差異。
+//
 // ============================================================================
-// 站台根路徑「/」：排除在內容比對之外，改成斷言它的 HTTP 行為（不是第七類必然差異）
+// 站台根路徑「/」：排除在內容比對之外，改成斷言它的 HTTP 行為（不是第八類必然差異）
 // ============================================================================
 //
 // mockup 的 site/dist/index.html 是純靜態的 client-side 導轉 stub
@@ -139,12 +198,12 @@
 // 「/」的 mockup stub 對上「/zh/」的 Nuxt 真實內容，等於在比較兩個不同的頁面，不是在驗證
 // 「/」這個路徑本身的行為。
 //
-// 🔴 為什麼這不是第七類必然差異：前面六類的性質都是「兩邊內容其實等價，只是序列化或框架
+// 🔴 為什麼這不是第八類必然差異：前面七類的性質都是「兩邊內容其實等價，只是序列化或框架
 // 機制造成表面差異，可以正規化掉再比」；這裡的性質不同——「/」在兩邊根本不是同一種東西
 // （一個是靜態內容頁、一個是重定向），不存在「正規化後内容相等」這回事，所以不透過
-// extractMainNormalized／diffTrees 這條路徑處理，而是換一種斷言：伺服器必須回 302，
-// Location 必須指向 /zh/。這符合工具檔頭「六類是封閉清單，不是範例」的精神——不是新增
-// 第七類豁免規則，是承認「/」根本不屬於「內容頁比對」這個問題域。
+// extractBodyNormalized／diffTrees 這條路徑處理，而是換一種斷言：伺服器必須回 302，
+// Location 必須指向 /zh/。這符合工具檔頭「七類是封閉清單，不是範例」的精神——不是新增
+// 第八類豁免規則，是承認「/」根本不屬於「內容頁比對」這個問題域。
 //
 // 範圍邊界：只在 --actual 是 URL（能拿到真正的 HTTP 回應）時套用這個特例；--actual 是本機
 // 檔案或目錄時沒有 HTTP 語意可斷言，維持原本的 DOM 比對（例如 dist 目錄對自己做整批自我
@@ -158,18 +217,18 @@
 // mockup 從來沒有逐篇文章頁）改成 Nuxt 逐篇 slug `/zh/news/<slug>/`——這是規格上正確的修正
 // （mockup 本來就只是骨架，不代表最終行為），但 site/dist 這份基準沒有、也不會再更新
 // （它本來就要退場，見 docs/14-invariants.md「前台改 Nuxt」整節），於是這幾頁的 href 永遠
-// 對不上，而且**不是可以正規化掉的表面差異**——這是「基準本身不代表正確答案」，跟前六類
-// 「兩邊其實等價、只是序列化方式不同」性質完全不同，硬套六類的作法（例如加一條 href 正規化
+// 對不上，而且**不是可以正規化掉的表面差異**——這是「基準本身不代表正確答案」，跟前七類
+// 「兩邊其實等價、只是序列化方式不同」性質完全不同，硬套七類的作法（例如加一條 href 正規化
 // 規則忽略這個特定差異）會違反 docs/14 明文的「不得為了讓比對變綠而放寬正規化」。
 //
-// 🔴🔴🔴 這份清單與上面的「六類必然差異」是兩套不同機制，分工如下，不要混為一談：
-//   - **六類必然差異（正規化規則）**管的是「同一頁之內，哪些差異可以判定為無害」——
+// 🔴🔴🔴 這份清單與上面的「七類必然差異」是兩套不同機制，分工如下，不要混為一談：
+//   - **七類必然差異（正規化規則）**管的是「同一頁之內，哪些差異可以判定為無害」——
 //     兩側都還在比對，只是比對前先把已知的序列化雜訊濾掉，過濾範圍窄到逐一寫死在程式碼裡。
 //   - **這份退役清單**管的是「這一整頁還能不能拿 site/dist 當基準」——不是濾掉某個差異，
 //     是承認 site/dist 對這個 route 已經不是正確答案，整頁不再進入 DOM 比對。
-//   - 兩者都不提供旁路、都不能靠掰理由用嘴巴退役：六類是封閉清單「不得新增第七類」，
+//   - 兩者都不提供旁路、都不能靠掰理由用嘴巴退役：七類是封閉清單「不得新增第八類」，
 //     這份清單是「每一筆都要有 covered_by，缺了工具直接拒絕執行」（見下方 validateRetiredRoutes）。
-//     **這份清單的存在，不代表六類清單可以比照辦理放寬——兩邊各自封閉，互不借用對方的理由。**
+//     **這份清單的存在，不代表七類清單可以比照辦理放寬——兩邊各自封閉，互不借用對方的理由。**
 //
 // ⛔ 退役是頁面級別的最後手段，不是「這一頁有一點差異就退役」：
 //   - 只有「同一頁裡的每一筆差異，追根究底都是同一個已知、已查證、且不會再改的基準落差」
@@ -226,7 +285,7 @@ const RETIRED_ROUTES = new Map([
       '11 個 <a> 全部寫死 {{ROOT}}/zh/news/article/，S0-9f 後 Nuxt 端正確輸出各自的 ' +
       '/zh/news/<slug>/）——2026-09-23 逐筆核對本頁 11 筆差異，全部是「屬性 href」，' +
       '沒有任何一筆是標籤、class、文字、圖片或日期不同。這個 href 差異不是表面序列化問題' +
-      '（不屬於六類正規化的性質），是基準本身的內容已經不代表正確答案，六類清單不適用。',
+      '（不屬於七類正規化的性質），是基準本身的內容已經不代表正確答案，七類清單不適用。',
     covered_by:
       '同上——apps/web 的 ESLint 規則 link-checker/valid-route（npm run lint:eslint）。' +
       '2026-09-23 實測對本頁跑 npx eslint . 回 0 個 valid-route error，證明本頁目前產出的' +
@@ -326,7 +385,7 @@ function validateRetiredRoutes(routes) {
 }
 
 // ============================================================================
-// 六類之外：格式層級的基礎正規化（跟「搬遷差異」無關，是任何 DOM 比對工具都該有的
+// 七類之外：格式層級的基礎正規化（跟「搬遷差異」無關，是任何 DOM 比對工具都該有的
 // 序列化雜訊過濾，維持既有實作不變）
 // ============================================================================
 //   - 空白摺疊：純空白文字節點整個丟棄，有內容的摺成單一空白再比對。
@@ -351,7 +410,7 @@ function validateRetiredRoutes(routes) {
 // 退役頁面清單（RETIRED_ROUTES，見上方「退役頁面清單」一節）只能改程式碼，不接受任何
 // CLI 參數控制；清單本身若有一筆缺 why 或 covered_by，工具會在做任何比對之前直接拒絕執行。
 //
-// 結束碼：只要有任何一頁比對出「六類以外」的差異、或任何一頁抓取失敗 → 非 0。全部零差異
+// 結束碼：只要有任何一頁比對出「七類以外」的差異、或任何一頁抓取失敗 → 非 0。全部零差異
 // （不含已退役頁面，見下）→ 0。退役頁面清單本身資料不完整（缺 why／covered_by）→ 非 0，
 // 且不會執行到任何比對。退役頁面不計入通過或失敗，但一定會在報告與 --json 輸出裡列出。
 
@@ -393,11 +452,13 @@ function walkTree(node, cb) {
   if (node.content) walkTree(node.content, cb);
 }
 
-function findMain(doc) {
+// S0-9m：比對範圍從 <main id="main"> 擴大到整個 <body>，findBody() 取代 findMain()。
+// 每份 HTML 文件理論上只有一個 <body>，找到第一個就是它，不需要額外條件判斷。
+function findBody(doc) {
   let found = null;
   walkTree(doc, (n) => {
     if (found) return;
-    if (n.tagName === 'main' && (n.attrs || []).some((a) => a.name === 'id' && a.value === 'main')) found = n;
+    if (n.tagName === 'body') found = n;
   });
   return found;
 }
@@ -459,6 +520,44 @@ function styleDeclarationsEqual(a, b) {
   return false;
 }
 
+// 類別 2：Nuxt 在 <body> 直屬層級注入的框架掛載／teleport 容器。條件寫死成
+// 「標籤是 div 且 id 剛好是 __nuxt 或 teleports」，不是「跳過所有 div」——見檔頭
+// 「類別 2」說明的完整查證與範圍邊界。
+const NUXT_SCAFFOLD_DIV_IDS = new Set(['__nuxt', 'teleports']);
+function isNuxtScaffoldDiv(node) {
+  return !!node.tagName
+    && node.tagName.toLowerCase() === 'div'
+    && (node.attrs || []).some((a) => a.name === 'id' && NUXT_SCAFFOLD_DIV_IDS.has(a.value));
+}
+
+// 組一份子節點清單的正規化結果。獨立成一個函式（不是直接寫在 normalize() 的
+// children 那一行），是因為類別 2 的框架掛載節點需要「整層拆開、用它自己的子節點
+// 取代它在清單裡的位置」——這是一對多的展開（flatMap 語意），不是一對一的
+// map／filter 能表達的，所以子節點清單的組法需要遞迴呼叫自己而不是呼叫 normalize()。
+function normalizeChildren(childNodes, opts, foundDataV, atBodyLevel = false) {
+  const out = [];
+  for (const c of childNodes || []) {
+    // 🔴 範圍邊界（2026-09-23 獨立審查後收窄）：只有 <body> 的**直屬**子節點才套用拆包裹。
+    // 原本的寫法不限定層級，任何深度只要 id 剛好是 __nuxt／teleports 就會被整層拆開。
+    // 實測（curl Nuxt SSR 輸出切片檢查）這兩個節點**永遠只出現在 body 直屬層**：
+    // <body><div id="__nuxt">…</div><div id="teleports"></div><script>…</script></body>，
+    // 且 site/dist 全站與 apps/web 全部 .vue 都沒有任何內容使用這兩個 id（已 grep）。
+    // 既然收窄不會漏掉任何真實案例，就不該留著較寬的條件——否則哪天頁面內容自己放了一個
+    // id="teleports" 的 div，它會被**靜默**拆掉而不是被當成差異報出來。
+    // 這與本工具檔頭一貫的「範圍故意收到極窄」原則一致：能用更窄的條件達到同樣效果時，
+    // 不留寬的那一版。
+    if (atBodyLevel && isNuxtScaffoldDiv(c)) {
+      // 拆開後的那一層仍算「body 直屬」——<div id="__nuxt"> 的子節點正是 mockup 裡
+      // body 的直屬元素（skip-link／utility-bar／header／…），語意上就是同一層。
+      out.push(...normalizeChildren(c.childNodes, opts, foundDataV, true));
+      continue;
+    }
+    const n = normalize(c, opts, foundDataV);
+    if (n) out.push(n);
+  }
+  return out;
+}
+
 // 把 parse5 的 DOM 樹正規化成拿來做深度比對用的簡化結構。
 // opts.routeDir：這一頁的 Nuxt route 目錄（例如 "/zh/about/"），類別 1 的 base。
 function normalize(node, opts, foundDataV) {
@@ -475,7 +574,8 @@ function normalize(node, opts, foundDataV) {
 
   // 類別 4：<style>／<script> 整個節點（含子孫）從正規化後的樹裡排除，讓兩側的手足
   // 索引重新緊縮對齊。見檔頭「類別 4」說明——這裡不是「容忍標籤名稱不符」，是連節點
-  // 本身都不進入比對樹。
+  // 本身都不進入比對樹。這條規則不限定發生的位置，body 直屬層級的 Nuxt 注入
+  // <script>（__NUXT_DATA__、schema-org 等）同樣會被這裡排除，不需要另外處理。
   const tagLower = node.tagName.toLowerCase();
   if (tagLower === 'style' || tagLower === 'script') return null;
 
@@ -493,16 +593,14 @@ function normalize(node, opts, foundDataV) {
       return [name, value];
     })
     .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
-  const children = (node.childNodes || [])
-    .map((c) => normalize(c, opts, foundDataV))
-    .filter(Boolean);
+  const children = normalizeChildren(node.childNodes, opts, foundDataV, tagLower === 'body');
   return { type: 'element', tag: tagLower, attrs, children };
 }
 
-function extractMainNormalized(html, opts, foundDataV) {
+function extractBodyNormalized(html, opts, foundDataV) {
   const doc = parse5.parse(html, { sourceCodeLocationInfo: false, scriptingEnabled: false });
-  const mainNode = findMain(doc);
-  if (mainNode) return normalize(mainNode, opts, foundDataV);
+  const bodyNode = findBody(doc);
+  if (bodyNode) return normalize(bodyNode, opts, foundDataV);
   return null; // 呼叫端決定 fallback
 }
 
@@ -566,6 +664,11 @@ function diffTrees(expected, actual, path, diffs, maxDiffs, ctx = { allowSelecte
 
     // 類別 6(b)：selected 落在 <select> 第一個 <option> 且 actual 印出空字串時視為無差異。
     if (name === 'selected' && ctx.allowSelectedDefault && ev === undefined && av === '') continue;
+
+    // 類別 7：mockup 的 onsubmit="return false;" 對上 Vue @submit.prevent（SSR 完全不印
+    // 這個屬性）。只認「expected 逐字剛好是 return false;、actual 完全沒有這個屬性」
+    // 這一種型態，見檔頭「類別 7」的完整範圍邊界。
+    if (name === 'onsubmit' && ev === 'return false;' && av === undefined) continue;
 
     if (ev === undefined) {
       diffs.push({ path: pathLabel(curPath), kind: '屬性', expected: `（沒有 ${name}）`, actual: `${name}="${av}"` });
@@ -664,11 +767,11 @@ async function compareOne(expectedFile, actualSpec, relPath, isUrl, opts) {
 
   const pageOpts = { ...opts, routeDir: routePath };
   const foundDataV = { count: 0 };
-  const expectedNorm = extractMainNormalized(expectedHtml, pageOpts, foundDataV);
-  const actualNorm = extractMainNormalized(actualHtml, pageOpts, foundDataV);
+  const expectedNorm = extractBodyNormalized(expectedHtml, pageOpts, foundDataV);
+  const actualNorm = extractBodyNormalized(actualHtml, pageOpts, foundDataV);
 
-  if (!expectedNorm) return { relPath, ok: false, structuralError: 'expected 找不到 <main id="main">', diffs: [] };
-  if (!actualNorm) return { relPath, ok: false, structuralError: 'actual 找不到 <main id="main">', diffs: [] };
+  if (!expectedNorm) return { relPath, ok: false, structuralError: 'expected 找不到 <body>', diffs: [] };
+  if (!actualNorm) return { relPath, ok: false, structuralError: 'actual 找不到 <body>', diffs: [] };
 
   const diffs = [];
   diffTrees(expectedNorm, actualNorm, [], diffs, opts.maxDiffs);
@@ -779,7 +882,7 @@ async function main() {
   if (failed.length) {
     console.log(`\n共 ${failed.length}/${compared.length} 頁有差異（${passed} 頁乾淨）`);
   } else {
-    console.log(`✓ 列入比對的 ${compared.length} 頁 <main> 內容零差異`);
+    console.log(`✓ 列入比對的 ${compared.length} 頁 <body> 內容零差異`);
   }
   // 🔴 requirement 4：退役頁數不為 0 時，結尾摘要必須明講，不能只印「全部通過」，
   // 否則退役會偽裝成乾淨——即使 compared 全過，也要讓人一眼看到「這不是真的 80/80」。

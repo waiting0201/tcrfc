@@ -79,6 +79,16 @@ export interface ClubIdentity {
   /** 04 單元的行動選單英文標籤——磐石 ACADEMY／藍鯨 YOUTH，同一條 §3 改名依據 */
   academyLabelEn: string
   /**
+   * SiteFooter「加入＿＿」複合句專用的短版標籤，不是 academyLabelZh 的同義詞。
+   * 🔴 S0-9m（2026-09-23）修的正是這兩個欄位被誤當同一個欄位用的 bug（E-42 同一根因
+   * 第二次現形）：mockup 的 footer.html 逐字是「加入學院」，不是「加入足球學院」——
+   * 「學院」是這一句自己的慣用縮寫，不是 academyLabelZh（「足球學院」）去掉「足球」
+   * 兩個字算出來的。磐石值 `學院` 逐字對應 mockup；藍鯨值沿用已核准的 academyLabelZh
+   * （`青年隊`）本身，不是新文案——藍鯨沒有既有的「加入＿＿」原文可以引用，用同一個
+   * 已核准的單元名稱組句是唯一不需要自行創作的作法（紀律 11）。
+   */
+  academyJoinLabelZh: string
+  /**
    * 頁首 kicker／SEO 用的英文品牌縮寫。
    * 🔴 藍鯨一律 null——英文正式全名舊站有三種寫法並存，待客戶確認
    * （docs/13-blue-whale-site.md §5 第 2 項），不得自行選一個顯示在頁面上。
@@ -106,6 +116,7 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
     cultureLabelZh: '台中磐石文化',
     academyLabelZh: '足球學院',
     academyLabelEn: 'ACADEMY',
+    academyJoinLabelZh: '學院',
     brandTagEn: 'TCRFC',
     foundedZh: '2024 年創立',
     slogan: { zh: '在地扎根．放眼世界', en: 'LOCAL ROOTS. GLOBAL PATHWAYS.' },
@@ -124,6 +135,7 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
     cultureLabelZh: '台中藍鯨文化',
     academyLabelZh: '青年隊',
     academyLabelEn: 'YOUTH',
+    academyJoinLabelZh: '青年隊',
     // 🔴 不得自行選定英文正式全名（舊站並存 Taichung Bluewhale／Taichung Blue
     // Whale Women's Football Team／Taichung blue whale 三種寫法，待客戶確認）。
     brandTagEn: null,

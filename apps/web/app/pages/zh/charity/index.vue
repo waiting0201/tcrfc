@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // app/pages/zh/charity/index.vue — 由 site/src/pages/zh/charity/index/index.html 轉來（S0-9 靜態頁搬遷）
-definePageMeta({ nav: "charity", unit: "11" })
+definePageMeta({ nav: "charity", unit: "11", bodyClass: "page-charity" })
 
 useSeoMeta({
   title: "慈善與社會影響 Charity & Impact｜台中磐石足球俱樂部",

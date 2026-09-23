@@ -6,7 +6,7 @@
 // ⛔ 原頁本身沒有頁內 style／script 標籤（唯一的行為邏輯來自共用的 site/src/assets/js/site.js），
 // 這裡把該檔「賽事切換 tabs」與「主視覺輪播」兩段頁面專屬邏輯移入 script setup
 // （sticky header／行動選單／mega menu 屬於版型層級，已移到 app/components/SiteHeader.vue）。
-definePageMeta({ nav: 'home', unit: '01' })
+definePageMeta({ nav: 'home', unit: '01', bodyClass: 'page-home' })
 
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：SEO、Hero 標語與
 // 底下幾個「真人真事」區塊（賽事戰績、球員名單、新聞、商店實拍照）分屬 shared/

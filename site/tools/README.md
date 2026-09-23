@@ -98,18 +98,22 @@ node tools/codemod-root.mjs src/pages --out /tmp/nuxt-pages-draft --base "" --wr
 
 ---
 
-## ③ `compare-dom.mjs` — DOM 比對回歸關卡（2026-09-21 硬化版：真正的零差異關卡）
+## ③ `compare-dom.mjs` — DOM 比對回歸關卡（2026-09-21 硬化版；2026-09-23 S0-9m 擴大比對範圍）
 
-比對「Nuxt SSR 輸出」與「`site/dist` 對應頁」的 `<main id="main">` 內容，正規化後要求零差異。
+比對「Nuxt SSR 輸出」與「`site/dist` 對應頁」的**整個 `<body>`** 內容，正規化後要求零差異。
+🔴 **2026-09-23（S0-9m）之前這裡只比對 `<main id="main">`**——`docs/14-invariants.md` 的不變量
+寫的是「body 的 DOM 結構、class 名稱、元素順序與文字內容一律不動」，範圍比舊版的比對範圍大一圈，
+頁首（`skip-link`／`utility-bar`／`header`／`mobile-nav`／`mobile-cta-bar`）與頁尾（`footer`）
+曾經落在不變量管、但工具沒驗的那一圈，見下方「2026-09-23 S0-9m」一節的完整說明。
 
 🔴 **2026-09-21 定案（使用者拍板）：這支工具過去「列出所有差異讓人判斷」，78 頁幾乎頁頁有
 差異，逐頁判斷「這屬不屬於已知的必然差異」等於把腳本關卡退化回目視判斷——`docs/14-invariants.md`
-明訂「不得為了讓比對變綠而放寬正規化」正是在防這件事。現在的立場是：把已查證的六類必然差異
+明訂「不得為了讓比對變綠而放寬正規化」正是在防這件事。現在的立場是：把已查證的七類必然差異
 寫死在正規化規則裡，其餘一律硬性失敗（exit 非 0）。**
 
-⛔ **這六類是封閉清單，不是範例，沒有、也不會有 `--ignore`／`--allow`／`--skip-page` 之類的旁路
-參數。** 發現任何「看起來應該無害但不屬於這六類」的差異，正確做法是**停下來問**，不是在工具裡
-加第七類、也不是放寬既有規則的比對範圍——這兩件事都會讓關卡再度形同虛設。
+⛔ **這七類是封閉清單，不是範例，沒有、也不會有 `--ignore`／`--allow`／`--skip-page` 之類的旁路
+參數。** 發現任何「看起來應該無害但不屬於這七類」的差異，正確做法是**停下來問**，不是在工具裡
+加第八類、也不是放寬既有規則的比對範圍——這兩件事都會讓關卡再度形同虛設。
 
 ```bash
 # 單頁：本機檔案 vs 本機檔案
@@ -133,21 +137,30 @@ node tools/compare-dom.mjs --expected dist --actual http://localhost:3000 --json
 `index.html` 都誤判成站台根目錄）。不是 URL 就當本機檔案或目錄，用**跟 `--expected` 相同的相對
 路徑**直接對應。
 
-### 六類必然差異（封閉清單，逐條附「為什麼無害」「怎麼查證」「範圍邊界」，完整版在檔頭註解）
+### 七類必然差異（封閉清單，逐條附「為什麼無害」「怎麼查證」「範圍邊界」，完整版在檔頭註解）
 
 1. **`{{ROOT}}` 相對路徑 → Nuxt 絕對路徑**——只處理 `href`／`src`，用 WHATWG URL 以該頁的
    route 目錄為 base 把相對路徑解析成絕對路徑再比對；scheme（`http:`／`mailto:`…）、
    protocol-relative、純錨點、已是絕對路徑的值原樣比對。
-2. **`<div id="__nuxt">` 包裹**——🔵 **這支工具不需要為它寫任何正規化程式碼**：`findMain()` 是
-   不限深度的遞迴搜尋，不管 `<main>` 外面包幾層 `<div>`，比對範圍本來就從 `<main>` 的子節點開始，
-   包裹層天生不會進入比對樹。查證：2026-09-21 實測 Nuxt SSR 輸出，`<main>` 外層雖有
-   `<div id="__nuxt"><div>…</div></div>` 包裹，但比對結果完全不受影響。
-3. **Nuxt 注入的 `modulepreload`／`importmap`**——同樣不需要正規化程式碼，這些標籤一律在
-   `<head>`，天生不會出現在 `<main>` 比對範圍內（已用實際輸出切片驗證）。
+2. **Nuxt 在 `<body>` 直屬層級注入的框架掛載／teleport 容器（`<div id="__nuxt">`、
+   `<div id="teleports">`）**——🔵 條件寫死成「標籤是 `div` 且 `id` 剛好是 `__nuxt` 或
+   `teleports`」，比對時把它們自己的子節點接到父層清單裡取代它們的位置（不是把它們當成
+   一個節點去比較）。2026-09-23（S0-9m，比對範圍擴大到整個 `<body>` 時重新查證）：舊版
+   文件寫的「`<div id="__nuxt"><div>…</div></div>` 兩層包裹」已經過期——那多出來的第二層
+   其實是 `app/layouts/default.vue` 自己的 template 根節點，不是 Nuxt 框架本身的東西；
+   `default.vue` 已改寫成 Vue 3 合法的多根節點（fragment）寫法，不再包那層 `<div>`
+   （沒有 `class`／`id`，tcrfc.css 沒有任何選擇器依賴它，拿掉不影響任何樣式），
+   改完之後 `<div id="__nuxt">` 就只剩一層框架掛載點要處理。`<div id="teleports">` 是
+   Nuxt 核心（`NuxtRoot`）無條件輸出的 `<Teleport>` 掛載目標，不管專案有沒有用到
+   `<Teleport>` 都會印出來，2026-09-23 實測 `apps/web` 全專案零使用，目前永遠是空的。
+3. **Nuxt 注入的 `modulepreload`／`importmap`**——不需要正規化程式碼，這些標籤一律在
+   `<head>`，天生不會出現在 `<body>` 比對範圍內（已用實際輸出切片驗證，2026-09-23 擴大
+   範圍後重新驗證過同一件事，結論不變）。
 4. **頁面 `<style>`／`<script>` 由 `<main>` 內移到 SFC 頂層**——🔴 正規化做法是在建樹時把
    `<style>`／`<script>` 節點整個排除（兩側都排除），不是「容忍標籤名稱不符」：節點消失會讓
    後面所有手足元素的陣列索引位移，硬容忍標籤名稱只會產生一長串假警報、還會蓋掉真正的結構
-   錯誤。排除後兩側陣列重新緊縮對齊，索引自然對得上。
+   錯誤。排除後兩側陣列重新緊縮對齊，索引自然對得上。這條規則不限定發生的位置，`<body>`
+   直屬層級的 Nuxt 注入 `<script>`（`__NUXT_DATA__`、schema-org 等）同樣會被排除。
 5. **Vue 對靜態 `style="..."` 屬性補結尾分號**——兩側的 `style` 值都解析成「宣告陣列」（用 `;`
    切開，**不**過濾空字串片段）再比對，只容忍「actual 剛好比 expected 多一個結尾空字串」這一種
    收尾模式。🔴 刻意不做「濾掉所有空宣告再比對」，因為那樣會讓 `color:#fff;;`（雙分號，真的畸形
@@ -157,8 +170,14 @@ node tools/compare-dom.mjs --expected dist --actual http://localhost:3000 --json
    `<select>` 的第一個 `<option>` 且 actual 印出空字串」這兩種情形視為無差異。其他任何
    `selected`／`value` 差異（含反方向：expected 有、actual 沒有）一律是真差異。這是行為性
    屬性不是格式差異，範圍故意收得很窄，避免蓋掉真正的預設值錯誤。
+7. **`<form onsubmit="return false;">`（mockup）對上 `<form @submit.prevent>`（Vue）**——
+   2026-09-23（S0-9m）新增。Vue 的 `@submit.prevent` 編譯成事件監聽器，SSR 輸出完全不會有
+   `onsubmit` 屬性；mockup 是純靜態 HTML，只能用內聯 `onsubmit="return false;"` 取消預設
+   送出行為，兩者行為完全相同。🔴 範圍收到極窄：只認「expected 逐字剛好是 `return false;`、
+   actual 完全沒有這個屬性」一種型態，值不同、方向相反、`actual` 是空字串而非完全沒有這個
+   屬性，一律照舊視為真差異——跟第 6 類同一種理由（行為性屬性，放寬過頭會蓋掉真正的行為錯誤）。
 
-### 站台根路徑 `/`：排除在內容比對之外，改斷言 HTTP 行為（2026-09-21，不是第七類必然差異）
+### 站台根路徑 `/`：排除在內容比對之外，改斷言 HTTP 行為（2026-09-21，不是第八類必然差異）
 
 mockup 的 `site/dist/index.html` 是 client-side 導轉 stub（`<main>` 內只有
 `<script>location.replace('zh/');</script>`），Nuxt 的 `/` 則是 `nuxt.config.ts` routeRules
@@ -167,7 +186,7 @@ mockup 的 `site/dist/index.html` 是 client-side 導轉 stub（`<main>` 內只�
 （`--actual` 是 URL 時直接 fetch 該路徑），fetch 預設會 follow redirect，等於在比較「/」
 的 mockup stub 與「/zh/」的 Nuxt 真實內容，比較的其實是兩個不同頁面。
 
-🔴 **這不是第七類必然差異**：前六類的性質是「兩邊內容其實等價，序列化或框架機制造成表面
+🔴 **這不是第八類必然差異**：前七類的性質是「兩邊內容其實等價，序列化或框架機制造成表面
 差異，正規化後可以比」；`/` 的性質不同——兩邊根本不是同一種東西（一個是內容頁、一個是
 重定向），不存在「正規化後內容相等」這回事。工具改為換一種斷言：`--actual` 是 URL 時，
 遇到站台根路徑一律不進 DOM 比對，改用 `redirect: 'manual'` 直接檢查回應本身，必須是
@@ -176,14 +195,14 @@ mockup 的 `site/dist/index.html` 是 client-side 導轉 stub（`<main>` 內只�
 做整批自我測試，兩邊本來就是同一份 stub，DOM 比對本來就零差異，不受影響）。程式碼與更完整
 的說明見 `compare-dom.mjs` 檔頭「站台根路徑『/』」一節。
 
-以上六類之外，工具仍保留基礎的序列化雜訊過濾（跟「搬遷差異」無關，任何 DOM 比對工具都該有）：
+以上七類之外，工具仍保留基礎的序列化雜訊過濾（跟「搬遷差異」無關，任何 DOM 比對工具都該有）：
 空白摺疊、屬性依名稱排序比對（標籤／屬性名稱轉小寫）、只比對 parse5 解析後的樹（自閉合寫法
 天生等價）、`data-v-*` 排除（但偵測到會在報告開頭提示，可能代表搬移的 `<style>` 被誤加了
 `scoped`，這是另一件事要人工確認）、註解節點預設排除（`--strict-comments` 開啟嚴格比對）。
 
 差異會印成可讀清單，每筆有**路徑**（例如 `main[0] > section[2] > div[1] > a[0]`）、**差異種類**
 （標籤名稱／屬性／子節點數量／文字內容）、**expected 與 actual 的實際值**，不是只回 true/false。
-結束碼：有任何一頁比對出「六類以外」的差異、或任何一頁抓取失敗 → 非 0，全部零差異 → 0（CI 關卡
+結束碼：有任何一頁比對出「七類以外」的差異、或任何一頁抓取失敗 → 非 0，全部零差異 → 0（CI 關卡
 的語意）。報告最後一行會同時印通過與失敗頁數（例如「共 5/80 頁有差異（75 頁乾淨）」），批次跑完
 不需要另外數。
 
@@ -265,7 +284,7 @@ intcup 6 篇文章的分類歸屬）。
 **退役頁面清單（`RETIRED_ROUTES`）的設計**，完整規則與逐條理由在
 [`compare-dom.mjs`](compare-dom.mjs) 檔頭「退役頁面清單」一節，這裡只列摘要：
 
-- 這是**跟六類必然差異完全不同的機制**，不要混為一談：六類管的是「同一頁之內，哪些差異
+- 這是**跟七類必然差異完全不同的機制**，不要混為一談：七類管的是「同一頁之內，哪些差異
   可以正規化掉」（兩側仍在比對）；退役清單管的是「這一整頁還能不能拿 `site/dist` 當基準」
   （整頁不再進入 DOM 比對）。兩者都是封閉清單、都沒有 CLI 旁路，但退役清單多一條硬性規定：
   **每一筆都必須同時有 `why`（為什麼不能再用 site/dist 當基準）與 `covered_by`（改由哪一個
@@ -309,12 +328,60 @@ intcup 6 篇文章的分類歸屬）。
 ⛔ **這 2 頁不能比照首頁退役**——它們不是「基準本身不代表正確答案」，
 是「這批文章該歸哪一類還沒定案」，**紅燈是正確狀態**，定案之前不該讓它變綠。
 
-🔴 **另有一個涵蓋落差要知道**（`STATUS.md` `S0-9m`、`docs/18` `E-42`）：
-`docs/14-invariants.md` 的不變量寫的是「**body** 的 DOM 結構、class 名稱、元素順序與文字內容
-一律不動」，但這支工具**只比對 `<main>`**——**頁首與頁尾在不變量範圍內、卻在工具範圍外**。
-2026-09-23 已經真的漏掉一個（`ClubAssets.nameZh` 誤用讓頁首頁尾每一頁都印錯文案，
-被抓到純粹是因為同一個誤用剛好也命中了 `<main>` 裡的兩處）。**改 layout 層的東西時，
-這道關卡不會替你把關。**
+✅ **上面那個涵蓋落差已在 S0-9m（2026-09-23）修掉**，見下一節。
+
+---
+
+### 2026-09-23（`S0-9m`）：比對範圍從 `<main>` 擴大到整個 `<body>`
+
+**起因**：`docs/14-invariants.md` 的不變量寫的是「**body** 的 DOM 結構、class 名稱、元素順序與
+文字內容一律不動」，但 `compare-dom.mjs` 當時**只比對 `<main>`**——頁首與頁尾在不變量範圍內，
+卻在工具範圍外。2026-09-23 已經真的漏掉一個真差異：`ClubAssets.nameZh` 誤用讓頁首頁尾每一頁都
+印錯文案（`docs/18-work-errors.md` `E-42`），被抓到純粹是因為同一個誤用剛好也命中了 `<main>`
+裡的兩處——如果誤用只發生在頁首頁尾，這道關卡當時不會有任何反應。
+
+**做了什麼**：
+
+1. **比對目標從 `findMain()` 改成 `findBody()`**，正規化與 diff 邏輯不變，只是換一個起點
+   （`<body>` 本身也當一般 element 節點比對，含它自己的屬性，例如下面第 3 點抓到的 `class`）。
+2. **實測 Nuxt SSR 的 `<body>` 直屬子節點結構**（`node .output/server/index.mjs` 起服務後用
+   `parse5` 直接印子節點清單，不是憑印象）：`<div id="__nuxt">`、`<div id="teleports">`（空，
+   `<Teleport>` 掛載點，全專案零使用）、外加 4 個 `<script>`（既有類別 4 的規則自動排除，
+   實測確認過確實只有 `<script>` 標籤，沒有其他型態）。`<div id="__nuxt">` 原本巢狀包了
+   `app/layouts/default.vue` 自己的 template 根節點（單一 `<div>`）——**改法是把 `default.vue`
+   的 template 改寫成 Vue 3 合法的多根節點（fragment），不再包那層 `<div>`**（沒有
+   `class`／`id`，tcrfc.css 沒有任何選擇器依賴它存在，拿掉不影響任何樣式），從根因解決，
+   不是在工具裡疊第二層特例。`normalizeChildren()`／`isNuxtScaffoldDiv()` 把 `__nuxt` 與
+   `teleports` 這兩個框架掛載點在比對樹裡整層拆開（見類別 2 的完整說明）。
+3. **比對範圍擴大後新冒出的差異，逐筆診斷分類，不是照單放行**：
+   - **`<body>` 的 `class` 屬性**——mockup 77 頁是 `class=""`，`zh/index`／`zh/schedule/`／
+     `zh/charity/` 三頁另外各帶 `page-home`／`page-schedule`／`page-charity`；Nuxt 端完全沒
+     輸出這個屬性。查證 `tcrfc.css` 全文沒有任何選擇器讀取這幾個 class（目前零視覺影響），
+     但 `docs/14` 的不變量逐字要求 class 名稱一律不動，**判定為真 bug，修掉**：`default.vue`
+     新增 `useHead(() => ({ bodyAttrs: { class: route.meta.bodyClass ?? '' } }))`，三個特例頁面
+     各自用既有的 `definePageMeta`（比照 `activeNav` 用的 `route.meta.nav` 那一套機制）宣告
+     `bodyClass`。
+   - **`SiteFooter.vue` 的「加入{{ identity.academyLabelZh }}」**——渲染成「加入足球學院」，
+     mockup 逐字是「加入學院」。**判定為真 bug，修掉**：`ClubIdentity` 新增
+     `academyJoinLabelZh` 欄位（磐石 `學院`，逐字對應 mockup；藍鯨沿用已核准的
+     `academyLabelZh` 值本身 `青年隊`，不是新文案——藍鯨沒有既有的「加入＿＿」原文可以引用，
+     這是唯一不需要自行創作的作法，見 `docs/13-blue-whale-site.md` §6 紀律 11）。
+     ⚠️ **範圍刻意收窄**：`SiteHeader.vue` 的 mega menu（`4.1`–`4.7` 學院子選單、CTA 按鈕）也有
+     字面 `加入學院`／`學院總覽` 等，但那是磐石 04 單元整份子選單內容的硬編碼，不是這次診斷出的
+     bug（compare-dom 對這幾處零差異，因為 mockup 本來就是這樣寫），藍鯨版本是否需要整份改寫
+     子選單留給日後處理，不在本次範圍內。
+   - **`onsubmit="return false;"` vs `@submit.prevent`**——`SiteFooter.vue` 唯一一處改用
+     `@submit.prevent`（其餘 3 個 `<form>` 仍保留字面 `onsubmit="return false;"`，本來就零
+     差異）。**判定為框架序列化差異，新增第 7 類必然差異**（見上方清單），範圍嚴格限定
+     「expected 逐字 `return false;`、actual 完全沒有這個屬性」一種型態。
+4. **驗收**：全站重跑 `passed=72 / failed=2 / retired=6`——跟擴大範圍前完全一致的數字，唯二
+   紅燈仍是既有的 `B-15`（intcup 6 篇文章分類歸屬待客戶確認），沒有冒出任何新的、歸不了類的
+   差異。暫時清空 `RETIRED_ROUTES` 重跑得到 `80 頁中 8 頁失敗`（6 個原退役頁 ＋ 2 個既有
+   `B-15` 頁），與退役機制加入前的邏輯一致；暫時清空某一筆 `covered_by` 重跑，工具照樣在做
+   任何比對之前就拒絕執行。`NUXT_PUBLIC_CLUB=bw` 實跑 `/zh/`／`/zh/schedule/`／`/zh/about/`／
+   `/zh/academy/`／`/zh/academy/join/` 確認回應正常、`<body>` 直屬子節點結構跟磐石站一致、
+   footer 正確顯示「加入青年隊」。`apps/web` 的 `npm run lint`（含 `check-club-copy`／
+   `check-match-status`／`check-homepage-fidelity` 三支結構檢查與 `eslint`）exit 0。
 
 ---
 
