@@ -1,10 +1,26 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { CURRENT_USER } from '@/data/session'
+import { authUser } from '@/auth/session'
+import { logout } from '@/api/adminAuth'
+import { resetClubAccess } from '@/auth/clubAccess'
 
-function handleCommand(command: string) {
+const router = useRouter()
+
+const displayName = computed(() => authUser.value?.username ?? '')
+const initial = computed(() => displayName.value.slice(0, 1).toUpperCase())
+
+async function handleCommand(command: string) {
+  if (command === 'security') {
+    router.push('/account/security')
+    return
+  }
   if (command === 'logout') {
-    ElMessage.info('已登出（mock，未串接真正的登入系統）')
+    await logout()
+    resetClubAccess()
+    ElMessage.success('已登出')
+    router.push('/login')
   }
 }
 </script>
@@ -12,13 +28,13 @@ function handleCommand(command: string) {
 <template>
   <el-dropdown trigger="click" @command="handleCommand">
     <span class="user-menu">
-      <el-avatar :size="28">{{ CURRENT_USER.name.slice(0, 1) }}</el-avatar>
-      <span class="user-menu__name admin-hide-on-mobile">{{ CURRENT_USER.name }}</span>
+      <el-avatar :size="28">{{ initial }}</el-avatar>
+      <span class="user-menu__name admin-hide-on-mobile">{{ displayName }}</span>
       <el-icon><ArrowDown /></el-icon>
     </span>
     <template #dropdown>
       <el-dropdown-menu>
-        <el-dropdown-item command="profile">個人設定</el-dropdown-item>
+        <el-dropdown-item command="security">帳號安全設定</el-dropdown-item>
         <el-dropdown-item command="logout" divided>登出</el-dropdown-item>
       </el-dropdown-menu>
     </template>

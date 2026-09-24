@@ -49,7 +49,10 @@ export const NAV_GROUPS: NavGroup[] = [
           { code: 'C1', label: '球隊', path: '/teams/clubs', implemented: false },
           { code: 'C2', label: '球員', path: '/teams/players', implemented: false },
           { code: 'C3', label: '教練與團隊成員', path: '/teams/staff', implemented: false },
-          { code: 'C4', label: '賽程與賽果', path: '/teams/matches', implemented: false },
+          // 🔴 本輪只做了 C4 底下的「賽事系列」（Competition，賽程賽果的分類支援型別）維護，
+          // 不是完整的 C4（賽程、比分、出賽名單……見 docs/03-admin-spec.md C4 全部條文，
+          // 完整功能留給之後的 S1-8）。畫面上會清楚標示目前只開放這一部分，不假裝已完成。
+          { code: 'C4', label: '賽程與賽果', path: '/teams/competitions', implemented: true },
           { code: 'C5', label: '榮譽與里程碑', path: '/teams/honours', implemented: false },
         ],
       },
@@ -144,11 +147,13 @@ export const NAV_GROUPS: NavGroup[] = [
       {
         code: 'J',
         label: '系統管理',
+        // ⚠️ 這整組只有系統管理員看得到——AppSidebar.vue 會依登入者的 isSuperAdmin 整組濾掉，
+        // 不是靠這裡的 implemented 旗標控制可見度（那個旗標只管「做了沒」）。
         children: [
-          { code: 'J1', label: '帳號', path: '/system/accounts', implemented: false },
-          { code: 'J2', label: '角色與權限', path: '/system/roles', implemented: false },
+          { code: 'J1', label: '帳號', path: '/system/accounts', implemented: true },
+          { code: 'J2', label: '角色與權限', path: '/system/roles', implemented: true },
           { code: 'J3', label: '稽核與備份', path: '/system/audit', implemented: false },
-          { code: 'J4', label: '俱樂部與授權管理', path: '/system/clubs', implemented: false },
+          { code: 'J4', label: '俱樂部與授權管理', path: '/system/clubs', implemented: true },
         ],
       },
     ],

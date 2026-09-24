@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { CURRENT_USER } from '@/data/session'
-import { activeClubId } from '@/data/activeClub'
+import { activeClubId, availableClubs, ensureClubsLoaded } from '@/auth/clubAccess'
 
 /**
  * 站台切換器（docs/21-admin-ui.md §5）。
@@ -12,23 +11,23 @@ import { activeClubId } from '@/data/activeClub'
  * ⚠️ 切換站台只換這裡的隊徽圖示與名稱文字，不整個換 Element Plus 主色（docs/21 §5／§7：
  * 「切換器是介面便利，不是安全邊界」）。
  *
- * v3（docs/21 §5.3）：隊徽小圖示改用真實隊徽圖像，不再是純色色塊——操作主色本身也改成品牌桃紅之後，
- * 純色色塊會被同色系的按鈕、連結、focus 外框稀釋掉「這是俱樂部標記」的獨立辨識度，改用圖像後辨識
- * 來源是圖形本身，不受 --admin-primary 系 token 支配。
- *
- * `activeClubId` 改拉到 `data/activeClub.ts` 的模組層級單例（本輪接後台新聞真實 API 時發現：
- * 這裡原本是元件內部 ref，沒有任何地方讀得到「現在選的是哪一隊」，但 `/api/v1/admin/{club}/news`
- * 這類端點一定要知道目前選的俱樂部）。
+ * 🔴 俱樂部清單來源已改為真實登入後的 `@/auth/clubAccess`（本輪從固定假資料改接真實服務，
+ * 見該檔案上方的完整說明與已知 API 缺口：目前沒有「查詢目前帳號被授權哪些俱樂部」的自助端點，
+ * 這裡列出的是系統裡「有哪些俱樂部」，不是「這個帳號被授權哪些俱樂部」——選到未授權的俱樂部會在
+ * 該頁看到後端如實回傳的 403 訊息，不會誤導成功）。
  */
-const clubs = CURRENT_USER.authorizedClubs
+onMounted(() => {
+  ensureClubsLoaded()
+})
 
-const activeClub = computed(() => clubs.find((c) => c.id === activeClubId.value) ?? clubs[0])
-const canSwitch = computed(() => clubs.length > 1)
+const clubs = availableClubs
+const activeClub = computed(() => clubs.value.find((c) => c.code === activeClubId.value) ?? clubs.value[0])
+const canSwitch = computed(() => clubs.value.length > 1)
 
-function handleCommand(clubId: string) {
-  if (clubId === activeClubId.value) return
-  activeClubId.value = clubId
-  const club = clubs.find((c) => c.id === clubId)
+function handleCommand(clubCode: string) {
+  if (clubCode === activeClubId.value) return
+  activeClubId.value = clubCode
+  const club = clubs.value.find((c) => c.code === clubCode)
   ElMessage.success(`已切換至${club?.name}的管理畫面`)
 }
 </script>
@@ -44,10 +43,10 @@ function handleCommand(clubId: string) {
       <el-dropdown-menu>
         <el-dropdown-item
           v-for="club in clubs"
-          :key="club.id"
-          :command="club.id"
+          :key="club.code"
+          :command="club.code"
         >
-          <el-icon v-if="club.id === activeClubId"><Check /></el-icon>
+          <el-icon v-if="club.code === activeClubId"><Check /></el-icon>
           <span v-else class="site-switcher__check-placeholder" />
           <img class="site-switcher__mark site-switcher__mark--menu-item" :src="club.crestUrl" :alt="`${club.name}隊徽`">
           {{ club.name }}
@@ -55,9 +54,9 @@ function handleCommand(clubId: string) {
       </el-dropdown-menu>
     </template>
   </el-dropdown>
-  <span v-else class="site-switcher site-switcher--static">
-    <img class="site-switcher__mark" :src="activeClub?.crestUrl" :alt="`${activeClub?.name}隊徽`">
-    <span class="site-switcher__name">{{ activeClub?.name }}</span>
+  <span v-else-if="activeClub" class="site-switcher site-switcher--static">
+    <img class="site-switcher__mark" :src="activeClub.crestUrl" :alt="`${activeClub.name}隊徽`">
+    <span class="site-switcher__name">{{ activeClub.name }}</span>
   </span>
 </template>
 

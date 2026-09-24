@@ -1,6 +1,9 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NAV_GROUPS } from '@/data/nav'
+import type { NavGroup } from '@/types/nav'
+import { authUser } from '@/auth/session'
 
 const props = defineProps<{
   collapse: boolean
@@ -12,6 +15,21 @@ const emit = defineEmits<{
 
 const route = useRoute()
 const router = useRouter()
+
+/**
+ * `J 系統管理` 整組只有系統管理員看得到（規劃書 §6 權限矩陣「系統」欄只有系統管理員打勾，
+ * 其餘角色是「—」或「✗」）。這裡只是選單可見度，不是安全邊界——真正的把關在後端每一個
+ * `system.*` 權限碼（皆為 `sysadmin_only`）與 `router/index.ts` 的第二層路由守衛。
+ */
+const SYSADMIN_ONLY_MODULE_CODES = new Set(['J'])
+
+const visibleGroups = computed<NavGroup[]>(() => {
+  if (authUser.value?.isSuperAdmin) return NAV_GROUPS
+  return NAV_GROUPS.map((group) => ({
+    ...group,
+    modules: group.modules.filter((mod) => !SYSADMIN_ONLY_MODULE_CODES.has(mod.code)),
+  })).filter((group) => group.modules.length > 0)
+})
 
 function handleSelect(path: string) {
   if (route.path !== path) router.push(path)
@@ -29,7 +47,7 @@ function handleSelect(path: string) {
       class="app-sidebar__menu"
       @select="handleSelect"
     >
-      <template v-for="group in NAV_GROUPS" :key="group.groupLabel">
+      <template v-for="group in visibleGroups" :key="group.groupLabel">
         <el-menu-item-group :title="props.collapse ? undefined : group.groupLabel">
           <template v-for="mod in group.modules" :key="mod.code">
             <el-sub-menu v-if="mod.children" :index="mod.code">

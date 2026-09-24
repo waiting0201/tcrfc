@@ -6,8 +6,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
-import { activeClubId } from '@/data/activeClub'
-import { checkGateStatus, type GateStatus } from '@/api/gate'
+import { activeClubId } from '@/auth/clubAccess'
 import {
   createAdminNews,
   deleteAdminNews,
@@ -63,9 +62,6 @@ const listError = ref<ListErrorState | null>(null)
  * 用一次不帶篩選條件的探測請求區分，不能只看目前這次（可能帶篩選）查詢的 totalCount。 */
 const hasAnyDataEver = ref<boolean | null>(null)
 
-const gateStatus = ref<GateStatus>('closed')
-const gateChecking = ref(true)
-
 async function probeHasAnyData(club: string) {
   try {
     const page = await listAdminNews(club, { page: 1, pageSize: 1 })
@@ -108,28 +104,16 @@ async function fetchList() {
 }
 
 async function bootstrapForClub() {
-  gateChecking.value = true
   initialLoading.value = true
   hasAnyDataEver.value = null
   listError.value = null
   selectedIds.value = []
   const club = activeClubId.value
-  const status = await checkGateStatus(club)
-  gateStatus.value = status
-  gateChecking.value = false
-  if (status !== 'open') {
-    initialLoading.value = false
-    return
-  }
   await Promise.all([fetchList(), probeHasAnyData(club)])
 }
 
 onMounted(bootstrapForClub)
 watch(activeClubId, bootstrapForClub)
-
-async function retryFromGate() {
-  await bootstrapForClub()
-}
 
 function applyFilters() {
   currentPage.value = 1
@@ -144,7 +128,7 @@ function clearFilters() {
 }
 
 watch([currentPage, pageSize], () => {
-  if (gateStatus.value === 'open') fetchList()
+  fetchList()
 })
 
 const hasAnyData = computed(() => hasAnyDataEver.value === true)
@@ -286,214 +270,193 @@ async function handleBatchDelete() {
       </template>
     </PageHeader>
 
-    <!-- 開發環境寫入功能尚未開啟，或完全連不上後台服務：整頁替換成明確說明，不留空白畫面（docs/21 §10、任務指示第 2 點） -->
-    <el-card v-if="!gateChecking && gateStatus !== 'open'" shadow="never">
+    <el-card shadow="never" class="news-list__filters">
+      <div class="news-list__filter-row">
+        <el-input
+          v-model="filters.keyword"
+          placeholder="搜尋中文標題"
+          clearable
+          class="news-list__filter-keyword"
+          @keyup.enter="applyFilters"
+          @clear="applyFilters"
+        >
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
+        <el-select v-model="filters.category" placeholder="分類" clearable class="news-list__filter-select">
+          <el-option
+            v-for="(label, value) in NEWS_CATEGORY_LABEL"
+            :key="value"
+            :label="label"
+            :value="value"
+          />
+        </el-select>
+        <el-select v-model="filters.status" placeholder="狀態" clearable class="news-list__filter-select">
+          <el-option label="草稿" value="draft" />
+          <el-option label="排程發布" value="scheduled" />
+          <el-option label="已發布" value="published" />
+        </el-select>
+        <el-button type="primary" @click="applyFilters">篩選</el-button>
+        <el-button @click="clearFilters">清除</el-button>
+      </div>
+    </el-card>
+
+    <el-card shadow="never" class="news-list__toolbar">
+      <div class="news-list__toolbar-row">
+        <div v-if="selectedIds.length > 0" class="news-list__batch-actions">
+          <span class="news-list__batch-count">已選取 {{ selectedIds.length }} 筆</span>
+          <el-button size="small" @click="handleBatchPublish">批次發布</el-button>
+          <el-button size="small" type="danger" plain @click="handleBatchDelete">刪除</el-button>
+        </div>
+        <div v-else class="news-list__batch-actions-placeholder" />
+        <el-button type="primary" @click="handleAdd">+ 新增文章</el-button>
+      </div>
+    </el-card>
+
+    <!-- 首次載入：骨架卡片，讓使用者提前看到大致版面結構（docs/21 §10.2） -->
+    <el-card v-if="initialLoading" shadow="never" class="news-list__table-card">
+      <el-skeleton :rows="6" animated />
+    </el-card>
+
+    <!-- 查詢失敗：不用 danger 紅色，這是系統性問題不是使用者操作後果（docs/21 §10.3） -->
+    <el-card v-else-if="listError" shadow="never">
       <el-empty :image-size="96">
         <template #image>
           <el-icon :size="48" color="var(--admin-text-tertiary)"><WarningFilled /></el-icon>
         </template>
         <template #description>
-          <p v-if="gateStatus === 'closed'" class="news-list__gate-text">
-            目前開發環境尚未開啟後台寫入功能，暫時無法檢視或編輯新聞與故事。<br>
-            請洽負責後端開發的同仁確認開發環境設定後再試一次。
-          </p>
-          <p v-else class="news-list__gate-text">
-            無法連線到後台服務，請確認服務是否已啟動、網路是否正常後再試一次。
-          </p>
+          <p class="news-list__error-text">{{ listError.message }}</p>
+          <p v-if="listError.detail" class="news-list__error-detail">{{ listError.detail }}</p>
         </template>
-        <el-button type="primary" @click="retryFromGate">重新載入</el-button>
+        <el-button type="primary" @click="fetchList">重新載入</el-button>
+      </el-empty>
+    </el-card>
+
+    <el-card v-else-if="!hasAnyData && !isFilteredEmpty" shadow="never">
+      <el-empty description="目前還沒有任何新聞與故事">
+        <el-button type="primary" @click="handleAdd">+ 新增第一篇文章</el-button>
       </el-empty>
     </el-card>
 
     <template v-else>
-      <el-card shadow="never" class="news-list__filters">
-        <div class="news-list__filter-row">
-          <el-input
-            v-model="filters.keyword"
-            placeholder="搜尋中文標題"
-            clearable
-            class="news-list__filter-keyword"
-            @keyup.enter="applyFilters"
-            @clear="applyFilters"
+      <el-card v-loading="refetching" shadow="never" class="news-list__table-card">
+        <template v-if="articles.length > 0">
+          <!-- 桌面／平板：el-table，平板寬度下用 CSS 隱藏次要欄位（docs/21 §8） -->
+          <el-table
+            v-if="!isMobile"
+            :data="articles"
+            row-key="id"
+            @selection-change="handleSelectionChange"
           >
-            <template #prefix><el-icon><Search /></el-icon></template>
-          </el-input>
-          <el-select v-model="filters.category" placeholder="分類" clearable class="news-list__filter-select">
-            <el-option
-              v-for="(label, value) in NEWS_CATEGORY_LABEL"
-              :key="value"
-              :label="label"
-              :value="value"
-            />
-          </el-select>
-          <el-select v-model="filters.status" placeholder="狀態" clearable class="news-list__filter-select">
-            <el-option label="草稿" value="draft" />
-            <el-option label="排程發布" value="scheduled" />
-            <el-option label="已發布" value="published" />
-          </el-select>
-          <el-button type="primary" @click="applyFilters">篩選</el-button>
-          <el-button @click="clearFilters">清除</el-button>
-        </div>
-      </el-card>
-
-      <el-card shadow="never" class="news-list__toolbar">
-        <div class="news-list__toolbar-row">
-          <div v-if="selectedIds.length > 0" class="news-list__batch-actions">
-            <span class="news-list__batch-count">已選取 {{ selectedIds.length }} 筆</span>
-            <el-button size="small" @click="handleBatchPublish">批次發布</el-button>
-            <el-button size="small" type="danger" plain @click="handleBatchDelete">刪除</el-button>
-          </div>
-          <div v-else class="news-list__batch-actions-placeholder" />
-          <el-button type="primary" @click="handleAdd">+ 新增文章</el-button>
-        </div>
-      </el-card>
-
-      <!-- 首次載入：骨架卡片，讓使用者提前看到大致版面結構（docs/21 §10.2） -->
-      <el-card v-if="initialLoading" shadow="never" class="news-list__table-card">
-        <el-skeleton :rows="6" animated />
-      </el-card>
-
-      <!-- 查詢失敗：不用 danger 紅色，這是系統性問題不是使用者操作後果（docs/21 §10.3） -->
-      <el-card v-else-if="listError" shadow="never">
-        <el-empty :image-size="96">
-          <template #image>
-            <el-icon :size="48" color="var(--admin-text-tertiary)"><WarningFilled /></el-icon>
-          </template>
-          <template #description>
-            <p class="news-list__gate-text">{{ listError.message }}</p>
-            <p v-if="listError.detail" class="news-list__error-detail">{{ listError.detail }}</p>
-          </template>
-          <el-button type="primary" @click="fetchList">重新載入</el-button>
-        </el-empty>
-      </el-card>
-
-      <el-card v-else-if="!hasAnyData && !isFilteredEmpty" shadow="never">
-        <el-empty description="目前還沒有任何新聞與故事">
-          <el-button type="primary" @click="handleAdd">+ 新增第一篇文章</el-button>
-        </el-empty>
-      </el-card>
-
-      <template v-else>
-        <el-card v-loading="refetching" shadow="never" class="news-list__table-card">
-          <template v-if="articles.length > 0">
-            <!-- 桌面／平板：el-table，平板寬度下用 CSS 隱藏次要欄位（docs/21 §8） -->
-            <el-table
-              v-if="!isMobile"
-              :data="articles"
-              row-key="id"
-              @selection-change="handleSelectionChange"
-            >
-              <el-table-column type="selection" width="44" />
-              <el-table-column label="封面" width="72">
-                <template #default>
-                  <div class="news-list__thumb">
-                    <div class="news-list__thumb-placeholder">
-                      <el-icon><Picture /></el-icon>
-                    </div>
-                  </div>
-                </template>
-              </el-table-column>
-              <el-table-column label="標題" min-width="180">
-                <template #default="{ row }">
-                  <span>{{ row.title.zh || '（未命名）' }}</span>
-                  <el-tag v-if="row.isSharedContent" type="info" size="small" class="news-list__inline-tag">
-                    共用內容
-                  </el-tag>
-                  <el-tag v-if="row.isFeatured" type="warning" size="small" class="news-list__inline-tag">
-                    置頂精選
-                  </el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column v-if="showSecondaryColumns" label="分類" width="110">
-                <template #default="{ row }">{{ NEWS_CATEGORY_LABEL[row.category as NewsCategory] }}</template>
-              </el-table-column>
-              <el-table-column label="狀態" width="120">
-                <template #default="{ row }">
-                  <StatusTag :status="row.status" :status-at="row.statusAt" />
-                </template>
-              </el-table-column>
-              <el-table-column v-if="showSecondaryColumns" label="發布時間" width="160">
-                <template #default="{ row }">{{ row.statusAt ? formatDateTime(row.statusAt) : '—' }}</template>
-              </el-table-column>
-              <el-table-column label="操作" width="180" fixed="right">
-                <template #default="{ row }">
-                  <el-button size="small" text :disabled="row.status !== 'published'" @click="handleView(row)">
-                    檢視
-                  </el-button>
-                  <el-button size="small" text type="primary" @click="handleEdit(row)">編輯</el-button>
-                  <el-dropdown trigger="click">
-                    <el-button size="small" text>
-                      更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                    </el-button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item @click="handleDuplicate(row)">複製</el-dropdown-item>
-                        <el-dropdown-item v-if="!row.isSharedContent" divided @click="handleDelete(row)">
-                          <span class="news-list__danger-item">刪除</span>
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
-                </template>
-              </el-table-column>
-            </el-table>
-
-            <!-- 手機：卡片式列表，每筆一張 el-card，只留關鍵欄位（docs/21 §8） -->
-            <div v-else class="news-list__cards">
-              <el-card v-for="row in articles" :key="row.id" shadow="never" class="news-list__card">
-                <div class="news-list__card-main">
-                  <div class="news-list__thumb">
-                    <div class="news-list__thumb-placeholder">
-                      <el-icon><Picture /></el-icon>
-                    </div>
-                  </div>
-                  <div class="news-list__card-body">
-                    <div class="news-list__card-title">{{ row.title.zh || '（未命名）' }}</div>
-                    <div class="news-list__card-meta">
-                      <span>{{ NEWS_CATEGORY_LABEL[row.category as NewsCategory] }}</span>
-                      <StatusTag :status="row.status" :status-at="row.statusAt" />
-                    </div>
+            <el-table-column type="selection" width="44" />
+            <el-table-column label="封面" width="72">
+              <template #default>
+                <div class="news-list__thumb">
+                  <div class="news-list__thumb-placeholder">
+                    <el-icon><Picture /></el-icon>
                   </div>
                 </div>
-                <div class="news-list__card-actions">
-                  <el-button size="small" text :disabled="row.status !== 'published'" @click="handleView(row)">
-                    檢視
+              </template>
+            </el-table-column>
+            <el-table-column label="標題" min-width="180">
+              <template #default="{ row }">
+                <span>{{ row.title.zh || '（未命名）' }}</span>
+                <el-tag v-if="row.isSharedContent" type="info" size="small" class="news-list__inline-tag">
+                  共用內容
+                </el-tag>
+                <el-tag v-if="row.isFeatured" type="warning" size="small" class="news-list__inline-tag">
+                  置頂精選
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column v-if="showSecondaryColumns" label="分類" width="110">
+              <template #default="{ row }">{{ NEWS_CATEGORY_LABEL[row.category as NewsCategory] }}</template>
+            </el-table-column>
+            <el-table-column label="狀態" width="120">
+              <template #default="{ row }">
+                <StatusTag :status="row.status" :status-at="row.statusAt" />
+              </template>
+            </el-table-column>
+            <el-table-column v-if="showSecondaryColumns" label="發布時間" width="160">
+              <template #default="{ row }">{{ row.statusAt ? formatDateTime(row.statusAt) : '—' }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="180" fixed="right">
+              <template #default="{ row }">
+                <el-button size="small" text :disabled="row.status !== 'published'" @click="handleView(row)">
+                  檢視
+                </el-button>
+                <el-button size="small" text type="primary" @click="handleEdit(row)">編輯</el-button>
+                <el-dropdown trigger="click">
+                  <el-button size="small" text>
+                    更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
                   </el-button>
-                  <el-button size="small" text type="primary" @click="handleEdit(row)">編輯</el-button>
-                  <el-dropdown trigger="click">
-                    <el-button size="small" text>
-                      更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                    </el-button>
-                    <template #dropdown>
-                      <el-dropdown-menu>
-                        <el-dropdown-item @click="handleDuplicate(row)">複製</el-dropdown-item>
-                        <el-dropdown-item v-if="!row.isSharedContent" divided @click="handleDelete(row)">
-                          <span class="news-list__danger-item">刪除</span>
-                        </el-dropdown-item>
-                      </el-dropdown-menu>
-                    </template>
-                  </el-dropdown>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item @click="handleDuplicate(row)">複製</el-dropdown-item>
+                      <el-dropdown-item v-if="!row.isSharedContent" divided @click="handleDelete(row)">
+                        <span class="news-list__danger-item">刪除</span>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <!-- 手機：卡片式列表，每筆一張 el-card，只留關鍵欄位（docs/21 §8） -->
+          <div v-else class="news-list__cards">
+            <el-card v-for="row in articles" :key="row.id" shadow="never" class="news-list__card">
+              <div class="news-list__card-main">
+                <div class="news-list__thumb">
+                  <div class="news-list__thumb-placeholder">
+                    <el-icon><Picture /></el-icon>
+                  </div>
                 </div>
-              </el-card>
-            </div>
-          </template>
-
-          <el-empty v-else description="找不到符合條件的資料">
-            <el-button @click="clearFilters">清除篩選條件</el-button>
-          </el-empty>
-
-          <div v-if="articles.length > 0" class="news-list__pagination">
-            <el-pagination
-              v-model:current-page="currentPage"
-              v-model:page-size="pageSize"
-              :total="totalCount"
-              :page-sizes="[10, 20, 50, 100]"
-              layout="total, sizes, prev, pager, next"
-              :size="isMobile ? 'small' : 'default'"
-            />
+                <div class="news-list__card-body">
+                  <div class="news-list__card-title">{{ row.title.zh || '（未命名）' }}</div>
+                  <div class="news-list__card-meta">
+                    <span>{{ NEWS_CATEGORY_LABEL[row.category as NewsCategory] }}</span>
+                    <StatusTag :status="row.status" :status-at="row.statusAt" />
+                  </div>
+                </div>
+              </div>
+              <div class="news-list__card-actions">
+                <el-button size="small" text :disabled="row.status !== 'published'" @click="handleView(row)">
+                  檢視
+                </el-button>
+                <el-button size="small" text type="primary" @click="handleEdit(row)">編輯</el-button>
+                <el-dropdown trigger="click">
+                  <el-button size="small" text>
+                    更多<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                  </el-button>
+                  <template #dropdown>
+                    <el-dropdown-menu>
+                      <el-dropdown-item @click="handleDuplicate(row)">複製</el-dropdown-item>
+                      <el-dropdown-item v-if="!row.isSharedContent" divided @click="handleDelete(row)">
+                        <span class="news-list__danger-item">刪除</span>
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </template>
+                </el-dropdown>
+              </div>
+            </el-card>
           </div>
-        </el-card>
-      </template>
+        </template>
+
+        <el-empty v-else description="找不到符合條件的資料">
+          <el-button @click="clearFilters">清除篩選條件</el-button>
+        </el-empty>
+
+        <div v-if="articles.length > 0" class="news-list__pagination">
+          <el-pagination
+            v-model:current-page="currentPage"
+            v-model:page-size="pageSize"
+            :total="totalCount"
+            :page-sizes="[10, 20, 50, 100]"
+            layout="total, sizes, prev, pager, next"
+            :size="isMobile ? 'small' : 'default'"
+          />
+        </div>
+      </el-card>
     </template>
   </div>
 </template>
@@ -544,7 +507,7 @@ async function handleBatchDelete() {
   color: var(--el-text-color-secondary);
 }
 
-.news-list__gate-text {
+.news-list__error-text {
   font-size: 14px;
   line-height: 1.7;
 }

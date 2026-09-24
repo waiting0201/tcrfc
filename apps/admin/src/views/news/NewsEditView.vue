@@ -8,8 +8,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
-import { activeClubId } from '@/data/activeClub'
-import { checkGateStatus, invalidateGateCache } from '@/api/gate'
+import { activeClubId } from '@/auth/clubAccess'
 import {
   articleToSavePayload,
   createAdminNews,
@@ -50,7 +49,7 @@ function emptyArticle(): NewsArticle {
   }
 }
 
-type LoadState = 'loading' | 'gate-closed' | 'unreachable' | 'not-found' | 'error' | 'ready'
+type LoadState = 'loading' | 'not-found' | 'error' | 'ready'
 const loadState = ref<LoadState>('loading')
 const loadErrorMessage = ref('')
 
@@ -79,15 +78,6 @@ function applyLoadedArticle(article: NewsArticle) {
 async function loadArticle() {
   loadState.value = 'loading'
   const club = activeClubId.value
-  const gate = await checkGateStatus(club)
-  if (gate === 'closed') {
-    loadState.value = 'gate-closed'
-    return
-  }
-  if (gate === 'unreachable') {
-    loadState.value = 'unreachable'
-    return
-  }
   if (isCreate) {
     loadState.value = 'ready'
     return
@@ -215,7 +205,6 @@ async function handleSaveError(error: unknown) {
       await ElMessageBox.alert('這篇文章已經找不到了，可能已被刪除。', '找不到這篇文章', { confirmButtonText: '返回列表' })
       router.push('/content/news')
       break
-    case 'gate-closed-or-unreachable':
     case 'network':
       ElMessage.error(error.message)
       break
@@ -325,7 +314,6 @@ function handlePreview() {
 }
 
 function retryLoad() {
-  invalidateGateCache(activeClubId.value)
   loadArticle()
 }
 </script>
@@ -360,21 +348,14 @@ function retryLoad() {
       <el-skeleton :rows="8" animated />
     </el-card>
 
-    <!-- 開發環境寫入功能未開啟／完全連不上服務／找不到這篇文章／查詢失敗：各自給明確說明，不得只顯示空白或籠統的錯誤（任務指示第 2 點與 docs/21 §10） -->
+    <!-- 找不到這篇文章／查詢失敗：各自給明確說明，不得只顯示空白或籠統的錯誤（docs/21 §10） -->
     <el-card v-else-if="loadState !== 'ready'" shadow="never">
       <el-empty :image-size="96">
         <template #image>
           <el-icon :size="48" color="var(--admin-text-tertiary)"><WarningFilled /></el-icon>
         </template>
         <template #description>
-          <p v-if="loadState === 'gate-closed'" class="news-edit__state-text">
-            目前開發環境尚未開啟後台寫入功能，暫時無法新增或編輯新聞與故事。<br>
-            請洽負責後端開發的同仁確認開發環境設定後再試一次。
-          </p>
-          <p v-else-if="loadState === 'unreachable'" class="news-edit__state-text">
-            無法連線到後台服務，請確認服務是否已啟動、網路是否正常後再試一次。
-          </p>
-          <p v-else-if="loadState === 'not-found'" class="news-edit__state-text">
+          <p v-if="loadState === 'not-found'" class="news-edit__state-text">
             找不到這篇文章，可能已經被刪除，或不屬於目前選擇的俱樂部。
           </p>
           <p v-else class="news-edit__state-text">{{ loadErrorMessage }}</p>
