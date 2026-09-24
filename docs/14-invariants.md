@@ -285,6 +285,33 @@
   台中藍鯨既有官網 [www.tcbw2014.com](https://www.tcbw2014.com/)（Google Sites）——⚠️ **v3.0 起改列為內容遷移來源**，新站由本系統建置（獨立網域、雙語），上線後 301 轉址。
 - **成立年份 2024**，2024 全國乙級聯賽冠軍。
 
+- 🔴 **（S1-5，2026-09-24）`value_tag_links`／`article_relations` 這兩張多型關聯表，`entity_type`／
+  `target_type` 的字面值是「型別詞彙表單數小寫」，第一個真正接上讀寫邏輯的呼叫端是
+  `Features/AdminNews`（`ArticleEntityType = "article"`；`article_relations.target_type` 只收
+  `player`／`team`／`match`／`program`／`partner` 五種）——**這是本輪定的慣例，不是規劃書給的字面值**
+  （規劃書只講「多型關聯」「核心價值標籤可掛任何內容型別」，沒有給字串長相）。**之後任何模組要讓自己
+  的型別可以掛核心價值標籤或被文章關聯，一律沿用同一套命名**（小寫、單數、跟 `docs/12` 型別詞彙表的
+  大寫型別名對應，例如 `Program` → `program`），不要各自發明一套大小寫或縮寫規則，否則同一張表裡混著
+  兩種大小寫寫法，查詢時忘記轉大小寫就悄悄查不到任何列。
+- 🔴 **（S1-5）「多型關聯的跨俱樂部隔離」是應用層強制，資料庫沒有任何約束擋著**——`article_relations`
+  是純多型關聯（`target_type`＋`target_id`），型別上不可能對「球員」「球隊」「賽事」「課程」「夥伴」
+  五張不同的表同時宣告外鍵，所以**資料庫允許任何 GUID 寫進 `target_id`，包含跨俱樂部或根本不存在的
+  id**。真正擋下的是 `AdminArticlesRepository.ValidateRelationsAsync`：寫入前逐筆查對應資料表
+  `WHERE id = @TargetId AND club_id = @ArticleClubId`，查不到就整包 400。**日後任何地方要直接寫
+  `article_relations`（例如批次匯入腳本、其他模組抄樣板）都要重做這道檢查，不能假設資料庫會擋。**
+- 🔴 **（S1-5）標籤／核心價值標籤／關聯三個欄位在後台更新端點是「省略＝維持不變、空陣列＝清空」**，
+  跟同一個請求裡雙語內容欄位「省略英文＝清空英文」是**相反的語意**（`UpdateArticleRequest.Tags`／
+  `CoreValueTags`／`Relations` 對比 `Content.En`）。原因是雙語內容欄位在既有畫面已經有輸入框、
+  省略等於使用者主動清空是合理預期；標籤／核心價值標籤／關聯目前**沒有任何畫面**，若採「省略＝清空」，
+  任何只改標題的存檔動作都會把既有標籤／關聯整批清光——**同一支 API、同一種「這個欄位存不存在」的
+  判斷方式，不同欄位可能是相反的業務語意，抄樣板時要逐欄位確認，不能整支複製貼上。**
+- 🔴 **（S1-5）`articles.status` 沒有「已下架」這個值**（CHECK 約束只有 `draft`／`published`／
+  `scheduled`，見既有落差 `apps/api/README.md`「已發現、未動手修改的既有落差」第 1 點）。
+  `AdminArticlesRepository.BatchUnpublishAsync`（批次下架）因此**把「下架」實作成轉回 `draft`**——
+  這是本輪的判斷，不是規劃書明文，需要業務確認（跟 `S0-7h` 的兩項假設同一種性質）；`published_at`
+  不會被清空，這是目前唯一還能分辨「這篇文章曾經發布過」的線索。**日後若要新增真正的「已下架」狀態
+  值，是規格變更，先改 `docs/12` 再走同步鏈，不要直接改 CHECK 約束。**
+
 ---
 
 ## ✅ 主站與 App 的雙隊落差已於 2026-09-10 解除

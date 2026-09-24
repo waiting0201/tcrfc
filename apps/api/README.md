@@ -1120,6 +1120,165 @@ J4「球隊授權」（`admin_user_teams`）畫面需要球隊下拉選單，且
 
 ---
 
+## S1-5：`B2` 新聞與故事後端補完（2026-09-24，`backend-engineer`）
+
+補齊 S0-8 當時明講「刻意不做」的部分（見上方「後台新聞（B2）寫入垂直切片」§「這一輪不做的部分」）：
+標籤、核心價值標籤、多型關聯、置頂精選（維持既有）、瀏覽數統計、批次操作、公開端點篩選。
+
+### 規劃書條文逐條對照（主站規劃書 §4.2 B2，行 1017–1020）
+
+| 規劃書條文 | 狀態 |
+|---|---|
+| 文章 CRUD、分類（對應 7.1~7.8） | ✅ S0-8 已有（`article_categories` 8 個分類已由 `db/seed` 種子） |
+| 標籤 | ✅ **本輪新增**（`tags`／`tags_i18n`／`article_tags`，find-or-create） |
+| 核心價值標籤 | ✅ **本輪新增**（`value_tag_links`，`entity_type='article'`，值域五個） |
+| 封面圖、摘要、內文區塊編輯 | ✅ S0-8／S0-8 修正已有 |
+| 關聯（球員／球隊／賽事／課程／夥伴） | ✅ **本輪新增**（`article_relations`，五種 `target_type`，跨俱樂部隔離） |
+| 排程發布 | ✅ S0-8／S0-7g 已有，本輪未動 |
+| 置頂精選（限 3） | ✅ S0-8 已有（逐俱樂部計算，S0-7h 兩項假設維持不變，本輪未動） |
+| 瀏覽數統計 | ✅ **本輪新增**（欄位 `articles.view_count` S0-8 時已存在但沒有寫入路徑；公開端點 `POST .../views` 遞增，後台 DTO 補回填） |
+| 批次操作：改分類、批次發布／下架 | ✅ **本輪新增**（三支 `/batch/*` 端點；「下架」的實作方式是本輪的判斷，見下方） |
+
+**規劃書沒寫，本輪沒自創的部分**：分類與標籤是否要有各自獨立的後台 CRUD 畫面（目前分類固定
+8 個由種子建立，不開放新增／刪除；標籤走 find-or-create，沒有獨立的「標籤管理」端點）——規劃書
+只寫「分類」「標籤」兩個詞，沒有講分類要不要能新增、標籤要不要有獨立管理畫面，`docs/03` 也只重複
+規劃書的用詞。這是刻意的保守範圍：**新增分類＝規格變更**（7.1–7.8 是規劃書明文列出的固定分類），
+**標籤沒有這個問題**（規劃書用詞本來就是開放式的「標籤」，find-or-create 是最貼近「隨手打幾個字
+分類」這個使用情境的實作，不算自創功能）。
+
+### 端點與權限碼
+
+沿用既有五個 `content.article.*` 權限碼（`view`／`create`／`update`／`publish`／`delete`），
+**沒有新增權限碼**——標籤／核心價值標籤／關聯是既有建立／更新端點 payload 多出來的欄位，批次
+操作的三支端點分別掛 `update`（改分類）與 `publish`（發布／下架）：
+
+- `POST /api/v1/admin/{club}/news/batch/category`（`content.article.update`）
+- `POST /api/v1/admin/{club}/news/batch/publish`（`content.article.publish`）
+- `POST /api/v1/admin/{club}/news/batch/unpublish`（`content.article.publish`）
+- `POST /api/v1/{club}/news/{slug}/views`（公開，不需要登入，回 204／404）
+
+`GET /api/v1/{club}/news`／`GET /api/v1/admin/{club}/news` 新增查詢參數：公開端點加 `tag=<slug>`，
+後台清單端點的 `Tags` 是既有查詢附帶回傳（沒有新增查詢參數）。
+
+### 三個欄位「省略＝維持不變、空陣列＝清空」——跟雙語內容欄位相反的語意
+
+`UpdateArticleRequest.Tags`／`CoreValueTags`／`Relations` 省略（JSON 不帶這個欄位）＝維持資料庫
+現況；明確傳空陣列 `[]` 才是清空。這跟同一個請求裡 `Content.En` 的「省略英文＝清空既有英文列」
+剛好相反——**理由是這三個欄位目前沒有任何後台畫面**（跟 S0-8 時「不做」的理由一樣），若比照內容
+欄位「省略＝清空」，任何只改標題不碰這三個欄位的既有存檔動作都會把既有標籤／關聯整批清光，
+是比「這個功能還沒做」更糟的資料損毀。**建立時沒有這個問題**（沒有「原本的值」可以維持），
+所以 `CreateArticleRequest` 的同名三個欄位省略＝空，跟 Update 不同，已在程式碼註解逐一說明。
+已寫入 [`docs/14-invariants.md`](../../docs/14-invariants.md)。
+
+### 瀏覽數：怎麼做到不影響公開讀取效能與快取
+
+`ArticlesRepository.IncrementViewCountAsync`（`Features/News/`）是一支**獨立的公開端點**
+（`POST /api/v1/{club}/news/{slug}/views`），不是掛在既有兩支 `GET` 的讀取路徑上「順便」累加：
+
+1. **不碰 `IQueryCache`**——這支方法直接用 Dapper 送一句 `UPDATE articles SET view_count =
+   view_count + 1 WHERE ...`，完全不經過 `GetOrCreateAsync`，讀取路徑一行都沒改，效能不受影響。
+2. **寫入後不呼叫 `InvalidateAsync`**——瀏覽數不在 docs/17 §4「五類不得讀快取」之列，容忍最多一個
+   TTL（預設 300 秒）的顯示落後是可接受的取捨；如果每次瀏覽都讓整篇文章詳情的快取失效，等於
+   瀏覽數這個低重要性欄位拖垮標題／內文這些高重要性欄位的快取命中率。
+3. **資料庫端遞增**（`view_count = view_count + 1`），不是「讀出來 +1 再寫回去」，高併發下不會
+   更新遺失。
+4. 回應固定 `204 No Content`，不回傳遞增後的數字——避免呼叫端誤以為這支端點的回應比畫面上
+   （可能來自快取）顯示的數字更準確。
+5. **沒有新增任何 log／統計表**（CLAUDE.md 全域規定、`docs/18` `E-44`）——`view_count` 本來就是
+   `articles` 主表既有欄位（S0-8 當時已存在但沒有寫入路徑），這裡只是補上寫入路徑。
+6. 只有 `status = 'published'` 且已到發布時間的文章才會被加到；找不到符合條件的文章（草稿、
+   排程中、不存在）回 404，不洩漏「這個 slug 存在但還沒發布」，也不會建立任何列。
+
+### 我的判斷（規劃書沒定義，本輪做了選擇，需要使用者／下一位確認）
+
+1. **批次「下架」＝轉回 `draft`**：`articles.status` 的 CHECK 約束只有 `draft`／`published`／
+   `scheduled` 三態，沒有獨立的「已下架」值（S0-8 時已回報的既有落差，見上方「已發現、未動手修改
+   的既有落差」第 1 點）。新增值域是規格變更，本輪任務邊界不能改 `db/club-schema.sql`，因此把
+   「下架」實作成轉回 `draft`——公開 API 只顯示 `status='published'`，轉回草稿在對外行為上就是
+   「從公開站消失」，跟「下架」字面上要達成的效果一致；代價是「從沒發布過的草稿」跟「下架前
+   發布過」現在共用同一個狀態值，只能靠 `published_at`（下架後不清空）分辨兩者。**這是需要業務
+   判斷確認的假設，跟 `S0-7h` 那兩項同一種性質，只是發生的時間點更晚**——不是同一類錯誤所以不
+   升級 `S0-7h`，是新的一筆待確認事項。
+2. **批次操作不做逐筆並行權杖檢查**：批次操作的使用情境是「列表頁勾選多筆按一個按鈕」，呼叫端
+   沒有（也不該要求畫面先為每一筆蒐集 `updated_at`）；找不到、跨俱樂部、共用內容唯讀、狀態不允許
+   四種情況分別列進回應的 `Skipped` 清單並附中文原因，不是丟 409。**能處理的處理，不能處理的
+   列出來，不是全有全無**——這跟單篇編輯（有畫面可以顯示個別 409 錯誤）在使用情境上不同。
+3. **標籤格式沿用文章網址名稱同一套 kebab-case 正規表示式，但不共用保留字清單**
+   （`Features/AdminNews/TagSlugFormat.cs`）：標籤沒有對應的路由頁面，不需要擋「跟 07 單元分類
+   landing 頁撞名」，格式規則本身沿用同一套只是因為之後很可能被用在同一種查詢參數的位置
+   （`?tag=`），維持 URL 安全與大小寫一致的形狀。
+4. **`value_tag_links.entity_type` 與 `article_relations.target_type` 的字面值命名慣例**：
+   小寫、單數、對應 `docs/12` 型別詞彙表的大寫型別名（`article`／`player`／`team`／`match`／
+   `program`／`partner`）。規劃書沒有給任何字面值，這是本輪定的慣例，已寫入 `docs/14`，供之後
+   其他模組接上同一套多型關聯表時比照。
+5. **新標籤找不到既有列時，`NameZh` 必填**：標籤名稱要給人看，新建卻不給中文名稱沒有意義；
+   找到既有標籤時**忽略**這次輸入的名稱（名稱由標籤自己的資料列管理，不因某一篇文章的輸入被
+   悄悄覆寫，否則 A 文章存檔時會改掉 B 文章也在用的同一個標籤顯示名稱）。
+6. **已知、接受的競態窗口**：兩個請求同時建立同一個新 slug 的標籤時，`UQ_tags_slug` 會讓其中一個
+   `SaveChangesAsync` 失敗並以 500 呈現（未特別攔截轉換）——跟本檔其他「先查後寫」的重複檢查
+   （文章 slug、分類代碼）採同一種風險容忍度（本專案目前沒有任何地方對這類競態做重試或攔截），
+   不是本輪遺漏，是跟既有慣例一致的取捨。
+
+### 契約變更（給 `apps/admin` 的人看）
+
+**沒有破壞既有欄位或路徑**，全部是新增：
+
+- `AdminArticleListItemDto`／`AdminArticleDetailDto` 新增 `tags`（陣列）、`viewCount`（int）；
+  `AdminArticleDetailDto` 另外新增 `coreValueTags`（字串陣列）、`relations`（陣列）。
+- `CreateArticleRequest`／`UpdateArticleRequest` 新增 `tags`／`coreValueTags`／`relations`
+  三個**選填**欄位（不帶＝維持既有行為，見上方語意說明）。
+- 公開 `ArticleListItemDto`／`ArticleDetailDto` 新增 `tags`；`ArticleDetailDto` 另外新增
+  `coreValueTags`、`relations`。
+- 新增三個端點（見上方「端點與權限碼」），不影響既有端點的路徑或回應形狀。
+
+既有 `apps/admin/src/api/adminNews.ts`／`apps/admin/src/types/news.ts` 沒有引用這些新欄位，
+`System.Text.Json` 反序列化多出來的欄位會被忽略，**不需要同步改前端就能繼續運作**；前端要開始
+用這些欄位時，直接照上面型別加，不需要改既有欄位。
+
+### 綱要缺口或待裁決（回報，不是自己判斷做或不做）
+
+**沒有發現需要新欄位或新表的缺口**——`tags`／`tags_i18n`／`article_tags`／`value_tag_links`／
+`article_relations` 五張表 `db/club-schema.sql` 早就有（S0-8 時已建好，只是沒接讀寫邏輯），
+本輪全程沒有碰 DDL、沒有新 migration、沒有對 `tcrfc_club_dev` 做結構變更。上方「我的判斷」
+第 1 點（批次下架＝轉回 `draft`）是唯一需要業務確認的事項，不是綱要缺口。
+
+### 測試（`Tcrfc.Api.Tests`，新增 2 個檔案、18 項）
+
+- `AdminNewsTagsRelationsTests.cs`（14 項）：標籤新建與沿用既有（不重複建立、不覆寫既有名稱）、
+  新標籤缺中文名稱回 400、標籤格式不正確回 400、更新省略標籤維持不變／空陣列清空、核心價值標籤
+  合法值存讀、不合法值回 400、關聯同俱樂部球隊成功、**關聯跨俱樂部球隊回 400（多型關聯的跨俱樂部
+  隔離）且不留孤兒資料列**、關聯類型不支援回 400、關聯目標不存在回 400、批次改分類（含跨俱樂部
+  略過，用 `super.admin@tcrfc.test` 建立真正的 `bw` 文章驗證）、批次改分類 ids 為空回 400、
+  批次發布（只處理草稿／排程中）、批次下架（已發布轉草稿、草稿本身略過、公開 API 立刻查不到）。
+- `NewsPublicFilterAndViewCountTests.cs`（4 項）：公開列表 `?tag=` 篩選只回傳掛了該標籤的文章、
+  公開詳情頁回傳標籤／核心價值標籤／關聯、瀏覽數端點呼叫後真的遞增（用無快取的 `AdminWriteApiFixture`
+  直接斷言）、瀏覽數端點對草稿或不存在的文章回 404 且不建立任何列。
+
+**測試結果**：
+
+```
+dotnet test --filter "FullyQualifiedName~News|FullyQualifiedName~Articles" --no-build
+# 已通過! - 失敗: 0，通過: 81，總計: 81（連跑 10 次，每次都是 0 失敗）
+
+dotnet test（全套）
+# 已通過! - 失敗: 0，通過: 254，總計: 254（既有 236 項 + 本輪新增 18 項）
+
+dotnet ef migrations has-pending-model-changes --context ClubDbContext
+# No changes have been made to the model since the last migration.
+```
+
+`ArchitectureTests` 包含在全套 254 項裡，一併通過。
+
+### 本次沒動的部分
+
+- 沒有新增／修改任何 DDL、`db/club-schema.sql`、`Data/Migrations/`、EF 模型（`Data/EfEntities/`、
+  `ClubDbContext.cs` 一行都沒改）。
+- 沒有新增任何權限碼、沒有動 `db/seed/generate-club-seed-sql.py`。
+- 沒有修改 `apps/admin`（前端接線由另一位 agent 同時處理，本輪只加後端欄位，不預期任何衝突）。
+- 沒有 commit。
+
+---
+
 ## 目錄結構
 
 ```
@@ -2152,10 +2311,14 @@ agent 在改，任務邊界不允許本輪觸碰；二來這需要「A 專案的
 
 ### 🔴 這一輪不做的部分（沒有畫面可驗，刻意不做）
 
-- **標籤（`article_tags`）、關聯（`article_relations`）**：規劃書 B2 有提到，但 `NewsEditView.vue`／
+> **本節是 S0-8 當時的原始回報，如實保留**——標籤與關聯已於 **S1-5**（見本檔下方整節）補上後端，
+> 這裡描述的「刻意不做」對這兩項**已不成立**，改動理由是使用者本輪明確要求補上（跟 S0-7g 的更新
+> 方式一致：舊文字不改寫，只加這段更新說明）。
+
+- ~~**標籤（`article_tags`）、關聯（`article_relations`）**：規劃書 B2 有提到，但 `NewsEditView.vue`／
   `NewsListView.vue` 目前**完全沒有對應欄位**，做了也是沒有畫面可驗的端點——跟任務指示「不要順手做
   球員／教練／賽程／商店」是同一個精神，只是套用在同一個模組內的子功能上。`db/club-schema.sql` 已有
-  這兩張表，下一輪 `apps/admin` 補上畫面時再一併做。
+  這兩張表，下一輪 `apps/admin` 補上畫面時再一併做。~~ **已於 S1-5 補上，另見核心價值標籤與批次操作。**
 - **圖片上傳管線**：`coverKey` 只是個欄位（存什麼字串都收），沒有「選檔→縮圖→WebP→去 EXIF」那一整套
   （那是 `S0-8`）。
 

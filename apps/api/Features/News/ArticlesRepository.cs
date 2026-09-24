@@ -33,8 +33,8 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
     /// 新聞列表。⛔ 公開讀取 API 只回傳 <c>status = 'published'</c> 且已到發布時間的文章——
     /// 草稿與排程中的文章即使能被猜到 slug 也不對外，這是刻意的業務規則，不是遺漏。
     /// <c>articles.club_id</c> 是 9 張可為空表之一，套用「俱樂部專屬優先、回退共同」。
-    /// **快取**：qualifier 涵蓋 <paramref name="categoryCode"/>／<paramref name="page"/>／
-    /// <paramref name="pageSize"/>。
+    /// **快取**：qualifier 涵蓋 <paramref name="categoryCode"/>／<paramref name="tagSlug"/>
+    /// （S1-5 新增）／<paramref name="page"/>／<paramref name="pageSize"/>。
     /// 🔴 **排程發布的語意後果**：「已到發布時間」（<c>a.published_at &lt;= SYSUTCDATETIME()</c>）
     /// 這件事本身沒有任何寫入事件——後台排定 10:00 發布一篇文章，沒有人會在 10:00 那一刻呼叫
     /// <see cref="IQueryCache.InvalidateAsync"/>。**TTL 是這個情境目前唯一的失效機制**：文章
@@ -42,9 +42,9 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
     /// 這不是 bug，是本次任務範圍的已知取捨（見 apps/api/README.md「排程發布與快取」）。
     /// </summary>
     public async Task<PagedResult<ArticleListItemDto>> ListAsync(
-        ClubScope scope, string? categoryCode, string dbLocale, int page, int pageSize, CancellationToken cancellationToken)
+        ClubScope scope, string? categoryCode, string? tagSlug, string dbLocale, int page, int pageSize, CancellationToken cancellationToken)
     {
-        var qualifier = $"{categoryCode ?? CacheDimensions.NoQualifier}:{page}:{pageSize}";
+        var qualifier = $"{categoryCode ?? CacheDimensions.NoQualifier}:{tagSlug ?? CacheDimensions.NoQualifier}:{page}:{pageSize}";
 
         return await cache.GetOrCreateAsync(
             ListEntity, scope.ClubCode, dbLocale, qualifier,
@@ -52,6 +52,9 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
             {
                 using var connection = connectionFactory.CreateConnection();
 
+                // S1-5 新增：標籤篩選用 EXISTS 子查詢，不是 JOIN——一篇文章可能掛多個標籤，
+                // JOIN article_tags 會讓同一篇文章重複出現在結果列，分頁筆數因此對不起來；
+                // EXISTS 天生只回傳「符不符合」，不會製造重複列。
                 var countSql = $"""
                     SELECT COUNT(*)
                     FROM articles a
@@ -59,6 +62,9 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
                     WHERE {ClubOrSharedSql.WhereClubOrShared}
                       AND a.status = 'published' AND (a.published_at IS NULL OR a.published_at <= SYSUTCDATETIME())
                       AND (@CategoryCode IS NULL OR ac.code = @CategoryCode)
+                      AND (@TagSlug IS NULL OR EXISTS (
+                          SELECT 1 FROM article_tags at JOIN tags t ON t.id = at.tag_id
+                          WHERE at.article_id = a.id AND t.slug = @TagSlug))
                     """;
 
                 var listSql = $"""
@@ -71,6 +77,9 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
                     WHERE {ClubOrSharedSql.WhereClubOrShared}
                       AND a.status = 'published' AND (a.published_at IS NULL OR a.published_at <= SYSUTCDATETIME())
                       AND (@CategoryCode IS NULL OR ac.code = @CategoryCode)
+                      AND (@TagSlug IS NULL OR EXISTS (
+                          SELECT 1 FROM article_tags at JOIN tags t ON t.id = at.tag_id
+                          WHERE at.article_id = a.id AND t.slug = @TagSlug))
                     -- 同一天發布的多篇文章要有穩定的次要排序鍵，否則同一天內的順序不保證。
                     -- 🔴 次要鍵刻意是 row_seq ASC，不是 DESC：row_seq 是 IDENTITY(1,1)，插入順序
                     -- 跟種子腳本讀 site/src/data/news.json 的陣列順序一致（db/seed/generate-club-seed-sql.py
@@ -84,7 +93,8 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
 
                 var parameters = new
                 {
-                    scope.ClubId, CategoryCode = categoryCode, Offset = (page - 1) * pageSize, PageSize = pageSize,
+                    scope.ClubId, CategoryCode = categoryCode, TagSlug = tagSlug,
+                    Offset = (page - 1) * pageSize, PageSize = pageSize,
                 };
 
                 var totalCount = await connection.ExecuteScalarAsync<int>(
@@ -96,6 +106,7 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
                 var i18nById = await LoadArticleI18nAsync(connection, articleIds, dbLocale, ct);
                 var categoryCodes = rows.Select(r => r.CategoryCode).Distinct().ToList();
                 var categoryNameByCode = await LoadCategoryNamesAsync(connection, categoryCodes, dbLocale, ct);
+                var tagsById = await LoadArticleTagsAsync(connection, articleIds, dbLocale, ct);
 
                 var items = rows.Select(r =>
                 {
@@ -115,6 +126,7 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
                         PublishedAt = r.PublishedAt,
                         Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
                         Summary = RequestLocale.Pick(requested?.Summary, fallback?.Summary),
+                        Tags = tagsById.GetValueOrDefault(r.Id) ?? [],
                     };
                 }).ToList();
 
@@ -183,6 +195,11 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
                 var categoryName = (await LoadCategoryNamesAsync(connection, [article.CategoryCode], dbLocale, ct))
                     .GetValueOrDefault(article.CategoryCode);
 
+                var tags = (await LoadArticleTagsAsync(connection, [article.Id], dbLocale, ct))
+                    .GetValueOrDefault(article.Id) ?? [];
+                var coreValueTags = await LoadArticleCoreValueTagsAsync(connection, article.Id, ct);
+                var relations = await LoadArticleRelationsAsync(connection, article.Id, ct);
+
                 return new ArticleDetailDto
                 {
                     Id = article.Id,
@@ -199,9 +216,43 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
                     BodyJson = RequestLocale.Pick(requested?.Body, fallback?.Body),
                     SeoTitle = RequestLocale.Pick(requested?.SeoTitle, fallback?.SeoTitle),
                     SeoDescription = RequestLocale.Pick(requested?.SeoDescription, fallback?.SeoDescription),
+                    Tags = tags,
+                    CoreValueTags = coreValueTags,
+                    Relations = relations,
                 };
             },
             cancellationToken);
+    }
+
+    /// <summary>
+    /// 瀏覽數＋1（S1-5 新增，規劃書 B2「瀏覽數統計」）。🔴 **刻意不經過 <see cref="IQueryCache"/>**：
+    /// 這是一個獨立的公開端點（前台渲染完頁面後另外呼叫一次），不是掛在
+    /// <see cref="GetBySlugAsync"/> 的讀取路徑上「順便」累加——掛在讀取路徑上會讓每一次公開讀取
+    /// 都變成一次寫入，違反 docs/17 §4「讀寫分離、寫入才碰主檔」的精神，也會讓本來可以完全命中
+    /// 快取的高流量讀取路徑被迫多一趟資料庫寫入。**也刻意不呼叫 <see cref="IQueryCache.InvalidateAsync"/>**：
+    /// 瀏覽數不在 docs/17 §4「五類不得讀快取」之列，容忍最多一個 TTL（預設 300 秒）的顯示落後是
+    /// 可接受的取捨——如果每次瀏覽都讓整個文章詳情快取失效，等於瀏覽數這個低重要性欄位拖垮了
+    /// 標題、內文這些高重要性欄位的快取命中率，本末倒置。
+    /// 直接用 <c>UPDATE ... SET view_count = view_count + 1</c>（資料庫端遞增，不是「讀出來
+    /// +1 再寫回去」，避免高併發下的更新遺失）。只有 <c>published</c> 且已到發布時間的文章才會
+    /// 被加到，找不到符合條件的文章回傳 <c>false</c>（呼叫端轉 404，不洩漏「這個 slug 存在但
+    /// 還沒發布」）。
+    /// </summary>
+    public async Task<bool> IncrementViewCountAsync(ClubScope scope, string slug, CancellationToken cancellationToken)
+    {
+        using var connection = connectionFactory.CreateConnection();
+
+        const string sql = """
+            UPDATE articles
+            SET view_count = view_count + 1
+            WHERE slug = @Slug AND (club_id = @ClubId OR club_id IS NULL)
+              AND status = 'published' AND (published_at IS NULL OR published_at <= SYSUTCDATETIME())
+            """;
+
+        var affected = await connection.ExecuteAsync(new CommandDefinition(
+            sql, new { scope.ClubId, Slug = slug }, cancellationToken: cancellationToken));
+
+        return affected > 0;
     }
 
     private static async Task<Dictionary<Guid, Dictionary<string, ArticleI18nRow>>> LoadArticleI18nAsync(
@@ -258,5 +309,87 @@ public sealed class ArticlesRepository(IClubSqlConnectionFactory connectionFacto
                     var byLocale = g.ToDictionary(r => r.Locale, r => r.Name);
                     return RequestLocale.Pick(byLocale.GetValueOrDefault(dbLocale), byLocale.GetValueOrDefault(RequestLocale.DefaultDbLocale));
                 });
+    }
+
+    /// <summary><c>value_tag_links.entity_type</c> 給文章用的值——跟後台
+    /// <c>AdminArticlesRepository.ArticleEntityType</c> 是同一個字面值，兩邊各自宣告一份常數
+    /// （唯讀 Dapper 路徑跟寫入 EF Core 路徑本來就是兩個獨立的 repository，不共用型別），
+    /// 改動時要兩邊一起改。</summary>
+    private const string ArticleEntityType = "article";
+
+    private sealed record ArticleTagRow(Guid ArticleId, string Slug, string Locale, string? Name);
+
+    /// <summary>標籤（S1-5 新增）：一次查出多篇文章的標籤，依語系回退挑出顯示名稱。</summary>
+    private static async Task<Dictionary<Guid, List<ArticleTagDto>>> LoadArticleTagsAsync(
+        System.Data.IDbConnection connection, IReadOnlyList<Guid> articleIds, string dbLocale, CancellationToken cancellationToken)
+    {
+        if (articleIds.Count == 0)
+        {
+            return [];
+        }
+
+        const string sql = """
+            SELECT at.article_id AS ArticleId, t.slug AS Slug, ti.locale AS Locale, ti.name AS Name
+            FROM article_tags at
+            JOIN tags t ON t.id = at.tag_id
+            JOIN tags_i18n ti ON ti.tag_id = t.id
+            WHERE at.article_id IN @ArticleIds AND ti.locale IN @Locales
+            """;
+        var locales = dbLocale == RequestLocale.DefaultDbLocale
+            ? new[] { dbLocale }
+            : new[] { dbLocale, RequestLocale.DefaultDbLocale };
+
+        var rows = (await connection.QueryAsync<ArticleTagRow>(new CommandDefinition(
+            sql, new { ArticleIds = articleIds, Locales = locales }, cancellationToken: cancellationToken))).ToList();
+
+        return rows
+            .GroupBy(r => r.ArticleId)
+            .ToDictionary(
+                g => g.Key,
+                g => g
+                    .GroupBy(r => r.Slug)
+                    .Select(tagGroup =>
+                    {
+                        var byLocale = tagGroup.ToDictionary(r => r.Locale, r => r.Name);
+                        return new ArticleTagDto
+                        {
+                            Slug = tagGroup.Key,
+                            Name = RequestLocale.Pick(byLocale.GetValueOrDefault(dbLocale), byLocale.GetValueOrDefault(RequestLocale.DefaultDbLocale)),
+                        };
+                    })
+                    .ToList());
+    }
+
+    /// <summary>核心價值標籤（S1-5 新增）。不分語系——值本身是系統代碼，不是自由文字。</summary>
+    private static async Task<List<string>> LoadArticleCoreValueTagsAsync(
+        System.Data.IDbConnection connection, Guid articleId, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT value_tag FROM value_tag_links WHERE entity_type = @EntityType AND entity_id = @ArticleId
+            """;
+
+        var rows = await connection.QueryAsync<string>(new CommandDefinition(
+            sql, new { EntityType = ArticleEntityType, ArticleId = articleId }, cancellationToken: cancellationToken));
+
+        return rows.AsList();
+    }
+
+    /// <summary>Dapper 具現化用的原始列——跟本檔其餘 <c>*Row</c> record 同一種寫法（位置參數建構子），
+    /// 不直接用 <see cref="ArticleRelationDto"/>（<c>required</c> 屬性）給 Dapper 具現化，維持本檔
+    /// 「Row 用來對應 SQL、Dto 用來對外」這條既有分工（docs/18-work-errors.md E-20 同一個精神）。</summary>
+    private sealed record ArticleRelationRow(string TargetType, Guid TargetId);
+
+    /// <summary>關聯（S1-5 新增）。</summary>
+    private static async Task<List<ArticleRelationDto>> LoadArticleRelationsAsync(
+        System.Data.IDbConnection connection, Guid articleId, CancellationToken cancellationToken)
+    {
+        const string sql = """
+            SELECT target_type AS TargetType, target_id AS TargetId FROM article_relations WHERE article_id = @ArticleId
+            """;
+
+        var rows = await connection.QueryAsync<ArticleRelationRow>(new CommandDefinition(
+            sql, new { ArticleId = articleId }, cancellationToken: cancellationToken));
+
+        return rows.Select(r => new ArticleRelationDto { TargetType = r.TargetType, TargetId = r.TargetId }).ToList();
     }
 }

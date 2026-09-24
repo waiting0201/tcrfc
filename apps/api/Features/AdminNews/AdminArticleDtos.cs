@@ -30,6 +30,43 @@ public sealed record AdminArticleContentInput
 }
 
 /// <summary>
+/// 標籤輸入（S1-5 新增）。<c>Slug</c> 對應既有標籤就直接沿用（<c>NameZh</c>／<c>NameEn</c>
+/// 一律忽略，標籤名稱一旦建立由標籤自己管理，不因為某一篇文章的輸入而被悄悄改掉）；
+/// <c>Slug</c> 在 <c>tags</c> 找不到就新建一個，這時候 <c>NameZh</c> 是必填（新標籤要有中文名稱
+/// 才有意義給人看，<see cref="AdminArticleValidationException"/> 擋不給的情況），<c>NameEn</c>
+/// 可省略（英文可空，CLAUDE.md 全域規定 4）。格式規則見 <see cref="TagSlugFormat"/>。
+/// </summary>
+public sealed record AdminArticleTagInput
+{
+    public required string Slug { get; init; }
+    public string? NameZh { get; init; }
+    public string? NameEn { get; init; }
+}
+
+/// <summary>標籤輸出（後台編輯頁回填用）。不做語系回退——跟 <see cref="AdminArticleLocaleContent"/>
+/// 同一個理由，後台要看到「這個語系實際存了什麼」。</summary>
+public sealed record AdminArticleTagDto
+{
+    public required string Slug { get; init; }
+    public string? NameZh { get; init; }
+    public string? NameEn { get; init; }
+}
+
+/// <summary>
+/// 文章多型關聯（<c>article_relations</c>，S1-5 新增）：<c>TargetType</c> 只接受規劃書 B2
+/// 明文列出的五種——<c>player</c>／<c>team</c>／<c>match</c>／<c>program</c>／<c>partner</c>
+/// （對應球員／球隊／賽事／課程／夥伴，見 <c>AdminArticlesRepository.AllowedRelationTargetTypes</c>）。
+/// <c>TargetId</c> 必須是**這篇文章所屬俱樂部**底下真實存在的那一種實體——跨俱樂部或不存在
+/// 一律 400（<see cref="AdminArticleValidationException"/>），這是「多型關聯的跨俱樂部隔離」
+/// 這條規則在程式碼裡唯一的落點。輸入與輸出共用同一個形狀，不需要分開兩個型別。
+/// </summary>
+public sealed record AdminArticleRelationInput
+{
+    public required string TargetType { get; init; }
+    public required Guid TargetId { get; init; }
+}
+
+/// <summary>
 /// 🔴🔴🔴 S0-8 修正（規劃書 §4.0／第 53 行「選檔不上傳、儲存才上傳」）：這是 <c>payload</c> 這個
 /// multipart 欄位的 JSON 內容，**不含封面圖片鍵**——封面圖片透過同一次請求的 <c>file</c> 欄位
 /// 一起送出，由 <see cref="AdminArticlesEndpoints"/> 處理上傳並把結果寫進資料列，呼叫端不會、
@@ -46,6 +83,22 @@ public sealed record CreateArticleRequest
     public bool IsFeatured { get; init; }
 
     public required AdminArticleContentInput Content { get; init; }
+
+    /// <summary>
+    /// 標籤（S1-5 新增）。省略（<c>null</c>）＝這篇文章不掛任何標籤，等同傳空陣列——
+    /// 建立時沒有「維持原樣」這回事，這點跟 <see cref="UpdateArticleRequest.Tags"/> 不同。
+    /// </summary>
+    public IReadOnlyList<AdminArticleTagInput>? Tags { get; init; }
+
+    /// <summary>
+    /// 核心價值標籤（S1-5 新增）。值域見規劃書 §1.2 五大核心價值：<c>players_first</c>／
+    /// <c>excellence</c>／<c>global_pathways</c>／<c>community</c>／<c>integrity</c>
+    /// （<c>value_tag_links.value_tag</c> 的 CHECK 約束）。省略＝不掛任何核心價值標籤。
+    /// </summary>
+    public IReadOnlyList<string>? CoreValueTags { get; init; }
+
+    /// <summary>關聯（S1-5 新增）。省略＝這篇文章不關聯任何球員／球隊／賽事／課程／夥伴。</summary>
+    public IReadOnlyList<AdminArticleRelationInput>? Relations { get; init; }
 }
 
 /// <summary>
@@ -71,6 +124,20 @@ public sealed record UpdateArticleRequest
     /// 跟資料庫目前的值對不起來就回 409，⛔ 不做「後寫的贏」。
     /// </summary>
     public required DateTime ExpectedUpdatedAt { get; init; }
+
+    /// <summary>
+    /// 標籤（S1-5 新增）。🔴 **省略（<c>null</c>）＝維持目前的標籤不變**，跟雙語內容整份取代的
+    /// 語意不同——前端既有畫面（<c>NewsEditView.vue</c>）目前完全沒有標籤輸入框，若比照內容欄位
+    /// 「省略＝清空」，任何既有標籤在下一次改標題這類跟標籤無關的存檔就會被整批清掉，
+    /// 是比「這個欄位還沒做」更糟的資料損毀。空陣列（<c>[]</c>）才是「明確清空所有標籤」。
+    /// </summary>
+    public IReadOnlyList<AdminArticleTagInput>? Tags { get; init; }
+
+    /// <summary>核心價值標籤（S1-5 新增）。省略語意同 <see cref="Tags"/>：維持不變，不是清空。</summary>
+    public IReadOnlyList<string>? CoreValueTags { get; init; }
+
+    /// <summary>關聯（S1-5 新增）。省略語意同 <see cref="Tags"/>：維持不變，不是清空。</summary>
+    public IReadOnlyList<AdminArticleRelationInput>? Relations { get; init; }
 }
 
 public sealed record PublishArticleRequest
@@ -106,6 +173,13 @@ public sealed record AdminArticleListItemDto
     public required DateTime UpdatedAt { get; init; }
     public string? TitleZh { get; init; }
     public string? TitleEn { get; init; }
+
+    /// <summary>標籤（S1-5 新增）。列表頁沿用同一筆查詢附帶回傳，方便後台列表顯示標籤晶片。</summary>
+    public required IReadOnlyList<AdminArticleTagDto> Tags { get; init; }
+
+    /// <summary>瀏覽數（S1-5 新增，規劃書 B2「瀏覽數統計」）。唯讀，只會透過公開端點
+    /// （<c>POST /api/v1/{club}/news/{slug}/views</c>）遞增，這裡單純回填讓後台看得到。</summary>
+    public required int ViewCount { get; init; }
 }
 
 /// <summary>後台單篇詳情（編輯頁用）。<see cref="UpdatedAt"/> 是下一次寫入要帶回來的並行權杖。</summary>
@@ -122,4 +196,50 @@ public sealed record AdminArticleDetailDto
     public required DateTime UpdatedAt { get; init; }
     public required AdminArticleLocaleContent Zh { get; init; }
     public AdminArticleLocaleContent? En { get; init; }
+
+    /// <summary>瀏覽數（S1-5 新增）。說明同 <see cref="AdminArticleListItemDto.ViewCount"/>。</summary>
+    public required int ViewCount { get; init; }
+
+    /// <summary>標籤（S1-5 新增）。</summary>
+    public required IReadOnlyList<AdminArticleTagDto> Tags { get; init; }
+
+    /// <summary>核心價值標籤（S1-5 新增）。值域見 <see cref="CreateArticleRequest.CoreValueTags"/>。</summary>
+    public required IReadOnlyList<string> CoreValueTags { get; init; }
+
+    /// <summary>關聯（S1-5 新增）。</summary>
+    public required IReadOnlyList<AdminArticleRelationInput> Relations { get; init; }
+}
+
+// ── 批次操作（S1-5 新增，規劃書 B2「批次操作：改分類、批次發布／下架」）─────────────────
+
+/// <summary>批次改分類的請求。</summary>
+public sealed record BatchChangeCategoryRequest
+{
+    public required IReadOnlyList<Guid> Ids { get; init; }
+
+    /// <summary>對應 <c>article_categories.code</c>，跟單篇更新一樣不是分類的 GUID。</summary>
+    public required string CategoryCode { get; init; }
+}
+
+/// <summary>批次發布／批次下架共用的請求形狀——只需要知道要處理哪些文章。</summary>
+public sealed record BatchArticleIdsRequest
+{
+    public required IReadOnlyList<Guid> Ids { get; init; }
+}
+
+/// <summary>批次操作裡沒有處理成功的一筆，附上人類看得懂的原因（找不到／共用內容唯讀／
+/// 狀態不允許……）。批次操作**不是全有全無**：可以處理的照樣處理，處理不了的列在這裡，
+/// 不會因為其中一筆不合法就讓整批都失敗——這是批次操作（勾選多筆按一個按鈕）跟單篇編輯
+/// （有明確的並行權杖與畫面可以顯示個別錯誤）在使用情境上的差異。</summary>
+public sealed record BatchOperationSkippedItemDto
+{
+    public required Guid Id { get; init; }
+    public required string Reason { get; init; }
+}
+
+/// <summary>批次操作的回應：處理成功的筆數，以及每一筆處理不了的原因。</summary>
+public sealed record BatchOperationResultDto
+{
+    public required int UpdatedCount { get; init; }
+    public required IReadOnlyList<BatchOperationSkippedItemDto> Skipped { get; init; }
 }

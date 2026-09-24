@@ -251,6 +251,60 @@ public static class AdminArticlesEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict);
+
+        // ── 批次操作（S1-5 新增，規劃書 B2「批次操作：改分類、批次發布／下架」）──────────────
+        // 🔴 三支都不是逐筆並行控制——見 AdminArticlesRepository.BatchChangeCategoryAsync 上的說明。
+        // 回應一律 200（不是 207 Multi-Status）：body 裡的 Skipped 清單已經足夠表達部分成功，
+        // 這個 API 目前只有這一組呼叫端（apps/admin 之後要接的列表頁批次操作），不需要遵循
+        // HTTP 語意上更嚴謹但呼叫端要多處理一種狀態碼的 207。
+
+        // POST /api/v1/admin/{club}/news/batch/category
+        group.MapPost("/batch/category", async (
+            string club, BatchChangeCategoryRequest request, HttpContext httpContext,
+            IAdminClubAuthorizer authorizer, AdminArticlesRepository repository, CancellationToken cancellationToken) =>
+        {
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
+            var result = await repository.BatchChangeCategoryAsync(adminScope, request, adminScope.Identity.AdminUserId, cancellationToken);
+            return Results.Ok(result);
+        })
+        .WithName("AdminBatchChangeNewsCategory")
+        .Produces<BatchOperationResultDto>()
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
+        // POST /api/v1/admin/{club}/news/batch/publish
+        group.MapPost("/batch/publish", async (
+            string club, BatchArticleIdsRequest request, HttpContext httpContext,
+            IAdminClubAuthorizer authorizer, AdminArticlesRepository repository, CancellationToken cancellationToken) =>
+        {
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionPublish, cancellationToken);
+            var result = await repository.BatchPublishAsync(adminScope, request, adminScope.Identity.AdminUserId, cancellationToken);
+            return Results.Ok(result);
+        })
+        .WithName("AdminBatchPublishNews")
+        .Produces<BatchOperationResultDto>()
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
+        // POST /api/v1/admin/{club}/news/batch/unpublish  → 見 BatchUnpublishAsync 上「我的判斷」。
+        group.MapPost("/batch/unpublish", async (
+            string club, BatchArticleIdsRequest request, HttpContext httpContext,
+            IAdminClubAuthorizer authorizer, AdminArticlesRepository repository, CancellationToken cancellationToken) =>
+        {
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionPublish, cancellationToken);
+            var result = await repository.BatchUnpublishAsync(adminScope, request, adminScope.Identity.AdminUserId, cancellationToken);
+            return Results.Ok(result);
+        })
+        .WithName("AdminBatchUnpublishNews")
+        .Produces<BatchOperationResultDto>()
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
     }
 
     /// <summary>

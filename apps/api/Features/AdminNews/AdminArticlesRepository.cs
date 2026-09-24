@@ -33,6 +33,25 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
     private const string PublicListEntity = "articles";
     private const string PublicDetailEntity = "article-detail";
 
+    /// <summary><c>value_tag_links.entity_type</c> 給文章用的值（S1-5 新增）。這張表是通用多型
+    /// 關聯，目前全站唯一接上真正讀寫邏輯的呼叫端就是這裡，這個字面值是本輪定的慣例
+    /// （小寫、單數、對應型別詞彙表的 <c>Article</c>），之後若有其他型別要掛核心價值標籤，
+    /// 比照同一套命名（<c>player</c>／<c>program</c>……）即可。</summary>
+    private const string ArticleEntityType = "article";
+
+    /// <summary>五大核心價值標籤值域（規劃書 §1.2，<c>value_tag_links.value_tag</c> 的 CHECK 約束逐字照抄）。</summary>
+    private static readonly HashSet<string> AllowedCoreValueTags = new(StringComparer.Ordinal)
+    {
+        "players_first", "excellence", "global_pathways", "community", "integrity",
+    };
+
+    /// <summary>文章多型關聯（<c>article_relations.target_type</c>）允許的五種（規劃書 B2「關聯
+    /// （球員／球隊／賽事／課程／夥伴）」逐字對應，命名採型別詞彙表單數小寫）。</summary>
+    private static readonly HashSet<string> AllowedRelationTargetTypes = new(StringComparer.Ordinal)
+    {
+        "player", "team", "match", "program", "partner",
+    };
+
     // ───────────────────────────── 讀取（後台專用，含全部狀態） ─────────────────────────────
 
     /// <summary>
@@ -78,6 +97,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
                 CategoryCode = a.ArticleCategory.Code,
                 a.CoverKey,
                 a.IsFeatured,
+                a.ViewCount,
                 a.Status,
                 a.PublishedAt,
                 a.ClubId,
@@ -90,6 +110,14 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
                     .Where(i => i.Locale == "en")
                     .Select(i => i.Title)
                     .FirstOrDefault(),
+                // S1-5 新增：標籤跟著同一筆查詢帶出（相關子查詢／OUTER APPLY，SQL Server 對這種
+                // 「分頁後再展開子集合」的形狀處理得很好，不需要另外用 AsSplitQuery）。
+                Tags = a.Tags.Select(t => new
+                {
+                    t.Slug,
+                    NameZh = t.TagsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
+                    NameEn = t.TagsI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
+                }).ToList(),
             })
             .ToListAsync(cancellationToken);
 
@@ -100,12 +128,14 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
             CategoryCode = r.CategoryCode,
             CoverKey = r.CoverKey,
             IsFeatured = r.IsFeatured,
+            ViewCount = r.ViewCount,
             Status = r.Status,
             PublishedAt = r.PublishedAt,
             IsShared = r.ClubId is null,
             UpdatedAt = r.UpdatedAt,
             TitleZh = r.TitleZh,
             TitleEn = r.TitleEn,
+            Tags = r.Tags.Select(t => new AdminArticleTagDto { Slug = t.Slug, NameZh = t.NameZh, NameEn = t.NameEn }).ToList(),
         }).ToList();
 
         return new PagedResult<AdminArticleListItemDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
@@ -118,6 +148,8 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         var article = await dbContext.Articles.AsNoTracking()
             .Include(a => a.ArticleCategory)
             .Include(a => a.ArticlesI18ns)
+            .Include(a => a.Tags).ThenInclude(t => t.TagsI18ns)
+            .Include(a => a.ArticleRelations)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (article is null || (article.ClubId is not null && article.ClubId != scope.ClubId))
@@ -125,7 +157,14 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
             return null;
         }
 
-        return ToDetailDto(article);
+        // S1-5 新增：value_tag_links 是通用多型關聯表，Article 沒有對應的導覽屬性（沒有真正的
+        // 外鍵可以宣告），這裡另外查一次，跟上面的 Include 分開。
+        var coreValueTags = await dbContext.ValueTagLinks.AsNoTracking()
+            .Where(v => v.EntityType == ArticleEntityType && v.EntityId == article.Id)
+            .Select(v => v.ValueTag)
+            .ToListAsync(cancellationToken);
+
+        return ToDetailDto(article, coreValueTags);
     }
 
     // ───────────────────────────── 寫入 ─────────────────────────────
@@ -156,6 +195,14 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
             await EnsureFeaturedCapAsync(scope, excludeArticleId: null, cancellationToken);
         }
 
+        // S1-5 新增：標籤／關聯在寫入資料列之前先驗證與解析完畢——驗證失敗（格式不對、核心價值
+        // 標籤值域不合法、關聯目標不存在或跨俱樂部）一律在這裡就丟例外，不會走到後面已經
+        // Add 了一半的資料列（呼叫端 AdminArticlesEndpoints 的封面圖片補償刪除邏輯也是靠
+        // 這一類「驗證失敗就整段不落地」的順序才成立）。
+        var tags = await ResolveTagsAsync(request.Tags ?? [], cancellationToken);
+        var coreValueTags = ValidateCoreValueTags(request.CoreValueTags ?? []);
+        var relations = await ValidateRelationsAsync(articleId, scope.ClubId, request.Relations ?? [], cancellationToken);
+
         var now = DateTime.UtcNow;
         var article = new Article
         {
@@ -180,6 +227,24 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         if (request.Content.En is not null)
         {
             AddOrReplaceI18n(article, "en", request.Content.En);
+        }
+
+        // S1-5 新增：標籤／關聯掛回導覽屬性集合，核心價值標籤直接進 DbSet（沒有導覽屬性可掛，
+        // 見 ArticleEntityType 上的說明）。三者跟文章本體、雙語側表在同一次 SaveChanges 交易內
+        // 一起落地，不是分開兩次寫入。
+        foreach (var tag in tags)
+        {
+            article.Tags.Add(tag);
+        }
+
+        foreach (var relation in relations)
+        {
+            article.ArticleRelations.Add(relation);
+        }
+
+        foreach (var valueTag in coreValueTags)
+        {
+            dbContext.ValueTagLinks.Add(new ValueTagLink { EntityType = ArticleEntityType, EntityId = article.Id, ValueTag = valueTag });
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -220,6 +285,14 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
             await EnsureFeaturedCapAsync(scope, excludeArticleId: id, cancellationToken);
         }
 
+        // S1-5 新增：三個欄位一律「省略＝維持不變」（見 UpdateArticleRequest 上的說明），
+        // 所以先各自判斷是否要處理，再各自解析／驗證——驗證失敗一樣要在改動任何欄位之前發生。
+        var tagsToApply = request.Tags is null ? null : await ResolveTagsAsync(request.Tags, cancellationToken);
+        var coreValueTagsToApply = request.CoreValueTags is null ? null : ValidateCoreValueTags(request.CoreValueTags);
+        var relationsToApply = request.Relations is null
+            ? null
+            : await ValidateRelationsAsync(article.Id, article.ClubId!.Value, request.Relations, cancellationToken);
+
         ApplyConcurrencyToken(article, request.ExpectedUpdatedAt);
 
         // 🔴 換圖成功才刪舊物件（規劃書 §4.0）：這裡先記住「換之前」的鍵，等 DB 寫入真的成功
@@ -247,6 +320,30 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         else if (existingEn is not null)
         {
             dbContext.Remove(existingEn);
+        }
+
+        // S1-5 新增：三個欄位分別套用，null＝這次請求沒有提到這個欄位，維持資料庫現況不動。
+        if (tagsToApply is not null)
+        {
+            article.Tags.Clear();
+            foreach (var tag in tagsToApply)
+            {
+                article.Tags.Add(tag);
+            }
+        }
+
+        if (relationsToApply is not null)
+        {
+            article.ArticleRelations.Clear();
+            foreach (var relation in relationsToApply)
+            {
+                article.ArticleRelations.Add(relation);
+            }
+        }
+
+        if (coreValueTagsToApply is not null)
+        {
+            await SyncCoreValueTagsAsync(article.Id, coreValueTagsToApply, cancellationToken);
         }
 
         await SaveWithConcurrencyHandlingAsync(cancellationToken);
@@ -354,14 +451,206 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         return true;
     }
 
+    // ───────────────────────────── 批次操作（S1-5 新增） ─────────────────────────────
+
+    /// <summary>一次最多處理的筆數——規劃書沒有給數字，防禦性上限，避免一次請求鎖太多列太久。</summary>
+    private const int MaxBatchSize = 200;
+
+    /// <summary>
+    /// 批次改分類。🔴 **不做逐筆並行權杖檢查**——批次操作的使用情境是「列表頁勾選多筆按一個
+    /// 按鈕」，呼叫端沒有（也不該要求畫面先為每一筆蒐集 <c>updated_at</c>）；能處理的處理、
+    /// 不能處理的（找不到、跨俱樂部、共用內容唯讀）列進 <see cref="BatchOperationResultDto.Skipped"/>，
+    /// 不是靠樂觀並行擋下這些情況。這是本輪的判斷，需要確認（見 apps/api/README.md）。
+    /// </summary>
+    public async Task<BatchOperationResultDto> BatchChangeCategoryAsync(
+        AdminClubScope scope, BatchChangeCategoryRequest request, Guid? operatorId, CancellationToken cancellationToken)
+    {
+        ValidateBatchIds(request.Ids);
+        var category = await ResolveCategoryAsync(request.CategoryCode, cancellationToken);
+
+        var skipped = new List<BatchOperationSkippedItemDto>();
+        var updatedCount = 0;
+        var now = DateTime.UtcNow;
+
+        foreach (var id in request.Ids.Distinct())
+        {
+            var (article, reason) = await TryLoadOwnArticleForBatchAsync(scope, id, cancellationToken);
+            if (article is null)
+            {
+                skipped.Add(new BatchOperationSkippedItemDto { Id = id, Reason = reason! });
+                continue;
+            }
+
+            article.ArticleCategoryId = category.Id;
+            article.UpdatedAt = now;
+            article.UpdatedBy = operatorId;
+            updatedCount++;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        if (updatedCount > 0)
+        {
+            await InvalidatePublicCacheAsync(scope, cancellationToken);
+        }
+
+        return new BatchOperationResultDto { UpdatedCount = updatedCount, Skipped = skipped };
+    }
+
+    /// <summary>批次發布：只接受 <c>draft</c>／<c>scheduled</c> 出發，跟單篇 <see cref="PublishAsync"/>
+    /// 同一條轉換規則（README「三態轉換規則」）。用資料庫自己的「現在」（<see cref="DatabaseClock"/>），
+    /// 理由跟 <see cref="PublishAsync"/> 上的說明相同。</summary>
+    public async Task<BatchOperationResultDto> BatchPublishAsync(
+        AdminClubScope scope, BatchArticleIdsRequest request, Guid? operatorId, CancellationToken cancellationToken)
+    {
+        ValidateBatchIds(request.Ids);
+
+        var skipped = new List<BatchOperationSkippedItemDto>();
+        var updatedCount = 0;
+        DateTime? dbNow = null;
+
+        foreach (var id in request.Ids.Distinct())
+        {
+            var (article, reason) = await TryLoadOwnArticleForBatchAsync(scope, id, cancellationToken);
+            if (article is null)
+            {
+                skipped.Add(new BatchOperationSkippedItemDto { Id = id, Reason = reason! });
+                continue;
+            }
+
+            if (article.Status is not ("draft" or "scheduled"))
+            {
+                skipped.Add(new BatchOperationSkippedItemDto
+                {
+                    Id = id,
+                    Reason = $"目前狀態是「{StatusLabel(article.Status)}」，只有草稿或排程發布中的文章可以批次發布。",
+                });
+                continue;
+            }
+
+            dbNow ??= await DatabaseClock.GetUtcNowAsync(dbContext, cancellationToken);
+            article.Status = "published";
+            article.PublishedAt = dbNow;
+            article.UpdatedAt = dbNow.Value;
+            article.UpdatedBy = operatorId;
+            updatedCount++;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        if (updatedCount > 0)
+        {
+            await InvalidatePublicCacheAsync(scope, cancellationToken);
+        }
+
+        return new BatchOperationResultDto { UpdatedCount = updatedCount, Skipped = skipped };
+    }
+
+    /// <summary>
+    /// 批次下架（規劃書 B2「批次發布／下架」的後半）。
+    /// 🔴🔴🔴 **我的判斷，需要確認**：<c>articles.status</c> 的 CHECK 約束只有
+    /// <c>draft</c>／<c>published</c>／<c>scheduled</c> 三態，資料庫沒有獨立的「已下架」狀態值
+    /// （這是既有落差，見 README「已發現、未動手修改的既有落差」第 1 點：<c>apps/admin</c> 的
+    /// <c>ContentStatus</c> 型別有 <c>disabled</c> 第四態，但資料庫沒有對應值域，新增值域是規格
+    /// 變更要先改 <c>docs/12</c>，本輪任務邊界不能改綱要）。這裡把「下架」實作成**轉回
+    /// <c>draft</c>**——公開 API 只顯示 <c>status = 'published'</c> 的文章，轉回草稿在對外行為上
+    /// 就是「從公開站消失」，跟「下架」字面上要達成的效果一致；代價是「這篇文章從來沒發布過的草稿」
+    /// 跟「這篇文章下架前發布過」在資料庫裡變成同一個狀態值，不再能單靠 <c>status</c> 分辨兩者
+    /// （<c>published_at</c> 欄位仍保留下架前最後一次發布的時間戳，沒有被清空，這是唯一還能
+    /// 分辨「曾經發布過」的線索）。**這是規劃書沒有明講、需要業務判斷確認的假設，跟 S0-7h
+    /// 那兩項是同一種性質，只是時間點更晚**。
+    /// </summary>
+    public async Task<BatchOperationResultDto> BatchUnpublishAsync(
+        AdminClubScope scope, BatchArticleIdsRequest request, Guid? operatorId, CancellationToken cancellationToken)
+    {
+        ValidateBatchIds(request.Ids);
+
+        var skipped = new List<BatchOperationSkippedItemDto>();
+        var updatedCount = 0;
+        var now = DateTime.UtcNow;
+
+        foreach (var id in request.Ids.Distinct())
+        {
+            var (article, reason) = await TryLoadOwnArticleForBatchAsync(scope, id, cancellationToken);
+            if (article is null)
+            {
+                skipped.Add(new BatchOperationSkippedItemDto { Id = id, Reason = reason! });
+                continue;
+            }
+
+            if (article.Status is not ("published" or "scheduled"))
+            {
+                skipped.Add(new BatchOperationSkippedItemDto
+                {
+                    Id = id,
+                    Reason = $"目前狀態是「{StatusLabel(article.Status)}」，只有已發布或排程發布中的文章可以批次下架。",
+                });
+                continue;
+            }
+
+            article.Status = "draft";
+            article.UpdatedAt = now;
+            article.UpdatedBy = operatorId;
+            updatedCount++;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        if (updatedCount > 0)
+        {
+            await InvalidatePublicCacheAsync(scope, cancellationToken);
+        }
+
+        return new BatchOperationResultDto { UpdatedCount = updatedCount, Skipped = skipped };
+    }
+
+    private static void ValidateBatchIds(IReadOnlyList<Guid> ids)
+    {
+        if (ids.Count == 0)
+        {
+            throw new AdminArticleValidationException("批次操作至少要選擇一篇文章。");
+        }
+
+        if (ids.Count > MaxBatchSize)
+        {
+            throw new AdminArticleValidationException($"批次操作一次最多處理 {MaxBatchSize} 篇文章，請分批操作。");
+        }
+    }
+
+    /// <summary>批次操作專用的載入：不追蹤並行權杖（批次操作刻意不做逐筆並行檢查，見上方說明），
+    /// 找不到／共用內容／跨俱樂部三種情況分別回傳可讀原因，不是丟例外——批次操作要能「部分成功」，
+    /// 一筆的問題不能讓整批都不能處理。</summary>
+    private async Task<(Article? Article, string? SkipReason)> TryLoadOwnArticleForBatchAsync(
+        AdminClubScope scope, Guid id, CancellationToken cancellationToken)
+    {
+        var article = await dbContext.Articles.FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
+        if (article is null)
+        {
+            return (null, "找不到這篇文章。");
+        }
+
+        if (article.ClubId is null)
+        {
+            return (null, "這是兩隊共用的內容，目前僅系統管理員可以編輯。");
+        }
+
+        if (article.ClubId != scope.ClubId)
+        {
+            return (null, "這篇文章不屬於這個俱樂部。");
+        }
+
+        return (article, null);
+    }
+
     // ───────────────────────────── 內部工具 ─────────────────────────────
 
     /// <summary>寫入路徑專用的載入：追蹤中、含 i18n。共用內容（<c>club_id IS NULL</c>）直接丟
     /// <see cref="SharedArticleReadOnlyException"/>，跨俱樂部回 <c>null</c>（讓呼叫端 404，不洩漏存在與否）。</summary>
     private async Task<Article?> LoadTrackedForWriteAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
+        // S1-5 新增：Tags／ArticleRelations 一併載入，供 UpdateAsync 在有帶這兩個欄位時
+        // 直接操作導覽屬性集合（Clear／Add），不用另外查一次。
         var article = await dbContext.Articles
             .Include(a => a.ArticlesI18ns)
+            .Include(a => a.Tags)
+            .Include(a => a.ArticleRelations)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
 
         if (article is null)
@@ -429,6 +718,159 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         return category ?? throw new AdminArticleValidationException($"找不到分類代碼「{categoryCode}」。");
     }
 
+    /// <summary>
+    /// 標籤（S1-5 新增）：依 <c>Slug</c> 找既有標籤，找不到才新建。找到既有標籤時**忽略**輸入的
+    /// <c>NameZh</c>／<c>NameEn</c>（標籤名稱由標籤自己的資料列管理，不因為某一篇文章的輸入
+    /// 被覆寫，否則 A 文章存檔時打的名稱會悄悄改掉 B 文章也在用的同一個標籤顯示名稱）。
+    /// 🔴 已知、接受的競態窗口：兩個請求同時建立同一個新 slug 的標籤時，<c>UQ_tags_slug</c>
+    /// 會讓其中一個 <c>SaveChangesAsync</c> 失敗——這裡沒有額外的重試或攔截處理，跟本檔其他
+    /// 「先查後寫」的重複檢查（slug、分類）採同一種風險容忍度，不是本輪遺漏。
+    /// </summary>
+    private async Task<List<Tag>> ResolveTagsAsync(IReadOnlyList<AdminArticleTagInput> inputs, CancellationToken cancellationToken)
+    {
+        var result = new List<Tag>();
+        var seenSlugs = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var input in inputs)
+        {
+            TagSlugFormat.Validate(input.Slug);
+            if (!seenSlugs.Add(input.Slug))
+            {
+                continue; // 同一次請求重複送同一個標籤，容錯忽略，不視為錯誤。
+            }
+
+            var tag = await dbContext.Tags.Include(t => t.TagsI18ns)
+                .FirstOrDefaultAsync(t => t.Slug == input.Slug, cancellationToken);
+
+            if (tag is null)
+            {
+                if (string.IsNullOrWhiteSpace(input.NameZh))
+                {
+                    throw new AdminArticleValidationException(
+                        $"標籤「{input.Slug}」尚未建立，新增標籤時必須提供中文名稱。");
+                }
+
+                var now = DateTime.UtcNow;
+                tag = new Tag { Id = Guid.NewGuid(), Slug = input.Slug, CreatedAt = now, UpdatedAt = now };
+                tag.TagsI18ns.Add(new TagsI18n { TagId = tag.Id, Locale = RequestLocale.DefaultDbLocale, Name = input.NameZh });
+                if (!string.IsNullOrWhiteSpace(input.NameEn))
+                {
+                    tag.TagsI18ns.Add(new TagsI18n { TagId = tag.Id, Locale = "en", Name = input.NameEn });
+                }
+
+                dbContext.Tags.Add(tag);
+            }
+
+            result.Add(tag);
+        }
+
+        return result;
+    }
+
+    /// <summary>核心價值標籤（S1-5 新增）：值域檢查＋去重複，不碰資料庫（呼叫端決定要新增還是取代）。</summary>
+    private static List<string> ValidateCoreValueTags(IReadOnlyList<string> values)
+    {
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        foreach (var value in values)
+        {
+            if (!AllowedCoreValueTags.Contains(value))
+            {
+                throw new AdminArticleValidationException(
+                    $"核心價值標籤「{value}」不是合法值，合法值只有「以球員為本」「追求卓越」「國際發展」" +
+                    "「社區共好」「誠信專業」（規劃書五大核心價值）對應的五個系統代碼。");
+            }
+
+            if (seen.Add(value))
+            {
+                result.Add(value);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// 更新時的核心價值標籤同步：整份取代（先刪光這篇文章現有的，再依新清單插入），
+    /// 跟標籤／關聯用同一種「Clear 再重建」邏輯一致，差別只是這裡沒有導覽屬性可以
+    /// <c>Clear()</c>，改成手動查出既有列再 <c>RemoveRange</c>。
+    /// </summary>
+    private async Task SyncCoreValueTagsAsync(Guid articleId, IReadOnlyList<string> values, CancellationToken cancellationToken)
+    {
+        var existing = await dbContext.ValueTagLinks
+            .Where(v => v.EntityType == ArticleEntityType && v.EntityId == articleId)
+            .ToListAsync(cancellationToken);
+        dbContext.ValueTagLinks.RemoveRange(existing);
+
+        foreach (var value in values)
+        {
+            dbContext.ValueTagLinks.Add(new ValueTagLink { EntityType = ArticleEntityType, EntityId = articleId, ValueTag = value });
+        }
+    }
+
+    /// <summary>
+    /// 關聯（S1-5 新增，<c>article_relations</c>）：驗證 <c>TargetType</c> 在允許值域內、
+    /// <c>TargetId</c> 在對應資料表裡真的存在，**且屬於跟這篇文章同一個俱樂部**——這是「多型
+    /// 關聯的跨俱樂部隔離」規則唯一的落點。任何一筆不合法就整包 400，不做「部分成功」。
+    /// </summary>
+    private async Task<List<ArticleRelation>> ValidateRelationsAsync(
+        Guid articleId, Guid articleClubId, IReadOnlyList<AdminArticleRelationInput> inputs, CancellationToken cancellationToken)
+    {
+        var result = new List<ArticleRelation>();
+        var seen = new HashSet<(string TargetType, Guid TargetId)>();
+
+        foreach (var input in inputs)
+        {
+            if (!AllowedRelationTargetTypes.Contains(input.TargetType))
+            {
+                throw new AdminArticleValidationException(
+                    $"關聯類型「{input.TargetType}」不支援，只能關聯球員、球隊、賽事、課程或夥伴其中一種。");
+            }
+
+            if (!seen.Add((input.TargetType, input.TargetId)))
+            {
+                continue; // 同一次請求重複送同一筆關聯，容錯忽略。
+            }
+
+            var exists = input.TargetType switch
+            {
+                "player" => await dbContext.Players.AsNoTracking()
+                    .AnyAsync(p => p.Id == input.TargetId && p.ClubId == articleClubId, cancellationToken),
+                "team" => await dbContext.Teams.AsNoTracking()
+                    .AnyAsync(t => t.Id == input.TargetId && t.ClubId == articleClubId, cancellationToken),
+                "match" => await dbContext.Matches.AsNoTracking()
+                    .AnyAsync(m => m.Id == input.TargetId && m.ClubId == articleClubId, cancellationToken),
+                "program" => await dbContext.Programs.AsNoTracking()
+                    .AnyAsync(p => p.Id == input.TargetId && p.ClubId == articleClubId, cancellationToken),
+                "partner" => await dbContext.Partners.AsNoTracking()
+                    .AnyAsync(p => p.Id == input.TargetId && p.ClubId == articleClubId, cancellationToken),
+                _ => false,
+            };
+
+            if (!exists)
+            {
+                throw new AdminArticleValidationException(
+                    $"找不到這筆關聯的目標資料（{RelationTargetTypeLabel(input.TargetType)}），" +
+                    "或者它不屬於這篇文章所屬的俱樂部——關聯目標必須跟文章屬於同一個俱樂部。");
+            }
+
+            result.Add(new ArticleRelation { ArticleId = articleId, TargetType = input.TargetType, TargetId = input.TargetId });
+        }
+
+        return result;
+    }
+
+    private static string RelationTargetTypeLabel(string targetType) => targetType switch
+    {
+        "player" => "球員",
+        "team" => "球隊",
+        "match" => "賽事",
+        "program" => "課程",
+        "partner" => "夥伴",
+        _ => targetType,
+    };
+
     /// <summary>置頂精選同時最多 3 篇（B2 規格）。🔴 判斷範圍是「這個俱樂部自己的文章」，
     /// 規格沒有明講是全站還是逐俱樂部限制，這是本輪的判斷——見 apps/api/README.md 說明。</summary>
     private async Task EnsureFeaturedCapAsync(AdminClubScope scope, Guid? excludeArticleId, CancellationToken cancellationToken)
@@ -459,7 +901,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         _ => status,
     };
 
-    private static AdminArticleDetailDto ToDetailDto(Article article)
+    private static AdminArticleDetailDto ToDetailDto(Article article, IReadOnlyList<string> coreValueTags)
     {
         var zh = article.ArticlesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = article.ArticlesI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -471,6 +913,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
             CategoryCode = article.ArticleCategory.Code,
             CoverKey = article.CoverKey,
             IsFeatured = article.IsFeatured,
+            ViewCount = article.ViewCount,
             Status = article.Status,
             PublishedAt = article.PublishedAt,
             IsShared = article.ClubId is null,
@@ -491,6 +934,18 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
                 SeoTitle = en.SeoTitle,
                 SeoDescription = en.SeoDescription,
             },
+            Tags = article.Tags
+                .Select(t => new AdminArticleTagDto
+                {
+                    Slug = t.Slug,
+                    NameZh = t.TagsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Name,
+                    NameEn = t.TagsI18ns.FirstOrDefault(i => i.Locale == "en")?.Name,
+                })
+                .ToList(),
+            CoreValueTags = coreValueTags,
+            Relations = article.ArticleRelations
+                .Select(r => new AdminArticleRelationInput { TargetType = r.TargetType, TargetId = r.TargetId })
+                .ToList(),
         };
     }
 
