@@ -1425,3 +1425,33 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 > 已自行發現並重建，且主 session 複核過重建結果乾淨（零死碼殘留、7/7 端點都授權）。
 > **正確做法**：「暫時破壞某個檔案來驗證檢查抓不抓得到」一律用**獨立的 scratch 檔案**，
 > 不要對有未提交異動的追蹤檔案動 `git checkout`。
+
+### E-45 `dotnet ef migrations add` 產生三個檔，只 commit 了兩個，之後兩次改綱要都沒有 migration（2026-09-24，`S0-9l` 發現；源頭 `d5ec4ec`／`e67ef26`）
+
+- **錯在哪**：`S0-7f` 建 EF Core 基準 migration（`InitialBaseline`）時，只把 `.cs` 與 `.Designer.cs` 放進版控，
+  **`ClubDbContextModelSnapshot.cs` 從來沒有 commit**。少了 snapshot，下一次 `dotnet ef migrations add`
+  會拿**空模型**當比較基準，產出一個把整個綱要重建一遍的 migration（`S0-9l` 實測 **145 個 `CreateTable`**，已刪除）。
+  接著 `e67ef26`（`AdminRefreshToken`）與 `S0-9l`（`matches.original_match_on`／`original_kickoff`）兩次改綱要，
+  都是手改 scaffold 檔、對本機庫直接 `ALTER TABLE`，**沒有任何 migration**。
+  [`20-cicd.md`](20-cicd.md) §5 定的正式庫變更路徑是「每次改動都是一個新 migration」——**照現況，這條路徑走不通**。
+- **為什麼會錯（根因，寫成可以被改掉的行為）**：**交付時只驗「程式能編譯、測試會過」，沒驗「下一個人照流程操作還走得通」。**
+  測試接的是從 `db/club-schema.sql` 建出來的資料庫，不經過 migration，所以缺 snapshot 不會讓任何測試變紅；
+  而 `e67ef26` 的交付者遇到同一個坑時，選擇繞過（手改＋`ALTER TABLE`）卻沒有回報，
+  **繞過一次沒記下來，第二個人就只能再繞一次。**
+- **下次怎麼避免**：① 🔴 **碰到 `apps/api/Data/Migrations/` 的交付，驗收時要實際跑一次 `dotnet ef migrations add <暫名>`，確認產出的是空 migration 再刪掉**——這才是在驗證「基準成立」，只看 git 裡有沒有檔案不算。
+  ② **改綱要時，除了 `db/*.sql` 與 scaffold 檔，也要產生對應的 migration**；做不到就在交付報告寫明原因，並在 `STATUS.md` 開一列。
+- **防呆**：✅ **同一次交付內完成（`S0-7j`，2026-09-24）**。CI 的 `api` job 加了兩道檢查：① 有 `Migrations/*.Designer.cs` 就必須有 `ClubDbContextModelSnapshot.cs`；② `dotnet ef migrations has-pending-model-changes`，模型改了卻沒有 migration 就紅燈。兩道都用真實的錯誤形狀驗過：刪掉 snapshot、改模型不補 migration，都會紅燈。主 session 另外把 snapshot 移走再跑一次，確認第 ② 道也抓得到。新增 migration 的驗收程序寫進了 [`20-cicd.md`](20-cicd.md) §5。
+  🔵 **這次擋下來的是下游**：`backend-engineer` 發現產出 145 張表時沒有 commit，而是刪掉、改用與先例一致的做法完成任務，並把根因回報上來。
+
+### E-46 `dotnet ef migrations remove --force` 以為只刪檔案，實際對本機庫執行了 `Down()`（2026-09-24，`S0-7k`）
+
+- **錯在哪**：`S0-7k` 要重新產生兩支還沒 commit 的 migration，派工單寫「remove 後依序重新 add」。
+  對已套用的 migration，`remove` 預設會拒絕，下游因此加了 `--force`。**但 `--force` 不只刪檔案，還會先對連線中的資料庫執行那支 migration 的 `Down()`**，
+  結果 `tcrfc_club_dev.matches` 的 `original_match_on`／`original_kickoff` 兩欄被刪掉。
+  下游當場發現，用 `database update` 重新套用，把兩欄補回來了（migration ID 因此改為 `20260924014130`）。
+  另一支 `AddAdminRefreshTokens` 如果照同樣方式處理，就等於 `DROP TABLE admin_refresh_tokens`，那張表裡已經有真實資料。下游改成手改檔案，所以沒有發生。
+- **為什麼會錯（根因，寫成可以被改掉的行為）**：**我派工時只寫了「重新產生 migration」這個目標，沒有寫「過程中不准碰資料庫結構」這條邊界**，
+  而 `remove` 會不會動到資料庫，要看那支 migration 是否已經套用。**我在派工單上告訴下游「本機庫已套用這兩筆」，卻又叫它 remove，這兩句本來就互相衝突。**
+- **下次怎麼避免**：🔴 **已套用到任何資料庫的 migration，一律不用 `remove`／`remove --force` 處理。** 要改內容，就手改檔案或另加一支新 migration。
+  派工只要會碰到 migration，就寫明「**不得對任何資料庫執行 DDL，除非本單明文要求**」。
+- **防呆**：⚠️ **無自動化。** 這個坑已寫進 [`20-cicd.md`](20-cicd.md) §5。主 session 事後複驗：`dotnet test` 135／135 通過，`has-pending-model-changes` 回報模型與 snapshot 一致。

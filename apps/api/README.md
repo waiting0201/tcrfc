@@ -793,6 +793,7 @@ compose 網路裡）。
 | `REDIS_PORT` | 選填（S0-7d） | 預設 `6379`。本次新增這個變數主要是為了讓測試能指到一個確定沒人聽的本機連接埠（見 `Tcrfc.Api.Tests`），正式環境不需要設定 |
 | `REDIS_PASSWORD` | `REDIS_HOST` 有設定時對應生效 | 與 `docker-compose.yml`／`deploy/dev/club.env` 的既有鍵名一致 |
 | `QUERY_CACHE_TTL_SECONDS` | 選填（S0-7d） | 每個快取 key 的 TTL 秒數，預設 `300`（5 分鐘）。預設值的理由與可否調整見下方「快取接縫」段落 |
+| `SCHEDULED_PUBLISH_INTERVAL_SECONDS` | 選填（S0-7g） | 排程發布掃描的輪詢間隔秒數，預設 `60`。設定成 `< 1` 會記警告並退回預設值，不會讓服務啟動失敗。理由與可否調低見下方「排程發布：時間到了自動轉為 published」段落 |
 | `CORS_ALLOWED_ORIGINS` | 正式環境必填，本機可省略 | 逗號分隔的允許來源清單，來自 `docker-compose.yml` 的 `api` 服務定義（`docs/17-deployment.md` §10.2 的既有缺口，本次由前一任務補上）。本機開發若沒帶，`Development` 環境會退回 `localhost:3000/3001/3002` 三個 `apps/web` 常用埠；**正式環境沒有這個退回值**——沒設定就是沒有任何來源被允許，比「忘記設定就開放全部」安全 |
 | `ASPNETCORE_ENVIRONMENT` | 建議設 | `Development` 才會開 OpenAPI 端點，其餘值一律關閉 |
 | `ASPNETCORE_URLS` | 本機開發用 | 監聽位址，容器內固定用 `Dockerfile` 的 `ASPNETCORE_HTTP_PORTS=8080` |
@@ -917,7 +918,7 @@ Redis 掛掉時服務仍應該收流量（每個讀取會 fail-open 回源 SQL�
 
 | 欄位 | 公開理由 |
 |---|---|
-| `id`、`seasonCode`、`teamCode`、`matchOn`、`kickoff`、`homeAway`、`opponent`、`venue`、`competitionTag`／`competitionName`、`status`、`scoreHome`、`scoreAway`、`roundNo`、`matchNo` | 賽程賽果公開頁面的標準欄位，`matches` 不在受限清單。`matchNo`（聯賽官方場次編號，`matches.match_no`）2026-09-21 補上，前台用它重建 mockup 原本的賽事卡片錨點 id（`fx-{日期}-{h\|a}-{場次編號}`），與 `roundNo`（第幾輪）是兩個不同欄位 |
+| `id`、`seasonCode`、`teamCode`、`matchOn`、`kickoff`、`homeAway`、`opponent`、`venue`、`competitionTag`／`competitionName`、`status`、`scoreHome`、`scoreAway`、`roundNo`、`matchNo`、`originalMatchOn`／`originalKickoff` | 賽程賽果公開頁面的標準欄位，`matches` 不在受限清單。`matchNo`（聯賽官方場次編號，`matches.match_no`）2026-09-21 補上，前台用它重建 mockup 原本的賽事卡片錨點 id（`fx-{日期}-{h\|a}-{場次編號}`），與 `roundNo`（第幾輪）是兩個不同欄位。`originalMatchOn`／`originalKickoff`（`matches.original_match_on`／`original_kickoff`，v3.13「延賽須標示原定時間」）2026-09-24 補上（S0-9l 後端半段）：**只有 `status = 'postponed'` 時才有值，其餘一律 `null`**——種子資料目前沒有任何延賽紀錄，這兩欄只用 `ScheduleOriginalDateTests` 的人造測資驗過，沒有真實延賽資料可以核對 |
 
 ---
 
@@ -1060,23 +1061,56 @@ repository——當時把任務指示「端點與 repository 不得修改」解�
 ——這是刻意的，`CacheDimensions.NoQualifier` 本身就是空字串，讓「沒有這個篩選條件」與「這個篩選條件
 剛好是空字串」用同一種表示法，不會有兩種不同的「空」互相衝突。
 
-### 🔴 排程發布與快取的語意後果（必讀，不是 bug）
+### ✅ 排程發布：時間到了自動轉為 published（S0-7g，2026-09-24 解決）
 
 `ArticlesRepository` 的兩個方法只回傳 `status = 'published'` **且已到發布時間**
-（`published_at <= SYSUTCDATETIME()`）的文章。**「時間到了」這件事本身沒有任何寫入事件**——
-後台排定 10:00 發布一篇文章，不會有任何程式碼在 10:00 那一刻呼叫 `IQueryCache.InvalidateAsync`
-（因為根本沒有寫入動作發生，只是時間流逝讓 SQL 的 `WHERE` 條件從不成立變成成立）。
+（`published_at <= SYSUTCDATETIME()`）的文章——`status` 必須字面等於 `'published'`，
+只有 `published_at` 到期還不夠。**這一段以下是舊版說明，已經不成立，保留刪除線只是讓後續讀者知道
+「曾經這樣以為，後來發現不對」**：
 
-**後果**：`articles` 與 `article-detail` 這兩個 entity 底下，「文章排程發布後多久會真的在 API 回應
-出現」完全由 **TTL 決定**——最多延後一個 TTL 週期（預設 300 秒／5 分鐘）。這不是遺漏也不是 bug，
-是本次任務範圍內、後台尚不存在時的已知取捨；一旦後台的排程發布功能真的開發，該功能**必須**在文章
-狀態變成可見的那一刻主動呼叫 `InvalidateAsync("articles", club)` 與 `InvalidateAsync("article-detail",
-club)`（或改用排程觸發器主動失效），否則使用者會持續看到最多 5 分鐘前的排程發布狀態。
+> ~~「時間到了」這件事本身沒有任何寫入事件——後台排定 10:00 發布一篇文章，不會有任何程式碼在
+> 10:00 那一刻呼叫 `IQueryCache.InvalidateAsync`，「文章排程發布後多久會真的在 API 回應出現」
+> 完全由 TTL 決定。~~
+>
+> 這段推論的前提（沒有寫入事件）是錯的：`docs/17-deployment.md`「排程」一項早就定案
+> 「Azure SQL 無 SQL Agent，排程發布、逾時取消訂單、每日對帳一律由 .NET 的 hosted service
+> 承擔」，只是當時新聞垂直切片（S0-8）還沒有接上這個 hosted service，導致「排定時間到了，
+> `status` 卻永遠停在 `scheduled`」這個落差被實測發現（見下方「已解決」段落）。
 
-⚠️ **若這個延遲對排程發布不可接受**（例如客戶期待「10:00 設定發布，10:00 準時看得到」），
-`QUERY_CACHE_TTL_SECONDS` 可以調低，但代價是每個接了快取的端點在 TTL 內能吸收的重複讀取量變少、
-對 Basic 層 5 DTU 的保護效果變弱——**這是一個需要業務判斷的取捨，本檔沒有代為決定新的預設值**，
-維持 300 秒是延續上一階段任務的既有決定，不是這次重新評估過的結論。
+**已解決**：`Features/News/ScheduledPublishRunner.cs` ＋ `ScheduledPublishBackgroundService.cs`
+是 hosted service 的實作——啟動後立刻執行一次，之後每 `SCHEDULED_PUBLISH_INTERVAL_SECONDS`
+秒（預設 60 秒）執行一次，把 `status='scheduled' AND published_at <= SYSUTCDATETIME()` 的文章
+轉成 `published`，**同一個交易內**（單一條件式 `UPDATE ... OUTPUT`）就是這個功能唯一的寫入事件，
+轉換成功後立刻呼叫 `IQueryCache.InvalidateAsync("articles", club)` 與
+`InvalidateAsync("article-detail", club)`——不再是「完全靠 TTL 兜底」，可見延遲改成
+**最多一個輪詢間隔（預設 60 秒）**，不是最多一個 TTL 週期（預設 300 秒）。
+
+設計細節（完整理由見 `ScheduledPublishRunner.cs` 檔頭）：
+
+- **冪等且對多實例安全**：條件式 `UPDATE`（不是「先 SELECT 一批 id 再逐筆 UPDATE」），兩個 API
+  容器同時跑這支語句時，第二個語句會在同一批列上阻塞到第一個 commit，重新求值 WHERE 後 0 筆
+  命中，不會重複發布、不會拋例外——不需要分散式鎖或 leader election。
+- **不覆寫 `published_at`**：只改 `status`／`updated_at`，維持原本排定的時間，理由是①同一天
+  排程多篇文章的相對順序（`ORDER BY published_at DESC`）不該被輪詢間隔的抖動打亂，②「10:00
+  設定發布」的使用者期待是「顯示 10:00 發布」，不是「顯示輪詢器真正跑到的那一刻」。
+- **共用內容失效**：`club_id IS NULL`（共用文章）可能同時影響兩個俱樂部的公開頁面，不逐一解析
+  受影響的俱樂部代碼，直接對「目前所有啟用俱樂部」失效——俱樂部只有 2 個，成本可忽略。
+- **fail-open**：單輪掃描失敗（例如 SQL Server 短暫連不上）只記錄錯誤，不讓整支 hosted service
+  停止運作，下一輪還有機會補上。
+
+⚠️ **若 60 秒的延遲對排程發布不可接受**（例如客戶期待「10:00 設定發布，10:00 準時看得到」秒級
+精準），可調低 `SCHEDULED_PUBLISH_INTERVAL_SECONDS`，代價是輪詢頻率提高，對 Basic 層 5 DTU 的
+壓力也提高（但單次查詢是「條件式 UPDATE，多數時候 0 筆命中」，成本遠低於一般查詢，可承受的下限
+比一般快取 TTL 高很多）——這是實測與驗收見下方「S0-7g 驗收紀錄」，本檔維持 60 秒預設值。
+
+🔴 **目前只有 `articles` 接上這個機制**。`db/club-schema.sql` 另外還有 8 張表帶
+`CHECK (status IN ('draft','published','scheduled'))`：`pages` 有 `published_at` 欄位但還沒有
+任何公開讀取或後台寫入端點（沒有讀取路徑就沒有這個 bug 的實際後果，等 Pages 端點開發時把它加進
+`ScheduledPublishRunner` 的掃描清單，欄位已備妥不需要新 migration）；`press_resources`／
+`faqs`／`competitions`／`sponsor_packages`／`collections`／`products`／`charity_programs`
+**連 `published_at` 欄位都沒有**（已逐張 grep 核對過）——CHECK 約束允許 `'scheduled'`，但沒有
+欄位記錄排定時間，這是既有的欄位缺漏，不是這裡能修的（改資料表結構要走 `docs/12` 同步鏈再走
+migration，這裡沒有自己加）。
 
 ---
 
@@ -1185,14 +1219,193 @@ Scaffold 完 `dotnet build` 直接炸掉一百多個 `CS1061`，根因是 P1「�
 # 1. 先改 db/club-schema.sql（走 docs/12 的同步鏈，CLAUDE.md 第 2、3 條）
 # 2. 手動對本機資料庫套用那個 DDL 異動（或整個重建本機庫）
 # 3. 重新 scaffold（見上面第 1 步），這次會抓到新綱要
-# 4. dotnet ef migrations add <描述性名稱> --context ClubDbContext -o Data/Migrations
+# 4. dotnet tool restore   # 本機工具清單釘住 dotnet-ef 版本，見下方「本機工具清單」
+#    dotnet ef migrations add <描述性名稱> --context ClubDbContext -o Data/Migrations
 #    這次不用清空 Up()/Down()——這是真正要執行的變更，讓它照常產生 DDL
-# 5. 正式環境套用走 docs/20-cicd.md 的 db-migrate.yml（需要 production-db 環境核准），
+# 5. 🔴 驗收：dotnet ef migrations add Probe --context ClubDbContext -o Data/Migrations
+#    確認 Probe 的 Up()/Down() 是空的（代表模型與 snapshot 完全同步），再 dotnet ef migrations
+#    remove 刪掉——這一步不能省，見下方「EF Core migrations 基準健檢」與 docs/20-cicd.md §5
+# 6. 正式環境套用走 docs/20-cicd.md 的 db-migrate.yml（需要 production-db 環境核准），
 #    不是在本機對正式庫下 dotnet ef database update
 ```
 
-⚠️ **本輪只做了 handoff 本身，沒有新增任何真正的結構異動**——`InitialBaseline` 是唯一一個
+⚠️ **本輪（S0-7f）只做了 handoff 本身，沒有新增任何真正的結構異動**——`InitialBaseline` 是唯一一個
 migration，Up()/Down() 都是空的，且已用「套用前後表數不變」實測驗證過。
+
+---
+
+### 🔴🔴🔴 修復：`ClubDbContextModelSnapshot.cs` 從未進版控，基準壞了兩次（S0-7j，2026-09-24，`docs/18-work-errors.md` E-45）
+
+**發現的問題**：`InitialBaseline`（S0-7f）建立時只 commit 了 `.cs`／`.Designer.cs`，
+**`Data/Migrations/ClubDbContextModelSnapshot.cs` 從沒進版控**。少了它，`dotnet ef migrations add`
+拿空模型當比較基準，會產出一個把整份綱要重建一遍的 migration（S0-9l 實測 145 個 `CreateTable`，
+已刪除，未 commit）。這個問題**不會讓任何測試變紅**——既有測試接的是用 `db/club-schema.sql`
+直接建好的資料庫，不經過 migration，缺 snapshot 對測試結果零影響。之後兩次改綱要
+（`e67ef26` 的 `AdminRefreshToken`／S0-9l 的 `matches.original_match_on`／`original_kickoff`）
+都因此繞過 migration，改成手改 scaffold 檔＋手動 `ALTER TABLE`，`docs/20-cicd.md` §5 定的
+「每次改動都是一個新 migration」路徑因此走不通。
+
+**怎麼修的**：
+
+1. **重建 snapshot**：`ClubDbContextModelSnapshot.cs` 的內容規則上等於
+   `InitialBaseline.Designer.cs` 的 `BuildTargetModel`——兩者本來就該描述同一個模型，
+   只是分別給「單一 migration 的目標模型」與「目前累積的模型」兩種用途用。用一支腳本把
+   `InitialBaseline.Designer.cs` 整份複製，做三個純文字替換（拿掉 `[Migration(...)]` 特性、
+   `partial class InitialBaseline` → `partial class ClubDbContextModelSnapshot : ModelSnapshot`、
+   `BuildTargetModel` → `BuildModel`），沒有手動改動任何一行模型描述本身。`dotnet build` 通過
+   後即視為重建完成——**沒有獨立驗證這個重建本身完全正確**，真正的驗證來自下一步：拿它當基準
+   加 migration，若基準有錯，加出來的 migration 內容一定會顯示出破綻（多出或少掉不該有的變更），
+   而實測結果（見下）確實只長出預期中的兩張／兩欄異動，沒有任何其餘 143 張表的雜訊，
+   這是基準正確的間接但有力的證據。
+2. **補回兩次漏掉的 migration**（依時間順序，用 `git stash` 暫時「藏起」還沒 commit 的
+   S0-9l 改動，讓當下的 Entity 模型精準對齊每一次要補的異動範圍，逐一 `dotnet ef migrations add`）：
+   - `AddAdminRefreshTokens`（20260924011258）：只有 `CREATE TABLE admin_refresh_tokens` 與四個索引，
+     沒有動到其餘 143 張表。
+   - `AddMatchOriginalSchedule`（20260924011323）：只有 `matches` 表新增 `original_kickoff`
+     （`nvarchar(8)`）／`original_match_on`（`date`）兩欄。
+3. **驗收**：`dotnet ef migrations add Probe` 產出空的 `Up()`/`Down()`，確認模型與 snapshot
+   完全同步後刪除。`dotnet ef migrations script InitialBaseline`（單一起點參數＝從
+   `InitialBaseline` 之後到最新）產出的 SQL 逐欄核對過 `db/club-schema.sql`
+   （型別、長度、`NULL`、預設值、索引、外鍵），發現一處落差，如實記錄、不自行決定：見下方
+   「EF 自動索引與 `db/club-schema.sql` 的一處落差」。
+4. **本機工具清單**：新增 `apps/api/.config/dotnet-tools.json`，釘住 `dotnet-ef 10.0.3`——
+   之前的 `dotnet ef` 指令全部假設全域安裝了工具，沒有版本釘選，也沒有讓 CI 或新接手的人
+   知道要裝什麼版本。`dotnet tool restore` 後即可用，不需要 `dotnet tool install -g`。
+
+**EF 自動索引與 `db/club-schema.sql` 的一處落差（S0-7j 發現時待裁決，已在下方「S0-7k」裁決並修復）**：
+`AddAdminRefreshTokens` migration 產生了 `CREATE INDEX IX_admin_refresh_tokens_replaced_by_id
+ON admin_refresh_tokens (replaced_by_id)`，但 `db/club-schema.sql`（1547–1558 行）**沒有這個索引**
+——本機 `tcrfc_club_dev` 目前也沒有。根因是 EF Core 的 `ForeignKeyIndexConvention`：只要一個屬性
+被設定成外鍵（`entity.HasOne(d => d.ReplacedBy).WithMany(...)`），EF 在建置模型時就會自動替它
+加一個非叢集索引，除非已經有別的索引涵蓋它——這個慣例**跟這個屬性是不是可為空、有沒有真的在
+`OnModelCreating` 裡手寫 `HasIndex` 完全無關，是建置模型當下自動套用的**。`AdminRefreshToken`
+這個實體是 `e67ef26` 手改 scaffold 檔加進去的（不是真的重新對資料庫跑 `dotnet ef dbcontext
+scaffold`），所以撰寫者沒有機會像對其餘 143 張表那樣，從真實資料庫「有沒有這個索引」反推
+要不要寫 `entity.HasIndex(...)`；而這一次是**第一次真的把這個實體的模型拿去跟資料庫比對**
+（透過生成 migration），落差因此第一次浮現。**兩個修法都合理，需要裁決**：
+① 把這個索引正式收進 `db/club-schema.sql`（`replaced_by_id` 常態查詢輪替鏈時用得到，加索引
+本身無害）；② 在 `ClubDbContextCustomizations.cs` 用 Fluent API 明確抑制這個自動索引
+（`modelBuilder.Entity<AdminRefreshToken>().Metadata.RemoveIndex(...)`，需要之後有新
+migration 才能真的在資料庫層面 `DROP INDEX`）。本輪判斷這不在「補回遺漏 migration」的任務
+範圍內，如實記錄、留給下一位或使用者決定，`db/club-schema.sql`、`tcrfc_club_dev` 目前都
+維持沒有這個索引的狀態，但 **EF 的 migration／snapshot 已經確實產生了它**——這代表若真的按
+`docs/20-cicd.md` §5 的正式流程（`db-migrate.yml`）把 `AddAdminRefreshTokens` 套到一個全新的
+正式環境資料庫，會多出這個索引；套到已經手動建好、沒有這個索引的環境（例如 `tcrfc_club_dev`）
+則不會有這個索引，因為套用時只在 `__EFMigrationsHistory` 補紀錄，不重跑已經手動完成的 DDL
+（見下一段）。
+
+**本機開發庫 `tcrfc_club_dev` 的處理方式**：這個資料庫已經用 `db/club-schema.sql`
+（已含 `admin_refresh_tokens`／`matches.original_*`）手動建好，欄位與表本身跟兩個新 migration
+最終想要的結果一致（**除了上述那個索引**）。做法是直接對 `tcrfc_club_dev` 的
+`__EFMigrationsHistory` 補兩筆紀錄（`INSERT`，不執行任何 DDL），讓 EF 認為這兩個 migration
+「已套用」，不重複建立已經存在的表／欄位，也不會意外對正式資料造成影響。**這個資料庫因此
+在功能上是完整的，只是實際 DDL 落地路徑跟「跑 migration」不同**——已知的落差就只有上面那個
+索引。
+
+**驗證這條路徑走得通（用一個全新的、用完即丟的資料庫）**：`InitialBaseline` 之前的狀態要從
+`db/club-schema.sql` 的歷史版本取得——目前這份檔案已經包含 `admin_refresh_tokens`／
+`matches.original_*`（`e67ef26`／S0-9l 都已經改了這份檔案），沒辦法從現在的檔案內容重現
+「純 `InitialBaseline` 時間點」的資料庫。改用 `git show d5ec4ec:db/club-schema.sql`
+（`InitialBaseline` 那次 commit）取出當時的版本，套用 `deploy/local-ddl.sh` 用的同一條
+`json → nvarchar(max)` 轉換規則（本機 SQL Server 2022 沒有 Azure SQL 原生 `json` 型別，
+S0-6b 既有的已知限制），在一個全新的 `tcrfc_club_scratch` 資料庫上建出 144 張表，標記
+`InitialBaseline` 為已套用，再跑 `dotnet ef database update` 真的套用兩個新 migration——
+兩個都成功執行了真正的 DDL（`CREATE TABLE`／`ALTER TABLE`，不是只補紀錄），結束後
+`tcrfc_club_scratch` 已刪除，全程沒有動到 `tcrfc_club_dev`／`tcrfc_charity_dev`。
+
+**測試**：`dotnet test` 132/132（既有 131 ＋ S0-9l 已經寫好但先前卡在缺 migration 沒被納入
+驗收的 `ScheduleOriginalDateTests`，本輪修復基準後這個測試才有意義——它驗的正是
+`original_match_on`／`original_kickoff` 這兩欄，跟本輪要補的第二個 migration 是同一組欄位）。
+
+### 🔴 S0-7k（2026-09-24）：裁決並修復 `admin_refresh_tokens.replaced_by_id` 的索引落差
+
+使用者裁決：**依綱要為準**——`db/club-schema.sql` 與 `docs/12` 是真實來源，兩者都沒有這個索引，
+**不改 `db/club-schema.sql`，讓 EF 對齊綱要**。
+
+**單純 `RemoveIndex` 無效，實測發現的坑**：一開始照 S0-7j 記錄的方案②，在
+`OnModelCreatingPartial` 呼叫 `modelBuilder.Entity<AdminRefreshToken>().Metadata.RemoveIndex(...)`，
+`dotnet build` 過，但拿它當基準跑 `dotnet ef migrations add Probe` 驗收時，**Probe 的 `Up()`
+又長回一模一樣的 `CreateIndex IX_admin_refresh_tokens_replaced_by_id`**——索引被自動補回來了。
+根因：`ForeignKeyIndexConvention` 同時實作 `IIndexRemovedConvention` 與
+`IModelFinalizingConvention`，只要偵測到某個外鍵的屬性沒有涵蓋索引，**移除後會立刻自我修復、
+補回同一個索引**，這個慣例沒有提供逐一外鍵層級的「這個不要」旗標。
+
+**真正生效的做法**：在 `ClubDbContextCustomizations.cs` 用 `ConfigureConventions` 換掉
+`ForeignKeyIndexConvention` 本身，換成一個繼承它的子類別，只在要處理
+`AdminRefreshToken.ReplacedById` 這一個屬性時跳過（`CreateIndex` 回傳 `null`），其餘所有屬性
+（含下面「已知但不在本輪範圍」提到的其餘落差）呼叫 `base.CreateIndex(...)` 原封不動繼承官方行為，
+不影響其餘 137 張表：
+
+```csharp
+protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+{
+    configurationBuilder.Conventions.Replace(serviceProvider =>
+        new AdminRefreshTokenReplacedByIdIndexSuppressingConvention(
+            serviceProvider.GetRequiredService<ProviderConventionSetBuilderDependencies>()));
+}
+```
+
+**重新產生兩支 migration 時踩到的另一個坑（🔴🔴🔴 對正在跑的其他工作有實際風險，務必記住）**：
+`AddAdminRefreshTokens`／`AddMatchOriginalSchedule` 兩支 migration 當時都還沒 commit，且
+`tcrfc_club_dev` 的 `__EFMigrationsHistory` 已經有這兩筆紀錄。原計畫是
+`dotnet ef migrations remove` 依序刪除兩支再重新 `add`。**`dotnet ef migrations remove` 對「已
+標記為套用」的 migration 預設會拒絕並提示「Revert it and try again」；加上 `--force` 之後，
+它不是只刪本機檔案——它會直接對連線中的資料庫執行該 migration 的 `Down()`（真的跑
+`ALTER TABLE ... DROP COLUMN`／`DROP TABLE`），刪完 DB 端的實際結構後才刪 `__EFMigrationsHistory`
+的那筆紀錄跟本機檔案。** 對 `AddMatchOriginalSchedule` 用 `--force` 移除時，**這一步真的把
+`tcrfc_club_dev.matches` 的 `original_kickoff`／`original_match_on` 兩欄砍掉了**（S0-9l 剛加的
+兩欄，另一個 agent 當時正在用同一顆資料庫做排程發布／文章功能）。**發現後立刻用
+`dotnet ef migrations add AddMatchOriginalSchedule` 重新產生同一支 migration，再
+`dotnet ef database update` 把它合法地重新套用回去**，兩欄復原、`__EFMigrationsHistory` 也正確
+補回一筆（時間戳因此從 `20260924011323` 變成新產生當下的 `20260924014130`，不是原本規劃的
+「維持相同時間戳」，但這是唯一乾淨、不需要再手動改資料庫的收尾方式）。
+
+**因此對 `AddAdminRefreshTokens` 改用完全不同的做法，全程沒有再對 `tcrfc_club_dev` 執行任何
+DDL**：`admin_refresh_tokens` 這張表已經有實際資料表存在（`e67ef26` 之後的登入／授權功能會寫入
+真實的 refresh token 資料列），若照原計畫對這支 migration 也用 `--force` 移除，等於
+`DROP TABLE admin_refresh_tokens`，會真的遺失資料，風險遠高於兩個欄位。改成**直接手改三個
+既有檔案**（`20260924011258_AddAdminRefreshTokens.cs`／`.Designer.cs`／
+`ClubDbContextModelSnapshot.cs`），把那一段 `CreateIndex IX_admin_refresh_tokens_replaced_by_id`
+與對應的 `b.HasIndex("ReplacedById")` 拿掉——因為 `tcrfc_club_dev` 本來就沒有這個索引，
+手改讓檔案內容跟資料庫現況一致，**不需要執行任何 DDL 就能達到一致**，`migrationId` 也維持原本
+的 `20260924011258` 不變，`__EFMigrationsHistory` 完全不用動。
+
+**⚠️ 給下一位要重新產生／刪除 migration 的人的教訓**：`docs/20-cicd.md` §5 的「Probe 驗收」流程
+本身沒問題（`add`／`remove` 一支從沒套用過的 migration 不會碰資料庫），**真正危險的是對一支
+「已經標記為套用」的既有 migration 下 `remove --force`**——這一步不是純粹的檔案操作，會真的對
+連線中的資料庫執行 `Down()`。共用的本機開發庫（`tcrfc_club_dev`）常常同時有別的 agent／工作在用，
+**下手前先確認：這支 migration 的 `Down()` 會不會刪掉別人正在依賴的表或欄位；會的話，改用
+手改既有 migration 檔案這條路，不要依賴 `--force`**。
+
+**已知但不在本輪範圍的同類落差（只回報，未處理）**：`ClubDbContextModelSnapshot.cs` 掃過一遍，
+`ForeignKeyIndexConvention` 這個慣例造成的「未命名 `HasIndex`」總共約 **281 筆**（用
+`grep -E '^\s*b\.HasIndex\("[A-Za-z]+"\);\s*$'` 對 snapshot 計數），涵蓋既有 143 張表——
+`created_by`／`updated_by` 這兩個審計欄位各 85 筆、`club_id` 33 筆，其餘約 78 筆分散在各種
+FK（`team_id`／`season_id`／`venue_id`／`player_id`……）。這些全部是 `InitialBaseline` 當初
+scaffold＋慣例產生、因為 `InitialBaseline` 的 `Up()`/`Down()` 被手動清空過，**從來沒有被拿去跟
+`db/club-schema.sql` 逐欄核對過**，範圍遠大於這一筆 `replaced_by_id`。**任務範圍明訂只裁決這一筆，
+其餘依指示只回報不處理**——若之後要一併清理，建議用跟本輪一樣的模式（在
+`ForeignKeyIndexConvention` 子類別裡列一份「跳過清單」），而不是整條移除 `ForeignKeyIndexConvention`
+（那樣做等於一次改變全部 137 張其餘表的既有行為，範圍與風險都遠超這次任務）。
+
+**驗收（本輪實跑）**：`dotnet ef migrations add Probe` 產出空 `Up()`/`Down()` 後刪除；
+`dotnet ef migrations has-pending-model-changes` 印出「No changes have been made to the model
+since the last migration.」（結束碼 0）；`dotnet ef migrations script InitialBaseline` 產出的
+`admin_refresh_tokens` DDL 與 `db/club-schema.sql`（1547–1559 行）逐欄逐索引核對一致（含
+`IX_admin_refresh_tokens_user`／兩個 `UQ_*`／兩個 `FK_*`，**沒有** `IX_admin_refresh_tokens_
+replaced_by_id`）；`dotnet test`（`Tcrfc.Api.Tests.csproj`）135/135 通過；`dotnet build` 0 警告
+0 錯誤。
+
+### EF Core migrations 基準健檢（本機工具清單與 CI 防呆，S0-7j 新增）
+
+`apps/api/.config/dotnet-tools.json` 釘住 `dotnet-ef 10.0.3`，用前先 `dotnet tool restore`
+（不需要 `dotnet tool install -g`，CI 與任何新接手的人都一樣）。`.github/workflows/ci.yml`
+的 `api` job 在 `dotnet build` 之後新增一步「EF Core migrations 基準健檢」，兩道檢查：
+① 有 `Migrations/*.Designer.cs` 卻沒有 `ClubDbContextModelSnapshot.cs` 直接失敗；
+② `dotnet ef migrations has-pending-model-changes --context ClubDbContext` 非零結束就失敗
+（不需要真的連得上資料庫，只比對記憶體中的模型，但仍需要 `CLUB_SQL_CONNECTION_STRING`
+這個設定鍵存在才能建置 DbContext）。完整設計理由、兩種真實錯誤形狀的紅／綠驗收記錄見
+[`docs/20-cicd.md`](../../docs/20-cicd.md) §5「新增 migration 的驗收」與「CI 防呆」兩節。
 
 ---
 
@@ -1291,7 +1504,14 @@ agent 在改，任務邊界不允許本輪觸碰；二來這需要「A 專案的
    幂等地把 `published_at` 推進到現在——沒有測試涵蓋這個分支的必要性，因為它不影響資料正確性，
    只是把時間戳推近）。**這組轉換規則沒有規劃書依據，是本輪的合理猜測，需要確認。**
 
-### 🔴🔴🔴 排程發布：時間到了，誰把狀態從 `scheduled` 改成 `published`？（回報，沒有動手發明）
+### ✅ 排程發布：時間到了，誰把狀態從 `scheduled` 改成 `published`？（S0-7g，2026-09-24 已解決）
+
+> **本節是問題被發現時的原始回報，如實保留**——下面描述的落差確實存在過。**已解決**：
+> 使用者裁決「規劃書沒寫的執行層決定，開發端依 `docs/17-deployment.md` 既有結論拍板，不用
+> 再往上問」，`docs/17`「排程」一項早就定案「用 .NET 的 hosted service 承擔」，S0-7g 把它接上
+> `articles`——實作是 `Features/News/ScheduledPublishRunner.cs`／
+> `ScheduledPublishBackgroundService.cs`，詳見上方「排程發布：時間到了自動轉為 published」與
+> 下方「S0-7g 驗收紀錄」。以下原始回報內容保持不動，只是問題現況已經不是「未解決」。
 
 實測發現一個貫穿既有 README「排程發布與快取」段落與本輪新程式碼的邏輯落差：
 
@@ -1922,7 +2142,7 @@ tcrfc schedule 筆數: 21    （不變）
 
 ---
 
-## 測試（`apps/api/Tcrfc.Api.Tests`，共 130 項，S1 新增 31 項見上方「S1」整節「測試結果」）
+## 測試（`apps/api/Tcrfc.Api.Tests`，`dotnet test` 全部 135 項全過，S1 新增 31 項見上方「S1」整節「測試結果」，S0-7g 新增 3 項見下方 `ScheduledPublishTests`）
 
 S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄裡。S0-7d 新增獨立測試專案
 `Tcrfc.Api.Tests`（xUnit 2.9 + `Microsoft.AspNetCore.Mvc.Testing`），對 `Program`
@@ -1960,6 +2180,7 @@ S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄�
 | **`AdminNewsGateClosedTests`（S0-8 原始版本已於 S1 整支重寫）** | ⚠️ **這一列描述的是 S0-8 時的行為，S1 起已不成立**（該機制不再擋 `AdminNews`）。現版驗「未登入回 401（不是 404，路由確實存在）」「格式不正確的權杖回 401」「公開唯讀端點不受影響」，見上方「S1」整節 |
 | **`AdminNewsWriteTests`（本輪新增）** | 完整生命週期（建立→改內容→排程→發布→刪除）、分類代碼不存在／中文標題空白回 400、slug 重複回 409、俱樂部範圍（另一俱樂部路由更新／刪除回 404 且本尊不變）、共用內容唯讀（更新／刪除回 403，且後台讀取看得到並標記 `isShared`）、樂觀並行控制（過期 `updatedAt` 回 409 且不是後寫的贏）、三態轉換（已發布不能再排程）、排程時間不在未來回 400、雙語側表（加英文／省略英文清空）、置頂精選超過 3 篇回 409 |
 | **`AdminNewsCacheInvalidationTests`（本輪新增）** | 用真正的 `redis-server`（`AdminWriteRedisEnabledApiFixture`）驗證：後台更新已發布文章後，公開 API 立刻反映新標題，不是被 TTL 內的舊快取值擋住 |
+| **`ScheduledPublishTests`（S0-7g 新增，3 項）** | 直接呼叫 `ScheduledPublishRunner.PublishDueArticlesAsync`（不等計時器）：排定時間已過的文章掃描後轉為 `published`、`published_at` 不被改寫、公開 API 立刻可見；排定時間未到的文章掃描後仍是 `scheduled`、公開 API 仍 404；連續呼叫兩次不拋例外、第二次不再更動已發布文章的 `updated_at`／`published_at`（冪等）。三支測試都只斷言最終狀態，不斷言「這一次呼叫轉了幾筆」——因為 `AdminWriteApiFixture` 啟動的 `Program` 裡，真正的 `ScheduledPublishBackgroundService` 也在背景跑，兩者互相競速不影響最終正確性，但會讓「這次呼叫剛好轉了幾筆」變得不穩定 |
 | **`ImageProcessorTests`（S0-8 新增，純單元測試，不需要任何 fixture）** | 長邊超過 2560px 等比縮小、固定產出 4 個衍生檔（1280／640／320／160 方形縮圖）、全部輸出真的是 WebP、主檔與衍生檔的 EXIF／ICC／IPTC／XMP 全部清除、主檔小於目標尺寸時不放大補齊、接受 PNG／WebP 格式、假副檔名文字檔與損毀 JPEG 檔頭被擋（見 `TestImages.cs`，全部圖片用 ImageSharp 在記憶體現產，不依賴外部檔案，任何機器都能重現） |
 | **`AdminNewsCoverBlobCleanupTests`（S0-8 新增，S0-8 修正改寫）** | 圖片上傳共用元件跟 `Features/AdminNews` 實際接線後的行為，改用單一 multipart 請求：建立文章時附封面圖片、五個物件真的寫進儲存體且物件鍵含俱樂部與文章 id；換圖成功後舊的主檔與全部衍生檔被刪除、新的完整保留；`removeCover=true` 清空封面且刪舊物件；沒夾檔案也沒勾選移除時封面維持不變（Keep 語意）；刪除文章後圖片物件一併被刪除 |
 | **`AdminNewsCoverUploadTests`（S0-8 修正新增，2026-09-22）** | 🔴 這次修正的核心驗收：格式不支援／空檔案／超過 10MB／俱樂部不存在四種情境透過建立端點觸發，回 400／404 且不留下任何物件；**slug 重複時夾正常圖片**——圖片已上傳成功但建立失敗（409），驗證儲存體物件數量沒有增加（補償交易生效）；**並行衝突時夾正常圖片**——圖片已上傳成功但更新失敗（409），驗證沒有新增物件且舊封面不受影響；同時夾檔案又勾選移除封面回 400 且完全不嘗試上傳 |
@@ -2265,6 +2486,73 @@ $ cd apps/api/Tcrfc.Api.Tests && dotnet test
 `AdminNewsCoverBlobCleanupTests` 5（原 2 支＋新增 3 支涵蓋 `removeCover`／Keep 語意）＋
 `AdminNewsCoverUploadTests` 7（全新，取代刪掉的 `UploadImagesEndpointTests` 6＋
 `UploadImagesGateClosedTests` 1，並新增兩支回滾測試）**。
+
+---
+
+## S0-7g 驗收紀錄（排程發布自動轉為 published，2026-09-24）
+
+### 1. `dotnet test` 全過，既有測試不回歸
+
+```
+$ dotnet test Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj
+已通過! - 失敗: 0，通過: 135，略過: 0，總計: 135，持續時間: 41 s
+```
+
+新增的 3 項（`ScheduledPublishTests`）單獨跑：
+
+```
+$ dotnet test Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj --filter "FullyQualifiedName~ScheduledPublishTests"
+已通過 Tcrfc.Api.Tests.ScheduledPublishTests.重複執行不重複發布也不拋例外 [2 s]
+已通過 Tcrfc.Api.Tests.ScheduledPublishTests.排程時間已過_背景掃描後狀態轉為published且公開API可見 [63 ms]
+已通過 Tcrfc.Api.Tests.ScheduledPublishTests.排程時間未到_掃描後狀態仍是scheduled且公開API仍404 [44 ms]
+通過: 3
+```
+
+### 2. curl 手動驗收（本機真實 `dotnet run`，`SCHEDULED_PUBLISH_INTERVAL_SECONDS=5` 縮短輪詢間隔方便觀察）
+
+直接 SQL 插入一篇 `status='scheduled'`、`published_at` 為 10 秒前的文章（後台 `/schedule` 端點
+本身會擋「排程時間必須晚於現在」，沒辦法用真正的 API 產生「排定時間已過去」這個狀態，跟
+`ScheduledPublishTests` 用同一招）：
+
+```
+=== 立即查詢 ===
+HTTP 200   # 這一輪 curl 前，背景服務已經先跑過至少一輪（間隔設 5 秒），已經轉過了
+
+=== 資料庫實際內容 ===
+status: published
+published_at: 2026-09-24 01:47:04.292   ← 維持原本排定的時間，沒有被改寫
+updated_at:   2026-09-24 01:47:15.154   ← 掃描把它轉掉的時間
+
+=== 公開 API 回應 ===
+{
+  "slug": "curl-manual-verify-s0-7g",
+  "publishedAt": "2026-09-24T01:47:04.292",
+  "title": "curl 手動驗收：排程發布",
+  ...
+}
+```
+
+負向案例（排定時間在 30 分鐘後，確認**不會**被提前轉掉）：
+
+```
+=== 插入後立即查詢 ===
+HTTP 404
+
+=== 等待兩輪以上（8 秒，輪詢間隔 5 秒）後再查詢 ===
+HTTP 404   # 仍然未到排定時間，狀態正確維持 scheduled
+```
+
+兩筆測資驗收後已用 SQL 清除，未留在 `tcrfc_club_dev`。
+
+### 3. 時區核對
+
+`published_at`／`updated_at` 全部是 `datetime2(3)` 存 UTC（`docs/12` §1.1 既有定案），
+`ScheduledPublishRunner` 的 SQL 用 `SYSUTCDATETIME()` 比較，跟既有 `ArticlesRepository`
+公開讀取查詢的 `a.published_at <= SYSUTCDATETIME()` 是同一個時間基準，沒有另外引入
+`GETDATE()`（伺服器在地時間）或應用層 `DateTime.Now`（行程在地時間）混用的風險。
+邊界情況由 `ScheduledPublishTests` 的兩個正／負案例覆蓋（`-5` 秒必轉、`+10`／`+30` 分鐘必不轉），
+沒有另外測試「剛好等於現在」這種奈秒級的臨界點——SQL 執行本身就有毫秒級的時間流逝，
+測試機器上量測「剛好相等」既不穩定也沒有額外的業務意義。
 
 ---
 
