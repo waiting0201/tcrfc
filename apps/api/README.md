@@ -1324,6 +1324,7 @@ FAQ 的「指定頁面」嵌入（`faq_category_links` 只能表達「題目屬�
 | `POST /api/v1/{club}/faqs/{slug}/views` | 瀏覽數＋1，逐字比照 `Features/News` 既有寫法 |
 | `POST /api/v1/{club}/faqs/{slug}/feedback`（body `{helpful}`） | 👍／👎 遞增 |
 | `POST /api/v1/{club}/faqs/search-misses`（body `{keyword}`） | 零結果搜尋回報，見下方「我的判斷」 |
+| `GET /api/v1/admin/{club}/faqs/search-misses?days=&top=`（2026-09-24 補，`E-51`） | 搜尋無結果關鍵字排行，`content.faq.view`；見下方「我的判斷」第 5 點 |
 
 權限碼種子（`db/seed/generate-club-seed-sql.py` §18.2／§18.3，DML，未動 DDL）：
 `content.banner.*`／`content.home_section.*`（`module_code=B`、`submodule_code=B3`）、
@@ -1384,6 +1385,21 @@ has-pending-model-changes` 全程回報無待處理變更）。**種子資料新
    本輪判斷**不要**把這個寫入嵌進 `GET .../faqs?keyword=` 的讀取路徑裡（那是快取讀取路徑，
    嵌寫入會讓同一個 entity 同時身兼讀與寫，且會把「使用者還在打字時的暫時 0 筆」也計入），
    改成一支獨立端點，由前端在真正呈現「找不到結果」畫面給使用者看到的那一刻才呼叫。
+   🔴 **2026-09-24 補（`docs/18-work-errors.md` `E-51`）：本輪原本只做了寫入端，後台完全讀不到
+   這份排行，直到 `S1-8` 才被發現。現已補上 `GET /api/v1/admin/{club}/faqs/search-misses`
+   （`content.faq.view`），沿用同一份 `faq_search_misses` 表，不需要新表或新欄位：**
+   - **綱要確認**：`faq_search_misses` 是 `(club_id, keyword)` 彙總列（表定義註解「成效統計，
+     不是搜尋日誌」），`hit_count` 逐次 `+1`、`last_searched_at` 每次覆寫成最新時間，
+     不是逐次搜尋各存一列——`count`／`lastSearchedAt` 兩個輸出欄位因此都直接對得到欄位，
+     但 `days` 篩選只能決定「這個關鍵字最近有沒有人搜尋過」，**不能**把 `count` 收斂成
+     「範圍內的次數」（沒有逐次列可以重新加總）。見
+     `Features/AdminFaqs/AdminFaqsRepository.ListSearchMissesAsync` 上的完整說明。
+   - **正規化補強**：寫入端 `POST .../faqs/search-misses` 原本只做 `Trim()`，同一個關鍵字打大寫、
+     全形輸入法會被拆成好幾筆不同的彙總列，排行因此失真。已新增
+     `Common.SearchKeywordNormalizer`（全形轉半形、去前後空白、大小寫統一），寫入前先正規化再當
+     upsert 鍵；正規化只能在寫入前做，讀取端事後補救不了（資料庫裡已拆散的列無法重新合併）。
+   - **契約**：`days` 預設 30（1–365）、`top` 預設 50（1–200），超出範圍回 400
+     （`AdminFaqValidationException`）；排序依 `count` 由多到少、同數依 `lastSearchedAt` 新到舊。
 6. **Banner 只做圖片，不做影片**：規劃書 B3 寫「圖／影片」，但 `banners` 表只有 `image_key`
    一個媒體欄位，沒有影片欄位或影片供應商／ID 這類欄位（跟 B1 頁面的 `video_embed` 區塊
    不同，那個區塊本來就有 `provider`／`videoId` 欄位）。本輪只實作圖片，影片是綱要缺口。
@@ -1423,8 +1439,8 @@ has-pending-model-changes` 全程回報無待處理變更）。**種子資料新
 | 檔案 | 涵蓋 |
 |---|---|
 | `AdminBannersAndHomeSectionsTests.cs`（Azurite） | 401／403（未登入、檢視者唯讀、跨俱樂部無授權）、輪播建立必須帶圖片、上架早於下架時間 400、完整生命週期（含換圖刪舊物件、刪除連帶刪圖）、首頁區塊列表固定 9 筆、更新開關與排序、非 Hero 區塊指定精選輪播 400、Hero 指定不存在的輪播 400、不存在的區塊代碼 404、公開端點只回上架期間內的輪播、公開端點回傳全部 9 筆區塊（含停用） |
-| `AdminFaqsAndCategoriesTests.cs` | 401／403（未登入、檢視者唯讀、跨俱樂部無授權）、分類建立更新刪除與 slug 重複 409、題目建立未選分類 400、分類不存在 400、完整生命週期（含分類調整、狀態切換）、slug 重複 409、排程狀態被拒 400、**共用內容唯讀 403**（直接寫 SQL 造一筆 `club_id IS NULL` 的題目）、低評價排序 |
-| `PublicFaqsTests.cs` | 分類公開列表雙語、題目公開列表只回已發布且**回退共用內容**、依分類篩選、單題查詢跨俱樂部查不到、瀏覽數與回饋端點遞增、對不存在的題目回 404、**零結果搜尋回報建立與累加**、空白關鍵字不寫入 |
+| `AdminFaqsAndCategoriesTests.cs` | 401／403（未登入、檢視者唯讀、跨俱樂部無授權）、分類建立更新刪除與 slug 重複 409、題目建立未選分類 400、分類不存在 400、完整生命週期（含分類調整、狀態切換）、slug 重複 409、排程狀態被拒 400、**共用內容唯讀 403**（直接寫 SQL 造一筆 `club_id IS NULL` 的題目）、低評價排序、**搜尋無結果關鍵字排行**（2026-09-24 補，`E-51`：401、無 `content.faq.view` 權限 403、跨俱樂部 403／授權範圍內 200、依 count 由多到少同數依 lastSearchedAt 新到舊排序、`days` 篩選不影響 `count` 全站累計值、`top` 限制筆數、`days`／`top` 邊界值與超出範圍 400、省略時採預設值） |
+| `PublicFaqsTests.cs` | 分類公開列表雙語、題目公開列表只回已發布且**回退共用內容**、依分類篩選、單題查詢跨俱樂部查不到、瀏覽數與回饋端點遞增、對不存在的題目回 404、**零結果搜尋回報建立與累加**、空白關鍵字不寫入、**大小寫／前後空白／全半形正規化後合併計數**（2026-09-24 補，`E-51`） |
 
 **測試結果**：
 

@@ -722,6 +722,180 @@ public sealed class AdminFaqsAndCategoriesTests(AdminWriteApiFixture fixture)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // ───────────────────────────── 搜尋無結果關鍵字排行（S1-8，E-51 補讀取端） ─────────────
+
+    [Fact]
+    public async Task FaqSearchMiss_未登入_擋下()
+    {
+        using var client = fixture.CreateClient();
+        var response = await client.GetAsync("/api/v1/admin/tcrfc/faqs/search-misses");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task FaqSearchMiss_角色沒有content_faq_view權限_403()
+    {
+        // team_competition（team.manager@tcrfc.test）本輪未指派 content.faq.* 權限碼
+        // （見 apps/api/README.md S1-6 節「權限碼種子」），即使俱樂部範圍是 tcrfc 也該被擋。
+        using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", await TestAdminTokens.IssueAccessTokenForSeededUserAsync("team.manager@tcrfc.test"));
+
+        var response = await client.GetAsync("/api/v1/admin/tcrfc/faqs/search-misses");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task FaqSearchMiss_跨俱樂部_擋下_授權範圍內_成功()
+    {
+        using var client = fixture.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue(
+            "Bearer", await TestAdminTokens.IssueAccessTokenForSeededUserAsync("partner.club@tcrfc.test"));
+
+        var tcrfcResponse = await client.GetAsync("/api/v1/admin/tcrfc/faqs/search-misses");
+        Assert.Equal(HttpStatusCode.Forbidden, tcrfcResponse.StatusCode);
+
+        var bwResponse = await client.GetAsync("/api/v1/admin/bw/faqs/search-misses");
+        Assert.Equal(HttpStatusCode.OK, bwResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task FaqSearchMiss_依count由多到少_同數依最後搜尋時間新到舊()
+    {
+        using var client = await CreateContentEditorClientAsync();
+        var clubId = await GetClubIdAsync("tcrfc");
+        var now = DateTime.UtcNow;
+        var keywordHigh = $"s1-8-miss-high-{Guid.NewGuid():N}";
+        var keywordLowOld = $"s1-8-miss-low-old-{Guid.NewGuid():N}";
+        var keywordLowNew = $"s1-8-miss-low-new-{Guid.NewGuid():N}";
+
+        await InsertSearchMissAsync(clubId, keywordHigh, hitCount: 10, lastSearchedAt: now.AddDays(-1));
+        await InsertSearchMissAsync(clubId, keywordLowOld, hitCount: 3, lastSearchedAt: now.AddDays(-5));
+        await InsertSearchMissAsync(clubId, keywordLowNew, hitCount: 3, lastSearchedAt: now.AddDays(-2));
+
+        try
+        {
+            var result = await client.GetFromJsonAsync<List<AdminFaqSearchMissDto>>(
+                "/api/v1/admin/tcrfc/faqs/search-misses?days=30&top=50", TestJson.Options);
+            var keywords = result!.Select(r => r.Keyword).ToList();
+
+            var indexHigh = keywords.IndexOf(keywordHigh);
+            var indexLowNew = keywords.IndexOf(keywordLowNew);
+            var indexLowOld = keywords.IndexOf(keywordLowOld);
+            Assert.True(indexHigh >= 0 && indexLowNew >= 0 && indexLowOld >= 0);
+            Assert.True(indexHigh < indexLowNew); // count 10 > count 3，排最前。
+            Assert.True(indexLowNew < indexLowOld); // 同 count=3，較新的 lastSearchedAt 排前面。
+
+            var highItem = result!.Single(r => r.Keyword == keywordHigh);
+            Assert.Equal(10, highItem.Count);
+        }
+        finally
+        {
+            await DeleteSearchMissAsync(clubId, keywordHigh);
+            await DeleteSearchMissAsync(clubId, keywordLowOld);
+            await DeleteSearchMissAsync(clubId, keywordLowNew);
+        }
+    }
+
+    [Fact]
+    public async Task FaqSearchMiss_days篩選只依最後搜尋時間_不影響count的全站累計值()
+    {
+        using var client = await CreateContentEditorClientAsync();
+        var clubId = await GetClubIdAsync("tcrfc");
+        var now = DateTime.UtcNow;
+        var withinWindow = $"s1-8-miss-within-{Guid.NewGuid():N}";
+        var outsideWindow = $"s1-8-miss-outside-{Guid.NewGuid():N}";
+
+        // outsideWindow 的 hit_count 故意比 withinWindow 高，驗證「count 是全站累計值，
+        // days 只決定要不要列入，不會把 count 收斂成範圍內次數」（AdminFaqSearchMissDto.Count 說明）。
+        await InsertSearchMissAsync(clubId, withinWindow, hitCount: 5, lastSearchedAt: now.AddDays(-10));
+        await InsertSearchMissAsync(clubId, outsideWindow, hitCount: 99, lastSearchedAt: now.AddDays(-40));
+
+        try
+        {
+            var result = await client.GetFromJsonAsync<List<AdminFaqSearchMissDto>>(
+                "/api/v1/admin/tcrfc/faqs/search-misses?days=30&top=50", TestJson.Options);
+            Assert.Contains(result!, r => r.Keyword == withinWindow && r.Count == 5);
+            Assert.DoesNotContain(result!, r => r.Keyword == outsideWindow);
+        }
+        finally
+        {
+            await DeleteSearchMissAsync(clubId, withinWindow);
+            await DeleteSearchMissAsync(clubId, outsideWindow);
+        }
+    }
+
+    [Fact]
+    public async Task FaqSearchMiss_top限制回傳筆數()
+    {
+        using var client = await CreateContentEditorClientAsync();
+        var clubId = await GetClubIdAsync("tcrfc");
+        var now = DateTime.UtcNow;
+        var keywords = new List<string>();
+        for (var i = 0; i < 5; i++)
+        {
+            var keyword = $"s1-8-miss-top-{i}-{Guid.NewGuid():N}";
+            keywords.Add(keyword);
+            await InsertSearchMissAsync(clubId, keyword, hitCount: 10 - i, lastSearchedAt: now.AddMinutes(-i));
+        }
+
+        try
+        {
+            var result = await client.GetFromJsonAsync<List<AdminFaqSearchMissDto>>(
+                "/api/v1/admin/tcrfc/faqs/search-misses?days=30&top=2", TestJson.Options);
+            Assert.Equal(2, result!.Count);
+            Assert.Equal(keywords[0], result[0].Keyword); // hit_count 最高的兩筆（10、9）。
+            Assert.Equal(keywords[1], result[1].Keyword);
+        }
+        finally
+        {
+            foreach (var keyword in keywords)
+            {
+                await DeleteSearchMissAsync(clubId, keyword);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("days=0")]
+    [InlineData("days=366")]
+    [InlineData("top=0")]
+    [InlineData("top=201")]
+    public async Task FaqSearchMiss_days或top超出範圍_400(string query)
+    {
+        using var client = await CreateContentEditorClientAsync();
+        var response = await client.GetAsync($"/api/v1/admin/tcrfc/faqs/search-misses?{query}");
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(365)]
+    public async Task FaqSearchMiss_days邊界值合法(int days)
+    {
+        using var client = await CreateContentEditorClientAsync();
+        var response = await client.GetAsync($"/api/v1/admin/tcrfc/faqs/search-misses?days={days}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(200)]
+    public async Task FaqSearchMiss_top邊界值合法(int top)
+    {
+        using var client = await CreateContentEditorClientAsync();
+        var response = await client.GetAsync($"/api/v1/admin/tcrfc/faqs/search-misses?top={top}");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task FaqSearchMiss_days或top省略時採預設值30與50()
+    {
+        using var client = await CreateContentEditorClientAsync();
+        var response = await client.GetAsync("/api/v1/admin/tcrfc/faqs/search-misses");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
     // ───────────────────────────── 內部工具 ─────────────────────────────
 
     private static CreateAdminFaqCategoryRequest NewCategoryRequest(string nameZh, string? slug = null) => new()
@@ -766,6 +940,46 @@ public sealed class AdminFaqsAndCategoriesTests(AdminWriteApiFixture fixture)
     private static string RequireConnectionString() =>
         Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING")
         ?? throw new InvalidOperationException("CLUB_SQL_CONNECTION_STRING 未設定。");
+
+    private static async Task<Guid> GetClubIdAsync(string code)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id FROM clubs WHERE code = @Code";
+        command.Parameters.AddWithValue("@Code", code);
+        return (Guid)(await command.ExecuteScalarAsync())!;
+    }
+
+    /// <summary>直接寫 SQL 造一筆 <c>faq_search_misses</c> 彙總列，繞過寫入端點——測試需要
+    /// 控制 <c>hit_count</c>／<c>last_searched_at</c> 才能驗證排序與 <c>days</c> 篩選，
+    /// 走 <c>POST .../search-misses</c> 端點沒辦法直接指定「過去第幾天」這種時間點。</summary>
+    private static async Task InsertSearchMissAsync(Guid clubId, string keyword, int hitCount, DateTime lastSearchedAt)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            INSERT INTO faq_search_misses (id, club_id, keyword, hit_count, last_searched_at)
+            VALUES (NEWID(), @ClubId, @Keyword, @HitCount, @LastSearchedAt)
+            """;
+        command.Parameters.AddWithValue("@ClubId", clubId);
+        command.Parameters.AddWithValue("@Keyword", keyword);
+        command.Parameters.AddWithValue("@HitCount", hitCount);
+        command.Parameters.AddWithValue("@LastSearchedAt", lastSearchedAt);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task DeleteSearchMissAsync(Guid clubId, string keyword)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM faq_search_misses WHERE club_id = @ClubId AND keyword = @Keyword";
+        command.Parameters.AddWithValue("@ClubId", clubId);
+        command.Parameters.AddWithValue("@Keyword", keyword);
+        await command.ExecuteNonQueryAsync();
+    }
 
     private static async Task<Guid> GetAnyFaqCategoryIdAsync(Guid? exclude = null)
     {

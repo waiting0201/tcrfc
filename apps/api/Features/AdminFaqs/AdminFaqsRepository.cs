@@ -646,6 +646,71 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
         return byName;
     }
 
+    // ── 搜尋無結果關鍵字排行（S1-8，規劃書主站 §4.2 B4「搜尋無結果關鍵字紀錄：使用者搜尋不到的
+    // 關鍵字排行，作為新增 FAQ 的依據」，行 1032；docs/18-work-errors.md `E-51`：寫入端
+    // `POST /api/v1/{club}/faqs/search-misses`（見 Features/Faqs/FaqsEndpoints）本輪之前就存在，
+    // 後台一直沒有對應的讀取端點）──────────────────────────────────────────────────
+
+    private const int DefaultSearchMissDays = 30;
+    private const int MinSearchMissDays = 1;
+    private const int MaxSearchMissDays = 365;
+    private const int DefaultSearchMissTop = 50;
+    private const int MinSearchMissTop = 1;
+    private const int MaxSearchMissTop = 200;
+
+    /// <summary>
+    /// <c>faq_search_misses</c> 的欄位確認：**每個 <c>(club_id, keyword)</c> 只有一列彙總**
+    /// （<c>UQ_faq_search_misses_club_keyword</c>），<c>hit_count</c> 每次搜尋不到都
+    /// <c>+1</c>、<c>last_searched_at</c> 每次都覆寫成最新時間（見
+    /// <c>Features/Faqs/FaqsRepository.RecordSearchMissAsync</c>）——不是逐次搜尋各存一列的日誌表
+    /// （表定義註解本身就寫「成效統計，不是搜尋日誌」）。這代表：
+    ///
+    /// - <c>count</c>／<c>lastSearchedAt</c> 兩個輸出欄位綱要都答得出來，直接對應
+    ///   <c>hit_count</c>／<c>last_searched_at</c>。
+    /// - <paramref name="days"/> **只能拿來篩選「最近有沒有人搜尋過」**（<c>last_searched_at</c>
+    ///   落在範圍內），**不能**把 <c>count</c> 收斂成「範圍內的次數」——沒有逐次搜尋的列可以
+    ///   重新加總，<c>hit_count</c> 本來就是全站有史以來的累計值。見
+    ///   <see cref="AdminFaqSearchMissDto.Count"/> 上的說明，這是本輪跟前端／使用者對齊過的
+    ///   刻意取捨，不是綱要不足以支援（不足以支援才要停下回報，這裡是可以支援、但語意要講清楚）。
+    /// - 排序**依 <c>count</c> 由多到少、同數依 <c>lastSearchedAt</c> 新到舊**（呼叫端契約）。
+    /// - <c>last_searched_at</c> 欄位本身可為 <c>NULL</c>（剛建表、尚未有任何搜尋的理論狀態），
+    ///   實務上 <c>RecordSearchMissAsync</c> 的 <c>INSERT</c>／<c>UPDATE</c> 兩條路徑都一定會寫入，
+    ///   這裡仍防禦性地排除 <c>NULL</c>（不計入 <paramref name="days"/> 篩選、也不會出現在輸出），
+    ///   避免其他寫入路徑（例如未來的資料修補腳本）直接灌一列沒有時間戳的資料時讓這支端點爆例外。
+    /// </summary>
+    public async Task<IReadOnlyList<AdminFaqSearchMissDto>> ListSearchMissesAsync(
+        AdminClubScope scope, int? days, int? top, CancellationToken cancellationToken)
+    {
+        var normalizedDays = days ?? DefaultSearchMissDays;
+        if (normalizedDays < MinSearchMissDays || normalizedDays > MaxSearchMissDays)
+        {
+            throw new AdminFaqValidationException(
+                $"days 必須介於 {MinSearchMissDays} 到 {MaxSearchMissDays} 之間。");
+        }
+
+        var normalizedTop = top ?? DefaultSearchMissTop;
+        if (normalizedTop < MinSearchMissTop || normalizedTop > MaxSearchMissTop)
+        {
+            throw new AdminFaqValidationException(
+                $"top 必須介於 {MinSearchMissTop} 到 {MaxSearchMissTop} 之間。");
+        }
+
+        var threshold = DateTime.UtcNow.AddDays(-normalizedDays);
+
+        return await dbContext.FaqSearchMisses.AsNoTracking()
+            .Where(m => m.ClubId == scope.ClubId && m.LastSearchedAt != null && m.LastSearchedAt >= threshold)
+            .OrderByDescending(m => m.HitCount)
+            .ThenByDescending(m => m.LastSearchedAt)
+            .Take(normalizedTop)
+            .Select(m => new AdminFaqSearchMissDto
+            {
+                Keyword = m.Keyword,
+                Count = m.HitCount,
+                LastSearchedAt = m.LastSearchedAt!.Value,
+            })
+            .ToListAsync(cancellationToken);
+    }
+
     /// <summary>回傳 <c>null</c>＝找不到（含跨俱樂部），<c>true</c>＝刪除成功。
     /// 共用內容唯讀例外由 <see cref="LoadTrackedForWriteAsync"/> 統一擋下。</summary>
     public async Task<bool?> DeleteAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)

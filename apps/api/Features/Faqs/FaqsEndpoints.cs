@@ -104,7 +104,9 @@ public static class FaqsEndpoints
             IClubResolver clubResolver, FaqsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var keyword = request.Keyword.Trim();
+            // 🔴 S1-8：寫入前正規化（大小寫、前後空白、全半形），見 SearchKeywordNormalizer 上的說明——
+            // faq_search_misses 是彙總列，正規化只能在寫入前做，讀取端事後補救不了。
+            var keyword = SearchKeywordNormalizer.Normalize(request.Keyword);
             if (keyword.Length == 0)
             {
                 return Results.NoContent(); // 空字串不值得記錄，靜默忽略即可，不需要讓前端處理 400。

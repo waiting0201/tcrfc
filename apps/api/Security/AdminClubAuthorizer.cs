@@ -44,7 +44,7 @@ public sealed class AdminClubAuthorizer(ClubDbContext db, IClubResolver clubReso
 
         if (!hasPermission)
         {
-            throw new AdminForbiddenException($"你的角色沒有「{permissionCode}」這項操作的權限。");
+            throw new AdminForbiddenException("你的角色沒有這項操作的權限，請洽系統管理員。"); // 不得內插權限碼：介面不顯示權限碼（規劃書 §4.0）
         }
 
         return new AdminClubScope(club, identity);

@@ -313,6 +313,9 @@ public sealed class FaqsRepository(IClubSqlConnectionFactory connectionFactory, 
     /// 呼叫時機交給前端：真正呈現「找不到結果」畫面給使用者看到的那一刻才呼叫。
     /// 先 <c>UPDATE</c>、0 筆才 <c>INSERT</c>（先查後寫，接受與既有標籤／分類建立同等級的低機率
     /// 競態視窗，跟本專案既有慣例一致，不做額外的鎖或 <c>MERGE</c>）。
+    /// 🔴 呼叫端（<c>FaqsEndpoints</c>）必須先用 <c>SearchKeywordNormalizer.Normalize</c> 正規化過
+    /// <paramref name="keyword"/>——本方法不重複做，因為 <c>(club_id, keyword)</c> 是 upsert 鍵，
+    /// 沒正規化就直接當鍵值會讓同一個關鍵字被拆成好幾筆列（docs/18-work-errors.md `E-51`）。
     /// </summary>
     public async Task RecordSearchMissAsync(ClubScope scope, string keyword, CancellationToken cancellationToken)
     {

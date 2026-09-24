@@ -168,3 +168,19 @@ public sealed record FaqCsvImportResultDto
     public required int ImportedCount { get; init; }
     public required IReadOnlyList<FaqCsvImportRowErrorDto> Errors { get; init; }
 }
+
+// ── 搜尋無結果關鍵字排行（S1-8，規劃書主站 §4.2 B4「搜尋無結果關鍵字紀錄」，行 1032；
+// docs/18-work-errors.md `E-51`：本輪之前只有寫入端，後台讀不到）───────────────────────
+
+/// <summary>一筆關鍵字排行。<see cref="Count"/> 是 <c>faq_search_misses.hit_count</c>——
+/// 該表是彙總列不是逐次搜尋的日誌（見 <c>faq_search_misses</c> 表註解與
+/// <c>AdminFaqsRepository.ListSearchMissesAsync</c> 上的說明），故這裡是「這個關鍵字有史以來
+/// 被搜尋不到的總次數」，**不是**「最近 N 天內被搜尋的次數」——<c>days</c> 篩選只決定
+/// 「這個關鍵字最後一次被搜尋到，是不是在這個天數範圍內」，不會讓 <see cref="Count"/>
+/// 只計算範圍內的次數（綱要沒有逐次搜尋列可供加總）。</summary>
+public sealed record AdminFaqSearchMissDto
+{
+    public required string Keyword { get; init; }
+    public required int Count { get; init; }
+    public required DateTime LastSearchedAt { get; init; }
+}

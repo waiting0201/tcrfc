@@ -151,6 +151,25 @@ public static class AdminFaqsEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
 
+        // ── 搜尋無結果關鍵字排行（規劃書 B4「搜尋無結果關鍵字紀錄」，主站規劃書行 1032；
+        // docs/18-work-errors.md `E-51`）─────────────────────────────────────────────
+
+        // GET /api/v1/admin/{club}/faqs/search-misses?days=30&top=50
+        group.MapGet("/search-misses", async (
+            string club, int? days, int? top, HttpContext httpContext,
+            IAdminClubAuthorizer authorizer, AdminFaqsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
+            var result = await repository.ListSearchMissesAsync(scope, days, top, cancellationToken);
+            return Results.Ok(result);
+        })
+        .WithName("AdminListFaqSearchMisses")
+        .Produces<IReadOnlyList<AdminFaqSearchMissDto>>()
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
         // ── CSV 匯入／匯出（規劃書 B4，主站規劃書行 1033）───────────────────────────────
         // 格式定義見 AdminFaqsRepository.CsvHeader 上的說明；沒有共用元件（跟圖片上傳不同），
         // 直接讀＋寫 HTTP 請求／回應主體的原始位元組，不是 multipart/form-data

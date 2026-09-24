@@ -154,6 +154,32 @@ public sealed class PublicFaqsTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
+    public async Task 零結果搜尋回報_大小寫前後空白全形半形正規化後合併計數()
+    {
+        // S1-8（docs/18-work-errors.md E-51 補強）：faq_search_misses 是 (club_id, keyword) 彙總列，
+        // 寫入前沒正規化就會被拆成好幾筆不同的列，排行因此失真。這裡驗證三種變形
+        // （大寫＋前後空白、全形）最終都正規化成同一個關鍵字、合併進同一筆的 hit_count。
+        using var client = fixture.CreateClient();
+        var baseKeyword = $"norm{Guid.NewGuid():N}"; // 純小寫英數，字元都落在全半形轉換範圍內。
+
+        var variants = new[]
+        {
+            baseKeyword,
+            $"  {baseKeyword.ToUpperInvariant()}  ",
+            ToFullWidth(baseKeyword),
+        };
+
+        foreach (var variant in variants)
+        {
+            var response = await client.PostAsJsonAsync("/api/v1/tcrfc/faqs/search-misses", new FaqSearchMissRequest { Keyword = variant });
+            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        }
+
+        var hitCount = await GetSearchMissHitCountAsync(baseKeyword);
+        Assert.Equal(variants.Length, hitCount);
+    }
+
+    [Fact]
     public async Task 零結果搜尋回報_空白關鍵字不寫入任何列()
     {
         using var client = fixture.CreateClient();
@@ -165,6 +191,11 @@ public sealed class PublicFaqsTests(AdminWriteApiFixture fixture)
     }
 
     // ───────────────────────────── 內部工具 ─────────────────────────────
+
+    /// <summary>把 ASCII 可列印字元（<c>!</c>–<c>~</c>）轉成對應的全形字元，供正規化測試用——
+    /// 逐字對應 <c>Common.SearchKeywordNormalizer</c> 全形轉半形那段轉換範圍的反向操作。</summary>
+    private static string ToFullWidth(string value)
+        => new(value.Select(c => c is >= '!' and <= '~' ? (char)(c + 0xFEE0) : c).ToArray());
 
     private async Task<AdminFaqDetailDto> CreateFaqAsync(HttpClient client, Guid categoryId, string status, string? slug = null)
     {
