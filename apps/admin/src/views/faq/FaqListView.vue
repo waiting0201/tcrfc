@@ -22,13 +22,16 @@ import {
   downloadAdminFaqsCsv,
   importAdminFaqsCsv,
   listAdminFaqCategories,
+  listAdminFaqSearchMisses,
   listAdminFaqs,
   updateAdminFaqCategory,
   type AdminFaqCategoryListItemDto,
   type AdminFaqListItemDto,
+  type AdminFaqSearchMissDto,
   type BatchOperationResultDto,
   type FaqCsvImportResultDto,
 } from '@/api/adminFaq'
+import { formatDateTime } from '@/utils/formatDateTime'
 import { AdminApiError } from '@/api/http'
 
 const router = useRouter()
@@ -219,10 +222,33 @@ async function loadFaqs() {
   }
 }
 
+// ── 搜尋無結果關鍵字排行 ─────────────────────────────────────────────────────────────
+// 🔴 `count` 是這個關鍵字有史以來累計被搜尋不到的總次數，`searchMissDays` 只篩「最後一次被
+// 搜尋到是否落在這個天數內」，不是「近 N 天的次數」——文案與欄位命名要避免混淆（見
+// apps/api/README.md「S1-8」對 `AdminFaqSearchMissDto.Count` 的說明）。
+
+const searchMissDays = ref(30)
+const searchMisses = ref<AdminFaqSearchMissDto[]>([])
+const searchMissesLoading = ref(true)
+const searchMissesError = ref<string | null>(null)
+
+async function loadSearchMisses() {
+  searchMissesLoading.value = true
+  searchMissesError.value = null
+  try {
+    searchMisses.value = await listAdminFaqSearchMisses(club.value, searchMissDays.value)
+  } catch (error) {
+    searchMisses.value = []
+    searchMissesError.value = error instanceof AdminApiError ? error.message : '搜尋無結果關鍵字排行載入失敗，請稍後再試'
+  } finally {
+    searchMissesLoading.value = false
+  }
+}
+
 async function bootstrapForClub() {
   currentPage.value = 1
   selectedIds.value = []
-  await Promise.all([loadCategories(), loadFaqs()])
+  await Promise.all([loadCategories(), loadFaqs(), loadSearchMisses()])
 }
 
 onMounted(bootstrapForClub)
@@ -442,9 +468,38 @@ async function handleCsvFileChange(event: Event) {
         <el-button type="primary" @click="applyFilters">篩選</el-button>
         <el-button @click="clearFilters">清除</el-button>
       </div>
+    </el-card>
+
+    <el-card shadow="never" class="faq-list__section">
+      <template #header>
+        <div class="faq-list__card-header">
+          <span>搜尋無結果關鍵字排行</span>
+          <el-select v-model="searchMissDays" size="small" style="width: 200px" @change="loadSearchMisses">
+            <el-option label="最近 7 天內有人搜尋過" :value="7" />
+            <el-option label="最近 30 天內有人搜尋過" :value="30" />
+            <el-option label="最近 90 天內有人搜尋過" :value="90" />
+          </el-select>
+        </div>
+      </template>
       <p class="faq-list__hint">
-        搜尋無結果關鍵字排行：後台目前只有寫入路徑（前台找不到結果時回報），沒有可供查詢的清單端點，暫不提供這份排行，已回報待後端補上。
+        列出訪客在前台搜尋常見問題、但找不到結果的關鍵字，累計搜尋次數是這個關鍵字有史以來被搜尋不到的總次數，不是這個天數範圍內的次數；篩選只決定「最後一次被搜尋到是否還在這個天數內」。可用來判斷有沒有應該新增的題目。
       </p>
+      <el-skeleton v-if="searchMissesLoading" :rows="3" animated />
+      <el-empty v-else-if="searchMissesError" :description="searchMissesError">
+        <el-button type="primary" @click="loadSearchMisses">重新載入</el-button>
+      </el-empty>
+      <el-empty v-else-if="searchMisses.length === 0" description="這段期間沒有搜尋不到結果的關鍵字" />
+      <el-table v-else :data="searchMisses" row-key="keyword" max-height="320">
+        <el-table-column label="關鍵字" min-width="160">
+          <template #default="{ row }">{{ row.keyword }}</template>
+        </el-table-column>
+        <el-table-column label="累計搜尋次數" width="140">
+          <template #default="{ row }">{{ row.count }}</template>
+        </el-table-column>
+        <el-table-column label="最後搜尋時間" width="180">
+          <template #default="{ row }">{{ formatDateTime(row.lastSearchedAt) }}</template>
+        </el-table-column>
+      </el-table>
     </el-card>
 
     <el-card shadow="never" class="faq-list__toolbar">

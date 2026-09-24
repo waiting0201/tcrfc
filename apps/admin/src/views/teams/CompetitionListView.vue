@@ -1,8 +1,10 @@
 <script setup lang="ts">
 /**
- * 賽事系列（Competition）列表頁——目前只實作 C4「賽程與賽果」底下的這一小部分（賽季分類的
- * 支援型別），不是完整的 C4（賽程、比分、出賽名單等仍未開放，見 `data/nav.ts` 該筆註解與
- * 交付說明的已知缺口）。
+ * 賽事系列（Competition）列表頁——C4「賽程與賽果」底下的支援型別（賽季分類，例如企業甲級
+ * 聯賽），不是賽事本身。賽事本身（日期、比分、進球者、卡牌、出賽名單）與積分榜在
+ * `/teams/matches`／`/teams/standings`（S1-8，見 `views/teams/MatchListView.vue`／
+ * `StandingListView.vue`）。這一頁維持獨立，因為它是相對低頻的設定型資料，跟逐場維護的賽事
+ * 不是同一種操作節奏。
  */
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -49,14 +51,14 @@ const isEmpty = computed(() => !loading.value && !listError.value && competition
 
 <template>
   <div class="competition-list">
-    <PageHeader title="賽程與賽果">
+    <PageHeader title="賽事系列">
       <template #meta>
         <FrontendUnitBanner module-code="C4" />
       </template>
     </PageHeader>
 
     <el-alert
-      title="本階段僅開放維護「賽事系列」（例如企業甲級聯賽這類賽季分類），實際的賽程日期、比分與出賽名單尚未開放。"
+      title="這裡維護的是賽季內的賽事分類（例如企業甲級聯賽），賽事本身的日期、比分、進球者與出賽名單請到「賽程與賽果」，積分榜表格請到「積分榜」。"
       type="info"
       show-icon
       :closable="false"

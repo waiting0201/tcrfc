@@ -307,3 +307,24 @@ export async function importAdminFaqsCsv(club: string, file: File): Promise<FaqC
   }
   throw new AdminApiError('server', '匯入結果無法解析，請稍後再試。')
 }
+
+// ── 搜尋無結果關鍵字排行（S1-8，`GET /admin/{club}/faqs/search-misses`）─────────────────────
+// 🔴 語意：`faq_search_misses` 是彙總列不是逐次搜尋的日誌，`count` 是這個關鍵字「有史以來」被
+// 搜尋不到的累計總次數，`days` 只篩「最後一次被搜尋到，落在最近幾天內」，不是「近 N 天的次數」
+// ——畫面文案要避免暗示成後者（例如不要寫「近 30 天搜尋次數」，要寫「累計搜尋次數」）。
+// 關鍵字本身已經是後端寫入時正規化過的字串（全形轉半形、去頭尾空白、英文轉小寫），畫面照顯示
+// 即可，不需要再處理一次。
+
+export interface AdminFaqSearchMissDto {
+  keyword: string
+  count: number
+  lastSearchedAt: string
+}
+
+export function listAdminFaqSearchMisses(club: string, days?: number, top?: number): Promise<AdminFaqSearchMissDto[]> {
+  const search = new URLSearchParams()
+  if (days) search.set('days', String(days))
+  if (top) search.set('top', String(top))
+  const query = search.toString() ? `?${search.toString()}` : ''
+  return apiRequest<AdminFaqSearchMissDto[]>(`/api/v1/admin/${club}/faqs/search-misses${query}`)
+}

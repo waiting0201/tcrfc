@@ -413,14 +413,14 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
   任務指示要求不要動它，見 `src/api/adminClubs.ts` 檔頭）——畫面只顯示「已設定」／「尚未設定」，
   不提供上傳，之後應比照新聞封面圖片的 multipart 契約補上。
 
-## 賽事系列（C4 的一小部分，S1，2026-09-24；賽季下拉選單於 S1-4 補上）
+## 賽事系列（C4 的支援型別，S1，2026-09-24；賽季下拉選單於 S1-4 補上；C4 主體已於 S1-8 完成）
 
-`views/teams/CompetitionListView.vue`／`CompetitionEditView.vue`，路徑掛在側欄既有的
-「C4 賽程與賽果」底下（`data/nav.ts` 該筆已標成 `implemented: true`，附一行註解說明範圍）。
-⚠️ **這不是完整的 C4**——規劃書 C4 涵蓋賽季、賽事名稱、日期時間、主客場、對手、比分、出賽名單等
-完整賽程賽果（`docs/03-admin-spec.md` C4 全部條文），本輪只做了「賽事系列」（`Competition`，
-賽程賽果的分類支援型別，例如「企業甲級聯賽」）這一小塊，畫面上有明顯提示「本階段僅開放維護
-賽事系列……實際的賽程日期、比分與出賽名單尚未開放」，完整功能留給之後的 `S1-8`。
+`views/teams/CompetitionListView.vue`／`CompetitionEditView.vue`，路徑 `/teams/competitions`，
+側欄標籤已改為「賽事系列」（`data/nav.ts`，原本誤標成「賽程與賽果」，S1-8 已改正）。
+這裡維護的是「賽事系列」（`Competition`，賽程賽果的分類支援型別，例如「企業甲級聯賽」），
+**不是賽事本身**——賽事本身（日期、比分、進球者、卡牌、出賽名單）與積分榜見下方
+「C4 賽程與賽果／積分榜（S1-8）」一節，維持獨立頁面而不是塞進同一頁，理由是操作頻率與資料
+形狀差異大（賽事系列是偶爾新增一筆的設定資料，賽事本身是逐場高頻維護，積分榜是整季表格）。
 
 ✅ **「賽季」欄位已改成真下拉選單**（S1-4，`src/api/adminCompetitions.ts` 的 `listAdminSeasons`
 呼叫 `GET /admin/{club}/seasons`）：選項顯示賽季代碼與起訖日（例如「2026-27（2026-08-01 ～
@@ -1002,10 +1002,9 @@ apps/api 已在 S1-4 續作全部補上對應端點（見 apps/api/README.md「S
 
 **本輪新增的已知缺口（B3／B4／C1–C3，S1-6／S1-7／S1-7a 前端接線，回報，未動手改 `apps/api`）**：
 
-11. **B4「搜尋無結果關鍵字排行」沒有可查詢的清單端點**：`apps/api` 只有
-    `POST /api/v1/{club}/faqs/search-misses`（寫入），查證全文找不到任何讀取
-    `faq_search_misses` 排行的端點（見 apps/api/README.md「我的判斷」第 5 點，該表本身是既有
-    設計，讀取端點從未被排進任何一輪任務）。畫面上用一行中文說明取代這份清單，不假裝有得看。
+11. ✅ **B4「搜尋無結果關鍵字排行」已於 S1-8 由後端補上 `GET /admin/{club}/faqs/search-misses`
+    並完成前端接線**：見下方「C4 賽程與賽果／積分榜（S1-8）」一節。原本的一行中文說明已換成
+    真正的排行表格。
 12. **B3 Banner 沒有「移除圖片」選項**：`banners.image_key` 是 `NOT NULL`（後端契約只有「換一張」
     或「維持原圖」兩態），`ImageUploader.vue` 元件本身不知道這個差異、既有圖片一律顯示可點的
     移除按鈕，本輪在呼叫端攔截這個意圖並提示「請直接選擇新圖片替換」，不是元件本身的行為
@@ -1014,8 +1013,168 @@ apps/api 已在 S1-4 續作全部補上對應端點（見 apps/api/README.md「S
 13. **C1–C3 沒有樂觀並行控制**：後端本輪判斷「相對低頻的名冊維護」不需要並行權杖（見
     apps/api/README.md「S1-7」「我的判斷」），前端因此也沒有像新聞／頁面那樣的「資料已被變更」
     衝突處理流程，兩人同時編輯同一筆會後寫入者覆蓋先寫入者。
-14. **C3 教練「負責梯隊」下拉選單目前列出這個俱樂部全部球隊，不分一線隊／學院**：規劃書矩陣
-    「學院／課程管理」角色本應僅限學院梯隊（`scope_type=academy_only`），但後端本輪刻意不給
-    這個角色任何 C1–C3 權限、也還沒做列級範圍過濾（見 apps/api/README.md「學院／課程管理本輪
-    刻意不給 C1–C3 權限」段），前端因此沒有依角色收斂球隊選單的必要與依據，留給該範圍過濾
-    實作（`STATUS.md` 已排進 `S1-8`）之後一併處理。
+14. ⚠️ **C1–C3（含本輪新增的 C4）的「所屬球隊」／「負責梯隊」下拉選單仍然列出這個俱樂部全部
+    球隊，不分一線隊／學院**：S1-8 後端已經把 `academy_only`／`own_teams` 列級授權接上**寫入
+    端點**（後端擋得住），但**列表／檢視端點沒有依角色收斂**（apps/api/README.md「S1-8」〈列表
+    ／檢視端點沒有套用〉明文這是刻意縮小的範圍，不是遺漏）——這代表球隊下拉選單目前無法只列出
+    「這個帳號能寫的球隊」，選了範圍外的球隊按儲存才會被 403 擋下並顯示中文原因（見下方 C4
+    一節）。**沒有後端提供的「我能寫哪些球隊」端點前，前端不會自行用角色代號猜測要濾掉哪些
+    選項**（任務指示「若 API 沒有提供這個資訊，就不要自行推測，改為依後端錯誤呈現並回報缺口」）。
+
+## C4 賽程與賽果／積分榜（S1-8，2026-09-24）
+
+對照 apps/api/README.md「S1-8」。新增三個獨立畫面，全部掛在側欄「球隊管理」底下：
+
+| 畫面 | 路徑 | 檔案 |
+|---|---|---|
+| 賽程與賽果（列表） | `/teams/matches` | `views/teams/MatchListView.vue` |
+| 賽程與賽果（新增／編輯） | `/teams/matches/new`、`/teams/matches/:id/edit` | `views/teams/MatchEditView.vue` |
+| 積分榜 | `/teams/standings` | `views/teams/StandingListView.vue` |
+
+新增 API 封裝：`src/api/adminMatches.ts`（含 CSV 匯入）、`src/api/adminStandings.ts`（含 CSV
+匯入）；中文標籤與值域對照表：`src/types/match.ts`（狀態／主客場／賽事類型／卡牌顏色，逐字
+對照 `AdminMatchesRepository` 的 `*ZhLabels` 字典，避免畫面顯示的中文跟 CSV 匯入接受的中文
+表頭值對不上）。
+
+### 賽程與賽果（列表＋編輯）
+
+- **列表**：依賽季、球隊、狀態篩選（三個下拉都是選填），表格列出日期時間、球隊、主客場、對手、
+  賽事類型、場次／輪次、比分、狀態；「編輯」「刪除」兩個操作。刪除是硬刪除（賽事沒有狀態轉換
+  語意，比照後端設計），**二次確認**用 `ElMessageBox.confirm`，訊息裡明講「比分、進球者、卡牌
+  與出賽名單會一併清除」。
+- **編輯頁**：賽季（必填，下拉）、賽事系列（選填，依賽季過濾）、所屬球隊（必填，可複選，對應
+  「跨梯隊友誼賽」）、日期（`el-date-picker` value-format）、時間（純文字 `HH:mm`）、主客場、
+  對手（雙語，沿用 `BilingualShortField`）、場地（雙語，純文字，見下方「已知缺口」）、賽事類型、
+  場次編號、輪次、狀態。**狀態為「延賽」時才顯示並要求原定日期**（`isPostponed` computed 控制
+  `v-if`，切回其他狀態會自動清空這兩欄，避免送出矛盾資料，跟後端 `ValidatePostponedFields` 的
+  驗證規則對齊）。結果區塊：比分（我方／對方進球數），以及進球者與時間／卡牌／出賽名單三張
+  可動態增減列的表格，球員下拉只列出目前已選球隊的球員（切換所屬球隊會重新抓對應球隊的球員
+  清單）。
+- 🔴 **`isCreate` 用 `computed`，不是一次性求值的 `const`**：建立成功後 `handleSave()` 呼叫
+  `router.replace()` 導到編輯頁，Vue Router 對同一個元件實例的路由切換預設不會重新掛載
+  （component reuse）；若 `isCreate` 只在 `setup` 當下算一次，使用者建立成功後**立刻**在同一頁
+  再按一次「儲存」會被誤判成仍在建立模式，重複呼叫 `createAdminMatch` 產生第二筆資料（場次編號
+  唯一約束通常會擋下變成一個看起來莫名其妙的 409，但如果那次剛好沒填場次編號就會真的建出重複
+  賽事）而不是更新剛剛那筆。**這是無頭瀏覽器連續操作「建立→立刻改延賽→再存一次」時實測踩到的
+  真 bug，不是臆測**——修法比照 `CompetitionEditView.vue` 已經用 `computed(() => route.name ===
+  '...')` 的既有寫法。⚠️ **`PlayerEditView.vue`／`StaffEditView.vue`／`TeamEditView.vue` 目前
+  仍是同一種一次性 `const` 寫法，有同樣的潛在風險**，本輪範圍只限 C4，未一併修正，回報給下一輪
+  或 `code-review-optimizer` 處理。
+
+### CSV 匯入（整季賽程，整批新建）
+
+列表頁工具列「匯入整季賽程 CSV」→ 隱藏的 `<input type="file">` → `importAdminMatchesCsv`（比照
+既有 `adminFaq.ts` 的既有做法：CSV 原始位元組直接當 request body，不是 multipart，不做 401
+refresh-retry）。結果對話框：全部成功顯示匯入筆數；有錯誤列則顯示逐列「行號／錯誤原因」表格
+（`Errors` 陣列），比照 FAQ 既有的 CSV 匯入結果對話框樣式。已用真實檔案（`DOM.setFileInputFiles`
+無頭瀏覽器測試）驗證含錯誤列與全部成功兩種情境，見下方「本輪驗收」。
+
+### 積分榜
+
+依賽季檢視、逐列新增／編輯（對話框）／刪除（二次確認），或整季 CSV 替換匯入。**CSV 匯入前一定
+會跳出二次確認**，文字明講「匯入會先完全刪除這份 CSV 檔案內賽季代碼所屬賽季的全部既有積分榜
+資料，再整批寫入檔案內容，這個動作無法復原」，按鈕文字是「匯入並取代」而不是單純的「確定」，
+降低誤按風險。匯入結果對話框在成功時額外顯示「原本 N 筆既有資料已被清除並換成新內容」，讓使用者
+知道實際發生了什麼，不是只看到一個模糊的成功訊息。
+
+⚠️ **這個模組沒有球隊列級授權**（`academy_only`／`own_teams` 都不套用）：`standings` 表沒有
+`team_id` 欄位，後端判斷「寧可不開放給 `academy_program`，也不要開放了卻擋不住」（見
+apps/api/README.md「為什麼積分榜不套列級授權」），`academy_program` 角色目前完全沒有
+`team.standing.*` 權限碼，打這組端點一律 403「沒有權限」（不是列級授權那種逐球隊訊息）。
+
+### 列級授權的呈現（`academy_only`／`own_teams`）
+
+**寫入端點**（建立／更新／刪除／CSV 匯入）被列級授權擋下時，後端回傳的 403 訊息本身已經是完整
+中文句子（例如「你的球隊授權範圍不允許為這些球隊建立賽事。」，見 `Security/AdminClubAuthorizer.cs`
+與 `AdminMatchesRepository` 各處的 `AdminForbiddenException`），前端比照既有的 `StaffEditView.vue`
+模式，`catch` 到 `AdminApiError.kind === 'forbidden'` 就用 `ElMessageBox.alert(error.message, ...)`
+原樣顯示，**不額外翻譯或加工**——已用無頭瀏覽器實測 `academy.manager@tcrfc.test`（只授權
+`bw`、`academy_only`）對 `BW1`（一線隊）建立賽事，跳出的訊息是「你的球隊授權範圍不允許為這些
+球隊建立賽事。」，沒有出現 `academy_only`／`team.match`／`BW1` 這類代號或英文技術詞。
+
+**參賽球隊選單目前無法只列出「這個帳號能寫哪些球隊」**：任務指示「若 API 沒有提供這個資訊，就
+不要自行推測，改為依後端錯誤呈現並回報缺口」——已確認沒有這樣的端點（`GET /admin/{club}/teams`
+只依俱樂部過濾，不依帳號的球隊授權範圍過濾），下拉選單維持列出整個俱樂部的球隊，選錯了在儲存
+時被 403 擋下並顯示上一段的中文原因。這與既有 C1–C3 的球隊選單是同一個缺口，已合併記在上方
+「已知的 API 缺口彙整」第 14 點，不重複記兩筆。
+
+🔴 **意外發現的權限碼洩漏（不在本輪修改範圍，回報給後端／`code-review-optimizer`）**：
+`Security/AdminClubAuthorizer.cs`（及 `AdminSystemAuthorizer.cs`）擋下「沒有這個權限碼」時的
+訊息樣板是 `$"你的角色沒有「{permissionCode}」這項操作的權限。"`——**逐字內插了原始權限碼**
+（例如「你的角色沒有「team.competition.view」這項操作的權限。」），這是無頭瀏覽器測試
+`academy_program` 角色時，載入賽事新增頁因為缺少 `team.competition.view`（見下方「發現的權限
+授予缺口」）而觸發、親眼在畫面上看到的真實訊息，**直接違反 `docs/14-invariants.md`／規劃書
+§4.0「介面上不得出現……權限碼（`shop.order.export`）」這條全站不變量**。這不是本輪新增的程式碼
+（`AdminClubAuthorizer.cs` 是既有的 S1 檔案），影響範圍是**全後台任何一個「有權限碼但沒有這個
+權限」的 403 情境**，不只 C4。修法必須在 `apps/api`（本輪指示不改 `apps/api`，未動手），建議
+把訊息改成不含原始權限碼的中文描述（例如「你的角色沒有這項操作的權限。」，或維護一份
+「權限碼 → 中文操作描述」對照表比照角色權限畫面的既有做法）。
+
+### 發現的權限授予缺口（回報，未動手改 `db/seed`）
+
+`academy_program` 角色只被授予 `team.team.*`／`team.player.*`／`team.staff.*`／`team.match.*`
+（`db/seed/generate-club-seed-sql.py` `ROLE_PERMISSIONS`），**沒有任何 `team.competition.*`**。
+但 C4 新增／編輯賽事頁與列表頁的篩選列都需要呼叫 `GET /admin/{club}/seasons`（權限碼
+`team.competition.view`）才能載入賽季下拉選單——賽季是建立賽事的必填欄位，缺這個權限碼會讓
+`academy_program` **完全無法開啟賽事新增／編輯頁**（`loadMatch()` 的 `try` 區塊還沒走到列級
+授權檢查，就先在讀取賽季清單這一步被 403 擋下、整頁顯示錯誤，見上一段「意外發現的權限碼洩漏」
+的重現情境）。這是無頭瀏覽器實際測試 `academy.manager@tcrfc.test` 帳號時發現的真實阻塞，不是
+臆測。**建議至少補一個 `team.competition.view`（唯讀，`scope_type` 不拘，反正這張表沒有列級
+授權可套）給 `academy_program`**，否則這個角色雖然被賦予 `team.match.*`，實際上永遠無法透過
+後台介面建立或編輯任何一場賽事。屬於 `db/seed/generate-club-seed-sql.py` 的 DML 變更，本輪
+不改（任務範圍是 `apps/admin`），已列入回報。
+
+### 前後台對照表（規劃書 §4.0）
+
+「賽程與賽果」產出前台 **13 賽事行事曆**（`/zh/schedule/`）與首頁最新賽事／近期賽事區塊；
+「積分榜」目前**沒有對應的公開頁面**——`Features/Schedule` 只讀 `matches`，規劃書 §3.13 與
+首頁區塊都沒有明確要求獨立的積分榜公開頁（見 apps/api/README.md「公開唯讀」段），後台資料已
+備妥，等前台頁面真的要顯示積分榜時再評估要不要加公開端點。`FrontendUnitBanner` 三個畫面皆用
+`module-code="C4"`，對照表已有 `C4 → 賽事行事曆`（`data/frontendUnits.ts`），不需新增。
+
+### 本輪驗收（S1-8，2026-09-24，本機環境）
+
+`npm run lint`／`typecheck`／`build` 全過。起 `apps/api`（本機 SQL Server 開發庫）與
+`apps/admin` dev server，用無頭 Chrome（CDP，`Runtime.evaluate` 操作真實 DOM／
+`DOM.setFileInputFiles` 上傳檔案，不是呼叫內部函式）逐一實走：
+
+1. 系統管理員（`clean.login@tcrfc.test`，完成一次性 2FA 設定）建立一場 `tcrfc`／`D1` 賽事
+   （賽季／球隊多選／日期／時間／對手／場次編號）→ 成功。緊接著在**同一頁**改狀態為「延賽」、
+   填原定日期時間、再按一次儲存 → 修好 `isCreate` 那個 bug 之前，這一步會誤觸發第二次建立
+   （已記在上方）；修好後正確送出 `PUT`。
+2. 呼叫公開 `GET /api/v1/{club}/schedule` 確認該筆 `status: "postponed"`、
+   `originalMatchOn`／`originalKickoff` 正確帶出。
+3. 回列表對這筆賽事按刪除，確認跳出二次確認對話框（文字含「無法復原」與「一併清除」字樣），
+   確認後呼叫成功，公開端點確認查無此筆。
+4. CSV 匯入含一列狀態值打錯字（「無效狀態」）→ 對話框顯示「整份檔案有錯誤列，本次沒有任何
+   一列被寫入」與逐列錯誤原因；改用正確的兩列 CSV → 顯示「已匯入 2 場賽事」，公開端點與列表
+   頁皆確認看得到。
+5. 積分榜：新增一列→編輯（改積分）→刪除，皆透過真實對話框操作；CSV 匯入混雜賽季代碼（`tcrfc`
+   當時只有一個賽季，改用另一個俱樂部才有、對這個俱樂部不存在的賽季代碼）→ 對話框顯示逐列
+   錯誤、明講「本次沒有任何資料被異動」；改用正確 CSV（單一賽季兩列）→ 顯示「已匯入 2 筆／
+   原本 0 筆既有資料已被清除並換成新內容」。
+6. FAQ 常見問題列表頁：先用公開 `POST /api/v1/{club}/faqs/search-misses` 打三次同一個關鍵字，
+   確認畫面上的「搜尋無結果關鍵字排行」卡片正確顯示該關鍵字與累計次數「3」。
+7. `academy.manager@tcrfc.test`（完成一次性 2FA 設定，只授權 `bw`，角色 `academy_program`）：
+   透過側欄真實點擊（**不是整頁重載到深連結**——整頁重載會讓 `ensureClubsLoaded()` 的非同步
+   俱樂部校正跟頁面 `onMounted` 立刻用預設值 `tcrfc` 打 API 兩者出現真實使用情境不會發生的
+   race，見下方「已知的測試方法限制」）進入「賽程與賽果」列表，看得到 `bw` 既有賽事；因為
+   上述「發現的權限授予缺口」，這個帳號打不開新增賽事頁（載入賽季清單先被 403 擋下），改用
+   直接呼叫 API（同一組帳密與 TOTP 換到的存取權杖）驗證列級授權本身：對 `BW1`（一線隊）
+   建立賽事回 403／「你的球隊授權範圍不允許為這些球隊建立賽事。」；對 `BW-U15`（學院梯隊）
+   建立賽事回 201 成功（驗完刪除）。前端顯示這段訊息的程式碼路徑（`ElMessageBox.alert` 顯示
+   `AdminApiError.message`）跟第 1 步驗證過的建立／更新流程是同一段，且與既有
+   `StaffEditView.vue` 已經在生產路徑上驗證過的模式逐字相同，判斷不需要為了繞過上述缺口
+   另外構造一個假的有權限帳號來重複驗證同一段程式碼。
+
+**已知的測試方法限制**：第 7 點原本規劃透過真實表單操作到「送出後跳出 403 訊息」，但
+`academy_program` 缺少 `team.competition.view` 導致連表單都打不開，因此列級授權「畫面上看到
+中文原因」這一段改用「已驗證過的既有程式碼路徑（第 1 步）＋直接呼叫 API 確認後端行為（第 7
+步）」兩者合併佐證，不是回避驗證。
+
+**驗證後清理**：全部測試建立的賽事／積分榜列／FAQ 搜尋無結果關鍵字均已透過 API 手動刪除，
+執行 `set -a; source .env; set +a; ./db/seed/reset-admin-accounts.sh` 還原 `academy.manager@
+tcrfc.test`／`clean.login@tcrfc.test` 等種子帳號的密碼／2FA 狀態（已用 SQL 直接查驗
+`two_factor_enabled` 還原成種子初始值：`academy.manager`＝`1`、`clean.login`＝`0`）。
+`apps/api` 開發用行程在驗收過程中因為 `db/seed`（新增 `search-misses` 端點）與 API 修改而
+重啟過一次以套用最新編譯結果，跟 `apps/admin` 的程式碼無關。

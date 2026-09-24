@@ -32,11 +32,15 @@ const PlayerListView = () => import('@/views/teams/PlayerListView.vue')
 const PlayerEditView = () => import('@/views/teams/PlayerEditView.vue')
 const StaffListView = () => import('@/views/teams/StaffListView.vue')
 const StaffEditView = () => import('@/views/teams/StaffEditView.vue')
+const MatchListView = () => import('@/views/teams/MatchListView.vue')
+const MatchEditView = () => import('@/views/teams/MatchEditView.vue')
+const StandingListView = () => import('@/views/teams/StandingListView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
  * 對照 docs/21-admin-ui.md §10：外殼＋儀表板＋新聞與故事列表／編輯頁，
- * 本輪新增 J1／J2／J4（帳號、角色與權限、俱樂部與授權）與 C4 底下的賽事系列維護。
+ * 逐輪疊加 J1／J2／J4（帳號、角色與權限、俱樂部與授權）、C4 底下的賽事系列維護，
+ * 本輪（S1-8）補上 C4 真正的主體：賽程與賽果（賽事、比分、進球者、卡牌、出賽名單）與積分榜。
  *
  * `meta.sysadminOnly`：只有系統管理員能看到與進入（規劃書 §6 權限矩陣「系統」欄只有系統管理員），
  * 對應的後端端點全部是 `sysadmin_only` 權限碼，這裡的守衛只是提前導頁、不是真正的邊界
@@ -119,6 +123,16 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     props: true,
     meta: { label: '編輯教練與團隊成員', code: 'C3' },
   },
+  { path: '/teams/matches', name: 'match-list', component: MatchListView, meta: { label: '賽程與賽果', code: 'C4' } },
+  { path: '/teams/matches/new', name: 'match-new', component: MatchEditView, meta: { label: '新增賽事', code: 'C4' } },
+  {
+    path: '/teams/matches/:id/edit',
+    name: 'match-edit',
+    component: MatchEditView,
+    props: true,
+    meta: { label: '編輯賽事', code: 'C4' },
+  },
+  { path: '/teams/standings', name: 'standing-list', component: StandingListView, meta: { label: '積分榜', code: 'C4' } },
   {
     path: '/teams/competitions',
     name: 'competition-list',

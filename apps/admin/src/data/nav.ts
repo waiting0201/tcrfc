@@ -49,10 +49,14 @@ export const NAV_GROUPS: NavGroup[] = [
           { code: 'C1', label: '球隊', path: '/teams/clubs', implemented: true },
           { code: 'C2', label: '球員', path: '/teams/players', implemented: true },
           { code: 'C3', label: '教練與團隊成員', path: '/teams/staff', implemented: true },
-          // 🔴 本輪只做了 C4 底下的「賽事系列」（Competition，賽程賽果的分類支援型別）維護，
-          // 不是完整的 C4（賽程、比分、出賽名單……見 docs/03-admin-spec.md C4 全部條文，
-          // 完整功能留給之後的 S1-8）。畫面上會清楚標示目前只開放這一部分，不假裝已完成。
-          { code: 'C4', label: '賽程與賽果', path: '/teams/competitions', implemented: true },
+          // C4「賽程與賽果」（S1-8）：賽事本身（日期、比分、進球者、卡牌、出賽名單）＋積分榜，
+          // 逐字對照主站規劃書 §4.3 C4。「賽事系列」是這個模組底下的支援型別（賽季分類，
+          // 例如企業甲級聯賽），S1-4 就先做出來，這裡沿用同一個模組代號但分成三個獨立畫面，
+          // 不硬塞進同一頁——三者的操作頻率與資料形狀差異太大（前者逐場維護、後者整季表格、
+          // 支援型別偶爾才新增一筆）。
+          { code: 'C4', label: '賽程與賽果', path: '/teams/matches', implemented: true },
+          { code: 'C4', label: '積分榜', path: '/teams/standings', implemented: true },
+          { code: 'C4', label: '賽事系列', path: '/teams/competitions', implemented: true },
           { code: 'C5', label: '榮譽與里程碑', path: '/teams/honours', implemented: false },
         ],
       },
