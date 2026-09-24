@@ -44,7 +44,13 @@ import {
 const route = useRoute()
 const router = useRouter()
 
-const isCreate = route.name === 'news-new'
+// 🔴 必須是 computed 不能是一次性求值的 const：建立成功後 saveAndMaybeTransition() 呼叫
+// `router.replace('/content/news/:id/edit')`，Vue Router 對同一個元件實例的路由切換預設不會
+// 重新掛載（component reuse），若 isCreate 只在 setup 當下算一次，畫面上依賴它的 `pageTitle`
+// 與模板 `v-if` 區塊在儲存成功後會繼續停在「建立中」的樣子（儲存流程本身另外用
+// `!currentId.value` 擋住不會真的重複建立，但畫面顯示是錯的）。比照
+// `CompetitionEditView.vue`／`MatchEditView.vue` 既有寫法（`docs/18` 回報項）。
+const isCreate = computed(() => route.name === 'news-new')
 const paramId = route.params.id as string | undefined
 /** 建立成功之後，接下來的寫入呼叫要用到的文章 id（建立前為 undefined）。
  * 不直接依賴路由參數，因為建立成功後用 router.replace() 換網址，元件不會重新掛載。 */
@@ -240,7 +246,7 @@ async function loadArticle() {
   // 觸發——不主動預先載入一次，新增文章時第一次打開球員選單會是空的，要先切成別的類型再切
   // 回來才會有資料，這是使用者根本不會做的操作。兩種模式（建立／編輯）都需要這行。
   ensureRelationOptionsLoaded(pendingRelationType.value)
-  if (isCreate) {
+  if (isCreate.value) {
     loadState.value = 'ready'
     return
   }
@@ -280,7 +286,7 @@ const isDirty = computed(() =>
 )
 useUnsavedChanges(isDirty)
 
-const pageTitle = computed(() => (isCreate ? '新增文章' : '編輯文章'))
+const pageTitle = computed(() => (isCreate.value ? '新增文章' : '編輯文章'))
 // apps/api 的 /publish 同時接受 draft／scheduled 兩種起始狀態（見 apps/api/README.md「狀態轉換規則」），
 // 所以草稿與排程中都應該能直接按「發布」立刻生效（排程中的文章常見的操作就是「其實想現在就發」）。
 // 已發布的文章不重複提供這顆按鈕（原本互動就是這樣設計，避免跟「儲存變更」的語意混淆）。
@@ -397,7 +403,7 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
     const payload = articleToSavePayload(form)
     let saved: NewsArticle
 
-    if (isCreate && !currentId.value) {
+    if (isCreate.value && !currentId.value) {
       // 建立沒有「清空封面」這個概念（根本還沒有既有封面可清），coverFile 有值就附上，沒有就是
       // 「這篇文章沒有封面圖片」（apps/api/README.md「給前端接的契約」）。
       const created = await createAdminNews(club, payload, coverFile.value)
@@ -424,7 +430,7 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
       saved = detailDtoToArticle(scheduled)
     }
 
-    const wasCreate = isCreate && !currentId.value
+    const wasCreate = isCreate.value && !currentId.value
     applyLoadedArticle(saved)
     slugError.value = null
     formError.value = null

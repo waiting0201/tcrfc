@@ -25,7 +25,12 @@ import { AdminApiError } from '@/api/http'
 const route = useRoute()
 const router = useRouter()
 
-const isCreate = route.name === 'faq-new'
+// 🔴 必須是 computed 不能是一次性求值的 const：建立成功後 handleSave() 呼叫
+// `router.replace('/content/faq/:id/edit')`，Vue Router 對同一個元件實例的路由切換預設不會
+// 重新掛載（component reuse），若 isCreate 只在 setup 當下算一次，之後緊接著再按一次「儲存」
+// 會誤判成仍在建立模式，重複呼叫 createAdminFaq 產生第二筆重複資料。比照
+// `CompetitionEditView.vue`／`MatchEditView.vue` 既有寫法（`docs/18` 回報項）。
+const isCreate = computed(() => route.name === 'faq-new')
 const faqId = ref<string | undefined>(route.params.id as string | undefined)
 
 const form = reactive({
@@ -63,7 +68,7 @@ async function loadFaq() {
   loadState.value = 'loading'
   try {
     await loadLookups()
-    if (!isCreate && faqId.value) {
+    if (!isCreate.value && faqId.value) {
       const detail = await getAdminFaq(activeClubId.value, faqId.value)
       form.slug = detail.slug
       form.categoryIds = detail.categories.map((c) => c.id)
@@ -97,7 +102,7 @@ const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(for
 useUnsavedChanges(isDirty)
 
 const isReadOnly = computed(() => loadState.value === 'ready' && isShared.value)
-const pageTitle = computed(() => (isCreate ? '新增題目' : '編輯題目'))
+const pageTitle = computed(() => (isCreate.value ? '新增題目' : '編輯題目'))
 
 function isEnEmpty(): boolean {
   return !form.questionEn.trim() && !form.answerEn.trim()
@@ -136,7 +141,7 @@ async function handleSave() {
         en: isEnEmpty() ? undefined : { question: form.questionEn || null, answer: form.answerEn || null },
       },
     }
-    if (isCreate) {
+    if (isCreate.value) {
       const created = await createAdminFaq(activeClubId.value, payload)
       ElMessage.success('已建立')
       router.replace(`/content/faq/${created.id}/edit`)

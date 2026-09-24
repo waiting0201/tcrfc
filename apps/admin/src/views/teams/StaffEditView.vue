@@ -31,7 +31,12 @@ import {
 const route = useRoute()
 const router = useRouter()
 
-const isCreate = route.name === 'staff-new'
+// 🔴 必須是 computed 不能是一次性求值的 const：建立成功後 handleSave() 呼叫
+// `router.replace('/teams/staff/:id/edit')`，Vue Router 對同一個元件實例的路由切換預設不會
+// 重新掛載（component reuse），若 isCreate 只在 setup 當下算一次，之後緊接著再按一次「儲存」
+// 會誤判成仍在建立模式，重複呼叫 createAdminStaff 產生第二筆重複資料。比照
+// `CompetitionEditView.vue`／`MatchEditView.vue` 既有寫法（`docs/18` 回報項）。
+const isCreate = computed(() => route.name === 'staff-new')
 const staffId = ref<string | undefined>(route.params.id as string | undefined)
 
 const form = reactive({
@@ -65,7 +70,7 @@ async function loadStaff() {
   loadState.value = 'loading'
   try {
     teams.value = await listAdminClubTeams(activeClubId.value)
-    if (!isCreate && staffId.value) {
+    if (!isCreate.value && staffId.value) {
       const detail = await getAdminStaff(activeClubId.value, staffId.value)
       form.staffGroup = detail.staffGroup ?? ''
       form.licence = detail.licence ?? ''
@@ -102,7 +107,7 @@ const isDirty = computed(
 useUnsavedChanges(isDirty)
 
 const isReadOnly = computed(() => loadState.value === 'ready' && isShared.value)
-const pageTitle = computed(() => (isCreate ? '新增教練與團隊成員' : `編輯：${form.nameZh || '（未命名）'}`))
+const pageTitle = computed(() => (isCreate.value ? '新增教練與團隊成員' : `編輯：${form.nameZh || '（未命名）'}`))
 
 function teamLabel(id: string): string {
   const found = teams.value.find((t) => t.id === id)
@@ -159,7 +164,7 @@ async function handleSave() {
   saving.value = true
   formError.value = null
   try {
-    if (isCreate) {
+    if (isCreate.value) {
       const created = await createAdminStaff(activeClubId.value, buildPayload(), photoFile.value)
       ElMessage.success('已建立')
       router.replace(`/teams/staff/${created.id}/edit`)

@@ -48,9 +48,9 @@ const router = useRouter()
 // 不會重新掛載（component reuse），若 isCreate 只在 setup 當下算一次，之後緊接著再按一次
 // 「儲存」會誤判成仍在建立模式，重複呼叫 createAdminMatch 產生第二筆重複資料，而不是更新
 // 剛剛那筆——這個情境在無頭瀏覽器連續操作「建立→立刻改延賽→再存一次」時實測踩到。
-// 比照 `CompetitionEditView.vue` 已經用 computed 的既有寫法；`PlayerEditView.vue`／
-// `StaffEditView.vue`／`TeamEditView.vue` 目前仍是同一種一次性 const 寫法，有同樣的潛在
-// 風險，不在本次任務範圍內一併修正，已列入回報。
+// 比照 `CompetitionEditView.vue` 已經用 computed 的既有寫法；`FaqEditView.vue`／
+// `NewsEditView.vue`／`PageEditView.vue`／`PlayerEditView.vue`／`StaffEditView.vue`／
+// `TeamEditView.vue` 原本也是同一種一次性 const 寫法，已一併改正（見各檔案同一處註解）。
 const isCreate = computed(() => route.name === 'match-new')
 const matchId = ref<string | undefined>(route.params.id as string | undefined)
 

@@ -1057,9 +1057,9 @@ apps/api 已在 S1-4 續作全部補上對應端點（見 apps/api/README.md「S
   唯一約束通常會擋下變成一個看起來莫名其妙的 409，但如果那次剛好沒填場次編號就會真的建出重複
   賽事）而不是更新剛剛那筆。**這是無頭瀏覽器連續操作「建立→立刻改延賽→再存一次」時實測踩到的
   真 bug，不是臆測**——修法比照 `CompetitionEditView.vue` 已經用 `computed(() => route.name ===
-  '...')` 的既有寫法。⚠️ **`PlayerEditView.vue`／`StaffEditView.vue`／`TeamEditView.vue` 目前
-  仍是同一種一次性 `const` 寫法，有同樣的潛在風險**，本輪範圍只限 C4，未一併修正，回報給下一輪
-  或 `code-review-optimizer` 處理。
+  '...')` 的既有寫法。~~⚠️ `PlayerEditView.vue`／`StaffEditView.vue`／`TeamEditView.vue` 目前
+  仍是同一種一次性 `const` 寫法，有同樣的潛在風險~~ **已於下一輪全部修正並補上防呆腳本**，
+  見下方「EditView 路由狀態一次性求值：全面掃描、修正與防呆」整節。
 
 ### CSV 匯入（整季賽程，整批新建）
 
@@ -1178,3 +1178,112 @@ tcrfc.test`／`clean.login@tcrfc.test` 等種子帳號的密碼／2FA 狀態（�
 `two_factor_enabled` 還原成種子初始值：`academy.manager`＝`1`、`clean.login`＝`0`）。
 `apps/api` 開發用行程在驗收過程中因為 `db/seed`（新增 `search-misses` 端點）與 API 修改而
 重啟過一次以套用最新編譯結果，跟 `apps/admin` 的程式碼無關。
+
+---
+
+## EditView 路由狀態一次性求值：全面掃描、修正與防呆（2026-09-24）
+
+延續上方「賽程與賽果」一節回報的缺口——`MatchEditView.vue` 修好 `isCreate` 之後，回報指出
+`PlayerEditView.vue`／`StaffEditView.vue`／`TeamEditView.vue` 仍是同一種一次性 `const` 寫法。
+本輪任務：**全面掃描**所有 `*EditView.vue`（不只回報的三支）、逐一修正、並補上防呆腳本讓這一類
+問題以後靠 `npm run lint` 擋，不再靠人回報。
+
+### 掃描結果與修正的檔案
+
+用 `grep` 逐一核對每一支 `*EditView.vue` 對 `route.name`／`route.params` 的求值方式，發現除了
+已修好的 `CompetitionEditView.vue`／`MatchEditView.vue`／`AccountEditView.vue`／
+`RoleEditView.vue`／`ClubEditView.vue`（見上面兩節）之外，還有**六支**檔案是同一種一次性
+`const isCreate = route.name === 'xxx-new'` 寫法，這次全部改成 `computed(() => route.name ===
+'xxx-new')`：
+
+| 檔案 | 修正前的實際風險 |
+|---|---|
+| `src/views/teams/PlayerEditView.vue` | `handleSave()` 是 `if (isCreate) { createAdminPlayer(...) }`，**沒有**額外的 id 防呆——跟 `MatchEditView.vue` 修好之前一模一樣的**真會建出重複資料**的 bug |
+| `src/views/teams/StaffEditView.vue` | 同上（`createAdminStaff`） |
+| `src/views/teams/TeamEditView.vue` | 同上（`createAdminClubTeam`） |
+| `src/views/faq/FaqEditView.vue` | 同上（`createAdminFaq`） |
+| `src/views/news/NewsEditView.vue` | `saveAndMaybeTransition()` 判斷式是 `isCreate && !currentId.value`，多了 `!currentId.value` 這道防呆，建立成功後 `currentId.value` 會被設成新 id，**不會**重複建立；但 `isCreate` 本身仍是死值，導致 `pageTitle` 儲存成功後**繼續顯示「新增文章」**（畫面顯示錯誤，不是資料錯誤） |
+| `src/views/pages/PageEditView.vue` | 跟 `NewsEditView.vue` 同一種「有 `!currentId.value` 擋住重複建立，但 `isCreate` 本身仍死值」——除了 `pageTitle`，「預覽連結」卡片與「版本歷程」按鈕的 `v-if="!isCreate"` 儲存成功後也**繼續隱藏**，即使頁面已經有 id 了 |
+
+修法統一：`const isCreate = route.name === 'xxx-new'` → `const isCreate = computed(() =>
+route.name === 'xxx-new')`，`<script>` 內所有讀取點補上 `.value`（模板內的 `v-if="!isCreate"`
+不用改，`<script setup>` 的頂層 `computed` 在模板裡會自動解包）。`NewsEditView.vue`／
+`PageEditView.vue` 既有的 `isCreate && !currentId.value` 防呆維持不動，只是把其中的 `isCreate`
+換成 `isCreate.value`——雙重防呆疊在一起沒有壞處。`MatchEditView.vue` 檔頭原本點名
+「`PlayerEditView.vue`／`StaffEditView.vue`／`TeamEditView.vue` 未修正」的註解已同步改寫，
+指到這一節。
+
+**id 快照（`playerId`／`faqId`／`teamId`／`staffId`／`currentId` 這類 `ref<string|undefined>
+(route.params.id)`）刻意沒有改成 `computed`**：這些是既有、已審查過的慣例——建立成功後由
+`handleSave()` 手動 `xxxId.value = created.id` 更新，不依賴路由參數變化自動反應。這份程式碼裡
+沒有任何一個 EditView 會在同一個元件實例上從「編輯 A」直接切到「編輯 B」（唯一的路由切換都是
+「新增 → 剛建立那筆的編輯頁」，來源都在對應的 `ListView.vue` 觸發，那是不同元件、會整個重新
+掛載），所以「id 快照式的 ref 不會自動反應路由參數變化」這件事目前不構成風險。
+
+### 防呆：`scripts/check-editview-reactivity.mjs`（已接進 `npm run lint`）
+
+新增檢查腳本，比照既有 `check-forbidden-terms.mjs`／`check-contrast.mjs` 的風格（純字串／規則式
+掃描，不上 AST 套件），規則：掃描每一支 `*EditView.vue` 的 `<script>` 區塊，抓**頂層、不縮排、
+單行完成**的 `const`／`let` 指派，右側直接含 `route.name` 或 `route.params` 而且沒有包
+`computed(...)`／`ref(...)` 的一律回報；`route.params` 額外放行「只拿去餵下一行 `ref(...)`」
+這個既有慣例（例如 `NewsEditView.vue` 的 `paramId` → `currentId`）。已寫進
+`package.json`：`npm run lint` 依序跑 `lint:node-version` → `lint:eslint` →
+`lint:forbidden-terms` → `lint:contrast` → **`lint:editview-reactivity`**。
+
+**紅綠驗證**（`docs/18-work-errors.md` E-39 的教訓：新檢查要用真的違規句子驗證，不能只用隨便塞的
+錯值）：在 `src/views/__scratch_lint_test/ScratchEditView.vue`（未納版控的 scratch 複本，驗完
+整個資料夾刪除，沒有動任何有未提交異動的追蹤檔案）放兩種語法變形＋三組對照組：
+
+1. `const isCreate = route.name === 'scratch-new'`（變形 1，比照修正前的真實寫法）→ **抓到**。
+2. `const scratchId = route.params.id as string | undefined` 且直接被 `if` 條件式使用（變形 2，
+   不是拿去餵 `ref`）→ **抓到**。
+3. `computed(() => route.name === 'scratch-new')`（對照組 A）→ **沒有誤報**。
+4. `ref<string | undefined>(route.params.id as string | undefined)`（對照組 B）→ **沒有誤報**。
+5. `route.params.id` 賦值給一個變數、下一行馬上拿去餵 `ref(...)`（對照組 C，既有慣例）→
+   **沒有誤報**。
+
+刪除 scratch 檔案後重跑，`✓ EditView 路由狀態一次性求值檢查通過（檢查了 11 個 *EditView.vue
+檔案）`——確認防呆本身有在運作，不是空腳本。
+
+**涵蓋不到的邊界**（腳本檔頭註解已寫明，不是這次沒發現）：只認「頂層不縮排、單行完成」的指派，
+函式內部直接讀 `route.name`（每次呼叫都會重新讀值，不是這個問題的目標）不掃；如果之後有人把
+`computed(...)` 拆成跨行寫法（目前全專案沒有這種寫法），腳本抓不到——這兩點都是「寧可少抓也不要
+誤報」（`check-forbidden-terms.mjs` 既有原則）下刻意的取捨。
+
+### 驗證：`npm run lint`／`typecheck`／`build`
+
+三者全過（`lint` 現在是五段：`node-version`／`eslint`／`forbidden-terms`／`contrast`／
+`editview-reactivity`）。`vue-tsc -b --noEmit` 與 `vue-tsc -b && vite build` 皆無錯誤，
+6 支修正檔案的產物 chunk（`PlayerEditView-*.js` 等）正常產出。
+
+### 端對端驗證：球員（C2）建立 → 立刻改欄位 → 再存一次
+
+起本機 `apps/api`（`dotnet run`，連既有 `sqlserver` 容器的 `tcrfc_club_dev`）與
+`apps/admin` dev server（`:5174`），用無頭 Chrome + CDP（`Emulation.setDeviceMetricsOverride`
+固定桌面寬度 1440px——headless Chrome 預設視窗寬度低於 768px 斷點，會讓 `BilingualShortField`
+誤判成手機版 `el-tabs`，「姓名（中文）」欄位因此找不到，這是本輪除錯時實際踩到的坑，記錄給下一位）
+攔截 `Network.requestWillBeSent` 確認真實網路行為：
+
+1. `sa@system.local` 完整走一次首次登入流程（強制改密碼 → 強制設定兩階段驗證，`/2fa/setup` 回傳
+   的密鑰用 RFC 6238 演算法本機即時算驗證碼，不是猜測或預先算好的碼）到 `/dashboard`。
+2. 進入「新增球員」（`/teams/players/new`），只填中文姓名（所屬球隊沿用既有邏輯自動預選第一支
+   球隊）按「儲存」——攔截到**恰好一個** `POST /api/v1/admin/tcrfc/players`，畫面正確切換到
+   `/teams/players/{id}/edit`。
+3. **不重新整理頁面**，直接在同一頁改「背號」為 `7`，再按一次「儲存」——攔截到**恰好一個**
+   `PUT /api/v1/admin/tcrfc/players/{id}`，**沒有**第二個 `POST`。這正是 `isCreate` 沒修好之前
+   會誤觸發的情境（比照 `MatchEditView.vue` 那節「建立→立刻改延賽→再存一次」的驗證手法）。
+4. 直接查 `tcrfc_club_dev`：`SELECT COUNT(*) FROM players WHERE id = '{id}'` 回 `1`；
+   `players_i18n` 該筆 `locale = 'zh-Hant'`、`shirt_no = 7`——確認第二次儲存是**更新同一筆**，
+   不是新建一筆。
+5. **驗證後清理**：`DELETE FROM players_i18n` → `DELETE FROM players` 移除測試球員（該模組
+   `photo_key` 為 `NULL`，沒有 Blob 物件要清）；執行 `set -a; source .env; set +a;
+   ./db/seed/reset-admin-accounts.sh` 還原 `sa@system.local` 的密碼與兩階段驗證狀態。
+
+### 本次沒動的部分
+
+- 沒有修改 `apps/api`（另一位 backend agent 同時在改，任務指示明講不要動；本輪只用它既有的
+  `/players` 端點驗證，過程中它曾短暫因為別的改動重新編譯，等它恢復後才繼續）。
+- 沒有把 `PlayerEditView.vue`／`StaffEditView.vue`／`TeamEditView.vue`／`FaqEditView.vue`
+  剩下的「所屬球隊」「分類」等下拉選單改成更嚴謹的錯誤處理——本輪範圍只限 `isCreate` 這一類
+  路由狀態一次性求值的問題。
+- 沒有 commit。

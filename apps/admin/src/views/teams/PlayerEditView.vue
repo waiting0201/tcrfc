@@ -27,7 +27,12 @@ import {
 const route = useRoute()
 const router = useRouter()
 
-const isCreate = route.name === 'player-new'
+// 🔴 必須是 computed 不能是一次性求值的 const：建立成功後 handleSave() 呼叫
+// `router.replace('/teams/players/:id/edit')`，Vue Router 對同一個元件實例的路由切換預設不會
+// 重新掛載（component reuse），若 isCreate 只在 setup 當下算一次，之後緊接著再按一次「儲存」
+// 會誤判成仍在建立模式，重複呼叫 createAdminPlayer 產生第二筆重複資料。比照
+// `CompetitionEditView.vue`／`MatchEditView.vue` 既有寫法（`docs/18` 回報項）。
+const isCreate = computed(() => route.name === 'player-new')
 const playerId = ref<string | undefined>(route.params.id as string | undefined)
 
 const form = reactive({
@@ -74,7 +79,7 @@ async function loadPlayer() {
   loadState.value = 'loading'
   try {
     teams.value = await listAdminClubTeams(activeClubId.value)
-    if (!isCreate && playerId.value) {
+    if (!isCreate.value && playerId.value) {
       const detail = await getAdminPlayer(activeClubId.value, playerId.value)
       form.teamId = detail.teamId
       form.shirtNo = detail.shirtNo ?? null
@@ -116,7 +121,7 @@ const isDirty = computed(
 )
 useUnsavedChanges(isDirty)
 
-const pageTitle = computed(() => (isCreate ? '新增球員' : `編輯球員：${form.nameZh || '（未命名）'}`))
+const pageTitle = computed(() => (isCreate.value ? '新增球員' : `編輯球員：${form.nameZh || '（未命名）'}`))
 
 function isEnEmpty(): boolean {
   return !form.nameEn.trim() && !form.bioEn.trim()
@@ -165,7 +170,7 @@ async function handleSave() {
   saving.value = true
   formError.value = null
   try {
-    if (isCreate) {
+    if (isCreate.value) {
       const created = await createAdminPlayer(activeClubId.value, buildPayload(), photoFile.value)
       ElMessage.success('已建立')
       router.replace(`/teams/players/${created.id}/edit`)

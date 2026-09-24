@@ -38,7 +38,13 @@ import { formatDateTime } from '@/utils/formatDateTime'
 const route = useRoute()
 const router = useRouter()
 
-const isCreate = route.name === 'page-new'
+// 🔴 必須是 computed 不能是一次性求值的 const：建立成功後 saveAndMaybeTransition() 呼叫
+// `router.replace('/content/pages/:id/edit')`，Vue Router 對同一個元件實例的路由切換預設不會
+// 重新掛載（component reuse），若 isCreate 只在 setup 當下算一次，畫面上依賴它的 `pageTitle`
+// 與「預覽連結」「版本歷程」兩個 `v-if` 區塊在儲存成功後會繼續停在「建立中」的樣子（儲存流程
+// 本身另外用 `!currentId.value` 擋住不會真的重複建立，但畫面顯示是錯的）。比照
+// `CompetitionEditView.vue`／`MatchEditView.vue` 既有寫法（`docs/18` 回報項）。
+const isCreate = computed(() => route.name === 'page-new')
 const paramId = route.params.id as string | undefined
 const currentId = ref<string | undefined>(paramId)
 
@@ -102,7 +108,7 @@ function applyLoadedPage(dto: AdminPageDetailDto) {
 
 async function loadPage() {
   loadState.value = 'loading'
-  if (isCreate) {
+  if (isCreate.value) {
     blocks.value = []
     baselineJson.value = snapshotJson()
     loadState.value = 'ready'
@@ -133,7 +139,7 @@ const scheduleDateTime = ref<Date | null>(null)
 const isDirty = computed(() => loadState.value === 'ready' && snapshotJson() !== baselineJson.value)
 useUnsavedChanges(isDirty)
 
-const pageTitle = computed(() => (isCreate ? '新增頁面' : `編輯頁面：${form.slug || '（尚未命名）'}`))
+const pageTitle = computed(() => (isCreate.value ? '新增頁面' : `編輯頁面：${form.slug || '（尚未命名）'}`))
 const mainActionLabel = computed(() => (form.status === 'published' ? '儲存變更' : '發布'))
 const canPreview = computed(() => form.status === 'published')
 const frontendPreviewUrl = computed(() => (canPreview.value ? `/zh/${form.slug.replace(/^\/+|\/+$/g, '')}/` : undefined))
@@ -238,7 +244,7 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
     const payload = { slug: form.slug.trim(), seo, blocks: blocksPayload }
 
     let saved: AdminPageDetailDto
-    if (isCreate && !currentId.value) {
+    if (isCreate.value && !currentId.value) {
       saved = await createAdminPage(club, payload, files)
     } else {
       saved = await updateAdminPage(club, currentId.value!, { ...payload, expectedUpdatedAt: form.updatedAt }, files)
@@ -250,7 +256,7 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
       saved = await scheduleAdminPage(club, saved.id, saved.updatedAt, transition.publishAt)
     }
 
-    const wasCreate = isCreate && !currentId.value
+    const wasCreate = isCreate.value && !currentId.value
     applyLoadedPage(saved)
     hadEnSeoAtLoad.value = !isEnSeoEmpty()
     slugError.value = null

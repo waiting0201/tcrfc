@@ -9,8 +9,9 @@
     "typecheck": "vue-tsc -b --noEmit",
     "lint:eslint": "eslint .",
     "lint:forbidden-terms": "node scripts/check-forbidden-terms.mjs",
-    "lint": "npm run lint:node-version && npm run lint:eslint && npm run lint:forbidden-terms && npm run lint:contrast",
+    "lint": "npm run lint:node-version && npm run lint:eslint && npm run lint:forbidden-terms && npm run lint:contrast && npm run lint:editview-reactivity",
     "lint:contrast": "node scripts/check-contrast.mjs",
+    "lint:editview-reactivity": "node scripts/check-editview-reactivity.mjs",
     "lint:node-version": "node ../../scripts/check-node-version.mjs"
   },
   "dependencies": {
