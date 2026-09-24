@@ -54,8 +54,8 @@
 | 模組 | 核對張數 | 有缺漏張數（🔴，含⬛整表） | 缺漏欄位／子功能筆數 | 🟡 落點存疑張數 | 無從核對張數 |
 |---|---|---|---|---|---|
 | 4.0 共通機制 | 7 | 0 | 0 | 0 | 4（`Locale`／`UiString`／`UiStringTranslation`／`ValueTagLink`，見 §8） |
-| 4.1 B 內容管理＋H | 16 | 2（`PressResource`／`Faq`） | 2 | 3（`Banner`／`HomeSection`／`Faq` 嵌入設定） | 0 |
-| 4.2 C 球隊管理 | 15 | 7（`Competition`／`Team`／`Player`／⬛`PlayerSeasonStat`／⬛`MatchGoal`／⬛`MatchCard`／⬛`MatchLineup`） | 10 | 1（`Team.賽季`） | 1（`Season`，`docs/12c` 已認定） |
+| 4.1 B 內容管理＋H | 16 | 0（原 2：`PressResource`／`Faq`，**已於 S1-8 核對確認補完，見 §3**） | 0 | 0（原 3 筆：`Banner`／`HomeSection`／`Faq` 嵌入設定，**已於 S1-8 解決，見 §4**） | 0 |
+| 4.2 C 球隊管理 | 15 | 0（原 7：`Competition`／`Team`／`Player`／⬛`PlayerSeasonStat`／⬛`MatchGoal`／⬛`MatchCard`／⬛`MatchLineup`，**已於 S1-8 核對確認全數補完，見 §3**） | 0 | 1（`Team.賽季`） | 1（`Season`，`docs/12c` 已認定） |
 | 4.3 P 課程與活動 | 6 | 2（`Session`／`Registration`） | 5 | 1（`Trial.對象`，沿用 `12c`） | 0 |
 | 4.4 E 商業模組 | 5 | 2（`Sponsor`＋新發現的**遺漏型別**「贊助活動 Activations」） | 2（含 1 個整型別缺席） | 0 | 0 |
 | 4.5 F 文化模組 | 5 | 1（`FanEvent`） | 1 | 0 | 0 |
@@ -66,9 +66,19 @@
 | 4.10 L 行事曆管理 | 5 | 1（`CalendarCustomEvent`） | 1 | 0 | 0 |
 | 4.11 S 商店 | 15 | 2（`Product`／⬛`InvoiceDonationCode`） | 3 | 0 | 0 |
 | 4.12 B6 慈善內容 | 5 | 2（`Charity`／`ImpactRecord`） | 4（`ImpactRecord` 已由 `12c` 發現三項） | 0 | 0 |
-| **合計** | **104** | **26 張表有缺漏（含 6 張整表無欄位定義）** | **約 43 筆** | **9 張** | **5 張** |
+| **合計** | **104** | **26 張表有缺漏（含 6 張整表無欄位定義）**——⚠️ **其中 9 張（4.1 的 2 張＋4.2 全部 7 張）已於 S1-8 核對確認補完，現況約 17 張**，其餘約 60 張未重新核對，見檔頭說明 | **約 43 筆**（已核實 12 筆補完，現況約 31 筆，未重新核對的部分仍沿用 2026-09-20 數字） | **9 張**（其中 3 張——`Banner`／`HomeSection`／`Faq` 嵌入設定——已於 S1-8 解決，現況約 6 張） | **5 張** |
 
 > 26 張有缺漏＋9 張存疑＋5 張無從核對＋既有已知 i18n 缺漏（`docs/12c` 涵蓋，不重複計入）＝本次盤點實際觸及約 40 張表，其餘約 64 張核對後**沒有發現落差**。逐筆明細見 §3。
+
+> ⚠️ **本檔是 2026-09-20 的一次性盤點快照，`CLAUDE.md` 索引已註記「43 筆已於 S0-3d 補完」，
+> 但本檔內文從未回頭標註哪些筆是那 43 筆之一——直接讀本檔內文的人看不出來哪些「🔴 真的缺」已經
+> 補完。S1-8（2026-09-24）核對 `Player`／`Staff`／`Faq`／`Banner` 相關表時，順手核對整個 4.1、4.2 節，
+> 發現這兩節列出的全部 9 張表（`PressResource`／`Faq`／`Competition`／`Team`／`Player`／
+> ⬛`PlayerSeasonStat`／⬛`MatchGoal`／⬛`MatchCard`／⬛`MatchLineup`）**都已經補完**——`docs/12a`
+> 現況與本檔記載不符，依 `docs/14`「轉述會過期」原則以現況為準，已逐筆在 §2／§3 標註 ✅ 並附
+> 現況出處。**其餘約 60 張未重新核對**（超出本輪任務範圍，4.3 之後的模組未觸碰）。下一次動到 §3
+> 任何一筆之前，**先用 `db/club-schema.sql` 或當前 `docs/12a` 核對該欄位是否其實已經補上，
+> 不要直接假設本檔內文仍然正確**——這份快照的「日期：2026-09-20」欄本身就是提醒，不是裝飾。
 
 ---
 
@@ -77,51 +87,51 @@
 ### 4.1 B 內容管理
 
 #### `PressResource`
-- **缺欄位**：`sort_order`（排序）
+- ✅ **已解決（發現於 S1-8，2026-09-24 核對）**：`docs/12a` §5.1b 的 `press_resource` 屬性方塊**現已有** `sort_order`，`db/club-schema.sql` 亦然。原記載為 2026-09-20 快照，本項已在其後補上但本檔未同步標註，見檔頭說明。
+- ~~**缺欄位**：`sort_order`（排序）~~
 - **規劃書行 1034**：「資源 CRUD：標題與說明（雙語）、類別、檔案、封面縮圖、發布日期、狀態（顯示／隱藏）、**排序**」
-- **目前哪裡都沒有**：`docs/12a` §5.1b 的 `press_resource` 屬性方塊只有 `id`／`club_id`／`slug`／`resource_type`／`file_key`／`file_bytes`／`cover_key`／`cover_width`／`cover_height`／`published_on`／`download_count`／`status`，沒有 `sort_order`。`docs/12c` 未收錄（非文字欄位，不在其範圍）
 
 #### `Faq`
-- **缺欄位**：`view_count`（瀏覽數）
+- ✅ **已解決（發現於 S1-8，2026-09-24 核對）**：`docs/12a` §5.1b 的 `faq` 屬性方塊**現已有** `view_count`，`db/club-schema.sql` 亦然。同上，原記載為 2026-09-20 快照，本檔未同步。
+- ~~**缺欄位**：`view_count`（瀏覽數）~~
 - **規劃書行 1019**：「成效數據：**各題瀏覽數**、👍／👎 數與比率」
-- **目前哪裡都沒有**：`docs/12a` §5.1b 的 `faq` 屬性方塊只有 `helpful_count`／`unhelpful_count`／`sort_order`／`status`，沒有瀏覽數欄位（`helpful_count`／`unhelpful_count` 只對應 👍／👎，不含「瀏覽數」本身）
 
 ### 4.2 C 球隊管理
 
 #### `Competition`
-- **缺欄位**：`organizer`（主辦單位）
+- ✅ **已解決（發現於 S1-8，2026-09-24 核對）**：`organizer` **現已在** `docs/12a` §5.2 的 `competition_i18n` 屬性方塊（隨側表決策改為雙語欄位，見 `docs/12c` §3.2）與 `db/club-schema.sql`。原記載為 2026-09-20 快照，本檔未同步。
+- ~~**缺欄位**：`organizer`（主辦單位）~~
 - **規劃書行 1463**：「代號、名稱（中／英）、類型（對應 `Match.competition` 四值）、所屬球季、**主辦單位**、排序、啟用狀態」
-- **目前哪裡都沒有**：`docs/12a` §5.2 的 `competition` 屬性方塊為 `id`／`club_id`／`season_id`／`code`／`name_zh`／`name_en`／`comp_type`／`sort_order`／`status`，沒有主辦單位欄位
 
 #### `Team`（兩項）
-- **缺欄位 1**：主視覺（Hero 圖片，如 `hero_key`）
-- **缺欄位 2**：代表色（如 `team_color`）
+- ✅ **已解決（發現於 S1-8，2026-09-24 核對）**：`docs/12a` §5.2 的 `team` 屬性方塊**現已有** `hero_key`（主視覺）與 `team_color`（代表色）。原記載為 2026-09-20 快照，本檔未同步，見檔頭說明。
+- ~~**缺欄位 1**：主視覺（Hero 圖片，如 `hero_key`）~~
+- ~~**缺欄位 2**：代表色（如 `team_color`）~~
 - **規劃書行 1043**：「球隊資料：所屬俱樂部、名稱、隊別代號…類型…性別…年齡層、賽季、簡介、**主視覺**、**代表色**、顯示排序」
-- **目前哪裡都沒有**：`docs/12a` §5.2 的 `team` 屬性方塊為 `id`／`club_id`／`code`／`type`／`gender`／`age_band`／`sort_order`，**沒有任何圖片欄位、也沒有色彩欄位**。這不是「省略 `_width`／`_height`」的情形——`team` 連 `_key` 本身都不存在
 - 附註：`name`／`intro` 已由 `docs/12c` 的 `team_i18n` 承接，不重複列入本節
 
 #### `Player`（三項）
-- **缺欄位 1**：身高體重（如 `height_cm`／`weight_kg`）
-- **缺欄位 2**：慣用腳（如 `preferred_foot`）
-- **缺欄位 3**：加入日期（如 `joined_on`）
+- ✅ **已解決（發現於 S1-8，2026-09-24 核對）**：`docs/12a` §5.2 的 `player` 屬性方塊**現已有** `height_cm`／`weight_kg`／`preferred_foot`／`joined_on`，`db/club-schema.sql` 亦然。原記載為 2026-09-20 快照，本檔未同步。S1-8 另在本表新增 `portrait_consent_status`（肖像同意，非規劃書逐欄列名故不計入本節缺漏，見 [`docs/12` §12 第 32 點](12-database-schema.md#12-踩雷點)）。
+- ~~**缺欄位 1**：身高體重（如 `height_cm`／`weight_kg`）~~
+- ~~**缺欄位 2**：慣用腳（如 `preferred_foot`）~~
+- ~~**缺欄位 3**：加入日期（如 `joined_on`）~~
 - **規劃書行 1053**：「基本資料：中英姓名、背號、位置、生日、**身高體重**、國籍、**慣用腳**、**加入日期**、照片」
-- **目前哪裡都沒有**：`docs/12a` §5.2 的 `player` 屬性方塊為 `id`／`club_id`／`team_id`／`shirt_no`／`position`／`birth_on`／`nationality`／`status`／`photo_key`，缺上述三項；也不在 `docs/12b`（`Player` 不屬於 12 張關鍵表）
 
 #### ⬛ `PlayerSeasonStat`（整表無欄位定義）
+- ✅ **已解決（發現於 S1-8，2026-09-24 核對）**：`docs/12a` §5.2 **現已有** `player_season_stat` 屬性方塊（`appearances`／`goals`／`assists`／`yellow_cards`／`red_cards`），`db/club-schema.sql` 亦然。原記載為 2026-09-20 快照，本檔未同步。
 - **規劃書行 1055**：「賽季數據：出賽、進球、助攻、黃紅牌（可手動輸入或由賽事自動彙總）」
-- **目前哪裡都沒有**：`docs/12a` §5.2 只有 `season ||--o{ player_season_stat` 與 `player ||--o{ player_season_stat` 兩條關聯線，**從未出現 `player_season_stat { ... }` 屬性方塊**。`docs/12` §4.2 表總覽也只寫「逐季數據 `(player_id, season_id)`。由 `Player` 推導」，同樣沒有欄位。出賽數、進球數、助攻數、黃牌數、紅牌數目前**完全沒有落點**
 
 #### ⬛ `MatchGoal`（整表無欄位定義）
+- ✅ **已解決（發現於 S1-8，2026-09-24 核對）**：`docs/12a` §5.2 **現已有** `match_goal` 屬性方塊（`match_id`／`player_id`／`minute`／`goal_type`）。原記載為 2026-09-20 快照，本檔未同步。
 - **規劃書行 1065**：「結果：比分、**進球者與時間**、卡牌、出賽名單、賽後報導連結」
-- **目前哪裡都沒有**：`docs/12a` §5.2 只有 `match ||--o{ match_goal` 與 `player ||--o{ match_goal` 兩條關聯線，無屬性方塊。球員（進球者）與時間目前無欄位承載
 
 #### ⬛ `MatchCard`（整表無欄位定義）
+- ✅ **已解決（發現於 S1-8，2026-09-24 核對）**：`docs/12a` §5.2 **現已有** `match_card` 屬性方塊（`match_id`／`player_id`／`card_type`／`minute`）。原記載為 2026-09-20 快照，本檔未同步。
 - **規劃書行 1065**：「結果：…**卡牌**…」
-- **目前哪裡都沒有**：`docs/12a` §5.2 只有 `match ||--o{ match_card` 關聯線，無屬性方塊。卡別（黃／紅）、球員、時間均無欄位
 
 #### ⬛ `MatchLineup`（整表無欄位定義）
+- ✅ **已解決（發現於 S1-8，2026-09-24 核對）**：`docs/12a` §5.2 **現已有** `match_lineup` 屬性方塊（`match_id`／`player_id`／`is_starter`）。原記載為 2026-09-20 快照，本檔未同步。
 - **規劃書行 1065**：「結果：…**出賽名單**…」
-- **目前哪裡都沒有**：`docs/12a` §5.2 只有 `match ||--o{ match_lineup` 與 `player ||--o{ match_lineup` 兩條關聯線，無屬性方塊。先發／替補、上下場時間均無欄位
 
 ### 4.3 P 課程與活動
 
@@ -247,9 +257,9 @@
 
 | 表 | 規劃書字面 | 存疑原因 |
 |---|---|---|
-| `Banner` | 行 282：「Hero 主視覺：**影片或圖片輪播**（最多 5 則）」 | ERD `banner` 只有 `image_key`，沒有影片欄位（`video_url` 或 `video_key`）。但 v3.5–v3.9「後台圖片上傳通則」全篇只談圖片重新編碼，從未再提影片，不確定「影片」選項是否已被後續版本悄悄取消，還是純粹遺漏欄位 |
-| `HomeSection` | 行 1013：「首頁各區塊開關與排序、**精選內容指定**」 | `home_section` 只有 `is_enabled`／`sort_order`，沒有欄位表達「這個區塊要精選哪幾筆內容」。可能已由各內容型別自己的 `is_featured`（如 `Article.is_featured`）滿足，也可能需要獨立的精選清單，規劃書字面不夠具體以判斷 |
-| `Faq` | 行 1018：「嵌入設定：指定該題可出現於哪些頁面的 FAQ 快捷區塊（G-12），**或由分類自動對應**」 | 條文本身給了兩種可能（手動指定頁面 vs. 分類自動對應），現有欄位（`faq_category_link`）只支援後者；「手動指定頁面」是否仍要做不確定 |
+| `Banner` | 行 282：「Hero 主視覺：**影片或圖片輪播**（最多 5 則）」 | ✅ **已解決（S1-8，2026-09-24）**：`banners` 新增 `media_type`（`image`／`video`）與 `video_key`，「影片」選項確認未被取消，是純粹遺漏欄位，見 [`docs/12` §12 第 33 點](12-database-schema.md#12-踩雷點) |
+| `HomeSection` | 行 1013：「首頁各區塊開關與排序、**精選內容指定**」 | ✅ **已解決（S1-8）**：逐一核對九個區塊後判定為前者——除 Hero（`featured_banner_id`）與「最新消息」（已由 `Article.is_featured` 滿足）外，其餘七區塊皆為自動查詢或固定文案，規劃書無「指定某一筆」的字面要求，**不需要獨立的精選清單**，見 [`docs/14` 相關段落](14-invariants.md) |
+| `Faq` | 行 1018：「嵌入設定：指定該題可出現於哪些頁面的 FAQ 快捷區塊（G-12），**或由分類自動對應**」 | ✅ **已解決（S1-8）**：兩種可能都做，且是疊加不是二選一——新增 `FaqEmbedSlot`（G-12 掛載點字典）與 `FaqEmbedSlotLink`（逐題額外指定掛載點）承載「手動指定」，「分類自動對應」維持既有 `faq_category_link` 機制（由前台頁面元件依慣例對應，未建對照表以免過度設計），見 [`docs/12` §12 第 34 點](12-database-schema.md#12-踩雷點) |
 | `Team` | 行 1043：「球隊資料：…年齡層、**賽季**、簡介…」 | `Team` 是跨季存在的實體（一支球隊打很多季），`team` 主表加 `season_id` 在架構上說不通；比較合理的解讀是筆誤或指「目前所屬賽季」的顯示邏輯，而非儲存欄位。列為存疑而非確定缺漏 |
 | `Trial` | 行 1095：「對應 3.3、4.7、6.3 試訓資訊：日期、地點、**對象**、名額、報名截止…」 | `docs/12c` §4 已列為低信心度候選欄位（`audience`），`trial` 主表確實沒有對應欄位。本檔沿用 `12c` 判斷，不重複升級信心度 |
 | `Enquiry` | 行 1148：「欄位：來源表單、**姓名**、聯絡方式、內容摘要、來源頁面、UTM 來源、送出時間」 | `enquiry` 主表沒有姓名／聯絡方式欄位，但 `Enquiry` 設計上是靠 `EnquiryAnswer` 承載動態表單填答內容，姓名很可能只是「動態欄位之一」而非固定欄位。若列表要能直接排序／篩選姓名，才需要在主表加冗餘欄位；規劃書字面不足以判斷是否需要 |

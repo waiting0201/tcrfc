@@ -376,6 +376,9 @@ CREATE TABLE article_relations (
 );
 
 -- 媒體資源（新聞稿／品牌識別包／高解析圖），7.8 媒體專區。
+-- S1-8：status 已收斂為 draft／published（拿掉 'scheduled'）——docs/14 S0-7g 已裁決本表
+-- 不補 published_at，後台不提供排程選項，CHECK 允許 'scheduled' 卻沒有欄位記錄排定時間會製造
+-- 「看起來支援排程、實際上不可能」的假象，故收斂 CHECK 與後台能力一致。
 CREATE TABLE press_resources (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -391,7 +394,7 @@ CREATE TABLE press_resources (
   download_count  int              NOT NULL DEFAULT 0,
   sort_order      int              NOT NULL DEFAULT 0,
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published','scheduled')),
+                    CHECK (status IN ('draft','published')),
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -409,11 +412,23 @@ CREATE TABLE press_resources_i18n (
 );
 
 -- 首頁 Hero 輪播（≤5）：素材、CTA、上下架期間、排序。
+-- Hero 輪播（≤5）。media_type 決定素材種類（規劃書行 1023：「排序、圖／影片、標題、CTA、上架期間」）：
+-- image 為單純圖片；video 為背景影片，image_key 在此模式下作為影片的海報格（poster）——影片載入前、
+-- 載入失敗或無法播放時的顯示內容，同時作為 OG 分享圖，故 image_key 兩種模式皆為必填（S1-8 新增）。
+-- image_width／image_height／banners_i18n.image_alt 補齊 docs/14「後台圖片一律欄位直傳」的圖片欄位組
+-- （既有落差，本輪一併補上，見 docs/14 S1-6 段落）。video_key 僅 media_type='video' 時有值，CHECK 強制。
+-- ⚠️ 影片檔本身不經過「上傳即縮圖」流程（該流程只處理圖片）；影片的格式、檔案大小上限與是否轉碼，
+-- 規劃書未明訂，開發前需裁決（見 docs/12 §12 新增踩雷點）。
 CREATE TABLE banners (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
+  media_type      nvarchar(10)     NOT NULL DEFAULT 'image'
+                    CHECK (media_type IN ('image','video')),
   image_key       nvarchar(500)    NOT NULL,
+  image_width     int              NULL,
+  image_height    int              NULL,
+  video_key       nvarchar(500)    NULL,
   start_at        datetime2(3)     NULL,
   end_at          datetime2(3)     NULL,
   sort_order      int              NOT NULL DEFAULT 0,
@@ -422,7 +437,8 @@ CREATE TABLE banners (
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_banners PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_banners_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_banners_row_seq UNIQUE CLUSTERED (row_seq),
+  CONSTRAINT CK_banners_video_key CHECK (media_type = 'image' OR video_key IS NOT NULL)
 );
 
 CREATE TABLE banners_i18n (
@@ -430,6 +446,7 @@ CREATE TABLE banners_i18n (
   locale          nvarchar(10)     NOT NULL,
   title           nvarchar(200)    NULL,
   subtitle        nvarchar(300)    NULL,
+  image_alt       nvarchar(200)    NULL,
   cta_1_label     nvarchar(64)     NULL,
   cta_1_url       nvarchar(500)    NULL,
   cta_2_label     nvarchar(64)     NULL,
@@ -439,6 +456,11 @@ CREATE TABLE banners_i18n (
 
 -- 首頁九大區塊的開關、排序與精選指定。featured_banner_id 承載「精選指定」關聯
 -- （docs/12a §5.1 有畫關聯線但主表屬性未列出對應欄位，本檔依關聯線補上此欄）。
+-- ✅ S1-8 已逐區塊核對規劃書行 1023–1024（見 docs/12 §4.1 附註）：九區塊中，Hero 用
+-- featured_banner_id；「最新消息」精選文章已由 articles.is_featured 承載（B2，非本表職責）；
+-- 其餘七區塊（核心價值、體系導覽卡、最新賽事、近期賽事、夥伴 Logo 牆、商店入口、底部 CTA）內容
+-- 皆為自動查詢（依 sort_order／最新時間）或固定文案，規劃書無「指定某一筆」的字面要求，
+-- 故不加欄位——featured_banner_id 之外不再需要其他精選指定欄位。
 CREATE TABLE home_sections (
   id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
@@ -456,6 +478,7 @@ CREATE TABLE home_sections (
 );
 
 -- 常見問題；👍／👎 計數。
+-- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE faqs (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -466,7 +489,7 @@ CREATE TABLE faqs (
   unhelpful_count   int              NOT NULL DEFAULT 0,
   sort_order        int              NOT NULL DEFAULT 0,
   status            nvarchar(16)     NOT NULL DEFAULT 'draft'
-                      CHECK (status IN ('draft','published','scheduled')),
+                      CHECK (status IN ('draft','published')),
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
@@ -485,10 +508,14 @@ CREATE TABLE faqs_i18n (
 );
 
 -- 主題分類（10 個）。刻意不帶 club_id，同 article_categories。
+-- is_enabled（S1-8 新增）：規劃書 B4（行 1027）「新增／排序／停用分類」——舊做法用刪除
+-- 湊「停用」，但刪除會經 faq_category_links 的 ON DELETE CASCADE 解除關聯、不可逆（見 docs/14
+-- S1-6 段落）。改為真正的軟停用欄位：停用後分類從導覽消失，但題目與既有關聯不受影響、可重新啟用。
 CREATE TABLE faq_categories (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   slug            nvarchar(160)    NOT NULL,
+  is_enabled      bit              NOT NULL DEFAULT 1,
   sort_order      int              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -510,6 +537,36 @@ CREATE TABLE faq_category_links (
   faq_id            uniqueidentifier NOT NULL,
   faq_category_id   uniqueidentifier NOT NULL,
   CONSTRAINT PK_faq_category_links PRIMARY KEY CLUSTERED (faq_id, faq_category_id)
+);
+
+-- FAQ 快捷區塊（G-12）掛載點字典（S1-8 新增，規劃書行 1029：「指定該題可出現於哪些頁面的
+-- FAQ 快捷區塊（G-12），或由分類自動對應」）。code 是站內已知的 G-12 掛載位置，非任意頁面 id——
+-- 規劃書逐一點名的掛載點：academy_admission（4.7 學院招生）、program_detail（5.x 各課程）、
+-- trials（3.3 試訓）、sponsorship（9.4 贊助）。「由分類自動對應」是預設行為，交由前台頁面元件
+-- 依慣例查對應主題分類（例如 4.7 頁面固定拉「學院招生」分類），此為應用層路由決定，不建對照表
+-- 存放，避免過度設計；本表只承載「指定該題额外出現在哪個掛載點」這個可管理的例外情形。
+-- 不帶 club_id：掛載點是站台結構性代號，兩站共用同一套頁面骨架（docs/14「藍鯨＝主站同一套網站」），
+-- 是否命中則看該俱樂部實際有沒有對應頁面（例如藍鯨無「學院招生」單元，該掛載點不會被用到）。
+CREATE TABLE faq_embed_slots (
+  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq         bigint IDENTITY(1,1) NOT NULL,
+  code            nvarchar(64)     NOT NULL,
+  name            nvarchar(64)     NOT NULL,
+  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by      uniqueidentifier NULL,
+  updated_by      uniqueidentifier NULL,
+  CONSTRAINT PK_faq_embed_slots PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_faq_embed_slots_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 該題「額外」指定出現於哪個 G-12 掛載點，疊加在分類自動對應之上（不是取代）。
+-- 一題可指定多個掛載點，一個掛載點也可被多題指定，故用複合主鍵的關聯表而非欄位。
+CREATE TABLE faq_embed_slot_links (
+  faq_id            uniqueidentifier NOT NULL,
+  faq_embed_slot_id uniqueidentifier NOT NULL,
+  sort_order        int              NOT NULL DEFAULT 0,
+  CONSTRAINT PK_faq_embed_slot_links PRIMARY KEY CLUSTERED (faq_id, faq_embed_slot_id)
 );
 
 -- 零結果搜尋關鍵字與次數（成效統計，不是搜尋日誌）。
@@ -549,6 +606,7 @@ CREATE TABLE redirects (
    ============================================================================ */
 
 -- 賽事系列（v3.0 新增）：代號、類型、所屬球季、排序、啟用狀態；名稱與主辦單位走 competitions_i18n（見檔頭 (b)）。
+-- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE competitions (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -558,7 +616,7 @@ CREATE TABLE competitions (
   comp_type       nvarchar(32)     NULL,
   sort_order      int              NOT NULL DEFAULT 0,
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published','scheduled')),
+                    CHECK (status IN ('draft','published')),
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -623,25 +681,33 @@ CREATE TABLE teams_i18n (
 );
 
 -- 球員：背號、位置、生日、身高體重、國籍、慣用腳、加入日期、狀態。
+-- portrait_consent_status（S1-8 新增，docs/12 §12 第 32 點）：肖像同意狀態，fail-closed 預設
+-- 'not_consented'。同意未到位時，公開讀取 API 不得回傳 photo_key（前台以預設圖或純文字卡呈現，
+-- 不得放假圖）——藍鯨規劃書行 193：「球員照片須有肖像同意（未成年須監護人同意，比照主站學院規則）。
+-- 同意未到位的球員不顯示照片」；主站規劃書行 1356／1686 為既有的未成年素材處理原則。
+-- 三態設計（不只是布林）是因為「未成年由監護人代為同意」與「本人同意」在同意書留存上是不同文件，
+-- 後台需要分別記錄是哪一種；規劃書未提及同意日期或到期，故不加。
 CREATE TABLE players (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
-  row_seq         bigint IDENTITY(1,1) NOT NULL,
-  club_id         uniqueidentifier NOT NULL,
-  team_id         uniqueidentifier NOT NULL,
-  shirt_no        int              NULL,
-  position        nvarchar(32)     NULL,
-  birth_on        date             NULL,
-  height_cm       int              NULL,
-  weight_kg       int              NULL,
-  nationality     nvarchar(32)     NULL,
-  preferred_foot  nvarchar(16)     NULL,
-  joined_on       date             NULL,
-  status          nvarchar(16)     NULL,
-  photo_key       nvarchar(500)    NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by      uniqueidentifier NULL,
-  updated_by      uniqueidentifier NULL,
+  id                       uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                  bigint IDENTITY(1,1) NOT NULL,
+  club_id                  uniqueidentifier NOT NULL,
+  team_id                  uniqueidentifier NOT NULL,
+  shirt_no                 int              NULL,
+  position                 nvarchar(32)     NULL,
+  birth_on                 date             NULL,
+  height_cm                int              NULL,
+  weight_kg                int              NULL,
+  nationality              nvarchar(32)     NULL,
+  preferred_foot           nvarchar(16)     NULL,
+  joined_on                date             NULL,
+  status                   nvarchar(16)     NULL,
+  photo_key                nvarchar(500)    NULL,
+  portrait_consent_status  nvarchar(20)     NOT NULL DEFAULT 'not_consented'
+                             CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
+  created_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by               uniqueidentifier NULL,
+  updated_by               uniqueidentifier NULL,
   CONSTRAINT PK_players PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_players_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -674,17 +740,21 @@ CREATE TABLE player_season_stats (
 );
 
 -- 教練與團隊成員：證照、專長、分組。club_id 可為空＝兩隊共同（行政與醫療多為共用）。
+-- portrait_consent_status（S1-8 新增）：同 players——藍鯨規劃書行 314 把 Player／Staff 並列為
+-- 「一線隊與青年隊名單（須有肖像同意）」，教練與團隊成員一併受管制，見上方 players 表註解。
 CREATE TABLE staff (
-  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
-  row_seq         bigint IDENTITY(1,1) NOT NULL,
-  club_id         uniqueidentifier NULL,
-  staff_group     nvarchar(32)     NULL,
-  licence         nvarchar(64)     NULL,
-  photo_key       nvarchar(500)    NULL,
-  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
-  created_by      uniqueidentifier NULL,
-  updated_by      uniqueidentifier NULL,
+  id                       uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                  bigint IDENTITY(1,1) NOT NULL,
+  club_id                  uniqueidentifier NULL,
+  staff_group              nvarchar(32)     NULL,
+  licence                  nvarchar(64)     NULL,
+  photo_key                nvarchar(500)    NULL,
+  portrait_consent_status  nvarchar(20)     NOT NULL DEFAULT 'not_consented'
+                             CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
+  created_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by               uniqueidentifier NULL,
+  updated_by               uniqueidentifier NULL,
   CONSTRAINT PK_staff PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_staff_row_seq UNIQUE CLUSTERED (row_seq)
 );
@@ -1060,6 +1130,7 @@ CREATE TABLE sponsors_i18n (
 );
 
 -- 贊助方案（9 種）：內容、權益清單、適合對象、價格區間（可設不公開）、上下架。
+-- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE sponsor_packages (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -1070,7 +1141,7 @@ CREATE TABLE sponsor_packages (
   is_price_public   bit              NOT NULL DEFAULT 1,
   sort_order        int              NOT NULL DEFAULT 0,
   status            nvarchar(16)     NOT NULL DEFAULT 'draft'
-                      CHECK (status IN ('draft','published','scheduled')),
+                      CHECK (status IN ('draft','published')),
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
@@ -1901,6 +1972,7 @@ CREATE TABLE event_types_i18n (
    ============================================================================ */
 
 -- 商品分類，含品牌敘事區塊。
+-- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE collections (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -1908,7 +1980,7 @@ CREATE TABLE collections (
   slug            nvarchar(160)    NOT NULL,
   sort_order      int              NOT NULL DEFAULT 0,
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published','scheduled')),
+                    CHECK (status IN ('draft','published')),
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -1926,6 +1998,7 @@ CREATE TABLE collections_i18n (
 );
 
 -- 商品：分類、標籤、敘事、尺碼表、狀態（含缺貨自動判定）、排序、SEO。無會員價欄位。
+-- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
 CREATE TABLE products (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -1936,7 +2009,7 @@ CREATE TABLE products (
   size_chart      json             NULL,
   sort_order      int              NOT NULL DEFAULT 0,
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published','scheduled')),
+                    CHECK (status IN ('draft','published')),
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -2234,6 +2307,9 @@ CREATE TABLE charities_i18n (
 );
 
 -- 已執行的公益計畫（11.2）：cover_key 封面、對象、期間、狀態、流程。
+-- S1-8：status 收斂為 draft／published，理由同 press_resources（見該表註解、docs/14 S0-7g）。
+-- ⚠️ 這是主站主檔（見上方落款）；慈善獨立庫的 charity_program_refs 是唯讀快照且本來就沒有
+-- status 欄位，不受影響（db/charity-schema.sql）。
 CREATE TABLE charity_programs (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -2243,7 +2319,7 @@ CREATE TABLE charity_programs (
   start_on        date             NULL,
   end_on          date             NULL,
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
-                    CHECK (status IN ('draft','published','scheduled')),
+                    CHECK (status IN ('draft','published')),
   cover_key       nvarchar(500)    NULL,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -2363,6 +2439,7 @@ ALTER TABLE members          ADD CONSTRAINT UQ_members_email         UNIQUE (ema
 ALTER TABLE article_categories ADD CONSTRAINT UQ_article_categories_code UNIQUE (code);
 ALTER TABLE tags               ADD CONSTRAINT UQ_tags_slug               UNIQUE (slug);
 ALTER TABLE faq_categories     ADD CONSTRAINT UQ_faq_categories_slug     UNIQUE (slug);
+ALTER TABLE faq_embed_slots    ADD CONSTRAINT UQ_faq_embed_slots_code    UNIQUE (code);
 ALTER TABLE event_types        ADD CONSTRAINT UQ_event_types_code        UNIQUE (code);
 ALTER TABLE invoice_donation_codes ADD CONSTRAINT UQ_invoice_donation_codes_code UNIQUE (code);
 ALTER TABLE ui_strings         ADD CONSTRAINT UQ_ui_strings_string_key   UNIQUE (string_key);
@@ -2440,6 +2517,7 @@ CREATE INDEX IX_admin_user_clubs_user_active            ON admin_user_clubs (adm
 CREATE INDEX IX_pages_slug_club              ON pages (slug, club_id);
 CREATE INDEX IX_press_resources_slug_club    ON press_resources (slug, club_id);
 CREATE INDEX IX_faqs_slug_club               ON faqs (slug, club_id);
+CREATE INDEX IX_faq_embed_slot_links_slot    ON faq_embed_slot_links (faq_embed_slot_id);
 CREATE INDEX IX_programs_slug_club           ON programs (slug, club_id);
 CREATE INDEX IX_partners_slug_club           ON partners (slug, club_id);
 CREATE INDEX IX_sponsors_slug_club           ON sponsors (slug, club_id);
@@ -2547,6 +2625,8 @@ ALTER TABLE fan_events ADD CONSTRAINT FK_fan_events_created_by FOREIGN KEY (crea
 ALTER TABLE fan_events ADD CONSTRAINT FK_fan_events_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE faq_categories ADD CONSTRAINT FK_faq_categories_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
 ALTER TABLE faq_categories ADD CONSTRAINT FK_faq_categories_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE faq_embed_slots ADD CONSTRAINT FK_faq_embed_slots_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE faq_embed_slots ADD CONSTRAINT FK_faq_embed_slots_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE faq_search_misses ADD CONSTRAINT FK_faq_search_misses_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
 ALTER TABLE faq_search_misses ADD CONSTRAINT FK_faq_search_misses_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 ALTER TABLE faqs ADD CONSTRAINT FK_faqs_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
@@ -2706,6 +2786,8 @@ ALTER TABLE faqs_i18n               ADD CONSTRAINT FK_faqs_i18n_faq             
 ALTER TABLE faq_categories_i18n     ADD CONSTRAINT FK_faq_categories_i18n_cat     FOREIGN KEY (faq_category_id) REFERENCES faq_categories(id) ON DELETE CASCADE;
 ALTER TABLE faq_category_links      ADD CONSTRAINT FK_faq_category_links_faq      FOREIGN KEY (faq_id) REFERENCES faqs(id) ON DELETE CASCADE;
 ALTER TABLE faq_category_links      ADD CONSTRAINT FK_faq_category_links_cat      FOREIGN KEY (faq_category_id) REFERENCES faq_categories(id) ON DELETE CASCADE;
+ALTER TABLE faq_embed_slot_links    ADD CONSTRAINT FK_faq_embed_slot_links_faq    FOREIGN KEY (faq_id) REFERENCES faqs(id) ON DELETE CASCADE;
+ALTER TABLE faq_embed_slot_links    ADD CONSTRAINT FK_faq_embed_slot_links_slot   FOREIGN KEY (faq_embed_slot_id) REFERENCES faq_embed_slots(id) ON DELETE CASCADE;
 ALTER TABLE faq_search_misses       ADD CONSTRAINT FK_faq_search_misses_club      FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE redirects                ADD CONSTRAINT FK_redirects_club              FOREIGN KEY (club_id) REFERENCES clubs(id);
 

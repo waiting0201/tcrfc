@@ -94,7 +94,11 @@ erDiagram
   banner {
     uuid id PK
     uuid club_id FK
+    enum media_type
     string_500 image_key
+    int image_width
+    int image_height
+    string_500 video_key
     datetime start_at
     datetime end_at
     int sort_order
@@ -123,6 +127,8 @@ erDiagram
 erDiagram
   faq ||--o{ faq_category_link : ""
   faq_category ||--o{ faq_category_link : ""
+  faq ||--o{ faq_embed_slot_link : "額外指定掛載點"
+  faq_embed_slot ||--o{ faq_embed_slot_link : ""
   press_resource {
     uuid id PK
     uuid club_id FK
@@ -151,11 +157,22 @@ erDiagram
   faq_category {
     uuid id PK
     slug slug UK
+    bool is_enabled
     int sort_order
   }
   faq_category_link {
     uuid faq_id FK
     uuid faq_category_id FK
+  }
+  faq_embed_slot {
+    uuid id PK
+    string_64 code UK
+    string_64 name
+  }
+  faq_embed_slot_link {
+    uuid faq_id FK
+    uuid faq_embed_slot_id FK
+    int sort_order
   }
   faq_search_miss {
     uuid id PK
@@ -168,6 +185,8 @@ erDiagram
 
 > `faq_category_link` 是關聯表而非 `faq.category_id`：**一題可掛多個主題**（B5 明訂）。
 > `faq_search_miss` 是**成效統計**（B5「零結果關鍵字排行」），不是搜尋日誌——只存關鍵字與次數，不存誰搜的。
+> **`faq_embed_slot`（S1-8 新增）**：G-12 快捷區塊掛載點字典（`academy_admission`／`program_detail`／`trials`／`sponsorship`），不帶 `club_id`（結構性代號，兩站共用同一套頁面骨架）。`faq_embed_slot_link` 是**額外指定**，疊加在「由分類自動對應」之上，不是取代。
+> **`faq_category.is_enabled`（S1-8 新增）**：真正的軟停用，取代先前用刪除湊停用的作法。
 
 ### 5.2 C 球隊與賽事
 
@@ -274,6 +293,7 @@ erDiagram
     date joined_on
     enum status
     string_500 photo_key
+    enum portrait_consent_status
   }
   staff {
     uuid id PK
@@ -281,6 +301,7 @@ erDiagram
     string_32 staff_group
     string_64 licence
     string_500 photo_key
+    enum portrait_consent_status
   }
   staff_team {
     uuid staff_id FK

@@ -477,6 +477,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `DrawRoster` | `(member_draw_id, serial_no)`、`(member_draw_id, member_no_snapshot)` |
 | `Locale` | `code` |
 | `PressResource` | `(club_id, slug)` |
+| `FaqEmbedSlot` | `code`（S1-8 新增） |
 | 所有 `*_i18n` | `(<entity>_id, locale)` |
 | 其餘內容表 | `(club_id, slug)`（`club_id` 必填者）或 `slug`（不帶 `club_id` 者） |
 
@@ -500,6 +501,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `EmailLog` | `(member_id, sent_at desc)`、`(type, sent_at)` | |
 | `Enquiry` | `(form_id, status, created_at desc)`、`(assignee_admin_user_id)` | 收件匣 |
 | `AdminUserClub` | `(admin_user_id, is_active)` | **每個請求都要算資料範圍，這條是熱路徑** |
+| `FaqEmbedSlotLink` | `(faq_embed_slot_id)`（S1-8 新增） | 依掛載點反查有哪些題目被額外指定 |
 | 帶 `club_id` 的內容表 | `(slug, club_id)` | 路由解析：俱樂部專屬優先、回退共同 |
 | 所有 `*_i18n` | `(locale)` | 翻譯狀態矩陣 |
 

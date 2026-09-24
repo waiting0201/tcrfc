@@ -109,6 +109,7 @@
 |---|---|---|---|
 | `title` | `string(200)` | 高 | 行 280（Hero「支援標題／副標／雙 CTA」）＋行 1011–1014（B3「標題、CTA」） |
 | `subtitle` | `string(300)` | 高 | 行 280 |
+| `image_alt` | `string(200)` | 高 | S1-8 新增。圖片替代文字，依 `db/club-schema.sql` 檔頭規則 9「圖片欄位組 `_alt_zh`／`_alt_en` 走 i18n 側表」＋ G-08 無障礙（行 275「圖片 alt」）＋ `docs/14`「後台圖片一律欄位直傳」通則；`media_type='video'` 時本欄為影片海報格（poster）的替代文字，語意不變 |
 | `cta_1_label` / `cta_1_url` | `string(64)` / `string(500)` | 中 | 行 280「雙 CTA」，結構（兩組各含文案與連結）為推論，非逐欄列名 |
 | `cta_2_label` / `cta_2_url` | `string(64)` / `string(500)` | 中 | 同上 |
 

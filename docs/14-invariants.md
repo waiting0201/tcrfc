@@ -64,6 +64,12 @@
   `apps/api/Features/AdminPages/PageBlockContentProcessor.cs` 檔頭。**日後任何「只存不查」JSON 欄位
   需要雙語時，先確認資料庫是否已經拒絕建側表**（`docs/12` §1 第 3 條「主表已放的欄位優先」），
   拒絕了就走這個巢狀物件慣例，不要另外發明第三種雙語形狀。
+- 🔴 **`players`／`staff.portrait_consent_status` 預設值永遠是 `'not_consented'`，改成別的預設值是個資事故**
+  （S1-8，2026-09-24；藍鯨規劃書行 193／314：「球員照片須有肖像同意（未成年須監護人同意）。同意未到位
+  的球員不顯示照片，以預設圖或純文字卡呈現——不得放假圖」；主站規劃書行 1356／1686 為既有的未成年
+  素材處理原則）。**公開讀取 API 必須依這個欄位擋 `photo_key`**：非 `consented`／`consented_by_guardian`
+  一律不得回傳球員或教練照片。這條同時是 `GEO-02`（AI 爬蟲排除未成年學員與球員照片路徑）能落地執行
+  的資料前提——沒有這個欄位，「排除未同意的素材」無從查詢起，見 [`12-database-schema.md`](12-database-schema.md#12-踩雷點) 第 32 點。
 - **隊別代號**：`D1`（磐石一線隊）／**`BW1`（藍鯨一線隊）**／`U15`／`U14`／`U12`。
   代號**維持全站唯一**（它是行事曆訂閱網址與 `/zh/schedule/d1/` 的識別鍵，**不得改成「俱樂部 × 代號」複合鍵**）。對外顯示磐石寫 `First Team / 一線隊`、藍鯨寫 `Blue Whale First Team / 藍鯨一線隊`。
   **`Team.type` 的 `women` 值已於 v3.0 廢除**，改用獨立的 `Team.gender`（`men`／`women`／`mixed`）——性別是球隊屬性不是隊型。`type = first_team` 由「全站僅一筆」改為「**每個俱樂部至多一筆**」。
@@ -259,6 +265,17 @@
   - **金額一律 `int` 存「元」**，只有百分比用 `decimal(5,2)`。台幣無角分且慈善分潤明訂無條件捨去至整數元。
   - **（v3.0）`club_id` 不是每張表都加**：判定準則見主站規劃書 **§5.4**——後台有獨立清單／前台有獨立路由／承載個資或金流三選一；**能經父表推導的一律不加**。**加了就要同時決定唯一鍵、後台預設過濾、前台路由三件事。**
   - **（v3.0）共同內容（`club_id` 為空）對受範圍限制的帳號一律唯讀**，只有超管能建立與修改。否則「查得到共同內容」與「不能改到別人的內容」無法同時成立。
+    ⚠️ **現況（2026-09-24，`S1-5`／`S1-7` 已核實）：目前完全沒有任何後台端點能建立或修改共同列**——
+    `articles`（`AdminArticlesRepository.LoadTrackedForWriteAsync`）與 `staff`
+    （`AdminStaffRepository.UpdateAsync`）這兩張已接真實授權的可為空表，寫入路徑一律走
+    `/api/v1/admin/{club}/...` 俱樂部範圍端點：建立永遠把 `club_id` 填成路由當下的俱樂部（不接受
+    建立共同資料），命中既有 `club_id IS NULL` 的列一律 403，**沒有超管特例**——超管一樣得挑一個
+    `{club}` 才能打這組端點，而共同列的 `club_id` 是 NULL，邏輯上不屬於任何單一 `{club}`。
+    上面這條規則講的「只有超管能建立與修改」目前**只是意圖，還沒有對應的實作路徑**（可能要等
+    J4 或一個不掛 `{club}` 路由段的全域端點）。**其餘 7 張可為空表（`Faq`／`Charity`／
+    `CharityProgram`／`ImpactRecord`／`ImpactMetric`／`PressResource`／`PartnerStore`）開發後台
+    寫入時，先決定「要不要現在就補超管編輯共同內容的路徑」，不要預設沿用 `articles`／`staff`
+    這個「共同內容目前無法編輯」的暫定狀態就是最終答案。**
   - 🔴 **（S0-7g，2026-09-24）「排程發布」需要 `published_at` 欄位，`scheduled` 這個狀態值本身不等於「有排程機制」**：`db/club-schema.sql` 有 9 張表帶 `CHECK (status IN ('draft','published','scheduled'))`，但只有 `pages`／`articles` 真的有 `published_at` 欄位；`press_resources`／`faqs`／`competitions`／`sponsor_packages`／`collections`／`products`／`charity_programs` **CHECK 約束允許寫入 `'scheduled'`，資料庫裡卻沒有任何欄位記錄「排定何時發布」**——這 7 張表在後台寫入層開發出來之前，看起來像「支援排程」，實際上不可能真的排程。**開發這 7 張表的後台寫入模組前，先確認是否要補 `published_at`，要補就先走 `docs/12` 同步鏈再走 migration，不要假設欄位已經存在。** ✅ **已裁決（2026-09-24，依規劃書）**：規劃書只在 `B1` 頁面（第 1014 行）與 `B2` 新聞（第 1019 行）給了排程發布，**其餘 7 張表不補 `published_at`**。那幾個模組的後台**不得提供「排程」選項**；`scheduled` 出現在 CHECK 裡，是因為共用同一組狀態詞彙，不代表那些型別有排程功能。
   - 🔴 **（S0-7g；2026-09-24 由 S1-4 擴充）「時間到了」不是寫入事件，需要主動的 hosted service 才會真的轉狀態**——`status='scheduled'` 不會因為 `published_at` 過期而自動變成 `'published'`，公開讀取 API 的 `WHERE status = 'published'` 是字面比對。`Features/News/ScheduledPublishRunner.cs` 是目前唯一接上這個機制的地方，掃 `articles`（`PublishDueArticlesAsync`）與 `pages`（`PublishDuePagesAsync`，S1-4 新增）兩張表，`ScheduledPublishBackgroundService` 每輪依序呼叫兩個方法。**任何新的內容型別要支援「排程發布」，除了要有 `published_at` 欄位，還要把它加進這個 runner（或比照新開一個），否則後台可以把狀態設成 `scheduled`，但公開站永遠不會自動顯示。**
   - 🔴 **判斷「已到發布時間」的兩邊必須來自同一個時鐘（2026-09-24，S1-4 續作，`PagesPublicEndpointTests` 間歇性失敗排查）**：公開讀取一律用 `published_at <= SYSUTCDATETIME()`（資料庫自己的時鐘）。寫入端若把 `published_at` 設成應用程式行程的 `DateTime.UtcNow`（另一台機器的時鐘——本機環境是 API 行程所在主機 vs. `sqlserver` 容器），兩個時鐘只要有任何飄移，剛發布的內容就可能被判定為「還沒到」而暫時查不到，且**發布本身完全成功、不會有任何錯誤或例外**——這是本次實測連跑 15 次失敗 2 次才抓到的間歇性 bug，不是並行權杖精度問題。`AdminArticlesRepository.PublishAsync`／`AdminPagesRepository.PublishAsync`（立即發布，`published_at` 設為「現在」）已改用 `Common/DatabaseClock.GetUtcNowAsync`（跑一次 `SELECT SYSUTCDATETIME()`）取代 `DateTime.UtcNow`。**日後任何寫入路徑會把某個欄位設成「現在」、而這個欄位之後會被拿去跟 `SYSUTCDATETIME()`／`GETUTCDATE()` 比較「是否已經到了」，一律要用 `DatabaseClock`，不要用 `DateTime.UtcNow`**——`ScheduleAsync`（`published_at` 是呼叫端指定的未來時間，不是「現在」）與 `ScheduledPublishRunner`（整句判斷都在同一個 SQL 陳述式內求值）不受影響，理由見 `Common/DatabaseClock.cs` 檔頭。
@@ -311,10 +328,25 @@
   這是本輪的判斷，不是規劃書明文，需要業務確認（跟 `S0-7h` 的兩項假設同一種性質）；`published_at`
   不會被清空，這是目前唯一還能分辨「這篇文章曾經發布過」的線索。**日後若要新增真正的「已下架」狀態
   值，是規格變更，先改 `docs/12` 再走同步鏈，不要直接改 CHECK 約束。**
-
----
-
-## ✅ 主站與 App 的雙隊落差已於 2026-09-10 解除
+- ✅ **（S1-6 缺口，S1-8 已補）`banners` 的圖片欄位組已補齊**：新增 `media_type`（`image`／`video`，
+  規劃書行 1023「圖／影片」一併補上）、`image_width`／`image_height`、`banners_i18n.image_alt`、
+  `video_key`（`media_type='video'` 時必填，CHECK 強制）。`db/club-schema.sql`／`docs/12` §4.1／
+  `docs/12a` §5.1／`docs/12c` §3.1 已同步。⚠️ **`articles.cover_key`／`teams.hero_key` 等其餘既有
+  圖片欄位仍是同樣的缺口**，本輪只處理 `banners`（首頁 Hero 是全站最顯眼的視覺元素，優先度最高），
+  未列入本次範圍，日後要補一併走同步鏈。**影片檔本身不經過「上傳即縮圖」流程**（該流程只處理
+  圖片），影片的格式、檔案大小上限與是否轉碼規劃書未明訂，**開發前需裁決**（見 `docs/12` §12 第 33 點）。
+- ✅ **（S1-6 缺口，S1-8 已補）`faq_categories` 已加 `is_enabled`（軟停用）**：取代先前「用刪除湊
+  停用」的作法——刪除經 `ON DELETE CASCADE` 解除分類關聯且不可逆，題目本身仍在但分類導覽找不到。
+  現在可真正停用又重新啟用，題目與既有關聯不受影響。`db/club-schema.sql`／`docs/12` §4.1／
+  `docs/12a` §5.1b 已同步。
+- ✅ **（S1-6 缺口，S1-8 已判定不需加欄位）`home_sections.featured_banner_id` 只給 `hero` 用是
+  正確的最終狀態，不是遺漏**：逐一核對規劃書 B3（行 1023–1024）點名的九個區塊——Hero 已有
+  `featured_banner_id`；「最新消息」精選文章已由 `articles.is_featured` 承載（B2，不歸 `home_sections`
+  管）；其餘七區塊（核心價值、體系導覽卡、最新賽事、近期賽事、夥伴 Logo 牆、商店入口、底部 CTA）
+  依時間或排序自動查詢，或為固定文案，規劃書沒有「指定某一筆」的字面要求。**「精選內容指定」字面
+  涵蓋全部九區塊的說法，實際只有 Hero 與最新消息兩者需要，且都已有機制承載**——不加欄位是核對後
+  的設計結論，不是待補。**看到「首頁編排可以指定任何區塊的精選內容」仍要先查這欄位存不存在**，
+  但不必假設它是遺漏，可能就是不需要。
 
 v2.0 時代「先改 App、官網另議」的刻意落差**已經沒有了**。客戶決定：**藍鯨升級為系統的第二個俱樂部，並建置藍鯨官網**。
 

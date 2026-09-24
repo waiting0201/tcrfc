@@ -84,7 +84,7 @@
 | 涵蓋範圍 | 主站全部（含站內商店 `S`）＋ 後台帳號與權限 `J`。⚠️ **慈善 `N` 已於 v3.0 移出**（獨立資料庫） |
 | 排除範圍 | **行動 App 的十一個型別**（`M` 模組與 `E4–E6`）；**慈善捐款平台的全部資料表**（獨立系統） |
 | 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam`，移出慈善 6 個 |
-| 資料表 | **105 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
+| 資料表 | **107 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。**S1-8 新增 `FaqEmbedSlot`／`FaqEmbedSlotLink` 兩張，105 → 107**。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
 | ER 圖 | 12 張 `erDiagram` ＋ 2 張 `flowchart`，每張 ≤ 12 實體 |
 
@@ -337,7 +337,7 @@ flowchart LR
 
 ## 4. 資料表總覽
 
-**105 張**（`CalendarEvent` 是視圖），另有約 40 張 `*_i18n` 側表。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
+**107 張**（`CalendarEvent` 是視圖），另有約 40 張 `*_i18n` 側表。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
 圖例：🌐 有 i18n 側表｜🔒 含受限或加密欄位｜📸 值複製快照，不可回頭 join。
 **`club_id` 欄**：**●** 必填｜**○** 可為空（＝兩隊共同）｜**—** 不加。
 判定準則與逐表清單見主站規劃書 **§5.4**（行 1533–1579）。
@@ -366,7 +366,7 @@ flowchart LR
 > ⚠️ `EmailLog` **不是操作日誌，是功能單元**（後台要查「這封信寄出去了沒」）。不在本檔移除日誌表的範圍內。
 > ⚠️ **中獎人的人工聯繫不得寫入 `EmailLog`**——系統信維持既有封數，抽獎不新增通知信。
 
-### 4.1 B 內容管理 ＋ H 搜尋與 AI 能見度（16）
+### 4.1 B 內容管理 ＋ H 搜尋與 AI 能見度（18）
 
 | 表 | `club_id` | 用途 | 標記 | 後台 |
 |---|---|---|---|---|
@@ -378,12 +378,14 @@ flowchart LR
 | `Tag` | — | 標籤。**刻意不加**，同上 | 🌐 | B2 |
 | `ArticleTag` | — | `(article_id, tag_id)` | | B2 |
 | `ArticleRelation` | — | 文章的多型關聯 `(article_id, target_type, target_id)` | | B2 |
-| `PressResource` | **○** | 媒體資源（新聞稿／品牌識別包／高解析圖） | 🌐 | B6 |
-| `Banner` | **●** | 首頁 Hero 輪播（≤5）：素材、CTA、上下架期間、排序 | 🌐 | B3 |
-| `HomeSection` | **●** | 首頁九大區塊的開關、排序與精選指定 | | B3 |
-| `Faq` | **○** | 常見問題；👍／👎 計數 | 🌐 | B4 |
-| `FaqCategory` | — | 主題分類（10 個）。**刻意不加**，同 `ArticleCategory` | 🌐 | B5 |
+| `PressResource` | **○** | 媒體資源（新聞稿／品牌識別包／高解析圖）。`status` **收斂為 `draft`／`published`**（S1-8，見 [§12 第 33 點](#12-踩雷點)） | 🌐 | B6 |
+| `Banner` | **●** | 首頁 Hero 輪播（≤5）：**`media_type`（`image`／`video`）**、素材（圖片欄位組 `image_key`／`image_width`／`image_height`／`image_alt`＋影片模式另有 `video_key`）、CTA、上下架期間、排序（S1-8 補影片欄位與圖片欄位組，行 1023） | 🌐 | B3 |
+| `HomeSection` | **●** | 首頁九大區塊的開關、排序，**僅 Hero 有精選指定**（`featured_banner_id`）。✅ **S1-8 已逐區塊核對**：其餘八區塊或為自動查詢（依時間／排序），或已有各自機制（「最新消息」精選靠 `Article.is_featured`），規劃書未要求可指定的區塊不加欄位 | | B3 |
+| `Faq` | **○** | 常見問題；👍／👎 計數。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 | B4 |
+| `FaqCategory` | — | 主題分類（10 個）。**刻意不加 `club_id`**，同 `ArticleCategory`。**新增 `is_enabled`**（S1-8，行 1027「新增／排序／停用分類」）：真正的軟停用，取代先前「用刪除湊停用」的作法 | 🌐 | B5 |
 | `FaqCategoryLink` | — | `(faq_id, faq_category_id)`——**一題可屬多分類** | | B5 |
+| `FaqEmbedSlot` | — | **G-12 快捷區塊掛載點字典**（S1-8 新增，行 1029）：站內已知掛載位置（`academy_admission`／`program_detail`／`trials`／`sponsorship`）。**刻意不加 `club_id`**——掛載點是站台結構代號，兩站共用同一套頁面骨架，是否命中依該俱樂部實際有無對應頁面 | | B4 |
+| `FaqEmbedSlotLink` | — | `(faq_id, faq_embed_slot_id)`——**該題額外指定出現於哪個 G-12 掛載點**，疊加在「由分類自動對應」之上（不是取代，見 [§12 第 34 點](#12-踩雷點)） | | B4 |
 | `FaqSearchMiss` | **●** | 零結果搜尋關鍵字與次數。**這是成效統計不是日誌** | | B5 |
 | `Redirect` | **●** | 301 對照（`from_path`、`to_path`、`is_active`）。唯一鍵 `(club_id, from_path)`——兩站都會有 `/zh/about/` | | H |
 
@@ -391,12 +393,12 @@ flowchart LR
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
-| `Competition` | **●** | **賽事系列**（`code`、名稱、類型、`season_id`）。v3.0 新增，App 的賽事篩選與 12 個月完整賽程靠它 | 🌐 |
+| `Competition` | **●** | **賽事系列**（`code`、名稱、類型、`season_id`）。v3.0 新增，App 的賽事篩選與 12 個月完整賽程靠它。`status` **收斂為 `draft`／`published`**（S1-8，見 [§12 第 33 點](#12-踩雷點)） | 🌐 |
 | `Season` | **●** | 賽季（`code` 如 `2026-27`、起訖日）。唯一鍵 `(club_id, code)`——**兩隊球季不同步** | |
 | `Team` | **●** | 球隊。**`code` UNIQUE（全站唯一，不得改複合鍵）**，值域 `D1`／**`BW1`**／`U15`／`U14`／`U12`；`type` = `first_team`／`academy`；**`gender`（`men`／`women`／`mixed`）**。`first_team` 為**每俱樂部至多一筆** | 🌐 |
-| `Player` | **●** | 球員：背號、位置、生日、身高體重、國籍、慣用腳、加入日期、狀態 | 🌐 |
+| `Player` | **●** | 球員：背號、位置、生日、身高體重、國籍、慣用腳、加入日期、狀態。**新增 `portrait_consent_status`**（肖像同意，S1-8，見 [§12 第 32 點](#12-踩雷點)） | 🌐 |
 | `PlayerSeasonStat` | — | 逐季數據 `(player_id, season_id)`。**由 `Player` 推導** | |
-| `Staff` | **○** | 教練與團隊成員：證照、專長、分組。**空＝兩隊共同**（行政與醫療多為共用） | 🌐 |
+| `Staff` | **○** | 教練與團隊成員：證照、專長、分組。**空＝兩隊共同**（行政與醫療多為共用）。**新增 `portrait_consent_status`**（同 `Player`，S1-8） | 🌐 |
 | `StaffTeam` | — | `(staff_id, team_id)` 帶職務 | |
 | `Match` | **●** | 賽事。`competition_id`（可空）、`status` 是正式欄位；**`match_no`（場次編號，聯賽官方配發，與 `round_no`／輪次是兩回事，同一輪可能有多場、可為空）**；**`original_match_on`／`original_kickoff`（v3.13 新增，僅 `status = 'postponed'` 時有值，記錄延賽前的原定日期時間，皆可為空、無 CHECK 約束）**；對手與場地的英文走 `match_i18n` | 🌐 |
 | `MatchTeam` | — | 本方參賽隊 `(match_id, team_id)` | |
@@ -437,7 +439,7 @@ flowchart LR
 |---|---|---|---|
 | `Partner` | **●** | 合作夥伴（B2B Logo 牆）：Logo **深底／淺底兩版**、類型、國家、合作內容與期間、官網、排序、曝光位置 | 🌐 |
 | `Sponsor` | **●** | 贊助商：Logo 兩版、**等級**、合約期間、贊助內容、聯絡窗口、到期提醒、排序 | 🌐 |
-| `SponsorPackage` | **●** | 贊助方案（9 種）：內容、權益清單、適合對象、價格區間（**可設不公開**）、上下架 | 🌐 |
+| `SponsorPackage` | **●** | 贊助方案（9 種）：內容、權益清單、適合對象、價格區間（**可設不公開**）、上下架。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 |
 | `Proposal` | **●** | 提案簡介（多版本、多語 PDF） | |
 | `ProposalFile` | — | `(proposal_id, locale, file_key, version)` | |
 
@@ -542,8 +544,8 @@ flowchart LR
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
-| `Collection` | **●** | 商品分類，含品牌敘事區塊 | 🌐 |
-| `Product` | **●** | 商品：分類、標籤、敘事、尺碼表、狀態（含缺貨自動判定）、排序、SEO。**無會員價欄位** | 🌐 |
+| `Collection` | **●** | 商品分類，含品牌敘事區塊。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 |
+| `Product` | **●** | 商品：分類、標籤、敘事、尺碼表、狀態（含缺貨自動判定）、排序、SEO。**無會員價欄位**。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 |
 | `ProductImage` | — | 圖集 `(product_id, sort_order, image_key)` | |
 | `ProductVariant` | **●** | **SKU**：尺寸／顏色、貨號（**維持全站唯一**——揀貨與庫存識別鍵）、售價、促銷價、**成本（受限）**、庫存量、預留量 | 🔒 |
 | `InventoryMovement` | **●** | 庫存異動：類型、數量、原因、**經辦人**、時間、關聯訂單 | |
@@ -568,7 +570,7 @@ flowchart LR
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
 | `Charity` | **○** | 受贈公益團體：名稱、簡介、Logo、官網 | 🌐 |
-| `CharityProgram` | **○** | **已執行的公益計畫**（11.2）：**`cover_key` 封面**、對象、期間、狀態、流程 | 🌐 |
+| `CharityProgram` | **○** | **已執行的公益計畫**（11.2）：**`cover_key` 封面**、對象、期間、狀態、流程。`status` **收斂為 `draft`／`published`**（S1-8）。⚠️ **本表在主站庫**（本檔），慈善獨立庫的 `CharityProgramRef` 是唯讀快照，不受影響 | 🌐 |
 | `CharityProgramImage` | — | **圖集**（§3.11 的「活動圖片藝廊」）`(charity_program_id, image_key, sort_order)` | |
 | `ImpactRecord` | **○** | 慈善事蹟紀錄。**三項核心資料必填**：公益團體名稱、捐助內容、活動圖片 | 🌐 |
 | `ImpactMetric` | **○** | 影響力統計項目（**金額類預設不公開**） | 🌐 |
@@ -617,6 +619,9 @@ flowchart LR
 29. ⛔ **有五類資料不得讀快取**：庫存與商品可購買狀態、金流回呼的冪等檢查、會員卡 `/m/<token>` 驗證、會籍與訂單付款狀態、購物車。會員卡那條是**安全問題**——讀到陳舊值等於 token 撤銷機制失效。清單與規格依據在 [`17-deployment.md`](17-deployment.md) §4。
 30. 🔴 **`CalendarEvent` 不要試 indexed view**——SQL Server 明文禁止 indexed view 含 `UNION`／`UNION ALL`，而本表的定義就是 UNION。見 [§1.4](#14-dbms-相依的五件事已定案) 第 3 件。
 31. **`Match.original_match_on`／`original_kickoff`（v3.13）刻意沿用 `match_on`／`kickoff` 的兩欄配對寫法，不合併成單一 `datetime`**：這兩欄跟現行欄位一樣是「當地牆上時間」的展示值，不是可換算時區的時間戳（見 §1 型別詞彙表對 `datetime` 的定義——那是要求存 UTC 的時間戳，語意不同）；用 `datetime` 會讓同一張表同時存在兩種時間語意，前端也得寫兩套格式化邏輯。**兩欄皆可為空、不加 CHECK**——只有 `status = 'postponed'` 時才有意義，但 `matches.status` 本身沒有 CHECK 約束（值域四值／五值兩節行文還沒對齊，見 [`12d`](12d-field-audit.md) §6），在沒有 CHECK 的欄位上另立「當 status = 'postponed' 時 original_match_on 不得為空」的 CHECK 會等於幫一個未定案的字面值背書，是否必填交給後台 C4 表單驗證。
+32. 🔴 **`Player`／`Staff.portrait_consent_status` 預設值必須是 `'not_consented'`（fail-closed）**（S1-8，藍鯨規劃書行 193／314、主站規劃書行 1356／1686）：同意未到位的球員與教練，公開讀取 API **不得回傳 `photo_key`**，前台以預設圖或純文字卡呈現，**不得放假圖**。三態（`not_consented`／`consented`／`consented_by_guardian`）不是布林值，因為未成年由監護人代為同意時後台需要能分辨是哪一種同意書；規劃書未提及同意日期或到期，**沒寫就不加**。這是 `GEO-02`（AI 爬蟲排除未成年學員與球員照片路徑，行 1674）能落地執行的資料前提——沒有這個欄位，「排除未同意的素材」無從查詢起。
+33. **7 張表的 `status` 已收斂為 `draft`／`published`，拿掉 `scheduled`**（S1-8，`press_resources`／`faqs`／`competitions`／`sponsor_packages`／`collections`／`products`／`charity_programs`）：`docs/14`（S0-7g，2026-09-24）已裁決規劃書只在 `B1` 頁面（行 1014）與 `B2` 新聞（行 1019）給了排程發布，其餘型別後台不提供排程選項。CHECK 曾允許寫入 `'scheduled'` 但沒有 `published_at` 欄位記錄排定時間，會製造「看起來支援排程、實際做不到」的假象，故收斂 CHECK 與後台能力對齊。**`Page`／`Article` 不受影響，維持三態**（它們有 `published_at` 且已接上 `ScheduledPublishRunner`）。⚠️ **`charity_programs` 是主站主檔**（B6，慈善獨立庫的 `CharityProgramRef` 是唯讀快照，本來就沒有 `status` 欄位，不受影響）。
+34. **FAQ 的 G-12 嵌入是「分類自動對應」＋「逐題額外指定」兩層疊加，不是互斥的兩選一**（S1-8，行 1029）：`FaqEmbedSlot` 只是站內已知掛載點的字典（`academy_admission`／`program_detail`／`trials`／`sponsorship`），**刻意不建「掛載點對應哪個分類」的對照表**——那是應用層的固定路由決定（例如 4.7 頁面固定拉「學院招生」分類），規劃書沒有要求這層可由後台配置，建表反而過度設計。`FaqEmbedSlotLink` 只承載「這一題額外也要出現在某個掛載點」的例外情形。**`faq_categories.is_enabled` 是軟停用**，取代先前「用刪除湊停用」的作法（刪除會經 `ON DELETE CASCADE` 解除分類關聯且不可逆）。
 
 ---
 
@@ -726,7 +731,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | 30 | `Enquiry` | **●** | `Enquiry` `EnquiryAnswer` `Form` `FormField` | 涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢 |
 | 31 | `Venue` | — | `Venue` | 🔴 **刻意不加**——場地是地理實體，兩隊共用同一座球場 |
 | 32 | `PressResource` | **○** | `PressResource` | 7.8 媒體專區 |
-| 33 | `Faq` | **○** | `Faq` `FaqCategory` `FaqCategoryLink` `FaqSearchMiss` | 一題多分類；分類**刻意不帶 `club_id`** |
+| 33 | `Faq` | **○** | `Faq` `FaqCategory` `FaqCategoryLink` `FaqSearchMiss` `FaqEmbedSlot` `FaqEmbedSlotLink` | 一題多分類；分類**刻意不帶 `club_id`**；G-12 嵌入設定見 [§12 第 34 點](#12-踩雷點) |
 | 34 | `CharityProgram` | **○** | `CharityProgram` | **主檔留主站**，慈善庫只有唯讀快照 |
 | 35 | `ImpactRecord` | **○** | `ImpactRecord` | 同上 |
 | 36 | `Charity` | **○** | `Charity` | 同上 |
@@ -768,6 +773,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | `PageBlock` `PageVersion` | B1（行 838–842） | 12 種區塊、版本還原點、預覽 token |
 | `Banner` `HomeSection` | B3 | Hero 輪播與首頁區塊開關 |
 | `FaqCategoryLink` `FaqSearchMiss` | B4 | 一題多分類、零結果關鍵字排行 |
+| `FaqEmbedSlot` `FaqEmbedSlotLink` | B4（行 1029） | G-12 快捷區塊的掛載點字典與逐題額外指定（S1-8） |
 | `Redirect` | H（行 1002–1004） | 301 批次匯入 |
 | `PlayerSeasonStat` `MatchTeam` `MatchGoal` `MatchCard` `MatchLineup` | C2／C4（行 889–904） | 逐季數據、進球、卡、名單 |
 | `StaffTeam` `ProgramStaff` `ProgramPartner` `SponsorPackageLink` | C3／P1／E2 | 多對多 |
