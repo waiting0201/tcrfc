@@ -5,6 +5,7 @@ using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
 using Tcrfc.Api.Features.AdminNews;
+using Tcrfc.Api.Features.AdminPages;
 using Tcrfc.Api.Features.AdminRoles;
 using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
@@ -47,6 +48,18 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status409Conflict, "狀態轉換不允許", invalidTransition.Message),
             ArticleFeaturedLimitExceededException featuredLimit =>
                 (StatusCodes.Status409Conflict, "置頂精選已達上限", featuredLimit.Message),
+
+            // ── 本輪新增（S1-4：B1 頁面管理，Features/AdminPages）───────────────────────
+            AdminPageValidationException pageValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", pageValidation.Message),
+            PageSlugConflictException pageSlugConflict =>
+                (StatusCodes.Status409Conflict, "網址名稱重複", pageSlugConflict.Message),
+            PageConcurrencyConflictException pageConcurrencyConflict =>
+                (StatusCodes.Status409Conflict, "資料已被變更", pageConcurrencyConflict.Message),
+            PageInvalidStatusTransitionException pageInvalidTransition =>
+                (StatusCodes.Status409Conflict, "狀態轉換不允許", pageInvalidTransition.Message),
+            PageVersionNotFoundException pageVersionNotFound =>
+                (StatusCodes.Status404NotFound, "找不到版本", pageVersionNotFound.Message),
 
             // ── S0-8 圖片上傳共用元件（Features/Uploads、Images）─────────────────────────
             ImageProcessingException imageProcessing =>

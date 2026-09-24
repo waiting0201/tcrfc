@@ -18,21 +18,14 @@ namespace Tcrfc.Api.Features.News;
 /// 依 docs/17 既有結論拍板」——docs/17 早已把「排程發布用 hosted service」定案，只是先前的新聞
 /// 垂直切片（S0-8）還沒有真的接上，這裡把它接上。
 ///
-/// 🔴 目前只掃 <c>articles</c> 一張表。<c>db/club-schema.sql</c> 另外還有 8 張表帶
-/// <c>CHECK (status IN ('draft','published','scheduled'))</c>：
-/// <list type="bullet">
-/// <item><c>pages</c>——**有** <c>published_at</c> 欄位，但 <c>apps/api/Features</c> 還沒有任何
-/// Pages 的公開讀取或後台寫入端點，沒有讀取路徑就不會有這個 bug 的實際後果。等 Pages 端點開發時
-/// 把它加進下面的 SQL（改成 <c>UNION ALL</c> 或另開一個 <c>PublishDuePagesAsync</c>），欄位已經
-/// 備妥，不需要新的 migration。</item>
-/// <item><c>press_resources</c>／<c>faqs</c>／<c>competitions</c>／<c>sponsor_packages</c>／
-/// <c>collections</c>／<c>products</c>／<c>charity_programs</c>——**連 <c>published_at</c> 欄位
-/// 都沒有**（已逐張 grep <c>db/club-schema.sql</c> 核對過）。CHECK 約束允許寫入 <c>'scheduled'</c>，
-/// 但資料庫裡沒有任何欄位記錄「排定何時發布」，這是既有的欄位缺漏，不是本輪任務範圍能修的——
-/// 改資料表結構要先走 `docs/12` 的同步鏈（CLAUDE.md 第 2、3 條）再走 EF migration，本輪任務指示
-/// 明講「需要改資料表結構就停下來回報，不要自己加 migration」。回報見 STATUS.md S0-7g 與
-/// <c>docs/12d-field-audit.md</c>。</item>
-/// </list>
+/// 🔴 目前掃 <c>articles</c> 與 <c>pages</c> 兩張表（S1-4，B1 頁面管理接線）。<c>db/club-schema.sql</c>
+/// 另外還有 7 張表帶 <c>CHECK (status IN ('draft','published','scheduled'))</c> 但**連
+/// <c>published_at</c> 欄位都沒有**（已逐張 grep <c>db/club-schema.sql</c> 核對過）：
+/// <c>press_resources</c>／<c>faqs</c>／<c>competitions</c>／<c>sponsor_packages</c>／
+/// <c>collections</c>／<c>products</c>／<c>charity_programs</c>。CHECK 約束允許寫入
+/// <c>'scheduled'</c>，但資料庫裡沒有任何欄位記錄「排定何時發布」，這是既有的欄位缺漏，不是本輪
+/// 任務範圍能修的——改資料表結構要先走 `docs/12` 的同步鏈（CLAUDE.md 第 2、3 條）再走 EF
+/// migration。回報見 STATUS.md S0-7g 與 <c>docs/12d-field-audit.md</c>。
 /// </summary>
 public sealed class ScheduledPublishRunner(
     IClubSqlConnectionFactory connectionFactory,
@@ -47,6 +40,12 @@ public sealed class ScheduledPublishRunner(
     // 本輪放大的風險）；三處字面值目前一致，已用 grep 核對過。
     private const string ArticlesListEntity = "articles";
     private const string ArticleDetailEntity = "article-detail";
+
+    // S1-4 新增：與 Features/AdminPages/AdminPagesRepository.PublicDetailEntity、
+    // Features/Pages/PagesRepository 的 DetailEntity 三處字面值必須完全一致。頁面沒有公開
+    // 「列表」快取（每個頁面各自用網址名稱查詢，沒有像新聞列表那種依分類/分頁的聚合端點），
+    // 所以這裡只有一個 entity 字串，不是漏寫。
+    private const string PageDetailEntity = "page-detail";
 
     /// <summary>
     /// 把「排定時間已到」的文章從 <c>scheduled</c> 轉成 <c>published</c>，並讓公開讀取的快取失效。
@@ -98,6 +97,49 @@ public sealed class ScheduledPublishRunner(
         {
             await cache.InvalidateAsync(ArticlesListEntity, code, cancellationToken);
             await cache.InvalidateAsync(ArticleDetailEntity, code, cancellationToken);
+        }
+
+        return affected.Count;
+    }
+
+    /// <summary>
+    /// S1-4 新增：把「排定時間已到」的頁面從 <c>scheduled</c> 轉成 <c>published</c>。邏輯與
+    /// <see cref="PublishDueArticlesAsync"/> 逐字對應（同一個冪等 UPDATE 寫法、同一個
+    /// 「不覆寫 published_at」理由），差異只在 <c>pages.club_id</c> 必填，OUTPUT 出來的值不會是
+    /// NULL，但這裡仍沿用「對所有啟用俱樂部一併失效」的寫法——保持跟
+    /// <see cref="PublishDueArticlesAsync"/> 同一種形狀，俱樂部只有 2 個，額外失效的成本可忽略，
+    /// 換來的是兩個方法讀起來像同一套機制的兩個實例，不是需要分別理解的兩套邏輯。
+    /// </summary>
+    public async Task<int> PublishDuePagesAsync(CancellationToken cancellationToken)
+    {
+        using var connection = connectionFactory.CreateConnection();
+
+        const string sql = """
+            UPDATE pages
+            SET status = 'published',
+                updated_at = SYSUTCDATETIME()
+            OUTPUT inserted.club_id
+            WHERE status = 'scheduled' AND published_at <= SYSUTCDATETIME();
+            """;
+
+        var affected = (await connection.QueryAsync<Guid>(
+            new CommandDefinition(sql, cancellationToken: cancellationToken))).AsList();
+
+        if (affected.Count == 0)
+        {
+            return 0;
+        }
+
+        logger.LogInformation(
+            "排程發布：{Count} 個頁面的排定時間已到，狀態已由 scheduled 轉為 published。", affected.Count);
+
+        const string clubCodesSql = "SELECT code FROM clubs WHERE status = 'active'";
+        var clubCodes = (await connection.QueryAsync<string>(
+            new CommandDefinition(clubCodesSql, cancellationToken: cancellationToken))).AsList();
+
+        foreach (var code in clubCodes)
+        {
+            await cache.InvalidateAsync(PageDetailEntity, code, cancellationToken);
         }
 
         return affected.Count;

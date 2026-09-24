@@ -24,6 +24,25 @@
 # 用法：
 #   python3 db/seed/generate-club-seed-sql.py > db/seed/.generated/club-seed.local.sql
 #   （或直接執行 db/seed/apply-seed.sh，會自動呼叫本腳本）
+#
+# 🔴 --reset-admin-accounts（2026-09-24 新增，回應前端 agent 端對端驗收後種子帳號狀態
+# 漂移的問題）：
+#   python3 db/seed/generate-club-seed-sql.py --reset-admin-accounts > db/seed/.generated/reset-admin-accounts.local.sql
+#   （或直接執行 db/seed/reset-admin-accounts.sh，會自動呼叫本腳本並套用到 tcrfc_club_dev）
+#
+#   一般模式的「IF NOT EXISTS 才 INSERT」對「密碼、2FA 狀態、鎖定計數」這類**本來就會被
+#   正常使用改掉**的欄位沒有用——帳號列本來就已經存在，正常種子邏輯永遠不會回頭 UPDATE
+#   它。端對端驗收會真的登入、變更密碼、設定或停用 2FA、甚至觸發鎖定計數，這些狀態一旦偏離
+#   種子腳本原本設定的值，後續測試/驗收拿種子帳號登入的假設就會不成立（本次任務就是這樣發現
+#   `sa@system.local` 的密碼與 TOTP 狀態已經不是種子初始值）。
+#   `--reset-admin-accounts` 改印出一組只含 UPDATE（不含 INSERT）的陳述式，把下方
+#   `ADMIN_USERS` 清單裡每一個帳號的 `password_hash`／`must_change_password`／
+#   `is_super_admin`／`two_factor_enabled`／`two_factor_secret_encrypted`／
+#   `two_factor_confirmed_at`／`failed_attempt_count`／`locked_until`／`status` 全部改回
+#   種子腳本定義的初始值——**刻意重用同一份 `ADMIN_USERS` 清單，不另外複製一份密碼雜湊**
+#   （CLAUDE.md 第 7 條精神：同一份事實不分散在兩個檔案）。角色指派與俱樂部授權
+#   （`admin_user_roles`／`admin_user_clubs`）不受影響，這兩張表本來就是「新增才會種」，
+#   端對端驗收不會讓它們偏離種子值。
 
 import json
 import re
@@ -771,9 +790,14 @@ END
 #     第十個角色 partner_club_manager（合作球隊管理，scope_mode=own_clubs）兩份文件寫法一致，
 #     沿用不變。
 #
-#     權限碼本次只鋪兩類：J 系統管理本身（J1–J4，sysadmin_only）與 B2 新聞（content.article.*，
-#     這是本次唯一接上真實授權的既有模組）。其餘模組的權限碼留給日後對應模組接真實授權時再補，
+#     權限碼本次只鋪三類：J 系統管理本身（J1–J4，sysadmin_only）、B2 新聞（content.article.*）
+#     與（S1-4 新增）B1 頁面（content.page.*）。其餘模組的權限碼留給日後對應模組接真實授權時再補，
 #     這是刻意的範圍縮減不是遺漏，見 apps/api/README.md「本輪沒做的部分」。
+#
+#     S1-4（B1 頁面管理）新增 content.page.*，逐字比照 content.article.* 的鋪法（module_code=B、
+#     submodule_code=B1、domain=content），角色指派依規劃書 §6 矩陣「內容」欄——那一欄同時涵蓋
+#     B1 頁面與 B2 新聞（矩陣沒有分別列 B1／B2 兩欄），故 content.page.* 的 ROLE_PERMISSIONS
+#     指派與 content.article.* 逐列一致。
 # ============================================================================
 
 ROLES = [
@@ -811,6 +835,12 @@ PERMISSIONS = [
     ("content.article.update", "B", "B2", "content", "update", 1, 0, 0, "編輯新聞與故事", "Edit News & Stories"),
     ("content.article.publish", "B", "B2", "content", "publish", 1, 0, 0, "發布新聞與故事", "Publish News & Stories"),
     ("content.article.delete", "B", "B2", "content", "delete", 1, 0, 0, "刪除新聞與故事", "Delete News & Stories"),
+    # S1-4（B1 頁面管理，2026-09-24）：逐字比照 content.article.* 的鋪法。
+    ("content.page.view", "B", "B1", "content", "view", 1, 0, 0, "檢視頁面", "View Pages"),
+    ("content.page.create", "B", "B1", "content", "create", 1, 0, 0, "建立頁面", "Create Pages"),
+    ("content.page.update", "B", "B1", "content", "update", 1, 0, 0, "編輯頁面", "Edit Pages"),
+    ("content.page.publish", "B", "B1", "content", "publish", 1, 0, 0, "發布頁面", "Publish Pages"),
+    ("content.page.delete", "B", "B1", "content", "delete", 1, 0, 0, "刪除頁面", "Delete Pages"),
     ("system.account.view", "J", "J1", "system", "view", 0, 0, 1, "檢視後台帳號", "View Admin Accounts"),
     ("system.account.create", "J", "J1", "system", "create", 0, 0, 1, "新增後台帳號", "Create Admin Accounts"),
     ("system.account.update", "J", "J1", "system", "update", 0, 0, 1, "停用／更新後台帳號", "Update Admin Accounts"),
@@ -862,10 +892,21 @@ END
 # 系統管理員那一列用 [p[0] for p in PERMISSIONS] 自動涵蓋，不需要另外列出。
 ROLE_PERMISSIONS = [
     ("system_admin", [p[0] for p in PERMISSIONS], "all"),
-    ("content_editor", ["content.article.view", "content.article.create", "content.article.update", "content.article.publish", "content.article.delete", "team.competition.view"], "all"),
+    ("content_editor", [
+        "content.article.view", "content.article.create", "content.article.update", "content.article.publish", "content.article.delete",
+        # S1-4：content.page.* 逐字比照 content.article.* 的指派——規劃書 §6 矩陣「內容編輯｜內容」
+        # 欄是「✔ 編輯／發布」，同一格同時管 B1 頁面與 B2 新聞（矩陣沒有分欄），刪除跟新聞一樣採
+        # 「編輯自己編輯的內容屬於編輯權限的常態操作」這條既有的工程判斷（見上方 role_permissions
+        # 註解），不是另外重新判斷一次。
+        "content.page.view", "content.page.create", "content.page.update", "content.page.publish", "content.page.delete",
+        "team.competition.view",
+    ], "all"),
     ("team_competition", ["team.competition.view", "team.competition.create", "team.competition.update"], "all"),
-    ("viewer", ["content.article.view", "team.competition.view"], "all"),
-    ("partner_club_manager", ["content.article.view", "content.article.create", "content.article.update"], "own_clubs"),
+    ("viewer", ["content.article.view", "content.page.view", "team.competition.view"], "all"),
+    ("partner_club_manager", [
+        "content.article.view", "content.article.create", "content.article.update",
+        "content.page.view", "content.page.create", "content.page.update",
+    ], "own_clubs"),
     ("partner_club_manager", ["team.competition.view", "team.competition.create", "team.competition.update"], "own_clubs"),
 ]
 
@@ -957,6 +998,29 @@ IF NOT EXISTS (SELECT 1 FROM admin_user_roles WHERE admin_user_id = {admin_sq(us
 IF NOT EXISTS (SELECT 1 FROM admin_user_clubs WHERE admin_user_id = {admin_sq(username)} AND club_id = {club_ref})
   INSERT INTO admin_user_clubs (admin_user_id, club_id, granted_on, expires_on, is_active)
   VALUES ({admin_sq(username)}, {club_ref}, CAST(SYSUTCDATETIME() AS date), {expires_sql}, 1);
+""")
+
+if "--reset-admin-accounts" in sys.argv:
+    # 🔴 丟掉上面（一般模式）已經累積的全部輸出，只印重設用的 UPDATE 陳述式——
+    # ADMIN_USERS 此時已經跑過一輪迴圈填好，重用同一份資料，不重新定義。見檔頭說明。
+    out.clear()
+    emit("-- db/seed/generate-club-seed-sql.py --reset-admin-accounts")
+    emit("-- 還原種子測試帳號的密碼／2FA 狀態／鎖定計數回到種子腳本定義的初始值。")
+    emit("-- 只 UPDATE 已存在的列，不 INSERT；角色指派與俱樂部授權不受影響（見檔頭說明）。")
+    emit()
+    for username, display_name, password_hash, is_super, must_change, two_factor, role_code, club_grants in ADMIN_USERS:
+        block(f"""
+UPDATE admin_users
+SET password_hash = {esc(password_hash)},
+    must_change_password = {esc(must_change)},
+    is_super_admin = {esc(is_super)},
+    two_factor_enabled = {esc(two_factor)},
+    two_factor_secret_encrypted = NULL,
+    two_factor_confirmed_at = NULL,
+    failed_attempt_count = 0,
+    locked_until = NULL,
+    status = N'active'
+WHERE username = {esc(username)};
 """)
 
 print("\n".join(out))

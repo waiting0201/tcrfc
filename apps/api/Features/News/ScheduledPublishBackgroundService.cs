@@ -4,11 +4,11 @@ using Microsoft.Extensions.Logging;
 namespace Tcrfc.Api.Features.News;
 
 /// <summary>
-/// 定時呼叫 <see cref="ScheduledPublishRunner.PublishDueArticlesAsync"/> 的殼——本身不含任何
-/// SQL 或快取邏輯，那些都在 <see cref="ScheduledPublishRunner"/>（分開是為了讓測試能不等計時器、
-/// 直接呼叫 runner）。
+/// 定時呼叫 <see cref="ScheduledPublishRunner.PublishDueArticlesAsync"/> 與（S1-4 新增）
+/// <see cref="ScheduledPublishRunner.PublishDuePagesAsync"/> 的殼——本身不含任何 SQL 或快取邏輯，
+/// 那些都在 <see cref="ScheduledPublishRunner"/>（分開是為了讓測試能不等計時器、直接呼叫 runner）。
 ///
-/// 啟動後**立刻執行一次**再進入計時迴圈，理由：容器重建／服務重啟期間任何原本該發布的文章都會
+/// 啟動後**立刻執行一次**再進入計時迴圈，理由：容器重建／服務重啟期間任何原本該發布的內容都會
 /// 被延後到服務恢復後的第一輪執行，立刻跑一次能把這段空窗盡量縮短，而不是先乾等一個完整輪詢
 /// 間隔。
 /// </summary>
@@ -43,7 +43,12 @@ public sealed class ScheduledPublishBackgroundService(
         {
             try
             {
+                // S1-4：兩張表各自獨立 try（外層已經有 catch-all，這裡沒有另外拆分是因為
+                // PublishDueArticlesAsync／PublishDuePagesAsync 本身已經是各自獨立的 UPDATE 陳述式，
+                // 一個失敗不會影響另一個的資料庫狀態，只是這一輪的例外訊息會混在一起——可接受，
+                // 兩者都會在下一輪重試（fail-open，同下方註解）。
                 await runner.PublishDueArticlesAsync(stoppingToken);
+                await runner.PublishDuePagesAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {

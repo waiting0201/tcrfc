@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.AdminAuth;
@@ -235,6 +236,89 @@ public sealed class AdminAuthService(
         user.TwoFactorConfirmedAt = null;
         await db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    /// <summary>
+    /// 前端 agent 回報缺口①：站台切換器需要知道「登入的這個人可以切到哪些俱樂部」，目前沒有任何
+    /// 端點回傳這個資訊——登入回應（<see cref="LoginResponse"/>）只有 <c>Username</c>／
+    /// <c>IsSuperAdmin</c> 兩個身分欄位，前端拿不到俱樂部授權清單。
+    ///
+    /// ⚠️ 這裡重新呼叫一次 <see cref="AdminAccountGate.RequireActiveAccountAsync"/>（跟
+    /// <see cref="AdminClubAuthorizer"/>／<see cref="AdminSystemAuthorizer"/> 同一個檢查）而不是
+    /// 只信任呼叫端已經驗證過的 JWT claims——理由跟那兩個授權器一樣：帳號可能在權杖簽發後被停用，
+    /// 「這支端點回應的是不是最新的帳號狀態」比「省一次查詢」重要。
+    /// </summary>
+    public async Task<MeResponse> GetMeAsync(HttpContext httpContext, CancellationToken cancellationToken)
+    {
+        var identity = await AdminAccountGate.RequireActiveAccountAsync(db, httpContext, cancellationToken);
+
+        var user = await db.AdminUsers.AsNoTracking()
+            .Include(u => u.AdminRoles)
+            .FirstOrDefaultAsync(u => u.Id == identity.AdminUserId, cancellationToken)
+            ?? throw new AdminForbiddenException("帳號已停用或不存在，請聯繫系統管理員。");
+
+        string? primaryClubCode = null;
+        if (user.PrimaryClubId is Guid primaryClubId)
+        {
+            primaryClubCode = await db.Clubs.AsNoTracking()
+                .Where(c => c.Id == primaryClubId)
+                .Select(c => c.Code)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        List<MeClubGrantDto> clubGrants;
+        if (identity.IsSuperAdmin)
+        {
+            // 規劃書 §6「系統管理員（is_super_admin）跳過整個資料範圍查詢」——站台切換器對系統
+            // 管理員應該顯示全部啟用中的俱樂部，不是查 AdminUserClub（系統管理員通常根本沒有
+            // 任何一筆授權紀錄，種子資料的 sa@system.local／super.admin@tcrfc.test 皆是如此）。
+            clubGrants = await db.Clubs.AsNoTracking()
+                .Where(c => c.Status == "active")
+                .OrderBy(c => c.SortOrder)
+                .Select(c => new MeClubGrantDto
+                {
+                    ClubCode = c.Code,
+                    ClubNameZh = c.ClubsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
+                    ClubNameEn = c.ClubsI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
+                    IsPrimary = c.Id == user.PrimaryClubId,
+                    ExpiresOn = null,
+                })
+                .ToListAsync(cancellationToken);
+        }
+        else
+        {
+            // 有效範圍＝ AdminUserClub 中 is_active 且 expires_on 未到期的 club_id 集合
+            // （規劃書 §6「資料範圍規則」，與 AdminClubAuthorizer 第③步同一條規則）。
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            clubGrants = await db.AdminUserClubs.AsNoTracking()
+                .Where(g => g.AdminUserId == user.Id && g.IsActive && (g.ExpiresOn == null || g.ExpiresOn >= today))
+                .OrderBy(g => g.Club.SortOrder)
+                .Select(g => new MeClubGrantDto
+                {
+                    ClubCode = g.Club.Code,
+                    ClubNameZh = g.Club.ClubsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
+                    ClubNameEn = g.Club.ClubsI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
+                    IsPrimary = g.ClubId == user.PrimaryClubId,
+                    ExpiresOn = g.ExpiresOn,
+                })
+                .ToListAsync(cancellationToken);
+        }
+
+        var roles = user.AdminRoles
+            .Select(r => new MeRoleDto { Code = r.Code, NameZh = r.NameZh, NameEn = r.NameEn })
+            .OrderBy(r => r.Code, StringComparer.Ordinal)
+            .ToList();
+
+        return new MeResponse
+        {
+            AdminUserId = user.Id,
+            Username = user.Username,
+            DisplayName = user.DisplayName,
+            IsSuperAdmin = identity.IsSuperAdmin,
+            PrimaryClubCode = primaryClubCode,
+            ClubGrants = clubGrants,
+            Roles = roles,
+        };
     }
 
     private async Task RegisterFailedAttemptAsync(AdminUser user, CancellationToken cancellationToken)

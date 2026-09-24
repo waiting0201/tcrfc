@@ -12,9 +12,12 @@ using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
 using Tcrfc.Api.Features.AdminNews;
+using Tcrfc.Api.Features.AdminPages;
 using Tcrfc.Api.Features.AdminRoles;
+using Tcrfc.Api.Features.AdminTeams;
 using Tcrfc.Api.Features.Clubs;
 using Tcrfc.Api.Features.News;
+using Tcrfc.Api.Features.Pages;
 using Tcrfc.Api.Features.Players;
 using Tcrfc.Api.Features.Schedule;
 using Tcrfc.Api.Features.Staff;
@@ -120,6 +123,7 @@ builder.Services.AddScoped<AdminAccountsRepository>();
 builder.Services.AddScoped<AdminRolesRepository>();
 builder.Services.AddScoped<AdminClubsRepository>();
 builder.Services.AddScoped<AdminCompetitionsRepository>();
+builder.Services.AddScoped<AdminTeamsRepository>();
 
 // Data Protection：加密 admin_users.two_factor_secret_encrypted（Security/TwoFactorSecretProtector.cs）。
 // 🔴 正式環境務必設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
@@ -187,6 +191,7 @@ builder.Services.AddScoped<PlayersRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Staff.StaffRepository>();
 builder.Services.AddScoped<ArticlesRepository>();
 builder.Services.AddScoped<MatchesRepository>();
+builder.Services.AddScoped<PagesRepository>();
 
 // ── S0-7g：排程發布 hosted service（docs/17-deployment.md「排程」既有定案的落點）────────
 // ScheduledPublishRunner 註冊為 Singleton（依賴的 IClubSqlConnectionFactory／IQueryCache 本來就是
@@ -199,6 +204,11 @@ builder.Services.AddHostedService<ScheduledPublishBackgroundService>();
 // created_by／updated_by 一律來自真實登入者（AdminClubScope.Identity.AdminUserId），
 // 見 Features/AdminNews/AdminArticlesEndpoints.cs 檔頭說明。
 builder.Services.AddScoped<AdminArticlesRepository>();
+
+// ── S1-4：後台頁面管理（B1）寫入 ──────────────────────────────────────────
+// 見 Features/AdminPages/AdminPagesRepository.cs 檔頭說明——寫入走 EF Core、公開讀取走 Dapper
+// 的 PagesRepository（上面已註冊），跟新聞模組同一種切分方式。
+builder.Services.AddScoped<AdminPagesRepository>();
 
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 const string CorsPolicyName = "ClubFrontends";
@@ -266,6 +276,7 @@ app.MapPlayersEndpoints();
 app.MapStaffEndpoints();
 app.MapArticlesEndpoints();
 app.MapMatchesEndpoints();
+app.MapPagesEndpoints();
 app.MapAdminAuthEndpoints();
 
 // 路由一律註冊，每個請求各自由 IAdminClubAuthorizer 驗證登入與授權（401／403）。
@@ -279,6 +290,10 @@ app.MapAdminAccountsEndpoints();
 app.MapAdminRolesEndpoints();
 app.MapAdminClubsEndpoints();
 app.MapAdminCompetitionsEndpoints();
+app.MapAdminTeamsEndpoints();
+
+// ── S1-4：B1 頁面管理 ────────────────────────────────────────────────────
+app.MapAdminPagesEndpoints();
 
 app.Run();
 

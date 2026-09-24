@@ -21,6 +21,13 @@ public partial class ClubDbContext
         modelBuilder.Entity<Article>()
             .Property(a => a.UpdatedAt)
             .IsConcurrencyToken();
+
+        // 🔴 S1-4（B1 頁面管理）：pages.updated_at 當並行權杖，同一個理由——這張表也沒有
+        // rowversion／timestamp 欄位。落點與 Features/AdminPages/AdminPagesRepository.cs 的
+        // ApplyConcurrencyToken／SaveWithConcurrencyHandlingAsync 對應。
+        modelBuilder.Entity<Page>()
+            .Property(p => p.UpdatedAt)
+            .IsConcurrencyToken();
     }
 
     // 🔴 S0-7k／S0-7l（2026-09-24，docs/18-work-errors.md E-45／docs/20-cicd.md §5）：

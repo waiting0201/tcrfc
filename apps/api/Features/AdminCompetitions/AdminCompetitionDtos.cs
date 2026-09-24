@@ -66,3 +66,13 @@ public sealed record UpdateAdminCompetitionRequest
     public required string Status { get; init; }
     public required AdminCompetitionContentInput Content { get; init; }
 }
+
+/// <summary>球季下拉選單用（前端 agent 回報缺口②）——`Season` 沒有側表，`Code`／期間即全部
+/// 顯示資訊，不需要另外的雙語欄位（規劃書沒有給球季名稱，只有代號與起訖日）。</summary>
+public sealed record AdminSeasonListItemDto
+{
+    public required Guid Id { get; init; }
+    public required string Code { get; init; }
+    public required DateOnly StartOn { get; init; }
+    public required DateOnly EndOn { get; init; }
+}

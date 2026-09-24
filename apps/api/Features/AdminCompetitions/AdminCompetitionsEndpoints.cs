@@ -20,6 +20,26 @@ public static class AdminCompetitionsEndpoints
             .WithTags("AdminCompetitions")
             .WithDescription("俱樂部範圍的賽事系列（Competition）維護，需要登入與俱樂部授權。");
 
+        // GET /api/v1/admin/{club}/seasons —— 前端 agent 回報缺口②：賽事系列表單的球季下拉選單。
+        // 🔴 路由段掛在 {club} 底下但不是 /competitions 的子路徑（球季是獨立型別，不是賽事系列的
+        // 子資源）；權限碼比照同模組既有的 team.competition.view，不另外新增權限碼——球季本身
+        // 目前只有這一個唯讀查詢用途，還沒有獨立的維護畫面，等真的要維護球季本身時再評估要不要
+        // 拆一組專屬權限碼。
+        app.MapGet("/api/v1/admin/{club}/seasons", async (
+            string club, HttpContext httpContext,
+            IAdminClubAuthorizer authorizer, AdminCompetitionsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
+            var seasons = await repository.ListSeasonsAsync(scope, cancellationToken);
+            return Results.Ok(seasons);
+        })
+        .WithTags("AdminCompetitions")
+        .WithName("AdminListSeasons")
+        .Produces<IReadOnlyList<AdminSeasonListItemDto>>()
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
         group.MapGet("", async (
             string club, Guid? seasonId, string? status, HttpContext httpContext,
             IAdminClubAuthorizer authorizer, AdminCompetitionsRepository repository, CancellationToken cancellationToken) =>

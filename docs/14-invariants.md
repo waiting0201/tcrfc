@@ -55,6 +55,15 @@
   ⚠️ **前台不得直接引用主檔**，一律依版位挑尺寸（`srcset`）、必帶寬高、首屏外延遲載入。
   ⚠️ **`MediaAsset`／`MediaFolder`／`MediaUsage` 不存在**，看到 `media_asset_id` 外鍵一律是錯的（已知 10 處：`Article` 封面、`Banner`、`Partner`／`Sponsor` 雙色標誌、`ProposalFile`、`ProductImage`、`ComicPage`、`Charity` 標誌）。**一張圖只屬於一筆資料列**，同一張要出現兩處就上傳兩次。
   7.8 媒體專區改由 **`PressResource`** 承載，後台模組是 **`B6 媒體資源`**；`B` 模組為 **B1 頁面／B2 新聞／B3 Banner／B4 FAQ／B5 慈善／B6 媒體資源**。
+- 🔴 **B1 頁面的區塊內容（`page_blocks.content`）雙語靠 JSON 內的巢狀物件，不是側表**（S1-4，2026-09-24）：
+  `db/club-schema.sql` 已明確拒絕 `page_blocks_i18n`（「主表已放的欄位優先」），所以每一個使用者看得到的
+  自由文字欄位本身要是 `{"zh": "非空白字串", "en": null|"字串"}` 這種巢狀物件（CLAUDE.md 全域規定 4，
+  英文可空但鍵一定存在），不是像 `articles_i18n` 那樣整列各自一個語系。**網址、識別碼、日期、數值**這類
+  非語言內容維持單一純值，不套用這個規則。**圖片替代文字例外**：沿用既有後台圖片上傳通則的扁平
+  `altZh`／`altEn` 兩個鍵，不是巢狀物件——兩種雙語形狀刻意並存，見
+  `apps/api/Features/AdminPages/PageBlockContentProcessor.cs` 檔頭。**日後任何「只存不查」JSON 欄位
+  需要雙語時，先確認資料庫是否已經拒絕建側表**（`docs/12` §1 第 3 條「主表已放的欄位優先」），
+  拒絕了就走這個巢狀物件慣例，不要另外發明第三種雙語形狀。
 - **隊別代號**：`D1`（磐石一線隊）／**`BW1`（藍鯨一線隊）**／`U15`／`U14`／`U12`。
   代號**維持全站唯一**（它是行事曆訂閱網址與 `/zh/schedule/d1/` 的識別鍵，**不得改成「俱樂部 × 代號」複合鍵**）。對外顯示磐石寫 `First Team / 一線隊`、藍鯨寫 `Blue Whale First Team / 藍鯨一線隊`。
   **`Team.type` 的 `women` 值已於 v3.0 廢除**，改用獨立的 `Team.gender`（`men`／`women`／`mixed`）——性別是球隊屬性不是隊型。`type = first_team` 由「全站僅一筆」改為「**每個俱樂部至多一筆**」。
@@ -251,7 +260,8 @@
   - **（v3.0）`club_id` 不是每張表都加**：判定準則見主站規劃書 **§5.4**——後台有獨立清單／前台有獨立路由／承載個資或金流三選一；**能經父表推導的一律不加**。**加了就要同時決定唯一鍵、後台預設過濾、前台路由三件事。**
   - **（v3.0）共同內容（`club_id` 為空）對受範圍限制的帳號一律唯讀**，只有超管能建立與修改。否則「查得到共同內容」與「不能改到別人的內容」無法同時成立。
   - 🔴 **（S0-7g，2026-09-24）「排程發布」需要 `published_at` 欄位，`scheduled` 這個狀態值本身不等於「有排程機制」**：`db/club-schema.sql` 有 9 張表帶 `CHECK (status IN ('draft','published','scheduled'))`，但只有 `pages`／`articles` 真的有 `published_at` 欄位；`press_resources`／`faqs`／`competitions`／`sponsor_packages`／`collections`／`products`／`charity_programs` **CHECK 約束允許寫入 `'scheduled'`，資料庫裡卻沒有任何欄位記錄「排定何時發布」**——這 7 張表在後台寫入層開發出來之前，看起來像「支援排程」，實際上不可能真的排程。**開發這 7 張表的後台寫入模組前，先確認是否要補 `published_at`，要補就先走 `docs/12` 同步鏈再走 migration，不要假設欄位已經存在。** ✅ **已裁決（2026-09-24，依規劃書）**：規劃書只在 `B1` 頁面（第 1014 行）與 `B2` 新聞（第 1019 行）給了排程發布，**其餘 7 張表不補 `published_at`**。那幾個模組的後台**不得提供「排程」選項**；`scheduled` 出現在 CHECK 裡，是因為共用同一組狀態詞彙，不代表那些型別有排程功能。
-  - 🔴 **（S0-7g）「時間到了」不是寫入事件，需要主動的 hosted service 才會真的轉狀態**——`status='scheduled'` 不會因為 `published_at` 過期而自動變成 `'published'`，公開讀取 API 的 `WHERE status = 'published'` 是字面比對。`Features/News/ScheduledPublishRunner.cs` 是目前唯一接上這個機制的地方（只掃 `articles`）。**任何新的內容型別要支援「排程發布」，除了要有 `published_at` 欄位，還要把它加進某個 `ScheduledPublishRunner`（或比照新開一個），否則後台可以把狀態設成 `scheduled`，但公開站永遠不會自動顯示。**
+  - 🔴 **（S0-7g；2026-09-24 由 S1-4 擴充）「時間到了」不是寫入事件，需要主動的 hosted service 才會真的轉狀態**——`status='scheduled'` 不會因為 `published_at` 過期而自動變成 `'published'`，公開讀取 API 的 `WHERE status = 'published'` 是字面比對。`Features/News/ScheduledPublishRunner.cs` 是目前唯一接上這個機制的地方，掃 `articles`（`PublishDueArticlesAsync`）與 `pages`（`PublishDuePagesAsync`，S1-4 新增）兩張表，`ScheduledPublishBackgroundService` 每輪依序呼叫兩個方法。**任何新的內容型別要支援「排程發布」，除了要有 `published_at` 欄位，還要把它加進這個 runner（或比照新開一個），否則後台可以把狀態設成 `scheduled`，但公開站永遠不會自動顯示。**
+  - 🔴 **判斷「已到發布時間」的兩邊必須來自同一個時鐘（2026-09-24，S1-4 續作，`PagesPublicEndpointTests` 間歇性失敗排查）**：公開讀取一律用 `published_at <= SYSUTCDATETIME()`（資料庫自己的時鐘）。寫入端若把 `published_at` 設成應用程式行程的 `DateTime.UtcNow`（另一台機器的時鐘——本機環境是 API 行程所在主機 vs. `sqlserver` 容器），兩個時鐘只要有任何飄移，剛發布的內容就可能被判定為「還沒到」而暫時查不到，且**發布本身完全成功、不會有任何錯誤或例外**——這是本次實測連跑 15 次失敗 2 次才抓到的間歇性 bug，不是並行權杖精度問題。`AdminArticlesRepository.PublishAsync`／`AdminPagesRepository.PublishAsync`（立即發布，`published_at` 設為「現在」）已改用 `Common/DatabaseClock.GetUtcNowAsync`（跑一次 `SELECT SYSUTCDATETIME()`）取代 `DateTime.UtcNow`。**日後任何寫入路徑會把某個欄位設成「現在」、而這個欄位之後會被拿去跟 `SYSUTCDATETIME()`／`GETUTCDATE()` 比較「是否已經到了」，一律要用 `DatabaseClock`，不要用 `DateTime.UtcNow`**——`ScheduleAsync`（`published_at` 是呼叫端指定的未來時間，不是「現在」）與 `ScheduledPublishRunner`（整句判斷都在同一個 SQL 陳述式內求值）不受影響，理由見 `Common/DatabaseClock.cs` 檔頭。
 
 - 🔴 **（S1-3 續作，2026-09-24）`Permission.sysadmin_only` 是應用層強制，資料庫沒有任何約束擋著**：
   `role_permissions` 沒有 CHECK 或觸發器阻止把一個 `sysadmin_only=1` 的權限碼指派給任何角色——

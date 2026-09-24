@@ -371,7 +371,7 @@ flowchart LR
 | 表 | `club_id` | 用途 | 標記 | 後台 |
 |---|---|---|---|---|
 | `Page` | **●** | 靜態頁面主檔。**藍鯨官網入口頁亦屬此型別**。唯一鍵 `(club_id, slug)` | 🌐 | B1 |
-| `PageBlock` | — | 頁面區塊（13 種型別），`content json`（**只存不查**）、`sort_order`。**由 `Page` 推導** | 🌐 | B1 |
+| `PageBlock` | — | 頁面區塊（12 種型別，規劃書第 1012 行），`content json`（**只存不查**）、`sort_order`。**由 `Page` 推導** | 🌐 | B1 |
 | `PageVersion` | — | 版本歷程與還原點、預覽分享 token。**這是內容版本不是操作日誌** | | B1 |
 | `Article` | **○** | 新聞與故事。**空＝兩隊共同**；`slug` **維持全站唯一**（共同文章須有單一 canonical） | 🌐 | B2 |
 | `ArticleCategory` | — | 7.1–7.8 八分類。**刻意不加**——分類是內容主題，加了八個會變十六個 | 🌐 | B2 |
@@ -765,7 +765,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 | `Season` | 行 1248–1253 關聯欄提到 Season | `Match`／`Standing`／`Achievement`／`MembershipPlan` 的軸 |
 | `ArticleCategory` `Tag` `ArticleTag` `ArticleRelation` | 行 1247 關聯欄列 Category／Tag | B2 的分類、標籤與多型關聯 |
 | `ValueTagLink` | `docs/04` §4 `value_tags[]` | 五大核心價值可掛任何型別 |
-| `PageBlock` `PageVersion` | B1（行 838–842） | 13 種區塊、版本還原點、預覽 token |
+| `PageBlock` `PageVersion` | B1（行 838–842） | 12 種區塊、版本還原點、預覽 token |
 | `Banner` `HomeSection` | B3 | Hero 輪播與首頁區塊開關 |
 | `FaqCategoryLink` `FaqSearchMiss` | B4 | 一題多分類、零結果關鍵字排行 |
 | `Redirect` | H（行 1002–1004） | 301 批次匯入 |

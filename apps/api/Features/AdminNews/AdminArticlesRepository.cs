@@ -279,9 +279,17 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
         ApplyConcurrencyToken(article, request.ExpectedUpdatedAt);
 
+        // 🔴 用資料庫自己的「現在」，不是應用程式行程的 DateTime.UtcNow——理由見
+        // Common/DatabaseClock.cs 檔頭（2026-09-24，S1-4 續作排查 PagesPublicEndpointTests
+        // 間歇性失敗時發現這裡跟 Pages 是同一個根因，一併修正）：公開讀取用
+        // published_at <= SYSUTCDATETIME() 判斷「已到發布時間」，若這裡寫入的時間戳來自另一個
+        // 時鐘（應用程式行程的作業系統時鐘），兩個時鐘只要有任何飄移，剛發布的內容就可能暫時被
+        // 判定為「還沒到發布時間」而查不到——查無資料不快取（IQueryCache 規則），但下一次請求
+        // 仍會再打一次 SQL，一樣可能落在飄移窗內再次落空，直到資料庫時鐘追上應用程式時鐘為止。
+        var dbNow = await DatabaseClock.GetUtcNowAsync(dbContext, cancellationToken);
         article.Status = "published";
-        article.PublishedAt = DateTime.UtcNow;
-        article.UpdatedAt = DateTime.UtcNow;
+        article.PublishedAt = dbNow;
+        article.UpdatedAt = dbNow;
         article.UpdatedBy = operatorId;
 
         await SaveWithConcurrencyHandlingAsync(cancellationToken);

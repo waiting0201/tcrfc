@@ -102,6 +102,18 @@ public static class AdminAuthEndpoints
         .Produces(StatusCodes.Status204NoContent)
         .Produces(StatusCodes.Status400BadRequest);
 
+        // GET /api/v1/admin/auth/me —— 前端 agent 回報缺口①：站台切換器需要的個人檔案與俱樂部授權清單。
+        // ⛔ 不回傳密碼雜湊、2FA 密文等任何機密欄位——見 AdminAuthDtos.cs 的 MeResponse 說明。
+        group.MapGet("/me", async (HttpContext httpContext, AdminAuthService authService, CancellationToken cancellationToken) =>
+        {
+            var me = await authService.GetMeAsync(httpContext, cancellationToken);
+            return Results.Ok(me);
+        })
+        .WithName("AdminGetMe")
+        .Produces<MeResponse>()
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden);
+
         group.MapPost("/2fa/disable", async (
             TwoFactorDisableRequest request, HttpContext httpContext, AdminAuthService authService, CancellationToken cancellationToken) =>
         {

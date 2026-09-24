@@ -58,6 +58,17 @@ public sealed class AdminCompetitionsRepository(ClubDbContext dbContext)
         }).ToList();
     }
 
+    /// <summary>前端 agent 回報缺口②：賽事系列表單需要球季下拉選單。俱樂部範圍、唯讀，
+    /// 沿用本 repository 既有的 <see cref="AdminClubScope"/>／授權模式，不另開新的 repository。</summary>
+    public async Task<IReadOnlyList<AdminSeasonListItemDto>> ListSeasonsAsync(AdminClubScope scope, CancellationToken cancellationToken)
+    {
+        return await dbContext.Seasons.AsNoTracking()
+            .Where(s => s.ClubId == scope.ClubId)
+            .OrderByDescending(s => s.StartOn)
+            .Select(s => new AdminSeasonListItemDto { Id = s.Id, Code = s.Code, StartOn = s.StartOn, EndOn = s.EndOn })
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<AdminCompetitionDetailDto?> GetByIdAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
         var competition = await dbContext.Competitions.AsNoTracking()

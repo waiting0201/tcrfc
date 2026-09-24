@@ -251,7 +251,7 @@ CREATE TABLE pages_i18n (
   CONSTRAINT PK_pages_i18n PRIMARY KEY CLUSTERED (page_id, locale)
 );
 
--- 頁面區塊（13 種型別），content 只存不查。由 Page 推導，不帶 club_id。
+-- 頁面區塊（12 種型別，規劃書第 1012 行），content 只存不查。由 Page 推導，不帶 club_id。
 -- ✅ 已確認（2026-09-22）：content 已在本表（非側表），docs/12c §3.1 的側表草案與本表重複，
 -- 依 docs/12c §1 第 3 條「主表已放的欄位優先」不建 page_blocks_i18n。
 -- ⚠️ docs/12 §4.1（PageBlock 列）截至本次同步仍標 🌐，未隨本檔更新——不在本輪 i18n 裁決範圍內，留待下一輪同步。

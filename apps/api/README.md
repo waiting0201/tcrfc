@@ -457,6 +457,40 @@ ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本
 `clean.login@tcrfc.test`／`fresh.setup@tcrfc.test`），或走完整的「設定 2FA」流程之後再登入
 （`AdminAuthTests.完整2FA設定流程...` 示範了後者）。
 
+### 種子測試帳號的重設（`db/seed/reset-admin-accounts.sh`，2026-09-24 新增）
+
+🔴 **端對端驗收會改掉種子帳號的狀態，驗完要跑這支還原。** `apps/admin` 做端對端驗收
+（`npm run dev` 起真實瀏覽器操作，見 `apps/admin/README.md`「驗收紀錄」）時，會真的登入
+`sa@system.local`、完成強制改密與強制 2FA 設定——這些是正常的帳號操作，會把該帳號的
+`password_hash`／`must_change_password`／`two_factor_enabled` 等欄位永久改成驗收過程中設定的值，
+不再是種子腳本原始的 `Admin@123`／2FA 未啟用。
+
+**為什麼 `./db/seed/apply-seed.sh` 救不回來**：種子腳本的冪等策略是「業務自然鍵 `IF NOT EXISTS`
+才 `INSERT`」——帳號列本來就已經存在，這條規則只保證「缺的資料會補上」，不會回頭 `UPDATE` 已經
+存在、但狀態已經偏離初始值的列。
+
+**還原方式**：
+
+```bash
+set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
+./db/seed/reset-admin-accounts.sh            # 產生並套用
+./db/seed/reset-admin-accounts.sh --dry-run  # 只看會產生什麼 SQL，不套用
+```
+
+只對 `tcrfc_club_dev` 執行 `UPDATE`（白名單模型逐字比照 `apply-seed.sh`），只還原
+`db/seed/generate-club-seed-sql.py` 的 `ADMIN_USERS` 清單裡每個帳號的
+`password_hash`／`must_change_password`／`is_super_admin`／`two_factor_enabled`／
+`two_factor_secret_encrypted`（→`NULL`）／`two_factor_confirmed_at`（→`NULL`）／
+`failed_attempt_count`（→`0`）／`locked_until`（→`NULL`）／`status`（→`active`）九個欄位，
+**不影響**角色指派（`admin_user_roles`）與俱樂部授權（`admin_user_clubs`）——那兩張表本來就是
+「新增才會種」，端對端驗收的登入操作不會弄髒它們。實作是
+`generate-club-seed-sql.py --reset-admin-accounts` 這個新增的 CLI 旗標，重用同一份
+`ADMIN_USERS` 清單產生 `UPDATE` 陳述式（不是 `INSERT`），刻意不重複維護第二份密碼雜湊。
+
+✅ **已於本次任務執行過一次**：`sa@system.local` 驗收後 `must_change_password=0`／
+`two_factor_enabled=1`，執行還原腳本後確認回到 `must_change_password=1`／`two_factor_enabled=0`
+（種子初始值），其餘帳號一併核對過欄位值正確。
+
 ### 本輪沒做的部分（誠實列出，不假裝做完）
 
 1. ✅ **已補上（S1-3 續作，2026-09-24）**：`Features/AdminAccounts`（J1 帳號 CRUD、停用／啟用、
@@ -790,6 +824,299 @@ $ dotnet test    # CLUB_SQL_CONNECTION_STRING 指向本機 tcrfc_club_dev，見�
    `N=1..5` 五個物件各驗一次，外加一支「補償刪除本身也失敗」的雙重失敗情境。
 4. `dotnet test` 全數 141 項通過（既有 135 ＋本輪 6），未改動 `Data/Migrations/`、未對
    `tcrfc_club_dev` 執行任何 DDL。
+
+---
+
+## S1-4：B1 頁面管理（2026-09-24，`backend-engineer`）
+
+### 讀到的規劃書條文
+
+主站規劃書 §4.2 B1（約行 1010–1016）：
+
+> **區塊化編輯器（Block Editor）**：文字、圖文左右、圖片藝廊、影音嵌入、引言、CTA、手風琴 FAQ、
+> 時間軸、步驟條、數據卡、表格、檔案下載
+> 每頁具備：狀態（草稿／已發布／排程）、SEO 設定、多語系版本、版本歷程與還原、預覽連結（未發布可分享）
+
+外加 §4.0 後台設計通則（圖片上傳「選檔不上傳、儲存才上傳」）與 docs/14-invariants.md S0-7g／E-44／
+E-46／E-47 三筆既有教訓（排程發布要接 `ScheduledPublishRunner`、migration 操作邊界、補償刪除的
+token 選用）。
+
+🔴 **落差回報**：規劃書那一句逐字數出來是 **12 個**區塊名稱，但 `docs/12b-database-tables.md` §3.1
+與 `db/club-schema.sql` 的 `page_blocks` 表註解都寫「13 種型別」。規劃書本體沒有給出第 13 個名稱，
+依任務指示「規劃書已定的照做；沒寫的不自創使用者可見功能」，本輪**只實作這 12 種**
+（見 `Features/AdminPages/PageBlockTypes.cs`），不杜撰一個沒有名稱的第 13 種。這是既有文件本身的
+落差，不是本輪造成的。✅ **已修正（2026-09-24）**：規劃書是唯一真實來源，`docs/12`、`docs/12c`、DDL 註解與 STATUS.md 已改為 12 種。
+
+### 端點清單
+
+後台（`/api/v1/admin/{club}/pages`，`Features/AdminPages/AdminPagesEndpoints.cs`，一律經
+`IAdminClubAuthorizer`）：
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/pages` | `content.page.view` | 清單（含全部狀態），`status`／`keyword`／`page`／`pageSize` |
+| `GET /api/v1/admin/{club}/pages/{id}` | `content.page.view` | 單頁詳情（含區塊、SEO、最新版本編號與預覽權杖） |
+| `POST /api/v1/admin/{club}/pages` | `content.page.create` | 建立（一律草稿），`multipart/form-data` |
+| `PUT /api/v1/admin/{club}/pages/{id}` | `content.page.update` | 整份取代（SEO ＋ 全部區塊），不改狀態，`multipart/form-data` |
+| `POST /api/v1/admin/{club}/pages/{id}/publish` | `content.page.publish` | draft／scheduled → published |
+| `POST /api/v1/admin/{club}/pages/{id}/schedule` | `content.page.publish` | draft／scheduled → scheduled（未來時間） |
+| `DELETE /api/v1/admin/{club}/pages/{id}` | `content.page.delete` | 刪除（`?expectedUpdatedAt=`），連帶刪除全部區塊圖片物件 |
+| `GET /api/v1/admin/{club}/pages/{id}/versions` | `content.page.view` | 版本歷程清單 |
+| `GET /api/v1/admin/{club}/pages/{id}/versions/{versionNo}` | `content.page.view` | 單一版本快照詳情 |
+| `POST /api/v1/admin/{club}/pages/{id}/versions/{versionNo}/restore` | `content.page.update` | 還原（見下方「我的判斷」） |
+
+公開（`Features/Pages/PagesEndpoints.cs`，無需登入）：
+
+| 方法與路徑 | 說明 |
+|---|---|
+| `GET /api/v1/{club}/pages/{*slug}` | 只回 `status='published'` 且已到發布時間的內容，`?lang=` 依語系回退 |
+| `GET /api/v1/pages/preview/{token}` | 未發布可分享的預覽（無 `{club}` 路由段，權杖本身即授權），回應帶 `X-Robots-Tag: noindex, nofollow` |
+
+權限碼種子（`db/seed/generate-club-seed-sql.py` §18.2／§18.3，DML，未動 DDL）：
+`content.page.view`／`create`／`update`／`publish`／`delete`（`module_code=B`、`submodule_code=B1`），
+角色指派逐字比照既有 `content.article.*` 的鋪法（規劃書 §6 矩陣「內容」欄同時管 B1 與 B2，矩陣沒有
+分欄）：`system_admin` 全給；`content_editor` 給 view/create/update/publish/delete；
+`team_competition`／`viewer`／`partner_club_manager`（`own_clubs`）比照 `content.article.*` 現有的
+子集合；`academy_program`／`business_sponsorship`／`pr_media`／`customer_service_admin`／
+`translator` **本輪未指派**——這不是遺漏，是延續 `content.article.*` 既有的範圍縮減（那五個角色對
+B2 新聞本來就是零筆 `role_permissions`），保持兩個內容模組的角色矩陣一致，不在本輪单方面擴大範圍。
+
+### 12 種區塊的欄位與驗證摘要
+
+`Features/AdminPages/PageBlockContentProcessor.cs` 是唯一的驗證與圖片解析落點。**雙語怎麼落在
+`page_blocks.content` 這個單一 JSON 欄位裡**（`docs/12b` §3.1／`db/club-schema.sql` 已明確拒絕
+`page_blocks_i18n` 側表，「主表已放的欄位優先」）：每一個使用者看得到的自由文字欄位本身是一個
+`{"zh": "非空白字串", "en": null|"字串"}` 物件（CLAUDE.md 全域規定 4，英文可空但鍵一定存在）；
+網址、識別碼、日期、數值這類非語言內容維持單一純值。圖片替代文字沿用既有後台圖片上傳通則的扁平
+`altZh`／`altEn` 兩個鍵（不是巢狀物件）——刻意不統一形狀，理由見該檔案檔頭註解。
+
+| 區塊（代碼） | 必填欄位 | 型別 |
+|---|---|---|
+| 文字 `text` | `body`（雙語） | — |
+| 圖文左右 `text_image` | `body`（雙語）、`imagePosition`（`left`/`right`）、`image`（圖片欄位組） | 有圖片 |
+| 圖片藝廊 `gallery` | `images`（≥1 張，圖片欄位組陣列） | 有圖片 |
+| 影音嵌入 `video_embed` | `provider`（`youtube`/`vimeo`）、`videoId`；可選 `caption`（雙語） | — |
+| 引言 `quote` | `text`（雙語）；可選 `attribution`（雙語） | — |
+| CTA `cta` | `text`（雙語）、`buttonLabel`（雙語）、`buttonUrl` | — |
+| 手風琴 FAQ `accordion_faq` | `items`（≥1 筆，`question`／`answer` 皆雙語） | — |
+| 時間軸 `timeline` | `items`（≥1 筆，`date` 純值、`title` 雙語；可選 `description` 雙語） | — |
+| 步驟條 `steps` | `items`（≥1 筆，`title` 雙語；可選 `description` 雙語） | — |
+| 數據卡 `stat_cards` | `items`（≥1 筆，`value` 純值、`label` 雙語） | — |
+| 表格 `table` | `headers`（≥1 欄，雙語物件陣列）、`rows`（每列欄數須等於 `headers` 長度，儲存格純字串） | — |
+| 檔案下載 `file_download` | `label`（雙語）、`fileUrl` | 見下方已知缺口 |
+
+圖片欄位組：`{ pendingUpload?, key?, width?, height?, altZh, altEn }`——`pendingUpload: true` 代表
+待上傳（不含 `key`），否則必須已有非空白 `key`（沿用既有圖片，不換圖）。
+
+### 圖片上傳：多檔案 multipart 契約（給前端接的形狀）
+
+跟 B2 新聞固定單一 `file` 欄位不同——頁面區塊可能同時有多張待上傳圖片（圖文左右 1 張、圖片藝廊
+N 張，且同一次請求可能有多個這類區塊）。契約（`Features/AdminPages/AdminPageRequestForm.cs`）：
+
+- 固定欄位 `payload`：JSON 文字，`CreatePageRequest`／`UpdatePageRequest`（camelCase）。
+- 檔案欄位命名 `file:{區塊索引}:{圖片路徑}`——圖文左右固定是 `file:{i}:image`；圖片藝廊依陣列位置
+  是 `file:{i}:images:0`、`file:{i}:images:1`……。`{區塊索引}` 是 `Blocks` 陣列裡的位置（從 0 起算）。
+- 對應圖片欄位物件要標示 `"pendingUpload": true` 才會去找對應檔案；沒標示就必須已經帶著既有 `key`。
+- 物件鍵路徑：`{club}/pages/{pageId}/blocks/{blockIndex}/{path}`（`path` 的 `:` 換成 `-`）。
+
+失敗時的補償：`AdminPagesRepository.CreateAsync`／`UpdateAsync` 內部把「驗證＋圖片上傳＋寫入資料庫」
+包在同一個 `try/catch`，任何一步失敗（含後面某個區塊驗證失敗）都會把這次呼叫已經真的上傳成功的物件
+逐一刪除（`CancellationToken.None`，E-47 教訓——不沿用可能已取消的請求 token）。換圖（`UpdateAsync`）
+與刪除頁面時，「新圖／新版本寫入成功後才刪舊物件」用的是請求本身的 `cancellationToken`（fail-open，
+跟 B2 新聞現有行為一致），這是兩種不同性質的刪除，故意用不同 token，見 repository 上的註解。
+
+### 版本歷程與還原：我的判斷（規劃書沒定義還原後的行為）
+
+- **每次寫入（建立／更新／發布／排程／還原）都會產生一個新的 `page_versions` 列**，`version_no`
+  遞增，`snapshot` 存 `{seo:{zh,en}, blocks:[{blockType,content}]}` 的完整 JSON。發布／排程也算一次
+  「寫入」是因為狀態轉換本身也是頁面生命週期的一個節點，值得留下歷史快照可回頭比對。
+- **還原＝以舊版內容產生一個新版本**，不是把時間倒轉覆蓋掉中間的版本——舊版本列本身不變動、不刪除。
+- **還原不改變頁面目前的發布狀態**：若目前是 `published`，還原後的內容立即對外可見（跟一般編輯
+  `PUT` 的行為一致，「編輯不需要重新送審」）。若這不是預期行為（例如「還原已發布頁面應該先退回
+  草稿」），規劃書沒有這個開關，需要另外裁決再補。
+
+### 預覽連結：權杖何時產生、已知缺口
+
+- **權杖隨每一次新版本快照自動產生**（`GeneratePreviewToken()`，256-bit 亂數 Base64Url），不開獨立的
+  「產生預覽連結」端點——`AdminPageDetailDto.PreviewToken` 直接回傳最新版本的權杖，前端組
+  `/{locale}/preview/{token}` 即可分享。規劃書只要求「未發布可分享」，沒有規定 token 的產生時機，
+  這是本輪判斷「每次存檔自動換一個」比「另開端點手動產生」更貼近「隨時能分享目前狀態」的語意。
+- 🔴 **綱要缺口（已回報，未動手加欄位／migration）**：`page_versions.preview_token` **沒有 DB 唯一
+  索引**（256-bit 熵值下碰撞機率可忽略，但沒有資料庫層保證），**也沒有到期或撤銷欄位**——權杖一旦
+  核發即永久有效，直到那個版本被別的原因取代（實際上因為每次寫入都換一個新版本＋新權杖，舊版本的
+  舊權杖仍然永久可用）。規劃書與 `docs/12b` 都沒有定義這兩個欄位，依任務指示「沒有欄位就停下回報，
+  不自己加表或欄位」，本輪只用「高熵亂數」與「盡量遵循既有頁面沒有更長效資料外洩管道」降低風險，
+  沒有解決「權杖外流即永久有效」這個產品層面的問題——**這是需要決定的事**：要不要補
+  `preview_expires_at`／`preview_revoked_at` 欄位。
+- 預覽端點刻意**不接快取**（IQueryCache）——draft 內容剛存檔就分享是最常見的使用情境，快取住舊值
+  的後果比多查一次 SQL 嚴重；權杖本身流量極低，直接回源沒有效能疑慮。
+- `X-Robots-Tag: noindex, nofollow` 只加在這支 API 回應——**真正擋搜尋引擎的是前台渲染頁面本身的
+  noindex**，那是 `apps/web`（Nuxt）的職責，本輪任務邊界只有 `apps/api`，這裡只做防禦性補強，
+  完整落實需要前端配合（見下方「給下一位的交接事項」）。
+
+### `pages.club_id` 必填：跟 B2 新聞的關鍵差異
+
+`pages` 在 docs/14「50 張必填 `club_id`」之列（不像 `articles` 可為空的 9 張之一）——**沒有「共同
+內容」這件事**，每個頁面都明確屬於一個俱樂部。因此：
+
+- 沒有 `SharedArticleReadOnlyException` 對應的分支——`LoadTrackedForWriteAsync` 只有「屬於這個
+  俱樂部」與「不屬於（含真的不存在）」兩種結果，後者一律回 404。
+- 公開讀取直接 `WHERE club_id = @ClubId`，不套用 `ClubOrSharedSql`（俱樂部專屬優先、回退共同）——
+  那條規則是給可為空 `club_id` 的表用的，頁面不適用。
+
+### 排程發布：已接進 `ScheduledPublishRunner`
+
+`Features/News/ScheduledPublishRunner.cs` 新增 `PublishDuePagesAsync`（邏輯與既有
+`PublishDueArticlesAsync` 逐字對應：同一個冪等 `UPDATE ... OUTPUT` 寫法、同一個「不覆寫
+`published_at`」理由），`ScheduledPublishBackgroundService` 每輪依序呼叫兩個方法。快取失效用
+`page-detail` entity（`AdminPagesRepository.PublicDetailEntity`／`PagesRepository` 的
+`DetailEntity`／`ScheduledPublishRunner` 的 `PageDetailEntity` 三處字面值必須一致，已 grep 核對）。
+排程發布的 TTL 延遲說明與 B2 新聞完全同一份取捨，不重複貼一次。
+
+### 網址名稱（slug）：允許多層路徑，不做跨模組保留字偵測
+
+B1 頁面本身**就是**網站的靜態頁面路由（docs/01「URL 直接對應網站層級」，例 `/zh/academy/join/`），
+`PageSlugPolicy` 允許 slug 含 `/`（多層路徑），唯一鍵 `(club_id, slug)`（`UQ_pages_club_slug`，
+已存在於 DDL，未新增）。⚠️ **已知缺口**：不偵測 slug 是否撞到 07 新聞／08.3 商店／13 行事曆等
+「資料型內容」自己的路由前綴（例如把頁面存成 `"news"` 或 `"shop/x"`）——這類跨模組路由表比對需要
+`apps/web` 的完整路由清單，`apps/web` 本輪由另一個 agent 同時在改、依派工指示不得觸碰，性質與
+`Features/AdminNews/SlugPolicy.cs` 檔頭記錄的「無法做到跨專案自動比對」同一種缺口。
+
+### 測試（`Tcrfc.Api.Tests`，新增 6 個檔案）
+
+| 檔案 | 涵蓋 |
+|---|---|
+| `AdminPagesWriteTests.cs` | 401／403（無登入、檢視者、跨俱樂部無授權）、完整生命週期、slug 重複／格式錯誤、多層路徑 slug、跨俱樂部 404、樂觀並行 409、狀態轉換 409、排程時間非未來 400 |
+| `AdminPagesBlockValidationTests.cs` | 12 種區塊各一組合法／不合法內容（`[Theory]`），未知區塊型別 400，空區塊陣列允許建立空白草稿 |
+| `AdminPagesVersionsAndPreviewTests.cs` | 每次寫入產生新版本、版本列表與單版詳情、還原產生新版本且不覆蓋舊版、還原不存在版本 404、未發布頁面預覽可見＋`noindex` 標頭、猜測權杖 404 |
+| `PagesPublicEndpointTests.cs` | 草稿／排程中不可見、已發布可見且雙語物件已化簡、跨俱樂部路由查不到 |
+| `AdminPagesImageTests.cs`（Azurite） | 圖文左右／圖片藝廊真實上傳、補償交易（HTTP 層）、換圖刪舊物件、刪除頁面連帶刪圖、**E-47 樣式的補償刪除 token 測試**（見下） |
+| `AdminPageMultipart.cs`／`PageBlockSamples.cs`／`Fixtures/TestAdminHttpContext.cs`／`Fixtures/FakeFormFileCollection.cs` | 測試工具，不是測試本身 |
+
+**E-47 樣式測試的做法**：`AdminPagesImageTests.補償刪除沿用CancellationTokenNone_即使外層token已取消仍能清乾淨`
+略過 HTTP 層，直接呼叫 `AdminPagesRepository.CreateAsync`——用一個裝飾 `IImageStorageService` 的
+類別，在**第一個區塊圖片真的上傳成功的瞬間**取消呼叫端傳入的 `CancellationTokenSource`（模擬
+「圖片剛上傳完成、使用者就在這一刻斷線」），接著第二個區塊驗證失敗觸發補償——斷言即使外層 token
+此時已經是取消狀態，補償刪除仍然把第一個區塊的物件清乾淨。要拿到合法的 `AdminClubScope`（建構子
+`internal`）必須真的呼叫 `IAdminClubAuthorizer.AuthorizeAsync`，`Fixtures/TestAdminHttpContext.cs`
+組一個只帶 `sub`／`username` claim 的 `HttpContext`（`AdminAccountGate` 只讀這兩個 claim 加資料庫
+查詢，不需要真的跑完整 JWT 中介軟體管線）。
+
+`dotnet test`（`Tcrfc.Api.Tests.csproj`）**224/224 全過**（含本輪新增約 39 項與既有全部項目）；
+`ArchitectureTests` 綠燈（本輪沒有新增 `ClubScope`／`AdminClubScope` 型別，不影響那支掃描）；
+`dotnet ef migrations has-pending-model-changes` 回報無待處理變更（`Page.UpdatedAt` 加
+`IsConcurrencyToken()` 經實測**不產生任何 DDL 操作**——用 `dotnet ef migrations add` 產生過一次探測
+用的空白 migration 確認 `Up()`/`Down()` 皆為空後已用 `dotnet ef migrations remove` 移除，該 migration
+從未套用到任何資料庫，移除只刪檔案與還原 snapshot，未執行任何 DDL）。
+
+### 給下一位的交接事項
+
+1. **前台 noindex**：`apps/web` 需要在渲染 `/{locale}/preview/{token}` 這類頁面時輸出
+   `<meta name="robots" content="noindex, nofollow">`（或等效的 route rule），本輪只在 API 回應
+   層補了 `X-Robots-Tag`，這件事只完成一半。
+2. ~~`docs/12b`／DDL 的「13 種型別」~~ ✅ 已依規劃書第 1012 行改為 12 種（2026-09-24）。
+3. **預覽權杖沒有到期／撤銷欄位**：是否要補 `page_versions.preview_expires_at`／`preview_revoked_at`
+   需要使用者裁決，屬於綱要異動（先改 `docs/12` 再走 migration）。
+4. **`academy_program`／`business_sponsorship`／`pr_media`／`customer_service_admin`／`translator`
+   五個角色目前對 B1／B2 兩個內容模組都是零權限**——等這些角色真的有使用者要指派時，再依規劃書
+   §6 矩陣補上對應的 `role_permissions`（矩陣其實有給這些角色「撰稿」「編輯」等格子，只是兩個
+   內容模組都還沒真的接線）。
+
+---
+
+## S1-4 續作：`PagesPublicEndpointTests` 間歇性失敗根因排查＋前端回報三個 API 缺口（2026-09-24）
+
+### 根因：`published_at` 與 `SYSUTCDATETIME()` 分屬兩個時鐘來源
+
+`PagesPublicEndpointTests.已發布頁面_公開端點看得到_只回已發布內容` 用
+`dotnet test --filter FullyQualifiedName~Pages --no-build` 連跑 15 次失敗 2 次（第一次任務指示
+懷疑是樂觀並行權杖精度問題）。**實測定位**（不是憑猜測）：在失敗行加診斷輸出，捕捉發布呼叫本身的
+狀態碼與回應內容、以及失敗當下直接查資料庫的列值，重跑重現後拿到的診斷輸出是：
+
+```
+publishStatus=OK  publishBody={"status":"published", ...}  dbRow=status=published published_at=... updated_at=...
+```
+
+**發布呼叫本身完全成功**（不是 409 樂觀並行衝突），資料庫裡的列也確實是 `published`——但緊接著
+的公開查詢仍然 404。這排除了「並行權杖精度」這個方向（`updated_at` 從未參與任何即時時鐘比較，
+樂觀並行檢查是 EF Core 產生的 `WHERE updated_at = @原始值` 純值比對）。
+
+真正根因：`PagesRepository.GetBySlugAsync`／`ArticlesRepository` 的公開查詢用
+`published_at <= SYSUTCDATETIME()` 判斷「已到發布時間」，但 `AdminPagesRepository.PublishAsync`／
+`AdminArticlesRepository.PublishAsync`（立即發布）原本把 `PublishedAt` 設成應用程式行程的
+`DateTime.UtcNow`——這是**兩個不同的時鐘來源**（應用程式行程所在機器的作業系統時鐘 vs.
+`sqlserver` 容器自己的作業系統時鐘）。兩個時鐘只要有任何飄移（本機環境用 Docker Desktop for Mac，
+主機睡眠喚醒後尤其容易有數毫秒到數十毫秒的飄移），剛發布的內容就可能被資料庫自己的「現在」判定
+為「還沒到」，直到資料庫時鐘追上為止——飄移窗越小，重現機率越低，正好符合「時好時壞」的表現。
+
+**修法**：新增 `Common/DatabaseClock.cs`，`PublishAsync`（僅此方法，`ScheduleAsync` 與
+`ScheduledPublishRunner` 不受影響，理由見該檔案檔頭與兩個 repository 上的行內註解）改用
+`SELECT SYSUTCDATETIME()` 向資料庫要一次「資料庫自己的現在」，取代 `DateTime.UtcNow`，確保寫入的
+`PublishedAt` 保證不晚於資料庫自己接下來任何一次 `SYSUTCDATETIME()` 讀取。改了
+`AdminPagesRepository.cs` 與 `AdminArticlesRepository.cs` 兩處（後者雖然任務指示只點名要查，
+但排查後確認是同一個根因、同一個修法，一併修正，且發現既有的
+`AdminNewsCacheInvalidationTests.更新已發布文章後...` 也隱性依賴這個時序，一併受益）。
+
+**驗收**：`dotnet test --filter FullyQualifiedName~Pages --no-build` 連跑 **22 次、0 失敗**；
+全套 `dotnet test`（`Tcrfc.Api.Tests.csproj`）**224/224 通過**。另外把「每一步寫入都要斷言回應
+狀態」這條規則落實到 `PagesPublicEndpointTests.cs`（改用共用的 `CreateAsync`／`PublishAsync`／
+`ScheduleAsync` 私有輔助方法，任何一步非預期狀態碼會直接讓測試在那一步失敗並印出回應內容，
+不會讓錯誤在後面幾行之外的斷言才冒出來、訊息對不上真正出錯的那一步）。
+
+### 前端回報缺口①：`GET /api/v1/admin/auth/me`
+
+站台切換器（規劃書 §4.0）需要知道「登入的這個人可以切到哪些俱樂部」，登入回應
+（`LoginResponse`）只有 `Username`／`IsSuperAdmin` 兩個身分欄位，前端拿不到俱樂部授權清單、
+姓名、角色。新增 `Features/AdminAuth/AdminAuthService.GetMeAsync`＋
+`GET /api/v1/admin/auth/me`（掛在既有 `AdminAuthEndpoints` 群組，最小「有登入即可」檢查，
+比照 change-password／2fa 端點的模式，但額外呼叫 `AdminAccountGate.RequireActiveAccountAsync`
+重新確認帳號仍是活躍狀態，不只信任 JWT claims）。
+
+回應（`MeResponse`）：`AdminUserId`／`Username`／`DisplayName`／`IsSuperAdmin`／
+`PrimaryClubCode`（`AdminUser.primary_club_id` 解析出的俱樂部代碼）／`ClubGrants`（已過濾到期與
+停用的俱樂部授權，每筆帶 `ClubCode`／中英文名稱／`IsPrimary`／`ExpiresOn`）／`Roles`（`Code`／
+`NameZh`／`NameEn`）。⛔ 不含密碼雜湊、2FA 密文等任何機密欄位。
+
+🔴 **系統管理員的 `ClubGrants` 資料來源不是 `AdminUserClub`**：規劃書 §6「系統管理員跳過整個
+資料範圍查詢」，種子的 `sa@system.local`／`super.admin@tcrfc.test` 本來就沒有任何一筆
+`admin_user_clubs`——回傳「全部啟用中的俱樂部」（`Clubs.Where(status='active')`），對系統管理員
+而言結果等價於「被授權的俱樂部」（反正它能碰全部），但資料來源刻意不同，`ExpiresOn` 固定回
+`null`（系統管理員的存取不受到期日限制）。
+
+### 前端回報缺口②之一：`GET /api/v1/admin/{club}/seasons`
+
+賽事系列（C4）表單需要球季下拉選單。俱樂部範圍端點（加在既有 `Features/AdminCompetitions`），
+權限碼**比照同模組既有權限碼**：沿用 `team.competition.view`，不新增權限碼——球季目前只有這一個
+唯讀查詢用途，還沒有獨立的維護畫面。回應 `AdminSeasonListItemDto`：`Id`／`Code`／`StartOn`／
+`EndOn`（`Season` 沒有側表，規劃書沒有給球季名稱欄位）。
+
+### 前端回報缺口②之二：`GET /api/v1/admin/teams`
+
+J4「球隊授權」（`admin_user_teams`）畫面需要球隊下拉選單，且**必須跨俱樂部**——指派球隊授權的
+操作者是系統管理員，球隊本身可能來自任何俱樂部（例如系統管理員要把藍鯨的某個梯隊指派給某個
+帳號）。新增 `Features/AdminTeams/`：全域端點（無 `{club}` 路由段），比照
+`Features/AdminClubs/AdminClubsEndpoints.cs`（J4 俱樂部主檔同樣需要跨俱樂部列出全部俱樂部）
+的既有先例，用 `IAdminSystemAuthorizer`。權限碼**比照同模組既有權限碼**：沿用
+`system.team_grant.view`（J4／S1-3 續作已種好，就是「球隊授權」畫面本身的檢視權限），不新增。
+支援 `?clubCode=` 選填篩選（畫面已經選定俱樂部時可以少拉一點資料）。回應
+`AdminTeamListItemDto`：`Id`／`ClubId`／`ClubCode`／`ClubNameZh`／`Code`／`Type`／`Gender`／
+`AgeBand`／`NameZh`／`NameEn`，每列自帶俱樂部代碼與名稱，前端不必再逐一查詢俱樂部主檔湊跨俱樂部
+畫面。
+
+### 三個新端點的授權測試
+
+`AdminMeEndpointTests.cs`（401 未登入、一般角色只看得到自己被授權且未過期的俱樂部、過期授權不
+出現在清單、系統管理員看得到全部啟用中的俱樂部）、`AdminSeasonsEndpointTests.cs`（401、403 無該
+俱樂部授權、有權限的角色 200、檢視者唯讀角色 200）、`AdminTeamsEndpointTests.cs`（401、非系統
+管理員 403、系統管理員一次拿到跨俱樂部的球隊清單、`clubCode` 篩選）——共 12 項，全部通過，
+全套 `dotnet test`（`Tcrfc.Api.Tests.csproj`）由 224 項增為 **236 項，全數通過**。
+
+### 本次沒動的部分
+
+- 沒有新增／修改任何 DDL、`db/club-schema.sql`、`Data/Migrations/`。
+- 沒有修改 `apps/admin`（前端接線由另一位 agent 處理），只在 `apps/admin/README.md` 補一段
+  「種子帳號重設腳本已存在」的說明（回應該檔案原本記錄的已知缺口）。
+- 沒有 commit。
 
 ---
 
