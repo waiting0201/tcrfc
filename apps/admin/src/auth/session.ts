@@ -17,6 +17,9 @@ import { computed, reactive } from 'vue'
  */
 export interface AuthUser {
   username: string
+  /** 姓名（`GET /auth/me` 回傳，見 `@/auth/clubAccess` 的 `ensureClubsLoaded`）。登入完成的當下
+   * 還沒有這筆資料，先以帳號字串頂著，`/me` 查回來後由 `setDisplayName()` 補上。 */
+  displayName: string
   isSuperAdmin: boolean
   mustChangePassword: boolean
   twoFactorEnabled: boolean
@@ -58,11 +61,21 @@ export function setSession(payload: SessionPayload): void {
   state.accessToken = payload.accessToken
   state.accessTokenExpiresAt = Date.parse(payload.accessTokenExpiresAtUtc)
   state.user = {
+    // 登入／換權杖回應本身不含姓名（見 `Features/AdminAuth/AdminAuthDtos.cs` 的 `LoginResponse`／
+    // `RefreshResponse`），先用帳號字串頂著，避免畫面在 `/me` 查回來之前完全沒有名字可顯示；
+    // 換權杖（refresh）時如果已經有姓名，不要被這裡重置回帳號字串。
+    displayName: state.user?.username === payload.username && state.user.displayName ? state.user.displayName : payload.username,
     username: payload.username,
     isSuperAdmin: payload.isSuperAdmin,
     mustChangePassword: payload.mustChangePassword,
     twoFactorEnabled: payload.twoFactorEnabled,
   }
+}
+
+/** `GET /auth/me` 查回姓名後補上（見 `@/auth/clubAccess`）。 */
+export function setDisplayName(displayName: string): void {
+  if (!state.user || !displayName) return
+  state.user.displayName = displayName
 }
 
 /** 改密／2FA 設定完成後，不必重新整理頁面就能反映最新狀態。 */

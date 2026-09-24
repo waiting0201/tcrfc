@@ -7,6 +7,8 @@ import { ensureClubsLoaded } from '@/auth/clubAccess'
 
 const AdminLayout = () => import('@/layouts/AdminLayout.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
+const PageListView = () => import('@/views/pages/PageListView.vue')
+const PageEditView = () => import('@/views/pages/PageEditView.vue')
 const NewsListView = () => import('@/views/news/NewsListView.vue')
 const NewsEditView = () => import('@/views/news/NewsEditView.vue')
 const PlaceholderView = () => import('@/views/PlaceholderView.vue')
@@ -33,6 +35,20 @@ const CompetitionEditView = () => import('@/views/teams/CompetitionEditView.vue'
  */
 const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
   { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { label: '儀表板', code: 'A' } },
+  { path: '/content/pages', name: 'page-list', component: PageListView, meta: { label: '頁面管理', code: 'B1' } },
+  {
+    path: '/content/pages/new',
+    name: 'page-new',
+    component: PageEditView,
+    meta: { label: '新增頁面', code: 'B1' },
+  },
+  {
+    path: '/content/pages/:id/edit',
+    name: 'page-edit',
+    component: PageEditView,
+    props: true,
+    meta: { label: '編輯頁面', code: 'B1' },
+  },
   { path: '/content/news', name: 'news-list', component: NewsListView, meta: { label: '新聞與故事', code: 'B2' } },
   {
     path: '/content/news/new',

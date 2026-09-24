@@ -8,7 +8,9 @@ import { resetClubAccess } from '@/auth/clubAccess'
 
 const router = useRouter()
 
-const displayName = computed(() => authUser.value?.username ?? '')
+// `displayName` 由 `GET /auth/me` 補上（見 `@/auth/clubAccess`），登入完成的當下還沒有這筆資料時，
+// `@/auth/session` 的 `setSession()` 已經先用帳號字串頂著，這裡不需要再自己 fallback 一次。
+const displayName = computed(() => authUser.value?.displayName ?? '')
 const initial = computed(() => displayName.value.slice(0, 1).toUpperCase())
 
 async function handleCommand(command: string) {

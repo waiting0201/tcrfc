@@ -139,3 +139,39 @@ export function confirmTwoFactorSetup(code: string): Promise<void> {
 export function disableTwoFactor(password: string): Promise<void> {
   return apiRequest<void>('/api/v1/admin/auth/2fa/disable', { method: 'POST', body: { password } })
 }
+
+/**
+ * `GET /auth/me`（S1-4 續作補上的端點，見 apps/api/README.md「前端回報缺口①」）——回答
+ * 「這個登入的人可以切到哪些俱樂部、叫什麼名字、有哪些角色」，對照
+ * `Features/AdminAuth/AdminAuthDtos.cs` 的 `MeResponse`／`MeClubGrantDto`／`MeRoleDto`（camelCase）。
+ */
+export interface AdminMeClubGrantDto {
+  clubCode: string
+  clubNameZh?: string | null
+  clubNameEn?: string | null
+  /** 是否為 `AdminUser.primaryClubId`——站台切換器的預設選取值。 */
+  isPrimary: boolean
+  /** 系統管理員固定為 `null`（不受俱樂部授權到期日限制）。 */
+  expiresOn?: string | null
+}
+
+export interface AdminMeRoleDto {
+  code: string
+  nameZh: string
+  nameEn?: string | null
+}
+
+export interface AdminMeResponse {
+  adminUserId: string
+  username: string
+  displayName: string
+  isSuperAdmin: boolean
+  primaryClubCode?: string | null
+  /** 已過濾到期與停用；系統管理員固定回「全部啟用中的俱樂部」（見後端註解）。 */
+  clubGrants: AdminMeClubGrantDto[]
+  roles: AdminMeRoleDto[]
+}
+
+export function getMe(): Promise<AdminMeResponse> {
+  return apiRequest<AdminMeResponse>('/api/v1/admin/auth/me')
+}

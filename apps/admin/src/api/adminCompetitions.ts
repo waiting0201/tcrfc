@@ -69,3 +69,19 @@ export function createAdminCompetition(club: string, payload: SaveCompetitionPay
 export function updateAdminCompetition(club: string, id: string, payload: SaveCompetitionPayload): Promise<AdminCompetitionDetailDto> {
   return apiRequest<AdminCompetitionDetailDto>(`/api/v1/admin/${club}/competitions/${id}`, { method: 'PUT', body: payload })
 }
+
+/**
+ * `GET /admin/{club}/seasons`（S1-4 續作補上的端點，見 apps/api/README.md「前端回報缺口②之一」）：
+ * 賽事系列表單的球季下拉選單，取代先前「沒有清單、只能自己貼識別碼」的暫時作法。
+ * 權限碼比照既有的 `team.competition.view`，不是新的權限碼。
+ */
+export interface AdminSeasonListItemDto {
+  id: string
+  code: string
+  startOn: string
+  endOn: string
+}
+
+export function listAdminSeasons(club: string): Promise<AdminSeasonListItemDto[]> {
+  return apiRequest<AdminSeasonListItemDto[]>(`/api/v1/admin/${club}/seasons`)
+}

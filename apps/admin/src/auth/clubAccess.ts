@@ -1,26 +1,25 @@
 import { computed, reactive, ref } from 'vue'
-import { listPublicClubs } from '@/api/publicClubs'
+import { getMe } from '@/api/adminAuth'
+import { setDisplayName } from '@/auth/session'
 import tcrfcCrest from '@/assets/brand/tcrfc-mark-pink.svg'
 import bwCrest from '@/assets/brand/bw-crest-48.png'
 
 /**
  * 站台切換器可切換的俱樂部清單。
  *
- * 🔴 **已知 API 缺口（本輪回報，未動手改 `apps/api`）**：規劃書要求切換器「依登入者的俱樂部授權
- * 列出可切換的站台」（主站規劃書 §5.4／§6），但 `apps/api` 目前**沒有任何端點能讓一般帳號查詢
- * 自己的俱樂部授權**——`GET /accounts/{id}/club-grants` 需要 `system.club_grant.view`
- * （`sysadmin_only`），非系統管理員帳號打自己的 id 一樣會被 403 擋下；`/auth/login`／
- * `/auth/refresh` 的回應也不含 `primaryClubId` 或授權清單（只有 `username`／`isSuperAdmin`／
- * `mustChangePassword`／`twoFactorEnabled`，見 `Features/AdminAuth/AdminAuthDtos.cs`）。
+ * ✅ **已改接 `GET /api/v1/admin/auth/me`（S1-4 續作補上，apps/api/README.md「前端回報缺口①」）**——
+ * 取代 2026-09-24 之前用公開 `GET /api/v1/clubs` 頂著的暫時作法（那個做法只能列出系統裡「有哪些
+ * 俱樂部」，不是「這個帳號被授權哪些俱樂部」，見 git 歷史）。現在**只列出這個帳號目前有效
+ * （未過期、未撤銷）的俱樂部授權**（規劃書 §4.0「站台切換器只列出該帳號已授權且未到期的俱樂部」），
+ * 系統管理員例外——後端固定回傳「全部啟用中的俱樂部」（`MeResponse` 的資料來源不是
+ * `AdminUserClub`，見 apps/api/README.md 該節說明），對系統管理員而言效果等同於「全部都算被授權」。
+ * 同一次呼叫也把姓名（`displayName`）與角色（`roles`）帶回來，姓名寫回 `@/auth/session`
+ * 供 `UserMenu.vue` 顯示；角色目前沒有畫面用到，先不留欄位（要用時再從 `getMe()` 的回應直接取）。
  *
- * 目前的處理方式：一律用公開的 `GET /api/v1/clubs`（不需要登入）列出系統裡「有哪些俱樂部」，
- * 讓切換器可以動作；**這不等於「這個帳號真的被授權存取」**——真正的範圍檢查一律由後端
- * `AdminClubAuthorizer` 在每一次俱樂部範圍請求時即時判斷（docs/21-admin-ui.md §5：「切換器是
- * 介面便利，不是安全邊界」本來就是這個意思），選到未授權的俱樂部時，該頁會如實顯示後端回傳的
- * 403 訊息（「你沒有被授權存取俱樂部「...」的後台資料。」），不會誤導使用者以為操作成功。
- * **建議後端補一支 `GET /api/v1/admin/auth/me`**，回傳 `displayName`／`primaryClubId`／
- * 目前有效的俱樂部授權清單／角色代碼，屆時把這裡改回真正的「只列出被授權的俱樂部」即可，
- * 不影響呼叫端（`availableClubs`／`activeClubId` 的介面不需要變）。
+ * ⚠️ **切換器仍然只是介面便利，不是安全邊界**（docs/21-admin-ui.md §5）：真正的範圍檢查一律由
+ * 後端 `AdminClubAuthorizer` 在每一次俱樂部範圍請求時即時判斷。這裡列出的清單現在雖然已經是
+ * 「這個帳號被授權的俱樂部」，但仍然不能拿它取代後端的即時檢查——例如授權在切換器載入之後、
+ * 下一次操作之前被撤銷的情況，一樣要靠後端擋下，不是靠前端清單「本來就是對的」。
  */
 export interface ClubOption {
   code: string
@@ -63,14 +62,22 @@ export async function ensureClubsLoaded(force = false): Promise<void> {
   if (state.loaded && !force) return
   state.loading = true
   try {
-    const clubs = await listPublicClubs()
-    state.clubs = clubs.map((c) => ({ code: c.code, name: c.name, crestUrl: resolveCrest(c.code) }))
+    const me = await getMe()
+    setDisplayName(me.displayName)
+    state.clubs = me.clubGrants.map((g) => ({
+      code: g.clubCode,
+      name: g.clubNameZh ?? g.clubCode,
+      crestUrl: resolveCrest(g.clubCode),
+    }))
     state.loaded = true
-    if (!clubs.some((c) => c.code === internalActiveClubId.value) && clubs.length > 0) {
-      internalActiveClubId.value = clubs[0].code
+
+    const primary = me.clubGrants.find((g) => g.isPrimary)?.clubCode
+    const currentStillValid = state.clubs.some((c) => c.code === internalActiveClubId.value)
+    if (!currentStillValid) {
+      internalActiveClubId.value = primary ?? state.clubs[0]?.code ?? internalActiveClubId.value
     }
   } catch {
-    // 讀不到俱樂部清單就先留空——各頁面既有的「連不上後台服務」錯誤畫面會處理接下來的 API 呼叫失敗，
+    // 讀不到個人檔案就先留空——各頁面既有的「連不上後台服務」錯誤畫面會處理接下來的 API 呼叫失敗，
     // 這裡不重複跳錯誤訊息。
   } finally {
     state.loading = false

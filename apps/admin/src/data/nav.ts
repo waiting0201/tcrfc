@@ -17,7 +17,7 @@ export const NAV_GROUPS: NavGroup[] = [
         code: 'B',
         label: '內容管理',
         children: [
-          { code: 'B1', label: '頁面管理', path: '/content/pages', implemented: false },
+          { code: 'B1', label: '頁面管理', path: '/content/pages', implemented: true },
           { code: 'B2', label: '新聞與故事', path: '/content/news', implemented: true },
           { code: 'B3', label: '首頁編排', path: '/content/homepage', implemented: false },
           { code: 'B4', label: '常見問題', path: '/content/faq', implemented: false },

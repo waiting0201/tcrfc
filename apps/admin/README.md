@@ -2,16 +2,23 @@
 
 台中磐石官網主站與台中藍鯨官網**共用同一個後台**的 Vue 3 SPA。
 
+✅ **S1-4（2026-09-24）：頁面管理（B1）＋站台切換器改接 `/auth/me`＋賽季／球隊改真下拉選單**——
+新增「頁面管理」完整畫面（列表、12 種區塊的區塊化編輯器、發布／排程、版本歷程與還原、預覽連結），
+站台切換器改讀 `GET /api/v1/admin/auth/me`（只列出這個帳號目前有效的俱樂部授權，系統管理員例外
+看到全部啟用中的俱樂部）並帶出登入者姓名給 `UserMenu.vue`；賽事系列的「賽季」與帳號的「球隊授權」
+兩處原本「沒有清單只能貼識別碼」的暫時作法，已改接 `GET /admin/{club}/seasons`／
+`GET /admin/teams` 真下拉選單。詳見下方「B1 頁面管理」「站台切換器」「賽事系列」「系統管理畫面」
+各節與「本輪驗收（S1-4）」。
+
 ✅ **S1（2026-09-24）：接上真實登入與 J1／J2／J4／C4 賽事系列**——外殼＋儀表板＋「新聞與故事」
 （B2）＋帳號（J1）＋角色與權限（J2）＋俱樂部與授權管理（J4）＋賽事系列（C4 底下的一小部分）
-現在都是真的打 `apps/api` 的畫面，不再是假資料。其餘 10 個模組仍是明確的「尚未建置」佔位頁
-（不是死連結）。**開發寫入閘門（`DevWriteGate`／`X-Dev-Operator-Id`）已隨後端整支移除**，
-`src/api/gate.ts`／`src/api/devOperator.ts` 這兩個檔案本輪一併刪除，所有寫入端點一律走真實
-登入權杖（見下方「登入與工作階段」）。
+現在都是真的打 `apps/api` 的畫面，不再是假資料。**開發寫入閘門（`DevWriteGate`／`X-Dev-Operator-Id`）
+已隨後端整支移除**，`src/api/gate.ts`／`src/api/devOperator.ts` 這兩個檔案本輪一併刪除，所有寫入
+端點一律走真實登入權杖（見下方「登入與工作階段」）。
 
 🟡 **尚未真的做的（本輪不在範圍內，回報）**：J3 稽核與備份（後端本來就已撤回稽核記錄，見
 apps/api/README.md）、C4 的完整賽程賽果（本輪只做了「賽事系列」這個支援型別，見 `data/nav.ts`
-該筆的註解）、其餘 10 個模組維持假資料 mockup 狀態。
+該筆的註解）、其餘 9 個模組維持假資料或佔位頁狀態。
 
 規格的真實來源是規劃書與 [`docs/03-admin-spec.md`](../../docs/03-admin-spec.md)；版面與視覺規則是
 [`docs/21-admin-ui.md`](../../docs/21-admin-ui.md)（v3，`visual-design-architect` 產出，
@@ -94,17 +101,18 @@ curl http://localhost:8080/healthz      # 應該回 "ok"
    `authUser.value?.isSuperAdmin` 整組濾掉側欄項目是第一層，**真正把關永遠是後端**每個
    `system.*` 權限碼皆為 `sysadmin_only`。
 
-**站台切換器接上真實俱樂部清單**（`src/auth/clubAccess.ts`，取代原本寫死在 `data/session.ts`／
-`data/activeClub.ts` 的假資料，這兩個檔案本輪已刪除）：呼叫公開的 `GET /api/v1/clubs`
-（不需要登入）列出系統裡有哪些俱樂部。🔴 **已知 API 缺口**（回報，未動手改 `apps/api`）：
-規劃書要切換器「依登入者的俱樂部授權列出可切換的站台」，但後端目前沒有任何端點能讓一般帳號
-查詢「我自己」被授權哪些俱樂部（`GET /accounts/{id}/club-grants` 需要 `system.club_grant.view`，
-`sysadmin_only`）；`/auth/login`／`/auth/refresh` 的回應也不含 `primaryClubId` 或授權清單。
-目前的處理方式：切換器列出**全部**俱樂部，選到未授權的俱樂部時，該頁會如實顯示後端回傳的 403
-訊息（「你沒有被授權存取俱樂部「...」的後台資料。」）——這正是 docs/21 §5「切換器是介面便利，
-不是安全邊界」的意思，不算功能性錯誤，但不是規劃書要的「只列出被授權的站台」。**建議後端補一支
-`GET /api/v1/admin/auth/me`**，回傳 `displayName`／`primaryClubId`／目前有效的俱樂部授權清單／
-角色代碼，屆時把 `clubAccess.ts` 改回真正過濾即可，不影響呼叫端介面。
+**站台切換器改接 `GET /api/v1/admin/auth/me`（S1-4，2026-09-24）**：`src/auth/clubAccess.ts`
+取代先前用公開 `GET /api/v1/clubs` 頂著的暫時作法（那個做法只能列出系統裡「有哪些俱樂部」，
+不是「這個帳號被授權哪些俱樂部」）。✅ **已解決先前記錄的已知 API 缺口**——後端已補上
+`/auth/me`（apps/api/README.md「前端回報缺口①」），現在切換器**只列出這個帳號目前有效
+（未過期、未撤銷）的俱樂部授權**，系統管理員例外（後端固定回傳「全部啟用中的俱樂部」）。
+同一次呼叫也把姓名（`displayName`）帶回來寫進 `@/auth/session`，`UserMenu.vue` 因此顯示得出
+真實姓名而不只是登入帳號字串。**只授權一個俱樂部的帳號**（`SiteSwitcher.vue` 既有邏輯：
+`clubs.length > 1` 才顯示可互動下拉，否則顯示唯讀的 `.site-switcher--static`）已用無頭瀏覽器
+實際登入一個只授權台中磐石的帳號驗證過，切換器確實只顯示「台中磐石」（見下方「本輪驗收
+（S1-4）」第 3 點）。⚠️ **切換器仍然只是介面便利，不是安全邊界**（docs/21 §5）：清單雖然已經是
+「被授權的俱樂部」，範圍檢查仍然一律由後端 `AdminClubAuthorizer` 即時判斷，不能假設前端清單
+「本來就是對的」（例如授權在清單載入之後被撤銷的情況）。
 
 ## 專案結構
 
@@ -115,25 +123,30 @@ apps/admin/
 │   ├── App.vue               # 只有一個 <router-view />
 │   ├── router/index.ts       # 路由表 + 登入／強制流程／sysadminOnly 三層路由守衛（見上方「登入與工作階段」）
 │   ├── auth/
-│   │   ├── session.ts        # 登入工作階段單例：存取權杖（記憶體）＋使用者旗標，見上方存放策略說明
-│   │   └── clubAccess.ts     # 站台切換器的俱樂部清單＋目前選取的 activeClubId（原 data/session.ts／data/activeClub.ts 已刪除）
+│   │   ├── session.ts        # 登入工作階段單例：存取權杖（記憶體）＋使用者旗標＋姓名（displayName，由 /auth/me 補上），見上方存放策略說明
+│   │   └── clubAccess.ts     # 站台切換器的俱樂部清單（改接 `GET /auth/me`，見上方「站台切換器」）＋目前選取的 activeClubId
 │   ├── layouts/AdminLayout.vue   # 外殼：側欄／頂欄／drawer／響應式斷點切換（桌面／平板／手機）
 │   ├── components/
 │   │   ├── AppSidebar.vue        # 側欄選單（6 組視覺分組、el-sub-menu 手風琴、選中態改 accent bar；J 系統管理整組依 isSuperAdmin 濾掉）
 │   │   ├── AppTopbar.vue         # 系統列（桌面/平板 40px）／合併列（手機 56px，含頁面標題）
 │   │   ├── PageHeader.vue        # 頁面列：模組標題＋「這裡管理的是」固定兩行，各頁面內容區頂端自己渲染
 │   │   ├── SiteSwitcher.vue      # 站台切換器（docs/21 §5：只換徽章，不換整套主色；手機移進 drawer 頂部；俱樂部清單來源見上方）
-│   │   ├── UserMenu.vue          # 顯示真實登入帳號＋「帳號安全設定」／「登出」（呼叫真實 `/auth/logout`）
+│   │   ├── UserMenu.vue          # 顯示真實姓名（`/auth/me` 帶回，見上方）＋「帳號安全設定」／「登出」（呼叫真實 `/auth/logout`）
 │   │   ├── FrontendUnitBanner.vue # 「這裡管理的是：{前台單元} ↗」（規劃書 §4.0 硬性規定）
 │   │   ├── StatusTag.vue         # 草稿／排程發布／已發布／已停用 四態，深色語意底＋亮色文字（非 el-tag 預設 type）
-│   │   ├── ImageUploader.vue     # S0-8 起接上真實上傳端點，見下方「圖片上傳共用元件的前端接線」；預覽框鋪中性看片台（docs/21 §9.1）
-│   │   └── BilingualShortField.vue # 雙語短欄位：桌面並排、手機自動變 tabs
+│   │   ├── ImageUploader.vue     # S0-8 起接上真實上傳端點，見下方「圖片上傳共用元件的前端接線」；預覽框鋪中性看片台（docs/21 §9.1）；S1-4 起也被 B1 頁面區塊圖片重用
+│   │   ├── BilingualShortField.vue # 雙語短欄位：桌面並排、手機自動變 tabs
+│   │   ├── BilingualTextareaField.vue # 雙語多行文字欄位，S1-4 新增，見下方「頁面管理」
+│   │   └── pageBlocks/PageBlockEditor.vue # B1 12 種區塊的內容編輯，S1-4 新增，見下方「頁面管理」
 │   ├── views/
 │   │   ├── DashboardView.vue
 │   │   ├── PlaceholderView.vue   # 尚未建置模組的共用畫面（不是死連結）
 │   │   ├── NotFoundView.vue
 │   │   ├── auth/LoginView.vue           # 帳密 → （若已啟用）驗證碼，兩步驟同一頁切換
 │   │   ├── account/AccountSecurityView.vue  # 改密＋兩階段驗證設定，強制流程與使用者自行調整共用同一份
+│   │   ├── pages/              # B1 頁面管理，S1-4 新增，見下方「頁面管理」整節
+│   │   │   ├── PageListView.vue
+│   │   │   └── PageEditView.vue
 │   │   ├── news/
 │   │   │   ├── NewsListView.vue  # 列表頁標準型（篩選列／批次操作列／表格／分頁／空狀態）
 │   │   │   └── NewsEditView.vue  # 編輯頁標準型（分段表單／雙語／狀態／離開未儲存提醒）
@@ -149,15 +162,17 @@ apps/admin/
 │   │   └── useUnsavedChanges.ts  # 路由離開 + beforeunload 兩處攔截
 │   ├── api/
 │   │   ├── http.ts             # apiRequest／apiUploadRequest：帶權杖、401 自動 refresh 一次、錯誤分類
-│   │   ├── adminAuth.ts        # 登入／refresh／登出／改密／2FA 三支
+│   │   ├── adminAuth.ts        # 登入／refresh／登出／改密／2FA／`getMe`（S1-4 新增，見上方「站台切換器」）
 │   │   ├── adminNews.ts        # B2（既有）
+│   │   ├── adminPages.ts       # B1 頁面管理，S1-4 新增，見下方「頁面管理」
 │   │   ├── adminAccounts.ts    # J1 帳號 ＋ J4 掛在帳號底下的俱樂部／球隊授權
 │   │   ├── adminRoles.ts       # J2 角色與權限
 │   │   ├── adminClubs.ts       # J4 俱樂部主檔（標誌／favicon／OG 圖唯讀，見該檔案檔頭）
-│   │   ├── adminCompetitions.ts # C4 賽事系列
-│   │   └── publicClubs.ts      # 公開 `GET /api/v1/clubs`，站台切換器用
-│   ├── data/                 # 假資料與靜態設定（session.ts／activeClub.ts 已刪除，見上方），見下方「假資料放哪」
-│   ├── types/                 # 共用 TypeScript 型別
+│   │   ├── adminCompetitions.ts # C4 賽事系列（S1-4 新增 `listAdminSeasons`，見下方「賽事系列」）
+│   │   └── adminTeams.ts       # J4 球隊授權下拉選單，S1-4 新增（原 `publicClubs.ts` 已隨站台切換器改接 `/auth/me` 一併刪除）
+│   ├── data/                 # 假資料與靜態設定，見下方「假資料放哪」
+│   ├── types/                 # 共用 TypeScript 型別（`pageBlocks.ts` 為 S1-4 新增，見下方「頁面管理」）
+│   ├── utils/pageBlockSerializer.ts # B1 區塊畫面狀態 ↔ 後端 JSON 互轉，S1-4 新增，見下方「頁面管理」
 │   └── styles/admin-theme.css # 深色 design tokens：四層背景色階、文字/邊框/主色/四態色票（docs/21 §7）
 ├── scripts/
 │   ├── check-forbidden-terms.mjs  # 禁用詞掃描（見下方）
@@ -377,7 +392,7 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
   任務指示要求不要動它，見 `src/api/adminClubs.ts` 檔頭）——畫面只顯示「已設定」／「尚未設定」，
   不提供上傳，之後應比照新聞封面圖片的 multipart 契約補上。
 
-## 賽事系列（C4 的一小部分，S1，2026-09-24）
+## 賽事系列（C4 的一小部分，S1，2026-09-24；賽季下拉選單於 S1-4 補上）
 
 `views/teams/CompetitionListView.vue`／`CompetitionEditView.vue`，路徑掛在側欄既有的
 「C4 賽程與賽果」底下（`data/nav.ts` 該筆已標成 `implemented: true`，附一行註解說明範圍）。
@@ -386,15 +401,81 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
 賽程賽果的分類支援型別，例如「企業甲級聯賽」）這一小塊，畫面上有明顯提示「本階段僅開放維護
 賽事系列……實際的賽程日期、比分與出賽名單尚未開放」，完整功能留給之後的 `S1-8`。
 
-🔴 **已知 API 缺口（回報，未動手改 `apps/api`）**：建立賽事系列需要指定所屬「賽季」
-（`Season`），但後端**沒有任何端點可以列出俱樂部有哪些賽季**——`Season` 目前只在種子腳本裡建立，
-沒有對應的維護或列表端點。畫面上因此用一個「賽季識別碼」文字輸入框（GUID 格式驗證）當權宜作法，
-並在畫面與程式註解都清楚標示這是暫時的。編輯既有資料時會顯示目前的賽季代碼供對照，不需要使用者
-自己記。**建議後端補一支賽季清單端點（甚至一併補上賽季維護端點）**，屆時把這裡換成下拉選單即可。
+✅ **「賽季」欄位已改成真下拉選單**（S1-4，`src/api/adminCompetitions.ts` 的 `listAdminSeasons`
+呼叫 `GET /admin/{club}/seasons`）：選項顯示賽季代碼與起訖日（例如「2026-27（2026-08-01 ～
+2027-05-31）」），切換站台時會重新載入該俱樂部的賽季清單。編輯既有資料時仍會顯示目前的賽季代碼
+供對照。**這是唯讀查詢用途**，賽季本身的維護（新增／編輯賽季）尚未開放，權限碼沿用既有的
+`team.competition.view`，未新增權限碼。
 
-同一類缺口也出現在 **J4 球隊授權**（`AccountEditView.vue` 的球隊授權分頁）：後端沒有任何端點能
-列出「有哪些球隊」，同樣只能先用文字輸入球隊識別碼，待 `C1 球隊` 或專門的清單端點做出來後再補上
-下拉選單。
+同一類缺口也在 **J4 球隊授權**（`AccountEditView.vue` 的球隊授權分頁）解決：改接
+`GET /admin/teams`（`src/api/adminTeams.ts`），依俱樂部分組顯示下拉選單，且畫面上**只列出
+這個帳號目前已授權俱樂部底下的球隊**（後端也會擋，這是前端提前收斂選項範圍，避免使用者選了
+一個必然會被拒絕的球隊）——這個帳號一筆有效俱樂部授權都沒有時，畫面會提示「請先在上方新增
+俱樂部授權」而不是顯示一個空的下拉選單。
+
+## 頁面管理（B1，S1-4，2026-09-24）
+
+對應主站規劃書 §4.2 B1（約行 1011–1014）與 apps/api/README.md「S1-4：B1 頁面管理」。**這裡管理的
+是網站的多個靜態頁面**（`FrontendUnitBanner` 用 `linkType: 'multi'`，不是單一頁面），對照
+`src/data/frontendUnits.ts` 的 `B1` 項。
+
+- **列表頁**（`views/pages/PageListView.vue`）：篩選（狀態／關鍵字）、分頁、欄位為網址名稱、
+  SEO 標題（中文）、狀態、更新時間；版面沿用 `NewsListView.vue` 的列表頁標準型。
+- **新增／編輯頁**（`views/pages/PageEditView.vue`）：
+  - **基本資訊**：網址名稱（`slug`，允許 `/` 表示分層路徑，對照 `docs/01`「URL 直接對應網站
+    層級」）。
+  - **SEO 設定**：標題（`BilingualShortField`）、描述（新增的 `BilingualTextareaField`，見下方）。
+  - **內容區塊**：12 種區塊型別（文字、圖文左右、圖片藝廊、影音嵌入、引言、CTA、手風琴 FAQ、
+    時間軸、步驟條、數據卡、表格、檔案下載）的區塊化編輯器——下拉選型別＋「新增區塊」按鈕、
+    每個區塊卡片有「上移／下移／刪除區塊」，型別名稱**顯示中文**（`PAGE_BLOCK_TYPE_LABEL`，
+    `CTA`／`FAQ` 是規劃書原文用字不是英文技術詞，未違反 §4.0「代號不進介面」，見
+    `src/types/pageBlocks.ts` 檔頭說明）。
+  - **發布設定**：草稿／排程發布／已發布三態、`StatusTag`、預覽連結。
+  - **操作列**：版本歷程、預覽、儲存草稿、發布／排程（`el-dropdown split-button`，樣式沿用
+    `NewsEditView.vue`）。
+- **版本歷程與還原**：`el-dialog` 列出版本清單，「檢視內容」顯示該版本的簡短摘要（區塊型別＋
+  關鍵欄位截斷字串，**不是**逐版重新渲染完整的區塊編輯器——規劃書只要求「版本歷程與還原」，
+  沒有要求逐版完整重現畫面，這是本輪的取捨），「還原」呼叫 `restoreAdminPageVersion`（後端
+  「還原＝以舊版內容產生一個新版本，不覆蓋中間版本、不改變發布狀態」，見 apps/api/README.md
+  「我的判斷」）。
+- **預覽連結**：顯示 `/{locale}/preview/{token}`（中文／英文版可切換）並提供複製按鈕
+  （`navigator.clipboard.writeText`），畫面上明白提示「這是官網的路徑，請自行接上官網網域」——
+  `apps/web` 尚未實作這條路由（見「已知的 API 缺口彙整」第 6 點），本輪只驗證到 API 層的
+  `GET /api/v1/pages/preview/{token}` 契約本身正確可用。
+
+### 新增的檔案
+
+| 檔案 | 內容 |
+|---|---|
+| `src/types/pageBlocks.ts` | 12 種區塊型別的畫面狀態型別、中文名稱對照表、空白內容產生器 |
+| `src/utils/pageBlockSerializer.ts` | 畫面狀態 ↔ 後端 JSON 互轉（`parseBlockFromDto`／
+  `serializeBlocksForSubmit`），逐條對齊 `PageBlockContentProcessor.cs` 的驗證規則做前端預檢，
+  **後端仍是最終依據**，這裡只是減少一次不必要的往返 |
+| `src/api/adminPages.ts` | 對照 `AdminPageDtos.cs` 的完整端點清單 |
+| `src/components/pageBlocks/PageBlockEditor.vue` | 單一區塊的內容編輯，依 `blockType` 切換欄位；
+  圖片欄位直接重用 `ImageUploader.vue`（`v-model:file`／`v-model:remove-cover` 對到
+  `ImageSlotState.file`／`cleared`） |
+| `src/components/BilingualTextareaField.vue` | `BilingualShortField.vue` 的多行版本（SEO 描述、
+  引言、FAQ 答案等用得到，之後其他模組也可以直接沿用） |
+| `src/views/pages/PageListView.vue`／`PageEditView.vue` | 見上方 |
+
+### 圖片欄位的畫面狀態設計（`ImageSlotState`）
+
+跟新聞封面圖（單一欄位、可整個清空）不同，頁面區塊的圖片是**必填**（圖文左右恰 1 張、圖片藝廊
+至少 1 張，不能整個留空），因此沒有「清空後維持空白」這個終態——`ImageSlotState.cleared` 為真
+時視同「使用者想要換一張，但還沒選」，存檔前的前端預檢會擋下並提示「尚未選擇圖片」，不會讓這個
+狀態送到後端（後端收到既沒有 `pendingUpload` 也沒有 `key` 的圖片欄位一樣會 400，前端只是提早
+攔一次給更明確的訊息）。圖片藝廊的「刪除這張圖片」直接把整個 `ImageSlotState` 從陣列移除，
+不透過 `cleared`——差異在於「換掉這一張」與「這裡本來就不該有這一張」是两回事。
+
+### 為什麼不用 emit 逐層傳遞，改成直接改 `content` 物件的巢狀屬性
+
+`PageBlockEditor.vue` 拿到的 `content` prop 是父層（`PageEditView.vue` 的 `blocks` 陣列元素）
+持有的同一個 reactive 物件參照，元件內部直接改它的巢狀屬性（例如 `textC.value.body.zh = v`），
+不是每一層都寫一組 `emit`／`v-model`。**這不是「修改 prop 本身」**——Vue 只警告重新賦值 prop
+變數本身，不警告修改物件型別 prop 的巢狀屬性；`CompetitionEditView.vue` 直接綁 `form.xxx` 也是
+同一種既有慣例。對 12 種區塊、部分還帶陣列欄位（FAQ／時間軸／步驟條／數據卡／表格／圖片藝廊）的
+表單來說，逐層 `emit` 的樣板碼會多出好幾倍，這裡判斷這個取捨是合理的。
 
 ## 驗收紀錄（S1，2026-09-24，本機環境）
 
@@ -453,30 +534,97 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
 > （`./db/seed/reset-admin-accounts.sh`，只 UPDATE 既有列，不影響角色指派與俱樂部授權），
 > 細節見 `apps/api/README.md`「種子測試帳號的重設」一節。
 
+## 驗收紀錄（S1-4，2026-09-24，本機環境）
+
+`npm run lint`／`npm run typecheck`／`npm run build` 全過。實際起 `apps/api`（連本機
+`tcrfc_club_dev`＋本機 `azurite-blob --skipApiVersionCheck`）與 `npm run dev`，用無頭 Chrome ＋
+CDP（Node 24 內建 `WebSocket`，不需要額外套件；`/json/new` 用 `PUT`，見
+[`docs/18` E-32](../../docs/18-work-errors.md)）驅動真實瀏覽器逐步操作：
+
+1. **站台切換器只列出被授權的站台**（規劃書 §4.0 要求、本輪核心驗收項）：用 `sa@system.local`
+   走完整強制改密＋TOTP 設定流程登入後，透過 J1「新增帳號」建立一個**只授權台中磐石一個俱樂部**
+   的測試帳號（角色「內容編輯」）；登出改登入這個新帳號、走完它自己的強制改密＋TOTP 設定
+   （初始密碼由建立時指定，即時用 RFC 6238 演算法算出驗證碼，不是猜測或事先準備好的碼）後，
+   確認：切換器渲染成 `.site-switcher--static`（唯讀單一站台樣式，不是可互動下拉）、顯示文字
+   為「台中磐石」（沒有「台中藍鯨」）；`UserMenu.vue` 顯示真實姓名「S1-4 頁面管理驗收帳號」
+   （不是登入帳號字串）；側欄「系統管理」出現次數為 0（非系統管理員看不到）。
+2. **建立含圖文左右（附圖）、手風琴 FAQ、表格三種區塊的頁面**：用上述測試帳號在「頁面管理」
+   新增頁面，圖文左右區塊用 `DOM.setFileInputFiles`（CDP）夾帶一張真實 1920×1080 JPEG，儲存
+   草稿後直接查資料庫確認 `page_blocks.content` 的圖片欄位有真實物件鍵與正確的
+   `width`／`height`（`1920`／`1080`），並用 Python `azure-storage-blob` SDK 確認 Azurite
+   裡真的有 5 個物件（主檔＋1280／640／320／縮圖）。
+3. **排程 → 發布**：開啟主要按鈕旁的下拉選「排程發布」，用文字輸入＋`Enter` 確認日期時間選擇器
+   （`el-date-picker` 接受直接輸入 `YYYY-MM-DD HH:mm:ss` 格式），確認狀態變成「排程發布」；
+   接著直接按主要按鈕「發布」，確認排程中的頁面可以立即發布（狀態變成「已發布」），過程中表單
+   錯誤訊息皆為 `null`。
+4. **公開端點看得到**：直接 `curl GET /api/v1/tcrfc/pages/{slug}`，確認回傳已發布內容（雙語
+   物件已依語系簡化為明文字串），三個區塊的內容與後台輸入的一致。
+5. **改內容產生新版本**：把圖文左右區塊的中文內文改成另一段文字並按「儲存變更」（已發布頁面的
+   主要按鈕標籤），確認表單錯誤為 `null`；開啟「版本歷程」，版本清單從 1 累加到 4（建立、排程、
+   發布、這次編輯各算一次寫入，逐字對照 apps/api/README.md「每次寫入都會產生一個新的
+   `page_versions` 列」）。
+6. **還原舊版**：對版本歷程裡的「第 1 版」點「檢視內容」，確認摘要顯示的是原始內文（不是編輯後
+   的內容）；點「還原」並確認對話框後，確認：跳出成功訊息、畫面上的內文欄位回到原始文字、
+   版本歷程再開一次變成 5 筆（**還原本身也產生新版本，不是覆蓋掉中間的版本**，逐字對照
+   apps/api/README.md「我的判斷」）。
+7. **預覽連結可開**（API 層驗證，見「已知的 API 缺口彙整」第 6 點的範圍限定）：畫面上讀出
+   `/zh/preview/{token}`，直接 `fetch` 對應的 `GET /api/v1/pages/preview/{token}`，確認回
+   `200`、內容是最新版本（含還原後的原始內文）、`X-Robots-Tag: noindex, nofollow` 存在。
+8. **清除測試資料**：在列表頁刪除測試頁面（`DELETE` 成功，資料庫 `pages` 表歸零，
+   Azurite 裡對應的 5 個物件事後也確認清空——過程中 Azurite 意外中斷過一次導致補償刪除當下
+   連不上物件儲存，物件因此殘留，這是**環境問題不是程式缺陷**（`IImageStorageService.DeleteAsync`
+   本來就是 fail-open 語意，見 apps/api/README.md「失敗回滾」），已用 Python SDK 手動清掉這批
+   殘留物件）；停用測試帳號後直接用 SQL 把這筆帳號連同角色指派、俱樂部授權一併刪除（J1 本身
+   沒有帳號刪除端點，只有停用，見 apps/api/README.md「本輪沒做的部分」）。
+9. **還原種子帳號狀態**：執行 `./db/seed/reset-admin-accounts.sh`，確認 `sa@system.local`
+   回到 `must_change_password=1`／`two_factor_enabled=0`／`status=active`／
+   `failed_attempt_count=0` 的種子初始值；`admin_users` 總筆數還原為 9（跟種子腳本原始筆數一致，
+   確認測試帳號沒有殘留）；`pages` 表筆數為 0。
+
+**過程中沒有發現需要修正的實作缺陷**（跟 S1 那輪不同，這輪端對端測試沒有踩到新的一次性瀏覽器
+執行期錯誤）。
+
 ## 交付範圍與邊界
 
-本階段**做了**：外殼（側欄＋頂欄＋站台切換器＋使用者選單，全部接真實登入）、儀表板、新聞與故事的
-列表頁與編輯頁（改走真實登入權杖）、**登入／TOTP 兩階段驗證／首次登入強制改密／JWT 15 分鐘＋
-更新權杖輪替與自動 refresh／登出**、帳號管理（J1）、角色與權限（J2）、俱樂部與授權管理（J4，
-含掛在帳號底下的俱樂部授權與球隊授權）、賽事系列（C4 的一小部分）。
+本階段（S1／S1-4 累計）**做了**：外殼（側欄＋頂欄＋站台切換器＋使用者選單，全部接真實登入，
+切換器只列出被授權的俱樂部並顯示真實姓名）、儀表板、新聞與故事的列表頁與編輯頁、**登入／TOTP
+兩階段驗證／首次登入強制改密／JWT 15 分鐘＋更新權杖輪替與自動 refresh／登出**、帳號管理（J1，
+球隊授權改真下拉選單）、角色與權限（J2）、俱樂部與授權管理（J4，含掛在帳號底下的俱樂部授權與
+球隊授權）、賽事系列（C4 的一小部分，賽季改真下拉選單）、**頁面管理（B1）完整畫面**：列表頁、
+新增／編輯頁（12 種區塊的區塊化編輯器：新增、排序、刪除、雙語、圖片選檔不上傳儲存才上傳）、
+SEO 設定、發布／排程、版本歷程與還原、預覽連結（顯示並可複製）。
 
 **不做**（本輪範圍外或有已知缺口，見上方各節）：J3 稽核與備份（後端已撤回稽核記錄）、C4 的完整
 賽程賽果、其餘 9 個模組的真實功能（都是明確的佔位頁）、J4 的俱樂部標誌／favicon／OG 圖上傳、
-賽季與球隊的清單／維護端點（回報的 API 缺口）、站台切換器「只列出被授權的俱樂部」（回報的 API
-缺口，目前列出全部俱樂部，未授權時由後端 403 擋下）。
+B1 頁面的第 13 種區塊型別（規劃書只給 12 個名稱，見「已知的 API 缺口彙整」第 4 點）、預覽權杖
+到期／撤銷、檔案下載區塊的檔案上傳（只能貼網址）。
 
-## 已知的 API 缺口彙整（本輪回報，未動手改 `apps/api`）
+## 已知的 API 缺口彙整（S1 輪回報，✅ 三項已於 S1-4 全部由後端補上並接線完成）
 
-任務指示要求「發現 API 缺什麼才能做，停下該部分並回報」，三處彙整在這裡，個別細節見上面各自的
-小節：
+任務指示要求「發現 API 缺什麼才能做，停下該部分並回報」，S1 那一輪回報了三處缺口，
+apps/api 已在 S1-4 續作全部補上對應端點（見 apps/api/README.md「S1-4 續作」），本輪
+（S1-4，2026-09-24）已把前端接線改回真正的下拉選單／過濾清單，不再是遺留紀錄：
 
-1. **沒有 `GET /api/v1/admin/auth/me`（或等效端點）**：一般帳號無法查詢「我自己」的
-   `displayName`／`primaryClubId`／有效俱樂部授權／角色代碼。影響：站台切換器只能列出全部俱樂部
-   而非「被授權的站台」；`UserMenu.vue` 只能顯示 `username`（登入帳號字串），顯示不出姓名。
-2. **沒有任何端點可以列出俱樂部的「賽季」（`Season`）**。影響：建立賽事系列時的賽季欄位只能讓
-   使用者自己貼識別碼，不是下拉選單。
-3. **沒有任何端點可以列出「球隊」**（`C1 球隊` 本身也還沒有維護端點）。影響：J4 球隊授權的球隊
-   欄位同樣只能貼識別碼。
+1. ✅ **`GET /api/v1/admin/auth/me`**：已接線，見上方「站台切換器改接 `GET /api/v1/admin/auth/me`」。
+2. ✅ **`GET /admin/{club}/seasons`**：已接線，見下方「賽事系列」一節——`CompetitionEditView.vue`
+   的「賽季」欄位已改成真正的下拉選單（顯示球季代碼與起訖日），不再需要使用者自己貼識別碼。
+3. ✅ **`GET /admin/teams`**：已接線，見下方「系統管理畫面」一節——`AccountEditView.vue` 的
+   球隊授權分頁已改成依俱樂部分組的下拉選單，且**只列出這個帳號目前已授權俱樂部底下的球隊**
+   （前端先收斂選項範圍，後端仍會再檢查一次，兩層防線）。
 
-三者都不影響已完成功能的正確性（後端仍然是最終的授權與資料範圍把關），純粹是「畫面沒有更好的
-輸入方式可用」的可用性缺口。
+**本輪新增的已知缺口（B1 頁面管理，回報，未動手改 `apps/api`）**：
+
+4. **規劃書 §4.2 B1 逐字只列出 12 種區塊名稱，但 `docs/12b`／DDL 註解寫「13 種型別」**——這是
+   apps/api 那邊回報過的既有文件落差（已修正為 12 種，見 apps/api/README.md），前端因此也只做
+   12 種，不自創第 13 種。
+5. **`page_versions.preview_token` 沒有到期或撤銷欄位**：預覽連結一經產生即永久有效（見
+   apps/api/README.md「預覽連結：權杖何時產生、已知缺口」），前端這裡只如實顯示與提供複製，
+   沒有能力做「連結已過期」這類提示。
+6. **前台 `apps/web` 尚未實作 `/{locale}/preview/{token}` 這條路由**（apps/api/README.md
+   「給下一位的交接事項」第 1 點）：本輪只在畫面上顯示並可複製這個相對路徑，**沒有**在本機環境
+   實際打開驗證能不能渲染——已改用直接呼叫 `GET /api/v1/pages/preview/{token}` 這個 API 層端點
+   驗證契約本身可用（回 200、正確的 `X-Robots-Tag: noindex, nofollow`、正確的頁面內容），
+   見下方「本輪驗收（S1-4）」第 8 點。
+7. **檔案下載區塊（`file_download`）不支援直接上傳新檔案**：`IImageStorageService` 只處理圖片
+   （PDF 等檔案會被當成圖片重新編碼因而損毀，見 apps/api/README.md「B1 頁面管理」12 種區塊摘要
+   表格的備註），畫面上這個區塊只能貼已經放好的外部網址或既有物件鍵，不提供上傳按鈕。

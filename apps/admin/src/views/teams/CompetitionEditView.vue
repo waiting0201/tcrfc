@@ -2,12 +2,10 @@
 /**
  * 賽事系列（Competition）編輯頁。
  *
- * 🔴 「賽季」欄位需要輸入識別碼，是本輪回報的已知 API 缺口：`apps/api` 目前沒有任何端點可以
- * 列出俱樂部有哪些賽季（`Season` 只在資料庫 seed 腳本裡建立，沒有對應的維護或列表端點），
- * 所以這裡沒有下拉選單可用。建議之後補一支賽季清單端點（甚至一併補上賽季的維護端點），
- * 屆時把這裡換成下拉選單即可，不影響其餘邏輯。編輯既有資料時會顯示目前的賽季代碼供對照。
+ * ✅ 「賽季」欄位已改接 `GET /admin/{club}/seasons` 下拉選單（S1-4 續作補上，取代先前
+ * 「沒有清單、只能自己貼識別碼」的暫時作法，見 apps/api/README.md「前端回報缺口②之一」）。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
@@ -15,7 +13,13 @@ import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
-import { createAdminCompetition, getAdminCompetition, updateAdminCompetition } from '@/api/adminCompetitions'
+import {
+  createAdminCompetition,
+  getAdminCompetition,
+  listAdminSeasons,
+  updateAdminCompetition,
+  type AdminSeasonListItemDto,
+} from '@/api/adminCompetitions'
 import { AdminApiError } from '@/api/http'
 
 const route = useRoute()
@@ -38,6 +42,21 @@ const form = reactive({
 const existingSeasonCode = ref('')
 const baselineJson = ref('')
 
+const seasons = ref<AdminSeasonListItemDto[]>([])
+const seasonsLoadError = ref<string | null>(null)
+
+async function loadSeasons() {
+  seasonsLoadError.value = null
+  try {
+    seasons.value = await listAdminSeasons(activeClubId.value)
+  } catch (error) {
+    seasons.value = []
+    seasonsLoadError.value = error instanceof AdminApiError ? error.message : '球季清單載入失敗，請稍後再試'
+  }
+}
+
+const seasonLabel = (season: AdminSeasonListItemDto) => `${season.code}（${season.startOn} ～ ${season.endOn}）`
+
 const loadState = ref<'loading' | 'ready' | 'error'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
@@ -46,6 +65,7 @@ const formError = ref<string | null>(null)
 async function loadCompetition() {
   loadState.value = 'loading'
   try {
+    await loadSeasons()
     if (!isCreate.value && competitionId.value) {
       const detail = await getAdminCompetition(activeClubId.value, competitionId.value)
       form.seasonId = detail.seasonId
@@ -68,12 +88,15 @@ async function loadCompetition() {
 }
 
 onMounted(loadCompetition)
+// 切換站台（俱樂部）時，賽季清單要跟著換一批，不能沿用另一個俱樂部的球季識別碼。
+watch(activeClubId, () => {
+  if (isCreate.value) loadSeasons()
+})
 
 const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(form) !== baselineJson.value)
 useUnsavedChanges(isDirty)
 
 const pageTitle = computed(() => (isCreate.value ? '新增賽事系列' : `編輯賽事系列：${form.nameZh}`))
-const GUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** 跟俱樂部主檔同樣的判斷方式：英文名稱是必填才有意義的欄位，沒有英文名稱就視為
  * 「還沒有英文版本」，不整份送出。 */
@@ -83,8 +106,8 @@ function isEnEmpty(): boolean {
 
 function validate(): boolean {
   formError.value = null
-  if (!GUID_PATTERN.test(form.seasonId.trim())) {
-    formError.value = '賽季識別碼格式不正確，請確認是否完整複製'
+  if (!form.seasonId) {
+    formError.value = '請選擇賽季'
     return false
   }
   if (!form.code.trim()) {
@@ -103,7 +126,7 @@ async function handleSave() {
   saving.value = true
   try {
     const payload = {
-      seasonId: form.seasonId.trim(),
+      seasonId: form.seasonId,
       code: form.code.trim(),
       compType: form.compType || null,
       sortOrder: form.sortOrder,
@@ -171,11 +194,19 @@ function handleBack() {
 
       <el-card shadow="never" header="基本資料" class="competition-edit__section">
         <el-form label-position="top">
-          <el-form-item label="賽季識別碼" required>
-            <el-input v-model="form.seasonId" placeholder="請輸入賽季的識別碼" />
+          <el-form-item label="賽季" required>
+            <el-select
+              v-model="form.seasonId"
+              placeholder="請選擇賽季"
+              filterable
+              style="width: 100%"
+              :no-data-text="seasonsLoadError ?? '目前這個俱樂部還沒有任何球季資料'"
+            >
+              <el-option v-for="season in seasons" :key="season.id" :label="seasonLabel(season)" :value="season.id" />
+            </el-select>
             <span v-if="existingSeasonCode" class="competition-edit__hint">目前的賽季代碼：{{ existingSeasonCode }}</span>
-            <span class="competition-edit__hint competition-edit__hint--warning">
-              目前後台尚無「賽季」清單可供選擇，需自行輸入識別碼（已知缺口，見交付說明）。
+            <span v-if="seasonsLoadError" class="competition-edit__hint competition-edit__hint--warning">
+              {{ seasonsLoadError }}
             </span>
           </el-form-item>
           <el-form-item label="代碼" required>
