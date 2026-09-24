@@ -864,6 +864,43 @@ PERMISSIONS = [
     ("team.competition.view", "C", "C4", "team", "view", 1, 0, 0, "檢視賽事系列", "View Competitions"),
     ("team.competition.create", "C", "C4", "team", "create", 1, 0, 0, "建立賽事系列", "Create Competitions"),
     ("team.competition.update", "C", "C4", "team", "update", 1, 0, 0, "編輯賽事系列", "Update Competitions"),
+    # S1-7 新增：C1 球隊／C2 球員／C3 教練與團隊成員。domain 沿用既有的 "team"（跟
+    # team.competition.* 同一個 domain 值，方便權限查詢時整組 domain='team' 一次撈，
+    # 見 apps/api/README.md「新增後台端點的必要形狀」清單第 3 點）。三者都是
+    # is_club_scoped=1（teams／players／staff 三張表都有 club_id 欄位，staff 雖可為空但欄位
+    # 本身存在——is_club_scoped 標示的是「有這個維度」不是「必填」，articles.club_id 同樣
+    # 可為空卻仍是 is_club_scoped=1，見既有 content.article.* 那一組），非 sysadmin_only。
+    ("team.team.view", "C", "C1", "team", "view", 1, 0, 0, "檢視球隊", "View Teams"),
+    ("team.team.create", "C", "C1", "team", "create", 1, 0, 0, "建立球隊", "Create Teams"),
+    ("team.team.update", "C", "C1", "team", "update", 1, 0, 0, "編輯球隊", "Update Teams"),
+    ("team.player.view", "C", "C2", "team", "view", 1, 0, 0, "檢視球員", "View Players"),
+    ("team.player.create", "C", "C2", "team", "create", 1, 0, 0, "建立球員", "Create Players"),
+    ("team.player.update", "C", "C2", "team", "update", 1, 0, 0, "編輯球員", "Update Players"),
+    ("team.staff.view", "C", "C3", "team", "view", 1, 0, 0, "檢視教練與團隊成員", "View Staff"),
+    ("team.staff.create", "C", "C3", "team", "create", 1, 0, 0, "建立教練與團隊成員", "Create Staff"),
+    ("team.staff.update", "C", "C3", "team", "update", 1, 0, 0, "編輯教練與團隊成員", "Update Staff"),
+    # S1-6 新增：B3 首頁編排——banners／home_sections 皆為 club_id 必填，is_club_scoped=1，
+    # 非 sysadmin_only。規劃書 §6 矩陣把 B3 歸在「內容」欄，角色足跡（見下方 ROLE_PERMISSIONS）
+    # 沿用 content.article.*／content.page.* 既有的四個角色（system_admin／content_editor／
+    # viewer／partner_club_manager），其餘角色本輪未指派，理由同 content.page.*（apps/api/README.md）。
+    ("content.banner.view", "B", "B3", "content", "view", 1, 0, 0, "檢視首頁輪播", "View Home Banners"),
+    ("content.banner.create", "B", "B3", "content", "create", 1, 0, 0, "新增首頁輪播", "Create Home Banners"),
+    ("content.banner.update", "B", "B3", "content", "update", 1, 0, 0, "編輯首頁輪播", "Update Home Banners"),
+    ("content.banner.delete", "B", "B3", "content", "delete", 1, 0, 0, "刪除首頁輪播", "Delete Home Banners"),
+    ("content.home_section.view", "B", "B3", "content", "view", 1, 0, 0, "檢視首頁區塊編排", "View Home Sections"),
+    ("content.home_section.update", "B", "B3", "content", "update", 1, 0, 0, "調整首頁區塊開關與排序", "Update Home Sections"),
+    # S1-6 新增：B4 常見問題——規劃書 §6 矩陣把 FAQ 獨立成一欄，權限分佈跟「內容」欄不同
+    # （見 apps/api/README.md 逐列說明），因此另外命名一組，不沿用 content.article.* 的角色足跡。
+    # content.faq_category.*（faq_categories 無 club_id，10 個固定主題＋可再新增）is_club_scoped=0，
+    # 執行層走 IAdminSystemAuthorizer（跟 J 模組同一支介面，但不是 sysadmin_only）。
+    ("content.faq.view", "B", "B4", "content", "view", 1, 0, 0, "檢視常見問題", "View FAQs"),
+    ("content.faq.create", "B", "B4", "content", "create", 1, 0, 0, "新增常見問題", "Create FAQs"),
+    ("content.faq.update", "B", "B4", "content", "update", 1, 0, 0, "編輯常見問題", "Update FAQs"),
+    ("content.faq.delete", "B", "B4", "content", "delete", 1, 0, 0, "刪除常見問題", "Delete FAQs"),
+    ("content.faq_category.view", "B", "B4", "content", "view", 0, 0, 0, "檢視常見問題分類", "View FAQ Categories"),
+    ("content.faq_category.create", "B", "B4", "content", "create", 0, 0, 0, "新增常見問題分類", "Create FAQ Categories"),
+    ("content.faq_category.update", "B", "B4", "content", "update", 0, 0, 0, "編輯常見問題分類", "Update FAQ Categories"),
+    ("content.faq_category.delete", "B", "B4", "content", "delete", 0, 0, 0, "刪除常見問題分類", "Delete FAQ Categories"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -890,6 +927,24 @@ END
 # 競技／球隊管理 ✔全、內容編輯與檢視者唯讀、合作球隊管理僅自家（own_clubs）。system.club.*／
 # system.club_grant.* 只給系統管理員（sysadmin_only，其餘角色矩陣「系統」欄皆為「—」／「✗」），
 # 系統管理員那一列用 [p[0] for p in PERMISSIONS] 自動涵蓋，不需要另外列出。
+#
+# S1-7（2026-09-24）：team.team.*／team.player.*／team.staff.* 依規劃書 §6 矩陣「球隊／賽事」欄
+# 逐列展開，跟上面 team.competition.* 用同一欄、同一套判讀（矩陣沒有為 C1/C2/C3 與 C4 分欄）：
+# 系統管理員 ✔全（[p[0] for p in PERMISSIONS] 自動涵蓋）；競技／球隊管理 ✔全；內容編輯／
+# 商務／贊助／公關／媒體／檢視者 唯讀；合作球隊管理 ✔自家（own_clubs，全權限）；
+# 客服／行政 該欄是「—」不給任何權限；翻譯人員／學院／課程管理本輪刻意不給，見下方兩則說明。
+#
+# 🔴 學院／課程管理（academy_program）本輪刻意不指派 team.team.*／team.player.*／team.staff.*：
+# 矩陣寫的是「學院梯隊」（scope_type=academy_only，只能碰 team.type='academy' 的球隊與其球員／
+# 教練），但這個角色的列級範圍過濾（依 AdminUserTeam／team.type 篩資料列）本輪沒有做——
+# 派工單明確要求「本輪球員／教練的寫入若規劃書要求依球隊授權限制，先回報再決定，不要自己擴大
+# 範圍」。在列級強制做出來之前先發這三組權限碼給 academy_program，效果等同給它跟
+# team_competition 一樣的全俱樂部球隊存取權（含一線隊），超出矩陣「僅學院梯隊」的授權意圖，
+# 是擴大範圍不是保守預設，因此本輪不發，回報給下一輪決定（見任務回報「綱要缺口或待裁決」）。
+# 🔴 翻譯人員（translator，scope_type=translate_only）本輪同樣不指派——這個角色在整份種子腳本
+# 目前對任何模組都沒有半筆權限（news／pages 都還沒給），代表「僅翻譯欄位」這個範圍限制本身
+# 尚未有任何模組真的做出列級或欄位級的強制，C1–C3 若第一個開先例單獨給它會造成「這個角色能寫
+# 中文姓名以外的欄位」這種矩陣沒有授權的能力，故跟其餘模組保持一致，暫不指派。
 ROLE_PERMISSIONS = [
     ("system_admin", [p[0] for p in PERMISSIONS], "all"),
     ("content_editor", [
@@ -900,14 +955,60 @@ ROLE_PERMISSIONS = [
         # 註解），不是另外重新判斷一次。
         "content.page.view", "content.page.create", "content.page.update", "content.page.publish", "content.page.delete",
         "team.competition.view",
+        "team.team.view", "team.player.view", "team.staff.view",
     ], "all"),
-    ("team_competition", ["team.competition.view", "team.competition.create", "team.competition.update"], "all"),
-    ("viewer", ["content.article.view", "content.page.view", "team.competition.view"], "all"),
+    ("team_competition", [
+        "team.competition.view", "team.competition.create", "team.competition.update",
+        "team.team.view", "team.team.create", "team.team.update",
+        "team.player.view", "team.player.create", "team.player.update",
+        "team.staff.view", "team.staff.create", "team.staff.update",
+    ], "all"),
+    # S1-7 新增：商務／贊助、公關／媒體——矩陣「球隊／賽事」欄皆為「唯讀」，這兩個角色在
+    # 整份種子腳本目前完全沒有任何權限（其餘模組尚未接真實授權），本輪是第一次真的種進去。
+    ("business_sponsorship", ["team.team.view", "team.player.view", "team.staff.view"], "all"),
+    ("pr_media", ["team.team.view", "team.player.view", "team.staff.view"], "all"),
+    ("viewer", [
+        "content.article.view", "content.page.view", "team.competition.view",
+        "team.team.view", "team.player.view", "team.staff.view",
+    ], "all"),
     ("partner_club_manager", [
         "content.article.view", "content.article.create", "content.article.update",
         "content.page.view", "content.page.create", "content.page.update",
     ], "own_clubs"),
-    ("partner_club_manager", ["team.competition.view", "team.competition.create", "team.competition.update"], "own_clubs"),
+    ("partner_club_manager", [
+        "team.competition.view", "team.competition.create", "team.competition.update",
+        "team.team.view", "team.team.create", "team.team.update",
+        "team.player.view", "team.player.create", "team.player.update",
+        "team.staff.view", "team.staff.create", "team.staff.update",
+    ], "own_clubs"),
+    # S1-6 新增：B3 首頁編排——沿用「內容」欄既有四個角色的範圍（見上方 PERMISSIONS 註解）。
+    ("content_editor", [
+        "content.banner.view", "content.banner.create", "content.banner.update", "content.banner.delete",
+        "content.home_section.view", "content.home_section.update",
+    ], "all"),
+    ("viewer", ["content.banner.view", "content.home_section.view"], "all"),
+    ("partner_club_manager", [
+        "content.banner.view", "content.banner.create", "content.banner.update",
+        "content.home_section.view", "content.home_section.update",
+    ], "own_clubs"),
+    # S1-6 新增：B4 常見問題——矩陣「FAQ」欄是獨立分佈，不沿用「內容」欄的角色足跡（見上方
+    # PERMISSIONS 註解逐列說明）。team_competition／academy_program／business_sponsorship
+    # 「相關題目」需要依分類做列級限定，本輪尚未建立這種限定，本輪未指派（不是遺漏，見
+    # apps/api/README.md）；translator「僅翻譯欄位」同樣需要欄位層限制，本輪未指派，跟既有
+    # 模組一致的範圍縮減。
+    ("content_editor", [
+        "content.faq.view", "content.faq.create", "content.faq.update", "content.faq.delete",
+        "content.faq_category.view", "content.faq_category.create", "content.faq_category.update", "content.faq_category.delete",
+    ], "all"),
+    ("pr_media", ["content.faq.view", "content.faq_category.view"], "all"),
+    ("customer_service_admin", [
+        "content.faq.view", "content.faq.create", "content.faq.update", "content.faq.delete",
+        "content.faq_category.view",
+    ], "all"),
+    ("viewer", ["content.faq.view", "content.faq_category.view"], "all"),
+    ("partner_club_manager", [
+        "content.faq.view", "content.faq.create", "content.faq.update", "content.faq_category.view",
+    ], "own_clubs"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")
@@ -941,6 +1042,10 @@ ADMIN_USERS = [
      False, False, True, "viewer", [("tcrfc", None)]),
     ("partner.club@tcrfc.test", "合作球隊管理（測試帳號，僅藍鯨）", "$argon2id$v=19$m=65536,t=3,p=1$QAl31fxqFgoUhEuvf6+j3w==$gtn5/eEYXVsALxi8DR1g4sWdzrnT3BQ1BI4m48MJjqc=",
      False, False, True, "partner_club_manager", [("bw", None)]),
+    # S1-7 新增：C1–C3（team.team.*／team.player.*／team.staff.* ✔全）測試帳號，只授權 tcrfc——
+    # 沿用 content.editor@tcrfc.test 的雜湊（純測試帳號不需各自唯一密碼，跟 expired.grant 同例）。
+    ("team.manager@tcrfc.test", "競技／球隊管理（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, True, "team_competition", [("tcrfc", None)]),
     # 🔴 授權已過期的測試帳號：expires_on 給昨天日期，專門用來驗證「授權有起訖日，到期自動失效」
     # （主站規劃書 §6「資料範圍規則」、AdminClubAuthorizer 的第③步）。
     ("expired.grant@tcrfc.test", "已過期授權（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
@@ -971,6 +1076,7 @@ emit("--   super.admin@tcrfc.test       / SuperAdmin@123")
 emit("--   content.editor@tcrfc.test    / ContentEditor@123")
 emit("--   viewer@tcrfc.test            / Viewer@123")
 emit("--   partner.club@tcrfc.test      / PartnerClub@123")
+emit("--   team.manager@tcrfc.test      / ContentEditor@123（沿用同一組雜湊，純測試帳號不需各自唯一密碼）")
 emit("--   expired.grant@tcrfc.test     / ContentEditor@123（沿用同一組雜湊，純測試帳號不需各自唯一密碼）")
 emit("--   fresh.setup@tcrfc.test       / Admin@123（沿用同一組雜湊）")
 emit("--   lockout.test@tcrfc.test      / Viewer@123（沿用同一組雜湊）")
@@ -998,6 +1104,66 @@ IF NOT EXISTS (SELECT 1 FROM admin_user_roles WHERE admin_user_id = {admin_sq(us
 IF NOT EXISTS (SELECT 1 FROM admin_user_clubs WHERE admin_user_id = {admin_sq(username)} AND club_id = {club_ref})
   INSERT INTO admin_user_clubs (admin_user_id, club_id, granted_on, expires_on, is_active)
   VALUES ({admin_sq(username)}, {club_ref}, CAST(SYSUTCDATETIME() AS date), {expires_sql}, 1);
+""")
+
+# ============================================================================
+# S1-6（B4 常見問題，2026-09-24）：faq_categories 十個固定主題
+# ----------------------------------------------------------------------------
+# 逐字對應主站規劃書 3.12「主題分類導覽卡」列出的十個主題（加入球隊、學院招生、課程與營隊
+# 報名、費用與退費、試訓、國際發展與海外球員、女子足球、球迷會與商品、合作與贊助、其他）。
+# 沒有 club_id（同 article_categories 的共用主檔設計）。後台「新增分類」端點仍可再新增，
+# 這裡只是把規劃書明文列出的十個起始分類種好，不代表分類數量從此固定死。
+# ============================================================================
+FAQ_CATEGORIES = [
+    ("join-team", "加入球隊", "Join the Club"),
+    ("academy-admission", "學院招生", "Academy Admission"),
+    ("programs-camps", "課程與營隊報名", "Programs & Camp Registration"),
+    ("fees-refunds", "費用與退費", "Fees & Refunds"),
+    ("trials", "試訓", "Trials"),
+    ("international", "國際發展與海外球員", "International Development & Overseas Players"),
+    ("womens-football", "女子足球", "Women's Football"),
+    ("fan-club-merchandise", "球迷會與商品", "Fan Club & Merchandise"),
+    ("partnerships-sponsorship", "合作與贊助", "Partnerships & Sponsorship"),
+    ("other", "其他", "Other"),
+]
+
+emit("-- ── 19. faq_categories：規劃書 3.12 十個主題（不帶 club_id，全站共用主檔） ──────")
+for i, (slug, name_zh, name_en) in enumerate(FAQ_CATEGORIES):
+    cat_id = new_id("faq_category", slug)
+    block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM faq_categories WHERE slug = {esc(slug)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(cat_id)};
+  INSERT INTO faq_categories (id, slug, sort_order) VALUES (@id, {esc(slug)}, {i});
+  INSERT INTO faq_categories_i18n (faq_category_id, locale, name) VALUES (@id, N'zh-Hant', {esc(name_zh)});
+  INSERT INTO faq_categories_i18n (faq_category_id, locale, name) VALUES (@id, N'en', {esc(name_en)});
+END
+""")
+
+# ============================================================================
+# S1-6（B3 首頁編排，2026-09-24）：home_sections 九大區塊，兩俱樂部各種一份
+# ----------------------------------------------------------------------------
+# 代碼與預設排序須與 apps/api/Features/AdminHomeSections/HomeSectionCatalog.cs 逐一對應
+# （C# 與本腳本各自宣告一份同樣的九個代碼，這是既有慣例——比照 SlugPolicy.cs 檔頭記錄的
+# 「多處字面值常數，各自宣告，靠命名一致與 code review 維持同步」，不是自動化比對）。
+# 全部區塊起始狀態為啟用（is_enabled=1），排序依規劃書 §3.1 首頁九大區塊表格列出的順序。
+# ============================================================================
+HOME_SECTIONS = [
+    "hero", "core_values", "ecosystem_nav", "upcoming_match", "recent_fixtures",
+    "latest_news", "partner_logos", "shop_entry", "bottom_cta",
+]
+
+emit("-- ── 20. home_sections：規劃書 3.1 首頁九大區塊，兩俱樂部各種一份 ───────────────")
+for club_code in ("tcrfc", "bw"):
+    club_ref = CLUB_TCRFC if club_code == "tcrfc" else CLUB_BW
+    for i, section_code in enumerate(HOME_SECTIONS):
+        section_id = new_id("home_section", club_code, section_code)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM home_sections WHERE club_id = {club_ref} AND section_code = {esc(section_code)})
+  INSERT INTO home_sections (id, club_id, section_code, is_enabled, sort_order)
+  VALUES ({esc(section_id)}, {club_ref}, {esc(section_code)}, 1, {i});
 """)
 
 if "--reset-admin-accounts" in sys.argv:

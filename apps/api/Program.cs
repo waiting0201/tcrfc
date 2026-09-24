@@ -9,18 +9,26 @@ using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Features.AdminAccounts;
 using Tcrfc.Api.Features.AdminAuth;
+using Tcrfc.Api.Features.AdminBanners;
 using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
+using Tcrfc.Api.Features.AdminFaqs;
+using Tcrfc.Api.Features.AdminHomeSections;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.AdminPages;
+using Tcrfc.Api.Features.AdminPlayers;
 using Tcrfc.Api.Features.AdminRoles;
+using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminTeams;
 using Tcrfc.Api.Features.Clubs;
+using Tcrfc.Api.Features.Faqs;
+using Tcrfc.Api.Features.Home;
 using Tcrfc.Api.Features.News;
 using Tcrfc.Api.Features.Pages;
 using Tcrfc.Api.Features.Players;
 using Tcrfc.Api.Features.Schedule;
 using Tcrfc.Api.Features.Staff;
+using Tcrfc.Api.Features.Teams;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
 
@@ -125,6 +133,10 @@ builder.Services.AddScoped<AdminClubsRepository>();
 builder.Services.AddScoped<AdminCompetitionsRepository>();
 builder.Services.AddScoped<AdminTeamsRepository>();
 
+// ── S1-7：C1–C3 球隊／球員／教練俱樂部範圍 CRUD ─────────────────────────────
+builder.Services.AddScoped<AdminPlayersRepository>();
+builder.Services.AddScoped<AdminStaffRepository>();
+
 // Data Protection：加密 admin_users.two_factor_secret_encrypted（Security/TwoFactorSecretProtector.cs）。
 // 🔴 正式環境務必設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
 // 密鑰永久無法解密——見 TwoFactorSecretProtector.cs 檔頭的完整說明，這不是本次程式碼能防呆的事。
@@ -189,6 +201,7 @@ else
 builder.Services.AddScoped<ClubsRepository>();
 builder.Services.AddScoped<PlayersRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Staff.StaffRepository>();
+builder.Services.AddScoped<TeamsRepository>();
 builder.Services.AddScoped<ArticlesRepository>();
 builder.Services.AddScoped<MatchesRepository>();
 builder.Services.AddScoped<PagesRepository>();
@@ -209,6 +222,16 @@ builder.Services.AddScoped<AdminArticlesRepository>();
 // 見 Features/AdminPages/AdminPagesRepository.cs 檔頭說明——寫入走 EF Core、公開讀取走 Dapper
 // 的 PagesRepository（上面已註冊），跟新聞模組同一種切分方式。
 builder.Services.AddScoped<AdminPagesRepository>();
+
+// ── S1-6：B3 首頁編排／B4 常見問題 ────────────────────────────────────────
+// 寫入走 EF Core（AdminBanners／AdminHomeSections／AdminFaqs，AdminFaqCategories 全域不分俱樂部），
+// 公開讀取走 Dapper（Home／Faqs），跟既有模組同一種切分方式。
+builder.Services.AddScoped<AdminBannersRepository>();
+builder.Services.AddScoped<AdminHomeSectionsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminFaqs.AdminFaqsRepository>();
+builder.Services.AddScoped<AdminFaqCategoriesRepository>();
+builder.Services.AddScoped<HomeRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Faqs.FaqsRepository>();
 
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 const string CorsPolicyName = "ClubFrontends";
@@ -274,9 +297,15 @@ app.MapHealthEndpoints();
 app.MapClubsEndpoints();
 app.MapPlayersEndpoints();
 app.MapStaffEndpoints();
+app.MapTeamsEndpoints();
 app.MapArticlesEndpoints();
 app.MapMatchesEndpoints();
 app.MapPagesEndpoints();
+
+// ── S1-6：B3／B4 公開讀取 ────────────────────────────────────────────────
+app.MapHomeEndpoints();
+app.MapFaqsEndpoints();
+
 app.MapAdminAuthEndpoints();
 
 // 路由一律註冊，每個請求各自由 IAdminClubAuthorizer 驗證登入與授權（401／403）。
@@ -292,8 +321,18 @@ app.MapAdminClubsEndpoints();
 app.MapAdminCompetitionsEndpoints();
 app.MapAdminTeamsEndpoints();
 
+// ── S1-7：C1–C3 球隊／球員／教練俱樂部範圍 CRUD ─────────────────────────────
+app.MapAdminPlayersEndpoints();
+app.MapAdminStaffEndpoints();
+
 // ── S1-4：B1 頁面管理 ────────────────────────────────────────────────────
 app.MapAdminPagesEndpoints();
+
+// ── S1-6：B3 首頁編排／B4 常見問題 ────────────────────────────────────────
+app.MapAdminBannersEndpoints();
+app.MapAdminHomeSectionsEndpoints();
+app.MapAdminFaqsEndpoints();
+app.MapAdminFaqCategoriesEndpoints();
 
 app.Run();
 

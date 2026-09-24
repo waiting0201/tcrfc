@@ -1279,6 +1279,441 @@ dotnet ef migrations has-pending-model-changes --context ClubDbContext
 
 ---
 
+## S1-6：`B3` 首頁編排／`B4` 常見問題（2026-09-24，`backend-engineer`）
+
+### 規劃書條文逐條對照（主站規劃書 §4.2 B3／B4，行 999–1033；§3.1 首頁九大區塊，行 287–306；
+§3.12 FAQ，行 569–585；§7 `GEO-06`，行 1678）
+
+| 規劃書條文 | 狀態 |
+|---|---|
+| B3：Hero 輪播管理（排序、圖、標題、CTA、上架期間） | ✅ 圖片；**影片本輪未做**（見下方「本輪判斷」） |
+| B3：首頁各區塊開關與排序、精選內容指定 | ✅ 九個固定區塊；**精選內容指定只有 Hero 有欄位可用**（見綱要缺口） |
+| B4：主題分類管理（新增／排序／停用分類） | ✅ 新增／排序／刪除；**「停用」實作成刪除**（見下方「我的判斷」，`faq_categories` 沒有 is_enabled 欄位） |
+| B4：題目 CRUD（問題、答案、所屬分類可複選、排序、狀態、雙語） | ✅ 全部欄位 |
+| B4：嵌入設定（指定頁面或由分類自動對應） | ⚠️ **只做了「由分類自動對應」**（`?category=` 篩選）；「指定該題可出現於哪些頁面」沒有對應欄位，見綱要缺口 |
+| B4：成效數據（瀏覽數、👍／👎、低評價題目清單） | ✅ 瀏覽數與回饋端點；低評價清單＝`sort=low_rating` |
+| `GEO-06`（FAQ 問題完整句子、答案首句即結論） | 這是**內容規範**，不是 API 行為——API 只提供 `question`／`answer` 兩個自由文字欄位，撰寫規則由後台使用者與客戶版文案自律遵守，程式不驗證句子形狀 |
+
+**規劃書沒寫，本輪沒自創的部分**：Hero 輪播的「影片」（規劃書寫「圖／影片」，`banners` 表只有
+`image_key` 一欄，沒有影片欄位）；「精選內容指定」對 Hero 以外八個區塊的具體欄位（規劃書只給
+一句話，沒有逐區塊定義要指定什麼、`home_sections` 也只有 `featured_banner_id` 一欄可用）；
+FAQ 的「指定頁面」嵌入（`faq_category_links` 只能表達「題目屬於哪個分類」，沒有「題目可出現在
+哪個頁面路徑」這件事的資料結構）。三者皆已列在下方「綱要缺口」，不是遺漏。
+
+### 端點與權限碼
+
+後台（一律經 `IAdminClubAuthorizer`，除 `faq-categories` 全域端點經 `IAdminSystemAuthorizer`）：
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET/POST /api/v1/admin/{club}/banners`、`GET/PUT/DELETE .../banners/{id}` | `content.banner.view`／`create`／`update`／`delete` | Hero 輪播 CRUD，建立／更新為 `multipart/form-data`（`payload` ＋ `file`，建立必填、更新省略＝維持原圖） |
+| `GET /api/v1/admin/{club}/home-sections` | `content.home_section.view` | 九個固定區塊列表 |
+| `PUT /api/v1/admin/{club}/home-sections/{sectionCode}` | `content.home_section.update` | 更新單一區塊的開關／排序／（僅 `hero`）精選輪播 |
+| `GET/POST /api/v1/admin/{club}/faqs`、`GET/PUT/DELETE .../faqs/{id}` | `content.faq.view`／`create`／`update`／`delete` | 常見問題 CRUD，純 JSON（無圖片欄位） |
+| `GET/POST /api/v1/admin/faq-categories`、`GET/PUT/DELETE .../faq-categories/{id}` | `content.faq_category.view`／`create`／`update`／`delete` | 主題分類 CRUD，全域端點（`faq_categories` 無 `club_id`） |
+
+公開（無需登入）：
+
+| 方法與路徑 | 說明 |
+|---|---|
+| `GET /api/v1/{club}/banners` | 只回目前在上架期間內的輪播 |
+| `GET /api/v1/{club}/home-sections` | 九個區塊（含未啟用的，前台自行判斷 `isEnabled`） |
+| `GET /api/v1/faq-categories` | 全域分類清單（不分俱樂部） |
+| `GET /api/v1/{club}/faqs?category=&keyword=&lang=&page=&pageSize=` | 只回 `published`，`club_id` 可為空套用「俱樂部專屬優先、回退共同」 |
+| `GET /api/v1/{club}/faqs/{slug}` | 單題詳情 |
+| `POST /api/v1/{club}/faqs/{slug}/views` | 瀏覽數＋1，逐字比照 `Features/News` 既有寫法 |
+| `POST /api/v1/{club}/faqs/{slug}/feedback`（body `{helpful}`） | 👍／👎 遞增 |
+| `POST /api/v1/{club}/faqs/search-misses`（body `{keyword}`） | 零結果搜尋回報，見下方「我的判斷」 |
+
+權限碼種子（`db/seed/generate-club-seed-sql.py` §18.2／§18.3，DML，未動 DDL）：
+`content.banner.*`／`content.home_section.*`（`module_code=B`、`submodule_code=B3`）、
+`content.faq.*`／`content.faq_category.*`（`submodule_code=B4`）。角色指派**分兩種**：
+- **B3 沿用規劃書 §6「內容」欄既有的四個角色足跡**（跟 `content.article.*`／`content.page.*`
+  一致）：`system_admin` 全給；`content_editor` 給 view/create/update/delete（banner）與
+  view/update（home_section）；`viewer` 唯讀；`partner_club_manager`（`own_clubs`）給
+  view/create/update（無 delete）。
+- **B4 走規劃書 §6 獨立的「FAQ」欄**（分佈跟「內容」欄不同）：`content_editor` 全給（含分類）；
+  `pr_media` 唯讀（矩陣「唯讀」）；`customer_service_admin` 給題目 CRUD ＋分類唯讀（矩陣
+  「✔編輯」，本輪判斷不含分類管理，見下方「我的判斷」第 4 點）；`viewer` 唯讀；
+  `partner_club_manager`（`own_clubs`）給題目 view/create/update（無 delete）＋分類唯讀；
+  `team_competition`／`academy_program`／`business_sponsorship`（矩陣「相關題目」）**本輪未指派**
+  ——這需要依 FAQ 分類做列級限定，本輪沒有建立這種限定機制；`translator`（矩陣「僅翻譯欄位」）
+  同樣需要欄位層限制，本輪未指派。這是延續 `content.article.*` 既有的範圍縮減模式，不是新遺漏。
+
+### 資料庫綱要：沒有新增任何表或欄位，全部沿用既有 DDL
+
+`banners`／`banners_i18n`／`home_sections`／`faqs`／`faqs_i18n`／`faq_categories`／
+`faq_categories_i18n`／`faq_category_links`／`faq_search_misses` 八張表**在本輪開始前就已經存在**
+於 `db/club-schema.sql`（含 EF 實體與 `ClubDbContext` 映射，見 `Data/EfEntities/*.cs`）——本輪全程
+沒有碰 DDL、沒有新 migration、沒有對 `tcrfc_club_dev` 做結構變更（`dotnet ef migrations
+has-pending-model-changes` 全程回報無待處理變更）。**種子資料新增了業務資料（DML，不是結構）**：
+`faq_categories` 十個固定主題（規劃書 3.12）、`home_sections` 九個固定區塊 × 兩俱樂部
+（`db/seed/generate-club-seed-sql.py` §19／§20）。
+
+### 沒有樂觀並行控制——本輪的判斷，跟 `Article`／`Page` 不同
+
+`Banner`／`HomeSection`／`Faq`／`FaqCategory` 四個型別的 Update 都**不要求呼叫端帶
+`expectedUpdatedAt`**，比照 `Features/AdminCompetitions/AdminCompetitionsRepository.cs`（同樣沒有
+樂觀並行控制的既有先例），而不是比照 `Features/AdminNews`／`AdminPages`（用 `updated_at` 當並行
+權杖）。理由：這四個型別是單一表單／少欄位的設定型內容，多人同時編輯衝突的風險與 `Competition`
+同一等級，不是新聞或頁面那種多段落長文的協作場景。需要時可依 `Data/ClubDbContextCustomizations.cs`
+既有寫法（`modelBuilder.Entity<T>().Property(x => x.UpdatedAt).IsConcurrencyToken()`）補上，
+不是型別上做不到，是本輪的取捨。
+
+### 我的判斷（規劃書沒定義，本輪做了選擇，需要使用者／下一位確認）
+
+1. **FAQ 分類「停用」＝刪除（硬刪）**：`faq_categories` 沒有任何啟用／停用欄位（`docs/12b`／
+   `db/club-schema.sql` 皆無），刪除分類會透過 `faq_category_links` 的 `ON DELETE CASCADE`
+   自動解除關聯，但**不會刪除題目本身**——一題失去所有分類後仍存在、仍可被關鍵字搜尋到，
+   只是無法再透過分類導覽找到。這是本輪判斷「刪除」在對外行為上最接近規劃書「停用」字面
+   效果的做法，代價是**不可逆**（沒有「重新啟用」，要恢復只能重新建立一個同樣內容的分類）。
+2. **FAQ 建立／更新要求至少 1 個所屬分類**：規劃書寫「所屬分類（可複選）」沒有規定下限，
+   本輪判斷 0 個分類等於「這題在前台主題導覽完全找不到」，比「這個功能還沒做」更容易被誤判成
+   bug，故要求至少 1 個。
+3. **FAQ 狀態是 Update 請求裡的平面欄位，不是獨立的發布／排程端點**：`faqs.status` 只接受
+   `draft`／`published`（沒有 `published_at` 欄位，不支援排程，docs/14「S0-7g」），比照
+   `Features/AdminCompetitions` 的既有寫法，不是比照 `Article`／`Page` 那種有版本歷程與狀態轉換
+   權限的獨立生命週期。
+4. **`customer_service_admin` 給題目 CRUD，但分類唯讀**：規劃書矩陣 FAQ 欄對這個角色只寫
+   「✔編輯」一格，沒有區分題目與分類。本輪判斷客服人員的日常工作是新增／修改常見問題內容，
+   不包含重新設計十個主題分類這種較結構性的異動，因此分類管理只留給 `content_editor`／
+   `system_admin`。
+5. **零結果搜尋回報（`POST .../faqs/search-misses`）是本輪新增的獨立端點，不是規劃書明文要求**：
+   `faq_search_misses` 表在 DDL 裡本來就存在，註解寫明「零結果搜尋關鍵字與次數（成效統計）」，
+   跟 S1-5 補齊 `articles.view_count` 寫入路徑同一種性質（既有欄位／表只是還沒接讀寫邏輯）。
+   本輪判斷**不要**把這個寫入嵌進 `GET .../faqs?keyword=` 的讀取路徑裡（那是快取讀取路徑，
+   嵌寫入會讓同一個 entity 同時身兼讀與寫，且會把「使用者還在打字時的暫時 0 筆」也計入），
+   改成一支獨立端點，由前端在真正呈現「找不到結果」畫面給使用者看到的那一刻才呼叫。
+6. **Banner 只做圖片，不做影片**：規劃書 B3 寫「圖／影片」，但 `banners` 表只有 `image_key`
+   一個媒體欄位，沒有影片欄位或影片供應商／ID 這類欄位（跟 B1 頁面的 `video_embed` 區塊
+   不同，那個區塊本來就有 `provider`／`videoId` 欄位）。本輪只實作圖片，影片是綱要缺口。
+
+### 綱要缺口或待裁決（回報，不是自己判斷做或不做）
+
+1. 🔴 **`banners` 只有 `image_key` 一個欄位，缺少 `_width`／`_height`／`_alt_zh`／`_alt_en`**——
+   docs/14-invariants.md 的圖片欄位組通則要求每個圖片欄位有這四欄（`<名稱>_width`／`_height`
+   供前台輸出 `<img width height>` 避免版面跳動、`_alt_zh`／`_alt_en` 供無障礙與 SEO）。
+   `articles.cover_key`／`teams.hero_key` 等其餘既有圖片欄位也是同樣的缺口（S0-8／S1-7 已各自
+   遇過，不是本模組獨有），但 `banners` 是**首頁最顯眼的視覺元素**，缺 alt 文字對 WCAG G-08
+   （無障礙）與 GEO 的影響相對更直接。本輪的因應：寬高完全不回傳（前台需要用 CSS
+   `aspect-ratio` 或其他技巧預留版面，無法用伺服器提供的寬高）；alt 文字沒有任何欄位可用，
+   完全沒有實作（既不能沿用標題頂替，因為很多輪播圖是純視覺無文字）。**需要決定**：要不要
+   替 `banners` 補這四欄（規格異動，先改 `docs/12` 再走 migration）。
+2. 🔴 **`home_sections.featured_banner_id` 是唯一一欄承載「精選內容指定」，只有 `hero` 用得到**：
+   規劃書 B3 說「精選內容指定」，但 `home_sections` 沒有給其餘八個區塊（核心價值、體系導覽卡、
+   最新賽事、近期賽事、最新消息、夥伴 Logo 牆、商店入口、底部 CTA）任何「指定要精選哪些內容」
+   的欄位。以「最新消息」為例，目前的實際行為完全依賴 `articles.is_featured`（S0-8 已有，
+   B2 新聞自己的置頂精選機制），不是由 B3 這裡指定——這在功能上「湊合可用」，但規劃書字面上
+   「首頁編排可以指定精選內容」跟「每個內容型別各自有自己的置頂欄位」是兩件不同的事，
+   後者是各模組自己的功能被首頁借用顯示，不是首頁編排本身的一個可設定項目。**需要決定**：
+   要不要讓 `home_sections` 對每個區塊都有辦法指定要精選哪些內容 id（例如一個 JSON 欄位存
+   一組 id 清單），或維持現狀（各區塊各自的精選機制，首頁編排只管開關與排序）。
+3. 🔴 **FAQ「嵌入設定：指定該題可出現於哪些頁面」完全沒有實作**：規劃書給了「或由分類自動
+   對應」這條替代路徑，本輪選擇只做這一種（`?category=` 篩選），因為「指定頁面」需要一張新的
+   關聯表（例如 `faq_page_links` 記錄 `faq_id` ＋ 某種頁面識別鍵），而「頁面識別鍵」要指向
+   什麼（B1 `pages.id`？還是像 `SlugPolicy` 那種寫死的路由片段清單？）本身就是需要先決定的
+   設計問題，任務指示「需要新表就停下回報，不自己加」，故完全不做，不是做一半。
+4. ⚠️ **`faqs.status` 沒有考慮排程，但 CHECK 約束仍允許寫入 `'scheduled'`**（docs/14「S0-7g」
+   既有落差的其中一張表，非本輪新增）：`AdminFaqsRepository.ValidateStatus` 在應用層擋下
+   `'scheduled'`，資料庫層沒有任何約束會擋（`faqs.status` 的 CHECK 是 `draft`／`published`／
+   `scheduled` 三選一，跟 `competitions.status` 同一種既有落差）。
+
+### 測試（`Tcrfc.Api.Tests`，新增 3 個檔案、40 項）
+
+| 檔案 | 涵蓋 |
+|---|---|
+| `AdminBannersAndHomeSectionsTests.cs`（Azurite） | 401／403（未登入、檢視者唯讀、跨俱樂部無授權）、輪播建立必須帶圖片、上架早於下架時間 400、完整生命週期（含換圖刪舊物件、刪除連帶刪圖）、首頁區塊列表固定 9 筆、更新開關與排序、非 Hero 區塊指定精選輪播 400、Hero 指定不存在的輪播 400、不存在的區塊代碼 404、公開端點只回上架期間內的輪播、公開端點回傳全部 9 筆區塊（含停用） |
+| `AdminFaqsAndCategoriesTests.cs` | 401／403（未登入、檢視者唯讀、跨俱樂部無授權）、分類建立更新刪除與 slug 重複 409、題目建立未選分類 400、分類不存在 400、完整生命週期（含分類調整、狀態切換）、slug 重複 409、排程狀態被拒 400、**共用內容唯讀 403**（直接寫 SQL 造一筆 `club_id IS NULL` 的題目）、低評價排序 |
+| `PublicFaqsTests.cs` | 分類公開列表雙語、題目公開列表只回已發布且**回退共用內容**、依分類篩選、單題查詢跨俱樂部查不到、瀏覽數與回饋端點遞增、對不存在的題目回 404、**零結果搜尋回報建立與累加**、空白關鍵字不寫入 |
+
+**測試結果**：
+
+```
+dotnet test --filter "FullyQualifiedName~AdminBannersAndHomeSectionsTests|FullyQualifiedName~AdminFaqsAndCategoriesTests|FullyQualifiedName~PublicFaqsTests" --no-build
+# 已通過! - 失敗: 0，通過: 31，總計: 31（連跑 10 次，每次都是 0 失敗）
+
+dotnet test（全套，先跑 db/seed/reset-admin-accounts.sh 還原被另一個 agent 的端對端驗收弄髒的
+sa@system.local／clean.login@tcrfc.test 狀態，見下方「發現但非本輪造成」）
+# 已通過! - 失敗: 0，通過: 300，總計: 300
+
+dotnet ef migrations has-pending-model-changes --context ClubDbContext
+# No changes have been made to the model since the last migration.
+```
+
+`ArchitectureTests` 包含在全套 300 項裡，一併通過（本輪沒有新增 `ClubScope`／`AdminClubScope`
+型別，不影響那支掃描）。
+
+**發現但非本輪造成**：全套測試第一次執行時 `AdminAuthTests` 有 4 項失敗（登入／2FA／更新權杖
+相關），原因是 `sa@system.local`／`clean.login@tcrfc.test` 的密碼與 2FA 狀態已偏離種子初始值
+——README「種子測試帳號的重設」一節記錄的既有現象（另一個 agent 對 `apps/admin` 做端對端驗收時
+真的登入過這兩個帳號）。執行 `./db/seed/reset-admin-accounts.sh` 後這 4 項全部轉綠，不是本輪
+程式碼造成的問題，記錄在此供下一位核對。
+
+### S1-6 續作：批次操作與 CSV 匯入／匯出（2026-09-24，coordinator 補派）
+
+補齊派工時漏掉的一條規劃書明文——主站規劃書 **行 1033**：「批次操作：批次改分類、批次顯示／隱藏、
+匯入／匯出 CSV」。
+
+**批次改分類、批次顯示／隱藏**：逐字比照 `Features/AdminNews` 既有的三支批次端點（不做逐筆並行
+權杖檢查、能處理的處理不能處理的列進 `Skipped`，理由與寫法一致，見
+`AdminFaqsRepository.BatchChangeCategoryAsync`／`BatchSetVisibilityAsync`）。
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `POST /api/v1/admin/{club}/faqs/batch/category` | `content.faq.update` | 批次改分類（整批取代成同一組分類，不是新增或移除） |
+| `POST /api/v1/admin/{club}/faqs/batch/show` | `content.faq.update` | 批次顯示（`status = 'published'`） |
+| `POST /api/v1/admin/{club}/faqs/batch/hide` | `content.faq.update` | 批次隱藏（`status = 'draft'`） |
+
+🔴 **權限碼跟 News 不同的地方**：News 的批次發布／下架掛 `content.article.publish`（獨立的發布
+權限碼），FAQ 沒有對應的 `content.faq.publish`——因為本模組從第一輪開始就把「顯示／隱藏」設計成
+Update 請求裡的一個平面欄位，不是像新聞那樣有獨立生命週期與發布權限（見 S1-6 一開始「我的判斷」
+第 3 點）。「批次操作的權限碼要對應單筆的同一個動作」這條規則本身沒有變，只是 FAQ 這裡單筆的
+「顯示／隱藏」原本就對應到 `update`，批次版本自然也對應到 `update`，不是新增一個權限碼。
+
+**CSV 匯入／匯出**：`docs/04-data-model.md` §5、`docs/12b-database-tables.md` §10.1 只確認
+「FAQ 題目要支援 CSV 匯入＋匯出」這件事本身（落到 `Faq`＋`FaqCategoryLink`＋`faqs_i18n`），
+兩份文件都**沒有逐欄定義格式**——依任務指示「沒定義就採最小可行」，本輪新增以下格式：
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/faqs/export` | `content.faq.view` | 下載這個俱樂部**自己的**常見問題 CSV（不含共用內容，理由見下方） |
+| `POST /api/v1/admin/{club}/faqs/import` | `content.faq.update` | 上傳 CSV 原始位元組（非 multipart，Content-Type 不拘，一律以 UTF-8 解碼） |
+
+**CSV 格式**（`Features/AdminFaqs/AdminFaqsRepository.CsvHeader`）：
+
+- **編碼**：UTF-8 **含 BOM**（`CsvUtils.ToUtf8BytesWithBom`）——Excel 在部分作業系統開啟不含 BOM
+  的 UTF-8 CSV 會誤判編碼，中文欄位變亂碼，這是任務指示「沒定義就採最小可行」明講的選項。
+- **表頭**（逐字輸出，日常中文）：`網址名稱,所屬分類,狀態,排序,中文問題,中文答案,英文問題,英文答案`。
+  🔴 **不是** `slug,category,status,...`——docs/14-invariants.md「CSV 匯出的欄位標題同此規則」
+  明文把 CSV 表頭納入「介面上不得出現英文技術詞」的範圍。
+- **所屬分類**：多個分類用全形頓號「、」相接（例如 `加入球隊、試訓`），值是分類的**中文名稱**
+  不是 slug 或 GUID——同樣是那條規則的延伸，讓後台人員在 Excel 裡看得懂內容，不需要另外查
+  「slug 對照表」。用頓號而不是逗號，也是為了不必把這一欄整個包進雙引號。
+- **狀態**：`顯示`／`隱藏`（規劃書 B4 原文字面用詞），不是 `published`／`draft`。
+- **雙語**：`中文問題`／`中文答案`必填；`英文問題`／`英文答案`可留空＝這題沒有英文版。
+
+**Upsert 語意**：匯入以 `(club_id, slug)` 為對應鍵（對照 `docs/04-data-model.md` 第 130 行
+「`id` / `slug` … 客戶素材匯入時作為對應鍵」）——網址名稱在這個俱樂部已存在就整份取代該題內容
+（含分類清單），不存在就新增一題。**永遠不會比對到共用內容**（查詢固定帶
+`club_id = scope.ClubId`），匯出範圍也因此限縮成「這個俱樂部自己建立的題目」，不含共用內容——
+避免匯出共用題目、原地改過再匯入，卻在這個俱樂部底下複製出一筆新的俱樂部專屬列（而不是真的
+改到共用那一列）這種混淆。
+
+🔴 **整批驗證，任一列有錯就整批不寫入**（任務指示明文，跟上面「批次操作」刻意是不同的容錯策略
+——批次操作是「使用者在畫面上勾選已經看得到的既有資料」，可以部分成功；CSV 匯入是「使用者上傳
+一份可能整份都打錯格式的外部檔案」，全有全無比較不會讓使用者誤以為半成品資料已經生效）：
+`AdminFaqsRepository.ImportCsvAsync` 分兩輪——第一輪只做純驗證，完全不觸碰 `dbContext` 的任何
+寫入方法；只要有一列不合格就直接回傳完整的 `FaqCsvImportRowErrorDto` 清單（HTTP 400），沒有任何
+一列被寫入。全部合格才進第二輪真正讀寫並呼叫一次 `SaveChangesAsync`（HTTP 200）。
+`RowNumber` 是 CSV 檔案的**實體行號**（表頭算第 1 行，第一筆資料是第 2 行），方便使用者在
+文字編輯器或試算表軟體對照原始檔案。**不寫入任何 log 表**（CLAUDE.md 全域規定、docs/18 `E-44`）
+——匯入本身沒有稽核需求。
+
+**新增檔案**：`Common/CsvUtils.cs`（最小可行的 RFC 4180 風格 CSV 編碼／解析共用工具，放在
+`Common/` 是因為 `docs/12b` §10.1 另外列了整季賽程／積分榜／301 轉址／物流單號四項也要支援
+CSV，屆時應該重用這裡而不是各自另刻一份剖析器，見該檔案檔頭說明）。
+
+**測試**：新增 `CsvUtilsTests.cs`（7 項，純函式單元測試）＋ `AdminFaqsAndCategoriesTests.cs`
+追加 9 項（批次操作 401／403、批次改分類與顯示隱藏含 `Skipped`、共用內容與跨俱樂部列進
+`Skipped`、CSV 授權、CSV 匯出格式與 BOM、CSV 匯入成功含 upsert、**CSV 任一列錯誤整批不寫入**、
+**CSV 檔案內網址名稱重複**、CSV 表頭不正確）。
+
+```
+dotnet test --filter "FullyQualifiedName~AdminBannersAndHomeSectionsTests|FullyQualifiedName~AdminFaqsAndCategoriesTests|FullyQualifiedName~PublicFaqsTests|FullyQualifiedName~CsvUtilsTests" --no-build
+# 已通過! - 失敗: 0，通過: 47，總計: 47（連跑 10 次，每次都是 0 失敗）
+
+dotnet test --filter "FullyQualifiedName!~AdminAuthTests"（排除已知與本模組無關、由 apps/admin
+端對端驗收造成的種子帳號狀態污染，見上方「發現但非本輪造成」）
+# 已通過! - 失敗: 0，通過: 310，總計: 310
+
+dotnet ef migrations has-pending-model-changes --context ClubDbContext
+# No changes have been made to the model since the last migration.
+```
+
+**權限碼種子**：本次續作**沒有新增任何權限碼**——批次操作與 CSV 匯入／匯出全部沿用既有的
+`content.faq.view`／`content.faq.update`，`db/seed/generate-club-seed-sql.py` 未再修改。
+
+**綱要缺口**：無新增。CSV 格式本身是本輪依「最小可行」原則新增的執行層決定，不是資料庫綱要，
+若要正式寫進 `docs/12`（例如統一給其餘四項 CSV 匯入項目的欄位格式規範），留給 system-analyst
+另外走同步鏈評估。
+
+### 本次沒動的部分
+
+- 沒有新增／修改任何 DDL、`db/club-schema.sql`、`Data/Migrations/`、EF 模型本體（`Data/EfEntities/`
+  裡的檔案是既有的，一個屬性都沒改；`ClubDbContext.cs` 一行都沒改）。
+- 沒有修改 `Data/ClubDbContextCustomizations.cs`（本輪判斷不需要樂觀並行控制，見上方說明）。
+- 沒有修改 `apps/admin`／`apps/web`（前端接線由其他 agent 同時處理）。
+- 沒有修改 `docs/14-invariants.md`／`docs/18-work-errors.md`／`STATUS.md`（依任務指示由派工者收尾）。
+- 續作（批次操作／CSV）同樣沒有新增權限碼、沒有動 DDL、沒有修改 `apps/admin`。
+- 沒有 commit。
+
+---
+
+## S1-7：`C1–C3` 球隊／球員／教練的後台 API 與前台公開唯讀（2026-09-24，`backend-engineer`）
+
+### 讀到的規劃書條文
+
+| 章節 | 行號 | 內容 |
+|---|---|---|
+| 主站 §4.3 C1 球隊 | 1053–1062 | 球隊欄位（含 `BW1`、`gender`）、`type=first_team` 每俱樂部至多一筆、`code` 全站唯一、資料範圍 |
+| 主站 §4.3 C2 球員 | 1063–1069 | 基本資料、生涯資料、賽季數據、狀態（現役／離隊／外借／海外發展） |
+| 主站 §4.3 C3 教練與團隊成員 | 1070–1072 | 教練（證照、負責梯隊）、團隊成員分組（管理層／行政／醫療／後勤） |
+| 主站 §5.1 型別總表 | 1477、1479 | `Team`／`Staff` 的欄位與關聯 |
+| 主站 §5.4 `club_id` 判定準則 | 1562、1564 | `Team`／`Player` 必填、`Staff` 可為空（兩隊共同） |
+| docs/12b §6.1 | 13–22 | `Team.code` 全站唯一不得改複合鍵、`type`／`gender` 值域 |
+| docs/12b §4.2 | 390–406 | `staff` 可為空＝兩隊共同、`StaffTeam` 關聯 |
+| docs/12b §8 | 315–333 | 受限與加密欄位盤點——**`players`／`staff`／`teams` 不在清單內** |
+| docs/12b §7.4 | 216 | 學院／課程管理對球隊的權限是 `scope_type = academy_only` |
+| 藍鯨規劃書 §6 | 311 | `Team` 的 `BW1`（`gender=women`、`type=first_team`）示例 |
+| STATUS.md `S0-3c` | — | 「顧問」職稱歸入「管理層」分組，已拍板的執行層決定 |
+
+### 端點與權限碼
+
+三組俱樂部範圍 CRUD，形狀逐字比照 `Features/AdminCompetitions`（權限碼命名）與 `Features/AdminNews`
+（multipart 圖片上傳契約），module_code=C、domain=`team`（跟既有 `team.competition.*` 同一個
+domain，方便權限查詢整組 `domain='team'` 一次撈）：
+
+| 模組 | 路由 | 權限碼 | 圖片欄位插槽 |
+|---|---|---|---|
+| C1 球隊 | `GET/POST /api/v1/admin/{club}/teams`、`GET/PUT /api/v1/admin/{club}/teams/{id}` | `team.team.view`／`.create`／`.update` | `teams.hero`（`hero_key`） |
+| C2 球員 | `GET/POST /api/v1/admin/{club}/players`、`GET/PUT /api/v1/admin/{club}/players/{id}` | `team.player.view`／`.create`／`.update` | `players.photo`（`photo_key`） |
+| C3 教練與團隊成員 | `GET/POST /api/v1/admin/{club}/staff`、`GET/PUT /api/v1/admin/{club}/staff/{id}` | `team.staff.view`／`.create`／`.update` | `staff.photo`（`photo_key`） |
+
+**沒有 DELETE**——逐字比照既有 `Features/AdminCompetitions`（同樣沒有刪除端點）的判斷：規劃書
+C2／C3 明文用「狀態」表達球員離隊（現役／離隊／外借／海外發展），不是刪除列；球隊與教練都被
+賽事明細表（`match_lineups`／`player_season_stats`／`staff_teams`……）外鍵參照，貿然開放刪除會
+製造孤兒列或需要另外設計級聯規則，規劃書沒有要求，本輪不做。**這是我的判斷，不是規劃書明文**，
+需要刪除功能時再另外評估。
+
+**角色授予**（依主站規劃書 §6 矩陣「球隊／賽事」欄，`db/seed/generate-club-seed-sql.py` 已更新）：
+
+| 角色 | 權限 |
+|---|---|
+| 系統管理員 | ✔ 全（`[p[0] for p in PERMISSIONS]` 自動涵蓋） |
+| 競技／球隊管理（`team_competition`） | ✔ 全（`view`／`create`／`update` 三碼皆給） |
+| 內容編輯／商務／贊助／公關／媒體／檢視者 | 唯讀（只給 `.view`） |
+| 合作球隊管理（`partner_club_manager`） | ✔ 全，`scope_type=own_clubs`（僅自家俱樂部，靠 `AdminClubAuthorizer` 既有機制強制） |
+| 客服／行政 | 不給（矩陣該欄是「—」） |
+| 學院／課程管理、翻譯人員 | **本輪刻意不給，見下方「綱要缺口或待裁決」** |
+
+新增測試帳號 `team.manager@tcrfc.test`（`team_competition` 角色，僅授權 `tcrfc`），沿用
+`content.editor@tcrfc.test` 的密碼雜湊。
+
+### 受限欄位處理
+
+- **`players`／`staff`／`teams` 三張表都不在 docs/12b §8 受限欄位清單內**——球員名冊（含生日、
+  慣用腳）、教練證照是球隊官網例行公開的競技資訊，不是一般會員個資。這是既有的、S0-7b 就已經
+  做出的決定（見既有 `Features/Players/PlayerDto.cs` 檔頭），本輪沒有改動，只是延續：後台
+  `AdminPlayerDetailDto`／`AdminStaffDetailDto` 沒有對任何欄位遮罩，公開端點的欄位集合也維持
+  S0-7b 定的樣子不變。
+- **`staff.club_id IS NULL`（兩隊共同）→ 俱樂部範圍端點一律唯讀**，逐字比照
+  `Features/AdminNews/AdminArticlesRepository` 對 `articles`（同屬 9 張可為空表）的既有處理：
+  建立永遠把 `club_id` 填成路由當下的俱樂部（不接受建立共同資料），更新命中 `club_id IS NULL`
+  的既有列一律丟 `SharedStaffReadOnlyException`（403）——**沒有超管特例**，這個俱樂部範圍端點
+  目前完全不提供編輯共同內容的路徑（跟 `articles` 目前的狀態一致，不是我在這輪臨時決定收緊）。
+  種子資料目前沒有任何 `staff.club_id IS NULL` 的列，測試用直接寫資料庫的方式自己造一筆
+  （`AdminTeamsPlayersStaffTests.InsertSharedStaffAsync`）來驗證這條路徑。
+- **跨俱樂部球隊指派一律擋下**：C2 的 `TeamId`、C3 的 `Teams[].TeamId` 都必須屬於路由當下的
+  俱樂部，否則 400（不是 404——這是輸入錯誤不是資源不存在）。
+
+### 🔴 未實作：球員肖像同意狀態（任務指示要求的欄位，綱要沒有這個欄位）
+
+派工單要求「肖像同意狀態若綱要有欄位，未同意者公開端點不得輸出照片」。**查證結果：
+`db/club-schema.sql` 的 `players` 表沒有任何肖像同意相關欄位**（`shirt_no`／`position`／
+`birth_on`／`height_cm`／`weight_kg`／`nationality`／`preferred_foot`／`joined_on`／`status`／
+`photo_key`，沒有 `portrait_consent`、`consent_status` 或類似欄位；`docs/12b`／`docs/12d`／
+ERD 全文檢索也查無此欄位曾被規劃過）。主站規劃書本文同樣沒有在 C2 球員一節列出肖像同意欄位——
+未成年素材的肖像同意是**流程與蒐集規範**（見規劃書 §7 GEO-02、§8 非功能性需求「未成年學員資料
+須取得監護人同意」），目前的資料模型設計是「同意與否是照片上傳前的線下把關，資料庫不記錄同意
+狀態本身」。**這是綱要缺口，不是我可以自行判斷做或不做的事**：加欄位需要先改規劃書與
+`docs/12`／`db/club-schema.sql`，任務指示明文「需要新欄位或新表就停下回報」，故本輪**沒有**
+新增欄位、沒有實作「未同意不輸出照片」這條規則，`photo_key` 對所有球員一律公開輸出（跟
+S0-7b 既有行為一致）。回報給下一輪決定：①要不要真的加欄位 ②在欄位補上之前，未成年球員照片
+的公開與否要不要先靠人工流程（不上傳未同意者的照片，而不是靠系統擋）。
+
+### 🔴 學院／課程管理（`academy_program`）本輪刻意不給 C1–C3 權限
+
+矩陣寫「學院梯隊」（`scope_type=academy_only`——只能碰 `team.type='academy'` 的球隊與其球員／
+教練），但**這個角色的列級範圍過濾本輪沒有做**（依 `team.type` 或 `AdminUserTeam` 篩資料列）。
+任務指示明確要求「本輪球員／教練的寫入若規劃書要求依球隊授權限制，先回報再決定，不要自己擴大
+範圍」——在列級強制做出來之前先發這三組權限碼給 `academy_program`，效果等同給它跟
+`team_competition` 一樣的全俱樂部球隊存取權（含一線隊），超出矩陣「僅學院梯隊」的授權意圖，
+是擴大範圍不是保守預設，因此本輪不發。`role_permissions.scope_type='own_teams'`（行事曆）與
+本項（`academy_only`）性質相同，`STATUS.md` 已把前者排在 `S1-8`；**本項的列級強制建議與 `S1-8`
+一併處理或另開一項**，屆時把 `academy_program` 的三組權限碼一起補上。
+
+### 改了哪些檔案
+
+**後端**（`apps/api/`）：
+- `Features/AdminTeams/`：`AdminTeamDtos.cs`（新增 C1 的 List／Detail／Create／Update DTO）、
+  `AdminTeamExceptions.cs`（新檔）、`AdminTeamRequestForm.cs`（新檔）、
+  `AdminTeamsRepository.cs`（新增 `ListForClubAsync`／`GetForClubAsync`／`CreateAsync`／
+  `UpdateAsync`，與既有 J4 下拉選單查詢共用同一個類別）、`AdminTeamsEndpoints.cs`（新增俱樂部
+  範圍 CRUD 路由群組）。
+- `Features/AdminPlayers/`（新資料夾）：`AdminPlayerDtos.cs`／`AdminPlayerExceptions.cs`／
+  `AdminPlayerRequestForm.cs`／`AdminPlayersRepository.cs`／`AdminPlayersEndpoints.cs`。
+- `Features/AdminStaff/`（新資料夾）：`AdminStaffDtos.cs`／`AdminStaffExceptions.cs`／
+  `AdminStaffRequestForm.cs`／`AdminStaffRepository.cs`／`AdminStaffEndpoints.cs`。
+- `Features/Teams/`（新資料夾，**前台公開唯讀端點**）：`TeamDto.cs`／`TeamsRepository.cs`／
+  `TeamsEndpoints.cs`——`GET /api/v1/{club}/teams?lang=`，Dapper＋`IQueryCache`，形狀比照既有
+  `Features/Players`／`Features/Staff`。**S0-7b 沒有做球隊本身的公開清單端點**（只做了球員／
+  教練與職員／新聞／賽程／俱樂部主檔五組），這是新增端點不是既有契約變更。
+- `Features/Uploads/UploadSlotPolicy.cs`：新增 `teams.hero`／`players.photo`／`staff.photo`
+  三個欄位插槽。
+- `Common/ApiExceptionHandler.cs`：新增 C1–C3 例外家族的狀態碼對應。
+- `Program.cs`：註冊 `AdminPlayersRepository`／`AdminStaffRepository`／`TeamsRepository` 三個
+  DI 服務，掛上 `MapAdminPlayersEndpoints`／`MapAdminStaffEndpoints`／`MapTeamsEndpoints` 三組路由。
+
+**種子資料**（`db/seed/generate-club-seed-sql.py`）：新增 9 個權限碼
+（`team.team.*`／`team.player.*`／`team.staff.*`）、對應的 `ROLE_PERMISSIONS` 指派、新測試帳號
+`team.manager@tcrfc.test`。
+
+**測試**（`apps/api/Tcrfc.Api.Tests/AdminTeamsPlayersStaffTests.cs`，新檔，15 項）：分兩個類別——
+`AdminTeamsPlayersStaffTests`（`AdminWriteCollection`，授權／驗證／共同資料唯讀，12 項）與
+`AdminTeamsPlayersStaffUploadTests`（`AdminWriteAzuriteEnabledCollection`，需要真實 Azurite 的
+圖片上傳成功案例，3 項）——分兩個 collection 的理由跟既有 `AdminNewsCoverUploadTests` 一致：
+`AdminWriteApiFixture` 注入的是 `UnavailableImageStorageService`，帶檔案的請求會是 500。
+
+**綱要**：沒有新增／修改任何 DDL、`db/club-schema.sql`、`Data/Migrations/`、EF 模型
+（`Data/EfEntities/`、`ClubDbContext.cs` 一行都沒改）——`dotnet ef migrations
+has-pending-model-changes` 綠燈。
+
+### 我的判斷（規劃書沒定義，本輪做了選擇）
+
+- **沒有樂觀並行控制（`updated_at` 並行權杖）**：逐字比照 `Features/AdminCompetitions`（同樣沒有），
+  跟 `articles`／`pages` 不同——後兩者規劃書要求「送審→發布」流程與多人協作編輯，C1–C3 是相對
+  低頻的名冊維護，本輪判斷投資報酬率不夠，需要時再補。
+- **`Player.Status` 省略時預設 `active`**：規劃書沒有明定新增球員的預設狀態，新增球員預設現役
+  是常識性判斷。
+- **`Staff.Teams` 省略＝維持不變、空陣列＝清空**：逐字比照既有 `AdminArticlesRepository` 對
+  `Tags`／`Relations` 的既有語意（S1-5），不是另外發明一套規則。
+- **背號值域 1–99、身高 100–250cm、體重 30–150kg**：規劃書沒有給數字，這是常識性合理範圍檢查，
+  純粹防呆打字錯誤（例如背號打成 4 位數），不是業務規則。
+
+### 測試結果
+
+`dotnet test`（`Tcrfc.Api.Tests`，從 `Tcrfc.Api.Tests/` 目錄執行，見「怎麼跑」一節）：
+**300／300 全過**（既有 285 項 ＋ 本輪新增 15 項）。本模組 filter
+（`AdminTeamsPlayersStaffTests|AdminTeamsPlayersStaffUploadTests`）**連跑 10 次，每次 15／15
+全過，0 失敗**。`ArchitectureTests`、`dotnet ef migrations has-pending-model-changes` 皆綠燈。
+
+⚠️ 執行期間發現 `AdminAuthTests`／`AdminClubAuthorizerTests` 在多輪重跑後偶爾失敗
+（`sa@system.local`／`clean.login@tcrfc.test` 等帳號的密碼／2FA／鎖定狀態被前幾輪測試改動，
+不是冪等的種子重灌能解決的），這是**既有已知行為**（`db/seed/reset-admin-accounts.sh` 就是為
+這個情況存在），用該腳本重設後兩者皆綠燈，跟本輪新增的程式碼無關，交付前已重設乾淨。
+
+### 本次沒動的部分
+
+- 沒有 DELETE 端點（見上方「端點與權限碼」的說明）。
+- 沒有球員肖像同意欄位與相關輸出邏輯（見上方「未實作」段）。
+- 沒有給 `academy_program`／`translator` 兩個角色任何 C1–C3 權限（見上方對應段落）。
+- 沒有實作 `role_permissions.scope_type` 的列級強制（`own_teams`／`academy_only`）——跟現有
+  `team.competition.*` 的既有狀態一致，`STATUS.md` 已把這件事排在 `S1-8`。
+- 沒有修改 `apps/admin`（前端接線留給前端 agent）。
+- 沒有 commit。
+
+---
+
 ## 目錄結構
 
 ```

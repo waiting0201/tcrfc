@@ -2,11 +2,17 @@ using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
 using Tcrfc.Api.Features.AdminAccounts;
 using Tcrfc.Api.Features.AdminAuth;
+using Tcrfc.Api.Features.AdminBanners;
 using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
+using Tcrfc.Api.Features.AdminFaqs;
+using Tcrfc.Api.Features.AdminHomeSections;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.AdminPages;
+using Tcrfc.Api.Features.AdminPlayers;
 using Tcrfc.Api.Features.AdminRoles;
+using Tcrfc.Api.Features.AdminStaff;
+using Tcrfc.Api.Features.AdminTeams;
 using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
@@ -100,6 +106,36 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", competitionValidation.Message),
             AdminCompetitionCodeConflictException competitionConflict =>
                 (StatusCodes.Status409Conflict, "賽事系列代號重複", competitionConflict.Message),
+
+            // ── S1-7 新增：C1–C3 球隊／球員／教練（Features/AdminTeams、AdminPlayers、AdminStaff）──
+            AdminTeamValidationException teamValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", teamValidation.Message),
+            AdminTeamCodeConflictException teamCodeConflict =>
+                (StatusCodes.Status409Conflict, "隊別代號重複", teamCodeConflict.Message),
+            AdminTeamFirstTeamAlreadyExistsException firstTeamExists =>
+                (StatusCodes.Status409Conflict, "一線隊已存在", firstTeamExists.Message),
+            AdminPlayerValidationException playerValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", playerValidation.Message),
+            AdminStaffValidationException staffValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", staffValidation.Message),
+            SharedStaffReadOnlyException sharedStaffReadOnly =>
+                (StatusCodes.Status403Forbidden, "共用內容唯讀", sharedStaffReadOnly.Message),
+
+            // ── S1-6 新增：B3 首頁編排（Features/AdminBanners、AdminHomeSections）───────────
+            AdminBannerValidationException bannerValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", bannerValidation.Message),
+            AdminHomeSectionValidationException homeSectionValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", homeSectionValidation.Message),
+
+            // ── S1-6 新增：B4 常見問題（Features/AdminFaqs）────────────────────────────
+            AdminFaqValidationException faqValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", faqValidation.Message),
+            FaqSlugConflictException faqSlugConflict =>
+                (StatusCodes.Status409Conflict, "網址名稱重複", faqSlugConflict.Message),
+            SharedFaqReadOnlyException sharedFaqReadOnly =>
+                (StatusCodes.Status403Forbidden, "共用內容唯讀", sharedFaqReadOnly.Message),
+            FaqCategorySlugConflictException faqCategorySlugConflict =>
+                (StatusCodes.Status409Conflict, "分類網址名稱重複", faqCategorySlugConflict.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),

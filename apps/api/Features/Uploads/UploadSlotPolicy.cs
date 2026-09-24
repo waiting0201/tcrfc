@@ -28,6 +28,16 @@ public static class UploadSlotPolicy
             // articles.cover_key（見 db/club-schema.sql 第 280 行）；PUT /admin/{club}/news/{id}
             // 的 CoverKey 欄位是目前唯一真的會把上傳結果寫回資料庫的地方。
             ["articles"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
+            // S1-7 新增：C1–C3（teams.hero_key／players.photo_key／staff.photo_key，
+            // 見 db/club-schema.sql 對應建表陳述式），比照上面 articles.cover 的接法。
+            ["teams"] = new HashSet<string>(StringComparer.Ordinal) { "hero" },
+            ["players"] = new HashSet<string>(StringComparer.Ordinal) { "photo" },
+            ["staff"] = new HashSet<string>(StringComparer.Ordinal) { "photo" },
+            // S1-6 新增：B3 首頁編排——banners.image_key（db/club-schema.sql「首頁 Hero 輪播」建表
+            // 陳述式），比照上面 articles.cover 的接法。⚠️ banners 只有 image_key 一個欄位，
+            // 沒有 _width／_height／_alt_zh／_alt_en（docs/14 圖片欄位組通則的其餘四欄缺漏，
+            // 已在 apps/api/README.md 回報，本輪未新增欄位）。
+            ["banners"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
         };
 
     public static void Validate(string entityType, string field)
