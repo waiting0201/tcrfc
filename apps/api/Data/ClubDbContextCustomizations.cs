@@ -1,10 +1,5 @@
-using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata;
-using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Metadata.Conventions;
-using Microsoft.EntityFrameworkCore.Metadata.Conventions.Infrastructure;
-using Microsoft.Extensions.DependencyInjection;
 using Tcrfc.Api.Data.EfEntities;
 
 namespace Tcrfc.Api.Data;
@@ -28,57 +23,37 @@ public partial class ClubDbContext
             .IsConcurrencyToken();
     }
 
-    // 🔴 S0-7k（2026-09-24，docs/18-work-errors.md E-45／docs/20-cicd.md §5）：
-    // 抑制 EF Core ForeignKeyIndexConvention 替 admin_refresh_tokens.replaced_by_id 這個可為空外鍵
-    // 自動加上的非叢集索引（預設會叫 IX_admin_refresh_tokens_replaced_by_id）。
-    // db/club-schema.sql（真實來源，1547–1559 行）刻意沒有這個索引，本機 tcrfc_club_dev 也沒有；
-    // 使用者裁決「依綱要為準，不改 db/club-schema.sql」，所以讓 EF 對齊綱要。
+    // 🔴 S0-7k／S0-7l（2026-09-24，docs/18-work-errors.md E-45／docs/20-cicd.md §5）：
+    // 整條移除 EF Core 的 ForeignKeyIndexConvention，不再讓 EF 替「沒有顯式索引」的外鍵欄位
+    // 自動加上非叢集索引。
     //
-    // ⚠️ 一開始試過在 OnModelCreatingPartial 用 modelBuilder.Entity<T>().Metadata.RemoveIndex(...)
-    // 直接刪索引，實測無效：ForeignKeyIndexConvention 同時實作了 IIndexRemovedConvention 與
-    // IModelFinalizingConvention，只要偵測到一個外鍵的屬性沒有涵蓋索引，移除後會立刻「自我修復」
-    // 補回同一個索引（用 dotnet ef migrations add Probe 驗證過：Up() 又長回一模一樣的 CreateIndex）。
-    // 這個慣例沒有提供「這個外鍵不要」的旗標，唯一乾淨、範圍夠小的做法是換掉這個慣例本身，
-    // 只在它要處理 AdminRefreshToken.ReplacedById 這一個屬性時跳過，其餘 137 張表的自動索引行為
-    // （含下面提到的其餘落差）完全不受影響、原封不動繼承自官方實作。
+    // 背景：S0-7k 一開始只想抑制 admin_refresh_tokens.replaced_by_id 這一個屬性的自動索引
+    // （db/club-schema.sql 1547–1559 行刻意沒有這個索引），做法是繼承
+    // ForeignKeyIndexConvention、覆寫 CreateIndex() 對這一個屬性回傳 null。當時順手把
+    // ClubDbContextModelSnapshot.cs 全表掃過一輪，發現同一個慣例還替另外約 281 個外鍵欄位
+    // （created_by 85、updated_by 85、club_id 33、其餘業務外鍵約 78）自動加了 db/club-schema.sql
+    // 沒有的索引——這些索引全部只存在於 EF 的記憶體模型／migration snapshot，
+    // 從未真的建到任何資料庫（InitialBaseline 的 Up() 是空的）。S0-7l 依規劃裁決「依綱要為準，
+    // 不改 db/club-schema.sql，讓 EF 模型對齊 DDL」，範圍涵蓋這 281 筆＋原本那 1 筆，
+    // 因此改用「整條移除慣例」取代「子類別跳過清單」——後者在只有 1 個例外時還算得上精準，
+    // 但例外多達 282 個時，維護一份跳過清單本身就是另一種形式的資料落差來源，不如直接不要
+    // 這個慣例的自動行為。
     //
-    // ⚠️ 這不是唯一一筆這種落差——ClubDbContextModelSnapshot.cs 另有約 280 筆同類、未命名的
-    // HasIndex（多半是既有 143 張表 created_by／updated_by／club_id 等審計與維度欄位的自動 FK
-    // 索引），全部是 InitialBaseline 當初 scaffold＋慣例產生、從未逐欄跟 db/club-schema.sql
-    // 核對過的既有落差，範圍遠大於這一筆。S0-7k 任務範圍只裁決這一筆，其餘依指示只回報不處理
-    // ——因此這裡刻意只換掉「AdminRefreshToken.ReplacedById 這一個屬性」的行為，不是整條慣例。
+    // ⚠️ 一開始（S0-7k）試過在 OnModelCreatingPartial 用
+    // modelBuilder.Entity&lt;T&gt;().Metadata.RemoveIndex(...) 直接刪索引，實測無效：
+    // ForeignKeyIndexConvention 同時實作了 IIndexRemovedConvention 與 IModelFinalizingConvention，
+    // 只要偵測到一個外鍵的屬性沒有涵蓋索引，移除後會立刻「自我修復」補回同一個索引（用
+    // dotnet ef migrations add Probe 驗證過：Up() 又長回一模一樣的 CreateIndex）。這個慣例沒有
+    // 提供「這個外鍵不要」的旗標，唯一乾淨的做法是移除慣例本身。
+    //
+    // 這不會影響 db/club-schema.sql 已經明確宣告的索引與唯一鍵（143 張表的 HasIndex／
+    // HasKey／HasAlternateKey 都是 scaffold 從實際資料庫逆向工程產生的顯式設定，走的是
+    // Fluent API 而不是這個慣例，Remove 這個慣例不會動到它們）——本輪已用一支獨立腳本比對
+    // 「移除慣例前」的模型索引清單與 db/club-schema.sql 的索引／唯一鍵清單：移除前模型
+    // 491 筆、DDL 210 筆、DDL 有而模型沒有＝0、模型有而 DDL 沒有＝281（與上述估計一致）；
+    // 移除慣例後應變成模型 210 筆、兩邊完全一致（詳見 S0-7l 交付報告）。
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
-        configurationBuilder.Conventions.Replace(serviceProvider =>
-            new AdminRefreshTokenReplacedByIdIndexSuppressingConvention(
-                serviceProvider.GetRequiredService<ProviderConventionSetBuilderDependencies>()));
-    }
-}
-
-/// <summary>
-/// 見 <see cref="ClubDbContext.ConfigureConventions"/> 的說明註解。
-/// 除了對 <see cref="AdminRefreshToken.ReplacedById"/> 這一個屬性跳過建立索引之外，
-/// 其餘行為（含其餘 137 張表既有的自動索引落差）完全繼承 <see cref="ForeignKeyIndexConvention"/> 原樣。
-/// </summary>
-internal sealed class AdminRefreshTokenReplacedByIdIndexSuppressingConvention : ForeignKeyIndexConvention
-{
-    public AdminRefreshTokenReplacedByIdIndexSuppressingConvention(ProviderConventionSetBuilderDependencies dependencies)
-        : base(dependencies)
-    {
-    }
-
-    protected override IConventionIndex? CreateIndex(
-        IReadOnlyList<IConventionProperty> properties,
-        bool unique,
-        IConventionEntityTypeBuilder entityTypeBuilder)
-    {
-        if (properties.Count == 1
-            && entityTypeBuilder.Metadata.ClrType == typeof(AdminRefreshToken)
-            && properties[0].Name == nameof(AdminRefreshToken.ReplacedById))
-        {
-            return null;
-        }
-
-        return base.CreateIndex(properties, unique, entityTypeBuilder);
+        configurationBuilder.Conventions.Remove(typeof(ForeignKeyIndexConvention));
     }
 }

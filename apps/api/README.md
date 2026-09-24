@@ -1377,24 +1377,107 @@ DDL**：`admin_refresh_tokens` 這張表已經有實際資料表存在（`e67ef2
 **下手前先確認：這支 migration 的 `Down()` 會不會刪掉別人正在依賴的表或欄位；會的話，改用
 手改既有 migration 檔案這條路，不要依賴 `--force`**。
 
-**已知但不在本輪範圍的同類落差（只回報，未處理）**：`ClubDbContextModelSnapshot.cs` 掃過一遍，
-`ForeignKeyIndexConvention` 這個慣例造成的「未命名 `HasIndex`」總共約 **281 筆**（用
-`grep -E '^\s*b\.HasIndex\("[A-Za-z]+"\);\s*$'` 對 snapshot 計數），涵蓋既有 143 張表——
-`created_by`／`updated_by` 這兩個審計欄位各 85 筆、`club_id` 33 筆，其餘約 78 筆分散在各種
-FK（`team_id`／`season_id`／`venue_id`／`player_id`……）。這些全部是 `InitialBaseline` 當初
-scaffold＋慣例產生、因為 `InitialBaseline` 的 `Up()`/`Down()` 被手動清空過，**從來沒有被拿去跟
-`db/club-schema.sql` 逐欄核對過**，範圍遠大於這一筆 `replaced_by_id`。**任務範圍明訂只裁決這一筆，
-其餘依指示只回報不處理**——若之後要一併清理，建議用跟本輪一樣的模式（在
-`ForeignKeyIndexConvention` 子類別裡列一份「跳過清單」），而不是整條移除 `ForeignKeyIndexConvention`
-（那樣做等於一次改變全部 137 張其餘表的既有行為，範圍與風險都遠超這次任務）。
+**已知但當時不在本輪範圍的同類落差**：`ClubDbContextModelSnapshot.cs` 掃過一遍，
+`ForeignKeyIndexConvention` 這個慣例造成的「未命名 `HasIndex`」總共約 **281 筆**，涵蓋既有 143 張
+表——`created_by`／`updated_by` 這兩個審計欄位各 85 筆、`club_id` 33 筆，其餘約 78 筆分散在各種
+FK（`team_id`／`season_id`／`venue_id`／`player_id`……）。S0-7k 任務範圍明訂只裁決 `replaced_by_id`
+這一筆，其餘只回報不處理。**這一大批已在下面的「S0-7l」全部處理完畢**，改用整條移除
+`ForeignKeyIndexConvention`（而不是子類別跳過清單）一次收斂兩筆任務。
 
-**驗收（本輪實跑）**：`dotnet ef migrations add Probe` 產出空 `Up()`/`Down()` 後刪除；
+**驗收（S0-7k 本輪實跑）**：`dotnet ef migrations add Probe` 產出空 `Up()`/`Down()` 後刪除；
 `dotnet ef migrations has-pending-model-changes` 印出「No changes have been made to the model
 since the last migration.」（結束碼 0）；`dotnet ef migrations script InitialBaseline` 產出的
 `admin_refresh_tokens` DDL 與 `db/club-schema.sql`（1547–1559 行）逐欄逐索引核對一致（含
 `IX_admin_refresh_tokens_user`／兩個 `UQ_*`／兩個 `FK_*`，**沒有** `IX_admin_refresh_tokens_
 replaced_by_id`）；`dotnet test`（`Tcrfc.Api.Tests.csproj`）135/135 通過；`dotnet build` 0 警告
 0 錯誤。
+
+### 🔴 S0-7l（2026-09-24）：整條移除 `ForeignKeyIndexConvention`，收斂 S0-7k 遺留的 281 筆落差
+
+使用者裁決同 S0-7k：**依綱要為準，不改 `db/club-schema.sql`，讓 EF 模型對齊 DDL**；並明確要求
+「S0-7k 的 `AdminRefreshTokenReplacedByIdIndexSuppressingConvention` 要一併收斂，不要留兩套機制」。
+
+**做法**：把 S0-7k 那個繼承 `ForeignKeyIndexConvention`、只對 `AdminRefreshToken.ReplacedById`
+回傳 `null` 的子類別整個刪掉，`ClubDbContextCustomizations.ConfigureConventions` 改成一行：
+
+```csharp
+protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+{
+    configurationBuilder.Conventions.Remove(typeof(ForeignKeyIndexConvention));
+}
+```
+
+`Remove(Type)` 是 EF Core 官方提供的「整條停用某個慣例」API（不是 hack），效果是 EF 完全不再替
+「沒有顯式索引的外鍵屬性」自動加索引——**不影響 `db/club-schema.sql` 已經明確宣告的索引與唯一鍵**：
+那 210 筆（74 個 `CREATE INDEX` ＋ 49 個 `ALTER TABLE ... UNIQUE` ＋ 87 個 `row_seq` 叢集唯一鍵）
+在 scaffold 階段就已經是顯式的 `HasIndex()`／`HasKey()` Fluent API 設定，走的不是這個慣例。
+
+**為什麼從「跳過清單」改成「整條移除」**：S0-7k 當時只有 1 個例外，繼承子類別、對特定屬性回傳
+`null` 還算精準；S0-7l 發現的例外多達 282 個（281 筆新的 ＋ S0-7k 那 1 筆），此時維護一份「跳過
+清單」本身就是另一種形式的資料落差來源（清單本身也要跟著 `db/club-schema.sql` 保持同步）。既然
+「不要自動加索引」才是這個專案唯一想要的行為，直接不掛這個慣例最乾淨。
+
+**驗證方法（比對用的獨立腳本，未納入版控，需要時可在 scratch 目錄重建）**：寫一支小型
+console 專案（`ProjectReference` 指到 `Tcrfc.Api.csproj`），用 `UseSqlServer(<假連線字串>)`
+建構 `ClubDbContext`（EF 建模不需要真的連上資料庫），走訪 `Model.GetEntityTypes()` 逐一
+`GetIndexes()`，輸出 `(schema.table, 欄位清單, IsUnique, 索引名稱)` 四元組；另寫一支正規表達式
+腳本解析 `db/club-schema.sql`（涵蓋三種宣告位置：`ALTER TABLE ... ADD CONSTRAINT ... UNIQUE`、
+`CREATE [UNIQUE] INDEX`、`CREATE TABLE` 內文的 `CONSTRAINT ... UNIQUE [CLUSTERED] (...)`，
+最後一種容易漏掉——`row_seq` 叢集唯一鍵與 `admin_refresh_tokens.token_hash` 都是這樣宣告的），
+輸出同樣的四元組。以 `(table, 欄位清單, IsUnique)` 為鍵比對兩份清單：
+
+| | 移除慣例前 | 移除慣例後 |
+|---|---|---|
+| 模型索引數 | 491 | **210** |
+| DDL 索引數 | 210 | 210 |
+| 只在模型有（EF 多的） | **281**（與 STATUS.md 估計一致） | **0** |
+| 只在 DDL 有（EF 漏的） | 0 | 0 |
+| 索引名稱不一致（不分大小寫） | — | 0 |
+
+移除後兩邊筆數與內容完全一致。`git diff` 也可交叉驗證：`ClubDbContextModelSnapshot.cs`
+淨減少 281 個 `HasIndex(...)` 區塊、新增 0 個。
+
+**新增的 migration**：`AlignIndexesWithDdl`（`20260924021003`），`Up()`／`Down()` 比照
+`InitialBaseline` 刻意清空並加註解——scaffold 原始產出是 281 個 `DropIndex`／對應的
+`CreateIndex`，但這些索引從未真的建到任何資料庫（`InitialBaseline` 的 `Up()` 本來就是空的），對
+任何實際資料庫執行這些 `DropIndex` 都會因為索引不存在而失敗，所以清空，只保留這支 migration
+「讓 snapshot 變成正確模型」的效果。`tcrfc_club_dev` 的 `__EFMigrationsHistory` 用一條純
+`INSERT` 補上這筆紀錄（**這是本輪對 `tcrfc_club_dev` 唯一的寫入**，沒有執行任何 DDL）。
+
+**驗收（本輪實跑）**：
+- `dotnet build` 0 警告 0 錯誤。
+- `dotnet ef migrations has-pending-model-changes` 綠燈（「No changes have been made ...」）。
+- `dotnet ef migrations add Probe` 產出空 `Up()`/`Down()`，確認 Probe 從未套用（查
+  `tcrfc_club_dev.__EFMigrationsHistory` 沒有這筆）後 `dotnet ef migrations remove` 刪除。
+- **兩個用完即丟的資料庫**（皆已 `DROP DATABASE`，未動 `tcrfc_club_dev`／`tcrfc_charity_dev`
+  以外的任何既有資料庫）：
+  ① 用**目前**的 `db/club-schema.sql`（比照 `deploy/local-ddl.sh` 的 `json`→`nvarchar(max)`
+  轉換規則，手動 `sed`＋`docker exec sqlcmd` 建庫，未修改該腳本的資料庫白名單）建出 145 張表，
+  手動 `INSERT` 全部 4 筆 migration 紀錄標記為已套用，`dotnet ef migrations script --idempotent`
+  的輸出裡 `AlignIndexesWithDdl` 對應的 `IF NOT EXISTS (...) BEGIN ... END` 區塊只有一句
+  `INSERT INTO [__EFMigrationsHistory]`，没有任何 DDL；`dotnet ef database update` 印出
+  「No migrations were applied. The database is already up to date.」，表數不變（146，含歷史表）。
+  ② 用 **`d5ec4ec`**（`admin_refresh_tokens`／`matches.original_*` 都還不存在的舊版）的
+  `db/club-schema.sql` 建出 144 張表，只標記 `InitialBaseline` 已套用，真的跑
+  `dotnet ef database update`——依序套用 `AddAdminRefreshTokens`（真的 `CREATE TABLE`／
+  `CREATE INDEX`）、`AddMatchOriginalSchedule`（真的 `ALTER TABLE ADD COLUMN`）、
+  `AlignIndexesWithDdl`（只有 history `INSERT`，無 DDL）成功，最終 146 張表、
+  `matches` 有 `original_kickoff`／`original_match_on` 兩欄，跟①的終態一致——確認
+  「從舊 DDL 用純 migration 升級到現況」這條路徑在移除慣例之後依然成立。
+- `tcrfc_club_dev` 本身：表數（146）、索引數（356）、`articles` 資料列數（110）在整個過程前後
+  不變，唯一變化是 `__EFMigrationsHistory` 多了 `AlignIndexesWithDdl` 這一筆紀錄。
+- `dotnet test`（`Tcrfc.Api.Tests.csproj`，接 `tcrfc_club_dev`）135/135 通過。
+
+**EF 查詢行為是否受影響**：不受影響。索引是儲存層 metadata，只影響 SQL Server 的執行計畫（走不走
+Index Seek／Scan），不參與 EF Core 的 LINQ-to-SQL 查詢轉換——移除這個慣例不會讓 `WHERE club_id = @x`
+這類查詢的 **產生的 SQL 文字** 有任何變化，只會讓「EF 以為資料庫有的索引」跟「資料庫實際有的索引」
+一致。真正影響查詢效能的是 `db/club-schema.sql` 是否有幫這個查詢模式建對索引，這是
+`docs/12b` §11.2 的範圍，不是這裡的範圍。
+
+**給下一位要新增外鍵欄位的人**：**不用再處理這個慣例**——它已整條移除，EF 不會再幫任何新外鍵
+自動加索引。新增外鍵時，索引要不要建，直接看 `db/club-schema.sql`／`docs/12b` §11.2 想不想要：
+想要就在 DDL 明確 `CREATE INDEX`（scaffold 之後會自動變成顯式 `HasIndex`），不寫就是不要，
+`dotnet ef migrations add` 產出的 migration 不會再多出非預期的 `CreateIndex`。
 
 ### EF Core migrations 基準健檢（本機工具清單與 CI 防呆，S0-7j 新增）
 

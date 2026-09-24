@@ -260,14 +260,26 @@ dotnet ef migrations remove --context ClubDbContext
 系統分析師或使用者裁決，不要自己決定哪邊對**（S0-7j 就實際挖到一個這種落差：EF 的
 `ForeignKeyIndexConvention` 會替沒有顯式設定索引的可為空外鍵欄位自動加一個非叢集索引，
 `admin_refresh_tokens.replaced_by_id` 因此在 migration／snapshot 裡多出
-`IX_admin_refresh_tokens_replaced_by_id`，但 `db/club-schema.sql` 沒有這個索引。**S0-7k 已裁決
-「依綱要為準」並修復**，見 [`apps/api/README.md`](../apps/api/README.md) 的「S0-7k」一節——
-單純呼叫 `Metadata.RemoveIndex(...)` 沒用，`ForeignKeyIndexConvention` 會自我修復補回去，正確做法
-是在 `ConfigureConventions` 換掉這個慣例的子類別。**掃過整個 snapshot 之後，確認這類「慣例產生、
-`db/club-schema.sql` 沒有」的未命名索引還有約 281 筆，遍布既有 143 張表（多半是 `created_by`／
-`updated_by`／`club_id` 審計與維度欄位）——這是 `InitialBaseline` 當初 scaffold＋慣例產生、
-從未逐欄核對過的既有落差，範圍遠大於這一筆，S0-7k 只處理了 `replaced_by_id` 這一筆，其餘保留
-現狀，只回報未處理**）。
+`IX_admin_refresh_tokens_replaced_by_id`，但 `db/club-schema.sql` 沒有這個索引；掃過整個 snapshot
+後發現同一個慣例還替既有 143 張表另外約 281 個外鍵欄位——`created_by` 85、`updated_by` 85、
+`club_id` 33、其餘業務外鍵約 78——自動加了 `db/club-schema.sql` 沒有的索引）。
+
+**S0-7l（2026-09-24）已裁決「依綱要為準」並全面修復**：`apps/api/Data/ClubDbContextCustomizations.cs`
+的 `ConfigureConventions` 改成 `configurationBuilder.Conventions.Remove(typeof(ForeignKeyIndexConvention))`
+——**整條移除**這個慣例，取代 S0-7k 一開始「繼承慣例、對單一屬性回傳 null」的子類別做法（例外只有
+1 筆時子類別還算精準，例外多達 282 筆時本身就是另一種落差來源）。移除後用一支獨立腳本比對
+「模型索引清單」與「`db/club-schema.sql` 解析出的索引／唯一鍵清單」：兩邊都是 210 筆、互相沒有
+「只在一邊有」的項目。新增了一支 `AlignIndexesWithDdl` migration，`Up()`／`Down()` 比照
+`InitialBaseline` 刻意清空（這 281 個索引從未真的建到任何資料庫，對它們下 `DropIndex` 會直接失敗）
+——這支 migration 唯一的作用是讓 `ClubDbContextModelSnapshot.cs` 更新為正確模型。
+
+**給下一個要新增外鍵欄位的人**：**不用再手動處理這個慣例**——它已經整條移除，EF 不會再替任何
+新的外鍵欄位自動加索引。這表示：**外鍵要不要加索引，現在完全由 `db/club-schema.sql` 決定**——
+`docs/12b` §11.2 要索引就在 DDL 用 `CREATE INDEX` 明確宣告（scaffold 會撈進來變成顯式
+`HasIndex().HasDatabaseName(...)`），不宣告就是刻意不要，`dotnet ef migrations add` 產出的
+migration 也不會多出非預期的 `CreateIndex`。**這不影響 EF 查詢行為**——索引只是儲存層 metadata，
+不參與 LINQ 查詢轉換；拿掉這個慣例不會讓任何既有查詢變慢或變快，唯一影響的是「EF 認為資料庫
+長什麼樣子」跟「`db/club-schema.sql` 實際長什麼樣子」是否一致。
 
 **🔴🔴🔴 `dotnet ef migrations remove --force` 對一支「已標記為套用」的 migration 會真的執行
 `Down()`，不是只刪檔案（S0-7k 實測踩到）**：上面的 Probe 流程本身安全（`add`／`remove` 一支
