@@ -35,6 +35,7 @@
   ⚠️ **介面上不得出現**：資料表名與欄位名、**模組代號**（`B1`／`K4`／`S3`）、**權限碼**（`shop.order.export`）、**隊別代號**（`D1`／`BW1`）、英文技術詞（`slug`／`canonical`／`token`／`SKU`／`blob`／`Schema`／`club_id`）。**CSV 匯出的欄位標題同此規則。**
   技術概念用中文說法（對照表在 [`06-conventions.md`](06-conventions.md) §1）。
   ⚠️ **這條約束介面文字，不是資料結構**——資料表名、欄位名與權限碼維持英文 `snake_case`，不得因此去改資料庫命名。
+  🔴 **後端任何會回給使用者的訊息（400／403／409 的 `detail`／`title`）都視同介面文字**，一樣受本條約束——`E-52`（`docs/18-work-errors.md`）就是 `AdminClubAuthorizer` 把權限碼內插進 403 訊息、畫面照原樣顯示出來。**已有自動化防呆**：`apps/api/Tcrfc.Api.Tests/UserFacingMessageContentTests.cs`（靜態掃描全部 400/403/409 例外的訊息組成路徑）與`UserFacingMessageHttpContentTests.cs`（代表性端點實打），兩者互補，見兩份檔案各自的類別說明與 `apps/api/README.md`「S1-8 續作」。技術細節（例外堆疊、資料庫錯誤片段）一律只進 log。
   **v3.7 更名九個子模組**：首頁編排｜常見問題｜慈善與社會影響｜媒體專區｜賽程與賽果｜搜尋與 AI 能見度｜推播裝置｜App 設定與連線檢查｜商品與規格。**代號與功能範圍未變。**
 - 🤖 **GEO 是正式規格，不是建議**（主站規劃書 **§7 `GEO-01`–`GEO-09`，v3.6，2026-09-18 客戶指示**）。
   **兩個官網各自完整實作一份**：各自的 `llms.txt`（繁中英文各一份，後台 `H` 維護、隨發布重產，**不以人工改檔**）與 `robots.txt`。
@@ -304,6 +305,12 @@
   縮小的範圍（任務指示只要求「寫入端點」），不是遺漏，但表示**列表畫面上看得到的資料不等於
   寫得進去的資料**，不要以為「畫面上濾掉了」。`standings`（積分榜）**完全不套用**，因為這張表
   沒有 `team_id` 欄位，見 `apps/api/README.md` S1-8「為什麼積分榜不套列級授權」。
+  ✅ **（S1-8 續作，2026-09-24）新增 `GET /api/v1/admin/{club}/teams/writable?
+  module=team|player|staff|match`（`Features/AdminTeams/AdminTeamsEndpoints.cs`），
+  提供「已收斂成呼叫端真的能寫」的球隊清單**——但這是**額外新增的一支端點**，不是把過濾邏輯
+  補進既有的 `GET /teams` 等列表端點；**既有列表／檢視端點本身仍然沒有套用列級授權**，上面
+  那句「不要以為畫面上濾掉了」對既有端點依然成立，只是現在多了一條「真的濾過」的路徑可以選用，
+  見 `apps/api/README.md` 該輪的完整契約說明。
 - 🔴 **（S1-8）`role_permissions.scope_type = 'own_clubs'` 在列級授權裡視同 `'all'`（不限）**：
   docs/12b-database-tables.md §7.1 講「`scope_type` 加值 `own_clubs`」，但 §7.4 那張「`scope_type`
   是矩陣裡不是布林的格子」對照表只列了 `own_teams`／`academy_only`／`masked`／`translate_only`

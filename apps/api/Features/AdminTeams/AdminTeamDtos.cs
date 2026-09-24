@@ -1,5 +1,21 @@
 namespace Tcrfc.Api.Features.AdminTeams;
 
+/// <summary>
+/// 「我能寫哪些球隊」下拉選單用（<c>/api/v1/admin/{club}/teams/writable</c>）——C1–C4 共用同一份
+/// 「參賽球隊／所屬球隊」選單需要把選項收斂成呼叫端依 <see cref="Tcrfc.Api.Security.TeamRowScope"/> 真的能寫
+/// 的球隊，見 <c>AdminTeamsEndpoints</c> 檔頭「為什麼是獨立端點不是加旗標」的完整說明。欄位只給
+/// 下拉選單需要的最小集合，跟 <see cref="AdminTeamAdminListItemDto"/>（球隊管理列表頁，欄位齊全）
+/// 刻意不同——這支端點的呼叫端不一定有 <c>team.team.view</c>，不能假設它們拿得到完整球隊明細。
+/// </summary>
+public sealed record AdminWritableTeamDto
+{
+    public required Guid Id { get; init; }
+    public required string Code { get; init; }
+    public required string Type { get; init; }
+    public string? NameZh { get; init; }
+    public string? NameEn { get; init; }
+}
+
 /// <summary>C1 球隊單一語系內容（<c>teams_i18n</c>）。</summary>
 public sealed record AdminTeamLocaleContent
 {

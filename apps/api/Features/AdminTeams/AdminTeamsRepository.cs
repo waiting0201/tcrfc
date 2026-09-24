@@ -105,6 +105,45 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
         }).ToList();
     }
 
+    /// <summary>
+    /// 「我能寫哪些球隊」下拉選單（<c>/api/v1/admin/{club}/teams/writable</c>）——依
+    /// <paramref name="rowScope"/>（呼叫端已針對某個模組的寫入權限碼解析好的
+    /// <see cref="TeamRowScope"/>）過濾成呼叫端真的 <c>Allows</c> 的球隊，不是整份清單加旗標。
+    /// 見 <c>AdminTeamsEndpoints</c> 檔頭「為什麼是獨立端點不是加旗標」的完整取捨說明。
+    /// **先查全部再用 <c>Allows</c> 逐筆過濾，不下推到 SQL**——這支查詢一個俱樂部最多幾十筆球隊，
+    /// 不是效能敏感路徑，且 <see cref="TeamRowScope"/> 的判斷邏輯（<c>academy_only</c>／
+    /// <c>own_teams</c> 聯集）刻意只活在這一個型別裡，逐筆呼叫 <c>Allows</c> 比把同一套邏輯翻譯成
+    /// LINQ／SQL 再維護兩份更安全。
+    /// </summary>
+    public async Task<IReadOnlyList<AdminWritableTeamDto>> ListWritableForClubAsync(
+        AdminClubScope scope, TeamRowScope rowScope, CancellationToken cancellationToken)
+    {
+        var rows = await dbContext.Teams.AsNoTracking()
+            .Where(t => t.ClubId == scope.ClubId)
+            .OrderBy(t => t.SortOrder).ThenBy(t => t.Code)
+            .Select(t => new
+            {
+                t.Id,
+                t.Code,
+                t.Type,
+                NameZh = t.TeamsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
+                NameEn = t.TeamsI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
+            })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .Where(r => rowScope.Allows(r.Id, r.Type))
+            .Select(r => new AdminWritableTeamDto
+            {
+                Id = r.Id,
+                Code = r.Code,
+                Type = r.Type,
+                NameZh = r.NameZh,
+                NameEn = r.NameEn,
+            })
+            .ToList();
+    }
+
     public async Task<AdminTeamDetailDto?> GetForClubAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
         var team = await dbContext.Teams.AsNoTracking()

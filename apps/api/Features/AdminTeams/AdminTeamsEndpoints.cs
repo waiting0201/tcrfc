@@ -35,6 +35,42 @@ public static class AdminTeamsEndpoints
     private const string PermissionTeamCreate = "team.team.create";
     private const string PermissionTeamUpdate = "team.team.update";
 
+    /// <summary>
+    /// 🔴（S1-8 前端回報缺口，見 apps/admin/README.md「已知的 API 缺口彙整」第 14 點）
+    /// C1–C4「所屬球隊／參賽球隊」下拉選單目前只能列出整個俱樂部的球隊，不分一線隊／學院——
+    /// <c>academy_only</c>／<c>own_teams</c> 列級授權（S1-8）只擋得住寫入端點，前端選了範圍外的
+    /// 球隊要等按下儲存才會被 403 擋下。這裡補一支「我能寫哪些球隊」的唯讀端點，讓前端把選單
+    /// 收斂成呼叫端真的能寫的球隊。
+    ///
+    /// **模組 → 權限碼對照表**：每個模組有兩個權限碼——**檢視碼**（這支端點本身要求的權限，
+    /// 比照 C1–C4 各自既有列表端點的既定慣例，只要看得到該模組就能查「我能寫哪些」，不需要先有
+    /// 寫入權限才能問這個問題）與**寫入碼**（拿去問 <see cref="IAdminTeamRowScopeResolver"/>
+    /// 算出 <see cref="TeamRowScope"/>，決定哪些球隊算「能寫」）。**用 <c>.update</c> 而不是
+    /// <c>.create</c> 當寫入碼**：這支端點回答的是「這支**既有**球隊，我能不能碰」（對應
+    /// <see cref="TeamRowScope.Allows"/>），跟 C1「建立全新球隊」用的
+    /// <see cref="TeamRowScope.AllowsCreatingTeamOfType"/> 是不同問題（後者連 <c>teamId</c> 都
+    /// 還不存在，不適用於「列出既有球隊」這個情境）——目前種子資料裡同一個角色的
+    /// <c>.create</c>／<c>.update</c> 一律共用同一個 <c>scope_type</c>（見
+    /// <c>db/seed/generate-club-seed-sql.py</c> <c>ROLE_PERMISSIONS</c> 的既有寫法：同一個
+    /// tuple 裡的權限碼共用同一個 <c>scope_type</c>），但這是現況慣例不是保證，日後如果角色權限
+    /// 拆到「能新增但不能改」這種更細的組合，這裡要重新檢視用哪個碼。
+    ///
+    /// **為什麼是獨立端點（<c>/teams/writable</c>），不是在既有 <c>GET /teams</c> 加
+    /// <c>canWrite</c> 旗標**：前端要的是「參賽球隊／所屬球隊選單只列我能寫的」（收斂選項），
+    /// 不是「列出全部球隊、每筆自己附註能不能寫」——選單元件直接綁這支端點的回應就是完整選項清單，
+    /// 不需要在畫面上再過濾一次。獨立端點也完全不動既有
+    /// <c>GET /api/v1/admin/{club}/teams</c> 的回應形狀，球隊管理列表頁等既有畫面與測試零風險；
+    /// 唯一的取捨是多一個 GET 端點要維護，但這支端點的邏輯是純讀取＋既有 <c>TeamRowScope</c>
+    /// 過濾，維護成本很低。
+    /// </summary>
+    private static readonly Dictionary<string, (string ViewPermission, string WritePermission)> WritableModulePermissions = new(StringComparer.Ordinal)
+    {
+        ["team"] = ("team.team.view", "team.team.update"),
+        ["player"] = ("team.player.view", "team.player.update"),
+        ["staff"] = ("team.staff.view", "team.staff.update"),
+        ["match"] = ("team.match.view", "team.match.update"),
+    };
+
     public static void MapAdminTeamsEndpoints(this IEndpointRouteBuilder app)
     {
         // GET /api/v1/admin/teams?clubCode=bw（clubCode 可省略＝跨全部俱樂部）
@@ -68,6 +104,34 @@ public static class AdminTeamsEndpoints
         })
         .WithName("AdminListClubTeams")
         .Produces<IReadOnlyList<AdminTeamAdminListItemDto>>()
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
+        // GET /api/v1/admin/{club}/teams/writable?module=team|player|staff|match
+        // 見上方 WritableModulePermissions 宣告處的完整說明。路由常數字面在 `/{id:guid}` 之前
+        // 宣告不影響比對結果（guid 路由約束本來就不會吃到 "writable" 這個字面路徑）。
+        group.MapGet("/writable", async (
+            string club, string? module, HttpContext httpContext,
+            IAdminClubAuthorizer authorizer, IAdminTeamRowScopeResolver rowScopeResolver,
+            AdminTeamsRepository repository, CancellationToken cancellationToken) =>
+        {
+            // 訊息刻意不回顯呼叫端傳入的原始 module 字面值——這支端點的呼叫端是前端固定寫死的
+            // 選單參數，不是使用者輸入，回顯內部參數名稱與致本身跟介面不顯示技術詞是同一條規則
+            // （docs/06-conventions.md §1），不能因為「這裡呼叫端是前端不是使用者」就放寬。
+            if (module is null || !WritableModulePermissions.TryGetValue(module, out var permissions))
+            {
+                throw new AdminTeamValidationException("查詢的球隊用途不正確，必須是「球隊」「球員」「教練」「賽事」其中之一。");
+            }
+
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, permissions.ViewPermission, cancellationToken);
+            var rowScope = await rowScopeResolver.ResolveAsync(scope, permissions.WritePermission, cancellationToken);
+            var teams = await repository.ListWritableForClubAsync(scope, rowScope, cancellationToken);
+            return Results.Ok(teams);
+        })
+        .WithName("AdminListWritableClubTeams")
+        .Produces<IReadOnlyList<AdminWritableTeamDto>>()
+        .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);

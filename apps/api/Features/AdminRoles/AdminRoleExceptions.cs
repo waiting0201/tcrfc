@@ -25,6 +25,10 @@ public sealed class AdminRoleInUseException(int assignedAccountCount)
 /// 「指派給某個角色」的東西；<see cref="Security.PermissionChecker"/> 即使真的指派了也一律
 /// 對非超管帳號回傳沒有權限（見該檔案的說明），為避免介面上出現「勾了但其實不會生效」的
 /// 誤導狀態，這裡直接在寫入時擋下。對應 400。
+/// 🔴（2026-09-24，S1-8 續作，回應 docs/18-work-errors.md E-52）**訊息只回報筆數，不得列出原始
+/// 權限碼**——這個建構子的參數本來就是一份權限碼清單，逐字內插進使用者看得到的訊息跟
+/// `AdminClubAuthorizer`／`AdminSystemAuthorizer` 那個已修過的洞是同一種形狀（規劃書 §4.0
+/// 「介面不顯示權限碼」），只是換了一個建構函式當載體。
 /// </summary>
 public sealed class AdminRoleSysadminOnlyPermissionException(IReadOnlyList<string> codes)
-    : AdminRoleException($"這些權限碼僅供系統管理員使用，不透過角色指派：{string.Join("、", codes)}。");
+    : AdminRoleException($"有 {codes.Count} 個權限碼僅供系統管理員使用，不透過角色指派，請重新選擇。");

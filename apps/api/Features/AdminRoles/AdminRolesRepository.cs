@@ -163,7 +163,9 @@ public sealed class AdminRolesRepository(ClubDbContext dbContext)
         var missing = distinctCodes.Except(permissions.Keys).ToList();
         if (missing.Count > 0)
         {
-            throw new AdminRoleValidationException($"找不到權限碼：{string.Join("、", missing)}。");
+            // 🔴（2026-09-24，回應 E-52）不得把原始權限碼內插進使用者看得到的訊息——只回報筆數，
+            // 技術細節（哪幾個代碼查無資料）留給呼叫端自行比對送出的內容，不進 detail。
+            throw new AdminRoleValidationException($"有 {missing.Count} 個權限碼查無資料，請重新整理權限清單後再試一次。");
         }
 
         var sysadminOnlyCodes = permissions.Values.Where(p => p.SysadminOnly).Select(p => p.Code).ToList();

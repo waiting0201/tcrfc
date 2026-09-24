@@ -1520,3 +1520,11 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **錯在哪**：第一輪後台畫面時，就已修過 4 支編輯頁的 `isCreate` 一次性求值（建立後 `router.replace` 會重用元件，`isCreate` 停在 true）。之後新增的球員、教練、球隊、FAQ 編輯頁又用同一種寫法，**建立後立刻再存一次就會建出第二筆重複資料**；新聞與頁面則是標題和按鈕停在「新增」狀態。
 - **為什麼會錯（根因）**：修法只寫在交付報告和 README，**沒有變成檢查機制**。之後的 agent 照著舊檔案的樣子複製，錯誤跟著一起被複製。這是 `E-39` 系譜「局部修好了，卻給人已經全面修好的信心」的前端版本。
 - **防呆**：✅ **已升級成機制**：`apps/admin/scripts/check-editview-reactivity.mjs` 接進 `npm run lint`，掃所有 `*EditView.vue` 頂層對 `route.name`／`route.params` 的一次性求值。已用兩種違規變形紅綠驗證，11 支檔案都通過。邊界：只認單行頂層寫法，跨行的寫法抓不到。
+
+#### 🔴 `E-39` 第二次升級（2026-09-24，`S1-8` 續作）：語意模型也會漏，漏在「問錯了型別」
+
+**依全域規定 13，不新增編號。** `ArchitectureTests` 在第一次升級時從字串比對改成 Roslyn 語意模型，並宣稱「對語法表面變形無感」。這次下游寫另一支掃描測試時，發現 `ConvertedType ?? Type` 這個寫法在某些語法位置會問錯型別。**主 session 以實際違規複驗**：`object s = new AdminClubScope(c, i);` 與 `Console.WriteLine((object)new AdminClubScope(c, i))` 都能編譯，**`ArchitectureTests` 照樣全綠**。這就是整套型別層授權強制的核心防線，被一個指派給 `object` 的寫法完整繞過。
+
+- **根因**：語意模型給的 `ConvertedType` 是「這個位置要求的型別」，`Type` 才是「運算式本身的型別」。對 `new` 運算式只看 `ConvertedType`，遇到隱含轉型就會問錯。第一次升級時的反例清單裡沒有「轉型到基底型別」這個形狀，所以驗證沒有涵蓋到。
+- **修正**：`CheckAndRecordByConvertedType` 改成**兩個都看**，任何一個是禁用型別就記錄。`default`／`null` 字面值只有 `ConvertedType`，`new` 運算式則以 `Type` 為準。已用兩種變形紅綠驗證（指派給 `object`、轉型後當參數傳出），全套測試 367／367 通過。
+- **升級後的要求**：用語意模型做檢查時，**`Type` 與 `ConvertedType` 的差別要在反例清單裡明確涵蓋一種「隱含轉型到基底型別」的形狀**。第一次升級段寫的「解法的性質改變了，所以對表面變形無感」只對了一半：它對**語法**表面變形無感，但對**型別轉換**不是。

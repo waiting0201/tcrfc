@@ -2276,6 +2276,132 @@ No changes have been made to the model since the last migration.
 
 ---
 
+## S1-8 續作：E-52 自動化防呆／`academy_program` 補 `team.competition.view`／「我能寫哪些球隊」端點（2026-09-24，`backend-engineer`）
+
+三件事，全部回應 `apps/admin` 前端實走 S1-8 時回報的落差（見 `apps/admin/README.md`「意外發現的
+權限授予缺口」「發現的權限授予缺口」「已知的 API 缺口彙整」第 14 點）。**未動 `db/club-schema.sql`、
+未加 migration**；`dotnet ef migrations has-pending-model-changes` 綠燈。
+
+### 1. `docs/18-work-errors.md` `E-52` 的自動化防呆
+
+`AdminClubAuthorizer`／`AdminSystemAuthorizer` 的訊息本身在前一輪已經改掉（見 `E-52` 記錄），但
+**改掉兩個已知案例不等於同一類錯不會再犯**——`ApiExceptionHandler` 把 400／403／409 例外的
+`.Message` 原樣送進 `ProblemDetails.Detail`，任何一處新的 `throw new XxxException($"...")` 只要
+不小心內插了權限碼或 docs/06 §1 禁用的技術詞，畫面上就會重演 `E-52`。新增兩支測試，互補：
+
+- **`Tcrfc.Api.Tests/UserFacingMessageContentTests.cs`**（靜態掃描）：把 `apps/api` 組成 Roslyn
+  `CSharpCompilation`，先用 regex 讀 `ApiExceptionHandler.cs` 的 switch 排版慣例抽出「哪些例外型別
+  對應 400/403/409」（不是另外維護一份清單，型別清單跟例外處理器脫鉤是 `E-28`／`E-34` 的既有教訓），
+  再對這些型別分「直通型」（`AdminForbiddenException(string reason) : Exception(reason)` 這種
+  訊息完全由呼叫端決定）與「烤製型」（`ArticleSlugConflictException(string slug) : ...($"...")`
+  這種訊息模板刻在類別裡）分頭掃描：直通型掃**呼叫端**引數，烤製型掃**類別宣告自己的基底建構式**
+  引數。掃描內容比對「權限碼形狀」正則（三段小寫句點分隔）、docs/06 §1 禁用技術詞、
+  `x.Code`／`x.PermissionCode` 成員存取（看語意型別是不是 `Permission` 相關，不看識別字名稱）、
+  以及「字串集合參數的內容而非筆數被印進訊息」。完整的涵蓋範圍、邊界、以及寫這支測試時走過的
+  彎路（第一版對所有目標型別都掃呼叫端，對 `AdminRoleSysadminOnlyPermissionException` 修好之後
+  仍然誤判——因為呼叫端傳的引數內容源頭確實是權限碼，但那個型別內部只印筆數，這是安全的；
+  拆成「直通型看呼叫端、烤製型看類別自己的模板」才同時消除誤判又保留抓得到真違規的能力），全部寫在
+  該檔案的類別 XML doc 裡，**不重複貼在這裡**。
+- **`Tcrfc.Api.Tests/UserFacingMessageHttpContentTests.cs`**（代表性端點實打）：真正的 HTTP 管線＋
+  真正的 `tcrfc_club_dev`，對四個已知會回傳 400／403 的路徑直接檢查回應本文——
+  ① `AdminClubAuthorizer` 的權限碼分支（`viewer@tcrfc.test` 打 `POST /admin/tcrfc/news` 缺
+  `content.article.create`）② `AdminSystemAuthorizer` 的權限碼分支（`content.editor@tcrfc.test`
+  打 `POST /admin/accounts` 缺 `system.account.create`）③ `AdminRoleValidationException`「找不到
+  權限碼」④ `AdminRoleSysadminOnlyPermissionException`。兩支測試互補的理由與各自的邊界，見前者
+  類別 XML doc「涵蓋範圍怎麼確認夠廣」一節。
+
+**紅綠驗證過程（依 `docs/18` `E-39` 的教訓，用真實 bug 本身當反例，不是隨便塞錯值）**：把
+`AdminClubAuthorizer.cs` 的訊息暫時改回 `E-52` 原始寫法
+（`$"你的角色沒有「{permissionCode}」這項操作的權限。"`，工作目錄乾淨、只改這一個既有追蹤檔案，
+測完 `git checkout --` 精準還原這一個檔案，沒有動到當時同時在跑的其他並行工作的未提交異動），
+確認兩支測試皆變紅（靜態掃描報出確切的檔名行號；HTTP 測試回應本文真的印出
+`team.competition.view`／`content.article.create` 字樣），還原後兩支再度全綠。
+
+**過程中意外發現並修正的兩個既有洞**（`S1-3`／`S1-8` 就存在，不是本輪新增的程式碼，寫測試時被
+靜態掃描抓到，不是先看到畫面才發現）：
+- `AdminRoleExceptions.cs`：`AdminRoleSysadminOnlyPermissionException` 把整份被拒絕的權限碼清單
+  逐字接進訊息（`{string.Join("、", codes)}`）——改成只回報筆數（`{codes.Count}`）。
+- `AdminRolesRepository.cs`：`ReplacePermissionsAsync` 找不到權限碼時，把查無資料的代碼清單逐字
+  接進訊息——同樣改成只回報筆數。
+
+**涵蓋範圍與邊界（誠實版，完整說明見兩份測試檔各自的 XML doc）**：靜態掃描涵蓋**全部**
+400/403/409 例外的原始碼路徑（不受目前有沒有測試命中影響），但只能追蹤同一個方法內的區域變數
+宣告，看不到跨方法呼叫的資料流、看不到執行期才決定的內容字串，「識別字名稱像權限碼」是啟發式不是
+形式證明。HTTP 整合測試證明**四個具體已知路徑**的實際輸出經過完整 JSON 序列化管線後乾淨，但不像
+靜態掃描那樣涵蓋「還沒被任何測試打到」的分支。兩者互補，不是其中一種就足夠——這正是刻意同時要求
+兩種測試手法的理由。**沒有做**：沒有對 `apps/web`（前台，不是後台，本來就不會回傳這種內部例外
+訊息）做同等掃描；沒有掃 `Tcrfc.Api.Tests` 自己（測試程式碼本身合法出現任何字樣）。
+
+### 2. `academy_program` 補 `team.competition.view`
+
+前端回報：`academy.manager@tcrfc.test`（`academy_program` 角色）完全無法開啟 C4 賽事新增／編輯頁
+——賽季是建立賽事的必填欄位，賽季下拉需要 `GET /admin/{club}/seasons`（權限碼
+`team.competition.view`），但 `academy_program` 只有 `team.match.*`，沒有任何 `team.competition.*`。
+核對主站規劃書 §6 權限矩陣「球隊／賽事」欄（行 1609）：學院／課程管理是「學院梯隊」——這是**唯讀
+前提**（讀取賽事分類主檔是這個角色操作學院賽事的必要條件，不是額外授予的寫入權限），矩陣沒有給
+這個角色任何 `Competition` 的寫入格。`db/seed/generate-club-seed-sql.py` `ROLE_PERMISSIONS` 新增
+一筆 `("academy_program", ["team.competition.view"], "all")`——**`scope_type` 用 `all` 不是
+`academy_only`**：`competitions` 沒有 `team_id`，`TeamRowScope` 對這張表根本不生效（跟「為什麼
+積分榜不套列級授權」同一個理由），跟既有 `content_editor`／`viewer`／`business_sponsorship`／
+`pr_media` 的 `team.competition.view` 一律給 `all` 是同一個模式，不是特例。已用
+`./db/seed/apply-seed.sh` 套用到本機 `tcrfc_club_dev` 並用 SQL 查詢核對
+（`role_permissions` 多一筆 `academy_program`／`team.competition.view`／`all`）。
+
+### 3. 「我能寫哪些球隊」端點（`GET /api/v1/admin/{club}/teams/writable?module=team|player|staff|match`）
+
+前端回報（`apps/admin/README.md`「已知的 API 缺口彙整」第 14 點）：C1–C4 的「所屬球隊／參賽球隊」
+下拉選單目前列出整個俱樂部全部球隊，不分一線隊／學院／個別授權——`S1-8` 的列級授權
+（`academy_only`／`own_teams`）只接上了**寫入端點**，前端選了範圍外的球隊要等按下儲存才會被
+403 擋下。新增 `Features/AdminTeams/AdminTeamsEndpoints.cs` 的
+`GET /api/v1/admin/{club}/teams/writable?module=team|player|staff|match`，回傳
+`IReadOnlyList<AdminWritableTeamDto>`（`Id`／`Code`／`Type`／`NameZh`／`NameEn`）。
+
+**契約（給前端用）**：
+
+| 項目 | 內容 |
+|---|---|
+| 路徑 | `GET /api/v1/admin/{club}/teams/writable` |
+| 查詢參數 | `module`（必填，字串）：`team`／`player`／`staff`／`match` 其中之一，對應 C1–C4 四個模組 |
+| 權限碼（存取這支端點本身） | 依 `module` 對應的**檢視碼**：`team.team.view`／`team.player.view`／`team.staff.view`／`team.match.view`——只要看得到該模組就能問「我能寫哪些」，不需要先有寫入權限 |
+| 回應 | `200 OK`，`AdminWritableTeamDto[]`：**已經是收斂過的清單**，只列出呼叫端依 `TeamRowScope` 真的能寫的球隊，不是「全部球隊 + canWrite 旗標」 |
+| 400 | `module` 缺漏或不是上述四個值之一（訊息用中文「球隊／球員／教練／賽事」，不回顯呼叫端傳入的原始字串——見程式碼註解，這是介面文字，跟 `E-52` 同一條規則） |
+| 401／403／404 | 同既有俱樂部範圍端點慣例（未登入／該俱樂部無授權或無對應檢視權限／俱樂部不存在） |
+
+**取捨（獨立端點 vs 既有清單加 `canWrite` 旗標，擇一，已選前者）**：前端要的是「選單只列我能寫的」
+（收斂選項），不是「列出全部、每筆自己附註能不能寫」——選單元件直接綁這支端點的回應就是完整選項
+清單，不需要在畫面上再過濾一次；獨立端點也完全不動既有 `GET /api/v1/admin/{club}/teams` 的回應
+形狀，球隊管理列表頁等既有畫面與既有測試零風險。代價是多一個 GET 端點要維護，但邏輯是純讀取＋既有
+`TeamRowScope.Allows` 過濾，維護成本低。**用 `.update` 而不是 `.create` 當寫入碼去解析
+`TeamRowScope`**：這支端點回答的是「這支**既有**球隊我能不能碰」（對應 `TeamRowScope.Allows`），
+跟 C1「建立全新球隊」用的 `AllowsCreatingTeamOfType`（連 `teamId` 都還不存在）是不同問題。目前
+種子資料裡同一個角色的 `.create`／`.update` 一律共用同一個 `scope_type`（`ROLE_PERMISSIONS` 同一個
+tuple 裡的權限碼共用同一個 `scope_type`），但這是現況慣例不是保證，日後如果角色權限拆到「能新增
+但不能改」這種更細的組合，需要重新檢視這裡該用哪個碼。
+
+**測試**（`Tcrfc.Api.Tests/AdminTeamsWritableEndpointTests.cs`，5 項，用 `bw` 俱樂部——`tcrfc` 只有
+`D1` 一支球隊，示範不出「收斂成部分球隊」的過濾效果，`bw` 有 `BW1`／`BW-U15`／`BW-U12` 三支）：
+未登入 401；`module` 缺漏或不支援 400；系統管理員看得到 `bw` 全部三支球隊；`academy_program`
+（`academy.manager@tcrfc.test`）只看得到 `BW-U15`／`BW-U12`，看不到 `BW1`；`own_teams`（直接改
+`partner_club_manager`／`team.match.update` 的 `scope_type` 示範機制本身，測完還原）授權前清單為
+空、授權 `BW-U15` 後清單只有 `BW-U15`、授權到期後清單再度變空。
+
+### 測試結果
+
+```
+$ dotnet test Tcrfc.Api.Tests    # CLUB_SQL_CONNECTION_STRING 指向本機 tcrfc_club_dev
+已通過! - 失敗: 0，通過: 367，總計: 367
+
+$ dotnet test Tcrfc.Api.Tests --filter "FullyQualifiedName~ArchitectureTests" --no-build
+已通過! - 失敗: 0，通過: 1
+
+$ dotnet ef migrations has-pending-model-changes --context ClubDbContext
+No changes have been made to the model since the last migration.
+```
+
+跑前跑後各執行一次 `./db/seed/reset-admin-accounts.sh`。
+
+---
+
 ## 目錄結構
 
 ```

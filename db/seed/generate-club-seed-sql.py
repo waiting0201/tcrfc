@@ -1055,6 +1055,17 @@ ROLE_PERMISSIONS = [
         "team.staff.view", "team.staff.create", "team.staff.update",
         "team.match.view", "team.match.create", "team.match.update", "team.match.delete",
     ], "academy_only"),
+    # 🔴（S1-8 前端實走發現，見 apps/admin/README.md「發現的權限授予缺口」）
+    # academy_program 少了 team.competition.view，導致 C4 新增／編輯賽事頁連賽季下拉都載不出來
+    # ——賽季是建立賽事的必填欄位，這個角色因此完全無法透過後台介面建立或編輯任何一場賽事，即使
+    # team.match.* 早就給了。**唯讀**（矩陣沒有給這個角色任何 team.competition.* 的寫入格，
+    # 主站規劃書 §6 行 1609「球隊／賽事」欄只寫「學院梯隊」，沒有另外拆出 Competition 的欄位——
+    # Competition 是賽事的分類主檔，讀取它是「學院梯隊」範圍能操作賽事的必要前提，不是額外授權）。
+    # scope_type 給 "all" 不是 "academy_only"：competitions 沒有 team_id，TeamRowScope 對這個
+    # 端點根本不生效（見 Features/AdminMatches/AdminMatchesRepository.cs「為什麼積分榜不套列級
+    # 授權」同一個道理），跟既有 content_editor／viewer／business_sponsorship／pr_media 的
+    # team.competition.view 一律給 "all" 是同一個理由，不是特例。
+    ("academy_program", ["team.competition.view"], "all"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")

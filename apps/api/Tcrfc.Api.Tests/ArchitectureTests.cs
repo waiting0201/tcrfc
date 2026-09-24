@@ -211,10 +211,18 @@ public sealed class ArchitectureTests
     private static void CheckAndRecordByConvertedType(
         SemanticModel semanticModel, SyntaxNode node, string filePath, List<string> violations, string? label = null)
     {
+        // Type 與 ConvertedType 兩個都要看：`object s = new AdminClubScope(...)` 的 ConvertedType 是
+        // object、Type 才是 AdminClubScope；`default`／`null` 字面值則反過來只有 ConvertedType。
+        // 只看其中一個曾讓「指派給 object 的偽造建構」整個漏掉（2026-09-24 主 session 以實際違規複驗抓到）。
         var typeInfo = semanticModel.GetTypeInfo(node);
-        var resolved = typeInfo.ConvertedType ?? typeInfo.Type;
+        var resolved = IsForbidden(typeInfo.Type) ? typeInfo.Type : typeInfo.ConvertedType;
         RecordIfForbidden(resolved, node, filePath, violations, label);
     }
+
+    private static bool IsForbidden(ITypeSymbol? type) =>
+        type is not null
+        && ForbiddenFullyQualifiedNames.Contains(
+            type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat).Replace("global::", string.Empty));
 
     private static void RecordIfForbidden(ITypeSymbol? resolved, SyntaxNode node, string filePath, List<string> violations, string? label)
     {
