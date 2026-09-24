@@ -320,6 +320,9 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 
 ---
 
+> 🔴 **手改 scaffold 檔（`Data/EfEntities/*.cs`、`ClubDbContext.cs`）的換行陷阱**（`E-50` 連帶紀錄，第三次遇到）：這些檔案是 CRLF 和 LF **混雜**的，陳述式結尾是 `\r\n`，空行與 fluent chain 的續行是 `\n`。用一般編輯工具整檔改寫會把換行全部正規化，`git diff` 就會變成數千行的假差異。
+> **做法**：以 `git show HEAD:<path>` 取出原始位元組，找一個唯一的錨點，在那裡做位元組級插入，不要重打任何既有的行。改完用 `git diff --stat` 確認只有新增的行數。
+
 ## 6. 失敗與回滾
 
 | 環節 | 設計 |
