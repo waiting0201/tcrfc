@@ -1455,3 +1455,17 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **下次怎麼避免**：🔴 **已套用到任何資料庫的 migration，一律不用 `remove`／`remove --force` 處理。** 要改內容，就手改檔案或另加一支新 migration。
   派工只要會碰到 migration，就寫明「**不得對任何資料庫執行 DDL，除非本單明文要求**」。
 - **防呆**：⚠️ **無自動化。** 這個坑已寫進 [`20-cicd.md`](20-cicd.md) §5。主 session 事後複驗：`dotnet test` 135／135 通過，`has-pending-model-changes` 回報模型與 snapshot 一致。
+
+### E-47 補償交易沿用已取消的 `cancellationToken`，最常見的失敗形狀反而清不掉（2026-09-24，`S0-8c` 審查時發現；源頭 `S0-8`）
+
+- **錯在哪**：物件儲存有三處補償刪除：`BlobImageStorageService.UploadAsync` 的 `catch`，以及 `AdminArticlesEndpoints` 新增、更新兩處的 `catch`。三處都寫成 `DeleteAsync(key, cancellationToken)`。
+  上傳寫到一半失敗，最常見的原因就是**使用者關掉頁面或請求逾時，也就是 token 被取消**。這時補償刪除拿到的是同一個已取消的 token，第一個刪除就拋出 `OperationCanceledException`，
+  被 `DeleteAsync` 的 fail-open 吞成一行警告，前面寫成功的物件照樣留下來。
+  `S0-8c` 交付的 6 項測試全部傳 `CancellationToken.None`，所以抓不到這個問題。
+- **為什麼會錯（根因，寫成可以被改掉的行為）**：**寫補償邏輯時，把「失敗的原因」和「補償用的資源」當成互不相關。**
+  實際上 token 被取消本身就是失敗的原因之一；補償沿用觸發失敗的那個 token，等於在同一個條件下注定再失敗一次。
+  測試又只注入 `InvalidOperationException`，**注入的失敗形狀是自己想到的那一種，不是實際最常發生的那一種**（與 `E-39` 升級段同源）。
+- **下次怎麼避免**：🔴 **補償、清理、回滾這類「失敗後才跑的動作」，一律用 `CancellationToken.None`**，不沿用觸發失敗的請求 token。
+  寫失敗注入測試時，**「請求被取消」一定要列為其中一種形狀**。
+- **防呆**：✅ 新增測試 `請求在上傳途中被取消_補償刪除仍然執行_不留下殘留物件`，用真實的取消形狀注入失敗。**修正前實測紅燈，修正後綠燈**。
+  三處補償都已改用 `CancellationToken.None`。⚠️ `AdminArticlesRepository` 裡「更新成功後刪除舊封面」的兩處刪除不是補償，仍沿用請求 token；請求被取消時，舊封面可能留下，影響只在儲存空間。

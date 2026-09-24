@@ -110,7 +110,7 @@ public static class AdminArticlesEndpoints
                 // 不留下沒有任何資料列指著它的孤兒物件，再把原例外原樣往上丟。
                 if (coverKey is not null)
                 {
-                    await imageStorage.DeleteAsync(coverKey, cancellationToken);
+                    await imageStorage.DeleteAsync(coverKey, CancellationToken.None); // 請求已取消也要清掉
                 }
 
                 throw;
@@ -184,7 +184,7 @@ public static class AdminArticlesEndpoints
             {
                 if (uploadedKey is not null)
                 {
-                    await imageStorage.DeleteAsync(uploadedKey, cancellationToken);
+                    await imageStorage.DeleteAsync(uploadedKey, CancellationToken.None); // 請求已取消也要清掉
                 }
 
                 throw;

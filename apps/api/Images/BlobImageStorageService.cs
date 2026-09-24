@@ -34,11 +34,32 @@ public sealed class BlobImageStorageService(
 
         var mainKey = $"{objectKeyPrefix}/{Guid.NewGuid():N}{ImageObjectKey.Extension}";
 
-        await UploadObjectAsync(mainKey, processed.MainWebPBytes, cancellationToken);
-        foreach (var derivative in processed.Derivatives)
+        // 🔴 S0-8c 補強：主檔＋四個衍生檔共五個物件的寫入本身不是單一原子操作（README「已知缺口」
+        // 第 4 點）。任一個寫到一半失敗（網路中斷、儲存體暫時錯誤……），前面已經寫成功的物件
+        // 會變成沒有任何資料列指著它的孤兒。這裡補一層「本次呼叫自己的補償交易」，跟呼叫端
+        // （例如 AdminArticlesEndpoints）針對「資料列寫失敗」那層補償交易共用同一套語意與同一個
+        // 方法（DeleteAsync），不是另外發明一套規則：
+        //   - DeleteAsync 依主鍵推導出全部五把鍵，逐一呼叫 DeleteIfExistsAsync——對「這次根本
+        //     還沒真的寫入」的鍵也一樣安全（等冪，刪不存在的物件不是錯誤），所以不需要另外追蹤
+        //     「究竟寫到第幾個」，直接對整組鍵盡力清一次即可。
+        //   - DeleteAsync 本身是 fail-open（見該方法上的說明）：清理失敗只記警告日誌，不會拋出，
+        //     所以下面的 throw 永遠丟的是「一開始造成寫入失敗」的原例外，補償刪除的失敗
+        //     不會、也不可能蓋掉它。
+        try
         {
-            var derivativeKey = ImageObjectKey.ForSuffix(mainKey, derivative.SizeLabel);
-            await UploadObjectAsync(derivativeKey, derivative.WebPBytes, cancellationToken);
+            await UploadObjectAsync(mainKey, processed.MainWebPBytes, cancellationToken);
+            foreach (var derivative in processed.Derivatives)
+            {
+                var derivativeKey = ImageObjectKey.ForSuffix(mainKey, derivative.SizeLabel);
+                await UploadObjectAsync(derivativeKey, derivative.WebPBytes, cancellationToken);
+            }
+        }
+        catch
+        {
+            // 補償一律用 CancellationToken.None：失敗原因常常就是請求被取消，
+            // 沿用同一個 token 會讓補償刪除當場失敗、物件照樣殘留。
+            await DeleteAsync(mainKey, CancellationToken.None);
+            throw;
         }
 
         return new UploadedImageInfo(mainKey, processed.MainWidth, processed.MainHeight, processed.MainWebPBytes.LongLength);
