@@ -17,6 +17,7 @@ import BilingualShortField from '@/components/BilingualShortField.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
+import { useWritableTeamScope } from '@/composables/useWritableTeamScope'
 import { listAdminSeasons, listAdminCompetitions, type AdminSeasonListItemDto, type AdminCompetitionListItemDto } from '@/api/adminCompetitions'
 import { listAdminPlayers, type AdminPlayerListItemDto } from '@/api/adminPlayers'
 import {
@@ -86,6 +87,8 @@ const baselineJson = ref('')
 const seasons = ref<AdminSeasonListItemDto[]>([])
 const competitions = ref<AdminCompetitionListItemDto[]>([])
 const teams = ref<AdminTeamAdminListItemDto[]>([])
+// 「所屬球隊」只列出這個帳號能寫的球隊（S1-8 續作新增的端點），見 useWritableTeamScope 檔頭說明。
+const { loadWritableTeams, outOfScopeIds, buildOptions } = useWritableTeamScope('match')
 const matchPlayers = ref<AdminPlayerListItemDto[]>([])
 
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
@@ -132,7 +135,7 @@ function playerLabel(id: string): string {
 async function loadMatch() {
   loadState.value = 'loading'
   try {
-    teams.value = await listAdminClubTeams(activeClubId.value)
+    ;[teams.value] = await Promise.all([listAdminClubTeams(activeClubId.value), loadWritableTeams(activeClubId.value)])
     seasons.value = await listAdminSeasons(activeClubId.value)
 
     if (!isCreate.value && matchId.value) {
@@ -206,6 +209,17 @@ useUnsavedChanges(isDirty)
 
 const pageTitle = computed(() => (isCreate.value ? '新增賽事' : `編輯賽事：${form.matchOn}｜${form.opponent || '（未命名對手）'}`))
 const isPostponed = computed(() => form.status === 'postponed')
+
+// 🔴 既有的參賽球隊清單裡只要有一支不在這個帳號的可寫清單內（例如學院管理者打開一線隊也
+// 參與的跨梯隊友誼賽），後端 `AdminMatchesRepository.UpdateAsync` 一律先檢查「既有」全部參賽
+// 球隊是否都在授權範圍內，範圍外時整筆更新（不只換球隊，改比分等其他欄位也一樣）都會被 403
+// 擋下——因此這裡整頁鎖成唯讀，不是只鎖「所屬球隊」這一個欄位。
+const outOfScopeTeamIds = computed(() => (loadState.value === 'ready' && !isCreate.value ? outOfScopeIds(form.teamIds) : []))
+const outOfScopeTeamNames = computed(() =>
+  outOfScopeTeamIds.value.map((id) => teams.value.find((t) => t.id === id)?.nameZh || teams.value.find((t) => t.id === id)?.code || id),
+)
+const isReadOnly = computed(() => loadState.value === 'ready' && outOfScopeTeamIds.value.length > 0)
+const teamSelectOptions = computed(() => buildOptions(teams.value, form.teamIds))
 
 function validate(): boolean {
   formError.value = null
@@ -281,6 +295,7 @@ function buildPayload(): SaveMatchPayload {
 }
 
 async function handleSave() {
+  if (isReadOnly.value) return
   if (!validate()) return
   saving.value = true
   formError.value = null
@@ -336,6 +351,10 @@ function addLineup() {
       </template>
       <template #meta>
         <FrontendUnitBanner module-code="C4" />
+        <span v-if="loadState === 'ready' && isReadOnly" class="match-edit__locked-note">
+          <el-tag type="info" size="small">唯讀</el-tag>
+          你的帳號沒有「{{ outOfScopeTeamNames.join('、') }}」的球隊授權範圍，這筆賽事僅能檢視，如需修改請聯繫系統管理員
+        </span>
       </template>
     </PageHeader>
 
@@ -363,7 +382,7 @@ function addLineup() {
         @close="formError = null"
       />
 
-      <el-form label-position="top">
+      <el-form label-position="top" :disabled="isReadOnly">
         <el-card shadow="never" header="基本資料" class="match-edit__section">
           <el-row :gutter="12">
             <el-col :span="12">
@@ -390,8 +409,15 @@ function addLineup() {
           </el-row>
 
           <el-form-item label="所屬球隊（跨梯隊友誼賽可複選多支）" required>
-            <el-select v-model="form.teamIds" multiple filterable placeholder="請選擇球隊" style="width: 100%">
-              <el-option v-for="t in teams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
+            <el-select
+              v-model="form.teamIds"
+              multiple
+              filterable
+              placeholder="請選擇球隊"
+              style="width: 100%"
+              no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
+            >
+              <el-option v-for="t in teamSelectOptions" :key="t.id" :label="t.label" :value="t.id" :disabled="t.disabled" />
             </el-select>
           </el-form-item>
 
@@ -519,13 +545,13 @@ function addLineup() {
                 <el-input v-model="row.goalType" placeholder="例如：頭槌、點球、烏龍球" />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="80">
+            <el-table-column v-if="!isReadOnly" label="操作" width="80">
               <template #default="{ $index }">
                 <el-button text type="danger" @click="form.goals.splice($index, 1)">移除</el-button>
               </template>
             </el-table-column>
           </el-table>
-          <el-button :disabled="form.teamIds.length === 0" @click="addGoal">+ 新增進球紀錄</el-button>
+          <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addGoal">+ 新增進球紀錄</el-button>
         </el-card>
 
         <el-card shadow="never" header="卡牌" class="match-edit__section">
@@ -549,13 +575,13 @@ function addLineup() {
                 <el-input-number v-model="row.minute" :min="0" :max="130" style="width: 100%" />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="80">
+            <el-table-column v-if="!isReadOnly" label="操作" width="80">
               <template #default="{ $index }">
                 <el-button text type="danger" @click="form.cards.splice($index, 1)">移除</el-button>
               </template>
             </el-table-column>
           </el-table>
-          <el-button :disabled="form.teamIds.length === 0" @click="addCard">+ 新增卡牌紀錄</el-button>
+          <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addCard">+ 新增卡牌紀錄</el-button>
         </el-card>
 
         <el-card shadow="never" header="出賽名單" class="match-edit__section">
@@ -575,17 +601,17 @@ function addLineup() {
                 </el-radio-group>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="80">
+            <el-table-column v-if="!isReadOnly" label="操作" width="80">
               <template #default="{ $index }">
                 <el-button text type="danger" @click="form.lineups.splice($index, 1)">移除</el-button>
               </template>
             </el-table-column>
           </el-table>
-          <el-button :disabled="form.teamIds.length === 0" @click="addLineup">+ 新增出賽名單</el-button>
+          <el-button v-if="!isReadOnly" :disabled="form.teamIds.length === 0" @click="addLineup">+ 新增出賽名單</el-button>
         </el-card>
       </el-form>
 
-      <div class="match-edit__action-bar">
+      <div v-if="!isReadOnly" class="match-edit__action-bar">
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
       </div>
     </template>
@@ -596,6 +622,15 @@ function addLineup() {
 .match-edit {
   max-width: 900px;
   margin: 0 auto 88px;
+}
+
+.match-edit__locked-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--admin-text-secondary);
+  flex-wrap: wrap;
 }
 
 .match-edit__form-error {

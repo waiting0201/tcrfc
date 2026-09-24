@@ -122,3 +122,23 @@ export function updateAdminClubTeam(
     method: 'PUT',
   })
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 「我能寫哪些球隊」（S1-8 續作新增）。對照 apps/api/README.md「S1-8 續作」第 3 節。
+// 已依帳號的列級授權（`academy_only`／`own_teams`）收斂——回應本身就是完整的可寫選項清單，
+// 不是「全部球隊 + canWrite 旗標」，畫面直接把回應綁進下拉選單即可，不需要再自行過濾一次。
+// ══════════════════════════════════════════════════════════════════════════════
+
+export type AdminWritableTeamModule = 'team' | 'player' | 'staff' | 'match'
+
+export interface AdminWritableTeamDto {
+  id: string
+  code: string
+  type: string
+  nameZh?: string | null
+  nameEn?: string | null
+}
+
+export function listAdminWritableTeams(club: string, module: AdminWritableTeamModule): Promise<AdminWritableTeamDto[]> {
+  return apiRequest<AdminWritableTeamDto[]>(`/api/v1/admin/${club}/teams/writable?module=${module}`)
+}

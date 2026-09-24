@@ -1013,13 +1013,19 @@ apps/api 已在 S1-4 續作全部補上對應端點（見 apps/api/README.md「S
 13. **C1–C3 沒有樂觀並行控制**：後端本輪判斷「相對低頻的名冊維護」不需要並行權杖（見
     apps/api/README.md「S1-7」「我的判斷」），前端因此也沒有像新聞／頁面那樣的「資料已被變更」
     衝突處理流程，兩人同時編輯同一筆會後寫入者覆蓋先寫入者。
-14. ⚠️ **C1–C3（含本輪新增的 C4）的「所屬球隊」／「負責梯隊」下拉選單仍然列出這個俱樂部全部
-    球隊，不分一線隊／學院**：S1-8 後端已經把 `academy_only`／`own_teams` 列級授權接上**寫入
-    端點**（後端擋得住），但**列表／檢視端點沒有依角色收斂**（apps/api/README.md「S1-8」〈列表
-    ／檢視端點沒有套用〉明文這是刻意縮小的範圍，不是遺漏）——這代表球隊下拉選單目前無法只列出
-    「這個帳號能寫的球隊」，選了範圍外的球隊按儲存才會被 403 擋下並顯示中文原因（見下方 C4
-    一節）。**沒有後端提供的「我能寫哪些球隊」端點前，前端不會自行用角色代號猜測要濾掉哪些
-    選項**（任務指示「若 API 沒有提供這個資訊，就不要自行推測，改為依後端錯誤呈現並回報缺口」）。
+14. ✅ **已解決（2026-09-24）：C1–C3（含 C4）的「所屬球隊」／「負責梯隊」／「參賽球隊」下拉
+    選單已改接「我能寫哪些球隊」端點**：後端在 S1-8 續作新增
+    `GET /api/v1/admin/{club}/teams/writable?module=team|player|staff|match`（見
+    apps/api/README.md「S1-8 續作」第 3 節），已回傳依 `academy_only`／`own_teams` 列級授權
+    收斂過的可寫球隊清單。C2 球員的「所屬球隊」、C3 教練與團隊成員的「負責梯隊」、C4 賽事的
+    「參賽球隊」三個選單皆已改接這支端點（`src/composables/useWritableTeamScope.ts`），只列出
+    這個帳號目前能寫的球隊；編輯既有資料時，若既有關聯的球隊不在可寫清單內（例如學院管理者
+    打開一線隊的球員／教練／賽事資料），畫面會保留並標示該球隊名稱（不會被選單悄悄拿掉），
+    同時因為後端「更新前會先檢查既有全部關聯球隊是否都在授權範圍內，範圍外時整筆更新一律
+    403」（見 `AdminPlayersRepository`／`AdminStaffRepository`／`AdminMatchesRepository` 的
+    `Allows`／`AllowsAll` 檢查），這裡把整個編輯表單鎖成唯讀並附中文原因說明，不只鎖定球隊
+    欄位本身，避免使用者填完整份表單才在存檔瞬間被拒絕。詳見下方「所屬球隊／負責梯隊／參賽
+    球隊選單改接『我能寫哪些球隊』端點」一節。
 
 ## C4 賽程與賽果／積分榜（S1-8，2026-09-24）
 
@@ -1098,31 +1104,33 @@ apps/api/README.md「為什麼積分榜不套列級授權」），`academy_progr
 時被 403 擋下並顯示上一段的中文原因。這與既有 C1–C3 的球隊選單是同一個缺口，已合併記在上方
 「已知的 API 缺口彙整」第 14 點，不重複記兩筆。
 
-🔴 **意外發現的權限碼洩漏（不在本輪修改範圍，回報給後端／`code-review-optimizer`）**：
+✅ **意外發現的權限碼洩漏——已解決（`backend-engineer`，2026-09-24，S1-8 續作）**：
 `Security/AdminClubAuthorizer.cs`（及 `AdminSystemAuthorizer.cs`）擋下「沒有這個權限碼」時的
-訊息樣板是 `$"你的角色沒有「{permissionCode}」這項操作的權限。"`——**逐字內插了原始權限碼**
+訊息樣板原本是 `$"你的角色沒有「{permissionCode}」這項操作的權限。"`——**逐字內插了原始權限碼**
 （例如「你的角色沒有「team.competition.view」這項操作的權限。」），這是無頭瀏覽器測試
 `academy_program` 角色時，載入賽事新增頁因為缺少 `team.competition.view`（見下方「發現的權限
 授予缺口」）而觸發、親眼在畫面上看到的真實訊息，**直接違反 `docs/14-invariants.md`／規劃書
-§4.0「介面上不得出現……權限碼（`shop.order.export`）」這條全站不變量**。這不是本輪新增的程式碼
-（`AdminClubAuthorizer.cs` 是既有的 S1 檔案），影響範圍是**全後台任何一個「有權限碼但沒有這個
-權限」的 403 情境**，不只 C4。修法必須在 `apps/api`（本輪指示不改 `apps/api`，未動手），建議
-把訊息改成不含原始權限碼的中文描述（例如「你的角色沒有這項操作的權限。」，或維護一份
-「權限碼 → 中文操作描述」對照表比照角色權限畫面的既有做法）。
+§4.0「介面上不得出現……權限碼（`shop.order.export`）」這條全站不變量**。後端已把訊息改成不含
+原始權限碼的中文描述（`docs/18-work-errors.md` `E-52`），並在 S1-8 續作新增兩支自動化測試
+（`UserFacingMessageContentTests.cs` 靜態掃描全部 400/403/409 例外路徑、
+`UserFacingMessageHttpContentTests.cs` 對代表性端點實打），防止同一類問題再犯，見
+`apps/api/README.md`「S1-8 續作」第 1 節。**本輪（`apps/admin`）未再重複驗證，因為問題根源與
+修法都在 `apps/api`**。
 
-### 發現的權限授予缺口（回報，未動手改 `db/seed`）
+### ✅ 發現的權限授予缺口——已解決（`backend-engineer`，2026-09-24，S1-8 續作）
 
-`academy_program` 角色只被授予 `team.team.*`／`team.player.*`／`team.staff.*`／`team.match.*`
-（`db/seed/generate-club-seed-sql.py` `ROLE_PERMISSIONS`），**沒有任何 `team.competition.*`**。
-但 C4 新增／編輯賽事頁與列表頁的篩選列都需要呼叫 `GET /admin/{club}/seasons`（權限碼
-`team.competition.view`）才能載入賽季下拉選單——賽季是建立賽事的必填欄位，缺這個權限碼會讓
-`academy_program` **完全無法開啟賽事新增／編輯頁**（`loadMatch()` 的 `try` 區塊還沒走到列級
-授權檢查，就先在讀取賽季清單這一步被 403 擋下、整頁顯示錯誤，見上一段「意外發現的權限碼洩漏」
-的重現情境）。這是無頭瀏覽器實際測試 `academy.manager@tcrfc.test` 帳號時發現的真實阻塞，不是
-臆測。**建議至少補一個 `team.competition.view`（唯讀，`scope_type` 不拘，反正這張表沒有列級
-授權可套）給 `academy_program`**，否則這個角色雖然被賦予 `team.match.*`，實際上永遠無法透過
-後台介面建立或編輯任何一場賽事。屬於 `db/seed/generate-club-seed-sql.py` 的 DML 變更，本輪
-不改（任務範圍是 `apps/admin`），已列入回報。
+`academy_program` 角色原本只被授予 `team.team.*`／`team.player.*`／`team.staff.*`／
+`team.match.*`（`db/seed/generate-club-seed-sql.py` `ROLE_PERMISSIONS`），**沒有任何
+`team.competition.*`**。但 C4 新增／編輯賽事頁與列表頁的篩選列都需要呼叫
+`GET /admin/{club}/seasons`（權限碼 `team.competition.view`）才能載入賽季下拉選單——賽季是
+建立賽事的必填欄位，缺這個權限碼會讓 `academy_program` **完全無法開啟賽事新增／編輯頁**
+（`loadMatch()` 的 `try` 區塊還沒走到列級授權檢查，就先在讀取賽季清單這一步被 403 擋下、整頁
+顯示錯誤，見上一段「意外發現的權限碼洩漏」的重現情境）。這是無頭瀏覽器實際測試
+`academy.manager@tcrfc.test` 帳號時發現的真實阻塞，不是臆測。後端已補上
+`("academy_program", ["team.competition.view"], "all")`（`scope_type` 用 `all`，因為
+`competitions` 沒有 `team_id`，列級授權對這張表本來就不生效），見 `apps/api/README.md`
+「S1-8 續作」第 2 節。**本輪已用這個帳號實際打開賽事新增頁確認賽季下拉選單能正常載入**
+（見下方「本輪驗收」）。
 
 ### 前後台對照表（規劃書 §4.0）
 
@@ -1178,6 +1186,77 @@ tcrfc.test`／`clean.login@tcrfc.test` 等種子帳號的密碼／2FA 狀態（�
 `two_factor_enabled` 還原成種子初始值：`academy.manager`＝`1`、`clean.login`＝`0`）。
 `apps/api` 開發用行程在驗收過程中因為 `db/seed`（新增 `search-misses` 端點）與 API 修改而
 重啟過一次以套用最新編譯結果，跟 `apps/admin` 的程式碼無關。
+
+---
+
+## 所屬球隊／負責梯隊／參賽球隊選單改接「我能寫哪些球隊」端點（2026-09-24）
+
+回應上方「已知的 API 缺口彙整」第 14 點，後端在 S1-8 續作新增
+`GET /api/v1/admin/{club}/teams/writable?module=team|player|staff|match`（見
+apps/api/README.md「S1-8 續作」第 3 節），本輪把 C2 球員、C3 教練與團隊成員、C4 賽程與賽果
+三個模組的球隊選單全部改接這支端點，取代原本「列出這個俱樂部全部球隊」的暫時作法。
+
+### 共用邏輯：`src/composables/useWritableTeamScope.ts`
+
+三個模組的需求形狀相同（新增時選項要收斂、編輯既有資料時既有關聯不能被選單悄悄拿掉），抽成
+一個共用 composable，依 `module` 參數呼叫端點：
+
+- `writableTeams`：這支端點回傳的可寫球隊清單，直接當「新增／加入」時的下拉選項。
+- `isWritable(teamId)`／`outOfScopeIds(referencedIds)`：判斷既有關聯的球隊是不是在可寫清單內。
+- `buildOptions(allTeams, referencedIds)`：組出下拉選單的完整選項——可寫球隊在前，既有關聯但
+  不可寫的球隊一併附加、標示為 `disabled: true`（名稱從該俱樂部全部球隊清單查回來，因為它不會
+  出現在可寫清單裡），畫面因此不會因為選項被收斂而顯示空白或漏掉這筆既有關聯。
+
+### 三個模組各自的鎖定行為
+
+🔴 **這裡選擇「整個編輯表單鎖成唯讀」，不是只鎖球隊欄位本身**——查證
+`AdminPlayersRepository.UpdateAsync`／`AdminStaffRepository.UpdateAsync`／
+`AdminMatchesRepository.UpdateAsync` 三者都在套用任何欄位異動**之前**，先用
+`TeamRowScope.Allows`／`AllowsAll` 檢查這筆資料**既有**（異動前）的關聯球隊是否全部在授權範圍
+內，範圍外時整筆更新一律 403——不只換球隊會被擋，改姓名、改比分這些完全無關的欄位一樣會被擋。
+只鎖球隊欄位、放行其他欄位可以編輯，會讓使用者填完一整份表單才在按下儲存的瞬間被拒絕，因此三個
+模組編輯頁都改成：既有關聯的球隊只要有一支不在可寫清單內，就整頁鎖唯讀（`el-form :disabled`
+＋隱藏儲存按鈕），並在頁首用一行中文說明原因，比照 C3 既有的「共用內容（唯讀）」呈現方式。
+
+- **C2 球員**（`PlayerEditView.vue`）：`isTeamOutOfScope` 判斷既有 `form.teamId` 是否在
+  `writableTeams` 內，是則整頁唯讀，「所屬球隊」欄位改用 `buildOptions()` 顯示鎖定的球隊名稱
+  （灰階、不可選）＋一行提示「你的帳號沒有這支球隊的異動權限，所屬球隊無法變更。」。新增時的
+  預設球隊也改成取 `writableTeams[0]`，不再取全部球隊的第一筆。
+- **C3 教練與團隊成員**（`StaffEditView.vue`）：「負責梯隊」清單裡只要有一支不可寫，整頁唯讀
+  （與既有「共用內容（唯讀）」共用同一個 `isReadOnly`，原因文字依情況二選一顯示）；「加入」
+  下拉只列 `writableTeams`；既有梯隊標籤裡不可寫的那幾個加上鎖頭圖示與提示文字，且
+  `closable` 依 `isReadOnly` 關閉，不會被誤點移除。
+- **C4 賽程與賽果**（`MatchEditView.vue`）：「參賽球隊」清單裡只要有一支不可寫，整頁唯讀；
+  「進球者」「卡牌」「出賽名單」三張表格的新增／移除按鈕在唯讀時一併隱藏（`el-form` 的
+  `disabled` 只會自動鎖住 `el-select`／`el-input` 這類表單控制項，不會鎖住 `el-button`，因此
+  這幾顆按鈕額外用 `v-if="!isReadOnly"` 顯式隱藏，避免只鎖選單卻漏鎖操作按鈕）。
+
+### 新增檔案
+
+`src/composables/useWritableTeamScope.ts`；`src/api/adminTeams.ts` 新增
+`AdminWritableTeamDto`／`listAdminWritableTeams()`。
+
+### 驗證（本機環境，2026-09-24）
+
+`npm run lint`／`npm run typecheck`／`npm run build` 全過。用無頭 Chrome＋CDP 驅動真實瀏覽器：
+
+1. `academy.manager@tcrfc.test`（只授權 `bw`，角色 `academy_program`）登入後：C4「新增賽事」
+   頁能正常載入賽季下拉選單（上方「發現的權限授予缺口」已解決，`team.competition.view` 已補上，
+   不再卡在讀取賽季清單就整頁報錯）；「參賽球隊」選單只列出 `BW-U15`／`BW-U12` 兩支學院梯隊，
+   看不到 `BW1`（一線隊）；選 `BW-U15` 建立一場賽事，儲存成功（`201`），列表頁與公開端點
+   `GET /api/v1/bw/schedule` 皆確認看得到這筆賽事；驗完直接呼叫 API 刪除這筆測試資料。
+2. 系統管理員（`sa@system.local`）登入後：同一個俱樂部（`bw`）的 C4「新增賽事」「參賽球隊」
+   選單看得到全部三支球隊（`BW1`／`BW-U15`／`BW-U12`）；C2「新增球員」「所屬球隊」選單同樣
+   看得到全部球隊。
+3. 驗收後執行 `set -a; source .env; set +a; ./db/seed/reset-admin-accounts.sh`，確認
+   `academy.manager@tcrfc.test`／`sa@system.local` 的密碼／2FA／鎖定狀態回到種子初始值。
+
+**已知的測試方法限制**：C2／C3 的「既有關聯球隊不在可寫清單內、整頁鎖唯讀並顯示原因」這條路徑
+本輪只用 `npm run build`／型別檢查與程式碼走讀確認邏輯正確（`isTeamOutOfScope`／
+`outOfScopeTeamIds` 兩個 computed 與 `buildOptions()` 的邏輯跟 C4 已實際驗證過的同一套
+`useWritableTeamScope` 共用），沒有另外用瀏覽器建出「學院管理者打開一線隊球員／教練資料」這組
+情境資料逐一實走——需要先手動建立一筆刻意跨範圍的球員／教練資料才測得出來，判斷風險與 C4
+（已實走過完全相同的共用邏輯）相同，不重複建置測試資料。
 
 ---
 

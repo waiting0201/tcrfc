@@ -18,6 +18,7 @@ import ImageUploader from '@/components/ImageUploader.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
+import { useWritableTeamScope } from '@/composables/useWritableTeamScope'
 import { createAdminStaff, getAdminStaff, updateAdminStaff, type SaveStaffPayload } from '@/api/adminStaff'
 import { AdminApiError } from '@/api/http'
 import {
@@ -58,6 +59,9 @@ const removePhoto = ref(false)
 const isShared = ref(false)
 
 const teams = ref<AdminTeamAdminListItemDto[]>([])
+// 「負責梯隊」的「加入」下拉只列出這個帳號能寫的球隊（S1-8 續作新增的端點），
+// 見 useWritableTeamScope 檔頭說明。
+const { writableTeams, loadWritableTeams, outOfScopeIds } = useWritableTeamScope('staff')
 const pendingTeamId = ref<string | null>(null)
 const pendingRoleCode = ref('')
 
@@ -69,7 +73,7 @@ const formError = ref<string | null>(null)
 async function loadStaff() {
   loadState.value = 'loading'
   try {
-    teams.value = await listAdminClubTeams(activeClubId.value)
+    ;[teams.value] = await Promise.all([listAdminClubTeams(activeClubId.value), loadWritableTeams(activeClubId.value)])
     if (!isCreate.value && staffId.value) {
       const detail = await getAdminStaff(activeClubId.value, staffId.value)
       form.staffGroup = detail.staffGroup ?? ''
@@ -106,7 +110,13 @@ const isDirty = computed(
 )
 useUnsavedChanges(isDirty)
 
-const isReadOnly = computed(() => loadState.value === 'ready' && isShared.value)
+// 🔴 既有的負責梯隊清單裡只要有一支不在這個帳號的可寫清單內（例如學院管理者打開同時負責
+// 一線隊與學院梯隊的教練），後端 `AdminStaffRepository.UpdateAsync` 一律先檢查「既有」全部
+// `StaffTeams` 是否都在授權範圍內，範圍外時整筆更新（不只改梯隊，改其他欄位也一樣）都會被
+// 403 擋下——因此這裡整頁鎖成唯讀，跟既有「共同（唯讀）」是同一種呈現，只是原因不同。
+const outOfScopeTeamIds = computed(() => (loadState.value === 'ready' ? outOfScopeIds(form.teams.map((t) => t.teamId)) : []))
+const outOfScopeTeamNames = computed(() => outOfScopeTeamIds.value.map((id) => teamLabel(id)))
+const isReadOnly = computed(() => loadState.value === 'ready' && (isShared.value || outOfScopeTeamIds.value.length > 0))
 const pageTitle = computed(() => (isCreate.value ? '新增教練與團隊成員' : `編輯：${form.nameZh || '（未命名）'}`))
 
 function teamLabel(id: string): string {
@@ -120,7 +130,7 @@ function addTeamAssignment() {
     ElMessage.warning('這支球隊已經加過了')
     return
   }
-  const found = teams.value.find((t) => t.id === pendingTeamId.value)
+  const found = writableTeams.value.find((t) => t.id === pendingTeamId.value)
   form.teams.push({ teamId: pendingTeamId.value, teamCode: found?.code ?? '', roleCode: pendingRoleCode.value })
   pendingTeamId.value = null
   pendingRoleCode.value = ''
@@ -218,6 +228,10 @@ function retryLoad() {
           <el-tag type="info" size="small">共用內容（唯讀）</el-tag>
           這是台中磐石與台中藍鯨共用的教練／團隊成員資料，你的帳號僅能檢視，如需修改請聯繫系統管理員
         </span>
+        <span v-else-if="loadState === 'ready' && outOfScopeTeamIds.length > 0" class="staff-edit__shared-note">
+          <el-tag type="info" size="small">唯讀</el-tag>
+          你的帳號沒有「{{ outOfScopeTeamNames.join('、') }}」的球隊授權範圍，這筆資料僅能檢視，如需修改請聯繫系統管理員
+        </span>
       </template>
     </PageHeader>
 
@@ -287,9 +301,15 @@ function retryLoad() {
         </el-card>
 
         <el-card shadow="never" header="負責梯隊" class="staff-edit__section">
-          <div class="staff-edit__team-add">
-            <el-select v-model="pendingTeamId" filterable placeholder="選擇球隊" class="staff-edit__team-select">
-              <el-option v-for="t in teams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
+          <div v-if="!isReadOnly" class="staff-edit__team-add">
+            <el-select
+              v-model="pendingTeamId"
+              filterable
+              placeholder="選擇球隊"
+              class="staff-edit__team-select"
+              no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
+            >
+              <el-option v-for="t in writableTeams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
             </el-select>
             <el-input v-model="pendingRoleCode" placeholder="角色說明（選填，例如：主教練）" class="staff-edit__role-input" />
             <el-button :disabled="!pendingTeamId" @click="addTeamAssignment">加入</el-button>
@@ -298,11 +318,13 @@ function retryLoad() {
             <el-tag
               v-for="(assignment, index) in form.teams"
               :key="assignment.teamId"
-              closable
+              :closable="!isReadOnly"
+              :type="outOfScopeTeamIds.includes(assignment.teamId) ? 'info' : 'default'"
               class="staff-edit__team-tag"
               @close="removeTeamAssignment(index)"
             >
               {{ teamLabel(assignment.teamId) }}{{ assignment.roleCode ? `（${assignment.roleCode}）` : '' }}
+              <span v-if="outOfScopeTeamIds.includes(assignment.teamId)" title="你的帳號沒有這支球隊的異動權限">🔒</span>
             </el-tag>
           </div>
           <p v-else class="staff-edit__hint">目前沒有負責任何梯隊。</p>

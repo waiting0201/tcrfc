@@ -13,6 +13,7 @@ import ImageUploader from '@/components/ImageUploader.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
+import { useWritableTeamScope } from '@/composables/useWritableTeamScope'
 import { createAdminPlayer, getAdminPlayer, updateAdminPlayer, type SavePlayerPayload } from '@/api/adminPlayers'
 import { AdminApiError } from '@/api/http'
 import {
@@ -58,6 +59,8 @@ const photoFile = ref<File | null>(null)
 const removePhoto = ref(false)
 
 const teams = ref<AdminTeamAdminListItemDto[]>([])
+// 「所屬球隊」只列出這個帳號能寫的球隊（S1-8 續作新增的端點），見 useWritableTeamScope 檔頭說明。
+const { writableTeams, loadWritableTeams, outOfScopeIds, buildOptions } = useWritableTeamScope('player')
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
@@ -78,7 +81,7 @@ function fromDateOnlyString(value: string | null | undefined): Date | null {
 async function loadPlayer() {
   loadState.value = 'loading'
   try {
-    teams.value = await listAdminClubTeams(activeClubId.value)
+    ;[teams.value] = await Promise.all([listAdminClubTeams(activeClubId.value), loadWritableTeams(activeClubId.value)])
     if (!isCreate.value && playerId.value) {
       const detail = await getAdminPlayer(activeClubId.value, playerId.value)
       form.teamId = detail.teamId
@@ -97,8 +100,8 @@ async function loadPlayer() {
       form.bioZh = detail.zh.bio ?? ''
       form.bioEn = detail.en?.bio ?? ''
       photoKey.value = detail.photoKey ?? null
-    } else if (teams.value.length > 0) {
-      form.teamId = teams.value[0].id
+    } else if (writableTeams.value.length > 0) {
+      form.teamId = writableTeams.value[0].id
     }
     photoFile.value = null
     removePhoto.value = false
@@ -122,6 +125,15 @@ const isDirty = computed(
 useUnsavedChanges(isDirty)
 
 const pageTitle = computed(() => (isCreate.value ? '新增球員' : `編輯球員：${form.nameZh || '（未命名）'}`))
+
+// 🔴 既有球員的所屬球隊不在這個帳號的可寫清單內時（例如學院管理者打開一線隊球員），後端
+// `AdminPlayersRepository.UpdateAsync` 一律先檢查「既有」`player.TeamId` 是否在授權範圍內，
+// 範圍外時整筆更新（不只換球隊，改其他欄位也一樣）都會被 403 擋下——因此這裡整頁鎖成唯讀，
+// 不是只鎖「所屬球隊」這一個欄位，避免使用者填完整份表單才在存檔瞬間才發現被拒絕。
+const isTeamOutOfScope = computed(() => !isCreate.value && outOfScopeIds([form.teamId]).length > 0)
+const isReadOnly = computed(() => loadState.value === 'ready' && isTeamOutOfScope.value)
+const teamOptions = computed(() => buildOptions(teams.value, [form.teamId]))
+const lockedTeamLabel = computed(() => teamOptions.value.find((o) => o.id === form.teamId)?.label ?? form.teamId)
 
 function isEnEmpty(): boolean {
   return !form.nameEn.trim() && !form.bioEn.trim()
@@ -166,6 +178,7 @@ function buildPayload(): SavePlayerPayload {
 }
 
 async function handleSave() {
+  if (isReadOnly.value) return
   if (!validate()) return
   saving.value = true
   formError.value = null
@@ -216,6 +229,10 @@ function retryLoad() {
       </template>
       <template #meta>
         <FrontendUnitBanner module-code="C2" />
+        <span v-if="loadState === 'ready' && isTeamOutOfScope" class="player-edit__locked-note">
+          <el-tag type="info" size="small">唯讀</el-tag>
+          你的帳號沒有「{{ lockedTeamLabel }}」的球隊授權範圍，這筆球員資料僅能檢視，如需修改請聯繫系統管理員
+        </span>
       </template>
     </PageHeader>
 
@@ -243,14 +260,22 @@ function retryLoad() {
         @close="formError = null"
       />
 
-      <el-form label-position="top">
+      <el-form label-position="top" :disabled="isReadOnly">
         <el-card shadow="never" header="基本資料" class="player-edit__section">
           <el-row :gutter="12">
             <el-col :span="12">
               <el-form-item label="所屬球隊" required>
-                <el-select v-model="form.teamId" filterable style="width: 100%" no-data-text="這個俱樂部目前還沒有任何球隊，請先到「球隊」建立一支">
-                  <el-option v-for="t in teams" :key="t.id" :label="t.nameZh || t.code" :value="t.id" />
+                <el-select
+                  v-model="form.teamId"
+                  filterable
+                  style="width: 100%"
+                  no-data-text="你的帳號目前沒有任何可以寫入的球隊，請聯繫系統管理員確認球隊授權"
+                >
+                  <el-option v-for="t in teamOptions" :key="t.id" :label="t.label" :value="t.id" :disabled="t.disabled" />
                 </el-select>
+                <p v-if="isTeamOutOfScope" class="player-edit__hint player-edit__hint--warning">
+                  你的帳號沒有這支球隊的異動權限，所屬球隊無法變更。
+                </p>
               </el-form-item>
             </el-col>
             <el-col :span="6">
@@ -334,7 +359,7 @@ function retryLoad() {
               v-model:file="photoFile"
               v-model:remove-cover="removePhoto"
               :has-existing-image="!!photoKey"
-              :disabled="saving"
+              :disabled="saving || isReadOnly"
             />
           </el-form-item>
           <el-form-item label="肖像同意">
@@ -348,7 +373,7 @@ function retryLoad() {
         </el-card>
       </el-form>
 
-      <div class="player-edit__action-bar">
+      <div v-if="!isReadOnly" class="player-edit__action-bar">
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
       </div>
     </template>
@@ -359,6 +384,15 @@ function retryLoad() {
 .player-edit {
   max-width: 780px;
   margin: 0 auto 88px;
+}
+
+.player-edit__locked-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--admin-text-secondary);
+  flex-wrap: wrap;
 }
 
 .player-edit__form-error {
@@ -374,6 +408,10 @@ function retryLoad() {
   font-size: 12px;
   color: var(--admin-text-tertiary);
   line-height: 1.6;
+}
+
+.player-edit__hint--warning {
+  color: var(--admin-warning-text);
 }
 
 .player-edit__action-bar {
