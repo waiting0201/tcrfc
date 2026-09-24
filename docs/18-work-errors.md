@@ -1528,3 +1528,10 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **根因**：語意模型給的 `ConvertedType` 是「這個位置要求的型別」，`Type` 才是「運算式本身的型別」。對 `new` 運算式只看 `ConvertedType`，遇到隱含轉型就會問錯。第一次升級時的反例清單裡沒有「轉型到基底型別」這個形狀，所以驗證沒有涵蓋到。
 - **修正**：`CheckAndRecordByConvertedType` 改成**兩個都看**，任何一個是禁用型別就記錄。`default`／`null` 字面值只有 `ConvertedType`，`new` 運算式則以 `Type` 為準。已用兩種變形紅綠驗證（指派給 `object`、轉型後當參數傳出），全套測試 367／367 通過。
 - **升級後的要求**：用語意模型做檢查時，**`Type` 與 `ConvertedType` 的差別要在反例清單裡明確涵蓋一種「隱含轉型到基底型別」的形狀**。第一次升級段寫的「解法的性質改變了，所以對表面變形無感」只對了一半：它對**語法**表面變形無感，但對**型別轉換**不是。
+
+### E-54 前台 lint 紅燈了一整天沒人發現：驗收只跑了被改到的那一側（2026-09-24，`S0-9l` 起；`S1-7b` 發現）
+
+- **錯在哪**：`S0-9l`（`831c211`）同一次交付裡，後端新增了一支含參數化 `INSERT INTO matches` 的測試，讓 `apps/web` 的 `check-match-status.mjs` 開始亮紅燈。之後十幾個 commit 都沒人發現，因為主 session 每輪只重跑 `apps/api` 的測試與 `apps/admin` 的 lint。
+- **為什麼會錯（根因）**：**把「跨專案的檢查」當成只屬於某一個專案。** 這支腳本放在 `apps/web`，掃的卻是 `db/` 與 `apps/api/`；只改後端時，不會有人想到要跑前台的 lint。
+- **下次怎麼避免**：🔴 **主 session 每次提交前，三個應用的檢查都要跑**：`apps/api` 的 `dotnet test`、`apps/admin` 與 `apps/web` 的 `npm run lint`。改了哪一側不影響要跑哪些，因為檢查可能跨專案掃描。
+- **防呆**：檢查本身已改成以 DDL 的 `CK_matches_status` 為值域真實來源，`MATCH_STATUS_MAP` 必須恰好等於 CHECK 值域，不再逐一登記寫入來源（參數化寫入交給資料庫在執行期把關）。已用兩種錯誤形狀紅綠驗證。⚠️ **「每次三邊都跑」目前沒有自動化**，CI（`S0-7c`）的 pull_request 會跑，但直接推 `master` 不會觸發。
