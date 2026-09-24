@@ -24,16 +24,18 @@ public sealed record AdminBannerContentInput
 }
 
 /// <summary>
-/// 🔴 這是 <c>payload</c> 這個 multipart 欄位的 JSON 內容，不含圖片鍵——圖片透過同一次請求的
-/// <c>file</c> 欄位一起送出，比照 <c>Features/AdminNews</c> 的既有契約（見
-/// apps/api/README.md「多檔案 multipart 契約」段的既有說明；本模組只有單張圖，形狀更接近
-/// B2 新聞封面圖那種「固定一個 file 欄位」，不是 B1 頁面那種多欄位路徑命名）。
+/// 🔴 這是 <c>payload</c> 這個 multipart 欄位的 JSON 內容，不含圖片／影片鍵——圖片透過同一次
+/// 請求的 <c>file</c> 欄位、影片透過 <c>video</c> 欄位一起送出，比照 <c>Features/AdminNews</c>
+/// 的既有契約（見 apps/api/README.md「多檔案 multipart 契約」段的既有說明）。
 /// </summary>
 public sealed record CreateBannerRequest
 {
-    /// <summary>素材種類（S1-7a）。省略時預設 <c>image</c>。🔴 **本輪只允許 <c>image</c>**——
-    /// <c>video</c> 上傳規則（格式、大小上限、是否轉碼）尚待使用者裁決，送 <c>video</c> 一律 400，
-    /// 見 <c>AdminBannersRepository.ValidateMediaType</c>、apps/api/README.md「我的判斷」。</summary>
+    /// <summary>素材種類（S1-7a 新增欄位，v3.14 開放 <c>video</c>）。省略時預設 <c>image</c>。
+    /// <c>image</c>：只需要 <c>file</c>（輪播圖）。<c>video</c>：<c>file</c>（海報格 poster，
+    /// 仍是必填——「必須搭配海報圖」，docs/17-deployment.md §6）＋ <c>video</c>（影片檔案，
+    /// MP4／H.264／AAC，上限 50 MB，見 <c>Tcrfc.Api.Videos.VideoUploadOptions</c>），兩者缺一
+    /// 都是 400。見 <c>AdminBannersRepository.ValidateMediaType</c>、
+    /// <c>AdminBannersEndpoints</c>「影片模式的欄位互斥檢查」。</summary>
     public string? MediaType { get; init; }
 
     /// <summary>上架起訖時間（規劃書 B3「上架期間」）。皆可為 <c>null</c>＝不限制起訖，
@@ -47,9 +49,10 @@ public sealed record CreateBannerRequest
 }
 
 /// <summary>
-/// 更新請求。圖片是否更換由「這次請求有沒有帶 <c>file</c>」決定（見
-/// <c>AdminBannersEndpoints</c>）——<c>banners.image_key</c> 是 <c>NOT NULL</c>，不像文章封面圖
-/// 有「移除」這個選項，只有「換一張」或「維持原圖」兩態。
+/// 更新請求。圖片是否更換由「這次請求有沒有帶 <c>file</c>」決定，影片同理看 <c>video</c>
+/// （見 <c>AdminBannersEndpoints</c>）——<c>banners.image_key</c> 是 <c>NOT NULL</c>，不像文章
+/// 封面圖有「移除」這個選項，只有「換一張」或「維持原圖」兩態；<c>video_key</c> 則會在切回
+/// <c>image</c> 模式時被清空並刪除舊物件，見 <c>AdminBannersRepository.UpdateAsync</c>。
 /// </summary>
 public sealed record UpdateBannerRequest
 {
@@ -68,6 +71,11 @@ public sealed record AdminBannerListItemDto
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
     public string? VideoKey { get; init; }
+
+    /// <summary>草稿／發布（v3.14）。新增時一律是 <c>draft</c>，見
+    /// <see cref="AdminBannersRepository.CreateAsync"/>；透過 <c>/publish</c>／<c>/unpublish</c>
+    /// 兩支專用端點切換，不是這個 DTO 對應的 Create／Update 請求的欄位。</summary>
+    public required string Status { get; init; }
     public DateTime? StartAt { get; init; }
     public DateTime? EndAt { get; init; }
     public required int SortOrder { get; init; }
@@ -84,6 +92,7 @@ public sealed record AdminBannerDetailDto
     public int? ImageWidth { get; init; }
     public int? ImageHeight { get; init; }
     public string? VideoKey { get; init; }
+    public required string Status { get; init; }
     public DateTime? StartAt { get; init; }
     public DateTime? EndAt { get; init; }
     public required int SortOrder { get; init; }

@@ -38,7 +38,10 @@ public static class UploadSlotPolicy
             // （由上傳結果自動填入，不經這份插槽清單）與 banners_i18n.image_alt（雙語，隨 payload
             // 一起送，不是檔案上傳）——這份清單本身只管「檔案上傳」這一個插槽，寬高與 alt 走
             // AdminBannersRepository 的 CreateAsync／UpdateAsync 參數與 AddOrReplaceI18n。
-            ["banners"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            // 🔴 v3.14 新增 "video" 插槽：banners.video_key，media_type="video" 時必填的第二個
+            // 檔案欄位（"image" 插槽此時作為影片的海報格 poster，兩者同一次請求一起送，見
+            // AdminBannersEndpoints 的 UploadVideoAsync）。
+            ["banners"] = new HashSet<string>(StringComparer.Ordinal) { "image", "video" },
         };
 
     public static void Validate(string entityType, string field)

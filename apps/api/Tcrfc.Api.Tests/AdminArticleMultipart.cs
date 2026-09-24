@@ -14,7 +14,12 @@ namespace Tcrfc.Api.Tests;
 /// </summary>
 public static class AdminArticleMultipart
 {
-    public static MultipartFormDataContent Build(object payload, byte[]? fileBytes = null, string fileName = "cover.png", string fileContentType = "image/png")
+    /// <summary><paramref name="videoBytes"/>（v3.14 新增，選填）：Hero 輪播影片模式的第二個檔案
+    /// 欄位（<c>video</c>），逐字比照 <paramref name="fileBytes"/>／<c>file</c> 欄位的既有寫法。
+    /// 其餘呼叫端（AdminNews／AdminPages／AdminTeams…）不受影響，省略即維持原行為。</summary>
+    public static MultipartFormDataContent Build(
+        object payload, byte[]? fileBytes = null, string fileName = "cover.png", string fileContentType = "image/png",
+        byte[]? videoBytes = null, string videoFileName = "banner.mp4", string videoContentType = "video/mp4")
     {
         var form = new MultipartFormDataContent();
 
@@ -28,6 +33,13 @@ public static class AdminArticleMultipart
             var fileContent = new ByteArrayContent(fileBytes);
             fileContent.Headers.ContentType = new MediaTypeHeaderValue(fileContentType);
             form.Add(fileContent, "file", fileName);
+        }
+
+        if (videoBytes is not null)
+        {
+            var videoContent = new ByteArrayContent(videoBytes);
+            videoContent.Headers.ContentType = new MediaTypeHeaderValue(videoContentType);
+            form.Add(videoContent, "video", videoFileName);
         }
 
         return form;

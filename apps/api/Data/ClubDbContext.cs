@@ -839,6 +839,10 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.VideoKey)
                 .HasMaxLength(500)
                 .HasColumnName("video_key");
+            entity.Property(e => e.Status)
+                .HasMaxLength(16)
+                .HasDefaultValue("draft")
+                .HasColumnName("status");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");

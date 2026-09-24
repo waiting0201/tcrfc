@@ -2402,6 +2402,249 @@ No changes have been made to the model since the last migration.
 
 ---
 
+## S1-7b：主站規劃書 v3.14 落到程式——`matches.status` 補「取消」／`banners` 草稿發布／開放 Hero 影片上傳（2026-09-24，`backend-engineer`）
+
+### 背景
+
+`system-analyst` 已於 commit `2b439bd` 把 v3.14 的兩項規格異動（`matches.status` 補五值、
+`banners` 新增 `status`）同步進 `db/club-schema.sql`／`docs/12`，但**只改了 DDL 與文件，沒有動
+`apps/api`**（見 `docs/12` §12 第 35 點檔頭明講「應用層尚未跟上，這是後端待辦」）。本輪把這兩項
+異動落到程式，並依派工指示一併開放 Hero 輪播影片上傳（規劃書 §4.2 B3「圖／影片」原本就要求，
+S1-6／S1-7a 兩輪都因為「影片格式、大小上限、是否轉碼尚待裁決」而只做圖片）。
+
+### 1. Migration：`AlignSchemaV314`
+
+新增一支 EF Core migration（`Data/Migrations/20260924113455_AlignSchemaV314.cs`），內容：
+
+1. `AddColumn`：`banners.status`（`nvarchar(16) NOT NULL DEFAULT 'draft'`）。
+2. 手寫 SQL（本專案既有慣例：CHECK 約束完全不用 `HasCheckConstraint` 建模，見
+   `AlignSchemaS17a` 檔頭）：
+   - `ALTER TABLE banners ADD CONSTRAINT CK_banners_status CHECK (status IN ('draft','published'));`
+   - `ALTER TABLE matches ADD CONSTRAINT CK_matches_status CHECK (status IN ('scheduled','live','played','postponed','cancelled'));`
+
+**既有資料檢查（Up() 是否需要搭配 DML）**：套用前查了 `tcrfc_club_dev`——
+
+```sql
+SELECT status, COUNT(*) FROM matches GROUP BY status;
+-- played 21、scheduled 21，全部落在五值範圍內
+SELECT COUNT(*) FROM banners;  -- 0
+```
+
+`matches.status` 兩種既有值皆合法、`banners` 目前 0 筆，**兩張表都不需要任何 DML 轉態**，這支
+migration 純粹是 DDL 變更。`matches.status` 欄位本身早就存在（`db/club-schema.sql` 原文：
+「`status` 本身沒有 CHECK 約束」），這支 migration 只是第一次替它加上 CHECK，不是收斂既有
+CHECK（跟 `AlignSchemaS17a` 收斂 7 張表既有 CHECK、要先動態查詢系統產生名稱再 DROP 的情況不同，
+`matches.status` 這裡直接 `ADD CONSTRAINT` 即可）。
+
+**驗收（依 docs/20-cicd.md §5）**：
+
+```
+dotnet ef migrations add Probe --context ClubDbContext -o Data/Migrations
+# Up()／Down() 皆為空方法主體 → 基準沒有偏移
+dotnet ef migrations remove --context ClubDbContext
+# 這支從沒套用過，remove 只刪檔案，不會對任何資料庫執行 Down()（E-46 教訓）
+```
+
+🔴 **升級路徑驗證（用完即丟的資料庫）**：`git show 2b439bd~1:db/club-schema.sql`（v3.14 DDL
+異動前一版）取出「上一版」DDL，把其中的 `json` 型別字面替換成 `nvarchar(max)`（本機 SQL Server
+2022 容器的既知限制，`docs/12` §1.4 第 2 點），建出 `tcrfc_club_probe`（147 張表，含
+`__EFMigrationsHistory`），手動插入既有 5 支 migration 的歷史紀錄（標記為已套用，不重跑），
+再對這個資料庫跑 `dotnet ef database update`——**只會套用 `AlignSchemaV314`**，成功套用
+（147→148 張表），實測兩個 CHECK 約束真的擋得下非法值（`banners.status='bogus'` 直接被
+`CK_banners_status` 拒絕，`sys.check_constraints` 查證兩條約束定義字面正確）。驗完
+`DROP DATABASE tcrfc_club_probe`。
+
+**本機 `tcrfc_club_dev`**：依任務指示套用（不是 `remove`）。套用前後核對 `matches`（42 筆）／
+`banners`（0 筆）筆數皆未變動；`dotnet ef migrations has-pending-model-changes` 套用後回報
+「No changes have been made to the model since the last migration.」。
+
+### 2. `matches.status` 補「取消」
+
+`Features/AdminMatches/AdminMatchesRepository.cs`：
+
+- `AllowedStatuses`：四值 → 五值（`scheduled`／`live`／`played`／`postponed`／`cancelled`）。
+- `StatusZhLabels`：新增 `["取消"] = "cancelled"`（CSV 匯入與後台中文對照表共用同一份字典）。
+- `ValidateStatus`／CSV 逐列驗證的錯誤訊息同步補上「取消」。
+- **「取消」不受 `ValidatePostponedFields` 的原定時間規則約束**：這個方法只特判
+  `status == "postponed"`，`cancelled` 自動落入 else 分支（跟 `scheduled`／`live`／`played`
+  同一種行為）——取消是「不會再打」，延賽是「改期」，兩者語意不同，不需要額外程式碼即可正確處理，
+  只是在 `AdminMatchDtos.cs` 的值域說明補上這條語意區分的文字。
+
+**公開端點 `GET /api/v1/{club}/schedule`（`Features/Schedule/MatchesRepository.cs`）完全未改**：
+這支端點本來就是 `status` 的純值傳遞（`m.status AS Status`），沒有任何 enum 對照或值域限制，
+`cancelled` 會自動隨現有欄位流過去，不需要改一行程式碼。
+
+**前台 `apps/web/app/utils/schedule.ts` 的 `MATCH_STATUS_MAP` 檢查結果：已有 `cancelled`，
+本輪未改動這個檔案**——`S0-9l`（2026-09-24 較早的一輪）在補「延賽」顯示邏輯時，已經把
+`cancelled`／`postponed`／`live` 一併預留進這份對照表（`code: 'cancelled', label: '取消',
+schemaOrg: 'https://schema.org/EventCancelled'`），當時的檔頭註解就寫明「這幾個字面值尚未有
+真實資料可核對，沿用既有 CSS class 與命名風格推斷」。CSS（`status-pill--cancelled`，
+`apps/web/app/pages/zh/schedule.vue`）也已存在。本輪在種子資料與後端寫入路徑補上真實的
+`cancelled` 賽事後，這份**沿用既有對照表的既定行為**才第一次有真實資料可以核對——已用
+`Tcrfc.Api.Tests` 建立一筆 `cancelled` 賽事驗證 API 回傳與 CSV 往返正確，但**沒有**另外對
+`apps/web` 的頁面渲染做端對端驗證（那需要 Nuxt 頁面接上真實 API，屬於前台頁面開發階段
+`S1-19` 的範圍，不在本輪任務邊界內）。
+
+`apps/web` 的 `npm run lint:match-status`（`scripts/check-match-status.mjs`）執行結果：
+**通過本輪相關的檢查**（`MATCH_STATUS_MAP` 涵蓋種子資料的所有字面值）。🔴 **但整體
+`npm run lint` 會在 `lint:match-status` 這一步失敗**——與本輪改動無關的既有缺口：
+`apps/api/Tcrfc.Api.Tests/ScheduleOriginalDateTests.cs`（`S0-9l` 新增，`831c211`）裡有一段
+`INSERT INTO matches (...)` 的原始 SQL 測試資料，從未被登記進
+`KNOWN_MATCHES_STATUS_WRITE_SOURCES`，觸發了檢查腳本的「發現未登記的 matches 寫入路徑」防呆。
+已用 `git stash` 確認**這個失敗在本次任何改動之前就存在**（清空工作目錄跑同一支腳本，
+同樣的失敗訊息）。本輪未修這個缺口（不在 matches 狀態值域或影片上傳的任務範圍內），已列入
+下方「回報」請人工裁決由誰接手登記。
+
+### 3. `banners` 草稿／發布
+
+新增 `banners.status`（`draft`／`published`，預設 `draft`）落到程式，**沿用既有
+`content.banner.update` 權限碼，未新增權限碼**（任務指示明文）：
+
+| 方法與路徑 | 說明 |
+|---|---|
+| `POST /api/v1/admin/{club}/banners/{id}/publish` | 發布：`status` → `published`。冪等，已發布再打一次不報錯 |
+| `POST /api/v1/admin/{club}/banners/{id}/unpublish` | 改回草稿：`status` → `draft`。同上，冪等 |
+
+**設計取捨**：banners 沒有樂觀並行控制、沒有像 `Article`／`Page` 那種「只有草稿或排程中才能
+發布」的狀態機限制——輪播是單一表單的設定型內容，發布後仍可以隨時改回草稿再重新發布，沒有
+複雜的轉換規則需要保護，比照 `AdminFaqCategoriesRepository` 對 `IsEnabled` 這類簡單開關的既有
+寬鬆處理，不是比照 `Article` 的狀態機。新建立一律是 `draft`（不接受呼叫端指定初始狀態）。
+
+**公開端點 `GET /api/v1/{club}/banners`（`Features/Home/HomeRepository.ListBannersAsync`）**：
+SQL 新增 `AND b.status = 'published'`，**與既有的 `start_at`／`end_at` 時間窗條件皆為
+`AND`（兩者都要成立）**。用等於比對單一允許值（白名單），不是排除某個值的黑名單寫法
+（`docs/18-work-errors.md` `E-50` 教訓：個資／可見度判斷一律白名單）。時間比較沿用既有
+`SYSUTCDATETIME()`（資料庫時鐘），沒有 `E-48` 那種「寫入用應用程式時鐘、讀取用資料庫時鐘」的
+坑——`start_at`／`end_at` 是後台人員自己選定的日期，不是「現在」這個時間點本身。
+
+### 4. 開放 Hero 影片上傳
+
+**規則定案與理由見 [`docs/17-deployment.md`](../../docs/17-deployment.md) §6「Hero 輪播影片
+上傳」**（只收 MP4／H.264／AAC、上限 50 MB、伺服器端不轉碼、以 `ftyp` box 驗證容器格式）。
+新增 `Videos/` 目錄，架構逐字比照既有 `Images/` 目錄的分工（但**不做任何轉檔／衍生檔**，
+一支影片只有一個物件）：
+
+- `IVideoStorageService`／`BlobVideoStorageService`／`UnavailableVideoStorageService`：
+  跟圖片共用同一個 Azure Storage 帳號、**獨立容器**（`AZURE_BLOB_CONTAINER_VIDEOS`，預設
+  `videos`），用 **keyed DI**（`[FromKeyedServices("videos")]`）注入獨立於圖片的
+  `BlobContainerClient`，避免跟圖片用的「未具名」單例互相覆蓋。
+- `VideoValidator`：純驗證邏輯（大小、`ftyp` box 檔頭），不含任何 I/O。
+- `VideoUploadOptions`：`MaxUploadBytes = 50 MB`、`Extension = ".mp4"`、
+  `ContentType = "video/mp4"`——唯一來源，不得在別處重複寫死。
+- `VideoProcessingExceptions`：`EmptyVideoException`／`VideoTooLargeException`／
+  `UnsupportedVideoFormatException`，比照 `ImageProcessingException` 家族由
+  `ApiExceptionHandler` 統一轉 400。
+
+**契約**（`banners`，`AdminBannerDtos.cs`／`AdminBannersRepository.cs`／
+`AdminBannersEndpoints.cs`）：
+
+- `CreateBannerRequest.MediaType` 開放 `video`（原本 S1-7a 只允許 `image`，送 `video` 一律 400，
+  本輪解除這個限制）。`AdminBannersRepository.ValidateMediaType` 改為 `internal static`，讓
+  `AdminBannersEndpoints` 能在上傳任何檔案**之前**先驗證這個欄位（fail fast，避免對一個註定
+  會被拒絕的請求白白做圖片／影片上傳）。
+- multipart 契約新增 `video` 欄位（`AdminBannerRequestForm.ReadAsync` 回傳型別從
+  `(T Payload, IFormFile? File)` 改為 `(T Payload, IFormFile? File, IFormFile? VideoFile)`）：
+  - `mediaType="image"`：只需要 `file`（輪播圖），`video` 欄位不可帶（帶了 400）。
+  - `mediaType="video"`：`file` 仍是必填（**必須搭配海報圖，即既有 `image_key`**，
+    `<video poster>` 用），`video` 欄位建立時必填；更新時省略＝維持既有影片（前提是原本
+    就是 `video` 模式且已有影片，否則 400）。
+- `UploadSlotPolicy` 新增 `"video"` 插槽（`banners.video_key`）。
+- 補償刪除（E-47）：建立／更新失敗時，圖片與影片（若有上傳）都用 `CancellationToken.None`
+  補償刪除，不沿用可能已取消的請求 token。
+- **`UpdateAsync` 的影片鍵推導邏輯**（比圖片複雜，因為多了「模式切換」）：
+  - `video` 模式且有新影片 → 換成新影片，刪除舊影片物件。
+  - `video` 模式且沒有新影片 → 維持既有影片；既有值也是 `null`（例如剛從 `image` 切過來卻
+    沒上傳影片）→ 400。
+  - `image` 模式（含從 `video` 切回來）→ 影片鍵清空並刪除舊影片物件（跟圖片「換圖刪舊圖」
+    同一種善後邏輯）。
+- **Kestrel 請求主體上限**（`Program.cs`）：因為影片模式在同一次請求同時送海報圖與影片，
+  上限已改為 `ImageUploadOptions.MaxUploadBytes + VideoUploadOptions.MaxUploadBytes + 1 MB`，
+  不再只算圖片那組數字。
+
+**公開端點**：`GET /api/v1/{club}/banners` 已有 `mediaType`／`videoKey` 欄位（S1-7a 就已預先
+補上，本輪沒有再改 DTO，只是 `videoKey` 從此真的可能有值）。
+
+### 5. 測試
+
+`Tcrfc.Api.Tests/AdminBannersAndHomeSectionsTests.cs`：
+
+- 修正既有 `Banner_圖片寬高由上傳結果自動填入_alt雙語_media_type送video回400`（video 現在
+  允許，這個測試名稱與內容已過期）：移除「送 video 一律 400」斷言，改名為
+  `Banner_圖片寬高由上傳結果自動填入_alt雙語`；補上先呼叫 `/publish` 才能在公開端點看到的步驟
+  （新建立的輪播預設 `draft`，這是本輪引入的行為變化，既有測試原本假設「建立後立刻公開可見」）。
+- `Public_Banners_只回上架期間內的輪播` 依賴的 `CreateBannerAsync` 工具方法補上 `publish`
+  參數（預設 `true`，維持既有測試對「已發布輪播」情境的假設；需要測草稿行為本身的新測試改傳
+  `false`）。
+- 新增 7 項：草稿不出現在公開端點／發布後出現／改回草稿後又不出現（含發布冪等性）、
+  發布與改回草稿的授權（檢視者 403、不存在的輪播 404）、影片模式建立成功且公開端點吐出
+  `videoKey`、影片模式缺檔案 400／圖片模式送影片檔案 400、影片格式不支援 400／超過大小上限
+  400、影片切回圖片清空影片鍵、再切回影片模式須重新上傳。
+
+`Tcrfc.Api.Tests/AdminMatchesAndStandingsTests.cs`：新增 2 項——狀態為「取消」建立成功且不受
+原定日期規則約束（含「取消狀態填原定日期」400）、CSV 匯入納入一列「取消」（原本測試只涵蓋
+「未開始」「已結束」兩種，補上第三種涵蓋新值域）。
+
+新增測試工具：`Tcrfc.Api.Tests/TestVideos.cs`（`SmallValidMp4`／`FakeVideoBytes`／
+`OversizedBytes`，逐字比照既有 `TestImages.cs` 的既有原則——全部在記憶體現產，不讀外部檔案）；
+`AdminArticleMultipart.Build` 新增選填的 `videoBytes`／`videoFileName`／`videoContentType`
+參數（省略即維持既有行為，不影響 `AdminNews`／`AdminPages`／`AdminTeams` 等其餘呼叫端）。
+
+**測試結果**：
+
+```
+dotnet test Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj --filter "FullyQualifiedName~AdminBannersAndHomeSectionsTests|FullyQualifiedName~AdminMatchesAndStandingsTests" --no-build
+已通過! - 失敗: 0，通過: 39，總計: 39（連跑 10 次，每次都是 0 失敗）
+
+dotnet test Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj --no-build（全套，前後各執行一次
+db/seed/reset-admin-accounts.sh）
+已通過! - 失敗: 0，通過: 374，總計: 374
+
+dotnet test Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj --filter "FullyQualifiedName~ArchitectureTests" --no-build
+已通過! - 失敗: 0，通過: 1
+
+dotnet ef migrations has-pending-model-changes --context ClubDbContext
+No changes have been made to the model since the last migration.
+```
+
+`apps/web`：`npm run lint:node-version`／`lint:club-copy`／`lint:homepage-fidelity`／
+`lint:eslint` 全部通過（0 errors）；`lint:match-status` 的失敗**已用 `git stash` 確認與本輪
+改動無關**，見上方第 2 節說明。
+
+### 契約變更（給 `apps/admin` 的人看）
+
+1. `AdminBannerListItemDto`／`AdminBannerDetailDto` 新增**必填**欄位 `status`
+   （`draft`／`published`）。分類管理畫面需要新增「發布」／「改回草稿」按鈕（分別打
+   `POST .../banners/{id}/publish`／`.../unpublish`，沿用既有 `content.banner.update`
+   權限碼，不需要新的權限檢查）。
+2. `CreateBannerRequest`／`UpdateBannerRequest` 的 `MediaType` 現在真的接受 `video`。前端表單
+   若要開放影片上傳，需要：素材種類切換為「影片」時顯示第二個檔案選擇欄位（multipart 欄位名
+   `video`），送出時 `file` 欄位仍是必填（作為海報圖）。若第一版前端暫不做影片上傳 UI，
+   維持只送 `mediaType: "image"` 即可，不受影響。
+3. `matches` 的狀態下拉選單需要新增「取消」選項（值 `cancelled`），CSV 範本的狀態欄說明文字
+   需要更新為「未開始／進行中／已結束／延賽／取消」。
+
+### 回報（規劃書／既有機制答不出來，請人工裁決）
+
+1. 🔴 **`apps/web/scripts/check-match-status.mjs` 的「未登記寫入路徑」防呆目前紅燈**：
+   `apps/api/Tcrfc.Api.Tests/ScheduleOriginalDateTests.cs`（S0-9l 新增）有一段
+   `INSERT INTO matches` 測試資料 SQL，從未被登記進該腳本的 `KNOWN_MATCHES_STATUS_WRITE_SOURCES`。
+   已用 `git stash` 確認**這個失敗早於本輪任何改動就存在**，不是本輪引入的迴歸。修法很單純
+   （把這個檔案路徑加進登記清單，確認寫入的 `status` 字面值——`postponed`——已在
+   `MATCH_STATUS_MAP` 涵蓋），但不屬於「matches 狀態值域」或「影片上傳」這兩項任務範圍，
+   交由人工決定由誰接手（可能是下一輪 `S0-9` 系列收尾，或另開一個小任務）。
+2. **影片上傳只驗證容器格式，不驗證內部編碼是否真的是 H.264／AAC**——已寫進
+   `docs/17-deployment.md` §6 與 `Videos/VideoProcessingExceptions.cs` 的程式註解，這是刻意的
+   驗證邊界（見該節說明），此處列出是確保這個邊界被看到，不是待辦。
+
+### 本次沒動的部分
+
+- 沒有動 `apps/admin`（契約變更清單已列在上方，另有 agent 在改球隊選單，任務指示明文不得碰）。
+- 沒有替 Hero 輪播影片做任何伺服器端轉碼、壓縮或格式轉換——依裁決結果，這是刻意不做。
+- 沒有修改 `STATUS.md`、`docs/18-work-errors.md`（依任務指示由派工者收尾）。
+- 沒有 commit。
+
+---
+
 ## 目錄結構
 
 ```

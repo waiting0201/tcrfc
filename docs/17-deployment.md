@@ -446,6 +446,54 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
   但 `mcr.microsoft.com/azure-storage/azurite` 本身經實測拉取正常，只有 `docker-compose.dev.yml`
   常態跑的時候才用容器版本，測試追求的是啟動速度用 npm 套件版本）。
 
+### Hero 輪播影片上傳（v3.14，2026-09-24；`backend-engineer`）
+
+主站規劃書 §4.2 B3「Hero 輪播管理（排序、圖／影片、標題、CTA、上架期間）」原本只有圖片欄位可用，
+v3.14 使用者拍板開放影片；規劃書本身不記技術選型（§1.3 明文排除），格式、大小上限、是否轉碼
+三件事由本輪執行層決定：
+
+| 議題 | 定案 | 理由 |
+|---|---|---|
+| 格式 | **只收 MP4（H.264／AAC）** | 這是瀏覽器原生 `<video>` 元素支援度最高、最不需要額外相容性處理的組合；不像圖片上傳規劃書明文接受 HEIC 那種既有相容性負擔（見上方「HEIC 已定案」段），影片沒有對應的規格壓力要求收更寬 |
+| 大小上限 | **50 MB** | Hero 輪播是短片，不是完整賽事錄影；50 MB 大約是 1080p、30 秒上下、中等位元率的匯出品質，一般社群媒體剪輯工具的匯出檔落在這個範圍內 |
+| 是否轉碼 | **伺服器端不轉碼，原封不動寫入物件儲存** | 這套系統跑在單一 Azure VM（本檔 §1），沒有另外的轉碼佇列或算力可以吸收 ffmpeg 這類工具的 CPU 成本，勉強做只會拖垮同一台機器上的 API／DB 容器。跟圖片上傳（伺服器端一律重新編碼為 WebP 並產四個衍生尺寸）刻意不同——圖片轉檔用 ImageSharp 是純 CPU、毫秒等級；影片轉碼是分鐘等級的重工作，量級不同 |
+
+**驗證機制**（`apps/api/Videos/`）：
+
+- `VideoValidator.Validate`：以 **`ftyp` box 檔頭**（ISO Base Media File Format 容器格式共用的
+  magic bytes，位元組 4–7 應為 ASCII `"ftyp"`）判斷是否為 MP4 容器，**不看副檔名**——逐字比照
+  圖片上傳「以 `ImageSharp` 偵測實際格式，不信任副檔名」的既有原則。
+- 🔴 **已知邊界（誠實列出，不是遺漏）：這只驗證容器格式，不解封裝驗證內部視訊／音訊軌道是否真的
+  是 H.264／AAC。** 完整驗證編碼需要引入媒體處理函式庫（例如綁定 ffprobe），本專案刻意不引入
+  ——跟「伺服器端不轉碼」同一個理由：不值得為了一個俱樂部官網的 Hero 輪播負擔這個相依與維運成本。
+  代價是理論上一個容器是合法 MP4、但內部編碼是其他格式（例如 HEVC／VP9 塞進 MP4 容器）的檔案
+  能通過伺服器驗證，但瀏覽器播放時可能失敗——這個風險由後台人員自律（用一般匯出工具產生的 MP4
+  幾乎必然是 H.264／AAC）與人工預覽（後台上傳後應該試播確認）承擔，不是伺服器強制保證。
+- **必須搭配海報圖**：`banners.image_key` 是既有欄位、`NOT NULL`，`media_type='video'` 時作為
+  影片的海報格（poster）——`<video poster>` 屬性、影片載入前與行動網路關閉自動播放時的預覽畫面。
+  這不是新規則，是沿用既有「一張圖片欄位」的資料結構，只是語意從「輪播圖本身」變成「影片的
+  縮圖」。
+- 大小檢查（`IFormFile.Length`，只讀 metadata）先擋超額檔案，格式驗證留給
+  `IVideoStorageService.UploadAsync` 內部——跟圖片上傳同一種「先擋大小、格式驗證在真的處理
+  位元組時做」的分工。
+
+**儲存**（`Videos/BlobVideoStorageService.cs`）：跟圖片共用同一個 Azure Storage 帳號、**獨立容器**
+（`AZURE_BLOB_CONTAINER_VIDEOS`，預設 `videos`；圖片是 `AZURE_BLOB_CONTAINER_IMAGES`，預設
+`images`）——分開容器方便未來各自套用不同的保留政策或 CDN 快取規則。本機開發同樣接 Azurite
+（跟圖片一樣），不需要另外的模擬器。**不產生任何衍生檔**（跟圖片「一張圖五個物件」刻意不同）：
+收到的位元組原封不動存成一個物件，物件鍵格式 `{club}/banners/{id}/video/{guid}.mp4`。
+
+**Kestrel 請求主體上限**（`Program.cs`）：因為 Hero 輪播「影片」模式在同一次 `multipart/form-data`
+請求裡同時送海報圖（≤10 MB）與影片（≤50 MB），上限已調整為兩者總和加緩衝
+（`ImageUploadOptions.MaxUploadBytes + VideoUploadOptions.MaxUploadBytes + 1 MB`），不是只算
+圖片那組數字。
+
+**API 契約**：`banners` 的 `MediaType` 欄位開放 `video`（原本 S1-7a 只開放 `image`，`video` 送出
+一律 400），建立／更新時多帶一個 `video` multipart 欄位（`file` 欄位固定是海報圖）；影片模式下
+`video` 是否必填視情境而定，見 `apps/api/README.md` S1-7b 段的完整說明。**草稿／發布**
+（`banners.status`）與影片上傳是同一輪一起接的兩件事，但彼此獨立——草稿狀態的輪播一樣可以是
+影片模式，只是不會出現在公開端點。
+
 ---
 
 ## 7. 已知風險

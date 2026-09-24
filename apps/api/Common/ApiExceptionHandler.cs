@@ -17,6 +17,7 @@ using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
 using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
+using Tcrfc.Api.Videos;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Common;
@@ -74,6 +75,10 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status400BadRequest, "圖片無法處理", imageProcessing.Message),
             UploadSlotNotAllowedException slotNotAllowed =>
                 (StatusCodes.Status400BadRequest, "不支援的圖片欄位", slotNotAllowed.Message),
+
+            // ── v3.14 影片上傳共用元件（Videos）──────────────────────────────────────
+            VideoProcessingException videoProcessing =>
+                (StatusCodes.Status400BadRequest, "影片無法處理", videoProcessing.Message),
 
             // ── 本輪新增（S1：J1 帳號管理、Features/AdminAccounts）──────────────────────
             AdminAccountValidationException accountValidation =>

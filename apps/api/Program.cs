@@ -33,17 +33,21 @@ using Tcrfc.Api.Features.Staff;
 using Tcrfc.Api.Features.Teams;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
+using Tcrfc.Api.Videos;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // ── S0-8：Kestrel 請求主體上限，讓「檔案太大」一律得到我們自訂的友善訊息 ──────────────────
-// Kestrel 預設上限是 30 MB。若不調整，10–30 MB 之間的檔案會被 ImageUploadOptions.MaxUploadBytes
-// 的程式碼檢查擋下（回我們的中文訊息），但 >30 MB 的檔案會先被 Kestrel 自己擋下，回傳它自己的
-// 通用 413（本機驗證時兩者行為確實不同，見 apps/api/README.md）。改小上限（10 MB ＋ 1 MB 緩衝，
-// 緩衝是給 multipart 邊界字串與其他表單欄位用）讓兩種情況都回應同一種使用者看得懂的訊息。
+// Kestrel 預設上限是 30 MB。若不調整，會被程式碼檢查擋下（回我們的中文訊息）的檔案大小之上，
+// 檔案會先被 Kestrel 自己擋下，回傳它自己的通用 413（本機驗證時兩者行為確實不同，見
+// apps/api/README.md）。改小上限讓兩種情況都回應同一種使用者看得懂的訊息。
+// 🔴 v3.14：Hero 輪播「影片」模式在同一次 multipart 請求裡同時送海報圖（≤10 MB）與影片
+// （≤50 MB，VideoUploadOptions.MaxUploadBytes），上限要能同時容納兩者＋緩衝（multipart 邊界
+// 字串與其他表單欄位），不能只算圖片那組數字。
 builder.WebHost.ConfigureKestrel(options =>
 {
-    options.Limits.MaxRequestBodySize = ImageUploadOptions.MaxUploadBytes + 1024 * 1024;
+    options.Limits.MaxRequestBodySize =
+        ImageUploadOptions.MaxUploadBytes + VideoUploadOptions.MaxUploadBytes + 1024 * 1024;
 });
 
 // ── JSON：日期一律 ISO 8601（DateOnly/DateTime 預設行為已是），欄位用 camelCase 給前端 ──────
@@ -203,10 +207,18 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString))
     var blobContainerName = builder.Configuration["AZURE_BLOB_CONTAINER_IMAGES"] ?? "images";
     builder.Services.AddSingleton(new BlobContainerClient(blobConnectionString, blobContainerName));
     builder.Services.AddSingleton<IImageStorageService, BlobImageStorageService>();
+
+    // 🔴 v3.14 Hero 輪播影片：同一個帳號、獨立容器（跟圖片分開，方便未來各自套用不同的
+    // 保留政策／CDN 快取規則）。用具名服務（keyed DI，.NET 8+）注入，避免跟上面圖片用的
+    // 「未具名」BlobContainerClient 單例互相覆蓋——見 Videos/BlobVideoStorageService.cs。
+    var blobVideoContainerName = builder.Configuration["AZURE_BLOB_CONTAINER_VIDEOS"] ?? "videos";
+    builder.Services.AddKeyedSingleton("videos", new BlobContainerClient(blobConnectionString, blobVideoContainerName));
+    builder.Services.AddSingleton<IVideoStorageService, BlobVideoStorageService>();
 }
 else
 {
     builder.Services.AddSingleton<IImageStorageService, UnavailableImageStorageService>();
+    builder.Services.AddSingleton<IVideoStorageService, UnavailableVideoStorageService>();
 }
 
 // ── 各功能模組的 repository ──────────────────────────────────────────────

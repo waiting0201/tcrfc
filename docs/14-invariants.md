@@ -332,10 +332,12 @@
   主站規劃書 §3.13／§4.3 C4／§5.1 `Match` 三處已一致為五值（未開始／進行中／已結束／延賽／取消，
   英文 `scheduled`／`live`／`played`／`postponed`／`cancelled`）；`matches.status` 欄位（`nvarchar(16)`）
   補上 `CHECK (status IN ('scheduled','live','played','postponed','cancelled'))`。
-  ⚠️ **（S1-8 遺留，仍未解除）應用層尚未跟上**：`Features/AdminMatches/AdminMatchesRepository.cs` 的
-  `AllowedStatuses`／`StatusZhLabels` 目前仍是四值，`AdminMatchesEndpoints` 還不接受「取消」——
-  這次的同步鏈只改了規劃書與 DDL，**沒有改 `apps/api`**（另有 agent 在改，且本次任務明文不得動它）。
-  **後續要開發「取消」這個狀態值的後台與前台呈現前，先把這兩個常數表補上五值。**
+  ✅ **（S1-7b，2026-09-24，`backend-engineer`）應用層已跟上**：`Features/AdminMatches/
+  AdminMatchesRepository.cs` 的 `AllowedStatuses`／`StatusZhLabels` 已補五值，CSV 匯入、
+  中文對照表與 `AdminMatchesEndpoints` 均接受「取消」。「取消」不受 `ValidatePostponedFields`
+  的原定時間規則約束（跟延賽不同，不必填也不能填原定日期）。公開端點 `GET /api/v1/{club}/schedule`
+  是純值傳遞（不做 enum 對照），前台 `apps/web/app/utils/schedule.ts` 的 `MATCH_STATUS_MAP`
+  **本來就已經有 `cancelled`**（S0-9l 遺留的預留鍵，早於本次五值定案），兩處均不需改動即已一致。
 - 🔴 **（S1-8）`matches.match_no`（場次編號）同季同聯賽唯一，沒有 DB 唯一索引，只有應用層檢查**
   （`AdminMatchesRepository.EnsureMatchNoUniqueAsync`，範圍是 `(club_id, season_id,
   competition_id, match_no)`）。**任何日後直接寫 SQL 匯入賽事資料的腳本，繞過這個應用層檢查
@@ -376,16 +378,24 @@
   `docs/12a` §5.1／`docs/12c` §3.1 已同步。⚠️ **`articles.cover_key`／`teams.hero_key` 等其餘既有
   圖片欄位仍是同樣的缺口**，本輪只處理 `banners`（首頁 Hero 是全站最顯眼的視覺元素，優先度最高），
   未列入本次範圍，日後要補一併走同步鏈。**影片檔本身不經過「上傳即縮圖」流程**（該流程只處理
-  圖片），影片的格式、檔案大小上限與是否轉碼規劃書未明訂，**開發前需裁決**（見 `docs/12` §12 第 33 點）。
+  圖片），影片的格式、檔案大小上限與是否轉碼規劃書未明訂，見 `docs/12` §12 第 33 點。
+  ✅ **（v3.14，2026-09-24，`backend-engineer`）執行層已裁決並落地**：只收 MP4（H.264／AAC）、
+  單檔上限 50 MB、**伺服器端不轉碼**（跟圖片刻意不同），必須搭配海報圖（既有 `image_key`），
+  以 `ftyp` box 檔頭（magic bytes）驗證容器格式、不只看副檔名。完整理由與邊界見
+  [`17-deployment.md`](17-deployment.md) §6「Hero 輪播影片上傳」、`apps/api/Videos/`。
+  **影片上傳只驗證容器格式，不解封裝驗證內部視訊／音訊編碼**——這是刻意的驗證邊界，不是遺漏。
 - ✅ **（v3.14，2026-09-24 客戶裁決）`banners` 新增 `status`（`draft`／`published`，預設 `draft`）**：
   新增或上傳後為草稿，發布後**依既有 `start_at`／`end_at`（上架期間）自動顯示與下架**。
   🔴 **刻意不用 `scheduled`**——排程語意已經由 `start_at`／`end_at` 承擔，`status` 只分「還沒審過的草稿」
   與「已發布」兩態；也**不比照 `Page`／`Article` 接 `ScheduledPublishRunner`**，因為顯示與下架的時間點
   由公開讀取端查詢時比對 `start_at`／`end_at` 即可判定，不需要一個背景服務去翻轉狀態值本身。
   `db/club-schema.sql`／`docs/12` §4.1／§12 第 35 點／`docs/12a` §5.1（`banner` 實體）已同步；
-  `banners_i18n` 不受影響（狀態不是語言相依欄位）。⚠️ **後台寫入端與公開讀取端的過濾邏輯尚未實作**
-  （另有 agent 在動 `apps/api`／`apps/admin`，本次任務明文不得碰），日後接手時記得公開讀取要同時
-  滿足 `status = 'published'` 與時間窗兩個條件，不是只挑其中一個。
+  `banners_i18n` 不受影響（狀態不是語言相依欄位）。
+  ✅ **（S1-7b，2026-09-24，`backend-engineer`）後台寫入端與公開讀取端已實作**：新建立一律
+  `draft`，`POST .../banners/{id}/publish`／`.../unpublish` 兩支專用端點切換（沿用既有
+  `content.banner.update` 權限碼，未新增權限碼）；公開端點 `GET /api/v1/{club}/banners`
+  同時滿足 `status = 'published'`（等於比對，白名單寫法，`Features/Home/HomeRepository.
+  ListBannersAsync`）**與** `start_at`／`end_at` 時間窗兩個條件，兩者缺一不可。
 - ✅ **（S1-6 缺口，S1-8 已補）`faq_categories` 已加 `is_enabled`（軟停用）**：取代先前「用刪除湊
   停用」的作法——刪除經 `ON DELETE CASCADE` 解除分類關聯且不可逆，題目本身仍在但分類導覽找不到。
   現在可真正停用又重新啟用，題目與既有關聯不受影響。`db/club-schema.sql`／`docs/12` §4.1／

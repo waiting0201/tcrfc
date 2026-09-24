@@ -17,10 +17,12 @@ public sealed class HomeRepository(IClubSqlConnectionFactory connectionFactory, 
     private const string BannersEntity = "banners";
     private const string HomeSectionsEntity = "home-sections";
 
-    /// <summary>只回目前在上架期間內的輪播（<c>start_at</c>／<c>end_at</c> 皆可為 <c>null</c>＝不限制
-    /// 該端）。時間比較用 <c>SYSUTCDATETIME()</c>（資料庫時鐘），這裡沒有「寫入時取應用程式時鐘、
-    /// 讀取時跟資料庫時鐘比較」這個 E-48 的坑——<c>start_at</c>／<c>end_at</c> 是後台人員自己選定的
-    /// 未來或過去日期，不是「現在」這個時間點本身，不受兩個時鐘飄移影響。</summary>
+    /// <summary>只回**已發布且**目前在上架期間內的輪播（<c>start_at</c>／<c>end_at</c> 皆可為
+    /// <c>null</c>＝不限制該端）。時間比較用 <c>SYSUTCDATETIME()</c>（資料庫時鐘），這裡沒有
+    /// 「寫入時取應用程式時鐘、讀取時跟資料庫時鐘比較」這個 E-48 的坑——<c>start_at</c>／
+    /// <c>end_at</c> 是後台人員自己選定的未來或過去日期，不是「現在」這個時間點本身，不受兩個
+    /// 時鐘飄移影響。🔴 <c>status = 'published'</c>（v3.14）用**等於比對單一允許值**，不是
+    /// 排除某個值的黑名單寫法（E-50 教訓：個資／可見度判斷一律白名單）。</summary>
     public async Task<IReadOnlyList<BannerDto>> ListBannersAsync(ClubScope scope, string dbLocale, CancellationToken cancellationToken)
     {
         return await cache.GetOrCreateAsync(
@@ -40,6 +42,7 @@ public sealed class HomeRepository(IClubSqlConnectionFactory connectionFactory, 
                     FROM banners b
                     LEFT JOIN banners_i18n bi ON bi.banner_id = b.id AND bi.locale IN @Locales
                     WHERE b.club_id = @ClubId
+                      AND b.status = 'published'
                       AND (b.start_at IS NULL OR b.start_at <= SYSUTCDATETIME())
                       AND (b.end_at IS NULL OR b.end_at >= SYSUTCDATETIME())
                     ORDER BY b.sort_order

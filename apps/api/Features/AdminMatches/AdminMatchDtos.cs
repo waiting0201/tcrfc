@@ -68,16 +68,19 @@ public sealed record AdminMatchDetailDto
 }
 
 /// <summary>
-/// 🔴 <see cref="Status"/> 值域（本輪 API 層第一次定案，docs/12d-field-audit.md 行 292 一類的
-/// 「規劃書沒有給列舉代碼」缺口）：<c>scheduled</c>（未開始）／<c>live</c>（進行中）／
-/// <c>played</c>（已結束）／<c>postponed</c>（延賽）——**逐字沿用種子腳本與既有測試已經在用的
-/// 三個真實字串**（<c>db/seed/generate-club-seed-sql.py</c> 的 <c>scheduled</c>／<c>played</c>，
-/// <c>Tcrfc.Api.Tests/ScheduleOriginalDateTests.cs</c> 的 <c>postponed</c>），只新增
-/// <c>live</c>（規劃書兩處都有「進行中」，種子資料還沒有這個狀態的真實案例，此前無從得知它會被
-/// 拼成什麼樣的字串，選擇跟其餘三個同一種簡短英文單字風格）。
-/// ⚠️ **主站規劃書 §3.13（前台賽事卡片版型）另外列了「取消」，但 §4.3 C4（後台欄位定義）只列
-/// 這四個值，不含取消**——兩處不一致，本輪照 C4（後台權威定義）為準，不多加「取消」這個第五個值
-/// （CLAUDE.md「沒寫的不自創使用者可見功能」），已列入回報請人工裁決是否要回頭同步 §3.13。
+/// <see cref="Status"/> 值域：<c>scheduled</c>（未開始）／<c>live</c>（進行中）／
+/// <c>played</c>（已結束）／<c>postponed</c>（延賽）／<c>cancelled</c>（取消）——**逐字沿用
+/// 種子腳本與既有測試已經在用的字串**（<c>db/seed/generate-club-seed-sql.py</c> 的
+/// <c>scheduled</c>／<c>played</c>，<c>Tcrfc.Api.Tests/ScheduleOriginalDateTests.cs</c> 的
+/// <c>postponed</c>）。
+/// 🔴 **五值定案（v3.14，2026-09-24 使用者拍板）**：S1-8 當時 §3.13（前台賽事卡片版型）與
+/// §4.3 C4（後台欄位定義）不一致——前者有「取消」，後者只列四值，本輪只照 C4 定案四值。
+/// v3.14 已同步兩處為五值（主站規劃書 §3.13／§4.3 C4／§5.1 <c>Match</c> 三處一致），
+/// <c>db/club-schema.sql</c> 也已加上 <c>CK_matches_status</c>（migration
+/// <c>AlignSchemaV314</c>），本輪把 <c>cancelled</c> 補進應用層值域。「取消」與「延賽」語意
+/// 不同——延賽是改期（<see cref="CreateAdminMatchRequest.OriginalMatchOn"/> 必填），
+/// 取消是不會再打，<c>cancelled</c> 不受 <c>ValidatePostponedFields</c> 的原定時間規則約束
+/// （不必填也不能填，比照其餘非延賽狀態）。
 /// </summary>
 public sealed record CreateAdminMatchRequest
 {

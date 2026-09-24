@@ -130,6 +130,37 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
         Assert.Equal(HttpStatusCode.BadRequest, noTeams.StatusCode);
     }
 
+    /// <summary>v3.14：「取消」補進五值。跟「延賽」語意不同——取消不受
+    /// <c>ValidatePostponedFields</c> 的原定時間規則約束（既不必填也不能填原定日期），
+    /// 逐字比照「非延賽」分支的既有行為。</summary>
+    [Fact]
+    public async Task Match_狀態為取消_建立成功_不受原定日期規則約束()
+    {
+        using var client = await CreateClientAsync("team.manager@tcrfc.test");
+        var seasonId = await GetSeasonIdAsync("tcrfc", "2026-27");
+        var teamId = await GetTeamIdAsync("tcrfc", "D1");
+
+        var created = await client.PostAsJsonAsync(
+            "/api/v1/admin/tcrfc/matches", NewMatchRequest(seasonId, [teamId]) with { Status = "cancelled" });
+        Assert.Equal(HttpStatusCode.Created, created.StatusCode);
+        var match = await created.Content.ReadFromJsonAsync<AdminMatchDetailDto>(TestJson.Options);
+        try
+        {
+            Assert.Equal("cancelled", match!.Status);
+            Assert.Null(match.OriginalMatchOn);
+
+            // 取消狀態不能填原定日期（跟「非延賽」分支同一種擋法）。
+            var cancelledWithOriginal = await client.PostAsJsonAsync(
+                "/api/v1/admin/tcrfc/matches",
+                NewMatchRequest(seasonId, [teamId]) with { Status = "cancelled", OriginalMatchOn = new DateOnly(2026, 10, 1) });
+            Assert.Equal(HttpStatusCode.BadRequest, cancelledWithOriginal.StatusCode);
+        }
+        finally
+        {
+            await DeleteMatchByIdAsync(match!.Id);
+        }
+    }
+
     [Fact]
     public async Task Match_延賽須填原定日期_非延賽不能填原定日期()
     {
@@ -363,12 +394,14 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
         var matchNoA = Random.Shared.Next(80000, 89999);
         var csv = BuildMatchCsv(
             ("D1", "2026-27", "enterprise-a", "2026-11-01", "19:00", "主場", "CSV測試對手A", "", "測試場地", "", "聯賽", matchNoA.ToString(), "1", "未開始"),
-            ("D1", "2026-27", "", "2026-11-08", "", "", "CSV測試對手B", "CSV Opponent B", "", "", "", "", "", "已結束"));
+            ("D1", "2026-27", "", "2026-11-08", "", "", "CSV測試對手B", "CSV Opponent B", "", "", "", "", "", "已結束"),
+            // v3.14：「取消」CSV 匯入（AdminMatchesRepository.StatusZhLabels）。
+            ("D1", "2026-27", "", "2026-11-22", "", "", "CSV測試對手C", "", "", "", "", "", "", "取消"));
 
         var response = await PostCsvAsync(client, "/api/v1/admin/tcrfc/matches/import", csv);
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         var result = await response.Content.ReadFromJsonAsync<MatchCsvImportResultDto>(TestJson.Options);
-        Assert.Equal(2, result!.ImportedCount);
+        Assert.Equal(3, result!.ImportedCount);
         Assert.Empty(result.Errors);
 
         try
@@ -377,10 +410,11 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
                 $"/api/v1/admin/tcrfc/matches?seasonId={await GetSeasonIdAsync("tcrfc", "2026-27")}", TestJson.Options);
             Assert.Contains(list!, m => m.Opponent == "CSV測試對手A" && m.MatchNo == matchNoA);
             Assert.Contains(list!, m => m.Opponent == "CSV測試對手B" && m.Status == "played");
+            Assert.Contains(list!, m => m.Opponent == "CSV測試對手C" && m.Status == "cancelled");
         }
         finally
         {
-            await DeleteMatchesByOpponentAsync("CSV測試對手A", "CSV測試對手B");
+            await DeleteMatchesByOpponentAsync("CSV測試對手A", "CSV測試對手B", "CSV測試對手C");
         }
     }
 

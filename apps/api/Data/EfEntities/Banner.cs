@@ -26,6 +26,11 @@ public partial class Banner
     /// <summary>僅 <see cref="MediaType"/>＝<c>video</c> 時有值。本輪未開放寫入。</summary>
     public string? VideoKey { get; set; }
 
+    /// <summary>草稿／發布，預設 <c>draft</c>（v3.14，主站規劃書 §4.2 B3；發布後依既有
+    /// <see cref="StartAt"/>／<see cref="EndAt"/>（上架期間）自動顯示與下架，不是排程轉態，
+    /// 見 db/club-schema.sql 該表註解與 docs/12 §12 第 35 點）。</summary>
+    public string Status { get; set; } = null!;
+
     public DateTime? StartAt { get; set; }
 
     public DateTime? EndAt { get; set; }

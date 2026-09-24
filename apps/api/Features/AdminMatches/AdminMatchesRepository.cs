@@ -23,10 +23,10 @@ namespace Tcrfc.Api.Features.AdminMatches;
 /// </summary>
 public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache cache)
 {
-    // ⚠️ 值域定案見 AdminMatchDtos.cs 的 CreateAdminMatchRequest 檔頭說明——逐字沿用種子資料與
-    // 既有測試已經在用的三個字串（scheduled／played／postponed），新增 live。
+    // ⚠️ 值域定案見 AdminMatchDtos.cs 的 CreateAdminMatchRequest 檔頭說明——五值（v3.14），
+    // db/club-schema.sql 的 CK_matches_status 已同步約束同一組值。
     private static readonly HashSet<string> AllowedStatuses =
-        new(StringComparer.Ordinal) { "scheduled", "live", "played", "postponed" };
+        new(StringComparer.Ordinal) { "scheduled", "live", "played", "postponed", "cancelled" };
 
     // 主客場：逐字沿用 site/src/data/schedule.json 既有種子資料的大寫慣例（"HOME"／"AWAY"）。
     private static readonly HashSet<string> AllowedHomeAway = new(StringComparer.Ordinal) { "HOME", "AWAY" };
@@ -42,6 +42,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         ["進行中"] = "live",
         ["已結束"] = "played",
         ["延賽"] = "postponed",
+        ["取消"] = "cancelled",
     };
 
     public static readonly IReadOnlyDictionary<string, string> HomeAwayZhLabels = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -351,8 +352,8 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     ///   有「賽事類型」自由文字欄位可以單獨承載，不強制每場都掛結構化賽事系列）。
     /// - **日期**：<c>yyyy-MM-dd</c>。**時間**：<c>HH:mm</c>，可留空。
     /// - **主客場**：`主場`／`客場`，可留空。**賽事類型**：`聯賽`／`盃賽`／`友誼賽`／`其他`，可留空。
-    /// - **狀態**：`未開始`／`進行中`／`已結束`／`延賽`（規劃書用詞，不是 `scheduled`／`played` 這種
-    ///   技術代碼——CLAUDE.md 全域規定 9「後台介面用日常中文」在 CSV 值域上的延伸）。
+    /// - **狀態**：`未開始`／`進行中`／`已結束`／`延賽`／`取消`（規劃書用詞，不是 `scheduled`／
+    ///   `played` 這種技術代碼——CLAUDE.md 全域規定 9「後台介面用日常中文」在 CSV 值域上的延伸）。
     /// - **場次編號**／**輪次**：整數字串，可留空。
     ///
     /// 🔴 **本方法是「整批新建」，不是 upsert**：規劃書原文「提供整季賽程 CSV 批次匯入」描述的是
@@ -506,7 +507,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
 
             if (!StatusZhLabels.TryGetValue(statusText, out var status))
             {
-                rowErrors.Add("狀態欄位只能是「未開始」「進行中」「已結束」或「延賽」。");
+                rowErrors.Add("狀態欄位只能是「未開始」「進行中」「已結束」「延賽」或「取消」。");
             }
 
             int? matchNo = null;
@@ -852,7 +853,7 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
     {
         if (!AllowedStatuses.Contains(status))
         {
-            throw new AdminMatchValidationException("狀態只能是「scheduled」（未開始）、「live」（進行中）、「played」（已結束）或「postponed」（延賽）。");
+            throw new AdminMatchValidationException("狀態只能是「scheduled」（未開始）、「live」（進行中）、「played」（已結束）、「postponed」（延賽）或「cancelled」（取消）。");
         }
     }
 
