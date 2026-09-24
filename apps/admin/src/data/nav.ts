@@ -19,8 +19,8 @@ export const NAV_GROUPS: NavGroup[] = [
         children: [
           { code: 'B1', label: '頁面管理', path: '/content/pages', implemented: true },
           { code: 'B2', label: '新聞與故事', path: '/content/news', implemented: true },
-          { code: 'B3', label: '首頁編排', path: '/content/homepage', implemented: false },
-          { code: 'B4', label: '常見問題', path: '/content/faq', implemented: false },
+          { code: 'B3', label: '首頁編排', path: '/content/homepage', implemented: true },
+          { code: 'B4', label: '常見問題', path: '/content/faq', implemented: true },
           { code: 'B5', label: '慈善與社會影響', path: '/content/charity', implemented: false },
           { code: 'B6', label: '媒體專區', path: '/content/media', implemented: false },
         ],
@@ -46,9 +46,9 @@ export const NAV_GROUPS: NavGroup[] = [
         code: 'C',
         label: '球隊管理',
         children: [
-          { code: 'C1', label: '球隊', path: '/teams/clubs', implemented: false },
-          { code: 'C2', label: '球員', path: '/teams/players', implemented: false },
-          { code: 'C3', label: '教練與團隊成員', path: '/teams/staff', implemented: false },
+          { code: 'C1', label: '球隊', path: '/teams/clubs', implemented: true },
+          { code: 'C2', label: '球員', path: '/teams/players', implemented: true },
+          { code: 'C3', label: '教練與團隊成員', path: '/teams/staff', implemented: true },
           // 🔴 本輪只做了 C4 底下的「賽事系列」（Competition，賽程賽果的分類支援型別）維護，
           // 不是完整的 C4（賽程、比分、出賽名單……見 docs/03-admin-spec.md C4 全部條文，
           // 完整功能留給之後的 S1-8）。畫面上會清楚標示目前只開放這一部分，不假裝已完成。

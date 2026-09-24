@@ -23,6 +23,15 @@ const ClubListView = () => import('@/views/system/ClubListView.vue')
 const ClubEditView = () => import('@/views/system/ClubEditView.vue')
 const CompetitionListView = () => import('@/views/teams/CompetitionListView.vue')
 const CompetitionEditView = () => import('@/views/teams/CompetitionEditView.vue')
+const HomeLayoutView = () => import('@/views/home/HomeLayoutView.vue')
+const FaqListView = () => import('@/views/faq/FaqListView.vue')
+const FaqEditView = () => import('@/views/faq/FaqEditView.vue')
+const TeamListView = () => import('@/views/teams/TeamListView.vue')
+const TeamEditView = () => import('@/views/teams/TeamEditView.vue')
+const PlayerListView = () => import('@/views/teams/PlayerListView.vue')
+const PlayerEditView = () => import('@/views/teams/PlayerEditView.vue')
+const StaffListView = () => import('@/views/teams/StaffListView.vue')
+const StaffEditView = () => import('@/views/teams/StaffEditView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -62,6 +71,53 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     component: NewsEditView,
     props: true,
     meta: { label: '編輯文章', code: 'B2' },
+  },
+  { path: '/content/homepage', name: 'home-layout', component: HomeLayoutView, meta: { label: '首頁編排', code: 'B3' } },
+  { path: '/content/faq', name: 'faq-list', component: FaqListView, meta: { label: '常見問題', code: 'B4' } },
+  { path: '/content/faq/new', name: 'faq-new', component: FaqEditView, meta: { label: '新增題目', code: 'B4' } },
+  {
+    path: '/content/faq/:id/edit',
+    name: 'faq-edit',
+    component: FaqEditView,
+    props: true,
+    meta: { label: '編輯題目', code: 'B4' },
+  },
+  { path: '/teams/clubs', name: 'team-list', component: TeamListView, meta: { label: '球隊', code: 'C1' } },
+  { path: '/teams/clubs/new', name: 'team-new', component: TeamEditView, meta: { label: '新增球隊', code: 'C1' } },
+  {
+    path: '/teams/clubs/:id/edit',
+    name: 'team-edit',
+    component: TeamEditView,
+    props: true,
+    meta: { label: '編輯球隊', code: 'C1' },
+  },
+  { path: '/teams/players', name: 'player-list', component: PlayerListView, meta: { label: '球員', code: 'C2' } },
+  { path: '/teams/players/new', name: 'player-new', component: PlayerEditView, meta: { label: '新增球員', code: 'C2' } },
+  {
+    path: '/teams/players/:id/edit',
+    name: 'player-edit',
+    component: PlayerEditView,
+    props: true,
+    meta: { label: '編輯球員', code: 'C2' },
+  },
+  {
+    path: '/teams/staff',
+    name: 'staff-list',
+    component: StaffListView,
+    meta: { label: '教練與團隊成員', code: 'C3' },
+  },
+  {
+    path: '/teams/staff/new',
+    name: 'staff-new',
+    component: StaffEditView,
+    meta: { label: '新增教練與團隊成員', code: 'C3' },
+  },
+  {
+    path: '/teams/staff/:id/edit',
+    name: 'staff-edit',
+    component: StaffEditView,
+    props: true,
+    meta: { label: '編輯教練與團隊成員', code: 'C3' },
   },
   {
     path: '/teams/competitions',

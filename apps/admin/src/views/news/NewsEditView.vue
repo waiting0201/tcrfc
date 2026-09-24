@@ -19,7 +19,12 @@ import {
   scheduleAdminNews,
   updateAdminNews,
 } from '@/api/adminNews'
-import { listMatchRelationOptions, listPlayerRelationOptions, type RelationTargetOption } from '@/api/adminRelationTargets'
+import {
+  listMatchRelationOptions,
+  listPlayerRelationOptions,
+  listTeamRelationOptions,
+  type RelationTargetOption,
+} from '@/api/adminRelationTargets'
 import { AdminApiError } from '@/api/http'
 import {
   CORE_VALUE_TAG_LABEL,
@@ -175,9 +180,13 @@ async function ensureRelationOptionsLoaded(type: RelationTargetType) {
   relationOptionsLoading.value = true
   try {
     const club = activeClubId.value
-    relationOptionsCache[type] = type === 'player'
-      ? await listPlayerRelationOptions(club)
-      : await listMatchRelationOptions(club)
+    if (type === 'player') {
+      relationOptionsCache[type] = await listPlayerRelationOptions(club)
+    } else if (type === 'team') {
+      relationOptionsCache[type] = await listTeamRelationOptions(club)
+    } else {
+      relationOptionsCache[type] = await listMatchRelationOptions(club)
+    }
   } catch {
     relationOptionsCache[type] = []
     ElMessage.error('讀取清單失敗，請稍後再試')
@@ -635,7 +644,7 @@ function retryLoad() {
 
         <el-card shadow="never" header="關聯" class="news-edit__section">
           <p class="news-edit__hint">
-            可以把這篇文章跟球員、賽事互相關聯。球隊、課程、夥伴這三種類型後台目前還沒有清單可以查詢，暫不開放選擇。
+            可以把這篇文章跟球員、球隊、賽事互相關聯。課程、夥伴這兩種類型後台目前還沒有清單可以查詢，暫不開放選擇。
           </p>
           <div class="news-edit__relation-add">
             <el-select v-model="pendingRelationType" style="width: 120px" @change="onRelationTypeChange">

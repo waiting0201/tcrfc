@@ -80,14 +80,16 @@ export const RELATION_TARGET_TYPE_LABEL: Record<RelationTargetType, string> = {
 }
 
 /**
- * ⚠️ 這裡只列出「畫面上真的查得到清單」的兩種類型——球隊／課程／夥伴這三種目前沒有一份
- * 這個帳號能查詢的唯讀清單可以拿來做選擇器（球隊清單雖然有 `GET /api/v1/admin/teams`，但
- * 權限碼 `system.team_grant.view` 是系統管理員限定，寫新聞的內容編輯角色本來就沒有；課程與
- * 夥伴則是後端根本還沒有對應模組），見 apps/admin/README.md「已知的 API 缺口」與
- * apps/api/README.md「S1-5」。**不要因為想讓功能看起來完整就自己拼一份清單或改用假資料**——
- * 未列在這裡的類型，畫面上顯示為停用選項並附說明文字，不假裝有得選。
+ * ⚠️ 這裡列出「畫面上真的查得到清單」的類型——**課程**與**夥伴**目前沒有一份這個帳號能查詢的
+ * 唯讀清單可以拿來做選擇器（後端根本還沒有對應模組，沒有 `Features/Programs`／
+ * `Features/Partners`），見 apps/admin/README.md「已知的 API 缺口」與 apps/api/README.md
+ * 「S1-5」。**球隊**已於 S1-7 續作解除：`GET /api/v1/admin/{club}/teams`（權限碼
+ * `team.team.view`，C1 俱樂部範圍端點）授予了寫新聞的唯讀角色（見
+ * `src/api/adminRelationTargets.ts` 檔頭的完整說明），不再是先前回報的
+ * `system.team_grant.view` 系統管理員限定端點。**不要因為想讓功能看起來完整就自己拼一份
+ * 清單或改用假資料**——未列在這裡的類型，畫面上顯示為停用選項並附說明文字，不假裝有得選。
  */
-export const RELATION_TARGET_TYPES_AVAILABLE: RelationTargetType[] = ['player', 'match']
+export const RELATION_TARGET_TYPES_AVAILABLE: RelationTargetType[] = ['player', 'team', 'match']
 
 /**
  * 單筆關聯。`targetLabel` 純粹是畫面顯示用的暫存欄位，**不送給 API**（後端的
