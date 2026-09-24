@@ -39,6 +39,14 @@ public sealed record CreateFaqRequest
     /// <summary>值域 <c>draft</c>／<c>published</c>。</summary>
     public string Status { get; init; } = "draft";
 
+    /// <summary>
+    /// G-12 快捷區塊「額外」指定出現的掛載點（S1-7a，<c>faq_embed_slot_links</c>），疊加在
+    /// 「由分類自動對應」之上、不是取代——由分類自動對應是應用層（前台頁面元件）的固定路由決定，
+    /// 不經過這裡（docs/12 §12 第 34 點）。省略或空陣列＝這題沒有額外指定任何掛載點，
+    /// 完全合法，不像 <see cref="CategoryIds"/> 有「至少 1 個」的下限。
+    /// </summary>
+    public IReadOnlyList<Guid>? EmbedSlotIds { get; init; }
+
     public required AdminFaqContentInput Content { get; init; }
 }
 
@@ -48,6 +56,11 @@ public sealed record UpdateFaqRequest
     public required IReadOnlyList<Guid> CategoryIds { get; init; }
     public required int SortOrder { get; init; }
     public required string Status { get; init; }
+
+    /// <summary>省略＝維持不變、空陣列＝清空——跟 <c>AdminStaffRepository.Teams</c> 同一種既有語意
+    /// （見 <see cref="CreateFaqRequest.EmbedSlotIds"/> 的說明）。</summary>
+    public IReadOnlyList<Guid>? EmbedSlotIds { get; init; }
+
     public required AdminFaqContentInput Content { get; init; }
 }
 
@@ -57,6 +70,14 @@ public sealed record AdminFaqCategoryRefDto
     public required string Slug { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
+}
+
+/// <summary>該題額外指定出現的 G-12 掛載點（S1-7a）。</summary>
+public sealed record AdminFaqEmbedSlotRefDto
+{
+    public required Guid Id { get; init; }
+    public required string Code { get; init; }
+    public required string Name { get; init; }
 }
 
 /// <summary>後台清單一列。不依語系回退，帶三態狀態與成效數據（規劃書 B4「成效數據」）。</summary>
@@ -74,6 +95,7 @@ public sealed record AdminFaqListItemDto
     public string? QuestionZh { get; init; }
     public string? QuestionEn { get; init; }
     public required IReadOnlyList<AdminFaqCategoryRefDto> Categories { get; init; }
+    public required IReadOnlyList<AdminFaqEmbedSlotRefDto> EmbedSlots { get; init; }
 }
 
 public sealed record AdminFaqDetailDto
@@ -90,6 +112,7 @@ public sealed record AdminFaqDetailDto
     public required AdminFaqLocaleContent Zh { get; init; }
     public AdminFaqLocaleContent? En { get; init; }
     public required IReadOnlyList<AdminFaqCategoryRefDto> Categories { get; init; }
+    public required IReadOnlyList<AdminFaqEmbedSlotRefDto> EmbedSlots { get; init; }
 }
 
 // ── 批次操作與 CSV 匯入匯出（追加，規劃書 B4「批次操作：批次改分類、批次顯示／隱藏、匯入／

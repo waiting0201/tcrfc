@@ -11,7 +11,20 @@ public partial class Banner
 
     public Guid ClubId { get; set; }
 
+    /// <summary>素材種類（S1-7a）：<c>image</c>／<c>video</c>，預設 <c>image</c>。<c>video</c> 時
+    /// <see cref="ImageKey"/> 作為影片的海報格（poster），<see cref="VideoKey"/> 必填
+    /// （db/club-schema.sql <c>CK_banners_video_key</c>）。⚠️ 本輪 API 只接受 <c>image</c>，
+    /// <c>video</c> 上傳規則（格式、大小、轉碼）尚待使用者裁決，見 apps/api/README.md。</summary>
+    public string MediaType { get; set; } = null!;
+
     public string ImageKey { get; set; } = null!;
+
+    public int? ImageWidth { get; set; }
+
+    public int? ImageHeight { get; set; }
+
+    /// <summary>僅 <see cref="MediaType"/>＝<c>video</c> 時有值。本輪未開放寫入。</summary>
+    public string? VideoKey { get; set; }
 
     public DateTime? StartAt { get; set; }
 

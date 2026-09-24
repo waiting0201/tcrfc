@@ -80,7 +80,8 @@ public static class AdminFaqCategoriesEndpoints
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict);
 
-        // DELETE＝規劃書「停用分類」的實作方式，見 AdminFaqCategoriesRepository 檔頭說明。
+        // 🔴 S1-7a 起，DELETE 是真正的刪除（不可逆）——「停用」改用 PUT 把 IsEnabled 設為 false，
+        // 見 AdminFaqCategoriesRepository 檔頭說明。
         group.MapDelete("/{id:guid}", async (
             Guid id, HttpContext httpContext, IAdminSystemAuthorizer authorizer,
             AdminFaqCategoriesRepository repository, CancellationToken cancellationToken) =>

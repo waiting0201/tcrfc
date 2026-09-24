@@ -1,10 +1,14 @@
 namespace Tcrfc.Api.Features.AdminBanners;
 
-/// <summary>單一語系可編輯內容。<c>banners_i18n</c> 五欄全部可為 <c>null</c>（db/club-schema.sql）。</summary>
+/// <summary>單一語系可編輯內容。<c>banners_i18n</c> 六欄全部可為 <c>null</c>（db/club-schema.sql，
+/// S1-7a 新增 <see cref="ImageAlt"/>）。</summary>
 public sealed record AdminBannerLocaleContent
 {
     public string? Title { get; init; }
     public string? Subtitle { get; init; }
+
+    /// <summary>圖片替代文字（S1-7a，docs/14 圖片欄位組通則，無障礙與 GEO 用）。</summary>
+    public string? ImageAlt { get; init; }
     public string? Cta1Label { get; init; }
     public string? Cta1Url { get; init; }
     public string? Cta2Label { get; init; }
@@ -27,6 +31,11 @@ public sealed record AdminBannerContentInput
 /// </summary>
 public sealed record CreateBannerRequest
 {
+    /// <summary>素材種類（S1-7a）。省略時預設 <c>image</c>。🔴 **本輪只允許 <c>image</c>**——
+    /// <c>video</c> 上傳規則（格式、大小上限、是否轉碼）尚待使用者裁決，送 <c>video</c> 一律 400，
+    /// 見 <c>AdminBannersRepository.ValidateMediaType</c>、apps/api/README.md「我的判斷」。</summary>
+    public string? MediaType { get; init; }
+
     /// <summary>上架起訖時間（規劃書 B3「上架期間」）。皆可為 <c>null</c>＝不限制起訖，
     /// 一建立就可能出現在前台（只要 <c>EndAt</c> 也是 <c>null</c> 或還沒到）。</summary>
     public DateTime? StartAt { get; init; }
@@ -44,6 +53,7 @@ public sealed record CreateBannerRequest
 /// </summary>
 public sealed record UpdateBannerRequest
 {
+    public string? MediaType { get; init; }
     public DateTime? StartAt { get; init; }
     public DateTime? EndAt { get; init; }
     public required int SortOrder { get; init; }
@@ -53,7 +63,11 @@ public sealed record UpdateBannerRequest
 public sealed record AdminBannerListItemDto
 {
     public required Guid Id { get; init; }
+    public required string MediaType { get; init; }
     public required string ImageKey { get; init; }
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
+    public string? VideoKey { get; init; }
     public DateTime? StartAt { get; init; }
     public DateTime? EndAt { get; init; }
     public required int SortOrder { get; init; }
@@ -65,7 +79,11 @@ public sealed record AdminBannerListItemDto
 public sealed record AdminBannerDetailDto
 {
     public required Guid Id { get; init; }
+    public required string MediaType { get; init; }
     public required string ImageKey { get; init; }
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
+    public string? VideoKey { get; init; }
     public DateTime? StartAt { get; init; }
     public DateTime? EndAt { get; init; }
     public required int SortOrder { get; init; }

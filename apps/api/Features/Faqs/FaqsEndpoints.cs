@@ -53,6 +53,23 @@ public static class FaqsEndpoints
         .Produces<FaqListItemDto>()
         .Produces(StatusCodes.Status404NotFound);
 
+        // GET /api/v1/{club}/faqs/embeds/{slotCode}?lang=zh —— G-12 掛載點「額外」指定的題目
+        // （S1-7a）。只回這一半（逐題額外指定），「由分類自動對應」由前台頁面另外呼叫既有的
+        // ?category= 篩選湊出聯集，見 FaqsRepository.ListByEmbedSlotAsync 檔頭說明。
+        app.MapGet("/api/v1/{club}/faqs/embeds/{slotCode}", async (
+            string club, string slotCode, string? lang, IClubResolver clubResolver, FaqsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
+            var dbLocale = RequestLocale.ToDbLocale(lang);
+
+            var faqs = await repository.ListByEmbedSlotAsync(scope, slotCode, dbLocale, cancellationToken);
+            return Results.Ok(faqs);
+        })
+        .WithName("ListFaqsByEmbedSlot")
+        .WithTags("Faqs")
+        .Produces<IReadOnlyList<FaqListItemDto>>()
+        .Produces(StatusCodes.Status404NotFound);
+
         // POST /api/v1/{club}/faqs/{slug}/views  → 瀏覽數＋1，理由同 News 的既有端點。
         app.MapPost("/api/v1/{club}/faqs/{slug}/views", async (
             string club, string slug, IClubResolver clubResolver, FaqsRepository repository, CancellationToken cancellationToken) =>

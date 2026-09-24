@@ -287,6 +287,148 @@ public sealed class AdminTeamsPlayersStaffTests(AdminWriteApiFixture fixture)
         }
     }
 
+    [Fact]
+    public async Task Player_肖像同意狀態_省略時fail_closed預設不輸出照片_三態各驗一次()
+    {
+        // S1-7a：players.portrait_consent_status，fail-closed（省略即 not_consented），
+        // 公開端點依此擋 photoKey。這裡故意帶真的 photoKey（直接寫資料庫繞過上傳流程，
+        // 理由同既有 InsertSharedStaffAsync 的做法——本測試不需要真的圖片上傳）驗證三態的輸出行為。
+        using var client = await CreateClientAsync("team.manager@tcrfc.test");
+        var tcrfcTeamId = await GetTeamIdAsync("tcrfc", "D1");
+        Guid? playerId = null;
+
+        try
+        {
+            // 1) 省略 PortraitConsentStatus → fail-closed 預設 not_consented。
+            var createForm = AdminArticleMultipart.Build(new CreateAdminPlayerRequest
+            {
+                TeamId = tcrfcTeamId,
+                ShirtNo = 81,
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "肖像同意測試球員" } },
+            });
+            var createResponse = await client.PostAsync("/api/v1/admin/tcrfc/players", createForm);
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+            var created = await createResponse.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options);
+            playerId = created!.Id;
+            Assert.Equal("not_consented", created.PortraitConsentStatus);
+
+            // 直接寫入一個 photoKey（繞過上傳，測的是「輸出」邏輯，不是上傳邏輯）。
+            await SetPlayerPhotoKeyAsync(playerId.Value, "tcrfc/players/test/photo.webp");
+
+            // not_consented：後台仍看得到真實 photoKey，但公開端點必須是 null（fail-closed）。
+            var afterNotConsented = await client.GetFromJsonAsync<PagedResult<JsonElement>>(
+                $"/api/v1/tcrfc/players?team=D1", TestJson.Options);
+            var publicRowNotConsented = afterNotConsented!.Items.First(p => p.GetProperty("id").GetGuid() == playerId);
+            Assert.Equal(JsonValueKind.Null, publicRowNotConsented.GetProperty("photoKey").ValueKind);
+
+            var adminDetailNotConsented = await client.GetFromJsonAsync<AdminPlayerDetailDto>(
+                $"/api/v1/admin/tcrfc/players/{playerId}", TestJson.Options);
+            Assert.Equal("tcrfc/players/test/photo.webp", adminDetailNotConsented!.PhotoKey);
+
+            // 2) consented：更新為本人已同意，公開端點應輸出 photoKey。
+            var updateToConsented = AdminArticleMultipart.Build(new UpdateAdminPlayerRequest
+            {
+                TeamId = tcrfcTeamId,
+                ShirtNo = 81,
+                PortraitConsentStatus = "consented",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "肖像同意測試球員" } },
+            });
+            var updateConsentedResponse = await client.PutAsync($"/api/v1/admin/tcrfc/players/{playerId}", updateToConsented);
+            Assert.Equal(HttpStatusCode.OK, updateConsentedResponse.StatusCode);
+            var updatedConsented = await updateConsentedResponse.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options);
+            Assert.Equal("consented", updatedConsented!.PortraitConsentStatus);
+
+            var afterConsented = await client.GetFromJsonAsync<PagedResult<JsonElement>>(
+                "/api/v1/tcrfc/players?team=D1", TestJson.Options);
+            var publicRowConsented = afterConsented!.Items.First(p => p.GetProperty("id").GetGuid() == playerId);
+            Assert.Equal("tcrfc/players/test/photo.webp", publicRowConsented.GetProperty("photoKey").GetString());
+
+            // 3) consented_by_guardian：更新為監護人已同意，公開端點同樣輸出 photoKey。
+            var updateToGuardian = AdminArticleMultipart.Build(new UpdateAdminPlayerRequest
+            {
+                TeamId = tcrfcTeamId,
+                ShirtNo = 81,
+                PortraitConsentStatus = "consented_by_guardian",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "肖像同意測試球員" } },
+            });
+            var updateGuardianResponse = await client.PutAsync($"/api/v1/admin/tcrfc/players/{playerId}", updateToGuardian);
+            Assert.Equal(HttpStatusCode.OK, updateGuardianResponse.StatusCode);
+            var updatedGuardian = await updateGuardianResponse.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options);
+            Assert.Equal("consented_by_guardian", updatedGuardian!.PortraitConsentStatus);
+
+            var afterGuardian = await client.GetFromJsonAsync<PagedResult<JsonElement>>(
+                "/api/v1/tcrfc/players?team=D1", TestJson.Options);
+            var publicRowGuardian = afterGuardian!.Items.First(p => p.GetProperty("id").GetGuid() == playerId);
+            Assert.Equal("tcrfc/players/test/photo.webp", publicRowGuardian.GetProperty("photoKey").GetString());
+
+            // 值域驗證：不合法的值要 400。
+            var invalidForm = AdminArticleMultipart.Build(new UpdateAdminPlayerRequest
+            {
+                TeamId = tcrfcTeamId,
+                PortraitConsentStatus = "yes",
+                Content = new AdminPlayerContentInput { Zh = new AdminPlayerLocaleContent { Name = "測試" } },
+            });
+            var invalidResponse = await client.PutAsync($"/api/v1/admin/tcrfc/players/{playerId}", invalidForm);
+            Assert.Equal(HttpStatusCode.BadRequest, invalidResponse.StatusCode);
+        }
+        finally
+        {
+            if (playerId is Guid id)
+            {
+                await DeletePlayerByIdAsync(id);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Staff_肖像同意狀態_省略時fail_closed預設不輸出照片()
+    {
+        using var client = await CreateClientAsync("team.manager@tcrfc.test");
+        Guid? staffId = null;
+
+        try
+        {
+            var createForm = AdminArticleMultipart.Build(new CreateAdminStaffRequest
+            {
+                StaffGroup = "行政",
+                Content = new AdminStaffContentInput { Zh = new AdminStaffLocaleContent { Name = "肖像同意測試教練" } },
+            });
+            var createResponse = await client.PostAsync("/api/v1/admin/tcrfc/staff", createForm);
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+            var created = await createResponse.Content.ReadFromJsonAsync<AdminStaffDetailDto>(TestJson.Options);
+            staffId = created!.Id;
+            Assert.Equal("not_consented", created.PortraitConsentStatus);
+
+            await SetStaffPhotoKeyAsync(staffId.Value, "tcrfc/staff/test/photo.webp");
+
+            var publicBeforeConsent = await client.GetFromJsonAsync<PagedResult<JsonElement>>(
+                "/api/v1/tcrfc/staff", TestJson.Options);
+            var publicRowBefore = publicBeforeConsent!.Items.First(s => s.GetProperty("id").GetGuid() == staffId);
+            Assert.Equal(JsonValueKind.Null, publicRowBefore.GetProperty("photoKey").ValueKind);
+
+            var updateForm = AdminArticleMultipart.Build(new UpdateAdminStaffRequest
+            {
+                StaffGroup = "行政",
+                PortraitConsentStatus = "consented",
+                Content = new AdminStaffContentInput { Zh = new AdminStaffLocaleContent { Name = "肖像同意測試教練" } },
+            });
+            var updateResponse = await client.PutAsync($"/api/v1/admin/tcrfc/staff/{staffId}", updateForm);
+            Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+
+            var publicAfterConsent = await client.GetFromJsonAsync<PagedResult<JsonElement>>(
+                "/api/v1/tcrfc/staff", TestJson.Options);
+            var publicRowAfter = publicAfterConsent!.Items.First(s => s.GetProperty("id").GetGuid() == staffId);
+            Assert.Equal("tcrfc/staff/test/photo.webp", publicRowAfter.GetProperty("photoKey").GetString());
+        }
+        finally
+        {
+            if (staffId is Guid id)
+            {
+                await DeleteStaffByIdAsync(id);
+            }
+        }
+    }
+
     // ═════════════════════════════ C3 教練與團隊成員 ═════════════════════════════
 
     [Fact]
@@ -478,6 +620,30 @@ public sealed class AdminTeamsPlayersStaffTests(AdminWriteApiFixture fixture)
             DELETE FROM staff WHERE id = @Id;
             """;
         command.Parameters.AddWithValue("@Id", id);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    /// <summary>直接寫入 photo_key，繞過上傳流程——本測試驗證的是「公開端點依肖像同意狀態
+    /// 擋不擋照片輸出」，不是上傳本身，理由同既有 <see cref="InsertSharedStaffAsync"/>。</summary>
+    private static async Task SetPlayerPhotoKeyAsync(Guid id, string photoKey)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE players SET photo_key = @PhotoKey WHERE id = @Id;";
+        command.Parameters.AddWithValue("@Id", id);
+        command.Parameters.AddWithValue("@PhotoKey", photoKey);
+        await command.ExecuteNonQueryAsync();
+    }
+
+    private static async Task SetStaffPhotoKeyAsync(Guid id, string photoKey)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "UPDATE staff SET photo_key = @PhotoKey WHERE id = @Id;";
+        command.Parameters.AddWithValue("@Id", id);
+        command.Parameters.AddWithValue("@PhotoKey", photoKey);
         await command.ExecuteNonQueryAsync();
     }
 

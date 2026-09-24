@@ -109,6 +109,99 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
     }
 
     [Fact]
+    public async Task Banner_圖片寬高由上傳結果自動填入_alt雙語_media_type送video回400()
+    {
+        // S1-7a：banners.media_type／image_width／image_height／banners_i18n.image_alt。
+        using var client = await CreateContentEditorClientAsync();
+
+        var createRequest = new CreateBannerRequest
+        {
+            SortOrder = 0,
+            Content = new AdminBannerContentInput
+            {
+                Zh = new AdminBannerLocaleContent { Title = "測試輪播", ImageAlt = "台中磐石球員慶祝進球" },
+                En = new AdminBannerLocaleContent { Title = "Test Banner", ImageAlt = "Taichung Rock FC players celebrating a goal" },
+            },
+        };
+        var createResponse = await client.PostAsync(
+            "/api/v1/admin/tcrfc/banners", AdminArticleMultipart.Build(createRequest, TestImages.SmallPng()));
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<AdminBannerDetailDto>(TestJson.Options);
+
+        try
+        {
+            // 省略 MediaType → 回退 image；寬高由 TestImages.SmallPng()（500×400，不放大不縮小）自動填入。
+            Assert.Equal("image", created!.MediaType);
+            Assert.Equal(500, created.ImageWidth);
+            Assert.Equal(400, created.ImageHeight);
+            Assert.Null(created.VideoKey);
+            Assert.Equal("台中磐石球員慶祝進球", created.Zh.ImageAlt);
+            Assert.Equal("Taichung Rock FC players celebrating a goal", created.En!.ImageAlt);
+
+            // 換一張不同尺寸的圖，寬高應該跟著換新值（WebP 200×200，見 TestImages.SmallWebp）。
+            var updateRequest = new UpdateBannerRequest
+            {
+                SortOrder = 0,
+                Content = new AdminBannerContentInput { Zh = new AdminBannerLocaleContent { Title = "測試輪播", ImageAlt = "更新後的替代文字" } },
+            };
+            var updateResponse = await client.PutAsync(
+                $"/api/v1/admin/tcrfc/banners/{created.Id}",
+                AdminArticleMultipart.Build(updateRequest, TestImages.SmallWebp(), fileName: "banner.webp", fileContentType: "image/webp"));
+            Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+            var updated = await updateResponse.Content.ReadFromJsonAsync<AdminBannerDetailDto>(TestJson.Options);
+            Assert.Equal(200, updated!.ImageWidth);
+            Assert.Equal(200, updated.ImageHeight);
+            Assert.Equal("更新後的替代文字", updated.Zh.ImageAlt);
+
+            // 公開端點也吐得出 mediaType／寬高／alt（前台需要，見 Features/Home/HomeDtos.cs）。
+            var publicBanners = await client.GetFromJsonAsync<List<BannerDto>>("/api/v1/tcrfc/banners", TestJson.Options);
+            var publicBanner = publicBanners!.First(b => b.Id == created.Id);
+            Assert.Equal("image", publicBanner.MediaType);
+            Assert.Equal(200, publicBanner.ImageWidth);
+            Assert.Equal(200, publicBanner.ImageHeight);
+            Assert.Equal("更新後的替代文字", publicBanner.ImageAlt);
+
+            // 更新時不換圖：寬高維持原值（不因為這次請求沒帶檔案就被清空）。
+            var updateWithoutFile = new UpdateBannerRequest
+            {
+                SortOrder = 2,
+                Content = new AdminBannerContentInput { Zh = new AdminBannerLocaleContent { Title = "測試輪播（不換圖）" } },
+            };
+            var updateWithoutFileResponse = await client.PutAsync(
+                $"/api/v1/admin/tcrfc/banners/{created.Id}", AdminArticleMultipart.Build(updateWithoutFile));
+            Assert.Equal(HttpStatusCode.OK, updateWithoutFileResponse.StatusCode);
+            var afterNoFileUpdate = await updateWithoutFileResponse.Content.ReadFromJsonAsync<AdminBannerDetailDto>(TestJson.Options);
+            Assert.Equal(200, afterNoFileUpdate!.ImageWidth);
+            Assert.Equal(200, afterNoFileUpdate.ImageHeight);
+
+            // 🔴 送 media_type=video 一律 400（本輪尚未開放）。
+            var videoRequest = new CreateBannerRequest
+            {
+                MediaType = "video",
+                SortOrder = 0,
+                Content = new AdminBannerContentInput { Zh = new AdminBannerLocaleContent { Title = "不該成功的影片輪播" } },
+            };
+            var videoResponse = await client.PostAsync(
+                "/api/v1/admin/tcrfc/banners", AdminArticleMultipart.Build(videoRequest, TestImages.SmallPng()));
+            Assert.Equal(HttpStatusCode.BadRequest, videoResponse.StatusCode);
+
+            var videoUpdateResponse = await client.PutAsync(
+                $"/api/v1/admin/tcrfc/banners/{created.Id}",
+                AdminArticleMultipart.Build(new UpdateBannerRequest
+                {
+                    MediaType = "video",
+                    SortOrder = 0,
+                    Content = new AdminBannerContentInput { Zh = new AdminBannerLocaleContent { Title = "不該成功" } },
+                }));
+            Assert.Equal(HttpStatusCode.BadRequest, videoUpdateResponse.StatusCode);
+        }
+        finally
+        {
+            await client.DeleteAsync($"/api/v1/admin/tcrfc/banners/{created!.Id}");
+        }
+    }
+
+    [Fact]
     public async Task Banner_建立時未帶圖片_400()
     {
         using var client = await CreateContentEditorClientAsync();

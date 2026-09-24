@@ -21,6 +21,10 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
     private static readonly HashSet<string> AllowedStaffGroups =
         new(StringComparer.Ordinal) { "管理層", "行政", "醫療", "後勤" };
 
+    /// <summary>肖像同意狀態值域（S1-7a，db/club-schema.sql <c>CK_staff_portrait_consent_status</c>）。</summary>
+    private static readonly HashSet<string> AllowedPortraitConsentStatuses =
+        new(StringComparer.Ordinal) { "not_consented", "consented", "consented_by_guardian" };
+
     public async Task<IReadOnlyList<AdminStaffListItemDto>> ListAsync(
         AdminClubScope scope, Guid? teamId, CancellationToken cancellationToken)
     {
@@ -41,6 +45,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
                 s.StaffGroup,
                 s.Licence,
                 s.PhotoKey,
+                s.PortraitConsentStatus,
                 s.UpdatedAt,
                 NameZh = s.StaffI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = s.StaffI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
@@ -55,6 +60,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             StaffGroup = r.StaffGroup,
             Licence = r.Licence,
             PhotoKey = r.PhotoKey,
+            PortraitConsentStatus = r.PortraitConsentStatus,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
             TeamCodes = r.TeamCodes,
@@ -78,6 +84,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         AdminClubScope scope, Guid staffId, CreateAdminStaffRequest request, string? photoKey, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStaffGroup(request.StaffGroup);
+        ValidatePortraitConsentStatus(request.PortraitConsentStatus);
         ValidateContent(request.Content);
         var teams = await ResolveTeamsAsync(scope, request.Teams ?? [], cancellationToken);
 
@@ -89,6 +96,8 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             StaffGroup = request.StaffGroup,
             Licence = request.Licence,
             PhotoKey = photoKey,
+            // 🔴 fail-closed（docs/12 §12 第 32 點），同 AdminPlayersRepository.CreateAsync。
+            PortraitConsentStatus = request.PortraitConsentStatus ?? "not_consented",
             CreatedAt = now,
             UpdatedAt = now,
             CreatedBy = operatorId,
@@ -116,6 +125,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         AdminClubScope scope, Guid id, UpdateAdminStaffRequest request, StaffPhotoKeyUpdate photoUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStaffGroup(request.StaffGroup);
+        ValidatePortraitConsentStatus(request.PortraitConsentStatus);
         ValidateContent(request.Content);
 
         var staff = await dbContext.Staff
@@ -140,6 +150,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
 
         staff.StaffGroup = request.StaffGroup;
         staff.Licence = request.Licence;
+        staff.PortraitConsentStatus = request.PortraitConsentStatus ?? "not_consented";
         staff.UpdatedAt = DateTime.UtcNow;
         staff.UpdatedBy = operatorId;
 
@@ -221,6 +232,16 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         }
     }
 
+    private static void ValidatePortraitConsentStatus(string? portraitConsentStatus)
+    {
+        if (portraitConsentStatus is not null && !AllowedPortraitConsentStatuses.Contains(portraitConsentStatus))
+        {
+            throw new AdminStaffValidationException(
+                "肖像同意狀態只能是「not_consented」（未同意）、「consented」（本人已同意）或" +
+                "「consented_by_guardian」（監護人已同意）。");
+        }
+    }
+
     private static void ValidateContent(AdminStaffContentInput content)
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
@@ -241,6 +262,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
             StaffGroup = staff.StaffGroup,
             Licence = staff.Licence,
             PhotoKey = staff.PhotoKey,
+            PortraitConsentStatus = staff.PortraitConsentStatus,
             Zh = new AdminStaffLocaleContent { Name = zh?.Name ?? "", Title = zh?.Title, Bio = zh?.Bio },
             En = en is null ? null : new AdminStaffLocaleContent { Name = en.Name ?? "", Title = en.Title, Bio = en.Bio },
             Teams = staff.StaffTeams

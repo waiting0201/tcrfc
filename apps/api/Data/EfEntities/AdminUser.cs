@@ -159,6 +159,10 @@ public partial class AdminUser
 
     public virtual ICollection<Faq> FaqCreatedByNavigations { get; set; } = new List<Faq>();
 
+    public virtual ICollection<FaqEmbedSlot> FaqEmbedSlotCreatedByNavigations { get; set; } = new List<FaqEmbedSlot>();
+
+    public virtual ICollection<FaqEmbedSlot> FaqEmbedSlotUpdatedByNavigations { get; set; } = new List<FaqEmbedSlot>();
+
     public virtual ICollection<FaqSearchMiss> FaqSearchMissCreatedByNavigations { get; set; } = new List<FaqSearchMiss>();
 
     public virtual ICollection<FaqSearchMiss> FaqSearchMissUpdatedByNavigations { get; set; } = new List<FaqSearchMiss>();

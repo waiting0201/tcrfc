@@ -1714,6 +1714,258 @@ has-pending-model-changes` 綠燈。
 
 ---
 
+## S1-7a：把 `S1-7a` 綱要補齊（commit `7762fe1`）落到程式（2026-09-24，`backend-engineer`）
+
+`S1-7a`（`system-analyst`）已把六項規劃書要求、綱要沒有的欄位／表補進 `docs/12`／`db/club-schema.sql`
+（見該 commit）：`players`／`staff.portrait_consent_status`、`banners` 的 `media_type`／
+`image_width`／`image_height`／`video_key`、`banners_i18n.image_alt`、`faq_categories.is_enabled`、
+`faq_embed_slots`／`faq_embed_slot_links`、7 張表的 `status` CHECK 收斂。本輪把這些變更落到
+EF 實體、`ClubDbContext`、一支 migration、四組端點與種子資料。
+
+### Migration：`AlignSchemaS17a`
+
+**內容**：`AddColumn`（`players.portrait_consent_status`、`staff.portrait_consent_status`、
+`banners.media_type`／`image_width`／`image_height`／`video_key`、`banners_i18n.image_alt`、
+`faq_categories.is_enabled`）＋ `CreateTable`（`faq_embed_slots`、`faq_embed_slot_links`）＋
+一段手寫 `migrationBuilder.Sql(...)`（EF 這個專案的既有慣例是完全不對 CHECK 約束建模，
+見 `Data/ClubDbContextCustomizations.cs`／`ClubDbContext.cs` 全文找不到任何
+`HasCheckConstraint`——CHECK 一律由 DDL 與這裡的手寫 SQL 維護）：
+
+1. 三個新 CHECK：`CK_players_portrait_consent_status`／`CK_staff_portrait_consent_status`（三態）、
+   `CK_banners_media_type`（二態）、`CK_banners_video_key`（互相依賴）。這幾欄是全新欄位，
+   不需要處理既有資料衝突值。
+2. 收斂 7 張表既有的 `status` CHECK（`draft`／`published`／`scheduled` → `draft`／`published`）：
+   這些 CHECK 在原始 DDL 是**欄位層、未命名**的（`CHECK (status IN (...))` 沒有
+   `CONSTRAINT CK_xxx` 前綴），SQL Server 會自動配一個系統產生的名稱，所以用
+   `sys.check_constraints` JOIN `sys.columns` 動態查出實際名稱再 `DROP`，換成明確命名的版本
+   （`CK_<table>_status`），方便以後直接用名稱操作。
+
+**驗收（依 docs/20-cicd.md §5）**：
+
+```
+dotnet ef migrations add Probe --context ClubDbContext -o Data/Migrations
+# Up()／Down() 皆為空方法主體 → 基準沒有偏移
+dotnet ef migrations remove --context ClubDbContext
+# 這支從沒套用過，remove 只刪檔案，不會對任何資料庫執行 Down()（E-46 教訓）
+
+dotnet ef migrations script AddMatchOriginalSchedule AlignSchemaS17a --idempotent
+# 逐欄核對與 db/club-schema.sql 一致；型別、長度、NULL、預設值、CHECK 皆對齊
+```
+
+🔴 **升級路徑驗證（用完即丟的資料庫）**：`git show 7762fe1~1:db/club-schema.sql` 取出
+「上一版」DDL，把其中的 `json` 型別字面替換成 `nvarchar(max)`（本機 SQL Server 2022 容器的
+既知限制，見 `docs/12` §1.4 第 2 點「本機用 SQL Server 2022 容器驗證 DDL 時要先把 json 換成
+nvarchar(max)」，不是 DDL 寫錯），建出 `tcrfc_club_probe`（145 張表），手動插入
+`__EFMigrationsHistory` 四筆既有 migration（標記為已套用，不重跑），再對這個資料庫跑
+`dotnet ef database update`——**只會執行 `AlignSchemaS17a`**，成功套用（147→148 張表，含
+`__EFMigrationsHistory` 本身），實測 CHECK 約束真的擋得下 `status='scheduled'` 與非法的
+`portrait_consent_status`。驗完 `DROP DATABASE tcrfc_club_probe`。
+
+**本機 `tcrfc_club_dev`**：依任務指示套用（不是 `remove`）。套用前後核對表數（146→148）、
+`players`（56）／`staff`（13）／`banners`（0）／`faq_categories`（10）／`faqs`（0）筆數皆未變動，
+新欄位全部正確回填預設值（`portrait_consent_status='not_consented'`、`banners.media_type` 無資料
+不受影響、`faq_categories.is_enabled=1` 全數 10 筆）。
+
+### 🔴 套用時發現並修正：`portrait_consent_status` 欄寬算錯（`nvarchar(20)` 裝不下 21 字元的值）
+
+**發現方式**：不是人工核對挑出來的，是測試在對 `tcrfc_club_dev` 實際寫入
+`'consented_by_guardian'` 時，SQL Server 直接回 `String or binary data would be truncated`（
+`nvarchar(20)` 只能放 20 個字元，`'consented_by_guardian'` 是 21 個字元），API 對外變成 500。
+`db/club-schema.sql`（commit `7762fe1`）與初版 migration 都寫 `nvarchar(20)`——這是單純的欄寬
+計算錯誤（三態裡最長的字面值算漏了），不是規格分歧，`docs/12` 本身也沒有指定確切欄寬，
+故直接修正，不算違反「先改文件再改 DDL」（沒有規格要改，只有算錯的數字要改）：
+
+- `db/club-schema.sql`：`players`／`staff.portrait_consent_status` 改為 `nvarchar(32)`（兩處），
+  並在該表註解說明原因。
+- EF：`ClubDbContext.cs` 兩處 `.HasMaxLength(20)` 改 `32`；migration `AlignSchemaS17a` 的
+  `AddColumn` 呼叫、`ClubDbContextModelSnapshot.cs`、`*.Designer.cs` 同步改為 `nvarchar(32)`／
+  `HasMaxLength(32)`（這支 migration 尚未提交，直接修正檔案內容比另開一支「修正欄寬」的
+  migration乾淨——但**已經套用到 `tcrfc_club_dev` 的實際欄位**用 `ALTER TABLE ... ALTER COLUMN`
+  手動改寬，`CHECK`／`DEFAULT` 約束在 `ALTER COLUMN` 之後仍完整存在，已用 `sys.check_constraints`／
+  `sys.default_constraints` 查證，套用前後 `players`／`staff` 筆數不變）。
+- `docs/12-database-schema.md` §12 第 32 點已補註這個修正。
+
+### 🔴 Scheduled 列的處理：查證結果是 0 筆，不需要 DML 轉態
+
+依任務指示，改 CHECK 前查了 `tcrfc_club_dev` 與 `db/seed/generate-club-seed-sql.py`：
+七張表（`press_resources`／`faqs`／`competitions`／`sponsor_packages`／`collections`／`products`／
+`charity_programs`）目前**全部是 0 筆 `status='scheduled'`**——種子腳本裡唯一會寫入 `'scheduled'`
+字面值的是 `matches.status`（賽程表的既有語意，跟這 7 張表的 `status` 是不同欄位、不同型別的
+狀態機，不受本次收斂影響）；`AdminCompetitionsRepository`／`AdminFaqsRepository` 等既有的
+`ValidateStatus` 應用層驗證本來就只接受 `draft`／`published` 兩態，代表寫入路徑本來就沒有機會
+產生 `'scheduled'` 的資料列。**因此本輪 migration 的 `Up()` 沒有搭配任何 DML 轉態**，收斂 CHECK
+是安全的。
+
+### 肖像同意：在哪些端點生效
+
+| 端點 | 生效方式 |
+|---|---|
+| `GET /api/v1/{club}/players` | `PlayersRepository.Map`：`portrait_consent_status='not_consented'` 時 `photoKey` 回 `null`，其餘兩態正常輸出 |
+| `GET /api/v1/{club}/staff` | `StaffRepository.Map`，同上邏輯 |
+| `GET/POST/PUT /api/v1/admin/{club}/players`、`.../staff` | **不遮罩**——後台一律看得到真實 `photoKey` 與 `portraitConsentStatus`，只有公開端點才過濾（後台檢視者本來就該看到完整值，遮罩沒有意義） |
+| 新建球員／教練 | **fail-closed**：`CreateAdminPlayerRequest.PortraitConsentStatus` 省略時預設 `not_consented`，公開端點立刻不輸出照片，直到後台明確填寫已取得同意 |
+
+🔴 **未涵蓋、需要下一輪注意**：目前系統唯一會輸出球員／教練照片的公開端點就是這兩支
+（`Features/Players`／`Features/Staff`）——已用 `grep -rn "PhotoKey"` 全文檢索確認，沒有其他
+公開端點（含既有的 `Features/Teams` 球隊清單）內嵌球員／教練照片。之後若新增任何會輸出這兩張
+表 `photo_key` 的公開端點（例如球隊詳情頁若之後改成內嵌名單），**都要重新套用同一條 fail-closed
+規則**，不能假設只有這兩支端點需要顧慮。
+
+### Banners：`media_type`／寬高／`alt`
+
+- `AdminBannerDtos`／`AdminBannersRepository`：`CreateBannerRequest`／`UpdateBannerRequest` 新增
+  `MediaType`（省略回退 `image`），`AdminBannerLocaleContent` 新增 `ImageAlt`（雙語，隨 `payload`
+  JSON 送出，不是檔案上傳的一部分）。`ImageWidth`／`ImageHeight` **不接受呼叫端輸入**——由
+  `AdminBannersEndpoints` 從 `UploadedImageInfo.Width`／`Height`（上傳結果）取得後傳進
+  `CreateAsync`／`UpdateAsync`，比照 `docs/14` 圖片欄位組通則「由上傳結果自動填入」；更新時
+  若這次請求沒有換圖，寬高維持原值不被清空。
+- 🔴 **本輪只允許 `MediaType="image"`**：送 `"video"` 一律 400（`AdminBannersRepository.
+  ValidateMediaType`，訊息明講「影片的格式、檔案大小上限與是否轉碼尚待裁決」）。`VideoKey`
+  沒有任何寫入路徑，永遠是 `null`——`banners.media_type` 因此永遠是 `'image'`，
+  `CK_banners_video_key`（`media_type='image' OR video_key IS NOT NULL`）恆滿足，不會擋到任何
+  這一輪的寫入。
+- 公開端點 `GET /api/v1/{club}/banners`（`Features/Home/HomeRepository.ListBannersAsync`）
+  一併補上 `mediaType`／`imageWidth`／`imageHeight`／`videoKey`／`imageAlt`（依語系回退）五個欄位。
+
+### FAQ 分類 `is_enabled`：軟停用取代 DELETE
+
+- `AdminFaqCategoryDtos`／`AdminFaqCategoriesRepository`：`Create`／`UpdateAdminFaqCategoryRequest`
+  新增 `IsEnabled`（建立省略預設 `true`；更新為必填欄位，要求呼叫端每次明確帶值，理由是這是
+  一個會直接影響公開可見度的開關，不該有「省略時算什麼」的模糊地帶）。`DELETE` 端點**保持不變、
+  現在是真正的刪除**（不可逆，經 `ON DELETE CASCADE` 解除 `faq_category_links`）。
+- 公開端點 `GET /api/v1/faq-categories`（`Features/Faqs/FaqsRepository.ListCategoriesAsync`）
+  加上 `WHERE fc.is_enabled = 1`。**題目本身與既有分類關聯完全不受停用影響**——停用只是讓分類從
+  導覽消失，掛在這個分類底下的題目仍然存在、仍可被關鍵字搜尋到，後台仍看得到完整關聯
+  （已用測試驗證：停用分類後 `GET /api/v1/admin/tcrfc/faqs/{id}` 仍回傳這個分類）。
+- 舊版 `AdminFaqCategoriesRepository`／`AdminFaqCategoriesEndpoints` 檔頭「停用＝刪除」的說明
+  已經改寫，避免下一個讀到的人以為現在還是那樣做。
+
+### FAQ 嵌入設定：G-12 掛載點
+
+- 新增 `Features/AdminFaqs/AdminFaqEmbedSlotDtos.cs`／`AdminFaqEmbedSlotsRepository.cs`／
+  `AdminFaqEmbedSlotsEndpoints.cs`：`GET /api/v1/admin/faq-embed-slots`（全域、唯讀，沿用
+  `content.faq.view` 權限碼——4 筆固定字典不值得為它另開一組權限碼，比照
+  `Features/AdminHomeSections/HomeSectionCatalog.cs` 那種「固定字典不開權限碼」的既有慣例）。
+- `CreateFaqRequest`／`UpdateFaqRequest` 新增 `EmbedSlotIds`（`IReadOnlyList<Guid>?`）：
+  跟 `CategoryIds`（必填、至少 1 個、一律整份取代）刻意不同——**省略（`null`）＝維持不變、
+  非 `null`（含空陣列）＝整份取代**，語意比照 `AdminStaffRepository.Teams`。`sort_order` 依
+  呼叫端給的清單順序寫入（`faq_embed_slot_links` 本身沒有 `row_seq`）。
+- 公開端點 `GET /api/v1/{club}/faqs/embeds/{slotCode}`（`Features/Faqs/FaqsRepository.
+  ListByEmbedSlotAsync`）：🔴 **只回傳「逐題額外指定」那一半**——「由分類自動對應」是應用層
+  （前台頁面元件）的固定路由決定，`docs/12` §12 第 34 點明講「刻意不建掛載點對應哪個分類的
+  對照表」，後端沒有資料可以查出「哪個掛載點該自動帶哪個分類」。前台要湊出規劃書要的完整聯集
+  效果，做法是**同時**呼叫這支端點與既有的 `?category=<該頁固定對應的分類 slug>` 篩選，
+  自行合併去重——這是 apps/admin／apps/web 前端接線需要知道的**契約**（見下方「契約變更」）。
+  找不到的掛載點代碼視為空清單（`200` + `[]`），不是 `404`。
+- 快取：新增 `faq-embed` entity，寫入（Create／Update／批次操作／CSV 匯入）皆透過既有的
+  `InvalidatePublicCacheAsync` 一併失效。
+
+### 端點清單（本輪新增／變更）
+
+| 方法與路徑 | 說明 |
+|---|---|
+| `GET /api/v1/admin/faq-embed-slots` | 新增：G-12 掛載點字典（唯讀，4 筆固定值） |
+| `GET /api/v1/{club}/faqs/embeds/{slotCode}` | 新增：依掛載點查詢「額外指定」的題目（公開） |
+| `POST/PUT /api/v1/admin/{club}/players`、`.../staff` | 變更：payload 新增 `portraitConsentStatus`（省略回退 `not_consented`） |
+| `POST/PUT /api/v1/admin/{club}/banners` | 變更：payload 新增 `mediaType`（送 `video` 400）、`content.imageAlt`（雙語） |
+| `POST/PUT /api/v1/admin/faq-categories` | 變更：payload 新增 `isEnabled`（建立選填預設 `true`，更新必填） |
+| `POST/PUT /api/v1/admin/{club}/faqs` | 變更：payload 新增 `embedSlotIds`（選填，省略＝維持不變） |
+
+### 契約變更（`apps/admin` 需要跟著改）
+
+1. `AdminPlayerListItemDto`／`AdminPlayerDetailDto`、`AdminStaffListItemDto`／
+   `AdminStaffDetailDto` 新增 **必填** 欄位 `portraitConsentStatus`——既有前端若用嚴格型別解析
+   會需要補上這個欄位（三態字串，`not_consented`／`consented`／`consented_by_guardian`）。
+   球員／教練編輯表單需要新增一個「肖像同意」選擇欄位，並在未同意時給出視覺提示
+   （例如照片欄位旁加註「未同意肖像使用，公開頁面不會顯示照片」）。
+2. `AdminBannerListItemDto`／`AdminBannerDetailDto` 新增必填欄位 `mediaType`，選填欄位
+   `imageWidth`／`imageHeight`／`videoKey`；`AdminBannerLocaleContent` 新增選填欄位 `imageAlt`。
+   前端表單需要新增「圖片替代文字」欄位（雙語）；`mediaType` 目前固定顯示為圖片即可，
+   不需要提供切換到影片的選項（後端會拒絕）。
+3. `AdminFaqCategoryListItemDto`／`AdminFaqCategoryDetailDto` 新增必填欄位 `isEnabled`；
+   `UpdateAdminFaqCategoryRequest` 的 `isEnabled` 是**必填**欄位（不是選填），前端更新分類時
+   一定要帶這個值（通常是「維持目前畫面上看到的狀態」）。分類管理畫面需要新增啟用／停用切換，
+   **不能再用「刪除＝停用」的按鈕語意**——刪除按鈕現在是真的刪除，需要有獨立的「停用」開關。
+4. `AdminFaqListItemDto`／`AdminFaqDetailDto` 新增必填欄位 `embedSlots`（陣列，每筆
+   `{id, code, name}`）；`CreateFaqRequest`／`UpdateFaqRequest` 新增選填欄位 `embedSlotIds`
+   （guid 陣列）。FAQ 編輯表單可以選擇性地加一個「額外指定出現於」多選欄位（來源是
+   `GET /api/v1/admin/faq-embed-slots`），第一版前端如果暫時不做這個 UI，維持不傳這個欄位即可
+   （省略＝維持不變，不會影響既有資料）。
+
+### 測試
+
+新增 7 項（`Tcrfc.Api.Tests`，全套 `dotnet test` 從 316 增至 323）：
+
+| 檔案 | 新增測試 |
+|---|---|
+| `AdminTeamsPlayersStaffTests.cs` | `Player_肖像同意狀態_省略時fail_closed預設不輸出照片_三態各驗一次`（建立預設 `not_consented`、三態各驗一次公開端點輸出行為、非法值 400）、`Staff_肖像同意狀態_省略時fail_closed預設不輸出照片` |
+| `AdminBannersAndHomeSectionsTests.cs` | `Banner_圖片寬高由上傳結果自動填入_alt雙語_media_type送video回400`（建立／換圖／不換圖三種情境的寬高行為、雙語 alt、`video` 一律 400、公開端點吐出新欄位） |
+| `AdminFaqsAndCategoriesTests.cs` | `FaqCategory_軟停用_公開端點不列_既有題目與關聯不受影響_可重新啟用`、`FaqEmbedSlot_未登入_擋下_已登入可列出四筆固定值`、`Faq_指定嵌入掛載點_新增_省略維持不變_空陣列清空_公開端點依掛載點查得到`、`公開嵌入端點_不回傳草稿或跨俱樂部題目_找不到的掛載點視為空清單` |
+
+**測試結果**：
+
+```
+dotnet test --filter "FullyQualifiedName~AdminTeamsPlayersStaffTests|FullyQualifiedName~AdminBannersAndHomeSectionsTests|FullyQualifiedName~AdminFaqsAndCategoriesTests|FullyQualifiedName~PublicFaqsTests" --no-build
+# 已通過! - 失敗: 0，通過: 59，總計: 59（連跑 10 次，每次都是 0 失敗）
+
+dotnet test --no-build（全套，前後各執行一次 db/seed/reset-admin-accounts.sh）
+# 已通過! - 失敗: 0，通過: 323，總計: 323
+
+dotnet ef migrations has-pending-model-changes --context ClubDbContext
+# No changes have been made to the model since the last migration.
+```
+
+### 改了哪些檔案
+
+**後端**（`apps/api/`）：
+- `Data/EfEntities/`：`Player.cs`／`Staff.cs`（`PortraitConsentStatus`）、`Banner.cs`
+  （`MediaType`／`ImageWidth`／`ImageHeight`／`VideoKey`）、`BannersI18n.cs`（`ImageAlt`）、
+  `FaqCategory.cs`（`IsEnabled`）、`Faq.cs`（新增 `FaqEmbedSlotLinks` 導覽）、`AdminUser.cs`
+  （新增 `FaqEmbedSlotCreatedByNavigations`／`UpdatedByNavigations`）、新檔
+  `FaqEmbedSlot.cs`／`FaqEmbedSlotLink.cs`。
+- `Data/ClubDbContext.cs`：對應的屬性映射、兩個新實體的 `OnModelCreating` 設定區塊、
+  兩個新 `DbSet`。
+- `Data/Migrations/20260924065835_AlignSchemaS17a.cs`（新檔，含 `.Designer.cs`）、
+  `ClubDbContextModelSnapshot.cs`（更新）。
+- `Features/AdminPlayers/`：`AdminPlayerDtos.cs`／`AdminPlayersRepository.cs`。
+- `Features/AdminStaff/`：`AdminStaffDtos.cs`／`AdminStaffRepository.cs`。
+- `Features/Players/PlayerDto.cs`／`PlayersRepository.cs`：fail-closed 過濾。
+- `Features/Staff/StaffDto.cs`／`StaffRepository.cs`：fail-closed 過濾。
+- `Features/AdminBanners/`：`AdminBannerDtos.cs`／`AdminBannersRepository.cs`／
+  `AdminBannersEndpoints.cs`。
+- `Features/Home/HomeDtos.cs`／`HomeRepository.cs`：公開輪播新增五個欄位。
+- `Features/AdminFaqs/`：`AdminFaqCategoryDtos.cs`／`AdminFaqCategoriesRepository.cs`／
+  `AdminFaqCategoriesEndpoints.cs`（`IsEnabled`）、`AdminFaqDtos.cs`／`AdminFaqsRepository.cs`
+  （`EmbedSlotIds`／`EmbedSlots`），新檔 `AdminFaqEmbedSlotDtos.cs`／
+  `AdminFaqEmbedSlotsRepository.cs`／`AdminFaqEmbedSlotsEndpoints.cs`。
+- `Features/Faqs/FaqsRepository.cs`／`FaqsEndpoints.cs`：分類 `is_enabled` 過濾、新增
+  `ListByEmbedSlotAsync` 與 `GET .../faqs/embeds/{slotCode}`。
+- `Features/Uploads/UploadSlotPolicy.cs`：更新 `banners` 插槽註解（寬高／alt 已補齊）。
+- `Program.cs`：註冊 `AdminFaqEmbedSlotsRepository`、掛上 `MapAdminFaqEmbedSlotsEndpoints`。
+
+**綱要**：`db/club-schema.sql`（欄寬修正，見上方說明）。
+
+**種子資料**（`db/seed/generate-club-seed-sql.py`）：新增 §21 `faq_embed_slots` 四筆固定值
+（DML）。沒有新增權限碼。
+
+**測試**：`Tcrfc.Api.Tests/AdminTeamsPlayersStaffTests.cs`／`AdminBannersAndHomeSectionsTests.cs`／
+`AdminFaqsAndCategoriesTests.cs`，見上方「測試」一節，共 7 項新增。
+
+### 本次沒動的部分
+
+- 沒有動 `apps/admin`（契約變更清單已列在上方，交給前端 agent 接線）。
+- CSV 匯入／匯出（`AdminFaqsRepository.ImportCsvAsync`／`ExportCsvAsync`）**沒有**納入
+  `embedSlotIds`——規劃書與 `docs/12b` §10.1 都沒有要求 CSV 涵蓋嵌入設定，本輪不擴大範圍。
+- 沒有替 `faq_embed_slots` 開任何新增／刪除／改名的後台 CRUD——四筆是固定字典，見
+  `db/club-schema.sql` 該表註解。
+- 影片輪播（`banners.media_type='video'`）完全沒有實作，格式／大小／轉碼規則仍待使用者裁決。
+- 沒有修改 `docs/14-invariants.md`（本輪沒有發現需要新增的全站不變量——肖像同意的 fail-closed
+  規則已經完整寫在 `docs/12` §12 第 32 點，不重複記一份）、`STATUS.md`、`docs/18-work-errors.md`
+  （依任務指示由派工者收尾）。
+- 沒有 commit。
+
+---
+
 ## 目錄結構
 
 ```

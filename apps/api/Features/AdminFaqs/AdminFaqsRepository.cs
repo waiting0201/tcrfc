@@ -25,6 +25,7 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
 {
     private const string PublicListEntity = "faqs";
     private const string PublicDetailEntity = "faq-detail";
+    private const string PublicEmbedEntity = "faq-embed";
 
     private static readonly HashSet<string> AllowedStatuses = new(StringComparer.Ordinal) { "draft", "published" };
 
@@ -85,6 +86,10 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
                     NameZh = fc.FaqCategoriesI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                     NameEn = fc.FaqCategoriesI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
                 }).ToList(),
+                EmbedSlots = f.FaqEmbedSlotLinks
+                    .OrderBy(l => l.SortOrder)
+                    .Select(l => new { l.FaqEmbedSlot.Id, l.FaqEmbedSlot.Code, l.FaqEmbedSlot.Name })
+                    .ToList(),
             })
             .ToListAsync(cancellationToken);
 
@@ -104,6 +109,9 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
             Categories = r.Categories
                 .Select(c => new AdminFaqCategoryRefDto { Id = c.Id, Slug = c.Slug, NameZh = c.NameZh, NameEn = c.NameEn })
                 .ToList(),
+            EmbedSlots = r.EmbedSlots
+                .Select(s => new AdminFaqEmbedSlotRefDto { Id = s.Id, Code = s.Code, Name = s.Name })
+                .ToList(),
         }).ToList();
 
         return new PagedResult<AdminFaqListItemDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
@@ -114,6 +122,7 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
         var faq = await dbContext.Faqs.AsNoTracking()
             .Include(f => f.FaqsI18ns)
             .Include(f => f.FaqCategories).ThenInclude(fc => fc.FaqCategoriesI18ns)
+            .Include(f => f.FaqEmbedSlotLinks.OrderBy(l => l.SortOrder)).ThenInclude(l => l.FaqEmbedSlot)
             .FirstOrDefaultAsync(f => f.Id == id && (f.ClubId == scope.ClubId || f.ClubId == null), cancellationToken);
 
         return faq is null ? null : ToDetailDto(faq);
@@ -126,6 +135,7 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
         ValidateStatus(request.Status);
         ValidateContent(request.Content);
         var categories = await ResolveCategoriesAsync(request.CategoryIds, cancellationToken);
+        var embedSlots = await ResolveEmbedSlotsAsync(request.EmbedSlotIds, cancellationToken);
 
         if (await dbContext.Faqs.AsNoTracking().AnyAsync(
                 f => f.ClubId == scope.ClubId && f.Slug == request.Slug, cancellationToken))
@@ -164,6 +174,8 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
             faq.FaqCategories.Add(category);
         }
 
+        AddEmbedSlotLinks(faq, embedSlots);
+
         await dbContext.SaveChangesAsync(cancellationToken);
         await InvalidatePublicCacheAsync(scope, cancellationToken);
 
@@ -177,6 +189,12 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
         ValidateStatus(request.Status);
         ValidateContent(request.Content);
         var categories = await ResolveCategoriesAsync(request.CategoryIds, cancellationToken);
+        // 省略（null）＝維持不變，非 null（含空陣列）＝整份取代——比照 AdminStaffRepository.Teams
+        // 的既有語意，跟 CategoryIds（一律整份取代、至少 1 個）刻意不同，見
+        // CreateFaqRequest.EmbedSlotIds 的說明。
+        var embedSlots = request.EmbedSlotIds is null
+            ? null
+            : await ResolveEmbedSlotsAsync(request.EmbedSlotIds, cancellationToken);
 
         var faq = await LoadTrackedForWriteAsync(scope, id, cancellationToken);
         if (faq is null)
@@ -212,6 +230,13 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
         foreach (var category in categories)
         {
             faq.FaqCategories.Add(category);
+        }
+
+        if (embedSlots is not null)
+        {
+            dbContext.FaqEmbedSlotLinks.RemoveRange(faq.FaqEmbedSlotLinks);
+            faq.FaqEmbedSlotLinks.Clear();
+            AddEmbedSlotLinks(faq, embedSlots);
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
@@ -645,6 +670,7 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
         var faq = await dbContext.Faqs
             .Include(f => f.FaqsI18ns)
             .Include(f => f.FaqCategories)
+            .Include(f => f.FaqEmbedSlotLinks)
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
 
         if (faq is null || (faq.ClubId != scope.ClubId && faq.ClubId is not null))
@@ -675,6 +701,38 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
         }
 
         return categories;
+    }
+
+    /// <summary>解析 G-12 掛載點 id 清單，<paramref name="embedSlotIds"/> 為 <c>null</c> 或空陣列
+    /// 皆回傳空清單——跟 <see cref="ResolveCategoriesAsync"/> 不同，這裡沒有「至少 1 個」的下限
+    /// （見 <c>CreateFaqRequest.EmbedSlotIds</c> 的說明）。</summary>
+    private async Task<List<FaqEmbedSlot>> ResolveEmbedSlotsAsync(IReadOnlyList<Guid>? embedSlotIds, CancellationToken cancellationToken)
+    {
+        if (embedSlotIds is null || embedSlotIds.Count == 0)
+        {
+            return [];
+        }
+
+        var distinctIds = embedSlotIds.Distinct().ToList();
+        var slots = await dbContext.FaqEmbedSlots.Where(s => distinctIds.Contains(s.Id)).ToListAsync(cancellationToken);
+        if (slots.Count != distinctIds.Count)
+        {
+            throw new AdminFaqValidationException("指定的掛載點包含不存在的項目，請重新整理清單後再試一次。");
+        }
+
+        return slots;
+    }
+
+    /// <summary>把已解析好的掛載點加進 <paramref name="faq"/>，依清單順序寫入 <c>sort_order</c>——
+    /// <c>faq_embed_slot_links</c> 本身沒有 <c>row_seq</c>，用呼叫端給的順序當排序依據。</summary>
+    private void AddEmbedSlotLinks(Faq faq, IReadOnlyList<FaqEmbedSlot> embedSlots)
+    {
+        for (var i = 0; i < embedSlots.Count; i++)
+        {
+            var link = new FaqEmbedSlotLink { FaqId = faq.Id, FaqEmbedSlotId = embedSlots[i].Id, SortOrder = i };
+            faq.FaqEmbedSlotLinks.Add(link);
+            dbContext.FaqEmbedSlotLinks.Add(link);
+        }
     }
 
     private void AddOrReplaceI18n(Faq faq, string locale, AdminFaqLocaleContent content)
@@ -738,6 +796,10 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
                 NameZh = c.FaqCategoriesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Name,
                 NameEn = c.FaqCategoriesI18ns.FirstOrDefault(i => i.Locale == "en")?.Name,
             }).ToList(),
+            EmbedSlots = faq.FaqEmbedSlotLinks
+                .OrderBy(l => l.SortOrder)
+                .Select(l => new AdminFaqEmbedSlotRefDto { Id = l.FaqEmbedSlot.Id, Code = l.FaqEmbedSlot.Code, Name = l.FaqEmbedSlot.Name })
+                .ToList(),
         };
     }
 
@@ -749,5 +811,6 @@ public sealed class AdminFaqsRepository(ClubDbContext dbContext, IQueryCache cac
     {
         await cache.InvalidateAsync(PublicListEntity, scope.ClubCode, cancellationToken);
         await cache.InvalidateAsync(PublicDetailEntity, scope.ClubCode, cancellationToken);
+        await cache.InvalidateAsync(PublicEmbedEntity, scope.ClubCode, cancellationToken);
     }
 }

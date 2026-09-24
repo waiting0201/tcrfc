@@ -687,6 +687,9 @@ CREATE TABLE teams_i18n (
 -- 同意未到位的球員不顯示照片」；主站規劃書行 1356／1686 為既有的未成年素材處理原則。
 -- 三態設計（不只是布林）是因為「未成年由監護人代為同意」與「本人同意」在同意書留存上是不同文件，
 -- 後台需要分別記錄是哪一種；規劃書未提及同意日期或到期，故不加。
+-- 🔴 欄寬 nvarchar(32)（非最初的 20）：最長的值 'consented_by_guardian' 是 21 個字元，
+-- nvarchar(20) 裝不下——這不是規格取捨，是單純的欄寬計算錯誤，S1-7a 落地時寫入即噴
+-- 「String or binary data would be truncated」被測試抓到，見 apps/api/README.md 本節說明。
 CREATE TABLE players (
   id                       uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq                  bigint IDENTITY(1,1) NOT NULL,
@@ -702,7 +705,7 @@ CREATE TABLE players (
   joined_on                date             NULL,
   status                   nvarchar(16)     NULL,
   photo_key                nvarchar(500)    NULL,
-  portrait_consent_status  nvarchar(20)     NOT NULL DEFAULT 'not_consented'
+  portrait_consent_status  nvarchar(32)     NOT NULL DEFAULT 'not_consented'
                              CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
   created_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -749,7 +752,7 @@ CREATE TABLE staff (
   staff_group              nvarchar(32)     NULL,
   licence                  nvarchar(64)     NULL,
   photo_key                nvarchar(500)    NULL,
-  portrait_consent_status  nvarchar(20)     NOT NULL DEFAULT 'not_consented'
+  portrait_consent_status  nvarchar(32)     NOT NULL DEFAULT 'not_consented'
                              CHECK (portrait_consent_status IN ('not_consented','consented','consented_by_guardian')),
   created_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),

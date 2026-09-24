@@ -40,4 +40,6 @@ public partial class Faq
     public virtual AdminUser? UpdatedByNavigation { get; set; }
 
     public virtual ICollection<FaqCategory> FaqCategories { get; set; } = new List<FaqCategory>();
+
+    public virtual ICollection<FaqEmbedSlotLink> FaqEmbedSlotLinks { get; set; } = new List<FaqEmbedSlotLink>();
 }

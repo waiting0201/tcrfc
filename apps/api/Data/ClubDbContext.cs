@@ -112,6 +112,10 @@ public partial class ClubDbContext : DbContext
 
     public virtual DbSet<FaqCategory> FaqCategories { get; set; }
 
+    public virtual DbSet<FaqEmbedSlot> FaqEmbedSlots { get; set; }
+
+    public virtual DbSet<FaqEmbedSlotLink> FaqEmbedSlotLinks { get; set; }
+
     public virtual DbSet<FaqSearchMiss> FaqSearchMisses { get; set; }
 
     public virtual DbSet<FaqsI18n> FaqsI18ns { get; set; }
@@ -826,6 +830,15 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
+            entity.Property(e => e.MediaType)
+                .HasMaxLength(10)
+                .HasDefaultValue("image")
+                .HasColumnName("media_type");
+            entity.Property(e => e.VideoKey)
+                .HasMaxLength(500)
+                .HasColumnName("video_key");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -877,6 +890,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Cta2Url)
                 .HasMaxLength(500)
                 .HasColumnName("cta_2_url");
+            entity.Property(e => e.ImageAlt)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt");
             entity.Property(e => e.Subtitle)
                 .HasMaxLength(300)
                 .HasColumnName("subtitle");
@@ -2415,6 +2431,9 @@ public partial class ClubDbContext : DbContext
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.IsEnabled)
+                .HasDefaultValue(true)
+                .HasColumnName("is_enabled");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -2435,6 +2454,73 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.FaqCategoryUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_faq_categories_updated_by");
+        });
+
+        modelBuilder.Entity<FaqEmbedSlot>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("faq_embed_slots");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_faq_embed_slots_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.HasIndex(e => e.Code, "UQ_faq_embed_slots_code").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.Code)
+                .HasMaxLength(64)
+                .HasColumnName("code");
+            entity.Property(e => e.Name)
+                .HasMaxLength(64)
+                .HasColumnName("name");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.FaqEmbedSlotCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_faq_embed_slots_created_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.FaqEmbedSlotUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_faq_embed_slots_updated_by");
+        });
+
+        modelBuilder.Entity<FaqEmbedSlotLink>(entity =>
+        {
+            entity.HasKey(e => new { e.FaqId, e.FaqEmbedSlotId });
+
+            entity.ToTable("faq_embed_slot_links");
+
+            entity.HasIndex(e => e.FaqEmbedSlotId, "IX_faq_embed_slot_links_slot");
+
+            entity.Property(e => e.FaqId).HasColumnName("faq_id");
+            entity.Property(e => e.FaqEmbedSlotId).HasColumnName("faq_embed_slot_id");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+
+            entity.HasOne(d => d.Faq).WithMany(p => p.FaqEmbedSlotLinks)
+                .HasForeignKey(d => d.FaqId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_faq_embed_slot_links_faq");
+
+            entity.HasOne(d => d.FaqEmbedSlot).WithMany(p => p.FaqEmbedSlotLinks)
+                .HasForeignKey(d => d.FaqEmbedSlotId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .HasConstraintName("FK_faq_embed_slot_links_slot");
         });
 
         modelBuilder.Entity<FaqSearchMiss>(entity =>
@@ -4806,6 +4892,10 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.PreferredFoot)
                 .HasMaxLength(16)
                 .HasColumnName("preferred_foot");
+            entity.Property(e => e.PortraitConsentStatus)
+                .HasMaxLength(32)
+                .HasDefaultValue("not_consented")
+                .HasColumnName("portrait_consent_status");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -6158,6 +6248,10 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.PhotoKey)
                 .HasMaxLength(500)
                 .HasColumnName("photo_key");
+            entity.Property(e => e.PortraitConsentStatus)
+                .HasMaxLength(32)
+                .HasDefaultValue("not_consented")
+                .HasColumnName("portrait_consent_status");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");

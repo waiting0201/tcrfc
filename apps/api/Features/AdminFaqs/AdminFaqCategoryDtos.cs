@@ -25,6 +25,9 @@ public sealed record CreateAdminFaqCategoryRequest
 
     public required int SortOrder { get; init; }
 
+    /// <summary>S1-7a 新增：省略時預設 <c>true</c>（新增分類預設啟用）。</summary>
+    public bool IsEnabled { get; init; } = true;
+
     public required AdminFaqCategoryContentInput Content { get; init; }
 }
 
@@ -34,6 +37,12 @@ public sealed record UpdateAdminFaqCategoryRequest
 
     public required int SortOrder { get; init; }
 
+    /// <summary>S1-7a 新增：軟停用開關。<c>false</c>＝從公開分類導覽消失（見
+    /// <c>Features/Faqs/FaqsRepository.ListCategoriesAsync</c>），既有題目與關聯不受影響、
+    /// 可隨時改回 <c>true</c> 重新啟用——取代先前用 DELETE 湊「停用」的做法（DELETE 仍保留，
+    /// 但現在是真正的刪除，見 <c>AdminFaqCategoriesRepository.DeleteAsync</c>）。</summary>
+    public required bool IsEnabled { get; init; }
+
     public required AdminFaqCategoryContentInput Content { get; init; }
 }
 
@@ -42,6 +51,7 @@ public sealed record AdminFaqCategoryListItemDto
     public required Guid Id { get; init; }
     public required string Slug { get; init; }
     public required int SortOrder { get; init; }
+    public required bool IsEnabled { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
 
@@ -56,6 +66,7 @@ public sealed record AdminFaqCategoryDetailDto
     public required Guid Id { get; init; }
     public required string Slug { get; init; }
     public required int SortOrder { get; init; }
+    public required bool IsEnabled { get; init; }
     public required AdminFaqCategoryLocaleContent Zh { get; init; }
     public AdminFaqCategoryLocaleContent? En { get; init; }
     public required DateTime CreatedAt { get; init; }

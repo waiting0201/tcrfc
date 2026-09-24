@@ -30,8 +30,10 @@ public sealed class HomeRepository(IClubSqlConnectionFactory connectionFactory, 
                 using var connection = connectionFactory.CreateConnection();
 
                 const string sql = """
-                    SELECT b.id AS Id, b.image_key AS ImageKey, b.sort_order AS SortOrder,
-                           bi.title AS Title, bi.subtitle AS Subtitle,
+                    SELECT b.id AS Id, b.media_type AS MediaType, b.image_key AS ImageKey,
+                           b.image_width AS ImageWidth, b.image_height AS ImageHeight, b.video_key AS VideoKey,
+                           b.sort_order AS SortOrder,
+                           bi.title AS Title, bi.subtitle AS Subtitle, bi.image_alt AS ImageAlt,
                            bi.cta_1_label AS Cta1Label, bi.cta_1_url AS Cta1Url,
                            bi.cta_2_label AS Cta2Label, bi.cta_2_url AS Cta2Url,
                            bi.locale AS Locale
@@ -61,10 +63,15 @@ public sealed class HomeRepository(IClubSqlConnectionFactory connectionFactory, 
                         return new BannerDto
                         {
                             Id = first.Id,
+                            MediaType = first.MediaType,
                             ImageKey = first.ImageKey,
+                            ImageWidth = first.ImageWidth,
+                            ImageHeight = first.ImageHeight,
+                            VideoKey = first.VideoKey,
                             SortOrder = first.SortOrder,
                             Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
                             Subtitle = RequestLocale.Pick(requested?.Subtitle, fallback?.Subtitle),
+                            ImageAlt = RequestLocale.Pick(requested?.ImageAlt, fallback?.ImageAlt),
                             Cta1Label = RequestLocale.Pick(requested?.Cta1Label, fallback?.Cta1Label),
                             Cta1Url = RequestLocale.Pick(requested?.Cta1Url, fallback?.Cta1Url),
                             Cta2Label = RequestLocale.Pick(requested?.Cta2Label, fallback?.Cta2Label),
@@ -78,7 +85,8 @@ public sealed class HomeRepository(IClubSqlConnectionFactory connectionFactory, 
     }
 
     private sealed record BannerI18nJoinRow(
-        Guid Id, string ImageKey, int SortOrder, string? Title, string? Subtitle,
+        Guid Id, string MediaType, string ImageKey, int? ImageWidth, int? ImageHeight, string? VideoKey, int SortOrder,
+        string? Title, string? Subtitle, string? ImageAlt,
         string? Cta1Label, string? Cta1Url, string? Cta2Label, string? Cta2Url, string? Locale);
 
     private sealed record HomeSectionRow(string SectionCode, bool IsEnabled, int SortOrder, Guid? FeaturedBannerId);

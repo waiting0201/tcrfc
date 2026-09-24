@@ -1166,6 +1166,32 @@ IF NOT EXISTS (SELECT 1 FROM home_sections WHERE club_id = {club_ref} AND sectio
   VALUES ({esc(section_id)}, {club_ref}, {esc(section_code)}, 1, {i});
 """)
 
+# ============================================================================
+# S1-7a（FAQ 嵌入設定，2026-09-24）：faq_embed_slots 四個固定掛載點
+# ----------------------------------------------------------------------------
+# 對應主站規劃書行 1029 逐一點名的 G-12 掛載位置：學院招生（4.7）、各課程詳情頁（5.x）、
+# 試訓（3.3）、贊助（9.4）。code 是站內結構性代號（英文，前端據此呼叫
+# GET /api/v1/{club}/faqs/embeds/{code}），name 是後台下拉選單顯示的中文標籤——這張表
+# 不是前台可見內容，是後台管理用的字典，故 name 只有單一欄位、不比照其餘型別拆 i18n 側表
+# （docs/12 §12 第 34 點：「掛載點是站內已知的字典」，見 db/club-schema.sql 該表註解）。
+# 不帶 club_id：兩俱樂部共用同一套頁面骨架，是否命中要看該俱樂部有沒有對應頁面（藍鯨沒有
+# 學院招生單元，academy_admission 這個掛載點對藍鯨就不會被用到）。
+# ============================================================================
+FAQ_EMBED_SLOTS = [
+    ("academy_admission", "學院招生頁（4.7）"),
+    ("program_detail", "課程詳情頁（5.x 各課程）"),
+    ("trials", "試訓頁（3.3）"),
+    ("sponsorship", "贊助頁（9.4）"),
+]
+
+emit("-- ── 21. faq_embed_slots：G-12 掛載點字典四筆（不帶 club_id，全站共用） ──────────")
+for code, name in FAQ_EMBED_SLOTS:
+    slot_id = new_id("faq_embed_slot", code)
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM faq_embed_slots WHERE code = {esc(code)})
+  INSERT INTO faq_embed_slots (id, code, name) VALUES ({esc(slot_id)}, {esc(code)}, {esc(name)});
+""")
+
 if "--reset-admin-accounts" in sys.argv:
     # 🔴 丟掉上面（一般模式）已經累積的全部輸出，只印重設用的 UPDATE 陳述式——
     # ADMIN_USERS 此時已經跑過一輪迴圈填好，重用同一份資料，不重新定義。見檔頭說明。

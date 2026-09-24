@@ -40,6 +40,9 @@ public sealed record AdminStaffListItemDto
     public string? StaffGroup { get; init; }
     public string? Licence { get; init; }
     public string? PhotoKey { get; init; }
+
+    /// <summary>肖像同意狀態（S1-7a），同 <c>AdminPlayerListItemDto.PortraitConsentStatus</c>。</summary>
+    public required string PortraitConsentStatus { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
     public required IReadOnlyList<string> TeamCodes { get; init; }
@@ -53,6 +56,7 @@ public sealed record AdminStaffDetailDto
     public string? StaffGroup { get; init; }
     public string? Licence { get; init; }
     public string? PhotoKey { get; init; }
+    public required string PortraitConsentStatus { get; init; }
     public required AdminStaffLocaleContent Zh { get; init; }
     public AdminStaffLocaleContent? En { get; init; }
     public required IReadOnlyList<AdminStaffTeamAssignmentDto> Teams { get; init; }
@@ -72,6 +76,10 @@ public sealed record CreateAdminStaffRequest
 {
     public string? StaffGroup { get; init; }
     public string? Licence { get; init; }
+
+    /// <summary>肖像同意狀態（S1-7a）。省略時預設 <c>not_consented</c>（fail-closed），理由與
+    /// 值域比照 <c>Features/AdminPlayers/CreateAdminPlayerRequest.PortraitConsentStatus</c>。</summary>
+    public string? PortraitConsentStatus { get; init; }
     public required AdminStaffContentInput Content { get; init; }
     public IReadOnlyList<AdminStaffTeamAssignmentInput>? Teams { get; init; }
 }
@@ -80,6 +88,7 @@ public sealed record UpdateAdminStaffRequest
 {
     public string? StaffGroup { get; init; }
     public string? Licence { get; init; }
+    public string? PortraitConsentStatus { get; init; }
     public required AdminStaffContentInput Content { get; init; }
     public IReadOnlyList<AdminStaffTeamAssignmentInput>? Teams { get; init; }
 

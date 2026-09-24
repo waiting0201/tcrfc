@@ -11,6 +11,11 @@ public partial class FaqCategory
 
     public string Slug { get; set; } = null!;
 
+    /// <summary>軟停用（S1-7a）：<c>false</c>＝從導覽消失，但既有題目與關聯不受影響，可重新啟用——
+    /// 取代先前「用刪除湊停用」的做法（刪除經 <c>ON DELETE CASCADE</c> 不可逆），見
+    /// db/club-schema.sql 該表註解。</summary>
+    public bool IsEnabled { get; set; } = true;
+
     public int SortOrder { get; set; }
 
     public DateTime CreatedAt { get; set; }

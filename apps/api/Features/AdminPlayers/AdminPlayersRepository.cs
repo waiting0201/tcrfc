@@ -16,6 +16,10 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
     private static readonly HashSet<string> AllowedStatuses =
         new(StringComparer.Ordinal) { "active", "departed", "loan", "overseas" };
 
+    /// <summary>肖像同意狀態值域（S1-7a，db/club-schema.sql <c>CK_players_portrait_consent_status</c>）。</summary>
+    private static readonly HashSet<string> AllowedPortraitConsentStatuses =
+        new(StringComparer.Ordinal) { "not_consented", "consented", "consented_by_guardian" };
+
     public async Task<IReadOnlyList<AdminPlayerListItemDto>> ListAsync(
         AdminClubScope scope, Guid? teamId, string? status, CancellationToken cancellationToken)
     {
@@ -42,6 +46,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
                 p.BirthOn,
                 p.Status,
                 p.PhotoKey,
+                p.PortraitConsentStatus,
                 p.UpdatedAt,
                 NameZh = p.PlayersI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = p.PlayersI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
@@ -58,6 +63,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             BirthOn = r.BirthOn,
             Status = r.Status,
             PhotoKey = r.PhotoKey,
+            PortraitConsentStatus = r.PortraitConsentStatus,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
             UpdatedAt = r.UpdatedAt,
@@ -80,6 +86,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         AdminClubScope scope, Guid playerId, CreateAdminPlayerRequest request, string? photoKey, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStatus(request.Status);
+        ValidatePortraitConsentStatus(request.PortraitConsentStatus);
         ValidateContent(request.Content);
         ValidateNumericRanges(request.ShirtNo, request.HeightCm, request.WeightKg);
         var team = await ResolveTeamAsync(scope, request.TeamId, cancellationToken);
@@ -100,6 +107,9 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             JoinedOn = request.JoinedOn,
             Status = request.Status ?? "active",
             PhotoKey = photoKey,
+            // 🔴 fail-closed（docs/12 §12 第 32 點）：省略時預設 not_consented，新建球員預設
+            // 不對公開端點輸出照片，直到後台明確填寫已取得同意。
+            PortraitConsentStatus = request.PortraitConsentStatus ?? "not_consented",
             CreatedAt = now,
             UpdatedAt = now,
             CreatedBy = operatorId,
@@ -122,6 +132,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         AdminClubScope scope, Guid id, UpdateAdminPlayerRequest request, PhotoKeyUpdate photoUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStatus(request.Status);
+        ValidatePortraitConsentStatus(request.PortraitConsentStatus);
         ValidateContent(request.Content);
         ValidateNumericRanges(request.ShirtNo, request.HeightCm, request.WeightKg);
 
@@ -146,6 +157,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         player.PreferredFoot = request.PreferredFoot;
         player.JoinedOn = request.JoinedOn;
         player.Status = request.Status ?? "active";
+        player.PortraitConsentStatus = request.PortraitConsentStatus ?? "not_consented";
         player.UpdatedAt = DateTime.UtcNow;
         player.UpdatedBy = operatorId;
 
@@ -206,6 +218,16 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         }
     }
 
+    private static void ValidatePortraitConsentStatus(string? portraitConsentStatus)
+    {
+        if (portraitConsentStatus is not null && !AllowedPortraitConsentStatuses.Contains(portraitConsentStatus))
+        {
+            throw new AdminPlayerValidationException(
+                "肖像同意狀態只能是「not_consented」（未同意）、「consented」（本人已同意）或" +
+                "「consented_by_guardian」（監護人已同意）。");
+        }
+    }
+
     private static void ValidateContent(AdminPlayerContentInput content)
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
@@ -250,6 +272,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             JoinedOn = player.JoinedOn,
             Status = player.Status,
             PhotoKey = player.PhotoKey,
+            PortraitConsentStatus = player.PortraitConsentStatus,
             Zh = new AdminPlayerLocaleContent { Name = zh?.Name ?? "", Bio = zh?.Bio },
             En = en is null ? null : new AdminPlayerLocaleContent { Name = en.Name ?? "", Bio = en.Bio },
             CreatedAt = player.CreatedAt,

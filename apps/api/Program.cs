@@ -230,6 +230,7 @@ builder.Services.AddScoped<AdminBannersRepository>();
 builder.Services.AddScoped<AdminHomeSectionsRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminFaqs.AdminFaqsRepository>();
 builder.Services.AddScoped<AdminFaqCategoriesRepository>();
+builder.Services.AddScoped<AdminFaqEmbedSlotsRepository>();
 builder.Services.AddScoped<HomeRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Faqs.FaqsRepository>();
 
@@ -333,6 +334,7 @@ app.MapAdminBannersEndpoints();
 app.MapAdminHomeSectionsEndpoints();
 app.MapAdminFaqsEndpoints();
 app.MapAdminFaqCategoriesEndpoints();
+app.MapAdminFaqEmbedSlotsEndpoints();
 
 app.Run();
 

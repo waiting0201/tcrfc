@@ -75,7 +75,8 @@ public static class AdminBannersEndpoints
 
             try
             {
-                var created = await repository.CreateAsync(scope, bannerId, request, uploaded.Key, scope.Identity.AdminUserId, cancellationToken);
+                var created = await repository.CreateAsync(
+                    scope, bannerId, request, uploaded.Key, uploaded.Width, uploaded.Height, scope.Identity.AdminUserId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/banners/{created.Id}", created);
             }
             catch
@@ -105,16 +106,21 @@ public static class AdminBannersEndpoints
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
 
             string? uploadedKey = null;
+            int? uploadedWidth = null;
+            int? uploadedHeight = null;
             if (file is not null)
             {
                 UploadSlotPolicy.Validate("banners", "image");
                 var uploaded = await UploadImageAsync(scope, id, file, imageStorage, cancellationToken);
                 uploadedKey = uploaded.Key;
+                uploadedWidth = uploaded.Width;
+                uploadedHeight = uploaded.Height;
             }
 
             try
             {
-                var updated = await repository.UpdateAsync(scope, id, request, uploadedKey, scope.Identity.AdminUserId, cancellationToken);
+                var updated = await repository.UpdateAsync(
+                    scope, id, request, uploadedKey, uploadedWidth, uploadedHeight, scope.Identity.AdminUserId, cancellationToken);
                 if (updated is null)
                 {
                     if (uploadedKey is not null)

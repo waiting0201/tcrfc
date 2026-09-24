@@ -34,9 +34,10 @@ public static class UploadSlotPolicy
             ["players"] = new HashSet<string>(StringComparer.Ordinal) { "photo" },
             ["staff"] = new HashSet<string>(StringComparer.Ordinal) { "photo" },
             // S1-6 新增：B3 首頁編排——banners.image_key（db/club-schema.sql「首頁 Hero 輪播」建表
-            // 陳述式），比照上面 articles.cover 的接法。⚠️ banners 只有 image_key 一個欄位，
-            // 沒有 _width／_height／_alt_zh／_alt_en（docs/14 圖片欄位組通則的其餘四欄缺漏，
-            // 已在 apps/api/README.md 回報，本輪未新增欄位）。
+            // 陳述式），比照上面 articles.cover 的接法。✅ S1-7a 已補齊 image_width／image_height
+            // （由上傳結果自動填入，不經這份插槽清單）與 banners_i18n.image_alt（雙語，隨 payload
+            // 一起送，不是檔案上傳）——這份清單本身只管「檔案上傳」這一個插槽，寬高與 alt 走
+            // AdminBannersRepository 的 CreateAsync／UpdateAsync 參數與 AddOrReplaceI18n。
             ["banners"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
         };
 

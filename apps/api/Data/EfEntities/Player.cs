@@ -33,6 +33,11 @@ public partial class Player
 
     public string? PhotoKey { get; set; }
 
+    /// <summary>肖像同意狀態（S1-8／S1-7a，三態：not_consented／consented／consented_by_guardian，
+    /// fail-closed 預設 not_consented）。公開端點在此值為 not_consented 時不得輸出 <see cref="PhotoKey"/>，
+    /// 見 Features/Players/PlayersRepository.cs。</summary>
+    public string PortraitConsentStatus { get; set; } = null!;
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

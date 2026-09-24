@@ -1,6 +1,8 @@
 namespace Tcrfc.Api.Features.Staff;
 
-/// <summary>教練與團隊成員公開欄位。<c>staff</c> 不在受限欄位清單內（docs/12b-database-tables.md §8）。</summary>
+/// <summary>教練與團隊成員公開欄位。<c>staff</c> 不在受限欄位清單內（docs/12b-database-tables.md §8）。
+/// 🔴 <see cref="PhotoKey"/> 例外：<c>portrait_consent_status = 'not_consented'</c> 時一律回
+/// <c>null</c>（fail-closed），見 <c>StaffRepository.Map</c>，理由同 <c>Features/Players/PlayerDto.cs</c>。</summary>
 public sealed record StaffDto
 {
     public required Guid Id { get; init; }

@@ -12,7 +12,8 @@ public sealed class StaffRepository(IClubSqlConnectionFactory connectionFactory,
     private const string CacheEntity = "staff";
 
 
-    private sealed record StaffRow(Guid Id, bool IsShared, string? StaffGroup, string? Licence, string? PhotoKey);
+    private sealed record StaffRow(
+        Guid Id, bool IsShared, string? StaffGroup, string? Licence, string? PhotoKey, string PortraitConsentStatus);
     private sealed record StaffI18nRow(Guid StaffId, string Locale, string? Name, string? Title, string? Bio);
     private sealed record StaffTeamRow(Guid StaffId, string TeamCode);
 
@@ -48,7 +49,8 @@ public sealed class StaffRepository(IClubSqlConnectionFactory connectionFactory,
                 var listSql = $"""
                     SELECT s.id AS Id,
                            CASE WHEN s.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
-                           s.staff_group AS StaffGroup, s.licence AS Licence, s.photo_key AS PhotoKey
+                           s.staff_group AS StaffGroup, s.licence AS Licence, s.photo_key AS PhotoKey,
+                           s.portrait_consent_status AS PortraitConsentStatus
                     FROM staff s
                     WHERE {ClubOrSharedSql.WhereClubOrShared}
                       AND (@TeamCode IS NULL OR EXISTS (
@@ -133,7 +135,8 @@ public sealed class StaffRepository(IClubSqlConnectionFactory connectionFactory,
             IsShared = row.IsShared,
             StaffGroup = row.StaffGroup,
             Licence = row.Licence,
-            PhotoKey = row.PhotoKey,
+            // 🔴 fail-closed（S1-7a），理由同 PlayersRepository.Map。
+            PhotoKey = row.PortraitConsentStatus is "consented" or "consented_by_guardian" ? row.PhotoKey : null, // 白名單：只有確認同意才輸出（fail-closed）
             Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
             Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
             Bio = RequestLocale.Pick(requested?.Bio, fallback?.Bio),

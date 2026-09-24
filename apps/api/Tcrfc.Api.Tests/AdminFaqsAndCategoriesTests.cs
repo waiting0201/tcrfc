@@ -51,6 +51,7 @@ public sealed class AdminFaqsAndCategoriesTests(AdminWriteApiFixture fixture)
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var created = await createResponse.Content.ReadFromJsonAsync<AdminFaqCategoryDetailDto>(TestJson.Options);
         Assert.NotNull(created);
+        Assert.True(created!.IsEnabled); // S1-7a：省略時預設啟用。
 
         try
         {
@@ -61,6 +62,7 @@ public sealed class AdminFaqsAndCategoriesTests(AdminWriteApiFixture fixture)
             {
                 Slug = slug,
                 SortOrder = 99,
+                IsEnabled = true,
                 Content = new AdminFaqCategoryContentInput
                 {
                     Zh = new AdminFaqCategoryLocaleContent { Name = "測試分類（已更新）" },
@@ -80,6 +82,72 @@ public sealed class AdminFaqsAndCategoriesTests(AdminWriteApiFixture fixture)
         finally
         {
             await client.DeleteAsync($"/api/v1/admin/faq-categories/{created!.Id}");
+        }
+    }
+
+    [Fact]
+    public async Task FaqCategory_軟停用_公開端點不列_既有題目與關聯不受影響_可重新啟用()
+    {
+        // S1-7a：停用是 IsEnabled=false，不是 DELETE——題目與 faq_category_links 不受影響。
+        using var client = await CreateContentEditorClientAsync();
+        var slug = $"s1-7a-cat-{Guid.NewGuid():N}";
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/admin/faq-categories", NewCategoryRequest("軟停用測試分類", slug));
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var category = await createResponse.Content.ReadFromJsonAsync<AdminFaqCategoryDetailDto>(TestJson.Options);
+
+        var faq = await CreateFaqAsync(client, category!.Id, "軟停用分類底下的題目");
+
+        try
+        {
+            // 停用前：公開分類清單看得到。
+            var beforeDisable = await client.GetFromJsonAsync<List<Tcrfc.Api.Features.Faqs.FaqCategoryDto>>(
+                "/api/v1/faq-categories", TestJson.Options);
+            Assert.Contains(beforeDisable!, c => c.Id == category.Id);
+
+            // 停用。
+            var disableResponse = await client.PutAsJsonAsync($"/api/v1/admin/faq-categories/{category.Id}", new UpdateAdminFaqCategoryRequest
+            {
+                Slug = slug,
+                SortOrder = category.SortOrder,
+                IsEnabled = false,
+                Content = new AdminFaqCategoryContentInput { Zh = new AdminFaqCategoryLocaleContent { Name = "軟停用測試分類" } },
+            });
+            Assert.Equal(HttpStatusCode.OK, disableResponse.StatusCode);
+            var disabled = await disableResponse.Content.ReadFromJsonAsync<AdminFaqCategoryDetailDto>(TestJson.Options);
+            Assert.False(disabled!.IsEnabled);
+
+            // 停用後：公開分類清單消失。
+            var afterDisable = await client.GetFromJsonAsync<List<Tcrfc.Api.Features.Faqs.FaqCategoryDto>>(
+                "/api/v1/faq-categories", TestJson.Options);
+            Assert.DoesNotContain(afterDisable!, c => c.Id == category.Id);
+
+            // 停用後：既有題目仍然存在、關聯不受影響（後台仍看得到這個分類掛在題目上）。
+            var faqDetail = await client.GetFromJsonAsync<AdminFaqDetailDto>($"/api/v1/admin/tcrfc/faqs/{faq.Id}", TestJson.Options);
+            Assert.Contains(faqDetail!.Categories, c => c.Id == category.Id);
+
+            // 後台分類列表仍看得到（含 IsEnabled=false），不是刪除。
+            var adminList = await client.GetFromJsonAsync<List<AdminFaqCategoryListItemDto>>("/api/v1/admin/faq-categories", TestJson.Options);
+            Assert.Contains(adminList!, c => c.Id == category.Id && !c.IsEnabled);
+
+            // 重新啟用。
+            var enableResponse = await client.PutAsJsonAsync($"/api/v1/admin/faq-categories/{category.Id}", new UpdateAdminFaqCategoryRequest
+            {
+                Slug = slug,
+                SortOrder = category.SortOrder,
+                IsEnabled = true,
+                Content = new AdminFaqCategoryContentInput { Zh = new AdminFaqCategoryLocaleContent { Name = "軟停用測試分類" } },
+            });
+            Assert.Equal(HttpStatusCode.OK, enableResponse.StatusCode);
+
+            var afterEnable = await client.GetFromJsonAsync<List<Tcrfc.Api.Features.Faqs.FaqCategoryDto>>(
+                "/api/v1/faq-categories", TestJson.Options);
+            Assert.Contains(afterEnable!, c => c.Id == category.Id);
+        }
+        finally
+        {
+            await client.DeleteAsync($"/api/v1/admin/tcrfc/faqs/{faq.Id}");
+            await client.DeleteAsync($"/api/v1/admin/faq-categories/{category.Id}");
         }
     }
 
@@ -256,6 +324,166 @@ public sealed class AdminFaqsAndCategoriesTests(AdminWriteApiFixture fixture)
         {
             await client.DeleteAsync($"/api/v1/admin/tcrfc/faqs/{lowRated.Id}");
             await client.DeleteAsync($"/api/v1/admin/tcrfc/faqs/{highRated.Id}");
+        }
+    }
+
+    // ───────────────────────────── FAQ 嵌入設定（G-12 掛載點，S1-7a） ─────────────────────
+
+    [Fact]
+    public async Task FaqEmbedSlot_未登入_擋下_已登入可列出四筆固定值()
+    {
+        using var anonymous = fixture.CreateClient();
+        var unauthorizedResponse = await anonymous.GetAsync("/api/v1/admin/faq-embed-slots");
+        Assert.Equal(HttpStatusCode.Unauthorized, unauthorizedResponse.StatusCode);
+
+        using var client = await CreateContentEditorClientAsync();
+        var slots = await client.GetFromJsonAsync<List<AdminFaqEmbedSlotDto>>("/api/v1/admin/faq-embed-slots", TestJson.Options);
+        Assert.NotNull(slots);
+        Assert.Equal(4, slots!.Count); // 種子四筆固定值（db/seed §21）。
+        Assert.Contains(slots, s => s.Code == "trials");
+        Assert.Contains(slots, s => s.Code == "sponsorship");
+        Assert.Contains(slots, s => s.Code == "academy_admission");
+        Assert.Contains(slots, s => s.Code == "program_detail");
+    }
+
+    [Fact]
+    public async Task Faq_指定嵌入掛載點_新增_省略維持不變_空陣列清空_公開端點依掛載點查得到()
+    {
+        using var client = await CreateContentEditorClientAsync();
+        var categoryId = await GetAnyFaqCategoryIdAsync();
+        var trialsSlotId = await GetFaqEmbedSlotIdAsync("trials");
+        var sponsorshipSlotId = await GetFaqEmbedSlotIdAsync("sponsorship");
+        var slug = $"s1-7a-embed-{Guid.NewGuid():N}";
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/faqs", new CreateFaqRequest
+        {
+            Slug = slug,
+            CategoryIds = [categoryId],
+            SortOrder = 0,
+            Status = "published",
+            EmbedSlotIds = [trialsSlotId],
+            Content = new AdminFaqContentInput { Zh = new AdminFaqLocaleContent { Question = "試訓常見問題？", Answer = "測試答案。" } },
+        });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<AdminFaqDetailDto>(TestJson.Options);
+
+        try
+        {
+            Assert.Single(created!.EmbedSlots);
+            Assert.Equal("trials", created.EmbedSlots[0].Code);
+
+            // 公開端點依掛載點查詢：trials 查得到、sponsorship 查不到（還沒指定）。
+            var publicTrials = await client.GetFromJsonAsync<List<Tcrfc.Api.Features.Faqs.FaqListItemDto>>(
+                "/api/v1/tcrfc/faqs/embeds/trials", TestJson.Options);
+            Assert.Contains(publicTrials!, f => f.Id == created.Id);
+
+            var publicSponsorshipBefore = await client.GetFromJsonAsync<List<Tcrfc.Api.Features.Faqs.FaqListItemDto>>(
+                "/api/v1/tcrfc/faqs/embeds/sponsorship", TestJson.Options);
+            Assert.DoesNotContain(publicSponsorshipBefore!, f => f.Id == created.Id);
+
+            // 省略 EmbedSlotIds＝維持不變。
+            var updateOmitted = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/faqs/{created.Id}", new UpdateFaqRequest
+            {
+                Slug = slug,
+                CategoryIds = [categoryId],
+                SortOrder = 1,
+                Status = "published",
+                Content = new AdminFaqContentInput { Zh = new AdminFaqLocaleContent { Question = "試訓常見問題？", Answer = "測試答案（已更新排序）。" } },
+            });
+            Assert.Equal(HttpStatusCode.OK, updateOmitted.StatusCode);
+            var afterOmitted = await updateOmitted.Content.ReadFromJsonAsync<AdminFaqDetailDto>(TestJson.Options);
+            Assert.Single(afterOmitted!.EmbedSlots);
+            Assert.Equal("trials", afterOmitted.EmbedSlots[0].Code);
+
+            // 明確指定新的掛載點清單（額外指定 sponsorship，移除 trials）＝整份取代。
+            var updateReplace = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/faqs/{created.Id}", new UpdateFaqRequest
+            {
+                Slug = slug,
+                CategoryIds = [categoryId],
+                SortOrder = 1,
+                Status = "published",
+                EmbedSlotIds = [sponsorshipSlotId],
+                Content = new AdminFaqContentInput { Zh = new AdminFaqLocaleContent { Question = "試訓常見問題？", Answer = "測試答案。" } },
+            });
+            Assert.Equal(HttpStatusCode.OK, updateReplace.StatusCode);
+            var afterReplace = await updateReplace.Content.ReadFromJsonAsync<AdminFaqDetailDto>(TestJson.Options);
+            Assert.Single(afterReplace!.EmbedSlots);
+            Assert.Equal("sponsorship", afterReplace.EmbedSlots[0].Code);
+
+            var publicTrialsAfterReplace = await client.GetFromJsonAsync<List<Tcrfc.Api.Features.Faqs.FaqListItemDto>>(
+                "/api/v1/tcrfc/faqs/embeds/trials", TestJson.Options);
+            Assert.DoesNotContain(publicTrialsAfterReplace!, f => f.Id == created.Id);
+            var publicSponsorshipAfterReplace = await client.GetFromJsonAsync<List<Tcrfc.Api.Features.Faqs.FaqListItemDto>>(
+                "/api/v1/tcrfc/faqs/embeds/sponsorship", TestJson.Options);
+            Assert.Contains(publicSponsorshipAfterReplace!, f => f.Id == created.Id);
+
+            // 空陣列＝清空。
+            var updateClear = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/faqs/{created.Id}", new UpdateFaqRequest
+            {
+                Slug = slug,
+                CategoryIds = [categoryId],
+                SortOrder = 1,
+                Status = "published",
+                EmbedSlotIds = [],
+                Content = new AdminFaqContentInput { Zh = new AdminFaqLocaleContent { Question = "試訓常見問題？", Answer = "測試答案。" } },
+            });
+            Assert.Equal(HttpStatusCode.OK, updateClear.StatusCode);
+            var afterClear = await updateClear.Content.ReadFromJsonAsync<AdminFaqDetailDto>(TestJson.Options);
+            Assert.Empty(afterClear!.EmbedSlots);
+
+            // 不存在的掛載點 id 要 400。
+            var invalidSlotResponse = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/faqs/{created.Id}", new UpdateFaqRequest
+            {
+                Slug = slug,
+                CategoryIds = [categoryId],
+                SortOrder = 1,
+                Status = "published",
+                EmbedSlotIds = [Guid.NewGuid()],
+                Content = new AdminFaqContentInput { Zh = new AdminFaqLocaleContent { Question = "試訓常見問題？", Answer = "測試答案。" } },
+            });
+            Assert.Equal(HttpStatusCode.BadRequest, invalidSlotResponse.StatusCode);
+        }
+        finally
+        {
+            await client.DeleteAsync($"/api/v1/admin/tcrfc/faqs/{created!.Id}");
+        }
+    }
+
+    [Fact]
+    public async Task 公開嵌入端點_不回傳草稿或跨俱樂部題目_找不到的掛載點視為空清單()
+    {
+        using var client = await CreateContentEditorClientAsync();
+        var categoryId = await GetAnyFaqCategoryIdAsync();
+        var slotId = await GetFaqEmbedSlotIdAsync("program_detail");
+        var slug = $"s1-7a-embed-draft-{Guid.NewGuid():N}";
+
+        var createResponse = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/faqs", new CreateFaqRequest
+        {
+            Slug = slug,
+            CategoryIds = [categoryId],
+            SortOrder = 0,
+            Status = "draft", // 草稿：不應出現在公開端點。
+            EmbedSlotIds = [slotId],
+            Content = new AdminFaqContentInput { Zh = new AdminFaqLocaleContent { Question = "草稿題目？", Answer = "測試答案。" } },
+        });
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var created = await createResponse.Content.ReadFromJsonAsync<AdminFaqDetailDto>(TestJson.Options);
+
+        try
+        {
+            var publicResult = await client.GetFromJsonAsync<List<Tcrfc.Api.Features.Faqs.FaqListItemDto>>(
+                "/api/v1/tcrfc/faqs/embeds/program_detail", TestJson.Options);
+            Assert.DoesNotContain(publicResult!, f => f.Id == created!.Id);
+
+            // 找不到的掛載點代碼視為空清單，不是 404。
+            var unknownSlotResponse = await client.GetAsync("/api/v1/tcrfc/faqs/embeds/not-a-real-slot");
+            Assert.Equal(HttpStatusCode.OK, unknownSlotResponse.StatusCode);
+            var unknownSlotResult = await unknownSlotResponse.Content.ReadFromJsonAsync<List<Tcrfc.Api.Features.Faqs.FaqListItemDto>>(TestJson.Options);
+            Assert.Empty(unknownSlotResult!);
+        }
+        finally
+        {
+            await client.DeleteAsync($"/api/v1/admin/tcrfc/faqs/{created!.Id}");
         }
     }
 
@@ -551,6 +779,16 @@ public sealed class AdminFaqsAndCategoriesTests(AdminWriteApiFixture fixture)
         {
             command.Parameters.AddWithValue("@Exclude", excludeId);
         }
+        return (Guid)(await command.ExecuteScalarAsync())!;
+    }
+
+    private static async Task<Guid> GetFaqEmbedSlotIdAsync(string code)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id FROM faq_embed_slots WHERE code = @Code";
+        command.Parameters.AddWithValue("@Code", code);
         return (Guid)(await command.ExecuteScalarAsync())!;
     }
 

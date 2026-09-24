@@ -5,10 +5,26 @@ namespace Tcrfc.Api.Features.Home;
 public sealed record BannerDto
 {
     public required Guid Id { get; init; }
+
+    /// <summary>素材種類（S1-7a）：<c>image</c>／<c>video</c>。本輪後台只能寫入 <c>image</c>，
+    /// 前台仍先接住這個欄位，供之後開放影片時不需要再改契約。</summary>
+    public required string MediaType { get; init; }
     public required string ImageKey { get; init; }
+
+    /// <summary>供前台輸出 <c>&lt;img width height&gt;</c> 預留版面，避免版面跳動（docs/14 圖片
+    /// 欄位組通則）。<c>MediaType=video</c> 時代表海報格（poster）尺寸。</summary>
+    public int? ImageWidth { get; init; }
+    public int? ImageHeight { get; init; }
+
+    /// <summary>僅 <see cref="MediaType"/>＝<c>video</c> 時有值。本輪一律為 <c>null</c>。</summary>
+    public string? VideoKey { get; init; }
+
     public required int SortOrder { get; init; }
     public string? Title { get; init; }
     public string? Subtitle { get; init; }
+
+    /// <summary>圖片替代文字（S1-7a，無障礙與 GEO 用）。</summary>
+    public string? ImageAlt { get; init; }
     public string? Cta1Label { get; init; }
     public string? Cta1Url { get; init; }
     public string? Cta2Label { get; init; }

@@ -13,14 +13,14 @@ namespace Tcrfc.Api.Features.AdminFaqs;
 /// <see cref="AdminClubScope"/>（比照 <c>Features/AdminRoles</c>／<c>Features/AdminClubs</c>
 /// 的 J 模組寫法）。
 ///
-/// 🔴 **「停用分類」的實作是刪除，不是新增一個 <c>is_enabled</c> 欄位**：<c>faq_categories</c>
-/// 沒有任何啟用／停用狀態欄位（<c>docs/12b-database-tables.md</c>／<c>db/club-schema.sql</c>
-/// 都沒有），依任務指示「需要新欄位就停下回報，不自己加」，本輪判斷「刪除分類」可以達成規劃書
-/// 「停用」字面上要的效果（分類從導覽清單消失），代價是這個動作不可逆（沒有「重新啟用」這回事，
-/// 要恢復只能重新建立一個同樣內容的分類，且原本掛在這個分類底下的常見問題不會被連坐刪除，
-/// 只是 <c>faq_category_links</c> 的關聯列被 <c>ON DELETE CASCADE</c> 移除，問題本身仍然存在，
-/// 只是失去這個分類標籤——若某一題因此變成零分類，該題仍然可由關鍵字搜尋找到，不會憑空消失）。
-/// 這是需要業務確認的判斷，見 apps/api/README.md「我的判斷」。
+/// ✅ **S1-7a：「停用分類」已改為 <c>IsEnabled</c> 軟停用**（原本用 DELETE 湊停用，見
+/// db/club-schema.sql 該表註解與 apps/api/README.md S1-6 段的既有記錄）——停用後分類從公開
+/// 導覽消失（<c>Features/Faqs/FaqsRepository.ListCategoriesAsync</c> 只回 <c>is_enabled=1</c>
+/// 的分類），但既有題目與 <c>faq_category_links</c> 關聯不受影響，可隨時改回啟用。
+/// <see cref="DeleteAsync"/> 仍然保留，但現在是**真正的刪除**（不可逆，經
+/// <c>ON DELETE CASCADE</c> 解除關聯），不再是「停用」的替代做法——需要停用一律用
+/// <see cref="UpdateAsync"/> 把 <c>IsEnabled</c> 設為 <c>false</c>，需要真的移除這個分類（不留存）
+/// 才用 DELETE。
 /// </summary>
 public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
 {
@@ -33,6 +33,7 @@ public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
                 c.Id,
                 c.Slug,
                 c.SortOrder,
+                c.IsEnabled,
                 c.UpdatedAt,
                 NameZh = c.FaqCategoriesI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = c.FaqCategoriesI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
@@ -45,6 +46,7 @@ public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
             Id = r.Id,
             Slug = r.Slug,
             SortOrder = r.SortOrder,
+            IsEnabled = r.IsEnabled,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
             FaqCount = r.FaqCount,
@@ -78,6 +80,7 @@ public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
             Id = Guid.NewGuid(),
             Slug = request.Slug,
             SortOrder = request.SortOrder,
+            IsEnabled = request.IsEnabled,
             CreatedAt = now,
             UpdatedAt = now,
             CreatedBy = operatorId,
@@ -118,6 +121,7 @@ public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
 
         category.Slug = request.Slug;
         category.SortOrder = request.SortOrder;
+        category.IsEnabled = request.IsEnabled;
         category.UpdatedAt = DateTime.UtcNow;
         category.UpdatedBy = operatorId;
 
@@ -183,6 +187,7 @@ public sealed class AdminFaqCategoriesRepository(ClubDbContext dbContext)
             Id = category.Id,
             Slug = category.Slug,
             SortOrder = category.SortOrder,
+            IsEnabled = category.IsEnabled,
             Zh = new AdminFaqCategoryLocaleContent { Name = zh?.Name ?? category.Slug },
             En = en is null ? null : new AdminFaqCategoryLocaleContent { Name = en.Name },
             CreatedAt = category.CreatedAt,

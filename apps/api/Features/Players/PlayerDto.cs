@@ -3,6 +3,9 @@ namespace Tcrfc.Api.Features.Players;
 /// <summary>
 /// 球員名單公開欄位。<c>players</c> 不在 docs/12b-database-tables.md §8 受限欄位清單內——
 /// 球員名冊（含生日／慣用腳等）是球隊官網例行公開的競技資訊，不是一般會員個資。
+/// 🔴 <see cref="PhotoKey"/> 例外：<c>portrait_consent_status = 'not_consented'</c> 時一律回
+/// <c>null</c>（fail-closed），見 <c>PlayersRepository.Map</c>——肖像同意未到位不得輸出照片，
+/// docs/12 §12 第 32 點、藍鯨規劃書行 193。
 /// </summary>
 public sealed record PlayerDto
 {

@@ -19,6 +19,7 @@ public sealed class FaqsRepository(IClubSqlConnectionFactory connectionFactory, 
     private const string CategoriesEntity = "faq-categories";
     private const string ListEntity = "faqs";
     private const string DetailEntity = "faq-detail";
+    private const string EmbedEntity = "faq-embed";
 
     private sealed record FaqCategoryRow(Guid Id, string Slug, int SortOrder, string? Name);
 
@@ -32,11 +33,14 @@ public sealed class FaqsRepository(IClubSqlConnectionFactory connectionFactory, 
             {
                 using var connection = connectionFactory.CreateConnection();
 
+                // 🔴 S1-7a：is_enabled=1 過濾——停用的分類不列入公開導覽（軟停用，見
+                // AdminFaqCategoriesRepository 檔頭說明），既有題目與關聯不受影響。
                 const string sql = """
                     SELECT fc.id AS Id, fc.slug AS Slug, fc.sort_order AS SortOrder,
                            fci.name AS Name, fci.locale AS Locale
                     FROM faq_categories fc
                     LEFT JOIN faq_categories_i18n fci ON fci.faq_category_id = fc.id AND fci.locale IN @Locales
+                    WHERE fc.is_enabled = 1
                     ORDER BY fc.sort_order
                     """;
                 var locales = dbLocale == RequestLocale.DefaultDbLocale
@@ -205,6 +209,65 @@ public sealed class FaqsRepository(IClubSqlConnectionFactory connectionFactory, 
                     Answer = RequestLocale.Pick(requested?.Answer, fallback?.Answer),
                     CategorySlugs = categorySlugsById.GetValueOrDefault(faq.Id) ?? [],
                 };
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// 依 G-12 掛載點代碼查詢「額外」指定出現在該掛載點的題目（S1-7a，<c>faq_embed_slot_links</c>）。
+    /// 🔴 這裡**只回傳「逐題額外指定」的那一半**——「由分類自動對應」是應用層（前台頁面元件）的
+    /// 固定路由決定，不存在資料庫裡（docs/12 §12 第 34 點：「刻意不建掛載點對應哪個分類的對照表」）。
+    /// 前台頁面要湊出完整的「聯集」效果，作法是**同時**呼叫這支端點與既有的
+    /// <c>GET /api/v1/{club}/faqs?category=&lt;該頁固定對應的分類 slug&gt;</c>，自行合併去重——
+    /// 不是這支端點內部做聯集，因為「哪個掛載點對應哪個分類」這件事本身只存在於前台程式碼，
+    /// 後端沒有資料可查。<paramref name="slotCode"/> 找不到（打錯字或字典沒有這個代碼）視同
+    /// 空清單，不是 404——掛載點是否存在跟「這個掛載點目前有沒有題目」是兩件事，前台不需要
+    /// 特別處理找不到掛載點的錯誤狀態。
+    /// </summary>
+    public async Task<IReadOnlyList<FaqListItemDto>> ListByEmbedSlotAsync(
+        ClubScope scope, string slotCode, string dbLocale, CancellationToken cancellationToken)
+    {
+        return await cache.GetOrCreateAsync(
+            EmbedEntity, scope.ClubCode, dbLocale, slotCode,
+            async ct =>
+            {
+                using var connection = connectionFactory.CreateConnection();
+
+                var sql = $"""
+                    SELECT f.id AS Id,
+                           CASE WHEN f.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
+                           f.slug AS Slug, f.sort_order AS SortOrder
+                    FROM faqs f
+                    JOIN faq_embed_slot_links fesl ON fesl.faq_id = f.id
+                    JOIN faq_embed_slots fes ON fes.id = fesl.faq_embed_slot_id
+                    WHERE {ClubOrSharedSql.WhereClubOrShared} AND f.status = 'published' AND fes.code = @SlotCode
+                    ORDER BY fesl.sort_order, f.sort_order, f.row_seq
+                    """;
+
+                var parameters = new { scope.ClubId, SlotCode = slotCode };
+                var rows = (await connection.QueryAsync<FaqRow>(new CommandDefinition(sql, parameters, cancellationToken: ct))).AsList();
+
+                var faqIds = rows.Select(r => r.Id).ToList();
+                var i18nById = await LoadFaqI18nAsync(connection, faqIds, dbLocale, ct);
+                var categorySlugsById = await LoadFaqCategorySlugsAsync(connection, faqIds, ct);
+
+                return rows.Select(r =>
+                {
+                    i18nById.TryGetValue(r.Id, out var i18n);
+                    var fallback = i18n?.GetValueOrDefault(RequestLocale.DefaultDbLocale);
+                    var requested = i18n?.GetValueOrDefault(dbLocale);
+
+                    return new FaqListItemDto
+                    {
+                        Id = r.Id,
+                        Slug = r.Slug,
+                        IsShared = r.IsShared,
+                        SortOrder = r.SortOrder,
+                        Question = RequestLocale.Pick(requested?.Question, fallback?.Question),
+                        Answer = RequestLocale.Pick(requested?.Answer, fallback?.Answer),
+                        CategorySlugs = categorySlugsById.GetValueOrDefault(r.Id) ?? [],
+                    };
+                }).ToList() as IReadOnlyList<FaqListItemDto>;
             },
             cancellationToken);
     }

@@ -18,7 +18,8 @@ public sealed class PlayersRepository(IClubSqlConnectionFactory connectionFactor
     // work-errors E-20）。在 Map() 裡再轉成 DTO 要的 DateOnly。
     private sealed record PlayerRow(
         Guid Id, string TeamCode, int? ShirtNo, string? Position, DateTime? BirthOn,
-        int? HeightCm, int? WeightKg, string? Nationality, string? PreferredFoot, string? PhotoKey);
+        int? HeightCm, int? WeightKg, string? Nationality, string? PreferredFoot, string? PhotoKey,
+        string PortraitConsentStatus);
 
     private sealed record PlayerI18nRow(Guid PlayerId, string Locale, string? Name, string? Bio);
 
@@ -52,7 +53,8 @@ public sealed class PlayersRepository(IClubSqlConnectionFactory connectionFactor
                 const string listSql = """
                     SELECT p.id AS Id, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
                            p.birth_on AS BirthOn, p.height_cm AS HeightCm, p.weight_kg AS WeightKg,
-                           p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey
+                           p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey,
+                           p.portrait_consent_status AS PortraitConsentStatus
                     FROM players p
                     JOIN teams t ON t.id = p.team_id
                     WHERE p.club_id = @ClubId
@@ -117,7 +119,8 @@ public sealed class PlayersRepository(IClubSqlConnectionFactory connectionFactor
             WeightKg = row.WeightKg,
             Nationality = row.Nationality,
             PreferredFoot = row.PreferredFoot,
-            PhotoKey = row.PhotoKey,
+            // 🔴 fail-closed（S1-7a）：肖像同意未到位不得輸出照片，前台以預設圖或純文字卡呈現。
+            PhotoKey = row.PortraitConsentStatus is "consented" or "consented_by_guardian" ? row.PhotoKey : null, // 白名單：只有確認同意才輸出（fail-closed）
             Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
             Bio = RequestLocale.Pick(requested?.Bio, fallback?.Bio),
         };
