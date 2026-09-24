@@ -68,9 +68,9 @@ export function calMonthTitle(monthKey: string): string {
  * `'postponed'`／`'cancelled'`／`'live'` 三個字面值**尚未有真實資料可核對**，
  * 沿用既有 CSS class（`status-pill--postponed`／`--cancelled`／`--live`）與
  * `scheduled`／`played` 的命名風格推斷，之後有賽事真的延期／取消／進行中時要重新核對。
- * ⚠️ `postponed` 的中文顯示字「延賽」與規劃書（`output/TCRFC_前後台功能規劃書.md`
- * 第 658／1069／1474 行）三處寫的「延期」不一致，這是規格層文字，本次刻意不逕自改動，
- * 已在 S0-9j 交付報告中列出待裁決。
+ * `postponed` 的中文顯示字定為「延賽」（規劃書 v3.13 修訂摘要：「賽事狀態的中文用語
+ * 定為球界慣用的『延賽』」，3.13、4.3 C4、5.1 `Match` 三處已一致改用「延賽」，
+ * 舊版「延期」寫法已汰換）。
  */
 interface MatchStatusMeta {
   /** 畫面用：CSS class（`status-pill--{code}`）與篩選邏輯（`cardMatches`）的比對碼 */
@@ -104,6 +104,22 @@ export function mapMatchStatus(status: string | null): { code: string; label: st
 export function matchStatusSchemaOrg(status: string | null): string {
   const meta = (status && MATCH_STATUS_MAP[status]) || DEFAULT_STATUS_META
   return meta.schemaOrg
+}
+
+/**
+ * 延賽賽事卡片的原定時間顯示文字，例如「原定 2026-10-03 19:30」（規劃書 v3.13 §3.13：
+ * 「延賽須標示原定時間」；`MatchDto.originalMatchOn`／`originalKickoff` 僅在賽事狀態為
+ * 「延賽」時才有值，其餘狀態一律是 `null`，呼叫端不需要另外判斷 `status`）。
+ * 只有原定日期、沒有原定時間時仍要能正常顯示（只顯示日期）；`originalMatchOn` 為
+ * `null` 時視為兩欄皆空，回傳 `null`、呼叫端不渲染任何東西。
+ * ⚠️ **只用人造資料驗證過**（S0-9l，2026-09-24）：資料庫目前沒有任何 `status = 'postponed'`
+ * 的真實賽事（見本檔 `MATCH_STATUS_MAP` 上方註解），驗證方式是本機起一支假 `apps/api`
+ * 回傳兩筆人造延賽資料（一筆有原定時間、一筆只有原定日期）跑一次 SSR 輸出比對，
+ * 沒有真實資料可核對。之後真的出現延賽資料時要重新核對顯示文字與版位。
+ */
+export function postponedNote(originalMatchOn: string | null, originalKickoff: string | null): string | null {
+  if (!originalMatchOn) return null
+  return originalKickoff ? `原定 ${originalMatchOn} ${originalKickoff}` : `原定 ${originalMatchOn}`
 }
 
 export function compTagLabel(comp: string | null): string {

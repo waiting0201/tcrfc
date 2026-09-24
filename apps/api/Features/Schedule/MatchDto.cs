@@ -23,4 +23,12 @@ public sealed record MatchDto
     /// <summary>聯賽官方場次編號（同賽季同聯賽內唯一，可為空），與 <see cref="RoundNo"/>（第幾輪）是兩回事。
     /// 前台用它重建 mockup 原本的賽事卡片錨點 id（<c>fx-{日期}-{h|a}-{match_no}</c>）。</summary>
     public int? MatchNo { get; init; }
+
+    /// <summary>延賽前的原定日期（v3.13）。只有 <see cref="Status"/> 為「延賽」（<c>postponed</c>）時才有值，
+    /// 其餘狀態一律為 <c>null</c>——不是「賽程還沒排」的意思。對應 <c>matches.original_match_on</c>。</summary>
+    public DateOnly? OriginalMatchOn { get; init; }
+
+    /// <summary>延賽前的原定時間（v3.13）。與 <see cref="OriginalMatchOn"/> 同一組欄位，只有延賽時才有值，
+    /// 格式與 <see cref="Kickoff"/> 相同。對應 <c>matches.original_kickoff</c>。</summary>
+    public string? OriginalKickoff { get; init; }
 }

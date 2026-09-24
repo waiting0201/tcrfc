@@ -3136,6 +3136,10 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Opponent)
                 .HasMaxLength(128)
                 .HasColumnName("opponent");
+            entity.Property(e => e.OriginalKickoff)
+                .HasMaxLength(8)
+                .HasColumnName("original_kickoff");
+            entity.Property(e => e.OriginalMatchOn).HasColumnName("original_match_on");
             entity.Property(e => e.RoundNo).HasColumnName("round_no");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()

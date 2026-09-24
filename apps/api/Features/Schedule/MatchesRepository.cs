@@ -15,10 +15,13 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
     // ⚠️ MatchOn 用 DateTime 不是 DateOnly：見 PlayersRepository.PlayerRow 同款註解
     // （docs/18-work-errors.md E-20）——Microsoft.Data.SqlClient 對 SQL `date` 欄位回報的 CLR
     // 型別是 DateTime，Dapper 的 record 建構子具現化要求型別逐一相符。Map() 裡再轉成 DateOnly。
+    // ⚠️ OriginalMatchOn 同樣用 DateTime?（不是 DateOnly?）——同一個 E-20 理由，SQL Server 的
+    // `date` 欄位（含可為 NULL 的）由 Microsoft.Data.SqlClient 回報的 CLR 型別仍是 DateTime。
     private sealed record MatchRow(
         Guid Id, Guid? CompetitionId, string SeasonCode, string TeamCode, DateTime MatchOn, string? Kickoff,
         string? HomeAway, string? Opponent, string? CompetitionTag, string? Status,
-        int? ScoreHome, int? ScoreAway, int? RoundNo, int? MatchNo);
+        int? ScoreHome, int? ScoreAway, int? RoundNo, int? MatchNo,
+        DateTime? OriginalMatchOn, string? OriginalKickoff);
 
     private sealed record MatchI18nRow(Guid MatchId, string Locale, string? Opponent, string? Venue);
     private sealed record CompetitionI18nRow(Guid CompetitionId, string Locale, string? Name);
@@ -63,7 +66,7 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
                            m.match_on AS MatchOn, m.kickoff AS Kickoff, m.home_away AS HomeAway, m.opponent AS Opponent,
                            m.competition AS CompetitionTag,
                            m.status AS Status, m.score_home AS ScoreHome, m.score_away AS ScoreAway, m.round_no AS RoundNo,
-                           m.match_no AS MatchNo
+                           m.match_no AS MatchNo, m.original_match_on AS OriginalMatchOn, m.original_kickoff AS OriginalKickoff
                     FROM matches m
                     JOIN seasons se ON se.id = m.season_id
                     JOIN match_teams mt ON mt.match_id = m.id
@@ -189,6 +192,8 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
             ScoreAway = row.ScoreAway,
             RoundNo = row.RoundNo,
             MatchNo = row.MatchNo,
+            OriginalMatchOn = row.OriginalMatchOn is { } originalMatchOn ? DateOnly.FromDateTime(originalMatchOn) : null,
+            OriginalKickoff = row.OriginalKickoff,
         };
     }
 }

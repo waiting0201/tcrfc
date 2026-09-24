@@ -37,6 +37,10 @@ public partial class Match
 
     public int? MatchNo { get; set; }
 
+    public DateOnly? OriginalMatchOn { get; set; }
+
+    public string? OriginalKickoff { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

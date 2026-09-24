@@ -48,6 +48,9 @@ interface MatchItem {
   status: string | null
   roundNo: number | null
   matchNo: number | null
+  /** 僅賽事狀態為「延賽」時有值，其餘一律 `null`（規劃書 v3.13 §3.13） */
+  originalMatchOn: string | null
+  originalKickoff: string | null
 }
 
 const monthGroups = computed(() => {
@@ -490,6 +493,7 @@ useHead(() => (
                     <span class="fixture-card__round">第 {{ m.roundNo }} 輪</span>
                     <span :class="['status-pill', `status-pill--${mapMatchStatus(m.status).code}`]">{{ mapMatchStatus(m.status).label }}</span>
                   </div>
+                  <p v-if="postponedNote(m.originalMatchOn, m.originalKickoff)" class="fixture-card__postponed">{{ postponedNote(m.originalMatchOn, m.originalKickoff) }}</p>
                   <div class="fixture-card__matchup">
                     <template v-if="haCode(m.homeAway) === 'away'">
                       <span class="fx-side fx-side--them">
@@ -650,6 +654,7 @@ useHead(() => (
 .status-pill--live{ border-color:var(--brand-aa); color:var(--brand-aa); }
 .status-pill--finished{ border-color:var(--ink); color:var(--ink); }
 .status-pill--postponed, .status-pill--cancelled{ border-color:var(--brand-deep); color:var(--brand-deep); }
+.fixture-card__postponed{ font-size:.78rem; font-weight:700; color:var(--brand-deep); margin:-.35rem 0 .65rem; }
 
 .fixture-card__matchup{ display:flex; align-items:center; gap:1rem; margin-bottom:.65rem; }
 .fx-side{ display:flex; align-items:center; gap:.55rem; flex:1 1 0; min-width:0; }
