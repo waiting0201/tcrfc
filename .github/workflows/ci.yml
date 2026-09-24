@@ -195,6 +195,36 @@ jobs:
       - name: dotnet build（主專案，Release）
         run: dotnet build apps/api/Tcrfc.Api.csproj -c Release --no-restore
 
+      # ── EF Core migrations 基準健檢（S0-7j，docs/18-work-errors.md E-45）──────────────
+      # E-45 的根因：InitialBaseline 只 commit 了 .cs／.Designer.cs，ClubDbContextModelSnapshot.cs
+      # 從沒進版控，之後兩次改綱要（AdminRefreshToken／matches.original_*）都沒有補 migration，
+      # 因為缺 snapshot 這件事本身不會讓任何測試變紅。這裡補兩道檢查，任一失敗就擋 PR：
+      #   ① 有 Migrations/*.Designer.cs 卻沒有 ClubDbContextModelSnapshot.cs——代表 snapshot
+      #      被刪掉或忘記 commit，下一次 `dotnet ef migrations add` 會拿空模型當基準。
+      #   ② `dotnet ef migrations has-pending-model-changes`——目前程式碼裡的 Entity／
+      #      OnModelCreatingPartial 與最後一個 migration＋snapshot 描述的模型有沒有落差；
+      #      有落差代表某次改了 Entity 卻忘記補 migration（就是 e67ef26／S0-9l 那兩次的錯誤形狀）。
+      # 這道指令**不需要真的連得上資料庫**（只比對記憶體中的模型物件，不開連線），
+      # 但建置 DbContext 仍需要 CLUB_SQL_CONNECTION_STRING 這個設定鍵存在（否則 Program.cs
+      # 會在還沒到比對邏輯前就丟 InvalidOperationException），所以沿用同一個測試用連線字串。
+      # 驗收方式見 apps/api/README.md「EF Core migrations 基準健檢」：分別用「刪掉 snapshot」
+      # 「改模型不加 migration」兩種真實錯誤形狀跑過一次，兩種都讓這一步變紅，復原後變綠。
+      - name: EF Core migrations 基準健檢（snapshot 存在性 ＋ 模型與 snapshot 是否一致）
+        env:
+          CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+        run: |
+          set -euo pipefail
+          cd apps/api
+          if compgen -G "Data/Migrations/*.Designer.cs" > /dev/null; then
+            if [ ! -f "Data/Migrations/ClubDbContextModelSnapshot.cs" ]; then
+              echo "::error::存在 Migrations/*.Designer.cs 但找不到 Data/Migrations/ClubDbContextModelSnapshot.cs。" \
+                   "少了 snapshot，下一次 dotnet ef migrations add 會拿空模型當基準，見 docs/18-work-errors.md E-45。"
+              exit 1
+            fi
+          fi
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes --context ClubDbContext
+
       - name: dotnet test（Tcrfc.Api.Tests，接真正的 SQL Server 與 redis-server）
         env:
           CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"

@@ -234,6 +234,78 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 
 ⚠️ **Azure SQL Basic 層的自動備份（PITR）只保留 7 天**，這是唯一的救命索——`db-migrate.yml` 的 job summary 要把 `dotnet ef migrations script --idempotent` 的輸出貼出來，讓核准者在按 Approve 前真的看得到要跑什麼 SQL，不是盲按。
 
+### 🔴 新增 migration 的驗收：一定要跑一次「Probe」確認基準沒有偏移（`docs/18-work-errors.md` E-45）
+
+**背景**：`InitialBaseline`（S0-7f）建立時只 commit 了 `.cs`／`.Designer.cs`，`ClubDbContextModelSnapshot.cs`
+從沒進版控。少了 snapshot，`dotnet ef migrations add` 會拿**空模型**當比較基準，產出一個把整份綱要
+重建一遍的 migration——而且這個問題**不會讓任何測試變紅**（既有測試接的是用 `db/*.sql` 直接建好的
+資料庫，不經過 migration），純看 git 裡有沒有 `.cs` 檔完全看不出基準有沒有壞掉。之後兩次改綱要
+（`AdminRefreshToken`／`matches.original_*`，S0-7j 修復前）都因此繞過 migration，改用手改 scaffold
+檔＋手動 `ALTER TABLE`，讓「每次改動都是一個新 migration」這條路徑名存實亡。
+
+**驗收動作（每次新增 migration 都要做，不是只在修 E-45 這次做）**：
+
+```bash
+cd apps/api
+dotnet tool restore   # 本機工具清單 .config/dotnet-tools.json 釘住 dotnet-ef 版本，不依賴全域安裝
+dotnet ef migrations add <暫名 Probe> --context ClubDbContext -o Data/Migrations
+# 檢查產出的 <時間戳>_Probe.cs：Up()／Down() 必須是空的方法主體
+# 空的才代表「目前的 Entity／OnModelCreatingPartial」與「snapshot 記的模型」完全一致，沒有基準偏移
+dotnet ef migrations remove --context ClubDbContext
+```
+
+只看 git 裡有沒有 migration 檔不算驗證過——**要真的跑一次 `add`，看到空 `Up()/Down()`，再刪掉**，
+這才是在驗證「基準成立」。`docs/12-database-schema.md` 若同時有異動，要先確認 `db/club-schema.sql`
+與這裡產生的 migration 逐欄一致（型別、長度、NULL、預設值、索引、外鍵）——**不一致要回報給
+系統分析師或使用者裁決，不要自己決定哪邊對**（S0-7j 就實際挖到一個這種落差：EF 的
+`ForeignKeyIndexConvention` 會替沒有顯式設定索引的可為空外鍵欄位自動加一個非叢集索引，
+`admin_refresh_tokens.replaced_by_id` 因此在 migration／snapshot 裡多出
+`IX_admin_refresh_tokens_replaced_by_id`，但 `db/club-schema.sql` 沒有這個索引。**S0-7k 已裁決
+「依綱要為準」並修復**，見 [`apps/api/README.md`](../apps/api/README.md) 的「S0-7k」一節——
+單純呼叫 `Metadata.RemoveIndex(...)` 沒用，`ForeignKeyIndexConvention` 會自我修復補回去，正確做法
+是在 `ConfigureConventions` 換掉這個慣例的子類別。**掃過整個 snapshot 之後，確認這類「慣例產生、
+`db/club-schema.sql` 沒有」的未命名索引還有約 281 筆，遍布既有 143 張表（多半是 `created_by`／
+`updated_by`／`club_id` 審計與維度欄位）——這是 `InitialBaseline` 當初 scaffold＋慣例產生、
+從未逐欄核對過的既有落差，範圍遠大於這一筆，S0-7k 只處理了 `replaced_by_id` 這一筆，其餘保留
+現狀，只回報未處理**）。
+
+**🔴🔴🔴 `dotnet ef migrations remove --force` 對一支「已標記為套用」的 migration 會真的執行
+`Down()`，不是只刪檔案（S0-7k 實測踩到）**：上面的 Probe 流程本身安全（`add`／`remove` 一支
+從沒套用過的 migration 不會碰資料庫）；但如果要移除的是一支 `__EFMigrationsHistory` 已經有紀錄
+的既有 migration，`dotnet ef migrations remove` 預設會拒絕並提示先 revert；**加上 `--force` 之後，
+它會直接對連線中的資料庫執行該 migration 的 `Down()`（真的跑 `ALTER TABLE ... DROP COLUMN`／
+`DROP TABLE`），成功後才刪歷史紀錄與本機檔案**。S0-7k 實際在共用的 `tcrfc_club_dev` 上重現過：
+對已套用的 `AddMatchOriginalSchedule` 用 `--force` 移除，直接把另一個 agent 正在用的
+`matches.original_kickoff`／`original_match_on` 兩欄砍掉，發現後用重新 `add` 同名 migration
+＋`dotnet ef database update` 補回去才復原。**下手前務必確認：這支 migration 的 `Down()`
+會不會刪掉別人正在依賴的表或欄位；會的話，改成直接手改既有 migration／Designer／snapshot 三個
+檔案（讓檔案內容對齊資料庫現況），不要用 `--force` 硬刪重建**——`tcrfc_club_dev` 常有多個 agent
+同時在用，這條路徑的風險不是理論上的。
+
+### 🔴 CI 防呆：`ci.yml` 的 `api` job 擋掉基準偏移進 PR
+
+`.github/workflows/ci.yml` 的 `api` job 在 `dotnet build` 之後、`dotnet test` 之前加了一步
+「EF Core migrations 基準健檢」，兩道檢查缺一都會讓 PR 變紅：
+
+1. **存在性**：`apps/api/Data/Migrations/` 有任何 `*.Designer.cs` 卻找不到
+   `ClubDbContextModelSnapshot.cs`——代表 snapshot 被刪掉或忘記 commit，直接擋下（這是 E-45
+   最初的錯誤形狀，「檔案有沒有進 git」層級的防呆）。
+2. **模型一致性**：`dotnet ef migrations has-pending-model-changes --context ClubDbContext`——
+   比對目前程式碼的 Entity／`OnModelCreatingPartial` 與最後一個 migration＋snapshot 描述的模型，
+   有差異就代表某次改了 Entity 卻忘記補 migration（`e67ef26`／S0-9l 那兩次的錯誤形狀）。**這道指令
+   不需要真的連得上資料庫**（只比對記憶體中的模型物件），但建置 DbContext 仍需要
+   `CLUB_SQL_CONNECTION_STRING` 這個設定鍵存在（否則 `Program.cs` 會在比對邏輯之前就丟例外），
+   CI 沿用同一個測試用連線字串。
+
+**驗收（用真的錯誤形狀測過會紅，兩種都測過）**：① 暫時刪掉 `ClubDbContextModelSnapshot.cs` →
+存在性檢查失敗退出碼 1；復原後綠。② 在 `ClubDbContextCustomizations.cs` 的
+`OnModelCreatingPartial` 暫時加一行 `modelBuilder.Entity<Article>().HasIndex(...)`（改模型但不加
+migration）→ `has-pending-model-changes` 印出「Changes have been made to the model since the
+last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後恢復綠。**這道 CI 步驟需要
+`dotnet ef` 這個工具**——`apps/api/.config/dotnet-tools.json`（S0-7j 新增的本機工具清單）釘住
+版本，CI 步驟本身先跑 `dotnet tool restore` 再呼叫，不假設 runner 上已經有全域安裝的
+`dotnet-ef`。
+
 ---
 
 ## 6. 失敗與回滾
