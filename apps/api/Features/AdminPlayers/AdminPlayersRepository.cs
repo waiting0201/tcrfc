@@ -83,13 +83,19 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
     /// <summary>🔴 建立一律歸屬 <paramref name="scope"/> 當下的俱樂部（<c>players.club_id</c> 必填），
     /// <paramref name="request"/>.TeamId 必須是這個俱樂部自己的球隊——見 <see cref="ResolveTeamAsync"/>。</summary>
     public async Task<AdminPlayerDetailDto> CreateAsync(
-        AdminClubScope scope, Guid playerId, CreateAdminPlayerRequest request, string? photoKey, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, TeamRowScope rowScope, Guid playerId, CreateAdminPlayerRequest request, string? photoKey, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStatus(request.Status);
         ValidatePortraitConsentStatus(request.PortraitConsentStatus);
         ValidateContent(request.Content);
         ValidateNumericRanges(request.ShirtNo, request.HeightCm, request.WeightKg);
         var team = await ResolveTeamAsync(scope, request.TeamId, cancellationToken);
+
+        // 🔴 S1-8 新增：列級授權——球員必屬於某支球隊（team_id 必填），直接用該球隊檢查即可。
+        if (!rowScope.Allows(team.Id, team.Type))
+        {
+            throw new AdminForbiddenException("你的球隊授權範圍不允許在這支球隊底下建立球員。");
+        }
 
         var now = DateTime.UtcNow;
         var player = new Player
@@ -129,7 +135,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
     }
 
     public async Task<AdminPlayerDetailDto?> UpdateAsync(
-        AdminClubScope scope, Guid id, UpdateAdminPlayerRequest request, PhotoKeyUpdate photoUpdate, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, TeamRowScope rowScope, Guid id, UpdateAdminPlayerRequest request, PhotoKeyUpdate photoUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStatus(request.Status);
         ValidatePortraitConsentStatus(request.PortraitConsentStatus);
@@ -137,6 +143,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         ValidateNumericRanges(request.ShirtNo, request.HeightCm, request.WeightKg);
 
         var player = await dbContext.Players
+            .Include(p => p.Team)
             .Include(p => p.PlayersI18ns)
             .FirstOrDefaultAsync(p => p.Id == id && p.ClubId == scope.ClubId, cancellationToken);
 
@@ -145,7 +152,19 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             return null;
         }
 
+        // 🔴 S1-8 新增：既有球隊（改隊之前）與目標球隊都要允許——避免 academy_only 範圍的帳號
+        // 先看到一位一線隊球員就無法比對，或反過來把一位學院球員轉調到一線隊藉此逃脫範圍限制。
+        if (!rowScope.Allows(player.TeamId, player.Team.Type))
+        {
+            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這位球員。");
+        }
+
         var team = await ResolveTeamAsync(scope, request.TeamId, cancellationToken);
+
+        if (!rowScope.Allows(team.Id, team.Type))
+        {
+            throw new AdminForbiddenException("你的球隊授權範圍不允許把球員指派到這支球隊。");
+        }
 
         player.TeamId = team.Id;
         player.ShirtNo = request.ShirtNo;

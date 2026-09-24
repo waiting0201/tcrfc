@@ -89,11 +89,12 @@ public static class AdminTeamsEndpoints
         // POST /api/v1/admin/{club}/teams —— multipart/form-data（payload ＋ 選填 file 主視覺）。
         group.MapPost("", async (
             string club, HttpRequest httpRequest, HttpContext httpContext,
-            IAdminClubAuthorizer authorizer, AdminTeamsRepository repository,
+            IAdminClubAuthorizer authorizer, IAdminTeamRowScopeResolver rowScopeResolver, AdminTeamsRepository repository,
             IImageStorageService imageStorage, IOptions<JsonOptions> jsonOptions,
             CancellationToken cancellationToken) =>
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionTeamCreate, cancellationToken);
+            var rowScope = await rowScopeResolver.ResolveAsync(scope, PermissionTeamCreate, cancellationToken);
             var operatorId = scope.Identity.AdminUserId;
 
             var (request, file) = await AdminTeamRequestForm.ReadAsync<CreateAdminTeamRequest>(
@@ -110,7 +111,7 @@ public static class AdminTeamsEndpoints
 
             try
             {
-                var created = await repository.CreateAsync(scope, teamId, request, heroKey, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(scope, rowScope, teamId, request, heroKey, operatorId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/teams/{created.Id}", created);
             }
             catch
@@ -136,11 +137,12 @@ public static class AdminTeamsEndpoints
 
         group.MapPut("/{id:guid}", async (
             string club, Guid id, HttpRequest httpRequest, HttpContext httpContext,
-            IAdminClubAuthorizer authorizer, AdminTeamsRepository repository,
+            IAdminClubAuthorizer authorizer, IAdminTeamRowScopeResolver rowScopeResolver, AdminTeamsRepository repository,
             IImageStorageService imageStorage, IOptions<JsonOptions> jsonOptions,
             CancellationToken cancellationToken) =>
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionTeamUpdate, cancellationToken);
+            var rowScope = await rowScopeResolver.ResolveAsync(scope, PermissionTeamUpdate, cancellationToken);
             var operatorId = scope.Identity.AdminUserId;
 
             var (request, file) = await AdminTeamRequestForm.ReadAsync<UpdateAdminTeamRequest>(
@@ -171,7 +173,7 @@ public static class AdminTeamsEndpoints
 
             try
             {
-                var updated = await repository.UpdateAsync(scope, id, request, heroUpdate, operatorId, cancellationToken);
+                var updated = await repository.UpdateAsync(scope, rowScope, id, request, heroUpdate, operatorId, cancellationToken);
                 if (updated is null)
                 {
                     if (uploadedKey is not null)

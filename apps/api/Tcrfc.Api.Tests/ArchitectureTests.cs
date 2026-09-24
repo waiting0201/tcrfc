@@ -65,6 +65,9 @@ public sealed class ArchitectureTests
         // 本輪新增（S1-3 J1／J2／J4）：AdminSystemScope 是同一套「型別層強制授權」的第三個型別，
         // 見 Security/AdminSystemScope.cs 上的說明——沒有理由讓它逃過同一道 Roslyn 語意掃描。
         "Tcrfc.Api.Security.AdminSystemScope",
+        // S1-8 新增（列級授權強制）：TeamRowScope 是同一套「型別層強制授權」的第四個型別，
+        // 見 Security/TeamRowScope.cs 檔頭「取捨」段——沒有理由讓它逃過同一道 Roslyn 語意掃描。
+        "Tcrfc.Api.Security.TeamRowScope",
     ];
 
     private static string RepoRoot([CallerFilePath] string thisFilePath = "")
@@ -84,6 +87,7 @@ public sealed class ArchitectureTests
             Path.Combine(apiDir, "Security", "AdminClubAuthorizer.cs"),  // AdminClubScope 的唯一產生者
             Path.Combine(apiDir, "Security", "ClubResolver.cs"),         // ClubScope 的唯一產生者
             Path.Combine(apiDir, "Security", "AdminSystemAuthorizer.cs"), // AdminSystemScope 的唯一產生者
+            Path.Combine(apiDir, "Security", "AdminTeamRowScopeResolver.cs"), // TeamRowScope 的唯一產生者
         };
 
         var sourceFiles = Directory.EnumerateFiles(apiDir, "*.cs", SearchOption.AllDirectories)

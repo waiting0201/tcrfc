@@ -1966,6 +1966,300 @@ dotnet ef migrations has-pending-model-changes --context ClubDbContext
 
 ---
 
+## S1-8：`C4` 賽程與賽果／積分榜 ＋ 列級授權強制（`own_teams`／`academy_only`）（2026-09-24，`backend-engineer`）
+
+### 讀到的規劃書條文
+
+| 章節 | 行號 | 內容 |
+|---|---|---|
+| 主站 §4.3 C4 | 1074–1078 | 賽事欄位（含 v3.12 場次編號、v3.13 原定日期時間）、結果（比分、進球者與時間、卡牌、出賽名單）、積分榜、**全部人工維護、CSV 整季匯入** |
+| 主站 §3.13 | 586–708 | 隊別分類（跨梯隊友誼賽可複選）、賽事卡片狀態標記（**含「取消」，與 C4 不一致，見下方「缺口」**） |
+| 主站 §5.1 型別總表 | 1480–1481 | `Match`（含 v3.13 原定日期時間欄位）、`Standing` |
+| 主站 §6 權限矩陣 | 1597–1645 | 「球隊／賽事」欄逐角色分佈；`academy_program` 備註「賽事權限限 `scope_type=academy_only`」 |
+| docs/12b §7.1／§7.1b／§7.4 | 161–249 | `AdminUserTeam` 機制、資料範圍執行期規則、`scope_type` 值域與矩陣對照 |
+| docs/12b §10.1 | 393–405 | CSV 匯入項目：整季賽程→`Match`（＋`MatchTeam`、`match_i18n`）、積分榜→`Standing` |
+| docs/12b §11.1／§11.3 | 437–486、498–517 | 無 `match_no` 唯一鍵（應用層自行檢查）、`match_*` 子表皆 `ON DELETE CASCADE` |
+| db/club-schema.sql `matches` 表註解 | 782–814 | `match_no` 業務唯一鍵範圍未定案，交後台驗證；`original_match_on`／`original_kickoff` 只在延賽時有值，交表單驗證 |
+
+### 端點與權限碼
+
+兩組俱樂部範圍 CRUD，module_code=C、submodule_code=C4、domain=`team`（跟既有 `team.team.*` 等
+同一個 domain）：
+
+| 模組 | 路由 | 權限碼 | 列級授權 |
+|---|---|---|---|
+| C4 賽程與賽果 | `GET/POST /api/v1/admin/{club}/matches`、`GET/PUT/DELETE /api/v1/admin/{club}/matches/{id}`、`POST /api/v1/admin/{club}/matches/import`（CSV） | `team.match.view`／`.create`／`.update`／`.delete` | ✅ 套用 `TeamRowScope`（含 CSV 匯入逐列） |
+| C4 積分榜 | `GET/POST /api/v1/admin/{club}/standings`、`GET/PUT/DELETE /api/v1/admin/{club}/standings/{id}`、`POST /api/v1/admin/{club}/standings/import`（CSV，整季替換） | `team.standing.view`／`.create`／`.update`／`.delete` | ❌ **刻意不套**，見下方「為什麼積分榜不做列級授權」 |
+
+**有 DELETE**（與 C1–C3 刻意不同）：賽事是純資料紀錄，不是「人」，沒有「離隊」這種需要保留歷史
+狀態的語意，資料輸入錯誤直接刪掉重建即可；`match_goals`／`match_cards`／`match_lineups`／
+`match_teams`／`matches_i18n` 皆為 `ON DELETE CASCADE`（docs/12b §11.3），刪主表列即完整清除。
+
+**角色授予**（依主站規劃書 §6 矩陣「球隊／賽事」欄，`db/seed/generate-club-seed-sql.py` 已更新）：
+
+| 角色 | `team.match.*` | `team.standing.*` |
+|---|---|---|
+| 系統管理員 | ✔ 全（`scope_type=all`） | ✔ 全 |
+| 競技／球隊管理 | ✔ 全（`all`） | ✔ 全 |
+| 商務／贊助、公關／媒體、檢視者 | 唯讀（`all`） | 唯讀 |
+| 合作球隊管理 | ✔ 自家全權限（`own_clubs`） | ✔ 自家全權限 |
+| **學院／課程管理**（本輪補上，見下方） | ✔ 全，但 `scope_type=academy_only` | **不指派**（見下方原因） |
+| 客服／行政、翻譯人員 | — | — |
+
+🔴 **`academy_program` 本輪一併補上 `team.team.*`／`team.player.*`／`team.staff.*`**（S1-3、S1-7
+兩輪刻意保留，因為列級強制的執行機制當時還不存在）：四組權限碼全部改為 `scope_type=academy_only`，
+現在 `TeamRowScope`／`AdminTeamRowScopeResolver` 已經把這個值真的落實成資料過濾，開放的前提
+成立。
+
+### 🔴 列級授權的設計與生效範圍
+
+**問題**：`role_permissions.scope_type` 這個欄位在 `S1-3`／`S1-7` 兩輪都只是「種進去但沒人讀」的
+資料（`PermissionChecker.HasPermissionAsync` 只判斷「有沒有這個權限碼」，不管 `scope_type`
+是什麼值）。本輪把它接上真正的執行邏輯。
+
+**與既有 `AdminClubScope`／`ArchitectureTests` 型別層強制一致（含取捨說明）**：
+
+新增 `Security/TeamRowScope.cs`（`sealed class`，`internal` 建構子）＋
+`Security/IAdminTeamRowScopeResolver.cs`／`AdminTeamRowScopeResolver.cs`（唯一產生者），
+套用與 `AdminClubScope`／`AdminSystemScope` 完全相同的三層防護（`ArchitectureTests` 已擴充
+納入 `TeamRowScope`，允許清單只加 `AdminTeamRowScopeResolver.cs`）：
+1. `sealed class` 不是 `readonly struct`——擋 `default`／`default(T)` 繞過建構子。
+2. 建構子 `internal`，只有 `AdminTeamRowScopeResolver` 能造實例。
+3. `ArchitectureTests` 的 Roslyn 語意掃描納入這個型別。
+
+**取捨（誠實說明為什麼值得付這筆成本）**：`AdminClubScope` 擋的是「能不能碰這個俱樂部」，繞過
+等於跨俱樂部資料外洩；`TeamRowScope` 擋的是「同一個俱樂部內能不能碰特定球隊」，繞過的後果是
+「學院管理者改到一線隊賽程」這種**權限逾越**，嚴重度較低。但這個機制會被 C1／C2／C3／C4
+四個模組共用（見下方逐一列出），共用機制一旦有漏洞影響面是四個模組一起漏，值得付同一筆型別層
+防護成本，而不是退回「repository 自己記得呼叫檢查方法」（後者在四個模組裡有任何一處忘記呼叫，
+防線就整個消失且不會有任何測試或工具能自動抓到）。
+
+**執行序**：`IAdminClubAuthorizer.AuthorizeAsync` 先確認「這個人對這個俱樂部有沒有授權、有沒有
+這個權限碼」（既有機制不變）→ 再呼叫 `IAdminTeamRowScopeResolver.ResolveAsync(scope,
+permissionCode)` 針對**這個具體權限碼**算出 `TeamRowScope`——同一個人對不同權限碼可能有不同
+`scope_type`，故每次呼叫都要帶著具體權限碼查，不能快取共用。
+
+**`TeamRowScope` 的三個判斷方法**（供四個模組依資源形狀選用）：
+
+| 方法 | 用途 | 用在哪 |
+|---|---|---|
+| `Allows(teamId, teamType)` | 單一既有球隊資源 | C1 更新既有球隊本身、C2 球員的 `team_id`、C4 賽事逐一關聯球隊 |
+| `AllowsAll(IReadOnlyCollection<(TeamId, TeamType)>)` | 多筆關聯，任何一筆不通過整體就不通過；**空集合視為不通過**（fail-closed） | C3 教練的 `staff_teams`（可能同時帶多個梯隊）、C4 賽事的 `match_teams`（跨梯隊友誼賽可複選） |
+| `AllowsCreatingTeamOfType(newTeamType)` | 建立**全新**球隊（沒有既有 id 可比對） | C1 建立球隊：`own_teams` 範圍一律不能新建（現實對應：被個別指派特定梯隊的帳號不該有新建球隊這種俱樂部層級操作）；`academy_only` 範圍只能建 `academy` 類型 |
+
+**`own_teams`／`academy_only` 的組裝邏輯**（`AdminTeamRowScopeResolver.ResolveAsync`）：
+- 任一角色的這個權限碼是 `all`（或 `own_clubs`，見下方發現）→ `IsUnrestricted=true`，其餘分支
+  略過。
+- 否則把 `academy_only`（設 `AllowsAcademyBlanket=true`，比對時看球隊的 `teams.type` 是否為
+  `academy`，不用先查一份「全部 academy 球隊 id」的清單）與 `own_teams`（查 `admin_user_teams`
+  中 `is_active` 且 `expires_on` 未到期的 `team_id` 集合）**聯集**——同一個人可能同時因為不同
+  角色分別拿到這兩種授權方式。
+- 查無任何 `scope_type`（理論上不會發生，因為呼叫端已經先過權限碼檢查）→ **fail-closed**（完全
+  限制），不是預設放行。
+
+**🔴 意外發現並修正的既有落差**：`db/seed/generate-club-seed-sql.py` 對 `partner_club_manager`
+既有的全部 `ROLE_PERMISSIONS` 指派用的是 `scope_type="own_clubs"`（docs/12b §7.1 明文
+「`RolePermission: scope_type` 加值 `own_clubs`」，但 §7.4 那張「`scope_type` 是矩陣裡不是布林
+的格子」對照表只列了 `own_teams`／`academy_only`／`masked`／`translate_only` 四個，沒有把
+`own_clubs` 收進去——**兩段自相矛盾**）。若 `AdminTeamRowScopeResolver` 沒有特別處理
+`own_clubs`，會被下面的 fail-closed 分支誤判為「查無有效 `scope_type`」而整批拒絕，**合作球隊
+管理角色會變成完全無法操作任何球隊、球員、教練、賽事資料**——這個 bug 在本輪列級強制真正接上
+執行邏輯之前完全不會顯現（`scope_type` 以前沒人讀）。**已修正**：`own_clubs` 在
+`AdminTeamRowScopeResolver` 裡視同 `all`（不限）——它標記的是「club 層級」的範圍（已經由
+`IAdminClubAuthorizer` 的 `AdminUserClub` 檢查在更上一層擋住），不是「同一個俱樂部內部」要不要
+再對球隊窄化，兩者是不同層次的問題。**已用 `列級授權_own_teams_只能碰admin_user_teams授權的球隊`
+之外的既有 `AdminClubsAndCompetitionsTests`／`AdminTeamsPlayersStaffTests` 對 `partner_club_manager`
+的既有測試回歸驗證行為未變**。建議 `system-analyst` 之後把 `own_clubs` 也正式收進 docs/12b §7.4
+的表格，消除這個文件內部矛盾。
+
+**逐一列出生效範圍（哪些端點套了列級授權）**：
+
+| 端點 | 檢查點 |
+|---|---|
+| C1 `POST /teams` | `AllowsCreatingTeamOfType(request.Type)` |
+| C1 `PUT /teams/{id}` | 既有球隊 `Allows(id, 目前type)`；若改類型，新類型另外過 `AllowsCreatingTeamOfType` |
+| C2 `POST /players` | 目標球隊 `Allows(teamId, teamType)` |
+| C2 `PUT /players/{id}` | 既有球隊與目標球隊**都要** `Allows` |
+| C3 `POST /staff` | 全部指派球隊 `AllowsAll`（空清單視為不通過） |
+| C3 `PUT /staff/{id}` | 既有指派球隊 `AllowsAll`；若提供新的 `Teams`，新清單也要 `AllowsAll` |
+| C4 `POST /matches`、`PUT /matches/{id}`、`DELETE /matches/{id}` | 全部關聯球隊 `AllowsAll`（PUT 額外檢查既有關聯與新關聯兩份清單） |
+| C4 `POST /matches/import`（CSV） | 逐列在驗證階段就套用 `AllowsAll`，不合格視同一種列驗證錯誤（回傳在 `Errors` 裡，不是 403） |
+| C4 積分榜（全部端點） | ❌ 不套用，見下一節 |
+
+**C1–C3 這輪一併套上（任務指示「若 C1–C3 寫入端點也該套同一強制，一併套上並測試」）**：
+`AdminTeamsRepository.CreateAsync`／`UpdateAsync`、`AdminPlayersRepository.CreateAsync`／
+`UpdateAsync`、`AdminStaffRepository.CreateAsync`／`UpdateAsync` 六個方法簽章都加了
+`TeamRowScope rowScope` 參數，對應六個端點（`AdminTeamsEndpoints`／`AdminPlayersEndpoints`／
+`AdminStaffEndpoints` 各自的 POST／PUT）都改成先呼叫 `IAdminTeamRowScopeResolver.ResolveAsync`
+再把結果傳進 repository。**只套寫入端點，沒有套 GET／list**——任務原文明確寫「寫入端點」，
+列表／檢視的列級過濾（例如讓 `academy_program` 的球隊清單只顯示學院梯隊）留給下一輪視需求決定，
+不在本輪自行擴大範圍。
+
+### 為什麼積分榜（`Standing`）不套列級授權
+
+`standings` 表的欄位是 `(club_id, season_id, team_name, rank, played, points)`——`team_name`
+是**自由文字**（docs/12-database-schema.md §12 第 24 點：「`Team` 只放本會四隊，積分榜其餘球隊
+是 `team_name` 字串」），**沒有任何欄位指向本方 `teams.id`**。列級授權需要知道「這一列屬於哪支
+本方球隊」才能判斷 `academy_only`／`own_teams` 准不准碰，這張表的結構完全無法回答這個問題——
+一份積分榜代表整個聯賽的排名表（本方與對手同列並陳），不是「本方某支球隊的積分」。實務上目前
+只有一線隊（企業甲組聯賽）有真正的積分榜需求（規劃書 3.1「Results & Standings」只出現在
+FOOTBALL CLUB／一線隊頁），因此本輪判斷：**寧可不開放給 `academy_program`，也不要開放了卻擋不住**
+——`db/seed/generate-club-seed-sql.py` 沒有把 `team.standing.*` 指派給 `academy_program`。
+若日後真的要讓學院管理者也維護學院賽事的積分榜，`standings` 需要先加一個可為空的 `team_id`
+外鍵——**這是本次回報的綱要缺口，本輪未動手加欄位**（見下方「綱要缺口或待裁決」）。
+
+### CSV 格式
+
+**賽程**（`POST /matches/import`，`text/csv` 原始位元組，UTF-8 BOM，中文表頭，**整批新建，不是
+upsert**——見 `AdminMatchesRepository.ImportCsvAsync` 檔頭「為什麼不做 upsert」的完整說明：
+`matches` 沒有穩定的自然鍵可以拿來判斷「這是不是同一場賽事」）：
+
+```
+所屬球隊,賽季代碼,賽事系列代碼,日期,時間,主客場,對手,對手英文,場地,場地英文,賽事類型,場次編號,輪次,狀態
+D1,2026-27,enterprise-a,2026-11-01,19:00,主場,高雄先鋒,,楠梓足球場,,聯賽,3,1,未開始
+```
+
+- **所屬球隊**：`Team.code`（全站唯一），多支用全形頓號「、」相接（跨梯隊友誼賽）。
+- **賽事系列代碼**可留空。**主客場**：`主場`／`客場`／留空（對應 `HOME`／`AWAY`）。**賽事類型**：
+  `聯賽`／`盃賽`／`友誼賽`／`其他`／留空（對應 `league`／`cup`／`friendly`／`other`）。**狀態**：
+  `未開始`／`進行中`／`已結束`／`延賽`（對應 `scheduled`／`live`／`played`／`postponed`，見下方
+  值域說明）。
+- 🔴 **整批驗證，任一列有錯就整批不寫入**；列級授權不通過視同一種驗證錯誤（回在 `Errors` 裡）；
+  場次編號同時檢查「檔案內部不重複」與「資料庫既有列不重複」；**不寫入任何 log 表**（`E-44`）。
+
+**積分榜**（`POST /standings/import`，**整季替換，不是逐列 upsert**——見
+`AdminStandingsRepository.ImportCsvAsync` 檔頭說明：積分榜每週滾動更新，最常見維護方式是把
+官方聯賽網站最新排名表整份複製貼上，沒有穩定自然鍵可以逐列比對）：
+
+```
+賽季代碼,名次,球隊名稱,出賽場次,積分
+2026-27,1,台中磐石,10,28
+```
+
+一份檔案只能包含同一個賽季（表頭下每列的賽季代碼必須一致，混雜視為驗證錯誤）；匯入成功會**先
+刪除這個賽季的全部既有列，再整批寫入新內容**（同一個交易，驗證失敗完全不影響既有資料）。
+
+### 🔴 `matches.status` 值域定案（規劃書沒有給列舉代碼，本輪第一次定案）
+
+`scheduled`（未開始）／`live`（進行中）／`played`（已結束）／`postponed`（延賽）——逐字沿用種子
+資料與既有測試已經在用的三個真實字串（`generate-club-seed-sql.py` 的 `scheduled`／`played`，
+`ScheduleOriginalDateTests.cs` 的 `postponed`），只新增 `live`。
+
+### 延賽驗證與場次編號唯一
+
+- **延賽須填原定日期**（主站規劃書 §3.13／§4.3 C4）：`status='postponed'` 時 `OriginalMatchOn`
+  必填；非 `postponed` 時 `OriginalMatchOn`／`OriginalKickoff` 必須是空的，不留矛盾資料。
+- **場次編號同季同聯賽唯一**：`matches.match_no` 沒有 DB 唯一索引（docs/12b §11.1 只列五個維持
+  全站唯一的既有唯一鍵，這條是本輪新增的業務規則），在 `AdminMatchesRepository` 應用層查詢比對
+  `(club_id, season_id, competition_id, match_no)`；`competition_id` 為 `null` 時只跟同樣沒掛
+  賽事系列的賽事比較。
+
+### 進球／卡牌／出賽名單（`match_goals`／`match_cards`／`match_lineups`）
+
+規劃書 C4「結果：比分、進球者與時間、卡牌、出賽名單」明文要求，本輪內嵌在 `Match` 的
+`Create`／`UpdateAdminMatchRequest`（`Goals`／`Cards`／`Lineups` 三個可省略陣列，省略＝維持
+不變、提供（含空陣列）＝整份取代，逐字比照 `AdminStaffRepository.UpdateAsync` 對 `Teams` 的既有
+語意），不另開三組獨立 CRUD 端點——這三張表天生依附在一場賽事底下，沒有脫離賽事單獨檢視或編輯
+的使用情境。**進球者／掛牌者／出賽者的球員必須是這場賽事其中一支所屬球隊底下的球員**
+（`AdminMatchesRepository.ResolveMatchPlayerAsync`）——這同時是資料正確性檢查，也順帶把球員限制
+在已經通過列級授權的球隊範圍內，不需要對球員另開一次 `TeamRowScope` 檢查。**`player_season_stats`
+（球員賽季數據）本輪不做**：規劃書 C2 原文「可手動輸入或由賽事自動彙總」是兩種都合法的設計，
+不是 C4 的欄位（是 C2 的），且没有自動彙總機制時另開一組手動輸入端點會製造「跟 `match_goals`／
+`match_cards` 兩份資料源各自維護、容易失準」的風險——建議下一輪從 `match_goals`／`match_cards`
+自動彙總，而不是另開手動輸入端點，已列入回報。
+
+### 公開唯讀
+
+`GET /api/v1/{club}/schedule`（既有 `Features/Schedule/MatchesEndpoints.cs`）**完全未改動**，向後
+相容；寫入後呼叫既有 `IQueryCache.InvalidateAsync("schedule", clubCode)`（同一個快取實體，跟
+`AdminTeamsRepository` 對 `teams` 實體的既有做法一致）。**積分榜沒有新增公開端點**——規劃書
+§3.13 與首頁區塊都沒有明確要求獨立的積分榜公開 API（球隊詳情頁面若要顯示積分榜，屬於前台頁面
+S1-15／S1-19 那一輪的範圍，這裡只確保後台資料已經備妥），暫不新增，需要時再依實際頁面需求評估
+要不要加、要不要接快取。
+
+### 改了哪些檔案
+
+新增：
+- `Security/TeamRowScope.cs`／`IAdminTeamRowScopeResolver.cs`／`AdminTeamRowScopeResolver.cs`
+- `Features/AdminMatches/`（`AdminMatchDtos.cs`／`AdminMatchExceptions.cs`／
+  `AdminMatchesRepository.cs`／`AdminMatchesEndpoints.cs`）
+- `Features/AdminStandings/`（`AdminStandingDtos.cs`／`AdminStandingExceptions.cs`／
+  `AdminStandingsRepository.cs`／`AdminStandingsEndpoints.cs`）
+- `Tcrfc.Api.Tests/AdminMatchesAndStandingsTests.cs`（18 項）
+
+修改：
+- `Features/AdminTeams/AdminTeamsRepository.cs`／`AdminTeamsEndpoints.cs`（列級授權）
+- `Features/AdminPlayers/AdminPlayersRepository.cs`／`AdminPlayersEndpoints.cs`（列級授權）
+- `Features/AdminStaff/AdminStaffRepository.cs`／`AdminStaffEndpoints.cs`（列級授權）
+- `Common/ApiExceptionHandler.cs`（新增例外對照）
+- `Program.cs`（DI 註冊、路由掛載）
+- `Tcrfc.Api.Tests/ArchitectureTests.cs`（`TeamRowScope` 納入型別層強制掃描）
+- `db/seed/generate-club-seed-sql.py`（`team.match.*`／`team.standing.*` 權限碼、角色指派、
+  `academy_program` 補回 C1–C3、新增 `academy.manager@tcrfc.test` 測試帳號）
+
+### 契約變更
+
+- 新增 8 個權限碼（`team.match.*` 四個、`team.standing.*` 四個），DML 已套用到本機 `tcrfc_club_dev`
+  （`./db/seed/apply-seed.sh`）。
+- `academy_program` 角色新增 7 個權限碼指派（`team.team.*`／`team.player.*`／`team.staff.*`／
+  `team.match.*`，皆為 `academy_only`）。
+- 新增測試帳號 `academy.manager@tcrfc.test`（密碼 `ContentEditor@123`，沿用既有雜湊）——**只授權
+  `bw`**，因為 `tcrfc` 目前只有 `D1`（`first_team`），沒有任何 `academy` 球隊可測。
+- **未動 `db/club-schema.sql`、未加 migration**——全部是既有欄位（`matches.match_no`／
+  `original_match_on`／`original_kickoff` 皆已由 `S1-7a`／既有 DDL 提供）與 DML。
+
+### 測試結果
+
+`Tcrfc.Api.Tests/AdminMatchesAndStandingsTests.cs` 新增 18 項：401／403／唯讀角色擋建立、CRUD
+成功案例（建立／取得／更新／刪除、硬刪除後 404）、狀態值域與對手必填驗證、延賽三種情境（缺原定
+日期擋下、非延賽夾原定日期擋下、合法延賽成功）、場次編號同季同聯賽唯一（含更新排除自己不誤判）、
+**`academy_only` 列級授權**（學院梯隊成功、一線隊 403、跨梯隊混合整筆擋下、既有一線隊賽事無法
+修改／刪除、防止把既有學院賽事改指派到一線隊逃脫範圍）、**`own_teams` 列級授權**（用
+`WithTemporaryScopeTypeAsync` 直接改一筆既有 `role_permissions.scope_type` 示範機制本身：
+未授權前擋下、授權後成功、授權到期後視同未授權再度擋下，測完還原）、CSV 匯入成功案例、CSV 整批
+驗證（一列有錯整批不寫入，含行號核對）、CSV 場次編號檔案內重複、CSV 列級授權（`academy_only`
+帳號匯入含一線隊代號的 CSV，回報列級授權錯誤而非其他錯誤）、積分榜 CRUD、積分榜 CSV 整季替換、
+積分榜 CSV 混雜賽季代碼擋下、公開賽程端點向後相容。
+
+```
+dotnet test Tcrfc.Api.Tests --filter "FullyQualifiedName~AdminMatchesAndStandingsTests" --no-build
+已通過! - 失敗: 0，通過: 18，總計: 18（連跑 10 次，每次都是 0 失敗）
+
+dotnet test Tcrfc.Api.Tests --no-build
+已通過! - 失敗: 0，通過: 341，總計: 341（既有 323 ＋本輪 18）
+
+dotnet test Tcrfc.Api.Tests --filter "FullyQualifiedName~ArchitectureTests" --no-build
+已通過! - 失敗: 0，通過: 1
+
+dotnet ef migrations has-pending-model-changes --context ClubDbContext
+No changes have been made to the model since the last migration.
+```
+
+跑前跑後各執行一次 `./db/seed/reset-admin-accounts.sh`（第一次全套測試撞到 3 項
+`AdminAuthTests` 失敗——`clean.login@tcrfc.test` 的密碼／2FA 狀態被同時進行的前端端對端驗收
+弄髒，重設後全數轉綠，跟本輪程式碼改動無關）。
+
+### 🔴 綱要缺口或待裁決（規劃書／docs/12 答不出來，回報請人工裁決）
+
+1. **`standings` 沒有 `team_id` 可以做列級授權**——見上方「為什麼積分榜不套列級授權」。若之後
+   要讓學院管理者維護學院賽事積分榜，需要加一個可為空的 `team_id` 外鍵（未動手加）。
+2. **`matches.status` 值域：`§3.13` 有「取消」、`§4.3 C4` 沒有**——本輪照 C4（欄位定義的權威
+   章節）為準，只定案 `scheduled`／`live`／`played`／`postponed` 四個值，不含「取消」。若確認
+   需要「取消」語意（跟延賽不同——延賽是改期，取消是不會再打），需要先補規格再加值域，本輪
+   沒有自創。
+3. **`player_season_stats`（球員賽季數據）本輪未實作**——規劃書 C2 允許「手動輸入或由賽事自動
+   彙總」兩種設計，本輪判斷手動輸入端點會跟 `match_goals`／`match_cards` 兩份資料源不同步，
+   建議下一輪改做「從 `match_goals`／`match_cards` 自動彙總」，不是另開手動 CRUD。
+4. **docs/12b §7.1／§7.4 對 `own_clubs` 這個 `scope_type` 值的收錄不一致**——§7.1 明文加值、
+   §7.4 對照表沒收錄，本輪已在程式碼層修正（視同 `all`），建議 `system-analyst` 之後把 §7.4
+   的表格也補上這個值，避免下一個人重新調查一次同樣的事。
+5. **`own_teams` 這個 `scope_type` 目前沒有任何角色的任何權限碼真的採用**——規劃書 §7.4 把它
+   綁在尚未建置的 L 行事曆模組（「賽事事件」「梯隊賽事」兩格）。本輪的測試因此用直接改
+   `role_permissions` 示範機制本身（測完還原），機制已經可用，等 L 模組（`S1-11`）真的需要時
+   直接指派即可，不需要再改程式碼。
+
+---
+
 ## 目錄結構
 
 ```

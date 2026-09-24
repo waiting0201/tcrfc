@@ -81,12 +81,22 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
     /// <summary>🔴 建立一律歸屬 <paramref name="scope"/> 當下的俱樂部，不接受建立共同
     /// （<c>club_id</c> 為空）資料——見本檔 <c>CreateAdminStaffRequest</c> 上的說明。</summary>
     public async Task<AdminStaffDetailDto> CreateAsync(
-        AdminClubScope scope, Guid staffId, CreateAdminStaffRequest request, string? photoKey, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, TeamRowScope rowScope, Guid staffId, CreateAdminStaffRequest request, string? photoKey, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStaffGroup(request.StaffGroup);
         ValidatePortraitConsentStatus(request.PortraitConsentStatus);
         ValidateContent(request.Content);
         var teams = await ResolveTeamsAsync(scope, request.Teams ?? [], cancellationToken);
+
+        // 🔴 S1-8 新增：列級授權——教練／團隊成員可能同時帶多個梯隊（見 TeamRowScope.AllowsAll
+        // 上的說明），任何一個指派的球隊不在範圍內就整筆擋下。**沒有指派任何球隊也擋下**
+        // （行政／醫療這類無球隊歸屬的職務，範圍受限帳號不得建立）——這是 fail-closed 的必然結果，
+        // 不是漏做：一位不歸屬任何梯隊的團隊成員，範圍受限帳號（例如只能碰某幾個學院梯隊的帳號）
+        // 沒有正當理由能建立這種「不屬於自己任何一支球隊」的資源。
+        if (!rowScope.AllowsAll(teams.Select(t => (t.Team.Id, t.Team.Type)).ToList()))
+        {
+            throw new AdminForbiddenException("你的球隊授權範圍不允許建立這筆教練／團隊成員資料。");
+        }
 
         var now = DateTime.UtcNow;
         var staff = new Data.EfEntities.Staff
@@ -122,7 +132,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
     }
 
     public async Task<AdminStaffDetailDto?> UpdateAsync(
-        AdminClubScope scope, Guid id, UpdateAdminStaffRequest request, StaffPhotoKeyUpdate photoUpdate, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, TeamRowScope rowScope, Guid id, UpdateAdminStaffRequest request, StaffPhotoKeyUpdate photoUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateStaffGroup(request.StaffGroup);
         ValidatePortraitConsentStatus(request.PortraitConsentStatus);
@@ -130,7 +140,7 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
 
         var staff = await dbContext.Staff
             .Include(s => s.StaffI18ns)
-            .Include(s => s.StaffTeams)
+            .Include(s => s.StaffTeams).ThenInclude(st => st.Team)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
 
         if (staff is null)
@@ -146,6 +156,12 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         if (staff.ClubId != scope.ClubId)
         {
             return null; // 跨俱樂部：回 404，不洩漏存在與否（比照 AdminArticlesRepository 慣例）。
+        }
+
+        // 🔴 S1-8 新增：既有指派的球隊要允許——防止範圍受限帳號碰到不屬於自己範圍的既有教練資料。
+        if (!rowScope.AllowsAll(staff.StaffTeams.Select(st => (st.Team.Id, st.Team.Type)).ToList()))
+        {
+            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這筆教練／團隊成員資料。");
         }
 
         staff.StaffGroup = request.StaffGroup;
@@ -175,6 +191,14 @@ public sealed class AdminStaffRepository(ClubDbContext dbContext, IQueryCache ca
         if (request.Teams is not null)
         {
             var teams = await ResolveTeamsAsync(scope, request.Teams, cancellationToken);
+
+            // 🔴 S1-8 新增：新指派的球隊清單也要整批通過檢查，不能只查舊清單——否則範圍受限帳號
+            // 可以把一位原本在範圍內的教練，改指派到範圍外的球隊藉此逃脫限制。
+            if (!rowScope.AllowsAll(teams.Select(t => (t.Team.Id, t.Team.Type)).ToList()))
+            {
+                throw new AdminForbiddenException("你的球隊授權範圍不允許把這筆資料指派到這些球隊。");
+            }
+
             dbContext.StaffTeams.RemoveRange(staff.StaffTeams);
             foreach (var (team, roleCode) in teams)
             {

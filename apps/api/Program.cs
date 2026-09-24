@@ -14,11 +14,13 @@ using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
 using Tcrfc.Api.Features.AdminFaqs;
 using Tcrfc.Api.Features.AdminHomeSections;
+using Tcrfc.Api.Features.AdminMatches;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.AdminPages;
 using Tcrfc.Api.Features.AdminPlayers;
 using Tcrfc.Api.Features.AdminRoles;
 using Tcrfc.Api.Features.AdminStaff;
+using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
 using Tcrfc.Api.Features.Clubs;
 using Tcrfc.Api.Features.Faqs;
@@ -127,6 +129,12 @@ builder.Services.AddScoped<TwoFactorSecretProtector>();
 // AdminSystemAuthorizer 是 J1／J2／J4 全域端點（不含 {club} 路由段）的唯一授權入口，
 // 跟既有的 IAdminClubAuthorizer 是同一設計哲學的另一半，見 Security/AdminSystemScope.cs。
 builder.Services.AddScoped<IAdminSystemAuthorizer, AdminSystemAuthorizer>();
+
+// ── 🔴🔴🔴 S1-8 新增：列級授權強制（role_permissions.scope_type，own_teams／academy_only）──────
+// 見 Security/TeamRowScope.cs／IAdminTeamRowScopeResolver.cs 檔頭的完整說明。跟 IAdminClubAuthorizer
+// 是先後兩道關卡：先確認「對這個俱樂部有沒有授權、有沒有這個權限碼」，再問「這個權限碼對這個人
+// 是不是被縮限到特定球隊」。C1–C4 的寫入端點共用同一個解析器。
+builder.Services.AddScoped<IAdminTeamRowScopeResolver, AdminTeamRowScopeResolver>();
 builder.Services.AddScoped<AdminAccountsRepository>();
 builder.Services.AddScoped<AdminRolesRepository>();
 builder.Services.AddScoped<AdminClubsRepository>();
@@ -136,6 +144,10 @@ builder.Services.AddScoped<AdminTeamsRepository>();
 // ── S1-7：C1–C3 球隊／球員／教練俱樂部範圍 CRUD ─────────────────────────────
 builder.Services.AddScoped<AdminPlayersRepository>();
 builder.Services.AddScoped<AdminStaffRepository>();
+
+// ── S1-8：C4 賽程與賽果／積分榜俱樂部範圍 CRUD ＋ CSV 批次匯入 ─────────────────
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminMatches.AdminMatchesRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminStandings.AdminStandingsRepository>();
 
 // Data Protection：加密 admin_users.two_factor_secret_encrypted（Security/TwoFactorSecretProtector.cs）。
 // 🔴 正式環境務必設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
@@ -325,6 +337,8 @@ app.MapAdminTeamsEndpoints();
 // ── S1-7：C1–C3 球隊／球員／教練俱樂部範圍 CRUD ─────────────────────────────
 app.MapAdminPlayersEndpoints();
 app.MapAdminStaffEndpoints();
+app.MapAdminMatchesEndpoints();
+app.MapAdminStandingsEndpoints();
 
 // ── S1-4：B1 頁面管理 ────────────────────────────────────────────────────
 app.MapAdminPagesEndpoints();

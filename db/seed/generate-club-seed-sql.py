@@ -901,6 +901,20 @@ PERMISSIONS = [
     ("content.faq_category.create", "B", "B4", "content", "create", 0, 0, 0, "新增常見問題分類", "Create FAQ Categories"),
     ("content.faq_category.update", "B", "B4", "content", "update", 0, 0, 0, "編輯常見問題分類", "Update FAQ Categories"),
     ("content.faq_category.delete", "B", "B4", "content", "delete", 0, 0, 0, "刪除常見問題分類", "Delete FAQ Categories"),
+    # S1-8 新增：C4 賽程與賽果／積分榜。domain 沿用既有的 "team"（跟 team.team.* 等同一個 domain
+    # 值，方便權限查詢時整組 domain='team' 一次撈）。matches／standings 皆為 club_id 必填，
+    # is_club_scoped=1，非 sysadmin_only。🔴 team.match.* 是本輪「列級授權強制」（own_teams／
+    # academy_only）第一個真正接上 TeamRowScope 的權限碼，見 Security/TeamRowScope.cs；
+    # team.standing.* **刻意不套列級授權**——standings 表沒有 team_id 欄位可以判斷「這一列屬於
+    # 哪支本方球隊」，見 Features/AdminStandings/AdminStandingsRepository.cs 檔頭的完整說明。
+    ("team.match.view", "C", "C4", "team", "view", 1, 0, 0, "檢視賽程與賽果", "View Matches"),
+    ("team.match.create", "C", "C4", "team", "create", 1, 0, 0, "建立賽程與賽果", "Create Matches"),
+    ("team.match.update", "C", "C4", "team", "update", 1, 0, 0, "編輯賽程與賽果", "Update Matches"),
+    ("team.match.delete", "C", "C4", "team", "delete", 1, 0, 0, "刪除賽程與賽果", "Delete Matches"),
+    ("team.standing.view", "C", "C4", "team", "view", 1, 0, 0, "檢視積分榜", "View Standings"),
+    ("team.standing.create", "C", "C4", "team", "create", 1, 0, 0, "建立積分榜", "Create Standings"),
+    ("team.standing.update", "C", "C4", "team", "update", 1, 0, 0, "編輯積分榜", "Update Standings"),
+    ("team.standing.delete", "C", "C4", "team", "delete", 1, 0, 0, "刪除積分榜", "Delete Standings"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -1009,6 +1023,38 @@ ROLE_PERMISSIONS = [
     ("partner_club_manager", [
         "content.faq.view", "content.faq.create", "content.faq.update", "content.faq_category.view",
     ], "own_clubs"),
+    # S1-8 新增：C4 賽程與賽果／積分榜——依規劃書 §6 矩陣「球隊／賽事」欄逐列展開，跟既有
+    # team.team.*／team.player.*／team.staff.* 用同一欄、同一套判讀（矩陣沒有為 C1–C3 與 C4 分欄）。
+    # 系統管理員 ✔全（[p[0] for p in PERMISSIONS] 自動涵蓋）；競技／球隊管理 ✔全；商務／贊助、
+    # 公關／媒體、檢視者 唯讀；合作球隊管理 ✔自家（own_clubs，全權限，比照既有 team.team.* 的鋪法）；
+    # 客服／行政 該欄是「—」不給任何權限。
+    ("team_competition", [
+        "team.match.view", "team.match.create", "team.match.update", "team.match.delete",
+        "team.standing.view", "team.standing.create", "team.standing.update", "team.standing.delete",
+    ], "all"),
+    ("business_sponsorship", ["team.match.view", "team.standing.view"], "all"),
+    ("pr_media", ["team.match.view", "team.standing.view"], "all"),
+    ("viewer", ["team.match.view", "team.standing.view"], "all"),
+    ("partner_club_manager", [
+        "team.match.view", "team.match.create", "team.match.update", "team.match.delete",
+        "team.standing.view", "team.standing.create", "team.standing.update", "team.standing.delete",
+    ], "own_clubs"),
+    # 🔴 學院／課程管理（academy_program）——S1-3 續作與 S1-7 皆刻意保留、本輪補上：現在
+    # TeamRowScope／AdminTeamRowScopeResolver（Security/）已經把 scope_type='academy_only' 的
+    # 列級過濾做出來（S1-8），矩陣「學院梯隊」（docs/12b §7.2「賽事權限限 scope_type =
+    # academy_only」）的執行面前提已經成立，補回前兩輪回報保留的 team.team.*／team.player.*／
+    # team.staff.* 三組，並新增 team.match.*——四組全部給 academy_only，讓這個角色只能碰
+    # teams.type='academy' 的球隊、球員、教練與賽事（一線隊即使同俱樂部也擋下，見
+    # AdminTeamsPlayersStaffTests／AdminMatchesAndStandingsTests 的列級授權測試）。
+    # 🔴 team.standing.* **不指派給 academy_program**——積分榜沒有 team_id 可以判斷「這張表屬於
+    # 哪支學院梯隊」，見 Features/AdminStandings/AdminStandingsRepository.cs 檔頭「為什麼不套列級
+    # 授權」的完整說明；先不給，好過給了卻擋不住。
+    ("academy_program", [
+        "team.team.view", "team.team.create", "team.team.update",
+        "team.player.view", "team.player.create", "team.player.update",
+        "team.staff.view", "team.staff.create", "team.staff.update",
+        "team.match.view", "team.match.create", "team.match.update", "team.match.delete",
+    ], "academy_only"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")
@@ -1046,6 +1092,12 @@ ADMIN_USERS = [
     # 沿用 content.editor@tcrfc.test 的雜湊（純測試帳號不需各自唯一密碼，跟 expired.grant 同例）。
     ("team.manager@tcrfc.test", "競技／球隊管理（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
      False, False, True, "team_competition", [("tcrfc", None)]),
+    # S1-8 新增：學院／課程管理測試帳號，授權 bw（不是 tcrfc）——tcrfc 目前只有 D1（first_team），
+    # 沒有任何 academy 類型球隊可供測試 academy_only 列級授權；bw 有 BW1（first_team）與
+    # BW-U15／BW-U12（academy），兩種類型並存，剛好可以測「academy_only 只准碰 academy、
+    # 一線隊即使同俱樂部也擋下」。沿用 content.editor@tcrfc.test 的雜湊（純測試帳號）。
+    ("academy.manager@tcrfc.test", "學院／課程管理（測試帳號，僅藍鯨）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, True, "academy_program", [("bw", None)]),
     # 🔴 授權已過期的測試帳號：expires_on 給昨天日期，專門用來驗證「授權有起訖日，到期自動失效」
     # （主站規劃書 §6「資料範圍規則」、AdminClubAuthorizer 的第③步）。
     ("expired.grant@tcrfc.test", "已過期授權（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
@@ -1077,6 +1129,7 @@ emit("--   content.editor@tcrfc.test    / ContentEditor@123")
 emit("--   viewer@tcrfc.test            / Viewer@123")
 emit("--   partner.club@tcrfc.test      / PartnerClub@123")
 emit("--   team.manager@tcrfc.test      / ContentEditor@123（沿用同一組雜湊，純測試帳號不需各自唯一密碼）")
+emit("--   academy.manager@tcrfc.test   / ContentEditor@123（沿用同一組雜湊，僅授權 bw，測 academy_only 列級授權）")
 emit("--   expired.grant@tcrfc.test     / ContentEditor@123（沿用同一組雜湊，純測試帳號不需各自唯一密碼）")
 emit("--   fresh.setup@tcrfc.test       / Admin@123（沿用同一組雜湊）")
 emit("--   lockout.test@tcrfc.test      / Viewer@123（沿用同一組雜湊）")

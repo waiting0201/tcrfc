@@ -7,11 +7,13 @@ using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
 using Tcrfc.Api.Features.AdminFaqs;
 using Tcrfc.Api.Features.AdminHomeSections;
+using Tcrfc.Api.Features.AdminMatches;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.AdminPages;
 using Tcrfc.Api.Features.AdminPlayers;
 using Tcrfc.Api.Features.AdminRoles;
 using Tcrfc.Api.Features.AdminStaff;
+using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
 using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
@@ -136,6 +138,14 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status403Forbidden, "共用內容唯讀", sharedFaqReadOnly.Message),
             FaqCategorySlugConflictException faqCategorySlugConflict =>
                 (StatusCodes.Status409Conflict, "分類網址名稱重複", faqCategorySlugConflict.Message),
+
+            // ── S1-8 新增：C4 賽程與賽果／積分榜（Features/AdminMatches、AdminStandings）────
+            AdminMatchValidationException matchValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", matchValidation.Message),
+            AdminMatchNoConflictException matchNoConflict =>
+                (StatusCodes.Status409Conflict, "場次編號重複", matchNoConflict.Message),
+            AdminStandingValidationException standingValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", standingValidation.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),

@@ -121,12 +121,20 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
     /// 比照 <c>AdminArticlesEndpoints</c> 的模式），不是資料庫自動產生後才知道。
     /// </summary>
     public async Task<AdminTeamDetailDto> CreateAsync(
-        AdminClubScope scope, Guid teamId, CreateAdminTeamRequest request, string? heroKey, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, TeamRowScope rowScope, Guid teamId, CreateAdminTeamRequest request, string? heroKey, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateCode(request.Code);
         ValidateType(request.Type);
         ValidateGender(request.Gender);
         ValidateContent(request.Content);
+
+        // 🔴 S1-8 新增：列級授權——見 TeamRowScope.AllowsCreatingTeamOfType 上的說明，
+        // own_teams 範圍的帳號一律不能新建球隊（沒有既有 id 可以比對授權），
+        // academy_only 範圍的帳號只能新建 academy 類型的球隊。
+        if (!rowScope.AllowsCreatingTeamOfType(request.Type))
+        {
+            throw new AdminForbiddenException("你的球隊授權範圍不允許新建這個類型的球隊。");
+        }
 
         if (await dbContext.Teams.AsNoTracking().AnyAsync(t => t.Code == request.Code, cancellationToken))
         {
@@ -169,7 +177,7 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
     }
 
     public async Task<AdminTeamDetailDto?> UpdateAsync(
-        AdminClubScope scope, Guid id, UpdateAdminTeamRequest request, HeroKeyUpdate heroUpdate, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, TeamRowScope rowScope, Guid id, UpdateAdminTeamRequest request, HeroKeyUpdate heroUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateCode(request.Code);
         ValidateType(request.Type);
@@ -183,6 +191,18 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
         if (team is null)
         {
             return null;
+        }
+
+        // 🔴 S1-8 新增：既有球隊本身（目前的類型）要允許；若這次連類型都要改，新類型也必須通過
+        // 「新建這個類型」的檢查——防止 academy_only 範圍的帳號把一支學院梯隊改成一線隊藉此逃脫
+        // 範圍限制。**只有類型真的改變時才多做這層檢查**：own_teams 範圍（例如被個別指派管理
+        // 某支特定梯隊的合作方帳號）對「新建球隊」天生是 false（TeamRowScope.AllowsCreatingTeamOfType
+        // 的設計說明），但對「維持既有類型不變的更新」不該被這條擋下，否則會連正常授權範圍內、
+        // 完全不改類型的更新都一併被拒絕。
+        var changingType = !string.Equals(team.Type, request.Type, StringComparison.Ordinal);
+        if (!rowScope.Allows(team.Id, team.Type) || (changingType && !rowScope.AllowsCreatingTeamOfType(request.Type)))
+        {
+            throw new AdminForbiddenException("你的球隊授權範圍不允許修改這支球隊。");
         }
 
         if (!string.Equals(team.Code, request.Code, StringComparison.Ordinal)

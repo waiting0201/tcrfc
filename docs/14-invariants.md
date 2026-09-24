@@ -293,11 +293,42 @@
   但因為 `competitions.club_id` 必填，實際權限碼歸在 `module_code=C`（`team.competition.*`），
   執行層判斷見 `apps/api/README.md`。
 
+- 🔴 **（S1-8，2026-09-24）`role_permissions.scope_type` 的列級授權強制，`Security/TeamRowScope.cs`／
+  `AdminTeamRowScopeResolver.cs`**：`scope_type` 這個欄位從 `S1-3` 就種在資料庫，但直到 `S1-8`
+  才第一次有程式碼真的讀它做過濾——**日後看到某個角色的某個權限碼掛著 `academy_only`／`own_teams`
+  之類的值，不代表它真的有效果，要去確認呼叫端有沒有經過 `IAdminTeamRowScopeResolver`**。
+  目前只有 C1（`teams`）／C2（`players`）／C3（`staff` 的 `staff_teams`）／C4（`matches` 的
+  `match_teams`）四個模組的**寫入端點**接上了這個機制；**列表／檢視端點沒有套用**（例如
+  `academy_program` 角色目前看得到整個俱樂部的球隊清單，不會被過濾成只剩學院梯隊）——這是刻意
+  縮小的範圍（任務指示只要求「寫入端點」），不是遺漏，但表示**列表畫面上看得到的資料不等於
+  寫得進去的資料**，不要以為「畫面上濾掉了」。`standings`（積分榜）**完全不套用**，因為這張表
+  沒有 `team_id` 欄位，見 `apps/api/README.md` S1-8「為什麼積分榜不套列級授權」。
+- 🔴 **（S1-8）`role_permissions.scope_type = 'own_clubs'` 在列級授權裡視同 `'all'`（不限）**：
+  docs/12b-database-tables.md §7.1 講「`scope_type` 加值 `own_clubs`」，但 §7.4 那張「`scope_type`
+  是矩陣裡不是布林的格子」對照表只列了 `own_teams`／`academy_only`／`masked`／`translate_only`
+  四個，**兩段自相矛盾**（`own_clubs` 沒被正式收進值域清單）。既有種子資料
+  （`db/seed/generate-club-seed-sql.py`）對 `partner_club_manager` 的全部指派都用
+  `"own_clubs"`——`AdminTeamRowScopeResolver` 若把它當成未知值處理（fail-closed），會讓合作球隊
+  管理角色完全無法操作任何球隊／球員／教練／賽事資料，且**這個 bug 在 `scope_type` 真的被讀取
+  之前完全不會顯現**。**已在程式碼修正**：`own_clubs` 標記的是「club 層級」的範圍（已經由
+  `IAdminClubAuthorizer` 的 `AdminUserClub` 檢查在更上一層擋住），不代表「同一個俱樂部內部」要
+  對球隊再窄化一次，故視同不限。**docs/12b §7.4 尚未同步補上這個值**，是已知的文件缺口，
+  不是程式碼缺口。
+
 - **賽事資料全部人工維護**，不串接外部 API，提供 CSV 批次匯入。
 - 🏟 **賽事狀態的中文是「延賽」不是「延期」**（主站規劃書 **v3.13，2026-09-23 客戶裁決**，球界慣用語）。
   英文維持 `postponed`（本來就是正確的足球用語，未改動）。**`Match` 補「原定日期」與「原定時間」欄位**
   （`original_match_on`／`original_kickoff`，僅狀態為「延賽」時有值，供賽事卡片與 C4 編輯畫面顯示延賽前的原定時間）——
   沿用 `match_on`／`kickoff` 既有的兩欄配對寫法，**皆可為空、不加 CHECK**（`matches.status` 本身也沒有 CHECK 約束，理由見 [`12-database-schema.md`](12-database-schema.md) §12 第 31 點）。
+- 🔴 **（S1-8）`matches.status` 值域在 API 層定案為 `scheduled`／`live`／`played`／`postponed`
+  四個值**（沒有 DB CHECK，只有 `Features/AdminMatches/AdminMatchesRepository.cs` 的應用層驗證
+  擋著）。**主站規劃書 §3.13 的賽事卡片版型多了「取消」，§4.3 C4 的欄位定義沒有**——兩處不一致，
+  目前照 C4 為準，`AdminMatchesEndpoints` 不接受「取消」。**日後要新增或改這個值域，一律先改
+  規劃書再改這裡的 `AllowedStatuses`／`StatusZhLabels`，不要憑印象加值。**
+- 🔴 **（S1-8）`matches.match_no`（場次編號）同季同聯賽唯一，沒有 DB 唯一索引，只有應用層檢查**
+  （`AdminMatchesRepository.EnsureMatchNoUniqueAsync`，範圍是 `(club_id, season_id,
+  competition_id, match_no)`）。**任何日後直接寫 SQL 匯入賽事資料的腳本，繞過這個應用層檢查
+  就沒有任何東西擋得住重複場次編號**。
 - **既有數位資產**：官網 www.tcrfc.tw（待遷移）、IG `@tcr_fc_2024`、FB `TCRFC2024`、YouTube `@TCRFC-2024`、
   台中藍鯨既有官網 [www.tcbw2014.com](https://www.tcbw2014.com/)（Google Sites）——⚠️ **v3.0 起改列為內容遷移來源**，新站由本系統建置（獨立網域、雙語），上線後 301 轉址。
 - **成立年份 2024**，2024 全國乙級聯賽冠軍。
