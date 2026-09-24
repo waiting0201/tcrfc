@@ -1,9 +1,14 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.13
-> **Date**: 2026-08-14 (v3.13 revision: 2026-09-23)
+> **Document version**: v3.14
+> **Date**: 2026-08-14 (v3.14 revision: 2026-09-24)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.9*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.14*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.14 revision summary — match status gains "cancelled" in 4.3 C4 and the 5.1 `Match` type; B3 hero carousel gains draft and display-period state semantics**
+> **Both changes are state-semantics or field-level additions; no new functional scope.**
+> ① **The five-value match status is completed in 4.3 C4 and the 5.1 `Match` type with "cancelled", aligning with 3.13**: upcoming / live / finished / postponed / cancelled. Landing point: 4.3 C4, 5.1 `Match`.
+> ② **B3 hero carousel items default to draft on creation or upload, and go live and come down automatically per the display period (start/end time) once published**: draft and published are states; the start/end time is carried by the existing "display period" field — no new field is added. Landing point: 4.2 B3.
 
 > **v3.13 revision summary — match status wording (Chinese only), and `Match` gains "original date" / "original time" fields**
 > **Both changes are wording or field-level additions; no new functionality.** The Chinese edition now uses
@@ -1029,7 +1034,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Bulk actions: recategorise, bulk publish / unpublish
 
 #### B3 Home layout
-- Hero carousel management (order, image/video, headline, CTA, display period); **seasonal content (new manga chapters, charity campaigns, enrolment windows) is surfaced here** instead of via dedicated fixed slots (**this applies to this site's public web front end**; the Mobile App's own advertising slots are covered by the app specification, section 7, and admin E4–E6)
+- Hero carousel management (order, image/video, headline, CTA, display period): **items default to draft on creation or upload; once published, they go live and come down automatically per the display period (start/end time)**; **seasonal content (new manga chapters, charity campaigns, enrolment windows) is surfaced here** instead of via dedicated fixed slots (**this applies to this site's public web front end**; the Mobile App's own advertising slots are covered by the app specification, section 7, and admin E4–E6)
 - Toggles and ordering for each homepage block, plus featured-content selection (current blocks: hero, core values, pillar cards, latest match, upcoming fixtures, latest news, sponsor logo wall, store entry, bottom CTA)
 
 #### B4 FAQ
@@ -1081,7 +1086,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Staff (2.4 Our People): group (management / administration / medical / operations), title, bio
 
 #### C4 Fixtures & Results
-- Match record: season, competition (league / cup), date and time, home/away, opponent, venue, status (upcoming / live / finished / postponed), **match number** (the official fixture number assigned by the league, recorded separately from "round" — a single round can contain several matches, each with its own official number), **original date and original time** (populated only when status is "postponed"; records the date and time the fixture was originally scheduled for, so it can be shown here and on the fixture card)
+- Match record: season, competition (league / cup), date and time, home/away, opponent, venue, status (upcoming / live / finished / postponed / cancelled), **match number** (the official fixture number assigned by the league, recorded separately from "round" — a single round can contain several matches, each with its own official number), **original date and original time** (populated only when status is "postponed"; records the date and time the fixture was originally scheduled for, so it can be shown here and on the fixture card)
 - Result: score, scorers with timings, cards, line-up, link to the match report (7.2)
 - **League table**: maintained manually or imported from CSV
 - **Maintenance approach: entirely manual** (no external league API integration). Both **CSV bulk import** of a full season and single-match entry are provided to reduce data-entry effort

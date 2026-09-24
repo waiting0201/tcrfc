@@ -102,6 +102,7 @@ erDiagram
     datetime start_at
     datetime end_at
     int sort_order
+    enum status
   }
   home_section {
     uuid id PK

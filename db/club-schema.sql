@@ -432,6 +432,10 @@ CREATE TABLE banners (
   start_at        datetime2(3)     NULL,
   end_at          datetime2(3)     NULL,
   sort_order      int              NOT NULL DEFAULT 0,
+  -- v3.14：新增或上傳後為草稿，發布後依 start_at／end_at（上架期間）自動顯示與下架——
+  -- 這是查詢時的區間過濾，不是排程轉態，刻意不加 'scheduled'（docs/12 §12 第 35 點、docs/14）
+  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
+                    CHECK (status IN ('draft','published')),
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -784,8 +788,9 @@ CREATE TABLE staff_teams (
 -- 各自有各自的官方編號；非聯賽賽事（如盃賽、友誼賽）可能沒有官方編號，故可為空（docs/12d §9）。
 -- original_match_on／original_kickoff（v3.13）：延賽前的原定日期時間，只有 status = 'postponed' 時有值，
 -- 沿用 match_on／kickoff 既有的兩欄配對寫法（皆為當地牆上時間展示值，不是 UTC 時間戳）；兩欄皆可為空、
--- 不加 CHECK——status 本身沒有 CHECK 約束（值域仍待確認，見 docs/12d §6），是否必填交後台 C4 表單驗證
--- （docs/12 §12 第 31 點）。
+-- 不加 CHECK——status 本身的值域已於 v3.14 定案並加上 CHECK（見下方 CK_matches_status），
+-- 但「status='postponed' 時 original_match_on 不得為空」這條規劃書未要求，是否必填交後台 C4 表單驗證
+-- （docs/12 §12 第 31、35 點）。
 CREATE TABLE matches (
   id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
@@ -810,7 +815,9 @@ CREATE TABLE matches (
   created_by          uniqueidentifier NULL,
   updated_by          uniqueidentifier NULL,
   CONSTRAINT PK_matches PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_matches_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_matches_row_seq UNIQUE CLUSTERED (row_seq),
+  -- v3.14：五值行文落差已解決（docs/12 §12 第 35 點），欄寬 16 已足夠容納最長值 postponed／cancelled（各 9 字元）
+  CONSTRAINT CK_matches_status CHECK (status IN ('scheduled','live','played','postponed','cancelled'))
 );
 
 -- 對手與場地是自由文字（docs/12 §2.4）；venue 為顯示用文字欄位，與 matches.venue_id（結構化主場地）並存。

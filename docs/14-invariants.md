@@ -66,10 +66,11 @@
   拒絕了就走這個巢狀物件慣例，不要另外發明第三種雙語形狀。
 - 🔴 **`players`／`staff.portrait_consent_status` 預設值永遠是 `'not_consented'`，改成別的預設值是個資事故**
   （S1-8，2026-09-24；藍鯨規劃書行 193／314：「球員照片須有肖像同意（未成年須監護人同意）。同意未到位
-  的球員不顯示照片，以預設圖或純文字卡呈現——不得放假圖」；主站規劃書行 1356／1686 為既有的未成年
+  的球員不顯示照片，以預設圖或純文字卡呈現——不得放假圖」；主站規劃書行 1361／1691 為既有的未成年
   素材處理原則）。**公開讀取 API 必須依這個欄位擋 `photo_key`**：非 `consented`／`consented_by_guardian`
   一律不得回傳球員或教練照片。這條同時是 `GEO-02`（AI 爬蟲排除未成年學員與球員照片路徑）能落地執行
   的資料前提——沒有這個欄位，「排除未同意的素材」無從查詢起，見 [`12-database-schema.md`](12-database-schema.md#12-踩雷點) 第 32 點。
+  ✅ **（2026-09-24 客戶裁決）後台不建同意書檔案留存或覈實流程**，只保留這個狀態欄位由操作者手動設定，見 [`15-out-of-scope-record.md`](15-out-of-scope-record.md)。
 - **隊別代號**：`D1`（磐石一線隊）／**`BW1`（藍鯨一線隊）**／`U15`／`U14`／`U12`。
   代號**維持全站唯一**（它是行事曆訂閱網址與 `/zh/schedule/d1/` 的識別鍵，**不得改成「俱樂部 × 代號」複合鍵**）。對外顯示磐石寫 `First Team / 一線隊`、藍鯨寫 `Blue Whale First Team / 藍鯨一線隊`。
   **`Team.type` 的 `women` 值已於 v3.0 廢除**，改用獨立的 `Team.gender`（`men`／`women`／`mixed`）——性別是球隊屬性不是隊型。`type = first_team` 由「全站僅一筆」改為「**每個俱樂部至多一筆**」。
@@ -319,12 +320,15 @@
 - 🏟 **賽事狀態的中文是「延賽」不是「延期」**（主站規劃書 **v3.13，2026-09-23 客戶裁決**，球界慣用語）。
   英文維持 `postponed`（本來就是正確的足球用語，未改動）。**`Match` 補「原定日期」與「原定時間」欄位**
   （`original_match_on`／`original_kickoff`，僅狀態為「延賽」時有值，供賽事卡片與 C4 編輯畫面顯示延賽前的原定時間）——
-  沿用 `match_on`／`kickoff` 既有的兩欄配對寫法，**皆可為空、不加 CHECK**（`matches.status` 本身也沒有 CHECK 約束，理由見 [`12-database-schema.md`](12-database-schema.md) §12 第 31 點）。
-- 🔴 **（S1-8）`matches.status` 值域在 API 層定案為 `scheduled`／`live`／`played`／`postponed`
-  四個值**（沒有 DB CHECK，只有 `Features/AdminMatches/AdminMatchesRepository.cs` 的應用層驗證
-  擋著）。**主站規劃書 §3.13 的賽事卡片版型多了「取消」，§4.3 C4 的欄位定義沒有**——兩處不一致，
-  目前照 C4 為準，`AdminMatchesEndpoints` 不接受「取消」。**日後要新增或改這個值域，一律先改
-  規劃書再改這裡的 `AllowedStatuses`／`StatusZhLabels`，不要憑印象加值。**
+  沿用 `match_on`／`kickoff` 既有的兩欄配對寫法，**皆可為空、不加 CHECK**（`matches.status` 本身的值域與 CHECK 見下一條與 [`12-database-schema.md`](12-database-schema.md) §12 第 35 點）。
+- ✅ **（v3.14，2026-09-24 客戶裁決）`matches.status` 五值行文落差已解決，`db/club-schema.sql` 已補 CHECK**：
+  主站規劃書 §3.13／§4.3 C4／§5.1 `Match` 三處已一致為五值（未開始／進行中／已結束／延賽／取消，
+  英文 `scheduled`／`live`／`played`／`postponed`／`cancelled`）；`matches.status` 欄位（`nvarchar(16)`）
+  補上 `CHECK (status IN ('scheduled','live','played','postponed','cancelled'))`。
+  ⚠️ **（S1-8 遺留，仍未解除）應用層尚未跟上**：`Features/AdminMatches/AdminMatchesRepository.cs` 的
+  `AllowedStatuses`／`StatusZhLabels` 目前仍是四值，`AdminMatchesEndpoints` 還不接受「取消」——
+  這次的同步鏈只改了規劃書與 DDL，**沒有改 `apps/api`**（另有 agent 在改，且本次任務明文不得動它）。
+  **後續要開發「取消」這個狀態值的後台與前台呈現前，先把這兩個常數表補上五值。**
 - 🔴 **（S1-8）`matches.match_no`（場次編號）同季同聯賽唯一，沒有 DB 唯一索引，只有應用層檢查**
   （`AdminMatchesRepository.EnsureMatchNoUniqueAsync`，範圍是 `(club_id, season_id,
   competition_id, match_no)`）。**任何日後直接寫 SQL 匯入賽事資料的腳本，繞過這個應用層檢查
@@ -366,6 +370,15 @@
   圖片欄位仍是同樣的缺口**，本輪只處理 `banners`（首頁 Hero 是全站最顯眼的視覺元素，優先度最高），
   未列入本次範圍，日後要補一併走同步鏈。**影片檔本身不經過「上傳即縮圖」流程**（該流程只處理
   圖片），影片的格式、檔案大小上限與是否轉碼規劃書未明訂，**開發前需裁決**（見 `docs/12` §12 第 33 點）。
+- ✅ **（v3.14，2026-09-24 客戶裁決）`banners` 新增 `status`（`draft`／`published`，預設 `draft`）**：
+  新增或上傳後為草稿，發布後**依既有 `start_at`／`end_at`（上架期間）自動顯示與下架**。
+  🔴 **刻意不用 `scheduled`**——排程語意已經由 `start_at`／`end_at` 承擔，`status` 只分「還沒審過的草稿」
+  與「已發布」兩態；也**不比照 `Page`／`Article` 接 `ScheduledPublishRunner`**，因為顯示與下架的時間點
+  由公開讀取端查詢時比對 `start_at`／`end_at` 即可判定，不需要一個背景服務去翻轉狀態值本身。
+  `db/club-schema.sql`／`docs/12` §4.1／§12 第 35 點／`docs/12a` §5.1（`banner` 實體）已同步；
+  `banners_i18n` 不受影響（狀態不是語言相依欄位）。⚠️ **後台寫入端與公開讀取端的過濾邏輯尚未實作**
+  （另有 agent 在動 `apps/api`／`apps/admin`，本次任務明文不得碰），日後接手時記得公開讀取要同時
+  滿足 `status = 'published'` 與時間窗兩個條件，不是只挑其中一個。
 - ✅ **（S1-6 缺口，S1-8 已補）`faq_categories` 已加 `is_enabled`（軟停用）**：取代先前「用刪除湊
   停用」的作法——刪除經 `ON DELETE CASCADE` 解除分類關聯且不可逆，題目本身仍在但分類導覽找不到。
   現在可真正停用又重新啟用，題目與既有關聯不受影響。`db/club-schema.sql`／`docs/12` §4.1／
