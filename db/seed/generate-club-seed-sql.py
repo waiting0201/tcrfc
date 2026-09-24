@@ -819,6 +819,21 @@ PERMISSIONS = [
     ("system.audit.view", "J", "J3", "system", "view", 0, 0, 1, "檢視操作稽核記錄", "View Audit Logs"),
     ("system.club_grant.view", "J", "J4", "system", "view", 0, 0, 1, "檢視俱樂部授權", "View Club Grants"),
     ("system.club_grant.update", "J", "J4", "system", "update", 0, 0, 1, "指派俱樂部授權", "Update Club Grants"),
+    # S1-3 續作（2026-09-24）：J4「俱樂部品牌與法人資料」本身（Club 型別）——與上面兩碼一樣
+    # sysadmin_only，規劃書 §6 矩陣「系統」欄只有系統管理員打勾。
+    ("system.club.view", "J", "J4", "system", "view", 0, 0, 1, "檢視俱樂部主檔", "View Clubs"),
+    ("system.club.update", "J", "J4", "system", "update", 0, 0, 1, "建立／編輯俱樂部主檔", "Update Clubs"),
+    # S1-3 續作第二輪（2026-09-24，coordinator 補派）：J4「球隊授權」（admin_user_teams，
+    # 規劃書第 1223–1231 行 J4 表格），供「學院管理者不得改動一線隊賽程」這類列級限制使用。
+    # 獨立於 system.club_grant.* 之外自成一組（不共用），理由見 apps/api/README.md。
+    ("system.team_grant.view", "J", "J4", "system", "view", 0, 0, 1, "檢視球隊授權", "View Team Grants"),
+    ("system.team_grant.update", "J", "J4", "system", "update", 0, 0, 1, "指派球隊授權", "Update Team Grants"),
+    # Competition（賽事系列）型別：is_club_scoped=1（competitions.club_id 必填），不是
+    # sysadmin_only——歸在 module_code=C（球隊管理）／submodule=C4（賽程與賽果），比照矩陣
+    # 「球隊／賽事」欄，競技／球隊管理角色 ✔全，其餘角色唯讀或不給，見下方 ROLE_PERMISSIONS。
+    ("team.competition.view", "C", "C4", "team", "view", 1, 0, 0, "檢視賽事系列", "View Competitions"),
+    ("team.competition.create", "C", "C4", "team", "create", 1, 0, 0, "建立賽事系列", "Create Competitions"),
+    ("team.competition.update", "C", "C4", "team", "update", 1, 0, 0, "編輯賽事系列", "Update Competitions"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -840,11 +855,18 @@ END
 # 內容管理的常態操作，本次工程判斷視為隱含在「編輯」權限內，見 apps/api/README.md 的說明）；
 # 檢視者只給檢視；合作球隊管理給自家內容的檢視／建立／編輯（矩陣「✔ 自家內容」，不含發布／刪除，
 # 發布與刪除留給日後有實際使用者指派時再依需求開放，屬保守預設）。
+#
+# S1-3 續作（2026-09-24）：team.competition.* 依規劃書 §6 矩陣「球隊／賽事」欄逐列展開——
+# 競技／球隊管理 ✔全、內容編輯與檢視者唯讀、合作球隊管理僅自家（own_clubs）。system.club.*／
+# system.club_grant.* 只給系統管理員（sysadmin_only，其餘角色矩陣「系統」欄皆為「—」／「✗」），
+# 系統管理員那一列用 [p[0] for p in PERMISSIONS] 自動涵蓋，不需要另外列出。
 ROLE_PERMISSIONS = [
     ("system_admin", [p[0] for p in PERMISSIONS], "all"),
-    ("content_editor", ["content.article.view", "content.article.create", "content.article.update", "content.article.publish", "content.article.delete"], "all"),
-    ("viewer", ["content.article.view"], "all"),
+    ("content_editor", ["content.article.view", "content.article.create", "content.article.update", "content.article.publish", "content.article.delete", "team.competition.view"], "all"),
+    ("team_competition", ["team.competition.view", "team.competition.create", "team.competition.update"], "all"),
+    ("viewer", ["content.article.view", "team.competition.view"], "all"),
     ("partner_club_manager", ["content.article.view", "content.article.create", "content.article.update"], "own_clubs"),
+    ("partner_club_manager", ["team.competition.view", "team.competition.create", "team.competition.update"], "own_clubs"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")

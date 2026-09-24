@@ -17,12 +17,19 @@ public sealed class PermissionChecker(ClubDbContext db) : IPermissionChecker
         // admin_user_roles 是純關聯（只有兩個 FK 組成 PK，沒有其他欄位），EF Core scaffold
         // 把它建模成 AdminUser.AdminRoles／AdminRole.AdminUsers 的隱式多對多跳躍導覽，
         // 沒有獨立的 DbSet 可查——改用導覽屬性展開，語意等價於 INNER JOIN 三張表。
+        //
+        // 🔴 本輪新增（S1-3 J1／J2／J4）：多比對一個 `!p.SysadminOnly` 條件——
+        // docs/12b-database-tables.md §7.3「sysadmin_only：僅系統管理員」是一道獨立於角色指派
+        // 之外的閘門，不能只靠「seed 資料沒有把這個權限碼指派給非超管角色」來保證，因為 J2
+        // 本輪新增了「角色權限指派」端點，一旦有人（誤）把 sysadmin_only 權限碼指派給某個角色，
+        // 若這裡不擋，非超管帳號就能實際取得該權限。is_super_admin=true 的呼叫在上面已經
+        // 提前 return true，不會走到這裡，所以這個條件只影響「非超管」查得到的集合。
         return await db.AdminUsers
             .AsNoTracking()
             .Where(u => u.Id == adminUserId)
             .SelectMany(u => u.AdminRoles)
             .SelectMany(r => r.RolePermissions)
-            .Select(rp => rp.Permission.Code)
-            .AnyAsync(code => code == permissionCode, cancellationToken);
+            .Select(rp => rp.Permission)
+            .AnyAsync(p => p.Code == permissionCode && !p.SysadminOnly, cancellationToken);
     }
 }

@@ -7,8 +7,12 @@ using StackExchange.Redis;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.AdminAccounts;
 using Tcrfc.Api.Features.AdminAuth;
+using Tcrfc.Api.Features.AdminClubs;
+using Tcrfc.Api.Features.AdminCompetitions;
 using Tcrfc.Api.Features.AdminNews;
+using Tcrfc.Api.Features.AdminRoles;
 using Tcrfc.Api.Features.Clubs;
 using Tcrfc.Api.Features.News;
 using Tcrfc.Api.Features.Players;
@@ -107,6 +111,15 @@ builder.Services.AddScoped<AdminAuthService>();
 builder.Services.AddScoped<IAdminClubAuthorizer, AdminClubAuthorizer>();
 builder.Services.AddScoped<IPermissionChecker, PermissionChecker>();
 builder.Services.AddScoped<TwoFactorSecretProtector>();
+
+// ── 🔴🔴🔴 本輪新增（S1-3 續作：J1 帳號管理／J2 角色與權限／J4 俱樂部與授權）────────────
+// AdminSystemAuthorizer 是 J1／J2／J4 全域端點（不含 {club} 路由段）的唯一授權入口，
+// 跟既有的 IAdminClubAuthorizer 是同一設計哲學的另一半，見 Security/AdminSystemScope.cs。
+builder.Services.AddScoped<IAdminSystemAuthorizer, AdminSystemAuthorizer>();
+builder.Services.AddScoped<AdminAccountsRepository>();
+builder.Services.AddScoped<AdminRolesRepository>();
+builder.Services.AddScoped<AdminClubsRepository>();
+builder.Services.AddScoped<AdminCompetitionsRepository>();
 
 // Data Protection：加密 admin_users.two_factor_secret_encrypted（Security/TwoFactorSecretProtector.cs）。
 // 🔴 正式環境務必設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
@@ -260,6 +273,12 @@ app.MapAdminAuthEndpoints();
 // IDevOperatorResolver 機制已整支移除（確認真實授權已能證明四種擋下情境都有效，見
 // apps/api/README.md「S1」整節），本檔不再有任何殘留引用。
 app.MapAdminNewsEndpoints();
+
+// ── 🔴🔴🔴 本輪新增（S1-3 續作）：J1／J2／J4 端點 ──────────────────────────────
+app.MapAdminAccountsEndpoints();
+app.MapAdminRolesEndpoints();
+app.MapAdminClubsEndpoints();
+app.MapAdminCompetitionsEndpoints();
 
 app.Run();
 

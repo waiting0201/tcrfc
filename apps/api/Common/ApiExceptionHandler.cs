@@ -1,7 +1,11 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Tcrfc.Api.Features.AdminAccounts;
 using Tcrfc.Api.Features.AdminAuth;
+using Tcrfc.Api.Features.AdminClubs;
+using Tcrfc.Api.Features.AdminCompetitions;
 using Tcrfc.Api.Features.AdminNews;
+using Tcrfc.Api.Features.AdminRoles;
 using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
@@ -49,6 +53,40 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status400BadRequest, "圖片無法處理", imageProcessing.Message),
             UploadSlotNotAllowedException slotNotAllowed =>
                 (StatusCodes.Status400BadRequest, "不支援的圖片欄位", slotNotAllowed.Message),
+
+            // ── 本輪新增（S1：J1 帳號管理、Features/AdminAccounts）──────────────────────
+            AdminAccountValidationException accountValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", accountValidation.Message),
+            AdminAccountUsernameConflictException accountConflict =>
+                (StatusCodes.Status409Conflict, "帳號重複", accountConflict.Message),
+            AdminAccountLastSuperAdminException lastSuperAdmin =>
+                (StatusCodes.Status409Conflict, "操作被擋下", lastSuperAdmin.Message),
+
+            // ── 本輪新增（S1：J2 角色與權限、Features/AdminRoles）───────────────────────
+            AdminRoleValidationException roleValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", roleValidation.Message),
+            AdminRoleSysadminOnlyPermissionException sysadminOnlyPermission =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", sysadminOnlyPermission.Message),
+            AdminRoleCodeConflictException roleConflict =>
+                (StatusCodes.Status409Conflict, "角色代碼重複", roleConflict.Message),
+            AdminRoleSystemDeleteException systemRoleDelete =>
+                (StatusCodes.Status403Forbidden, "系統角色不可刪除", systemRoleDelete.Message),
+            AdminRoleInUseException roleInUse =>
+                (StatusCodes.Status409Conflict, "角色仍在使用中", roleInUse.Message),
+
+            // ── 本輪新增（S1：J4 俱樂部主檔、Features/AdminClubs）───────────────────────
+            AdminClubValidationException clubValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", clubValidation.Message),
+            AdminClubCodeConflictException clubCodeConflict =>
+                (StatusCodes.Status409Conflict, "俱樂部代碼重複", clubCodeConflict.Message),
+            AdminClubDomainConflictException clubDomainConflict =>
+                (StatusCodes.Status409Conflict, "網域重複", clubDomainConflict.Message),
+
+            // ── 本輪新增（S1：J4 賽事系列、Features/AdminCompetitions）─────────────────
+            AdminCompetitionValidationException competitionValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", competitionValidation.Message),
+            AdminCompetitionCodeConflictException competitionConflict =>
+                (StatusCodes.Status409Conflict, "賽事系列代號重複", competitionConflict.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),

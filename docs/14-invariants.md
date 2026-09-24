@@ -253,6 +253,19 @@
   - 🔴 **（S0-7g，2026-09-24）「排程發布」需要 `published_at` 欄位，`scheduled` 這個狀態值本身不等於「有排程機制」**：`db/club-schema.sql` 有 9 張表帶 `CHECK (status IN ('draft','published','scheduled'))`，但只有 `pages`／`articles` 真的有 `published_at` 欄位；`press_resources`／`faqs`／`competitions`／`sponsor_packages`／`collections`／`products`／`charity_programs` **CHECK 約束允許寫入 `'scheduled'`，資料庫裡卻沒有任何欄位記錄「排定何時發布」**——這 7 張表在後台寫入層開發出來之前，看起來像「支援排程」，實際上不可能真的排程。**開發這 7 張表的後台寫入模組前，先確認是否要補 `published_at`，要補就先走 `docs/12` 同步鏈再走 migration，不要假設欄位已經存在。** ✅ **已裁決（2026-09-24，依規劃書）**：規劃書只在 `B1` 頁面（第 1014 行）與 `B2` 新聞（第 1019 行）給了排程發布，**其餘 7 張表不補 `published_at`**。那幾個模組的後台**不得提供「排程」選項**；`scheduled` 出現在 CHECK 裡，是因為共用同一組狀態詞彙，不代表那些型別有排程功能。
   - 🔴 **（S0-7g）「時間到了」不是寫入事件，需要主動的 hosted service 才會真的轉狀態**——`status='scheduled'` 不會因為 `published_at` 過期而自動變成 `'published'`，公開讀取 API 的 `WHERE status = 'published'` 是字面比對。`Features/News/ScheduledPublishRunner.cs` 是目前唯一接上這個機制的地方（只掃 `articles`）。**任何新的內容型別要支援「排程發布」，除了要有 `published_at` 欄位，還要把它加進某個 `ScheduledPublishRunner`（或比照新開一個），否則後台可以把狀態設成 `scheduled`，但公開站永遠不會自動顯示。**
 
+- 🔴 **（S1-3 續作，2026-09-24）`Permission.sysadmin_only` 是應用層強制，資料庫沒有任何約束擋著**：
+  `role_permissions` 沒有 CHECK 或觸發器阻止把一個 `sysadmin_only=1` 的權限碼指派給任何角色——
+  真正擋下的是 `Security/PermissionChecker.cs`（`HasPermissionAsync` 在非超管路徑額外比對
+  `!p.SysadminOnly`）與 J2「角色權限指派」端點（`Features/AdminRoles/AdminRolesRepository.cs`
+  的 `ReplacePermissionsAsync` 拒絕整批寫入含 `sysadmin_only` 權限碼的請求）。**兩道防線都在
+  C#，不在 DDL**——日後如果有人繞過這兩個地方直接寫 SQL 進 `role_permissions`（例如批次匯入
+  腳本），`sysadmin_only` 這條規則不會自動生效，要嘛也走這兩個檢查、要嘛在資料庫加約束。
+  J1（帳號管理）／J2（角色與權限）／J4（`Club` 主檔與 `admin_user_clubs` 授權）的全域端點
+  （不含 `{club}` 路由段）改用新的 `Security/IAdminSystemAuthorizer`（不是既有的
+  `IAdminClubAuthorizer`）；`Competition` 型別的維護端點雖然歸在「J4 這件工作」底下，
+  但因為 `competitions.club_id` 必填，實際權限碼歸在 `module_code=C`（`team.competition.*`），
+  執行層判斷見 `apps/api/README.md`。
+
 - **賽事資料全部人工維護**，不串接外部 API，提供 CSV 批次匯入。
 - 🏟 **賽事狀態的中文是「延賽」不是「延期」**（主站規劃書 **v3.13，2026-09-23 客戶裁決**，球界慣用語）。
   英文維持 `postponed`（本來就是正確的足球用語，未改動）。**`Match` 補「原定日期」與「原定時間」欄位**

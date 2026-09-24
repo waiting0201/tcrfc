@@ -459,23 +459,25 @@ ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本
 
 ### 本輪沒做的部分（誠實列出，不假裝做完）
 
-1. **`Features/AdminUsers`（J1 帳號 CRUD 端點）沒有實作**——新增／停用帳號、設定
-   `primary_club_id` 目前只能直接寫 SQL（種子腳本示範了寫法）。認證與授權的地基（密碼雜湊、
-   鎖定、2FA、JWT／refresh token）已經完整可用，但「後台畫面上管理帳號」這件事本身沒有 API。
-2. **`Features/AdminRoles`（J2 角色 CRUD 端點）沒有實作**——十個角色與權限碼是種子資料，
-   `PermissionChecker` 讀得到、驗證得到，但沒有「建立新角色」「勾選權限」的 API，這正是
-   docs/12b §7.2「九個角色是資料不是列舉……客戶可自建第十個角色」目前做不到的部分。
-3. **`Features/AdminClubGrants`（`AdminUserClub` 授予／撤銷）沒有公開端點**——`AdminClubAuthorizer`
-   讀取這張表做授權判斷，但「指派某個帳號可以存取哪個俱樂部」目前只能直接寫 SQL。這件事本來就
-   歸屬 `J4`（規劃書「俱樂部與授權管理，僅系統管理員」），本輪判斷不在範圍內，但因為它是授權
-   判斷的資料來源，這裡特別點名沒有它會卡在哪。
+1. ✅ **已補上（S1-3 續作，2026-09-24）**：`Features/AdminAccounts`（J1 帳號 CRUD、停用／啟用、
+   重設密碼、重設 2FA）與掛在帳號底下的 J4 俱樂部授權（`admin_user_clubs` 新增／撤銷）已實作，
+   見下方「S1-3 續作：J1／J2／J4 端點」整節。
+2. ✅ **已補上（S1-3 續作，2026-09-24）**：`Features/AdminRoles`（J2 角色 CRUD、權限碼字典、
+   角色權限指派）已實作，見下方新增整節。
+3. ✅ **已補上（S1-3 續作，2026-09-24；`AdminUserTeam` 為第二輪補派）**：`AdminUserClub`
+   授予／撤銷（`/api/v1/admin/accounts/{id}/club-grants`）與 `AdminUserTeam`
+   授予／撤銷（`/api/v1/admin/accounts/{id}/team-grants`）皆已實作，理由見 docs/12b §5.3
+   「授權掛在人不是角色」。**只做授權資料的維護，`role_permissions.scope_type=own_teams`
+   這類列級限制的強制留給 `S1-8`（C4 賽程與賽果的寫入端點）一併實作**，見下方「第二輪補派：
+   J4 球隊授權」整節。
 4. **`role_permissions.scope_type` 的細粒度限制沒有實作**——`own_teams`／`academy_only`／
    `masked`／`translate_only` 這幾種欄位與列層級規則（docs/12b §7.4）本輪只讀取但不強制執行，
    `PermissionChecker` 目前只做「有沒有這個權限碼」的布林判斷。等對應模組真的接真實授權時
    （例如翻譯人員只能碰 `*_i18n`）需要另外實作。
-5. **權限碼只鋪了兩個模組**：J 系統管理本身（`system.account.*`／`system.role.*`／
-   `system.audit.view`／`system.club_grant.*`）與 B2 新聞（`content.article.*`，本次唯一接真實
-   授權的既有模組）。K／S／E 等其餘模組的權限碼要等對應模組真的做寫入端點時再依同一套命名慣例
+5. **權限碼目前鋪了四組**：J 系統管理本身（`system.account.*`／`system.role.*`／
+   `system.audit.view`／`system.club_grant.*`／**`system.club.*`，S1-3 續作新增**）、B2 新聞
+   （`content.article.*`）與**本輪新增的 `team.competition.*`**（`Competition` 型別，見下方新增
+   整節）。K／S／E 等其餘模組的權限碼要等對應模組真的做寫入端點時再依同一套命名慣例
    （`<domain>.<object>.<action>`）補上，不是遺漏，是刻意的範圍縮減。
 6. ✅ **已裁決（2026-09-23）**：`docs/12b-database-tables.md` §7.2 的角色代碼表原本與本次種子
    資料不一致（本次沿用 `db/seed/generate-charity-seed-sql.py` 的九個代碼，docs/12b §7.2 是另一套
@@ -493,6 +495,212 @@ ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本
     「稽核記錄（J3）：已撤回」），目前完全沒有登入歷程可查，只剩 `AdminUser.last_login_at` 單點
     紀錄（docs/12 §13.1 本來就記載的補償欄位，不是本輪新增）。異常提醒更是完全沒有，這兩項要
     等稽核記錄的政策方向重新確認後才有地基可以做。
+
+---
+
+### S1-3 續作：J1／J2／J4 端點（2026-09-24，`backend-engineer`）
+
+補完 `STATUS.md` `S1-3`（以及 `S1-2` 的 J4 部分、`S1-1` 的「`Club`／`Competition` 當成後台可維護
+型別」）——J1 帳號管理、J2 角色與權限、J4 俱樂部與授權管理，全部只到「登入與授權地基完成，
+管理畫面端點未做」。這一輪把管理畫面端點補上。**綱要一個欄位都沒有改**：`AdminUser`／
+`AdminRole`／`Permission`／`RolePermission`／`AdminUserClub`／`Club`／`Competition`／`Season`
+既有欄位與唯一鍵已經足夠支撐全部端點，唯一動到 DDL 以外的資料是 `permissions` 表新增五筆權限碼
+（見下方「新增的權限碼」）——這是資料不是綱要，跟既有 `content.article.*` 走的是同一套慣例。
+
+#### 兩個新的授權型別
+
+J1／J2／J4（`Club` 主檔與 `admin_user_clubs` 授權）是**全域端點**（不含 `{club}` 路由段——
+管的是帳號、角色、俱樂部主檔本身，沒有「當下站在哪個俱樂部」這個概念）。既有的
+`IAdminClubAuthorizer`／`AdminClubScope` 硬性要求一個俱樂部代碼，套不上去，因此新增一組平行的
+型別，**同一套「型別層強制授權」設計哲學**（不透過 `[Authorize]`，用 `internal` 建構子 ＋ 只有
+唯一產生者能建立實例）：
+
+| | 俱樂部範圍（既有） | 全域（本輪新增） |
+|---|---|---|
+| Scope 型別 | `Security/ClubScope.cs`（唯讀端點）／`Security/AdminClubScope.cs`（寫入端點） | `Security/AdminSystemScope.cs` |
+| Authorizer | `Security/IAdminClubAuthorizer.cs`／`AdminClubAuthorizer.cs` | `Security/IAdminSystemAuthorizer.cs`／`AdminSystemAuthorizer.cs` |
+| 檢查的東西 | 登入 → 俱樂部存在 → 俱樂部授權 → 權限碼 | 登入 → 權限碼（少了中間兩步，因為沒有俱樂部可言） |
+| `ArchitectureTests` | 掃 `ClubScope`／`AdminClubScope` | 同一支測試追加掃 `AdminSystemScope`（見該檔案的 `ForbiddenFullyQualifiedNames`／`allowList`） |
+
+**共用的部分抽成 `Security/AdminAccountGate.cs`**：「這個存取權杖對應的帳號，現在還活著嗎」
+（存在、`status=active`、`must_change_password=false`、`two_factor_enabled=true`）這組判斷原本
+整段寫在 `AdminClubAuthorizer` 內，本輪抽成 internal static 方法，`AdminClubAuthorizer` 與
+`AdminSystemAuthorizer` 共用同一份——避免日後改帳號閘門邏輯（例如新增鎖定條件）時忘記改其中一邊。
+**這是純抽取，沒有改變 `AdminClubAuthorizer` 的行為**：既有 168 項測試（含 `AdminClubAuthorizerTests`
+五種擋下情境）全過。
+
+`PermissionChecker.HasPermissionAsync` 同時補了一個防禦層：非超管路徑額外比對
+`!Permission.SysadminOnly`。理由與細節見 `docs/14-invariants.md` 本輪新增那一條——簡單說是
+「`sysadmin_only` 目前只有 seed 資料沒把這種碼指派給非超管角色在保證它生效，J2 本輪新增了角色
+權限指派端點後，這個保證需要在程式裡真的擋一次，不能只靠『資料庫裡沒人這樣接』」。
+
+#### 端點清單
+
+**J1 帳號管理**（`Features/AdminAccounts/`，`/api/v1/admin/accounts`，全域，用 `IAdminSystemAuthorizer`）
+
+| 方法 | 路徑 | 權限碼 |
+|---|---|---|
+| GET | `/api/v1/admin/accounts` | `system.account.view` |
+| GET | `/api/v1/admin/accounts/{id}` | `system.account.view` |
+| POST | `/api/v1/admin/accounts` | `system.account.create` |
+| PUT | `/api/v1/admin/accounts/{id}` | `system.account.update` |
+| POST | `/api/v1/admin/accounts/{id}/status` | `system.account.update` |
+| POST | `/api/v1/admin/accounts/{id}/reset-password` | `system.account.update` |
+| POST | `/api/v1/admin/accounts/{id}/reset-totp` | `system.account.update` |
+
+**J4（掛在帳號底下）：`AdminUserClub` 授權**（同一個 `Features/AdminAccounts/`）
+
+| 方法 | 路徑 | 權限碼 |
+|---|---|---|
+| GET | `/api/v1/admin/accounts/{id}/club-grants` | `system.club_grant.view` |
+| POST | `/api/v1/admin/accounts/{id}/club-grants` | `system.club_grant.update`（新增或重新啟用，upsert） |
+| DELETE | `/api/v1/admin/accounts/{id}/club-grants/{clubId}` | `system.club_grant.update`（軟撤銷 `is_active=false`） |
+
+**J4（掛在帳號底下）：`AdminUserTeam` 球隊授權**（同一個 `Features/AdminAccounts/`，
+coordinator 第二輪補派新增，見下方「第二輪補派：J4 球隊授權」整節）
+
+| 方法 | 路徑 | 權限碼 |
+|---|---|---|
+| GET | `/api/v1/admin/accounts/{id}/team-grants` | `system.team_grant.view` |
+| POST | `/api/v1/admin/accounts/{id}/team-grants` | `system.team_grant.update`（新增或重新啟用，upsert；只能授權該帳號目前有效俱樂部授權範圍內的球隊） |
+| DELETE | `/api/v1/admin/accounts/{id}/team-grants/{teamId}` | `system.team_grant.update`（軟撤銷 `is_active=false`） |
+
+**J2 角色與權限**（`Features/AdminRoles/`，`/api/v1/admin/roles`，全域）
+
+| 方法 | 路徑 | 權限碼 |
+|---|---|---|
+| GET | `/api/v1/admin/roles/permissions`（權限碼字典） | `system.role.view` |
+| GET | `/api/v1/admin/roles` | `system.role.view` |
+| GET | `/api/v1/admin/roles/{id}` | `system.role.view` |
+| POST | `/api/v1/admin/roles` | `system.role.update` |
+| PUT | `/api/v1/admin/roles/{id}` | `system.role.update` |
+| DELETE | `/api/v1/admin/roles/{id}` | `system.role.update`（`is_system=true` 或仍被帳號指派會擋下） |
+| PUT | `/api/v1/admin/roles/{id}/permissions` | `system.role.update`（整份取代非 `sysadmin_only` 的權限指派） |
+
+**J4：`Club` 主檔**（`Features/AdminClubs/`，`/api/v1/admin/clubs`，全域）
+
+| 方法 | 路徑 | 權限碼 |
+|---|---|---|
+| GET | `/api/v1/admin/clubs` | `system.club.view` |
+| GET | `/api/v1/admin/clubs/{id}` | `system.club.view` |
+| POST | `/api/v1/admin/clubs` | `system.club.update` |
+| PUT | `/api/v1/admin/clubs/{id}` | `system.club.update` |
+
+**`Competition` 維護**（`Features/AdminCompetitions/`，`/api/v1/admin/{club}/competitions`，
+俱樂部範圍，用既有的 `IAdminClubAuthorizer`——`competitions.club_id` 必填，跟 `AdminNews` 同一個形狀）
+
+| 方法 | 路徑 | 權限碼 |
+|---|---|---|
+| GET | `/api/v1/admin/{club}/competitions` | `team.competition.view` |
+| GET | `/api/v1/admin/{club}/competitions/{id}` | `team.competition.view` |
+| POST | `/api/v1/admin/{club}/competitions` | `team.competition.create` |
+| PUT | `/api/v1/admin/{club}/competitions/{id}` | `team.competition.update` |
+
+#### 新增的權限碼（`db/seed/generate-club-seed-sql.py` §18.2，已灌入本機 `tcrfc_club_dev`）
+
+| 代碼 | module／submodule | `is_club_scoped` | `sysadmin_only` |
+|---|---|---|---|
+| `system.club.view`／`system.club.update` | `J`／`J4` | 0 | **1** |
+| `team.competition.view`／`.create`／`.update` | `C`／`C4` | **1** | 0 |
+| `system.team_grant.view`／`system.team_grant.update`（第二輪補派） | `J`／`J4` | 0 | **1** |
+
+`role_permissions` 同時補了對應指派（§18.3）：`system_admin` 全給（跟既有 `content.article.*`
+一樣，雖然 `is_super_admin` 已經略過檢查，仍種資料比照慣例）；`team_competition` 角色全給
+`team.competition.*`（矩陣「球隊／賽事 ✔全」）；`content_editor`／`viewer` 只給
+`team.competition.view`（矩陣唯讀）；`partner_club_manager` 給 `team.competition.*`（`own_clubs`，
+矩陣「✔ 自家球隊」）。灌入方式跟既有種子腳本一樣（`IF NOT EXISTS` 條件式 `INSERT`，冪等，
+`./db/seed/apply-seed.sh` 可重複執行），**不是 DDL**，`db/club-schema.sql` 一行未改。
+
+#### 執行層判斷（規劃書沒寫死，這一輪做了選擇）
+
+1. ✅ **已裁決（2026-09-24，coordinator）**：J1 建立帳號**不做邀請信**——規劃書 §4.10 J1 只寫
+   「新增／停用帳號、密碼政策、兩階段驗證」，這不是暫時的最小可行方案，是定案寫法。建立者直接
+   在 `POST /accounts` 指定初始密碼，`must_change_password` 一律強制 `true`（比照種子超管
+   `sa@system.local` 的既有慣例），初始密碼由建立者透過站外管道轉交。系統信目前只有 9 封
+   （會員 5＋商店 4，`docs/14-invariants.md`），本來就沒有「後台帳號邀請信」樣板，不需要新增。
+2. **防呆：不能讓系統歸零到沒有啟用中的最高管理權限帳號**（task 5，規劃書未明文，執行層安全
+   措施）：`AdminAccountsRepository.EnsureNotLastActiveSuperAdminAsync` 在「停用帳號」與「把
+   `is_super_admin` 從 true 改成 false」這兩個操作前檢查，若目標帳號是唯一啟用中的超管就擋下
+   （409）。**沒有做**「不能把自己的角色指派清空」這類更廣義的鎖死防呆——規劃書與 task 都只
+   提到「最高管理權限」（`is_super_admin`），沒有提到一般角色指派的鎖死情境。
+3. ✅ **已裁決（2026-09-24，coordinator）**：`Competition` 的權限碼**維持歸在 `module_code=C`
+   （球隊管理）**，不改到 `J`——規劃書 C4（賽程與賽果）本來就屬於球隊管理範疇，`STATUS.md` 把
+   「`Club`／`Competition` 當成可維護型別」列在 `S1-1`／`J4` 底下指的是「這件工作歸在哪一輪做」，
+   不是「權限碼要歸在哪個 module_code」，兩者不必一致（`Club` 本身仍是 `system.club.*`／`J`，
+   因為它是矩陣「系統」欄，只有系統管理員；`Competition` 是矩陣「球隊／賽事」欄，逐角色都有
+   明確格子，性質不同）。`role_permissions` 依矩陣逐角色展開（見上表）。
+4. **`Competition.Status` 只接受 `draft`／`published`，拒絕 `scheduled`**——`docs/14-invariants.md`
+   「S0-7g」已裁決 `competitions` 沒有 `published_at` 欄位、不得提供排程選項，本輪的驗證直接
+   把這個已拍板的不變量落地在寫入層（`AdminCompetitionsRepository.ValidateStatus`），不是新判斷。
+5. **`Club` 的標誌／favicon／OG 圖三組欄位本輪唯讀**——另一位 `backend-engineer` 同時在改
+   `BlobImageStorageService` 與圖片上傳，任務指示明確要求不要動它。`AdminClubDetailDto` 回傳
+   目前的 `*_key` 值，但 `CreateAdminClubRequest`／`UpdateAdminClubRequest` 都沒有讓呼叫端設定
+   這些欄位的管道。**待辦**：之後應比照 `Features/AdminNews` 的 multipart 契約（選檔即時預覽、
+   儲存才上傳）補上，見規劃書 §4.0 圖片上傳通則。
+6. **`Club`／`Competition` 都沒有刪除端點**——前者刪除會牽動約 50 張表的外鍵，後者已有 `Match`
+   可能引用；規劃書沒有明文要不要支援刪除這兩個型別，本輪判斷「先不做，回報」比「猜一個刪除
+   行為」安全。角色（`AdminRole`）與帳號授權（`AdminUserClub`）都有明確的刪除／撤銷語意
+   （角色若未被指派可刪、俱樂部授權可撤銷），跟 `Club`／`Competition` 不是同一種情況。
+7. **`AdminRolesRepository.ReplacePermissionsAsync` 拒絕整批寫入含 `sysadmin_only` 權限碼的
+   請求**（400），不是靜默忽略——docs/12b §7.3 的 `sysadmin_only` 是帳號層級閘門，不是「指派
+   給角色」的東西，即使指派了 `PermissionChecker` 也不會讓非超管帳號拿到效果，為避免介面出現
+   「勾了但不會生效」的誤導狀態，直接擋在寫入層。既有（種子灌入的）`system_admin` 角色底下的
+   `sysadmin_only` 權限列不受這個端點影響（只替換非 `sysadmin_only` 的子集，見程式碼註解）。
+
+#### 第二輪補派：J4 球隊授權（`AdminUserTeam`，2026-09-24，coordinator 補派）
+
+漏掉的 J4 規格：主站規劃書第 1223–1231 行 J4 表格明列「指派帳號可維護哪些球隊
+（`AdminUserTeam`），供『學院管理者不得改動一線隊賽程』這類**列級**限制使用，權限僅系統
+管理員」。比照 `AdminUserClub` 補上，一樣掛在 `Features/AdminAccounts/` 底下：
+
+- **權限碼獨立成一組 `system.team_grant.view`／`system.team_grant.update`**，不沿用
+  `system.club_grant.*`——兩者是規劃書同一張 J4 表格裡並列的兩件事（「俱樂部**與球隊**授權」），
+  資源本身也不同（`admin_user_clubs` vs `admin_user_teams`），拆開才能在日後某個角色只需要
+  其中一種時單獨授予，也讓 `PermissionChecker` 的判斷維持「一個資源一組碼」的既有慣例（跟
+  `system.account.*` 與 `system.club_grant.*` 本來就是分開的兩組是同一個道理）。跟
+  `system.club.*`／`system.club_grant.*` 一樣 `sysadmin_only=1`、`is_club_scoped=0`
+  （矩陣「系統」欄只有系統管理員）。
+- **只能授權該帳號目前有效俱樂部授權範圍內的球隊**：`AdminAccountsRepository.UpsertTeamGrantAsync`
+  在寫入前查 `admin_user_teams` 目標球隊的 `club_id`，要求該帳號在 `admin_user_clubs` 對這個
+  俱樂部有一筆 `is_active=true` 且未到期的授權，否則丟 `AdminAccountValidationException`（400）。
+  這條規則的理由：球隊授權是俱樂部授權底下更細的列級限制，一個連俱樂部本身都沒被授權的帳號，
+  取得球隊授權沒有任何實際意義（`AdminClubAuthorizer` 在俱樂部範圍那一關就會先擋下它）。
+  `admin_user_teams` 本身沒有 `granted_on`／`granted_by` 欄位（比 `admin_user_clubs` 精簡），
+  這是綱要本身的形狀，不是本輪省略——**未動 `db/club-schema.sql`，`admin_user_teams` 既有欄位
+  已足夠支撐這個端點**。
+- 撤銷（`DELETE .../team-grants/{teamId}`）一樣是軟撤銷（`is_active=false`），立即生效。
+- 🔴 **只做授權資料的維護，不做強制**（coordinator 明確指示）：這一輪**沒有**在任何寫入端點
+  加上「檢查呼叫者是否只被授權特定球隊」的判斷——列級限制真正生效的地方是 C4（賽程與賽果）
+  的寫入端點檢查 `role_permissions.scope_type = 'own_teams'` 時，同時查 `admin_user_teams`
+  過濾「這個人能碰哪些球隊」，但 **C4 的寫入端點本輪根本不存在**（`STATUS.md` `S1-7` 才是
+  `C1–C3` 球隊／球員／教練，賽程賽果的寫入是之後的 `S1-8`）。`admin_user_teams` 現在可以被
+  維護，但還沒有任何程式碼真的去讀它做過濾判斷——這跟 `role_permissions.scope_type` 的既有
+  缺口（上方「本輪沒做的部分」第 4 點）是同一件事在球隊授權這個資料表上的具體落點，**強制
+  留到 `S1-8` 一併實作**，不在本輪範圍內。
+
+#### 待裁決事項（規劃書與 docs/12 都答不到，且影響客戶看到的行為）
+
+**沒有**——本輪範圍內遇到的疑問都能在既有文件（規劃書 §4.10／§5.3／§5.4／§6、docs/12b §7）
+或既有不變量（`docs/14` S0-7g）裡找到答案，或屬於上面列出的、有明確理由的執行層判斷。J1 邀請信
+與 Competition 權限碼歸屬兩項已由 coordinator 裁決（見上方判斷 1／3），不再是待裁決事項。
+
+#### 測試
+
+新增四個測試檔（30 項）：`Tcrfc.Api.Tests/AdminAccountsTests.cs`（14 項，含「停用立即撤銷更新
+權杖」「重設密碼撤銷既有工作階段」「俱樂部授權新增即生效、撤銷即失效」「防呆：不能讓系統歸零
+到沒有啟用中的超管」「球隊授權新增即生效、撤銷即失效」「球隊授權不在有效俱樂部授權範圍內擋下」）、
+`AdminRolesTests.cs`（8 項，含「刪除系統角色擋下」「刪除仍被指派的角色擋下」「拒絕指派
+`sysadmin_only` 權限碼」）、`AdminClubsAndCompetitionsTests.cs`（8 項，含 `Club`／`Competition`
+的 401／403／跨俱樂部／代碼衝突／狀態驗證）。全部走真正的 HTTP 管線與真正的 `tcrfc_club_dev`，
+反例用真實的攻擊或誤用形狀（跨俱樂部、非超管角色、`sysadmin_only` 權限碼、系統角色刪除、球隊
+授權超出俱樂部授權範圍），不是隨便塞錯值（`docs/18-work-errors.md` `E-39` 的教訓）。
+
+```
+$ dotnet test    # CLUB_SQL_CONNECTION_STRING 指向本機 tcrfc_club_dev，見「怎麼跑」一節
+已通過! - 失敗: 0，通過: 172，略過: 0，總計: 172（既有 142 ＋ 第一輪 26 ＋ 第二輪 4）
+```
+
+`ArchitectureTests`（型別層強制授權的 Roslyn 掃描）已擴充納入 `AdminSystemScope`，仍然通過。
 
 ---
 
@@ -561,6 +769,27 @@ ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本
 
 ✅ **`apps/admin` 已跟進（2026-09-22）**：`ImageUploader.vue` 已改成受控元件（選檔只預覽、檔案留記憶體），由 `NewsEditView.vue` 在按「儲存」時組 multipart 一起送。下一棒
 `frontend-architect` 要照這份新契約重做，見下方「給前端接的契約」整節。
+
+---
+
+🔴 **本輪（S0-8c 第②點，2026-09-24，`backend-engineer`）**：`STATUS.md` S0-8c 第②點——
+`BlobImageStorageService.UploadAsync` 寫五個物件本身不是原子操作，中途失敗會留下部分衍生檔孤兒，
+既有補償交易只覆蓋「資料列寫失敗」這一層，沒覆蓋「五個物件寫到一半」。本輪：
+
+1. `UploadAsync` 內部把物件寫入段包進 `try/catch`，失敗時呼叫既有 `DeleteAsync`（跟呼叫端的
+   「資料列寫失敗」補償交易共用同一個方法、同一套 fail-open 語意）盡力刪掉這次已寫入的物件，
+   再把原例外原樣拋出——細節與理由見下方「失敗回滾」整節末段。
+2. 評估「行程中途崩潰、補償邏輯來不及跑」的孤兒清理機制，**判斷現在不值得做**：S0-8 目前只接了
+   `articles.cover_key` 一個模組，涵蓋單一模組的清理機制在之後模組陸續接上時會默默失真（與
+   `docs/18-work-errors.md` `E-31`／`E-39` 升級段同一種「局部套用給全面信心」的風險），且誤刪
+   合法圖片的後果遠比留著孤兒物件嚴重，理由詳見「已知缺口」第 4 點。
+3. 新增 `Tcrfc.Api.Tests/BlobImageStorageServiceUploadFailureTests.cs`（6 項）：不經 HTTP、
+   直接建構 `BlobImageStorageService`，用子類化 `BlobContainerClient`／`BlobClient`（兩者的公開
+   方法皆為 `virtual` 且保留無參數建構子，Azure SDK 官方支援的作法，不需要額外 mocking 套件）
+   包住這個 fixture 真正在跑的 Azurite 容器，在第 N 次 `GetBlobClient` 呼叫注入失敗，
+   `N=1..5` 五個物件各驗一次，外加一支「補償刪除本身也失敗」的雙重失敗情境。
+4. `dotnet test` 全數 141 項通過（既有 135 ＋本輪 6），未改動 `Data/Migrations/`、未對
+   `tcrfc_club_dev` 執行任何 DDL。
 
 ---
 
@@ -838,9 +1067,39 @@ session 使用。**Blob 已在 S0-8 接上，JWT 已在 S1 接上**，見下方�
 | 🔒 `POST /api/v1/admin/auth/2fa/setup` | S1 新增。需登入。開始 2FA 設定，回傳 Base32 密鑰與 `otpauth://` URL | — |
 | 🔒 `POST /api/v1/admin/auth/2fa/confirm` | S1 新增。需登入。驗證第一組 TOTP 碼，通過才真的打開 2FA | — |
 | 🔒 `POST /api/v1/admin/auth/2fa/disable` | S1 新增。需登入＋重輸密碼 | — |
+| 🔒🔴 `GET /api/v1/admin/accounts` | S1-3 續作新增。需登入＋`system.account.view`（`sysadmin_only`）。帳號清單，全域端點 | `status`、`keyword`、`page`、`pageSize` |
+| 🔒🔴 `GET /api/v1/admin/accounts/{id}` | 同上＋`system.account.view` | — |
+| 🔒🔴 `POST /api/v1/admin/accounts` | 同上＋`system.account.create`。建立帳號，一律強制 `must_change_password=true` | — |
+| 🔒🔴 `PUT /api/v1/admin/accounts/{id}` | 同上＋`system.account.update`。更新基本資料與角色指派 | — |
+| 🔒🔴 `POST /api/v1/admin/accounts/{id}/status` | 同上＋`system.account.update`。啟用／停用，停用立即撤銷既有更新權杖 | — |
+| 🔒🔴 `POST /api/v1/admin/accounts/{id}/reset-password` | 同上＋`system.account.update`。代為重設密碼，撤銷既有更新權杖 | — |
+| 🔒🔴 `POST /api/v1/admin/accounts/{id}/reset-totp` | 同上＋`system.account.update`。代為重設 2FA，撤銷既有更新權杖 | — |
+| 🔒🔴 `GET /api/v1/admin/accounts/{id}/club-grants` | 同上＋`system.club_grant.view`。這個帳號的俱樂部授權（J4） | — |
+| 🔒🔴 `POST /api/v1/admin/accounts/{id}/club-grants` | 同上＋`system.club_grant.update`。新增或重新啟用授權，立即生效 | — |
+| 🔒🔴 `DELETE /api/v1/admin/accounts/{id}/club-grants/{clubId}` | 同上＋`system.club_grant.update`。撤銷授權，立即生效 | — |
+| 🔒🔴 `GET /api/v1/admin/accounts/{id}/team-grants` | 第二輪補派新增。需登入＋`system.team_grant.view`（`sysadmin_only`）。這個帳號的球隊授權（J4） | — |
+| 🔒🔴 `POST /api/v1/admin/accounts/{id}/team-grants` | 同上＋`system.team_grant.update`。新增或重新啟用授權，只能授權該帳號目前有效俱樂部授權範圍內的球隊，立即生效 | — |
+| 🔒🔴 `DELETE /api/v1/admin/accounts/{id}/team-grants/{teamId}` | 同上＋`system.team_grant.update`。撤銷授權，立即生效 | — |
+| 🔒🔴 `GET /api/v1/admin/roles/permissions` | S1-3 續作新增。需登入＋`system.role.view`。權限碼字典 | — |
+| 🔒🔴 `GET /api/v1/admin/roles` | 同上＋`system.role.view`。角色清單（十個種子角色＋自訂角色） | — |
+| 🔒🔴 `GET /api/v1/admin/roles/{id}` | 同上＋`system.role.view` | — |
+| 🔒🔴 `POST /api/v1/admin/roles` | 同上＋`system.role.update`。建立自訂角色 | — |
+| 🔒🔴 `PUT /api/v1/admin/roles/{id}` | 同上＋`system.role.update` | — |
+| 🔒🔴 `DELETE /api/v1/admin/roles/{id}` | 同上＋`system.role.update`。系統角色或仍被指派的角色會擋下（403／409） | — |
+| 🔒🔴 `PUT /api/v1/admin/roles/{id}/permissions` | 同上＋`system.role.update`。整份取代非 `sysadmin_only` 的權限指派 | — |
+| 🔒🔴 `GET /api/v1/admin/clubs` | S1-3 續作新增。需登入＋`system.club.view`（`sysadmin_only`）。俱樂部主檔清單 | — |
+| 🔒🔴 `GET /api/v1/admin/clubs/{id}` | 同上＋`system.club.view` | — |
+| 🔒🔴 `POST /api/v1/admin/clubs` | 同上＋`system.club.update` | — |
+| 🔒🔴 `PUT /api/v1/admin/clubs/{id}` | 同上＋`system.club.update` | — |
+| 🔒 `GET /api/v1/admin/{club}/competitions` | S1-3 續作新增。需登入＋`team.competition.view`。賽事系列清單，俱樂部範圍 | `seasonId`、`status` |
+| 🔒 `GET /api/v1/admin/{club}/competitions/{id}` | 同上＋`team.competition.view` | — |
+| 🔒 `POST /api/v1/admin/{club}/competitions` | 同上＋`team.competition.create`。狀態只接受 `draft`／`published` | — |
+| 🔒 `PUT /api/v1/admin/{club}/competitions/{id}` | 同上＋`team.competition.update` | — |
 
 🔒 標記的端點需要 `Authorization: Bearer <存取權杖>`，未登入回 401、已登入但無權回 403，
-見「S1：J1–J3 登入與授權地基」整節。
+見「S1：J1–J3 登入與授權地基」整節。🔴 標記的是**全域端點**（不含 `{club}` 路由段，用
+`IAdminSystemAuthorizer`），其餘 🔒 端點是俱樂部範圍（用 `IAdminClubAuthorizer`），見「S1-3
+續作：J1／J2／J4 端點」整節。
 
 `lang` 值域 `zh`／`en`（不帶預設 `zh`），與 [`docs/06-conventions.md`](../../docs/06-conventions.md)「語系代碼」一致，
 不是資料庫實際存的 `zh-Hant`／`en`（轉換邏輯見 `Localization/RequestLocale.cs`）。
@@ -1722,10 +1981,22 @@ JSON 的建立／更新請求」的兩段式設計，因為違反規劃書「選
    `IImageStorageService.DeleteAsync` 刪掉第 1 步剛剛上傳的物件（主檔＋四個衍生檔），再把原例外
    原樣往上丟／回 404——不留下沒有任何資料列指著它的孤兒物件。
 
-已知的殘留缺口（見下方「已知缺口」第 4 點）：`BlobImageStorageService.UploadAsync` 本身在寫五個
-物件（主檔＋四個衍生檔）時是循序寫入，不是單一原子操作——如果寫到一半（例如寫完主檔＋兩個衍生檔）
-網路中斷，會留下**部分**衍生檔的孤兒物件，這個更深一層的缺口跟本次「兩段式改單一請求」的修正
-無關，本次沒有動手處理（見下方說明）。
+🔴 **S0-8c 修正（2026-09-24）**：`BlobImageStorageService.UploadAsync` 本身在寫五個物件（主檔＋
+四個衍生檔）時是循序寫入，不是單一原子操作——如果寫到一半（例如寫完主檔＋兩個衍生檔）網路中斷，
+原本會留下**部分**衍生檔的孤兒物件，這個更深一層的缺口在「兩段式改單一請求」那次修正時被記錄下來
+但沒有動手處理。**這次補上**：`UploadAsync` 內部把「寫主檔＋逐一寫衍生檔」整段包進 `try/catch`，
+任何一個物件寫入失敗，都會呼叫**同一個** `DeleteAsync`（跟上面「請求端補償」共用同一個方法、
+同一套 fail-open 語意，不是另外發明一套規則）盡力刪掉這次呼叫可能已經寫入的物件，再把造成失敗的
+**原例外**原樣往外拋——`DeleteAsync` 依主鍵推導全部五把鍵、逐一呼叫 `DeleteIfExistsAsync`，
+對「這次根本沒機會寫入」的鍵一樣安全（刪不存在的物件是等冪操作，不是錯誤），所以不需要另外追蹤
+「究竟寫到第幾個」。`DeleteAsync` 本身不會往外拋（它自己的 `catch` 只記警告日誌），所以補償刪除
+失敗絕不會蓋掉原例外，兩者組合起來就是「盡力清、原例外優先」。**殘留風險**（見下方「已知缺口」
+第 4 點）：如果補償刪除本身也失敗（例如儲存體剛好在那個當下也不可用），該次呼叫寫成功的物件仍會
+真的留下孤兒——這是雙重失敗才會發生的情況，接受此風險，不視為本次修正的缺口。**另評估過「行程中途
+崩潰、補償邏輯根本來不及跑」的情況，判斷不值得現在做定期清理，理由見下方「已知缺口」第 4 點**。
+自動化測試：`Tcrfc.Api.Tests/BlobImageStorageServiceUploadFailureTests.cs`（`N=1..5` 五個物件各自
+驗證一次「失敗在這裡、原例外原樣拋出、事後不留殘留物件」，外加一支「補償刪除本身也失敗」的雙重
+失敗情境）。
 
 ### `UploadSlotPolicy`：欄位插槽允許清單（`Features/Uploads/UploadSlotPolicy.cs`）
 
@@ -1797,13 +2068,34 @@ multipart 邊界字串與其他表單欄位）。⚠️ **這只把「檔案太�
    - 換圖或刪除**舊**物件失敗時（`IImageStorageService.DeleteAsync` fail-open 吞例外）——這是
      刻意的取捨（見該方法上的說明：資料庫的新值已經寫入成功，不該讓一個非關鍵的清理步驟讓
      整個請求變成 500），舊物件因此可能永遠留在儲存體裡。
-   - `BlobImageStorageService.UploadAsync` 寫五個物件（主檔＋四個衍生檔）本身不是單一原子操作
-     （見上方「失敗回滾」末段）——寫到一半失敗會留下部分衍生檔的孤兒物件。這是比本次修正更深一層
-     的既有缺口，本輪沒有動手處理（不在「上傳時機」這個修正範圍內，需要另外評估要不要做，
-     例如改成先寫暫存前綴、全部成功才「原子性地」讓主鍵可見，或接受現狀）。
+   - ~~`BlobImageStorageService.UploadAsync` 寫五個物件本身不是單一原子操作，寫到一半失敗會留下
+     部分衍生檔的孤兒物件~~ ✅ **S0-8c 修正（2026-09-24）已補上**：任一個物件寫入失敗，現在會
+     盡力刪掉這次呼叫已經寫入的物件再拋出原例外，見上方「失敗回滾」末段。**殘留的兩種情況**：
+     ① 補償刪除本身也失敗（雙重失敗，`DeleteAsync` fail-open 決定不重試）；
+     ② **行程在寫到一半時直接崩潰**（容器重建、`OOM`、宿主機斷電……），補償的 `catch` 區塊
+     根本沒有機會執行——這種情況目前**沒有**定期清理機制去事後補救，評估後判斷現在不值得做，
+     理由：
+     - 要安全判斷「這把鍵是孤兒」，必須先有「全系統目前所有合法引用鍵的完整清單」，但 S0-8
+       目前**只接了 `articles.cover_key` 一個模組**（見上方「`UploadSlotPolicy`」整節），
+       之後每接一個新的圖片欄位（球員照片、贊助商標誌、商品圖集……）都必須記得同步更新這份清單，
+       而且**沒有任何機制會在忘記更新時失敗**——這正是這個專案自己在
+       [`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-31`／`E-39` 升級段落裡點名的
+       「局部套用的機制會給出全面的信心」：一個只涵蓋單一模組就上線的孤兒清理，比沒有清理更危險，
+       因為它會讓人誤以為「有在管」，而它真正涵蓋的範圍會隨著模組增加而**默默失真**。
+     - 這一類清理若誤判「合法但恰好還沒被任何清單看到的鍵」為孤兒並刪除，後果是**刪掉正在使用中
+       的圖片**——比放著孤兒物件不管嚴重得多（規劃書明訂本通則「不做」使用位置追蹤，見下段），
+       不值得為了省一點儲存空間去換這個下修風險。
+     - 影響面本身也很小：觸發窗口只有「正在執行五次循序 blob 寫入」的那幾百毫秒到幾秒，
+       且只有整個行程被中止（不是一般的例外）才會命中；後果純粹是**儲存體多幾個沒人參照的物件**，
+       不影響資料正確性（跟 S0-8c 這次要修正的「中途失敗」是同一個不變量）。
+     - 若之後真的要做，時機應該是「S0-8 的圖片欄位全部模組都接完之後」——那時才有辦法一次性
+       比對「資料庫裡所有 `*_key` 欄位的值」與「儲存體實際物件」，而不是接一個模組就得重新評估
+       一次涵蓋範圍。**這件事本身也應該走 `docs/00-harness.md` §2.5 同步鏈**（規劃書要不要新增
+       這個機制），不是後端自己判斷要不要做。
 
    本服務沒有做孤兒物件的定期清理（例如比對資料庫實際引用的 key 集合，反查儲存體多出來的物件），
-   這是規劃書 §4.0 明文「不做」的範圍之一（「本通則不做：使用位置追蹤與刪除前警示」），不是漏做。
+   這是規劃書 §4.0 明文「不做」的範圍之一（「本通則不做：使用位置追蹤與刪除前警示」），不是漏做；
+   上面「行程中途崩潰」的評估與這條規劃書條文的方向一致，不是互相矛盾。
 
 ---
 
@@ -2225,7 +2517,7 @@ tcrfc schedule 筆數: 21    （不變）
 
 ---
 
-## 測試（`apps/api/Tcrfc.Api.Tests`，`dotnet test` 全部 135 項全過，S1 新增 31 項見上方「S1」整節「測試結果」，S0-7g 新增 3 項見下方 `ScheduledPublishTests`）
+## 測試（`apps/api/Tcrfc.Api.Tests`，`dotnet test` 全部 141 項全過，S1 新增 31 項見上方「S1」整節「測試結果」，S0-7g 新增 3 項見下方 `ScheduledPublishTests`，S0-8c 新增 6 項見下方 `BlobImageStorageServiceUploadFailureTests`）
 
 S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄裡。S0-7d 新增獨立測試專案
 `Tcrfc.Api.Tests`（xUnit 2.9 + `Microsoft.AspNetCore.Mvc.Testing`），對 `Program`
@@ -2267,6 +2559,7 @@ S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄�
 | **`ImageProcessorTests`（S0-8 新增，純單元測試，不需要任何 fixture）** | 長邊超過 2560px 等比縮小、固定產出 4 個衍生檔（1280／640／320／160 方形縮圖）、全部輸出真的是 WebP、主檔與衍生檔的 EXIF／ICC／IPTC／XMP 全部清除、主檔小於目標尺寸時不放大補齊、接受 PNG／WebP 格式、假副檔名文字檔與損毀 JPEG 檔頭被擋（見 `TestImages.cs`，全部圖片用 ImageSharp 在記憶體現產，不依賴外部檔案，任何機器都能重現） |
 | **`AdminNewsCoverBlobCleanupTests`（S0-8 新增，S0-8 修正改寫）** | 圖片上傳共用元件跟 `Features/AdminNews` 實際接線後的行為，改用單一 multipart 請求：建立文章時附封面圖片、五個物件真的寫進儲存體且物件鍵含俱樂部與文章 id；換圖成功後舊的主檔與全部衍生檔被刪除、新的完整保留；`removeCover=true` 清空封面且刪舊物件；沒夾檔案也沒勾選移除時封面維持不變（Keep 語意）；刪除文章後圖片物件一併被刪除 |
 | **`AdminNewsCoverUploadTests`（S0-8 修正新增，2026-09-22）** | 🔴 這次修正的核心驗收：格式不支援／空檔案／超過 10MB／俱樂部不存在四種情境透過建立端點觸發，回 400／404 且不留下任何物件；**slug 重複時夾正常圖片**——圖片已上傳成功但建立失敗（409），驗證儲存體物件數量沒有增加（補償交易生效）；**並行衝突時夾正常圖片**——圖片已上傳成功但更新失敗（409），驗證沒有新增物件且舊封面不受影響；同時夾檔案又勾選移除封面回 400 且完全不嘗試上傳 |
+| **`BlobImageStorageServiceUploadFailureTests`（S0-8c 新增，2026-09-24，6 項）** | 🔴 不經 HTTP，直接建構 `BlobImageStorageService`，用包住真實 Azurite 容器的假裝飾（`FailAtCallBlobContainerClient`／`FailingBlobClient`，子類化 `BlobContainerClient`／`BlobClient` 的 `virtual` 成員，不需要任何 mocking 套件）在第 N 次 `GetBlobClient` 呼叫注入失敗：`N=1..5`（主檔、三個等比衍生檔、方形縮圖各自失敗一次）驗證原例外原樣拋出、事後五把物件鍵全部不存在；額外一項驗證補償刪除本身也失敗時仍然拋出造成上傳失敗的原例外（不會被清理錯誤蓋掉），且這種雙重失敗下前面真的寫入成功的物件會如預期殘留 |
 
 ### 怎麼跑
 
