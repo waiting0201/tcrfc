@@ -2776,6 +2776,34 @@ dotnet run --no-launch-profile
 > export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=${PW};TrustServerCertificate=True;Encrypt=False;"
 > ```
 
+> 🔴 **本機沒設 `DATA_PROTECTION_KEYS_PATH` 時，每次重啟 `dotnet run` 都會讓已經完成兩階段
+> 驗證設定的帳號永久解不開密鑰**（2026-09-24，重啟開發行程修另一個問題時實際踩到）——
+> `Program.cs` 沒讀到這個環境變數就不會呼叫 `PersistKeysToFileSystem`，Data Protection 金鑰環
+> 只存在那個行程的記憶體裡，行程一停金鑰就沒了，舊行程加密過的
+> `admin_users.two_factor_secret_encrypted` 全部變成新行程解不開的密文（`two_factor_enabled`
+> 欄位本身不會被清掉，畫面上看起來像帳號還在，但輸入任何驗證碼都不可能驗證成功）。
+> **重現方式**：完成某個帳號的兩階段驗證設定 → 重啟 `dotnet run` → 用同一組帳密再登入 → 卡在
+> 「請輸入兩階段驗證碼」但沒有任何碼算得出來。**解法只有一個**：
+> `set -a; source .env; set +a; ./db/seed/reset-admin-accounts.sh`（把種子測試帳號的
+> `two_factor_enabled`／`two_factor_secret_encrypted` 都重設回種子初始值，之後可以重新走一次
+> 設定）——這支腳本本來就是設計來處理「端對端驗收弄髒種子帳號狀態」的既定還原工具，不是這次
+> 才新增的因應措施。
+>
+> **建議本機也固定一個金鑰目錄**，讓一般的重啟（沒有清資料庫）不會把 2FA 弄丟：
+> ```bash
+> mkdir -p "$HOME/.local/share/tcrfc-dev/dataprotection-keys"
+> export DATA_PROTECTION_KEYS_PATH="$HOME/.local/share/tcrfc-dev/dataprotection-keys"
+> ```
+> 選在**repo 目錄之外**（使用者家目錄下）是刻意的：金鑰只要沒被 commit 就不算違反規則，但
+> 放在 repo 外面連「要不要靠 `.gitignore` 擋」這個問題都不會出現，比在 repo 裡挑一個目錄再去
+> 確認 `.gitignore` 涵蓋到它更不容易日後被改壞。**如果偏好放在 repo 裡**（例如想跟專案其他
+> 本機產生物放一起），至少要先用 `git check-ignore -v <路徑>` 確認真的被排除、且是用
+> `apps/**/` 這種任意深度萬用字元（`docs/18-work-errors.md` `E-27` 記過 `apps/*/` 單層
+> 萬用字元擋不到子目錄的坑），**金鑰檔案本身不得出現在 `git status` 裡**。這個環境變數是
+> **選用**，不設也能跑（本機開發沒有它一樣能起服務，只是每次重啟都要重設 2FA，見上方
+> 「怎麼跑」開頭「連線字串等機密一律用環境變數」的既有慣例——這個變數的值不是機密，是
+> 一個檔案系統路徑，不需要額外保護）。
+
 ### 要連真的 Redis（選用）
 
 不帶 `REDIS_HOST` 時注入的是 `NoOpQueryCache`，**快取路徑完全不會被執行**——

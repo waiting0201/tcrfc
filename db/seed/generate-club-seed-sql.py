@@ -1129,6 +1129,12 @@ ADMIN_USERS = [
     # 供 AdminAuthTests 測登入、更新權杖輪替、登出這些不需要先過 2FA 關卡的端點行為。
     ("clean.login@tcrfc.test", "登入流程測試專用（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$zi4N9bpx0UfKi4XF1FoSlA==$S/20fV7gT9mFmaGaZ2fcAuSBZ4Pb99QdKqEqrdp6uBA=",
      True, False, False, "system_admin", []),
+    # 2026-09-24 新增：專供後台端對端實走的學院／課程管理帳號。academy.manager@tcrfc.test 是
+    # 「2FA 已啟用但無密鑰」的整合測試帳號（靠 TestAdminTokens 簽權杖），走不完真實 /login；
+    # 改它會弄壞既有測試，所以另開一個 two_factor_enabled=0 的帳號，登入後走強制 2FA 設定。
+    # 角色與授權跟 academy.manager 相同（academy_program、僅 bw），沿用 content.editor 的雜湊。
+    ("academy.login@tcrfc.test", "學院／課程管理（實走用測試帳號，僅藍鯨）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, False, "academy_program", [("bw", None)]),
 ]
 
 emit("-- ── 18.4 admin_users：種子超管（真雜湊，Admin@123）＋ 五個角色測試帳號（真雜湊） ──")
@@ -1145,6 +1151,7 @@ emit("--   expired.grant@tcrfc.test     / ContentEditor@123（沿用同一組雜
 emit("--   fresh.setup@tcrfc.test       / Admin@123（沿用同一組雜湊）")
 emit("--   lockout.test@tcrfc.test      / Viewer@123（沿用同一組雜湊）")
 emit("--   clean.login@tcrfc.test       / SuperAdmin@123（沿用同一組雜湊，two_factor_enabled=0，唯一能走完整 /login 流程的帳號）")
+emit("--   academy.login@tcrfc.test     / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，學院角色的端對端實走帳號，僅授權 bw）")
 for username, display_name, password_hash, is_super, must_change, two_factor, role_code, club_grants in ADMIN_USERS:
     user_id = new_id("admin_user", username)
     block(f"""

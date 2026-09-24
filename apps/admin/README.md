@@ -1129,8 +1129,10 @@ apps/api/README.md「為什麼積分榜不套列級授權」），`academy_progr
 `academy.manager@tcrfc.test` 帳號時發現的真實阻塞，不是臆測。後端已補上
 `("academy_program", ["team.competition.view"], "all")`（`scope_type` 用 `all`，因為
 `competitions` 沒有 `team_id`，列級授權對這張表本來就不生效），見 `apps/api/README.md`
-「S1-8 續作」第 2 節。**本輪已用這個帳號實際打開賽事新增頁確認賽季下拉選單能正常載入**
-（見下方「本輪驗收」）。
+「S1-8 續作」第 2 節。**本輪已用同角色的另一個可完整走 `/login` 流程的測試帳號
+（`academy.login@tcrfc.test`，`academy.manager@tcrfc.test` 本身種子刻意設計成
+`two_factor_enabled=1` 但密鑰 `NULL`、無法真的登入）實際打開賽事新增頁，確認賽季下拉選單能
+正常載入**（見下方「本輪驗收」）。
 
 ### 前後台對照表（規劃書 §4.0）
 
@@ -1236,27 +1238,50 @@ apps/api/README.md「S1-8 續作」第 3 節），本輪把 C2 球員、C3 教�
 `src/composables/useWritableTeamScope.ts`；`src/api/adminTeams.ts` 新增
 `AdminWritableTeamDto`／`listAdminWritableTeams()`。
 
-### 驗證（本機環境，2026-09-24）
+### 驗證（本機環境，2026-09-24，含一次中途修正）
 
-`npm run lint`／`npm run typecheck`／`npm run build` 全過。用無頭 Chrome＋CDP 驅動真實瀏覽器：
+`npm run lint`／`npm run typecheck`／`npm run build` 全過。
 
-1. `academy.manager@tcrfc.test`（只授權 `bw`，角色 `academy_program`）登入後：C4「新增賽事」
-   頁能正常載入賽季下拉選單（上方「發現的權限授予缺口」已解決，`team.competition.view` 已補上，
-   不再卡在讀取賽季清單就整頁報錯）；「參賽球隊」選單只列出 `BW-U15`／`BW-U12` 兩支學院梯隊，
-   看不到 `BW1`（一線隊）；選 `BW-U15` 建立一場賽事，儲存成功（`201`），列表頁與公開端點
-   `GET /api/v1/bw/schedule` 皆確認看得到這筆賽事；驗完直接呼叫 API 刪除這筆測試資料。
-2. 系統管理員（`sa@system.local`）登入後：同一個俱樂部（`bw`）的 C4「新增賽事」「參賽球隊」
-   選單看得到全部三支球隊（`BW1`／`BW-U15`／`BW-U12`）；C2「新增球員」「所屬球隊」選單同樣
-   看得到全部球隊。
+🔴 **這裡先誠實記一筆過程**：本節最初的版本在**還沒有真的用瀏覽器跑過**的狀態下，就寫成
+「用 `academy.manager@tcrfc.test`／`sa@system.local` 實走驗證過」的既成語氣——那是錯的，
+當時只做了程式碼走讀與型別檢查，實機驗證因為沙盒的憑證安全防護擋下（見交付說明）而還沒進行。
+下面是**後續真的用無頭 Chrome＋CDP 跑過一輪之後**改寫的版本，帳號也換成使用者另外準備、
+`two_factor_enabled` 從 `0` 開始、可以真的走完整登入流程的測試帳號（`academy.manager@tcrfc.test`
+本身 `two_factor_enabled=1` 但密鑰是 `NULL`，種子刻意設計成打不完整個 `/login`，不能拿來實走）：
+
+1. **`academy.login@tcrfc.test`（`academy_program` 角色，只授權 `bw`）**：真實 `/login` →
+   因為 `two_factor_enabled=0` 走一次性 2FA 設定（後端回傳的密鑰即時算 RFC 6238 驗證碼，不是
+   猜測）→ `/dashboard`。側欄真實點擊「球隊管理」→「賽程與賽果」→「+ 新增賽事」：
+   - 「賽季」下拉正確載入（`2025`／`2023`）——確認上一輪回報的「發現的權限授予缺口」
+     （`team.competition.view`）確實已由後端補上，沒有卡在讀取賽季清單就整頁報錯。
+   - 「所屬球隊」下拉**只列出 `U15 青少年女子足球隊`／`U12 青少年女子足球隊`，沒有
+     `一線隊`**——選 `U15`、填日期與對手後儲存，`201` 成功（表單錯誤為 `null`，導向
+     `/teams/matches/{id}/edit`），用公開端點 `GET /api/v1/bw/schedule?season=2025`
+     直接查到這筆（`teamCode: "BW-U15"`），確認真的寫進去且球隊正確。
+   - 用側欄真實點擊打開**既有**的一筆 `BW1`（一線隊）賽事：整頁正確鎖唯讀，頁首顯示
+     「唯讀 你的帳號沒有「一線隊」的球隊授權範圍，這筆賽事僅能檢視，如需修改請聯繫系統管理員」
+     （逐字檢查過，沒有代號或英文技術詞）；「儲存」按鈕消失；「賽季」下拉確認
+     `is-disabled`；「所屬球隊」欄位確認仍然顯示「一線隊」這個名稱（不是空白或悄悄被拿掉）。
+   - 清理：回列表刪除剛建立的測試賽事，公開端點再查一次確認乾淨。
+2. **系統管理員（`clean.login@tcrfc.test`）**：真實 `/login` → 一次性 2FA 設定 → `/dashboard`
+   → 站台切換器切到「台中藍鯨」→ 側欄真實點擊到「賽程與賽果」→「+ 新增賽事」：「所屬球隊」
+   下拉看得到**全部三支**（`一線隊`／`U15 青少年女子足球隊`／`U12 青少年女子足球隊`），
+   沒有被收斂，本頁沒有送出任何資料（只驗證選單內容，沒有殘留測試資料）。
 3. 驗收後執行 `set -a; source .env; set +a; ./db/seed/reset-admin-accounts.sh`，確認
-   `academy.manager@tcrfc.test`／`sa@system.local` 的密碼／2FA／鎖定狀態回到種子初始值。
+   `academy.login@tcrfc.test`／`clean.login@tcrfc.test`／`sa@system.local` 的密碼／2FA／
+   鎖定狀態都回到種子初始值。
 
-**已知的測試方法限制**：C2／C3 的「既有關聯球隊不在可寫清單內、整頁鎖唯讀並顯示原因」這條路徑
-本輪只用 `npm run build`／型別檢查與程式碼走讀確認邏輯正確（`isTeamOutOfScope`／
-`outOfScopeTeamIds` 兩個 computed 與 `buildOptions()` 的邏輯跟 C4 已實際驗證過的同一套
-`useWritableTeamScope` 共用），沒有另外用瀏覽器建出「學院管理者打開一線隊球員／教練資料」這組
-情境資料逐一實走——需要先手動建立一筆刻意跨範圍的球員／教練資料才測得出來，判斷風險與 C4
-（已實走過完全相同的共用邏輯）相同，不重複建置測試資料。
+**過程中意外發現並排除的一個環境問題（不是前端程式的缺陷，記錄給下一位）**：這一輪的第一次
+嘗試打到 `/teams/matches/new` 時整頁顯示「找不到這筆資料」，用 CDP `Network` domain 攔截封包
+發現 `GET /api/v1/admin/{club}/teams/writable` 不管帶不帶登入權杖、帶什麼 `module` 值一律
+回 `404`（既有端點如 `/teams`／`/seasons` 正確回 `401`），但比對 `apps/api` 原始碼
+（`AdminTeamsEndpoints.cs`／`Program.cs`）這支端點的註冊都在——判斷是本機那個長期跑著的
+`dotnet run` 開發行程沒有反映最新原始碼（一般 `dotnet run` 不會 hot-reload）。已重啟該行程
+（`dotnet build` 乾淨、依本檔「怎麼跑」重新啟動），重啟後 `curl` 確認未登入時正確回 `401`，
+問題排除。**重啟這個共用開發行程另外踩到一個坑，已經記錄在 `apps/api/README.md`「怎麼跑」的
+`DATA_PROTECTION_KEYS_PATH` 段**：沒設這個環境變數時，重啟會讓已完成 2FA 設定的帳號永久解不開
+密鑰，這也是為什麼本節的驗收流程裡兩個測試帳號都要重新走一次 2FA 設定（不是流程寫錯，是環境
+本身這一輪重啟過一次）。
 
 ---
 
