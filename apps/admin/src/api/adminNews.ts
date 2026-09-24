@@ -3,10 +3,23 @@
  * 對照 apps/api/README.md「端點清單」「後台新聞（B2）寫入垂直切片」。
  */
 import { apiRequest, apiUploadRequest } from './http'
-import type { NewsArticle, NewsCategory } from '@/types/news'
+import type { CoreValueTag, NewsArticle, NewsCategory, NewsTag, RelationTargetType } from '@/types/news'
 import type { ContentStatus } from '@/types/common'
 
 // ── 後端 DTO（逐欄位對照 Features/AdminNews/AdminArticleDtos.cs，不自行增減欄位）──────────
+
+/** 標籤（S1-5）。對照 `AdminArticleTagDto`。 */
+export interface AdminArticleTagDto {
+  slug: string
+  nameZh?: string | null
+  nameEn?: string | null
+}
+
+/** 關聯（S1-5）。對照 `AdminArticleRelationInput`——輸入與輸出共用同一個形狀。 */
+export interface AdminArticleRelationDto {
+  targetType: string
+  targetId: string
+}
 
 export interface AdminArticleLocaleContentDto {
   title?: string | null
@@ -34,6 +47,10 @@ export interface AdminArticleListItemDto {
   updatedAt: string
   titleZh?: string | null
   titleEn?: string | null
+  /** 標籤（S1-5，列表頁沿用同一筆查詢附帶回傳） */
+  tags: AdminArticleTagDto[]
+  /** 瀏覽數（S1-5） */
+  viewCount: number
 }
 
 export interface AdminArticleDetailDto {
@@ -48,6 +65,14 @@ export interface AdminArticleDetailDto {
   updatedAt: string
   zh: AdminArticleLocaleContentDto
   en?: AdminArticleLocaleContentDto | null
+  /** 標籤（S1-5） */
+  tags: AdminArticleTagDto[]
+  /** 瀏覽數（S1-5） */
+  viewCount: number
+  /** 核心價值標籤（S1-5） */
+  coreValueTags: string[]
+  /** 關聯（S1-5） */
+  relations: AdminArticleRelationDto[]
 }
 
 export interface AdminArticlePage {
@@ -103,6 +128,18 @@ export interface SaveArticlePayload {
   categoryCode: string
   isFeatured: boolean
   content: AdminArticleContentInputDto
+  /**
+   * 🔴 標籤／核心價值標籤／關聯三欄（S1-5）：後端的語意是「省略＝維持不變、空陣列＝清空」
+   * （更新時），但這裡的呼叫端（`articleToSavePayload`）**一律明確帶出目前畫面上的完整陣列**，
+   * 不管有沒有變動、也不管是建立還是更新——因為畫面上這三個欄位現在都有完整的編輯介面，
+   * `form` 裡存的本來就是「使用者現在想要的最終狀態」，直接把這個狀態當成明確值送出，
+   * 效果上等同於「沒變就送回原值＝維持不變、清空了就送空陣列＝清空」，不需要額外去偵測
+   * 「使用者到底有沒有碰過這個欄位」這種容易漏判的邏輯。**這裡永遠不會是 `undefined`**，
+   * 型別上仍標成可省略是為了跟後端的 DTO 定義（`IReadOnlyList<...>?`）逐欄位對照。
+   */
+  tags?: AdminArticleTagDto[]
+  coreValueTags?: string[]
+  relations?: AdminArticleRelationDto[]
 }
 
 /** PUT 專用：多了並行權杖與封面圖片三態裡「清空」那一態的旗標（`UpdateArticleRequest.RemoveCover`）。
@@ -111,6 +148,41 @@ export interface SaveArticlePayload {
 export interface UpdateArticlePayload extends SaveArticlePayload {
   expectedUpdatedAt: string
   removeCover: boolean
+}
+
+// ── 批次操作（S1-5）─────────────────────────────────────────────────────────────
+
+export interface BatchOperationSkippedItemDto {
+  id: string
+  reason: string
+}
+
+export interface BatchOperationResultDto {
+  updatedCount: number
+  skipped: BatchOperationSkippedItemDto[]
+}
+
+export function batchChangeNewsCategory(club: string, ids: string[], categoryCode: string): Promise<BatchOperationResultDto> {
+  return apiRequest<BatchOperationResultDto>(`/api/v1/admin/${club}/news/batch/category`, {
+    method: 'POST',
+    body: { ids, categoryCode },
+  })
+}
+
+export function batchPublishNews(club: string, ids: string[]): Promise<BatchOperationResultDto> {
+  return apiRequest<BatchOperationResultDto>(`/api/v1/admin/${club}/news/batch/publish`, {
+    method: 'POST',
+    body: { ids },
+  })
+}
+
+/** 「下架」＝轉回草稿（`articles.status` 沒有獨立的下架值，見 apps/api/README.md「我的判斷」第 1 點：
+ * 這是後端已回報、待業務確認的既有假設，前端沿用同一個判斷，畫面文字仍顯示「下架」。 */
+export function batchUnpublishNews(club: string, ids: string[]): Promise<BatchOperationResultDto> {
+  return apiRequest<BatchOperationResultDto>(`/api/v1/admin/${club}/news/batch/unpublish`, {
+    method: 'POST',
+    body: { ids },
+  })
 }
 
 /** 組出建立／更新文章共用的 `multipart/form-data`：固定 `payload`（JSON 文字）欄位，`coverFile`
@@ -202,6 +274,10 @@ export function detailDtoToArticle(dto: AdminArticleDetailDto): NewsArticle {
     summary: pair.summary,
     seoTitle: pair.seoTitle,
     seoDescription: pair.seoDescription,
+    tags: dto.tags.map((t) => ({ slug: t.slug, nameZh: t.nameZh, nameEn: t.nameEn })),
+    coreValueTags: dto.coreValueTags as CoreValueTag[],
+    relations: dto.relations.map((r) => ({ targetType: r.targetType as RelationTargetType, targetId: r.targetId })),
+    viewCount: dto.viewCount,
   }
 }
 
@@ -222,7 +298,32 @@ export function listItemDtoToArticle(dto: AdminArticleListItemDto): NewsArticle 
     summary: { zh: '', en: '' },
     seoTitle: { zh: '', en: '' },
     seoDescription: { zh: '', en: '' },
+    tags: dto.tags.map((t) => ({ slug: t.slug, nameZh: t.nameZh, nameEn: t.nameEn })),
+    // 列表查詢不回傳核心價值標籤與關聯（沒有畫面需要在列表頁顯示這兩者），維持空陣列即可，
+    // 不影響列表頁渲染；編輯頁一律走 detailDtoToArticle 才有真正的值。
+    coreValueTags: [],
+    relations: [],
+    viewCount: dto.viewCount,
   }
+}
+
+/**
+ * 標籤自動完成建議清單（S1-5）。刻意不新增端點——直接沿用既有的後台列表查詢
+ * （`content.article.view` 權限，寫新聞的角色本來就有），把目前這個俱樂部所有文章已經在用的
+ * 標籤去重彙整起來，當作「輸入時可以選的既有標籤」。`pageSize=200` 一次抓滿（目前全系統
+ * 83 篇文章，遠低於這個數字），避免另外處理分頁。
+ */
+export async function fetchTagSuggestions(club: string): Promise<NewsTag[]> {
+  const page = await listAdminNews(club, { pageSize: 200 })
+  const bySlug = new Map<string, NewsTag>()
+  for (const item of page.items) {
+    for (const tag of item.tags) {
+      if (!bySlug.has(tag.slug)) {
+        bySlug.set(tag.slug, { slug: tag.slug, nameZh: tag.nameZh, nameEn: tag.nameEn })
+      }
+    }
+  }
+  return Array.from(bySlug.values())
 }
 
 /**
@@ -262,5 +363,9 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
             seoDescription: article.seoDescription.en || null,
           },
     },
+    // 一律明確帶出畫面目前的完整陣列，理由見 SaveArticlePayload 型別定義上的說明。
+    tags: article.tags.map((t) => ({ slug: t.slug, nameZh: t.nameZh ?? undefined, nameEn: t.nameEn ?? undefined })),
+    coreValueTags: article.coreValueTags,
+    relations: article.relations.map((r) => ({ targetType: r.targetType, targetId: r.targetId })),
   }
 }

@@ -2,6 +2,13 @@
 
 台中磐石官網主站與台中藍鯨官網**共用同一個後台**的 Vue 3 SPA。
 
+✅ **S1-5（2026-09-24）：新聞與故事（B2）補上標籤、核心價值標籤、關聯、瀏覽數、批次操作**——
+接上同名後端補完（見 `apps/api/README.md`「S1-5」）。新聞編輯頁新增：標籤（find-or-create 多選，
+可直接打中文字新增）、核心價值標籤（固定 5 個值的核取方塊）、關聯（球員／賽事有真正的搜尋選擇器，
+球隊／課程／夥伴三種因為沒有這個帳號打得到的唯讀清單而停用，見下方「新聞與故事：標籤／核心價值
+標籤／關聯／批次操作」整節的 API 缺口說明）、瀏覽數（唯讀顯示）；列表頁新增標籤晶片、瀏覽數欄、
+批次改分類、批次下架。詳見該節。
+
 ✅ **S1-4（2026-09-24）：頁面管理（B1）＋站台切換器改接 `/auth/me`＋賽季／球隊改真下拉選單**——
 新增「頁面管理」完整畫面（列表、12 種區塊的區塊化編輯器、發布／排程、版本歷程與還原、預覽連結），
 站台切換器改讀 `GET /api/v1/admin/auth/me`（只列出這個帳號目前有效的俱樂部授權，系統管理員例外
@@ -534,6 +541,161 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
 > （`./db/seed/reset-admin-accounts.sh`，只 UPDATE 既有列，不影響角色指派與俱樂部授權），
 > 細節見 `apps/api/README.md`「種子測試帳號的重設」一節。
 
+## 新聞與故事：標籤／核心價值標籤／關聯／瀏覽數／批次操作（B2，S1-5，2026-09-24）
+
+對照主站規劃書 §4.2 B2（行 1017–1020）與 `apps/api/README.md`「S1-5：B2 新聞與故事後端補完」。
+補齊 S0-8 當時明講「刻意不做」的部分，見上方「圖片上傳共用元件的前端接線」一節的引用。
+
+### 標籤（find-or-create）
+
+編輯頁「標籤」卡片用 `el-select`（`multiple filterable allow-create default-first-option`），
+畫面上使用者**只看得到、只打得出中文名稱**：
+
+- 選項清單（既有標籤的自動完成建議）**不是新端點**——`fetchTagSuggestions()`
+  （`src/api/adminNews.ts`）直接沿用既有的 `listAdminNews(club, { pageSize: 200 })`，把這個俱樂部
+  目前所有文章已經在用的標籤去重彙整起來。83 篇文章一次抓滿，不必另外處理分頁。
+- 使用者打字時，`resolveTagInput()`（`NewsEditView.vue`）比對「這段文字是不是等於某個既有標籤的
+  顯示名稱」（既有標籤來源：上述建議清單 ＋ 這篇文章本身已經有的標籤）——是的話**沿用該標籤的
+  `slug`**（忽略這次輸入的名稱，比照後端「名稱由標籤自己管理」的規則，見 apps/api/README.md
+  「我的判斷」第 5 點）；不是的話視為新標籤，`slugifyTagName()` 把中文字轉成 `tags.slug` 要求的
+  格式（小寫英文字母、數字、連字號）——**純中文轉不出任何英數字時，退而求其次用一段隨機英數字
+  頂著**（`tag-${隨機 6 碼}`），使用者從頭到尾看不到這串字，只看得到自己輸入的中文名稱。
+  實測：輸入「S1-5驗收標籤」產生的 `slug` 是 `s1-5`（NFKD 正規化＋去重音＋非英數字換連字號＋
+  收斂連續連字號，恰好從中文字裡留下了 ASCII 部分，比隨機字串更可讀，但這是**副作用不是設計
+  保證**——大多數輸入不會這麼幸運）。
+- `form.tags: NewsTag[]` 是唯一真實來源，`tagNames`（給 `el-select` 綁定的字串陣列）是包著它的
+  computed getter/setter，這樣既有的 `isDirty`（`JSON.stringify(form) !== JSON.stringify(baseline)`）
+  不用額外改就能正確偵測標籤變動。
+
+### 核心價值標籤
+
+固定 5 個值（`players_first`／`excellence`／`global_pathways`／`community`／`integrity`，逐字
+對照後端 `AllowedCoreValueTags` 與 docs/06-conventions.md §1「五大核心價值」的中文名稱），畫面用
+5 個獨立 `el-checkbox`（`:model-value` ＋ `@change`，比照 `RoleEditView.vue` 既有的寫法，
+不用 `el-checkbox-group`——這個專案的 Element Plus 版本對 `el-checkbox-group` 的值/標籤 prop
+命名在既有程式碼裡沒有先例可循，用單顆 checkbox 的既有慣例比較不會踩到版本相關的陷阱）。
+
+### 關聯（球員／球隊／賽事／課程／夥伴）
+
+🔴 **只有「球員」「賽事」兩種真的可以選，「球隊」「課程」「夥伴」三種選單停用**——這是任務指示
+「若後端缺列出這些目標的唯讀端點就停下該部分回報，不要改 `apps/api`」的字面結果，回報如下：
+
+| 目標型別 | 有沒有唯讀清單可查 | 說明 |
+|---|---|---|
+| 球員 | ✅ 有 | 公開端點 `GET /api/v1/{club}/players`（不需要登入，任何角色都能查），新增
+  `src/api/adminRelationTargets.ts` 的 `listPlayerRelationOptions()` |
+| 賽事 | ✅ 有 | 公開端點 `GET /api/v1/{club}/schedule`，同檔案的 `listMatchRelationOptions()` |
+| 球隊 | ⚠️ 技術上有端點，但一般寫新聞的角色用不到 | `GET /api/v1/admin/teams` 存在（S1-4 續作為 J4
+  球隊授權新增），但權限碼 `system.team_grant.view` 是 `sysadmin_only`——`content_editor`／
+  `team_competition` 這些實際會寫新聞的角色本來就沒有這個權限碼，接了也只會在打開下拉選單時
+  得到 403，不是真的可用。**沒有接**，等後端補一支給內容編輯角色查得到的球隊清單（權限碼另開或
+  沿用 `team.competition.view` 那一組資料範圍）再回頭做 |
+| 課程 | ❌ 沒有 | 後端沒有 `Features/Programs`，P 模組尚未開發 |
+| 夥伴 | ❌ 沒有 | 後端沒有 `Features/Partners`，E 模組尚未開發 |
+
+畫面上**仍然列出全部 5 個型別選項**（規劃書明文寫 5 種，不能因為 3 種做不到就假裝只有 2 種），
+球隊／課程／夥伴三個選項用 `:disabled` 停用，卡片內有一行中文說明「這三種類型後台目前還沒有清單
+可以查詢，暫不開放選擇」。加入一筆關聯的流程：型別選單（預設「球員」）→ 目標選擇器（`filterable`
+單選，選項一次抓滿：球員最多 200 筆、賽事最多 100 筆，全系統目前遠低於這個量，不需要伺服器端
+搜尋 API）→「加入」按鈕（`pendingRelationTargetId` 為空時停用）→ 卡片下方以 `el-tag`（`closable`）
+列出已加入的關聯，點 × 移除。
+
+`resolveRelationLabel()` 決定每筆關聯顯示什麼名稱：這次瀏覽階段剛加入的用 `targetLabel`（加入當下
+從選項清單記下來的文字，**不會送給 API**，`AdminArticleRelationInput` 只有 `targetType`／
+`targetId` 兩個欄位，沒有名稱）；重新載入既有文章的關聯則反查對應清單（`loadArticle()` 會依
+既有關聯用到的型別自動預先載入，不必使用者先手動切一次型別選單）；反查不到就老實顯示
+「（讀取中或找不到，可能已被刪除）」或「（此類型目前尚無法顯示名稱）」，不假裝有名稱。
+
+⚠️ **修正一個開發中發現的邊界情況**：`pendingRelationType` 預設值是 `'player'`，但 el-select
+的 `@change` 只在使用者真的切換型別時才會觸發——如果不主動預先呼叫一次
+`ensureRelationOptionsLoaded('player')`，新增文章時第一次打開球員選單會是空的，使用者要先切成
+別的類型再切回來才會有資料。已在 `loadArticle()`（建立與編輯兩種模式都會呼叫）裡補上這一行。
+這是端對端瀏覽器實測時發現的（見下方「本輪驗收」），不是型別檢查能抓到的問題。
+
+### 瀏覽數
+
+編輯頁「發布設定」卡片新增唯讀欄位（只有已存在的文章才顯示，用 `currentId` 判斷不是 `isCreate`
+——`isCreate` 是路由進入當下算一次就不再變的純值，建立成功後 `router.replace` 到編輯路由不會
+讓它變成 `false`，用它做這種存在性判斷會重踩 `docs/18` 記過的舊坑，見下方「系統管理畫面」提過
+的 `isCreate` 陷阱）。列表頁新增「瀏覽數」欄（桌面／平板才顯示，手機卡片式列表不放，比照既有
+「分類」「發布時間」兩欄的收納規則）。**沒有寫入介面**——瀏覽數只由公開端點
+（`POST /api/v1/{club}/news/{slug}/views`）遞增，後台單純顯示。
+
+### 批次操作
+
+工具列新增「批次改分類」（開對話框選一個分類，確定後呼叫 `POST .../news/batch/category`）與
+「批次下架」（確認對話框後呼叫 `POST .../news/batch/unpublish`，文案沿用後端「下架＝轉回草稿」
+的既有判斷，見 apps/api/README.md「我的判斷」第 1 點）；既有「批次發布」改接新的
+`POST .../news/batch/publish`（原本是前端自己逐筆 `for` 迴圈呼叫單篇發布端點，現在交給後端一次
+處理，能拿到後端統一算好的「處理了幾筆、幾筆處理不了、為什麼」）。三支批次端點的回應形狀一致
+（`updatedCount` ＋ `skipped: {id, reason}[]`），前端用共用的 `reportBatchResult()` 顯示成
+「已改分類 N 篇，M 篇未處理（原因…）」這種訊息，不是全有全無的成功/失敗二分。既有的「刪除」
+批次操作維持逐筆呼叫（規劃書沒有給批次刪除端點，`apps/api` 也沒有新增，沿用原樣）。
+
+### 契約變更（`src/api/adminNews.ts`）
+
+新增 `AdminArticleTagDto`／`AdminArticleRelationDto`／`BatchOperationResultDto` 三個型別；
+`AdminArticleListItemDto` 新增 `tags`／`viewCount`；`AdminArticleDetailDto` 新增
+`tags`／`viewCount`／`coreValueTags`／`relations`；`SaveArticlePayload` 新增選填的
+`tags`／`coreValueTags`／`relations` 三個欄位。
+
+🔴 **這三個欄位在建立與更新兩種請求都一律明確帶出目前畫面上的完整陣列，不使用後端允許的
+「省略＝維持不變」語意**——任務指示特別提醒這三欄「省略＝不變、空陣列＝清空」要處理正確，這裡的
+處理方式是**乾脆不省略**：現在編輯頁對這三個欄位都有完整的輸入介面，`form.tags`／
+`form.coreValueTags`／`form.relations` 本來就是「使用者現在想要的最終狀態」，直接原樣送出，
+效果上等同於「沒變就送回原值＝維持不變、清空了就送空陣列＝清空」，不需要另外偵測「使用者到底
+有沒有碰過這個欄位」這種容易漏判的邏輯（`articleToSavePayload()` 與 `SaveArticlePayload` 型別
+定義上都留了逐字說明，供下一位比對這個判斷）。
+
+### 本輪驗收（S1-5，2026-09-24，本機環境）
+
+`npm run lint`／`npm run typecheck`／`npm run build` 全過。實際起 `apps/api`（連本機
+`tcrfc_club_dev`＋本機 `azurite-blob --skipApiVersionCheck`）與 `npm run dev`，用無頭 Chrome
+＋原生 CDP（Node 24 內建 `WebSocket`；`Input.dispatchMouseEvent` 送真實滑鼠事件，不是合成
+`.click()`——除錯時發現 Element Plus 的下拉選單「點外部關閉」偵測不會理會合成事件，且
+`document.querySelectorAll('.el-select-dropdown')` 永遠會抓到頁面上每一個 select 的 popper
+（Element Plus 關閉後不會把 DOM 移除），要先篩出 `getBoundingClientRect().height > 0` 的那一個
+才不會點到別的下拉選單）驅動真實瀏覽器逐步操作，帳號用 `clean.login@tcrfc.test`（system_admin，
+唯一能走完整 `/login` 流程的種子測試帳號）：
+
+1. **建文章＋新標籤＋核心價值＋一筆關聯 → 儲存 → 重開確認都在**：新增文章，標題「S1-5 端對端
+   驗收文章 A」，標籤輸入框打「S1-5驗收標籤」（資料庫沒有這個標籤，find-or-create 應該新建），
+   勾選核心價值「以球員為本」，關聯選「球員」→ 選一位球員 → 加入，按「儲存草稿」，表單錯誤為
+   `null`；直接查資料庫確認 `tags`／`tags_i18n`／`article_tags`（新建的標籤，`slug='s1-5'`）、
+   `value_tag_links`（`players_first`）、`article_relations`（`target_type='player'`，
+   `target_id` 對應到畫面上選的那位球員的 `shirt_no`）都真的寫進去；用 `Page.navigate` 對同一個
+   網址做一次完整重新整理（不是 Vue Router 內部導頁），確認畫面上標籤晶片、核取的核心價值、
+   關聯標籤三者都還在，瀏覽數欄位顯示「0」。
+2. **批次改分類與批次下架兩篇**：另建一篇「S1-5 端對端驗收文章 B」（草稿），到列表頁用關鍵字
+   「S1-5」篩出這兩篇、全選：
+   - 批次改分類選「球員故事」，直接查資料庫確認兩篇的 `article_category_id` 都改成
+     `player-stories`。
+   - 批次發布：兩篇的狀態欄立刻從畫面上變成「已發布」；重新整理篩選再全選一次，批次下架：
+     跳出「確定要將選取的 2 篇下架嗎？下架後會變回草稿，前台會立即看不到。」確認對話框，確認後
+     兩篇狀態欄變回「草稿」，直接查資料庫確認 `status` 皆為 `draft`。
+3. **清除測試資料**：用列表頁的批次刪除移除兩篇測試文章，直接查資料庫確認 `articles`／
+   `article_relations` 兩表對應列數皆為 0；額外用 SQL 清掉刪除文章後留下的孤兒標籤主檔列
+   （`tags`／`tags_i18n` 的 `slug='s1-5'`——刪文章只會級聯刪 `article_tags` 這張關聯表，標籤
+   本身是獨立主檔不會跟著消失，這是預期行為不是 bug，但既然是本輪測試自己建的標籤，一併清掉）。
+4. 執行 `./db/seed/reset-admin-accounts.sh`，確認 `clean.login@tcrfc.test` 的
+   `must_change_password`／`two_factor_enabled`／`failed_attempt_count` 回到種子初始值
+   （`0`／`0`／`0`）。
+
+**過程中發現並修正的一個實作缺陷**（自我測試抓到，記錄給下一位）：見上方「關聯」小節提到的
+`ensureRelationOptionsLoaded(pendingRelationType.value)` 缺漏——新增文章時預設型別「球員」的
+選項清單原本要等使用者切換過型別選單才會載入，已修正為 `loadArticle()` 一律預先載入一次。
+
+⚠️ **除錯過程中的一個環境陷阱，記錄避免下一位重踩**：用同一個瀏覽器分頁反覆重新登入
+`clean.login@tcrfc.test` 測試時，第二次以後的 `/login` 會因為分頁殘留的更新權杖 Cookie
+（`__Host-tcrfc-admin-rt`）觸發靜默 `refresh`，用的是**舊的、可能已經跟目前資料庫狀態對不起來**
+的使用者旗標快照，導致頁面被導去錯誤的 `forced=password`／`forced=totp` 分支、或者輸入框根本
+還沒渲染出來就撲空。**每次要模擬全新登入前，先呼叫 CDP 的 `Network.clearBrowserCookies`**（見
+`login.mjs` 的 `loginFresh()`），不要只靠 `Page.navigate` 到 `/login`——換頁不會清 Cookie。
+
+**未觸碰**：`apps/api`（本輪任務指示明文禁止，另外兩位 backend agent 同時在做球隊球員教練與
+首頁編排／FAQ，過程中一度撞到他們尚未完成的建置錯誤，等他們補上才恢復可建置，未插手修正）、
+`db/seed/generate-club-seed-sql.py`、`docs/03-admin-spec.md`。
+
 ## 驗收紀錄（S1-4，2026-09-24，本機環境）
 
 `npm run lint`／`npm run typecheck`／`npm run build` 全過。實際起 `apps/api`（連本機
@@ -592,12 +754,15 @@ CDP（Node 24 內建 `WebSocket`，不需要額外套件；`/json/new` 用 `PUT`
 球隊授權改真下拉選單）、角色與權限（J2）、俱樂部與授權管理（J4，含掛在帳號底下的俱樂部授權與
 球隊授權）、賽事系列（C4 的一小部分，賽季改真下拉選單）、**頁面管理（B1）完整畫面**：列表頁、
 新增／編輯頁（12 種區塊的區塊化編輯器：新增、排序、刪除、雙語、圖片選檔不上傳儲存才上傳）、
-SEO 設定、發布／排程、版本歷程與還原、預覽連結（顯示並可複製）。
+SEO 設定、發布／排程、版本歷程與還原、預覽連結（顯示並可複製）、**新聞與故事（B2）補完**：
+標籤（find-or-create）、核心價值標籤、關聯（球員／賽事，球隊／課程／夥伴因無可用清單而停用）、
+瀏覽數顯示、批次改分類／批次發布／批次下架。
 
 **不做**（本輪範圍外或有已知缺口，見上方各節）：J3 稽核與備份（後端已撤回稽核記錄）、C4 的完整
 賽程賽果、其餘 9 個模組的真實功能（都是明確的佔位頁）、J4 的俱樂部標誌／favicon／OG 圖上傳、
 B1 頁面的第 13 種區塊型別（規劃書只給 12 個名稱，見「已知的 API 缺口彙整」第 4 點）、預覽權杖
-到期／撤銷、檔案下載區塊的檔案上傳（只能貼網址）。
+到期／撤銷、檔案下載區塊的檔案上傳（只能貼網址）、**B2 關聯的球隊／課程／夥伴三種目標選擇器**
+（見「已知的 API 缺口彙整」第 8–10 點）、標籤獨立管理畫面（規劃書沒有要求，見 S1-5 一節說明）。
 
 ## 已知的 API 缺口彙整（S1 輪回報，✅ 三項已於 S1-4 全部由後端補上並接線完成）
 
@@ -628,3 +793,14 @@ apps/api 已在 S1-4 續作全部補上對應端點（見 apps/api/README.md「S
 7. **檔案下載區塊（`file_download`）不支援直接上傳新檔案**：`IImageStorageService` 只處理圖片
    （PDF 等檔案會被當成圖片重新編碼因而損毀，見 apps/api/README.md「B1 頁面管理」12 種區塊摘要
    表格的備註），畫面上這個區塊只能貼已經放好的外部網址或既有物件鍵，不提供上傳按鈕。
+
+**本輪新增的已知缺口（B2 標籤／關聯，S1-5，回報，未動手改 `apps/api`）**：
+
+8. **「球隊」關聯目標沒有一份內容編輯角色查得到的清單**：`GET /api/v1/admin/teams` 存在，但權限碼
+   `system.team_grant.view` 是 `sysadmin_only`，寫新聞的角色（`content_editor`／
+   `team_competition` 等）本來就沒有這個權限。畫面上「關聯」型別選單的「球隊」選項因此停用，
+   細節與對照表見上方「新聞與故事：標籤／核心價值標籤／關聯／瀏覽數／批次操作」一節。
+9. **「課程」關聯目標完全沒有唯讀端點**：後端沒有 `Features/Programs`，P 模組（課程與活動）
+   尚未開發，選單同樣停用。
+10. **「夥伴」關聯目標完全沒有唯讀端點**：後端沒有 `Features/Partners`，E 模組（商業模組）
+    尚未開發，選單同樣停用。

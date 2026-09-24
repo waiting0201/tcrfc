@@ -30,6 +30,78 @@ export const NEWS_CATEGORY_LABEL: Record<NewsCategory, string> = {
 }
 
 /**
+ * 標籤（S1-5，apps/api/README.md「B2 新聞與故事後端補完」）。`slug` 是資料庫的識別碼
+ * （小寫英文字母＋連字號），畫面上不直接要求使用者輸入這串——使用者只看得到／打得出中文名稱，
+ * `slug` 由畫面自動產生或沿用既有標籤的值，見 `NewsEditView.vue` 的 `resolveTagInput`。
+ */
+export interface NewsTag {
+  slug: string
+  nameZh?: string | null
+  nameEn?: string | null
+}
+
+/**
+ * 核心價值標籤（S1-5）。值域逐字對應後端 `value_tag_links.value_tag` 的 CHECK 約束
+ * （`AdminArticlesRepository.AllowedCoreValueTags`），中文名稱取自規劃書 §1.2／
+ * docs/06-conventions.md §1「五大核心價值」。
+ */
+export type CoreValueTag = 'players_first' | 'excellence' | 'global_pathways' | 'community' | 'integrity'
+
+export const CORE_VALUE_TAG_ORDER: CoreValueTag[] = [
+  'players_first',
+  'excellence',
+  'global_pathways',
+  'community',
+  'integrity',
+]
+
+export const CORE_VALUE_TAG_LABEL: Record<CoreValueTag, string> = {
+  players_first: '以球員為本',
+  excellence: '追求卓越',
+  global_pathways: '國際發展',
+  community: '社區共好',
+  integrity: '誠信專業',
+}
+
+/**
+ * 關聯目標型別（S1-5，規劃書 B2「關聯（球員／球隊／賽事／課程／夥伴）」，逐字對應後端
+ * `AdminArticlesRepository.AllowedRelationTargetTypes`）。
+ */
+export type RelationTargetType = 'player' | 'team' | 'match' | 'program' | 'partner'
+
+export const RELATION_TARGET_TYPE_ORDER: RelationTargetType[] = ['player', 'team', 'match', 'program', 'partner']
+
+export const RELATION_TARGET_TYPE_LABEL: Record<RelationTargetType, string> = {
+  player: '球員',
+  team: '球隊',
+  match: '賽事',
+  program: '課程',
+  partner: '夥伴',
+}
+
+/**
+ * ⚠️ 這裡只列出「畫面上真的查得到清單」的兩種類型——球隊／課程／夥伴這三種目前沒有一份
+ * 這個帳號能查詢的唯讀清單可以拿來做選擇器（球隊清單雖然有 `GET /api/v1/admin/teams`，但
+ * 權限碼 `system.team_grant.view` 是系統管理員限定，寫新聞的內容編輯角色本來就沒有；課程與
+ * 夥伴則是後端根本還沒有對應模組），見 apps/admin/README.md「已知的 API 缺口」與
+ * apps/api/README.md「S1-5」。**不要因為想讓功能看起來完整就自己拼一份清單或改用假資料**——
+ * 未列在這裡的類型，畫面上顯示為停用選項並附說明文字，不假裝有得選。
+ */
+export const RELATION_TARGET_TYPES_AVAILABLE: RelationTargetType[] = ['player', 'match']
+
+/**
+ * 單筆關聯。`targetLabel` 純粹是畫面顯示用的暫存欄位，**不送給 API**（後端的
+ * `AdminArticleRelationInput` 只有 `targetType`／`targetId` 兩個欄位，沒有名稱）——
+ * 儲存讀回後，名稱要重新從對應的清單（球員／賽事）用 `targetId` 反查回來顯示，
+ * 見 `NewsEditView.vue` 的 `resolveRelationLabel`。
+ */
+export interface NewsRelation {
+  targetType: RelationTargetType
+  targetId: string
+  targetLabel?: string
+}
+
+/**
  * 後台新聞編輯頁目前不暴露編輯介面、但 API 會整份取代的欄位（`AdminArticleLocaleContent`
  * 的 `Summary`／`SeoTitle`／`SeoDescription`）。畫面上沒有對應輸入框，讀回來就原封存著、
  * 存檔時原封送回去，避免「畫面沒有這個欄位＝存檔時把它清空」——docs/21 的編輯頁 wireframe
@@ -61,4 +133,12 @@ export interface NewsArticle {
   summary: Bilingual
   seoTitle: Bilingual
   seoDescription: Bilingual
+  /** 標籤（S1-5） */
+  tags: NewsTag[]
+  /** 核心價值標籤（S1-5） */
+  coreValueTags: CoreValueTag[]
+  /** 關聯（S1-5） */
+  relations: NewsRelation[]
+  /** 瀏覽數（S1-5，唯讀，只由公開端點遞增，見 apps/api/README.md） */
+  viewCount: number
 }

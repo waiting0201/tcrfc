@@ -13,13 +13,28 @@ import {
   articleToSavePayload,
   createAdminNews,
   detailDtoToArticle,
+  fetchTagSuggestions,
   getAdminNewsById,
   publishAdminNews,
   scheduleAdminNews,
   updateAdminNews,
 } from '@/api/adminNews'
+import { listMatchRelationOptions, listPlayerRelationOptions, type RelationTargetOption } from '@/api/adminRelationTargets'
 import { AdminApiError } from '@/api/http'
-import { NEWS_CATEGORY_LABEL, type NewsArticle, type NewsCategory } from '@/types/news'
+import {
+  CORE_VALUE_TAG_LABEL,
+  CORE_VALUE_TAG_ORDER,
+  NEWS_CATEGORY_LABEL,
+  RELATION_TARGET_TYPE_LABEL,
+  RELATION_TARGET_TYPE_ORDER,
+  RELATION_TARGET_TYPES_AVAILABLE,
+  type CoreValueTag,
+  type NewsArticle,
+  type NewsCategory,
+  type NewsRelation,
+  type NewsTag,
+  type RelationTargetType,
+} from '@/types/news'
 
 const route = useRoute()
 const router = useRouter()
@@ -46,6 +61,10 @@ function emptyArticle(): NewsArticle {
     summary: { zh: '', en: '' },
     seoTitle: { zh: '', en: '' },
     seoDescription: { zh: '', en: '' },
+    tags: [],
+    coreValueTags: [],
+    relations: [],
+    viewCount: 0,
   }
 }
 
@@ -75,17 +94,157 @@ function applyLoadedArticle(article: NewsArticle) {
   removeCover.value = false
 }
 
+// ── 標籤（S1-5）──────────────────────────────────────────────────────────────────
+
+/** 既有標籤建議清單（自動完成用），來源見 `fetchTagSuggestions` 的說明——不是新端點，
+ * 是彙整這個俱樂部所有文章目前掛的標籤。載入失敗不影響編輯頁其餘功能，靜默留空即可
+ * （使用者仍然可以直接打字新增標籤，只是少了既有標籤的自動完成建議）。 */
+const tagSuggestions = ref<NewsTag[]>([])
+
+async function loadTagSuggestions() {
+  try {
+    tagSuggestions.value = await fetchTagSuggestions(activeClubId.value)
+  } catch {
+    tagSuggestions.value = []
+  }
+}
+
+/** 給 el-select 顯示用的名稱（既有標籤顯示中文名稱，缺中文名稱時退而求其次顯示網址名稱）。 */
+function tagDisplayName(tag: NewsTag): string {
+  return tag.nameZh?.trim() || tag.slug
+}
+
+/**
+ * 把使用者打的中文字轉成網址安全的識別碼（`tags.slug` 的格式：小寫英文字母、數字、連字號）。
+ * 純中文輸入轉不出任何英數字時，退而求其次用一段隨機英數字串頂著——使用者從頭到尾只看得到、
+ * 只打得出中文名稱，這串字只是資料庫欄位需要的識別碼，畫面上不會顯示（見 `tagDisplayName`）。
+ * 對照 `apps/api` 的 `Features/AdminNews/TagSlugFormat.cs`。
+ */
+function slugifyTagName(input: string): string {
+  const base = input
+    .trim()
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return base || `tag-${Math.random().toString(36).slice(2, 8)}`
+}
+
+/** 把使用者在多選框裡打的一段文字，解析成「沿用既有標籤」或「新標籤」。找既有標籤時同時看
+ * 建議清單與目前表單上已經有的標籤（避免建議清單載入失敗、或標籤是這次瀏覽階段才剛加上的
+ * 情況找不到）。找到既有標籤時**忽略**這次輸入的名稱，比照後端「名稱由標籤自己管理」的規則
+ * （apps/api/README.md「我的判斷」第 5 點），避免同一個標籤的顯示名稱被不同文章各自覆寫。 */
+function resolveTagInput(name: string): NewsTag {
+  const trimmed = name.trim()
+  const existing = [...tagSuggestions.value, ...form.tags].find((t) => tagDisplayName(t) === trimmed)
+  if (existing) return { slug: existing.slug, nameZh: existing.nameZh, nameEn: existing.nameEn }
+  return { slug: slugifyTagName(trimmed), nameZh: trimmed }
+}
+
+const tagNames = computed<string[]>({
+  get: () => form.tags.map(tagDisplayName),
+  set: (names) => {
+    form.tags = names.map((name) => resolveTagInput(name))
+  },
+})
+
+const tagSuggestionNames = computed(() => tagSuggestions.value.map(tagDisplayName))
+
+// ── 核心價值標籤（S1-5）───────────────────────────────────────────────────────────
+
+function toggleCoreValueTag(tag: CoreValueTag, checked: boolean) {
+  if (checked) {
+    if (!form.coreValueTags.includes(tag)) form.coreValueTags.push(tag)
+  } else {
+    form.coreValueTags = form.coreValueTags.filter((t) => t !== tag)
+  }
+}
+
+// ── 關聯（S1-5）───────────────────────────────────────────────────────────────────
+// ⚠️ 只有「球員」「賽事」兩種真的能選，見 @/types/news 的 RELATION_TARGET_TYPES_AVAILABLE
+// 檔頭說明（球隊／課程／夥伴目前沒有這個帳號打得到的唯讀清單）。
+
+const relationOptionsCache = reactive<Partial<Record<RelationTargetType, RelationTargetOption[]>>>({})
+const relationOptionsLoading = ref(false)
+const pendingRelationType = ref<RelationTargetType>('player')
+const pendingRelationTargetId = ref<string | null>(null)
+
+async function ensureRelationOptionsLoaded(type: RelationTargetType) {
+  if (!RELATION_TARGET_TYPES_AVAILABLE.includes(type) || relationOptionsCache[type]) return
+  relationOptionsLoading.value = true
+  try {
+    const club = activeClubId.value
+    relationOptionsCache[type] = type === 'player'
+      ? await listPlayerRelationOptions(club)
+      : await listMatchRelationOptions(club)
+  } catch {
+    relationOptionsCache[type] = []
+    ElMessage.error('讀取清單失敗，請稍後再試')
+  } finally {
+    relationOptionsLoading.value = false
+  }
+}
+
+const currentRelationOptions = computed(() => relationOptionsCache[pendingRelationType.value] ?? [])
+
+function onRelationTypeChange(type: RelationTargetType) {
+  pendingRelationTargetId.value = null
+  ensureRelationOptionsLoaded(type)
+}
+
+function addRelation() {
+  if (!pendingRelationTargetId.value) return
+  const targetType = pendingRelationType.value
+  const targetId = pendingRelationTargetId.value
+  if (form.relations.some((r) => r.targetType === targetType && r.targetId === targetId)) {
+    ElMessage.warning('這筆關聯已經加過了')
+    return
+  }
+  const option = currentRelationOptions.value.find((o) => o.id === targetId)
+  form.relations.push({ targetType, targetId, targetLabel: option?.label })
+  pendingRelationTargetId.value = null
+}
+
+function removeRelation(index: number) {
+  form.relations.splice(index, 1)
+}
+
+/** 顯示一筆關聯的名稱。優先用剛剛加入時記下的 `targetLabel`；不是本次瀏覽階段加入的（例如
+ * 剛從伺服器載入既有文章），改從已載入的選項清單依 `targetId` 反查；兩者都找不到（清單還沒
+ * 載入，或這種目標類型目前根本沒有清單可查）就老實顯示「尚無法顯示名稱」，不假裝有名稱。 */
+function resolveRelationLabel(relation: NewsRelation): string {
+  if (relation.targetLabel) return relation.targetLabel
+  const options = relationOptionsCache[relation.targetType]
+  const found = options?.find((o) => o.id === relation.targetId)
+  if (found) return found.label
+  return RELATION_TARGET_TYPES_AVAILABLE.includes(relation.targetType)
+    ? '（讀取中或找不到，可能已被刪除）'
+    : '（此類型目前尚無法顯示名稱）'
+}
+
 async function loadArticle() {
   loadState.value = 'loading'
   const club = activeClubId.value
+  loadTagSuggestions()
+  // 選擇器預設就停在「球員」這個類型，但 el-select 的 @change 只在使用者真的切換型別時才會
+  // 觸發——不主動預先載入一次，新增文章時第一次打開球員選單會是空的，要先切成別的類型再切
+  // 回來才會有資料，這是使用者根本不會做的操作。兩種模式（建立／編輯）都需要這行。
+  ensureRelationOptionsLoaded(pendingRelationType.value)
   if (isCreate) {
     loadState.value = 'ready'
     return
   }
   try {
     const detail = await getAdminNewsById(club, currentId.value!)
-    applyLoadedArticle(detailDtoToArticle(detail))
+    const article = detailDtoToArticle(detail)
+    applyLoadedArticle(article)
     loadState.value = 'ready'
+    // 既有關聯用到哪幾種可查詢的類型，先把清單載回來，畫面上才顯示得出名稱而不是一片空白。
+    const typesInUse = new Set(article.relations.map((r) => r.targetType))
+    for (const type of typesInUse) {
+      if (RELATION_TARGET_TYPES_AVAILABLE.includes(type)) ensureRelationOptionsLoaded(type)
+    }
   } catch (error) {
     if (error instanceof AdminApiError && error.kind === 'not-found') {
       loadState.value = 'not-found'
@@ -444,11 +603,88 @@ function retryLoad() {
           </el-form-item>
         </el-card>
 
+        <el-card shadow="never" header="標籤" class="news-edit__section">
+          <el-form-item label="標籤">
+            <el-select
+              v-model="tagNames"
+              multiple
+              filterable
+              allow-create
+              default-first-option
+              placeholder="輸入名稱後按 Enter 新增，或從既有標籤選擇"
+              style="width: 100%"
+            >
+              <el-option v-for="name in tagSuggestionNames" :key="name" :label="name" :value="name" />
+            </el-select>
+          </el-form-item>
+          <p class="news-edit__hint">直接輸入文字按 Enter 就能新增標籤；輸入跟現有標籤相同的名稱會自動沿用同一個標籤，不會重複建立。</p>
+
+          <el-form-item label="核心價值標籤" class="news-edit__corevalue">
+            <div class="news-edit__corevalue-list">
+              <el-checkbox
+                v-for="tag in CORE_VALUE_TAG_ORDER"
+                :key="tag"
+                :model-value="form.coreValueTags.includes(tag)"
+                @change="(checked: boolean) => toggleCoreValueTag(tag, checked)"
+              >
+                {{ CORE_VALUE_TAG_LABEL[tag] }}
+              </el-checkbox>
+            </div>
+          </el-form-item>
+        </el-card>
+
+        <el-card shadow="never" header="關聯" class="news-edit__section">
+          <p class="news-edit__hint">
+            可以把這篇文章跟球員、賽事互相關聯。球隊、課程、夥伴這三種類型後台目前還沒有清單可以查詢，暫不開放選擇。
+          </p>
+          <div class="news-edit__relation-add">
+            <el-select v-model="pendingRelationType" style="width: 120px" @change="onRelationTypeChange">
+              <el-option
+                v-for="t in RELATION_TARGET_TYPE_ORDER"
+                :key="t"
+                :label="RELATION_TARGET_TYPE_LABEL[t]"
+                :value="t"
+                :disabled="!RELATION_TARGET_TYPES_AVAILABLE.includes(t)"
+              />
+            </el-select>
+            <el-select
+              v-model="pendingRelationTargetId"
+              filterable
+              clearable
+              placeholder="搜尋並選擇"
+              class="news-edit__relation-target-select"
+              :loading="relationOptionsLoading"
+              :disabled="!RELATION_TARGET_TYPES_AVAILABLE.includes(pendingRelationType)"
+              no-data-text="沒有可選擇的資料"
+              no-match-text="找不到符合的資料"
+            >
+              <el-option v-for="opt in currentRelationOptions" :key="opt.id" :label="opt.label" :value="opt.id" />
+            </el-select>
+            <el-button :disabled="!pendingRelationTargetId" @click="addRelation">加入</el-button>
+          </div>
+          <div v-if="form.relations.length > 0" class="news-edit__relation-list">
+            <el-tag
+              v-for="(relation, index) in form.relations"
+              :key="`${relation.targetType}-${relation.targetId}`"
+              closable
+              class="news-edit__relation-tag"
+              @close="removeRelation(index)"
+            >
+              {{ RELATION_TARGET_TYPE_LABEL[relation.targetType] }}：{{ resolveRelationLabel(relation) }}
+            </el-tag>
+          </div>
+          <p v-else class="news-edit__hint">目前沒有任何關聯。</p>
+        </el-card>
+
         <el-card shadow="never" header="發布設定" class="news-edit__section">
           <el-form-item label="置頂精選">
             <el-switch v-model="form.isFeatured" />
           </el-form-item>
           <p class="news-edit__hint">首頁置頂精選同時最多 3 篇（逐俱樂部各自計算），超過會在儲存時提醒。</p>
+
+          <el-form-item v-if="currentId" label="瀏覽數">
+            <span class="news-edit__view-count">{{ form.viewCount.toLocaleString('zh-Hant') }}</span>
+          </el-form-item>
         </el-card>
       </el-form>
 
@@ -531,6 +767,43 @@ function retryLoad() {
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--admin-text-tertiary);
+}
+
+.news-edit__corevalue {
+  margin-top: 12px;
+}
+
+.news-edit__corevalue-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 20px;
+}
+
+.news-edit__relation-add {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.news-edit__relation-target-select {
+  flex: 1;
+  min-width: 200px;
+}
+
+.news-edit__relation-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.news-edit__relation-tag {
+  max-width: 100%;
+}
+
+.news-edit__view-count {
+  font-size: 14px;
+  color: var(--admin-text-secondary);
 }
 
 .news-edit__action-bar {

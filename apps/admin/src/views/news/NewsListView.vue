@@ -8,12 +8,15 @@ import StatusTag from '@/components/StatusTag.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { activeClubId } from '@/auth/clubAccess'
 import {
+  batchChangeNewsCategory,
+  batchPublishNews,
+  batchUnpublishNews,
   createAdminNews,
   deleteAdminNews,
   getAdminNewsById,
   listAdminNews,
   listItemDtoToArticle,
-  publishAdminNews,
+  type BatchOperationResultDto,
 } from '@/api/adminNews'
 import { AdminApiError } from '@/api/http'
 import { NEWS_CATEGORY_LABEL, type NewsArticle, type NewsCategory } from '@/types/news'
@@ -208,22 +211,67 @@ async function handleDelete(row: NewsArticle) {
   }
 }
 
-async function handleBatchPublish() {
-  const targets = articles.value.filter((a) => selectedIds.value.includes(a.id))
-  let succeeded = 0
-  let failed = 0
-  for (const target of targets) {
-    try {
-      await publishAdminNews(activeClubId.value, target.id, target.updatedAt)
-      succeeded += 1
-    } catch {
-      failed += 1
-    }
+/** 批次操作不是全有全無：能處理的照樣處理，處理不了的列出中文原因，不因為其中一筆不合法就整批失敗
+ * （對照 apps/api/README.md「我的判斷」第 2 點）。訊息裡的原因逐字沿用後端回傳的中文說明。 */
+function reportBatchResult(result: BatchOperationResultDto, verbDone: string) {
+  if (result.skipped.length === 0) {
+    ElMessage.success(`${verbDone} ${result.updatedCount} 篇`)
+    return
   }
-  if (failed === 0) {
-    ElMessage.success(`已發布 ${succeeded} 篇`)
-  } else {
-    ElMessage.warning(`已發布 ${succeeded} 篇，${failed} 篇失敗（可能已被他人變更，或是共用內容）`)
+  const reasons = [...new Set(result.skipped.map((s) => s.reason))].join('；')
+  ElMessage.warning(`${verbDone} ${result.updatedCount} 篇，${result.skipped.length} 篇未處理（${reasons}）`)
+}
+
+const batchCategoryDialogVisible = ref(false)
+const batchCategoryValue = ref<NewsCategory | ''>('')
+
+function openBatchCategoryDialog() {
+  batchCategoryValue.value = ''
+  batchCategoryDialogVisible.value = true
+}
+
+async function confirmBatchCategory() {
+  if (!batchCategoryValue.value) {
+    ElMessage.warning('請選擇要改成哪個分類')
+    return
+  }
+  try {
+    const result = await batchChangeNewsCategory(activeClubId.value, selectedIds.value, batchCategoryValue.value)
+    reportBatchResult(result, '已改分類')
+    batchCategoryDialogVisible.value = false
+    selectedIds.value = []
+    await fetchList()
+  } catch (error) {
+    ElMessage.error(error instanceof AdminApiError ? error.message : '批次改分類失敗，請稍後再試')
+  }
+}
+
+async function handleBatchPublish() {
+  try {
+    const result = await batchPublishNews(activeClubId.value, selectedIds.value)
+    reportBatchResult(result, '已發布')
+  } catch (error) {
+    ElMessage.error(error instanceof AdminApiError ? error.message : '批次發布失敗，請稍後再試')
+  }
+  selectedIds.value = []
+  await fetchList()
+}
+
+async function handleBatchUnpublish() {
+  try {
+    await ElMessageBox.confirm(
+      `確定要將選取的 ${selectedIds.value.length} 篇下架嗎？下架後會變回草稿，前台會立即看不到。`,
+      '確認下架',
+      { confirmButtonText: '下架', cancelButtonText: '取消', type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  try {
+    const result = await batchUnpublishNews(activeClubId.value, selectedIds.value)
+    reportBatchResult(result, '已下架')
+  } catch (error) {
+    ElMessage.error(error instanceof AdminApiError ? error.message : '批次下架失敗，請稍後再試')
   }
   selectedIds.value = []
   await fetchList()
@@ -304,7 +352,9 @@ async function handleBatchDelete() {
       <div class="news-list__toolbar-row">
         <div v-if="selectedIds.length > 0" class="news-list__batch-actions">
           <span class="news-list__batch-count">已選取 {{ selectedIds.length }} 筆</span>
+          <el-button size="small" @click="openBatchCategoryDialog">批次改分類</el-button>
           <el-button size="small" @click="handleBatchPublish">批次發布</el-button>
+          <el-button size="small" @click="handleBatchUnpublish">批次下架</el-button>
           <el-button size="small" type="danger" plain @click="handleBatchDelete">刪除</el-button>
         </div>
         <div v-else class="news-list__batch-actions-placeholder" />
@@ -357,7 +407,7 @@ async function handleBatchDelete() {
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="標題" min-width="180">
+            <el-table-column label="標題" min-width="220">
               <template #default="{ row }">
                 <span>{{ row.title.zh || '（未命名）' }}</span>
                 <el-tag v-if="row.isSharedContent" type="info" size="small" class="news-list__inline-tag">
@@ -366,6 +416,19 @@ async function handleBatchDelete() {
                 <el-tag v-if="row.isFeatured" type="warning" size="small" class="news-list__inline-tag">
                   置頂精選
                 </el-tag>
+                <template v-if="row.tags.length > 0">
+                  <el-tag
+                    v-for="tag in row.tags.slice(0, 3)"
+                    :key="tag.slug"
+                    size="small"
+                    class="news-list__inline-tag"
+                  >
+                    {{ tag.nameZh || tag.slug }}
+                  </el-tag>
+                  <el-tag v-if="row.tags.length > 3" size="small" class="news-list__inline-tag">
+                    +{{ row.tags.length - 3 }}
+                  </el-tag>
+                </template>
               </template>
             </el-table-column>
             <el-table-column v-if="showSecondaryColumns" label="分類" width="110">
@@ -378,6 +441,9 @@ async function handleBatchDelete() {
             </el-table-column>
             <el-table-column v-if="showSecondaryColumns" label="發布時間" width="160">
               <template #default="{ row }">{{ row.statusAt ? formatDateTime(row.statusAt) : '—' }}</template>
+            </el-table-column>
+            <el-table-column v-if="showSecondaryColumns" label="瀏覽數" width="90">
+              <template #default="{ row }">{{ row.viewCount.toLocaleString('zh-Hant') }}</template>
             </el-table-column>
             <el-table-column label="操作" width="180" fixed="right">
               <template #default="{ row }">
@@ -458,6 +524,21 @@ async function handleBatchDelete() {
         </div>
       </el-card>
     </template>
+
+    <el-dialog v-model="batchCategoryDialogVisible" title="批次改分類" width="360px">
+      <el-select v-model="batchCategoryValue" placeholder="請選擇分類" style="width: 100%">
+        <el-option
+          v-for="(label, value) in NEWS_CATEGORY_LABEL"
+          :key="value"
+          :label="label"
+          :value="value"
+        />
+      </el-select>
+      <template #footer>
+        <el-button @click="batchCategoryDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmBatchCategory">確定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
