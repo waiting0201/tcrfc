@@ -250,6 +250,8 @@
   - **金額一律 `int` 存「元」**，只有百分比用 `decimal(5,2)`。台幣無角分且慈善分潤明訂無條件捨去至整數元。
   - **（v3.0）`club_id` 不是每張表都加**：判定準則見主站規劃書 **§5.4**——後台有獨立清單／前台有獨立路由／承載個資或金流三選一；**能經父表推導的一律不加**。**加了就要同時決定唯一鍵、後台預設過濾、前台路由三件事。**
   - **（v3.0）共同內容（`club_id` 為空）對受範圍限制的帳號一律唯讀**，只有超管能建立與修改。否則「查得到共同內容」與「不能改到別人的內容」無法同時成立。
+  - 🔴 **（S0-7g，2026-09-24）「排程發布」需要 `published_at` 欄位，`scheduled` 這個狀態值本身不等於「有排程機制」**：`db/club-schema.sql` 有 9 張表帶 `CHECK (status IN ('draft','published','scheduled'))`，但只有 `pages`／`articles` 真的有 `published_at` 欄位；`press_resources`／`faqs`／`competitions`／`sponsor_packages`／`collections`／`products`／`charity_programs` **CHECK 約束允許寫入 `'scheduled'`，資料庫裡卻沒有任何欄位記錄「排定何時發布」**——這 7 張表在後台寫入層開發出來之前，看起來像「支援排程」，實際上不可能真的排程。**開發這 7 張表的後台寫入模組前，先確認是否要補 `published_at`，要補就先走 `docs/12` 同步鏈再走 migration，不要假設欄位已經存在。** ✅ **已裁決（2026-09-24，依規劃書）**：規劃書只在 `B1` 頁面（第 1014 行）與 `B2` 新聞（第 1019 行）給了排程發布，**其餘 7 張表不補 `published_at`**。那幾個模組的後台**不得提供「排程」選項**；`scheduled` 出現在 CHECK 裡，是因為共用同一組狀態詞彙，不代表那些型別有排程功能。
+  - 🔴 **（S0-7g）「時間到了」不是寫入事件，需要主動的 hosted service 才會真的轉狀態**——`status='scheduled'` 不會因為 `published_at` 過期而自動變成 `'published'`，公開讀取 API 的 `WHERE status = 'published'` 是字面比對。`Features/News/ScheduledPublishRunner.cs` 是目前唯一接上這個機制的地方（只掃 `articles`）。**任何新的內容型別要支援「排程發布」，除了要有 `published_at` 欄位，還要把它加進某個 `ScheduledPublishRunner`（或比照新開一個），否則後台可以把狀態設成 `scheduled`，但公開站永遠不會自動顯示。**
 
 - **賽事資料全部人工維護**，不串接外部 API，提供 CSV 批次匯入。
 - 🏟 **賽事狀態的中文是「延賽」不是「延期」**（主站規劃書 **v3.13，2026-09-23 客戶裁決**，球界慣用語）。

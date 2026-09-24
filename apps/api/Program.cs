@@ -175,6 +175,13 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Staff.StaffRepository>();
 builder.Services.AddScoped<ArticlesRepository>();
 builder.Services.AddScoped<MatchesRepository>();
 
+// ── S0-7g：排程發布 hosted service（docs/17-deployment.md「排程」既有定案的落點）────────
+// ScheduledPublishRunner 註冊為 Singleton（依賴的 IClubSqlConnectionFactory／IQueryCache 本來就是
+// Singleton），讓測試能直接從 DI 容器解析出來呼叫，不必等待 ScheduledPublishBackgroundService
+// 的計時器。詳細設計理由見 Features/News/ScheduledPublishRunner.cs 檔頭。
+builder.Services.AddSingleton<ScheduledPublishRunner>();
+builder.Services.AddHostedService<ScheduledPublishBackgroundService>();
+
 // ── 後台新聞寫入 ──────────────────────────────────────────────────────
 // created_by／updated_by 一律來自真實登入者（AdminClubScope.Identity.AdminUserId），
 // 見 Features/AdminNews/AdminArticlesEndpoints.cs 檔頭說明。

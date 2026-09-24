@@ -351,7 +351,7 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 | `datetime` | **`datetime2(3)` 存 UTC**（SQL Server 無 `timestamptz`），EF Core 設 `DateTimeKind.Utc` convention | `12` §1.1 |
 | `enum` | **`nvarchar` ＋ CHECK 約束**，不用查表也不用數字碼——值域演進最容易，且後台介面要顯示日常中文（[`06`](06-conventions.md)） | `12` §1.1「屬選型決定」 |
 | 定序 | 建庫時指定；🔴 **建庫後不可改，必須一次定對** | |
-| 排程 | **Azure SQL 無 SQL Agent**。排程發布、逾時取消訂單、每日對帳一律由 .NET 的 hosted service 承擔 | |
+| 排程 | **Azure SQL 無 SQL Agent**。排程發布、逾時取消訂單、每日對帳一律由 .NET 的 hosted service 承擔。**排程發布（新聞）已於 S0-7g 接上**：條件式 `UPDATE ... OUTPUT`（`status='scheduled' AND published_at<=SYSUTCDATETIME()` → `published`），對多個 API 容器同時執行天生冪等（不需分散式鎖），預設每 60 秒掃一次（`SCHEDULED_PUBLISH_INTERVAL_SECONDS`），轉換成功立刻呼叫 `IQueryCache.InvalidateAsync`，不是純靠快取 TTL 兜底。實作與驗收見 [`apps/api/README.md`](../apps/api/README.md)「排程發布：時間到了自動轉為 published」與「S0-7g 驗收紀錄」 | |
 | 影像處理 | **ImageSharp**（年營收 100 萬美元以下適用 Apache 2.0，俱樂部與協會均符合；**此前提要記錄**）。日後若超過門檻改 SkiaSharp | `STATUS.md` S0-8 需伺服器端產 WebP 與多尺寸 |
 
 > ✅ **HEIC 已定案（2026-09-20）：走第 ① 條——前端在瀏覽器轉成 JPEG 再送。**
