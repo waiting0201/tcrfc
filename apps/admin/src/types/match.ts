@@ -7,16 +7,17 @@
 
 // ── 狀態值域（後端 API 層定案，見 apps/api/README.md「S1-8」〈matches.status 值域定案〉）───────
 
-export type MatchStatus = 'scheduled' | 'live' | 'played' | 'postponed'
+export type MatchStatus = 'scheduled' | 'live' | 'played' | 'postponed' | 'cancelled'
 
 export const MATCH_STATUS_LABEL: Record<MatchStatus, string> = {
   scheduled: '未開始',
   live: '進行中',
   played: '已結束',
   postponed: '延賽',
+  cancelled: '取消',
 }
 
-export const MATCH_STATUS_ORDER: MatchStatus[] = ['scheduled', 'live', 'played', 'postponed']
+export const MATCH_STATUS_ORDER: MatchStatus[] = ['scheduled', 'live', 'played', 'postponed', 'cancelled']
 
 // ── 主客場 ───────────────────────────────────────────────────────────────────────
 

@@ -11,6 +11,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import VideoUploader from '@/components/VideoUploader.vue'
 import { activeClubId } from '@/auth/clubAccess'
 import {
   createAdminBanner,
@@ -18,6 +19,8 @@ import {
   getAdminBanner,
   listAdminBanners,
   listAdminHomeSections,
+  publishAdminBanner,
+  unpublishAdminBanner,
   updateAdminBanner,
   updateAdminHomeSection,
   type AdminBannerListItemDto,
@@ -51,6 +54,7 @@ const sortedBanners = computed(() => [...banners.value].sort((a, b) => a.sortOrd
 
 interface BannerFormState {
   id: string | null
+  mediaType: 'image' | 'video'
   startAt: Date | null
   endAt: Date | null
   sortOrder: number
@@ -71,6 +75,7 @@ interface BannerFormState {
 function emptyBannerForm(): BannerFormState {
   return {
     id: null,
+    mediaType: 'image',
     startAt: null,
     endAt: null,
     sortOrder: banners.value.length,
@@ -97,12 +102,25 @@ const bannerFormError = ref<string | null>(null)
 const bannerForm = reactive<BannerFormState>(emptyBannerForm())
 const bannerImageFile = ref<File | null>(null)
 const bannerHasExistingImage = ref(false)
+const bannerVideoFile = ref<File | null>(null)
+const bannerHasExistingVideo = ref(false)
+
+// 素材種類切回「圖片」時，這次瀏覽階段選過的影片檔案要一併清空——後端契約是
+// `mediaType='image'` 時不可以帶 `video` 欄位（見 apps/api/README.md「S1-7b」）。
+watch(
+  () => bannerForm.mediaType,
+  (mediaType) => {
+    if (mediaType === 'image') bannerVideoFile.value = null
+  },
+)
 
 function openCreateBannerDialog() {
   bannerDialogMode.value = 'create'
   Object.assign(bannerForm, emptyBannerForm())
   bannerImageFile.value = null
   bannerHasExistingImage.value = false
+  bannerVideoFile.value = null
+  bannerHasExistingVideo.value = false
   bannerFormError.value = null
   bannerDialogVisible.value = true
 }
@@ -111,12 +129,14 @@ async function openEditBannerDialog(row: AdminBannerListItemDto) {
   bannerDialogMode.value = 'edit'
   bannerFormError.value = null
   bannerImageFile.value = null
+  bannerVideoFile.value = null
   bannerDialogVisible.value = true
   bannerDialogLoading.value = true
   try {
     const detail = await getAdminBanner(club.value, row.id)
     Object.assign(bannerForm, {
       id: detail.id,
+      mediaType: detail.mediaType,
       startAt: detail.startAt ? new Date(detail.startAt) : null,
       endAt: detail.endAt ? new Date(detail.endAt) : null,
       sortOrder: detail.sortOrder,
@@ -134,6 +154,7 @@ async function openEditBannerDialog(row: AdminBannerListItemDto) {
       cta2Url: detail.zh.cta2Url ?? '',
     })
     bannerHasExistingImage.value = true
+    bannerHasExistingVideo.value = detail.mediaType === 'video' && Boolean(detail.videoKey)
   } catch (error) {
     bannerFormError.value = error instanceof AdminApiError ? error.message : '資料載入失敗，請稍後再試'
   } finally {
@@ -163,7 +184,7 @@ function buildBannerPayload(): SaveBannerPayload {
     && !bannerForm.cta2LabelEn.trim()
 
   return {
-    mediaType: 'image',
+    mediaType: bannerForm.mediaType,
     startAt: bannerForm.startAt ? bannerForm.startAt.toISOString() : null,
     endAt: bannerForm.endAt ? bannerForm.endAt.toISOString() : null,
     sortOrder: bannerForm.sortOrder,
@@ -198,7 +219,11 @@ async function saveBanner() {
     return
   }
   if (bannerDialogMode.value === 'create' && !bannerImageFile.value) {
-    bannerFormError.value = '請選擇輪播圖片'
+    bannerFormError.value = bannerForm.mediaType === 'video' ? '請選擇影片海報圖' : '請選擇輪播圖片'
+    return
+  }
+  if (bannerForm.mediaType === 'video' && !bannerVideoFile.value && !bannerHasExistingVideo.value) {
+    bannerFormError.value = '素材種類為「影片」時，必須上傳影片檔案'
     return
   }
   bannerSaving.value = true
@@ -206,10 +231,10 @@ async function saveBanner() {
   try {
     const payload = buildBannerPayload()
     if (bannerDialogMode.value === 'create') {
-      await createAdminBanner(club.value, payload, bannerImageFile.value!)
-      ElMessage.success('已新增輪播')
+      await createAdminBanner(club.value, payload, bannerImageFile.value!, bannerVideoFile.value)
+      ElMessage.success('已存為草稿，發布後才會在前台顯示。')
     } else {
-      await updateAdminBanner(club.value, bannerForm.id!, payload, bannerImageFile.value)
+      await updateAdminBanner(club.value, bannerForm.id!, payload, bannerImageFile.value, bannerVideoFile.value)
       ElMessage.success('已儲存')
     }
     bannerDialogVisible.value = false
@@ -245,6 +270,44 @@ function bannerPeriodLabel(row: AdminBannerListItemDto): string {
   const start = row.startAt ? row.startAt.slice(0, 10) : '（不限起始）'
   const end = row.endAt ? row.endAt.slice(0, 10) : '（不限結束）'
   return `${start} ～ ${end}`
+}
+
+const bannerStatusLabel = (status: string): string => (status === 'published' ? '已發布' : '草稿')
+
+/**
+ * 「目前是否在前台顯示」只是畫面上的提示，用瀏覽器當下時間跟 `status`／`startAt`／`endAt`
+ * 粗略推算——真正的判斷（含時區與資料庫時鐘）在後端的公開端點（apps/api/README.md「S1-7b」）。
+ */
+function bannerVisibilityLabel(row: AdminBannerListItemDto): string {
+  if (row.status !== 'published') return '不顯示（草稿）'
+  const now = Date.now()
+  if (row.startAt && now < new Date(row.startAt).getTime()) return '不顯示（尚未到上架時間）'
+  if (row.endAt && now > new Date(row.endAt).getTime()) return '不顯示（已過下架時間）'
+  return '顯示中'
+}
+
+function bannerVisibilityTagType(row: AdminBannerListItemDto): 'success' | 'info' {
+  return bannerVisibilityLabel(row) === '顯示中' ? 'success' : 'info'
+}
+
+async function handlePublishBanner(row: AdminBannerListItemDto) {
+  try {
+    await publishAdminBanner(club.value, row.id)
+    ElMessage.success('已發布')
+    await loadBanners()
+  } catch (error) {
+    ElMessage.error(error instanceof AdminApiError ? error.message : '發布失敗，請稍後再試')
+  }
+}
+
+async function handleUnpublishBanner(row: AdminBannerListItemDto) {
+  try {
+    await unpublishAdminBanner(club.value, row.id)
+    ElMessage.success('已改回草稿')
+    await loadBanners()
+  } catch (error) {
+    ElMessage.error(error instanceof AdminApiError ? error.message : '改回草稿失敗，請稍後再試')
+  }
 }
 
 // ── 首頁九大區塊 ───────────────────────────────────────────────────────────────────
@@ -334,11 +397,33 @@ watch(club, bootstrap)
         <el-table-column label="標題" min-width="180">
           <template #default="{ row }">{{ row.titleZh || '（未命名）' }}</template>
         </el-table-column>
+        <el-table-column label="狀態" width="90">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'published' ? 'success' : 'info'" size="small">
+              {{ bannerStatusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="上架期間" min-width="200">
           <template #default="{ row }">{{ bannerPeriodLabel(row) }}</template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right">
+        <el-table-column label="目前是否在前台顯示" min-width="160">
           <template #default="{ row }">
+            <el-tag :type="bannerVisibilityTagType(row)" size="small">{{ bannerVisibilityLabel(row) }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="220" fixed="right">
+          <template #default="{ row }">
+            <el-button
+              v-if="row.status === 'draft'"
+              size="small"
+              text
+              type="primary"
+              @click="handlePublishBanner(row)"
+            >
+              發布
+            </el-button>
+            <el-button v-else size="small" text @click="handleUnpublishBanner(row)">改回草稿</el-button>
             <el-button size="small" text type="primary" @click="openEditBannerDialog(row)">編輯</el-button>
             <el-button size="small" text type="danger" @click="handleDeleteBanner(row)">刪除</el-button>
           </template>
@@ -408,7 +493,14 @@ watch(club, bootstrap)
           @close="bannerFormError = null"
         />
         <el-form label-position="top">
-          <el-form-item label="輪播圖片" required>
+          <el-form-item label="素材種類" required>
+            <el-radio-group v-model="bannerForm.mediaType" :disabled="bannerSaving">
+              <el-radio value="image">圖片</el-radio>
+              <el-radio value="video">影片</el-radio>
+            </el-radio-group>
+          </el-form-item>
+
+          <el-form-item :label="bannerForm.mediaType === 'video' ? '影片海報圖' : '輪播圖片'" required>
             <ImageUploader
               v-model:file="bannerImageFile"
               :remove-cover="false"
@@ -416,9 +508,17 @@ watch(club, bootstrap)
               :disabled="bannerSaving"
               @update:remove-cover="handleBannerRemoveCoverAttempt"
             />
-            <p class="home-layout__hint">
-              目前媒體類型只開放圖片；影片上傳規則待確認（格式、檔案大小上限與是否轉碼尚未裁決），暫不提供影片選項。
+            <p v-if="bannerForm.mediaType === 'video'" class="home-layout__hint">
+              影片模式仍必須提供一張圖片，作為影片載入前與行動網路關閉自動播放時顯示的海報畫面。
             </p>
+          </el-form-item>
+
+          <el-form-item v-if="bannerForm.mediaType === 'video'" label="輪播影片" required>
+            <VideoUploader
+              v-model:file="bannerVideoFile"
+              :has-existing-video="bannerHasExistingVideo"
+              :disabled="bannerSaving"
+            />
           </el-form-item>
 
           <BilingualShortField

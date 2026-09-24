@@ -3,8 +3,8 @@
  * （見 apps/api/README.md「S1-6」「S1-7a」）。
  */
 
-/** 🔴 本輪只允許圖片——影片的格式、大小上限與是否轉碼待裁決（apps/api/README.md「我的判斷」第 6 點），
- * 畫面上固定顯示為圖片，不提供切換到影片的選項（送出也一律被後端拒絕）。 */
+/** v3.14 起圖片、影片皆可（apps/api/README.md「S1-7b」）。影片模式仍必須搭配一張圖片
+ * 作為海報格（`<video poster>`），格式僅收 MP4、上限 50 MB，見 `docs/17-deployment.md` §6。 */
 export type BannerMediaType = 'image' | 'video'
 
 export interface BannerLocaleContent {
@@ -17,6 +17,10 @@ export interface BannerLocaleContent {
   cta2Url: string
 }
 
+/** 草稿／發布（v3.14）。新增一律是 `draft`；`published` 且落在 `startAt`／`endAt` 上架期間內
+ * 才會出現在公開端點——期間判斷在後端，畫面上只做提示用途。 */
+export type BannerStatus = 'draft' | 'published'
+
 export interface Banner {
   id: string
   mediaType: BannerMediaType
@@ -24,6 +28,7 @@ export interface Banner {
   imageWidth: number | null
   imageHeight: number | null
   videoKey: string | null
+  status: BannerStatus
   startAt: string | null
   endAt: string | null
   sortOrder: number

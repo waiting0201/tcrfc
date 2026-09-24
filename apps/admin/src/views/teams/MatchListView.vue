@@ -126,7 +126,7 @@ function scoreLabel(row: AdminMatchListItemDto): string {
 function statusTagType(status: string | null | undefined): 'success' | 'warning' | 'info' | 'danger' {
   if (status === 'played') return 'success'
   if (status === 'live') return 'warning'
-  if (status === 'postponed') return 'danger'
+  if (status === 'postponed' || status === 'cancelled') return 'danger'
   return 'info'
 }
 
@@ -214,6 +214,9 @@ const isEmpty = computed(() => !loading.value && !loadError.value && matches.val
         <el-button :loading="csvImporting" @click="openCsvFileDialog">匯入整季賽程 CSV</el-button>
         <el-button type="primary" @click="handleAdd">+ 新增賽事</el-button>
       </div>
+      <p class="match-list__hint">
+        CSV 匯入是整批新建，不是逐列更新，任一列有錯整份檔案都不會寫入。「狀態」欄請填「未開始」「進行中」「已結束」「延賽」或「取消」。
+      </p>
     </el-card>
 
     <el-card v-if="loading" shadow="never">
@@ -313,6 +316,12 @@ const isEmpty = computed(() => !loading.value && !loadError.value && matches.val
 .match-list__filter-select {
   width: 160px;
   max-width: 100%;
+}
+
+.match-list__hint {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--admin-text-tertiary);
 }
 
 .match-list__filter-placeholder {
