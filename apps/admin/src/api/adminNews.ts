@@ -27,6 +27,10 @@ export interface AdminArticleLocaleContentDto {
   body?: string | null
   seoTitle?: string | null
   seoDescription?: string | null
+  /** 關鍵字（S1-12 新增），逐語系。對應 `articles_i18n.seo_keywords`。 */
+  seoKeywords?: string | null
+  /** 分享圖片替代文字（S1-12 驗收退回後補做），逐語系。對應 `articles_i18n.og_image_alt`。 */
+  ogImageAlt?: string | null
 }
 
 export interface AdminArticleContentInputDto {
@@ -63,6 +67,17 @@ export interface AdminArticleDetailDto {
   publishedAt?: string | null
   isShared: boolean
   updatedAt: string
+  /** 手動覆寫正規網址（S1-12 新增）。`null`／空字串＝不覆寫。 */
+  canonicalPath?: string | null
+  /** 不讓搜尋引擎收錄這篇文章（S1-12 新增）。 */
+  isNoindex: boolean
+  /** 不列入網站地圖（S1-12 新增）。 */
+  isExcludedFromSitemap: boolean
+  /** 分享圖片完整網址（S1-12 驗收退回後補做），`null`＝沒有專屬分享圖片
+   * （前台會依優先序回退到全站預設圖片，再回退到封面圖片）。 */
+  ogImageUrl?: string | null
+  ogImageWidth?: number | null
+  ogImageHeight?: number | null
   zh: AdminArticleLocaleContentDto
   en?: AdminArticleLocaleContentDto | null
   /** 標籤（S1-5） */
@@ -140,6 +155,10 @@ export interface SaveArticlePayload {
   tags?: AdminArticleTagDto[]
   coreValueTags?: string[]
   relations?: AdminArticleRelationDto[]
+  /** 手動覆寫正規網址（S1-12 新增）。省略或空字串＝不覆寫。 */
+  canonicalPath?: string | null
+  isNoindex?: boolean
+  isExcludedFromSitemap?: boolean
 }
 
 /** PUT 專用：多了並行權杖與封面圖片三態裡「清空」那一態的旗標（`UpdateArticleRequest.RemoveCover`）。
@@ -148,6 +167,8 @@ export interface SaveArticlePayload {
 export interface UpdateArticlePayload extends SaveArticlePayload {
   expectedUpdatedAt: string
   removeCover: boolean
+  /** 勾選「移除分享圖片」（S1-12 驗收退回後補做）。跟這次請求的 `ogImage` 檔案欄位互斥。 */
+  removeOgImage?: boolean
 }
 
 // ── 批次操作（S1-5）─────────────────────────────────────────────────────────────
@@ -186,19 +207,30 @@ export function batchUnpublishNews(club: string, ids: string[]): Promise<BatchOp
 }
 
 /** 組出建立／更新文章共用的 `multipart/form-data`：固定 `payload`（JSON 文字）欄位，`coverFile`
- * 非 `null` 時才附上 `file` 欄位——這正是「選檔不上傳、儲存才上傳」在請求層級的落地：呼叫這支函式
+ * 非 `null` 時才附上 `file` 欄位，`ogImageFile`（S1-12 新增，分享圖片，獨立於封面圖片之外）非
+ * `null` 時附上 `ogImage` 欄位——這正是「選檔不上傳、儲存才上傳」在請求層級的落地：呼叫這支函式
  * 之前，圖片只存在瀏覽器記憶體（`ImageUploader.vue` 的本機預覽），沒有任何 HTTP 請求送出過。 */
-function buildArticleFormData(payload: SaveArticlePayload | UpdateArticlePayload, coverFile: File | null): FormData {
+function buildArticleFormData(
+  payload: SaveArticlePayload | UpdateArticlePayload,
+  coverFile: File | null,
+  ogImageFile: File | null,
+): FormData {
   const form = new FormData()
   form.append('payload', JSON.stringify(payload))
   if (coverFile) form.append('file', coverFile)
+  if (ogImageFile) form.append('ogImage', ogImageFile)
   return form
 }
 
-export function createAdminNews(club: string, payload: SaveArticlePayload, coverFile: File | null): Promise<AdminArticleDetailDto> {
+export function createAdminNews(
+  club: string,
+  payload: SaveArticlePayload,
+  coverFile: File | null,
+  ogImageFile: File | null = null,
+): Promise<AdminArticleDetailDto> {
   return apiUploadRequest<AdminArticleDetailDto>(
     `/api/v1/admin/${club}/news`,
-    buildArticleFormData(payload, coverFile),
+    buildArticleFormData(payload, coverFile, ogImageFile),
     { method: 'POST' },
   )
 }
@@ -208,10 +240,11 @@ export function updateAdminNews(
   id: string,
   payload: UpdateArticlePayload,
   coverFile: File | null,
+  ogImageFile: File | null = null,
 ): Promise<AdminArticleDetailDto> {
   return apiUploadRequest<AdminArticleDetailDto>(
     `/api/v1/admin/${club}/news/${id}`,
-    buildArticleFormData(payload, coverFile),
+    buildArticleFormData(payload, coverFile, ogImageFile),
     { method: 'PUT' },
   )
 }
@@ -249,6 +282,8 @@ function localeToBilingualPair(zh: AdminArticleLocaleContentDto, en: AdminArticl
     summary: { zh: zh.summary ?? '', en: en?.summary ?? '' },
     seoTitle: { zh: zh.seoTitle ?? '', en: en?.seoTitle ?? '' },
     seoDescription: { zh: zh.seoDescription ?? '', en: en?.seoDescription ?? '' },
+    seoKeywords: { zh: zh.seoKeywords ?? '', en: en?.seoKeywords ?? '' },
+    ogImageAlt: { zh: zh.ogImageAlt ?? '', en: en?.ogImageAlt ?? '' },
   }
 }
 
@@ -270,10 +305,18 @@ export function detailDtoToArticle(dto: AdminArticleDetailDto): NewsArticle {
     statusAt: dto.publishedAt ?? undefined,
     isSharedContent: dto.isShared,
     updatedAt: dto.updatedAt,
+    canonicalPath: dto.canonicalPath ?? '',
+    isNoindex: dto.isNoindex,
+    isExcludedFromSitemap: dto.isExcludedFromSitemap,
+    ogImageUrl: dto.ogImageUrl ?? null,
+    ogImageWidth: dto.ogImageWidth ?? null,
+    ogImageHeight: dto.ogImageHeight ?? null,
     content: pair.content,
     summary: pair.summary,
     seoTitle: pair.seoTitle,
     seoDescription: pair.seoDescription,
+    seoKeywords: pair.seoKeywords,
+    ogImageAlt: pair.ogImageAlt,
     tags: dto.tags.map((t) => ({ slug: t.slug, nameZh: t.nameZh, nameEn: t.nameEn })),
     coreValueTags: dto.coreValueTags as CoreValueTag[],
     relations: dto.relations.map((r) => ({ targetType: r.targetType as RelationTargetType, targetId: r.targetId })),
@@ -294,10 +337,20 @@ export function listItemDtoToArticle(dto: AdminArticleListItemDto): NewsArticle 
     statusAt: dto.publishedAt ?? undefined,
     isSharedContent: dto.isShared,
     updatedAt: dto.updatedAt,
+    // 列表查詢不回傳這些單頁 SEO 欄位（列表頁沒有畫面需要顯示），維持空值即可，
+    // 不影響列表頁渲染；編輯頁一律走 detailDtoToArticle 才有真正的值。
+    canonicalPath: '',
+    isNoindex: false,
+    isExcludedFromSitemap: false,
+    ogImageUrl: null,
+    ogImageWidth: null,
+    ogImageHeight: null,
     content: { zh: '', en: '' },
     summary: { zh: '', en: '' },
     seoTitle: { zh: '', en: '' },
     seoDescription: { zh: '', en: '' },
+    seoKeywords: { zh: '', en: '' },
+    ogImageAlt: { zh: '', en: '' },
     tags: dto.tags.map((t) => ({ slug: t.slug, nameZh: t.nameZh, nameEn: t.nameEn })),
     // 列表查詢不回傳核心價值標籤與關聯（沒有畫面需要在列表頁顯示這兩者），維持空陣列即可，
     // 不影響列表頁渲染；編輯頁一律走 detailDtoToArticle 才有真正的值。
@@ -340,6 +393,8 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
     && !article.summary.en.trim()
     && !article.seoTitle.en.trim()
     && !article.seoDescription.en.trim()
+    && !article.seoKeywords.en.trim()
+    && !article.ogImageAlt.en.trim()
 
   return {
     slug: article.urlName,
@@ -352,6 +407,8 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
         body: article.content.zh || null,
         seoTitle: article.seoTitle.zh || null,
         seoDescription: article.seoDescription.zh || null,
+        seoKeywords: article.seoKeywords.zh || null,
+        ogImageAlt: article.ogImageAlt.zh || null,
       },
       en: isEnEmpty
         ? undefined
@@ -361,11 +418,16 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
             body: article.content.en || null,
             seoTitle: article.seoTitle.en || null,
             seoDescription: article.seoDescription.en || null,
+            seoKeywords: article.seoKeywords.en || null,
+            ogImageAlt: article.ogImageAlt.en || null,
           },
     },
     // 一律明確帶出畫面目前的完整陣列，理由見 SaveArticlePayload 型別定義上的說明。
     tags: article.tags.map((t) => ({ slug: t.slug, nameZh: t.nameZh ?? undefined, nameEn: t.nameEn ?? undefined })),
     coreValueTags: article.coreValueTags,
     relations: article.relations.map((r) => ({ targetType: r.targetType, targetId: r.targetId })),
+    canonicalPath: article.canonicalPath || null,
+    isNoindex: article.isNoindex,
+    isExcludedFromSitemap: article.isExcludedFromSitemap,
   }
 }

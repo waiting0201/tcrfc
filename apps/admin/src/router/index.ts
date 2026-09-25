@@ -48,6 +48,9 @@ const EnquiryEditView = () => import('@/views/forms/EnquiryEditView.vue')
 const CalendarOverviewView = () => import('@/views/calendar/CalendarOverviewView.vue')
 const CalendarEventListView = () => import('@/views/calendar/CalendarEventListView.vue')
 const CalendarEventEditView = () => import('@/views/calendar/CalendarEventEditView.vue')
+const SeoSettingsView = () => import('@/views/seo/SeoSettingsView.vue')
+const RedirectListView = () => import('@/views/seo/RedirectListView.vue')
+const OrphanPagesReportView = () => import('@/views/seo/OrphanPagesReportView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -242,6 +245,24 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     component: CalendarEventEditView,
     props: true,
     meta: { label: '編輯自建事件', code: 'L2' },
+  },
+  {
+    path: '/seo/settings',
+    name: 'seo-settings',
+    component: SeoSettingsView,
+    meta: { label: '全站設定', code: 'H1', sysadminOnly: true },
+  },
+  {
+    path: '/seo/redirects',
+    name: 'seo-redirect-list',
+    component: RedirectListView,
+    meta: { label: '301 轉址', code: 'H2', sysadminOnly: true },
+  },
+  {
+    path: '/seo/orphan-pages',
+    name: 'seo-orphan-pages',
+    component: OrphanPagesReportView,
+    meta: { label: '孤立頁面偵測', code: 'H3', sysadminOnly: true },
   },
   {
     path: '/system/accounts',

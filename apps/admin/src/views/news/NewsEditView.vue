@@ -6,6 +6,7 @@ import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
+import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
@@ -72,6 +73,14 @@ function emptyArticle(): NewsArticle {
     summary: { zh: '', en: '' },
     seoTitle: { zh: '', en: '' },
     seoDescription: { zh: '', en: '' },
+    seoKeywords: { zh: '', en: '' },
+    canonicalPath: '',
+    isNoindex: false,
+    isExcludedFromSitemap: false,
+    ogImageUrl: null,
+    ogImageWidth: null,
+    ogImageHeight: null,
+    ogImageAlt: { zh: '', en: '' },
     tags: [],
     coreValueTags: [],
     relations: [],
@@ -97,12 +106,19 @@ const form = reactive<NewsArticle>(emptyArticle())
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 
+/** 分享圖片（S1-12 驗收退回後補做）的「這次瀏覽階段的意圖」，獨立於封面圖片之外——三態規則
+ * 與 `coverFile`／`removeCover` 完全一致，見上方對 `coverFile` 的說明。 */
+const ogImageFile = ref<File | null>(null)
+const removeOgImage = ref(false)
+
 function applyLoadedArticle(article: NewsArticle) {
   baseline.value = article
   Object.assign(form, structuredClone(article))
   currentId.value = article.id
   coverFile.value = null
   removeCover.value = false
+  ogImageFile.value = null
+  removeOgImage.value = false
 }
 
 // ── 標籤（S1-5）──────────────────────────────────────────────────────────────────
@@ -282,7 +298,13 @@ const scheduleDateTime = ref<Date | null>(null)
 // 儲存就離開」不會觸發離開提醒，使用者會誤以為圖片已經生效。
 const isDirty = computed(() =>
   loadState.value === 'ready'
-  && (JSON.stringify(form) !== JSON.stringify(baseline.value) || coverFile.value !== null || removeCover.value),
+  && (
+    JSON.stringify(form) !== JSON.stringify(baseline.value)
+    || coverFile.value !== null
+    || removeCover.value
+    || ogImageFile.value !== null
+    || removeOgImage.value
+  ),
 )
 useUnsavedChanges(isDirty)
 
@@ -302,6 +324,8 @@ function isEnEmpty(article: NewsArticle): boolean {
     && !article.summary.en.trim()
     && !article.seoTitle.en.trim()
     && !article.seoDescription.en.trim()
+    && !article.seoKeywords.en.trim()
+    && !article.ogImageAlt.en.trim()
   )
 }
 
@@ -404,9 +428,9 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
     let saved: NewsArticle
 
     if (isCreate.value && !currentId.value) {
-      // 建立沒有「清空封面」這個概念（根本還沒有既有封面可清），coverFile 有值就附上，沒有就是
-      // 「這篇文章沒有封面圖片」（apps/api/README.md「給前端接的契約」）。
-      const created = await createAdminNews(club, payload, coverFile.value)
+      // 建立沒有「清空封面／分享圖片」這個概念（根本還沒有既有圖片可清），選了新檔案就附上，
+      // 沒有就是「這篇文章沒有這張圖片」（apps/api/README.md「給前端接的契約」）。
+      const created = await createAdminNews(club, payload, coverFile.value, ogImageFile.value)
       saved = detailDtoToArticle(created)
     } else {
       const updated = await updateAdminNews(
@@ -416,8 +440,10 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
           ...payload,
           expectedUpdatedAt: baseline.value.updatedAt,
           removeCover: removeCover.value,
+          removeOgImage: removeOgImage.value,
         },
         coverFile.value,
+        ogImageFile.value,
       )
       saved = detailDtoToArticle(updated)
     }
@@ -615,6 +641,67 @@ function retryLoad() {
               :existing-preview-url="form.coverImageUrl"
               :disabled="saving"
             />
+          </el-form-item>
+        </el-card>
+
+        <el-card shadow="never" header="搜尋與分享設定" class="news-edit__section">
+          <p class="news-edit__hint">
+            這裡的標題與描述同時用在搜尋引擎結果與社群分享預覽；分享圖片沒有另外設定時，會依序改用全站預設分享圖片、再改用這篇文章的封面圖片。
+          </p>
+          <BilingualShortField
+            label="搜尋與分享標題"
+            :zh="form.seoTitle.zh"
+            :en="form.seoTitle.en"
+            placeholder="選填，未填寫時使用文章標題"
+            @update:zh="(v) => (form.seoTitle.zh = v)"
+            @update:en="(v) => (form.seoTitle.en = v)"
+          />
+          <BilingualTextareaField
+            label="搜尋與分享描述"
+            :zh="form.seoDescription.zh"
+            :en="form.seoDescription.en"
+            placeholder="選填，建議 80–120 字，未填寫時使用文章摘要"
+            :rows="3"
+            @update:zh="(v) => (form.seoDescription.zh = v)"
+            @update:en="(v) => (form.seoDescription.en = v)"
+          />
+          <BilingualShortField
+            label="關鍵字"
+            :zh="form.seoKeywords.zh"
+            :en="form.seoKeywords.en"
+            placeholder="選填，多個關鍵字請用逗號分隔"
+            @update:zh="(v) => (form.seoKeywords.zh = v)"
+            @update:en="(v) => (form.seoKeywords.en = v)"
+          />
+
+          <el-form-item label="分享圖片">
+            <ImageUploader
+              v-model:file="ogImageFile"
+              v-model:remove-cover="removeOgImage"
+              :has-existing-image="!!form.ogImageUrl"
+              :existing-preview-url="form.ogImageUrl"
+              :disabled="saving"
+            />
+          </el-form-item>
+          <BilingualShortField
+            label="分享圖片替代文字"
+            :zh="form.ogImageAlt.zh"
+            :en="form.ogImageAlt.en"
+            placeholder="選填，描述圖片內容，供視障輔助工具使用"
+            @update:zh="(v) => (form.ogImageAlt.zh = v)"
+            @update:en="(v) => (form.ogImageAlt.en = v)"
+          />
+
+          <el-form-item label="正式網址">
+            <el-input v-model="form.canonicalPath" placeholder="選填，站內相對路徑，未填寫時由系統依目前網址自動判斷" />
+          </el-form-item>
+          <p class="news-edit__hint">只有這篇文章的正式網址跟目前網址不同時才需要填寫（例如同一篇內容曾經用別的網址發布過）。</p>
+
+          <el-form-item label="不讓搜尋引擎收錄">
+            <el-switch v-model="form.isNoindex" />
+          </el-form-item>
+          <el-form-item label="不列入網站地圖">
+            <el-switch v-model="form.isExcludedFromSitemap" />
           </el-form-item>
         </el-card>
 

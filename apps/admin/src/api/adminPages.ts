@@ -7,6 +7,10 @@ import { apiRequest, apiUploadRequest } from './http'
 export interface AdminPageSeoLocaleContentDto {
   seoTitle?: string | null
   seoDescription?: string | null
+  /** 關鍵字（S1-12 新增），逐語系。對應 `pages_i18n.seo_keywords`。 */
+  seoKeywords?: string | null
+  /** 分享圖片替代文字（S1-12 驗收退回後補做），逐語系。對應 `pages_i18n.og_image_alt`。 */
+  ogImageAlt?: string | null
 }
 
 export interface AdminPageSeoInputDto {
@@ -53,6 +57,16 @@ export interface AdminPageDetailDto {
   status: 'draft' | 'published' | 'scheduled'
   publishedAt?: string | null
   updatedAt: string
+  /** 手動覆寫正規網址（S1-12 新增）。`null`／空字串＝不覆寫，前台沿用自動產生的正規網址。 */
+  canonicalPath?: string | null
+  /** 不讓搜尋引擎收錄這一頁（S1-12 新增）。跟全站上線前的無條件 noindex 是兩個獨立機制。 */
+  isNoindex: boolean
+  /** 不列入網站地圖（S1-12 新增）。 */
+  isExcludedFromSitemap: boolean
+  /** 分享圖片完整網址（S1-12 驗收退回後補做），`null`＝這個頁面沒有專屬分享圖片（會回退到全站預設）。 */
+  ogImageUrl?: string | null
+  ogImageWidth?: number | null
+  ogImageHeight?: number | null
   zh: AdminPageSeoLocaleContentDto
   en?: AdminPageSeoLocaleContentDto | null
   blocks: AdminPageBlockDto[]
@@ -108,32 +122,56 @@ export function getAdminPage(club: string, id: string): Promise<AdminPageDetailD
 export interface SavePagePayload {
   slug: string
   seo: AdminPageSeoInputDto
+  /** 手動覆寫正規網址（S1-12 新增）。省略或空字串＝不覆寫。 */
+  canonicalPath?: string | null
+  isNoindex?: boolean
+  isExcludedFromSitemap?: boolean
   blocks: AdminPageBlockInputDto[]
 }
 
 export interface UpdatePagePayload extends SavePagePayload {
   expectedUpdatedAt: string
+  /** 勾選「移除分享圖片」（S1-12 驗收退回後補做）。跟這次請求的 `ogImage` 檔案欄位互斥。 */
+  removeOgImage?: boolean
 }
 
 /** 組出建立／更新頁面共用的 `multipart/form-data`：固定 `payload`（JSON 文字）欄位，
  * 加上每一個待上傳圖片各自的 `file:{區塊索引}:{圖片路徑}` 欄位（見
- * `@/utils/pageBlockSerializer.ts` 的 `serializeBlocksForSubmit`）。呼叫這支函式之前，
- * 圖片只存在瀏覽器記憶體，沒有任何 HTTP 請求送出過（規劃書「選檔不上傳、儲存才上傳」）。 */
-function buildPageFormData(payload: SavePagePayload | UpdatePagePayload, files: Record<string, File>): FormData {
+ * `@/utils/pageBlockSerializer.ts` 的 `serializeBlocksForSubmit`），以及選填的 `ogImage`
+ * （S1-12 新增，分享圖片，獨立於區塊圖片之外，對照 `apps/api` `AdminPageRequestForm` 的固定
+ * 欄位名）。呼叫這支函式之前，圖片只存在瀏覽器記憶體，沒有任何 HTTP 請求送出過
+ * （規劃書「選檔不上傳、儲存才上傳」）。 */
+function buildPageFormData(
+  payload: SavePagePayload | UpdatePagePayload,
+  files: Record<string, File>,
+  ogImageFile: File | null,
+): FormData {
   const form = new FormData()
   form.append('payload', JSON.stringify(payload))
   for (const [fieldName, file] of Object.entries(files)) {
     form.append(fieldName, file)
   }
+  if (ogImageFile) form.append('ogImage', ogImageFile)
   return form
 }
 
-export function createAdminPage(club: string, payload: SavePagePayload, files: Record<string, File>): Promise<AdminPageDetailDto> {
-  return apiUploadRequest<AdminPageDetailDto>(`/api/v1/admin/${club}/pages`, buildPageFormData(payload, files), { method: 'POST' })
+export function createAdminPage(
+  club: string,
+  payload: SavePagePayload,
+  files: Record<string, File>,
+  ogImageFile: File | null = null,
+): Promise<AdminPageDetailDto> {
+  return apiUploadRequest<AdminPageDetailDto>(`/api/v1/admin/${club}/pages`, buildPageFormData(payload, files, ogImageFile), { method: 'POST' })
 }
 
-export function updateAdminPage(club: string, id: string, payload: UpdatePagePayload, files: Record<string, File>): Promise<AdminPageDetailDto> {
-  return apiUploadRequest<AdminPageDetailDto>(`/api/v1/admin/${club}/pages/${id}`, buildPageFormData(payload, files), { method: 'PUT' })
+export function updateAdminPage(
+  club: string,
+  id: string,
+  payload: UpdatePagePayload,
+  files: Record<string, File>,
+  ogImageFile: File | null = null,
+): Promise<AdminPageDetailDto> {
+  return apiUploadRequest<AdminPageDetailDto>(`/api/v1/admin/${club}/pages/${id}`, buildPageFormData(payload, files, ogImageFile), { method: 'PUT' })
 }
 
 export function publishAdminPage(club: string, id: string, expectedUpdatedAt: string): Promise<AdminPageDetailDto> {

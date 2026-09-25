@@ -135,6 +135,20 @@ export interface NewsArticle {
   summary: Bilingual
   seoTitle: Bilingual
   seoDescription: Bilingual
+  /** 關鍵字（S1-12 新增） */
+  seoKeywords: Bilingual
+  /** 手動覆寫正規網址（S1-12 新增）。單一欄位，不分語系（`articles.canonical_path` 不在 i18n 側表）。 */
+  canonicalPath: string
+  /** 不讓搜尋引擎收錄（S1-12 新增） */
+  isNoindex: boolean
+  /** 不列入網站地圖（S1-12 新增） */
+  isExcludedFromSitemap: boolean
+  /** 分享圖片完整網址（S1-12 驗收退回後補做），`null`＝沒有專屬分享圖片。 */
+  ogImageUrl: string | null
+  ogImageWidth: number | null
+  ogImageHeight: number | null
+  /** 分享圖片替代文字（S1-12 驗收退回後補做） */
+  ogImageAlt: Bilingual
   /** 標籤（S1-5） */
   tags: NewsTag[]
   /** 核心價值標籤（S1-5） */

@@ -20,11 +20,12 @@ const route = useRoute()
 const router = useRouter()
 
 /**
- * `J 系統管理` 整組只有系統管理員看得到（規劃書 §6 權限矩陣「系統」欄只有系統管理員打勾，
- * 其餘角色是「—」或「✗」）。這裡只是選單可見度，不是安全邊界——真正的把關在後端每一個
- * `system.*` 權限碼（皆為 `sysadmin_only`）與 `router/index.ts` 的第二層路由守衛。
+ * `J 系統管理`、`H 搜尋與 AI 能見度` 整組只有系統管理員看得到（`J`：規劃書 §6 權限矩陣「系統」欄
+ * 只有系統管理員打勾；`H`：S1-12 的 `seo.setting.*`／`seo.redirect.*`／`seo.report.view` 權限碼
+ * 全部 `sysadmin_only=1`，見 apps/api/README.md「S1-12」「權限碼」）。這裡只是選單可見度，
+ * 不是安全邊界——真正的把關在後端每一個 `sysadmin_only` 權限碼與 `router/index.ts` 的第二層路由守衛。
  */
-const SYSADMIN_ONLY_MODULE_CODES = new Set(['J'])
+const SYSADMIN_ONLY_MODULE_CODES = new Set(['J', 'H'])
 
 /**
  * P1／P2／P3（課程與活動）：不是每個角色都看得到，見 `useProgramPermissions` 檔頭的完整角色

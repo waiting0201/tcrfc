@@ -14,6 +14,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import PageBlockEditor from '@/components/pageBlocks/PageBlockEditor.vue'
+import ImageUploader from '@/components/ImageUploader.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import {
@@ -57,6 +58,18 @@ interface PageFormState {
   seoDescriptionZh: string
   seoTitleEn: string
   seoDescriptionEn: string
+  /** 關鍵字（S1-12 新增） */
+  seoKeywordsZh: string
+  seoKeywordsEn: string
+  /** 手動覆寫正規網址（S1-12 新增）。單一欄位，不分語系（`pages.canonical_path` 不在 i18n 側表）。 */
+  canonicalPath: string
+  /** 不讓搜尋引擎收錄（S1-12 新增） */
+  isNoindex: boolean
+  /** 不列入網站地圖（S1-12 新增） */
+  isExcludedFromSitemap: boolean
+  /** 分享圖片完整網址（S1-12 驗收退回後補做），`null`＝沒有專屬分享圖片（會回退到全站預設）。 */
+  ogImageUrl: string | null
+  ogImageAlt: { zh: string; en: string }
   latestVersionNo: number
   previewToken: string | null
 }
@@ -71,10 +84,23 @@ function emptyForm(): PageFormState {
     seoDescriptionZh: '',
     seoTitleEn: '',
     seoDescriptionEn: '',
+    seoKeywordsZh: '',
+    seoKeywordsEn: '',
+    canonicalPath: '',
+    isNoindex: false,
+    isExcludedFromSitemap: false,
+    ogImageUrl: null,
+    ogImageAlt: { zh: '', en: '' },
     latestVersionNo: 0,
     previewToken: null,
   }
 }
+
+/** 分享圖片（S1-12 驗收退回後補做）的「這次瀏覽階段的意圖」，獨立於區塊圖片之外——三態規則
+ * 比照 `NewsEditView.vue` 的 `coverFile`／`removeCover`：`ogImageFile` 非 `null` 是「選了要換的
+ * 新圖」，`removeOgImage` 為真是「儲存時清空分享圖片」，兩者不會同時成立。 */
+const ogImageFile = ref<File | null>(null)
+const removeOgImage = ref(false)
 
 type LoadState = 'loading' | 'not-found' | 'error' | 'ready'
 const loadState = ref<LoadState>('loading')
@@ -86,7 +112,20 @@ const blocks = ref<PageBlockState[]>([])
 const baselineJson = shallowRef('')
 
 function snapshotJson(): string {
-  return JSON.stringify({ slug: form.slug, seoTitleZh: form.seoTitleZh, seoDescriptionZh: form.seoDescriptionZh, seoTitleEn: form.seoTitleEn, seoDescriptionEn: form.seoDescriptionEn, blocks: blocks.value })
+  return JSON.stringify({
+    slug: form.slug,
+    seoTitleZh: form.seoTitleZh,
+    seoDescriptionZh: form.seoDescriptionZh,
+    seoTitleEn: form.seoTitleEn,
+    seoDescriptionEn: form.seoDescriptionEn,
+    seoKeywordsZh: form.seoKeywordsZh,
+    seoKeywordsEn: form.seoKeywordsEn,
+    canonicalPath: form.canonicalPath,
+    isNoindex: form.isNoindex,
+    isExcludedFromSitemap: form.isExcludedFromSitemap,
+    ogImageAlt: form.ogImageAlt,
+    blocks: blocks.value,
+  })
 }
 
 function applyLoadedPage(dto: AdminPageDetailDto) {
@@ -98,10 +137,19 @@ function applyLoadedPage(dto: AdminPageDetailDto) {
   form.seoDescriptionZh = dto.zh.seoDescription ?? ''
   form.seoTitleEn = dto.en?.seoTitle ?? ''
   form.seoDescriptionEn = dto.en?.seoDescription ?? ''
+  form.seoKeywordsZh = dto.zh.seoKeywords ?? ''
+  form.seoKeywordsEn = dto.en?.seoKeywords ?? ''
+  form.canonicalPath = dto.canonicalPath ?? ''
+  form.isNoindex = dto.isNoindex
+  form.isExcludedFromSitemap = dto.isExcludedFromSitemap
+  form.ogImageUrl = dto.ogImageUrl ?? null
+  form.ogImageAlt = { zh: dto.zh.ogImageAlt ?? '', en: dto.en?.ogImageAlt ?? '' }
   form.latestVersionNo = dto.latestVersionNo
   form.previewToken = dto.previewToken ?? null
   blocks.value = dto.blocks.map(parseBlockFromDto)
   currentId.value = dto.id
+  ogImageFile.value = null
+  removeOgImage.value = false
   baselineJson.value = snapshotJson()
   hadEnSeoAtLoad.value = !!(dto.en?.seoTitle?.trim() || dto.en?.seoDescription?.trim())
 }
@@ -136,7 +184,10 @@ const formError = ref<string | null>(null)
 const scheduleDialogVisible = ref(false)
 const scheduleDateTime = ref<Date | null>(null)
 
-const isDirty = computed(() => loadState.value === 'ready' && snapshotJson() !== baselineJson.value)
+const isDirty = computed(() =>
+  loadState.value === 'ready'
+  && (snapshotJson() !== baselineJson.value || ogImageFile.value !== null || removeOgImage.value),
+)
 useUnsavedChanges(isDirty)
 
 const pageTitle = computed(() => (isCreate.value ? '新增頁面' : `編輯頁面：${form.slug || '（尚未命名）'}`))
@@ -145,7 +196,7 @@ const canPreview = computed(() => form.status === 'published')
 const frontendPreviewUrl = computed(() => (canPreview.value ? `/zh/${form.slug.replace(/^\/+|\/+$/g, '')}/` : undefined))
 
 function isEnSeoEmpty(): boolean {
-  return !form.seoTitleEn.trim() && !form.seoDescriptionEn.trim()
+  return !form.seoTitleEn.trim() && !form.seoDescriptionEn.trim() && !form.seoKeywordsEn.trim() && !form.ogImageAlt.en.trim()
 }
 const hadEnSeoAtLoad = ref(false)
 
@@ -238,16 +289,43 @@ async function saveAndMaybeTransition(transition?: { kind: 'publish' } | { kind:
   try {
     const club = activeClubId.value
     const seo = {
-      zh: { seoTitle: form.seoTitleZh || null, seoDescription: form.seoDescriptionZh || null },
-      en: isEnSeoEmpty() ? undefined : { seoTitle: form.seoTitleEn || null, seoDescription: form.seoDescriptionEn || null },
+      zh: {
+        seoTitle: form.seoTitleZh || null,
+        seoDescription: form.seoDescriptionZh || null,
+        seoKeywords: form.seoKeywordsZh || null,
+        ogImageAlt: form.ogImageAlt.zh || null,
+      },
+      en: isEnSeoEmpty()
+        ? undefined
+        : {
+            seoTitle: form.seoTitleEn || null,
+            seoDescription: form.seoDescriptionEn || null,
+            seoKeywords: form.seoKeywordsEn || null,
+            ogImageAlt: form.ogImageAlt.en || null,
+          },
     }
-    const payload = { slug: form.slug.trim(), seo, blocks: blocksPayload }
+    const payload = {
+      slug: form.slug.trim(),
+      seo,
+      canonicalPath: form.canonicalPath || null,
+      isNoindex: form.isNoindex,
+      isExcludedFromSitemap: form.isExcludedFromSitemap,
+      blocks: blocksPayload,
+    }
 
     let saved: AdminPageDetailDto
     if (isCreate.value && !currentId.value) {
-      saved = await createAdminPage(club, payload, files)
+      // 建立沒有「清空分享圖片」這個概念（根本還沒有既有圖片可清），選了新檔案就附上，
+      // 沒有就是「這個頁面沒有分享圖片」（比照 NewsEditView.vue 封面圖片的既有慣例）。
+      saved = await createAdminPage(club, payload, files, ogImageFile.value)
     } else {
-      saved = await updateAdminPage(club, currentId.value!, { ...payload, expectedUpdatedAt: form.updatedAt }, files)
+      saved = await updateAdminPage(
+        club,
+        currentId.value!,
+        { ...payload, expectedUpdatedAt: form.updatedAt, removeOgImage: removeOgImage.value },
+        files,
+        ogImageFile.value,
+      )
     }
 
     if (transition?.kind === 'publish') {
@@ -536,9 +614,12 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
           </el-form-item>
         </el-card>
 
-        <el-card shadow="never" header="搜尋引擎摘要資料（SEO）" class="page-edit__section">
+        <el-card shadow="never" header="搜尋與分享設定" class="page-edit__section">
+          <p class="page-edit__hint">
+            這裡的標題與描述同時用在搜尋引擎結果與社群分享預覽；分享圖片沒有另外設定時，會回退使用全站預設分享圖片。
+          </p>
           <BilingualShortField
-            label="SEO 標題"
+            label="搜尋與分享標題"
             :zh="form.seoTitleZh"
             :en="form.seoTitleEn"
             placeholder="選填，未填寫時由搜尋引擎自行判斷"
@@ -546,7 +627,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
             @update:en="(v) => (form.seoTitleEn = v)"
           />
           <BilingualTextareaField
-            label="SEO 描述"
+            label="搜尋與分享描述"
             :zh="form.seoDescriptionZh"
             :en="form.seoDescriptionEn"
             placeholder="選填，建議 80–120 字"
@@ -554,6 +635,44 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
             @update:zh="(v) => (form.seoDescriptionZh = v)"
             @update:en="(v) => (form.seoDescriptionEn = v)"
           />
+          <BilingualShortField
+            label="關鍵字"
+            :zh="form.seoKeywordsZh"
+            :en="form.seoKeywordsEn"
+            placeholder="選填，多個關鍵字請用逗號分隔"
+            @update:zh="(v) => (form.seoKeywordsZh = v)"
+            @update:en="(v) => (form.seoKeywordsEn = v)"
+          />
+
+          <el-form-item label="分享圖片">
+            <ImageUploader
+              v-model:file="ogImageFile"
+              v-model:remove-cover="removeOgImage"
+              :has-existing-image="!!form.ogImageUrl"
+              :existing-preview-url="form.ogImageUrl"
+              :disabled="saving"
+            />
+          </el-form-item>
+          <BilingualShortField
+            label="分享圖片替代文字"
+            :zh="form.ogImageAlt.zh"
+            :en="form.ogImageAlt.en"
+            placeholder="選填，描述圖片內容，供視障輔助工具使用"
+            @update:zh="(v) => (form.ogImageAlt.zh = v)"
+            @update:en="(v) => (form.ogImageAlt.en = v)"
+          />
+
+          <el-form-item label="正式網址">
+            <el-input v-model="form.canonicalPath" placeholder="選填，站內相對路徑，未填寫時由系統依目前網址自動判斷" />
+          </el-form-item>
+          <p class="page-edit__hint">只有這個頁面的正式網址跟目前網址不同時才需要填寫。</p>
+
+          <el-form-item label="不讓搜尋引擎收錄">
+            <el-switch v-model="form.isNoindex" />
+          </el-form-item>
+          <el-form-item label="不列入網站地圖">
+            <el-switch v-model="form.isExcludedFromSitemap" />
+          </el-form-item>
         </el-card>
 
         <el-card shadow="never" header="內容區塊" class="page-edit__section">

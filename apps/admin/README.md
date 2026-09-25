@@ -2,6 +2,21 @@
 
 台中磐石官網主站與台中藍鯨官網**共用同一個後台**的 Vue 3 SPA。
 
+✅ **S1-12 後台畫面（2026-09-25）：H 搜尋與 AI 能見度全新完成（全站設定／301 轉址／孤立頁面
+偵測）＋ B1／B2 單頁搜尋與分享設定**——接上同名後端（見 `apps/api/README.md`「S1-12」）。
+新增三個子模組 **H1 全站設定**（標題樣板、預設描述、全站預設分享圖片，沿用 S0-8 共用上傳元件
+「選檔不上傳、儲存才上傳」；robots.txt 線上編輯，畫面明講「要等正式上線後才生效」；GA4／
+GTM／Meta Pixel／LINE Tag 追蹤碼）、**H2 301 轉址**（列表＋搜尋分頁、新增／編輯對話框、刪除、
+CSV 匯入匯出）、**H3 孤立頁面偵測**（唯讀報表，畫面上把偵測方式的限制講清楚，不假裝是完整的
+連結地圖）。三個子模組的權限碼皆為 `sysadmin_only`，`AppSidebar.vue` 的
+`SYSADMIN_ONLY_MODULE_CODES` 新增 `'H'`，整組比照既有 `J` 系統管理，只有系統管理員在側欄看得到。
+**B1／B2 編輯頁**分別在既有「搜尋引擎摘要資料」卡片與新增的「搜尋與分享設定」卡片補上：關鍵字、
+分享圖片（獨立於封面／內容區塊圖片之外，走 `ogImage` 這個 multipart 欄位）、分享圖片替代文字、
+正式網址（單一欄位，不分語系）、不讓搜尋引擎收錄、不列入網站地圖。**日常用語新增進
+`docs/06-conventions.md` §1**：`SEO`／`OG`／`robots.txt`／`sitemap` 一律不用原文顯示，`GA4`／
+`GTM`／`Meta Pixel`／`LINE Tag` 刻意保留原文（第三方服務正式名稱，理由見該檔案）。詳見下方
+「H 搜尋與 AI 能見度」整節（含真實驗收紀錄與未驗證項目）。
+
 ✅ **S1-10 後台畫面第三輪修正（2026-09-25）：G1 欄位題目文字、G2 姓名選單開放給所有處理權限
 角色、P1–P3／G1–G2／L1–L2 權限判斷改讀 `/auth/me` 權限碼、俱樂部範圍頁面閃錯 bug 已修**——
 接上同名後端補完（見 `apps/api/README.md`「S1-10 修正」）。**G1**：新增欄位時新增「題目文字
@@ -1983,3 +1998,107 @@ session（`/auth/me` 權限清單、S1-10 缺口修正）大幅修改中，`dotn
 （`tcrfc` 範圍）驗證不再閃「沒有被授權」錯誤畫面，並用「暫時移除 `await` 重現原始 bug、復原後
 再次確認修好」的方式驗證這支測試本身有效，細節見上方「G1–G2 表單與詢問」節「本輪驗收（S1-10
 第三輪）」第 3 點。
+
+---
+
+## H 搜尋與 AI 能見度（S1-12，2026-09-25）
+
+對應主站規劃書 §4.8 H，接上同名後端（`apps/api/README.md`「S1-12」）。本輪只做後台畫面，
+`llms.txt`／AI 爬蟲授權／結構化資料檢查屬 `S1-12a`／`S1-12b`／`S1-12c`，不在範圍內。
+
+### 新增／修改的檔案
+
+- `src/api/adminSeo.ts`（新增）：全站設定（`getAdminSeoSettings`／`updateAdminSeoSettings`，
+  `multipart/form-data`，`ogImage` 欄位）、301 轉址 CRUD、CSV 匯入匯出（比照
+  `src/api/adminFaq.ts` 既有寫法，不是 JSON 也不是 multipart，直接送／收 CSV 位元組）、孤立頁面
+  偵測報表 GET。
+- `src/api/adminPages.ts`／`src/api/adminNews.ts`（修改）：DTO 與 payload 補上
+  `seoKeywords`／`canonicalPath`／`isNoindex`／`isExcludedFromSitemap`／`ogImageUrl`／
+  `ogImageWidth`／`ogImageHeight`／`ogImageAlt`，`createAdminPage`／`updateAdminPage`／
+  `createAdminNews`／`updateAdminNews` 新增可選的 `ogImageFile` 參數（沿用 `file`／`ogImage`
+  互斥、「選檔不上傳、儲存才上傳」的既有契約，逐字對照 `apps/api` 的
+  `AdminPageRequestForm`／`AdminArticleRequestForm` 固定欄位名）。
+- `src/types/news.ts`（修改）：`NewsArticle` 補上同一批欄位。
+- `src/views/pages/PageEditView.vue`／`src/views/news/NewsEditView.vue`（修改）：「搜尋引擎摘要
+  資料」卡片擴充為「搜尋與分享設定」（Page）／新增同名卡片（News），補關鍵字、分享圖片
+  （`ImageUploader`，獨立於封面／區塊圖片之外的第二個 `ogImageFile`／`removeOgImage` 狀態）、
+  分享圖片替代文字、正式網址、不讓搜尋引擎收錄、不列入網站地圖；`isDirty`／英文清空確認邏輯
+  一併納入新欄位。
+- `src/views/seo/SeoSettingsView.vue`（新增，H1）：全站標題樣板／預設描述／預設分享圖片、
+  robots.txt 自訂規則（含環境閘門說明）、追蹤碼，單筆設定表單（比照 `ClubEditView.vue` 寫法）。
+- `src/views/seo/RedirectListView.vue`（新增，H2）：列表＋關鍵字搜尋分頁、新增／編輯對話框、
+  刪除、CSV 匯入匯出（比照 `FaqListView.vue` 既有 CSV 段落寫法）。
+- `src/views/seo/OrphanPagesReportView.vue`（新增，H3）：唯讀報表，畫面上用一段 `el-alert` 把
+  偵測方式的限制講清楚（字串比對啟發式、看不到主選單／頁尾），不假裝是完整連結地圖。
+- `src/router/index.ts`：新增 `/seo/settings`／`/seo/redirects`／`/seo/orphan-pages` 三條路由，
+  `meta.sysadminOnly: true`（比照 J 模組既有寫法）。
+- `src/data/nav.ts`：`H` 從單一葉節點改為有三個子模組的父節點。
+- `src/components/AppSidebar.vue`：`SYSADMIN_ONLY_MODULE_CODES` 新增 `'H'`——三個子模組的權限碼
+  （`seo.setting.*`／`seo.redirect.*`／`seo.report.view`）皆為 `sysadmin_only`，整組跟 `J` 一樣
+  只有系統管理員在側欄看得到（不是安全邊界，真正把關在後端，見 `router/index.ts` 第二層守衛）。
+- `docs/06-conventions.md` §1：新增 `SEO`／`OG`／`robots.txt`／`sitemap`／`canonical`（單頁覆寫
+  欄位）五筆對照，並加一段說明為什麼 `GA4`／`GTM`／`Meta Pixel`／`LINE Tag` 刻意保留原文
+  （第三方服務正式產品名稱，不是系統內部技術詞）。
+
+### 規劃書沒寫清楚、本輪自行判斷的部分
+
+1. **「網站名稱」沒有另外做一個可編輯欄位**：任務指示列的四項全站預設之一是「網站名稱」，但
+   後端 `AdminSeoSettingsDto`（`apps/api/README.md`「S1-12」）沒有這個欄位——網站名稱本來就是
+   `clubs_i18n.name`（J4 俱樂部主檔既有欄位，`ClubEditView.vue`「名稱」）。這裡不重複造一個新
+   欄位去存同一件事，只在畫面上加一行說明文字指向 J4，避免出現「兩個地方都能改網站名稱、改了
+   一邊沒改另一邊」的資料不一致。
+2. **H 模組整組（不只三個子模組各自）在側欄對非系統管理員隱藏**：矩陣沒有明文要求「整組隱藏」
+   而非「個別項目隱藏」，比照 `J` 系統管理既有的判斷邏輯——三個子模組的權限碼全部
+   `sysadmin_only`，個別判斷每個子模組毫無意義，直接整組濾掉跟 `J` 一致。
+3. **301 轉址的新增／編輯用對話框，不是獨立路由**：欄位只有來源網址／目的網址／啟用三個，
+   比照 `FaqListView.vue` 主題分類管理段落既有的小型 CRUD 對話框寫法，不需要另外開一個編輯頁。
+
+### 驗收紀錄（2026-09-25，本機環境）
+
+1. **`apps/admin`／`apps/web` 的 `npm run lint` 皆過**：`apps/admin` 六項檢查（含禁用詞掃描、
+   對比度、EditView 一次性求值）全綠；`apps/web` 0 錯誤（既有 539 筆屬性排序等警告與本輪無關，
+   本輪未修改 `apps/web` 任何檔案）。`apps/admin` 的 `npm run build`（`vue-tsc -b && vite build`）
+   通過，型別檢查與建置皆無錯誤。
+2. **無頭瀏覽器實走**（比照既有慣例：用 `git worktree add ... HEAD` 在隔離目錄跑一份乾淨的
+   `apps/api`，埠 `5299`，接同一顆本機 `tcrfc_club_dev` 真實資料庫；另外起一個臨時 Azurite
+   供分享圖片上傳；`apps/web` 用 `nuxt dev --port 3099` 起真實前台驗證輸出的 HTML；驗收完
+   `git worktree remove`、關閉所有臨時行程）：
+   - 帳號：`clean.login@tcrfc.test`（`system_admin`，種子表 `two_factor_enabled=0`，這輪走真實
+     `/login` HTTP 往返 → 觸發強制設定兩階段驗證 → 用 `POST /auth/2fa/setup` 回傳的 Base32
+     密鑰現場算一組真實 RFC 6238 TOTP 碼完成設定 → 進入後台）。
+   - **全站設定（H1）**：填標題樣板（中文）／預設描述（中文），用 `DOM.setFileInputFiles` 選一張
+     1600×900 測試圖片當全站預設分享圖片 → 儲存成功 → **重新整理頁面**，確認三個值都從伺服器
+     讀回來且分享圖片預覽網址指向 Azurite 裡真實存在的 `.webp` 物件（伺服器端已轉檔）。
+   - **單頁 SEO（B2 新聞）**：新增一篇文章，填搜尋與分享標題／描述／關鍵字、上傳分享圖片＋替代
+     文字、正式網址、勾選「不讓搜尋引擎收錄」→ 發布 → 用 `curl` 取回 `apps/web`
+     （`nuxt dev`）渲染出的實際 HTML，逐一核對：`<title>`、`og:title`、`og:description`、
+     `og:image`／`og:image:width`／`og:image:height`／`og:image:alt`（指向這篇文章專屬的分享
+     圖片，不是全站預設圖）、`<meta name="keywords">`、`<meta name="robots" content="noindex">`、
+     `<link rel="canonical">`——**七項全部正確輸出**。
+   - **301 轉址（H2）**：新增一筆轉址（對話框）→ 列表正確顯示 → 用 `curl` 打
+     `http://localhost:3099/<來源網址>` 確認真的收到 `301` 且 `Location` 指向設定的目的網址。
+   - **301 轉址 CSV 匯入（H2）**：匯入一份含兩列的 CSV（表頭「來源網址,目的網址,啟用狀態」，
+     一列「啟用」一列「停用」）→ 畫面顯示「已匯入 2 筆」→ 用 `curl` 打公開端點
+     `GET /api/v1/tcrfc/seo/redirects` 確認**只回傳啟用中的那一筆**，停用那筆正確被排除。
+   - **孤立頁面偵測（H3）**：畫面正常渲染，說明文字與空清單狀態皆正確顯示（本機資料庫目前沒有
+     符合條件的孤立頁面，唯讀報表本身沒有可寫入的操作可驗）。
+3. **權限限制（內容編輯角色）：未驗證**。矩陣要求驗證「內容編輯角色看得到單頁 SEO、看不到全站
+   SEO 與轉址」，但種子測試帳號表（`apps/api/README.md`「種子測試帳號」）裡持有
+   `content.page.update`／`content.article.update` 權限的兩個角色（`content_editor`／
+   `partner_club_manager`）**都沒有「已就緒」的可登入變體**——`content.editor@tcrfc.test`
+   的兩階段驗證是「已標記啟用但無真實密鑰」，走真正的 `/login` 一定會卡在驗證碼這一步，
+   不像 `academy.login@tcrfc.test` 等既有角色有 `two_factor_enabled=0` 的孿生帳號可以真的登入。
+   依硬規則不自行建立新種子帳號（那是 `db/`／後端範圍，且另一個並行 session 正在修改
+   `db/seed/generate-club-seed-sql.py`），也不自簽權杖繞過登入——**這項驗收標記為未驗證，回報
+   給下一輪**：需要的話應該仿照既有「-login」孿生帳號慣例（例：`content.editor.login@tcrfc.test`），
+   在 `db/seed/generate-club-seed-sql.py` 補一個 `content_editor` 角色、`two_factor_enabled=0`
+   的孿生帳號。權限碼本身在後端已正確標記 `sysadmin_only`（`AdminSeoSettingsEndpoints`／
+   `AdminRedirectsEndpoints`／`AdminSeoReportEndpoints` 逐一檢查過原始碼確認），前端側欄可見度
+   邏輯也已對照矩陣寫好，只是這條「畫面上實際登入驗證」的路徑因為測試帳號限制走不通。
+4. **測試資料清理**：驗收中在 `tcrfc_club_dev` 建立的一篇測試文章、三筆測試轉址、全站分享圖片
+   （Azurite 物件），驗收後已個別刪除／清空並用 SQL 逐項核對歸零（新增文章一律經由後台「刪除」
+   操作完成，轉址與全站設定欄位因為**另一個並行 session 的 `dotnet test` 在驗收途中重置了共用
+   開發資料庫的部分狀態**——包含把 `seo.title_template`／`seo.default_description` 兩筆設定值
+   與 `clean.login@tcrfc.test` 的兩階段驗證狀態都復原回種子初始值——沒有清乾淨的部分（轉址三筆、
+   `clubs.og_image_key` 相關三欄）改用直接 SQL 清除，跟既有慣例一致）。驗收結束已執行
+   `db/seed/reset-admin-accounts.sh` 還原全部種子帳號密碼／2FA 狀態。
