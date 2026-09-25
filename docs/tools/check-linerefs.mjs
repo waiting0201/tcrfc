@@ -34,6 +34,9 @@ const norm = (s) => s
   .replace(/[（(].*?[）)]/g, '')
   .replace(/[└├│\s]/g, '')
   .replace(/／/g, '/')
+  // 章節標題常見「B. 內容管理」但對照表寫「B 內容管理」（無句點）——
+  // 句點只在「單一字母＋句點」這種代號註記出現，不會影響其餘比對，可安全去除
+  .replace(/(?<=^|[A-Za-z])\./g, '')
   .trim();
 
 // ---------- 讀規劃書 ----------
@@ -106,6 +109,35 @@ for (const file of readdirSync(DOCS).filter((f) => f.endsWith('.md'))) {
       if (badV) errors.push(`${at} 版本寫 ${decl[2]}，實際是 ${spec.version}（${rel}）`);
       if (badN) errors.push(`${at} 行數寫 ${decl[3]}，實際是 ${spec.lineCount}（${rel}）`);
       return;
+    }
+
+    // (A2) 反引號形式的版本與總行數宣告，例：`output/xxx.md`（**v3.14，1842 行**）
+    // 版本與行數可能寫在路徑前或後（12c 是「v3.14（`path`，1842 行）」、12d 是「`path`（v3.14，1842 行）」），
+    // 因此不比對相對順序，只要求兩者與路徑同一行。
+    // ⚠️ 只在整行含「來源」時才視為宣告列——單純提到「vX.Y 新增」這種歷史版本註記
+    // （如 03-admin-spec.md 的「E4–E6（v2.5 新增）」）不是宣告，必須排除，否則會誤判。
+    const declBT = /來源/.test(line) && line.match(/`((?:\.\.\/)?output\/[^`]+\.md)`/);
+    if (declBT) {
+      const rel = declBT[1].replace(/^\.\.\//, '');
+      const vBT = line.match(/v(\d+(?:\.\d+)+)/);
+      const nBT = line.match(/(\d+)\s*行/);
+      if (vBT || nBT) {
+        let spec;
+        try { spec = loadSpec(rel); } catch { errors.push(`${at} 指向的檔案不存在：${rel}`); return; }
+        ctx = spec;
+        checked++;
+        const badV = vBT && spec.version && `v${vBT[1]}` !== spec.version;
+        const badN = nBT && Number(nBT[1]) !== spec.lineCount;
+        if (FIX && (badV || badN)) {
+          let out = line;
+          if (badV) out = out.replace(`v${vBT[1]}`, spec.version);
+          if (badN) out = out.replace(new RegExp(`${nBT[1]}(\\s*行)`), `${spec.lineCount}$1`);
+          if (out !== line) { lines[idx] = out; dirty++; return; }
+        }
+        if (badV) errors.push(`${at} 版本寫 v${vBT[1]}，實際是 ${spec.version}（${rel}）`);
+        if (badN) errors.push(`${at} 行數寫 ${nBT[1]}，實際是 ${spec.lineCount}（${rel}）`);
+        return;
+      }
     }
 
     // (B) 行號對照表的列：| 章節 | 起–迄 | 說明 |
