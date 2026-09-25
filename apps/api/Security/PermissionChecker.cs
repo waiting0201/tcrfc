@@ -54,4 +54,33 @@ public sealed class PermissionChecker(ClubDbContext db) : IPermissionChecker
 
         return new HashSet<string>(held, StringComparer.Ordinal);
     }
+
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetAllHeldPermissionsAsync(
+        Guid adminUserId, bool isSuperAdmin, CancellationToken cancellationToken)
+    {
+        if (isSuperAdmin)
+        {
+            // 規劃書 §6「系統管理員跳過整個資料範圍查詢」——這裡回傳全部權限碼（含 sysadmin_only），
+            // 不查 role_permissions：系統管理員的權限不是靠角色指派來的，是身分本身賦予的。
+            var allCodes = await db.Permissions.AsNoTracking()
+                .Select(p => p.Code)
+                .ToListAsync(cancellationToken);
+            return allCodes.ToDictionary(c => c, IReadOnlyList<string> (_) => ["all"]);
+        }
+
+        var rows = await db.AdminUsers.AsNoTracking()
+            .Where(u => u.Id == adminUserId)
+            .SelectMany(u => u.AdminRoles)
+            .SelectMany(r => r.RolePermissions)
+            .Where(rp => !rp.Permission.SysadminOnly)
+            .Select(rp => new { rp.Permission.Code, rp.ScopeType })
+            .ToListAsync(cancellationToken);
+
+        return rows
+            .GroupBy(r => r.Code, StringComparer.Ordinal)
+            .ToDictionary(
+                g => g.Key,
+                IReadOnlyList<string> (g) => g.Select(r => r.ScopeType).Distinct(StringComparer.Ordinal).ToList(),
+                StringComparer.Ordinal);
+    }
 }

@@ -281,6 +281,7 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
             {
                 FieldKey = "test_channel",
                 FieldType = "select",
+                LabelZh = "測試聯絡管道",
             }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.BadRequest, missingOptionsResponse.StatusCode);
 
@@ -289,20 +290,26 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
             {
                 FieldKey = "test_channel",
                 FieldType = "select",
+                LabelZh = "測試聯絡管道",
+                LabelEn = "Test Contact Channel",
                 IsRequired = false,
                 Options = new[] { "Email", "電話" },
+                OptionLabelsEn = new[] { "Email", "Phone" },
             }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
             var created = await createResponse.Content.ReadFromJsonAsync<AdminFormFieldDto>(TestJson.Options);
             Assert.NotNull(created);
             createdFieldId = created!.Id;
             Assert.Equal(2, created.Options!.Count);
+            Assert.Equal("測試聯絡管道", created.LabelZh);
+            Assert.Equal(new[] { "Email", "Phone" }, created.OptionLabelsEn);
 
             // 欄位代碼重複 → 409。
             var conflictResponse = await client.PostAsJsonAsync($"/api/v1/admin/tcrfc/forms/{formId}/fields", new CreateAdminFormFieldRequest
             {
                 FieldKey = "test_channel",
                 FieldType = "text",
+                LabelZh = "測試聯絡管道",
             }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.Conflict, conflictResponse.StatusCode);
 
@@ -368,6 +375,7 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
             {
                 FieldKey = "test_summary_field",
                 FieldType = "textarea",
+                LabelZh = "測試摘要欄位",
                 IsSummary = true,
             }, TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
@@ -392,6 +400,8 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
             {
                 FieldKey = originalSummaryField.FieldKey,
                 FieldType = originalSummaryField.FieldType,
+                LabelZh = originalSummaryField.LabelZh,
+                LabelEn = originalSummaryField.LabelEn,
                 IsRequired = originalSummaryField.IsRequired,
                 IsSummary = true,
                 SortOrder = originalSummaryField.SortOrder,
@@ -416,6 +426,110 @@ public sealed class AdminFormsEnquiriesTests(AdminWriteApiFixture fixture)
         Assert.Equal(FormCatalog.GeneralContact, form!.FormCode);
         Assert.True(form.Fields.Count > 0);
         Assert.True(form.Fields.SequenceEqual(form.Fields.OrderBy(f => f.SortOrder)));
+        // S1-10 修正（題目文字）：每個欄位都要有非空白的題目文字可顯示，不能是空字串或欄位代碼本身
+        // 湊數（種子資料已逐一補上 label_zh，見 db/seed/generate-club-seed-sql.py 的 field() 定義）。
+        Assert.All(form.Fields, f => Assert.False(string.IsNullOrWhiteSpace(f.Label)));
+        var messageField = form.Fields.Single(f => f.FieldKey == "message");
+        Assert.Equal("內容", messageField.Label); // 預設語系（zh）。
+    }
+
+    [Fact]
+    public async Task Public_表單定義_lang_en_回英文題目與選項顯示文字_未翻譯回退中文()
+    {
+        using var client = fixture.CreateClient();
+
+        // partnership_sponsorship 的 enquiry_type 是下拉選項，種子資料同時提供了英文題目與英文
+        // 選項顯示文字；company 只有英文題目、沒有選項；用這兩個欄位交叉驗證回退邏輯不會互相污染。
+        var response = await client.GetAsync($"/api/v1/tcrfc/forms/{FormCatalog.PartnershipSponsorship}?lang=en");
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var form = await response.Content.ReadFromJsonAsync<PublicFormDto>(TestJson.Options);
+        Assert.NotNull(form);
+
+        var enquiryType = form!.Fields.Single(f => f.FieldKey == "enquiry_type");
+        Assert.Equal("Enquiry Type", enquiryType.Label);
+        Assert.Equal(new[] { "合作夥伴", "贊助", "兩者" }, enquiryType.Options); // 送出值永遠是 canonical（中文）。
+        Assert.Equal(new[] { "Partnership", "Sponsorship", "Both" }, enquiryType.OptionLabels); // 顯示文字依語系。
+
+        var company = form.Fields.Single(f => f.FieldKey == "company");
+        Assert.Equal("Company Name", company.Label);
+        Assert.Null(company.OptionLabels); // 沒有選項的欄位一律 null。
+
+        // zh 請求（預設語系）驗證回退不會把英文洩漏出來。
+        var zhResponse = await client.GetAsync($"/api/v1/tcrfc/forms/{FormCatalog.PartnershipSponsorship}?lang=zh");
+        var zhForm = await zhResponse.Content.ReadFromJsonAsync<PublicFormDto>(TestJson.Options);
+        var zhEnquiryType = zhForm!.Fields.Single(f => f.FieldKey == "enquiry_type");
+        Assert.Equal("洽詢類型", zhEnquiryType.Label);
+        Assert.Equal(new[] { "合作夥伴", "贊助", "兩者" }, zhEnquiryType.OptionLabels); // 中文顯示文字＝canonical 值本身。
+    }
+
+    [Fact]
+    public async Task FormField_建立與更新_題目文字中文為必填_選項英文顯示文字筆數須與選項一致()
+    {
+        using var client = await CreateClientAsync("customer.service@tcrfc.test");
+        var formId = await GetFormIdAsync(client, "tcrfc", FormCatalog.DonationEnquiry);
+
+        // 中文題目文字空白 → 400。
+        var missingLabelResponse = await client.PostAsJsonAsync($"/api/v1/admin/tcrfc/forms/{formId}/fields", new CreateAdminFormFieldRequest
+        {
+            FieldKey = "test_no_label",
+            FieldType = "text",
+            LabelZh = "   ",
+        }, TestJson.WriteOptions);
+        Assert.Equal(HttpStatusCode.BadRequest, missingLabelResponse.StatusCode);
+
+        // 選項英文顯示文字筆數與選項不一致 → 400。
+        var mismatchResponse = await client.PostAsJsonAsync($"/api/v1/admin/tcrfc/forms/{formId}/fields", new CreateAdminFormFieldRequest
+        {
+            FieldKey = "test_mismatch",
+            FieldType = "select",
+            LabelZh = "測試選項",
+            Options = new[] { "A", "B" },
+            OptionLabelsEn = new[] { "Only One" },
+        }, TestJson.WriteOptions);
+        Assert.Equal(HttpStatusCode.BadRequest, mismatchResponse.StatusCode);
+
+        Guid? createdFieldId = null;
+        try
+        {
+            // 建立成功後，取消英文題目（清空）應該讓公開端點的 en 請求回退顯示中文。
+            var createResponse = await client.PostAsJsonAsync($"/api/v1/admin/tcrfc/forms/{formId}/fields", new CreateAdminFormFieldRequest
+            {
+                FieldKey = "test_label_lifecycle",
+                FieldType = "text",
+                LabelZh = "測試題目",
+                LabelEn = "Test Label",
+            }, TestJson.WriteOptions);
+            Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+            var created = await createResponse.Content.ReadFromJsonAsync<AdminFormFieldDto>(TestJson.Options);
+            createdFieldId = created!.Id;
+            Assert.Equal("測試題目", created.LabelZh);
+            Assert.Equal("Test Label", created.LabelEn);
+
+            var updateResponse = await client.PutAsJsonAsync($"/api/v1/admin/tcrfc/forms/{formId}/fields/{createdFieldId}", new UpdateAdminFormFieldRequest
+            {
+                FieldKey = "test_label_lifecycle",
+                FieldType = "text",
+                LabelZh = "測試題目",
+                LabelEn = null, // 清空英文題目。
+                SortOrder = created.SortOrder,
+            }, TestJson.WriteOptions);
+            Assert.Equal(HttpStatusCode.OK, updateResponse.StatusCode);
+            var updated = await updateResponse.Content.ReadFromJsonAsync<AdminFormFieldDto>(TestJson.Options);
+            Assert.Null(updated!.LabelEn);
+
+            var publicClient = fixture.CreateClient();
+            var publicForm = await publicClient.GetFromJsonAsync<PublicFormDto>(
+                $"/api/v1/tcrfc/forms/{FormCatalog.DonationEnquiry}?lang=en", TestJson.Options);
+            var publicField = publicForm!.Fields.Single(f => f.FieldKey == "test_label_lifecycle");
+            Assert.Equal("測試題目", publicField.Label); // en 列已被刪除，回退顯示中文。
+        }
+        finally
+        {
+            if (createdFieldId is Guid id)
+            {
+                await client.DeleteAsync($"/api/v1/admin/tcrfc/forms/{formId}/fields/{id}");
+            }
+        }
     }
 
     [Fact]

@@ -65,6 +65,23 @@ public sealed record MeRoleDto
     public string? NameEn { get; init; }
 }
 
+/// <summary>S1-10 修正（2026-09-25）新增：這個帳號目前實際持有的一個權限碼——取代前端各模組
+/// 手寫「角色→操作」對照表、跟種子腳本手動同步的既有做法（E-39 同類風險，已在
+/// <c>useProgramPermissions</c>／<c>useFormsPermissions</c> 發生過兩次，見
+/// <c>Security.IPermissionChecker.GetAllHeldPermissionsAsync</c> 檔頭的完整說明）。
+/// 🔴 **只給程式判斷用，前端不得顯示**（主站規劃書 §4.0「介面一律日常中文……不顯示……權限碼」）。</summary>
+public sealed record MePermissionDto
+{
+    public required string Code { get; init; }
+
+    /// <summary>這個人透過（可能不只一個）角色，對這個權限碼持有的 <c>role_permissions.scope_type</c>
+    /// 原始集合——不是單一合併值。前端若要做「是否受列級限制」的判斷，含 <c>"all"</c> 或
+    /// <c>"own_clubs"</c> 即代表這個人對這個權限碼**至少有一個角色**是不受列級限制的（見
+    /// <c>GetAllHeldPermissionsAsync</c> 檔頭「不做合併判斷」的說明）；系統管理員一律是
+    /// <c>["all"]</c>。</summary>
+    public required IReadOnlyList<string> ScopeTypes { get; init; }
+}
+
 public sealed record MeResponse
 {
     public required Guid AdminUserId { get; init; }
@@ -82,4 +99,13 @@ public sealed record MeResponse
     public required IReadOnlyList<MeClubGrantDto> ClubGrants { get; init; }
 
     public required IReadOnlyList<MeRoleDto> Roles { get; init; }
+
+    /// <summary>🔴 **這份清單跟「目前俱樂部」無關**——本系統的角色指派（<c>admin_user_roles</c>）
+    /// 與角色的權限指派（<c>role_permissions</c>）都沒有 <c>club_id</c> 維度，一個人對某個權限碼
+    /// 持有哪些 <c>scope_type</c> 不會因為切換到哪個俱樂部而改變；真正決定「這個人能不能碰這個
+    /// 俱樂部」的是 <see cref="ClubGrants"/>（<c>AdminUserClub</c>）。前端要判斷「在目前這個俱樂部
+    /// 能不能做某件事」，同時看這兩份清單：先確認目前俱樂部在 <see cref="ClubGrants"/> 裡，
+    /// 再查 <see cref="Permissions"/> 有沒有對應權限碼——**這是本輪判斷**，回報供下一輪前端改接時
+    /// 參考，見 apps/api/README.md「S1-10」段。</summary>
+    public required IReadOnlyList<MePermissionDto> Permissions { get; init; }
 }

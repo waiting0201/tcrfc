@@ -477,8 +477,10 @@ flowchart LR
 > ✅ **`Form` 的 🌐 範圍已限縮並拍板（2026-09-22，使用者拍板）**：`forms_i18n` **只有 `auto_reply_body`**（自動回覆信文案）
 > 一個語系化欄位，`db/club-schema.sql` 已如此建表。**表單顯示名稱（如「10.1 Join as a Player 加入球隊」）維持規劃書
 > §3.10 固定表格寫死，不建 `name` 側表、不開放後台編輯**——規劃書 3.10 本來就用固定表格列出 7 類表單的中英名稱，
-> 屬介面文案（`UiString` 範疇），不是逐筆可管理的資料。`FormField` 的 🌐 維持原狀未決——`docs/12c` §4 僅列出低信心度
-> 候選欄位（`label`／`placeholder`），`db/club-schema.sql` 目前選擇不建 `form_fields_i18n`，非本輪裁決範圍。
+> 屬介面文案（`UiString` 範疇），不是逐筆可管理的資料。
+> ✅ **`FormField` 的 🌐 已解決（S1-10 修正，2026-09-25）：建 `form_fields_i18n`**——動態欄位的題目文字
+> （`label`）與下拉／多選選項的英文顯示文字（`options_json`）皆語系化，zh-Hant 必存、en 可缺，補齊 CLAUDE.md
+> 全域規定第 4 條在動態表單欄位上的落差（原本公開表單完全沒有題目可顯示）。完整說明見 [§12 第 40 點](#12-踩雷點)。
 > ✅ **`Form.form_code` 九碼目錄拍板（S1-10，2026-09-25，`backend-engineer` 判斷）**：規劃書
 > §3.10 只用中文標題列出 7 類表單＋提案下載＋捐助洽詢共 9 種，未定義程式用代碼字串，本輪定案：
 > `join_player`（10.1）／`academy_children_training`（10.2）／`camp_registration`（10.3）／
@@ -701,6 +703,31 @@ flowchart LR
     改為讀取當下依呼叫端要求的日期範圍即時展開（`apps/api/Common/RecurrenceExpander.cs`）。
     migration 名稱 `AddCalendarCustomEventRepeatUntil`，後端 API 見 `apps/api/README.md`
     「S1-11」段。
+
+40. 🔴 **（S1-10 修正，2026-09-25，驗收退回後補做）新增 `form_fields_i18n`，解除第 37 點記錄的
+    「選項文字只有單一語系」限制**：`form_fields` 原本完全沒有題目文字欄位——公開表單無題目可
+    顯示，後台 G2 詢問詳情只能印英文 `field_key`（如 `cooperation_direction`），違反 CLAUDE.md
+    全域規定第 4 條「所有前台可見的內容型別都要有 zh／en 雙欄位」與主站規劃書 §4.0「介面一律
+    日常中文」。新增 `form_fields_i18n(form_field_id, locale, label, options_json)`，比照
+    `docs/12c` §2.2 標準側表形狀（複合主鍵 `(form_field_id, locale)`、`ON DELETE CASCADE`）：
+    - `label`：題目文字，`nvarchar(255) NOT NULL`。**zh-Hant 列必存**（後台 G1 建立／編輯欄位時
+      應用層強制必填），**en 列可缺**（整列不存在，不是欄位為 `NULL`——沒有翻譯時公開端點回退
+      顯示中文，跟「這一列不存在」語意相同，兩者刻意合一，不用「空字串」表示「沒有翻譯」）。
+    - `options_json`：下拉／多選選項的**顯示文字**，`nvarchar(1000) NULL`，與
+      `form_fields.options_json`（canonical，送出值與驗證用，維持單一語系不變）同順序、同筆數的
+      JSON 字串陣列。**只有 en 列會用到這欄**——canonical 值本身就是 zh-Hant 的顯示文字，不需要
+      再存一份 zh-Hant 選項顯示文字側表列，避免同一份中文選項文字出現兩個副本、日後改一邊忘了
+      改另一邊。
+    這個設計刻意**不把 canonical 值本身語系化**（不建「選項代碼」與「選項顯示文字」分離的新
+    抽象）：`enquiry_answers.value` 已經直接儲存 canonical（中文）字面值超過一輪（S1-10 第一次
+    上線起），改成語系無關的代碼需要同時遷移既有資料與所有比對邏輯，本輪判斷「維持 canonical＝
+    中文，另外疊一層顯示文字」是風險最低的修正路徑，不是規劃書要求的規格。
+    套用前查證 `form_fields` 已有 114 筆種子資料，但這是新增一張完全獨立的表（不是對既有表新增
+    CHECK 或 NOT NULL 欄位），純加表操作，對既有資料無副作用；種子腳本
+    （`db/seed/generate-club-seed-sql.py`）同一輪已補上全部 114 個既有欄位的中文題目文字，並為
+    找得到合理翻譯的欄位一併補上英文題目與（`enrollment_category`／`enquiry_type` 兩個下拉欄位
+    的）英文選項顯示文字。migration 名稱 `AddFormFieldsI18n`，後端 API 見
+    `apps/api/README.md`「S1-10」段「G2 指派負責人與題目文字語系化修正」小節。
 
 ---
 

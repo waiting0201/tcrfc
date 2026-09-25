@@ -48,7 +48,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
     public async Task<AdminFormDetailDto?> GetByIdAsync(AdminClubScope scope, Guid id, CancellationToken cancellationToken)
     {
         var form = await dbContext.Forms.AsNoTracking()
-            .Include(f => f.FormFields)
+            .Include(f => f.FormFields).ThenInclude(ff => ff.FormFieldsI18ns)
             .Include(f => f.FormsI18ns)
             .FirstOrDefaultAsync(f => f.Id == id && f.ClubId == scope.ClubId, cancellationToken);
 
@@ -59,7 +59,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         AdminClubScope scope, Guid id, UpdateAdminFormRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
         var form = await dbContext.Forms
-            .Include(f => f.FormFields)
+            .Include(f => f.FormFields).ThenInclude(ff => ff.FormFieldsI18ns)
             .Include(f => f.FormsI18ns)
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
 
@@ -98,6 +98,9 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         var fieldType = ValidateFieldType(request.FieldType);
         var validationRule = ValidateValidationRule(request.ValidationRule);
         var optionsJson = ValidateOptions(fieldType, request.Options);
+        var labelZh = ValidateLabelZh(request.LabelZh);
+        var labelEn = NormalizeLabelEn(request.LabelEn);
+        var optionLabelsEnJson = ValidateOptionLabelsEn(request.Options, request.OptionLabelsEn);
 
         if (form.FormFields.Any(f => string.Equals(f.FieldKey, fieldKey, StringComparison.Ordinal)))
         {
@@ -124,6 +127,12 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
             UpdatedBy = operatorId,
         };
 
+        field.FormFieldsI18ns.Add(new FormFieldsI18n { FormFieldId = field.Id, Locale = RequestLocale.DefaultDbLocale, Label = labelZh });
+        if (labelEn is not null || optionLabelsEnJson is not null)
+        {
+            field.FormFieldsI18ns.Add(new FormFieldsI18n { FormFieldId = field.Id, Locale = "en", Label = labelEn ?? labelZh, OptionsJson = optionLabelsEnJson });
+        }
+
         if (request.IsSummary)
         {
             UnmarkOtherSummaryFields(form, exceptFieldId: null);
@@ -138,7 +147,7 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
     public async Task<AdminFormFieldDto?> UpdateFieldAsync(
         AdminClubScope scope, Guid formId, Guid fieldId, UpdateAdminFormFieldRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        var form = await dbContext.Forms.Include(f => f.FormFields)
+        var form = await dbContext.Forms.Include(f => f.FormFields).ThenInclude(ff => ff.FormFieldsI18ns)
             .FirstOrDefaultAsync(f => f.Id == formId, cancellationToken);
         if (form is null || form.ClubId != scope.ClubId)
         {
@@ -155,6 +164,9 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         var fieldType = ValidateFieldType(request.FieldType);
         var validationRule = ValidateValidationRule(request.ValidationRule);
         var optionsJson = ValidateOptions(fieldType, request.Options);
+        var labelZh = ValidateLabelZh(request.LabelZh);
+        var labelEn = NormalizeLabelEn(request.LabelEn);
+        var optionLabelsEnJson = ValidateOptionLabelsEn(request.Options, request.OptionLabelsEn);
 
         if (form.FormFields.Any(f => f.Id != fieldId && string.Equals(f.FieldKey, fieldKey, StringComparison.Ordinal)))
         {
@@ -175,6 +187,22 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         field.SortOrder = request.SortOrder;
         field.UpdatedAt = DateTime.UtcNow;
         field.UpdatedBy = operatorId;
+
+        UpsertFieldI18n(field, RequestLocale.DefaultDbLocale, labelZh, null);
+        if (labelEn is not null || optionLabelsEnJson is not null)
+        {
+            UpsertFieldI18n(field, "en", labelEn ?? labelZh, optionLabelsEnJson);
+        }
+        else
+        {
+            // 沒有英文題目也沒有英文選項文字：清掉既有的 en 列（若曾經設定過又被清空，公開端點
+            // 應該回退顯示中文，不是留著一個永遠讀不到選項變動的舊 en 列殘影）。
+            var existingEn = field.FormFieldsI18ns.FirstOrDefault(i => i.Locale == "en");
+            if (existingEn is not null)
+            {
+                dbContext.FormFieldsI18ns.Remove(existingEn);
+            }
+        }
 
         await dbContext.SaveChangesAsync(cancellationToken);
         return ToFieldDto(field);
@@ -321,6 +349,61 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         return JsonSerializer.Serialize(trimmed);
     }
 
+    /// <summary>題目文字（中文）——必填，前台一定要有東西可顯示（S1-10 修正，2026-09-25）。</summary>
+    private static string ValidateLabelZh(string labelZh)
+    {
+        if (string.IsNullOrWhiteSpace(labelZh))
+        {
+            throw new AdminFormValidationException("題目文字（中文）為必填欄位。");
+        }
+        if (labelZh.Length > 255)
+        {
+            throw new AdminFormValidationException("題目文字（中文）長度不能超過 255 個字元。");
+        }
+        return labelZh.Trim();
+    }
+
+    private static string? NormalizeLabelEn(string? labelEn)
+    {
+        if (string.IsNullOrWhiteSpace(labelEn))
+        {
+            return null;
+        }
+        if (labelEn.Length > 255)
+        {
+            throw new AdminFormValidationException("題目文字（英文）長度不能超過 255 個字元。");
+        }
+        return labelEn.Trim();
+    }
+
+    /// <summary>選項英文顯示文字——省略＝尚未翻譯（公開端點回退顯示中文）；提供時筆數必須跟
+    /// <paramref name="canonicalOptionsJson"/>（<see cref="ValidateOptions"/> 算出的 canonical
+    /// 選項，已序列化成 JSON）解析出的筆數一致，否則前台會拿到「選項與顯示文字對不上」的錯位資料。</summary>
+    private static string? ValidateOptionLabelsEn(IReadOnlyList<string>? canonicalOptions, IReadOnlyList<string>? optionLabelsEn)
+    {
+        if (optionLabelsEn is null || optionLabelsEn.Count == 0)
+        {
+            return null;
+        }
+
+        if (canonicalOptions is null || canonicalOptions.Count == 0)
+        {
+            throw new AdminFormValidationException("這個欄位沒有選項，不能設定選項的英文顯示文字。");
+        }
+        if (optionLabelsEn.Count != canonicalOptions.Count)
+        {
+            throw new AdminFormValidationException("選項的英文顯示文字筆數必須跟選項本身的筆數一致。");
+        }
+
+        var trimmed = optionLabelsEn.Select(o => o.Trim()).ToList();
+        if (trimmed.Any(string.IsNullOrEmpty))
+        {
+            throw new AdminFormValidationException("選項的英文顯示文字不能是空字串。");
+        }
+
+        return JsonSerializer.Serialize(trimmed);
+    }
+
     private static bool TryMatch(Regex pattern, string input)
     {
         try
@@ -346,6 +429,26 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         }
     }
 
+    /// <summary>題目文字／選項英文顯示文字的 upsert——同一套「有列就更新、沒有就新增」精神，跟
+    /// <see cref="UpsertI18n(Form,string,string?)"/>（表單層級的自動回覆信）是同一個模式，差別是
+    /// <c>form_fields_i18n</c> 走「en 列可以整列不存在」（<see cref="Label"/> 必填、不是可為
+    /// <c>null</c> 的欄位），呼叫端（<see cref="UpdateFieldAsync"/>）在沒有英文內容時改呼叫
+    /// <see cref="Microsoft.EntityFrameworkCore.DbContext.Remove"/> 整列移除，不是傳 <c>null</c>
+    /// 進來。</summary>
+    private static void UpsertFieldI18n(FormField field, string locale, string label, string? optionsJson)
+    {
+        var existing = field.FormFieldsI18ns.FirstOrDefault(i => i.Locale == locale);
+        if (existing is null)
+        {
+            field.FormFieldsI18ns.Add(new FormFieldsI18n { FormFieldId = field.Id, Locale = locale, Label = label, OptionsJson = optionsJson });
+        }
+        else
+        {
+            existing.Label = label;
+            existing.OptionsJson = optionsJson;
+        }
+    }
+
     private static AdminFormDetailDto ToDetailDto(Form form) => new()
     {
         Id = form.Id,
@@ -359,17 +462,26 @@ public sealed class AdminFormsRepository(ClubDbContext dbContext)
         UpdatedAt = form.UpdatedAt,
     };
 
-    private static AdminFormFieldDto ToFieldDto(FormField field) => new()
+    private static AdminFormFieldDto ToFieldDto(FormField field)
     {
-        Id = field.Id,
-        FieldKey = field.FieldKey,
-        FieldType = field.FieldType,
-        IsRequired = field.IsRequired,
-        ValidationRule = field.ValidationRule,
-        Options = field.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(field.OptionsJson),
-        IsSummary = field.IsSummary,
-        SortOrder = field.SortOrder,
-    };
+        var labelZh = field.FormFieldsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.Label ?? string.Empty;
+        var enRow = field.FormFieldsI18ns.FirstOrDefault(i => i.Locale == "en");
+
+        return new AdminFormFieldDto
+        {
+            Id = field.Id,
+            FieldKey = field.FieldKey,
+            FieldType = field.FieldType,
+            LabelZh = labelZh,
+            LabelEn = enRow?.Label,
+            IsRequired = field.IsRequired,
+            ValidationRule = field.ValidationRule,
+            Options = field.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(field.OptionsJson),
+            OptionLabelsEn = enRow?.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(enRow.OptionsJson),
+            IsSummary = field.IsSummary,
+            SortOrder = field.SortOrder,
+        };
+    }
 
     /// <summary>同一張表單最多一個「內容摘要」欄位（DB 層還有
     /// <c>UQ_form_fields_one_summary_per_form</c> 過濾唯一索引當第二道防線）——標記新的一個時，

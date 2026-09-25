@@ -1,4 +1,5 @@
 using Tcrfc.Api.Common;
+using Tcrfc.Api.Features.Forms;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.AdminEnquiries;
@@ -65,6 +66,35 @@ public static class AdminEnquiriesEndpoints
         })
         .WithName("AdminExportEnquiries")
         .Produces(StatusCodes.Status200OK)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
+        // GET /api/v1/admin/{club}/enquiries/assignable-users?formCode=... —— S1-10 修正
+        // （2026-09-25）新增：G2「指派負責人」姓名選單，只有系統管理員能查得到姓名的既有缺口。
+        // 權限碼與 PUT 同一組（UpdateCandidateCodes）——能處理詢問的人才能查「能指派給誰」；
+        // 再依 formCode 是否落在呼叫端持有的類別範圍內二次檢查，越權一律視同 404（不洩漏存在與否）。
+        group.MapGet("/assignable-users", async (
+            string club, string formCode, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminEnquiriesRepository repository, CancellationToken cancellationToken) =>
+        {
+            if (!FormCatalog.IsKnownCode(formCode))
+            {
+                return Results.NotFound();
+            }
+
+            var scope = await authorizer.AuthorizeAnyAsync(httpContext, club, AdminEnquiriesRepository.UpdateCandidateCodes, cancellationToken);
+            var allowedFormCodes = await repository.ResolveUpdateFormCodeFilterAsync(scope, cancellationToken);
+            if (allowedFormCodes is not null && !allowedFormCodes.Contains(formCode))
+            {
+                return Results.NotFound(); // 越權查詢別的類別：視同 404，比照既有跨類別慣例。
+            }
+
+            var users = await repository.ListAssignableUsersAsync(scope, formCode, cancellationToken);
+            return Results.Ok(users);
+        })
+        .WithName("AdminListAssignableEnquiryUsers")
+        .Produces<IReadOnlyList<AssignableAdminUserDto>>()
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);

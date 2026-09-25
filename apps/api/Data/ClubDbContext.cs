@@ -124,6 +124,8 @@ public partial class ClubDbContext : DbContext
 
     public virtual DbSet<FormField> FormFields { get; set; }
 
+    public virtual DbSet<FormFieldsI18n> FormFieldsI18ns { get; set; }
+
     public virtual DbSet<FormsI18n> FormsI18ns { get; set; }
 
     public virtual DbSet<HomeSection> HomeSections { get; set; }
@@ -2732,6 +2734,30 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.Form).WithMany(p => p.FormsI18ns)
                 .HasForeignKey(d => d.FormId)
                 .HasConstraintName("FK_forms_i18n_form");
+        });
+
+        modelBuilder.Entity<FormFieldsI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.FormFieldId, e.Locale });
+
+            entity.ToTable("form_fields_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_form_fields_i18n_locale");
+
+            entity.Property(e => e.FormFieldId).HasColumnName("form_field_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Label)
+                .HasMaxLength(255)
+                .HasColumnName("label");
+            entity.Property(e => e.OptionsJson)
+                .HasMaxLength(1000)
+                .HasColumnName("options_json");
+
+            entity.HasOne(d => d.FormField).WithMany(p => p.FormFieldsI18ns)
+                .HasForeignKey(d => d.FormFieldId)
+                .HasConstraintName("FK_form_fields_i18n_field");
         });
 
         modelBuilder.Entity<HomeSection>(entity =>

@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.Forms;
@@ -34,11 +35,16 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
 
     private sealed record FormRow(Guid Id, string FormCode, bool CaptchaEnabled);
     private sealed record FieldRow(Guid Id, string FieldKey, string FieldType, bool IsRequired, string? ValidationRule, string? OptionsJson, int SortOrder);
+    private sealed record FieldI18nRow(Guid FormFieldId, string Locale, string Label, string? OptionsJson);
 
-    public async Task<PublicFormDto?> GetFormDefinitionAsync(ClubScope scope, string formCode, CancellationToken cancellationToken)
+    /// <summary><paramref name="dbLocale"/>——S1-10 修正（2026-09-25）新增：題目文字與選項顯示文字
+    /// 依語系而異，快取維度必須跟著切分（原本用 <see cref="CacheDimensions.AnyLocale"/> 是修正前
+    /// 「表單完全沒有題目文字」時的正確選擇，語系化之後繼續共用同一把快取 key 會讓後填入的語系
+    /// 覆蓋另一個語系的結果）。</summary>
+    public async Task<PublicFormDto?> GetFormDefinitionAsync(ClubScope scope, string formCode, string dbLocale, CancellationToken cancellationToken)
     {
         return await cache.GetOrCreateAsync(
-            CacheEntity, scope.ClubCode, CacheDimensions.AnyLocale, formCode,
+            CacheEntity, scope.ClubCode, dbLocale, formCode,
             async ct =>
             {
                 using var connection = connectionFactory.CreateConnection();
@@ -50,6 +56,7 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
                 }
 
                 var fields = await LoadFieldsAsync(connection, form.Id, ct);
+                var i18nByFieldId = await LoadFieldI18nAsync(connection, fields.Select(f => f.Id).ToList(), dbLocale, ct);
 
                 return new PublicFormDto
                 {
@@ -57,7 +64,7 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
                     FormNameZh = FormCatalog.DisplayNameZh(form.FormCode),
                     FormNameEn = FormCatalog.DisplayNameEn(form.FormCode),
                     CaptchaEnabled = form.CaptchaEnabled,
-                    Fields = fields.Select(ToPublicFieldDto).ToList(),
+                    Fields = fields.Select(f => ToPublicFieldDto(f, i18nByFieldId.GetValueOrDefault(f.Id), dbLocale)).ToList(),
                 };
             },
             cancellationToken);
@@ -216,15 +223,34 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
     private static HashSet<string>? ParseOptions(string? optionsJson)
         => optionsJson is null ? null : new HashSet<string>(JsonSerializer.Deserialize<List<string>>(optionsJson)!, StringComparer.Ordinal);
 
-    private static PublicFormFieldDto ToPublicFieldDto(FieldRow field) => new()
+    /// <summary><paramref name="i18nByLocale"/> 是這個欄位 <c>form_fields_i18n</c> 的請求語系與
+    /// zh-Hant 兩列（見 <see cref="LoadFieldI18nAsync"/>）——<paramref name="dbLocale"/> 只用來判斷
+    /// 「要不要另外找 zh-Hant 回退列」，實際回退運算交給 <see cref="RequestLocale.Pick"/>。</summary>
+    private static PublicFormFieldDto ToPublicFieldDto(FieldRow field, IReadOnlyDictionary<string, FieldI18nRow>? i18nByLocale, string dbLocale)
     {
-        FieldKey = field.FieldKey,
-        FieldType = field.FieldType,
-        IsRequired = field.IsRequired,
-        ValidationRule = field.ValidationRule,
-        Options = field.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(field.OptionsJson),
-        SortOrder = field.SortOrder,
-    };
+        i18nByLocale ??= new Dictionary<string, FieldI18nRow>();
+        i18nByLocale.TryGetValue(dbLocale, out var requested);
+        i18nByLocale.TryGetValue(RequestLocale.DefaultDbLocale, out var fallback);
+
+        var canonicalOptions = field.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(field.OptionsJson);
+        var requestedOptionLabels = requested?.OptionsJson is null ? null : JsonSerializer.Deserialize<List<string>>(requested.OptionsJson);
+
+        return new PublicFormFieldDto
+        {
+            FieldKey = field.FieldKey,
+            FieldType = field.FieldType,
+            // fallback?.Label 理論上一定存在（zh-Hant 列由後台寫入時強制必填），字面預設值只是
+            // 型別系統要求的保底，不代表資料真的可能缺這一列。
+            Label = RequestLocale.Pick(requested?.Label, fallback?.Label) ?? field.FieldKey,
+            IsRequired = field.IsRequired,
+            ValidationRule = field.ValidationRule,
+            Options = canonicalOptions,
+            // 選項顯示文字沒有請求語系翻譯時，回退成跟 Options 一樣的中文字面值（canonical 值本身
+            // 就是 zh-Hant 的顯示文字，不需要 form_fields_i18n 另存一份 zh-Hant 選項列）。
+            OptionLabels = canonicalOptions is null ? null : (requestedOptionLabels ?? canonicalOptions),
+            SortOrder = field.SortOrder,
+        };
+    }
 
     private static Task<FormRow?> LoadFormAsync(System.Data.IDbConnection connection, Guid clubId, string formCode, CancellationToken cancellationToken)
         => LoadFormAsync(connection, clubId, formCode, null, cancellationToken);
@@ -257,5 +283,32 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
         var rows = await connection.QueryAsync<FieldRow>(
             new CommandDefinition(sql, new { FormId = formId }, transaction, cancellationToken: cancellationToken));
         return rows.AsList();
+    }
+
+    /// <summary>一次查出這張表單全部欄位的 <c>form_fields_i18n</c>，只抓請求語系與 zh-Hant 兩列
+    /// （跟 <c>ArticlesRepository.LoadArticleI18nAsync</c> 同一種「一次查多筆、分組回傳」寫法）。
+    /// 回傳形狀是 <c>Dictionary&lt;FormFieldId, Dictionary&lt;Locale, Row&gt;&gt;</c>，呼叫端
+    /// （<see cref="ToPublicFieldDto"/>）自己決定回退規則，這裡只負責撈資料。</summary>
+    private static async Task<Dictionary<Guid, Dictionary<string, FieldI18nRow>>> LoadFieldI18nAsync(
+        System.Data.IDbConnection connection, IReadOnlyList<Guid> fieldIds, string dbLocale, CancellationToken cancellationToken)
+    {
+        if (fieldIds.Count == 0)
+        {
+            return [];
+        }
+
+        const string sql = """
+            SELECT form_field_id AS FormFieldId, locale AS Locale, label AS Label, options_json AS OptionsJson
+            FROM form_fields_i18n
+            WHERE form_field_id IN @FieldIds AND locale IN @Locales
+            """;
+        var locales = dbLocale == RequestLocale.DefaultDbLocale
+            ? new[] { dbLocale }
+            : new[] { dbLocale, RequestLocale.DefaultDbLocale };
+
+        var rows = await connection.QueryAsync<FieldI18nRow>(new CommandDefinition(
+            sql, new { FieldIds = fieldIds, Locales = locales }, cancellationToken: cancellationToken));
+
+        return rows.GroupBy(r => r.FormFieldId).ToDictionary(g => g.Key, g => g.ToDictionary(r => r.Locale, r => r));
     }
 }

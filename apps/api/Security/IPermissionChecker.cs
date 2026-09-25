@@ -31,4 +31,26 @@ public interface IPermissionChecker
     /// </summary>
     Task<IReadOnlySet<string>> GetHeldPermissionCodesAsync(
         Guid adminUserId, bool isSuperAdmin, IReadOnlyList<string> candidateCodes, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// S1-10 修正（2026-09-25）新增：這個帳號**目前實際持有的全部**權限碼，供
+    /// <c>GET /admin/auth/me</c> 回傳給前端，取代「每個模組各自手寫一份角色→操作對照表、跟種子
+    /// 腳本手動同步」的既有做法（E-39 同類風險——已經在 <c>useProgramPermissions</c>／
+    /// <c>useFormsPermissions</c> 發生過兩次，見 apps/api/README.md「S1-10」段回報）。
+    ///
+    /// 回傳形狀是 <c>Code → 這個人對這個權限碼持有的 scope_type 集合</c>（一個人可能透過多個角色
+    /// 持有同一個權限碼、各自帶不同 <c>scope_type</c>，例如同時是「學院／課程管理」與「合作球隊
+    /// 管理」）——**不做「多個 scope_type 該如何合併成單一有效值」的商業判斷**（那件事留給
+    /// <see cref="TeamRowScope"/>／<see cref="AdminTeamRowScopeResolver"/> 這種已經為特定資源類型
+    /// 定義過合併規則的型別，例如「'all' 或 'own_clubs' 視同不限」），這裡只忠實回報資料庫裡的
+    /// 原始集合，避免發明一個新的、只有這個端點在用的合併規則。
+    ///
+    /// <paramref name="isSuperAdmin"/> 為 <c>true</c> 時**回傳系統裡全部權限碼**（含
+    /// <c>sysadmin_only</c>），每個都標記 <c>["all"]</c>——系統管理員跳過整個 <c>role_permissions</c>
+    /// 查詢直接視為持有一切，跟 <see cref="HasPermissionAsync"/>／<see cref="TeamRowScope.IsUnrestricted"/>
+    /// 同一條規則的第三個落點。**權限碼只給程式判斷用，前端不得顯示**（主站規劃書 §4.0「介面一律
+    /// 日常中文……不顯示模組代號、權限碼」）。
+    /// </summary>
+    Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetAllHeldPermissionsAsync(
+        Guid adminUserId, bool isSuperAdmin, CancellationToken cancellationToken);
 }

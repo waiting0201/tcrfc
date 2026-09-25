@@ -3107,6 +3107,187 @@ Python 手算驗證碼，不繞過驗證本身）後實際呼叫 G1／G2 端點�
 
 ---
 
+## S1-10 修正：題目文字語系化、G2 指派負責人姓名選單、`/auth/me` 權限碼清單（2026-09-25，`backend-engineer`）
+
+驗收退回兩項缺口（見 `STATUS.md` S1-10 列），本輪逐一修完，另外一併處理任務指示要求的第三項
+（`/auth/me` 回傳權限碼清單，供下一輪前端改接、根治 E-39 同類風險）。
+
+### 缺口一：`form_fields` 沒有題目文字，違反全域規定第 4 條
+
+**問題**：`form_fields` 只有 `field_key`（英文小寫代碼），沒有題目文字欄位，也沒有 `*_i18n` 側表，
+公開表單無題目可顯示，後台 G2 詢問詳情只能印英文欄位代碼給人看。2026-09-22 曾經以「規劃書行1159
+只列出欄位型別，沒有提到欄位標籤需要雙語」為由判斷不建 `form_fields_i18n`（`docs/12` §4.6 附註、
+`docs/12c` §4 舊列），但這個判斷忽略了 CLAUDE.md 全域規定第 4 條與主站規劃書 §4.0「介面一律日常
+中文」是跨全站的**通則**，不需要規劃書在每一個型別上逐字重申才算數。
+
+**怎麼修的**：新增 `form_fields_i18n(form_field_id, locale, label, options_json)`，比照
+`docs/12c` §2.2 標準側表形狀：
+
+- `label`：題目文字。**zh-Hant 列必存**（`AdminFormsRepository.ValidateLabelZh` 應用層強制必填、
+  非空白，`Create`／`UpdateAdminFormFieldRequest.LabelZh` 是 `required` 屬性），**en 列可缺**——
+  沒有翻譯時公開端點回退顯示中文，跟「這一列不存在」語意合一，不用空字串表示「沒有翻譯」。
+- `options_json`：下拉／多選選項的**顯示文字**，與 `form_fields.options_json`（canonical，送出值
+  與驗證用，維持單一語系、不因這次修正而改變）同順序、同筆數的 JSON 字串陣列，**只有 en 列會用到
+  這欄**——canonical 值本身就是 zh-Hant 的顯示文字，不重複存一份。`AdminFormsRepository.
+  ValidateOptionLabelsEn` 檢查筆數與 `Options` 一致，不一致回 400。
+
+migration：`AddFormFieldsI18n`（純加表，`form_fields` 當下已有 114 筆種子資料但不影響——新增
+一張獨立表，不是對既有表加 CHECK 或 NOT NULL 欄位）。
+
+```
+migration: 20260925064538_AddFormFieldsI18n
+  CREATE TABLE form_fields_i18n (
+    form_field_id uniqueidentifier NOT NULL,
+    locale        nvarchar(10)     NOT NULL,
+    label         nvarchar(255)    NOT NULL,
+    options_json  nvarchar(1000)   NULL,
+    CONSTRAINT PK_form_fields_i18n PRIMARY KEY (form_field_id, locale),
+    CONSTRAINT FK_form_fields_i18n_field FOREIGN KEY (form_field_id)
+      REFERENCES form_fields(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IX_form_fields_i18n_locale ON form_fields_i18n (locale);
+```
+
+**API 異動**：
+
+| 端點 | 異動 |
+|---|---|
+| `GET /api/v1/{club}/forms/{formCode}?lang=zh\|en` | 新增 `lang` 查詢參數（既有慣例，比照 `FaqsEndpoints`）；`PublicFormFieldDto` 新增 `label`（必填，依語系回退）、`optionLabels`（選項顯示文字，同順序同筆數，`null`＝這個欄位沒有選項）。**快取維度改用 `dbLocale` 取代 `CacheDimensions.AnyLocale`**——語系化之後繼續共用同一把 key 會讓後填入的語系覆蓋另一個語系的結果，這是本輪順手修正的快取 bug（修正前的行為在自動化測試裡測不出來，因為單一測試行程一次只打一種語系） |
+| `GET/POST /api/v1/admin/{club}/forms/{id}/fields...` | `Create`／`UpdateAdminFormFieldRequest` 新增 `LabelZh`（必填）、`LabelEn`（選填）、`OptionLabelsEn`（選填，筆數需與 `Options` 一致）；`AdminFormFieldDto` 對應回傳 `LabelZh`／`LabelEn`／`OptionLabelsEn` |
+
+**種子資料**：`db/seed/generate-club-seed-sql.py` 新增 `field()` 輔助函式，114 個既有欄位（9 個
+表單 × 2 俱樂部）逐一補上中文題目文字，並為找得到合理翻譯的欄位一併補上英文題目；
+`enrollment_category`（10.2）／`enquiry_type`（10.5）兩個下拉欄位額外補上英文選項顯示文字。
+套用 `apply-seed.sh` 後實測 `form_fields_i18n` 為 228 列（114 zh-Hant ＋ 114 en，本輪所有欄位皆
+提供了英文翻譯，不是規格要求，是判斷「反正翻了就一起補」比留一半機會之後又漏掉更省事）。
+
+**判斷**：canonical 值故意**不語系化**（不建「選項代碼」與「選項顯示文字」分離的新抽象）——
+`enquiry_answers.value` 已經直接儲存 canonical（中文）字面值超過一輪，改成語系無關的代碼需要同時
+遷移既有資料與所有比對邏輯，本輪判斷「維持 canonical＝中文，另外疊一層顯示文字」是風險最低的修正
+路徑，不是規劃書要求的規格；也**不新增 `placeholder`**（提示文字）欄位——規劃書全文未提及，維持
+最小可行，不多加規劃書沒有要求的東西。完整說明見 `docs/12-database-schema.md` §12 第 40 點、
+`docs/12c-i18n-tables.md` §3.6／§5 第 8 點。
+
+### 缺口二：G2「指派負責人」姓名選單僅系統管理員能用
+
+**問題**：`AdminEnquiryListItemDto`／`AdminEnquiryDetailDto` 只回傳 `assigneeAdminUserId`
+（GUID），能把它對照回姓名、或列出「可以指派給誰」的 `GET /api/v1/admin/accounts` 是
+`system.account.view`（僅系統管理員）。持有 `enquiry.*.update` 但不是系統管理員的角色（客服／
+行政、合作球隊管理、學院／課程管理、商務／贊助、公關／媒體）因此沒有任何後端端點能用姓名指派
+負責人。
+
+**怎麼修的**：新增 `GET /api/v1/admin/{club}/enquiries/assignable-users?formCode=...`
+（`AdminEnquiriesRepository.ListAssignableUsersAsync`）：
+
+- 權限碼：`AdminEnquiriesRepository.UpdateCandidateCodes`（跟 `PUT .../enquiries/{id}` 同一組）
+  ——能處理詢問的人才能查「能指派給誰」。
+- 二次檢查：`formCode` 必須落在呼叫端（依 `ResolveUpdateFormCodeFilterAsync`）持有更新權限的類別
+  範圍內，否則回 404（比照既有跨類別越權「不洩漏存在與否」慣例）；`formCode` 本身不是已知的九碼
+  之一也回 404。
+- 回應**只有必要欄位**（`id`、`displayName`），不重用 `AdminAccountListItemDto`（那份明細含
+  Email、角色、俱樂部與球隊授權，刻意只給系統管理員）——不能把 J1 帳號管理端點的存取範圍跟著
+  放寬，否則等於繞道讓非系統管理員也能查到別人的 Email。
+- 範圍：`scope.ClubId` 目前有效授權（`AdminUserClub.is_active` 且未過期）的帳號 ＋ 系統管理員一律
+  有效，且**只回傳對 `formCode` 所屬類別持有 update 權限的帳號**（例如查 `media_enquiry` 只會列出
+  持有 `enquiry.inbox.update` 或 `enquiry.media.update` 的帳號，不是這個俱樂部隨便一個有效帳號）。
+
+**同時修正發現的邊界漏洞**：`AdminEnquiriesRepository.ValidateAssigneeAsync` 原本只驗證「被指派者
+有沒有這個俱樂部的授權」，沒有驗證「被指派者對這一類詢問有沒有處理權限」——一個只有
+`enquiry.media.update` 的公關／媒體帳號，先前可以被指派一筆 `partnership_sponsorship` 詢問，指派
+後卻連自己被指派的這筆都看不到（G2 依類別過濾），形成「指派了也等於沒指派」的死資料。現在
+`UpdateAsync` 呼叫 `ValidateAssigneeAsync` 時多帶 `enquiry.Form.FormCode`，額外要求被指派者持有
+對應類別的 update 權限碼（或為系統管理員），不符合回 400「指定的負責人帳號對這一類詢問沒有處理
+權限，無法指派。」
+
+**判斷**：「候選人清單」與「指派時驗證」共用同一份 `CandidateUpdateCodesForFormCode(formCode)`
+邏輯（`enquiry.inbox.update` 一定在內，另加 `formCode` 所屬類別的專屬碼），確保「清單上看得到的人」
+跟「真正能被成功指派的人」永遠是同一個集合，不會有「選單顯示了卻指派失敗」或「選單沒顯示卻能用
+其他管道指派成功」兩種不一致。
+
+### 任務指示第三項：`GET /admin/auth/me` 回傳有效權限碼清單
+
+**問題**：前端（`useProgramPermissions`／`useFormsPermissions`）依角色手寫一份「角色→操作」對照
+表，要跟種子腳本手動同步，已經是 E-39 同類風險第二次發生（`useRolePermissions.ts` 檔頭已自行記錄
+這個根本限制，回報「若後端需要回傳權限清單才能根治，寫進報告，不要改後端」）。
+
+**怎麼修的**：`IPermissionChecker` 新增 `GetAllHeldPermissionsAsync(adminUserId, isSuperAdmin, ct)`
+——回傳這個帳號目前實際持有的**全部**權限碼，形狀是 `Code → 這個人對這個權限碼持有的 scope_type
+原始集合`（一個人可能透過多個角色持有同一個權限碼、各自帶不同 `scope_type`，這裡**不做「多個
+scope_type 該合併成單一有效值」的商業判斷**，那件事留給 `TeamRowScope`／`AdminTeamRowScopeResolver`
+這種已經為特定資源類型定義過合併規則的型別，避免發明一個只有這個端點在用的合併規則）。
+`isSuperAdmin=true` 時回傳系統裡**全部**權限碼（含 `sysadmin_only`），每個標記 `["all"]`——系統
+管理員跳過整個 `role_permissions` 查詢直接視為持有一切，跟 `HasPermissionAsync` 同一條規則。
+
+`MeResponse` 新增 `permissions: MePermissionDto[]`（`{code, scopeTypes}`），`AdminAuthService.
+GetMeAsync` 呼叫上述方法填入。**權限碼只給程式判斷用，前端不得顯示**（主站規劃書 §4.0「介面一律
+日常中文……不顯示……權限碼」）。
+
+**判斷（回報供下一輪前端改接參考，本輪未改 `apps/admin`）**：
+
+1. **這份清單跟「目前俱樂部」無關**——本系統的角色指派（`admin_user_roles`）與角色的權限指派
+   （`role_permissions`）都沒有 `club_id` 維度，一個人對某個權限碼持有哪些 `scope_type` 不會因為
+   切換到哪個俱樂部而改變；真正決定「這個人能不能碰這個俱樂部」的是既有 `ClubGrants`
+   （`AdminUserClub`）。前端要判斷「在目前這個俱樂部能不能做某件事」，需要同時看兩份清單：先確認
+   目前俱樂部在 `ClubGrants` 裡，再查 `Permissions` 有沒有對應權限碼——這是本輪判斷，`/auth/me`
+   端點本身沒有 `club` 參數，因為權限碼清單不會因俱樂部而異，加這個參數只會誤導呼叫端以為有這種
+   相依性。
+2. **`scopeTypes` 回傳原始集合，不做合併**——例如某人同時是「學院／課程管理」（`own_teams` 之類）
+   與「合作球隊管理」（`own_clubs`）兩個角色，對同一個權限碼會回傳兩個 `scope_type`。前端若要做
+   「是否受列級限制」的粗判斷，含 `"all"` 或 `"own_clubs"` 即代表這個人對這個權限碼至少有一個
+   角色是不受列級限制的（比照 `AdminTeamRowScopeResolver` 現有的「`own_clubs` 視同 `all`」判斷）；
+   若前端要做更細的列級 UI（例如「只顯示我能碰的球隊」），現階段仍得靠既有的專屬端點（例如
+   `own_teams` 相關資料），`/auth/me` 的權限碼清單不是要取代那些端點，只是取代前端手寫的
+   「角色→操作」推導表。
+
+### 測試
+
+`Tcrfc.Api.Tests/AdminFormsEnquiriesTests.cs` 新增 2 項（公開表單定義依語系回傳題目與選項顯示
+文字、未翻譯回退中文；G1 建立／更新欄位題目文字必填與選項英文顯示文字筆數驗證，含清空英文題目
+後公開端點正確回退）。全套 `dotnet test` **439／439 通過**（含本輪新增與既有全部項目）。
+
+**手動驗收**（本機 `dotnet run` 另開 `5499` 埠，`curl`＋自簽 JWT，未使用任何互動式登入或 2FA 流程
+——理由：既有「-login」後綴測試帳號當時正被另一個並行 session 的無頭瀏覽器驗收使用中，直接登入
+會互相干擾；比照 `Tcrfc.Api.Tests.Fixtures.TestAdminTokens` 同一套簽章邏輯與金鑰另外寫一支一次性
+小工具直接簽出有效存取權杖，验证的是真正跑在獨立行程的 API、真正的 HTTP 請求與真正的
+`tcrfc_club_dev`，不是走 `WebApplicationFactory` 的行程內管線）：
+
+1. `GET /auth/me`（`customer.service@tcrfc.test`）：`permissions` 陣列正確含
+   `enquiry.inbox.view/update`／`form.view/update`，`scopeTypes` 皆為 `["all"]`。
+2. `GET .../forms/partnership_sponsorship?lang=en`：`enquiry_type` 欄位 `label` 為
+   `"Enquiry Type"`、`options` 為中文 canonical 值、`optionLabels` 為對應英文；`company` 欄位（無
+   選項）`label` 為 `"Company Name"`、`optionLabels` 為 `null`；`?lang=zh` 對照組 `optionLabels`
+   回退等於 canonical 值本身。
+3. `GET .../enquiries/assignable-users?formCode=general_contact`（`customer.service`）：200，列出
+   系統管理員與全部持有 `enquiry.inbox.update` 的帳號。
+4. `GET .../enquiries/assignable-users?formCode=general_contact`（`pr.media`，只有
+   `enquiry.media.*`）：404（越權，不洩漏存在與否）。
+5. `GET .../enquiries/assignable-users?formCode=media_enquiry`（`pr.media`）：200，清單同時含
+   `enquiry.inbox.update`（客服／行政）與 `enquiry.media.update`（公關／媒體）持有者的聯集。
+6. `GET .../enquiries/assignable-users`（`content.editor`，完全沒有 `enquiry.*` 權限碼）：403。
+7. `GET .../enquiries/assignable-users?formCode=not_a_real_code`：404。
+8. 用公開端點送出一筆 `general_contact` 測試詢問 → `PUT .../enquiries/{id}` 指派給 `pr.media`
+   （只有 `enquiry.media.*`，`general_contact` 屬於 inbox-only 類別）：400「指定的負責人帳號對這
+   一類詢問沒有處理權限，無法指派。」→ 改指派給自己（`customer.service` 持有
+   `enquiry.inbox.update`）：200，成功。
+9. **收尾**：刪除本輪建立的測試詢問資料（`DELETE FROM enquiry_answers`／`enquiries` 對應列）、
+   關閉本機 `dotnet run`（`5499`）行程、刪除一次性簽權杖小工具（未進版控）。**未動用任何共用
+   「-login」帳號的 2FA 或密碼狀態**——本輪驗收方式全程繞開互動式登入，不會與其他並行 session
+   互相干擾。
+
+🔴 **驗收期間發現的既有帳號狀態污染，非本輪造成**：跑 `dotnet test` 全套時 `AdminAuthTests` 三項
+（`登入成功_回傳存取權杖與更新權杖Cookie` 等）一度失敗，原因是共用開發資料庫的
+`clean.login@tcrfc.test` 當下 `two_factor_enabled=1`（另一個並行 session 的無頭瀏覽器 E2E 驗收
+正在使用這個帳號，`ps aux` 可見其 `dotnet run`／headless Chrome 行程），跟本輪任何改動無關（這三項
+測試只碰 `/login`／`/refresh`／`/logout`，本輪對 `AdminAuthService.cs` 的唯一改動在 `GetMeAsync`
+方法本體）。該並行 session 的行程結束後執行 `db/seed/reset-admin-accounts.sh` 還原種子帳號初始
+狀態，重跑 `dotnet test` 全綠（**439／439**）。
+
+`apps/admin`／`apps/web` 的 `npm run lint` 皆通過（`apps/admin` 0 errors／0 warnings，`apps/web`
+0 errors，既有 539 個 warning 與本輪無關）——**本輪未觸碰任何 `apps/admin`／`apps/web` 檔案**，
+後台畫面（G1 題目文字欄位、G2 姓名選單）留給下一輪 `frontend-architect`。
+
+---
+
 ## S1-11：`L1` 行事曆總覽／`L2` 自建事件 ＋ 13 賽事行事曆公開讀取（含單場 `.ics`）（2026-09-25，`backend-engineer`）
 
 主站規劃書 §4.12 L1／L2（後台）、§3.13（13 賽事行事曆，公開讀取）。沿用既有架構：

@@ -20,12 +20,26 @@ public sealed record AdminFormFieldDto
     public required Guid Id { get; init; }
     public required string FieldKey { get; init; }
     public required string FieldType { get; init; }
+
+    /// <summary>題目文字（中文）——<c>form_fields_i18n</c> zh-Hant 列，必存（S1-10 修正，
+    /// 2026-09-25，補齊 CLAUDE.md 全域規定第 4 條的落差）。</summary>
+    public required string LabelZh { get; init; }
+
+    /// <summary>題目文字（英文）——<c>form_fields_i18n</c> en 列，可缺（<c>null</c>＝尚未翻譯，
+    /// 公開端點會回退顯示中文）。</summary>
+    public string? LabelEn { get; init; }
+
     public required bool IsRequired { get; init; }
     public string? ValidationRule { get; init; }
 
     /// <summary>只有 <c>select</c>／<c>multiselect</c> 會有值，其餘型別一律 <c>null</c>
-    /// （對應 <c>form_fields.options_json</c> 解析後的陣列）。</summary>
+    /// （對應 <c>form_fields.options_json</c> 解析後的陣列——**canonical 值**，公開送出端點拿這份
+    /// 驗證與儲存，不因語系而變，語意上等同這些選項的中文顯示文字）。</summary>
     public IReadOnlyList<string>? Options { get; init; }
+
+    /// <summary>選項的英文顯示文字，與 <see cref="Options"/> 同順序、同筆數；<c>null</c>＝這個
+    /// 欄位沒有選項，或選項尚未提供英文翻譯（公開端點會回退顯示中文 <see cref="Options"/>）。</summary>
+    public IReadOnlyList<string>? OptionLabelsEn { get; init; }
 
     /// <summary>是否為 G2 收件匣「內容摘要」欄的來源欄位——同一張表單最多一個欄位為
     /// <c>true</c>，設定第二個會自動取代第一個（不是回錯誤），見
@@ -66,14 +80,23 @@ public sealed record UpdateAdminFormRequest
     public string? AutoReplyBodyEn { get; init; }
 }
 
-/// <summary>建立動態欄位。<see cref="SortOrder"/> 省略時自動接在最後一個欄位之後。</summary>
+/// <summary>建立動態欄位。<see cref="SortOrder"/> 省略時自動接在最後一個欄位之後。
+/// <see cref="LabelZh"/> 為必填（題目文字，前台一定要有東西可顯示）；<see cref="LabelEn"/>
+/// 可省略（英文尚未翻譯時公開端點回退顯示中文）。</summary>
 public sealed record CreateAdminFormFieldRequest
 {
     public required string FieldKey { get; init; }
     public required string FieldType { get; init; }
+    public required string LabelZh { get; init; }
+    public string? LabelEn { get; init; }
     public bool IsRequired { get; init; }
     public string? ValidationRule { get; init; }
     public IReadOnlyList<string>? Options { get; init; }
+
+    /// <summary>選項的英文顯示文字，省略或 <c>null</c>＝尚未翻譯（公開端點回退顯示 <see cref="Options"/>
+    /// 中文）。提供時筆數必須與 <see cref="Options"/> 一致，見 <c>AdminFormsRepository.ValidateOptionLabelsEn</c>。</summary>
+    public IReadOnlyList<string>? OptionLabelsEn { get; init; }
+
     public bool IsSummary { get; init; }
     public int? SortOrder { get; init; }
 }
@@ -82,9 +105,12 @@ public sealed record UpdateAdminFormFieldRequest
 {
     public required string FieldKey { get; init; }
     public required string FieldType { get; init; }
+    public required string LabelZh { get; init; }
+    public string? LabelEn { get; init; }
     public bool IsRequired { get; init; }
     public string? ValidationRule { get; init; }
     public IReadOnlyList<string>? Options { get; init; }
+    public IReadOnlyList<string>? OptionLabelsEn { get; init; }
     public bool IsSummary { get; init; }
     public required int SortOrder { get; init; }
 }

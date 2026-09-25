@@ -1363,10 +1363,9 @@ CREATE TABLE forms_i18n (
 );
 
 -- 動態欄位（型別、必填、驗證、排序）。
--- ⚠️ 待確認：docs/12 標🌐，但僅有低信心度候選欄位（label／placeholder，docs/12c §4），本版不建 form_fields_i18n。
--- options_json（S1-10 新增）：下拉／多選的選項清單，JSON 字串陣列，例如 '["choice1","choice2"]'；
--- field_type 不是 select／multiselect 時維持 NULL。單一語系——docs/12 §4.6「Form 的 🌐 範圍已限縮」
--- 同一輪已拍板不建 form_fields_i18n，選項文字沿用同一個決定，不另外破例。
+-- options_json（S1-10 新增）：下拉／多選的選項清單，JSON 字串陣列，例如 '["choice1","choice2"]'——
+-- 這是「canonical」值：公開送出端點驗證與 enquiry_answers.value 儲存都比對這個陣列，不因語系而變；
+-- field_type 不是 select／multiselect 時維持 NULL。
 CREATE TABLE form_fields (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -1389,6 +1388,20 @@ CREATE TABLE form_fields (
   -- S1-10：對應規劃書 G1（行 1159）逐字列出的六種欄位型別，比照 CK_programs_program_type 等既有先例。
   CONSTRAINT CK_form_fields_field_type CHECK (field_type IN
     ('text','textarea','select','multiselect','date','file','consent'))
+);
+
+-- 題目文字（label，zh-Hant 列必存、en 列可缺）＋下拉／多選選項的英文顯示文字（options_json）。
+-- S1-10 修正（2026-09-25，驗收回饋補做）：原本 form_fields 完全沒有題目文字欄位，公開表單無題目
+-- 可顯示、後台只能印英文欄位代碼，違反 CLAUDE.md 全域規定第 4 條（前台可見內容皆需 zh／en 雙欄位）。
+-- options_json 與 form_fields.options_json（canonical，用於驗證與儲存）同順序、同筆數的 JSON 字串
+-- 陣列，只有「有自訂顯示文字的語系」才會有這一列（通常是 en）——canonical 值本身就是 zh-Hant 的
+-- 顯示文字，不需要另外存一份 zh-Hant 選項顯示文字。完整說明見 docs/12-database-schema.md §12 第 40 點。
+CREATE TABLE form_fields_i18n (
+  form_field_id     uniqueidentifier NOT NULL,
+  locale            nvarchar(10)     NOT NULL,
+  label             nvarchar(255)    NOT NULL,
+  options_json      nvarchar(1000)   NULL,
+  CONSTRAINT PK_form_fields_i18n PRIMARY KEY CLUSTERED (form_field_id, locale)
 );
 
 -- 收件：來源頁、UTM、狀態、指派、備註、標籤。涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢。
@@ -2916,6 +2929,7 @@ ALTER TABLE fan_event_registrations ADD CONSTRAINT FK_fan_event_registrations_me
 ALTER TABLE forms               ADD CONSTRAINT FK_forms_club                  FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE forms_i18n          ADD CONSTRAINT FK_forms_i18n_form             FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE CASCADE;
 ALTER TABLE form_fields         ADD CONSTRAINT FK_form_fields_form            FOREIGN KEY (form_id) REFERENCES forms(id) ON DELETE CASCADE;
+ALTER TABLE form_fields_i18n    ADD CONSTRAINT FK_form_fields_i18n_field      FOREIGN KEY (form_field_id) REFERENCES form_fields(id) ON DELETE CASCADE;
 ALTER TABLE enquiries           ADD CONSTRAINT FK_enquiries_club              FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE enquiries           ADD CONSTRAINT FK_enquiries_form              FOREIGN KEY (form_id) REFERENCES forms(id);
 ALTER TABLE enquiries           ADD CONSTRAINT FK_enquiries_assignee          FOREIGN KEY (assignee_admin_user_id) REFERENCES admin_users(id);

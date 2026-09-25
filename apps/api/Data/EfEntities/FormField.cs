@@ -44,5 +44,10 @@ public partial class FormField
 
     public virtual Form Form { get; set; } = null!;
 
+    /// <summary>題目文字（<see cref="FormFieldsI18n.Label"/>）與下拉／多選選項的英文顯示文字
+    /// （<see cref="FormFieldsI18n.OptionsJson"/>）。S1-10 修正（2026-09-25）新增，見
+    /// db/club-schema.sql「form_fields_i18n」表註解與 docs/12-database-schema.md §12 第 40 點。</summary>
+    public virtual ICollection<FormFieldsI18n> FormFieldsI18ns { get; set; } = new List<FormFieldsI18n>();
+
     public virtual AdminUser? UpdatedByNavigation { get; set; }
 }

@@ -1,3 +1,4 @@
+using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.Forms;
@@ -12,12 +13,13 @@ public static class FormsEndpoints
 
     public static void MapFormsEndpoints(this IEndpointRouteBuilder app)
     {
-        // GET /api/v1/{club}/forms/{formCode}
+        // GET /api/v1/{club}/forms/{formCode}?lang=zh|en
         app.MapGet("/api/v1/{club}/forms/{formCode}", async (
-            string club, string formCode, IClubResolver clubResolver, FormsRepository repository, CancellationToken cancellationToken) =>
+            string club, string formCode, string? lang, IClubResolver clubResolver, FormsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var form = await repository.GetFormDefinitionAsync(scope, formCode, cancellationToken);
+            var dbLocale = RequestLocale.ToDbLocale(lang);
+            var form = await repository.GetFormDefinitionAsync(scope, formCode, dbLocale, cancellationToken);
             return form is null ? Results.NotFound() : Results.Ok(form);
         })
         .WithName("GetPublicForm")

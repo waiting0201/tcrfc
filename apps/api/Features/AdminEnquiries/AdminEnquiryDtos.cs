@@ -58,3 +58,13 @@ public sealed record UpdateAdminEnquiryRequest
     public string? InternalNote { get; init; }
     public string? Tags { get; init; }
 }
+
+/// <summary>G2「指派負責人」姓名選單的候選人——S1-10 修正（2026-09-25）新增。**只回傳必要欄位**
+/// （<see cref="Id"/>／<see cref="DisplayName"/>），不含 Email 或其他帳號資料，見
+/// <c>AdminEnquiriesRepository.ListAssignableUsersAsync</c> 檔頭「為什麼不重用
+/// AdminAccountListItemDto」的說明。</summary>
+public sealed record AssignableAdminUserDto
+{
+    public required Guid Id { get; init; }
+    public required string DisplayName { get; init; }
+}

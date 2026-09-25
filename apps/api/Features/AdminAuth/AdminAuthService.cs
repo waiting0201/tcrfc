@@ -19,7 +19,8 @@ namespace Tcrfc.Api.Features.AdminAuth;
 /// <see cref="RegisterFailedAttemptAsync"/>，從未依賴任何日誌表。
 /// </summary>
 public sealed class AdminAuthService(
-    ClubDbContext db, AdminTokenService tokenService, TwoFactorSecretProtector twoFactorProtector)
+    ClubDbContext db, AdminTokenService tokenService, TwoFactorSecretProtector twoFactorProtector,
+    IPermissionChecker permissionChecker)
 {
     // 5 次失敗鎖 15 分鐘——業界常見門檻（OWASP Authentication Cheat Sheet 建議範圍
     // 3–5 次），本專案沒有更嚴格的規劃書條文可依循，屬執行層判斷，見 apps/api/README.md。
@@ -309,6 +310,12 @@ public sealed class AdminAuthService(
             .OrderBy(r => r.Code, StringComparer.Ordinal)
             .ToList();
 
+        var heldPermissions = await permissionChecker.GetAllHeldPermissionsAsync(user.Id, identity.IsSuperAdmin, cancellationToken);
+        var permissions = heldPermissions
+            .Select(kv => new MePermissionDto { Code = kv.Key, ScopeTypes = kv.Value })
+            .OrderBy(p => p.Code, StringComparer.Ordinal)
+            .ToList();
+
         return new MeResponse
         {
             AdminUserId = user.Id,
@@ -318,6 +325,7 @@ public sealed class AdminAuthService(
             PrimaryClubCode = primaryClubCode,
             ClubGrants = clubGrants,
             Roles = roles,
+            Permissions = permissions,
         };
     }
 

@@ -186,7 +186,7 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
 
         if (request.AssigneeAdminUserId is Guid assigneeId)
         {
-            await ValidateAssigneeAsync(assigneeId, scope.ClubId, cancellationToken);
+            await ValidateAssigneeAsync(assigneeId, scope.ClubId, enquiry.Form.FormCode, cancellationToken);
         }
 
         enquiry.Status = request.Status;
@@ -284,7 +284,74 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
         return query;
     }
 
-    private async Task ValidateAssigneeAsync(Guid assigneeId, Guid clubId, CancellationToken cancellationToken)
+    /// <summary>G2「指派負責人」姓名選單的候選人清單（S1-10 修正，2026-09-25）——本輪發現的後端
+    /// 缺口：原本只有 <c>GET /admin/accounts</c>（<c>system.account.view</c>，僅系統管理員）能把
+    /// 帳號 id 對照回姓名，持有 <c>enquiry.*.update</c> 但不是系統管理員的角色（客服／行政、合作
+    /// 球隊管理、學院／課程管理、商務／贊助、公關／媒體）因此完全無法用姓名指派，只能「指派給
+    /// 自己」。
+    ///
+    /// **為什麼不重用 <see cref="Features.AdminAccounts.AdminAccountsRepository"/>**：那支
+    /// repository 服務的是 <c>system.account.*</c>（J1 帳號管理），回傳完整帳號明細（含 Email、
+    /// 角色、俱樂部與球隊授權），刻意只給系統管理員；本方法服務的是完全不同的權限邊界——任何持有
+    /// 這個表單類別處理權限的人都能查，但只回傳「能指派給誰」需要的最小欄位（id、顯示名稱），
+    /// 不能把 J1 那份明細的存取範圍跟著放寬，否則等於繞道讓非系統管理員也能查到別人的 Email。
+    ///
+    /// **範圍**：僅回傳 <paramref name="clubId"/> 這個俱樂部目前有效授權（<c>is_active</c> 且未過期）
+    /// 的帳號，加上系統管理員（一律有效，同 <see cref="ValidateAssigneeAsync"/> 既有規則）；
+    /// 並且只回傳「對 <paramref name="formCode"/> 所屬類別持有處理權限」的帳號——不是這個俱樂部
+    /// 隨便一個有效帳號都能被指派這一類詢問，跟 G2 本身「依表單類別的列級授權」是同一條界線。</summary>
+    public async Task<IReadOnlyList<AssignableAdminUserDto>> ListAssignableUsersAsync(
+        AdminClubScope scope, string formCode, CancellationToken cancellationToken)
+    {
+        var candidateCodes = CandidateUpdateCodesForFormCode(formCode);
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
+        var users = await dbContext.AdminUsers.AsNoTracking()
+            .Where(u => u.Status == "active")
+            .Where(u => u.IsSuperAdmin
+                || u.AdminUserClubAdminUsers.Any(g => g.ClubId == scope.ClubId && g.IsActive
+                    && (g.ExpiresOn == null || g.ExpiresOn >= today)))
+            .Where(u => u.IsSuperAdmin
+                || u.AdminRoles.Any(r => r.RolePermissions.Any(rp =>
+                    candidateCodes.Contains(rp.Permission.Code) && !rp.Permission.SysadminOnly)))
+            .OrderBy(u => u.DisplayName)
+            .Select(u => new AssignableAdminUserDto { Id = u.Id, DisplayName = u.DisplayName })
+            .ToListAsync(cancellationToken);
+
+        return users;
+    }
+
+    /// <summary>這個 <paramref name="formCode"/> 所屬類別，「持有哪個 update 權限碼即可處理」——
+    /// 跟 <see cref="ResolveFormCodeFilterAsync"/> 是同一份分類依據（<see cref="FormCatalog"/> 三個
+    /// 類別集合）反過來查，一個 <paramref name="formCode"/> 一定屬於「課程／合作贊助／媒體」其中
+    /// 一類，或者三類都不屬於（例如 <see cref="FormCatalog.GeneralContact"/>、
+    /// <see cref="FormCatalog.JoinPlayer"/>）——後者只有 <see cref="PermissionInboxUpdate"/>（全權限）
+    /// 能處理，沒有對應的類別限定權限碼。</summary>
+    private static IReadOnlyList<string> CandidateUpdateCodesForFormCode(string formCode)
+    {
+        var codes = new List<string> { PermissionInboxUpdate };
+        if (FormCatalog.CourseCategoryCodes.Contains(formCode))
+        {
+            codes.Add(PermissionCourseUpdate);
+        }
+        if (FormCatalog.PartnershipCategoryCodes.Contains(formCode))
+        {
+            codes.Add(PermissionPartnershipUpdate);
+        }
+        if (FormCatalog.MediaCategoryCodes.Contains(formCode))
+        {
+            codes.Add(PermissionMediaUpdate);
+        }
+        return codes;
+    }
+
+    /// <summary>🔴 S1-10 修正（2026-09-25）新增 <paramref name="formCode"/> 參數：原本只驗證
+    /// 「這個帳號有沒有這個俱樂部的授權」，沒有驗證「這個帳號對這一類詢問有沒有處理權限」——
+    /// 一個只有 <c>enquiry.media.update</c> 的公關／媒體帳號，先前可以被指派一筆
+    /// <c>partnership_sponsorship</c> 詢問，指派後卻連自己被指派的這筆都看不到（G2 依類別過濾），
+    /// 形成「指派了也等於沒指派」的死資料。現在額外要求被指派者持有
+    /// <see cref="CandidateUpdateCodesForFormCode"/> 任一權限碼（或為系統管理員）。</summary>
+    private async Task ValidateAssigneeAsync(Guid assigneeId, Guid clubId, string formCode, CancellationToken cancellationToken)
     {
         var assignee = await dbContext.AdminUsers.AsNoTracking()
             .FirstOrDefaultAsync(u => u.Id == assigneeId, cancellationToken);
@@ -294,7 +361,7 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
         }
         if (assignee.IsSuperAdmin)
         {
-            return; // 系統管理員一律有效，跳過俱樂部授權檢查（同 AdminClubAuthorizer 的既有規則）。
+            return; // 系統管理員一律有效，跳過俱樂部授權與類別權限檢查（同 AdminClubAuthorizer 的既有規則）。
         }
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -304,6 +371,18 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
         if (!hasClubGrant)
         {
             throw new AdminEnquiryValidationException("指定的負責人帳號目前沒有這個俱樂部的授權，無法指派。");
+        }
+
+        var candidateCodes = CandidateUpdateCodesForFormCode(formCode);
+        var hasCategoryPermission = await dbContext.AdminUsers.AsNoTracking()
+            .Where(u => u.Id == assigneeId)
+            .SelectMany(u => u.AdminRoles)
+            .SelectMany(r => r.RolePermissions)
+            .Select(rp => rp.Permission)
+            .AnyAsync(p => candidateCodes.Contains(p.Code) && !p.SysadminOnly, cancellationToken);
+        if (!hasCategoryPermission)
+        {
+            throw new AdminEnquiryValidationException("指定的負責人帳號對這一類詢問沒有處理權限，無法指派。");
         }
     }
 

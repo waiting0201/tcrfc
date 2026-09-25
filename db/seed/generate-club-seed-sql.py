@@ -1451,106 +1451,131 @@ IF NOT EXISTS (SELECT 1 FROM faq_embed_slots WHERE code = {esc(code)})
 #
 # 每個表單一律含 `name`（姓名／申請人／學員／聯絡人，依表單語境而定）與 `contact`（電話或
 # Email）兩個慣例欄位鍵——後台 G2 收件匣清單靠這兩個鍵顯示「姓名」「聯絡方式」兩欄
-# （apps/api/Features/AdminEnquiries/AdminEnquiriesRepository.cs 檔頭），欄位標籤本身沒有
-# i18n（2026-09-22 已拍板不建 form_fields_i18n），前台渲染表單時的中文標籤由前端依規劃書
-# §3.10 自行對應 field_key，本檔只決定 key 本身與型別／必填／驗證規則／選項。
+# （apps/api/Features/AdminEnquiries/AdminEnquiriesRepository.cs 檔頭）。
 #
 # 🔴 **表單顯示名稱（如「10.1 Join as a Player 加入球隊」）不進資料庫**——已於 2026-09-22 拍板
 # 維持規劃書 §3.10 固定表格寫死，這裡故意不寫 forms_i18n.name，後端 API 用
 # `Features/Forms/FormCatalog.cs` 的固定字典輸出顯示名稱（純程式碼常數，不是資料庫欄位）。
+#
+# **個別欄位的題目文字（`form_fields_i18n.label`）則相反——S1-10 修正（2026-09-25）已建表**：
+# 一張表單的顯示名稱是規劃書 §3.10 固定表格裡的九個項目、數量有限、後台不開放編輯；但每張表單
+# 底下的動態欄位是 G1 表單設計器可以新增／編輯／刪除的，題目文字沒有清單可以寫死在程式碼常數裡，
+# 只能跟著每個欄位一起存進資料庫。`label_zh()` 輔助函式把每個欄位的中文題目文字（必填，
+# CLAUDE.md 全域規定第 4 條要求前台可見內容皆需 zh／en 雙欄位）與可選的英文題目文字、下拉選項的
+# 英文顯示文字一起附在欄位定義上，下方迴圈連同 `form_fields_i18n` 一起種下去。
 # ============================================================================
 FORM_CODES = [
     "join_player", "academy_children_training", "camp_registration", "international_player_enquiry",
     "partnership_sponsorship", "media_enquiry", "general_contact", "proposal_download", "donation_enquiry",
 ]
 
-# 六元組：(field_key, field_type, is_required, validation_rule, options, is_summary)。
+
+def field(key, type_, required=False, validation=None, options=None, summary=False,
+          *, label_zh, label_en=None, option_labels_en=None):
+    """單一表單欄位定義。`label_zh` 必填（zh-Hant 題目文字，DB 層 `form_fields_i18n.label NOT
+    NULL`）；`label_en`／`option_labels_en` 皆可省略（省略＝尚未翻譯，公開端點回退顯示中文，見
+    apps/api/Features/Forms/FormsRepository.cs 的 `ToPublicFieldDto`）。`option_labels_en` 提供時
+    筆數必須跟 `options` 一致（跟 AdminFormsRepository.ValidateOptionLabelsEn 同一條規則）。"""
+    if options is not None and option_labels_en is not None and len(options) != len(option_labels_en):
+        raise ValueError(f"欄位 {key}：option_labels_en 筆數必須跟 options 一致")
+    return (key, type_, required, validation, options, summary, label_zh, label_en, option_labels_en)
+
+
 # is_summary（S1-10 審查回饋補做）：G2 收件匣「內容摘要」欄的來源鍵，同一張表單最多一個 True——
 # 只標給有敘述性文字的欄位，沒有合適欄位的表單（camp_registration／media_enquiry／
 # proposal_download）全部維持 False，內容摘要在那些表單上就是 null，不是缺陷，見
 # docs/12-database-schema.md §12 第 38 點。
-CONSENT_FIELD = ("privacy_consent", "consent", True, None, None, False)
+CONSENT_FIELD = field(
+    "privacy_consent", "consent", True,
+    label_zh="我已閱讀並同意本俱樂部依隱私權政策蒐集、處理及使用我的個人資料",
+    label_en="I have read and agree to the club's collection, processing, and use of my personal data in accordance with its privacy policy",
+)
 
 FORM_FIELD_DEFAULTS = {
     "join_player": [  # 10.1：姓名、生日、位置、經歷、影片連結、聯絡方式
-        ("name", "text", True, None, None, False),
-        ("birth_date", "date", True, None, None, False),
-        ("position", "text", False, None, None, False),
-        ("experience", "textarea", False, None, None, True),  # 內容摘要來源
-        ("video_url", "text", False, None, None, False),
-        ("contact", "text", True, None, None, False),
+        field("name", "text", True, label_zh="姓名", label_en="Name"),
+        field("birth_date", "date", True, label_zh="生日", label_en="Date of Birth"),
+        field("position", "text", label_zh="場上位置", label_en="Playing Position"),
+        field("experience", "textarea", label_zh="足球經歷", label_en="Football Experience", summary=True),  # 內容摘要來源
+        field("video_url", "text", label_zh="影片連結", label_en="Video Link"),
+        field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
         CONSENT_FIELD,
     ],
     "academy_children_training": [  # 10.2：報名項目、學員資料、地點偏好、家長聯絡、足球經歷、健康狀況
-        ("enrollment_category", "select", True, None,
-         ["學院 U12", "學院 U14", "學院 U15", "兒童混齡班", "兒童初學班", "兒童技巧發展班", "專項訓練"], False),
-        ("name", "text", True, None, None, False),
-        ("birth_date", "date", True, None, None, False),
-        ("location_preference", "text", False, None, None, False),
-        ("contact", "text", True, None, None, False),
-        ("experience", "textarea", False, None, None, True),  # 內容摘要來源
-        ("health_status", "textarea", False, None, None, False),
+        field("enrollment_category", "select", True,
+              options=["學院 U12", "學院 U14", "學院 U15", "兒童混齡班", "兒童初學班", "兒童技巧發展班", "專項訓練"],
+              option_labels_en=["Academy U12", "Academy U14", "Academy U15", "Children Mixed-Age Class",
+                                 "Children Beginner Class", "Children Skill Development Class", "Specialist Training"],
+              label_zh="報名項目", label_en="Enrollment Category"),
+        field("name", "text", True, label_zh="學員姓名", label_en="Student Name"),
+        field("birth_date", "date", True, label_zh="學員生日", label_en="Student Date of Birth"),
+        field("location_preference", "text", label_zh="地點偏好", label_en="Preferred Location"),
+        field("contact", "text", True, label_zh="家長聯絡方式", label_en="Parent Contact Info"),
+        field("experience", "textarea", label_zh="足球經歷", label_en="Football Experience", summary=True),  # 內容摘要來源
+        field("health_status", "textarea", label_zh="健康狀況", label_en="Health Status"),
         CONSENT_FIELD,
     ],
     "camp_registration": [  # 10.3：營隊梯次、學員資料、健康聲明、緊急聯絡人——沒有敘述性文字欄位，不標記摘要
-        ("session_choice", "text", True, None, None, False),
-        ("name", "text", True, None, None, False),
-        ("birth_date", "date", True, None, None, False),
-        ("health_declaration", "consent", True, None, None, False),
-        ("contact", "text", True, None, None, False),
+        field("session_choice", "text", True, label_zh="營隊梯次", label_en="Camp Session"),
+        field("name", "text", True, label_zh="學員姓名", label_en="Student Name"),
+        field("birth_date", "date", True, label_zh="學員生日", label_en="Student Date of Birth"),
+        field("health_declaration", "consent", True, label_zh="健康聲明", label_en="Health Declaration"),
+        field("contact", "text", True, label_zh="緊急聯絡人", label_en="Emergency Contact"),
         CONSENT_FIELD,
     ],
     "international_player_enquiry": [  # 10.4：英文姓名、國籍、護照、經歷、影片、簽證狀態
-        ("name", "text", True, None, None, False),
-        ("nationality", "text", True, None, None, False),
-        ("passport_no", "text", False, None, None, False),
-        ("experience", "textarea", False, None, None, True),  # 內容摘要來源
-        ("video_url", "text", False, None, None, False),
-        ("visa_status", "text", False, None, None, False),
-        ("contact", "text", True, None, None, False),
+        field("name", "text", True, label_zh="姓名", label_en="Name"),
+        field("nationality", "text", True, label_zh="國籍", label_en="Nationality"),
+        field("passport_no", "text", label_zh="護照號碼", label_en="Passport Number"),
+        field("experience", "textarea", label_zh="足球經歷", label_en="Football Experience", summary=True),  # 內容摘要來源
+        field("video_url", "text", label_zh="影片連結", label_en="Video Link"),
+        field("visa_status", "text", label_zh="簽證狀態", label_en="Visa Status"),
+        field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
         CONSENT_FIELD,
     ],
     "partnership_sponsorship": [  # 10.5：洽詢類型、公司、產業、預算區間、合作方向、感興趣贊助方案、聯絡人
-        ("enquiry_type", "select", True, None, ["合作夥伴", "贊助", "兩者"], False),
-        ("company", "text", True, None, None, False),
-        ("industry", "text", False, None, None, False),
-        ("budget_range", "text", False, None, None, False),
-        ("cooperation_direction", "textarea", False, None, None, True),  # 內容摘要來源
-        ("sponsorship_interest", "text", False, None, None, False),
-        ("name", "text", True, None, None, False),
-        ("contact", "text", True, None, None, False),
+        field("enquiry_type", "select", True, options=["合作夥伴", "贊助", "兩者"],
+              option_labels_en=["Partnership", "Sponsorship", "Both"],
+              label_zh="洽詢類型", label_en="Enquiry Type"),
+        field("company", "text", True, label_zh="公司名稱", label_en="Company Name"),
+        field("industry", "text", label_zh="產業別", label_en="Industry"),
+        field("budget_range", "text", label_zh="預算區間", label_en="Budget Range"),
+        field("cooperation_direction", "textarea", label_zh="合作方向", label_en="Cooperation Direction", summary=True),  # 內容摘要來源
+        field("sponsorship_interest", "text", label_zh="感興趣的贊助方案", label_en="Sponsorship Package of Interest"),
+        field("name", "text", True, label_zh="聯絡人姓名", label_en="Contact Person"),
+        field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
         CONSENT_FIELD,
     ],
     "media_enquiry": [  # 10.6：媒體名稱、記者姓名、採訪主題、截稿日——沒有敘述性文字欄位，不標記摘要
-        ("media_name", "text", True, None, None, False),
-        ("name", "text", True, None, None, False),
-        ("topic", "text", True, None, None, False),
-        ("deadline", "date", False, None, None, False),
-        ("contact", "text", True, None, None, False),
+        field("media_name", "text", True, label_zh="媒體名稱", label_en="Media Outlet"),
+        field("name", "text", True, label_zh="記者姓名", label_en="Reporter Name"),
+        field("topic", "text", True, label_zh="採訪主題", label_en="Interview Topic"),
+        field("deadline", "date", label_zh="截稿日", label_en="Deadline"),
+        field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
         CONSENT_FIELD,
     ],
     "general_contact": [  # 10.7：姓名、Email、主旨、內容
-        ("name", "text", True, None, None, False),
-        ("contact", "text", True, None, None, False),
-        ("subject", "text", True, None, None, False),
-        ("message", "textarea", True, None, None, True),  # 內容摘要來源
+        field("name", "text", True, label_zh="姓名", label_en="Name"),
+        field("contact", "text", True, label_zh="Email", label_en="Email"),
+        field("subject", "text", True, label_zh="主旨", label_en="Subject"),
+        field("message", "textarea", True, label_zh="內容", label_en="Message", summary=True),  # 內容摘要來源
         CONSENT_FIELD,
     ],
     "proposal_download": [  # 9.4 CTA：公司／姓名／Email → 取得下載連結——沒有敘述性文字欄位，不標記摘要
-        ("company", "text", True, None, None, False),
-        ("name", "text", True, None, None, False),
-        ("contact", "text", True, None, None, False),
+        field("company", "text", True, label_zh="公司名稱", label_en="Company Name"),
+        field("name", "text", True, label_zh="姓名", label_en="Name"),
+        field("contact", "text", True, label_zh="Email", label_en="Email"),
         CONSENT_FIELD,
     ],
     "donation_enquiry": [  # 🔴 規劃書未定義欄位，本輪最小可行自訂（見上方檔頭說明）
-        ("name", "text", True, None, None, False),
-        ("contact", "text", True, None, None, False),
-        ("message", "textarea", False, None, None, True),  # 內容摘要來源
+        field("name", "text", True, label_zh="姓名", label_en="Name"),
+        field("contact", "text", True, label_zh="聯絡方式", label_en="Contact Info"),
+        field("message", "textarea", label_zh="洽詢內容", label_en="Enquiry Message", summary=True),  # 內容摘要來源
         CONSENT_FIELD,
     ],
 }
 
-emit("-- ── 22. forms／form_fields：9 個固定表單目錄 ＋ 預設欄位，兩俱樂部各種一份 ─────")
+emit("-- ── 22. forms／form_fields／form_fields_i18n：9 個固定表單目錄 ＋ 預設欄位，兩俱樂部各種一份 ──")
 for club_code in ("tcrfc", "bw"):
     club_ref = CLUB_TCRFC if club_code == "tcrfc" else CLUB_BW
     for form_code in FORM_CODES:
@@ -1566,13 +1591,31 @@ BEGIN
 END
 """)
         form_ref = f"(SELECT id FROM forms WHERE club_id = {club_ref} AND form_code = {esc(form_code)})"
-        for i, (field_key, field_type, is_required, validation_rule, options, is_summary) in enumerate(FORM_FIELD_DEFAULTS[form_code]):
+        for i, (field_key, field_type, is_required, validation_rule, options, is_summary,
+                label_zh, label_en, option_labels_en) in enumerate(FORM_FIELD_DEFAULTS[form_code]):
             field_id = new_id("form_field", club_code, form_code, field_key)
+            field_ref = f"(SELECT id FROM form_fields WHERE form_id = {form_ref} AND field_key = {esc(field_key)})"
             options_json = esc(json.dumps(options, ensure_ascii=False)) if options else "NULL"
             block(f"""
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = {form_ref} AND field_key = {esc(field_key)})
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
   VALUES ({esc(field_id)}, {form_ref}, {esc(field_key)}, {esc(field_type)}, {esc(is_required)}, {esc(validation_rule)}, {options_json}, {esc(is_summary)}, {i});
+""")
+            # form_fields_i18n：zh-Hant 必存，en 只在有題目翻譯或選項顯示文字時才種一列
+            # （跟 AdminFormsRepository.UpdateFieldAsync 沒有英文內容時整列刪除是同一套「不留半套
+            # 翻譯殘影」的精神）。用 IF NOT EXISTS 個別判斷 zh-Hant／en 兩列，避免種子腳本重跑時
+            # 對已存在的列重複 INSERT。
+            block(f"""
+IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = {field_ref} AND locale = N'zh-Hant')
+  INSERT INTO form_fields_i18n (form_field_id, locale, label)
+  VALUES ({field_ref}, N'zh-Hant', {esc(label_zh)});
+""")
+            if label_en or option_labels_en:
+                option_labels_en_json = esc(json.dumps(option_labels_en, ensure_ascii=False)) if option_labels_en else "NULL"
+                block(f"""
+IF NOT EXISTS (SELECT 1 FROM form_fields_i18n WHERE form_field_id = {field_ref} AND locale = N'en')
+  INSERT INTO form_fields_i18n (form_field_id, locale, label, options_json)
+  VALUES ({field_ref}, N'en', {esc(label_en or label_zh)}, {option_labels_en_json});
 """)
 
 # ============================================================================
