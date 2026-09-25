@@ -1,17 +1,23 @@
 using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
+using Tcrfc.Api.Features.Seo;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.Teams;
 
-public sealed class TeamsRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
+public sealed class TeamsRepository(
+    IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrlResolver)
 {
     private const string CacheEntity = "teams";
 
+    // GEO-05（S1-12f）：ClubDomain／ClubLogoLightKey 兩欄只供 SchemaEligible／LogoUrl 計算用，
+    // 不進 TeamDto（既有的球隊清單欄位維持不變，這是新增計算，不是契約變更）。
     private sealed record TeamRow(
-        Guid Id, string Code, string Type, string Gender, string? AgeBand, string? TeamColor, string? HeroKey);
+        Guid Id, string Code, string Type, string Gender, string? AgeBand, string? TeamColor, string? HeroKey,
+        string ClubDomain, string? ClubLogoLightKey);
 
     private sealed record TeamI18nRow(Guid TeamId, string Locale, string? Name, string? Intro);
 
@@ -26,11 +32,13 @@ public sealed class TeamsRepository(IClubSqlConnectionFactory connectionFactory,
                 using var connection = connectionFactory.CreateConnection();
 
                 const string listSql = """
-                    SELECT id AS Id, code AS Code, type AS Type, gender AS Gender,
-                           age_band AS AgeBand, team_color AS TeamColor, hero_key AS HeroKey
-                    FROM teams
-                    WHERE club_id = @ClubId
-                    ORDER BY sort_order, code
+                    SELECT t.id AS Id, t.code AS Code, t.type AS Type, t.gender AS Gender,
+                           t.age_band AS AgeBand, t.team_color AS TeamColor, t.hero_key AS HeroKey,
+                           c.domain AS ClubDomain, c.logo_light_key AS ClubLogoLightKey
+                    FROM teams t
+                    JOIN clubs c ON c.id = t.club_id
+                    WHERE t.club_id = @ClubId
+                    ORDER BY t.sort_order, t.code
                     """;
 
                 var rows = (await connection.QueryAsync<TeamRow>(
@@ -67,10 +75,21 @@ public sealed class TeamsRepository(IClubSqlConnectionFactory connectionFactory,
         return rows.GroupBy(r => r.TeamId).ToDictionary(g => g.Key, g => g.ToDictionary(r => r.Locale, r => r));
     }
 
-    private static TeamDto Map(TeamRow row, Dictionary<string, TeamI18nRow>? i18n, string dbLocale)
+    private TeamDto Map(TeamRow row, Dictionary<string, TeamI18nRow>? i18n, string dbLocale)
     {
         var fallback = i18n?.GetValueOrDefault(RequestLocale.DefaultDbLocale);
         var requested = i18n?.GetValueOrDefault(dbLocale);
+        var name = RequestLocale.Pick(requested?.Name, fallback?.Name);
+
+        // GEO-05（S1-12f）：logo 欄位擇一即可（見 TeamDto.LogoUrl 的檔頭說明），
+        // url 用所屬俱樂部網域（teams 本身沒有獨立網域，一個俱樂部一個網站）。
+        var logoKey = row.HeroKey ?? row.ClubLogoLightKey;
+        var schemaEligible = SchemaRequiredFields.IsComplete(SchemaType.SportsTeam, new Dictionary<string, object?>
+        {
+            ["name"] = name,
+            ["url"] = row.ClubDomain,
+            ["logo"] = logoKey,
+        });
 
         return new TeamDto
         {
@@ -81,8 +100,10 @@ public sealed class TeamsRepository(IClubSqlConnectionFactory connectionFactory,
             AgeBand = row.AgeBand,
             TeamColor = row.TeamColor,
             HeroKey = row.HeroKey,
-            Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
+            Name = name,
             Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
+            LogoUrl = imageUrlResolver.Resolve(logoKey),
+            SchemaEligible = schemaEligible,
         };
     }
 }

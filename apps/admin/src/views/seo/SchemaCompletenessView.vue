@@ -49,19 +49,20 @@ onMounted(loadReport)
 watch(club, loadReport)
 
 /**
- * schema.org 型別 → 日常中文說明。`liveOnFrontend` 依 apps/api/README.md「S1-12c」逐字核對：
- * 目前只有 `Article`／`SportsEvent` 兩種真的已經接上前台輸出，其餘七種後台已經看得到資料缺漏
- * 現況，但網站還沒有把這些型別的摘要資料放進網頁裡（留給 `S1-12f` 等後續任務）。
+ * schema.org 型別 → 日常中文說明。`liveOnFrontend`＝前台已經接上該型別的輸出（資料齊全才會實際
+ * 出現）。S1-12f（2026-09-25）後為 `Article`／`SportsEvent`／`Organization`／`SportsTeam`／`Person`／
+ * `BreadcrumbList` 六種；`Event`／`Course`／`FAQPage` 尚未接上（S1-20、S1-18a）。前台新增輸出型別時，
+ * 這份清單要跟著改（前端手寫的一份，見 apps/web/README.md「S1-12f」）。
  */
 const SCHEMA_TYPE_INFO: Record<string, { label: string; hint: string; liveOnFrontend: boolean }> = {
-  Organization: { label: '俱樂部基本資料', hint: '俱樂部名稱、官方網址、隊徽', liveOnFrontend: false },
-  SportsTeam: { label: '球隊基本資料', hint: '球隊名稱、官方網址、隊徽', liveOnFrontend: false },
+  Organization: { label: '俱樂部基本資料', hint: '俱樂部名稱、官方網址、隊徽', liveOnFrontend: true },
+  SportsTeam: { label: '球隊基本資料', hint: '球隊名稱、官方網址、隊徽', liveOnFrontend: true },
   Event: { label: '行事曆活動', hint: '活動名稱、開始時間、地點', liveOnFrontend: false },
   SportsEvent: { label: '賽程賽事', hint: '比賽日期、開球時間、主客場、對手、場地、賽事名稱', liveOnFrontend: true },
-  Person: { label: '球員資料', hint: '球員姓名', liveOnFrontend: false },
+  Person: { label: '球員資料', hint: '球員姓名', liveOnFrontend: true },
   Article: { label: '新聞與故事文章', hint: '標題、發布時間、分享圖片', liveOnFrontend: true },
   Course: { label: '課程與活動項目', hint: '項目名稱、項目說明', liveOnFrontend: false },
-  BreadcrumbList: { label: '頁面路徑導覽', hint: '頁面標題、頁面網址', liveOnFrontend: false },
+  BreadcrumbList: { label: '頁面路徑導覽', hint: '頁面標題、頁面網址', liveOnFrontend: true },
   FAQPage: { label: '常見問題', hint: '問題、答案', liveOnFrontend: false },
 }
 

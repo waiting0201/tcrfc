@@ -173,6 +173,27 @@ watchEffect(() => {
     }),
   ])
 })
+
+// BreadcrumbList JSON-LD（GEO-05／S1-12f）：這是目前唯一有 BreadcrumbSchemaEligible 可讀的頁面
+// （本專案沒有頁面階層資料表，其餘 79 頁的麵包屑是靜態手寫、沒有對應的 DB 記錄可供 GEO-05
+// 判斷「缺不缺」，見 apps/api ArticleDetailDto.BreadcrumbSchemaEligible 檔頭說明與
+// apps/web/README.md「S1-12f」節，本輪不擴大到其餘靜態頁）。第三層「分類」節點用文章本身的
+// 分類頁網址，最後一層（文章標題本身）依 schema.org 慣例不需要 item。
+watchEffect(() => {
+  const a = article.value
+  if (!a?.breadcrumbSchemaEligible) return
+  const siteUrl = (siteConfig.url ?? '').replace(/\/$/, '')
+  useSchemaOrg([
+    defineBreadcrumb({
+      itemListElement: [
+        { name: '首頁', item: `${siteUrl}/zh/` },
+        { name: '新聞 News', item: `${siteUrl}/zh/news/` },
+        { name: a.categoryName ?? undefined, item: `${siteUrl}/zh/news/${a.categoryCode}/` },
+        { name: a.title ?? undefined },
+      ],
+    }),
+  ])
+})
 </script>
 
 <template>

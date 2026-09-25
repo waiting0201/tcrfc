@@ -55,6 +55,11 @@ interface PersonCard {
   role: string | null
   bio: string | null
   photoKey: string | null
+  /** GEO-05／S1-12f：apps/api 算好的 Person 結構化資料合格判斷（只要求姓名），
+   * 單一來源見 apps/api/Features/Seo/SchemaCompleteness.cs（E-39，這裡不重新判斷一次）。 */
+  schemaEligible: boolean
+  /** 已套用肖像同意 fail-closed 規則後的完整照片網址，未同意者恆為 null（S1-7a）。 */
+  photoUrl: string | null
 }
 
 // mockup 卡片顯示職稱與 API title 不同的唯一例外
@@ -77,6 +82,8 @@ const people = computed<PersonCard[]>(() => {
         role: s.title,
         bio: s.bio,
         photoKey: s.photoKey,
+        schemaEligible: s.schemaEligible,
+        photoUrl: s.photoUrl,
       }
     })
     .sort((a, b) => {
@@ -117,6 +124,26 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 useSeoMeta({
   title: computed(() => OUR_PEOPLE_SEO[clubKey.value].title),
   description: computed(() => OUR_PEOPLE_SEO[clubKey.value].description),
+})
+
+// Person JSON-LD（GEO-05／S1-12f）：本頁是「教練頁面」候選中唯一目前有真實資料可顯示的頁面
+// （8 位真實教練／顧問，藍鯨目前 0 筆則整段不輸出，見上方 people 的既有落差說明）。逐人依
+// schemaEligible 過濾（Person 只要求姓名，理論上恆為 true，仍照單一來源機制走，不因為
+// 「反正都會是 true」就省略檢查，E-39）；image 只在 photoUrl 有值（＝已同意肖像使用，S1-7a）
+// 時才帶，未同意者不得輸出照片。用 useSchemaOrg／definePerson（有專用定義器可用，比照
+// news/[slug] 頁 Article 的既有寫法，不像 SportsTeam 要手刻原始 JSON-LD）。
+watchEffect(() => {
+  const eligible = people.value.filter((p) => p.schemaEligible)
+  if (eligible.length === 0) return
+  useSchemaOrg(
+    eligible.map((p) =>
+      definePerson({
+        name: p.nameZh,
+        jobTitle: p.role ?? undefined,
+        image: p.photoUrl ?? undefined,
+      }),
+    ),
+  )
 })
 </script>
 

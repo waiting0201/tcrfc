@@ -169,6 +169,44 @@ node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:3012
     輸出專屬區塊（允許＝`Allow: /` ＋ 同一份排除清單；拒絕＝整段 `Disallow: /`）。已用真實
     HTTP 請求驗證（見 `apps/api/README.md`「S1-12b」節的驗收紀錄），含 `tcrfc`／`bw` 兩站
     強制清單各自正確（`bw` 目前沒有對應的未成年學員照片頁面，不會誤套用 `tcrfc` 專屬那一條）。
+- 🔄 **S1-12f（Schema 逐型別輸出第一批：`Organization`／`SportsTeam`／`Person`／`Article`／
+  `BreadcrumbList`）程式碼完成（2026-09-25）**，詳見 `apps/api/README.md`「S1-12f」節：
+  - **前台頁面盤點（本輪任務要求先做的事）**：`apps/web` 目前只有 6 頁真的呼叫 `apps/api`
+    公開端點（`/api/backend/...`）——`schedule.vue`（賽程）、`news/index.vue` 與 5 個分類頁
+    （新聞列表）、`news/[slug]/index.vue`（文章詳情）、`about/our-people.vue`（教練／團隊
+    成員）、`academy/teams.vue`（球員／教練，不輸出 Person，見下）。其餘約 74 頁仍是 mockup 靜態搬遷頁（文案取自
+    `shared/utils/club-copy.ts` 或直接手寫在樣板裡），**沒有對應的 DB 記錄可供 GEO-05「缺不
+    缺」判斷**，比照既有 Sitemap／`llms.txt` 對「靜態頁不進清單」的判斷（見上方 S1-12 段落），
+    本輪對純靜態頁**不輸出**任何新增型別的 JSON-LD，不擬造一份假的 `schemaEligible`。
+  - **`Organization`**：新增 `app/composables/useSchemaOrgClub.ts` 的 `useOrganizationSchema()`，
+    接上 `app/pages/zh/index.vue`（首頁）與 `app/pages/zh/about/index.vue`（關於頁）——規劃書
+    只列型別清單沒有指定頁面，這兩頁是本輪判斷的候選位置（見任務指示「全站或首頁與關於頁」）。
+    用 `useSchemaOrg`＋`defineOrganization`（有專用定義器，比照 `news/[slug]` 頁 `Article` 的
+    既有寫法）。🔴 **現況會整段不輸出**：`clubs.logo_light_key` 目前沒有任何寫入路徑（種子資料
+    與既有後台皆為 `null`），`schemaEligible` 恆為 `false`，見 `apps/api/README.md`「S1-12f」
+    「已知現況」——這是 GEO-05 正確行為，不是接線有誤。
+  - **`SportsTeam`**：`useSportsTeamSchema('D1')` 接上 `app/pages/zh/club/first-team/index.vue`
+    （一線隊，本輪判斷比首頁更貼近球隊實體）。沒有專用定義器，比照 `schedule.vue` 對
+    `SportsEvent` 的既有手刻 JSON-LD 做法直接用 `useHead`。現況同樣恆為不合格（`teams.hero_key`
+    與回退用的 `clubs.logo_light_key` 皆無寫入路徑）。
+  - **`Person`**：只在 `about/our-people.vue`（教練／顧問，**8 位真實資料，現況會真的輸出**）。
+    用 `useSchemaOrg`＋`definePerson`，`image` 只在 `photoUrl` 有值（已同意肖像使用，S1-7a
+    既有 fail-closed）時才帶。⛔ **`academy/teams.vue`（梯隊）刻意不輸出 Person**：梯隊球員是
+    未成年學員，主站規劃書 GEO-02 把未成年素材列為個資防線、明文不得放寬，該路徑也已在
+    `robots.txt` 對所有爬蟲排除（agent 原本加上，主 session 驗收時移除，見 `docs/14`）。
+    🔴 **一線隊 28 位球員名單頁（`first-team/index.vue`）仍是 mockup 靜態版面，沒有呼叫
+    `/players`**，一線隊球員的 Person 留給該頁串接 API 時一併補上（一線隊為成年球員，仍要走
+    肖像同意與 `schemaEligible` 閘門）。
+  - **`BreadcrumbList`**：只接上 `news/[slug]/index.vue`（`defineBreadcrumb`），用
+    `ArticleDetailDto.BreadcrumbSchemaEligible`（標題與 slug）。**其餘 79 頁的麵包屑刻意不輸出**：
+    本專案沒有頁面階層資料表（B1 頁面管理尚未接上前台動態路由），那些頁面的麵包屑是純手寫
+    HTML，沒有對應的 DB 記錄可供「這一頁缺不缺標題／網址」判斷，比照 Sitemap「`Page` 待 B1
+    動態路由落地後補」的既有先例，不在本輪擴大範圍。
+  - **`Article`**：確認既有做法（S1-12c）已經是 `schemaEligible` 閘門，未改動。
+  - `npm run lint`（0 錯誤）、`npm run build`、`docker build` 皆過。🔴 **無頭瀏覽器實走未完成，
+    標記未驗證**：本機啟動 `apps/api` 依硬規則被擋就停，兩站首頁／球員頁／新聞頁的實際 HTML
+    輸出、`X-Robots-Tag: noindex` 標頭是否仍在，這幾項本輪皆未驗證，需要在允許啟動本機
+    `apps/api` 的環境下補做。
 - ✅ **`/sitemap.xml` 已修好**（2026-09-22）。真正根因不是「動態來源偵測」——是
   `@nuxtjs/sitemap` 內建路由會把命中全站 `X-Robots-Tag: noindex` route rule 的網址
   整批排除，本站上線前必然全站 noindex（CLAUDE.md 第 5 條），所以每一筆都被排除。

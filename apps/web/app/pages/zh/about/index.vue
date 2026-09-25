@@ -16,6 +16,11 @@ useSeoMeta({
   title: computed(() => ABOUT_INDEX_SEO[clubKey.value].title),
   description: computed(() => ABOUT_INDEX_SEO[clubKey.value].description),
 })
+
+// Organization JSON-LD（GEO-05／S1-12f），理由見 app/pages/zh/index.vue 同一段註解——
+// 關於頁是規劃書「首頁與關於頁」兩個候選位置的另一個，兩頁各自輸出一份是正常 SEO 做法，
+// 不是重複輸出的錯誤。
+useOrganizationSchema()
 </script>
 
 <template>

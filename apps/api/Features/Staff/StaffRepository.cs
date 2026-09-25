@@ -2,12 +2,15 @@ using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
+using Tcrfc.Api.Features.Seo;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.Staff;
 
-public sealed class StaffRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
+public sealed class StaffRepository(
+    IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrlResolver)
 {
     private const string CacheEntity = "staff";
 
@@ -123,11 +126,21 @@ public sealed class StaffRepository(IClubSqlConnectionFactory connectionFactory,
         return rows.GroupBy(r => r.StaffId).ToDictionary(g => g.Key, g => g.Select(r => r.TeamCode).ToList());
     }
 
-    private static StaffDto Map(
+    private StaffDto Map(
         StaffRow row, Dictionary<string, StaffI18nRow>? i18n, IReadOnlyList<string> teamCodes, string dbLocale)
     {
         var fallback = i18n?.GetValueOrDefault(RequestLocale.DefaultDbLocale);
         var requested = i18n?.GetValueOrDefault(dbLocale);
+        var name = RequestLocale.Pick(requested?.Name, fallback?.Name);
+
+        // 🔴 fail-closed（S1-7a），理由同 PlayersRepository.Map。
+        var photoKey = row.PortraitConsentStatus is "consented" or "consented_by_guardian" ? row.PhotoKey : null; // 白名單：只有確認同意才輸出（fail-closed）
+
+        // GEO-05（S1-12f）：單一來源見 SchemaRequiredFields 檔頭，Person 只要求 name。
+        var schemaEligible = SchemaRequiredFields.IsComplete(SchemaType.Person, new Dictionary<string, object?>
+        {
+            ["name"] = name,
+        });
 
         return new StaffDto
         {
@@ -135,12 +148,13 @@ public sealed class StaffRepository(IClubSqlConnectionFactory connectionFactory,
             IsShared = row.IsShared,
             StaffGroup = row.StaffGroup,
             Licence = row.Licence,
-            // 🔴 fail-closed（S1-7a），理由同 PlayersRepository.Map。
-            PhotoKey = row.PortraitConsentStatus is "consented" or "consented_by_guardian" ? row.PhotoKey : null, // 白名單：只有確認同意才輸出（fail-closed）
-            Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
+            PhotoKey = photoKey,
+            Name = name,
             Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
             Bio = RequestLocale.Pick(requested?.Bio, fallback?.Bio),
             TeamCodes = teamCodes,
+            PhotoUrl = imageUrlResolver.Resolve(photoKey),
+            SchemaEligible = schemaEligible,
         };
     }
 }

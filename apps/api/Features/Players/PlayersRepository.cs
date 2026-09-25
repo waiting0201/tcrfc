@@ -2,12 +2,15 @@ using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
+using Tcrfc.Api.Features.Seo;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.Players;
 
-public sealed class PlayersRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
+public sealed class PlayersRepository(
+    IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrlResolver)
 {
     private const string CacheEntity = "players";
 
@@ -103,10 +106,20 @@ public sealed class PlayersRepository(IClubSqlConnectionFactory connectionFactor
         return rows.GroupBy(r => r.PlayerId).ToDictionary(g => g.Key, g => g.ToDictionary(r => r.Locale, r => r));
     }
 
-    private static PlayerDto Map(PlayerRow row, Dictionary<string, PlayerI18nRow>? i18n, string dbLocale)
+    private PlayerDto Map(PlayerRow row, Dictionary<string, PlayerI18nRow>? i18n, string dbLocale)
     {
         var fallback = i18n?.GetValueOrDefault(RequestLocale.DefaultDbLocale);
         var requested = i18n?.GetValueOrDefault(dbLocale);
+        var name = RequestLocale.Pick(requested?.Name, fallback?.Name);
+
+        // 🔴 fail-closed（S1-7a）：肖像同意未到位不得輸出照片，前台以預設圖或純文字卡呈現。
+        var photoKey = row.PortraitConsentStatus is "consented" or "consented_by_guardian" ? row.PhotoKey : null; // 白名單：只有確認同意才輸出（fail-closed）
+
+        // GEO-05（S1-12f）：單一來源見 SchemaRequiredFields 檔頭，Person 只要求 name。
+        var schemaEligible = SchemaRequiredFields.IsComplete(SchemaType.Person, new Dictionary<string, object?>
+        {
+            ["name"] = name,
+        });
 
         return new PlayerDto
         {
@@ -119,10 +132,11 @@ public sealed class PlayersRepository(IClubSqlConnectionFactory connectionFactor
             WeightKg = row.WeightKg,
             Nationality = row.Nationality,
             PreferredFoot = row.PreferredFoot,
-            // 🔴 fail-closed（S1-7a）：肖像同意未到位不得輸出照片，前台以預設圖或純文字卡呈現。
-            PhotoKey = row.PortraitConsentStatus is "consented" or "consented_by_guardian" ? row.PhotoKey : null, // 白名單：只有確認同意才輸出（fail-closed）
-            Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
+            PhotoKey = photoKey,
+            Name = name,
             Bio = RequestLocale.Pick(requested?.Bio, fallback?.Bio),
+            PhotoUrl = imageUrlResolver.Resolve(photoKey),
+            SchemaEligible = schemaEligible,
         };
     }
 }

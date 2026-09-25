@@ -17,6 +17,11 @@ useSeoMeta({
   title: computed(() => FIRST_TEAM_SEO[clubKey.value].title),
   description: computed(() => FIRST_TEAM_SEO[clubKey.value].description),
 })
+
+// SportsTeam JSON-LD（GEO-05／S1-12f）：一線隊代碼固定 'D1'，比照 app/pages/zh/schedule.vue
+// 既有的 TEAM_TABS 寫法（兩隊皆用同一套代碼，不分俱樂部另開一份）。資料是否合格由 apps/api
+// 算好（見 useSchemaOrgClub.ts 檔頭），現況見 apps/web/README.md「S1-12f」節。
+useSportsTeamSchema('D1')
 </script>
 
 <template>

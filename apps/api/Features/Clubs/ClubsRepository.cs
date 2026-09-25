@@ -1,12 +1,15 @@
 using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
+using Tcrfc.Api.Features.Seo;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.Clubs;
 
-public sealed class ClubsRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
+public sealed class ClubsRepository(
+    IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrlResolver)
 {
     // entity 字串是 IQueryCache.InvalidateAsync 日後比對用的鍵，兩個方法各自的資料形狀不同
     // （清單 vs 單筆），刻意分開兩個 entity 而不是共用一個。
@@ -113,15 +116,26 @@ public sealed class ClubsRepository(IClubSqlConnectionFactory connectionFactory,
             .ToDictionary(g => g.Key, g => g.ToDictionary(r => r.Locale, r => r));
     }
 
-    private static ClubDto Map(ClubRow club, Dictionary<string, ClubI18nRow>? i18n, string dbLocale)
+    private ClubDto Map(ClubRow club, Dictionary<string, ClubI18nRow>? i18n, string dbLocale)
     {
         var fallback = i18n?.GetValueOrDefault(RequestLocale.DefaultDbLocale);
         var requested = i18n?.GetValueOrDefault(dbLocale);
+        var name = RequestLocale.Pick(requested?.Name, fallback?.Name) ?? club.Code;
+
+        // GEO-05（S1-12f）：單一來源見 SchemaRequiredFields 檔頭。url 用 Domain（clubs 表 NOT NULL
+        // 欄位，恆有值）；logo 用 LogoLightKey——兩個俱樂部現況下皆為 null（見 ClubDto.SchemaEligible
+        // 的檔頭說明），本欄位會如實回報 false，不是這裡的判斷有誤。
+        var schemaEligible = SchemaRequiredFields.IsComplete(SchemaType.Organization, new Dictionary<string, object?>
+        {
+            ["name"] = name,
+            ["url"] = club.Domain,
+            ["logo"] = club.LogoLightKey,
+        });
 
         return new ClubDto
         {
             Code = club.Code,
-            Name = RequestLocale.Pick(requested?.Name, fallback?.Name) ?? club.Code,
+            Name = name,
             Description = RequestLocale.Pick(requested?.Description, fallback?.Description),
             Domain = club.Domain,
             LogoLightKey = club.LogoLightKey,
@@ -131,6 +145,8 @@ public sealed class ClubsRepository(IClubSqlConnectionFactory connectionFactory,
             BrandColor = club.BrandColor,
             BrandSecondaryColor = club.BrandSecondaryColor,
             DefaultLocale = club.DefaultLocale,
+            LogoUrl = imageUrlResolver.Resolve(club.LogoLightKey),
+            SchemaEligible = schemaEligible,
         };
     }
 }

@@ -226,6 +226,14 @@ public sealed class ArticlesRepository(
                     ["image"] = ogImage.Url,
                 });
 
+                // GEO-05（S1-12f）：BreadcrumbList 只要求「這一頁的標題與網址」，path 用 Slug
+                // （本專案沒有頁面階層資料表，見 SchemaRequiredFields 檔頭「BreadcrumbList」段）。
+                var breadcrumbSchemaEligible = SchemaRequiredFields.IsComplete(SchemaType.BreadcrumbList, new Dictionary<string, object?>
+                {
+                    ["name"] = title,
+                    ["path"] = article.Slug,
+                });
+
                 return new ArticleDetailDto
                 {
                     Id = article.Id,
@@ -255,6 +263,7 @@ public sealed class ArticlesRepository(
                     CoreValueTags = coreValueTags,
                     Relations = relations,
                     SchemaEligible = schemaEligible,
+                    BreadcrumbSchemaEligible = breadcrumbSchemaEligible,
                 };
             },
             cancellationToken);

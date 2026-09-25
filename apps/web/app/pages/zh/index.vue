@@ -26,6 +26,12 @@ useSeoMeta({
   description: computed(() => HOME_SEO[clubKey.value].description),
 })
 
+// Organization JSON-LD（GEO-05／S1-12f）。首頁是最適合放站台層級 Organization 結構化資料的
+// 頁面之一（規劃書只列型別清單，位置由本輪判斷——見 apps/web/README.md「S1-12f」節）。
+// 資料是否合格（名稱／網址／隊徽齊全）由 apps/api 的 SchemaCompleteness 算好，這裡不重判一次
+// （E-39）；現況見 useSchemaOrgClub.ts 檔頭說明。
+useOrganizationSchema()
+
 // ---- Team chips（賽事行事曆的隊伍切換）----
 const teamPanel = ref<'D1' | 'other'>('D1')
 

@@ -6346,6 +6346,87 @@ Event、SportsEvent（行事曆）、Person、Article、Course、BreadcrumbList�
 3. **`GEO-03`／`GEO-04`（事實單一來源與雙重呈現）不在本輪範圍**：依 `STATUS.md` 排程屬
    `S1-12d`（主站前台）。
 
+## S1-12f：Schema 逐型別輸出第一批（2026-09-25，`frontend-architect`）
+
+主站規劃書 §7 SEO 九項｜`GEO-05`：把 `Organization`／`SportsTeam`／`Person`／`Article`／
+`BreadcrumbList` 五個型別接上前台輸出。`Article` 已在 S1-12c 完成，本輪確認它符合同一套做法
+（`schemaEligible` 閘門）即可，不重複改動。**沒有新增資料表、沒有 migration**——沿用既有欄位，
+只新增 DTO 上的計算欄位。**判斷一律呼叫既有 `SchemaRequiredFields.IsComplete`**（`Features/Seo/
+SchemaCompleteness.cs`），沒有另外寫一份必填判斷（E-39）。
+
+### DTO 新增欄位
+
+| DTO | 新增欄位 | 對應型別 | 必填欄位判斷用的值 |
+|---|---|---|---|
+| `Features/Clubs/ClubDto` | `SchemaEligible`、`LogoUrl` | `Organization` | `name`＝`Name`、`url`＝`Domain`、`logo`＝`LogoLightKey` |
+| `Features/Teams/TeamDto` | `SchemaEligible`、`LogoUrl` | `SportsTeam` | `name`＝`Name`、`url`＝所屬俱樂部 `Domain`（需要 join `clubs`）、`logo`＝`HeroKey` **擇一回退** `Club.LogoLightKey`（`SchemaRequiredFields` 檔頭「logo（Club.LogoLightKey／Team.HeroKey）」的「／」判讀為「擇一即可」，比照既有 OG 圖片優先序寫法，非新規則） |
+| `Features/Players/PlayerDto` | `SchemaEligible`、`PhotoUrl` | `Person` | `name`＝`Name`（只要求姓名） |
+| `Features/Staff/StaffDto` | `SchemaEligible`、`PhotoUrl` | `Person` | `name`＝`Name`（只要求姓名） |
+| `Features/News/ArticleDtos.ArticleDetailDto` | `BreadcrumbSchemaEligible` | `BreadcrumbList` | `name`＝`Title`、`path`＝`Slug` |
+
+`LogoUrl`／`PhotoUrl` 都是既有 `IImagePublicUrlResolver.Resolve(objectKey)` 的直接呼叫（同一支
+S1-12 新增的服務，已用於 `OgImageUrl`），不是新機制。`PlayerDto.PhotoUrl`／`StaffDto.PhotoUrl`
+用的是**已經套用肖像同意 fail-closed 規則之後**的 `PhotoKey`（S1-7a：`portrait_consent_status`
+非同意時 `PhotoKey` 本身已經是 `null`），這裡不需要再檢查一次同意狀態，沿用同一個 fail-closed
+結果即可——未同意肖像使用的球員／教練，`PhotoUrl` 恆為 `null`。
+
+`TeamsRepository.ListAsync` 因此新增 `JOIN clubs c ON c.id = t.club_id`，多查 `c.domain`／
+`c.logo_light_key` 兩欄（只供 `SchemaEligible`／`LogoUrl` 計算用，不進 `TeamDto` 既有欄位，不是
+契約變更）。
+
+### 🔴 已知現況：兩個俱樂部目前 `Organization`／`SportsTeam` 恆為不合格
+
+`clubs.logo_light_key`／`teams.hero_key` 目前的種子資料（`db/seed/generate-club-seed-sql.py`）
+與既有後台（`Features/AdminClubs/AdminClubDtos.cs` 對標誌三組欄位刻意唯讀，見該檔案既有註解）
+都沒有任何寫入路徑——兩個俱樂部現況下這兩個布林值恆為 `false`。這是 `GEO-05`「缺漏者不輸出
+該型別」的正確行為，**不是這裡的判斷有誤**：`SchemaRequiredFields` 對 Organization／SportsTeam
+的必填欄位定義（`name`／`url`／`logo`）是 S1-12c 就已經寫定的單一來源，本輪只是把既有定義接上
+真正的資料庫查詢，沒有重新定義必填欄位（否則會違反 E-39 的精神）。等後台補上隊徽上傳路徑、
+`logo_light_key`／`hero_key` 有真實值之後，這裡的 `SchemaEligible` 會自動變 `true`，不需要再
+改任何程式碼。
+
+### 測試
+
+新增 `Tcrfc.Api.Tests/PublicSchemaEligibilityTests.cs`（8 項，`ApiFixture`／`NoOpQueryCache`，
+不需要處理快取失效）：
+
+| 測試 | 涵蓋 |
+|---|---|
+| `Club_種子資料沒有隊徽物件鍵_Organization不合格` | 現況驗證：`SchemaEligible=false`、`LogoUrl=null` |
+| `Club_補上隊徽物件鍵後_Organization合格且LogoUrl有值` | 直接 `UPDATE clubs SET logo_light_key=...`，驗證 `SchemaEligible` 翻正，`finally` 還原 |
+| `Team_種子資料沒有識別圖片_SportsTeam不合格` | 現況驗證 |
+| `Team_補上球隊識別圖片後_SportsTeam合格` | 直接 `UPDATE teams SET hero_key=...`，`finally` 還原 |
+| `Team_球隊自己沒有識別圖片但俱樂部有隊徽時_擇一合格` | 驗證 `logo` 欄位「擇一即可」的回退邏輯 |
+| `Players_種子資料皆有姓名_Person全數合格` | 28 名球員皆 `SchemaEligible=true`；`PhotoUrl` 皆 `null`（種子資料未設定同意） |
+| `Staff_種子資料皆有姓名_Person全數合格` | 8 位教練同上 |
+| `Article_有標題與網址_BreadcrumbList合格` | `BreadcrumbSchemaEligible=true` |
+
+🔴 **`LogoUrl`／`PhotoUrl` 在這批測試裡不斷言非空字串**：`ApiFixture` 沒有接真實 Azurite，
+`IImagePublicUrlResolver` 綁的是一律回傳 `null` 的 `UnavailableImagePublicUrlResolver`——
+`Resolve()` 本身的解析邏輯已由 `AdminSeoImageTests`（真實 Azurite）驗證過，這裡只驗證
+`SchemaEligible` 有沒有正確吃到新寫入的物件鍵。
+
+`dotnet test`（`Tcrfc.Api.Tests.csproj`）**502/502 全過**（既有 494 ＋ 本輪新增 8）。
+`dotnet build`／`apps/web` `npm run lint`（0 錯誤）／`apps/web` `npm run build`／`apps/api`
+與 `apps/web` 的 `docker build` 全過。
+
+### 前台（`apps/web`）串接
+
+見 [`apps/web/README.md`](../web/README.md)「S1-12f」節（新增 `useSchemaOrgClub.ts`，接上
+首頁／關於頁／一線隊頁／`our-people.vue`／`news/[slug]`；`academy/teams.vue` 因梯隊為未成年學員刻意不輸出 Person）。
+
+### 已知缺口（回報，不在本輪範圍）
+
+1. **`clubs.logo_light_key`／`teams.hero_key` 無寫入路徑**：見上方「已知現況」——機制已就緒，
+   等後台補上傳路徑即生效。
+2. **`apps/admin` 未改動**：`H6`（`SchemaCompletenessView.vue`）畫面上「目前前台實際已輸出的
+   型別只有新聞與故事文章、賽程賽事兩種」這句文字，本輪之後已經過時（Organization／SportsTeam／
+   Person／BreadcrumbList 部分頁面也已輸出），依任務邊界本輪不得改 `apps/admin`，留給下一輪
+   處理 `apps/admin` 的人同步更新這句文字。
+3. **`Event`（`calendar_custom_events`）／`Course`（`training_programs`）／`FAQPage`（`faqs`）
+   三個型別仍未接上任何前台輸出**：不在本輪任務範圍（任務指示明列的第一批只有五個型別），
+   `SchemaRequiredFields` 已涵蓋這三型別的必填欄位定義，留給後續任務。
+
 ## 相關文件
 
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表

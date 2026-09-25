@@ -83,6 +83,14 @@ public sealed record ArticleDetailDto
 
     public required bool IsShared { get; init; }
 
+    /// <summary>GEO-05（S1-12c／S1-12f）：這篇文章的資料是否足以輸出 BreadcrumbList 結構化資料
+    /// （<see cref="SchemaType.BreadcrumbList"/> 要求「這一頁本身有沒有可用的標題與網址」，見
+    /// <see cref="SchemaRequiredFields"/> 檔頭「BreadcrumbList」段——本專案目前沒有頁面階層資料表，
+    /// 只能檢查這個最小前提）。判斷條件單一來源見 <see cref="SchemaRequiredFields"/>，這裡不重新
+    /// 判斷一次（E-39）。<c>Title</c>／<c>Slug</c> 皆為 Article 既有必填內容，本欄位在有這篇文章時
+    /// 實務上恆為 <c>true</c>，仍照單一來源機制走，不因為「反正都會是 true」就省略這個檢查。</summary>
+    public required bool BreadcrumbSchemaEligible { get; init; }
+
     /// <summary>標籤（S1-5 新增）。前台詳情頁規格明文列出「標籤」是顯示項目之一（規劃書 3.7）。</summary>
     public required IReadOnlyList<ArticleTagDto> Tags { get; init; }
 
