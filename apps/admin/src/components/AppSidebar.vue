@@ -21,8 +21,9 @@ const router = useRouter()
 
 /**
  * `J 系統管理`、`H 搜尋與 AI 能見度` 整組只有系統管理員看得到（`J`：規劃書 §6 權限矩陣「系統」欄
- * 只有系統管理員打勾；`H`：S1-12 的 `seo.setting.*`／`seo.redirect.*`／`seo.report.view` 權限碼
- * 全部 `sysadmin_only=1`，見 apps/api/README.md「S1-12」「權限碼」）。這裡只是選單可見度，
+ * 只有系統管理員打勾；`H`：`seo.setting.*`／`seo.redirect.*`／`seo.report.view`／`seo.llms.*`／
+ * `seo.crawler.*`／`seo.schema.view` 六段權限碼全部 `sysadmin_only=1`，見 apps/api/README.md
+ * 「S1-12」「S1-12a」「S1-12b」「S1-12c」各節「權限碼」）。這裡只是選單可見度，
  * 不是安全邊界——真正的把關在後端每一個 `sysadmin_only` 權限碼與 `router/index.ts` 的第二層路由守衛。
  */
 const SYSADMIN_ONLY_MODULE_CODES = new Set(['J', 'H'])

@@ -1,9 +1,10 @@
 /**
  * `apps/api` 後台「搜尋與 AI 能見度」端點（`Features/AdminSeo`），對照
- * apps/api/README.md「S1-12：`H` 搜尋與 AI 能見度」。涵蓋五段：
+ * apps/api/README.md「S1-12：`H` 搜尋與 AI 能見度」。涵蓋六段：
  * 全站 SEO 預設＋追蹤碼（`seo.setting.*`）、301 轉址（`seo.redirect.*`）、孤立頁面偵測
  * （`seo.report.view`）、`llms.txt`（AI 摘要資料，`seo.llms.*`，apps/api/README.md「S1-12a」）、
- * AI 爬蟲授權（`seo.crawler.*`，apps/api/README.md「S1-12b」）。五段權限碼皆為 `sysadmin_only`
+ * AI 爬蟲授權（`seo.crawler.*`，apps/api/README.md「S1-12b」）、結構化資料完整性檢查
+ * （`seo.schema.view`，apps/api/README.md「S1-12c」）。六段權限碼皆為 `sysadmin_only`
  * （見 apps/api/README.md 各節「權限碼」）。
  */
 import { apiRequest, apiUploadRequest, API_BASE_URL, AdminApiError } from './http'
@@ -272,4 +273,37 @@ export function getAdminCrawlerSettings(club: string): Promise<AdminCrawlerSetti
 
 export function updateAdminCrawlerSettings(club: string, payload: UpdateCrawlerSettingsPayload): Promise<AdminCrawlerSettingsDto> {
   return apiRequest<AdminCrawlerSettingsDto>(`/api/v1/admin/${club}/seo/crawler-settings`, { method: 'PUT', body: payload })
+}
+
+// ── 結構化資料完整性檢查（H6，S1-12c）─────────────────────────────────────────────
+// 對照 `Features/AdminSeo/AdminSeoSchemaCompletenessDtos.cs`。唯讀報表，`entityType` 值域
+// 沿用既有 `OrphanPageDto.EntityType` 同一套設計：`club`／`team`／`event`／`match`／`player`／
+// `article`／`program`／`page`／`faq`，只用來判斷這一筆該連去哪一個編輯頁，不直接顯示在畫面上。
+
+export interface SchemaCompletenessFieldDto {
+  labelZh: string
+  labelEn?: string | null
+}
+
+export type SchemaCompletenessEntityType =
+  | 'club' | 'team' | 'event' | 'match' | 'player' | 'article' | 'program' | 'page' | 'faq'
+
+/** `schemaTypeName` 是 schema.org 本身的 `@type` 字面值（`Organization`／`SportsTeam`／`Event`／
+ * `SportsEvent`／`Person`／`Article`／`Course`／`BreadcrumbList`／`FAQPage`），介面上一律換成
+ * 日常中文顯示（見本檔 `SCHEMA_TYPE_INFO`），不直接顯示這個英文值。 */
+export interface SchemaCompletenessIssueDto {
+  schemaTypeName: string
+  entityType: SchemaCompletenessEntityType
+  id: string
+  label?: string | null
+  path?: string | null
+  missingFields: SchemaCompletenessFieldDto[]
+}
+
+export interface SchemaCompletenessReportDto {
+  items: SchemaCompletenessIssueDto[]
+}
+
+export function getAdminSchemaCompleteness(club: string): Promise<SchemaCompletenessReportDto> {
+  return apiRequest<SchemaCompletenessReportDto>(`/api/v1/admin/${club}/seo/schema-completeness`)
 }

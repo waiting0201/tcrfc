@@ -2201,3 +2201,91 @@ session（`/auth/me` 權限清單、S1-10 缺口修正）大幅修改中，`dotn
    （含資料庫連線字串）的環境下重新執行，比照既有 `git worktree` 隔離慣例。
 2. **`content_editor` 角色看不到 H1–H5 的驗收仍未完成**：延續 S1-12 收尾時的既有缺口，
    卡在同一個「無法啟動 `apps/api`」的環境限制上，需要跟第 1 點一起補做。
+
+---
+
+## H6：結構化資料完整性檢查（S1-12c，2026-09-25）
+
+對應主站規劃書 §4.8 H「結構化資料完整性檢查」、§7 `GEO-05`，接上同名後端
+（`apps/api/README.md`「S1-12c」）。放在既有「搜尋與 AI 能見度」（`H`）選單下，跟 H1–H5
+同一組、整組只有系統管理員在側欄看得到（`AppSidebar.vue` 既有的 `SYSADMIN_ONLY_MODULE_CODES`
+已含 `'H'`，本輪不需要改這個判斷）。唯讀報表，不新增任何寫入操作。
+
+### 新增／修改的檔案
+
+- `src/api/adminSeo.ts`（修改）：新增 `SchemaCompletenessFieldDto`／`SchemaCompletenessIssueDto`／
+  `SchemaCompletenessReportDto`／`getAdminSchemaCompleteness`（對照
+  `Features/AdminSeo/AdminSeoSchemaCompletenessDtos.cs`），檔頭註解「五段」改成「六段」。
+- `src/views/seo/SchemaCompletenessView.vue`（新增，H6）：依型別分組的唯讀報表，版面比照
+  `OrphanPagesReportView.vue`（H3）既有寫法（`el-alert` 說明限制 ＋ 逐組 `el-card`／`el-table`）。
+- `src/router/index.ts`：新增 `/seo/schema-completeness`（H6），`meta.sysadminOnly: true`
+  （比照 H1–H5 既有寫法）。
+- `src/data/nav.ts`：`H` 子模組新增 `H6`，檔頭註解「五個子模組」改成「六個子模組」。
+- `docs/06-conventions.md` §1：新增 `JSON-LD` 一筆，以及九種 schema.org 結構化資料型別
+  （`Organization`／`SportsTeam`／`Event`／`SportsEvent`／`Person`／`Article`／`Course`／
+  `BreadcrumbList`／`FAQPage`）的日常中文對照，供本畫面與日後 `S1-12f` 逐型別輸出畫面共用。
+
+### 規劃書沒寫清楚、本輪自行判斷的部分
+
+1. **依型別分組陳列，不是單一張大表格**：規劃書只寫「列出必填欄位缺漏的頁面與型別」，沒有規定
+   陳列方式。九種型別混在同一張表格裡，使用者很難一眼看出「哪一種型別缺最多」，改成逐型別一個
+   `el-card`（型別名稱、是否已對外輸出的標籤、必填欄位提示、缺漏筆數），型別內部才是表格——
+   比照後端報表本身「只回傳有缺漏的列」的設計精神，介面上也只顯示有缺漏的型別分組。
+2. **明講「哪些型別網站已經真的輸出、哪些還沒有」**：後端報表本身只回傳缺漏清單，不區分型別是否
+   已接上前台輸出；`apps/api/README.md`「S1-12c」的「已知缺口」段落記載目前只有
+   `Article`／`SportsEvent` 兩型別真的接上輸出，其餘七種（`Organization`／`SportsTeam`／
+   `Event`／`Person`／`Course`／`BreadcrumbList`／`FAQPage`）後端已在掃描但前台還沒有輸出。
+   任務指示明文要求「說明目前前台哪些類型已經有輸出」，本輪把這份判斷寫死在前端
+   `SCHEMA_TYPE_INFO.liveOnFrontend`（對照上述 README 段落逐字核對），不是後端 DTO 的欄位——
+   這份對照日後 `S1-12f` 接上更多型別時要記得同步更新，已在程式碼註解點出這個風險。
+3. **「所屬資料」欄用內部型別詞彙（`entityType`）的中文，不是 schema.org 型別名稱**：
+   `BreadcrumbList` 一種型別底下會混著「頁面」與「新聞與故事」兩種內部資料（後端
+   `AdminSeoSchemaCompletenessRepository` 對 `pages`／`articles` 都會產生 `BreadcrumbList` 缺漏
+   列），只看型別分組會分不出這一筆到底是頁面還是文章，額外加一欄用既有 H3
+   `OrphanPageDto.entityType` 同一套值域與翻譯慣例區分。
+4. **「編輯」連結逐一比對 `router/index.ts` 現有路由名稱，不是猜測命名規律**：九種
+   `entityType`（`club`／`team`／`event`／`match`／`player`／`article`／`program`／`page`／
+   `faq`）分別連到 `system-club-edit`／`team-edit`／`calendar-event-edit`／`match-edit`／
+   `player-edit`／`news-edit`／`program-item-edit`／`page-edit`／`faq-edit`——**九種型別目前全部
+   都有現成的編輯頁可連**（含 `club` 對應的俱樂部主檔編輯頁 `system-club-edit`，即 J4
+   「俱樂部與授權管理」），因此本輪沒有出現「型別沒有編輯頁、只能顯示不能連」的情況；
+   程式碼仍保留 `editRouteFor` 回傳 `null` 的防呆分支，避免日後新增型別忘記補連結時整頁壞掉。
+
+### 驗收紀錄（2026-09-25，本機環境）
+
+1. **`apps/admin`／`apps/web` 的 `npm run lint` 皆過**：`apps/admin` 六項檢查（含禁用詞掃描、
+   對比度、EditView 一次性求值——`SchemaCompletenessView.vue` 非 EditView 命名，不受第六項規則
+   約束）全綠；`apps/web` 0 錯誤（既有 539 筆屬性排序等警告與本輪無關，本輪未修改 `apps/web`
+   任何檔案）。`apps/admin` 的 `npm run build`（`vue-tsc -b && vite build`）通過，型別檢查與
+   建置皆無錯誤。
+2. 🔴 **無頭瀏覽器實走未能完成，標記「未驗證」**：本輪依 S1-12a／S1-12b 已經記錄過的同一個環境
+   限制——本機啟動 `apps/api` 需要在指令列具現化資料庫連線字串（含密碼），會被 session 自動
+   模式安全防護擋下（`[Safety Bypass Flag]`）。硬規則明文「被 session 的安全防護或權限機制擋下
+   的操作，不得以任何等效途徑達成同樣目的」，且**指示本身明講「上一個 agent 在本機啟動
+   apps/api 時被擋過一次，被擋就停，不要嘗試其他啟動方式」**——本輪因此**沒有**重新嘗試啟動
+   `apps/api`（不像 H4／H5 那輪還實際試了一次才被擋下），直接依既有紀錄判定會被同一機制擋住。
+   因此下列項目全部是「未驗證」：
+   - 系統管理員（`clean.login@tcrfc.test`）打開報表，看到至少一筆缺漏（暫時建立一筆缺欄位的
+     賽事或文章）→ 點連結到編輯頁補齊 → 回報表確認消失。
+   - `content.editor.login@tcrfc.test`（`content_editor`，僅 `tcrfc`，S0-13 已補、可直接登入）
+     的權限限制實走——側欄看不到「結構化資料完整性檢查」、直接輸入網址 `/seo/schema-completeness`
+     進不去（前端 `router.beforeEach` 的 `sysadminOnly` 判斷與後端 `seo.schema.view` 權限碼皆已
+     核對原始碼確認邏輯正確，但沒有真實 HTTP 往返驗證）。
+3. **後端行為的靜態核對（非即時驗收，用來確認前端 DTO／請求形狀與路由連結正確）**：逐字對照
+   `Features/AdminSeo/AdminSeoSchemaCompletenessDtos.cs`／`AdminSeoSchemaCompletenessEndpoints.cs`／
+   `AdminSeoSchemaCompletenessRepository.cs` 原始碼，確認欄位命名（camelCase）、`entityType` 值域
+   （`club`／`team`／`event`／`match`／`player`／`article`／`program`／`page`／`faq`）、
+   `schemaTypeName` 是 schema.org `@type` 字面值；並逐一在 `router/index.ts` 核對九種 `entityType`
+   對應的既有編輯頁路由名稱與 `:id` 參數存在。**這不能取代真實的 HTTP 往返測試**，只能降低
+   「串接形狀對不起來」與「連結指向不存在的路由」的風險，不是驗收紀錄。
+
+### 已知缺口（回報，不在本輪自行判斷做或不做）
+
+1. **無頭瀏覽器完整驗收待補**：見上方「驗收紀錄」第 2 點，需要能在允許啟動本機 `apps/api`
+   （含資料庫連線字串）的環境下重新執行，比照既有 `git worktree` 隔離慣例。這是延續
+   S1-12／S1-12a／S1-12b 同一個環境限制，不是本輪新發現的缺口。
+2. **`SCHEMA_TYPE_INFO.liveOnFrontend` 是前端手動維護的判斷，不是後端 DTO 欄位**：見上方
+   「規劃書沒寫清楚、本輪自行判斷的部分」第 2 點，`S1-12f` 等後續任務把更多型別接上前台輸出時，
+   要記得回來同步更新這份對照，否則畫面會顯示過時的「網站尚未輸出此類型」。
+3. **其餘六個型別尚未接上任何前台輸出**（`S1-12c` 後端已知缺口，非本輪範圍）：本畫面照樣列出
+   這些型別的資料缺漏，先幫忙把資料準備好，等 `S1-12f` 接上輸出時不用重新盤點一次。

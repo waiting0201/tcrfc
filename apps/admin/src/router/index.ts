@@ -53,6 +53,7 @@ const RedirectListView = () => import('@/views/seo/RedirectListView.vue')
 const OrphanPagesReportView = () => import('@/views/seo/OrphanPagesReportView.vue')
 const LlmsContentView = () => import('@/views/seo/LlmsContentView.vue')
 const AiCrawlerView = () => import('@/views/seo/AiCrawlerView.vue')
+const SchemaCompletenessView = () => import('@/views/seo/SchemaCompletenessView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -277,6 +278,12 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     name: 'seo-crawler-settings',
     component: AiCrawlerView,
     meta: { label: 'AI 爬蟲授權', code: 'H5', sysadminOnly: true },
+  },
+  {
+    path: '/seo/schema-completeness',
+    name: 'seo-schema-completeness',
+    component: SchemaCompletenessView,
+    meta: { label: '結構化資料完整性檢查', code: 'H6', sysadminOnly: true },
   },
   {
     path: '/system/accounts',
