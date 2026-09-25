@@ -79,9 +79,10 @@ curl -s http://127.0.0.1:3002/zh/ | grep -o 'data-club="[a-z]*"'   # bw
 1. `app/middleware/unit-gate.global.ts`（route middleware，依 `definePageMeta({ unit })` 檔 404）
 2. `app/components/SiteHeader.vue`／`SiteFooter.vue`（導覽選單，`v-if` 過濾女子足球／慈善連結）
 3. `server/api/__sitemap__/urls.ts`（sitemap 的網址來源；⚠️ `/sitemap.xml` 本身的輸出尚未接通，見下方「已知缺口」）
-4. `server/routes/llms.txt.ts` / `llms-en.txt.ts`（GEO-01）；`robots.txt` 由 `nuxt.config.ts` 的
-   `robots: { disallow: ['/'] }` 全站擋（上線前 noindex，`CLAUDE.md` 第 5 條），
-   待正式期改為完整 GEO 版時同樣要呼叫這支函式，不得另開一份邏輯
+4. `server/routes/llms.txt.ts` / `llms-en.txt.ts`（GEO-01，S1-12a 起內容改讀後台
+   `GET /api/v1/{club}/seo/llms-content`，「代表頁清單」欄位空白時仍回退呼叫這支函式組出預設值，
+   不得另開一份邏輯）；`robots.txt` 見 `server/routes/robots.txt.ts`（S1-12／S1-12b，取代
+   `nuxt.config.ts` 原本 `@nuxtjs/robots` 的固定輸出，見下方「已知缺口」S1-12 區塊）
 
 資料表本身（`shared/utils/site-units.ts`）目前只到「單元」層級的骨架設定檔，
 不是最終資料來源——之後應該改讀後台維護的真實內容。
@@ -153,6 +154,21 @@ node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:3012
     新增 `og:title`／`og:description`／`og:image`（含尺寸與 alt）／`keywords`／
     `<meta name="robots">`（`isNoindex`）／`<link rel="canonical">`（`canonicalPath` 有值時），
     已用一篇真實文章的實際 SSR HTML 輸出逐一核對過。
+- ✅ **S1-12a（`GEO-01` `llms.txt` 維護）／S1-12b（`GEO-02` AI 爬蟲授權）後端與前台串接已完成
+  （2026-09-25）**，詳見 `apps/api/README.md`「S1-12a」「S1-12b」兩節：
+  - `server/routes/llms.txt.ts`／`llms-en.txt.ts` 改讀 `GET /api/v1/{club}/seo/llms-content`
+    的五個區塊（站點定位／代表頁清單／事實摘要／授權與引用方式／聯絡窗口，逐語系）。管理員
+    任一區塊未填寫時，個別區塊回退到路由檔內建的預設文字（英文版另外多一層「英文空白時退回
+    中文」），不是整份輸出失敗；`apps/api` 暫時連不上時整份回退到內建預設（跟既有
+    `sitemap-urls.ts`／`robots.txt.ts` 同一種防禦性寫法）。「隨發布重產、不以人工改檔」的落實：
+    這兩支路由每個請求都重新呼叫後端組字串，管理員儲存後下一次請求即反映，不需要另外部署。
+  - `server/routes/robots.txt.ts` 的 `production` 分支擴充：改讀
+    `GET /api/v1/{club}/seo/crawler-settings`（合併後的排除路徑：規劃書強制的路徑
+    ∪ 後台自行再加的路徑），套用到 `User-agent: *`（全站對所有爬蟲一視同仁，理由是這些排除
+    是個資防線不是純 SEO 設定，見 `docs/14-invariants.md`），並為後台設定的每個 AI 使用者代理
+    輸出專屬區塊（允許＝`Allow: /` ＋ 同一份排除清單；拒絕＝整段 `Disallow: /`）。已用真實
+    HTTP 請求驗證（見 `apps/api/README.md`「S1-12b」節的驗收紀錄），含 `tcrfc`／`bw` 兩站
+    強制清單各自正確（`bw` 目前沒有對應的未成年學員照片頁面，不會誤套用 `tcrfc` 專屬那一條）。
 - ✅ **`/sitemap.xml` 已修好**（2026-09-22）。真正根因不是「動態來源偵測」——是
   `@nuxtjs/sitemap` 內建路由會把命中全站 `X-Robots-Tag: noindex` route rule 的網址
   整批排除，本站上線前必然全站 noindex（CLAUDE.md 第 5 條），所以每一筆都被排除。
@@ -203,8 +219,6 @@ node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:3012
   （純幾何操作，不是造標或描摹，`brand/blue-whale/README.md` 明列這是點陣主檔的允許用途之一），
   OG 圖直接重用 `bw-crest-512.png` 本身、沒有另外設計版面。**缺**：向量標誌主檔、專屬 OG 設計稿、
   印刷色票——見 `docs/13-blue-whale-site.md` §5 待確認事項第 2 項。
-- 🟡 **`llms.txt`／`llms-en.txt` 只到事實摘要骨架**：正式規格是「由後台 H 模組維護、隨發布重產、
-  不以人工改檔」（`docs/14-invariants.md`），但後台尚未開發，目前是程式碼寫死的骨架文字。
 - ⬜ 只有 `/`（轉址）與 `/zh/`（首頁）兩個路由；其餘導覽連結（`/zh/about/`、`/zh/club/`…）
   目前都是有效的 `<a href>` 但頁面不存在，會 404——這是刻意的（S0-9 完整搬遷前的預期狀態），
   `npm run lint` 的 `link-checker/valid-route` 錯誤就是在提醒這件事，不是骨架本身的 bug。

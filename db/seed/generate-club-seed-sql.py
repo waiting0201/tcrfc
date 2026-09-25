@@ -1008,6 +1008,16 @@ PERMISSIONS = [
     ("seo.redirect.delete", "H", "H2", "seo", "delete", 1, 0, 1, "刪除 301 轉址", "Delete Redirects"),
     ("seo.redirect.import", "H", "H2", "seo", "import", 1, 0, 1, "批次匯入 301 轉址", "Import Redirects"),
     ("seo.report.view", "H", "H3", "seo", "view", 1, 0, 1, "檢視孤立頁面偵測", "View Orphan Page Report"),
+    # S1-12a／S1-12b 新增（2026-09-25）：GEO-01 llms.txt 維護（H4）、GEO-02 AI 爬蟲授權（H5）。
+    # 跟既有 seo.setting.*／seo.redirect.*／seo.report.* 同一組 sysadmin_only 判斷理由——矩陣
+    # 「SEO／設定」欄十個角色只有系統管理員打勾，domain 統一取 "seo"（跟 H1–H3 一致，不因為內容
+    # 語意上屬於 GEO 就另開一個 domain 值，domain 是既有值域表已列的值，見 docs/12b §7.3）。
+    # is_club_scoped=1——llms.txt 與 robots.txt 的 AI 爬蟲設定各站（tcrfc／bw）各自一份
+    # （GEO-09「兩站各自獨立」同一個精神）。
+    ("seo.llms.view", "H", "H4", "seo", "view", 1, 0, 1, "檢視 llms.txt 內容維護", "View llms.txt Content"),
+    ("seo.llms.update", "H", "H4", "seo", "update", 1, 0, 1, "編輯 llms.txt 內容維護", "Update llms.txt Content"),
+    ("seo.crawler.view", "H", "H5", "seo", "view", 1, 0, 1, "檢視 AI 爬蟲授權設定", "View AI Crawler Settings"),
+    ("seo.crawler.update", "H", "H5", "seo", "update", 1, 0, 1, "編輯 AI 爬蟲授權設定", "Update AI Crawler Settings"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")

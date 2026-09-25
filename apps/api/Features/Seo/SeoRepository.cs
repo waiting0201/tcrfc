@@ -1,6 +1,8 @@
+using System.Text.Json;
 using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.AdminSeo;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -150,6 +152,112 @@ public sealed class SeoRepository(IClubSqlConnectionFactory connectionFactory, I
                 return (IReadOnlyList<SitemapEntryDto>)rows
                     .Select(r => new SitemapEntryDto { Path = $"/zh/news/{r.Slug}/", LastModifiedAt = r.UpdatedAt })
                     .ToList();
+            },
+            cancellationToken);
+    }
+
+    // ───────────────────────────── GEO-01：llms.txt 內容（S1-12a） ─────────────────────────────
+
+    private const string LlmsContentEntity = "seo-llms-content";
+
+    private static readonly string[] LlmsKeys =
+    [
+        "geo.llms_positioning", "geo.llms_key_pages", "geo.llms_facts_summary", "geo.llms_license", "geo.llms_contact",
+    ];
+
+    /// <summary>供 <c>apps/web</c> 的 <c>server/routes/llms.txt.ts</c>／<c>llms-en.txt.ts</c> 消費，
+    /// 見 <see cref="AdminGeoLlmsRepository"/> 檔頭「隨發布重產的落實方式」。</summary>
+    public async Task<PublicLlmsContentDto> GetLlmsContentAsync(ClubScope scope, CancellationToken cancellationToken)
+    {
+        return await cache.GetOrCreateAsync(
+            LlmsContentEntity, scope.ClubCode, CacheDimensions.AnyLocale, CacheDimensions.NoQualifier,
+            async ct =>
+            {
+                using var connection = connectionFactory.CreateConnection();
+
+                const string i18nSql = """
+                    SELECT s.setting_key AS SettingKey, si.locale AS Locale, si.value AS Value
+                    FROM settings s
+                    JOIN settings_i18n si ON si.setting_id = s.id
+                    WHERE s.club_id = @ClubId AND s.setting_key IN @Keys
+                    """;
+
+                var rows = (await connection.QueryAsync<SettingI18nRow>(new CommandDefinition(
+                    i18nSql, new { scope.ClubId, Keys = LlmsKeys }, cancellationToken: ct))).ToList();
+
+                string? I18n(string key, string locale) => rows
+                    .FirstOrDefault(r => r.SettingKey == key && r.Locale == locale)?.Value;
+
+                return new PublicLlmsContentDto
+                {
+                    PositioningZh = I18n("geo.llms_positioning", RequestLocale.DefaultDbLocale),
+                    PositioningEn = I18n("geo.llms_positioning", "en"),
+                    KeyPagesZh = I18n("geo.llms_key_pages", RequestLocale.DefaultDbLocale),
+                    KeyPagesEn = I18n("geo.llms_key_pages", "en"),
+                    FactsSummaryZh = I18n("geo.llms_facts_summary", RequestLocale.DefaultDbLocale),
+                    FactsSummaryEn = I18n("geo.llms_facts_summary", "en"),
+                    LicenseZh = I18n("geo.llms_license", RequestLocale.DefaultDbLocale),
+                    LicenseEn = I18n("geo.llms_license", "en"),
+                    ContactZh = I18n("geo.llms_contact", RequestLocale.DefaultDbLocale),
+                    ContactEn = I18n("geo.llms_contact", "en"),
+                };
+            },
+            cancellationToken);
+    }
+
+    // ───────────────────────────── GEO-02：AI 爬蟲授權（S1-12b） ─────────────────────────────
+
+    private const string CrawlerSettingsEntity = "seo-crawler-settings";
+    private static readonly JsonSerializerOptions CrawlerJsonOptions = new(JsonSerializerDefaults.Web);
+
+    private sealed record CrawlerSettingValueRow(string SettingKey, string? SettingValue);
+
+    /// <summary>
+    /// 供 <c>apps/web</c> 的 <c>server/routes/robots.txt.ts</c> 消費。🔴
+    /// <see cref="PublicCrawlerSettingsDto.ExcludePaths"/> **一律是
+    /// <see cref="GeoCrawlerDefaults.GetMandatoryExcludePaths"/>（強制、程式碼寫死）∪ 後台自行
+    /// 再加的路徑**，去重後強制路徑排在前面——這是唯一組出「最終排除清單」的地方，
+    /// <c>apps/web</c> 端不需要（也不應該）自己再合併一次強制清單，避免兩處各自維護、日久漂移。
+    /// </summary>
+    public async Task<PublicCrawlerSettingsDto> GetCrawlerSettingsAsync(ClubScope scope, CancellationToken cancellationToken)
+    {
+        return await cache.GetOrCreateAsync(
+            CrawlerSettingsEntity, scope.ClubCode, CacheDimensions.AnyLocale, CacheDimensions.NoQualifier,
+            async ct =>
+            {
+                using var connection = connectionFactory.CreateConnection();
+
+                const string sql = """
+                    SELECT setting_key AS SettingKey, setting_value AS SettingValue
+                    FROM settings
+                    WHERE club_id = @ClubId AND setting_key IN ('geo.crawler_agents', 'geo.crawler_extra_exclude_paths')
+                    """;
+
+                var rows = (await connection.QueryAsync<CrawlerSettingValueRow>(new CommandDefinition(
+                    sql, new { scope.ClubId }, cancellationToken: ct))).ToList();
+
+                var agentsValue = rows.FirstOrDefault(r => r.SettingKey == "geo.crawler_agents")?.SettingValue;
+                var pathsValue = rows.FirstOrDefault(r => r.SettingKey == "geo.crawler_extra_exclude_paths")?.SettingValue;
+
+                List<CrawlerAgentDto> agents = string.IsNullOrWhiteSpace(agentsValue)
+                    ? GeoCrawlerDefaults.DefaultUserAgents
+                        .Select(d => new CrawlerAgentDto { UserAgent = d.UserAgent, Allowed = d.Allowed }).ToList()
+                    : (JsonSerializer.Deserialize<List<CrawlerAgentDto>>(agentsValue, CrawlerJsonOptions) ?? new List<CrawlerAgentDto>());
+
+                List<string> additionalPaths = string.IsNullOrWhiteSpace(pathsValue)
+                    ? new List<string>()
+                    : (JsonSerializer.Deserialize<List<string>>(pathsValue, CrawlerJsonOptions) ?? new List<string>());
+
+                var excludePaths = GeoCrawlerDefaults.GetMandatoryExcludePaths(scope.ClubCode)
+                    .Concat(additionalPaths)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+
+                return new PublicCrawlerSettingsDto
+                {
+                    UserAgents = agents,
+                    ExcludePaths = excludePaths,
+                };
             },
             cancellationToken);
     }

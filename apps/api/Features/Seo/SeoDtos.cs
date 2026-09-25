@@ -1,3 +1,5 @@
+using Tcrfc.Api.Features.AdminSeo;
+
 namespace Tcrfc.Api.Features.Seo;
 
 /// <summary>公開讀取的全站 SEO 預設＋追蹤碼（S1-12）。內容全部是「本來就會出現在頁面原始碼／
@@ -41,4 +43,33 @@ public sealed record SitemapEntryDto
 {
     public required string Path { get; init; }
     public DateTime? LastModifiedAt { get; init; }
+}
+
+/// <summary>公開讀取的 <c>llms.txt</c> 內容（`GEO-01`，S1-12a）。形狀對應後台
+/// <c>Features/AdminSeo/AdminLlmsContentDto</c>，欄位一致，供 <c>apps/web</c> 的
+/// <c>server/routes/llms.txt.ts</c>／<c>llms-en.txt.ts</c> 消費。任一欄位為 <c>null</c> 表示
+/// 管理員尚未填寫，前台自行套用內建預設文字（見兩支路由檔頭說明），不是這個端點的責任。</summary>
+public sealed record PublicLlmsContentDto
+{
+    public string? PositioningZh { get; init; }
+    public string? PositioningEn { get; init; }
+    public string? KeyPagesZh { get; init; }
+    public string? KeyPagesEn { get; init; }
+    public string? FactsSummaryZh { get; init; }
+    public string? FactsSummaryEn { get; init; }
+    public string? LicenseZh { get; init; }
+    public string? LicenseEn { get; init; }
+    public string? ContactZh { get; init; }
+    public string? ContactEn { get; init; }
+}
+
+/// <summary>公開讀取的 AI 爬蟲授權設定（`GEO-02`，S1-12b），供 <c>apps/web</c> 的
+/// <c>server/routes/robots.txt.ts</c> 組出各 <c>User-agent:</c> 區塊。<see cref="ExcludePaths"/>
+/// **已經是強制排除路徑 ∪ 後台自行再加的路徑**的合併結果（見
+/// <see cref="SeoRepository.GetCrawlerSettingsAsync"/> 檔頭）——前台不需要、也不應該自己再算一次
+/// 強制清單，直接用這裡回傳的完整清單即可。</summary>
+public sealed record PublicCrawlerSettingsDto
+{
+    public required IReadOnlyList<CrawlerAgentDto> UserAgents { get; init; }
+    public required IReadOnlyList<string> ExcludePaths { get; init; }
 }

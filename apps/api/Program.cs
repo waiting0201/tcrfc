@@ -299,6 +299,8 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Faqs.FaqsRepository>();
 builder.Services.AddScoped<AdminSeoSettingsRepository>();
 builder.Services.AddScoped<AdminRedirectsRepository>();
 builder.Services.AddScoped<AdminSeoReportRepository>();
+builder.Services.AddScoped<AdminGeoLlmsRepository>();
+builder.Services.AddScoped<AdminGeoCrawlerRepository>();
 builder.Services.AddScoped<SeoRepository>();
 
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
@@ -487,6 +489,11 @@ app.MapAdminCalendarEndpoints();
 app.MapAdminSeoSettingsEndpoints();
 app.MapAdminRedirectsEndpoints();
 app.MapAdminSeoReportEndpoints();
+
+// ── S1-12a／S1-12b：GEO-01 llms.txt 維護／GEO-02 AI 爬蟲授權 ──────────────
+app.MapAdminGeoLlmsEndpoints();
+app.MapAdminGeoCrawlerEndpoints();
+
 app.MapSeoEndpoints();
 
 app.Run();

@@ -47,5 +47,34 @@ public static class SeoEndpoints
         .WithTags("Seo")
         .Produces<IReadOnlyList<SitemapEntryDto>>()
         .Produces(StatusCodes.Status404NotFound);
+
+        // GET /api/v1/{club}/seo/llms-content —— GEO-01（S1-12a），供 apps/web 的
+        // server/routes/llms.txt.ts／llms-en.txt.ts 消費。
+        app.MapGet("/api/v1/{club}/seo/llms-content", async (
+            string club, IClubResolver clubResolver, SeoRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
+            var result = await repository.GetLlmsContentAsync(scope, cancellationToken);
+            return Results.Ok(result);
+        })
+        .WithName("GetLlmsContent")
+        .WithTags("Seo")
+        .Produces<PublicLlmsContentDto>()
+        .Produces(StatusCodes.Status404NotFound);
+
+        // GET /api/v1/{club}/seo/crawler-settings —— GEO-02（S1-12b），供 apps/web 的
+        // server/routes/robots.txt.ts 消費。ExcludePaths 已是強制排除路徑與後台自加路徑的合併結果，
+        // 見 SeoRepository.GetCrawlerSettingsAsync 檔頭。
+        app.MapGet("/api/v1/{club}/seo/crawler-settings", async (
+            string club, IClubResolver clubResolver, SeoRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
+            var result = await repository.GetCrawlerSettingsAsync(scope, cancellationToken);
+            return Results.Ok(result);
+        })
+        .WithName("GetCrawlerSettings")
+        .WithTags("Seo")
+        .Produces<PublicCrawlerSettingsDto>()
+        .Produces(StatusCodes.Status404NotFound);
     }
 }

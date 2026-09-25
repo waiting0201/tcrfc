@@ -5978,13 +5978,229 @@ Azurite，見下方小節）**，且 `AdminSeoTests.cs` 的設定讀寫測試已
 ### 已知缺口（回報，不在本輪自行判斷做或不做）
 
 1. **後台畫面待做**：`apps/admin` 完全未改動（任務邊界僅 `apps/api`／`apps/web`）。
-2. **`GEO-01`／`GEO-02`**：依 `STATUS.md` 排程屬 `S1-12a`／`S1-12b`，本輪明確不做，但資料結構
-   （`settings` 的 `seo`／`tracking` 群組、`Redirect` 表、新增的 `og_image_*` 欄位）不會擋到它們
-   接續開發。
-3. **`llms.txt`／`llms-en.txt` 內容仍是骨架佔位**：屬 `GEO-01`（`S1-12a`），本輪未動。
-4. **全站預設 OG 圖片沒有替代文字欄位**：`clubs`／`clubs_i18n` 沒有對應的 `og_image_alt`——
+2. ✅ **`GEO-01`／`GEO-02`**：已於 `S1-12a`／`S1-12b`（2026-09-25）完成，見下方兩節。
+3. **全站預設 OG 圖片沒有替代文字欄位**：`clubs`／`clubs_i18n` 沒有對應的 `og_image_alt`——
    Open Graph 規格本身沒有強制要求 `og:image:alt`，本輪判斷這個缺口可接受，不特別為全站預設圖
    新增一個 i18n 欄位；單頁（Article／Page）專屬的 OG 圖片已有 alt 欄位，不受影響。
+
+## S1-12a：`GEO-01` `llms.txt` 維護（2026-09-25，`backend-engineer`）
+
+主站規劃書 §7 `GEO-01`／§4.8「`llms.txt` 維護」：站點定位、代表頁清單、事實摘要、授權與引用、
+聯絡窗口，**繁中英文各一份、兩站各自一份、隨發布重產、不以人工改檔**。**不新增資料型別**，
+沿用既有 `settings`／`settings_i18n`（`setting_group='geo'`）。
+
+### 資料庫綱要異動
+
+**沒有 migration**——五個區塊各自一個鍵，沿用既有 `settings`／`settings_i18n` 結構，不需要任何
+DDL 異動：`geo.llms_positioning`／`geo.llms_key_pages`／`geo.llms_facts_summary`／
+`geo.llms_license`／`geo.llms_contact`，皆逐語系（`zh-Hant`／`en`）。
+
+### 權限碼
+
+矩陣「SEO／設定」欄同 `S1-12` 既有的 `seo.*` 一組判斷——十個角色只有系統管理員打勾，
+`sysadmin_only=1`（`module_code=H`、`submodule_code=H4`、`domain=seo`）：
+
+- `seo.llms.view`／`seo.llms.update`：`llms.txt` 內容維護
+
+### 端點
+
+**後台（需登入＋`sysadmin_only`）**：
+- `GET`／`PUT /api/v1/admin/{club}/seo/llms-content`——`AdminLlmsContentDto`，純 JSON（沒有圖片
+  欄位，不需要 `multipart/form-data`）。
+
+**公開（不需要登入，供 `apps/web` 串接）**：
+- `GET /api/v1/{club}/seo/llms-content`——`PublicLlmsContentDto`，接上既有 `IQueryCache`
+  （entity `seo-llms-content`），跟其餘 `Features/Seo` 讀取端點一致，最多延後一個 TTL
+  （預設 300 秒）反映後台異動。
+
+### 規劃書沒寫清楚、本輪自行判斷的部分
+
+1. **五個區塊皆可為空，沒有必填欄位**：跟同模組既有的 `seo.title_template`／
+   `seo.default_description`（缺中文會擋 400）不同——這五個區塊留白時前台有安全的內建預設文字
+   可回退（見下方 `apps/web` 串接），管理員可以先不填、之後再逐步補齊，不會讓 `/llms.txt`
+   輸出壞掉或消失。CLAUDE.md 全域規定 4「英文可空但欄位必須存在」在這裡的落實方式是五個區塊
+   各自都有 `*Zh`／`*En` 兩個屬性，不是省略英文欄位。
+2. **「代表頁清單」設計成管理員自行維護的自由文字，不是自動從 `getEnabledSiteUnits()` 算出來的
+   清單**：規劃書明文「由後台 `H` 模組維護」，若改成後端自動產生，就不是「後台維護」而是「開發者
+   寫死在程式碼」，管理員也就沒有實際可編輯的東西。管理員可以直接用 Markdown 清單語法撰寫
+   （例如 `- [關於我們](/zh/about/)`），前台原樣輸出，不額外解析。空白時前台回退到
+   `getEnabledSiteUnits()` 自動產生的清單（骨架階段既有邏輯），確保上線初期這一段不會是空白。
+3. **「隨發布重產、不以人工改檔」的落實方式：沒有「發布」這個額外動作**——`apps/web` 的
+   `/llms.txt`／`/llms-en.txt` 每個請求都重新呼叫後端組字串，不是建置期產生的靜態檔案；管理員
+   在後台按下「儲存」，下一次請求（最多延後一個 TTL）就是最新內容，不需要另外觸發一次建置或
+   部署。`GEO-01`「不以人工改檔」在這個實作下自動成立——內容只存在資料庫裡，沒有檔案可以讓人工
+   去改。
+4. **不做 `IQueryCache.InvalidateAsync` 寫入失效**：比照既有 `Features/Seo` 讀取端點一貫的取捨
+   （`SeoRepository` 檔頭「寫入端刻意不呼叫 `InvalidateAsync`」），不是本輪特例。
+
+### `apps/web` 串接
+
+`server/routes/llms.txt.ts`／`llms-en.txt.ts` 改讀 `GET /api/v1/{club}/seo/llms-content`：
+- 繁中版：每個區塊「後台內容 → 內建預設文字」兩層回退（代表頁清單的預設值沿用既有
+  `getEnabledSiteUnits()` 邏輯）。
+- 英文版：每個區塊「英文欄位 → 中文欄位 → 內建英文預設文字」三層回退——英文尚未翻譯時退回中文
+  總比空白好（比照 `docs/01` G-01「未翻譯 fallback 繁中並標示」的既有精神，這裡沒有畫面可以
+  加註標示，直接回退內容本身）。
+- `apps/api` 暫時連不上時整份回退到內建預設文字，不讓 `/llms.txt` 500（同既有
+  `sitemap-urls.ts`／`robots.txt.ts` 的防禦性寫法）。
+
+### 測試
+
+`Tcrfc.Api.Tests/AdminGeoLlmsTests.cs`（4 項）：401、403（內容編輯角色沒有 `sysadmin_only`
+權限）、系統管理員可讀可寫且五個區塊皆可為空（含公開端點即時反映、整份清空回到 `null`）、
+跨俱樂部（`tcrfc` 寫入的內容不會出現在 `bw` 的公開端點）。
+
+## S1-12b：`GEO-02` AI 爬蟲授權（2026-09-25，`backend-engineer`）
+
+主站規劃書 §7 `GEO-02`／§4.8「AI 爬蟲授權」：AI 使用者代理清單與允許／拒絕設定、排除路徑清單，
+輸出至 `robots.txt`。**全站允許爬取，但一律排除**會員中心、七類表單、訂單查詢、
+`/m/<token>` 會員卡驗證頁、未成年與學員照片路徑——docs/14-invariants.md 明文「這條排除是個資
+防線，不是 SEO 設定，不得為了『讓 AI 多抓一點』而放寬」，因此**排除路徑分成強制（程式碼寫死，
+後台不能移除，只能再加）與後台自行再加**兩層。**不新增資料型別**，沿用 `settings`
+（`setting_group='geo'`）。
+
+### 資料庫綱要異動
+
+**沒有 migration**：`geo.crawler_agents`（JSON 陣列 `[{"userAgent":"GPTBot","allowed":true}, ...]`，
+非人類語言不進 i18n 側表，跟既有 `seo.robots_custom_rules` 同一個判斷）、
+`geo.crawler_extra_exclude_paths`（JSON 陣列，後台自行再加的排除路徑）。
+
+### 強制排除路徑（`Features/Seo/GeoCrawlerDefaults.GetMandatoryExcludePaths`，單一來源）
+
+程式碼寫死、不存在 `settings`、後台完全沒有 API 能讀到「目前的強制清單」再整批覆蓋掉。
+內部以**語系無關的相對路徑片段**定義（`LocalizedSegments`），輸出時依站台語系（`zh`／`en`）
+展開成兩份；`/m/` 是唯一不展開語系的例外（本身就是語系目錄外的短網址）：
+
+| 分類 | 語系無關片段 | 實際輸出（`tcrfc`／`bw` 共同） |
+|---|---|---|
+| 會員中心 | `member/` | `/zh/member/`、`/en/member/` |
+| 七類表單（10.1–10.7） | `join/{player,academy,camp-registration,international-player,partnership,media,general}/` | `/zh/join/…/`、`/en/join/…/`（各 7 條 ×2 語系） |
+| 訂單查詢 | `order/lookup/` | `/zh/order/lookup/`、`/en/order/lookup/` |
+| 會員卡驗證頁 | 不展開語系 | `/m/` |
+
+外加 **`tcrfc` 專屬**一條：`academy/teams/` → `/zh/academy/teams/`、`/en/academy/teams/`
+（U15／U14／U12 學院梯隊名單，未成年球員）。
+🔴 **`bw` 目前沒有對應的強制路徑**——藍鯨規劃書「04 為青年隊（U15／U12 女子隊），不沿用學院的
+招生與課程架構」，該隊的前台路由尚未建置（`bw` 官網本身尚未開發），本輪不虛構一個尚不存在的
+網址；待該路由落地時**必須**回頭在 `GetMandatoryExcludePaths` 的 `ClubLocalizedSegments` 補上，
+已記錄為 `STATUS.md` `BW-7`／`S1-12b` 待辦，不是本輪遺漏。
+
+⚠️ **不含 `/zh/join/`（單元入口頁）、`/zh/join/location/`（Location & Map）、
+`/zh/join/contact/`（Contact Information）**——這三頁是靜態資訊頁，不收集個資，規劃書「七類
+表單」明確只指會收件的那七頁。
+
+✅ **2026-09-25（協調者驗收退回後補做）：`/en/` 版本現在就同時輸出，不留成「`/en/` 上線時再補」
+的已知缺口**——原始判斷是「站上目前只有 `/zh/` 頁面，`/en/` 上線時才補」，驗收退回後確認：對
+目前還不存在的 `/en/…` 路徑輸出 `Disallow:` 沒有任何副作用（不會誤擋任何真實頁面，不影響任何
+爬蟲的正常爬取），但「等事後才記得補」正是個資防線最容易出漏洞的模式，因此改為現在就展開兩個
+語系（見 `GeoCrawlerDefaults.Locales`），`/en/` 頁面日後上線時這裡完全不需要再改。
+
+### 權限碼
+
+同 `S1-12a` 判斷理由，`sysadmin_only=1`（`module_code=H`、`submodule_code=H5`、`domain=seo`）：
+
+- `seo.crawler.view`／`seo.crawler.update`：AI 爬蟲授權維護
+
+### 端點
+
+**後台（需登入＋`sysadmin_only`）**：
+- `GET /api/v1/admin/{club}/seo/crawler-settings`——`AdminCrawlerSettingsDto`（含唯讀的
+  `mandatoryExcludePaths` 供畫面陳列，這個 DTO 沒有對應的可寫入欄位）。
+- `PUT /api/v1/admin/{club}/seo/crawler-settings`——`UpdateCrawlerSettingsRequest`
+  （`userAgents`／`additionalExcludePaths`）。整份取代語意，逐項驗證使用者代理格式
+  （`^[A-Za-z0-9._-]{1,100}$`，去重不分大小寫）與排除路徑格式（以 `/` 開頭、以 `/` 結尾、
+  不含空白、長度上限），任一筆有誤整批不寫入（比照既有匯入類端點語意）。
+
+**公開（不需要登入，供 `apps/web` 串接）**：
+- `GET /api/v1/{club}/seo/crawler-settings`——`PublicCrawlerSettingsDto`。`excludePaths`
+  **已經是強制排除路徑 ∪ 後台自行再加的路徑**的合併結果（`SeoRepository.GetCrawlerSettingsAsync`
+  是唯一組出「最終排除清單」的地方），`apps/web` 不需要、也不應該自己再合併一次強制清單。
+  接上既有 `IQueryCache`（entity `seo-crawler-settings`）。
+
+### 規劃書沒寫清楚、本輪自行判斷的部分
+
+1. **強制排除路徑的落實方式：結構上就不存在「移除」這個操作**，不是靠程式碼判斷「使用者是不是
+   想移除」擋下來——`UpdateCrawlerSettingsRequest` 這個型別根本沒有欄位可以承載強制路徑，
+   公開端點的合併邏輯一律用程式碼常數聯集。已用專門的反例測試驗證（見下方測試小節）。
+2. **後台尚未設定過時，`GET` 回傳規劃書條文原文列的五個範例代理（`GPTBot`／`ClaudeBot`／
+   `PerplexityBot`／`Google-Extended`／`CCBot`）當建議值，全部預設允許**——這份清單只是初次
+   進入後台畫面時的建議值，不會因此寫入資料庫，管理員儲存後才真的落地，之後改預設值不影響
+   已儲存過的俱樂部。
+3. **`robots.txt` 排除路徑套用到 `User-agent: *`（全站、對所有爬蟲一視同仁），不是只套用到
+   命名的 AI 代理**：這些路徑排除的理由是個資與肖像同意（會員資料、未成年素材），不是「只想省
+   AI 的爬取額度」，沒有理由只告訴 AI 爬蟲不要看、放一般爬蟲進去。命名的 AI 使用者代理在此之上
+   明列允許（`GEO-02`「明列允許的 AI 使用者代理」的字面要求），套用同一份排除清單；後台若把
+   某個代理設為拒絕，該代理拿到專屬的 `Disallow: /`（robots.txt 規格「較具體的 `User-agent`
+   區塊覆蓋 `*`」的既有語意）。
+4. **使用者代理格式驗證採白名單字元集**（英數字、句點、連字號、底線），不接受空白或其他符號——
+   規劃書沒有給格式規則，本輪判斷：這個字串會原樣寫進 `robots.txt` 的 `User-agent:` 欄位，
+   放行任意字元有 header/robots.txt 語法注入風險（例如換行字元偽造出額外的 `Disallow:` 行）。
+5. **排除路徑格式要求以 `/` 開頭且以 `/` 結尾**（目錄前綴語意）：以 `/` 開頭比照既有
+   `RedirectPathPolicy`（301 轉址的既有路徑格式規則，本輪直接重用同一個驗證器）；額外要求
+   以 `/` 結尾是本輪新增的判斷——避免 `/zh/join/media` 這種沒有結尾斜線的寫法意外前綴比對到
+   `/zh/join/media-kit/` 之類不該被排除的路徑。
+6. **不做 `IQueryCache.InvalidateAsync` 寫入失效**：同 `S1-12a` 判斷理由。
+
+### `apps/web` 串接
+
+`server/routes/robots.txt.ts` 的 `production` 分支擴充（環境旗標白名單判斷不變，見既有
+`S1-12` 說明）：改讀 `GET /api/v1/{club}/seo/crawler-settings`，`excludePaths` 套用到
+`User-agent: *` 區塊，並為每個設定的 AI 代理輸出專屬區塊（允許＝`Allow: /` ＋ 同一份排除清單；
+拒絕＝整段 `Disallow: /`）。`apps/api` 暫時連不上時，不輸出任何排除路徑或 AI 代理區塊，只保留
+最基本的 `User-agent: *` 允許索引規則（fail-open 到「最基本可用」，跟既有 `seo.robots_custom_rules`
+的防禦性寫法一致）。
+
+### 測試
+
+`Tcrfc.Api.Tests/AdminGeoCrawlerTests.cs`（7 項）：401、403、尚未設定過回傳規劃書預設清單與
+強制排除路徑（🔴 含 `zh`／`en` 兩語系皆檢查）、🔴 **公開端點同時包含 `zh` 與 `en` 的強制排除
+路徑**（2026-09-25 驗收退回後補做新增，見下方說明）、系統管理員可讀可寫並驗證輸入格式（代理
+格式錯誤／重複、路徑格式錯誤／缺結尾斜線皆 400）、🔴 **反例：後台清空自行再加的排除路徑後，
+公開端點的強制排除路徑仍然存在**、跨俱樂部（強制清單與後台自加路徑不互相污染，`bw` 沒有
+`tcrfc` 專屬的 `/zh/academy/teams/`／`/en/academy/teams/`）。
+
+### 驗收紀錄（2026-09-25，本機環境，含驗收退回後補做 `/en/` 版本的重新驗證）
+
+1. `dotnet test`（`Tcrfc.Api.Tests`）**466/466 通過**（`AdminGeoLlmsTests` 4 項＋
+   `AdminGeoCrawlerTests` 7 項＋既有 455 項）。過程中一度出現 3 項既有 `AdminAuthTests` 失敗
+   （`Set-Cookie` 缺失／`MustChangePassword` 非預期為真）——實際查證後確認是**種子測試帳號被
+   本機今天多輪 `dotnet test` 弄髒的既有狀態**，不是本次改動造成：① 這三項在只跑
+   `--filter "FullyQualifiedName~AdminAuthTests"`（完全隔離其他測試類別）時依然失敗；②
+   `git diff` 確認本輪唯一touch 到的既有檔案只有 `Program.cs` 的 7 行 DI 註冊與端點掛載，跟
+   認證／Cookie 完全無關。執行 `./db/seed/reset-admin-accounts.sh`（既定的種子帳號還原工具）
+   後全套重跑轉為 466/466 全綠，證實根因確實是帳號狀態而非本輪程式碼。
+2. 種子資料：`db/seed/generate-club-seed-sql.py` 新增 4 個權限碼（`seo.llms.*`／
+   `seo.crawler.*`），已用 `./db/seed/apply-seed.sh` 灌入 `tcrfc_club_dev`（冪等腳本，`sqlcmd`
+   確認 `system_admin` 角色已自動取得全部四個權限碼）。**沒有 migration**（兩項功能都沒有
+   異動資料庫綱要，只新增 `settings` 底下的鍵）。
+3. `dotnet run` 本機真實啟動 `apps/api`，`curl` 實測 `GET /api/v1/tcrfc/seo/crawler-settings`
+   （公開端點，未寫入任何測試資料、純讀取程式碼裡的強制清單）：`excludePaths` 正確回傳 21 筆
+   （9 個共用片段 ×2 語系＋`tcrfc` 專屬 1 個片段 ×2 語系＋不展開語系的 `/m/`），`/zh/…`／
+   `/en/…` 成對出現，逐項核對與 `GeoCrawlerDefaults` 原始碼一致。本輪僅讀取、未寫入資料庫，
+   無需清理。
+4. `apps/web` 串接實測（`npm run build` 產物 ＋ `node .output/server/index.mjs`，前面接上述
+   本機 `apps/api`）：
+   - `curl /robots.txt`（`NUXT_PUBLIC_SITE_ENV=production`，`tcrfc`）：`User-agent: *` 區塊
+     正確列出 21 條強制排除路徑（`/zh/…` 與 `/en/…` 成對），五個預設 AI 代理各自區塊同樣完整
+     複製這 21 條；`Sitemap:` 一行正確帶 `NUXT_PUBLIC_SITE_URL`。
+   - `curl /robots.txt`（`NUXT_PUBLIC_CLUB=bw`，`production`）：`User-agent: *` 區塊正確列出
+     19 條（9 個共用片段 ×2 語系＋`/m/`），**沒有** `academy/teams/` 的任何語系版本，驗證
+     `bw` 專屬清單為空且跨俱樂部不污染。
+   - 上一輪（`S1-12b` 首次完成）已驗證過的「未設定環境變數」「`Production` 拼錯大小寫」封鎖側
+     行為、`X-Robots-Tag` 不受影響、AI 代理允許／拒絕分流，本輪未改動這些邏輯，未重複列出。
+5. `npm run lint`：`apps/web`（0 錯誤，既有警告與本輪無關）、`apps/admin`（全過，本輪未修改
+   該專案任何檔案）皆綠燈。
+6. `apps/web` `npm run build` 成功；`apps/api` `docker build` 成功（本輪只改了 `apps/api` 的
+   C# 原始碼，`apps/web` 沒有程式碼異動，故本輪重跑 docker build 只針對 `apps/api`）。
+
+### 已知缺口（回報，不在本輪自行判斷做或不做）
+
+1. **後台畫面待做**：`apps/admin` 完全未改動（任務邊界僅 `apps/api`／`apps/web`）。
+2. **`bw` 缺少未成年學員照片頁面的強制排除路徑**：見上方「強制排除路徑」小節，藍鯨官網本身
+   尚未開發，`STATUS.md` `BW-7` 待辦——這一項仍待該路由真的落地才能補，跟 `/en/` 不同（`/en/`
+   已於本輪一併補上，見上方「2026-09-25（協調者驗收退回後補做）」說明）。
+3. **`GEO-05`（結構化資料完整性檢查）／`GEO-03`／`GEO-04`（事實單一來源與雙重呈現）不在本輪
+   範圍**：依 `STATUS.md` 排程分屬 `S1-12c`（後台）、`S1-12d`（主站前台）。
 
 ## 相關文件
 

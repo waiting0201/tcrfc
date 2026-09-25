@@ -264,7 +264,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 公關／媒體 | 表單詢問 **媒體類詢問** | `enquiry.media.view`、`enquiry.media.update`（只看 `form_code = media_enquiry`） |
 | 客服／行政 | 表單詢問 **✔全** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（**不含** `enquiry.inbox.export`，比照 P3 匯出不給客服／行政的既有保守預設） |
 | 合作球隊管理 | 表單詢問 **自家** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（`scope_type = own_clubs`，不含匯出） |
-| 系統管理員 | SEO／設定 **✔全** | `seo.setting.view/update`（全站 SEO 預設、追蹤碼、robots.txt 自訂規則）、`seo.redirect.*`（含 `import`）、`seo.report.view`（孤立頁面偵測）——**三組皆 `sysadmin_only`** |
+| 系統管理員 | SEO／設定 **✔全** | `seo.setting.view/update`（全站 SEO 預設、追蹤碼、robots.txt 自訂規則）、`seo.redirect.*`（含 `import`）、`seo.report.view`（孤立頁面偵測）、`seo.llms.view/update`（`GEO-01` `llms.txt` 維護，S1-12a）、`seo.crawler.view/update`（`GEO-02` AI 爬蟲授權，S1-12b）——**五組皆 `sysadmin_only`** |
 | 內容編輯 | SEO／設定 **單頁 SEO** | 不新增權限碼——`content.page.update`／`content.article.update` 既有請求已擴充 `canonicalPath`／`isNoindex`／`isExcludedFromSitemap`／`seoKeywords` 四個欄位，跟隨既有內容編輯權限，不是獨立的 SEO 權限碼 |
 
 > **S1-12 新增（2026-09-25）**：矩陣「SEO／設定」欄除了內容編輯的「單頁 SEO」外，**十個角色裡只有
@@ -272,7 +272,9 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 > `seo.redirect.*`／`seo.report.view` 比照 `system.*` 的既有先例一律標記 `sysadmin_only=1`（雙重
 > 防線：即使日後 J2「角色權限指派」畫面誤把這幾個權限碼勾給其他角色，`PermissionChecker` 仍會
 > 擋下）。這是本輪的判斷，規劃書矩陣沒有明文要求用 `sysadmin_only` 而非單純不指派其他角色，見
-> `apps/api/README.md`「S1-12」段「規劃書沒寫清楚、自行判斷」。
+> `apps/api/README.md`「S1-12」段「規劃書沒寫清楚、自行判斷」。**S1-12a／S1-12b（2026-09-25）
+> 新增的 `seo.llms.*`／`seo.crawler.*` 沿用同一個判斷**，見 `apps/api/README.md`「S1-12a」
+> 「S1-12b」兩節。
 
 > **S1-10 新增（2026-09-25）**：「課程類詢問」「合作／贊助類詢問」「媒體類詢問」三格**不是**用
 > `role_permissions.scope_type` 表達（不像 `academy_only`／`own_teams` 需要另外解析列級範圍），
