@@ -1364,6 +1364,9 @@ CREATE TABLE forms_i18n (
 
 -- 動態欄位（型別、必填、驗證、排序）。
 -- ⚠️ 待確認：docs/12 標🌐，但僅有低信心度候選欄位（label／placeholder，docs/12c §4），本版不建 form_fields_i18n。
+-- options_json（S1-10 新增）：下拉／多選的選項清單，JSON 字串陣列，例如 '["choice1","choice2"]'；
+-- field_type 不是 select／multiselect 時維持 NULL。單一語系——docs/12 §4.6「Form 的 🌐 範圍已限縮」
+-- 同一輪已拍板不建 form_fields_i18n，選項文字沿用同一個決定，不另外破例。
 CREATE TABLE form_fields (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -1372,13 +1375,20 @@ CREATE TABLE form_fields (
   field_type        nvarchar(32)     NOT NULL,
   is_required       bit              NOT NULL DEFAULT 0,
   validation_rule   nvarchar(255)    NULL,
+  options_json      nvarchar(1000)   NULL,
+  -- is_summary（S1-10 補做，審查回饋）：G2 收件匣「內容摘要」欄的來源鍵，同一張表單最多一個欄位
+  -- 可標記為 1（應用層強制，見 AdminFormsRepository），沒有合適敘述性文字欄位的表單維持全 0。
+  is_summary        bit              NOT NULL DEFAULT 0,
   sort_order        int              NOT NULL DEFAULT 0,
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_form_fields PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_form_fields_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_form_fields_row_seq UNIQUE CLUSTERED (row_seq),
+  -- S1-10：對應規劃書 G1（行 1159）逐字列出的六種欄位型別，比照 CK_programs_program_type 等既有先例。
+  CONSTRAINT CK_form_fields_field_type CHECK (field_type IN
+    ('text','textarea','select','multiselect','date','file','consent'))
 );
 
 -- 收件：來源頁、UTM、狀態、指派、備註、標籤。涵蓋 7 類表單 ＋ 提案下載 ＋ 捐助洽詢。
@@ -1399,7 +1409,10 @@ CREATE TABLE enquiries (
   created_by                uniqueidentifier NULL,
   updated_by                uniqueidentifier NULL,
   CONSTRAINT PK_enquiries PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_enquiries_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_enquiries_row_seq UNIQUE CLUSTERED (row_seq),
+  -- S1-10：對應規劃書 G2（行 1165）「新進 → 處理中 → 已回覆 → 已結案 / 無效」五個狀態值，
+  -- 「已結案」與「無效」是兩個獨立終態，不是同一格用斜線分寫兩種說法。
+  CONSTRAINT CK_enquiries_status CHECK (status IN (N'新進',N'處理中',N'已回覆',N'已結案',N'無效'))
 );
 
 -- (enquiry_id, form_field_id) → value。
@@ -2529,6 +2542,9 @@ CREATE INDEX IX_memberships_member                      ON memberships (member_i
 CREATE INDEX IX_email_logs_member_sent                  ON email_logs (member_id, sent_at DESC);
 CREATE INDEX IX_email_logs_type_sent                    ON email_logs (type, sent_at);
 CREATE INDEX IX_enquiries_form_status_created           ON enquiries (form_id, status, created_at DESC);
+-- S1-10：同一張表單最多一個「內容摘要」欄位，DB 層過濾唯一索引（is_summary=1 才計入唯一性），
+-- 應用層（AdminFormsRepository）已有相同判斷，這裡是第二道防線，不是主要防線。
+CREATE UNIQUE INDEX UQ_form_fields_one_summary_per_form ON form_fields (form_id) WHERE is_summary = 1;
 CREATE INDEX IX_admin_refresh_tokens_user               ON admin_refresh_tokens (admin_user_id);
 CREATE INDEX IX_enquiries_assignee                      ON enquiries (assignee_admin_user_id);
 CREATE INDEX IX_admin_user_clubs_user_active            ON admin_user_clubs (admin_user_id, is_active);

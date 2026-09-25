@@ -1,7 +1,10 @@
+using System.Threading.RateLimiting;
 using Azure.Storage.Blobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Tcrfc.Api.Caching;
@@ -12,7 +15,9 @@ using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminBanners;
 using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
+using Tcrfc.Api.Features.AdminEnquiries;
 using Tcrfc.Api.Features.AdminFaqs;
+using Tcrfc.Api.Features.AdminForms;
 using Tcrfc.Api.Features.AdminHomeSections;
 using Tcrfc.Api.Features.AdminMatches;
 using Tcrfc.Api.Features.AdminNews;
@@ -27,6 +32,7 @@ using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
 using Tcrfc.Api.Features.Clubs;
 using Tcrfc.Api.Features.Faqs;
+using Tcrfc.Api.Features.Forms;
 using Tcrfc.Api.Features.Home;
 using Tcrfc.Api.Features.News;
 using Tcrfc.Api.Features.Pages;
@@ -162,6 +168,11 @@ builder.Services.AddScoped<Tcrfc.Api.Features.AdminPrograms.AdminProgramsReposit
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminSessions.AdminSessionsRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminRegistrations.AdminRegistrationsRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Programs.ProgramsRepository>();
+
+// ── S1-10：G1 表單設計器／G2 詢問收件匣 ＋ 10 表單中心公開讀取與送出 ──────────────
+builder.Services.AddScoped<AdminFormsRepository>();
+builder.Services.AddScoped<AdminEnquiriesRepository>();
+builder.Services.AddScoped<FormsRepository>();
 
 // Data Protection：加密 admin_users.two_factor_secret_encrypted（Security/TwoFactorSecretProtector.cs）。
 // 🔴 正式環境務必設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
@@ -301,6 +312,52 @@ builder.Services.AddCors(options =>
     });
 });
 
+// ── S1-10（審查回饋修正，2026-09-25）：限流依「真實訪客 IP」分區，不是連線本身看到的 IP ──
+// Cloudflare → Caddy → api 這條鏈路下，api 容器的 TCP 連線來源永遠是 Caddy 容器的 Docker 內部
+// IP，不是訪客真實 IP（Caddy 的 trusted_proxies／client_ip_headers 只解決 Caddy 自己怎麼看
+// Cloudflare，不會自動讓下游的 api 也認得）。ASP.NET Core 的 ForwardedHeadersMiddleware 負責
+// 把連線來源換成 X-Forwarded-For 帶的訪客真實 IP，**但只在來源是受信任的代理時才生效**——
+// 見 Security/TrustedProxyConfiguration.cs 的完整說明（含「為什麼只信任 Caddy 這一個 IP、
+// 不信任整個 Docker 網段」，以及🔴「未設定時中介軟體本身完全不掛，不是掛了但清單留空」——
+// 空的 KnownProxies／KnownIPNetworks 對 ForwardedHeadersMiddleware 而言是「信任所有來源」，
+// 不是「不信任任何人」，這是本輪開發時親自踩到、務必記住的框架陷阱）。務必放在 UseRateLimiter
+// （甚至任何其他中介軟體）之前，這樣後續所有讀取 HttpContext.Connection.RemoteIpAddress 的地方
+// 都已經是修正後的值。
+var trustedProxyIp = builder.Configuration[TrustedProxyConfiguration.ConfigKey];
+builder.Services.Configure<ForwardedHeadersOptions>(options => TrustedProxyConfiguration.Configure(options, trustedProxyIp));
+
+// ── S1-10：10 表單中心公開送出端點的濫用防護（規劃書「防機器人」，見 FormsRepository 檔頭） ──
+// 全系統沒有串接任何 CAPTCHA 服務，這裡改用依 IP 分區的固定視窗限流當第一層防線：同一個
+// IP 5 分鐘內最多 20 次送出，超過直接 429（QueueLimit=0，不排隊等待，公開表單沒有排隊的必要）。
+// 🔴 這是「規劃書或 docs 沒寫、執行層自行決定」的具體選擇（任務指示原文），數字沒有規格依據，
+// 屬最小可行防護，比照 Common/CsvUtils.cs 檔頭「沒定義就採最小可行」的既有慣例。
+// ⚠️ 20 這個數字同時要照顧到 WebApplicationFactory 整合測試：測試主機的
+// httpContext.Connection.RemoteIpAddress 一律是同一個值（TestServer 沒有真實連線，且測試環境
+// 未設定 TRUSTED_PROXY_IP，ForwardedHeadersMiddleware 不會信任任何來源，行為不受本輪修正影響），
+// Tcrfc.Api.Tests.AdminFormsEnquiriesTests 全部公開送出呼叫共用同一個分區，單一測試檔約
+// 11 次呼叫，20 留有餘裕；對正式環境而言，同一個真實訪客 IP 5 分鐘內 20 次送出仍遠低於正常訪客的
+// 使用量，作為第一層防線足夠，見 apps/api/README.md「S1-10」段。
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // 🔴 依「呼叫端 IP」分區，不是 AddFixedWindowLimiter 那種全站共用同一個計數的寫法——
+    // 後者會讓所有訪客共用同一組額度，一個人洗流量就會擋到所有人，不是本來想要的「擋住單一
+    // 來源洗版」，見 RateLimitPartition.GetFixedWindowLimiter 用法。分區鍵用
+    // ClientIpResolver.Resolve（讀 HttpContext.Connection.RemoteIpAddress）而不是自己重新解析
+    // X-Forwarded-For，是為了不繞過 ForwardedHeadersMiddleware 的信任判斷，見該類別上的說明。
+    options.AddPolicy(FormsEndpoints.RateLimitPolicyName, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 20,
+            Window = TimeSpan.FromMinutes(5),
+            QueueLimit = 0,
+        });
+    });
+});
+
 // ── OpenAPI：只在開發環境開，正式環境關掉或鎖住（CLAUDE.md 任務指示） ─────────────────
 builder.Services.AddOpenApi();
 
@@ -309,6 +366,16 @@ builder.Services.AddExceptionHandler<ApiExceptionHandler>();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
+
+// 🔴 只有真的設定了 TRUSTED_PROXY_IP 才掛這個中介軟體——這才是真正的防線，不是「掛了但清單留空」
+// （ForwardedHeadersMiddleware 把空的信任清單當成「信任所有來源」，見
+// Security/TrustedProxyConfiguration.cs 檔頭「未設定時中介軟體本身完全不掛」的完整說明）。
+// 一定要放在管線最前面：後面任何一段（例外處理的記錄、CORS、限流、一般端點邏輯）只要讀了
+// HttpContext.Connection.RemoteIpAddress，都要讀到已經套用信任判斷之後的值。
+if (TrustedProxyConfiguration.IsEnabled(trustedProxyIp))
+{
+    app.UseForwardedHeaders();
+}
 
 app.UseExceptionHandler();
 
@@ -327,6 +394,7 @@ app.UseCors(CorsPolicyName);
 // 讓管線形狀符合 ASP.NET Core 慣例、未來若改用宣告式 [Authorize] 不需要重新調整順序。
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter();
 
 app.MapHealthEndpoints();
 app.MapClubsEndpoints();
@@ -343,6 +411,9 @@ app.MapFaqsEndpoints();
 
 // ── S1-9：05 課程與活動公開讀取＋報名送出 ─────────────────────────────────
 app.MapProgramsEndpoints();
+
+// ── S1-10：10 表單中心公開讀取＋送出 ─────────────────────────────────────
+app.MapFormsEndpoints();
 
 app.MapAdminAuthEndpoints();
 
@@ -379,6 +450,10 @@ app.MapAdminFaqEmbedSlotsEndpoints();
 app.MapAdminProgramsEndpoints();
 app.MapAdminSessionsEndpoints();
 app.MapAdminRegistrationsEndpoints();
+
+// ── S1-10：G1 表單設計器／G2 詢問收件匣 ──────────────────────────────────
+app.MapAdminFormsEndpoints();
+app.MapAdminEnquiriesEndpoints();
 
 app.Run();
 

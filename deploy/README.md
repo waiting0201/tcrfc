@@ -256,6 +256,22 @@ Cloudflare 的 IP 段清單見 <https://www.cloudflare.com/ips/>，**這份清�
 Cloudflare 改版時要回頭更新 `Caddyfile` 這段，也要同步核對 `docs/17` §2「NSG 入站 443／80 限
 Cloudflare IP 段」的白名單是否也要跟著改——兩處是同一組 IP 段的兩個不同用途。
 
+🔴 **這只解決 Caddy 自己怎麼看穿 Cloudflare，不會自動讓下游的 `api` 容器也認得訪客真實
+IP**（S1-10 審查回饋，2026-09-25 修正）——`api` 容器直接看到的 TCP 連線來源永遠是 Caddy 容器的
+Docker 內部 IP，不是訪客真實 IP，若 `api` 端沒有另外處理，依 IP 分區的濫用防護限流會讓**全站
+訪客共用同一把「Caddy 的 IP」鑰匙**，形同虛設。因此：
+
+- `docker-compose.yml` 把 `internal` 網路釘死子網段 `172.28.238.0/24`，給 `proxy`（Caddy）
+  服務一個固定 IP `172.28.238.2`，並透過環境變數 `TRUSTED_PROXY_IP` 告訴 `api` 容器「只信任這一個
+  IP 轉來的 `X-Forwarded-For`」。**刻意只信任這一個 IP，不信任整個 `internal` 網段**——網段裡還有
+  `nuxt-tcrfc`／`admin-web` 等其他容器，信任整個網段等於讓這些容器也能偽造標頭騙過限流。
+- `api` 端用 ASP.NET Core 的 `ForwardedHeadersMiddleware`（`apps/api/Security/TrustedProxyConfiguration.cs`）
+  套用這個信任關係，`Program.cs` 只有在 `TRUSTED_PROXY_IP` 真的有設定時才會把這個中介軟體掛進管線——
+  **千萬不要假設「沒設定就是安全的預設值」**：`ForwardedHeadersMiddleware` 把空的信任清單當成
+  「信任所有來源」，不是「不信任任何人」，這是實作時親自踩到的框架陷阱，完整說明見該檔案。
+- 完整的判斷理由、測試與手動驗收記錄見 `apps/api/README.md`「S1-10」段「修正：限流原本依賴的不是
+  訪客真實 IP」。
+
 ### 影響 2：Caddy 的自動 HTTPS（Let's Encrypt HTTP-01）要穿過 Cloudflare 才能簽出憑證
 
 **選擇維持 Caddy 預設的自動 HTTPS（HTTP-01 挑戰），不另外接 DNS-01 或手動憑證**，理由：

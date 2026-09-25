@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Tcrfc.Api.Data;
 
@@ -11,9 +12,11 @@ using Tcrfc.Api.Data;
 namespace Tcrfc.Api.Data.Migrations
 {
     [DbContext(typeof(ClubDbContext))]
-    partial class ClubDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925035351_AlignSchemaS110Forms")]
+    partial class AlignSchemaS110Forms
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3321,10 +3324,6 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<bool>("IsRequired")
                         .HasColumnType("bit")
                         .HasColumnName("is_required");
-
-                    b.Property<bool>("IsSummary")
-                        .HasColumnType("bit")
-                        .HasColumnName("is_summary");
 
                     b.Property<string>("OptionsJson")
                         .HasMaxLength(1000)

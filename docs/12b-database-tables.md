@@ -248,6 +248,22 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 內容編輯 | 商店 **S1 文案／圖** | `shop.product.update`（**不含** `shop.variant.price.update`、`shop.variant.cost.view`） |
 | 翻譯人員 | 全列 **僅翻譯欄位** | `*.translate` with `scope_type = translate_only` |
 | 檢視者 | 商店 **唯讀（不含金額）** | `shop.product.view`（**不含** `shop.variant.cost.view`、`shop.report.view`） |
+| 學院／課程管理 | 表單詢問 **課程類詢問** | `enquiry.course.view`、`enquiry.course.update`（只看 `form_code IN (academy_children_training, camp_registration)`，見 `apps/api/README.md`「S1-10」段） |
+| 商務／贊助 | 表單詢問 **合作／贊助類詢問** | `enquiry.partnership.view`、`enquiry.partnership.update`（只看 `form_code IN (partnership_sponsorship, proposal_download)`——`proposal_download` 併入本類為本輪判斷，規劃書未明文，見任務回報） |
+| 公關／媒體 | 表單詢問 **媒體類詢問** | `enquiry.media.view`、`enquiry.media.update`（只看 `form_code = media_enquiry`） |
+| 客服／行政 | 表單詢問 **✔全** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（**不含** `enquiry.inbox.export`，比照 P3 匯出不給客服／行政的既有保守預設） |
+| 合作球隊管理 | 表單詢問 **自家** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（`scope_type = own_clubs`，不含匯出） |
+
+> **S1-10 新增（2026-09-25）**：「課程類詢問」「合作／贊助類詢問」「媒體類詢問」三格**不是**用
+> `role_permissions.scope_type` 表達（不像 `academy_only`／`own_teams` 需要另外解析列級範圍），
+> 而是直接拆成三組獨立權限碼（`enquiry.course.*`／`enquiry.partnership.*`／`enquiry.media.*`），
+> 應用層依角色持有哪一組碼決定 `WHERE form_code IN (...)` 的過濾條件——因為這裡的「類別」邊界是
+> 固定的（9 個 `form_code` 的分類不會因使用者而變），不像球隊授權需要 `AdminUserTeam` 這種
+> 逐人指派的關聯表，用更細的權限碼比多一個 `scope_type` 列舉值＋硬編碼分類對照表更直接，也不需要
+> 修改 `role_permissions.scope_type` 的 CHECK 值域。⚠️ **規劃書 §6（行 1604）原始表格「廣告」／
+> 「行動 App」／「表單詢問」三欄內容與表頭錯位**，本表格已改依 [`03-admin-spec.md`](03-admin-spec.md)
+> §3 手動修正過的版本核對，完整說明見 [`12-database-schema.md`](12-database-schema.md#12-踩雷點)
+> 第 37 點。
 
 ### 7.5 遮罩與「額外授權」怎麼表達
 

@@ -524,6 +524,8 @@ erDiagram
     string_32 field_type
     bool is_required
     string_255 validation_rule
+    string_1000 options_json "S1-10 新增，下拉／多選用"
+    bool is_summary "S1-10 新增，同一表單最多一個"
     int sort_order
   }
   enquiry {

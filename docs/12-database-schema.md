@@ -479,6 +479,16 @@ flowchart LR
 > §3.10 固定表格寫死，不建 `name` 側表、不開放後台編輯**——規劃書 3.10 本來就用固定表格列出 7 類表單的中英名稱，
 > 屬介面文案（`UiString` 範疇），不是逐筆可管理的資料。`FormField` 的 🌐 維持原狀未決——`docs/12c` §4 僅列出低信心度
 > 候選欄位（`label`／`placeholder`），`db/club-schema.sql` 目前選擇不建 `form_fields_i18n`，非本輪裁決範圍。
+> ✅ **`Form.form_code` 九碼目錄拍板（S1-10，2026-09-25，`backend-engineer` 判斷）**：規劃書
+> §3.10 只用中文標題列出 7 類表單＋提案下載＋捐助洽詢共 9 種，未定義程式用代碼字串，本輪定案：
+> `join_player`（10.1）／`academy_children_training`（10.2）／`camp_registration`（10.3）／
+> `international_player_enquiry`（10.4）／`partnership_sponsorship`（10.5）／`media_enquiry`
+> （10.6）／`general_contact`（10.7）／`proposal_download`（9.4 CTA 提案下載，`docs/12a` 早已
+> 引用這個字面值）／`donation_enquiry`（捐助洽詢——**規劃書全文未曾定義這個表單的實際欄位**，
+> 只在 G2 收件匣分頁清單與 `Enquiry` 型別說明兩處被提及，見 `apps/api/README.md`「S1-10」段的
+> 完整說明）。九筆 `Form`／預設 `FormField` 種子資料見 `db/seed/generate-club-seed-sql.py`
+> 對應段落，兩俱樂部（`tcrfc`／`bw`）各自種一份，欄位內容依規劃書 §3.10 逐表單的欄位清單設定
+> 為預設值，允許後台 G1 表單設計器事後調整（新增／編輯／刪除動態欄位）。
 
 ### 4.7 I 網站設定（2）
 
@@ -635,6 +645,48 @@ flowchart LR
     （`CHECK (status IN (N'開放',N'額滿',N'候補',N'已結束'))`）。三欄皆允許 `NULL`。
     套用前已查證 `tcrfc_club_dev` 這兩張表皆為 0 筆資料，純 DDL 變更，不需搭配任何 DML 轉態。
     後端 API 見 `apps/api/README.md`「S1-9」段；migration 名稱 `AlignSchemaS19Programs`。
+37. 🔴 **（S1-10，2026-09-25）`form_fields` 新增 `options_json` 欄位，並補齊三個從未約束過的
+    值域**：G1「表單設計器」規劃書明文要求下拉／多選兩種欄位型別（行 1159「文字、下拉、多選、
+    日期、檔案上傳、同意條款」），但 `form_fields` 原本沒有任何欄位能存下拉選項清單——
+    `validation_rule nvarchar(255)` 是給正規表示式或格式驗證用，語意不同，硬塞選項清單會讓同一欄
+    身兼兩種用途。新增 `options_json nvarchar(1000) NULL`（JSON 字串陣列，例如
+    `'["choice1","choice2"]'`，`field_type` 不是 `select`／`multiselect` 時維持 `NULL`）。
+    **選項文字只有單一語系**——這是 2026-09-22 已拍板「不建 `form_fields_i18n`」（§4.6 附註）的
+    直接後果，不是本輪新增的限制。同一輪補上三個從未被 CHECK 約束過的值域（跟第 35／36 點同一種
+    落差）：`form_fields.field_type`（`CHECK (field_type IN ('text','textarea','select',
+    'multiselect','date','file','consent'))`，對應規劃書 G1 逐字列出的六種型別）、
+    `enquiries.status`（`CHECK (status IN (N'新進',N'處理中',N'已回覆',N'已結案',N'無效'))`，
+    對應 G2「狀態管理：新進 → 處理中 → 已回覆 → 已結案 / 無效」五個值——**「已結案」與「無效」
+    是兩個獨立終態，不是同一個值的兩種寫法**）。套用前已查證 `tcrfc_club_dev` 的
+    `form_fields`／`enquiries` 兩張表皆為 0 筆資料（G 模組本輪才第一次接上真實 API），純 DDL
+    變更。migration 名稱 `AlignSchemaS110Forms`，後端 API 見 `apps/api/README.md`「S1-10」段。
+    ⚠️ **G 模組表單詢問權限矩陣的表格對齊問題**：主站規劃書 §6（行 1604）的「廣告」／
+    「行動 App」／「表單詢問」三欄，實測欄位內容與表頭標籤對不上——例如「商務／贊助」列在
+    字面「廣告」欄位置出現的是「合作／贊助類詢問」（表單詢問語意），「行動 App」欄位置出現的是
+    `**✔ 全**`，「表單詢問」欄位置出現的卻是 `—`。本檔權限指派**改採
+    [`03-admin-spec.md`](03-admin-spec.md) §3 已手動修正對齊的「詢問」欄**（該檔案在
+    S1-3／S1-9 之前已將「廣告」「行動 App」兩欄整欄拿掉、只保留語意正確的「詢問」欄，
+    交叉核對每一列與原始表格內容一致），未回頭修正規劃書原始表格本身——這是表格渲染／
+    編輯過程的殘留缺陷，不是規格內容衝突，建議 `system-analyst` 之後把規劃書 §6 原始表格
+    也一併修正對齊，避免下次有人直接照字面欄位位置誤讀。
+38. 🔴 **（S1-10，2026-09-25，驗收回饋補做）`form_fields` 新增 `is_summary` 欄位**：主站規劃書
+    G2 逐字列出收件匣欄位「來源表單、姓名、聯絡方式、**內容摘要**、來源頁面、UTM 來源、送出時間」
+    （行 1164），本輪最初判斷「表單欄位是動態的，沒有穩定的摘要標記」而略過，經審查回饋指出
+    **規劃書明文要求的欄位不能因為實作不便而略過**，改為新增 `is_summary bit NOT NULL DEFAULT 0`
+    （`field_type` 不限，但實務上只有 `text`／`textarea` 型別的欄位適合當摘要）。**沿用
+    `name`／`contact` 兩個慣例欄位鍵的同一套機制**（`docs/12` §4.6「Enquiry 涵蓋 7 類表單」段落
+    附註）：G1 表單設計器可以把任一欄位標記為「這是內容摘要」，同一張表單**最多一個**欄位可標記
+    （應用層強制，見 `AdminFormsRepository`），G2 收件匣清單／CSV 匯出依此鍵取值，沒有標記的表單
+    （例如 `camp_registration`／`proposal_download` 沒有敘述性文字欄位）內容摘要維持 `null`，
+    不是缺陷。種子資料把每個表單「最像敘述性文字」的欄位標記為摘要（`join_player`／
+    `academy_children_training`／`international_player_enquiry` 標 `experience`；
+    `partnership_sponsorship` 標 `cooperation_direction`；`general_contact`／`donation_enquiry`
+    標 `message`；`camp_registration`／`media_enquiry`／`proposal_download` 沒有合適欄位，
+    不標記）。**套用時 `form_fields` 已有 114 筆種子資料**（跟第 37 點兩張表 0 筆的情境不同），
+    但這是單純新增一個帶 `DEFAULT` 的欄位，不是對既有資料新增 CHECK 約束，對既有列永遠安全；
+    套用後另外對已種下的種子資料跑一次 `UPDATE`，依上述分配把 `is_summary=1` 補回對應欄位
+    （種子腳本的「`IF NOT EXISTS` 才 `INSERT`」冪等策略對「更新既有列」沒有幫助）。migration
+    名稱 `AddFormFieldIsSummary`，後端 API 見 `apps/api/README.md`「S1-10」段。
 
 ---
 

@@ -19,8 +19,16 @@
 name: tcrfc
 
 networks:
+  # S1-10（2026-09-25）：固定子網段＋給 proxy 一個固定 IP，讓 api 容器能在 ASP.NET Core 的
+  # ForwardedHeadersOptions.KnownProxies 裡精確信任「只有 Caddy」這一個來源的 X-Forwarded-For，
+  # 而不是信任「整個 internal 網段」（那樣的話同一個網段裡的其他容器，例如 nuxt-tcrfc／
+  # admin-web，理論上也能偽造標頭騙過 api 的濫用防護限流）。沒有明確 subnet，docker compose
+  # 每次重建網路可能分配到不同的自動 IP，`ipv4_address` 靠這個固定的 subnet 才能穩定生效。
   internal:
     driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.238.0/24
 
 volumes:
   caddy_data:
@@ -62,7 +70,11 @@ services:
       ADMIN_WEB_DOMAIN: ${ADMIN_WEB_DOMAIN:?}
       ADMIN_CHARITY_DOMAIN: ${ADMIN_CHARITY_DOMAIN:?}
       API_DOMAIN: ${API_DOMAIN:?}
-    networks: [internal]
+    # 固定 IP（見上方 networks.internal.ipam 的說明）：api 服務用這個位址當
+    # TRUSTED_PROXY_IP，只信任「這個容器」轉來的 X-Forwarded-For。
+    networks:
+      internal:
+        ipv4_address: 172.28.238.2
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2019/config/"]
       interval: 15s
@@ -236,6 +248,11 @@ services:
       # api 要接受瀏覽器端請求的來源清單（後台 SPA、三個 SSR 前台的 CSR 階段）；實際的 CORS
       # 中介軟體設定由 backend-engineer 建專案時實作，這裡只保證它拿得到一份不必寫死的清單。
       CORS_ALLOWED_ORIGINS: https://${TCRFC_DOMAIN},https://${BW_DOMAIN},https://${CHARITY_DOMAIN},https://${ADMIN_WEB_DOMAIN},https://${ADMIN_CHARITY_DOMAIN}
+      # S1-10（2026-09-25）：唯一被信任、可以用 X-Forwarded-For 覆寫訪客真實 IP 的來源——
+      # 只信任 proxy（Caddy）這一個固定 IP（見上方 networks.internal.ipam／proxy 服務的
+      # ipv4_address），不是整個 internal 網段，避免同網段其他容器偽造標頭騙過依 IP 分區的
+      # 濫用防護限流（見 apps/api/README.md「S1-10」段「限流依真實訪客 IP」）。
+      TRUSTED_PROXY_IP: 172.28.238.2
     networks: [internal]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/readyz"]

@@ -32,4 +32,26 @@ public sealed class PermissionChecker(ClubDbContext db) : IPermissionChecker
             .Select(rp => rp.Permission)
             .AnyAsync(p => p.Code == permissionCode && !p.SysadminOnly, cancellationToken);
     }
+
+    public async Task<IReadOnlySet<string>> GetHeldPermissionCodesAsync(
+        Guid adminUserId, bool isSuperAdmin, IReadOnlyList<string> candidateCodes, CancellationToken cancellationToken)
+    {
+        if (isSuperAdmin)
+        {
+            return new HashSet<string>(candidateCodes, StringComparer.Ordinal);
+        }
+
+        var held = await db.AdminUsers
+            .AsNoTracking()
+            .Where(u => u.Id == adminUserId)
+            .SelectMany(u => u.AdminRoles)
+            .SelectMany(r => r.RolePermissions)
+            .Select(rp => rp.Permission)
+            .Where(p => candidateCodes.Contains(p.Code) && !p.SysadminOnly)
+            .Select(p => p.Code)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return new HashSet<string>(held, StringComparer.Ordinal);
+    }
 }

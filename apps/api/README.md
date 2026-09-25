@@ -2811,6 +2811,291 @@ CRUD 與驗證 4 項、公開讀取與報名送出 3 項，含跨俱樂部越權
 
 ---
 
+## S1-10：`G1` 表單設計器／`G2` 詢問收件匣 ＋ 10 表單中心公開讀取與送出（2026-09-25，`backend-engineer`）
+
+主站規劃書 §4.7 G1／G2（後台）、§3.10（10 表單中心，公開讀取與送出）。沿用既有架構：
+`IAdminClubAuthorizer`、權限碼、`ApiExceptionHandler`、CSV 匯出（`Common/CsvUtils.cs`）。
+**沒有套用 `TeamRowScope`**——本模組另外設計了一套不需要 `role_permissions.scope_type` 的列級授權，
+見下方「依表單類別的列級授權」。
+
+### 綱要異動
+
+`forms`／`form_fields`／`enquiries`／`enquiry_answers` 四張表在此之前就已經是完整 DDL
+（`db/club-schema.sql`「4.6 G 表單與詢問」，S0 系列建的），EF 實體與 `ClubDbContext` 對應也早就
+scaffold 好。本輪異動：
+
+1. **新增欄位** `form_fields.options_json`（`nvarchar(1000)`，下拉／多選的選項清單，JSON 字串陣列）
+   ——G1 規劃書明文要求下拉／多選兩種欄位型別，但原本沒有任何欄位能存選項清單
+   （`validation_rule` 語意是格式驗證正規表示式，不同用途）。
+2. **補齊兩個從未套用過的值域 CHECK**（跟 `AlignSchemaV314`／`AlignSchemaS19Programs` 同一種落差）：
+   `form_fields.field_type`（對應規劃書 G1 逐字列出的六種欄位型別）、`enquiries.status`
+   （對應規劃書 G2「新進 → 處理中 → 已回覆 → 已結案 / 無效」五個狀態值）。
+3. **新增欄位** `form_fields.is_summary`（`bit NOT NULL DEFAULT 0`，審查回饋補做，見下方「G2『內容
+   摘要』欄」）＋一個過濾唯一索引，限制同一張表單最多一個欄位可標記為摘要來源。
+
+```
+migration: 20260925035351_AlignSchemaS110Forms
+  ALTER TABLE form_fields ADD [options_json] nvarchar(1000) NULL;   -- EF AddColumn，來自實體模型異動
+  ALTER TABLE form_fields ADD CONSTRAINT CK_form_fields_field_type
+    CHECK (field_type IN ('text','textarea','select','multiselect','date','file','consent'));
+  ALTER TABLE enquiries ADD CONSTRAINT CK_enquiries_status
+    CHECK (status IN (N'新進',N'處理中',N'已回覆',N'已結案',N'無效'));
+
+migration: 20260925051206_AddFormFieldIsSummary
+  ALTER TABLE form_fields ADD [is_summary] bit NOT NULL DEFAULT CAST(0 AS bit);
+  CREATE UNIQUE INDEX UQ_form_fields_one_summary_per_form ON form_fields (form_id) WHERE is_summary = 1;
+```
+
+第一支套用前查證 `tcrfc_club_dev` 的 `form_fields`／`enquiries` 兩張表皆為 0 筆（G 模組本輪才第一次
+接上真實 API），純 DDL 變更。第二支套用時 `form_fields` 已有 114 筆種子資料，但這是單純新增有
+`DEFAULT` 的欄位（不是對既有資料新增 CHECK），對既有列永遠安全，不需要「0 筆」前提；套用後另外
+對已種下的種子資料跑一次 `UPDATE`（依 `docs/12-database-schema.md` §12 第 38 點的分配表）把
+`is_summary=1` 補回對應欄位，因為 `db/seed/generate-club-seed-sql.py` 的「`IF NOT EXISTS` 才
+`INSERT`」冪等策略對「更新既有列」沒有幫助（同 `ADMIN_USERS` 密碼／2FA 狀態需要另外
+`reset-admin-accounts.sh` 才能同步的既有道理）。`Data/EfEntities/FormField.cs` 各加一個
+`OptionsJson`／`IsSummary` 屬性、`Data/ClubDbContext.cs` 加對應的 `entity.Property(...)` 設定——
+比照既有 `Match.OriginalMatchOn`／`OriginalKickoff` 的先例（手改兩個既有「產生檔」，不整個重新
+scaffold），`ClubDbContextModelSnapshot.cs` 已同步（該檔不進版控，見 S0-7j 段）。完整說明另見
+docs/12-database-schema.md §12 第 37／38 點。
+
+### `Form.form_code` 九碼目錄（本輪判斷，非資料庫欄位）
+
+規劃書 §3.10 只用中文標題列出 7 類表單＋提案下載＋捐助洽詢，未定義程式用代碼字串。本輪拍板九碼
+（`Features/Forms/FormCatalog.cs`）：`join_player`／`academy_children_training`／
+`camp_registration`／`international_player_enquiry`／`partnership_sponsorship`／`media_enquiry`／
+`general_contact`／`proposal_download`／`donation_enquiry`。**表單顯示名稱不進資料庫**
+（2026-09-22 已拍板不建 `forms_i18n.name`），`FormCatalog` 的中英顯示名稱字典是純程式碼常數，
+只給 CSV 匯出與清單 API 的便利欄位使用。`db/seed/generate-club-seed-sql.py` 各自宣告一份同樣的
+九個代碼字面值（既有慣例，見該檔 `HOME_SECTIONS` 段的檔頭說明），兩處要一起改。
+
+種子資料：兩俱樂部（`tcrfc`／`bw`）各種一份 9 個表單 ＋ 依規劃書 §3.10 逐表單欄位清單設定的預設
+`form_fields`（`proposal_download`／`donation_enquiry` 兩者規劃書未列欄位，最小可行自訂）。所有
+表單統一補一個 `privacy_consent`（同意條款）欄位，對應規劃書「共通機制：個資同意條款勾選」；每個
+表單一律含 `name`／`contact` 兩個慣例欄位鍵，供 G2 收件匣清單顯示「姓名」「聯絡方式」兩欄使用
+（見下方「姓名／聯絡方式怎麼從動態欄位取出」）。
+
+### 後台端點（新增檔案 `Features/AdminForms`／`AdminEnquiries`）
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/forms` | `form.view` | 9 個固定表單清單 |
+| `GET /api/v1/admin/{club}/forms/{id}` | `form.view` | 單筆詳情（設定＋動態欄位＋雙語自動回覆信） |
+| `PUT /api/v1/admin/{club}/forms/{id}` | `form.update` | 更新設定（通知信、CAPTCHA 開關、送出後導向、自動回覆信雙語）。**沒有建立／刪除表單本身的端點**——9 個表單是固定目錄 |
+| `POST /api/v1/admin/{club}/forms/{id}/fields` | `form.update` | 建立動態欄位 |
+| `PUT /api/v1/admin/{club}/forms/{id}/fields/{fieldId}` | `form.update` | 編輯動態欄位 |
+| `DELETE /api/v1/admin/{club}/forms/{id}/fields/{fieldId}` | `form.update` | 刪除動態欄位。**已有詢問資料引用會被擋下（409）**——`FK_enquiry_answers_field` 沒有 `ON DELETE CASCADE` |
+| `GET /api/v1/admin/{club}/enquiries` | `enquiry.inbox.view` 或 `enquiry.course/partnership/media.view` 其一 | 詢問清單。`formCode`／`status`／`keyword`／`dateFrom`／`dateTo`／`page`／`pageSize` 篩選，依角色類別自動過濾 |
+| `GET /api/v1/admin/{club}/enquiries/{id}` | 同上 | 單筆詳情（含全部逐欄回答） |
+| `GET /api/v1/admin/{club}/enquiries/export` | `enquiry.inbox.export`（`is_restricted`，僅系統管理員） | CSV 匯出，表單類別欄輸出中文顯示名稱，不輸出 `form_code` 字面值 |
+| `PUT /api/v1/admin/{club}/enquiries/{id}` | `enquiry.inbox.update` 或 `enquiry.course/partnership/media.update` 其一 | 處理詢問：狀態／指派負責人／內部備註／標籤。**不能改來源表單與逐筆回答內容**（訪客原始送出資料） |
+
+### 公開端點（新增檔案 `Features/Forms`，不需要登入）
+
+| 方法與路徑 | 說明 |
+|---|---|
+| `GET /api/v1/{club}/forms/{formCode}` | 表單定義（動態欄位＋型別＋必填＋驗證規則＋選項），供前台動態產生表單（S1-17，不在本次範圍） |
+| `POST /api/v1/{club}/forms/{formCode}/submissions` | 送出，回傳 `{success:true}`。掛 Rate Limiting（見下方「濫用防護」） |
+
+### 權限碼與角色指派（`db/seed/generate-club-seed-sql.py`）
+
+新增 11 個權限碼，`module_code=G`、`domain=enquiry`（G1／G2 共用同一個 domain，矩陣把「表單詢問」
+列為單一欄）：`form.view`／`form.update`（G1）、`enquiry.inbox.view/update/export`
+（G2，`export` 是 `is_restricted=1`，僅系統管理員）、`enquiry.course.view/update`、
+`enquiry.partnership.view/update`、`enquiry.media.view/update`（G2 的三個類別限定分組）。
+
+依主站規劃書 §6 矩陣「表單詢問」欄逐列指派：系統管理員 ✔全；內容編輯／競技球隊管理／翻譯人員
+「—」，不指派；**學院／課程管理 → `enquiry.course.*`**（矩陣「課程類詢問」）；
+**商務／贊助 → `enquiry.partnership.*`**（矩陣「合作／贊助類詢問」）；
+**公關／媒體 → `enquiry.media.*`**（矩陣「媒體類詢問」）；**客服／行政 → `form.*` ＋
+`enquiry.inbox.view/update`**（矩陣「✔全」，不含匯出，比照 P3 匯出不給客服／行政的既有保守預設）；
+**檢視者 → `form.view`／`enquiry.inbox.view`**（唯讀）；**合作球隊管理 → `form.*` ＋
+`enquiry.inbox.view/update`**（`scope_type=own_clubs`，矩陣「自家」，俱樂部範圍已由既有機制限制，
+G 模組內部不需要再疊一層類別過濾）。
+
+🔴 **發現規劃書 §6 原始表格的欄位錯位**：主站規劃書 §6（行 1604）「廣告」／「行動 App」／
+「表單詢問」三欄，實測欄位內容與表頭標籤對不上（例如「商務／贊助」列在字面「廣告」欄位置出現的是
+「合作／贊助類詢問」，語意明顯屬於表單詢問而非廣告）。本輪改採 `docs/03-admin-spec.md` §3
+已手動修正對齊的「詢問」欄核對（該檔案在更早的 S1 階段已把「廣告」「行動 App」兩欄整欄拿掉、
+只保留語意正確的「詢問」欄），未回頭修正規劃書原始表格本身。完整記錄見
+docs/12-database-schema.md §12 第 37 點、docs/12b-database-tables.md §7.4「S1-10 新增」附註，
+建議 `system-analyst` 之後把規劃書 §6 原始表格也修正對齊。
+
+新增一個測試帳號：`business.sponsorship@tcrfc.test`（`business_sponsorship`，僅 `tcrfc`，密碼
+`ContentEditor@123`）——`business_sponsorship` 角色早已存在（S1-3 種子），但先前沒有任何測試帳號
+被指派過，本輪測 `enquiry.partnership.*` 需要它。
+
+### 依表單類別的列級授權（不是 `role_permissions.scope_type`）
+
+矩陣「課程類詢問」「合作／贊助類詢問」「媒體類詢問」三格看起來很像既有 `TeamRowScope` 那種
+「同一權限碼、依角色細分範圍」的情境，但**本輪刻意不沿用 `scope_type`**：`own_teams` 之所以需要
+`scope_type` 加一張 `AdminUserTeam` 關聯表，是因為「這個人能碰哪些球隊」是**逐人指派**、會隨時間
+變動的；而「課程類詢問＝`academy_children_training`／`camp_registration`」這個分組**是規劃書固定
+的 9 個 `form_code` 分類**，不會因為換了哪個使用者而不同，也不需要另外建一張「誰對應哪個類別」的
+關聯表。直接拆成 `enquiry.course.*`／`enquiry.partnership.*`／`enquiry.media.*` 三組獨立權限碼，
+比「多一個 `scope_type` 列舉值＋在程式碼裡硬編碼一份『scope_type → form_code 集合』對照表」更直接，
+也不需要修改 `role_permissions.scope_type` 的 CHECK 值域（零綱要異動）。
+
+執行機制：一個操作可能有多個「等價權限碼」（例如查看詢問清單，`enquiry.inbox.view` 或
+`enquiry.course.view` 或...任一個都能通過），既有 `IAdminClubAuthorizer.AuthorizeAsync` 只接受
+單一權限碼，因此新增 `AuthorizeAnyAsync`（清單中持有任一個即可通過①②③帳號與俱樂部授權檢查＋
+④'寬鬆版權限碼檢查）；`IPermissionChecker` 新增 `GetHeldPermissionCodesAsync`（一次查出候選碼中
+持有哪幾個），`AdminEnquiriesRepository.ResolveViewFormCodeFilterAsync`／
+`ResolveUpdateFormCodeFilterAsync` 依持有的碼組出 `WHERE form_code IN (...)` 的過濾條件（持有
+`*.inbox.*` 回傳 `null` 代表不限；只持有類別碼則聯集對應的 `form_code` 集合；都沒有則回傳空集合，
+fail-closed）。清單／匯出用集合過濾整批資料；詳情／更新單筆時額外核對「這一筆的 `form_code`
+在不在允許集合內」，不在則視同 404（比照既有跨俱樂部越權「不洩漏存在與否」的慣例）。
+
+### 姓名／聯絡方式怎麼從動態欄位取出
+
+`Enquiry` 本身沒有姓名／聯絡方式欄位——這兩項跟其餘表單內容一樣，全部存在 `EnquiryAnswer`
+（`(enquiry_id, form_field_id) → value`），因為 G1 是「表單設計器」，欄位是動態的。本輪採**慣例
+欄位鍵**：種子資料把每個表單的姓名欄位 `field_key` 定為 `"name"`、聯絡方式定為 `"contact"`，G2
+清單靠這兩個鍵撈出來顯示。**若後台把這兩個鍵改名或刪除，清單只會顯示 `null`，不是程式錯誤**——
+這是動態表單的必然取捨，沒有資料庫層的機制能保證「某個 `field_key` 一定存在」。
+
+### 🔴 修正：G2「內容摘要」欄補做（審查回饋，2026-09-25）
+
+**發現的問題**：主站規劃書 G2（行 1164）逐字列出收件匣欄位「來源表單、姓名、聯絡方式、**內容
+摘要**、來源頁面、UTM 來源、送出時間」，本輪最初以「表單欄位是動態的，沒有一個穩定的摘要標記」
+為由略過這一欄，經審查回饋指出**規劃書明文要求的欄位不能因為實作不便而略過**。
+
+**怎麼補的**：跟姓名／聯絡方式同一種「慣例欄位鍵」精神，但改用**旗標**而不是字面鍵比對——
+`form_fields` 新增 `is_summary bit`，G1 表單設計器可以把**任一欄位**標記為「這是內容摘要」，
+不受限於固定的 `field_key` 名稱。**同一張表單最多一個欄位可標記**，兩道防線：①應用層
+（`AdminFormsRepository.CreateFieldAsync`／`UpdateFieldAsync`，標記新的會自動取代舊的，不是回
+錯誤要求先手動取消）；②DB 層過濾唯一索引 `UQ_form_fields_one_summary_per_form`
+（`WHERE is_summary = 1`）。G2 清單／CSV 匯出依此旗標取值（`AdminEnquiriesRepository`）。
+
+**種子資料的分配**：只標給有敘述性文字、值得當摘要的欄位——`join_player`／
+`academy_children_training`／`international_player_enquiry` 標 `experience`；
+`partnership_sponsorship` 標 `cooperation_direction`；`general_contact`／`donation_enquiry`
+標 `message`。`camp_registration`（營隊梯次、學員資料、健康聲明、緊急聯絡人）、`media_enquiry`
+（媒體名稱、記者姓名、採訪主題、截稿日）、`proposal_download`（公司、姓名、Email）**三個表單沒有
+任何合適的敘述性文字欄位，刻意不標記**——這三個表單的內容摘要在清單與匯出上一律是 `null`，
+是設計上的必然結果，不是遺漏。
+
+### 濫用防護（規劃書「防機器人（reCAPTCHA / Turnstile）」，本輪沒有做的部分）
+
+全系統沒有串接任何 CAPTCHA 服務的憑證或後端驗證邏輯，串接需要申請站台金鑰、決定環境變數、
+寫一支呼叫外部 siteverify API 的服務——這是獨立的執行層基礎建設決定，不在本次任務範圍，比照 S1-9
+對簡訊通路的既有處理方式（回報缺口，不自行發明）。本輪改用兩層不需要外部服務的防線：
+① `Program.cs` 對 `POST .../submissions` 掛 ASP.NET Core 內建 Rate Limiting（依呼叫端 IP 分區，
+固定視窗 5 分鐘 20 次，超過回 429，`QueueLimit=0`）；② `SubmitFormRequest.Website` 誘捕欄位
+（honeypot，填了值就安靜回成功但不寫入任何資料）。`PublicFormDto.CaptchaEnabled` 旗標本身**沒有
+對應的伺服器端驗證**——前端讀到 `true` 時應該渲染 CAPTCHA 元件，但送出端點目前不會真的驗證 token，
+真正串接 Turnstile／reCAPTCHA 留給日後有服務憑證時再補。
+
+### 🔴🔴🔴 修正：限流原本依賴的不是訪客真實 IP（審查回饋，2026-09-25）
+
+**發現的問題**：初版把 `httpContext.Connection.RemoteIpAddress` 直接當限流分區鍵，但正式環境的
+路徑是 Cloudflare → Caddy → `api` 容器——`deploy/Caddyfile` 的 `trusted_proxies`／
+`client_ip_headers` 只解決 **Caddy 自己**怎麼看穿 Cloudflare，不會讓下游的 `api` 也認得訪客
+真實 IP。`api` 容器實際看到的 TCP 連線來源永遠是 Caddy 容器的 Docker 內部 IP，等於**全站訪客
+共用同一把「Caddy 的 IP」鑰匙**，依 IP 分區限流形同虛設。
+
+**怎麼修的**：新增 `Security/TrustedProxyConfiguration.cs`（設定
+`ForwardedHeadersOptions`）＋`Common/ClientIpResolver.cs`（讀取已被中介軟體處理過的
+`RemoteIpAddress`），`Program.cs` 在管線最前面掛 `app.UseForwardedHeaders()`。
+`docker-compose.yml` 把 `internal` 網路釘死子網段 `172.28.238.0/24`，給 `proxy`（Caddy）服務
+一個固定 IP `172.28.238.2`，透過新環境變數 `TRUSTED_PROXY_IP` 傳給 `api`。**只信任這一個 IP，
+不信任整個 Docker 網段**——網段裡還有 `nuxt-tcrfc`／`admin-web` 等其他容器，信任整個網段等於
+讓這些容器也能偽造標頭騙過限流，違反「不可信任所有來源」的要求。
+
+**🔴🔴🔴 過程中親自踩到的框架陷阱，務必記住**：`ForwardedHeadersMiddleware` 把
+`KnownProxies`／`KnownIPNetworks` **兩者都是空集合**視為「沒有設限制」，行為是**信任所有來源**，
+跟直覺剛好相反（多數人會以為空清單＝沒人受信任＝標頭一律被忽略）。第一版的單元測試因此曾經
+「未設定 `TRUSTED_PROXY_IP` 時，偽造的 `X-Forwarded-For` 仍被採信」而失敗——這代表如果只靠
+「沒設定時清單留空」當防線，本機開發、測試環境、甚至漏設這個環境變數的正式部署都會變成信任
+任何人送來的標頭，比完全不做這個功能更危險。真正的防線因此改成：**`TRUSTED_PROXY_IP` 沒設定時，
+`Program.cs` 根本不呼叫 `app.UseForwardedHeaders()`**（`TrustedProxyConfiguration.IsEnabled`
+判斷），中介軟體完全不在管線裡執行，`RemoteIpAddress` 保證是連線本身看到的值，沒有任何機會被
+偽造的標頭覆寫。完整說明見 `Security/TrustedProxyConfiguration.cs` 檔頭。
+
+**測試**：`Tcrfc.Api.Tests/TrustedProxyConfigurationTests.cs` 新增 3 項——受信任代理轉來的
+`X-Forwarded-For`、不同來源 IP 各自解析出不同真實 IP（各自獨立額度）；不受信任來源送來的
+`X-Forwarded-For` 整個被忽略；未設定 `TRUSTED_PROXY_IP` 時任何 `X-Forwarded-For` 一律不採信。
+**不透過 `WebApplicationFactory` 打真正 HTTP**——實測確認 `TestServer` 底下
+`HttpContext.Connection.RemoteIpAddress` 永遠是 `null`，`ForwardedHeadersMiddleware` 的信任
+判斷永遠不可能命中，無法在那個環境下驗證「受信任代理」這條路徑。改用
+`TrustedProxyConfiguration.ResolveEffectiveClientIp`（跟 `Program.cs` 真正管線用的是同一支
+`Configure` 設定，內部真的建構並執行一次 `ForwardedHeadersMiddleware`，不是重寫一份邏輯）。
+⚠️ `Tcrfc.Api.Tests` 是 `Microsoft.NET.Sdk`（不是 `Sdk.Web`），實測發現無法直接參照
+`Microsoft.AspNetCore.HttpOverrides`（`ResolveTargetingPackAssets` 中繼輸出看得到該組件，卻不會
+出現在最終傳給 `csc` 的 `-reference` 清單，原因不明，懷疑是 RAR 衝突解決或套件裁剪管線的交互
+作用），因此把「建構中介軟體並執行」這段留在主專案，測試專案只呼叫回傳 `string` 的純函式版本，
+完全不需要碰任何 ASP.NET Core 型別。
+
+**手動驗收**（本機 `dotnet run`，`curl`）：公開表單定義、成功送出、缺必填欄位（400）、未知表單代碼
+（404）、誘捕欄位命中（200 但資料庫 0 筆）、依 IP 分區限流（連續 25 次請求，第 21 次起收到 429）、
+**設定 `TRUSTED_PROXY_IP` 後，帶不同 `X-Forwarded-For` 的請求各自獨立計算限流額度、且非受信任
+連線來源送的 `X-Forwarded-For` 不被採信**逐項打過，詳見下方「測試」段。後台端點用
+`clean.login@tcrfc.test` 走完整登入＋即時完成 2FA 設定（`TotpService` 的 RFC 6238 演算法用
+Python 手算驗證碼，不繞過驗證本身）後實際呼叫 G1／G2 端點，確認清單、詳情、CSV 匯出（中文表單
+類別名稱、非 `form_code` 字面值）皆正確，驗收後已呼叫 `reset-admin-accounts.sh` 把
+`clean.login@tcrfc.test` 的 2FA 狀態還原成種子初始值，不污染 `AdminAuthTests` 對這個帳號
+「兩階段驗證未啟用」的既有假設。
+
+### 規劃書沒寫清楚、本輪自行判斷的地方
+
+1. **`donation_enquiry`（捐助洽詢）規劃書全文未定義這個表單的實際欄位**——只在 G2 收件匣分頁清單
+   （行 1163）與 `Enquiry` 型別說明兩處被提及，§3.10 逐表單欄位清單只列到 10.1–10.7 七類。本輪
+   最小可行自訂三個欄位（姓名、聯絡方式、內容，皆比照 10.7 一般聯絡的欄位精神），不擴大蒐集範圍。
+2. **`proposal_download` 併入商務／贊助的「合作／贊助類詢問」類別**——規劃書沒有明文歸類提案下載
+   的 Lead 名單該由哪個角色的 G2 收件匣看到，本輪判斷「提案下載＝贊助洽詢的前導動作」（9.4
+   CTA「Sponsorship Deck 下載提案簡介」本身就在贊助頁面），歸入商務／贊助能看到的範圍。
+3. **檔案上傳（`file`）欄位型別本輪只接受文字／URL 輸入，不是真正的檔案上傳**——全系統既有的
+   `IImageStorageService` 是「驗證格式→去 EXIF→縮圖→轉 WebP」的圖片專用管線，履歷等一般文件
+   （PDF／Word）不是圖片、也不需要縮圖，直接沿用會誤用圖片轉檔邏輯。建立一套獨立的通用檔案上傳
+   服務（儲存體容器、型別與大小驗證）是獨立的基礎建設決定，不在本次任務範圍，見
+   `Features/Forms/FormFieldTypes.cs` 上 `File` 常數的說明。
+4. **「內容摘要」欄（規劃書 G2 條列的收件匣欄位之一）已於審查回饋後補做**——最初判斷「表單欄位
+   是動態的，沒有穩定的摘要標記」而略過，經指出「規劃書明文要求的欄位不能因為實作不便而略過」
+   後改正：`form_fields` 新增 `is_summary bit`（migration `AddFormFieldIsSummary`），G1 可以把
+   任一欄位標記為內容摘要來源，同一張表單最多一個（應用層＋DB 過濾唯一索引 `UQ_form_fields_
+   one_summary_per_form` 兩道防線，設定第二個會自動取代第一個，不是回錯誤）。種子資料把
+   `join_player`／`academy_children_training`／`international_player_enquiry` 的 `experience`、
+   `partnership_sponsorship` 的 `cooperation_direction`、`general_contact`／`donation_enquiry`
+   的 `message` 標記為摘要；`camp_registration`／`media_enquiry`／`proposal_download` 沒有合適
+   的敘述性文字欄位，內容摘要維持 `null`，是設計上的必然結果。完整說明見
+   `docs/12-database-schema.md` §12 第 38 點與 `Features/AdminEnquiries/AdminEnquiriesRepository.cs`
+   檔頭。
+5. **`enquiry.inbox.export` 只給系統管理員，客服／行政「✔全」不含匯出**——比照 P3
+   `program.registration.export` 不給客服／行政的既有保守預設，矩陣的「✔全」在既有慣例裡本來就
+   不必然包含匯出（匯出普遍被視為需要額外授權的敏感動作）。
+6. **`enquiry.inbox.export` 套用 `is_restricted=1`，但沒有另外實作「執行當下二次驗證」**——全系統
+   目前沒有任何模組真的做出這件事（`Security/PermissionChecker.cs` 只做一般權限碼比對），本輪比照
+   現狀，只掛旗標與基本權限檢查，不另外發明，同 S1-9 既有先例。
+7. **`form_fields` 沒有 `UNIQUE (form_id, field_key)` 的資料庫層防線**——只在應用層（
+   `AdminFormsRepository.CreateFieldAsync`／`UpdateFieldAsync`）擋重複欄位代碼，判斷這個唯一性
+   邊界只有這一支程式碼會寫入，資料庫層約束的邊際效益不足以再多開一次 DDL 異動，回報供之後若有
+   第二個寫入路徑時重新評估。
+8. **G1 沒有欄位批次重新排序的端點**——`PUT .../fields/{fieldId}` 的 `sortOrder` 允許逐一覆寫，
+   後台若要做拖曳排序，前端可依序對每個異動的欄位各呼叫一次；規劃書沒有明確要求批次排序端點，
+   採最小可行原則不多開。
+9. **Rate Limiting 的門檻值（20 次／5 分鐘／依 IP）沒有規格依據**——比照 `Common/CsvUtils.cs`
+   檔頭「沒定義就採最小可行」的既有慣例自訂；這個數字同時要照顧到
+   `Tcrfc.Api.Tests.AdminFormsEnquiriesTests` 的整合測試呼叫量（`WebApplicationFactory` 測試連線
+   共用同一個 IP 分區），見 `Program.cs` 對應段落的完整說明。
+10. **公開送出端點回應不含新建的 `Enquiry` id 或確認編號**——規劃書只要求「送出後：自動回覆信＋
+    通知信＋寫入後台」，沒有像 P3 報名那樣要求「產生報名編號」，本輪判斷不需要額外的確認碼，只回
+    `{success:true}`；測試需要回查 id 時改用 `contact` 欄位值查資料庫（見測試檔案內部工具）。
+11. **表單通知信與自動回覆信本輪未接上真正的寄信通路**——同 S1-9 記錄的既有缺口（全系統還沒有
+    寄信基礎設施），`forms.notify_emails`／`forms_i18n.auto_reply_body` 兩個設定欄位已可由 G1
+    寫入與讀出，但公開送出端點目前不會真的寄出任何信件，回報供下一輪走同步鏈裁決寄信基礎建設。
+
+### 測試
+
+`Tcrfc.Api.Tests/AdminFormsEnquiriesTests.cs` 新增 17 項（權限矩陣 5 項、G1 表單設定與欄位 CRUD
+含驗證與衝突反例 4 項、內容摘要「同一表單最多一個、自動取代」1 項、G2 依類別列級授權含跨類別越權
+與無摘要表單回 `null` 各 1 項、公開表單定義與送出含誘捕欄位／必填／未知欄位／下拉選項驗證等反例
+5 項、CSV 匯出中文化含內容摘要欄 1 項）；`Tcrfc.Api.Tests/TrustedProxyConfigurationTests.cs`
+新增 3 項（限流依真實訪客 IP：受信任代理各自獨立額度、不受信任來源標頭不被採信、未設定
+`TRUSTED_PROXY_IP` 時中介軟體完全不掛）。全套 `dotnet test` **406／406 通過**（連跑多次皆全線）。
+`apps/admin`／`apps/web` 的 `npm run lint` 皆通過（0 errors；`apps/web` 既有 539 個 warning 與
+本輪無關，未觸碰任何前端檔案）。
+
+---
+
 ## 目錄結構
 
 ```
@@ -3070,6 +3355,7 @@ compose 網路裡）。
 | `QUERY_CACHE_TTL_SECONDS` | 選填（S0-7d） | 每個快取 key 的 TTL 秒數，預設 `300`（5 分鐘）。預設值的理由與可否調整見下方「快取接縫」段落 |
 | `SCHEDULED_PUBLISH_INTERVAL_SECONDS` | 選填（S0-7g） | 排程發布掃描的輪詢間隔秒數，預設 `60`。設定成 `< 1` 會記警告並退回預設值，不會讓服務啟動失敗。理由與可否調低見下方「排程發布：時間到了自動轉為 published」段落 |
 | `CORS_ALLOWED_ORIGINS` | 正式環境必填，本機可省略 | 逗號分隔的允許來源清單，來自 `docker-compose.yml` 的 `api` 服務定義（`docs/17-deployment.md` §10.2 的既有缺口，本次由前一任務補上）。本機開發若沒帶，`Development` 環境會退回 `localhost:3000/3001/3002` 三個 `apps/web` 常用埠；**正式環境沒有這個退回值**——沒設定就是沒有任何來源被允許，比「忘記設定就開放全部」安全 |
+| `TRUSTED_PROXY_IP` | 正式環境必填（否則限流失去意義），本機可省略 | S1-10 新增：唯一被信任、可以用 `X-Forwarded-For` 覆寫訪客真實 IP 的來源（`docker-compose.yml` 的 `proxy` 服務固定 IP `172.28.238.2`）。**未設定時 `Program.cs` 不會呼叫 `app.UseForwardedHeaders()`**——千萬不要假設「沒設定就是安全的預設值」，`ForwardedHeadersMiddleware` 把空的信任清單當成「信任所有來源」，見 `Security/TrustedProxyConfiguration.cs` 檔頭「未設定時中介軟體本身完全不掛」的完整說明 |
 | `ASPNETCORE_ENVIRONMENT` | 建議設 | `Development` 才會開 OpenAPI 端點，其餘值一律關閉 |
 | `ASPNETCORE_URLS` | 本機開發用 | 監聽位址，容器內固定用 `Dockerfile` 的 `ASPNETCORE_HTTP_PORTS=8080` |
 | ~~`ENABLE_UNSAFE_DEV_WRITES`~~ | 2026-09-23 起不存在 | 舊機制的環境旗標，隨 `Security/DevWriteGate.cs` 一併刪除，本檔任何程式碼都不再讀取這個鍵名，見「開發模式開關：已刪除」整節 |

@@ -77,6 +77,7 @@
 | E-33 | 2026-09-21 | Element Plus 沒設語系，分頁器印出 `Total 8`／`20/page` 等英文——違反 §4.0，但禁用詞掃描只看 `.vue` 的 `<template>`，掃不到元件庫自帶文案 | ✅ `check-forbidden-terms.mjs` 加驗 `main.ts` 有設 `locale` |
 | E-38 | 2026-09-22 | `BlobImageStorageService` 的「容器已確保存在」旗標在呼叫 `CreateIfNotExistsAsync` **之前**就設成完成，第一次呼叫因故失敗後，旗標仍卡在「已完成」，之後每次呼叫都跳過建立、直接對不存在的容器寫入，得到的錯誤變成「容器不存在」蓋掉了真正的根因 | ✅ 改用 `SemaphoreSlim` 包住整段，`CreateIfNotExistsAsync` 成功後才設旗標 |
 | E-57 | 2026-09-25 | 規劃書與 `STATUS.md` 已經有答案的事，還拿去問使用者（第二次；第一次是把 `previousStartDate` 等實作選項丟給使用者） | ✅ 升級為 `CLAUDE.md` 全域規定第 14 條 |
+| E-58 | 2026-09-25 | S1-10 公開表單送出端點新增 Rate Limiting（依 IP 分區、5 分鐘固定視窗），`PermitLimit` 只用「正式環境訪客合理送出頻率」估出 10，沒有同時檢查「同一支整合測試檔案會呼叫這個端點幾次」——`WebApplicationFactory` 測試的所有請求共用同一個 `RemoteIpAddress`（TestServer 沒有真實連線），本輪新測試檔 11 次公開送出呼叫在同一視窗內就把額度用完，其中誘捕欄位測試收到 429 而非預期的 200，`dotnet test` 出現 1 項失敗 | ✅ 門檻改為 20 並在 `Program.cs` 對應段落寫清楚估算依據（含目前測試呼叫量），下次新增依連線分區的 Rate Limiting 政策時，門檻值要同時滿足「正式環境防護意義」與「同一分區內整合測試呼叫總量」兩個條件 |
 
 ---
 

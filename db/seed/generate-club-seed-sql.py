@@ -938,6 +938,32 @@ PERMISSIONS = [
     ("program.registration.create", "P", "P3", "program", "create", 1, 0, 0, "建立報名（後台代填）", "Create Registrations"),
     ("program.registration.update", "P", "P3", "program", "update", 1, 0, 0, "處理報名（確認／取消／轉梯次／候補／備註）", "Update Registrations"),
     ("program.registration.export", "P", "P3", "program", "export", 1, 1, 0, "匯出報名名單", "Export Registrations"),
+    # S1-10 新增：G1 表單設計器／G2 詢問收件匣。domain 統一取 "enquiry"（規劃書 §6 矩陣把
+    # 「表單詢問」列為單一欄，不像 C／P 模組拆兩個 domain）。forms／form_fields／enquiries／
+    # enquiry_answers 四張表全部 club_id 必填（forms／enquiries 直接掛 club_id，form_fields／
+    # enquiry_answers 透過父表間接歸屬），is_club_scoped=1，非 sysadmin_only。
+    #
+    # 🔴 G2 依表單類別的列級授權**不是**用 role_permissions.scope_type 表達（那是給「同一權限碼、
+    # 依逐人指派的關聯表決定範圍」的情境，例如 own_teams 靠 AdminUserTeam）；矩陣「課程類詢問」
+    # 「合作／贊助類詢問」「媒體類詢問」三格的邊界是固定的 9 個 form_code 分組，不需要逐人指派，
+    # 直接拆成 enquiry.course.*／enquiry.partnership.*／enquiry.media.* 三組獨立權限碼比多一個
+    # scope_type 列舉值＋硬編碼分類對照表更直接，見 apps/api/README.md「S1-10」段與
+    # docs/12b-database-tables.md §7.4「S1-10 新增」附註。
+    #
+    # ⚠️ 主站規劃書 §6（行 1604）原始表格「廣告」／「行動 App」／「表單詢問」三欄內容與表頭錯位
+    # （docs/12-database-schema.md §12 第 37 點已記錄），本輪權限指派改採
+    # docs/03-admin-spec.md §3 已手動修正對齊的「詢問」欄核對，不是照原始表格字面欄位位置讀。
+    ("form.view", "G", "G1", "enquiry", "view", 1, 0, 0, "檢視表單設計", "View Forms"),
+    ("form.update", "G", "G1", "enquiry", "update", 1, 0, 0, "編輯表單設計", "Update Forms"),
+    ("enquiry.inbox.view", "G", "G2", "enquiry", "view", 1, 0, 0, "檢視全部詢問", "View All Enquiries"),
+    ("enquiry.inbox.update", "G", "G2", "enquiry", "update", 1, 0, 0, "處理全部詢問", "Update All Enquiries"),
+    ("enquiry.inbox.export", "G", "G2", "enquiry", "export", 1, 1, 0, "匯出詢問名單", "Export Enquiries"),
+    ("enquiry.course.view", "G", "G2", "enquiry", "view", 1, 0, 0, "檢視課程類詢問", "View Course Enquiries"),
+    ("enquiry.course.update", "G", "G2", "enquiry", "update", 1, 0, 0, "處理課程類詢問", "Update Course Enquiries"),
+    ("enquiry.partnership.view", "G", "G2", "enquiry", "view", 1, 0, 0, "檢視合作／贊助類詢問", "View Partnership Enquiries"),
+    ("enquiry.partnership.update", "G", "G2", "enquiry", "update", 1, 0, 0, "處理合作／贊助類詢問", "Update Partnership Enquiries"),
+    ("enquiry.media.view", "G", "G2", "enquiry", "view", 1, 0, 0, "檢視媒體類詢問", "View Media Enquiries"),
+    ("enquiry.media.update", "G", "G2", "enquiry", "update", 1, 0, 0, "處理媒體類詢問", "Update Media Enquiries"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -1111,6 +1137,22 @@ ROLE_PERMISSIONS = [
         "program.session.view", "program.session.create", "program.session.update",
         "program.registration.view", "program.registration.create", "program.registration.update",
     ], "own_clubs"),
+    # S1-10 新增：G1 表單設計器／G2 詢問收件匣，依主站規劃書 §6 矩陣「表單詢問」欄逐列展開
+    # （見上方 PERMISSIONS 定義處的完整說明，含規劃書原始表格欄位錯位的核對依據）。
+    # 系統管理員 ✔全（PERMISSIONS 清單自動展開，不在此重複列出）；內容編輯／競技球隊管理／
+    # 翻譯人員矩陣是「—」，不指派任何 G 模組權限碼。
+    ("academy_program", ["enquiry.course.view", "enquiry.course.update"], "all"),
+    ("business_sponsorship", ["enquiry.partnership.view", "enquiry.partnership.update"], "all"),
+    ("pr_media", ["enquiry.media.view", "enquiry.media.update"], "all"),
+    # 客服／行政「✔全」——含 G1 表單設計與 G2 全部詢問，但**不含匯出**（is_restricted，比照
+    # P3 匯出不給客服／行政的既有保守預設，見 apps/api/README.md「S1-10」段）。
+    ("customer_service_admin", ["form.view", "form.update", "enquiry.inbox.view", "enquiry.inbox.update"], "all"),
+    # 檢視者「唯讀」——只給檢視碼，不給任何 update／export。
+    ("viewer", ["form.view", "enquiry.inbox.view"], "all"),
+    # 合作球隊管理「自家」——俱樂部範圍已由 own_clubs 限制在自己的 club_id，G 模組內部不需要
+    # 再疊一層類別過濾（跟 P3 課程／報名同一個道理：矩陣直接寫「自家」不是「自家＋類別限定」）。
+    # 不含匯出，比照 P3 既有保守預設。
+    ("partner_club_manager", ["form.view", "form.update", "enquiry.inbox.view", "enquiry.inbox.update"], "own_clubs"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")
@@ -1186,6 +1228,11 @@ ADMIN_USERS = [
      False, False, True, "customer_service_admin", [("tcrfc", None)]),
     ("pr.media@tcrfc.test", "公關／媒體（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
      False, False, True, "pr_media", [("tcrfc", None)]),
+    # S1-10 新增：測試 G2「合作／贊助類詢問」局部權限（business_sponsorship），沿用
+    # content.editor@tcrfc.test 的雜湊（純測試帳號）。business_sponsorship 角色本身早已存在
+    # （S1-3 種子），但先前沒有任何測試帳號被指派過這個角色。
+    ("business.sponsorship@tcrfc.test", "商務／贊助（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, True, "business_sponsorship", [("tcrfc", None)]),
 ]
 
 emit("-- ── 18.4 admin_users：種子超管（真雜湊，Admin@123）＋ 五個角色測試帳號（真雜湊） ──")
@@ -1205,6 +1252,7 @@ emit("--   clean.login@tcrfc.test       / SuperAdmin@123（沿用同一組雜湊
 emit("--   academy.login@tcrfc.test     / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，學院角色的端對端實走帳號，僅授權 bw）")
 emit("--   customer.service@tcrfc.test  / ContentEditor@123（沿用同一組雜湊，測 P3「報名處理」局部權限）")
 emit("--   pr.media@tcrfc.test          / ContentEditor@123（沿用同一組雜湊，測完全沒有課程／報名權限的 403）")
+emit("--   business.sponsorship@tcrfc.test / ContentEditor@123（沿用同一組雜湊，測 G2「合作／贊助類詢問」局部權限）")
 for username, display_name, password_hash, is_super, must_change, two_factor, role_code, club_grants in ADMIN_USERS:
     user_id = new_id("admin_user", username)
     block(f"""
@@ -1314,6 +1362,148 @@ for code, name in FAQ_EMBED_SLOTS:
     block(f"""
 IF NOT EXISTS (SELECT 1 FROM faq_embed_slots WHERE code = {esc(code)})
   INSERT INTO faq_embed_slots (id, code, name) VALUES ({esc(slot_id)}, {esc(code)}, {esc(name)});
+""")
+
+# ============================================================================
+# S1-10（G1 表單設計器／G2 詢問收件匣，2026-09-25）：forms／form_fields 九個固定表單，
+# 兩俱樂部各種一份。
+# ----------------------------------------------------------------------------
+# `FORM_CODES` 九碼字面值必須與 apps/api/Features/Forms/FormCatalog.cs 逐一對應（既有慣例，見
+# 上方 HOME_SECTIONS 段的檔頭說明：「C# 與本腳本各自宣告一份同樣的代碼，靠命名一致與 code review
+# 維持同步，不是自動化比對」）——改這裡的字串或那邊的常數，兩處要一起改，否則 G2 依類別過濾的
+# 查詢會找不到對應的表單。
+#
+# `FORM_FIELD_DEFAULTS` 是每個表單的**預設欄位組**，逐一對應主站規劃書 §3.10 逐表單列出的欄位
+# 清單（10.1–10.7）；`proposal_download`（9.4 CTA「填寫公司／姓名／Email → 取得下載連結」）與
+# `donation_enquiry`（🔴 規劃書全文未定義這個表單的實際欄位，只在 G2 收件匣分頁清單與 Enquiry
+# 型別說明提及，見 apps/api/README.md「S1-10」段）採最小可行原則自訂。所有表單統一補一個
+# `privacy_consent`（同意條款）欄位，對應規劃書 §3.10「共通機制：個資同意條款勾選（含隱私政策
+# 連結）與保存期限說明」。
+#
+# 每個表單一律含 `name`（姓名／申請人／學員／聯絡人，依表單語境而定）與 `contact`（電話或
+# Email）兩個慣例欄位鍵——後台 G2 收件匣清單靠這兩個鍵顯示「姓名」「聯絡方式」兩欄
+# （apps/api/Features/AdminEnquiries/AdminEnquiriesRepository.cs 檔頭），欄位標籤本身沒有
+# i18n（2026-09-22 已拍板不建 form_fields_i18n），前台渲染表單時的中文標籤由前端依規劃書
+# §3.10 自行對應 field_key，本檔只決定 key 本身與型別／必填／驗證規則／選項。
+#
+# 🔴 **表單顯示名稱（如「10.1 Join as a Player 加入球隊」）不進資料庫**——已於 2026-09-22 拍板
+# 維持規劃書 §3.10 固定表格寫死，這裡故意不寫 forms_i18n.name，後端 API 用
+# `Features/Forms/FormCatalog.cs` 的固定字典輸出顯示名稱（純程式碼常數，不是資料庫欄位）。
+# ============================================================================
+FORM_CODES = [
+    "join_player", "academy_children_training", "camp_registration", "international_player_enquiry",
+    "partnership_sponsorship", "media_enquiry", "general_contact", "proposal_download", "donation_enquiry",
+]
+
+# 六元組：(field_key, field_type, is_required, validation_rule, options, is_summary)。
+# is_summary（S1-10 審查回饋補做）：G2 收件匣「內容摘要」欄的來源鍵，同一張表單最多一個 True——
+# 只標給有敘述性文字的欄位，沒有合適欄位的表單（camp_registration／media_enquiry／
+# proposal_download）全部維持 False，內容摘要在那些表單上就是 null，不是缺陷，見
+# docs/12-database-schema.md §12 第 38 點。
+CONSENT_FIELD = ("privacy_consent", "consent", True, None, None, False)
+
+FORM_FIELD_DEFAULTS = {
+    "join_player": [  # 10.1：姓名、生日、位置、經歷、影片連結、聯絡方式
+        ("name", "text", True, None, None, False),
+        ("birth_date", "date", True, None, None, False),
+        ("position", "text", False, None, None, False),
+        ("experience", "textarea", False, None, None, True),  # 內容摘要來源
+        ("video_url", "text", False, None, None, False),
+        ("contact", "text", True, None, None, False),
+        CONSENT_FIELD,
+    ],
+    "academy_children_training": [  # 10.2：報名項目、學員資料、地點偏好、家長聯絡、足球經歷、健康狀況
+        ("enrollment_category", "select", True, None,
+         ["學院 U12", "學院 U14", "學院 U15", "兒童混齡班", "兒童初學班", "兒童技巧發展班", "專項訓練"], False),
+        ("name", "text", True, None, None, False),
+        ("birth_date", "date", True, None, None, False),
+        ("location_preference", "text", False, None, None, False),
+        ("contact", "text", True, None, None, False),
+        ("experience", "textarea", False, None, None, True),  # 內容摘要來源
+        ("health_status", "textarea", False, None, None, False),
+        CONSENT_FIELD,
+    ],
+    "camp_registration": [  # 10.3：營隊梯次、學員資料、健康聲明、緊急聯絡人——沒有敘述性文字欄位，不標記摘要
+        ("session_choice", "text", True, None, None, False),
+        ("name", "text", True, None, None, False),
+        ("birth_date", "date", True, None, None, False),
+        ("health_declaration", "consent", True, None, None, False),
+        ("contact", "text", True, None, None, False),
+        CONSENT_FIELD,
+    ],
+    "international_player_enquiry": [  # 10.4：英文姓名、國籍、護照、經歷、影片、簽證狀態
+        ("name", "text", True, None, None, False),
+        ("nationality", "text", True, None, None, False),
+        ("passport_no", "text", False, None, None, False),
+        ("experience", "textarea", False, None, None, True),  # 內容摘要來源
+        ("video_url", "text", False, None, None, False),
+        ("visa_status", "text", False, None, None, False),
+        ("contact", "text", True, None, None, False),
+        CONSENT_FIELD,
+    ],
+    "partnership_sponsorship": [  # 10.5：洽詢類型、公司、產業、預算區間、合作方向、感興趣贊助方案、聯絡人
+        ("enquiry_type", "select", True, None, ["合作夥伴", "贊助", "兩者"], False),
+        ("company", "text", True, None, None, False),
+        ("industry", "text", False, None, None, False),
+        ("budget_range", "text", False, None, None, False),
+        ("cooperation_direction", "textarea", False, None, None, True),  # 內容摘要來源
+        ("sponsorship_interest", "text", False, None, None, False),
+        ("name", "text", True, None, None, False),
+        ("contact", "text", True, None, None, False),
+        CONSENT_FIELD,
+    ],
+    "media_enquiry": [  # 10.6：媒體名稱、記者姓名、採訪主題、截稿日——沒有敘述性文字欄位，不標記摘要
+        ("media_name", "text", True, None, None, False),
+        ("name", "text", True, None, None, False),
+        ("topic", "text", True, None, None, False),
+        ("deadline", "date", False, None, None, False),
+        ("contact", "text", True, None, None, False),
+        CONSENT_FIELD,
+    ],
+    "general_contact": [  # 10.7：姓名、Email、主旨、內容
+        ("name", "text", True, None, None, False),
+        ("contact", "text", True, None, None, False),
+        ("subject", "text", True, None, None, False),
+        ("message", "textarea", True, None, None, True),  # 內容摘要來源
+        CONSENT_FIELD,
+    ],
+    "proposal_download": [  # 9.4 CTA：公司／姓名／Email → 取得下載連結——沒有敘述性文字欄位，不標記摘要
+        ("company", "text", True, None, None, False),
+        ("name", "text", True, None, None, False),
+        ("contact", "text", True, None, None, False),
+        CONSENT_FIELD,
+    ],
+    "donation_enquiry": [  # 🔴 規劃書未定義欄位，本輪最小可行自訂（見上方檔頭說明）
+        ("name", "text", True, None, None, False),
+        ("contact", "text", True, None, None, False),
+        ("message", "textarea", False, None, None, True),  # 內容摘要來源
+        CONSENT_FIELD,
+    ],
+}
+
+emit("-- ── 22. forms／form_fields：9 個固定表單目錄 ＋ 預設欄位，兩俱樂部各種一份 ─────")
+for club_code in ("tcrfc", "bw"):
+    club_ref = CLUB_TCRFC if club_code == "tcrfc" else CLUB_BW
+    for form_code in FORM_CODES:
+        form_id = new_id("form", club_code, form_code)
+        block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM forms WHERE club_id = {club_ref} AND form_code = {esc(form_code)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(form_id)};
+  INSERT INTO forms (id, club_id, form_code, captcha_enabled)
+  VALUES (@id, {club_ref}, {esc(form_code)}, 1);
+END
+""")
+        form_ref = f"(SELECT id FROM forms WHERE club_id = {club_ref} AND form_code = {esc(form_code)})"
+        for i, (field_key, field_type, is_required, validation_rule, options, is_summary) in enumerate(FORM_FIELD_DEFAULTS[form_code]):
+            field_id = new_id("form_field", club_code, form_code, field_key)
+            options_json = esc(json.dumps(options, ensure_ascii=False)) if options else "NULL"
+            block(f"""
+IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = {form_ref} AND field_key = {esc(field_key)})
+  INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
+  VALUES ({esc(field_id)}, {form_ref}, {esc(field_key)}, {esc(field_type)}, {esc(is_required)}, {esc(validation_rule)}, {options_json}, {esc(is_summary)}, {i});
 """)
 
 if "--reset-admin-accounts" in sys.argv:

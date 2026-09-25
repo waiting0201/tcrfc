@@ -12,6 +12,44 @@ public sealed class AdminClubAuthorizer(ClubDbContext db, IClubResolver clubReso
     public async Task<AdminClubScope> AuthorizeAsync(
         HttpContext httpContext, string clubCode, string permissionCode, CancellationToken cancellationToken)
     {
+        var (club, identity) = await AuthorizeAccountAndClubAsync(httpContext, clubCode, cancellationToken);
+
+        // ④ 這項操作的權限碼。
+        var permissionChecker = new PermissionChecker(db);
+        var hasPermission = await permissionChecker.HasPermissionAsync(
+            identity.AdminUserId, identity.IsSuperAdmin, permissionCode, cancellationToken);
+
+        if (!hasPermission)
+        {
+            throw new AdminForbiddenException("你的角色沒有這項操作的權限，請洽系統管理員。"); // 不得內插權限碼：介面不顯示權限碼（規劃書 §4.0）
+        }
+
+        return new AdminClubScope(club, identity);
+    }
+
+    public async Task<AdminClubScope> AuthorizeAnyAsync(
+        HttpContext httpContext, string clubCode, IReadOnlyList<string> permissionCodes, CancellationToken cancellationToken)
+    {
+        var (club, identity) = await AuthorizeAccountAndClubAsync(httpContext, clubCode, cancellationToken);
+
+        // ④'：清單中有一個權限碼通過就算過（見本方法在介面上的完整說明）。
+        var permissionChecker = new PermissionChecker(db);
+        var held = await permissionChecker.GetHeldPermissionCodesAsync(
+            identity.AdminUserId, identity.IsSuperAdmin, permissionCodes, cancellationToken);
+
+        if (held.Count == 0)
+        {
+            throw new AdminForbiddenException("你的角色沒有這項操作的權限，請洽系統管理員。");
+        }
+
+        return new AdminClubScope(club, identity);
+    }
+
+    /// <summary>①②③ 三步共用邏輯——帳號狀態、俱樂部存在、俱樂部授權。<see cref="AuthorizeAsync"/>
+    /// 與 <see cref="AuthorizeAnyAsync"/> 只在第④步（權限碼判斷方式）不同，見兩者上的說明。</summary>
+    private async Task<(ClubScope Club, AdminIdentity Identity)> AuthorizeAccountAndClubAsync(
+        HttpContext httpContext, string clubCode, CancellationToken cancellationToken)
+    {
         // ①＋帳號本身狀態（存在、啟用、已改密、已完成 2FA）：抽到 AdminAccountGate 共用
         // （本輪新增，供 AdminSystemAuthorizer 共用同一組判斷，見該檔案上的說明）。
         var identity = await AdminAccountGate.RequireActiveAccountAsync(db, httpContext, cancellationToken);
@@ -37,16 +75,6 @@ public sealed class AdminClubAuthorizer(ClubDbContext db, IClubResolver clubReso
             }
         }
 
-        // ④ 這項操作的權限碼。
-        var permissionChecker = new PermissionChecker(db);
-        var hasPermission = await permissionChecker.HasPermissionAsync(
-            identity.AdminUserId, identity.IsSuperAdmin, permissionCode, cancellationToken);
-
-        if (!hasPermission)
-        {
-            throw new AdminForbiddenException("你的角色沒有這項操作的權限，請洽系統管理員。"); // 不得內插權限碼：介面不顯示權限碼（規劃書 §4.0）
-        }
-
-        return new AdminClubScope(club, identity);
+        return (club, identity);
     }
 }

@@ -2684,6 +2684,10 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("field_type");
             entity.Property(e => e.FormId).HasColumnName("form_id");
             entity.Property(e => e.IsRequired).HasColumnName("is_required");
+            entity.Property(e => e.IsSummary).HasColumnName("is_summary");
+            entity.Property(e => e.OptionsJson)
+                .HasMaxLength(1000)
+                .HasColumnName("options_json");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");

@@ -5,7 +5,9 @@ using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminBanners;
 using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
+using Tcrfc.Api.Features.AdminEnquiries;
 using Tcrfc.Api.Features.AdminFaqs;
+using Tcrfc.Api.Features.AdminForms;
 using Tcrfc.Api.Features.AdminHomeSections;
 using Tcrfc.Api.Features.AdminMatches;
 using Tcrfc.Api.Features.AdminNews;
@@ -18,6 +20,7 @@ using Tcrfc.Api.Features.AdminSessions;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
+using Tcrfc.Api.Features.Forms;
 using Tcrfc.Api.Features.Programs;
 using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
@@ -174,6 +177,20 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", publicRegistrationValidation.Message),
             ProgramSessionNotFoundException programSessionNotFound =>
                 (StatusCodes.Status404NotFound, "找不到梯次", programSessionNotFound.Message),
+
+            // ── S1-10 新增：G1 表單設計器／G2 詢問收件匣／10 表單中心公開端點 ─────────────
+            AdminFormValidationException formValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", formValidation.Message),
+            AdminFormFieldKeyConflictException formFieldKeyConflict =>
+                (StatusCodes.Status409Conflict, "欄位代碼重複", formFieldKeyConflict.Message),
+            AdminFormFieldInUseException formFieldInUse =>
+                (StatusCodes.Status409Conflict, "欄位使用中", formFieldInUse.Message),
+            AdminEnquiryValidationException enquiryValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", enquiryValidation.Message),
+            PublicFormNotFoundException publicFormNotFound =>
+                (StatusCodes.Status404NotFound, "找不到表單", publicFormNotFound.Message),
+            PublicFormSubmissionValidationException publicFormSubmissionValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", publicFormSubmissionValidation.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),
