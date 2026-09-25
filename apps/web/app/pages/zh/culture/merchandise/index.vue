@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '官方商品 Merchandise｜台中磐石文化｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/culture/">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
       <li aria-current="page">官方商品</li>
     </ol>
   </div>
@@ -26,7 +28,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">8.3 Merchandise</p>
     <h1>官方商品<span class="en">Merchandise</span></h1>
-    <p class="page-hero__lede">俱樂部、學院、球迷三大系列的官方商品。要選購請前往<a href="/zh/shop/" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
+    <p class="page-hero__lede">俱樂部、學院、球迷三大系列的官方商品。要選購請前往<a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
   </div>
 </section>
 
@@ -66,7 +68,7 @@ useSeoMeta({
             </table>
           </div>
           <p class="merch-card__fine">尺寸單位公分，因量測方式不同存在 1–3 公分誤差，屬合理範圍。</p>
-          <a class="btn btn--primary btn--block" href="/zh/shop/home-jersey-2026/">選購 NT$1,200</a>
+          <a class="btn btn--primary btn--block" :href="lp('/zh/shop/home-jersey-2026/')">選購 NT$1,200</a>
         </div>
       </article>
 
@@ -95,7 +97,7 @@ useSeoMeta({
               </tbody>
             </table>
           </div>
-          <a class="btn btn--primary btn--block" href="/zh/shop/cushioned-socks/">選購 NT$120</a>
+          <a class="btn btn--primary btn--block" :href="lp('/zh/shop/cushioned-socks/')">選購 NT$120</a>
         </div>
       </article>
     </div>
@@ -131,7 +133,7 @@ useSeoMeta({
         <p class="kicker kicker--on-dark">ONLINE STORE</p>
         <h2 class="section-title" id="store-cta-title">前往官方商店</h2>
         <p>選尺寸與顏色、加入購物車，以 <strong>LINE Pay</strong> 付款並自動開立<strong>電子發票</strong>，可宅配、超商取貨或現場自取；訂單於會員中心查詢，未註冊者以訂單編號與 Email 查詢。</p>
-        <p style="margin:1.25rem 0"><a class="btn btn--primary" href="/zh/shop/">前往官方商店</a></p>
+        <p style="margin:1.25rem 0"><a class="btn btn--primary" :href="lp('/zh/shop/')">前往官方商店</a></p>
         <p><span class="mock-flag mock-flag--on-dark">商店為前端流程骨架，尚未串接金流與後端</span></p>
         <p class="store-band__fine">正式上線前，仍可透過舊官網 <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a> 的商店選購；站內商店上線後舊商店將停售。</p>
       </div>

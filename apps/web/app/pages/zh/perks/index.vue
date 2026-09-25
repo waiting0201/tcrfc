@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '08' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '特約店家 Partner Perks｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/culture/">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
       <li aria-current="page">特約店家</li>
     </ol>
   </div>
@@ -38,7 +40,7 @@ useSeoMeta({
         <p class="kicker">STORE LIST</p>
         <h2 class="section-title" id="stores-title">合作店家</h2>
       </div>
-      <a class="btn btn--dark btn--sm" href="/zh/member/#tab-register">加入會員</a>
+      <a class="btn btn--dark btn--sm" :href="lp('/zh/member/#tab-register')">加入會員</a>
     </div>
 
     <div class="store-filters" aria-label="店家篩選">
@@ -168,8 +170,8 @@ useSeoMeta({
         <p class="section-lede">免費加入即可享標示「全會員適用」的店家折扣；升級付費球迷會員，另可獲得球衣與更多店家優惠。</p>
       </div>
       <div class="perks-cta__actions">
-        <a class="btn btn--primary" href="/zh/member/#tab-register">加入會員</a>
-        <a class="btn btn--dark" href="/zh/culture/fan-club/">了解付費會籍</a>
+        <a class="btn btn--primary" :href="lp('/zh/member/#tab-register')">加入會員</a>
+        <a class="btn btn--dark" :href="lp('/zh/culture/fan-club/')">了解付費會籍</a>
       </div>
     </div>
   </div>

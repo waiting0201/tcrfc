@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '購物車 Cart｜官方商店｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/shop/">官方商店</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/shop/')">官方商店</a></li>
       <li aria-current="page">購物車</li>
     </ol>
   </div>
@@ -51,7 +53,7 @@ useSeoMeta({
                 <div class="cart-item">
                   <img src="/assets/img/merch/merch-jersey-01.jpg" alt="台中磐石主場球衣 2026 賽季" loading="lazy" width="200" height="200">
                   <div>
-                    <p class="cart-item__name"><a href="/zh/shop/home-jersey-2026/">台中磐石主場球衣｜2026 賽季</a></p>
+                    <p class="cart-item__name"><a :href="lp('/zh/shop/home-jersey-2026/')">台中磐石主場球衣｜2026 賽季</a></p>
                     <p class="cart-item__variant">尺寸 M ・ NT$1,200（原價 NT$1,600）</p>
                     <button class="cart-item__remove" type="button">移除</button>
                   </div>
@@ -71,7 +73,7 @@ useSeoMeta({
                 <div class="cart-item">
                   <img src="/assets/img/merch/merch-socks-03.jpg" alt="厚底緩震機能襪 經典紅" loading="lazy" width="200" height="200">
                   <div>
-                    <p class="cart-item__name"><a href="/zh/shop/cushioned-socks/">厚底緩震機能襪</a></p>
+                    <p class="cart-item__name"><a :href="lp('/zh/shop/cushioned-socks/')">厚底緩震機能襪</a></p>
                     <p class="cart-item__variant">經典紅 ・ 尺寸 L ・ NT$120</p>
                     <button class="cart-item__remove" type="button">移除</button>
                   </div>
@@ -89,7 +91,7 @@ useSeoMeta({
           </tbody>
         </table>
 
-        <p style="margin-top:1.75rem"><a class="btn btn--light btn--sm" href="/zh/shop/">← 繼續選購</a></p>
+        <p style="margin-top:1.75rem"><a class="btn btn--light btn--sm" :href="lp('/zh/shop/')">← 繼續選購</a></p>
       </div>
 
       <aside class="shop-layout__aside">
@@ -98,7 +100,7 @@ useSeoMeta({
           <p class="summary__line"><span>商品小計</span><strong>NT$1,440</strong></p>
           <p class="summary__line"><span>運費</span><span class="pending-inline">金額待確認</span></p>
           <p class="summary__line summary__total"><span>合計</span><span>NT$1,440＋運費</span></p>
-          <a class="btn btn--primary btn--block" href="/zh/checkout/">前往結帳</a>
+          <a class="btn btn--primary btn--block" :href="lp('/zh/checkout/')">前往結帳</a>
           <p class="summary__note">結帳時以 LINE Pay 付款並開立電子發票。運費金額與免運門檻待確認後於此顯示。</p>
         </div>
       </aside>

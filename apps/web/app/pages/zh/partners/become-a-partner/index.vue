@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'partners', unit: '9.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '成為合作夥伴 Become a Partner｜合作夥伴與贊助｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/partners/">夥伴</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/partners/')">夥伴</a></li>
       <li aria-current="page">成為合作夥伴</li>
     </ol>
   </div>
@@ -96,13 +98,13 @@ useSeoMeta({
         <p class="cta-card__num">9.4</p>
         <p class="cta-card__title">查看贊助方案</p>
         <p class="cta-card__desc">從俱樂部到場館冠名，找到最適合的合作規模。</p>
-        <a class="btn btn--primary" href="/zh/partners/opportunities/">贊助方案</a>
+        <a class="btn btn--primary" :href="lp('/zh/partners/opportunities/')">贊助方案</a>
       </div>
       <div class="cta-card" style="background:var(--ink)">
         <p class="cta-card__num">CONTACT</p>
         <p class="cta-card__title">聯絡商務部</p>
         <p class="cta-card__desc">想進一步討論合作內容？我們期待與您對話。</p>
-        <a class="btn btn--primary" href="/zh/join/partnership/">洽談合作</a>
+        <a class="btn btn--primary" :href="lp('/zh/join/partnership/')">洽談合作</a>
       </div>
     </div>
   </div>

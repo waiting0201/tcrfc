@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'programs', unit: '5.1' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '兒童足球訓練 Children\'s Training｜課程與活動｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/programs/">課程與活動</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
       <li aria-current="page">兒童足球訓練</li>
     </ol>
   </div>
@@ -132,8 +134,8 @@ useSeoMeta({
     </div>
     <p class="section-lede">選擇合適的分級，開始每週規律的足球訓練。站內不接受金流付款，梯次確認後將個別通知繳費方式。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a class="btn btn--primary" href="/zh/join/academy/">線上報名</a>
-      <a class="btn btn--light" href="/zh/programs/">回課程總覽</a>
+      <a class="btn btn--primary" :href="lp('/zh/join/academy/')">線上報名</a>
+      <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
     </div>
   </div>
 </section>

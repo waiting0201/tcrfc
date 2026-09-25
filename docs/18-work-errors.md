@@ -82,7 +82,7 @@
 | E-60 | 2026-09-25 | 把「規劃書沒有逐字要求某個型別雙語」當成「不用做」的理由，忽略了 CLAUDE.md 全域規定第 4 條是跨全站的通則，不需要規劃書逐項重申（2026-09-22 判斷、驗收退回才發現，`form_fields` 缺題目文字，S1-10） | ⚠️ 無自動化檢查，靠人工比對規劃書與 `docs/12c` |
 | E-61 | 2026-09-25 | 新增依角色分權限的功能（G2 指派負責人）時，姓名來源直接沿用系統管理員專屬的既有端點（`/admin/accounts`），沒有替其他持有處理權限的角色開等價的窄範圍端點（2026-09-22 判斷、驗收退回才發現，S1-10） | ⚠️ 無自動化檢查，已補 `ListAssignableUsersAsync` 供之後同類需求參考既有寫法 |
 | E-62 | 2026-09-25<br>2026-09-25 | 整合測試寫進共用開發庫的資料沒有清乾淨：清理呼叫失敗被靜默吞掉（29 篇孤兒文章）；**同日第二次**：兩支 FAQ 測試完全沒寫清理，累積 155 筆，擠掉另一支測試的前 50 名排行而失敗，還被誤判成「原本就會失敗」 | ⚠️ 已寫進 `docs/14`；無自動化 |
-| E-63 | 2026-09-25 | S1-13 把 `SiteHeader.vue`／`SiteFooter.vue` 78＋19 處連結改成呼叫 `lp()` 換算語系，但 `<script setup>` 只解構了 `const { locale, switchTo } = useLocale()`，漏了 `lp` 本身，本機真實 `curl` 首頁時才炸出 `_ctx.lp is not a function`（500） | ✅ 交付前用真實 `curl` 兩站 zh／en 抓 HTML 才發現，補上解構後重測通過；無自動化（`vue-tsc` 型別檢查可提早抓到，但本專案 lint 目前不含型別檢查，見 `docs/13-blue-whale-site.md` §6「型別特別 import」段的既有已知限制） |
+| E-63 | 2026-09-25<br>2026-09-25 | S1-13 把 `SiteHeader.vue`／`SiteFooter.vue` 78＋19 處連結改成呼叫 `lp()` 換算語系，但 `<script setup>` 只解構了 `const { locale, switchTo } = useLocale()`，漏了 `lp` 本身，本機真實 `curl` 首頁時才炸出 `_ctx.lp is not a function`（500） | ✅ 交付前用真實 `curl` 兩站 zh／en 抓 HTML 才發現，補上解構後重測通過。**防呆已補（2026-09-25，S1-13 缺口①）**：`apps/web/scripts/check-undefined-template-refs.mjs` 已掛進 `npm run lint`，跑 `nuxi typecheck`（不是裸 `vue-tsc`——裸的解不開 Nuxt 自動匯入，見腳本檔頭），只挑「訊息含 `ComponentInternalInstance` 的 `TS2339`」與「`TS2304`／`TS2552`」這兩種錯誤形狀（樣板用了 script setup 沒解構出來的識別字），不受本專案既有型別債（`useFetch().items` 等 `TS2339`／`TS7006`）干擾，不需要維護 baseline。已用故意刪掉一個檔案的 `const { lp } = useLocale()` 實測紅燈、補回後綠燈 |
 
 ---
 

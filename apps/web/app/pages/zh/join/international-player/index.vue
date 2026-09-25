@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: '', unit: '10.4' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: 'International Player Enquiries 國際球員詢問｜Join / Contact｜Taichung Rock FC',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑 Breadcrumb">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁 Home</a></li>
-      <li><a href="/zh/join/">加入與聯絡 Join / Contact</a></li>
+      <li><a :href="lp('/zh/')">首頁 Home</a></li>
+      <li><a :href="lp('/zh/join/')">加入與聯絡 Join / Contact</a></li>
       <li aria-current="page">International Player Enquiries</li>
     </ol>
   </div>
@@ -161,7 +163,7 @@ useSeoMeta({
         <div class="consent-block">
           <div class="checkbox-field">
             <input type="checkbox" id="ip-consent" name="consent" required aria-describedby="ip-consent-error">
-            <label for="ip-consent">I have read and agree to the <a href="/zh/privacy/">Privacy Policy</a>, and consent to Taichung Rock FC collecting the personal data submitted in this form for the purpose of processing this player enquiry. <span class="req" aria-hidden="true">*</span><span class="zh-sub-inline" lang="zh-Hant">本人已閱讀並同意隱私權政策，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次國際球員詢問。</span></label>
+            <label for="ip-consent">I have read and agree to the <a :href="lp('/zh/privacy/')">Privacy Policy</a>, and consent to Taichung Rock FC collecting the personal data submitted in this form for the purpose of processing this player enquiry. <span class="req" aria-hidden="true">*</span><span class="zh-sub-inline" lang="zh-Hant">本人已閱讀並同意隱私權政策，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次國際球員詢問。</span></label>
           </div>
           <p class="field-error" id="ip-consent-error" role="alert">Please check the consent box to continue</p>
           

@@ -6,6 +6,8 @@
 // 對一組動態數量的 .accordion-item／.fb-btn 做事件委派，用 querySelectorAll 綁定與原始行為等價。
 definePageMeta({ nav: '', unit: '12' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '常見問題 FAQ｜台中磐石足球俱樂部',
   description:
@@ -94,7 +96,7 @@ onMounted(() => {
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">常見問題</li>
     </ol>
   </div>
@@ -120,7 +122,7 @@ onMounted(() => {
 
     <p class="faq-no-result" id="faq-no-result" hidden>
       沒有找到符合的問題。歡迎直接
-      <a href="/zh/join/general/">聯絡我們</a>，我們會盡快回覆你的問題。
+      <a :href="lp('/zh/join/general/')">聯絡我們</a>，我們會盡快回覆你的問題。
     </p>
 
     <nav class="faq-topics" aria-label="常見問題主題">
@@ -272,7 +274,7 @@ onMounted(() => {
 
     <div class="faq-fallback-cta">
       <p>沒有找到你要的答案？</p>
-      <a class="btn btn--primary" href="/zh/join/general/">聯絡我們 10.7</a>
+      <a class="btn btn--primary" :href="lp('/zh/join/general/')">聯絡我們 10.7</a>
     </div>
   </div>
 </section>

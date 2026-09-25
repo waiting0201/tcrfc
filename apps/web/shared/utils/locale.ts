@@ -55,3 +55,15 @@ export function localizePath(path: string, locale: LocaleCode): string {
   if (!match) return path
   return `/${locale}${match[2] || '/'}`
 }
+
+/**
+ * 把一段 HTML 字串裡所有 `href="/zh/..."` 的內嵌連結換算成目前語系版本（S1-13 缺口①）。
+ * 用於 `shared/utils/club-copy.ts` 裡少數帶內嵌連結標記、以 `v-html` 渲染的文案欄位
+ * （例如 `HISTORY_HERO.tcrfc.lede`、`JOIN_CONTACT_HERO.*.lede`）——這些欄位是純資料常數，
+ * 不是元件，不能呼叫 `useLocale()`，換算工作留給消費端的頁面在渲染前呼叫這支函式處理。
+ * 內容全部來自本頁資料層（`club-copy.ts`），非使用者輸入，沿用既有 `v-html` 的信任範圍，
+ * 不是新增的 XSS 風險點。沒有 `/zh/...` 連結標記的字串（例如藍鯨版純文字 lede）原樣返回。
+ */
+export function localizeHtmlLinks(html: string, locale: LocaleCode): string {
+  return html.replace(/href="(\/zh\/[^"]*)"/g, (_match, path: string) => `href="${localizePath(path, locale)}"`)
+}

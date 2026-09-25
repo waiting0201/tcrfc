@@ -2,6 +2,8 @@
 // app/pages/zh/academy/pathway.vue — 由 site/src/pages/zh/academy/pathway/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "academy", unit: "04" })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: "學院發展路徑 Academy Pathway｜台中磐石足球學院｜台中磐石足球俱樂部",
   description: "台中磐石足球學院的階梯式發展路徑：U12 → U15 → 一線隊／海外，點擊各階段了解升上一階的方向（詳細內容資料收集中）。",
@@ -12,8 +14,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/academy/">足球學院</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/academy/')">足球學院</a></li>
       <li aria-current="page">學院發展路徑</li>
     </ol>
   </div>
@@ -88,17 +90,17 @@ useSeoMeta({
 <section class="band grain cta-band">
   <div class="container">
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/academy/teams/">
+      <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">學院隊伍</span>
         <p class="cta-card__desc">查看 U15／U14／U12 各梯隊</p>
       </a>
-      <a class="cta-card" href="/zh/academy/curriculum/">
+      <a class="cta-card" :href="lp('/zh/academy/curriculum/')">
         <span class="cta-card__num">4.4</span>
         <span class="cta-card__title">訓練課程與課綱</span>
         <p class="cta-card__desc">五大訓練面向與週期規劃</p>
       </a>
-      <a class="cta-card" href="/zh/academy/join/">
+      <a class="cta-card" :href="lp('/zh/academy/join/')">
         <span class="cta-card__num">4.7</span>
         <span class="cta-card__title">加入學院</span>
         <p class="cta-card__desc">招生對象與遴選流程</p>

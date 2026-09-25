@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '台中磐石主場球衣｜2026 賽季｜官方商店｜台中磐石足球俱樂部',
   description:
@@ -14,9 +16,9 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/culture/">台中磐石文化</a></li>
-      <li><a href="/zh/shop/">官方商店</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/shop/')">官方商店</a></li>
       <li aria-current="page">台中磐石主場球衣</li>
     </ol>
   </div>
@@ -72,14 +74,14 @@ useSeoMeta({
         </div>
 
         <div class="buy-row">
-          <a class="btn btn--primary" href="/zh/cart/">加入購物車</a>
-          <a class="btn btn--dark" href="/zh/checkout/">直接結帳</a>
+          <a class="btn btn--primary" :href="lp('/zh/cart/')">加入購物車</a>
+          <a class="btn btn--dark" :href="lp('/zh/checkout/')">直接結帳</a>
         </div>
 
         <ul class="info-list">
           <li><strong>付款</strong><span>LINE Pay（收款方：台中磐石足球俱樂部），結帳時開立電子發票。</span></li>
           <li><strong>配送</strong><span>宅配到府／超商取貨（不付款）／主場賽事日與俱樂部現場自取。<span class="pending-inline">運費待確認。</span></span></li>
-          <li><strong>退換貨</strong><span>依消費者保護法享七日猶豫期，詳見<a href="/zh/faq/">常見問題</a>與退換貨政策。<span class="pending-inline">政策條文待補。</span></span></li>
+          <li><strong>退換貨</strong><span>依消費者保護法享七日猶豫期，詳見<a :href="lp('/zh/faq/')">常見問題</a>與退換貨政策。<span class="pending-inline">政策條文待補。</span></span></li>
           <li><strong>材質</strong><span class="pending-inline">材質、產地與洗滌方式待客戶提供。</span></li>
         </ul>
       </div>

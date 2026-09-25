@@ -4,6 +4,8 @@
 // ⛔ 原頁 <script>（地區分頁 tablist 切換）改寫為 onMounted，行為逐字等價。
 definePageMeta({ nav: 'club', unit: '3.4' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '國際發展通道 International Pathways｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
   description:
@@ -29,8 +31,8 @@ onMounted(() => {
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/club/">俱樂部</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
       <li aria-current="page">國際發展通道</li>
     </ol>
   </div>
@@ -120,7 +122,7 @@ onMounted(() => {
         <div>
           <p class="hk-player-note__name">楊朝景<span class="badge badge--on-dark">旅外</span></p>
           <p class="hk-player-note__desc">一線隊 11 號中場，目前效力於香港九龍城（Kowloon City）。</p>
-          <a href="/zh/club/player-stories/">查看球員故事 →</a>
+          <a :href="lp('/zh/club/player-stories/')">查看球員故事 →</a>
         </div>
       </div>
 
@@ -156,7 +158,7 @@ onMounted(() => {
       <div class="prose">
         <h2>海外俱樂部媒合 Finding Clubs Abroad</h2>
         <p>提供有意海外發展的球員諮詢服務，協助釐清方向與所需準備。</p>
-        <a class="btn btn--primary" href="/zh/join/international-player/">預約海外媒合諮詢</a>
+        <a class="btn btn--primary" :href="lp('/zh/join/international-player/')">預約海外媒合諮詢</a>
       </div>
     </div>
   </div>

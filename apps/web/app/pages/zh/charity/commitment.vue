@@ -2,6 +2,8 @@
 // app/pages/zh/charity/commitment.vue — 由 site/src/pages/zh/charity/commitment/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "charity", unit: "11" })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: "慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部",
   description: "台中磐石足球俱樂部的慈善理念與四大投入領域：青少年扶助、偏鄉足球、弱勢家庭與公益義賽，實踐 Community 社區共好核心價值。",
@@ -12,8 +14,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/charity/">慈善與社會影響</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/charity/')">慈善與社會影響</a></li>
       <li aria-current="page">慈善理念</li>
     </ol>
   </div>
@@ -37,7 +39,7 @@ useSeoMeta({
     </div>
 
     <h2 class="section-title" style="margin-top:3rem;">投入領域</h2>
-    <p class="section-lede" style="margin-bottom:1.5rem;">以下四大領域為規劃書明列的公益投入方向，各領域詳細計畫請見 <a href="/zh/charity/programs/" style="color:var(--brand-aa);">11.2 慈善計畫</a>。</p>
+    <p class="section-lede" style="margin-bottom:1.5rem;">以下四大領域為規劃書明列的公益投入方向，各領域詳細計畫請見 <a :href="lp('/zh/charity/programs/')" style="color:var(--brand-aa);">11.2 慈善計畫</a>。</p>
 
     <div class="values-grid">
       <div class="value-card">
@@ -73,17 +75,17 @@ useSeoMeta({
   <div class="band-inner container">
     <h2 class="section-title" id="commitment-cta-title">看看理念如何落實</h2>
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/charity/programs/">
+      <a class="cta-card" :href="lp('/zh/charity/programs/')">
         <span class="cta-card__num">11.2</span>
         <span class="cta-card__title">慈善計畫</span>
         <p class="cta-card__desc">正在進行與已完成的公益計畫</p>
       </a>
-      <a class="cta-card" href="/zh/charity/impact-stories/">
+      <a class="cta-card" :href="lp('/zh/charity/impact-stories/')">
         <span class="cta-card__num">11.3</span>
         <span class="cta-card__title">慈善事蹟</span>
         <p class="cta-card__desc">已落地的公益行動紀錄</p>
       </a>
-      <a class="cta-card" href="/zh/charity/#donate">
+      <a class="cta-card" :href="lp('/zh/charity/#donate')">
         <span class="cta-card__num">01</span>
         <span class="cta-card__title">支持我們</span>
         <p class="cta-card__desc">企業合作與球迷捐款兩種參與方式</p>

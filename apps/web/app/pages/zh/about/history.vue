@@ -5,10 +5,15 @@
 // 「沿革 HISTORY（2014–2025，原文照錄）」，見 club-copy.ts 的 HISTORY_YEARS_BW。
 definePageMeta({ nav: "about", unit: "02" })
 
+const { lp, locale } = useLocale()
+
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const identity = computed(() => getClubIdentity(clubKey.value))
 const hero = computed(() => HISTORY_HERO[clubKey.value])
+// S1-13 缺口①：hero.lede 是 club-copy.ts 裡帶內嵌連結標記的裸 HTML，v-html 渲染前
+// 用 localizeHtmlLinks() 把裡面的 /zh/... 換成目前語系版本（藍鯨版純文字，原樣通過）。
+const ledeHtml = computed(() => localizeHtmlLinks(hero.value.lede, locale.value))
 
 useSeoMeta({
   title: computed(() => HISTORY_SEO[clubKey.value].title),
@@ -20,8 +25,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">俱樂部歷程</li>
     </ol>
   </div>
@@ -34,7 +39,7 @@ useSeoMeta({
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <!-- tcrfc 版 lede 含既有 mockup 的內嵌連結標記（見 club-copy.ts HISTORY_HERO 註解），故用 v-html；
          bw 版是純文字，v-html 對它是安全的 no-op（沒有標記可解析）。內容全部來自本頁資料層，非使用者輸入。 -->
-    <p class="page-hero__lede" v-html="hero.lede"></p>
+    <p class="page-hero__lede" v-html="ledeHtml"></p>
   </div>
 </section>
 

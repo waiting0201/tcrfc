@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '8.2' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '台中磐石球迷會 Fan Club｜台中磐石文化｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/culture/">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
       <li aria-current="page">台中磐石球迷會</li>
     </ol>
   </div>
@@ -55,7 +57,7 @@ useSeoMeta({
           <li>特約店家折扣，含「限付費會員」品項</li>
           <li>球迷活動優先報名</li>
         </ul>
-        <a class="btn btn--primary btn--block" href="/zh/member/#tab-register">加入會員後升級</a>
+        <a class="btn btn--primary btn--block" :href="lp('/zh/member/#tab-register')">加入會員後升級</a>
       </article>
       <article class="plan-card">
         <h3 class="plan-card__name">家庭方案</h3>
@@ -66,7 +68,7 @@ useSeoMeta({
           <li>特約店家折扣，含「限付費會員」品項</li>
           <li>球迷活動優先報名</li>
         </ul>
-        <a class="btn btn--dark btn--block" href="/zh/join/general/">洽詢家庭方案</a>
+        <a class="btn btn--dark btn--block" :href="lp('/zh/join/general/')">洽詢家庭方案</a>
       </article>
     </div>
 
@@ -93,7 +95,7 @@ useSeoMeta({
         <h2 class="section-title" id="perks-title">特約店家折扣</h2>
         <p class="section-lede">到店出示電子會員卡即可享折扣，店家目視查驗，不需額外手續。付費會員另可使用標示「限付費會員」的優惠。</p>
       </div>
-      <a class="btn btn--dark" href="/zh/perks/">查看完整店家清單</a>
+      <a class="btn btn--dark" :href="lp('/zh/perks/')">查看完整店家清單</a>
     </div>
   </div>
 </section>
@@ -111,11 +113,11 @@ useSeoMeta({
     <div class="grid grid--2">
       <article class="event-card">
         
-        <a class="btn btn--dark btn--sm" href="/zh/member/">我要報名</a>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/member/')">我要報名</a>
       </article>
       <article class="event-card">
         
-        <a class="btn btn--dark btn--sm" href="/zh/member/">我要報名</a>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/member/')">我要報名</a>
       </article>
     </div>
 
@@ -157,7 +159,7 @@ useSeoMeta({
     </ul>
     <p class="benefits__note">
       各次抽獎的獎品、名額、資格基準時間與開獎時間，一律於最新消息公布。
-      <a href="/zh/news/">前往最新消息 →</a>
+      <a :href="lp('/zh/news/')">前往最新消息 →</a>
     </p>
 
     <div class="pending-note">

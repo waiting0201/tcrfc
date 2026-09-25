@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'club', unit: '3.1' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '11 楊朝景（球員詳情頁範本）｜一線隊｜台中磐石足球俱樂部 TCRFC',
   description:
@@ -14,9 +16,9 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/club/">俱樂部</a></li>
-      <li><a href="/zh/club/first-team/">一線隊</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
+      <li><a :href="lp('/zh/club/first-team/')">一線隊</a></li>
       <li aria-current="page">球員詳情頁範本</li>
     </ol>
   </div>
@@ -91,13 +93,13 @@ useSeoMeta({
         <p class="cta-card__num">3.1</p>
         <p class="cta-card__title">回到球員名單</p>
         <p class="cta-card__desc">查看一線隊完整 28 人名單，並依守備位置篩選。</p>
-        <a class="btn btn--primary" href="/zh/club/first-team/#roster">返回球員名單</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/first-team/#roster')">返回球員名單</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">3.5</p>
         <p class="cta-card__title">球員故事</p>
         <p class="cta-card__desc">楊朝景旅外香港的故事收錄在球員故事單元。</p>
-        <a class="btn btn--primary" href="/zh/club/player-stories/">查看球員故事</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/player-stories/')">查看球員故事</a>
       </div>
     </div>
   </div>

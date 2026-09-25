@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '訂單查詢 Order Lookup｜官方商店｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/shop/">官方商店</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/shop/')">官方商店</a></li>
       <li aria-current="page">訂單查詢</li>
     </ol>
   </div>
@@ -56,9 +58,9 @@ useSeoMeta({
 
       <div class="editorial-note" style="margin-top:2.5rem">
         <h3>已經是會員？</h3>
-        <p>登入後於<a href="/zh/member/">會員中心</a>的「我的訂單」可直接看到全部訂單，不需要逐筆輸入編號。</p>
+        <p>登入後於<a :href="lp('/zh/member/')">會員中心</a>的「我的訂單」可直接看到全部訂單，不需要逐筆輸入編號。</p>
         <h3 style="margin-top:1.5rem">要退貨或換貨？</h3>
-        <p>依消費者保護法享七日猶豫期。請以<a href="/zh/join/general/">一般聯絡表單</a>或客服信箱提出申請，我們會人工確認後處理退款與發票作廢或折讓。<span class="pending-inline">退換貨政策條文與客服信箱待補。</span></p>
+        <p>依消費者保護法享七日猶豫期。請以<a :href="lp('/zh/join/general/')">一般聯絡表單</a>或客服信箱提出申請，我們會人工確認後處理退款與發票作廢或折讓。<span class="pending-inline">退換貨政策條文與客服信箱待補。</span></p>
       </div>
     </div>
   </div>

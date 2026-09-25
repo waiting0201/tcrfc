@@ -5,6 +5,8 @@
 // 逐字節錄 content/blue-whale/club-profile.md §5「發展願景」五節（見 club-copy.ts）。
 definePageMeta({ nav: "about", unit: "02" })
 
+const { lp } = useLocale()
+
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const identity = computed(() => getClubIdentity(clubKey.value))
@@ -21,8 +23,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">{{ hero.h1Zh }}</li>
     </ol>
   </div>
@@ -48,8 +50,8 @@ useSeoMeta({
       </div>
     </div>
 
-    <p v-if="clubKey === 'tcrfc'" class="vm-footnote">俱樂部品牌主張與五大核心價值可先參考 <a href="/zh/about/philosophy/">2.3 足球理念</a>。</p>
-    <p v-else class="vm-footnote">俱樂部口號與培訓精神可先參考 <a href="/zh/about/philosophy/">2.3 俱樂部口號與培訓精神</a>。</p>
+    <p v-if="clubKey === 'tcrfc'" class="vm-footnote">俱樂部品牌主張與五大核心價值可先參考 <a :href="lp('/zh/about/philosophy/')">2.3 足球理念</a>。</p>
+    <p v-else class="vm-footnote">俱樂部口號與培訓精神可先參考 <a :href="lp('/zh/about/philosophy/')">2.3 俱樂部口號與培訓精神</a>。</p>
   </div>
 </section>
 </template>

@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: '', unit: '10.7' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '一般聯絡 General Contact｜加入與聯絡｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/join/">加入與聯絡</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
       <li aria-current="page">一般聯絡</li>
     </ol>
   </div>
@@ -94,7 +96,7 @@ useSeoMeta({
         <div class="consent-block">
           <div class="checkbox-field">
             <input type="checkbox" id="gc-consent" name="consent" required aria-describedby="gc-consent-error">
-            <label for="gc-consent">我已閱讀並同意<a href="/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次聯絡事項。<span class="req" aria-hidden="true">*</span></label>
+            <label for="gc-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次聯絡事項。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="gc-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
           
@@ -123,11 +125,11 @@ useSeoMeta({
         <div class="form-sidebar__card">
           <h2>找特定窗口？</h2>
           <ul>
-            <li><a href="/zh/join/player/">加入球隊</a></li>
-            <li><a href="/zh/join/academy/">加入學院</a></li>
-            <li><a href="/zh/join/partnership/">贊助洽詢</a></li>
-            <li><a href="/zh/join/media/">媒體詢問</a></li>
-            <li><a href="/zh/join/">查看全部七種表單</a></li>
+            <li><a :href="lp('/zh/join/player/')">加入球隊</a></li>
+            <li><a :href="lp('/zh/join/academy/')">加入學院</a></li>
+            <li><a :href="lp('/zh/join/partnership/')">贊助洽詢</a></li>
+            <li><a :href="lp('/zh/join/media/')">媒體詢問</a></li>
+            <li><a :href="lp('/zh/join/')">查看全部七種表單</a></li>
           </ul>
         </div>
         </div>

@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '厚底緩震機能襪｜官方商店｜台中磐石足球俱樂部',
   description:
@@ -14,9 +16,9 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/culture/">台中磐石文化</a></li>
-      <li><a href="/zh/shop/">官方商店</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/shop/')">官方商店</a></li>
       <li aria-current="page">厚底緩震機能襪</li>
     </ol>
   </div>
@@ -86,8 +88,8 @@ useSeoMeta({
         </div>
 
         <div class="buy-row">
-          <a class="btn btn--primary" href="/zh/cart/">加入購物車</a>
-          <a class="btn btn--dark" href="/zh/checkout/">直接結帳</a>
+          <a class="btn btn--primary" :href="lp('/zh/cart/')">加入購物車</a>
+          <a class="btn btn--dark" :href="lp('/zh/checkout/')">直接結帳</a>
         </div>
 
         <ul class="info-list">

@@ -2,6 +2,8 @@
 // app/pages/zh/news/media.vue — 由 site/src/pages/zh/news/media/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "news", unit: "07" })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: "媒體專區 Media｜新聞 News｜台中磐石足球俱樂部",
   description: "台中磐石媒體專區：品牌識別包下載（隊徽 SVG／PNG、社群分享圖），新聞稿與高解析圖庫、媒體聯絡窗口建置中。",
@@ -12,8 +14,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/news/">新聞 News</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/news/')">新聞 News</a></li>
       <li aria-current="page">媒體專區</li>
     </ol>
   </div>
@@ -33,14 +35,14 @@ useSeoMeta({
     <h2 class="visually-hidden" id="media-tabs-title">新聞分類導覽</h2>
     <div class="news-toolbar">
       <nav class="cat-tabs" aria-label="新聞分類">
-  <a href="/zh/news/club/">7.1 俱樂部新聞</a>
-  <a href="/zh/news/match/">7.2 比賽報導</a>
-  <a href="/zh/news/academy/">7.3 學院新聞</a>
-  <a href="/zh/news/player-stories/">7.4 球員故事</a>
-  <a href="/zh/news/international/">7.5 國際動態</a>
-  <a href="/zh/news/camps-events/">7.6 營隊與活動</a>
-  <a href="/zh/news/community/">7.7 社區活動</a>
-  <a href="/zh/news/media/" aria-current="page">7.8 媒體專區</a>
+  <a :href="lp('/zh/news/club/')">7.1 俱樂部新聞</a>
+  <a :href="lp('/zh/news/match/')">7.2 比賽報導</a>
+  <a :href="lp('/zh/news/academy/')">7.3 學院新聞</a>
+  <a :href="lp('/zh/news/player-stories/')">7.4 球員故事</a>
+  <a :href="lp('/zh/news/international/')">7.5 國際動態</a>
+  <a :href="lp('/zh/news/camps-events/')">7.6 營隊與活動</a>
+  <a :href="lp('/zh/news/community/')">7.7 社區活動</a>
+  <a :href="lp('/zh/news/media/')" aria-current="page">7.8 媒體專區</a>
 </nav>
     </div>
   </div>

@@ -5,6 +5,8 @@
 // （已抽成 useYearChips()，與 about/milestones 共用）。
 definePageMeta({ nav: 'charity', unit: '11' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '慈善事蹟紀錄 Impact Stories｜慈善與社會影響｜台中磐石足球俱樂部',
   description: '台中磐石足球俱樂部的慈善事蹟時間軸：受贈公益團體、捐助內容與活動圖片紀錄，支援年份篩選。',
@@ -17,8 +19,8 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/charity/">慈善與社會影響</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/charity/')">慈善與社會影響</a></li>
       <li aria-current="page">慈善事蹟</li>
     </ol>
   </div>
@@ -56,7 +58,7 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
               <h4 class="timeline-item__title">潭秀非營利幼兒園</h4>
               <dl class="impact-facts">
                 <div><dt>捐助內容</dt><dd>英語書籍（與 Subkarma 合作捐贈）</dd></div>
-                <div><dt>相關報導</dt><dd><a href="/zh/news/community/">台中磐石攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園</a></dd></div>
+                <div><dt>相關報導</dt><dd><a :href="lp('/zh/news/community/')">台中磐石攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園</a></dd></div>
               </dl>
             </div>
           </li>
@@ -101,17 +103,17 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
   <div class="band-inner container">
     <h2 class="section-title" id="impact-cta-title">相關內容</h2>
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/charity/our-impact/">
+      <a class="cta-card" :href="lp('/zh/charity/our-impact/')">
         <span class="cta-card__num">11.4</span>
         <span class="cta-card__title">影響力數據</span>
         <p class="cta-card__desc">累計統計與夥伴團體列表</p>
       </a>
-      <a class="cta-card" href="/zh/charity/programs/">
+      <a class="cta-card" :href="lp('/zh/charity/programs/')">
         <span class="cta-card__num">11.2</span>
         <span class="cta-card__title">慈善計畫</span>
         <p class="cta-card__desc">正在進行與已完成的公益計畫</p>
       </a>
-      <a class="cta-card" href="/zh/charity/#donate">
+      <a class="cta-card" :href="lp('/zh/charity/#donate')">
         <span class="cta-card__num">01</span>
         <span class="cta-card__title">支持我們</span>
         <p class="cta-card__desc">企業合作與球迷捐款兩種參與方式</p>

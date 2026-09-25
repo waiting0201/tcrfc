@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: '', unit: '10.2' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '加入學院／兒童訓練 Academy & Children\'s Training｜加入與聯絡｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/join/">加入與聯絡</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
       <li aria-current="page">加入學院／兒童訓練</li>
     </ol>
   </div>
@@ -73,7 +75,7 @@ useSeoMeta({
                 <option value="">尚無偏好，請協助安排</option>
                 <option value="xitun">西屯足球場（主場）</option>
               </select>
-              <p class="field-hint">如需查詢其他受訓地點，請見<a href="/zh/join/location/">場地位置與地圖</a>。</p>
+              <p class="field-hint">如需查詢其他受訓地點，請見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
             </div>
           </div>
         </fieldset>
@@ -173,7 +175,7 @@ useSeoMeta({
         <div class="consent-block">
           <div class="checkbox-field">
             <input type="checkbox" id="a-consent" name="consent" required aria-describedby="a-consent-error">
-            <label for="a-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a href="/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集學員與家長之個人資料，用於處理本次報名之聯繫、試訓與課程安排。<span class="req" aria-hidden="true">*</span></label>
+            <label for="a-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集學員與家長之個人資料，用於處理本次報名之聯繫、試訓與課程安排。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="a-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
 

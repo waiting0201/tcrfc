@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'womens', unit: '06' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '女子足球 Women\'s Football｜台中磐石足球俱樂部',
   description:
@@ -14,7 +16,7 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">女子足球</li>
     </ol>
   </div>
@@ -80,19 +82,19 @@ useSeoMeta({
         <p class="cta-card__num" style="color:var(--brand-aa);">台中磐石學院</p>
         <p class="cta-card__title">加入足球學院</p>
         <p class="cta-card__desc" style="color:var(--muted);">U15／U14／U12 梯隊，培育下一代球員。</p>
-        <a class="btn btn--dark btn--sm" href="/zh/academy/join/">了解更多</a>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/academy/join/')">了解更多</a>
       </div>
       <div class="cta-card clip-card" style="background:var(--paper-2);color:var(--heading);">
         <p class="cta-card__num" style="color:var(--brand-aa);">課程與活動</p>
         <p class="cta-card__title">兒童足球訓練</p>
         <p class="cta-card__desc" style="color:var(--muted);">分齡分級課程，適合初次接觸足球的孩子。</p>
-        <a class="btn btn--dark btn--sm" href="/zh/programs/childrens-training/">了解更多</a>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/programs/childrens-training/')">了解更多</a>
       </div>
       <div class="cta-card clip-card" style="background:var(--paper-2);color:var(--heading);">
         <p class="cta-card__num" style="color:var(--brand-aa);">聯絡我們</p>
         <p class="cta-card__title">有其他問題？</p>
         <p class="cta-card__desc" style="color:var(--muted);">歡迎直接與台中磐石團隊聯繫。</p>
-        <a class="btn btn--primary btn--sm" href="/zh/join/general/">聯絡我們</a>
+        <a class="btn btn--primary btn--sm" :href="lp('/zh/join/general/')">聯絡我們</a>
       </div>
     </div>
   </div>

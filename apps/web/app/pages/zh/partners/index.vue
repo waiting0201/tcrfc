@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'partners', unit: '09' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '合作夥伴與贊助 Partners & Sponsors｜台中磐石足球俱樂部',
   description:
@@ -14,7 +16,7 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">夥伴</li>
     </ol>
   </div>
@@ -40,7 +42,7 @@ useSeoMeta({
     </div>
 
     <div class="unit-grid">
-      <a class="unit-card" href="/zh/partners/our-partners/">
+      <a class="unit-card" :href="lp('/zh/partners/our-partners/')">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">9.1</p>
@@ -49,7 +51,7 @@ useSeoMeta({
           <span class="unit-card__link">查看夥伴 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
-      <a class="unit-card" href="/zh/partners/our-sponsors/">
+      <a class="unit-card" :href="lp('/zh/partners/our-sponsors/')">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">9.2</p>
@@ -58,7 +60,7 @@ useSeoMeta({
           <span class="unit-card__link">查看贊助商 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
-      <a class="unit-card" href="/zh/partners/become-a-partner/">
+      <a class="unit-card" :href="lp('/zh/partners/become-a-partner/')">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">9.3</p>
@@ -67,7 +69,7 @@ useSeoMeta({
           <span class="unit-card__link">了解價值 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
-      <a class="unit-card" href="/zh/partners/opportunities/">
+      <a class="unit-card" :href="lp('/zh/partners/opportunities/')">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">9.4</p>
@@ -89,13 +91,13 @@ useSeoMeta({
         <p class="cta-card__num">DOWNLOAD</p>
         <p class="cta-card__title">下載提案簡介</p>
         <p class="cta-card__desc">留下公司與聯絡資訊，取得完整贊助提案簡介 PDF。</p>
-        <a class="btn btn--primary" href="/zh/partners/opportunities/#deck-download">前往下載</a>
+        <a class="btn btn--primary" :href="lp('/zh/partners/opportunities/#deck-download')">前往下載</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">CONTACT</p>
         <p class="cta-card__title">聯絡我們</p>
         <p class="cta-card__desc">想進一步討論合作或贊助方案？商務部將盡快與您聯繫。</p>
-        <a class="btn btn--primary" href="/zh/join/partnership/">洽談合作</a>
+        <a class="btn btn--primary" :href="lp('/zh/join/partnership/')">洽談合作</a>
       </div>
     </div>
   </div>

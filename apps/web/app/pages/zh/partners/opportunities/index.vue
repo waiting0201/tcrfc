@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'partners', unit: '9.4' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '贊助方案 Sponsorship Opportunities｜合作夥伴與贊助｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/partners/">夥伴</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/partners/')">夥伴</a></li>
       <li aria-current="page">贊助方案</li>
     </ol>
   </div>
@@ -38,55 +40,55 @@ useSeoMeta({
         <p class="plan-card__num">01</p>
         <h3 class="plan-card__title">俱樂部贊助<span class="en">Club Sponsorship</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
-        <a class="btn btn--light btn--sm" href="/zh/join/partnership/">洽詢方案</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
         <p class="plan-card__num">02</p>
         <h3 class="plan-card__title">學院贊助<span class="en">Academy Sponsorship</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
-        <a class="btn btn--light btn--sm" href="/zh/join/partnership/">洽詢方案</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
         <p class="plan-card__num">03</p>
         <h3 class="plan-card__title">球隊贊助<span class="en">Team Sponsorship</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
-        <a class="btn btn--light btn--sm" href="/zh/join/partnership/">洽詢方案</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
         <p class="plan-card__num">04</p>
         <h3 class="plan-card__title">營隊贊助<span class="en">Camp Sponsorship</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
-        <a class="btn btn--light btn--sm" href="/zh/join/partnership/">洽詢方案</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
         <p class="plan-card__num">05</p>
         <h3 class="plan-card__title">國際計畫贊助<span class="en">International Programme Sponsorship</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
-        <a class="btn btn--light btn--sm" href="/zh/join/partnership/">洽詢方案</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
         <p class="plan-card__num">06</p>
         <h3 class="plan-card__title">漫畫內容合作<span class="en">Manga Content Partnership</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
-        <a class="btn btn--light btn--sm" href="/zh/join/partnership/">洽詢方案</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
         <p class="plan-card__num">07</p>
         <h3 class="plan-card__title">商品合作<span class="en">Merchandise Partnership</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
-        <a class="btn btn--light btn--sm" href="/zh/join/partnership/">洽詢方案</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
         <p class="plan-card__num">08</p>
         <h3 class="plan-card__title">球迷會贊助<span class="en">Fan Club Sponsorship</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
-        <a class="btn btn--light btn--sm" href="/zh/join/partnership/">洽詢方案</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
         <p class="plan-card__num">09</p>
         <h3 class="plan-card__title">場館冠名<span class="en">Venue Naming Rights</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
-        <a class="btn btn--light btn--sm" href="/zh/join/partnership/">洽詢方案</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
     </div>
   </div>
@@ -131,7 +133,7 @@ useSeoMeta({
       <p class="cta-card__num">CONTACT US</p>
       <p class="cta-card__title">聯絡我們</p>
       <p class="cta-card__desc">想進一步討論贊助內容與權益？商務部將盡快與您聯繫，導向 10.5 合作夥伴與贊助洽詢表單。</p>
-      <a class="btn btn--primary" href="/zh/join/partnership/">前往贊助洽詢表單</a>
+      <a class="btn btn--primary" :href="lp('/zh/join/partnership/')">前往贊助洽詢表單</a>
     </div>
   </div>
 </section>

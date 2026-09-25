@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: '', unit: '10.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '營隊報名 Camp Registration｜加入與聯絡｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/join/">加入與聯絡</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
       <li aria-current="page">營隊報名</li>
     </ol>
   </div>
@@ -135,7 +137,7 @@ useSeoMeta({
         <div class="consent-block">
           <div class="checkbox-field">
             <input type="checkbox" id="cp-consent" name="consent" required aria-describedby="cp-consent-error">
-            <label for="cp-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a href="/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集學員、家長與緊急聯絡人之個人資料及健康聲明內容，用於處理本次營隊報名之聯繫、安全與應變作業。<span class="req" aria-hidden="true">*</span></label>
+            <label for="cp-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集學員、家長與緊急聯絡人之個人資料及健康聲明內容，用於處理本次營隊報名之聯繫、安全與應變作業。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="cp-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
           

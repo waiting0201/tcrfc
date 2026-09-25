@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '官方商店 Shop｜台中磐石足球俱樂部',
   description:
@@ -14,9 +16,9 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/culture/">台中磐石文化</a></li>
-      <li><a href="/zh/culture/merchandise/">官方商品</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/culture/merchandise/')">官方商品</a></li>
       <li aria-current="page">官方商店</li>
     </ol>
   </div>
@@ -79,32 +81,32 @@ useSeoMeta({
     <div class="product-grid">
 
       <article class="product-card">
-        <a class="product-card__media" href="/zh/shop/home-jersey-2026/" aria-label="台中磐石主場球衣 2026 賽季">
+        <a class="product-card__media" :href="lp('/zh/shop/home-jersey-2026/')" aria-label="台中磐石主場球衣 2026 賽季">
           <span class="product-card__flag">新上市</span>
           <img src="/assets/img/merch/merch-jersey-01.jpg" alt="台中磐石主場球衣 2026 賽季，桃紅色球衣搭配藍色滾邊，胸口印有 Joma、TCRFC 隊徽與贊助商標誌" loading="lazy" width="1600" height="1067">
         </a>
         <div class="product-card__body">
-          <p class="product-card__name"><a href="/zh/shop/home-jersey-2026/">台中磐石主場球衣｜2026 賽季</a></p>
+          <p class="product-card__name"><a :href="lp('/zh/shop/home-jersey-2026/')">台中磐石主場球衣｜2026 賽季</a></p>
           <p class="product-card__opts">尺寸 M／L／XL</p>
           <div class="product-card__foot">
             <span class="price price--sale">NT$1,200</span>
             <span class="price__was">NT$1,600</span>
           </div>
-          <a class="btn btn--primary btn--sm btn--block" href="/zh/shop/home-jersey-2026/" style="margin-top:1rem">選購</a>
+          <a class="btn btn--primary btn--sm btn--block" :href="lp('/zh/shop/home-jersey-2026/')" style="margin-top:1rem">選購</a>
         </div>
       </article>
 
       <article class="product-card">
-        <a class="product-card__media" href="/zh/shop/cushioned-socks/" aria-label="厚底緩震機能襪">
+        <a class="product-card__media" :href="lp('/zh/shop/cushioned-socks/')" aria-label="厚底緩震機能襪">
           <img src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" loading="lazy" width="1600" height="1600">
         </a>
         <div class="product-card__body">
-          <p class="product-card__name"><a href="/zh/shop/cushioned-socks/">厚底緩震機能襪</a></p>
+          <p class="product-card__name"><a :href="lp('/zh/shop/cushioned-socks/')">厚底緩震機能襪</a></p>
           <p class="product-card__opts">尺寸 M／L・六色可選</p>
           <div class="product-card__foot">
             <span class="price">NT$120</span>
           </div>
-          <a class="btn btn--primary btn--sm btn--block" href="/zh/shop/cushioned-socks/" style="margin-top:1rem">選購</a>
+          <a class="btn btn--primary btn--sm btn--block" :href="lp('/zh/shop/cushioned-socks/')" style="margin-top:1rem">選購</a>
         </div>
       </article>
 
@@ -135,7 +137,7 @@ useSeoMeta({
         <p>宅配到府、超商取貨（不付款）、主場賽事日或俱樂部現場自取。<span class="pending-inline">運費金額與免運門檻待確認。</span></p>
       </div>
     </div>
-    <p style="margin-top:2rem"><a class="btn btn--light" href="/zh/order/lookup/">查詢訂單</a></p>
+    <p style="margin-top:2rem"><a class="btn btn--light" :href="lp('/zh/order/lookup/')">查詢訂單</a></p>
   </div>
 </section>
 </template>

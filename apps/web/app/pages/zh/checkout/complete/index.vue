@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '訂單完成｜官方商店｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/shop/">官方商店</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/shop/')">官方商店</a></li>
       <li aria-current="page">訂單完成</li>
     </ol>
   </div>
@@ -48,10 +50,10 @@ useSeoMeta({
       </ul>
 
       <p style="margin-top:2rem;display:flex;gap:1rem;flex-wrap:wrap;justify-content:center">
-        <a class="btn btn--primary" href="/zh/order/lookup/">查詢訂單</a>
-        <a class="btn btn--light" href="/zh/shop/">繼續選購</a>
+        <a class="btn btn--primary" :href="lp('/zh/order/lookup/')">查詢訂單</a>
+        <a class="btn btn--light" :href="lp('/zh/shop/')">繼續選購</a>
       </p>
-      <p class="field-hint" style="margin-top:1.5rem">會員可於<a href="/zh/member/">會員中心</a>的「我的訂單」查看；非會員請以訂單編號與 Email 查詢，或使用訂單信中的連結。</p>
+      <p class="field-hint" style="margin-top:1.5rem">會員可於<a :href="lp('/zh/member/')">會員中心</a>的「我的訂單」查看；非會員請以訂單編號與 Email 查詢，或使用訂單信中的連結。</p>
     </div>
   </div>
 </section>

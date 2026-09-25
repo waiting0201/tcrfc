@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'club', unit: '3.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '球員機會 Player Opportunities｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/club/">俱樂部</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
       <li aria-current="page">球員機會</li>
     </ol>
   </div>
@@ -37,7 +39,7 @@ useSeoMeta({
       <p>台中磐石一線隊代表俱樂部出戰企業甲級聯賽，持續招募具備競技實力的球員加入陣容。填寫報名表後，將由競技部（10.1 表單收件單位）與您聯繫後續評估流程。</p>
       
     </div>
-    <a class="btn btn--primary" href="/zh/join/player/" style="margin-top:1.5rem">填寫加入球隊報名表</a>
+    <a class="btn btn--primary" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">填寫加入球隊報名表</a>
   </div>
 </section>
 
@@ -71,7 +73,7 @@ useSeoMeta({
         </tbody>
       </table>
     </div>
-    <a class="btn btn--dark btn--sm" href="/zh/join/player/" style="margin-top:1.5rem">登記試訓意願</a>
+    <a class="btn btn--dark btn--sm" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">登記試訓意願</a>
   </div>
 </section>
 
@@ -83,7 +85,7 @@ useSeoMeta({
       <p>Taichung Rock FC (TCRFC) First Team competes in Taiwan's Enterprise Premier League (企業甲級聯賽). We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our International Department will follow up.</p>
       
     </div>
-    <a class="btn btn--primary" href="/zh/join/international-player/" style="margin-top:1.5rem">International Player Enquiry</a>
+    <a class="btn btn--primary" :href="lp('/zh/join/international-player/')" style="margin-top:1.5rem">International Player Enquiry</a>
   </div>
 </section>
 
@@ -95,13 +97,13 @@ useSeoMeta({
         <p class="cta-card__num">3.1</p>
         <p class="cta-card__title">認識一線隊</p>
         <p class="cta-card__desc">加入前，先了解一線隊陣容、教練團與賽程。</p>
-        <a class="btn btn--primary" href="/zh/club/first-team/">前往一線隊</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">國際發展通道</p>
         <p class="cta-card__desc">了解球員如何透過台中磐石通往歐洲、日本、香港的舞台。</p>
-        <a class="btn btn--primary" href="/zh/club/international-pathways/">查看國際通道</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">查看國際通道</a>
       </div>
     </div>
   </div>

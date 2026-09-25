@@ -12,6 +12,8 @@
 // 「資料驅動頁」搬遷——不要誤以為這裡漏接了 API。
 definePageMeta({ nav: 'about', unit: '02' })
 
+const { lp } = useLocale()
+
 // 文案依俱樂部切換：hero／SEO 取自 club-copy.ts。藍鯨這一輪不重建本頁的年份
 // 篩選時間軸元件（12 年份、資料量與磐石的 3 年份差異太大，須另外設計互動），
 // 完整年度大事記改放在「俱樂部歷程」頁（見 history.vue），本頁對藍鯨只顯示
@@ -33,8 +35,8 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">重要里程碑</li>
     </ol>
   </div>
@@ -52,7 +54,7 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
 <section v-if="clubKey !== 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title-bw">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="milestones-title-bw">重要里程碑</h2>
-    <p class="section-lede">本頁的年份篩選時間軸尚未依藍鯨資料重建，完整的 2014～2025 逐年沿革請見 <a href="/zh/about/history/">2.7 俱樂部歷程</a>。</p>
+    <p class="section-lede">本頁的年份篩選時間軸尚未依藍鯨資料重建，完整的 2014～2025 逐年沿革請見 <a :href="lp('/zh/about/history/')">2.7 俱樂部歷程</a>。</p>
   </div>
 </section>
 

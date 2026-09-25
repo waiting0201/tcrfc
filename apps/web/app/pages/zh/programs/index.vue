@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'programs', unit: '05' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '課程與活動 Programs｜台中磐石足球俱樂部',
   description:
@@ -14,7 +16,7 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">課程與活動</li>
     </ol>
   </div>
@@ -40,7 +42,7 @@ useSeoMeta({
 <section class="band">
   <div class="container">
     <div class="card-nav-grid">
-      <a class="nav-card clip-card" href="/zh/programs/childrens-training/">
+      <a class="nav-card clip-card" :href="lp('/zh/programs/childrens-training/')">
         <div class="nav-card__media">
           <img src="/assets/img/programs/childrens-03.jpg" alt="" loading="lazy" width="1600" height="1067">
         </div>
@@ -54,7 +56,7 @@ useSeoMeta({
         </div>
       </a>
 
-      <a class="nav-card clip-card" href="/zh/programs/summer-camp/">
+      <a class="nav-card clip-card" :href="lp('/zh/programs/summer-camp/')">
         <div class="nav-card__media">
           <img src="/assets/img/programs/summer-camp-05.jpg" alt="" loading="lazy" width="1600" height="1200">
         </div>
@@ -68,7 +70,7 @@ useSeoMeta({
         </div>
       </a>
 
-      <a class="nav-card clip-card" href="/zh/programs/winter-camp/">
+      <a class="nav-card clip-card" :href="lp('/zh/programs/winter-camp/')">
         <div class="nav-card__media nav-card__media--empty" aria-hidden="true">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1"/></svg>
         </div>
@@ -82,7 +84,7 @@ useSeoMeta({
         </div>
       </a>
 
-      <a class="nav-card clip-card" href="/zh/programs/specialist/">
+      <a class="nav-card clip-card" :href="lp('/zh/programs/specialist/')">
         <div class="nav-card__media">
           <img src="/assets/img/programs/specialist-06.jpg" alt="" loading="lazy" width="1600" height="1067">
         </div>
@@ -96,7 +98,7 @@ useSeoMeta({
         </div>
       </a>
 
-      <a class="nav-card clip-card" href="/zh/programs/school-community/">
+      <a class="nav-card clip-card" :href="lp('/zh/programs/school-community/')">
         <div class="nav-card__media nav-card__media--empty" aria-hidden="true">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg>
         </div>
@@ -150,19 +152,19 @@ useSeoMeta({
         <p class="cta-card__num">兒童與青少年</p>
         <p class="cta-card__title">兒童足球訓練</p>
         <p class="cta-card__desc">分齡分級，從混齡體驗到技巧發展。</p>
-        <a class="btn btn--light btn--sm" href="/zh/programs/childrens-training/">立即了解</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/programs/childrens-training/')">立即了解</a>
       </div>
       <div class="cta-card clip-card clip-card--on-dark">
         <p class="cta-card__num">學校與機構</p>
         <p class="cta-card__title">校園與社區合作</p>
         <p class="cta-card__desc">洽談校園方案、社區計畫與教練培訓。</p>
-        <a class="btn btn--light btn--sm" href="/zh/programs/school-community/">前往洽談</a>
+        <a class="btn btn--light btn--sm" :href="lp('/zh/programs/school-community/')">前往洽談</a>
       </div>
       <div class="cta-card clip-card clip-card--on-dark">
         <p class="cta-card__num">其他問題</p>
         <p class="cta-card__title">聯絡台中磐石</p>
         <p class="cta-card__desc">課程相關問題歡迎直接與我們聯繫。</p>
-        <a class="btn btn--primary btn--sm" href="/zh/join/general/">聯絡我們</a>
+        <a class="btn btn--primary btn--sm" :href="lp('/zh/join/general/')">聯絡我們</a>
       </div>
     </div>
   </div>

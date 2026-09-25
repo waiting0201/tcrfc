@@ -2,6 +2,8 @@
 // app/pages/zh/academy/overview.vue — 由 site/src/pages/zh/academy/overview/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "academy", unit: "04" })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: "學院總覽 Academy Overview｜台中磐石足球學院｜台中磐石足球俱樂部",
   description: "認識台中磐石足球學院的定位與訓練基地：銜接俱樂部品牌主張的青訓體系，以及學員數、教練數、升學率等數據亮點（資料收集中）。",
@@ -12,8 +14,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/academy/">足球學院</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/academy/')">足球學院</a></li>
       <li aria-current="page">學院總覽</li>
     </ol>
   </div>
@@ -40,7 +42,7 @@ useSeoMeta({
         台中磐石足球學院自俱樂部 2024 年成立起，作為銜接社區足球與競技體系的橋樑，
         目標是讓每一位學員都能在扎實的訓練環境中，依照自身節奏發展技術、戰術理解與品格，
         並為有能力銜接一線隊或海外舞台的球員，提供清晰可循的成長路徑（詳見
-        <a href="/zh/academy/pathway/">4.3 學院發展路徑</a>）。
+        <a :href="lp('/zh/academy/pathway/')">4.3 學院發展路徑</a>）。
       </p>
     </div>
 
@@ -52,17 +54,17 @@ useSeoMeta({
 <section class="band grain cta-band">
   <div class="container">
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/academy/teams/">
+      <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">學院隊伍</span>
         <p class="cta-card__desc">查看 U15／U14／U12 各梯隊</p>
       </a>
-      <a class="cta-card" href="/zh/academy/coaches/">
+      <a class="cta-card" :href="lp('/zh/academy/coaches/')">
         <span class="cta-card__num">4.5</span>
         <span class="cta-card__title">學院教練團</span>
         <p class="cta-card__desc">認識帶領各梯隊的教練</p>
       </a>
-      <a class="cta-card" href="/zh/academy/join/">
+      <a class="cta-card" :href="lp('/zh/academy/join/')">
         <span class="cta-card__num">4.7</span>
         <span class="cta-card__title">加入學院</span>
         <p class="cta-card__desc">招生對象與遴選流程</p>

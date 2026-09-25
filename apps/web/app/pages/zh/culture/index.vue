@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '08' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '台中磐石文化 Culture｜漫畫、球迷會、官方商品｜台中磐石足球俱樂部',
   description:
@@ -14,7 +16,7 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">台中磐石文化</li>
     </ol>
   </div>
@@ -41,7 +43,7 @@ useSeoMeta({
     </div>
 
     <div class="unit-grid">
-      <a class="unit-card" href="/zh/culture/manga/">
+      <a class="unit-card" :href="lp('/zh/culture/manga/')">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">8.1</p>
@@ -50,7 +52,7 @@ useSeoMeta({
           <span class="unit-card__link">開始閱讀 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
-      <a class="unit-card" href="/zh/culture/fan-club/">
+      <a class="unit-card" :href="lp('/zh/culture/fan-club/')">
         <img src="/assets/img/fanclub/fanclub-event-04.jpg" alt="" loading="lazy" width="1600" height="1067">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
@@ -60,7 +62,7 @@ useSeoMeta({
           <span class="unit-card__link">加入球迷會 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
-      <a class="unit-card" href="/zh/culture/merchandise/">
+      <a class="unit-card" :href="lp('/zh/culture/merchandise/')">
         <img src="/assets/img/merch/merch-jersey-01.jpg" alt="" loading="lazy" width="1600" height="1067">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
@@ -70,7 +72,7 @@ useSeoMeta({
           <span class="unit-card__link">看商品 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
-      <a class="unit-card" href="/zh/perks/">
+      <a class="unit-card" :href="lp('/zh/perks/')">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">8.4</p>

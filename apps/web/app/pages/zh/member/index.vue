@@ -12,6 +12,8 @@
 // 「解析不到元件、什麼都不 render」，compare-dom 比對時才會抓到這整塊消失（已修正，記入回報）。
 definePageMeta({ nav: '', unit: '14' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '會員中心 Member｜台中磐石足球俱樂部',
   description:
@@ -56,7 +58,7 @@ onMounted(() => {
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">會員中心</li>
     </ol>
   </div>
@@ -114,7 +116,7 @@ onMounted(() => {
         <div class="perks-teaser">
           <h3 class="perks-teaser__title">特約店家</h3>
           <p class="pending-cell">合作店家名單待補 —— 客戶尚未提供，屬上線前必須談定的項目（見規劃書 8.4 上線前提）。</p>
-          <a class="btn btn--dark btn--sm" href="/zh/perks/">前往特約店家清單</a>
+          <a class="btn btn--dark btn--sm" :href="lp('/zh/perks/')">前往特約店家清單</a>
         </div>
 
         <h2 class="section-title" style="margin-top:4rem;">兩種入會管道</h2>
@@ -159,7 +161,7 @@ onMounted(() => {
             <div class="consent-block">
               <div class="checkbox-field">
                 <input type="checkbox" id="m-reg-consent" name="consent" required>
-                <label for="m-reg-consent">我已閱讀並同意<a href="/zh/privacy/">隱私權政策</a>與會員條款，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
+                <label for="m-reg-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>與會員條款，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
               </div>
             </div>
             <button class="btn btn--primary btn--block" type="submit">建立會員</button>
@@ -188,7 +190,7 @@ onMounted(() => {
       </div>
       <div class="feature-card">
         <p class="feature-card__title">我的訂單</p>
-        <p class="feature-card__desc"><a href="/zh/shop/">官方商店</a>的訂單一覽：品項、金額、付款與出貨狀態、物流單號、電子發票號碼，以及退換貨申請入口。非會員請用<a href="/zh/order/lookup/">訂單查詢</a>。</p>
+        <p class="feature-card__desc"><a :href="lp('/zh/shop/')">官方商店</a>的訂單一覽：品項、金額、付款與出貨狀態、物流單號、電子發票號碼，以及退換貨申請入口。非會員請用<a :href="lp('/zh/order/lookup/')">訂單查詢</a>。</p>
       </div>
     </div>
 

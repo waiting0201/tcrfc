@@ -28,8 +28,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">生態系</li>
     </ol>
   </div>

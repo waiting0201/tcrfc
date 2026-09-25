@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '結帳 Checkout｜官方商店｜台中磐石足球俱樂部',
   description:
@@ -14,9 +16,9 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/shop/">官方商店</a></li>
-      <li><a href="/zh/cart/">購物車</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/shop/')">官方商店</a></li>
+      <li><a :href="lp('/zh/cart/')">購物車</a></li>
       <li aria-current="page">結帳</li>
     </ol>
   </div>
@@ -49,7 +51,7 @@ useSeoMeta({
 
           <fieldset>
             <legend>訂購人</legend>
-            <p class="field-hint">已是會員？<a href="/zh/member/">登入</a>後可自動帶入收件資料並於「我的訂單」查詢。<strong>未註冊也可以直接結帳</strong>，填 Email 即可。</p>
+            <p class="field-hint">已是會員？<a :href="lp('/zh/member/')">登入</a>後可自動帶入收件資料並於「我的訂單」查詢。<strong>未註冊也可以直接結帳</strong>，填 Email 即可。</p>
             <div class="form-grid">
               <div class="form-field">
                 <label for="co-name">姓名<span class="req" aria-hidden="true">*</span></label>
@@ -114,7 +116,7 @@ useSeoMeta({
             <div class="consent-block">
               <label class="checkbox-field">
                 <input type="checkbox" name="agree" required>
-                <span>我已閱讀並同意<a href="/zh/privacy/">隱私權政策</a>與交易條款，並瞭解七日猶豫期的退換貨規定。<span class="pending-inline">交易條款與退換貨政策條文待補。</span></span>
+                <span>我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>與交易條款，並瞭解七日猶豫期的退換貨規定。<span class="pending-inline">交易條款與退換貨政策條文待補。</span></span>
               </label>
             </div>
           </fieldset>

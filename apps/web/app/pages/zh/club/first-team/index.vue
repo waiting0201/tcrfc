@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'club', unit: '3.1' })
 
+const { lp } = useLocale()
+
 // 文案依俱樂部切換：hero／SEO／球隊介紹段落取自 club-copy.ts。下方球員名單、
 // 教練團、賽程表、成績、榮譽時間軸都是動態內容（真人真事的名單／賽果，不進
 // club-copy.ts）——藍鯨目前這些區塊 0 素材（客戶尚未提供 2025 名單、12 個月
@@ -28,8 +30,8 @@ useSportsTeamSchema('D1')
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/club/">俱樂部</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
       <li aria-current="page">一線隊</li>
     </ol>
   </div>
@@ -133,7 +135,7 @@ useSportsTeamSchema('D1')
           </div>
         </article>
         <article class="player-card clip-card player-card--demo" data-pos="MF">
-          <a class="player-card__link" href="/zh/club/first-team/player/" aria-label="查看 11 號楊朝景 球員詳情頁範本">
+          <a class="player-card__link" :href="lp('/zh/club/first-team/player/')" aria-label="查看 11 號楊朝景 球員詳情頁範本">
             <div class="player-card__visual">
               <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
               <span class="player-card__num">11</span>
@@ -442,7 +444,7 @@ useSportsTeamSchema('D1')
         <h2 class="section-title" id="fixtures-title">賽程表</h2>
       </div>
       <div class="fixtures-actions">
-        <a class="btn btn--dark btn--sm" href="/zh/schedule/">查看完整行事曆</a>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/schedule/')">查看完整行事曆</a>
         <!-- 這是 public/assets/ics/ 底下的靜態下載檔，不是路由。link-checker 的 ESLint 規則只比對
              .nuxt/link-checker/routes.json 的路由清單、看不到 public/，所以任何指向靜態檔的 href
              都會被判成 "does not match any known route"（該規則只接受 routesFile／rootDir 兩個選項，
@@ -691,19 +693,19 @@ useSportsTeamSchema('D1')
         <p class="cta-card__num">10.1</p>
         <p class="cta-card__title">加入一線隊</p>
         <p class="cta-card__desc">具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊球員。</p>
-        <a class="btn btn--primary" href="/zh/join/player/">填寫報名表</a>
+        <a class="btn btn--primary" :href="lp('/zh/join/player/')">填寫報名表</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">3.3</p>
         <p class="cta-card__title">試訓場次</p>
         <p class="cta-card__desc">查看近期試訓場次日期、地點與報名方式。</p>
-        <a class="btn btn--primary" href="/zh/club/opportunities/">前往球員機會</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/opportunities/')">前往球員機會</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">3.2</p>
         <p class="cta-card__title">球員發展系統</p>
         <p class="cta-card__desc">了解一線隊如何透過八大模組培養球員的職業競爭力。</p>
-        <a class="btn btn--primary" href="/zh/club/player-development/">查看發展系統</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/player-development/')">查看發展系統</a>
       </div>
     </div>
   </div>

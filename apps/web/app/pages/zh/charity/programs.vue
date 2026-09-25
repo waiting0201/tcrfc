@@ -2,6 +2,8 @@
 // app/pages/zh/charity/programs.vue — 由 site/src/pages/zh/charity/programs/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "charity", unit: "11" })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: "慈善計畫 Charity Programs｜慈善與社會影響｜台中磐石足球俱樂部",
   description: "台中磐石足球俱樂部的慈善計畫列表與詳情版型：計畫緣起、受贈公益團體、捐助內容、執行過程與活動圖片藝廊。",
@@ -12,8 +14,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/charity/">慈善與社會影響</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/charity/')">慈善與社會影響</a></li>
       <li aria-current="page">慈善計畫</li>
     </ol>
   </div>
@@ -35,7 +37,7 @@ useSeoMeta({
     <div class="empty-state">
       <p class="empty-state__title">尚無已公開的慈善計畫</p>
       <p class="empty-state__desc">俱樂部的公益投入持續進行中，個別計畫的緣起、受贈團體與捐助內容確認後將於此公開。歡迎企業洽談長期公益合作方案。</p>
-      <a class="btn btn--dark btn--sm" href="/zh/partners/opportunities/">洽談企業合作</a>
+      <a class="btn btn--dark btn--sm" :href="lp('/zh/partners/opportunities/')">洽談企業合作</a>
     </div>
   </div>
 </section>
@@ -45,17 +47,17 @@ useSeoMeta({
   <div class="band-inner container">
     <h2 class="section-title" id="programs-cta-title">相關內容</h2>
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/charity/impact-stories/">
+      <a class="cta-card" :href="lp('/zh/charity/impact-stories/')">
         <span class="cta-card__num">11.3</span>
         <span class="cta-card__title">慈善事蹟</span>
         <p class="cta-card__desc">已落地的公益行動時間軸</p>
       </a>
-      <a class="cta-card" href="/zh/news/community/">
+      <a class="cta-card" :href="lp('/zh/news/community/')">
         <span class="cta-card__num">7.7</span>
         <span class="cta-card__title">社區活動新聞</span>
         <p class="cta-card__desc">與慈善計畫相關的即時報導</p>
       </a>
-      <a class="cta-card" href="/zh/charity/#donate">
+      <a class="cta-card" :href="lp('/zh/charity/#donate')">
         <span class="cta-card__num">01</span>
         <span class="cta-card__title">支持特定計畫</span>
         <p class="cta-card__desc">捐款時可指定支持的計畫</p>

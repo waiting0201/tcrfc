@@ -2,6 +2,8 @@
 // app/pages/zh/academy/index.vue — 由 site/src/pages/zh/academy/index/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "academy", unit: "04" })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: "台中磐石足球學院 TCRFC Academy｜台中磐石足球俱樂部",
   description: "台中磐石足球學院是台中磐石足球俱樂部的青訓體系，提供 U12 至 U15 分齡訓練、清晰的發展路徑與教練團陪伴，銜接一線隊與海外舞台。",
@@ -12,7 +14,7 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">足球學院</li>
     </ol>
   </div>
@@ -41,49 +43,49 @@ useSeoMeta({
     </div>
 
     <div class="unit-nav-grid">
-      <a class="unit-nav-card clip-card" href="/zh/academy/overview/">
+      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/overview/')">
         <span class="unit-nav-card__num">4.1</span>
         <span class="unit-nav-card__en">Academy Overview</span>
         <span class="unit-nav-card__zh">學院總覽</span>
         <span class="unit-nav-card__desc">認識學院定位、訓練基地與整體樣貌</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
       </a>
-      <a class="unit-nav-card clip-card" href="/zh/academy/teams/">
+      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/teams/')">
         <span class="unit-nav-card__num">4.2</span>
         <span class="unit-nav-card__en">Our Teams</span>
         <span class="unit-nav-card__zh">學院隊伍</span>
         <span class="unit-nav-card__desc">U15／U14／U12 各梯隊名單、教練與賽程</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
       </a>
-      <a class="unit-nav-card clip-card" href="/zh/academy/pathway/">
+      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/pathway/')">
         <span class="unit-nav-card__num">4.3</span>
         <span class="unit-nav-card__en">Academy Pathway</span>
         <span class="unit-nav-card__zh">學院發展路徑</span>
         <span class="unit-nav-card__desc">從 U12 到一線隊／海外的成長路徑</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
       </a>
-      <a class="unit-nav-card clip-card" href="/zh/academy/curriculum/">
+      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/curriculum/')">
         <span class="unit-nav-card__num">4.4</span>
         <span class="unit-nav-card__en">Training &amp; Curriculum</span>
         <span class="unit-nav-card__zh">訓練課程與課綱</span>
         <span class="unit-nav-card__desc">技術、戰術、體能、比賽判讀與品格五大面向</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
       </a>
-      <a class="unit-nav-card clip-card" href="/zh/academy/coaches/">
+      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/coaches/')">
         <span class="unit-nav-card__num">4.5</span>
         <span class="unit-nav-card__en">Coaches</span>
         <span class="unit-nav-card__zh">學院教練團</span>
         <span class="unit-nav-card__desc">認識帶領各梯隊的教練團隊</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
       </a>
-      <a class="unit-nav-card clip-card" href="/zh/academy/life/">
+      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/life/')">
         <span class="unit-nav-card__num">4.6</span>
         <span class="unit-nav-card__en">Academy Life</span>
         <span class="unit-nav-card__zh">學院生活</span>
         <span class="unit-nav-card__desc">訓練、比賽與活動的日常紀錄</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
       </a>
-      <a class="unit-nav-card clip-card unit-nav-card--cta" href="/zh/academy/join/">
+      <a class="unit-nav-card clip-card unit-nav-card--cta" :href="lp('/zh/academy/join/')">
         <span class="unit-nav-card__num">4.7</span>
         <span class="unit-nav-card__en">Join the Academy</span>
         <span class="unit-nav-card__zh">加入學院</span>
@@ -101,8 +103,8 @@ useSeoMeta({
       <h2 class="section-title" style="color:#fff;">準備好加入台中磐石足球學院了嗎？</h2>
     </div>
     <div class="cta-strip__actions">
-      <a class="btn btn--primary" href="/zh/join/academy/">線上申請</a>
-      <a class="btn btn--light" href="/zh/academy/join/">查看招生資訊</a>
+      <a class="btn btn--primary" :href="lp('/zh/join/academy/')">線上申請</a>
+      <a class="btn btn--light" :href="lp('/zh/academy/join/')">查看招生資訊</a>
     </div>
   </div>
 </section>

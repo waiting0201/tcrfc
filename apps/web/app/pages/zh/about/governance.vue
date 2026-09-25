@@ -2,6 +2,8 @@
 // app/pages/zh/about/governance.vue — 由 site/src/pages/zh/about/governance/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "about", unit: "02" })
 
+const { lp } = useLocale()
+
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const identity = computed(() => getClubIdentity(clubKey.value))
@@ -17,8 +19,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">治理與管理</li>
     </ol>
   </div>

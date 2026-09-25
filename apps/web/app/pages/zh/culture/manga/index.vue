@@ -4,6 +4,8 @@
 // ⛔ 原頁 <script>（線上閱讀器分頁／捲動模式切換）改寫為 onMounted，行為逐字等價。
 definePageMeta({ nav: 'culture', unit: '8.1' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '台中磐石漫畫 TCRFC Manga｜台中磐石文化｜台中磐石足球俱樂部',
   description:
@@ -28,8 +30,8 @@ onMounted(() => {
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/culture/">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
       <li aria-current="page">台中磐石漫畫</li>
     </ol>
   </div>
@@ -155,13 +157,13 @@ onMounted(() => {
         <p class="cta-card__num">8.2</p>
         <p class="cta-card__title">加入台中磐石球迷會</p>
         <p class="cta-card__desc">成為球迷會成員，第一時間收到新集數上線通知與角色設定花絮。</p>
-        <a class="btn btn--primary" href="/zh/culture/fan-club/">前往球迷會</a>
+        <a class="btn btn--primary" :href="lp('/zh/culture/fan-club/')">前往球迷會</a>
       </div>
       <div class="cta-card" style="background:var(--ink)">
         <p class="cta-card__num">8.3</p>
         <p class="cta-card__title">官方商品</p>
         <p class="cta-card__desc">把台中磐石漫畫角色與球隊主場球衣一起帶回家。</p>
-        <a class="btn btn--primary" href="/zh/culture/merchandise/">看官方商品</a>
+        <a class="btn btn--primary" :href="lp('/zh/culture/merchandise/')">看官方商品</a>
       </div>
     </div>
   </div>

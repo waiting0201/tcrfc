@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'partners', unit: '9.1' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '合作夥伴 Our Partners｜合作夥伴與贊助｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/partners/">夥伴</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/partners/')">夥伴</a></li>
       <li aria-current="page">合作夥伴</li>
     </ol>
   </div>
@@ -103,7 +105,7 @@ useSeoMeta({
       <p class="cta-card__num">9.3</p>
       <p class="cta-card__title">想成為台中磐石的合作夥伴？</p>
       <p class="cta-card__desc">了解與台中磐石合作的六大價值，以及受眾數據概況。</p>
-      <a class="btn btn--primary" href="/zh/partners/become-a-partner/">成為合作夥伴</a>
+      <a class="btn btn--primary" :href="lp('/zh/partners/become-a-partner/')">成為合作夥伴</a>
     </div>
   </div>
 </section>

@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: '', unit: 'G-07' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '隱私權政策 Privacy Policy｜台中磐石足球俱樂部',
   description:
@@ -14,7 +16,7 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">隱私權政策</li>
     </ol>
   </div>
@@ -44,7 +46,7 @@ useSeoMeta({
       <h2>五、當事人權利</h2>
 
       <h2>六、Cookie 使用說明</h2>
-      <p>本站使用 Cookie 以提供更好的瀏覽體驗，詳細說明請見 <a href="/zh/cookies/">Cookie 政策</a>。</p>
+      <p>本站使用 Cookie 以提供更好的瀏覽體驗，詳細說明請見 <a :href="lp('/zh/cookies/')">Cookie 政策</a>。</p>
 
       <h2>七、未成年人資料保護</h2>
 
@@ -53,7 +55,7 @@ useSeoMeta({
       <h2>九、政策修訂</h2>
 
       <h2>十、聯絡方式</h2>
-      <p>對本政策有任何疑問，歡迎透過 <a href="/zh/join/general/">聯絡我們</a> 與我們聯繫。</p>
+      <p>對本政策有任何疑問，歡迎透過 <a :href="lp('/zh/join/general/')">聯絡我們</a> 與我們聯繫。</p>
     </div>
   </div>
 </section>

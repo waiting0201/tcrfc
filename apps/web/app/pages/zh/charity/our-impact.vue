@@ -2,6 +2,8 @@
 // app/pages/zh/charity/our-impact.vue — 由 site/src/pages/zh/charity/our-impact/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "charity", unit: "11" })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: "影響力數據 Our Impact｜慈善與社會影響｜台中磐石足球俱樂部",
   description: "台中磐石足球俱樂部公益投入的累計統計數據與合作公益團體列表。金額類數據原則上不公開。",
@@ -12,8 +14,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/charity/">慈善與社會影響</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/charity/')">慈善與社會影響</a></li>
       <li aria-current="page">影響力數據</li>
     </ol>
   </div>
@@ -72,17 +74,17 @@ useSeoMeta({
   <div class="band-inner container">
     <h2 class="section-title" id="impact-cta-title">相關內容</h2>
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/charity/impact-stories/">
+      <a class="cta-card" :href="lp('/zh/charity/impact-stories/')">
         <span class="cta-card__num">11.3</span>
         <span class="cta-card__title">慈善事蹟</span>
         <p class="cta-card__desc">逐筆紀錄的時間軸</p>
       </a>
-      <a class="cta-card" href="/zh/charity/#donate">
+      <a class="cta-card" :href="lp('/zh/charity/#donate')">
         <span class="cta-card__num">01</span>
         <span class="cta-card__title">球迷捐款</span>
         <p class="cta-card__desc">由台灣足球策略發展協會的慈善捐款平台承接；具名者列於徵信名單（僅顯示姓名）</p>
       </a>
-      <a class="cta-card" href="/zh/partners/opportunities/">
+      <a class="cta-card" :href="lp('/zh/partners/opportunities/')">
         <span class="cta-card__num">9.4</span>
         <span class="cta-card__title">企業合作</span>
         <p class="cta-card__desc">成為合作公益團體或贊助夥伴</p>

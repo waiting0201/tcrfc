@@ -319,16 +319,32 @@ zh／en 兩筆 `<url>`，每筆都帶完整三條 hreflang alternate。
 lang 參數問題）。
 
 **內部連結**：`SiteHeader.vue`／`SiteFooter.vue`（每頁共用，含語系切換器本身）、
-`NewsCard.vue`／`NewsCategoryTabs.vue`（07 單元多頁共用）、以及**首頁**
+`NewsCard.vue`／`NewsCategoryTabs.vue`（07 單元多頁共用）、**首頁**
 `zh/index.vue`（含 `shared/utils/club-copy.ts` 裡 `ctaPrimaryHref`／`ctaSecondaryHref`／
 `pillars[].href`／`ctaTrio[].href` 這幾個「裸 `/zh/...` 路徑」資料欄位的消費端）與
 `about/ecosystem.vue` 的內部連結，已一律改用 `useLocale().lp()` 換算成目前語系版本。
-🔴 **其餘約 65 個純靜態頁面（尚無真實英文內容、也不在本輪 lang 參數清單內）的內部連結
-仍是硬編碼 `/zh/...`**——在自己的 `/en/...` 孿生路由上會把讀者連回 `/zh/...` 而不是
-留在 `/en/...`。這是刻意的範圍邊界（那些頁面本來就 100% 中文內容，連到 zh 版本不算
-明顯錯誤，只是不夠一致），機制上可以用跟本輪同一招（`href="/zh/...` → `:href="lp('/zh/...')"`
-的正規表達式替換＋補 `useLocale()`）批次處理，留給下一個做這批頁面英文化的人一併做，
-不在 S1-13 框架範圍內。
+✅ **S1-13 缺口①已補完（2026-09-25）**：其餘 68 個純靜態頁面＋`MembershipBenefits.vue`
+元件（共 69 個檔案、366 處）的頁內硬編碼 `/zh/...` 連結，已用同一招（`href="/zh/...`
+→ `:href="lp('/zh/...')"` 的正規表達式替換＋補 `const { lp } = useLocale()`）批次處理完成。
+另外 `club-copy.ts` 裡 3 處帶內嵌連結標記、以 `v-html` 渲染的文案欄位（`HISTORY_HERO.tcrfc.lede`、
+`JOIN_CONTACT_HERO.*.lede`，消費端是 `about/history.vue`／`join/contact/index.vue`）不能直接
+套用同一招——這些欄位是純資料常數，不是元件、不能呼叫 `useLocale()`——改為新增
+`shared/utils/locale.ts` 的 `localizeHtmlLinks(html, locale)`，在消費端頁面用 `computed` 於
+`v-html` 渲染前把字串裡的 `/zh/...` 換算成目前語系。**刻意保留 1 處硬編碼**：
+`app/pages/index.vue`（根路徑 `/`）樣板裡的 `<NuxtLink to="/zh/">` 回退連結——這個頁面
+本身不參與 `pages:extend` 的 `/zh/`／`/en/` 孿生路由複製（它的職責是依 `Accept-Language`
+轉址，見上方說明），沒有語系上下文，`lp()` 在此恆等於 no-op，轉換沒有實質意義。
+🔴 **防呆（E-63 同一種錯誤形狀）**：批次改樣板＋補解構這個動作本身在 S1-13 第一輪就出過包
+（`SiteHeader.vue`／`SiteFooter.vue` 漏解構 `lp`，見 `docs/18-work-errors.md` E-63），這輪新增
+`scripts/check-undefined-template-refs.mjs` 掛進 `npm run lint`：跑 `npx nuxi typecheck`（不是
+裸 `vue-tsc --noEmit`——裸的解不開 Nuxt 的自動匯入型別，會把 `useLocale`／`lp` 本身都判成
+「Cannot find name」，失去訊號區分度），只挑訊息含 `ComponentInternalInstance` 的 `TS2339`
+（樣板存取到元件 proxy 型別裡不存在的屬性，即「用了沒宣告的識別字」在 Vue SFC 型別檢查下的
+樣子）與 `TS2304`／`TS2552`，這三種訊號在本專案既有型別債（`useFetch().items` 回傳 `{}`
+等）裡零筆出現，不需要維護 baseline／allowlist。已用故意刪掉一個頁面的
+`const { lp } = useLocale()` 實測會變紅、補回後變綠。**這批型別債清完、能把完整
+`nuxi typecheck` 接進 `lint` 之後，這支腳本可以退役**（比照 `scripts/check-club-copy.mjs`
+檔頭同一句話）。
 
 **為什麼不用 `@nuxtjs/i18n`**：現有 80 頁全部是 `app/pages/zh/...` 檔案路徑（不是
 `@nuxtjs/i18n` 慣用的「檔案名不含語系前綴、由模組產生 `/zh/`／`/en/` 兩份路由」那種

@@ -5,6 +5,8 @@
 // （OUR_STORY_BODY_BW）逐字節錄 content/blue-whale/club-profile.md §1，未新增文字。
 definePageMeta({ nav: "about", unit: "02" })
 
+const { lp } = useLocale()
+
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const identity = computed(() => getClubIdentity(clubKey.value))
@@ -20,8 +22,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">我們的故事</li>
     </ol>
   </div>
@@ -61,19 +63,19 @@ useSeoMeta({
         <p class="cta-card__num">2.2</p>
         <p class="cta-card__title">願景與使命</p>
         <p class="cta-card__desc">了解{{ ABOUT_NAV_DESC[clubKey].visionMission }}</p>
-        <a class="btn btn--primary" href="/zh/about/vision-mission/">前往閱讀</a>
+        <a class="btn btn--primary" :href="lp('/zh/about/vision-mission/')">前往閱讀</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">2.7</p>
         <p class="cta-card__title">俱樂部歷程</p>
         <p class="cta-card__desc">{{ ABOUT_NAV_DESC[clubKey].history }}</p>
-        <a class="btn btn--primary" href="/zh/about/history/">前往閱讀</a>
+        <a class="btn btn--primary" :href="lp('/zh/about/history/')">前往閱讀</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">2.8</p>
         <p class="cta-card__title">重要里程碑</p>
         <p class="cta-card__desc">按年份檢視俱樂部的重要大事記。</p>
-        <a class="btn btn--primary" href="/zh/about/milestones/">查看時間軸</a>
+        <a class="btn btn--primary" :href="lp('/zh/about/milestones/')">查看時間軸</a>
       </div>
     </div>
   </div>

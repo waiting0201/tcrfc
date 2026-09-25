@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: '', unit: '10.5' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '合作夥伴與贊助洽詢 Partnership & Sponsorship｜加入與聯絡｜台中磐石足球俱樂部',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/join/">加入與聯絡</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
       <li aria-current="page">合作夥伴與贊助洽詢</li>
     </ol>
   </div>
@@ -210,7 +212,7 @@ useSeoMeta({
         <div class="consent-block">
           <div class="checkbox-field">
             <input type="checkbox" id="pn-consent" name="consent" required aria-describedby="pn-consent-error">
-            <label for="pn-consent">我已閱讀並同意<a href="/zh/privacy/">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之聯絡人個人資料，用於處理本次合作與贊助洽詢之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
+            <label for="pn-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之聯絡人個人資料，用於處理本次合作與贊助洽詢之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="pn-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
 
@@ -239,10 +241,10 @@ useSeoMeta({
         <div class="form-sidebar__card">
           <h2>延伸閱讀</h2>
           <ul>
-            <li><a href="/zh/partners/our-partners/">合作夥伴 Our Partners</a></li>
-            <li><a href="/zh/partners/become-a-partner/">成為合作夥伴 Become a Partner</a></li>
-            <li><a href="/zh/partners/opportunities/">贊助方案 Sponsorship Opportunities</a></li>
-            <li><a href="/zh/partners/our-sponsors/">贊助商 Our Sponsors</a></li>
+            <li><a :href="lp('/zh/partners/our-partners/')">合作夥伴 Our Partners</a></li>
+            <li><a :href="lp('/zh/partners/become-a-partner/')">成為合作夥伴 Become a Partner</a></li>
+            <li><a :href="lp('/zh/partners/opportunities/')">贊助方案 Sponsorship Opportunities</a></li>
+            <li><a :href="lp('/zh/partners/our-sponsors/')">贊助商 Our Sponsors</a></li>
           </ul>
         </div>
         </div>

@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: '', unit: '10-contact' })
 
+const { lp, locale } = useLocale()
+
 // 文案依俱樂部切換：hero／SEO 與社群連結取自 club-copy.ts。藍鯨無實體地址、
 // 電話與各部門分機（舊站盤點：content/blue-whale/gap-analysis.md §2 單元 10，
 // 「沒有任何實體地址、電話或聯絡表單」），這幾格本站一律不顯示。
@@ -11,6 +13,9 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => getClubIdentity(clubKey.value))
 const hero = computed(() => JOIN_CONTACT_HERO[clubKey.value])
+// S1-13 缺口①：hero.lede（兩個俱樂部版本皆有）含內嵌連結標記，v-html 渲染前
+// 用 localizeHtmlLinks() 把裡面的 /zh/join/ 換成目前語系版本。
+const ledeHtml = computed(() => localizeHtmlLinks(hero.value.lede, locale.value))
 
 useSeoMeta({
   title: computed(() => JOIN_CONTACT_SEO[clubKey.value].title),
@@ -28,8 +33,8 @@ function socialHandle(url: string): string {
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/join/">加入與聯絡</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
       <li aria-current="page">聯絡資訊</li>
     </ol>
   </div>
@@ -40,7 +45,7 @@ function socialHandle(url: string): string {
   <div class="container">
     <p class="page-hero__eyebrow">Contact Information</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
-    <p class="page-hero__lede" v-html="hero.lede"></p>
+    <p class="page-hero__lede" v-html="ledeHtml"></p>
   </div>
 </section>
 
@@ -60,7 +65,7 @@ function socialHandle(url: string): string {
       <div v-if="isTcrfc" class="contact-item">
         <p class="contact-item__label">地址</p>
         <p class="contact-item__value">台中市北屯區崇平路二段景谷巷 11 弄 41 號</p>
-        <p class="field-hint">主場：西屯足球場。各場地詳細位置見<a href="/zh/join/location/">場地位置與地圖</a>。</p>
+        <p class="field-hint">主場：西屯足球場。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
       </div>
 
       <div v-if="isTcrfc" class="contact-item">
@@ -110,7 +115,7 @@ function socialHandle(url: string): string {
     <h2 class="section-title" id="cta-title" style="color:#fff">直接透過表單聯絡我們</h2>
     <p class="section-lede on-dark" style="margin-inline:auto">七種表單各自送達對應部門，會比一般聯絡信箱更快得到回覆。</p>
     <div style="margin-top:2rem">
-      <a class="btn btn--primary" href="/zh/join/">查看所有表單</a>
+      <a class="btn btn--primary" :href="lp('/zh/join/')">查看所有表單</a>
     </div>
   </div>
 </section>

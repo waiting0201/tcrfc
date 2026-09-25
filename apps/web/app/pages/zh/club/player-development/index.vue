@@ -3,6 +3,8 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 definePageMeta({ nav: 'club', unit: '3.2' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '球員發展系統 Player Development｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
   description:
@@ -14,8 +16,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/club/">俱樂部</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
       <li aria-current="page">球員發展系統</li>
     </ol>
   </div>
@@ -135,7 +137,7 @@ useSeoMeta({
         <p class="module-card__summary-kicker">WHY IT MATTERS</p>
         <p class="module-card__summary-title">八大模組，一套完整體系</p>
         <p class="module-card__summary-desc">八大模組共同構成一線隊與各梯隊球員的養成框架，銜接學院訓練與國際發展通道，是選手邁向職業舞台的核心支持系統。</p>
-        <a class="module-card__summary-link" href="/zh/club/international-pathways/">查看國際發展通道 →</a>
+        <a class="module-card__summary-link" :href="lp('/zh/club/international-pathways/')">查看國際發展通道 →</a>
       </div>
     </div>
   </div>
@@ -149,13 +151,13 @@ useSeoMeta({
         <p class="cta-card__num">3.1</p>
         <p class="cta-card__title">認識一線隊</p>
         <p class="cta-card__desc">看看球員發展系統支持的一線隊陣容與賽季表現。</p>
-        <a class="btn btn--primary" href="/zh/club/first-team/">前往一線隊</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">10.1</p>
         <p class="cta-card__title">加入球隊</p>
         <p class="cta-card__desc">想成為體系內的一員？填寫報名表，開始你的旅程。</p>
-        <a class="btn btn--primary" href="/zh/join/player/">填寫報名表</a>
+        <a class="btn btn--primary" :href="lp('/zh/join/player/')">填寫報名表</a>
       </div>
     </div>
   </div>

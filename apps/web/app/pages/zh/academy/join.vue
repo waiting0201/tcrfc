@@ -2,6 +2,8 @@
 // app/pages/zh/academy/join.vue — 由 site/src/pages/zh/academy/join/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "academy", unit: "04" })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: "加入學院 Join the Academy｜台中磐石足球學院｜台中磐石足球俱樂部",
   description: "台中磐石足球學院招生對象、遴選流程與試訓資訊。費用與試訓場次等細節資料收集中，歡迎透過線上申請與我們聯繫。",
@@ -12,8 +14,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/academy/">足球學院</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/academy/')">足球學院</a></li>
       <li aria-current="page">加入學院</li>
     </ol>
   </div>
@@ -35,7 +37,7 @@ useSeoMeta({
     <div class="prose">
       <h2>招生對象</h2>
       <p>
-        台中磐石足球學院依 <a href="/zh/academy/teams/">U15、U14、U12 及其他年齡層</a> 設立分齡梯隊，
+        台中磐石足球學院依 <a :href="lp('/zh/academy/teams/')">U15、U14、U12 及其他年齡層</a> 設立分齡梯隊，
         招收對應年齡層、對足球有熱忱的學員。詳細報名年齡區間、就讀年級對照與名額，待招生簡章確認後更新於本頁。
       </p>
     </div>
@@ -142,7 +144,7 @@ useSeoMeta({
     <p class="section-lede" style="color:var(--muted-dark); margin-inline:auto; margin-top:.75rem;">
       填寫申請表單，我們將由學院部與你聯繫後續試訓安排。
     </p>
-    <a class="btn btn--primary" style="margin-top:2rem;" href="/zh/join/academy/">前往線上申請</a>
+    <a class="btn btn--primary" style="margin-top:2rem;" :href="lp('/zh/join/academy/')">前往線上申請</a>
   </div>
 </section>
 
@@ -153,7 +155,7 @@ useSeoMeta({
         <p class="kicker">FAQ</p>
         <h2 class="section-title">學院招生常見問題</h2>
       </div>
-      <a href="/zh/faq/">查看全部常見問題 →</a>
+      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
     </div>
     
   </div>

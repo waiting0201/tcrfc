@@ -4,6 +4,8 @@
 // ⛔ 原頁 <script>（類別篩選 chips）改寫為 onMounted，行為逐字等價。
 definePageMeta({ nav: 'club', unit: '3.5' })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: '球員故事 Player Stories｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
   description:
@@ -30,8 +32,8 @@ onMounted(() => {
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/club/">俱樂部</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
       <li aria-current="page">球員故事</li>
     </ol>
   </div>
@@ -110,13 +112,13 @@ onMounted(() => {
         <p class="cta-card__num">3.1</p>
         <p class="cta-card__title">認識一線隊</p>
         <p class="cta-card__desc">查看完整球員名單、教練團與本季賽程。</p>
-        <a class="btn btn--primary" href="/zh/club/first-team/">前往一線隊</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">國際發展通道</p>
         <p class="cta-card__desc">了解球員通往歐洲、日本、香港的完整路徑。</p>
-        <a class="btn btn--primary" href="/zh/club/international-pathways/">查看國際通道</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">查看國際通道</a>
       </div>
     </div>
   </div>

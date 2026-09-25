@@ -1,3 +1,7 @@
+<script setup lang="ts">
+const { lp } = useLocale()
+</script>
+
 <template>
 <!-- 會籍權益對照表 —— 規劃書 3.14 要求「一份資料、三處使用」（加入會員頁／8.2 球迷會頁／升級頁），
      且必須是可被搜尋引擎索引、可被螢幕閱讀器朗讀的 HTML 文字，**不得做成圖片**。
@@ -61,7 +65,7 @@
 
   <p class="benefits__note">
     到店<strong>出示電子會員卡</strong>即可享折扣，不需額外手續。
-    <a href="/zh/perks/">查看特約店家清單 →</a>
+    <a :href="lp('/zh/perks/')">查看特約店家清單 →</a>
   </p>
 
   <div class="pending-note">

@@ -2,6 +2,8 @@
 // app/pages/zh/charity/index.vue — 由 site/src/pages/zh/charity/index/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "charity", unit: "11", bodyClass: "page-charity" })
 
+const { lp } = useLocale()
+
 useSeoMeta({
   title: "慈善與社會影響 Charity & Impact｜台中磐石足球俱樂部",
   description: "台中磐石足球俱樂部的慈善與社會影響單元：慈善理念與投入領域、慈善計畫、事蹟紀錄、影響力數據，以及企業合作與球迷捐款兩種參與方式。",
@@ -12,7 +14,7 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">慈善與社會影響</li>
     </ol>
   </div>
@@ -37,7 +39,7 @@ useSeoMeta({
       </div>
     </div>
     <div class="charity-nav-grid">
-      <a class="charity-nav-card clip-card" href="/zh/charity/commitment/">
+      <a class="charity-nav-card clip-card" :href="lp('/zh/charity/commitment/')">
         <div class="charity-nav-card__media">
           <img src="/assets/img/trencin-03.jpg" alt="" width="1920" height="1280" loading="lazy">
           <span class="badge charity-nav-card__num">11.1</span>
@@ -51,7 +53,7 @@ useSeoMeta({
           </span>
         </div>
       </a>
-      <a class="charity-nav-card clip-card" href="/zh/charity/programs/">
+      <a class="charity-nav-card clip-card" :href="lp('/zh/charity/programs/')">
         <div class="charity-nav-card__media">
           <img src="/assets/img/news/2025-05-03-camps-056.jpg" alt="" width="1600" height="1200" loading="lazy">
           <span class="badge charity-nav-card__num">11.2</span>
@@ -65,7 +67,7 @@ useSeoMeta({
           </span>
         </div>
       </a>
-      <a class="charity-nav-card clip-card" href="/zh/charity/impact-stories/">
+      <a class="charity-nav-card clip-card" :href="lp('/zh/charity/impact-stories/')">
         <div class="charity-nav-card__media">
           <img src="/assets/img/news/2026-01-12-community-017.jpg" alt="" width="1600" height="1068" loading="lazy">
           <span class="badge charity-nav-card__num">11.3</span>
@@ -79,7 +81,7 @@ useSeoMeta({
           </span>
         </div>
       </a>
-      <a class="charity-nav-card clip-card" href="/zh/charity/our-impact/">
+      <a class="charity-nav-card clip-card" :href="lp('/zh/charity/our-impact/')">
         <div class="charity-nav-card__media">
           <img src="/assets/img/news/2025-06-11-community-050.jpg" alt="" width="1600" height="1068" loading="lazy">
           <span class="badge charity-nav-card__num">11.4</span>
@@ -108,7 +110,7 @@ useSeoMeta({
       <p class="section-lede">不論是企業還是球迷，都有合適的參與方式。</p>
     </div>
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/partners/opportunities/">
+      <a class="cta-card" :href="lp('/zh/partners/opportunities/')">
         <span class="cta-card__num">9.4</span>
         <span class="cta-card__title">企業合作公益專案</span>
         <p class="cta-card__desc">攜手企業推動長期公益方案，詳見合作夥伴的贊助方案頁面。</p>
@@ -158,7 +160,7 @@ useSeoMeta({
     </ol>
 
     <div class="donate-note">
-      <p><strong>具名／匿名：</strong>捐款者可選擇具名或匿名，具名者將列於捐款徵信名單，僅顯示姓名、不顯示金額；金額類數據原則上不公開（見 <a href="/zh/charity/our-impact/">11.4 影響力數據</a>）。款項的運用成果會回到 <a href="/zh/charity/impact-stories/">11.3 慈善事蹟紀錄</a> 長期陳列。</p>
+      <p><strong>具名／匿名：</strong>捐款者可選擇具名或匿名，具名者將列於捐款徵信名單，僅顯示姓名、不顯示金額；金額類數據原則上不公開（見 <a :href="lp('/zh/charity/our-impact/')">11.4 影響力數據</a>）。款項的運用成果會回到 <a :href="lp('/zh/charity/impact-stories/')">11.3 慈善事蹟紀錄</a> 長期陳列。</p>
     </div>
 
     <div class="donate-action">
@@ -173,17 +175,17 @@ useSeoMeta({
   <div class="band-inner container">
     <h2 class="section-title" id="charity-cta-title">想進一步了解？</h2>
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/charity/impact-stories/">
+      <a class="cta-card" :href="lp('/zh/charity/impact-stories/')">
         <span class="cta-card__num">11.3</span>
         <span class="cta-card__title">看看我們做過的事</span>
         <p class="cta-card__desc">慈善事蹟時間軸紀錄</p>
       </a>
-      <a class="cta-card" href="/zh/partners/opportunities/">
+      <a class="cta-card" :href="lp('/zh/partners/opportunities/')">
         <span class="cta-card__num">9.4</span>
         <span class="cta-card__title">洽談企業合作</span>
         <p class="cta-card__desc">長期公益專案與贊助方案</p>
       </a>
-      <a class="cta-card" href="/zh/join/general/">
+      <a class="cta-card" :href="lp('/zh/join/general/')">
         <span class="cta-card__num">10.7</span>
         <span class="cta-card__title">聯絡我們</span>
         <p class="cta-card__desc">其他公益相關詢問</p>
