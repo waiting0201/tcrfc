@@ -1,7 +1,7 @@
 import { computed, reactive, ref } from 'vue'
 import { getMe } from '@/api/adminAuth'
 import { setDisplayName } from '@/auth/session'
-import type { AdminMeRoleDto } from '@/api/adminAuth'
+import type { AdminMePermissionDto, AdminMeRoleDto } from '@/api/adminAuth'
 import tcrfcCrest from '@/assets/brand/tcrfc-mark-pink.svg'
 import bwCrest from '@/assets/brand/bw-crest-48.png'
 
@@ -14,13 +14,15 @@ import bwCrest from '@/assets/brand/bw-crest-48.png'
  * （未過期、未撤銷）的俱樂部授權**（規劃書 §4.0「站台切換器只列出該帳號已授權且未到期的俱樂部」），
  * 系統管理員例外——後端固定回傳「全部啟用中的俱樂部」（`MeResponse` 的資料來源不是
  * `AdminUserClub`，見 apps/api/README.md 該節說明），對系統管理員而言效果等同於「全部都算被授權」。
- * 同一次呼叫也把姓名（`displayName`）與角色（`roles`）帶回來，姓名寫回 `@/auth/session`
- * 供 `UserMenu.vue` 顯示；角色代碼存進 `currentRoleCodes`（S1-9 起新增，見
- * `@/composables/useProgramPermissions`——P1–P3 課程與活動的操作可視性判斷需要知道目前登入者
- * 有哪些角色，`isSuperAdmin` 一個布林值不夠用）。同一次呼叫的 `adminUserId` 存進
- * `currentAdminUserId`（S1-10 起新增）——G2 詢問收件匣「指派負責人」在非系統管理員的情境下
- * （沒有 `system.account.view` 可以查其他帳號姓名，見 `useFormsPermissions.ts` 檔頭），至少能靠
- * 這個值提供「指派給我自己」的功能，不需要整份帳號清單。
+ * 同一次呼叫也把姓名（`displayName`）、角色（`roles`）與**權限碼清單**（`permissions`，S1-10
+ * 修正新增）帶回來，姓名寫回 `@/auth/session` 供 `UserMenu.vue` 顯示；角色代碼存進
+ * `currentRoleCodes`（僅供顯示用途）；權限碼存進 `currentPermissionCodes`，是
+ * `@/composables/useRolePermissions` 的 `hasPermission()` 唯一的資料來源——P1–P3／G1–G2／
+ * L1–L2 的操作可視性判斷從此直接查這份清單，**不再需要每個模組各自維護一份「角色→操作」
+ * 對照表**（原本的做法要跟 `db/seed/generate-club-seed-sql.py` 的 `ROLE_PERMISSIONS` 手動同步，
+ * 是 `docs/18-work-errors.md` E-39 同類風險，已在 apps/api/README.md「S1-10 修正」根治）。同一次
+ * 呼叫的 `adminUserId` 存進 `currentAdminUserId`（S1-10 起新增）——G2 詢問收件匣「指派給我自己」
+ * 用得到，見 `EnquiryEditView.vue`。
  *
  * ⚠️ **切換器仍然只是介面便利，不是安全邊界**（docs/21-admin-ui.md §5）：真正的範圍檢查一律由
  * 後端 `AdminClubAuthorizer` 在每一次俱樂部範圍請求時即時判斷。這裡列出的清單現在雖然已經是
@@ -52,11 +54,18 @@ const state = reactive<ClubAccessState>({ clubs: [], loaded: false, loading: fal
 
 export const availableClubs = computed(() => state.clubs)
 
-/** 目前登入者的角色代碼（`GET /auth/me` 的 `roles[].code`）。載入完成前是空陣列——讀取這份
- * 清單的畫面（見 `useProgramPermissions`）在載入完成前一律採取「保守預設不顯示」，等
- * `ensureClubsLoaded()` 解析完成後會自動反應更新，不需要另外輪詢。 */
+/** 目前登入者的角色代碼（`GET /auth/me` 的 `roles[].code`）。載入完成前是空陣列。**S1-10 起
+ * 這份清單不再是各模組判斷「能不能做某件事」的依據**（見下方 `currentPermissionCodes`）——角色
+ * 代碼本身只用來顯示「這個帳號是什麼角色」一類的資訊，不用來反推權限。 */
 const roles = ref<AdminMeRoleDto[]>([])
 export const currentRoleCodes = computed(() => roles.value.map((r) => r.code))
+
+/** 目前登入者實際持有的權限碼清單（`GET /auth/me` 的 `permissions[].code`，S1-10 修正新增）——
+ * 取代原本每個模組各自手寫「角色→操作」對照表的做法（`useRolePermissions.ts` 的 `hasPermission`
+ * 讀這份清單）。載入完成前是空集合，讀取的畫面一律採取「保守預設不顯示」，等
+ * `ensureClubsLoaded()` 解析完成後會自動反應更新。 */
+const permissions = ref<AdminMePermissionDto[]>([])
+export const currentPermissionCodes = computed(() => new Set(permissions.value.map((p) => p.code)))
 
 /** 目前登入者的 `AdminUser.id`（`GET /auth/me` 的 `adminUserId`）。載入完成前是 `null`。 */
 const adminUserId = ref<string | null>(null)
@@ -81,6 +90,7 @@ export async function ensureClubsLoaded(force = false): Promise<void> {
     const me = await getMe()
     setDisplayName(me.displayName)
     roles.value = me.roles
+    permissions.value = me.permissions
     adminUserId.value = me.adminUserId
     state.clubs = me.clubGrants.map((g) => ({
       code: g.clubCode,
@@ -106,6 +116,7 @@ export function resetClubAccess(): void {
   state.clubs = []
   state.loaded = false
   roles.value = []
+  permissions.value = []
   adminUserId.value = null
   internalActiveClubId.value = 'tcrfc'
 }

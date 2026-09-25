@@ -13,6 +13,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
@@ -150,9 +151,14 @@ const editingFieldId = ref<string | null>(null)
 const fieldForm = reactive({
   fieldKey: '',
   fieldType: 'text' as FormFieldTypeCode,
+  labelZh: '',
+  labelEn: '',
   isRequired: false,
   validationRule: '',
   options: [] as string[],
+  /** 與 `options` 同順序、同筆數的英文顯示文字，方便逐項對照編輯——送出前由
+   * `buildOptionLabelsEnPayload()` 決定要不要真的送出（見該函式說明：要嘛全部填、要嘛全部留空）。 */
+  optionLabelsEn: [] as string[],
   isSummary: false,
 })
 const newOptionText = ref('')
@@ -164,9 +170,12 @@ function openCreateFieldDialog() {
   editingFieldId.value = null
   fieldForm.fieldKey = ''
   fieldForm.fieldType = 'text'
+  fieldForm.labelZh = ''
+  fieldForm.labelEn = ''
   fieldForm.isRequired = false
   fieldForm.validationRule = ''
   fieldForm.options = []
+  fieldForm.optionLabelsEn = []
   fieldForm.isSummary = false
   newOptionText.value = ''
   fieldDialogError.value = null
@@ -178,9 +187,12 @@ function openEditFieldDialog(field: AdminFormFieldDto) {
   editingFieldId.value = field.id
   fieldForm.fieldKey = field.fieldKey
   fieldForm.fieldType = field.fieldType as FormFieldTypeCode
+  fieldForm.labelZh = field.labelZh
+  fieldForm.labelEn = field.labelEn ?? ''
   fieldForm.isRequired = field.isRequired
   fieldForm.validationRule = field.validationRule ?? ''
   fieldForm.options = field.options ? [...field.options] : []
+  fieldForm.optionLabelsEn = field.options ? field.options.map((_, i) => field.optionLabelsEn?.[i] ?? '') : []
   fieldForm.isSummary = field.isSummary
   newOptionText.value = ''
   fieldDialogError.value = null
@@ -195,11 +207,22 @@ function addOption() {
     return
   }
   fieldForm.options.push(value)
+  fieldForm.optionLabelsEn.push('')
   newOptionText.value = ''
 }
 
 function removeOption(index: number) {
   fieldForm.options.splice(index, 1)
+  fieldForm.optionLabelsEn.splice(index, 1)
+}
+
+/** 選項的英文顯示文字**要嘛全部填、要嘛全部留空**（後端 `ValidateOptionLabelsEn`：提供時筆數
+ * 必須跟選項一致，且不能有空字串）——留空代表「尚未翻譯」，公開端點會回退顯示中文。 */
+function buildOptionLabelsEnPayload(): string[] | null {
+  if (!fieldNeedsOptions.value || fieldForm.options.length === 0) return null
+  const trimmed = fieldForm.optionLabelsEn.map((v) => v.trim())
+  if (trimmed.every((v) => !v)) return null
+  return trimmed
 }
 
 const FIELD_KEY_PATTERN = /^[a-z][a-z0-9_]{0,63}$/
@@ -217,9 +240,20 @@ function validateFieldForm(): boolean {
     fieldDialogError.value = `這張表單已經有欄位代碼「${fieldForm.fieldKey}」，請換一個名稱`
     return false
   }
+  if (!fieldForm.labelZh.trim()) {
+    fieldDialogError.value = '題目文字（中文）為必填欄位'
+    return false
+  }
   if (fieldNeedsOptions.value && fieldForm.options.length === 0) {
     fieldDialogError.value = '下拉或多選欄位至少要有一個選項'
     return false
+  }
+  if (fieldNeedsOptions.value) {
+    const filledCount = fieldForm.optionLabelsEn.filter((v) => v.trim()).length
+    if (filledCount > 0 && filledCount < fieldForm.optionLabelsEn.length) {
+      fieldDialogError.value = '選項的英文顯示文字要嘛每一項都填，要嘛整組留空（尚未翻譯），不能只填一部分'
+      return false
+    }
   }
   return true
 }
@@ -231,9 +265,12 @@ async function submitFieldDialog() {
     const payload = {
       fieldKey: fieldForm.fieldKey,
       fieldType: fieldForm.fieldType,
+      labelZh: fieldForm.labelZh.trim(),
+      labelEn: fieldForm.labelEn.trim() || null,
       isRequired: fieldForm.isRequired,
       validationRule: fieldForm.validationRule.trim() || null,
       options: fieldNeedsOptions.value ? fieldForm.options : null,
+      optionLabelsEn: buildOptionLabelsEnPayload(),
       isSummary: fieldForm.isSummary,
     }
     if (fieldDialogMode.value === 'create') {
@@ -292,18 +329,24 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
     await updateAdminFormField(activeClubId.value, formId.value!, a.id, {
       fieldKey: a.fieldKey,
       fieldType: a.fieldType,
+      labelZh: a.labelZh,
+      labelEn: a.labelEn ?? null,
       isRequired: a.isRequired,
       validationRule: a.validationRule ?? null,
       options: a.options ?? null,
+      optionLabelsEn: a.optionLabelsEn ?? null,
       isSummary: a.isSummary,
       sortOrder: b.sortOrder,
     })
     await updateAdminFormField(activeClubId.value, formId.value!, b.id, {
       fieldKey: b.fieldKey,
       fieldType: b.fieldType,
+      labelZh: b.labelZh,
+      labelEn: b.labelEn ?? null,
       isRequired: b.isRequired,
       validationRule: b.validationRule ?? null,
       options: b.options ?? null,
+      optionLabelsEn: b.optionLabelsEn ?? null,
       isSummary: b.isSummary,
       sortOrder: a.sortOrder,
     })
@@ -397,7 +440,13 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
         </div>
 
         <el-table v-if="fields.length > 0" :data="fields" row-key="id">
-          <el-table-column label="欄位代碼" min-width="160">
+          <el-table-column label="題目文字" min-width="160">
+            <template #default="{ row }">
+              {{ row.labelZh }}
+              <el-tag v-if="!row.labelEn" size="small" type="info" class="form-edit__untranslated-tag">尚未翻譯</el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column label="欄位代碼" min-width="140">
             <template #default="{ row }">{{ row.fieldKey }}</template>
           </el-table-column>
           <el-table-column label="型別" width="110">
@@ -440,7 +489,7 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
     <el-dialog
       v-model="fieldDialogVisible"
       :title="fieldDialogMode === 'create' ? '新增欄位' : '編輯欄位'"
-      width="520px"
+      width="640px"
       :close-on-click-modal="false"
     >
       <el-alert v-if="fieldDialogError" :title="fieldDialogError" type="warning" show-icon class="form-edit__dialog-error" />
@@ -448,6 +497,15 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
         <el-form-item label="欄位代碼（英文小寫，例如 experience）" required>
           <el-input v-model="fieldForm.fieldKey" placeholder="英文小寫字母開頭，可含數字與底線" />
         </el-form-item>
+        <BilingualShortField
+          label="題目文字"
+          required
+          :zh="fieldForm.labelZh"
+          :en="fieldForm.labelEn"
+          placeholder="訪客在表單上會看到的問題，例如「經歷／簡歷」"
+          @update:zh="(v) => (fieldForm.labelZh = v)"
+          @update:en="(v) => (fieldForm.labelEn = v)"
+        />
         <el-form-item label="欄位型別" required>
           <el-select v-model="fieldForm.fieldType" style="width: 100%">
             <el-option v-for="t in FIELD_TYPE_ORDER" :key="t" :label="FIELD_TYPE_LABEL[t]" :value="t" />
@@ -459,14 +517,16 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
         <el-form-item label="是否必填">
           <el-switch v-model="fieldForm.isRequired" />
         </el-form-item>
-        <el-form-item v-if="fieldNeedsOptions" label="選項清單（下拉／多選必填，至少一項）">
-          <div class="form-edit__options">
-            <el-tag v-for="(opt, index) in fieldForm.options" :key="opt" closable class="form-edit__option-tag" @close="removeOption(index)">
-              {{ opt }}
-            </el-tag>
+        <el-form-item v-if="fieldNeedsOptions" label="選項清單（下拉／多選必填，至少一項；英文顯示文字選填，要嘛全部填、要嘛全部留空）">
+          <div v-if="fieldForm.options.length > 0" class="form-edit__option-rows">
+            <div v-for="(opt, index) in fieldForm.options" :key="opt" class="form-edit__option-row">
+              <span class="form-edit__option-row-zh">{{ opt }}</span>
+              <el-input v-model="fieldForm.optionLabelsEn[index]" placeholder="英文顯示文字（選填）" />
+              <el-button text type="danger" @click="removeOption(index)">刪除</el-button>
+            </div>
           </div>
           <div class="form-edit__option-add">
-            <el-input v-model="newOptionText" placeholder="輸入選項內容後按新增" @keyup.enter="addOption" />
+            <el-input v-model="newOptionText" placeholder="輸入選項內容（中文）後按新增" @keyup.enter="addOption" />
             <el-button @click="addOption">新增選項</el-button>
           </div>
         </el-form-item>
@@ -521,11 +581,28 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
   margin-bottom: 12px;
 }
 
-.form-edit__options {
+.form-edit__untranslated-tag {
+  margin-left: 4px;
+}
+
+.form-edit__option-rows {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 6px;
   margin-bottom: 8px;
+}
+
+.form-edit__option-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.form-edit__option-row-zh {
+  flex: 0 0 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .form-edit__option-add {

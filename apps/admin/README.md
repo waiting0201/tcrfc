@@ -2,6 +2,26 @@
 
 台中磐石官網主站與台中藍鯨官網**共用同一個後台**的 Vue 3 SPA。
 
+✅ **S1-10 後台畫面第三輪修正（2026-09-25）：G1 欄位題目文字、G2 姓名選單開放給所有處理權限
+角色、P1–P3／G1–G2／L1–L2 權限判斷改讀 `/auth/me` 權限碼、俱樂部範圍頁面閃錯 bug 已修**——
+接上同名後端補完（見 `apps/api/README.md`「S1-10 修正」）。**G1**：新增欄位時新增「題目文字
+（中文）」必填與「（英文）」選填（`BilingualShortField`），下拉／多選選項新增英文顯示文字
+（要嘛整組填、要嘛整組留空，前端與後端各自防呆一次）；欄位清單新增「題目文字」欄，不再只顯示
+英文欄位代碼。**G2**：詳情頁改呼叫公開端點 `GET /api/v1/{club}/forms/{formCode}?lang=zh`
+（`src/api/publicForms.ts`，任何角色都能呼叫，不需要 G1 權限）取得題目文字對照表顯示訪客回答，
+刪除舊版猜測對照表 `fieldKeyLabel()`／`FIELD_KEY_LABEL_HINTS`；「指派負責人」改接新端點
+`GET .../enquiries/assignable-users?formCode=...`，持有處理權限的角色（不限系統管理員）都能用
+姓名選單指派給任何一位同樣持有處理權限的候選人，拿掉舊版「只有系統管理員能選人名」的限制與
+說明文字。**權限判斷改讀後端**：`useProgramPermissions`／`useFormsPermissions`／
+`useCalendarPermissions` 全部改成讀 `GET /auth/me` 新增的 `permissions: {code, scopeTypes}[]`，
+刪除三份手寫「角色→操作」對照表常數（根治 `docs/18-work-errors.md` E-39／E-60／E-61 同類風險），
+`useRolePermissions.ts` 新增 `hasPermission`／`hasAnyPermission` 取代舊版的 `hasAnyRole`。**修
+既有 bug**：`apps/admin/src/router/index.ts` 路由守衛的 `ensureClubsLoaded()` 改成 `await`
+（原本 fire-and-forget），俱樂部範圍頁面整頁重新載入不再閃一次「沒有被授權」錯誤畫面
+（`S1-11` 發現的既有缺陷）。詳見下方「G1–G2 表單與詢問」節的更新內容與「本輪驗收（S1-10 第三
+輪）」。**規格缺口維持未解，非本輪能力範圍**：G1「檔案上傳」欄位型別仍只收文字／網址（全系統
+沒有通用檔案儲存服務）、「防機器人驗證」仍只是資料庫旗標（沒有 CAPTCHA 服務憑證）。
+
 ✅ **S1-9 前端接線（2026-09-25）：P1 項目／P2 梯次與場次／P3 報名管理三組列表＋編輯畫面全新
 完成**——接上同名後端（見 `apps/api/README.md`「S1-9」）。**P1**：類型／狀態篩選、雙語名稱與
 簡介、課程內容（區塊編輯器的原始 JSON，只驗證語法）、教練團多選（接 C3 既有清單）、封面圖
@@ -1629,25 +1649,29 @@ EditView 路由狀態一次性求值檢查）與 `npm run build`（`vue-tsc -b &
 
 ---
 
-## G1–G2 表單與詢問（S1-10，2026-09-25）
+## G1–G2 表單與詢問（S1-10，2026-09-25；第三輪修正 2026-09-25）
 
-`G1` 表單設計器、`G2` 詢問收件匣，接上同名後端（`apps/api/README.md`「S1-10」）。對照主站規劃書
-§4.7，逐一模組如下：
+`G1` 表單設計器、`G2` 詢問收件匣，接上同名後端（`apps/api/README.md`「S1-10」「S1-10 修正」）。
+對照主站規劃書 §4.7，逐一模組如下：
 
 - **G1**（`src/views/forms/FormListView.vue`／`FormEditView.vue`）：9 個固定表單（招募、學院與
   營隊、國際球員、合作贊助、媒體、一般聯絡、提案下載、捐助洽詢）**沒有新增／刪除**，列表依
   `types/forms.ts` 的 `FORM_CODE_ORDER` 排序（後端回應本身依 `form_code` 字母排序，畫面上重排成
   規劃書 §3.10 的邏輯順序）。編輯頁：收件通知 Email（可多人）、送出後導向頁、自動回覆信（雙語）、
-  防機器人驗證開關；動態欄位新增／編輯／刪除，含選項清單（下拉／多選）、必填、驗證規則
-  （正規表示式）、標記為「內容摘要」（同一表單最多一個，設定新的會自動取代舊的，前端與後端各自
-  防呆一次）、上移／下移（逐一呼叫 `PUT .../fields/{id}` 更新 `sortOrder`，後端沒有批次排序端點，
-  見 `apps/api/README.md`「S1-10」規劃書沒寫清楚第 8 點）。
+  防機器人驗證開關；動態欄位新增／編輯／刪除，含**題目文字**（中文必填、英文選填，
+  `BilingualShortField`，第三輪新增）、選項清單（下拉／多選，含選項的**英文顯示文字**——要嘛
+  整組填、要嘛整組留空，前端 `buildOptionLabelsEnPayload()` 與後端 `ValidateOptionLabelsEn` 各自
+  防呆一次，第三輪新增）、必填、驗證規則（正規表示式）、標記為「內容摘要」（同一表單最多一個，
+  設定新的會自動取代舊的）、上移／下移（逐一呼叫 `PUT .../fields/{id}` 更新 `sortOrder`，後端沒有
+  批次排序端點，見 `apps/api/README.md`「S1-10」規劃書沒寫清楚第 8 點）。欄位清單新增「題目文字」
+  欄（第三輪新增，未翻譯時顯示「尚未翻譯」提示標籤）。
 - **G2**（`EnquiryInboxView.vue`／`EnquiryEditView.vue`）：依表單類型分頁（9 個固定表單＋
   「全部」），只顯示這個角色看得到的分頁（`useFormsPermissions.ts` 的 `visibleFormCodes`，純屬
   UI 便利，不是安全邊界——後端依實際持有的權限碼過濾，前端就算誤顯示分頁，該分頁清單一樣會是
-  空的）；狀態／關鍵字／日期區間篩選、分頁（`el-pagination`）；詳情頁列出訪客原始回答（不可編輯）
-  ＋後台可改的四項（狀態、指派負責人、內部備註、標籤）；CSV 匯出（`enquiry.inbox.export`，
-  `is_restricted`，僅系統管理員看得到按鈕）。
+  空的）；狀態／關鍵字／日期區間篩選、分頁（`el-pagination`）；詳情頁列出訪客原始回答（不可編輯，
+  欄位標籤第三輪起改顯示**題目文字**，見下方「欄位題目文字」節）＋後台可改的四項（狀態、指派
+  負責人——第三輪起改用姓名選單開放給所有處理權限角色，見下方「指派負責人」節、內部備註、標籤）；
+  CSV 匯出（`enquiry.inbox.export`，`is_restricted`，僅系統管理員看得到按鈕）。
 
 ### 兩個規格缺口原樣呈現（不假裝做得到，依任務指示與 `apps/api/README.md`「S1-10」段）
 
@@ -1659,46 +1683,52 @@ EditView 路由狀態一次性求值檢查）與 `npm run build`（`vue-tsc -b &
    真的驗證，靠限流與誘捕欄位頂著。同一頁另外提示「系統目前還沒有接上寄信服務」（收件通知信與
    自動回覆信皆同，比照 S1-9 P3 對寄信缺口的既有處理方式，不放一個看起來會生效但其實不會的功能）。
 
-### 欄位名稱只能顯示欄位代碼（本輪發現的既有限制，非本輪造成）
+### 欄位題目文字（S1-10 第三輪，2026-09-25，取代舊版「欄位名稱只能顯示欄位代碼」）
 
-G2 詳情頁列出訪客回答時，欄位標籤只能顯示 G1 建立欄位時輸入的**欄位代碼**（英文小寫，如
-`cooperation_direction`）——規格與後端資料表都沒有「欄位問題文字」的多語系儲存（`FormField` 沒有
-`label`／`label_i18n` 概念，見 `apps/api` `Features/Forms/FormDtos.cs`：連公開表單定義的
-`PublicFormFieldDto` 也只有 `fieldKey`，沒有標籤）。本輪用 `types/forms.ts` 的 `fieldKeyLabel()`
-提供**最佳猜測對照表**（只覆蓋種子資料實際用到的慣用鍵：`name`／`contact`／`message`／
-`experience`／`cooperation_direction`……），沒對照到的欄位一律原樣顯示代碼本身。這不是禁用詞掃描
-會抓到的情況（欄位代碼是資料內容，不是介面文案的固定英文技術詞），但確實不符合「一般人看得懂」
-的精神，回報供之後評估是否要在 `form_fields` 加一個雙語標籤欄位。
+✅ **已解決**：G1 建立／編輯欄位時新增「題目文字（中文）」（必填）與「題目文字（英文）」（選填，
+`BilingualShortField`），對照後端 `form_fields_i18n`（`apps/api/README.md`「S1-10 修正」）；G2
+詳情頁不再靠前端猜測對照表——改呼叫**公開端點** `GET /api/v1/{club}/forms/{formCode}?lang=zh`
+（`src/api/publicForms.ts` 的 `getPublicForm`，**不需要任何權限**，任何角色都能呼叫，因為 G2 的
+處理權限不等於 G1 的檢視權限，例如 `academy_program` 能處理課程類詢問但沒有 `form.view`）取得
+這張表單目前的題目文字對照表，逐一對照顯示訪客回答的欄位標籤。若答案引用的欄位代碼已經不在目前
+的表單定義裡（例如事後被刪除），才會退回顯示原始欄位代碼本身（提示文字有說明）。**舊版
+`fieldKeyLabel()`／`FIELD_KEY_LABEL_HINTS` 猜測對照表已刪除**——不再需要維護一份跟種子資料手動
+同步的猜測清單。
 
-### 權限顯示：抽出共用的 `useRolePermissions.ts`
+### 權限顯示：改讀 `/auth/me` 的權限碼清單（S1-10 第三輪，2026-09-25）
 
-派工要求評估「能否做成共用機制，不要每個模組各寫一份」。本輪把 `useProgramPermissions.ts`
-（S1-9）原本各自宣告一份的 `isSuperAdmin` computed 與 `hasAnyRole()` 輔助函式抽到
-`src/composables/useRolePermissions.ts`，`useProgramPermissions.ts` 已改用這份共用基礎（純重構，
-行為不變）；新增的 `src/composables/useFormsPermissions.ts`（G1／G2 的角色→操作對照表，逐字對照
-`apps/api/README.md`「S1-10」「權限碼與角色指派」）也建立在同一份基礎上。**共用的只有
-`isSuperAdmin`／`hasAnyRole` 這兩個基礎判斷**——每個模組自己的角色集合定義（哪些角色能做什麼）
-仍然各自宣告，這是刻意的：不同模組的角色→權限矩陣本來就不一樣，硬要抽成一份跨模組共用的對照表
-反而會把「課程與活動」跟「表單與詢問」的權限邏輯攪在一起，日後改一個模組的矩陣容易誤動到另一個。
+✅ **已解決**（取代舊版「抽出共用的 `useRolePermissions.ts`」段落描述的根本限制）：後端已在
+`GET /auth/me` 新增 `permissions: {code, scopeTypes}[]`（這個帳號目前實際持有的全部權限碼，見
+`apps/api/README.md`「S1-10 修正」「任務指示第三項」），`src/auth/clubAccess.ts` 新增
+`currentPermissionCodes`（`Set<string>`），`useRolePermissions.ts` 改為提供 `hasPermission(code)`／
+`hasAnyPermission(...codes)` 兩個查表函式（取代舊版的 `hasAnyRole()`）。`useProgramPermissions.ts`／
+`useFormsPermissions.ts`／`useCalendarPermissions.ts` 三份composable **全部改寫**，直接對應它們
+背後呼叫的後端端點所要求的權限碼（例如 `canManageForms = hasPermission('form.update')`），**刪除
+三份手寫的「角色→操作」對照表常數**（`FULL_ACCESS_ROLES`／`FORM_DESIGNER_ROLES`／
+`MANAGE_CUSTOM_EVENT_ROLES` 等），不再需要跟 `db/seed/generate-club-seed-sql.py` 的
+`ROLE_PERMISSIONS` 手動保持同步——這是 `docs/18-work-errors.md` **E-39／E-60／E-61** 反覆發生的
+同一類風險，根治方式是後端直接告訴前端「這個帳號有沒有這個權限碼」，前端不用再自己推導。
 
-🔴 **`isSuperAdmin`／`hasAnyRole` 共用機制本身沒有解決根本限制**（沿用 `useProgramPermissions.ts`
-既有的已知限制，見 `useRolePermissions.ts` 檔頭）：`GET /api/v1/admin/auth/me` 仍然只回傳角色
-代碼，不回傳權限碼清單，前端的角色→操作對照表還是要手動維護、跟後端種子腳本保持同步。派工要求
-「若後端需要回傳權限清單才能根治，寫進報告，不要改後端」——**確實需要**：長期應由 `/auth/me`
-直接回傳這個帳號的權限碼清單（例如 `permissions: string[]`），`useRolePermissions.ts` 改成單純
-查表（`permissions.includes('form.view')`），不必再讓每個模組各自維護一份角色→權限的推導規則，
-也不會再有「後端調整矩陣、前端忘記同步」的風險。這是本輪與 P1–P3 共同的根本限制，不是 G1／G2
-獨有，回報供下一輪評估是否要做這個後端擴充。
+🔵 **這次改寫的一個正面副作用**：`useFormsPermissions.canViewForms` 原本硬編碼只給
+`FORM_DESIGNER_ROLES`（客服／行政、合作球隊管理），漏了 `viewer`（檢視者）——但種子資料裡
+`viewer` 其實持有 `form.view`（矩陣「表單詢問」欄唯讀）。改成直接查權限碼後，`viewer` 現在能
+在側欄看到「設計器」並以唯讀方式檢視（`canManageForms` 仍為 `false`，畫面停用編輯）。這是舊版
+手寫對照表本身的既有落差，改讀權限碼後**自動修正**，不是本輪刻意調整範圍。
 
-🔴 **「指派負責人」的姓名選單只有系統管理員能用**：`AdminEnquiryListItemDto`／
-`AdminEnquiryDetailDto` 只回傳 `assigneeAdminUserId`（GUID），能把它對照回姓名、或列出「可以指派
-給誰」的 `GET /api/v1/admin/accounts` 是 `system.account.view`，僅系統管理員可呼叫。持有
-`enquiry.*.update` 但不是系統管理員的角色（客服／行政、合作球隊管理、學院／課程管理、商務／贊助、
-公關／媒體）因此**沒有任何後端端點能用姓名指派負責人，也看不到目前指派給誰的姓名**——本輪對這些
-角色只提供「指派給我自己」（靠 `@/auth/clubAccess` 新增的 `currentAdminUserId`，來自
-`GET /auth/me` 既有的 `adminUserId` 欄位，不需要额外端點）與「取消指派」兩個動作，不假裝能做姓名
-選單。系統管理員維持完整的 `el-select` 姓名選單（`listAdminAccounts`）。這是發現的後端缺口，回報
-供下一輪評估是否要開放一個「列出這個俱樂部有效授權帳號」的窄範圍端點給非系統管理員使用。
+🔴 **這份清單跟「目前選取的俱樂部」無關**（`AdminMeResponse.permissions` 檔頭已說明）：角色與
+角色的權限指派都沒有 `club_id` 維度，一個人對某個權限碼持有哪些 `scope_type` 不會因為切換站台
+而改變；真正決定「這個人能不能碰這個俱樂部」的仍然是既有 `clubGrants`。`hasPermission()` 只回答
+「這個帳號有沒有這個權限碼」，這裡的用途全部是「要不要顯示這個按鈕／選單」，真正的俱樂部範圍
+檢查一律由後端在每一次請求時即時判斷。
+
+✅ **「指派負責人」的姓名選單已開放給所有處理權限角色（S1-10 第三輪，2026-09-25）**：後端新增
+`GET .../enquiries/assignable-users?formCode=...`（權限碼跟 `PUT .../enquiries/{id}` 同一組），
+`src/api/adminEnquiries.ts` 的 `listAssignableEnquiryUsers` 依這筆詢問的 `formCode` 查詢，
+`EnquiryEditView.vue` 只要 `canUpdateInbox`（持有這一類詢問的處理權限，不限系統管理員）就會顯示
+`el-select` 姓名選單，可以指派給任何一位同樣持有處理權限的候選人；純檢視者（`isReadOnly`）或
+候選人清單載入失敗時，退回舊版「指派給我自己」／「取消指派」兩個按鈕。已刪除
+`useFormsPermissions.ts` 的 `canPickAssigneeByName`（不再需要區分系統管理員），與畫面上「只有
+系統管理員能用姓名選單指派給其他人」的說明文字。
 
 ### 相依但尚未開發的模組（本輪繞過，非本輪缺口）
 
@@ -1765,6 +1795,70 @@ EditView 路由狀態一次性求值檢查——G1／G2 兩組編輯頁皆無建
    各一筆詢問、`general_contact` 表單一次新增又刪除的測試欄位已清除、`notifyEmails` 欄位值改成了
    `e2e-test@tcrfc.tw`）留在本機 `tcrfc_club_dev`，未特別清除——`AdminFormsEnquiriesTests.cs` 的
    既有測試斷言是針對自建 fixture，不是全域筆數，不受影響（已讀過測試檔案確認，同 S1-9 既有先例）。
+
+### 本輪驗收（S1-10 第三輪，2026-09-25，後台畫面：欄位題目文字、姓名選單、權限改讀後端、路由守衛修正）
+
+**Lint／build（全部通過）**：`apps/admin` 的 `npm run lint`（ESLint、禁用詞掃描、對比度檢查、
+EditView 路由狀態一次性求值檢查）與 `npm run build`（`vue-tsc -b && vite build`）皆通過；
+`apps/web` 的 `npm run lint` 0 errors（既有 539 個 warning 與本輪無關，未觸碰任何 `apps/web`
+檔案）。
+
+**無頭瀏覽器實走**（本機環境，2026-09-25，Chrome headless + CDP，`Emulation.setDeviceMetricsOverride`
+固定 1440×1000；起本機 `apps/api`——執行當下 `git status` 顯示 `apps/api`／`db/`／`docs/12*` 正被
+另一個並行 session 大幅修改中（S1-12），但工作目錄的 `apps/api` 建置正常，未受影響，本輪自始至終
+未觸碰 `apps/api`／`db/` 任一檔案，依硬規則直接在主要工作目錄跑 `dotnet run`，未使用 `git worktree`；
+`CORS_ALLOWED_ORIGINS=http://localhost:5174` 手動帶入環境變數才連得通，否則 Production 模式下沒有
+開發預設 CORS 清單會擋下跨源請求，這是本輪發現的環境設定細節，記錄供下一輪參考）：
+
+1. **`clean.login@tcrfc.test`（系統管理員）**：走完整 2FA 首次設定 → **G1**：編輯「一般聯絡」
+   表單，新增一個「下拉選單」型別欄位（`e2e_test_field`），題目文字中文「測試題目」、英文
+   「Test Question」，選項「選項一」「選項二」各自填英文顯示文字「Option One」「Option Two」，
+   儲存成功、欄位清單「題目文字」欄正確顯示「測試題目」→ 直接 `curl` 查詢公開端點驗證
+   `?lang=zh` 回傳 `label:"測試題目"`／`optionLabels:["選項一","選項二"]`，`?lang=en` 回傳
+   `label:"Test Question"`／`optionLabels:["Option One","Option Two"]`，資料庫
+   `form_fields_i18n` 兩列（`zh-Hant`／`en`）內容一致 → 用公開端點送出一筆 `general_contact`
+   測試詢問（`e2e_test_field` 選「選項一」）→ **G2** 詳情頁「欄位」欄正確顯示「測試題目」而不是
+   `e2e_test_field`，其餘既有欄位（姓名、Email、內容……）也都改顯示中文題目而非欄位代碼 →
+   側欄同時看得到「設計器」「收件匣」「總覽」「自建事件」，`/inquiries/inbox` 匯出 CSV 按鈕
+   可見。
+2. **`customer.service.login@tcrfc.test`（客服／行政）**：走完整 2FA 首次設定 → 用
+   `Network.responseReceived` 攔截 `/auth/me` 回應確認真的是這個帳號登入
+   （`isSuperAdmin:false`，`roles:["customer_service_admin"]`）→ 側欄看得到「課程與活動」底下
+   **只有**「報名」（看不到「項目」「梯次」）、看得到「設計器」「收件匣」「自建事件」（唯讀）→
+   開啟前一步建立的測試詢問，**指派負責人**欄位顯示的是 `el-select` 姓名選單（不是「指派給我
+   自己」／「取消指派」兩顆按鈕），下拉選單只列出 5 位候選人（系統管理員與持有
+   `enquiry.inbox.update` 的帳號，不是完整帳號清單）→ 選擇「系統管理員（測試帳號）」存檔 →
+   **整頁重新載入**（`location.href` 導覽，不是 SPA 內導覽）確認指派對象持久化顯示為「系統管理員
+   （測試帳號）」→ 再次開啟選單改指派給「客服／行政（實走用測試帳號）」存檔成功——證明**非系統
+   管理員角色也能用姓名選單指派給任何候選人**，不再侷限「指派給自己」。
+3. **`academy.login@tcrfc.test`（學院／課程管理，僅 `bw`）**：走完整 2FA 首次設定 → 側欄「課程
+   與活動」底下項目／梯次／報名三個子項目全部可見、「設計器」不可見、「收件匣」可見、行事曆
+   「總覽」可見／「自建事件」不可見——逐條核對與改接前的既有驗收記錄一致 →
+   **路由守衛修正驗證**：直接對俱樂部範圍頁面 `/programs/items`（`tcrfc` 範圍，這個帳號僅
+   授權 `bw`）做**整頁導覽**（模擬重新整理瀏覽器／直接貼網址開新分頁，不是 SPA 內點擊），
+   每 80ms 輪詢一次頁面文字，全程**沒有**出現「沒有被授權」字樣，最終畫面正常顯示課程項目列表。
+   **反例驗證**：暫時把 `router/index.ts` 的 `await ensureClubsLoaded()` 改回不 `await`
+   （fire-and-forget）重跑同一支腳本，**成功重現原始 bug**（輪詢過程中出現「沒有被授權」畫面，
+   且在 4 秒觀察窗內未自我修復），確認測試方法本身有效、不是誤判；復原 `await` 後再跑一次確認
+   恢復正常，才視為修正完成。
+4. **`business.sponsorship.login@tcrfc.test`（商務／贊助，僅 `tcrfc`）**：走完整 2FA 首次設定 →
+   同樣用 `/auth/me` 網路回應核對帳號身分 → 側欄「課程與活動」三個子項目可見（唯讀）、「設計器」
+   不可見、「收件匣」可見、「總覽」可見、**「自建事件」可見**（唯讀，`calendar.custom_event.view`）
+   → 進入 P1 項目列表：**沒有**「+ 新增項目」按鈕，清單操作欄文字**是「檢視」不是「編輯」**——
+   逐條與改接前的既有驗收記錄一致。
+5. **收尾**：關閉本輪啟動的 `dotnet run`／`npm run dev`／headless Chrome 行程，刪除本機
+   `.env.development`；刪除本輪建立的測試資料（`general_contact` 一筆測試詢問及其
+   `enquiry_answers`、`e2e_test_field` 測試欄位，用 UI 的「刪除欄位」與直接 SQL 刪除訪客詢問
+   兩種方式各清一部分——刪除欄位前必須先刪掉引用它的詢問資料，否則後端 409 擋下，這是後端既有
+   的參照完整性保護，不是本輪缺陷）；執行完畢後呼叫 `MSSQL_DEV_SA_PASSWORD=... db/seed/
+   reset-admin-accounts.sh` 還原 `clean.login`／`academy.login`／`customer.service.login`／
+   `business.sponsorship.login` 四個帳號的密碼與 2FA 狀態。**發現但未清除的既有殘留**：資料庫裡
+   還留有兩筆更早之前（非本輪、疑似 S1-10／S1-11 前幾輪遺留）的測試詢問「E2E驗收姓名」
+   「E2E贊助聯絡人」，這兩筆詢問所屬的 README 段落曾記載「已清除」，但實際查詢資料庫仍然存在——
+   這是發現的既有落差（轉述與資料庫實際狀態不一致），不是本輪造成，本輪未動手清除（不確定是否
+   有其他 session 仍在引用），回報供下一輪評估是否要清理。`dotnet test` 未執行到——`apps/api`
+   仍在被另一個並行 session（`S1-12`）修改中，不屬於本次任務範圍，依指示沒有動 `apps/api`／`db/`
+   任一檔案。
 
 ---
 
@@ -1882,3 +1976,10 @@ session（`/auth/me` 權限清單、S1-10 缺口修正）大幅修改中，`dotn
    殘留在 `tcrfc_club_dev`。`dotnet test` 未執行到，理由同 S1-9／S1-10 收尾段——`apps/api` 仍在
    被並行 session 修改，不屬於本次任務範圍，依指示沒有動 `apps/api` 任何一個檔案（隔離 worktree
    的獨立快照除外，那份快照已隨 `git worktree remove` 一併移除）。
+
+✅ **上面第 4 點記錄的既有限制已修復（S1-10 第三輪，2026-09-25）**：`router/index.ts` 的
+`router.beforeEach` 已把 `ensureClubsLoaded()` 改成 `await ensureClubsLoaded()`。已用無頭瀏覽器
+對 `academy.login@tcrfc.test`（僅授權 `bw`）直接整頁導覽到俱樂部範圍頁面 `/programs/items`
+（`tcrfc` 範圍）驗證不再閃「沒有被授權」錯誤畫面，並用「暫時移除 `await` 重現原始 bug、復原後
+再次確認修好」的方式驗證這支測試本身有效，細節見上方「G1–G2 表單與詢問」節「本輪驗收（S1-10
+第三輪）」第 3 點。

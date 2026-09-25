@@ -378,8 +378,16 @@ router.beforeEach(async (to) => {
     return '/dashboard'
   }
 
-  // 進了後台外殼就順手把俱樂部清單準備好，站台切換器與各俱樂部範圍頁面都用得到。
-  ensureClubsLoaded()
+  // 進了後台外殼前先把俱樂部清單準備好（含這個帳號的權限碼），站台切換器與各俱樂部範圍頁面都
+  // 用得到。🔴 **這裡一定要 `await`**（2026-09-25 修正既有 bug，見 docs/18-work-errors.md）：
+  // 先前是 fire-and-forget，`@/auth/clubAccess` 的 `activeClubId` 預設值固定是 `'tcrfc'`，只有
+  // 這支函式 resolve 後才會被訂正成這個帳號實際被授權的俱樂部——對俱樂部範圍頁面整頁重新載入
+  // （重新整理、或直接貼網址在新分頁打開）時，若沒有 `await`，目標頁面元件掛載當下第一次資料
+  // 請求會先送出還沒被訂正過的預設值 `tcrfc`，沒有 `tcrfc` 授權的帳號（例如只授權 `bw` 的
+  // `academy.login`）會先閃一次「你沒有被授權存取俱樂部」的錯誤畫面才自我修復。`ensureClubsLoaded`
+  // 內部本來就有 `state.loaded` 短路（見該檔案），`await` 只有第一次導頁會真的等網路來回，之後
+  // 每次導頁都是立即 resolve，不會拖慢整體導覽速度。
+  await ensureClubsLoaded()
 
   return true
 })

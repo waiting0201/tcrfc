@@ -161,6 +161,23 @@ export interface AdminMeRoleDto {
   nameEn?: string | null
 }
 
+/**
+ * S1-10 修正（2026-09-25）新增：這個帳號目前實際持有的一個權限碼，取代前端各模組原本手寫
+ * 「角色→操作」對照表的既有做法（`useProgramPermissions.ts`／`useFormsPermissions.ts` 逐字對照
+ * `db/seed/generate-club-seed-sql.py` 的 `ROLE_PERMISSIONS`，改一邊忘了改另一邊是 E-39 同類風險，
+ * 見 `docs/18-work-errors.md` E-60／E-61 前一輪教訓）。詳見 `apps/api` `Features/AdminAuth/
+ * AdminAuthDtos.cs` 的 `MePermissionDto` 檔頭與 apps/api/README.md「S1-10 修正」段。
+ *
+ * 🔴 **只給程式判斷用，畫面上不得顯示這個代碼本身**（主站規劃書 §4.0「介面……不顯示……權限碼」）。
+ */
+export interface AdminMePermissionDto {
+  code: string
+  /** 這個人透過（可能不只一個）角色，對這個權限碼持有的 `scope_type` 原始集合，不是單一合併值；
+   * 系統管理員一律是 `["all"]`。目前 `apps/admin` 只用它判斷「有沒有這個權限碼」，尚未依
+   * `scopeTypes` 做更細的列級 UI（見 `useRolePermissions.ts` 的 `hasPermission`）。 */
+  scopeTypes: string[]
+}
+
 export interface AdminMeResponse {
   adminUserId: string
   username: string
@@ -170,6 +187,10 @@ export interface AdminMeResponse {
   /** 已過濾到期與停用；系統管理員固定回「全部啟用中的俱樂部」（見後端註解）。 */
   clubGrants: AdminMeClubGrantDto[]
   roles: AdminMeRoleDto[]
+  /** 🔴 這份清單跟「目前選取的俱樂部」無關（角色與權限指派本身沒有 `club_id` 維度）——要判斷
+   * 「在目前這個俱樂部能不能做某件事」，需要同時看 `clubGrants`（能不能碰這個俱樂部）與這裡
+   * （有沒有對應權限碼）。細節見 apps/api/README.md「S1-10 修正」「任務指示第三項」的判斷。 */
+  permissions: AdminMePermissionDto[]
 }
 
 export function getMe(): Promise<AdminMeResponse> {

@@ -18,10 +18,16 @@ export interface AdminFormFieldDto {
   id: string
   fieldKey: string
   fieldType: string
+  /** 題目文字（中文）——`form_fields_i18n` zh-Hant 列，必存（S1-10 修正）。 */
+  labelZh: string
+  /** 題目文字（英文）——`form_fields_i18n` en 列，可缺（`null`＝尚未翻譯）。 */
+  labelEn?: string | null
   isRequired: boolean
   validationRule?: string | null
-  /** 只有下拉／多選會有值，其餘型別一律 `null`。 */
+  /** 只有下拉／多選會有值，其餘型別一律 `null`。canonical 值，不因語系而變。 */
   options?: string[] | null
+  /** 選項的英文顯示文字，與 `options` 同順序、同筆數；`null`＝沒有選項或尚未提供英文翻譯。 */
+  optionLabelsEn?: string[] | null
   /** G2 收件匣「內容摘要」欄的來源欄位——同一張表單最多一個為 `true`。 */
   isSummary: boolean
   sortOrder: number
@@ -51,9 +57,15 @@ export interface UpdateFormPayload {
 export interface FormFieldPayload {
   fieldKey: string
   fieldType: string
+  /** 題目文字（中文），必填——前台一定要有東西可顯示。 */
+  labelZh: string
+  /** 題目文字（英文），選填——尚未翻譯時公開端點回退顯示中文。 */
+  labelEn?: string | null
   isRequired: boolean
   validationRule?: string | null
   options?: string[] | null
+  /** 選項的英文顯示文字，省略或 `null`＝尚未翻譯。提供時筆數必須與 `options` 一致。 */
+  optionLabelsEn?: string[] | null
   isSummary: boolean
 }
 

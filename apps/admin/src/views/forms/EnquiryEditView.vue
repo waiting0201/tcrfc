@@ -1,16 +1,22 @@
 <script setup lang="ts">
 /**
- * G2 詢問收件匣——處理頁（對照 apps/api/README.md「S1-10」）。**沒有建立模式**：詢問只能由訪客
- * 透過 10 表單中心送出，後台只能處理既有一筆（狀態／指派負責人／內部備註／標籤），不能新增，也
- * 不能改動來源表單與訪客原始回答內容。
+ * G2 詢問收件匣——處理頁（對照 apps/api/README.md「S1-10」「S1-10 修正」）。**沒有建立模式**：
+ * 詢問只能由訪客透過 10 表單中心送出，後台只能處理既有一筆（狀態／指派負責人／內部備註／
+ * 標籤），不能新增，也不能改動來源表單與訪客原始回答內容。
  *
- * 🔴 **「指派負責人」姓名選單只有系統管理員能用**：`GET /api/v1/admin/accounts`（可以把
- * `assigneeAdminUserId` 這個 GUID 對照回姓名、或列出可指派對象）是 `system.account.view`，
- * 僅系統管理員可呼叫（見 `useFormsPermissions.ts` 檔頭的完整說明）。持有 `enquiry.*.update` 但
- * 不是系統管理員的角色（客服／行政、合作球隊管理、學院／課程管理……）因此**沒有任何後端端點
- * 能把指派對象的姓名秀出來，也沒辦法選別人**——這裡對非系統管理員只提供「指派給我自己」與
- * 「取消指派」兩個按鈕（用 `currentAdminUserId` 判斷是否已指派給自己），不假裝能做姓名選單。
- * 這是發現的後端缺口，已在任務報告與 apps/admin/README.md 回報。
+ * ✅ **「指派負責人」姓名選單的既有缺口已由後端補上（S1-10 修正，2026-09-25）**：原本
+ * `GET /api/v1/admin/accounts` 是 `system.account.view`，僅系統管理員可呼叫，持有
+ * `enquiry.*.update` 但不是系統管理員的角色只能「指派給自己」。後端已新增
+ * `GET .../enquiries/assignable-users?formCode=...`（權限碼跟 `PUT .../enquiries/{id}` 同一組，
+ * 見 `@/api/adminEnquiries` 的 `listAssignableEnquiryUsers`），只要持有處理這一類詢問的權限
+ * （`canUpdateInbox`）就能用姓名選單指派給任何一位同樣持有處理權限的人，不再侷限系統管理員。
+ *
+ * ✅ **欄位題目改顯示「題目文字」，不再印英文欄位代碼**（S1-10 修正）：`getAdminEnquiry` 回傳的
+ * 訪客回答只有 `fieldKey`（英文小寫代碼），這裡另外呼叫公開端點 `GET /api/v1/{club}/forms/
+ * {formCode}?lang=zh`（`@/api/publicForms` 的 `getPublicForm`，不需要任何權限，任何角色都能呼叫）
+ * 取得這張表單目前的欄位題目文字，逐一對照顯示；若答案引用的欄位代碼已經不在目前的表單定義裡
+ * （例如事後被刪除），才會退回顯示原始欄位代碼本身（舊版 `fieldKeyLabel()` 猜測對照表已刪除，
+ * 見 `types/forms.ts` 檔頭）。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -21,25 +27,39 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
 import { activeClubId, currentAdminUserId } from '@/auth/clubAccess'
 import { authUser } from '@/auth/session'
-import { getAdminEnquiry, updateAdminEnquiry, type AdminEnquiryAnswerDto } from '@/api/adminEnquiries'
-import { listAdminAccounts, type AdminAccountListItemDto } from '@/api/adminAccounts'
+import {
+  getAdminEnquiry,
+  updateAdminEnquiry,
+  listAssignableEnquiryUsers,
+  type AdminEnquiryAnswerDto,
+  type AssignableAdminUserDto,
+} from '@/api/adminEnquiries'
+import { getPublicForm } from '@/api/publicForms'
 import { AdminApiError } from '@/api/http'
-import { ENQUIRY_STATUS_ORDER, enquiryStatusTagType, fieldKeyLabel } from '@/types/forms'
+import { ENQUIRY_STATUS_ORDER, enquiryStatusTagType } from '@/types/forms'
 import { formatDateTime } from '@/utils/formatDateTime'
 
 const route = useRoute()
 const router = useRouter()
-const { canUpdateInbox, canPickAssigneeByName } = useFormsPermissions()
+const { canUpdateInbox } = useFormsPermissions()
 const isReadOnly = computed(() => !canUpdateInbox.value)
 
 const enquiryId = ref<string | undefined>(route.params.id as string | undefined)
 
+const formCode = ref('')
 const formNameZh = ref('')
 const sourcePath = ref<string | null>(null)
 const utmSource = ref<string | null>(null)
 const utmCampaign = ref<string | null>(null)
 const createdAt = ref('')
 const answers = ref<AdminEnquiryAnswerDto[]>([])
+/** `fieldKey` → 題目文字，來自 `getPublicForm` 的即時對照（見檔頭說明）。載入失敗或答案引用的
+ * 欄位已被刪除時，`fieldLabel()` 會退回顯示原始欄位代碼本身。 */
+const fieldLabelMap = ref<Record<string, string>>({})
+
+function fieldLabel(fieldKey: string): string {
+  return fieldLabelMap.value[fieldKey] ?? fieldKey
+}
 
 const form = reactive({
   status: '' as string,
@@ -49,28 +69,50 @@ const form = reactive({
 })
 const baselineJson = ref('')
 
-const accountOptions = ref<AdminAccountListItemDto[]>([])
-
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
 const formError = ref<string | null>(null)
 
-async function loadAccountOptions() {
-  if (!canPickAssigneeByName.value) return
+/** G2「指派負責人」姓名選單的候選人——依這筆詢問的 `formCode` 查詢，只有持有 `canUpdateInbox`
+ * 的角色能呼叫這支端點（見 `listAssignableEnquiryUsers` 檔頭），沒有權限或查詢失敗時留空陣列，
+ * 畫面上退回顯示「指派給我自己」／「取消指派」（見樣板）。 */
+const assigneeOptions = ref<AssignableAdminUserDto[]>([])
+const assigneeOptionsError = ref(false)
+
+async function loadFieldLabels(code: string) {
   try {
-    const result = await listAdminAccounts({ status: 'active', pageSize: 100 })
-    accountOptions.value = result.items
+    const publicForm = await getPublicForm(activeClubId.value, code, 'zh')
+    fieldLabelMap.value = Object.fromEntries(publicForm.fields.map((f) => [f.fieldKey, f.label]))
   } catch {
-    accountOptions.value = []
+    // 公開端點打不到（極少見：例如表單代碼本身無效）就退回顯示原始欄位代碼，不擋住整頁載入。
+    fieldLabelMap.value = {}
   }
 }
+
+async function loadAssigneeOptions(code: string) {
+  if (!canUpdateInbox.value) return
+  try {
+    assigneeOptions.value = await listAssignableEnquiryUsers(activeClubId.value, code)
+    assigneeOptionsError.value = false
+  } catch {
+    assigneeOptions.value = []
+    assigneeOptionsError.value = true
+  }
+}
+
+/** 目前指派對象的姓名——只在 `assigneeOptions` 查得到時才有（例如指派給一個之後被停用、或角色
+ * 被調整成不再持有這一類詢問處理權限的帳號，清單裡就不會有這個人，屬於已知的顯示限制）。 */
+const assigneeDisplayName = computed(() => {
+  if (!form.assigneeAdminUserId) return null
+  return assigneeOptions.value.find((a) => a.id === form.assigneeAdminUserId)?.displayName ?? null
+})
 
 async function loadEnquiry() {
   loadState.value = 'loading'
   try {
-    await loadAccountOptions()
     const detail = await getAdminEnquiry(activeClubId.value, enquiryId.value!)
+    formCode.value = detail.formCode
     formNameZh.value = detail.formNameZh
     sourcePath.value = detail.sourcePath ?? null
     utmSource.value = detail.utmSource ?? null
@@ -83,6 +125,7 @@ async function loadEnquiry() {
     form.tags = detail.tags ?? ''
     baselineJson.value = JSON.stringify(form)
     loadState.value = 'ready'
+    await Promise.all([loadFieldLabels(detail.formCode), loadAssigneeOptions(detail.formCode)])
   } catch (error) {
     if (error instanceof AdminApiError && error.kind === 'not-found') {
       loadState.value = 'not-found'
@@ -209,7 +252,7 @@ function retryLoad() {
 
         <el-table :data="answers" row-key="fieldKey" class="enquiry-edit__answers">
           <el-table-column label="欄位" width="180">
-            <template #default="{ row }">{{ fieldKeyLabel(row.fieldKey) }}</template>
+            <template #default="{ row }">{{ fieldLabel(row.fieldKey) }}</template>
           </el-table-column>
           <el-table-column label="訪客填寫的內容">
             <template #default="{ row }">
@@ -219,7 +262,7 @@ function retryLoad() {
           </el-table-column>
         </el-table>
         <p class="enquiry-edit__hint">
-          這裡的欄位名稱來自建立表單時輸入的欄位代碼，系統目前沒有另外儲存「問題文字」，看不懂的欄位可以對照「表單設計器」裡的設定。這一區是訪客的原始送出資料，後台無法修改。
+          這一區是訪客的原始送出資料，後台無法修改。若某個欄位顯示的是英文代碼而不是題目文字，代表這個欄位已經從目前的表單設定裡被刪除，可以對照「表單設計器」裡目前的設定確認。
         </p>
       </el-card>
 
@@ -234,21 +277,24 @@ function retryLoad() {
           </el-form-item>
 
           <el-form-item label="指派負責人">
-            <template v-if="canPickAssigneeByName">
+            <template v-if="canUpdateInbox && !assigneeOptionsError">
               <el-select v-model="form.assigneeAdminUserId" clearable filterable placeholder="請選擇負責人（可留空）" style="width: 280px">
-                <el-option v-for="a in accountOptions" :key="a.id" :label="a.displayName" :value="a.id" />
+                <el-option v-for="a in assigneeOptions" :key="a.id" :label="a.displayName" :value="a.id" />
               </el-select>
+              <p v-if="form.assigneeAdminUserId && !assigneeDisplayName" class="enquiry-edit__hint">
+                目前指派對象不在候選人清單裡（可能已停用，或角色調整後不再處理這一類詢問），可以重新選擇或取消指派。
+              </p>
             </template>
             <template v-else>
               <div class="enquiry-edit__assignee">
                 <span v-if="isAssignedToSelf">已指派給你自己（{{ authUser?.displayName }}）</span>
-                <span v-else-if="isAssignedToOther">已指派給其他人——你的帳號無法查詢帳號清單，看不到對方姓名</span>
+                <span v-else-if="isAssignedToOther">已指派給其他人——{{ assigneeDisplayName ?? '目前查不到對方姓名' }}</span>
                 <span v-else>目前未指派</span>
                 <el-button size="small" :disabled="isReadOnly || isAssignedToSelf" @click="assignToSelf">指派給我自己</el-button>
                 <el-button size="small" :disabled="isReadOnly || !form.assigneeAdminUserId" @click="unassign">取消指派</el-button>
               </div>
-              <p class="enquiry-edit__hint">
-                只有系統管理員能用姓名選單指派給其他人（帳號清單目前僅系統管理員能查詢）；你的帳號可以指派給自己或取消指派。
+              <p v-if="assigneeOptionsError" class="enquiry-edit__hint">
+                候選人清單載入失敗，暫時只能指派給自己或取消指派，請稍後重新整理頁面再試。
               </p>
             </template>
           </el-form-item>

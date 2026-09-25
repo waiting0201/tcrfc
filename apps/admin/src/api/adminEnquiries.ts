@@ -43,6 +43,13 @@ export interface AdminEnquiryDetailDto {
   updatedAt: string
 }
 
+/** G2「指派負責人」姓名選單的候選人（S1-10 修正新增）——只回傳必要欄位（`id`／`displayName`），
+ * 不是 `system.account.view` 專屬的完整帳號清單，持有 `enquiry.*.update` 的角色都能查詢。 */
+export interface AssignableAdminUserDto {
+  id: string
+  displayName: string
+}
+
 export interface PagedResult<T> {
   items: T[]
   page: number
@@ -100,6 +107,13 @@ export function getAdminEnquiry(club: string, id: string): Promise<AdminEnquiryD
 
 export function updateAdminEnquiry(club: string, id: string, payload: UpdateEnquiryPayload): Promise<AdminEnquiryDetailDto> {
   return apiRequest<AdminEnquiryDetailDto>(`/api/v1/admin/${club}/enquiries/${id}`, { method: 'PUT', body: payload })
+}
+
+/** `formCode` 依這筆詢問實際所屬的表單類別查詢——權限碼與 `PUT .../enquiries/{id}` 同一組
+ * （能處理詢問的人才能查「能指派給誰」），越權查詢別的類別後端回 404（不洩漏存在與否），呼叫端
+ * 不需要另外判斷，見 `EnquiryEditView.vue`。 */
+export function listAssignableEnquiryUsers(club: string, formCode: string): Promise<AssignableAdminUserDto[]> {
+  return apiRequest<AssignableAdminUserDto[]>(`/api/v1/admin/${club}/enquiries/assignable-users?formCode=${encodeURIComponent(formCode)}`)
 }
 
 /** CSV 匯出（比照 `adminRegistrations.ts` 的 `downloadAdminRegistrationsCsv` 既有做法：直接 fetch

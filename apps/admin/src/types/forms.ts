@@ -83,24 +83,11 @@ export function enquiryStatusTagType(status: string): 'success' | 'warning' | 'i
   return 'info' // 處理中
 }
 
-/**
- * 已知常用欄位代碼的中文提示（**最佳猜測，非完整對照**）：G1 表單設計器只儲存欄位代碼
- * （`field_key`，英文小寫，管理者自訂），系統目前沒有欄位「問題文字」的多語系儲存（規劃書與後端
- * 均未定義，見 G2 詳情畫面檔頭「發現的缺口」）。這裡只覆蓋種子資料實際用到的慣用鍵，供畫面上
- * 顯示得友善一點；沒有對照到的欄位代碼會原樣顯示欄位代碼本身。
- */
-const FIELD_KEY_LABEL_HINTS: Record<string, string> = {
-  name: '姓名',
-  contact: '聯絡方式',
-  phone: '電話',
-  email: 'Email',
-  message: '內容／留言',
-  experience: '經歷／簡歷',
-  cooperation_direction: '合作方向',
-  company: '公司',
-  privacy_consent: '個資同意條款',
-}
-
-export function fieldKeyLabel(fieldKey: string): string {
-  return FIELD_KEY_LABEL_HINTS[fieldKey] ?? fieldKey
-}
+// ── 欄位題目文字 ─────────────────────────────────────────────────────────────────
+//
+// 🔴 S1-10 修正（2026-09-25）：`form_fields_i18n` 已補上題目文字（`labelZh`／`labelEn`），G1／G2
+// 不再需要「欄位代碼 → 猜測中文提示」這種前端硬編碼對照表（原本的 `fieldKeyLabel()`／
+// `FIELD_KEY_LABEL_HINTS` 已刪除）。G2 詳情頁改呼叫公開端點 `GET /api/v1/{club}/forms/{formCode}
+// ?lang=zh`（`@/api/publicForms` 的 `getPublicForm`，任何角色都能呼叫，不需要 `form.view`
+// 權限）取得這張表單目前的欄位題目文字對照表；若答案引用的欄位代碼已經不在目前的表單定義裡
+// （例如事後被刪除），才會退回顯示原始欄位代碼本身，見 `EnquiryEditView.vue`。
