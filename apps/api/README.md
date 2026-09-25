@@ -451,6 +451,7 @@ HTTP 200
 | `customer.service.login@tcrfc.test` | `ContentEditor@123` | `customer_service_admin` | `tcrfc` | 可直接登入 | 客服／行政的端對端實走帳號（S1-11 補） |
 | `pr.media.login@tcrfc.test` | `ContentEditor@123` | `pr_media` | `tcrfc` | 可直接登入 | 公關／媒體的端對端實走帳號（S1-11 補） |
 | `business.sponsorship.login@tcrfc.test` | `ContentEditor@123` | `business_sponsorship` | `tcrfc` | 可直接登入 | 商務／贊助的端對端實走帳號（S1-11 補） |
+| `content.editor.login@tcrfc.test` | `ContentEditor@123` | `content_editor` | `tcrfc` | 可直接登入 | 內容編輯的端對端實走帳號（S1-12 補，見「S1-12」段落④） |
 
 ⚠️ **為什麼大多數「已就緒」帳號的 `two_factor_enabled` 是種子直接設 `1` 但沒有真正可解密的密鑰**：
 ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本在行程外執行，沒有能力產生「這個
@@ -466,7 +467,9 @@ ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本
 俱樂部授權逐一對應本尊的孿生帳號，命名規則是本尊帳號 local-part 加上 `.login`（例：
 `academy.manager@tcrfc.test` → `academy.login@tcrfc.test`）。S1-11 依此規則補上
 `customer.service.login@tcrfc.test`／`pr.media.login@tcrfc.test`／
-`business.sponsorship.login@tcrfc.test` 三個（見下方「S1-11」段落）。
+`business.sponsorship.login@tcrfc.test` 三個（見下方「S1-11」段落）；S1-12 驗收退回後補上
+`content.editor.login@tcrfc.test`（見「S1-12」段落④，讓「內容編輯看得到單頁 SEO、看不到全站
+SEO 與轉址」這條權限限制驗收可以走真實 `/login`）。
 
 ### 種子測試帳號的重設（`db/seed/reset-admin-accounts.sh`，2026-09-24 新增）
 
@@ -5350,19 +5353,34 @@ S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄�
 
 ### 怎麼跑
 
-需要本機既有的 `sqlserver` 容器已啟動且已灌種子資料（同上方「怎麼跑（本機開發）」的前置；
-🔴 2026-09-21 起 `mssql-dev` 已併入這個既有容器，不再是獨立服務，見 `deploy/README.md`）：
+🔴🔴🔴 **S0-13（2026-09-25）起，`dotnet test` 一律連專用的測試資料庫 `tcrfc_club_test`，
+不再共用本機開發／無頭瀏覽器實走在用的 `tcrfc_club_dev`。** 在這之前兩者共用同一個
+`tcrfc_club_dev`，同一天發生三次互相干擾（測試把實走中帳號的 2FA 狀態、`settings` 的 SEO 值
+重置回種子），見 [`docs/14-invariants.md`](../../docs/14-invariants.md)、
+[`docs/18-work-errors.md`](../../docs/18-work-errors.md)、`STATUS.md` S0-13。
+
+需要本機既有的 `sqlserver` 容器已啟動（同上方「怎麼跑（本機開發）」的前置；🔴 2026-09-21 起
+`mssql-dev` 已併入這個既有容器，不再是獨立服務，見 `deploy/README.md`）：
 
 ```bash
 docker ps --filter name=sqlserver   # 確認既有容器在跑
-./deploy/local-ddl.sh --apply
-./db/seed/apply-seed.sh
 
-export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;"
+set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
+
+# 一鍵建立／灌 tcrfc_club_test（見 db/seed/setup-test-db.sh 檔頭說明）：
+# 第一次跑、或想從零重來一次乾淨的測試庫時用 --recreate；平常重灌種子（冪等）不用加。
+./db/seed/setup-test-db.sh --recreate
+
+export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_test;User Id=sa;Password=${MSSQL_DEV_SA_PASSWORD};TrustServerCertificate=True;"
 
 cd apps/api/Tcrfc.Api.Tests
 dotnet test
 ```
+
+⛔ **`CLUB_SQL_CONNECTION_STRING` 指到 `tcrfc_club_test` 以外的任何資料庫，`dotnet test` 會在
+每一個 fixture 的 `InitializeAsync()` 直接拒絕啟動**（`Fixtures/TestDatabaseGuard.cs`，見下方
+「六個 fixture、六種環境設定」前的說明）——這是刻意的硬性防呆，不是「建議」，防止重蹈 S0-13
+的覆轍（誤連 `tcrfc_club_dev` 或這個 SQL Server instance 上使用者其他專案的資料庫）。
 
 🔴 **S0-8 起額外需要 `azurite-blob` 執行檔**（`AdminWriteAzuriteEnabledApiFixture` 用）：
 `npm install -g azurite`（macOS／Linux 預設裝在 `/usr/local/bin/azurite-blob`，找不到時可用
@@ -5384,6 +5402,13 @@ Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容
 本檔沒有代為決定 CI 一定要用哪一種語意。
 
 ### 六個 fixture、六種環境設定
+
+🔴 **S0-13 新增 `Fixtures/TestDatabaseGuard.cs`**：六個 fixture 原本各自重複「讀
+`CLUB_SQL_CONNECTION_STRING`→檢查非空→開連線」，且完全沒有檢查連到的是哪一個資料庫，
+是造成 S0-13 那次三次互相干擾的直接原因。現在六個 fixture 的 `InitializeAsync()` 一律先呼叫
+`await TestDatabaseGuard.ResolveAndVerifyAsync()`：除了原本「未設定」「連不上」兩種失敗，新增
+第三種——**資料庫名稱必須精確等於 `tcrfc_club_test`，不是就直接丟例外**，不判斷「看起來像不像
+測試庫」。
 
 - `ApiFixture`：`REDIS_HOST` 清空（強制走 `NoOpQueryCache`），只驗證主站庫相關行為。
   **本輪起也是「開發模式開關關閉」狀態的代表**（不設 `ENABLE_UNSAFE_DEV_WRITES`），

@@ -1325,6 +1325,13 @@ ADMIN_USERS = [
      False, False, False, "pr_media", [("tcrfc", None)]),
     ("business.sponsorship.login@tcrfc.test", "商務／贊助（實走用測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
      False, False, False, "business_sponsorship", [("tcrfc", None)]),
+    # S1-12 補（2026-09-25，驗收退回後回報缺口）：content.editor@tcrfc.test 跟 academy.manager 同一種
+    # 問題——two_factor_enabled=1 但沒有真實密鑰，S1-12「內容編輯看得到單頁 SEO、看不到全站 SEO 與
+    # 轉址」這條權限限制驗收因此無法走真實 /login 而標記未驗證。比照既有「-login」變體做法補一個
+    # two_factor_enabled=0 的孿生帳號，角色與俱樂部授權跟 content.editor@tcrfc.test 相同，沿用同一
+    # 組雜湊。
+    ("content.editor.login@tcrfc.test", "內容編輯（實走用測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, False, "content_editor", [("tcrfc", None)]),
 ]
 
 emit("-- ── 18.4 admin_users：種子超管（真雜湊，Admin@123）＋ 五個角色測試帳號（真雜湊） ──")
@@ -1348,6 +1355,7 @@ emit("--   business.sponsorship@tcrfc.test / ContentEditor@123（沿用同一組
 emit("--   customer.service.login@tcrfc.test / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，客服／行政的端對端實走帳號）")
 emit("--   pr.media.login@tcrfc.test          / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，公關／媒體的端對端實走帳號）")
 emit("--   business.sponsorship.login@tcrfc.test / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，商務／贊助的端對端實走帳號）")
+emit("--   content.editor.login@tcrfc.test    / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，內容編輯的端對端實走帳號，S1-12 補）")
 for username, display_name, password_hash, is_super, must_change, two_factor, role_code, club_grants in ADMIN_USERS:
     user_id = new_id("admin_user", username)
     block(f"""

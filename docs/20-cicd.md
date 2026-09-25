@@ -426,6 +426,16 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
    上傳端點（`Program.cs` 參照到尚未建立的 `UnavailableImageStorageService`）而編譯失敗**——
    這是暫時性的、與本次 CI/CD 任務無關的併發編輯狀態，不是 workflow 設計的問題；`ci.yml` 的
    `api` job 語法已用 `actionlint` 驗證過，實際跑動需要等 `apps/api` 那頭的變更完成或合併。
+   🔴 **2026-09-25（`S0-13`）更新**：`dotnet test` 改連專用的 `tcrfc_club_test`，不再連
+   `tcrfc_club_dev`——本機開發同樣改用 `db/seed/setup-test-db.sh`（串接
+   `deploy/local-ddl.sh --apply-test-db`＋`db/seed/apply-seed.sh`）建立這個資料庫，`ci.yml` 的
+   `api` job 直接沿用同一支腳本（`./db/seed/setup-test-db.sh --recreate`，容器指向
+   `mssql-ci`），**本機與 CI 對齊同一套流程，沒有另外寫一份 CI 專用的測試庫建置邏輯**。
+   `./deploy/local-ddl.sh --apply` 這一步仍保留，只為了建立慈善庫 `tcrfc_charity_dev`；
+   它連帶建立的 `tcrfc_club_dev` 在 CI 這個用完即丟的容器裡沒有任何步驟會用到，留著沒有風險
+   （容器隨 job 結束銷毀），拆開兩支腳本反而增加維護成本。原因見 `docs/14-invariants.md`
+   `S0-13` 一條、`apps/api/README.md`「怎麼跑」：`dotnet test` 與無頭瀏覽器實走原本共用
+   `tcrfc_club_dev`，同一天發生三次互相干擾。
 2. **兩個測試 fixture（`RedisEnabledApiFixture`／`AdminWriteRedisEnabledApiFixture`）需要真正的
    `redis-server` 執行檔**——`ci.yml` 的 `api` job 加一步 `command -v redis-server || apt-get
    install -y redis-server`，不假設 `ubuntu-latest` 一定內建。

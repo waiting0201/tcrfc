@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace Tcrfc.Api.Tests.Fixtures;
@@ -13,25 +12,7 @@ public sealed class AdminWriteApiFixture : WebApplicationFactory<Program>, IAsyn
 {
     public async Task InitializeAsync()
     {
-        var connectionString = Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                "CLUB_SQL_CONNECTION_STRING 未設定，無法執行整合測試。請先啟動本機資料庫並灌種子資料，"
-                + "再 export CLUB_SQL_CONNECTION_STRING 後重跑 dotnet test（見 apps/api/README.md）。");
-        }
-
-        try
-        {
-            await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync();
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"CLUB_SQL_CONNECTION_STRING 已設定但連不上本機資料庫（{ex.Message}）。"
-                + "請確認資料庫容器已啟動且健康、種子資料已灌入。", ex);
-        }
+        var connectionString = await TestDatabaseGuard.ResolveAndVerifyAsync();
 
         Environment.SetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING", connectionString);
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");

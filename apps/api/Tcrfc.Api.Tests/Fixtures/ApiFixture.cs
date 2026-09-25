@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace Tcrfc.Api.Tests.Fixtures;
@@ -16,27 +15,7 @@ public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
     public async Task InitializeAsync()
     {
-        var connectionString = Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                "CLUB_SQL_CONNECTION_STRING 未設定，無法執行整合測試。請先啟動本機資料庫並灌種子資料"
-                + "（docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d mssql-dev；"
-                + "./deploy/local-ddl.sh --apply；./db/seed/apply-seed.sh，見 apps/api/README.md「怎麼跑」），"
-                + "再 export CLUB_SQL_CONNECTION_STRING 後重跑 dotnet test。");
-        }
-
-        try
-        {
-            await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync();
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"CLUB_SQL_CONNECTION_STRING 已設定但連不上本機資料庫（{ex.Message}）。"
-                + "請確認 mssql-dev 容器已啟動且健康、種子資料已灌入。", ex);
-        }
+        var connectionString = await TestDatabaseGuard.ResolveAndVerifyAsync();
 
         // 供 WebApplicationFactory 建立的行程內主機讀取。⚠️ 直接改行程環境變數而不是走
         // ConfigureAppConfiguration，是因為 Program.cs 在 builder.Build() 之前就會讀取

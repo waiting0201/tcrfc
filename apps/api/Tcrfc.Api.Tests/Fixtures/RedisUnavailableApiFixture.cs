@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.SqlClient;
 using Xunit;
 
 namespace Tcrfc.Api.Tests.Fixtures;
@@ -16,23 +15,7 @@ public sealed class RedisUnavailableApiFixture : WebApplicationFactory<Program>,
 {
     public async Task InitializeAsync()
     {
-        var connectionString = Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                "CLUB_SQL_CONNECTION_STRING 未設定，無法執行整合測試（見 ApiFixture 的說明與 apps/api/README.md）。");
-        }
-
-        try
-        {
-            await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync();
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"CLUB_SQL_CONNECTION_STRING 已設定但連不上本機資料庫（{ex.Message}）。", ex);
-        }
+        var connectionString = await TestDatabaseGuard.ResolveAndVerifyAsync();
 
         var unusedPort = GetUnusedLocalPort();
 

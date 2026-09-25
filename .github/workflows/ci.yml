@@ -154,17 +154,22 @@ jobs:
           echo "SQL Server 逾時未就緒" >&2
           exit 1
 
-      - name: 灌 DDL（deploy/local-ddl.sh --apply，與本機開發同一支腳本、同一份轉換規則）
+      # 🔴 S0-13（2026-09-25）：dotnet test 改連專用的 tcrfc_club_test，不再用 tcrfc_club_dev
+      # ——本機開發與 CI 現在對齊同一套「整合測試不碰開發／實走用資料庫」的原則，見
+      # docs/14-invariants.md、apps/api/README.md「怎麼跑」。這一步仍先跑 --apply 建立
+      # tcrfc_charity_dev（下面「灌種子資料（慈善庫）」要用），tcrfc_club_dev 在 CI 這個
+      # 用完即丟的容器裡本身就沒有任何步驟會用到，留著沒有風險（容器隨 job 結束銷毀）。
+      - name: 灌 DDL（deploy/local-ddl.sh --apply，與本機開發同一支腳本、同一份轉換規則；本步驟只用來建立慈善庫 tcrfc_charity_dev）
         env:
           LOCAL_MSSQL_CONTAINER: mssql-ci
           MSSQL_DEV_SA_PASSWORD: ${{ env.CI_MSSQL_SA_PASSWORD }}
         run: ./deploy/local-ddl.sh --apply
 
-      - name: 灌種子資料（主站庫 tcrfc_club_dev）
+      - name: 建立並灌入整合測試專用庫（tcrfc_club_test，S0-13，與本機開發同一支腳本 db/seed/setup-test-db.sh）
         env:
           LOCAL_MSSQL_CONTAINER: mssql-ci
           MSSQL_DEV_SA_PASSWORD: ${{ env.CI_MSSQL_SA_PASSWORD }}
-        run: ./db/seed/apply-seed.sh
+        run: ./db/seed/setup-test-db.sh --recreate
 
       - name: 灌種子資料（慈善庫 tcrfc_charity_dev）
         env:
@@ -211,7 +216,7 @@ jobs:
       # 「改模型不加 migration」兩種真實錯誤形狀跑過一次，兩種都讓這一步變紅，復原後變綠。
       - name: EF Core migrations 基準健檢（snapshot 存在性 ＋ 模型與 snapshot 是否一致）
         env:
-          CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+          CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club_test;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
         run: |
           set -euo pipefail
           cd apps/api
@@ -227,7 +232,7 @@ jobs:
 
       - name: dotnet test（Tcrfc.Api.Tests，接真正的 SQL Server 與 redis-server）
         env:
-          CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+          CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club_test;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
         run: dotnet test apps/api/Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj -c Release --no-restore
 
       - uses: docker/setup-buildx-action@v3

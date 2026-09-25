@@ -10,13 +10,18 @@
 > 🔴 **2026-09-21 起：本機開發資料庫已合併進既有的 `sqlserver` 容器**（不再是本專案自己起的
 > `mssql-dev` 服務），詳見 [`../../deploy/README.md`](../../deploy/README.md)「本機開發資料庫已
 > 合併進既有的 `sqlserver` 容器」一節。本檔下方的指令已同步更新為新的容器與連線方式。
+>
+> 🔴 **2026-09-25 起（S0-13）：`apps/api` 的 `dotnet test` 改連第三個資料庫 `tcrfc_club_test`**，
+> 不再跟本機開發／無頭瀏覽器實走共用 `tcrfc_club_dev`。見下方「整合測試專用庫（`tcrfc_club_test`）」
+> 一節與 [`../../apps/api/README.md`](../../apps/api/README.md)「怎麼跑」。
 
 ## 這個目錄有什麼
 
 | 檔案 | 用途 |
 |---|---|
-| [`generate-club-seed-sql.py`](generate-club-seed-sql.py) | 讀 [`site/src/data/*.json`](../../site/src/data/)（六個 mockup 資料檔），產生 `tcrfc_club_dev` 冪等的 T-SQL |
-| [`apply-seed.sh`](apply-seed.sh) | 呼叫上面那支腳本，再用 `sqlcmd` 把產生的 SQL 灌進本機 SQL Server（既有 `sqlserver` 容器）的 `tcrfc_club_dev`；容器名稱可用 `LOCAL_MSSQL_CONTAINER` 環境變數覆寫，但目標資料庫寫死只認 `tcrfc_club_dev` |
+| [`generate-club-seed-sql.py`](generate-club-seed-sql.py) | 讀 [`site/src/data/*.json`](../../site/src/data/)（六個 mockup 資料檔），產生冪等的 T-SQL——`tcrfc_club_dev`／`tcrfc_club_test` 共用同一份定義，差別只在灌到哪個資料庫 |
+| [`apply-seed.sh`](apply-seed.sh) | 呼叫上面那支腳本，再用 `sqlcmd` 把產生的 SQL 灌進本機 SQL Server（既有 `sqlserver` 容器）；容器名稱可用 `LOCAL_MSSQL_CONTAINER` 環境變數覆寫，**目標資料庫預設 `tcrfc_club_dev`，可用 `SEED_TARGET_DATABASE` 環境變數覆寫成 `tcrfc_club_test`**（白名單僅這兩個名字，S0-13 新增） |
+| [`setup-test-db.sh`](setup-test-db.sh) | 🔴 **S0-13 新增**：一鍵建立／灌整合測試專用庫 `tcrfc_club_test`（串接 `deploy/local-ddl.sh --apply-test-db` ＋本檔的 `apply-seed.sh`），見下方「整合測試專用庫」一節 |
 | [`generate-charity-seed-sql.py`](generate-charity-seed-sql.py) | 產生 `tcrfc_charity_dev` 冪等的 T-SQL。**資料直接寫在腳本內**（不像 club 腳本讀外部 JSON）——因為這批資料**從一開始就是虛構測試資料**，不是需要另外隔離的真人個資，見下方一節的說明 |
 | [`apply-charity-seed.sh`](apply-charity-seed.sh) | 呼叫上面那支腳本，灌進 `tcrfc_charity_dev`；目標資料庫寫死只認 `tcrfc_charity_dev`，與 `apply-seed.sh` 的白名單分開維護 |
 | `.generated/`（**不進版控**） | 兩支產生器的輸出（`club-seed.local.sql`／`charity-seed.local.sql`），隨時可重新產生，見 [`.gitignore`](../../.gitignore) |
@@ -83,6 +88,44 @@ docker exec -i "$CID" /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQ
 本機重來的正確做法就是上面「只丟 `tcrfc_club_dev`」那段，只對這兩個資料庫本身動手，
 不對容器動手。
 
+## 整合測試專用庫（`tcrfc_club_test`，S0-13，2026-09-25 新增）
+
+🔴 **背景**：`apps/api` 的 `dotnet test` 原本跟本機開發、無頭瀏覽器實走共用 `tcrfc_club_dev`，
+同一天發生三次互相干擾——測試把實走中帳號的 2FA 狀態、`settings` 的 SEO 值重置回種子（見
+[`../../docs/14-invariants.md`](../../docs/14-invariants.md)、
+[`../../docs/18-work-errors.md`](../../docs/18-work-errors.md)、`STATUS.md` S0-13）。解法是讓
+整合測試改連一個完全獨立的資料庫，`tcrfc_club_dev` 專心留給本機開發與無頭瀏覽器實走。
+
+**一鍵建立／灌種子**：
+
+```bash
+set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
+./db/seed/setup-test-db.sh --recreate   # 從零重來：先 DROP（若存在）再 CREATE，灌 DDL＋種子
+./db/seed/setup-test-db.sh              # 平常用：資料庫不存在才建立＋灌 DDL，種子一律重灌（冪等）
+./db/seed/setup-test-db.sh --dry-run    # 只產生種子 .sql，不建庫也不套用
+```
+
+這支腳本只是把既有兩支腳本串起來，沒有另外寫一份建庫或灌種子的邏輯：
+
+1. `deploy/local-ddl.sh --apply-test-db [--recreate]`——建立（或重建）`tcrfc_club_test`，
+   灌入轉換過 `json→nvarchar(max)` 的 `club-schema.sql`。`CREATE TABLE` 不是冪等的，所以資料庫
+   已存在且已有資料表時**預設略過 DDL**（只重灌種子），要重灌表結構才需要加 `--recreate`。
+2. `db/seed/apply-seed.sh`（`SEED_TARGET_DATABASE=tcrfc_club_test`）——跟灌 `tcrfc_club_dev`
+   用同一份 `generate-club-seed-sql.py`，不必為測試庫另外維護一份種子資料定義，含全部
+   `ADMIN_USERS` 測試帳號（見 `apps/api/README.md`「種子測試帳號」）。
+
+**防呆**：`deploy/local-ddl.sh`／`db/seed/apply-seed.sh` 的資料庫名稱白名單都已納入
+`tcrfc_club_test`，任何呼叫路徑上出現白名單以外的名字一律拒絕執行。`apps/api` 這一側另外在
+`Tcrfc.Api.Tests/Fixtures/TestDatabaseGuard.cs` 加了第二道防線——**`dotnet test` 用的
+`CLUB_SQL_CONNECTION_STRING` 若沒有精確指向 `tcrfc_club_test`，六個 fixture 一律在
+`InitializeAsync()` 直接拒絕啟動**，不判斷「看起來像不像測試庫」，見
+[`../../apps/api/README.md`](../../apps/api/README.md)「怎麼跑」。
+
+⚠️ `tcrfc_club_test` 是整合測試專屬、可以被完全重建的資料庫——這跟本檔其他章節反覆強調
+「不得對 `tcrfc_club_dev`／`tcrfc_charity_dev` 以外的資料庫動手」並不衝突：那條規則保護的是
+這個 SQL Server instance 上使用者其他專案的既有資料庫，`tcrfc_club_test` 是本專案自己建立、
+自己擁有、白名單機制明確涵蓋的第三個資料庫，不在被保護之列。
+
 ## 連線字串長什麼樣
 
 跟 [`deploy/dev/club.env.example`](../../deploy/dev/club.env.example) 一致：
@@ -125,8 +168,9 @@ Server=host.docker.internal,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MS
   不得改任何設定、不得 `docker rm`／`docker restart`。它是使用者另一個專案在用，裡面還有
   約 25 個既有資料庫，且**沒有掛任何 volume**（重建＝資料全滅，見
   [`../../deploy/README.md`](../../deploy/README.md)）。本目錄的腳本只被授權在裡面操作
-  `tcrfc_club_dev`（`db/seed/apply-seed.sh`）與 `tcrfc_club_dev`／`tcrfc_charity_dev`
-  （`deploy/local-ddl.sh`）這兩個資料庫，寫死白名單、不接受呼叫端覆寫。
+  `tcrfc_club_dev`／`tcrfc_club_test`（`db/seed/apply-seed.sh`）與 `tcrfc_club_dev`／
+  `tcrfc_charity_dev`／`tcrfc_club_test`（`deploy/local-ddl.sh`）這幾個資料庫，寫死白名單、
+  不接受呼叫端覆寫（`tcrfc_club_test` 是 2026-09-25 S0-13 新增的整合測試專用庫）。
 - **不得把 `db/seed/.generated/*.sql` 加進版控**——它含真實姓名，`.gitignore` 已排除，不要用 `git add -f` 硬加。
 - **不得把種子資料當成正式內容的替代品**：`players.json`／`news.json` 等六個 JSON 檔本身是 mockup 骨架，
   不是後台維運後的真實資料——例如 `articles.cover_key` 全部是 `NULL`（沒有走過圖片上傳 pipeline）、

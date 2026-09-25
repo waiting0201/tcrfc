@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Data.SqlClient;
 using StackExchange.Redis;
 using Xunit;
 
@@ -31,24 +30,7 @@ public sealed class RedisEnabledApiFixture : WebApplicationFactory<Program>, IAs
 
     public async Task InitializeAsync()
     {
-        var connectionString = Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING");
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new InvalidOperationException(
-                "CLUB_SQL_CONNECTION_STRING 未設定，無法執行整合測試。請先啟動本機資料庫並灌種子資料"
-                + "（見 apps/api/README.md「怎麼跑」），再 export CLUB_SQL_CONNECTION_STRING 後重跑 dotnet test。");
-        }
-
-        try
-        {
-            await using var connection = new SqlConnection(connectionString);
-            await connection.OpenAsync();
-        }
-        catch (Exception ex)
-        {
-            throw new InvalidOperationException(
-                $"CLUB_SQL_CONNECTION_STRING 已設定但連不上本機資料庫（{ex.Message}）。", ex);
-        }
+        var connectionString = await TestDatabaseGuard.ResolveAndVerifyAsync();
 
         var redisServerPath = ResolveRedisServerPath();
         var port = GetUnusedLocalPort();
