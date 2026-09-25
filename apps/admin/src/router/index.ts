@@ -51,6 +51,8 @@ const CalendarEventEditView = () => import('@/views/calendar/CalendarEventEditVi
 const SeoSettingsView = () => import('@/views/seo/SeoSettingsView.vue')
 const RedirectListView = () => import('@/views/seo/RedirectListView.vue')
 const OrphanPagesReportView = () => import('@/views/seo/OrphanPagesReportView.vue')
+const LlmsContentView = () => import('@/views/seo/LlmsContentView.vue')
+const AiCrawlerView = () => import('@/views/seo/AiCrawlerView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -263,6 +265,18 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     name: 'seo-orphan-pages',
     component: OrphanPagesReportView,
     meta: { label: '孤立頁面偵測', code: 'H3', sysadminOnly: true },
+  },
+  {
+    path: '/seo/llms-content',
+    name: 'seo-llms-content',
+    component: LlmsContentView,
+    meta: { label: 'AI 摘要資料', code: 'H4', sysadminOnly: true },
+  },
+  {
+    path: '/seo/crawler-settings',
+    name: 'seo-crawler-settings',
+    component: AiCrawlerView,
+    meta: { label: 'AI 爬蟲授權', code: 'H5', sysadminOnly: true },
   },
   {
     path: '/system/accounts',

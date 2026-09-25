@@ -17,6 +17,15 @@ CSV 匯入匯出）、**H3 孤立頁面偵測**（唯讀報表，畫面上把偵
 `GTM`／`Meta Pixel`／`LINE Tag` 刻意保留原文（第三方服務正式名稱，理由見該檔案）。詳見下方
 「H 搜尋與 AI 能見度」整節（含真實驗收紀錄與未驗證項目）。
 
+✅ **S1-12a／S1-12b 後台畫面（2026-09-25）：H4 AI 摘要資料（`llms.txt` 維護）／H5 AI 爬蟲授權
+全新完成**——接上同名後端（見 `apps/api/README.md`「S1-12a」「S1-12b」）。**H4**：站點定位、
+代表頁清單、事實摘要、授權與引用方式、聯絡窗口五個雙語區塊，單筆表單，畫面明講「存檔後立即
+生效」。**H5**：AI 服務清單（名稱＋允許／拒絕，可新增刪除）、自訂不開放的頁面路徑（可新增刪除）、
+系統保護的頁面（唯讀陳列，規格強制、後台無法刪除，說明文字講清楚是為了保護會員資料與未成年
+學員照片），畫面明講「網站正式上線後才會生效」。`docs/06-conventions.md` §1 新增 `llms.txt`／
+使用者代理／排除路徑／強制排除路徑四筆對照。**`npm run lint`／`build` 皆過**；🔴 **無頭瀏覽器
+實走因本機環境限制未能完成，標記未驗證**——詳見下方「H4／H5」整節。
+
 ✅ **S1-10 後台畫面第三輪修正（2026-09-25）：G1 欄位題目文字、G2 姓名選單開放給所有處理權限
 角色、P1–P3／G1–G2／L1–L2 權限判斷改讀 `/auth/me` 權限碼、俱樂部範圍頁面閃錯 bug 已修**——
 接上同名後端補完（見 `apps/api/README.md`「S1-10 修正」）。**G1**：新增欄位時新增「題目文字
@@ -2102,3 +2111,93 @@ session（`/auth/me` 權限清單、S1-10 缺口修正）大幅修改中，`dotn
    與 `clean.login@tcrfc.test` 的兩階段驗證狀態都復原回種子初始值——沒有清乾淨的部分（轉址三筆、
    `clubs.og_image_key` 相關三欄）改用直接 SQL 清除，跟既有慣例一致）。驗收結束已執行
    `db/seed/reset-admin-accounts.sh` 還原全部種子帳號密碼／2FA 狀態。
+
+---
+
+## H4／H5：AI 摘要資料／AI 爬蟲授權（S1-12a／S1-12b，2026-09-25）
+
+對應主站規劃書 §7 `GEO-01`／`GEO-02`、§4.8「`llms.txt` 維護」「AI 爬蟲授權」，接上同名後端
+（`apps/api/README.md`「S1-12a」「S1-12b」）。放在既有「搜尋與 AI 能見度」（`H`）選單下，
+跟 H1–H3 同一組、整組只有系統管理員在側欄看得到（`AppSidebar.vue` 既有的
+`SYSADMIN_ONLY_MODULE_CODES` 已含 `'H'`，本輪不需要改這個判斷）。
+
+### 新增／修改的檔案
+
+- `src/api/adminSeo.ts`（修改）：新增 `AdminLlmsContentDto`／`updateAdminLlmsContent` 一組
+  （對照 `Features/AdminSeo/AdminGeoLlmsDtos.cs` 的 `AdminLlmsContentDto`／
+  `UpdateLlmsContentRequest`，純 JSON，五個區塊各自 `Zh`／`En` 兩個屬性）與
+  `AdminCrawlerSettingsDto`／`updateAdminCrawlerSettings` 一組（對照
+  `Features/AdminSeo/AdminGeoCrawlerDtos.cs`，`mandatoryExcludePaths` 唯讀）。
+- `src/views/seo/LlmsContentView.vue`（新增，H4）：五個雙語區塊（`BilingualTextareaField`）的
+  單筆表單，版面比照 `SeoSettingsView.vue`（H1）既有寫法。
+- `src/views/seo/AiCrawlerView.vue`（新增，H5）：AI 服務清單（可新增／刪除／切換允許拒絕）、
+  自訂排除路徑清單（可新增／刪除）、系統保護的頁面（唯讀 `el-tag` 陳列，沒有任何刪除操作）。
+- `src/router/index.ts`：新增 `/seo/llms-content`（H4）／`/seo/crawler-settings`（H5）兩條路由，
+  `meta.sysadminOnly: true`（比照 H1–H3 既有寫法）。
+- `src/data/nav.ts`：`H` 子模組新增 `H4`／`H5`，並修正檔頭一句過時的註解（原本寫「沒有子模組的
+  （A／H／I）是葉節點」，但 `H` 早在 S1-12 就已經有子模組，本輪一併修正成「A／I」）。
+- `docs/06-conventions.md` §1：新增 `llms.txt`（→「AI 摘要資料」）、使用者代理／User-Agent
+  （→「AI 服務名稱」）、後台自訂排除路徑（→「自訂不開放的頁面路徑」）、強制排除路徑
+  （→「系統保護的頁面（不可移除）」）四筆對照，並加一段說明為什麼「AI 爬蟲」刻意保留不翻譯
+  （比照既有 `GA4`／`GTM` 那段的寫法與理由）。
+
+### 規劃書沒寫清楚、本輪自行判斷的部分
+
+1. **前端額外做了一層跟後端一致的即時格式驗證**（AI 服務名稱 `^[A-Za-z0-9._-]{1,100}$`、
+   排除路徑須以「/」開頭與結尾、不含空白、不重複）：規劃書沒有要求前端要先擋一次，但這兩個
+   欄位都是「使用者一次貼一整份清單」的表單，比照既有 H2／CSV 匯入「整批驗證、任一筆有誤整批
+   不寫入」的一貫使用者預期，先在前端擋一次可以避免使用者填了一大排才在按下儲存時被後端一次
+   全部退回。**後端驗證仍是唯一真實的把關**（`AdminGeoCrawlerRepository.ValidateUserAgents`／
+   `ValidateExcludePaths`），前端這層只是體驗優化，錯誤訊息文字直接抄後端 `AdminSeoValidationException`
+   的訊息樣式，避免兩邊對不起來。
+2. **「系統保護的頁面」用唯讀 `el-tag` 陳列，不分類分組**：後端 `mandatoryExcludePaths` 只回傳一份
+   扁平字串陣列（沒有分類中繼資料，見 `AdminCrawlerSettingsDto` 檔頭），本輪不在前端額外硬編一份
+   「哪個路徑屬於會員中心、哪個屬於表單」的分類對照表去分組顯示——那樣等於在前端複製一份後端
+   `GeoCrawlerDefaults` 的知識，兩邊之後改起來容易漂移，改成扁平清單加一句說明文字（保護會員
+   資料與未成年學員照片）交代做這件事的理由，不逐條解釋每一條路徑是什麼。
+3. **AI 服務清單改成「輸入框＋開關」逐列編輯，不是像 H2 那樣開對話框**：這份清單通常只有個位數
+   筆數（後端預設建議值只有 5 筆），比對話框更適合直接在頁面上就地編輯完再一次按「儲存」整批
+   送出（後端 `PUT` 本身也是整份取代語意，不是逐筆新增/更新的 API）。
+
+### 驗收紀錄
+
+1. **`npm run lint`／`npm run build`（`apps/admin`）皆過**（2026-09-25，本機環境）：六項 lint
+   檢查全綠（含禁用詞掃描、對比度、EditView 一次性求值——`LlmsContentView.vue`／
+   `AiCrawlerView.vue` 皆非 EditView 命名，不受第六項規則約束，`vue-tsc -b && vite build`
+   型別檢查與建置皆無錯誤）。
+2. **`apps/web` 的 `npm run lint` 已重跑確認仍是 0 錯誤**（本輪未修改 `apps/web` 任何檔案，
+   既有 539 筆屬性排序等警告與本輪無關）。
+3. 🔴 **無頭瀏覽器實走（任務要求的完整流程）未能完成，全部標記「未驗證」**：本輪嘗試依既有慣例
+   （見上方「H 搜尋與 AI 能見度」節「驗收紀錄」第 2 點）用 `git worktree add ... HEAD` 另外簽出
+   一份乾淨的 `apps/api`，設定 `CLUB_SQL_CONNECTION_STRING`（含本機開發用的 SA 密碼）＋
+   `JWT_SIGNING_KEY_CLUB` 後 `dotnet run --no-launch-profile` 啟動——這個指令被 session 的自動
+   模式安全防護擋下（分類原因 `[Safety Bypass Flag]`，判定為在指令列中具現化資料庫密碼）。
+   依硬規則「被 session 的安全防護或權限機制擋下的操作，不得以任何等效途徑達成同樣目的」，
+   本輪**沒有**嘗試改用其他傳參方式、寫入暫存 `.env` 檔再 `source`、或任何其他等效手法繞過，
+   已立即停止並移除本輪建立的隔離 worktree（`git worktree remove`，過程中 `dotnet run` 從未
+   真正啟動，沒有任何殘留行程或資料庫連線）。**因此下列項目全部是「未驗證」，不是「已驗證且
+   通過」**：
+   - 系統管理員編輯中文與英文 `llms.txt` 並存檔、取回前台 `/llms.txt`／`/llms-en.txt` 確認內容
+     已更新。
+   - 新增自訂排除路徑、把一個 AI 代理改成拒絕、設 `NUXT_PUBLIC_SITE_ENV=production` 後取
+     `/robots.txt` 確認反映（含確認強制排除路徑仍在）。
+   - 任務二：`content.editor.login@tcrfc.test`（`content_editor`，僅 `tcrfc`，S0-13 已補、
+     可直接登入）的權限限制實走——看得到並能編輯「搜尋與分享設定」（B1／B2）、看不到全站 SEO
+     （H1）、301 轉址（H2）、孤立頁面偵測（H3）、AI 摘要資料（H4）、AI 爬蟲授權（H5），側欄
+     看不到、直接輸入網址也進不去。**這項驗收本來就是 S1-12 收尾時留下的既有未驗證項目**
+     （見上方「H 搜尋與 AI 能見度」節「驗收紀錄」第 3 點），本輪雖然已經有可用的種子帳號，
+     但同樣卡在無法啟動 `apps/api` 這一步，**仍然未驗證，不是本輪新增的缺口**。
+4. **後端行為的靜態核對（非即時驗收，用來確認前端 DTO／請求形狀正確）**：逐字對照
+   `Features/AdminSeo/AdminGeoLlmsDtos.cs`／`AdminGeoLlmsEndpoints.cs`／
+   `Features/AdminSeo/AdminGeoCrawlerDtos.cs`／`AdminGeoCrawlerEndpoints.cs`／
+   `AdminGeoCrawlerRepository.cs` 原始碼，確認欄位命名（camelCase，`Program.cs` 第 70 行
+   `PropertyNamingPolicy = JsonNamingPolicy.CamelCase`）、`mandatoryExcludePaths` 唯讀語意、
+   使用者代理與排除路徑的驗證規則與錯誤訊息文字，前端型別與畫面判斷邏輯逐一比對一致。**這不能
+   取代真實的 HTTP 往返測試**，只能降低「串接形狀對不起來」的風險，不是驗收紀錄。
+
+### 已知缺口（回報，不在本輪自行判斷做或不做）
+
+1. **無頭瀏覽器完整驗收待補**：見上方「驗收紀錄」第 3 點，需要能在允許啟動本機 `apps/api`
+   （含資料庫連線字串）的環境下重新執行，比照既有 `git worktree` 隔離慣例。
+2. **`content_editor` 角色看不到 H1–H5 的驗收仍未完成**：延續 S1-12 收尾時的既有缺口，
+   卡在同一個「無法啟動 `apps/api`」的環境限制上，需要跟第 1 點一起補做。

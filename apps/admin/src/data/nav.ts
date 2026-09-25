@@ -2,7 +2,7 @@ import type { NavGroup, NavChild, NavModule } from '@/types/nav'
 
 /**
  * 側欄導覽資料（docs/21-admin-ui.md §1）：14 個一級模組、6 組視覺分組。
- * 有子模組的模組渲染成 el-sub-menu（手風琴 unique-opened）；沒有子模組的（A／H／I）是葉節點。
+ * 有子模組的模組渲染成 el-sub-menu（手風琴 unique-opened）；沒有子模組的（A／I）是葉節點。
  * `implemented: false` 的項目點進去會看到 PlaceholderView（「這個模組還沒做」），不是死連結。
  */
 export const NAV_GROUPS: NavGroup[] = [
@@ -29,12 +29,15 @@ export const NAV_GROUPS: NavGroup[] = [
         code: 'H',
         label: '搜尋與 AI 能見度',
         // ⚠️ 這整組只有系統管理員看得到（AppSidebar.vue 的 SYSADMIN_ONLY_MODULE_CODES）——
-        // 三個子模組的權限碼（`seo.setting.*`／`seo.redirect.*`／`seo.report.view`）皆為
-        // `sysadmin_only`（apps/api/README.md「S1-12」「權限碼」），比照 J 系統管理整組的既有做法。
+        // 五個子模組的權限碼（`seo.setting.*`／`seo.redirect.*`／`seo.report.view`／`seo.llms.*`／
+        // `seo.crawler.*`）皆為 `sysadmin_only`（apps/api/README.md「S1-12」「S1-12a」「S1-12b」
+        // 各節「權限碼」），比照 J 系統管理整組的既有做法。
         children: [
           { code: 'H1', label: '全站設定', path: '/seo/settings', implemented: true },
           { code: 'H2', label: '301 轉址', path: '/seo/redirects', implemented: true },
           { code: 'H3', label: '孤立頁面偵測', path: '/seo/orphan-pages', implemented: true },
+          { code: 'H4', label: 'AI 摘要資料', path: '/seo/llms-content', implemented: true },
+          { code: 'H5', label: 'AI 爬蟲授權', path: '/seo/crawler-settings', implemented: true },
         ],
       },
       { code: 'I', label: '網站設定', path: '/settings/site', implemented: false },

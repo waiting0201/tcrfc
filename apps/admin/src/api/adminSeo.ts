@@ -1,8 +1,10 @@
 /**
  * `apps/api` 後台「搜尋與 AI 能見度」端點（`Features/AdminSeo`），對照
- * apps/api/README.md「S1-12：`H` 搜尋與 AI 能見度」。涵蓋三段：
+ * apps/api/README.md「S1-12：`H` 搜尋與 AI 能見度」。涵蓋五段：
  * 全站 SEO 預設＋追蹤碼（`seo.setting.*`）、301 轉址（`seo.redirect.*`）、孤立頁面偵測
- * （`seo.report.view`）。三段權限碼皆為 `sysadmin_only`（見 apps/api/README.md 該節「權限碼」）。
+ * （`seo.report.view`）、`llms.txt`（AI 摘要資料，`seo.llms.*`，apps/api/README.md「S1-12a」）、
+ * AI 爬蟲授權（`seo.crawler.*`，apps/api/README.md「S1-12b」）。五段權限碼皆為 `sysadmin_only`
+ * （見 apps/api/README.md 各節「權限碼」）。
  */
 import { apiRequest, apiUploadRequest, API_BASE_URL, AdminApiError } from './http'
 import { getAccessToken } from '@/auth/session'
@@ -214,4 +216,60 @@ export interface OrphanPageReportDto {
 
 export function getAdminOrphanPages(club: string): Promise<OrphanPageReportDto> {
   return apiRequest<OrphanPageReportDto>(`/api/v1/admin/${club}/seo/orphan-pages`)
+}
+
+// ── `llms.txt`／AI 摘要資料（H4，S1-12a）──────────────────────────────────────────
+// 對照 `Features/AdminSeo/AdminGeoLlmsDtos.cs` 的 `AdminLlmsContentDto`／`UpdateLlmsContentRequest`。
+// 五個區塊皆可為空（後端檔頭：留白時前台有內建預設文字可回退，不會讓 `/llms.txt` 輸出壞掉）。
+
+export interface AdminLlmsContentDto {
+  positioningZh?: string | null
+  positioningEn?: string | null
+  keyPagesZh?: string | null
+  keyPagesEn?: string | null
+  factsSummaryZh?: string | null
+  factsSummaryEn?: string | null
+  licenseZh?: string | null
+  licenseEn?: string | null
+  contactZh?: string | null
+  contactEn?: string | null
+}
+
+/** 🔴 整份送出語意：省略某個欄位＝清空既有值，不是「維持不變」（同 `AdminSeoSettingsDto` 慣例）。 */
+export type UpdateLlmsContentPayload = AdminLlmsContentDto
+
+export function getAdminLlmsContent(club: string): Promise<AdminLlmsContentDto> {
+  return apiRequest<AdminLlmsContentDto>(`/api/v1/admin/${club}/seo/llms-content`)
+}
+
+export function updateAdminLlmsContent(club: string, payload: UpdateLlmsContentPayload): Promise<AdminLlmsContentDto> {
+  return apiRequest<AdminLlmsContentDto>(`/api/v1/admin/${club}/seo/llms-content`, { method: 'PUT', body: payload })
+}
+
+// ── AI 爬蟲授權（H5，S1-12b）───────────────────────────────────────────────────────
+// 對照 `Features/AdminSeo/AdminGeoCrawlerDtos.cs`。`mandatoryExcludePaths` 唯讀（後端 DTO 本身
+// 沒有對應的可寫入欄位，`UpdateCrawlerSettingsRequest` 結構上就不存在「移除強制路徑」這個操作）。
+
+export interface CrawlerAgentDto {
+  userAgent: string
+  allowed: boolean
+}
+
+export interface AdminCrawlerSettingsDto {
+  userAgents: CrawlerAgentDto[]
+  additionalExcludePaths: string[]
+  mandatoryExcludePaths: string[]
+}
+
+export interface UpdateCrawlerSettingsPayload {
+  userAgents: CrawlerAgentDto[]
+  additionalExcludePaths: string[]
+}
+
+export function getAdminCrawlerSettings(club: string): Promise<AdminCrawlerSettingsDto> {
+  return apiRequest<AdminCrawlerSettingsDto>(`/api/v1/admin/${club}/seo/crawler-settings`)
+}
+
+export function updateAdminCrawlerSettings(club: string, payload: UpdateCrawlerSettingsPayload): Promise<AdminCrawlerSettingsDto> {
+  return apiRequest<AdminCrawlerSettingsDto>(`/api/v1/admin/${club}/seo/crawler-settings`, { method: 'PUT', body: payload })
 }
