@@ -6227,6 +6227,125 @@ DDL 異動：`geo.llms_positioning`／`geo.llms_key_pages`／`geo.llms_facts_sum
 3. **`GEO-05`（結構化資料完整性檢查）／`GEO-03`／`GEO-04`（事實單一來源與雙重呈現）不在本輪
    範圍**：依 `STATUS.md` 排程分屬 `S1-12c`（後台）、`S1-12d`（主站前台）。
 
+## S1-12c：`GEO-05` 結構化資料完整性檢查（2026-09-25，`backend-engineer`）
+
+主站規劃書 §7 `GEO-05`／§4.8「結構化資料完整性檢查」：逐型別輸出 Organization、SportsTeam、
+Event、SportsEvent（行事曆）、Person、Article、Course、BreadcrumbList、FAQPage 九種 Schema.org
+型別；**必填欄位不得留空，資料不足時不輸出該型別，不輸出殘缺的 Schema**。任務指示明文要求
+「每個型別的必填欄位定義成單一來源（程式碼中一份），後台報表與前台輸出判斷都讀它，不要兩處各
+寫一份」（docs/18-work-errors.md E-39）。**不新增資料表、沒有 migration**——沿用既有欄位。
+
+### 必填欄位單一來源（`Features/Seo/SchemaCompleteness.cs`）
+
+新增 `SchemaType` 列舉與 `SchemaRequiredFields.ByType` 靜態字典，逐型別列出必填欄位鍵與中英文
+標籤；`GetMissingFields`／`IsComplete` 是唯一的判斷函式。**跨語言的「單一來源」怎麼做到**：
+`apps/api`（C#）與 `apps/web`（TypeScript／Nuxt）是兩個獨立執行環境，物理上無法共用同一份程式碼
+檔案。本輪的解法是「必填欄位清單只在這裡宣告一次，前台不重新宣告一次判斷條件」——已經有動態
+內容可用的兩個公開端點（`ArticlesRepository.GetBySlugAsync`／`MatchesRepository.ListAsync`）
+呼叫這個共用函式，把結果算成 `schemaEligible` 布林值放進公開 DTO；`apps/web` 只讀這個布林值
+決定輸不輸出 JSON-LD，不再自己判斷「哪些欄位算必填」。後台報表（見下方）直接呼叫同一個函式。
+
+**逐型別必填欄位與判斷依據**（規劃書只列型別清單，沒有列逐欄位規格，以下是本輪判斷，完整理由見
+`SchemaRequiredFields` 類別檔頭 XML 文件註解）：
+
+| 型別 | 必填欄位 | 依據 |
+|---|---|---|
+| `Organization` | 名稱、官網網址、隊徽圖片 | schema.org 只要求 `name`；`url`／`logo` 是本輪依 Google 建議加的，且是 `clubs` 既有欄位 |
+| `SportsTeam` | 同 `Organization` 三項 | 同上，`url` 用俱樂部網域、`logo` 回退俱樂部隊徽 |
+| `Event` | 名稱、開始時間、地點 | Google Event 結構化資料必要屬性（對應 `calendar_custom_events`） |
+| `SportsEvent` | 比賽日期、開球時間、主客場、對手、場地、賽事名稱 | 沿用既有 `app/pages/zh/schedule.vue`（S0-9j）已實作的六欄位判斷，本輪只是收斂進單一來源，判斷條件本身不變 |
+| `Person` | 姓名 | schema.org 只要求 `name`（對應 `players`）；肖像同意不影響型別輸不輸出，只影響 `image` 屬性 |
+| `Article` | 標題、發布時間、圖片 | Google Article 結構化資料必要屬性；`image` 直接用 `ArticleDetailDto.OgImageUrl`（後端已算好的三層優先序），不重新判斷一次 |
+| `Course` | 課程名稱、課程說明 | Google Course 結構化資料必要屬性（`provider.name` 固定為俱樂部本身，不列為資料庫必填欄位） |
+| `BreadcrumbList` | 頁面標題、頁面網址 | 只檢查「這一頁本身有沒有可用的標題與網址」這個最小前提，`pages` 沒有頁面層級的標題欄位，只能用 `SeoTitle` 頂替 |
+| `FAQPage` | 問題、答案 | schema.org `Question`／`acceptedAnswer.text` 必要屬性 |
+
+🔴 **刻意不把 `SportsTeam.foundingDate` 這類「建議」屬性訂為必填**：`docs/12d-field-audit.md`
+已記錄 `clubs` 沒有 `founded_on` 欄位，訂為必填只會讓這個型別永遠輸出不了，對 GEO 沒有幫助；
+事實單一來源的欄位缺口屬於 `GEO-03`／`GEO-04`（`S1-12d`）範圍，本輪不為了 `GEO-05` 新增資料欄位。
+
+### 已接上輸出的兩個型別（`Article`／`SportsEvent`）
+
+- `Features/Schedule/MatchDto.SchemaEligible`（`MatchesRepository.Map`）：`app/pages/zh/schedule.vue`
+  的 JSON-LD 迴圈改讀 `m.schemaEligible`，取代原本行內的六欄位 `if` 判斷。
+- `Features/News/ArticleDtos.ArticleDetailDto.SchemaEligible`（`ArticlesRepository.GetBySlugAsync`）：
+  `app/pages/zh/news/[slug]/index.vue` 的 `watchEffect` 改讀 `a.schemaEligible`，取代原本只看
+  `publishedAt` 一個欄位的判斷；同時把 Article Schema 的 `image` 欄位從本地 mockup 靜態檔案
+  判斷（`hasNewsCover()`）改成 `a.ogImageUrl`——兩者原本可能互相矛盾（`schemaEligible` 說有圖，
+  畫面卻因為 mockup 沒有對應檔案而輸出 `undefined`），改用同一份值後不會再有這個落差。
+
+其餘六個型別（`Organization`／`SportsTeam`／`Event`／`Person`／`Course`／`BreadcrumbList`／
+`FAQPage`）**目前尚未接上任何前台輸出**（依 `STATUS.md` 排程留給 `S1-12f` 等後續任務），但後台
+報表已經在掃描這些型別的資料現況（見下方），資料結構與判斷函式已經讓它們接得上。
+
+### 後台報表（`Features/AdminSeo/AdminSeoSchemaCompletenessRepository`）
+
+`GET /api/v1/admin/{club}/seo/schema-completeness`（權限碼 `seo.schema.view`，`sysadmin_only`，
+矩陣「SEO／設定」欄只有系統管理員打勾，理由同既有 `seo.setting.*`／`seo.report.*`）。逐型別掃描
+本俱樂部（或俱樂部＋共同）資料，**只回傳有缺漏的列**（比照既有孤立頁面偵測同一種「只列有問題的」
+報表設計），列出型別、內部型別詞彙（`club`／`team`／`event`／`match`／`player`／`article`／
+`program`／`page`／`faq`）、辨識名稱、公開網址（若有）與缺漏欄位的中英文標籤。
+
+⚠️ **已知簡化**（規劃書沒有列出逐型別掃描範圍，以下是本輪判斷）：
+- `BreadcrumbList` 只檢查「這一頁本身有沒有可用的標題與網址」，不驗證完整的頁面階層——B1 頁面
+  尚未接上動態路由（同既有 `AdminSeoReportRepository` 孤立頁面偵測的已知落差）。
+- `Article` 的圖片優先序（文章專屬 OG 圖片 > 全站預設 OG 圖片 > 封面圖片）在報表裡重新寫了一次
+  三層 null 合併運算（不呼叫 `ArticlesRepository.ResolveOgImageAsync`，因為報表只需要知道
+  「有沒有圖」，不需要把 key 換成公開網址、不需要注入 `IImagePublicUrlResolver`）——這三層優先序
+  若改動，兩處要一起改，比照既有 `ArticleEntityType` 常數在讀寫兩個 repository 各自宣告一份的
+  既有先例（風險可控的小範圍重複，不是引入新的重複模式）。
+
+### 權限碼
+
+`db/seed/generate-club-seed-sql.py` 新增 1 個（`module_code=H`、`submodule_code=H6`、
+`domain=seo`）：
+
+- `seo.schema.view`：檢視結構化資料完整性檢查
+
+### 測試
+
+- `SchemaCompletenessTests.cs`（18 項，純單元測試，不碰資料庫）：`SchemaRequiredFields` 逐型別
+  必填欄位判斷本身——完整／缺單一欄位／空白字串視同缺漏／呼叫端漏傳欄位鍵視為缺漏（防呆）／
+  `SchemaTypeCodes.ToCode` 對應 schema.org 正確字面值（含 `FAQPage` 的正確大小寫）。
+- `AdminSeoSchemaCompletenessTests.cs`（4 項，真實 HTTP 管線＋真實 `tcrfc_club_test`＋真實
+  Azurite）：未登入 401、內容編輯角色 403、**SportsEvent 正反例**（建立缺開球時間／主客場／
+  場地／賽事名稱的賽事→報表列出且缺漏欄位剛好是那四個、公開端點 `schemaEligible=false`；
+  補齊四欄後報表不再列出、公開端點恢復 `true`；跨俱樂部反例：`bw` 報表看不到 `tcrfc` 這筆測試
+  資料）、**Article 正反例**（建立無圖片的已發布文章→報表列出缺漏「文章圖片」、公開端點
+  `schemaEligible=false`；用真實 Azurite 上傳一張 OG 圖片後報表不再列出、公開端點恢復 `true`）。
+
+### 驗收紀錄（2026-09-25，本機環境）
+
+1. `dotnet test`（`Tcrfc.Api.Tests`，`tcrfc_club_test`）**494/494 通過**（既有 466 ＋
+   `SchemaCompletenessTests` 18 項 ＋ `AdminSeoSchemaCompletenessTests` 4 項 ＋ 過程中發現／
+   修正的既有計數差異；純單元測試不需要任何 fixture，整合測試需要
+   `AdminWriteAzuriteEnabledApiFixture`——Article 正反例要真的上傳 OG 圖片）。
+2. 種子資料：新增 1 個權限碼（`seo.schema.view`），已用 `./db/seed/setup-test-db.sh`（測試庫）
+   與 `./db/seed/apply-seed.sh`（`tcrfc_club_dev`）灌入，`sqlcmd` 確認 `system_admin` 角色已
+   自動取得。**沒有 migration**。
+3. `dotnet run` 本機真實啟動 `apps/api` ＋ `apps/web` `npm run build` 產物
+   （`node .output/server/index.mjs`），用真實 HTTP 驗證前台輸出：
+   - `curl /zh/news/2025-03-22-match-070/`（該篇無任何圖片來源）：`X-Robots-Tag: noindex, nofollow`
+     仍在；頁面只有 `@nuxtjs/seo` 自動輸出的 `WebSite`／`WebPage` 節點，**沒有** `Article` 節點
+     （`schemaEligible=false`，公開 API 實測確認）。
+   - 在開發庫**暫時**設定 `clubs.og_image_key`（事後已還原為 `NULL`，兩俱樂部皆確認）後重新
+     整理同一頁：`Article` 節點正確出現，含 `headline`／`datePublished`／`image` 三個必填欄位，
+     `X-Robots-Tag: noindex, nofollow` 不受影響。
+   - `curl /zh/schedule/`：21 場 tcrfc 種子賽事的 `schemaEligible` 全數為 `true`（六個欄位皆
+     齊全），頁面正確輸出 21 個 `SportsEvent` 節點，`X-Robots-Tag: noindex, nofollow` 不受影響。
+4. `npm run lint`：`apps/web`（0 錯誤，既有警告與本輪無關）、`apps/admin`（全過，本輪未修改
+   該專案任何檔案）皆綠燈。
+5. `apps/web` `npm run build` 成功；`apps/web`／`apps/api` `docker build` 皆成功。
+
+### 已知缺口（回報，不在本輪範圍）
+
+1. **後台畫面待做**：`apps/admin` 完全未改動（任務邊界僅 `apps/api`／`apps/web`）。
+2. **其餘六個型別（`Organization`／`SportsTeam`／`Event`／`Person`／`Course`／`BreadcrumbList`／
+   `FAQPage`）尚未接上任何前台輸出**：依 `STATUS.md` 排程留給 `S1-12f` 等後續任務，本輪只確保
+   後台報表看得到這些型別的資料缺漏現況、`SchemaRequiredFields` 已經涵蓋全部九型別。
+3. **`GEO-03`／`GEO-04`（事實單一來源與雙重呈現）不在本輪範圍**：依 `STATUS.md` 排程屬
+   `S1-12d`（主站前台）。
+
 ## 相關文件
 
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表

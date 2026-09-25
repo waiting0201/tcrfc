@@ -1,3 +1,5 @@
+using Tcrfc.Api.Features.Seo;
+
 namespace Tcrfc.Api.Features.Schedule;
 
 /// <summary>賽程與賽果公開欄位。<c>matches</c> 不在受限欄位清單內（docs/12b-database-tables.md §8）。</summary>
@@ -31,4 +33,13 @@ public sealed record MatchDto
     /// <summary>延賽前的原定時間（v3.13）。與 <see cref="OriginalMatchOn"/> 同一組欄位，只有延賽時才有值，
     /// 格式與 <see cref="Kickoff"/> 相同。對應 <c>matches.original_kickoff</c>。</summary>
     public string? OriginalKickoff { get; init; }
+
+    /// <summary>
+    /// GEO-05／S1-12c：這筆賽事的資料是否足以輸出 <c>SportsEvent</c> Schema
+    /// （<see cref="SchemaType.SportsEvent"/> 必填欄位齊全，見 <see cref="SchemaRequiredFields"/>
+    /// 檔頭「必填欄位怎麼訂出來的」）。前台（<c>app/pages/zh/schedule.vue</c>）改讀這個欄位決定
+    /// 輸不輸出該筆的 JSON-LD 節點，不再自己重新判斷一次「這六個欄位夠不夠」——判斷條件只在
+    /// <see cref="SchemaRequiredFields"/> 宣告一次（E-39）。
+    /// </summary>
+    public required bool SchemaEligible { get; init; }
 }

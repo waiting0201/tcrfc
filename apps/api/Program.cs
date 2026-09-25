@@ -299,6 +299,7 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Faqs.FaqsRepository>();
 builder.Services.AddScoped<AdminSeoSettingsRepository>();
 builder.Services.AddScoped<AdminRedirectsRepository>();
 builder.Services.AddScoped<AdminSeoReportRepository>();
+builder.Services.AddScoped<AdminSeoSchemaCompletenessRepository>();
 builder.Services.AddScoped<AdminGeoLlmsRepository>();
 builder.Services.AddScoped<AdminGeoCrawlerRepository>();
 builder.Services.AddScoped<SeoRepository>();
@@ -489,6 +490,9 @@ app.MapAdminCalendarEndpoints();
 app.MapAdminSeoSettingsEndpoints();
 app.MapAdminRedirectsEndpoints();
 app.MapAdminSeoReportEndpoints();
+
+// ── S1-12c：GEO-05 結構化資料完整性檢查 ───────────────────────────────────
+app.MapAdminSeoSchemaCompletenessEndpoints();
 
 // ── S1-12a／S1-12b：GEO-01 llms.txt 維護／GEO-02 AI 爬蟲授權 ──────────────
 app.MapAdminGeoLlmsEndpoints();

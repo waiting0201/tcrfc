@@ -1018,6 +1018,12 @@ PERMISSIONS = [
     ("seo.llms.update", "H", "H4", "seo", "update", 1, 0, 1, "編輯 llms.txt 內容維護", "Update llms.txt Content"),
     ("seo.crawler.view", "H", "H5", "seo", "view", 1, 0, 1, "檢視 AI 爬蟲授權設定", "View AI Crawler Settings"),
     ("seo.crawler.update", "H", "H5", "seo", "update", 1, 0, 1, "編輯 AI 爬蟲授權設定", "Update AI Crawler Settings"),
+    # S1-12c 新增（2026-09-25）：GEO-05 結構化資料完整性檢查（H6）。跟既有 seo.setting.*／
+    # seo.redirect.*／seo.report.*／seo.llms.*／seo.crawler.* 同一組 sysadmin_only 判斷理由——
+    # 矩陣「SEO／設定」欄十個角色只有系統管理員打勾，domain 統一取 "seo"。唯讀報表，只開一個
+    # view 動作（比照 seo.report.view 孤立頁面偵測同一種「唯讀報表只給 view」設計）。
+    # is_club_scoped=1——結構化資料完整性是各站（tcrfc／bw）各自的資料現況，不是全站共用設定。
+    ("seo.schema.view", "H", "H6", "seo", "view", 1, 0, 1, "檢視結構化資料完整性檢查", "View Structured Data Completeness Report"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")

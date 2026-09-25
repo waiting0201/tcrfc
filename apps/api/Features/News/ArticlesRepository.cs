@@ -2,6 +2,7 @@ using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.Seo;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -214,6 +215,16 @@ public sealed class ArticlesRepository(
 
                 var ogImage = await ResolveOgImageAsync(connection, article, scope.ClubId, ct);
                 var ogImageAlt = RequestLocale.Pick(requested?.OgImageAlt, fallback?.OgImageAlt);
+                var title = RequestLocale.Pick(requested?.Title, fallback?.Title);
+
+                // GEO-05（S1-12c）：單一來源見 SchemaRequiredFields 檔頭。image 直接用算好優先序
+                // 的 ogImage.Url，不在這裡重新判斷一次「這篇文章有沒有圖片」。
+                var schemaEligible = SchemaRequiredFields.IsComplete(SchemaType.Article, new Dictionary<string, object?>
+                {
+                    ["headline"] = title,
+                    ["datePublished"] = article.PublishedAt,
+                    ["image"] = ogImage.Url,
+                });
 
                 return new ArticleDetailDto
                 {
@@ -226,7 +237,7 @@ public sealed class ArticlesRepository(
                     IsFeatured = article.IsFeatured,
                     ViewCount = article.ViewCount,
                     PublishedAt = article.PublishedAt,
-                    Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
+                    Title = title,
                     Summary = RequestLocale.Pick(requested?.Summary, fallback?.Summary),
                     BodyJson = RequestLocale.Pick(requested?.Body, fallback?.Body),
                     SeoTitle = RequestLocale.Pick(requested?.SeoTitle, fallback?.SeoTitle),
@@ -243,6 +254,7 @@ public sealed class ArticlesRepository(
                     Tags = tags,
                     CoreValueTags = coreValueTags,
                     Relations = relations,
+                    SchemaEligible = schemaEligible,
                 };
             },
             cancellationToken);

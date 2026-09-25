@@ -1,3 +1,5 @@
+using Tcrfc.Api.Features.Seo;
+
 namespace Tcrfc.Api.Features.News;
 
 /// <summary>公開讀取用的標籤（S1-5 新增）：<c>Name</c> 已依語系回退挑值，跟公開 API 其他欄位
@@ -89,4 +91,14 @@ public sealed record ArticleDetailDto
 
     /// <summary>關聯（S1-5 新增，球員／球隊／賽事／課程／夥伴）。</summary>
     public required IReadOnlyList<ArticleRelationDto> Relations { get; init; }
+
+    /// <summary>
+    /// GEO-05／S1-12c：這篇文章的資料是否足以輸出 <c>Article</c> Schema
+    /// （<see cref="SchemaType.Article"/> 必填欄位齊全——標題、發布時間、圖片，見
+    /// <see cref="SchemaRequiredFields"/> 檔頭「必填欄位怎麼訂出來的」）。前台
+    /// （<c>app/pages/zh/news/[slug]/index.vue</c>）改讀這個欄位決定輸不輸出 <c>Article</c> 的
+    /// JSON-LD，不再自己判斷「有沒有發布時間」——判斷條件只在 <see cref="SchemaRequiredFields"/>
+    /// 宣告一次（E-39）。
+    /// </summary>
+    public required bool SchemaEligible { get; init; }
 }

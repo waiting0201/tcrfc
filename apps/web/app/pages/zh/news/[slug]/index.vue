@@ -150,17 +150,23 @@ useHead({
 // articles.updated_at 只在後台寫入端點當樂觀並行的權杖用，沒有經公開 API 的 DTO
 // 輸出（apps/api/README.md）。GEO-08 明文「更新時間要真的更新，不是發布時間複製
 // 一份」，這裡沒有真實資料就不輸出 dateModified，不用 publishedAt 頂替一份假的。
-// datePublished／整個 Article 節點也只在有 publishedAt 時才輸出（GEO-05：資料
-// 不足時不輸出該型別，不輸出殘缺 Schema）。
+//
+// GEO-05（S1-12c）：輸不輸出改讀後端算好的 a.schemaEligible（標題／發布時間／圖片
+// 三個必填欄位是否齊全，見 apps/api Features/Seo/SchemaRequiredFields），不再只看
+// publishedAt 一個欄位——判斷條件的單一來源只在 apps/api 宣告一次（E-39）。
 watchEffect(() => {
   const a = article.value
-  if (!a?.publishedAt) return
+  if (!a?.schemaEligible) return
   useSchemaOrg([
     defineArticle({
       headline: a.title ?? undefined,
       datePublished: a.publishedAt,
       inLanguage: 'zh-Hant',
-      image: hasNewsCover(a.slug) ? newsCoverSrc(a.slug) : undefined,
+      // GEO-05（S1-12c）：用 a.ogImageUrl（後端已算好「這篇專屬 > 全站預設 > 封面圖」優先序
+      // 的完整網址），不是本地 mockup 靜態檔案的 hasNewsCover() 判斷——schemaEligible 判斷
+      // 「這篇文章有沒有圖片」時用的就是 ogImageUrl，這裡要用同一份值，兩者才不會互相矛盾
+      // （schemaEligible 說有圖，這裡卻因為 mockup 沒有那個檔案而輸出 undefined）。
+      image: a.ogImageUrl ?? undefined,
       articleSection: a.categoryName ?? undefined,
       author: { '@type': 'Organization', name: siteName.value },
       publisher: { '@type': 'Organization', name: siteName.value },

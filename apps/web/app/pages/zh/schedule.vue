@@ -51,6 +51,10 @@ interface MatchItem {
   /** 僅賽事狀態為「延賽」時有值，其餘一律 `null`（規劃書 v3.13 §3.13） */
   originalMatchOn: string | null
   originalKickoff: string | null
+  /** GEO-05／S1-12c：後端已經用單一來源（apps/api Features/Seo/SchemaRequiredFields）算好
+   * 這筆賽事夠不夠格輸出 SportsEvent Schema，這裡直接讀，不在前台重新判斷一次「六個欄位夠不夠」
+   * （docs/18-work-errors.md E-39）。 */
+  schemaEligible: boolean
 }
 
 const monthGroups = computed(() => {
@@ -339,7 +343,9 @@ const selfTeamName = computed(() => getClubAssets(club).nameZh)
 const sportsEvents = computed(() => {
   const nodes: Record<string, unknown>[] = []
   for (const m of matches.value as MatchItem[]) {
-    if (!m.matchOn || !m.kickoff || !m.homeAway || !m.opponent || !m.venue || !m.competitionName) continue
+    // GEO-05（S1-12c）：改讀後端算好的 schemaEligible，不再自己重新判斷一次「這六個欄位
+    // 夠不夠」——必填欄位清單只在 apps/api 的 SchemaRequiredFields 宣告一次（E-39）。
+    if (!m.schemaEligible) continue
     const isHome = m.homeAway === 'HOME'
     const selfTeam = { '@type': 'SportsTeam', name: selfTeamName.value }
     const oppTeam = { '@type': 'SportsTeam', name: m.opponent }

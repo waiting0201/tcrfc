@@ -2,6 +2,7 @@ using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Features.Seo;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -175,6 +176,19 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
             ? competitionNameById.GetValueOrDefault(competitionId)
             : null;
 
+        // GEO-05（S1-12c）：單一來源見 SchemaRequiredFields 檔頭。鍵名逐一對應
+        // SchemaType.SportsEvent 的必填欄位清單，缺一個都不放進字典——GetMissingFields 對
+        // 沒有出現在字典裡的鍵一律視為缺漏，兩者要保持一致。
+        var schemaEligible = SchemaRequiredFields.IsComplete(SchemaType.SportsEvent, new Dictionary<string, object?>
+        {
+            ["matchOn"] = row.MatchOn,
+            ["kickoff"] = row.Kickoff,
+            ["homeAway"] = row.HomeAway,
+            ["opponent"] = opponent,
+            ["venue"] = venue,
+            ["competitionName"] = competitionName,
+        });
+
         return new MatchDto
         {
             Id = row.Id,
@@ -194,6 +208,7 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
             MatchNo = row.MatchNo,
             OriginalMatchOn = row.OriginalMatchOn is { } originalMatchOn ? DateOnly.FromDateTime(originalMatchOn) : null,
             OriginalKickoff = row.OriginalKickoff,
+            SchemaEligible = schemaEligible,
         };
     }
 }
