@@ -6,6 +6,7 @@ import type { NavGroup } from '@/types/nav'
 import { authUser } from '@/auth/session'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
+import { useCalendarPermissions } from '@/composables/useCalendarPermissions'
 
 const props = defineProps<{
   collapse: boolean
@@ -33,12 +34,15 @@ const SYSADMIN_ONLY_MODULE_CODES = new Set(['J'])
  */
 const programPermissions = useProgramPermissions()
 const formsPermissions = useFormsPermissions()
+const calendarPermissions = useCalendarPermissions()
 const CHILD_VISIBILITY: Record<string, () => boolean> = {
   P1: () => programPermissions.canViewItems.value,
   P2: () => programPermissions.canViewItems.value,
   P3: () => programPermissions.canViewRegistrations.value,
   G1: () => formsPermissions.canViewForms.value,
   G2: () => formsPermissions.canViewInbox.value,
+  L1: () => calendarPermissions.canViewOverview.value,
+  L2: () => calendarPermissions.canViewCustomEvents.value,
 }
 
 const visibleGroups = computed<NavGroup[]>(() => {

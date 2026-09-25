@@ -31,8 +31,8 @@ export const NAV_GROUPS: NavGroup[] = [
         code: 'L',
         label: '行事曆管理',
         children: [
-          { code: 'L1', label: '總覽', path: '/calendar/overview', implemented: false },
-          { code: 'L2', label: '自建事件', path: '/calendar/events', implemented: false },
+          { code: 'L1', label: '總覽', path: '/calendar/overview', implemented: true },
+          { code: 'L2', label: '自建事件', path: '/calendar/events', implemented: true },
           { code: 'L3', label: '分類設定', path: '/calendar/categories', implemented: false },
           { code: 'L4', label: '訂閱與匯出', path: '/calendar/subscriptions', implemented: false },
         ],

@@ -45,6 +45,9 @@ const FormListView = () => import('@/views/forms/FormListView.vue')
 const FormEditView = () => import('@/views/forms/FormEditView.vue')
 const EnquiryInboxView = () => import('@/views/forms/EnquiryInboxView.vue')
 const EnquiryEditView = () => import('@/views/forms/EnquiryEditView.vue')
+const CalendarOverviewView = () => import('@/views/calendar/CalendarOverviewView.vue')
+const CalendarEventListView = () => import('@/views/calendar/CalendarEventListView.vue')
+const CalendarEventEditView = () => import('@/views/calendar/CalendarEventEditView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -224,6 +227,21 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     component: EnquiryEditView,
     props: true,
     meta: { label: '處理詢問', code: 'G2' },
+  },
+  { path: '/calendar/overview', name: 'calendar-overview', component: CalendarOverviewView, meta: { label: '總覽', code: 'L1' } },
+  { path: '/calendar/events', name: 'calendar-event-list', component: CalendarEventListView, meta: { label: '自建事件', code: 'L2' } },
+  {
+    path: '/calendar/events/new',
+    name: 'calendar-event-new',
+    component: CalendarEventEditView,
+    meta: { label: '新增自建事件', code: 'L2' },
+  },
+  {
+    path: '/calendar/events/:id/edit',
+    name: 'calendar-event-edit',
+    component: CalendarEventEditView,
+    props: true,
+    meta: { label: '編輯自建事件', code: 'L2' },
   },
   {
     path: '/system/accounts',

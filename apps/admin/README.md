@@ -1765,3 +1765,120 @@ EditView 路由狀態一次性求值檢查——G1／G2 兩組編輯頁皆無建
    各一筆詢問、`general_contact` 表單一次新增又刪除的測試欄位已清除、`notifyEmails` 欄位值改成了
    `e2e-test@tcrfc.tw`）留在本機 `tcrfc_club_dev`，未特別清除——`AdminFormsEnquiriesTests.cs` 的
    既有測試斷言是針對自建 fixture，不是全域筆數，不受影響（已讀過測試檔案確認，同 S1-9 既有先例）。
+
+---
+
+## L1–L2 行事曆管理（S1-11，2026-09-25）
+
+`L1` 行事曆總覽、`L2` 自建事件，接上同名後端（`apps/api/README.md`「S1-11」）。對照主站規劃書
+§4.12，逐一模組如下：
+
+- **L1**（`src/views/calendar/CalendarOverviewView.vue`）：月曆檢視（`el-calendar`，自訂
+  `date-cell` 插槽把當天的賽事與自建活動畫成色塊，點日期開對話框看完整清單）與列表檢視（日期
+  區間選擇器，預設本月）雙模式；篩選球隊（含「俱樂部活動」）與來源（賽事／自建活動）。**賽事在
+  這裡一律唯讀**，操作欄「查看賽事」直接連到既有 `/teams/matches/:id/edit`（C4，S1-8）；自建活動
+  「查看活動」連到 `/calendar/events/:id/edit`（L2，只有 `calendar.custom_event.view` 以上才給
+  連結，`team_competition`／`academy_program` 只有 `calendar.view`，這裡刻意不給連結，點了也只會
+  被後端 403）。**多日活動（有 `endsAt` 橫跨數天）只標在起始日**，比照後端「俱樂部活動列表分頁
+  只用原始 `starts_at` 排序」的既有簡化方向，沒有另外畫跨日色塊。
+- **L2**（`CalendarEventListView.vue`／`CalendarEventEditView.vue`）：球隊篩選（含「俱樂部活動」）
+  列表；編輯頁含分類（`event-types` 唯讀下拉）、起訖時間（支援全天與跨日）、重複規則（不重複／
+  每週／每兩週／每月）＋重複結束日期＋例外日期（逐筆加入／移除的日期清單）、所屬隊別（可複選，
+  留空＝俱樂部活動）、外部連結、是否公開、雙語標題與說明（`BilingualShortField`／
+  `BilingualTextareaField`）、封面圖沿用 S0-8 共用元件 `ImageUploader.vue`（選檔不上傳、儲存才
+  上傳）。**場地選單本輪不提供**——跟 `MatchEditView.vue`／`ProgramSessionEditView.vue` 遇到的
+  既有缺口相同，`venues` 沒有任何後台端點可以列出清單，`venueId` 一律不送出。
+
+### 權限顯示（`useCalendarPermissions`，`src/composables/useCalendarPermissions.ts`）
+
+主站規劃書 §6 矩陣「行事曆」欄，逐一角色（十個角色都至少能看到 `calendar.view`，是唯一沒有
+「—」的一欄，逐字對照 `apps/api/README.md`「S1-11」「權限碼與角色指派」）：系統管理員全部；
+`content_editor`（內容編輯）／`pr_media`（公關媒體）／`partner_club_manager`（合作球隊管理）
+`calendar.view`＋`calendar.custom_event.*` 全給；`business_sponsorship`（商務贊助）／
+`customer_service_admin`（客服行政）／`viewer`（檢視者）唯讀（`calendar.view`＋
+`calendar.custom_event.view`）；**`team_competition`（競技球隊管理）／`academy_program`
+（學院課程管理）只給 `calendar.view`——看得到 `L1` 總覽，但完全看不到 `L2` 自建事件**（矩陣格
+對應的是賽事事件／梯隊賽事，已由既有 `team.match.*`／`academy_only` 承接，不是本模組權限碼）；
+`translator`（翻譯人員）不指派，兩者都看不到。依此決定：① `AppSidebar.vue` 側欄「行事曆管理」
+底下「總覽」「自建事件」兩個子項目是否顯示（`team_competition`／`academy_program` 只留「總覽」，
+`translator` 整個父層一起消失）② L1 操作欄的自建活動連結是否給 ③ L2 列表「+新增自建事件」按鈕
+與操作欄文字是「編輯」還是「檢視」④ L2 編輯頁整頁是否唯讀（`el-form :disabled`）。基礎判斷沿用
+共用的 `useRolePermissions.ts`（`isSuperAdmin`／`hasAnyRole`），已知限制（`/auth/me` 不回傳權限碼
+清單）見該檔檔頭，本檔不重複。
+
+### 相依但尚未開發的模組（本輪繞過，非本輪缺口）
+
+- **場地選單**：同 P2／C4 既有缺口，`venues` 沒有任何後台端點可以列出清單，見上方 L2 說明。
+- **L3 分類與顯示設定**：只接了唯讀的 `GET .../calendar/event-types` 給 L2 建立事件選分類用，
+  正式的分類 CRUD 管理畫面（含圖示挑選）留給 `S2-6`，側欄該項目維持既有的「尚未建置」佔位頁。
+- **L4 訂閱與匯出**：iCal 訂閱網址管理、指定期間 CSV／`.ics` 匯出，留給 `S2-6`，側欄同上。
+- **`L1` 隊別分軌並排、拖曳改期回寫 `Match`、衝突偵測**：規劃書 L1 原文列出的這三項連同 L3／L4
+  一起排進 `S2-6`（`STATUS.md` 既定切法，非本輪判斷），本輪只做合併讀取的呈現（列表與月曆）。
+
+### 驗證
+
+**Lint／build（全部通過）**：`apps/admin` 的 `npm run lint`（ESLint、禁用詞掃描、對比度檢查、
+EditView 路由狀態一次性求值檢查）與 `npm run build`（`vue-tsc -b && vite build`）皆通過；
+`apps/web` 的 `npm run lint` 0 errors（既有 539 個 warning 與本輪無關，未觸碰任何 `apps/web`
+檔案）。
+
+**無頭瀏覽器實走**（2026-09-25，Chrome headless + CDP，`Emulation.setDeviceMetricsOverride` 固定
+1400×1000）：
+
+🔴 **本輪環境調整**：執行當下 `apps/api` 與 `db/seed/generate-club-seed-sql.py` 正被另一個並行
+session（`/auth/me` 權限清單、S1-10 缺口修正）大幅修改中，`dotnet build` 直接在主要工作目錄上會
+失敗（`AdminFormFieldDto.LabelZh` 缺少必要成員）。依硬規則不得改 `apps/api`／`db/`，因此用
+`git worktree add /tmp/... HEAD`（`ba5a0fb`，已含 `S1-11` 後端 commit `26356c9`）**另外簽出一份
+乾淨、可建置的 `apps/api` 快照**在隔離目錄跑本機 API（埠 `5499`，接同一顆本機 `tcrfc_club_dev`
+真實資料庫、臨時起一個獨立 Azurite 容器供封面圖上傳），`apps/admin` 用本機 `.env.development`
+（不納版控，已刪除）指過去，`vite --port 5174` 對外服務。這只是**驗收用的乾淨執行環境**，沒有
+建立新分支、沒有修改主要工作目錄任何一個 `apps/api`／`db/` 檔案，驗收完已 `git worktree remove`。
+
+1. **`clean.login@tcrfc.test`（系統管理員，`two_factor_enabled=0`）**：走完整 2FA 首次設定
+   → 登入成功 → 側欄同時看得到「總覽」「自建事件」→ **L2 新增**：開始時間
+   `2026-09-29 19:00:00`、重複規則選「每週」、標題「E2E驗收用記者會」，儲存成功並導向編輯頁
+   → **L1 列表檢視**：本月範圍內同時看到剛建立的自建活動與既有真實賽事（`高雄先鋒`／
+   `台灣電力`兩場）→ **L1 月曆檢視**：切回月曆確認同一天看得到自建活動的色塊 → 回 L2 列表
+   點擊「編輯」，改標題為「……（已編輯）」並儲存，**重新整理頁面確認資料庫真的持久化**（不是
+   只驗證前端表單）→ 點擊「刪除」（`ElMessageBox.confirm`，點擊範圍限定在 `.el-message-box`
+   內，避開列上同名按鈕的既有踩雷）→ 確認清單消失。全程用 SPA 內導覽（點側欄／按鈕），沒有對
+   `/calendar/*` 子頁面直接整頁 `Page.navigate`——見下方「發現的既有限制」，整頁重新導覽會踩到
+   `activeClubId` 預設值的既有競態。
+2. **`academy.login@tcrfc.test`（`academy_program`，僅 `bw`，`two_factor_enabled=0`）**：走完整
+   2FA 首次設定 → 登入成功 → 側欄**只看得到「總覽」，看不到「自建事件」**→ 點側欄「總覽」成功
+   進入且看得到既有賽事（`calendar.view` 正常運作）→ 側欄裡完全點不到「自建事件」這個選項
+   （`CHILD_VISIBILITY` 把它濾掉了），確認矩陣「只給 `calendar.view`」在畫面上是正確反映的。
+3. **`business.sponsorship.login@tcrfc.test`（`business_sponsorship`，僅 `tcrfc`，
+   `two_factor_enabled=0`）**：走完整 2FA 首次設定 → 登入成功 → 側欄同時看得到「總覽」「自建
+   事件」→ 用 `clean.login` 先建立一筆固定測試資料（「ReadOnly測試用公開訓練」）→ 切回這個帳號：
+   L2 列表看得到這筆資料，操作欄**只有「檢視」**（沒有「編輯」「刪除」），列表上方**沒有**「+
+   新增自建事件」按鈕 → 點擊「檢視」進入編輯頁：顯示「你的帳號只有檢視權限」提示、**12 個表單
+   欄位全部 `disabled`**、沒有「儲存」按鈕。驗收後用 `clean.login` 把這筆測試資料刪除乾淨。
+4. **發現的既有限制（非本輪造成，回報記錄）**：`activeClubId`（`@/auth/clubAccess.ts`）預設值
+   固定是 `'tcrfc'`，只有 `ensureClubsLoaded()`（`GET /auth/me`）resolve 後才會被訂正成這個帳號
+   實際被授權的俱樂部——但 `router.beforeEach` 呼叫這支函式時**沒有 `await`**（fire-and-forget，
+   見該檔案「進了後台外殼就順手把俱樂部清單準備好」那行）。這代表**對任何俱樂部範圍頁面直接整頁
+   重新載入**（使用者重新整理瀏覽器、或直接貼網址在新分頁打開），元件掛載當下第一次資料請求會
+   先送出還沒被訂正過的預設值 `tcrfc`，若目前帳號沒有 `tcrfc` 的授權（例如 `academy.login` 只有
+   `bw`），會先看到一次「你沒有被授權存取俱樂部「tcrfc」的後台資料」的錯誤畫面。**這不是 `L1`／
+   `L2` 特有的缺陷**——`ProgramItemListView.vue` 等既有頁面用的是同一份 `activeClubId`／
+   `ensureClubsLoaded()`，理論上也會踩到同一個競態，只是至今沒有人用「整頁重新載入子頁面」這種
+   方式驗收過，所以沒被發現。多數既有頁面確實有 `watch(club, bootstrap)`，`activeClubId` 訂正後
+   應該會自動重新查詢一次並自我修復畫面（不是永久卡死），但這個「先閃一下錯誤畫面」的體驗缺口
+   本身沒有人修過。回報供下一輪評估是否要把 `ensureClubsLoaded()` 的呼叫改成在路由守衛裡
+   `await`（唯一的成本是每次導頁都要多等一次 `/auth/me` 的網路來回，或改成只在應用程式啟動時
+   `await` 一次、之後的導頁不重打）。
+5. **收尾**：關閉本輪啟動的 API（隔離 worktree）／`npm run dev`／headless Chrome 行程與臨時
+   Azurite 容器，`git worktree remove` 移除隔離目錄，刪除本機 `.env.development`。**沒有執行
+   `db/seed/reset-admin-accounts.sh`**——這支腳本會執行當下版本的
+   `db/seed/generate-club-seed-sql.py`，而這個檔案正被並行 session 大幅修改中（99 行新增／56 行
+   刪除，未提交），依硬規則不觸碰 `db/` 相關操作，避免在對方變更未完成時執行到中間狀態的產生器。
+   **代價**：`clean.login@tcrfc.test`／`academy.login@tcrfc.test`／
+   `business.sponsorship.login@tcrfc.test` 三個帳號的兩階段驗證目前是「已完成設定」狀態
+   （`two_factor_enabled=1`，本輪走過真實 TOTP 設定流程），不再是種子初始值的 `0`；下一輪若需要
+   拿這幾個帳號的「未設定」狀態重新驗收，記得先跑一次 `reset-admin-accounts.sh`（等
+   `db/seed/generate-club-seed-sql.py` 的並行修改穩定、可以安全執行之後）。本輪透過瀏覽器建立
+   又已刪除乾淨的測試資料（「E2E驗收用記者會」與「ReadOnly測試用公開訓練」兩筆自建事件）沒有
+   殘留在 `tcrfc_club_dev`。`dotnet test` 未執行到，理由同 S1-9／S1-10 收尾段——`apps/api` 仍在
+   被並行 session 修改，不屬於本次任務範圍，依指示沒有動 `apps/api` 任何一個檔案（隔離 worktree
+   的獨立快照除外，那份快照已隨 `git worktree remove` 一併移除）。
