@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { NAV_GROUPS } from '@/data/nav'
 import type { NavGroup } from '@/types/nav'
 import { authUser } from '@/auth/session'
+import { useProgramPermissions } from '@/composables/useProgramPermissions'
 
 const props = defineProps<{
   collapse: boolean
@@ -23,11 +24,34 @@ const router = useRouter()
  */
 const SYSADMIN_ONLY_MODULE_CODES = new Set(['J'])
 
+/**
+ * P1／P2／P3（課程與活動）：不是每個角色都看得到，見 `useProgramPermissions` 檔頭的完整角色
+ * 對照表。`customer_service_admin` 只看得到「報名」；`pr_media`／`translator` 三個都看不到
+ * ——這兩個角色一旦把 P1／P2／P3 都濾掉，`children` 會變成空陣列，下面的 `.filter` 會連「課程
+ * 與活動」這個父層一併拿掉，不會留下一個點進去卻沒有任何子項目的空選單。
+ */
+const programPermissions = useProgramPermissions()
+const CHILD_VISIBILITY: Record<string, () => boolean> = {
+  P1: () => programPermissions.canViewItems.value,
+  P2: () => programPermissions.canViewItems.value,
+  P3: () => programPermissions.canViewRegistrations.value,
+}
+
 const visibleGroups = computed<NavGroup[]>(() => {
-  if (authUser.value?.isSuperAdmin) return NAV_GROUPS
+  const isSuperAdmin = authUser.value?.isSuperAdmin ?? false
   return NAV_GROUPS.map((group) => ({
     ...group,
-    modules: group.modules.filter((mod) => !SYSADMIN_ONLY_MODULE_CODES.has(mod.code)),
+    modules: group.modules
+      .filter((mod) => isSuperAdmin || !SYSADMIN_ONLY_MODULE_CODES.has(mod.code))
+      .map((mod) => {
+        if (!mod.children) return mod
+        const children = mod.children.filter((child) => {
+          const check = CHILD_VISIBILITY[child.code]
+          return isSuperAdmin || !check || check()
+        })
+        return { ...mod, children }
+      })
+      .filter((mod) => !mod.children || mod.children.length > 0),
   })).filter((group) => group.modules.length > 0)
 })
 

@@ -35,6 +35,12 @@ const StaffEditView = () => import('@/views/teams/StaffEditView.vue')
 const MatchListView = () => import('@/views/teams/MatchListView.vue')
 const MatchEditView = () => import('@/views/teams/MatchEditView.vue')
 const StandingListView = () => import('@/views/teams/StandingListView.vue')
+const ProgramItemListView = () => import('@/views/programs/ProgramItemListView.vue')
+const ProgramItemEditView = () => import('@/views/programs/ProgramItemEditView.vue')
+const ProgramSessionListView = () => import('@/views/programs/ProgramSessionListView.vue')
+const ProgramSessionEditView = () => import('@/views/programs/ProgramSessionEditView.vue')
+const RegistrationListView = () => import('@/views/programs/RegistrationListView.vue')
+const RegistrationEditView = () => import('@/views/programs/RegistrationEditView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -151,6 +157,53 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     component: CompetitionEditView,
     props: true,
     meta: { label: '編輯賽事系列', code: 'C4' },
+  },
+  { path: '/programs/items', name: 'program-item-list', component: ProgramItemListView, meta: { label: '項目', code: 'P1' } },
+  {
+    path: '/programs/items/new',
+    name: 'program-item-new',
+    component: ProgramItemEditView,
+    meta: { label: '新增項目', code: 'P1' },
+  },
+  {
+    path: '/programs/items/:id/edit',
+    name: 'program-item-edit',
+    component: ProgramItemEditView,
+    props: true,
+    meta: { label: '編輯項目', code: 'P1' },
+  },
+  { path: '/programs/sessions', name: 'program-session-list', component: ProgramSessionListView, meta: { label: '梯次', code: 'P2' } },
+  {
+    path: '/programs/sessions/new',
+    name: 'program-session-new',
+    component: ProgramSessionEditView,
+    meta: { label: '新增梯次', code: 'P2' },
+  },
+  {
+    path: '/programs/sessions/:id/edit',
+    name: 'program-session-edit',
+    component: ProgramSessionEditView,
+    props: true,
+    meta: { label: '編輯梯次', code: 'P2' },
+  },
+  {
+    path: '/programs/enrollments',
+    name: 'registration-list',
+    component: RegistrationListView,
+    meta: { label: '報名', code: 'P3' },
+  },
+  {
+    path: '/programs/enrollments/new',
+    name: 'registration-new',
+    component: RegistrationEditView,
+    meta: { label: '新增報名', code: 'P3' },
+  },
+  {
+    path: '/programs/enrollments/:id/edit',
+    name: 'registration-edit',
+    component: RegistrationEditView,
+    props: true,
+    meta: { label: '處理報名', code: 'P3' },
   },
   {
     path: '/system/accounts',

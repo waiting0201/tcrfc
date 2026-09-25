@@ -1,6 +1,7 @@
 import { computed, reactive, ref } from 'vue'
 import { getMe } from '@/api/adminAuth'
 import { setDisplayName } from '@/auth/session'
+import type { AdminMeRoleDto } from '@/api/adminAuth'
 import tcrfcCrest from '@/assets/brand/tcrfc-mark-pink.svg'
 import bwCrest from '@/assets/brand/bw-crest-48.png'
 
@@ -14,7 +15,9 @@ import bwCrest from '@/assets/brand/bw-crest-48.png'
  * 系統管理員例外——後端固定回傳「全部啟用中的俱樂部」（`MeResponse` 的資料來源不是
  * `AdminUserClub`，見 apps/api/README.md 該節說明），對系統管理員而言效果等同於「全部都算被授權」。
  * 同一次呼叫也把姓名（`displayName`）與角色（`roles`）帶回來，姓名寫回 `@/auth/session`
- * 供 `UserMenu.vue` 顯示；角色目前沒有畫面用到，先不留欄位（要用時再從 `getMe()` 的回應直接取）。
+ * 供 `UserMenu.vue` 顯示；角色代碼存進 `currentRoleCodes`（S1-9 起新增，見
+ * `@/composables/useProgramPermissions`——P1–P3 課程與活動的操作可視性判斷需要知道目前登入者
+ * 有哪些角色，`isSuperAdmin` 一個布林值不夠用）。
  *
  * ⚠️ **切換器仍然只是介面便利，不是安全邊界**（docs/21-admin-ui.md §5）：真正的範圍檢查一律由
  * 後端 `AdminClubAuthorizer` 在每一次俱樂部範圍請求時即時判斷。這裡列出的清單現在雖然已經是
@@ -46,6 +49,12 @@ const state = reactive<ClubAccessState>({ clubs: [], loaded: false, loading: fal
 
 export const availableClubs = computed(() => state.clubs)
 
+/** 目前登入者的角色代碼（`GET /auth/me` 的 `roles[].code`）。載入完成前是空陣列——讀取這份
+ * 清單的畫面（見 `useProgramPermissions`）在載入完成前一律採取「保守預設不顯示」，等
+ * `ensureClubsLoaded()` 解析完成後會自動反應更新，不需要另外輪詢。 */
+const roles = ref<AdminMeRoleDto[]>([])
+export const currentRoleCodes = computed(() => roles.value.map((r) => r.code))
+
 const internalActiveClubId = ref('tcrfc')
 
 /** 目前站台切換器選到的俱樂部代碼，模組層級單例、跨元件共用（沿用改版前 `data/activeClub.ts`
@@ -64,6 +73,7 @@ export async function ensureClubsLoaded(force = false): Promise<void> {
   try {
     const me = await getMe()
     setDisplayName(me.displayName)
+    roles.value = me.roles
     state.clubs = me.clubGrants.map((g) => ({
       code: g.clubCode,
       name: g.clubNameZh ?? g.clubCode,
@@ -87,5 +97,6 @@ export async function ensureClubsLoaded(force = false): Promise<void> {
 export function resetClubAccess(): void {
   state.clubs = []
   state.loaded = false
+  roles.value = []
   internalActiveClubId.value = 'tcrfc'
 }

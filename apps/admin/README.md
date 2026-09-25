@@ -2,6 +2,18 @@
 
 台中磐石官網主站與台中藍鯨官網**共用同一個後台**的 Vue 3 SPA。
 
+✅ **S1-9 前端接線（2026-09-25）：P1 項目／P2 梯次與場次／P3 報名管理三組列表＋編輯畫面全新
+完成**——接上同名後端（見 `apps/api/README.md`「S1-9」）。**P1**：類型／狀態篩選、雙語名稱與
+簡介、課程內容（區塊編輯器的原始 JSON，只驗證語法）、教練團多選（接 C3 既有清單）、封面圖
+（沿用 S0-8 共用元件，選檔不上傳、儲存才上傳）。**P2**：所屬項目建立後鎖定不可改、名額上限與
+已報名數（唯讀，由報名寫入路徑維護）、費用與早鳥、報名起訖時間、狀態（留空自動判定額滿）。
+**P3**：梯次／狀態篩選、後台代填報名、處理報名（確認／取消／轉梯次／候補／備註／學員資料整份
+覆寫）、CSV 匯出（`is_restricted`，依權限顯示）。健康聲明依後端現況原樣顯示與編輯，**未新增
+蒐集欄位**；匯出不含這一欄（後端已排除）。**新增權限判斷 `useProgramPermissions`**
+（`src/composables/useProgramPermissions.ts`）與側欄可視性擴充（`AppSidebar.vue`），依角色代碼
+決定 P1／P2／P3 三個子模組要不要顯示、能不能新增／編輯／匯出，詳見下方「P1–P3 課程與活動」
+整節（含已知限制與已驗證／未驗證清單）。
+
 ✅ **S1-6／S1-7／S1-7a 前端接線（2026-09-24）：首頁編排（B3）、常見問題（B4）、球隊／球員／
 教練與團隊成員（C1–C3）三大模組全新完成，新聞與故事（B2）的「球隊」關聯解除停用**——接上同名
 後端（見 `apps/api/README.md`「S1-6」「S1-6 續作」「S1-7」「S1-7a」）。**B3**：Hero 輪播 CRUD
@@ -1505,3 +1517,112 @@ cd apps/api/Tcrfc.Api.Tests && dotnet test --no-build
 - 沒有動球隊選單相關的畫面（`useWritableTeamScope` 一節），那是另一位 agent 同一時期的工作，
   任務指示明講不得碰。
 - 沒有 commit。
+
+## P1–P3 課程與活動（S1-9，2026-09-25）
+
+`P1` 課程／營隊項目、`P2` 梯次與場次、`P3` 報名管理三組列表＋編輯畫面，接上同名後端
+（`apps/api/README.md`「S1-9」）。對照主站規劃書 §4.4，逐一模組如下：
+
+- **P1**（`src/views/programs/ProgramItemListView.vue`／`ProgramItemEditView.vue`）：類型
+  （5 種）／狀態（草稿／已發布）篩選；雙語名稱＋簡介（`BilingualShortField`／
+  `BilingualTextareaField`）；課程內容以**原始 JSON 文字欄位**呈現（區塊編輯器輸出，後端只驗證
+  語法合法性、不驗證區塊結構，見 `apps/api` `AdminProgramLocaleContent` 檔頭——B1 頁面的
+  `pageBlocks/` 是針對 `Page` 模型設計，區塊型別完全不同，沒有可重用的既有元件，判斷比照後端
+  自身「不超出範圍另外發明一套」）；教練團多選（接 C3 既有 `listAdminStaff`）；封面圖沿用 S0-8
+  共用元件 `ImageUploader.vue`（選檔不上傳、儲存才上傳）。
+- **P2**（`ProgramSessionListView.vue`／`ProgramSessionEditView.vue`）：所屬項目建立後鎖定
+  不可改（`UpdateAdminSessionRequest` 本來就沒有這個欄位）；名額上限可填、**已報名數唯讀**
+  （`sessions.enrolled_count` 只由報名寫入路徑維護，畫面上直接停用輸入框並附說明）；費用／早鳥
+  價／早鳥截止日；報名開放與截止時間；狀態四態，留空時後端自動依名額推定。
+- **P3**（`RegistrationListView.vue`／`RegistrationEditView.vue`）：梯次／狀態篩選；後台代填
+  報名（`program.registration.create`）；處理報名（確認／取消／轉梯次／候補／備註／學員資料
+  整份覆寫，`program.registration.update`）；CSV 匯出（`program.registration.export`，
+  `is_restricted`，依權限顯示按鈕）。**健康聲明依後端現況原樣顯示與可編輯**——未新增蒐集欄位、
+  未新增同意書上傳，依派工指示不擴大蒐集範圍；匯出不含這一欄（後端刻意排除，資料最小化）。
+  ⚠️ **規劃書行 1106「寄送通知信（模板化）」本輪未做**——`apps/api` 完全沒有寄信通路，
+  `EmailLog.type` 值域也沒有課程通知（後端已回報，見 `apps/api/README.md`「S1-9」「規劃書沒寫
+  清楚」第 1 點）。畫面上刻意不放一個按了沒作用的按鈕，也不自行做出寄信功能。
+
+### 權限顯示（`useProgramPermissions`，`src/composables/useProgramPermissions.ts`）
+
+主站規劃書 §6 矩陣「課程／報名」欄，逐一角色：系統管理員／`academy_program`（學院／課程管理）
+全部（含匯出）；`partner_club_manager`（合作球隊管理）三個子模組皆可異動但不含匯出；
+`content_editor`／`team_competition`／`business_sponsorship`／`viewer` 三個子模組皆唯讀；
+`customer_service_admin`（客服／行政）只有報名的檢視與處理，看不到項目與梯次；`pr_media`
+（公關／媒體）／`translator`（翻譯人員）矩陣是「—」，完全看不到。依此決定：
+① `AppSidebar.vue` 側欄是否顯示「項目」「梯次」「報名」三個子項目（`customer_service_admin`
+只看得到「報名」；`pr_media`／`translator` 三個都看不到，父層「課程與活動」跟著一起消失）
+② 列表頁「+新增」「匯出 CSV」按鈕是否顯示、操作欄文字是「編輯」還是「檢視」
+③ 編輯頁整頁是否唯讀（`el-form :disabled`）。
+
+🔴 **已知限制**：`GET /api/v1/admin/auth/me` 目前只回傳角色代碼（`roles[].code`），不回傳這個
+帳號實際擁有的權限碼清單。`useProgramPermissions.ts` 因此用角色代碼在前端重建一份對照表
+（逐字對照 `db/seed/generate-club-seed-sql.py` 的 `ROLE_PERMISSIONS` S1-9 區塊）——**若後端這份
+角色與權限的對應關係調整，這裡要手動跟著同步，不會自動反映**。長期應由 `/auth/me` 直接回傳
+這個帳號的權限碼清單取代這裡的推導（回報供下一輪評估是否要做，屬於「讓前端權限顯示更穩固」的
+改善，不是本輪功能缺口）。真正的授權邊界永遠是後端每一支端點的權限碼檢查，這裡只影響
+「要不要顯示這個按鈕」。
+
+### 相依但尚未開發的模組（本輪繞過，非本輪缺口）
+
+- **場地選單**：`sessions.venueId` 沒有提供選擇介面——`venues` 是共用主檔，但目前沒有任何後台
+  端點可以列出場地清單，跟 `MatchEditView.vue` 賽事場地欄位遇到的既有缺口相同（見該檔案檔頭），
+  沿用同一個判斷不重複造，畫面上顯示原因說明。
+- **合作夥伴選單**：P1 的 `partnerIds`（關聯 E1）沒有提供選擇介面——E1 合作夥伴管理（`S2-1`）
+  尚未開發，沒有清單可以選。
+- **會員選單**：P3 的 `memberId` 沒有提供選擇或搜尋介面——K1 會員系統尚未開發，前台也沒有會員
+  登入能串接，畫面上只唯讀顯示既有值（若有）。
+
+### 驗證
+
+**Lint／build（全部通過）**：`apps/admin` 的 `npm run lint`（ESLint、禁用詞掃描、對比度檢查、
+EditView 路由狀態一次性求值檢查）與 `npm run build`（`vue-tsc -b && vite build`）皆通過；
+`apps/web` 的 `npm run lint` 0 errors（既有 539 個 warning 與本輪無關）。
+
+**無頭瀏覽器實走（本機環境，2026-09-25，Chrome headless + CDP，`Emulation.setDeviceMetricsOverride`
+固定 1400×1000）**：
+
+1. 起本機 `apps/api`（`dotnet run`，含 `JWT_SIGNING_KEY_CLUB`／`AZURE_BLOB_CONNECTION_STRING=
+   UseDevelopmentStorage=true`＋臨時起一個獨立 Azurite 容器供圖片上傳測試）與 `apps/admin`
+   （`npm run dev`，`:5174`）。
+2. **`academy.login@tcrfc.test`（`academy_program`，僅授權 `bw`，`two_factor_enabled=0` 可走完整
+   `/login`）**：走完整 2FA 首次設定（`GET /2fa/setup` 拿到的 Base32 金鑰用 Node 手刻的 RFC 6238
+   TOTP 產生器算出當下驗證碼，`POST /2fa/confirm` 完成）→ 登入成功、側欄看得到「項目／梯次／
+   報名」→ **P1 新增**（`e2e-summer-camp`／「E2E 驗收用夏令營」＋封面圖，`DOM.setFileInputFiles`
+   上傳一張 1920×1080 測試圖）成功、建立後導向編輯頁 → **P1 編輯**（改「適合對象」）存檔後重新
+   整理頁面，確認資料庫真的持久化 → **P2 新增**（掛在剛建立的項目下，名額 20、原價 3000）成功
+   → **P3 新增**（後台代填一筆報名）成功，拿到真實格式的報名編號 `BW-20260925-ASY2ZN` →
+   **P3 處理**（狀態改「已確認」）存檔成功 → 回到 P2 列表確認「已報名數」原子更新為 `1 / 20`
+   （驗證了後端名額連動的 SQL，不是只驗證前端表單）→ P3 列表看得到這筆報名、狀態標籤正確 →
+   點擊「匯出 CSV」，用 CDP `Network.responseReceived` 捕捉到 `GET .../bw/registrations/export`
+   回應 `200`（有真的匯出成功，不是只驗證按鈕存在）。
+3. **`clean.login@tcrfc.test`（`system_admin`，同樣 `two_factor_enabled=0`）**：走完整 2FA
+   首次設定 → 切到台中磐石（`tcrfc`）站台 → P1 新增（`e2e-tcrfc-item`）成功，確認 `tcrfc` 側
+   也能走完整流程，不是只有 `bw` 能動。
+4. 🔴 **無權限帳號驗收（`customer.service@tcrfc.test`／`pr.media@tcrfc.test`）：未驗證**——
+   這兩個帳號的密碼登入本身正確（`ContentEditor@123`），但 `two_factor_enabled=1` 且沒有真實
+   的 2FA 密鑰（跟 `content.editor@tcrfc.test`／`viewer@tcrfc.test`／`partner.club@tcrfc.test`
+   同一個既有種子帳號類別，只給 `TestAdminTokens` 直接簽權杖用於 `dotnet test`，不是給真實
+   `/login` HTTP 往返用的），登入卡在「請輸入兩階段驗證碼」畫面，沒有任何路徑可以算出正確的
+   驗證碼。**依硬規則沒有嘗試任何等效繞法**（不修改 `db/seed` 種子資料生出新的
+   `two_factor_enabled=0` 帳號、不碰資料庫直接清 2FA 狀態、不透過已登入分頁的更新權杖 Cookie
+   借道）。**這是一個發現的後端／種子缺口，不是本輪造成**：`academy_program`（`academy.login`）
+   與 `system_admin`（`clean.login`）都有專門給無頭瀏覽器實走用的「-login」帳號變體
+   （`two_factor_enabled=0`），但 S1-9 新增的 `customer_service_admin`／`pr_media`（以及更早的
+   `content_editor`／`viewer`／`partner_club_manager`）都沒有對應的「-login」變體，導致**任何
+   受限角色（唯讀或局部權限）的前端限權行為，目前都無法用真實登入的無頭瀏覽器驗收**，只能驗證
+   「全權限」與「系統管理員」兩種情境。回報供下一輪評估是否要照 `academy.login` 的既有模式
+   （`db/seed/generate-club-seed-sql.py` 新增帳號、`two_factor_enabled=0`）補齊。
+5. **替代驗證（非無頭瀏覽器實走，僅程式邏輯核對）**：`useProgramPermissions.ts` 的角色→權限
+   對照表逐條比對 `db/seed/generate-club-seed-sql.py` 的 `ROLE_PERMISSIONS` S1-9 區塊確認一致；
+   `AppSidebar.vue` 的過濾邏輯（`CHILD_VISIBILITY`）以程式碼審閱確認 `pr_media`／`translator`
+   會讓「課程與活動」整個父層消失、`customer_service_admin` 只留下「報名」一項。這只是靜態核對，
+   不是瀏覽器實際觀察到的畫面，明確標註與上一點的差異。
+6. **收尾**：關閉本輪啟動的 `dotnet run`／`npm run dev`／headless Chrome 行程與臨時 Azurite
+   容器；`dotnet test` 未執行到——執行當下 `apps/api` 正被另一個並行 session 修改
+   `Features/Forms`／`Features/AdminForms`（S1-10，未提交），編譯失敗（`IClubSqlConnectionFactory`
+   找不到），與本輪 P1–P3 前端改動無關，不屬於本次任務範圍，依指示沒有動 `apps/api` 任何一個
+   檔案。本輪透過瀏覽器建立的測試資料（2 個課程項目、1 個梯次、1 筆報名，`bw`／`tcrfc` 各一部分）
+   留在本機 `tcrfc_club_dev`，未清除——`AdminProgramsSessionsRegistrationsTests.cs` 的既有測試
+   斷言都是針對自建 fixture 的特定 ID／個別梯次的 `enrolled_count`，不是全域筆數，不受影響
+   （已讀過測試檔案確認）。

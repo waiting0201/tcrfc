@@ -64,9 +64,9 @@ export const NAV_GROUPS: NavGroup[] = [
         code: 'P',
         label: '課程與活動',
         children: [
-          { code: 'P1', label: '項目', path: '/programs/items', implemented: false },
-          { code: 'P2', label: '梯次', path: '/programs/sessions', implemented: false },
-          { code: 'P3', label: '報名', path: '/programs/enrollments', implemented: false },
+          { code: 'P1', label: '項目', path: '/programs/items', implemented: true },
+          { code: 'P2', label: '梯次', path: '/programs/sessions', implemented: true },
+          { code: 'P3', label: '報名', path: '/programs/enrollments', implemented: true },
           { code: 'P4', label: '試訓場次', path: '/programs/trials', implemented: false },
         ],
       },
