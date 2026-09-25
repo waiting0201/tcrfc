@@ -2645,6 +2645,172 @@ No changes have been made to the model since the last migration.
 
 ---
 
+## S1-9：`P1–P3` 課程／營隊項目／梯次／報名 ＋ 05 課程與活動公開讀取與報名送出（2026-09-25，`backend-engineer`）
+
+主站規劃書 §4.4 P1–P3（P4 試訓管理不在本次範圍）。沿用既有架構：`AdminClubScope`／
+`IAdminClubAuthorizer`、權限碼、`ApiExceptionHandler`、後台圖片欄位直傳（`programs.cover_key`）、
+CSV 匯出（`Common/CsvUtils.cs`）。**沒有套用 `TeamRowScope`**——`programs`／`sessions`／
+`registrations` 三張表都沒有 `team_id` 欄位，理由詳見
+`Features/AdminPrograms/AdminProgramsRepository.cs` 檔頭。
+
+### 綱要異動
+
+`programs`／`sessions`／`registrations`／`trials` 四張表在此之前就已經是完整 DDL（`db/club-schema.sql`
+「4.3 P 課程與活動」，S0 系列建的），EF 實體（`Data/EfEntities/TrainingProgram.cs`／`Session.cs`／
+`Registration.cs`／`Trial.cs`）與 `ClubDbContext` 對應也早就 scaffold 好，本輪**不需要新增資料表**。
+唯一的綱要變更：`programs.status`／`programs.program_type`／`sessions.status` 三欄早就存在，但從來
+沒有被任何 CHECK 約束過（跟 `AlignSchemaV314` 補 `matches.status` 約束是同一種落差，見
+`docs/12-database-schema.md` §12 第 36 點）。套用前查證 `tcrfc_club_dev` 這兩張表皆為 0 筆，純
+DDL 變更，不搭配任何 DML 轉態：
+
+```
+migration: 20260925031444_AlignSchemaS19Programs
+  ALTER TABLE programs ADD CONSTRAINT CK_programs_status
+    CHECK (status IN ('draft','published'));
+  ALTER TABLE programs ADD CONSTRAINT CK_programs_program_type
+    CHECK (program_type IN ('children_training','summer_camp','winter_camp','specialist_training','school_community'));
+  ALTER TABLE sessions ADD CONSTRAINT CK_sessions_status
+    CHECK (status IN (N'開放',N'額滿',N'候補',N'已結束'));
+```
+
+`sessions.status` 直接沿用規劃書 P2（行 1098）的中文字面，比照 `CK_registrations_status`（早就是
+中文值）的既有先例，不翻成英文代碼。
+
+### 後台端點（新增檔案 `Features/AdminPrograms`／`AdminSessions`／`AdminRegistrations`）
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/programs` | `program.item.view` | 課程／營隊項目清單。`programType` 篩選 |
+| `GET /api/v1/admin/{club}/programs/{id}` | `program.item.view` | 單筆詳情 |
+| `POST /api/v1/admin/{club}/programs` | `program.item.create` | 建立，`multipart/form-data`（`payload`＋選填 `file` 封面圖） |
+| `PUT /api/v1/admin/{club}/programs/{id}` | `program.item.update` | 更新，同上 multipart 契約 |
+| `GET /api/v1/admin/{club}/program-sessions` | `program.session.view` | 梯次清單。`programId` 篩選 |
+| `GET /api/v1/admin/{club}/program-sessions/{id}` | `program.session.view` | 單筆詳情 |
+| `POST /api/v1/admin/{club}/program-sessions` | `program.session.create` | 建立，一般 JSON（沒有圖片欄位） |
+| `PUT /api/v1/admin/{club}/program-sessions/{id}` | `program.session.update` | 更新 |
+| `GET /api/v1/admin/{club}/registrations` | `program.registration.view` | 報名清單。`sessionId`／`status` 篩選 |
+| `GET /api/v1/admin/{club}/registrations/{id}` | `program.registration.view` | 單筆詳情 |
+| `GET /api/v1/admin/{club}/registrations/export` | `program.registration.export`（`is_restricted`） | CSV 匯出，`sessionId`／`status` 篩選同上 |
+| `POST /api/v1/admin/{club}/registrations` | `program.registration.create` | 後台代填（電話／現場報名） |
+| `PUT /api/v1/admin/{club}/registrations/{id}` | `program.registration.update` | 處理報名：確認／取消／轉梯次／候補／備註／學員資料整份覆寫 |
+
+### 公開端點（新增檔案 `Features/Programs`，不需要登入）
+
+| 方法與路徑 | 說明 |
+|---|---|
+| `GET /api/v1/{club}/programs` | 05 課程與活動列表卡片，只回 `status='published'`。`type`（`programType`）、`lang`、`page`、`pageSize` |
+| `GET /api/v1/{club}/programs/{slug}` | 課程詳情：內容、教練團（**只有姓名，不含照片**，見下方說明）、合作夥伴、全部梯次 |
+| `POST /api/v1/{club}/programs/sessions/{sessionId}/registrations` | 報名送出，回傳 `registrationNo`／`status`（`待確認`或`候補`） |
+
+### 權限碼與角色指派（`db/seed/generate-club-seed-sql.py`）
+
+新增 10 個權限碼：`program.item.view/create/update`、`program.session.view/create/update`、
+`program.registration.view/create/update/export`（`export` 是 `is_restricted=1`）。`module_code=P`、
+`domain=program`（獨立於 `team` 之外，矩陣把「球隊／賽事」與「課程／報名」列為兩個獨立欄位）。
+依主站規劃書 §6 矩陣「課程／報名」欄逐列展開：系統管理員 ✔全；內容編輯／競技球隊管理／商務贊助／
+檢視者 唯讀；**學院／課程管理 ✔全（含匯出）**；**客服／行政「報名處理」→ 只給
+`program.registration.view/update`**（不給課程項目／梯次的建立編輯權，也不給匯出）；公關／媒體
+矩陣是「—」，不指派；合作球隊管理 ✔自家課程（`own_clubs`，不含匯出，比照既有保守預設）；
+翻譯人員本輪維持跟其餘模組一致不指派（「僅翻譯欄位」全系統目前沒有任何模組真的做出欄位級強制）。
+
+新增兩個測試帳號：`customer.service@tcrfc.test`（`customer_service_admin`，僅 `tcrfc`，密碼
+`ContentEditor@123`）、`pr.media@tcrfc.test`（`pr_media`，僅 `tcrfc`，同密碼）——理由與既有
+`academy.manager@tcrfc.test`／`team.manager@tcrfc.test` 相同，見 `db/seed/generate-club-seed-sql.py`
+對應段落。
+
+### 名額控管（規劃書行 1097「額滿自動關閉、候補遞補提醒」）
+
+`sessions.enrolled_count` 只由報名寫入路徑維護，後台建立／更新梯次的端點完全不接受呼叫端指定這個
+欄位。「額滿自動關閉」用單一原子 SQL 陳述式完成，不是「先查再寫」：
+
+```sql
+UPDATE sessions
+SET enrolled_count = enrolled_count + 1,
+    status = CASE WHEN capacity IS NOT NULL AND enrolled_count + 1 >= capacity THEN N'額滿' ELSE status END,
+    updated_at = SYSUTCDATETIME()
+OUTPUT INSERTED.id
+WHERE id = @SessionId AND status = N'開放' AND (capacity IS NULL OR enrolled_count < capacity)
+```
+
+只有梯次「目前正是開放中且還有名額」時才會真的更新到那一列（影響列數＝1）；梯次目前是「額滿」
+「候補」（管理者手動設定，代表只收候補）或「已結束」（更早一步被擋下），或兩個訪客同時搶最後一個
+名額，落敗的那一次呼叫影響列數是 0——這一次直接判定為「候補」，不佔用名額。單一 `UPDATE` 陳述式
+本身就有隱含的列鎖定保護，不需要額外的重試或 `UPDLOCK`／`HOLDLOCK` 語法。這個判定**只單向收斂到
+「額滿」**，不會反向把「額滿」自動打回「開放」，也不會自動把「候補」改回「開放」——規劃書只講
+「額滿自動關閉」的單向語意，反向與「候補」都是人工判斷（後台可隨時手動改回）。後台代填報名
+（`Features/AdminRegistrations`）與轉梯次也走同一組邏輯（原子 `UPDATE ... SET enrolled_count =
+enrolled_count + @delta`），但**不做「額滿即拒絕」的關卡**——那是保護公開訪客的行為，後台操作者
+是人，允許人工超額或把候補直接轉正。
+
+### 肖像同意的既有防線沒有被繞過
+
+05 課程詳情把教練團（`program_staff`）嵌進回應，但**刻意只回傳姓名，不含照片**——
+`docs/12` §12 第 32 點與 S1-7a 已確認「全系統只有 `Features/Players`／`Features/Staff` 兩支公開
+端點會依肖像同意白名單輸出球員／教練照片」，本端點若另外夾帶 `photo_key` 會繞過那道白名單、變成
+第三個出口，故刻意不做。前台如需教練完整資料（含已同意的照片）應另外呼叫既有的
+`GET /api/v1/{club}/staff`。
+
+### 規劃書沒寫清楚、本輪自行判斷的地方
+
+1. **前台報名流程的「Email／簡訊通知」未實作**（`docs/02-frontend-spec.md` 行 102／主站規劃書行
+   389：「送出 → 產生報名編號 → Email／簡訊通知」）。`EmailLog.type` 值域是封閉的 9 個值（會員
+   5＋商店 4，`docs/12` §12 第 23 點），課程報名的通知信不在其中；簡訊更是全系統從未建置過的
+   通路（`docs/17-deployment.md` 沒有任何簡訊服務的整合紀錄）。這屬於「綱要與規劃書在這件事上
+   沒有明確答案」，依任務指示停在這裡、不自行新增 `EmailLog.type` 值域或串接簡訊服務，回報供
+   下一輪走 `docs/00-harness.md` §2.5 同步鏈裁決（要嘛新增通知型別與樣板，要嘛裁決課程報名不寄
+   系統信）。「候補遞補提醒」同一個缺口，未實作。
+2. **`Registration.health_declaration`（健康聲明）維持現行 DDL 的明文欄位，未加密、未做欄位級
+   遮罩、未建立蒐集覈實或同意書留存流程**——`docs/12b-database-tables.md` §8 明文標注這欄「🔐
+   建議，⚠️ 待法務確認」，但真正待確認的是《個資法》§6 特種個資的蒐集要件與保存期限，不是儲存
+   方式本身（該檔案原文：「真正要確認的是能不能蒐集、要不要蒐集、保存多久，那在儲存方式之前」）。
+   這層法務判斷超出本次任務邊界，依派工指示「不要自行擴大蒐集範圍」處理：欄位照現行 DDL 收（不
+   新增欄位、不新增同意書上傳），可見範圍依 `program.registration.view` 權限碼控管（矩陣角色
+   分佈見上方），CSV 匯出**刻意排除**這欄（資料最小化，見下一點）。
+3. **CSV 匯出「Excel 匯出」的落地方式**：規劃書行 1090 寫「匯出 Excel：名單匯出（含分組欄位）」，
+   本專案沒有任何 `.xlsx` 產生套件，比照既有 FAQ／賽程／積分榜三個模組的先例（`Common/CsvUtils.cs`
+   檔頭），以 CSV 實作（Excel 可直接開啟）。匯出欄位**刻意不含健康聲明**——名單匯出的用途是人數
+   控管與簽到，不需要醫療類個資；「簽到表列印」由前台／後台畫面直接把這份清單資料印出即可，
+   後端不另外產生 PDF。
+4. **`program.registration.export` 套用 `is_restricted=1`，但沒有另外實作「執行當下二次驗證」**
+   ——`docs/12b` §7.5 承諾的二次驗證（重輸密碼或 2FA）全系統目前沒有任何模組真的做出來（`J2`
+   角色管理只有資料層的旗標，`Security/PermissionChecker.cs` 也只做一般權限碼比對），本輪比照
+   現狀，只掛旗標與基本權限檢查，不另外發明。
+5. **`sessions.status`／`programs.status`／`programs.program_type` 三個值域用 CHECK 約束收斂**
+   （見上方「綱要異動」）——規劃書只在文字敘述給了合法值，DDL 從未真正約束過，判斷比照
+   `AlignSchemaV314` 補 `matches.status` 的既有先例補齊，不是新增規格。
+6. **P1「課程／營隊項目」的「常見問題」欄位不另外新增資料結構**——規劃書 P1 逐字列出的欄位包含
+   「常見問題」，但 FAQ 嵌入機制（G-12，`FaqEmbedSlot`／`FaqEmbedSlotLink`，S1-7a 已完成）已有
+   `program_detail` 這個掛載點，判斷為同一件事的既有落點，不重複建置。
+7. **公開報名送出端點雖然任務描述寫「公開讀取端點」，本輪判斷仍需要一個公開寫入端點**——前台
+   報名流程（規劃書行 389）明確要求「送出 → 產生報名編號」，沒有寫入端點 P3 報名管理就沒有真實
+   資料來源（後台代填只服務電話／現場報名，多數報名預期來自公開網站表單）。判斷這是 P3 報名
+   管理不可或缺的一部分，不是規劃外新增，予以實作。
+8. **未成年報名是否強制要求家長／緊急聯絡人**——`registrations.guardian_name`／`guardian_phone`
+   在 DDL 都是 `NULL`able，規劃書沒有給年齡門檻。本輪不依 `birth_on` 自動判定「未成年」並強制
+   要求家長欄位（沒有法定年齡門檻的依據，屬於會影響蒐集範圍的判斷，依指示不自行擴大），公開送出
+   端點只驗證「姓名必填」「電話與 Email 至少一項」，家長欄位是否必填留給前台表單依實際政策決定。
+9. **報名編號格式**（`{俱樂部代碼}-{yyyyMMdd}-{6 碼隨機}`，例如 `TCRFC-20260925-K7QXM2`）為本輪
+   自訂——規劃書只要求「產生報名編號」，沒有定義格式，比照 `Common/CsvUtils.cs` 檔頭「沒定義就
+   採最小可行」的既有慣例，見 `Common/RegistrationNumberGenerator.cs` 檔頭。
+10. **`registrations.member_id` 可接受呼叫端指定既有會員**（後台代填與公開送出皆有此欄位，驗證
+    FK 存在但不做任何會員登入或自動帶入邏輯）——K1 會員系統尚未開發，前台也沒有會員登入能串接，
+    這欄位目前實務上恆為空，只是為了不擋住日後 K1 開發時的相容性預先接上驗證，沒有新增任何行為。
+
+### 未做的部分（P4 試訓管理，`S2-4`）
+
+`trials`／`registrations.trial_id` 那一半完全沒有動，`Features/AdminRegistrations` 的清單查詢明確
+用 `WHERE session_id IS NOT NULL` 排除試訓報名，避免這批端點意外把 P4 的資料一起吐出來。
+
+### 測試
+
+`Tcrfc.Api.Tests/AdminProgramsSessionsRegistrationsTests.cs` 新增 12 項（權限矩陣 5 項、P1／P2／P3
+CRUD 與驗證 4 項、公開讀取與報名送出 3 項，含跨俱樂部越權、無權限角色 403、額滿轉候補、已結束梯次
+拒絕報名、跨俱樂部梯次 404 等反例）。全套 `dotnet test` **386／386 通過**（連跑兩次皆全線）。
+`apps/admin`／`apps/web` 的 `npm run lint` 皆通過（0 errors；`apps/web` 既有 539 個 warning 與本輪
+無關，未觸碰任何前端檔案）。
+
+---
+
 ## 目錄結構
 
 ```

@@ -623,6 +623,18 @@ flowchart LR
 33. **7 張表的 `status` 已收斂為 `draft`／`published`，拿掉 `scheduled`**（S1-8，`press_resources`／`faqs`／`competitions`／`sponsor_packages`／`collections`／`products`／`charity_programs`）：`docs/14`（S0-7g，2026-09-24）已裁決規劃書只在 `B1` 頁面（行 1014）與 `B2` 新聞（行 1019）給了排程發布，其餘型別後台不提供排程選項。CHECK 曾允許寫入 `'scheduled'` 但沒有 `published_at` 欄位記錄排定時間，會製造「看起來支援排程、實際做不到」的假象，故收斂 CHECK 與後台能力對齊。**`Page`／`Article` 不受影響，維持三態**（它們有 `published_at` 且已接上 `ScheduledPublishRunner`）。⚠️ **`charity_programs` 是主站主檔**（B6，慈善獨立庫的 `CharityProgramRef` 是唯讀快照，本來就沒有 `status` 欄位，不受影響）。✅ **後端已完成（S1-7a，2026-09-24）**：migration `AlignSchemaS17a` 逐表動態查出既有（未命名）CHECK 並換成收斂後、明確命名的版本（`CK_<table>_status`）；套用前已查證 `tcrfc_club_dev` 這 7 張表皆為 0 筆 `status='scheduled'`，未搭配 DML 轉態。
 34. **FAQ 的 G-12 嵌入是「分類自動對應」＋「逐題額外指定」兩層疊加，不是互斥的兩選一**（S1-8，行 1029）：`FaqEmbedSlot` 只是站內已知掛載點的字典（`academy_admission`／`program_detail`／`trials`／`sponsorship`），**刻意不建「掛載點對應哪個分類」的對照表**——那是應用層的固定路由決定（例如 4.7 頁面固定拉「學院招生」分類），規劃書沒有要求這層可由後台配置，建表反而過度設計。`FaqEmbedSlotLink` 只承載「這一題額外也要出現在某個掛載點」的例外情形。**`faq_categories.is_enabled` 是軟停用**，取代先前「用刪除湊停用」的作法（刪除會經 `ON DELETE CASCADE` 解除分類關聯且不可逆）。✅ **後端已完成（S1-7a，2026-09-24）**：`faq_embed_slots` 種子四筆（DML，`db/seed/generate-club-seed-sql.py` §21）、FAQ 建立／更新可指定 `EmbedSlotIds`（省略維持不變、空陣列清空）、公開端點 `GET /api/v1/{club}/faqs/embeds/{code}`**只回傳「逐題額外指定」那一半**（「分類自動對應」由前台頁面另外查既有的 `?category=` 篩選自行合併，後端沒有掛載點對應分類的資料可查，見 `apps/api/README.md`）、`faq_categories.is_enabled` 公開分類清單依此過濾、後台改為 `PUT` 切換啟用停用（`DELETE` 仍是真刪除）。
 35. 🔴 **（v3.14）`matches.status` 補齊五值並加上 CHECK 約束，解除本節第 31 點原本記錄的行文落差**：主站規劃書 §3.13／§4.3 C4／§5.1 `Match` 三處已一致為五值（`scheduled`／`live`／`played`／`postponed`／`cancelled`，中文未開始／進行中／已結束／延賽／取消）。`db/club-schema.sql` 的 `matches.status` 補上 `CHECK (status IN ('scheduled','live','played','postponed','cancelled'))`（欄寬 `nvarchar(16)` 已足夠，最長值 `postponed`／`cancelled` 均為 9 字元，已實測量過，見 `docs/18` `E-50` 的教訓）。⚠️ **應用層尚未跟上，這是後端待辦**：`Features/AdminMatches/AdminMatchesRepository.cs` 的 `AllowedStatuses`／`StatusZhLabels` 目前仍是四值，不接受 `cancelled`；本次只改規劃書與 DDL，未改 `apps/api`。同一輪一併新增 **`banners.status`（`draft`／`published`，預設 `draft`）**：新增或上傳後為草稿，發布後依既有 `start_at`／`end_at`（上架期間）自動顯示與下架——**這是查詢時的區間過濾，不是排程轉態**，`banners` 不接 `ScheduledPublishRunner`、不加 `scheduled` 值，理由與本檔 §4.1 `Banner` 列同。[`12d`](12d-field-audit.md) §6 的 `Match.status` 對應項目已標記解決。
+36. 🔴 **（S1-9，2026-09-25）`programs.status`／`programs.program_type`／`sessions.status` 三欄補上
+    CHECK 約束**：三欄本來就存在（v3.0 建表時就有），但跟第 35 點的 `matches.status` 一樣，
+    從來沒有被任何 CHECK 約束過。`programs.status` 比照一般內容型別兩態慣例
+    （`CHECK (status IN ('draft','published'))`，P1 規劃書沒有排程發布需求，見第 33 點同一個
+    S0-7g 裁決）；`programs.program_type` 對應前台 05 課程與活動 5.1–5.5 五個課程頁（主站規劃書
+    §4.4 P1：兒童訓練／夏令營／冬令營／專項訓練／校園社區，`CHECK (program_type IN
+    ('children_training','summer_camp','winter_camp','specialist_training','school_community'))`）；
+    `sessions.status` 直接沿用規劃書 P2（行 1098）「狀態（開放／額滿／候補／已結束）」的中文字面，
+    比照 `CK_registrations_status` 已建立的先例用中文值而非英文代碼
+    （`CHECK (status IN (N'開放',N'額滿',N'候補',N'已結束'))`）。三欄皆允許 `NULL`。
+    套用前已查證 `tcrfc_club_dev` 這兩張表皆為 0 筆資料，純 DDL 變更，不需搭配任何 DML 轉態。
+    後端 API 見 `apps/api/README.md`「S1-9」段；migration 名稱 `AlignSchemaS19Programs`。
 
 ---
 

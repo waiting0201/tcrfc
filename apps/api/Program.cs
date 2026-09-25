@@ -18,7 +18,10 @@ using Tcrfc.Api.Features.AdminMatches;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.AdminPages;
 using Tcrfc.Api.Features.AdminPlayers;
+using Tcrfc.Api.Features.AdminPrograms;
+using Tcrfc.Api.Features.AdminRegistrations;
 using Tcrfc.Api.Features.AdminRoles;
+using Tcrfc.Api.Features.AdminSessions;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
@@ -28,6 +31,7 @@ using Tcrfc.Api.Features.Home;
 using Tcrfc.Api.Features.News;
 using Tcrfc.Api.Features.Pages;
 using Tcrfc.Api.Features.Players;
+using Tcrfc.Api.Features.Programs;
 using Tcrfc.Api.Features.Schedule;
 using Tcrfc.Api.Features.Staff;
 using Tcrfc.Api.Features.Teams;
@@ -152,6 +156,12 @@ builder.Services.AddScoped<AdminStaffRepository>();
 // ── S1-8：C4 賽程與賽果／積分榜俱樂部範圍 CRUD ＋ CSV 批次匯入 ─────────────────
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminMatches.AdminMatchesRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminStandings.AdminStandingsRepository>();
+
+// ── S1-9：P1–P3 課程項目／梯次／報名 ─────────────────────────────────────
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminPrograms.AdminProgramsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminSessions.AdminSessionsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminRegistrations.AdminRegistrationsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Programs.ProgramsRepository>();
 
 // Data Protection：加密 admin_users.two_factor_secret_encrypted（Security/TwoFactorSecretProtector.cs）。
 // 🔴 正式環境務必設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
@@ -331,6 +341,9 @@ app.MapPagesEndpoints();
 app.MapHomeEndpoints();
 app.MapFaqsEndpoints();
 
+// ── S1-9：05 課程與活動公開讀取＋報名送出 ─────────────────────────────────
+app.MapProgramsEndpoints();
+
 app.MapAdminAuthEndpoints();
 
 // 路由一律註冊，每個請求各自由 IAdminClubAuthorizer 驗證登入與授權（401／403）。
@@ -361,6 +374,11 @@ app.MapAdminHomeSectionsEndpoints();
 app.MapAdminFaqsEndpoints();
 app.MapAdminFaqCategoriesEndpoints();
 app.MapAdminFaqEmbedSlotsEndpoints();
+
+// ── S1-9：P1–P3 課程項目／梯次／報名 ─────────────────────────────────────
+app.MapAdminProgramsEndpoints();
+app.MapAdminSessionsEndpoints();
+app.MapAdminRegistrationsEndpoints();
 
 app.Run();
 

@@ -915,6 +915,29 @@ PERMISSIONS = [
     ("team.standing.create", "C", "C4", "team", "create", 1, 0, 0, "建立積分榜", "Create Standings"),
     ("team.standing.update", "C", "C4", "team", "update", 1, 0, 0, "編輯積分榜", "Update Standings"),
     ("team.standing.delete", "C", "C4", "team", "delete", 1, 0, 0, "刪除積分榜", "Delete Standings"),
+    # S1-9 新增：P1 課程／營隊項目、P2 梯次與場次、P3 報名管理。domain 獨立取 "program"（不沿用
+    # C 模組的 "team"——規劃書 §6 矩陣把「球隊／賽事」與「課程／報名」列為兩個獨立欄位）。
+    # programs／sessions／registrations 三張表皆為 club_id 必填（非 9 張可為空表之一，主站規劃書
+    # §5.4／docs/12 §5.4），is_club_scoped=1，非 sysadmin_only。三個子模組刻意不做刪除權限碼——
+    # P1／P2 規劃書沒有要求刪除能力，狀態改為「已結束」即可涵蓋停用語意；P3 的「取消」本身就是
+    # registrations.status 的合法值，不需要真刪除一列，見 apps/api/README.md「S1-9」段。
+    # 🔴 沒有列級授權（scope_type 一律 "all"／"academy_only" 只是沿用角色本身的 scope_mode，不是
+    # 逐列過濾）：programs／sessions／registrations 三張表都沒有 team_id 欄位，TeamRowScope 對
+    # 這組權限碼完全不生效，矩陣「學院／課程管理」列的「與球隊」限定只用在 team.* 那組權限碼上，
+    # 「課程／報名」欄本身矩陣直接寫「✔全」，見 Features/AdminPrograms/AdminProgramsRepository.cs
+    # 檔頭的完整說明。program.registration.export（is_restricted=1）：報名名單含未成年學員與家長
+    # 聯絡方式等個資（docs/12b §8），比照會員名單／訂單匯出「須額外授權」的既有原則（docs/12b
+    # §7.5），本輪判斷套用同一原則於這個新增的個資匯出情境，見任務回報「規劃書沒寫清楚、自行判斷」。
+    ("program.item.view", "P", "P1", "program", "view", 1, 0, 0, "檢視課程／營隊項目", "View Program Items"),
+    ("program.item.create", "P", "P1", "program", "create", 1, 0, 0, "建立課程／營隊項目", "Create Program Items"),
+    ("program.item.update", "P", "P1", "program", "update", 1, 0, 0, "編輯課程／營隊項目", "Update Program Items"),
+    ("program.session.view", "P", "P2", "program", "view", 1, 0, 0, "檢視梯次與場次", "View Program Sessions"),
+    ("program.session.create", "P", "P2", "program", "create", 1, 0, 0, "建立梯次與場次", "Create Program Sessions"),
+    ("program.session.update", "P", "P2", "program", "update", 1, 0, 0, "編輯梯次與場次", "Update Program Sessions"),
+    ("program.registration.view", "P", "P3", "program", "view", 1, 0, 0, "檢視報名", "View Registrations"),
+    ("program.registration.create", "P", "P3", "program", "create", 1, 0, 0, "建立報名（後台代填）", "Create Registrations"),
+    ("program.registration.update", "P", "P3", "program", "update", 1, 0, 0, "處理報名（確認／取消／轉梯次／候補／備註）", "Update Registrations"),
+    ("program.registration.export", "P", "P3", "program", "export", 1, 1, 0, "匯出報名名單", "Export Registrations"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -1066,6 +1089,28 @@ ROLE_PERMISSIONS = [
     # 授權」同一個道理），跟既有 content_editor／viewer／business_sponsorship／pr_media 的
     # team.competition.view 一律給 "all" 是同一個理由，不是特例。
     ("academy_program", ["team.competition.view"], "all"),
+    # S1-9 新增：P1–P3 課程項目／梯次／報名，依規劃書 §6 矩陣「課程／報名」欄逐列展開。
+    # 內容編輯／競技球隊管理／商務贊助／檢視者：唯讀。學院／課程管理：✔全（含匯出）。
+    # 客服／行政矩陣寫「報名處理」——只給報名子模組的檢視與處理，不給課程項目／梯次的建立編輯權，
+    # 也不給匯出（is_restricted，本輪保守預設不隨附加，見上方 PERMISSIONS 註解）。公關／媒體矩陣
+    # 是「—」，不指派任何權限碼。合作球隊管理：✔自家課程（own_clubs，比照既有 team.* 鋪法，不含
+    # 匯出——理由同客服／行政，屬保守預設）。
+    ("content_editor", ["program.item.view", "program.session.view", "program.registration.view"], "all"),
+    ("team_competition", ["program.item.view", "program.session.view", "program.registration.view"], "all"),
+    ("business_sponsorship", ["program.item.view", "program.session.view", "program.registration.view"], "all"),
+    ("viewer", ["program.item.view", "program.session.view", "program.registration.view"], "all"),
+    ("academy_program", [
+        "program.item.view", "program.item.create", "program.item.update",
+        "program.session.view", "program.session.create", "program.session.update",
+        "program.registration.view", "program.registration.create", "program.registration.update",
+        "program.registration.export",
+    ], "all"),
+    ("customer_service_admin", ["program.registration.view", "program.registration.update"], "all"),
+    ("partner_club_manager", [
+        "program.item.view", "program.item.create", "program.item.update",
+        "program.session.view", "program.session.create", "program.session.update",
+        "program.registration.view", "program.registration.create", "program.registration.update",
+    ], "own_clubs"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")
@@ -1135,6 +1180,12 @@ ADMIN_USERS = [
     # 角色與授權跟 academy.manager 相同（academy_program、僅 bw），沿用 content.editor 的雜湊。
     ("academy.login@tcrfc.test", "學院／課程管理（實走用測試帳號，僅藍鯨）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
      False, False, False, "academy_program", [("bw", None)]),
+    # S1-9 新增：測試「報名處理」（customer_service_admin）與「完全沒有課程權限」（pr_media，
+    # 矩陣「課程／報名」欄是「—」）兩種情境，沿用 content.editor@tcrfc.test 的雜湊（純測試帳號）。
+    ("customer.service@tcrfc.test", "客服／行政（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, True, "customer_service_admin", [("tcrfc", None)]),
+    ("pr.media@tcrfc.test", "公關／媒體（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, True, "pr_media", [("tcrfc", None)]),
 ]
 
 emit("-- ── 18.4 admin_users：種子超管（真雜湊，Admin@123）＋ 五個角色測試帳號（真雜湊） ──")
@@ -1152,6 +1203,8 @@ emit("--   fresh.setup@tcrfc.test       / Admin@123（沿用同一組雜湊）")
 emit("--   lockout.test@tcrfc.test      / Viewer@123（沿用同一組雜湊）")
 emit("--   clean.login@tcrfc.test       / SuperAdmin@123（沿用同一組雜湊，two_factor_enabled=0，唯一能走完整 /login 流程的帳號）")
 emit("--   academy.login@tcrfc.test     / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，學院角色的端對端實走帳號，僅授權 bw）")
+emit("--   customer.service@tcrfc.test  / ContentEditor@123（沿用同一組雜湊，測 P3「報名處理」局部權限）")
+emit("--   pr.media@tcrfc.test          / ContentEditor@123（沿用同一組雜湊，測完全沒有課程／報名權限的 403）")
 for username, display_name, password_hash, is_super, must_change, two_factor, role_code, club_grants in ADMIN_USERS:
     user_id = new_id("admin_user", username)
     block(f"""

@@ -42,6 +42,9 @@ public static class UploadSlotPolicy
             // 檔案欄位（"image" 插槽此時作為影片的海報格 poster，兩者同一次請求一起送，見
             // AdminBannersEndpoints 的 UploadVideoAsync）。
             ["banners"] = new HashSet<string>(StringComparer.Ordinal) { "image", "video" },
+            // S1-9 新增：P1 課程／營隊項目——programs.cover_key（db/club-schema.sql「4.3 P 課程與活動」
+            // 建表陳述式），比照上面 staff.photo 的接法。
+            ["programs"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
         };
 
     public static void Validate(string entityType, string field)

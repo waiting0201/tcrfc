@@ -967,7 +967,13 @@ CREATE TABLE programs (
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_programs PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_programs_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_programs_row_seq UNIQUE CLUSTERED (row_seq),
+  -- S1-9：欄位本身早就存在但從未被 CHECK 約束過（docs/12 §12 第 35 點）。status 比照一般內容
+  -- 型別的兩態慣例（草稿／已發布，規劃書 P1 沒有排程發布需求）；program_type 對應前台 05 課程與
+  -- 活動 5.1–5.5 五個課程頁（主站規劃書 §4.4 P1）。兩者皆允許 NULL（尚未分類／尚未設定狀態）。
+  CONSTRAINT CK_programs_status CHECK (status IN ('draft','published')),
+  CONSTRAINT CK_programs_program_type CHECK (program_type IN
+    ('children_training','summer_camp','winter_camp','specialist_training','school_community'))
 );
 
 CREATE TABLE programs_i18n (
@@ -1018,7 +1024,11 @@ CREATE TABLE sessions (
   created_by          uniqueidentifier NULL,
   updated_by          uniqueidentifier NULL,
   CONSTRAINT PK_sessions PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_sessions_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_sessions_row_seq UNIQUE CLUSTERED (row_seq),
+  -- S1-9：欄位早就存在但從未被 CHECK 約束過（docs/12 §12 第 35 點）。狀態值直接沿用規劃書 P2
+  -- 行 1098「狀態（開放／額滿／候補／已結束）」的中文字面，比照 registrations.status 已建立的
+  -- 先例（CK_registrations_status 同樣用中文值），不翻成英文代碼。
+  CONSTRAINT CK_sessions_status CHECK (status IN (N'開放',N'額滿',N'候補',N'已結束'))
 );
 
 -- 報名。member_id 可為空（非會員可報名）；繳費線下。同時服務 session 與 trial，兩外鍵恰有一個非空。

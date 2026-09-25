@@ -11,10 +11,14 @@ using Tcrfc.Api.Features.AdminMatches;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.AdminPages;
 using Tcrfc.Api.Features.AdminPlayers;
+using Tcrfc.Api.Features.AdminPrograms;
+using Tcrfc.Api.Features.AdminRegistrations;
 using Tcrfc.Api.Features.AdminRoles;
+using Tcrfc.Api.Features.AdminSessions;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
+using Tcrfc.Api.Features.Programs;
 using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Videos;
@@ -151,6 +155,25 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status409Conflict, "場次編號重複", matchNoConflict.Message),
             AdminStandingValidationException standingValidation =>
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", standingValidation.Message),
+
+            // ── S1-9 新增：P1–P3 課程項目／梯次／報名（Features/AdminPrograms、AdminSessions、
+            //    AdminRegistrations、Programs）─────────────────────────────────────
+            AdminProgramValidationException programValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", programValidation.Message),
+            ProgramSlugConflictException programSlugConflict =>
+                (StatusCodes.Status409Conflict, "網址名稱重複", programSlugConflict.Message),
+            AdminSessionValidationException sessionValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", sessionValidation.Message),
+            ProgramNotFoundForSessionException programNotFoundForSession =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", programNotFoundForSession.Message),
+            AdminRegistrationValidationException registrationValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", registrationValidation.Message),
+            SessionNotFoundForRegistrationException sessionNotFoundForRegistration =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", sessionNotFoundForRegistration.Message),
+            ProgramRegistrationValidationException publicRegistrationValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", publicRegistrationValidation.Message),
+            ProgramSessionNotFoundException programSessionNotFound =>
+                (StatusCodes.Status404NotFound, "找不到梯次", programSessionNotFound.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),
