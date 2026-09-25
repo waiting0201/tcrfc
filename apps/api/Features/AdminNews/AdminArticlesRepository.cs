@@ -3,6 +3,7 @@ using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -27,7 +28,8 @@ namespace Tcrfc.Api.Features.AdminNews;
 /// <c>IClubResolver</c> 就能編譯過、跑得動、繞過整套登入與授權——這正是 2026-09-23 使用者裁決
 /// 要堵的洞。詳細設計理由見 apps/api/README.md「新增後台端點的必要形狀」。
 /// </summary>
-public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage)
+public sealed class AdminArticlesRepository(
+    ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage, IImagePublicUrlResolver imageUrlResolver)
 {
     /// <summary>公開讀取 API 用的 entity 名稱，寫入成功後要讓這兩個快取失效（docs/17 §4「write-invalidate」）。</summary>
     private const string PublicListEntity = "articles";
@@ -178,7 +180,8 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
     /// 這個方法本身完全不碰物件儲存，只負責把已知結果寫進資料列，職責跟舊版一致。
     /// </summary>
     public async Task<AdminArticleDetailDto> CreateAsync(
-        AdminClubScope scope, Guid articleId, CreateArticleRequest request, string? coverKey, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid articleId, CreateArticleRequest request, string? coverKey,
+        ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
         SlugPolicy.Validate(request.Slug);
@@ -216,6 +219,12 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
             IsFeatured = request.IsFeatured,
             Status = "draft", // 🔴 一律從草稿開始，狀態轉換是獨立端點（Publish／Schedule），不接受這裡帶入
             PublishedAt = null,
+            CanonicalPath = string.IsNullOrWhiteSpace(request.CanonicalPath) ? null : request.CanonicalPath,
+            IsNoindex = request.IsNoindex,
+            IsExcludedFromSitemap = request.IsExcludedFromSitemap,
+            OgImageKey = ogImageUpdate.Change ? ogImageUpdate.Key : null,
+            OgImageWidth = ogImageUpdate.Change ? ogImageUpdate.Width : null,
+            OgImageHeight = ogImageUpdate.Change ? ogImageUpdate.Height : null,
             CreatedAt = now,
             UpdatedAt = now,
             CreatedBy = operatorId,
@@ -261,7 +270,8 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
     /// 「寫入 blob 成功才更新資料列」）。
     /// </summary>
     public async Task<AdminArticleDetailDto?> UpdateAsync(
-        AdminClubScope scope, Guid id, UpdateArticleRequest request, CoverKeyUpdate coverUpdate, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid id, UpdateArticleRequest request, CoverKeyUpdate coverUpdate,
+        ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
         SlugPolicy.Validate(request.Slug);
@@ -303,10 +313,24 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         // 下面「換了才刪舊物件」的比較自然不會觸發刪除，不需要另外寫一條「沒變就跳過」的分支。
         var effectiveCoverKey = coverUpdate.Change ? coverUpdate.NewKey : article.CoverKey;
 
+        // S1-12 新增：OG 圖片同一套「換圖成功才刪舊物件」邏輯，獨立於封面圖片之外。
+        var previousOgImageKey = article.OgImageKey;
+        var effectiveOgImageKey = ogImageUpdate.Change ? ogImageUpdate.Key : article.OgImageKey;
+
         article.Slug = request.Slug;
         article.ArticleCategoryId = category.Id;
         article.CoverKey = effectiveCoverKey;
         article.IsFeatured = request.IsFeatured;
+        article.CanonicalPath = string.IsNullOrWhiteSpace(request.CanonicalPath) ? null : request.CanonicalPath;
+        article.IsNoindex = request.IsNoindex;
+        article.IsExcludedFromSitemap = request.IsExcludedFromSitemap;
+        if (ogImageUpdate.Change)
+        {
+            article.OgImageKey = ogImageUpdate.Key;
+            article.OgImageWidth = ogImageUpdate.Width;
+            article.OgImageHeight = ogImageUpdate.Height;
+        }
+
         article.UpdatedAt = DateTime.UtcNow;
         article.UpdatedBy = operatorId;
 
@@ -354,6 +378,11 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
             // fail-open：IImageStorageService.DeleteAsync 內部自己吞例外並記警告日誌，
             // 這裡不需要（也不應該）用 try/catch 再包一層讓一個非關鍵的清理步驟影響回應。
             await imageStorage.DeleteAsync(previousCoverKey, cancellationToken);
+        }
+
+        if (!string.Equals(previousOgImageKey, effectiveOgImageKey, StringComparison.Ordinal))
+        {
+            await imageStorage.DeleteAsync(previousOgImageKey, cancellationToken);
         }
 
         return await GetByIdAsync(scope, id, cancellationToken);
@@ -440,6 +469,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
         ApplyConcurrencyToken(article, expectedUpdatedAt);
         var coverKey = article.CoverKey;
+        var ogImageKey = article.OgImageKey;
         dbContext.Articles.Remove(article);
 
         await SaveWithConcurrencyHandlingAsync(cancellationToken);
@@ -447,6 +477,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
 
         // 刪除資料列一併刪除其圖片物件（規劃書 §4.0「換圖與刪除」）。
         await imageStorage.DeleteAsync(coverKey, cancellationToken);
+        await imageStorage.DeleteAsync(ogImageKey, cancellationToken);
 
         return true;
     }
@@ -708,6 +739,8 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         existing.Body = content.Body;
         existing.SeoTitle = content.SeoTitle;
         existing.SeoDescription = content.SeoDescription;
+        existing.SeoKeywords = content.SeoKeywords;
+        existing.OgImageAlt = content.OgImageAlt;
     }
 
     private async Task<ArticleCategory> ResolveCategoryAsync(string categoryCode, CancellationToken cancellationToken)
@@ -901,7 +934,7 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
         _ => status,
     };
 
-    private static AdminArticleDetailDto ToDetailDto(Article article, IReadOnlyList<string> coreValueTags)
+    private AdminArticleDetailDto ToDetailDto(Article article, IReadOnlyList<string> coreValueTags)
     {
         var zh = article.ArticlesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = article.ArticlesI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -918,6 +951,12 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
             PublishedAt = article.PublishedAt,
             IsShared = article.ClubId is null,
             UpdatedAt = article.UpdatedAt,
+            CanonicalPath = article.CanonicalPath,
+            IsNoindex = article.IsNoindex,
+            IsExcludedFromSitemap = article.IsExcludedFromSitemap,
+            OgImageUrl = imageUrlResolver.Resolve(article.OgImageKey),
+            OgImageWidth = article.OgImageWidth,
+            OgImageHeight = article.OgImageHeight,
             Zh = new AdminArticleLocaleContent
             {
                 Title = zh?.Title,
@@ -925,6 +964,8 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
                 Body = zh?.Body,
                 SeoTitle = zh?.SeoTitle,
                 SeoDescription = zh?.SeoDescription,
+                SeoKeywords = zh?.SeoKeywords,
+                OgImageAlt = zh?.OgImageAlt,
             },
             En = en is null ? null : new AdminArticleLocaleContent
             {
@@ -933,6 +974,8 @@ public sealed class AdminArticlesRepository(ClubDbContext dbContext, IQueryCache
                 Body = en.Body,
                 SeoTitle = en.SeoTitle,
                 SeoDescription = en.SeoDescription,
+                SeoKeywords = en.SeoKeywords,
+                OgImageAlt = en.OgImageAlt,
             },
             Tags = article.Tags
                 .Select(t => new AdminArticleTagDto

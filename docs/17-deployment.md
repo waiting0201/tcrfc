@@ -659,6 +659,15 @@ QR Code 編碼的是固定字串（網址），一旦印出並分發給合作店
 |---|---|---|---|
 | 1．HTTP 標頭 | `X-Robots-Tag: noindex, nofollow, noarchive`（Nuxt 端由 `NUXT_PUBLIC_SITE_ENV=prelaunch` 觸發；兩個後台由 `deploy/Caddyfile` **永久**加，不分階段） | 涵蓋**非 HTML 資源**（PDF、圖片）——`<meta>` 標籤只在 HTML 的 `<head>` 有效，標頭則對任何回應都有效 | 只對**遵守規則**的爬蟲有效；不阻止人類訪客、不阻止惡意爬蟲、不阻止連結被分享 |
 | 2．`robots.txt` | `NUXT_PUBLIC_SITE_ENV=prelaunch` 時輸出 `Disallow: /`（覆蓋 `GEO-02` 平常「全站允許但排除特定路徑」的正式規則） | 涵蓋**遵守 `robots.txt` 的爬蟲**，包含 `GEO-02` 允許清單上的 AI 爬蟲 | 同上，是**自願遵守**的協議，不是技術屏障 |
+
+> ✅ **這一列的環境旗標切換已於 S1-12（H 模組，2026-09-25 驗收退回後補做）實作**：
+> `apps/web/server/routes/robots.txt.ts` 只有 `NUXT_PUBLIC_SITE_ENV` 精確等於 `production`
+> 時才輸出允許索引的版本，其餘任何值（含未設定）一律輸出本列描述的封鎖版，見
+> `apps/api/README.md`「S1-12」段「驗收退回後補做」小節。**目前 production 分支只有基本
+> 允許索引＋後台線上編輯的自訂規則，尚未包含這一列括號裡提到的 `GEO-02` 逐一 AI 爬蟲允許
+> 清單與排除路徑**——那屬於 `S1-12b`（依 `STATUS.md` 排程），等那張票做完再擴充。
+> ⚠️ **第 1 層（`X-Robots-Tag` 標頭）目前仍是無條件套用，沒有跟著這個變數切換**——真正上線時
+> 兩層要一起由本節「上線前三層防護」的完整程序處理，不是各自獨立切換。
 | 3．存取控制 | 三個公開前台（stg）：**HTTP Basic Auth**（`deploy/Caddyfile.prelaunch`，由 `.env` 的 `CADDYFILE` 指定，見 §10.8）；兩個後台（stg）：**建議 Cloudflare Access**（在 Cloudflare 端設定，email 一次性驗證碼，不改本檔案） | **真正的技術屏障**：沒有帳密／沒通過 Access 政策，連 HTML 本身都拿不到——爬蟲擋得住，意外分享的連結也擋得住 | 若設定有疏漏（例如忘記幫新開的子網域套用同一組保護），這層可能出現漏洞 |
 
 **為什麼三層都要，不能只做第 3 層**：

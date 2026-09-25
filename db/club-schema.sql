@@ -226,6 +226,10 @@ CREATE TABLE email_logs (
    ============================================================================ */
 
 -- 靜態頁面主檔。藍鯨官網入口頁亦屬此型別。唯一鍵 (club_id, slug)。
+-- S1-12（H 單頁 SEO）：canonical_path 手動覆寫網址正規化（多數頁面留空，沿用前端自動產生的
+-- canonical）；is_noindex／is_excluded_from_sitemap 皆 bit 預設 0，後者只影響 Sitemap 產生器，
+-- 不影響頁面本身在站內是否可瀏覽。og_image_key／_width／_height：OG 圖片覆寫（驗收退回後補做，
+-- 2026-09-25），圖片欄位組比照既有通則，alt 走 pages_i18n（見下）。
 CREATE TABLE pages (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
@@ -234,6 +238,12 @@ CREATE TABLE pages (
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
                     CHECK (status IN ('draft','published','scheduled')),
   published_at    datetime2(3)     NULL,
+  canonical_path  nvarchar(500)    NULL,
+  is_noindex      bit              NOT NULL DEFAULT 0,
+  is_excluded_from_sitemap bit     NOT NULL DEFAULT 0,
+  og_image_key    nvarchar(500)    NULL,
+  og_image_width  int              NULL,
+  og_image_height int              NULL,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -243,11 +253,14 @@ CREATE TABLE pages (
 );
 
 -- 頁面 SEO 逐語系欄位（docs/12c §3.1：無 title——內文與標題全走區塊編輯器）。
+-- seo_keywords：S1-12 新增，單頁 Meta Keywords。og_image_alt：OG 圖片替代文字（逐語系）。
 CREATE TABLE pages_i18n (
   page_id         uniqueidentifier NOT NULL,
   locale          nvarchar(10)     NOT NULL,
   seo_title       nvarchar(200)    NULL,
   seo_description nvarchar(300)    NULL,
+  seo_keywords    nvarchar(200)    NULL,
+  og_image_alt    nvarchar(200)    NULL,
   CONSTRAINT PK_pages_i18n PRIMARY KEY CLUSTERED (page_id, locale)
 );
 
@@ -287,6 +300,9 @@ CREATE TABLE page_versions (
 );
 
 -- 新聞與故事。club_id 可為空＝兩隊共同；slug 維持全站唯一（共同文章須單一 canonical）。
+-- S1-12（H 單頁 SEO）：canonical_path／is_noindex／is_excluded_from_sitemap，理由同 pages，見上方註解。
+-- og_image_key／_width／_height：OG 圖片覆寫（驗收退回後補做，2026-09-25）——與既有 cover_key
+-- 是兩個獨立欄位，OG 圖片未設定時前台回退用 cover_key，見 apps/api/README.md「S1-12」段。
 CREATE TABLE articles (
   id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
@@ -299,6 +315,12 @@ CREATE TABLE articles (
   status              nvarchar(16)     NOT NULL DEFAULT 'draft'
                         CHECK (status IN ('draft','published','scheduled')),
   published_at        datetime2(3)     NULL,
+  canonical_path      nvarchar(500)    NULL,
+  is_noindex          bit              NOT NULL DEFAULT 0,
+  is_excluded_from_sitemap bit         NOT NULL DEFAULT 0,
+  og_image_key        nvarchar(500)    NULL,
+  og_image_width      int              NULL,
+  og_image_height     int              NULL,
   created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by          uniqueidentifier NULL,
@@ -307,7 +329,8 @@ CREATE TABLE articles (
   CONSTRAINT UQ_articles_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
--- 文章逐語系內容（docs/12 §2.2 範例表）。
+-- 文章逐語系內容（docs/12 §2.2 範例表）。seo_keywords：S1-12 新增，單頁 Meta Keywords。
+-- og_image_alt：OG 圖片替代文字（逐語系）。
 CREATE TABLE articles_i18n (
   article_id      uniqueidentifier NOT NULL,
   locale          nvarchar(10)     NOT NULL,
@@ -316,6 +339,8 @@ CREATE TABLE articles_i18n (
   body            json             NULL,
   seo_title       nvarchar(200)    NULL,
   seo_description nvarchar(300)    NULL,
+  seo_keywords    nvarchar(200)    NULL,
+  og_image_alt    nvarchar(200)    NULL,
   CONSTRAINT PK_articles_i18n PRIMARY KEY CLUSTERED (article_id, locale)
 );
 
@@ -1522,6 +1547,10 @@ CREATE TABLE clubs (
   logo_dark_key             nvarchar(255)    NULL,
   favicon_key               nvarchar(255)    NULL,
   og_image_key              nvarchar(255)    NULL,
+  -- S1-12（H 全站 SEO 預設，驗收退回後補做，2026-09-25）：og_image_key 早已存在（J4 品牌欄位），
+  -- 這兩欄補上尺寸，讓公開端點能輸出 og:image:width／og:image:height。
+  og_image_width            int              NULL,
+  og_image_height           int              NULL,
   brand_color               nvarchar(16)     NULL,
   brand_secondary_color     nvarchar(16)     NULL,
   invoice_title             nvarchar(64)     NULL,

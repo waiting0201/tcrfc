@@ -646,6 +646,21 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.PublishedAt)
                 .HasPrecision(3)
                 .HasColumnName("published_at");
+            // S1-12（H 單頁 SEO）：canonical_path／is_noindex／is_excluded_from_sitemap。
+            entity.Property(e => e.CanonicalPath)
+                .HasMaxLength(500)
+                .HasColumnName("canonical_path");
+            entity.Property(e => e.IsNoindex)
+                .HasDefaultValue(false)
+                .HasColumnName("is_noindex");
+            entity.Property(e => e.IsExcludedFromSitemap)
+                .HasDefaultValue(false)
+                .HasColumnName("is_excluded_from_sitemap");
+            entity.Property(e => e.OgImageKey)
+                .HasMaxLength(500)
+                .HasColumnName("og_image_key");
+            entity.Property(e => e.OgImageWidth).HasColumnName("og_image_width");
+            entity.Property(e => e.OgImageHeight).HasColumnName("og_image_height");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -797,6 +812,12 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.SeoTitle)
                 .HasMaxLength(200)
                 .HasColumnName("seo_title");
+            entity.Property(e => e.SeoKeywords)
+                .HasMaxLength(200)
+                .HasColumnName("seo_keywords");
+            entity.Property(e => e.OgImageAlt)
+                .HasMaxLength(200)
+                .HasColumnName("og_image_alt");
             entity.Property(e => e.Summary).HasColumnName("summary");
             entity.Property(e => e.Title)
                 .HasMaxLength(200)
@@ -1403,6 +1424,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.OgImageKey)
                 .HasMaxLength(255)
                 .HasColumnName("og_image_key");
+            entity.Property(e => e.OgImageWidth).HasColumnName("og_image_width");
+            entity.Property(e => e.OgImageHeight).HasColumnName("og_image_height");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -4434,6 +4457,21 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.PublishedAt)
                 .HasPrecision(3)
                 .HasColumnName("published_at");
+            // S1-12（H 單頁 SEO）：canonical_path／is_noindex／is_excluded_from_sitemap。
+            entity.Property(e => e.CanonicalPath)
+                .HasMaxLength(500)
+                .HasColumnName("canonical_path");
+            entity.Property(e => e.IsNoindex)
+                .HasDefaultValue(false)
+                .HasColumnName("is_noindex");
+            entity.Property(e => e.IsExcludedFromSitemap)
+                .HasDefaultValue(false)
+                .HasColumnName("is_excluded_from_sitemap");
+            entity.Property(e => e.OgImageKey)
+                .HasMaxLength(500)
+                .HasColumnName("og_image_key");
+            entity.Property(e => e.OgImageWidth).HasColumnName("og_image_width");
+            entity.Property(e => e.OgImageHeight).HasColumnName("og_image_height");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -4574,6 +4612,12 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.SeoTitle)
                 .HasMaxLength(200)
                 .HasColumnName("seo_title");
+            entity.Property(e => e.SeoKeywords)
+                .HasMaxLength(200)
+                .HasColumnName("seo_keywords");
+            entity.Property(e => e.OgImageAlt)
+                .HasMaxLength(200)
+                .HasColumnName("og_image_alt");
 
             entity.HasOne(d => d.Page).WithMany(p => p.PagesI18ns)
                 .HasForeignKey(d => d.PageId)

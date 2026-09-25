@@ -992,6 +992,22 @@ PERMISSIONS = [
     ("calendar.custom_event.create", "L", "L2", "calendar", "create", 1, 0, 0, "建立自建事件", "Create Custom Events"),
     ("calendar.custom_event.update", "L", "L2", "calendar", "update", 1, 0, 0, "編輯自建事件", "Update Custom Events"),
     ("calendar.custom_event.delete", "L", "L2", "calendar", "delete", 1, 0, 0, "刪除自建事件", "Delete Custom Events"),
+    # S1-12 新增：H 搜尋與 AI 能見度——全站 SEO 預設／追蹤碼／robots.txt 自訂規則（H1）、
+    # 301 轉址管理（H2）、孤立頁面偵測（H3）。domain 統一取 "seo"（docs/12b §7.3 值域表本來就
+    # 列了這個值）。規劃書 §6 矩陣「SEO／設定」欄除了內容編輯的「單頁 SEO」外，十個角色裡只有
+    # 系統管理員打勾，性質上跟 J 模組「系統」欄一樣是單一角色排他欄位，故三組全部
+    # sysadmin_only=1（雙重防線，理由同 system.*，見 docs/12b §7.4「S1-12 新增」附註）。
+    # is_club_scoped=1——這些設定各站（tcrfc／bw）各自一份（GEO-09 同一個精神），不是全站共用。
+    # 「單頁 SEO」（canonical／noindex／keywords／排除 Sitemap）不落在這幾組權限碼上——那是
+    # content.page.update／content.article.update 既有請求擴充的欄位，跟隨既有內容編輯權限。
+    ("seo.setting.view", "H", "H1", "seo", "view", 1, 0, 1, "檢視全站 SEO 設定", "View SEO Settings"),
+    ("seo.setting.update", "H", "H1", "seo", "update", 1, 0, 1, "編輯全站 SEO 設定", "Update SEO Settings"),
+    ("seo.redirect.view", "H", "H2", "seo", "view", 1, 0, 1, "檢視 301 轉址", "View Redirects"),
+    ("seo.redirect.create", "H", "H2", "seo", "create", 1, 0, 1, "新增 301 轉址", "Create Redirects"),
+    ("seo.redirect.update", "H", "H2", "seo", "update", 1, 0, 1, "編輯 301 轉址", "Update Redirects"),
+    ("seo.redirect.delete", "H", "H2", "seo", "delete", 1, 0, 1, "刪除 301 轉址", "Delete Redirects"),
+    ("seo.redirect.import", "H", "H2", "seo", "import", 1, 0, 1, "批次匯入 301 轉址", "Import Redirects"),
+    ("seo.report.view", "H", "H3", "seo", "view", 1, 0, 1, "檢視孤立頁面偵測", "View Orphan Page Report"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")

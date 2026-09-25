@@ -22,6 +22,28 @@ public sealed record PageDetailDto
     public required string Slug { get; init; }
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+
+    /// <summary>Meta Keywords（S1-12 新增）。對應 <c>pages_i18n.seo_keywords</c>。</summary>
+    public string? SeoKeywords { get; init; }
+
+    /// <summary>手動覆寫 canonical（S1-12 新增）。<c>null</c>＝前台沿用自動依目前網址產生的
+    /// canonical，不必疊加 <c>&lt;link rel="canonical"&gt;</c>。</summary>
+    public string? CanonicalPath { get; init; }
+
+    /// <summary>單頁 noindex 開關（S1-12 新增）。<c>true</c> 時前台應輸出
+    /// <c>&lt;meta name="robots" content="noindex"&gt;</c>，跟全站上線前的 noindex 是兩個機制
+    /// （見 <c>db/club-schema.sql</c> 對 <c>pages.is_noindex</c> 的註解）。</summary>
+    public bool IsNoindex { get; init; }
+
+    /// <summary>OG 圖片完整網址（S1-12 驗收退回後補做）。優先序：**這個頁面專屬的 OG 圖片 &gt;
+    /// 全站預設 OG 圖片**（<c>Club.OgImageKey</c>，Page 沒有「封面圖片」的概念，不像 Article
+    /// 多一層回退）。<c>null</c>＝兩層都沒有圖片可用。</summary>
+    public string? OgImageUrl { get; init; }
+
+    public int? OgImageWidth { get; init; }
+    public int? OgImageHeight { get; init; }
+    public string? OgImageAlt { get; init; }
+
     public DateTime? PublishedAt { get; init; }
     public required IReadOnlyList<PageBlockPublicDto> Blocks { get; init; }
 }

@@ -143,14 +143,21 @@ public sealed class PublicFaqsTests(AdminWriteApiFixture fixture)
         using var client = fixture.CreateClient();
         var keyword = $"s1-6-nohit-{Guid.NewGuid():N}";
 
-        var first = await client.PostAsJsonAsync("/api/v1/tcrfc/faqs/search-misses", new FaqSearchMissRequest { Keyword = keyword });
-        Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
+        try
+        {
+            var first = await client.PostAsJsonAsync("/api/v1/tcrfc/faqs/search-misses", new FaqSearchMissRequest { Keyword = keyword });
+            Assert.Equal(HttpStatusCode.NoContent, first.StatusCode);
 
-        var second = await client.PostAsJsonAsync("/api/v1/tcrfc/faqs/search-misses", new FaqSearchMissRequest { Keyword = keyword });
-        Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
+            var second = await client.PostAsJsonAsync("/api/v1/tcrfc/faqs/search-misses", new FaqSearchMissRequest { Keyword = keyword });
+            Assert.Equal(HttpStatusCode.NoContent, second.StatusCode);
 
-        var hitCount = await GetSearchMissHitCountAsync(keyword);
-        Assert.Equal(2, hitCount);
+            var hitCount = await GetSearchMissHitCountAsync(keyword);
+            Assert.Equal(2, hitCount);
+        }
+        finally
+        {
+            await DeleteSearchMissAsync(keyword);
+        }
     }
 
     [Fact]
@@ -169,14 +176,21 @@ public sealed class PublicFaqsTests(AdminWriteApiFixture fixture)
             ToFullWidth(baseKeyword),
         };
 
-        foreach (var variant in variants)
+        try
         {
-            var response = await client.PostAsJsonAsync("/api/v1/tcrfc/faqs/search-misses", new FaqSearchMissRequest { Keyword = variant });
-            Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
-        }
+            foreach (var variant in variants)
+            {
+                var response = await client.PostAsJsonAsync("/api/v1/tcrfc/faqs/search-misses", new FaqSearchMissRequest { Keyword = variant });
+                Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+            }
 
-        var hitCount = await GetSearchMissHitCountAsync(baseKeyword);
-        Assert.Equal(variants.Length, hitCount);
+            var hitCount = await GetSearchMissHitCountAsync(baseKeyword);
+            Assert.Equal(variants.Length, hitCount);
+        }
+        finally
+        {
+            await DeleteSearchMissAsync(baseKeyword);
+        }
     }
 
     [Fact]
@@ -303,5 +317,17 @@ public sealed class PublicFaqsTests(AdminWriteApiFixture fixture)
         command.Parameters.AddWithValue("@Keyword", keyword);
         var result = await command.ExecuteScalarAsync();
         return result is null ? null : (int)result;
+    }
+
+    /// <summary>清掉測試寫入的 <c>faq_search_misses</c> 列。沒清的話每跑一次就在開發庫累積一筆，
+    /// 累積到 50 筆會把 <c>AdminFaqsAndCategoriesTests</c> 的排行測試（取前 50 名）擠出榜外。</summary>
+    private static async Task DeleteSearchMissAsync(string keyword)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "DELETE FROM faq_search_misses WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND keyword = @Keyword";
+        command.Parameters.AddWithValue("@Keyword", keyword);
+        await command.ExecuteNonQueryAsync();
     }
 }

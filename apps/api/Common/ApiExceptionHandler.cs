@@ -18,6 +18,7 @@ using Tcrfc.Api.Features.AdminPlayers;
 using Tcrfc.Api.Features.AdminPrograms;
 using Tcrfc.Api.Features.AdminRegistrations;
 using Tcrfc.Api.Features.AdminRoles;
+using Tcrfc.Api.Features.AdminSeo;
 using Tcrfc.Api.Features.AdminSessions;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
@@ -199,6 +200,12 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", calendarValidation.Message),
             CalendarQueryValidationException calendarQueryValidation =>
                 (StatusCodes.Status400BadRequest, "查詢參數有誤", calendarQueryValidation.Message),
+
+            // ── S1-12 新增：H 搜尋與 AI 能見度（Features/AdminSeo）─────────────────────────
+            AdminSeoValidationException seoValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", seoValidation.Message),
+            RedirectFromPathConflictException redirectConflict =>
+                (StatusCodes.Status409Conflict, "來源網址重複", redirectConflict.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),

@@ -17,6 +17,18 @@ public partial class Page
 
     public DateTime? PublishedAt { get; set; }
 
+    public string? CanonicalPath { get; set; }
+
+    public bool IsNoindex { get; set; }
+
+    public bool IsExcludedFromSitemap { get; set; }
+
+    public string? OgImageKey { get; set; }
+
+    public int? OgImageWidth { get; set; }
+
+    public int? OgImageHeight { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }

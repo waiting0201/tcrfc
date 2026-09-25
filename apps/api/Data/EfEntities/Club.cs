@@ -21,6 +21,10 @@ public partial class Club
 
     public string? OgImageKey { get; set; }
 
+    public int? OgImageWidth { get; set; }
+
+    public int? OgImageHeight { get; set; }
+
     public string? BrandColor { get; set; }
 
     public string? BrandSecondaryColor { get; set; }

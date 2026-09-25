@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -14,16 +15,20 @@ namespace Tcrfc.Api.Features.Pages;
 /// 這條路由規則**——每個頁面都明確屬於一個俱樂部，直接 <c>WHERE club_id = @ClubId</c> 即可
 /// （見 apps/api/README.md「B1 頁面管理」「我的判斷」一節對這點的說明）。
 /// </summary>
-public sealed class PagesRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
+public sealed class PagesRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrlResolver)
 {
     /// <summary>與 <c>Features/AdminPages/AdminPagesRepository.PublicDetailEntity</c>、
     /// <c>Features/News/ScheduledPublishRunner</c> 三處字面值必須完全一致（docs/17 §4）。</summary>
     private const string DetailEntity = "page-detail";
 
-    private sealed record PageRow(Guid Id, string Slug, DateTime? PublishedAt);
-    private sealed record SeoRow(string Locale, string? SeoTitle, string? SeoDescription);
+    private sealed record PageRow(
+        Guid Id, string Slug, DateTime? PublishedAt, string? CanonicalPath, bool IsNoindex,
+        string? OgImageKey, int? OgImageWidth, int? OgImageHeight);
+
+    private sealed record SeoRow(string Locale, string? SeoTitle, string? SeoDescription, string? SeoKeywords, string? OgImageAlt);
     private sealed record BlockRow(string BlockType, string? Content, int SortOrder);
     private sealed record PreviewRow(Guid PageId, int VersionNo, string? Snapshot, string Slug, string Status);
+    private sealed record ClubOgImageRow(string? OgImageKey, int? OgImageWidth, int? OgImageHeight);
 
     /// <summary>
     /// 單一頁面。⛔ 只回傳 <c>status = 'published'</c> 且已到發布時間的頁面——草稿與排程中的頁面
@@ -40,7 +45,9 @@ public sealed class PagesRepository(IClubSqlConnectionFactory connectionFactory,
                 using var connection = connectionFactory.CreateConnection();
 
                 const string sql = """
-                    SELECT p.id AS Id, p.slug AS Slug, p.published_at AS PublishedAt
+                    SELECT p.id AS Id, p.slug AS Slug, p.published_at AS PublishedAt,
+                           p.canonical_path AS CanonicalPath, p.is_noindex AS IsNoindex,
+                           p.og_image_key AS OgImageKey, p.og_image_width AS OgImageWidth, p.og_image_height AS OgImageHeight
                     FROM pages p
                     WHERE p.club_id = @ClubId AND p.slug = @Slug
                       AND p.status = 'published' AND (p.published_at IS NULL OR p.published_at <= SYSUTCDATETIME())
@@ -54,8 +61,9 @@ public sealed class PagesRepository(IClubSqlConnectionFactory connectionFactory,
                     return null;
                 }
 
-                var (seoTitle, seoDescription) = await LoadSeoAsync(connection, pageRow.Id, dbLocale, ct);
+                var (seoTitle, seoDescription, seoKeywords, ogImageAlt) = await LoadSeoAsync(connection, pageRow.Id, dbLocale, ct);
                 var blocks = await LoadBlocksAsync(connection, pageRow.Id, dbLocale, ct);
+                var ogImage = await ResolveOgImageAsync(connection, pageRow, scope.ClubId, ct);
 
                 return new PageDetailDto
                 {
@@ -63,6 +71,15 @@ public sealed class PagesRepository(IClubSqlConnectionFactory connectionFactory,
                     Slug = pageRow.Slug,
                     SeoTitle = seoTitle,
                     SeoDescription = seoDescription,
+                    SeoKeywords = seoKeywords,
+                    CanonicalPath = pageRow.CanonicalPath,
+                    IsNoindex = pageRow.IsNoindex,
+                    OgImageUrl = ogImage.Url,
+                    OgImageWidth = ogImage.Width,
+                    OgImageHeight = ogImage.Height,
+                    // 只有「這個頁面自己有專屬 OG 圖片」時才有意義輸出 alt——全站預設圖回退時沒有
+                    // 對應的替代文字來源（Club 沒有這個欄位），見 ResolveOgImageAsync 的判斷。
+                    OgImageAlt = ogImage.Key == pageRow.OgImageKey ? ogImageAlt : null,
                     PublishedAt = pageRow.PublishedAt,
                     Blocks = blocks,
                 };
@@ -138,11 +155,12 @@ public sealed class PagesRepository(IClubSqlConnectionFactory connectionFactory,
         };
     }
 
-    private static async Task<(string? SeoTitle, string? SeoDescription)> LoadSeoAsync(
+    private static async Task<(string? SeoTitle, string? SeoDescription, string? SeoKeywords, string? OgImageAlt)> LoadSeoAsync(
         System.Data.IDbConnection connection, Guid pageId, string dbLocale, CancellationToken cancellationToken)
     {
         const string sql = """
-            SELECT locale AS Locale, seo_title AS SeoTitle, seo_description AS SeoDescription
+            SELECT locale AS Locale, seo_title AS SeoTitle, seo_description AS SeoDescription,
+                   seo_keywords AS SeoKeywords, og_image_alt AS OgImageAlt
             FROM pages_i18n
             WHERE page_id = @PageId AND locale IN @Locales
             """;
@@ -157,7 +175,39 @@ public sealed class PagesRepository(IClubSqlConnectionFactory connectionFactory,
         byLocale.TryGetValue(RequestLocale.DefaultDbLocale, out var fallback);
         byLocale.TryGetValue(dbLocale, out var requested);
 
-        return (RequestLocale.Pick(requested?.SeoTitle, fallback?.SeoTitle), RequestLocale.Pick(requested?.SeoDescription, fallback?.SeoDescription));
+        return (
+            RequestLocale.Pick(requested?.SeoTitle, fallback?.SeoTitle),
+            RequestLocale.Pick(requested?.SeoDescription, fallback?.SeoDescription),
+            RequestLocale.Pick(requested?.SeoKeywords, fallback?.SeoKeywords),
+            RequestLocale.Pick(requested?.OgImageAlt, fallback?.OgImageAlt));
+    }
+
+    private readonly record struct ResolvedOgImage(string? Url, string? Key, int? Width, int? Height);
+
+    /// <summary>OG 圖片優先序（S1-12 驗收退回後補做）：**這個頁面專屬的 OG 圖片 &gt; 全站預設 OG
+    /// 圖片**（<c>Club.OgImageKey</c>）。Page 沒有「封面圖片」的概念，不像 Article 多一層回退，
+    /// 見 <c>Features/News/ArticlesRepository.ResolveOgImageAsync</c> 的對應版本。</summary>
+    private async Task<ResolvedOgImage> ResolveOgImageAsync(
+        System.Data.IDbConnection connection, PageRow page, Guid clubId, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(page.OgImageKey))
+        {
+            return new ResolvedOgImage(imageUrlResolver.Resolve(page.OgImageKey), page.OgImageKey, page.OgImageWidth, page.OgImageHeight);
+        }
+
+        const string clubSql = """
+            SELECT og_image_key AS OgImageKey, og_image_width AS OgImageWidth, og_image_height AS OgImageHeight
+            FROM clubs WHERE id = @ClubId
+            """;
+        var club = await connection.QuerySingleOrDefaultAsync<ClubOgImageRow>(new CommandDefinition(
+            clubSql, new { ClubId = clubId }, cancellationToken: cancellationToken));
+
+        if (club is not null && !string.IsNullOrEmpty(club.OgImageKey))
+        {
+            return new ResolvedOgImage(imageUrlResolver.Resolve(club.OgImageKey), club.OgImageKey, club.OgImageWidth, club.OgImageHeight);
+        }
+
+        return new ResolvedOgImage(null, null, null, null);
     }
 
     private static async Task<IReadOnlyList<PageBlockPublicDto>> LoadBlocksAsync(

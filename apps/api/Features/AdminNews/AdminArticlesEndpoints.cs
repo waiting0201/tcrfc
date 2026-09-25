@@ -82,7 +82,7 @@ public static class AdminArticlesEndpoints
             var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionCreate, cancellationToken);
             var operatorId = adminScope.Identity.AdminUserId;
 
-            var (request, file) = await AdminArticleRequestForm.ReadAsync<CreateArticleRequest>(
+            var (request, file, ogImageFile) = await AdminArticleRequestForm.ReadAsync<CreateArticleRequest>(
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
 
             // 🔴 id 必須在上傳之前就決定：物件鍵路徑（{club}/articles/{articleId}/cover/...）要指到
@@ -96,9 +96,18 @@ public static class AdminArticlesEndpoints
                 coverKey = uploaded.Key;
             }
 
+            // S1-12 新增：OG 圖片覆寫，獨立於封面圖片之外，同一次請求的 ogImage 欄位。
+            ImageFieldUpdate ogImageUpdate = ImageFieldUpdate.Keep;
+            if (ogImageFile is not null)
+            {
+                UploadSlotPolicy.Validate("articles", "og");
+                var uploadedOg = await UploadOgImageAsync(adminScope, articleId, ogImageFile, imageStorage, cancellationToken);
+                ogImageUpdate = ImageFieldUpdate.Set(uploadedOg.Key, uploadedOg.Width, uploadedOg.Height);
+            }
+
             try
             {
-                var created = await repository.CreateAsync(adminScope, articleId, request, coverKey, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(adminScope, articleId, request, coverKey, ogImageUpdate, operatorId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/news/{created.Id}", created);
             }
             catch
@@ -111,6 +120,11 @@ public static class AdminArticlesEndpoints
                 if (coverKey is not null)
                 {
                     await imageStorage.DeleteAsync(coverKey, CancellationToken.None); // 請求已取消也要清掉
+                }
+
+                if (ogImageUpdate.Key is not null)
+                {
+                    await imageStorage.DeleteAsync(ogImageUpdate.Key, CancellationToken.None);
                 }
 
                 throw;
@@ -137,12 +151,17 @@ public static class AdminArticlesEndpoints
             var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
             var operatorId = adminScope.Identity.AdminUserId;
 
-            var (request, file) = await AdminArticleRequestForm.ReadAsync<UpdateArticleRequest>(
+            var (request, file, ogImageFile) = await AdminArticleRequestForm.ReadAsync<UpdateArticleRequest>(
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
 
             if (file is not null && request.RemoveCover)
             {
                 throw new AdminArticleValidationException("不能同時上傳新的封面圖片與移除封面圖片，請擇一。");
+            }
+
+            if (ogImageFile is not null && request.RemoveOgImage)
+            {
+                throw new AdminArticleValidationException("不能同時上傳新的 OG 圖片與移除 OG 圖片，請擇一。");
             }
 
             string? uploadedKey = null;
@@ -163,9 +182,26 @@ public static class AdminArticlesEndpoints
                 coverUpdate = CoverKeyUpdate.Keep;
             }
 
+            // S1-12 新增：OG 圖片三態，語意跟封面圖片一致，各自獨立判斷。
+            ImageFieldUpdate ogImageUpdate;
+            if (ogImageFile is not null)
+            {
+                UploadSlotPolicy.Validate("articles", "og");
+                var uploadedOg = await UploadOgImageAsync(adminScope, id, ogImageFile, imageStorage, cancellationToken);
+                ogImageUpdate = ImageFieldUpdate.Set(uploadedOg.Key, uploadedOg.Width, uploadedOg.Height);
+            }
+            else if (request.RemoveOgImage)
+            {
+                ogImageUpdate = ImageFieldUpdate.Remove;
+            }
+            else
+            {
+                ogImageUpdate = ImageFieldUpdate.Keep;
+            }
+
             try
             {
-                var updated = await repository.UpdateAsync(adminScope, id, request, coverUpdate, operatorId, cancellationToken);
+                var updated = await repository.UpdateAsync(adminScope, id, request, coverUpdate, ogImageUpdate, operatorId, cancellationToken);
                 if (updated is null)
                 {
                     // 找不到這篇文章（跨俱樂部或真的不存在）：圖片已經上傳成功，但不會有任何資料列
@@ -173,6 +209,11 @@ public static class AdminArticlesEndpoints
                     if (uploadedKey is not null)
                     {
                         await imageStorage.DeleteAsync(uploadedKey, cancellationToken);
+                    }
+
+                    if (ogImageUpdate.Key is not null)
+                    {
+                        await imageStorage.DeleteAsync(ogImageUpdate.Key, cancellationToken);
                     }
 
                     return Results.NotFound();
@@ -185,6 +226,11 @@ public static class AdminArticlesEndpoints
                 if (uploadedKey is not null)
                 {
                     await imageStorage.DeleteAsync(uploadedKey, CancellationToken.None); // 請求已取消也要清掉
+                }
+
+                if (ogImageUpdate.Key is not null)
+                {
+                    await imageStorage.DeleteAsync(ogImageUpdate.Key, CancellationToken.None);
                 }
 
                 throw;
@@ -338,6 +384,33 @@ public static class AdminArticlesEndpoints
         // 物件鍵前綴含俱樂部代碼＋實體型別＋實體 id＋欄位名，確保「一張圖只屬於一筆資料列」
         // （docs/14-invariants.md）；用 scope.ClubCode（已驗證）而不是路由原始字串。
         var objectKeyPrefix = $"{scope.ClubCode}/articles/{articleId}/cover";
+        return await imageStorage.UploadAsync(rawBytes, objectKeyPrefix, cancellationToken);
+    }
+
+    /// <summary>S1-12 新增：OG 圖片覆寫的上傳，邏輯逐字比照 <see cref="UploadCoverAsync"/>，
+    /// 差異只有物件鍵前綴的欄位名（<c>og</c> 不是 <c>cover</c>）——兩者是獨立欄位，各自的物件鍵
+    /// 不會互相覆蓋。</summary>
+    private static async Task<UploadedImageInfo> UploadOgImageAsync(
+        AdminClubScope scope, Guid articleId, IFormFile file, IImageStorageService imageStorage, CancellationToken cancellationToken)
+    {
+        if (file.Length == 0)
+        {
+            throw new EmptyImageException();
+        }
+
+        if (file.Length > ImageUploadOptions.MaxUploadBytes)
+        {
+            throw new ImageTooLargeException();
+        }
+
+        byte[] rawBytes;
+        using (var buffer = new MemoryStream())
+        {
+            await file.CopyToAsync(buffer, cancellationToken);
+            rawBytes = buffer.ToArray();
+        }
+
+        var objectKeyPrefix = $"{scope.ClubCode}/articles/{articleId}/og";
         return await imageStorage.UploadAsync(rawBytes, objectKeyPrefix, cancellationToken);
     }
 }

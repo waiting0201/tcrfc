@@ -19,5 +19,9 @@ public partial class ArticlesI18n
 
     public string? SeoDescription { get; set; }
 
+    public string? SeoKeywords { get; set; }
+
+    public string? OgImageAlt { get; set; }
+
     public virtual Article Article { get; set; } = null!;
 }

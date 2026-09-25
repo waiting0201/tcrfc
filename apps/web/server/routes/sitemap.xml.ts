@@ -36,9 +36,13 @@ export default defineEventHandler(async (event) => {
   const body = urls
     .map((u) => {
       const loc = escapeXml(`${siteUrl}${u.loc}`)
+      // lastmod（S1-12 新增）：只有 Article 這類有真實 updated_at 的動態內容才帶，
+      // 靜態單元頁（getEnabledSiteUnits）沒有異動時間可回報，刻意不虛構一個假值
+      // （GEO-08「更新時間要真的更新，不是發布時間複製一份」同一個精神）。
+      const lastmod = u.lastmod ? `\n    <lastmod>${escapeXml(u.lastmod)}</lastmod>` : ''
       return [
         '  <url>',
-        `    <loc>${loc}</loc>`,
+        `    <loc>${loc}</loc>${lastmod}`,
         `    <xhtml:link rel="alternate" hreflang="zh-Hant" href="${loc}" />`,
         `    <xhtml:link rel="alternate" hreflang="x-default" href="${loc}" />`,
         '  </url>',

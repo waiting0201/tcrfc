@@ -557,6 +557,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("article_category_id");
 
+                    b.Property<string>("CanonicalPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("canonical_path");
+
                     b.Property<Guid?>("ClubId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("club_id");
@@ -577,9 +582,34 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<bool>("IsExcludedFromSitemap")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_excluded_from_sitemap");
+
                     b.Property<bool>("IsFeatured")
                         .HasColumnType("bit")
                         .HasColumnName("is_featured");
+
+                    b.Property<bool>("IsNoindex")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_noindex");
+
+                    b.Property<int?>("OgImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("og_image_height");
+
+                    b.Property<string>("OgImageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("og_image_key");
+
+                    b.Property<int?>("OgImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("og_image_width");
 
                     b.Property<DateTime?>("PublishedAt")
                         .HasPrecision(3)
@@ -767,10 +797,20 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("body");
 
+                    b.Property<string>("OgImageAlt")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("og_image_alt");
+
                     b.Property<string>("SeoDescription")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)")
                         .HasColumnName("seo_description");
+
+                    b.Property<string>("SeoKeywords")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("seo_keywords");
 
                     b.Property<string>("SeoTitle")
                         .HasMaxLength(200)
@@ -1610,10 +1650,18 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("logo_light_key");
 
+                    b.Property<int?>("OgImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("og_image_height");
+
                     b.Property<string>("OgImageKey")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("og_image_key");
+
+                    b.Property<int?>("OgImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("og_image_width");
 
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
@@ -5670,6 +5718,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("(newid())");
 
+                    b.Property<string>("CanonicalPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("canonical_path");
+
                     b.Property<Guid>("ClubId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("club_id");
@@ -5684,6 +5737,31 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
+
+                    b.Property<bool>("IsExcludedFromSitemap")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_excluded_from_sitemap");
+
+                    b.Property<bool>("IsNoindex")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_noindex");
+
+                    b.Property<int?>("OgImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("og_image_height");
+
+                    b.Property<string>("OgImageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("og_image_key");
+
+                    b.Property<int?>("OgImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("og_image_width");
 
                     b.Property<DateTime?>("PublishedAt")
                         .HasPrecision(3)
@@ -5884,10 +5962,20 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(10)")
                         .HasColumnName("locale");
 
+                    b.Property<string>("OgImageAlt")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("og_image_alt");
+
                     b.Property<string>("SeoDescription")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)")
                         .HasColumnName("seo_description");
+
+                    b.Property<string>("SeoKeywords")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("seo_keywords");
 
                     b.Property<string>("SeoTitle")
                         .HasMaxLength(200)

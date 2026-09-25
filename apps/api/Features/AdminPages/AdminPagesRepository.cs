@@ -5,6 +5,7 @@ using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
@@ -24,7 +25,8 @@ namespace Tcrfc.Api.Features.AdminPages;
 /// 本類別每個公開方法一律收 <see cref="AdminClubScope"/>，不收 <see cref="ClubScope"/>
 /// （理由見 <c>AdminArticlesRepository</c> 檔頭與 apps/api/README.md「新增後台端點的必要形狀」）。
 /// </summary>
-public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage)
+public sealed class AdminPagesRepository(
+    ClubDbContext dbContext, IQueryCache cache, IImageStorageService imageStorage, IImagePublicUrlResolver imageUrlResolver)
 {
     /// <summary>公開讀取 API 用的 entity 名稱，跟 <see cref="Features.Pages.PagesRepository"/>、
     /// <see cref="Features.News.ScheduledPublishRunner"/> 三處字面值必須完全一致（docs/17 §4
@@ -115,7 +117,8 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
     /// （E-47：一律用 <see cref="CancellationToken.None"/>，不沿用觸發失敗的請求 token）。
     /// </summary>
     public async Task<AdminPageDetailDto> CreateAsync(
-        AdminClubScope scope, Guid pageId, CreatePageRequest request, IFormFileCollection files, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid pageId, CreatePageRequest request, IFormFileCollection files,
+        ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         PageSlugPolicy.Validate(request.Slug);
 
@@ -137,6 +140,12 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
                 Slug = request.Slug,
                 Status = "draft", // 🔴 一律從草稿開始，狀態轉換是獨立端點（Publish／Schedule），比照 Article
                 PublishedAt = null,
+                CanonicalPath = string.IsNullOrWhiteSpace(request.CanonicalPath) ? null : request.CanonicalPath,
+                IsNoindex = request.IsNoindex,
+                IsExcludedFromSitemap = request.IsExcludedFromSitemap,
+                OgImageKey = ogImageUpdate.Change ? ogImageUpdate.Key : null,
+                OgImageWidth = ogImageUpdate.Change ? ogImageUpdate.Width : null,
+                OgImageHeight = ogImageUpdate.Change ? ogImageUpdate.Height : null,
                 CreatedAt = now,
                 UpdatedAt = now,
                 CreatedBy = operatorId,
@@ -163,6 +172,11 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
                 await imageStorage.DeleteAsync(key, CancellationToken.None);
             }
 
+            if (ogImageUpdate.Key is not null)
+            {
+                await imageStorage.DeleteAsync(ogImageUpdate.Key, CancellationToken.None);
+            }
+
             throw;
         }
     }
@@ -171,7 +185,8 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
     /// 完整清單，省略的既有區塊視為刪除；換掉／移除的圖片在成功寫入後才刪除舊物件
     /// （規劃書 §4.0「換圖與刪除」），失敗時新上傳的物件走跟 <see cref="CreateAsync"/> 相同的補償刪除。</summary>
     public async Task<AdminPageDetailDto?> UpdateAsync(
-        AdminClubScope scope, Guid id, UpdatePageRequest request, IFormFileCollection files, Guid? operatorId, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid id, UpdatePageRequest request, IFormFileCollection files,
+        ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         PageSlugPolicy.Validate(request.Slug);
 
@@ -191,6 +206,9 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
 
         var previousImageKeys = ExtractPageImageKeys(page);
 
+        // S1-12 新增：OG 圖片同一套「換圖成功才刪舊物件」邏輯，獨立於區塊圖片的差集清理之外。
+        var previousOgImageKey = page.OgImageKey;
+
         var uploadedKeys = new List<string>();
         try
         {
@@ -198,6 +216,16 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
 
             var now = DateTime.UtcNow;
             page.Slug = request.Slug;
+            page.CanonicalPath = string.IsNullOrWhiteSpace(request.CanonicalPath) ? null : request.CanonicalPath;
+            page.IsNoindex = request.IsNoindex;
+            page.IsExcludedFromSitemap = request.IsExcludedFromSitemap;
+            if (ogImageUpdate.Change)
+            {
+                page.OgImageKey = ogImageUpdate.Key;
+                page.OgImageWidth = ogImageUpdate.Width;
+                page.OgImageHeight = ogImageUpdate.Height;
+            }
+
             ApplySeo(page, request.Seo);
             ReplaceBlocks(page, blocksContent, operatorId, now);
             page.UpdatedAt = now;
@@ -220,6 +248,11 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
                 await imageStorage.DeleteAsync(oldKey, cancellationToken);
             }
 
+            if (!string.Equals(previousOgImageKey, page.OgImageKey, StringComparison.Ordinal))
+            {
+                await imageStorage.DeleteAsync(previousOgImageKey, cancellationToken);
+            }
+
             return await GetByIdAsync(scope, id, cancellationToken);
         }
         catch
@@ -227,6 +260,11 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
             foreach (var key in uploadedKeys)
             {
                 await imageStorage.DeleteAsync(key, CancellationToken.None);
+            }
+
+            if (ogImageUpdate.Key is not null)
+            {
+                await imageStorage.DeleteAsync(ogImageUpdate.Key, CancellationToken.None);
             }
 
             throw;
@@ -314,6 +352,7 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
 
         ApplyConcurrencyToken(page, expectedUpdatedAt);
         var imageKeys = ExtractPageImageKeys(page);
+        var ogImageKey = page.OgImageKey;
 
         dbContext.Pages.Remove(page);
 
@@ -324,6 +363,8 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
         {
             await imageStorage.DeleteAsync(key, cancellationToken);
         }
+
+        await imageStorage.DeleteAsync(ogImageKey, cancellationToken);
 
         return true;
     }
@@ -626,6 +667,8 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
 
         existing.SeoTitle = content.SeoTitle;
         existing.SeoDescription = content.SeoDescription;
+        existing.SeoKeywords = content.SeoKeywords;
+        existing.OgImageAlt = content.OgImageAlt;
     }
 
     private void ApplyConcurrencyToken(Page page, DateTime expectedUpdatedAt)
@@ -670,7 +713,7 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
         _ => status,
     };
 
-    private static AdminPageDetailDto ToDetailDto(Page page, PageVersion? latestVersion)
+    private AdminPageDetailDto ToDetailDto(Page page, PageVersion? latestVersion)
     {
         var zh = page.PagesI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
         var en = page.PagesI18ns.FirstOrDefault(i => i.Locale == "en");
@@ -682,8 +725,14 @@ public sealed class AdminPagesRepository(ClubDbContext dbContext, IQueryCache ca
             Status = page.Status,
             PublishedAt = page.PublishedAt,
             UpdatedAt = page.UpdatedAt,
-            Zh = new AdminPageSeoLocaleContent { SeoTitle = zh?.SeoTitle, SeoDescription = zh?.SeoDescription },
-            En = en is null ? null : new AdminPageSeoLocaleContent { SeoTitle = en.SeoTitle, SeoDescription = en.SeoDescription },
+            CanonicalPath = page.CanonicalPath,
+            IsNoindex = page.IsNoindex,
+            IsExcludedFromSitemap = page.IsExcludedFromSitemap,
+            OgImageUrl = imageUrlResolver.Resolve(page.OgImageKey),
+            OgImageWidth = page.OgImageWidth,
+            OgImageHeight = page.OgImageHeight,
+            Zh = new AdminPageSeoLocaleContent { SeoTitle = zh?.SeoTitle, SeoDescription = zh?.SeoDescription, SeoKeywords = zh?.SeoKeywords, OgImageAlt = zh?.OgImageAlt },
+            En = en is null ? null : new AdminPageSeoLocaleContent { SeoTitle = en.SeoTitle, SeoDescription = en.SeoDescription, SeoKeywords = en.SeoKeywords, OgImageAlt = en.OgImageAlt },
             Blocks = page.PageBlocks.OrderBy(b => b.SortOrder).Select(ToBlockDto).ToList(),
             LatestVersionNo = latestVersion?.VersionNo ?? 0,
             PreviewToken = latestVersion?.PreviewToken,

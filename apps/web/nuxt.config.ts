@@ -61,11 +61,15 @@ export default defineNuxtConfig({
   // 之後若要做動態 OG 圖（例如依文章標題產生 OG 卡片），再回頭裝 @takumi-rs/core 並打開這個模組。
   ogImage: false,
 
-  // 上線前全站 noindex（CLAUDE.md 第 5 條，不得拿掉）。
-  // nuxt-robots（@nuxtjs/seo 子模組）依此直接產出 /robots.txt，取代 Cloudflare Pages
-  // 時期的 site/src/robots.txt（見 apps/web/README.md 的移植對照）。
+  // 🔴 S1-12 驗收退回後補做（2026-09-25）：完全關閉 @nuxtjs/robots 的內建 /robots.txt 路由，
+  // 改由 server/routes/robots.txt.ts 自組——理由跟 docs/18-work-errors.md E-18（sitemap 那次）
+  // 完全同一個模式，不是巧合：這個模組同樣是「建置期固定產生一份規則」的設計，沒有辦法依
+  // runtime 才知道的 NUXT_PUBLIC_SITE_ENV（prelaunch／production）切換輸出內容——本輪要做的
+  // 「robots.txt 線上編輯」必須依正式環境旗標決定要不要真的輸出後台編輯的自訂規則，上線前
+  // （或旗標未設定）一律要維持封鎖版，全站 noindex（CLAUDE.md 第 5 條）不得因為這個新功能而鬆動。
+  // enabled: false 沿用既有 sitemap: { enabled: false } 同一種乾淨關閉開關，見該檔案的既有註解。
   robots: {
-    disallow: ['/'],
+    enabled: false,
   },
 
   // 🔴 2026-09-22：完全關閉 @nuxtjs/sitemap 的內建 /sitemap.xml 路由（docs/18-work-errors.md

@@ -18,6 +18,45 @@ const config = useRuntimeConfig()
 const club = computed<ClubCode>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const assets = computed(() => getClubAssets(club.value))
 
+// ── 追蹤碼（S1-12，主站規劃書 §4.8 H「追蹤碼管理」）───────────────────────────
+// 走既有的 /api/backend/{club}/... 同源代理（見 server/api/backend/[...path].ts 檔頭），
+// 不直接呼叫 backendApiBase()——那支函式只在伺服器端可用，這裡的請求要同時支援 SSR 與
+// client-side（例如切換俱樂部後的 client-only 導覽）。個別 ID 未設定（後台尚未填寫）時
+// 對應腳本整段不輸出，不送出空字串當參數——那樣仍會建立分析工作階段，只是收不到有意義的資料。
+const { data: seoSettings } = await useFetch(() => `/api/backend/${club.value}/seo/settings`)
+
+useHead(() => {
+  const scripts: Array<{ innerHTML?: string, src?: string, async?: boolean }> = []
+  const s = seoSettings.value
+
+  if (s?.ga4MeasurementId) {
+    scripts.push({ src: `https://www.googletagmanager.com/gtag/js?id=${s.ga4MeasurementId}`, async: true })
+    scripts.push({
+      innerHTML: `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${s.ga4MeasurementId}');`,
+    })
+  }
+
+  if (s?.gtmContainerId) {
+    scripts.push({
+      innerHTML: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src='https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);})(window,document,'script','dataLayer','${s.gtmContainerId}');`,
+    })
+  }
+
+  if (s?.metaPixelId) {
+    scripts.push({
+      innerHTML: `!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${s.metaPixelId}');fbq('track','PageView');`,
+    })
+  }
+
+  if (s?.lineTagId) {
+    scripts.push({
+      innerHTML: `(function(g,d,o){g._ltq=g._ltq||[];g._ltq.push(['init','${s.lineTagId}']);g._ltq.push(['track','PageView']);var s=d.createElement(o);s.async=1;s.src='https://d.line-scdn.net/n/line_tag/public/release/v1/lt.js';d.getElementsByTagName(o)[0].parentNode.insertBefore(s,d.getElementsByTagName(o)[0]);})(window,document,'script');`,
+    })
+  }
+
+  return { script: scripts }
+})
+
 useHead(() => ({
   htmlAttrs: {
     'data-club': club.value,

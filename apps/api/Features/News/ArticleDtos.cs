@@ -59,6 +59,26 @@ public sealed record ArticleDetailDto
     public string? BodyJson { get; init; }
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+
+    /// <summary>Meta Keywords（S1-12 新增）。對應 <c>articles_i18n.seo_keywords</c>。</summary>
+    public string? SeoKeywords { get; init; }
+
+    /// <summary>OG 圖片完整網址（S1-12 驗收退回後補做）。已套用完整優先序：**這篇文章專屬的 OG
+    /// 圖片 &gt; 全站預設 OG 圖片（<c>Club.OgImageKey</c>） &gt; 這篇文章的封面圖片
+    /// （<c>cover_key</c>）**。<c>null</c>＝三層都沒有圖片可用。</summary>
+    public string? OgImageUrl { get; init; }
+
+    public int? OgImageWidth { get; init; }
+    public int? OgImageHeight { get; init; }
+    public string? OgImageAlt { get; init; }
+
+    /// <summary>手動覆寫 canonical（S1-12 新增）。<c>null</c>＝前台沿用自動產生的 canonical。</summary>
+    public string? CanonicalPath { get; init; }
+
+    /// <summary>單頁 noindex 開關（S1-12 新增）。與全站上線前 noindex 是兩個機制，見
+    /// <c>db/club-schema.sql</c> 對 <c>articles.is_noindex</c> 的註解。</summary>
+    public required bool IsNoindex { get; init; }
+
     public required bool IsShared { get; init; }
 
     /// <summary>標籤（S1-5 新增）。前台詳情頁規格明文列出「標籤」是顯示項目之一（規劃書 3.7）。</summary>

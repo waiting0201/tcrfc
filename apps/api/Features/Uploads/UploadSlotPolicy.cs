@@ -27,7 +27,8 @@ public static class UploadSlotPolicy
         {
             // articles.cover_key（見 db/club-schema.sql 第 280 行）；PUT /admin/{club}/news/{id}
             // 的 CoverKey 欄位是目前唯一真的會把上傳結果寫回資料庫的地方。
-            ["articles"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
+            // S1-12 新增 "og" 插槽：articles.og_image_key（單頁 OG 圖片覆寫，驗收退回後補做）。
+            ["articles"] = new HashSet<string>(StringComparer.Ordinal) { "cover", "og" },
             // S1-7 新增：C1–C3（teams.hero_key／players.photo_key／staff.photo_key，
             // 見 db/club-schema.sql 對應建表陳述式），比照上面 articles.cover 的接法。
             ["teams"] = new HashSet<string>(StringComparer.Ordinal) { "hero" },
@@ -48,6 +49,14 @@ public static class UploadSlotPolicy
             // S1-11 新增：L2 自建事件——calendar_custom_events.cover_key（db/club-schema.sql
             // 「4.10 L 行事曆管理」建表陳述式），比照上面 programs.cover 的接法。
             ["calendar_custom_events"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
+            // S1-12 新增：B1 頁面——pages.og_image_key（單頁 OG 圖片覆寫，驗收退回後補做）。
+            ["pages"] = new HashSet<string>(StringComparer.Ordinal) { "og" },
+            // S1-12 新增：H 全站 SEO 預設——clubs.og_image_key 早已存在（J4 品牌欄位，
+            // AdminClubDetailDto 原本刻意唯讀，見該檔案上的說明），這裡補上寫入路徑，但改由
+            // Features/AdminSeo（不是 Features/AdminClubs）呼叫，理由是「全站預設 OG 圖」
+            // 屬於 H 模組的編輯情境（跟標題模板、預設描述同一個表單），不是 J4 品牌／法人資料的
+            // 編輯情境；J4 既有的 logo／favicon 欄位維持原本刻意唯讀，不受本次影響。
+            ["clubs"] = new HashSet<string>(StringComparer.Ordinal) { "ogImage" },
         };
 
     public static void Validate(string entityType, string field)

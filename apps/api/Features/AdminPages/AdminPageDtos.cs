@@ -10,6 +10,15 @@ public sealed record AdminPageSeoLocaleContent
 {
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+
+    /// <summary>Meta Keywords（S1-12 新增，主站規劃書 §4.8 H「單頁 SEO」）。對應
+    /// <c>pages_i18n.seo_keywords</c>，逐語系；規劃書沒有給格式規則，比照 <see cref="SeoTitle"/>
+    /// 這類自由文字欄位不另外驗證分隔符號。</summary>
+    public string? SeoKeywords { get; init; }
+
+    /// <summary>OG 圖片替代文字（S1-12 驗收退回後補做）。對應 <c>pages_i18n.og_image_alt</c>，
+    /// 逐語系。</summary>
+    public string? OgImageAlt { get; init; }
 }
 
 /// <summary>建立／更新頁面時的雙語 SEO 輸入。<c>Zh</c> 必填其鍵本身（欄位可為 null 值），
@@ -46,6 +55,21 @@ public sealed record CreatePageRequest
 
     public required AdminPageSeoInput Seo { get; init; }
 
+    /// <summary>手動覆寫 canonical（S1-12 新增）。省略或空字串＝不覆寫，前台沿用自動依目前網址
+    /// 產生的 canonical（見 apps/api/README.md「S1-12」段）。對應 <c>pages.canonical_path</c>。</summary>
+    public string? CanonicalPath { get; init; }
+
+    /// <summary>單頁 noindex 開關（S1-12 新增）。對應 <c>pages.is_noindex</c>，預設 <c>false</c>。
+    /// ⚠️ 這是內容層級的個別頁面設定，跟全站上線前 <c>NUXT_PUBLIC_SITE_ENV=prelaunch</c> 的全站
+    /// noindex 是兩個機制，互不取代（CLAUDE.md 全域規定第 5 條全站 noindex 不受本欄位影響）。</summary>
+    public bool IsNoindex { get; init; }
+
+    /// <summary>從 Sitemap 排除（S1-12 新增）。對應 <c>pages.is_excluded_from_sitemap</c>，
+    /// 預設 <c>false</c>。跟 <see cref="IsNoindex"/> 是兩個獨立開關——noindex 的頁面理應同時排除
+    /// 於 Sitemap（見 <c>Features/Seo/SeoRepository</c> 的篩選條件），但排除於 Sitemap 不代表
+    /// 這頁不能被索引，兩者不互相蘊含。</summary>
+    public bool IsExcludedFromSitemap { get; init; }
+
     /// <summary>區塊化編輯器的完整區塊清單，依陣列順序即排序（<c>page_blocks.sort_order</c>）——
     /// 「新增／排序／刪除」全部靠呼叫端送出這份完整清單來表達，不開獨立的單一區塊 CRUD 端點
     /// （見 apps/api/README.md「B1 頁面管理」一節「我的判斷」）。允許空陣列（頁面剛建立、還沒放
@@ -59,10 +83,23 @@ public sealed record UpdatePageRequest
 {
     public required string Slug { get; init; }
     public required AdminPageSeoInput Seo { get; init; }
+
+    /// <summary>語意同 <see cref="CreatePageRequest.CanonicalPath"/>，整份取代（省略＝清空覆寫值，
+    /// 回到自動 canonical——這三個欄位跟頁面本體一樣採「整份取代」語意，不是跟標籤那組「省略＝
+    /// 維持不變」，因為 B1 編輯頁本來就會把這些欄位一起讀出、一起存回，不存在「畫面上沒有這個
+    /// 輸入框」的情境）。</summary>
+    public string? CanonicalPath { get; init; }
+
+    public bool IsNoindex { get; init; }
+    public bool IsExcludedFromSitemap { get; init; }
     public required IReadOnlyList<AdminPageBlockInput> Blocks { get; init; }
 
     /// <summary>樂觀並行控制權杖：呼叫端上次讀到的 <c>pages.updated_at</c>。對不起來回 409。</summary>
     public required DateTime ExpectedUpdatedAt { get; init; }
+
+    /// <summary>勾選「移除 OG 圖片」（S1-12 驗收退回後補做）。跟這次請求的 <c>ogImage</c> 檔案
+    /// 欄位互斥，兩者都有視為請求矛盾，回 400。兩者都沒有＝維持目前的 OG 圖片不變。</summary>
+    public bool RemoveOgImage { get; init; }
 }
 
 public sealed record PublishPageRequest
@@ -119,6 +156,16 @@ public sealed record AdminPageDetailDto
     public required string Status { get; init; }
     public DateTime? PublishedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
+    public string? CanonicalPath { get; init; }
+    public bool IsNoindex { get; init; }
+    public bool IsExcludedFromSitemap { get; init; }
+
+    /// <summary>OG 圖片完整網址（S1-12 驗收退回後補做），<c>null</c>＝這個頁面沒有設定專屬
+    /// OG 圖片。</summary>
+    public string? OgImageUrl { get; init; }
+
+    public int? OgImageWidth { get; init; }
+    public int? OgImageHeight { get; init; }
     public required AdminPageSeoLocaleContent Zh { get; init; }
     public AdminPageSeoLocaleContent? En { get; init; }
     public required IReadOnlyList<AdminPageBlockDto> Blocks { get; init; }

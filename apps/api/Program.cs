@@ -27,6 +27,7 @@ using Tcrfc.Api.Features.AdminPlayers;
 using Tcrfc.Api.Features.AdminPrograms;
 using Tcrfc.Api.Features.AdminRegistrations;
 using Tcrfc.Api.Features.AdminRoles;
+using Tcrfc.Api.Features.AdminSeo;
 using Tcrfc.Api.Features.AdminSessions;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
@@ -41,6 +42,7 @@ using Tcrfc.Api.Features.Pages;
 using Tcrfc.Api.Features.Players;
 using Tcrfc.Api.Features.Programs;
 using Tcrfc.Api.Features.Schedule;
+using Tcrfc.Api.Features.Seo;
 using Tcrfc.Api.Features.Staff;
 using Tcrfc.Api.Features.Teams;
 using Tcrfc.Api.Images;
@@ -236,6 +238,8 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString))
     var blobContainerName = builder.Configuration["AZURE_BLOB_CONTAINER_IMAGES"] ?? "images";
     builder.Services.AddSingleton(new BlobContainerClient(blobConnectionString, blobContainerName));
     builder.Services.AddSingleton<IImageStorageService, BlobImageStorageService>();
+    // S1-12（驗收退回後補做）：物件鍵 → 公開網址，供 OG 圖片等需要輸出完整網址的情境使用。
+    builder.Services.AddSingleton<IImagePublicUrlResolver, BlobImagePublicUrlResolver>();
 
     // 🔴 v3.14 Hero 輪播影片：同一個帳號、獨立容器（跟圖片分開，方便未來各自套用不同的
     // 保留政策／CDN 快取規則）。用具名服務（keyed DI，.NET 8+）注入，避免跟上面圖片用的
@@ -248,6 +252,7 @@ else
 {
     builder.Services.AddSingleton<IImageStorageService, UnavailableImageStorageService>();
     builder.Services.AddSingleton<IVideoStorageService, UnavailableVideoStorageService>();
+    builder.Services.AddSingleton<IImagePublicUrlResolver, UnavailableImagePublicUrlResolver>();
 }
 
 // ── 各功能模組的 repository ──────────────────────────────────────────────
@@ -286,6 +291,15 @@ builder.Services.AddScoped<AdminFaqCategoriesRepository>();
 builder.Services.AddScoped<AdminFaqEmbedSlotsRepository>();
 builder.Services.AddScoped<HomeRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Faqs.FaqsRepository>();
+
+// ── S1-12：H 搜尋與 AI 能見度 ─────────────────────────────────────────────
+// 全站 SEO 預設／追蹤碼／redirects 走 EF Core（比照既有 AdminXxxRepository 慣例），
+// 公開端點（sitemap-entries／robots-directives／redirects／tracking）與孤立頁面偵測
+// 走 Dapper（IClubSqlConnectionFactory，比照既有唯讀查詢慣例）。
+builder.Services.AddScoped<AdminSeoSettingsRepository>();
+builder.Services.AddScoped<AdminRedirectsRepository>();
+builder.Services.AddScoped<AdminSeoReportRepository>();
+builder.Services.AddScoped<SeoRepository>();
 
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 const string CorsPolicyName = "ClubFrontends";
@@ -468,6 +482,12 @@ app.MapAdminEnquiriesEndpoints();
 
 // ── S1-11：L1 行事曆總覽／L2 自建事件 ────────────────────────────────────
 app.MapAdminCalendarEndpoints();
+
+// ── S1-12：H 搜尋與 AI 能見度 ─────────────────────────────────────────────
+app.MapAdminSeoSettingsEndpoints();
+app.MapAdminRedirectsEndpoints();
+app.MapAdminSeoReportEndpoints();
+app.MapSeoEndpoints();
 
 app.Run();
 

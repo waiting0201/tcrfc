@@ -75,6 +75,17 @@
 
 > ⚠️ **沒有列出 `title`／`h1` 欄位。** `docs/12a` §5.1 的 `page` 主表 ERD 完全沒有標題欄位——內文與標題全部走
 > 區塊化編輯器（`PageBlock`），規劃書也只寫「區塊化編輯器」沒有另外的頁面標題欄位。見 [§5](#5-發現的問題)。
+>
+> ✅ **（S1-12，2026-09-25）新增 `seo_keywords`（`string(200)`，信心度中，主站規劃書 §4.8 H「單頁
+> SEO：…Keywords…」未逐欄定型別，命名比照既有 `seo_title`／`seo_description`）**。`article_i18n`
+> 同步新增同名欄位，理由一致，不另立一節重複说明。`canonical_path`／`is_noindex`／
+> `is_excluded_from_sitemap` 三欄**不進 i18n 側表**（網址與布林開關非語言相依內容），落在
+> `page`／`article` 主表，詳見 [`docs/12`](12-database-schema.md) §12 第 41 點。
+>
+> ✅ **（S1-12 驗收退回後補做，2026-09-25）新增 `og_image_alt`（`string(200)`，OG 圖片替代
+> 文字，逐語系）**，理由與命名比照上面 `seo_keywords`，`article_i18n` 同步新增同名欄位。
+> 對應的圖片鍵／尺寸（`og_image_key`／`_width`／`_height`）不進 i18n 側表，落在主表，
+> 詳見 [`docs/12`](12-database-schema.md) §12 第 42 點。
 
 #### `PageBlock` → `page_block_i18n`
 

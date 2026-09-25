@@ -370,10 +370,10 @@ flowchart LR
 
 | 表 | `club_id` | 用途 | 標記 | 後台 |
 |---|---|---|---|---|
-| `Page` | **●** | 靜態頁面主檔。**藍鯨官網入口頁亦屬此型別**。唯一鍵 `(club_id, slug)` | 🌐 | B1 |
+| `Page` | **●** | 靜態頁面主檔。**藍鯨官網入口頁亦屬此型別**。唯一鍵 `(club_id, slug)`。**S1-12 新增單頁 SEO 欄位**：`canonical_path`（手動覆寫網址正規化，可為空＝沿用自動產生的 canonical）、`is_noindex`、`is_excluded_from_sitemap`（皆 `bit`，預設 `0`）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做）＋ `pages_i18n.seo_keywords`／`og_image_alt`（逐語系） | 🌐 | B1 |
 | `PageBlock` | — | 頁面區塊（12 種型別，規劃書第 1012 行），`content json`（**只存不查**）、`sort_order`。**由 `Page` 推導** | 🌐 | B1 |
 | `PageVersion` | — | 版本歷程與還原點、預覽分享 token。**這是內容版本不是操作日誌** | | B1 |
-| `Article` | **○** | 新聞與故事。**空＝兩隊共同**；`slug` **維持全站唯一**（共同文章須有單一 canonical） | 🌐 | B2 |
+| `Article` | **○** | 新聞與故事。**空＝兩隊共同**；`slug` **維持全站唯一**（共同文章須有單一 canonical）。**S1-12 新增單頁 SEO 欄位**：`canonical_path`／`is_noindex`／`is_excluded_from_sitemap`（皆 `bit`，預設 `0`，最後一欄用於 Sitemap 排除，不影響新聞列表本身的顯示）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做，優先序高於既有 `cover_key`）＋ `articles_i18n.seo_keywords`／`og_image_alt`（逐語系） | 🌐 | B2 |
 | `ArticleCategory` | — | 7.1–7.8 八分類。**刻意不加**——分類是內容主題，加了八個會變十六個 | 🌐 | B2 |
 | `Tag` | — | 標籤。**刻意不加**，同上 | 🌐 | B2 |
 | `ArticleTag` | — | `(article_id, tag_id)` | | B2 |
@@ -387,7 +387,12 @@ flowchart LR
 | `FaqEmbedSlot` | — | **G-12 快捷區塊掛載點字典**（S1-8 新增，行 1029）：站內已知掛載位置（`academy_admission`／`program_detail`／`trials`／`sponsorship`）。**刻意不加 `club_id`**——掛載點是站台結構代號，兩站共用同一套頁面骨架，是否命中依該俱樂部實際有無對應頁面 | | B4 |
 | `FaqEmbedSlotLink` | — | `(faq_id, faq_embed_slot_id)`——**該題額外指定出現於哪個 G-12 掛載點**，疊加在「由分類自動對應」之上（不是取代，見 [§12 第 34 點](#12-踩雷點)） | | B4 |
 | `FaqSearchMiss` | **●** | 零結果搜尋關鍵字與次數。**這是成效統計不是日誌** | | B5 |
-| `Redirect` | **●** | 301 對照（`from_path`、`to_path`、`is_active`）。唯一鍵 `(club_id, from_path)`——兩站都會有 `/zh/about/` | | H |
+| `Redirect` | **●** | 301 對照（`from_path`、`to_path`、`is_active`）。唯一鍵 `(club_id, from_path)`——兩站都會有 `/zh/about/`。✅ **S1-12：後台 CRUD＋CSV 批次匯入／匯出已實作**（`Features/AdminSeo`），upsert 鍵沿用 `(club_id, from_path)` | | H |
+
+> ✅ **S1-12（2026-09-25）`H` 模組其餘功能已實作，不新增資料型別，設定值存於既有 `Setting`**（沿用 GEO 段落「不新增資料型別」同一原則）：
+> - **全站 SEO 預設 ＋ 追蹤碼**：`setting_group='seo'`，鍵 `seo.title_template`／`seo.default_description`（皆逐語系，存 `settings_i18n`）、`seo.robots_custom_rules`（單一文字，技術語法非人類語言，不進 i18n 側表）；`setting_group='tracking'`，鍵 `tracking.ga4_measurement_id`／`tracking.gtm_container_id`／`tracking.meta_pixel_id`／`tracking.line_tag_id`（皆存 `setting_value`）。**全站預設 OG 圖片是唯一的例外，不走 `Setting`**——沿用既有 `clubs.og_image_key`（J4 品牌欄位）並補上 `_width`／`_height`，理由與圖片上傳插槽見 [§12 第 42 點](#12-踩雷點)。
+> - **孤立頁面偵測**：不落地成表，後台即時查詢——掃已發布 `Page`／`Article` 彼此的 `page_blocks.content`／`articles_i18n.body`（JSON 轉字串）是否包含對方的公開網址子字串。**這是字串比對的啟發式做法，不是完整的連結圖或 DOM 解析**，也**不知道前台目前尚未資料庫化的靜態導覽選單**——判斷依據見 `apps/api/README.md`「S1-12」段。
+> - 🔴 **GEO-01 `llms.txt` 內容維護與 GEO-02 AI 爬蟲允許清單／排除路徑，依 `STATUS.md` 排程屬 `S1-12a`／`S1-12b`，本輪不做**——`robots.txt` 這裡做的只是「線上編輯自訂規則」這一項通用能力，不含 AI 爬蟲逐一設定，兩者不要混為一談。
 
 ### 4.2 C 球隊管理（15）
 
@@ -728,6 +733,36 @@ flowchart LR
     找得到合理翻譯的欄位一併補上英文題目與（`enrollment_category`／`enquiry_type` 兩個下拉欄位
     的）英文選項顯示文字。migration 名稱 `AddFormFieldsI18n`，後端 API 見
     `apps/api/README.md`「S1-10」段「G2 指派負責人與題目文字語系化修正」小節。
+41. 🔴 **（S1-12，2026-09-25）`pages`／`articles` 新增單頁 SEO 欄位**：
+    主站規劃書 §4.8 H「單頁 SEO：Meta Title／Description／Keywords、OG 圖文、Canonical、noindex
+    開關」，`seo_title`／`seo_description` 兩表既有（`pages_i18n`／`articles_i18n`），本輪補上
+    `canonical_path`（`nvarchar(500) NULL`，手動覆寫網址正規化，多數頁面留空沿用前端自動產生的
+    canonical）、`is_noindex`（`bit NOT NULL DEFAULT 0`）、`is_excluded_from_sitemap`
+    （`bit NOT NULL DEFAULT 0`，供 Sitemap 產生器排除，不影響內容本身在站內列表的顯示）三欄於
+    主表，`seo_keywords`（`nvarchar(200) NULL`）於各自的 `_i18n` 側表。migration 名稱
+    `AddPageArticleSeoFields`。✅ **OG 圖文覆寫已於驗收退回後補做，見第 42 點**。
+42. ✅ **（S1-12 驗收退回後補做，2026-09-25）OG 圖文覆寫（含全站預設 OG 圖片）已完成，解除
+    第 41 點原本記錄的「本輪判斷不做」**：`pages`／`articles` 新增 `og_image_key`
+    （`nvarchar(500) NULL`）／`og_image_width`／`og_image_height`（皆 `int NULL`），
+    `pages_i18n`／`articles_i18n` 新增 `og_image_alt`（`nvarchar(200) NULL`，逐語系）。
+    **全站預設 OG 圖片沿用既有 `clubs.og_image_key`**（J4 品牌欄位，原本因為另一位 agent同時在
+    改圖片上傳共用元件而刻意唯讀，見 `apps/api/Features/AdminClubs/AdminClubDtos.cs` 的既有
+    註解）——查證後判斷不新建第二個欄位重複儲存同一份「全站預設 OG 圖片」，改為
+    **補上 `clubs.og_image_width`／`og_image_height` 兩欄**（原本只有 key，沒有尺寸），寫入路徑
+    改由 `Features/AdminSeo`（H 模組的「全站 SEO 預設」表單）呼叫，`Features/AdminClubs` 既有的
+    `logo_light_key`／`logo_dark_key`／`favicon_key` 三個品牌欄位維持原本刻意唯讀，不受影響。
+    圖片上傳走既有 S0-8 共用插槽機制（`UploadSlotPolicy` 新增 `articles.og`／`pages.og`／
+    `clubs.ogImage` 三格，`Features/Uploads/ImageFieldUpdate` 是新增的共用三態結構，供
+    `Features/AdminNews`／`AdminPages`／`AdminSeo` 三處共用，不重複各自宣告一份）。
+    **本專案第一次把物件鍵解析成完整公開網址**：新增 `Images/IImagePublicUrlResolver`
+    （`BlobImagePublicUrlResolver`／`UnavailableImagePublicUrlResolver` 兩個實作，比照既有
+    `IImageStorageService` 的條件式 DI 註冊）——先前所有前台圖片顯示都繞過真正的 Blob 物件鍵
+    （用 mockup 既有的靜態檔名慣例，見 `apps/web/app/utils/news.ts` 檔頭），這是第一次真的驗證
+    「有鍵就能算出網址」這條路徑，已用真實 Azurite 上傳＋前台實際渲染 HTML 驗證過（見
+    `apps/api/README.md`「S1-12」段）。**優先序**（公開端點算好、前台直接用一個欄位，不在前台
+    重算一次）：`Article` 是「這篇文章專屬 OG 圖片 > 全站預設 OG 圖片 > 這篇文章的封面圖片
+    （`cover_key`）」；`Page` 沒有封面圖片可回退，是「這個頁面專屬 OG 圖片 > 全站預設 OG 圖片」。
+    migration 名稱 `AddSeoOgImageFields`。
 
 ---
 

@@ -5719,6 +5719,273 @@ HTTP 404   # 仍然未到排定時間，狀態正確維持 scheduled
 
 ---
 
+## S1-12：`H` 搜尋與 AI 能見度（2026-09-25，`backend-engineer`）
+
+主站規劃書 §4.8 H：全站 SEO 預設、單頁 Meta／OG／Canonical／noindex、Sitemap（含 hreflang）、
+robots.txt、301 轉址批次匯入、追蹤碼、孤立頁面偵測。**GEO-01 `llms.txt` 維護與 GEO-02 AI 爬蟲
+授權屬 `S1-12a`／`S1-12b`，依 `STATUS.md` 的相依關係不在本輪範圍**，見下方「本輪刻意不做的部分」。
+
+🔴 **驗收退回後補做（2026-09-25）**：本節原始內容（下方表格與判斷 1、7）曾記錄「OG 圖文覆寫」與
+「robots.txt 動態產生」刻意不做，**驗收退回後兩者皆已補做完成**，完整說明見本節最後的
+「驗收退回後補做」小節；下方表格與判斷已同步更新為目前的正確狀態，不留舊敘述。
+
+### 規劃書條文逐條對照
+
+| 規劃書條文 | 狀態 |
+|---|---|
+| 全站 SEO 預設（標題模板、預設描述、預設 OG 圖、網站名稱） | ✅ 標題模板、預設描述（`Setting`）；預設 OG 圖沿用既有 `clubs.og_image_key`（見「驗收退回後補做」） |
+| 單頁 SEO（Meta Title／Description／Keywords、OG 圖文、Canonical、noindex 開關） | ✅ 全部完成，含 OG 圖片覆寫（`articles`／`pages` 新增 `og_image_key`／`_width`／`_height`） |
+| 結構化資料 | 不在本輪範圍（`GEO-05`／`S1-12c`） |
+| Sitemap.xml（含 zh／en hreflang，可排除指定頁） | ✅ 排除依 `is_noindex`／`is_excluded_from_sitemap`；hreflang 沿用既有 zh-only 現況（見下）。**僅涵蓋 `Article`，`Page` 待 B1 動態路由落地後補（`STATUS.md` 明列待辦）** |
+| robots.txt（線上編輯） | ✅ 後端＋前台皆完成，接上 `NUXT_PUBLIC_SITE_ENV` 白名單環境閘門（見「驗收退回後補做」） |
+| 301 轉址管理（含批次匯入） | ✅ `redirects` 表既有 DDL 已完整，本輪補 CRUD＋CSV 匯入匯出＋前台 301 中介軟體 |
+| 追蹤碼管理（GA4、GTM、Meta Pixel、LINE Tag） | ✅ 後端＋前台注入皆完成 |
+| 內部連結建議（孤立頁面偵測） | ✅ 字串比對啟發式（見下方限制說明，`STATUS.md` 明列待辦） |
+
+### 資料庫綱要異動
+
+- `pages`／`articles` 新增 `canonical_path`（`nvarchar(500)` `NULL`）、`is_noindex`（`bit` 預設 `0`）、
+  `is_excluded_from_sitemap`（`bit` 預設 `0`）；`pages_i18n`／`articles_i18n` 新增 `seo_keywords`
+  （`nvarchar(200)` `NULL`）。Migration `AddPageArticleSeoFields`（`20260925075036`），已用
+  `dotnet ef migrations has-pending-model-changes` 確認模型與 snapshot 同步（**任務指示明文禁止
+  `dotnet ef migrations remove`，本輪全程沒有使用這個指令，改用這個唯讀檢查取代原本文件裡
+  「加一支 `Probe` migration 再 remove」的驗證步驟**，見下方「驗收紀錄」）。
+- `redirects` 表**既有 DDL 已完整存在**（`db/club-schema.sql`，含 `UQ_redirects_club_path`
+  `(club_id, from_path)`），EF 實體 `Redirect.cs` 也已經 scaffold 好——本輪查證後確認**不需要任何
+  schema 異動**，只補 `Features/AdminSeo` 的讀寫程式碼。
+- 其餘（標題模板、預設描述、追蹤碼、robots.txt 自訂規則）**不新增資料表**，沿用既有
+  `settings`／`settings_i18n`（`(club_id, setting_key)` 唯一鍵已存在）。設定鍵詞彙：
+  `setting_group='seo'` 下 `seo.title_template`／`seo.default_description`（皆逐語系）、
+  `seo.robots_custom_rules`（單一值）；`setting_group='tracking'` 下
+  `tracking.ga4_measurement_id`／`tracking.gtm_container_id`／`tracking.meta_pixel_id`／
+  `tracking.line_tag_id`（皆單一值）。
+
+### 權限碼
+
+矩陣「SEO／設定」欄除了內容編輯的「單頁 SEO」（跟隨既有 `content.page.update`／
+`content.article.update`，未新增權限碼）之外，十個角色裡只有系統管理員打勾，比照 J 模組同樣
+「單一角色排他欄位」的先例，八個新權限碼全部 `sysadmin_only=1`（`module_code=H`）：
+
+- `seo.setting.view`／`seo.setting.update`（`H1`）：全站 SEO 預設、追蹤碼、robots.txt 自訂規則
+- `seo.redirect.view`／`create`／`update`／`delete`／`import`（`H2`）：301 轉址
+- `seo.report.view`（`H3`）：孤立頁面偵測
+
+### 端點
+
+**後台（需登入＋`sysadmin_only`）**：
+- `GET`／`PUT /api/v1/admin/{club}/seo/settings` — 全站 SEO 預設＋追蹤碼（`AdminSeoSettingsDto`）
+- `GET /api/v1/admin/{club}/seo/redirects?keyword=&page=&pageSize=`
+- `POST /api/v1/admin/{club}/seo/redirects`（409 來源網址重複）
+- `PUT`／`DELETE /api/v1/admin/{club}/seo/redirects/{id}`
+- `GET /api/v1/admin/{club}/seo/redirects/export`（CSV，UTF-8 BOM）
+- `POST /api/v1/admin/{club}/seo/redirects/import`（CSV，upsert 依 `(club_id, from_path)`，整批驗證、
+  任一列有誤整批不寫入，比照 `AdminFaqsRepository.ImportCsvAsync` 既有語意）
+- `GET /api/v1/admin/{club}/seo/orphan-pages`
+
+**公開（不需要登入，供 `apps/web` 串接）**：
+- `GET /api/v1/{club}/seo/settings` — `PublicSeoSettingsDto`（前台組 `<title>`／`<meta description>`／
+  注入追蹤碼腳本／未來 robots.txt 自訂規則來源）
+- `GET /api/v1/{club}/seo/redirects` — 只回傳 `is_active=1` 的規則
+- `GET /api/v1/{club}/seo/sitemap-entries` — 目前只涵蓋 `Article`（見下方判斷說明）
+
+### 規劃書沒寫清楚、本輪自行判斷的部分
+
+1. ✅ **（驗收退回後補做，2026-09-25）OG 圖文覆寫已完成**：原始判斷是「範圍大、風險高，本輪不做」，
+   驗收退回後確認「範圍大」不是略過規劃書明文規格的理由，已比照 `Features/AdminPages`／`AdminNews`
+   既有的圖片上傳共用元件（`UploadSlotPolicy`＋「選檔不上傳、儲存才上傳」）補齊，完整說明見本節
+   最後的「驗收退回後補做」小節。
+2. **`seo.*` 權限碼標記 `sysadmin_only=1`**：矩陣沒有明文要求用這個旗標而非單純不指派其他角色，
+   本輪比照 `system.*`（J 模組）的既有判斷邏輯——十個角色裡只有一個打勾的欄位視為單一角色排他，
+   用 `sysadmin_only` 做雙重防線（見 `docs/12b` §7.4「S1-12 新增」附註）。
+3. **Sitemap 目前只涵蓋 `Article`，不含 `Page`**：`Page` 雖然規格上「就是網站的靜態頁面路由」，但
+   目前 `apps/web` 的既有 80 個單元頁仍是 mockup 搬遷的靜態 Vue 檔案，不是查 `pages` 表渲染（見
+   「B1 頁面管理」一節「網址名稱」既有落差說明）。把 `Page` 併入 Sitemap 會列出前台實際不存在
+   對應內容、或內容與實際渲染不符的網址，故本輪刻意排除，等 B1 真正接上前台動態路由後再擴充。
+   ✅ **驗收確認這個理由成立，已明確登記為 `STATUS.md` 的 S1-12 待辦**（不是隨口記錄，是下一輪
+   接手 B1 動態路由時要一併處理的項目）。
+4. **孤立頁面偵測是字串比對的啟發式做法，不是完整的連結圖或 DOM 解析**：掃描已發布 `Page`／
+   `Article` 彼此的 `page_blocks.content`／`articles_i18n.body`（JSON 轉字串）是否含有對方的公開
+   網址子字串，不解析 HTML／JSON 結構、不驗證那段文字真的是超連結。**也不知道前台目前尚未
+   資料庫化的靜態導覽選單**——這代表這份報表只能反映「內容彼此之間的引用」，反映不出「這一頁
+   有沒有被主選單或麵包屑連到」。詳細限制寫在 `Features/AdminSeo/AdminSeoReportRepository.cs`
+   檔頭，是本輪在現有資料狀態下的最務實做法，不是完整方案。✅ **驗收確認這個理由成立，已明確
+   登記為 `STATUS.md` 的 S1-12 待辦**（等未來有「選單管理」或 B1 動態路由落地、頁面間的連結關係
+   有真正的資料結構可查之後再改用那份資料）。
+5. **301 轉址匯入採 upsert，不是純建立**：轉址表的典型工作流程是「先匯出現況、編輯、再匯入」，
+   upsert（依 `(club_id, from_path)`）比照 `AdminFaqsRepository` 的既有語意，不是比照
+   `AdminMatchesRepository` 的純建立式匯入。
+6. **`AdminSeoSettingsRepository`／`AdminRedirectsRepository` 刻意不呼叫 `IQueryCache.InvalidateAsync`**：
+   比照 `IQueryCache` 介面文件本身既有的說明（「目前後台還不存在，沒有任何寫入層會呼叫這個方法」），
+   維持跟其餘既有唯讀 repository 一致的取捨——管理員改設定或轉址後，公開端點最多延後一個 TTL
+   （預設 300 秒）才會反映，不是遺漏。
+7. ✅ **（驗收退回後補做，2026-09-25）robots.txt 動態產生已接上，用環境閘門解決不一致疑慮**：
+   原始判斷是「怕跟全站無條件的 noindex 標頭產生不一致，暫緩」，驗收退回時的指示是「用環境閘門
+   解決」——`apps/web/server/routes/robots.txt.ts` 只有在 `NUXT_PUBLIC_SITE_ENV` **精確等於**
+   `'production'` 時才輸出「允許索引＋後台自訂規則」，其他任何值（含未設定、拼錯）一律回傳
+   `Disallow: /`；**全站 `X-Robots-Tag` noindex 標頭本身完全沒有被觸碰**（不在本輪範圍，見任務
+   指示原文）。完整說明見本節最後的「驗收退回後補做」小節。
+
+### 前台（`apps/web`）串接
+
+1. **`server/utils/sitemap-urls.ts`**：新聞逐篇網址改呼叫 `GET /api/v1/{club}/seo/sitemap-entries`
+   （取代原本直接打 `/news` 列表、不知道排除欄位的寫法），`server/routes/sitemap.xml.ts` 補上
+   `<lastmod>` 輸出。
+2. **`server/middleware/redirects.ts`**（新增）：Nitro 伺服器層中介軟體，每個請求（排除 `/api/`、
+   `/_nuxt/`、帶副檔名的靜態資源）查一次 `GET /api/v1/{club}/seo/redirects`，命中就送 301。用
+   Nitro 中介軟體而非 Vue Router 中介軟體是必要的——舊網址（例如 Wix 商店網址）在新站沒有對應的
+   頁面元件，Router 連比對這一步都不會發生。
+3. **`app/app.vue`**：追蹤碼腳本注入（GA4／GTM／Meta Pixel／LINE Tag），走既有的
+   `/api/backend/{club}/...` 同源代理，個別 ID 未設定時整段不輸出。
+4. ✅ **（驗收退回後補做）`server/routes/robots.txt.ts`**：見「驗收退回後補做」小節。
+5. ✅ **（驗收退回後補做）`app/pages/zh/news/[slug]/index.vue`**：`og:title`／`og:description`／
+   `og:image`（含尺寸與 alt）／`keywords`／`<meta name="robots">`／`<link rel="canonical">`，
+   見「驗收退回後補做」小節。
+
+**`llms.txt` 內容未串接**（`GEO-01` 屬 `S1-12a`，本輪不動 `server/routes/llms.txt.ts`／
+`llms-en.txt.ts` 既有的骨架佔位內容）。
+
+### 測試
+
+`Tcrfc.Api.Tests/AdminSeoTests.cs`（12 項）：
+
+| 測試 | 涵蓋 |
+|---|---|
+| `Settings_*` | 401、非系統管理員 403、系統管理員讀寫、中文必填英文可空、公開端點即時反映 |
+| `Redirect_*` | 401、403、建立／更新／刪除完整生命週期、來源網址重複 409、格式錯誤 400、
+  來源與目的相同 400、公開端點只回傳生效中的規則 |
+| `RedirectCsv_*` | 匯出 UTF-8 BOM 與表頭、匯入 upsert（更新既有＋新增）、表頭錯誤整批不寫入 |
+| `OrphanReport_*` | 401、403、沒有被引用的已發布文章出現在清單 |
+| `SitemapEntries_*` | 排除 `is_excluded_from_sitemap` 為真的文章 |
+
+✅ **驗收退回後補做（2026-09-25）新增 `Tcrfc.Api.Tests/AdminSeoImageTests.cs`（4 項，真實
+Azurite，見下方小節）**，且 `AdminSeoTests.cs` 的設定讀寫測試已改為測試前拍照、`finally` 精準
+還原（見下方小節）。全套 `dotnet test`（`Tcrfc.Api.Tests.csproj`）**455/455 通過**
+（`AdminSeoTests` 12 項＋`AdminSeoImageTests` 4 項＋既有 439 項）。
+
+### 驗收紀錄（2026-09-25，本機環境，含驗收退回後補做的重新驗證）
+
+1. **`dotnet build`／`dotnet test` 全過**：455/455；`ArchitectureTests`／
+   `UserFacingMessageContentTests`／`UserFacingMessageHttpContentTests` 針對本輪新增程式碼
+   全部通過（掃描沒有找到違規的例外訊息內插權限碼或英文技術詞）。
+2. **兩支 migration 皆已用 `dotnet ef migrations has-pending-model-changes` 確認無待處理變更**
+   （`AddPageArticleSeoFields`、驗收退回後補做新增的 `AddSeoOgImageFields`；全程未使用
+   `migrations remove`，任務指示明文禁止；`AddSeoOgImageFields` 產生時一度把 `OgImageAlt` 的
+   欄位名／型別寫錯成 `nvarchar(max)` 而非 `og_image_alt nvarchar(200)`，因為忘了在
+   `ClubDbContext.cs` 補對應的 Fluent 設定——**沒有刪除重建這個 migration**，改為手動修正
+   migration 本體、`.Designer.cs`、`ClubDbContextModelSnapshot.cs` 三處後再確認同步）。
+3. **`dotnet run` 本機真實啟動 `apps/api`（含 `AZURE_BLOB_CONNECTION_STRING` 指到本機 Azurite
+   位址，僅供 `IImagePublicUrlResolver` 算網址字串，讀取端點不需要真的連得上），`curl` 實測**：
+   - `GET /api/v1/tcrfc/seo/settings`／`/seo/redirects`／`/seo/sitemap-entries` 皆回傳正確資料。
+   - 直接以 SQL 插入一筆測試轉址與一篇測試文章（含 `canonical_path`／`is_noindex`／
+     `seo_keywords`／`og_image_key`／`og_image_alt`），公開端點皆正確回傳；驗收後已全數刪除，
+     未留在 `tcrfc_club_dev`。
+4. **`apps/web` 串接實測**（`npm run build` 產物 ＋ `node .output/server/index.mjs`，前面接上述
+   本機 `apps/api`）：
+   - `curl /sitemap.xml`：既有 93 筆單元＋新聞不變，新聞項目多出 `<lastmod>`。
+   - **`curl /robots.txt`（未設定 `NUXT_PUBLIC_SITE_ENV`）**：`User-agent: *\nDisallow: /`（封鎖側，
+     符合「漏設變數要落在封鎖那一側」）。
+   - **`curl /robots.txt`（`NUXT_PUBLIC_SITE_ENV=production`）**：`User-agent: *\nAllow: /` ＋
+     `Sitemap:` 一行；再插入一筆 `seo.robots_custom_rules` 測試值後重新整理，自訂規則正確附加
+     在輸出裡；驗收後已刪除。
+   - **`curl /robots.txt`（`NUXT_PUBLIC_SITE_ENV=Production`，刻意打錯大小寫）**：仍是封鎖側，
+     驗證白名單判斷（`=== 'production'`）而不是黑名單判斷（`!== 'prelaunch'`）。
+   - `curl -I /zh/`：`X-Robots-Tag: noindex, nofollow` 在任何 `NUXT_PUBLIC_SITE_ENV` 值下皆存在
+     （任務指示要求本輪不得觸碰這個標頭本身的邏輯，已確認未受影響）。
+   - `curl /product-page/manual-test-sock/`：`301`，`Location` 指到 `/zh/shop/cushioned-socks/`；
+     `curl /zh/about/`：`200`（未命中轉址表的路徑不受影響）。
+   - **`curl /zh/news/manual-verify-og-test/` 的實際 HTML**（見下方「OG／canonical／noindex／
+     keywords 真的有輸出」小節）：`<meta property="og:image">`／`og:image:width`／
+     `og:image:height`／`og:image:alt`、`<meta name="keywords">`、
+     `<meta name="robots" content="noindex">`、`<link rel="canonical">` 全部正確輸出，
+     `<title>` 內容正確。
+   - `curl /zh/` 的 HTML 內含 `googletagmanager.com/gtag/js?id=G-TEST123` 與
+     `gtag('config','G-TEST123')`（驗證追蹤碼腳本確實注入）。
+5. **`npm run lint`**：`apps/web`（0 錯誤，既有 539 筆屬性排序等警告與本輪無關）、`apps/admin`
+   （全過，本輪未修改該專案任何檔案）皆綠燈。
+6. **`docker build`**（`apps/api`／`apps/web`，比照 `docker-compose.yml` 的
+   `context`／`dockerfile` 設定）皆成功（`E-35` 教訓：只跑本機 build 不夠，本輪兩邊都真的跑過
+   `docker build`）。
+
+### 驗收退回後補做（2026-09-25）
+
+四項修正，逐項對照協調者的退回意見：
+
+**① OG 圖文與預設 OG 圖真的做了**——見上方「資料庫綱要異動」docs/12 §12 第 42 點的完整說明。
+補充三個實作細節：
+- `Images/IImagePublicUrlResolver`（`BlobImagePublicUrlResolver`／`UnavailableImagePublicUrlResolver`
+  兩個實作，比照 `IImageStorageService` 的條件式 DI 註冊）是**本專案第一次**把 Blob 物件鍵換成
+  完整可公開存取的網址——先前所有前台圖片顯示（新聞封面、球員照片……）全部繞過真正的物件鍵，
+  改用 mockup 既有的靜態檔名慣例（`apps/web/app/utils/news.ts` 檔頭「已知資料落差」），因為種子
+  資料的 `*_key` 欄位從未真正寫入過 Blob。這裡回傳的網址在容器沒有開公開讀取權限或接 CDN
+  前不會是真的可存取，但**格式與計算規則正確**，是部署層的後續工作，不影響這裡的程式碼。
+- `Features/Uploads/ImageFieldUpdate`（新增的共用三態 `record struct`：維持／清空／換新＋尺寸）
+  供 `Features/AdminNews`（Article 的 OG 圖片）、`Features/AdminPages`（Page 的 OG 圖片）、
+  `Features/AdminSeo`（全站預設 OG 圖片）三處共用，不重複各自宣告一份幾乎相同的型別——跟既有
+  `Features/AdminNews/CoverKeyUpdate` 的差異是多帶 `Width`／`Height`（`cover_key` 當初沒有寬高
+  欄位是既有缺口，本輪新增的 `og_image_key` 一開始就照「圖片欄位組」通則設計）。
+- **全站預設 OG 圖片沒有新建欄位**：查證後發現 `clubs.og_image_key` 早就存在（J4 品牌欄位，
+  `AdminClubDetailDto` 原本因為「另一位 backend agent 同時在改圖片上傳共用元件」而刻意唯讀，
+  見 `Features/AdminClubs/AdminClubDtos.cs` 的既有註解——那個限制只針對那一輪的任務邊界，
+  不適用本輪）。改為補上 `clubs.og_image_width`／`og_image_height` 兩欄，寫入路徑由
+  `Features/AdminSeo/AdminSeoSettingsRepository` 直接更新 `Club` 實體（不透過
+  `Features/AdminClubs`），`logo_light_key`／`logo_dark_key`／`favicon_key` 三個品牌欄位維持
+  原本刻意唯讀，不受影響。
+
+**優先序**（公開端點算好一個最終答案，前台直接用，不在前台重算）：
+- `Article`：這篇文章專屬 OG 圖片 > 全站預設 OG 圖片（`Club.OgImageKey`） > 這篇文章的封面圖片
+  （`cover_key`）。回退到全站預設圖或封面圖時**不輸出 alt**——兩者都沒有對應的替代文字來源
+  （`Club` 沒有這個欄位，`cover_key` 本身就沒有 alt 欄位，是既有落差）。
+- `Page`：這個頁面專屬 OG 圖片 > 全站預設 OG 圖片（Page 沒有「封面圖片」的概念，不像 Article
+  多一層回退）。
+
+**② robots.txt 接上環境閘門**——`apps/web/server/routes/robots.txt.ts`（新增，取代
+`nuxt.config.ts` 原本 `@nuxtjs/robots` 的 `disallow: ['/']`，改用 `enabled: false` 完全關閉該
+模組，理由跟 `docs/18-work-errors.md` E-18（sitemap 那次）完全同一個模式，見該檔案的完整說明）：
+- 環境旗標是**白名單**判斷（`siteEnv === 'production'`），不是黑名單（`siteEnv !== 'prelaunch'`）
+  ——確保任何未預期的值（未設定、拼錯、大小寫不符、未來新增的過渡值）一律落在封鎖側，這是任務
+  指示明文要求的方向。
+- production 分支目前只到「基本允許索引＋後台 `seo.robots_custom_rules` 自訂規則＋Sitemap
+  參照」，**不含 GEO-02 逐一 AI 爬蟲的允許清單與排除路徑**（那屬於 `S1-12b`，本輪不做，等那張票
+  做完再擴充這支路由的 production 分支，不需要改動環境旗標判斷邏輯本身）。
+- **全站 `X-Robots-Tag` noindex 標頭完全沒有被觸碰**——這是任務指示明文要求本輪不要處理的部分
+  （該標頭目前無條件套用，不看 `siteEnv`；上線時要不要也讓它跟著這個變數切換，是
+  `docs/17-deployment.md` §10.4「上線前三層防護」的完整機制要一併決定的事，不是這支檔案的職責）。
+
+**③ OG／canonical／noindex／keywords 真的有輸出到 HTML**——上一輪只把這些欄位加進
+`apps/api` 的 DTO，沒有接到任何前台頁面消費。`app/pages/zh/news/[slug]/index.vue`（目前
+**唯一**有動態內容可以渲染 SEO 資料的公開頁面，其餘 79 頁是靜態 mockup 搬遷頁）新增：
+`useSeoMeta` 的 `keywords`／`ogTitle`／`ogDescription`／`ogImage`／`ogImageWidth`／
+`ogImageHeight`／`ogImageAlt`／`robots`（`isNoindex` 為真時輸出 `noindex`，跟全站 noindex
+是兩個獨立機制，見程式碼註解）；`canonicalPath` 有值時用 `useHead` 疊加
+`<link rel="canonical">`（沿用既有 `app/pages/zh/schedule.vue` 的 `useSiteConfig()` 既有先例
+取得網域）。已用一篇真實插入的測試文章（含中文標題／描述／關鍵字／OG 圖片與 alt／
+`canonical_path`／`is_noindex=1`）取得實際 SSR 輸出的 HTML 逐一核對，見上方驗收紀錄第 4 點。
+
+**④ 測試不再永久改動開發資料庫的網站設定**：
+- `AdminSeoTests.Settings_系統管理員_可讀可寫...` 改為呼叫前先用
+  `CaptureSeoSettingsRowsAsync()` 讀出 `tcrfc` 俱樂部目前 `seo.*`／`tracking.*` 這批鍵的完整
+  現況（含 i18n 列），`finally` 用 `RestoreSeoSettingsRowsAsync()` 精準還原（整批刪除後依快照
+  重建，不是假設「執行前一定是空的」）。
+- 新增 `AdminSeoImageTests.cs`（真實 Azurite，見上方「測試」小節）驗證 OG 圖片上傳／解析出
+  網址／優先序，同樣測試前拍照、`finally` 還原 `clubs.og_image_key`／`_width`／`_height`。
+- 🔴 **過程中額外發現並修正一個既有小問題**：`AdminSeoSettingsRepository.UpdateAsync` 原本
+  每次 PUT（即使呼叫端只是要改標題樣板）都會把全部七個 `seo.*`／`tracking.*` 鍵各建一列
+  （即使沒有值也建一列 `setting_value = NULL` 的空殼），是撰寫 `AdminSeoImageTests` 的清理邏輯
+  時，實測發現 `tcrfc_club_dev` 留下五筆非預期的空列才抓到的——已修正
+  `AdminSeoSettingsRepository.UpsertValue`：只有「這個鍵已經有列」或「這次要寫入非空白值」才會
+  建立新列，不再產生用不到的空殼列。
+
+### 已知缺口（回報，不在本輪自行判斷做或不做）
+
+1. **後台畫面待做**：`apps/admin` 完全未改動（任務邊界僅 `apps/api`／`apps/web`）。
+2. **`GEO-01`／`GEO-02`**：依 `STATUS.md` 排程屬 `S1-12a`／`S1-12b`，本輪明確不做，但資料結構
+   （`settings` 的 `seo`／`tracking` 群組、`Redirect` 表、新增的 `og_image_*` 欄位）不會擋到它們
+   接續開發。
+3. **`llms.txt`／`llms-en.txt` 內容仍是骨架佔位**：屬 `GEO-01`（`S1-12a`），本輪未動。
+4. **全站預設 OG 圖片沒有替代文字欄位**：`clubs`／`clubs_i18n` 沒有對應的 `og_image_alt`——
+   Open Graph 規格本身沒有強制要求 `og:image:alt`，本輪判斷這個缺口可接受，不特別為全站預設圖
+   新增一個 i18n 欄位；單頁（Article／Page）專屬的 OG 圖片已有 alt 欄位，不受影響。
+
 ## 相關文件
 
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表

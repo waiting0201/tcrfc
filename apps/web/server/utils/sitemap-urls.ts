@@ -6,23 +6,34 @@
 // docs/13-blue-whale-site.md §6 紀律 3）。
 //
 // 呼叫鏈：isUnitEnabledForClub()（shared/utils/units.ts）→ getEnabledSiteUnits()
-// （shared/utils/site-units.ts）→ 這裡；新聞逐篇網址呼叫既有公開讀取端點
-// （GET /api/v1/{club}/news，同一套 server/utils/backend-api.ts 基底網址），
-// 不是另開一條路。try/catch 是防禦性寫法：apps/api 若暫時連不上，退回只有單元清單，
-// 不讓整支路由連 200 都回不了（沿用 urls.ts 原本的設計）。
+// （shared/utils/site-units.ts）→ 這裡；新聞逐篇網址改呼叫 S1-12 新增的
+// GET /api/v1/{club}/seo/sitemap-entries（apps/api，Features/Seo/SeoRepository.cs），
+// 取代原本直接打 /news 列表端點的寫法——後者不知道 is_noindex／is_excluded_from_sitemap
+// 這兩個 S1-12 新增欄位，會把管理員刻意排除的文章也列進 sitemap。這支後端端點目前只涵蓋
+// Article（新聞逐篇頁是唯一有真實動態路由的內容型別，見該檔案的檔頭說明），其餘 79 頁單元
+// 仍由 getEnabledSiteUnits 提供，兩者互不重疊。try/catch 是防禦性寫法：apps/api 若暫時連不上，
+// 退回只有單元清單，不讓整支路由連 200 都回不了（沿用既有設計）。
 export interface SitemapUrlEntry {
   loc: string
+  lastmod?: string
+}
+
+interface SitemapEntryResponse {
+  path: string
+  lastModifiedAt?: string | null
 }
 
 export async function getSitemapUrls(club: string): Promise<SitemapUrlEntry[]> {
-  const unitUrls = getEnabledSiteUnits(club).map((unit) => ({ loc: unit.path }))
+  const unitUrls: SitemapUrlEntry[] = getEnabledSiteUnits(club).map((unit) => ({ loc: unit.path }))
 
   try {
-    const result = await $fetch<{ items: { slug: string }[] }>(`/api/v1/${club}/news`, {
+    const entries = await $fetch<SitemapEntryResponse[]>(`/api/v1/${club}/seo/sitemap-entries`, {
       baseURL: backendApiBase(),
-      query: { pageSize: 200, lang: 'zh' },
     })
-    const articleUrls = (result.items ?? []).map((a) => ({ loc: `/zh/news/${a.slug}/` }))
+    const articleUrls: SitemapUrlEntry[] = (entries ?? []).map((e) => ({
+      loc: e.path,
+      lastmod: e.lastModifiedAt ?? undefined,
+    }))
     return [...unitUrls, ...articleUrls]
   } catch {
     return unitUrls

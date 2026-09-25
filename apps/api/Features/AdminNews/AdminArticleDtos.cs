@@ -17,6 +17,14 @@ public sealed record AdminArticleLocaleContent
     public string? Body { get; init; }
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
+
+    /// <summary>Meta Keywords（S1-12 新增，主站規劃書 §4.8 H「單頁 SEO」）。對應
+    /// <c>articles_i18n.seo_keywords</c>，逐語系。</summary>
+    public string? SeoKeywords { get; init; }
+
+    /// <summary>OG 圖片替代文字（S1-12 驗收退回後補做）。對應 <c>articles_i18n.og_image_alt</c>，
+    /// 逐語系。</summary>
+    public string? OgImageAlt { get; init; }
 }
 
 /// <summary>
@@ -99,6 +107,16 @@ public sealed record CreateArticleRequest
 
     /// <summary>關聯（S1-5 新增）。省略＝這篇文章不關聯任何球員／球隊／賽事／課程／夥伴。</summary>
     public IReadOnlyList<AdminArticleRelationInput>? Relations { get; init; }
+
+    /// <summary>手動覆寫 canonical（S1-12 新增）。省略或空字串＝不覆寫。對應
+    /// <c>articles.canonical_path</c>。建立時沒有「維持原樣」這回事，跟雙語內容欄位一樣整份直接寫入。</summary>
+    public string? CanonicalPath { get; init; }
+
+    /// <summary>單頁 noindex 開關（S1-12 新增）。對應 <c>articles.is_noindex</c>，預設 <c>false</c>。</summary>
+    public bool IsNoindex { get; init; }
+
+    /// <summary>從 Sitemap 排除（S1-12 新增）。對應 <c>articles.is_excluded_from_sitemap</c>。</summary>
+    public bool IsExcludedFromSitemap { get; init; }
 }
 
 /// <summary>
@@ -138,6 +156,18 @@ public sealed record UpdateArticleRequest
 
     /// <summary>關聯（S1-5 新增）。省略語意同 <see cref="Tags"/>：維持不變，不是清空。</summary>
     public IReadOnlyList<AdminArticleRelationInput>? Relations { get; init; }
+
+    /// <summary>手動覆寫 canonical（S1-12 新增）。**整份取代**（跟 <see cref="Content"/> 同一種
+    /// 語意，不是跟 <see cref="Tags"/> 那組「省略＝維持不變」）——編輯頁本來就會把這三個欄位
+    /// 一起讀出、一起存回，不存在「畫面上沒有這個輸入框」的情境，省略或空字串一律視為清空覆寫值。</summary>
+    public string? CanonicalPath { get; init; }
+
+    public bool IsNoindex { get; init; }
+    public bool IsExcludedFromSitemap { get; init; }
+
+    /// <summary>勾選「移除 OG 圖片」（S1-12 驗收退回後補做）。跟這次請求的 <c>ogImage</c> 檔案
+    /// 欄位互斥，兩者都有視為請求矛盾，回 400。兩者都沒有＝維持目前的 OG 圖片不變。</summary>
+    public bool RemoveOgImage { get; init; }
 }
 
 public sealed record PublishArticleRequest
@@ -194,6 +224,16 @@ public sealed record AdminArticleDetailDto
     public DateTime? PublishedAt { get; init; }
     public required bool IsShared { get; init; }
     public required DateTime UpdatedAt { get; init; }
+    public string? CanonicalPath { get; init; }
+    public bool IsNoindex { get; init; }
+    public bool IsExcludedFromSitemap { get; init; }
+
+    /// <summary>OG 圖片完整網址（<see cref="Images.IImagePublicUrlResolver"/> 解析後的值，
+    /// 不是原始物件鍵），<c>null</c>＝這篇文章沒有設定專屬 OG 圖片（S1-12 驗收退回後補做）。</summary>
+    public string? OgImageUrl { get; init; }
+
+    public int? OgImageWidth { get; init; }
+    public int? OgImageHeight { get; init; }
     public required AdminArticleLocaleContent Zh { get; init; }
     public AdminArticleLocaleContent? En { get; init; }
 

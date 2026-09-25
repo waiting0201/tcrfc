@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Features.AdminPages;
+using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
 using Tcrfc.Api.Tests.Fixtures;
@@ -247,8 +248,9 @@ public sealed class AdminPagesImageTests(AdminWriteAzuriteEnabledApiFixture fixt
         using var cts = new CancellationTokenSource();
         var realStorage = new BlobImageStorageService(fixture.InspectorContainer, NullLogger<BlobImageStorageService>.Instance);
         var cancelAfterFirstUploadStorage = new CancelAfterFirstUploadImageStorageService(realStorage, cts);
+        var imageUrlResolver = scope.ServiceProvider.GetRequiredService<IImagePublicUrlResolver>();
 
-        var repository = new AdminPagesRepository(dbContext, cache, cancelAfterFirstUploadStorage);
+        var repository = new AdminPagesRepository(dbContext, cache, cancelAfterFirstUploadStorage, imageUrlResolver);
 
         // 直接呼叫 repository 層才能精準控制「圖片剛上傳完成的瞬間」，HTTP 客戶端做不到這種時序
         // 控制。仍然要走真正的 IAdminClubAuthorizer.AuthorizeAsync 才能拿到合法的 AdminClubScope
@@ -273,7 +275,7 @@ public sealed class AdminPagesImageTests(AdminWriteAzuriteEnabledApiFixture fixt
         cancelAfterFirstUploadStorage.OnFirstUploadCompleted = key => uploadedKeyBeforeCancel = key;
 
         await Assert.ThrowsAsync<AdminPageValidationException>(
-            () => repository.CreateAsync(adminScope, pageId, request, files, adminScope.Identity.AdminUserId, cts.Token));
+            () => repository.CreateAsync(adminScope, pageId, request, files, ImageFieldUpdate.Keep, adminScope.Identity.AdminUserId, cts.Token));
 
         Assert.NotNull(uploadedKeyBeforeCancel);
         Assert.True(cts.IsCancellationRequested); // 前提：呼叫結束時外層 token 確實已經是取消狀態

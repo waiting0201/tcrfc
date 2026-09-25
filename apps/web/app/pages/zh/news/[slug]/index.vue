@@ -104,6 +104,41 @@ useSeoMeta({
     if (!a) return ''
     return a.seoDescription || a.summary || `${a.title ?? ''} — ${siteName.value}新聞中心`
   }),
+  // ── S1-12 驗收退回後補做：Meta Keywords／OG 圖文／noindex 真的要輸出到 HTML ──────────
+  // 上一輪只把這些欄位加進 apps/api 的 DTO，沒有接到任何前台頁面消費，這裡是第一個（也是
+  // 目前唯一一個）真的有動態內容可以渲染的公開頁面（其餘 79 頁是靜態 mockup 搬遷頁，
+  // 沒有對應的後端 SEO 資料可讀，見 apps/api/README.md「S1-12」段「Sitemap 只涵蓋 Article」
+  // 同一個理由）。
+  keywords: computed(() => article.value?.seoKeywords ?? undefined),
+  ogTitle: computed(() => (article.value ? `${article.value.title}｜${siteName.value}` : undefined)),
+  ogDescription: computed(() => article.value?.seoDescription || article.value?.summary || undefined),
+  // ogImage 已經是 apps/api 算好優先序（這篇文章專屬 > 全站預設 > 這篇文章的封面圖片）之後
+  // 的完整網址，這裡直接用，不在前台重新判斷一次優先序（單一真實來源）。
+  ogImage: computed(() => article.value?.ogImageUrl ?? undefined),
+  ogImageWidth: computed(() => article.value?.ogImageWidth ?? undefined),
+  ogImageHeight: computed(() => article.value?.ogImageHeight ?? undefined),
+  ogImageAlt: computed(() => article.value?.ogImageAlt ?? undefined),
+  // 🔴 noindex 是「這篇文章」層級的開關（後台可以個別設定），跟全站上線前的 noindex
+  // （nuxt.config.ts 的 routeRules，CLAUDE.md 全域規定第 5 條）是兩個機制、互不取代——全站
+  // noindex 由 X-Robots-Tag 標頭無條件蓋過，這裡的 <meta name="robots"> 是「萬一全站
+  // noindex 之後解除了，這篇文章本身該不該被收錄」這件事的獨立設定，兩者同時存在不衝突
+  // （搜尋引擎對「有任何一處說 noindex」一律視為 noindex，不會互相抵消）。
+  robots: computed(() => (article.value?.isNoindex ? 'noindex' : undefined)),
+})
+
+// canonical 覆寫（S1-12 驗收退回後補做）：只有後台明確設定 canonicalPath 時才疊加，
+// 省略時維持上面既有註解說明的預設行為（nuxt-seo-utils 依 site.url ＋ 目前路徑自動產生）——
+// 不因為新增這個欄位就改變其餘 80 頁沒有這個資料可用時的既有行為。siteConfig.url 用法
+// 逐字比照既有 app/pages/zh/schedule.vue 的既有先例（nuxt-site-config 的 priority-stack，
+// 已實測 NUXT_PUBLIC_SITE_URL 能在 runtime 正確覆寫）。
+const siteConfig = useSiteConfig()
+useHead({
+  link: computed(() => {
+    const canonicalPath = article.value?.canonicalPath
+    if (!canonicalPath) return []
+    const siteUrl = (siteConfig.url ?? '').replace(/\/$/, '')
+    return [{ rel: 'canonical', href: `${siteUrl}${canonicalPath}` }]
+  }),
 })
 
 // Article Schema（GEO-05／GEO-08：canonical、發布與更新時間、語言、作者或署名單位）。

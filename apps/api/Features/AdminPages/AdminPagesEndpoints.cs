@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Http.Json;
 using Microsoft.Extensions.Options;
 using Tcrfc.Api.Common;
+using Tcrfc.Api.Features.Uploads;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.AdminPages;
@@ -67,8 +69,8 @@ public static class AdminPagesEndpoints
         // POST /api/v1/admin/{club}/pages  → 一律建立成草稿，狀態轉換是獨立端點。
         group.MapPost("", async (
             string club, HttpRequest httpRequest, HttpContext httpContext,
-            IAdminClubAuthorizer authorizer, AdminPagesRepository repository, IOptions<JsonOptions> jsonOptions,
-            CancellationToken cancellationToken) =>
+            IAdminClubAuthorizer authorizer, AdminPagesRepository repository, IImageStorageService imageStorage,
+            IOptions<JsonOptions> jsonOptions, CancellationToken cancellationToken) =>
         {
             var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionCreate, cancellationToken);
             var operatorId = adminScope.Identity.AdminUserId;
@@ -79,7 +81,22 @@ public static class AdminPagesEndpoints
             // 🔴 id 必須在上傳之前就決定：區塊圖片的物件鍵路徑要指到「這張圖屬於哪一筆將要建立的
             // 頁面」，見 AdminPagesRepository.CreateAsync 上的說明（同 AdminArticlesEndpoints 的既有慣例）。
             var pageId = Guid.NewGuid();
-            var created = await repository.CreateAsync(adminScope, pageId, request, files, operatorId, cancellationToken);
+
+            // S1-12 新增：OG 圖片覆寫，獨立於區塊圖片之外，走同一個 multipart 請求的 ogImage 欄位
+            // （見 AdminPageRequestForm 檔頭：files 是整個 IFormFileCollection，這裡直接用固定
+            // 欄位名查找，不走 file:{區塊索引}:{路徑} 那套命名慣例）。
+            var ogImageFile = files["ogImage"];
+            var ogImageUpdate = ImageFieldUpdate.Keep;
+            if (ogImageFile is not null)
+            {
+                UploadSlotPolicy.Validate("pages", "og");
+                var uploadedOg = await UploadOgImageAsync(adminScope, pageId, ogImageFile, imageStorage, cancellationToken);
+                ogImageUpdate = ImageFieldUpdate.Set(uploadedOg.Key, uploadedOg.Width, uploadedOg.Height);
+            }
+
+            // 補償刪除已經在 AdminPagesRepository.CreateAsync 內部處理（跟區塊圖片共用同一段
+            // catch 區塊，見該方法上的說明），這裡不需要再包一層 try/catch。
+            var created = await repository.CreateAsync(adminScope, pageId, request, files, ogImageUpdate, operatorId, cancellationToken);
             return Results.Created($"/api/v1/admin/{club}/pages/{created.Id}", created);
         })
         .WithName("AdminCreatePage")
@@ -94,8 +111,8 @@ public static class AdminPagesEndpoints
         // PUT /api/v1/admin/{club}/pages/{id}  → 整份取代（SEO ＋ 全部區塊），不改狀態。
         group.MapPut("/{id:guid}", async (
             string club, Guid id, HttpRequest httpRequest, HttpContext httpContext,
-            IAdminClubAuthorizer authorizer, AdminPagesRepository repository, IOptions<JsonOptions> jsonOptions,
-            CancellationToken cancellationToken) =>
+            IAdminClubAuthorizer authorizer, AdminPagesRepository repository, IImageStorageService imageStorage,
+            IOptions<JsonOptions> jsonOptions, CancellationToken cancellationToken) =>
         {
             var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
             var operatorId = adminScope.Identity.AdminUserId;
@@ -103,8 +120,44 @@ public static class AdminPagesEndpoints
             var (request, files) = await AdminPageRequestForm.ReadAsync<UpdatePageRequest>(
                 httpRequest, jsonOptions.Value.SerializerOptions, cancellationToken);
 
-            var updated = await repository.UpdateAsync(adminScope, id, request, files, operatorId, cancellationToken);
-            return updated is null ? Results.NotFound() : Results.Ok(updated);
+            var ogImageFile = files["ogImage"];
+            if (ogImageFile is not null && request.RemoveOgImage)
+            {
+                throw new AdminPageValidationException("不能同時上傳新的 OG 圖片與移除 OG 圖片，請擇一。");
+            }
+
+            // S1-12 新增：OG 圖片三態，語意跟 Features/AdminNews 的封面圖片一致。
+            ImageFieldUpdate ogImageUpdate;
+            if (ogImageFile is not null)
+            {
+                UploadSlotPolicy.Validate("pages", "og");
+                var uploadedOg = await UploadOgImageAsync(adminScope, id, ogImageFile, imageStorage, cancellationToken);
+                ogImageUpdate = ImageFieldUpdate.Set(uploadedOg.Key, uploadedOg.Width, uploadedOg.Height);
+            }
+            else if (request.RemoveOgImage)
+            {
+                ogImageUpdate = ImageFieldUpdate.Remove;
+            }
+            else
+            {
+                ogImageUpdate = ImageFieldUpdate.Keep;
+            }
+
+            // 🔴 OG 圖片在呼叫 repository 之前就已經上傳（跟區塊圖片不同——後者在 repository 內部、
+            // 確認頁面存在之後才上傳）。找不到頁面（跨俱樂部或真的不存在）這個分支發生在
+            // repository 確認頁面存在**之前**就 return null，不會走到內部的補償刪除，這裡要另外清。
+            var updated = await repository.UpdateAsync(adminScope, id, request, files, ogImageUpdate, operatorId, cancellationToken);
+            if (updated is null)
+            {
+                if (ogImageUpdate.Key is not null)
+                {
+                    await imageStorage.DeleteAsync(ogImageUpdate.Key, cancellationToken);
+                }
+
+                return Results.NotFound();
+            }
+
+            return Results.Ok(updated);
         })
         .WithName("AdminUpdatePage")
         .Produces<AdminPageDetailDto>()
@@ -212,5 +265,32 @@ public static class AdminPagesEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound)
         .Produces(StatusCodes.Status409Conflict);
+    }
+
+    /// <summary>S1-12 新增：OG 圖片覆寫的上傳，邏輯逐字比照
+    /// <c>Features/AdminNews/AdminArticlesEndpoints.UploadOgImageAsync</c>——獨立於區塊圖片
+    /// （由 <c>AdminPagesRepository.ResolveBlocksAsync</c> 內部處理）之外的單一固定欄位。</summary>
+    private static async Task<UploadedImageInfo> UploadOgImageAsync(
+        AdminClubScope scope, Guid pageId, IFormFile file, IImageStorageService imageStorage, CancellationToken cancellationToken)
+    {
+        if (file.Length == 0)
+        {
+            throw new EmptyImageException();
+        }
+
+        if (file.Length > ImageUploadOptions.MaxUploadBytes)
+        {
+            throw new ImageTooLargeException();
+        }
+
+        byte[] rawBytes;
+        using (var buffer = new MemoryStream())
+        {
+            await file.CopyToAsync(buffer, cancellationToken);
+            rawBytes = buffer.ToArray();
+        }
+
+        var objectKeyPrefix = $"{scope.ClubCode}/pages/{pageId}/og";
+        return await imageStorage.UploadAsync(rawBytes, objectKeyPrefix, cancellationToken);
     }
 }

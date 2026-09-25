@@ -264,6 +264,15 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 公關／媒體 | 表單詢問 **媒體類詢問** | `enquiry.media.view`、`enquiry.media.update`（只看 `form_code = media_enquiry`） |
 | 客服／行政 | 表單詢問 **✔全** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（**不含** `enquiry.inbox.export`，比照 P3 匯出不給客服／行政的既有保守預設） |
 | 合作球隊管理 | 表單詢問 **自家** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（`scope_type = own_clubs`，不含匯出） |
+| 系統管理員 | SEO／設定 **✔全** | `seo.setting.view/update`（全站 SEO 預設、追蹤碼、robots.txt 自訂規則）、`seo.redirect.*`（含 `import`）、`seo.report.view`（孤立頁面偵測）——**三組皆 `sysadmin_only`** |
+| 內容編輯 | SEO／設定 **單頁 SEO** | 不新增權限碼——`content.page.update`／`content.article.update` 既有請求已擴充 `canonicalPath`／`isNoindex`／`isExcludedFromSitemap`／`seoKeywords` 四個欄位，跟隨既有內容編輯權限，不是獨立的 SEO 權限碼 |
+
+> **S1-12 新增（2026-09-25）**：矩陣「SEO／設定」欄除了內容編輯的「單頁 SEO」外，**十個角色裡只有
+> 系統管理員打勾**，性質上與 J 模組的「系統」欄同樣是單一角色的排他欄位，因此 `seo.setting.*`／
+> `seo.redirect.*`／`seo.report.view` 比照 `system.*` 的既有先例一律標記 `sysadmin_only=1`（雙重
+> 防線：即使日後 J2「角色權限指派」畫面誤把這幾個權限碼勾給其他角色，`PermissionChecker` 仍會
+> 擋下）。這是本輪的判斷，規劃書矩陣沒有明文要求用 `sysadmin_only` 而非單純不指派其他角色，見
+> `apps/api/README.md`「S1-12」段「規劃書沒寫清楚、自行判斷」。
 
 > **S1-10 新增（2026-09-25）**：「課程類詢問」「合作／贊助類詢問」「媒體類詢問」三格**不是**用
 > `role_permissions.scope_type` 表達（不像 `academy_only`／`own_teams` 需要另外解析列級範圍），
@@ -430,6 +439,8 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 物流單號 | `Shipment.tracking_no`。**v2.6 不串物流商 API，以 CSV 回填** | S4 |
 
 > ⚠️ 目前 [`../content/migration/舊官網URL盤點.csv`](../content/migration/舊官網URL盤點.csv) 的「客戶決定」與「新站對應頁面」兩欄**全空**，301 對照表尚無法產生。
+> ✅ **（S1-12，2026-09-25）匯入機制本身已完成**（`Features/AdminSeo/AdminRedirectsRepository.ImportCsvAsync`，重用 `Common/CsvUtils.cs`——該檔案檔頭原本就預告本項會重用它），
+> **upsert 鍵 `(club_id, from_path)`**（沿用既有 `UQ_redirects_club_path`）：CSV 裡的舊網址若已存在就整列覆寫 `to_path`／`is_active`，否則新增；比照 `Features/AdminFaqs` 的 CSV 匯入語意（整批驗證、任一列有誤就整批不寫入），不是比照 `Features/AdminMatches`（純建立）。**匯出（`ExportCsvAsync`）同一輪一併補上**，格式與匯入欄位對稱，方便下載現況後回頭編輯再匯入。**表格內容本身仍待客戶決定**（上一句「全空」的現況未變），本輪只完成匯入匯出這個機制。
 
 ### 10.2 匯出
 
