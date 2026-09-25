@@ -14,6 +14,10 @@ const hero = computed(() => ECOSYSTEM_HERO[clubKey.value])
 const nodes = computed(() => ECOSYSTEM_NODES[clubKey.value])
 const title = computed(() => ECOSYSTEM_TITLE[clubKey.value])
 
+// S1-13：nodes[].href 是 club-copy.ts 裡的裸 /zh/... 路徑，消費時要套 lp()，
+// 同一個問題見 app/pages/zh/index.vue 的檔頭說明。
+const { lp } = useLocale()
+
 useSeoMeta({
   title: computed(() => ECOSYSTEM_SEO[clubKey.value].title),
   description: computed(() => ECOSYSTEM_SEO[clubKey.value].description),
@@ -50,7 +54,7 @@ useSeoMeta({
         <span v-if="identity.brandTagEn">{{ identity.brandTagEn }}</span>
       </div>
 
-      <a v-for="node in nodes" :key="node.num" :class="['eco-node', `eco-node--${node.slug}`]" :href="node.href">
+      <a v-for="node in nodes" :key="node.num" :class="['eco-node', `eco-node--${node.slug}`]" :href="lp(node.href)">
         <span class="eco-node__num">{{ node.num }}</span>
         <span class="eco-node__en">{{ node.enLabel }}</span>
         <span class="eco-node__zh">{{ node.zhLabel }}</span>

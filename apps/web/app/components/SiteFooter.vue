@@ -9,6 +9,10 @@ const assets = computed(() => getClubAssets(club.value))
 const identity = computed(() => getClubIdentity(club.value))
 const showWomens = computed(() => isUnitEnabledForClub('06', club.value))
 const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
+
+// 頁尾導覽連結（本檔 19 處 href）一律用 lp() 換算成目前語系版本（S1-13，
+// shared/utils/locale.ts 單一真實來源）；語系切換器本身另外用 switchTo()。
+const { locale, lp, switchTo } = useLocale()
 </script>
 
 <template>
@@ -28,33 +32,33 @@ const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
         <div class="footer-col">
           <h4>俱樂部</h4>
           <ul>
-            <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
-            <li><a href="/zh/club/first-team/">一線隊</a></li>
-            <li><a href="/zh/schedule/">賽事行事曆</a></li>
-            <li><a href="/zh/news/">最新消息</a></li>
-            <li><a href="/zh/partners/">合作夥伴與贊助</a></li>
+            <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
+            <li><a :href="lp('/zh/club/first-team/')">一線隊</a></li>
+            <li><a :href="lp('/zh/schedule/')">賽事行事曆</a></li>
+            <li><a :href="lp('/zh/news/')">最新消息</a></li>
+            <li><a :href="lp('/zh/partners/')">合作夥伴與贊助</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h4>青訓與課程</h4>
           <ul>
-            <li><a href="/zh/academy/">{{ identity.academyLabelZh }}</a></li>
-            <li><a href="/zh/programs/">課程與活動</a></li>
-            <li v-if="showWomens"><a href="/zh/womens/">女子足球</a></li>
-            <li><a href="/zh/join/player/">加入球隊</a></li>
-            <li><a href="/zh/academy/join/">加入{{ identity.academyShortLabelZh }}</a></li>
+            <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
+            <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
+            <li v-if="showWomens"><a :href="lp('/zh/womens/')">女子足球</a></li>
+            <li><a :href="lp('/zh/join/player/')">加入球隊</a></li>
+            <li><a :href="lp('/zh/academy/join/')">加入{{ identity.academyShortLabelZh }}</a></li>
           </ul>
         </div>
         <div class="footer-col">
           <h4>參與{{ assets.shortNameZh }}</h4>
           <ul>
-            <li><a href="/zh/culture/">{{ identity.cultureLabelZh }}</a></li>
-            <li><a href="/zh/shop/">官方商店</a></li>
-            <li><a href="/zh/order/lookup/">訂單查詢</a></li>
-            <li v-if="showCharity"><a href="/zh/charity/">慈善與社會影響</a></li>
-            <li><a href="/zh/faq/">常見問題 FAQ</a></li>
-            <li><a href="/zh/join/">加入與聯絡</a></li>
-            <li><a href="/zh/join/location/">場地位置與地圖</a></li>
+            <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
+            <li><a :href="lp('/zh/shop/')">官方商店</a></li>
+            <li><a :href="lp('/zh/order/lookup/')">訂單查詢</a></li>
+            <li v-if="showCharity"><a :href="lp('/zh/charity/')">慈善與社會影響</a></li>
+            <li><a :href="lp('/zh/faq/')">常見問題 FAQ</a></li>
+            <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
+            <li><a :href="lp('/zh/join/location/')">場地位置與地圖</a></li>
           </ul>
         </div>
         <div class="footer-col newsletter">
@@ -71,10 +75,10 @@ const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
       <div class="footer-bottom">
         <p>{{ identity.copyrightZh }}</p>
         <div class="legal-links">
-          <a href="/zh/privacy/">隱私權政策</a>
-          <a href="/zh/cookies/">Cookie 政策</a>
+          <a :href="lp('/zh/privacy/')">隱私權政策</a>
+          <a :href="lp('/zh/cookies/')">Cookie 政策</a>
           <div class="footer-lang lang-switch" role="group" aria-label="網站語言切換">
-            <button type="button" aria-current="true">繁中</button><span aria-hidden="true">|</span><button type="button">EN</button>
+            <button type="button" :aria-current="locale === 'zh' ? 'true' : undefined" @click="switchTo('zh')">繁中</button><span aria-hidden="true">|</span><button type="button" :aria-current="locale === 'en' ? 'true' : undefined" @click="switchTo('en')">EN</button>
           </div>
         </div>
       </div>

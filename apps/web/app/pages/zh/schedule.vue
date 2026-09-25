@@ -32,7 +32,11 @@ definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule' })
 const config = useRuntimeConfig()
 const club = config.public.club
 
-const { data } = await useFetch(`/api/backend/${club}/schedule`, { query: { pageSize: 200, lang: 'zh' } })
+// S1-13：lang 改跟隨目前路由語系（/zh/ 或 /en/），不再寫死 'zh'——apps/api 對
+// ?lang=en 已有完整欄位回退機制（apps/api/README.md「已知落差」段的真實 curl 驗證），
+// 前台只要把正確的語系傳過去即可，不需要在這裡自己做回退判斷。
+const { locale, lp } = useLocale()
+const { data } = await useFetch(`/api/backend/${club}/schedule`, { query: { pageSize: 200, lang: locale.value } })
 const matches = computed(() => data.value?.items ?? [])
 
 interface MatchItem {
@@ -367,7 +371,7 @@ const sportsEvents = computed(() => {
       homeTeam,
       awayTeam,
       competitor: [selfTeam, oppTeam],
-      url: `${siteConfig.url}/zh/schedule/#${fixtureId(m.matchOn, m.homeAway, m.matchNo)}`,
+      url: `${siteConfig.url}${lp('/zh/schedule/')}#${fixtureId(m.matchOn, m.homeAway, m.matchNo)}`,
     })
   }
   return nodes
@@ -392,7 +396,7 @@ useHead(() => (
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
       <li aria-current="page">賽事行事曆</li>
     </ol>
   </div>
@@ -574,17 +578,17 @@ useHead(() => (
   <div class="band-inner container">
     <h2 class="section-title" id="sched-cta-title">相關連結</h2>
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/club/first-team/">
+      <a class="cta-card" :href="lp('/zh/club/first-team/')">
         <span class="cta-card__num">3.1</span>
         <span class="cta-card__title">一線隊 First Team</span>
         <p class="cta-card__desc">認識球員名單、教練團與成績積分榜</p>
       </a>
-      <a class="cta-card" href="/zh/academy/teams/">
+      <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">學院隊伍</span>
         <p class="cta-card__desc">U15／U14／U12 梯隊介紹</p>
       </a>
-      <a class="cta-card" href="/zh/join/general/">
+      <a class="cta-card" :href="lp('/zh/join/general/')">
         <span class="cta-card__num">10.7</span>
         <span class="cta-card__title">聯絡我們</span>
         <p class="cta-card__desc">媒體、球迷或家長的賽程相關詢問</p>

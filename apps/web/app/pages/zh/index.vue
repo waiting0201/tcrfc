@@ -21,6 +21,12 @@ const heroCopy = computed(() => HOME_HERO[clubKey.value])
 const pillars = computed(() => HOME_PILLARS[clubKey.value])
 const ctaTrio = computed(() => HOME_CTA_TRIO[clubKey.value])
 
+// S1-13：club-copy.ts 裡的 ctaPrimaryHref／pillars[].href／ctaTrio[].href 三組欄位存的是
+// 「裸的 /zh/... 路徑」（該檔案的資料格式一律如此，不隨語系變化），樣板消費這些欄位時要
+// 套一層 lp() 換算成目前路由語系——這裡是本輪 curl 實測時抓到的真實回歸（英文首頁的三個
+// CTA 連結原本會把讀者導回 /zh/...），修法見下方樣板三處呼叫點。
+const { lp } = useLocale()
+
 useSeoMeta({
   title: computed(() => HOME_SEO[clubKey.value].title),
   description: computed(() => HOME_SEO[clubKey.value].description),
@@ -259,8 +265,8 @@ onBeforeUnmount(() => {
             <h1 class="hero__headline" v-html="heroCopy.headlineZh"></h1>
             <p class="hero__sub" v-html="heroCopy.factLineZh"></p>
             <div class="hero__ctas">
-              <a class="btn btn--primary" :href="heroCopy.ctaPrimaryHref">加入球隊</a>
-              <a class="btn btn--light" :href="heroCopy.ctaSecondaryHref">{{ heroCopy.ctaSecondaryLabelZh }}</a>
+              <a class="btn btn--primary" :href="lp(heroCopy.ctaPrimaryHref)">加入球隊</a>
+              <a class="btn btn--light" :href="lp(heroCopy.ctaSecondaryHref)">{{ heroCopy.ctaSecondaryLabelZh }}</a>
             </div>
             <div v-if="isTcrfc" class="hero__slider-nav">
               <button type="button" class="hero__arrow hero__arrow--prev" data-hero-prev aria-controls="hero-slider" aria-label="上一張主視覺圖片" @click="goTo(current - 1)">
@@ -278,7 +284,7 @@ onBeforeUnmount(() => {
           </div>
           <!-- 藍鯨新聞 07 單元自有全文 0 篇（gap-analysis.md §4 #3），不沿用磐石新聞頂替，本區塊不顯示。 -->
           <div v-if="isTcrfc" class="hero__news">
-            <a class="hero-card clip-card clip-card--on-dark" href="/zh/news/">
+            <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
                 <img src="/assets/img/news-trencin.jpg" alt="台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流" loading="lazy" width="1280" height="853">
               </div>
@@ -287,7 +293,7 @@ onBeforeUnmount(() => {
                 <span class="hero-card__title">台中磐石與 AS Trenčín 深化青訓合作</span>
               </div>
             </a>
-            <a class="hero-card clip-card clip-card--on-dark" href="/zh/news/">
+            <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
                 <img src="/assets/img/news-mcu.jpg" alt="台中磐石 7 號球員於夜間比賽中盤球突破銘傳大學白色球衣防線" loading="lazy" width="1280" height="855">
               </div>
@@ -363,8 +369,8 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="match-band__actions">
-        <a class="btn btn--light" href="/zh/schedule/">查看完整行事曆</a>
-        <a class="btn btn--light" href="/zh/schedule/">訂閱一線隊賽程 (.ics)</a>
+        <a class="btn btn--light" :href="lp('/zh/schedule/')">查看完整行事曆</a>
+        <a class="btn btn--light" :href="lp('/zh/schedule/')">訂閱一線隊賽程 (.ics)</a>
       </div>
     </div>
   </section>
@@ -377,7 +383,7 @@ onBeforeUnmount(() => {
       <div class="roster-strip">
         <div class="roster-strip__head">
           <h3 id="roster-strip-title">一線隊球員 FIRST TEAM</h3>
-          <a href="/zh/club/first-team/">查看完整名單 →</a>
+          <a :href="lp('/zh/club/first-team/')">查看完整名單 →</a>
         </div>
         <div class="roster-row">
           <div class="roster-card">
@@ -466,7 +472,7 @@ onBeforeUnmount(() => {
       <!-- 四大支柱／三大體系圖卡沿用既有 mockup 圖片（人物照為磐石既有素材，藍鯨
            無對應照片，兩站共用同一組通用足球場景照，不涉及任何俱樂部辨識內容）。 -->
       <div class="pillars-grid">
-        <a v-for="(pillar, i) in pillars" :id="pillar.id" :key="pillar.enLabel" class="pillar-card clip-card clip-card--on-dark" :href="pillar.href">
+        <a v-for="(pillar, i) in pillars" :id="pillar.id" :key="pillar.enLabel" class="pillar-card clip-card clip-card--on-dark" :href="lp(pillar.href)">
           <img :src="['/assets/img/news-mcu.jpg', '/assets/img/trencin-04.jpg', '/assets/img/trencin-05.jpg', '/assets/img/news-w20.jpg'][i]" :alt="pillar.imgAlt" loading="lazy" :width="pillar.imgWidth" :height="pillar.imgHeight">
           <div class="pillar-card__scrim" aria-hidden="true"></div>
           <div class="pillar-card__body">
@@ -493,11 +499,11 @@ onBeforeUnmount(() => {
           <p class="kicker">LATEST STORIES</p>
           <h2 class="section-title" id="news-title">最新消息</h2>
         </div>
-        <a class="btn btn--dark btn--sm" href="/zh/news/">所有新聞</a>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/news/')">所有新聞</a>
       </div>
 
       <div class="news-mosaic">
-        <a class="news-card clip-card news-card--feature" href="/zh/news/2026-05-17-match-002/">
+        <a class="news-card clip-card news-card--feature" :href="lp('/zh/news/2026-05-17-match-002/')">
           <div class="news-card__media">
             <span class="news-card__tag">消息 News</span>
             <img src="/assets/img/news/2026-05-17-match-002.jpg" alt="企甲聯賽 台中磐石 1-2 陽信北競" loading="lazy" width="1280" height="853">
@@ -508,7 +514,7 @@ onBeforeUnmount(() => {
           </div>
         </a>
 
-        <a class="news-card clip-card news-card--sml" href="/zh/news/2026-05-10-match-003/">
+        <a class="news-card clip-card news-card--sml" :href="lp('/zh/news/2026-05-10-match-003/')">
           <div class="news-card__media">
             <span class="news-card__tag">比賽 Matches</span>
             <img src="/assets/img/news/2026-05-10-match-003.jpg" alt="企甲聯賽 台中磐石 2-4 南市台鋼" loading="lazy" width="1280" height="855">
@@ -519,7 +525,7 @@ onBeforeUnmount(() => {
           </div>
         </a>
 
-        <a class="news-card clip-card news-card--sml" href="/zh/news/2026-05-03-match-005/">
+        <a class="news-card clip-card news-card--sml" :href="lp('/zh/news/2026-05-03-match-005/')">
           <div class="news-card__media">
             <span class="news-card__tag">比賽 Matches</span>
             <img src="/assets/img/news/2026-05-03-match-005.jpg" alt="乙級聯賽 台中磐石預備隊 0-2 銘傳Desafio" loading="lazy" width="1280" height="855">
@@ -530,7 +536,7 @@ onBeforeUnmount(() => {
           </div>
         </a>
 
-        <a class="news-card clip-card news-card--wide" href="/zh/news/2026-08-10-international-000/">
+        <a class="news-card clip-card news-card--wide" :href="lp('/zh/news/2026-08-10-international-000/')">
           <div class="news-card__inner" style="display:flex;width:100%;">
             <div class="news-card__media">
               <span class="news-card__tag">國際動態 International</span>
@@ -543,7 +549,7 @@ onBeforeUnmount(() => {
           </div>
         </a>
 
-        <a class="news-card clip-card news-card--wide" href="/zh/news/2026-05-24-match-001/">
+        <a class="news-card clip-card news-card--wide" :href="lp('/zh/news/2026-05-24-match-001/')">
           <div class="news-card__inner" style="display:flex;width:100%;">
             <div class="news-card__media">
               <span class="news-card__tag">比賽 Matches</span>
@@ -569,7 +575,7 @@ onBeforeUnmount(() => {
           <p class="kicker kicker--on-dark">TEAM UP IN STYLE</p>
           <h2 class="section-title" id="store-title">官方商店</h2>
           <p>主客場球衣、周邊配件與訓練服飾，穿上台中磐石桃紅，與球隊一起在場邊、場上同進退。</p>
-          <a class="btn btn--primary" href="/zh/culture/merchandise/">官方商品 MERCHANDISE</a>
+          <a class="btn btn--primary" :href="lp('/zh/culture/merchandise/')">官方商品 MERCHANDISE</a>
           <p class="store-band__fine">詳細商品與購買方式請至官方商品頁面查看。</p>
         </div>
         <div class="store-visual clip-card clip-card--on-dark">
@@ -615,7 +621,7 @@ onBeforeUnmount(() => {
           <p class="cta-card__num">{{ card.num }}</p>
           <p class="cta-card__title">{{ card.titleZh }}</p>
           <p class="cta-card__desc">{{ card.descZh }}</p>
-          <a class="btn btn--primary" :href="card.href">{{ card.ctaLabelZh }}</a>
+          <a class="btn btn--primary" :href="lp(card.href)">{{ card.ctaLabelZh }}</a>
         </div>
       </div>
     </div>

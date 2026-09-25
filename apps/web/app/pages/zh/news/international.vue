@@ -9,8 +9,10 @@ definePageMeta({ nav: 'news', unit: '07' })
 const config = useRuntimeConfig()
 const club = config.public.club
 
+// S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
+const { locale, lp } = useLocale()
 const { data } = await useFetch(`/api/backend/${club}/news`, {
-  query: { category: 'international', pageSize: 200, lang: 'zh' },
+  query: { category: 'international', pageSize: 200, lang: locale.value },
 })
 
 const articles = computed(() => data.value?.items ?? [])
@@ -31,8 +33,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/news/">新聞 News</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/news/')">新聞 News</a></li>
       <li aria-current="page">國際動態</li>
     </ol>
   </div>

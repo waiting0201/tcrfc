@@ -37,6 +37,11 @@ const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
 const route = useRoute()
 const activeNav = computed(() => route.meta.nav as string | undefined)
 
+// 所有導覽連結（本檔上面 78 處 href、1 處 NuxtLink to）一律用 lp() 換算成目前語系版本
+// （S1-13，shared/utils/locale.ts 的單一真實來源），不得改回寫死 /zh/——語系切換器
+// 本身另外用 switchTo()（見下方樣板），因為它要「切去另一個語系」，不是「留在目前語系」。
+const { locale, lp, switchTo } = useLocale()
+
 // ---- Sticky header shadow ----
 const headerEl = ref<HTMLElement | null>(null)
 function onScroll() {
@@ -151,12 +156,12 @@ onBeforeUnmount(() => {
     <div class="container">
       <div class="utility-bar__left">
         <div class="lang-switch" role="group" aria-label="網站語言切換">
-          <button type="button" aria-current="true" lang="zh-Hant">繁中</button>
+          <button type="button" :aria-current="locale === 'zh' ? 'true' : undefined" lang="zh-Hant" @click="switchTo('zh')">繁中</button>
           <span aria-hidden="true">|</span>
-          <button type="button" lang="en">EN</button>
+          <button type="button" :aria-current="locale === 'en' ? 'true' : undefined" lang="en" @click="switchTo('en')">EN</button>
         </div>
         <div class="utility-bar__member">
-          <a href="/zh/member/">會員登入</a><span class="divider">/</span><a href="/zh/member/#tab-register">註冊</a>
+          <a :href="lp('/zh/member/')">會員登入</a><span class="divider">/</span><a :href="lp('/zh/member/#tab-register')">註冊</a>
         </div>
       </div>
       <div class="utility-bar__right">
@@ -177,148 +182,148 @@ onBeforeUnmount(() => {
 
   <header ref="headerEl" class="site-header" id="site-header">
     <div class="container">
-      <NuxtLink class="brand-lockup" to="/zh/" :aria-label="`${assets.nameZh} 首頁`">
+      <NuxtLink class="brand-lockup" :to="lp('/zh/')" :aria-label="`${assets.nameZh} 首頁`">
         <img :src="assets.headerMark.src" alt="" aria-hidden="true" :width="assets.headerMark.width" :height="assets.headerMark.height">
       </NuxtLink>
 
       <nav ref="mainNavEl" class="main-nav" aria-label="主要導覽">
         <ul>
           <li class="has-mega">
-            <a href="/zh/about/" data-nav="about" :aria-current="activeNav === 'about' ? 'page' : undefined">{{ identity.aboutLabelZh }}</a>
+            <a :href="lp('/zh/about/')" data-nav="about" :aria-current="activeNav === 'about' ? 'page' : undefined">{{ identity.aboutLabelZh }}</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/about/our-story/">2.1 我們的故事</a></li>
-                  <li><a href="/zh/about/vision-mission/">2.2 願景與使命</a></li>
-                  <li><a href="/zh/about/philosophy/">2.3 足球理念</a></li>
-                  <li><a href="/zh/about/our-people/">2.4 團隊成員</a></li>
-                  <li><a href="/zh/about/governance/">2.5 治理與管理</a></li>
-                  <li><a href="/zh/about/ecosystem/">2.6 生態系</a></li>
-                  <li><a href="/zh/about/history/">2.7 俱樂部歷程</a></li>
-                  <li><a href="/zh/about/milestones/">2.8 重要里程碑</a></li>
+                  <li><a :href="lp('/zh/about/our-story/')">2.1 我們的故事</a></li>
+                  <li><a :href="lp('/zh/about/vision-mission/')">2.2 願景與使命</a></li>
+                  <li><a :href="lp('/zh/about/philosophy/')">2.3 足球理念</a></li>
+                  <li><a :href="lp('/zh/about/our-people/')">2.4 團隊成員</a></li>
+                  <li><a :href="lp('/zh/about/governance/')">2.5 治理與管理</a></li>
+                  <li><a :href="lp('/zh/about/ecosystem/')">2.6 生態系</a></li>
+                  <li><a :href="lp('/zh/about/history/')">2.7 俱樂部歷程</a></li>
+                  <li><a :href="lp('/zh/about/milestones/')">2.8 重要里程碑</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-about.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/about/our-story/">認識{{ assets.shortNameZh }}</a>
+                  <a class="btn btn--primary btn--sm" :href="lp('/zh/about/our-story/')">認識{{ assets.shortNameZh }}</a>
                 </div>
               </div>
             </div>
           </li>
           <li class="has-mega">
-            <a href="/zh/club/" data-nav="club" :aria-current="activeNav === 'club' ? 'page' : undefined">俱樂部</a>
+            <a :href="lp('/zh/club/')" data-nav="club" :aria-current="activeNav === 'club' ? 'page' : undefined">俱樂部</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/club/first-team/">3.1 一線隊</a></li>
-                  <li><a href="/zh/club/player-development/">3.2 球員發展系統</a></li>
-                  <li><a href="/zh/club/opportunities/">3.3 球員機會</a></li>
-                  <li><a href="/zh/club/international-pathways/">3.4 國際發展通道</a></li>
-                  <li><a href="/zh/club/player-stories/">3.5 球員故事</a></li>
+                  <li><a :href="lp('/zh/club/first-team/')">3.1 一線隊</a></li>
+                  <li><a :href="lp('/zh/club/player-development/')">3.2 球員發展系統</a></li>
+                  <li><a :href="lp('/zh/club/opportunities/')">3.3 球員機會</a></li>
+                  <li><a :href="lp('/zh/club/international-pathways/')">3.4 國際發展通道</a></li>
+                  <li><a :href="lp('/zh/club/player-stories/')">3.5 球員故事</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-club.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/join/player/">加入球隊</a>
+                  <a class="btn btn--primary btn--sm" :href="lp('/zh/join/player/')">加入球隊</a>
                 </div>
               </div>
             </div>
           </li>
           <li class="has-mega">
-            <a href="/zh/academy/" data-nav="academy" :aria-current="activeNav === 'academy' ? 'page' : undefined">{{ identity.academyLabelZh }}</a>
+            <a :href="lp('/zh/academy/')" data-nav="academy" :aria-current="activeNav === 'academy' ? 'page' : undefined">{{ identity.academyLabelZh }}</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/academy/overview/">4.1 {{ identity.academyShortLabelZh }}總覽</a></li>
-                  <li><a href="/zh/academy/teams/">4.2 {{ identity.academyShortLabelZh }}隊伍</a></li>
-                  <li><a href="/zh/academy/pathway/">4.3 {{ identity.academyShortLabelZh }}發展路徑</a></li>
-                  <li><a href="/zh/academy/curriculum/">4.4 訓練課程與課綱</a></li>
-                  <li><a href="/zh/academy/coaches/">4.5 {{ identity.academyShortLabelZh }}教練團</a></li>
-                  <li><a href="/zh/academy/life/">4.6 {{ identity.academyShortLabelZh }}生活</a></li>
-                  <li><a href="/zh/academy/join/">4.7 加入{{ identity.academyShortLabelZh }}</a></li>
+                  <li><a :href="lp('/zh/academy/overview/')">4.1 {{ identity.academyShortLabelZh }}總覽</a></li>
+                  <li><a :href="lp('/zh/academy/teams/')">4.2 {{ identity.academyShortLabelZh }}隊伍</a></li>
+                  <li><a :href="lp('/zh/academy/pathway/')">4.3 {{ identity.academyShortLabelZh }}發展路徑</a></li>
+                  <li><a :href="lp('/zh/academy/curriculum/')">4.4 訓練課程與課綱</a></li>
+                  <li><a :href="lp('/zh/academy/coaches/')">4.5 {{ identity.academyShortLabelZh }}教練團</a></li>
+                  <li><a :href="lp('/zh/academy/life/')">4.6 {{ identity.academyShortLabelZh }}生活</a></li>
+                  <li><a :href="lp('/zh/academy/join/')">4.7 加入{{ identity.academyShortLabelZh }}</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-academy.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/join/academy/">加入{{ identity.academyShortLabelZh }}</a>
+                  <a class="btn btn--primary btn--sm" :href="lp('/zh/join/academy/')">加入{{ identity.academyShortLabelZh }}</a>
                 </div>
               </div>
             </div>
           </li>
           <li class="has-mega">
-            <a href="/zh/programs/" data-nav="programs" :aria-current="activeNav === 'programs' ? 'page' : undefined">課程</a>
+            <a :href="lp('/zh/programs/')" data-nav="programs" :aria-current="activeNav === 'programs' ? 'page' : undefined">課程</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/programs/childrens-training/">5.1 兒童足球訓練</a></li>
-                  <li><a href="/zh/programs/summer-camp/">5.2 夏令營</a></li>
-                  <li><a href="/zh/programs/winter-camp/">5.3 冬令營</a></li>
-                  <li><a href="/zh/programs/specialist/">5.4 專項訓練</a></li>
-                  <li><a href="/zh/programs/school-community/">5.5 校園與社區計畫</a></li>
+                  <li><a :href="lp('/zh/programs/childrens-training/')">5.1 兒童足球訓練</a></li>
+                  <li><a :href="lp('/zh/programs/summer-camp/')">5.2 夏令營</a></li>
+                  <li><a :href="lp('/zh/programs/winter-camp/')">5.3 冬令營</a></li>
+                  <li><a :href="lp('/zh/programs/specialist/')">5.4 專項訓練</a></li>
+                  <li><a :href="lp('/zh/programs/school-community/')">5.5 校園與社區計畫</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-programs.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/join/academy/">報名課程</a>
+                  <a class="btn btn--primary btn--sm" :href="lp('/zh/join/academy/')">報名課程</a>
                 </div>
               </div>
             </div>
           </li>
-          <li v-if="showWomens"><a href="/zh/womens/" data-nav="womens" :aria-current="activeNav === 'womens' ? 'page' : undefined">女子足球</a></li>
-          <li><a href="/zh/schedule/" data-nav="schedule" :aria-current="activeNav === 'schedule' ? 'page' : undefined">賽事</a></li>
+          <li v-if="showWomens"><a :href="lp('/zh/womens/')" data-nav="womens" :aria-current="activeNav === 'womens' ? 'page' : undefined">女子足球</a></li>
+          <li><a :href="lp('/zh/schedule/')" data-nav="schedule" :aria-current="activeNav === 'schedule' ? 'page' : undefined">賽事</a></li>
           <li class="has-mega">
-            <a href="/zh/news/" data-nav="news" :aria-current="activeNav === 'news' ? 'page' : undefined">新聞</a>
+            <a :href="lp('/zh/news/')" data-nav="news" :aria-current="activeNav === 'news' ? 'page' : undefined">新聞</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/news/club/">7.1 俱樂部新聞</a></li>
-                  <li><a href="/zh/news/match/">7.2 比賽報導</a></li>
-                  <li><a href="/zh/news/academy/">7.3 {{ identity.academyShortLabelZh }}新聞</a></li>
-                  <li><a href="/zh/news/player-stories/">7.4 球員故事</a></li>
-                  <li><a href="/zh/news/international/">7.5 國際動態</a></li>
-                  <li><a href="/zh/news/camps-events/">7.6 營隊與活動</a></li>
-                  <li><a href="/zh/news/community/">7.7 社區活動</a></li>
-                  <li><a href="/zh/news/media/">7.8 媒體專區</a></li>
+                  <li><a :href="lp('/zh/news/club/')">7.1 俱樂部新聞</a></li>
+                  <li><a :href="lp('/zh/news/match/')">7.2 比賽報導</a></li>
+                  <li><a :href="lp('/zh/news/academy/')">7.3 {{ identity.academyShortLabelZh }}新聞</a></li>
+                  <li><a :href="lp('/zh/news/player-stories/')">7.4 球員故事</a></li>
+                  <li><a :href="lp('/zh/news/international/')">7.5 國際動態</a></li>
+                  <li><a :href="lp('/zh/news/camps-events/')">7.6 營隊與活動</a></li>
+                  <li><a :href="lp('/zh/news/community/')">7.7 社區活動</a></li>
+                  <li><a :href="lp('/zh/news/media/')">7.8 媒體專區</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-news.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/news/">所有消息</a>
+                  <a class="btn btn--primary btn--sm" :href="lp('/zh/news/')">所有消息</a>
                 </div>
               </div>
             </div>
           </li>
           <li class="has-mega">
-            <a href="/zh/culture/" data-nav="culture" :aria-current="activeNav === 'culture' ? 'page' : undefined">{{ identity.cultureLabelZh }}</a>
+            <a :href="lp('/zh/culture/')" data-nav="culture" :aria-current="activeNav === 'culture' ? 'page' : undefined">{{ identity.cultureLabelZh }}</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/culture/manga/">8.1 {{ assets.shortNameZh }}漫畫</a></li>
-                  <li><a href="/zh/culture/fan-club/">8.2 {{ assets.shortNameZh }}球迷會</a></li>
-                  <li><a href="/zh/culture/merchandise/">8.3 官方商品</a></li>
-                  <li><a href="/zh/shop/">8.3 官方商店 SHOP</a></li>
-                  <li><a href="/zh/perks/">8.4 特約店家</a></li>
+                  <li><a :href="lp('/zh/culture/manga/')">8.1 {{ assets.shortNameZh }}漫畫</a></li>
+                  <li><a :href="lp('/zh/culture/fan-club/')">8.2 {{ assets.shortNameZh }}球迷會</a></li>
+                  <li><a :href="lp('/zh/culture/merchandise/')">8.3 官方商品</a></li>
+                  <li><a :href="lp('/zh/shop/')">8.3 官方商店 SHOP</a></li>
+                  <li><a :href="lp('/zh/perks/')">8.4 特約店家</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-culture.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/culture/fan-club/">加入球迷會</a>
+                  <a class="btn btn--primary btn--sm" :href="lp('/zh/culture/fan-club/')">加入球迷會</a>
                 </div>
               </div>
             </div>
           </li>
           <li class="has-mega">
-            <a href="/zh/partners/" data-nav="partners" :aria-current="activeNav === 'partners' ? 'page' : undefined">夥伴</a>
+            <a :href="lp('/zh/partners/')" data-nav="partners" :aria-current="activeNav === 'partners' ? 'page' : undefined">夥伴</a>
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a href="/zh/partners/our-partners/">9.1 合作夥伴</a></li>
-                  <li><a href="/zh/partners/our-sponsors/">9.2 贊助商</a></li>
-                  <li><a href="/zh/partners/become-a-partner/">9.3 成為夥伴</a></li>
-                  <li><a href="/zh/partners/opportunities/">9.4 贊助方案</a></li>
+                  <li><a :href="lp('/zh/partners/our-partners/')">9.1 合作夥伴</a></li>
+                  <li><a :href="lp('/zh/partners/our-sponsors/')">9.2 贊助商</a></li>
+                  <li><a :href="lp('/zh/partners/become-a-partner/')">9.3 成為夥伴</a></li>
+                  <li><a :href="lp('/zh/partners/opportunities/')">9.4 贊助方案</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-partners.jpg" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" href="/zh/join/partnership/">洽談贊助</a>
+                  <a class="btn btn--primary btn--sm" :href="lp('/zh/join/partnership/')">洽談贊助</a>
                 </div>
               </div>
             </div>
           </li>
-          <li v-if="showCharity"><a href="/zh/charity/" data-nav="charity" :aria-current="activeNav === 'charity' ? 'page' : undefined">慈善</a></li>
+          <li v-if="showCharity"><a :href="lp('/zh/charity/')" data-nav="charity" :aria-current="activeNav === 'charity' ? 'page' : undefined">慈善</a></li>
         </ul>
       </nav>
 
@@ -326,11 +331,11 @@ onBeforeUnmount(() => {
         <button class="icon-btn" type="button" aria-label="搜尋">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>
         </button>
-        <a class="icon-btn" href="/zh/cart/" aria-label="購物車（2 件商品）">
+        <a class="icon-btn" :href="lp('/zh/cart/')" aria-label="購物車（2 件商品）">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 10.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.55L21 8H6" /><circle cx="10" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /></svg>
           <span class="cart-count" aria-hidden="true">2</span>
         </a>
-        <a class="btn btn--primary btn--sm" href="/zh/join/">加入我們 JOIN</a>
+        <a class="btn btn--primary btn--sm" :href="lp('/zh/join/')">加入我們 JOIN</a>
         <button ref="openBtnEl" class="icon-btn hamburger" type="button" id="menu-open-btn" aria-haspopup="true" aria-controls="mobile-nav" aria-expanded="false" aria-label="開啟選單" @click="openMobileNav">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
@@ -347,32 +352,32 @@ onBeforeUnmount(() => {
     </div>
     <nav aria-label="行動主要導覽">
       <ul>
-        <li><a href="/zh/about/">{{ identity.aboutLabelZh }} ABOUT</a></li>
-        <li><a href="/zh/club/">俱樂部 CLUB</a></li>
-        <li><a href="/zh/academy/">{{ identity.academyLabelZh }} {{ identity.academyLabelEn }}</a></li>
-        <li><a href="/zh/programs/">課程 PROGRAMS</a></li>
-        <li v-if="showWomens"><a href="/zh/womens/">女子足球 WOMEN'S</a></li>
-        <li><a href="/zh/schedule/">賽事 SCHEDULE</a></li>
-        <li><a href="/zh/news/">新聞 NEWS</a></li>
-        <li><a href="/zh/culture/">{{ identity.cultureLabelZh }} CULTURE</a></li>
-        <li><a href="/zh/shop/">官方商店 SHOP</a></li>
-        <li><a href="/zh/partners/">夥伴 PARTNERS</a></li>
-        <li v-if="showCharity"><a href="/zh/charity/">慈善 CHARITY</a></li>
-        <li><a href="/zh/faq/">常見問題 FAQ</a></li>
+        <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }} ABOUT</a></li>
+        <li><a :href="lp('/zh/club/')">俱樂部 CLUB</a></li>
+        <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }} {{ identity.academyLabelEn }}</a></li>
+        <li><a :href="lp('/zh/programs/')">課程 PROGRAMS</a></li>
+        <li v-if="showWomens"><a :href="lp('/zh/womens/')">女子足球 WOMEN'S</a></li>
+        <li><a :href="lp('/zh/schedule/')">賽事 SCHEDULE</a></li>
+        <li><a :href="lp('/zh/news/')">新聞 NEWS</a></li>
+        <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }} CULTURE</a></li>
+        <li><a :href="lp('/zh/shop/')">官方商店 SHOP</a></li>
+        <li><a :href="lp('/zh/partners/')">夥伴 PARTNERS</a></li>
+        <li v-if="showCharity"><a :href="lp('/zh/charity/')">慈善 CHARITY</a></li>
+        <li><a :href="lp('/zh/faq/')">常見問題 FAQ</a></li>
       </ul>
     </nav>
     <div class="mobile-nav__cta">
-      <a class="btn btn--primary btn--block" href="/zh/join/">加入我們 JOIN</a>
+      <a class="btn btn--primary btn--block" :href="lp('/zh/join/')">加入我們 JOIN</a>
       <div class="lang-switch" role="group" aria-label="網站語言切換" style="color:#fff;justify-content:center;">
-        <button type="button" aria-current="true" style="color:#fff;">繁中</button>
+        <button type="button" :aria-current="locale === 'zh' ? 'true' : undefined" :style="locale === 'zh' ? 'color:#fff;' : 'color:var(--muted-dark);'" @click="switchTo('zh')">繁中</button>
         <span aria-hidden="true" style="color:rgba(255,255,255,.3);">|</span>
-        <button type="button" style="color:var(--muted-dark);">EN</button>
+        <button type="button" :aria-current="locale === 'en' ? 'true' : undefined" :style="locale === 'en' ? 'color:#fff;' : 'color:var(--muted-dark);'" @click="switchTo('en')">EN</button>
       </div>
     </div>
   </div>
 
   <div class="mobile-cta-bar" aria-label="快速行動">
-    <a class="btn btn--primary btn--sm" href="/zh/join/player/">加入球隊</a>
-    <a class="btn btn--dark btn--sm" href="/zh/join/general/">聯絡我們</a>
+    <a class="btn btn--primary btn--sm" :href="lp('/zh/join/player/')">加入球隊</a>
+    <a class="btn btn--dark btn--sm" :href="lp('/zh/join/general/')">聯絡我們</a>
   </div>
 </template>

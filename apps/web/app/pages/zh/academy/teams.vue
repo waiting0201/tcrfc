@@ -20,9 +20,11 @@ definePageMeta({ nav: 'academy', unit: '04' })
 const config = useRuntimeConfig()
 const club = config.public.club
 
+// S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
+const { locale, lp } = useLocale()
 const [{ data: playersData }, { data: staffData }] = await Promise.all([
-  useFetch(`/api/backend/${club}/players`, { query: { pageSize: 200, lang: 'zh' } }),
-  useFetch(`/api/backend/${club}/staff`, { query: { pageSize: 200, lang: 'zh' } }),
+  useFetch(`/api/backend/${club}/players`, { query: { pageSize: 200, lang: locale.value } }),
+  useFetch(`/api/backend/${club}/staff`, { query: { pageSize: 200, lang: locale.value } }),
 ])
 
 function playersForTeam(team: string) {
@@ -66,8 +68,8 @@ useSeoMeta({
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/academy/">足球學院</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/academy/')">足球學院</a></li>
       <li aria-current="page">學院隊伍</li>
     </ol>
   </div>
@@ -154,17 +156,17 @@ useSeoMeta({
 <section class="band grain cta-band">
   <div class="container">
     <div class="cta-grid">
-      <a class="cta-card" href="/zh/academy/pathway/">
+      <a class="cta-card" :href="lp('/zh/academy/pathway/')">
         <span class="cta-card__num">4.3</span>
         <span class="cta-card__title">學院發展路徑</span>
         <p class="cta-card__desc">從 U12 到一線隊／海外的成長路徑</p>
       </a>
-      <a class="cta-card" href="/zh/academy/coaches/">
+      <a class="cta-card" :href="lp('/zh/academy/coaches/')">
         <span class="cta-card__num">4.5</span>
         <span class="cta-card__title">學院教練團</span>
         <p class="cta-card__desc">認識帶領各梯隊的教練</p>
       </a>
-      <a class="cta-card" href="/zh/schedule/">
+      <a class="cta-card" :href="lp('/zh/schedule/')">
         <span class="cta-card__num">06</span>
         <span class="cta-card__title">賽事行事曆</span>
         <p class="cta-card__desc">查看俱樂部完整賽事時程</p>

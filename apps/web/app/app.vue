@@ -4,16 +4,17 @@
 // SSR 階段就決定 data-club，隨 HTML 一起吐出，沒有 hydration mismatch 風險，
 // 也不需要動態組 style 標籤字串（紀律 1：顏色永遠只能是 CSS custom properties）。
 //
-// ⚠️ lang="zh-Hant" 刻意不在這裡設（曾經在這裡設過，記錄在下面）：
+// ⚠️ lang 刻意不在這裡設（曾經試過在這裡動態設，記錄在下面）：
 // @nuxtjs/seo 的 nuxt-seo-utils 子模組會自己對 htmlAttrs.lang 呼叫一次
-// useHead（依 site.defaultLocale／currentLocale 解析，預設回退 'en'）；
-// 實測 htmlAttrs／bodyAttrs 的合併是「最後註冊的呼叫覆蓋同一個 key」，
-// 不像一般 <meta> 標籤走 tagPriority 去重，即使這裡指定 tagPriority: 'high'
-// 也蓋不掉，lang 會悄悄變成 en（已記入 docs/18-work-errors.md）。
-// 唯一穩定生效的位置是 nuxt.config.ts 的 app.head.htmlAttrs.lang——那份是
-// nuxt-seo-utils 自己註解「give nuxt.config values higher priority」時
-// 真正指的來源。lang 全站固定為 zh-Hant（不隨 club 變動），故放靜態設定即可，
-// 這裡只留會隨 club 變動的 data-club。
+// useHead（依 site.defaultLocale／currentLocale 解析）；實測 htmlAttrs／
+// bodyAttrs 的合併是「最後註冊的呼叫覆蓋同一個 key」，不像一般 <meta> 標籤走
+// tagPriority 去重，即使這裡指定 tagPriority: 'high' 也蓋不掉（已記入
+// docs/18-work-errors.md E-17）。E-17 當時（只有 zh 頁面）的結論是「改用
+// nuxt.config.ts 的靜態 app.head.htmlAttrs.lang」——S1-13 起 /en/... 路由
+// 真的存在，lang 需要逐路由變動，靜態值不再適用，改成 app/plugins/
+// site-locale.ts 把「目前路由算出來的語系」餵進 nuxt-site-config 的
+// currentLocale，讓 nuxt-seo-utils 自己算出正確的 <html lang>（見該檔案的
+// 完整說明），這裡只留會隨 club 變動的 data-club，不重複處理 lang。
 const config = useRuntimeConfig()
 const club = computed<ClubCode>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const assets = computed(() => getClubAssets(club.value))

@@ -27,11 +27,15 @@ const route = useRoute()
 const config = useRuntimeConfig()
 const club = config.public.club
 
+// S1-13：lang 跟隨目前路由語系（/zh/news/{slug} 或 /en/news/{slug}，兩者是同一個
+// component 檔案複製出來的孿生路由，見 nuxt.config.ts 的 pages:extend），不再寫死 'zh'。
+const { locale, lp } = useLocale()
+
 // slug 用函式形式傳給 useFetch key／URL，確保「從一篇相關文章點到另一篇」這種
 // client-side 導覽（同一個路由元件、只有 params.slug 變化）會重新打 API，
 // 不會沿用上一篇的快取資料。
 const { data: article } = await useFetch(() => `/api/backend/${club}/news/${route.params.slug}`, {
-  query: { lang: 'zh' },
+  query: { lang: locale.value },
 })
 
 // 🔴 找不到的 slug（不存在／草稿／排程中——公開 API 本來就只回已發布文章）一律回
@@ -47,7 +51,7 @@ if (!article.value) {
 // 邏輯沿用 article.vue 原本的寫法，差別只在分類改成「這篇文章自己的分類」
 // （article.value.categoryCode），不是寫死 'match'。
 const { data: categoryList } = await useFetch(`/api/backend/${club}/news`, {
-  query: { category: article.value.categoryCode, pageSize: 200, lang: 'zh' },
+  query: { category: article.value.categoryCode, pageSize: 200, lang: locale.value },
 })
 
 const related = computed(() => {
@@ -161,7 +165,10 @@ watchEffect(() => {
     defineArticle({
       headline: a.title ?? undefined,
       datePublished: a.publishedAt,
-      inLanguage: 'zh-Hant',
+      // S1-13：inLanguage 跟隨目前路由語系（GEO-08「語言」要求），不再寫死
+      // zh-Hant——本頁的 /en/... 孿生路由現在真的存在，繼續寫死會讓 en 頁面的
+      // Article Schema 自稱是中文內容，自相矛盾。
+      inLanguage: HREFLANG_MAP[locale.value],
       // GEO-05（S1-12c）：用 a.ogImageUrl（後端已算好「這篇專屬 > 全站預設 > 封面圖」優先序
       // 的完整網址），不是本地 mockup 靜態檔案的 hasNewsCover() 判斷——schemaEligible 判斷
       // 「這篇文章有沒有圖片」時用的就是 ogImageUrl，這裡要用同一份值，兩者才不會互相矛盾
@@ -186,9 +193,9 @@ watchEffect(() => {
   useSchemaOrg([
     defineBreadcrumb({
       itemListElement: [
-        { name: '首頁', item: `${siteUrl}/zh/` },
-        { name: '新聞 News', item: `${siteUrl}/zh/news/` },
-        { name: a.categoryName ?? undefined, item: `${siteUrl}/zh/news/${a.categoryCode}/` },
+        { name: '首頁', item: `${siteUrl}${lp('/zh/')}` },
+        { name: '新聞 News', item: `${siteUrl}${lp('/zh/news/')}` },
+        { name: a.categoryName ?? undefined, item: `${siteUrl}${lp(`/zh/news/${a.categoryCode}/`)}` },
         { name: a.title ?? undefined },
       ],
     }),
@@ -200,9 +207,9 @@ watchEffect(() => {
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/news/">新聞 News</a></li>
-      <li><a :href="`/zh/news/${article?.categoryCode}/`">{{ article?.categoryName }}</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/news/')">新聞 News</a></li>
+      <li><a :href="lp(`/zh/news/${article?.categoryCode}/`)">{{ article?.categoryName }}</a></li>
       <li aria-current="page">{{ article?.title }}</li>
     </ol>
   </div>
@@ -230,7 +237,7 @@ watchEffect(() => {
 
       <div class="article-meta-row">
         <div><span class="article-meta-row__label">發布日期</span><time :datetime="newsIsoDate(article?.publishedAt)">{{ newsSlashDate(article?.publishedAt) }}</time></div>
-        <div><span class="article-meta-row__label">分類</span><a :href="`/zh/news/${article?.categoryCode}/`">{{ categoryBilingual }}</a></div>
+        <div><span class="article-meta-row__label">分類</span><a :href="lp(`/zh/news/${article?.categoryCode}/`)">{{ categoryBilingual }}</a></div>
         <div><span class="article-meta-row__label">作者</span></div>
       </div>
 
@@ -272,7 +279,7 @@ watchEffect(() => {
     <aside class="article-aside" aria-labelledby="related-title">
       <h3 id="related-title">相關文章</h3>
       <div class="article-aside__list">
-        <a v-for="r in related" :key="r.slug" class="news-card clip-card" :href="`/zh/news/${r.slug}/`" :data-title="newsTitleAttr(r.title)">
+        <a v-for="r in related" :key="r.slug" class="news-card clip-card" :href="lp(`/zh/news/${r.slug}/`)" :data-title="newsTitleAttr(r.title)">
           <div class="news-card__media">
             <span class="news-card__tag">{{ r.categoryName }}</span>
             <img :src="newsCoverSrc(r.slug)" alt="" loading="lazy" width="1600" height="1067">
@@ -283,7 +290,7 @@ watchEffect(() => {
           </div>
         </a>
       </div>
-      <a class="btn btn--dark btn--block" :href="`/zh/news/${article?.categoryCode}/`" style="margin-top:1.5rem">查看所有{{ article?.categoryName }}</a>
+      <a class="btn btn--dark btn--block" :href="lp(`/zh/news/${article?.categoryCode}/`)" style="margin-top:1.5rem">查看所有{{ article?.categoryName }}</a>
     </aside>
   </div>
 </section>

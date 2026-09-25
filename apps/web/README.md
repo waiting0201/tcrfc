@@ -257,12 +257,89 @@ node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:3012
   （純幾何操作，不是造標或描摹，`brand/blue-whale/README.md` 明列這是點陣主檔的允許用途之一），
   OG 圖直接重用 `bw-crest-512.png` 本身、沒有另外設計版面。**缺**：向量標誌主檔、專屬 OG 設計稿、
   印刷色票——見 `docs/13-blue-whale-site.md` §5 待確認事項第 2 項。
-- ⬜ 只有 `/`（轉址）與 `/zh/`（首頁）兩個路由；其餘導覽連結（`/zh/about/`、`/zh/club/`…）
-  目前都是有效的 `<a href>` 但頁面不存在，會 404——這是刻意的（S0-9 完整搬遷前的預期狀態），
-  `npm run lint` 的 `link-checker/valid-route` 錯誤就是在提醒這件事，不是骨架本身的 bug。
-- ⬜ 只有繁中（`zh`）頁面，`en` 語系與 `hreflang` 留給 S0-9。
-- ⬜ `app/middleware/unit-gate.global.ts` 目前無法被實際路由觸發測試（唯一頁面 `unit: '01'`
-  兩站皆開放），S0-9 加入 `06`／`11` 對應頁面後才能驗證 404 行為。
+- ⬜ 只有 `/`（轉址）與 `/zh/`（首頁）兩個路由**真的有內容可看**；其餘導覽連結
+  （`/zh/about/`、`/zh/club/`…）目前都是有效的 `<a href>` 但頁面不存在，會 404——
+  這是刻意的（S0-9 完整搬遷前的預期狀態），`npm run lint` 的 `link-checker/valid-route`
+  錯誤就是在提醒這件事，不是骨架本身的 bug。**S1-13 起這件事對 `/en/...` 也成立**：
+  `/en/...` 路由本身已存在（見下方「多語系框架」），但只有 `/zh/...` 有真實頁面內容的
+  那些 `/en/...` 孿生路由才會回 200（其餘同樣 404，跟 `/zh/...` 版本狀態一致）。
+- ✅ **S1-13 多語系框架已完成**（2026-09-25），見下方「多語系框架（S1-13）」一節。
+- ✅ `app/middleware/unit-gate.global.ts` 已用真實路由驗證（S1-13）：`bw` 容器
+  `curl /en/womens/`／`curl /zh/womens/` 皆回 404（unit `06` 對 `bw`停用），`tcrfc`
+  容器同兩條路徑皆回 200——證明 `definePageMeta({ unit })` 這個 meta 綁在「檔案」上，
+  `pages:extend` 複製出來的 `/en/...` 路由（指向同一個 file）會拿到完全相同的 meta，
+  不需要在複製時另外手動搬一份 unit／nav／bodyClass。
+
+## 多語系框架（S1-13，2026-09-25）
+
+**做法：不用 `@nuxtjs/i18n`，手刻一套輕量框架**——理由見下方「為什麼不用
+`@nuxtjs/i18n`」。單一真實來源在 [`shared/utils/locale.ts`](shared/utils/locale.ts)
+（`SUPPORTED_LOCALES`／`DEFAULT_LOCALE`／`HREFLANG_MAP`／`resolveLocaleFromPath()`／
+`localizePath()`），新增語系只改這一個檔案。
+
+**URL 結構**：`nuxt.config.ts` 的 `hooks['pages:extend']` 會把每一個 `/zh/...` 頁面
+自動複製出一個 `/en/...` 孿生路由，兩者指向**同一個 `.vue` 檔案**——不必手動複製 80
+個檔案，也不會有兩份路由各自維護、彼此漏改的風險（比照 `docs/13-blue-whale-site.md`
+§6 紀律 3「單元開關只有一個真實來源」延伸到語系）。`definePageMeta()` 的 meta 綁在
+「檔案」上不是「路由項目」上，因此 `unit`／`nav`／`bodyClass` 等既有 meta 對 `/en/...`
+路由一樣正確生效（已用 `unit-gate` 對 `bw` 容器實測，見上方「已知缺口」）。根路徑 `/`
+（`app/pages/index.vue`）不複製，它的職責是依 `Accept-Language` 轉去 `/zh/` 或
+`/en/`（見 `app/middleware/redirect-root.ts`；規劃書與 `docs/05` 都沒規定站根轉址
+要不要看瀏覽器語言，這是本輪的判斷，預設值仍是 zh）。
+
+**`<html lang>`／`og:locale`／canonical 大小寫**：`app/plugins/site-locale.ts` 把
+「目前路由算出來的語系」餵給 `nuxt-site-config` 的 `currentLocale`（用該套件自己
+`addImportsDir` 出來的公開 composable `updateSiteConfig()`，不是繞過模組的 hack），
+`@nuxtjs/seo` 的 `nuxt-seo-utils` 子模組本來就設計成讀這個值決定 `<html lang>` 等
+三件事，只是沒裝 `@nuxtjs/i18n` 時沒有人餵——這是 `docs/18-work-errors.md` E-17 的
+後續發展，E-17 當時（只有 zh 頁面）建議的「寫死在 `nuxt.config.ts` 的靜態值最穩」
+已經不適用，該檔案的 `app.head.htmlAttrs.lang` 已移除。
+
+**hreflang**：`@nuxtjs/seo` 沒裝 `@nuxtjs/i18n` 不會自動產生 hreflang alternate，
+`app/layouts/default.vue` 手刻（每頁一份 zh／en／x-default 三條，x-default 固定指
+向 zh 版本）；`server/routes/sitemap.xml.ts` 也已更新，改為每個候選網址各輸出
+zh／en 兩筆 `<url>`，每筆都帶完整三條 hreflang alternate。
+
+**語系切換器**：mockup 原本就有三處「繁中｜EN」的靜態按鈕（`SiteHeader.vue` 兩處、
+`SiteFooter.vue` 一處），S1-13 把它們接上 `useLocale().switchTo()`，停留在目前這一頁
+換語系（不跳回首頁，`docs/05-i18n-seo.md` §1「切換行為」）。DOM／class 一律不動，
+只加 `@click` 與把靜態 `aria-current="true"` 改成依 `locale` 動態算。
+
+**Fallback**：`docs/05-i18n-seo.md` §1 規則是「未翻譯內容顯示繁中，並標示本頁尚無
+此語系版本」，`app/components/LocaleFallbackNotice.vue` 落實這件事——`en` 路由預設
+一律顯示這則提示（因為 S1-13 當下沒有任何一頁真的翻譯完成），頁面本身的中文內容原樣
+顯示在提示下方。真的做完英文翻譯的頁面用 `definePageMeta({ enReady: true })` 關掉
+提示，這個旗標與既有 `unit`／`nav`／`bodyClass` 同一種機制。
+
+**API 呼叫的 `lang` 參數**：`apps/api` 對 `?lang=zh|en` 已有完整逐欄位回退機制（見
+`apps/api/README.md`），問題只在前台過去把它寫死成 `'zh'`。S1-13 把用到這個參數的
+呼叫點（`schedule.vue`、`news/index.vue`＋5 個分類頁、`news/[slug]/index.vue`、
+`academy/teams.vue`）全部改成 `useLocale().locale.value`，`about/our-people.vue`
+維持既有「同時抓 zh 與 en 兩種姓名」設計不變（那是既有的雙語顯示邏輯，不是本輪的
+lang 參數問題）。
+
+**內部連結**：`SiteHeader.vue`／`SiteFooter.vue`（每頁共用，含語系切換器本身）、
+`NewsCard.vue`／`NewsCategoryTabs.vue`（07 單元多頁共用）、以及**首頁**
+`zh/index.vue`（含 `shared/utils/club-copy.ts` 裡 `ctaPrimaryHref`／`ctaSecondaryHref`／
+`pillars[].href`／`ctaTrio[].href` 這幾個「裸 `/zh/...` 路徑」資料欄位的消費端）與
+`about/ecosystem.vue` 的內部連結，已一律改用 `useLocale().lp()` 換算成目前語系版本。
+🔴 **其餘約 65 個純靜態頁面（尚無真實英文內容、也不在本輪 lang 參數清單內）的內部連結
+仍是硬編碼 `/zh/...`**——在自己的 `/en/...` 孿生路由上會把讀者連回 `/zh/...` 而不是
+留在 `/en/...`。這是刻意的範圍邊界（那些頁面本來就 100% 中文內容，連到 zh 版本不算
+明顯錯誤，只是不夠一致），機制上可以用跟本輪同一招（`href="/zh/...` → `:href="lp('/zh/...')"`
+的正規表達式替換＋補 `useLocale()`）批次處理，留給下一個做這批頁面英文化的人一併做，
+不在 S1-13 框架範圍內。
+
+**為什麼不用 `@nuxtjs/i18n`**：現有 80 頁全部是 `app/pages/zh/...` 檔案路徑（不是
+`@nuxtjs/i18n` 慣用的「檔案名不含語系前綴、由模組產生 `/zh/`／`/en/` 兩份路由」那種
+結構），改用該模組等於要把 80 個頁面檔案搬家、重寫所有內部連結／`NuxtLink`、且要
+重新驗證 S1-12 系列已經很精細的 sitemap／robots／llms.txt／canonical 串接（那些串接
+已經各自繞過 `@nuxtjs/sitemap`／`@nuxtjs/robots` 的內建邏輯一次，見 E-18）——風險與
+成本都高於「只加一個 `pages:extend` hook＋一個 plugin＋一個 composable」。**代價**：
+`@nuxtjs/i18n` 原生的翻譯字串管理（`$t()`／訊息檔）沒有一起拿到，本輪也沒有引入替代
+方案——目前只有版型層級的少數字串（語系切換器、提示訊息）需要雙語，用字面文字直接
+寫在元件裡就夠，尚未到需要訊息字典的規模。之後若英文內容大量上線、版型文字量變大，
+可以重新評估。
 
 ## 相關文件
 

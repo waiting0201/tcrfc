@@ -22,11 +22,13 @@
 // routeRules 標頭是依路徑比對疊加在回應上，不看是哪個 handler 送出回應，驗收時
 // 應該實測這支路由自己也送出 X-Robots-Tag: noindex（不需要在這裡手動再設一次）。
 //
-// ⚠️ 雙語 hreflang：目前只有 zh 頁面（apps/web/README「⬜ 只有繁中頁面，en 語系與
-// hreflang 留給 S0-9」），沒有真實存在的 /en/ 對應頁——這裡刻意只放 zh-Hant 與
-// x-default 自我參照，不虛構一個會 404 的 /en/ 網址（同 GEO-05「資料不足時不輸出」
-// 的精神）。等 en 頁面真的搬遷完成，要在這裡改成查真實的 en 對應路徑再輸出
-// hreflang="en" alternate。
+// ⚠️ 雙語 hreflang（S1-13 更新，取代原本「只有 zh 頁面」的假設）：nuxt.config.ts 的
+// pages:extend hook 已經讓每個 /zh/... 頁面都有一個真實存在的 /en/... 孿生路由
+// （即使目前顯示的是繁中內容＋LocaleFallbackNotice 提示，見該元件），不再是會 404
+// 的虛構網址，因此這裡改成每個候選網址各輸出兩筆 <url>（zh 版＋en 版），每筆都帶完整
+// 的三個 hreflang alternate（zh-Hant／en／x-default 自我＋互相參照，符合 Google 對
+// hreflang 需要「自我參照」的慣例）。lastmod 兩個版本共用同一個值——en 版目前是 zh
+// 內容的鏡像，異動時間跟著來源一起變動，不是兩份獨立內容。
 export default defineEventHandler(async (event) => {
   const club = useRuntimeConfig(event).public.club
   const siteUrl = (getSiteConfig(event).url ?? '').replace(/\/$/, '')
@@ -34,19 +36,22 @@ export default defineEventHandler(async (event) => {
   const urls = await getSitemapUrls(club)
 
   const body = urls
-    .map((u) => {
-      const loc = escapeXml(`${siteUrl}${u.loc}`)
+    .flatMap((u) => {
+      const zhHref = escapeXml(`${siteUrl}${u.loc}`)
+      const enHref = escapeXml(`${siteUrl}${localizePath(u.loc, 'en')}`)
       // lastmod（S1-12 新增）：只有 Article 這類有真實 updated_at 的動態內容才帶，
       // 靜態單元頁（getEnabledSiteUnits）沒有異動時間可回報，刻意不虛構一個假值
       // （GEO-08「更新時間要真的更新，不是發布時間複製一份」同一個精神）。
       const lastmod = u.lastmod ? `\n    <lastmod>${escapeXml(u.lastmod)}</lastmod>` : ''
-      return [
-        '  <url>',
-        `    <loc>${loc}</loc>${lastmod}`,
-        `    <xhtml:link rel="alternate" hreflang="zh-Hant" href="${loc}" />`,
-        `    <xhtml:link rel="alternate" hreflang="x-default" href="${loc}" />`,
-        '  </url>',
+      const alternates = [
+        `    <xhtml:link rel="alternate" hreflang="zh-Hant" href="${zhHref}" />`,
+        `    <xhtml:link rel="alternate" hreflang="en" href="${enHref}" />`,
+        `    <xhtml:link rel="alternate" hreflang="x-default" href="${zhHref}" />`,
       ].join('\n')
+      return [
+        ['  <url>', `    <loc>${zhHref}</loc>${lastmod}`, alternates, '  </url>'].join('\n'),
+        ['  <url>', `    <loc>${enHref}</loc>${lastmod}`, alternates, '  </url>'].join('\n'),
+      ]
     })
     .join('\n')
 

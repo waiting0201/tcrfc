@@ -32,11 +32,13 @@ export default defineNuxtConfig({
   },
 
   // 🔴 site.url 刻意留空——由 NUXT_PUBLIC_SITE_URL 在 runtime 覆寫（S0-9b 已實測）。
-  // defaultLocale 明確設為 zh-Hant，讓 @nuxtjs/seo 衍生的中繼資料（og:locale 等）
-  // 跟著正確；⚠️ 但 <html lang> 本身這個值沒有生效（nuxt-seo-utils 有自己一套
-  // htmlAttrs.lang 解析與合併順序，實測設這裡並不會連帶修正 lang 屬性）——
-  // <html lang> 真正生效的設定在下面的 app.head.htmlAttrs.lang，兩處分工，
-  // 詳見 docs/18-work-errors.md E-17。
+  // defaultLocale 設為 zh-Hant：這是「app/plugins/site-locale.ts 沒有跑到時」的保險
+  // 回退值（nuxt-seo-utils 的 resolveCurrentLocale() 讀不到 currentLocale 時，回退讀
+  // defaultLocale，讀不到才回退 'en'，見 applyDefaults.js），S1-13 起 <html lang>／
+  // og:locale／canonical 大小寫的「真正生效」機制改成逐路由動態算（zh 頁面 zh-Hant、
+  // en 頁面 en），見 app/plugins/site-locale.ts 檔頭說明與 docs/18-work-errors.md E-17
+  // 的後續發展——E-17 當時（只有 zh 頁面）建議的「用 app.head.htmlAttrs.lang 寫死靜態值
+  // 最穩」已經不適用，這裡刻意不再設那個鍵。
   //
   // 🔴 site.name 這裡的 'TCRFC' 只是本機開發預設值，不是實際輸出值——
   // 文案依俱樂部切換機制上線時發現：nuxt-site-config 對 name 用的是跟 url
@@ -97,6 +99,11 @@ export default defineNuxtConfig({
     // site/src/_redirects 逐條移植（10.2＋10.3、10.6＋10.7 合併後的舊網址，規劃書 v1.9）
     '/zh/join/childrens-training/**': { redirect: { to: '/zh/join/academy/', statusCode: 301 } },
     '/zh/join/sponsorship/**': { redirect: { to: '/zh/join/partnership/', statusCode: 301 } },
+    // 上面兩條的 /en/ 對應版本（S1-13）：routeRules 是純路徑比對，不會像
+    // pages:extend 那樣自動複製，這裡手動補上、目的地一併換成 /en/，否則 en 訪客
+    // 撞到舊網址會被轉去 zh 頁面，跳出目前的語系。
+    '/en/join/childrens-training/**': { redirect: { to: '/en/join/academy/', statusCode: 301 } },
+    '/en/join/sponsorship/**': { redirect: { to: '/en/join/partnership/', statusCode: 301 } },
   },
 
   nitro: {
@@ -109,9 +116,47 @@ export default defineNuxtConfig({
     config: { stylistic: false },
   },
 
+  // 🔴 S1-13 多語系框架：/zh/... 每一頁自動複製出一份 /en/... 孿生路由，共用同一個
+  // component 檔案（docs/05-i18n-seo.md §1「URL：/zh/…、/en/… 獨立網址」、
+  // 「擴充：新增語系不需改程式」）。這是本專案「單一真實來源」的一貫做法（比照
+  // docs/13-blue-whale-site.md §6 紀律 3 的 isUnitEnabledForClub／單元開關單一真實
+  // 來源）延伸到語系——只在 app/pages/zh/ 底下新增頁面，這裡自動生成對應的 /en/
+  // 路由，不必手動複製 80 個檔案，也不會有兩份路由各自維護、彼此漏改的風險。
+  //
+  // definePageMeta() 宣告的 meta（unit／nav／bodyClass 等）綁在「檔案」上，不是綁在
+  // pages:extend 這裡看到的路由項目上——Nuxt 對每個 component 檔案各自靜態分析一次
+  // definePageMeta()，克隆出來的 /en/... 路由指向同一個 file，因此會拿到與 /zh/...
+  // 完全相同的 meta（已用 unit-gate 對 bw 容器 curl /en/womens/ 實測回 404，證明
+  // meta.unit 確實隨檔案而非路由項目生效，見 apps/web/README.md 的驗收紀錄）。
+  //
+  // 尚無真實英文內容的頁面（S1-13 當下是全部 79 頁，S1-14 起逐步減少）落地後，
+  // 頁面本身仍顯示繁中內容並疊加「本頁尚無此語系版本」提示——見
+  // app/components/LocaleFallbackNotice.vue，行為依 docs/05-i18n-seo.md §1
+  // 「Fallback」規則（未翻譯內容顯示繁中並標示，不是整頁不存在／404）。
+  //
+  // 根路徑 `/`（app/pages/index.vue，語系偵測轉址頁）不複製——它本身不帶語系前綴，
+  // 職責是把訪客導去 /zh/ 或 /en/，見 app/middleware/redirect-root.ts。
+  hooks: {
+    'pages:extend'(pages) {
+      const clones: typeof pages = []
+      for (const page of pages) {
+        if (page.path === '/zh' || page.path.startsWith('/zh/')) {
+          clones.push({
+            ...page,
+            name: `${page.name}-en`,
+            path: page.path === '/zh' ? '/en' : `/en${page.path.slice('/zh'.length)}`,
+          })
+        }
+      }
+      pages.push(...clones)
+    },
+  },
+
   app: {
     head: {
-      htmlAttrs: { lang: 'zh-Hant' },
+      // 🔴 lang 刻意不寫在這裡——S1-13 起需要逐路由（zh／en）動態變化，靜態值只能
+      // 二選一。真正生效的機制改成 app/plugins/site-locale.ts 動態餵給 nuxt-seo-utils，
+      // 詳見該檔案與 docs/18-work-errors.md E-17 的後續說明。
     },
   },
 })

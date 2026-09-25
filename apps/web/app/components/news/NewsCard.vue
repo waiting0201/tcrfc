@@ -22,12 +22,16 @@ interface NewsCardArticle {
 const props = withDefaults(defineProps<{ article: NewsCardArticle; hidden?: boolean }>(), { hidden: false })
 
 const cover = computed(() => hasNewsCover(props.article.slug))
+
+// S1-13：卡片連結一律留在目前語系（lp()），不要在 en 頁面把讀者導回 zh 網址——
+// 這個元件被 news/index.vue 與 5 個分類頁共用，修一次全部生效。
+const { lp } = useLocale()
 </script>
 
 <template>
   <a
     class="news-card clip-card"
-    :href="`/zh/news/${article.slug}/`"
+    :href="lp(`/zh/news/${article.slug}/`)"
     :hidden="hidden || undefined"
     :data-cat="article.categoryCode"
     :data-year="newsYearAttr(article.publishedAt)"

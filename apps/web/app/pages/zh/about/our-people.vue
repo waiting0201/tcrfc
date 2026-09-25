@@ -26,6 +26,13 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (club === 'bw' ? 'bw' : 'tcrfc'))
 const identity = computed(() => getClubIdentity(clubKey.value))
 const hero = computed(() => OUR_PEOPLE_HERO[clubKey.value])
 
+// S1-13 判斷：這頁維持既有「一律同時抓 zh 與 en 兩種名稱」設計不變（不是本輪的
+// lang 參數 bug），只補上麵包屑連結要跟著目前路由語系走（見下方樣板 lp() 呼叫）——
+// 這頁本身固定顯示「中文姓名為主、英文姓名為輔」的卡片版面，/en/about/our-people/
+// 這個孿生路由目前會顯示同一種版面（不是英文為主的版面），這是刻意先不做的頁面內容
+// 設計決策，留給往後真的要做「英文為主」版面時再處理，不在 S1-13 框架範圍內。
+const { lp } = useLocale()
+
 const [{ data: zhData }, { data: enData }] = await Promise.all([
   useFetch(`/api/backend/${club}/staff`, { query: { pageSize: 100, lang: 'zh' } }),
   useFetch(`/api/backend/${club}/staff`, { query: { pageSize: 100, lang: 'en' } }),
@@ -151,8 +158,8 @@ watchEffect(() => {
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
-      <li><a href="/zh/">首頁</a></li>
-      <li><a href="/zh/about/">{{ identity.aboutLabelZh }}</a></li>
+      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">團隊成員</li>
     </ol>
   </div>
