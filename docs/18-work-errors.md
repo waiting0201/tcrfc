@@ -78,6 +78,7 @@
 | E-38 | 2026-09-22 | `BlobImageStorageService` 的「容器已確保存在」旗標在呼叫 `CreateIfNotExistsAsync` **之前**就設成完成，第一次呼叫因故失敗後，旗標仍卡在「已完成」，之後每次呼叫都跳過建立、直接對不存在的容器寫入，得到的錯誤變成「容器不存在」蓋掉了真正的根因 | ✅ 改用 `SemaphoreSlim` 包住整段，`CreateIfNotExistsAsync` 成功後才設旗標 |
 | E-57 | 2026-09-25 | 規劃書與 `STATUS.md` 已經有答案的事，還拿去問使用者（第二次；第一次是把 `previousStartDate` 等實作選項丟給使用者） | ✅ 升級為 `CLAUDE.md` 全域規定第 14 條 |
 | E-58 | 2026-09-25 | S1-10 公開表單送出端點新增 Rate Limiting（依 IP 分區、5 分鐘固定視窗），`PermitLimit` 只用「正式環境訪客合理送出頻率」估出 10，沒有同時檢查「同一支整合測試檔案會呼叫這個端點幾次」——`WebApplicationFactory` 測試的所有請求共用同一個 `RemoteIpAddress`（TestServer 沒有真實連線），本輪新測試檔 11 次公開送出呼叫在同一視窗內就把額度用完，其中誘捕欄位測試收到 429 而非預期的 200，`dotnet test` 出現 1 項失敗 | ✅ 門檻改為 20 並在 `Program.cs` 對應段落寫清楚估算依據（含目前測試呼叫量），下次新增依連線分區的 Rate Limiting 政策時，門檻值要同時滿足「正式環境防護意義」與「同一分區內整合測試呼叫總量」兩個條件 |
+| E-59 | 2026-09-25 | S1-10 在 `form_fields` 加了篩選唯一索引，種子腳本 `generate-club-seed-sql.py` 卻沒補 `SET QUOTED_IDENTIFIER ON`，重灌種子會 `Msg 1934` 失敗（S1-11 發現） | ✅ 腳本檔頭已補，比照慈善種子腳本 |
 
 ---
 
@@ -1559,3 +1560,10 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **為什麼會錯（根因）**：**把「詢問使用者」當成預設的收尾動作，沒先確認規則或規劃書是否已經有答案。** 第一次的教訓只存在 memory，下一個 session 或 agent 讀不到，所以同一類錯又犯了一次。
 - **下次怎麼避免**：🔴 要問使用者之前，先確認這個問題能不能用規劃書、`STATUS.md` 的順序或 `docs/` 回答；能回答就直接做，並寫「接著做 X」。
 - **防呆**：✅ **已升級為 `CLAUDE.md` 全域規定第 14 條**（每個 session 都會載入）。沒有自動化檢查。
+
+### E-59 `db/seed/generate-club-seed-sql.py` 加了篩選唯一索引後，沒有同步補上 `SET QUOTED_IDENTIFIER ON`（2026-09-25，S1-11）
+
+- **錯在哪**：S1-10 幫 `form_fields` 加了篩選唯一索引 `UQ_form_fields_one_summary_per_form`（`WHERE is_summary = 1`），但沒有同步在 `generate-club-seed-sql.py` 檔頭補上 `SET QUOTED_IDENTIFIER ON;`——SQL Server 對「任一筆 INSERT／UPDATE／DELETE 打到有篩選索引／計算欄位索引的資料表」都要求 session 層級 `QUOTED_IDENTIFIER` 為 `ON`，sqlcmd 預設不是。`generate-charity-seed-sql.py` 在 `donation_invoices` 加篩選唯一索引時就做對了（有補這兩行），`club` 版的腳本沒有比照。S1-10 當時沒有踩到，是因為 114 筆種子資料在**加索引之前**就已經整批插入過，之後的 `is_summary` 回填是另外手動下 `UPDATE`，沒有真的重跑一次這支冪等腳本去真正插入 `form_fields` 新列。本輪（S1-11）第一次真的重新完整跑一次 `apply-seed.sh`，任何一個更早批次只要曾經因為別的原因（例如同一個交易裡的其他資料列）重新嘗試對 `form_fields` 做 INSERT，就會撞上 `Msg 1934` 整批回滾、`-b` 讓腳本直接中止，看起來像是「跟本輪新增的行事曆／帳號資料無關的隨機錯誤」。
+- **為什麼會錯（根因，寫成可以被改掉的行為）**：**在共用的種子產生器上加了會影響 session 層級 SET 選項需求的資料庫物件（篩選索引），卻沒有回頭檢查姊妹腳本（`generate-charity-seed-sql.py`）是否已經解過同一類問題**——兩支腳本明明處理的是同一種 SQL Server 限制，修法卻沒有互相對照。
+- **下次怎麼避免**：🔴 在任何 `db/seed/*.py` 加**篩選索引／計算欄位索引／索引檢視**之前，先確認該腳本檔頭已有 `SET QUOTED_IDENTIFIER ON;`（連線層級設定，跨 `GO` 批次持續有效，只需設一次）；兩支種子腳本目前都已補齊，之後新增第三支姊妹腳本（例如行動 App 若有自己的種子）要比照這個檔頭寫法，不要重新踩一次。
+- **防呆**：✅ **已修正**：`generate-club-seed-sql.py` 檔頭補上 `SET ANSI_NULLS ON;`／`SET QUOTED_IDENTIFIER ON;`（逐字比照 `generate-charity-seed-sql.py` 既有寫法），已重新完整跑過 `apply-seed.sh` 驗證不再出現 `Msg 1934`。無自動化檢查會在「加篩選索引卻忘記補 SET」時主動提醒，屬已知殘留風險。

@@ -152,6 +152,17 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | **永不進入** | **`Session` 課程時段**——行事曆以比賽為核心，學院課程、營隊、專項訓練不納入 |
 | 權限 | **跟隨來源模組**：能編輯哪些事件取決於對賽事資料的權限 |
 
+> **S1-11 新增（2026-09-25）**：本輪只做**合併讀取**（`GET /api/v1/admin/{club}/calendar/events`
+> 與公開端點 `GET /api/v1/{club}/calendar/events`），不是把這個 VIEW 本身接上程式碼——兩支端點都
+> 是後端分別查詢 `matches`／`calendar_custom_events` 兩張來源表後在應用層合併，理由是這個 VIEW
+> 欄位過少（沒有標題、隊別、賽事系列名稱），撐不起畫面需要的欄位，直接查來源表反而更直接。
+> `CalendarCustomEvent.repeat_rule`／新增的 `repeat_until` 欄位由
+> `apps/api/Common/RecurrenceExpander.cs` 在讀取當下即時展開，不 materialize 成事件實例
+> （docs/12-database-schema.md §12 第 39 點）。權限碼：`calendar.view`（L1 總覽，一律
+> `scope_type=all`，賽事本身已公開，見 [`14-invariants.md`](14-invariants.md)「own_teams 盤點
+> 結果」）、`calendar.custom_event.view/create/update/delete`（L2，`module_code=L`，
+> `domain=calendar`）。
+
 ### 6.12 `AdminUser`
 
 見 [§7.6](#76-管理員用-username-不用-email)。⚠️ **`primary_club_id` 只是站台切換器的預設值，不是資料範圍**——範圍在 `AdminUserClub`。

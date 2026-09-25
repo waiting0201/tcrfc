@@ -945,6 +945,7 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.RepeatRule)
                 .HasMaxLength(32)
                 .HasColumnName("repeat_rule");
+            entity.Property(e => e.RepeatUntil).HasColumnName("repeat_until");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");

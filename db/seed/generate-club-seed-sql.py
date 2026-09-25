@@ -177,6 +177,14 @@ emit()
 emit("-- SET 選項是連線層級、跨 GO 批次仍然有效（不像變數會被 GO 清空）。")
 emit("-- 搭配每個防呆插入區塊自動包的 BEGIN TRANSACTION／COMMIT TRANSACTION，")
 emit("-- 任何一句 INSERT 失敗就整組回滾，不會留下「父列插入成功、子列插入失敗」的半殘資料。")
+emit("-- 🔴 S1-11 補上（E-59，見 docs/18-work-errors.md）：form_fields.field_type CHECK 之外，")
+emit("-- UQ_form_fields_one_summary_per_form 是篩選唯一索引（db/club-schema.sql，S1-10 新增）——")
+emit("-- 對這張表 INSERT 時，session 層級的 QUOTED_IDENTIFIER 必須是 ON，否則會出現 Msg 1934。")
+emit("-- sqlcmd 預設不是 ON。generate-charity-seed-sql.py 對 donation_invoices 的篩選唯一索引早就")
+emit("-- 加過同一道防線，本檔直到本輪新增 event_types／calendar 權限才第一次真的重新完整套用整份")
+emit("-- 種子腳本、暴露這個既有落差（filtered index 是 S1-10 才加的，加的時候沒有同步補這兩行）。")
+emit("SET ANSI_NULLS ON;")
+emit("SET QUOTED_IDENTIFIER ON;")
 emit("SET XACT_ABORT ON;")
 emit("GO")
 emit()
@@ -964,6 +972,26 @@ PERMISSIONS = [
     ("enquiry.partnership.update", "G", "G2", "enquiry", "update", 1, 0, 0, "處理合作／贊助類詢問", "Update Partnership Enquiries"),
     ("enquiry.media.view", "G", "G2", "enquiry", "view", 1, 0, 0, "檢視媒體類詢問", "View Media Enquiries"),
     ("enquiry.media.update", "G", "G2", "enquiry", "update", 1, 0, 0, "處理媒體類詢問", "Update Media Enquiries"),
+    # S1-11 新增：L1 行事曆總覽／L2 自建事件。domain 獨立取 "calendar"（docs/12b §7.3 值域表
+    # 本來就列了這個值，S1-8 當時只是還沒有任何權限碼真的用到）。calendar_custom_events.club_id
+    # 必填，is_club_scoped=1，非 sysadmin_only。
+    #
+    # 🔴 calendar.view 只有一個唯讀動作，涵蓋 L1 總覽（合併賽事＋自建事件的彙整讀取）——賽事本身
+    # 已經是 13 前台任何人都能看到的公開資訊（GET /api/v1/{club}/schedule 不需要登入），行事曆
+    # 總覽把同樣的資料換一種畫面呈現，不因此變成需要列級限制的敏感資料；主站規劃書「行事曆權限
+    # 採跟隨來源模組原則」講的是**編輯**哪些事件（見下方 calendar.custom_event.* 與
+    # team.match.*），不是「能不能看到」，因此 calendar.view 一律 scope_type="all"，不套用
+    # TeamRowScope（S1-8 當時保留的 own_teams 用途，本輪盤點後判斷讀取端不需要，見
+    # apps/api/README.md「S1-11」段的完整說明）。
+    #
+    # calendar.custom_event.*：矩陣「自建事件」（內容編輯／公關媒體）給全部四個動作；「賽事事件」
+    # （競技／球隊管理）「梯隊賽事」（學院／課程管理）不落在這組權限碼上——那兩格對應的是
+    # team.match.*（C4，已存在），行事曆模組本身只多開放「能不能管理 L2 自建活動」這一件事。
+    ("calendar.view", "L", "L1", "calendar", "view", 1, 0, 0, "檢視行事曆總覽", "View Calendar Overview"),
+    ("calendar.custom_event.view", "L", "L2", "calendar", "view", 1, 0, 0, "檢視自建事件", "View Custom Events"),
+    ("calendar.custom_event.create", "L", "L2", "calendar", "create", 1, 0, 0, "建立自建事件", "Create Custom Events"),
+    ("calendar.custom_event.update", "L", "L2", "calendar", "update", 1, 0, 0, "編輯自建事件", "Update Custom Events"),
+    ("calendar.custom_event.delete", "L", "L2", "calendar", "delete", 1, 0, 0, "刪除自建事件", "Delete Custom Events"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -1153,6 +1181,32 @@ ROLE_PERMISSIONS = [
     # 再疊一層類別過濾（跟 P3 課程／報名同一個道理：矩陣直接寫「自家」不是「自家＋類別限定」）。
     # 不含匯出，比照 P3 既有保守預設。
     ("partner_club_manager", ["form.view", "form.update", "enquiry.inbox.view", "enquiry.inbox.update"], "own_clubs"),
+    # S1-11 新增：L1 行事曆總覽／L2 自建事件，依主站規劃書 §6 矩陣「行事曆」欄逐列展開——
+    # 這一欄沒有任何角色是「—」，全部角色都至少能看到 calendar.view（見上方 PERMISSIONS
+    # 定義處的完整說明）。系統管理員 ✔全（PERMISSIONS 清單自動展開）。
+    ("content_editor", [
+        "calendar.view",
+        "calendar.custom_event.view", "calendar.custom_event.create",
+        "calendar.custom_event.update", "calendar.custom_event.delete",
+    ], "all"),
+    ("pr_media", [
+        "calendar.view",
+        "calendar.custom_event.view", "calendar.custom_event.create",
+        "calendar.custom_event.update", "calendar.custom_event.delete",
+    ], "all"),
+    # 「賽事事件」（競技／球隊管理）「梯隊賽事」（學院／課程管理）本身不對應新權限碼——
+    # 這兩格已經由既有 team.match.*（含 academy_program 的 academy_only 列級限制）承接，
+    # 這裡只補行事曆總覽的檢視權，讓這兩個角色能打開 L1 總覽畫面。
+    ("team_competition", ["calendar.view"], "all"),
+    ("academy_program", ["calendar.view"], "all"),
+    ("business_sponsorship", ["calendar.view", "calendar.custom_event.view"], "all"),
+    ("customer_service_admin", ["calendar.view", "calendar.custom_event.view"], "all"),
+    ("viewer", ["calendar.view", "calendar.custom_event.view"], "all"),
+    ("partner_club_manager", [
+        "calendar.view",
+        "calendar.custom_event.view", "calendar.custom_event.create",
+        "calendar.custom_event.update", "calendar.custom_event.delete",
+    ], "own_clubs"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")
@@ -1233,6 +1287,18 @@ ADMIN_USERS = [
     # （S1-3 種子），但先前沒有任何測試帳號被指派過這個角色。
     ("business.sponsorship@tcrfc.test", "商務／贊助（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
      False, False, True, "business_sponsorship", [("tcrfc", None)]),
+    # S1-11 新增（2026-09-25，補種子測試帳號缺口）：customer.service@tcrfc.test／pr.media@tcrfc.test
+    # 兩個帳號跟 academy.manager@tcrfc.test 同一種問題——two_factor_enabled=1 但沒有真實密鑰，
+    # 無頭瀏覽器／端對端驗收無法真的完成 /login。比照既有 academy.login／clean.login 的「-login」
+    # 變體做法，各開一個 two_factor_enabled=0 的孿生帳號，角色與俱樂部授權逐一對應本尊，沿用
+    # content.editor 的雜湊。business_sponsorship 先前沒有任何測試帳號被指派過（含 S1-10 新增的
+    # business.sponsorship@tcrfc.test 本身也是 2FA 已啟用無密鑰），一併補上變體。
+    ("customer.service.login@tcrfc.test", "客服／行政（實走用測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, False, "customer_service_admin", [("tcrfc", None)]),
+    ("pr.media.login@tcrfc.test", "公關／媒體（實走用測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, False, "pr_media", [("tcrfc", None)]),
+    ("business.sponsorship.login@tcrfc.test", "商務／贊助（實走用測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
+     False, False, False, "business_sponsorship", [("tcrfc", None)]),
 ]
 
 emit("-- ── 18.4 admin_users：種子超管（真雜湊，Admin@123）＋ 五個角色測試帳號（真雜湊） ──")
@@ -1253,6 +1319,9 @@ emit("--   academy.login@tcrfc.test     / ContentEditor@123（沿用同一組雜
 emit("--   customer.service@tcrfc.test  / ContentEditor@123（沿用同一組雜湊，測 P3「報名處理」局部權限）")
 emit("--   pr.media@tcrfc.test          / ContentEditor@123（沿用同一組雜湊，測完全沒有課程／報名權限的 403）")
 emit("--   business.sponsorship@tcrfc.test / ContentEditor@123（沿用同一組雜湊，測 G2「合作／贊助類詢問」局部權限）")
+emit("--   customer.service.login@tcrfc.test / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，客服／行政的端對端實走帳號）")
+emit("--   pr.media.login@tcrfc.test          / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，公關／媒體的端對端實走帳號）")
+emit("--   business.sponsorship.login@tcrfc.test / ContentEditor@123（沿用同一組雜湊，two_factor_enabled=0，商務／贊助的端對端實走帳號）")
 for username, display_name, password_hash, is_super, must_change, two_factor, role_code, club_grants in ADMIN_USERS:
     user_id = new_id("admin_user", username)
     block(f"""
@@ -1504,6 +1573,42 @@ END
 IF NOT EXISTS (SELECT 1 FROM form_fields WHERE form_id = {form_ref} AND field_key = {esc(field_key)})
   INSERT INTO form_fields (id, form_id, field_key, field_type, is_required, validation_rule, options_json, is_summary, sort_order)
   VALUES ({esc(field_id)}, {form_ref}, {esc(field_key)}, {esc(field_type)}, {esc(is_required)}, {esc(validation_rule)}, {options_json}, {esc(is_summary)}, {i});
+""")
+
+# ============================================================================
+# S1-11（L2 自建事件，2026-09-25）：event_types 六個起始分類，不帶 club_id（兩俱樂部共用字典）。
+# ----------------------------------------------------------------------------
+# 對應主站規劃書 L2（行 1379）列舉的自建事件範例（記者會、簽名會、球迷見面會、公開訓練、
+# 休館公告）＋一個保底的「其他」。L3「賽事類型維護」（含圖示自系統預設圖示集選擇、排序、正式的
+# CRUD 管理畫面）留給 S2-6，這裡只種最小可行的起始字典，讓 L2 建立事件時有分類可選——比照既有
+# HOME_SECTIONS／FAQ_EMBED_SLOTS「先種固定字典，完整維護畫面留給後續」的既有先例。icon 是**識別
+# 字串**不是圖片（規劃書明文「不是上傳圖片」），對應前端從系統預設圖示集挑選後儲存的代碼，本輪
+# 隨意選用語意清楚的英文識別字，之後 L3 真的做圖示挑選器時再依前端實際採用的圖示庫調整。
+# ============================================================================
+EVENT_TYPES = [
+    # (code, colour, icon, name_zh, name_en)
+    ("press_conference", "#B91C1C", "megaphone", "記者會", "Press Conference"),
+    ("autograph_session", "#B45309", "pen-line", "簽名會", "Autograph Session"),
+    ("fan_meet", "#0369A1", "users", "球迷見面會", "Fan Meet"),
+    ("open_training", "#15803D", "whistle", "公開訓練", "Open Training"),
+    ("closure_notice", "#525252", "alert-circle", "休館公告", "Facility Closure Notice"),
+    ("other", "#6D28D9", "calendar", "其他", "Other"),
+]
+
+emit("-- ── 23. event_types：L2 自建事件六個起始分類（不帶 club_id，全站共用） ────────")
+for i, (code, colour, icon, name_zh, name_en) in enumerate(EVENT_TYPES):
+    event_type_id = new_id("event_type", code)
+    block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM event_types WHERE code = {esc(code)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(event_type_id)};
+  INSERT INTO event_types (id, code, colour, icon, is_public, sort_order)
+  VALUES (@id, {esc(code)}, {esc(colour)}, {esc(icon)}, 1, {i});
+  INSERT INTO event_types_i18n (event_type_id, locale, name) VALUES (@id, N'zh-Hant', {esc(name_zh)});
+  INSERT INTO event_types_i18n (event_type_id, locale, name) VALUES (@id, N'en', {esc(name_en)});
+END
 """)
 
 if "--reset-admin-accounts" in sys.argv:

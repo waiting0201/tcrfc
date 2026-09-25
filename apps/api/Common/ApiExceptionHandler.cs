@@ -3,9 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Tcrfc.Api.Features.AdminAccounts;
 using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminBanners;
+using Tcrfc.Api.Features.AdminCalendar;
 using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
 using Tcrfc.Api.Features.AdminEnquiries;
+using Tcrfc.Api.Features.Calendar;
 using Tcrfc.Api.Features.AdminFaqs;
 using Tcrfc.Api.Features.AdminForms;
 using Tcrfc.Api.Features.AdminHomeSections;
@@ -191,6 +193,12 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status404NotFound, "找不到表單", publicFormNotFound.Message),
             PublicFormSubmissionValidationException publicFormSubmissionValidation =>
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", publicFormSubmissionValidation.Message),
+
+            // ── S1-11 新增：L1 行事曆總覽／L2 自建事件／13 賽事行事曆公開讀取 ─────────────
+            AdminCalendarValidationException calendarValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", calendarValidation.Message),
+            CalendarQueryValidationException calendarQueryValidation =>
+                (StatusCodes.Status400BadRequest, "查詢參數有誤", calendarQueryValidation.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),

@@ -23,6 +23,13 @@ public partial class CalendarCustomEvent
 
     public string? RepeatRule { get; set; }
 
+    /// <summary>重複規則的結束日期（S1-11 新增）——主站規劃書 §4.12 L2「可設定結束日期與例外
+    /// 日期」明文要求，原始 DDL 只有 <see cref="RepeatRule"/> 與例外日期表
+    /// （<c>calendar_event_exceptions</c>），沒有承接「結束日期」的欄位，屬綱要落差補齊，
+    /// 見 docs/12-database-schema.md §12。<c>RepeatRule</c> 為 <c>null</c>（不重複）時本欄無意義，
+    /// 一律留空。</summary>
+    public DateOnly? RepeatUntil { get; set; }
+
     public bool IsPublic { get; set; }
 
     public string? CoverKey { get; set; }

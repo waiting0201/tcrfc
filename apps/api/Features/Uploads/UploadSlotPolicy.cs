@@ -45,6 +45,9 @@ public static class UploadSlotPolicy
             // S1-9 新增：P1 課程／營隊項目——programs.cover_key（db/club-schema.sql「4.3 P 課程與活動」
             // 建表陳述式），比照上面 staff.photo 的接法。
             ["programs"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
+            // S1-11 新增：L2 自建事件——calendar_custom_events.cover_key（db/club-schema.sql
+            // 「4.10 L 行事曆管理」建表陳述式），比照上面 programs.cover 的接法。
+            ["calendar_custom_events"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
         };
 
     public static void Validate(string entityType, string field)

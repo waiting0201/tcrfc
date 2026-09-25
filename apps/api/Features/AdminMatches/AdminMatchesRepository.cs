@@ -215,6 +215,8 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
+        // S1-11：L1 行事曆總覽／13 賽事行事曆合併讀取也快取賽事資料，同一份寫入要讓兩個快取實體都失效。
+        await cache.InvalidateAsync("calendar", scope.ClubCode, cancellationToken);
         return (await GetByIdAsync(scope, match.Id, cancellationToken))!;
     }
 
@@ -309,6 +311,8 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
+        // S1-11：L1 行事曆總覽／13 賽事行事曆合併讀取也快取賽事資料，同一份寫入要讓兩個快取實體都失效。
+        await cache.InvalidateAsync("calendar", scope.ClubCode, cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
     }
 
@@ -336,6 +340,8 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
         dbContext.Matches.Remove(match);
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
+        // S1-11：L1 行事曆總覽／13 賽事行事曆合併讀取也快取賽事資料，同一份寫入要讓兩個快取實體都失效。
+        await cache.InvalidateAsync("calendar", scope.ClubCode, cancellationToken);
         return true;
     }
 
@@ -625,6 +631,8 @@ public sealed class AdminMatchesRepository(ClubDbContext dbContext, IQueryCache 
 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
+        // S1-11：L1 行事曆總覽／13 賽事行事曆合併讀取也快取賽事資料，同一份寫入要讓兩個快取實體都失效。
+        await cache.InvalidateAsync("calendar", scope.ClubCode, cancellationToken);
         return new MatchCsvImportResultDto { ImportedCount = parsedRows.Count, Errors = [] };
     }
 

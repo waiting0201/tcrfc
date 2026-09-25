@@ -447,6 +447,10 @@ HTTP 200
 | `expired.grant@tcrfc.test` | `ContentEditor@123` | `content_editor` | `tcrfc`（**已過期**） | 同上 | 情境三 |
 | `fresh.setup@tcrfc.test` | `Admin@123` | `viewer` | `tcrfc` | `must_change_password=1`，`2FA 未啟用` | 完整 2FA 設定流程測試（`AdminAuthTests` 用完會重設回本狀態） |
 | `lockout.test@tcrfc.test` | `Viewer@123` | `viewer` | `tcrfc` | 同上 | 連續失敗鎖定測試專用（避免與其他測試共用帳號互相污染） |
+| `academy.login@tcrfc.test` | `ContentEditor@123` | `academy_program` | 僅 `bw` | 可直接登入 | 學院／課程管理的端對端實走帳號（S1-8） |
+| `customer.service.login@tcrfc.test` | `ContentEditor@123` | `customer_service_admin` | `tcrfc` | 可直接登入 | 客服／行政的端對端實走帳號（S1-11 補） |
+| `pr.media.login@tcrfc.test` | `ContentEditor@123` | `pr_media` | `tcrfc` | 可直接登入 | 公關／媒體的端對端實走帳號（S1-11 補） |
+| `business.sponsorship.login@tcrfc.test` | `ContentEditor@123` | `business_sponsorship` | `tcrfc` | 可直接登入 | 商務／贊助的端對端實走帳號（S1-11 補） |
 
 ⚠️ **為什麼大多數「已就緒」帳號的 `two_factor_enabled` 是種子直接設 `1` 但沒有真正可解密的密鑰**：
 ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本在行程外執行，沒有能力產生「這個
@@ -456,6 +460,13 @@ ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本
 「真正的登入 HTTP 往返」時，只能用 `two_factor_enabled=0` 的帳號（`sa@system.local`／
 `clean.login@tcrfc.test`／`fresh.setup@tcrfc.test`），或走完整的「設定 2FA」流程之後再登入
 （`AdminAuthTests.完整2FA設定流程...` 示範了後者）。
+
+🔴 **「-login」變體帳號的既有慣例（S1-8 起）**：每當一輪新增角色的測試帳號會撞到上述限制、且
+該角色需要被無頭瀏覽器／端對端驗收真的登入過一次時，另開一個 `two_factor_enabled=0`、角色與
+俱樂部授權逐一對應本尊的孿生帳號，命名規則是本尊帳號 local-part 加上 `.login`（例：
+`academy.manager@tcrfc.test` → `academy.login@tcrfc.test`）。S1-11 依此規則補上
+`customer.service.login@tcrfc.test`／`pr.media.login@tcrfc.test`／
+`business.sponsorship.login@tcrfc.test` 三個（見下方「S1-11」段落）。
 
 ### 種子測試帳號的重設（`db/seed/reset-admin-accounts.sh`，2026-09-24 新增）
 
@@ -3093,6 +3104,265 @@ Python 手算驗證碼，不繞過驗證本身）後實際呼叫 G1／G2 端點�
 `TRUSTED_PROXY_IP` 時中介軟體完全不掛）。全套 `dotnet test` **406／406 通過**（連跑多次皆全線）。
 `apps/admin`／`apps/web` 的 `npm run lint` 皆通過（0 errors；`apps/web` 既有 539 個 warning 與
 本輪無關，未觸碰任何前端檔案）。
+
+---
+
+## S1-11：`L1` 行事曆總覽／`L2` 自建事件 ＋ 13 賽事行事曆公開讀取（含單場 `.ics`）（2026-09-25，`backend-engineer`）
+
+主站規劃書 §4.12 L1／L2（後台）、§3.13（13 賽事行事曆，公開讀取）。沿用既有架構：
+`IAdminClubAuthorizer`、`IClubResolver`／`ClubScope`、`IQueryCache`、後台圖片欄位直傳
+（`calendar_custom_events.cover_key`）。**沒有套用 `TeamRowScope`**——見下方「為什麼不套列級授權」。
+
+### 讀到的規劃書條文
+
+| 章節 | 行號 | 內容 |
+|---|---|---|
+| 主站 §4.12 L1 | 1368–1376 | 月曆呈現全部賽事與自建活動、隊別分軌檢視、拖曳改期回寫賽事、衝突偵測、篩選、檢視切換；「課程／營隊／專項訓練不進入行事曆」 |
+| 主站 §4.12 L2 | 1378–1381 | 自建事件欄位、重複規則（每週／每兩週／每月，可設定結束日期與例外日期） |
+| 主站 §4.12「資料一致性原則」 | 1396–1398 | 行事曆是彙整層而非資料源，僅 L2 為自有資料 |
+| 主站 §3.13 | 591–711 | 隊別分類（D1／U15／U14／U12，另有全部與俱樂部活動）、賽程／賽果切換、賽事卡片、加入我的行事曆 `.ics`、SEO 網址規則 |
+| 主站 §6 矩陣「行事曆」欄 | 1607 | 十個角色逐列分佈，見下方權限碼段 |
+| docs/12b §7.4 | — | `own_teams` 綁在「賽事事件」「梯隊賽事」兩格，S1-8 保留給 L 模組使用 |
+
+### STATUS.md 既定的範圍切法（沿用，非本輪判斷）
+
+`STATUS.md` 把規劃書 L1 原文列出的「隊別分軌檢視」「拖曳調整日期回寫賽事」「衝突偵測」與 L3／L4
+一起排進 `S2-6`（「行事曆進階」）。本輪只做 **L1 合併讀取**（把 `matches` 與
+`calendar_custom_events` 換算成同一種形狀回傳）與 **L2 自建事件 CRUD**，不做分軌並排、拖曳改期、
+衝突警示、訂閱與匯出——這是既有工作分解，不是本輪重新裁量，任務指示本身也是照這個切法派工。
+
+### 資料庫：既有 DDL 已經備妥，只補一個欄位與一個 CHECK 約束
+
+`calendar_custom_events`／`calendar_custom_events_i18n`／`calendar_event_teams`／
+`calendar_event_exceptions`／`event_types`／`event_types_i18n` 六張表在 S0 系列就已經是完整 DDL
+（`db/club-schema.sql`「4.10 L 行事曆管理」），EF 實體與 `ClubDbContext` 對應也早就 scaffold 好。
+本輪異動：
+
+1. **新增欄位** `calendar_custom_events.repeat_until`（`date NULL`）——規劃書 L2「可設定結束日期與
+   例外日期」，例外日期已有 `calendar_event_exceptions` 承接，但原始 DDL沒有任何欄位承接「結束
+   日期」，`docs/12d-field-audit.md` 也記過這個缺口。
+2. **補齊從未約束過的值域** `repeat_rule`：定案為 `weekly`／`biweekly`／`monthly` 三個英文字面值
+   （比照 `matches.status`「挑最直白的英文單字」既有風格，規劃書只給中文頻率敘述，沒有給代碼或
+   RRULE 格式的技術決定），補上 `CK_calendar_custom_events_repeat_rule`。
+
+```
+migration: 20260925055015_AddCalendarCustomEventRepeatUntil
+  ALTER TABLE calendar_custom_events ADD [repeat_until] date NULL;   -- EF AddColumn，來自實體模型異動
+  ALTER TABLE calendar_custom_events ADD CONSTRAINT CK_calendar_custom_events_repeat_rule
+    CHECK (repeat_rule IN ('weekly','biweekly','monthly') OR repeat_rule IS NULL);
+```
+
+套用前查證 `calendar_custom_events` 為 0 筆（本輪才第一次接上真實 API），純 DDL 變更，不搭配任何
+DML 轉態。完整說明另見 `docs/12-database-schema.md` §12 第 39 點。
+
+**重複規則不 materialize 成事件實例表**——比照「行事曆是彙整層而非資料源」的既有原則，改為讀取
+當下依呼叫端要求的日期範圍即時展開（`Common/RecurrenceExpander.cs`），範圍本身已經是呼叫端的
+必要輸入（月曆檢視一次看一個月、公開列表也有 `from`／`to`），迭代次數天然有界（防呆上限 400 次）。
+
+**種子資料**：`event_types` 種六個起始分類（記者會／簽名會／球迷見面會／公開訓練／休館公告／
+其他，不帶 `club_id`，兩俱樂部共用）——L3「賽事類型維護」正式的 CRUD 管理畫面留給 `S2-6`，這裡
+只種最小可行的起始字典，讓 L2 建立事件時有分類可選，比照既有 `HOME_SECTIONS`／`FAQ_EMBED_SLOTS`
+「先種固定字典，完整維護畫面留給後續」的既有先例。
+
+### 後台端點（新增檔案 `Features/AdminCalendar`）
+
+| 方法與路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/calendar/events` | `calendar.view` | L1 總覽：合併 `matches`＋`calendar_custom_events`。`from`／`to`（預設本月，上限 366 天）、`team`（球隊代碼或 `club`）、`sourceType`（`match`／`custom`）篩選 |
+| `GET /api/v1/admin/{club}/calendar/event-types` | `calendar.custom_event.view` | L2 建立／編輯事件用的分類下拉選單（唯讀，L3 正式管理畫面留給 `S2-6`） |
+| `GET /api/v1/admin/{club}/calendar/custom-events` | `calendar.custom_event.view` | L2 清單。`team` 篩選 |
+| `GET /api/v1/admin/{club}/calendar/custom-events/{id}` | `calendar.custom_event.view` | 單筆詳情 |
+| `POST /api/v1/admin/{club}/calendar/custom-events` | `calendar.custom_event.create` | 建立，`multipart/form-data`（`payload`＋選填 `file` 封面圖） |
+| `PUT /api/v1/admin/{club}/calendar/custom-events/{id}` | `calendar.custom_event.update` | 更新，同上 multipart 契約 |
+| `DELETE /api/v1/admin/{club}/calendar/custom-events/{id}` | `calendar.custom_event.delete` | 硬刪除 |
+
+### 公開端點（新增檔案 `Features/Calendar`，不需要登入）
+
+| 方法與路徑 | 說明 |
+|---|---|
+| `GET /api/v1/{club}/calendar/events` | 13 賽事行事曆。見下方「兩種查詢模式」 |
+| `GET /api/v1/{club}/matches/{id}/ics` | 單場賽事「加入我的行事曆」下載 |
+
+#### 兩種查詢模式（本輪判斷，規劃書沒有把這兩種模式的參數形狀寫清楚）
+
+1. **列表模式**（`from`／`to` 皆未提供）：依 `team` 決定內容——
+   - `team=club`：回傳「俱樂部活動」分頁（規劃書「隊別分頁……另有『全部』與『俱樂部活動』」），
+     只給公開（`is_public=1`）自建事件；
+   - 其餘（含未指定）：回傳**只有賽事**的「賽程 Fixtures／賽果 Results」分頁（`mode=fixtures`
+     預設／`results`），支援 `season`／`type`（賽事類型標籤）／`homeAway` 篩選、`page`／`pageSize`
+     分頁——這兩個分頁在規劃書原文本來就是賽事的概念（未來／過去），俱樂部活動沒有「賽果」的語意。
+2. **月曆模式**（提供 `from`／`to`，上限 366 天）：合併賽事與公開自建事件，L2 重複規則即時展開，
+   排序一律由近到遠，不分賽程／賽果，仍可疊加 `team`／`season`／`type`／`homeAway` 篩選。
+
+⚠️ **已知簡化**：「俱樂部活動」列表分頁對重複規則事件只用原始 `starts_at` 排序，不逐一展開每一次
+重複發生的時間（那需要月曆模式的 `from`／`to` 才有界限可以展開）。前台若要看到某個重複活動「下
+一次」的確切時間，應改用月曆檢視。
+
+### 權限碼與角色指派（`db/seed/generate-club-seed-sql.py`）
+
+新增 5 個權限碼：`calendar.view`（L1，`module_code=L`、`submodule_code=L1`、`domain=calendar`）、
+`calendar.custom_event.view/create/update/delete`（L2，`submodule_code=L2`）。依主站規劃書 §6
+矩陣「行事曆」欄逐列展開——**這一欄沒有任何角色是「—」**，全部角色都至少能看到 `calendar.view`：
+
+| 角色 | 矩陣格 | 權限碼 |
+|---|---|---|
+| 系統管理員 | ✔全 | 全部 5 碼（`PERMISSIONS` 清單自動展開） |
+| 內容編輯／公關媒體 | 自建事件 | `calendar.view`＋`calendar.custom_event.*` 全給 |
+| 競技／球隊管理 | 賽事事件 | 只給 `calendar.view`——這一格對應的是既有 `team.match.*`（C4），不是本模組權限碼 |
+| 學院／課程管理 | 梯隊賽事 | 只給 `calendar.view`——理由同上，`team.match.*` 已是 `academy_only` |
+| 商務／贊助、客服／行政、檢視者 | 唯讀 | `calendar.view`＋`calendar.custom_event.view` |
+| 合作球隊管理 | 自家事件 | `calendar.view`＋`calendar.custom_event.*`（`scope_type=own_clubs`） |
+| 翻譯人員 | 僅翻譯欄位 | 不指派（見下方「規劃書沒寫清楚」第 3 點） |
+
+### 🔴 為什麼讀取端不套用 `TeamRowScope`（`own_teams` 盤點結果）
+
+S1-8 把 `own_teams` 這個 `scope_type` 保留給「等 L 模組真的需要時再指派」。本輪盤點後判斷**不需要**：
+`matches` 本身已經是 `GET /api/v1/{club}/schedule`（任何人不需要登入就能看到的公開資訊）——行事曆
+總覽只是換一種畫面（月曆／列表）呈現同一份資料，不會因為多了「總覽」這個入口就變成需要列級限制
+的敏感資料。規劃書「行事曆權限採跟隨來源模組」講的是**編輯**哪些事件（學院管理者可調整所屬梯隊
+賽程，但不能改一線隊賽程），這條限制已經由既有 `team.match.*`＋`academy_only`（S1-8）承接；
+`calendar.custom_event.*` 拿到的角色在種子資料裡也都是 `all`（或效果等同 `all` 的 `own_clubs`），
+沒有一個角色需要「只能碰特定球隊的自建事件」。`own_teams` 依然是**已實作但未被任何內建角色使用**
+的能力，等 `S2-6` 真的做拖曳改期回寫 `Match` 時才有「改到不該碰的球隊」的風險，那時再指派即可，
+見 `docs/14-invariants.md` 對應段落。
+
+### 時區換算：全站僅 `.ics` 這一處
+
+`matches.match_on`（`date`）＋`kickoff`（`nvarchar(8)`）依 `docs/12` §12 第 31 點是「當地牆上時間」
+的展示值，本俱樂部主場都在台灣，`.ics` 輸出把牆上時間視為 `Asia/Taipei`（UTC+8，無夏令時間）換算
+成 UTC。`calendar_custom_events.starts_at`／`ends_at` 不在這條規則內——那兩欄是一般 `datetime2(3)`，
+依 §1 型別詞彙表本來就已經是 UTC 時間戳，本輪只實作賽事的 `.ics`（規劃書明確要求單一賽事），L2
+自建事件的 `.ics` 留給日後有實際需求時比照 `Features/Calendar/CalendarIcsRepository.cs` 的模式擴充。
+`.ics` 沒有儲存賽事時長，比照一般足球比賽（含中場）估算 2 小時當 `DTEND`，純粹用於 `.ics` 輸出，
+不影響任何資料庫欄位或其他端點的回應。
+
+### 🔴 修正：`generate-club-seed-sql.py` 缺少 `SET QUOTED_IDENTIFIER ON`（E-59）
+
+本輪套用種子資料時撞到 `Msg 1934`——`form_fields` 的篩選唯一索引（S1-10 新增）要求 session 層級
+`QUOTED_IDENTIFIER` 為 `ON`，`generate-charity-seed-sql.py` 早就補過這道防線，`club` 版的腳本
+沒有比照補上。已在檔頭補齊 `SET ANSI_NULLS ON;`／`SET QUOTED_IDENTIFIER ON;`，完整記錄見
+`docs/18-work-errors.md` `E-59`。
+
+### 補種子測試帳號缺口（任務一，`-login` 變體）
+
+`customer.service@tcrfc.test`／`pr.media@tcrfc.test`（S1-9）與 `business.sponsorship@tcrfc.test`
+（S1-10）三個帳號跟 `academy.manager@tcrfc.test` 同一種問題——`two_factor_enabled=1` 但沒有真實
+密鑰，無頭瀏覽器／端對端驗收無法真的完成 `/login`。比照既有 `academy.login`／`clean.login` 的
+「-login」變體做法，各開一個 `two_factor_enabled=0` 的孿生帳號（角色與俱樂部授權逐一對應本尊，
+沿用 `content.editor` 的雜湊）：`customer.service.login@tcrfc.test`／`pr.media.login@tcrfc.test`／
+`business.sponsorship.login@tcrfc.test`（密碼皆 `ContentEditor@123`）。已補進「種子測試帳號」表
+（含先前遺漏的 `academy.login@tcrfc.test` 一併補上）與腳本的密碼明文清單。**只新增帳號、角色
+指派與俱樂部授權，未執行任何實際登入驗收**——這是後端補種子資料的任務，端對端驗收屬於
+`apps/admin` 那條線，這批帳號能不能真的完成 `/login` 尚未實測，回報供 `frontend-architect` 那輪
+使用時自行驗證。
+
+### 改了哪些檔案
+
+新增：
+- `Common/RecurrenceExpander.cs`／`Common/IcsBuilder.cs`
+- `Features/AdminCalendar/`（`AdminCalendarDtos.cs`／`AdminCalendarExceptions.cs`／
+  `AdminCalendarRequestForm.cs`／`AdminCalendarOverviewRepository.cs`（Dapper，L1）／
+  `AdminCalendarCustomEventsRepository.cs`（EF Core，L2）／`AdminCalendarEndpoints.cs`）
+- `Features/Calendar/`（`CalendarDto.cs`／`CalendarRepository.cs`（Dapper，公開合併讀取）／
+  `CalendarIcsRepository.cs`（單場賽事 `.ics`）／`CalendarEndpoints.cs`）
+- `Data/Migrations/20260925055015_AddCalendarCustomEventRepeatUntil.cs`
+- `Tcrfc.Api.Tests/`（`RecurrenceExpanderTests.cs`／`IcsBuilderTests.cs`／`AdminCalendarTests.cs`／
+  `CalendarPublicTests.cs`）
+
+修改：
+- `Data/EfEntities/CalendarCustomEvent.cs`（新增 `RepeatUntil`）、`Data/ClubDbContext.cs`（對應
+  屬性設定）
+- `Features/Uploads/UploadSlotPolicy.cs`（新增 `calendar_custom_events.cover` 插槽）
+- `Common/ApiExceptionHandler.cs`（新增例外對照）
+- `Features/AdminMatches/AdminMatchesRepository.cs`（既有 4 處 `InvalidateAsync("schedule", ...)`
+  各自補上 `InvalidateAsync("calendar", ...)`——賽事資料異動也要讓合併讀取的快取失效）
+- `Program.cs`（DI 註冊、路由掛載）
+- `db/club-schema.sql`（`calendar_custom_events` 新增 `repeat_until` 欄位與 CHECK 約束）
+- `db/seed/generate-club-seed-sql.py`（`calendar.*` 權限碼與角色指派、`event_types` 六個起始
+  分類、三個 `-login` 測試帳號、檔頭補 `SET QUOTED_IDENTIFIER ON`）
+
+### 契約變更
+
+- 新增 5 個權限碼（`calendar.*`），DML 已套用到本機 `tcrfc_club_dev`（`./db/seed/apply-seed.sh`）。
+- 新增 migration `AddCalendarCustomEventRepeatUntil`，已套用到本機 `tcrfc_club_dev`
+  （`dotnet ef database update --context ClubDbContext`）。
+- 新增 3 個測試帳號（`customer.service.login`／`pr.media.login`／`business.sponsorship.login`，
+  皆 `@tcrfc.test`，密碼 `ContentEditor@123`）。
+
+### 規劃書沒寫清楚、本輪自行判斷的地方
+
+1. **13 賽事行事曆的公開查詢參數形狀規劃書沒有寫死**——本輪定案「列表模式（賽程／賽果／俱樂部
+   活動三種分頁）＋月曆模式（`from`／`to`）」兩種模式，見上方「兩種查詢模式」整節的完整理由。
+2. **`own_teams` 這個 `scope_type` 盤點後仍未指派給任何角色**——S1-8 保留給 L 模組使用，本輪
+   實際做出 L1／L2 後判斷讀取端不需要（賽事本身已公開），寫入端目前拿到權限碼的角色也都不需要
+   球隊層級限制，回報供 `S2-6`（拖曳改期真正回寫 `Match`）時視需求指派，見上方完整說明。
+3. **翻譯人員（`translator`，`scope_type=translate_only`）本輪同樣不指派**——跟其餘模組保持
+   一致的既有判斷（「僅翻譯欄位」全系統目前沒有任何模組真的做出欄位級強制），不是本輪新增的
+   判斷，是延續既有慣例。
+4. **`calendar_custom_events.repeat_rule` 值域與 `repeat_until` 欄位是本輪新增的技術決定**——
+   規劃書只給「每週／每兩週／每月，可設定結束日期」的文字敘述，沒有給代碼或 RRULE 格式的決定，
+   比照 `matches.status` 既有先例定案為三個英文字面值＋新增 `date` 欄位，不是規劃外新增功能。
+5. **重複規則不 materialize 成事件實例表，改為讀取當下即時展開**——`docs/12` 明文「行事曆是
+   彙整層不是資料源」，複製一份重複規則的展開結果進資料庫等於又多一個真實來源；範圍有界
+   （最長 366 天）使得即時展開的效能可接受，不需要背景工作預先產生。
+6. **「俱樂部活動」列表分頁對重複規則事件只用原始 `starts_at` 排序，不做精確的「下一次發生」
+   計算**——這需要無界的展開（列表分頁沒有 `from`／`to` 上限），與「重複規則有界展開」的設計
+   原則衝突，判斷這個精確度留給月曆模式，列表分頁只需要「大致排序」。
+7. **L2 自建事件的 `.ics` 下載本輪未實作**——規劃書明確要求的是「單一賽事下載 `.ics`」，自建
+   事件的加入行事曆能力規劃書沒有明文要求（「動作按鈕」欄位表只列在賽事卡片），本輪依範圍縮減
+   原則不多做，架構上（`CalendarIcsRepository`）已經預留擴充空間，日後有需求可直接比照擴充。
+8. **`GET /api/v1/admin/{club}/calendar/event-types` 只有唯讀端點，沒有 L3 的完整 CRUD 管理
+   畫面**——比照 `STATUS.md` 既定的範圍切法（L3 排進 `S2-6`），這裡只提供 L2 建立事件時選分類
+   需要的最小可行讀取端點，種子種了六個起始分類，不是規劃外縮減。
+9. **`calendar_event_teams` 的隊別關聯不做 `TeamRowScope` 授權檢查，只做「這些球隊是不是屬於
+   本俱樂部」的資料正確性檢查**——見上方「為什麼讀取端不套用 `TeamRowScope`」整節，沒有任何
+   角色需要這種列級限制。
+
+### 未做的部分（`L1` 拖曳改期／衝突偵測、`L3`／`L4`，`S2-6`）
+
+隊別分軌並排檢視、拖曳調整日期回寫 `Match`（含改期通知）、同場地或同梯隊時段衝突偵測、賽事類型
+與隊別分類的正式管理畫面（含圖示挑選）、iCal 訂閱網址管理與訂閱數統計、指定期間 CSV／`.ics` 匯出、
+整季 CSV 批次匯入，全部沒有動，`STATUS.md` 已排進 `S2-6`。
+
+### 測試
+
+`Tcrfc.Api.Tests/RecurrenceExpanderTests.cs` 新增 9 項（不重複事件的範圍內外判斷、每週／每兩週／
+每月展開、月底日期夾到目標月最後一天、例外日期排除、`repeat_until` 截止、未知重複規則值不丟例外）；
+`Tcrfc.Api.Tests/IcsBuilderTests.cs` 新增 5 項（基本欄位、全天事件 `VALUE=DATE`、特殊字元逸出、
+取消狀態、無地點說明時不輸出對應欄位）；`Tcrfc.Api.Tests/AdminCalendarTests.cs` 新增 11 項（權限
+矩陣 3 項、L2 CRUD 成功案例與驗證反例各 1 項、跨俱樂部 404、事件分類清單、L1 合併總覽含真實
+賽事與自建事件 1 項、每週重複展開出多次 1 項、查詢範圍上限 1 項）；
+`Tcrfc.Api.Tests/CalendarPublicTests.cs` 新增 7 項（賽程／賽果分頁各自的時間過濾、俱樂部活動分頁
+排除私密活動、月曆模式合併賽事與公開自建事件並排除私密活動、只給 `from` 或 `to` 其中一個回 400、
+單場賽事 `.ics` 下載格式正確含時區換算、不存在的賽事 `.ics` 回 404）。
+
+```
+dotnet test Tcrfc.Api.Tests --filter "FullyQualifiedName~AdminCalendarTests|FullyQualifiedName~CalendarPublicTests|FullyQualifiedName~RecurrenceExpanderTests|FullyQualifiedName~IcsBuilderTests" --no-build
+已通過! - 失敗: 0，通過: 31，總計: 31（連跑 3 次，每次都是 0 失敗）
+
+dotnet test Tcrfc.Api.Tests --no-build
+已通過! - 失敗: 0，通過: 437，總計: 437（既有 406 ＋ 本輪新增 31；跑前跑後各執行一次
+./db/seed/reset-admin-accounts.sh，過程中曾撞到 3 項 AdminAuthTests 失敗——clean.login@tcrfc.test
+的密碼／2FA 狀態被同時進行的前端端對端驗收弄髒，重設後全數轉綠，跟本輪程式碼改動無關，同
+S1-8／S1-9／S1-10 皆記錄過的既有現象）
+
+dotnet test Tcrfc.Api.Tests --filter "FullyQualifiedName~ArchitectureTests" --no-build
+已通過! - 失敗: 0，通過: 1
+
+dotnet ef migrations has-pending-model-changes --context ClubDbContext
+No changes have been made to the model since the last migration.
+```
+
+`apps/admin`／`apps/web` 的 `npm run lint` 皆通過（0 errors；`apps/admin` 全數通過含禁用詞／對比
+度／EditView 響應式檢查；`apps/web` 既有 539 個 warning 與本輪無關，未觸碰任何前端檔案）。
+
+**手動驗收**（本機 `dotnet run`，`curl`）：公開合併行事曆列表模式（`team=club`）、月曆模式
+（`from`／`to`，實際回傳三場真實種子賽事，含隊別、場地、賽事系列名稱）、單場賽事 `.ics` 下載
+（實際下載並確認 `DTSTART`／`DTEND`／`SUMMARY`／`LOCATION` 皆正確，時區換算 19:00 台灣時間
+正確轉為 11:00 UTC）逐項打過。後台端點僅透過整合測試（`TestAdminTokens` 直接簽權杖）驗證，未
+另外走真實 `/login` HTTP 往返——理由與既有大多數後台測試帳號相同（`two_factor_enabled=1` 無
+真實密鑰，見「種子測試帳號」表），本輪新增的三個 `-login` 變體帳號**能否真的完成 `/login` 尚未
+實測**，如上方「補種子測試帳號缺口」段所述。
 
 ---
 

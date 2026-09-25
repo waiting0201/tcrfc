@@ -688,6 +688,20 @@ flowchart LR
     （種子腳本的「`IF NOT EXISTS` 才 `INSERT`」冪等策略對「更新既有列」沒有幫助）。migration
     名稱 `AddFormFieldIsSummary`，後端 API 見 `apps/api/README.md`「S1-10」段。
 
+39. 🔴 **（S1-11，2026-09-25）`calendar_custom_events` 新增 `repeat_until` 欄位，並補齊
+    `repeat_rule` 從未約束過的值域**：主站規劃書 L2（行 1381）「重複規則：每週／每兩週／每月，
+    可設定結束日期與例外日期」——例外日期已有 `calendar_event_exceptions` 表承接，但**原始 DDL
+    沒有任何欄位承接「結束日期」**，`docs/12d-field-audit.md` 也記過這個缺口（`repeat_rule` 沒有
+    對應的 enum 代碼或格式決定）。本輪補齊：新增 `repeat_until date NULL`（`repeat_rule` 為
+    `NULL` 時本欄無意義），並把 `repeat_rule` 定案為三個英文字面值 `weekly`／`biweekly`／`monthly`
+    （比照 `matches.status`「挑最直白的英文單字」既有風格，規劃書只給中文頻率敘述，未給代碼或
+    RRULE 格式），補上 `CK_calendar_custom_events_repeat_rule` 約束。套用前查證
+    `calendar_custom_events` 為 0 筆（S1-11 才第一次接上真實 API），純 DDL 變更，不搭配任何 DML
+    轉態。重複規則**不 materialize 成事件實例表**——比照「行事曆是彙整層而非資料源」的既有原則，
+    改為讀取當下依呼叫端要求的日期範圍即時展開（`apps/api/Common/RecurrenceExpander.cs`）。
+    migration 名稱 `AddCalendarCustomEventRepeatUntil`，後端 API 見 `apps/api/README.md`
+    「S1-11」段。
+
 ---
 
 ## 13. 與規劃書的已知落差

@@ -13,6 +13,7 @@ using Tcrfc.Api.Data;
 using Tcrfc.Api.Features.AdminAccounts;
 using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminBanners;
+using Tcrfc.Api.Features.AdminCalendar;
 using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
 using Tcrfc.Api.Features.AdminEnquiries;
@@ -30,6 +31,7 @@ using Tcrfc.Api.Features.AdminSessions;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
+using Tcrfc.Api.Features.Calendar;
 using Tcrfc.Api.Features.Clubs;
 using Tcrfc.Api.Features.Faqs;
 using Tcrfc.Api.Features.Forms;
@@ -173,6 +175,12 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Programs.ProgramsRepository>();
 builder.Services.AddScoped<AdminFormsRepository>();
 builder.Services.AddScoped<AdminEnquiriesRepository>();
 builder.Services.AddScoped<FormsRepository>();
+
+// ── S1-11：L1 行事曆總覽／L2 自建事件 ＋ 13 賽事行事曆公開讀取（含單場 .ics） ──────
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminCalendar.AdminCalendarOverviewRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminCalendar.AdminCalendarCustomEventsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Calendar.CalendarRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Calendar.CalendarIcsRepository>();
 
 // Data Protection：加密 admin_users.two_factor_secret_encrypted（Security/TwoFactorSecretProtector.cs）。
 // 🔴 正式環境務必設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
@@ -415,6 +423,9 @@ app.MapProgramsEndpoints();
 // ── S1-10：10 表單中心公開讀取＋送出 ─────────────────────────────────────
 app.MapFormsEndpoints();
 
+// ── S1-11：13 賽事行事曆公開讀取（合併賽事＋公開自建事件、單場 .ics） ────────────
+app.MapCalendarEndpoints();
+
 app.MapAdminAuthEndpoints();
 
 // 路由一律註冊，每個請求各自由 IAdminClubAuthorizer 驗證登入與授權（401／403）。
@@ -454,6 +465,9 @@ app.MapAdminRegistrationsEndpoints();
 // ── S1-10：G1 表單設計器／G2 詢問收件匣 ──────────────────────────────────
 app.MapAdminFormsEndpoints();
 app.MapAdminEnquiriesEndpoints();
+
+// ── S1-11：L1 行事曆總覽／L2 自建事件 ────────────────────────────────────
+app.MapAdminCalendarEndpoints();
 
 app.Run();
 

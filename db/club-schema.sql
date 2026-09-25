@@ -1942,6 +1942,9 @@ CREATE TABLE calendar_custom_events (
   ends_at         datetime2(3)     NULL,
   is_all_day      bit              NOT NULL DEFAULT 0,
   repeat_rule     nvarchar(32)     NULL,
+  -- S1-11 新增：重複規則的結束日期（規劃書 L2「可設定結束日期與例外日期」，原本只有例外日期表
+  -- calendar_event_exceptions，沒有承接結束日期的欄位）。repeat_rule 為 NULL 時本欄無意義。
+  repeat_until    date             NULL,
   is_public       bit              NOT NULL DEFAULT 1,
   cover_key       nvarchar(500)    NULL,
   cta_url         nvarchar(500)    NULL,
@@ -1950,7 +1953,10 @@ CREATE TABLE calendar_custom_events (
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_calendar_custom_events PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_calendar_custom_events_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_calendar_custom_events_row_seq UNIQUE CLUSTERED (row_seq),
+  -- S1-11：規劃書只給「每週／每兩週／每月」三種頻率的中文敘述，沒有給代碼，本輪定案這三個英文
+  -- 字面值（比照 CK_programs_program_type 等既有先例），NULL 代表不重複。
+  CONSTRAINT CK_calendar_custom_events_repeat_rule CHECK (repeat_rule IN ('weekly','biweekly','monthly') OR repeat_rule IS NULL)
 );
 
 CREATE TABLE calendar_custom_events_i18n (
