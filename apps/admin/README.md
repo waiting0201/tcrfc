@@ -1626,3 +1626,142 @@ EditView 路由狀態一次性求值檢查）與 `npm run build`（`vue-tsc -b &
    留在本機 `tcrfc_club_dev`，未清除——`AdminProgramsSessionsRegistrationsTests.cs` 的既有測試
    斷言都是針對自建 fixture 的特定 ID／個別梯次的 `enrolled_count`，不是全域筆數，不受影響
    （已讀過測試檔案確認）。
+
+---
+
+## G1–G2 表單與詢問（S1-10，2026-09-25）
+
+`G1` 表單設計器、`G2` 詢問收件匣，接上同名後端（`apps/api/README.md`「S1-10」）。對照主站規劃書
+§4.7，逐一模組如下：
+
+- **G1**（`src/views/forms/FormListView.vue`／`FormEditView.vue`）：9 個固定表單（招募、學院與
+  營隊、國際球員、合作贊助、媒體、一般聯絡、提案下載、捐助洽詢）**沒有新增／刪除**，列表依
+  `types/forms.ts` 的 `FORM_CODE_ORDER` 排序（後端回應本身依 `form_code` 字母排序，畫面上重排成
+  規劃書 §3.10 的邏輯順序）。編輯頁：收件通知 Email（可多人）、送出後導向頁、自動回覆信（雙語）、
+  防機器人驗證開關；動態欄位新增／編輯／刪除，含選項清單（下拉／多選）、必填、驗證規則
+  （正規表示式）、標記為「內容摘要」（同一表單最多一個，設定新的會自動取代舊的，前端與後端各自
+  防呆一次）、上移／下移（逐一呼叫 `PUT .../fields/{id}` 更新 `sortOrder`，後端沒有批次排序端點，
+  見 `apps/api/README.md`「S1-10」規劃書沒寫清楚第 8 點）。
+- **G2**（`EnquiryInboxView.vue`／`EnquiryEditView.vue`）：依表單類型分頁（9 個固定表單＋
+  「全部」），只顯示這個角色看得到的分頁（`useFormsPermissions.ts` 的 `visibleFormCodes`，純屬
+  UI 便利，不是安全邊界——後端依實際持有的權限碼過濾，前端就算誤顯示分頁，該分頁清單一樣會是
+  空的）；狀態／關鍵字／日期區間篩選、分頁（`el-pagination`）；詳情頁列出訪客原始回答（不可編輯）
+  ＋後台可改的四項（狀態、指派負責人、內部備註、標籤）；CSV 匯出（`enquiry.inbox.export`，
+  `is_restricted`，僅系統管理員看得到按鈕）。
+
+### 兩個規格缺口原樣呈現（不假裝做得到，依任務指示與 `apps/api/README.md`「S1-10」段）
+
+1. **G1「檔案上傳」欄位型別**：選擇這個型別時顯示提示「目前只能填文字或網址（例如雲端硬碟連結），
+   系統還沒有真正接收檔案的功能」——全系統沒有通用（非圖片）檔案儲存服務，這是後端已知的缺口，
+   前端不多做任何假裝生效的上傳元件。
+2. **G1「防機器人驗證」開關**：顯示提示「開啟後前台會顯示防機器人驗證元件，但系統目前尚未串接
+   驗證服務，送出時不會真的檢查是否為機器人」——旗標可以正常設定與儲存，但畫面上明講後端不會
+   真的驗證，靠限流與誘捕欄位頂著。同一頁另外提示「系統目前還沒有接上寄信服務」（收件通知信與
+   自動回覆信皆同，比照 S1-9 P3 對寄信缺口的既有處理方式，不放一個看起來會生效但其實不會的功能）。
+
+### 欄位名稱只能顯示欄位代碼（本輪發現的既有限制，非本輪造成）
+
+G2 詳情頁列出訪客回答時，欄位標籤只能顯示 G1 建立欄位時輸入的**欄位代碼**（英文小寫，如
+`cooperation_direction`）——規格與後端資料表都沒有「欄位問題文字」的多語系儲存（`FormField` 沒有
+`label`／`label_i18n` 概念，見 `apps/api` `Features/Forms/FormDtos.cs`：連公開表單定義的
+`PublicFormFieldDto` 也只有 `fieldKey`，沒有標籤）。本輪用 `types/forms.ts` 的 `fieldKeyLabel()`
+提供**最佳猜測對照表**（只覆蓋種子資料實際用到的慣用鍵：`name`／`contact`／`message`／
+`experience`／`cooperation_direction`……），沒對照到的欄位一律原樣顯示代碼本身。這不是禁用詞掃描
+會抓到的情況（欄位代碼是資料內容，不是介面文案的固定英文技術詞），但確實不符合「一般人看得懂」
+的精神，回報供之後評估是否要在 `form_fields` 加一個雙語標籤欄位。
+
+### 權限顯示：抽出共用的 `useRolePermissions.ts`
+
+派工要求評估「能否做成共用機制，不要每個模組各寫一份」。本輪把 `useProgramPermissions.ts`
+（S1-9）原本各自宣告一份的 `isSuperAdmin` computed 與 `hasAnyRole()` 輔助函式抽到
+`src/composables/useRolePermissions.ts`，`useProgramPermissions.ts` 已改用這份共用基礎（純重構，
+行為不變）；新增的 `src/composables/useFormsPermissions.ts`（G1／G2 的角色→操作對照表，逐字對照
+`apps/api/README.md`「S1-10」「權限碼與角色指派」）也建立在同一份基礎上。**共用的只有
+`isSuperAdmin`／`hasAnyRole` 這兩個基礎判斷**——每個模組自己的角色集合定義（哪些角色能做什麼）
+仍然各自宣告，這是刻意的：不同模組的角色→權限矩陣本來就不一樣，硬要抽成一份跨模組共用的對照表
+反而會把「課程與活動」跟「表單與詢問」的權限邏輯攪在一起，日後改一個模組的矩陣容易誤動到另一個。
+
+🔴 **`isSuperAdmin`／`hasAnyRole` 共用機制本身沒有解決根本限制**（沿用 `useProgramPermissions.ts`
+既有的已知限制，見 `useRolePermissions.ts` 檔頭）：`GET /api/v1/admin/auth/me` 仍然只回傳角色
+代碼，不回傳權限碼清單，前端的角色→操作對照表還是要手動維護、跟後端種子腳本保持同步。派工要求
+「若後端需要回傳權限清單才能根治，寫進報告，不要改後端」——**確實需要**：長期應由 `/auth/me`
+直接回傳這個帳號的權限碼清單（例如 `permissions: string[]`），`useRolePermissions.ts` 改成單純
+查表（`permissions.includes('form.view')`），不必再讓每個模組各自維護一份角色→權限的推導規則，
+也不會再有「後端調整矩陣、前端忘記同步」的風險。這是本輪與 P1–P3 共同的根本限制，不是 G1／G2
+獨有，回報供下一輪評估是否要做這個後端擴充。
+
+🔴 **「指派負責人」的姓名選單只有系統管理員能用**：`AdminEnquiryListItemDto`／
+`AdminEnquiryDetailDto` 只回傳 `assigneeAdminUserId`（GUID），能把它對照回姓名、或列出「可以指派
+給誰」的 `GET /api/v1/admin/accounts` 是 `system.account.view`，僅系統管理員可呼叫。持有
+`enquiry.*.update` 但不是系統管理員的角色（客服／行政、合作球隊管理、學院／課程管理、商務／贊助、
+公關／媒體）因此**沒有任何後端端點能用姓名指派負責人，也看不到目前指派給誰的姓名**——本輪對這些
+角色只提供「指派給我自己」（靠 `@/auth/clubAccess` 新增的 `currentAdminUserId`，來自
+`GET /auth/me` 既有的 `adminUserId` 欄位，不需要额外端點）與「取消指派」兩個動作，不假裝能做姓名
+選單。系統管理員維持完整的 `el-select` 姓名選單（`listAdminAccounts`）。這是發現的後端缺口，回報
+供下一輪評估是否要開放一個「列出這個俱樂部有效授權帳號」的窄範圍端點給非系統管理員使用。
+
+### 相依但尚未開發的模組（本輪繞過，非本輪缺口）
+
+- **G3 電子報訂閱名單**：規劃書把這個模組排在 G 底下但功能完全獨立（訂閱名單管理），派工明確
+  排除、留給 `S3-10`，側欄該項目維持既有的「尚未建置」佔位頁。
+
+### 驗證
+
+**Lint／build（全部通過）**：`apps/admin` 的 `npm run lint`（ESLint、禁用詞掃描、對比度檢查、
+EditView 路由狀態一次性求值檢查——G1／G2 兩組編輯頁皆無建立模式，不適用該項檢查但仍掃描通過）與
+`npm run build`（`vue-tsc -b && vite build`）皆通過；`apps/web` 的 `npm run lint` 0 errors（既有
+539 個 warning 與本輪無關）。
+
+**無頭瀏覽器實走（本機環境，2026-09-25，Chrome headless + CDP，`Emulation.setDeviceMetricsOverride`
+固定 1400×1000——**踩過一次視窗尺寸的坑**：預設新分頁視窗落在專案手機斷點，`.app-sidebar` 在手機
+版是關閉的抽屜，直接查 `document.body.innerText` 會把摺疊中手風琴子選單的文字漏掉，一律改用固定
+桌面視窗＋`textContent` 查找側欄項目）：
+
+1. 起本機 `apps/api`（`dotnet run --no-launch-profile`，`CLUB_SQL_CONNECTION_STRING` 改連
+   `127.0.0.1,1433`＋`Encrypt=False`——`deploy/dev/club.env` 給的是 Docker 容器用的
+   `host.docker.internal`，宿主機直接 `dotnet run` 解析不到，比照 `apps/api/README.md` 本機開發
+   段落的既有說明）。**執行當下 `apps/api` 正被另一個並行 session 修改**（`S1-11` 行事曆），
+   `git status` 顯示的既有變更未觸碰；監聽埠避開對方既有行程（改用 `5399`，對方的 `5299` 原樣
+   保留），`apps/admin` 用本機 `.env.development`（不納版控）指過去。`apps/admin`
+   （`npm run dev --port 5199`）。
+2. **`clean.login@tcrfc.test`（`system_admin`，`two_factor_enabled=0` 可走完整 `/login`）**：走
+   完整 2FA 首次設定（`GET /2fa/setup` 拿到的 Base32 金鑰用 Node 手刻的 RFC 6238 TOTP 產生器
+   算出當下驗證碼，`POST /2fa/confirm` 完成）→ 登入成功 → **G1**：列表看到全部 9 個表單 → 編輯
+   「一般聯絡」表單，改收件通知 Email 並存檔成功（畫面出現「已儲存」）→ 新增一個測試欄位成功
+   （列表看得到）→ 上移／下移操作 → 刪除該測試欄位成功（列表確認消失，第一次因為
+   `ElMessageBox.confirm` 的「刪除」按鈕與觸發列的「刪除」按鈕文字撞名，腳本誤點到列上的按鈕
+   而不是對話框裡的，改成把點擊範圍限定在 `.el-message-box` 內才修正——這是無頭瀏覽器腳本本身
+   的選取器問題，不是產品缺陷）。
+3. 用公開端點（`curl`）送出兩筆測試詢問：`general_contact`（姓名「E2E驗收姓名」）與
+   `partnership_sponsorship`（姓名「E2E贊助聯絡人」）→ **G2**：清單看到兩筆，`general_contact`
+   那筆的「內容摘要」欄正確取出 `message` 欄位值（種子資料標記的摘要來源）→ 開啟詳情，訪客回答
+   逐欄顯示 → 改狀態為「處理中」、填內部備註與標籤 → 存檔（`Network` 捕捉 `PUT` 回應 `200`，
+   請求內容確認四個欄位都正確送出）→ 重新整理頁面確認狀態／備註／標籤皆持久化 → 回列表點擊
+   「匯出 CSV」，`Network` 捕捉到 `GET .../enquiries/export` 回應 `200`。
+4. **`business.sponsorship.login@tcrfc.test`（`business_sponsorship`，僅 `tcrfc`，
+   `two_factor_enabled=0`，`S1-11` 這一輪新增的「-login」端對端實走帳號，解決了 S1-9 回報的
+   「多數角色無法走完整登入」缺口——這裡直接受益）**：走完整 2FA 首次設定 → 登入成功 →
+   **側欄**：`.app-sidebar` 的 `textContent` 確認看不到「設計器」、看得到「收件匣」→ **直接以
+   網址進入** `/inquiries/builder`（G1）：畫面顯示「你沒有權限執行這個操作」（後端 403），**看不到
+   任何一個表單名稱**（唯一比對到「一般聯絡」字樣的是頁面固定的中文說明文字本身提到這個表單，
+   不是資料列，已核對排除）→ **G2**：分頁只有「合作夥伴與贊助洽詢」「提案簡介下載」與「全部」
+   三個，看不到其餘 7 個分頁；「全部」分頁清單只看得到 `partnership_sponsorship` 那筆
+   （「E2E贊助聯絡人」），看不到 `general_contact` 那筆（「E2E驗收姓名」）→ **直接以先前
+   系統管理員那筆 `general_contact` 詢問的網址**進入詳情頁：顯示「找不到這筆詢問，可能不屬於你
+   能檢視的表單類別」（不是 403，比照跨俱樂部越權「不洩漏存在與否」的既有慣例）→ 開啟自己類別內
+   的那筆（贊助洽詢），確認**沒有**「你的帳號只有檢視權限」的唯讀提示（`business_sponsorship`
+   持有 `enquiry.partnership.update`，可以處理）、**沒有**姓名選單（顯示「只有系統管理員能用
+   姓名選單指派給其他人」的說明）、點擊「指派給我自己」後畫面即時顯示「已指派給你自己」、存檔並
+   重新整理確認持久化 → 匯出 CSV 按鈕**不存在**（`enquiry.inbox.export` 未指派給這個角色）。
+5. **收尾**：關閉本輪啟動的 `dotnet run`（本機 `5399`）／`npm run dev`（`5199`）／headless
+   Chrome 行程，刪除本機 `.env.development`；驗收後已呼叫 `db/seed/reset-admin-accounts.sh`
+   還原 `clean.login@tcrfc.test`／`academy.login@tcrfc.test`／
+   `business.sponsorship.login@tcrfc.test` 的密碼與 2FA 狀態（後兩者由並行的 `S1-11` session
+   本輪新增，套用同一個既有慣例歸還）——**執行過程中觀察到 `clean.login` 的 2FA 狀態在本輪測試
+   途中被重置過一次，判斷是同時執行的 `S1-11` session 也在跑自己的 `reset-admin-accounts.sh`
+   造成的正常競用**（共用同一份本機開發資料庫），不是本輪造成，重新走一次 2FA 設定後續完即可。
+   `dotnet test` 未執行到，理由同 S1-9 收尾段——`apps/api` 仍在被並行 session 修改，不屬於本次
+   任務範圍。本輪透過瀏覽器與 `curl` 建立的測試資料（`general_contact`／`partnership_sponsorship`
+   各一筆詢問、`general_contact` 表單一次新增又刪除的測試欄位已清除、`notifyEmails` 欄位值改成了
+   `e2e-test@tcrfc.tw`）留在本機 `tcrfc_club_dev`，未特別清除——`AdminFormsEnquiriesTests.cs` 的
+   既有測試斷言是針對自建 fixture，不是全域筆數，不受影響（已讀過測試檔案確認，同 S1-9 既有先例）。

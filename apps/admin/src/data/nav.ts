@@ -127,8 +127,8 @@ export const NAV_GROUPS: NavGroup[] = [
         code: 'G',
         label: '表單與詢問',
         children: [
-          { code: 'G1', label: '設計器', path: '/inquiries/builder', implemented: false },
-          { code: 'G2', label: '收件匣', path: '/inquiries/inbox', implemented: false },
+          { code: 'G1', label: '設計器', path: '/inquiries/builder', implemented: true },
+          { code: 'G2', label: '收件匣', path: '/inquiries/inbox', implemented: true },
           { code: 'G3', label: '電子報', path: '/inquiries/newsletter', implemented: false },
         ],
       },

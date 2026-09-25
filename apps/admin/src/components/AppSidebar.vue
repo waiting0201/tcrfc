@@ -5,6 +5,7 @@ import { NAV_GROUPS } from '@/data/nav'
 import type { NavGroup } from '@/types/nav'
 import { authUser } from '@/auth/session'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
+import { useFormsPermissions } from '@/composables/useFormsPermissions'
 
 const props = defineProps<{
   collapse: boolean
@@ -31,10 +32,13 @@ const SYSADMIN_ONLY_MODULE_CODES = new Set(['J'])
  * 與活動」這個父層一併拿掉，不會留下一個點進去卻沒有任何子項目的空選單。
  */
 const programPermissions = useProgramPermissions()
+const formsPermissions = useFormsPermissions()
 const CHILD_VISIBILITY: Record<string, () => boolean> = {
   P1: () => programPermissions.canViewItems.value,
   P2: () => programPermissions.canViewItems.value,
   P3: () => programPermissions.canViewRegistrations.value,
+  G1: () => formsPermissions.canViewForms.value,
+  G2: () => formsPermissions.canViewInbox.value,
 }
 
 const visibleGroups = computed<NavGroup[]>(() => {

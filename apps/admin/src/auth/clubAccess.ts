@@ -17,7 +17,10 @@ import bwCrest from '@/assets/brand/bw-crest-48.png'
  * 同一次呼叫也把姓名（`displayName`）與角色（`roles`）帶回來，姓名寫回 `@/auth/session`
  * 供 `UserMenu.vue` 顯示；角色代碼存進 `currentRoleCodes`（S1-9 起新增，見
  * `@/composables/useProgramPermissions`——P1–P3 課程與活動的操作可視性判斷需要知道目前登入者
- * 有哪些角色，`isSuperAdmin` 一個布林值不夠用）。
+ * 有哪些角色，`isSuperAdmin` 一個布林值不夠用）。同一次呼叫的 `adminUserId` 存進
+ * `currentAdminUserId`（S1-10 起新增）——G2 詢問收件匣「指派負責人」在非系統管理員的情境下
+ * （沒有 `system.account.view` 可以查其他帳號姓名，見 `useFormsPermissions.ts` 檔頭），至少能靠
+ * 這個值提供「指派給我自己」的功能，不需要整份帳號清單。
  *
  * ⚠️ **切換器仍然只是介面便利，不是安全邊界**（docs/21-admin-ui.md §5）：真正的範圍檢查一律由
  * 後端 `AdminClubAuthorizer` 在每一次俱樂部範圍請求時即時判斷。這裡列出的清單現在雖然已經是
@@ -55,6 +58,10 @@ export const availableClubs = computed(() => state.clubs)
 const roles = ref<AdminMeRoleDto[]>([])
 export const currentRoleCodes = computed(() => roles.value.map((r) => r.code))
 
+/** 目前登入者的 `AdminUser.id`（`GET /auth/me` 的 `adminUserId`）。載入完成前是 `null`。 */
+const adminUserId = ref<string | null>(null)
+export const currentAdminUserId = computed(() => adminUserId.value)
+
 const internalActiveClubId = ref('tcrfc')
 
 /** 目前站台切換器選到的俱樂部代碼，模組層級單例、跨元件共用（沿用改版前 `data/activeClub.ts`
@@ -74,6 +81,7 @@ export async function ensureClubsLoaded(force = false): Promise<void> {
     const me = await getMe()
     setDisplayName(me.displayName)
     roles.value = me.roles
+    adminUserId.value = me.adminUserId
     state.clubs = me.clubGrants.map((g) => ({
       code: g.clubCode,
       name: g.clubNameZh ?? g.clubCode,
@@ -98,5 +106,6 @@ export function resetClubAccess(): void {
   state.clubs = []
   state.loaded = false
   roles.value = []
+  adminUserId.value = null
   internalActiveClubId.value = 'tcrfc'
 }

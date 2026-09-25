@@ -41,6 +41,10 @@ const ProgramSessionListView = () => import('@/views/programs/ProgramSessionList
 const ProgramSessionEditView = () => import('@/views/programs/ProgramSessionEditView.vue')
 const RegistrationListView = () => import('@/views/programs/RegistrationListView.vue')
 const RegistrationEditView = () => import('@/views/programs/RegistrationEditView.vue')
+const FormListView = () => import('@/views/forms/FormListView.vue')
+const FormEditView = () => import('@/views/forms/FormEditView.vue')
+const EnquiryInboxView = () => import('@/views/forms/EnquiryInboxView.vue')
+const EnquiryEditView = () => import('@/views/forms/EnquiryEditView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -204,6 +208,22 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     component: RegistrationEditView,
     props: true,
     meta: { label: '處理報名', code: 'P3' },
+  },
+  { path: '/inquiries/builder', name: 'form-list', component: FormListView, meta: { label: '設計器', code: 'G1' } },
+  {
+    path: '/inquiries/builder/:id/edit',
+    name: 'form-edit',
+    component: FormEditView,
+    props: true,
+    meta: { label: '編輯表單', code: 'G1' },
+  },
+  { path: '/inquiries/inbox', name: 'enquiry-inbox-list', component: EnquiryInboxView, meta: { label: '收件匣', code: 'G2' } },
+  {
+    path: '/inquiries/inbox/:id/edit',
+    name: 'enquiry-edit',
+    component: EnquiryEditView,
+    props: true,
+    meta: { label: '處理詢問', code: 'G2' },
   },
   {
     path: '/system/accounts',
