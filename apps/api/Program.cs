@@ -428,6 +428,51 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // ── 後台登入／更新權杖端點的依 IP 限流（2026-09-29，補齊 docs/14-invariants.md 對
+    // AdminAuth 原本刻意留下的缺口；同日兩度修正——① 額度改成可設定值，見
+    // AdminAuthRateLimitOptions.cs 檔頭「為什麼要從寫死的常數改成可設定值」；② 額度改讀
+    // httpContext.RequestServices 解析出來的 IConfiguration，不是這裡的 builder.Configuration
+    // 閉包，理由見下一段）。兩個政策的風險模型（密碼噴灑／帳號鎖定型阻斷服務 vs. 已有效權杖被
+    // 濫用）跟公開內容端點不同，刻意不共用 PublicRateLimitPolicies 的既有政策。
+    //
+    // 🔴 為什麼不直接用 builder.Configuration（跟 TrustedProxyConfiguration／
+    // CLUB_SQL_CONNECTION_STRING 等既有讀法一樣）：那些既有讀法全部發生在 Program.cs 頂層、
+    // builder.Build() **之前**，這裡不一樣——PermitLimit 是包在
+    // RateLimitPartition.GetFixedWindowLimiter 的第二個引數（factory）裡，只有在**真的有請求
+    // 打進來、且該分區鍵第一次出現時**才會被呼叫一次，時間點在整個 IHost 建置完成、開始服務
+    // 請求之後，遠比 builder.Build() 晚。改用 httpContext.RequestServices 解析
+    // IConfiguration（DI 容器裡 Build() 完成後的那一份，會包含
+    // WebApplicationFactory.ConfigureWebHost／ConfigureAppConfiguration 加入的所有設定來源）
+    // 是這個時間點該用的正確讀法，也讓測試端可以用 IWebHostBuilder.ConfigureAppConfiguration
+    // 加入行程內、只屬於該測試主機的設定來源覆寫額度（見
+    // Tcrfc.Api.Tests.Fixtures.TestRateLimitOverrides），不必再用
+    // Environment.SetEnvironmentVariable 寫行程全域狀態——後者在不同 collection 的
+    // WebApplicationFactory 需要「彼此不同」的覆寫值時（本例：一般測試要寬鬆值、驗證 429 的
+    // 測試要一個很小的值）會互相覆蓋，造成間歇性失敗。────────────────────────────
+    options.AddPolicy(AdminAuthEndpoints.LoginRateLimitPolicyName, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = AdminAuthRateLimitOptions.ResolveLoginPermitLimit(configuration),
+            Window = AdminAuthRateLimitOptions.LoginWindow,
+            QueueLimit = 0,
+        });
+    });
+
+    options.AddPolicy(AdminAuthEndpoints.RefreshRateLimitPolicyName, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = AdminAuthRateLimitOptions.ResolveRefreshPermitLimit(configuration),
+            Window = AdminAuthRateLimitOptions.RefreshWindow,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // ── OpenAPI：只在開發環境開，正式環境關掉或鎖住（CLAUDE.md 任務指示） ─────────────────

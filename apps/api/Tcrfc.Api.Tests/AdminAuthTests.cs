@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -72,6 +73,67 @@ public sealed class AdminAuthTests(AdminWriteApiFixture fixture)
             // 從驗證「密碼錯誤回 401」意外變成驗證「帳號被鎖回 423」而失敗——
             // 不是被測系統的 bug，是這個測試沒有清理自己造成的副作用。每次測完歸零。
             await ResetAccountLockAsync("super.admin@tcrfc.test");
+        }
+    }
+
+    /// <summary>
+    /// 2026-09-29（帳號枚舉時序側錄修正）：<c>AdminAuthService.LoginAsync</c> 在「帳號不存在」
+    /// 這條路徑加了一次對固定假雜湊值的 Argon2id 比對（<c>DummyPasswordHashForTimingSafety</c>），
+    /// 目的是讓它跟「帳號存在但密碼錯誤」（真的要跑一次 Argon2id）耗時同一個數量級，不讓攻擊者
+    /// 能單純量測回應時間來判斷任何一組帳號是否存在——上面
+    /// <c>登入_密碼錯誤_回401且訊息不洩露帳號是否存在</c> 已經驗證兩條路徑的**狀態碼與回應內容**
+    /// 完全一致，這支測試補驗證兩條路徑的**耗時量級**也一致。
+    ///
+    /// ⚠️ **時序測試的先天限制**：真正嚴謹的時序側錄防禦驗證需要在無雜訊環境下做統計檢定
+    /// （大量樣本、控制系統負載），不適合放進一般 CI（跑起來慢、在共用建置機上容易因為負載波動
+    /// 誤判）。這裡退而求其次：只抓「量級差一個數量級」這種明顯的漏洞（例如不小心刪掉假雜湊比對，
+    /// 會讓「帳號不存在」路徑快非常多），容忍區間刻意放得很寬（0.4～2.5 倍），不追求精確相等。
+    /// 如果這支測試在特定環境下持續不穩定，代表機器負載雜訊蓋過了訊號，應該調寬容忍區間或增加
+    /// 樣本數，而不是直接刪掉這支測試——時序防護本身仍然成立，是驗證方法需要調整。
+    /// </summary>
+    [Fact]
+    public async Task 登入時序安全_帳號不存在與密碼錯誤耗時相近_防止枚舉攻擊()
+    {
+        using var client = fixture.CreateClient();
+        const string existingUsername = "super.admin@tcrfc.test";
+        const int sampleCount = 3;
+
+        try
+        {
+            var wrongPasswordElapsedMs = new List<double>();
+            var unknownUserElapsedMs = new List<double>();
+
+            for (var i = 0; i < sampleCount; i++)
+            {
+                var sw = Stopwatch.StartNew();
+                var wrongPassword = await client.PostAsJsonAsync("/api/v1/admin/auth/login",
+                    new LoginRequest(existingUsername, $"TotallyWrongPassword-{i}", null));
+                sw.Stop();
+                Assert.Equal(HttpStatusCode.Unauthorized, wrongPassword.StatusCode);
+                wrongPasswordElapsedMs.Add(sw.Elapsed.TotalMilliseconds);
+
+                sw = Stopwatch.StartNew();
+                var unknownUser = await client.PostAsJsonAsync("/api/v1/admin/auth/login",
+                    new LoginRequest($"this-username-does-not-exist-{i}@tcrfc.test", "AnyPassword123", null));
+                sw.Stop();
+                Assert.Equal(HttpStatusCode.Unauthorized, unknownUser.StatusCode);
+                unknownUserElapsedMs.Add(sw.Elapsed.TotalMilliseconds);
+            }
+
+            var wrongPasswordAvg = wrongPasswordElapsedMs.Average();
+            var unknownUserAvg = unknownUserElapsedMs.Average();
+            var ratio = unknownUserAvg / wrongPasswordAvg;
+
+            Assert.True(ratio is > 0.4 and < 2.5,
+                "「帳號不存在」與「密碼錯誤」兩條路徑的平均耗時比例應該在同一個數量級（實測比例 " +
+                $"{ratio:F2}：帳號不存在均耗 {unknownUserAvg:F1}ms、密碼錯誤均耗 {wrongPasswordAvg:F1}ms）" +
+                "——差距過大代表其中一條路徑跳過了 Argon2id 運算，可能被用來時序側錄枚舉帳號是否存在。");
+        }
+        finally
+        {
+            // 跟上面的既有測試同一個帳號、同一個理由：這個測試會製造 sampleCount 次失敗嘗試，
+            // 跑完要歸零，不留殘餘狀態影響帳號鎖定或其他測試。
+            await ResetAccountLockAsync(existingUsername);
         }
     }
 

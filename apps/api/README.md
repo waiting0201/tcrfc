@@ -7054,6 +7054,223 @@ FAQ／瀏覽數這類公開內容端點）；② 硬把它們也套進 `public-l
 兩個新政策名稱與額度都是寫死在程式碼裡的常數，不是機密，不需要新增任何環境變數或
 `/opt/tcrfc/secrets/*.env` 項目。
 
+## S1-18d：補上 `/login`／`/refresh` 的依 IP 限流，修正帳號枚舉時序側錄（2026-09-29，`backend-engineer`）
+
+S1-18c 交付時刻意把 `Features/AdminAuth` 的 `/login`／`/refresh`／`/logout` 排除在外（見上一節
+「盤點結果」表格下方的說明），理由是風險模型不同、需要另外設計。這輪把這個刻意留下的缺口補上，
+同時修正一個盤點時發現的既有漏洞：帳號枚舉的時序側錄。
+
+> 🔴 **本節記錄的是第三版**。第一版把 `admin-login`／`admin-refresh` 的額度直接寫死成
+> 「蓋過既有測試呼叫次數」的數字（40／20），收到回饋「不要讓測試用量決定正式環境的安全額度」
+> 後，同日改成「額度可設定值＋正式環境嚴格預設值（5／30）＋測試環境用
+> `Environment.SetEnvironmentVariable` 覆寫」的設計（第二版）。第二版又收到回饋：
+> `Environment.SetEnvironmentVariable` 寫的是行程全域狀態，跟 xUnit 平行執行不同 collection
+> 可能互相踩到彼此的覆寫值，已改成第三版——測試覆寫改用
+> `IWebHostBuilder.ConfigureAppConfiguration` 加入只屬於單一測試主機的 in-memory 設定來源，
+> `Program.cs` 讀取額度的時機也一併調整（改讀 DI 容器裡的 `IConfiguration`，見下方「處置」
+> 一節與「測試環境的覆寫機制」小節）。本檔只保留改完的最終狀態，不重複列出被取代的前兩版數字。
+
+### 問題：三個既有缺口
+
+1. **同一 IP 對多個帳號輪流猜密碼（password spraying）不受帳號鎖定限制**——`AdminAuthService`
+   既有的鎖定機制（連續 5 次失敗鎖 15 分鐘）是**帳號層級**的，攻擊者只要每個帳號只試 4 次、
+   換下一個帳號，永遠不會觸發任何一個帳號的鎖定，也完全不受任何限流限制（`/login` 之前完全
+   沒有依 IP 的濫用防護）。
+2. **攻擊者可以故意打錯密碼把管理員帳號鎖住（阻斷服務）**——這個風險**沒有被本輪完全解決**，
+   見下方「殘留風險：鎖定機制本身仍可被用來做 DoS」。
+3. **帳號枚舉時序側錄**——`AdminAuthService.LoginAsync` 原本「帳號不存在」路徑直接回傳，不會
+   跑 Argon2id 密碼雜湊比對；「帳號存在但密碼錯誤」路徑會跑一次 Argon2id（依 `PasswordHasher`
+   的參數，耗時約 100–200ms）。即使兩條路徑的**狀態碼與回應內容**完全一致（既有測試
+   `登入_密碼錯誤_回401且訊息不洩露帳號是否存在` 已經驗證過這件事），**耗時**仍然天差地遠，
+   攻擊者可以單純量測回應時間來判斷任一組帳號是否存在，繞過訊息層級的防護。
+
+### 處置：兩個新的依 IP 限流政策＋一次時序修正
+
+**`Features/AdminAuth/AdminAuthEndpoints.cs`** 新增兩個政策名稱常數（`Program.cs` 用同一套
+「依 `ClientIpResolver.Resolve` 分區的 `FixedWindowRateLimiter`」寫法註冊，跟
+`PublicRateLimitPolicies` 的既有寫法一致）：
+
+| 政策 | 端點 | 正式環境預設額度 | 為什麼 |
+|---|---|---|---|
+| `admin-login` | `POST /api/v1/admin/auth/login` | 每 IP 每分鐘 **5** 次 | 密碼噴灑／整體暴力破解速率的第一層防線，跟帳號層級鎖定互補（見下方風險說明），不是取代。業界常見登入端點依 IP 限流多落在每分鐘個位數量級 |
+| `admin-refresh` | `POST /api/v1/admin/auth/refresh` | 每 IP 每分鐘 **30** 次 | 更新權杖是 256 bits 亂數＋伺服器端 SHA-256 雜湊，猜測在計算上不可行，這裡防的是「權杖外流後被重放濫用的速率」與一般性灌流量，風險本來就比登入低，額度可以更寬鬆 |
+| （無新政策）`POST /api/v1/admin/auth/logout` | 只清 Cookie＋可能撤銷單一 `admin_refresh_tokens` 列 | 評估後判斷風險低：沒有能被濫用來鎖住別人帳號或灌爆資料表的業務副作用，刻意不加 |
+
+**🔴 額度是可設定值，不是寫死的常數**（2026-09-29 當天二次修正，回應「不要讓測試用量決定
+正式環境的安全額度」的回饋）。這輪任務原本的第一版把兩個政策的 `PermitLimit` 直接寫死成
+「蓋過既有測試在共用 `AdminWriteApiFixture`（32 個測試檔共用同一個 `WebApplicationFactory`
+行程、同一個「unknown」IP 分區）裡實際呼叫次數」的數字（40／20 次／5 分鐘）——**這是本末
+倒置**：讓測試環境的用量決定了正式環境的安全額度，而不是反過來讓正式環境的安全需求決定額度、
+測試環境另外想辦法適應。已改為：
+
+- `AdminAuthRateLimitOptions.cs` 定義兩個環境變數（`ADMIN_LOGIN_RATE_LIMIT_PERMIT_LIMIT`／
+  `ADMIN_REFRESH_RATE_LIMIT_PERMIT_LIMIT`，皆選填，沿用本專案既有的「扁平鍵名、直接讀
+  `IConfiguration` 索引子」設定慣例，不是巢狀 `IOptions<T>`），**未設定或設定值不是正整數時，
+  一律退回上表的嚴格預設值**（5／30）——寧可設定壞掉時退回更嚴格的行為，也不要退回「不限流」。
+- 視窗大小（1 分鐘）刻意固定、不開放設定：只讓「額度」可調，避免多一個能在不動額度數字的情況
+  下實質放寬限制的旋鈕（拉長視窗＝變相放寬，卻不會被「額度變大了」這種明顯訊號提醒到）。
+- 測試環境的覆寫機制見下一節「測試環境的覆寫機制：從環境變數改成 `ConfigureAppConfiguration`」。
+
+**多層防禦，不是單一防線**：即使正式環境的額度是嚴格數字，`AdminAuthService` 既有的帳號鎖定
+機制完全獨立運作、不受這裡的數字影響。單一帳號被暴力破解的防線主要仍然靠帳號鎖定；這裡的
+IP 限流補的是「同一來源對多個不同帳號輪流嘗試（密碼噴灑）」與「大量自動化嘗試的整體速率」，
+兩層防線互補。
+
+### 測試環境的覆寫機制：從環境變數改成 `ConfigureAppConfiguration`（第三次修正）
+
+**問題**：第二版用 `Environment.SetEnvironmentVariable` 覆寫測試環境的額度值——這是**行程
+全域**狀態，同一個 `dotnet test` 行程裡的每一個 `WebApplicationFactory` 讀的、寫的都是同一份
+系統環境變數。這組覆寫剛好需要**兩種互斥的值同時存在**：一般用途 fixture 要寬鬆值
+（`100000`），驗證「額度用盡回 429」的 `AdminAuthRateLimitTestApiFixture` 要一個很小的值
+（`3`）。如果 xUnit 平行執行不同 `[Collection]`，兩種 fixture 的 `InitializeAsync` 有可能
+交錯執行，後寫入的值覆蓋先寫入的值，造成間歇性失敗——回饋內容正是這個風險。
+
+**盤點結果**：本測試組件（`Tcrfc.Api.Tests/AssemblyInfo.cs`）其實已經有
+`[assembly: CollectionBehavior(DisableTestParallelization = true)]`，理由寫在同一個檔案的
+註解裡：「兩個 fixture（`ApiFixture`／`RedisUnavailableApiFixture`）之間用行程環境變數傳遞
+設定給 `WebApplicationFactory`——並行執行會讓不同 collection 的環境變數互相踩到彼此」——
+這代表**在目前的設定下**，`REDIS_HOST`／`CLUB_SQL_CONNECTION_STRING` 等既有環境變數覆寫、
+以及本輪新增的額度覆寫，實際上都不會真的並行執行，理論上的競態目前不會發生。但這是**仰賴一個
+組件層級的全域開關**，不是這組設定本身該有的隔離範圍——本輪新增的額度覆寫刻意不再依賴這個
+開關，改用不受影響的機制。
+
+**修法**：`Tcrfc.Api.Tests/Fixtures/TestRateLimitOverrides.cs` 改用
+`IWebHostBuilder.ConfigureAppConfiguration` 加入 in-memory 設定來源，每個
+`WebApplicationFactory` 的覆寫值只存在於**該實例自己建出來的 `IConfiguration`**（透過該主機的
+DI 容器解析），不是行程全域狀態——即使兩個 fixture 真的並行初始化，也不會互相干擾。6 個一般
+用途 fixture（`ApiFixture`／`AdminWriteApiFixture`／`AdminWriteAzuriteEnabledApiFixture`／
+`RedisUnavailableApiFixture`／`AdminWriteRedisEnabledApiFixture`／`RedisEnabledApiFixture`）
+與新增的 `AdminAuthRateLimitTestApiFixture` 都改為覆寫 `WebApplicationFactory.ConfigureWebHost`
+呼叫 `TestRateLimitOverrides.ApplyLooseAdminAuthOverrides(builder)`／
+`ApplyAdminAuthOverrides(builder, "3")`。
+
+**`Program.cs` 讀取額度的時機也一併調整，並且已經實測驗證，不是憑印象判斷**：`Program.cs`
+對這兩個政策的額度解析是**惰性**的——只有在真的有 HTTP 請求打進 `admin-login`／
+`admin-refresh`、且是該分區鍵第一次出現時，`FixedWindowRateLimiterOptions` 的 `PermitLimit`
+才會被讀取一次，這個時間點遠晚於整個 `IHost` 建置完成、開始服務請求之後（跟 `REDIS_HOST` 在
+`Program.cs` 頂層、`builder.Build()` **之前**就同步讀取、決定 DI 要注入哪個 `IQueryCache`
+實作，時機完全不同——那個情境下 `ConfigureAppConfiguration` 確實太晚生效，這裡不是）。額度
+解析已改讀 `httpContext.RequestServices.GetRequiredService<IConfiguration>()`（DI 容器裡
+`Build()` 完成後的那一份，保證含有 `ConfigureAppConfiguration` 加入的所有設定來源），不再
+讀取 Program.cs 頂層 `builder.Configuration` 的閉包。
+
+用一個獨立於本專案之外的最小重現專案實測驗證過（不在 `Tcrfc.Api.Tests` 本身跑，因為那裡每個
+fixture 都需要真的資料庫連線，沒辦法快速反覆驗證這個框架行為，且該重現過程不涉及任何本專案的
+資料庫或密碼）：① 完全比照 `Program.cs` 頂層、`builder.Build()` 之前的同步讀取，確認讀不到
+`ConfigureAppConfiguration` 的覆寫（3 個測試中 1 個驗證，結果與 `REDIS_HOST` 既有情境一致）；
+② 惰性讀取（閉包捕捉 `builder.Configuration`，實際呼叫延後到請求時）與③ 從
+`httpContext.RequestServices` 解析 `IConfiguration`，兩者都確認讀得到覆寫（3 個測試全數通過）
+——`Program.cs` 採用③，是更明確、不依賴「`ConfigurationManager` 物件原地可變」這種容易被
+忽略之細節的寫法。
+
+**時序修正**（`AdminAuthService.cs`）：新增 `DummyPasswordHashForTimingSafety`（`static readonly`
+欄位，型別第一次被用到時算一次，不是每次請求重算）——一組固定的、跟真實帳號無關的完整
+Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜湊值跑一次 `PasswordHasher.Verify`
+（結果必然是 `false`，刻意不使用，純粹是為了讓 CPU 花掉等量的時間）才回傳，讓兩條路徑的耗時
+量級一致。
+
+### 帳號鎖定政策：檢視後維持不變，殘留風險已知且記錄
+
+任務要求檢視「加入 IP 限流後，帳號鎖定政策是否仍合理」。**結論：維持現狀（連續 5 次失敗鎖定
+15 分鐘），不調整**，理由：
+
+- 這個門檻本來就不是規劃書明訂的數字（`AdminAuthService.cs` 既有註解已經寫明「業界常見門檻，
+  執行層判斷」），IP 限流是**額外加的一層**，不是取代鎖定機制的理由去調整它。
+- **殘留風險：鎖定機制本身仍可被用來對單一帳號做阻斷服務**——攻擊者只要對**同一個**已知帳號
+  連續送 5 次錯誤密碼（跟 `admin-login` 每分鐘 5 次的 IP 額度打平，剛好不會被 IP 限流擋下），
+  就能把該帳號鎖 15 分鐘，這件事 IP 限流**擋不住**（IP 限流擋的是「同一 IP 打很多不同帳號」或
+  「同一 IP 打太多次」，擋不住「剛好只打 5 次、打同一個帳號」這種低量攻擊）。這是**任何純計數式
+  鎖定機制的既有取捨**
+  （OWASP 也承認這個 trade-off），業界常見的緩解手法是 CAPTCHA 或漸進式延遲，但
+  **本系統目前沒有串接任何 CAPTCHA 服務**（`Program.cs` 既有註解已提過這件事），加 CAPTCHA
+  超出本輪任務範圍，這裡只記錄殘留風險，不在本輪處理。
+- 如果日後要處理，兩個方向都可以考慮：① 把鎖定改成「帳號＋來源 IP」複合鍵而不是純帳號
+  （壞處：攻擊者只要換 IP 就繞過，防禦力反而下降，除非搭配本輪的 IP 限流一起看）；
+  ② 引入 CAPTCHA 或漸進式延遲（例如第 3 次失敗後要求驗證碼）。這是需要跟客戶／規劃書
+  討論優先序的題目，不是本輪能自行判斷的範圍。
+
+### 帳號枚舉一致性：狀態碼與訊息本來就一致，這輪補的是時序
+
+檢查結果：`AdminAuthEndpoints.cs` 的 `LoginAsync` 對「帳號不存在」與「密碼錯誤」兩種情況，
+**狀態碼（皆 401）與回應本體（皆 `{"status":"invalid_credentials","message":"帳號或密碼
+錯誤。"}）本來就完全一致**——既有測試 `AdminAuthTests.登入_密碼錯誤_回401且訊息不洩露帳號是否
+存在` 已經涵蓋這件事，本輪沒有發現需要修正的落差。**唯一的落差是時序**（見上一節），本輪已修正。
+
+### 架構測試：新增一支專門鎖定 `/login`／`/refresh` 的掃描
+
+`ArchitectureTests.cs` 既有的 `公開端點的非GET寫入呼叫都必須掛限流政策` 排除整個
+`Features/AdminXxx/`（因為那個資料夾底下的端點一律經過型別層強制授權），這條規則對
+`AdminAuth` 資料夾底下其餘端點（`/change-password`／`/2fa/*`／`/me`）仍然正確——**不能
+把整個資料夾排除規則拿掉**。改成新增一支**專門鎖定這一個檔案、只鎖定 `/login`／`/refresh`
+兩個路由字面值**的測試：`AdminAuth的登入與更新權杖端點必須掛限流政策`。這支測試同時斷言
+「這兩個路由確實存在於檔案裡」（`SetEquals` 檢查），避免路由字面值或檔案結構改變時測試
+悄悄變成恆真、失去防呆效果。`/logout` 刻意不在檢查清單內，理由同上方「處置」表格。
+
+`docs/14-invariants.md`「公開寫入端點一律限流」條的排除說明已同步更新——不再寫「未來要另外
+判斷」，改成指向這裡實際落地的兩個政策名稱與理由。
+
+### 測試
+
+新增／擴充七項：
+
+- **`Tcrfc.Api.Tests/AdminAuthRateLimitPoliciesTests.cs`**（新增，7 項，不需要資料庫、不需要
+  `WebApplicationFactory`）：
+  - `未設定任何環境變數時_登入額度預設值是嚴格的個位數量級`／
+    `未設定任何環境變數時_更新權杖額度預設值等於程式碼常數`：用一個空的
+    `ConfigurationBuilder().Build()`（不含任何環境變數來源）驗證
+    `AdminAuthRateLimitOptions.ResolveLoginPermitLimit`／`ResolveRefreshPermitLimit` 解析出來的
+    就是嚴格預設值（5／30）——這是回應「不要讓測試用量決定正式環境的安全額度」這個回饋修正的
+    核心驗證：**證明「沒有任何覆寫時」的行為就是正式環境會用到的行為**。
+  - `設定值壞掉時_退回嚴格預設值_不會悄悄變成不限流`（`Theory`，5 組壞資料：空字串、空白、
+    非數字、`0`、負數）：驗證設定壞掉時退回預設值，不會讓一個打錯的設定值變成限流形同虛設。
+  - `設定合法正整數時_採用覆寫值_不是預設值`：驗證覆寫機制本身確實生效。
+  - `Login政策_以預設額度_額度用盡後拒絕_不同分區互不影響`／
+    `Refresh政策_以預設額度_額度用盡後拒絕_不同分區互不影響`：跟 `PublicRateLimitPoliciesTests`
+    同一種寫法，直接對**預設值**建 `PartitionedRateLimiter<string>`，驗證額度用盡後拒絕、不同
+    分區鍵互不影響。
+- **`Tcrfc.Api.Tests/AdminAuthRateLimitingTests.cs`**（重寫，2 項，需要 `WebApplicationFactory`
+  ＋測試資料庫）：走真正 HTTP 驗證 `Program.cs` 真的把兩個政策接到 `/login`／`/refresh` 路由上。
+  **改用新增的專屬 `AdminAuthRateLimitTestApiFixture`＋`AdminAuthRateLimitTestCollection`**（不
+  跟任何其他測試共用），把兩個政策的額度都覆寫成一個很小的專用數字（`TestPermitLimit = 3`）——
+  一般用途 fixture 現在額度是寬鬆覆寫值（十萬），沒辦法在裡面驗證「額度用盡後真的 429」；這支
+  測試需要的是相反的設定，兩種需求互斥，所以獨立成自己的 fixture／collection。
+- **`Tcrfc.Api.Tests/Fixtures/TestRateLimitOverrides.cs`**（新增，第三版改用
+  `IWebHostBuilder.ConfigureAppConfiguration`，不是環境變數，見上方「測試環境的覆寫機制」
+  一節）：一般用途 fixture 共用的寬鬆覆寫方法（`ApplyLooseAdminAuthOverrides(IWebHostBuilder)`，
+  額度覆寫成 `100000`）＋通用覆寫方法（`ApplyAdminAuthOverrides(IWebHostBuilder, string)`）。
+  已接到 6 個一般用途 fixture：`ApiFixture`／`AdminWriteApiFixture`／
+  `AdminWriteAzuriteEnabledApiFixture`／`RedisUnavailableApiFixture`／
+  `AdminWriteRedisEnabledApiFixture`／`RedisEnabledApiFixture`——每一個都覆寫
+  `WebApplicationFactory.ConfigureWebHost` 呼叫這個方法，只影響該 fixture 自己建出來的測試
+  主機，不再寫行程全域環境變數。
+- **`Tcrfc.Api.Tests/Fixtures/AdminAuthRateLimitTestApiFixture.cs`**（新增，同樣改用
+  `ConfigureWebHost`）：見上方 `AdminAuthRateLimitingTests.cs` 說明；`CollectionDefinitions.cs`
+  新增對應的 `AdminAuthRateLimitTestCollection`。
+- **`Tcrfc.Api.Tests/ArchitectureTests.cs`**（新增 1 項）：`AdminAuth的登入與更新權杖端點必須
+  掛限流政策`，見上一節（這支測試只檢查「有沒有掛 `.RequireRateLimiting(...)`」，不涉及額度
+  數字，本輪額度改成可設定值不影響這支測試）。
+- **`Tcrfc.Api.Tests/AdminAuthTests.cs`**（新增 1 項）：
+  `登入時序安全_帳號不存在與密碼錯誤耗時相近_防止枚舉攻擊`——3 組樣本，各量測一次「密碼錯誤」
+  與「帳號不存在」兩種請求的耗時，比較平均值比例，容忍區間刻意放寬（0.4～2.5 倍）只抓「量級
+  差一個數量級」這種明顯漏洞，不追求精確相等（時序測試天生受機器負載雜訊影響，見該測試方法
+  上的完整說明）。⚠️ 這支測試會製造 3 次密碼錯誤嘗試，`finally` 區塊比照既有慣例呼叫
+  `ResetAccountLockAsync` 歸零，不留殘餘鎖定狀態。這支測試現在跑在
+  `AdminWriteApiFixture`（已套用寬鬆覆寫），不會被 `admin-login` 的嚴格預設值誤傷。
+
+**實際執行**：⚠️ **本輪仍未執行 `dotnet test`**——限制不變：依任務指示不讀取或組合資料庫密碼，
+本機唯一已知取得 `CLUB_SQL_CONNECTION_STRING` 的方式（見本檔上方「怎麼跑」一節的「一行版」）
+需要把密碼讀進 shell 變數組字串，已依指示停下來，交由使用者執行測試。**新增／修改的檔案已用
+`dotnet build`（`apps/api` 主專案＋`Tcrfc.Api.Tests`，皆不需要資料庫連線）確認可以編譯通過，
+0 警告、0 錯誤**，但沒有實際 `dotnet test` 通過數字可回報。
+
+### 沒有新的機密要加
+
+兩個新環境變數（`ADMIN_LOGIN_RATE_LIMIT_PERMIT_LIMIT`／`ADMIN_REFRESH_RATE_LIMIT_PERMIT_LIMIT`）
+是**選填的調整值，不是機密**，不設定就用程式碼內建的嚴格預設值——不需要新增
+`/opt/tcrfc/secrets/*.env` 項目，`deploy/dev/club.env`／`deploy/dev/club.env.example` 也不需要
+補上這兩個鍵才能運作。已列入 [`docs/17-deployment.md`](../../docs/17-deployment.md) §11 表格
+（第 13 項）供日後需要調整額度時查閱。
+
 ## 相關文件
 
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表

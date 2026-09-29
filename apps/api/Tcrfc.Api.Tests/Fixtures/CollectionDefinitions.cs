@@ -40,3 +40,11 @@ public sealed class AdminWriteAzuriteEnabledCollection : ICollectionFixture<Admi
 {
     public const string Name = "api-admin-write-azurite-enabled";
 }
+
+/// <summary>2026-09-29：專門驗證 `admin-login`／`admin-refresh` 額度用盡後回 429，
+/// 見 <see cref="AdminAuthRateLimitTestApiFixture"/> 檔頭。</summary>
+[CollectionDefinition(Name)]
+public sealed class AdminAuthRateLimitTestCollection : ICollectionFixture<AdminAuthRateLimitTestApiFixture>
+{
+    public const string Name = "api-admin-auth-rate-limit-test";
+}

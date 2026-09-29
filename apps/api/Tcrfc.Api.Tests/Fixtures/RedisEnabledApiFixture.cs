@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using StackExchange.Redis;
 using Xunit;
@@ -27,6 +28,14 @@ public sealed class RedisEnabledApiFixture : WebApplicationFactory<Program>, IAs
     /// 不會影響應用程式那一側的快取行為。
     /// </summary>
     public IConnectionMultiplexer RedisInspector { get; private set; } = null!;
+
+    // 2026-09-29：見 TestRateLimitOverrides 檔頭——一般用途 fixture 一律覆寫成寬鬆值，改用
+    // ConfigureAppConfiguration，只影響這一個測試主機自己的 IConfiguration。
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        TestRateLimitOverrides.ApplyLooseAdminAuthOverrides(builder);
+    }
 
     public async Task InitializeAsync()
     {

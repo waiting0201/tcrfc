@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
@@ -13,6 +14,16 @@ namespace Tcrfc.Api.Tests.Fixtures;
 /// </summary>
 public sealed class ApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    // 2026-09-29：admin-login／admin-refresh 兩個政策的正式環境預設額度改成嚴格數字後，一般
+    // 用途 fixture 一律要覆寫成寬鬆值——改用 ConfigureAppConfiguration（只影響這一個測試主機
+    // 自己的 IConfiguration），不是 Environment.SetEnvironmentVariable（行程全域狀態），
+    // 完整理由見 TestRateLimitOverrides 檔頭。
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        TestRateLimitOverrides.ApplyLooseAdminAuthOverrides(builder);
+    }
+
     public async Task InitializeAsync()
     {
         var connectionString = await TestDatabaseGuard.ResolveAndVerifyAsync();

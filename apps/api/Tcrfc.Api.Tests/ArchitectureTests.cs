@@ -464,6 +464,68 @@ public sealed class ArchitectureTests
             + string.Join("\n", violations));
     }
 
+    /// <summary>
+    /// 2026-09-29（後台登入端點依 IP 限流補齊）：上一支測試刻意排除整個 <c>Features/AdminXxx/</c>
+    /// （因為那些端點一律經過型別層強制授權，見 <see cref="IsUnderAdminFeature"/>），但
+    /// <c>Features/AdminAuth/AdminAuthEndpoints.cs</c> 的 <c>/login</c>／<c>/refresh</c> 兩個端點
+    /// 是這條規則裡的例外——路由雖然在 <c>AdminAuth</c> 資料夾下，呼叫當下卻**不需要先登入**
+    /// （<c>/login</c> 本來就是登入本身；<c>/refresh</c> 只檢查 Cookie，不檢查 JWT），
+    /// 之前完全沒有自動化守著這兩個端點有沒有掛限流。這支測試專門補這個洞：不擴大上一支測試的
+    /// 資料夾排除規則（那條規則對其餘 AdminAuth 端點如 <c>/change-password</c>／<c>/2fa/*</c>／
+    /// <c>/logout</c> 仍然正確——那些都需要先登入，不該被公開端點的規則管），改成只鎖定這一個檔案、
+    /// 只鎖定這兩個路由字面值。
+    ///
+    /// **`/logout` 刻意不在檢查清單內**：2026-09-29 盤點後判斷風險夠低（見
+    /// <c>AdminAuthEndpoints.MapAdminAuthEndpoints</c> 上該端點的行內註解與
+    /// apps/api/README.md 對應段落），不強制要求掛限流政策。
+    /// </summary>
+    [Fact]
+    public void AdminAuth的登入與更新權杖端點必須掛限流政策()
+    {
+        var apiDir = Path.Combine(RepoRoot(), "apps", "api");
+        var filePath = Path.Combine(apiDir, "Features", "AdminAuth", "AdminAuthEndpoints.cs");
+        Assert.True(File.Exists(filePath), $"找不到 {filePath}——路徑可能已經搬動，需要同步更新這支測試。");
+
+        var sourceText = File.ReadAllText(filePath);
+        var tree = CSharpSyntaxTree.ParseText(sourceText, path: filePath);
+
+        var routesRequiringRateLimit = new HashSet<string>(StringComparer.Ordinal) { "/login", "/refresh" };
+        var foundRoutes = new HashSet<string>(StringComparer.Ordinal);
+        var violations = new List<string>();
+
+        foreach (var invocation in tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>())
+        {
+            if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "MapPost" })
+            {
+                continue;
+            }
+
+            var firstArgument = invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression;
+            if (firstArgument is not LiteralExpressionSyntax literal || literal.Token.ValueText is not { } route
+                || !routesRequiringRateLimit.Contains(route))
+            {
+                continue;
+            }
+
+            foundRoutes.Add(route);
+
+            if (!ChainHasRequireRateLimiting(invocation))
+            {
+                var lineNumber = tree.GetLineSpan(invocation.Span).StartLinePosition.Line + 1;
+                violations.Add(
+                    $"{filePath}:{lineNumber}: MapPost(\"{route}\") 沒有掛 .RequireRateLimiting(...)——" +
+                    "後台登入／更新權杖端點呼叫當下不需要先登入，一律要依 IP 限流（docs/14-invariants.md）。");
+            }
+        }
+
+        Assert.True(routesRequiringRateLimit.SetEquals(foundRoutes),
+            $"預期在 {filePath} 找到 {string.Join("、", routesRequiringRateLimit)} 兩個 MapPost 路由，" +
+            $"實際找到 {string.Join("、", foundRoutes)}——路由字面值或檔案結構可能已經改變，需要同步更新這支測試。");
+
+        Assert.True(violations.Count == 0,
+            "後台登入／更新權杖端點沒有掛限流政策：\n" + string.Join("\n", violations));
+    }
+
     /// <summary>從 <c>MapPost</c>（或其他寫入方法）呼叫節點沿著 fluent chain 往外層走
     /// （<c>.WithName(...).WithTags(...).RequireRateLimiting(...).Produces(...)</c> 這種一路
     /// 串下去的寫法，語法樹上是一層層互相巢狀的 <c>MemberAccessExpression</c>／

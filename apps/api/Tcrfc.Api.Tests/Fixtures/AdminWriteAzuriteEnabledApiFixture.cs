@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
 using Azure.Storage.Blobs;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
@@ -29,6 +30,14 @@ public sealed class AdminWriteAzuriteEnabledApiFixture : WebApplicationFactory<P
 
     /// <summary>給測試直接檢查上傳結果用的容器用戶端——跟應用程式自己那條連線分開，純粹用來斷言。</summary>
     public BlobContainerClient InspectorContainer { get; private set; } = null!;
+
+    // 2026-09-29：見 TestRateLimitOverrides 檔頭——一般用途 fixture 一律覆寫成寬鬆值，改用
+    // ConfigureAppConfiguration，只影響這一個測試主機自己的 IConfiguration。
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        TestRateLimitOverrides.ApplyLooseAdminAuthOverrides(builder);
+    }
 
     public async Task InitializeAsync()
     {

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Xunit;
 
@@ -13,6 +14,14 @@ namespace Tcrfc.Api.Tests.Fixtures;
 /// </summary>
 public sealed class RedisUnavailableApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    // 2026-09-29：見 TestRateLimitOverrides 檔頭——一般用途 fixture 一律覆寫成寬鬆值，改用
+    // ConfigureAppConfiguration，只影響這一個測試主機自己的 IConfiguration。
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    {
+        base.ConfigureWebHost(builder);
+        TestRateLimitOverrides.ApplyLooseAdminAuthOverrides(builder);
+    }
+
     public async Task InitializeAsync()
     {
         var connectionString = await TestDatabaseGuard.ResolveAndVerifyAsync();

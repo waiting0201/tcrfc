@@ -27,6 +27,14 @@ public sealed class AdminAuthService(
     private const int MaxFailedAttempts = 5;
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
+    // 2026-09-29（帳號枚舉時序側錄修正）：固定的假雜湊值，密碼隨便挑一組、鹽值隨機——內容本身
+    // 不重要，重要的是它跟真實使用者的 password_hash 一樣是完整的 Argon2id 編碼字串，讓
+    // 「帳號不存在」這條路徑也會真的跑一次 Argon2id 運算。⚠️ 用 static readonly 欄位（不是
+    // 方法內區域變數）：只在型別第一次被用到時算一次，不會每次「帳號不存在」的請求都重算一次
+    // 雜湊產生流程本身（那樣反而會比「帳號存在、密碼錯誤」路徑慢，一樣是可觀察的時序差異，
+    // 只是方向相反）——這裡固定的是「比對」耗時，不是「產生」耗時。
+    private static readonly string DummyPasswordHashForTimingSafety = PasswordHasher.Hash("dummy-password-not-a-real-account");
+
     public async Task<LoginResult> LoginAsync(
         string username, string password, string? totpCode, CancellationToken cancellationToken)
     {
@@ -34,6 +42,13 @@ public sealed class AdminAuthService(
 
         if (user is null)
         {
+            // 🔴 帳號枚舉時序側錄防線：不能直接回傳，否則「帳號不存在」（跳過下面的 Argon2id
+            // 比對）會比「帳號存在但密碼錯誤」（跑一次 Argon2id，依設計耗時約 100–200ms，見
+            // PasswordHasher 檔頭）快非常多——即使兩條路徑回傳一模一樣的狀態碼與訊息，攻擊者
+            // 仍然能單純量測回應時間來判斷任何一組帳號是否存在，繞過訊息層級的防護。這裡對一組
+            // 固定的假雜湊值跑一次同樣的 Verify，讓兩條路徑的耗時量級一致；比對結果本來就必然是
+            // false，刻意不使用，純粹是為了讓 CPU 花掉等量的時間。
+            PasswordHasher.Verify(password, DummyPasswordHashForTimingSafety);
             return new LoginResult(LoginOutcome.InvalidCredentials, Message: "帳號或密碼錯誤。");
         }
 
