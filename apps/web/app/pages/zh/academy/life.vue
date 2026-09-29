@@ -4,6 +4,9 @@ definePageMeta({ nav: "academy", unit: "04" })
 
 const { lp } = useLocale()
 
+// S1-12d 收尾：梯隊代碼改讀 useSiteFacts('tcrfc')（後端公開端點）。
+const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: "學院生活 Academy Life｜台中磐石足球學院｜台中磐石足球俱樂部",
   description: "台中磐石足球學院的訓練日常、比賽與活動剪影，透過真實影像紀錄學員的成長點滴。",
@@ -73,7 +76,7 @@ useSeoMeta({
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">學院隊伍</span>
-        <p class="cta-card__desc">查看 {{ academyTeamCodesLabel('tcrfc') }} 各梯隊</p>
+        <p class="cta-card__desc">查看 {{ tcrfcAcademyLabel() }} 各梯隊</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/coaches/')">
         <span class="cta-card__num">4.5</span>

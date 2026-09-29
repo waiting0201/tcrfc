@@ -5,10 +5,15 @@ definePageMeta({ nav: '', unit: '10.2' })
 
 const { lp } = useLocale()
 
+// S1-12d 收尾：梯隊代碼與主場改讀 useSiteFacts('tcrfc')（後端公開端點）。
+const { academyLabel: tcrfcAcademyLabel, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: '加入學院／兒童訓練 Academy & Children\'s Training｜加入與聯絡｜台中磐石足球俱樂部',
-  description:
-    `為孩子報名台中磐石足球學院 ${academyTeamCodesLabel('tcrfc')} 梯隊，或兒童訓練與專項訓練各類課程。一份表單填寫學員與家長資料，學院部與課程部將盡快與家長聯繫。`,
+  description: computed(
+    () =>
+      `為孩子報名台中磐石足球學院 ${tcrfcAcademyLabel()} 梯隊，或兒童訓練與專項訓練各類課程。一份表單填寫學員與家長資料，學院部與課程部將盡快與家長聯繫。`,
+  ),
 })
 </script>
 
@@ -73,7 +78,7 @@ useSeoMeta({
               <label for="a-location">偏好受訓地點</label>
               <select id="a-location" name="location_preference">
                 <option value="">尚無偏好，請協助安排</option>
-                <option value="xitun">{{ getPrimaryVenue('tcrfc').nameZh }}（主場）</option>
+                <option value="xitun">{{ tcrfcVenue.nameZh }}（主場）</option>
               </select>
               <p class="field-hint">如需查詢其他受訓地點，請見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
             </div>

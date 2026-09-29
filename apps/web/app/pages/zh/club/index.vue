@@ -5,6 +5,11 @@ definePageMeta({ nav: 'club', unit: '03' })
 
 const { lp } = useLocale()
 
+// S1-12d 收尾：主場／成立年份／首季頭銜改讀 useSiteFacts('tcrfc')（後端公開端點）。
+// 本頁 03 單元目前零俱樂部分支（既有缺口，見 apps/web/README.md「S1-12d」節
+// 「刻意不動的範圍」），固定讀 tcrfc 沿用既有做法，不在本輪擴大成雙俱樂部頁面。
+const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: '台中磐石足球俱樂部 Football Club｜台中磐石足球俱樂部 TCRFC',
   description:
@@ -28,7 +33,7 @@ useSeoMeta({
     <p class="page-hero__eyebrow">03 Football Club</p>
     <h1>台中磐石足球俱樂部<span class="en">Football Club</span></h1>
     <!-- GEO-03（S1-12d）：主場為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
-    <p class="page-hero__lede">從{{ getPrimaryVenue('tcrfc').nameZh }}出發的一線隊，是台中磐石所有青訓體系最終要銜接的舞台。這裡整理球隊陣容、球員發展系統、加入管道，以及選手通往海外的路徑。</p>
+    <p class="page-hero__lede">從{{ tcrfcVenue.nameZh }}出發的一線隊，是台中磐石所有青訓體系最終要銜接的舞台。這裡整理球隊陣容、球員發展系統、加入管道，以及選手通往海外的路徑。</p>
   </div>
 </section>
 
@@ -37,12 +42,12 @@ useSeoMeta({
   <div class="band-inner container">
     <div class="stats-grid">
       <div class="stat">
-        <p class="stat__num">{{ SITE_FACTS.tcrfc.foundedYear }}</p>
+        <p class="stat__num">{{ tcrfcFacts.foundedYear }}</p>
         <p class="stat__label">創立年份</p>
       </div>
       <div class="stat">
-        <p class="stat__num"><span>{{ SITE_FACTS.tcrfc.foundedYear }}</span></p>
-        <p class="stat__label">{{ SITE_FACTS.tcrfc.foundingTitleZh }}</p>
+        <p class="stat__num"><span>{{ tcrfcFacts.foundedYear }}</span></p>
+        <p class="stat__label">{{ tcrfcFacts.foundingTitleZh }}</p>
       </div>
       <div class="stat">
         <p class="stat__num">28</p>

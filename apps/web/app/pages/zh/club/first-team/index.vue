@@ -30,6 +30,10 @@ const teamCode = computed(() => (isTcrfc.value ? 'D1' : 'BW1'))
 
 const { lp, locale } = useLocale()
 
+// S1-12d 收尾：主場／成立年份／首季頭銜改讀 useSiteFacts('tcrfc')（後端公開端點）。
+// 榮譽時間軸區塊只在 isTcrfc 時渲染，固定讀 tcrfc 即可。
+const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: computed(() => FIRST_TEAM_SEO[clubKey.value].title),
   description: computed(() => FIRST_TEAM_SEO[clubKey.value].description),
@@ -93,7 +97,7 @@ function formatMatchDate(dateStr: string): string {
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無一線隊合影照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石球員合影頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/club/first-team-01-squad.jpg" :alt="`台中磐石一線隊球員於${getPrimaryVenue('tcrfc').nameZh}合影`" width="1920" height="1280">
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/club/first-team-01-squad.jpg" :alt="`台中磐石一線隊球員於${tcrfcVenue.nameZh}合影`" width="1920" height="1280">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true"></div>
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '3.1 First Team' : '3.1' }}</p>
@@ -251,9 +255,9 @@ function formatMatchDate(dateStr: string): string {
       <ol class="timeline">
         <!-- GEO-03（S1-12d）：成立年份／首季頭銜／聯賽為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
         <li class="timeline-item">
-          <p class="timeline-item__year">{{ SITE_FACTS.tcrfc.foundedYear }}</p>
-          <p class="timeline-item__title">{{ SITE_FACTS.tcrfc.foundingTitleZh }}</p>
-          <p class="timeline-item__desc">俱樂部創立首年即拿下{{ SITE_FACTS.tcrfc.foundingTitleZh }}，隔年晉升{{ SITE_FACTS.tcrfc.league.nameZh }}出賽。</p>
+          <p class="timeline-item__year">{{ tcrfcFacts.foundedYear }}</p>
+          <p class="timeline-item__title">{{ tcrfcFacts.foundingTitleZh }}</p>
+          <p class="timeline-item__desc">俱樂部創立首年即拿下{{ tcrfcFacts.foundingTitleZh }}，隔年晉升{{ tcrfcFacts.league.nameZh }}出賽。</p>
         </li>
       </ol>
       <figure class="honours-photo clip-card clip-card--on-dark">

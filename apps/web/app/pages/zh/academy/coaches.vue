@@ -4,6 +4,9 @@ definePageMeta({ nav: "academy", unit: "04" })
 
 const { lp } = useLocale()
 
+// S1-12d 收尾：梯隊代碼改讀 useSiteFacts('tcrfc')（後端公開端點）。
+const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: "學院教練團 Coaches｜台中磐石足球學院｜台中磐石足球俱樂部",
   description: "認識台中磐石足球學院教練團：青訓總監徐翊、青訓教練許志傑與黃聖傑。證照、專長與負責梯隊等詳細資料收集中。",
@@ -84,7 +87,7 @@ useSeoMeta({
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">學院隊伍</span>
-        <p class="cta-card__desc">查看 {{ academyTeamCodesLabel('tcrfc') }} 各梯隊</p>
+        <p class="cta-card__desc">查看 {{ tcrfcAcademyLabel() }} 各梯隊</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/curriculum/')">
         <span class="cta-card__num">4.4</span>

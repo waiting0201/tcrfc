@@ -16,6 +16,9 @@ const hero = computed(() => JOIN_CONTACT_HERO[clubKey.value])
 // S1-13 缺口①：hero.lede（兩個俱樂部版本皆有）含內嵌連結標記，v-html 渲染前
 // 用 localizeHtmlLinks() 把裡面的 /zh/join/ 換成目前語系版本。
 const ledeHtml = computed(() => localizeHtmlLinks(hero.value.lede, locale.value))
+// S1-12d 收尾：地址／主場名稱改讀 useSiteFacts('tcrfc')（後端公開端點）。下方地址區塊
+// 只在 isTcrfc 時渲染，固定讀 tcrfc 即可。
+const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
 
 useSeoMeta({
   title: computed(() => JOIN_CONTACT_SEO[clubKey.value].title),
@@ -62,11 +65,12 @@ function socialHandle(url: string): string {
         <p v-if="identity.social.email" class="contact-item__value">{{ identity.social.email }}</p>
       </div>
 
-      <!-- GEO-03（S1-12d）：地址／主場名稱為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
+      <!-- GEO-03（S1-12d）：地址／主場名稱為單一來源（useSiteFacts 讀後端 API），不在此
+           重複寫死字面值。 -->
       <div v-if="isTcrfc" class="contact-item">
         <p class="contact-item__label">地址</p>
-        <p class="contact-item__value">{{ SITE_FACTS.tcrfc.contact.address }}</p>
-        <p class="field-hint">主場：{{ getPrimaryVenue('tcrfc').nameZh }}。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
+        <p class="contact-item__value">{{ tcrfcFacts.contact.address }}</p>
+        <p class="field-hint">主場：{{ tcrfcVenue.nameZh }}。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
       </div>
 
       <div v-if="isTcrfc" class="contact-item">

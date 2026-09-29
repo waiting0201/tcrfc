@@ -26,7 +26,12 @@ const { lp } = useLocale()
 const config = useRuntimeConfig()
 
 const bwAssets = getClubAssets('bw')
-const bwFacts = getSiteFacts('bw')
+// S1-12d 收尾：事實面板改讀 useSiteFacts('bw')（後端公開端點），不再是
+// shared/utils/site-facts.ts 的靜態快照——見 apps/api/README.md「S1-12d」節。
+// 本頁只會在 tcrfc 容器渲染（見上方檔頭說明），底部 CTA 卡另外需要磐石自己的
+// 梯隊代碼，故 tcrfc／bw 兩邊各呼叫一次。
+const { facts: bwFacts } = useSiteFacts('bw')
+const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
 
 useSeoMeta({
   title: '女子足球 Women\'s Football｜台中磐石足球俱樂部',
@@ -118,7 +123,7 @@ useSeoMeta({
       <div class="cta-card clip-card" style="background:var(--paper-2);color:var(--heading);">
         <p class="cta-card__num" style="color:var(--brand-aa);">台中磐石學院</p>
         <p class="cta-card__title">加入足球學院</p>
-        <p class="cta-card__desc" style="color:var(--muted);">{{ academyTeamCodesLabel('tcrfc') }} 梯隊，培育下一代球員。</p>
+        <p class="cta-card__desc" style="color:var(--muted);">{{ tcrfcAcademyLabel() }} 梯隊，培育下一代球員。</p>
         <a class="btn btn--dark btn--sm" :href="lp('/zh/academy/join/')">了解更多</a>
       </div>
       <div class="cta-card clip-card" style="background:var(--paper-2);color:var(--heading);">

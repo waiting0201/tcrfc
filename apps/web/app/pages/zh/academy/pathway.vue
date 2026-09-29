@@ -4,6 +4,9 @@ definePageMeta({ nav: "academy", unit: "04" })
 
 const { lp } = useLocale()
 
+// S1-12d 收尾：梯隊代碼改讀 useSiteFacts('tcrfc')（後端公開端點）。
+const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: "學院發展路徑 Academy Pathway｜台中磐石足球學院｜台中磐石足球俱樂部",
   description: "台中磐石足球學院的階梯式發展路徑：U12 → U15 → 一線隊／海外，點擊各階段了解升上一階的方向（詳細內容資料收集中）。",
@@ -93,7 +96,7 @@ useSeoMeta({
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">學院隊伍</span>
-        <p class="cta-card__desc">查看 {{ academyTeamCodesLabel('tcrfc') }} 各梯隊</p>
+        <p class="cta-card__desc">查看 {{ tcrfcAcademyLabel() }} 各梯隊</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/curriculum/')">
         <span class="cta-card__num">4.4</span>

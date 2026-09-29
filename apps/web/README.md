@@ -804,17 +804,119 @@ Organization／SportsTeam 的 `schemaEligible` 現況恆為 `false`（S1-12f 已
 
 ### 已知缺口（回報，不在本輪範圍）
 
-1. **後端沒有這五類事實的欄位與公開端點**：見上方「事實盤點結論」。`site-facts.ts` 是
-   前台暫定方案，等後台 `I` 網站設定（或其所屬模組）補上對應欄位與公開端點後，要把這裡
-   整批改成 `useFetch`，呼叫端（`SITE_FACTS[club].xxx`／`getPrimaryVenue()`／
-   `academyTeamCodesLabel()`）的介面盡量維持不變。
+1. ~~後端沒有這五類事實的欄位與公開端點~~：**已由 `backend-engineer` 補上**（同一天，
+   見 `apps/api/README.md`「S1-12d」節），前台已於「S1-12d 收尾」（見下方新增小節）
+   整批改讀 API，`site-facts.ts` 降級為備援快照。
 2. **`schedule.vue` 的逐隊代碼篩選（`state.team`／`teamLabels`）仍寫死磐石代碼**：見上方
    「真的修正的既有缺口」，這是比本輪任務範圍更大的架構問題，留給 `S1-19`。
 3. **多個單元 `03`／`04`／`10-location`／`10.2` 頁面仍是零俱樂部分支的既有缺口**：見上方
    「刻意不動的範圍」，本輪只換掉事實來源，沒有加上整頁雙俱樂部分支。
 4. **無頭瀏覽器與真實 API 的 JSON-LD 輸出未驗證**：見上方「JSON-LD 雙重呈現」小節，
    延續 S1-12a／b／c／f 同一個環境限制（本機啟動 `apps/api` 需要在指令列具現化資料庫
-   密碼，被 session 自動模式安全防護擋下，依硬規則被擋就停）。
+   密碼，被 session 自動模式安全防護擋下，依硬規則被擋就停）。**S1-12d 收尾同樣未解除
+   這個限制**，見下方新增小節「未驗證項目」。
+
+### S1-12d 收尾——改讀後端公開端點（2026-09-29，`frontend-architect`）
+
+後端已交付 `GET /api/v1/{club}/site-facts?lang=zh|en`（見 `apps/api/README.md`「S1-12d」節）。
+本輪把「已知缺口」第 1 點清掉：所有讀 `getSiteFacts()`／`SITE_FACTS`／`getPrimaryVenue()`／
+`academyTeamCodesLabel()` 的頁面（`about/history.vue`／`about/our-story.vue`／
+`charity/commitment.vue`／`club/index.vue`／`club/first-team/index.vue`／
+`club/opportunities/index.vue`／`join/academy/index.vue`／`join/contact/index.vue`／
+`join/location/index.vue`／`programs/childrens-training/index.vue`／`womens/index.vue`／
+`academy/{coaches,index,join,life,overview,pathway}.vue`／`schedule.vue`，共 17 個頁面檔案）
+與 `useSchemaOrgClub.ts` 的 JSON-LD，改讀新增的
+[`app/composables/useSiteFacts.ts`](app/composables/useSiteFacts.ts)。
+
+**設計**：`useSiteFacts(club)` 固定同時打兩次 API（`lang=zh`／`lang=en`，比照既有頁面「同一
+段落需要 `nameZh` 與 `nameEn` 並列」的既有慣例，例如 `club/opportunities/index.vue` 的外籍
+球員英文段落），合併成與舊版 `SiteFacts` 型別（`shared/utils/site-facts.ts`）相容的形狀，
+回傳 `{ facts, primaryVenue, academyLabel(separator?) }` 三個值。呼叫端從
+`SITE_FACTS.tcrfc.foundedYear` 這類靜態屬性存取，改成 `tcrfcFacts.foundedYear`（`useSiteFacts`
+回傳的 `facts` 是 `ComputedRef`，屬性名稱完全不變，只是換了資料來源），改動量因此壓到最小。
+
+**`site-facts.ts` 的去留（任務要求二選一，已選）**：**保留**，角色改為「`useSiteFacts()` 的
+降級備援快照」——理由是它同時還有第二個消費者：`shared/utils/club-copy.ts`（見下方
+「已知限制」）。整個刪除會讓 club-copy.ts 立即編譯失敗，且會失去 API 打不到時的degrade
+內容來源。`getSiteFacts`／`getPrimaryVenue`／`academyTeamCodesLabel` 三個既有匯出函式**保留
+不動**（club-copy.ts 與 `useSiteFacts.ts` 內部的降級路徑都還在用），但檔頭註解已更新，
+明文要求「新頁面一律呼叫 `useSiteFacts(club)`，不要再直接讀本檔」。
+
+**降級行為**：`useSiteFacts()` 的 `mergeSiteFacts()` 只要 `lang=zh` 那次 `useFetch` 失敗
+（`data` 為 `null`，例如 `apps/api` 未啟動或連線被拒），整組回傳值就退回
+`SITE_FACTS[club]` 靜態快照，不做「部分欄位打 API、部分欄位退回快照」的混合狀態。這比照
+`useHomeSections`／`useFaqEmbed` 既有 fail-open 慣例，**不出 500**——本機用 `apps/api`
+未啟動的容器實測過（見下方「驗收」），頁面仍是 200，畫面顯示快照內容，只有 server log
+會印 `FetchError: connect ECONNREFUSED`（不會傳到瀏覽器）。
+
+**JSON-LD（`useSchemaOrgClub.ts`）**：`useOrganizationSchema()`／`useSportsTeamSchema()`
+改讀 `useSiteFacts(club).facts.value`／`.primaryVenue.value`。**中文全名的處理方式**：
+不需要額外呼叫——`useSiteFacts()` 本來就一律同時抓 zh／en 兩次，`facts.xxxZh` 欄位固定
+來自 `lang=zh` 那次呼叫，不受目前頁面（`/en/`）語系影響，天生滿足
+`apps/api/README.md`「S1-12d」節「回應形狀」建議的「JSON-LD 需要不受 `lang` 影響的中文
+全名時，另外用 `?lang=zh` 呼叫一次即可」——因為本來就有這一次呼叫，不必再加一次。
+
+**藍鯨場地正式名稱／地址以後端為準**：`apps/api/README.md`「S1-12d」節「種子資料」段
+記錄後端已用既有 `Venue` 列（豐原體育場官方全名、太原／豐原兩座場地的真實地址）接上
+`home_venue_ids`，跟 `site-facts.ts` 快照裡「台中豐原體育場」簡稱與 `address: null` 不同。
+本輪**沒有覆寫或過濾 API 回傳值**——`useSiteFacts()` 的 `mergeSiteFacts()` 只要 zh 那次
+成功就直接使用 `zh.venues`／`zh.contact.address`，不比對快照、不做「跟舊資料不一致就
+隱藏」的特殊處理，前台會如實顯示後端資料（本機未啟動 `apps/api`，無法用真實回應核對，
+見下方「未驗證項目」）。
+
+**已知限制（回報，留給下一輪決定）**：`shared/utils/club-copy.ts`（1044 行，近 40 處引用
+`SITE_FACTS`）**沒有改接** `useSiteFacts()`——它是模組層級常數，在 `import` 當下同步組出
+一大批 SEO／Hero 文案物件，沒有 Nuxt 元件的請求生命週期可以掛非同步抓取。要接上 API
+得把整個檔案改成吃 `facts` 參數的工廠函式，並改寫 15 個以上消費頁面（`about/history.vue`
+等本輪已改頁面之外，還有 `index.vue`／`club/first-team/player/index.vue` 等未列在本輪
+呼叫清單裡、但 import `club-copy.ts` 的頁面）的呼叫方式，是遠超「一個 composable＋17 個
+直接呼叫頁面」這一輪邊界的重構。已在 `club-copy.ts`／`site-facts.ts` 兩處檔頭加註明文
+記錄，也同步進 `lint:fact-single-source` 的檔頭說明（見下方「防呆」）。
+
+**防呆調整**：`scripts/check-fact-single-source.mjs` 檔頭更新為反映新架構（真正的單一
+維護處是後端資料庫，`site-facts.ts` 降級為備援快照與 `club-copy.ts` 例外），**功能邏輯
+未改**——`ALLOWED_FILES`／`FORBIDDEN_LITERALS` 兩份清單維持原樣，因為本輪沒有在允許清單
+以外的地方新增任何字面值（新增的 `useSiteFacts.ts` 一度在 JSDoc 舉例寫了「U15／U14／U12」
+被本腳本攔下，已改寫成不含字面值的敘述，見 `docs/18-work-errors.md` `E-68`）。
+
+**驗收（2026-09-29）**：
+```
+npm run lint    # 0 errors, 527 warnings（等於既有基準上限，未超過）
+npm run build   # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+```
+本機用同一份映像檔起兩個容器（`tcrfc` port 13101／`bw` port 13102 帶
+`NUXT_PUBLIC_SITE_NAME=台中藍鯨`，`apps/api` 未啟動，依派工規則不自行啟動、不碰密碼）：
+
+- 17 個改動頁面 × `/zh/`／`/en/`（`womens`／`charity/commitment` 僅 tcrfc、`schedule` 兩站
+  皆測）全數 200，`docker logs` 只看到預期的 `ECONNREFUSED` 伺服器端錯誤紀錄，**沒有** 500
+  回應或未捕捉例外導致的頁面崩潰。
+- 降級內容實際核對：`/zh/about/history/`（`2024`／`全國乙級聯賽冠軍`）、`/zh/club/`
+  （`西屯足球場`）、`/zh/schedule/`（tcrfc 顯示`企業甲級聯賽`、bw 顯示`台灣木蘭足球聯賽`）、
+  `/zh/womens/`（tcrfc 容器讀 bw 快照：`台灣木蘭足球聯賽`／`太原足球場`／`豐原體育場`）
+  皆正確顯示 `site-facts.ts` 快照內容（用 `curl | grep` 核對字串實際出現在渲染結果中）。
+- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:13101`（156 條路由）
+  與 `--base-url=http://127.0.0.1:13102`（138 條路由，bw 停用單元後略少）：**H1 唯一、
+  標題不跳階皆 0 違規**。
+- `NUXT_PUBLIC_SITE_NAME=台中藍鯨 node scripts/check-club-brand-leak.mjs
+  --base-url=http://127.0.0.1:13102`：**保護清單（15 頁）全數乾淨，棘輪未被違反**。
+  `/zh/club/opportunities/` 在 bw 容器仍同時顯示磐石與藍鯨兩個聯賽名稱——這是「已知限制」
+  提到的既有零分支缺口（`club/opportunities/index.vue` 本輪只換掉事實來源沒有加俱樂部
+  分支），不是本輪造成的新迴歸，也不在保護清單頁面範圍內。
+- `/zh/womens/`／`/zh/charity/commitment/` 在 bw 容器皆正確 404（單元開關不受本輪影響）。
+
+🔴 **未驗證項目**（因為 `apps/api` 未啟動，依派工規則不自行啟動、不碰密碼）：
+
+- API 實際成功時的資料是否正確渲染（本輪只驗證了「API 打不到→退回快照」這條路徑，沒有
+  驗證「API 打得到→顯示真實資料」這條路徑，包含藍鯨場地真實地址／官方全名、
+  `useSchemaOrgClub.ts` 的 `foundingDate`／`address`／`memberOf`／`location` 四個 JSON-LD
+  欄位在 `schemaEligible=true` 時的實際輸出內容）。
+- `apps/api/README.md`「S1-12d」節記錄的公開端點快取（`IQueryCache`，TTL 300 秒）與後台寫入
+  不主動 invalidate 的行為，前台未做對應測試（本輪不涉及後台編輯畫面）。
+
+**後端待補事項（不在本輪範圍，回報）**：
+- 主站規劃書 §3.6「藍鯨官網網址於後台 `I` 網站設定可維護」——後端已於 2026-09-29 補上 `blueWhaleSiteUrl`（見 `apps/api/README.md`「S1-12d」節「後續補完」）；`womens/index.vue` 仍讀 `useRuntimeConfig().public.blueWhaleSiteUrl`，待改接。
+- ~~`apps/admin` 尚無 `I` 模組編輯畫面~~：已於 2026-09-29 完成（`apps/admin/README.md`「I：網站設定」）。後端同日補上 `blueWhaleSiteUrl` 欄位與 `GET /admin/{club}/venues` 場地清單，前台 `womens/index.vue` 與後台挑選場地待改接。
 
 ## S1-12e（`GEO-07`／`GEO-08` 內容結構與引用資訊，2026-09-29，`frontend-architect`）
 

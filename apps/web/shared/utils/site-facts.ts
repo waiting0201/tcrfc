@@ -1,20 +1,31 @@
-// shared/utils/site-facts.ts — GEO-03／GEO-04 事實單一來源（S1-12d，2026-09-29）
+// shared/utils/site-facts.ts — GEO-03／GEO-04 事實單一來源（S1-12d，2026-09-29；
+// 2026-09-29 收尾更新角色定位，見下方「本檔現在的角色」）
 //
 // 主站規劃書 §7 GEO-03：「成立年份、主場與場地、梯隊組成、所屬聯賽、聯絡方式…全站只有
 // 一個維護處」；GEO-04：「結構化資料與明確文字同時呈現」。
 //
-// 🔴 後台 `I` 網站設定目前沒有任何欄位承載這五類事實（`ClubDto` 只有名稱／網域／標誌／
-// 品牌色，見 apps/api/Features/Clubs/ClubDto.cs；`Setting`／`Venue` 皆無對外公開端點，
-// 見 apps/web/README.md「S1-12d」節「事實盤點對照表」）。依任務指示不得自行改資料庫
-// 綱要或新增後端端點，本檔是**前台暫定的單一維護處**——等後台補上對應欄位與公開端點後，
-// 這裡要整批改成 useFetch 讀 API，呼叫端（各頁面／JSON-LD composable）的介面盡量不變。
+// 🔴 本檔現在的角色（S1-12d 收尾，2026-09-29）：後端已補上
+// `GET /api/v1/{club}/site-facts?lang=zh|en` 公開端點（apps/api/README.md「S1-12d」節），
+// **本檔下方的 `SITE_FACTS` 靜態物件不再是主要來源**，改由
+// `app/composables/useSiteFacts.ts` 的 `useSiteFacts(club)` 讀 API 取值，頁面文字與
+// `useSchemaOrgClub.ts` 的 JSON-LD 一律改讀那支 composable。`SITE_FACTS` 保留下來只做
+// 兩件事：① 該 composable 在 API 失敗時的降級備援快照（不出 500）；
+// ② `shared/utils/club-copy.ts` 仍直接讀取（見該檔案，一個已知、有紀錄的例外——
+// club-copy.ts 是模組層級在 import 當下同步組出近 40 處引用的 SEO／Hero 文案物件，
+// 沒有 Nuxt 元件的請求生命週期可以掛非同步抓取，接上 API 是遠超本輪邊界的重構，
+// 留給下一輪）。**新增頁面請一律呼叫 `useSiteFacts(club)`，不要再直接讀本檔的
+// `SITE_FACTS`／`getPrimaryVenue`／`academyTeamCodesLabel`**（這三者仍保留給
+// club-copy.ts 與降級路徑使用，不要刪除）。
 //
 // 🔴 內容紀律比照 club-copy.ts 檔頭：藍鯨的每一個值都要能對應到
 // content/blue-whale/club-profile.md 或既有頁面已核實的既有事實，不得自行臆測。
+// 這條紀律現在主要約束「降級快照要不要更新」，實際顯示值以後端 API 回傳為準
+// （例如藍鯨豐原體育場的官方全名與地址，後端已用既有 `Venue` 資料回傳，可能與本檔
+// 下方寫死的快照不同——這是預期中的行為，不是本檔的錯，前台不得覆寫 API 回傳值）。
 //
-// 用法：所有「成立年份」「主場」「聯賽」「梯隊組成」的明文陳述與結構化資料
-// （useOrganizationSchema／useSportsTeamSchema）都必須從這裡取值，不得在頁面或
-// club-copy.ts 裡重新寫一份字面值（見 apps/web/scripts/check-fact-single-source.mjs）。
+// 用法：`useOrganizationSchema()`／`useSportsTeamSchema()`（見 useSchemaOrgClub.ts）與
+// 已改接 API 的頁面都必須從 `useSiteFacts(club)` 取值，不得在頁面或 club-copy.ts 裡
+// 重新寫一份字面值（見 apps/web/scripts/check-fact-single-source.mjs）。
 
 import type { ClubCode } from './club'
 

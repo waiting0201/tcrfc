@@ -60,6 +60,7 @@
 | E-16 | 2026-09-21 | Vue SFC 註解裡寫出完整的 `script`／`style`／`template` 字面標籤，`build` 直接壞（誤判成 async setup 衝突，繞了一圈才找到真因） | ⚠️ 無（留給 S0-9 補 lint 檢查） |
 | E-66 | 2026-09-29 | `sed -i 's/<h4>/<h4 aria-level="2">/g'` 全域取代時，連自己剛寫進同一個檔案、內文提到 `<h4>` 字面值的說明註解也一併取代掉，註解變成「引用已經套用修正後的寫法在描述修正前的狀態」，自相矛盾 | ⚠️ 無（改用 Edit 工具做精確字串取代前先確認註解裡沒有同樣的字面值，或註解與程式碼分兩次下手） |
 | E-67 | 2026-09-29 | 派 S1-16 時，主 session 在派工指示裡把「藍鯨一線隊近期賽果」寫成可以接的範例；規劃書 §3.6「不含功能」明文排除藍鯨賽果，agent 照指示做出一個違反規格的區塊 | ⚠️ 無自動化；已移除區塊，派工前讀規格「不含功能」欄（見條目） |
+| E-68 | 2026-09-29 | S1-12d 收尾新增 `useSiteFacts.ts` 時，doc comment 裡舉例寫了字面值「U15／U14／U12」，`lint:fact-single-source` 當場攔下（它掃全文字內容，不分程式碼與註解） | ✅ 已生效——當場改寫成不含字面值的敘述；防呆已存在（該 lint 腳本本身），只是寫作習慣要跟上 |
 | E-17 | 2026-09-21 | `@nuxtjs/seo` 的 `nuxt-seo-utils` 子模組蓋掉元件層 `useHead` 設的 `<html lang>`，`tagPriority: 'high'` 也蓋不掉 | ✅ 改用 `nuxt.config.ts` 的 `app.head.htmlAttrs.lang` |
 | E-18 | 2026-09-21<br>2026-09-22 | `@nuxtjs/sitemap` 的 runtime 動態來源在「一份 build、runtime 才決定 club」的架構下沒被偵測到，`/sitemap.xml` 永遠空；2026-09-22 查出**真正根因不是動態來源偵測**，是模組把命中全站 `noindex` route rule 的網址整批排除 | ✅ 已改自組 XML（`server/routes/sitemap.xml.ts`），繞過該模組的內建路由 |
 | E-19 | 2026-09-21 | `apps/api/Tcrfc.Api.csproj` 加了 `<InvariantGlobalization>true</InvariantGlobalization>`，`Microsoft.Data.SqlClient` 一開連線就丟 `System.NotSupportedException: Globalization Invariant Mode is not supported` | ✅ 已移除該屬性，並在 csproj 留註解說明原因 |
@@ -1689,3 +1690,19 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   派工指示只引用規格原文、不自己舉「可以多做什麼」的例子；需要擴充時寫「規格沒列的一律不做，列在回報」。
 - **防呆**：⚠️ 無自動化。agent 的回報把它列為規格疑點，主 session 逐條對照規格才攔下——
   「agent 自承規劃書沒寫的區塊」一律當成要回頭查規格的訊號。
+
+### E-68 新寫的 composable doc comment 舉例寫了 GEO-03 禁止字面值，被 `lint:fact-single-source` 攔下（2026-09-29，S1-12d 收尾）
+
+- **錯在哪**：新增 `app/composables/useSiteFacts.ts` 時，`academyLabel()` 函式的 JSDoc 註解裡
+  寫了一句舉例「梯隊代碼組字（例：「U15／U14／U12」）」。`npm run lint` 的
+  `lint:fact-single-source` 當場報錯：這個字面值只允許出現在 `shared/utils/site-facts.ts`。
+- **為什麼會錯（根因）**：寫 doc comment 舉例時只想著「讓讀者看懂這個函式在做什麼」，沒想到
+  `check-fact-single-source.mjs` 是對整個檔案做純文字掃描（`readFileSync` 之後直接找子字串），
+  不分辨程式碼、字串字面值還是註解——凡是這幾個禁止字串出現在允許清單以外的檔案就會失敗，
+  哪怕只是註解裡的舉例，不是真的會被渲染出來的內容。
+- **下次怎麼避免**：幫任何檔案寫 doc comment 或範例時，若該檔案不在
+  `check-fact-single-source.mjs` 的 `ALLOWED_FILES` 白名單內，舉例一律用敘述代替真實字面值
+  （例如「把 squadCodes 陣列組成單一顯示字串」而不是「例：U15／U14／U12」），或乾脆不舉例。
+  寫完新檔案先跑一次 `npm run lint`，不要等到整批修改結束才一次跑。
+- **防呆**：✅ 已生效——`lint:fact-single-source` 本身就是防呆，本次確實在送出前攔下並修正，
+  沒有流到後續流程。這筆記錄提醒的是「防呆已經存在，寫作習慣要跟上」，不是腳本本身有缺口。

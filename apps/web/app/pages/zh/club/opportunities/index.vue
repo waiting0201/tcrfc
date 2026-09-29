@@ -5,6 +5,11 @@ definePageMeta({ nav: 'club', unit: '3.3' })
 
 const { lp } = useLocale()
 
+// S1-12d 收尾：聯賽名稱改讀 useSiteFacts('tcrfc')（後端公開端點）。本頁同時需要
+// league.nameZh（中文本文）與 league.nameEn（外籍球員英文段落），useSiteFacts 一律
+// 同時抓中英兩種語系，兩個欄位同一次呼叫即可取得。
+const { facts: tcrfcFacts } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: '球員機會 Player Opportunities｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
   description:
@@ -37,7 +42,7 @@ useSeoMeta({
     <div class="prose">
       <h2 id="join-title">加入台中磐石 Join TCRFC</h2>
       <!-- GEO-03（S1-12d）：聯賽名稱為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
-      <p>台中磐石一線隊代表俱樂部出戰{{ SITE_FACTS.tcrfc.league.nameZh }}，持續招募具備競技實力的球員加入陣容。填寫報名表後，將由競技部（10.1 表單收件單位）與您聯繫後續評估流程。</p>
+      <p>台中磐石一線隊代表俱樂部出戰{{ tcrfcFacts.league.nameZh }}，持續招募具備競技實力的球員加入陣容。填寫報名表後，將由競技部（10.1 表單收件單位）與您聯繫後續評估流程。</p>
       
     </div>
     <a class="btn btn--primary" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">填寫加入球隊報名表</a>
@@ -83,7 +88,7 @@ useSeoMeta({
     <div class="prose">
       <p class="kicker">FOR INTERNATIONAL PLAYERS</p>
       <h2 id="foreign-players-title">Foreign Player Recruitment</h2>
-      <p>Taichung Rock FC (TCRFC) First Team competes in Taiwan's {{ SITE_FACTS.tcrfc.league.nameEn }} ({{ SITE_FACTS.tcrfc.league.nameZh }}). We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our International Department will follow up.</p>
+      <p>Taichung Rock FC (TCRFC) First Team competes in Taiwan's {{ tcrfcFacts.league.nameEn }} ({{ tcrfcFacts.league.nameZh }}). We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our International Department will follow up.</p>
       
     </div>
     <a class="btn btn--primary" :href="lp('/zh/join/international-player/')" style="margin-top:1.5rem">International Player Enquiry</a>

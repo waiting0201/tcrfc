@@ -8,6 +8,9 @@ definePageMeta({ nav: "academy", unit: "4.7" })
 const { lp, locale } = useLocale()
 const config = useRuntimeConfig()
 
+// S1-12d 收尾：梯隊代碼改讀 useSiteFacts('tcrfc')（後端公開端點）。
+const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: "加入學院 Join the Academy｜台中磐石足球學院｜台中磐石足球俱樂部",
   description: "台中磐石足球學院招生對象、遴選流程與試訓資訊。費用與試訓場次等細節資料收集中，歡迎透過線上申請與我們聯繫。",
@@ -47,7 +50,7 @@ const { faqs } = useFaqEmbed(config.public.club, 'academy_admission', locale.val
     <div class="prose">
       <h2>招生對象</h2>
       <p>
-        台中磐石足球學院依 <a :href="lp('/zh/academy/teams/')">{{ academyTeamCodesLabel('tcrfc', '、') }} 及其他年齡層</a> 設立分齡梯隊，
+        台中磐石足球學院依 <a :href="lp('/zh/academy/teams/')">{{ tcrfcAcademyLabel('、') }} 及其他年齡層</a> 設立分齡梯隊，
         招收對應年齡層、對足球有熱忱的學員。詳細報名年齡區間、就讀年級對照與名額，待招生簡章確認後更新於本頁。
       </p>
     </div>

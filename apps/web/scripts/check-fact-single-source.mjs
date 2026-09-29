@@ -5,12 +5,20 @@
  * ## 為什麼需要這支腳本
  *
  * 主站規劃書 §7 `GEO-03`：「成立年份、主場與場地、梯隊組成、所屬聯賽、聯絡方式…
- * 全站只有一個維護處」。S1-12d 把這五類事實集中到 `shared/utils/site-facts.ts`
- * （見該檔檔頭說明），並把散落在 20 餘個頁面裡的字面值改成引用該檔。**但沒有機制
- * 攔住的話，下一個人很容易在新頁面裡順手打一個「西屯足球場」或「2024 年創立」**——
- * 這支腳本掃描 `app/`／`shared/` 底下的原始碼，確認這些字面值只出現在
- * `site-facts.ts` 本身（唯一允許的維護處），其餘地方一律改用 `SITE_FACTS`／
- * `getPrimaryVenue()`／`academyTeamCodesLabel()` 等既有匯出值。
+ * 全站只有一個維護處」。S1-12d 一開始把這五類事實集中到 `shared/utils/site-facts.ts`
+ * 的靜態物件（見該檔檔頭說明），並把散落在 20 餘個頁面裡的字面值改成引用該檔。
+ *
+ * 🔴 **S1-12d 收尾（2026-09-29）後的現況**：後端已補上
+ * `GET /api/v1/{club}/site-facts?lang=zh|en` 公開端點，真正的單一維護處變成
+ * **後端資料庫**（`settings`／`venues` 等表），前台改讀
+ * `app/composables/useSiteFacts.ts`。`shared/utils/site-facts.ts` 的靜態物件降級為
+ * ①該 composable 在 API 打不到時的備援快照、②`shared/utils/club-copy.ts`
+ * 一個已知、有紀錄的例外仍直接讀取（見該檔檔頭「已知限制」）。**這支腳本要防的事沒有
+ * 變**：不管單一維護處實際上是後端還是這份靜態快照，都不能有第三個地方自己重打一份
+ * 「西屯足球場」或「2024 年創立」這種字面值——腳本繼續掃描 `app/`／`shared/` 底下的
+ * 原始碼，確認這些字面值只出現在 `site-facts.ts` 本身（唯一允許保留靜態字面值的
+ * 地方），其餘地方一律改用 `useSiteFacts()`（新頁面）或 `SITE_FACTS`／
+ * `getPrimaryVenue()`／`academyTeamCodesLabel()`（僅 club-copy.ts 這個已知例外）。
  *
  * ## 刻意排除的範圍（不是「查得不夠仔細」，是這些地方的字面值不是同一種事實）
  *

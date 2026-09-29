@@ -4,6 +4,9 @@ definePageMeta({ nav: "academy", unit: "04" })
 
 const { lp } = useLocale()
 
+// S1-12d 收尾：梯隊代碼改讀 useSiteFacts('tcrfc')（後端公開端點）。
+const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: "台中磐石足球學院 TCRFC Academy｜台中磐石足球俱樂部",
   description: "台中磐石足球學院是台中磐石足球俱樂部的青訓體系，提供 U12 至 U15 分齡訓練、清晰的發展路徑與教練團陪伴，銜接一線隊與海外舞台。",
@@ -54,7 +57,7 @@ useSeoMeta({
         <span class="unit-nav-card__num">4.2</span>
         <span class="unit-nav-card__en">Our Teams</span>
         <span class="unit-nav-card__zh">學院隊伍</span>
-        <span class="unit-nav-card__desc">{{ academyTeamCodesLabel('tcrfc') }} 各梯隊名單、教練與賽程</span>
+        <span class="unit-nav-card__desc">{{ tcrfcAcademyLabel() }} 各梯隊名單、教練與賽程</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
       </a>
       <a class="unit-nav-card clip-card" :href="lp('/zh/academy/pathway/')">

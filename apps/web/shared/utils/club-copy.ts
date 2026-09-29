@@ -42,7 +42,15 @@
 
 import type { ClubCode } from './club'
 // GEO-03／GEO-04（S1-12d）事實單一來源：成立年份、主場、聯賽三類事實不在本檔重複寫一份
-// 字面值，一律引用 site-facts.ts（見該檔檔頭說明目前為什麼是前台暫定單一來源，不是後端）。
+// 字面值，一律引用 site-facts.ts。
+//
+// 🔴 已知限制（S1-12d 收尾，2026-09-29）：本檔刻意仍讀 site-facts.ts 的靜態 `SITE_FACTS`
+// 快照，沒有跟著改接 `app/composables/useSiteFacts.ts`（後端公開端點）——本檔是模組層級
+// 常數，在 import 當下同步組出以下近 40 處引用 SITE_FACTS 的 SEO／Hero 文案物件，沒有
+// Nuxt 元件的請求生命週期可以掛非同步抓取。要接上 API 得把本檔全部改成吃 facts 參數的
+// 工廠函式，並改寫 15 個以上消費頁面的呼叫方式，是遠超「一個 composable＋直接呼叫頁面」
+// 這一輪邊界的重構，留給下一輪決定是否要做（見 apps/web/README.md「S1-12d」節、
+// apps/api/README.md「S1-12d」節「已知缺口」）。
 import { academyTeamCodesLabel, getPrimaryVenue, SITE_FACTS } from './site-facts'
 
 /** T | null 的 null＝本俱樂部明文不顯示這個區塊（見檔頭說明 2）。目前沒有任何內容鍵用到

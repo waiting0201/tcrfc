@@ -5,6 +5,11 @@ definePageMeta({ nav: '', unit: '10-location' })
 
 const { lp } = useLocale()
 
+// S1-12d 收尾：場地名稱／地址改讀 useSiteFacts('tcrfc')（後端公開端點）。本頁 10-location
+// 單元目前零俱樂部分支（既有缺口，見 apps/web/README.md「S1-12d」節「刻意不動的範圍」），
+// 固定讀 tcrfc 沿用既有做法。
+const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: '場地位置與地圖 Location & Map｜加入與聯絡｜台中磐石足球俱樂部',
   description:
@@ -52,8 +57,8 @@ useSeoMeta({
            （本頁目前對兩俱樂部皆無分支，仍是磐石專屬內容，見 apps/web/README.md「S1-12d」節「已知缺口」）。 -->
       <article class="venue-card">
         <p class="venue-card__label">主場</p>
-        <h3 class="venue-card__name">{{ getPrimaryVenue('tcrfc').nameZh }}<span class="en">{{ getPrimaryVenue('tcrfc').nameEn }}</span></h3>
-        <p class="venue-card__addr">{{ SITE_FACTS.tcrfc.contact.address }}</p>
+        <h3 class="venue-card__name">{{ tcrfcVenue.nameZh }}<span class="en">{{ tcrfcVenue.nameEn }}</span></h3>
+        <p class="venue-card__addr">{{ tcrfcFacts.contact.address }}</p>
       </article>
 
       <article class="venue-card">
@@ -101,7 +106,7 @@ useSeoMeta({
       </div>
       <div class="direction-card">
         <p class="direction-card__mode">導航連結</p>
-        <a href="https://www.google.com/maps/search/?api=1&query=%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B711%E5%BC%8441%E8%99%9F" target="_blank" rel="noopener">開啟 Google 導航（{{ getPrimaryVenue('tcrfc').nameZh }}）<span class="visually-hidden">（新分頁開啟）</span></a>
+        <a href="https://www.google.com/maps/search/?api=1&query=%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B711%E5%BC%8441%E8%99%9F" target="_blank" rel="noopener">開啟 Google 導航（{{ tcrfcVenue.nameZh }}）<span class="visually-hidden">（新分頁開啟）</span></a>
       </div>
     </div>
   </div>

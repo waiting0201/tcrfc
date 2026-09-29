@@ -32,6 +32,10 @@ definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule' })
 const config = useRuntimeConfig()
 const club = config.public.club
 
+// S1-12d 收尾：聯賽名稱與梯隊代碼改讀 useSiteFacts(club)（後端公開端點），
+// 不再是 shared/utils/site-facts.ts 的靜態快照——見 app/composables/useSiteFacts.ts 檔頭。
+const { facts: clubFacts, academyLabel: clubAcademyLabel } = useSiteFacts(club)
+
 // S1-13：lang 改跟隨目前路由語系（/zh/ 或 /en/），不再寫死 'zh'——apps/api 對
 // ?lang=en 已有完整欄位回退機制（apps/api/README.md「已知落差」段的真實 curl 驗證），
 // 前台只要把正確的語系傳過去即可，不需要在這裡自己做回退判斷。
@@ -123,13 +127,13 @@ function isGroupHidden(key: string): boolean {
 }
 
 const teamHeadName = computed(() => teamLabels[state.team] ?? '全部隊別')
-// GEO-03（S1-12d）：聯賽名稱為單一來源 site-facts.ts，不在此重複寫死字面值
-// （改動前本頁不論 club 皆寫死磐石的聯賽全名，藍鯨容器會顯示錯誤的聯賽名稱）。
-const leagueName = getSiteFacts(club).league.nameZh
+// GEO-03（S1-12d）：聯賽名稱為單一來源（useSiteFacts 讀後端 API），不在此重複寫死
+// 字面值（改動前本頁不論 club 皆寫死磐石的聯賽全名，藍鯨容器會顯示錯誤的聯賽名稱）。
+const leagueName = computed(() => clubFacts.value.league.nameZh)
 const teamHeadMeta = computed(() =>
   state.mode === 'results'
-    ? `2026/27 賽季 · ${leagueName} · 賽果`
-    : `2026/27 賽季 · ${leagueName} · 共 ${visibleMatches.value.length} 場`,
+    ? `2026/27 賽季 · ${leagueName.value} · 賽果`
+    : `2026/27 賽季 · ${leagueName.value} · 共 ${visibleMatches.value.length} 場`,
 )
 const isEmpty = computed(() => mounted.value && visibleMatches.value.length === 0)
 const emptyDesc = computed(() => {
@@ -271,7 +275,7 @@ function eventToVevent(m: MatchItem): string {
   const startDate = new Date(`${date}T${kickoff}:00+08:00`)
   const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000)
   const end = `${endDate.getUTCFullYear()}${pad(endDate.getUTCMonth() + 1)}${pad(endDate.getUTCDate())}T${pad(endDate.getUTCHours())}${pad(endDate.getUTCMinutes())}00Z`
-  const title = `${getClubAssets(club).nameZh} vs ${opponent}（${leagueName}・${ha}）`
+  const title = `${getClubAssets(club).nameZh} vs ${opponent}（${leagueName.value}・${ha}）`
   const loc = venue === 'TBC' ? '場地未定' : venue
   return [
     'BEGIN:VEVENT',
@@ -330,8 +334,11 @@ function onBulkIcs() {
 }
 
 useSeoMeta({
-  title: `賽事行事曆 Schedule｜${getClubAssets(club).nameZh}`,
-  description: `${getClubAssets(club).nameZh}完整賽事行事曆：2026/27 ${leagueName} ${matches.value.length} 場賽程，依隊別（一線隊／${academyTeamCodesLabel(club)}）分類，支援賽程賽果切換、月曆檢視與單場加入行事曆。`,
+  title: computed(() => `賽事行事曆 Schedule｜${getClubAssets(club).nameZh}`),
+  description: computed(
+    () =>
+      `${getClubAssets(club).nameZh}完整賽事行事曆：2026/27 ${leagueName.value} ${matches.value.length} 場賽程，依隊別（一線隊／${clubAcademyLabel()}）分類，支援賽程賽果切換、月曆檢視與單場加入行事曆。`,
+  ),
 })
 
 // SportsEvent JSON-LD（GEO-08）。siteConfig.url 是 nuxt-site-config 的 priority-stack
@@ -589,7 +596,7 @@ useHead(() => (
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">學院隊伍</span>
-        <p class="cta-card__desc">{{ academyTeamCodesLabel(club) }} 梯隊介紹</p>
+        <p class="cta-card__desc">{{ clubAcademyLabel() }} 梯隊介紹</p>
       </a>
       <a class="cta-card" :href="lp('/zh/join/general/')">
         <span class="cta-card__num">10.7</span>

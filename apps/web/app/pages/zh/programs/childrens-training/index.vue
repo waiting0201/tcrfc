@@ -17,10 +17,15 @@ definePageMeta({ nav: 'programs', unit: '5.1' })
 const { lp, locale } = useLocale()
 const config = useRuntimeConfig()
 
+// S1-12d 收尾：主場／地址改讀 useSiteFacts('tcrfc')（後端公開端點）。本頁對藍鯨已整頁
+// 404（見上方檔頭說明），固定讀 tcrfc 即可。
+const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: '兒童足球訓練 Children\'s Training｜課程與活動｜台中磐石足球俱樂部',
-  description:
-    `台中磐石兒童足球訓練依混齡體驗、初學、技巧發展分級規劃，於${getPrimaryVenue('tcrfc').nameZh}等場地授課，提供週期課表與線上報名。`,
+  description: computed(
+    () => `台中磐石兒童足球訓練依混齡體驗、初學、技巧發展分級規劃，於${tcrfcVenue.value.nameZh}等場地授課，提供週期課表與線上報名。`,
+  ),
 })
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
@@ -105,9 +110,9 @@ const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
       <div class="fact-panel">
         <dl style="margin:0;">
           <dt>主要場地</dt>
-          <dd>{{ getPrimaryVenue('tcrfc').nameZh }}</dd>
+          <dd>{{ tcrfcVenue.nameZh }}</dd>
           <dt>地址</dt>
-          <dd>{{ SITE_FACTS.tcrfc.contact.address }}</dd>
+          <dd>{{ tcrfcFacts.contact.address }}</dd>
           <dt>地圖</dt>
           <dd><a href="https://www.google.com/maps/search/?api=1&query=%E8%A5%BF%E5%B1%AF%E8%B6%B3%E7%90%83%E5%A0%B4%20%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B7%2011%20%E5%BC%84%2041%20%E8%99%9F" target="_blank" rel="noopener">在 Google 地圖開啟 <span class="visually-hidden">（新分頁開啟）</span></a></dd>
         </dl>
@@ -134,7 +139,7 @@ const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
           <tr v-for="s in sessions" :key="s.id">
             <td>{{ s.weeklySchedule ?? '—' }}</td>
             <td>{{ s.enrolledCount }}{{ s.capacity ? ` / ${s.capacity}` : '' }} 人</td>
-            <td>{{ s.venueName ?? getPrimaryVenue('tcrfc').nameZh }}</td>
+            <td>{{ s.venueName ?? tcrfcVenue.nameZh }}</td>
           </tr>
         </tbody>
       </table>

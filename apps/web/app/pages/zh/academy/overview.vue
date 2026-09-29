@@ -19,6 +19,11 @@ const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => getClubIdentity(clubKey.value))
 const hero = computed(() => ACADEMY_OVERVIEW_HERO[clubKey.value])
 
+// S1-12d 收尾：梯隊代碼改讀 useSiteFacts（後端公開端點）。本頁兩俱樂部皆會渲染，
+// 兩邊各自的梯隊代碼都要能取得，故各自呼叫一次。
+const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+const { academyLabel: bwAcademyLabel } = useSiteFacts('bw')
+
 useSeoMeta({
   title: computed(() => ACADEMY_OVERVIEW_SEO[clubKey.value].title),
   description: computed(() => ACADEMY_OVERVIEW_SEO[clubKey.value].description),
@@ -66,7 +71,7 @@ useSeoMeta({
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">{{ isTcrfc ? '學院隊伍' : '青年隊' }}</span>
-        <p class="cta-card__desc">{{ isTcrfc ? `查看 ${academyTeamCodesLabel('tcrfc')} 各梯隊` : `查看 ${academyTeamCodesLabel('bw')} 兩個梯隊` }}</p>
+        <p class="cta-card__desc">{{ isTcrfc ? `查看 ${tcrfcAcademyLabel()} 各梯隊` : `查看 ${bwAcademyLabel()} 兩個梯隊` }}</p>
       </a>
       <template v-if="isTcrfc">
         <a class="cta-card" :href="lp('/zh/academy/coaches/')">

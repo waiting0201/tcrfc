@@ -4,6 +4,10 @@ definePageMeta({ nav: "charity", unit: "11" })
 
 const { lp } = useLocale()
 
+// S1-12d 收尾：成立年份改讀 useSiteFacts('tcrfc')（後端公開端點）。本頁 unit '11'
+// 對藍鯨已整頁 404（藍鯨規劃書不設「11 慈善與社會影響」），固定讀 tcrfc 即可。
+const { facts: tcrfcFacts } = useSiteFacts('tcrfc')
+
 useSeoMeta({
   title: "慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部",
   description: "台中磐石足球俱樂部的慈善理念與四大投入領域：青少年扶助、偏鄉足球、弱勢家庭與公益義賽，實踐 Community 社區共好核心價值。",
@@ -35,7 +39,7 @@ useSeoMeta({
     <div class="prose">
       <h2 class="visually-hidden" id="commitment-title">慈善理念說明</h2>
       <!-- GEO-03（S1-12d）：成立年份為單一來源 site-facts.ts，不在此重複寫死字面值（本頁僅磐石有內容，慈善單元藍鯨不設）。 -->
-      <p>台中磐石足球俱樂部自 {{ SITE_FACTS.tcrfc.foundedYear }} 年成立以來，將「<strong>Community 社區共好</strong>」列為五大核心價值之一，相信足球能為社區帶來的影響不只在球場上。我們相信優質的足球資源不該只集中在少數人身上，因此持續尋找機會，把訓練、場地與人才帶到需要的地方。</p>
+      <p>台中磐石足球俱樂部自 {{ tcrfcFacts.foundedYear }} 年成立以來，將「<strong>Community 社區共好</strong>」列為五大核心價值之一，相信足球能為社區帶來的影響不只在球場上。我們相信優質的足球資源不該只集中在少數人身上，因此持續尋找機會，把訓練、場地與人才帶到需要的地方。</p>
 
     </div>
 
