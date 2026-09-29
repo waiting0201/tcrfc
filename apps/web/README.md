@@ -2268,6 +2268,188 @@ docker build -f apps/web/Dockerfile apps/web   # 通過
 - **真實俱樂部活動資料下的畫面**：`db/seed` 目前沒有任何 `calendar_custom_events`
   種子資料，`.club-event-card` 樣板只經過原始碼審查，沒有真實內容可供肉眼核對版面。
 
+## S1-20（`GEO-05` 結構化資料第二批：SportsEvent、Event、Course，2026-09-29，`frontend-architect`）
+
+主站規劃書 §7「結構化資料 Schema Markup」型別清單：`SportsEvent`（既有）補齊「場地與
+地址」；`Event`（俱樂部活動）／`Course`（課程）兩型別為本輪新增輸出。前置 `S1-19`
+（賽事行事曆、俱樂部活動已接上）與 `S1-15`（05 課程頁已接真實 Program API）皆已完成。
+
+### 既有 `SportsEvent` 輸出的盤點與處置
+
+`app/pages/zh/schedule.vue` 的 `sportsEvents` 計算屬性（S0-9j／S1-12c 既有）已經涵蓋：
+主客隊（`homeTeam`／`awayTeam`／`competitor`，依 `homeAway` 判斷己方隊名讀
+`getClubAssets(club).nameZh`）、開始時間（`startDate` 固定接 `+08:00`——Asia/Taipei
+全年無日光節約，資料庫存的就是牆上時間字面值，這個固定偏移本來就正確，不需要換算）、
+`eventStatus`（`matchStatusSchemaOrg()`，與畫面 `status-pill` 共用同一份
+`MATCH_STATUS_MAP`，S0-9j 已收斂單一來源）。**本輪只補一項**：場地目前只有
+`location.name`（比賽場地文字）與寫死的 `addressCountry: 'TW'`，沒有街址。改為用
+`m.venue`（自由文字）比對既有 `useSiteFacts(club).facts.value.venues`（GEO-03 單一
+來源，已含 `nameZh`／`address`）找出對應地址，找到才加 `streetAddress`，找不到維持
+只有 `addressCountry`（不臆造）。**沒有重複輸出**：確認過本輪沒有另外新增第二處
+`SportsEvent` 節點（首頁 `match-band` 區塊顯示同一批賽事資料，但決定不重複輸出，
+見下方「規格疑點」第 1 點）。
+
+### `Event`（俱樂部活動）
+
+`nuxt-schema-org` 有專用的 `defineEvent()` 定義器（不像 `SportsEvent` 沒有專用型別
+要手刻原始 JSON-LD，見 `useSchemaOrgClub.ts` 檔頭既有說明），直接使用：
+
+- [`shared/utils/schema-batch2.ts`](shared/utils/schema-batch2.ts) 的
+  `isClubEventSchemaEligible()`／`buildClubEventSchemaNodes()`：純函式，`name`／
+  `startDate`／`location`（`venueName`）三者齊全才合格——鏡射
+  `apps/api/Features/Seo/SchemaCompleteness.cs` 的 `SchemaType.Event` 必填欄位
+  （該檔行 116–121），逐筆判斷，不合格的那一筆不輸出、其餘合格的仍要輸出。
+  `url` 錨點對應樣板新增的 `:id="ce-{id}"`（原本 `.club-event-card` 沒有任何可定位的
+  id）。
+- [`app/composables/useClubEventSchema.ts`](app/composables/useClubEventSchema.ts)：
+  接上 `useSchemaOrg`／`defineEvent`，寫法比照 `useFaqPageSchema.ts`。
+- 掛載點：`app/pages/zh/schedule.vue`，餵入**未經 client 端篩選的完整清單**
+  `clubEvents`（不是 `visibleClubEvents`）——跟既有 `sportsEvents` 用 `matches`
+  （不是 `visibleMatches`）同一個既有理由：SSR 輸出應反映「這一頁完整收錄的資料」
+  （比照 S1-18a FAQPage schema 的同一原則）。
+
+**過程中發現並修正一個框架陷阱（`inheritMeta`）**：查 `node_modules/nuxt-schema-org/
+dist/schema.mjs` 的 `eventResolver`，其 `inheritMeta: ['inLanguage', 'description',
+'image', {meta:'title', key:'name'}]` 會在節點缺 `description`／`image` 鍵時，自動
+拿「這一頁的 SEO meta description／預設 OG 圖」頂替（`setIfEmpty()` 只在鍵值為
+`undefined` 時才生效）——用臨時 fixture 實測驗證到這個行為：沒有專屬說明或封面圖的
+活動，會被冠上一整份跟這個活動毫無關係的全站預設圖文，正是「只輸出有真實資料的欄位」
+要防的事。**修法**：`buildClubEventSchemaNodes()` 改為沒有真實資料時明確填 `null`
+（不是省略鍵），序列化前的 `stripNullProperties(ctx.nodes[i])`（同檔案已查證，在
+`resolveRootNode` 之後、輸出前對每個節點遞迴呼叫）會把值為 `null` 的鍵整個移除，
+最終輸出不會出現 `"image":null` 這種殘缺欄位，也不會被框架的預設值頂替。**`Course`
+沒有這個問題**：`courseResolver`（同檔案）沒有宣告 `inheritMeta`。
+
+### `Course`（課程）
+
+- [`shared/utils/schema-batch2.ts`](shared/utils/schema-batch2.ts) 的
+  `isCourseSchemaEligible()`／`buildCourseSchemaNode()`：`name`／`description`
+  （`intro`）兩者齊全才合格——鏡射 `SchemaCompleteness.cs` 的 `SchemaType.Course`
+  必填欄位（該檔行 141–145）。`provider` 固定為俱樂部本身（`getClubAssets(club).nameZh`
+  ＋ `siteConfig.url`），任務指示原文「provider 為俱樂部」，且後端同一份註解確認
+  `provider.name` 本來就「永遠有值，不列為必填判斷」。`educationalLevel` 只在
+  `ageMin`／`ageMax`（`ProgramDetailDto` 既有欄位）兩者皆有值時才附上，組成
+  「6–12 歲」這種文字——只輸出有真實資料的欄位，不臆造年齡範圍。
+- [`app/composables/useCourseSchema.ts`](app/composables/useCourseSchema.ts)：接上
+  `useSchemaOrg`／`defineCourse`。
+- 掛載點：[`app/pages/zh/programs/childrens-training/index.vue`](app/pages/zh/programs/childrens-training/index.vue)／
+  [`app/pages/zh/programs/summer-camp/index.vue`](app/pages/zh/programs/summer-camp/index.vue)
+  （S1-15 已接真實 `programDetail`，本輪只是餵給新的 composable）。兩頁對藍鯨已整頁
+  404（`units.ts` 的 `'5.1'`／`'5.2'`，S1-15 既有決定），不需要俱樂部分支。
+
+### 為什麼三種型別的合格判斷不直接讀後端算好的欄位（已知落差）
+
+`MatchDto.SchemaEligible`／`ArticleDetailDto`（S1-12c／S1-12f 既有）都是後端算好、
+前台只讀布林值的既有模式（E-39「單一來源」）。但 `PublicCalendarEventDto`（俱樂部
+活動）與 `ProgramDetailDto`（課程）**目前都沒有對應的 `SchemaEligible` 欄位**——
+`SchemaCompleteness.cs` 已經把 `SchemaType.Event`／`SchemaType.Course` 的必填欄位
+單一來源宣告好，只是還沒有任何公開端點真的呼叫它算出這兩型別的布林值。本輪依派工
+規則不改 `apps/api`，`shared/utils/schema-batch2.ts` 的 `isClubEventSchemaEligible()`／
+`isCourseSchemaEligible()` 是前台暫時鏡射同一份必填欄位判斷（逐一對照
+`SchemaRequiredFields.ByType` 的欄位鍵，沒有新增或放寬任何一條）——**回報**：後端
+補上這兩個布林值後，前台應該改回直接讀後端欄位，不再自行判斷，比照 `SportsEvent`／
+`Article` 的既有模式。
+
+### 新增檔案
+
+- [`shared/utils/schema-batch2.ts`](shared/utils/schema-batch2.ts)：三種型別共用的
+  純函式單一來源（見上方各節）。
+- [`app/composables/useClubEventSchema.ts`](app/composables/useClubEventSchema.ts)、
+  [`app/composables/useCourseSchema.ts`](app/composables/useCourseSchema.ts)：
+  Nuxt／`useSchemaOrg` 接線。
+- [`scripts/check-schema-batch2.mjs`](scripts/check-schema-batch2.mjs)：固定 fixture
+  驗證（比照 `check-faq-schema.mjs` 既有先例，已掛 `npm run lint` 的
+  `lint:schema-batch2`），涵蓋：`venueAddressByName()` 名稱比對／`isClubEventSchemaEligible()`
+  與 `buildClubEventSchemaNodes()` 的 GEO-05 過濾與輸出形狀（含「只輸出有真實資料的
+  欄位」用明確 `null` 防止框架 `inheritMeta` 頂替）／`isCourseSchemaEligible()` 與
+  `buildCourseSchemaNode()` 的同一套判斷／注入防護（`unhead/server` 真正的
+  `tagToString()` 驗證 `</script>` 提前結束標籤與 JSON 逸出，做法比照
+  `check-faq-schema.mjs`，刻意繞過清理函式直接構造「已合格待輸出」的原始節點，
+  測框架序列化層本身而不是巧合借用清理副作用）。共 22 項斷言，全數通過。
+
+### 改了哪些檔案
+
+- `shared/utils/schema-batch2.ts`（新增）
+- `app/composables/useClubEventSchema.ts`（新增）
+- `app/composables/useCourseSchema.ts`（新增）
+- `scripts/check-schema-batch2.mjs`（新增）
+- `app/pages/zh/schedule.vue`：`sportsEvents` 的 `location.address` 補上
+  `venueAddressByName()` 查找；新增 `useClubEventSchema()` 呼叫；`.club-event-card`
+  樣板補上 `:id="ce-{id}"` 錨點。
+- `app/pages/zh/programs/childrens-training/index.vue`／
+  `app/pages/zh/programs/summer-camp/index.vue`：新增 `useCourseSchema()` 呼叫。
+- `package.json`：`lint` 新增 `lint:schema-batch2` 步驟。
+
+### 驗證
+
+```bash
+npm run lint    # 0 錯誤、395 警告（與既有基準相同，含新增 lint:schema-batch2）
+npm run build   # 通過
+docker build -f apps/web/Dockerfile apps/web   # 通過
+node scripts/check-schema-batch2.mjs   # 22 項斷言全數通過
+```
+
+本機起 `tcrfc`／`bw` 兩容器（`apps/api` 未啟動，依派工規則不自行啟動、不碰密碼）：
+
+- `/zh/schedule/`、`/zh/programs/childrens-training/`、`/zh/programs/summer-camp/`
+  （含各自 `/en/` 孿生路由）：tcrfc 全部 `200`；bw 的 `schedule` 為 `200`、兩個課程頁
+  依既有單元開關為 `404`（S1-15 既有決定，非本輪迴歸）。`X-Robots-Tag: noindex,
+  nofollow` 三頁皆在。
+- **`apps/api` 打不到時（GEO-05 正確行為）**：三頁的 JSON-LD 皆只有 `WebSite`／
+  `WebPage` 兩個節點，沒有 `SportsEvent`／`Event`／`Course`，也沒有殘缺節點。
+- **「有資料時」的真實輸出**（比照 S1-18a 既有先例，臨時 fixture 手動驗證、驗證後已
+  還原，程式碼裡不留任何測試資料）：暫時覆寫 `schedule.vue` 的 `data.value`（人造一筆
+  賽事，`venue: '西屯足球場'`）與 `clubEventsData.value`（人造一筆俱樂部活動），暫時
+  覆寫兩個課程頁的 `programDetail.value`；`npm run build` 後用
+  `node .output/server/index.mjs` 起服務（不透過 Docker，較快）curl 驗證：
+  - `SportsEvent.location.address.streetAddress` 正確顯示「台中市北屯區崇平路二段
+    景谷巷 11 弄 41 號」（比對 `venueAddressByName()` 找到「西屯足球場」）。
+  - `Event` 節點正確輸出，`url` 為 `.../zh/schedule/#ce-test-event-1`，與樣板
+    `:id="ce-test-event-1"` 對應。
+  - **驗證 `inheritMeta` 陷阱修法確實生效**：把人造活動的 `description`／`coverUrl`
+    改成 `null` 後，SSR 輸出的 `Event` 節點**完全沒有** `description`／`image` 兩個
+    鍵（框架沒有拿全站預設 OG 圖／SEO 說明頂替）；改回有值時兩個鍵正確顯示人造內容。
+  - `Course` 節點在兩個課程頁面（`ageMin`/`ageMax` 皆有值／皆為 `null` 兩種情況）
+    皆正確輸出，`educationalLevel` 依前者才出現。
+- `node scripts/check-heading-structure.mjs --base-url=...`：兩容器皆 H1 唯一、標題
+  不跳階 0 違規（沿用既有 22 條路由清單，未擴充，本輪未改動標題結構）。
+- `NUXT_PUBLIC_SITE_NAME=台中藍鯨 node scripts/check-club-brand-leak.mjs
+  --base-url=...`：`exit 0`，保護清單 19 頁（含 `/zh/schedule/`，S1-19 既有）全數
+  乾淨，棘輪未被違反——本輪未新增受保護頁面（課程頁對 bw 是 404，不需要加入保護清單）。
+- `node scripts/check-site-units-coverage.mjs`：通過（本輪未新增或修改 `unit` meta）。
+- Docker 容器日誌：除既有的 `apps/api` 連不上降級路徑外，無 `Vue warn`／
+  `TypeError`／`ReferenceError`。
+
+### 未驗證項目
+
+- 真實資料下的畫面渲染（`apps/api` 未啟動，只用臨時 fixture 驗證過一次結構正確性）。
+- 非台灣時區使用者看到的 `SportsEvent.startDate`（固定 `+08:00` 偏移）實際效果——
+  邏輯上這是 ISO 8601 帶時區偏移的絕對時間戳，任何時區的消費端（搜尋引擎、行事曆
+  應用程式）都應該正確換算，理論上不需要額外處理，但沒有實際跨時區環境驗證。
+- `Event`／`Course` 兩型別在真實種子資料（`calendar_custom_events`／`programs` 兩表
+  現況皆 0 筆）下的實際輸出，需等後台建立資料後才能用 `apps/api` 真實驗證。
+
+### 需要後端補的欄位
+
+- `PublicCalendarEventDto`（`apps/api/Features/Calendar/CalendarDto.cs`）：補上
+  `SchemaEligible` 布林值（依 `SchemaCompleteness.cs` 的 `SchemaType.Event` 判斷），
+  取代前台目前的鏡射判斷。
+- `ProgramDetailDto`（`apps/api/Features/Programs/ProgramDtos.cs`）：補上
+  `SchemaEligible` 布林值（依 `SchemaType.Course` 判斷），同上。
+
+### 規格疑點（列出，未自行決定）
+
+1. **首頁「最新賽事區」是否要重複輸出 `SportsEvent`**：規劃書只列型別清單，沒有
+   逐頁指定。首頁 `match-band` 區塊（S1-14）顯示的「最新戰績／上一場／下一場」正是
+   `schedule.vue` 輸出過的同一批賽事資料。本輪判斷**不重複輸出**——比照 S1-12f
+   對 `Organization`／`SportsTeam`／`BreadcrumbList` 已經建立的既有慣例「一種型別
+   在全站選一個判斷最合適的位置輸出，不是每個提到該實體的頁面都各自輸出一次」，
+   且 `schedule.vue` 的 `url` 欄位已經是這批賽事的 canonical 網址。留給下一次覆查
+   規格時確認這個判斷是否要調整。
+2. **`educationalLevel` 的格式**：規劃書沒有規定 Course 的 `educationalLevel` 要怎麼
+   表示，本輪用 `ProgramDetailDto` 既有的 `ageMin`／`ageMax` 組成「6–12 歲」文字，
+   是本輪判斷，不是規格明文格式。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

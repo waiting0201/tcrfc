@@ -41,6 +41,23 @@ const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
 // GEO-06（S1-18a）：G-12 嵌入區塊與 12 FAQ 獨立單元同條規定「一律輸出 FAQPage」，
 // 沿用同一份資料（faqs）餵給畫面與結構化資料，不另外重打一次 API。
 useFaqPageSchema(faqs)
+
+// Course JSON-LD（GEO-05／§7 結構化資料型別清單，S1-20）。provider 固定為俱樂部本身
+// （本頁對藍鯨已整頁 404，理由同 childrens-training/index.vue）。資料不足（現況：
+// programs 表 0 筆種子資料，programDetail 為 null）時不輸出，見
+// shared/utils/schema-batch2.ts。
+const siteConfig = useSiteConfig()
+useCourseSchema(
+  computed(() => (programDetail.value
+    ? {
+        name: programDetail.value.name ?? null,
+        intro: programDetail.value.intro ?? null,
+        ageMin: programDetail.value.ageMin ?? null,
+        ageMax: programDetail.value.ageMax ?? null,
+      }
+    : null)),
+  { providerName: getClubAssets(config.public.club).nameZh, siteUrl: computed(() => siteConfig.url ?? '') },
+)
 </script>
 
 <template>

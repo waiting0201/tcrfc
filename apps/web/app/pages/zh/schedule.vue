@@ -91,6 +91,11 @@
 //     一起。新增「篩選」按鈕（`aria-expanded`），窄螢幕預設收合、點擊展開；桌面版不受
 //     影響（純 CSS media query 控制預設可見度，`filtersOpen` 初始值 `false` 在 SSR／
 //     掛載前 client 端第一次渲染皆相同，不影響 hydration）。
+// S1-20：Event（俱樂部活動）與 SportsEvent 場地地址的純函式判斷抽到 shared/utils/，
+// 需要明確 import（比照 app/composables/useSiteFacts.ts／useFaqPageSchema.ts 既有慣例，
+// shared/utils/ 不像 app/utils/ 會被自動引入）。
+import { venueAddressByName } from '#shared/utils/schema-batch2'
+
 definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule' })
 
 const config = useRuntimeConfig()
@@ -711,7 +716,15 @@ const sportsEvents = computed(() => {
       location: {
         '@type': 'Place',
         name: m.venue,
-        address: { '@type': 'PostalAddress', addressCountry: 'TW' },
+        // S1-20：場地地址（GEO-08「場地與地址，來自場地資料」）——matches.venue 只是自由
+        // 文字欄位，用名稱比對 useSiteFacts(club) 既有的 venues 清單找地址，見
+        // shared/utils/schema-batch2.ts 的 venueAddressByName() 檔頭說明。找不到時只保留
+        // addressCountry，不臆造街址。
+        address: {
+          '@type': 'PostalAddress',
+          ...(venueAddressByName(m.venue, clubFacts.value.venues) ? { streetAddress: venueAddressByName(m.venue, clubFacts.value.venues)! } : {}),
+          addressCountry: 'TW',
+        },
       },
       homeTeam,
       awayTeam,
@@ -735,6 +748,17 @@ useHead(() => (
       }
     : {}
 ))
+
+// Event JSON-LD（GEO-05／GEO-08，S1-20）俱樂部活動。用未經 client 端篩選的完整清單
+// （clubEvents，不是 visibleClubEvents）——SSR 輸出應反映「這一頁完整收錄的資料」，
+// 跟上方 sportsEvents 用 matches（不是 visibleMatches）同一個既有理由（比照 S1-18a
+// FAQPage schema「用 faqsByCategory 而不是套用搜尋篩選後的 visibleByCategory」的說明）。
+// 合不合格、欄位怎麼組見 shared/utils/schema-batch2.ts；沒有任何一筆合格時完全不輸出
+// （GEO-05）。錨點 id 見下方樣板 `:id="'ce-' + e.id"`，與這裡組出的 url 對應。
+useClubEventSchema(clubEvents, {
+  siteUrl: computed(() => siteConfig.url ?? ''),
+  pagePath: computed(() => lp('/zh/schedule/')),
+})
 </script>
 
 <template>
@@ -914,7 +938,7 @@ useHead(() => (
             <div v-if="visibleClubEvents.length > 0" class="club-events-block">
               <h3 class="month-heading">俱樂部活動 <span class="en">Club Events</span></h3>
               <div class="fixture-list">
-                <article v-for="e in visibleClubEvents" :key="e.id" class="fixture-card club-event-card">
+                <article v-for="e in visibleClubEvents" :id="`ce-${e.id}`" :key="e.id" class="fixture-card club-event-card">
                   <div class="fixture-card__time">
                     <span class="fixture-card__wd">{{ eventTimeOf(e).weekdayZh }} {{ eventTimeOf(e).weekdayEn }}</span>
                     <span class="fixture-card__date">{{ eventTimeOf(e).day }}</span>

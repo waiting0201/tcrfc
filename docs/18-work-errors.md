@@ -1882,3 +1882,45 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   的 `AboutPage`／`ContactPage`／`CheckoutPage`／`SearchResultsPage`（本站沒有任何頁面
   的宣告機制會產生這些型別）一律離開碼 `1`——涵蓋「猜測表又回來了」（`trailingSlash`
   設定被還原）與「新增了未經宣告機制產出的特殊型別」兩種情況，兩者都該讓這支腳本 fail。
+
+### E-75 `nuxt-schema-org` 的 `eventResolver`（`defineEvent()`）有 `inheritMeta`，節點缺 `description`／`image` 時會自動拿全站 SEO meta／預設 OG 圖頂替（2026-09-29 發現並修正於 S1-20，同一次交付內完成，未流出）
+
+- **錯在哪／會錯在哪**：S1-20 新增俱樂部活動（`Event`）結構化資料，起初的
+  `buildClubEventSchemaNodes()` 對沒有真實說明或封面圖的活動，選擇「不寫這兩個鍵」
+  （比照 GEO-05「只輸出有真實資料的欄位」的一貫做法，其餘型別都是這樣處理缺漏欄位）。
+  用臨時 fixture 實測 SSR 輸出時發現：`description`／`image` 兩個鍵**仍然出現**，
+  值分別是這一頁的 SEO meta description 與全站預設 OG 圖（`assets/brand/social/
+  og-image.png`）——這代表沒有專屬說明或封面圖的活動，會被冠上一份跟這個活動毫無關係
+  的全站預設圖文，違反「不臆造」的原則。在寫進 `STATUS.md`／README 標記完成之前就
+  攔下，**沒有流出到交付版本**，但記下來是因為根因不明顯，下一個用
+  `defineEvent()`／其他有 `inheritMeta` 的定義器（`node_modules/nuxt-schema-org/
+  dist/schema.mjs` 裡至少 20 處宣告 `inheritMeta`）的人很可能重複踩到。
+- **為什麼會錯（根因，寫成可以被改掉的行為）**：`nuxt-schema-org` 的通用節點解析流程
+  （`resolveNode()`，`schema.mjs`）在呼叫 resolver 自己的 `resolve()` **之前**，會先跑
+  `inheritMeta` 這一段——只要節點的某個鍵是 `undefined`（`setIfEmpty()` 的判斷條件），
+  就用 `ctx.meta[entry]`（這一頁的全站 SEO meta，例如 `description`／`image`）補上。
+  `eventResolver` 宣告的 `inheritMeta: ['inLanguage', 'description', 'image', {meta:
+  'title', key:'name'}]` 因此讓「沒寫這個鍵＝沒有這個資料，不要輸出」這個在其餘型別
+  （`SportsEvent`／`FAQPage`／`Course`）都成立的假設，在 `Event`（以及任何其他有宣告
+  `inheritMeta` 的型別）身上不成立——**「省略鍵」在這裡的語意不是「沒有值」，而是
+  「請框架幫我從全站預設值補一個」**，這是框架自己的設計選擇，沒有在型別定義（`.d.ts`
+  的 `EventSimple` 介面）上用任何型別層級的提示標出來，純程式碼審查看不出來，只有
+  跑過真實 SSR 輸出才會發現。
+- **下次怎麼避免**：用 `useSchemaOrg` 系列定義器（`defineXxx()`）輸出「資料不足時
+  該整欄省略」的欄位前，**先查該型別的 resolver 有沒有宣告 `inheritMeta`**（`grep
+  -n "inheritMeta" node_modules/nuxt-schema-org/dist/schema.mjs` 之後對照該筆物件
+  上面幾行是哪個 `defineSchemaOrgResolver({...})`），列在裡面的鍵不能用「省略」表示
+  「沒有資料」，必須改用「明確填 `null`」（`setIfEmpty()` 只在 `undefined` 時才生效，
+  `null` 不會被覆寫；序列化前的 `stripNullProperties(ctx.nodes[i])`——同檔案
+  `resolveIdGraph`／`resolveSchemaOrgGraph` 附近呼叫——之後會把值為 `null` 的鍵整個
+  移除，最終輸出仍然乾淨，不會出現 `"image":null` 這種殘缺欄位）。反過來，沒有宣告
+  `inheritMeta` 的型別（本輪查過 `courseResolver` 沒有）維持既有「省略鍵」寫法即可，
+  不需要每個欄位都畫蛇添足補 `null`。
+- **防呆**：[`scripts/check-schema-batch2.mjs`](../apps/web/scripts/check-schema-batch2.mjs)
+  的固定 fixture 斷言「無真實說明／封面圖時明確填 `null`」直接鎖住
+  `buildClubEventSchemaNodes()` 的輸出形狀，回歸時會被抓到；但這支腳本測的是「純函式
+  輸出的物件形狀」，測不出「`defineEvent()` 真的把 `null` 值序列化掉、而不是又被
+  `inheritMeta` 蓋回全站預設值」這一段——這段只在本輪的臨時 fixture 手動 SSR 驗證中
+  確認過（見 `apps/web/README.md`「S1-20」節「驗證」），**沒有自動化覆蓋**，之後若
+  `nuxt-schema-org` 升級版本改變 `inheritMeta`／`stripNullProperties` 的行為，要重新
+  手動驗證一次，不會有自動測試報警。
