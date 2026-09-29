@@ -1875,6 +1875,225 @@ docker build -f apps/web/Dockerfile apps/web   # 通過
 無——`GEO-06` 規格單純（單元 12 與 G-12 一律輸出 FAQPage），本輪沒有遇到規劃書未列或
 與其他規格衝突的情況。
 
+## S1-19（13 賽事行事曆——隊別分頁改依俱樂部動態產生，`.ics` 逸出修正，2026-09-29，`frontend-architect`）
+
+`app/pages/zh/schedule.vue` 本身（隊別分頁、賽程／賽果切換、列表／月曆檢視、單場 `.ics`
+下載）在 S0-9／S1-12d 已經建好，S1-12d 收尾時明確記錄「逐隊代碼篩選仍寫死磐石代碼，
+留給 S1-19」——本輪就是處理這個已知缺口，以及審這頁時一併發現的幾個既有問題。
+**沒有動 `apps/api` 任何一行**（依派工規則），對照後端既有公開端點（`Features/Schedule`／
+`Features/Calendar`）欄位形狀決定畫面能不能接，只用請求參數與回應形狀驗證，不啟動服務。
+
+### 1. 隊別分頁改依俱樂部動態產生（主要任務）
+
+**改動前**：`TEAM_TABS` 是一個寫死磐石代碼（`D1`／三個梯隊代碼／`club`）的常數陣列。
+bw 容器套用同一份程式碼時，分頁按鈕會拿磐石的隊別代碼去查 `matches.teamCode`，藍鯨的
+賽事一筆都查不到（`BW1` 不是第二個 `D1`，`docs/14-invariants.md` 既有踩雷點），且會多
+顯示一個藍鯨沒有的梯隊分頁。
+
+**改動後**：新增計算屬性 `teamTabs`，由兩個既有單一來源組出：
+
+| 分頁 | 來源 |
+|---|---|
+| `全部`／`俱樂部活動` | 兩俱樂部共同的固定分頁（沿用既有） |
+| 一線隊 | 新增 `getFirstTeamCode(club)`（`shared/utils/club.ts`）：磐石 `D1`、藍鯨 `BW1` |
+| 各梯隊 | 既有 `getAcademyTeamTabs(club, facts)`（4.2 學院隊伍頁的單一來源，底層事實來自 GEO-03 `useSiteFacts().squadCodes`），排除其中 `teamCode: null` 的「其他年齡層」靜態說明分頁——賽事行事曆的分頁必須對應真實可查詢的 `Team.code` |
+
+實測（`curl` SSR 輸出，`data-team-filter` 屬性）：
+- tcrfc：`all`／`D1`／`U15`／`U14`／`U12`／`club`
+- bw：`all`／`BW1`／`BW-U15`／`BW-U12`／`club`（**沒有 `U14`、沒有 `D1`**）
+
+`getFirstTeamCode()` 同時取代 `app/pages/zh/index.vue`（S1-14）原本內嵌的
+`club === 'bw' ? 'BW1' : 'D1'` 三元運算式，收斂為單一來源，避免第三個地方又各自寫一份
+（同一個判斷式已經在兩個檔案各寫一次，是規劃書 v3.13、`docs/14` 反覆提醒的那類坑）。
+
+隊別頭部標題（`teamHeadName`）、無資料文案（`emptyDesc`）、鍵盤導覽（`onTabKeydown`）
+三處原本各自手刻對照 `D1`／`U15`／`U14`／`U12` 四個字面值的邏輯，一併改為讀
+`teamTabs`／`firstTeamCode`，不再依賴固定隊別集合。
+
+### 2. 修正 fixture-card 與相關連結原本的字面寫死俱樂部名稱（發現的既有缺口）
+
+審上述隊別分頁時發現，即使分頁能正確篩到藍鯨的賽事，賽事卡片本身「我方」一側與頁尾
+「相關連結」CTA 卡片仍會顯示錯誤的俱樂部資訊：
+
+| 位置 | 改動前 | 改動後 |
+|---|---|---|
+| fixture-card「我方」隊徽圖 | 字面寫死 `/assets/brand/svg/tcrfc-mark-pink.svg` | `clubAssets.headerMark.src`（`getClubAssets(club)`） |
+| fixture-card「我方」隊名 | 字面寫死「台中磐石」 | `clubAssets.shortNameZh` |
+| `.ics` `DESCRIPTION` | 字面寫死「請以台中磐石足球俱樂部官方公告為準」 | 依 `clubAssets.nameZh` 動態組字 |
+| CTA 卡片「一線隊 First Team」 | 兩俱樂部皆顯示英文附標 | 只有磐石顯示（藍鯨英文正式全名尚未確認，不得自行選一個顯示，見 `docs/13-blue-whale-site.md` 紀律 11） |
+| CTA 卡片「學院隊伍」 | 兩俱樂部皆顯示磐石單元名稱 | 依 `isTcrfc` 顯示「學院隊伍」／「青年隊」（藍鯨規劃書 §3.4） |
+
+已用 `check-club-brand-leak.mjs` 對 bw 容器實測 0 筆命中（含 `/en/schedule/`），
+`/zh/schedule/` 已加入該腳本的 `PROTECTED_PAGES`（18 → 19 頁）。
+
+### 3. `.ics` 逸出規則補齊、行折疊、UID／PRODID 依俱樂部
+
+**改動前的 `icsEscape` 只處理分號與逗號**：
+
+```ts
+function icsEscape(s: string): string {
+  return s.replace(/[;,]/g, (c) => `\\${c}`)
+}
+```
+
+沒有處理反斜線本身與換行字元。這是可被資料內容觸發的兩個問題：① 反斜線沒有優先逸出，
+若欄位本身含反斜線，會跟後續逸出規則加上的反斜線混在一起、無法正確還原；② 換行字元
+（`\r`／`\n`）完全沒有處理，若後台可自由輸入的文字欄位（例如 `matches.opponent`／
+`venue`）意外含有真實換行，會被行事曆應用程式解讀成 `.ics` 的下一個屬性行，破壞整份
+檔案結構——這是注入風險，不是理論疑慮。
+
+已改為比照 `apps/api/Common/IcsBuilder.cs` 的 `Escape()`（後端既有、已測試過的單場
+`.ics` 端點 `GET /api/v1/{club}/matches/{id}/ics` 用的同一套規則）：反斜線最先逸出，
+接著分號、逗號，最後把 `\r\n`／孤立 `\n` 都轉成逸出後的字面 `\n`：
+
+```ts
+function icsEscape(s: string): string {
+  return s
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r\n/g, '\\n')
+    .replace(/\n/g, '\\n')
+}
+```
+
+同時新增 `foldIcsLine()`（RFC 5545 §3.1 行折疊：內容行以 UTF-8 位元組計超過 75 就要
+折行，延續行以單一空白開頭，且不得從多位元組字元中間切斷），比照同一份 `IcsBuilder.cs`
+的 `FoldLine()`。中文全名（俱樂部＋對手＋聯賽）疊在同一行很容易超過 75 位元組，不折行
+可能被部分行事曆應用程式截斷或誤判。`downloadIcs()` 逐行折疊並補上規定的 `\r\n`
+（含最後一行）。
+
+其餘依俱樂部動態化：`UID` 網域原本寫死 `@tcrfc.tw`，改用 `siteConfig.url` 的
+hostname（`uidHost`，取不到時退回 `tcrfc.tw`／`bw.tcrfc.tw`）；`PRODID` 原本固定
+`-//TCRFC//`，改依俱樂部代碼；下載檔名前綴原本固定 `tcrfc-`，改為 `${club}-`。
+
+**驗證方式**（純函式邏輯，不需要瀏覽器）：另外用 Node 腳本複製同一段
+`icsEscape`／`foldIcsLine` 邏輯驗證：
+- 一段人造惡意內容（含反斜線、分號、逗號、`\r\n`）逸出後，`(?<!\\);`／`(?<!\\),`／
+  裸露 `\r`／裸露 `\n` 皆確認清除（找不到任何未逸出的分隔符或裸露換行）。
+- 一段刻意超過 75 位元組的中文標題折成 3 行，每行皆 ≤ 75 位元組，重新接回（去除延續行
+  開頭補的空白）後與原字串逐字元相同，且沒有 U+FFFD 替代字元（確認多位元組字元沒有
+  被從中間切斷）。
+
+**未驗證**：瀏覽器實際下載 `.ics` 後用真實行事曆應用程式（Google Calendar／Apple
+行事曆／Outlook）開啟匯入是否正確顯示——`apps/api` 未啟動、本機沒有真實賽程資料可下載，
+只驗證了純邏輯層。
+
+### 4. 月曆檢視：同一天多場賽事的既有資料流失問題、鍵盤與無障礙補強
+
+審「月曆檢視要可用鍵盤操作、符合無障礙」這條要求時，發現 `renderCalendar()` 用
+`new Map(byMonth.get(key)!.map((ev) => [ev.day, ev]))` 把同一天的賽事陣列轉成
+`Map<日期, 單一事件>`——**如果同一天有兩場賽事（例如磐石一線隊與某個梯隊同一天都有
+比賽），`Array.map` 建構 Map 時後面的會覆蓋前面的，第二場會悄悄從月曆消失**，使用者
+點擊該日期永遠只能跳到被保留的那一場。已改為 `Map<日期, 事件陣列>`（`grouped`），
+同一天有多場賽事時全部可達，日期格顯示小數字角標（`cal-day__count`）並在點擊時把
+當天全部場次一併納入強制顯示集合（原本的 `forcedVisibleId: ref<string|null>` 改為
+`forcedVisibleIds: ref<Set<string>>`），對應規劃書 v3.13 §3.13「點擊日期展開當日賽事」
+的原文用語（複數）。
+
+其餘無障礙補強：
+- 月曆日期連結補上 `aria-label`（組合月份、日期、對手、「查看詳情」），原本只有滑鼠
+  `title` 屬性（螢幕閱讀器不保證讀出）；星期標題列與空白墊格標成 `aria-hidden="true"`
+  （純視覺輔助，實際資訊已在每個日期連結的 `aria-label` 裡）。
+- `:focus-visible` 補上可見的外框樣式（原本只有底線變化，鍵盤使用者不容易注意到目前
+  焦點在哪一格）。
+- 月曆日期是原生 `<a href="#...">`，Tab 鍵可依 DOM 順序逐一到達、Enter 鍵原生觸發
+  `click`，本來就可鍵盤操作；本輪沒有另外實作 `role="grid"` 的方向鍵導覽——那是一個
+  更完整的 ARIA grid widget（需要 roving tabindex ＋ 方向鍵切格），沒有一併實作反而會
+  比純 `<a>` 清單更容易誤導螢幕閱讀器（宣告了 grid 語意卻沒有對應的鍵盤互動），評估後
+  判斷維持現況的線性 Tab 導覽更安全。
+
+**同時修正一個 HTML 注入風險**：月曆是用字串組 `innerHTML`（非 Vue 樣板，原始設計如此，
+理由見檔案頂端既有註解），`ev.opponent`（後台可自由輸入的文字欄位）原本未經任何逸出
+就直接插入 `title` 屬性與文字節點。新增 `escapeHtml()`，所有插入 `innerHTML` 字串的
+動態值（對手名稱、由 `fixtureId()` 程式產生的 id）一律先過這一層。
+
+**延賽原定時間**：`postponedNote()`（`app/utils/schedule.ts`）在 S0-9l 已經實作且本頁
+既有樣板已經在用，本輪沒有變動；確認畫面上延賽賽事卡片會顯示「原定 YYYY-MM-DD HH:mm」
+副標（見該函式檔頭「只用人造資料驗證過」的既有備註，資料庫目前沒有真實延賽賽事）。
+
+### 改了哪些檔案
+
+- [`app/pages/zh/schedule.vue`](app/pages/zh/schedule.vue)：本輪唯一大改的頁面，
+  上述 1–4 項全部在這個檔案內。
+- [`shared/utils/club.ts`](shared/utils/club.ts)：新增 `getFirstTeamCode(club)`。
+- [`app/pages/zh/index.vue`](app/pages/zh/index.vue)：`firstTeamCode` 改呼叫上面
+  這個新的單一來源函式，取代原本內嵌的三元運算式（純收斂，行為不變）。
+- [`scripts/check-club-brand-leak.mjs`](scripts/check-club-brand-leak.mjs)：
+  `PROTECTED_PAGES` 新增 `/zh/schedule/`（18 → 19 頁）。
+
+### 規格疑點與範圍縮減（列出，未自行決定／未做）
+
+1. **「俱樂部活動」分頁本輪仍是裝飾性、沒有真實資料可顯示**：審這頁時發現
+   `apps/api` 其實已經有一支更完整的公開端點 `GET /api/v1/{club}/calendar/events`
+   （`Features/Calendar/CalendarRepository.cs`），能合併 `matches` 與公開的
+   `calendar_custom_events`（L2 自建活動），且已經處理好 `team=club` 這個分頁的查詢
+   模式與月曆模式的重複規則展開——但這支端點比這個頁面晚建成（`calendar_custom_events`
+   相關 migration 是 2026-09-25，本頁面主體是 S0-9 時期建的），前台從未接上。本次任務
+   指示的「要求」清單沒有列這項（只列了隊別分類、`.ics`、月曆鍵盤與無障礙、延賽原定
+   時間四項），且改用這支端點會把目前「一次抓 200 筆賽事、全部交給前端做篩選」的架構
+   換成「依篩選條件、伺服器端分頁」的架構，是比本輪範圍大很多的重構（會牽動深層連結、
+   月曆涵蓋範圍、批次 `.ics` 下載等既有行為），評估後判斷不在本輪動手，原樣保留「俱樂部
+   活動」分頁的既有空狀態文案，把這支既有端點的存在與用途記在這裡，留給下一個處理這個
+   分頁的人。**確認過 `db/seed` 目前沒有任何 `calendar_custom_events` 種子資料**，所以
+   這個分頁維持空白不會造成內容從有變沒有的退步。
+2. **時區顯示文案與實際行為的既有落差（沒有改，回報用）**：頁面 Hero 文字宣稱「所有
+   時間皆依瀏覽器所在時區顯示」，但 `matchWeekday()`／`matchDay()` 等既有工具函式
+   （`app/utils/schedule.ts`）是直接用 `Date.UTC` 解析 `matchOn` 純日期字串，顯示的
+   星期／日期／時間是資料庫存的台灣本地牆上時間字面值，並沒有依瀏覽器時區換算——這是
+   S0-9 搬遷時就存在的既有實作選擇（比照球隊官網賽程頁的常見慣例，賽事時間本來就是主辦
+   單位公告的當地時間，不是要海外球迷各自換算的時間戳），跟 `.ics` 的 `DTSTART`／
+   `DTEND`（`toUtcIcs()`）確實有做台北時間→UTC 換算是兩回事。這次任務要求的「.ics
+   時區正確」已核對無誤（見上方第 3 節），但頁面文字與畫面顯示的落差本輪沒有動——
+   改動畫面顯示邏輯本身超出本次任務範圍（隊別分類／`.ics`／月曆／延賽四項），只記錄
+   在這裡供裁決是否要調整文案措辭或實際換算邏輯。
+3. **API 實機驗收未做**：本輪依規則沒有啟動 `apps/api`，`/schedule`、`/matches/{id}/ics`
+   兩支端點的欄位形狀只用原始碼比對（`Features/Schedule/MatchDto.cs`、
+   `Features/Calendar/CalendarEndpoints.cs`），沒有真實資料可以驗證畫面實際渲染結果——
+   本輪能驗證的是「程式邏輯正確」（純函式測試、SSR 輸出的分頁代碼與文案），不是「真實
+   賽程資料下畫面長什麼樣子」。
+
+### 驗證
+
+```bash
+npm run lint    # 0 錯誤、395 警告（與既有基準相同，未增加）
+npm run build   # 通過
+docker build -f apps/web/Dockerfile apps/web   # 通過
+```
+
+本機用同一份映像檔起兩個容器（`NUXT_PUBLIC_CLUB=tcrfc`／`NUXT_PUBLIC_CLUB=bw` 且帶
+`NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動**，依派工規則不自行啟動、不碰
+密碼）：
+
+- `/zh/schedule/`、`/en/schedule/` 兩容器皆 `200`，`X-Robots-Tag: noindex, nofollow`
+  仍在。
+- `data-team-filter` 屬性：tcrfc 為 `all`／`D1`／`U15`／`U14`／`U12`／`club`；
+  bw 為 `all`／`BW1`／`BW-U15`／`BW-U12`／`club`（**沒有 `D1`、沒有 `U14`**）。
+- 分頁按鈕可見文字：tcrfc「一線隊 First Team」；bw 只有「一線隊」（無英文附標）。
+- `<meta name="description">`：tcrfc「……依隊別（一線隊／U15／U14／U12）分類……」；
+  bw「……依隊別（一線隊／U15／U12）分類……」（自動反映藍鯨少一個梯隊年齡層）。
+- CTA 卡片標題：tcrfc「一線隊 First Team」「學院隊伍」；bw「一線隊」「青年隊」。
+- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:<port>`：
+  兩容器皆 **H1 唯一、標題不跳階 0 違規**。
+- `node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:<bw 容器 port>`：
+  **`exit 0`**，保護清單 **19 頁**（18 → 19，新增 `/zh/schedule/`）全數乾淨，棘輪未被
+  違反；`/zh/schedule/` 修正前曾出現「學院×1」命中（CTA 卡片字面寫死「學院隊伍」），
+  修正後 0 筆。
+- `node scripts/check-site-units-coverage.mjs`：通過（本輪沒有新增或修改
+  `definePageMeta` 的 `unit`，行為不變）。
+- `curl` 兩容器 `sitemap.xml`：皆確認收錄 `/zh/schedule/`／`/en/schedule/`。
+- `.ics` 逸出與行折疊邏輯：見上方第 3 節「驗證方式」，用抽出的純函式邏輯以 Node
+  腳本驗證（不需要瀏覽器或真實賽程資料）。
+
+### 未驗證項目
+
+- 真實賽程資料下的畫面渲染（`apps/api` 未啟動，見「規格疑點」第 3 點）。
+- 瀏覽器實際下載 `.ics` 並用真實行事曆應用程式開啟匯入。
+- 月曆檢視的鍵盤導覽與 `aria-label` 內容，只用原始碼審查與 SSR 輸出比對確認邏輯正確，
+  沒有用螢幕閱讀器（VoiceOver／NVDA）實機朗讀測試。
+- 同一天多場賽事的月曆顯示（目前種子資料是否真的有同日多場賽事未查證，此為邏輯層修正，
+  防止未來出現這種資料時失效，不代表目前已有這種資料可供肉眼核對畫面）。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

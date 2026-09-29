@@ -128,8 +128,9 @@ const allMatches = computed<HomeMatch[]>(() => scheduleData.value?.items ?? [])
 const todayStr = new Date().toISOString().slice(0, 10)
 
 // 一線隊代號依俱樂部而定：磐石 D1、藍鯨 BW1（docs/14 踩雷點「BW1 不是第二個 D1」）——
-// 這裡原本寫死 'D1'，對 bw 資料一定比對不到任何一筆，是本輪發現並修正的既有落差。
-const firstTeamCode = computed(() => (clubKey.value === 'bw' ? 'BW1' : 'D1'))
+// 這裡原本寫死 'D1'，對 bw 資料一定比對不到任何一筆，是 S1-14 發現並修正的既有落差。
+// S1-19 收斂進 shared/utils/club.ts 的 getFirstTeamCode()，不再各頁各自寫一份三元運算式。
+const firstTeamCode = computed(() => getFirstTeamCode(clubKey.value))
 
 const d1Sorted = computed(() =>
   allMatches.value.filter((m) => m.teamCode === firstTeamCode.value).slice().sort((a, b) => a.matchOn.localeCompare(b.matchOn)),

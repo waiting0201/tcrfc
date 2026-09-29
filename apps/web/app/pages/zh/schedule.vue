@@ -27,10 +27,41 @@
 // 月曆檢視沿用原本「JS 組字串塞 innerHTML」的做法（原本就是純 client 產生的內容，
 // SSR 兩邊都是空 div，不影響 compare-dom，改用 Vue 樣板反而要多開一堆狀態
 // 對應不到任何驗收收益）。
+//
+// 🔴 S1-19（2026-09-29）修正的既有落差（S1-12d 當時已記錄「留給 S1-19」）：
+//   - **隊別分頁改依俱樂部動態產生**：磐石一線隊 D1 ＋既有的各梯隊代碼；藍鯨一線隊
+//     `BW1` ＋既有的藍鯨梯隊代碼（比磐石少一個年齡層，squadCodes 已反映這個事實，
+//     不在本頁重複列出，避免又是另一份會過期的字面值清單）——原本 TEAM_TABS 是寫死
+//     磐石那組固定代碼的常數陣列，bw 容器會拿磐石的隊別代碼去查藍鯨的賽事，永遠查不到
+//     （`BW1` 不是第二個 `D1`，docs/14 踩雷點）。梯隊代碼沿用 `getAcademyTeamTabs()`
+//     （4.2 學院隊伍頁既有的單一來源，其底層事實來自 GEO-03 的 `squadCodes`），一線隊
+//     代碼沿用新增的 `getFirstTeamCode()`（見 shared/utils/club.ts），不在本頁重新
+//     維護一份代碼清單。
+//   - **fixture-card 「我方」一側原本整段字面寫死「台中磐石」與磐石隊徽 SVG**，藍鯨容器
+//     會顯示磐石的名稱與隊徽——已改讀 `getClubAssets(club)`。
+//   - **`.ics` 內容與逸出規則**：`DESCRIPTION` 原本字面寫死「台中磐石足球俱樂部官方公告」，
+//     已改為俱樂部名稱動態組字；逸出函式原本只處理分號與逗號，未處理反斜線本身與換行——
+//     反斜線沒有優先逸出時，後續新增的逸出反斜線會被自己的規則二次跳脫，且欄位若含真實
+//     換行字元（例如場地或對手名稱有多行）會直接破壞 `.ics` 檔案結構（下一行被誤判為新的
+//     屬性行），是可被資料內容觸發的注入風險。已比照 `apps/api/Common/IcsBuilder.cs` 的
+//     `Escape()` 補齊反斜線／換行逸出（順序：反斜線最先），並補上同檔案的 75 位元組行折疊
+//     （`FoldLine()`），兩邊各自實作但規則與涵蓋字元一致。
+//   - **月曆檢視同一天有兩場賽事時，原本的 `Map<日期, 單一事件>` 會讓第二場悄悄從月曆消失**
+//     （只保留 `Array.map` 的最後一筆）；改為 `Map<日期, 事件陣列>`，同一天多場賽事全部
+//     可達（點擊日期即「展開當日賽事」，規劃書 v3.13 §3.13 原文用語）。
+//   - **月曆日期連結補上 `aria-label`**（含日期、對手、「查看詳情」），原本只有滑鼠 `title`
+//     屬性（螢幕閱讀器不保證讀出），且月曆是用字串組 `innerHTML`，`ev.opponent`（後台可
+//     自由輸入的文字欄位）原本未經 HTML 逸出就直接插入屬性值與文字節點，是可被資料內容
+//     觸發的 HTML 注入風險——已加上 `escapeHtml()`。
 definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule' })
 
 const config = useRuntimeConfig()
 const club = config.public.club
+const clubKey = computed<'tcrfc' | 'bw'>(() => (club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const clubAssets = computed(() => getClubAssets(club))
+/** 一線隊 `Team.code`：磐石 `D1`、藍鯨 `BW1`——單一來源見 shared/utils/club.ts。 */
+const firstTeamCode = computed(() => getFirstTeamCode(club))
 
 // S1-12d 收尾：聯賽名稱與梯隊代碼改讀 useSiteFacts(club)（後端公開端點），
 // 不再是 shared/utils/site-facts.ts 的靜態快照——見 app/composables/useSiteFacts.ts 檔頭。
@@ -42,6 +73,11 @@ const { facts: clubFacts, academyLabel: clubAcademyLabel } = useSiteFacts(club)
 const { locale, lp } = useLocale()
 const { data } = await useFetch(`/api/backend/${club}/schedule`, { query: { pageSize: 200, lang: locale.value } })
 const matches = computed(() => data.value?.items ?? [])
+
+// SportsEvent JSON-LD（GEO-08）與 .ics UID 的網域皆用這裡的 `siteConfig.url`——S0-9b 已實測
+// `NUXT_PUBLIC_SITE_URL` 能在 runtime 正確覆寫（docs/13 §6 紀律 4），兩站各自跑出自己網域的
+// 絕對網址，不寫死 tcrfc.tw。提前宣告到這裡（原本宣告在檔案後段），供下方 `.ics` 產生函式使用。
+const siteConfig = useSiteConfig()
 
 interface MatchItem {
   id: string
@@ -76,23 +112,49 @@ const monthGroups = computed(() => {
 })
 
 // ---- 篩選狀態 ----
-const TEAM_TABS = [
-  { id: 'all', filter: 'all', zh: '全部', en: null },
-  { id: 'd1', filter: 'D1', zh: '一線隊', en: 'First Team' },
-  { id: 'u15', filter: 'U15', zh: 'U15', en: null },
-  { id: 'u14', filter: 'U14', zh: 'U14', en: null },
-  { id: 'u12', filter: 'U12', zh: 'U12', en: null },
-  { id: 'club', filter: 'club', zh: '俱樂部活動', en: null },
-] as const
+interface ScheduleTeamTab {
+  id: string
+  /** 'all'／'club' 是虛擬篩選值；其餘一律是真實 `Team.code`（`D1`／`BW1`／`U15`／`BW-U15`…）。 */
+  filter: string
+  zh: string
+  en: string | null
+}
 
-const teamLabels: Record<string, string> = {
-  all: '全部隊別', D1: '一線隊 First Team', U15: 'U15 梯隊', U14: 'U14 梯隊', U12: 'U12 梯隊', club: '俱樂部活動',
+/**
+ * 隊別分頁依俱樂部動態產生（S1-19）：磐石一線隊 `D1` ＋ `U15`／`U14`／`U12`；
+ * 藍鯨一線隊 `BW1` ＋ `BW-U15`／`BW-U12`（沒有 U14，docs/12 §2b 種子資料；不得把
+ * `BW1` 當 `D1`，docs/14 踩雷點）。梯隊代碼沿用 4.2 學院隊伍頁既有的單一來源
+ * `getAcademyTeamTabs()`，其「其他年齡層」靜態說明分頁（`teamCode: null`）在此排除——
+ * 賽事行事曆的分頁必須對應真實可查詢的 `Team.code`，沒有隊伍就沒有賽程可篩選。
+ */
+const teamTabs = computed<ScheduleTeamTab[]>(() => {
+  const youthTabs = getAcademyTeamTabs(clubKey.value, clubFacts.value)
+    .filter((t) => t.teamCode !== null)
+    .map((t) => ({ id: t.teamCode!.toLowerCase(), filter: t.teamCode!, zh: t.labelZh, en: null }))
+  return [
+    { id: 'all', filter: 'all', zh: '全部', en: null },
+    { id: 'first-team', filter: firstTeamCode.value, zh: '一線隊', en: isTcrfc.value ? 'First Team' : null },
+    ...youthTabs,
+    { id: 'club', filter: 'club', zh: '俱樂部活動', en: null },
+  ]
+})
+
+/** 隊別頭部標題與「無此隊別資料」文案共用的顯示字，見 `teamHeadName`／`emptyDesc`。 */
+function teamHeadLabel(filter: string): string {
+  if (filter === 'all') return '全部隊別'
+  if (filter === 'club') return '俱樂部活動'
+  const tab = teamTabs.value.find((t) => t.filter === filter)
+  if (!tab) return '全部隊別'
+  if (tab.filter === firstTeamCode.value) return tab.en ? `${tab.zh} ${tab.en}` : tab.zh
+  return `${tab.zh} 梯隊`
 }
 
 const state = reactive({ team: 'all', mode: 'fixtures', comp: 'all', ha: 'all', view: 'list' })
 const mounted = ref(false)
-/** 月曆點擊某天或帶 #fx-... 造訪時，即使不符目前篩選也要強制顯示該場 */
-const forcedVisibleId = ref<string | null>(null)
+/** 月曆點擊某天或帶 #fx-... 造訪時，即使不符目前篩選也要強制顯示這些場次——
+ * 同一天可能不只一場賽事，S1-19 改為集合（見 `renderCalendar`／`jumpToMatches` 檔頭說明），
+ * 原本用單一 id 會讓同一天第二場之後的賽事無法被展開。 */
+const forcedVisibleIds = ref<Set<string>>(new Set())
 
 onMounted(() => {
   mounted.value = true
@@ -104,7 +166,7 @@ function cardStatusCode(m: MatchItem): string {
 }
 function cardMatches(m: MatchItem): boolean {
   const id = fixtureId(m.matchOn, m.homeAway, m.matchNo)
-  if (forcedVisibleId.value === id) return true
+  if (forcedVisibleIds.value.has(id)) return true
   const teamOk = state.team === 'all' ? true : m.teamCode === state.team
   const statusOk = state.mode === 'fixtures' ? cardStatusCode(m) === 'upcoming' : cardStatusCode(m) === 'finished'
   const compOk = state.comp === 'all' ? true : m.competitionTag === state.comp
@@ -126,7 +188,7 @@ function isGroupHidden(key: string): boolean {
   return !visibleMatches.value.some((m) => m.matchOn.slice(0, 7) === key)
 }
 
-const teamHeadName = computed(() => teamLabels[state.team] ?? '全部隊別')
+const teamHeadName = computed(() => teamHeadLabel(state.team))
 // GEO-03（S1-12d）：聯賽名稱為單一來源（useSiteFacts 讀後端 API），不在此重複寫死
 // 字面值（改動前本頁不論 club 皆寫死磐石的聯賽全名，藍鯨容器會顯示錯誤的聯賽名稱）。
 const leagueName = computed(() => clubFacts.value.league.nameZh)
@@ -139,34 +201,36 @@ const isEmpty = computed(() => mounted.value && visibleMatches.value.length === 
 const emptyDesc = computed(() => {
   if (state.mode === 'results') return '本季（2026/27）尚未有已完成的賽事，賽果會在比賽結束後更新。'
   if (state.team === 'club') return '目前尚無公告的俱樂部活動（記者會、簽名會、球迷見面會等），請持續關注官方社群與最新消息。'
-  if (state.team === 'U15' || state.team === 'U14' || state.team === 'U12') {
-    return `${teamLabels[state.team]}的賽程資料尚未提供，待客戶提供各梯隊賽程表後將更新於本頁。`
+  // 一線隊（D1／BW1）與「全部」皆已有真實賽事資料，其餘（各梯隊）尚無賽程可用。
+  if (state.team !== 'all' && state.team !== firstTeamCode.value) {
+    return `${teamHeadLabel(state.team)}的賽程資料尚未提供，待客戶提供各梯隊賽程表後將更新於本頁。`
   }
   return '此隊別、賽事類型或主客場組合目前尚無排定賽事。'
 })
 
 // ---- 隊別分頁鍵盤導覽（比照 app/pages/zh/academy/teams.vue 的 roving tabindex）----
 const tabRefs = ref<Record<string, HTMLElement | null>>({})
-function selectTab(id: (typeof TEAM_TABS)[number]['id'], filter: string, focus = true) {
+function selectTab(id: string, filter: string, focus = true) {
   state.team = filter
-  forcedVisibleId.value = null
+  forcedVisibleIds.value = new Set()
   if (focus) tabRefs.value[id]?.focus()
 }
 function onTabKeydown(e: KeyboardEvent, index: number) {
+  const tabs = teamTabs.value
   let idx = index
-  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') idx = (index + 1) % TEAM_TABS.length
-  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') idx = (index - 1 + TEAM_TABS.length) % TEAM_TABS.length
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') idx = (index + 1) % tabs.length
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') idx = (index - 1 + tabs.length) % tabs.length
   else if (e.key === 'Home') idx = 0
-  else if (e.key === 'End') idx = TEAM_TABS.length - 1
+  else if (e.key === 'End') idx = tabs.length - 1
   else return
   e.preventDefault()
-  const t = TEAM_TABS[idx]!
+  const t = tabs[idx]!
   selectTab(t.id, t.filter)
 }
 
 function setMode(mode: string) {
   state.mode = mode
-  forcedVisibleId.value = null
+  forcedVisibleIds.value = new Set()
 }
 function setView(view: string) {
   state.view = view
@@ -174,14 +238,28 @@ function setView(view: string) {
 }
 
 watch([() => state.comp, () => state.ha], () => {
-  forcedVisibleId.value = null
+  forcedVisibleIds.value = new Set()
 })
 watch(visibleMatches, () => {
   if (state.view === 'calendar') renderCalendar()
 })
 
+/** 月曆／分享連結組出的 HTML 屬性與文字節點裡插入的資料（對手名稱、場地……）一律先跑過
+ * 這裡，避免後台可自由輸入的文字欄位（`matches.opponent` 等）被當成 HTML 標記解讀——
+ * 月曆檢視是用字串組 `innerHTML`（非 Vue 樣板），沒有樣板引擎自動逸出這層保護。 */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 // ---- 月曆檢視（比照原 script：純字串組 innerHTML，client only）----
 const calRoot = ref<HTMLElement | null>(null)
+
+interface CalDayEvent { day: number; id: string; opponent: string }
 
 function renderCalendar() {
   const root = calRoot.value
@@ -192,7 +270,7 @@ function renderCalendar() {
     root.innerHTML = '<p class="sched-empty__desc">此篩選條件下沒有可顯示於月曆的賽事。</p>'
     return
   }
-  const byMonth = new Map<string, { day: number; id: string; opponent: string }[]>()
+  const byMonth = new Map<string, CalDayEvent[]>()
   for (const m of visible) {
     const key = m.matchOn.slice(0, 7)
     const day = Number.parseInt(m.matchOn.slice(8, 10), 10)
@@ -206,15 +284,31 @@ function renderCalendar() {
     const mo = Number(mStr)
     const firstDow = new Date(Date.UTC(y, mo - 1, 1)).getUTCDay()
     const daysInMonth = new Date(Date.UTC(y, mo, 0)).getUTCDate()
-    const matchesByDay = new Map(byMonth.get(key)!.map((ev) => [ev.day, ev]))
-    let html = `<div class="cal-month"><p class="cal-month__title">${calMonthTitle(key)}</p><div class="cal-grid">`
-    for (const w of DOW) html += `<span class="cal-dow">${w}</span>`
-    for (let i = 0; i < firstDow; i++) html += '<span class="cal-day cal-day--pad"></span>'
+    // 同一天可能不只一場賽事——原本 `Map<day, 單一事件>` 用 `Array.map` 建構時，同一天
+    // 第二場之後的賽事會直接覆蓋掉前一場，悄悄從月曆消失（S1-19 修正）。改用
+    // `Map<day, 事件陣列>`，同一天的賽事全部可達。
+    const grouped = new Map<number, CalDayEvent[]>()
+    for (const ev of byMonth.get(key)!) {
+      if (!grouped.has(ev.day)) grouped.set(ev.day, [])
+      grouped.get(ev.day)!.push(ev)
+    }
+    const monthTitleId = `cal-month-${key}`
+    let html = `<div class="cal-month"><p class="cal-month__title" id="${monthTitleId}">${calMonthTitle(key)}</p><div class="cal-grid" aria-labelledby="${monthTitleId}">`
+    for (const w of DOW) html += `<span class="cal-dow" aria-hidden="true">${w}</span>`
+    for (let i = 0; i < firstDow; i++) html += '<span class="cal-day cal-day--pad" aria-hidden="true"></span>'
     for (let d = 1; d <= daysInMonth; d++) {
-      const ev = matchesByDay.get(d)
-      html += ev
-        ? `<span class="cal-day cal-day--match"><a href="#${ev.id}" data-cal-link data-target="${ev.id}" title="vs ${ev.opponent}">${d}</a></span>`
-        : `<span class="cal-day">${d}</span>`
+      const evs = grouped.get(d)
+      if (!evs || evs.length === 0) {
+        html += `<span class="cal-day">${d}</span>`
+        continue
+      }
+      const ids = evs.map((ev) => ev.id).join(',')
+      const opponents = evs.map((ev) => ev.opponent).filter(Boolean).join('、')
+      const label = evs.length > 1
+        ? `${calMonthTitle(key)} ${d} 日，共 ${evs.length} 場賽事：對 ${opponents}，查看詳情`
+        : `${calMonthTitle(key)} ${d} 日對 ${opponents}，查看詳情`
+      const countBadge = evs.length > 1 ? `<sup class="cal-day__count" aria-hidden="true">${evs.length}</sup>` : ''
+      html += `<span class="cal-day cal-day--match"><a href="#${escapeHtml(evs[0]!.id)}" data-cal-link data-targets="${escapeHtml(ids)}" aria-label="${escapeHtml(label)}">${d}${countBadge}</a></span>`
     }
     html += '</div></div>'
     root.insertAdjacentHTML('beforeend', html)
@@ -222,18 +316,20 @@ function renderCalendar() {
   root.querySelectorAll<HTMLAnchorElement>('[data-cal-link]').forEach((a) => {
     a.addEventListener('click', (e) => {
       e.preventDefault()
-      const targetId = a.getAttribute('data-target')
-      if (!targetId) return
-      jumpToMatch(targetId)
+      const targets = a.getAttribute('data-targets')
+      if (!targets) return
+      jumpToMatches(targets.split(','))
     })
   })
 }
 
-function jumpToMatch(id: string) {
-  forcedVisibleId.value = id
+/** 點擊月曆日期＝「展開當日賽事」（規劃書 v3.13 §3.13 原文用語）：把當天全部賽事
+ * 一併納入強制顯示集合，並捲動、聚焦到當天的第一場。 */
+function jumpToMatches(ids: string[]) {
+  forcedVisibleIds.value = new Set(ids)
   setView('list')
   nextTick(() => {
-    const el = document.getElementById(id)
+    const el = document.getElementById(ids[0]!)
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'center' })
       el.focus({ preventScroll: true })
@@ -244,7 +340,7 @@ function jumpToMatch(id: string) {
 function handleInitialHash() {
   if (location.hash && location.hash.indexOf('#fx-') === 0) {
     const id = location.hash.slice(1)
-    forcedVisibleId.value = id
+    forcedVisibleIds.value = new Set([id])
     setTimeout(() => {
       const el = document.getElementById(id)
       el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -256,8 +352,48 @@ function handleInitialHash() {
 function pad(n: number): string {
   return (n < 10 ? '0' : '') + n
 }
+
+/**
+ * RFC 5545 §3.3.11 逸出規則：反斜線、分號、逗號、換行皆須逸出，**反斜線必須最先處理**
+ * ——否則後續新增的逸出反斜線會被自己的規則二次跳脫。比照 `apps/api/Common/IcsBuilder.cs`
+ * 的 `Escape()`（前後端各自實作、同一份規則，見檔頭「S1-19 修正的既有落差」）。
+ * 換行字元若不逸出，含真實換行的資料（例如場地或對手名稱誤貼多行文字）會被解讀成
+ * `.ics` 的下一個屬性行，破壞整份行事曆檔案——這是可被資料內容觸發的注入風險，
+ * 不是理論疑慮。
+ */
 function icsEscape(s: string): string {
-  return s.replace(/[;,]/g, (c) => `\\${c}`)
+  return s
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r\n/g, '\\n')
+    .replace(/\n/g, '\\n')
+}
+
+/**
+ * RFC 5545 §3.1 行折疊：內容行以八位元組計超過 75 就要折行，延續行以單一空白開頭；
+ * 中文字元在 UTF-8 是 3 個位元組，不能從字元中間切斷（否則產生亂碼）。比照
+ * `apps/api/Common/IcsBuilder.cs` 的 `FoldLine()`——`.ics` 目前是 client-side 產生，
+ * 前後端沒有共用程式碼的機制，兩邊各自實作但規則與位元組安全切點邏輯逐字對應。
+ * 中文全名（俱樂部＋對手＋聯賽）疊在同一行很容易超過 75 位元組，不折行的話部分行事曆
+ * 應用程式可能誤判或截斷內容。
+ */
+function foldIcsLine(line: string): string[] {
+  const maxOctets = 75
+  const bytes = new TextEncoder().encode(line)
+  if (bytes.length <= maxOctets) return [line]
+  const decoder = new TextDecoder()
+  const out: string[] = []
+  let offset = 0
+  let first = true
+  while (offset < bytes.length) {
+    let limit = Math.min(maxOctets - (first ? 0 : 1), bytes.length - offset)
+    while (limit > 1 && (bytes[offset + limit]! & 0xc0) === 0x80) limit--
+    out.push((first ? '' : ' ') + decoder.decode(bytes.slice(offset, offset + limit)))
+    offset += limit
+    first = false
+  }
+  return out
 }
 function toUtcIcs(dateStr: string, timeStr: string): string {
   const [Y, M, D] = dateStr.split('-').map(Number)
@@ -265,7 +401,19 @@ function toUtcIcs(dateStr: string, timeStr: string): string {
   const local = new Date(Date.UTC(Y!, M! - 1, D!, h! - 8, mi!))
   return `${local.getUTCFullYear()}${pad(local.getUTCMonth() + 1)}${pad(local.getUTCDate())}T${pad(local.getUTCHours())}${pad(local.getUTCMinutes())}00Z`
 }
-function eventToVevent(m: MatchItem): string {
+/** `.ics` UID 網域取自目前站台的實際網址（`siteConfig.url`，已提前宣告於檔案開頭），
+ * 不寫死 `tcrfc.tw`——藍鯨容器跑出來的網址本來就不是這個網域，UID 只需要「合理唯一」，
+ * 不需要真的可解析，但至少不該讓兩站的行事曆項目共用同一個網域字面值。取不到合法網址時
+ * （本機未設定 `NUXT_PUBLIC_SITE_URL`）退回俱樂部代碼組出的預留網域。 */
+const uidHost = computed(() => {
+  try {
+    return new URL(siteConfig.url).hostname
+  } catch {
+    return club === 'bw' ? 'bw.tcrfc.tw' : 'tcrfc.tw'
+  }
+})
+
+function eventToVeventLines(m: MatchItem): string[] {
   const date = m.matchOn
   const kickoff = m.kickoff ?? '00:00'
   const opponent = m.opponent ?? ''
@@ -275,25 +423,29 @@ function eventToVevent(m: MatchItem): string {
   const startDate = new Date(`${date}T${kickoff}:00+08:00`)
   const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000)
   const end = `${endDate.getUTCFullYear()}${pad(endDate.getUTCMonth() + 1)}${pad(endDate.getUTCDate())}T${pad(endDate.getUTCHours())}${pad(endDate.getUTCMinutes())}00Z`
-  const title = `${getClubAssets(club).nameZh} vs ${opponent}（${leagueName.value}・${ha}）`
+  const title = `${clubAssets.value.nameZh} vs ${opponent}（${leagueName.value}・${ha}）`
   const loc = venue === 'TBC' ? '場地未定' : venue
   return [
     'BEGIN:VEVENT',
-    `UID:${fixtureId(m.matchOn, m.homeAway, m.matchNo)}@tcrfc.tw`,
+    `UID:${icsEscape(fixtureId(m.matchOn, m.homeAway, m.matchNo))}@${uidHost.value}`,
     `DTSTAMP:${start}`,
     `DTSTART:${start}`,
     `DTEND:${end}`,
     `SUMMARY:${icsEscape(title)}`,
     `LOCATION:${icsEscape(loc)}`,
-    `DESCRIPTION:${icsEscape('賽程可能異動，請以台中磐石足球俱樂部官方公告為準。')}`,
+    // 內容依俱樂部（S1-19 修正——原本這句字面寫死「台中磐石足球俱樂部」，
+    // 藍鯨容器下載的 .ics 會顯示錯誤的官方公告主體）。
+    `DESCRIPTION:${icsEscape(`賽程可能異動，請以${clubAssets.value.nameZh}官方公告為準。`)}`,
     'END:VEVENT',
-  ].join('\r\n')
+  ]
 }
-function downloadIcs(filename: string, vevents: string[]) {
-  const body = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//TCRFC//Schedule//ZH', 'CALSCALE:GREGORIAN']
-    .concat(vevents)
+function downloadIcs(filename: string, veventBlocks: string[][]) {
+  const rawLines = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${club === 'bw' ? 'TCBW' : 'TCRFC'}//Schedule//ZH`, 'CALSCALE:GREGORIAN']
+    .concat(veventBlocks.flat())
     .concat(['END:VCALENDAR'])
-    .join('\r\n')
+  // RFC 5545 行折疊（見 foldIcsLine 檔頭），逐行補上規定的 CRLF（含最後一行，
+  // 比照 apps/api/Common/IcsBuilder.cs 的既有寫法）。
+  const body = rawLines.flatMap(foldIcsLine).map((line) => `${line}\r\n`).join('')
   const blob = new Blob([body], { type: 'text/calendar;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -305,7 +457,7 @@ function downloadIcs(filename: string, vevents: string[]) {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 function onIcsClick(m: MatchItem) {
-  downloadIcs(`tcrfc-${m.matchOn}-vs-${m.opponent}.ics`, [eventToVevent(m)])
+  downloadIcs(`${club}-${m.matchOn}-vs-${m.opponent}.ics`, [eventToVeventLines(m)])
 }
 
 const copiedId = ref<string | null>(null)
@@ -330,7 +482,7 @@ function onBulkIcs() {
     window.alert('目前檢視沒有可下載的賽事。')
     return
   }
-  downloadIcs(`tcrfc-schedule-${state.team}-${state.mode}.ics`, visible.map(eventToVevent))
+  downloadIcs(`${club}-schedule-${state.team}-${state.mode}.ics`, visible.map(eventToVeventLines))
 }
 
 useSeoMeta({
@@ -341,10 +493,8 @@ useSeoMeta({
   ),
 })
 
-// SportsEvent JSON-LD（GEO-08）。siteConfig.url 是 nuxt-site-config 的 priority-stack
-// 解出的值，S0-9b 已實測 NUXT_PUBLIC_SITE_URL 能在 runtime 正確覆寫（docs/13 §6 紀律 4）；
+// SportsEvent JSON-LD（GEO-08）。siteConfig 已提前宣告於檔案開頭（供 .ics UID 使用），
 // 這裡直接沿用同一個結論，兩站各自跑出自己網域的絕對網址，不寫死 tcrfc.tw。
-const siteConfig = useSiteConfig()
 const selfTeamName = computed(() => getClubAssets(club).nameZh)
 
 // SportsEvent JSON-LD（GEO-08）的 status → schema.org 對照已收斂進
@@ -429,7 +579,7 @@ useHead(() => (
     <div class="team-tabs" data-team-tabs>
       <div class="team-tabs__list" role="tablist" aria-label="選擇隊別">
         <button
-          v-for="(tab, i) in TEAM_TABS" :key="tab.id"
+          v-for="(tab, i) in teamTabs" :key="tab.id"
           :ref="(el) => (tabRefs[tab.id] = el as HTMLElement)"
           type="button" role="tab" :id="`tab-${tab.id}`" aria-controls="panel-sched"
           :aria-selected="state.team === tab.filter" class="team-tabs__tab"
@@ -522,14 +672,14 @@ useHead(() => (
                       </span>
                       <span class="fx-vs">VS</span>
                       <span class="fx-side fx-side--us">
-                        <img class="fx-crest" src="/assets/brand/svg/tcrfc-mark-pink.svg" width="26" height="28" alt="">
-                        <span class="fx-name">台中磐石</span>
+                        <img class="fx-crest" :src="clubAssets.headerMark.src" width="26" height="28" alt="">
+                        <span class="fx-name">{{ clubAssets.shortNameZh }}</span>
                       </span>
                     </template>
                     <template v-else>
                       <span class="fx-side fx-side--us">
-                        <img class="fx-crest" src="/assets/brand/svg/tcrfc-mark-pink.svg" width="26" height="28" alt="">
-                        <span class="fx-name">台中磐石</span>
+                        <img class="fx-crest" :src="clubAssets.headerMark.src" width="26" height="28" alt="">
+                        <span class="fx-name">{{ clubAssets.shortNameZh }}</span>
                       </span>
                       <span class="fx-vs">VS</span>
                       <span class="fx-side fx-side--them">
@@ -590,12 +740,13 @@ useHead(() => (
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/club/first-team/')">
         <span class="cta-card__num">3.1</span>
-        <span class="cta-card__title">一線隊 First Team</span>
+        <span class="cta-card__title">一線隊<span v-if="isTcrfc" class="en"> First Team</span></span>
         <p class="cta-card__desc">認識球員名單、教練團與成績積分榜</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
-        <span class="cta-card__title">學院隊伍</span>
+        <!-- S1-19：原本字面寫死「學院隊伍」，藍鯨規劃書 §3.4 本單元是「青年隊」不是學院。 -->
+        <span class="cta-card__title">{{ isTcrfc ? '學院隊伍' : '青年隊' }}</span>
         <p class="cta-card__desc">{{ clubAcademyLabel() }} 梯隊介紹</p>
       </a>
       <a class="cta-card" :href="lp('/zh/join/general/')">
@@ -722,6 +873,9 @@ useHead(() => (
 .cal-day--match a{ display:block; color:var(--brand-deep); font-weight:800; text-decoration:none; }
 .cal-day--match a::after{ content:""; display:block; width:5px; height:5px; background:var(--brand-aa); margin:.2rem auto 0; border-radius:50%; }
 .cal-day--match a:hover, .cal-day--match a:focus-visible{ text-decoration:underline; }
+/* S1-19：鍵盤操作可見的焦點樣式（原本只有底線，對比不足）；同一天多場賽事的小數字角標。 */
+.cal-day--match a:focus-visible{ outline:2px solid var(--brand-aa); outline-offset:2px; border-radius:2px; }
+.cal-day__count{ font-size:.55rem; font-weight:900; color:var(--brand-aa); vertical-align:super; margin-left:1px; }
 
 .sched-subscribe{ margin-top:3rem; padding:clamp(1.75rem,4vw,2.5rem); background:var(--paper-2); border:1px solid var(--rule); max-width:62ch; }
 .sched-subscribe h2{ margin-bottom:.75rem; }

@@ -174,6 +174,11 @@ const PROTECTED_PAGES = [
   '/zh/faq/',
   '/zh/faq/join-team/',
   '/zh/faq/fees-refunds/',
+  // S1-19（2026-09-29）：13 賽事行事曆改依俱樂部動態產生隊別分頁（BW1／BW-U15／
+  // BW-U12，不再誤用磐石代碼），fixture-card「我方」一側與相關連結 CTA 卡片原本
+  // 字面寫死「台中磐石」／隊徽 SVG／「學院隊伍」，已改讀 getClubAssets()／
+  // isTcrfc 判斷；已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。
+  '/zh/schedule/',
 ]
 
 // ---------------------------------------------------------------------------

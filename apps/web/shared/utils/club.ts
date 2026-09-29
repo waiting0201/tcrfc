@@ -68,3 +68,13 @@ const CLUB_ASSETS: Record<ClubCode, ClubAssets> = {
 export function getClubAssets(club: string): ClubAssets {
   return CLUB_ASSETS[club === 'bw' ? 'bw' : 'tcrfc']
 }
+
+/**
+ * 一線隊的 `Team.code`：磐石 `D1`、藍鯨 `BW1`——**不是同一個代號**
+ * （docs/14-invariants.md 踩雷點：藍鯨一線隊是 `BW1` 不是第二個 `D1`，`Team.code` 全站唯一）。
+ * 單一來源，取代各頁各自內嵌的 `club === 'bw' ? 'BW1' : 'D1'` 三元運算式
+ * （S1-14 首頁、S1-19 賽事行事曆皆呼叫本函式，不要再各自寫一份）。
+ */
+export function getFirstTeamCode(club: string): 'D1' | 'BW1' {
+  return club === 'bw' ? 'BW1' : 'D1'
+}
