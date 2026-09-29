@@ -45,15 +45,16 @@ useOrganizationSchema()
 // 這兩區塊維持既有靜態呈現，不臆造 API。
 const { isSectionEnabled } = useHomeSections(config.public.club)
 
-// Banner（B3 首頁輪播）：本輪已接上真實 API，但 apps/api 的 `HomeRepository.ListBannersAsync`
-// 目前只回傳 `imageKey`（Blob 物件鍵），沒有像 StaffDto／PlayerDto 一樣經由
-// `IImagePublicUrlResolver` 解成可直接用的完整網址（見 apps/web/README.md「S1-14」節、
-// docs/18-work-errors.md 對應記錄）——前端沒有 Blob 容器網址可以自己兜，用猜的網址規則
-// 會顯示壞圖，比不顯示更糟。兩俱樂部 `banners` 資料表目前也都是 0 筆（db/seed 沒有種子
-// 資料），所以這裡先只用來源 API 讀「第一則輪播的主要 CTA」文字／連結（純文字欄位，
-// 不涉及圖片網址解析），有值才覆蓋 club-copy.ts 的預設 CTA；輪播圖片本身維持現有素材
-// 直到後端補上 `ImageUrl` 欄位。
+// Banner（B3 首頁輪播）：apps/api 已於 E-64（2026-09-29）修正 `HomeRepository.ListBannersAsync`，
+// 新增 `imageUrl`／`videoUrl`（由 `IImagePublicUrlResolver`／`IVideoPublicUrlResolver` 解析
+// 出的完整可公開網址），比照 StaffDto／PlayerDto 的既有慣例，本輪接上。
 const { data: bannersData } = await useFetch<Array<{
+  mediaType: string
+  imageUrl: string | null
+  videoUrl: string | null
+  imageAlt: string | null
+  imageWidth: number | null
+  imageHeight: number | null
   cta1Label: string | null
   cta1Url: string | null
 }>>(`/api/backend/${config.public.club}/banners`, { query: { lang: locale.value } })
@@ -61,6 +62,44 @@ const primaryCta = computed(() => {
   const first = bannersData.value?.[0]
   if (first?.cta1Label && first?.cta1Url) return { label: first.cta1Label, href: first.cta1Url }
   return null
+})
+
+// ---- Hero 輪播素材：banners 有值就用真資料，沒有（兩俱樂部 `banners` 資料表目前皆 0 筆
+// 種子資料，db/seed）就退回既有靜態素材，不得因為欄位缺值顯示壞圖 ----
+interface HeroSlide {
+  kind: 'image' | 'video'
+  /** image 模式是輪播圖本身；video 模式是 `<video poster>` 海報格（docs/17 §6）。 */
+  imageUrl: string
+  /** 只有 kind==='video' 時有值。 */
+  videoUrl: string
+  alt: string
+  width: number
+  height: number
+  objectPosition?: string
+}
+/** 既有 3 張真實照片（tcrfc 既有素材，S0-9 搬遷保留），banners 沒有可用資料時的回退。 */
+const STATIC_TCRFC_HERO_SLIDES: HeroSlide[] = [
+  { kind: 'image', imageUrl: '/assets/img/hero-01.jpg', videoUrl: '', alt: '台中磐石球員於夜間賽事中振臂吶喊慶祝，場邊看板可見桃紅色 TCRFC 字樣', width: 2400, height: 1600, objectPosition: '58% 35%' },
+  { kind: 'image', imageUrl: '/assets/img/hero-02.jpg', videoUrl: '', alt: '台中磐石5號球員於夜間賽事中揮腳觸球，身後可見場邊看台的球員與觀眾', width: 2400, height: 1600, objectPosition: '56% 30%' },
+  { kind: 'image', imageUrl: '/assets/img/hero-03.jpg', videoUrl: '', alt: '台中磐石一線隊球員賽前肩併肩圍成一圈，互相激勵士氣', width: 2400, height: 1600, objectPosition: '55% 42%' },
+]
+/** 只收「真的有完整網址可用」的輪播——image 模式要有 imageUrl；video 模式要海報圖與影片
+ * 網址皆有，缺一律整則跳過，不得對缺欄位的資料猜網址（比不顯示更糟的是顯示壞圖）。 */
+const heroBanners = computed<HeroSlide[]>(() =>
+  (bannersData.value ?? [])
+    .filter((b) => (b.mediaType === 'video' ? Boolean(b.imageUrl && b.videoUrl) : Boolean(b.imageUrl)))
+    .map((b) => ({
+      kind: b.mediaType === 'video' ? ('video' as const) : ('image' as const),
+      imageUrl: b.imageUrl ?? '',
+      videoUrl: b.videoUrl ?? '',
+      alt: b.imageAlt ?? '',
+      width: b.imageWidth ?? 2400,
+      height: b.imageHeight ?? 1600,
+    })),
+)
+const heroSlides = computed<HeroSlide[]>(() => {
+  if (heroBanners.value.length > 0) return heroBanners.value
+  return isTcrfc.value ? STATIC_TCRFC_HERO_SLIDES : []
 })
 
 // ---- S1-14：賽事資料（最新賽事區／近期賽事，兩個規劃書區塊共用同一支 schedule API）----
@@ -84,8 +123,12 @@ const allMatches = computed<HomeMatch[]>(() => scheduleData.value?.items ?? [])
 // SSR 渲染當下的日期字串（純顯示用的分界，不是安全判斷，兩端各自算一次即可）。
 const todayStr = new Date().toISOString().slice(0, 10)
 
+// 一線隊代號依俱樂部而定：磐石 D1、藍鯨 BW1（docs/14 踩雷點「BW1 不是第二個 D1」）——
+// 這裡原本寫死 'D1'，對 bw 資料一定比對不到任何一筆，是本輪發現並修正的既有落差。
+const firstTeamCode = computed(() => (clubKey.value === 'bw' ? 'BW1' : 'D1'))
+
 const d1Sorted = computed(() =>
-  allMatches.value.filter((m) => m.teamCode === 'D1').slice().sort((a, b) => a.matchOn.localeCompare(b.matchOn)),
+  allMatches.value.filter((m) => m.teamCode === firstTeamCode.value).slice().sort((a, b) => a.matchOn.localeCompare(b.matchOn)),
 )
 const d1Played = computed(() => d1Sorted.value.filter((m) => m.status === 'played' && m.matchOn <= todayStr))
 const d1Upcoming = computed(() => d1Sorted.value.filter((m) => m.status === 'scheduled' && m.matchOn >= todayStr))
@@ -116,7 +159,7 @@ const cutoffStr = computed(() => new Date(Date.now() + THIRTY_DAYS_MS).toISOStri
  * 這裡先接上真實邏輯，真的有梯隊賽程時會自然出現，不用再改程式碼。 */
 const otherTeamUpcoming = computed(() =>
   allMatches.value
-    .filter((m) => m.teamCode !== 'D1' && m.status === 'scheduled' && m.matchOn >= todayStr && m.matchOn <= cutoffStr.value)
+    .filter((m) => m.teamCode !== firstTeamCode.value && m.status === 'scheduled' && m.matchOn >= todayStr && m.matchOn <= cutoffStr.value)
     .sort((a, b) => a.matchOn.localeCompare(b.matchOn)),
 )
 
@@ -159,7 +202,7 @@ const TILE_DURATION = 520 // ms — 對應 tcrfc.css 裡 .hero__tile 的 transit
 const STAGGER_SPAN = 420 // ms — 網格內 transition-delay 的分布範圍
 const AUTOPLAY_MS = 4400
 
-const total = 3
+const total = computed(() => heroSlides.value.length)
 let current = 0
 let isAnimating = false
 let timer: ReturnType<typeof setInterval> | null = null
@@ -171,7 +214,7 @@ function reduced() {
 
 function updateControls() {
   if (statusEl.value) {
-    statusEl.value.textContent = `目前顯示第 ${current + 1} 張，共 ${total} 張`
+    statusEl.value.textContent = `目前顯示第 ${current + 1} 張，共 ${total.value} 張`
   }
 }
 
@@ -279,14 +322,16 @@ function animateSwap(index: number) {
 }
 
 function goTo(index: number) {
-  const next = ((index % total) + total) % total
+  const t = total.value
+  if (t === 0) return
+  const next = ((index % t) + t) % t
   if (next === current || isAnimating) return
   if (reduced()) swapInstant(next)
   else animateSwap(next)
 }
 
 function startAutoplay() {
-  if (!isTcrfc.value || reduced() || total < 2) return
+  if (reduced() || total.value < 2) return
   stopAutoplay()
   timer = setInterval(() => goTo(current + 1), AUTOPLAY_MS)
   statusEl.value?.setAttribute('aria-live', 'off')
@@ -313,7 +358,7 @@ function onHeroFocusout(e: FocusEvent) {
 }
 
 onMounted(() => {
-  if (!isTcrfc.value) return // 藍鯨無 hero 輪播素材（首頁 hero 圖未下載、無授權狀態），本頁不掛載輪播行為
+  if (heroSlides.value.length === 0) return // 沒有可顯示的輪播素材（見 heroSlides 計算邏輯），本頁不掛載輪播行為
   slideEls.value = Array.from(sliderEl.value?.querySelectorAll<HTMLElement>('.hero__slide') ?? [])
   reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -338,22 +383,38 @@ onBeforeUnmount(() => {
 
 <template>
   <section v-if="isSectionEnabled('hero')" ref="heroSectionEl" class="hero" id="top" aria-label="首頁主視覺">
-    <div v-if="isTcrfc" ref="sliderEl" class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" aria-label="首頁主視覺輪播，共 3 張">
+    <div v-if="heroSlides.length > 0" ref="sliderEl" class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" :aria-label="`首頁主視覺輪播，共 ${heroSlides.length} 張`">
       <ul class="hero__slides">
-        <li class="hero__slide is-active" role="group" aria-roledescription="slide" aria-label="第 1 張，共 3 張">
-          <img src="/assets/img/hero-01.jpg" alt="台中磐石球員於夜間賽事中振臂吶喊慶祝，場邊看板可見桃紅色 TCRFC 字樣" width="2400" height="1600" loading="eager" fetchpriority="high" style="object-position:58% 35%">
-        </li>
-        <li class="hero__slide" aria-hidden="true" role="group" aria-roledescription="slide" aria-label="第 2 張，共 3 張">
-          <img src="/assets/img/hero-02.jpg" alt="台中磐石5號球員於夜間賽事中揮腳觸球，身後可見場邊看台的球員與觀眾" width="2400" height="1600" loading="lazy" style="object-position:56% 30%">
-        </li>
-        <li class="hero__slide" aria-hidden="true" role="group" aria-roledescription="slide" aria-label="第 3 張，共 3 張">
-          <img src="/assets/img/hero-03.jpg" alt="台中磐石一線隊球員賽前肩併肩圍成一圈，互相激勵士氣" width="2400" height="1600" loading="lazy" style="object-position:55% 42%">
+        <li
+          v-for="(slide, i) in heroSlides"
+          :key="`${slide.kind}-${slide.imageUrl}-${i}`"
+          class="hero__slide"
+          :class="{ 'is-active': i === 0 }"
+          :aria-hidden="i === 0 ? undefined : 'true'"
+          role="group"
+          aria-roledescription="slide"
+          :aria-label="`第 ${i + 1} 張，共 ${heroSlides.length} 張`"
+        >
+          <video v-if="slide.kind === 'video'" :poster="slide.imageUrl" :width="slide.width" :height="slide.height" muted loop playsinline autoplay preload="metadata">
+            <source :src="slide.videoUrl" type="video/mp4">
+          </video>
+          <img
+            v-else
+            :src="slide.imageUrl"
+            :alt="slide.alt"
+            :width="slide.width"
+            :height="slide.height"
+            :loading="i === 0 ? 'eager' : 'lazy'"
+            :fetchpriority="i === 0 ? 'high' : undefined"
+            :style="slide.objectPosition ? `object-position:${slide.objectPosition}` : undefined"
+          >
         </li>
       </ul>
-      <p ref="statusEl" class="visually-hidden" id="hero-slide-status" aria-live="off" aria-atomic="true">目前顯示第 1 張，共 3 張</p>
+      <p ref="statusEl" class="visually-hidden" id="hero-slide-status" aria-live="off" aria-atomic="true">{{ `目前顯示第 1 張，共 ${heroSlides.length} 張` }}</p>
     </div>
-    <!-- 藍鯨首頁 hero 圖未下載、無授權狀態（content/blue-whale/gap-analysis.md §2），
-         不得沿用磐石的照片頂替，改用純色塊（docs/13 踩雷點 8 同一道理：缺素材不放假圖）。 -->
+    <!-- 沒有可用的輪播素材時（藍鯨首頁 hero 圖未下載、無授權狀態，content/blue-whale/
+         gap-analysis.md §2；或 banners 資料表暫無資料）改用純色塊，不沿用磐石的照片頂替
+         （docs/13 踩雷點 8：缺素材不放假圖）。 -->
     <div v-else class="hero__media hero__media--pending" aria-hidden="true"></div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <span class="ghost-num" aria-hidden="true">01</span>
@@ -368,14 +429,24 @@ onBeforeUnmount(() => {
               <a class="btn btn--primary" :href="primaryCta ? primaryCta.href : lp(heroCopy.ctaPrimaryHref)">{{ primaryCta ? primaryCta.label : '加入球隊' }}</a>
               <a class="btn btn--light" :href="lp(heroCopy.ctaSecondaryHref)">{{ heroCopy.ctaSecondaryLabelZh }}</a>
             </div>
-            <div v-if="isTcrfc" class="hero__slider-nav">
+            <div v-if="heroSlides.length > 1" class="hero__slider-nav">
               <button type="button" class="hero__arrow hero__arrow--prev" data-hero-prev aria-controls="hero-slider" aria-label="上一張主視覺圖片" @click="goTo(current - 1)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
               </button>
               <div class="hero__dots" role="tablist" aria-label="選擇主視覺圖片">
-                <button type="button" class="hero__dot is-active" role="tab" aria-selected="true" aria-controls="hero-slider" aria-label="第 1 張，共 3 張" data-hero-goto="0" @click="goTo(0)"></button>
-                <button type="button" class="hero__dot" role="tab" aria-selected="false" aria-controls="hero-slider" aria-label="第 2 張，共 3 張" data-hero-goto="1" @click="goTo(1)"></button>
-                <button type="button" class="hero__dot" role="tab" aria-selected="false" aria-controls="hero-slider" aria-label="第 3 張，共 3 張" data-hero-goto="2" @click="goTo(2)"></button>
+                <button
+                  v-for="(slide, i) in heroSlides"
+                  :key="`dot-${slide.imageUrl}-${i}`"
+                  type="button"
+                  class="hero__dot"
+                  :class="{ 'is-active': i === 0 }"
+                  role="tab"
+                  :aria-selected="i === 0 ? 'true' : 'false'"
+                  aria-controls="hero-slider"
+                  :aria-label="`第 ${i + 1} 張，共 ${heroSlides.length} 張`"
+                  :data-hero-goto="i"
+                  @click="goTo(i)"
+                ></button>
               </div>
               <button type="button" class="hero__arrow hero__arrow--next" data-hero-next aria-controls="hero-slider" aria-label="下一張主視覺圖片" @click="goTo(current + 1)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
@@ -411,10 +482,12 @@ onBeforeUnmount(() => {
   <!-- SPEC 3.1（最新賽事區／近期賽事）／3.13 — Match band
        資料來源：賽事管理模組（GET /api/backend/{club}/schedule，S1-14 起接上真實資料，
        見上方 script setup「賽事資料」段與 apps/web/README.md「S1-14」節）。
-       藍鯨未來 12 個月賽程完全沒有（docs/13-blue-whale-site.md §5 擋開發第 4 項），
-       本區塊不沿用磐石賽事資料頂替，直接不顯示（維持既有 isTcrfc 閘門不變——是否要
-       改為「藍鯨已有真實歷史賽果就顯示戰績卡」留給主 session 裁決，見任務回報）。 -->
-  <section v-if="isTcrfc && (isSectionEnabled('upcoming_match') || isSectionEnabled('recent_fixtures'))" class="band grain match-band" id="schedule" aria-labelledby="schedule-title">
+       藍鯨規劃書 §1.3 定「與主站同一套網站，只有配色不同」，本區塊本輪起兩俱樂部皆顯示
+       （原本用 isTcrfc 整段隱藏，是還沒核對藍鯨規劃書就沿用的過度保守判斷，本輪修正）。
+       藍鯨一線隊（BW1）目前只有 21 筆歷史賽果、沒有任何未來賽程（docs/13 §5 擋開發第 4
+       項），下方「最新戰績／上一場」兩張卡會顯示真實比分，「下一場」卡會自然落到既有的
+       「賽程尚未公告」占位文案——不是新造的假分支，是既有 v-else 邏輯本來就會產生的結果。 -->
+  <section v-if="isSectionEnabled('upcoming_match') || isSectionEnabled('recent_fixtures')" class="band grain match-band" id="schedule" aria-labelledby="schedule-title">
     <span class="ghost-num ghost-num--dark" aria-hidden="true">21</span>
     <div class="band-inner container">
       <div class="eyebrow-row">
@@ -424,10 +497,12 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
+      <!-- 隊伍等級 chips：藍鯨青年隊只有 U15／U12（無 U14，見 db/seed 藍鯨隊伍名單），
+           U14 chip 只在磐石顯示，不對藍鯨顯示不存在的隊別。 -->
       <div class="team-chips" role="group" aria-label="選擇隊伍等級">
-        <button class="team-chip" type="button" data-team="D1" :aria-pressed="teamPanel === 'D1'" @click="teamPanel = 'D1'">一線隊 First Team</button>
+        <button class="team-chip" type="button" :data-team="firstTeamCode" :aria-pressed="teamPanel === 'D1'" @click="teamPanel = 'D1'">一線隊 First Team</button>
         <button class="team-chip" type="button" data-team="U15" :aria-pressed="teamPanel === 'other'" @click="teamPanel = 'other'">U15</button>
-        <button class="team-chip" type="button" data-team="U14" :aria-pressed="false" @click="teamPanel = 'other'">U14</button>
+        <button v-if="isTcrfc" class="team-chip" type="button" data-team="U14" :aria-pressed="false" @click="teamPanel = 'other'">U14</button>
         <button class="team-chip" type="button" data-team="U12" :aria-pressed="false" @click="teamPanel = 'other'">U12</button>
       </div>
 

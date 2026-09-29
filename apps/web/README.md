@@ -393,21 +393,19 @@ lang 參數問題）。
 1. **只做區塊開關，不做動態排序**——`home_sections.sortOrder` 目前恰好與樣板既有 DOM
    順序一致（見 `useHomeSections.ts` 檔頭），本輪沒有把九個區塊改寫成 `v-for` 動態排序，
    後台如果之後真的調整排序，畫面不會跟著動。
-2. **Hero 輪播圖片沒有真正串接**——見上表與 `docs/18-work-errors.md` `E-64`，需要
-   `apps/api` 補上 `ImageKey → ImageUrl` 解析後才能真正接圖。
+2. ✅ **（S1-14 缺口①，2026-09-29 補完）Hero 輪播圖片已串接**——`apps/api` 已於
+   `E-64` 補上 `ImageUrl`／`VideoUrl`，`app/pages/zh/index.vue` 改讀這兩個欄位，見下方
+   「S1-14 缺口補完」節。
 3. **贊助夥伴／官方商店兩區塊沒有可接的公開 API**——不是本輪漏做，是後端範圍本來就還沒開放
    （`Partner`／`Sponsor`／商店模組目前只有 EF 實體或完全未開發）。
 4. **一線隊球員橫幅（roster-strip）維持原樣**——這個區塊本身不在規劃書 §3.1 九大區塊清單內
    （既有 mockup 多出來的內容），本輪不動、也不受 `home_sections` 開關控制。
 5. **Hero 內的迷你新聞卡（`hero__news`，兩張）維持靜態**——這是 Hero 區塊內的裝飾性連結，
    不是首頁「最新消息」正式區塊，本輪沒有一併接上 `homeNews`，維持既有硬編碼內容。
-6. **待主 session 裁決**：藍鯨（`bw`）一線隊目前在 `matches` 表其實有 21 筆真實**歷史**賽果
-   （2023 木蘭聯賽／2025 總統盃，`status='played'`），但沒有任何未來賽程。既有實作（S0-9）
-   把整個「賽事行事曆」區塊對藍鯨完全隱藏（`v-if="isTcrfc"`），理由寫在頁內註解「藍鯨未來
-   12 個月賽程完全沒有」。本輪**維持這個既有閘門不變**，沒有因為「歷史戰績其實是真資料」
-   就讓藍鯨顯示「最新戰績／上一場」兩張卡——因為現況下這個區塊也會失去「下一場賽程」卡，
-   看起來會很奇怪（只有過去、沒有未來）。是否要讓藍鯨顯示部分內容（只有戰績、沒有下一場），
-   或維持現況全隱藏，留給主 session 決定。
+6. ✅ **（S1-14 缺口②，2026-09-29 已裁決並補完）藍鯨賽事行事曆區塊已顯示**——藍鯨規劃書
+   §1.3「與主站同一套網站，只有配色不同」，整段隱藏是過度保守的既有判斷。藍鯨一線隊
+   （`BW1`）21 筆真實歷史賽果會顯示在「最新戰績／上一場」，「下一場」卡自然落回既有
+   v-else 占位文案（不是新造分支）。見下方「S1-14 缺口補完」節。
 7. **台中磐石（tcrfc）目前在 `matches` 表只有 21 筆 `scheduled`（全部是未來賽程），沒有任何
    `played` 紀錄**，所以「最新戰績 LATEST RESULT」「上一場 PREVIOUS」兩張卡在真實資料下
    會顯示「尚無已完賽數據」占位文字（見下方驗收紀錄的真實 curl 結果），跟舊版 mockup 寫死的
@@ -449,6 +447,98 @@ port 13002，**`apps/api` 未啟動**，依派工規則不自行啟動、不碰�
 - `/en/` 版本的首頁／關於頁內容仍以中文為主（沿用 S1-13 既定範圍：版型與框架元素雙語，
   頁面本文尚未整頁翻譯），本輪新增的三處占位文字（「尚無已完賽數據」等）同樣只有中文，
   與既有頁面內文的雙語完成度一致，不是新的缺口。
+
+## S1-14 缺口補完（Hero 輪播圖片／影片、藍鯨賽事區，2026-09-29，`frontend-architect`）
+
+延續上方 S1-14，補完當時留下的兩個缺口。**改動只在 `app/pages/zh/index.vue`**（同時套用到
+`/en/index.vue`，兩者是同一份檔案，見 S1-13 的 `pages:extend` 孿生路由機制）。
+
+### 缺口①：Hero 輪播圖片／影片串接
+
+`apps/api` 已於 `E-64`（見 `docs/18-work-errors.md`）修正 `HomeRepository.ListBannersAsync`，
+`banners` API 新增 `imageUrl`／`videoUrl`（含 `mediaType`／`imageAlt`／`imageWidth`／
+`imageHeight`）。本輪把 Hero 輪播改成資料驅動：
+
+- 新增 `heroBanners`（只收「真的有完整網址可用」的輪播：`image` 模式要有 `imageUrl`；
+  `video` 模式要海報圖＋影片網址皆有，缺一律整則跳過——不對缺欄位的資料猜網址，寧可不顯示
+  也不要顯示壞圖）與 `heroSlides`（`heroBanners` 有值就用，否則 tcrfc 落回既有 3 張靜態照片、
+  bw 落回既有純色區塊）兩個 computed。
+- 樣板改用 `v-for` 渲染輪播 `<li>`／`<video>`｜`<img>`／`.hero__dot`，`aria-label`／
+  `aria-hidden` 依 `heroSlides.length` 動態算，不再寫死「共 3 張」。
+- `video` 模式輸出 `<video :poster="imageUrl" muted loop playsinline autoplay>`＋
+  `<source :src="videoUrl" type="video/mp4">`（格式與海報圖規則見 `docs/17-deployment.md`
+  §6「Hero 輪播影片上傳」）。**已知範圍縮減**：既有的「方塊拆解」轉場動畫（`animateSwap`）
+  用 `querySelector('img')` 抓出場那張的像素做馬賽克裁切，`video` 輪播沒有 `<img>`，這裡沿用
+  既有的既有防呆分支（找不到 `<img>` 就 `swapInstant` 直接切換），不是新造規則，也沒有為
+  `video` 另外做等價的馬賽克轉場——`banners` 資料表兩俱樂部皆 0 筆種子資料，目前無法用真實
+  影片輪播驗證這個分支，之後有真實影片資料時應補一次實機驗收。
+- `total`（輪播張數）從寫死的 `const total = 3` 改成 `computed(() => heroSlides.value.length)`，
+  `goTo`／`startAutoplay`／`onMounted` 的掛載條件一併從「是否為 tcrfc」改成「是否有可顯示的
+  輪播素材」——這讓機制本身不再綁死俱樂部別，之後任一俱樂部的 `banners` 有真實資料就會自動
+  生效，不用再改程式碼。
+- `banners` 資料表目前兩俱樂部皆 0 筆種子資料（`db/seed`），**現況下行為與改動前肉眼不可見的
+  差異只有「輪播張數改成動態計算」這件事本身**——3 張靜態照片與純色回退都還在，只是判斷依據
+  從硬編碼改成資料驅動。
+
+### 缺口②：藍鯨賽事行事曆區塊
+
+藍鯨官網規劃書 §1.3 明文「與主站同一套網站，只有配色不同」，S0-9 當時把整個「賽事行事曆」
+區塊對藍鯨用 `v-if="isTcrfc"` 整段隱藏，理由是「藍鯨未來 12 個月賽程完全沒有」——但沒有考慮
+藍鯨一線隊（`BW1`）其實有 21 筆真實**歷史**賽果（2023 木蘭聯賽／2025 總統盃，`status='played'`）
+可以顯示。本輪修正：
+
+- 移除 `<section>` 上的 `isTcrfc &&` 閘門，改成單純看 `home_sections` 開關。
+- **修正一個連帶發現的既有錯誤**：`d1Sorted`／`otherTeamUpcoming` 兩個 computed 原本寫死
+  `m.teamCode === 'D1'`——這對 bw 資料一定比對不到任何一筆（藍鯨一線隊代號是 `BW1`，不是
+  `D1`，見 `docs/14-invariants.md`「`BW1` 不是第二個 `D1`」），等於就算拿掉 `isTcrfc` 閘門，
+  藍鯨也只會看到「尚無已完賽數據」等占位文字，不會顯示那 21 筆真實戰績。新增
+  `firstTeamCode`（`clubKey==='bw' ? 'BW1' : 'D1'`）取代寫死值。
+- 隊伍等級 chips：藍鯨青年隊只有 `BW-U15`／`BW-U12`（見 `db/seed`），沒有 `U14`，`U14` chip
+  改成 `v-if="isTcrfc"` 只在磐石顯示；一線隊 chip 的 `data-team` 屬性改用 `firstTeamCode`（純
+  裝飾用途，樣板與 CSS 都沒有消費這個屬性值，修正只是讓標記本身不誤導）。
+- 「下一場」卡沒有另外處理——藍鯨沒有任何未來賽程，`nextFixture` 恆為 `null`，既有的
+  `v-else` 分支本來就會落到「下一場賽程尚未公告，敬請關注後續公告。」這個占位文案，符合
+  「顯示戰績、下一場用既有占位文案」的裁決結果，不是新造的特殊分支。
+- 「近期賽事」（`otherTeamUpcoming`，非一線隊未來 30 天賽程）：藍鯨的 `BW-U15`／`BW-U12`
+  在 `matches` 表沒有任何紀錄，這個子區塊會落到既有的「青訓梯隊賽程尚未公開發布」占位文字，
+  跟磐石梯隊目前的狀態一致，不是新缺口。
+
+### 驗收紀錄（2026-09-29）
+
+```
+npm run lint     # 0 errors, 532 warnings（較改動前 534 筆減少，因 3 顆重複的輪播按鈕警告
+                 # 收斂成 1 顆 v-for 樣板；未新增任何警告或錯誤）
+npm run build    # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+```
+
+本機用同一份映像檔起兩個容器（`NUXT_PUBLIC_CLUB=tcrfc`／`NUXT_PUBLIC_CLUB=bw`，**`apps/api`
+未啟動**，依派工規則不自行啟動、不碰密碼）：
+
+- `/zh/`／`/en/` 首頁在 tcrfc、bw 兩容器共 4 個網址皆 `200`，`X-Robots-Tag: noindex, nofollow`
+  四組合皆在。
+- tcrfc 首頁 SSR 輸出仍含 `hero-01.jpg`／`hero-02.jpg`／`hero-03.jpg`（`apps/api` 不可達時正確
+  落回既有 3 張靜態照片，不是壞圖）；bw 首頁仍輸出 `hero__media--pending`（純色回退，未誤植
+  磐石照片）。
+- bw 首頁 SSR 輸出含「賽事行事曆」標題與「一線隊 First Team」chip（區塊本身確認已顯示；
+  `apps/api` 未啟動、`scheduleData` 抓不到資料，兩俱樂部這輪測試都只看得到占位文字，`BW1`
+  真實 21 筆戰績的實際渲染結果**未驗證**，見下方「未驗證項目」）。
+- bw 首頁 SSR 輸出不含 `data-team="U14"`；tcrfc 首頁仍含（chip 顯示邏輯正確）。
+- `node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:<bw 容器 port>`：**必須
+  同時帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`**（`docs/13-blue-whale-site.md` §6 紀律 11a）——
+  第一次少帶這個環境變數時，13 頁保護清單全數因 SEO 模組回退用的預設站名含 `TCRFC` 而失敗
+  （`exit 1`）；用同一份映像檔、不帶這個變數重跑基準（`git stash` 回到本輪改動前的程式碼）
+  得到完全相同的 13 頁失敗清單與次數，確認**這不是本輪改動造成的迴歸，純粹是本輪測試一開始
+  漏帶環境變數**——帶對之後兩份程式碼（改動前／改動後）都是 `exit 0`，13 頁保護清單全數
+  乾淨，棘輪未被違反。
+
+🔴 **未驗證項目**（因為 `apps/api` 未啟動）：
+
+- `banners` 有真實輪播資料（尤其是 `video` 模式）時的實際渲染結果、`animateSwap` 對 `video`
+  輪播的 `swapInstant` 回退分支，皆只做過程式碼審視，沒有用真實資料跑過。
+- 藍鯨 `BW1` 21 筆真實歷史賽果的「最新戰績／上一場」卡在真實資料下的實際畫面（比分、對手
+  名稱、`resultMetaLine` 日期格式），只驗證了程式碼邏輯（`firstTeamCode` 過濾條件、
+  `clubScore`／`opponentScore` 主客場換算）與區塊本身確實會渲染，未接上真實資料庫核對。
 
 ## 相關文件
 
