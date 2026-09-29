@@ -34,7 +34,8 @@ useSeoMeta({
   <div class="band-inner container">
     <div class="prose">
       <h2 class="visually-hidden" id="commitment-title">慈善理念說明</h2>
-      <p>台中磐石足球俱樂部自 2024 年成立以來，將「<strong>Community 社區共好</strong>」列為五大核心價值之一，相信足球能為社區帶來的影響不只在球場上。我們相信優質的足球資源不該只集中在少數人身上，因此持續尋找機會，把訓練、場地與人才帶到需要的地方。</p>
+      <!-- GEO-03（S1-12d）：成立年份為單一來源 site-facts.ts，不在此重複寫死字面值（本頁僅磐石有內容，慈善單元藍鯨不設）。 -->
+      <p>台中磐石足球俱樂部自 {{ SITE_FACTS.tcrfc.foundedYear }} 年成立以來，將「<strong>Community 社區共好</strong>」列為五大核心價值之一，相信足球能為社區帶來的影響不只在球場上。我們相信優質的足球資源不該只集中在少數人身上，因此持續尋找機會，把訓練、場地與人才帶到需要的地方。</p>
 
     </div>
 

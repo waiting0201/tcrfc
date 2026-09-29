@@ -54,7 +54,7 @@ useSeoMeta({
         <span class="unit-nav-card__num">4.2</span>
         <span class="unit-nav-card__en">Our Teams</span>
         <span class="unit-nav-card__zh">學院隊伍</span>
-        <span class="unit-nav-card__desc">U15／U14／U12 各梯隊名單、教練與賽程</span>
+        <span class="unit-nav-card__desc">{{ academyTeamCodesLabel('tcrfc') }} 各梯隊名單、教練與賽程</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
       </a>
       <a class="unit-nav-card clip-card" :href="lp('/zh/academy/pathway/')">

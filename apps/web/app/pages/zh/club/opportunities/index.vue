@@ -36,7 +36,8 @@ useSeoMeta({
   <div class="band-inner container">
     <div class="prose">
       <h2 id="join-title">加入台中磐石 Join TCRFC</h2>
-      <p>台中磐石一線隊代表俱樂部出戰企業甲級聯賽，持續招募具備競技實力的球員加入陣容。填寫報名表後，將由競技部（10.1 表單收件單位）與您聯繫後續評估流程。</p>
+      <!-- GEO-03（S1-12d）：聯賽名稱為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
+      <p>台中磐石一線隊代表俱樂部出戰{{ SITE_FACTS.tcrfc.league.nameZh }}，持續招募具備競技實力的球員加入陣容。填寫報名表後，將由競技部（10.1 表單收件單位）與您聯繫後續評估流程。</p>
       
     </div>
     <a class="btn btn--primary" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">填寫加入球隊報名表</a>
@@ -82,7 +83,7 @@ useSeoMeta({
     <div class="prose">
       <p class="kicker">FOR INTERNATIONAL PLAYERS</p>
       <h2 id="foreign-players-title">Foreign Player Recruitment</h2>
-      <p>Taichung Rock FC (TCRFC) First Team competes in Taiwan's Enterprise Premier League (企業甲級聯賽). We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our International Department will follow up.</p>
+      <p>Taichung Rock FC (TCRFC) First Team competes in Taiwan's {{ SITE_FACTS.tcrfc.league.nameEn }} ({{ SITE_FACTS.tcrfc.league.nameZh }}). We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our International Department will follow up.</p>
       
     </div>
     <a class="btn btn--primary" :href="lp('/zh/join/international-player/')" style="margin-top:1.5rem">International Player Enquiry</a>

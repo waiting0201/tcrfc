@@ -79,7 +79,7 @@ useSeoMeta({
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">學院隊伍</span>
-        <p class="cta-card__desc">查看 U15／U14／U12 各梯隊</p>
+        <p class="cta-card__desc">查看 {{ academyTeamCodesLabel('tcrfc') }} 各梯隊</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/curriculum/')">
         <span class="cta-card__num">4.4</span>

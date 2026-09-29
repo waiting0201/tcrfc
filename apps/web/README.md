@@ -646,6 +646,103 @@ port 13002 且帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動*
    手動補的英文頭銜（"Head Coach" 等）是搬遷時自行加上的文案，不是資料庫既有欄位，真實
    API 接上後自然消失，屬於資料完整度問題，不是本輪的接線錯誤。
 
+## S1-12d（`GEO-03`／`GEO-04` 事實單一來源與雙重呈現，2026-09-29，`frontend-architect`）
+
+主站規劃書 §7 `GEO-03`（成立年份、主場與場地、梯隊組成、所屬聯賽、聯絡方式全站只有一個
+維護處）／`GEO-04`（結構化資料與明文同時輸出、數值一致）。
+
+### 🔴 事實盤點結論：後端目前沒有任何欄位承載這五類事實
+
+先盤點「這五類事實現在存在哪裡」——`apps/api/Features/Clubs/ClubDto.cs` 只有名稱／網域／
+標誌／品牌色／`SchemaEligible`（S1-12f），沒有成立年份／主場／聯賽／聯絡方式欄位；
+`Setting`（`Features/AdminSeo/AdminSeoSettingsRepository.cs`）與 `Venue` 兩張表都**沒有
+對外公開的端點**（只有後台管理路由）。也就是說，「後台 `I` 網站設定」目前在資料庫層是
+存在的（`Setting`／`Venue` 兩張表），但**沒有一條路徑能讓前台讀到裡面的值**——依任務指示
+不得自行改資料庫綱要或新增後端端點，本輪把**前台暫定的單一維護處**做成新檔案
+[`shared/utils/site-facts.ts`](shared/utils/site-facts.ts)，並在該檔案檔頭與下方「已知缺口」
+清楚標明這是暫定方案，等後台補上對應欄位與公開端點後要整批改回 `useFetch`。
+
+### 事實盤點對照表
+
+| 事實 | 原本在哪裡（散落狀況） | 現在的單一來源 |
+|---|---|---|
+| 成立年份／首季頭銜 | `club-copy.ts` 內部 8+ 處字面值重複，另外 `about/history.vue`／`about/our-story.vue`／`charity/commitment.vue` 各自再寫一份 | `SITE_FACTS[club].foundedYear`／`.foundedDisplayZh`／`.foundingDateIso`／`.foundingTitleZh` |
+| 主場（場地名稱＋地址） | 「西屯足球場」9 處、地址全文「台中市北屯區崇平路二段景谷巷 11 弄 41 號」4 處獨立打字（`join/contact`／`join/location`／`programs/childrens-training` 三個頁面＋ `club-copy.ts`），藍鯨兩座場地名稱另外在 `club-copy.ts` 重複 3 處 | `SITE_FACTS[club].venues`／`getPrimaryVenue(club)` |
+| 所屬聯賽 | 「企業甲級聯賽」9 處、「台灣木蘭足球聯賽」6 處（不含歷史時間軸逐年記錄，那批刻意不動，見下方「刻意不動的範圍」） | `SITE_FACTS[club].league.nameZh`／`.nameEn`／`.shortNameZh` |
+| 梯隊組成（年齡層代碼） | 「U15／U14／U12」等代碼組合字面值在 11 個頁面 ＋ `club-copy.ts` 4 處各自重打（含 2 處代碼順序不一致的既有缺陷：`U12／U14／U15` vs `U15／U14／U12`） | `SITE_FACTS[club].squadCodes` ＋ `academyTeamCodesLabel(club, separator?)`；`ACADEMY_TEAM_TABS`（S1-15）改為由 `squadCodes` 衍生，不再自己重打一份年齡層清單 |
+| 聯絡方式（地址／電話／營業時間） | 地址同「主場」一列；電話與營業時間**目前沒有任何頁面填過值**（`join/contact/index.vue` 只有標籤沒有內容），不是遺漏而是核實資料未到位 | `SITE_FACTS[club].contact`（`address` 直接引用 `venues[0].address`；`phone`／`hours` 現況皆為 `null`，不放佔位假資料） |
+
+### 刻意不動的範圍（不是漏做，是不同種類的事實）
+
+- **歷史時間軸資料**：`club-copy.ts` 的 `HISTORY_YEARS_BW`（藍鯨逐年沿革）、`TIMELINE_BW`
+  （藍鯨隊史逐項頭銜，含每年「參加第 X 屆台灣木蘭足球聯賽」「隊史第 X 座台灣木蘭聯賽
+  冠軍」共 25 筆）、`app/pages/zh/about/milestones.vue`（磐石里程碑時間軸）——這些是
+  「哪一年發生了什麼事」的既有核實歷史紀錄，跟「我們現在的主場／聯賽是什麼」是不同的
+  事實類型，統一改寫成單一來源反而會抹掉逐年的真實差異，故不動。
+- **`club/index.vue`／`club/opportunities/index.vue`／`academy/{index,life,pathway,coaches,join}.vue`
+  等單元 `03`／`04` 粗粒度頁面**：這些頁面目前對兩俱樂部零分支（藍鯨容器會直接顯示磐石
+  內容），是 S1-15 就已經記錄、留給後續工作（STATUS.md 排在之後）的既有缺口，不在本輪
+  範圍。本輪只把這些頁面裡「西屯足球場」「U15／U14／U12」等字面值改成引用
+  `site-facts.ts`（避免事實本身分裂成兩份），**沒有**額外加上 `clubKey`／`isTcrfc` 分支
+  把整頁改成雙俱樂部——那是更大範圍的頁面重構，超出 `GEO-03` 的任務邊界。
+- **`join/location/index.vue`／`join/academy/index.vue`**：同上，單元 `10-location`／
+  `10.2` 目前也是零俱樂部分支的既有缺口（藍鯨訪客會看到磐石的主場卡片與表單選項），
+  本輪同樣只換掉事實字面值的來源，不擴大範圍做整頁雙俱樂部化。
+
+### 真的修正的既有缺口（在盤點過程中發現，順手修）
+
+`app/pages/zh/schedule.vue`（單元 `13`，S1-15 已確認**兩俱樂部共用同一套資料驅動樣板**）
+改動前 SEO 標題／描述、ICS 事件標題、「梯隊介紹」CTA 卡、官方公告文字**不論 `club` 一律
+寫死磐石的俱樂部名稱、「企業甲級聯賽」與「U15／U14／U12」**——藍鯨容器訪客會看到錯誤的
+俱樂部名稱與聯賽名稱。改為讀 `getClubAssets(club).nameZh`／`getSiteFacts(club).league.nameZh`／
+`academyTeamCodesLabel(club)`；SEO 描述的賽程場次數改讀 `matches.value.length`（原本寫死
+「21 場」，藍鯨的真實賽程筆數不是 21）。**未動**：`state.team` 篩選分頁與 `teamLabels`
+仍是寫死的 `D1`／`U15`／`U14`／`U12`（藍鯨真實隊代碼是 `BW1`／`BW-U15`／`BW-U12`，沒有
+`U14`）——這是比 GEO-03 更大範圍的「賽事行事曆逐隊代碼」架構問題，屬於 `STATUS.md` `S1-19`
+（尚未開工），本輪不擴大範圍處理，列在此提醒下一輪。
+
+### JSON-LD 雙重呈現（GEO-04）
+
+[`app/composables/useSchemaOrgClub.ts`](app/composables/useSchemaOrgClub.ts) 新增：
+
+- `useOrganizationSchema()`：`defineOrganization()` 新增 `foundingDate`（`SITE_FACTS[club].foundingDateIso`，
+  `null` 時不輸出，tcrfc 現況即為此情形，確切成立月日未核實不臆測）與 `address`（`PostalAddress`，
+  `SITE_FACTS[club].contact.address` 為 `null` 時不輸出，bw 現況即為此情形）。
+- `useSportsTeamSchema()`：手刻 JSON-LD 新增 `memberOf`（`SportsOrganization`，`league.nameZh`）
+  與 `location`（`Place`，`getPrimaryVenue(club).nameZh`）。
+
+兩者都跟頁面明文（各頁的 `SITE_FACTS.xxx`／`academyTeamCodesLabel()` 用法）讀同一份
+`site-facts.ts`，滿足 GEO-04「結構化資料與明文同時呈現、數值一致」——不是分別維護兩份
+再手動核對，是同一個值餵給兩種輸出，不一致在結構上不可能發生。🔴 **未能實機驗證**：
+Organization／SportsTeam 的 `schemaEligible` 現況恆為 `false`（S1-12f 已知現況，隊徽物件鍵
+無寫入路徑），本輪未啟動 `apps/api`，無法用真實 HTTP 確認 `foundingDate`／`address`／
+`memberOf`／`location` 四個新欄位在合格時的實際輸出內容，只做到程式碼審視與型別檢查
+（`npx nuxi typecheck` 對本輪新增／改動檔案無錯誤）。
+
+### 防呆：`scripts/check-fact-single-source.mjs`
+
+新增並掛進 `npm run lint`（`lint:fact-single-source`）。掃描 `app/`／`shared/` 底下的
+`.vue`／`.ts` 檔案，禁止 11 條已核實的事實字面值（地址全文、三個場地名稱、兩個聯賽全名、
+「全國乙級聯賽冠軍」、四種「U15／U14／U12」組合的字面拼法）出現在 `site-facts.ts` 與
+歷史時間軸資料檔案（見上方「刻意不動的範圍」）以外的地方。用改動前的程式碼驗證過紅燈
+（會抓到當時散落的字面值），改完後綠燈；也在改動過程中實際攔下 3 筆——`schedule.vue`
+自己新增的說明註解不慎重複打了一次「企業甲級聯賽」字面值、`academy/teams.vue` 與
+`index.vue` 兩處純開發註解命中（已加入允許清單，見腳本內註解）。
+
+### 已知缺口（回報，不在本輪範圍）
+
+1. **後端沒有這五類事實的欄位與公開端點**：見上方「事實盤點結論」。`site-facts.ts` 是
+   前台暫定方案，等後台 `I` 網站設定（或其所屬模組）補上對應欄位與公開端點後，要把這裡
+   整批改成 `useFetch`，呼叫端（`SITE_FACTS[club].xxx`／`getPrimaryVenue()`／
+   `academyTeamCodesLabel()`）的介面盡量維持不變。
+2. **`schedule.vue` 的逐隊代碼篩選（`state.team`／`teamLabels`）仍寫死磐石代碼**：見上方
+   「真的修正的既有缺口」，這是比本輪任務範圍更大的架構問題，留給 `S1-19`。
+3. **多個單元 `03`／`04`／`10-location`／`10.2` 頁面仍是零俱樂部分支的既有缺口**：見上方
+   「刻意不動的範圍」，本輪只換掉事實來源，沒有加上整頁雙俱樂部分支。
+4. **無頭瀏覽器與真實 API 的 JSON-LD 輸出未驗證**：見上方「JSON-LD 雙重呈現」小節，
+   延續 S1-12a／b／c／f 同一個環境限制（本機啟動 `apps/api` 需要在指令列具現化資料庫
+   密碼，被 session 自動模式安全防護擋下，依硬規則被擋就停）。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

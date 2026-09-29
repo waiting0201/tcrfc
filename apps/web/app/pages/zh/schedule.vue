@@ -123,10 +123,13 @@ function isGroupHidden(key: string): boolean {
 }
 
 const teamHeadName = computed(() => teamLabels[state.team] ?? '全部隊別')
+// GEO-03（S1-12d）：聯賽名稱為單一來源 site-facts.ts，不在此重複寫死字面值
+// （改動前本頁不論 club 皆寫死磐石的聯賽全名，藍鯨容器會顯示錯誤的聯賽名稱）。
+const leagueName = getSiteFacts(club).league.nameZh
 const teamHeadMeta = computed(() =>
   state.mode === 'results'
-    ? '2026/27 賽季 · 企業甲級聯賽 · 賽果'
-    : `2026/27 賽季 · 企業甲級聯賽 · 共 ${visibleMatches.value.length} 場`,
+    ? `2026/27 賽季 · ${leagueName} · 賽果`
+    : `2026/27 賽季 · ${leagueName} · 共 ${visibleMatches.value.length} 場`,
 )
 const isEmpty = computed(() => mounted.value && visibleMatches.value.length === 0)
 const emptyDesc = computed(() => {
@@ -268,7 +271,7 @@ function eventToVevent(m: MatchItem): string {
   const startDate = new Date(`${date}T${kickoff}:00+08:00`)
   const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000)
   const end = `${endDate.getUTCFullYear()}${pad(endDate.getUTCMonth() + 1)}${pad(endDate.getUTCDate())}T${pad(endDate.getUTCHours())}${pad(endDate.getUTCMinutes())}00Z`
-  const title = `台中磐石 vs ${opponent}（企業甲級聯賽・${ha}）`
+  const title = `${getClubAssets(club).nameZh} vs ${opponent}（${leagueName}・${ha}）`
   const loc = venue === 'TBC' ? '場地未定' : venue
   return [
     'BEGIN:VEVENT',
@@ -327,8 +330,8 @@ function onBulkIcs() {
 }
 
 useSeoMeta({
-  title: '賽事行事曆 Schedule｜台中磐石足球俱樂部',
-  description: '台中磐石足球俱樂部完整賽事行事曆：2026/27 企業甲級聯賽 21 場賽程，依隊別（一線隊／U15／U14／U12）分類，支援賽程賽果切換、月曆檢視與單場加入行事曆。',
+  title: `賽事行事曆 Schedule｜${getClubAssets(club).nameZh}`,
+  description: `${getClubAssets(club).nameZh}完整賽事行事曆：2026/27 ${leagueName} ${matches.value.length} 場賽程，依隊別（一線隊／${academyTeamCodesLabel(club)}）分類，支援賽程賽果切換、月曆檢視與單場加入行事曆。`,
 })
 
 // SportsEvent JSON-LD（GEO-08）。siteConfig.url 是 nuxt-site-config 的 priority-stack
@@ -476,7 +479,7 @@ useHead(() => (
           </div>
         </div>
 
-        <p class="sched-official-note">賽程如有異動，一律以俱樂部官方公告與企業甲級聯賽主辦單位公告為準。</p>
+        <p class="sched-official-note">賽程如有異動，一律以俱樂部官方公告與{{ leagueName }}主辦單位公告為準。</p>
 
         <!-- 列表檢視 -->
         <div class="sched-view" data-view-panel="list" :hidden="state.view !== 'list'">
@@ -586,7 +589,7 @@ useHead(() => (
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">學院隊伍</span>
-        <p class="cta-card__desc">U15／U14／U12 梯隊介紹</p>
+        <p class="cta-card__desc">{{ academyTeamCodesLabel(club) }} 梯隊介紹</p>
       </a>
       <a class="cta-card" :href="lp('/zh/join/general/')">
         <span class="cta-card__num">10.7</span>

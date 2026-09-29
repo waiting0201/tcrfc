@@ -93,7 +93,7 @@ function formatMatchDate(dateStr: string): string {
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無一線隊合影照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石球員合影頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/club/first-team-01-squad.jpg" alt="台中磐石一線隊球員於西屯足球場合影" width="1920" height="1280">
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/club/first-team-01-squad.jpg" :alt="`台中磐石一線隊球員於${getPrimaryVenue('tcrfc').nameZh}合影`" width="1920" height="1280">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true"></div>
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '3.1 First Team' : '3.1' }}</p>
@@ -249,10 +249,11 @@ function formatMatchDate(dateStr: string): string {
     </div>
     <div class="honours-layout">
       <ol class="timeline">
+        <!-- GEO-03（S1-12d）：成立年份／首季頭銜／聯賽為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
         <li class="timeline-item">
-          <p class="timeline-item__year">2024</p>
-          <p class="timeline-item__title">全國乙級聯賽冠軍</p>
-          <p class="timeline-item__desc">俱樂部創立首年即拿下全國乙級聯賽冠軍，隔年晉升企業甲級聯賽出賽。</p>
+          <p class="timeline-item__year">{{ SITE_FACTS.tcrfc.foundedYear }}</p>
+          <p class="timeline-item__title">{{ SITE_FACTS.tcrfc.foundingTitleZh }}</p>
+          <p class="timeline-item__desc">俱樂部創立首年即拿下{{ SITE_FACTS.tcrfc.foundingTitleZh }}，隔年晉升{{ SITE_FACTS.tcrfc.league.nameZh }}出賽。</p>
         </li>
       </ol>
       <figure class="honours-photo clip-card clip-card--on-dark">

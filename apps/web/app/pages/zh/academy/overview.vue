@@ -66,7 +66,7 @@ useSeoMeta({
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">{{ isTcrfc ? '學院隊伍' : '青年隊' }}</span>
-        <p class="cta-card__desc">{{ isTcrfc ? '查看 U15／U14／U12 各梯隊' : '查看 U15／U12 兩個梯隊' }}</p>
+        <p class="cta-card__desc">{{ isTcrfc ? `查看 ${academyTeamCodesLabel('tcrfc')} 各梯隊` : `查看 ${academyTeamCodesLabel('bw')} 兩個梯隊` }}</p>
       </a>
       <template v-if="isTcrfc">
         <a class="cta-card" :href="lp('/zh/academy/coaches/')">

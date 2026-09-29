@@ -62,10 +62,11 @@ function socialHandle(url: string): string {
         <p v-if="identity.social.email" class="contact-item__value">{{ identity.social.email }}</p>
       </div>
 
+      <!-- GEO-03（S1-12d）：地址／主場名稱為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
       <div v-if="isTcrfc" class="contact-item">
         <p class="contact-item__label">地址</p>
-        <p class="contact-item__value">台中市北屯區崇平路二段景谷巷 11 弄 41 號</p>
-        <p class="field-hint">主場：西屯足球場。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
+        <p class="contact-item__value">{{ SITE_FACTS.tcrfc.contact.address }}</p>
+        <p class="field-hint">主場：{{ getPrimaryVenue('tcrfc').nameZh }}。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
       </div>
 
       <div v-if="isTcrfc" class="contact-item">

@@ -81,7 +81,7 @@ useSeoMeta({
       <div class="cta-card clip-card" style="background:var(--paper-2);color:var(--heading);">
         <p class="cta-card__num" style="color:var(--brand-aa);">台中磐石學院</p>
         <p class="cta-card__title">加入足球學院</p>
-        <p class="cta-card__desc" style="color:var(--muted);">U15／U14／U12 梯隊，培育下一代球員。</p>
+        <p class="cta-card__desc" style="color:var(--muted);">{{ academyTeamCodesLabel('tcrfc') }} 梯隊，培育下一代球員。</p>
         <a class="btn btn--dark btn--sm" :href="lp('/zh/academy/join/')">了解更多</a>
       </div>
       <div class="cta-card clip-card" style="background:var(--paper-2);color:var(--heading);">

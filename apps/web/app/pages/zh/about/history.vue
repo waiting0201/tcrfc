@@ -47,7 +47,8 @@ useSeoMeta({
   <div class="band-inner container">
     <h2 class="visually-hidden" id="history-title">俱樂部歷程</h2>
     <div v-if="clubKey === 'tcrfc'" class="prose">
-      <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>2024 年</strong>在台中成立，成立當年即拿下<strong>全國乙級聯賽冠軍</strong>，並持續擴展一線隊、學院與國際交流網絡。</p>
+      <!-- GEO-03（S1-12d）：成立年份／首季頭銜為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
+      <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ SITE_FACTS.tcrfc.foundedYear }} 年</strong>在台中成立，成立當年即拿下<strong>{{ SITE_FACTS.tcrfc.foundingTitleZh }}</strong>，並持續擴展一線隊、學院與國際交流網絡。</p>
     </div>
     <div v-else class="prose history-years">
       <div v-for="y in HISTORY_YEARS_BW" :key="y.year" class="history-year">

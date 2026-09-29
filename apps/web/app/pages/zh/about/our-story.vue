@@ -43,7 +43,8 @@ useSeoMeta({
     <h2 class="visually-hidden" id="story-title">我們的故事</h2>
     <div class="story-layout">
       <div v-if="clubKey === 'tcrfc'" class="prose">
-        <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>2024 年</strong>在台中成立，同年即拿下<strong>全國乙級聯賽冠軍</strong>。俱樂部主場設於西屯足球場，以「在地扎根．放眼世界」為品牌主張，逐步建立起一線隊、學院與課程並行的發展體系。</p>
+        <!-- GEO-03（S1-12d）：成立年份／首季頭銜／主場為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
+        <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ SITE_FACTS.tcrfc.foundedYear }} 年</strong>在台中成立，同年即拿下<strong>{{ SITE_FACTS.tcrfc.foundingTitleZh }}</strong>。俱樂部主場設於{{ getPrimaryVenue('tcrfc').nameZh }}，以「在地扎根．放眼世界」為品牌主張，逐步建立起一線隊、學院與課程並行的發展體系。</p>
 
         <h2>圖文段落</h2>
         <p>本頁版型為長文編輯，支援圖文混排與引言區塊；正式內文與圖片確認後，將依段落穿插俱樂部歷年照片。</p>
