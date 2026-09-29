@@ -1,6 +1,11 @@
 <script setup lang="ts">
 // app/pages/zh/join/contact/index.vue — 由 site/src/pages/zh/join/contact/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+//
+// S1-17 收尾修正（2026-09-29）：電話／營業時間改綁 useSiteFacts('tcrfc').contact.phone／
+// .hours（PublicSiteFactsDto.contact 既有欄位，S1-17 主輪交付時漏綁，見 apps/web/README.md
+// 「S1-17」節「規格疑點」第 5 點）。兩俱樂部這兩個值目前在後台都還是 null，綁定後畫面仍只顯示
+// 標籤、不顯示值——這是資料現況，不是本次修正的缺陷。
 definePageMeta({ nav: '', unit: '10-contact' })
 
 const { lp, locale } = useLocale()
@@ -56,8 +61,13 @@ function socialHandle(url: string): string {
   <div class="container">
     <h2 class="visually-hidden" id="contact-title">聯絡資訊列表</h2>
     <div class="contact-grid">
+      <!-- S1-17 收尾修正（2026-09-29）：電話改讀 useSiteFacts('tcrfc').contact.phone
+           （PublicSiteFactsDto.contact 既有欄位，先前這裡從未綁定，見 apps/web/README.md
+           「S1-17」節「規格疑點」）。目前後台兩俱樂部皆未填值，phone 為 null 時不顯示
+           假資料，只顯示標籤。 -->
       <div v-if="isTcrfc" class="contact-item">
         <p class="contact-item__label">電話</p>
+        <p v-if="tcrfcFacts.contact.phone" class="contact-item__value">{{ tcrfcFacts.contact.phone }}</p>
       </div>
 
       <div v-if="isTcrfc || identity.social.email" class="contact-item">
@@ -73,8 +83,11 @@ function socialHandle(url: string): string {
         <p class="field-hint">主場：{{ tcrfcVenue.nameZh }}。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
       </div>
 
+      <!-- S1-17 收尾修正（2026-09-29）：營業時間改讀 useSiteFacts('tcrfc').contact.hours，
+           同上，hours 為 null 時只顯示標籤。 -->
       <div v-if="isTcrfc" class="contact-item">
         <p class="contact-item__label">營業時間</p>
+        <p v-if="tcrfcFacts.contact.hours" class="contact-item__value">{{ tcrfcFacts.contact.hours }}</p>
       </div>
 
       <div v-if="isTcrfc" class="contact-item contact-item--full">

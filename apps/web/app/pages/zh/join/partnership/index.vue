@@ -13,7 +13,9 @@
 //     （9.4／10.5）的同一組資訊，合併不算新增欄位。
 //   sponsorship_interest：併入「感興趣的贊助方案」checkbox 群組選取的項目名稱。
 //   name = contact_name／contact = phone＋email 合併。
-// tax_id／contact_title／doc_file：後端沒有對應欄位，不送出。
+// 🔴 S1-17 收尾修正（2026-09-29）：tax_id（統一編號）、contact_title（職稱）、doc_file
+// （提案文件上傳）在規格（§3.10 10.5「主要欄位」）與後端都沒有定義，原本畫面留著卻悄悄不
+// 送出，現已**從畫面移除**。
 definePageMeta({ nav: '', unit: '10.5' })
 
 const { lp } = useLocale()
@@ -133,10 +135,6 @@ async function onSubmit() {
               <p class="field-error" id="pn-company-error" role="alert">請填寫公司／機構名稱</p>
             </div>
             <div class="form-field">
-              <label for="pn-tax-id">統一編號</label>
-              <input type="text" id="pn-tax-id" name="tax_id" inputmode="numeric">
-            </div>
-            <div class="form-field">
               <label for="pn-industry">產業別</label>
               <select id="pn-industry" v-model="industry" name="industry">
                 <option value="">請選擇</option>
@@ -171,10 +169,6 @@ async function onSubmit() {
               <label for="pn-contact-name">聯絡人姓名<span class="req" aria-hidden="true">*</span></label>
               <input id="pn-contact-name" v-model="contactName" type="text" name="contact_name" required autocomplete="name" aria-describedby="pn-contact-name-error">
               <p class="field-error" id="pn-contact-name-error" role="alert">請填寫聯絡人姓名</p>
-            </div>
-            <div class="form-field">
-              <label for="pn-contact-title">職稱</label>
-              <input type="text" id="pn-contact-title" name="contact_title" autocomplete="organization-title">
             </div>
             <div class="form-field">
               <label for="pn-phone">聯絡電話<span class="req" aria-hidden="true">*</span></label>
@@ -262,17 +256,6 @@ async function onSubmit() {
               <label for="pn-idea">合作構想或洽詢內容<span class="req" aria-hidden="true">*</span></label>
               <textarea id="pn-idea" v-model="proposal" name="proposal" required aria-describedby="pn-idea-error"></textarea>
               <p class="field-error" id="pn-idea-error" role="alert">請說明合作構想或洽詢內容</p>
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>上傳資料（選填）</legend>
-          <div class="form-grid">
-            <div class="form-field form-field--full file-field">
-              <label for="pn-doc-file">提案或相關文件</label>
-              <input type="file" id="pn-doc-file" name="doc_file" accept=".pdf,.ppt,.pptx,.doc,.docx" aria-describedby="pn-doc-hint">
-              <p class="field-hint" id="pn-doc-hint">支援 PDF／PPT／PPTX／DOC／DOCX。</p>
             </div>
           </div>
         </fieldset>

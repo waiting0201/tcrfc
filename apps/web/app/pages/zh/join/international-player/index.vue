@@ -4,14 +4,17 @@
 //
 // S1-17：接上 POST /api/v1/{club}/forms/international_player_enquiry/submissions。
 // 🔴 後端只定義 7 個欄位（name／nationality／passport_no／experience／video_url／visa_status／
-// contact，見 db/seed/generate-club-seed-sql.py），mockup 前台有 13 個欄位。對應決策：
+// contact，見 db/seed/generate-club-seed-sql.py）。對應決策：
 //   name = full_name／nationality = nationality／passport_no = passport_number（選填）／
 //   experience = position＋current_club＋playing_level 併入 career_summary 前面（後端這欄
 //     題目文字是「足球經歷」，本來就是一段自由文字摘要，併入不算新增欄位）／
 //   video_url = video_url／visa_status = 選項顯示文字（後端 visa_status 是 text 型別，
 //     無選項限制，直接送顯示文字比英文代碼更利於閱讀）／contact = email＋phone 合併。
-// dob（出生日期）：後端這張表單沒有 birth_date 鍵（跟 10.1／10.2 不同），不送出。
-// agent_contact／cv_file／doc_file：同樣沒有對應欄位，不送出。
+// 🔴 S1-17 收尾修正（2026-09-29）：dob（出生日期，這張表單後端沒有 birth_date 鍵，跟
+// 10.1／10.2 不同）、agent_contact（經紀人聯絡方式）、cv_file／doc_file（檔案上傳）在規格
+// （§3.10 10.4「主要欄位」：英文姓名、國籍、護照、經歷、影片、簽證狀態）與後端都沒有定義，
+// 原本畫面留著（dob 甚至沒有 v-model，填了會被瀏覽器原生驗證擋著、值也從未被讀取），
+// 現已**從畫面移除**。
 definePageMeta({ nav: '', unit: '10.4' })
 
 const { lp } = useLocale()
@@ -112,11 +115,6 @@ async function onSubmit() {
               <p class="field-error" id="ip-name-error" role="alert">Please enter your full name</p>
             </div>
             <div class="form-field">
-              <label for="ip-dob">Date of Birth <span class="zh-sub-inline" lang="zh-Hant">出生日期</span><span class="req" aria-hidden="true">*</span></label>
-              <input type="date" id="ip-dob" name="dob" required aria-describedby="ip-dob-error">
-              <p class="field-error" id="ip-dob-error" role="alert">Please enter your date of birth</p>
-            </div>
-            <div class="form-field">
               <label for="ip-nationality">Nationality <span class="zh-sub-inline" lang="zh-Hant">國籍</span><span class="req" aria-hidden="true">*</span></label>
               <input id="ip-nationality" v-model="nationality" type="text" name="nationality" required autocomplete="country-name" aria-describedby="ip-nationality-error">
               <p class="field-error" id="ip-nationality-error" role="alert">Please enter your nationality</p>
@@ -170,7 +168,7 @@ async function onSubmit() {
         </fieldset>
 
         <fieldset>
-          <legend>Visa &amp; Representation <span class="zh-sub-inline" lang="zh-Hant">簽證與經紀</span></legend>
+          <legend>Visa Status <span class="zh-sub-inline" lang="zh-Hant">簽證狀態</span></legend>
           <div class="form-grid">
             <div class="form-field">
               <label for="ip-visa">Current Visa Status <span class="zh-sub-inline" lang="zh-Hant">簽證狀態</span><span class="req" aria-hidden="true">*</span></label>
@@ -182,11 +180,6 @@ async function onSubmit() {
                 <option value="other">Other</option>
               </select>
               <p class="field-error" id="ip-visa-error" role="alert">Please select your visa status</p>
-            </div>
-            <div class="form-field">
-              <label for="ip-agent">Agent / Representative Contact</label>
-              <input type="text" id="ip-agent" name="agent_contact" autocomplete="off" aria-describedby="ip-agent-hint">
-              <p class="field-hint" id="ip-agent-hint">Optional — name and contact of your agent, if represented.</p>
             </div>
           </div>
         </fieldset>
@@ -203,22 +196,6 @@ async function onSubmit() {
               <label for="ip-phone">Phone / WhatsApp<span class="req" aria-hidden="true">*</span></label>
               <input id="ip-phone" v-model="phone" type="tel" name="phone" required autocomplete="tel" aria-describedby="ip-phone-error">
               <p class="field-error" id="ip-phone-error" role="alert">Please enter a phone or WhatsApp number</p>
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>Uploads <span class="zh-sub-inline" lang="zh-Hant">上傳資料（選填）</span></legend>
-          <div class="form-grid">
-            <div class="form-field form-field--full file-field">
-              <label for="ip-cv-file">CV / Resume</label>
-              <input type="file" id="ip-cv-file" name="cv_file" accept=".pdf,.doc,.docx" aria-describedby="ip-cv-hint">
-              <p class="field-hint" id="ip-cv-hint">PDF, DOC or DOCX.</p>
-            </div>
-            <div class="form-field form-field--full file-field">
-              <label for="ip-doc-file">Additional Documents</label>
-              <input type="file" id="ip-doc-file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="ip-doc-hint">
-              <p class="field-hint" id="ip-doc-hint">Optional — e.g. passport photo page, playing statistics. PDF, JPG or PNG.</p>
             </div>
           </div>
         </fieldset>

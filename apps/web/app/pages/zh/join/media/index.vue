@@ -5,7 +5,10 @@
 // S1-17：接上 POST /api/v1/{club}/forms/media_enquiry/submissions。
 // 欄位對應：media_name = media_outlet／name = contact_name／
 // topic = 採訪類型顯示文字＋採訪主題／需求說明併成一段（後端這欄本來就是自由文字）／
-// deadline = deadline／contact = phone＋email 合併。contact_title／doc_file：無對應欄位，不送出。
+// deadline = deadline／contact = phone＋email 合併。
+// 🔴 S1-17 收尾修正（2026-09-29）：contact_title（職稱）、doc_file（採訪大綱文件上傳）在
+// 規格（§3.10 10.6「主要欄位」）與後端都沒有定義，原本畫面留著卻悄悄不送出，現已**從畫面
+// 移除**。
 definePageMeta({ nav: '', unit: '10.6' })
 
 const { lp } = useLocale()
@@ -111,10 +114,6 @@ async function onSubmit() {
               <p class="field-error" id="md-name-error" role="alert">請填寫記者／聯絡人姓名</p>
             </div>
             <div class="form-field">
-              <label for="md-title">職稱</label>
-              <input type="text" id="md-title" name="contact_title" autocomplete="organization-title">
-            </div>
-            <div class="form-field">
               <label for="md-phone">聯絡電話<span class="req" aria-hidden="true">*</span></label>
               <input id="md-phone" v-model="phone" type="tel" name="phone" required autocomplete="tel" aria-describedby="md-phone-error">
               <p class="field-error" id="md-phone-error" role="alert">請填寫聯絡電話</p>
@@ -140,17 +139,6 @@ async function onSubmit() {
               <label for="md-deadline">期望採訪日期／截稿日<span class="req" aria-hidden="true">*</span></label>
               <input id="md-deadline" v-model="deadline" type="date" name="deadline" required aria-describedby="md-deadline-error">
               <p class="field-error" id="md-deadline-error" role="alert">請填寫期望採訪日期或截稿日</p>
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>上傳資料（選填）</legend>
-          <div class="form-grid">
-            <div class="form-field form-field--full file-field">
-              <label for="md-doc-file">採訪大綱或提案文件</label>
-              <input type="file" id="md-doc-file" name="doc_file" accept=".pdf,.doc,.docx" aria-describedby="md-doc-hint">
-              <p class="field-hint" id="md-doc-hint">支援 PDF／DOC／DOCX，非必填。</p>
             </div>
           </div>
         </fieldset>

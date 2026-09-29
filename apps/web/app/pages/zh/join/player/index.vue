@@ -3,16 +3,18 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 //
 // S1-17：接上 POST /api/v1/{club}/forms/join_player/submissions（apps/api 既有端點）。
-// 🔴 後端 join_player 只定義 6 個欄位（name／birth_date／position／experience／video_url／
-// contact，見 db/seed/generate-club-seed-sql.py FORM_FIELD_DEFAULTS），但 mockup 前台有 14 個
-// 可見欄位（中英文姓名分開、性別、居住城市、慣用腳、目前球隊、履歷／照片檔案等）——
-// 完整的欄位對應決策記在 apps/web/README.md「S1-17」節「表單欄位對應表」，這裡只放程式碼：
-//   name = 中文姓名（英文姓名有填就併入括號）／birth_date = 出生日期／
+// 🔴 S1-17 收尾修正（2026-09-29）：後端 join_player 只定義 6 個欄位（name／birth_date／
+// position／experience／video_url／contact，見 db/seed/generate-club-seed-sql.py
+// FORM_FIELD_DEFAULTS），但 mockup 前台原有 14 個可見欄位——性別、居住城市、慣用腳、目前球隊、
+// 履歷／照片檔案這 6 個欄位在規格（主站規劃書 §3.10「主要欄位」：姓名、生日、位置、經歷、
+// 影片連結、聯絡方式）與後端都沒有定義，原本「畫面留著、悄悄不送出」會誤導使用者以為填了會被
+// 收到，現已**從畫面移除**（不是隱藏）。完整的欄位對應決策記在 apps/web/README.md「S1-17」節
+// 「表單欄位對應表」，這裡只放程式碼：
+//   name = 中文姓名（英文姓名有填就併入括號——英文姓名不在移除之列，因為它會被合併送出，
+//     不是「填了被丟棄」）／birth_date = 出生日期／
 //   position = 場上位置選項的中文顯示文字（後端 position 是 text 型別，無選項限制，
 //     直接送顯示文字比送英文代碼對後台閱讀者更有意義）／experience = 足球經歷簡述／
 //     video_url = 影片連結／contact = 電話與 Email 合併（後端只有一個「聯絡方式」欄位）
-// 性別／居住城市／慣用腳／目前球隊／履歷檔案／照片檔案：後端沒有對應欄位，不送出
-// （檔案上傳本來就沒有真正的上傳通路，見 apps/api FormFieldTypes.File 檔頭）。
 definePageMeta({ nav: '', unit: '10.1' })
 
 const { lp } = useLocale()
@@ -103,20 +105,6 @@ async function onSubmit() {
               <input id="p-dob" v-model="dob" type="date" name="dob" required aria-describedby="p-dob-error">
               <p class="field-error" id="p-dob-error" role="alert">請填寫出生日期</p>
             </div>
-            <div class="form-field">
-              <label for="p-gender">性別<span class="req" aria-hidden="true">*</span></label>
-              <select id="p-gender" name="gender" required aria-describedby="p-gender-error">
-                <option value="">請選擇</option>
-                <option value="male">男</option>
-                <option value="female">女</option>
-                <option value="undisclosed">不願透露</option>
-              </select>
-              <p class="field-error" id="p-gender-error" role="alert">請選擇性別</p>
-            </div>
-            <div class="form-field form-field--full">
-              <label for="p-city">目前居住城市</label>
-              <input type="text" id="p-city" name="city" autocomplete="address-level2">
-            </div>
           </div>
         </fieldset>
 
@@ -136,19 +124,6 @@ async function onSubmit() {
                 <option value="st">前鋒 ST</option>
               </select>
               <p class="field-error" id="p-position-error" role="alert">請選擇場上位置</p>
-            </div>
-            <div class="form-field">
-              <label for="p-foot">慣用腳</label>
-              <select id="p-foot" name="preferred_foot">
-                <option value="">請選擇</option>
-                <option value="right">右腳</option>
-                <option value="left">左腳</option>
-                <option value="both">雙腳皆可</option>
-              </select>
-            </div>
-            <div class="form-field form-field--full">
-              <label for="p-current-team">目前所屬球隊／最高層級聯賽經歷</label>
-              <input type="text" id="p-current-team" name="current_team" placeholder="例：某某高中足球隊、企乙聯賽等">
             </div>
             <div class="form-field form-field--full">
               <label for="p-experience">足球經歷簡述<span class="req" aria-hidden="true">*</span></label>
@@ -177,22 +152,6 @@ async function onSubmit() {
               <label for="p-email">Email<span class="req" aria-hidden="true">*</span></label>
               <input id="p-email" v-model="email" type="email" name="email" required autocomplete="email" aria-describedby="p-email-error">
               <p class="field-error" id="p-email-error" role="alert">請填寫有效的 Email</p>
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>上傳資料（選填）</legend>
-          <div class="form-grid">
-            <div class="form-field form-field--full file-field">
-              <label for="p-resume-file">簡歷／經歷說明文件</label>
-              <input type="file" id="p-resume-file" name="resume_file" accept=".pdf,.doc,.docx" aria-describedby="p-resume-hint">
-              <p class="field-hint" id="p-resume-hint">支援 PDF／DOC／DOCX。</p>
-            </div>
-            <div class="form-field form-field--full file-field">
-              <label for="p-photo-file">個人照片</label>
-              <input type="file" id="p-photo-file" name="photo_file" accept=".jpg,.jpeg,.png" aria-describedby="p-photo-hint">
-              <p class="field-hint" id="p-photo-hint">支援 JPG／PNG。</p>
             </div>
           </div>
         </fieldset>
@@ -230,7 +189,6 @@ async function onSubmit() {
           <h2>填寫前可以先準備</h2>
           <ul>
             <li>近期比賽或訓練影片連結</li>
-            <li>簡歷或經歷說明文件（PDF，非必填）</li>
             <li>可聯絡到本人的電話與 Email</li>
           </ul>
         </div>

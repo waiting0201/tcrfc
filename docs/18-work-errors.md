@@ -88,6 +88,8 @@
 | E-62 | 2026-09-25<br>2026-09-25 | 整合測試寫進共用開發庫的資料沒有清乾淨：清理呼叫失敗被靜默吞掉（29 篇孤兒文章）；**同日第二次**：兩支 FAQ 測試完全沒寫清理，累積 155 筆，擠掉另一支測試的前 50 名排行而失敗，還被誤判成「原本就會失敗」 | ⚠️ 已寫進 `docs/14`；無自動化 |
 | E-63 | 2026-09-25<br>2026-09-25 | S1-13 把 `SiteHeader.vue`／`SiteFooter.vue` 78＋19 處連結改成呼叫 `lp()` 換算語系，但 `<script setup>` 只解構了 `const { locale, switchTo } = useLocale()`，漏了 `lp` 本身，本機真實 `curl` 首頁時才炸出 `_ctx.lp is not a function`（500） | ✅ 交付前用真實 `curl` 兩站 zh／en 抓 HTML 才發現，補上解構後重測通過。**防呆已補（2026-09-25，S1-13 缺口①）**：`apps/web/scripts/check-undefined-template-refs.mjs` 已掛進 `npm run lint`，跑 `nuxi typecheck`（不是裸 `vue-tsc`——裸的解不開 Nuxt 自動匯入，見腳本檔頭），只挑「訊息含 `ComponentInternalInstance` 的 `TS2339`」與「`TS2304`／`TS2552`」這兩種錯誤形狀（樣板用了 script setup 沒解構出來的識別字），不受本專案既有型別債（`useFetch().items` 等 `TS2339`／`TS7006`）干擾，不需要維護 baseline。已用故意刪掉一個檔案的 `const { lp } = useLocale()` 實測紅燈、補回後綠燈 |
 | E-64 | 2026-09-29 | S1-14 發現既有落差：`Features/Home/HomeRepository.cs` 的 `ListBannersAsync` 直接回傳 `banners.image_key` 原始 Blob 物件鍵，沒有像 `StaffRepository`／`PlayersRepository` 一樣注入 `IImagePublicUrlResolver` 解成完整網址——首頁若真的接上 Banner 輪播圖片，前端拿到的 `imageKey` 目前無法組出正確網址（沒有 Blob 容器網址可以自己兜，猜的話會顯示壞圖） | ⚠️ 無自動化；本輪前端只用 `banners` API 的純文字欄位（`cta1Label`／`cta1Url`），暫不消費 `imageKey`，待後端補上解析後再串圖片，見 `apps/web/README.md`「S1-14」節 |
+| E-70 | 2026-09-29 | S1-17 主輪交付表單中心時，把「mockup 欄位遠多於後端 `form_fields` 定義」的落差處理成「畫面留著、悄悄不送出」，而不是把多餘欄位從畫面移除——使用者填了看得到，卻不知道不會被收到，違反「個資只收必要的」；同一輪 `camp_registration.health_declaration`（後端是 consent 布林型別）又把使用者填的健康聲明自由文字塞進不相關的 `contact`（緊急聯絡人）欄位，同樣是「畫面呈現與實際送出行為不一致」 | ✅ 收尾修正已改：7 張表單逐一清點移除多餘欄位（含全部檔案上傳 fieldset），`health_declaration` 改成語意對應的勾選框；⚠️ 無自動化檢查能抓「畫面欄位是否等於送出欄位」這件事，下次新增或接後端表單時，欄位對應表要先核對規格＋後端定義的交集，再決定畫面要顯示哪些欄位，不要先照抄 mockup 全部欄位再回頭篩選 |
+| E-71 | 2026-09-29 | 前台表單代理以 `X-Forwarded-For` 的第一個值當訪客 IP 轉給 api；Cloudflare 會保留訪客自送的 XFF、Caddy 對已信任上游是附加，第一個值可被偽造，表單限流可被繞過 | ✅ 改讀 Caddy `header_up X-Real-IP {client_ip}`，見條目 |
 
 ---
 
@@ -1735,3 +1737,17 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   這類手刻正規表示式腳本本質上就是繞過型別系統的權宜之計（`check-club-copy.mjs` 檔頭
   自己也這麼說），下一次改到同名符號還是要靠這裡寫的「先搜 `scripts/`」提醒自己，
   不是靠自動化。
+
+### E-71 以 `X-Forwarded-For` 第一個值當訪客 IP，可被偽造（2026-09-29，S1-17）
+
+- **錯在哪**：S1-17 收尾時，前台代理 `apps/web/server/api/backend/[...path].ts` 用
+  `getRequestIP(event, { xForwardedFor: true })`（取 XFF 第一個值）當訪客 IP，轉給 api 做表單限流。
+  鏈路是 Cloudflare → Caddy → nuxt：Cloudflare 會把訪客自己送的 XFF 保留並附加；Caddy 信任
+  Cloudflare，對上游也是附加。結果 nuxt 收到的第一個值是訪客可以任意填的字串，每次換一個就能繞過限流。
+- **為什麼會錯（根因）**：推論「只有 Caddy 連得進來 → 標頭是 Caddy 加的 → 可信」，只檢查了
+  **誰連進來**，沒檢查**標頭內容在每一跳是覆蓋還是附加**。XFF 是清單，信任的應該是「由可信的一跳
+  寫入的那個位置」，不是整個標頭。
+- **下次怎麼避免**：跨代理傳遞訪客 IP 時，由最後一個可信代理用它**已解析好的單一值**設定專用標頭
+  並覆蓋（Caddy `header_up X-Real-IP {client_ip}`），下游只讀該標頭；不要在下游自己取 XFF 的某個位置。
+- **防呆**：規則寫進 `docs/14-invariants.md`（部署與代理段，由同日的後端／部署修正一併補上）；
+  自動化：⚠️ 無（Caddy 設定無單元測試）。

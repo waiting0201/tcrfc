@@ -13,7 +13,8 @@
 //   location_preference = 偏好受訓地點選項的顯示文字／
 //   contact = 家長聯絡方式（後端這個鍵的題目文字是「家長聯絡方式」，對應姓名＋關係＋電話＋Email）／
 //   experience／health_status = 對應欄位原樣傳遞。
-// 性別／居住地區／學員與健康聲明以外的證明文件：後端沒有對應欄位，不送出。
+// 🔴 S1-17 收尾修正（2026-09-29）：性別、居住地區、學員照片／健康聲明證明文件這幾個欄位在
+// 規格（§3.10「學員資料」）與後端都沒有對應鍵，原本畫面留著卻悄悄不送出，現已**從畫面移除**。
 definePageMeta({ nav: '', unit: '10.2' })
 
 const { lp } = useLocale()
@@ -175,20 +176,6 @@ async function onSubmit() {
               <input id="a-dob" v-model="studentDob" type="date" name="student_dob" required aria-describedby="a-dob-error">
               <p class="field-error" id="a-dob-error" role="alert">請填寫學員出生日期</p>
             </div>
-            <div class="form-field">
-              <label for="a-gender">性別<span class="req" aria-hidden="true">*</span></label>
-              <select id="a-gender" name="student_gender" required aria-describedby="a-gender-error">
-                <option value="">請選擇</option>
-                <option value="male">男</option>
-                <option value="female">女</option>
-                <option value="undisclosed">不願透露</option>
-              </select>
-              <p class="field-error" id="a-gender-error" role="alert">請選擇性別</p>
-            </div>
-            <div class="form-field">
-              <label for="a-city">居住地區</label>
-              <input type="text" id="a-city" name="city" autocomplete="address-level2">
-            </div>
             <div class="form-field form-field--full">
               <label for="a-experience">足球或運動經歷（選填）</label>
               <textarea id="a-experience" v-model="experience" name="experience" aria-describedby="a-experience-hint"></textarea>
@@ -230,22 +217,6 @@ async function onSubmit() {
               <label for="a-parent-email">家長 Email<span class="req" aria-hidden="true">*</span></label>
               <input id="a-parent-email" v-model="parentEmail" type="email" name="parent_email" required autocomplete="email" aria-describedby="a-parent-email-error">
               <p class="field-error" id="a-parent-email-error" role="alert">請填寫有效的 Email</p>
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>上傳資料（選填）</legend>
-          <div class="form-grid">
-            <div class="form-field form-field--full file-field">
-              <label for="a-photo-file">學員照片</label>
-              <input type="file" id="a-photo-file" name="photo_file" accept=".jpg,.jpeg,.png" aria-describedby="a-photo-hint">
-              <p class="field-hint" id="a-photo-hint">支援 JPG／PNG。</p>
-            </div>
-            <div class="form-field form-field--full file-field">
-              <label for="a-doc-file">健康聲明或相關證明文件</label>
-              <input type="file" id="a-doc-file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="a-doc-hint">
-              <p class="field-hint" id="a-doc-hint">例如健康聲明、過去參賽證明或訓練紀錄，非必填。支援 PDF／JPG／PNG。</p>
             </div>
           </div>
         </fieldset>

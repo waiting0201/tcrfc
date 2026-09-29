@@ -3,22 +3,22 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 //
 // S1-17：接上 POST /api/v1/{club}/forms/camp_registration/submissions。
-// 🔴 **重大欄位落差（回報用，完整說明見 apps/web/README.md「S1-17」節「規格疑點」）**：
+// 🔴 S1-17 收尾修正（2026-09-29，完整說明見 apps/web/README.md「S1-17」節「規格疑點」）：
 // 後端 `health_declaration` 是 `consent`（布林同意）型別（db/seed/generate-club-seed-sql.py
-// FORM_FIELD_DEFAULTS["camp_registration"]），但 mockup 前台與規劃書 §3.10 的「健康聲明」
-// 顯然是要收「過敏史、慢性病、目前服用藥物」這類**自由文字內容**，不是單純打勾。這兩者無法
-// 兩全：consent 型別只接受 true/1/on/yes，送出自由文字會被後端 400 拒絕
-// （FormsRepository.ValidateFieldValue 的 Consent 分支）。本頁的暫行做法：
-//   - health_declaration 一律送 "true"（滿足後端型別要求，語意上代表「家長已完成健康聲明」）
-//   - 使用者實際填寫的健康聲明文字內容，併入 contact 欄位（後端唯一的自由文字欄位）一併送出，
-//     不會遺失，但也不是後端資料表設計本來該擺的位置。
-// 這是本輪在「不修改 apps/api」前提下能做到的最大保真度，**建議後續把 health_declaration
-// 的欄位型別改為 textarea／text**，見任務回報。
+// FORM_FIELD_DEFAULTS["camp_registration"]），不是自由文字——原本把健康聲明文字併入
+// `contact` 欄位的暫行寫法已移除（那樣會讓「緊急聯絡人」欄位混入不相干的健康資訊，且使用者
+// 看到的是一個文字框、送出時卻被系統當成單純打勾，一樣是「畫面與送出行為不一致」）。
+// 現在畫面上是**一個勾選框**，文案為中性聲明（見下方 template），與後端 consent 型別一致。
+// ⚠️ 代價：**營隊實際的健康狀況細節（過敏史、慢性病、服用藥物）目前完全沒有欄位可以收**——
+// 這是規格疑點，已在 README 與任務回報列出，建議下一輪把 `health_declaration` 欄位型別改為
+// `textarea`，讓真正的健康內容有地方存。
 //
 // 其餘欄位對應：session_choice = 希望報名的梯次／name = 學員姓名／birth_date = 學員出生日期／
-// contact = 緊急聯絡人姓名＋關係＋電話＋健康聲明內容（見上）。家長聯絡資料（parent_name／
-// parent_phone／parent_email）：後端沒有對應欄位，不送出——這也是一項風險（家長才是主要
-// 聯絡窗口，緊急聯絡人未必是家長本人），一併記入任務回報。
+// contact = 緊急聯絡人姓名＋關係＋電話。**家長聯絡資料（parent_name／parent_phone／
+// parent_email）已從畫面移除**——規劃書 §3.10 10.3 的欄位定義只列「營隊梯次、學員資料、
+// 健康聲明、緊急聯絡人」，沒有「家長聯絡」這一項（跟 10.2 不同），後端也沒有對應鍵。
+// ⚠️ 規格疑點：緊急聯絡人未必是家長本人，若客戶希望營隊報名也收家長聯絡方式，需先確認規格
+// 再新增欄位，不能自行加回畫面。
 definePageMeta({ nav: '', unit: '10.3' })
 
 const { lp } = useLocale()
@@ -36,10 +36,7 @@ const EMERGENCY_RELATION_LABELS: Record<string, string> = {
 const campSession = ref('')
 const studentName = ref('')
 const studentDob = ref('')
-const healthDeclaration = ref('')
-const parentName = ref('')
-const parentPhone = ref('')
-const parentEmail = ref('')
+const healthDeclarationConsent = ref(false)
 const emergencyName = ref('')
 const emergencyPhone = ref('')
 const emergencyRelation = ref('')
@@ -50,18 +47,13 @@ const { status, errorMessage, submit } = useFormSubmit('camp_registration')
 
 async function onSubmit() {
   const relationLabel = EMERGENCY_RELATION_LABELS[emergencyRelation.value] ?? emergencyRelation.value
-  const contactParts = [
-    `緊急聯絡人 ${emergencyName.value}（${relationLabel}）：${emergencyPhone.value}`,
-    `家長 ${parentName.value}：${[parentPhone.value, parentEmail.value].filter(Boolean).join('／')}`,
-    `健康聲明：${healthDeclaration.value}`,
-  ]
 
   await submit({
     session_choice: campSession.value,
     name: studentName.value,
     birth_date: studentDob.value,
-    health_declaration: 'true',
-    contact: contactParts.join('｜'),
+    health_declaration: healthDeclarationConsent.value ? 'true' : '',
+    contact: `${emergencyName.value}（${relationLabel}）：${emergencyPhone.value}`,
     privacy_consent: consent.value ? 'true' : '',
   }, { website: website.value })
 }
@@ -127,31 +119,11 @@ async function onSubmit() {
               <p class="field-error" id="cp-dob-error" role="alert">請填寫學員出生日期</p>
             </div>
             <div class="form-field form-field--full">
-              <label for="cp-health">健康聲明<span class="req" aria-hidden="true">*</span></label>
-              <textarea id="cp-health" v-model="healthDeclaration" name="health_declaration" required aria-describedby="cp-health-hint cp-health-error"></textarea>
-              <p class="field-hint" id="cp-health-hint">請說明過敏史、慢性病、目前服用藥物或其他需要教練與隨隊人員留意的健康狀況；若無請填寫「無」。</p>
-              <p class="field-error" id="cp-health-error" role="alert">請填寫健康聲明（若無請填寫「無」）</p>
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>家長聯絡資料</legend>
-          <div class="form-grid">
-            <div class="form-field">
-              <label for="cp-parent-name">家長／監護人姓名<span class="req" aria-hidden="true">*</span></label>
-              <input id="cp-parent-name" v-model="parentName" type="text" name="parent_name" required autocomplete="name" aria-describedby="cp-parent-name-error">
-              <p class="field-error" id="cp-parent-name-error" role="alert">請填寫家長／監護人姓名</p>
-            </div>
-            <div class="form-field">
-              <label for="cp-parent-phone">家長聯絡電話<span class="req" aria-hidden="true">*</span></label>
-              <input id="cp-parent-phone" v-model="parentPhone" type="tel" name="parent_phone" required autocomplete="tel" aria-describedby="cp-parent-phone-error">
-              <p class="field-error" id="cp-parent-phone-error" role="alert">請填寫家長聯絡電話</p>
-            </div>
-            <div class="form-field form-field--full">
-              <label for="cp-parent-email">家長 Email<span class="req" aria-hidden="true">*</span></label>
-              <input id="cp-parent-email" v-model="parentEmail" type="email" name="parent_email" required autocomplete="email" aria-describedby="cp-parent-email-error">
-              <p class="field-error" id="cp-parent-email-error" role="alert">請填寫有效的 Email</p>
+              <div class="checkbox-field">
+                <input id="cp-health-declaration" v-model="healthDeclarationConsent" type="checkbox" name="health_declaration" required aria-describedby="cp-health-declaration-error">
+                <label for="cp-health-declaration">本人確認已據實告知學員的過敏史、慢性病、目前服用藥物等健康狀況，如有變動將主動告知課程部。<span class="req" aria-hidden="true">*</span></label>
+              </div>
+              <p class="field-error" id="cp-health-declaration-error" role="alert">請勾選健康聲明</p>
             </div>
           </div>
         </fieldset>
@@ -180,17 +152,6 @@ async function onSubmit() {
                 <option value="other">其他</option>
               </select>
               <p class="field-error" id="cp-emg-relation-error" role="alert">請選擇與學員關係</p>
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>上傳資料（選填）</legend>
-          <div class="form-grid">
-            <div class="form-field form-field--full file-field">
-              <label for="cp-doc-file">健康聲明書或其他文件</label>
-              <input type="file" id="cp-doc-file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png" aria-describedby="cp-doc-hint">
-              <p class="field-hint" id="cp-doc-hint">支援 PDF／JPG／PNG，非必填。</p>
             </div>
           </div>
         </fieldset>

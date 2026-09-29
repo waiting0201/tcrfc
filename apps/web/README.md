@@ -1159,8 +1159,8 @@ curl -sI http://127.0.0.1:3001/zh/ | grep -i x-robots-tag
 ## S1-17（07 新聞中心／10 表單中心／Location & Map，2026-09-29，`frontend-architect`）
 
 主站規劃書 §3.7（新聞中心 8 分類）、§3.10（表單中心 7 類 ＋ 附屬頁 Location & Map／
-Contact Information）。**Contact Information 頁不在本次任務範圍**（未點名），只在下方
-「規格疑點」記錄一項順手發現的既有缺口，未動它的程式碼。
+Contact Information）。**Contact Information 頁不在本次主輪任務範圍**（未點名），
+下方「規格疑點」第 5 點記錄的缺口已在「S1-17 收尾修正」（見該節）補上。
 
 ### 改了哪些檔案
 
@@ -1214,24 +1214,26 @@ Contact Information）。**Contact Information 頁不在本次任務範圍**（�
 | 詳情頁：標籤 | ✅ **本輪新增**——`.article-meta-row` 補上「標籤」欄 |
 | 詳情頁：其餘（封面圖／日期／作者／內文／社群分享／相關文章） | ⬜ 既有（S0-9e／S1-12e），本輪未改動 |
 
-### 10 表單中心：欄位對應表（每張表單的完整決策）
+### 10 表單中心：欄位對應表（每張表單的完整決策，2026-09-29 收尾修正後）
 
 規劃書 §3.10 只列「主要欄位」，`apps/api` 的 `form_fields` 種子資料（`db/seed/
-generate-club-seed-sql.py` 的 `FORM_FIELD_DEFAULTS`）採**最小可行欄位組**，跟既有
+generate-club-seed-sql.py` 的 `FORM_FIELD_DEFAULTS`）採**最小可行欄位組**，跟原始
 mockup 前台欄位數量對不齊（mockup 是完整 UX 設計稿，欄位遠多於後端目前定義的）。
-**任務指示明文「欄位以後端表單定義為準，不要在前台自己加欄位」**——本輪的做法是：
-可見欄位不動（DOM／文字一律不改），但只把對應得到的欄位值組進送出的 `answers`，
-對應不到的欄位維持在畫面上（使用者填了看得到，但**不會被送出**，見下表「未送出」欄）。
+**任務指示明文「欄位以後端表單定義為準，不要在前台自己加欄位」**——S1-17 主輪交付時
+的做法是「可見欄位不動、對應不到的欄位悄悄不送出」，事後複核認定這樣會誤導使用者以為
+填了會被收到，且違反「個資只收必要的」。**S1-17 收尾修正（2026-09-29）已把下表「原
+未送出」欄列出的欄位全部從畫面移除**（不是隱藏），現在畫面上看得到的欄位＝會被送出的
+欄位，兩者不再有落差。
 
-| 表單 | 後端欄位（`form_code`） | 對應決策 | 未送出（後端無對應欄位） |
+| 表單 | 後端欄位（`form_code`） | 對應決策 | 已從畫面移除（原「未送出」，規格與後端皆無對應） |
 |---|---|---|---|
-| 10.1 加入球隊 | `join_player`：`name`／`birth_date`／`position`／`experience`／`video_url`／`contact` | `name`＝中文姓名（＋英文姓名括號附加）；`position`＝選單顯示文字（後端是 `text` 型別，無選項限制）；`contact`＝電話＋Email 合併 | 性別、居住城市、慣用腳、目前球隊、履歷／照片檔案 |
-| 10.2 加入學院／兒童訓練 | `academy_children_training`：`enrollment_category`（**封閉選項**）／`name`／`birth_date`／`location_preference`／`contact`／`experience`／`health_status` | 🔴 **mockup 13 個報名細項對到後端封閉的 7 選項**：6 種專項訓練細項收斂為單一「專項訓練」；「尚未確定，請協助建議」**沒有對應選項**（後端封閉選項沒有「不確定」），退回「兒童混齡班」當技術預設值，同時把使用者實際選擇的文字併入 `experience` 欄位開頭，不遺失真正的選擇；`contact`（後端標籤是「家長聯絡方式」）＝家長姓名＋關係＋電話＋Email 合併 | 學員性別、居住地區、學員／健康聲明以外的證明文件 |
-| 10.3 營隊報名 | `camp_registration`：`session_choice`／`name`／`birth_date`／`health_declaration`（**consent 布林型別**）／`contact` | 🔴 **重大欄位型別落差**——見下方「規格疑點」第 1 點 | 家長聯絡資料（`parent_name`／`parent_phone`／`parent_email`，見規格疑點第 2 點） |
-| 10.4 國際球員詢問 | `international_player_enquiry`：`name`／`nationality`／`passport_no`／`experience`／`video_url`／`visa_status`／`contact` | `experience`＝場上位置＋目前球隊＋比賽等級併入足球經歷摘要前面；`visa_status`＝選單顯示文字（`text` 型別）；`contact`＝Email＋電話合併 | 出生日期（這張表單後端沒有 `birth_date` 鍵，跟 10.1／10.2 不同）、經紀人聯絡方式、CV／其他文件 |
-| 10.5 合作夥伴與贊助洽詢 | `partnership_sponsorship`：`enquiry_type`（**封閉選項**）／`company`／`industry`／`budget_range`／`cooperation_direction`／`sponsorship_interest`／`name`／`contact` | `enquiry_type`：mockup 送英文代碼，後端封閉選項是中文字面值 `["合作夥伴","贊助","兩者"]`，用對照表轉換；`industry`／`budget_range`＝選單顯示文字（`text` 型別）；`cooperation_direction`＝勾選的「合作方向」項目名稱＋「合作構想」欄位原文合併；`sponsorship_interest`＝勾選的「感興趣贊助方案」項目名稱 | 統一編號、聯絡人職稱、提案文件 |
-| 10.6 媒體詢問 | `media_enquiry`：`media_name`／`name`／`topic`／`deadline`／`contact` | `topic`＝採訪類型顯示文字＋採訪主題原文合併；`contact`＝電話＋Email 合併 | 聯絡人職稱、採訪大綱文件 |
-| 10.7 一般聯絡 | `general_contact`：`name`／`contact`／`subject`／`message` | `contact`＝Email（規劃書 §3.10 10.7 欄位定義本來就只寫「Email」，後端 `contact` 這一鍵的題目文字也是「Email」）；`subject`＝選單顯示文字（`text` 型別） | 聯絡電話（選填欄位，規格與後端都沒有這個鍵）、附件 |
+| 10.1 加入球隊 | `join_player`：`name`／`birth_date`／`position`／`experience`／`video_url`／`contact` | `name`＝中文姓名（＋英文姓名括號附加，英文姓名保留，因為它會被合併送出）；`position`＝選單顯示文字（後端是 `text` 型別，無選項限制）；`contact`＝電話＋Email 合併 | 性別、居住城市、慣用腳、目前球隊、履歷／照片檔案（含整個「上傳資料」區塊） |
+| 10.2 加入學院／兒童訓練 | `academy_children_training`：`enrollment_category`（**封閉選項**）／`name`／`birth_date`／`location_preference`／`contact`／`experience`／`health_status` | 🔴 **mockup 13 個報名細項對到後端封閉的 7 選項**：6 種專項訓練細項收斂為單一「專項訓練」；「尚未確定，請協助建議」**沒有對應選項**（後端封閉選項沒有「不確定」），退回「兒童混齡班」當技術預設值，同時把使用者實際選擇的文字併入 `experience` 欄位開頭，不遺失真正的選擇；`contact`（後端標籤是「家長聯絡方式」）＝家長姓名＋關係＋電話＋Email 合併 | 學員性別、居住地區、學員照片／健康聲明以外的證明文件（含整個「上傳資料」區塊） |
+| 10.3 營隊報名 | `camp_registration`：`session_choice`／`name`／`birth_date`／`health_declaration`（**consent 布林型別**）／`contact` | ✅ **重大欄位型別落差已改用另一種做法**——見下方「規格疑點」第 1 點（`health_declaration` 改為勾選框，不再把健康聲明文字併入 `contact`）；`contact`＝緊急聯絡人姓名＋關係＋電話 | 家長聯絡資料（`parent_name`／`parent_phone`／`parent_email`）、健康聲明書或其他文件上傳（見規格疑點第 2 點） |
+| 10.4 國際球員詢問 | `international_player_enquiry`：`name`／`nationality`／`passport_no`／`experience`／`video_url`／`visa_status`／`contact` | `experience`＝場上位置＋目前球隊＋比賽等級併入足球經歷摘要前面；`visa_status`＝選單顯示文字（`text` 型別）；`contact`＝Email＋電話合併 | 出生日期（這張表單後端沒有 `birth_date` 鍵，跟 10.1／10.2 不同，且原本就沒有 `v-model`，填了也從未被讀取）、經紀人聯絡方式、CV／其他文件（含整個「Uploads」區塊） |
+| 10.5 合作夥伴與贊助洽詢 | `partnership_sponsorship`：`enquiry_type`（**封閉選項**）／`company`／`industry`／`budget_range`／`cooperation_direction`／`sponsorship_interest`／`name`／`contact` | `enquiry_type`：mockup 送英文代碼，後端封閉選項是中文字面值 `["合作夥伴","贊助","兩者"]`，用對照表轉換；`industry`／`budget_range`＝選單顯示文字（`text` 型別）；`cooperation_direction`＝勾選的「合作方向」項目名稱＋「合作構想」欄位原文合併；`sponsorship_interest`＝勾選的「感興趣贊助方案」項目名稱 | 統一編號、聯絡人職稱、提案文件（含整個「上傳資料」區塊） |
+| 10.6 媒體詢問 | `media_enquiry`：`media_name`／`name`／`topic`／`deadline`／`contact` | `topic`＝採訪類型顯示文字＋採訪主題原文合併；`contact`＝電話＋Email 合併 | 聯絡人職稱、採訪大綱文件（含整個「上傳資料」區塊） |
+| 10.7 一般聯絡 | `general_contact`：`name`／`contact`／`subject`／`message` | `contact`＝Email（規劃書 §3.10 10.7 欄位定義本來就只寫「Email」，後端 `contact` 這一鍵的題目文字也是「Email」）；`subject`＝選單顯示文字（`text` 型別） | 聯絡電話（選填欄位，規格與後端都沒有這個鍵）、附件（含整個「上傳附件」區塊） |
 
 **共通機制對照**（規劃書 §3.10「共通機制」）：
 
@@ -1258,16 +1260,25 @@ mockup 前台欄位數量對不齊（mockup 是完整 UX 設計稿，欄位遠�
    但規劃書 §3.10「健康聲明」與 mockup 前台顯然是要收「過敏史、慢性病、目前服用藥物」
    這類**自由文字內容**，兩者無法兩全**——`consent` 型別只接受 `true`／`1`／`on`／`yes`，
    送出自由文字會被 `FormsRepository.ValidateFieldValue` 的 `Consent` 分支拒絕（400）。
-   本頁暫行做法：`health_declaration` 固定送 `"true"`（滿足型別要求），使用者實際填寫的
-   健康聲明文字併入 `contact` 欄位（後端唯一的自由文字欄位，與緊急聯絡人資訊放在一起）
-   一併送出，不會遺失，但也不是資料表設計本來該擺的位置。**建議下一輪把
-   `health_declaration` 欄位型別改為 `text`／`textarea`**，這是涉及兒童安全資訊的欄位，
-   不建議長期用這個暫行做法。
+   **S1-17 收尾修正（2026-09-29）已改做法**：原本「固定送 `true`、健康聲明文字併入
+   `contact` 欄位」的暫行寫法已移除（那樣會讓緊急聯絡人欄位混入不相干的健康資訊，
+   且畫面是文字框、送出時卻被當成單純打勾，一樣是「畫面與送出行為不一致」）。現在
+   `cp-health-declaration` 是**一個勾選框**，文案為中性聲明「本人確認已據實告知學員的
+   過敏史、慢性病、目前服用藥物等健康狀況，如有變動將主動告知課程部。」——**這段文案是
+   本輪自擬的最精簡說明，規劃書與既有文案都沒有現成的健康聲明勾選文字，需要客戶確認
+   措辭是否足夠、是否需要法務再審**。⚠️ **代價**：改用勾選框後，**營隊實際的健康狀況
+   細節（過敏史、慢性病、服用藥物的具體內容）現在完全沒有欄位可以收**，比修正前的暫行
+   做法（至少內容還在，只是位置不對）更保守。**建議下一輪把 `health_declaration` 欄位
+   型別改為 `text`／`textarea`**，讓真正的健康內容有正確的地方存——這是涉及兒童安全
+   資訊的欄位，目前「有勾選、無內容」的狀態不建議長期維持。
 2. 🔴 **`camp_registration` 沒有承接「家長聯絡資料」的欄位**——後端只有 `contact`
    一鍵，語意標籤是「緊急聯絡人」，家長姓名／電話／Email 三個 mockup 欄位完全沒有
-   對應鍵可送。已知風險：緊急聯絡人未必是家長本人，若後台窗口只看得到 `enquiries`
-   的 `contact` 欄位，可能找不到真正該聯繫的家長。目前**未送出**這三個欄位（畫面上
-   仍要求填寫但資料不會進後台），建議下一輪評估是否要新增欄位。
+   對應鍵可送。**S1-17 收尾修正（2026-09-29）已把這三個欄位從畫面移除**（規劃書 §3.10
+   10.3 的欄位定義本來就只列「營隊梯次、學員資料、健康聲明、緊急聯絡人」，沒有「家長
+   聯絡」這一項，跟 10.2 不同，移除後畫面與規格一致）。已知風險不變：緊急聯絡人未必是
+   家長本人，若後台窗口只看得到 `enquiries` 的 `contact` 欄位（緊急聯絡人），可能找不到
+   真正該聯繫的家長。**需要客戶確認**：營隊報名是否也要收家長聯絡方式，若要，須先把
+   欄位補進規劃書與後端 `form_fields`，不能只在前台加回畫面。
 3. **10.2 學院／兒童訓練報名項目「尚未確定，請協助建議」無法對應後端封閉選項**——
    後端 `enrollment_category` 只有 7 個固定值，沒有「不確定」這個選項；已在上方欄位
    對應表說明暫行做法（退回「兒童混齡班」＋原文併入 `experience`）。
@@ -1276,38 +1287,120 @@ mockup 前台欄位數量對不齊（mockup 是完整 UX 設計稿，欄位遠�
    真的去觸發顯示；本輪選擇移除 `novalidate` 讓瀏覽器原生驗證接手（成本低、行為
    正確），沒有另外實作 60＋ 個欄位各自的 JS 顯示邏輯——這是效益判斷，不是規格要求，
    下一輪若要更客製化的錯誤訊息樣式，這批 `.field-error` 段落還在，可以另外接上。
-5. **Contact Information 頁（`/zh/join/contact/`）的電話／營業時間欄位仍是空白**——
-   順手發現：`PublicSiteFactsDto.contact` 早就有 `phone`／`hours` 兩個欄位，但該頁
-   template 的「電話」「營業時間」兩格從未綁定顯示這兩個欄位（且兩俱樂部這兩個值目前
-   都還是 `null`，接了也不會顯示任何內容）。**本次任務未點名這一頁，未動它的程式碼**，
-   留給下一輪（若電話／營業時間之後在後台填了值）一併處理。
+5. ✅ **Contact Information 頁（`/zh/join/contact/`）的電話／營業時間欄位曾經一直空白，
+   已在 S1-17 收尾修正（2026-09-29）補上綁定**——`PublicSiteFactsDto.contact` 早就有
+   `phone`／`hours` 兩個欄位，但該頁 template 的「電話」「營業時間」兩格先前從未綁定
+   顯示。現已改為 `tcrfcFacts.contact.phone`／`.hours`，有值才顯示（`v-if`），沒有值
+   （目前兩俱樂部都是 `null`）就只顯示標籤，不顯示假資料。**待客戶提供正式電話與營業
+   時間、後台 `I` 網站設定填值後，這裡會自動顯示**，不需要再改程式碼。
 
-### 驗證指令與實際結果（2026-09-29）
+## S1-17 收尾修正（欄位收斂、代理限縮與 IP 轉發、聯絡資訊補綁，2026-09-29，`frontend-architect`）
+
+主 session 複核 S1-17 交付後回饋五項問題，全部在本輪處理，範圍限定 `apps/web`
+（未動 `apps/api`，未啟動 `apps/api`）：
+
+1. **7 張表單移除「畫面有、送出卻悄悄丟棄」的欄位**——見上方「10 表單中心：欄位對應表」
+   已更新為收尾修正後的版本，逐表單移除清單見該表「已從畫面移除」欄。
+2. **10.3 營隊報名健康聲明改為勾選框**、10.3 家長聯絡欄位整組移除——見「規格疑點」第 1、2 點。
+3. **`server/api/backend/[...path].ts`**：POST 收窄為只放行表單送出路徑（正規表示式
+   `/^[a-z][a-z0-9-]*\/forms\/[a-z][a-z0-9_]*\/submissions$/`），其他路徑的 POST 一律
+   405；並新增訪客真實 IP 轉發（見下方「代理的 IP 轉發設計」）。
+4. **Contact Information 頁補綁電話／營業時間**——見「規格疑點」第 5 點。
+
+### 改了哪些檔案
+
+- `app/pages/zh/join/player/index.vue` — 移除性別、居住城市、慣用腳、目前球隊、
+  履歷／照片檔案上傳（整個「上傳資料」fieldset）；同步移除側欄「填寫前可以先準備」
+  提到履歷檔案的那一條（欄位都拿掉了，提示使用者準備一份無處可交的檔案沒有意義）。
+- `app/pages/zh/join/academy/index.vue` — 移除性別、居住地區、學員照片／健康聲明證明
+  文件上傳（整個「上傳資料」fieldset）。
+- `app/pages/zh/join/camp-registration/index.vue` — 移除整個「家長聯絡資料」fieldset
+  （`parent_name`／`parent_phone`／`parent_email`）與「上傳資料」fieldset（`doc_file`）；
+  `healthDeclaration`（textarea，字串）改為 `healthDeclarationConsent`（checkbox，布林），
+  `onSubmit` 不再把健康聲明文字併入 `contact`，`contact` 現在只有緊急聯絡人資訊。
+- `app/pages/zh/join/international-player/index.vue` — 移除出生日期（`dob`，本來就沒有
+  `v-model`，是三個沒被讀取的欄位之一）、Agent / Representative Contact、整個「Uploads」
+  fieldset（`cv_file`／`doc_file`）；「Visa & Representation」legend 改名「Visa Status」
+  （拿掉 agent 欄位後原名不再準確）。
+- `app/pages/zh/join/partnership/index.vue` — 移除統一編號（`tax_id`）、職稱
+  （`contact_title`）、整個「上傳資料」fieldset（`doc_file`）。
+- `app/pages/zh/join/media/index.vue` — 移除職稱（`contact_title`）、整個「上傳資料」
+  fieldset（`doc_file`）。
+- `app/pages/zh/join/general/index.vue` — 移除聯絡電話（選填，`phone`）、整個「上傳附件」
+  fieldset（`doc_file`）。
+- `app/pages/zh/join/contact/index.vue` — 電話／營業時間改綁
+  `useSiteFacts('tcrfc').contact.phone`／`.hours`，`v-if` 有值才顯示。
+- `server/api/backend/[...path].ts` — 重寫：GET 邏輯不變；POST 改為先驗證 path 是否符合
+  表單送出路徑正規表示式，符合才轉發（否則 405），並讀取 Caddy 設定的 `X-Real-IP`
+  （經 `isIP` 驗證）、以單一值的 `X-Forwarded-For` 標頭轉發給 `apps/api`（主 session
+  於 2026-09-29 由 `getRequestIP(xForwardedFor)` 改為此做法，見 `E-71`）。
+
+### 代理的 IP 轉發設計
+
+`apps/api` 依「真實訪客 IP」對表單送出端點做固定視窗限流（`Program.cs`「S1-10（審查
+回饋修正）」段、`Security/TrustedProxyConfiguration.cs`）。但這支代理呼叫 `apps/api`
+走 Docker 內部網路（`backendApiBase()` 在 SSR 階段解析成 `http://api:8080`），
+**完全繞過 Caddy**——從 `apps/api` 的角度看，這次連線來源是 `web` 容器本身，不是 Caddy。
+
+- **這裡（前台代理）做的事**：只讀 Caddy 設定的 `X-Real-IP`（`deploy/Caddyfile` 對
+  nuxt-* 上游 `header_up X-Real-IP {client_ip}`），經 `isIP` 驗證後，以**單一值**的
+  `X-Forwarded-For` 轉給 `apps/api`。**不讀 `X-Forwarded-For`**：Caddy 對已信任的上游
+  （Cloudflare）是「附加」，而 Cloudflare 會保留訪客自己送的 XFF，所以 XFF 的第一個值
+  可以被訪客偽造、繞過限流（`E-71`，主 session 複核時發現；本輪 agent 原本用
+  `getRequestIP(event, { xForwardedFor: true })` 取第一個值）。`{client_ip}` 是 Caddy
+  依 `client_ip_headers`＋`trusted_proxies` 解出的值，`header_up` 會覆蓋訪客自送的同名
+  標頭；`nuxt-tcrfc`／`nuxt-bw` 沒有對外發布 port，只有 Caddy 連得進來。
+- **後端那一側（另一個 agent 負責）**：`apps/api` 既有的 `TRUSTED_PROXY_IP` 信任清單
+  若只認 Caddy 的固定 IP（`172.28.238.2`），不會信任這支代理送來的 `X-Forwarded-For`
+  ——把 `web` 容器的 IP 也一併納入信任清單是後端那一側的工作。**兩側要一起上線才會
+  生效**：只改前台這一側，標頭會被 `apps/api` 忽略（因為它不信任 `web` 容器的來源
+  IP）；只改後端那一側，前台沒送這個標頭一樣拿不到真實 IP。
+- **本機開發／沒有 Caddy 在前面時**：沒有 `X-Real-IP`，這裡選擇不送這個標頭（而不是送一個假值），讓 `apps/api` 退回連線本身
+  看到的來源 IP（本機開發時就是 `web` 容器或 `dotnet run` 的直連 IP，跟正式環境的行為
+  一致：沒有可信的訪客 IP 就不假裝有）。
+- ⚠️ **已知限制**：這個「只信任 Caddy」的邊界是靠 Docker 網路拓撲（`web` 容器沒發布
+  port）而不是應用層驗證來成立的——如果本機直接對外發布 `nuxt-tcrfc` 的 port（例如本輪
+  驗證時用 `docker run -p 13001:3000`），任何人都能直接對這個容器送任意
+  `X-Real-IP`，這裡會照樣轉發出去。正式環境不會有這個落差（`docker-compose.yml`
+  沒有對 `nuxt-tcrfc`／`nuxt-bw` 發布 port），純粹是本機單獨測試這支代理時的已知情境，
+  記錄在此供下一輪留意。
+
+### 驗證指令與實際結果（2026-09-29，收尾修正）
 
 ```bash
-npm run lint    # 0 errors, 467 warnings（低於 527 上限）
-npm run build   # 成功
+npm run lint    # 0 errors, 429 warnings（低於 467 上限）
+npm run build   # 成功（含 nuxi typecheck）
 docker build -f apps/web/Dockerfile apps/web   # 成功
 ```
 
-本機起兩個容器（`tcrfc` port 3001／`bw` port 3002，`bw` 帶
-`NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動**，依派工規則不自行啟動、不碰密碼）：
+本機起兩個容器（`tcrfc` port 13001／`bw` port 13002，`bw` 帶
+`NUXT_PUBLIC_CLUB=bw`，**`apps/api` 未啟動**，依派工規則不自行啟動、不碰密碼）：
 
-- 兩容器對本輪改動的 20 條路徑（07 的 9 頁＋10 的 9 頁＋Location & Map，含 `/zh/`／`/en/`
-  各一次 `/zh/join/player/` 與 `/en/join/player/` 抽查）**全數 `200`**，無 `500`。
-- 兩容器皆有 `X-Robots-Tag: noindex, nofollow`。
-- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:3001`／`3002`：
+- 兩容器對 7 個表單頁＋Contact Information 頁的 `/zh/`／`/en/`（共 16 條路徑）
+  **全數 `200`**，無 `500`；容器 log 顯示表單頁在 SSR 階段呼叫
+  `useFormSubmit`／`useSiteFacts` 以外沒有拋出例外。
+- `curl` 抓取渲染後 HTML，用 `grep -oE 'name="..."'` 逐表單核對：`gender`／`city`／
+  `preferred_foot`／`current_team`／`resume_file`／`photo_file`（10.1）、
+  `student_gender`／`city`／`photo_file`／`doc_file`（10.2）、`parent_name`／
+  `parent_phone`／`parent_email`（10.3）、`dob`／`agent_contact`／`cv_file`／`doc_file`
+  （10.4）、`tax_id`／`contact_title`／`doc_file`（10.5）、`contact_title`／`doc_file`
+  （10.6）、`phone`／`doc_file`（10.7）**全數 0 筆**，確認已從 DOM 移除而非隱藏；10.3
+  的 `health_declaration` 欄位確認渲染為 `<input type="checkbox">`。
+- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:13001`／`13002`：
   **H1 唯一、標題不跳階皆 0 違規**（tcrfc 156 條路由、bw 138 條路由，其餘為 30x／404 略過）。
-- `node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:3002`：**通過**
-  （保護清單 15 頁全數乾淨，棘輪未被違反；本輪改動的頁面本來就有既有的磐石／學院詞彙
-  殘留，不在保護清單內，非本輪新增的退化）。
-- 抽查渲染結果：`/zh/join/player/` 的 `<form>` 已不含 `novalidate`、含
-  `name="website"` 誘捕欄位、初始狀態不含任何 `.form-status` 元素（idle 狀態正確不渲染
-  成功／失敗訊息）；`/zh/join/location/` 已渲染出真正的 `<iframe src="https://www.google.
-  com/maps?q=...&output=embed">`（地址已正確 URL 編碼）；`/zh/news/academy/`／
-  `/zh/news/player-stories/` 顯示「本分類目前尚無已發布之文章」（因 `apps/api` 未啟動，
-  無法區分「這是 API 打不到的降級」還是「這是真的查詢到 0 筆」，兩者目前巧合地是同一個
-  畫面，見下方「未驗證項目」）。
+- `node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:13002`：**通過**
+  （保護清單 15 頁全數乾淨，棘輪未被違反）。
+- 兩容器皆有 `X-Robots-Tag: noindex, nofollow`。
+- 代理實測（對 `tcrfc` 容器）：
+  - `POST /api/backend/tcrfc/news`、`POST /api/backend/admin/accounts`、
+    `POST /api/backend/tcrfc/forms/join_player/submissions/../../accounts` 三種非表單
+    送出形狀的 POST **皆回 `405`**。
+  - `POST /api/backend/tcrfc/forms/join_player/submissions`（表單送出路徑，帶合法
+    JSON body）：因 `apps/api` 未啟動，回應 `500`（`ECONNREFUSED 127.0.0.1:5299`，
+    容器 log 已確認是連線層失敗，不是這支代理自己的邏輯錯誤）——代理正確嘗試轉發，
+    只是後端不在，不是本輪能驗證到「後端真的收到並處理」的程度。
+  - `GET /api/backend/tcrfc/site-facts?lang=zh`：同樣因 `apps/api` 未啟動回 `500`，
+    確認 GET 既有行為未被本輪改動影響（跟 POST 一樣卡在連線層，不是被誤判 405）。
 
 ### 未驗證項目
 
@@ -1325,6 +1418,14 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
 - **Google Maps `output=embed` iframe 在瀏覽器裡的實際渲染**（是否顯示正確地圖位置）
   ——只驗證了 SSR 輸出的 `<iframe src>` 網址字串正確（地址 URL 編碼無誤），沒有用
   無頭瀏覽器截圖確認地圖畫面本身。
+- **收尾修正**：`camp_registration` 送出 `health_declaration: 'true'`（勾選）後，
+  `apps/api` 端的 `consent` 型別驗證是否真的接受、`enquiries`／`enquiry_answers` 是否
+  正確寫入——`apps/api` 未啟動，只驗證了前台 payload 的形狀（型別檢查＋程式碼審視）。
+- **收尾修正**：代理的 `X-Forwarded-For` 轉發只驗證到「這裡有正確解析並附加標頭」（見
+  `server/api/backend/[...path].ts` 邏輯與程式碼審視），沒有機會驗證 `apps/api` 那一側
+  收到後是否真的被 `TrustedProxyConfiguration` 信任並用於限流分區——這一半在另一個
+  agent 的改動範圍內，需要兩側都上線後才能端到端驗證（例如從兩個不同來源 IP 送出、
+  確認限流分區確實各自獨立）。
 
 ## 相關文件
 

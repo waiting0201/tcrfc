@@ -6,7 +6,10 @@
 // 欄位對應：name = name／contact = email（規劃書 §3.10 10.7 的欄位定義本來就是「姓名、Email、
 // 主旨、內容」，contact 這個鍵語意上就是 Email，見 db/seed FORM_FIELD_DEFAULTS["general_contact"]
 // label_zh="Email"）／subject = 主旨選單的中文顯示文字（後端 subject 是 text 型別，無選項限制）／
-// message = message。phone（選填欄位）：後端沒有對應欄位，不送出；doc_file 同理。
+// message = message。
+// 🔴 S1-17 收尾修正（2026-09-29）：phone（選填的聯絡電話）、doc_file（附件上傳）在規格
+// （§3.10 10.7「主要欄位」：姓名、Email、主旨、內容）與後端都沒有定義，原本畫面留著卻悄悄
+// 不送出，現已**從畫面移除**。
 definePageMeta({ nav: '', unit: '10.7' })
 
 const { lp } = useLocale()
@@ -87,10 +90,6 @@ async function onSubmit() {
               <input id="gc-email" v-model="email" type="email" name="email" required autocomplete="email" aria-describedby="gc-email-error">
               <p class="field-error" id="gc-email-error" role="alert">請填寫有效的 Email</p>
             </div>
-            <div class="form-field form-field--full">
-              <label for="gc-phone">聯絡電話（選填）</label>
-              <input type="tel" id="gc-phone" name="phone" autocomplete="tel">
-            </div>
           </div>
         </fieldset>
 
@@ -113,17 +112,6 @@ async function onSubmit() {
               <label for="gc-message">內容<span class="req" aria-hidden="true">*</span></label>
               <textarea id="gc-message" v-model="message" name="message" required aria-describedby="gc-message-error"></textarea>
               <p class="field-error" id="gc-message-error" role="alert">請填寫留言內容</p>
-            </div>
-          </div>
-        </fieldset>
-
-        <fieldset>
-          <legend>上傳附件（選填）</legend>
-          <div class="form-grid">
-            <div class="form-field form-field--full file-field">
-              <label for="gc-doc-file">附件</label>
-              <input type="file" id="gc-doc-file" name="doc_file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" aria-describedby="gc-doc-hint">
-              <p class="field-hint" id="gc-doc-hint">支援 PDF／JPG／PNG／DOC／DOCX。</p>
             </div>
           </div>
         </fieldset>
