@@ -10,8 +10,16 @@
 // 單元代號對照 header.html 的 mega menu 編號（2.x 關於／3.x 俱樂部／4.x 學院／5.x 課程／
 // 7.x 新聞／8.x 文化／9.x 夥伴），06＝女子足球、11＝慈善，兩者皆無 mega menu 故無法從
 // 現有 HTML 反推子項，代號依 docs/14-invariants.md 與 docs/13-blue-whale-site.md §3 直接認定。
+// 10（加入與聯絡）、12（FAQ）、13（賽事行事曆）同樣不在 mega menu（CTA 按鈕或另行連結），
+// 代號依各自頁面 definePageMeta 的 unit 值直接認定。
 // ⚠️ 這份清單只到「單元」層級（對應主要導覽項），不含每個單元底下的子頁——
 // 子頁清單留給 S0-9 完整搬遷、sitemap 需要逐頁列出時再補。
+// 🔴 docs/18-work-errors.md E-72：13（賽事行事曆）自 S1-15 建置完成起漏列於此清單、
+// 10（加入與聯絡，S1-17 建置完成）也同樣漏列，兩者已於 S1-18 本輪一併補上並跑過
+// sitemap.xml／llms.txt 收錄驗證（見 apps/web/README.md「S1-18」節）。**新增任何
+// 走 `definePageMeta({ unit: 'XX' })` 的頂層單元頁面時，同一次交付要一併檢查這份
+// 清單是否已收錄該代碼**——`npm run lint` 的 `lint:site-units-coverage` 防呆
+// 會在忘記時擋下（見 scripts/check-site-units-coverage.mjs）。
 
 import { isUnitEnabledForClub } from './units'
 
@@ -34,15 +42,10 @@ export const SITE_UNITS: readonly SiteUnit[] = [
   { code: '07', navKey: 'news', path: '/zh/news/', labelZh: '新聞' },
   { code: '08', navKey: 'culture', path: '/zh/culture/', labelZh: '台中磐石文化' },
   { code: '09', navKey: 'partners', path: '/zh/partners/', labelZh: '夥伴' },
+  { code: '10', navKey: 'join', path: '/zh/join/', labelZh: '加入與聯絡' },
   { code: '11', navKey: 'charity', path: '/zh/charity/', labelZh: '慈善' },
-  // S1-18 新增：12 FAQ 首頁補進單元層級清單，讓 sitemap.xml／llms.txt 兩處
-  // 自動收錄（見兩者共用的 getEnabledSiteUnits 呼叫鏈，檔頭說明）。
-  // 🔴 docs/18-work-errors.md E-72：13 賽事行事曆（app/pages/zh/schedule.vue）
-  // 自 S1-15 建置完成起就沒有補進這份清單，同一個缺口本輪一併發現但不在
-  // S1-18 任務範圍內，留給下一個處理 schedule／SEO 相關工作的人一併修正，
-  // 不在本輪順手一起加（避免擴大本輪改動範圍卻沒有對應驗收，同一原則見
-  // shared/utils/units.ts 對 5.3–5.5 留給 S2-10 的既有先例）。
   { code: '12', navKey: 'faq', path: '/zh/faq/', labelZh: '常見問題' },
+  { code: '13', navKey: 'schedule', path: '/zh/schedule/', labelZh: '賽事行事曆' },
 ] as const
 
 export function getEnabledSiteUnits(club: string): SiteUnit[] {

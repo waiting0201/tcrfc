@@ -10,7 +10,10 @@
 // 學院改為青年隊」是內容取捨不是這張分類字典的欄位，本頁不臆自改名，維持後端真實
 // 資料，此為既有資料設計的已知限制，非本輪引入的迴歸（見 apps/web/README.md
 // 「S1-18」節）。
-definePageMeta({ nav: '', unit: '12' })
+// unit '12.2'：藍鯨規劃書 §3「04 青年隊不沿用學院的招生與課程報名架構」——
+// 本頁就是磐石學院招生流程與費用表，同 4.7（加入學院）的關閉理由，見
+// shared/utils/units.ts 的 BLUE_WHALE_DISABLED_UNITS 說明。
+definePageMeta({ nav: '', unit: '12.2' })
 
 const { lp, locale } = useLocale()
 const config = useRuntimeConfig()

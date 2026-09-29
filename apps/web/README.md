@@ -1506,6 +1506,11 @@ G-12 嵌入元件已經在消費的兩個掛載點（`academy_admission`／`prog
 
 ### 藍鯨的已知內容缺口（不是本輪迴歸）
 
+🔴 **本節現況已由「S1-18b」節處理，見檔案最後一節**：`academy-admission`（學院招生）與
+`programs-camps`（課程與營隊報名）兩個分類已對藍鯨關閉（獨立主題頁 404、FAQ 首頁不
+顯示對應分類卡片），下方描述的「「學院」計入進度計」問題已隨之消失（該分類文字不再
+對 bw 輸出）。以下維持原始記錄供對照，不代表現況。
+
 `faq_categories` 沒有 `club_id`、全站共用同一份分類名稱字典，`academy-admission` 分類
 的中文名稱是「學院招生」——藍鯨規劃書 §3「04 由學院改為青年隊」是內容取捨，不是這張
 分類字典的欄位，本頁沒有臆自改名。`check-club-brand-leak.mjs` 對 bw 容器實測會在
@@ -1557,6 +1562,131 @@ docker build -f apps/web/Dockerfile apps/web   # 通過
 - **10 個分類裡另外 6 個（沒有獨立頁面的那些）在 FAQ 首頁的分組陳列是否正確**——邏輯
   與 4 個有獨立頁的分類共用同一套 `faqsByCategory`／`FaqAccordion`，理論上一致，但沒有
   真實跨分類題目可供實測「一題掛兩個分類時只出現一次」這個防呆是否真的生效。
+
+## S1-18b（藍鯨 FAQ 分類取捨、`E-72` 補完、`SITE_UNITS` 涵蓋度防呆，2026-09-29，`frontend-architect`）
+
+延續 S1-18：主 session 複核後回饋兩件事，本輪處理，範圍限定 `apps/web`（**沒有動
+`apps/api` 任何一行**）。
+
+### 1. 藍鯨的 FAQ 不得出現磐石專屬主題
+
+`faq_categories` 沒有 `club_id`，兩站共用同一份十個分類主檔（見 S1-18「藍鯨的已知
+內容缺口」節，已標記為過期記錄）。逐一對照藍鯨規劃書 §2.1／§3 後：
+
+- **`academy-admission`（學院招生）／`programs-camps`（課程與營隊報名）明確關閉**：
+  藍鯨規劃書 §2.1「總則的例外只有四項單元取捨」明文「04 為青年隊而非學院」「04 青年隊
+  沿用主站 04 的梯隊版型，但不沿用招生與課程報名架構」——這兩個分類的問答內容正是
+  磐石學院招生流程與磐石 05 課程頁的報名收費架構，同 S1-15 關閉 4.7／5.1／5.2 的理由
+  一致。做法：兩個獨立主題頁 `definePageMeta` 的 `unit` 改為細粒度代號 `'12.2'`／
+  `'12.3'`（`shared/utils/units.ts` 新增 `BLUE_WHALE_DISABLED_UNITS` 兩筆與
+  `FAQ_CATEGORY_UNIT_CODES`／`isFaqCategoryEnabledForClub` 對照表），對藍鯨回 404；
+  FAQ 首頁（`app/pages/zh/faq/index.vue`）新增 `visibleCategories` 計算屬性過濾這兩個
+  分類，不在導覽卡與分類區塊出現。
+- **其餘八個分類（加入球隊／費用與退費／試訓／國際發展與海外球員／女子足球／球迷會
+  與商品／合作與贊助／其他）本輪沒有找到明文排除依據，維持對兩俱樂部開放**——取捨
+  依據列在下方「規格疑點」，交給使用者裁決是否需要進一步調整。
+- **順手修正一個既有問題**：FAQ 首頁的 SEO `description` 原本寫死列出全部十個分類
+  中文名稱（含「學院招生」），對藍鯨會固定輸出這個詞、與畫面上已隱藏該分類矛盾，且是
+  S1-18 節記錄的「「學院」計入進度計」問題的實際成因。已改為由 `visibleCategories`
+  動態組出主題名稱清單，兩俱樂部都不再寫死；同時把頁面顯示的「目前共收錄 N 題」改為
+  只計算可見分類底下的題目數（`totalCategorizedCount`），不再把已關閉分類的題目算進
+  藍鯨看得到的總數。
+
+### 2. `E-72` 補完：`13`／`10` 補進 `SITE_UNITS`
+
+`docs/18-work-errors.md` `E-72` 記錄「13（賽事行事曆）自 S1-15 建置完成起漏列於
+`SITE_UNITS`」，本輪一併檢查發現 **`10`（加入與聯絡，S1-17 建置完成）也同樣漏列**——
+兩者都通過 `unit-gate.global.ts`、`curl` 回 `200`，但從未出現在 `sitemap.xml`／
+`llms.txt`。已補上兩筆（`shared/utils/site-units.ts`），並移除該檔案裡「留給下一個人」
+的暫存措辭，改寫為現況說明（見該檔案檔頭）。
+
+### 3. 新防呆：`SITE_UNITS` 涵蓋度檢查
+
+新增 [`scripts/check-site-units-coverage.mjs`](scripts/check-site-units-coverage.mjs)，
+掃描 `app/pages/zh/` 底下所有 `definePageMeta({ unit: 'XX' })`，取每個代號的頂層數字
+（如 `'3.1'`→`'03'`、`'10-contact'`→`'10'`），確認頂層代碼要嘛在 `SITE_UNITS`、要嘛在
+腳本內 `EXCLUDED_TOP_LEVEL_UNITS`（目前兩筆並附理由：`14` 會員中心／`G-07` 站務法遵
+頁面），否則讓 `npm run lint` 失敗。已掛進 `package.json` 的 `lint:site-units-coverage`
+（`npm run lint` 鏈的一環）。已用「暫時拿掉 `SITE_UNITS` 裡的 `13`」手動驗證紅燈
+（報出 `頂層代碼 '13'` 缺漏）與改回後的綠燈，見下方「驗證」。
+
+### 改了哪些既有檔案
+
+- [`shared/utils/units.ts`](shared/utils/units.ts)：`BLUE_WHALE_DISABLED_UNITS` 新增
+  `'12.2'`／`'12.3'`；新增 `FAQ_CATEGORY_UNIT_CODES`／`isFaqCategoryEnabledForClub`。
+- [`shared/utils/site-units.ts`](shared/utils/site-units.ts)：`SITE_UNITS` 補上
+  `10`／`13`；改寫檔頭說明反映現況。
+- [`app/pages/zh/faq/academy-admission/index.vue`](app/pages/zh/faq/academy-admission/index.vue)：
+  `unit` 改為 `'12.2'`。
+- [`app/pages/zh/faq/programs-camps/index.vue`](app/pages/zh/faq/programs-camps/index.vue)：
+  `unit` 改為 `'12.3'`。
+- [`app/pages/zh/faq/index.vue`](app/pages/zh/faq/index.vue)：新增 `visibleCategories`／
+  `totalCategorizedCount`，`description` 改為動態組字，模板 `v-for` 改讀
+  `visibleCategories`。
+- [`scripts/check-club-brand-leak.mjs`](scripts/check-club-brand-leak.mjs)：
+  `PROTECTED_PAGES` 新增 `/zh/faq/`、`/zh/faq/join-team/`、`/zh/faq/fees-refunds/`
+  （15 → 18 頁）。
+- `package.json`：新增 `lint:site-units-coverage`，掛進 `lint` 鏈。
+
+### 規格疑點（列出，未自行決定）
+
+1. **「女子足球」分類是否該對藍鯨關閉**：藍鯨規劃書只排除**單元** `06`（自我指涉的
+   入口頁，見 §2.1），沒有提到 FAQ 分類字典。這個分類名稱表面上像候選（藍鯨站整站
+   就是女足），但沒有明文依據，本輪維持開放。
+2. **「費用與退費」分類是否該對藍鯨關閉**：藍鯨規劃書 §4.3「方案與費用｜藍鯨自訂
+   （`MembershipPlan.club_id = TCBW`），與磐石各自獨立」——代表藍鯨有自己的會籍費用，
+   這個主題對藍鯨仍然適用，本輪維持開放。
+3. **「試訓」「國際發展與海外球員」「球迷會與商品」「合作與贊助」「其他」五個分類**：
+   規劃書沒有明文提及這幾個分類本身，本輪對照藍鯨既有單元（03 一線隊／04 青年隊／
+   08 文化＋商店／09 夥伴需分區）判斷內容性質上都通用，維持開放。若客戶認為某個分類
+   下的實際問答內容其實是磐石專屬（例如試訓問答只寫磐石學院試訓流程），需要的是
+   「修正該分類底下的題目內容」而不是關閉整個分類——`faqs` 表目前仍是 0 筆種子資料，
+   等後台真的建立題目後才看得出實際內容是否合適。
+
+### 驗證
+
+```bash
+npm run lint    # 0 錯誤、395 警告（既有基準內，含本輪新檔）
+npm run build   # 通過
+docker build -f apps/web/Dockerfile apps/web   # 通過
+```
+
+本機用同一份映像檔起兩個容器（`NUXT_PUBLIC_CLUB=tcrfc` port 13001／`NUXT_PUBLIC_CLUB=bw`
+port 13002 且帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動**，依派工規則不自行
+啟動、不碰密碼）：
+
+- FAQ 頁面狀態碼（`/zh/`／`/en/` 各一輪，共 10 條網址）：`/zh/faq/`、
+  `/zh/faq/join-team/`、`/zh/faq/fees-refunds/` 兩俱樂部皆 `200`；
+  `/zh/faq/academy-admission/`、`/zh/faq/programs-camps/` tcrfc `200`、bw **依設計
+  `404`**（含對應 `/en/`）。
+- `isFaqCategoryEnabledForClub` 邏輯直接驗證（node 腳本模擬十個分類 slug）：
+  只有 `academy-admission`／`programs-camps` 對 bw 回 `false`，其餘八個對兩俱樂部皆
+  `true`——與程式碼設計一致。
+- `curl` 兩容器 `/zh/faq/` 的 `<meta name="description">`：`apps/api` 未啟動、分類為
+  空陣列時兩者皆輸出「依主題分類整理，目前共收錄 0 題」，**不再出現寫死的「學院招生」
+  字面值**（真實環境下分類非空時仍待實機驗證，見下方「未驗證項目」）。
+- `sitemap.xml`／`llms.txt`：兩容器皆確認收錄 `/zh/schedule/`（含 `/en/`）與
+  `/zh/faq/`，`llms.txt` 「代表頁面」清單兩者皆列出「賽事行事曆」與「常見問題」。
+- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:13001`／
+  `13002`：**H1 唯一、標題不跳階皆 0 違規**（tcrfc 164 條、bw 142 條路由，其餘為
+  30x／404 略過——bw 少 22 條是因為新關閉的兩個 FAQ 分類頁 × 2 語系等既有 404 頁面）。
+- `NUXT_PUBLIC_SITE_NAME=台中藍鯨 node scripts/check-club-brand-leak.mjs
+  --base-url=http://127.0.0.1:13002`：`exit 0`，保護清單 **18 頁**（15 → 18）全數
+  乾淨，棘輪未被違反；`/zh/faq/` 不再計入「學院」命中（原本 ×3，已隨動態 description
+  修正消失），`/zh/faq/academy-admission/` 因整頁 404 不再輸出任何內容。
+- `node scripts/check-site-units-coverage.mjs`：**紅燈驗證**——暫時刪除
+  `SITE_UNITS` 的 `'13'` 那筆，跑出 `頂層代碼 '13'`（來自 `schedule.vue`）缺漏訊息、
+  離開碼 `1`；改回後**綠燈**，離開碼 `0`。
+
+### 未驗證項目（`apps/api` 未啟動）
+
+- **真實 `faqs` 種子資料下，八個維持開放分類的實際問答內容是否真的與藍鯨無關**——目前
+  `faqs` 表 0 筆種子資料，本輪只能驗證分類層級的開關邏輯，無法驗證題目內容本身，見上方
+  「規格疑點」第 3 點。
+- **後台新增／修改 FAQ 分類時，`slug` 是否可能被改成與 `FAQ_CATEGORY_UNIT_CODES` 對照
+  表不符的值**——目前對照表用 `slug` 字串比對，後台若允許修改既有分類的 `slug`（而非
+  只能新增），改了 `academy-admission`／`programs-camps` 的 slug 會讓這個關閉機制悄悄
+  失效。本輪沒有查證後台是否允許改既有分類的 `slug`。
 
 ## 相關文件
 

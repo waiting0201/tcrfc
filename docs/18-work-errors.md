@@ -90,7 +90,7 @@
 | E-64 | 2026-09-29 | S1-14 發現既有落差：`Features/Home/HomeRepository.cs` 的 `ListBannersAsync` 直接回傳 `banners.image_key` 原始 Blob 物件鍵，沒有像 `StaffRepository`／`PlayersRepository` 一樣注入 `IImagePublicUrlResolver` 解成完整網址——首頁若真的接上 Banner 輪播圖片，前端拿到的 `imageKey` 目前無法組出正確網址（沒有 Blob 容器網址可以自己兜，猜的話會顯示壞圖） | ⚠️ 無自動化；本輪前端只用 `banners` API 的純文字欄位（`cta1Label`／`cta1Url`），暫不消費 `imageKey`，待後端補上解析後再串圖片，見 `apps/web/README.md`「S1-14」節 |
 | E-70 | 2026-09-29 | S1-17 主輪交付表單中心時，把「mockup 欄位遠多於後端 `form_fields` 定義」的落差處理成「畫面留著、悄悄不送出」，而不是把多餘欄位從畫面移除——使用者填了看得到，卻不知道不會被收到，違反「個資只收必要的」；同一輪 `camp_registration.health_declaration`（後端是 consent 布林型別）又把使用者填的健康聲明自由文字塞進不相關的 `contact`（緊急聯絡人）欄位，同樣是「畫面呈現與實際送出行為不一致」 | ✅ 收尾修正已改：7 張表單逐一清點移除多餘欄位（含全部檔案上傳 fieldset），`health_declaration` 改成語意對應的勾選框；⚠️ 無自動化檢查能抓「畫面欄位是否等於送出欄位」這件事，下次新增或接後端表單時，欄位對應表要先核對規格＋後端定義的交集，再決定畫面要顯示哪些欄位，不要先照抄 mockup 全部欄位再回頭篩選 |
 | E-71 | 2026-09-29 | 前台表單代理以 `X-Forwarded-For` 的第一個值當訪客 IP 轉給 api；Cloudflare 會保留訪客自送的 XFF、Caddy 對已信任上游是附加，第一個值可被偽造，表單限流可被繞過 | ✅ 改讀 Caddy `header_up X-Real-IP {client_ip}`，見條目 |
-| E-72 | 2026-09-29 | S1-15 建了 13 賽事行事曆（`app/pages/zh/schedule.vue`）卻沒有把它補進 `shared/utils/site-units.ts` 的 `SITE_UNITS`，導致 `sitemap.xml`／`llms.txt`（兩者共用 `getEnabledSiteUnits`）從建成那天起就漏收這個單元；S1-18 本輪核對 12 FAQ 該補進同一份清單時才連帶發現 | 🔄 本輪已補 `12`（見條目）；`13` 留給下一個處理 schedule／SEO 相關工作的人一併修正，✅ 防呆：往後新增任何走 `definePageMeta({ unit: 'XX' })` 的頂層單元頁面時，同一次交付要一併檢查 `SITE_UNITS` 是否已收錄該代碼，不要只靠 `unit-gate.global.ts` 通過就認定 SEO 曝光也已到位——兩者是不同的呼叫鏈 |
+| E-72 | 2026-09-29 | S1-15 建了 13 賽事行事曆（`app/pages/zh/schedule.vue`）卻沒有把它補進 `shared/utils/site-units.ts` 的 `SITE_UNITS`，導致 `sitemap.xml`／`llms.txt`（兩者共用 `getEnabledSiteUnits`）從建成那天起就漏收這個單元；S1-18 本輪核對 12 FAQ 該補進同一份清單時才連帶發現。**S1-18b 複查時再連帶發現第二筆同類缺漏**：10 加入與聯絡（S1-17 建置完成）同樣沒有補進 `SITE_UNITS` | ✅ **S1-18b（2026-09-29）已補齊 `10`／`13` 兩筆並實機驗證兩容器 `sitemap.xml`／`llms.txt` 皆收錄**；✅ **防呆已自動化**：`apps/web/scripts/check-site-units-coverage.mjs`（掛進 `npm run lint` 的 `lint:site-units-coverage`）掃描 `app/pages/zh/` 全部 `definePageMeta({ unit: 'XX' })`，取頂層代碼比對 `SITE_UNITS` 或腳本內 `EXCLUDED_TOP_LEVEL_UNITS` 排除清單，兩者都沒有就讓 `lint` 失敗——已用「暫時拿掉 `SITE_UNITS` 的 `'13'`」實測紅燈、改回綠燈 |
 
 ---
 
@@ -1768,8 +1768,16 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **下次怎麼避免**：新增任何走 `definePageMeta({ unit: 'XX' })` 的**頂層單元頁面**
   （對應主要導覽項，不是子頁）時，同一次交付要一併檢查 `SITE_UNITS` 是否已收錄該
   代碼——`unit-gate` 通過不等於 SEO 曝光到位。
-- **防呆**：本輪（S1-18）已補上 `12`；`13`（schedule）發現但不在本輪任務範圍內，
-  留給下一個處理 schedule／SEO 相關工作的人一併修正，已記錄於此避免被遺忘。
-  ⚠️ 無自動化檢查能反向比對「有 `definePageMeta unit` 的頂層頁面」與
-  `SITE_UNITS` 兩份清單是否一致，可能需要一支腳本比照
-  `check-undefined-template-refs.mjs` 的模式做交叉驗證，本輪未做。
+- **防呆**：S1-18 當輪已補上 `12`；`13`（schedule）發現但不在該輪任務範圍內留待後續。
+  ✅ **S1-18b（2026-09-29）已補齊**：`shared/utils/site-units.ts` 的 `SITE_UNITS`
+  補上 `10`（加入與聯絡，S1-17 建置完成，複查時發現同一類缺漏的第二筆）與
+  `13`（賽事行事曆），並用本機 `tcrfc`／`bw` 兩容器實測 `sitemap.xml`／`llms.txt`
+  皆已收錄 `/zh/schedule/`。
+  ✅ **自動化防呆已補上**：新增 `apps/web/scripts/check-site-units-coverage.mjs`
+  （掛進 `npm run lint` 的 `lint:site-units-coverage`），掃描 `app/pages/zh/` 底下
+  所有 `definePageMeta({ unit: 'XX' })`，取每個代號**開頭的連續數字**當作頂層代碼
+  （例如 `'3.1'`→`'03'`、`'10-contact'`→`'10'`、`'12.2'`→`'12'`），確認頂層代碼要嘛
+  出現在 `SITE_UNITS`，要嘛列在腳本內 `EXCLUDED_TOP_LEVEL_UNITS` 並附理由（目前兩筆：
+  `14` 會員中心——GEO-02 明文排除；`G-07` 站務法遵頁面——不屬於 13 個單元架構），
+  兩者都沒有就讓 `npm run lint` 失敗。已用「暫時拿掉 `SITE_UNITS` 的 `'13'` 那筆」
+  手動驗證紅燈（報出 `頂層代碼 '13'` 缺漏、離開碼 `1`），改回後驗證綠燈（離開碼 `0`）。

@@ -4,7 +4,10 @@
 // 規劃書 3.12「分類頁：各主題獨立頁面，具備獨立 SEO 設定」——本輪先建 3–4 個高頻主題
 // （見 apps/web/README.md「S1-18」節取捨說明），本頁是其中之一。資料來源與 12 FAQ
 // 首頁同一套 composable（useFaqCategories／useFaqList），只是帶 category 篩選單一分類。
-definePageMeta({ nav: '', unit: '12' })
+// unit '12.3'：對應磐石 05 課程頁 5.1／5.2 的報名與收費架構，藍鯨自己的
+// 「05 推廣活動」是完全不同的活動集合，同 5.1／5.2 的關閉理由，見
+// shared/utils/units.ts 的 BLUE_WHALE_DISABLED_UNITS 說明。
+definePageMeta({ nav: '', unit: '12.3' })
 
 const { lp, locale } = useLocale()
 const config = useRuntimeConfig()

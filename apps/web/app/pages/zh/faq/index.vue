@@ -21,25 +21,50 @@ const club = config.public.club
 const siteName = computed(() => getClubAssets(club).nameZh)
 
 const { categories } = useFaqCategories(locale.value)
-const { faqs, totalCount } = useFaqList(club, locale.value)
+const { faqs } = useFaqList(club, locale.value)
 
-useSeoMeta({
-  title: () => `常見問題 FAQ｜${siteName.value}`,
-  description: () =>
-    `${siteName.value}常見問題集，依主題分類整理，涵蓋加入球隊、學院招生、課程與營隊報名、費用與退費、試訓、國際發展、女子足球、球迷會與商品、合作與贊助等主題，目前共收錄 ${totalCount.value} 題。`,
-})
+// 🔴 S1-18 藍鯨取捨：`faq_categories` 無 club_id、兩俱樂部共用同一份分類主檔
+// （見 useFaqCategories.ts 檔頭），但「學院招生」「課程與營隊報名」兩個分類的
+// 問答內容分別對應磐石學院招生架構與磐石 05 課程報名架構——藍鯨規劃書 §3 明文
+// 「04 青年隊不沿用招生與課程報名架構」，同 4.7／5.1／5.2 的關閉理由，見
+// shared/utils/units.ts 的 isFaqCategoryEnabledForClub／BLUE_WHALE_DISABLED_UNITS
+// 說明。其餘八個分類本輪對照規劃書後沒有找到明文排除依據，維持開放（取捨依據
+// 列在本輪交付報告，不在此自行擴大關閉範圍）。
+const visibleCategories = computed(() =>
+  categories.value.filter((cat) => isFaqCategoryEnabledForClub(cat.slug, club)),
+)
 
-// 每題只指派給第一個相符的分類（分類已依 sortOrder 排序），確保單題深層連結
-// 全頁唯一，見上方檔頭說明。
+// 每題只指派給第一個相符的「可見」分類（分類已依 sortOrder 排序），確保單題深層
+// 連結全頁唯一，見上方檔頭說明。被關閉分類的題目不併入其他分類顯示——整個分類
+// 對該俱樂部視同不存在，同獨立主題頁 404 的關閉方式一致。
 const faqsByCategory = computed(() => {
   const map = new Map<string, typeof faqs.value>()
   const assigned = new Set<string>()
-  for (const cat of categories.value) {
+  for (const cat of visibleCategories.value) {
     const items = faqs.value.filter((f) => !assigned.has(f.id) && f.categorySlugs.includes(cat.slug))
     items.forEach((f) => assigned.add(f.id))
     map.set(cat.slug, items)
   }
   return map
+})
+
+// 顯示用總題數：只算「可見分類」裡的題目，不是後端回傳的全站原始總數——
+// 對藍鯨而言，被關閉分類（學院招生／課程與營隊報名）底下的題目不該被算進
+// 「目前共收錄 N 題」，否則畫面上看不到卻計入數字裡會顯得矛盾。
+const totalCategorizedCount = computed(() =>
+  [...faqsByCategory.value.values()].reduce((sum, items) => sum + items.length, 0),
+)
+
+useSeoMeta({
+  title: () => `常見問題 FAQ｜${siteName.value}`,
+  description: () => {
+    // 🔴 主題名稱一律由 visibleCategories 動態組出，不寫死十個分類的中文名稱——
+    // 寫死會在藍鯨容器印出「學院招生」等已關閉分類的名稱，觸發
+    // check-club-brand-leak.mjs 的「學院」禁詞命中（見 apps/web/README.md「S1-18」節）。
+    const topicNames = visibleCategories.value.map((cat) => cat.name).filter(Boolean).join('、')
+    const topicPart = topicNames ? `，涵蓋${topicNames}等主題` : ''
+    return `${siteName.value}常見問題集，依主題分類整理${topicPart}，目前共收錄 ${totalCategorizedCount.value} 題。`
+  },
 })
 
 // 先建 3–4 個高頻主題的獨立頁面（規劃書順序前四項：加入球隊／學院招生／課程與營隊
@@ -95,7 +120,7 @@ const noResult = computed(() => isSearching.value && totalVisible.value === 0)
   <div class="container">
     <p class="page-hero__eyebrow">12 FAQ</p>
     <h1>常見問題<span class="en">FAQ</span></h1>
-    <p class="page-hero__lede">依主題分類整理的常見問題，可直接搜尋關鍵字，或分享單題連結給需要的人。目前共收錄 {{ totalCount }} 題。</p>
+    <p class="page-hero__lede">依主題分類整理的常見問題，可直接搜尋關鍵字，或分享單題連結給需要的人。目前共收錄 {{ totalCategorizedCount }} 題。</p>
   </div>
 </section>
 
@@ -120,12 +145,12 @@ const noResult = computed(() => isSearching.value && totalVisible.value === 0)
     </p>
 
     <nav v-if="!isSearching" class="faq-topics" aria-label="常見問題主題">
-      <a v-for="cat in categories" :key="cat.id" class="faq-topic-card" :href="`#topic-${cat.slug}`">{{ cat.name }}</a>
+      <a v-for="cat in visibleCategories" :key="cat.id" class="faq-topic-card" :href="`#topic-${cat.slug}`">{{ cat.name }}</a>
     </nav>
 
     <div class="faq-categories">
       <section
-        v-for="cat in categories"
+        v-for="cat in visibleCategories"
         v-show="!isSearching || (visibleByCategory.get(cat.slug)?.length ?? 0) > 0"
         :id="`topic-${cat.slug}`"
         :key="cat.id"
