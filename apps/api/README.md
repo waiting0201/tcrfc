@@ -6498,6 +6498,164 @@ S1-12 新增的服務，已用於 `OgImageUrl`），不是新機制。`PlayerDto
 在下一次有人加圖片欄位卻忘記接解析器時，讓 `dotnet test` 直接紅燈，不必等到前台真的串接時才
 發現。詳細設計理由、涵蓋邊界、已知例外清單見 `docs/18-work-errors.md` E-64「防呆」段。
 
+## S1-12d：`I` 網站設定——`GEO-03`／`GEO-04` 站台事實承載與公開端點（2026-09-29，`backend-engineer`）
+
+主站規劃書 §7 `GEO-03`（成立年份、主場與場地、梯隊組成、所屬聯賽、聯絡方式**全站只有一個維護處**，
+後台 `I` 網站設定或其所屬模組）／`GEO-04`（結構化資料與明文同時呈現、數值一致）；規劃書 §7 行 1690
+明文「GEO-03 的事實沿用既有欄位（`Setting`／`Club`／`Team`／`Venue`／`ImpactMetric`）」——**不新增
+資料表**，這是接續 `apps/web/README.md`「S1-12d」節（`frontend-architect` 當時盤點出後端完全沒有
+承載這五類事實的欄位與公開端點，做了前台暫定的 `shared/utils/site-facts.ts`）的後端補完。
+
+### 資料放在哪
+
+不改資料庫綱要。純量與逐語系事實沿用既有 `settings`／`settings_i18n`（`setting_group='site'`），
+主場場地本身沿用既有 `venues`／`venues_i18n`：
+
+| 事實 | 存放位置 |
+|---|---|
+| 成立年份 | `settings.site.founded_year`（純值，非人類語言） |
+| 成立日期（ISO） | `settings.site.founding_date`（純值） |
+| 「＿＿年創立」顯示句 | `settings.site.founding_date_display`（逐語系） |
+| 首季頭銜 | `settings.site.founding_title`（逐語系，可整筆不存在） |
+| 所屬聯賽全名 | `settings.site.league_name`（逐語系） |
+| 聯賽簡稱 | `settings.site.league_short_name`（逐語系，可整筆不存在） |
+| 梯隊組成敘述 | `settings.site.squad_structure_summary`（逐語系） |
+| 梯隊年齡層代碼清單 | `settings.site.squad_codes`（逗號分隔純值，例：`U15,U14,U12`） |
+| 聯絡電話 | `settings.site.contact_phone`（純值，兩俱樂部現況皆 `NULL`） |
+| 營業時間 | `settings.site.contact_hours`（逐語系，兩俱樂部現況皆 `NULL`） |
+| 主場場地引用清單 | `settings.site.home_venue_ids`（逗號分隔 `venues.id`，依顯示順序，第一筆＝主要主場） |
+| 主場場地名稱／地址 | 既有 `venues`／`venues_i18n`（**不在 `Setting` 裡重複存一份**） |
+
+🔴 **`Venue` 本身刻意不帶 `club_id`**（docs/12 §4.7：場地是地理實體，重複建會產生兩組人工標的座標）。
+「這個俱樂部的主場是哪幾筆既有 `Venue`」這件事本身才是俱樂部範圍的事實，因此用
+`settings.site.home_venue_ids`（`club_id` 必填）表達引用清單，不是在 `Venue` 上加
+`club_id`／`is_home_ground` 欄位——這樣完全不用改既有綱要。從清單移除一筆場地**不會刪除**
+`Venue` 列本身（可能仍被其他俱樂部或其他資料引用）。**聯絡地址不重複儲存**：直接取主要主場地址
+計算得出，不是獨立欄位。
+
+### 端點
+
+| 方法與路徑 | 說明 | 權限 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/site-facts` | 後台讀取（`I` 模組） | `site.fact.view`，`sysadmin_only` |
+| `PUT /api/v1/admin/{club}/site-facts`（JSON） | 後台整份取代寫入 | `site.fact.update`，`sysadmin_only` |
+| `GET /api/v1/{club}/site-facts?lang=zh\|en` | 公開讀取，不需登入 | — |
+
+新增檔案：`Features/AdminSiteFacts/`（`AdminSiteFactsDtos.cs`／`AdminSiteFactsRepository.cs`
+／`AdminSiteFactsEndpoints.cs`／`AdminSiteFactsExceptions.cs`，EF Core，比照
+`Features/AdminSeo/AdminSeoSettingsRepository` 既有寫法）、`Features/SiteFacts/`
+（`SiteFactsDtos.cs`／`SiteFactsRepository.cs`／`SiteFactsEndpoints.cs`，Dapper＋`IQueryCache`，
+比照 `Features/Seo/SeoRepository` 既有寫法）。`Program.cs`／`Common/ApiExceptionHandler.cs` 已接上
+DI 註冊、路由掛載、例外轉狀態碼。
+
+### 回應形狀（camelCase，前台照這個串）
+
+`PUT` 是**整份取代語意**（比照 `AdminSeoSettingsDto` 既有慣例）：呼叫端一律送出完整表單內容，
+省略欄位＝清空該欄位，不是「維持不變」；`homeVenues` 陣列裡帶 `id` 的既有場地會被更新（找不到
+對應 `id` 回 400，不會默默改成新增一筆），不帶 `id` 的會新增一筆。
+
+```jsonc
+// GET /api/v1/tcrfc/site-facts?lang=zh
+{
+  "foundedYear": "2024",
+  "foundingDateIso": null,
+  "foundedDisplay": "2024 年創立",
+  "foundingTitle": "全國乙級聯賽冠軍",
+  "league": { "name": "企業甲級聯賽", "shortName": null },
+  "venues": [{ "name": "西屯足球場", "address": "台中市北屯區崇平路二段景谷巷 11 弄 41 號", "isHomeGround": true }],
+  "squadStructureSummary": "一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系",
+  "squadCodes": ["U15", "U14", "U12"],
+  "contact": { "address": "台中市北屯區崇平路二段景谷巷 11 弄 41 號", "phone": null, "hours": null }
+}
+```
+
+🔴 **公開端點的人類語言欄位依 `?lang=` 解析成單一語系字串**（比照 `Features/Players`／
+`Features/Schedule` 既有慣例：請求語系有值就用，沒有就退回中文，兩者都沒有回傳 `null`），
+跟 `Features/Seo` 的公開設定端點一次回傳 `xxxZh`／`xxxEn` 兩份欄位的既有慣例**不同**——這是本輪
+自行判斷（`Features/Seo` 的設定值是後台編輯表單直接消費雙欄位，這裡是給一般頁面顯示用的公開內容，
+比照大多數既有公開端點的單語系慣例）。⚠️ **若前台之後做 JSON-LD（`SportsTeam.memberOf.name`
+等）需要不受 `lang` 影響的中文全名**，另外用 `?lang=zh` 呼叫一次本端點即可（有快取，成本很低），
+不在回應裡重複塞兩種語系的欄位。後台端點（`AdminSiteFactsDto`）維持雙欄位（`xxxZh`／`xxxEn`）
+給編輯表單用，跟 `AdminSeoSettingsDto` 一致。
+
+### 種子資料
+
+`db/seed/generate-club-seed-sql.py` 新增「24. site facts」段（緊接在既有「23. event_types」之後，
+`--reset-admin-accounts` 分支之前），把 `apps/web/shared/utils/site-facts.ts` 目前兩站的已核實真實值
+寫入 `settings`／`settings_i18n`；並新增台中磐石（tcrfc）主場「西屯足球場」的 `Venue` 列（既有種子
+只建了藍鯨的兩座場地）。電話與營業時間兩俱樂部皆未核實，刻意不種（`NULL`，不放佔位假資料）。
+
+🔴 **盤點時發現的既有資料落差（不是本輪造成，回報給下一輪決定）**：台中藍鯨兩座既有 `Venue` 列
+（太原足球場／豐原體育場，S1-11 賽事匯入時已建立）的 `venues_i18n.address` 其實**已經有真實地址**
+（取自 `content/blue-whale/data/venues.json`／`venues.md` 盤點），但 `apps/web/shared/utils/
+site-facts.ts` 目前對這兩個場地的 `address` 欄位寫死 `null`（該檔案的註解引用
+`content/blue-whale/gap-analysis.md`「沒有任何實體地址」，講的其實是「聯絡地址」不是「場地地址」，
+兩者在 `site-facts.ts` 目前合併成同一個判斷）。本輪**沒有覆寫**這兩筆既有 `Venue` 列，只是把它們
+透過 `site.home_venue_ids` 接上——這代表**公開端點現在會如實回傳這兩個地址**，跟前台目前的
+`null` 假設不一致。前台下一輪整合這支端點時，需要決定要不要更新 `site-facts.ts` 改用地址（或
+保留現有判斷，讓 API 回傳的地址暫不顯示）。
+
+另外，既有 `Venue` 列「豐原體育場」的官方全名是「台中市立豐原體育場」（`venues_i18n.name` 既有值），
+跟 `site-facts.ts` 目前的簡稱「台中豐原體育場」不同——本輪**沿用既有列**（不重複建一筆近似場地，
+GEO-03「同一事實不得在兩處各寫一份」），公開端點回傳的是既有列的全名，前台整合時名稱會跟著換成
+這個較長的官方全名。
+
+### 權限
+
+新增 `site.fact.view`／`site.fact.update`（`module_code=I`，新分配 `submodule_code=I1`，
+新增 `domain=site`）。**規劃書 §6 權限矩陣沒有「網站設定」欄**（`I` 模組在本輪之前完全沒有後端
+實作），本輪比照 `seo.*`／`system.*` 既有先例——「全站層級設定、非逐篇內容編輯」的既有判斷——
+把兩碼都標記 `sysadmin_only=1`，十個角色只有系統管理員可存取。這是本輪自行判斷，規劃書沒有明文
+要求，已同步寫入 [`docs/12b-database-tables.md`](../../docs/12b-database-tables.md) §7.3／§7.4
+「S1-12d 新增」。
+
+### 後台畫面（`apps/admin`）
+
+**沒有做**——`apps/admin` 目前完全沒有對應 `I` 模組的任何畫面（`src/views/` 底下沒有
+`site-facts`／`settings` 相關檔案，只有 H 模組的 `SeoSettingsView.vue`）。依任務指示「沒有的話在
+回報中說明，不要從零搭整個模組」，本輪只交付 API，後台編輯畫面留給下一輪（`frontend-architect`
+或指派的前端工作）。
+
+### 快取
+
+公開端點接上既有 `IQueryCache`（entity `site-facts`，club／locale 兩個維度，跟其餘五組既有
+repository 同一套機制）。比照 `Features/Seo/SeoRepository` 的既有取捨：後台寫入端**刻意不呼叫**
+`InvalidateAsync`，管理員改設定後最多延後一個 TTL（預設 300 秒）才會反映到公開端點，不是遺漏。
+`GEO-03`／`GEO-04` 的內容不在 `docs/17-deployment.md` §4「五類不得讀快取」清單內，可以安全接。
+
+### 測試
+
+新增 `Tcrfc.Api.Tests/SiteFactsTests.cs`（9 項）：後台未登入 401、非系統管理員角色 403、
+系統管理員讀取種子資料正確（含藍鯨兩座主場依序排列、`squadCodes`、`foundingTitleZh` 為 `null`）、
+完整寫入輪替（含中文必填欄位驗證、`homeVenues` 帶既有 `id` 更新不新增、公開端點立即反映、
+測試後用 `finally` 還原成原始內容——比照 `AdminSeoTests` 既有紀律，避免 E-62 那一類跨測試互相
+干擾）、指定不存在的場地 `id` 回 400、公開端點中文預設值、`lang=en` 解析與回退中文、俱樂部隔離
+（藍鯨與磐石讀到不同事實，藍鯨沒有磐石的 `foundingTitle`）。
+
+**驗收（2026-09-29）**：
+```
+dotnet build                                    # 0 個警告，0 個錯誤
+dotnet test --filter FullyQualifiedName~SiteFactsTests   # 9/9 通過
+dotnet test                                     # 512/512 全過（既有 503 ＋ 本輪新增 9）
+docker build -f apps/api/Dockerfile apps/api    # 成功
+```
+種子資料以 `./db/seed/setup-test-db.sh --recreate` 重建 `tcrfc_club_test` 後，直接用 `sqlcmd`
+核對過 `settings`／`settings_i18n`／`venues`／`venues_i18n` 四張表的實際寫入內容（見上方「種子資料」
+的落差說明），不是只看 API 回應。
+
+### 已知缺口（回報，不在本輪範圍）
+
+1. **`apps/web` 尚未串接**——依任務指示本輪不改 `apps/web`，`shared/utils/site-facts.ts` 仍是前台
+   暫定來源，下一輪需要整批改成 `useFetch('/api/backend/{club}/site-facts?lang=...')`，並決定
+   「JSON-LD 用中文全名」的呼叫方式（見上方「回應形狀」的 `?lang=zh` 說明）。
+2. **`apps/admin` 沒有編輯畫面**——見上方「後台畫面」。
+3. **既有藍鯨場地地址／全名與 `site-facts.ts` 現況不一致**——見上方「種子資料」的兩則落差說明，
+   需要前端／內容盤點決定怎麼處理，不是本輪能單方面決定的內容判斷。
+4. **`squadCodes` 是編輯值不是即時查詢 `teams` 表**——台中磐石（tcrfc）目前完全沒有建立對應的
+   `Team` 列（U15／U14／U12，球員名單與肖像同意未到位，見 `STATUS.md`），若改成即時查詢會得到
+   空清單而非正確答案，故 `squadCodes` 目前是獨立維護的純值。日後磐石真的建立這些 `Team` 列時，
+   要考慮是否改為即時查詢以避免兩處各寫一份（GEO-03）——本輪判斷「暫不能查詢」不等於「永遠不查詢」。
+
 ## 相關文件
 
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表

@@ -20,6 +20,7 @@ using Tcrfc.Api.Features.AdminRegistrations;
 using Tcrfc.Api.Features.AdminRoles;
 using Tcrfc.Api.Features.AdminSeo;
 using Tcrfc.Api.Features.AdminSessions;
+using Tcrfc.Api.Features.AdminSiteFacts;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
@@ -206,6 +207,10 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", seoValidation.Message),
             RedirectFromPathConflictException redirectConflict =>
                 (StatusCodes.Status409Conflict, "來源網址重複", redirectConflict.Message),
+
+            // ── S1-12d 新增：I 網站設定（Features/AdminSiteFacts）────────────────────────
+            AdminSiteFactsValidationException siteFactsValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", siteFactsValidation.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),

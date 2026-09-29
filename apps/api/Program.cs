@@ -29,6 +29,7 @@ using Tcrfc.Api.Features.AdminRegistrations;
 using Tcrfc.Api.Features.AdminRoles;
 using Tcrfc.Api.Features.AdminSeo;
 using Tcrfc.Api.Features.AdminSessions;
+using Tcrfc.Api.Features.AdminSiteFacts;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
@@ -43,6 +44,7 @@ using Tcrfc.Api.Features.Players;
 using Tcrfc.Api.Features.Programs;
 using Tcrfc.Api.Features.Schedule;
 using Tcrfc.Api.Features.Seo;
+using Tcrfc.Api.Features.SiteFacts;
 using Tcrfc.Api.Features.Staff;
 using Tcrfc.Api.Features.Teams;
 using Tcrfc.Api.Images;
@@ -308,6 +310,10 @@ builder.Services.AddScoped<AdminGeoLlmsRepository>();
 builder.Services.AddScoped<AdminGeoCrawlerRepository>();
 builder.Services.AddScoped<SeoRepository>();
 
+// ── S1-12d：I 網站設定（GEO-03／GEO-04 站台事實） ────────────────────────────
+builder.Services.AddScoped<AdminSiteFactsRepository>();
+builder.Services.AddScoped<SiteFactsRepository>();
+
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 const string CorsPolicyName = "ClubFrontends";
 var corsOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
@@ -503,6 +509,10 @@ app.MapAdminGeoLlmsEndpoints();
 app.MapAdminGeoCrawlerEndpoints();
 
 app.MapSeoEndpoints();
+
+// ── S1-12d：I 網站設定（GEO-03／GEO-04 站台事實） ────────────────────────────
+app.MapAdminSiteFactsEndpoints();
+app.MapSiteFactsEndpoints();
 
 app.Run();
 

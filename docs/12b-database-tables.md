@@ -229,8 +229,8 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `Permission` 欄位 | 值域 |
 |---|---|
 | `module_code` | `A` `B` `C` `E` `F` `G` `H` `I` `J` `K` `L` `P` `S`。⚠️ **v3.0 移除 `N`**（慈善已獨立）。**禁用 `D`（撞 `D1`）／`U`（撞 `U15`）／`O`（形近 `0`）／`M`（App，本檔不含）** |
-| `submodule_code` | `B1`–`B6`、`C1`–`C5`、`P1`–`P4`、`E1`–`E6`（**E4–E6 為 App 廣告**）、`F1`–`F2`、`G1`–`G3`、**`J1`–`J4`（v3.0：`J4` 為俱樂部與授權管理）**、`K1`–`K5`、`L1`–`L4`、`S1`–`S6`。⚠️ **v3.0 移除 `N1`–`N7`** |
-| `domain` | `content` `faq` `charity` `team` `program` `calendar` `member` `business` `shop` `enquiry` `seo` `system`。⚠️ **v3.0 移除 `donation`**（慈善已獨立） |
+| `submodule_code` | `B1`–`B6`、`C1`–`C5`、`P1`–`P4`、`E1`–`E6`（**E4–E6 為 App 廣告**）、`F1`–`F2`、`G1`–`G3`、**`J1`–`J4`（v3.0：`J4` 為俱樂部與授權管理）**、`K1`–`K5`、`L1`–`L4`、`S1`–`S6`、`H1`–`H6`、**`I1`（S1-12d 新增，2026-09-29：`I` 網站設定首次有後端實作，規劃書原文沒有逐項編號，本輪自行分配）**。⚠️ **v3.0 移除 `N1`–`N7`** |
+| `domain` | `content` `faq` `charity` `team` `program` `calendar` `member` `business` `shop` `enquiry` `seo` `system` `site`（**`site` 為 S1-12d 新增，`I` 網站設定的 GEO-03／GEO-04 事實**）。⚠️ **v3.0 移除 `donation`**（慈善已獨立） |
 | `action` | `view` `create` `update` `delete` `publish` `export` `translate` `execute` `reveal` |
 | `is_restricted` | **須額外授權**：會員名單匯出、訂單匯出、K5 winners 匯出、慈善明細匯出、分潤設定 |
 | `sysadmin_only` | **僅系統管理員**：`shop.refund.execute`、`shop.credential.*`、**`system.club.*`（v3.0：`J4` 俱樂部與授權管理）**。⚠️ **v3.0 移除 `donation.*`** |
@@ -266,6 +266,13 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 合作球隊管理 | 表單詢問 **自家** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（`scope_type = own_clubs`，不含匯出） |
 | 系統管理員 | SEO／設定 **✔全** | `seo.setting.view/update`（全站 SEO 預設、追蹤碼、robots.txt 自訂規則）、`seo.redirect.*`（含 `import`）、`seo.report.view`（孤立頁面偵測）、`seo.llms.view/update`（`GEO-01` `llms.txt` 維護，S1-12a）、`seo.crawler.view/update`（`GEO-02` AI 爬蟲授權，S1-12b）、`seo.schema.view`（`GEO-05` 結構化資料完整性檢查，S1-12c）——**六組皆 `sysadmin_only`** |
 | 內容編輯 | SEO／設定 **單頁 SEO** | 不新增權限碼——`content.page.update`／`content.article.update` 既有請求已擴充 `canonicalPath`／`isNoindex`／`isExcludedFromSitemap`／`seoKeywords` 四個欄位，跟隨既有內容編輯權限，不是獨立的 SEO 權限碼 |
+| 系統管理員 | 網站設定 **✔全**（S1-12d 新增） | `site.fact.view/update`（成立年份、主場與場地、所屬聯賽、梯隊組成、聯絡方式——`GEO-03`／`GEO-04`）——**`sysadmin_only`** |
+
+> **S1-12d 新增（2026-09-29）**：規劃書 §6 權限矩陣**沒有「網站設定」欄**（`I` 模組在本輪之前
+> 完全沒有後端實作）。本輪比照 `seo.*`／`system.*` 既有先例——「全站層級設定、非逐篇內容編輯」
+> 的既有判斷——把 `site.fact.view`／`site.fact.update` 兩碼都標記 `sysadmin_only=1`，十個角色
+> 只有系統管理員持有。這是本輪自行判斷，規劃書沒有明文要求，見 `apps/api/README.md`「S1-12d」
+> 節「規劃書沒寫清楚、自行判斷」。
 
 > **S1-12 新增（2026-09-25）**：矩陣「SEO／設定」欄除了內容編輯的「單頁 SEO」外，**十個角色裡只有
 > 系統管理員打勾**，性質上與 J 模組的「系統」欄同樣是單一角色的排他欄位，因此 `seo.setting.*`／

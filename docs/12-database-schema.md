@@ -506,6 +506,28 @@ flowchart LR
 
 > 其餘 I 模組內容（多語系、聯絡資訊、外部服務、全域設定、商店設定）走 `Locale`／`UiString`／`Setting`。
 > ⚠️ **LINE Pay 與發票憑證不在 `Setting`**，在 `PaymentChannel`（S6，僅系統管理員）。
+>
+> ✅ **S1-12d（2026-09-29）`GEO-03`／`GEO-04` 事實單一來源與雙重呈現已實作，不新增資料型別**
+> （規劃書 §7 行 1690「GEO-03 的事實沿用既有欄位（`Setting`／`Club`／`Team`／`Venue`／
+> `ImpactMetric`）」）：
+> - **成立年份／成立日期／首季頭銜／所屬聯賽／梯隊年齡層代碼／梯隊組成敘述／聯絡電話與
+>   營業時間**：`setting_group='site'`，鍵 `site.founded_year`／`site.founding_date`（純日期，
+>   非人類語言，不進 i18n）／`site.founding_date_display`／`site.founding_title`／
+>   `site.league_name`／`site.league_short_name`／`site.squad_structure_summary`（皆逐語系，
+>   存 `settings_i18n`）、`site.squad_codes`（逗號分隔代碼清單，非人類語言，不進 i18n）、
+>   `site.contact_phone`（電話號碼，不進 i18n）、`site.home_venue_ids`（逗號分隔 `Venue.id`
+>   清單，見下）。
+> - **主場場地名稱與地址沿用既有 `Venue`／`VenuesI18n`**（不在 `Setting` 裡重複存一份文字）——
+>   `Venue` 本身刻意不加 `club_id`（本節上方已記錄的既有理由：場地是地理實體）,「這個俱樂部
+>   的主場是哪幾筆既有 `Venue` 列」這件事本身才是俱樂部範圍的事實，因此用 `settings.
+>   site.home_venue_ids`（`club_id` 必填）記錄引用清單，不是在 `Venue` 上加
+>   `club_id`／`is_home_ground` 欄位。清單順序即顯示順序，第一筆＝主場地。刪除引用不會刪除
+>   `Venue` 列本身（可能仍被其他俱樂部的賽事／梯次引用）。
+> - **聯絡地址不重複儲存**：直接取「主場地址」（`home_venue_ids` 第一筆對應 `Venue` 的地址），
+>   前台/公開端點回應的 `contact.address` 是計算值不是獨立欄位。
+> - 兩個模組（後台 `Features/AdminSiteFacts`、公開 `Features/SiteFacts`）詳見
+>   `apps/api/README.md`「S1-12d」節；權限碼 `site.fact.view`／`site.fact.update` 見
+>   [`12b-database-tables.md`](12b-database-tables.md) §7.4「S1-12d 新增」。
 
 ### 4.8 J 系統管理（9）
 

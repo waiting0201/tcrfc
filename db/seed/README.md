@@ -157,6 +157,8 @@ Server=host.docker.internal,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MS
 | `staff.json`（含 `coaches-d1.json`／`coaches-academy.json` 用於判斷 `staff_teams`） | `staff`／`staff_i18n`／`staff_teams` | 8／4 |
 | `schedule.json` | `matches`／`matches_i18n`／`match_teams` | 21 |
 | `news.json` | `articles`／`articles_i18n` | 83 |
+| — | `venues`／`venues_i18n`（S1-12d 新增：台中磐石主場「西屯足球場」；台中藍鯨的太原／豐原兩筆早於本表列出的版本就已建立，見「藍鯨場地」段） | 3 |
+| `apps/web/shared/utils/site-facts.ts`（已核實真實值） | `settings`／`settings_i18n`（`setting_group='site'`，`GEO-03`／`GEO-04` 站台事實，見 `apps/api/README.md`「S1-12d」節） | 兩俱樂部各約 9 個鍵 |
 
 ## ⛔ 哪些事不能做
 

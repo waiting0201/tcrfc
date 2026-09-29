@@ -1024,6 +1024,16 @@ PERMISSIONS = [
     # view 動作（比照 seo.report.view 孤立頁面偵測同一種「唯讀報表只給 view」設計）。
     # is_club_scoped=1——結構化資料完整性是各站（tcrfc／bw）各自的資料現況，不是全站共用設定。
     ("seo.schema.view", "H", "H6", "seo", "view", 1, 0, 1, "檢視結構化資料完整性檢查", "View Structured Data Completeness Report"),
+    # S1-12d 新增（2026-09-29，backend-engineer）：I 網站設定——GEO-03／GEO-04 事實單一來源與
+    # 雙重呈現（成立年份、主場與場地、所屬聯賽、梯隊組成、聯絡方式）。domain 新增 "site"（docs/12b
+    # §7.3 值域表新增這個值，module_code=I 本輪首次有後端實作）。submodule_code 取 "I1"——
+    # docs/03-admin-spec.md 的 I 模組原文沒有逐項編號，本輪參考 H 模組「新模組自行分配
+    # submodule_code」的既有先例分配一個。is_club_scoped=1——settings／venues 引用清單皆各站
+    # 各自一份。sysadmin_only=1：規劃書 §6 權限矩陣沒有「網站設定」欄，比照 seo.*／system.*
+    # 既有先例判斷十個角色只有系統管理員可存取，見 apps/api/README.md「S1-12d」節
+    # 「規劃書沒寫清楚、自行判斷」。
+    ("site.fact.view", "I", "I1", "site", "view", 1, 0, 1, "檢視網站設定（站台事實）", "View Site Facts"),
+    ("site.fact.update", "I", "I1", "site", "update", 1, 0, 1, "編輯網站設定（站台事實）", "Update Site Facts"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -1691,6 +1701,166 @@ BEGIN
   VALUES (@id, {esc(code)}, {esc(colour)}, {esc(icon)}, 1, {i});
   INSERT INTO event_types_i18n (event_type_id, locale, name) VALUES (@id, N'zh-Hant', {esc(name_zh)});
   INSERT INTO event_types_i18n (event_type_id, locale, name) VALUES (@id, N'en', {esc(name_en)});
+END
+""")
+
+# ============================================================================
+# 24. site facts（GEO-03／GEO-04，S1-12d，2026-09-29，backend-engineer）：兩俱樂部的成立年份、
+#     成立日期、首季頭銜、所屬聯賽、梯隊組成、聯絡方式。逐一取自
+#     apps/web/shared/utils/site-facts.ts（該檔案檔頭自述是「前台暫定的事實單一來源」，已核實
+#     真實值），本輪把同一批值寫進後端唯一來源 settings／settings_i18n
+#     （setting_group='site'，鍵詞彙見
+#     apps/api/Features/AdminSiteFacts/AdminSiteFactsRepository.cs 檔頭）。
+#     ⚠️ 電話與營業時間兩俱樂部皆未核實，刻意不種（維持 NULL，不放佔位假資料）。
+#
+#     主場場地本身沿用既有 venues／venues_i18n（Venue 不帶 club_id，見上方「10. venues」的既有
+#     理由）：
+#     - 台中磐石（tcrfc）「西屯足球場」目前沒有對應的 Venue 列（既有種子只建了藍鯨兩座場地），
+#       本節新增一筆。
+#     - 台中藍鯨（bw）沿用「10. venues」已建立的太原足球場／豐原體育場兩筆，不重複建——這兩筆
+#       既有列的 venues_i18n.address 已經是從 content/blue-whale/data/venues.json（venues.md
+#       盤點）填入的真實地址，但 site-facts.ts 目前對這兩個場地的 address 欄位仍寫 null（該檔案
+#       註解引用的是 content/blue-whale/gap-analysis.md「沒有任何實體地址」，講的是「聯絡地址」
+#       不是「場地地址」，兩者在 site-facts.ts 目前合併成同一個判斷）。本節不覆寫既有列，
+#       site.home_venue_ids 引用它們之後，公開端點會如實回傳這兩筆已存在的地址——這是本輪盤點時
+#       發現的既有資料落差，已在任務回報中列出，留待前端下一輪整合時決定要不要一併更新
+#       site-facts.ts 的判斷。
+# ============================================================================
+emit("-- ── 24. venues：台中磐石（tcrfc）主場西屯足球場（site-facts.ts 已核實真實值） ─────")
+block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = vi.venue_id FROM venues_i18n vi WHERE vi.locale = N'zh-Hant' AND vi.name = N'西屯足球場';
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(new_id("venue", "西屯足球場"))};
+  INSERT INTO venues (id, sort_order) VALUES (@id, 0);
+  INSERT INTO venues_i18n (venue_id, locale, name, address, directions)
+  VALUES (@id, N'zh-Hant', N'西屯足球場', N'台中市北屯區崇平路二段景谷巷 11 弄 41 號', NULL);
+  INSERT INTO venues_i18n (venue_id, locale, name, address, directions)
+  VALUES (@id, N'en', N'Xitun Football Field', NULL, NULL);
+END
+""")
+
+
+def emit_site_setting_value(club_sq: str, club_code: str, key: str, value):
+    """純量值鍵（非人類語言：日期、代碼清單、電話……）。value 為 None 時整段略過不種
+    （比照 AdminSiteFactsRepository.UpsertValue「沒有值就不建空殼列」的既有原則）。"""
+    if value is None:
+        return
+    block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = {club_sq} AND setting_key = {esc(key)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(new_id("setting", club_code, key))};
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, {club_sq}, {esc(key)}, {esc(value)}, N'site');
+END
+""")
+
+
+def emit_site_setting_i18n(club_sq: str, club_code: str, key: str, zh_value, en_value):
+    """逐語系鍵。zh／en 皆為 None 時整段略過（沒有這筆事實，例如 tcrfc 沒有「聯賽簡稱」）。"""
+    if zh_value is None and en_value is None:
+        return
+    block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = {club_sq} AND setting_key = {esc(key)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(new_id("setting", club_code, key))};
+  INSERT INTO settings (id, club_id, setting_key, setting_group)
+  VALUES (@id, {club_sq}, {esc(key)}, N'site');
+END
+""")
+    for locale, value in (("zh-Hant", zh_value), ("en", en_value)):
+        if value is None:
+            continue
+        block(f"""
+IF NOT EXISTS (
+  SELECT 1 FROM settings_i18n si JOIN settings s ON s.id = si.setting_id
+  WHERE s.club_id = {club_sq} AND s.setting_key = {esc(key)} AND si.locale = {esc(locale)}
+)
+BEGIN
+  INSERT INTO settings_i18n (setting_id, locale, value)
+  SELECT s.id, {esc(locale)}, {esc(value)} FROM settings s
+  WHERE s.club_id = {club_sq} AND s.setting_key = {esc(key)};
+END
+""")
+
+
+emit("-- ── 24b. settings：site.* 站台事實（GEO-03／GEO-04），兩俱樂部各自一份 ───────────")
+
+# (club_sq, club_code, founded_year, founding_date_iso, founding_date_display_zh,
+#  founding_date_display_en, founding_title_zh, founding_title_en, league_name_zh,
+#  league_name_en, league_short_name_zh, league_short_name_en, squad_structure_zh,
+#  squad_structure_en, squad_codes)
+SITE_FACTS = [
+    (
+        CLUB_TCRFC, "tcrfc",
+        "2024", None, "2024 年創立", None,
+        "全國乙級聯賽冠軍", None,
+        "企業甲級聯賽", "Enterprise Premier League", None, None,
+        "一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系", None,
+        ["U15", "U14", "U12"],
+    ),
+    (
+        CLUB_BW, "bw",
+        "2014", "2014-04-12", "2014 年 4 月 12 日成立", None,
+        None, None,
+        "台灣木蘭足球聯賽", None, "木蘭聯賽", None,
+        "一線隊與青年隊（U15／U12）兩個梯隊並行的發展體系", None,
+        ["U15", "U12"],
+    ),
+]
+
+for (club_sq, club_code, founded_year, founding_date_iso, founding_date_display_zh,
+     founding_date_display_en, founding_title_zh, founding_title_en, league_name_zh,
+     league_name_en, league_short_name_zh, league_short_name_en, squad_structure_zh,
+     squad_structure_en, squad_codes) in SITE_FACTS:
+    emit_site_setting_value(club_sq, club_code, "site.founded_year", founded_year)
+    emit_site_setting_value(club_sq, club_code, "site.founding_date", founding_date_iso)
+    emit_site_setting_i18n(club_sq, club_code, "site.founding_date_display", founding_date_display_zh, founding_date_display_en)
+    emit_site_setting_i18n(club_sq, club_code, "site.founding_title", founding_title_zh, founding_title_en)
+    emit_site_setting_i18n(club_sq, club_code, "site.league_name", league_name_zh, league_name_en)
+    emit_site_setting_i18n(club_sq, club_code, "site.league_short_name", league_short_name_zh, league_short_name_en)
+    emit_site_setting_i18n(club_sq, club_code, "site.squad_structure_summary", squad_structure_zh, squad_structure_en)
+    emit_site_setting_value(club_sq, club_code, "site.squad_codes", ",".join(squad_codes))
+    # site.contact_phone／site.contact_hours 刻意不種：兩俱樂部皆未核實（見本節檔頭說明）。
+
+emit("-- ── 24c. settings：site.home_venue_ids（主場場地引用清單，依主場優先順序） ──────")
+block(f"""
+DECLARE @venueIds nvarchar(400);
+SELECT @venueIds = CONVERT(nvarchar(36), v.id)
+FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id AND vi.locale = N'zh-Hant'
+WHERE vi.name = N'西屯足球場';
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = {CLUB_TCRFC} AND setting_key = N'site.home_venue_ids';
+IF @id IS NULL AND @venueIds IS NOT NULL
+BEGIN
+  SET @id = {esc(new_id("setting", "tcrfc", "site.home_venue_ids"))};
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, {CLUB_TCRFC}, N'site.home_venue_ids', @venueIds, N'site');
+END
+""")
+
+block(f"""
+DECLARE @venueIds nvarchar(400);
+-- 太原排在前面＝主要主場（見 content/blue-whale/data/venues.json 的 period_note：太原「現行主場」，
+-- 豐原「創隊時期主場」），STRING_AGG 需要明確 ORDER BY 才能保證順序。
+SELECT @venueIds = STRING_AGG(CONVERT(nvarchar(36), v.id), ',')
+  WITHIN GROUP (ORDER BY CASE WHEN vi.name = N'台中北屯太原足球場' THEN 0 ELSE 1 END)
+FROM venues v JOIN venues_i18n vi ON vi.venue_id = v.id AND vi.locale = N'zh-Hant'
+WHERE vi.name IN (N'台中北屯太原足球場', N'台中市立豐原體育場');
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = {CLUB_BW} AND setting_key = N'site.home_venue_ids';
+IF @id IS NULL AND @venueIds IS NOT NULL
+BEGIN
+  SET @id = {esc(new_id("setting", "bw", "site.home_venue_ids"))};
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, {CLUB_BW}, N'site.home_venue_ids', @venueIds, N'site');
 END
 """)
 
