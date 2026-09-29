@@ -19,11 +19,17 @@
 definePageMeta({ nav: '', unit: '10.5' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()／getClubIdentity()。
+// `PLAN_LABELS.academy` 原本寫死「學院贊助」，藍鯨依 docs/13-blue-whale-site.md §3
+// 一律稱「青年隊」，改為 computed 依 identity.academyShortLabelZh 組字。
+const clubAssets = computed(() => getClubAssets(config.public.club))
+const identity = computed(() => getClubIdentity(config.public.club))
+const isTcrfc = computed(() => config.public.club !== 'bw')
 
 useSeoMeta({
-  title: '合作夥伴與贊助洽詢 Partnership & Sponsorship｜加入與聯絡｜台中磐石足球俱樂部',
-  description:
-    '與台中磐石足球俱樂部洽談合作或贊助。一份表單填寫公司資料、合作方向或感興趣的贊助方案與預算區間，商務部將盡快與你聯繫。',
+  title: computed(() => `合作夥伴與贊助洽詢 Partnership & Sponsorship｜加入與聯絡｜${clubAssets.value.nameZh}`),
+  description: computed(() => `與${clubAssets.value.nameZh}洽談合作或贊助。一份表單填寫公司資料、合作方向或感興趣的贊助方案與預算區間，商務部將盡快與你聯繫。`),
 })
 
 const ENQUIRY_TYPE_MAP: Record<string, string> = { partnership: '合作夥伴', sponsorship: '贊助', both: '兩者' }
@@ -38,10 +44,10 @@ const BUDGET_LABELS: Record<string, string> = {
 const DIRECTION_LABELS: Record<string, string> = {
   strategic: '策略夥伴', international: '國際夥伴', training: '訓練夥伴', education: '教育夥伴', brand: '品牌夥伴',
 }
-const PLAN_LABELS: Record<string, string> = {
-  club: '俱樂部贊助', academy: '學院贊助', team: '球隊贊助', camp: '營隊贊助', international: '國際計畫贊助',
+const PLAN_LABEL_MAP = computed<Record<string, string>>(() => ({
+  club: '俱樂部贊助', academy: `${identity.value.academyShortLabelZh}贊助`, team: '球隊贊助', camp: '營隊贊助', international: '國際計畫贊助',
   manga: '漫畫內容合作', merchandise: '商品合作', fan_club: '球迷會贊助', naming_rights: '場館冠名',
-}
+}))
 
 const enquiryType = ref('')
 const companyName = ref('')
@@ -60,7 +66,7 @@ const { status, errorMessage, submit } = useFormSubmit('partnership_sponsorship'
 
 async function onSubmit() {
   const directionLabels = direction.value.map((v) => DIRECTION_LABELS[v] ?? v)
-  const planLabels = plan.value.map((v) => PLAN_LABELS[v] ?? v)
+  const planLabels = plan.value.map((v) => PLAN_LABEL_MAP.value[v] ?? v)
 
   await submit({
     enquiry_type: ENQUIRY_TYPE_MAP[enquiryType.value] ?? enquiryType.value,
@@ -92,7 +98,8 @@ async function onSubmit() {
   <div class="container">
     <p class="page-hero__eyebrow">10.5 Partnership &amp; Sponsorship</p>
     <h1>合作夥伴與贊助洽詢<span class="en">Partnership &amp; Sponsorship</span></h1>
-    <p class="page-hero__lede">攜手台中磐石，透過職業足球平台觸及在地社群，共創品牌與社區的雙贏價值。不論你想談的是長期合作夥伴關係，或是特定的贊助方案，都在這一份表單完成。填寫以下資料，商務部將盡快與你聯繫討論細節。</p>
+    <p v-if="isTcrfc" class="page-hero__lede">攜手台中磐石，透過職業足球平台觸及在地社群，共創品牌與社區的雙贏價值。不論你想談的是長期合作夥伴關係，或是特定的贊助方案，都在這一份表單完成。填寫以下資料，商務部將盡快與你聯繫討論細節。</p>
+    <p v-else class="page-hero__lede">攜手台中藍鯨，透過女子足球平台觸及在地社群，共創品牌與社區的雙贏價值。不論你想談的是長期合作夥伴關係，或是特定的贊助方案，都在這一份表單完成。填寫以下資料，俱樂部將盡快與你聯繫討論細節。</p>
   </div>
 </section>
 
@@ -220,7 +227,7 @@ async function onSubmit() {
             </div>
             <div class="checkbox-field">
               <input id="pn-plan-academy" v-model="plan" type="checkbox" name="plan" value="academy">
-              <label for="pn-plan-academy">學院贊助</label>
+              <label for="pn-plan-academy">{{ PLAN_LABEL_MAP.academy }}</label>
             </div>
             <div class="checkbox-field">
               <input id="pn-plan-team" v-model="plan" type="checkbox" name="plan" value="team">
@@ -263,7 +270,7 @@ async function onSubmit() {
         <div class="consent-block">
           <div class="checkbox-field">
             <input id="pn-consent" v-model="consent" type="checkbox" name="consent" required aria-describedby="pn-consent-error">
-            <label for="pn-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之聯絡人個人資料，用於處理本次合作與贊助洽詢之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
+            <label for="pn-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集之聯絡人個人資料，用於處理本次合作與贊助洽詢之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="pn-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
 

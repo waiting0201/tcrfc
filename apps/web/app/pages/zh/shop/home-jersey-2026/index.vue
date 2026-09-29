@@ -4,11 +4,19 @@
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
 const { lp } = useLocale()
-
+const config = useRuntimeConfig()
+const isTcrfc = computed(() => config.public.club !== 'bw')
+// BW-C1（品牌外洩全站盤點）：本商品是磐石真實 2026 賽季主場球衣照片（桃紅配色、
+// Joma／San Pellegrino 贊助標誌），藍鯨球衣配色與贊助商狀況與磐石不同，不得沿用同一
+// 張照片與規格假裝是藍鯨商品（理由同 shop/index.vue），本頁對藍鯨顯示誠實的
+// 「尚未上架」空狀態，不臆造藍鯨自己的主場球衣商品資訊。
 useSeoMeta({
-  title: '台中磐石主場球衣｜2026 賽季｜官方商店｜台中磐石足球俱樂部',
-  description:
-    '台中磐石主場球衣 2026 賽季，桃紅戰袍，尺寸 M／L／XL，促銷價 NT$1,200（原價 NT$1,600）。以 LINE Pay 付款並開立電子發票。',
+  title: computed(() => (isTcrfc.value
+    ? '台中磐石主場球衣｜2026 賽季｜官方商店｜台中磐石足球俱樂部'
+    : `主場球衣｜官方商店｜${getClubAssets(config.public.club).nameZh}`)),
+  description: computed(() => (isTcrfc.value
+    ? '台中磐石主場球衣 2026 賽季，桃紅戰袍，尺寸 M／L／XL，促銷價 NT$1,200（原價 NT$1,600）。以 LINE Pay 付款並開立電子發票。'
+    : '本商品尚未於官方商店上架，敬請期待。')),
 })
 </script>
 
@@ -17,15 +25,21 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/culture/')">{{ getClubIdentity(config.public.club).cultureLabelZh }}</a></li>
       <li><a :href="lp('/zh/shop/')">官方商店</a></li>
-      <li aria-current="page">台中磐石主場球衣</li>
+      <li aria-current="page">{{ isTcrfc ? '台中磐石主場球衣' : '主場球衣' }}</li>
     </ol>
   </div>
 </nav>
 
 <!-- SPEC 3.8 §8.3 — 商品詳情：圖集、規格選擇（尺寸＝SKU）、尺碼表、原價與促銷價、庫存、加入購物車 -->
-<section class="band band--tight">
+<section v-if="!isTcrfc" class="band band--tight">
+  <div class="container">
+    <h1>主場球衣<span class="en">Home Jersey</span></h1>
+    <p class="is-pending">本商品尚未於官方商店上架，敬請期待。</p>
+  </div>
+</section>
+<section v-else class="band band--tight">
   <div class="container">
     <p style="margin-bottom:1.5rem"><span class="mock-flag">流程骨架 — 規格選擇與加入購物車尚未串接後端</span></p>
     <div class="product-detail">
@@ -89,7 +103,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band band--tight" id="size-chart" aria-labelledby="size-chart-title">
+<section v-if="isTcrfc" class="band band--tight" id="size-chart" aria-labelledby="size-chart-title">
   <div class="container">
     <h2 class="section-title" id="size-chart-title">尺碼表</h2>
     <div class="table-scroll" style="margin-top:1.5rem">
@@ -114,6 +128,7 @@ useSeoMeta({
 </template>
 
 <style>
+.is-pending{ color:var(--muted); font-style:italic; }
 .table-scroll{ overflow-x:auto; }
 .size-table{ width:100%; min-width:420px; border-collapse:collapse; font-size:.82rem; }
 .size-table th, .size-table td{ padding:.55rem .75rem; border:1px solid var(--rule); text-align:center; }

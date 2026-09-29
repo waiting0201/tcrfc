@@ -33,7 +33,12 @@
   `shared/utils/units.ts` 的 `BLUE_WHALE_DISABLED_UNITS` 只能收上一條四項例外能**直接推導**的代號（目前是 `06`／`11`／`4.7`／依附 `4.7` 的 `12.2`）——「藍鯨沒有對應的具名內容／真實素材可換」是內容缺漏，不是功能取捨，**正確處理是重開頁面、版型比照主站，有真實素材就換，沒有就顯示既有的「準備中／收錄中」空狀態**（3.5 球員故事、4.3／4.4 是既有先例），不是整頁 404。
   ⚠️ **一個單元代號可能同時要出現在兩處**：頁面自己的 `definePageMeta({ unit })`（給 `unit-gate.global.ts` 擋 404 用）與 `FAQ_CATEGORY_UNIT_CODES`（給沒有自己路由的 FAQ 分類用）——只改其中一處會漏掉真正該關閉或該開放的行為，改動後兩處都要對照。
   🔴 **`BLUE_WHALE_DISABLED_UNITS` 陣列每一項都必須在同一行帶 `//` 行內註解且含 `§`**（引用藍鯨規劃書章節），由 `apps/web/scripts/check-bw-units-citation.mjs` 靜態檢查並掛進 `npm run lint`，沒有章節依據的關閉會直接讓 `lint` 失敗。
-- 🔴 **本機起 `bw` 容器（含跑 `check-club-brand-leak.mjs`）一律要帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`**（藍鯨規劃書 §6 紀律 11a，`docs/13-blue-whale-site.md`）。漏帶時 `og:site_name`／`<title>` 後綴／Schema.org `WebSite.name` 會悄悄落回 `nuxt.config.ts` 的本機開發預設值 `TCRFC`，讓 `check-club-brand-leak.mjs` 的 13 頁保護清單全部誤判失敗——這條已經在 `docs/13` 記過一次（S1-14 缺口補完，2026-09-29 又撞到一次驗證流程本身的失誤，不是程式碼迴歸），本條把它抬進速查清單，動手驗 `bw` 容器前先看這裡，不用先找到 `docs/13` 才知道。
+- 🔴 **本機起 `bw` 容器（含跑 `check-club-brand-leak.mjs`）一律要帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`**（藍鯨規劃書 §6 紀律 11a，`docs/13-blue-whale-site.md`）。漏帶時 `og:site_name`／`<title>` 後綴／Schema.org `WebSite.name` 會悄悄落回 `nuxt.config.ts` 的本機開發預設值 `TCRFC`，讓品牌外洩檢查全站誤判失敗——這條已經在 `docs/13` 記過一次（S1-14 缺口補完，2026-09-29 又撞到一次驗證流程本身的失誤，不是程式碼迴歸），本條把它抬進速查清單，動手驗 `bw` 容器前先看這裡，不用先找到 `docs/13` 才知道。
+- 🔴🔴 **`check-club-brand-leak.mjs`（BW-C1，2026-09-29 全面改版）現在是全站涵蓋、預設 hard-fail**，不是「只驗一份手動清單、其餘只計數」——舊版 `PROTECTED_PAGES`（33 頁、只含 `/zh/`）漏掉的 `join/international-player/`（10.4，`Taichung Rock FC`／`TCRFC` 整頁沒有俱樂部分支）與全站 `/en/` 版本，都是這次改版才第一次被抓到，見 [`18-work-errors.md`](18-work-errors.md) `E-77`／`E-78`。
+  **新設計**：自動收集 `app/pages/zh/` 算出的全部路由（`/zh/`＋`/en/`，動態路由排除），逐頁掃描回 200 的內容；命中詞表任何一個詞就是失敗，**除非**該路由＋該詞的組合列在腳本內 `EXEMPT_PAGES`（每筆必附規格依據或既有缺口編號，不是「看起來還好」）。**例外清單只能往下減、不能往上加**——腳本自己用 `git show HEAD:<this file>` 比對上一版，新增例外會讓腳本自己先失敗（方向跟舊版 `PROTECTED_PAGES`「只能往上加」刻意相反）。
+  詞表：`磐石`／`TCRFC`／`學院`／`Taichung Rock`／`www.tcrfc.tw`（**不是裸 `tcrfc.tw`**——裸網域會撞到 `blueWhaleSiteUrl` 這個 runtime config 預設值，序列化進每一頁的 hydration payload，全站每頁誤判命中一次，見 `E-77`）。
+  現有例外清單（均已附規格依據，見腳本內註解）：結帳／商店頁的「收款方為台中磐石足球俱樂部」（主站與藍鯨規劃書 §1.3 明文要求的真實揭露，不是外洩）、商品過渡期文案的 `www.tcrfc.tw` 舊站連結、`club/first-team/player/`（頁面自稱「範本」，磐石 11 號球員楊朝景真實示範資料，藍鯨球員名單與肖像同意尚未到位，STATUS.md 阻塞清單）。
+  **用法不變**：`node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:PORT`，只對 bw 容器跑（tcrfc 站允許出現這些詞）。
 - 🧭 **後台是為了產出前台而存在的**（主站規劃書 **§4.0 後台設計通則，v3.7，2026-09-18 客戶指示**）。
   **模組依前台單元切分**，不依資料表切分；每個模組頁首寫明**它產出前台的哪一頁或哪一區塊**（對照表在規劃書 §4.0）。**對不上的模組就是切錯了。**
   **前後台同名**：前台叫「新聞中心」，後台就不叫「文章管理」。

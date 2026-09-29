@@ -4,11 +4,14 @@
 definePageMeta({ nav: 'partners', unit: '09' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const isTcrfc = computed(() => config.public.club !== 'bw')
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '合作夥伴與贊助 Partners & Sponsors｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部的合作夥伴、贊助商、成為合作夥伴的價值主張，以及九種贊助方案總覽。',
+  title: computed(() => `合作夥伴與贊助 Partners & Sponsors｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.nameZh}的合作夥伴、贊助商、成為合作夥伴的價值主張，以及九種贊助方案總覽。`),
 })
 </script>
 
@@ -27,7 +30,8 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">09 Partners & Sponsors</p>
     <h1>合作夥伴與贊助<span class="en">Partners &amp; Sponsors</span></h1>
-    <p class="page-hero__lede">攜手台中磐石，透過職業足球平台觸及在地社群與國際足球網絡，共創品牌與社區的雙贏價值。</p>
+    <p v-if="isTcrfc" class="page-hero__lede">攜手台中磐石，透過職業足球平台觸及在地社群與國際足球網絡，共創品牌與社區的雙贏價值。</p>
+    <p v-else class="page-hero__lede">攜手台中藍鯨，透過女子足球平台觸及在地社群與國際足球網絡，共創品牌與社區的雙贏價值。</p>
   </div>
 </section>
 
@@ -65,7 +69,7 @@ useSeoMeta({
         <div class="unit-card__body">
           <p class="unit-card__num">9.3</p>
           <p class="unit-card__title">成為合作夥伴<span class="en">Become a Partner</span></p>
-          <p class="unit-card__desc">六大價值論述與受眾數據，了解與台中磐石合作的理由。</p>
+          <p class="unit-card__desc">六大價值論述與受眾數據，了解與{{ clubAssets.shortNameZh }}合作的理由。</p>
           <span class="unit-card__link">了解價值 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>

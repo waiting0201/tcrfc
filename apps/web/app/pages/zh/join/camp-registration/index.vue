@@ -22,11 +22,17 @@
 definePageMeta({ nav: '', unit: '10.3' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。⚠️ 規格疑點：藍鯨目前沒有
+// 已開放的寒／暑令營活動（5.2／5.3 現況皆為「尚未推出」，見 club-copy.ts
+// getSummerCampSeo／getWinterCampSeo bw 分支），本頁描述改為中性用詞，不臆造藍鯨的
+// 具體營隊名稱；表單本身是否該對藍鯨開放，留待營隊真的推出時再確認（不在本輪自行
+// 決定關閉）。
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '營隊報名 Camp Registration｜加入與聯絡｜台中磐石足球俱樂部',
-  description:
-    '報名台中磐石寒暑假足球營隊。填寫學員資料、希望報名的梯次、健康聲明與緊急聯絡人，課程部將盡快與家長確認梯次與名額。',
+  title: computed(() => `營隊報名 Camp Registration｜加入與聯絡｜${clubAssets.value.nameZh}`),
+  description: computed(() => `報名${clubAssets.value.shortNameZh}寒暑假足球營隊。填寫學員資料、希望報名的梯次、健康聲明與緊急聯絡人，課程部將盡快與家長確認梯次與名額。`),
 })
 
 const EMERGENCY_RELATION_LABELS: Record<string, string> = {
@@ -159,7 +165,7 @@ async function onSubmit() {
         <div class="consent-block">
           <div class="checkbox-field">
             <input id="cp-consent" v-model="consent" type="checkbox" name="consent" required aria-describedby="cp-consent-error">
-            <label for="cp-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集學員、家長與緊急聯絡人之個人資料及健康聲明內容，用於處理本次營隊報名之聯繫、安全與應變作業。<span class="req" aria-hidden="true">*</span></label>
+            <label for="cp-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集學員、家長與緊急聯絡人之個人資料及健康聲明內容，用於處理本次營隊報名之聯繫、安全與應變作業。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="cp-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
           

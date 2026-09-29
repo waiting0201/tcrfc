@@ -4,11 +4,15 @@
 definePageMeta({ nav: 'partners', unit: '9.4' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()／getClubIdentity()。
+// 「學院贊助」比照 join/partnership/index.vue 既有做法改讀 identity.academyShortLabelZh。
+const clubAssets = computed(() => getClubAssets(config.public.club))
+const identity = computed(() => getClubIdentity(config.public.club))
 
 useSeoMeta({
-  title: '贊助方案 Sponsorship Opportunities｜合作夥伴與贊助｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部九種贊助方案：俱樂部、學院、球隊、營隊、國際計畫、漫畫內容、商品、球迷會、場館冠名。',
+  title: computed(() => `贊助方案 Sponsorship Opportunities｜合作夥伴與贊助｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.nameZh}九種贊助方案：俱樂部、${identity.value.academyShortLabelZh}、球隊、營隊、國際計畫、漫畫內容、商品、球迷會、場館冠名。`),
 })
 </script>
 
@@ -27,7 +31,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">9.4 Sponsorship Opportunities</p>
     <h1>贊助方案<span class="en">Sponsorship Opportunities</span></h1>
-    <p class="page-hero__lede">九種贊助方案，涵蓋俱樂部、學院、球隊、營隊到場館冠名，找到最適合的合作規模。</p>
+    <p class="page-hero__lede">九種贊助方案，涵蓋俱樂部、{{ identity.academyShortLabelZh }}、球隊、營隊到場館冠名，找到最適合的合作規模。</p>
   </div>
 </section>
 
@@ -44,7 +48,7 @@ useSeoMeta({
       </article>
       <article class="plan-card">
         <p class="plan-card__num">02</p>
-        <h3 class="plan-card__title">學院贊助<span class="en">Academy Sponsorship</span></h3>
+        <h3 class="plan-card__title">{{ identity.academyShortLabelZh }}贊助<span class="en">Academy Sponsorship</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
         <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>

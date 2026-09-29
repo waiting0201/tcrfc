@@ -4,11 +4,12 @@
 definePageMeta({ nav: 'partners', unit: '9.2' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '贊助商 Our Sponsors｜合作夥伴與贊助｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部的贊助商，依主贊助、官方、支持三個等級介紹，並收錄贊助故事與活動紀錄。',
+  title: computed(() => `贊助商 Our Sponsors｜合作夥伴與贊助｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.nameZh}的贊助商，依主贊助、官方、支持三個等級介紹，並收錄贊助故事與活動紀錄。`),
 })
 </script>
 
@@ -27,7 +28,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">9.2 Our Sponsors</p>
     <h1>贊助商<span class="en">Our Sponsors</span></h1>
-    <p class="page-hero__lede">感謝每一位支持台中磐石的贊助夥伴，以下依贊助等級分區介紹。</p>
+    <p class="page-hero__lede">感謝每一位支持{{ clubAssets.shortNameZh }}的贊助夥伴，以下依贊助等級分區介紹。</p>
   </div>
 </section>
 

@@ -27,8 +27,10 @@ const month = ref('')
 const search = ref('')
 
 useSeoMeta({
-  title: "社區活動 Community｜新聞 News｜台中磐石足球俱樂部",
-  description: "台中磐石社區公益與地方合作活動紀錄，共 3 篇真實報導，呼應「Community 社區共好」核心價值。",
+  title: computed(() => (club === 'bw' ? `社區活動 Community｜新聞 News｜${getClubAssets(club).nameZh}` : "社區活動 Community｜新聞 News｜台中磐石足球俱樂部")),
+  description: computed(() => (club === 'bw'
+    ? `${getClubAssets(club).shortNameZh}社區公益與地方合作活動紀錄，共 ${articles.value.length} 篇真實報導。`
+    : "台中磐石社區公益與地方合作活動紀錄，共 3 篇真實報導，呼應「Community 社區共好」核心價值。")),
 })
 </script>
 
@@ -48,7 +50,8 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">7.7 Community</p>
     <h1>社區活動<span class="en">Community</span></h1>
-    <p class="page-hero__lede">公益捐贈、學校交流、地方政府合作——台中磐石在球場之外的社區共好行動。</p>
+    <p v-if="club !== 'bw'" class="page-hero__lede">公益捐贈、學校交流、地方政府合作——台中磐石在球場之外的社區共好行動。</p>
+    <p v-else class="page-hero__lede">公益捐贈、學校交流、地方政府合作——台中藍鯨在球場之外的社區共好行動。</p>
   </div>
 </section>
 

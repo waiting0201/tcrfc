@@ -5,11 +5,23 @@
 definePageMeta({ nav: 'culture', unit: '8.1' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const isTcrfc = computed(() => config.public.club !== 'bw')
+// BW-C1（品牌外洩全站盤點）：本頁是「台中磐石漫畫」——磐石專屬的原創漫畫企劃
+// （世界觀、角色設定、集數內容皆為磐石原創 IP），藍鯨沒有對應的漫畫企劃可以引用或
+// 節錄（紀律 11：藍鯨文案只能引用既有內容，不得自行創作），與本輪其餘「有真實舊站
+// 內容可換」的頁面不同性質——不是換個俱樂部名稱就能通用，本頁對藍鯨顯示誠實的
+// 「尚未推出」空狀態，不臆造藍鯨自己的漫畫角色與劇情。
+const clubAssets = computed(() => getClubAssets(config.public.club))
+const identity = computed(() => getClubIdentity(config.public.club))
 
 useSeoMeta({
-  title: '台中磐石漫畫 TCRFC Manga｜台中磐石文化｜台中磐石足球俱樂部',
-  description:
-    '台中磐石漫畫是台中磐石足球俱樂部的原創漫畫企劃：世界觀設定、角色卡牆與集數線上閱讀器，全部免費開放、不需登入。',
+  title: computed(() => (isTcrfc.value
+    ? '台中磐石漫畫 TCRFC Manga｜台中磐石文化｜台中磐石足球俱樂部'
+    : `漫畫｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isTcrfc.value
+    ? '台中磐石漫畫是台中磐石足球俱樂部的原創漫畫企劃：世界觀設定、角色卡牆與集數線上閱讀器，全部免費開放、不需登入。'
+    : `${clubAssets.value.shortNameZh}漫畫企劃尚未推出，敬請期待。`)),
 })
 
 onMounted(() => {
@@ -31,20 +43,23 @@ onMounted(() => {
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
-      <li aria-current="page">台中磐石漫畫</li>
+      <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
+      <li aria-current="page">{{ isTcrfc ? '台中磐石漫畫' : '漫畫' }}</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero">
   <div class="container">
-    <p class="page-hero__eyebrow">8.1 TCRFC Manga / Comics</p>
-    <h1>台中磐石漫畫<span class="en">Manga / Comics</span></h1>
-    <p class="page-hero__lede">以台中磐石為原型的原創漫畫企劃，角色設定與球員故事交織。全部集數<b style="color:#fff">免費開放、不需登入、無付費牆</b>。</p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '8.1 TCRFC Manga / Comics' : '8.1 Manga / Comics' }}</p>
+    <h1 v-if="isTcrfc">台中磐石漫畫<span class="en">Manga / Comics</span></h1>
+    <h1 v-else>漫畫<span class="en">Manga / Comics</span></h1>
+    <p v-if="isTcrfc" class="page-hero__lede">以台中磐石為原型的原創漫畫企劃，角色設定與球員故事交織。全部集數<b style="color:#fff">免費開放、不需登入、無付費牆</b>。</p>
+    <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}漫畫企劃尚未推出，敬請期待。</p>
   </div>
 </section>
 
+<template v-if="isTcrfc">
 <!-- SPEC 3.8 §8.1 — About the Project 關於企劃 -->
 <section class="band" id="about-project" aria-labelledby="about-project-title">
   <div class="container">
@@ -169,8 +184,18 @@ onMounted(() => {
   </div>
 </section>
 </template>
+<template v-else>
+<section class="band" aria-labelledby="manga-pending-title">
+  <div class="container">
+    <h2 id="manga-pending-title" class="visually-hidden">漫畫企劃</h2>
+    <p class="is-pending">{{ clubAssets.shortNameZh }}漫畫企劃尚未推出，敬請期待。</p>
+  </div>
+</section>
+</template>
+</template>
 
 <style>
+.is-pending{ color:var(--muted); font-style:italic; }
 /* 角色卡牆（char-wall）：無照片時的骨架卡，建議收進共用 CSS */
 .char-wall{ margin-top:1rem; }
 .char-card{ background:rgba(255,255,255,.04); border:1px dashed rgba(255,255,255,.25); padding:1.25rem; text-align:center; }

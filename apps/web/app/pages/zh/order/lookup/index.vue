@@ -4,11 +4,13 @@
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()，理由同 privacy/index.vue。
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '訂單查詢 Order Lookup｜官方商店｜台中磐石足球俱樂部',
-  description:
-    '以訂單編號與 Email 查詢台中磐石官方商店的訂單狀態、物流單號與電子發票；會員可直接於會員中心的「我的訂單」查看。',
+  title: computed(() => `訂單查詢 Order Lookup｜官方商店｜${clubAssets.value.nameZh}`),
+  description: computed(() => `以訂單編號與 Email 查詢${clubAssets.value.shortNameZh}官方商店的訂單狀態、物流單號與電子發票；會員可直接於會員中心的「我的訂單」查看。`),
 })
 </script>
 

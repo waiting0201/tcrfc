@@ -12,6 +12,11 @@ definePageMeta({ nav: 'news', unit: '07' })
 
 const config = useRuntimeConfig()
 const club = config.public.club
+// BW-C1（品牌外洩全站盤點）：title／description／hero lede 原本固定寫死「台中磐石
+// 足球俱樂部」，是本輪全站掃描才發現的既有缺口（本頁其餘內容——分類鈕、文章列表、
+// 篩選——本來就依 `club` 動態打 API，只有這三處文案沒有跟著動）。改讀既有的
+// getClubAssets()，不需要新增 club-copy.ts 文案鍵。
+const clubNameZh = computed(() => getClubAssets(club).nameZh)
 
 // S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
 const { locale, lp } = useLocale()
@@ -50,8 +55,8 @@ const search = ref('')
 const filterTabCategories = computed(() => NEWS_CATEGORIES.filter((c) => c.code !== 'media'))
 
 useSeoMeta({
-  title: '最新消息 News & Stories｜台中磐石足球俱樂部',
-  description: `台中磐石足球俱樂部新聞中心：俱樂部新聞、比賽報導、國際交流、營隊活動與社區公益，${totalCount.value} 篇真實報導依分類、年月與關鍵字瀏覽。`,
+  title: computed(() => `最新消息 News & Stories｜${clubNameZh.value}`),
+  description: computed(() => `${clubNameZh.value}新聞中心：俱樂部新聞、比賽報導、國際交流、營隊活動與社區公益，${totalCount.value} 篇真實報導依分類、年月與關鍵字瀏覽。`),
 })
 </script>
 
@@ -109,7 +114,7 @@ useSeoMeta({
           :data-tab="cat.code"
           :aria-pressed="activeCat === cat.code"
           @click="activeCat = cat.code"
-        >{{ cat.label }}</button>
+        >{{ newsCategoryTabLabel(cat.code, club) }}</button>
       </nav>
       <NewsFilterForm v-model:tag="tag" v-model:year="year" v-model:month="month" v-model:search="search" :tags="tags" :years="years" :months="ALL_MONTHS" />
     </div>

@@ -27,8 +27,10 @@ const month = ref('')
 const search = ref('')
 
 useSeoMeta({
-  title: "俱樂部新聞 Club News｜新聞 News｜台中磐石足球俱樂部",
-  description: "台中磐石俱樂部新聞：陣容異動、認證里程碑、榮譽與夥伴合作等公告，共 11 篇真實報導。",
+  title: computed(() => (club === 'bw' ? `俱樂部新聞 Club News｜新聞 News｜${getClubAssets(club).nameZh}` : "俱樂部新聞 Club News｜新聞 News｜台中磐石足球俱樂部")),
+  description: computed(() => (club === 'bw'
+    ? `${getClubAssets(club).shortNameZh}俱樂部新聞，共 ${articles.value.length} 篇真實報導。`
+    : "台中磐石俱樂部新聞：陣容異動、認證里程碑、榮譽與夥伴合作等公告，共 11 篇真實報導。")),
 })
 </script>
 

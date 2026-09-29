@@ -27,8 +27,10 @@ const month = ref('')
 const search = ref('')
 
 useSeoMeta({
-  title: "國際動態 International｜新聞 News｜台中磐石足球俱樂部",
-  description: "台中磐石國際交流動態：海外球會合作備忘錄、球員海外受訓與轉會消息，共 12 篇真實報導。",
+  title: computed(() => (club === 'bw' ? `國際動態 International｜新聞 News｜${getClubAssets(club).nameZh}` : "國際動態 International｜新聞 News｜台中磐石足球俱樂部")),
+  description: computed(() => (club === 'bw'
+    ? `${getClubAssets(club).shortNameZh}國際交流動態，共 ${articles.value.length} 篇真實報導。`
+    : "台中磐石國際交流動態：海外球會合作備忘錄、球員海外受訓與轉會消息，共 12 篇真實報導。")),
 })
 </script>
 
@@ -48,7 +50,8 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">7.5 International</p>
     <h1>國際動態<span class="en">International</span></h1>
-    <p class="page-hero__lede">海外球會合作、球員海外受訓與轉會——台中磐石選手放眼世界的第一手紀錄，呼應「Global Pathways 國際發展」。</p>
+    <p v-if="club !== 'bw'" class="page-hero__lede">海外球會合作、球員海外受訓與轉會——台中磐石選手放眼世界的第一手紀錄，呼應「Global Pathways 國際發展」。</p>
+    <p v-else class="page-hero__lede">海外球會合作、球員海外受訓與轉會——台中藍鯨選手放眼世界的第一手紀錄。</p>
   </div>
 </section>
 

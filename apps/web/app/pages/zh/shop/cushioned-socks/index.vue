@@ -4,11 +4,18 @@
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：本商品是六色通用配件、無隊徽或球隊專屬配色（不像主場
+// 球衣有磐石專屬設計），兩俱樂部可共用同一批商品照片，只需改讀既有的
+// getClubAssets()／getClubIdentity() 換品牌名稱。⚠️「收款方：台中磐石足球俱樂部」
+// 付款須知一處不在此次修改範圍，理由同 shop/index.vue（規格要求的真實揭露），已列入
+// check-club-brand-leak.mjs 例外清單。
+const clubAssets = computed(() => getClubAssets(config.public.club))
+const identity = computed(() => getClubIdentity(config.public.club))
 
 useSeoMeta({
-  title: '厚底緩震機能襪｜官方商店｜台中磐石足球俱樂部',
-  description:
-    '台中磐石厚底緩震機能襪，NT$120，尺寸 M／L，六色可選。以 LINE Pay 付款並開立電子發票，可宅配、超商取貨或現場自取。',
+  title: computed(() => `厚底緩震機能襪｜官方商店｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.shortNameZh}厚底緩震機能襪，NT$120，尺寸 M／L，六色可選。以 LINE Pay 付款並開立電子發票，可宅配、超商取貨或現場自取。`),
 })
 </script>
 
@@ -17,7 +24,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
       <li><a :href="lp('/zh/shop/')">官方商店</a></li>
       <li aria-current="page">厚底緩震機能襪</li>
     </ol>

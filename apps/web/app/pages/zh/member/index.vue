@@ -13,11 +13,13 @@
 definePageMeta({ nav: '', unit: '14' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()，理由同 privacy/index.vue。
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '會員中心 Member｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部會員中心：登入與加入會員。會員享特約店家折扣，付費球迷會員另可獲得球衣。',
+  title: computed(() => `會員中心 Member｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.nameZh}會員中心：登入與加入會員。會員享特約店家折扣，付費球迷會員另可獲得球衣。`),
 })
 
 onMounted(() => {
@@ -69,7 +71,7 @@ onMounted(() => {
   <div class="container">
     <p class="page-hero__eyebrow">Member Centre</p>
     <h1>會員中心<span class="en">Member</span></h1>
-    <p class="page-hero__lede">加入台中磐石會員，到特約店家出示會員卡即享折扣；升級付費球迷會員，另可獲得球衣。</p>
+    <p class="page-hero__lede">加入{{ clubAssets.shortNameZh }}會員，到特約店家出示會員卡即享折扣；升級付費球迷會員，另可獲得球衣。</p>
   </div>
 </section>
 
@@ -161,7 +163,7 @@ onMounted(() => {
             <div class="consent-block">
               <div class="checkbox-field">
                 <input type="checkbox" id="m-reg-consent" name="consent" required>
-                <label for="m-reg-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>與會員條款，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
+                <label for="m-reg-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>與會員條款，並同意{{ clubAssets.nameZh }}依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
               </div>
             </div>
             <button class="btn btn--primary btn--block" type="submit">建立會員</button>

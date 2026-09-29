@@ -12,11 +12,13 @@
 definePageMeta({ nav: '', unit: '10.6' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()，理由同 privacy/index.vue。
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '媒體詢問 Media Enquiries｜加入與聯絡｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部媒體採訪與合作詢問窗口。填寫媒體資料、採訪主題與截稿日，公關團隊將盡快回覆。',
+  title: computed(() => `媒體詢問 Media Enquiries｜加入與聯絡｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.nameZh}媒體採訪與合作詢問窗口。填寫媒體資料、採訪主題與截稿日，公關團隊將盡快回覆。`),
 })
 
 const COVERAGE_TYPE_LABELS: Record<string, string> = {
@@ -146,7 +148,7 @@ async function onSubmit() {
         <div class="consent-block">
           <div class="checkbox-field">
             <input id="md-consent" v-model="consent" type="checkbox" name="consent" required aria-describedby="md-consent-error">
-            <label for="md-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之聯絡人個人資料，用於處理本次媒體採訪詢問之聯繫與安排。<span class="req" aria-hidden="true">*</span></label>
+            <label for="md-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集之聯絡人個人資料，用於處理本次媒體採訪詢問之聯繫與安排。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="md-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
           

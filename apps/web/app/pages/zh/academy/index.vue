@@ -1,16 +1,28 @@
 <script setup lang="ts">
 // app/pages/zh/academy/index.vue — 由 site/src/pages/zh/academy/index/index.html 轉來（S0-9 靜態頁搬遷）
+//
+// BW-C1（品牌外洩全站盤點）：本頁原本整頁固定磐石內容（SEO／H1／七張導覽卡／底部
+// CTA 全部沒有俱樂部分支），是本輪全站掃描才發現的既有缺口。4.7（加入學院）對藍鯨
+// 是 units.ts 明文關閉的單元（藍鯨規劃書 §3.4「04 不沿用招生與課程報名架構」），
+// bw 版導覽卡與底部 CTA 對應移除，不連到會 404 的頁面。改讀 club-copy.ts 的
+// getAcademyHubSeo()／getAcademyHubHero()／getAcademyHubCards()／getAcademyHubCtaTitle()。
 definePageMeta({ nav: "academy", unit: "04" })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const identity = computed(() => getClubIdentity(clubKey.value))
 
-// S1-12d 收尾：梯隊代碼改讀 useSiteFacts('tcrfc')（後端公開端點）。
-const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+const { facts } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: "台中磐石足球學院 TCRFC Academy｜台中磐石足球俱樂部",
-  description: "台中磐石足球學院是台中磐石足球俱樂部的青訓體系，提供 U12 至 U15 分齡訓練、清晰的發展路徑與教練團陪伴，銜接一線隊與海外舞台。",
+  title: computed(() => getAcademyHubSeo(clubKey.value, facts.value).title),
+  description: computed(() => getAcademyHubSeo(clubKey.value, facts.value).description),
 })
+const hero = computed(() => getAcademyHubHero(clubKey.value, facts.value))
+const cards = computed(() => getAcademyHubCards(clubKey.value, facts.value))
+const ctaTitle = computed(() => getAcademyHubCtaTitle(clubKey.value))
 </script>
 
 <template>
@@ -18,7 +30,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">足球學院</li>
+      <li aria-current="page">{{ identity.academyLabelZh }}</li>
     </ol>
   </div>
 </nav>
@@ -26,12 +38,9 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <img class="page-hero__bg" src="/assets/img/academy/life-05.jpg" alt="" width="1600" height="900">
   <div class="container">
-    <p class="page-hero__eyebrow">04 Academy</p>
-    <h1>台中磐石足球學院<span class="en">TCRFC Academy</span></h1>
-    <p class="page-hero__lede">
-      台中磐石足球學院承接俱樂部「在地扎根．放眼世界」的品牌主張，透過分齡訓練、清晰的發展路徑與教練團的長期陪伴，
-      協助學員從基礎技術一路成長，銜接一線隊或海外舞台。
-    </p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '04 Academy' : '04' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -39,60 +48,19 @@ useSeoMeta({
   <div class="container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker">Explore the Academy</p>
-        <h2 class="section-title">學院導覽</h2>
+        <p class="kicker">{{ isTcrfc ? 'Explore the Academy' : 'Explore the Youth Team' }}</p>
+        <h2 class="section-title">{{ identity.academyShortLabelZh }}導覽</h2>
       </div>
-      <p class="section-lede">從總覽、隊伍到加入方式，七個子單元帶你認識台中磐石足球學院。</p>
+      <p v-if="isTcrfc" class="section-lede">從總覽、隊伍到加入方式，七個子單元帶你認識台中磐石足球學院。</p>
+      <p v-else class="section-lede">從總覽、隊伍到隊伍日常，六個子單元帶你認識台中藍鯨青年隊。</p>
     </div>
 
     <div class="unit-nav-grid">
-      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/overview/')">
-        <span class="unit-nav-card__num">4.1</span>
-        <span class="unit-nav-card__en">Academy Overview</span>
-        <span class="unit-nav-card__zh">學院總覽</span>
-        <span class="unit-nav-card__desc">認識學院定位、訓練基地與整體樣貌</span>
-        <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
-      </a>
-      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/teams/')">
-        <span class="unit-nav-card__num">4.2</span>
-        <span class="unit-nav-card__en">Our Teams</span>
-        <span class="unit-nav-card__zh">學院隊伍</span>
-        <span class="unit-nav-card__desc">{{ tcrfcAcademyLabel() }} 各梯隊名單、教練與賽程</span>
-        <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
-      </a>
-      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/pathway/')">
-        <span class="unit-nav-card__num">4.3</span>
-        <span class="unit-nav-card__en">Academy Pathway</span>
-        <span class="unit-nav-card__zh">學院發展路徑</span>
-        <span class="unit-nav-card__desc">從 U12 到一線隊／海外的成長路徑</span>
-        <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
-      </a>
-      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/curriculum/')">
-        <span class="unit-nav-card__num">4.4</span>
-        <span class="unit-nav-card__en">Training &amp; Curriculum</span>
-        <span class="unit-nav-card__zh">訓練課程與課綱</span>
-        <span class="unit-nav-card__desc">技術、戰術、體能、比賽判讀與品格五大面向</span>
-        <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
-      </a>
-      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/coaches/')">
-        <span class="unit-nav-card__num">4.5</span>
-        <span class="unit-nav-card__en">Coaches</span>
-        <span class="unit-nav-card__zh">學院教練團</span>
-        <span class="unit-nav-card__desc">認識帶領各梯隊的教練團隊</span>
-        <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
-      </a>
-      <a class="unit-nav-card clip-card" :href="lp('/zh/academy/life/')">
-        <span class="unit-nav-card__num">4.6</span>
-        <span class="unit-nav-card__en">Academy Life</span>
-        <span class="unit-nav-card__zh">學院生活</span>
-        <span class="unit-nav-card__desc">訓練、比賽與活動的日常紀錄</span>
-        <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
-      </a>
-      <a class="unit-nav-card clip-card unit-nav-card--cta" :href="lp('/zh/academy/join/')">
-        <span class="unit-nav-card__num">4.7</span>
-        <span class="unit-nav-card__en">Join the Academy</span>
-        <span class="unit-nav-card__zh">加入學院</span>
-        <span class="unit-nav-card__desc">招生對象、遴選流程與線上申請</span>
+      <a v-for="(c, i) in cards" :key="c.num" class="unit-nav-card clip-card" :class="{ 'unit-nav-card--cta': isTcrfc && i === cards.length - 1 }" :href="lp(c.href)">
+        <span class="unit-nav-card__num">{{ c.num }}</span>
+        <span class="unit-nav-card__en">{{ c.titleEn }}</span>
+        <span class="unit-nav-card__zh">{{ c.titleZh }}</span>
+        <span class="unit-nav-card__desc">{{ c.descZh }}</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
       </a>
     </div>
@@ -103,11 +71,11 @@ useSeoMeta({
   <div class="container cta-strip__inner">
     <div>
       <p class="kicker kicker--on-dark">Ready to join?</p>
-      <h2 class="section-title" style="color:#fff;">準備好加入台中磐石足球學院了嗎？</h2>
+      <h2 class="section-title" style="color:#fff;">{{ ctaTitle }}</h2>
     </div>
     <div class="cta-strip__actions">
       <a class="btn btn--primary" :href="lp('/zh/join/academy/')">線上申請</a>
-      <a class="btn btn--light" :href="lp('/zh/academy/join/')">查看招生資訊</a>
+      <a v-if="isTcrfc" class="btn btn--light" :href="lp('/zh/academy/join/')">查看招生資訊</a>
     </div>
   </div>
 </section>

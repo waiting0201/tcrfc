@@ -4,11 +4,21 @@
 definePageMeta({ nav: 'culture', unit: '8.2' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const isTcrfc = computed(() => config.public.club !== 'bw')
+// BW-C1（品牌外洩全站盤點）：本頁是磐石的付費球迷會籍方案（真實分級方案、真實活動
+// 照片），藍鯨沒有已核實的對應付費會籍方案可以引用（紀律 11：不得自行創作），與
+// culture/manga/index.vue 同一種處理：對藍鯨顯示誠實的「尚未推出」空狀態。
+const clubAssets = computed(() => getClubAssets(config.public.club))
+const identity = computed(() => getClubIdentity(config.public.club))
 
 useSeoMeta({
-  title: '台中磐石球迷會 Fan Club｜台中磐石文化｜台中磐石足球俱樂部',
-  description:
-    '加入台中磐石球迷會：入會表單、會員福利分級對照，以及球迷活動報名與回顧。',
+  title: computed(() => (isTcrfc.value
+    ? '台中磐石球迷會 Fan Club｜台中磐石文化｜台中磐石足球俱樂部'
+    : `球迷會｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isTcrfc.value
+    ? '加入台中磐石球迷會：入會表單、會員福利分級對照，以及球迷活動報名與回顧。'
+    : `${clubAssets.value.shortNameZh}球迷會方案尚未推出，敬請期待。`)),
 })
 </script>
 
@@ -17,21 +27,25 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
-      <li aria-current="page">台中磐石球迷會</li>
+      <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
+      <li aria-current="page">{{ isTcrfc ? '台中磐石球迷會' : '球迷會' }}</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/fanclub/fanclub-event-04.jpg" alt="台中磐石球員、學員與球迷於球場合影留念" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/fanclub/fanclub-event-04.jpg" alt="台中磐石球員、學員與球迷於球場合影留念" width="1600" height="900">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">8.2 Fan Club</p>
-    <h1>台中磐石球迷會<span class="en">Fan Club</span></h1>
-    <p class="page-hero__lede">與台中磐石一起在場邊吶喊。球迷會即台中磐石的付費會籍，除了球衣，還能在特約店家享有更多折扣，並優先參與球迷活動。</p>
+    <h1 v-if="isTcrfc">台中磐石球迷會<span class="en">Fan Club</span></h1>
+    <h1 v-else>球迷會<span class="en">Fan Club</span></h1>
+    <p v-if="isTcrfc" class="page-hero__lede">與台中磐石一起在場邊吶喊。球迷會即台中磐石的付費會籍，除了球衣，還能在特約店家享有更多折扣，並優先參與球迷活動。</p>
+    <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}球迷會方案尚未推出，敬請期待。</p>
   </div>
 </section>
 
+<template v-if="isTcrfc">
 <!-- SPEC 3.8 §8.2 — Membership Plans 會籍方案 -->
 <section class="band" id="join" aria-labelledby="join-title">
   <div class="container">
@@ -169,8 +183,19 @@ useSeoMeta({
   </div>
 </section>
 </template>
+<template v-else>
+<section class="band" aria-labelledby="fanclub-pending-title">
+  <div class="container">
+    <h2 id="fanclub-pending-title" class="visually-hidden">球迷會方案</h2>
+    <p class="is-pending">{{ clubAssets.shortNameZh }}球迷會方案尚未推出，敬請期待。</p>
+  </div>
+</section>
+</template>
+</template>
 
 <style>
+.is-pending{ color:var(--muted); font-style:italic; }
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
 .paper-2-band{ background:var(--paper-2); }
 
 /* 球迷會員抽獎說明 */

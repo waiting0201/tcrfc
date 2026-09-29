@@ -15,15 +15,24 @@
 // （§3.10 10.4「主要欄位」：英文姓名、國籍、護照、經歷、影片、簽證狀態）與後端都沒有定義，
 // 原本畫面留著（dob 甚至沒有 v-model，填了會被瀏覽器原生驗證擋著、值也從未被讀取），
 // 現已**從畫面移除**。
+//
+// 🔴 BW-C1（品牌外洩全站盤點）新發現：本頁 SEO／Hero／同意聲明／收件單位標籤原本
+// 全部固定寫死「Taichung Rock FC」「TCRFC」「台中磐石足球俱樂部」「International
+// Department」，沒有任何俱樂部分支——10.4 從未被 units.ts 關閉，藍鯨訪客一直看得到
+// 這頁的磐石專屬機構名稱。改讀 club-copy.ts 的 getInternationalPlayerSeo() 等函式。
 definePageMeta({ nav: '', unit: '10.4' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 
 useSeoMeta({
-  title: 'International Player Enquiries 國際球員詢問｜Join / Contact｜Taichung Rock FC',
-  description:
-    'Interested in playing for Taichung Rock FC (TCRFC) in Taiwan? Submit your football background, video highlights and visa status. Our International department will get back to you.',
+  title: computed(() => getInternationalPlayerSeo(clubKey.value).title),
+  description: computed(() => getInternationalPlayerSeo(clubKey.value).description),
 })
+const hero = computed(() => getInternationalPlayerHero(clubKey.value))
+const consentAfterLink = computed(() => getInternationalPlayerConsentAfterLink(clubKey.value))
+const deptLabel = computed(() => getInternationalPlayerDeptLabel(clubKey.value))
 
 const VISA_STATUS_LABELS: Record<string, string> = {
   not_in_taiwan: 'Not currently in Taiwan',
@@ -86,10 +95,10 @@ async function onSubmit() {
 <section class="page-hero">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">10.4</span>
   <div class="container">
-    <p class="page-hero__eyebrow">10.4 International Department</p>
+    <p class="page-hero__eyebrow">10.4 {{ deptLabel }}</p>
     <h1 lang="en">International Player Enquiries<span class="zh-sub" lang="zh-Hant">國際球員詢問</span></h1>
-    <p class="page-hero__lede" lang="en">Interested in playing for TCRFC in Taiwan? Tell us about your football background, highlight videos and visa status, and our International department will follow up with you.</p>
-    <p class="page-hero__lede zh-sub-para" lang="zh-Hant">有意加入台中磐石足球俱樂部的國際球員，請填寫以下表單，國際部將盡快與你聯繫。</p>
+    <p class="page-hero__lede" lang="en">{{ hero.leadEn }}</p>
+    <p class="page-hero__lede zh-sub-para" lang="zh-Hant">{{ hero.leadZh }}</p>
   </div>
 </section>
 
@@ -203,7 +212,7 @@ async function onSubmit() {
         <div class="consent-block">
           <div class="checkbox-field">
             <input id="ip-consent" v-model="consent" type="checkbox" name="consent" required aria-describedby="ip-consent-error">
-            <label for="ip-consent">I have read and agree to the <a :href="lp('/zh/privacy/')">Privacy Policy</a>, and consent to Taichung Rock FC collecting the personal data submitted in this form for the purpose of processing this player enquiry. <span class="req" aria-hidden="true">*</span><span class="zh-sub-inline" lang="zh-Hant">本人已閱讀並同意隱私權政策，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次國際球員詢問。</span></label>
+            <label for="ip-consent">I have read and agree to the <a :href="lp('/zh/privacy/')">Privacy Policy</a>{{ consentAfterLink.en }} <span class="req" aria-hidden="true">*</span><span class="zh-sub-inline" lang="zh-Hant">{{ consentAfterLink.zh }}</span></label>
           </div>
           <p class="field-error" id="ip-consent-error" role="alert">Please check the consent box to continue</p>
           
@@ -226,7 +235,7 @@ async function onSubmit() {
         <div class="form-sidebar__sticky">
         <div class="form-sidebar__card">
           <p class="form-sidebar__dept">Handled by <span class="zh-sub-inline" lang="zh-Hant">收件單位</span></p>
-          <h2 lang="en">International Department</h2>
+          <h2 lang="en">{{ deptLabel }}</h2>
           
         </div>
         <div class="form-sidebar__card">

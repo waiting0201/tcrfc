@@ -2,11 +2,22 @@
 // app/pages/zh/news/media.vue — 由 site/src/pages/zh/news/media/index.html 轉來（S0-9 靜態頁搬遷）
 definePageMeta({ nav: "news", unit: "07" })
 
+const config = useRuntimeConfig()
+const club = config.public.club
+const isTcrfc = computed(() => club !== 'bw')
 const { lp } = useLocale()
 
+// BW-C1（品牌外洩全站盤點）：title／description 原本固定寫死「台中磐石足球俱樂部」；
+// 分類導覽改用共用元件 NewsCategoryTabs（理由同 academy.vue／player-stories.vue）；
+// 「品牌識別包」整區塊下載的 SVG／PNG 檔案（`/assets/brand/svg/tcrfc-*`）是磐石專屬
+// 的實際向量檔案，藍鯨目前只有隊徽點陣主檔、沒有向量（CLAUDE.md 品牌資產列「向量
+// 原始檔仍未提供」），不得把磐石的向量檔案路徑掛在藍鯨站上假裝藍鯨也有一整包可下載
+// 的品牌識別包，改為只對 tcrfc 顯示，bw 顯示誠實的「尚未提供」空狀態。
 useSeoMeta({
-  title: "媒體專區 Media｜新聞 News｜台中磐石足球俱樂部",
-  description: "台中磐石媒體專區：品牌識別包下載（隊徽 SVG／PNG、社群分享圖），新聞稿與高解析圖庫、媒體聯絡窗口建置中。",
+  title: computed(() => `媒體專區 Media｜新聞 News｜${getClubAssets(club).nameZh}`),
+  description: computed(() => (isTcrfc.value
+    ? '台中磐石媒體專區：品牌識別包下載（隊徽 SVG／PNG、社群分享圖），新聞稿與高解析圖庫、媒體聯絡窗口建置中。'
+    : '台中藍鯨媒體專區：新聞稿與高解析圖庫、媒體聯絡窗口建置中。')),
 })
 </script>
 
@@ -34,21 +45,12 @@ useSeoMeta({
   <div class="band-inner container">
     <h2 class="visually-hidden" id="media-tabs-title">新聞分類導覽</h2>
     <div class="news-toolbar">
-      <nav class="cat-tabs" aria-label="新聞分類">
-  <a :href="lp('/zh/news/club/')">7.1 俱樂部新聞</a>
-  <a :href="lp('/zh/news/match/')">7.2 比賽報導</a>
-  <a :href="lp('/zh/news/academy/')">7.3 學院新聞</a>
-  <a :href="lp('/zh/news/player-stories/')">7.4 球員故事</a>
-  <a :href="lp('/zh/news/international/')">7.5 國際動態</a>
-  <a :href="lp('/zh/news/camps-events/')">7.6 營隊與活動</a>
-  <a :href="lp('/zh/news/community/')">7.7 社區活動</a>
-  <a :href="lp('/zh/news/media/')" aria-current="page">7.8 媒體專區</a>
-</nav>
+      <NewsCategoryTabs active="media" />
     </div>
   </div>
 </section>
 
-<section class="band grain grain--2" aria-labelledby="brandkit-title">
+<section v-if="isTcrfc" class="band grain grain--2" aria-labelledby="brandkit-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
@@ -98,6 +100,17 @@ useSeoMeta({
     <p style="margin-top:2.5rem;color:var(--muted-dark);font-size:.9rem">另可下載社群分享圖（<span class="en">1200×630</span>，品牌黑底＋反白標誌＋雙語主張）：
       <a class="btn btn--primary btn--sm" href="/assets/brand/social/og-image.png" download style="margin-left:.75rem">下載分享圖 PNG</a>
     </p>
+  </div>
+</section>
+<section v-else class="band grain grain--2" aria-labelledby="brandkit-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker" style="color:var(--brand)">7.8.1</p>
+        <h2 class="section-title" id="brandkit-title" style="color:#fff">品牌識別包</h2>
+      </div>
+    </div>
+    <p style="margin-top:1.5rem;color:var(--muted-dark)">品牌識別包（隊徽向量檔、社群分享圖）尚未提供，稍後將於本頁公布。</p>
   </div>
 </section>
 

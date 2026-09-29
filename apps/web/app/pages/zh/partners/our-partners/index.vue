@@ -4,11 +4,14 @@
 definePageMeta({ nav: 'partners', unit: '9.1' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。本頁實際夥伴名單本來就是
+// 「建置中」佔位狀態（見下方 hero lede），沒有真實名單需要處理兩隊分區問題。
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '合作夥伴 Our Partners｜合作夥伴與贊助｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部的合作夥伴，依策略、國際、訓練、教育、品牌五大類型分區介紹。',
+  title: computed(() => `合作夥伴 Our Partners｜合作夥伴與贊助｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.nameZh}的合作夥伴，依策略、國際、訓練、教育、品牌五大類型分區介紹。`),
 })
 </script>
 
@@ -103,8 +106,8 @@ useSeoMeta({
     <h2 class="visually-hidden" id="op-cta-title">成為合作夥伴</h2>
     <div class="cta-card" style="background:var(--ink);max-width:640px">
       <p class="cta-card__num">9.3</p>
-      <p class="cta-card__title">想成為台中磐石的合作夥伴？</p>
-      <p class="cta-card__desc">了解與台中磐石合作的六大價值，以及受眾數據概況。</p>
+      <p class="cta-card__title">想成為{{ clubAssets.shortNameZh }}的合作夥伴？</p>
+      <p class="cta-card__desc">了解與{{ clubAssets.shortNameZh }}合作的六大價值，以及受眾數據概況。</p>
       <a class="btn btn--primary" :href="lp('/zh/partners/become-a-partner/')">成為合作夥伴</a>
     </div>
   </div>

@@ -4,11 +4,16 @@
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const isTcrfc = computed(() => config.public.club !== 'bw')
+// BW-C1（品牌外洩全站盤點）：title／description 改讀既有的 getClubAssets()。示範主場
+// 球衣品項是磐石真實球衣照片（桃紅配色、贊助標誌），理由同 shop/index.vue，藍鯨版
+// 購物車示意內容只保留無隊徽通用配件（機能襪）這一項，不挪用磐石球衣照片充數。
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '購物車 Cart｜官方商店｜台中磐石足球俱樂部',
-  description:
-    '台中磐石官方商店購物車：確認商品、規格與數量後前往結帳，以 LINE Pay 付款並開立電子發票。',
+  title: computed(() => `購物車 Cart｜官方商店｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.shortNameZh}官方商店購物車：確認商品、規格與數量後前往結帳，以 LINE Pay 付款並開立電子發票。`),
 })
 </script>
 
@@ -48,7 +53,7 @@ useSeoMeta({
             </tr>
           </thead>
           <tbody>
-            <tr>
+            <tr v-if="isTcrfc">
               <td>
                 <div class="cart-item">
                   <img src="/assets/img/merch/merch-jersey-01.jpg" alt="台中磐石主場球衣 2026 賽季" loading="lazy" width="200" height="200">
@@ -97,9 +102,9 @@ useSeoMeta({
       <aside class="shop-layout__aside">
         <div class="summary">
           <h2>金額摘要</h2>
-          <p class="summary__line"><span>商品小計</span><strong>NT$1,440</strong></p>
+          <p class="summary__line"><span>商品小計</span><strong>{{ isTcrfc ? 'NT$1,440' : 'NT$240' }}</strong></p>
           <p class="summary__line"><span>運費</span><span class="pending-inline">金額待確認</span></p>
-          <p class="summary__line summary__total"><span>合計</span><span>NT$1,440＋運費</span></p>
+          <p class="summary__line summary__total"><span>合計</span><span>{{ isTcrfc ? 'NT$1,440' : 'NT$240' }}＋運費</span></p>
           <a class="btn btn--primary btn--block" :href="lp('/zh/checkout/')">前往結帳</a>
           <p class="summary__note">結帳時以 LINE Pay 付款並開立電子發票。運費金額與免運門檻待確認後於此顯示。</p>
         </div>

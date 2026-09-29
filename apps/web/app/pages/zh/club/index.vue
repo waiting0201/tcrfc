@@ -1,26 +1,35 @@
 <script setup lang="ts">
 // app/pages/zh/club/index.vue — 由 site/src/pages/zh/club/index.html 轉來
-// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+// 🔴 tcrfc 版 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；
+// {{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+//
+// BW-C1（品牌外洩全站盤點）：本頁原本是 S1-12d／S2-8 已記錄的既有缺口——整頁固定
+// 磐石內容，只用 `isTcrfc` 隱藏兩張會 404 的單元卡（3.2／3.4），沒有真正雙俱樂部化。
+// 3.2／3.4 已於 BW-C1 重開（見 shared/utils/units.ts 檔頭），本輪移除舊有的隱藏判斷，
+// 改為 SEO／Hero／統計卡／單元卡描述／CTA 標題全部依俱樂部切換（getClubHubSeo 等，
+// club-copy.ts），版型與 DOM 結構不變。tcrfc 分支逐字沿用改動前的既有輸出。
 definePageMeta({ nav: 'club', unit: '03' })
 
 const { lp } = useLocale()
 const config = useRuntimeConfig()
-// S2-8（2026-09-29）：本頁 03 單元本身維持既有 S1-12d 已記錄的缺口（整頁固定磐石內容，
-// 不在本輪擴大成雙俱樂部頁面）。這裡只新增 `isTcrfc` 判斷，避免本輪把 3.2／3.4 對藍鯨
-// 關閉後，本頁（藍鯨容器仍是 200）繼續連到兩個現在會 404 的子頁——只擋掉會壞掉的
-// 連結，不是把整頁改成雙俱樂部內容（那是 03 單元本身的既有缺口，不在本輪範圍）。
-const isTcrfc = computed(() => config.public.club !== 'bw')
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
-// S1-12d 收尾：主場／成立年份／首季頭銜改讀 useSiteFacts('tcrfc')（後端公開端點）。
-// 本頁 03 單元目前零俱樂部分支（既有缺口，見 apps/web/README.md「S1-12d」節
-// 「刻意不動的範圍」），固定讀 tcrfc 沿用既有做法，不在本輪擴大成雙俱樂部頁面。
-const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+const { facts } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: '台中磐石足球俱樂部 Football Club｜台中磐石足球俱樂部 TCRFC',
-  description:
-    '台中磐石足球俱樂部（TCRFC）足球俱樂部單元總覽：一線隊、球員發展系統、球員機會、國際發展通道與球員故事，帶你認識一線隊如何培育選手邁向職業與國際舞台。',
+  title: computed(() => getClubHubSeo(clubKey.value, facts.value).title),
+  description: computed(() => getClubHubSeo(clubKey.value, facts.value).description),
 })
+const hero = computed(() => getClubHubHero(clubKey.value, facts.value))
+const stats = computed(() => getClubHubStats(clubKey.value, facts.value))
+const opportunitiesDesc = computed(() => getClubHubOpportunitiesDesc(clubKey.value))
+const playerStoriesDesc = computed(() => getClubHubPlayerStoriesDesc(clubKey.value))
+const ctaTitle = computed(() => getClubHubCtaTitle(clubKey.value))
+// 底部 CTA 第一張卡「加入球隊」——沿用首頁既有的 getHomeCtaTrio() 第一筆文案
+// （已依 facts.league.nameZh 動態帶入聯賽名稱，避免本頁自己重打一份「企甲聯賽」
+// 字面值，藍鯨會因此誤植磐石聯賽名稱）。
+const joinPlayerCard = computed(() => getHomeCtaTrio(clubKey.value, facts.value)[0]!)
 </script>
 
 <template>
@@ -34,12 +43,12 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/nav-club.jpg" alt="" width="1920" height="1279">
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/nav-club.jpg" alt="" width="1920" height="1279">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
-    <p class="page-hero__eyebrow">03 Football Club</p>
-    <h1>台中磐石足球俱樂部<span class="en">Football Club</span></h1>
-    <!-- GEO-03（S1-12d）：主場為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
-    <p class="page-hero__lede">從{{ tcrfcVenue.nameZh }}出發的一線隊，是台中磐石所有青訓體系最終要銜接的舞台。這裡整理球隊陣容、球員發展系統、加入管道，以及選手通往海外的路徑。</p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '03 Football Club' : '03' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -47,21 +56,9 @@ useSeoMeta({
   <h2 class="visually-hidden" id="club-stats-title">俱樂部一線隊數據</h2>
   <div class="band-inner container">
     <div class="stats-grid">
-      <div class="stat">
-        <p class="stat__num">{{ tcrfcFacts.foundedYear }}</p>
-        <p class="stat__label">創立年份</p>
-      </div>
-      <div class="stat">
-        <p class="stat__num"><span>{{ tcrfcFacts.foundedYear }}</span></p>
-        <p class="stat__label">{{ tcrfcFacts.foundingTitleZh }}</p>
-      </div>
-      <div class="stat">
-        <p class="stat__num">28</p>
-        <p class="stat__label">一線隊註冊球員</p>
-      </div>
-      <div class="stat">
-        <p class="stat__num">21</p>
-        <p class="stat__label">2026/27 企甲例行賽場次</p>
+      <div v-for="s in stats" :key="s.labelZh" class="stat">
+        <p class="stat__num">{{ s.num }}</p>
+        <p class="stat__label">{{ s.labelZh }}</p>
       </div>
     </div>
   </div>
@@ -86,7 +83,6 @@ useSeoMeta({
         <p class="unit-link-card__desc">球隊介紹、球員名單與位置篩選、教練團、賽程表（含 .ics 訂閱）、成績與積分榜、榮譽時間軸。</p>
         <span class="unit-link-card__cta">查看一線隊 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
-      <!-- BW-C1：3.2 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
       <a class="unit-link-card clip-card" :href="lp('/zh/club/player-development/')">
         <p class="unit-link-card__num">3.2</p>
         <p class="unit-link-card__en">Player Development</p>
@@ -98,11 +94,9 @@ useSeoMeta({
         <p class="unit-link-card__num">3.3</p>
         <p class="unit-link-card__en">Player Opportunities</p>
         <p class="unit-link-card__zh">球員機會</p>
-        <p class="unit-link-card__desc">加入台中磐石、試訓場次列表與線上報名、外籍球員招募管道。</p>
+        <p class="unit-link-card__desc">{{ opportunitiesDesc }}</p>
         <span class="unit-link-card__cta">查看機會 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
-      <!-- BW-C1：3.4 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏；
-           分區敘述依俱樂部切換（藍鯨是日本／中國，磐石是歐洲／日本／香港）。 -->
       <a class="unit-link-card clip-card" :href="lp('/zh/club/international-pathways/')">
         <p class="unit-link-card__num">3.4</p>
         <p class="unit-link-card__en">International Pathways</p>
@@ -117,7 +111,7 @@ useSeoMeta({
         <p class="unit-link-card__num">3.5</p>
         <p class="unit-link-card__en">Player Stories</p>
         <p class="unit-link-card__zh">球員故事</p>
-        <p class="unit-link-card__desc">學院、一線隊、海外與女足球員的真實案例，看見選手如何一步步走到現在。</p>
+        <p class="unit-link-card__desc">{{ playerStoriesDesc }}</p>
         <span class="unit-link-card__cta">閱讀球員故事 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
     </div>
@@ -126,12 +120,12 @@ useSeoMeta({
 
 <section class="band grain cta-band" id="club-cta" aria-labelledby="club-cta-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="club-cta-title">加入台中磐石一線隊</h2>
+    <h2 class="visually-hidden" id="club-cta-title">{{ ctaTitle }}</h2>
     <div class="cta-grid">
       <div class="cta-card">
         <p class="cta-card__num">10.1</p>
-        <p class="cta-card__title">加入球隊</p>
-        <p class="cta-card__desc">具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊球員。</p>
+        <p class="cta-card__title">{{ joinPlayerCard.titleZh }}</p>
+        <p class="cta-card__desc">{{ joinPlayerCard.descZh }}</p>
         <a class="btn btn--primary" :href="lp('/zh/join/player/')">填寫報名表</a>
       </div>
       <div class="cta-card">
@@ -140,7 +134,6 @@ useSeoMeta({
         <p class="cta-card__desc">試訓場次日期、地點、對象與名額，一次掌握球員機會頁面。</p>
         <a class="btn btn--primary" :href="lp('/zh/club/opportunities/')">前往球員機會</a>
       </div>
-      <!-- BW-C1：3.4 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
       <div class="cta-card">
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">海外發展諮詢</p>
@@ -156,6 +149,9 @@ useSeoMeta({
 </template>
 
 <style>
+/* 藍鯨無對應照片時的頁首佔位漸層（沿用 academy/pathway.vue 等既有樣式） */
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+
 /* 03 FOOTBALL CLUB landing — 單元導覽卡片
    若其他單元 landing（About / Academy / Programs...）也採同一版型，建議收進共用 CSS */
 .unit-nav-band{ padding-block:clamp(4rem,7vw,6.5rem); }

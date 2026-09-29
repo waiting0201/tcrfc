@@ -27,8 +27,10 @@ const month = ref('')
 const search = ref('')
 
 useSeoMeta({
-  title: "營隊與活動 Camps & Events｜新聞 News｜台中磐石足球俱樂部",
-  description: "台中磐石營隊、邀請賽與台中磐石國際足球盃活動花絮及紀錄，共 7 篇真實報導。",
+  title: computed(() => (club === 'bw' ? `營隊與活動 Camps & Events｜新聞 News｜${getClubAssets(club).nameZh}` : "營隊與活動 Camps & Events｜新聞 News｜台中磐石足球俱樂部")),
+  description: computed(() => (club === 'bw'
+    ? `${getClubAssets(club).shortNameZh}營隊與活動花絮及紀錄，共 ${articles.value.length} 篇真實報導。`
+    : "台中磐石營隊、邀請賽與台中磐石國際足球盃活動花絮及紀錄，共 7 篇真實報導。")),
 })
 </script>
 
@@ -48,7 +50,8 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">7.6 Camps & Events</p>
     <h1>營隊與活動<span class="en">Camps & Events</span></h1>
-    <p class="page-hero__lede">邀請賽、國際足球盃與各類活動花絮，記錄台中磐石主辦與參與的賽會現場。</p>
+    <p v-if="club !== 'bw'" class="page-hero__lede">邀請賽、國際足球盃與各類活動花絮，記錄台中磐石主辦與參與的賽會現場。</p>
+    <p v-else class="page-hero__lede">邀請賽與各類活動花絮，記錄台中藍鯨主辦與參與的賽會現場。</p>
   </div>
 </section>
 
@@ -61,7 +64,10 @@ useSeoMeta({
       <NewsFilterForm v-model:tag="tag" v-model:year="year" v-model:month="month" v-model:search="search" :tags="tags" :years="years" :months="months" />
     </div>
 
-    <div class="editorial-note">
+    <!-- BW-C1：此編輯說明只描述磐石既有種子資料的分類決策，藍鯨目前 0 篇新聞
+         （BW-0d 刻意不做，見 apps/web/README.md），沒有對應的內容可說明，故只對
+         tcrfc 顯示，不臆造藍鯨版本的分類說明。 -->
+    <div v-if="club !== 'bw'" class="editorial-note">
       分類說明：規劃書 v1.8 的 07 單元僅定義 7.1–7.8 共 8 類，「台中磐石國際足球盃」在客戶收件夾中另有獨立資料夾（7.9），
       目前依內容性質併入本分類（營隊與活動）陳列，共 7 篇（1 篇邀請賽 + 6 篇國際足球盃賽事花絮）。
       是否於規劃書新增獨立的 7.9 分類，待與客戶確認後回頭修正 <code>output/TCRFC_前後台功能規劃書.md</code>。

@@ -4,11 +4,12 @@
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '訂單完成｜官方商店｜台中磐石足球俱樂部',
-  description:
-    '台中磐石官方商店訂單完成頁：顯示訂單編號、付款結果與電子發票開立狀態，並提供訂單查詢入口。',
+  title: computed(() => `訂單完成｜官方商店｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.shortNameZh}官方商店訂單完成頁：顯示訂單編號、付款結果與電子發票開立狀態，並提供訂單查詢入口。`),
 })
 </script>
 

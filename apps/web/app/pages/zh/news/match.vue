@@ -27,8 +27,10 @@ const month = ref('')
 const search = ref('')
 
 useSeoMeta({
-  title: "比賽報導 Match Reports｜新聞 News｜台中磐石足球俱樂部",
-  description: "台中磐石各級隊伍完整比賽報導，含企甲聯賽、乙級聯賽、總統盃與熱身賽戰報，共 50 篇真實賽後報導。",
+  title: computed(() => (club === 'bw' ? `比賽報導 Match Reports｜新聞 News｜${getClubAssets(club).nameZh}` : "比賽報導 Match Reports｜新聞 News｜台中磐石足球俱樂部")),
+  description: computed(() => (club === 'bw'
+    ? `${getClubAssets(club).shortNameZh}各級隊伍完整比賽報導，共 ${articles.value.length} 篇真實報導。`
+    : "台中磐石各級隊伍完整比賽報導，含企甲聯賽、乙級聯賽、總統盃與熱身賽戰報，共 50 篇真實賽後報導。")),
 })
 </script>
 

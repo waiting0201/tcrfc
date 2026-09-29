@@ -4,11 +4,16 @@
 definePageMeta({ nav: 'partners', unit: '9.3' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const isTcrfc = computed(() => config.public.club !== 'bw')
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。六張價值卡有幾張含磐石
+// 專屬事實（企甲聯賽定位、學院、慈善活動——11 慈善單元藍鯨不設，見 docs/13 §3），
+// 不是單純換名稱就能通用，逐張改為 isTcrfc 分支，不臆造藍鯨對應敘述。
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '成為合作夥伴 Become a Partner｜合作夥伴與贊助｜台中磐石足球俱樂部',
-  description:
-    '了解與台中磐石足球俱樂部合作的六大價值：品牌曝光、受眾觸及、社會影響力與國際發展網絡。',
+  title: computed(() => `成為合作夥伴 Become a Partner｜合作夥伴與贊助｜${clubAssets.value.nameZh}`),
+  description: computed(() => `了解與${clubAssets.value.nameZh}合作的六大價值：品牌曝光、受眾觸及、社會影響力與國際發展網絡。`),
 })
 </script>
 
@@ -27,7 +32,8 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">9.3 Become a Partner</p>
     <h1>成為合作夥伴<span class="en">Become a Partner</span></h1>
-    <p class="page-hero__lede">透過台中磐石的職業足球平台，觸及在地社群、青訓家庭與國際足球網絡，讓品牌與台中磐石一起成長。</p>
+    <p v-if="isTcrfc" class="page-hero__lede">透過台中磐石的職業足球平台，觸及在地社群、青訓家庭與國際足球網絡，讓品牌與台中磐石一起成長。</p>
+    <p v-else class="page-hero__lede">透過台中藍鯨的女子足球平台，觸及在地社群、青訓家庭與國際足球網絡，讓品牌與台中藍鯨一起成長。</p>
   </div>
 </section>
 
@@ -45,12 +51,14 @@ useSeoMeta({
       <div class="value-prop-card">
         <p class="value-prop-card__num">01</p>
         <p class="value-prop-card__title">為何合作<span class="en">Why Partner</span></p>
-        <p class="value-prop-card__desc">台中磐石是台中在地唯一的企業甲級足球俱樂部，是品牌走進運動與社區場域的直接管道。</p>
+        <p v-if="isTcrfc" class="value-prop-card__desc">台中磐石是台中在地唯一的企業甲級足球俱樂部，是品牌走進運動與社區場域的直接管道。</p>
+        <p v-else class="value-prop-card__desc">台中藍鯨是台灣木蘭聯賽的球隊之一，是品牌走進女子足球與社區場域的直接管道。</p>
       </div>
       <div class="value-prop-card">
         <p class="value-prop-card__num">02</p>
         <p class="value-prop-card__title">受眾分析<span class="en">Audience Analysis</span></p>
-        <p class="value-prop-card__desc">涵蓋一線隊球迷、學院學員家庭與賽事現場觀眾，詳細數據見下方。</p>
+        <p v-if="isTcrfc" class="value-prop-card__desc">涵蓋一線隊球迷、學院學員家庭與賽事現場觀眾，詳細數據見下方。</p>
+        <p v-else class="value-prop-card__desc">涵蓋一線隊球迷、青年隊學員家庭與賽事現場觀眾，詳細數據見下方。</p>
       </div>
       <div class="value-prop-card">
         <p class="value-prop-card__num">03</p>
@@ -60,17 +68,20 @@ useSeoMeta({
       <div class="value-prop-card">
         <p class="value-prop-card__num">04</p>
         <p class="value-prop-card__title">社會影響力<span class="en">Social Impact</span></p>
-        <p class="value-prop-card__desc">結合社區足球日與慈善活動，讓品牌參與有意義的在地社會實踐。</p>
+        <p v-if="isTcrfc" class="value-prop-card__desc">結合社區足球日與慈善活動，讓品牌參與有意義的在地社會實踐。</p>
+        <p v-else class="value-prop-card__desc">結合社區足球推廣活動，讓品牌參與有意義的在地社會實踐。</p>
       </div>
       <div class="value-prop-card">
         <p class="value-prop-card__num">05</p>
         <p class="value-prop-card__title">中介影響力<span class="en">Community Reach</span></p>
-        <p class="value-prop-card__desc">透過學院與課程與家庭、學校建立長期信任關係，擴大品牌口碑觸及。</p>
+        <p v-if="isTcrfc" class="value-prop-card__desc">透過學院與課程與家庭、學校建立長期信任關係，擴大品牌口碑觸及。</p>
+        <p v-else class="value-prop-card__desc">透過青年隊與推廣活動與家庭、學校建立長期信任關係，擴大品牌口碑觸及。</p>
       </div>
       <div class="value-prop-card">
         <p class="value-prop-card__num">06</p>
         <p class="value-prop-card__title">國際影響力<span class="en">International Impact</span></p>
-        <p class="value-prop-card__desc">藉由國際交流與海外拓展計畫，讓品牌隨台中磐石球員的腳步走向世界。</p>
+        <p v-if="isTcrfc" class="value-prop-card__desc">藉由國際交流與海外拓展計畫，讓品牌隨台中磐石球員的腳步走向世界。</p>
+        <p v-else class="value-prop-card__desc">藉由國際交流與海外拓展計畫，讓品牌隨台中藍鯨球員的腳步走向世界。</p>
       </div>
     </div>
   </div>

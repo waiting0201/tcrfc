@@ -2785,6 +2785,153 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
    版本是手動 `curl` 逐一驗證，沒有讓腳本自動涵蓋——這是腳本本身的既有限制（見腳本
    檔頭），不是本輪新增的缺口，但值得之後一併補上腳本自動掃 `/en/` 的能力。
 
+## BW-C1 品牌外洩全站盤點（2026-09-29，`frontend-architect`）
+
+上一節「BW-C1」修的是「單元該不該關閉」；本節修的是**偵測機制本身**——舊版
+`check-club-brand-leak.mjs` 只對一份手動維護的 `PROTECTED_PAGES`（33 頁、只含
+`/zh/`）hard-fail，其餘頁面只計數、不影響離開碼。這個設計留下兩個真正的漏洞：
+`/en/` 從未被檢查過；「沒被排進清單就不算數」讓 `join/international-player/`
+（10.4，`units.ts` 從未關閉這個單元）整頁固定寫死「Taichung Rock FC」「TCRFC」
+「台中磐石足球俱樂部」「International Department」從第一天起就沒被任何自動化
+檢查抓到。同時，本節也處理上一節列的「仍有疑義」第 3、4 點：`03`／`05` hub
+頁整頁固定磐石內容、品牌外洩檢查只收 `/zh/`。
+
+### 1. 品牌外洩檢查改版：全站自動涵蓋、預設 hard-fail
+
+`apps/web/scripts/check-club-brand-leak.mjs` 全面改寫（保留檔名與用法）：
+
+- **路由收集**：比照 `check-heading-structure.mjs` 的既有作法，從 `app/pages/zh/`
+  算出全部路由，`/zh/`／`/en/` 都收（動態路由排除），不再手動維護清單。
+- **預設 hard-fail**：任何 200 頁面命中詞表任一詞就是失敗，不再有「其餘頁面只
+  計數」這個灰色地帶。
+- **`EXEMPT_PAGES` 取代 `PROTECTED_PAGES`**：例外清單方向刻意反過來——舊版是
+  「已驗證乾淨的清單只能往上加」，新版是「**已知例外的清單只能往下減**」，每筆
+  必須附規格依據或既有缺口編號，不是「看起來還好」。棘輪機制同樣用
+  `git show HEAD:<自己>` 比對上一版，防止悄悄新增例外。
+- **詞表**：`磐石`／`TCRFC`／`學院`／`Taichung Rock`（磐石英文全名核心詞組）／
+  `www.tcrfc.tw`（**不是裸 `tcrfc.tw`**——實測發現裸網域會撞到 `nuxt.config.ts`
+  的 `blueWhaleSiteUrl` 這個 runtime config 預設值，序列化進**每一頁**的
+  hydration payload，全站 148 條路由誤判命中 148 次，完全沒有鑑別力，見
+  [`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-77`）。
+
+**修正前全站命中清單**（本機 bw 容器實測，共 76 頁 / 38 條不重複路由）：
+
+```
+/zh/academy/、/zh/cart/、/zh/checkout/、/zh/checkout/complete/、
+/zh/club/first-team/player/、/zh/cookies/、/zh/culture/、/zh/culture/fan-club/、
+/zh/culture/manga/、/zh/culture/merchandise/、/zh/join/academy/、
+/zh/join/camp-registration/、/zh/join/general/、/zh/join/international-player/
+（單元 10.4，units.ts 從未關閉，先前任何一輪都沒抓到）、/zh/join/location/、
+/zh/join/media/、/zh/join/partnership/、/zh/join/player/、/zh/member/、
+/zh/news/、/zh/news/academy/、/zh/news/camps-events/、/zh/news/club/、
+/zh/news/community/、/zh/news/international/、/zh/news/match/、
+/zh/news/media/、/zh/news/player-stories/、/zh/order/lookup/、/zh/partners/、
+/zh/partners/become-a-partner/、/zh/partners/opportunities/、
+/zh/partners/our-partners/、/zh/partners/our-sponsors/、/zh/perks/、
+/zh/privacy/、/zh/programs/、/zh/shop/、/zh/shop/cushioned-socks/、
+/zh/shop/home-jersey-2026/
+```
+（各頁 `/en/` 版本同一份檔案，同樣命中，共 38×2 = 76）。
+
+### 2. 各頁處置
+
+**A. 03／04／05／08 單元 hub 全面雙俱樂部化**（既有記錄缺口，非本輪新增）：
+
+| 頁面 | 處置 |
+|---|---|
+| `club/index.vue`（03 hub） | SEO／Hero／統計卡／單元卡描述／CTA 標題改依俱樂部切換，新增 `club-copy.ts` 的 `getClubHubSeo/Hero/Stats/...`；tcrfc 分支逐字沿用既有輸出 |
+| `academy/index.vue`（04 hub） | 同上模式，7 張卡（tcrfc）／6 張卡（bw，無 4.7）改依 `getAcademyHubCards()` |
+| `programs/index.vue`（05 hub） | 同上；藍鯨「線上報名流程」六步驟區塊（假定站內線上流程）對藍鯨隱藏，改顯示如實的「現場個人報名」說明——藍鯨規劃書 §2.1 單元名稱本來就是「PROGRAMS 推廣活動」不是「課程與活動」 |
+| `culture/index.vue`（08 hub） | 導覽卡文字改依 `getClubIdentity()`／`getClubAssets()`，8.1–8.3 子頁本身內容是否雙俱樂部化列為規格疑點（見下方） |
+
+**B. 機械式換名（`getClubAssets()`／`getClubIdentity()` 既有欄位即可）**：
+`privacy`／`cookies`／`member`／`order/lookup`／`perks`／`partners/index`／
+`partners/{our-partners,our-sponsors,opportunities,become-a-partner}`／
+`join/{player,media,general,camp-registration,partnership}`／`news/index`／
+`news/{club,community,international,match,camps-events}`（描述改為讀
+`articles.value.length` 動態计數，不再寫死篇數字面值）。
+
+**C. 新發現的既有缺口（不在先前任何一輪記錄範圍內）**：
+`join/international-player/index.vue`（10.4）SEO／Hero／同意聲明／收件單位標籤
+整頁固定寫死磐石機構名稱，改讀 `club-copy.ts` 新增的
+`getInternationalPlayerSeo/Hero/ConsentAfterLink/DeptLabel()`。
+
+**D. 結構性簡化（不是換名字，是拿掉不適用的功能分支）**：
+`join/academy/index.vue`（10.2）原本合併「學院梯隊／兒童訓練／專項訓練」三種
+性質完全不同的報名於一份表單——藍鯨青年隊只有 U15／U12（沒有 U14），且藍鯨
+兒童訓練／專項訓練現場個人報名、不接這套站內線上流程，bw 版簡化為只收「加入
+青年隊」單一報名項目，不提供另外兩類選項；提交給後端的 `enrollment_category`／
+`PROGRAM_LABELS` 對照表維持不動（避免不確定 bw 是否有對應的後端封閉選項值）。
+
+**E. 真實網域／收款揭露（判定為規格要求，不是外洩，已列入 `EXEMPT_PAGES`）**：
+`checkout/`、`shop/`、`shop/cushioned-socks/` 的「收款方為台中磐石足球俱樂部」——
+藍鯨規劃書 §1.3「本站不另設 LINE Pay 商店號、不使用獨立發票字軌，一律沿用主站
+的單一金流設定」＋主站規劃書 §1.3「前台必須明示收款方」，即使在藍鯨站上這句話
+也是真的，不是磐石內容外洩到藍鯨。`culture/merchandise/` 的 `www.tcrfc.tw` 舊站
+過渡期連結同理（既有例外，本輪沿用）。
+
+**F. 誠實空狀態（真實商品／真實照片是磐石專屬設計，不能沿用充當藍鯨商品）**：
+`shop/index.vue`（主場球衣卡片）、`shop/home-jersey-2026/`（整頁）、
+`cart/index.vue`（示範品項）、`culture/merchandise/`（俱樂部商品區塊）——桃紅
+配色主場球衣是磐石真實 2026 賽季設計（含 Joma／San Pellegrino 贊助標誌），對
+藍鯨隱藏，改顯示「尚未上架」；無隊徽的通用配件（厚底緩震機能襪，六色皆通用）
+維持兩俱樂部共用。`culture/manga/`（台中磐石原創漫畫 IP）、`culture/fan-club/`
+（磐石付費會籍方案與真實活動照片）整頁內容對藍鯨隱藏，顯示「尚未推出」——這兩頁
+是磐石原創創作／真實商業方案，沒有舊站原文可引用或節錄，紀律 11「不得自行創作」
+不允許換個俱樂部名稱就通用。
+
+**G. 留在例外清單、本輪未修正**：`club/first-team/player/`——頁面自稱「球員
+詳情頁範本」，以磐石一線隊 11 號球員楊朝景的真實名單資料示範正式站版型結構，
+藍鯨球員名單與肖像同意尚未到位（STATUS.md 阻塞清單），沒有可替換的真實藍鯨
+球員資料。
+
+### 3. 驗證指令與實際結果（2026-09-29）
+
+```
+npm run lint    # 0 errors, 395 warnings（等於既有基準上限，未超過）
+npm run build   # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+```
+
+本機用同一份映像檔起兩個容器（`tcrfc-bwc1` port 15001／`bw-bwc1` port 15002，
+`bw` 帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`，`apps/api` 未啟動，依派工規則不自行
+啟動、不碰密碼）：
+
+- `node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:15002`：
+  **通過**（`exit 0`）。148 條路由（不含例外）全數乾淨；例外清單命中 10 頁，
+  全部有明文規格依據（見上方 E／G 兩類）。
+- `node scripts/check-heading-structure.mjs` 對兩個容器分別跑一次：**皆通過**
+  （H1 唯一、標題不跳階）。過程中抓到一個本輪自己造成的迴歸——`shop/
+  home-jersey-2026/` 的 bw 空狀態分支忘記補 `<h1>`，已修正，見
+  [`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-78`。
+- `node scripts/check-site-units-coverage.mjs`：通過。
+- `node scripts/check-bw-units-citation.mjs`：通過（`BLUE_WHALE_DISABLED_UNITS`
+  本輪未變動）。
+- `node scripts/check-faq-schema-live.mjs` 對兩個容器分別跑一次：皆通過，0 個
+  `FAQPage` 節點（`apps/api` 未啟動，符合 GEO-05）。
+- `curl -I` 兩個容器 `/zh/`：皆 `X-Robots-Tag: noindex, nofollow`。
+- Docker 容器日誌：除既有的 `apps/api` 連不上降級路徑（`fetch failed`）外，
+  無 `Vue warn`／`TypeError`／`ReferenceError`。
+
+🔴 **未驗證項目**：`apps/api` 未啟動，只驗證了「API 打不到時優雅降級」這條
+路徑；真實資料下的實際渲染（尤其 `join/academy/` 表單送出後端是否接受 bw 版
+`enrollment_category` 值、`news` 各分類真實文章數）未驗證。
+
+### 仍有疑義的項目（列出，未自行決定）
+
+1. **`culture/{manga,fan-club}/` 對藍鯨是否要規劃全新內容，還是維持空狀態直到
+   有真人事**：本輪判定為「無舊站原文可引用，不得自行創作」而顯示空狀態，但
+   這兩個單元（原創漫畫、付費會籍）本質上是磐石的商業／創作決策，藍鯨是否要
+   做對應的（不同的）內容企劃，屬於客戶決策範圍，不是「換個名字」能解決的。
+2. **`join/academy/` 提交的 `enrollment_category` 值（`學院 U15`／`學院 U12`）
+   對藍鯨是否仍是後端認得的封閉選項值**：本輪只改了畫面顯示文字（「青年隊」），
+   刻意沒有改送出的內部對照表值，因為不確定後端 `form_fields` 的封閉選項是否
+   兩俱樂部共用同一組字面值——需要後端確認後才能決定要不要也把送出值改成
+   「青年隊 U15」這類。
+3. **08 單元 8.1–8.3 子頁（漫畫／球迷會／商品）是否該有藍鯨自己的內容規劃**：
+   本輪只處理「不得沿用磐石內容」這一半，沒有處理「藍鯨這三個子單元究竟要
+   放什麼」這一半——這是內容企劃問題，不是本輪工程盤點能回答的。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

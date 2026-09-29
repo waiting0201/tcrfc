@@ -36,6 +36,22 @@ export const NEWS_CATEGORIES: readonly NewsCategoryMeta[] = [
   { code: 'media', label: '7.8 媒體專區', enLabel: 'Media' },
 ] as const
 
+/**
+ * 分類 Tab 顯示文字——單一來源，取代 NewsCategoryTabs.vue／news/index.vue 各自算一次
+ * （BW-C1 品牌外洩全站盤點發現：news/index.vue 的篩選按鈕直接讀 `cat.label`，繞過了
+ * NewsCategoryTabs.vue 那份已修正的俱樂部分支，本輪合併成這支函式，兩處都呼叫它）。
+ * `academy` 分類固定寫死「學院」，藍鯨依 docs/13-blue-whale-site.md §3 一律稱「青年隊」，
+ * 其餘分類兩俱樂部共用同一份靜態文案。
+ */
+export function newsCategoryTabLabel(categoryCode: string, club: string): string {
+  const meta = NEWS_CATEGORIES.find((c) => c.code === categoryCode)
+  if (!meta) return ''
+  if (meta.code === 'academy') {
+    return `7.3 ${getClubIdentity(club).academyShortLabelZh}新聞`
+  }
+  return meta.label
+}
+
 /** 文章詳情頁 page-hero__eyebrow 用："{規劃書編號} {英文分類名}"（例："7.2 Match Reports"），
  *  逐字比對各分類頁 <p class="page-hero__eyebrow"> 的既有文字。查無分類（理論上不會發生，
  *  公開 API 的 categoryCode 一律來自 article_categories 主檔）時回傳空字串，交由呼叫端決定

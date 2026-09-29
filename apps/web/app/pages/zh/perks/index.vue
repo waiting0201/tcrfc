@@ -4,11 +4,16 @@
 definePageMeta({ nav: 'culture', unit: '08' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()／getClubIdentity()，理由同
+// privacy/index.vue；麵包屑第二層文字改讀既有的 identity.cultureLabelZh（原本已是
+// SiteHeader／SiteFooter 共用的既有欄位，本頁先前沒有引用，是既有缺口）。
+const clubAssets = computed(() => getClubAssets(config.public.club))
+const identity = computed(() => getClubIdentity(config.public.club))
 
 useSeoMeta({
-  title: '特約店家 Partner Perks｜台中磐石足球俱樂部',
-  description:
-    '台中磐石會員的特約店家折扣清單。到店出示電子會員卡即可享有優惠，依店家標示適用一般會員或付費球迷會員。',
+  title: computed(() => `特約店家 Partner Perks｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.shortNameZh}會員的特約店家折扣清單。到店出示電子會員卡即可享有優惠，依店家標示適用一般會員或付費球迷會員。`),
 })
 </script>
 
@@ -17,7 +22,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
       <li aria-current="page">特約店家</li>
     </ol>
   </div>
@@ -28,7 +33,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">Partner Perks</p>
     <h1>特約店家<span class="en">Partner Perks</span></h1>
-    <p class="page-hero__lede">與台中磐石合作的在地店家，會員到店出示電子會員卡即可享有優惠。本頁公開，不需登入即可瀏覽。</p>
+    <p class="page-hero__lede">與{{ clubAssets.shortNameZh }}合作的在地店家，會員到店出示電子會員卡即可享有優惠。本頁公開，不需登入即可瀏覽。</p>
   </div>
 </section>
 

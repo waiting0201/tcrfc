@@ -4,11 +4,16 @@
 definePageMeta({ nav: '', unit: 'G-07' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：本頁原本固定寫死「台中磐石足球俱樂部」，第一段之後
+// 全部改用「本俱樂部」通用代稱，故只有 title／description／hero 三處需要改俱樂部
+// 全稱，改讀既有的 getClubAssets().nameZh（app/utils/club.ts 既有匯出），不需要新增
+// club-copy.ts 文案鍵。
+const clubNameZh = computed(() => getClubAssets(config.public.club).nameZh)
 
 useSeoMeta({
-  title: '隱私權政策 Privacy Policy｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部隱私權政策：說明本站蒐集個人資料的類別、目的、利用方式與當事人權利。',
+  title: computed(() => `隱私權政策 Privacy Policy｜${clubNameZh.value}`),
+  description: computed(() => `${clubNameZh.value}隱私權政策：說明本站蒐集個人資料的類別、目的、利用方式與當事人權利。`),
 })
 </script>
 
@@ -26,7 +31,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">Legal</p>
     <h1>隱私權政策<span class="en">Privacy Policy</span></h1>
-    <p class="page-hero__lede">說明台中磐石足球俱樂部（下稱「本俱樂部」）如何蒐集、處理與利用您透過本網站提供的個人資料。</p>
+    <p class="page-hero__lede">說明{{ clubNameZh }}（下稱「本俱樂部」）如何蒐集、處理與利用您透過本網站提供的個人資料。</p>
   </div>
 </section>
 

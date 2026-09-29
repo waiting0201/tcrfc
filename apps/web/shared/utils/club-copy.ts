@@ -1040,6 +1040,88 @@ export function getAcademyTeamTabs(club: string, facts: SiteFacts): AcademyTeamT
 }
 
 // ---------------------------------------------------------------------------
+// 04 單元 hub（academy/index.vue）——BW-C1 品牌外洩全站盤點新增（整頁固定磐石內容，
+// 是本輪全站掃描才發現的既有缺口，不在先前任何一輪記錄範圍內）。版型不變，
+// SEO／Hero／七張導覽卡改依俱樂部切換；4.7（加入學院）對藍鯨仍是 units.ts 明文關閉
+// 的單元（藍鯨規劃書 §3.4「04 不沿用招生與課程報名架構」），bw 版導覽卡與底部 CTA
+// 對應移除，不連到會 404 的頁面。
+// ---------------------------------------------------------------------------
+
+export function getAcademyHubSeo(club: string, facts: SiteFacts): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '青年隊｜台中藍鯨女子足球隊',
+      description: `台中藍鯨青年隊由 ${squadCodesLabel(facts, '、')} 女子足球隊組成，銜接一線隊的競技體系，提供分齡訓練與教練團陪伴。`,
+    }
+  }
+  return {
+    title: '台中磐石足球學院 TCRFC Academy｜台中磐石足球俱樂部',
+    description: '台中磐石足球學院是台中磐石足球俱樂部的青訓體系，提供 U12 至 U15 分齡訓練、清晰的發展路徑與教練團陪伴，銜接一線隊與海外舞台。',
+  }
+}
+
+export function getAcademyHubHero(club: string, facts: SiteFacts): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '青年隊',
+      h1En: null,
+      lede: `台中藍鯨青年隊由 ${squadCodesLabel(facts, '、')} 女子足球隊組成，是銜接一線隊競技體系的梯隊，透過分齡訓練與教練團的長期陪伴，協助學員逐步成長。`,
+    }
+  }
+  return {
+    h1Zh: '台中磐石足球學院',
+    h1En: 'TCRFC Academy',
+    lede:
+      '台中磐石足球學院承接俱樂部「在地扎根．放眼世界」的品牌主張，透過分齡訓練、清晰的發展路徑與教練團的長期陪伴，' +
+      '協助學員從基礎技術一路成長，銜接一線隊或海外舞台。',
+  }
+}
+
+export interface AcademyHubCard {
+  num: string
+  titleZh: string
+  titleEn: string
+  descZh: string
+  href: string
+}
+
+/** 04 hub 導覽卡——tcrfc 逐字沿用既有 7 張卡（4.2 描述含梯隊代碼事實，等價於改動前
+ * `{{ tcrfcAcademyLabel() }} 各梯隊名單、教練與賽程`，這裡改讀 `squadCodesLabel(facts)`
+ * 單一來源，不重複寫一份）；bw 版只有 6 張（4.7 對藍鯨關閉，見 units.ts），標題一律
+ * 用「青年隊」不用「學院」，4.3 描述拿掉「／海外」（bw 的 4.3 頁面本身只承諾
+ * U12 → U15 → 一線隊，見 getAcademyPathwayHero bw 分支，不重複宣稱海外路徑）。 */
+export function getAcademyHubCards(club: string, facts: SiteFacts): AcademyHubCard[] {
+  if (normalizeClub(club) === 'bw') {
+    return [
+      { num: '4.1', titleZh: '青年隊總覽', titleEn: 'Academy Overview', descZh: '認識青年隊定位與整體樣貌', href: '/zh/academy/overview/' },
+      { num: '4.2', titleZh: '青年隊隊伍', titleEn: 'Our Teams', descZh: `${squadCodesLabel(facts)} 各梯隊名單、教練與賽程`, href: '/zh/academy/teams/' },
+      { num: '4.3', titleZh: '青年隊發展路徑', titleEn: 'Academy Pathway', descZh: '從 U12 到 U15、一線隊的成長路徑', href: '/zh/academy/pathway/' },
+      { num: '4.4', titleZh: '訓練課程與課綱', titleEn: 'Training & Curriculum', descZh: '技術、戰術、體能、比賽判讀與品格五大面向', href: '/zh/academy/curriculum/' },
+      { num: '4.5', titleZh: '青年隊教練團', titleEn: 'Coaches', descZh: '認識帶領各梯隊的教練團隊', href: '/zh/academy/coaches/' },
+      { num: '4.6', titleZh: '青年隊生活', titleEn: 'Academy Life', descZh: '訓練、比賽與活動的日常紀錄', href: '/zh/academy/life/' },
+    ]
+  }
+  return [
+    { num: '4.1', titleZh: '學院總覽', titleEn: 'Academy Overview', descZh: '認識學院定位、訓練基地與整體樣貌', href: '/zh/academy/overview/' },
+    { num: '4.2', titleZh: '學院隊伍', titleEn: 'Our Teams', descZh: `${squadCodesLabel(facts)} 各梯隊名單、教練與賽程`, href: '/zh/academy/teams/' },
+    { num: '4.3', titleZh: '學院發展路徑', titleEn: 'Academy Pathway', descZh: '從 U12 到一線隊／海外的成長路徑', href: '/zh/academy/pathway/' },
+    { num: '4.4', titleZh: '訓練課程與課綱', titleEn: 'Training & Curriculum', descZh: '技術、戰術、體能、比賽判讀與品格五大面向', href: '/zh/academy/curriculum/' },
+    { num: '4.5', titleZh: '學院教練團', titleEn: 'Coaches', descZh: '認識帶領各梯隊的教練團隊', href: '/zh/academy/coaches/' },
+    { num: '4.6', titleZh: '學院生活', titleEn: 'Academy Life', descZh: '訓練、比賽與活動的日常紀錄', href: '/zh/academy/life/' },
+    { num: '4.7', titleZh: '加入學院', titleEn: 'Join the Academy', descZh: '招生對象、遴選流程與線上申請', href: '/zh/academy/join/' },
+  ]
+}
+
+/** 底部 CTA 標題——bw 版不提「查看招生資訊」按鈕（4.7 對藍鯨關閉），呼叫端據此
+ * 決定要不要渲染第二顆按鈕。 */
+export function getAcademyHubCtaTitle(club: string): string {
+  if (normalizeClub(club) === 'bw') {
+    return '準備好加入台中藍鯨青年隊了嗎？'
+  }
+  return '準備好加入台中磐石足球學院了嗎？'
+}
+
+// ---------------------------------------------------------------------------
 // 10 加入與聯絡
 // ---------------------------------------------------------------------------
 
@@ -1668,4 +1750,268 @@ export function getSpecialistTrainingHero(club: string): HeroCopy {
     h1En: 'Specialist Training',
     lede: '針對特定位置與能力設計的分科訓練，由台中磐石教練團依學員需求規劃課程目標與適合對象。',
   }
+}
+
+// ---------------------------------------------------------------------------
+// 03 單元 hub（club/index.vue）——BW-C1 品牌外洩全站盤點新增（原本是 S1-12d／S2-8
+// 已記錄的既有缺口：整頁固定磐石內容，見 apps/web/README.md「S1-12d」節「刻意不動
+// 的範圍」）。版型不變，統計卡／單元卡描述／CTA 標題依俱樂部切換；tcrfc 分支逐字
+// 沿用既有內容，不改變既有輸出。
+// ---------------------------------------------------------------------------
+
+export function getClubHubSeo(club: string, facts: SiteFacts): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '台中藍鯨一線隊｜台中藍鯨女子足球隊',
+      description: `台中藍鯨俱樂部單元總覽：一線隊、球員培育重點、球員機會、國際發展通道與球員故事，${facts.foundedDisplayZh}，出戰${facts.league.nameZh}。`,
+    }
+  }
+  return {
+    title: '台中磐石足球俱樂部 Football Club｜台中磐石足球俱樂部 TCRFC',
+    description:
+      '台中磐石足球俱樂部（TCRFC）足球俱樂部單元總覽：一線隊、球員發展系統、球員機會、國際發展通道與球員故事，帶你認識一線隊如何培育選手邁向職業與國際舞台。',
+  }
+}
+
+export function getClubHubHero(club: string, facts: SiteFacts): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '台中藍鯨一線隊',
+      h1En: null,
+      lede: `代表俱樂部出戰${facts.league.nameZh}的第一支隊伍，${facts.foundedDisplayZh}。這裡整理球隊名單、球員培育重點、加入管道，以及選手旅外的真實案例。`,
+    }
+  }
+  return {
+    h1Zh: '台中磐石足球俱樂部',
+    h1En: 'Football Club',
+    lede: `從${primaryVenueOf(facts).nameZh}出發的一線隊，是台中磐石所有青訓體系最終要銜接的舞台。這裡整理球隊陣容、球員發展系統、加入管道，以及選手通往海外的路徑。`,
+  }
+}
+
+export interface ClubHubStat {
+  num: string
+  labelZh: string
+}
+
+/** 03 hub 統計卡——tcrfc 逐字沿用既有 4 張卡（含既有頁面既定的字面數字：28 名一線隊
+ * 註冊球員、21 場 2026/27 賽季賽事，這兩個數字本來就不在 SiteFacts 之列，是本頁改動前
+ * 既有的既定文字，非本輪新增臆測）。bw 版只用已核實事實組卡，不比照臆造「註冊球員數」
+ * 「賽季場次」這類磐石才有核實數字的統計項目——「隊史五度奪冠」是 club-profile.md §4
+ * 沿革逐條計數的既有核實事實（同 getFirstTeamHero 既有用法）。 */
+export function getClubHubStats(club: string, facts: SiteFacts): ClubHubStat[] {
+  if (normalizeClub(club) === 'bw') {
+    return [
+      { num: facts.foundedYear, labelZh: '創立年份' },
+      { num: '5', labelZh: '隊史奪得聯賽冠軍次數' },
+      { num: String(facts.squadCodes.length), labelZh: '青年隊梯隊數' },
+      { num: facts.league.shortNameZh ?? facts.league.nameZh, labelZh: '參與聯賽' },
+    ]
+  }
+  return [
+    { num: facts.foundedYear, labelZh: '創立年份' },
+    { num: facts.foundedYear, labelZh: facts.foundingTitleZh ?? '' },
+    { num: '28', labelZh: '一線隊註冊球員' },
+    { num: '21', labelZh: '2026/27 企甲例行賽場次' },
+  ]
+}
+
+/** 3.3 球員機會單元卡描述——tcrfc 沿用既有文字（含「加入台中磐石」字面），bw 版換俱樂部名稱。 */
+export function getClubHubOpportunitiesDesc(club: string): string {
+  if (normalizeClub(club) === 'bw') {
+    return '加入台中藍鯨、試訓場次列表與線上報名、外籍球員招募管道。'
+  }
+  return '加入台中磐石、試訓場次列表與線上報名、外籍球員招募管道。'
+}
+
+/** 3.5 球員故事單元卡描述——bw 版拿掉「學院」「女足」字樣（04 對藍鯨不稱學院；本站
+ * 本身即為女足官網，「女足球員」在此語境是自我指涉，見本檔檔頭紀律 11）。 */
+export function getClubHubPlayerStoriesDesc(club: string): string {
+  if (normalizeClub(club) === 'bw') {
+    return '一線隊與旅外球員的真實案例，看見選手如何一步步走到現在。'
+  }
+  return '學院、一線隊、海外與女足球員的真實案例，看見選手如何一步步走到現在。'
+}
+
+/** 03 hub 底部 CTA 區塊視覺隱藏標題。 */
+export function getClubHubCtaTitle(club: string): string {
+  if (normalizeClub(club) === 'bw') {
+    return '加入台中藍鯨一線隊'
+  }
+  return '加入台中磐石一線隊'
+}
+
+// ---------------------------------------------------------------------------
+// 05 單元 hub（programs/index.vue）——BW-C1 品牌外洩全站盤點新增（原本是既有缺口，
+// 整頁固定磐石內容）。藍鯨規劃書 §2.1：05 單元名稱是「PROGRAMS 推廣活動」，不是
+// 磐石的「課程與活動」；§3.5（行 201）「05 沿用主站 05 的活動版型；是否開放線上
+// 報名與收費，待確認」——藍鯨 5.1–5.4 各頁現況一律是現場個人報名，不接站內線上
+// 報名／金流流程，故本頁「線上報名流程」六步驟區塊（假定站內線上流程存在）對藍鯨
+// 隱藏，改顯示如實的報名說明。
+// ---------------------------------------------------------------------------
+
+export function getProgramsHubSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '推廣活動 Programs｜台中藍鯨女子足球隊',
+      description: '台中藍鯨推廣活動總覽：社區足球學校、運動熱區課程、專項訓練、校園與社區合作計畫，現場個人報名，免試上、免入會費。',
+    }
+  }
+  return {
+    title: '課程與活動 Programs｜台中磐石足球俱樂部',
+    description:
+      '台中磐石足球俱樂部課程與活動總覽：兒童足球訓練、夏令營、冬令營、專項訓練、校園與社區計畫。所有梯次含地點、時間、名額與費用資訊，線上報名。',
+  }
+}
+
+export function getProgramsHubHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '推廣活動',
+      h1En: 'Programs',
+      lede: '從社區足球學校、運動熱區課程，到校園與社區合作計畫——台中藍鯨以推廣活動接觸更多與球的相遇，現場個人報名，免試上、免入會費。',
+    }
+  }
+  return {
+    h1Zh: '課程與活動',
+    h1En: 'Programs',
+    lede: '從兒童足球訓練、夏／冬令營、專項訓練，到校園與社區合作計畫——台中磐石以「課程項目」的方式經營每一種與球的相遇，每個梯次都清楚標示地點、時間、名額與費用。',
+  }
+}
+
+export function getProgramsHubIntro(club: string): string {
+  if (normalizeClub(club) === 'bw') {
+    return '台中藍鯨的推廣活動以現場個人報名為主，免試上、免測試、免入會費：社區足球學校「小藍鯨」承接臺中市政府「運動 i 台灣 2.0」運動熱區推廣計畫，另提供守門員基礎班與校園、社區合作方案。以下五個單元分別對應不同年齡與需求，點選卡片查看各單元詳情。'
+  }
+  return '台中磐石足球俱樂部的課程與活動皆採梯次（Session）方式管理：每個課程項目具備明確的分級或分類、訓練地點、時間安排、名額上限與費用資訊，並提供線上報名。以下五個單元分別對應不同年齡與需求的學員，點選卡片查看各單元詳情。'
+}
+
+export interface ProgramsHubCard {
+  num: string
+  titleZh: string
+  titleEn: string
+  descZh: string
+  href: string
+  /** false＝沒有藍鯨自己的照片可用，頁面改用既有的漸層佔位（不挪用磐石照片）。 */
+  hasPhoto: boolean
+}
+
+/** 05 hub 五張導覽卡——tcrfc 逐字沿用既有文字與照片；bw 版描述改為真實對應內容（5.1／
+ * 5.4／5.5）或誠實的「尚未推出」空狀態（5.2／5.3，見 getSummerCampSeo／
+ * getWinterCampSeo 既有 bw 分支同一組事實）。 */
+export function getProgramsHubCards(club: string): ProgramsHubCard[] {
+  if (normalizeClub(club) === 'bw') {
+    return [
+      { num: '5.1', titleZh: '兒童足球訓練', titleEn: "Children's Training", descZh: '社區足球學校「小藍鯨」與運動 i 台灣 2.0 課程，3–15 歲多種班別，現場個人報名。', href: '/zh/programs/childrens-training/', hasPhoto: false },
+      { num: '5.2', titleZh: '夏令營', titleEn: 'Summer Camp', descZh: '目前尚未推出獨立的夏令營活動，暑期活動請關注官方社群公告。', href: '/zh/programs/summer-camp/', hasPhoto: false },
+      { num: '5.3', titleZh: '冬令營', titleEn: 'Winter Camp', descZh: '目前尚未推出獨立的冬令營活動，寒假活動請關注官方社群公告。', href: '/zh/programs/winter-camp/', hasPhoto: false },
+      { num: '5.4', titleZh: '專項訓練', titleEn: 'Specialist Training', descZh: '目前提供守門員基礎班（7–12 歲），須先填寫報名表單，其餘專項尚未推出。', href: '/zh/programs/specialist/', hasPhoto: false },
+      { num: '5.5', titleZh: '校園與社區', titleEn: 'School & Community', descZh: '建教合作學校列表、社區足球推廣計畫、教練培訓，歡迎學校與社區單位洽談合作。', href: '/zh/programs/school-community/', hasPhoto: false },
+    ]
+  }
+  return [
+    { num: '5.1', titleZh: '兒童足球訓練', titleEn: "Children's Training", descZh: '分級（混齡／初學／技巧發展）、訓練地點地圖、週期課表、線上報名。', href: '/zh/programs/childrens-training/', hasPhoto: true },
+    { num: '5.2', titleZh: '夏令營', titleEn: 'Summer Camp', descZh: '適合對象、課程內容、教練團、合作夥伴、日期地點與報名資訊。', href: '/zh/programs/summer-camp/', hasPhoto: true },
+    { num: '5.3', titleZh: '冬令營', titleEn: 'Winter Camp', descZh: '與夏令營共用版型與資料模型，梯次資訊將於開放報名前公告。', href: '/zh/programs/winter-camp/', hasPhoto: false },
+    { num: '5.4', titleZh: '專項訓練', titleEn: 'Specialist Training', descZh: '守門員／前鋒／後衛／中場／體能與速度／高階訓練，六大專項課程。', href: '/zh/programs/specialist/', hasPhoto: true },
+    { num: '5.5', titleZh: '校園與社區', titleEn: 'School & Community', descZh: '校園合作方案、社區計畫、教練培訓、合作學校列表與洽談表單。', href: '/zh/programs/school-community/', hasPhoto: false },
+  ]
+}
+
+export interface EnrolFlowStep {
+  titleZh: string
+  descZh: string
+}
+
+/** 「線上報名流程」六步驟——僅 tcrfc 適用（藍鯨現場個人報名，不接這套站內線上流程，
+ * 見本節檔頭說明），呼叫端對 bw 應整段隱藏，改用 `getProgramsHubEnrolNoteBw()`，
+ * 不得輸出「尚未開放」版本的六步驟（那會誤導成「藍鯨其實也有這套流程，只是還沒開」，
+ * 而是根本不採這套線上流程）。 */
+export const ENROL_FLOW_STEPS_TCRFC: EnrolFlowStep[] = [
+  { titleZh: '選課程', descZh: '依年齡與需求選擇 5.1–5.5 課程項目' },
+  { titleZh: '選梯次', descZh: '選擇開放報名中的時段、地點與梯次' },
+  { titleZh: '學員資料', descZh: '填寫學員基本資料，可一次登記多名' },
+  { titleZh: '家長／緊急聯絡人', descZh: '留下家長或緊急聯絡人資訊' },
+  { titleZh: '健康聲明', descZh: '確認健康狀況並同意相關條款' },
+  { titleZh: '送出', descZh: '產生報名編號，Email／簡訊通知，視梯次提供匯款資訊' },
+]
+
+/** bw 版報名說明，取代 tcrfc 六步驟區塊，如實描述現場個人報名。 */
+export function getProgramsHubEnrolNoteBw(): string {
+  return '台中藍鯨推廣活動現場個人報名，免試上、免測試、免入會費；守門員基礎班須先填寫線上報名表單。詳細報名方式請見各單元頁面，或洽詢台中藍鯨官方 LINE。'
+}
+
+// ---------------------------------------------------------------------------
+// 10.4 國際球員詢問表單頁（join/international-player/index.vue）——BW-C1 品牌外洩
+// 全站盤點新發現的既有缺口：本頁 SEO／Hero／同意聲明／收件單位標籤原本全部固定
+// 寫死「Taichung Rock FC」「TCRFC」「台中磐石足球俱樂部」「International
+// Department」，完全沒有俱樂部分支——不在先前任何一輪記錄範圍內（10.4 本來就沒有
+// 被關閉，`units.ts` 不含 '10.4'，藍鯨訪客一直看得到這頁）。英文為主、中文輔助的
+// 版型不變（規劃書行 320 明訂 10.4 英文優先）。
+// ---------------------------------------------------------------------------
+
+export function getInternationalPlayerSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: 'International Player Enquiries 國際球員詢問｜Join / Contact｜Taichung Blue Whale',
+      description:
+        'Interested in playing for Taichung Blue Whale in Taiwan? Submit your football background, video highlights and visa status and our club will follow up.',
+    }
+  }
+  return {
+    title: 'International Player Enquiries 國際球員詢問｜Join / Contact｜Taichung Rock FC',
+    description:
+      'Interested in playing for Taichung Rock FC (TCRFC) in Taiwan? Submit your football background, video highlights and visa status. Our International department will get back to you.',
+  }
+}
+
+export function getInternationalPlayerHero(club: string): { leadEn: string; leadZh: string } {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      leadEn: 'Interested in playing for us in Taiwan? Tell us about your football background, highlight videos and visa status, and our club will follow up with you.',
+      leadZh: '有意加入台中藍鯨的國際球員，請填寫以下表單，我們將盡快與你聯繫。',
+    }
+  }
+  return {
+    leadEn: 'Interested in playing for TCRFC in Taiwan? Tell us about your football background, highlight videos and visa status, and our International department will follow up with you.',
+    leadZh: '有意加入台中磐石足球俱樂部的國際球員，請填寫以下表單，國際部將盡快與你聯繫。',
+  }
+}
+
+/** 同意聲明——連結（Privacy Policy）本身是通用 UI 文字留在頁面模板，這裡只提供
+ * 連結「之後」含俱樂部名稱的句尾，避免整句重複、模板端用字串插入組出完整句子。 */
+export function getInternationalPlayerConsentAfterLink(club: string): { en: string; zh: string } {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      en: ', and consent to Taichung Blue Whale collecting the personal data submitted in this form for the purpose of processing this player enquiry.',
+      zh: '本人已閱讀並同意隱私權政策，並同意台中藍鯨依本表單蒐集之個人資料，用於處理本次國際球員詢問。',
+    }
+  }
+  return {
+    en: ', and consent to Taichung Rock FC collecting the personal data submitted in this form for the purpose of processing this player enquiry.',
+    zh: '本人已閱讀並同意隱私權政策，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次國際球員詢問。',
+  }
+}
+
+/** 側欄「收件單位」標籤——bw 沒有已核實的「國際部」這個組織單位，不得沿用磐石的
+ * 部門名稱（比照 getJoinFirstTeamBody 對 bw 不具名部門的既有做法）。 */
+export function getInternationalPlayerDeptLabel(club: string): string {
+  if (normalizeClub(club) === 'bw') {
+    return 'Our Club'
+  }
+  return 'International Department'
+}
+
+export function getProgramsHubCtaCards(club: string): CtaCardCopy[] {
+  if (normalizeClub(club) === 'bw') {
+    return [
+      { num: '兒童與青少年', titleZh: '兒童足球訓練', descZh: '社區足球學校「小藍鯨」，現場個人報名。', ctaLabelZh: '立即了解', href: '/zh/programs/childrens-training/' },
+      { num: '學校與機構', titleZh: '校園與社區合作', descZh: '洽談校園方案、社區計畫與教練培訓。', ctaLabelZh: '前往洽談', href: '/zh/programs/school-community/' },
+      { num: '其他問題', titleZh: '聯絡台中藍鯨', descZh: '課程相關問題歡迎直接與我們聯繫。', ctaLabelZh: '聯絡我們', href: '/zh/join/general/' },
+    ]
+  }
+  return [
+    { num: '兒童與青少年', titleZh: '兒童足球訓練', descZh: '分齡分級，從混齡體驗到技巧發展。', ctaLabelZh: '立即了解', href: '/zh/programs/childrens-training/' },
+    { num: '學校與機構', titleZh: '校園與社區合作', descZh: '洽談校園方案、社區計畫與教練培訓。', ctaLabelZh: '前往洽談', href: '/zh/programs/school-community/' },
+    { num: '其他問題', titleZh: '聯絡台中磐石', descZh: '課程相關問題歡迎直接與我們聯繫。', ctaLabelZh: '聯絡我們', href: '/zh/join/general/' },
+  ]
 }

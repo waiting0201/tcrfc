@@ -18,11 +18,21 @@
 definePageMeta({ nav: '', unit: '10.1' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。「競技部」是磐石既有的內部
+// 部門稱呼，藍鯨沒有已核實的對應部門名稱，不得沿用（比照 getJoinFirstTeamBody 對 bw
+// 不具名部門的既有做法），bw 版一律只講「俱樂部」。
+const clubAssets = computed(() => getClubAssets(config.public.club))
+const { facts } = useSiteFacts(clubKey.value)
+const deptLabel = computed(() => (isTcrfc.value ? '競技部' : clubAssets.value.shortNameZh))
 
 useSeoMeta({
-  title: '加入球隊 Join as a Player｜加入與聯絡｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部持續招募一線隊與各梯隊球員。填寫加入球隊表單，提供你的基本資料、足球背景與比賽影片連結，競技部將盡快與你聯繫。',
+  title: computed(() => `加入球隊 Join as a Player｜加入與聯絡｜${clubAssets.value.nameZh}`),
+  description: computed(() => (isTcrfc.value
+    ? '台中磐石足球俱樂部持續招募一線隊與各梯隊球員。填寫加入球隊表單，提供你的基本資料、足球背景與比賽影片連結，競技部將盡快與你聯繫。'
+    : `${clubAssets.value.nameZh}持續招募一線隊球員。填寫加入球隊表單，提供你的基本資料、足球背景與比賽影片連結，俱樂部將盡快與你聯繫。`)),
 })
 
 const POSITION_LABELS: Record<string, string> = {
@@ -71,7 +81,8 @@ async function onSubmit() {
   <div class="container">
     <p class="page-hero__eyebrow">10.1 Join as a Player</p>
     <h1>加入球隊<span class="en">Join as a Player</span></h1>
-    <p class="page-hero__lede">具備競技實力、渴望在企甲聯賽舞台證明自己？台中磐石一線隊與各梯隊持續招募新血，填寫以下表單，讓競技部認識你。</p>
+    <p v-if="isTcrfc" class="page-hero__lede">具備競技實力、渴望在企甲聯賽舞台證明自己？台中磐石一線隊與各梯隊持續招募新血，填寫以下表單，讓競技部認識你。</p>
+    <p v-else class="page-hero__lede">具備競技實力、渴望在{{ facts.league.nameZh }}舞台證明自己？台中藍鯨一線隊持續招募新血，填寫以下表單，讓俱樂部認識你。</p>
   </div>
 </section>
 
@@ -82,7 +93,7 @@ async function onSubmit() {
       <FormStatusBanner
         :status="status"
         :error-message="errorMessage"
-        success-message="已收到你的報名資料！系統已寄送自動回覆信到你填寫的 Email，競技部會盡快與你聯繫。"
+        :success-message="`已收到你的報名資料！系統已寄送自動回覆信到你填寫的 Email，${deptLabel}會盡快與你聯繫。`"
       />
       <form v-if="status !== 'success'" class="tcrfc-form" action="" method="post" @submit.prevent="onSubmit">
         <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
@@ -159,7 +170,7 @@ async function onSubmit() {
         <div class="consent-block">
           <div class="checkbox-field">
             <input id="p-consent" v-model="consent" type="checkbox" name="consent" required aria-describedby="p-consent-error">
-            <label for="p-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次加入球隊申請之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
+            <label for="p-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集之個人資料，用於處理本次加入球隊申請之聯繫與評估作業。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="p-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
           
@@ -174,7 +185,7 @@ async function onSubmit() {
         <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">送出報名</button>
 
         <div class="form-submit-note">
-          <p><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到你填寫的 Email，確認我們已收到資料；競技部窗口會另外收到通知信，並視評估結果安排後續聯繫（如試訓邀請）。</p>
+          <p><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到你填寫的 Email，確認我們已收到資料；{{ deptLabel }}窗口會另外收到通知信，並視評估結果安排後續聯繫（如試訓邀請）。</p>
         </div>
       </form>
 
@@ -182,7 +193,7 @@ async function onSubmit() {
         <div class="form-sidebar__sticky">
         <div class="form-sidebar__card">
           <p class="form-sidebar__dept">收件單位</p>
-          <h2>競技部</h2>
+          <h2>{{ deptLabel }}</h2>
           
         </div>
         <div class="form-sidebar__card">

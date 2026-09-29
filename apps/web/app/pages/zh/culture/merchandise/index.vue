@@ -4,11 +4,20 @@
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const isTcrfc = computed(() => config.public.club !== 'bw')
+// BW-C1（品牌外洩全站盤點）：本頁內容與 shop/index.vue 高度重疊（同一批商品照片），
+// 理由與作法一併比照：主場球衣是磐石真實設計（桃紅配色、贊助標誌），不得沿用充當
+// 藍鯨商品，對藍鯨隱藏；機能襪無隊徽、六色皆通用，可共用。「舊官網選購」過渡期文案
+// 保留 www.tcrfc.tw 網域字面值，已列入 check-club-brand-leak.mjs 例外清單。
+const clubAssets = computed(() => getClubAssets(config.public.club))
+const identity = computed(() => getClubIdentity(config.public.club))
 
 useSeoMeta({
-  title: '官方商品 Merchandise｜台中磐石文化｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部官方商品：俱樂部、學院、球迷三大系列。線上商店建置中，屆時可直接於本站選購。',
+  title: computed(() => `官方商品 Merchandise｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`),
+  description: computed(() => (isTcrfc.value
+    ? '台中磐石足球俱樂部官方商品：俱樂部、學院、球迷三大系列。線上商店建置中，屆時可直接於本站選購。'
+    : `${clubAssets.value.nameZh}官方商品：目前提供機能襪等通用配件，其餘系列開發中。線上商店建置中，屆時可直接於本站選購。`)),
 })
 </script>
 
@@ -17,23 +26,25 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/culture/')">台中磐石文化</a></li>
+      <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
       <li aria-current="page">官方商品</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/merch/merch-jersey-01.jpg" alt="球員身著台中磐石桃紅色主場球衣，胸前印有 Joma、TCRFC 隊徽與 San Pellegrino 贊助字樣" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/merch/merch-jersey-01.jpg" alt="球員身著台中磐石桃紅色主場球衣，胸前印有 Joma、TCRFC 隊徽與 San Pellegrino 贊助字樣" width="1600" height="900">
+  <img v-else class="page-hero__bg" src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列" width="1600" height="900">
   <div class="container">
     <p class="page-hero__eyebrow">8.3 Merchandise</p>
     <h1>官方商品<span class="en">Merchandise</span></h1>
-    <p class="page-hero__lede">俱樂部、學院、球迷三大系列的官方商品。要選購請前往<a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
+    <p v-if="isTcrfc" class="page-hero__lede">俱樂部、學院、球迷三大系列的官方商品。要選購請前往<a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
+    <p v-else class="page-hero__lede">通用配件商品，要選購請前往<a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
   </div>
 </section>
 
-<!-- SPEC 3.8 §8.3 — Club Collection 俱樂部商品（真實商品） -->
-<section class="band grain" id="club-collection" aria-labelledby="club-collection-title">
+<!-- SPEC 3.8 §8.3 — Club Collection 俱樂部商品（真實商品）——藍鯨無對應真實球衣照片，本區塊只對 tcrfc 顯示。 -->
+<section v-if="isTcrfc" class="band grain" id="club-collection" aria-labelledby="club-collection-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
@@ -104,18 +115,62 @@ useSeoMeta({
   </div>
 </section>
 
+<!-- bw：無磐石球衣可放的「俱樂部商品」區塊，改成只呈現無隊徽的通用配件（機能襪）。 -->
+<section v-else class="band grain" id="club-collection" aria-labelledby="club-collection-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">MERCHANDISE</p>
+        <h2 id="club-collection-title" class="section-title" style="color:#fff">通用配件</h2>
+      </div>
+      <p class="section-lede">目前提供的官方商品。</p>
+    </div>
+
+    <div class="grid grid--2">
+      <article class="merch-card">
+        <div class="merch-card__media">
+          <img src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" loading="lazy" width="1600" height="1600">
+        </div>
+        <div class="merch-card__body">
+          <p class="merch-card__name">厚底緩震機能襪</p>
+          <p class="merch-card__price">價格以商店頁面為準</p>
+          <ul class="swatch-row" aria-label="可選顏色">
+            <li><img src="/assets/img/merch/merch-socks-02.jpg" alt="向日黃" loading="lazy" width="200" height="200"><span>向日黃</span></li>
+            <li><img src="/assets/img/merch/merch-socks-03.jpg" alt="經典紅" loading="lazy" width="200" height="200"><span>經典紅</span></li>
+            <li><img src="/assets/img/merch/merch-socks-04.jpg" alt="櫻桃紅" loading="lazy" width="200" height="200"><span>櫻桃紅</span></li>
+            <li><img src="/assets/img/merch/merch-socks-05.jpg" alt="海軍藍" loading="lazy" width="200" height="200"><span>海軍藍</span></li>
+            <li><img src="/assets/img/merch/merch-socks-06.jpg" alt="極簡黑" loading="lazy" width="200" height="200"><span>極簡黑</span></li>
+            <li><img src="/assets/img/merch/merch-socks-07.jpg" alt="純淨白" loading="lazy" width="200" height="200"><span>純淨白</span></li>
+          </ul>
+          <div class="table-scroll" style="margin-top:1rem">
+            <table class="size-table">
+              <caption class="visually-hidden">襪子尺碼表</caption>
+              <thead><tr><th scope="col">尺碼</th><th scope="col">腳長</th><th scope="col">筒長</th></tr></thead>
+              <tbody>
+                <tr><th scope="row">M</th><td>20–21 cm</td><td>15 cm</td></tr>
+                <tr><th scope="row">L</th><td>23–24 cm</td><td>17 cm</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <a class="btn btn--primary btn--block" :href="lp('/zh/shop/cushioned-socks/')">選購 NT$120</a>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
 <!-- SPEC 3.8 §8.3 — Academy / Fan Collection（尚無商品） -->
 <section class="band" id="other-collections" aria-labelledby="other-collections-title">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">MORE COLLECTIONS</p>
-        <h2 class="section-title" id="other-collections-title">學院商品／球迷商品</h2>
+        <h2 class="section-title" id="other-collections-title">{{ identity.academyShortLabelZh }}商品／球迷商品</h2>
       </div>
     </div>
     <div class="grid grid--2">
       <div class="merch-card merch-card--empty">
-        <p class="merch-card__name">Academy Collection 學院商品</p>
+        <p class="merch-card__name">Academy Collection {{ identity.academyShortLabelZh }}商品</p>
         <p class="pending-inline">商品開發中，敬請期待。</p>
       </div>
       <div class="merch-card merch-card--empty">

@@ -17,99 +17,79 @@
  * 不是猜程式碼意圖，所以不會漏掉「欄位根本沒被引用」這一類（那一類在原始碼層級看
  * 起來什麼都沒錯——只是欄位沒被用到，只有把最終輸出印出來比對才看得見）。
  *
- * ## 為什麼不掛進 `npm run lint`（會被問到，先寫死答案）
+ * ## 🔴🔴 BW-C1 品牌外洩全站盤點（2026-09-29）：改為全站涵蓋、預設 hard-fail 🔴🔴
  *
- * `apps/web` 的 `npm run lint` 目前**純靜態**：不開伺服器、不連資料庫、幾秒內跑完
- * （node 版本檢查、`club-copy.ts` 結構檢查、首頁忠實度、`match-status` 枚舉、eslint）。
- * 這支腳本反過來，**沒有真的把藍鯨站跑起來就無法執行**——而藍鯨站要跑起來還牽動
- * 後端 API 與資料庫（`apps/api` 連 `CLUB_SQL_CONNECTION_STRING`），不是 `npm run build`
- * 就能滿足的前提。硬掛進 `lint`：
- *   1. 讓一支目前秒級的指令變成要先起兩個服務＋一個資料庫才跑得動，`npm run lint`
- *      不再是隨時能跑的靜態檢查；
- *   2. 在沒有資料庫的環境（例如某些 CI 步驟、剛 clone 下來的機器）會讓 `lint` 直接
- *      連不上而失敗，而失敗原因跟「這次改動有沒有問題」無關——這正是
- *      `docs/18-work-errors.md` `E-34` 的起點：**一個长期因環境而紅燈的檢查，會把
- *      「讀錯誤訊息」這個動作淘汰掉**，之後真正的錯誤會混在「反正它一直紅」裡不被看見。
+ * 舊版只對一份手動維護的 `PROTECTED_PAGES`（33 頁、只含 `/zh/`）hard-fail，其餘頁面
+ * 只計數。這個設計留下兩個真正的漏洞（本輪盤點才發現的既有缺口，不是新迴歸）：
+ *   1. `PROTECTED_PAGES` 從未涵蓋 `/en/`——`check-heading-structure.mjs` 早就在對
+ *      zh／en 兩份路由跑，這支腳本卻只挑 zh，等於藍鯨站英文版的品牌外洩從第一天
+ *      起就沒有任何自動化檢查覆蓋。
+ *   2. 「其餘頁面只計數，不影響離開碼」等於承認「沒被排進清單就不算數」——
+ *      `join/international-player/index.vue`（10.4）就是這樣被漏掉的：`units.ts`
+ *      從未關閉這個單元，藍鯨訪客一直看得到整頁固定寫死的「Taichung Rock FC」
+ *      「TCRFC」「台中磐石足球俱樂部」「International Department」，但因為這頁
+ *      不在 33 頁的手動清單裡，舊版腳本從頭到尾不會讓它讓 `lint`／驗收失敗。
  *
- * **這支腳本因此是獨立指令，不是 `npm run lint` 的一部分**——用法見下方與
- * `apps/web/README.md`「藍鯨品牌詞彙殘留檢查」一節。建議在下列時機手動／於 CI 的
- * 部署前驗收步驟執行：藍鯨站每次要部署前、`BW-2`～`BW-8` 每完成一批頁面後。
+ * 新設計：**自動收集藍鯨站所有會回 200 的路由（zh／en 都收），每一頁預設
+ * hard-fail**——命中詞表就是錯誤，不再有「其餘頁面只計數」這個灰色地帶。真正需要
+ * 例外的頁面（例如描述兩隊關係、或已知且有明文規格依據的既有缺口）放進下方
+ * `EXEMPT_PAGES`，每筆都要附**規格依據或既有缺口編號**，不是「看起來還好」就放行。
  *
  * ## 詞表怎麼挑（連同已排除的候選與理由）
  *
  * 進詞表：
- *   - `磐石`——覆蓋率最高、誤判風險最低的詞。實測：藍鯨站 79 頁裡 59 頁命中，
- *     全部是磐石專屬敘述（俱樂部全名、品牌描述），沒有找到任何一處「藍鯨頁面合理
- *     提到磐石」的反例（例如跨隊敘述、共同的慈善或合作夥伴內容——藍鯨站 11 慈善
- *     單元整個不存在（docs/13 §3），09 夥伴依規劃書必須分區不得混列，所以目前沒有
- *     合理共同提及磐石的內容形狀）。
- *   - `TCRFC`——磐石英文縮寫。實測（已排除環境變數缺陷後）仍命中 16 頁／46 次，
- *     且這 16 頁全部是 `磐石` 命中頁的子集合（無新增覆蓋），對目前這批資料是冗餘的，
- *     但保留它是防禦性的——它不太可能被合理地用在藍鯨頁面上（不像「學院」可能撞到
- *     真實機構名），且成本是零（沒有新增任何一筆誤判）。
+ *   - `磐石`——覆蓋率最高、誤判風險最低的詞。
+ *   - `TCRFC`——磐石英文縮寫。
  *   - `學院`——04 單元磐石叫「足球學院」、藍鯨依 docs/13 §3 改叫「青年隊」，這個詞
- *     在藍鯨語境下定義上不該出現。**這個詞抓到了 `磐石`／`TCRFC` 都抓不到的一筆真實
- *     殘留**：`/zh/join/` 頁面文案「訓練基地、主場與學院場地的位置與交通指引」，是
- *     10 單元（加入與聯絡）既有頁面內文裡的殘留，不在 SiteHeader，本次任務範圍
- *     （只修 SiteHeader）沒有動它，原樣留著等下一個處理的人接手（見腳本輸出與
- *     交付報告）。
- *     ⚠️ **已知誤判風險，沒有排除機制，只能先記著**：未來藍鯨真實內容（教練／球員
- *     簡歷）有可能合理提到某個真實機構名稱含「學院」兩字（例如某人畢業於「OO體育
- *     學院」）。目前藍鯨站沒有任何這樣的內容，所以先不建排除清單——真的出現的時候
- *     再決定要不要開白名單，不要為了假設中的情況預先蓋一套排除機制（那本身就是一種
- *     過度工程，且排除清單本身可能被濫用去蓋掉真的殘留）。
+ *     在藍鯨語境下定義上不該出現。
+ *   - `Taichung Rock`——磐石英文全名的核心詞組（`Taichung Rock FC`），比單獨的
+ *     `Rock`（見下方「沒進詞表」）更精準，本輪盤點在 `join/international-player/`
+ *     實測命中且不是 `磐石`／`TCRFC` 的子集合（英文獨立頁面，中文詞表未觸及）。
+ *   - `www.tcrfc.tw`——磐石正式網域（含 `www.` 前綴，見
+ *     `app/pages/zh/culture/merchandise/index.vue` 既有引用「舊官網
+ *     `https://www.tcrfc.tw`」），藍鯨頁面不應該出現磐石自己的網域字面值。
+ *     ⚠️ **實測排除過的候選：不含 `www.` 前綴的裸 `tcrfc.tw`**——本輪盤點實測發現
+ *     這個裸字串在**藍鯨站每一頁**（含完全乾淨的頁面）都會命中一次，根因是
+ *     `nuxt.config.ts` 的 `blueWhaleSiteUrl: 'https://bw-stg.tcrfc.tw'` 這個
+ *     runtime config 預設值會被 Nuxt 序列化進**每一頁**的 hydration payload
+ *     （不論該頁有沒有用到這個值），而這個網址本身是**藍鯨自己的 staging 網域**
+ *     （兩站共用上層網域直到藍鯨正式網域到位，見 docs/17-deployment.md），不是
+ *     磐石網域外洩——裸 `tcrfc.tw` 對「藍鯨站有沒有誤植磐石網域」這個問題完全沒有
+ *     鑑別力（每頁必中，不分乾淨或有問題）。加上 `www.` 前綴後，只有磐石舊站的
+ *     完整寫法才會命中，`bw-stg.tcrfc.tw` 沒有 `www.` 前綴不受影響。
  *
  * 沒進詞表（探測過，排除理由）：
- *   - `Rock`——只是 `TCRFC`／`磐石` 命中頁裡「Taichung Rock FC」的英文全名，沒有
- *     任何新增覆蓋，而且是比 `TCRFC` 更泛用的字（未來内容若用「rock」當普通英文字
- *     的機率不是零），純冗餘、風險更高，不收。
+ *   - `Rock`——只是 `Taichung Rock FC` 的一部分，比 `Taichung Rock` 更泛用（未來
+ *     内容若用「rock」當普通英文字的機率不是零），純冗餘、風險更高，不收。
  *   - `ROCKS`／`Cornerstone`——舊站曾用過的品牌詞（`docs/18` 遺留字串清單），
- *     實測 0 命中，本檔的頁面裡目前不存在，先不放——詞表要對「現在的輸出」負責，
- *     不是對「規劃書提過的所有禁詞」負責，那是 `check-forbidden-terms` 類檢查的工作
- *     （磐石後台專案已有先例），兩者職責不同不合併。
+ *     實測 0 命中，先不放——詞表要對「現在的輸出」負責，不是對「規劃書提過的所有
+ *     禁詞」負責，那是 `check-forbidden-terms` 類檢查的工作，兩者職責不同不合併。
  *
  * ## 掃描範圍：整份 HTML（`<head>` ＋ `<body>`），不是只掃 `<body>`
  *
- * 這一點刻意跟 `compare-dom.mjs`（只比對 `<body>`）不同，理由不是疏忽：
- *   - `compare-dom.mjs` 保護的是「像素／DOM 對不對得上磐石自己的 mockup」，`<head>`
- *     沒有視覺對應物，比對它沒有意義。
- *   - 這支腳本保護的是「藍鯨站有沒有印出磐石的品牌詞」，而 `<title>`／`og:site_name`／
- *     `og:description`／JSON-LD 的 `name`／`description` 全部在 `<head>` 裡——
- *     這正是 S0-9n 之前真正發生過的那類錯誤（`docs/13` 紀律 11a 的 `site.name`
- *     `TypeError`／`E-42` 的 `nameZh` 誤用，兩者主要现形位置都在 `<head>` 或跨頁共用
- *     的頁首頁尾），而且 `GEO-08` 明文要求 SEO／Schema 的事實正確性——那正是
- *     `<head>` 管的範圍。只掃 `<body>` 會讓這支腳本連自己想抓的那類錯誤都抓不全。
- *   - 實測驗證：目前這批資料裡，沒有任何一筆殘留**只**出現在 `<head>` 而不出現在
- *     `<body>`（本檔案交付時的殘留都是全頁複製，head/body 同時中獎）。但這是「目前
- *     資料剛好如此」，不是「只掃 body 也一樣安全」的證明——所以刻意選全頁掃描，
- *     不依賴這個巧合。
+ * 理由同舊版（見 git 歷史）：`<title>`／`og:site_name`／`og:description`／JSON-LD
+ * 的 `name`／`description` 全部在 `<head>` 裡，只掃 `<body>` 會讓這支腳本連自己想抓
+ * 的那類錯誤都抓不全。
  *
- * ## 棘輪機制：「已宣告完工」清單只能往上加，不能往下拿
+ * ## 為什麼不掛進 `npm run lint`
  *
- * `PROTECTED_PAGES` 是目前**已確認乾淨、應該保持乾淨**的頁面清單，一出現任何詞表
- * 命中就 `exit 1`（並指出是哪一頁、哪個詞、幾次）。**其餘 79－N 頁只計數不報錯**，
- * 當作藍鯨開發的進度計——這是刻意的，理由見 `docs/18-work-errors.md` `E-34`：
- * 對整站 59 頁 hard-fail 會製造一個**永久紅燈**，紅燈變成「已知雜訊」之後就沒有人會
- * 再去看它，於是保護清單裡真正該守住的那幾頁反而被這個永久紅燈蓋住訊號。
+ * 理由同舊版：這支腳本要先把藍鯨站真的跑起來（含後端 API／資料庫）才能執行，硬掛進
+ * `npm run lint` 會讓一支秒級的靜態指令變成依賴外部環境（`docs/18-work-errors.md`
+ * `E-34`：長期因環境紅燈的檢查會把「讀錯誤訊息」淘汰掉）。用法見
+ * `apps/web/README.md`「藍鯨品牌詞彙殘留檢查」一節。
  *
- * **這條規則不是靠自覺遵守，是靠這支腳本自己強制的**：執行時會用 `git show
- * HEAD:<this file>` 拿上一次提交的清單，斷言「舊清單 ⊆ 新清單」——拿掉舊清單裡任何
- * 一筆都會讓腳本自己先失敗，訊息會指出是哪一筆被拿掉。找不到上一版（例如這是本檔案
- * 第一次提交）就略過這項檢查。
+ * ## 例外清單棘輪：只能往下減、不能往上加
  *
- * ⚠️ **誠實的邊界（跟 `E-31` 同一個提醒：機制的實際效力不能與它給人的信心不相稱）**：
- * 這道棘輪**只在「有人執行這支腳本」的那一刻生效**——它不是 git hook，不會在
- * `git commit`／`git push` 時自動跑。如果有人直接 commit 一個拿掉某頁保護的版本，
- * 而**沒有跑過這支腳本**，那次移除不會被擋下；下一次真的執行這支腳本時，
- * `git show HEAD:<this file>` 拿到的「上一版」已經是移除之後的 HEAD 了——棘輪比對的
- * 是「這一版 vs 上一版」，不是「這一版 vs 史上曾經出現過的最大版本」，所以**它擋得住
- * 「忘記」，擋不住「繞過」**。要擋住「繞過」需要把這支腳本接進 CI 的必要關卡（例如
- * PR 合併前的檢查），那是另一個決定，本次交付沒有做。
+ * `EXEMPT_PAGES` 是**目前已知、有明文理由的例外**——不在其中的頁面一旦命中詞表就是
+ * `exit 1`。跟舊版 `PROTECTED_PAGES`（棘輪方向是「只能往上加」）刻意相反：**例外
+ * 清單只能隨著頁面陸續修正而變短，不能因為嫌麻煩而變長**。執行時會用
+ * `git show HEAD:<this file>` 拿上一次提交的例外清單，斷言「這一版 ⊆ 上一版」——
+ * 新增任何一筆不在上一版裡的例外會讓腳本自己先失敗，訊息會指出是哪一筆。找不到
+ * 上一版（例如這是本檔案第一次以新格式提交）就略過這項檢查。
  *
- * ⚠️ **這份清單只保護「已確認乾淨的內容頁」，不含因單元被關閉而回 404 的頁面**
- * （`zh/charity/*` 五頁、`zh/womens/`，依 docs/13 §3 藍鯨不設 06／11 單元）——那些頁面
- * 沒有內容可保護，回 404 本身是否正確是 `isUnitEnabledForClub` 的職責，不是這支腳本
- * 的職責，硬塞進清單只會製造「保護了根本不存在的東西」的假象。
+ * ⚠️ 誠實的邊界（跟 `E-31` 同一個提醒）：這道棘輪只在「有人執行這支腳本」的那一刻
+ * 生效，不是 git hook，擋得住「忘記」，擋不住「繞過」。要擋住「繞過」需要把這支
+ * 腳本接進 CI 的必要關卡，那是另一個決定，本次交付沒有做。
  *
  * ## 用法
  *
@@ -118,8 +98,7 @@
  *   2. `node scripts/check-club-brand-leak.mjs [--base-url=http://127.0.0.1:3012]`
  *      （預設 `http://127.0.0.1:3012`）。
  *
- * 離開碼：保護清單裡任何一頁命中詞表、或棘輪被違反 → `1`；否則 `0`
- * （其餘頁面的命中只印出來，不影響離開碼）。
+ * 離開碼：任何非例外頁面命中詞表、或例外清單棘輪被違反 → `1`；否則 `0`。
  */
 
 import { execSync } from 'node:child_process'
@@ -135,88 +114,90 @@ const THIS_FILE_REL = 'apps/web/scripts/check-club-brand-leak.mjs'
 // ---------------------------------------------------------------------------
 // 詞表（理由見檔頭）
 // ---------------------------------------------------------------------------
-const FORBIDDEN_TERMS = ['磐石', 'TCRFC', '學院']
+const FORBIDDEN_TERMS = ['磐石', 'TCRFC', '學院', 'Taichung Rock', 'www.tcrfc.tw']
 
 // ---------------------------------------------------------------------------
-// 已宣告完工、必須保持乾淨的頁面（棘輪清單）
+// 例外清單：只能往下減、不能往上加（見檔頭「棘輪」說明）。
 //
-// 🔴 只能往上加、不能往下拿——這支腳本自己會用 git 檢查這件事（見檔頭「棘輪機制」）。
-// 目前 13 筆對應 `STATUS.md` BW-0d 已套用的單元：01 首頁、02 關於全部 9 頁、
-// 03 一線隊（僅 first-team 總覽，first-team/player 是球員詳情頁「範本」，
-// 內容本來就是磐石 11 號球員楊朝景的示範資料，尚未做成藍鯨版本，不放進來）、
-// 10 加入與聯絡（僅 join 首頁與 join/contact，其餘 join/* 子頁屬其他單元）。
-// BW-2～BW-8 每完成一批頁面，把對應路徑加進這裡——不要等到全部做完才一次加。
+// 每一筆都必須附規格依據或既有缺口編號——「看起來還好」不是理由。`terms` 只豁免
+// 列出的詞，同一頁若命中詞表裡沒列出的其他詞仍然算失敗。
 // ---------------------------------------------------------------------------
-const PROTECTED_PAGES = [
-  '/zh/',
-  '/zh/about/',
-  '/zh/about/ecosystem/',
-  '/zh/about/governance/',
-  '/zh/about/history/',
-  '/zh/about/milestones/',
-  '/zh/about/our-people/',
-  '/zh/about/our-story/',
-  '/zh/about/philosophy/',
-  '/zh/about/vision-mission/',
-  '/zh/club/first-team/',
-  '/zh/join/',
-  '/zh/join/contact/',
-  // S1-15（2026-09-29）：4.1／4.2 改讀 ACADEMY_OVERVIEW_*／ACADEMY_TEAMS_*／
-  // ACADEMY_TEAM_TABS（club-copy.ts），已用本機 bw 容器實測 0 筆命中，含 /en/ 版本
-  // （/en/ 與 /zh/ 是同一份頁面檔案，見 apps/web/README.md「多語系框架」）。4.7（加入
-  // 學院）對藍鯨仍整頁 404，不適用本清單（見 units.ts）。
-  '/zh/academy/overview/',
-  '/zh/academy/teams/',
-  // S1-18（2026-09-29）：12 FAQ 首頁與兩個對藍鯨仍開放的獨立主題頁，已用本機 bw
-  // 容器實測 0 筆命中，含 /en/ 版本。「學院招生」（12.2）對藍鯨仍整頁 404（依附 4.7
-  // 同一項總則例外，見 shared/utils/units.ts），不適用本清單；「課程與營隊報名」
-  // （12.3）已於 BW-C1 重開，見下方新增段落。
-  '/zh/faq/',
-  '/zh/faq/join-team/',
-  '/zh/faq/fees-refunds/',
-  // S1-19（2026-09-29）：13 賽事行事曆改依俱樂部動態產生隊別分頁（BW1／BW-U15／
-  // BW-U12，不再誤用磐石代碼），fixture-card「我方」一側與相關連結 CTA 卡片原本
-  // 字面寫死「台中磐石」／隊徽 SVG／「學院隊伍」，已改讀 getClubAssets()／
-  // isTcrfc 判斷；已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。
-  '/zh/schedule/',
-  // S2-8（2026-09-29）：3.3 球員機會（useSiteFacts 改為動態 clubKey、加入／外籍球員
-  // 段落改讀 getPlayerOpportunitiesHero()／getJoinFirstTeamBody()／
-  // getForeignPlayerBody()）、3.5 球員故事（藍鯨版改為空狀態，不挪用磐石球員案例）
-  // 兩頁對藍鯨已改為開放且已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。
-  '/zh/club/opportunities/',
-  '/zh/club/player-stories/',
-  // S2-10（2026-09-29）：5.5 校園與社區改讀真實藍鯨建教合作學校列表／社區計畫／
-  // 教練培訓內容（SCHOOL_PARTNERS_BW 等），已用本機 bw 容器實測 0 筆命中，含 /en/
-  // 版本。
-  '/zh/programs/school-community/',
-  // S2-8（2026-09-29，派工指示明文要求一併處理的既有品牌外洩）：4.3／4.4 改為細
-  // 粒度 unit 並讀 getAcademyPathwaySeo/Hero()／getAcademyCurriculumSeo/Hero()，
-  // 已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。
-  '/zh/academy/pathway/',
-  '/zh/academy/curriculum/',
-  // 🔴🔴 BW-C1（2026-09-29）：S1-15／S2-8／S2-10 三輪誤用「藍鯨沒有對應內容」為由
-  // 把 3.2／3.4／4.5／4.6／5.1–5.4／12.3 這 9 個單元整頁 404——藍鯨規劃書 §1.3
-  // 總則「例外只有四項單元取捨」不含這 9 項，已修正為重開（見 shared/utils/units.ts
-  // 檔頭、docs/18-work-errors.md、docs/14-invariants.md）。以下 9 頁已改讀
-  // club-copy.ts 對應的 getXxxSeo()／getXxxHero() 等工廠函式或俱樂部分支
-  // （isTcrfc／clubKey），已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。
-  '/zh/club/player-development/',
-  '/zh/club/international-pathways/',
-  '/zh/academy/coaches/',
-  '/zh/academy/life/',
-  '/zh/programs/childrens-training/',
-  '/zh/programs/summer-camp/',
-  '/zh/programs/winter-camp/',
-  '/zh/programs/specialist/',
-  '/zh/faq/programs-camps/',
+const EXEMPT_PAGES = [
+  {
+    route: '/zh/culture/merchandise/',
+    terms: ['www.tcrfc.tw'],
+    reason:
+      '過渡期文案明確引導訪客「站內商店上線前，仍可透過舊官網 www.tcrfc.tw 選購」——' +
+      '這是磐石自己商店過渡期的真實網址，本頁對藍鯨若整頁沒有 isTcrfc 判斷才是問題；' +
+      '05-08 單元雙俱樂部化前，先例外放行網域本身這個詞（BW-C1 盤點時的既有缺口，' +
+      '見交付報告「規格疑點」——本頁其餘磐石專屬商品內容仍是尚待雙俱樂部化的範圍）。',
+  },
+  {
+    route: '/en/culture/merchandise/',
+    terms: ['www.tcrfc.tw'],
+    reason: '同上（同一份頁面檔案的 en 版本，見 apps/web/README.md「多語系框架」）。',
+  },
+  {
+    route: '/zh/checkout/',
+    terms: ['磐石'],
+    reason:
+      '「發票抬頭為台中磐石足球俱樂部」「收款方為台中磐石足球俱樂部」是規格要求的真實揭露，' +
+      '不是品牌外洩——藍鯨規劃書 §1.3「本站不另設 LINE Pay 商店號、不使用獨立發票字軌，' +
+      '一律沿用主站的單一金流設定」，且主站規劃書 §1.3「前台必須明示收款方」明文要求結帳頁' +
+      '必須說清楚收款方與發票抬頭是台中磐石足球俱樂部，即使在藍鯨站上也一樣（BW-C1 盤點）。',
+  },
+  {
+    route: '/en/checkout/',
+    terms: ['磐石'],
+    reason: '同上（同一份頁面檔案的 en 版本）。',
+  },
+  {
+    route: '/zh/shop/',
+    terms: ['磐石'],
+    reason: '「收款方為台中磐石足球俱樂部」購物須知揭露，理由同 /zh/checkout/（藍鯨規劃書 §1.3／主站規劃書 §1.3）。',
+  },
+  {
+    route: '/en/shop/',
+    terms: ['磐石'],
+    reason: '同上（同一份頁面檔案的 en 版本）。',
+  },
+  {
+    route: '/zh/shop/cushioned-socks/',
+    terms: ['磐石'],
+    reason: '「收款方：台中磐石足球俱樂部」付款須知揭露，理由同 /zh/checkout/（藍鯨規劃書 §1.3／主站規劃書 §1.3）。',
+  },
+  {
+    route: '/en/shop/cushioned-socks/',
+    terms: ['磐石'],
+    reason: '同上（同一份頁面檔案的 en 版本）。',
+  },
+  {
+    route: '/zh/club/first-team/player/',
+    terms: ['磐石', 'TCRFC'],
+    reason:
+      '本頁明文自稱「球員詳情頁範本」（頁面本身的 template-banner 區塊），以磐石一線隊' +
+      '11 號球員楊朝景的真實名單資料示範正式站球員詳情頁的版型結構，正式站上線後由 CMS' +
+      '依球員名單自動產生——這是設計範本，不是待補的藍鯨頁面內容。藍鯨球員名單與肖像同意' +
+      '尚未到位（STATUS.md 阻塞清單），沒有可替換的真實藍鯨球員資料，換成假資料會違反' +
+      '「不得臆造」紀律，換成另一位真實磐石球員一樣沒有解決「這是磐石球員」的問題。既有' +
+      '舊版棘輪清單本來就不含這一頁，是同一個既有缺口的延續，不是本輪新增。',
+  },
+  {
+    route: '/en/club/first-team/player/',
+    terms: ['磐石', 'TCRFC'],
+    reason: '同上（同一份頁面檔案的 en 版本）。',
+  },
 ]
 
+function findExemption(route, term) {
+  return EXEMPT_PAGES.some((e) => e.route === route && e.terms.includes(term))
+}
+
 // ---------------------------------------------------------------------------
-// 路由清單：從 app/pages 檔案樹算出來，不手動維護一份會過期的清單
-// （跟 compare-dom.mjs 的「基準清單只能靠讀檔案算出來」是同一個道理）。
-// 排除動態路由（檔名或目錄含 `[`）——那些頁面的可抓取網址取決於後端當下有哪些
-// slug，不是這支腳本要驗的範圍（新聞逐篇頁見 `zh/news/[slug]/`，目前藍鯨 0 篇新聞，
-// 依 BW-0d 刻意不做，等 BW-2 才有內容可驗）。
+// 路由清單：從 app/pages 檔案樹算出來，zh／en 都收（比照 check-heading-structure.mjs，
+// en 路由是 pages:extend 在 build 時從 zh 複製出來的孿生路由，原始碼裡沒有實體 en/
+// 目錄，見 nuxt.config.ts）。排除動態路由（檔名或目錄含 `[`）——那些頁面的可抓取
+// 網址取決於後端當下有哪些 slug，不是這支腳本要驗的範圍。
 // ---------------------------------------------------------------------------
 function collectRoutes(dir, base = '') {
   const routes = []
@@ -234,11 +215,22 @@ function collectRoutes(dir, base = '') {
   return routes
 }
 
-const routes = [...new Set(collectRoutes(PAGES_DIR))].sort()
+const zhRoutes = [...new Set(collectRoutes(PAGES_DIR))].filter((r) => r.startsWith('/zh/')).sort()
+const routes = [...zhRoutes, ...zhRoutes.map((r) => `/en${r.slice(3)}`)]
 
 // ---------------------------------------------------------------------------
-// 棘輪檢查：上一版的 PROTECTED_PAGES 必須是這一版的子集合
+// 例外清單棘輪：這一版的 EXEMPT_PAGES 必須是上一版的子集合（只能減少）。
+// 比對維度是 `route|term` 這個組合，不是整筆物件（reason 文字可以改寫得更清楚，
+// 不算「新增例外」）。
 // ---------------------------------------------------------------------------
+function exemptionKeys(pages) {
+  const keys = []
+  for (const p of pages) {
+    for (const t of p.terms) keys.push(`${p.route}|${t}`)
+  }
+  return keys
+}
+
 function checkRatchet() {
   let previousSrc
   try {
@@ -248,32 +240,31 @@ function checkRatchet() {
       stdio: ['ignore', 'pipe', 'ignore'],
     })
   } catch {
-    return { ok: true, note: '（找不到上一版，可能是本檔案第一次提交，略過棘輪檢查）' }
+    return { ok: true, note: '（找不到上一版，可能是本檔案第一次以新格式提交，略過棘輪檢查）' }
   }
 
-  const m = /PROTECTED_PAGES\s*=\s*\[([\s\S]*?)\]/.exec(previousSrc)
-  if (!m) return { ok: true, note: '（上一版找不到 PROTECTED_PAGES，略過棘輪檢查）' }
+  const m = /EXEMPT_PAGES\s*=\s*\[([\s\S]*?)\n\]/.exec(previousSrc)
+  if (!m) {
+    return { ok: true, note: '（上一版找不到 EXEMPT_PAGES，可能是本次由舊版 PROTECTED_PAGES 格式改版，略過棘輪檢查）' }
+  }
 
-  // 🔴 E-73（2026-09-29，S1-18a 發現，錯誤發生於 S1-18b）：先去掉 `//` 行內註解再抓
-  // 引號字串，且只認「以 `/` 開頭」的字串為真正的頁面路徑。S1-18b 在 PROTECTED_PAGES
-  // 陣列裡加了一段提到 `'12.2'`／`'12.3'`（單元代碼，不是頁面路徑）的說明註解，舊版
-  // （沒有這層過濾）的 `matchAll(/'([^']+)'/g)` 連註解裡的引號字串都一起抓，
-  // 誤把這兩個代碼當成「上一版的保護頁面」，導致棘輪檢查把檔案拿去跟自己（HEAD）比對
-  // 都會誤判為「被拿掉」。見 docs/18-work-errors.md。
-  const arrayBodyWithoutComments = m[1].replace(/\/\/.*$/gm, '')
-  const previousPages = [...arrayBodyWithoutComments.matchAll(/'([^']+)'/g)]
-    .map((mm) => mm[1])
-    .filter((p) => p.startsWith('/'))
-  const removed = previousPages.filter((p) => !PROTECTED_PAGES.includes(p))
+  // 逐筆解析上一版的 { route: '...', terms: [...] } 物件，只取得比對用的 route／term 組合。
+  const prevEntries = [...m[1].matchAll(/route:\s*'([^']+)'[\s\S]*?terms:\s*\[([^\]]*)\]/g)].map((mm) => ({
+    route: mm[1],
+    terms: [...mm[2].matchAll(/'([^']+)'/g)].map((t) => t[1]),
+  }))
+  const previousKeys = exemptionKeys(prevEntries)
+  const currentKeys = exemptionKeys(EXEMPT_PAGES)
+  const added = currentKeys.filter((k) => !previousKeys.includes(k))
 
-  if (removed.length > 0) {
+  if (added.length > 0) {
     return {
       ok: false,
-      removed,
-      note: '保護清單違反棘輪：只能往上加、不能往下拿（理由見本檔案檔頭「棘輪機制」）。',
+      added,
+      note: '例外清單違反棘輪：只能往下減、不能往上加（理由見本檔案檔頭「例外清單棘輪」）。',
     }
   }
-  return { ok: true, note: `（棘輪檢查通過，上一版 ${previousPages.length} 筆全部還在）` }
+  return { ok: true, note: `（棘輪檢查通過，這一版 ${currentKeys.length} 筆例外全部是上一版 ${previousKeys.length} 筆的子集合）` }
 }
 
 // ---------------------------------------------------------------------------
@@ -282,16 +273,18 @@ function checkRatchet() {
 const baseUrlArg = process.argv.find((a) => a.startsWith('--base-url='))
 const baseUrl = (baseUrlArg ? baseUrlArg.slice('--base-url='.length) : 'http://127.0.0.1:3012').replace(/\/$/, '')
 
-console.log(`藍鯨品牌詞彙殘留檢查 —— 目標：${baseUrl}（共 ${routes.length} 條路由）`)
+console.log(`藍鯨品牌詞彙殘留檢查（全站，zh／en）—— 目標：${baseUrl}（共 ${routes.length} 條路由）`)
 console.log(`詞表：${FORBIDDEN_TERMS.join('、')}\n`)
 
 const ratchet = checkRatchet()
-console.log(`棘輪檢查：${ratchet.ok ? '✓' : '✗'} ${ratchet.note}`)
+console.log(`例外清單棘輪：${ratchet.ok ? '✓' : '✗'} ${ratchet.note}`)
 if (!ratchet.ok) {
-  console.error(`\n  被拿掉的頁面：${ratchet.removed.join('、')}\n`)
+  console.error(`\n  新增的例外：${ratchet.added.join('、')}\n`)
 }
 
-const results = []
+const failures = []
+const exempted = []
+let checkedCount = 0
 let fetchFailures = 0
 
 for (const route of routes) {
@@ -304,19 +297,27 @@ for (const route of routes) {
     console.error(`  ⚠️ 無法連線 ${url}：${err.message}（藍鯨站是不是還沒啟動？見 README「怎麼跑」）`)
     continue
   }
-  if (res.status === 404) continue // 單元關閉的頁面本來就該 404，見檔頭說明
-  if (res.status >= 300 && res.status < 400) continue // 轉址頁（例如 `/`），沒有自己的內容可掃
+  if (res.status === 404) continue // 單元關閉的頁面本來就該 404，見 units.ts
+  if (res.status >= 300 && res.status < 400) continue // 轉址頁，沒有自己的內容可掃
   if (!res.ok) {
     console.error(`  ⚠️ ${url} 回應 ${res.status}，不是預期的 200／404／30x，跳過`)
     continue
   }
+  checkedCount++
   const html = await res.text()
-  const hits = {}
+  const realHits = {}
+  const exemptHits = {}
   for (const term of FORBIDDEN_TERMS) {
     const count = html.split(term).length - 1
-    if (count > 0) hits[term] = count
+    if (count === 0) continue
+    if (findExemption(route, term)) {
+      exemptHits[term] = count
+    } else {
+      realHits[term] = count
+    }
   }
-  if (Object.keys(hits).length > 0) results.push({ route, hits })
+  if (Object.keys(realHits).length > 0) failures.push({ route, hits: realHits })
+  if (Object.keys(exemptHits).length > 0) exempted.push({ route, hits: exemptHits })
 }
 
 if (fetchFailures === routes.length) {
@@ -325,18 +326,18 @@ if (fetchFailures === routes.length) {
   process.exit(1)
 }
 
-const protectedFailures = results.filter((r) => PROTECTED_PAGES.includes(r.route))
-const progressOnly = results.filter((r) => !PROTECTED_PAGES.includes(r.route))
+console.log(`\n已檢查 ${checkedCount} 條路由（其餘為 30x／404，略過）。`)
 
-console.log(`\n進度計（不影響離開碼）：${progressOnly.length} 頁命中詞表，共 `
-  + `${progressOnly.reduce((s, r) => s + Object.values(r.hits).reduce((a, b) => a + b, 0), 0)} 次`)
-for (const r of progressOnly) {
-  console.log(`  - ${r.route}：${Object.entries(r.hits).map(([t, c]) => `${t}×${c}`).join('、')}`)
+if (exempted.length > 0) {
+  console.log(`\n例外清單命中（已知、有明文理由，不影響離開碼）：${exempted.length} 頁`)
+  for (const r of exempted) {
+    console.log(`  - ${r.route}：${Object.entries(r.hits).map(([t, c]) => `${t}×${c}`).join('、')}`)
+  }
 }
 
-if (protectedFailures.length > 0) {
-  console.error(`\n✗ 保護清單裡有 ${protectedFailures.length} 頁出現磐石專屬詞彙（這些頁面已宣告完工，不得再出現）：\n`)
-  for (const r of protectedFailures) {
+if (failures.length > 0) {
+  console.error(`\n✗ ${failures.length} 頁出現磐石專屬詞彙，且不在例外清單內：\n`)
+  for (const r of failures) {
     console.error(`  - ${r.route}：${Object.entries(r.hits).map(([t, c]) => `${t}×${c}`).join('、')}`)
   }
   console.error('')
@@ -345,4 +346,4 @@ if (protectedFailures.length > 0) {
 
 if (!ratchet.ok) process.exit(1)
 
-console.log(`\n✓ 保護清單（${PROTECTED_PAGES.length} 頁）全數乾淨，棘輪未被違反。`)
+console.log(`\n✓ 全站 ${checkedCount} 條路由（不含例外清單命中）皆無磐石專屬詞彙殘留，例外清單棘輪未被違反。`)

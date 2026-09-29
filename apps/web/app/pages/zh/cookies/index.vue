@@ -4,11 +4,13 @@
 definePageMeta({ nav: '', unit: 'G-07' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets().nameZh，理由同 privacy/index.vue。
+const clubNameZh = computed(() => getClubAssets(config.public.club).nameZh)
 
 useSeoMeta({
-  title: 'Cookie 政策 Cookie Policy｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部 Cookie 政策：說明本站使用的 Cookie 類型與管理方式。',
+  title: computed(() => `Cookie 政策 Cookie Policy｜${clubNameZh.value}`),
+  description: computed(() => `${clubNameZh.value} Cookie 政策：說明本站使用的 Cookie 類型與管理方式。`),
 })
 </script>
 
@@ -26,7 +28,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">Legal</p>
     <h1>Cookie 政策<span class="en">Cookie Policy</span></h1>
-    <p class="page-hero__lede">說明台中磐石足球俱樂部官方網站使用 Cookie 的方式，以及您可以如何管理相關偏好設定。</p>
+    <p class="page-hero__lede">說明{{ clubNameZh }}官方網站使用 Cookie 的方式，以及您可以如何管理相關偏好設定。</p>
   </div>
 </section>
 

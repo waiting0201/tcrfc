@@ -13,11 +13,16 @@
 definePageMeta({ nav: '', unit: '10.7' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()／getClubIdentity()。
+// 「加入學院」連結字面沿用磐石 04 單元舊詞，比照 join/index.vue 既有做法（S0-9n）
+// 改讀 identity.academyShortLabelZh，不新造文案。
+const clubAssets = computed(() => getClubAssets(config.public.club))
+const identity = computed(() => getClubIdentity(config.public.club))
 
 useSeoMeta({
-  title: '一般聯絡 General Contact｜加入與聯絡｜台中磐石足球俱樂部',
-  description:
-    '找不到適合的分類表單？透過一般聯絡表單留言，台中磐石足球俱樂部行政團隊會轉交給對應窗口處理。',
+  title: computed(() => `一般聯絡 General Contact｜加入與聯絡｜${clubAssets.value.nameZh}`),
+  description: computed(() => `找不到適合的分類表單？透過一般聯絡表單留言，${clubAssets.value.nameZh}行政團隊會轉交給對應窗口處理。`),
 })
 
 const SUBJECT_LABELS: Record<string, string> = {
@@ -119,7 +124,7 @@ async function onSubmit() {
         <div class="consent-block">
           <div class="checkbox-field">
             <input id="gc-consent" v-model="consent" type="checkbox" name="consent" required aria-describedby="gc-consent-error">
-            <label for="gc-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集之個人資料，用於處理本次聯絡事項。<span class="req" aria-hidden="true">*</span></label>
+            <label for="gc-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集之個人資料，用於處理本次聯絡事項。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="gc-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
           
@@ -149,7 +154,7 @@ async function onSubmit() {
           <h2>找特定窗口？</h2>
           <ul>
             <li><a :href="lp('/zh/join/player/')">加入球隊</a></li>
-            <li><a :href="lp('/zh/join/academy/')">加入學院</a></li>
+            <li><a :href="lp('/zh/join/academy/')">加入{{ identity.academyShortLabelZh }}</a></li>
             <li><a :href="lp('/zh/join/partnership/')">贊助洽詢</a></li>
             <li><a :href="lp('/zh/join/media/')">媒體詢問</a></li>
             <li><a :href="lp('/zh/join/')">查看全部七種表單</a></li>

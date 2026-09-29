@@ -16,9 +16,12 @@ const { data } = await useFetch(`/api/backend/${club}/news`, {
 })
 const articles = computed(() => data.value?.items ?? [])
 
+// BW-C1（品牌外洩全站盤點）：title／description 原本固定寫死「台中磐石足球俱樂部」，
+// 分類導覽改用共用元件 NewsCategoryTabs（原本手刻複製一份，含寫死的「7.3 學院新聞」，
+// 該元件本輪已改為依俱樂部動態組字，見 app/components/news/NewsCategoryTabs.vue）。
 useSeoMeta({
-  title: "球員故事 Player Stories｜新聞 News｜台中磐石足球俱樂部",
-  description: "台中磐石球員故事與人物專訪，內容尚待客戶提供，目前為空狀態頁面。",
+  title: computed(() => `球員故事 Player Stories｜新聞 News｜${getClubAssets(club).nameZh}`),
+  description: computed(() => `${getClubAssets(club).shortNameZh}球員故事與人物專訪，內容尚待客戶提供，目前為空狀態頁面。`),
 })
 </script>
 
@@ -47,16 +50,7 @@ useSeoMeta({
     <h2 class="visually-hidden" id="cat-news-title">球員故事 文章列表</h2>
 
     <div class="news-toolbar">
-      <nav class="cat-tabs" aria-label="新聞分類">
-  <a :href="lp('/zh/news/club/')">7.1 俱樂部新聞</a>
-  <a :href="lp('/zh/news/match/')">7.2 比賽報導</a>
-  <a :href="lp('/zh/news/academy/')">7.3 學院新聞</a>
-  <a :href="lp('/zh/news/player-stories/')" aria-current="page">7.4 球員故事</a>
-  <a :href="lp('/zh/news/international/')">7.5 國際動態</a>
-  <a :href="lp('/zh/news/camps-events/')">7.6 營隊與活動</a>
-  <a :href="lp('/zh/news/community/')">7.7 社區活動</a>
-  <a :href="lp('/zh/news/media/')">7.8 媒體專區</a>
-</nav>
+      <NewsCategoryTabs active="player-stories" />
     </div>
 
     <div v-if="articles.length > 0" class="news-list-grid">

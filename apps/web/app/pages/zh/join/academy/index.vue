@@ -15,19 +15,32 @@
 //   experience／health_status = 對應欄位原樣傳遞。
 // 🔴 S1-17 收尾修正（2026-09-29）：性別、居住地區、學員照片／健康聲明證明文件這幾個欄位在
 // 規格（§3.10「學員資料」）與後端都沒有對應鍵，原本畫面留著卻悄悄不送出，現已**從畫面移除**。
+//
+// 🔴 BW-C1（品牌外洩全站盤點）：本頁原本整頁固定磐石內容，且把「學院梯隊」「兒童訓練」
+// 「專項訓練」三種完全不同性質的報名合併成一份表單——這個合併結構本身只適用磐石：
+// 藍鯨青年隊梯隊代碼比磐石少一個（沒有 U14），且藍鯨的兒童訓練／專項訓練（05 單元 5.1／5.4）
+// 現況一律現場個人報名，不接這套站內線上流程（見 shared/utils/club-copy.ts
+// getProgramsHubEnrolNoteBw 檔頭說明）。故 bw 版簡化為只收「加入青年隊」單一報名項目
+// （青年隊各梯隊試訓申請），不提供兒童訓練／專項訓練選項，不得對藍鯨假裝這些課程也接受
+// 這份表單線上報名。
 definePageMeta({ nav: '', unit: '10.2' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const clubAssets = computed(() => getClubAssets(clubKey.value))
 
-// S1-12d 收尾：梯隊代碼與主場改讀 useSiteFacts('tcrfc')（後端公開端點）。
-const { academyLabel: tcrfcAcademyLabel, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+// S1-12d 收尾：梯隊代碼與主場改讀 useSiteFacts(clubKey)（後端公開端點，BW-C1 改為動態帶入）。
+const { academyLabel, primaryVenue } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: '加入學院／兒童訓練 Academy & Children\'s Training｜加入與聯絡｜台中磐石足球俱樂部',
-  description: computed(
-    () =>
-      `為孩子報名台中磐石足球學院 ${tcrfcAcademyLabel()} 梯隊，或兒童訓練與專項訓練各類課程。一份表單填寫學員與家長資料，學院部與課程部將盡快與家長聯繫。`,
-  ),
+  title: computed(() => (isTcrfc.value
+    ? '加入學院／兒童訓練 Academy & Children\'s Training｜加入與聯絡｜台中磐石足球俱樂部'
+    : `加入青年隊 Join Youth Team｜加入與聯絡｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isTcrfc.value
+    ? `為孩子報名台中磐石足球學院 ${academyLabel()} 梯隊，或兒童訓練與專項訓練各類課程。一份表單填寫學員與家長資料，學院部與課程部將盡快與家長聯繫。`
+    : `為孩子報名${clubAssets.value.shortNameZh}青年隊 ${academyLabel()} 試訓。一份表單填寫學員與家長資料，俱樂部將盡快與家長聯繫。`)),
 })
 
 const PROGRAM_LABELS: Record<string, string> = {
@@ -76,7 +89,7 @@ async function onSubmit() {
     enrollment_category: ENROLLMENT_CATEGORY_MAP[program.value] ?? '兒童混齡班',
     name: studentNameEn.value ? `${studentNameZh.value}（${studentNameEn.value}）` : studentNameZh.value,
     birth_date: studentDob.value,
-    location_preference: locationPreference.value === 'xitun' ? `${tcrfcVenue.value.nameZh}（主場）` : '尚無偏好，請協助安排',
+    location_preference: locationPreference.value === 'xitun' ? `${primaryVenue.value.nameZh}（主場）` : '尚無偏好，請協助安排',
     contact: [`${parentName.value}（${relationLabel}）`, parentPhone.value, parentEmail.value].filter(Boolean).join(' ／ '),
     experience: experienceWithProgram,
     health_status: healthNote.value,
@@ -91,7 +104,7 @@ async function onSubmit() {
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
       <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
-      <li aria-current="page">加入學院／兒童訓練</li>
+      <li aria-current="page">{{ isTcrfc ? '加入學院／兒童訓練' : '加入青年隊' }}</li>
     </ol>
   </div>
 </nav>
@@ -99,20 +112,24 @@ async function onSubmit() {
 <section class="page-hero">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">10.2</span>
   <div class="container">
-    <p class="page-hero__eyebrow">10.2 Academy &amp; Children's Training</p>
-    <h1>加入學院／兒童訓練<span class="en">Academy &amp; Children's Training</span></h1>
-    <p class="page-hero__lede">不論是申請加入台中磐石足球學院 U12／U14／U15 梯隊，或是報名兒童訓練與專項訓練的各類課程，都在這一份表單完成。請家長協助填寫以下資料，我們會依你選擇的報名項目轉交學院部或課程部，安排後續試訓與課程說明。</p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? "10.2 Academy & Children's Training" : '10.2 Join Youth Team' }}</p>
+    <h1 v-if="isTcrfc">加入學院／兒童訓練<span class="en">Academy &amp; Children's Training</span></h1>
+    <h1 v-else>加入青年隊<span class="en">Join Youth Team</span></h1>
+    <p v-if="isTcrfc" class="page-hero__lede">不論是申請加入台中磐石足球學院 U12／U14／U15 梯隊，或是報名兒童訓練與專項訓練的各類課程，都在這一份表單完成。請家長協助填寫以下資料，我們會依你選擇的報名項目轉交學院部或課程部，安排後續試訓與課程說明。</p>
+    <p v-else class="page-hero__lede">申請加入{{ clubAssets.shortNameZh }}青年隊 {{ academyLabel() }} 試訓，請家長協助填寫以下資料，我們會盡快安排後續試訓與說明。</p>
   </div>
 </section>
 
 <section class="band form-band" aria-labelledby="form-title">
   <div class="container">
-    <h2 class="visually-hidden" id="form-title">加入學院／兒童訓練報名表單</h2>
+    <h2 class="visually-hidden" id="form-title">{{ isTcrfc ? '加入學院／兒童訓練報名表單' : '加入青年隊報名表單' }}</h2>
     <div class="form-layout form-layout--split">
       <FormStatusBanner
         :status="status"
         :error-message="errorMessage"
-        success-message="已收到報名資料！系統已寄送自動回覆信到家長填寫的 Email，學院部或課程部會依報名項目盡快聯繫。"
+        :success-message="isTcrfc
+          ? '已收到報名資料！系統已寄送自動回覆信到家長填寫的 Email，學院部或課程部會依報名項目盡快聯繫。'
+          : '已收到報名資料！系統已寄送自動回覆信到家長填寫的 Email，俱樂部會盡快聯繫。'"
       />
       <form v-if="status !== 'success'" class="tcrfc-form" action="" method="post" @submit.prevent="onSubmit">
         <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
@@ -123,7 +140,7 @@ async function onSubmit() {
           <div class="form-grid">
             <div class="form-field form-field--full">
               <label for="a-program">想報名的項目<span class="req" aria-hidden="true">*</span></label>
-              <select id="a-program" v-model="program" name="program" required aria-describedby="a-program-error a-program-hint">
+              <select v-if="isTcrfc" id="a-program" v-model="program" name="program" required aria-describedby="a-program-error a-program-hint">
                 <option value="">請選擇</option>
                 <optgroup label="足球學院梯隊">
                   <option value="academy-u12">U12 梯隊</option>
@@ -145,14 +162,23 @@ async function onSubmit() {
                 </optgroup>
                 <option value="undecided">尚未確定，請協助建議</option>
               </select>
+              <!-- bw：只收青年隊各梯隊試訓申請，不提供兒童訓練／專項訓練選項（見本頁檔頭說明）。
+                   選項值沿用既有 academy-u15／academy-u12（ENROLLMENT_CATEGORY_MAP 既有對照），
+                   只是畫面上不再稱「學院」。 -->
+              <select v-else id="a-program" v-model="program" name="program" required aria-describedby="a-program-error a-program-hint">
+                <option value="">請選擇</option>
+                <option value="academy-u15">U15 青年隊</option>
+                <option value="academy-u12">U12 青年隊</option>
+              </select>
               <p class="field-error" id="a-program-error" role="alert">請選擇想報名的項目</p>
-              <p class="field-hint" id="a-program-hint">學院梯隊為長期培訓編制，需經試訓；兒童訓練與專項訓練為分級課程，依梯次開課。不確定適合哪一種，選「尚未確定」即可，我們會依學員年齡與程度建議。</p>
+              <p v-if="isTcrfc" class="field-hint" id="a-program-hint">學院梯隊為長期培訓編制，需經試訓；兒童訓練與專項訓練為分級課程，依梯次開課。不確定適合哪一種，選「尚未確定」即可，我們會依學員年齡與程度建議。</p>
+              <p v-else id="a-program-hint" class="field-hint">青年隊為長期培訓編制，需經試訓。兒童訓練與專項訓練請見<a :href="lp('/zh/programs/')">推廣活動</a>單元，現場個人報名。</p>
             </div>
             <div class="form-field">
               <label for="a-location">偏好受訓地點</label>
               <select id="a-location" v-model="locationPreference" name="location_preference">
                 <option value="">尚無偏好，請協助安排</option>
-                <option value="xitun">{{ tcrfcVenue.nameZh }}（主場）</option>
+                <option value="xitun">{{ primaryVenue.nameZh }}（主場）</option>
               </select>
               <p class="field-hint">如需查詢其他受訓地點，請見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
             </div>
@@ -224,7 +250,7 @@ async function onSubmit() {
         <div class="consent-block">
           <div class="checkbox-field">
             <input id="a-consent" v-model="consent" type="checkbox" name="consent" required aria-describedby="a-consent-error">
-            <label for="a-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意台中磐石足球俱樂部依本表單蒐集學員與家長之個人資料，用於處理本次報名之聯繫、試訓與課程安排。<span class="req" aria-hidden="true">*</span></label>
+            <label for="a-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集學員與家長之個人資料，用於處理本次報名之聯繫、試訓與課程安排。<span class="req" aria-hidden="true">*</span></label>
           </div>
           <p class="field-error" id="a-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
 
@@ -239,7 +265,8 @@ async function onSubmit() {
         <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">送出報名</button>
 
         <div class="form-submit-note">
-          <p><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；報名學院梯隊由學院部窗口接手安排試訓與說明會，報名兒童訓練或專項訓練則由課程部窗口聯繫確認開課時段。</p>
+          <p v-if="isTcrfc"><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；報名學院梯隊由學院部窗口接手安排試訓與說明會，報名兒童訓練或專項訓練則由課程部窗口聯繫確認開課時段。</p>
+          <p v-else><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；俱樂部會另外收到通知信，安排後續試訓與說明。</p>
         </div>
       </form>
 
@@ -247,17 +274,20 @@ async function onSubmit() {
         <div class="form-sidebar__sticky">
         <div class="form-sidebar__card">
           <p class="form-sidebar__dept">收件單位</p>
-          <h2>學院部／課程部</h2>
-          <p class="field-hint">依表單中選擇的報名項目轉交對應單位。</p>
+          <h2>{{ isTcrfc ? '學院部／課程部' : clubAssets.shortNameZh }}</h2>
+          <p v-if="isTcrfc" class="field-hint">依表單中選擇的報名項目轉交對應單位。</p>
         </div>
         <div class="form-sidebar__card">
           <h2>報名項目</h2>
-          <ul>
+          <ul v-if="isTcrfc">
             <li>足球學院：U12／U14／U15 梯隊</li>
             <li>兒童訓練：混齡班／初學班／技巧發展班</li>
             <li>專項訓練：守門員／前鋒／後衛／中場／體能與速度／高階訓練</li>
           </ul>
-          <p class="field-hint">不確定適合哪一項也沒關係，可選擇「尚未確定」，我們會依學員年齡與程度建議。</p>
+          <ul v-else>
+            <li>青年隊：{{ academyLabel() }} 試訓申請</li>
+          </ul>
+          <p v-if="isTcrfc" class="field-hint">不確定適合哪一項也沒關係，可選擇「尚未確定」，我們會依學員年齡與程度建議。</p>
         </div>
         </div>
       </aside>

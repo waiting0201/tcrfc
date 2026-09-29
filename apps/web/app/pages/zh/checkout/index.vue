@@ -4,11 +4,19 @@
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+// BW-C1（品牌外洩全站盤點）：title／description 改讀既有的 getClubAssets()。
+// ⚠️ 本頁下方「發票抬頭」「收款方」兩處固定寫死「台中磐石足球俱樂部」不在此次修改
+// 範圍——藍鯨規劃書 §1.3 明文「本站不另設 LINE Pay 商店號、不使用獨立發票字軌，
+// 一律沿用主站的單一金流設定」，且主站規劃書 §1.3「前台必須明示收款方」要求結帳頁
+// 必須說清楚收款方與發票抬頭是台中磐石足球俱樂部——這兩處固定寫「台中磐石」是
+// 規格要求的真實揭露，不是品牌外洩，已列入 check-club-brand-leak.mjs 的例外清單並
+// 附此依據，不得誤刪。
+const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: '結帳 Checkout｜官方商店｜台中磐石足球俱樂部',
-  description:
-    '台中磐石官方商店結帳：填寫收件資料、選擇配送方式與發票開立方式，確認後以 LINE Pay 完成付款。支援非會員結帳。',
+  title: computed(() => `結帳 Checkout｜官方商店｜${clubAssets.value.nameZh}`),
+  description: computed(() => `${clubAssets.value.shortNameZh}官方商店結帳：填寫收件資料、選擇配送方式與發票開立方式，確認後以 LINE Pay 完成付款。支援非會員結帳。`),
 })
 </script>
 

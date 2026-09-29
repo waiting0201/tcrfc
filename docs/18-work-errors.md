@@ -91,6 +91,8 @@
 | E-70 | 2026-09-29 | S1-17 主輪交付表單中心時，把「mockup 欄位遠多於後端 `form_fields` 定義」的落差處理成「畫面留著、悄悄不送出」，而不是把多餘欄位從畫面移除——使用者填了看得到，卻不知道不會被收到，違反「個資只收必要的」；同一輪 `camp_registration.health_declaration`（後端是 consent 布林型別）又把使用者填的健康聲明自由文字塞進不相關的 `contact`（緊急聯絡人）欄位，同樣是「畫面呈現與實際送出行為不一致」 | ✅ 收尾修正已改：7 張表單逐一清點移除多餘欄位（含全部檔案上傳 fieldset），`health_declaration` 改成語意對應的勾選框；⚠️ 無自動化檢查能抓「畫面欄位是否等於送出欄位」這件事，下次新增或接後端表單時，欄位對應表要先核對規格＋後端定義的交集，再決定畫面要顯示哪些欄位，不要先照抄 mockup 全部欄位再回頭篩選 |
 | E-71 | 2026-09-29 | 前台表單代理以 `X-Forwarded-For` 的第一個值當訪客 IP 轉給 api；Cloudflare 會保留訪客自送的 XFF、Caddy 對已信任上游是附加，第一個值可被偽造，表單限流可被繞過 | ✅ 改讀 Caddy `header_up X-Real-IP {client_ip}`，見條目 |
 | E-72 | 2026-09-29 | S1-15 建了 13 賽事行事曆（`app/pages/zh/schedule.vue`）卻沒有把它補進 `shared/utils/site-units.ts` 的 `SITE_UNITS`，導致 `sitemap.xml`／`llms.txt`（兩者共用 `getEnabledSiteUnits`）從建成那天起就漏收這個單元；S1-18 本輪核對 12 FAQ 該補進同一份清單時才連帶發現。**S1-18b 複查時再連帶發現第二筆同類缺漏**：10 加入與聯絡（S1-17 建置完成）同樣沒有補進 `SITE_UNITS` | ✅ **S1-18b（2026-09-29）已補齊 `10`／`13` 兩筆並實機驗證兩容器 `sitemap.xml`／`llms.txt` 皆收錄**；✅ **防呆已自動化**：`apps/web/scripts/check-site-units-coverage.mjs`（掛進 `npm run lint` 的 `lint:site-units-coverage`）掃描 `app/pages/zh/` 全部 `definePageMeta({ unit: 'XX' })`，取頂層代碼比對 `SITE_UNITS` 或腳本內 `EXCLUDED_TOP_LEVEL_UNITS` 排除清單，兩者都沒有就讓 `lint` 失敗——已用「暫時拿掉 `SITE_UNITS` 的 `'13'`」實測紅燈、改回綠燈 |
+| E-77 | 2026-09-29 | BW-C1 品牌外洩全站盤點改寫 `check-club-brand-leak.mjs` 詞表時，第一版把裸網域 `tcrfc.tw` 列進詞表，實測發現藍鯨站**每一頁**（含完全乾淨的頁面）都命中一次——根因是 `nuxt.config.ts` 的 `blueWhaleSiteUrl: 'https://bw-stg.tcrfc.tw'` 這個 runtime config 預設值會被序列化進**每一頁**的 hydration payload，而這個網址本身是藍鯨自己的 staging 網域（兩站共用上層網域），不是磐石網域外洩，裸字串對這個問題完全沒有鑑別力 | ✅ 改用含 `www.` 前綴的 `www.tcrfc.tw`（磐石舊站實際寫法），`bw-stg.tcrfc.tw` 沒有 `www.` 前綴不受影響；下次要在詞表裡放「網域」這種候選詞前，先假設它會撞到 runtime config 或環境變數的預設值，全站每頁跑一次再看命中是否有鑑別力，不要只看命中頁面本身像不像真的問題 |
+| E-78 | 2026-09-29 | BW-C1 把 `shop/home-jersey-2026/index.vue` 商品詳情整段內容（含唯一的 `<h1>`）用 `v-if="isTcrfc"` 隱藏、bw 版只留一段 `<p>` 空狀態文字，沒有另外補 `<h1>`——`check-heading-structure.mjs` 實測跑 bw 容器時抓到「沒有 H1」，是本輪才發現的新迴歸，不是既有缺口 | ✅ 已在 bw 空狀態分支補上對應的 `<h1>`；下次把整段內容（含標題層級）用 `v-if`/`v-else` 拆成兩個分支時，兩個分支都要自己滿足「恰好一個 H1」，不能預設「反正原本有 H1，藏起來的那半邊不用管」——`check-heading-structure.mjs` 就是為了抓這一類回歸而存在，改完content gating 一定要實測兩個 club 容器都跑一次，不能只跑改動的那一邊 |
 
 ---
 
@@ -1965,3 +1967,45 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
      關閉會直接讓 `lint` 失敗，不是靠自覺遵守。
   3. `apps/web/scripts/check-club-brand-leak.mjs` 的 `PROTECTED_PAGES` 已納入本輪
      重開的 9 個單元對應頁面，含 `/en/` 版本，已用本機 bw 容器實測 0 筆命中。
+
+### E-77 品牌外洩詞表誤放裸網域，藍鯨每一頁都誤判命中（2026-09-29，BW-C1）
+
+- **錯在哪**：改寫 `check-club-brand-leak.mjs` 為全站涵蓋時，詞表第一版放了裸網域
+  `tcrfc.tw`（意圖抓磐石正式網域字面值），本機起 bw 容器實測後發現**全站 148 條
+  路由裡命中 148 次**，連 `academy/coaches/` 這種完全乾淨、S1-15 已實測 0 命中過的
+  頁面也命中。
+- **為什麼會錯（根因）**：命中的不是頁面內文，是每一頁 Nuxt hydration payload 裡都
+  會序列化的 `runtimeConfig.public.blueWhaleSiteUrl`（`nuxt.config.ts` 預設值
+  `'https://bw-stg.tcrfc.tw'`，主站 06 單元外連藍鯨官網用的既有欄位，見 S1-12d 收尾
+  第二輪）。這個網址本身是**藍鯨自己的 staging 網域**，兩站現況共用上層網域
+  `tcrfc.tw` 直到藍鯨正式網域到位——選詞表候選詞前只看「這個詞聽起來像磐石專屬」，
+  沒有先假設它可能撞到 runtime config 或環境變數的預設值並在全站跑一次確認鑑別力。
+- **下次怎麼避免**：新增詞表候選詞（尤其是網域、URL 片段這類容易被基礎設施層級
+  重複使用的字串）前，先在本機兩個 club 容器上各跑一次全站掃描，確認：①乾淨頁面
+  真的 0 命中，②候選詞命中的頁面確實對應「這裡真的印出了不該印的東西」，不是
+  「這個字串剛好也出現在某個共用設定值裡」。
+- **防呆**：✅ 已改用含 `www.` 前綴的 `www.tcrfc.tw`（磐石舊站商店過渡期文案的實際
+  寫法），`bw-stg.tcrfc.tw` 沒有 `www.` 前綴不受影響；腳本檔頭「詞表怎麼挑」一節
+  已記錄這次實測結果與排除理由，供下次選詞表候選詞時參考。⚠️ 沒有自動化機制擋
+  「新詞表候選詞撞到 runtime config 預設值」這一類問題本身，靠的是「先全站跑一次
+  再定案」這個工作習慣。
+
+### E-78 內容分支拿掉唯一的 H1、沒有幫另一半分支補上（2026-09-29，BW-C1）
+
+- **錯在哪**：`shop/home-jersey-2026/index.vue` 商品詳情原本整段內容（含商品名稱
+  `<h1>`）都在同一個區塊；BW-C1 把整段內容用 `v-if="isTcrfc"` 隱藏、藍鯨版改顯示
+  一段「本商品尚未於官方商店上架」的空狀態文字，但這段空狀態文字只用 `<p>`，
+  沒有另外補一個 `<h1>`——`check-heading-structure.mjs` 實測跑 bw 容器時抓到
+  `/zh/shop/home-jersey-2026/`／`/en/shop/home-jersey-2026/` 兩條路由「沒有 H1」。
+- **為什麼會錯（根因）**：把「整段內容」用 `v-if`／`v-else` 拆成兩個分支時，
+  預設心態是「反正原本有 H1，藏起來的那半邊等於沒有這個問題」——沒有意識到
+  `v-else` 分支是一個全新的、必須自己滿足「恰好一個 H1」這個結構性要求的畫面，
+  不是「舊畫面的殘影」。
+- **下次怎麼避免**：用 `v-if`/`v-else`（或 `<template>` 包整段）拆分「有內容」與
+  「空狀態」兩種畫面時，兩個分支都要自己檢查一次 GEO-07 三項要求（H1 唯一、
+  標題不跳階、有首段摘要），不能只檢查改動的那一邊；改完一律用兩個 club 容器
+  各跑一次 `check-heading-structure.mjs`，不能只跑看起來有改動的那一邊容器
+  （這次剛好是 bw 出問題，tcrfc 沒事，如果只跑 tcrfc 不會發現）。
+- **防呆**：✅ 已補上 bw 分支的 `<h1>`；`check-heading-structure.mjs` 本身就是這類
+  回歸的防呆機制（已存在，本次是使用紀律問題，不是機制缺口）——**下次收尾一律
+  兩個 club 容器都跑過標題結構檢查才算完工**，不是只跑改動意圖所在的那個容器。

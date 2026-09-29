@@ -1,15 +1,40 @@
 <script setup lang="ts">
 // app/pages/zh/programs/index.vue — 由 site/src/pages/zh/programs/index.html 轉來
-// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+// 🔴 tcrfc 版 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；
+// {{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+//
+// BW-C1（品牌外洩全站盤點）：本頁原本整頁固定磐石內容（單元名稱、五張導覽卡描述、
+// 照片、六步驟線上報名流程、底部 CTA 全部沒有俱樂部分支）。藍鯨規劃書 §2.1：05
+// 單元名稱是「PROGRAMS 推廣活動」，不是磐石的「課程與活動」；§3.5（行 201）「05
+// 沿用主站 05 的活動版型；是否開放線上報名與收費，待確認」——藍鯨 5.1–5.4 各頁
+// 現況一律現場個人報名，不接站內線上報名／金流流程，故「線上報名流程」六步驟區塊
+// 對藍鯨隱藏，改顯示如實的報名說明（getProgramsHubEnrolNoteBw()）。五張導覽卡描述
+// 與底部 CTA 改讀 club-copy.ts 的 getProgramsHubCards()／getProgramsHubCtaCards()，
+// 沒有藍鯨自己照片的卡片改用既有的漸層佔位，不挪用磐石照片。
 definePageMeta({ nav: 'programs', unit: '05' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: '課程與活動 Programs｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部課程與活動總覽：兒童足球訓練、夏令營、冬令營、專項訓練、校園與社區計畫。所有梯次含地點、時間、名額與費用資訊，線上報名。',
+  title: computed(() => getProgramsHubSeo(clubKey.value).title),
+  description: computed(() => getProgramsHubSeo(clubKey.value).description),
 })
+const hero = computed(() => getProgramsHubHero(clubKey.value))
+const intro = computed(() => getProgramsHubIntro(clubKey.value))
+const cards = computed(() => getProgramsHubCards(clubKey.value))
+const enrolNoteBw = getProgramsHubEnrolNoteBw()
+const ctaCards = computed(() => getProgramsHubCtaCards(clubKey.value))
+
+/** 導覽卡照片路徑——只有 tcrfc 既有卡片沿用原圖，藍鯨版一律 `hasPhoto: false`
+ * （見 getProgramsHubCards 檔頭說明），不需要另外維護一份藍鯨照片路徑對照表。 */
+const CARD_PHOTOS: Record<string, string> = {
+  '5.1': '/assets/img/programs/childrens-03.jpg',
+  '5.2': '/assets/img/programs/summer-camp-05.jpg',
+  '5.4': '/assets/img/programs/specialist-06.jpg',
+}
 </script>
 
 <template>
@@ -17,24 +42,25 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">課程與活動</li>
+      <li aria-current="page">{{ isTcrfc ? '課程與活動' : '推廣活動' }}</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/nav-programs.jpg" alt="" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/nav-programs.jpg" alt="" width="1600" height="900">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
-    <p class="page-hero__eyebrow">05 Programs</p>
-    <h1>課程與活動<span class="en">Programs</span></h1>
-    <p class="page-hero__lede">從兒童足球訓練、夏／冬令營、專項訓練，到校園與社區合作計畫——台中磐石以「課程項目」的方式經營每一種與球的相遇，每個梯次都清楚標示地點、時間、名額與費用。</p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '05 Programs' : '05' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
 <section class="band unit-intro">
   <div class="container">
     <div class="prose">
-      <p>台中磐石足球俱樂部的課程與活動皆採<strong>梯次（Session）</strong>方式管理：每個課程項目具備明確的分級或分類、訓練地點、時間安排、名額上限與費用資訊，並提供線上報名。以下五個單元分別對應不同年齡與需求的學員，點選卡片查看各單元詳情。</p>
+      <p>{{ intro }}</p>
     </div>
   </div>
 </section>
@@ -42,70 +68,17 @@ useSeoMeta({
 <section class="band">
   <div class="container">
     <div class="card-nav-grid">
-      <a class="nav-card clip-card" :href="lp('/zh/programs/childrens-training/')">
-        <div class="nav-card__media">
-          <img src="/assets/img/programs/childrens-03.jpg" alt="" loading="lazy" width="1600" height="1067">
+      <a v-for="c in cards" :key="c.num" class="nav-card clip-card" :href="lp(c.href)">
+        <div v-if="c.hasPhoto" class="nav-card__media">
+          <img :src="CARD_PHOTOS[c.num]" alt="" loading="lazy" width="1600" height="1067">
         </div>
-        <div class="nav-card__body">
-          <p class="nav-card__num">5.1</p>
-          <p class="nav-card__title">兒童足球訓練<span class="en">Children's Training</span></p>
-          <p class="nav-card__desc">分級（混齡／初學／技巧發展）、訓練地點地圖、週期課表、線上報名。</p>
-          <span class="nav-card__link">查看詳情
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-          </span>
-        </div>
-      </a>
-
-      <a class="nav-card clip-card" :href="lp('/zh/programs/summer-camp/')">
-        <div class="nav-card__media">
-          <img src="/assets/img/programs/summer-camp-05.jpg" alt="" loading="lazy" width="1600" height="1200">
-        </div>
-        <div class="nav-card__body">
-          <p class="nav-card__num">5.2</p>
-          <p class="nav-card__title">夏令營<span class="en">Summer Camp</span></p>
-          <p class="nav-card__desc">適合對象、課程內容、教練團、合作夥伴、日期地點與報名資訊。</p>
-          <span class="nav-card__link">查看詳情
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-          </span>
-        </div>
-      </a>
-
-      <a class="nav-card clip-card" :href="lp('/zh/programs/winter-camp/')">
-        <div class="nav-card__media nav-card__media--empty" aria-hidden="true">
+        <div v-else class="nav-card__media nav-card__media--empty" aria-hidden="true">
           <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M2 12h20M4.9 4.9l14.2 14.2M19.1 4.9L4.9 19.1"/></svg>
         </div>
         <div class="nav-card__body">
-          <p class="nav-card__num">5.3</p>
-          <p class="nav-card__title">冬令營<span class="en">Winter Camp</span></p>
-          <p class="nav-card__desc">與夏令營共用版型與資料模型，梯次資訊將於開放報名前公告。</p>
-          <span class="nav-card__link">查看詳情
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-          </span>
-        </div>
-      </a>
-
-      <a class="nav-card clip-card" :href="lp('/zh/programs/specialist/')">
-        <div class="nav-card__media">
-          <img src="/assets/img/programs/specialist-06.jpg" alt="" loading="lazy" width="1600" height="1067">
-        </div>
-        <div class="nav-card__body">
-          <p class="nav-card__num">5.4</p>
-          <p class="nav-card__title">專項訓練<span class="en">Specialist Training</span></p>
-          <p class="nav-card__desc">守門員／前鋒／後衛／中場／體能與速度／高階訓練，六大專項課程。</p>
-          <span class="nav-card__link">查看詳情
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
-          </span>
-        </div>
-      </a>
-
-      <a class="nav-card clip-card" :href="lp('/zh/programs/school-community/')">
-        <div class="nav-card__media nav-card__media--empty" aria-hidden="true">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 21h18M5 21V9l7-5 7 5v12M9 21v-6h6v6"/></svg>
-        </div>
-        <div class="nav-card__body">
-          <p class="nav-card__num">5.5</p>
-          <p class="nav-card__title">校園與社區<span class="en">School &amp; Community</span></p>
-          <p class="nav-card__desc">校園合作方案、社區計畫、教練培訓、合作學校列表與洽談表單。</p>
+          <p class="nav-card__num">{{ c.num }}</p>
+          <p class="nav-card__title">{{ c.titleZh }}<span class="en">{{ c.titleEn }}</span></p>
+          <p class="nav-card__desc">{{ c.descZh }}</p>
           <span class="nav-card__link">查看詳情
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </span>
@@ -115,26 +88,34 @@ useSeoMeta({
   </div>
 </section>
 
-<!-- 報名流程：介面結構視覺，非客戶內容 -->
-<section class="band grain" aria-labelledby="enroll-flow-title">
+<!-- 報名流程：tcrfc 為介面結構視覺（非客戶內容）；藍鯨不接這套站內線上流程，
+     改顯示如實的現場報名說明，見本頁檔頭說明。 -->
+<section v-if="isTcrfc" class="band grain" aria-labelledby="enroll-flow-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">05</span>
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">HOW TO ENROL</p>
-        <h2 class="section-title" id="enroll-flow-title">線上報名流程</h2>
+        <h2 id="enroll-flow-title" class="section-title">線上報名流程</h2>
       </div>
     </div>
     <p class="section-lede">所有課程與營隊皆透過同一套線上流程報名，站內不接受金流付款。</p>
 
     <ol class="flow-steps">
-      <li><h3>選課程</h3><p>依年齡與需求選擇 5.1–5.5 課程項目</p></li>
-      <li><h3>選梯次</h3><p>選擇開放報名中的時段、地點與梯次</p></li>
-      <li><h3>學員資料</h3><p>填寫學員基本資料，可一次登記多名</p></li>
-      <li><h3>家長／緊急聯絡人</h3><p>留下家長或緊急聯絡人資訊</p></li>
-      <li><h3>健康聲明</h3><p>確認健康狀況並同意相關條款</p></li>
-      <li><h3>送出</h3><p>產生報名編號，Email／簡訊通知，視梯次提供匯款資訊</p></li>
+      <li v-for="(step, i) in ENROL_FLOW_STEPS_TCRFC" :key="i"><h3>{{ step.titleZh }}</h3><p>{{ step.descZh }}</p></li>
     </ol>
+  </div>
+</section>
+<section v-else class="band grain" aria-labelledby="enroll-flow-title">
+  <span class="ghost-num ghost-num--dark" aria-hidden="true">05</span>
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker kicker--on-dark">HOW TO JOIN</p>
+        <h2 id="enroll-flow-title" class="section-title">如何報名</h2>
+      </div>
+    </div>
+    <p class="section-lede">{{ enrolNoteBw }}</p>
   </div>
 </section>
 
@@ -144,27 +125,15 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">GET STARTED</p>
-        <h2 class="section-title" id="programs-cta-title">準備好開始了嗎？</h2>
+        <h2 id="programs-cta-title" class="section-title">準備好開始了嗎？</h2>
       </div>
     </div>
     <div class="cta-grid">
-      <div class="cta-card clip-card clip-card--on-dark">
-        <p class="cta-card__num">兒童與青少年</p>
-        <p class="cta-card__title">兒童足球訓練</p>
-        <p class="cta-card__desc">分齡分級，從混齡體驗到技巧發展。</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/programs/childrens-training/')">立即了解</a>
-      </div>
-      <div class="cta-card clip-card clip-card--on-dark">
-        <p class="cta-card__num">學校與機構</p>
-        <p class="cta-card__title">校園與社區合作</p>
-        <p class="cta-card__desc">洽談校園方案、社區計畫與教練培訓。</p>
-        <a class="btn btn--light btn--sm" :href="lp('/zh/programs/school-community/')">前往洽談</a>
-      </div>
-      <div class="cta-card clip-card clip-card--on-dark">
-        <p class="cta-card__num">其他問題</p>
-        <p class="cta-card__title">聯絡台中磐石</p>
-        <p class="cta-card__desc">課程相關問題歡迎直接與我們聯繫。</p>
-        <a class="btn btn--primary btn--sm" :href="lp('/zh/join/general/')">聯絡我們</a>
+      <div v-for="c in ctaCards" :key="c.titleZh" class="cta-card clip-card clip-card--on-dark">
+        <p class="cta-card__num">{{ c.num }}</p>
+        <p class="cta-card__title">{{ c.titleZh }}</p>
+        <p class="cta-card__desc">{{ c.descZh }}</p>
+        <a class="btn btn--light btn--sm" :href="lp(c.href)">{{ c.ctaLabelZh }}</a>
       </div>
     </div>
   </div>
@@ -172,6 +141,9 @@ useSeoMeta({
 </template>
 
 <style>
+/* 藍鯨無對應照片時的頁首佔位漸層（沿用 academy/pathway.vue 等既有樣式） */
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+
 /* PROGRAMS 單元共用元件（landing + 5.1–5.5 共用；三頁以上重複使用，建議收進 tcrfc.css） */
 .unit-intro{ padding-block:clamp(3rem,6vw,4.5rem); }
 
