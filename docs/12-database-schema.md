@@ -246,7 +246,7 @@ Article                          article_i18n
 
 | 規劃書欄位 | 本檔落點 |
 |---|---|
-| `Match.opponent_en`、`venue_en`（v2.5 新增，行 1251） | `match_i18n(match_id, locale, opponent, venue)`。**對手與場地是自由文字不是實體**，仍照側表走 |
+| `Match.opponent_en`、`venue_en`（v2.5 新增，行 1251） | `match_i18n(match_id, locale, opponent, venue)`。**對手是自由文字不是實體**，仍照側表走。⚠️ **場地不只是自由文字**——`matches` 另有 `venue_id`（`db/club-schema.sql` `FK_matches_venue`，指向既有 `venues` 共用主檔，`db/club-schema.sql` 初版即有，本表格原描述遺漏這一欄，2026-09-29 於 `S1-12d` 後續補完盤點時發現並更正）；`venue`／`venue_en` 側表欄位與 `venue_id` 刻意並存，前者是顯示用文字（可覆寫、可留空，適用清單裡沒有的客場場地），後者是選填的結構化場地參照，兩者不是互斥設計，見 `apps/admin/README.md`「I：網站設定與 C4 賽程賽果——場地清單串接」節 |
 | K5 各欄「中／英」（行 1287） | `member_draw_i18n(name, prize_description, rules, notes)` |
 | `MembershipBenefit`「須 zh／en 雙欄位、不得做成圖片」（行 673） | `membership_benefit_i18n(group_label, free_value, paid_value)` |
 | `Partner`／`Sponsor`「名稱（中／英）」（行 1259–1260） | `partner_i18n`、`sponsor_i18n` |

@@ -5,15 +5,25 @@
  * （`SeoSettingsView.vue`）與 H5「AI 爬蟲授權」（`AiCrawlerView.vue`）既有寫法：
  * 單筆載入／整份取代／`useUnsavedChanges` 攔離開。
  *
- * 承載成立年份與日期、首季頭銜、所屬聯賽、梯隊組成、主場場地、聯絡方式——全站只有這一處維護，
- * 網站頁面與提供給搜尋引擎／AI 服務的摘要資料都讀同一份值，不會兩邊各寫一次而對不起來。
+ * 承載成立年份與日期、首季頭銜、所屬聯賽、梯隊組成、主場場地、聯絡方式、**台中藍鯨官網網址**——
+ * 全站只有這一處維護，網站頁面與提供給搜尋引擎／AI 服務的摘要資料都讀同一份值，不會兩邊各寫
+ * 一次而對不起來。
  *
- * 🔴 **主場場地是「編輯既有＋新增」，不是「從全站場地清單挑選」**：後端目前沒有任何「列出全部
- * 場地」的後台端點（`apps/admin/src/views/teams/MatchEditView.vue` 檔頭已經記過同一個缺口——
- * 場地目前只有自由文字欄位，因為沒有清單就做不出有意義的選單）。這裡送出的「主場」清單本身
- * 就是這個俱樂部唯一承認的主場場地（`homeVenues`，比照 `AdminSiteFactsDto` 檔頭「整份取代
- * 語意」），從清單移除不會刪除場地本身；新增一筆＝直接建立一筆新的場地資料，不是挑選既有
- * 場地。已在下方「規格疑點」回報，不是本輪自行擴權新增列表端點。
+ * 🔵 **主場場地改為「從既有場地挑選並排序」為主，保留「建立新場地」為輔**（S1-12d 後續補完，
+ * 2026-09-29，`GET /api/v1/admin/{club}/venues` 上線後）：
+ * - 主要動線是上方「選擇既有場地加入」下拉選單（讀全站場地清單，排除已在清單內的），選了就以
+ *   該筆既有 `Venue` 的 `id` 加入 `homeVenues`，不會另外建立一筆重複資料。
+ * - **保留**「建立新場地資料」的能力（清單裡確實還沒有這座場地時使用）——後端 PUT 省略 `id`
+ *   即新增一筆（`AdminSiteFactsRepository.UpsertHomeVenuesAsync`），這是目前**唯一**的場地建檔
+ *   管道（`Features/AdminVenues` 明文只做唯讀清單，不做新增／刪除）,拿掉這個能力會讓「清單裡
+ *   還沒有的場地」完全無法登記。為避免與既有場地重名重複建檔，新建列的名稱若與既有場地名稱
+ *   （去頭尾空白、不分大小寫比對）重複，前端顯示提示（不擋存檔，後端也沒有唯一性限制）。
+ * - 🔴 **帶 `id` 的既有列名稱／地址欄位刻意維持可編輯**（沒有改成唯讀）：後端邏輯是「`id` 有值＝
+ *   更新既有 `Venue` 列」，也就是說編輯這裡的欄位會**寫回共用場地主檔本身**，可能影響其他俱樂部
+ *   或賽事對同一筆場地的引用——但目前系統唯一能修正既有場地資料的入口就是這裡（沒有獨立的場地
+ *   管理畫面），拿掉可編輯能力會讓「既有場地地址打錯字」永遠無法修正。因此選擇保留可編輯、
+ *   在每一列加上提示文案說明「修改會同步套用到所有引用這座場地的資料」，讓管理員知情後再改，
+ *   不是靜默寫穿。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
@@ -24,9 +34,13 @@ import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { getAdminSiteFacts, updateAdminSiteFacts, type AdminSiteFactsDto } from '@/api/adminSiteFacts'
+import { listAdminVenues, type AdminVenueListItemDto } from '@/api/adminVenues'
 import { AdminApiError } from '@/api/http'
 
 const club = computed(() => activeClubId.value)
+// 台中藍鯨官網網址概念上只屬於台中磐石（主站規劃書 §3.6「06 女子足球」入口頁），藍鯨官網本身
+// 沒有 06 單元，因此只在 tcrfc 顯示這個欄位（見 `AdminSiteFactsDto.BlueWhaleSiteUrl` 檔頭）。
+const showBlueWhaleField = computed(() => club.value === 'tcrfc')
 
 interface SiteFactsForm {
   foundedYear: string
@@ -44,6 +58,7 @@ interface SiteFactsForm {
   contactPhone: string
   contactHoursZh: string
   contactHoursEn: string
+  blueWhaleSiteUrl: string
 }
 
 interface SquadCodeRow {
@@ -74,6 +89,7 @@ function emptyForm(): SiteFactsForm {
     contactPhone: '',
     contactHoursZh: '',
     contactHoursEn: '',
+    blueWhaleSiteUrl: '',
   }
 }
 
@@ -83,6 +99,14 @@ const form = reactive<SiteFactsForm>(emptyForm())
 const squadCodes = reactive<SquadCodeRow[]>([])
 const homeVenues = reactive<HomeVenueRow[]>([])
 const baselineJson = ref('')
+
+// 全站場地清單（S1-12d 後續補完新增的唯讀端點），供「選擇既有場地加入」下拉選單與新建列的
+// 重名提示使用。與俱樂部無關，切換站台切換器不需要重新載入。
+const allVenues = ref<AdminVenueListItemDto[]>([])
+const venuePickerId = ref<string | null>(null)
+const availableVenueOptions = computed(() =>
+  allVenues.value.filter((v) => !homeVenues.some((hv) => hv.id === v.id)),
+)
 
 const saving = ref(false)
 const formError = ref<string | null>(null)
@@ -107,6 +131,7 @@ function applyLoaded(dto: AdminSiteFactsDto) {
   form.contactPhone = dto.contactPhone ?? ''
   form.contactHoursZh = dto.contactHoursZh ?? ''
   form.contactHoursEn = dto.contactHoursEn ?? ''
+  form.blueWhaleSiteUrl = dto.blueWhaleSiteUrl ?? ''
 
   squadCodes.splice(0, squadCodes.length, ...dto.squadCodes.map((c) => ({ value: c })))
   homeVenues.splice(
@@ -123,10 +148,20 @@ function applyLoaded(dto: AdminSiteFactsDto) {
   baselineJson.value = snapshot()
 }
 
+async function loadAllVenues() {
+  try {
+    allVenues.value = await listAdminVenues(club.value)
+  } catch {
+    // 場地清單載入失敗不影響主表單其餘欄位的檢視與儲存——只是「選擇既有場地加入」暫時沒有
+    // 選項可挑，仍可用「建立新場地資料」繼續操作，比照既有 `loadPlayersForTeams` 的靜默降級寫法。
+    allVenues.value = []
+  }
+}
+
 async function loadFacts() {
   loadState.value = 'loading'
   try {
-    const dto = await getAdminSiteFacts(club.value)
+    const [dto] = await Promise.all([getAdminSiteFacts(club.value), loadAllVenues()])
     applyLoaded(dto)
     loadState.value = 'ready'
   } catch (error) {
@@ -160,8 +195,24 @@ function addHomeVenue() {
   homeVenues.push({ id: null, nameZh: '', nameEn: '', address: '' })
 }
 
+function addVenueFromPicker() {
+  if (!venuePickerId.value) return
+  const picked = allVenues.value.find((v) => v.id === venuePickerId.value)
+  if (!picked) return
+  homeVenues.push({ id: picked.id, nameZh: picked.nameZh, nameEn: picked.nameEn ?? '', address: picked.address ?? '' })
+  venuePickerId.value = null
+}
+
 function removeHomeVenue(index: number) {
   homeVenues.splice(index, 1)
+}
+
+/** 新建列（`id` 為空）的名稱若與既有場地重複，前端提示（不擋存檔）——避免重複建檔，
+ * 見檔頭「主場場地」說明。去頭尾空白、不分大小寫比對。 */
+function venueNameDuplicate(nameZh: string): boolean {
+  const trimmed = nameZh.trim().toLowerCase()
+  if (!trimmed) return false
+  return allVenues.value.some((v) => v.nameZh.trim().toLowerCase() === trimmed)
 }
 
 function validate(): boolean {
@@ -198,7 +249,22 @@ function validate(): boolean {
     }
   }
 
+  if (showBlueWhaleField.value && form.blueWhaleSiteUrl.trim() && !isValidHttpsUrl(form.blueWhaleSiteUrl.trim())) {
+    formError.value = '台中藍鯨官網網址格式不正確，須為 https:// 開頭的完整網址。'
+    return false
+  }
+
   return true
+}
+
+/** 前端預檢，錯誤訊息逐字對照 `AdminSiteFactsRepository.ValidateBlueWhaleSiteUrl`——後端才是
+ * 唯一真實的把關，這裡只是提前擋下明顯錯誤，減少一次往返。 */
+function isValidHttpsUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === 'https:'
+  } catch {
+    return false
+  }
 }
 
 async function handleSave() {
@@ -228,6 +294,7 @@ async function handleSave() {
       contactPhone: form.contactPhone.trim() || null,
       contactHoursZh: form.contactHoursZh.trim() || null,
       contactHoursEn: form.contactHoursEn.trim() || null,
+      blueWhaleSiteUrl: form.blueWhaleSiteUrl.trim() || null,
     })
     applyLoaded(saved)
     ElMessage.success('已儲存')
@@ -361,8 +428,22 @@ async function handleSave() {
 
       <el-card shadow="never" header="主場與場地" class="site-facts__section">
         <p class="site-facts__hint">
-          依顯示順序排列，第一筆是主要主場（聯絡地址會自動取自這一筆場地，不需要另外填寫）。從清單移除不會刪除場地資料本身，只是不再視為這個俱樂部的主場；新增一筆是直接建立新場地，目前還沒有「從既有場地挑選」的清單可用。
+          依顯示順序排列，第一筆是主要主場（聯絡地址會自動取自這一筆場地，不需要另外填寫）。從清單移除不會刪除場地資料本身，只是不再視為這個俱樂部的主場。
         </p>
+
+        <div class="site-facts__venue-picker">
+          <el-select
+            v-model="venuePickerId"
+            placeholder="選擇既有場地加入主場清單"
+            filterable
+            clearable
+            class="site-facts__venue-picker-select"
+          >
+            <el-option v-for="v in availableVenueOptions" :key="v.id" :label="v.nameZh" :value="v.id" />
+          </el-select>
+          <el-button type="primary" :disabled="!venuePickerId" @click="addVenueFromPicker">加入</el-button>
+        </div>
+
         <div v-if="homeVenues.length > 0" class="site-facts__venue-list">
           <el-card v-for="(venue, index) in homeVenues" :key="index" shadow="never" class="site-facts__venue-card">
             <div class="site-facts__venue-head">
@@ -379,6 +460,9 @@ async function handleSave() {
                 <el-button text type="danger" @click="removeHomeVenue(index)">移除</el-button>
               </div>
             </div>
+            <p v-if="venue.id" class="site-facts__venue-shared-hint">
+              這是既有共用場地資料，修改名稱或地址會同步套用到所有引用這座場地的資料（例如其他俱樂部的賽事），請確認後再修改。
+            </p>
             <el-form label-position="top">
               <BilingualShortField
                 label="場地名稱"
@@ -392,11 +476,25 @@ async function handleSave() {
               <el-form-item label="地址（選填）">
                 <el-input v-model="venue.address" placeholder="例如：台中市北屯區崇平路二段景谷巷 11 弄 41 號" />
               </el-form-item>
+              <p v-if="!venue.id && venueNameDuplicate(venue.nameZh)" class="site-facts__venue-duplicate-hint">
+                已有相同名稱的既有場地，建議改用上方「選擇既有場地加入」，避免建立重複資料。
+              </p>
             </el-form>
           </el-card>
         </div>
         <el-empty v-else description="目前沒有設定任何主場場地" :image-size="64" />
-        <el-button class="site-facts__add-button" @click="addHomeVenue">+ 新增場地</el-button>
+        <el-button class="site-facts__add-button" @click="addHomeVenue">+ 建立新場地資料（清單裡沒有這座場地時才使用）</el-button>
+      </el-card>
+
+      <el-card v-if="showBlueWhaleField" shadow="never" header="台中藍鯨官網連結" class="site-facts__section">
+        <el-alert type="info" :closable="false" show-icon class="site-facts__hint-alert">
+          這個網址會用在「女子足球」入口頁「前往台中藍鯨官網」按鈕的連結目標。台中藍鯨官網有自己獨立的網站設定，這裡填寫的網址只影響主站這一個按鈕。
+        </el-alert>
+        <el-form label-position="top">
+          <el-form-item label="台中藍鯨官網網址（選填，須為 https:// 開頭的完整網址）">
+            <el-input v-model="form.blueWhaleSiteUrl" placeholder="例如：https://bluewhale.tcrfc.tw" />
+          </el-form-item>
+        </el-form>
       </el-card>
 
       <el-card shadow="never" header="聯絡方式" class="site-facts__section">
@@ -472,10 +570,38 @@ async function handleSave() {
   margin-top: 4px;
 }
 
+.site-facts__venue-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.site-facts__venue-picker-select {
+  max-width: 320px;
+  flex: 1;
+}
+
 .site-facts__venue-list {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  margin-bottom: 12px;
+}
+
+.site-facts__venue-shared-hint {
+  font-size: 12px;
+  color: var(--admin-text-tertiary);
+  margin: 0 0 8px;
+}
+
+.site-facts__venue-duplicate-hint {
+  font-size: 12px;
+  color: var(--el-color-warning);
+  margin: -4px 0 8px;
+}
+
+.site-facts__hint-alert {
   margin-bottom: 12px;
 }
 

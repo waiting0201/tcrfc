@@ -37,6 +37,10 @@ export interface AdminSiteFactsDto {
   contactPhone?: string | null
   contactHoursZh?: string | null
   contactHoursEn?: string | null
+  /** 台中藍鯨官方網站網址（主站規劃書 §3.6「06 女子足球」入口頁「前往台中藍鯨官網」按鈕的連結
+   * 目標）。**概念上只屬於台中磐石（`tcrfc`）**——藍鯨官網本身沒有 06 單元，`bw` 俱樂部下這個鍵
+   * 預期恆為 `null`。`null`＝尚未設定；有值時必為 `https://` 開頭的絕對網址。 */
+  blueWhaleSiteUrl?: string | null
 }
 
 /** 對照 `UpdateSiteFactVenueRequest`。`id` 有值＝更新既有場地（找不到回 400，不會被誤當成新增），
@@ -67,6 +71,7 @@ export interface UpdateSiteFactsRequest {
   contactPhone?: string | null
   contactHoursZh?: string | null
   contactHoursEn?: string | null
+  blueWhaleSiteUrl?: string | null
 }
 
 export function getAdminSiteFacts(club: string): Promise<AdminSiteFactsDto> {

@@ -2,11 +2,14 @@
 /**
  * C4「賽程與賽果」——編輯頁。對照 apps/api/README.md「S1-8」。
  *
- * 🔴 場地目前只有自由文字欄位（`venue`／`venueEn`），沒有接 `venueId`——`apps/api` 雖然有
- * `matches.venue_id` 外鍵與 `venues` 共用主檔，但目前沒有任何後台端點可以列出場地清單
- * 供下拉選單使用（不是 `Features/AdminMatches` 沒做，是整個系統都沒有場地維護／查詢端點）。
- * 沒有清單就沒辦法做出有意義的選單，這裡選擇不做、維持 `venueId` 一律不送出，已回報這個缺口
- * （見交付說明）。
+ * 🔵 **場地：「選擇既有場地」與自由文字並存**（S1-12d 後續補完，2026-09-29，
+ * `GET /api/v1/admin/{club}/venues` 上線後）：`matches.venue_id` 外鍵指向既有 `venues` 共用主檔，
+ * `venue`／`venueEn` 則是獨立的顯示用文字欄位，兩者依既有 DDL 註解（`db/club-schema.sql`
+ * `matches_i18n` 表頭「venue 為顯示用文字欄位，與 matches.venue_id（結構化主場地）並存」）本來
+ * 就是刻意並存、不是互斥的兩套機制——場地清單挑一筆既有場地即可設定 `venueId`（主要用於主場，
+ * 客場可能是清單裡沒有的場地，仍要保留文字欄位），文字欄位維持可自由填寫／覆寫顯示內容
+ * （例如球隊代管的場地慣用簡稱、或客場賽事清單裡沒有的場地名稱）。選擇既有場地時會把中英文
+ * 名稱帶入文字欄位方便一次填好，仍可手動再改。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -20,6 +23,7 @@ import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminT
 import { useWritableTeamScope } from '@/composables/useWritableTeamScope'
 import { listAdminSeasons, listAdminCompetitions, type AdminSeasonListItemDto, type AdminCompetitionListItemDto } from '@/api/adminCompetitions'
 import { listAdminPlayers, type AdminPlayerListItemDto } from '@/api/adminPlayers'
+import { listAdminVenues, type AdminVenueListItemDto } from '@/api/adminVenues'
 import {
   createAdminMatch,
   getAdminMatch,
@@ -68,6 +72,7 @@ const form = reactive({
   homeAway: '' as string | '',
   opponent: '',
   opponentEn: '',
+  venueId: null as string | null,
   venue: '',
   venueEn: '',
   competitionTag: '' as string | '',
@@ -90,6 +95,9 @@ const teams = ref<AdminTeamAdminListItemDto[]>([])
 // 「所屬球隊」只列出這個帳號能寫的球隊（S1-8 續作新增的端點），見 useWritableTeamScope 檔頭說明。
 const { loadWritableTeams, outOfScopeIds, buildOptions } = useWritableTeamScope('match')
 const matchPlayers = ref<AdminPlayerListItemDto[]>([])
+// 全站場地清單（S1-12d 後續補完新增的唯讀端點），供「選擇既有場地」下拉選單使用；與俱樂部
+// 無關，載入失敗不影響其餘欄位（比照既有 loadPlayersForTeams 的靜默降級寫法）。
+const venues = ref<AdminVenueListItemDto[]>([])
 
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
@@ -132,11 +140,26 @@ function playerLabel(id: string): string {
   return p.shirtNo ? `${name}（${teamCode} #${p.shirtNo}）` : `${name}（${teamCode}）`
 }
 
+/** 選擇既有場地時，把中英文名稱帶入顯示用文字欄位方便一次填好（仍可手動再改，兩者本來就是
+ * 並存而非互斥的欄位，見檔頭說明）。清空選擇（`clearable`）不會清空已填的文字欄位。 */
+function handleVenuePicked(venueId: string | null) {
+  if (!venueId) return
+  const picked = venues.value.find((v) => v.id === venueId)
+  if (!picked) return
+  form.venue = picked.nameZh
+  form.venueEn = picked.nameEn ?? ''
+}
+
 async function loadMatch() {
   loadState.value = 'loading'
   try {
     ;[teams.value] = await Promise.all([listAdminClubTeams(activeClubId.value), loadWritableTeams(activeClubId.value)])
     seasons.value = await listAdminSeasons(activeClubId.value)
+    try {
+      venues.value = await listAdminVenues(activeClubId.value)
+    } catch {
+      venues.value = []
+    }
 
     if (!isCreate.value && matchId.value) {
       const detail = await getAdminMatch(activeClubId.value, matchId.value)
@@ -148,6 +171,7 @@ async function loadMatch() {
       form.homeAway = detail.homeAway ?? ''
       form.opponent = detail.opponent ?? ''
       form.opponentEn = detail.opponentEn ?? ''
+      form.venueId = detail.venueId ?? null
       form.venue = detail.venue ?? ''
       form.venueEn = detail.venueEn ?? ''
       form.competitionTag = detail.competitionTag ?? ''
@@ -278,6 +302,7 @@ function buildPayload(): SaveMatchPayload {
     homeAway: form.homeAway || null,
     opponent: form.opponent.trim(),
     opponentEn: form.opponentEn || null,
+    venueId: form.venueId || null,
     venue: form.venue || null,
     venueEn: form.venueEn || null,
     competitionTag: form.competitionTag || null,
@@ -466,8 +491,20 @@ function addLineup() {
             @update:zh="(v) => (form.opponent = v)"
             @update:en="(v) => (form.opponentEn = v)"
           />
+          <el-form-item label="選擇既有場地（選填，客場等清單裡沒有的場地可略過，直接填下方文字欄位）">
+            <el-select
+              v-model="form.venueId"
+              placeholder="選擇既有場地"
+              filterable
+              clearable
+              style="width: 100%"
+              @change="handleVenuePicked"
+            >
+              <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+            </el-select>
+          </el-form-item>
           <BilingualShortField
-            label="場地（選填）"
+            label="場地顯示文字（選填）"
             :zh="form.venue"
             :en="form.venueEn"
             @update:zh="(v) => (form.venue = v)"

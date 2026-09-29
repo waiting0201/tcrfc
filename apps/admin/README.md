@@ -2404,12 +2404,105 @@ npm run build   # vue-tsc -b && vite build，型別檢查與建置皆無錯誤
 
 ### 規格疑點（回報，非本輪自行判斷做或不做）
 
-1. **任務指示要求「從既有場地中選擇」，但後端沒有可用的場地清單端點**：見上方「規劃書沒寫清楚、
-   本輪自行判斷的部分」第 1 點。若確實需要做到「跨俱樂部挑選既有場地」（例如磐石與藍鯨共用同一座
-   球場時，兩邊都想選同一筆 `Venue` 而不是各自新增一筆重複資料），需要先請 `backend-engineer` 補
-   一支「列出全部場地」的後台端點，這是規格與後端能力之間的落差，不是本輪能單方面決定的內容判斷。
+1. ✅ **已解決（2026-09-29 後續補完）**——原文：「任務指示要求『從既有場地中選擇』，但後端沒有
+   可用的場地清單端點」。`backend-engineer` 已補上 `GET /api/v1/admin/{club}/venues`（唯讀，全站
+   場地清單），見下方「後續補完」節，本輪已改用該端點實作「選擇既有場地」。
 2. **`apps/web` 尚未串接** `GET /api/v1/{club}/site-facts`（見 `apps/api/README.md`「S1-12d」
    「已知缺口」第 1 點），本輪畫面編輯後的資料要等 `apps/web` 那一輪整批改用 `useFetch` 才會真的
    反映到前台頁面與提供給搜尋引擎／AI 服務的摘要資料——這不影響本輪後台畫面本身的完整性，但
    使用者若在驗收時同時打開前台頁面比對，會看到前台仍顯示 `site-facts.ts` 裡的舊值，這是已知的
    銜接缺口，不是本輪的錯誤。
+
+## I：網站設定與 C4 賽程賽果——場地清單串接（S1-12d 後續補完，2026-09-29）
+
+對照 `apps/api/README.md`「S1-12d」節「後續補完：藍鯨官網網址與場地清單端點」。後端新增
+`GET /api/v1/admin/{club}/venues`（唯讀，全站場地清單，權限 `site.fact.view` 或
+`team.match.view` 任一通過）與 `AdminSiteFactsDto.blueWhaleSiteUrl`／
+`UpdateSiteFactsRequest.blueWhaleSiteUrl`（僅 https，空白合法）。本輪接上這兩者，補齊上方
+「規格疑點」第 1 點與 `MatchEditView.vue` 檔頭記過的同一個缺口。
+
+### 新增／修改的檔案
+
+- `src/api/adminVenues.ts`（新增）：`AdminVenueListItemDto`／`listAdminVenues`，對照
+  `Features/AdminVenues/AdminVenuesDtos.cs`。獨立成一支新檔——這支端點被兩個不相干的模組
+  （`I` 網站設定、`C4` 賽程賽果）共用，不屬於任何一個既有的模組 API 檔。
+- `src/api/adminSiteFacts.ts`：`AdminSiteFactsDto`／`UpdateSiteFactsRequest` 新增
+  `blueWhaleSiteUrl?: string | null`。
+- `src/views/settings/SiteFactsView.vue`：主場場地改為「從既有場地挑選並排序」為主，新增
+  「台中藍鯨官網連結」卡片（僅 `tcrfc` 顯示）。
+- `src/views/teams/MatchEditView.vue`：場地新增「選擇既有場地」下拉選單（`venueId`），與既有
+  自由文字欄位（`venue`／`venueEn`）並存。
+
+### 1. `SiteFactsView.vue`：主場場地——「選擇既有場地加入」為主，保留「建立新場地」為輔
+
+- 新增「選擇既有場地加入」`el-select`（讀 `listAdminVenues`，排除已在 `homeVenues` 清單內的），
+  選定後以 `id` 加入清單，不會另外建立一筆重複資料。這是現在的主要新增動線。
+- **保留**原有「+ 建立新場地資料」按鈕（`id` 省略即新增一筆）——**判斷理由**：
+  `Features/AdminVenues` 明文只做唯讀清單、不做場地的新增／刪除管理，`AdminSiteFacts` 的
+  `UpdateSiteFactVenueRequest` 省略 `id` 是目前**唯一**的場地建檔管道；拿掉這個能力會讓「清單裡
+  還沒有的場地」完全無法登記。為避免與既有場地重名重複建檔，新建列的名稱若與既有場地名稱重複
+  （去頭尾空白、不分大小寫比對），畫面顯示黃色提示文字（不擋存檔——後端沒有唯一性限制，這只是
+  提醒）。
+- 🔴 **既有列（`id` 有值）的名稱／地址欄位刻意維持可編輯，沒有改成唯讀**：後端
+  `AdminSiteFactsRepository.UpsertHomeVenuesAsync` 的邏輯是「`id` 有值＝更新既有 `Venue` 列」，
+  這裡送出的名稱／地址會**寫回共用場地主檔本身**，可能影響其他俱樂部或賽事對同一筆場地的引用。
+  這是本輪發現、值得記錄的行為，但選擇不移除這個能力——系統目前**沒有獨立的場地管理畫面**
+  （`Features/AdminVenues` 明文排除新增／刪除），這裡是唯一能修正既有場地資料錯字的入口，拿掉
+  會造成更大的缺口。改為在每一列既有場地上方加提示文字「這是既有共用場地資料，修改名稱或地址
+  會同步套用到所有引用這座場地的資料」，讓管理員知情後再改。**這是本輪自行判斷，若未來確實出現
+  誤改共用場地資料的事故，應該考慮的方向是新增一支獨立場地管理端點＋權限碼，而不是把這裡鎖成
+  唯讀（鎖唯讀會讓錯字永遠無法修正）**。
+
+### 2. `SiteFactsView.vue`：台中藍鯨官網網址（`blueWhaleSiteUrl`）
+
+- 新增「台中藍鯨官網連結」卡片，`showBlueWhaleField = computed(() => club.value === 'tcrfc')`——
+  只在台中磐石顯示，依主站規劃書 §3.6（06 女子足球入口頁專屬）與 `docs/13-blue-whale-site.md`
+  §6「不設 06」（藍鯨官網本身沒有這個單元）。
+- 前端 https 預檢：`new URL(value).protocol === 'https:'`，錯誤訊息逐字對照後端
+  `AdminSiteFactsRepository.ValidateBlueWhaleSiteUrl`（「台中藍鯨官網網址格式不正確，須為
+  https:// 開頭的完整網址。」）——前端只是提前擋下，後端仍是唯一真實把關（比照既有欄位驗證
+  慣例）。
+- 空白合法（尚未設定），欄位為選填，不影響其餘必填欄位的驗證流程。
+
+### 3. `MatchEditView.vue`：場地——「選擇既有場地」與自由文字並存，不是二擇一
+
+- 檔頭記過的缺口是「後端沒有場地清單端點，`venueId` 一律不送出」。查證 `db/club-schema.sql`
+  （`matches_i18n` 表頭註解：「venue 為顯示用文字欄位，與 matches.venue_id（結構化主場地）
+  並存」）與 `apps/api` 既有 DTO（`AdminMatchDetailDto.venueId`／`SaveMatchPayload.venueId`
+  早已存在，只是前端從未送出），確認**規格與既有資料結構確實以場地關聯表示地點**——`matches`
+  有 `venue_id` 外鍵指向 `venues` 共用主檔，與規劃書 ERD（行 1508：`Venue` 關聯 `Program`／
+  `Match`／`Trial`）一致。因此本輪**改**：新增「選擇既有場地」下拉選單（讀 `listAdminVenues`），
+  綁定 `form.venueId`，送出時一併帶上。
+- **不是取代自由文字欄位**：`venue`／`venueEn` 保留（改標籤為「場地顯示文字」），理由是既有
+  DDL 註解明文兩者「並存」——客場賽事的地點常常是清單裡沒有的場地（尚未建檔），仍需要自由文字
+  可填；下拉選單主要用於主場等清單裡已有的場地。選擇既有場地時會把中英文名稱帶入顯示文字欄位
+  （`handleVenuePicked`），方便一次填好，仍可手動再改，不會覆蓋使用者後續的手動輸入。
+- 與 `SiteFactsView.vue` 的既有場地列**不同**：這裡選擇既有場地只是設定 `venueId`（單純 FK
+  參照），**不會**寫回 `Venue` 主檔本身，不需要唯讀／可編輯的取捨考量。
+
+### 驗證指令與實際結果（2026-09-29，本機環境）
+
+```
+npm run lint    # 六項檢查全綠（含 EditView 一次性求值：MatchEditView.vue 本輪只新增欄位，
+                 # isCreate 既有 computed 寫法未受影響）
+npm run build   # vue-tsc -b && vite build，型別檢查與建置皆無錯誤
+```
+
+### 未驗證項目
+
+沿用上方「I：網站設定（S1-12d 後台）」節「未驗證項目」同一個環境限制（本機啟動 `apps/api`
+需要在指令列具現化含密碼的連線字串，會被 session 安全防護擋下，依任務指示未嘗試）。本輪新增
+下列未驗證項目：
+
+1. 「網站設定」畫面：「選擇既有場地加入」下拉選單能讀到種子資料的既有場地（磐石西屯足球場、
+   藍鯨太原足球場／豐原體育場）並正確加入清單；重複選同一筆會被下拉選單本身的排除邏輯擋掉
+   （已排除已在清單內的選項，不會出現在選單裡）。
+2. 「網站設定」畫面：台中藍鯨（`bw`）站台切換後看不到「台中藍鯨官網連結」卡片；台中磐石
+   （`tcrfc`）填入非 `https://` 開頭的網址時前端立即擋下，訊息與後端一致。
+3. 「賽程與賽果」編輯頁：選擇既有場地後，「場地顯示文字」自動帶入名稱；儲存後 `venueId` 正確
+   寫入，重新載入頁面後下拉選單顯示原本選定的場地。
+4. 兩處新增的下拉選單在場地清單載入失敗時（模擬网络錯誤）不影響頁面其餘功能，仍可用文字欄位
+   或「建立新場地資料」繼續操作。
+
+**待實走步驟**：同「I：網站設定（S1-12d 後台）」節，啟動 `apps/api`／`apps/admin` 後，
+依上方 1–4 點逐一操作並用瀏覽器開發者工具核對。
