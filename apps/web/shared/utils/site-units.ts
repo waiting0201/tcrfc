@@ -35,6 +35,14 @@ export const SITE_UNITS: readonly SiteUnit[] = [
   { code: '08', navKey: 'culture', path: '/zh/culture/', labelZh: '台中磐石文化' },
   { code: '09', navKey: 'partners', path: '/zh/partners/', labelZh: '夥伴' },
   { code: '11', navKey: 'charity', path: '/zh/charity/', labelZh: '慈善' },
+  // S1-18 新增：12 FAQ 首頁補進單元層級清單，讓 sitemap.xml／llms.txt 兩處
+  // 自動收錄（見兩者共用的 getEnabledSiteUnits 呼叫鏈，檔頭說明）。
+  // 🔴 docs/18-work-errors.md E-72：13 賽事行事曆（app/pages/zh/schedule.vue）
+  // 自 S1-15 建置完成起就沒有補進這份清單，同一個缺口本輪一併發現但不在
+  // S1-18 任務範圍內，留給下一個處理 schedule／SEO 相關工作的人一併修正，
+  // 不在本輪順手一起加（避免擴大本輪改動範圍卻沒有對應驗收，同一原則見
+  // shared/utils/units.ts 對 5.3–5.5 留給 S2-10 的既有先例）。
+  { code: '12', navKey: 'faq', path: '/zh/faq/', labelZh: '常見問題' },
 ] as const
 
 export function getEnabledSiteUnits(club: string): SiteUnit[] {

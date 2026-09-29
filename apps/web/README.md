@@ -1427,6 +1427,137 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
   agent 的改動範圍內，需要兩側都上線後才能端到端驗證（例如從兩個不同來源 IP 送出、
   確認限流分區確實各自獨立）。
 
+## S1-18（12 FAQ 獨立單元，先建 3–4 個高頻主題，2026-09-29，`frontend-architect`）
+
+主站規劃書 §3.12（`docs/02-frontend-spec.md` 行 228–236）：FAQ 首頁主題分類導覽卡、
+關鍵字搜尋、手風琴＋單題深層連結、分類頁具備獨立 SEO、有用回饋回寫後台、搜尋無結果導
+10.7 聯絡表單、G-12 嵌入元件（既有，S1-15 已接）。**`GEO-06` FAQPage Schema 是下一輪
+`S1-18a`，本輪不做，但資料結構（`FaqItem`／`FaqCategory` 兩個 composable 的回傳形狀）
+刻意讓它能直接接上**：每題的 question／answer／slug 已經是攤平的字串欄位，不需要額外
+轉換就能塞進 `mainEntity` 陣列。
+
+### 資料來源
+
+後端（`apps/api`）在更早的 S1-6／S1-7a 已經整套建好，本輪**沒有改動 `apps/api` 任何
+一行**，純粹接上既有端點：
+
+- `GET /api/v1/faq-categories?lang=` — 全站共用十個主題分類（不分俱樂部，`faq_categories`
+  沒有 `club_id`），後端只回 `is_enabled=1`。
+- `GET /api/v1/{club}/faqs?category=&keyword=&lang=&page=&pageSize=` — 常見問題列表，
+  `club_id` 是 9 張可為空表之一（俱樂部專屬優先、回退共用）。
+- `POST /api/v1/{club}/faqs/{slug}/feedback`（body `{ helpful: true|false }`）——規劃書
+  明文要求「回饋數據回寫後台」，本輪唯一接上真實寫入的互動。
+
+**種子資料現況**（`db/seed/generate-club-seed-sql.py` 已核對）：十個分類本身已種好
+（`join-team`／`academy-admission`／`programs-camps`／`fees-refunds`／`trials`／
+`international`／`womens-football`／`fan-club-merchandise`／`partnerships-sponsorship`／
+`other`），**但沒有任何一筆真實問答內容被種入 `faqs` 表**——本輪頁面因此在真實環境下
+會先顯示「收錄中」空狀態，等後台編輯真的建立題目後才會有內容，這不是本輪的缺漏，是
+故意不臆造問答（任務指示明文禁止）。
+
+### 新增檔案
+
+- [`app/composables/useFaqCategories.ts`](app/composables/useFaqCategories.ts)：主題分類，
+  fail-open 但不臆造十個固定名稱——API 打不到時回空陣列，不是拿規劃書列的十個主題名稱
+  頂替。
+- [`app/composables/useFaqList.ts`](app/composables/useFaqList.ts)：常見問題列表，
+  `pageSize: 200`（比照 news／schedule「單頁全載」既有慣例），可選 `category` 篩選。
+- [`app/components/FaqAccordion.vue`](app/components/FaqAccordion.vue)：手風琴＋深層連結
+  ＋有用回饋三段邏輯的共用元件，供首頁（依分類分組後逐組呼叫）與 4 個獨立主題頁共用。
+  原生 `<details>/<summary>`，鍵盤操作（Tab／Enter／Space）不需要額外處理。
+  `question`／`answer` 任一為 `null` 的題目不渲染（防呆，見元件檔頭）。
+- [`app/pages/zh/faq/index.vue`](app/pages/zh/faq/index.vue)：FAQ 首頁，由 S0-9 的十組
+  靜態占位改為資料驅動。
+- 4 個獨立主題頁（規劃書順序前四項，見下方「先建哪 4 個」）：
+  [`app/pages/zh/faq/join-team/index.vue`](app/pages/zh/faq/join-team/index.vue)、
+  [`app/pages/zh/faq/academy-admission/index.vue`](app/pages/zh/faq/academy-admission/index.vue)、
+  [`app/pages/zh/faq/programs-camps/index.vue`](app/pages/zh/faq/programs-camps/index.vue)、
+  [`app/pages/zh/faq/fees-refunds/index.vue`](app/pages/zh/faq/fees-refunds/index.vue)。
+  `/en/faq/...` 由 S1-13 的 `pages:extend` 孿生路由機制自動產生，不需要另外新增檔案。
+
+### 改了哪些既有檔案
+
+- [`server/api/backend/[...path].ts`](server/api/backend/%5B...path%5D.ts)：POST 白名單
+  新增 `FAQ_FEEDBACK_PATH`（`{club}/faqs/{slug}/feedback` 形狀），維持既有「白名單只放行
+  明確需要的路徑形狀」原則，**沒有**放寬到「瀏覽數遞增」（`.../views`，規格未列，本輪
+  不做）與「零結果搜尋記錄」（`.../search-misses`，規格未列，本輪不做）兩個既有但沒用到
+  的寫入端點。
+- [`shared/utils/site-units.ts`](shared/utils/site-units.ts)：`SITE_UNITS` 補上 `12`，讓
+  FAQ 首頁納入 `sitemap.xml`／`llms.txt`——過程中發現 `13`（賽事行事曆）自 S1-15 建成起
+  就沒有補進這份清單，同一個缺口記錄於 `docs/18-work-errors.md` `E-72`，留給下一個處理
+  該單元的人一併修正。
+
+### 先建哪 4 個高頻主題（取捨說明）
+
+STATUS.md 只寫「先建 3–4 個高頻主題」，規劃書沒有明文排序哪幾個優先。本輪選擇規劃書
+§3.12 列出的**前四項**：加入球隊、學院招生、課程與營隊報名、費用與退費——這四項同時是
+G-12 嵌入元件已經在消費的兩個掛載點（`academy_admission`／`program_detail`，S1-15）的
+上游主題，選它們可以讓「獨立主題頁」與「既有嵌入區塊」互相呼應。其餘六個主題（試訓、
+國際發展與海外球員、女子足球、球迷會與商品、合作與贊助、其他）本輪仍只在 FAQ 首頁的
+分類區塊彙整呈現，沒有各自的獨立頁面與獨立 SEO 設定。
+
+### 單題深層連結的設計取捨：一題只在一個分類出現一次
+
+`FaqItem.categorySlugs` 是陣列——後端刻意支援一題掛多個分類（`FaqsRepository.ListAsync`
+檔頭說明）。但規劃書「單題深層連結 `/faq/#q-123`」要求連結全站唯一才有意義（客服才能
+放心傳給使用者）。**FAQ 首頁因此把每題指派給「排序最前的一個分類」陳列一次**（見
+`app/pages/zh/faq/index.vue` 的 `faqsByCategory`），不是每個分類都各自重複顯示同一題——
+多分類標記的用途留給未來的搜尋／嵌入場景使用，首頁顯示本身不重複。
+
+### 藍鯨的已知內容缺口（不是本輪迴歸）
+
+`faq_categories` 沒有 `club_id`、全站共用同一份分類名稱字典，`academy-admission` 分類
+的中文名稱是「學院招生」——藍鯨規劃書 §3「04 由學院改為青年隊」是內容取捨，不是這張
+分類字典的欄位，本頁沒有臆自改名。`check-club-brand-leak.mjs` 對 bw 容器實測會在
+`/zh/faq/`（「學院」×3）與 `/zh/faq/academy-admission/`（「學院」×9）計入禁詞出現次數
+——**兩頁都不在 `PROTECTED_PAGES` 保護清單裡，只計數不影響離開碼**，棘輪本身沒有被違反
+（已實測，見下方「驗證」）。這是既有資料設計（分類字典跨俱樂部共用）的已知限制，不是
+本輪引入的迴歸，是否要讓藍鯨的 FAQ 分類顯示不同名稱留給之後決定資料模型是否要補
+`club_id` 覆寫欄位時再處理。
+
+### 驗證
+
+```bash
+npm run lint    # 0 錯誤、395 警告（既有基準內，含本輪新檔）
+npm run build   # 通過
+docker build -f apps/web/Dockerfile apps/web   # 通過
+```
+
+本機起 `tcrfc`（3001）／`bw`（3002）兩容器（`apps/api` **未啟動**，依派工規則不自行
+啟動、不碰密碼）：
+
+- 兩容器對 `/zh/faq/`、4 個獨立主題頁、`/en/faq/...` 孿生路由**全數 `200`**，無 `500`
+  （fail-open：分類與題目 API 打不到時，首頁不顯示任何分類區塊、獨立主題頁顯示「本主題
+  常見問題收錄中」空狀態，兩者皆已用 `curl` 實測 HTML）。
+- `curl -sI` 兩容器皆有 `X-Robots-Tag: noindex, nofollow`。
+- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:3001`／`3002`：
+  **H1 唯一、標題不跳階皆 0 違規**（164 條路由含 zh／en，其餘為 30x／404 略過）。
+- `node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:3002`：**通過**
+  （離開碼 0，保護清單 15 頁全數乾淨，棘輪未被違反；FAQ 兩頁的「學院」命中計入進度計，
+  細節見上方「藍鯨的已知內容缺口」）。
+- `curl -s http://127.0.0.1:3001/sitemap.xml` 與 `/llms.txt`：確認 `/zh/faq/`（含
+  `hreflang` 雙語與 x-default）已列入，`bw` 容器的 `/llms.txt` 同樣列出「常見問題」。
+- 白名單代理實測（對 `tcrfc` 容器，`apps/api` 未啟動）：
+  - `POST /api/backend/tcrfc/faqs/some-slug/feedback`（合法路徑形狀）：回 `500`
+    （`ECONNREFUSED`，連線層失敗，確認代理有正確嘗試轉發、不是被誤判 `405`）。
+  - `POST /api/backend/tcrfc/faqs/some-slug/views`（規格未列、刻意不放行的路徑）：
+    確認仍回 `405`。
+  - `POST /api/backend/tcrfc/forms/general/submissions`（既有表單路徑）：確認未被本輪
+    的正規表示式異動影響，行為與 S1-17 收尾時一致（回 `500`，同一個連線層原因）。
+
+### 未驗證項目（API 實機驗收未做）
+
+- **搜尋、有用回饋按鈕、深層連結自動展開三段互動行為**——需要真實題目資料才能觀察到
+  非空狀態下的畫面，`apps/api` 未啟動、`faqs` 表也還沒有真實種子問答，本輪只能驗證
+  程式邏輯（TypeScript 型別檢查＋程式碼審視）與空狀態下的降級渲染，沒有機會端到端驗證
+  「輸入關鍵字後篩選結果是否正確」「按讚後 `aria-pressed` 與後端 `helpful_count` 是否
+  一致」「`#q-<slug>` 網址是否真的自動展開對應題目」。
+- **回饋 POST 是否真的被 `apps/api` 接受並寫入 `helpful_count`／`unhelpful_count`**——
+  只驗證了代理白名單正確放行到連線層，沒有機會驗證後端真的收到。
+- **10 個分類裡另外 6 個（沒有獨立頁面的那些）在 FAQ 首頁的分組陳列是否正確**——邏輯
+  與 4 個有獨立頁的分類共用同一套 `faqsByCategory`／`FaqAccordion`，理論上一致，但沒有
+  真實跨分類題目可供實測「一題掛兩個分類時只出現一次」這個防呆是否真的生效。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

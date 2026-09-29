@@ -1,98 +1,86 @@
 <script setup lang="ts">
-// app/pages/zh/faq/index.vue — 由 site/src/pages/zh/faq/index.html 轉來
-// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
-// ⛔ 原頁 <script> 改寫為 script setup 的 onMounted：有幫助嗎回饋、#q-123 深層連結自動展開與定位、
-// 即時搜尋（比對問題與答案文字）三段邏輯逐段對應搬移，未改用 template ref——原邏輯本來就是
-// 對一組動態數量的 .accordion-item／.fb-btn 做事件委派，用 querySelectorAll 綁定與原始行為等價。
+// app/pages/zh/faq/index.vue — 12 FAQ 首頁（S1-18，改為資料驅動）
+//
+// 原檔（S0-9）由 site/src/pages/zh/faq/index.html 逐段轉來，十個主題全是
+// 「本分類問題整理中」的靜態占位。S1-18 起改讀 apps/api 真實資料
+// （useFaqCategories／useFaqList，見兩支 composable 檔頭），沒有真實內容的
+// 主題維持「收錄中」空狀態——不是拿掉，是換成「資料驅動的空狀態」。
+//
+// 🔴 一題可能同時掛在多個分類（FaqItem.categorySlugs 是陣列，後端刻意支援
+// 多對多標記，見 FaqsRepository.ListAsync 檔頭），但本頁單題深層連結
+// `#q-<slug>` 必須全站唯一（規劃書「方便客服直接傳送單題連結」的前提）。
+// 因此每題只指派給「排序最前的一個分類」陳列一次（見下方 faqsByCategory），
+// 不是每個分類都重複顯示——多分類標記的用途是讓 G-12 嵌入區塊／未來搜尋能
+// 從多個主題撈到同一題，不是「首頁要多處重複顯示」。
 definePageMeta({ nav: '', unit: '12' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
+const config = useRuntimeConfig()
+const club = config.public.club
+
+const siteName = computed(() => getClubAssets(club).nameZh)
+
+const { categories } = useFaqCategories(locale.value)
+const { faqs, totalCount } = useFaqList(club, locale.value)
 
 useSeoMeta({
-  title: '常見問題 FAQ｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球俱樂部常見問題集，涵蓋加入球隊、學院招生、課程與營隊報名、費用與退費、試訓、國際發展、女子足球、球迷會與商品、合作與贊助等十大主題。',
+  title: () => `常見問題 FAQ｜${siteName.value}`,
+  description: () =>
+    `${siteName.value}常見問題集，依主題分類整理，涵蓋加入球隊、學院招生、課程與營隊報名、費用與退費、試訓、國際發展、女子足球、球迷會與商品、合作與贊助等主題，目前共收錄 ${totalCount.value} 題。`,
 })
 
-onMounted(() => {
-  // 有幫助嗎？回饋（視覺互動，尚未接後台回寫）
-  document.querySelectorAll<HTMLButtonElement>('.fb-btn').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const group = btn.closest<HTMLElement>('.accordion-item__feedback')
-      group?.querySelectorAll<HTMLButtonElement>('.fb-btn').forEach((b) => b.setAttribute('aria-pressed', 'false'))
-      btn.setAttribute('aria-pressed', 'true')
-    })
-  })
-
-  // 深層連結 #q-123：自動展開並定位
-  if (location.hash && location.hash.indexOf('#q-') === 0) {
-    const target = document.getElementById(location.hash.slice(1))
-    if (target && target.tagName === 'DETAILS') {
-      ;(target as HTMLDetailsElement).open = true
-      setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50)
-    }
+// 每題只指派給第一個相符的分類（分類已依 sortOrder 排序），確保單題深層連結
+// 全頁唯一，見上方檔頭說明。
+const faqsByCategory = computed(() => {
+  const map = new Map<string, typeof faqs.value>()
+  const assigned = new Set<string>()
+  for (const cat of categories.value) {
+    const items = faqs.value.filter((f) => !assigned.has(f.id) && f.categorySlugs.includes(cat.slug))
+    items.forEach((f) => assigned.add(f.id))
+    map.set(cat.slug, items)
   }
-  document.querySelectorAll<HTMLDetailsElement>('.accordion-item').forEach((item) => {
-    item.addEventListener('toggle', () => {
-      if (item.open && history.replaceState) history.replaceState(null, '', '#' + item.id)
-    })
-  })
-
-  // 即時搜尋（比對問題與答案文字）
-  const input = document.getElementById('faq-search-input') as HTMLInputElement | null
-  const categories = document.querySelectorAll<HTMLElement>('[data-faq-category]')
-  const noResult = document.getElementById('faq-no-result') as HTMLElement | null
-  const topicsNav = document.querySelector<HTMLElement>('.faq-topics')
-
-  input?.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase()
-    let totalVisible = 0
-
-    if (q === '') {
-      categories.forEach((cat) => {
-        cat.hidden = false
-        cat.querySelectorAll<HTMLElement>('.accordion-item').forEach((it) => { it.hidden = false })
-      })
-      if (noResult) noResult.hidden = true
-      if (topicsNav) topicsNav.hidden = false
-      return
-    }
-
-    if (topicsNav) topicsNav.hidden = true
-
-    categories.forEach((cat) => {
-      let anyVisible = false
-      cat.querySelectorAll<HTMLElement>('.accordion-item').forEach((item) => {
-        const text = (item.textContent ?? '').toLowerCase()
-        const match = text.indexOf(q) !== -1
-        item.hidden = !match
-        if (match) anyVisible = true
-      })
-      cat.hidden = !anyVisible
-      if (anyVisible) totalVisible++
-    })
-
-    if (noResult) noResult.hidden = totalVisible > 0
-  })
+  return map
 })
+
+// 先建 3–4 個高頻主題的獨立頁面（規劃書順序前四項：加入球隊／學院招生／課程與營隊
+// 報名／費用與退費），其餘六個主題本輪仍只在本頁彙整呈現，見 apps/web/README.md
+// 「S1-18」節。
+const DEDICATED_PAGE_SLUGS: Record<string, string> = {
+  'join-team': '/zh/faq/join-team/',
+  'academy-admission': '/zh/faq/academy-admission/',
+  'programs-camps': '/zh/faq/programs-camps/',
+  'fees-refunds': '/zh/faq/fees-refunds/',
+}
+
+function dedicatedPageFor(slug: string): string | undefined {
+  return DEDICATED_PAGE_SLUGS[slug]
+}
+
+const search = ref('')
+const keyword = computed(() => search.value.trim().toLowerCase())
+
+function matchesKeyword(f: { question: string | null; answer: string | null }): boolean {
+  if (!keyword.value) return true
+  const text = `${f.question ?? ''} ${f.answer ?? ''}`.toLowerCase()
+  return text.includes(keyword.value)
+}
+
+const visibleByCategory = computed(() => {
+  const map = new Map<string, typeof faqs.value>()
+  for (const [slug, items] of faqsByCategory.value) {
+    map.set(slug, keyword.value ? items.filter(matchesKeyword) : items)
+  }
+  return map
+})
+
+const totalVisible = computed(() =>
+  [...visibleByCategory.value.values()].reduce((sum, items) => sum + items.length, 0),
+)
+const isSearching = computed(() => keyword.value.length > 0)
+const noResult = computed(() => isSearching.value && totalVisible.value === 0)
 </script>
 
 <template>
-<!--
-  FAQPage Schema 說明（GEO 核心資產，規劃書 §12 明確要求）：
-  本頁十大分類目前皆為骨架，實際問答內容的 Google Docs 捷徑尚未取回（見 AGENT_BRIEF §0「不准杜撰」）。
-  在沒有真實問答之前，不應輸出 FAQPage/Question/Answer 結構化資料——那等於告訴搜尋引擎與 AI 引擎
-  頁面上有它實際上沒有的問答內容，會被視為不實 schema markup，對 GEO 有害而非有益。
-  待客戶提供各分類問答內容後，請將每一則 <details class="accordion-item"> 內的
-  <summary>（問題）與 .accordion-item__a（答案）文字，對應填入下列結構後加進 meta.schema：
-  {
-    "@context": "https://schema.org",
-    "@type": "FAQPage",
-    "mainEntity": [
-      { "@type": "Question", "name": "問題文字", "acceptedAnswer": { "@type": "Answer", "text": "答案文字" } }
-    ]
-  }
--->
 <nav class="breadcrumb" aria-label="麵包屑">
   <div class="container">
     <ol>
@@ -107,169 +95,48 @@ onMounted(() => {
   <div class="container">
     <p class="page-hero__eyebrow">12 FAQ</p>
     <h1>常見問題<span class="en">FAQ</span></h1>
-    <p class="page-hero__lede">依主題分類整理的常見問題，可直接搜尋關鍵字，或分享單題連結給需要的人。</p>
+    <p class="page-hero__lede">依主題分類整理的常見問題，可直接搜尋關鍵字，或分享單題連結給需要的人。目前共收錄 {{ totalCount }} 題。</p>
   </div>
 </section>
 
 <section class="band faq-band" aria-labelledby="faq-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="faq-title">常見問題搜尋與分類</h2>
+    <h2 id="faq-title" class="visually-hidden">常見問題搜尋與分類</h2>
 
     <div class="faq-search">
       <label class="visually-hidden" for="faq-search-input">搜尋常見問題</label>
-      <input type="search" id="faq-search-input" placeholder="輸入關鍵字搜尋問題與答案…" autocomplete="off">
+      <input
+        id="faq-search-input"
+        v-model="search"
+        type="search"
+        placeholder="輸入關鍵字搜尋問題與答案…"
+        autocomplete="off"
+      >
     </div>
 
-    <p class="faq-no-result" id="faq-no-result" hidden>
+    <p v-if="noResult" class="faq-no-result">
       沒有找到符合的問題。歡迎直接
       <a :href="lp('/zh/join/general/')">聯絡我們</a>，我們會盡快回覆你的問題。
     </p>
 
-    <nav class="faq-topics" aria-label="常見問題主題">
-      <a class="faq-topic-card" href="#topic-join-team">加入球隊</a>
-      <a class="faq-topic-card" href="#topic-academy">學院招生</a>
-      <a class="faq-topic-card" href="#topic-programs">課程與營隊報名</a>
-      <a class="faq-topic-card" href="#topic-fees">費用與退費</a>
-      <a class="faq-topic-card" href="#topic-trial">試訓</a>
-      <a class="faq-topic-card" href="#topic-international">國際發展與海外球員</a>
-      <a class="faq-topic-card" href="#topic-womens">女子足球</a>
-      <a class="faq-topic-card" href="#topic-fanclub">球迷會與商品</a>
-      <a class="faq-topic-card" href="#topic-partnership">合作與贊助</a>
-      <a class="faq-topic-card" href="#topic-other">其他</a>
+    <nav v-if="!isSearching" class="faq-topics" aria-label="常見問題主題">
+      <a v-for="cat in categories" :key="cat.id" class="faq-topic-card" :href="`#topic-${cat.slug}`">{{ cat.name }}</a>
     </nav>
 
-    <div class="faq-categories" id="faq-categories">
-
-      <section class="faq-category" id="topic-join-team" data-faq-category>
-        <h2 class="faq-category__title">加入球隊</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-101">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
+    <div class="faq-categories">
+      <section
+        v-for="cat in categories"
+        v-show="!isSearching || (visibleByCategory.get(cat.slug)?.length ?? 0) > 0"
+        :id="`topic-${cat.slug}`"
+        :key="cat.id"
+        class="faq-category"
+      >
+        <div class="faq-category__head">
+          <h2 class="faq-category__title">{{ cat.name }}</h2>
+          <a v-if="dedicatedPageFor(cat.slug)" class="faq-category__more" :href="lp(dedicatedPageFor(cat.slug) ?? '/zh/faq/')">獨立主題頁 →</a>
         </div>
+        <FaqAccordion :faqs="visibleByCategory.get(cat.slug) ?? []" :club="club" />
       </section>
-
-      <section class="faq-category" id="topic-academy" data-faq-category>
-        <h2 class="faq-category__title">學院招生</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-201">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section class="faq-category" id="topic-programs" data-faq-category>
-        <h2 class="faq-category__title">課程與營隊報名</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-301">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section class="faq-category" id="topic-fees" data-faq-category>
-        <h2 class="faq-category__title">費用與退費</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-401">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section class="faq-category" id="topic-trial" data-faq-category>
-        <h2 class="faq-category__title">試訓</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-501">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section class="faq-category" id="topic-international" data-faq-category>
-        <h2 class="faq-category__title">國際發展與海外球員</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-601">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section class="faq-category" id="topic-womens" data-faq-category>
-        <h2 class="faq-category__title">女子足球</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-701">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section class="faq-category" id="topic-fanclub" data-faq-category>
-        <h2 class="faq-category__title">球迷會與商品</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-801">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section class="faq-category" id="topic-partnership" data-faq-category>
-        <h2 class="faq-category__title">合作與贊助</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-901">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section class="faq-category" id="topic-other" data-faq-category>
-        <h2 class="faq-category__title">其他</h2>
-        <div class="accordion">
-          <details class="accordion-item" id="q-1001">
-            <summary class="accordion-item__q"><span>本分類問題整理中</span><span class="accordion-item__icon" aria-hidden="true"></span></summary>
-            <div class="accordion-item__a">
-
-              <div class="accordion-item__feedback"><span>這則說明有幫助嗎？</span><button type="button" class="fb-btn" data-fb="up" aria-pressed="false" aria-label="有幫助">👍</button><button type="button" class="fb-btn" data-fb="down" aria-pressed="false" aria-label="沒有幫助">👎</button></div>
-            </div>
-          </details>
-        </div>
-      </section>
-
     </div>
 
     <div class="faq-fallback-cta">
@@ -281,9 +148,6 @@ onMounted(() => {
 </template>
 
 <style>
-/* ── 12 FAQ 專屬元件：faq-topic-card 主題導覽、accordion 手風琴（原生 details/summary）、
-   faq-search 搜尋、fb-btn 有幫助嗎回饋 —— 若 4.7／5.x／3.3／9.4 等頁面要嵌入前 5 題（G-12），
-   建議將 .accordion 系列收進共用 tcrfc.css（見 AGENT_BRIEF §6）。 */
 .faq-band{ padding-block:clamp(3.5rem,6vw,6rem); }
 
 .faq-search{ max-width:520px; margin-bottom:2rem; }
@@ -308,29 +172,9 @@ onMounted(() => {
 .faq-topic-card:hover, .faq-topic-card:focus-visible{ background:var(--brand-aa); color:#fff; }
 
 .faq-category{ margin-bottom:3rem; scroll-margin-top:6rem; }
-.faq-category__title{ font-size:1.15rem; font-weight:900; color:var(--heading); padding-bottom:.75rem; border-bottom:2px solid var(--rule); margin-bottom:.5rem; }
-.faq-category[hidden]{ display:none; }
-
-.accordion-item{ border-bottom:1px solid var(--rule); }
-.accordion-item summary::-webkit-details-marker{ display:none; }
-.accordion-item__q{
-  list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:1rem;
-  padding:1.1rem 0; font-weight:700; font-size:.98rem; color:var(--heading);
-}
-.accordion-item__q:focus-visible{ outline:2px solid var(--brand-aa); outline-offset:2px; }
-.accordion-item__icon{ flex:none; width:20px; height:20px; position:relative; }
-.accordion-item__icon::before, .accordion-item__icon::after{ content:""; position:absolute; background:var(--ink); }
-.accordion-item__icon::before{ top:50%; left:0; width:100%; height:2px; transform:translateY(-50%); }
-.accordion-item__icon::after{ left:50%; top:0; width:2px; height:100%; transform:translateX(-50%); transition:transform .2s var(--ease); }
-.accordion-item[open] .accordion-item__icon::after{ transform:translateX(-50%) scaleY(0); }
-.accordion-item__a{ padding:0 0 1.5rem; color:var(--text); line-height:1.8; font-size:.92rem; }
-.accordion-item__a .pending{ margin:0 0 1rem; }
-.accordion-item__a a{ color:var(--brand-aa); text-decoration:underline; }
-.accordion-item:target{ box-shadow:inset 3px 0 0 var(--brand-aa); }
-
-.accordion-item__feedback{ display:flex; align-items:center; gap:.6rem; font-size:.8rem; color:var(--muted); }
-.fb-btn{ min-height:32px; min-width:32px; padding:0 .4rem; font-size:1rem; }
-.fb-btn[aria-pressed="true"]{ opacity:.5; }
+.faq-category__head{ display:flex; align-items:baseline; justify-content:space-between; gap:1rem; padding-bottom:.75rem; border-bottom:2px solid var(--rule); margin-bottom:.5rem; flex-wrap:wrap; }
+.faq-category__title{ font-size:1.15rem; font-weight:900; color:var(--heading); margin:0; }
+.faq-category__more{ font-size:.85rem; font-weight:700; color:var(--brand-aa); white-space:nowrap; }
 
 .faq-fallback-cta{
   text-align:center; padding:3rem 1.5rem; background:var(--paper-2); border:1px solid var(--rule); margin-top:2rem;

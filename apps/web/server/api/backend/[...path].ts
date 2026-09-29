@@ -20,6 +20,14 @@ import { isIP } from 'node:net'
 // 公開端點），其他 path 一律 405。GET 維持既有行為不變（唯讀查詢，既有五組端點都在用）。
 const FORM_SUBMISSION_PATH = /^[a-z][a-z0-9-]*\/forms\/[a-z][a-z0-9_]*\/submissions$/
 
+// ── S1-18 新增：12 FAQ「這則說明有幫助嗎？」回饋 ──────────────────────────────────
+// 規劃書 3.12 明文要求「回饋數據回寫後台」，對應 apps/api
+// `POST /api/v1/{club}/faqs/{slug}/feedback`（Features/Faqs/FaqsEndpoints.cs，body
+// `{ helpful: true|false }`）。跟表單送出同一層考量：白名單只放行這一種路徑形狀，
+// 不是「POST 且非表單就一律放行」，避免無差別開放 apps/api 其他還沒設計給瀏覽器
+// 直打的端點。slug 允許小寫英數與連字號（同 FaqSlugPolicy 的既有慣例）。
+const FAQ_FEEDBACK_PATH = /^[a-z][a-z0-9-]*\/faqs\/[a-z0-9-]+\/feedback$/
+
 export default defineEventHandler(async (event) => {
   const path = event.context.params?.path ?? ''
   const method = event.method
@@ -30,7 +38,7 @@ export default defineEventHandler(async (event) => {
     return await $fetch(`/api/v1/${path}`, { baseURL: backendApiBase(), method, query })
   }
 
-  if (method !== 'POST' || !FORM_SUBMISSION_PATH.test(path)) {
+  if (method !== 'POST' || !(FORM_SUBMISSION_PATH.test(path) || FAQ_FEEDBACK_PATH.test(path))) {
     throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })
   }
 
