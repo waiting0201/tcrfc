@@ -146,8 +146,11 @@ useHead({
 })
 
 // Article Schema（GEO-05／GEO-08：canonical、發布與更新時間、語言、作者或署名單位）。
-// 本站沒有個別記者／作者欄位（article.vue 原本「作者」meta 欄本來就留白，不是本次
-// 漏做），署名單位固定用俱樂部本身，比照既有留白設計，不是新造規格。
+// 本站沒有個別記者／作者欄位，署名單位固定用俱樂部本身（siteName，即下方 JSON-LD
+// 的 author／publisher 同一個值）——S1-12e 之前這裡的可見「作者」欄只有標籤沒有值
+// （article.vue 原本留白），GEO-08 明文「文章型內容另輸出作者或署名單位」不只是
+// 結構化資料，可見文字也要輸出，S1-12e 把樣板裡的「作者」欄位補上這個值
+// （見下方 template 的 `article-meta-row`），讓明文與 JSON-LD 兩處數值一致（GEO-04）。
 //
 // 🔴 已知缺口（回報，不在本頁修補，因為不在 apps/web 範圍內）：apps/api 的
 // ArticleDetailDto 沒有 updatedAt／dateModified 可用的欄位——DB 的
@@ -238,7 +241,7 @@ watchEffect(() => {
       <div class="article-meta-row">
         <div><span class="article-meta-row__label">發布日期</span><time :datetime="newsIsoDate(article?.publishedAt)">{{ newsSlashDate(article?.publishedAt) }}</time></div>
         <div><span class="article-meta-row__label">分類</span><a :href="lp(`/zh/news/${article?.categoryCode}/`)">{{ categoryBilingual }}</a></div>
-        <div><span class="article-meta-row__label">作者</span></div>
+        <div><span class="article-meta-row__label">作者</span>{{ siteName }}</div>
       </div>
 
       <template v-if="matchFields">

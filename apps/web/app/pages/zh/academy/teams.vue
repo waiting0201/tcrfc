@@ -109,8 +109,13 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band">
+<section class="band" aria-labelledby="team-tabs-title">
   <div class="container">
+    <!-- S1-12e（GEO-07）：分頁面板內的「名單」「教練」「賽程與成績」都是 h3，中間
+         沒有 h2，原本從 H1 直接跳到 h3。加一個視覺隱藏的 h2 補上大綱層級，
+         比照 zh/academy/coaches.vue 同一輪的修法，不影響版面（分頁按鈕本身另有
+         role="tab" 與 aria-controls／aria-labelledby，跟這個 h2 是兩件事，互不取代）。 -->
+    <h2 id="team-tabs-title" class="visually-hidden">梯隊名單、教練與賽程</h2>
 
     <div class="team-tabs" data-team-tabs>
       <div class="team-tabs__list" role="tablist" :aria-label="`${identity.academyShortLabelZh}年齡層`">

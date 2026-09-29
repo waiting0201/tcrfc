@@ -743,6 +743,131 @@ Organization／SportsTeam 的 `schemaEligible` 現況恆為 `false`（S1-12f 已
    延續 S1-12a／b／c／f 同一個環境限制（本機啟動 `apps/api` 需要在指令列具現化資料庫
    密碼，被 session 自動模式安全防護擋下，依硬規則被擋就停）。
 
+## S1-12e（`GEO-07`／`GEO-08` 內容結構與引用資訊，2026-09-29，`frontend-architect`）
+
+主站規劃書 §7 `GEO-07`（H1 唯一、H2/H3 不跳階、首段獨立成立的摘要段、不以圖片承載文字）／
+`GEO-08`（canonical、發布與更新時間、語言、作者或署名單位）。
+
+### 新增的自動檢查：`scripts/check-heading-structure.mjs`
+
+對**已渲染的 SSR 輸出**（不是原始碼）逐頁檢查標題大綱，理由與 `check-club-brand-leak.mjs`
+完全同一個模式——標題大綱是 `SiteHeader.vue`／`SiteFooter.vue`／`MembershipBenefits.vue`
+這些共用元件插進頁面之後的「組合結果」，單一 `.vue` 檔案看不到組合後前後接的是哪一級
+標題。**刻意不掛進 `npm run lint`**：`lint` 目前純靜態、秒級跑完，這支腳本需要先把前台
+跑起來才能執行，理由詳見腳本檔頭「為什麼不掛進 `npm run lint`」（同 `E-34` 的教訓）。
+
+檢查三件事：① H1 恰好一個且文字非空（抓「H1 被圖片取代、沒有文字節點」的情形）；
+② 整份 HTML 的標題依文件順序不得跳階（可以往回降級，只有「往下跳超過 1 級」算違規，
+跟 axe-core `heading-order` 規則同一套判斷方式；「有效層級」優先讀 `aria-level` 屬性，
+沒有才用標籤本身數字）；③ 首段摘要段的**結構性**存在（H1 之後最近的 `<p>`），標記
+「占位／流程骨架」（`pending-inline`／`mock-flag`／文字含「待補」「待確認」）——**這項
+不影響離開碼**，沒有真實內容可寫的頁面是內容缺口不是程式錯誤，比照 `check-club-brand-leak.mjs`
+「進度計不影響離開碼」同一個理由（避免對缺內容的頁面 hard-fail 製造永久紅燈）。
+
+**用法**（怎麼跑，納入驗收流程）：
+```bash
+# 先依上方「本機測試兩個 club」把 tcrfc／bw 兩個前台容器跑起來
+node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:3001   # tcrfc
+node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:3002   # bw
+```
+
+離開碼：H1 不是恰好一個、H1 文字為空、或出現標題跳階 → `1`；首段摘要缺口只列出來 → `0`。
+
+### 修正前後違規數
+
+首次執行（修正前）在 `tcrfc` 容器發現：
+- **4 處標題跳階**，其中 **1 處是全站性的**：`SiteFooter.vue` 四個頁尾標題是 `<h4>`，
+  但大多數頁面走到頁尾前最後一個標題只到 `<h2>`（例如首頁 `cta-title` 之後直接接頁尾），
+  h2 → h4 跳兩級；另 2 處是個別頁面缺 h2：`zh/academy/coaches.vue`（h1 直接接教練卡片的
+  h3 人名）、`zh/academy/teams.vue`（h1 直接接分頁面板內的 h3「名單」）。
+- H1 唯一性：全數通過（79 個非動態頁面各自恰好一個 `<h1>`，根路徑轉址頁與
+  `news/[slug]` 動態頁不計入，見腳本檔頭說明）。
+
+修正後（`tcrfc`／`bw` 兩容器皆已實測）：H1 唯一與標題跳階兩項**全數通過（0 違規）**；
+首段摘要段缺口 4 筆（`/zh/`／`/en/` 各 2 頁：`cart/`、`checkout/`，見下方「已知內容缺口」）。
+
+### 改了哪些檔案
+
+- [`app/components/SiteFooter.vue`](app/components/SiteFooter.vue)：四個 `<h4>` 標題加上
+  `aria-level="2"`。**tag 名稱、class、DOM 結構本身完全不動**（本檔開頭明文「DOM／class
+  不動」的既有紀律）——`aria-level` 是 WAI-ARIA 允許的既有技巧，只覆寫輔助技術與遵循
+  ARIA 的爬蟲讀到的標題層級，`.footer-col h4` 這個 CSS 選擇器與既有 DOM 比對機制
+  （`check-club-brand-leak.mjs`）完全不受影響。
+- [`app/pages/zh/academy/coaches.vue`](app/pages/zh/academy/coaches.vue)／
+  [`app/pages/zh/academy/teams.vue`](app/pages/zh/academy/teams.vue)：各加一個
+  `class="visually-hidden"` 的 `h2`，比照本站既有慣例（`zh/member/index.vue` 的
+  `member-title`、`zh/news/[slug]/index.vue` 的 `article-body-title`），補上大綱層級，
+  不影響版面。
+- [`app/pages/zh/news/[slug]/index.vue`](app/pages/zh/news/%5Bslug%5D/index.vue)：
+  `GEO-08`「文章型內容另輸出作者或署名單位」——原本可見的「作者」欄位只有標籤沒有值
+  （`article.vue` 時代就留白），這裡補上 `siteName`（俱樂部本身），與同頁 JSON-LD 的
+  `author`／`publisher` 讀同一個值，滿足 `GEO-04` 明文與結構化資料一致。
+- 新增 [`scripts/check-heading-structure.mjs`](scripts/check-heading-structure.mjs)。
+
+### `GEO-08` 其餘三項（canonical、語言、共用機制）現況
+
+**都已由既有機制涵蓋，本輪沒有新增程式碼**：canonical 由 `@nuxtjs/seo`（`nuxt-seo-utils`）
+依 `site.url` ＋ 目前路徑自動產生（S0-9b 已實測 `NUXT_PUBLIC_SITE_URL` 可 runtime 覆寫）；
+`<html lang>` 由 `app/plugins/site-locale.ts` 依路由動態決定（S1-13）；`noindex` 由
+`nuxt.config.ts` 的 `routeRules['/**']` 加 `X-Robots-Tag` 標頭（CLAUDE.md 全域規定第 5 條）。
+本輪已用本機 `tcrfc`／`bw` 兩容器對 `/zh/`／`/en/` 各實測一次，四種組合的 `<html lang>`、
+`<link rel="canonical">`、`X-Robots-Tag` 皆正確（見下方「驗證指令與結果」）。
+
+**發布與更新時間**：`publishedAt` 已輸出（JSON-LD `datePublished` ＋頁面可見的
+「發布日期」），`dateModified` 因 `apps/api` 的 `ArticleDetailDto` 沒有公開 `updatedAt`
+欄位，維持不輸出（S1-12f 已知缺口，不在 `apps/web` 範圍內，見該處程式碼註解——
+`GEO-08` 明文「更新時間要真的更新，不是發布時間複製一份」，沒有真實資料就不輸出，
+不臆造）。
+
+### 首段摘要段：已核實的既有慣例與無法自動判斷的缺口
+
+**72 個內容頁已有結構性首段摘要**，慣例是 `.page-hero__lede`（首頁另用
+`.hero__sub`）——H1 之後緊接一段可獨立理解的摘要文字，這是搬遷時就存在的既有慣例，
+本輪沒有新增規則，只是確認並用自動檢查釘住。
+
+**沒有真實內容可寫、刻意沒有臆造文案的頁面**（列出來，不是漏做）：
+- `/zh/cart/`、`/zh/checkout/`（含 `/en/` 孿生路由）：「流程骨架」頁面，H1 後的文字是
+  QA 提示（「表單不會送出」），不是內容摘要——這兩頁本身是购物流程的功能性骨架，
+  尚無真實文案可摘要，腳本已標記為 `PLACEHOLDER`。
+- `zh/shop/home-jersey-2026/`、`zh/shop/cushioned-socks/`（商品頁）：H1 後緊接的是
+  「尚有庫存」等庫存狀態文字，不是商品描述——頁面上材質／產地／退換貨政策全部標記
+  `pending-inline`（待客戶提供），沒有真實商品描述可摘要。**自動腳本沒有標記這兩頁**
+  （因為 H1 後確實存在非空、非占位標記的 `<p>`，只是語意上不是摘要），這裡改用人工
+  審查列出，供下一輪有真實商品資料時補上。
+- `zh/checkout/complete/`、`zh/club/first-team/player/`：H1 後的文字是交易確認訊息／
+  球員背號與租借狀態的 meta 列，結構上存在且非占位，但同樣不是敘事型摘要——列出供
+  參考，不強制修改（訂單完成頁與球員 meta 列本來就是這種簡短資訊格式，非本輪判定
+  為缺陷）。
+
+### 驗證指令與實際結果
+
+```bash
+npm run lint    # 0 errors, 527 warnings（與改動前基準相同，未新增警告）
+npm run build   # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+
+# 本機起兩個前台容器（見上方「本機測試兩個 club」）後：
+node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:3001  # tcrfc：H1／跳階皆 0 違規
+node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:3002  # bw：H1／跳階皆 0 違規
+node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:3002    # 保護清單 15 頁乾淨，棘輪未違反
+
+# 抽查 canonical／<html lang>／noindex（curl，四種組合皆正確）：
+curl -s http://127.0.0.1:3001/zh/ | grep -oE '<html[^>]*>|<link rel="canonical"[^>]*>'
+curl -sI http://127.0.0.1:3001/zh/ | grep -i x-robots-tag
+# （/en/、bw 容器同樣抽查過，結果見上方「其餘三項現況」）
+```
+
+### 未驗證項目
+
+- 動態文章頁（`news/[slug]`）的標題結構與可見作者欄位**沒有用真實資料實機驗證**——
+  本輪未啟動 `apps/api`（任務指示明文禁止），該頁在沒有後端時恆 404，`check-heading-structure.mjs`
+  的路由收集規則因此排除它（同 `check-club-brand-leak.mjs` 既有慣例）。作者欄位的樣板
+  改動已通過 `npx nuxi typecheck`（隨 `npm run build` 一併跑）與程式碼審視，實際渲染
+  留給下一輪有 `apps/api` 可用時確認。
+- 「不以圖片排版承載文字」只驗證了 H1 本身（文字節點非空），沒有掃描全站其餘內文
+  是否有「整段文字做成圖片」的情形——本站目前全站是語意化 HTML＋CSS 排版，沒有
+  既有樣式特徵可以自動比對，這項留給人工審查，腳本檔頭已誠實列為「明文不做的事」。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

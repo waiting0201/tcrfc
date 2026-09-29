@@ -58,6 +58,7 @@
 | E-12 | 2026-09-20 | `docs/17` §1 的 Redis healthcheck 片段寫成 exec form，`$$REDIS_PASSWORD` 不會被展開，會一直回報不健康 | ✅ 已改 `CMD-SHELL`（`docs/17` 本體與 `docker-compose.yml` 皆已修正） |
 | E-13 | 2026-09-21 | **建了一個叫 `docker-compose.staging.yml` 的 override，與同一批文件裡「不建 staging 環境」直接牴觸**——功能沒錯，但檔名憑空多造出第三套環境的印象 | ✅ 已刪檔，改為 `.env` 的 `CADDYFILE`；環境數量寫進 [`14-invariants.md`](14-invariants.md) |
 | E-16 | 2026-09-21 | Vue SFC 註解裡寫出完整的 `script`／`style`／`template` 字面標籤，`build` 直接壞（誤判成 async setup 衝突，繞了一圈才找到真因） | ⚠️ 無（留給 S0-9 補 lint 檢查） |
+| E-66 | 2026-09-29 | `sed -i 's/<h4>/<h4 aria-level="2">/g'` 全域取代時，連自己剛寫進同一個檔案、內文提到 `<h4>` 字面值的說明註解也一併取代掉，註解變成「引用已經套用修正後的寫法在描述修正前的狀態」，自相矛盾 | ⚠️ 無（改用 Edit 工具做精確字串取代前先確認註解裡沒有同樣的字面值，或註解與程式碼分兩次下手） |
 | E-17 | 2026-09-21 | `@nuxtjs/seo` 的 `nuxt-seo-utils` 子模組蓋掉元件層 `useHead` 設的 `<html lang>`，`tagPriority: 'high'` 也蓋不掉 | ✅ 改用 `nuxt.config.ts` 的 `app.head.htmlAttrs.lang` |
 | E-18 | 2026-09-21<br>2026-09-22 | `@nuxtjs/sitemap` 的 runtime 動態來源在「一份 build、runtime 才決定 club」的架構下沒被偵測到，`/sitemap.xml` 永遠空；2026-09-22 查出**真正根因不是動態來源偵測**，是模組把命中全站 `noindex` route rule 的網址整批排除 | ✅ 已改自組 XML（`server/routes/sitemap.xml.ts`），繞過該模組的內建路由 |
 | E-19 | 2026-09-21 | `apps/api/Tcrfc.Api.csproj` 加了 `<InvariantGlobalization>true</InvariantGlobalization>`，`Microsoft.Data.SqlClient` 一開連線就丟 `System.NotSupportedException: Globalization Invariant Mode is not supported` | ✅ 已移除該屬性，並在 csproj 留註解說明原因 |
@@ -1657,3 +1658,20 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   訊息明確指出「同時出現 `'scheduled'`、`'played'` 字面值」，修正後（改用
   `mapMatchStatus(m.status).code === 'finished'`／`=== 'upcoming'`）同一份 lint 轉綠。
   這筆記錄的目的是提醒「先查單一來源工具」的習慣，不是這支腳本本身有缺口。
+
+### E-66 `sed` 全域取代連自己剛寫的說明註解都改了，註解變成自相矛盾（2026-09-29，S1-12e）
+
+- **錯在哪**：修 `apps/web/app/components/SiteFooter.vue` 的頁尾標題跳階問題時，先用 `Edit`
+  工具寫了一段說明註解（解釋「為什麼要把 `<h4>` 加上 `aria-level="2"`」），註解本文裡用反引號
+  提到好幾次字面 `` `<h4>` ``；緊接著用 `sed -i 's/<h4>/<h4 aria-level="2">/g'` 對整個檔案做
+  全域取代來套用實際修正，這個指令沒有排除範圍，把剛寫進去的註解本文也一起取代了——
+  註解變成「`<h4 aria-level="2">` 相對於 `<h2>` 跳兩級」這種讀起來像是修正後仍有問題的
+  自相矛盾語句。
+- **為什麼會錯（根因）**：選擇 `sed` 全域字串取代來套用一個「只想改程式碼裡的標籤」的修正，
+  但沒有先確認同一個檔案裡有沒有別的地方（尤其是自己剛寫的註解）也含有相同字面值——
+  `sed -i` 是無差別對整個檔案生效，不會區分「這是程式碼」還是「這是描述程式碼的文字」。
+- **下次怎麼避免**：要在同一個檔案裡「先寫說明註解、再用全域取代套用修正」時，兩個動作
+  對調順序（先套用修正、後補註解），或改用 `Edit` 工具對明確的程式碼片段做精確字串取代
+  （不含註解範圍），不要在註解裡出現與待取代字面值相同的文字之後才跑 `sed -i` 的全域取代。
+- **防呆**：⚠️ 無（本次是在同一輪交付內、送出前重新讀檔時自己發現並修正，沒有流到後續
+  流程；沒有自動化機制能攔住「`sed` 取代範圍蓋過同檔案的說明文字」這一類問題）。

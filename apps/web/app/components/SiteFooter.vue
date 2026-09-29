@@ -3,6 +3,16 @@
 //
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：品牌欄一句話介紹、
 // 社群連結、版權列都是「俱樂部自己的事實」，一律從 shared/utils/club-copy.ts 取值。
+//
+// 🔵 S1-12e（GEO-07 標題結構）：頁尾四個標題維持原本的 h4 標籤不動（tag 名稱、class、
+// `.footer-col h4` 的 CSS 選擇器都不能改，見上一段「DOM／class 不動」），但頁尾出現在
+// 每一頁的最後面，而多數頁面走到頁尾前最後一個標題只到 h2（例如實測首頁 `cta-title`
+// 之後直接接頁尾），視覺標題層級與可存取性標題大綱因此對不上——這正是 h4 相對於 h2
+// 跳兩級，違反 GEO-07「H2/H3 不跳階」。加上 `aria-level="2"` 是 WAI-ARIA 允許的既有
+// 技巧：在原生 h4 元素上覆寫輔助技術讀到的標題層級，不改變元素本身的 tag／class／
+// 視覺樣式，`.footer-col h4` 選擇器與既有 DOM 比對機制完全不受影響，只有螢幕閱讀器與
+// 遵循 ARIA 的爬蟲看到的「大綱層級」改變。見 scripts/check-heading-structure.mjs
+// 檔頭說明與 apps/web/README.md「S1-12e」節。
 const config = useRuntimeConfig()
 const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
@@ -30,7 +40,7 @@ const { locale, lp, switchTo } = useLocale()
         </div>
 
         <div class="footer-col">
-          <h4>俱樂部</h4>
+          <h4 aria-level="2">俱樂部</h4>
           <ul>
             <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
             <li><a :href="lp('/zh/club/first-team/')">一線隊</a></li>
@@ -40,7 +50,7 @@ const { locale, lp, switchTo } = useLocale()
           </ul>
         </div>
         <div class="footer-col">
-          <h4>青訓與課程</h4>
+          <h4 aria-level="2">青訓與課程</h4>
           <ul>
             <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
             <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
@@ -50,7 +60,7 @@ const { locale, lp, switchTo } = useLocale()
           </ul>
         </div>
         <div class="footer-col">
-          <h4>參與{{ assets.shortNameZh }}</h4>
+          <h4 aria-level="2">參與{{ assets.shortNameZh }}</h4>
           <ul>
             <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
             <li><a :href="lp('/zh/shop/')">官方商店</a></li>
@@ -62,7 +72,7 @@ const { locale, lp, switchTo } = useLocale()
           </ul>
         </div>
         <div class="footer-col newsletter">
-          <h4>訂閱電子報</h4>
+          <h4 aria-level="2">訂閱電子報</h4>
           <p>第一時間收到{{ assets.shortNameZh }}賽事戰報與活動資訊。</p>
           <form @submit.prevent>
             <label class="visually-hidden" for="newsletter-email">電子郵件地址</label>

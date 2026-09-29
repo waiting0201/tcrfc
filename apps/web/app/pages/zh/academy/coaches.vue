@@ -32,8 +32,13 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band">
+<section class="band" aria-labelledby="coaches-list-title">
   <div class="container">
+    <!-- S1-12e（GEO-07）：這裡原本直接從 H1 跳到教練卡片的 h3（人名），中間沒有 h2，
+         違反「H2/H3 不跳階」。加一個視覺隱藏的 h2 補上大綱層級，比照本站既有的
+         `.visually-hidden` 標題慣例（見 zh/member/index.vue「member-title」、
+         zh/news/[slug]/index.vue「article-body-title」），不影響版面。 -->
+    <h2 id="coaches-list-title" class="visually-hidden">教練名單</h2>
     <div class="grid grid--3 person-grid">
 
       <article class="person-card clip-card clip-card--outlined">
