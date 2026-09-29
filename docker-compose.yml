@@ -19,11 +19,22 @@
 name: tcrfc
 
 networks:
-  # S1-10（2026-09-25）：固定子網段＋給 proxy 一個固定 IP，讓 api 容器能在 ASP.NET Core 的
-  # ForwardedHeadersOptions.KnownProxies 裡精確信任「只有 Caddy」這一個來源的 X-Forwarded-For，
-  # 而不是信任「整個 internal 網段」（那樣的話同一個網段裡的其他容器，例如 nuxt-tcrfc／
-  # admin-web，理論上也能偽造標頭騙過 api 的濫用防護限流）。沒有明確 subnet，docker compose
+  # S1-10（2026-09-25）／S1-17 修正（2026-09-29，多重受信任來源）：固定子網段＋給 proxy、
+  # nuxt-tcrfc、nuxt-bw 各一個固定 IP，讓 api 容器能在 ASP.NET Core 的
+  # ForwardedHeadersOptions.KnownProxies 裡精確信任「只有這幾個」來源的 X-Forwarded-For，
+  # 而不是信任「整個 internal 網段」（那樣的話同一個網段裡的其他容器，例如 admin-web／
+  # nuxt-charity，理論上也能偽造標頭騙過 api 的濫用防護限流）。沒有明確 subnet，docker compose
   # 每次重建網路可能分配到不同的自動 IP，`ipv4_address` 靠這個固定的 subnet 才能穩定生效。
+  #
+  # 🔴 為什麼 nuxt-tcrfc／nuxt-bw 也要固定 IP：S1-17 起 10 表單中心公開送出改由這兩個容器的
+  # Nuxt 伺服器端路由（server/api/backend/[...path].ts）代理轉發到 api，這條路徑下 api 看到的
+  # TCP 連線來源是這兩個容器自己的 IP，不是 Caddy——必須把它們也列為受信任來源，否則所有訪客
+  # 經這條路徑送出的表單會共用同一把「nuxt 容器的 IP」鑰匙（依 IP 分區限流形同虛設，等同退回
+  # S1-10 修正前的狀況）。完整理由見 apps/api/Security/TrustedProxyConfiguration.cs 檔頭。
+  #
+  # 🔵 刻意不給 nuxt-charity 固定 IP：慈善站台目前沒有已知的等價代理路徑會打這個限流政策
+  # （見 TrustedProxyConfiguration.cs 檔頭「刻意不包含 nuxt-charity」）。日後若慈善前台也新增
+  # 類似代理，要一併補上固定 IP 與下方 api 服務的 TRUSTED_PROXY_IPS。
   internal:
     driver: bridge
     ipam:
@@ -70,8 +81,8 @@ services:
       ADMIN_WEB_DOMAIN: ${ADMIN_WEB_DOMAIN:?}
       ADMIN_CHARITY_DOMAIN: ${ADMIN_CHARITY_DOMAIN:?}
       API_DOMAIN: ${API_DOMAIN:?}
-    # 固定 IP（見上方 networks.internal.ipam 的說明）：api 服務用這個位址當
-    # TRUSTED_PROXY_IP，只信任「這個容器」轉來的 X-Forwarded-For。
+    # 固定 IP（見上方 networks.internal.ipam 的說明）：api 服務的 TRUSTED_PROXY_IPS 清單
+    # 靠這個固定位址信任「這個容器」轉來的 X-Forwarded-For。
     networks:
       internal:
         ipv4_address: 172.28.238.2
@@ -107,7 +118,11 @@ services:
       NUXT_API_INTERNAL_BASE: http://api:8080 # SSR 階段走 Docker 內部網路，不繞 Caddy／Cloudflare
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
-    networks: [internal]
+    # 固定 IP（見上方 networks.internal.ipam 的說明）：api 服務的 TRUSTED_PROXY_IPS 靠這個
+    # 固定位址信任「這個容器」轉來的 10 表單中心代理請求。
+    networks:
+      internal:
+        ipv4_address: 172.28.238.3
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -133,7 +148,11 @@ services:
       NUXT_API_INTERNAL_BASE: http://api:8080
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
-    networks: [internal]
+    # 固定 IP（見上方 networks.internal.ipam 的說明）：api 服務的 TRUSTED_PROXY_IPS 靠這個
+    # 固定位址信任「這個容器」轉來的 10 表單中心代理請求。
+    networks:
+      internal:
+        ipv4_address: 172.28.238.4
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
@@ -248,11 +267,13 @@ services:
       # api 要接受瀏覽器端請求的來源清單（後台 SPA、三個 SSR 前台的 CSR 階段）；實際的 CORS
       # 中介軟體設定由 backend-engineer 建專案時實作，這裡只保證它拿得到一份不必寫死的清單。
       CORS_ALLOWED_ORIGINS: https://${TCRFC_DOMAIN},https://${BW_DOMAIN},https://${CHARITY_DOMAIN},https://${ADMIN_WEB_DOMAIN},https://${ADMIN_CHARITY_DOMAIN}
-      # S1-10（2026-09-25）：唯一被信任、可以用 X-Forwarded-For 覆寫訪客真實 IP 的來源——
-      # 只信任 proxy（Caddy）這一個固定 IP（見上方 networks.internal.ipam／proxy 服務的
-      # ipv4_address），不是整個 internal 網段，避免同網段其他容器偽造標頭騙過依 IP 分區的
-      # 濫用防護限流（見 apps/api/README.md「S1-10」段「限流依真實訪客 IP」）。
-      TRUSTED_PROXY_IP: 172.28.238.2
+      # S1-10（2026-09-25）／S1-17 修正（2026-09-29，多重受信任來源）：被信任、可以用
+      # X-Forwarded-For 覆寫訪客真實 IP 的來源清單（逗號分隔）——proxy（Caddy）、nuxt-tcrfc、
+      # nuxt-bw 三個固定 IP（見上方 networks.internal.ipam 與三個服務各自的 ipv4_address），
+      # 不是整個 internal 網段，避免同網段其他容器（admin-web、nuxt-charity……）偽造標頭騙過
+      # 依 IP 分區的濫用防護限流（見 apps/api/README.md「S1-17 修正」段、
+      # apps/api/Security/TrustedProxyConfiguration.cs 檔頭）。
+      TRUSTED_PROXY_IPS: 172.28.238.2,172.28.238.3,172.28.238.4
     networks: [internal]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/readyz"]

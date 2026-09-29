@@ -35,16 +35,15 @@
 # 🔴 這兩個變數在 docker-compose.yml 裡是「可為空」的（正式期用不到），所以掛了這份檔案卻
 # 忘記填值時，Caddy 會在啟動時因為 bcrypt 雜湊解不出來而失敗——那是刻意的：寧可起不來，
 # 也不要悄悄變成一個沒有帳密保護的公開測試站。
-
 {
 	servers {
 		trusted_proxies static \
-			173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
-			141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
-			197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
-			104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 \
-			2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 \
-			2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+ 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
+ 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
+ 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
+ 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 \
+ 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 \
+ 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
 		client_ip_headers CF-Connecting-IP X-Forwarded-For
 	}
 	email {$ACME_EMAIL}
@@ -59,25 +58,35 @@
 	header X-Robots-Tag "noindex, nofollow, noarchive"
 }
 
+# ── S1-17 修正（2026-09-29）：明確傳訪客真實 IP 給三個 Nuxt 前台，理由與正式版
+# deploy/Caddyfile 完全相同（同一份 trusted_proxies／client_ip_headers 全域設定），見那份檔案
+# 對應段落的完整說明，這裡不重複。
+
 # ── 主站（上線前暫用網址） ───────────────────────────────────────────────
 {$TCRFC_DOMAIN} {
 	import prelaunch_gate
 	encode zstd gzip
-	reverse_proxy nuxt-tcrfc:3000
+	reverse_proxy nuxt-tcrfc:3000 {
+		header_up X-Real-IP {client_ip}
+	}
 }
 
 # ── 台中藍鯨官網（上線前暫用網址） ────────────────────────────────────────
 {$BW_DOMAIN} {
 	import prelaunch_gate
 	encode zstd gzip
-	reverse_proxy nuxt-bw:3000
+	reverse_proxy nuxt-bw:3000 {
+		header_up X-Real-IP {client_ip}
+	}
 }
 
 # ── 慈善捐款平台前台（上線前暫用網址，🔴 僅供開發測試，不得印上任何對外物料） ───
 {$CHARITY_DOMAIN} {
 	import prelaunch_gate
 	encode zstd gzip
-	reverse_proxy nuxt-charity:3000
+	reverse_proxy nuxt-charity:3000 {
+		header_up X-Real-IP {client_ip}
+	}
 }
 
 # ── 官網共用後台：不加 Basic Auth（見檔頭說明），noindex 沿用正式版設定 ────
@@ -95,7 +104,11 @@
 }
 
 # ── API：不對瀏覽器直接顯示內容頁面，不需要 Basic Auth；標頭仍加，屬保險 ────
+# 🔴🔴 這是修一個原本就存在、未被發現的漏洞，不是縱深防禦，理由同正式版
+# deploy/Caddyfile 對應段落（已本機實測驗證，不是只讀文件推論）。
 {$API_DOMAIN} {
 	header X-Robots-Tag "noindex, nofollow, noarchive"
-	reverse_proxy api:8080
+	reverse_proxy api:8080 {
+		header_up X-Forwarded-For {client_ip}
+	}
 }

@@ -3108,6 +3108,13 @@ Python 手算驗證碼，不繞過驗證本身）後實際呼叫 G1／G2 端點�
 `apps/admin`／`apps/web` 的 `npm run lint` 皆通過（0 errors；`apps/web` 既有 539 個 warning 與
 本輪無關，未觸碰任何前端檔案）。
 
+> 🔴 **2026-09-29 更新（見「S1-17 修正」節）**：上面這一段是 2026-09-25 當時的狀態，
+> **環境變數已改名**（`TRUSTED_PROXY_IP` 單數 → `TRUSTED_PROXY_IPS` 複數），且信任來源從
+> 「只信任 Caddy 一個 IP」擴充為「信任 Caddy ＋ `nuxt-tcrfc` ＋ `nuxt-bw` 三個固定 IP」，
+> 因為 10 表單中心公開送出後來（S1-17）改由 Nuxt 伺服器端代理轉發，不再是瀏覽器直接呼叫
+> 公開 API 網域。本段其餘敘述（框架陷阱、測試手法、驗收方式）原理不變，仍可參考；
+> 只有「只信任這一個 IP」這句與環境變數名稱已過期，請以「S1-17 修正」節為準。
+
 ---
 
 ## S1-10 修正：題目文字語系化、G2 指派負責人姓名選單、`/auth/me` 權限碼清單（2026-09-25，`backend-engineer`）
@@ -3809,7 +3816,7 @@ compose 網路裡）。
 | `QUERY_CACHE_TTL_SECONDS` | 選填（S0-7d） | 每個快取 key 的 TTL 秒數，預設 `300`（5 分鐘）。預設值的理由與可否調整見下方「快取接縫」段落 |
 | `SCHEDULED_PUBLISH_INTERVAL_SECONDS` | 選填（S0-7g） | 排程發布掃描的輪詢間隔秒數，預設 `60`。設定成 `< 1` 會記警告並退回預設值，不會讓服務啟動失敗。理由與可否調低見下方「排程發布：時間到了自動轉為 published」段落 |
 | `CORS_ALLOWED_ORIGINS` | 正式環境必填，本機可省略 | 逗號分隔的允許來源清單，來自 `docker-compose.yml` 的 `api` 服務定義（`docs/17-deployment.md` §10.2 的既有缺口，本次由前一任務補上）。本機開發若沒帶，`Development` 環境會退回 `localhost:3000/3001/3002` 三個 `apps/web` 常用埠；**正式環境沒有這個退回值**——沒設定就是沒有任何來源被允許，比「忘記設定就開放全部」安全 |
-| `TRUSTED_PROXY_IP` | 正式環境必填（否則限流失去意義），本機可省略 | S1-10 新增：唯一被信任、可以用 `X-Forwarded-For` 覆寫訪客真實 IP 的來源（`docker-compose.yml` 的 `proxy` 服務固定 IP `172.28.238.2`）。**未設定時 `Program.cs` 不會呼叫 `app.UseForwardedHeaders()`**——千萬不要假設「沒設定就是安全的預設值」，`ForwardedHeadersMiddleware` 把空的信任清單當成「信任所有來源」，見 `Security/TrustedProxyConfiguration.cs` 檔頭「未設定時中介軟體本身完全不掛」的完整說明 |
+| `TRUSTED_PROXY_IPS` | 正式環境必填（否則限流失去意義），本機可省略 | S1-10 新增、**S1-17 修正改名為複數**：被信任、可以用 `X-Forwarded-For` 覆寫訪客真實 IP 的來源清單（逗號分隔；`docker-compose.yml` 給 `proxy`／`nuxt-tcrfc`／`nuxt-bw` 三個服務的固定 IP `172.28.238.2`／`.3`／`.4`）。**未設定時 `Program.cs` 不會呼叫 `app.UseForwardedHeaders()`**——千萬不要假設「沒設定就是安全的預設值」，`ForwardedHeadersMiddleware` 把空的信任清單當成「信任所有來源」，見 `Security/TrustedProxyConfiguration.cs` 檔頭「未設定時中介軟體本身完全不掛」的完整說明 |
 | `ASPNETCORE_ENVIRONMENT` | 建議設 | `Development` 才會開 OpenAPI 端點，其餘值一律關閉 |
 | `ASPNETCORE_URLS` | 本機開發用 | 監聽位址，容器內固定用 `Dockerfile` 的 `ASPNETCORE_HTTP_PORTS=8080` |
 | ~~`ENABLE_UNSAFE_DEV_WRITES`~~ | 2026-09-23 起不存在 | 舊機制的環境旗標，隨 `Security/DevWriteGate.cs` 一併刪除，本檔任何程式碼都不再讀取這個鍵名，見「開發模式開關：已刪除」整節 |
@@ -6750,6 +6757,188 @@ docker build -f apps/api/Dockerfile apps/api              # 成功
 2. **`Venue` 沒有「新增／刪除管理」端點**——本輪刻意只做唯讀清單（任務範圍排除），新增場地仍然
    只能透過 `Features/AdminSiteFacts` 的既有「更新主場清單時順便新增」管道，不是獨立的場地管理
    功能；日後若真的需要獨立的場地 CRUD 畫面，需要先決定要不要新增場地管理權限碼。
+
+---
+
+## S1-17 修正：多重受信任代理來源——10 表單中心改走 Nuxt 伺服器端代理後，補齊限流的訪客真實 IP 判斷（2026-09-29，`backend-engineer`）
+
+### 背景：S1-17 把公開表單送出改成同源代理，S1-10 的「只信任 Caddy 一個 IP」假設因此失效
+
+`apps/web` 這一輪（S1-17）把 10 表單中心的 `POST /api/v1/{club}/forms/{formCode}/submissions`
+改成由 Nuxt 伺服器端路由（`server/api/backend/[...path].ts`）同源代理轉發，不再是瀏覽器直接呼叫
+`API_DOMAIN`。理由是避免額外處理 CORS／`runtimeConfig`（見該檔案檔頭），效果是 SSR 容器
+（`nuxt-tcrfc`／`nuxt-bw`）本來就有的內部呼叫路徑（`NUXT_API_INTERNAL_BASE=http://api:8080`）
+現在也承載了這個 POST。
+
+問題：S1-10 的依 IP 分區限流只信任 `TRUSTED_PROXY_IP`（單數）這一個固定 IP——`docker-compose.yml`
+只給 `proxy`（Caddy）配了固定 IP。這條新路徑下，`api` 容器看到的 TCP 連線來源變成
+`nuxt-tcrfc`／`nuxt-bw` 容器自己的 Docker 內部 IP，不在信任清單內，`ForwardedHeadersMiddleware`
+不會採信它們轉來的 `X-Forwarded-For`，`ClientIpResolver.Resolve` 因此拿到的是「nuxt 容器的 IP」，
+**全站訪客共用同一把鑰匙**——退回 S1-10 修正前的狀況，依 IP 分區限流形同虛設。
+
+`docs/14-invariants.md` 當時記的踩雷點甚至明文寫「前台的公開表單送出一律由瀏覽器直接呼叫公開
+API 網域，不得經由 Nuxt 伺服器端代轉」——這條規則被 S1-17 的既成事實推翻了，本輪的工作就是把
+`api` 端補上讓這個新架構安全成立的信任機制，並回頭修正這條已經過期的不變量（見
+`docs/14-invariants.md` 對應段落，已標註「舊規則已撤銷」）。
+
+### 設計：從「信任一個 IP」改成「信任一組固定 IP」，不是「信任整個網段」
+
+`docker-compose.yml` 比照 `proxy` 既有做法，給 `nuxt-tcrfc`（`172.28.238.3`）與 `nuxt-bw`
+（`172.28.238.4`）也各配一個固定 IP；`api` 服務的環境變數改名為 **`TRUSTED_PROXY_IPS`**（複數，
+逗號分隔），值是 `172.28.238.2,172.28.238.3,172.28.238.4`。
+
+**為什麼是「明確列舉三個 IP」而不是「信任整個 `172.28.238.0/24` 網段」**：網段裡還有
+`admin-web`／`admin-charity`／`nuxt-charity`／`redis` 等其他容器，信任整個網段等於讓這些容器
+（或任何拿到該網段某個 IP 的東西）也能偽造標頭騙過限流，這是 S1-10 當初就定下、本輪延續的原則。
+
+**刻意不包含 `nuxt-charity`**：慈善捐款平台是主站規劃書之外的獨立產品，10 表單中心是主站
+§3.10 的機制，慈善站台目前沒有已知的等價代理路徑會打 `form-submission` 這個限流政策。若日後
+慈善前台也新增類似的伺服器端代理轉發到本 API 的公開寫入端點，要重新評估補上固定 IP 與清單。
+
+**`ForwardLimit` 維持 `1`，沒有跟著調高**：三個受信任 IP 是三條**互斥**的直連路徑（Caddy 直連、
+經 `nuxt-tcrfc` 代理、經 `nuxt-bw` 代理），同一個請求只會經其中一條抵達 `api`；而且
+`nuxt-tcrfc`／`nuxt-bw` 的代理路由只轉發 Caddy 已經解析好的**單一值** `X-Forwarded-For`，不會
+在自己這層再往後面疊加一段。因此不論走哪一條路徑，`api` 收到的 `X-Forwarded-For` 都只有一層要
+剝，`ForwardLimit = 1` 對所有路徑都成立，不是「三層代理要設 3」的誤解。
+
+**改名為複數，不做向後相容**：本專案還沒有對外部署過依賴 `TRUSTED_PROXY_IP`（單數）這個鍵名的
+正式環境（`.env.example`／`docker-compose.yml` 都是這次一起改），改名即改乾淨，不留兩套鍵名
+互相打架。
+
+**副作用修的一個潛在缺口**：`IsEnabled` 原本的判準是「字串非空白」，這次改成「至少解析出一個
+合法 IP」。原本的判準有個隱藏風險：如果 `TRUSTED_PROXY_IPS` 設定值是打錯字的非空字串，
+`IsEnabled` 仍會回 `true`、`Program.cs` 仍會掛上 `app.UseForwardedHeaders()`，但
+`Configure` 內部逐一 `IPAddress.TryParse` 全部失敗、`KnownProxies` 最終是空集合——**這正好撞上
+「空的 KnownProxies＝信任所有來源」的框架陷阱**，形同開了一個因設定打錯字而產生的後門。現在的
+判準保證「有掛中介軟體」與「`KnownProxies` 至少有一個合法項目」同時成立或同時不成立。完整設計
+理由見 `apps/api/Security/TrustedProxyConfiguration.cs` 檔頭與各方法上的 XML 文件註解。
+
+### 改了哪些檔案
+
+- `apps/api/Security/TrustedProxyConfiguration.cs`——`ConfigKey` 改名 `TRUSTED_PROXY_IPS`；
+  `Configure`／`IsEnabled`／`ResolveEffectiveClientIp` 改吃逗號／分號分隔的 IP 清單（新增私有
+  `ParseIps`，解析失敗的項目略過、不丟例外）；`ForwardLimit` 維持 `1`，補上完整理由。
+- `apps/api/Program.cs`——變數改名 `trustedProxyIps`，更新周邊註解反映兩條路徑（Caddy 直連／
+  經 Nuxt 代理）。
+- `docker-compose.yml`——`nuxt-tcrfc`／`nuxt-bw` 各自加上 `networks.internal.ipv4_address`
+  （`.3`／`.4`）；`api` 服務的 `TRUSTED_PROXY_IP` 改名 `TRUSTED_PROXY_IPS`，值改成三個 IP。
+- `apps/api/Tcrfc.Api.Tests/TrustedProxyConfigurationTests.cs`——既有 3 項測試改用新的常數命名，
+  新增 8 項（經 `nuxt-tcrfc`／`nuxt-bw` 代理各自解析正確、同一訪客走不同路徑解析結果一致、
+  不受信任容器偽造標頭不被採信、訪客直接偽造標頭不被採信、設定值打錯字視同未設定、清單混一個
+  錯誤項目其餘仍生效、逗號分號混用並自動 trim），共 11 項。
+- `docs/17-deployment.md` §2——新增「代理信任鏈（`api` 端如何認得訪客真實 IP）」小節。
+- `docs/14-invariants.md`——修正「依訪客 IP 計算的濫用防護」這條踩雷點，標註舊規則
+  （「不得經由 Nuxt 伺服器端代轉」）已被 S1-17 與本輪取代，寫明新規則與仍然成立的部分。
+- `deploy/README.md`——「Cloudflare 在前面，對 Caddy 的 TLS 有什麼影響」段落同步更新為多重
+  受信任來源的敘述。
+- 本檔（`apps/api/README.md`）：S1-10 歷史段落補一則指向本節的過期提醒；env 變數對照表的
+  `TRUSTED_PROXY_IP` 列改名並更新說明。
+- 🔴🔴 **`deploy/Caddyfile`／`deploy/Caddyfile.prelaunch`／`deploy/Caddyfile.dev`**——主 session
+  在本輪過程中發現一個獨立於「`api` 端信任設定」之外的漏洞並要求一併處理：Caddy 對
+  `X-Forwarded-For` 的預設行為是「把連線本身看到的直接對端（正式環境永遠是 Cloudflare 邊緣節點
+  IP）原封加到既有標頭最後面」，不是加已解析過的可信值；而 Cloudflare 對訪客自己送的
+  `X-Forwarded-For` 是保留並附加，不是取代。三份 Caddyfile 在 `reverse_proxy nuxt-tcrfc`／
+  `nuxt-bw`／`nuxt-charity` 都加上 `header_up X-Real-IP {client_ip}`，在 `reverse_proxy api`
+  （`API_DOMAIN` 區塊）加上 `header_up X-Forwarded-For {client_ip}`（皆為取代語意）。**本輪已用
+  本機 `caddy:2.9.1-alpine`＋Python 回聲伺服器實測驗證**（不是只憑官方文件推論），見下方「測試」
+  段與 `docs/17-deployment.md` §2「Caddy 這一側也要正確設定」的完整實測記錄。`api` 端既有的
+  `TrustedProxyConfiguration`／`ForwardLimit = 1` 設計不需要因此變動——修正後 Nuxt 收到的
+  `X-Real-IP` 與 `api` 直接收到的 `X-Forwarded-For` 都保證是單一乾淨值，完全符合原本的假設。
+
+### 測試
+
+`Tcrfc.Api.Tests/TrustedProxyConfigurationTests.cs` 從 3 項擴充為 **11 項**，全部用
+`TrustedProxyConfiguration.ResolveEffectiveClientIp` 這個純函式介面驗證（理由同 S1-10：
+`WebApplicationFactory` 的 `TestServer` 底下 `RemoteIpAddress` 永遠是 `null`，無法在那個環境
+驗證「受信任代理」這條路徑）。新增的 8 項涵蓋：經 `nuxt-tcrfc`／經 `nuxt-bw` 代理轉來的請求
+各自正確解析出訪客真實 IP；同一個訪客不論經 Caddy 直連或經 Nuxt 代理，解析出的真實 IP 一致
+（限流分區鍵不會因路徑不同而分裂成兩個人）；刻意不信任的 `nuxt-charity`／任意訪客直接偽造
+`X-Forwarded-For` 均不被採信；設定值打錯字時視同未設定（關掉上面提到的潛在缺口）；清單裡混一個
+錯誤項目時其餘合法 IP 仍生效；逗號與分號混用、兩側留白會被正確 trim。
+
+```bash
+cd apps/api
+dotnet build                                                          # 成功，0 警告 0 錯誤
+dotnet test Tcrfc.Api.Tests --filter "FullyQualifiedName~TrustedProxyConfigurationTests"
+                                                                       # 11/11 通過
+dotnet test Tcrfc.Api.Tests                                           # 528/528 全套通過
+docker compose -f docker-compose.yml config                           # 語法驗證通過，三個
+                                                                       # ipv4_address 皆正確輸出
+docker compose -f docker-compose.yml -f docker-compose.dev.yml config # 語法驗證通過，dev override
+                                                                       # 正確繼承固定 IP 與
+                                                                       # TRUSTED_PROXY_IPS
+
+# 三份 Caddyfile 語法驗證（caddy validate，帶假網域值）
+docker run --rm -e TCRFC_DOMAIN=... -e ... \
+  -v "$(pwd)/deploy/Caddyfile:/etc/caddy/Caddyfile:ro" \
+  caddy:2.9.1-alpine caddy validate --config /etc/caddy/Caddyfile   # Valid configuration
+#（Caddyfile.prelaunch 同樣通過；Caddyfile.dev 額外驗證過，見下方）
+
+# Caddy header_up 修正的本機實測（caddy:2.9.1-alpine ＋ 印出全部收到標頭的 Python http.server）：
+# 沒有 header_up 時，帶 X-Forwarded-For: 6.6.6.6 直接呼叫，下游收到
+#   X-Forwarded-For: 6.6.6.6, <Caddy 直接對端 IP>（取最右邊會拿到對端 IP，不是訪客 IP）
+# 加上 header_up X-Forwarded-For {client_ip} 後，即使同時偽造 X-Forwarded-For 與試圖偽造
+# X-Real-IP，下游收到的都是乾淨單一值，且等於模擬的 CF-Connecting-IP（不是偽造值）；
+# header_up X-Real-IP {client_ip} 對 nuxt-* 路徑驗證同樣結果。完整重現步驟見
+# docs/17-deployment.md §2「Caddy 這一側也要正確設定」。
+```
+
+全套測試對照：本輪開工前既有 520 項全過，本輪新增 8 項，528/528 全部通過，沒有既有測試因這次
+改動回歸失敗。
+
+### 部署時要改的設定
+
+- **VM 上的 `.env`／`docker-compose.yml` 若已手動調整過 `TRUSTED_PROXY_IP`（單數）**，下次部署
+  這份 `docker-compose.yml` 時環境變數鍵名會自動變成 `TRUSTED_PROXY_IPS`（本檔已內建三個正確的
+  IP 值，不需要另外在 VM 的 `.env`／secrets 檔案手動加這個變數——它是直接寫在 `docker-compose.yml`
+  裡的固定值，不是從 `.env` 讀入的）。**唯一要注意的是重建 `internal` 網路後三個容器要拿到跟
+  compose 檔一致的固定 IP**——`docker compose up -d` 重建網路時會依 compose 設定自動配置，
+  不需要手動介入；只有在懷疑 Docker 網路狀態不一致時，`docker network inspect tcrfc_internal`
+  可以核對三個容器實際拿到的 IP 是否與 `172.28.238.2`／`.3`／`.4` 一致。
+- **沒有新的機密要加**——這三個 IP 是固定的內部網路位址，不是機密，維持寫在 `docker-compose.yml`
+  裡（不需要進 `/opt/tcrfc/secrets/*.env`）。
+
+### 防機器人現況盤點（任務指示第 4 項，順便盤點，本輪未實作）
+
+主站規劃書 §3.10「共通機制」要求 10 表單中心的公開送出端點要有防機器人機制（原文舉例
+reCAPTCHA／Turnstile）。盤點結果——**全系統目前沒有串接任何 CAPTCHA／Turnstile 服務**：
+
+- **後端（`apps/api`）**：`FormsRepository` 檔頭與 `PublicFormDto.CaptchaEnabled` 已經誠實記錄
+  這個缺口（S1-10 就寫了）——`CaptchaEnabled` 只是一個資料庫旗標，沒有對應的伺服器端 token 驗證
+  邏輯；`Program.cs`／`FormsEndpoints` 只有兩層不需要外部服務的防線：① 依真實訪客 IP 分區的固定
+  視窗限流（本輪修正的重點，5 分鐘 20 次）；② `SubmitFormRequest.Website` 誘捕欄位（honeypot）。
+  沒有找到任何 Turnstile／reCAPTCHA 的 SDK 參照、siteverify 呼叫、或站台金鑰設定讀取。
+- **前端（`apps/web`）有一個容易誤判的細節**：7 個表單頁面（`app/pages/zh/join/{general,academy,
+  international-player,camp-registration,partnership,player,media}/index.vue`）**都已經放了一個
+  Turnstile 佔位標記**：`<div class="cf-turnstile" data-sitekey="" role="group" ...>`，緊跟在
+  `useFormSubmit(...)`／`<HoneypotField ...>` 旁邊。**但這個標記是死的**——
+  ① `data-sitekey=""` 是空字串，② 全站沒有任何地方載入 Turnstile 官方腳本
+  （`<script src="https://challenges.cloudflare.com/turnstile/v0/api.js">`，`grep -rn` 確認
+  不存在），③ 沒有 Turnstile token 被讀取或附加到 `SubmitFormRequest`。少了腳本，這個 `div`
+  在瀏覽器裡就是一個空的 `<div>`，不會渲染出任何驗證元件，訪客送出表單時完全不會被要求做任何
+  驗證。這看起來像是更早的版面／mockup 階段留下的預留位置，跟後來（S1-9／S1-10）才長出來的
+  `useFormSubmit`／`HoneypotField` 送出邏輯是各自獨立寫的，兩者目前沒有真正串在一起。
+- **結論**：規劃書要求的防機器人機制目前**完全未生效**，現況只有「依真實訪客 IP 限流」＋
+  「誘捕欄位」兩層土法煉鋼防線真正在運作（本輪修正後，限流才真的依訪客而非依路徑分區，見上）；
+  前端那個 Turnstile 佔位標記**目前只是視覺殘留，沒有任何防護效果**，容易被誤讀成「已經有
+  Turnstile」而略過這個缺口。
+  **依任務指示，本輪不實作 Turnstile**（需要在 Cloudflare 建立資源，且要決定放哪個環境變數、
+  誰持有站台金鑰，是需要使用者決定的執行層基礎建設決定，不是本輪能自行判斷的範圍）。若日後要
+  接：後端需新增一支呼叫 Cloudflare `siteverify` API 的服務（比照 `IImageStorageService` 這種
+  「有憑證才啟用」的既有模式）驗證前端送來的 token；前端**不需要從零加 widget**——只需要載入
+  官方腳本、把 7 個頁面既有 `cf-turnstile` 佔位標記的 `data-sitekey` 填入真實值，並把驗證後拿到
+  的 token 一併送進 `SubmitFormRequest`（目前這個 DTO 也還沒有承接 token 的欄位，要一併新增）。
+
+### 規劃書沒寫清楚、本輪自行判斷的地方
+
+1. **`nuxt-charity` 刻意不列入信任清單**——慈善站台目前沒有已知的等價代理路徑，任務指示也明確
+   排除 `apps/web` 以外的前台，見上方設計段。
+2. **舊鍵名 `TRUSTED_PROXY_IP` 不做向後相容，直接改名**——判斷理由見上方設計段「改名為複數，
+   不做向後相容」；這是「規劃書沒寫、執行層自行決定」的具體選擇。
+3. **`docs/14-invariants.md` 的舊規則用「標註已撤銷＋說明新規則」處理，不是直接刪除整段**——
+   保留「這裡曾經有一條更嚴格的規則、後來被什麼取代」的軌跡，避免下一個人在版本歷史裡看到舊
+   commit 卻找不到解釋；這與 `docs/18-work-errors.md` E-10「代號順移後舊代號語意改變」記過的
+   教訓同一類——概念變更要能被回溯理解，不是憑空消失。
 
 ## 相關文件
 

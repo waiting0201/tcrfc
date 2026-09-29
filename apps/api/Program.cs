@@ -351,28 +351,36 @@ builder.Services.AddCors(options =>
     });
 });
 
-// ── S1-10（審查回饋修正，2026-09-25）：限流依「真實訪客 IP」分區，不是連線本身看到的 IP ──
-// Cloudflare → Caddy → api 這條鏈路下，api 容器的 TCP 連線來源永遠是 Caddy 容器的 Docker 內部
-// IP，不是訪客真實 IP（Caddy 的 trusted_proxies／client_ip_headers 只解決 Caddy 自己怎麼看
-// Cloudflare，不會自動讓下游的 api 也認得）。ASP.NET Core 的 ForwardedHeadersMiddleware 負責
-// 把連線來源換成 X-Forwarded-For 帶的訪客真實 IP，**但只在來源是受信任的代理時才生效**——
-// 見 Security/TrustedProxyConfiguration.cs 的完整說明（含「為什麼只信任 Caddy 這一個 IP、
-// 不信任整個 Docker 網段」，以及🔴「未設定時中介軟體本身完全不掛，不是掛了但清單留空」——
-// 空的 KnownProxies／KnownIPNetworks 對 ForwardedHeadersMiddleware 而言是「信任所有來源」，
-// 不是「不信任任何人」，這是本輪開發時親自踩到、務必記住的框架陷阱）。務必放在 UseRateLimiter
-// （甚至任何其他中介軟體）之前，這樣後續所有讀取 HttpContext.Connection.RemoteIpAddress 的地方
-// 都已經是修正後的值。
-var trustedProxyIp = builder.Configuration[TrustedProxyConfiguration.ConfigKey];
-builder.Services.Configure<ForwardedHeadersOptions>(options => TrustedProxyConfiguration.Configure(options, trustedProxyIp));
+// ── S1-10（審查回饋修正，2026-09-25）／S1-17 修正（2026-09-29，多重受信任來源）：限流依「真實
+// 訪客 IP」分區，不是連線本身看到的 IP ──────────────────────────────────────────
+// 有兩條路徑會讓 api 收到公開表單送出請求，兩條都要正確解出訪客真實 IP：
+//   ① Cloudflare → Caddy → api（後台 SPA／行動 App／任何直打 API_DOMAIN 的呼叫端）：
+//      api 容器的 TCP 連線來源是 Caddy 容器的 Docker 內部 IP。
+//   ② Cloudflare → Caddy → nuxt-tcrfc／nuxt-bw（Nuxt 伺服器端代理 server/api/backend/[...path].ts）
+//      → api（S1-17 起，10 表單中心公開送出走這條）：api 容器的 TCP 連線來源變成
+//      nuxt-tcrfc／nuxt-bw 容器自己的 Docker 內部 IP，不是 Caddy、也不是訪客。
+// 兩條路徑下，Caddy 或 nuxt-tcrfc／nuxt-bw 都不會自動讓下游的 api 認得訪客真實 IP
+// （Caddy 的 trusted_proxies／client_ip_headers 只解決 Caddy 自己怎麼看 Cloudflare；
+// nuxt 的代理路由把 Caddy 解析好的 X-Forwarded-For 原封轉發，不代表 api 會自動信任它）。
+// ASP.NET Core 的 ForwardedHeadersMiddleware 負責把連線來源換成 X-Forwarded-For 帶的訪客真實
+// IP，**但只在來源是受信任的代理時才生效**——見 Security/TrustedProxyConfiguration.cs 的完整
+// 說明（含「為什麼信任這一組固定 IP、不信任整個 Docker 網段」，以及🔴「未設定時中介軟體本身
+// 完全不掛，不是掛了但清單留空」——空的 KnownProxies／KnownIPNetworks 對
+// ForwardedHeadersMiddleware 而言是「信任所有來源」，不是「不信任任何人」，這是 S1-10 開發時
+// 親自踩到、務必記住的框架陷阱）。務必放在 UseRateLimiter（甚至任何其他中介軟體）之前，這樣
+// 後續所有讀取 HttpContext.Connection.RemoteIpAddress 的地方都已經是修正後的值。
+var trustedProxyIps = builder.Configuration[TrustedProxyConfiguration.ConfigKey];
+builder.Services.Configure<ForwardedHeadersOptions>(options => TrustedProxyConfiguration.Configure(options, trustedProxyIps));
 
 // ── S1-10：10 表單中心公開送出端點的濫用防護（規劃書「防機器人」，見 FormsRepository 檔頭） ──
-// 全系統沒有串接任何 CAPTCHA 服務，這裡改用依 IP 分區的固定視窗限流當第一層防線：同一個
-// IP 5 分鐘內最多 20 次送出，超過直接 429（QueueLimit=0，不排隊等待，公開表單沒有排隊的必要）。
+// 全系統沒有串接任何 CAPTCHA 服務（Turnstile／reCAPTCHA），這裡改用依 IP 分區的固定視窗限流當
+// 第一層防線：同一個 IP 5 分鐘內最多 20 次送出，超過直接 429（QueueLimit=0，不排隊等待，
+// 公開表單沒有排隊的必要）。防機器人現況盤點見 apps/api/README.md「S1-17 修正」段。
 // 🔴 這是「規劃書或 docs 沒寫、執行層自行決定」的具體選擇（任務指示原文），數字沒有規格依據，
 // 屬最小可行防護，比照 Common/CsvUtils.cs 檔頭「沒定義就採最小可行」的既有慣例。
 // ⚠️ 20 這個數字同時要照顧到 WebApplicationFactory 整合測試：測試主機的
 // httpContext.Connection.RemoteIpAddress 一律是同一個值（TestServer 沒有真實連線，且測試環境
-// 未設定 TRUSTED_PROXY_IP，ForwardedHeadersMiddleware 不會信任任何來源，行為不受本輪修正影響），
+// 未設定 TRUSTED_PROXY_IPS，ForwardedHeadersMiddleware 不會信任任何來源，行為不受本輪修正影響），
 // Tcrfc.Api.Tests.AdminFormsEnquiriesTests 全部公開送出呼叫共用同一個分區，單一測試檔約
 // 11 次呼叫，20 留有餘裕；對正式環境而言，同一個真實訪客 IP 5 分鐘內 20 次送出仍遠低於正常訪客的
 // 使用量，作為第一層防線足夠，見 apps/api/README.md「S1-10」段。
@@ -406,12 +414,12 @@ builder.Services.AddProblemDetails();
 
 var app = builder.Build();
 
-// 🔴 只有真的設定了 TRUSTED_PROXY_IP 才掛這個中介軟體——這才是真正的防線，不是「掛了但清單留空」
+// 🔴 只有真的設定了 TRUSTED_PROXY_IPS 才掛這個中介軟體——這才是真正的防線，不是「掛了但清單留空」
 // （ForwardedHeadersMiddleware 把空的信任清單當成「信任所有來源」，見
 // Security/TrustedProxyConfiguration.cs 檔頭「未設定時中介軟體本身完全不掛」的完整說明）。
 // 一定要放在管線最前面：後面任何一段（例外處理的記錄、CORS、限流、一般端點邏輯）只要讀了
 // HttpContext.Connection.RemoteIpAddress，都要讀到已經套用信任判斷之後的值。
-if (TrustedProxyConfiguration.IsEnabled(trustedProxyIp))
+if (TrustedProxyConfiguration.IsEnabled(trustedProxyIps))
 {
     app.UseForwardedHeaders();
 }

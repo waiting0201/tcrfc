@@ -7,21 +7,30 @@
 #
 # 由 docker-compose.dev.yml 掛載取代正式的 deploy/Caddyfile；分流邏輯（依 Host 分流到五個
 # 上游）與正式版一致，只差 TLS 開關與網域改成本機慣例值。
-
 {
 	auto_https off
 }
 
+# S1-17 修正（2026-09-29）：跟正式版 deploy/Caddyfile 結構一致地加上 header_up，避免本機開發
+# 用的設定檔跟正式版長期分岔、日後改正式版時漏改這裡。本機沒有設定 servers.trusted_proxies
+# （沒有 Cloudflare 在前面，直接是開發者自己的瀏覽器連過來），{client_ip} 這時就是連線本身的
+# IP（本機通常是 host.docker.internal 或 127.0.0.1），不影響本機開發行為，純粹是結構對齊。
 http://{$TCRFC_DOMAIN} {
-	reverse_proxy nuxt-tcrfc:3000
+	reverse_proxy nuxt-tcrfc:3000 {
+		header_up X-Real-IP {client_ip}
+	}
 }
 
 http://{$BW_DOMAIN} {
-	reverse_proxy nuxt-bw:3000
+	reverse_proxy nuxt-bw:3000 {
+		header_up X-Real-IP {client_ip}
+	}
 }
 
 http://{$CHARITY_DOMAIN} {
-	reverse_proxy nuxt-charity:3000
+	reverse_proxy nuxt-charity:3000 {
+		header_up X-Real-IP {client_ip}
+	}
 }
 
 http://{$ADMIN_WEB_DOMAIN} {
@@ -33,5 +42,7 @@ http://{$ADMIN_CHARITY_DOMAIN} {
 }
 
 http://{$API_DOMAIN} {
-	reverse_proxy api:8080
+	reverse_proxy api:8080 {
+		header_up X-Forwarded-For {client_ip}
+	}
 }

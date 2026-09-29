@@ -159,6 +159,75 @@ services:
 保留為獨立資源，VM 重建時重新掛載同一個 IP。
 **換 VM、換區域、重建機器都會換 IP，而換 IP ＝ 要改 LINE Pay 白名單，是有前置期的變更、等同停機事件。**
 
+### 代理信任鏈（`api` 端如何認得訪客真實 IP）
+
+🔵 **這一節是 S1-10（2026-09-25）／S1-17 修正（2026-09-29）新增的執行層決定**，補上「Cloudflare 在前面」
+對 `api` 容器造成的一個容易忽略的後果：**`HttpContext.Connection.RemoteIpAddress` 預設看到的是
+上一個直接連線它的容器，不是訪客真實 IP**，而依 IP 分區的濫用防護限流（10 表單中心公開送出端點，
+主站規劃書 §3.10「共通機制」的防機器人要求，見下方「防機器人現況」）必須拿到訪客真實 IP 才有意義。
+
+**兩條路徑都會把公開表單送出請求送到 `api`：**
+
+| 路徑 | `api` 看到的 TCP 連線來源 | 何時發生 |
+|---|---|---|
+| ① Cloudflare → Caddy → `api` | Caddy 容器（`172.28.238.2`） | 後台 SPA、行動 App、任何直打 `API_DOMAIN` 的呼叫端 |
+| ② Cloudflare → Caddy → `nuxt-tcrfc`／`nuxt-bw` → `api` | `nuxt-tcrfc`（`172.28.238.3`）或 `nuxt-bw`（`172.28.238.4`） | S1-17 起，10 表單中心公開送出改由 Nuxt 伺服器端代理（`apps/web/server/api/backend/[...path].ts`）轉發，SSR 容器本來就用這條 Docker 內部路徑呼叫 `api`（見 §1 拓撲圖 `NUXT_API_INTERNAL_BASE=http://api:8080`），現在同一條路徑也承載 POST |
+
+兩條路徑都要正確解出訪客真實 IP，做法是：
+
+- **`docker-compose.yml`** 給 `proxy`／`nuxt-tcrfc`／`nuxt-bw` 三個容器各自一個固定 IP（同一個
+  `172.28.238.0/24` 子網段內），並用**環境變數 `TRUSTED_PROXY_IPS`（複數，逗號分隔）**告訴 `api`
+  容器「只信任這三個 IP 轉來的 `X-Forwarded-For`」。
+- **刻意只列舉這三個 IP，不信任整個 `internal` 網段**——網段裡還有 `admin-web`／`admin-charity`／
+  `nuxt-charity`／`redis` 等其他容器，信任整個網段等於讓這些容器也能偽造標頭騙過限流。
+- **刻意不包含 `nuxt-charity`**：慈善站台目前沒有已知的等價代理路徑會打這個限流政策，日後若新增
+  要一併補上固定 IP 與這個清單。
+- `api` 端用 ASP.NET Core 的 `ForwardedHeadersMiddleware`
+  （[`apps/api/Security/TrustedProxyConfiguration.cs`](../apps/api/Security/TrustedProxyConfiguration.cs)）
+  套用這個信任關係，`Program.cs` 只有在 `TRUSTED_PROXY_IPS` 真的有設定時才會把這個中介軟體掛進
+  管線——**千萬不要假設「沒設定就是安全的預設值」**：`ForwardedHeadersMiddleware` 把空的信任清單
+  當成「信任所有來源」，不是「不信任任何人」，這是實作時親自踩到的框架陷阱，完整說明見該檔案檔頭。
+- `ForwardLimit` 維持 `1`：三個受信任 IP 是三條**互斥**的直連路徑（同一個請求只會經其中一條抵達
+  `api`），不是同一個請求會依序穿過的三層代理；且 `nuxt-tcrfc`／`nuxt-bw` 的代理路由只轉發 Caddy
+  已經解析好的單一值，不會再疊加一層，所以 `X-Forwarded-For` 永遠只有一層要剝。
+- 完整的判斷理由、測試與手動驗收記錄見 [`apps/api/README.md`](../apps/api/README.md)「S1-17 修正」段。
+
+#### 🔴🔴 Caddy 這一側也要正確設定，不是只改 `api`：本機實測發現的偽造 IP 漏洞
+
+「`api` 只信任固定 IP」這件事本身，**不保證 Caddy 轉給下一跳的 `X-Forwarded-For`／`X-Real-IP` 值一定
+正確**——這是 S1-17 修正期間額外發現、且已用本機 Caddy＋回聲伺服器實測驗證過的獨立漏洞：
+
+- **問題根源**：Cloudflare 對「訪客自己送來的 `X-Forwarded-For`」是**保留並附加**，不是取代
+  ——訪客可以自己先送一個偽造的 `X-Forwarded-For: 6.6.6.6`，Cloudflare 只會在後面再加一段真正的
+  訪客 IP，不會把偽造的那段拿掉。到達 Caddy 時這個標頭可能已經是好幾段。
+- **本機實測發現**：如果 `reverse_proxy` 沒有明確用 `header_up` 覆寫，Caddy 對 `X-Forwarded-For`
+  的預設行為是把「連線本身看到的直接對端」（在正式環境永遠是 **Cloudflare 邊緣節點的 IP**，不是
+  已解析過的訪客真實 IP）原封加到既有標頭最後面——**不是**加已用 `client_ip_headers` 解析過的可信
+  值。這代表：① 若攻擊者略過 Nuxt 代理、直接打 `API_DOMAIN` 呼叫公開表單送出端點，`api` 端
+  `ForwardedHeadersMiddleware` 取最右邊那一段時拿到的會是 Cloudflare 邊緣節點 IP，多個不同訪客
+  只要走到同一個邊緣節點就會共用同一組限流額度；② 若 Nuxt 那支伺服器端代理路由自己去解析這個
+  可能有好幾段、方向容易搞反的 `X-Forwarded-For`，一旦「該取最後一段還是第一段」判斷寫反，會把
+  訪客能自己控制的偽造值當成真實 IP 轉給 `api`。
+- **修法**：`deploy/Caddyfile`（`Caddyfile.prelaunch`／`Caddyfile.dev` 三份都已同步）在
+  `reverse_proxy nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity` 加 `header_up X-Real-IP {client_ip}`，
+  在 `reverse_proxy api`（`API_DOMAIN` 區塊）加 `header_up X-Forwarded-For {client_ip}`。
+  `{client_ip}` 是 Caddy 用檔頭 `servers.trusted_proxies`／`client_ip_headers CF-Connecting-IP
+  X-Forwarded-For` 解析過的可信值（`CF-Connecting-IP` 優先，這個標頭由 Cloudflare 的邊緣節點
+  無條件覆寫，訪客送再多偽造值也沒用）；`header_up` 沒有 `+`／`-` 前綴時是**取代**語意，會覆蓋
+  訪客自己送來的同名標頭。Nuxt 那支代理路由因此只需要讀 `X-Real-IP` 這一個保證單一、保證正確的
+  值，原封轉發當 `X-Forwarded-For` 給 `api` 即可，不需要自己解析任何多段標頭、不會有方向判斷
+  寫反的風險；`API_DOMAIN` 直連 `api` 的路徑也因為明確取代而不再依賴 Caddy 對「已受信任連線」的
+  預設 augment 行為（官方文件只說「trusted 時會 augment」，沒有逐字保證等同「取代成
+  `{client_ip}`」，本機實測證實預設行為確實是「附加連線本身看到的對端」而非取代）。
+- **本機實測步驟與結果**：用官方 `caddy:2.9.1-alpine` 映像檔起一個最小 Caddyfile
+  （`trusted_proxies static 0.0.0.0/0` ＋ `client_ip_headers CF-Connecting-IP X-Forwarded-For`），
+  反代到一支印出全部收到標頭的 Python `http.server`；`curl` 帶偽造 `X-Forwarded-For`／
+  `X-Real-IP`／`CF-Connecting-IP` 組合驗證：① 沒有 `header_up` 時，偽造的 `X-Forwarded-For:
+  6.6.6.6` 到下游變成 `X-Forwarded-For: 6.6.6.6, <Caddy 直接對端 IP>`（取最右邊會拿到對端 IP，
+  不是訪客 IP）；② 加上 `header_up X-Forwarded-For {client_ip}`／`header_up X-Real-IP
+  {client_ip}` 後，即使同時偽造 `X-Forwarded-For` 與試圖偽造 `X-Real-IP`，下游收到的都是乾淨的
+  單一值，且該值等於 `CF-Connecting-IP`（測試時另外用標頭模擬）而不是偽造值。
+
 ---
 
 ## 3. LINE Pay 的固定 IP

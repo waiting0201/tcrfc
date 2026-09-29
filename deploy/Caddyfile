@@ -7,7 +7,6 @@
 #
 # 網域一律用環境變數帶入（{$VAR}），不寫死真實網域——網域本身仍待確認（STATUS 阻塞清單），
 # 值在 .env（本機）或 VM 的 /opt/tcrfc/secrets/*.env（正式）設定，見 .env.example。
-
 {
 	# ── Cloudflare 在前面（橘雲代理）對這裡的兩個影響 ──────────────────────
 	#
@@ -20,12 +19,12 @@
 	# 兩處是同一組 IP 段的兩個用途（NSG 擋非 Cloudflare 來源、Caddy 認得 Cloudflare 是代理）。
 	servers {
 		trusted_proxies static \
-			173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
-			141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
-			197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
-			104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 \
-			2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 \
-			2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
+ 173.245.48.0/20 103.21.244.0/22 103.22.200.0/22 103.31.4.0/22 \
+ 141.101.64.0/18 108.162.192.0/18 190.93.240.0/20 188.114.96.0/20 \
+ 197.234.240.0/22 198.41.128.0/17 162.158.0.0/15 104.16.0.0/13 \
+ 104.24.0.0/14 172.64.0.0/13 131.0.72.0/22 \
+ 2400:cb00::/32 2606:4700::/32 2803:f800::/32 2405:b500::/32 \
+ 2405:8100::/32 2a06:98c0::/29 2c0f:f248::/32
 		client_ip_headers CF-Connecting-IP X-Forwarded-For
 	}
 
@@ -41,22 +40,48 @@
 	email {$ACME_EMAIL}
 }
 
+# ── S1-17 修正（2026-09-29）：把 Caddy 已解析好的訪客真實 IP 明確傳給三個 Nuxt 前台 ──────
+# 為什麼需要這個，見 apps/api/README.md「S1-17 修正」段與 docs/17-deployment.md §2「代理信任
+# 鏈」——簡短版：Cloudflare 對「訪客自己送來的 X-Forwarded-For」是**保留並附加**，不是取代
+# （訪客可以自己先塞一個假的 X-Forwarded-For，Cloudflare 只會在後面再加一段真正的訪客 IP，
+# 不會把假的那段拿掉）。如果 Nuxt 那支伺服器端代理路由（S1-17，10 表單中心公開送出）自己去
+# 解讀這個可能有好幾段、其中第一段可能是訪客偽造值的 X-Forwarded-For，要正確找出「哪一段才是
+# 真的」需要完全弄對「該取最後一段還是第一段」這種方向性判斷，一旦寫反就會把訪客能自己控制的
+# 假值當成真實 IP 轉給 api，讓依 IP 分區的限流形同虛設。
+#
+# 改用 `header_up X-Real-IP {client_ip}` 完全繞開這個判斷：`{client_ip}` 是 Caddy 自己已經用
+# `servers.trusted_proxies`／`client_ip_headers`（本檔最上面的全域設定）解析過、可信的訪客真實
+# IP；`header_up` 沒有 `+`／`-` 前綴時是**取代**語意，會覆蓋訪客自己送來的同名 `X-Real-IP`
+# 標頭（不是附加），所以 Nuxt 收到的 `X-Real-IP` 保證只有一個值、且保證正確，不需要自己解析
+# 任何清單。Nuxt 那支代理路由只要原封轉發這個單一值當 `X-Forwarded-For` 給 api 即可，
+# 這正好符合 `apps/api/Security/TrustedProxyConfiguration.cs` 的 `ForwardLimit = 1` 假設
+# （每條受信任路徑抵達 api 時 `X-Forwarded-For` 都只有一層要剝）。
+
 # ── 主站 ────────────────────────────────────────────────────────────
 {$TCRFC_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy nuxt-tcrfc:3000
+	reverse_proxy nuxt-tcrfc:3000 {
+		header_up X-Real-IP {client_ip}
+	}
 }
 
 # ── 台中藍鯨官網 ─────────────────────────────────────────────────────
 {$BW_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy nuxt-bw:3000
+	reverse_proxy nuxt-bw:3000 {
+		header_up X-Real-IP {client_ip}
+	}
 }
 
 # ── 慈善捐款平台前台 ──────────────────────────────────────────────────
+# 🔵 慈善站台目前沒有已知的等價代理路徑會用到這個標頭（見 TrustedProxyConfiguration.cs 檔頭
+# 「刻意不包含 nuxt-charity」），這裡仍然加上是為了三個前台設定一致、不留「猜前台怎麼分工」的
+# 空間；沒有代理路徑會讀它時，多這個標頭沒有任何副作用。
 {$CHARITY_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy nuxt-charity:3000
+	reverse_proxy nuxt-charity:3000 {
+		header_up X-Real-IP {client_ip}
+	}
 }
 
 # ── 官網共用後台（noindex，不開 encode 壓縮以外的快取相關 header） ───────
@@ -78,6 +103,22 @@
 
 # ── API（給瀏覽器端的後台 SPA、行動 App 呼叫；SSR 容器內部呼叫走 Docker 內部
 #    網路的 api:8080，不經這裡，見 docker-compose.yml 的 NUXT_API_INTERNAL_BASE） ──
+# 🔴🔴 這不是縱深防禦，是修一個原本就存在、未被發現的漏洞（S1-17 修正期間實測發現，
+# 見 apps/api/README.md「S1-17 修正」段）：**沒有這個 `header_up` 時，Caddy 對 X-Forwarded-For
+# 的預設行為是把「連線本身看到的直接對端」原封加到既有標頭最後面**，不是加已解析過的
+# `{client_ip}`。用一支本機 Caddy＋回聲伺服器實測驗證過：帶 `X-Forwarded-For: 6.6.6.6` 直接
+# 呼叫、沒有這個 `header_up` 時，下游收到的是 `X-Forwarded-For: 6.6.6.6, <Caddy 的直接對端
+# IP>`——在正式環境，「Caddy 的直接對端」永遠是 Cloudflare 邊緣節點的 IP（不是訪客真實 IP，
+# 因為 Cloudflare 一定在中間），而 Cloudflare 的邊緣節點是全球客戶共用的一個小集合。這代表
+# 若攻擊者**略過 Nuxt 代理、直接打這個 API_DOMAIN** 呼叫 10 表單中心的公開送出端點，
+# `api` 端 `ForwardedHeadersMiddleware`（`ForwardLimit = 1`，只信任 Caddy 這一個直接連線來源）
+# 取最右邊那一段時，拿到的會是 Cloudflare 邊緣節點 IP，不是訪客真實 IP——**多個不同訪客只要
+# 剛好走到同一個 Cloudflare 邊緣節點，就會被依 IP 分區的限流誤判成同一人，共用同一組額度**，
+# 這是獨立於 Nuxt 代理路徑之外、原本就存在的漏洞。加上 `header_up X-Forwarded-For {client_ip}`
+# （取代語意）後改用 Caddy 自己已用 `CF-Connecting-IP` 優先解析過的可信值，同一支本機測試
+# 驗證過帶偽造 `X-Forwarded-For` 也只會送出乾淨的單一真實值。
 {$API_DOMAIN} {
-	reverse_proxy api:8080
+	reverse_proxy api:8080 {
+		header_up X-Forwarded-For {client_ip}
+	}
 }
