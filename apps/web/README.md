@@ -57,6 +57,7 @@ curl -s http://127.0.0.1:3002/zh/ | grep -o 'data-club="[a-z]*"'   # bw
 | `NUXT_PUBLIC_SITE_URL` | 🔴 只在 `docker run`，**絕不在 `docker build`** | canonical／sitemap／`hreflang`／Schema／`og:image` 的網域來源（`docs/13-blue-whale-site.md` §6 紀律 7、8） |
 | `NUXT_PUBLIC_SITE_NAME` | 🔴 只在 `docker run`，同 `NUXT_PUBLIC_SITE_URL` 的規則 | 覆寫 `nuxt.config.ts` 的 `site.name`（`og:site_name`／`<title>` 後綴／Schema.org `WebSite.name` 三處都跟著換，實測與 `SITE_URL` 同一套 priority-stack）。**藍鯨容器一律帶 `台中藍鯨`**，忘記帶就會悄悄顯示 `nuxt.config.ts` 裡的預設值 `TCRFC`（docs/13 §6 紀律 11） |
 | `NUXT_PUBLIC_SITE_ENV` | `docker run` | `prelaunch`／`production`，目前只接住變數，三層防護（見 `docs/17-deployment.md` §10.4）留給 S0-9 之後接上 |
+| `NUXT_PUBLIC_BLUE_WHALE_SITE_URL` | 選填，`docker run`（有內建 staging 預設值，不像 `SITE_URL` 一定要給） | 主站 06 單元（女子足球）外連藍鯨官網的按鈕網址，預設 `https://bw-stg.tcrfc.tw`。藍鯨正式網域定案前不寫死正式網址，見 S1-16 |
 | `NITRO_PORT` / `NITRO_HOST` | 容器啟動 | `apps/web/Dockerfile` 已設定為 `3000` / `0.0.0.0` |
 
 ## 十條紀律落在哪個檔案（`docs/13-blue-whale-site.md` §6）
@@ -645,6 +646,78 @@ port 13002 且帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動*
    d1.json` 只有 `role_zh`，沒有 `role_en`，API 的 `Title` 欄位因此只有中文——舊版靜態內容
    手動補的英文頭銜（"Head Coach" 等）是搬遷時自行加上的文案，不是資料庫既有欄位，真實
    API 接上後自然消失，屬於資料完整度問題，不是本輪的接線錯誤。
+
+## S1-16（06 女子足球＝藍鯨官網入口頁，2026-09-29，`frontend-architect`）
+
+主站規劃書 §3.6：本頁是台中藍鯨女足官網的入口頁，藍鯨球隊資料建於本資料庫
+（`club_id=TCBW`），但名單／賽程／積分榜一律由藍鯨官網呈現，本頁不重複建置。
+
+只改一個檔案本體 ＋ 一個共用設定：`app/pages/zh/womens/index.vue`（`/en/womens/` 由
+S1-13 的 `pages:extend` 孿生路由機制自動產生，不需要另外新增檔案）、
+`nuxt.config.ts`（新增 `runtimeConfig.public.blueWhaleSiteUrl`）。
+
+### 各區塊資料來源
+
+| 區塊 | 來源 |
+|---|---|
+| ①主視覺與標題 | ⬜ 既有靜態文字，本輪未改動 |
+| ②台中藍鯨女子隊介紹文 | 🟢 原檔 `<h2>` 底下是空段落（無文字）——本輪改讀 `club-copy.ts` 既有的 `OUR_STORY_BODY_BW`（已核實、逐字節錄自 `content/blue-whale/club-profile.md` 的既有文案，不是新寫文案） |
+| ②事實面板（成立／聯賽／主場／梯隊體系） | 🟢 `site-facts.ts` `getSiteFacts('bw')`（GEO-03 事實單一來源，S1-12d 已建立），未改動其資料結構 |
+| ②圖片 | 🟢 `getClubAssets('bw').headerMark.src`（`/assets/brand/bw/bw-crest-512.png`，既有已發布的隊徽點陣主檔衍生圖，`brand/blue-whale/README.md` 明列「網頁圖示」為可用情境）。**沒有藍鯨球隊合影或訓練照可用**（客戶尚未提供，肖像同意狀態未知，比照 `club/first-team/index.vue` 既有做法不臆造），故只放隊徽，不是完整的「圖片藝廊」 |
+| ~~③台中藍鯨一線隊近期賽果~~ | ❌ **已移除（2026-09-29，主 session）**：規劃書 §3.6「不含功能」明文排除「藍鯨賽程與比賽結果」，一律由藍鯨官網呈現。派工指示誤把它列為可接的範例，見 `docs/18-work-errors.md` `E-67` |
+| ④前往藍鯨官網按鈕 | 🔴 原檔寫死舊站網址 `https://www.tcbw2014.com/`（既有 Google Sites，規劃書明文「新站上線後 301 轉址」，不是永久連結目標）。改讀 `useRuntimeConfig().public.blueWhaleSiteUrl`，預設 staging 網域 `https://bw-stg.tcrfc.tw`，比照 `NUXT_PUBLIC_SITE_URL`／`NUXT_PUBLIC_SITE_NAME` 既有「staging 預設值＋容器啟動時可覆寫」做法（環境變數表新增一列）。正式網域定案後改 env 即可，不必動程式碼或重 build |
+| ⑤底部 CTA | ⬜ 既有靜態內容，本輪未改動 |
+
+**顏色**：沿用既有 `--brand-aa` 等既有 CSS 變數（`brand/blue-whale/README.md` 已定案的隊徽取樣色），
+未新增任何色值。
+
+**單元開關**：`06` 早已在 `shared/utils/units.ts` 的 `BLUE_WHALE_DISABLED_UNITS` 清單中（bw 容器
+本頁恆 404），本輪未新增改動——確認既有機制仍然生效，不是本輪新做的開關。
+
+### 驗收紀錄（2026-09-29）
+
+```
+npm run lint    # 0 errors, 527 warnings（等於既有基準上限，未超過）
+npm run build   # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+```
+
+本機用同一份映像檔起兩個容器（`NUXT_PUBLIC_CLUB=tcrfc` port 13101／`NUXT_PUBLIC_CLUB=bw`
+port 13102 且帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動**，依派工規則不自行
+啟動、不碰密碼）：
+
+- `curl http://127.0.0.1:13101/zh/womens/` → `200`；`curl http://127.0.0.1:13101/en/womens/` → `200`。
+- `curl http://127.0.0.1:13102/zh/womens/` → `404`；`curl http://127.0.0.1:13102/en/womens/` → `404`（單元開關生效）。
+- 兩者皆有 `X-Robots-Tag: noindex, nofollow`。
+- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:13101` 與
+  `--base-url=http://127.0.0.1:13102`：**H1 唯一、標題不跳階皆 0 違規**（156 條路由，含本頁）。
+- `NUXT_PUBLIC_SITE_NAME=台中藍鯨 node scripts/check-club-brand-leak.mjs
+  --base-url=http://127.0.0.1:13102`：**通過**，「保護清單（15 頁）全數乾淨，棘輪未被違反」
+  （本頁對 bw 是 404，不在保護清單頁面範圍內，此檢查主要確認本輪改動沒有連帶弄壞其他頁）。
+- ③近期賽果區塊已移除（`E-67`），本頁不再呼叫任何 API；移除後主 session 重跑 `npm run lint`（0 錯誤、527 警告）、`npm run build`，並以本機 `node .output/server/index.mjs` 實測 `/zh/womens/`、`/en/womens/` 皆 200、畫面無「近期賽果」字樣、`check-heading-structure.mjs` 通過。
+- 實測 SSR 輸出：`href="https://bw-stg.tcrfc.tw"`（外連按鈕）、
+  `src="/assets/brand/bw/bw-crest-512.png"`（隊徽圖）、`台中藍鯨女子足球隊`（事實面板隊名）
+  皆正確出現在 `/zh/womens/` 的渲染結果中。
+
+🔴 **未驗證項目**（因為 `apps/api` 未啟動）：
+
+- 藍鯨正式網域定案後，`NUXT_PUBLIC_BLUE_WHALE_SITE_URL` 覆寫是否確實生效未實測（機制與
+  `NUXT_PUBLIC_SITE_URL`／`NUXT_PUBLIC_SITE_NAME` 同一套 Nuxt `runtimeConfig.public`
+  env 覆寫，S0-9b／docs/13 §6 紀律 11 已對後兩者實測過，本鍵理論上同機制，但未獨立重跑
+  一次覆寫測試）。
+
+### 缺內容清單
+
+- **無藍鯨球隊合影／訓練／賽事照片可用**：②區塊目前只能放隊徽，不是規劃書建議內容
+  「圖片藝廊」的完整呈現。需要客戶提供已核實肖像同意的藍鯨照片素材。
+- **無影音嵌入內容**：規劃書建議區塊之一，目前沒有可核實來源的藍鯨影片可嵌入。
+
+### 規格疑點（列出，未自行決定）
+
+1. **「圖片藝廊／影音嵌入」是規劃書建議內容區塊，不是強制要求**——本頁目前只有隊徽可用，
+   已列入「缺內容清單」，未自行決定要不要用其他素材（如既有的 `brand/svg/` 磐石標誌）
+   湊版面充數，因為那會誤導成「藍鯨有這張圖」。
+2. ~~③近期賽果~~：已裁決移除——§3.6「不含功能」明文排除藍鯨賽果（`E-67`）。
 
 ## S1-12d（`GEO-03`／`GEO-04` 事實單一來源與雙重呈現，2026-09-29，`frontend-architect`）
 

@@ -59,6 +59,7 @@
 | E-13 | 2026-09-21 | **建了一個叫 `docker-compose.staging.yml` 的 override，與同一批文件裡「不建 staging 環境」直接牴觸**——功能沒錯，但檔名憑空多造出第三套環境的印象 | ✅ 已刪檔，改為 `.env` 的 `CADDYFILE`；環境數量寫進 [`14-invariants.md`](14-invariants.md) |
 | E-16 | 2026-09-21 | Vue SFC 註解裡寫出完整的 `script`／`style`／`template` 字面標籤，`build` 直接壞（誤判成 async setup 衝突，繞了一圈才找到真因） | ⚠️ 無（留給 S0-9 補 lint 檢查） |
 | E-66 | 2026-09-29 | `sed -i 's/<h4>/<h4 aria-level="2">/g'` 全域取代時，連自己剛寫進同一個檔案、內文提到 `<h4>` 字面值的說明註解也一併取代掉，註解變成「引用已經套用修正後的寫法在描述修正前的狀態」，自相矛盾 | ⚠️ 無（改用 Edit 工具做精確字串取代前先確認註解裡沒有同樣的字面值，或註解與程式碼分兩次下手） |
+| E-67 | 2026-09-29 | 派 S1-16 時，主 session 在派工指示裡把「藍鯨一線隊近期賽果」寫成可以接的範例；規劃書 §3.6「不含功能」明文排除藍鯨賽果，agent 照指示做出一個違反規格的區塊 | ⚠️ 無自動化；已移除區塊，派工前讀規格「不含功能」欄（見條目） |
 | E-17 | 2026-09-21 | `@nuxtjs/seo` 的 `nuxt-seo-utils` 子模組蓋掉元件層 `useHead` 設的 `<html lang>`，`tagPriority: 'high'` 也蓋不掉 | ✅ 改用 `nuxt.config.ts` 的 `app.head.htmlAttrs.lang` |
 | E-18 | 2026-09-21<br>2026-09-22 | `@nuxtjs/sitemap` 的 runtime 動態來源在「一份 build、runtime 才決定 club」的架構下沒被偵測到，`/sitemap.xml` 永遠空；2026-09-22 查出**真正根因不是動態來源偵測**，是模組把命中全站 `noindex` route rule 的網址整批排除 | ✅ 已改自組 XML（`server/routes/sitemap.xml.ts`），繞過該模組的內建路由 |
 | E-19 | 2026-09-21 | `apps/api/Tcrfc.Api.csproj` 加了 `<InvariantGlobalization>true</InvariantGlobalization>`，`Microsoft.Data.SqlClient` 一開連線就丟 `System.NotSupportedException: Globalization Invariant Mode is not supported` | ✅ 已移除該屬性，並在 csproj 留註解說明原因 |
@@ -1675,3 +1676,16 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   （不含註解範圍），不要在註解裡出現與待取代字面值相同的文字之後才跑 `sed -i` 的全域取代。
 - **防呆**：⚠️ 無（本次是在同一輪交付內、送出前重新讀檔時自己發現並修正，沒有流到後續
   流程；沒有自動化機制能攔住「`sed` 取代範圍蓋過同檔案的說明文字」這一類問題）。
+
+### E-67 派工指示本身違反規格：在「不含功能」明文排除的東西上舉例叫 agent 做（2026-09-29，S1-16）
+
+- **錯在哪**：派 `S1-16`（06 女子足球＝藍鯨官網入口頁）時，主 session 寫了「有公開 API 可用的藍鯨內容
+  （例如藍鯨一線隊近期賽果）才接」。主站規劃書 §3.6 的「不含功能」列明文寫「✗ 藍鯨賽程與比賽結果」。
+  agent 照範例新增「近期賽果」區塊，自己也在回報中標為規格疑點，主 session 對照規格後移除。
+- **為什麼會錯（根因）**：主 session 寫派工指示前**沒有讀該單元的規格段落**，只憑 `STATUS.md` 的一行
+  描述與前一輪（首頁 S1-14 藍鯨賽事區）的印象就舉例；而派工指示對 agent 的權重高於它自己讀到的規格，
+  所以錯誤的範例會被當成授權。
+- **下次怎麼避免**：派前台單元工作前，主 session 先讀該單元在規劃書裡的**整張表**（特別是「不含功能」列），
+  派工指示只引用規格原文、不自己舉「可以多做什麼」的例子；需要擴充時寫「規格沒列的一律不做，列在回報」。
+- **防呆**：⚠️ 無自動化。agent 的回報把它列為規格疑點，主 session 逐條對照規格才攔下——
+  「agent 自承規劃書沒寫的區塊」一律當成要回頭查規格的訊號。

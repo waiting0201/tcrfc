@@ -28,6 +28,15 @@ export default defineNuxtConfig({
       // NUXT_PUBLIC_SITE_ENV=prelaunch|production，見 docs/17-deployment.md §10.4。
       // 骨架階段先接住這個變數，實際的三層防護（robots／標頭／Basic Auth）留給 S0-9 之後補完。
       siteEnv: 'prelaunch',
+      // S1-16：主站 06 單元（女子足球＝藍鯨官網入口頁）外連藍鯨官網的網址。藍鯨正式網域
+      // 尚未定案（STATUS.md 阻塞清單），因此不寫死正式網域——比照 NUXT_PUBLIC_SITE_URL／
+      // NUXT_PUBLIC_SITE_NAME 的既有做法（docs/13-blue-whale-site.md §6 紀律 7、8），
+      // 這裡只放 staging 網域當預設值，正式網域定案後由 `docker run` 帶
+      // NUXT_PUBLIC_BLUE_WHALE_SITE_URL 覆寫即可，不需要改程式碼或重 build。
+      // 🔴 與 site.url 的差異：這個鍵不是 nuxt-site-config 的 canonical 網域，只是外連
+      // 藍鯨官網的按鈕連結，所以可以在這裡直接給預設值（Nuxt runtimeConfig.public 對
+      // NUXT_PUBLIC_* 環境變數的覆寫本來就是標準機制，不需要像 site.url 那樣特別留空）。
+      blueWhaleSiteUrl: 'https://bw-stg.tcrfc.tw',
     },
   },
 
