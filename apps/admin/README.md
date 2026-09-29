@@ -2289,3 +2289,127 @@ session（`/auth/me` 權限清單、S1-10 缺口修正）大幅修改中，`dotn
    要記得回來同步更新這份對照，否則畫面會顯示過時的「網站尚未輸出此類型」。
 3. **其餘六個型別尚未接上任何前台輸出**（`S1-12c` 後端已知缺口，非本輪範圍）：本畫面照樣列出
    這些型別的資料缺漏，先幫忙把資料準備好，等 `S1-12f` 接上輸出時不用重新盤點一次。
+
+---
+
+## I：網站設定（S1-12d 後台，2026-09-29）
+
+對應主站規劃書 §7 `GEO-03`（事實單一來源）／`GEO-04`（結構化資料與明文同時呈現、數值一致），
+接上同名後端（`apps/api/README.md`「S1-12d：`I` 網站設定——`GEO-03`／`GEO-04` 站台事實承載與
+公開端點」）。承載成立年份與日期、首季頭銜、所屬聯賽、梯隊組成、主場場地、聯絡方式，單筆設定
+表單，逐俱樂部各自一份，版面比照 H1「全站設定」（`SeoSettingsView.vue`）與 H5「AI 爬蟲授權」
+（`AiCrawlerView.vue`）既有寫法：單筆載入／整份取代／`useUnsavedChanges` 攔離開。權限碼
+`site.fact.view`／`site.fact.update` 皆為 `sysadmin_only`，只有系統管理員在側欄看得到與能進入
+（比照 `H`／`J` 整組既有做法）。
+
+### 新增／修改的檔案
+
+- `src/api/adminSiteFacts.ts`（新增）：`AdminSiteFactsDto`／`AdminSiteFactVenueDto`／
+  `UpdateSiteFactsRequest`／`UpdateSiteFactVenueRequest`／`getAdminSiteFacts`／
+  `updateAdminSiteFacts`，逐欄位對照 `Features/AdminSiteFacts/AdminSiteFactsDtos.cs`。獨立成一支
+  新檔（不併入 `adminSeo.ts`）——`I` 是獨立於「搜尋與 AI 能見度」（`H`）之外的一級模組，兩者
+  雖然都在規劃書 §7 GEO 系列底下，但前後台都各自獨立分組，混在同一支 API 檔會讓「這支函式屬於
+  哪個模組」變得要靠函式名稔猜。
+- `src/views/settings/SiteFactsView.vue`（新增，`I`）：五段（成立沿革、所屬聯賽、梯隊組成、
+  主場與場地、聯絡方式）的單筆表單。
+- `src/router/index.ts`：新增 `/settings/site`（`I`），`meta.sysadminOnly: true`（比照 H1–H6
+  既有寫法）。
+- `src/data/nav.ts`：既有 `I` 節點的 `implemented` 由 `false` 改為 `true`（節點本身在更早之前
+  就已經存在，本輪只是把它從「還沒做」改成「已完成」，不是新增節點）。
+- `src/components/AppSidebar.vue`：`SYSADMIN_ONLY_MODULE_CODES` 加入 `'I'`（後端 `site.fact.*`
+  皆為 `sysadmin_only`，比照 `H`／`J` 既有判斷），並更新檔頭註解列出三組代號的權限碼依據。
+
+### 表單欄位與後端 DTO 對應
+
+| 表單欄位（畫面文字） | `AdminSiteFactsDto` / `UpdateSiteFactsRequest` | 必填 |
+|---|---|---|
+| 成立年份 | `foundedYear` | 是 |
+| 確切成立日期（選填） | `foundingDateIso` | 否 |
+| 成立年份／日期顯示文字（中／英） | `foundingDateDisplayZh` / `foundingDateDisplayEn` | 中文必填 |
+| 首季頭銜（選填，中／英） | `foundingTitleZh` / `foundingTitleEn` | 否 |
+| 聯賽全名（中／英） | `leagueNameZh` / `leagueNameEn` | 中文必填 |
+| 聯賽簡稱（選填，中／英） | `leagueShortNameZh` / `leagueShortNameEn` | 否 |
+| 梯隊組成敘述（中／英） | `squadStructureZh` / `squadStructureEn` | 中文必填 |
+| 梯隊年齡層代碼（可新增／刪除／排序） | `squadCodes` | 否（逐列不可留空） |
+| 主場與場地（可新增／移除／排序，每筆含名稱中／英、地址） | `homeVenues[].id/nameZh/nameEn/address` | 每筆名稱（中文）必填 |
+| 聯絡電話（選填） | `contactPhone` | 否 |
+| 營業時間（選填，中／英） | `contactHoursZh` / `contactHoursEn` | 否 |
+
+前端必填檢查與錯誤訊息文字逐字對照 `AdminSiteFactsRepository.UpdateAsync` 的既有驗證（「成立年份
+為必填欄位。」「所屬聯賽名稱（中文）為必填欄位。」……），跟 H5 既有做法一樣：前端這層只是體驗
+優化提前擋，後端驗證仍是唯一真實的把關。
+
+### 選單位置與依據
+
+放在既有「內容與網站」視覺分組、`I` 這個一級節點（`nav.ts` 早已存在這個節點，本輪只是把
+`implemented` 改為 `true`），不是塞進 `H`「搜尋與 AI 能見度」子模組——依規劃書 §4.0「後台依前台
+單元切分」，`I` 網站設定與 `H` 搜尋與 AI 能見度是規劃書 §4 列出的兩個不同一級模組（`I` 對應的是
+「全站導覽、頁尾、聯絡資訊」這個前台單元，`H` 對應的是搜尋與 AI 相關設定），代號本身已經反映
+這個切分，不應該因為兩者都牽涉 GEO 系列規格就合併成同一組選單。
+
+### 規劃書沒寫清楚、本輪自行判斷的部分
+
+1. **主場場地是「編輯既有＋新增」，不是「從全站場地清單挑選」**：接到的任務指示要求「從既有場地
+   中選擇與排序」，但盤點後發現**後端目前沒有任何「列出全部場地」的後台端點**——`AdminSiteFacts`
+   只回傳「這個俱樂部目前已經指定的主場清單」（`GET` 回應的 `homeVenues`），不是全站 `Venue` 主檔
+   的清單；`apps/admin/src/views/teams/MatchEditView.vue` 檔頭已經記過同一個缺口（「場地目前只有
+   自由文字欄位，沒有清單就沒辦法做出有意義的選單」）。依 `docs/18-work-errors.md` E-67「規格沒
+   列的一律不做」，本輪**沒有**新增或要求新增一支「列出全部場地」的後端端點（任務指示明文本輪
+   不得改 `apps/api`），而是比照後端 `UpdateSiteFactVenueRequest` 本身的設計（`id` 有值＝更新既有
+   場地、省略＝新增一筆）做出對應的畫面：可以編輯與重新排序目前已指定的場地、可以移除（不刪除
+   場地本身，只是不再視為主場）、新增則是直接建立一筆新場地資料。**這跟「從既有場地中選擇」不是
+   同一件事**——如果之後要做到「選擇既有場地」，需要先在 `apps/api` 補一支場地清單端點，這是規格
+   疑點，見下方。
+2. **梯隊年齡層代碼、主場場地清單皆用「逐列輸入＋上下移動＋刪除」，不是拖曳排序**：比照 H5
+   「AI 服務清單」既有做法（清單通常只有個位數筆數，逐列編輯比拖曳更容易操作，也不需要額外引入
+   拖曳排序套件）。
+3. **聯絡地址不提供輸入欄位**：後端 `AdminSiteFactsDto` 本身就沒有這個欄位（地址由主要主場地址
+   計算得出，「不重複儲存」是後端既有設計），畫面上只用一句提示文字說明「聯絡地址會自動取自第一筆
+   場地」，不新增前端才有的欄位去模擬一個後端不存在的值。
+4. **確切成立日期用 `el-date-picker`（`type="date"`），不是文字輸入**：`foundingDateIso` 是
+   ISO 8601 日期，规格與後端註解都写「確切成立月日未核實時為 `null`」，用日期選擇器比自由文字更
+   不容易讓管理員填出格式錯誤的值；未核實時保持清空即可，不強制填寫。
+
+### 驗證指令與實際結果（2026-09-29，本機環境）
+
+```
+npm run lint    # 五項檢查全綠：node 版本、eslint、禁用詞掃描、色票對比度、EditView 一次性求值
+                 # （SiteFactsView.vue 非 EditView 命名，不受第六項規則約束）
+npm run build   # vue-tsc -b && vite build，型別檢查與建置皆無錯誤
+```
+
+### 未驗證項目
+
+🔴 **無頭瀏覽器實走未能完成**，延續 S1-12／S1-12a／S1-12b／S1-12c 已經記錄過的同一個環境限制——
+本機啟動 `apps/api` 需要在指令列具現化資料庫連線字串（含密碼），會被 session 自動模式安全防護
+擋下。依任務指示「不要啟動 `apps/api`、不要碰資料庫密碼」，本輪**沒有**嘗試啟動。因此下列項目
+全部是「未驗證」，不是「已驗證且通過」：
+
+1. 系統管理員登入後，側欄「網站設定」可見、可進入，讀到種子資料（2026-09-29 種子：`founded_year=
+   2024`、`league_name=企業甲級聯賽`、`squad_codes=U15,U14,U12`、藍鯨兩座既有場地依序排列）。
+2. 編輯任一欄位後儲存，重新整理頁面確認已寫入；離開頁面前有未儲存變更提示。
+3. 新增一筆主場場地、上下移動排序、移除一筆場地（非刪除，只是不再視為主場）後儲存，確認
+   `GET /api/v1/{club}/site-facts` 公開端點（若之後 `apps/web` 接上）能讀到正確的排序與內容。
+4. 清空「成立年份」「聯賽名稱（中文）」「梯隊組成敘述（中文）」任一必填欄位時，前端立即擋下
+   且錯誤訊息與後端 `AdminSiteFactsValidationException` 的文字一致。
+5. `content_editor`（非系統管理員角色）登入後側欄看不到「網站設定」、直接輸入網址
+   `/settings/site` 進不去（前端 `router.beforeEach` 的 `sysadminOnly` 判斷與後端
+   `site.fact.view`／`site.fact.update` 權限碼皆已核對原始碼確認邏輯正確，但沒有真實 HTTP
+   往返驗證）。
+6. 依俱樂部切換站台切換器後，表單內容正確切換為另一個俱樂部的事實（藍鯨與磐石應各自獨立）。
+
+**待實走步驟**（供下一輪或使用者手動驗收）：啟動 `apps/api`（本機開發資料庫連線字串，見
+`db/seed/README.md`）與 `apps/admin`（`npm run dev`），以系統管理員帳號登入，依上方 1–6 點
+逐一操作並用瀏覽器開發者工具或 `curl` 核對 API 回應。
+
+### 規格疑點（回報，非本輪自行判斷做或不做）
+
+1. **任務指示要求「從既有場地中選擇」，但後端沒有可用的場地清單端點**：見上方「規劃書沒寫清楚、
+   本輪自行判斷的部分」第 1 點。若確實需要做到「跨俱樂部挑選既有場地」（例如磐石與藍鯨共用同一座
+   球場時，兩邊都想選同一筆 `Venue` 而不是各自新增一筆重複資料），需要先請 `backend-engineer` 補
+   一支「列出全部場地」的後台端點，這是規格與後端能力之間的落差，不是本輪能單方面決定的內容判斷。
+2. **`apps/web` 尚未串接** `GET /api/v1/{club}/site-facts`（見 `apps/api/README.md`「S1-12d」
+   「已知缺口」第 1 點），本輪畫面編輯後的資料要等 `apps/web` 那一輪整批改用 `useFetch` 才會真的
+   反映到前台頁面與提供給搜尋引擎／AI 服務的摘要資料——這不影響本輪後台畫面本身的完整性，但
+   使用者若在驗收時同時打開前台頁面比對，會看到前台仍顯示 `site-facts.ts` 裡的舊值，這是已知的
+   銜接缺口，不是本輪的錯誤。

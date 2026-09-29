@@ -54,6 +54,7 @@ const OrphanPagesReportView = () => import('@/views/seo/OrphanPagesReportView.vu
 const LlmsContentView = () => import('@/views/seo/LlmsContentView.vue')
 const AiCrawlerView = () => import('@/views/seo/AiCrawlerView.vue')
 const SchemaCompletenessView = () => import('@/views/seo/SchemaCompletenessView.vue')
+const SiteFactsView = () => import('@/views/settings/SiteFactsView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -284,6 +285,12 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     name: 'seo-schema-completeness',
     component: SchemaCompletenessView,
     meta: { label: '結構化資料完整性檢查', code: 'H6', sysadminOnly: true },
+  },
+  {
+    path: '/settings/site',
+    name: 'settings-site-facts',
+    component: SiteFactsView,
+    meta: { label: '網站設定', code: 'I', sysadminOnly: true },
   },
   {
     path: '/system/accounts',

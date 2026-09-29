@@ -41,7 +41,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { code: 'H6', label: '結構化資料完整性檢查', path: '/seo/schema-completeness', implemented: true },
         ],
       },
-      { code: 'I', label: '網站設定', path: '/settings/site', implemented: false },
+      { code: 'I', label: '網站設定', path: '/settings/site', implemented: true },
       {
         code: 'L',
         label: '行事曆管理',

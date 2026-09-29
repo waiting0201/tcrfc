@@ -1,0 +1,508 @@
+<script setup lang="ts">
+/**
+ * I 網站設定（對應主站規劃書 §7 `GEO-03`／`GEO-04`；apps/api/README.md「S1-12d」）。單一設定
+ * 表單，逐俱樂部各自一份，跟著站台切換器切換（`activeClubId`），比照 H1「全站設定」
+ * （`SeoSettingsView.vue`）與 H5「AI 爬蟲授權」（`AiCrawlerView.vue`）既有寫法：
+ * 單筆載入／整份取代／`useUnsavedChanges` 攔離開。
+ *
+ * 承載成立年份與日期、首季頭銜、所屬聯賽、梯隊組成、主場場地、聯絡方式——全站只有這一處維護，
+ * 網站頁面與提供給搜尋引擎／AI 服務的摘要資料都讀同一份值，不會兩邊各寫一次而對不起來。
+ *
+ * 🔴 **主場場地是「編輯既有＋新增」，不是「從全站場地清單挑選」**：後端目前沒有任何「列出全部
+ * 場地」的後台端點（`apps/admin/src/views/teams/MatchEditView.vue` 檔頭已經記過同一個缺口——
+ * 場地目前只有自由文字欄位，因為沒有清單就做不出有意義的選單）。這裡送出的「主場」清單本身
+ * 就是這個俱樂部唯一承認的主場場地（`homeVenues`，比照 `AdminSiteFactsDto` 檔頭「整份取代
+ * 語意」），從清單移除不會刪除場地本身；新增一筆＝直接建立一筆新的場地資料，不是挑選既有
+ * 場地。已在下方「規格疑點」回報，不是本輪自行擴權新增列表端點。
+ */
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import PageHeader from '@/components/PageHeader.vue'
+import BilingualShortField from '@/components/BilingualShortField.vue'
+import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
+import { activeClubId } from '@/auth/clubAccess'
+import { getAdminSiteFacts, updateAdminSiteFacts, type AdminSiteFactsDto } from '@/api/adminSiteFacts'
+import { AdminApiError } from '@/api/http'
+
+const club = computed(() => activeClubId.value)
+
+interface SiteFactsForm {
+  foundedYear: string
+  foundingDateIso: string | null
+  foundingDateDisplayZh: string
+  foundingDateDisplayEn: string
+  foundingTitleZh: string
+  foundingTitleEn: string
+  leagueNameZh: string
+  leagueNameEn: string
+  leagueShortNameZh: string
+  leagueShortNameEn: string
+  squadStructureZh: string
+  squadStructureEn: string
+  contactPhone: string
+  contactHoursZh: string
+  contactHoursEn: string
+}
+
+interface SquadCodeRow {
+  value: string
+}
+
+interface HomeVenueRow {
+  id: string | null
+  nameZh: string
+  nameEn: string
+  address: string
+}
+
+function emptyForm(): SiteFactsForm {
+  return {
+    foundedYear: '',
+    foundingDateIso: null,
+    foundingDateDisplayZh: '',
+    foundingDateDisplayEn: '',
+    foundingTitleZh: '',
+    foundingTitleEn: '',
+    leagueNameZh: '',
+    leagueNameEn: '',
+    leagueShortNameZh: '',
+    leagueShortNameEn: '',
+    squadStructureZh: '',
+    squadStructureEn: '',
+    contactPhone: '',
+    contactHoursZh: '',
+    contactHoursEn: '',
+  }
+}
+
+const loadState = ref<'loading' | 'error' | 'ready'>('loading')
+const loadErrorMessage = ref('')
+const form = reactive<SiteFactsForm>(emptyForm())
+const squadCodes = reactive<SquadCodeRow[]>([])
+const homeVenues = reactive<HomeVenueRow[]>([])
+const baselineJson = ref('')
+
+const saving = ref(false)
+const formError = ref<string | null>(null)
+
+function snapshot() {
+  return JSON.stringify({ form, squadCodes, homeVenues })
+}
+
+function applyLoaded(dto: AdminSiteFactsDto) {
+  form.foundedYear = dto.foundedYear ?? ''
+  form.foundingDateIso = dto.foundingDateIso ?? null
+  form.foundingDateDisplayZh = dto.foundingDateDisplayZh ?? ''
+  form.foundingDateDisplayEn = dto.foundingDateDisplayEn ?? ''
+  form.foundingTitleZh = dto.foundingTitleZh ?? ''
+  form.foundingTitleEn = dto.foundingTitleEn ?? ''
+  form.leagueNameZh = dto.leagueNameZh ?? ''
+  form.leagueNameEn = dto.leagueNameEn ?? ''
+  form.leagueShortNameZh = dto.leagueShortNameZh ?? ''
+  form.leagueShortNameEn = dto.leagueShortNameEn ?? ''
+  form.squadStructureZh = dto.squadStructureZh ?? ''
+  form.squadStructureEn = dto.squadStructureEn ?? ''
+  form.contactPhone = dto.contactPhone ?? ''
+  form.contactHoursZh = dto.contactHoursZh ?? ''
+  form.contactHoursEn = dto.contactHoursEn ?? ''
+
+  squadCodes.splice(0, squadCodes.length, ...dto.squadCodes.map((c) => ({ value: c })))
+  homeVenues.splice(
+    0,
+    homeVenues.length,
+    ...dto.homeVenues.map((v) => ({
+      id: v.id,
+      nameZh: v.nameZh,
+      nameEn: v.nameEn ?? '',
+      address: v.address ?? '',
+    })),
+  )
+
+  baselineJson.value = snapshot()
+}
+
+async function loadFacts() {
+  loadState.value = 'loading'
+  try {
+    const dto = await getAdminSiteFacts(club.value)
+    applyLoaded(dto)
+    loadState.value = 'ready'
+  } catch (error) {
+    loadErrorMessage.value = error instanceof AdminApiError ? error.message : '資料載入失敗，請稍後再試'
+    loadState.value = 'error'
+  }
+}
+
+onMounted(loadFacts)
+watch(club, loadFacts)
+
+const isDirty = computed(() => loadState.value === 'ready' && snapshot() !== baselineJson.value)
+useUnsavedChanges(isDirty)
+
+function moveItem<T>(list: T[], index: number, delta: number) {
+  const target = index + delta
+  if (target < 0 || target >= list.length) return
+  const [item] = list.splice(index, 1)
+  list.splice(target, 0, item)
+}
+
+function addSquadCode() {
+  squadCodes.push({ value: '' })
+}
+
+function removeSquadCode(index: number) {
+  squadCodes.splice(index, 1)
+}
+
+function addHomeVenue() {
+  homeVenues.push({ id: null, nameZh: '', nameEn: '', address: '' })
+}
+
+function removeHomeVenue(index: number) {
+  homeVenues.splice(index, 1)
+}
+
+function validate(): boolean {
+  formError.value = null
+
+  if (!form.foundedYear.trim()) {
+    formError.value = '請輸入成立年份'
+    return false
+  }
+  if (!form.foundingDateDisplayZh.trim()) {
+    formError.value = '請輸入成立年份／日期顯示文字（中文）'
+    return false
+  }
+  if (!form.leagueNameZh.trim()) {
+    formError.value = '請輸入所屬聯賽名稱（中文）'
+    return false
+  }
+  if (!form.squadStructureZh.trim()) {
+    formError.value = '請輸入梯隊組成敘述（中文）'
+    return false
+  }
+
+  for (const row of squadCodes) {
+    if (!row.value.trim()) {
+      formError.value = '梯隊年齡層代碼不能留空，請刪除空白列或填入代碼'
+      return false
+    }
+  }
+
+  for (const venue of homeVenues) {
+    if (!venue.nameZh.trim()) {
+      formError.value = '每一筆主場的名稱（中文）為必填欄位，請刪除空白列或填入名稱'
+      return false
+    }
+  }
+
+  return true
+}
+
+async function handleSave() {
+  if (!validate()) return
+  saving.value = true
+  try {
+    const saved = await updateAdminSiteFacts(club.value, {
+      foundedYear: form.foundedYear.trim(),
+      foundingDateIso: form.foundingDateIso || null,
+      foundingDateDisplayZh: form.foundingDateDisplayZh.trim(),
+      foundingDateDisplayEn: form.foundingDateDisplayEn.trim() || null,
+      foundingTitleZh: form.foundingTitleZh.trim() || null,
+      foundingTitleEn: form.foundingTitleEn.trim() || null,
+      leagueNameZh: form.leagueNameZh.trim(),
+      leagueNameEn: form.leagueNameEn.trim() || null,
+      leagueShortNameZh: form.leagueShortNameZh.trim() || null,
+      leagueShortNameEn: form.leagueShortNameEn.trim() || null,
+      squadStructureZh: form.squadStructureZh.trim(),
+      squadStructureEn: form.squadStructureEn.trim() || null,
+      squadCodes: squadCodes.map((r) => r.value.trim()),
+      homeVenues: homeVenues.map((v) => ({
+        id: v.id || undefined,
+        nameZh: v.nameZh.trim(),
+        nameEn: v.nameEn.trim() || null,
+        address: v.address.trim() || null,
+      })),
+      contactPhone: form.contactPhone.trim() || null,
+      contactHoursZh: form.contactHoursZh.trim() || null,
+      contactHoursEn: form.contactHoursEn.trim() || null,
+    })
+    applyLoaded(saved)
+    ElMessage.success('已儲存')
+  } catch (error) {
+    formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
+  } finally {
+    saving.value = false
+  }
+}
+</script>
+
+<template>
+  <div class="site-facts">
+    <PageHeader title="網站設定">
+      <template #meta>
+        <FrontendUnitBanner module-code="I" />
+      </template>
+    </PageHeader>
+
+    <el-card v-if="loadState === 'loading'" shadow="never">
+      <el-skeleton :rows="10" animated />
+    </el-card>
+
+    <el-card v-else-if="loadState === 'error'" shadow="never">
+      <el-empty :image-size="96" :description="loadErrorMessage">
+        <el-button type="primary" @click="loadFacts">重新載入</el-button>
+      </el-empty>
+    </el-card>
+
+    <template v-else>
+      <el-alert type="info" :closable="false" show-icon class="site-facts__notice">
+        這裡填寫的資料，除了會顯示在網站上對應的頁面，也會提供給 Google 這類搜尋引擎，以及 ChatGPT、Claude 這類讀取網站內容的 AI 服務——這裡是唯一的維護處，網站頁面與提供給這些服務的資料一律讀同一份，請確保正確性。
+      </el-alert>
+
+      <el-alert
+        v-if="formError"
+        :title="formError"
+        type="warning"
+        show-icon
+        class="site-facts__form-error"
+        @close="formError = null"
+      />
+
+      <el-card shadow="never" header="成立沿革" class="site-facts__section">
+        <el-form label-position="top">
+          <el-form-item label="成立年份" required>
+            <el-input v-model="form.foundedYear" placeholder="例如：2024" class="site-facts__short-input" />
+          </el-form-item>
+          <el-form-item label="確切成立日期（選填）">
+            <el-date-picker
+              v-model="form.foundingDateIso"
+              type="date"
+              value-format="YYYY-MM-DD"
+              placeholder="尚未核實確切日期時可留空"
+              class="site-facts__short-input"
+            />
+          </el-form-item>
+          <BilingualShortField
+            label="成立年份／日期顯示文字"
+            :zh="form.foundingDateDisplayZh"
+            :en="form.foundingDateDisplayEn"
+            required
+            placeholder="例如：2024 年創立"
+            @update:zh="(v) => (form.foundingDateDisplayZh = v)"
+            @update:en="(v) => (form.foundingDateDisplayEn = v)"
+          />
+          <BilingualShortField
+            label="首季頭銜（選填）"
+            :zh="form.foundingTitleZh"
+            :en="form.foundingTitleEn"
+            placeholder="成立當年若有奪冠等頭銜才填寫，沒有可留空"
+            @update:zh="(v) => (form.foundingTitleZh = v)"
+            @update:en="(v) => (form.foundingTitleEn = v)"
+          />
+        </el-form>
+      </el-card>
+
+      <el-card shadow="never" header="所屬聯賽" class="site-facts__section">
+        <el-form label-position="top">
+          <BilingualShortField
+            label="聯賽全名"
+            :zh="form.leagueNameZh"
+            :en="form.leagueNameEn"
+            required
+            placeholder="例如：企業甲級聯賽"
+            @update:zh="(v) => (form.leagueNameZh = v)"
+            @update:en="(v) => (form.leagueNameEn = v)"
+          />
+          <BilingualShortField
+            label="聯賽簡稱（選填）"
+            :zh="form.leagueShortNameZh"
+            :en="form.leagueShortNameEn"
+            placeholder="有常用簡稱才填寫，沒有可留空"
+            @update:zh="(v) => (form.leagueShortNameZh = v)"
+            @update:en="(v) => (form.leagueShortNameEn = v)"
+          />
+        </el-form>
+      </el-card>
+
+      <el-card shadow="never" header="梯隊組成" class="site-facts__section">
+        <el-form label-position="top">
+          <BilingualTextareaField
+            label="梯隊組成敘述"
+            :zh="form.squadStructureZh"
+            :en="form.squadStructureEn"
+            required
+            :rows="3"
+            placeholder="例如：一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系"
+            @update:zh="(v) => (form.squadStructureZh = v)"
+            @update:en="(v) => (form.squadStructureEn = v)"
+          />
+        </el-form>
+        <p class="site-facts__hint">梯隊年齡層代碼（依顯示順序，例如 U15、U14、U12）：</p>
+        <div v-if="squadCodes.length > 0" class="site-facts__list">
+          <div v-for="(row, index) in squadCodes" :key="index" class="site-facts__row">
+            <el-input v-model="row.value" placeholder="例如：U15" class="site-facts__code-input" />
+            <el-button-group class="site-facts__order-buttons">
+              <el-button :disabled="index === 0" @click="moveItem(squadCodes, index, -1)">
+                <el-icon><ArrowUp /></el-icon>
+              </el-button>
+              <el-button :disabled="index === squadCodes.length - 1" @click="moveItem(squadCodes, index, 1)">
+                <el-icon><ArrowDown /></el-icon>
+              </el-button>
+            </el-button-group>
+            <el-button text type="danger" @click="removeSquadCode(index)">刪除</el-button>
+          </div>
+        </div>
+        <el-empty v-else description="目前沒有設定任何梯隊年齡層" :image-size="64" />
+        <el-button class="site-facts__add-button" @click="addSquadCode">+ 新增梯隊年齡層</el-button>
+      </el-card>
+
+      <el-card shadow="never" header="主場與場地" class="site-facts__section">
+        <p class="site-facts__hint">
+          依顯示順序排列，第一筆是主要主場（聯絡地址會自動取自這一筆場地，不需要另外填寫）。從清單移除不會刪除場地資料本身，只是不再視為這個俱樂部的主場；新增一筆是直接建立新場地，目前還沒有「從既有場地挑選」的清單可用。
+        </p>
+        <div v-if="homeVenues.length > 0" class="site-facts__venue-list">
+          <el-card v-for="(venue, index) in homeVenues" :key="index" shadow="never" class="site-facts__venue-card">
+            <div class="site-facts__venue-head">
+              <span class="site-facts__venue-index">{{ index === 0 ? '主要主場' : `第 ${index + 1} 順位` }}</span>
+              <div class="site-facts__venue-head-actions">
+                <el-button-group class="site-facts__order-buttons">
+                  <el-button :disabled="index === 0" @click="moveItem(homeVenues, index, -1)">
+                    <el-icon><ArrowUp /></el-icon>
+                  </el-button>
+                  <el-button :disabled="index === homeVenues.length - 1" @click="moveItem(homeVenues, index, 1)">
+                    <el-icon><ArrowDown /></el-icon>
+                  </el-button>
+                </el-button-group>
+                <el-button text type="danger" @click="removeHomeVenue(index)">移除</el-button>
+              </div>
+            </div>
+            <el-form label-position="top">
+              <BilingualShortField
+                label="場地名稱"
+                :zh="venue.nameZh"
+                :en="venue.nameEn"
+                required
+                placeholder="例如：西屯足球場"
+                @update:zh="(v) => (venue.nameZh = v)"
+                @update:en="(v) => (venue.nameEn = v)"
+              />
+              <el-form-item label="地址（選填）">
+                <el-input v-model="venue.address" placeholder="例如：台中市北屯區崇平路二段景谷巷 11 弄 41 號" />
+              </el-form-item>
+            </el-form>
+          </el-card>
+        </div>
+        <el-empty v-else description="目前沒有設定任何主場場地" :image-size="64" />
+        <el-button class="site-facts__add-button" @click="addHomeVenue">+ 新增場地</el-button>
+      </el-card>
+
+      <el-card shadow="never" header="聯絡方式" class="site-facts__section">
+        <el-form label-position="top">
+          <el-form-item label="聯絡電話（選填，目前尚未核實可留空）">
+            <el-input v-model="form.contactPhone" placeholder="選填" class="site-facts__short-input" />
+          </el-form-item>
+          <BilingualShortField
+            label="營業時間（選填）"
+            :zh="form.contactHoursZh"
+            :en="form.contactHoursEn"
+            placeholder="例如：平日 09:00–18:00"
+            @update:zh="(v) => (form.contactHoursZh = v)"
+            @update:en="(v) => (form.contactHoursEn = v)"
+          />
+        </el-form>
+      </el-card>
+
+      <div class="site-facts__actions">
+        <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
+      </div>
+    </template>
+  </div>
+</template>
+
+<style scoped>
+.site-facts {
+  max-width: 780px;
+  margin: 0 auto;
+}
+
+.site-facts__notice,
+.site-facts__form-error {
+  margin-bottom: 12px;
+}
+
+.site-facts__section {
+  margin-bottom: 12px;
+}
+
+.site-facts__hint {
+  font-size: 12px;
+  color: var(--admin-text-tertiary);
+  margin: 4px 0 12px;
+}
+
+.site-facts__short-input {
+  max-width: 280px;
+}
+
+.site-facts__list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.site-facts__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.site-facts__code-input {
+  max-width: 200px;
+}
+
+.site-facts__order-buttons {
+  flex-shrink: 0;
+}
+
+.site-facts__add-button {
+  margin-top: 4px;
+}
+
+.site-facts__venue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.site-facts__venue-card {
+  background: var(--admin-bg-surface-2);
+}
+
+.site-facts__venue-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.site-facts__venue-index {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--admin-text-secondary);
+}
+
+.site-facts__venue-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.site-facts__actions {
+  margin-top: 16px;
+}
+</style>
