@@ -81,6 +81,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         Assert.Equal("西屯足球場", venue.NameZh);
         Assert.Equal("Xitun Football Field", venue.NameEn);
         Assert.Equal("台中市北屯區崇平路二段景谷巷 11 弄 41 號", venue.Address);
+        Assert.Equal("https://bw-stg.tcrfc.tw", dto.BlueWhaleSiteUrl); // 主站規劃書 §3.6，種子見 db/seed。
     }
 
     [Fact]
@@ -97,6 +98,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         Assert.Equal("台中市立豐原體育場", dto.HomeVenues[1].NameZh);
         Assert.Equal(["U15", "U12"], dto.SquadCodes);
         Assert.Null(dto.FoundingTitleZh); // bw 沒有「成立當年奪冠」這筆事實。
+        Assert.Null(dto.BlueWhaleSiteUrl); // 概念上只屬於 tcrfc，種子沒有種給 bw。
     }
 
     // ───────────────────────────── 後台：完整寫入輪替 ─────────────────────────────
@@ -123,6 +125,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
                 ContactPhone = $"04-0000-{marker[..4]}",
                 ContactHoursZh = "平日 09:00–18:00",
                 LeagueShortNameZh = "測試簡稱",
+                BlueWhaleSiteUrl = "https://bw-test.tcrfc.tw",
             };
 
             var updateResponse = await client.PutAsJsonAsync("/api/v1/admin/tcrfc/site-facts", updateRequest, TestJson.WriteOptions);
@@ -132,6 +135,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
             Assert.Equal("平日 09:00–18:00", updated.ContactHoursZh);
             Assert.Null(updated.ContactHoursEn); // 省略英文＝清空既有英文列（目前種子資料本來就沒有）。
             Assert.Equal("測試簡稱", updated.LeagueShortNameZh);
+            Assert.Equal("https://bw-test.tcrfc.tw", updated.BlueWhaleSiteUrl);
             // 主場場地引用清單原樣保留（送出時帶著既有 Id）。
             var venue = Assert.Single(updated.HomeVenues);
             Assert.Equal(original!.HomeVenues[0].Id, venue.Id);
@@ -149,6 +153,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
             Assert.Equal(updateRequest.ContactPhone, publicFacts!.Contact.Phone);
             Assert.Equal("平日 09:00–18:00", publicFacts.Contact.Hours);
             Assert.Equal("測試簡稱", publicFacts.League.ShortName);
+            Assert.Equal("https://bw-test.tcrfc.tw", publicFacts.BlueWhaleSiteUrl);
         }
         finally
         {
@@ -156,6 +161,21 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
             var restoreResponse = await client.PutAsJsonAsync("/api/v1/admin/tcrfc/site-facts", restoreRequest, TestJson.WriteOptions);
             Assert.True(restoreResponse.IsSuccessStatusCode, $"還原站台事實失敗：{restoreResponse.StatusCode}");
         }
+    }
+
+    [Theory]
+    [InlineData("http://bw-stg.tcrfc.tw")] // 不接受 http（規格要求 https）。
+    [InlineData("bw-stg.tcrfc.tw")] // 不是絕對網址（沒有 scheme）。
+    [InlineData("javascript:alert(1)")] // 有 scheme 但不是 https，同樣要擋。
+    public async Task 藍鯨官網網址不是https_回400(string invalidUrl)
+    {
+        using var client = await CreateSuperAdminClientAsync();
+        var original = await (await client.GetAsync("/api/v1/admin/tcrfc/site-facts"))
+            .Content.ReadFromJsonAsync<AdminSiteFactsDto>(TestJson.Options);
+
+        var request = ToUpdateRequest(original!) with { BlueWhaleSiteUrl = invalidUrl };
+        var response = await client.PutAsJsonAsync("/api/v1/admin/tcrfc/site-facts", request, TestJson.WriteOptions);
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
     [Fact]
@@ -199,6 +219,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         ContactPhone = dto.ContactPhone,
         ContactHoursZh = dto.ContactHoursZh,
         ContactHoursEn = dto.ContactHoursEn,
+        BlueWhaleSiteUrl = dto.BlueWhaleSiteUrl,
     };
 
     // ───────────────────────────── 公開端點 ─────────────────────────────
@@ -228,6 +249,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         Assert.Equal(venue.Address, dto.Contact.Address);
         Assert.Null(dto.Contact.Phone);
         Assert.Null(dto.Contact.Hours);
+        Assert.Equal("https://bw-stg.tcrfc.tw", dto.BlueWhaleSiteUrl);
     }
 
     [Fact]
@@ -265,5 +287,7 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         Assert.Equal("台中北屯太原足球場", bw.Venues[0].Name); // 主要主場排在第一筆。
         Assert.Equal(bw.Venues[0].Address, bw.Contact.Address);
         Assert.Null(bw.FoundingTitle); // bw 沒有這筆事實，且不得沾到 tcrfc 的值。
+        Assert.Null(bw.BlueWhaleSiteUrl); // 概念上只屬於 tcrfc，bw 不得沾到 tcrfc 的值。
+        Assert.Equal("https://bw-stg.tcrfc.tw", tcrfc.BlueWhaleSiteUrl);
     }
 }

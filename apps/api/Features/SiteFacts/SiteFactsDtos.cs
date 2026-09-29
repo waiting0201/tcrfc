@@ -43,6 +43,14 @@ public sealed record PublicSiteFactsDto
     public required IReadOnlyList<string> SquadCodes { get; init; }
 
     public required PublicSiteFactContactDto Contact { get; init; }
+
+    /// <summary>台中藍鯨官方網站網址（主站規劃書 §3.6「06 女子足球」入口頁「前往台中藍鯨官網」
+    /// 按鈕的連結目標），與 <c>lang</c> 無關（網址本身不需要逐語系）。**概念上只屬於台中磐石
+    /// （<c>tcrfc</c>）**——藍鯨官網本身沒有 06 單元（見 <c>docs/13-blue-whale-site.md</c> §6），
+    /// 因此以 <c>bw</c> 呼叫本端點時這個欄位預期恆為 <c>null</c>。<c>null</c>＝尚未設定，
+    /// 呼叫端應保留既有預設值（例如 <c>apps/web</c> 目前的 <c>NUXT_PUBLIC_BLUE_WHALE_SITE_URL</c>
+    /// staging 預設）而不是顯示空白連結。</summary>
+    public string? BlueWhaleSiteUrl { get; init; }
 }
 
 public sealed record PublicSiteFactLeagueDto

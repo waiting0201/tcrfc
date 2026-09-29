@@ -1705,8 +1705,9 @@ END
 """)
 
 # ============================================================================
-# 24. site facts（GEO-03／GEO-04，S1-12d，2026-09-29，backend-engineer）：兩俱樂部的成立年份、
-#     成立日期、首季頭銜、所屬聯賽、梯隊組成、聯絡方式。逐一取自
+# 24. site facts（GEO-03／GEO-04，S1-12d，2026-09-29，backend-engineer；2026-09-29 後續補
+#     site.blue_whale_site_url）：兩俱樂部的成立年份、成立日期、首季頭銜、所屬聯賽、梯隊組成、
+#     聯絡方式，以及只屬於台中磐石（tcrfc）的藍鯨官網網址。逐一取自
 #     apps/web/shared/utils/site-facts.ts（該檔案檔頭自述是「前台暫定的事實單一來源」，已核實
 #     真實值），本輪把同一批值寫進後端唯一來源 settings／settings_i18n
 #     （setting_group='site'，鍵詞彙見
@@ -1827,6 +1828,13 @@ for (club_sq, club_code, founded_year, founding_date_iso, founding_date_display_
     emit_site_setting_i18n(club_sq, club_code, "site.squad_structure_summary", squad_structure_zh, squad_structure_en)
     emit_site_setting_value(club_sq, club_code, "site.squad_codes", ",".join(squad_codes))
     # site.contact_phone／site.contact_hours 刻意不種：兩俱樂部皆未核實（見本節檔頭說明）。
+
+# site.blue_whale_site_url（主站規劃書 §3.6「06 女子足球」入口頁「前往台中藍鯨官網」按鈕）：
+# 概念上只屬於台中磐石（tcrfc），只種這一筆，不種 bw——藍鯨官網本身沒有 06 單元（見
+# docs/13-blue-whale-site.md §6「不設 06」），bw 俱樂部範圍下這個鍵維持不存在（公開端點讀到 null）。
+# 種 staging 網域，跟 apps/web 的 NUXT_PUBLIC_BLUE_WHALE_SITE_URL 預設值一致（見
+# apps/web/nuxt.config.ts、apps/web/README.md「S1-16」）——藍鯨正式網域定案前不放正式網址。
+emit_site_setting_value(CLUB_TCRFC, "tcrfc", "site.blue_whale_site_url", "https://bw-stg.tcrfc.tw")
 
 emit("-- ── 24c. settings：site.home_venue_ids（主場場地引用清單，依主場優先順序） ──────")
 block(f"""

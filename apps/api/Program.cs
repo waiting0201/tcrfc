@@ -33,6 +33,7 @@ using Tcrfc.Api.Features.AdminSiteFacts;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
+using Tcrfc.Api.Features.AdminVenues;
 using Tcrfc.Api.Features.Calendar;
 using Tcrfc.Api.Features.Clubs;
 using Tcrfc.Api.Features.Faqs;
@@ -314,6 +315,9 @@ builder.Services.AddScoped<SeoRepository>();
 builder.Services.AddScoped<AdminSiteFactsRepository>();
 builder.Services.AddScoped<SiteFactsRepository>();
 
+// ── S1-12d 後續缺口補完：全站共用場地主檔唯讀清單（見 Features/AdminVenues 檔頭） ──────────
+builder.Services.AddScoped<AdminVenuesRepository>();
+
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 const string CorsPolicyName = "ClubFrontends";
 var corsOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
@@ -513,6 +517,9 @@ app.MapSeoEndpoints();
 // ── S1-12d：I 網站設定（GEO-03／GEO-04 站台事實） ────────────────────────────
 app.MapAdminSiteFactsEndpoints();
 app.MapSiteFactsEndpoints();
+
+// ── S1-12d 後續缺口補完：全站共用場地主檔唯讀清單 ────────────────────────────
+app.MapAdminVenuesEndpoints();
 
 app.Run();
 

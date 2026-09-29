@@ -23,7 +23,7 @@ public sealed class SiteFactsRepository(IClubSqlConnectionFactory connectionFact
     [
         "site.founded_year", "site.founding_date", "site.founding_date_display", "site.founding_title",
         "site.league_name", "site.league_short_name", "site.squad_structure_summary", "site.squad_codes",
-        "site.contact_phone", "site.contact_hours", "site.home_venue_ids",
+        "site.contact_phone", "site.contact_hours", "site.home_venue_ids", "site.blue_whale_site_url",
     ];
 
     private sealed record SettingValueRow(string SettingKey, string? SettingValue);
@@ -85,6 +85,7 @@ public sealed class SiteFactsRepository(IClubSqlConnectionFactory connectionFact
                         Phone = Value("site.contact_phone"),
                         Hours = I18nResolved("site.contact_hours"),
                     },
+                    BlueWhaleSiteUrl = Value("site.blue_whale_site_url"),
                 };
             },
             cancellationToken);

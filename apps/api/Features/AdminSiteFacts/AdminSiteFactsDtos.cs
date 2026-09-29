@@ -55,6 +55,16 @@ public sealed record AdminSiteFactsDto
 
     public string? ContactHoursZh { get; init; }
     public string? ContactHoursEn { get; init; }
+
+    /// <summary>台中藍鯨官方網站網址（主站規劃書 §3.6「06 女子足球」入口頁「前往台中藍鯨官網」
+    /// 按鈕的連結目標）。**概念上只屬於台中磐石（<c>tcrfc</c>）這個俱樂部的設定**——06 單元是
+    /// 主站專屬單元，藍鯨官網本身沒有這個單元（見 <c>docs/13-blue-whale-site.md</c> §6「不設 06」），
+    /// 因此藍鯨（<c>bw</c>）俱樂部範圍下這個鍵預期恆為 <c>null</c>。這不是資料庫層級強制的規則，
+    /// 是沿用既有「有些站台事實不是每個俱樂部都有」的既有原則（比照 <see cref="FoundingTitleZh"/>）——
+    /// 沒有另外加俱樂部白名單檢查，見 <c>apps/api/README.md</c>「S1-12d」節「藍鯨官網網址」小節。
+    /// <c>null</c>＝尚未設定；有值時必為 <c>https://</c> 開頭的絕對網址（見
+    /// <see cref="AdminSiteFactsRepository.ValidateBlueWhaleSiteUrl"/>）。</summary>
+    public string? BlueWhaleSiteUrl { get; init; }
 }
 
 /// <summary>既有 <c>Venue</c> 列（可能同時被其他資料引用，例如賽事、梯次的地點）。</summary>
@@ -87,6 +97,7 @@ public sealed record UpdateSiteFactsRequest
     public string? ContactPhone { get; init; }
     public string? ContactHoursZh { get; init; }
     public string? ContactHoursEn { get; init; }
+    public string? BlueWhaleSiteUrl { get; init; }
 }
 
 /// <summary><see cref="Id"/> 有值＝更新既有 <c>Venue</c> 列（找不到則回 400）；

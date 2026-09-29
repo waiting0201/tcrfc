@@ -266,13 +266,19 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 合作球隊管理 | 表單詢問 **自家** | `form.view`、`form.update`、`enquiry.inbox.view`、`enquiry.inbox.update`（`scope_type = own_clubs`，不含匯出） |
 | 系統管理員 | SEO／設定 **✔全** | `seo.setting.view/update`（全站 SEO 預設、追蹤碼、robots.txt 自訂規則）、`seo.redirect.*`（含 `import`）、`seo.report.view`（孤立頁面偵測）、`seo.llms.view/update`（`GEO-01` `llms.txt` 維護，S1-12a）、`seo.crawler.view/update`（`GEO-02` AI 爬蟲授權，S1-12b）、`seo.schema.view`（`GEO-05` 結構化資料完整性檢查，S1-12c）——**六組皆 `sysadmin_only`** |
 | 內容編輯 | SEO／設定 **單頁 SEO** | 不新增權限碼——`content.page.update`／`content.article.update` 既有請求已擴充 `canonicalPath`／`isNoindex`／`isExcludedFromSitemap`／`seoKeywords` 四個欄位，跟隨既有內容編輯權限，不是獨立的 SEO 權限碼 |
-| 系統管理員 | 網站設定 **✔全**（S1-12d 新增） | `site.fact.view/update`（成立年份、主場與場地、所屬聯賽、梯隊組成、聯絡方式——`GEO-03`／`GEO-04`）——**`sysadmin_only`** |
+| 系統管理員 | 網站設定 **✔全**（S1-12d 新增） | `site.fact.view/update`（成立年份、主場與場地、所屬聯賽、梯隊組成、聯絡方式、**台中藍鯨官網網址**——`GEO-03`／`GEO-04`／主站規劃書 §3.6）——**`sysadmin_only`** |
 
 > **S1-12d 新增（2026-09-29）**：規劃書 §6 權限矩陣**沒有「網站設定」欄**（`I` 模組在本輪之前
 > 完全沒有後端實作）。本輪比照 `seo.*`／`system.*` 既有先例——「全站層級設定、非逐篇內容編輯」
 > 的既有判斷——把 `site.fact.view`／`site.fact.update` 兩碼都標記 `sysadmin_only=1`，十個角色
 > 只有系統管理員持有。這是本輪自行判斷，規劃書沒有明文要求，見 `apps/api/README.md`「S1-12d」
-> 節「規劃書沒寫清楚、自行判斷」。
+> 節「規劃書沒寫清楚、自行判斷」。**2026-09-29 後續補**：`site.fact.*` 承載的欄位新增
+> `site.blue_whale_site_url`（主站規劃書 §3.6「藍鯨官網網址於後台 `I` 網站設定可維護」），
+> 沿用同一組既有權限碼，不新增權限碼。同一輪也新增一支**唯讀**場地清單端點
+> （`GET /api/v1/admin/{club}/venues`，`Features/AdminVenues`），**不新增權限碼**，改用
+> `IAdminClubAuthorizer.AuthorizeAnyAsync` 讓 `site.fact.view` 或 `team.match.view` 任一通過即可
+> ——這支端點只是既有 `venues` 主檔的唯讀清單，不是需要獨立把關的新業務功能，見
+> `apps/api/README.md`「S1-12d」節「藍鯨官網網址」與「場地清單端點」兩小節。
 
 > **S1-12 新增（2026-09-25）**：矩陣「SEO／設定」欄除了內容編輯的「單頁 SEO」外，**十個角色裡只有
 > 系統管理員打勾**，性質上與 J 模組的「系統」欄同樣是單一角色的排他欄位，因此 `seo.setting.*`／

@@ -6656,6 +6656,101 @@ docker build -f apps/api/Dockerfile apps/api    # 成功
    空清單而非正確答案，故 `squadCodes` 目前是獨立維護的純值。日後磐石真的建立這些 `Team` 列時，
    要考慮是否改為即時查詢以避免兩處各寫一份（GEO-03）——本輪判斷「暫不能查詢」不等於「永遠不查詢」。
 
+### 後續補完（2026-09-29）：藍鯨官網網址與場地清單端點
+
+主站規劃書 §3.6「06 女子足球」入口頁明文「藍鯨官網網址於後台 `I` 網站設定可維護」，以及
+`apps/admin/README.md`「I：網站設定」規格疑點第 1 點與
+`apps/admin/src/views/teams/MatchEditView.vue` 檔頭都記過的同一個缺口——後台沒有任何「列出全部
+場地」的端點，「從既有場地中選擇主場／比賽地點」做不出來。本節補這兩件事，**不改資料庫綱要**
+（`Setting` 鍵值與既有 `venues` 主檔已足夠）。
+
+#### 藍鯨官網網址
+
+新增 `Setting` 鍵 `site.blue_whale_site_url`（`setting_group='site'`，單一值、非人類語言——網址
+本身不需要逐語系，命名與既有 `site.home_venue_ids` 同一組詞彙慣例）。**概念上只屬於台中磐石
+（`tcrfc`）**——藍鯨官網本身沒有 06 單元（`docs/13-blue-whale-site.md` §6「不設 06」），因此以
+`bw` 呼叫時這個鍵預期恆為 `null`。**沒有另外加俱樂部白名單檢查強制這件事**——沿用既有「有些站台
+事實不是每個俱樂部都有」的原則（比照 `foundingTitle`），這是本輪自行判斷，任務指示本身也是描述
+而非要求技術層面的強制。
+
+- **DTO 欄位**：`AdminSiteFactsDto.BlueWhaleSiteUrl`／`UpdateSiteFactsRequest.BlueWhaleSiteUrl`／
+  `PublicSiteFactsDto.BlueWhaleSiteUrl`（camelCase `blueWhaleSiteUrl`），皆為 `string?`，
+  `null`＝尚未設定。
+- **驗證**：`AdminSiteFactsRepository.ValidateBlueWhaleSiteUrl`——空白合法（未設定），有值時必須是
+  `Uri.TryCreate(value, UriKind.Absolute, ...)` 可解析**且** `Scheme == Uri.UriSchemeHttps`，
+  否則 400（「台中藍鯨官網網址格式不正確，須為 https:// 開頭的完整網址。」）。不接受
+  `http://`、相對路徑、或 `javascript:` 這類非預期 scheme。
+- **整份取代語意不變**：PUT 省略這個欄位＝清空既有值，跟其餘 `site.fact.*` 欄位一致。
+- **種子資料**（`db/seed/generate-club-seed-sql.py`「24. site facts」段）：只種 `tcrfc` 一筆，
+  值為 staging 網域 `https://bw-stg.tcrfc.tw`——跟 `apps/web/nuxt.config.ts` 的
+  `NUXT_PUBLIC_BLUE_WHALE_SITE_URL` 預設值一致（見 `apps/web/README.md`「S1-16」），藍鯨正式
+  網域定案前不放正式網址。**不種 `bw`**。
+- **`apps/web` 尚未串接**（沿用上方「已知缺口」第 1 點同一個狀態）——`apps/web/app/pages/zh/
+  womens/index.vue` 目前讀的是 `useRuntimeConfig().public.blueWhaleSiteUrl`（容器環境變數），
+  不是這支 API；下一輪整批改用 `useFetch` 時可以一併改讀這個欄位，改完之後藍鯨正式網域定案就只
+  需要後台改一個值，不必再改環境變數或重新部署容器。
+
+#### 場地清單端點（`Features/AdminVenues`，新增檔案）
+
+新增唯讀端點 `GET /api/v1/admin/{club}/venues`（`Features/AdminVenues/AdminVenuesDtos.cs`／
+`AdminVenuesRepository.cs`／`AdminVenuesEndpoints.cs`，EF Core，比照
+`Features/AdminCompetitions.ListSeasonsAsync` 既有「唯讀清單掛在既有相關模組權限碼底下」的寫法）。
+
+- **回應內容與 `{club}` 路由段無關**：`Venue` 本身不帶 `club_id`（docs/12 §4.7，場地是地理實體，
+  兩俱樂部可能共用同一座球場），這支端點回傳的是**全站**場地，路由掛 `{club}` 只是借用既有
+  `IAdminClubAuthorizer` 授權管線（帳號狀態、俱樂部存在、俱樂部授權、權限碼四步一次到齊），任何
+  俱樂部呼叫都會拿到同一份清單。
+- **回應形狀**（camelCase）：
+  ```jsonc
+  // GET /api/v1/admin/tcrfc/venues
+  [
+    { "id": "…", "nameZh": "西屯足球場", "nameEn": "Xitun Football Field", "address": "台中市北屯區崇平路二段景谷巷 11 弄 41 號" },
+    { "id": "…", "nameZh": "台中北屯太原足球場", "nameEn": null, "address": "…" },
+    { "id": "…", "nameZh": "台中市立豐原體育場", "nameEn": null, "address": "…" }
+  ]
+  ```
+  排序：`SortOrder` 優先（既有列目前全部是 0），再以中文名稱（Ordinal）穩定排序，避免下拉選單
+  順序看起來隨機。
+- **權限**：`IAdminClubAuthorizer.AuthorizeAnyAsync`，候選碼 `site.fact.view`（`I` 網站設定挑
+  主場）與 `team.match.view`（`C4` 賽程與賽果挑比賽地點）任一通過即可——這是任務指示「能看網站
+  設定或賽事的人都能讀」的具體判斷，這兩個是目前僅有的兩處「需要挑選既有場地」的既有畫面／缺口。
+  **不新增權限碼**：這只是一份共用主檔的唯讀清單，不是需要獨立授權把關的新業務功能，比照
+  `Features/AdminCompetitions.ListSeasonsAsync` 掛在既有賽事模組權限碼底下、不另開球季模組權限碼
+  的既有先例。403 訊息沿用 `AdminClubAuthorizer` 既有文字（「你的角色沒有這項操作的權限，請洽
+  系統管理員。」），不內插權限碼（E-52）。
+- **只做唯讀清單，不做場地的新增／刪除管理**——任務範圍明文排除，規格也沒有要求。新增場地仍然
+  透過既有管道完成（例如 `Features/AdminSiteFacts` 的 `UpdateSiteFactVenueRequest` 省略 `Id`
+  即新增一筆）。
+- **`apps/admin/src/views/teams/MatchEditView.vue` 與 `apps/admin/README.md`「I：網站設定」
+  規格疑點第 1 點的缺口至此已補齊後端**——兩個畫面要改成「從既有場地中選擇」下拉選單，需要下一輪
+  前端工作接上這支端點，本輪不改 `apps/admin`（任務範圍排除）。
+
+#### 測試與驗證（2026-09-29）
+
+`SiteFactsTests.cs` 擴充（藍鯨官網網址讀取／寫入輪替／`https` 格式驗證三種失敗情境／俱樂部隔離
+斷言 `bw` 恆為 `null`），新增 `AdminVenuesTests.cs`（5 項：未登入 401、兩組候選權限碼都沒有的
+角色 403 且訊息不帶權限碼、只持有 `team.match.view` 的角色可讀、系統管理員讀取含雙語名稱與地址、
+回應與 `{club}` 路由段無關）。
+
+```
+dotnet build                                              # 0 個警告，0 個錯誤
+dotnet test --filter FullyQualifiedName~SiteFactsTests\|FullyQualifiedName~AdminVenuesTests
+                                                           # 17/17 通過
+dotnet test                                               # 520/520 全過（既有 512 ＋ 本輪新增 8）
+docker build -f apps/api/Dockerfile apps/api              # 成功
+```
+
+種子資料以 `./db/seed/setup-test-db.sh` 重灌 `tcrfc_club_test` 後，直接用 `sqlcmd` 核對過
+`settings` 只有 `tcrfc` 一筆 `site.blue_whale_site_url`、`venues` 總筆數為 3，不是只看 API 回應。
+
+#### 已知缺口（回報，不在本輪範圍）
+
+1. **`apps/web`／`apps/admin` 皆未串接**——依任務指示本輪只改 `apps/api`，前台「前往台中藍鯨
+   官網」按鈕與後台「網站設定」「賽程」兩個畫面的下拉選單串接留給下一輪。
+2. **`Venue` 沒有「新增／刪除管理」端點**——本輪刻意只做唯讀清單（任務範圍排除），新增場地仍然
+   只能透過 `Features/AdminSiteFacts` 的既有「更新主場清單時順便新增」管道，不是獨立的場地管理
+   功能；日後若真的需要獨立的場地 CRUD 畫面，需要先決定要不要新增場地管理權限碼。
+
 ## 相關文件
 
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表

@@ -25,6 +25,8 @@ namespace Tcrfc.Api.Features.AdminSiteFacts;
 /// - <c>site.contact_phone</c>（單一值，電話號碼，非人類語言）
 /// - <c>site.contact_hours</c>（逐語系——營業時間是人類可讀文字，例如「平日 09:00–18:00」）
 /// - <c>site.home_venue_ids</c>（單一值，逗號分隔 <c>venues.id</c> 清單，依顯示順序，第一筆＝主要主場）
+/// - <c>site.blue_whale_site_url</c>（單一值，<c>https://</c> 網址，非人類語言，概念上只屬於
+///   <c>tcrfc</c> 這個俱樂部，見 <see cref="AdminSiteFactsDto.BlueWhaleSiteUrl"/> 檔頭）
 ///
 /// 🔴 **`Venue` 本身刻意不帶 <c>club_id</c>**（docs/12 §4.7：場地是地理實體，兩隊可能共用同一座
 /// 球場，重複建會產生兩組人工標的座標）。「這個俱樂部的主場是哪幾筆既有 <c>Venue</c>」這件事
@@ -47,13 +49,18 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
     private const string KeyContactHours = "site.contact_hours";
     private const string KeyHomeVenueIds = "site.home_venue_ids";
 
+    /// <summary>台中藍鯨官方網站網址（主站規劃書 §3.6「06 女子足球」入口頁），見
+    /// <see cref="AdminSiteFactsDto.BlueWhaleSiteUrl"/> 檔頭說明。單一值、非人類語言（網址本身
+    /// 不需要逐語系）。</summary>
+    private const string KeyBlueWhaleSiteUrl = "site.blue_whale_site_url";
+
     private const string Group = "site";
 
     private static readonly string[] AllKeys =
     [
         KeyFoundedYear, KeyFoundingDate, KeyFoundingDateDisplay, KeyFoundingTitle,
         KeyLeagueName, KeyLeagueShortName, KeySquadStructureSummary, KeySquadCodes,
-        KeyContactPhone, KeyContactHours, KeyHomeVenueIds,
+        KeyContactPhone, KeyContactHours, KeyHomeVenueIds, KeyBlueWhaleSiteUrl,
     ];
 
     public async Task<AdminSiteFactsDto> GetAsync(AdminClubScope scope, CancellationToken cancellationToken)
@@ -101,6 +108,8 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
             }
         }
 
+        ValidateBlueWhaleSiteUrl(request.BlueWhaleSiteUrl);
+
         var settings = await dbContext.Settings
             .Include(s => s.SettingsI18ns)
             .Where(s => s.ClubId == scope.ClubId && AllKeys.Contains(s.SettingKey))
@@ -116,6 +125,7 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
         UpsertValue(settings, KeySquadCodes, scope.ClubId, JoinCodes(request.SquadCodes), operatorId);
         UpsertValue(settings, KeyContactPhone, scope.ClubId, request.ContactPhone, operatorId);
         UpsertI18nOptional(settings, KeyContactHours, scope.ClubId, request.ContactHoursZh, request.ContactHoursEn, operatorId);
+        UpsertValue(settings, KeyBlueWhaleSiteUrl, scope.ClubId, request.BlueWhaleSiteUrl, operatorId);
 
         var venueIds = await UpsertHomeVenuesAsync(homeVenueRequests, operatorId, cancellationToken);
         UpsertValue(settings, KeyHomeVenueIds, scope.ClubId, string.Join(',', venueIds), operatorId);
@@ -123,6 +133,21 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
         await dbContext.SaveChangesAsync(cancellationToken);
 
         return await GetAsync(scope, cancellationToken);
+    }
+
+    /// <summary>「驗證格式為 https 網址」——空白值合法（未設定），有值時必須是可解析的絕對網址
+    /// 且 scheme 為 <c>https</c>。不接受相對路徑、<c>http://</c>、或非網址字串。</summary>
+    private static void ValidateBlueWhaleSiteUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new AdminSiteFactsValidationException("台中藍鯨官網網址格式不正確，須為 https:// 開頭的完整網址。");
+        }
     }
 
     private static string? JoinCodes(IReadOnlyList<string>? codes)
@@ -304,6 +329,7 @@ public sealed class AdminSiteFactsRepository(ClubDbContext dbContext)
             ContactPhone = Value(KeyContactPhone),
             ContactHoursZh = I18n(KeyContactHours, RequestLocale.DefaultDbLocale),
             ContactHoursEn = I18n(KeyContactHours, "en"),
+            BlueWhaleSiteUrl = Value(KeyBlueWhaleSiteUrl),
         };
     }
 
