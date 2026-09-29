@@ -247,12 +247,16 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString))
     var blobVideoContainerName = builder.Configuration["AZURE_BLOB_CONTAINER_VIDEOS"] ?? "videos";
     builder.Services.AddKeyedSingleton("videos", new BlobContainerClient(blobConnectionString, blobVideoContainerName));
     builder.Services.AddSingleton<IVideoStorageService, BlobVideoStorageService>();
+    // E-64 修正：影片物件鍵 → 公開網址，跟圖片那顆 IImagePublicUrlResolver 同一個機制、
+    // 分開宣告（容器不同，見 IVideoPublicUrlResolver 檔頭）。
+    builder.Services.AddSingleton<IVideoPublicUrlResolver, BlobVideoPublicUrlResolver>();
 }
 else
 {
     builder.Services.AddSingleton<IImageStorageService, UnavailableImageStorageService>();
     builder.Services.AddSingleton<IVideoStorageService, UnavailableVideoStorageService>();
     builder.Services.AddSingleton<IImagePublicUrlResolver, UnavailableImagePublicUrlResolver>();
+    builder.Services.AddSingleton<IVideoPublicUrlResolver, UnavailableVideoPublicUrlResolver>();
 }
 
 // ── 各功能模組的 repository ──────────────────────────────────────────────

@@ -2,6 +2,7 @@ using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -23,7 +24,8 @@ namespace Tcrfc.Api.Features.Calendar;
 ///    賽事與俱樂部活動，L2 重複規則在這個模式即時展開（<see cref="RecurrenceExpander"/>），排序一律
 ///    由近到遠，不分賽程／賽果。
 /// </summary>
-public sealed class CalendarRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
+public sealed class CalendarRepository(
+    IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrlResolver)
 {
     private const string CacheEntity = "calendar";
 
@@ -322,6 +324,7 @@ public sealed class CalendarRepository(IClubSqlConnectionFactory connectionFacto
             Description = i18n.Description,
             CtaUrl = row.CtaUrl,
             CoverKey = row.CoverKey,
+            CoverUrl = imageUrlResolver.Resolve(row.CoverKey),
         };
 
         return (dto, exceptions);

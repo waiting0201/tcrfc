@@ -102,6 +102,7 @@ public sealed class TeamsRepository(
             HeroKey = row.HeroKey,
             Name = name,
             Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
+            HeroUrl = imageUrlResolver.Resolve(row.HeroKey),
             LogoUrl = imageUrlResolver.Resolve(logoKey),
             SchemaEligible = schemaEligible,
         };

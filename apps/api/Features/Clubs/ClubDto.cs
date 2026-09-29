@@ -26,6 +26,20 @@ public sealed record ClubDto
     /// （目前種子資料恆為此情形，見 <see cref="SchemaEligible"/> 說明）。</summary>
     public string? LogoUrl { get; init; }
 
+    /// <summary><see cref="LogoDarkKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）——同一批
+    /// 「回傳未解析物件鍵」缺口盤點時一併補上，算法與 <see cref="LogoUrl"/> 相同。</summary>
+    public string? LogoDarkUrl { get; init; }
+
+    /// <summary><see cref="FaviconKey"/> 完整可公開存取網址（E-64 修正）。</summary>
+    public string? FaviconUrl { get; init; }
+
+    /// <summary><see cref="OgImageKey"/> 完整可公開存取網址（E-64 修正）。⚠️ 這是俱樂部層級的
+    /// 全站預設 OG 圖片物件鍵本身，跟 <c>Features/News/ArticleDetailDto.OgImageUrl</c>（單篇文章
+    /// 已套用「專屬 &gt; 全站預設 &gt; 封面」優先序後的計算結果）不是同一個值——那裡在全站預設圖
+    /// 命中時，也是拿這個俱樂部的 <see cref="OgImageKey"/> 去解析，兩處各自獨立呼叫
+    /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/>，不是共用同一次計算。</summary>
+    public string? OgImageUrl { get; init; }
+
     /// <summary>GEO-05（S1-12c／S1-12f）：這個俱樂部的資料是否足以輸出 Organization
     /// 結構化資料（<see cref="SchemaType.Organization"/> 必填欄位——名稱、網域、隊徽——齊全）。
     /// 判斷條件單一來源見 <see cref="SchemaRequiredFields"/>，這裡不重新判斷一次（E-39）。

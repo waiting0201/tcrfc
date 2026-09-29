@@ -255,4 +255,125 @@ public sealed class ArchitectureTests
             .Where(a => !a.IsDynamic && !string.IsNullOrEmpty(a.Location))
             .Select(a => (MetadataReference)MetadataReference.CreateFromFile(a.Location))
             .ToList();
+
+    /// <summary>
+    /// 🔴 E-64（2026-09-29）：純掃原始碼的語法守門測試，不需要資料庫。<c>docs/18-work-errors.md</c>
+    /// E-64 記過 <c>Features/Home/HomeRepository.ListBannersAsync</c> 把 <c>banners.image_key</c>
+    /// 這個 Blob 物件鍵原封不動塞進公開 DTO，前台拿到手完全無法組出可用網址——跟
+    /// <c>Features/Staff</c>／<c>Features/Players</c> 等既有端點「<c>XxxKey</c> 原始鍵 ＋
+    /// <c>XxxUrl</c> 經 <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/>／
+    /// <see cref="Tcrfc.Api.Videos.IVideoPublicUrlResolver"/> 解析出的完整網址」成對出現的慣例
+    /// 不一致。這支測試把「成對出現」這件事變成可以自動驗證的形狀約束，不必每次新增欄位都要
+    /// 靠人工比對既有寫法：只掃**公開**端點（<c>Features/*</c> 排除 <c>Features/Admin*</c>）用來
+    /// 對外輸出的 DTO（型別名稱以 <c>Dto</c> 結尾的 <c>public</c> record），找每一個名稱以
+    /// <c>Key</c> 結尾、型別是 <c>string</c>／<c>string?</c> 的屬性，要求同一個 record 裡
+    /// 一定有一個 <c>{去掉 Key 的字首}Url</c> 屬性存在——不驗證那個 <c>Url</c> 屬性實際上有沒有
+    /// 正確呼叫解析器（那需要語意層級追蹤資料流，投資報酬率不夠，見下方「涵蓋邊界」），只驗證
+    /// 「這個形狀存在」，跟 <c>SchemaEligible</c> 一類欄位靠命名慣例互相對照的既有寫法同一種精神。
+    ///
+    /// **只掃公開端點，不含後台**：<c>Features/Admin*</c>（例如 <c>AdminBannerListItemDto.ImageKey</c>）
+    /// 目前也是同一種「只有原始鍵、沒有解析網址」的形狀，但那是後台畫面的既有落差、不是這次
+    /// E-64 的範圍（E-64 只點名公開讀取端點），刻意不在這支測試裡一併擋——見
+    /// <c>apps/api/README.md</c>「E-64」節與 <c>docs/18-work-errors.md</c> 的範圍說明，日後若要
+    /// 把後台一併納管，是新的一輪工作、不是這支測試該默默擴大範圍去做的事。
+    ///
+    /// **涵蓋邊界（誠實列出，不誇大）**：① 只驗證「有沒有同名的 <c>Url</c> 屬性」，不驗證
+    /// repository 的 <c>Map</c> 方法有沒有真的把它接上解析器、也不驗證接的是不是正確的解析器
+    /// （例如誤把 <c>VideoKey</c> 接去 <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/>）——
+    /// 這件事的正確性目前只靠 <c>PublicSchemaEligibilityTests</c> 一類的整合測試個案驗證，
+    /// 不是這支測試的職責。② 命名比對是純字串規則（去掉字尾 <c>Key</c>、接上 <c>Url</c>），
+    /// 不是語意分析，跟本檔上方那支測試刻意用 Roslyn 語意模型抓型別身分不同——這裡要抓的是
+    /// 「這一組欄位命名有沒有成對」，字串規則本來就足夠、也更容易讀懂哪裡不成對。
+    /// </summary>
+    [Fact]
+    public void 公開DTO的物件鍵欄位都必須有對應的完整網址欄位()
+    {
+        var apiDir = Path.Combine(RepoRoot(), "apps", "api");
+        Assert.True(Directory.Exists(apiDir), $"找不到 apps/api 目錄：{apiDir}");
+
+        var featuresDir = Path.Combine(apiDir, "Features");
+        Assert.True(Directory.Exists(featuresDir), $"找不到 apps/api/Features 目錄：{featuresDir}");
+
+        // 已核對過的既有例外，逐項寫清楚理由，鍵是「record 型別名稱.屬性名稱」（不是只比對屬性
+        // 名稱本身）——避免日後某個新 DTO 剛好也叫這個屬性名稱時被誤放行，見下方 violations 比對。
+        var knownExceptions = new HashSet<string>(StringComparer.Ordinal)
+        {
+            // Features/Forms/FormDtos.cs：表單自訂欄位的識別碼（對應 form_fields.field_key），
+            // 是「這一題的代號」，不是 Blob 物件鍵，沒有網址可以解析。
+            "PublicFormFieldDto.FieldKey",
+            // Features/Clubs/ClubDto.cs：LogoLightKey 確實有解析成網址，只是既有欄位刻意命名為
+            // LogoUrl 不是 LogoLightUrl（clubs 目前只有一種要顯示的隊徽變體，見
+            // ClubsRepository.Map／ClubDto.LogoUrl 檔頭說明）——是命名不對稱，不是漏解析。
+            "ClubDto.LogoLightKey",
+        };
+
+        var sourceFiles = Directory.EnumerateFiles(featuresDir, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")
+                     && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
+            .Where(f => !IsUnderAdminFeature(f, featuresDir))
+            .ToList();
+
+        Assert.True(sourceFiles.Count > 5, $"只掃到 {sourceFiles.Count} 個公開端點檔案，遠低於預期——路徑篩選可能算錯。");
+
+        var violations = new List<string>();
+
+        foreach (var file in sourceFiles)
+        {
+            var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(file), path: file);
+            var root = tree.GetRoot();
+
+            foreach (var record in root.DescendantNodes().OfType<RecordDeclarationSyntax>())
+            {
+                var isPublic = record.Modifiers.Any(SyntaxKind.PublicKeyword);
+                var isDto = record.Identifier.Text.EndsWith("Dto", StringComparison.Ordinal);
+                if (!isPublic || !isDto)
+                {
+                    continue;
+                }
+
+                var propertyNames = record.Members.OfType<PropertyDeclarationSyntax>()
+                    .Select(p => p.Identifier.Text)
+                    .ToHashSet(StringComparer.Ordinal);
+
+                foreach (var property in record.Members.OfType<PropertyDeclarationSyntax>())
+                {
+                    var name = property.Identifier.Text;
+                    if (!name.EndsWith("Key", StringComparison.Ordinal)
+                        || knownExceptions.Contains($"{record.Identifier.Text}.{name}"))
+                    {
+                        continue;
+                    }
+
+                    var typeText = property.Type.ToString();
+                    if (typeText != "string" && typeText != "string?")
+                    {
+                        continue;
+                    }
+
+                    var expectedUrlProperty = name[..^"Key".Length] + "Url";
+                    if (!propertyNames.Contains(expectedUrlProperty))
+                    {
+                        var lineNumber = tree.GetLineSpan(property.Span).StartLinePosition.Line + 1;
+                        violations.Add(
+                            $"{file}:{lineNumber}: {record.Identifier.Text}.{name} 沒有對應的 {expectedUrlProperty} 屬性——" +
+                            "公開 DTO 不應該只回傳未解析的物件鍵（E-64）。");
+                    }
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0,
+            "發現公開 DTO 直接輸出未解析的物件鍵（E-64 同類缺口），前台拿到手無法組出可用網址：\n"
+            + string.Join("\n", violations));
+    }
+
+    /// <summary>判斷檔案是否位於 <c>Features/AdminXxx/</c> 之下——只看 <c>Features</c> 底下的
+    /// 第一層目錄名稱是否以 <c>Admin</c> 開頭，比對邏輯跟 <c>docs/18-work-errors.md</c> E-27
+    /// 記過的「萬用字元只擋單層」是同一個坑，這裡改用逐層目錄名稱比對，不用字串前綴湊。</summary>
+    private static bool IsUnderAdminFeature(string filePath, string featuresDir)
+    {
+        var relative = Path.GetRelativePath(featuresDir, filePath);
+        var firstSegment = relative.Split(Path.DirectorySeparatorChar, 2)[0];
+        return firstSegment.StartsWith("Admin", StringComparison.Ordinal);
+    }
 }

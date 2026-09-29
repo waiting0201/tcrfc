@@ -146,6 +146,9 @@ public sealed class ClubsRepository(
             BrandSecondaryColor = club.BrandSecondaryColor,
             DefaultLocale = club.DefaultLocale,
             LogoUrl = imageUrlResolver.Resolve(club.LogoLightKey),
+            LogoDarkUrl = imageUrlResolver.Resolve(club.LogoDarkKey),
+            FaviconUrl = imageUrlResolver.Resolve(club.FaviconKey),
+            OgImageUrl = imageUrlResolver.Resolve(club.OgImageKey),
             SchemaEligible = schemaEligible,
         };
     }

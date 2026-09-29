@@ -1620,4 +1620,15 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **錯在哪**：`apps/api/Features/Home/HomeRepository.cs` 的 `ListBannersAsync` 直接把 `banners.image_key` 塞進 `BannerDto.ImageKey` 回傳，沒有像 `StaffRepository`／`PlayersRepository` 那樣注入 `IImagePublicUrlResolver` 把物件鍵解析成可以直接放進 `<img src>` 的完整網址（`Images/BlobImagePublicUrlResolver.cs` 需要 `BlobContainerClient.Uri`，這個資訊只有伺服器端拿得到，前端沒有辦法自己兜出正確網址）。
 - **為什麼會錯（根因）**：本輪（S1-14）不是這支端點的作者，是接手串接首頁 Hero 輪播時才發現這個落差；不在本次任務範圍內修改 `apps/api`（派工規則明文「不要啟動 apps/api」、也沒有授權改後端程式碼）。記錄成既有落差，不是本輪新造成的錯誤。
 - **下次怎麼避免**：新增或檢查任何回傳圖片欄位的公開讀取端點時，先比對同一類別已有的端點（`StaffRepository`／`PlayersRepository`）是否都有注入 `IImagePublicUrlResolver`，沒有的話視為缺陷而不是「這支端點本來就只回鍵值」。
-- **防呆**：⚠️ 無自動化。下次有 `backend-engineer` 處理 B3 首頁編排相關任務時，應先補上這個解析（比照既有兩支 Repository 的建構子注入方式），前端才能真正把後台上傳的輪播圖片顯示出來。
+- **修正**：✅ **已修正（2026-09-29，`backend-engineer`）**。`HomeRepository` 注入 `IImagePublicUrlResolver`＋新增的 `IVideoPublicUrlResolver`（`Videos/IVideoPublicUrlResolver.cs`／`BlobVideoPublicUrlResolver.cs`／`UnavailableVideoPublicUrlResolver.cs`，影片走獨立的 `"videos"` 容器，不能沿用圖片那顆解析器），`BannerDto` 新增 `ImageUrl`／`VideoUrl` 兩個解析後欄位（原始 `ImageKey`／`VideoKey` 保留）。**順手排查同一種缺口**（`Features/Home` 以外的公開端點，逐一核對是否「回傳原始物件鍵、沒有配對的完整網址欄位」），一併補上：`Features/Teams`（`TeamDto.HeroUrl`）、`Features/Clubs`（`ClubDto.LogoDarkUrl`／`FaviconUrl`／`OgImageUrl`）、`Features/Calendar`（`PublicCalendarEventDto.CoverUrl`）、`Features/Programs`（`ProgramListItemDto`／`ProgramDetailDto.CoverUrl`、`ProgramPartnerSummaryDto.LogoDarkUrl`／`LogoLightUrl`）、`Features/News`（`ArticleListItemDto`／`ArticleDetailDto.CoverUrl`）。**刻意沒有一併修的範圍**：`Features/Admin*`（例如 `AdminBannerListItemDto.ImageKey`）——這次任務明文只點名公開端點，後台畫面的同款缺口是新的一輪工作，見 `apps/api/README.md`「E-64」節。
+- **防呆**：✅ **已加自動化**——`Tcrfc.Api.Tests/ArchitectureTests.cs` 新增
+  `公開DTO的物件鍵欄位都必須有對應的完整網址欄位`：純語法掃描 `Features/*`（排除
+  `Features/Admin*`）裡型別名稱以 `Dto` 結尾的 `public record`，任何名稱以 `Key` 結尾的
+  `string`／`string?` 屬性都必須有同一個 record 裡對應的 `{去掉Key的字首}Url` 屬性，否則測試失敗
+  並印出檔案與行號。已知例外（命名不對稱或本來就不是物件鍵）寫在測試檔的
+  `knownExceptions`（`PublicFormFieldDto.FieldKey`、`ClubDto.LogoLightKey`）。**涵蓋邊界**：只驗證
+  「有沒有配對的 `Url` 屬性」這個形狀，不驗證 repository 有沒有真的接對解析器（例如誤把
+  `VideoKey` 接去圖片解析器）——這件事的正確性另外靠
+  `AdminBannersAndHomeSectionsTests.Banner_影片模式_建立成功_海報圖與影片鍵皆有值_公開端點吐出videoKey`
+  用真實 Azurite 斷言兩個網址分屬不同容器（`/images-test/`／`/videos/`）來守。也不涵蓋
+  `Features/Admin*`（見上方「修正」段的範圍說明）。

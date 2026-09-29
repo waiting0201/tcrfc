@@ -29,6 +29,14 @@ public sealed record ArticleListItemDto
     public required string CategoryCode { get; init; }
     public string? CategoryName { get; init; }
     public string? CoverKey { get; init; }
+
+    /// <summary><see cref="CoverKey"/> 完整可公開存取網址（E-64 修正，2026-09-29），由
+    /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/> 算出，比照
+    /// <c>Features/Staff/StaffDto.PhotoUrl</c> 的既有慣例。跟 <c>ArticleDetailDto.OgImageUrl</c>
+    /// 不是同一件事——那裡是「專屬 OG 圖片 &gt; 全站預設 &gt; 這篇封面」優先序算出來的 meta 用網址，
+    /// 這裡單純是這篇文章封面圖本身，給列表卡片 <c>&lt;img src&gt;</c> 用。<c>null</c>＝沒有封面圖。
+    /// </summary>
+    public string? CoverUrl { get; init; }
     public required bool IsFeatured { get; init; }
     public DateTime? PublishedAt { get; init; }
     public string? Title { get; init; }
@@ -49,6 +57,10 @@ public sealed record ArticleDetailDto
     public required string CategoryCode { get; init; }
     public string? CategoryName { get; init; }
     public string? CoverKey { get; init; }
+
+    /// <summary><see cref="CoverKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）。跟
+    /// <see cref="OgImageUrl"/> 的區別同 <c>ArticleListItemDto.CoverUrl</c> 上的說明。</summary>
+    public string? CoverUrl { get; init; }
     public required bool IsFeatured { get; init; }
     public int ViewCount { get; init; }
     public DateTime? PublishedAt { get; init; }

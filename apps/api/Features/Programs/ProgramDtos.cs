@@ -12,6 +12,11 @@ public sealed record ProgramListItemDto
     public int? AgeMin { get; init; }
     public int? AgeMax { get; init; }
     public string? CoverKey { get; init; }
+
+    /// <summary><see cref="CoverKey"/> 完整可公開存取網址（E-64 修正，2026-09-29），由
+    /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/> 算出，比照
+    /// <c>Features/Staff/StaffDto.PhotoUrl</c> 的既有慣例。<c>null</c>＝這個課程沒有封面圖。</summary>
+    public string? CoverUrl { get; init; }
     public string? Name { get; init; }
     public string? Intro { get; init; }
 
@@ -58,6 +63,12 @@ public sealed record ProgramPartnerSummaryDto
     public string? Name { get; init; }
     public string? LogoDarkKey { get; init; }
     public string? LogoLightKey { get; init; }
+
+    /// <summary><see cref="LogoDarkKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）。</summary>
+    public string? LogoDarkUrl { get; init; }
+
+    /// <summary><see cref="LogoLightKey"/> 完整可公開存取網址（E-64 修正）。</summary>
+    public string? LogoLightUrl { get; init; }
     public string? WebsiteUrl { get; init; }
 }
 
@@ -70,6 +81,9 @@ public sealed record ProgramDetailDto
     public int? AgeMin { get; init; }
     public int? AgeMax { get; init; }
     public string? CoverKey { get; init; }
+
+    /// <summary><see cref="CoverKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）。</summary>
+    public string? CoverUrl { get; init; }
     public string? Name { get; init; }
     public string? Intro { get; init; }
     public string? Content { get; init; }

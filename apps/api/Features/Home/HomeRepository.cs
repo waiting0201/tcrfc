@@ -1,8 +1,10 @@
 using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
+using Tcrfc.Api.Videos;
 
 namespace Tcrfc.Api.Features.Home;
 
@@ -12,7 +14,9 @@ namespace Tcrfc.Api.Features.Home;
 /// 唯讀路徑走 Dapper（比照 <c>Features/News/ArticlesRepository.cs</c> 的既有分工：寫入走
 /// EF Core、公開唯讀走 Dapper）。
 /// </summary>
-public sealed class HomeRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
+public sealed class HomeRepository(
+    IClubSqlConnectionFactory connectionFactory, IQueryCache cache,
+    IImagePublicUrlResolver imageUrlResolver, IVideoPublicUrlResolver videoUrlResolver)
 {
     private const string BannersEntity = "banners";
     private const string HomeSectionsEntity = "home-sections";
@@ -71,6 +75,8 @@ public sealed class HomeRepository(IClubSqlConnectionFactory connectionFactory, 
                             ImageWidth = first.ImageWidth,
                             ImageHeight = first.ImageHeight,
                             VideoKey = first.VideoKey,
+                            ImageUrl = imageUrlResolver.Resolve(first.ImageKey),
+                            VideoUrl = videoUrlResolver.Resolve(first.VideoKey),
                             SortOrder = first.SortOrder,
                             Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
                             Subtitle = RequestLocale.Pick(requested?.Subtitle, fallback?.Subtitle),

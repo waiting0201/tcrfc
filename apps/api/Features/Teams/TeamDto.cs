@@ -18,6 +18,15 @@ public sealed record TeamDto
     public string? Name { get; init; }
     public string? Intro { get; init; }
 
+    /// <summary><see cref="HeroKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）——比照
+    /// <c>Features/Staff/StaffDto.PhotoUrl</c> 的既有慣例，由
+    /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/> 算出。跟 <see cref="LogoUrl"/>
+    /// 不是同一件事：這裡只回這支球隊自己的識別圖片，沒有回退俱樂部隊徽——回退後的網址已經由
+    /// <see cref="LogoUrl"/> 提供，兩者分工不同（<see cref="HeroUrl"/> 給球隊頁 Hero 版位用，
+    /// <see cref="LogoUrl"/> 給 GEO-05 結構化資料用）。<c>null</c>＝這支球隊沒有自己的識別圖片。
+    /// </summary>
+    public string? HeroUrl { get; init; }
+
     /// <summary>球隊識別圖片完整可公開存取網址（S1-12f 新增）。優先序：這支球隊自己的
     /// <c>HeroKey</c> &gt; 所屬俱樂部的隊徽（<c>Club.LogoLightKey</c>）——<see cref="SchemaRequiredFields"/>
     /// 檔頭「logo（Club.LogoLightKey／Team.HeroKey）」的「／」判讀為「擇一即可」，比照既有

@@ -6427,6 +6427,77 @@ S1-12 新增的服務，已用於 `OgImageUrl`），不是新機制。`PlayerDto
    三個型別仍未接上任何前台輸出**：不在本輪任務範圍（任務指示明列的第一批只有五個型別），
    `SchemaRequiredFields` 已涵蓋這三型別的必填欄位定義，留給後續任務。
 
+## E-64：公開端點物件鍵解析成網址（2026-09-29，`backend-engineer`）
+
+`docs/18-work-errors.md` E-64 記過：`Features/Home/HomeRepository.ListBannersAsync` 把
+`banners.image_key` 原封不動塞進 `BannerDto.ImageKey`，沒有像 `Features/Staff`／`Features/Players`
+那樣注入 `IImagePublicUrlResolver` 解析成可以直接放進 `<img src>` 的完整網址——前台拿到手完全
+無法組出可用網址。本輪修正這支端點，並**照任務指示排查其他公開端點是否有同一種缺口，找到的一併修**
+（範圍**只含公開端點**，`Features/Admin*` 不在這次任務範圍內，見下方「刻意沒有修的範圍」）。
+
+### 修正範圍
+
+| Repository | DTO | 新增欄位 | 解析器 |
+|---|---|---|---|
+| `Features/Home/HomeRepository` | `BannerDto` | `ImageUrl`、`VideoUrl` | `IImagePublicUrlResolver`／**新增** `IVideoPublicUrlResolver` |
+| `Features/Teams/TeamsRepository` | `TeamDto` | `HeroUrl` | `IImagePublicUrlResolver`（既有，已注入） |
+| `Features/Clubs/ClubsRepository` | `ClubDto` | `LogoDarkUrl`、`FaviconUrl`、`OgImageUrl` | `IImagePublicUrlResolver`（既有，已注入） |
+| `Features/Calendar/CalendarRepository` | `PublicCalendarEventDto` | `CoverUrl` | `IImagePublicUrlResolver`（**新增注入**） |
+| `Features/Programs/ProgramsRepository` | `ProgramListItemDto`／`ProgramDetailDto`／`ProgramPartnerSummaryDto` | `CoverUrl`（前兩者）、`LogoDarkUrl`／`LogoLightUrl`（夥伴摘要） | `IImagePublicUrlResolver`（**新增注入**） |
+| `Features/News/ArticlesRepository` | `ArticleListItemDto`／`ArticleDetailDto` | `CoverUrl` | `IImagePublicUrlResolver`（既有，已注入） |
+
+原始的 `XxxKey` 欄位全部保留（不是替換），比照 `StaffDto.PhotoKey`／`PhotoUrl` 並存的既有慣例——
+`Key` 給需要原始物件鍵的既有呼叫端（例如後台比對用），`Url` 給前台直接顯示用。
+
+**影片獨立走一顆新解析器**：`banners.video_key` 是獨立的 Blob 容器（`AZURE_BLOB_CONTAINER_VIDEOS`，
+跟圖片的 `AZURE_BLOB_CONTAINER_IMAGES` 分開，見 `Videos/BlobVideoStorageService.cs`），不能沿用
+`IImagePublicUrlResolver`（容器不同，算出來的網址會指到錯誤的容器）。新增
+`Videos/IVideoPublicUrlResolver.cs`／`BlobVideoPublicUrlResolver.cs`（具名 DI 注入
+`[FromKeyedServices("videos")] BlobContainerClient`，寫法照抄 `BlobImagePublicUrlResolver`）／
+`UnavailableVideoPublicUrlResolver.cs`（`AZURE_BLOB_CONNECTION_STRING` 未設定時的替身），
+`Program.cs` 兩個分支（設定／未設定連線字串）都各自註冊對應實作。
+
+**`ClubDto.LogoLightKey` 沒有新增 `LogoLightUrl`**——它在 S1-12f 就已經解析成 `LogoUrl`（既有欄位，
+只是命名不對稱，不是漏解析），本輪沒有改名（改名要動 `PublicSchemaEligibilityTests` 既有斷言，
+屬於契約變更，不在這次修錯字缺口的範圍內）；`ArchitectureTests` 的新守門測試已把這個既有命名
+差異寫進 `knownExceptions` 並附理由，見下方「防呆」。
+
+### 刻意沒有修的範圍
+
+`Features/Admin*` 一樣有同一種缺口（例如 `AdminBannerListItemDto.ImageKey`／`VideoKey`、
+`AdminClubDtos` 的標誌三欄位），任務指示明文只點名「公開端點」，後台畫面的同款缺口留給下一輪。
+
+### 前台要照這個串（`apps/web`）
+
+公開 API 回傳的 JSON 是 camelCase（既有慣例，見 `banners` API 既有的 `cta1Label`／`cta1Url`），
+新欄位在前台看到的名稱是 `imageUrl`／`videoUrl`／`heroUrl`／`logoDarkUrl`／`faviconUrl`／
+`ogImageUrl`／`coverUrl`／`logoLightUrl`。`apps/web/app/pages/zh/index.vue` 目前寫死「輪播圖片
+本身維持現有素材直到後端補上 `ImageUrl` 欄位」的等待註解（S1-14），現在可以改讀
+`GET /api/v1/{club}/banners` 回應的 `imageUrl` 欄位；`banners` 資料表目前種子資料是 0 筆
+（`db/seed` 沒有種子資料），實際能不能看到圖片仍要等後台建立輪播資料。
+
+### 測試
+
+新增／擴充：
+- `Tcrfc.Api.Tests/AdminBannersAndHomeSectionsTests.cs`：`Banner_圖片寬高由上傳結果自動填入_alt雙語`
+  新增斷言公開端點 `imageUrl` 非空、且網址含有 `imageKey`；
+  `Banner_影片模式_建立成功_海報圖與影片鍵皆有值_公開端點吐出videoKey` 新增斷言 `imageUrl`／`videoUrl`
+  兩者非空、互不相同、且分別落在 `images-test`／`videos` 兩個不同容器路徑——用真實 Azurite 驗證
+  「影片鍵有沒有誤接到圖片解析器」這個最容易犯的錯（兩顆解析器介面長得一模一樣，只差容器）。
+- `Tcrfc.Api.Tests/ArchitectureTests.cs`：新增純語法掃描測試（見下方「防呆」），不需要資料庫。
+
+`dotnet test`（`Tcrfc.Api.Tests.csproj`，`tcrfc_club_test`）：**503／503 全過**（既有 502 ＋
+本輪新增 1 項架構守門測試；既有測試的斷言擴充不算新增筆數）。`dotnet build` 全過，0 警告 0 錯誤。
+
+### 防呆
+
+`Tcrfc.Api.Tests/ArchitectureTests.cs` 新增
+`公開DTO的物件鍵欄位都必須有對應的完整網址欄位`：掃 `Features/*`（排除 `Features/Admin*`）裡
+`public` 且型別名稱以 `Dto` 結尾的 record，任何名稱以 `Key` 結尾的 `string`／`string?` 屬性都必須
+有同一個 record 裡對應的 `{去掉 Key 的字首}Url` 屬性，否則測試失敗並印出檔案與行號。這支測試會
+在下一次有人加圖片欄位卻忘記接解析器時，讓 `dotnet test` 直接紅燈，不必等到前台真的串接時才
+發現。詳細設計理由、涵蓋邊界、已知例外清單見 `docs/18-work-errors.md` E-64「防呆」段。
+
 ## 相關文件
 
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表

@@ -165,6 +165,10 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
             Assert.Equal(200, publicBanner.ImageWidth);
             Assert.Equal(200, publicBanner.ImageHeight);
             Assert.Equal("更新後的替代文字", publicBanner.ImageAlt);
+            // E-64 修正：公開端點不能只吐 ImageKey，要能解析成真的可以放進 <img src> 的完整網址，
+            // 且網址裡真的含有這把物件鍵（不是隨便一個非 null 字串就算過）。
+            Assert.NotNull(publicBanner.ImageUrl);
+            Assert.Contains(publicBanner.ImageKey, publicBanner.ImageUrl);
 
             // 更新時不換圖：寬高維持原值（不因為這次請求沒帶檔案就被清空）。
             var updateWithoutFile = new UpdateBannerRequest
@@ -304,6 +308,18 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
             var publicBanner = publicBanners!.First(b => b.Id == created.Id);
             Assert.Equal("video", publicBanner.MediaType);
             Assert.Equal(created.VideoKey, publicBanner.VideoKey);
+
+            // E-64 修正：影片模式下海報圖（ImageKey）與影片（VideoKey）都要能各自解析出網址，
+            // 且兩者不能是同一個網址／同一個容器——影片走獨立的 "videos" 容器（見
+            // Videos/IVideoPublicUrlResolver.cs 檔頭），誤把海報圖解析器接去解影片鍵會讓這裡的
+            // 網址指到錯誤的容器，物件實際上不存在。
+            Assert.NotNull(publicBanner.ImageUrl);
+            Assert.NotNull(publicBanner.VideoUrl);
+            Assert.Contains(publicBanner.ImageKey, publicBanner.ImageUrl);
+            Assert.Contains(publicBanner.VideoKey!, publicBanner.VideoUrl);
+            Assert.NotEqual(publicBanner.ImageUrl, publicBanner.VideoUrl);
+            Assert.Contains("/images-test/", publicBanner.ImageUrl);
+            Assert.Contains("/videos/", publicBanner.VideoUrl);
         }
         finally
         {

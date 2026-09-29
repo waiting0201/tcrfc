@@ -19,6 +19,22 @@ public sealed record BannerDto
     /// <summary>僅 <see cref="MediaType"/>＝<c>video</c> 時有值。本輪一律為 <c>null</c>。</summary>
     public string? VideoKey { get; init; }
 
+    /// <summary>
+    /// <see cref="ImageKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）——比照
+    /// <c>Features/Staff/StaffDto.PhotoUrl</c>／<c>Features/Players/PlayerDto.PhotoUrl</c> 的既有
+    /// 慣例，由 <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/> 算出，供前台直接放進
+    /// <c>&lt;img src&gt;</c>。<c>MediaType=video</c> 時這是海報格（poster）的網址。
+    /// <c>null</c>＝沒有物件鍵可用。</summary>
+    public string? ImageUrl { get; init; }
+
+    /// <summary>
+    /// <see cref="VideoKey"/> 完整可公開存取網址（E-64 修正）。影片走獨立的 Blob 容器，由
+    /// <see cref="Tcrfc.Api.Videos.IVideoPublicUrlResolver"/> 算出——不能沿用
+    /// <see cref="ImageUrl"/> 的計算方式（見該介面檔頭「容器不同」的說明）。僅
+    /// <see cref="MediaType"/>＝<c>video</c> 時有值，本輪一律為 <c>null</c>（同 <see cref="VideoKey"/>）。
+    /// </summary>
+    public string? VideoUrl { get; init; }
+
     public required int SortOrder { get; init; }
     public string? Title { get; init; }
     public string? Subtitle { get; init; }

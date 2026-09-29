@@ -2,6 +2,7 @@ using Dapper;
 using Tcrfc.Api.Caching;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
+using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -10,7 +11,8 @@ namespace Tcrfc.Api.Features.Programs;
 /// <summary>05 課程與活動公開讀取＋報名送出（主站規劃書 §3.5）。<c>programs.club_id</c> 是
 /// 50 張必填表之一，不像 <c>staff</c> 需要 <see cref="Data.ClubOrSharedSql"/> 回退共同資料，
 /// 直接 <c>WHERE club_id = @ClubId</c> 即可。</summary>
-public sealed class ProgramsRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
+public sealed class ProgramsRepository(
+    IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrlResolver)
 {
     private const string CacheEntity = "programs";
 
@@ -81,6 +83,7 @@ public sealed class ProgramsRepository(IClubSqlConnectionFactory connectionFacto
                         AgeMin = r.AgeMin,
                         AgeMax = r.AgeMax,
                         CoverKey = r.CoverKey,
+                        CoverUrl = imageUrlResolver.Resolve(r.CoverKey),
                         Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
                         Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
                         HasOpenSession = r.HasOpenSession,
@@ -179,13 +182,16 @@ public sealed class ProgramsRepository(IClubSqlConnectionFactory connectionFacto
                     AgeMin = program.AgeMin,
                     AgeMax = program.AgeMax,
                     CoverKey = program.CoverKey,
+                    CoverUrl = imageUrlResolver.Resolve(program.CoverKey),
                     Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
                     Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
                     Content = RequestLocale.Pick(requested?.Content, fallback?.Content),
                     Staff = staff.Select(s => new ProgramStaffSummaryDto { Id = s.Id, Name = s.Name }).ToList(),
                     Partners = partners.Select(p => new ProgramPartnerSummaryDto
                     {
-                        Id = p.Id, Slug = p.Slug, Name = p.Name, LogoDarkKey = p.LogoDarkKey, LogoLightKey = p.LogoLightKey, WebsiteUrl = p.WebsiteUrl,
+                        Id = p.Id, Slug = p.Slug, Name = p.Name, LogoDarkKey = p.LogoDarkKey, LogoLightKey = p.LogoLightKey,
+                        LogoDarkUrl = imageUrlResolver.Resolve(p.LogoDarkKey), LogoLightUrl = imageUrlResolver.Resolve(p.LogoLightKey),
+                        WebsiteUrl = p.WebsiteUrl,
                     }).ToList(),
                     Sessions = sessions.Select(s => new ProgramSessionDto
                     {

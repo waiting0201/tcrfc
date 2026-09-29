@@ -35,4 +35,10 @@ public sealed record PublicCalendarEventDto
     public string? Description { get; init; }
     public string? CtaUrl { get; init; }
     public string? CoverKey { get; init; }
+
+    /// <summary><see cref="CoverKey"/> 完整可公開存取網址（E-64 修正，2026-09-29），由
+    /// <see cref="Tcrfc.Api.Images.IImagePublicUrlResolver"/> 算出，比照
+    /// <c>Features/Staff/StaffDto.PhotoUrl</c> 的既有慣例。<c>null</c>＝這則自建活動沒有封面圖。
+    /// match 來源事件恆為 <c>null</c>（<c>matches</c> 沒有封面圖欄位）。</summary>
+    public string? CoverUrl { get; init; }
 }
