@@ -1813,7 +1813,7 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   還在）。⚠️ 沒有自動化測試專門驗這支「檢查腳本自己的邏輯」，回報供之後有人再改
   `checkRatchet()` 時留意同一種「正規表示式抓過頭」的風險。
 
-### E-74 `nuxt-schema-org` 依網址結尾字面值猜頁面型別，跟 `@nuxtjs/seo` 的 canonical 網址不帶結尾斜線兩件事疊加，讓 `/zh/faq/`／`/zh/about/` 等頁在沒有真實內容時仍輸出殘缺的 FAQPage／AboutPage（2026-09-29，S1-18a 發現，全站既有缺陷，不是本輪引入）
+### E-74 `nuxt-schema-org` 依網址結尾字面值猜頁面型別，跟 `@nuxtjs/seo` 的 canonical 網址不帶結尾斜線兩件事疊加，讓 `/zh/faq/`／`/zh/about/` 等頁在沒有真實內容時仍輸出殘缺的 FAQPage／AboutPage（2026-09-29 發現於 S1-18a，同日在後續一輪交付修正根因，見下方「修正」）
 
 - **錯在哪**：驗收 S1-18a（GEO-06 FAQPage Schema）時，新增的
   `scripts/check-faq-schema-live.mjs` 對本機 `tcrfc`／`bw` 兩容器實測，在
@@ -1854,10 +1854,31 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   這套猜測表——本輪沒有查到官方是否提供這類設定項），而不是在受害頁面上加防禦性
   程式碼；引入或升級任何依賴「網址路徑字面值」做行為判斷的第三方模組時（型別猜測、
   路由前綴比對等），要留意本站既有的 URL 慣例（結尾斜線）是否與該模組的預期一致。
-- **防呆**：⚠️ **未修正，記錄為已知限制、留給下一次處理 canonical／SEO 模組設定的人**：
-  `scripts/check-faq-schema-live.mjs` 加了 `KNOWN_FRAMEWORK_TYPE_GUESS_ROUTES`
-  白名單（目前只有 `/zh/faq/`／`/en/faq/`），命中時列成資訊行、不影響離開碼，
-  避免對一個這次任務修不好的既有缺陷製造永久紅燈（`E-34`同一個教訓）。**待辦**：
-  之後有人要處理 canonical 網址結尾斜線或 `nuxt-schema-org` 設定時，一併檢查
-  `/zh/about/`（已確認同樣受影響）與本站其餘任何路徑最後一段剛好撞上猜測表關鍵字
-  的頁面。
+- **防呆（原記錄，臨時措施，已於下方「修正」移除）**：`scripts/check-faq-schema-live.mjs`
+  當時加了 `KNOWN_FRAMEWORK_TYPE_GUESS_ROUTES` 白名單（只有 `/zh/faq/`／`/en/faq/`），
+  命中時列成資訊行、不影響離開碼，避免對一個當下任務修不好的既有缺陷製造永久紅燈
+  （`E-34` 同一個教訓）。
+- **修正（2026-09-29，同日稍後一輪交付，`frontend-architect`）**：追查發現真正根因比原記錄
+  更精確一層——`nuxt-schema-org` 的 `endPath` 算法讀的是 `nuxt-site-config` 依
+  `siteConfig.trailingSlash` 算出的網址（`site-config-stack/dist/urls.mjs`
+  `resolveSitePath()`→`fixSlashes()`），`@nuxtjs/seo` 的 canonical 網址生成
+  （`nuxt-seo-utils` `applyDefaults.js`）與 `nuxt-schema-org` 的 `initSchemaOrgMeta()`
+  用的是**同一個** `createSitePathResolver`，都讀這個鍵；本站 `nuxt.config.ts` 先前沒有
+  設定這個鍵（預設 falsy），才是兩邊網址都被去掉結尾斜線的真正原因，不是「這兩個模組各自
+  的預設值疊加」——是**同一個上游設定缺一個值**。**修法**：`nuxt.config.ts` 的 `site` 加
+  `trailingSlash: true`（見該檔案行內註解），一次修正 canonical／`og:url` 與 schema.org
+  型別猜測兩邊，不需要逐頁覆寫，也不需要動 `nuxt-schema-org` 的 `defaults` 模組選項
+  （那個選項是「要不要產生 WebPage／WebSite／Identity 預設節點」的開關，關掉會讓全站
+  失去這些正確、有用的預設節點，不是這裡要的效果）。**盤點確認全站共 4 條 zh 路由（各自
+  `/en/` 孿生共 8 條）撞上猜測表**：`/zh/about/`（`AboutPage`）、`/zh/faq/`
+  （`FAQPage`）、`/zh/checkout/`（`CheckoutPage`）、`/zh/join/contact/`
+  （`ContactPage`）——已用本機真實 SSR 輸出逐一驗證修正後全部退回 `"WebPage"`，且
+  canonical 網址與同頁 hreflang 自我參照（`route.fullPath`，本來就帶斜線）從此一致
+  （先前兩者互相矛盾，是修正的附帶效益）。完整驗證見 `apps/web/README.md`
+  「`E-74` 修正」節。
+- **防呆（修正後）**：`scripts/check-faq-schema-live.mjs` 移除
+  `KNOWN_FRAMEWORK_TYPE_GUESS_ROUTES` 白名單，改成兩條通用 hard-fail 斷言：① 任何
+  `FAQPage` 節點缺 `mainEntity` 一律離開碼 `1`（不再有例外）；② 任何節點帶有猜測表裡
+  的 `AboutPage`／`ContactPage`／`CheckoutPage`／`SearchResultsPage`（本站沒有任何頁面
+  的宣告機制會產生這些型別）一律離開碼 `1`——涵蓋「猜測表又回來了」（`trailingSlash`
+  設定被還原）與「新增了未經宣告機制產出的特殊型別」兩種情況，兩者都該讓這支腳本 fail。

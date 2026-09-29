@@ -17,13 +17,16 @@
  * ## 🔴 已知限制：`apps/api` 未啟動、`faqs` 表 0 筆種子資料
  *
  * 依派工規則本輪不啟動 `apps/api`（見任務指示），且該表目前沒有任何真實問答
- * （apps/web/README.md「S1-18」節）。因此本機驗收這支腳本時，**8 條路由預期全部
+ * （apps/web/README.md「S1-18」節）。因此本機驗收這支腳本時，**FAQ 相關路由預期全部
  * 「沒有 FAQPage 節點」**——這是 GEO-05「資料不足時不輸出該型別」的正確行為，不是
  * 這支腳本或 `useFaqPageSchema()` 接錯線。這裡仍然值得跑：能驗證「沒有資料時前台
  * 不會 500、也不會硬塞一個空的 FAQPage」，等 `apps/api` 真的啟動、`faqs` 表有真實
  * 種子資料之後，同一支腳本會開始真的驗到 `mainEntity` 的內容，不需要改程式碼。
  *
- * ## 檢查範圍：12 FAQ 首頁、4 個獨立主題頁、3 個 G-12 嵌入頁，各自 zh／en
+ * ## 檢查範圍：12 FAQ 首頁、4 個獨立主題頁、3 個 G-12 嵌入頁 ＋ 3 個型別猜測受害頁，各自 zh／en
+ *
+ * 後 3 個（`/zh/about/`／`/zh/checkout/`／`/zh/join/contact/`）只為了驗「頁面型別不得
+ * 由網址猜測」而納入，跟 GEO-06／FAQPage 本身無關（見下方該節說明）。
  *
  * 藍鯨（`bw`）容器：`academy-admission`／`programs-camps`（S1-18b 已關閉，回 404）與
  * 3 個 G-12 嵌入頁（`academy/join`／`programs/childrens-training`／
@@ -37,22 +40,39 @@
  *      （預設 `http://127.0.0.1:3001`，即 `tcrfc` 容器；對 `bw` 容器另外帶
  *      `--base-url=http://127.0.0.1:3002` 或本機埠號跑一次）。
  *
- * 離開碼：任一頁的 JSON-LD 解析失敗、或找到的 FAQPage 節點缺 `mainEntity`／
- * 任一題缺 `name`／`acceptedAnswer.text` → `1`；其餘情況（含「整站都沒有 FAQPage，
- * 因為還沒有種子資料」）→ `0`。
+ * 離開碼：任一頁的 JSON-LD 解析失敗、找到的 FAQPage 節點缺 `mainEntity`／
+ * 任一題缺 `name`／`acceptedAnswer.text`、或任一頁的 Primary WebPage 節點意外帶有
+ * 「頁面型別自動猜測表」裡的其他型別（`AboutPage`／`ContactPage`／`CheckoutPage`／
+ * `SearchResultsPage`，見下方「頁面型別不得由網址猜測」）→ `1`；其餘情況（含「整站
+ * 都沒有 FAQPage，因為還沒有種子資料」）→ `0`。
  */
 
-// 🔴 已知、且與本檔無關的框架既有缺陷（`docs/18-work-errors.md` E-74）：`/zh/faq/`
-// （僅此一條）即使完全沒有真實題目，也會被 `nuxt-schema-org` 的 `webPageResolver`
-// 依網址結尾（canonical 網址不帶結尾斜線、`endPath` 剛好等於內建猜測表裡的
-// `'faq'`）自動宣告成 `@type` 含 `FAQPage` 卻沒有 `mainEntity`——已證實 `/zh/about/`
-// 在 S1-18a 之前就有一模一樣的 `AboutPage` 版本，根因是全站既有的 canonical 網址
-// 生成方式，不是 `useFaqPageSchema()` 忘記過濾（該 composable 在無資料時完全不呼叫
-// `useSchemaOrg`，已用原始碼與本機實測雙重確認）。這裡刻意不讓它讓離開碼變 1——
-// 對它 hard-fail 只會製造一個跟這次任務無關、且不會被這次任務修好的永久紅燈
-// （`docs/18-work-errors.md` E-34 的既有教訓），改成單獨列出來，不影響離開碼。
-const KNOWN_FRAMEWORK_TYPE_GUESS_ROUTES = new Set(['/zh/faq/', '/en/faq/'])
-const knownFrameworkQuirkHits = []
+// ── 頁面型別不得由網址猜測（`docs/18-work-errors.md` E-74，2026-09-29 修正） ──────
+//
+// 根因：`nuxt-schema-org` 的 `webPageResolver.defaults()`（`node_modules/nuxt-schema-org/
+// dist/schema.mjs`）依「這一頁網址最後一段路徑」猜頁面型別（內建對照表：`about`／
+// `about-us`→`AboutPage`、`search`→`SearchResultsPage`、`checkout`→`CheckoutPage`、
+// `contact`／`get-in-touch`／`contact-us`→`ContactPage`、`faq`→`FAQPage`），而這個
+// 「最後一段路徑」算法（`meta.url.substring(meta.url.lastIndexOf("/") + 1)`）吃的是
+// `nuxt-site-config` 解析出來的網址——本站 `nuxt.config.ts` 的 `site.trailingSlash`
+// 先前沒有設定（預設 falsy），`site-config-stack/dist/urls.mjs` 的 `fixSlashes()`
+// 因此把這個網址一律去掉結尾斜線，讓 `/zh/faq/`／`/zh/about/`／`/zh/checkout/`／
+// `/zh/join/contact/`（各自的 `/en/` 孿生路由同樣中招，共 8 條路由）全部誤判成猜測表
+// 裡的型別，且都沒有對應的 `mainEntity` 等必要欄位——`/zh/faq/` 只是其中一條，不是
+// 唯一一條，也不是本檔案能修的問題（真正修法在框架設定層）。
+//
+// 修法：`nuxt.config.ts` 的 `site` 已加上 `trailingSlash: true`（完整原始碼追查記錄與
+// 修法說明見該檔案的行內註解與 `docs/18-work-errors.md` E-74），讓這個網址一律帶結尾
+// 斜線，`endPath` 因此變成空字串，猜測表不再命中任何關鍵字，型別退回預設的
+// `WebPage`——已用本機真實 SSR 輸出實測確認全部 8 條路由（含 zh／en）都不再輸出這些
+// 猜測型別。這裡把原本針對 `/zh/faq/`／`/en/faq/` 的「已知限制」白名單**移除**（改成
+// 下方通用的 hard-fail 檢查）：FAQPage 若沒有 `mainEntity` 一律是錯誤，不再有例外；
+// 同時新增對其餘猜測表型別的檢查——**這幾個型別目前在本站沒有任何頁面刻意宣告**
+// （只有 FAQPage 有 `useFaqPageSchema()` 這個明確宣告機制），所以只要在輸出裡看到
+// `AboutPage`／`ContactPage`／`CheckoutPage`／`SearchResultsPage`，就代表網址猜測
+// 又回來了（例如 `trailingSlash` 設定被還原）或有人新增了未經宣告機制產出的型別，
+// 兩種情況都該讓這支腳本 fail，而不是悄悄放行。
+const URL_GUESSED_TYPES_WITHOUT_DECLARATION = ['AboutPage', 'ContactPage', 'CheckoutPage', 'SearchResultsPage']
 
 const ROUTES_ZH = [
   '/zh/faq/',
@@ -64,7 +84,18 @@ const ROUTES_ZH = [
   '/zh/programs/childrens-training/',
   '/zh/programs/summer-camp/',
 ]
-const routes = [...ROUTES_ZH, ...ROUTES_ZH.map((r) => `/en${r.slice(3)}`)]
+// E-74 修正後追加：`/zh/about/`／`/zh/checkout/`／`/zh/join/contact/` 是全站另外
+// 3 條撞上 `nuxt-schema-org` 猜測表關鍵字的路由（`about`／`checkout`／`contact`，
+// 見上方「頁面型別不得由網址猜測」），本身跟 FAQPage／GEO-06 無關，但同一套
+// hard-fail 邏輯（`URL_GUESSED_TYPES_WITHOUT_DECLARATION`）需要真的 fetch 到這幾頁
+// 才驗得到，這裡一併納入路由清單，不另開一支腳本。
+const ROUTES_ZH_TYPE_GUESS_ONLY = ['/zh/about/', '/zh/checkout/', '/zh/join/contact/']
+const routes = [...new Set([
+  ...ROUTES_ZH,
+  ...ROUTES_ZH_TYPE_GUESS_ONLY,
+  ...ROUTES_ZH.map((r) => `/en${r.slice(3)}`),
+  ...ROUTES_ZH_TYPE_GUESS_ONLY.map((r) => `/en${r.slice(3)}`),
+])]
 
 const baseUrlArg = process.argv.find((a) => a.startsWith('--base-url='))
 const baseUrl = (baseUrlArg ? baseUrlArg.slice('--base-url='.length) : 'http://127.0.0.1:3001').replace(/\/$/, '')
@@ -122,6 +153,22 @@ for (const route of routes) {
       continue
     }
     const graph = Array.isArray(parsed['@graph']) ? parsed['@graph'] : [parsed]
+
+    // 通用檢查：Primary WebPage 節點（或任何節點）意外帶有猜測表型別、但本站沒有
+    // 對應的宣告機制 → 一律 hard-fail（見檔頭「頁面型別不得由網址猜測」）。
+    for (const node of graph) {
+      const type = node?.['@type']
+      const types = Array.isArray(type) ? type : type ? [type] : []
+      for (const guessedType of URL_GUESSED_TYPES_WITHOUT_DECLARATION) {
+        if (types.includes(guessedType)) {
+          shapeErrors.push({
+            route,
+            reason: `節點意外帶有 "${guessedType}"（本站目前沒有任何頁面宣告這個型別，代表網址猜測又回來了——見 E-74）`,
+          })
+        }
+      }
+    }
+
     const faqPageNode = graph.find((n) => {
       const type = n?.['@type']
       return type === 'FAQPage' || (Array.isArray(type) && type.includes('FAQPage'))
@@ -133,12 +180,9 @@ for (const route of routes) {
       ? faqPageNode.mainEntity
       : faqPageNode.mainEntity ? [faqPageNode.mainEntity] : []
 
+    // E-74 修正後：FAQPage 缺 mainEntity 一律是錯誤，不再有「已知限制」白名單。
     if (mainEntity.length === 0) {
-      if (KNOWN_FRAMEWORK_TYPE_GUESS_ROUTES.has(route)) {
-        knownFrameworkQuirkHits.push(route)
-      } else {
-        shapeErrors.push({ route, reason: 'FAQPage 節點存在，但 mainEntity 是空的（GEO-05：不該輸出空的 FAQPage）' })
-      }
+      shapeErrors.push({ route, reason: 'FAQPage 節點存在，但 mainEntity 是空的（GEO-05：不該輸出空的 FAQPage）' })
       continue
     }
 
@@ -174,25 +218,19 @@ if (parseErrors.length === 0) {
 
 console.log('\n── FAQPage 形狀（mainEntity／name／acceptedAnswer.text）───')
 if (shapeErrors.length === 0) {
-  if (pagesWithFaqPage === knownFrameworkQuirkHits.length) {
-    console.log('ℹ️ 目前沒有任何一頁輸出「有內容」的 FAQPage——`apps/api` 未啟動或 `faqs` 表沒有種子資料時，')
-    console.log('   這是 GEO-05「資料不足時不輸出該型別」的正確行為，不是缺陷（見檔頭「已知限制」）。')
+  if (pagesWithFaqPage === 0) {
+    console.log('ℹ️ 目前沒有任何一頁輸出 FAQPage——`apps/api` 未啟動或 `faqs` 表沒有種子資料時，')
+    console.log('   這是 GEO-05「資料不足時不輸出該型別」的正確行為，不是缺陷。')
   } else {
-    console.log('✓ 全數通過')
+    console.log('✓ 全數通過（含頁面型別不得由網址猜測的檢查，見檔頭 E-74）')
   }
 } else {
   console.error(`✗ ${shapeErrors.length} 處形狀錯誤：`)
   for (const e of shapeErrors) console.error(`  - ${e.route}：${e.reason}`)
 }
 
-if (knownFrameworkQuirkHits.length > 0) {
-  console.log(`\nℹ️ ${knownFrameworkQuirkHits.length} 條路由命中已知、與本次任務無關的框架既有缺陷`)
-  console.log('   （docs/18-work-errors.md E-74，不影響離開碼）：')
-  for (const r of knownFrameworkQuirkHits) console.log(`  - ${r}`)
-}
-
 if (parseErrors.length > 0 || shapeErrors.length > 0) {
   process.exit(1)
 }
 
-console.log('\n✓ GEO-06 FAQPage JSON-LD 檢查通過。')
+console.log('\n✓ GEO-06 FAQPage JSON-LD 檢查與頁面型別檢查（E-74）通過。')

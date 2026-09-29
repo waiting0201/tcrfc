@@ -57,9 +57,40 @@ export default defineNuxtConfig({
   // docs/13-blue-whale-site.md §6 紀律 11 與 apps/web/README.md 環境變數表）。
   // 藍鯨容器啟動時必須明確帶 NUXT_PUBLIC_SITE_NAME=台中藍鯨，否則這三處會
   // 悄悄顯示 'TCRFC'——不是規劃書規格，是這裡的預設值外洩。
+  // 🔴 trailingSlash: true（E-74 根因修正，2026-09-29）：本站所有頁面的網址慣例（內部
+  // 連結、hreflang、`server/routes/sitemap.xml.ts`）一律帶結尾斜線，但 `nuxt-site-config`
+  // 的這個鍵預設是 falsy，`site-config-stack/dist/urls.mjs` 的 `resolveSitePath()` →
+  // `fixSlashes()` 因此把「依 `siteConfig.url`／`route.path` 算出來的網址」一律
+  // `withoutTrailingSlash()`——這條路徑同時餵給兩個地方：
+  //   1) `nuxt-seo-utils`（`@nuxtjs/seo` 內建）`applyDefaults.js` 的 `canonicalUrl`／
+  //      `og:url`（`resolveUrl = createSitePathResolver({ withBase: true, absolute: true })`），
+  //      導致 `<link rel="canonical">` 長年輸出不帶斜線的網址，跟同一頁的 hreflang 自我
+  //      參照（`app/layouts/default.vue` 直接用 `route.fullPath`，本來就帶斜線）互相矛盾。
+  //   2) `nuxt-schema-org`（同樣是 `@nuxtjs/seo` 內建）`runtime/app/utils/shared.js`
+  //      `initSchemaOrgMeta()` 算 `schemaOrg.url` 用的是同一個
+  //      `createSitePathResolver`／`resolveSitePath`，這個網址接著餵進
+  //      `dist/schema.mjs` 的 `webPageResolver.defaults({meta})`：
+  //      `endPath = withoutTrailingSlash(meta.url.substring(meta.url.lastIndexOf("/") + 1))`，
+  //      網址不帶斜線時「最後一段路徑」剛好等於內建猜測表的關鍵字（`about`／`faq`／
+  //      `contact`／`checkout`／`search`），就把這一頁的 Primary WebPage 型別誤判成
+  //      `AboutPage`／`FAQPage`／`ContactPage`／`CheckoutPage`——本站目前 `/zh/about/`／
+  //      `/zh/faq/`／`/zh/join/contact/`／`/zh/checkout/`（各自的 `/en/` 孿生路由同樣
+  //      中招，共 8 條路由）都撞到這個猜測表，且都沒有對應的 `mainEntity` 等必要欄位，
+  //      是殘缺的結構化資料（完整原始碼追查記錄見 docs/18-work-errors.md E-74）。
+  //   設 `trailingSlash: true` 後，`fixSlashes()` 對這兩個消費端一律補回結尾斜線，
+  //   `endPath` 因此變成空字串（网址最後一個字元是 `/`），猜測表不再命中任何關鍵字，
+  //   型別退回預設的 `WebPage`——這是設定層的根因修正，不是逐頁覆寫（E-74 已證實
+  //   逐頁 `defineWebPage({'@type':'WebPage'})` 覆寫無效：`nuxt-schema-org` 對同一個
+  //   `@id` 的 `@type` 合併是陣列聯集，頁面自己的節點永遠贏不了框架的猜測結果）。
+  //   同時修正了 canonical／og:url 與 hreflang 长年不一致的问题（見上）。
+  //   ⚠️ 不影響 `server/routes/sitemap.xml.ts`（自組 XML，直接用
+  //   `shared/utils/site-units.ts` 的 `unit.path` 字串，不經過 `resolveSitePath`）與
+  //   `app/layouts/default.vue` 的 hreflang（直接用 `route.fullPath`，同樣不經過
+  //   `resolveSitePath`），這兩處本來就已經帶結尾斜線，維持不變。
   site: {
     name: 'TCRFC',
     defaultLocale: 'zh-Hant',
+    trailingSlash: true,
   },
 
   // @nuxtjs/seo 內建的 nuxt-og-image 子模組缺 renderer 會讓 build 直接失敗

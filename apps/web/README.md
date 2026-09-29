@@ -1770,35 +1770,66 @@ JSON 字串逸出（雙引號、反斜線、控制字元）交給框架序列化
   `import '../shared/utils/faq-schema.ts'`，不需要另外編譯或維護一份重複邏輯。
 - [`scripts/check-faq-schema-live.mjs`](scripts/check-faq-schema-live.mjs)：對已渲染的
   SSR 輸出檢查（比照 `check-heading-structure.mjs`，需要前台先跑起來，刻意不掛
-  `npm run lint`，`E-34`）。抓取 8 個掛載點頁面 zh／en 共 16 條路由的
+  `npm run lint`，`E-34`）。抓取 11 個掛載點頁面 zh／en 共 22 條路由的
   `<script type="application/ld+json">`，還原 unhead 的 `</script` 轉義後
   `JSON.parse()`，驗證找到的 FAQPage 節點 `mainEntity` 非空、每題都有 `name` 與
-  `acceptedAnswer.text`。**已知限制**：`apps/api` 未啟動、`faqs` 表 0 筆種子資料，
-  本機驗收時 16 條路由全數「沒有 FAQPage」或「命中 `E-74` 已知限制」，這是 GEO-05
-  正確行為，不是缺陷；已用臨時 fixture（`smoke-test-1` 假題目，含 HTML 標籤與
-  `</script>` 字樣，驗證後已還原）手動確認「有資料時」的完整輸出正確（見下方
-  「驗證」）。
+  `acceptedAnswer.text`（**E-74 修正後，`/zh/faq/`／`/en/faq/` 不再有例外，缺
+  `mainEntity` 一律 hard-fail**），並額外驗證任一節點不得帶有猜測表裡的
+  `AboutPage`／`ContactPage`／`CheckoutPage`／`SearchResultsPage`（見下方
+  「`E-74` 修正」）。**已知限制**：`apps/api` 未啟動、`faqs` 表 0 筆種子資料，本機驗收
+  時全數路由「沒有 FAQPage」，這是 GEO-05 正確行為，不是缺陷；已用臨時 fixture
+  （`smoke-test-1` 假題目，含 HTML 標籤與 `</script>` 字樣，驗證後已還原）手動確認
+  「有資料時」的完整輸出正確（見下方「驗證」）。
 
-### 已知限制（`docs/18-work-errors.md` `E-74`，全站既有缺陷，不是本輪引入）
+### `E-74` 修正（2026-09-29，根因在設定層，不在任何一個頁面）
 
-`/zh/faq/`／`/en/faq/` 這兩條路由，即使 `useFaqPageSchema()` 完全沒有合格題目、完全
-不呼叫 `useSchemaOrg`，仍然會被 `nuxt-schema-org` 的 `webPageResolver` 內建「依網址結尾
-猜頁面型別」預設邏輯自動宣告成 `@type:["WebPage","FAQPage"]` 卻沒有 `mainEntity`——根因
-是 `@nuxtjs/seo` 產生的 canonical 網址不帶結尾斜線（`https://tcrfc.tw/zh/faq`），恰好讓
-`endPath` 算出來等於猜測表裡的 `'faq'`。已證實 `/zh/about/` 在 S1-18a 之前就有一模一樣
-的 `["WebPage","AboutPage"]` 殘缺輸出，與本輪程式碼無關。試過在 `useFaqPageSchema()`
-的空狀態顯式呼叫 `defineWebPage({'@type':'WebPage', _dedupeStrategy:'replace'})` 覆寫，
-用本機真實 SSR 輸出＋`console.error` 除錯確認**無效**：`nuxt-schema-org` 對同一個
-`@id` 多節點合併的 `@type` 是陣列聯集、`_dedupeStrategy` 只判斷當前合併進來的節點、
-而框架自己的預設 WebPage／WebSite 推送在頁面層級呼叫之後才解析，頁面自己的覆寫永遠
-先被合併、永遠贏不了聯集。真正的修法在 canonical 網址生成或 `nuxt-schema-org` 設定，
-不是能從單一頁面 composable 解決的問題，留給下一次處理 canonical／SEO 模組設定的人，
-完整原始碼追查記錄見 `docs/18-work-errors.md` `E-74`。
+**根因**：`nuxt-schema-org` 的 `webPageResolver.defaults()`
+（`node_modules/nuxt-schema-org/dist/schema.mjs`）依「這一頁網址最後一段路徑」
+（`endPath = withoutTrailingSlash(meta.url.substring(meta.url.lastIndexOf("/") + 1))`）
+猜頁面型別（內建對照表：`about`／`about-us`→`AboutPage`、`search`→`SearchResultsPage`、
+`checkout`→`CheckoutPage`、`contact`／`get-in-touch`／`contact-us`→`ContactPage`、
+`faq`→`FAQPage`），而這個網址是 `nuxt-site-config` 依 `siteConfig.trailingSlash` 算出來
+的（`site-config-stack/dist/urls.mjs` `resolveSitePath()`→`fixSlashes()`）——本站
+`nuxt.config.ts` 先前沒有設定這個鍵（預設 falsy），於是**canonical／schema.org 用的網址
+一律被去掉結尾斜線**，跟本站實際的 URL 慣例（一律帶結尾斜線，見 hreflang 自我參照與
+`server/routes/sitemap.xml.ts` 的既有輸出）不一致，讓 `endPath` 剛好等於猜測表關鍵字。
+**受影響的不只 `/zh/faq/`**：盤點全站頁面路徑最後一段，共 4 條 zh 路由（各自的 `/en/`
+孿生路由一併中招，共 8 條）撞上猜測表：`/zh/about/`（`AboutPage`）、`/zh/faq/`
+（`FAQPage`，S1-18a 發現）、`/zh/checkout/`（`CheckoutPage`）、`/zh/join/contact/`
+（`ContactPage`）——四頁都沒有對應的必要欄位（`mainEntity` 等），且都沒有任何頁面程式碼
+主動宣告這些型別。全站沒有其餘頁面撞到 `search`／`about-us`／`get-in-touch`／
+`contact-us` 這幾個關鍵字。
+
+**修法**：[`nuxt.config.ts`](nuxt.config.ts) 的 `site` 加上 `trailingSlash: true`（見該
+檔案行內註解的完整原始碼追查記錄）。這個鍵是 `nuxt-schema-org`／`nuxt-seo-utils` 共用
+的同一套 `createSitePathResolver`／`resolveSitePath` 機制唯一的真實來源，設定一次即可
+同時修正兩邊：canonical／`og:url`（`applyDefaults.js`）與 schema.org 的
+`webPageResolver` 型別猜測（`endPath` 變成空字串，猜測表不再命中，型別退回預設的
+`WebPage`）。**不影響**：`server/routes/sitemap.xml.ts`（自組 XML，直接用
+`shared/utils/site-units.ts` 的 `unit.path` 字串）與 `app/layouts/default.vue` 的
+hreflang（直接用 `route.fullPath`）——這兩處本來就不經過 `resolveSitePath`，也本來就
+已經帶結尾斜線；副作用是**修正了一個先前沒被注意到的既有落差**：canonical（先前不帶
+斜線）與同一頁的 hreflang 自我參照（`route.fullPath`，本來就帶斜線）互相矛盾，現在
+兩者一致。
+
+**試過但沒有用的修法**（`E-74` 原記錄，仍然成立，設定層修好後不需要這條路）：在
+`useFaqPageSchema()` 的空狀態顯式呼叫
+`defineWebPage({'@type':'WebPage', _dedupeStrategy:'replace'})` 覆寫，用本機真實 SSR
+輸出＋`console.error` 除錯確認**無效**：`nuxt-schema-org` 對同一個 `@id` 多節點合併的
+`@type` 是陣列聯集、`_dedupeStrategy` 只判斷當前合併進來的節點，頁面自己的覆寫永遠贏
+不了框架的猜測結果——這也是為什麼這次選擇修設定層而不是逐頁覆寫。
+
+**防呆**：[`scripts/check-faq-schema-live.mjs`](scripts/check-faq-schema-live.mjs) 移除
+了原本只列資訊行的 `/zh/faq/`／`/en/faq/` 白名單，改成通用 hard-fail：任何 FAQPage 缺
+`mainEntity`一律離開碼 `1`；任何節點帶有 `AboutPage`／`ContactPage`／`CheckoutPage`／
+`SearchResultsPage`（本站目前沒有任何頁面的宣告機制會產生這些型別）也一律離開碼 `1`
+——這條檢查同時涵蓋「猜測表又回來了」（例如這次的 `trailingSlash` 設定被還原）與
+「有人新增了未經宣告機制產出的特殊型別」兩種情況。
 
 ### 驗證
 
 ```bash
-npm run lint    # 0 錯誤、395 警告（含新增的 lint:faq-schema，見上方「自動檢查」）
+npm run lint    # 0 錯誤、395 警告（含 lint:faq-schema，見上方「自動檢查」）
 npm run build   # 通過
 docker build -f apps/web/Dockerfile apps/web   # 通過
 ```
@@ -1806,19 +1837,25 @@ docker build -f apps/web/Dockerfile apps/web   # 通過
 本機起 `tcrfc`（3001）／`bw`（3002）兩容器（`apps/api` 未啟動，依派工規則不自行啟動、
 不碰密碼）：
 
-- 8 個掛載點頁面 `/zh/`／`/en/` 共 16 條網址狀態碼正確：tcrfc 全數 `200`；bw 對已關閉
-  單元（`academy-admission`／`programs-camps`／`academy/join`／
-  `programs/childrens-training`／`programs/summer-camp`，S1-15／S1-18b 既有關閉）正確
-  `404`，其餘 `200`。兩容器皆無 `500`；`curl -sI` 皆有
-  `X-Robots-Tag: noindex, nofollow`。
+- `curl` 抽查 `/zh/about/`／`/zh/faq/`／`/zh/checkout/`／`/zh/join/contact/`（含各自
+  `/en/` 孿生路由）：**修正前**四頁 `@type` 皆含猜測表型別（`AboutPage`／`FAQPage`／
+  `CheckoutPage`／`ContactPage`）且無 `mainEntity`；**修正後**（`site.trailingSlash:
+  true`）八條路由 `@type` 全部退回 `"WebPage"`，`<link rel="canonical">` 全部改為帶結尾
+  斜線（例如 `https://tcrfc.tw/zh/about/`），與同頁 hreflang 自我參照網址一致。
+  `bw` 容器同樣核對（`https://bw-stg.tcrfc.tw/...`），且 `WebSite.name` 正確顯示
+  `台中藍鯨`（未外洩 `TCRFC`）。
+- `curl -sI` 抽查：`X-Robots-Tag: noindex, nofollow` 仍在（`/zh/`／`/zh/about/`）。
+- `curl -s .../sitemap.xml`／`.../robots.txt`：輸出與本次修改前一致（自組 XML／
+  `Disallow: /`），不受 `trailingSlash` 設定影響。
 - `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:3001`／`3002`：
-  **H1 唯一、標題不跳階皆 0 違規**。
+  **H1 唯一、標題不跳階皆 0 違規**（`3002` 額外列出 4 頁購物流程骨架首段摘要缺漏，不
+  影響離開碼，屬既有內容缺口）。
 - `NUXT_PUBLIC_SITE_NAME=台中藍鯨 node scripts/check-club-brand-leak.mjs
-  --base-url=http://127.0.0.1:3002`：**exit 0**，保護清單 18 頁全數乾淨，棘輪未被違反
-  （過程中發現並修正 `E-73`，見下方）。
+  --base-url=http://127.0.0.1:3002`：**exit 0**，保護清單 18 頁全數乾淨，棘輪未被違反。
 - `node scripts/check-faq-schema-live.mjs --base-url=http://127.0.0.1:3001`／`3002`：
-  **exit 0**，JSON 皆可解析；`/zh/faq/`／`/en/faq/` 命中 `E-74` 已知限制（列為資訊行、
-  不影響離開碼）；其餘路由無 FAQPage 輸出（GEO-05 正確行為，`faqs` 表 0 筆種子資料）。
+  **exit 0**（tcrfc 22 條路由全檢查、bw 12 條，其餘 404 跳過）；全站無 FAQPage 輸出
+  （GEO-05 正確行為，`faqs` 表 0 筆種子資料）；`/zh/about/`／`/zh/checkout/`／
+  `/zh/join/contact/` 三頁不再命中猜測表型別。
 - **手動 fixture 驗證「有資料時」的完整輸出**（臨時在 `join-team` 頁塞一筆假題目，
   含 `<b>標籤</b>` 與 `</script>` 字樣，驗證後已還原、不留在程式碼裡）：SSR 輸出正確
   產生 `"@type":["WebPage","FAQPage"]`、`"mainEntity":[{"@id":".../question/1"}]`，
