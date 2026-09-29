@@ -103,6 +103,16 @@ const totalVisible = computed(() =>
 )
 const isSearching = computed(() => keyword.value.length > 0)
 const noResult = computed(() => isSearching.value && totalVisible.value === 0)
+
+// GEO-06（S1-18a）：本頁把多個分類區塊各自的題目攤平成一份清單餵給
+// useFaqPageSchema()，只輸出一份合併的 FAQPage（任務指示明文要求），不對每個
+// `<FaqAccordion>` 各自呼叫一次。用 faqsByCategory（未套用搜尋關鍵字篩選的完整
+// 可見清單）而不是 visibleByCategory：搜尋框是 client-side 互動篩選，SSR 輸出的
+// JSON-LD 應該反映「這一頁完整收錄的題目」，不是使用者當下打的關鍵字結果（且
+// SSR 階段 search 恆為空字串，兩者在初始渲染時本來就相同）。faqsByCategory 本身
+// 已經是「每題只指派給第一個可見分類」的去重結果（見上方檔頭說明），
+// buildFaqSchemaQuestions() 的 id 去重是第二層防呆，不是本頁需要仰賴的機制。
+useFaqPageSchema(computed(() => [...faqsByCategory.value.values()].flat()))
 </script>
 
 <template>

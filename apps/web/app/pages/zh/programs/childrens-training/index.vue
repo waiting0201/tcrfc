@@ -48,6 +48,10 @@ const sessions = computed(() => programDetail.value?.sessions ?? [])
 // G-12 常見問題快捷區塊：program_detail 掛載點（db/seed FAQ_EMBED_SLOTS「課程詳情頁
 // （5.x 各課程）」），四個固定掛載點之一，理由見 useFaqEmbed.ts 檔頭。
 const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
+
+// GEO-06（S1-18a）：G-12 嵌入區塊與 12 FAQ 獨立單元同條規定「一律輸出 FAQPage」，
+// 沿用同一份資料（faqs）餵給畫面與結構化資料，不另外重打一次 API。
+useFaqPageSchema(faqs)
 </script>
 
 <template>

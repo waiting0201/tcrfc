@@ -219,7 +219,16 @@ function checkRatchet() {
   const m = /PROTECTED_PAGES\s*=\s*\[([\s\S]*?)\]/.exec(previousSrc)
   if (!m) return { ok: true, note: '（上一版找不到 PROTECTED_PAGES，略過棘輪檢查）' }
 
-  const previousPages = [...m[1].matchAll(/'([^']+)'/g)].map((mm) => mm[1])
+  // 🔴 E-73（2026-09-29，S1-18a 發現，錯誤發生於 S1-18b）：先去掉 `//` 行內註解再抓
+  // 引號字串，且只認「以 `/` 開頭」的字串為真正的頁面路徑。S1-18b 在 PROTECTED_PAGES
+  // 陣列裡加了一段提到 `'12.2'`／`'12.3'`（單元代碼，不是頁面路徑）的說明註解，舊版
+  // （沒有這層過濾）的 `matchAll(/'([^']+)'/g)` 連註解裡的引號字串都一起抓，
+  // 誤把這兩個代碼當成「上一版的保護頁面」，導致棘輪檢查把檔案拿去跟自己（HEAD）比對
+  // 都會誤判為「被拿掉」。見 docs/18-work-errors.md。
+  const arrayBodyWithoutComments = m[1].replace(/\/\/.*$/gm, '')
+  const previousPages = [...arrayBodyWithoutComments.matchAll(/'([^']+)'/g)]
+    .map((mm) => mm[1])
+    .filter((p) => p.startsWith('/'))
   const removed = previousPages.filter((p) => !PROTECTED_PAGES.includes(p))
 
   if (removed.length > 0) {

@@ -1688,6 +1688,156 @@ port 13002 且帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動*
   只能新增），改了 `academy-admission`／`programs-camps` 的 slug 會讓這個關閉機制悄悄
   失效。本輪沒有查證後台是否允許改既有分類的 `slug`。
 
+## S1-18a（`GEO-06` FAQPage Schema，2026-09-29，`frontend-architect`）
+
+主站規劃書 §7 `GEO-06`「單元 12 與 G-12 一律輸出 FAQPage」；`docs/05-i18n-seo.md` §3
+同條。**這是 GEO 的核心資產**，內容規範本身（問題寫成完整句子、答案首句即結論）由
+後台編輯負責，前台只負責輸出，不改寫內容。
+
+### 沿用既有機制，接線方式
+
+沿用 S1-12f／S1-12d 已建立的 JSON-LD 輸出機制（`useSchemaOrg`，見
+[`app/composables/useSchemaOrgClub.ts`](app/composables/useSchemaOrgClub.ts)），不另起
+爐灶。`nuxt-schema-org`（`@nuxtjs/seo` 內建）沒有 `defineFaqPage()` 專用型別，只有
+`defineQuestion()`；查原始碼（`node_modules/nuxt-schema-org/dist/schema.mjs`
+`questionResolver.resolveRootNode`）確認機制：`defineQuestion()` 節點在 resolve 階段
+會找這一頁的 Primary WebPage 節點，只有該節點 `@type` 含 `FAQPage`（或 `QAPage`）時，
+才會把這題併入它的 `mainEntity` 陣列。因此輸出 FAQPage 的正確作法是「把這一頁的
+WebPage 型別宣告為 `FAQPage`」＋「逐題呼叫 `defineQuestion()`」兩件事一起做。
+
+### 新增檔案
+
+- [`shared/utils/faq-schema.ts`](shared/utils/faq-schema.ts)：不依賴 Vue／Nuxt runtime
+  的純函式，供 composable 與檢查腳本共用同一份判斷（單一來源，比照 `useSchemaOrgClub.ts`
+  的 E-39 原則）：
+  - `cleanFaqSchemaText()`：去除 HTML 標籤（不留空格）、解碼常見實體、壓縮空白，用於
+    schema.org 純文字欄位。防禦性處理——`FaqListItemDto.question`／`answer` 目前是純
+    文字欄位、`FaqAccordion.vue` 也是文字插值不是 `v-html`，本來就沒有把答案當 HTML
+    渲染，這裡只防「萬一混入標籤」。
+  - `buildFaqSchemaQuestions()`：GEO-05／GEO-06 判斷——`question`／`answer` 任一為
+    `null` 或清理後為空字串則不合格、不輸出；同一題 `id` 出現兩次只保留第一次（同一頁
+    多個 FAQ 區塊只輸出一份合併 FAQPage，不重複輸出同一題）；輸入為空時回傳空陣列。
+- [`app/composables/useFaqPageSchema.ts`](app/composables/useFaqPageSchema.ts)：接上
+  `useSchemaOrg`。沒有合格題目時完全不呼叫（連 `defineWebPage` 都不呼叫），GEO-05
+  「資料不足時不輸出該型別」。**已知限制見下方「已知限制」節與 `docs/18-work-errors.md`
+  `E-74`**。
+
+### 掛載點：12 FAQ 首頁、4 個獨立主題頁、3 個 G-12 嵌入頁
+
+- [`app/pages/zh/faq/index.vue`](app/pages/zh/faq/index.vue)：把 `faqsByCategory`（未套
+  用搜尋關鍵字篩選、每題只指派給第一個可見分類的完整清單）攤平後餵給
+  `useFaqPageSchema()`，只輸出一份合併的 FAQPage。用 `faqsByCategory` 而不是套用搜尋
+  篩選後的 `visibleByCategory`：搜尋框是 client-side 互動，SSR 輸出的 JSON-LD 應反映
+  「這一頁完整收錄的題目」，且 SSR 階段 `search` 恆為空字串，兩者在初始渲染時本來就
+  相同。
+- 4 個獨立主題頁（[`join-team`](app/pages/zh/faq/join-team/index.vue)／
+  [`academy-admission`](app/pages/zh/faq/academy-admission/index.vue)／
+  [`programs-camps`](app/pages/zh/faq/programs-camps/index.vue)／
+  [`fees-refunds`](app/pages/zh/faq/fees-refunds/index.vue)）：各自只有一個 FAQ 區塊，
+  直接把 `useFaqList()` 的完整清單餵給 `useFaqPageSchema()`。
+- 3 個 G-12 嵌入頁（[`academy/join.vue`](app/pages/zh/academy/join.vue)／
+  [`programs/childrens-training/index.vue`](app/pages/zh/programs/childrens-training/index.vue)／
+  [`programs/summer-camp/index.vue`](app/pages/zh/programs/summer-camp/index.vue)）：
+  沿用同一份 `useFaqEmbed()` 資料餵給畫面與結構化資料，不另外重打一次 API。
+
+### 注入防護
+
+JSON 字串逸出（雙引號、反斜線、控制字元）交給框架序列化時的 `JSON.stringify()` 處理；
+`</script>` 提前結束標籤的防護不是本輪新增的機制——`useSchemaOrg()` 最終透過 `useHead()`
+輸出，由 unhead 的 `tagToString()`（`node_modules/unhead/dist/shared/unhead.*.mjs`
+`CLOSE_TAG_RE`）對每個 `<script>` 標籤的 `innerHTML` 一律把字面 `</script` 取代成
+`<\/script`，這是全站既有 JSON-LD（Organization／SportsTeam／Article／SportsEvent）共用
+的框架層保護。`cleanFaqSchemaText()` 的 HTML 標籤去除是另一層、不同目的的資料清理
+（見上方「新增檔案」說明），兩者缺一不影響另一個成立。
+
+### 自動檢查
+
+- [`scripts/check-faq-schema.mjs`](scripts/check-faq-schema.mjs)：固定 fixture 資料驗證
+  （不需要任何服務就能跑，已掛進 `npm run lint` 的 `lint:faq-schema`）：
+  1. `buildFaqSchemaQuestions()` 形狀與過濾（正常題目、null 過濾、標籤去除後為空字串、
+     同 id 去重、空陣列）。
+  2. `cleanFaqSchemaText()` 獨立驗證（標籤去除、實體解碼）。
+  3. **注入防護用 `unhead/server` 匯出的真正 `tagToString()` 驗證**（不是自己重寫一份
+     「看起來像」的正規表示式去驗證自己）：對含 `</script>` 提前結束標籤、雙引號、
+     反斜線、換行的惡意字面值組出跟正式頁面一模一樣的
+     `<script type="application/ld+json">…</script>` 標籤字串，斷言序列化輸出真正收尾
+     之前不存在字面 `</script`，且把轉義還原後 `JSON.parse()` 能一字不差還原原始資料。
+     這裡刻意不先經過 `buildFaqSchemaQuestions()`（那支函式會把「長得像標籤」的字串
+     整段去除，會「順便」清乾淨惡意字串，測不出框架序列化層本身是否安全）。
+  新增 `unhead`（`3.4.1`，與專案現有 transitive 版本一致）為 `devDependencies`，供這支
+  腳本直接 `import { tagToString } from 'unhead/server'`——Node 24（本專案 `.node-version`
+  釘住的版本）原生支援 `import('*.ts')`（type-stripping），這支腳本因此可以直接
+  `import '../shared/utils/faq-schema.ts'`，不需要另外編譯或維護一份重複邏輯。
+- [`scripts/check-faq-schema-live.mjs`](scripts/check-faq-schema-live.mjs)：對已渲染的
+  SSR 輸出檢查（比照 `check-heading-structure.mjs`，需要前台先跑起來，刻意不掛
+  `npm run lint`，`E-34`）。抓取 8 個掛載點頁面 zh／en 共 16 條路由的
+  `<script type="application/ld+json">`，還原 unhead 的 `</script` 轉義後
+  `JSON.parse()`，驗證找到的 FAQPage 節點 `mainEntity` 非空、每題都有 `name` 與
+  `acceptedAnswer.text`。**已知限制**：`apps/api` 未啟動、`faqs` 表 0 筆種子資料，
+  本機驗收時 16 條路由全數「沒有 FAQPage」或「命中 `E-74` 已知限制」，這是 GEO-05
+  正確行為，不是缺陷；已用臨時 fixture（`smoke-test-1` 假題目，含 HTML 標籤與
+  `</script>` 字樣，驗證後已還原）手動確認「有資料時」的完整輸出正確（見下方
+  「驗證」）。
+
+### 已知限制（`docs/18-work-errors.md` `E-74`，全站既有缺陷，不是本輪引入）
+
+`/zh/faq/`／`/en/faq/` 這兩條路由，即使 `useFaqPageSchema()` 完全沒有合格題目、完全
+不呼叫 `useSchemaOrg`，仍然會被 `nuxt-schema-org` 的 `webPageResolver` 內建「依網址結尾
+猜頁面型別」預設邏輯自動宣告成 `@type:["WebPage","FAQPage"]` 卻沒有 `mainEntity`——根因
+是 `@nuxtjs/seo` 產生的 canonical 網址不帶結尾斜線（`https://tcrfc.tw/zh/faq`），恰好讓
+`endPath` 算出來等於猜測表裡的 `'faq'`。已證實 `/zh/about/` 在 S1-18a 之前就有一模一樣
+的 `["WebPage","AboutPage"]` 殘缺輸出，與本輪程式碼無關。試過在 `useFaqPageSchema()`
+的空狀態顯式呼叫 `defineWebPage({'@type':'WebPage', _dedupeStrategy:'replace'})` 覆寫，
+用本機真實 SSR 輸出＋`console.error` 除錯確認**無效**：`nuxt-schema-org` 對同一個
+`@id` 多節點合併的 `@type` 是陣列聯集、`_dedupeStrategy` 只判斷當前合併進來的節點、
+而框架自己的預設 WebPage／WebSite 推送在頁面層級呼叫之後才解析，頁面自己的覆寫永遠
+先被合併、永遠贏不了聯集。真正的修法在 canonical 網址生成或 `nuxt-schema-org` 設定，
+不是能從單一頁面 composable 解決的問題，留給下一次處理 canonical／SEO 模組設定的人，
+完整原始碼追查記錄見 `docs/18-work-errors.md` `E-74`。
+
+### 驗證
+
+```bash
+npm run lint    # 0 錯誤、395 警告（含新增的 lint:faq-schema，見上方「自動檢查」）
+npm run build   # 通過
+docker build -f apps/web/Dockerfile apps/web   # 通過
+```
+
+本機起 `tcrfc`（3001）／`bw`（3002）兩容器（`apps/api` 未啟動，依派工規則不自行啟動、
+不碰密碼）：
+
+- 8 個掛載點頁面 `/zh/`／`/en/` 共 16 條網址狀態碼正確：tcrfc 全數 `200`；bw 對已關閉
+  單元（`academy-admission`／`programs-camps`／`academy/join`／
+  `programs/childrens-training`／`programs/summer-camp`，S1-15／S1-18b 既有關閉）正確
+  `404`，其餘 `200`。兩容器皆無 `500`；`curl -sI` 皆有
+  `X-Robots-Tag: noindex, nofollow`。
+- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:3001`／`3002`：
+  **H1 唯一、標題不跳階皆 0 違規**。
+- `NUXT_PUBLIC_SITE_NAME=台中藍鯨 node scripts/check-club-brand-leak.mjs
+  --base-url=http://127.0.0.1:3002`：**exit 0**，保護清單 18 頁全數乾淨，棘輪未被違反
+  （過程中發現並修正 `E-73`，見下方）。
+- `node scripts/check-faq-schema-live.mjs --base-url=http://127.0.0.1:3001`／`3002`：
+  **exit 0**，JSON 皆可解析；`/zh/faq/`／`/en/faq/` 命中 `E-74` 已知限制（列為資訊行、
+  不影響離開碼）；其餘路由無 FAQPage 輸出（GEO-05 正確行為，`faqs` 表 0 筆種子資料）。
+- **手動 fixture 驗證「有資料時」的完整輸出**（臨時在 `join-team` 頁塞一筆假題目，
+  含 `<b>標籤</b>` 與 `</script>` 字樣，驗證後已還原、不留在程式碼裡）：SSR 輸出正確
+  產生 `"@type":["WebPage","FAQPage"]`、`"mainEntity":[{"@id":".../question/1"}]`，
+  獨立的 Question 節點 `name`／`acceptedAnswer.text` 皆為清理過的純文字（標籤已去除、
+  `</script>` 字樣已去除），無注入痕跡。
+
+### 過程中發現並修正：`E-73`
+
+驗收時 `check-club-brand-leak.mjs` 對 `bw` 容器回報「棘輪被違反」，但檔案本身完全沒有
+改動。追查是 `checkRatchet()` 的正規表示式把 S1-18b 加進 `PROTECTED_PAGES` 陣列裡的
+說明**註解**（提到 `'12.2'`／`'12.3'` 這兩個單引號字串）誤判成陣列元素，跟自己（HEAD）
+比對都會失敗。已修正（去除 `//` 行內註解再抓值、收斂為只認 `/` 開頭的字串），完整記錄
+見 `docs/18-work-errors.md` `E-73`。
+
+### 規格疑點
+
+無——`GEO-06` 規格單純（單元 12 與 G-12 一律輸出 FAQPage），本輪沒有遇到規劃書未列或
+與其他規格衝突的情況。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

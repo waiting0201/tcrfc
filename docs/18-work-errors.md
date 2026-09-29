@@ -1781,3 +1781,83 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   `14` 會員中心——GEO-02 明文排除；`G-07` 站務法遵頁面——不屬於 13 個單元架構），
   兩者都沒有就讓 `npm run lint` 失敗。已用「暫時拿掉 `SITE_UNITS` 的 `'13'` 那筆」
   手動驗證紅燈（報出 `頂層代碼 '13'` 缺漏、離開碼 `1`），改回後驗證綠燈（離開碼 `0`）。
+
+### E-73 棘輪檢查用正規表示式從舊版原始碼「抓引號字串」當保護清單，卻連註解裡提到的引號字串都一起抓（2026-09-29，S1-18a 發現，錯誤發生於 S1-18b）
+
+- **錯在哪**：`scripts/check-club-brand-leak.mjs` 的 `checkRatchet()` 用
+  `git show HEAD:<this file>` 取得上一版原始碼，再用
+  `/PROTECTED_PAGES\s*=\s*\[([\s\S]*?)\]/` 抓出陣列文字區塊，接著
+  `matchAll(/'([^']+)'/g)` 把區塊裡**所有**單引號字串都當成「上一版的保護頁面」。
+  S1-18b 在 `PROTECTED_PAGES` 陣列裡加了一段說明性註解，內容提到
+  `academy-admission`／`programs-camps` 對應的細粒度單元代碼 `'12.2'`／`'12.3'`
+  （單引號，寫給人看的說明，不是陣列元素）。下一次任何人執行這支腳本（本次是
+  S1-18a 驗收時）時，`git show HEAD:` 拿到的「上一版」就是 S1-18b 剛提交的這一版，
+  棘輪比對「這一版 vs 自己」，卻因為註解裡的 `'12.2'`／`'12.3'` 被誤判成「上一版有、
+  這一版沒有的保護頁面」，回報「棘輪被違反」——**檔案完全沒有被改動，跟自己比對都會
+  失敗**。
+- **為什麼會錯（根因，寫成可以被改掉的行為）**：**用正規表示式從原始碼文字裡撈值時，
+  只針對「值本身長什麼樣子」（單引號字串）比對，沒有先排除註解這種「語法上合法但
+  語意上不是資料」的區塊**——`PROTECTED_PAGES` 陣列的元素恰好也是單引號字串，跟
+  程式碼註解裡順手引用的單引號字串在字面上完全無法區分，正規表示式抓的是「字面
+  形狀」不是「語意角色」，寫這支棘輪檢查時沒有預見到「陣列裡以後會加註解，註解裡
+  可能提到跟頁面路徑同形狀的字串」這個組合。
+- **下次怎麼避免**：從原始碼文字用正規表示式抽取「資料」（不是單純顯示用的字串）
+  時，如果目標區塊允許夾雜註解，抽取前一定要先去掉 `//` 行內註解（或整份剝除註解）
+  再比對，不能只信賴「值的形狀」；額外收斂條件（例如「只認以 `/` 開頭的字串」）
+  也能降低誤判機率，兩者最好一起做。
+- **防呆**：✅ **已修正**：`checkRatchet()` 在抓引號字串前先用
+  `arrayBodyWithoutComments = m[1].replace(/\/\/.*$/gm, '')` 去掉行內註解，並把
+  `previousPages` 收斂成「只認以 `/` 開頭的字串」（`.filter((p) => p.startsWith('/'))`）。
+  已用本機 `bw` 容器重新實測 `check-club-brand-leak.mjs`：修正前 exit `1`（誤報
+  「被拿掉的頁面：12.2、12.3」），修正後 exit `0`（棘輪檢查通過，上一版 18 筆全部
+  還在）。⚠️ 沒有自動化測試專門驗這支「檢查腳本自己的邏輯」，回報供之後有人再改
+  `checkRatchet()` 時留意同一種「正規表示式抓過頭」的風險。
+
+### E-74 `nuxt-schema-org` 依網址結尾字面值猜頁面型別，跟 `@nuxtjs/seo` 的 canonical 網址不帶結尾斜線兩件事疊加，讓 `/zh/faq/`／`/zh/about/` 等頁在沒有真實內容時仍輸出殘缺的 FAQPage／AboutPage（2026-09-29，S1-18a 發現，全站既有缺陷，不是本輪引入）
+
+- **錯在哪**：驗收 S1-18a（GEO-06 FAQPage Schema）時，新增的
+  `scripts/check-faq-schema-live.mjs` 對本機 `tcrfc`／`bw` 兩容器實測，在
+  `faqs` 表 0 筆種子資料、`useFaqPageSchema()` 完全沒有呼叫 `useSchemaOrg` 的情況下，
+  `/zh/faq/`／`/en/faq/` 這兩條路由仍然輸出 `"@type":["WebPage","FAQPage"]` 卻沒有
+  `mainEntity`——一個殘缺的 FAQPage（違反 GEO-05「資料不足時不輸出該型別」）。追查
+  `node_modules/nuxt-schema-org/dist/schema.mjs` 的 `webPageResolver.defaults()`
+  發現：這套模組會依「這一頁 canonical 網址的最後一段路徑」猜頁面型別（內建對照表
+  含 `faq`→`FAQPage`、`about`→`AboutPage`、`contact`→`ContactPage`、
+  `checkout`→`CheckoutPage`、`search`→`SearchResultsPage`），而 `@nuxtjs/seo`
+  （`nuxt-seo-utils`）產生的 canonical 網址**不帶結尾斜線**（`https://tcrfc.tw/zh/faq`
+  而非 `/zh/faq/`）——本站所有頁面的網址慣例其實都帶結尾斜線，這個「猜測」因此對
+  `/zh/faq/` 這種恰好整頁只有一段代表字的路由誤判成立。**這與本次交付的程式碼無關**：
+  用同樣方法查 `/zh/about/` 確認**在 S1-18a 之前就已經有一模一樣的
+  `["WebPage","AboutPage"]` 殘缺輸出**（S0-9／S1-12f 之後就存在），只是先前沒有任何
+  檢查腳本去對「空的 FAQPage／AboutPage 不該出現」這件事斷言，才一直沒被發現。
+- **為什麼會錯（根因，寫成可以被改掉的行為）**：**`@nuxtjs/seo` 的 canonical 網址
+  生成慣例（不帶結尾斜線）跟本站自訂的 URL 慣例（一律帶結尾斜線）沒有對齊，而這個
+  落差恰好會跟 `nuxt-schema-org` 內建、且沒有文件特別強調的「依網址結尾字猜型別」
+  行為疊加出一個雙方都合理、組合起來卻不合理的結果**——兩個第三方模組的預設行為
+  分開看都不算錯，接上本站「路徑最後一段剛好等於猜測表關鍵字」的頁面（`faq`／
+  `about`／未來若有 `contact`／`checkout`）就會出錯，沒有人在導入這兩個模組時
+  意識到這個交互作用。
+- **嘗試過但沒有用的修法（記下來省得下一個人重試一次）**：在 `useFaqPageSchema()`
+  沒有合格題目時，顯式呼叫 `useSchemaOrg([defineWebPage({'@type':'WebPage'})])`
+  想覆寫掉猜測結果——**無效**，即使加上 `_dedupeStrategy:'replace'` 也一樣：
+  `nuxt-schema-org` 對同一個 `@id`（同一頁的 Primary WebPage）多個節點的合併函式
+  `merge()` 對 `@type` 是**陣列聯集**（`[...new Set(merged)]`），且
+  `_dedupeStrategy` 判斷的是「當前正在合併進來的節點」有沒有這個旗標，不是「已經
+  累積的節點」——而 `@nuxtjs/seo` 自己的預設 WebPage／WebSite 推送在 SSR 過程中
+  是在頁面層級的 `useSchemaOrg()` 呼叫**之後**才解析（已用本機真實 SSR 輸出＋
+  `console.error` 除錯確認呼叫順序），所以頁面自己的覆寫節點永遠是「先被合併的
+  那一個」，永遠贏不了聯集，也永遠沒有機會讓自己的 `_dedupeStrategy` 生效。真正的
+  根因在 canonical 網址生成（`@nuxtjs/seo`）與型別猜測表（`nuxt-schema-org`）的
+  互動，不是能從單一頁面的 composable 覆寫解決的問題。
+- **下次怎麼避免**：這類「兩個第三方模組疊加出非預期行為」的缺陷，唯一乾淨的修法
+  是處理根因（讓 canonical 網址帶結尾斜線，或是設定 `nuxt-schema-org` 關掉／覆寫
+  這套猜測表——本輪沒有查到官方是否提供這類設定項），而不是在受害頁面上加防禦性
+  程式碼；引入或升級任何依賴「網址路徑字面值」做行為判斷的第三方模組時（型別猜測、
+  路由前綴比對等），要留意本站既有的 URL 慣例（結尾斜線）是否與該模組的預期一致。
+- **防呆**：⚠️ **未修正，記錄為已知限制、留給下一次處理 canonical／SEO 模組設定的人**：
+  `scripts/check-faq-schema-live.mjs` 加了 `KNOWN_FRAMEWORK_TYPE_GUESS_ROUTES`
+  白名單（目前只有 `/zh/faq/`／`/en/faq/`），命中時列成資訊行、不影響離開碼，
+  避免對一個這次任務修不好的既有缺陷製造永久紅燈（`E-34`同一個教訓）。**待辦**：
+  之後有人要處理 canonical 網址結尾斜線或 `nuxt-schema-org` 設定時，一併檢查
+  `/zh/about/`（已確認同樣受影響）與本站其餘任何路徑最後一段剛好撞上猜測表關鍵字
+  的頁面。

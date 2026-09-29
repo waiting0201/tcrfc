@@ -21,6 +21,10 @@ useSeoMeta({
 // 本頁只服務磐石（本頁 unit='4.7' 對藍鯨已整頁 404，見 units.ts），club 固定讀
 // runtimeConfig 即可，不需要另外判斷俱樂部。
 const { faqs } = useFaqEmbed(config.public.club, 'academy_admission', locale.value)
+
+// GEO-06（S1-18a）：G-12 嵌入區塊與 12 FAQ 獨立單元同條規定「一律輸出 FAQPage」，
+// 沿用同一份資料（faqs）餵給畫面（下方 <dl>）與結構化資料，不另外重打一次 API。
+useFaqPageSchema(faqs)
 </script>
 
 <template>

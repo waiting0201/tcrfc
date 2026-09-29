@@ -37,6 +37,10 @@ const openSession = computed(() =>
 
 // G-12 常見問題快捷區塊：program_detail 掛載點，理由同 childrens-training/index.vue。
 const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
+
+// GEO-06（S1-18a）：G-12 嵌入區塊與 12 FAQ 獨立單元同條規定「一律輸出 FAQPage」，
+// 沿用同一份資料（faqs）餵給畫面與結構化資料，不另外重打一次 API。
+useFaqPageSchema(faqs)
 </script>
 
 <template>

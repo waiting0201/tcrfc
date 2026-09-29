@@ -26,6 +26,11 @@ useSeoMeta({
   title: () => `${categoryName.value}常見問題｜12 FAQ｜${siteName.value}`,
   description: () => `${siteName.value}「${categoryName.value}」主題常見問題，共 ${totalCount.value} 題。`,
 })
+
+// GEO-06（S1-18a）：本頁只有一個 FAQ 區塊（單一分類），直接把 useFaqList() 撈回來的
+// 完整清單餵給 useFaqPageSchema()，不合格題目（question／answer 任一為 null）由
+// buildFaqSchemaQuestions() 過濾，不需要在這裡先篩一次。
+useFaqPageSchema(faqs)
 </script>
 
 <template>
