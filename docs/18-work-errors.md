@@ -83,6 +83,7 @@
 | E-61 | 2026-09-25 | 新增依角色分權限的功能（G2 指派負責人）時，姓名來源直接沿用系統管理員專屬的既有端點（`/admin/accounts`），沒有替其他持有處理權限的角色開等價的窄範圍端點（2026-09-22 判斷、驗收退回才發現，S1-10） | ⚠️ 無自動化檢查，已補 `ListAssignableUsersAsync` 供之後同類需求參考既有寫法 |
 | E-62 | 2026-09-25<br>2026-09-25 | 整合測試寫進共用開發庫的資料沒有清乾淨：清理呼叫失敗被靜默吞掉（29 篇孤兒文章）；**同日第二次**：兩支 FAQ 測試完全沒寫清理，累積 155 筆，擠掉另一支測試的前 50 名排行而失敗，還被誤判成「原本就會失敗」 | ⚠️ 已寫進 `docs/14`；無自動化 |
 | E-63 | 2026-09-25<br>2026-09-25 | S1-13 把 `SiteHeader.vue`／`SiteFooter.vue` 78＋19 處連結改成呼叫 `lp()` 換算語系，但 `<script setup>` 只解構了 `const { locale, switchTo } = useLocale()`，漏了 `lp` 本身，本機真實 `curl` 首頁時才炸出 `_ctx.lp is not a function`（500） | ✅ 交付前用真實 `curl` 兩站 zh／en 抓 HTML 才發現，補上解構後重測通過。**防呆已補（2026-09-25，S1-13 缺口①）**：`apps/web/scripts/check-undefined-template-refs.mjs` 已掛進 `npm run lint`，跑 `nuxi typecheck`（不是裸 `vue-tsc`——裸的解不開 Nuxt 自動匯入，見腳本檔頭），只挑「訊息含 `ComponentInternalInstance` 的 `TS2339`」與「`TS2304`／`TS2552`」這兩種錯誤形狀（樣板用了 script setup 沒解構出來的識別字），不受本專案既有型別債（`useFetch().items` 等 `TS2339`／`TS7006`）干擾，不需要維護 baseline。已用故意刪掉一個檔案的 `const { lp } = useLocale()` 實測紅燈、補回後綠燈 |
+| E-64 | 2026-09-29 | S1-14 發現既有落差：`Features/Home/HomeRepository.cs` 的 `ListBannersAsync` 直接回傳 `banners.image_key` 原始 Blob 物件鍵，沒有像 `StaffRepository`／`PlayersRepository` 一樣注入 `IImagePublicUrlResolver` 解成完整網址——首頁若真的接上 Banner 輪播圖片，前端拿到的 `imageKey` 目前無法組出正確網址（沒有 Blob 容器網址可以自己兜，猜的話會顯示壞圖） | ⚠️ 無自動化；本輪前端只用 `banners` API 的純文字欄位（`cta1Label`／`cta1Url`），暫不消費 `imageKey`，待後端補上解析後再串圖片，見 `apps/web/README.md`「S1-14」節 |
 
 ---
 
@@ -1613,3 +1614,10 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **為什麼會錯（根因，寫成可以被改掉的行為）**：**用 sed／正則批次把大量 `href="/zh/..."` 改成 `:href="lp('/zh/...')"` 之後，才回頭手動加 `useLocale()` 的呼叫與解構——批次改的是樣板，手動補的是 script，兩者各自看起來都對，沒有一次性地「先確認樣板要用到哪些回傳值，再照著解構」，而是憑印象只解構了自己記得要立即用到的 `locale`／`switchTo`（因為緊接著要寫語系切換器的 `aria-current`／`@click`），完全忘了樣板其餘幾十處早就在用的 `lp`**。
 - **下次怎麼避免**：🔴 用批次工具（sed／正則）大量改樣板引入一個新的 composable 呼叫（例如 `lp(...)`）之後，**下一步一律是 `grep` 該檔案確認所有用到的識別字都在對應的 `const { ... } = useXxx()` 解構清單裡**，不要憑記憶手寫解構清單。🔴 這類「執行期才炸」的錯誤，`npm run build`／`npm run lint` 兩者都無法攔截（本專案已知限制），**改完任何呼叫 composable 的共用元件（`SiteHeader`／`SiteFooter`／`default.vue` 這類幾乎每頁都會渲染的檔案），交付前一律要用本機真實啟動＋`curl` 實測至少一頁**，不能只憑 build／lint 綠燈就相信頁面能跑。
 - **防呆**：✅ 本次已用 `curl` 兩站 zh／en 首頁抓到並修正，之後重建重測通過（見 `apps/web/README.md`「多語系框架（S1-13）」節的驗收紀錄）。⚠️ 無自動化——`npx vue-tsc --noEmit` 可以攔截這類型別錯誤，但目前沒有接進 `npm run lint`（`docs/13-blue-whale-site.md` §6 已記錄同一個技術債，待既有型別債清完後再接，避免直接紅燈變成雜訊）。
+
+### E-64 `HomeRepository.ListBannersAsync` 回傳未解析的 Blob 物件鍵，跟同類型別（Staff／Player）的既有慣例不一致（2026-09-29，S1-14 發現，非本輪修改）
+
+- **錯在哪**：`apps/api/Features/Home/HomeRepository.cs` 的 `ListBannersAsync` 直接把 `banners.image_key` 塞進 `BannerDto.ImageKey` 回傳，沒有像 `StaffRepository`／`PlayersRepository` 那樣注入 `IImagePublicUrlResolver` 把物件鍵解析成可以直接放進 `<img src>` 的完整網址（`Images/BlobImagePublicUrlResolver.cs` 需要 `BlobContainerClient.Uri`，這個資訊只有伺服器端拿得到，前端沒有辦法自己兜出正確網址）。
+- **為什麼會錯（根因）**：本輪（S1-14）不是這支端點的作者，是接手串接首頁 Hero 輪播時才發現這個落差；不在本次任務範圍內修改 `apps/api`（派工規則明文「不要啟動 apps/api」、也沒有授權改後端程式碼）。記錄成既有落差，不是本輪新造成的錯誤。
+- **下次怎麼避免**：新增或檢查任何回傳圖片欄位的公開讀取端點時，先比對同一類別已有的端點（`StaffRepository`／`PlayersRepository`）是否都有注入 `IImagePublicUrlResolver`，沒有的話視為缺陷而不是「這支端點本來就只回鍵值」。
+- **防呆**：⚠️ 無自動化。下次有 `backend-engineer` 處理 B3 首頁編排相關任務時，應先補上這個解析（比照既有兩支 Repository 的建構子注入方式），前端才能真正把後台上傳的輪播圖片顯示出來。

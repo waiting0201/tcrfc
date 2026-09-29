@@ -25,7 +25,7 @@ const ctaTrio = computed(() => HOME_CTA_TRIO[clubKey.value])
 // 「裸的 /zh/... 路徑」（該檔案的資料格式一律如此，不隨語系變化），樣板消費這些欄位時要
 // 套一層 lp() 換算成目前路由語系——這裡是本輪 curl 實測時抓到的真實回歸（英文首頁的三個
 // CTA 連結原本會把讀者導回 /zh/...），修法見下方樣板三處呼叫點。
-const { lp } = useLocale()
+const { locale, lp } = useLocale()
 
 useSeoMeta({
   title: computed(() => HOME_SEO[clubKey.value].title),
@@ -37,6 +37,106 @@ useSeoMeta({
 // 資料是否合格（名稱／網址／隊徽齊全）由 apps/api 的 SchemaCompleteness 算好，這裡不重判一次
 // （E-39）；現況見 useSchemaOrgClub.ts 檔頭說明。
 useOrganizationSchema()
+
+// ---- S1-14：首頁九大區塊資料源 ----
+// 規劃書 §3.1「資料來源」欄逐區塊對應的既有公開 API：B3 首頁編排（區塊開關）、
+// 賽事管理模組（最新賽事／近期賽事）、新聞模組（最新消息）。夥伴模組／商店模組
+// 目前沒有對應的公開讀取端點（見 apps/web/README.md「S1-14」節「哪些是真資料」表），
+// 這兩區塊維持既有靜態呈現，不臆造 API。
+const { isSectionEnabled } = useHomeSections(config.public.club)
+
+// Banner（B3 首頁輪播）：本輪已接上真實 API，但 apps/api 的 `HomeRepository.ListBannersAsync`
+// 目前只回傳 `imageKey`（Blob 物件鍵），沒有像 StaffDto／PlayerDto 一樣經由
+// `IImagePublicUrlResolver` 解成可直接用的完整網址（見 apps/web/README.md「S1-14」節、
+// docs/18-work-errors.md 對應記錄）——前端沒有 Blob 容器網址可以自己兜，用猜的網址規則
+// 會顯示壞圖，比不顯示更糟。兩俱樂部 `banners` 資料表目前也都是 0 筆（db/seed 沒有種子
+// 資料），所以這裡先只用來源 API 讀「第一則輪播的主要 CTA」文字／連結（純文字欄位，
+// 不涉及圖片網址解析），有值才覆蓋 club-copy.ts 的預設 CTA；輪播圖片本身維持現有素材
+// 直到後端補上 `ImageUrl` 欄位。
+const { data: bannersData } = await useFetch<Array<{
+  cta1Label: string | null
+  cta1Url: string | null
+}>>(`/api/backend/${config.public.club}/banners`, { query: { lang: locale.value } })
+const primaryCta = computed(() => {
+  const first = bannersData.value?.[0]
+  if (first?.cta1Label && first?.cta1Url) return { label: first.cta1Label, href: first.cta1Url }
+  return null
+})
+
+// ---- S1-14：賽事資料（最新賽事區／近期賽事，兩個規劃書區塊共用同一支 schedule API）----
+const { data: scheduleData } = await useFetch(`/api/backend/${config.public.club}/schedule`, {
+  query: { pageSize: 200, lang: locale.value },
+})
+
+interface HomeMatch {
+  teamCode: string
+  matchOn: string
+  opponent: string | null
+  venue: string | null
+  competitionName: string | null
+  status: string | null
+  homeAway: string | null
+  scoreHome: number | null
+  scoreAway: number | null
+}
+
+const allMatches = computed<HomeMatch[]>(() => scheduleData.value?.items ?? [])
+// SSR 渲染當下的日期字串（純顯示用的分界，不是安全判斷，兩端各自算一次即可）。
+const todayStr = new Date().toISOString().slice(0, 10)
+
+const d1Sorted = computed(() =>
+  allMatches.value.filter((m) => m.teamCode === 'D1').slice().sort((a, b) => a.matchOn.localeCompare(b.matchOn)),
+)
+const d1Played = computed(() => d1Sorted.value.filter((m) => m.status === 'played' && m.matchOn <= todayStr))
+const d1Upcoming = computed(() => d1Sorted.value.filter((m) => m.status === 'scheduled' && m.matchOn >= todayStr))
+const latestResult = computed(() => d1Played.value.at(-1) ?? null)
+const previousResult = computed(() => d1Played.value.at(-2) ?? null)
+const nextFixture = computed(() => d1Upcoming.value[0] ?? null)
+
+/** 主場視角換算：homeAway 是「本俱樂部」的主客場，不是聯賽官方主隊。 */
+function clubScore(m: HomeMatch): number | null {
+  return m.homeAway === 'AWAY' ? m.scoreAway : m.scoreHome
+}
+function opponentScore(m: HomeMatch): number | null {
+  return m.homeAway === 'AWAY' ? m.scoreHome : m.scoreAway
+}
+function resultMetaLine(m: HomeMatch): string {
+  return [m.competitionName ?? '', m.matchOn.replaceAll('-', '/')].filter(Boolean).join(' · ')
+}
+function fixtureMetaLine(m: HomeMatch): string {
+  const [, mo, d] = m.matchOn.split('-')
+  const wd = matchWeekday(m.matchOn).zh
+  const haLabel = m.homeAway === 'AWAY' ? '客場' : m.homeAway === 'HOME' ? '主場' : ''
+  return [m.competitionName ?? '', `${Number(mo)}/${Number(d)}（${wd}）`, haLabel].filter(Boolean).join(' · ')
+}
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
+const cutoffStr = computed(() => new Date(Date.now() + THIRTY_DAYS_MS).toISOString().slice(0, 10))
+/** 近期賽事（未來 30 天）：非一線隊（U15／U14／U12）——目前種子資料只有一線隊，
+ * 這裡先接上真實邏輯，真的有梯隊賽程時會自然出現，不用再改程式碼。 */
+const otherTeamUpcoming = computed(() =>
+  allMatches.value
+    .filter((m) => m.teamCode !== 'D1' && m.status === 'scheduled' && m.matchOn >= todayStr && m.matchOn <= cutoffStr.value)
+    .sort((a, b) => a.matchOn.localeCompare(b.matchOn)),
+)
+
+// ---- S1-14：最新消息（latest_news）----
+// 規劃書：「抓取 7.x 最新 3–6 則，可指定精選」——精選（IsFeatured）優先，不足再用最新日期補滿。
+const { data: newsData } = await useFetch(`/api/backend/${config.public.club}/news`, {
+  query: { pageSize: 20, lang: locale.value },
+})
+const homeNews = computed(() => {
+  const items = newsData.value?.items ?? []
+  return items
+    .slice()
+    .sort((a, b) => {
+      if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1
+      return (b.publishedAt ?? '').localeCompare(a.publishedAt ?? '')
+    })
+    .slice(0, 5)
+})
+/** 首頁 mosaic 版位固定 5 格（feature／sml×2／wide×2），資料不足 5 篇時依序省略後面的格子。 */
+const NEWS_VARIANTS = ['feature', 'sml', 'sml', 'wide', 'wide'] as const
 
 // ---- Team chips（賽事行事曆的隊伍切換）----
 const teamPanel = ref<'D1' | 'other'>('D1')
@@ -237,7 +337,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section ref="heroSectionEl" class="hero" id="top" aria-label="首頁主視覺">
+  <section v-if="isSectionEnabled('hero')" ref="heroSectionEl" class="hero" id="top" aria-label="首頁主視覺">
     <div v-if="isTcrfc" ref="sliderEl" class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" aria-label="首頁主視覺輪播，共 3 張">
       <ul class="hero__slides">
         <li class="hero__slide is-active" role="group" aria-roledescription="slide" aria-label="第 1 張，共 3 張">
@@ -265,7 +365,7 @@ onBeforeUnmount(() => {
             <h1 class="hero__headline" v-html="heroCopy.headlineZh"></h1>
             <p class="hero__sub" v-html="heroCopy.factLineZh"></p>
             <div class="hero__ctas">
-              <a class="btn btn--primary" :href="lp(heroCopy.ctaPrimaryHref)">加入球隊</a>
+              <a class="btn btn--primary" :href="primaryCta ? primaryCta.href : lp(heroCopy.ctaPrimaryHref)">{{ primaryCta ? primaryCta.label : '加入球隊' }}</a>
               <a class="btn btn--light" :href="lp(heroCopy.ctaSecondaryHref)">{{ heroCopy.ctaSecondaryLabelZh }}</a>
             </div>
             <div v-if="isTcrfc" class="hero__slider-nav">
@@ -308,10 +408,13 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <!-- SPEC 3.1 / 3.13 — Match band
+  <!-- SPEC 3.1（最新賽事區／近期賽事）／3.13 — Match band
+       資料來源：賽事管理模組（GET /api/backend/{club}/schedule，S1-14 起接上真實資料，
+       見上方 script setup「賽事資料」段與 apps/web/README.md「S1-14」節）。
        藍鯨未來 12 個月賽程完全沒有（docs/13-blue-whale-site.md §5 擋開發第 4 項），
-       本區塊不沿用磐石賽事資料頂替，直接不顯示。 -->
-  <section v-if="isTcrfc" class="band grain match-band" id="schedule" aria-labelledby="schedule-title">
+       本區塊不沿用磐石賽事資料頂替，直接不顯示（維持既有 isTcrfc 閘門不變——是否要
+       改為「藍鯨已有真實歷史賽果就顯示戰績卡」留給主 session 裁決，見任務回報）。 -->
+  <section v-if="isTcrfc && (isSectionEnabled('upcoming_match') || isSectionEnabled('recent_fixtures'))" class="band grain match-band" id="schedule" aria-labelledby="schedule-title">
     <span class="ghost-num ghost-num--dark" aria-hidden="true">21</span>
     <div class="band-inner container">
       <div class="eyebrow-row">
@@ -328,42 +431,56 @@ onBeforeUnmount(() => {
         <button class="team-chip" type="button" data-team="U12" :aria-pressed="false" @click="teamPanel = 'other'">U12</button>
       </div>
 
-      <div class="match-grid" id="match-grid-d1" data-team-panel="D1" :hidden="teamPanel !== 'D1'">
-        <article class="match-card">
+      <div v-if="isSectionEnabled('upcoming_match')" class="match-grid" id="match-grid-d1" data-team-panel="D1" :hidden="teamPanel !== 'D1'">
+        <article v-if="latestResult" class="match-card">
           <div class="match-card__label"><span>最新戰績 LATEST RESULT</span></div>
-          <p class="match-card__meta">企甲聯賽 · 2026/05/24</p>
+          <p class="match-card__meta">{{ resultMetaLine(latestResult) }}</p>
           <div class="match-card__fixture">
-            <span class="match-card__team">台中磐石</span>
-            <span class="match-card__score">3<span class="sep">:</span>0</span>
-            <span class="match-card__team match-card__team--away">銘傳大學</span>
+            <span class="match-card__team">{{ assets.nameZh }}</span>
+            <span class="match-card__score">{{ clubScore(latestResult) }}<span class="sep">:</span>{{ opponentScore(latestResult) }}</span>
+            <span class="match-card__team match-card__team--away">{{ latestResult.opponent }}</span>
           </div>
         </article>
+        <article v-else class="match-card match-card--placeholder">
+          <p>尚無已完賽數據，敬請鎖定近期賽事。</p>
+        </article>
 
-        <article class="match-card">
+        <article v-if="previousResult" class="match-card">
           <div class="match-card__label"><span>上一場 PREVIOUS</span></div>
-          <p class="match-card__meta">企甲聯賽 · 2026/05/17</p>
+          <p class="match-card__meta">{{ resultMetaLine(previousResult) }}</p>
           <div class="match-card__fixture">
-            <span class="match-card__team">台中磐石</span>
-            <span class="match-card__score">1<span class="sep">:</span>2</span>
-            <span class="match-card__team match-card__team--away">陽信北競</span>
+            <span class="match-card__team">{{ assets.nameZh }}</span>
+            <span class="match-card__score">{{ clubScore(previousResult) }}<span class="sep">:</span>{{ opponentScore(previousResult) }}</span>
+            <span class="match-card__team match-card__team--away">{{ previousResult.opponent }}</span>
           </div>
-          <p class="match-card__scorers">2026/05/10 主場 2:4 不敵南市台鋼</p>
         </article>
 
-        <article class="match-card match-card--next">
+        <article v-if="nextFixture" class="match-card match-card--next">
           <div class="match-card__label"><span>下一場 NEXT FIXTURE</span></div>
-          <p class="match-card__meta">2026/27 企甲聯賽 第 1 週 · 9/13（日）19:00 · 客場</p>
+          <p class="match-card__meta">{{ fixtureMetaLine(nextFixture) }}</p>
           <div class="match-card__fixture">
-            <span class="match-card__team">台中磐石</span>
+            <span class="match-card__team">{{ assets.nameZh }}</span>
             <span class="match-card__vs">VS</span>
-            <span class="match-card__team match-card__team--away">高雄先鋒</span>
+            <span class="match-card__team match-card__team--away">{{ nextFixture.opponent }}</span>
           </div>
-          <p class="match-card__scorers">楠梓足球場　賽程以官方公告為準</p>
+          <p class="match-card__scorers">{{ nextFixture.venue }}　賽程以官方公告為準</p>
+        </article>
+        <article v-else class="match-card match-card--placeholder">
+          <p>下一場賽程尚未公告，敬請關注後續公告。</p>
         </article>
       </div>
 
-      <div class="match-grid" id="match-grid-other" data-team-panel="other" :hidden="teamPanel !== 'other'">
-        <div class="match-card match-card--placeholder">
+      <div v-if="isSectionEnabled('recent_fixtures')" class="match-grid" id="match-grid-other" data-team-panel="other" :hidden="teamPanel !== 'other'">
+        <article v-for="m in otherTeamUpcoming" :key="`${m.teamCode}-${m.matchOn}-${m.opponent}`" class="match-card">
+          <div class="match-card__label"><span>{{ m.teamCode }}</span></div>
+          <p class="match-card__meta">{{ fixtureMetaLine(m) }}</p>
+          <div class="match-card__fixture">
+            <span class="match-card__team">{{ assets.nameZh }}</span>
+            <span class="match-card__vs">VS</span>
+            <span class="match-card__team match-card__team--away">{{ m.opponent }}</span>
+          </div>
+        </article>
+        <div v-if="otherTeamUpcoming.length === 0" class="match-card match-card--placeholder">
           <p>青訓梯隊賽程尚未公開發布，敬請關注後續公告。</p>
         </div>
       </div>
@@ -414,7 +531,7 @@ onBeforeUnmount(() => {
   <!-- SPEC 1.2 — Five core values
        五大核心價值是磐石自訂的品牌框架，舊站沒有陳述對等的架構，依內容紀律
        不得自行創作藍鯨版的「五大核心價值」，本區塊不顯示。 -->
-  <section v-if="isTcrfc" class="band values-band" id="values" aria-labelledby="values-title">
+  <section v-if="isTcrfc && isSectionEnabled('core_values')" class="band values-band" id="values" aria-labelledby="values-title">
     <span class="ghost-num ghost-num--light" aria-hidden="true">05</span>
     <div class="band-inner container">
       <div class="eyebrow-row">
@@ -460,7 +577,7 @@ onBeforeUnmount(() => {
   </section>
 
   <!-- SPEC 3.1 — Four pillars -->
-  <section class="band grain pillars-band" id="club" aria-labelledby="pillars-title">
+  <section v-if="isSectionEnabled('ecosystem_nav')" class="band grain pillars-band" id="club" aria-labelledby="pillars-title">
     <span class="ghost-num ghost-num--dark" aria-hidden="true">04</span>
     <div class="band-inner container">
       <div class="eyebrow-row">
@@ -485,14 +602,13 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <!-- SPEC 3.7 — News mosaic
-       藍鯨新聞 07 單元自有全文 0 篇（gap-analysis.md §4 #3），本區塊不顯示。
-       🔴 S0-9e：本區塊內容逐字沿用 mockup（本頁檔頭註解「main 內容不動」），不是資料驅動——
-       5 張卡片的 href 原本寫死 /zh/news/article/，改為依各卡片自己 <img> 的檔名
-       （已對應 /assets/img/news/{slug}.jpg 的既有命名慣例）反推出真實 slug，
-       組成逐篇網址；沒有改成打 API，因為這個區塊本身就是精選 5 篇的靜態展示，
-       跟 news/index.vue 的資料驅動清單是兩回事。 -->
-  <section v-if="isTcrfc" class="band news-band" id="news" aria-labelledby="news-title">
+  <!-- SPEC 3.1（最新消息）／3.7 — News mosaic
+       資料來源：新聞模組（GET /api/backend/{club}/news，S1-14 起接上真實資料，精選優先、
+       不足再用最新日期補滿，見上方 script setup「最新消息」段）。藍鯨新聞 07 單元自有
+       全文 0 篇（gap-analysis.md §4 #3），homeNews 會自然是空陣列，本區塊不顯示——
+       不再用 isTcrfc 硬判斷，改成看真實資料有沒有內容。
+       版位固定 5 格（feature／sml×2／wide×2），資料不足 5 篇時依序省略後面的格子。 -->
+  <section v-if="isSectionEnabled('latest_news') && homeNews.length > 0" class="band news-band" id="news" aria-labelledby="news-title">
     <div class="band-inner container">
       <div class="eyebrow-row">
         <div>
@@ -503,63 +619,34 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="news-mosaic">
-        <a class="news-card clip-card news-card--feature" :href="lp('/zh/news/2026-05-17-match-002/')">
-          <div class="news-card__media">
-            <span class="news-card__tag">消息 News</span>
-            <img src="/assets/img/news/2026-05-17-match-002.jpg" alt="企甲聯賽 台中磐石 1-2 陽信北競" loading="lazy" width="1280" height="853">
-          </div>
-          <div class="news-card__body">
-            <p class="news-card__meta">2026/05/17</p>
-            <p class="news-card__title">企甲聯賽 台中磐石 1-2 陽信北競</p>
-          </div>
-        </a>
-
-        <a class="news-card clip-card news-card--sml" :href="lp('/zh/news/2026-05-10-match-003/')">
-          <div class="news-card__media">
-            <span class="news-card__tag">比賽 Matches</span>
-            <img src="/assets/img/news/2026-05-10-match-003.jpg" alt="企甲聯賽 台中磐石 2-4 南市台鋼" loading="lazy" width="1280" height="855">
-          </div>
-          <div class="news-card__body">
-            <p class="news-card__meta">2026/05/10</p>
-            <p class="news-card__title">企甲聯賽 台中磐石 2-4 南市台鋼</p>
-          </div>
-        </a>
-
-        <a class="news-card clip-card news-card--sml" :href="lp('/zh/news/2026-05-03-match-005/')">
-          <div class="news-card__media">
-            <span class="news-card__tag">比賽 Matches</span>
-            <img src="/assets/img/news/2026-05-03-match-005.jpg" alt="乙級聯賽 台中磐石預備隊 0-2 銘傳Desafio" loading="lazy" width="1280" height="855">
-          </div>
-          <div class="news-card__body">
-            <p class="news-card__meta">2026/05/03</p>
-            <p class="news-card__title">乙級聯賽 台中磐石預備隊 0-2 銘傳Desafio</p>
-          </div>
-        </a>
-
-        <a class="news-card clip-card news-card--wide" :href="lp('/zh/news/2026-08-10-international-000/')">
-          <div class="news-card__inner" style="display:flex;width:100%;">
-            <div class="news-card__media">
-              <span class="news-card__tag">國際動態 International</span>
-              <img src="/assets/img/news/2026-08-10-international-000.jpg" alt="台中磐石與AS Trenčín深化青訓合作　共創台斯足球交流新篇章" loading="lazy" width="1600" height="1067">
+        <a
+          v-for="(article, i) in homeNews"
+          :key="article.slug"
+          :class="['news-card', 'clip-card', `news-card--${NEWS_VARIANTS[i]}`]"
+          :href="lp(`/zh/news/${article.slug}/`)"
+        >
+          <div v-if="NEWS_VARIANTS[i] === 'wide'" class="news-card__inner" style="display:flex;width:100%;">
+            <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(article.slug) }]">
+              <span class="news-card__tag">{{ article.categoryName }}</span>
+              <img v-if="hasNewsCover(article.slug)" :src="newsCoverSrc(article.slug)" :alt="article.title ?? ''" loading="lazy" width="1600" height="1067">
+              <img v-else class="news-card__media-mark" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">
-              <p class="news-card__meta">2026/08/10</p>
-              <p class="news-card__title">台中磐石與AS Trenčín深化青訓合作　共創台斯足球交流新篇章</p>
+              <p class="news-card__meta">{{ newsSlashDate(article.publishedAt) }}</p>
+              <p class="news-card__title">{{ article.title }}</p>
             </div>
           </div>
-        </a>
-
-        <a class="news-card clip-card news-card--wide" :href="lp('/zh/news/2026-05-24-match-001/')">
-          <div class="news-card__inner" style="display:flex;width:100%;">
-            <div class="news-card__media">
-              <span class="news-card__tag">比賽 Matches</span>
-              <img src="/assets/img/news/2026-05-24-match-001.jpg" alt="企甲聯賽 台中磐石 3-0 銘傳大學" loading="lazy" width="1600" height="1067">
+          <template v-else>
+            <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(article.slug) }]">
+              <span class="news-card__tag">{{ article.categoryName }}</span>
+              <img v-if="hasNewsCover(article.slug)" :src="newsCoverSrc(article.slug)" :alt="article.title ?? ''" loading="lazy" width="1280" height="853">
+              <img v-else class="news-card__media-mark" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">
-              <p class="news-card__meta">2026/05/24</p>
-              <p class="news-card__title">企甲聯賽 台中磐石 3-0 銘傳大學</p>
+              <p class="news-card__meta">{{ newsSlashDate(article.publishedAt) }}</p>
+              <p class="news-card__title">{{ article.title }}</p>
             </div>
-          </div>
+          </template>
         </a>
       </div>
     </div>
@@ -567,7 +654,7 @@ onBeforeUnmount(() => {
 
   <!-- SPEC 3.8 — Official store band
        藍鯨商店 0 商品、無物流與價格資訊（gap-analysis.md §4 #1），本區塊不顯示。 -->
-  <section v-if="isTcrfc" class="band grain grain--2 store-band" aria-labelledby="store-title">
+  <section v-if="isTcrfc && isSectionEnabled('shop_entry')" class="band grain grain--2 store-band" aria-labelledby="store-title">
     <span class="ghost-num ghost-num--dark" aria-hidden="true">08</span>
     <div class="band-inner container">
       <div class="store-band__grid">
@@ -587,7 +674,7 @@ onBeforeUnmount(() => {
   </section>
 
   <!-- SPEC 3.9 — Sponsor wall -->
-  <section class="band sponsor-band" id="partners" aria-labelledby="partners-title">
+  <section v-if="isSectionEnabled('partner_logos')" class="band sponsor-band" id="partners" aria-labelledby="partners-title">
     <div class="band-inner container">
       <div class="eyebrow-row">
         <div>
@@ -613,7 +700,7 @@ onBeforeUnmount(() => {
   </section>
 
   <!-- SPEC 3.1 — Bottom CTA trio (10.1 / 10.2 / 10.5) -->
-  <section class="band grain cta-band" id="charity" aria-labelledby="cta-title">
+  <section v-if="isSectionEnabled('bottom_cta')" class="band grain cta-band" id="charity" aria-labelledby="cta-title">
     <div class="band-inner container">
       <h2 class="visually-hidden" id="cta-title">加入{{ assets.shortNameZh }}</h2>
       <div class="cta-grid">

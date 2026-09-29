@@ -357,6 +357,99 @@ lang 參數問題）。
 寫在元件裡就夠，尚未到需要訊息字典的規模。之後若英文內容大量上線、版型文字量變大，
 可以重新評估。
 
+## S1-14（01 首頁九大區塊／02 關於台中磐石，2026-09-29）
+
+**02 關於台中磐石（2.1–2.8）本次確認為既有工作已完成**：`app/pages/zh/about/` 8 個頁面
+（`index`／`our-story`／`vision-mission`／`philosophy`／`our-people`／`governance`／
+`ecosystem`／`history`／`milestones`）在更早的 S0-9（靜態頁搬遷）與 S1-12f（Person Schema）
+就已經逐頁完成，`our-people.vue` 更已接上真實 Staff API。規劃書 §3.2 本身**沒有列「資料來源」
+欄**（跟 §3.1 首頁九大區塊不同），這 7 個長文頁維持既有的靜態富文本（文案在
+`shared/utils/club-copy.ts`，雙語齊全）——B1 頁面管理雖有對應的公開 API
+（`GET /api/v1/{club}/pages/{slug}`），但 `pages` 資料表目前沒有這些 slug 的種子資料，
+串了也只會拿到 404，故本輪不動這 7 頁，只重新驗證（見下方驗收紀錄）。
+
+**01 首頁九大區塊本輪重點是把既有靜態骨架（S0-9 搬遷、S1-13 語系化）接上規劃書 §3.1
+「資料來源」欄點名的既有公開 API**，對應 `db/seed` 的 `home_sections` 九個代碼
+（`hero`／`core_values`／`ecosystem_nav`／`upcoming_match`／`recent_fixtures`／
+`latest_news`／`partner_logos`／`shop_entry`／`bottom_cta`）：
+
+| 區塊 | 規劃書資料來源 | 本輪狀態 |
+|---|---|---|
+| Hero 主視覺 | 後台 Banner 管理 | 🟡 部分真資料：`GET /api/backend/{club}/banners` 已接上，用來覆蓋主要 CTA 文字／連結（`primaryCta`）。輪播**圖片**仍是既有 3 張真實照片（tcrfc）／純色回退（bw）——`banners` 資料表目前 0 筆種子資料，且 `HomeRepository.ListBannersAsync` 沒有把 `imageKey` 解析成完整網址（見 `docs/18-work-errors.md` `E-64`），前端拿到鍵值也無法正確組圖，故暫不消費 |
+| 五大核心價值 | 後台設定 | ⬜ 靜態（僅 tcrfc 顯示，藍鯨無對等的自訂品牌框架，見既有頁內註解）。目前開關由 `home_sections.core_values` 控制顯示/隱藏，內容本身沒有對應的「網站設定」公開端點可接 |
+| 四大體系導覽卡（四大支柱） | 靜態模組＋可換圖文 | ⬜ 靜態（`shared/utils/club-copy.ts` `HOME_PILLARS`），開關已接 `home_sections.ecosystem_nav` |
+| 最新賽事區（下一場倒數＋最近比賽結果） | 賽事管理模組 | 🟢 真資料：`GET /api/backend/{club}/schedule`，取一線隊（D1）依日期排序的最新一筆 `played`／前一筆 `played`／最早一筆 `matchOn ≥ 今天` 的 `scheduled`。開關 `home_sections.upcoming_match` |
+| 近期賽事（未來 30 天摘要＋隊別快切） | 行事曆模組 | 🟢 真資料：同一支 `schedule` API，篩出非 D1、未來 30 天內的 `scheduled` 場次。目前種子資料只有一線隊有賽程，梯隊面板會顯示既有的「尚未公開發布」占位文字，邏輯已就緒、有資料會自動出現。開關 `home_sections.recent_fixtures` |
+| 最新消息 | 新聞模組 | 🟢 真資料：`GET /api/backend/{club}/news`，精選（`isFeatured`）優先、不足用最新發布日期補滿，固定 5 格（feature／sml×2／wide×2），版位樣式沿用既有 CSS class。開關 `home_sections.latest_news`；藍鯨新聞 0 篇時陣列自然為空，區塊自動不顯示（不再靠 `isTcrfc` 判斷） |
+| 贊助夥伴 Logo 牆 | 夥伴模組 | ⬜ 靜態占位（10 個空白 tile，兩俱樂部皆無真實贊助商資料可上）。`apps/api` 目前**沒有對應的公開讀取端點**（`Features` 底下沒有 `Partners`／`Sponsors` 公開 endpoints，只有 EF 實體），無法接。開關已接 `home_sections.partner_logos` |
+| 官方商店入口 | 商店模組 S1 | ⬜ 靜態連結（僅 tcrfc，商店模組後端尚未開發，`STATUS.md` 站內商店列仍是「沒有後端」）。開關 `home_sections.shop_entry` |
+| 底部 CTA 帶 | CTA 元件 | ⬜ 靜態（`HOME_CTA_TRIO`），開關 `home_sections.bottom_cta` |
+
+**新增檔案**：`app/composables/useHomeSections.ts`（讀 `home-sections` API、提供
+`isSectionEnabled(code)`，API 失敗或空陣列時 fail-open＝全部視為啟用，理由見檔頭註解）。
+
+**已知範圍縮減**（非本輪判斷有誤，是任務內明確排除或需要 `backend-engineer` 配合）：
+
+1. **只做區塊開關，不做動態排序**——`home_sections.sortOrder` 目前恰好與樣板既有 DOM
+   順序一致（見 `useHomeSections.ts` 檔頭），本輪沒有把九個區塊改寫成 `v-for` 動態排序，
+   後台如果之後真的調整排序，畫面不會跟著動。
+2. **Hero 輪播圖片沒有真正串接**——見上表與 `docs/18-work-errors.md` `E-64`，需要
+   `apps/api` 補上 `ImageKey → ImageUrl` 解析後才能真正接圖。
+3. **贊助夥伴／官方商店兩區塊沒有可接的公開 API**——不是本輪漏做，是後端範圍本來就還沒開放
+   （`Partner`／`Sponsor`／商店模組目前只有 EF 實體或完全未開發）。
+4. **一線隊球員橫幅（roster-strip）維持原樣**——這個區塊本身不在規劃書 §3.1 九大區塊清單內
+   （既有 mockup 多出來的內容），本輪不動、也不受 `home_sections` 開關控制。
+5. **Hero 內的迷你新聞卡（`hero__news`，兩張）維持靜態**——這是 Hero 區塊內的裝飾性連結，
+   不是首頁「最新消息」正式區塊，本輪沒有一併接上 `homeNews`，維持既有硬編碼內容。
+6. **待主 session 裁決**：藍鯨（`bw`）一線隊目前在 `matches` 表其實有 21 筆真實**歷史**賽果
+   （2023 木蘭聯賽／2025 總統盃，`status='played'`），但沒有任何未來賽程。既有實作（S0-9）
+   把整個「賽事行事曆」區塊對藍鯨完全隱藏（`v-if="isTcrfc"`），理由寫在頁內註解「藍鯨未來
+   12 個月賽程完全沒有」。本輪**維持這個既有閘門不變**，沒有因為「歷史戰績其實是真資料」
+   就讓藍鯨顯示「最新戰績／上一場」兩張卡——因為現況下這個區塊也會失去「下一場賽程」卡，
+   看起來會很奇怪（只有過去、沒有未來）。是否要讓藍鯨顯示部分內容（只有戰績、沒有下一場），
+   或維持現況全隱藏，留給主 session 決定。
+7. **台中磐石（tcrfc）目前在 `matches` 表只有 21 筆 `scheduled`（全部是未來賽程），沒有任何
+   `played` 紀錄**，所以「最新戰績 LATEST RESULT」「上一場 PREVIOUS」兩張卡在真實資料下
+   會顯示「尚無已完賽數據」占位文字（見下方驗收紀錄的真實 curl 結果），跟舊版 mockup 寫死的
+   「3:0 銘傳大學」等具體比分不同——那些具體比分是否為真實已發生的比賽結果、要不要回填進
+   `matches` 種子資料，是內容／資料盤點的問題，不在本次前端任務範圍內，留給主 session／
+   `backend-engineer` 判斷。
+
+**驗收紀錄（2026-09-29）**：
+
+```
+npm run lint     # 0 errors, 534 warnings（與改動前完全相同，未新增）
+npm run build    # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+```
+
+本機用同一份映像檔起兩個容器（`NUXT_PUBLIC_CLUB=tcrfc` port 13001／`NUXT_PUBLIC_CLUB=bw`
+port 13002，**`apps/api` 未啟動**，依派工規則不自行啟動、不碰密碼），對 `/zh/`／`/en/` 的
+首頁與 `/zh/about/`／`/en/about/` 各自 `curl`：
+
+- 8 個網址（tcrfc×2／bw×2 × 首頁／關於頁）全部 `200`。
+- `<html lang>` 四組合皆正確（`zh-Hant`／`en`），`hreflang` 三條齊全，
+  `X-Robots-Tag: noindex, nofollow` 四組合皆在。
+- **`apps/api` 不可達時的優雅降級已確認**（`useFetch` 失敗回傳 `null`，樣板一律用
+  `?? []`／三元運算接住）：tcrfc 首頁「最新戰績」「下一場賽程」「近期賽事」三處皆正確落回
+  占位文字，「最新消息」區塊因 `homeNews` 為空陣列而整段不渲染，藍鯨首頁 Hero 落回既有
+  純色區塊、賽事區塊維持隱藏，皆無 500 或未捕捉例外。
+- `node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:13002`：
+  `exit 0`，保護清單 13 頁（含 `/zh/`／`/zh/about/` 與其餘 7 個關於子頁）全數乾淨，
+  棘輪未被違反。
+
+🔴 **未驗證項目**（因為 `apps/api` 未啟動，只能驗證請求參數正確，不能驗證真實資料的
+畫面呈現）：
+
+- `banners`／`schedule`／`news` 三支 API 在有真實資料時，首頁實際渲染的內容是否正確
+  （欄位對應、日期換算、精選排序等邏輯只做過程式碼審視與 apps/api 原始碼比對，沒有用
+  真實資料庫跑過一次）。
+- 瀏覽器端互動（Hero 輪播、賽事分頁按鈕、`primaryCta` 的實際點擊行為）未做無頭瀏覽器模擬，
+  只驗證 SSR 輸出的 HTML 結構。
+- `/en/` 版本的首頁／關於頁內容仍以中文為主（沿用 S1-13 既定範圍：版型與框架元素雙語，
+  頁面本文尚未整頁翻譯），本輪新增的三處占位文字（「尚無已完賽數據」等）同樣只有中文，
+  與既有頁面內文的雙語完成度一致，不是新的缺口。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格
