@@ -242,6 +242,9 @@ watchEffect(() => {
         <div><span class="article-meta-row__label">發布日期</span><time :datetime="newsIsoDate(article?.publishedAt)">{{ newsSlashDate(article?.publishedAt) }}</time></div>
         <div><span class="article-meta-row__label">分類</span><a :href="lp(`/zh/news/${article?.categoryCode}/`)">{{ categoryBilingual }}</a></div>
         <div><span class="article-meta-row__label">作者</span>{{ siteName }}</div>
+        <!-- S1-17 新增：標籤（規劃書 3.7「詳情頁：…標籤…」，ArticleDetailDto.tags 是 S1-5
+             就已回傳的既有欄位，先前沒有前台頁面消費）。沒有標籤時整格不顯示，不留空欄位。 -->
+        <div v-if="article?.tags?.length"><span class="article-meta-row__label">標籤</span>{{ article.tags.map((t) => t.name).filter(Boolean).join('、') }}</div>
       </div>
 
       <template v-if="matchFields">

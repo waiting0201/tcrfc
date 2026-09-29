@@ -1156,6 +1156,176 @@ curl -sI http://127.0.0.1:3001/zh/ | grep -i x-robots-tag
   是否有「整段文字做成圖片」的情形——本站目前全站是語意化 HTML＋CSS 排版，沒有
   既有樣式特徵可以自動比對，這項留給人工審查，腳本檔頭已誠實列為「明文不做的事」。
 
+## S1-17（07 新聞中心／10 表單中心／Location & Map，2026-09-29，`frontend-architect`）
+
+主站規劃書 §3.7（新聞中心 8 分類）、§3.10（表單中心 7 類 ＋ 附屬頁 Location & Map／
+Contact Information）。**Contact Information 頁不在本次任務範圍**（未點名），只在下方
+「規格疑點」記錄一項順手發現的既有缺口，未動它的程式碼。
+
+### 改了哪些檔案
+
+**新增**：
+- `app/composables/useFormSubmit.ts` — 7 張表單共用的送出狀態機（呼叫 `POST
+  /api/v1/{club}/forms/{formCode}/submissions`）
+- `app/components/FormStatusBanner.vue` — 送出成功／失敗的畫面提示（mockup 原本沒有這塊，
+  `action=""` 的純靜態表單本來就不會有送出後狀態）
+- `app/components/HoneypotField.vue` — 誘捕欄位（比照 `SubmitFormRequest.Website`）
+- `server/api/backend/[...path].ts` — **改動**：原本只轉發 GET，補上 POST 轉發（讀
+  body 一併帶過去），方法白名單限定 GET／POST 兩種
+
+**改動（07 新聞中心）**：
+- `app/pages/zh/news/academy.vue`、`app/pages/zh/news/player-stories.vue` — 接上真實
+  API（`category=academy`／`category=player-stories`），取代原本寫死的空狀態文案
+- `app/pages/zh/news/index.vue` — 修正「精選置頂」邏輯（原本是 `slice(0,3)` 沒有真的檢查
+  `isFeatured`），新增標籤篩選 state
+- `app/pages/zh/news/club.vue`／`match.vue`／`international.vue`／`camps-events.vue`／
+  `community.vue` — 新增標籤篩選 state 並傳給 `NewsFilterForm`／`NewsListBody`
+- `app/pages/zh/news/[slug]/index.vue` — 詳情頁 `.article-meta-row` 新增「標籤」欄（有
+  標籤才顯示）
+- `app/components/news/NewsFilterForm.vue` — 新增「標籤」下拉（`tags`/`tag` prop，
+  沒有標籤選項時整格不顯示）
+- `app/components/news/NewsListBody.vue` — `matches()` 新增標籤比對
+- `app/utils/news.ts` — 新增 `newsDistinctTags()`
+
+**改動（10 表單中心，7 類）**：`app/pages/zh/join/player/index.vue`、`academy/index.vue`、
+`camp-registration/index.vue`、`international-player/index.vue`、`partnership/index.vue`、
+`media/index.vue`、`general/index.vue` — 每頁：欄位 `v-model` 化、`@submit.prevent`、
+移除 `novalidate`（讓瀏覽器原生必填／格式驗證生效，取代原本永遠 `display:none`
+且從未被任何腳本觸發過的 `.field-error` 手刻訊息，見下方「規格疑點」第 4 點）、
+`<HoneypotField>`、`<FormStatusBanner>`、送出中停用送出鈕。
+
+**改動（Location & Map）**：`app/pages/zh/join/location/index.vue` — 嵌入地圖從
+「準備中」佔位文字改為真的 Google Maps 免金鑰 `output=embed` iframe（用主場地址算網址）；
+「開啟 Google 導航」連結從寫死的 URL 編碼字串改為同一份地址算出來（GEO-03 單一來源，
+避免地址與導航連結各自維護一份、後台改了地址卻忘記同步這條連結）。
+
+### 07 新聞中心：各項需求對照
+
+| 需求（規劃書 3.7） | 狀態 | 說明 |
+|---|---|---|
+| 分類 Tab（8 類） | ✅ 既有（S0-9e／既有搬遷），本輪未改動路由本身 |
+| 標籤篩選 | ✅ **本輪新增**——`ArticleListItemDto.tags` 是 S1-5 就已回傳的既有欄位，先前完全沒有前台頁面消費，本輪補上下拉篩選（news/index 與 5 個分類頁）與詳情頁顯示 |
+| 年月篩選 | ✅ 既有（S0-9e），本輪未改動邏輯 |
+| 關鍵字搜尋 | ✅ 既有（S0-9e），本輪未改動邏輯 |
+| 分頁／無限捲動 | ✅ 既有「載入更多」按鈕（S0-9e），規劃書「分頁／無限捲動」擇一即可，未改動 |
+| 精選置頂（最多 3 則） | 🟡 **本輪修正**——`news/index.vue` 原本是「列表前 3 篇」，沒有真的檢查 `isFeatured`，與首頁 `S1-14` 已經做對的邏輯（精選優先、不足補最新發布）不一致。已改成同一套邏輯 |
+| 熱門文章側欄 | 🔴 **API 不支援，未做**——`ArticleListItemDto`（列表端點）沒有回傳瀏覽數，`ArticleDetailDto`（單篇端點）才有 `viewCount`；且列表端點也沒有「依熱門度排序」的查詢參數。要做「熱門文章側欄」，必須先改 `apps/api` 補上其中一項，不在本次任務範圍（任務指示「不要改 apps/api」），未自行變通（例如用發布時間排序假裝熱門）誤導使用者 |
+| 7.8 媒體專區（新聞稿下載／品牌識別包／高解析圖庫／媒體聯絡窗口） | 🔴 **API 不支援，未做**——對應後台 `B6` 媒體資源模組（`STATUS.md` `S2-3`，排在本次任務之後才開工），`media.vue` 維持既有「建置中」占位文案，未改動 |
+| 詳情頁：標籤 | ✅ **本輪新增**——`.article-meta-row` 補上「標籤」欄 |
+| 詳情頁：其餘（封面圖／日期／作者／內文／社群分享／相關文章） | ⬜ 既有（S0-9e／S1-12e），本輪未改動 |
+
+### 10 表單中心：欄位對應表（每張表單的完整決策）
+
+規劃書 §3.10 只列「主要欄位」，`apps/api` 的 `form_fields` 種子資料（`db/seed/
+generate-club-seed-sql.py` 的 `FORM_FIELD_DEFAULTS`）採**最小可行欄位組**，跟既有
+mockup 前台欄位數量對不齊（mockup 是完整 UX 設計稿，欄位遠多於後端目前定義的）。
+**任務指示明文「欄位以後端表單定義為準，不要在前台自己加欄位」**——本輪的做法是：
+可見欄位不動（DOM／文字一律不改），但只把對應得到的欄位值組進送出的 `answers`，
+對應不到的欄位維持在畫面上（使用者填了看得到，但**不會被送出**，見下表「未送出」欄）。
+
+| 表單 | 後端欄位（`form_code`） | 對應決策 | 未送出（後端無對應欄位） |
+|---|---|---|---|
+| 10.1 加入球隊 | `join_player`：`name`／`birth_date`／`position`／`experience`／`video_url`／`contact` | `name`＝中文姓名（＋英文姓名括號附加）；`position`＝選單顯示文字（後端是 `text` 型別，無選項限制）；`contact`＝電話＋Email 合併 | 性別、居住城市、慣用腳、目前球隊、履歷／照片檔案 |
+| 10.2 加入學院／兒童訓練 | `academy_children_training`：`enrollment_category`（**封閉選項**）／`name`／`birth_date`／`location_preference`／`contact`／`experience`／`health_status` | 🔴 **mockup 13 個報名細項對到後端封閉的 7 選項**：6 種專項訓練細項收斂為單一「專項訓練」；「尚未確定，請協助建議」**沒有對應選項**（後端封閉選項沒有「不確定」），退回「兒童混齡班」當技術預設值，同時把使用者實際選擇的文字併入 `experience` 欄位開頭，不遺失真正的選擇；`contact`（後端標籤是「家長聯絡方式」）＝家長姓名＋關係＋電話＋Email 合併 | 學員性別、居住地區、學員／健康聲明以外的證明文件 |
+| 10.3 營隊報名 | `camp_registration`：`session_choice`／`name`／`birth_date`／`health_declaration`（**consent 布林型別**）／`contact` | 🔴 **重大欄位型別落差**——見下方「規格疑點」第 1 點 | 家長聯絡資料（`parent_name`／`parent_phone`／`parent_email`，見規格疑點第 2 點） |
+| 10.4 國際球員詢問 | `international_player_enquiry`：`name`／`nationality`／`passport_no`／`experience`／`video_url`／`visa_status`／`contact` | `experience`＝場上位置＋目前球隊＋比賽等級併入足球經歷摘要前面；`visa_status`＝選單顯示文字（`text` 型別）；`contact`＝Email＋電話合併 | 出生日期（這張表單後端沒有 `birth_date` 鍵，跟 10.1／10.2 不同）、經紀人聯絡方式、CV／其他文件 |
+| 10.5 合作夥伴與贊助洽詢 | `partnership_sponsorship`：`enquiry_type`（**封閉選項**）／`company`／`industry`／`budget_range`／`cooperation_direction`／`sponsorship_interest`／`name`／`contact` | `enquiry_type`：mockup 送英文代碼，後端封閉選項是中文字面值 `["合作夥伴","贊助","兩者"]`，用對照表轉換；`industry`／`budget_range`＝選單顯示文字（`text` 型別）；`cooperation_direction`＝勾選的「合作方向」項目名稱＋「合作構想」欄位原文合併；`sponsorship_interest`＝勾選的「感興趣贊助方案」項目名稱 | 統一編號、聯絡人職稱、提案文件 |
+| 10.6 媒體詢問 | `media_enquiry`：`media_name`／`name`／`topic`／`deadline`／`contact` | `topic`＝採訪類型顯示文字＋採訪主題原文合併；`contact`＝電話＋Email 合併 | 聯絡人職稱、採訪大綱文件 |
+| 10.7 一般聯絡 | `general_contact`：`name`／`contact`／`subject`／`message` | `contact`＝Email（規劃書 §3.10 10.7 欄位定義本來就只寫「Email」，後端 `contact` 這一鍵的題目文字也是「Email」）；`subject`＝選單顯示文字（`text` 型別） | 聯絡電話（選填欄位，規格與後端都沒有這個鍵）、附件 |
+
+**共通機制對照**（規劃書 §3.10「共通機制」）：
+
+| 需求 | 狀態 |
+|---|---|
+| 必填驗證 | ✅ 移除 `<form novalidate>`，改用瀏覽器原生驗證（`required`／`type=email`／`type=url`／`type=date` 皆為 mockup 既有屬性，只是先前 `novalidate` 讓它們完全失效）。**未做**：逐欄位 JS 自訂訊息（`.field-error` 段落，`.field-error{display:none}` 的 CSS 規則本來就存在，但 mockup 從未有任何腳本觸發它顯示——維持這個既有落差，改用瀏覽器原生提示） |
+| 送出後自動回覆信／通知信／寫入後台 | 🔵 已由 `apps/api` 端實作（`FormsRepository.SubmitAsync` 寫入 `enquiries`／`enquiry_answers`），Email 通知另見 `apps/api` README；本輪只負責前台送出，未驗證信件是否真的寄出（未啟動 `apps/api`） |
+| 個資同意條款勾選 | ✅ 既有 `consent` 核取方塊，`required` 屬性現在真的生效（見上方必填驗證） |
+| 防機器人（reCAPTCHA／Turnstile） | 🔵 既有 Cloudflare Turnstile 佔位（`data-sitekey=""`，sitekey 待客戶申請帳號，維持既有落差不動）＋ **本輪新增**誘捕欄位（`HoneypotField`）與（`apps/api` 端既有的）Rate Limiting，兩者都是不需要外部服務金鑰的防線 |
+| 檔案上傳（履歷／影片連結） | 🔴 影片連結（`video_url`）已送出；**檔案本身無法上傳**——`apps/api` 的 `FormFieldTypes.File` 註解明文「本輪未建立真正的檔案上傳通路」，屬既有缺口非本輪造成，各表單的檔案欄位維持在畫面上但不送出任何內容 |
+
+### Location & Map：各項需求對照
+
+| 需求（規劃書 §3.10 附屬頁） | 狀態 |
+|---|---|
+| 多場地列表（訓練基地、主場、學院場地） | 🟡 **主場**已讀 `useSiteFacts('tcrfc')`（GEO-03 既有機制）；**訓練基地／學院場地**維持「地址資訊準備中」——`venues` 資料表目前只有 1 筆場地種子資料（西屯足球場，`db/seed/generate-club-seed-sql.py` `site.home_venue_ids`），沒有另外的訓練基地／學院場地主檔可用，這是資料現況不是前台缺陷 |
+| 嵌入地圖 | ✅ **本輪新增**——改用 Google Maps 免金鑰 `output=embed` iframe（依主場地址算網址），只有唯讀顯示、沒有互動路線規劃（那需要 Maps API 金鑰） |
+| 交通指引 | ⬜ 既有靜態文字（開車／大眾運輸），本輪未改動 |
+| 導航連結 | ✅ **本輪修正**——原本是寫死的 URL 編碼地址字串（跟 `site-facts` 的地址是兩份各自維護的資料），改成用同一份 `useSiteFacts` 地址即時算出，地址若在後台改了不會再有連結跟著過期不同步的風險 |
+
+### 規格疑點（列出，未自行決定）
+
+1. 🔴 **`camp_registration` 的 `health_declaration` 欄位型別是 `consent`（布林同意），
+   但規劃書 §3.10「健康聲明」與 mockup 前台顯然是要收「過敏史、慢性病、目前服用藥物」
+   這類**自由文字內容**，兩者無法兩全**——`consent` 型別只接受 `true`／`1`／`on`／`yes`，
+   送出自由文字會被 `FormsRepository.ValidateFieldValue` 的 `Consent` 分支拒絕（400）。
+   本頁暫行做法：`health_declaration` 固定送 `"true"`（滿足型別要求），使用者實際填寫的
+   健康聲明文字併入 `contact` 欄位（後端唯一的自由文字欄位，與緊急聯絡人資訊放在一起）
+   一併送出，不會遺失，但也不是資料表設計本來該擺的位置。**建議下一輪把
+   `health_declaration` 欄位型別改為 `text`／`textarea`**，這是涉及兒童安全資訊的欄位，
+   不建議長期用這個暫行做法。
+2. 🔴 **`camp_registration` 沒有承接「家長聯絡資料」的欄位**——後端只有 `contact`
+   一鍵，語意標籤是「緊急聯絡人」，家長姓名／電話／Email 三個 mockup 欄位完全沒有
+   對應鍵可送。已知風險：緊急聯絡人未必是家長本人，若後台窗口只看得到 `enquiries`
+   的 `contact` 欄位，可能找不到真正該聯繫的家長。目前**未送出**這三個欄位（畫面上
+   仍要求填寫但資料不會進後台），建議下一輪評估是否要新增欄位。
+3. **10.2 學院／兒童訓練報名項目「尚未確定，請協助建議」無法對應後端封閉選項**——
+   後端 `enrollment_category` 只有 7 個固定值，沒有「不確定」這個選項；已在上方欄位
+   對應表說明暫行做法（退回「兒童混齡班」＋原文併入 `experience`）。
+4. **`.field-error` 手刻錯誤訊息維持未啟用狀態**——`tcrfc.css` 的 `.field-error{
+   display:none }` 規則從 mockup 時代就存在，但沒有任何腳本（mockup 原始版或本輪）
+   真的去觸發顯示；本輪選擇移除 `novalidate` 讓瀏覽器原生驗證接手（成本低、行為
+   正確），沒有另外實作 60＋ 個欄位各自的 JS 顯示邏輯——這是效益判斷，不是規格要求，
+   下一輪若要更客製化的錯誤訊息樣式，這批 `.field-error` 段落還在，可以另外接上。
+5. **Contact Information 頁（`/zh/join/contact/`）的電話／營業時間欄位仍是空白**——
+   順手發現：`PublicSiteFactsDto.contact` 早就有 `phone`／`hours` 兩個欄位，但該頁
+   template 的「電話」「營業時間」兩格從未綁定顯示這兩個欄位（且兩俱樂部這兩個值目前
+   都還是 `null`，接了也不會顯示任何內容）。**本次任務未點名這一頁，未動它的程式碼**，
+   留給下一輪（若電話／營業時間之後在後台填了值）一併處理。
+
+### 驗證指令與實際結果（2026-09-29）
+
+```bash
+npm run lint    # 0 errors, 467 warnings（低於 527 上限）
+npm run build   # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+```
+
+本機起兩個容器（`tcrfc` port 3001／`bw` port 3002，`bw` 帶
+`NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動**，依派工規則不自行啟動、不碰密碼）：
+
+- 兩容器對本輪改動的 20 條路徑（07 的 9 頁＋10 的 9 頁＋Location & Map，含 `/zh/`／`/en/`
+  各一次 `/zh/join/player/` 與 `/en/join/player/` 抽查）**全數 `200`**，無 `500`。
+- 兩容器皆有 `X-Robots-Tag: noindex, nofollow`。
+- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:3001`／`3002`：
+  **H1 唯一、標題不跳階皆 0 違規**（tcrfc 156 條路由、bw 138 條路由，其餘為 30x／404 略過）。
+- `node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:3002`：**通過**
+  （保護清單 15 頁全數乾淨，棘輪未被違反；本輪改動的頁面本來就有既有的磐石／學院詞彙
+  殘留，不在保護清單內，非本輪新增的退化）。
+- 抽查渲染結果：`/zh/join/player/` 的 `<form>` 已不含 `novalidate`、含
+  `name="website"` 誘捕欄位、初始狀態不含任何 `.form-status` 元素（idle 狀態正確不渲染
+  成功／失敗訊息）；`/zh/join/location/` 已渲染出真正的 `<iframe src="https://www.google.
+  com/maps?q=...&output=embed">`（地址已正確 URL 編碼）；`/zh/news/academy/`／
+  `/zh/news/player-stories/` 顯示「本分類目前尚無已發布之文章」（因 `apps/api` 未啟動，
+  無法區分「這是 API 打不到的降級」還是「這是真的查詢到 0 筆」，兩者目前巧合地是同一個
+  畫面，見下方「未驗證項目」）。
+
+### 未驗證項目
+
+- **表單送出（POST）本身未實機測試**——`apps/api` 未啟動，無法驗證 `answers` 對應是否
+  真的被後端接受、`enquiries`／`enquiry_answers` 是否正確寫入、自動回覆信與通知信是否
+  寄出。上方「欄位對應表」的映射邏輯已通過 TypeScript 型別檢查（`npm run build` 含
+  `nuxi typecheck`）與程式碼審視，但沒有一次真正打過端點。
+- **`academy`／`player-stories` 兩個新聞分類的「真的查完 API 回傳 0 筆」與「API 打不到
+  時的降級空清單」，本輪只驗證到後者**——兩種情況目前渲染結果相同（`articles.length
+  === 0`），語意上是同一組程式碼路徑，理論上正確，但沒有機會用真正啟動的 `apps/api`
+  驗證這兩個分類確實查得到「0 筆」而不是別的錯誤。
+- **標籤篩選下拉的實際互動行為**（選了標籤後清單是否正確收斂）——`apps/api` 未啟動時
+  沒有任何文章帶標籤可供測試，`newsDistinctTags()`／`NewsListBody.matches()` 的邏輯已
+  經程式碼審視但未用真實資料按過一次。
+- **Google Maps `output=embed` iframe 在瀏覽器裡的實際渲染**（是否顯示正確地圖位置）
+  ——只驗證了 SSR 輸出的 `<iframe src>` 網址字串正確（地址 URL 編碼無誤），沒有用
+  無頭瀏覽器截圖確認地圖畫面本身。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

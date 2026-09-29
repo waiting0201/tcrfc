@@ -18,7 +18,10 @@ const { data } = await useFetch(`/api/backend/${club}/news`, {
 const articles = computed(() => data.value?.items ?? [])
 const years = computed(() => newsDistinctYears(articles.value))
 const months = computed(() => newsDistinctMonths(articles.value))
+// S1-17 新增：標籤篩選選項（規劃書 3.7「標籤篩選」）。
+const tags = computed(() => newsDistinctTags(articles.value))
 
+const tag = ref('')
 const year = ref('')
 const month = ref('')
 const search = ref('')
@@ -55,10 +58,10 @@ useSeoMeta({
 
     <div class="news-toolbar">
       <NewsCategoryTabs active="international" />
-      <NewsFilterForm v-model:year="year" v-model:month="month" v-model:search="search" :years="years" :months="months" />
+      <NewsFilterForm v-model:tag="tag" v-model:year="year" v-model:month="month" v-model:search="search" :tags="tags" :years="years" :months="months" />
     </div>
 
-    <NewsListBody :articles="articles" active-cat="all" :year="year" :month="month" :search="search" />
+    <NewsListBody :articles="articles" active-cat="all" :tag="tag" :year="year" :month="month" :search="search" />
   </div>
 </section>
 </template>

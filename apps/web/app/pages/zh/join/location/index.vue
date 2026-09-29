@@ -10,6 +10,15 @@ const { lp } = useLocale()
 // 固定讀 tcrfc 沿用既有做法。
 const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
 
+// S1-17：嵌入地圖與導航連結改用 site-facts 的地址算出來（不再另外寫死一份 URL 編碼字串）——
+// 兩者原本各自維護一份地址相關的資料，地址若在後台改了，導航連結會悄悄過期而沒有任何提示。
+// 只有主場地址有真實資料可用（訓練基地／學院場地目前沒有場地主檔，見上方兩張卡片既有的
+// 「地址資訊準備中」文字，維持不動）。`output=embed` 是 Google 地圖不需要 API 金鑰的公開
+// 嵌入格式（只讀顯示，沒有互動路線規劃這類需要金鑰的功能，符合本頁「嵌入地圖」的最小需求）。
+const mapQuery = computed(() => encodeURIComponent(tcrfcFacts.value.contact.address ?? tcrfcVenue.value.nameZh))
+const mapEmbedSrc = computed(() => `https://www.google.com/maps?q=${mapQuery.value}&output=embed`)
+const mapNavHref = computed(() => `https://www.google.com/maps/search/?api=1&query=${mapQuery.value}`)
+
 useSeoMeta({
   title: '場地位置與地圖 Location & Map｜加入與聯絡｜台中磐石足球俱樂部',
   description:
@@ -82,7 +91,15 @@ useSeoMeta({
     </div>
 
     <div class="map-embed">
-      <p>地圖嵌入位置準備中，可先參考上方各場地地址資訊。</p>
+      <iframe
+        v-if="tcrfcFacts.contact.address"
+        :src="mapEmbedSrc"
+        title="Google Map：台中磐石主場位置"
+        loading="lazy"
+        referrerpolicy="no-referrer-when-downgrade"
+        allowfullscreen
+      />
+      <p v-else>地圖嵌入位置準備中，可先參考上方各場地地址資訊。</p>
     </div>
   </div>
 </section>
@@ -106,7 +123,7 @@ useSeoMeta({
       </div>
       <div class="direction-card">
         <p class="direction-card__mode">導航連結</p>
-        <a href="https://www.google.com/maps/search/?api=1&query=%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B711%E5%BC%8441%E8%99%9F" target="_blank" rel="noopener">開啟 Google 導航（{{ tcrfcVenue.nameZh }}）<span class="visually-hidden">（新分頁開啟）</span></a>
+        <a :href="mapNavHref" target="_blank" rel="noopener">開啟 Google 導航（{{ tcrfcVenue.nameZh }}）<span class="visually-hidden">（新分頁開啟）</span></a>
       </div>
     </div>
   </div>
@@ -128,6 +145,7 @@ useSeoMeta({
   display:flex; align-items:center; justify-content:center; padding:clamp(1.25rem,3vw,2rem); text-align:center;
 }
 .map-embed p{ color:var(--muted-dark); font-size:.9rem; max-width:56ch; min-width:0; }
+.map-embed iframe{ width:100%; height:100%; border:0; }
 
 .direction-card{ padding:1.75rem; border:1px solid var(--rule); background:var(--paper); }
 .direction-card__mode{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); margin-bottom:.9rem; }

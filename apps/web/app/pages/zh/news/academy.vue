@@ -1,8 +1,20 @@
 <script setup lang="ts">
 // app/pages/zh/news/academy.vue — 由 site/src/pages/zh/news/academy/index.html 轉來（S0-9 靜態頁搬遷）
+//
+// S1-17：接上真實 API（GET /api/v1/{club}/news?category=academy）。🔴 種子資料的
+// NEWS_CATEGORY_MAP（db/seed/generate-club-seed-sql.py）沒有把任何一筆舊站新聞歸類到
+// `academy`，這個分類目前必然是 0 篇——跟 mockup 原本的「空狀態頁面」文案一致，
+// 差別只在於現在是「真的查詢後發現 0 篇」，不是寫死的假設。沒有 NewsFilterForm（比照
+// app/components/news/NewsFilterForm.vue 檔頭既有慣例：資料量太少不需要年月／關鍵字篩選）。
 definePageMeta({ nav: "news", unit: "07" })
 
-const { lp } = useLocale()
+const config = useRuntimeConfig()
+const club = config.public.club
+const { locale, lp } = useLocale()
+const { data } = await useFetch(`/api/backend/${club}/news`, {
+  query: { category: 'academy', pageSize: 200, lang: locale.value },
+})
+const articles = computed(() => data.value?.items ?? [])
 
 useSeoMeta({
   title: "學院新聞 Academy News｜新聞 News｜台中磐石足球俱樂部",
@@ -47,9 +59,11 @@ useSeoMeta({
 </nav>
     </div>
 
-    <div class="news-empty">
+    <div v-if="articles.length > 0" class="news-list-grid">
+      <NewsCard v-for="a in articles" :key="a.slug" :article="a" />
+    </div>
+    <div v-else class="news-empty">
       <p style="margin-bottom:1rem">本分類目前尚無已發布之文章。</p>
-      
     </div>
   </div>
 </section>

@@ -17,6 +17,10 @@ interface NewsListArticle {
   categoryName: string | null
   title: string | null
   publishedAt: string | null
+  /** 標籤（S1-17 新增篩選用；ArticleListItemDto.tags 本來就有回傳，只是先前沒有消費）。
+   * 選填——news/index.vue 目前的頁面本地介面沒有宣告這個欄位也不影響既有欄位的結構型別
+   * 相容性檢查，見下方 matches() 用 `?? []` 容錯。 */
+  tags?: { slug: string, name: string | null }[]
 }
 
 const props = withDefaults(
@@ -24,13 +28,15 @@ const props = withDefaults(
     articles: NewsListArticle[]
     /** 'all' = 不依分類篩選（分類已在 API 呼叫時過濾，或 news/index 顯示全部） */
     activeCat: string
+    /** 標籤 slug；'' = 不篩選（S1-17 新增） */
+    tag?: string
     year: string
     month: string
     search: string
     /** news/index 在深色 band 裡，result-count／empty 需要額外的行內樣式；5 個分類頁沒有 */
     dark?: boolean
   }>(),
-  { dark: false },
+  { dark: false, tag: '' },
 )
 
 // 兩種文案：news/index 有分類鈕（提示可換分類），5 個分類頁沒有分類鈕（提示換年月）——
@@ -48,12 +54,13 @@ const PAGE_SIZE = 9
 const shown = ref(PAGE_SIZE)
 const mounted = ref(false)
 
-watch([() => props.activeCat, () => props.year, () => props.month, () => props.search], () => {
+watch([() => props.activeCat, () => props.tag, () => props.year, () => props.month, () => props.search], () => {
   shown.value = PAGE_SIZE
 })
 
 function matches(a: NewsListArticle): boolean {
   if (props.activeCat !== 'all' && a.categoryCode !== props.activeCat) return false
+  if (props.tag && !(a.tags ?? []).some((t) => t.slug === props.tag)) return false
   if (props.year && newsYearAttr(a.publishedAt) !== props.year) return false
   if (props.month && newsMonthAttr(a.publishedAt) !== props.month) return false
   const q = props.search.trim().toLowerCase()

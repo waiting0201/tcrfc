@@ -21,11 +21,25 @@ const { data } = await useFetch(`/api/backend/${club}/news`, {
 
 const articles = computed(() => data.value?.items ?? [])
 const totalCount = computed(() => data.value?.totalCount ?? 0)
-const featured = computed(() => articles.value.slice(0, 3))
+// S1-17 修正：原本是 slice(0,3)，沒有真的檢查 isFeatured（規劃書 3.7「精選置頂（最多 3 則）」
+// 指的是後台可指定的精選文章，不是單純取列表前 3 篇）。邏輯比照 app/pages/zh/index.vue
+// 「S1-14：最新消息」同一段——精選優先，不足 3 篇時用最新發布時間補滿。
+const featured = computed(() =>
+  articles.value
+    .slice()
+    .sort((a, b) => {
+      if (a.isFeatured !== b.isFeatured) return a.isFeatured ? -1 : 1
+      return (b.publishedAt ?? '').localeCompare(a.publishedAt ?? '')
+    })
+    .slice(0, 3),
+)
 const years = computed(() => newsDistinctYears(articles.value))
+// S1-17 新增：標籤篩選選項（規劃書 3.7「標籤篩選」）。
+const tags = computed(() => newsDistinctTags(articles.value))
 const ALL_MONTHS = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
 
 const activeCat = ref('all')
+const tag = ref('')
 const year = ref('')
 const month = ref('')
 const search = ref('')
@@ -97,10 +111,10 @@ useSeoMeta({
           @click="activeCat = cat.code"
         >{{ cat.label }}</button>
       </nav>
-      <NewsFilterForm v-model:year="year" v-model:month="month" v-model:search="search" :years="years" :months="ALL_MONTHS" />
+      <NewsFilterForm v-model:tag="tag" v-model:year="year" v-model:month="month" v-model:search="search" :tags="tags" :years="years" :months="ALL_MONTHS" />
     </div>
 
-    <NewsListBody :articles="articles" :active-cat="activeCat" :year="year" :month="month" :search="search" dark />
+    <NewsListBody :articles="articles" :active-cat="activeCat" :tag="tag" :year="year" :month="month" :search="search" dark />
   </div>
 </section>
 </template>

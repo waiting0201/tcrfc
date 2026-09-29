@@ -109,3 +109,23 @@ export function newsDistinctMonths(items: { publishedAt: string | null }[]): str
 export function newsMonthLabel(month: string): string {
   return `${Number.parseInt(month, 10)}月`
 }
+
+export interface NewsTagOption {
+  slug: string
+  name: string
+}
+
+/** 從一批文章計算標籤篩選選項（S1-17 新增，規劃書 3.7「標籤篩選」）。ArticleListItemDto.tags
+ * 是 S1-5 就已經回傳的既有欄位，前台一直沒有消費——這裡補上單一來源的「這批文章有哪些標籤」
+ * 計算，依名稱字母序排列（標籤沒有既定的顯示順序可循，比照年月篩選「新到舊」這類穩定排序的
+ * 精神，選一個可預期的排序而不是依資料庫回傳順序）。同一個 slug 只取第一次出現的 name
+ * （不同文章的同一個標籤，name 理論上一致）。 */
+export function newsDistinctTags(items: { tags: { slug: string, name: string | null }[] }[]): NewsTagOption[] {
+  const bySlug = new Map<string, string>()
+  for (const item of items) {
+    for (const tag of item.tags ?? []) {
+      if (!bySlug.has(tag.slug)) bySlug.set(tag.slug, tag.name ?? tag.slug)
+    }
+  }
+  return Array.from(bySlug, ([slug, name]) => ({ slug, name })).sort((a, b) => a.name.localeCompare(b.name, 'zh-Hant'))
+}
