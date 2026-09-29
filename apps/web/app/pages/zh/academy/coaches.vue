@@ -1,6 +1,12 @@
 <script setup lang="ts">
 // app/pages/zh/academy/coaches.vue — 由 site/src/pages/zh/academy/coaches/index.html 轉來（S0-9 靜態頁搬遷）
-definePageMeta({ nav: "academy", unit: "04" })
+//
+// S2-8（2026-09-29）：改為細粒度 unit '4.5' 並對藍鯨關閉（units.ts
+// BLUE_WHALE_DISABLED_UNITS）。本頁是磐石學院三位真實教練（徐翊／許志傑／黃聖傑，
+// 含真實照片）——真實人員資料，不能顯示成藍鯨的教練，也沒有已核實、非過期的藍鯨
+// 青年隊教練名單可換（`content/blue-whale/squad/coaching-staff.md` 標明「舊站教練
+// 經歷最新只到 2024，2025 賽季未更新」且無照片），故關閉，不需要俱樂部分支。
+definePageMeta({ nav: "academy", unit: "4.5" })
 
 const { lp } = useLocale()
 

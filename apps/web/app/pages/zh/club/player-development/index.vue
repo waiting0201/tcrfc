@@ -1,6 +1,12 @@
 <script setup lang="ts">
 // app/pages/zh/club/player-development/index.vue — 由 site/src/pages/zh/club/player-development/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+//
+// S2-8（2026-09-29）：本頁對藍鯨已整頁 404（units.ts BLUE_WHALE_DISABLED_UNITS 的 '3.2'）。
+// 內容是「台中磐石球員發展系統」八大模組這個具名的內部培訓框架，屬於磐石自己的機構性
+// 宣稱——content/blue-whale/ 既有舊站內容盤點沒有藍鯨對應的具名系統可引用，換個抬頭
+// 字樣就沿用會構成臆造機構事實，不是換配色，故關閉，不需要俱樂部分支。理由與取捨細節
+// 見 shared/utils/units.ts 檔頭與 apps/web/README.md「S2-8」節。
 definePageMeta({ nav: 'club', unit: '3.2' })
 
 const { lp } = useLocale()

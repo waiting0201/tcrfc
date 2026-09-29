@@ -1,20 +1,34 @@
 <script setup lang="ts">
 // app/pages/zh/club/opportunities/index.vue — 由 site/src/pages/zh/club/opportunities/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+//
+// S2-8（2026-09-29）：修正既有品牌外洩缺口——本頁改動前固定呼叫 `useSiteFacts('tcrfc')`，
+// 藍鯨容器（單元 '3.3' 本來就沒關閉）會直接顯示磐石的聯賽名稱與文案，是本輪盤點發現的
+// 既有缺口（apps/web/README.md「S2-8」節）。改為依 `clubKey` 動態抓取，並把「加入」／
+// 「外籍球員招募」兩段正文改為 `club-copy.ts` 工廠函式（`getJoinFirstTeamBody`／
+// `getForeignPlayerBody`），依規劃書 §1.3「四項以外不得另行設計」維持本頁對藍鯨開放。
+// 試訓場次表格兩俱樂部共用同一份通用空白狀態文字（無俱樂部專屬事實），不需要分支。
 definePageMeta({ nav: 'club', unit: '3.3' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
-// S1-12d 收尾：聯賽名稱改讀 useSiteFacts('tcrfc')（後端公開端點）。本頁同時需要
-// league.nameZh（中文本文）與 league.nameEn（外籍球員英文段落），useSiteFacts 一律
-// 同時抓中英兩種語系，兩個欄位同一次呼叫即可取得。
-const { facts: tcrfcFacts } = useSiteFacts('tcrfc')
+const { facts } = useSiteFacts(clubKey.value)
+const hero = computed(() => getPlayerOpportunitiesHero(clubKey.value))
+const joinBody = computed(() => getJoinFirstTeamBody(clubKey.value, facts.value))
+const foreignBody = computed(() => getForeignPlayerBody(clubKey.value, facts.value))
 
 useSeoMeta({
-  title: '球員機會 Player Opportunities｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
-  description:
-    '台中磐石足球俱樂部球員機會：加入台中磐石一線隊的資格與報名方式、試訓場次列表與線上報名、外籍球員招募管道（英文優先）。',
+  title: computed(() => getPlayerOpportunitiesSeo(clubKey.value).title),
+  description: computed(() => getPlayerOpportunitiesSeo(clubKey.value).description),
 })
+
+// G-12 常見問題快捷區塊：trials 掛載點（db/seed FAQ_EMBED_SLOTS「試訓頁（3.3）」），
+// 四個固定掛載點之一，前三個掛載點已在 S1-15／本輪陸續消費，理由見 useFaqEmbed.ts 檔頭。
+const { faqs } = useFaqEmbed(config.public.club, 'trials', locale.value)
+useFaqPageSchema(faqs)
 </script>
 
 <template>
@@ -32,18 +46,17 @@ useSeoMeta({
   <img class="page-hero__bg" src="/assets/img/trencin-04.jpg" alt="" width="1920" height="1279">
   <div class="container">
     <p class="page-hero__eyebrow">3.3 Player Opportunities</p>
-    <h1>球員機會<span class="en">Player Opportunities</span></h1>
-    <p class="page-hero__lede">從加入球隊、參加試訓，到外籍球員的招募管道，這裡整理台中磐石一線隊球員機會的完整入口。</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
 <section class="band" id="join" aria-labelledby="join-title">
   <div class="band-inner container">
     <div class="prose">
-      <h2 id="join-title">加入台中磐石 Join TCRFC</h2>
+      <h2 id="join-title">{{ isTcrfc ? '加入台中磐石 Join TCRFC' : '加入台中藍鯨' }}</h2>
       <!-- GEO-03（S1-12d）：聯賽名稱為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
-      <p>台中磐石一線隊代表俱樂部出戰{{ tcrfcFacts.league.nameZh }}，持續招募具備競技實力的球員加入陣容。填寫報名表後，將由競技部（10.1 表單收件單位）與您聯繫後續評估流程。</p>
-      
+      <p>{{ joinBody }}</p>
     </div>
     <a class="btn btn--primary" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">填寫加入球隊報名表</a>
   </div>
@@ -83,13 +96,31 @@ useSeoMeta({
   </div>
 </section>
 
+<section id="trials-faq" class="band" aria-labelledby="trials-faq-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">FAQ</p>
+        <h2 id="trials-faq-title" class="section-title">球員機會常見問題</h2>
+      </div>
+      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+    </div>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <dl v-else class="faq-embed-list">
+      <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
+        <dt>{{ f.question }}</dt>
+        <dd>{{ f.answer }}</dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
 <section class="band foreign-band" id="foreign-players" aria-labelledby="foreign-players-title" lang="en">
   <div class="band-inner container">
     <div class="prose">
       <p class="kicker">FOR INTERNATIONAL PLAYERS</p>
       <h2 id="foreign-players-title">Foreign Player Recruitment</h2>
-      <p>Taichung Rock FC (TCRFC) First Team competes in Taiwan's {{ tcrfcFacts.league.nameEn }} ({{ tcrfcFacts.league.nameZh }}). We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our International Department will follow up.</p>
-      
+      <p>{{ foreignBody }}</p>
     </div>
     <a class="btn btn--primary" :href="lp('/zh/join/international-player/')" style="margin-top:1.5rem">International Player Enquiry</a>
   </div>
@@ -98,14 +129,17 @@ useSeoMeta({
 <section class="band grain cta-band" id="opp-cta" aria-labelledby="opp-cta-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="opp-cta-title">相關頁面</h2>
-    <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div class="cta-grid" :style="isTcrfc ? 'grid-template-columns:repeat(2,minmax(0,1fr))' : 'grid-template-columns:1fr'">
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
         <p class="cta-card__title">認識一線隊</p>
         <p class="cta-card__desc">加入前，先了解一線隊陣容、教練團與賽程。</p>
         <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
       </div>
-      <div class="cta-card">
+      <!-- 3.4 國際發展通道對藍鯨已整頁關閉（units.ts BLUE_WHALE_DISABLED_UNITS，S2-8：
+           內容全是磐石真實海外合作與旅外球員案例，藍鯨無對應內容可換），不連結一個會
+           404 的頁面。 -->
+      <div v-if="isTcrfc" class="cta-card">
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">國際發展通道</p>
         <p class="cta-card__desc">了解球員如何透過台中磐石通往歐洲、日本、香港的舞台。</p>
@@ -133,4 +167,11 @@ useSeoMeta({
 .foreign-band .kicker{ color:var(--brand-bright); }
 .foreign-band p{ color:var(--muted-dark); }
 .foreign-band .pending{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.35); color:var(--muted-dark); }
+
+/* G-12 常見問題快捷區塊（S2-8 新增，樣式沿用 programs/childrens-training 既有慣例，
+   之後若要收共用 CSS 可與該頁一併處理）。 */
+.is-pending{ color:var(--muted); font-style:italic; }
+.faq-embed-list{ margin-top:1.5rem; display:flex; flex-direction:column; gap:1.25rem; }
+.faq-embed-item dt{ font-weight:800; color:var(--heading); }
+.faq-embed-item dd{ margin:.4rem 0 0; color:var(--muted); font-size:.9rem; line-height:1.7; }
 </style>

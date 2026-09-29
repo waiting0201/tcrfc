@@ -215,9 +215,10 @@ onBeforeUnmount(() => {
               <div class="container mega__inner">
                 <ul class="mega__list">
                   <li><a :href="lp('/zh/club/first-team/')">3.1 一線隊</a></li>
-                  <li><a :href="lp('/zh/club/player-development/')">3.2 球員發展系統</a></li>
+                  <!-- 3.2／3.4 對藍鯨已整頁關閉（units.ts，S2-8），選單不連結會 404 的頁面。 -->
+                  <li v-if="isUnitEnabledForClub('3.2', club)"><a :href="lp('/zh/club/player-development/')">3.2 球員發展系統</a></li>
                   <li><a :href="lp('/zh/club/opportunities/')">3.3 球員機會</a></li>
-                  <li><a :href="lp('/zh/club/international-pathways/')">3.4 國際發展通道</a></li>
+                  <li v-if="isUnitEnabledForClub('3.4', club)"><a :href="lp('/zh/club/international-pathways/')">3.4 國際發展通道</a></li>
                   <li><a :href="lp('/zh/club/player-stories/')">3.5 球員故事</a></li>
                 </ul>
                 <div class="mega__feature">
@@ -236,9 +237,11 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/academy/teams/')">4.2 {{ identity.academyShortLabelZh }}隊伍</a></li>
                   <li><a :href="lp('/zh/academy/pathway/')">4.3 {{ identity.academyShortLabelZh }}發展路徑</a></li>
                   <li><a :href="lp('/zh/academy/curriculum/')">4.4 訓練課程與課綱</a></li>
-                  <li><a :href="lp('/zh/academy/coaches/')">4.5 {{ identity.academyShortLabelZh }}教練團</a></li>
-                  <li><a :href="lp('/zh/academy/life/')">4.6 {{ identity.academyShortLabelZh }}生活</a></li>
-                  <li><a :href="lp('/zh/academy/join/')">4.7 加入{{ identity.academyShortLabelZh }}</a></li>
+                  <!-- 4.5／4.6／4.7 對藍鯨已整頁關閉（units.ts，4.5／4.6 見 S2-8、4.7 見既有
+                       S1-15），選單不連結會 404 的頁面。 -->
+                  <li v-if="isUnitEnabledForClub('4.5', club)"><a :href="lp('/zh/academy/coaches/')">4.5 {{ identity.academyShortLabelZh }}教練團</a></li>
+                  <li v-if="isUnitEnabledForClub('4.6', club)"><a :href="lp('/zh/academy/life/')">4.6 {{ identity.academyShortLabelZh }}生活</a></li>
+                  <li v-if="isUnitEnabledForClub('4.7', club)"><a :href="lp('/zh/academy/join/')">4.7 加入{{ identity.academyShortLabelZh }}</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img src="/assets/img/nav-academy.jpg" alt="" width="440" height="280" loading="lazy">
@@ -252,10 +255,13 @@ onBeforeUnmount(() => {
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a :href="lp('/zh/programs/childrens-training/')">5.1 兒童足球訓練</a></li>
-                  <li><a :href="lp('/zh/programs/summer-camp/')">5.2 夏令營</a></li>
-                  <li><a :href="lp('/zh/programs/winter-camp/')">5.3 冬令營</a></li>
-                  <li><a :href="lp('/zh/programs/specialist/')">5.4 專項訓練</a></li>
+                  <!-- 5.1／5.2／5.3／5.4 對藍鯨已整頁關閉（units.ts，5.1／5.2 見 S1-15、
+                       5.3／5.4 見 S2-10），選單不連結會 404 的頁面。5.5 對藍鯨開放（真實
+                       建教合作內容，見 S2-10）。 -->
+                  <li v-if="isUnitEnabledForClub('5.1', club)"><a :href="lp('/zh/programs/childrens-training/')">5.1 兒童足球訓練</a></li>
+                  <li v-if="isUnitEnabledForClub('5.2', club)"><a :href="lp('/zh/programs/summer-camp/')">5.2 夏令營</a></li>
+                  <li v-if="isUnitEnabledForClub('5.3', club)"><a :href="lp('/zh/programs/winter-camp/')">5.3 冬令營</a></li>
+                  <li v-if="isUnitEnabledForClub('5.4', club)"><a :href="lp('/zh/programs/specialist/')">5.4 專項訓練</a></li>
                   <li><a :href="lp('/zh/programs/school-community/')">5.5 校園與社區計畫</a></li>
                 </ul>
                 <div class="mega__feature">

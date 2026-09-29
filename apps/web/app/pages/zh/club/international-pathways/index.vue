@@ -2,6 +2,12 @@
 // app/pages/zh/club/international-pathways/index.vue — 由 site/src/pages/zh/club/international-pathways/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 // ⛔ 原頁 <script>（地區分頁 tablist 切換）改寫為 onMounted，行為逐字等價。
+//
+// S2-8（2026-09-29）：本頁對藍鯨已整頁 404（units.ts BLUE_WHALE_DISABLED_UNITS 的 '3.4'）。
+// 內容 100% 是磐石一線隊真實的海外合作俱樂部（Hellas Verona／Rayo Ciudad Alcobendas／
+// Rot-Weiss Ahlen）與真實旅外球員（楊朝景，香港九龍城）——藍鯨規劃書與既有舊站內容
+// 盤點都沒有任何對應的海外合作或旅外案例可引用，沒有真實內容可換，故關閉，不需要
+// 俱樂部分支。理由見 shared/utils/units.ts 檔頭與 apps/web/README.md「S2-8」節。
 definePageMeta({ nav: 'club', unit: '3.4' })
 
 const { lp } = useLocale()

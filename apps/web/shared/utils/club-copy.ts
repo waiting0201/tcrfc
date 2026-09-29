@@ -1068,6 +1068,70 @@ export const JOIN_INDEX_HERO: ClubText<HeroCopy> = {
   },
 }
 
+// ---------------------------------------------------------------------------
+// 04 學院／青年隊 4.3／4.4（S2-8 新增，派工指示要求一併處理的既有品牌外洩）
+//
+// 🔴 兩頁改動前全部既有內容都是「準備中」通用佔位文字，沒有任何磐石專屬真實事實
+// （人名／照片／具名系統），只需換抬頭字樣與 CTA 連結，不需要臆造新內容——與
+// 4.5／4.6（真實教練／真實照片，關閉不開放）不同，見 shared/utils/units.ts 說明。
+// ---------------------------------------------------------------------------
+
+export function getAcademyPathwaySeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '青年隊發展路徑｜台中藍鯨女子足球隊',
+      description: '台中藍鯨青年隊的階梯式發展路徑：U12 → U15 → 一線隊，點擊各階段了解升上一階的方向（詳細內容資料收集中）。',
+    }
+  }
+  return {
+    title: '學院發展路徑 Academy Pathway｜台中磐石足球學院｜台中磐石足球俱樂部',
+    description: '台中磐石足球學院的階梯式發展路徑：U12 → U15 → 一線隊／海外，點擊各階段了解升上一階的方向（詳細內容資料收集中）。',
+  }
+}
+
+export function getAcademyPathwayHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '青年隊發展路徑',
+      h1En: null,
+      lede: '從 U12 起步，經 U15 深化，到一線隊——台中藍鯨提供階梯式的發展路徑。點擊下方各階段，了解學員如何逐步銜接下一個層級。',
+    }
+  }
+  return {
+    h1Zh: '學院發展路徑',
+    h1En: 'Academy Pathway',
+    lede: '從 U12 起步，經 U15 深化，到一線隊或海外舞台——台中磐石足球學院提供階梯式的發展路徑。點擊下方各階段，了解學員如何逐步銜接下一個層級。',
+  }
+}
+
+export function getAcademyCurriculumSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '訓練課程與課綱｜台中藍鯨女子足球隊',
+      description: '台中藍鯨青年隊訓練涵蓋技術、戰術、體能、比賽判讀與品格五大面向，各面向課綱與週期規劃表資料收集中。',
+    }
+  }
+  return {
+    title: '訓練課程與課綱 Training & Curriculum｜台中磐石足球學院｜台中磐石足球俱樂部',
+    description: '台中磐石足球學院訓練涵蓋技術、戰術、體能、比賽判讀與品格五大面向，各面向課綱與週期規劃表資料收集中。',
+  }
+}
+
+export function getAcademyCurriculumHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '訓練課程與課綱',
+      h1En: null,
+      lede: '技術、戰術、體能、比賽判讀、品格——台中藍鯨青年隊的訓練圍繞五大面向展開，每個面向都有對應的課綱與週期規劃表。',
+    }
+  }
+  return {
+    h1Zh: '訓練課程與課綱',
+    h1En: 'Training & Curriculum',
+    lede: '技術、戰術、體能、比賽判讀、品格——台中磐石足球學院的訓練圍繞五大面向展開，每個面向都有對應的課綱與週期規劃表。',
+  }
+}
+
 /** 10.2 卡片標籤——藍鯨依 docs/13 §3 用「青年隊」，不沿用磐石學院的招生用詞。 */
 export function getJoinAcademyCard(club: string, facts: SiteFacts): { titleZh: string; descZh: string } {
   if (normalizeClub(club) === 'bw') {
@@ -1112,3 +1176,174 @@ export const JOIN_CONTACT_HERO: ClubText<HeroCopy> = {
     lede: 'Email、LINE 官方帳號與社群連結如下。若是特定申請或洽詢，建議直接使用<a href="/zh/join/">對應的表單</a>，處理速度會更快。',
   },
 }
+
+// ---------------------------------------------------------------------------
+// 03.3 球員機會 Player Opportunities（S2-8 新增）
+//
+// 🔴 藍鯨規劃書 §3.3「一線隊」只明文「沿用主站 03 的球員卡、球員頁與球員故事版型」，
+// 沒有點名球員機會（試訓／外籍球員招募）——但總則明文「主站有的功能，本站就有；
+// 主站沒有的，本站也不做」「總則的例外只有四項單元取捨，四項以外不得另行設計」
+// （§1.3 行 24、92），本頁不在四項例外之列，故維持開放，內容改為藍鯨版。
+// 「歡迎外籍球員」的邀請文字不是臆造：club-profile.md §4 沿革明確記載藍鯨歷年
+// 招募過日本、泰國、香港、美國籍球員（真實事實，只是本頁刻意不逐一列名，維持
+// 原句「歡迎詢問」的邀請語氣，不是把沿革內容搬進來）。試訓場次表格兩俱樂部皆是
+// 既有的通用空白狀態文字，不含任何俱樂部專屬事實，不需要分支。
+// ---------------------------------------------------------------------------
+
+export function getPlayerOpportunitiesSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '球員機會｜台中藍鯨女子足球隊',
+      description: '台中藍鯨女子足球隊球員機會：加入一線隊的資格與報名方式、試訓場次列表與線上報名、外籍球員招募管道。',
+    }
+  }
+  return {
+    title: '球員機會 Player Opportunities｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
+    description: '台中磐石足球俱樂部球員機會：加入台中磐石一線隊的資格與報名方式、試訓場次列表與線上報名、外籍球員招募管道（英文優先）。',
+  }
+}
+
+export function getPlayerOpportunitiesHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '球員機會',
+      h1En: null,
+      lede: '從加入一線隊、參加試訓，到外籍球員的招募管道，這裡整理台中藍鯨球員機會的完整入口。',
+    }
+  }
+  return {
+    h1Zh: '球員機會',
+    h1En: 'Player Opportunities',
+    lede: '從加入球隊、參加試訓，到外籍球員的招募管道，這裡整理台中磐石一線隊球員機會的完整入口。',
+  }
+}
+
+/** 「加入台中磐石／台中藍鯨」段落正文——依 `facts.league` 動態帶入聯賽名稱（GEO-03）。 */
+export function getJoinFirstTeamBody(club: string, facts: SiteFacts): string {
+  if (normalizeClub(club) === 'bw') {
+    return `台中藍鯨一線隊代表俱樂部出戰${facts.league.nameZh}，持續招募具備競技實力的球員加入陣容。填寫報名表後，將由俱樂部與您聯繫後續評估流程。`
+  }
+  return `台中磐石一線隊代表俱樂部出戰${facts.league.nameZh}，持續招募具備競技實力的球員加入陣容。填寫報名表後，將由競技部（10.1 表單收件單位）與您聯繫後續評估流程。`
+}
+
+/** Foreign Player Recruitment 英文段落——依 `facts.league` 動態帶入聯賽名稱（GEO-03）。
+ * 藍鯨版不寫「TCRFC」縮寫（`identity.brandTagEn` 對藍鯨一律 null，理由同 `JOIN_INTL_DESC`）。
+ * `league.nameEn` 藍鯨現況為 `null`（木蘭聯賽尚無確認英文譯名，site-facts.ts 既有值），
+ * `null` 時只用 `nameZh` 帶過，不印出字面 "null"。 */
+export function getForeignPlayerBody(club: string, facts: SiteFacts): string {
+  const leagueLabel = facts.league.nameEn ? `${facts.league.nameEn} (${facts.league.nameZh})` : facts.league.nameZh
+  if (normalizeClub(club) === 'bw') {
+    return `Taichung Bluewhale Women's Football Team First Team competes in Taiwan's ${leagueLabel}. We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our club will follow up.`
+  }
+  return `Taichung Rock FC (TCRFC) First Team competes in Taiwan's ${leagueLabel}. We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our International Department will follow up.`
+}
+
+// ---------------------------------------------------------------------------
+// 03.5 球員故事 Player Stories（S2-8 新增）
+//
+// 🔴 藍鯨規劃書 §3.3 明文「沿用主站 03 的球員卡、球員頁與球員故事版型」，本頁對
+// 藍鯨維持開放（版型承諾沿用）。但目前沒有任何已核實、已取得肖像同意的藍鯨球員
+// 故事案例可用（`docs/15-out-of-scope-record.md`／STATUS.md：球員名單與肖像同意
+// 尚未到位）——藍鯨版故事清單刻意留空，不得挪用磐石球員（孫恩祈／山內大空／
+// 楊朝景）充數，也不得自行編造藍鯨案例。空狀態文字不重複「台中磐石」自我指涉的
+// 站外連結（tcrfc 版指向藍鯨官網的既有句子，bw 版若照搬會變成「藍鯨站告訴藍鯨
+// 訪客去藍鯨官網」的自我循環，故 bw 版改寫為單純的「案例陸續建立中」）。
+// ---------------------------------------------------------------------------
+
+export function getPlayerStoriesSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '球員故事｜台中藍鯨女子足球隊',
+      description: '台中藍鯨女子足球隊球員故事案例，記錄選手從加入台中藍鯨到邁向更大舞台的真實歷程。案例陸續建立中。',
+    }
+  }
+  return {
+    title: '球員故事 Player Stories｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
+    description: '台中磐石足球俱樂部球員故事案例，可依學院、一線隊、海外、女足篩選，記錄選手從加入台中磐石到邁向更大舞台的真實歷程。',
+  }
+}
+
+export function getPlayerStoriesHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '球員故事',
+      h1En: null,
+      lede: '每一位選手都有自己的台中藍鯨歷程。已核實、取得肖像同意的球員故事案例將陸續建立於本頁。',
+    }
+  }
+  return {
+    h1Zh: '球員故事',
+    h1En: 'Player Stories',
+    lede: '每一位選手都有自己的台中磐石歷程。這裡收錄學院、一線隊、海外與女足球員的真實案例，目前已建立 3 個案例，內容陸續補齊中。',
+  }
+}
+
+/** 空狀態說明——藍鯨版不含「查看台中藍鯨官網」這種自我指涉連結（見上方節頭說明）。 */
+export function getPlayerStoriesEmptyNote(club: string): string {
+  if (normalizeClub(club) === 'bw') {
+    return '目前尚無已核實、取得肖像同意的球員故事案例，內容將依球員名單與肖像同意進度陸續建立。'
+  }
+  return '學院與女足類別目前尚無已建立的球員故事案例。'
+}
+
+// ---------------------------------------------------------------------------
+// 05.5 校園與社區 School & Community（S2-10 新增）
+//
+// 🔴 藍鯨版「合作學校列表」逐字節錄自 `content/blue-whale/club-profile.md` §1
+// 俱樂部資訊表「建教合作」欄（舊站原文，紀律 11：只能引用既有內容，不得自行創作）。
+// 「合作年度」欄只在 `content/blue-whale/club-profile.md` §4 沿革能找到明確年份時才
+// 填（目前只有臺中市立五權國中對應 2015 年「協助台中市五權國中女足隊成立」一條
+// 可查證），其餘四校沿革沒有逐校標明年份，維持空白（不臆測年份）。
+// 「社區計畫」／「教練培訓」段落節錄自 `content/blue-whale/programs.md` 第 2、4 節。
+// ---------------------------------------------------------------------------
+
+export function getSchoolCommunitySeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '校園與社區｜台中藍鯨女子足球隊',
+      description: '台中藍鯨校園合作方案與社區推廣：建教合作學校列表、運動 i 台灣社區足球推廣計畫、教練培訓，歡迎學校與社區單位洽談合作。',
+    }
+  }
+  return {
+    title: '校園與社區 School & Community｜課程與活動｜台中磐石足球俱樂部',
+    description: '台中磐石校園合作方案、社區計畫與教練培訓，歡迎學校與社區單位洽談合作，填寫表單由專人聯繫。',
+  }
+}
+
+export function getSchoolCommunityHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '校園與社區',
+      h1En: null,
+      lede: '台中藍鯨與學校、社區單位合作推廣女子足球運動，提供建教合作、社區足球推廣與教練培訓，協助培育在地師資與基層足球人口。',
+    }
+  }
+  return {
+    h1Zh: '校園與社區',
+    h1En: 'School & Community',
+    lede: '台中磐石與學校、社區單位合作推廣足球運動，提供校園方案、社區計畫與教練培訓，並協助培育在地師資。',
+  }
+}
+
+export interface SchoolPartnerRow {
+  nameZh: string
+  contentZh: string
+  yearZh: string | null
+}
+
+/** 藍鯨建教合作學校列表（5 校，逐字節錄自 club-profile.md §1「建教合作」欄）。 */
+export const SCHOOL_PARTNERS_BW: SchoolPartnerRow[] = [
+  { nameZh: '國立臺灣體育運動大學女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: null },
+  { nameZh: '臺中市立五權國民中學女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: '2015 年' },
+  { nameZh: '南投縣立水里國民中學女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: null },
+  { nameZh: '彰化縣立永靖國民中學女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: null },
+  { nameZh: '臺中市篤行國小女子足球隊', contentZh: '建教合作（女子足球隊）', yearZh: null },
+]
+
+/** 藍鯨社區計畫簡介，節錄自 programs.md §2「運動 i 台灣 2.0－運動熱區」（太原足球場）。 */
+export const COMMUNITY_PROGRAM_BODY_BW =
+  '台中藍鯨承接臺中市政府「運動 i 台灣 2.0」運動熱區推廣計畫（太原足球場），提供社區足球學校（暱稱「小藍鯨」）等分齡足球課程，推廣全民規律運動。'
+
+/** 藍鯨教練培訓簡介，節錄自 programs.md §4「教練講習」（2025 年足球人才教練暨 TDS 守門員人才培訓）。 */
+export const COACH_TRAINING_BODY_BW =
+  '台中藍鯨曾與國立臺灣體育運動大學、臺中市政府運動局等單位合辦教練講習，培養足球專業教練人才、更新訓練觀念與知識。'

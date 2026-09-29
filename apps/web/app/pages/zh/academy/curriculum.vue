@@ -1,13 +1,23 @@
 <script setup lang="ts">
 // app/pages/zh/academy/curriculum.vue — 由 site/src/pages/zh/academy/curriculum/index.html 轉來（S0-9 靜態頁搬遷）
-definePageMeta({ nav: "academy", unit: "04" })
+//
+// S2-8（2026-09-29）：改為細粒度 unit '4.4'（原本粗粒度 '04' 零俱樂部分支，藍鯨容器
+// 會直接顯示磐石內容，屬於既有缺口，見 units.ts 檔頭說明）。本頁全部既有內容都是
+// 「準備中」通用佔位文字，沒有磐石專屬真實事實，改為兩俱樂部共用同一份文案（只換
+// 抬頭與 CTA 連結），不需要臆造新內容。
+definePageMeta({ nav: "academy", unit: "4.4" })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const identity = computed(() => getClubIdentity(clubKey.value))
 
 useSeoMeta({
-  title: "訓練課程與課綱 Training & Curriculum｜台中磐石足球學院｜台中磐石足球俱樂部",
-  description: "台中磐石足球學院訓練涵蓋技術、戰術、體能、比賽判讀與品格五大面向，各面向課綱與週期規劃表資料收集中。",
+  title: computed(() => getAcademyCurriculumSeo(clubKey.value).title),
+  description: computed(() => getAcademyCurriculumSeo(clubKey.value).description),
 })
+const hero = computed(() => getAcademyCurriculumHero(clubKey.value))
 </script>
 
 <template>
@@ -15,21 +25,20 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/academy/')">足球學院</a></li>
+      <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
       <li aria-current="page">訓練課程與課綱</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/academy/life-06.jpg" alt="" width="1600" height="900">
+  <!-- 藍鯨無青年隊訓練照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石學院照片頂替 -->
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/academy/life-06.jpg" alt="" width="1600" height="900">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
-    <p class="page-hero__eyebrow">4.4 Training &amp; Curriculum</p>
-    <h1>訓練課程與課綱<span class="en">Training &amp; Curriculum</span></h1>
-    <p class="page-hero__lede">
-      技術、戰術、體能、比賽判讀、品格——台中磐石足球學院的訓練圍繞五大面向展開，
-      每個面向都有對應的課綱與週期規劃表。
-    </p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '4.4 Training &amp; Curriculum' : '4.4' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -107,15 +116,18 @@ useSeoMeta({
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/academy/pathway/')">
         <span class="cta-card__num">4.3</span>
-        <span class="cta-card__title">學院發展路徑</span>
-        <p class="cta-card__desc">從 U12 到一線隊／海外的成長路徑</p>
+        <span class="cta-card__title">{{ identity.academyShortLabelZh }}發展路徑</span>
+        <p class="cta-card__desc">{{ isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑' }}</p>
       </a>
-      <a class="cta-card" :href="lp('/zh/academy/coaches/')">
+      <!-- 4.5 學院教練團對藍鯨已整頁關閉（units.ts，S2-8：真實磐石教練人員資料，
+           無法挪用），不連結一個會 404 的頁面。 -->
+      <a v-if="isTcrfc" class="cta-card" :href="lp('/zh/academy/coaches/')">
         <span class="cta-card__num">4.5</span>
         <span class="cta-card__title">學院教練團</span>
         <p class="cta-card__desc">認識帶領各梯隊的教練</p>
       </a>
-      <a class="cta-card" :href="lp('/zh/academy/join/')">
+      <!-- 4.7 加入學院對藍鯨已整頁關閉（既有 units.ts，S1-15），不連結一個會 404 的頁面。 -->
+      <a v-if="isTcrfc" class="cta-card" :href="lp('/zh/academy/join/')">
         <span class="cta-card__num">4.7</span>
         <span class="cta-card__title">加入學院</span>
         <p class="cta-card__desc">招生對象與遴選流程</p>

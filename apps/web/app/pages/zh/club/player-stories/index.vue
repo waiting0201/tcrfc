@@ -2,14 +2,24 @@
 // app/pages/zh/club/player-stories/index.vue — 由 site/src/pages/zh/club/player-stories/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 // ⛔ 原頁 <script>（類別篩選 chips）改寫為 onMounted，行為逐字等價。
+//
+// S2-8（2026-09-29）：藍鯨規劃書 §3.3「一線隊」明文「沿用主站 03 的球員卡、球員頁與
+// 球員故事版型」，本頁對藍鯨維持開放（版型承諾沿用），但沒有任何已核實、已取得肖像
+// 同意的藍鯨球員故事案例可用——藍鯨版改為空狀態（0 案例），不得挪用磐石球員（孫恩祈／
+// 山內大空／楊朝景）充數，見 club-copy.ts「03.5 球員故事」節。
 definePageMeta({ nav: 'club', unit: '3.5' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+
+const hero = computed(() => getPlayerStoriesHero(clubKey.value))
+const emptyNote = computed(() => getPlayerStoriesEmptyNote(clubKey.value))
 
 useSeoMeta({
-  title: '球員故事 Player Stories｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
-  description:
-    '台中磐石足球俱樂部球員故事案例，可依學院、一線隊、海外、女足篩選，記錄選手從加入台中磐石到邁向更大舞台的真實歷程。',
+  title: computed(() => getPlayerStoriesSeo(clubKey.value).title),
+  description: computed(() => getPlayerStoriesSeo(clubKey.value).description),
 })
 
 onMounted(() => {
@@ -43,8 +53,8 @@ onMounted(() => {
   <img class="page-hero__bg" src="/assets/img/trencin-02.jpg" alt="" width="1920" height="1279">
   <div class="container">
     <p class="page-hero__eyebrow">3.5 Player Stories</p>
-    <h1>球員故事<span class="en">Player Stories</span></h1>
-    <p class="page-hero__lede">每一位選手都有自己的台中磐石歷程。這裡收錄學院、一線隊、海外與女足球員的真實案例，目前已建立 3 個案例，內容陸續補齊中。</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -52,54 +62,62 @@ onMounted(() => {
   <div class="band-inner container">
     <h2 class="visually-hidden" id="stories-title">球員故事案例</h2>
 
-    <div class="pos-filter" role="group" aria-label="依類別篩選球員故事">
-      <button type="button" class="pos-chip" data-cat-filter="ALL" aria-pressed="true">全部 3</button>
-      <button type="button" class="pos-chip" data-cat-filter="academy" aria-pressed="false">學院 0</button>
-      <button type="button" class="pos-chip" data-cat-filter="first-team" aria-pressed="false">一線隊 2</button>
-      <button type="button" class="pos-chip" data-cat-filter="overseas" aria-pressed="false">海外 1</button>
-      <button type="button" class="pos-chip" data-cat-filter="womens" aria-pressed="false">女足 0</button>
-    </div>
+    <template v-if="isTcrfc">
+      <div class="pos-filter" role="group" aria-label="依類別篩選球員故事">
+        <button type="button" class="pos-chip" data-cat-filter="ALL" aria-pressed="true">全部 3</button>
+        <button type="button" class="pos-chip" data-cat-filter="academy" aria-pressed="false">學院 0</button>
+        <button type="button" class="pos-chip" data-cat-filter="first-team" aria-pressed="false">一線隊 2</button>
+        <button type="button" class="pos-chip" data-cat-filter="overseas" aria-pressed="false">海外 1</button>
+        <button type="button" class="pos-chip" data-cat-filter="womens" aria-pressed="false">女足 0</button>
+      </div>
 
-    <div class="story-grid" id="story-grid">
-      <article class="story-card clip-card" data-cat="first-team">
-        <div class="story-card__visual">
-          <img class="story-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-          <span class="story-card__num">6</span>
-        </div>
-        <div class="story-card__body">
-          <span class="story-card__tag">一線隊 First Team</span>
-          <p class="story-card__name">孫恩祈<span class="story-card__pos">後衛 DF · 背號 6</span></p>
+      <div class="story-grid" id="story-grid">
+        <article class="story-card clip-card" data-cat="first-team">
+          <div class="story-card__visual">
+            <img class="story-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
+            <span class="story-card__num">6</span>
+          </div>
+          <div class="story-card__body">
+            <span class="story-card__tag">一線隊 First Team</span>
+            <p class="story-card__name">孫恩祈<span class="story-card__pos">後衛 DF · 背號 6</span></p>
 
-        </div>
-      </article>
+          </div>
+        </article>
 
-      <article class="story-card clip-card" data-cat="first-team">
-        <div class="story-card__visual">
-          <img class="story-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-          <span class="story-card__num">44</span>
-        </div>
-        <div class="story-card__body">
-          <span class="story-card__tag">一線隊 First Team</span>
-          <p class="story-card__name">山內大空<span class="story-card__pos">前鋒 FW · 背號 44</span></p>
+        <article class="story-card clip-card" data-cat="first-team">
+          <div class="story-card__visual">
+            <img class="story-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
+            <span class="story-card__num">44</span>
+          </div>
+          <div class="story-card__body">
+            <span class="story-card__tag">一線隊 First Team</span>
+            <p class="story-card__name">山內大空<span class="story-card__pos">前鋒 FW · 背號 44</span></p>
 
-        </div>
-      </article>
+          </div>
+        </article>
 
-      <article class="story-card clip-card" data-cat="overseas">
-        <div class="story-card__visual">
-          <img class="story-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-          <span class="story-card__num">11</span>
-        </div>
-        <div class="story-card__body">
-          <span class="story-card__tag">海外 Overseas</span>
-          <p class="story-card__name">楊朝景<span class="story-card__pos">中場 MF · 背號 11 · 現效力香港九龍城</span></p>
+        <article class="story-card clip-card" data-cat="overseas">
+          <div class="story-card__visual">
+            <img class="story-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
+            <span class="story-card__num">11</span>
+          </div>
+          <div class="story-card__body">
+            <span class="story-card__tag">海外 Overseas</span>
+            <p class="story-card__name">楊朝景<span class="story-card__pos">中場 MF · 背號 11 · 現效力香港九龍城</span></p>
 
-        </div>
-      </article>
-    </div>
+          </div>
+        </article>
+      </div>
 
-    <div class="story-empty-note">
-      <p><b>學院</b>與<b>女足</b>類別目前尚無已建立的球員故事案例。台中藍鯨的球員名單與賽程請見<a href="https://www.tcbw2014.com/" target="_blank" rel="noopener">台中藍鯨女子隊官網</a>（另開新分頁）。</p>
+      <div class="story-empty-note">
+        <p><b>學院</b>與<b>女足</b>類別目前尚無已建立的球員故事案例。台中藍鯨的球員名單與賽程請見<a href="https://www.tcbw2014.com/" target="_blank" rel="noopener">台中藍鯨女子隊官網</a>（另開新分頁）。</p>
+      </div>
+    </template>
+
+    <!-- 藍鯨版：無真實、已核實的球員故事案例可顯示，維持空狀態（見 club-copy.ts 說明），
+         不挪用磐石球員案例充數。 -->
+    <div v-else class="story-empty-note">
+      <p>{{ emptyNote }}</p>
     </div>
   </div>
 </section>
@@ -107,14 +125,15 @@ onMounted(() => {
 <section class="band grain cta-band" id="stories-cta" aria-labelledby="stories-cta-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="stories-cta-title">分享你的故事</h2>
-    <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
+    <div class="cta-grid" :style="isTcrfc ? 'grid-template-columns:repeat(2,minmax(0,1fr))' : 'grid-template-columns:1fr'">
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
         <p class="cta-card__title">認識一線隊</p>
         <p class="cta-card__desc">查看完整球員名單、教練團與本季賽程。</p>
         <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
       </div>
-      <div class="cta-card">
+      <!-- 3.4 國際發展通道對藍鯨已整頁關閉（units.ts，S2-8），不連結一個會 404 的頁面。 -->
+      <div v-if="isTcrfc" class="cta-card">
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">國際發展通道</p>
         <p class="cta-card__desc">了解球員通往歐洲、日本、香港的完整路徑。</p>

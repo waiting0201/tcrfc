@@ -179,6 +179,23 @@ const PROTECTED_PAGES = [
   // 字面寫死「台中磐石」／隊徽 SVG／「學院隊伍」，已改讀 getClubAssets()／
   // isTcrfc 判斷；已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。
   '/zh/schedule/',
+  // S2-8（2026-09-29）：3.3 球員機會（useSiteFacts 改為動態 clubKey、加入／外籍球員
+  // 段落改讀 getPlayerOpportunitiesHero()／getJoinFirstTeamBody()／
+  // getForeignPlayerBody()）、3.5 球員故事（藍鯨版改為空狀態，不挪用磐石球員案例）
+  // 兩頁對藍鯨已改為開放且已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。3.2／3.4
+  // 對藍鯨已整頁 404（見 units.ts），不適用本清單。
+  '/zh/club/opportunities/',
+  '/zh/club/player-stories/',
+  // S2-10（2026-09-29）：5.5 校園與社區改讀真實藍鯨建教合作學校列表／社區計畫／
+  // 教練培訓內容（SCHOOL_PARTNERS_BW 等），已用本機 bw 容器實測 0 筆命中，含 /en/
+  // 版本。5.3／5.4 對藍鯨已整頁 404（見 units.ts），不適用本清單。
+  '/zh/programs/school-community/',
+  // S2-8（2026-09-29，派工指示明文要求一併處理的既有品牌外洩）：4.3／4.4 改為細
+  // 粒度 unit 並讀 getAcademyPathwaySeo/Hero()／getAcademyCurriculumSeo/Hero()，
+  // 已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。4.5／4.6 對藍鯨已整頁 404（見
+  // units.ts），不適用本清單。
+  '/zh/academy/pathway/',
+  '/zh/academy/curriculum/',
 ]
 
 // ---------------------------------------------------------------------------

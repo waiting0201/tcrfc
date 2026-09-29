@@ -83,6 +83,13 @@ const ROUTES_ZH = [
   '/zh/academy/join/',
   '/zh/programs/childrens-training/',
   '/zh/programs/summer-camp/',
+  // S2-8／S2-10（2026-09-29）新增消費 useFaqPageSchema 的四個頁面：
+  // opportunities 用 'trials' 掛載點，其餘三個用 'program_detail'（同
+  // childrens-training／summer-camp 既有掛載點）。
+  '/zh/club/opportunities/',
+  '/zh/programs/winter-camp/',
+  '/zh/programs/specialist/',
+  '/zh/programs/school-community/',
 ]
 // E-74 修正後追加：`/zh/about/`／`/zh/checkout/`／`/zh/join/contact/` 是全站另外
 // 3 條撞上 `nuxt-schema-org` 猜測表關鍵字的路由（`about`／`checkout`／`contact`，

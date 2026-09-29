@@ -1,15 +1,57 @@
 <script setup lang="ts">
 // app/pages/zh/programs/school-community/index.vue — 由 site/src/pages/zh/programs/school-community/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+//
+// S2-10（2026-09-29）：本頁對藍鯨維持開放（不同於 5.1–5.4）——
+// `content/blue-whale/club-profile.md` §1「建教合作」欄有 5 校真實名單、
+// `programs.md` §2／§4 有真實社區推廣（運動 i 台灣 2.0）與教練講習內容，與本頁
+// 「合作學校列表／社區計畫／教練培訓」三個子區塊直接對應，改為讀
+// `shared/utils/club-copy.ts` 的 `SCHOOL_PARTNERS_BW`／`COMMUNITY_PROGRAM_BODY_BW`／
+// `COACH_TRAINING_BODY_BW`（逐字節錄舊站原文，紀律 11）。磐石版「合作學校列表」與
+// 「社區計畫」「教練培訓」兩段既有內容本來就是空白（客戶尚未提供），維持原樣，
+// 不臆造磐石的對應內容。
 definePageMeta({ nav: 'programs', unit: '5.5' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+
+const hero = computed(() => getSchoolCommunityHero(clubKey.value))
 
 useSeoMeta({
-  title: '校園與社區 School & Community｜課程與活動｜台中磐石足球俱樂部',
-  description:
-    '台中磐石校園合作方案、社區計畫與教練培訓，歡迎學校與社區單位洽談合作，填寫表單由專人聯繫。',
+  title: computed(() => getSchoolCommunitySeo(clubKey.value).title),
+  description: computed(() => getSchoolCommunitySeo(clubKey.value).description),
 })
+
+const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
+  query: { type: 'school_community', pageSize: 5, lang: locale.value },
+})
+const firstProgram = computed(() => programList.value?.items?.[0] ?? null)
+const { data: programDetail } = await useFetch(
+  `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
+  { query: { lang: locale.value }, immediate: !!firstProgram.value },
+)
+
+// G-12 常見問題快捷區塊：program_detail 掛載點，理由同 childrens-training/index.vue。
+const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
+useFaqPageSchema(faqs)
+
+// Course JSON-LD（GEO-05／§7 結構化資料型別清單，S1-20）。provider 固定為俱樂部本身，
+// 兩俱樂部皆開放，故用 clubKey 動態取得名稱。資料不足（現況：programs 表 0 筆種子
+// 資料）時不輸出，見 shared/utils/schema-batch2.ts。
+const siteConfig = useSiteConfig()
+useCourseSchema(
+  computed(() => (programDetail.value
+    ? {
+        name: programDetail.value.name ?? null,
+        intro: programDetail.value.intro ?? null,
+        ageMin: programDetail.value.ageMin ?? null,
+        ageMax: programDetail.value.ageMax ?? null,
+      }
+    : null)),
+  { providerName: getClubAssets(clubKey.value).nameZh, siteUrl: computed(() => siteConfig.url ?? '') },
+)
 </script>
 
 <template>
@@ -27,8 +69,8 @@ useSeoMeta({
   <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">5.5</span>
   <div class="container">
     <p class="page-hero__eyebrow">5.5 Programs</p>
-    <h1>校園與社區<span class="en">School &amp; Community</span></h1>
-    <p class="page-hero__lede">台中磐石與學校、社區單位合作推廣足球運動，提供校園方案、社區計畫與教練培訓，並協助培育在地師資。</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -37,18 +79,20 @@ useSeoMeta({
     <div class="grid grid--3">
       <div class="prose">
         <h2>校園合作方案</h2>
-        
+        <p v-if="!isTcrfc">建教合作學校名單見下方「合作學校列表」。</p>
+        <p v-else class="is-pending">內容準備中，稍後將於本頁公布。</p>
       </div>
       <div class="prose">
         <h2>社區計畫</h2>
-        
+        <p v-if="!isTcrfc">{{ COMMUNITY_PROGRAM_BODY_BW }}</p>
+        <p v-else class="is-pending">內容準備中，稍後將於本頁公布。</p>
       </div>
       <div class="prose">
         <h2>教練培訓</h2>
-        
+        <p v-if="!isTcrfc">{{ COACH_TRAINING_BODY_BW }}</p>
+        <p v-else class="is-pending">內容準備中，稍後將於本頁公布。</p>
       </div>
     </div>
-    
   </div>
 </section>
 
@@ -56,14 +100,22 @@ useSeoMeta({
   <div class="container">
     <div class="prose" style="margin-bottom:1.5rem;">
       <h2 id="sch-list-title">合作學校列表</h2>
-      <p>合作學校名單將於客戶確認後公告於此處。</p>
+      <p v-if="!isTcrfc">台中藍鯨既有建教合作學校（女子足球隊）如下：</p>
+      <p v-else>合作學校名單將於客戶確認後公告於此處。</p>
     </div>
     <div class="table-wrap">
       <table class="data-table">
         <thead>
           <tr><th scope="col">學校／單位</th><th scope="col">合作內容</th><th scope="col">合作年度</th></tr>
         </thead>
-        <tbody>
+        <tbody v-if="!isTcrfc">
+          <tr v-for="s in SCHOOL_PARTNERS_BW" :key="s.nameZh">
+            <td>{{ s.nameZh }}</td>
+            <td>{{ s.contentZh }}</td>
+            <td :class="{ 'is-pending': !s.yearZh }">{{ s.yearZh ?? '未標明年度' }}</td>
+          </tr>
+        </tbody>
+        <tbody v-else>
           <tr></tr>
           <tr></tr>
           <tr></tr>
@@ -73,11 +125,30 @@ useSeoMeta({
   </div>
 </section>
 
+<section class="band">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">FAQ</p>
+        <h2 class="section-title">校園與社區常見問題</h2>
+      </div>
+      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+    </div>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <dl v-else class="faq-embed-list">
+      <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
+        <dt>{{ f.question }}</dt>
+        <dd>{{ f.answer }}</dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
 <section class="band" aria-labelledby="sch-form-title">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;max-width:60ch;">
       <h2 id="sch-form-title">洽談合作</h2>
-      <p>學校或社區單位如有合作意願，歡迎填寫以下表單，台中磐石團隊將盡快與您聯繫。</p>
+      <p>學校或社區單位如有合作意願，歡迎填寫以下表單，{{ getClubAssets(clubKey).shortNameZh }}團隊將盡快與您聯繫。</p>
     </div>
 
     <form class="inquiry-form" onsubmit="return false;">
@@ -124,7 +195,7 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">PARTNER WITH US</p>
-        <h2 class="section-title" id="sch-cta-title">與台中磐石一起推廣足球</h2>
+        <h2 class="section-title" id="sch-cta-title">與{{ getClubAssets(clubKey).shortNameZh }}一起推廣足球</h2>
       </div>
     </div>
     <div class="hero__ctas" style="margin-top:1.5rem;">
@@ -142,6 +213,13 @@ useSeoMeta({
 .data-table th, .data-table td{ padding:.85rem 1rem; text-align:left; border-bottom:1px solid var(--rule); font-size:.85rem; }
 .data-table thead th{ background:var(--ink); color:#fff; font-weight:700; letter-spacing:.03em; }
 .data-table td.is-pending{ color:var(--muted); font-style:italic; }
+
+/* S2-10 新增：一般性 pending 提示（非表格內）與 G-12 常見問題快捷區塊
+   （沿用 programs 系列既有慣例）。 */
+.is-pending{ color:var(--muted); font-style:italic; }
+.faq-embed-list{ margin-top:1.5rem; display:flex; flex-direction:column; gap:1.25rem; }
+.faq-embed-item dt{ font-weight:800; color:var(--heading); }
+.faq-embed-item dd{ margin:.4rem 0 0; color:var(--muted); font-size:.9rem; line-height:1.7; }
 
 /* 洽談表單（介面結構，非客戶內容） */
 .inquiry-form{ background:var(--paper-2); padding:clamp(1.75rem,4vw,2.75rem); display:grid; gap:1.25rem; grid-template-columns:repeat(2,1fr); }

@@ -1,6 +1,12 @@
 <script setup lang="ts">
 // app/pages/zh/academy/life.vue — 由 site/src/pages/zh/academy/life/index.html 轉來（S0-9 靜態頁搬遷）
-definePageMeta({ nav: "academy", unit: "04" })
+//
+// S2-8（2026-09-29）：改為細粒度 unit '4.6' 並對藍鯨關閉（units.ts
+// BLUE_WHALE_DISABLED_UNITS）。本頁是 13 張磐石學院學員（未成年）真實訓練／比賽
+// 照片，不能挪用成藍鯨——藍鯨沒有對應、已核實肖像同意的青年隊照片可用（既有缺口，
+// 見 apps/web/README.md「S1-16」節「缺內容清單」同一個問題），故關閉，不需要
+// 俱樂部分支。
+definePageMeta({ nav: "academy", unit: "4.6" })
 
 const { lp } = useLocale()
 

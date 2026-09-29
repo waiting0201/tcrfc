@@ -1,15 +1,59 @@
 <script setup lang="ts">
 // app/pages/zh/programs/specialist/index.vue — 由 site/src/pages/zh/programs/specialist/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+//
+// S2-10（2026-09-29）：本頁對藍鯨已整頁 404（units.ts BLUE_WHALE_DISABLED_UNITS 的
+// '5.4')。內容是磐石男子一線隊球員真實訓練照片與「台中磐石成人足球訓練營」具名宣傳
+// 文案，與 3.4／4.5／4.6 同一種「真實事實無法替換」問題；藍鯨唯一沾得上邊的是社區
+// 推廣性質的「藍鯨守門員基礎班」（7–12 歲兒童班），規模與定位都不是同一種六大專項
+// 競技訓練產品，換抬頭字樣會構成臆造，故關閉，不需要俱樂部分支。理由見
+// shared/utils/units.ts 檔頭與 apps/web/README.md「S2-10」節。
+//
+// 本輪新增：讀真實 05 課程與活動公開 API 查詢 `program_type='specialist_training'`。
+// 六大專項本身是固定分類介紹（既有靜態內容，非資料驅動），不覆寫；新增「目前開放
+// 報名的專項」區塊，有真實梯次時顯示，沒有（現況：programs 表 0 筆種子資料）時維持
+// 既有「站內不接受金流付款」提示,不臆造。
 definePageMeta({ nav: 'programs', unit: '5.4' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
+const config = useRuntimeConfig()
 
 useSeoMeta({
   title: '專項訓練 Specialist Training｜課程與活動｜台中磐石足球俱樂部',
   description:
     '台中磐石專項訓練涵蓋守門員、前鋒、後衛、中場、體能與速度、高階訓練六大類別，由台中磐石教練團規劃執行，線上報名。',
 })
+
+const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
+  query: { type: 'specialist_training', pageSize: 10, lang: locale.value },
+})
+const openPrograms = computed(() => (programList.value?.items ?? []).filter((p) => p.hasOpenSession))
+const firstProgram = computed(() => programList.value?.items?.[0] ?? null)
+const { data: programDetail } = await useFetch(
+  `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
+  { query: { lang: locale.value }, immediate: !!firstProgram.value },
+)
+
+// G-12 常見問題快捷區塊：program_detail 掛載點，理由同 childrens-training/index.vue。
+const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
+useFaqPageSchema(faqs)
+
+// Course JSON-LD（GEO-05／§7 結構化資料型別清單，S1-20）。本頁可能有多筆專項課程，
+// 但 useCourseSchema 現況只接單一課程物件（同 S1-20 既有介面），故比照 5.1／5.2
+// 既有做法只取第一筆——不逐一輸出六個專項，避免另開一套多節點介面卻沒有真實資料
+// 可驗證。provider 固定為俱樂部本身（本頁對藍鯨已整頁 404，理由同上）。
+const siteConfig = useSiteConfig()
+useCourseSchema(
+  computed(() => (programDetail.value
+    ? {
+        name: programDetail.value.name ?? null,
+        intro: programDetail.value.intro ?? null,
+        ageMin: programDetail.value.ageMin ?? null,
+        ageMax: programDetail.value.ageMax ?? null,
+      }
+    : null)),
+  { providerName: getClubAssets(config.public.club).nameZh, siteUrl: computed(() => siteConfig.url ?? '') },
+)
 </script>
 
 <template>
@@ -77,6 +121,43 @@ useSeoMeta({
 
 <section class="band" style="background:var(--paper-2);">
   <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">OPEN NOW</p>
+        <h2 class="section-title">目前開放報名的專項</h2>
+      </div>
+    </div>
+    <p v-if="openPrograms.length === 0" class="is-pending" style="margin-top:1.5rem;">目前尚無開放報名中的專項梯次，請關注官方社群公告。</p>
+    <ul v-else class="open-program-list">
+      <li v-for="p in openPrograms" :key="p.id" class="open-program-item">
+        <span class="open-program-item__name">{{ p.name }}</span>
+        <span v-if="p.audience" class="open-program-item__audience">{{ p.audience }}</span>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section class="band">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">FAQ</p>
+        <h2 class="section-title">專項訓練常見問題</h2>
+      </div>
+      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+    </div>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <dl v-else class="faq-embed-list">
+      <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
+        <dt>{{ f.question }}</dt>
+        <dd>{{ f.answer }}</dd>
+      </div>
+    </dl>
+  </div>
+</section>
+
+<section class="band" style="background:var(--paper-2);">
+  <div class="container">
     <div class="prose">
       <h2>教練資格</h2>
       <p>依客戶提供之「台中磐石成人足球訓練營」宣傳資料，台中磐石專項訓練教練團具備 <span class="en">AFC</span> 教練證照。</p>
@@ -132,4 +213,14 @@ useSeoMeta({
 .photo-grid figure{ margin:0; position:relative; }
 .photo-grid img{ width:100%; aspect-ratio:4/3; object-fit:cover; display:block; }
 .photo-grid figcaption{ font-size:.72rem; color:var(--muted); margin-top:.5rem; line-height:1.5; }
+
+/* S2-10 新增：開放報名專項清單／常見問題快捷區塊（沿用 programs 系列既有慣例）。 */
+.is-pending{ color:var(--muted); font-style:italic; }
+.open-program-list{ margin-top:1.5rem; display:flex; flex-direction:column; gap:.75rem; }
+.open-program-item{ display:flex; justify-content:space-between; gap:1rem; padding:.9rem 1.1rem; background:var(--paper); border:1px solid var(--rule); }
+.open-program-item__name{ font-weight:800; color:var(--heading); }
+.open-program-item__audience{ font-size:.82rem; color:var(--muted); }
+.faq-embed-list{ margin-top:1.5rem; display:flex; flex-direction:column; gap:1.25rem; }
+.faq-embed-item dt{ font-weight:800; color:var(--heading); }
+.faq-embed-item dd{ margin:.4rem 0 0; color:var(--muted); font-size:.9rem; line-height:1.7; }
 </style>
