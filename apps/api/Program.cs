@@ -403,6 +403,31 @@ builder.Services.AddRateLimiter(options =>
             QueueLimit = 0,
         });
     });
+
+    // ── S1-18c：補齊其餘公開寫入端點的限流缺口（見 Common/PublicRateLimitPolicies.cs 檔頭完整
+    // 說明——兩個政策為什麼分開、數值怎麼來的）。同一套「依訪客 IP 分區」寫法，不重新解析
+    // X-Forwarded-For，理由同上一個政策。──────────────────────────────────────────
+    options.AddPolicy(PublicRateLimitPolicies.LightInteraction, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = PublicRateLimitPolicies.LightInteractionPermitLimit,
+            Window = PublicRateLimitPolicies.LightInteractionWindow,
+            QueueLimit = 0,
+        });
+    });
+
+    options.AddPolicy(PublicRateLimitPolicies.Submission, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = PublicRateLimitPolicies.SubmissionPermitLimit,
+            Window = PublicRateLimitPolicies.SubmissionWindow,
+            QueueLimit = 0,
+        });
+    });
 });
 
 // ── OpenAPI：只在開發環境開，正式環境關掉或鎖住（CLAUDE.md 任務指示） ─────────────────

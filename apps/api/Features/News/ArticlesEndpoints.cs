@@ -73,6 +73,7 @@ public static class ArticlesEndpoints
         })
         .WithName("IncrementNewsArticleViewCount")
         .WithTags("News")
+        .RequireRateLimiting(PublicRateLimitPolicies.LightInteraction)
         .Produces(StatusCodes.Status204NoContent)
         .Produces(StatusCodes.Status404NotFound);
     }

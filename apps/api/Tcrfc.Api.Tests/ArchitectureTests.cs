@@ -376,4 +376,117 @@ public sealed class ArchitectureTests
         var firstSegment = relative.Split(Path.DirectorySeparatorChar, 2)[0];
         return firstSegment.StartsWith("Admin", StringComparison.Ordinal);
     }
+
+    /// <summary>
+    /// S1-18c（2026-09-29，補齊公開寫入端點的限流缺口）：純掃原始碼的架構守門測試，跟本檔前兩支
+    /// 測試同一種精神——掃描 <c>Features/*</c>（排除 <c>Features/AdminXxx</c>，理由同上一支測試
+    /// 共用的 <see cref="IsUnderAdminFeature"/> 判斷：公開端點全部「不需要登入」，後台端點另外走
+    /// <c>IAdminClubAuthorizer</c>／<c>IAdminSystemAuthorizer</c> 一組完全不同的防護，不是這支
+    /// 測試要守的洞），找每一個 <c>MapPost</c>／<c>MapPut</c>／<c>MapDelete</c>／<c>MapPatch</c>
+    /// 呼叫，要求它所在的 fluent chain（<c>.WithName(...)</c>／<c>.Produces(...)</c> 那一長串）
+    /// 裡一定要有 <c>.RequireRateLimiting(...)</c>，否則記一筆違規——這是
+    /// docs/14-invariants.md「公開寫入端點一律限流」這條不變量的自動化防呆：往後任何人在
+    /// <c>Features/*</c>（非 Admin）新增一個公開非 GET 端點卻忘記掛限流，<c>dotnet test</c>
+    /// 會直接失敗，不必等到真的被灌爆才發現。
+    ///
+    /// **判斷「公開」的依據是檔案所在資料夾，不是逐一檢查 handler 內有沒有呼叫授權方法**：
+    /// 本專案目前每一個 <c>Features/*Endpoints.cs</c>（非 Admin）檔案開頭的 XML 文件註解都明文
+    /// 「全部不需要登入」，是刻意的架構切分（後台一律在 <c>Features/AdminXxx</c> 底下、一律經過
+    /// 型別層強制授權，見本檔第一支測試）；用資料夾判斷比較穩定，不會因為某個 handler 剛好呼叫了
+    /// 什麼方法名稱而誤判。
+    ///
+    /// **涵蓋邊界**：只驗證「chain 裡有沒有出現 <c>RequireRateLimiting</c> 呼叫」，不驗證掛的是
+    /// 哪一個政策、政策的額度是否合理——額度合理性是
+    /// <c>Tcrfc.Api.Tests.PublicRateLimitPoliciesTests</c> 的職責，這支測試只守「有沒有掛」這個
+    /// 最低門檻。
+    /// </summary>
+    [Fact]
+    public void 公開端點的非GET寫入呼叫都必須掛限流政策()
+    {
+        var apiDir = Path.Combine(RepoRoot(), "apps", "api");
+        var featuresDir = Path.Combine(apiDir, "Features");
+        Assert.True(Directory.Exists(featuresDir), $"找不到 apps/api/Features 目錄：{featuresDir}");
+
+        var sourceFiles = Directory.EnumerateFiles(featuresDir, "*.cs", SearchOption.AllDirectories)
+            .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")
+                     && !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}"))
+            .Where(f => !IsUnderAdminFeature(f, featuresDir))
+            .ToList();
+
+        Assert.True(sourceFiles.Count > 5, $"只掃到 {sourceFiles.Count} 個公開端點檔案，遠低於預期——路徑篩選可能算錯。");
+
+        var syntaxTrees = sourceFiles
+            .Select(f => CSharpSyntaxTree.ParseText(File.ReadAllText(f), path: f))
+            .ToList();
+
+        var compilation = CSharpCompilation.Create(
+            assemblyName: "RateLimitScan",
+            syntaxTrees: syntaxTrees,
+            references: CollectReferences(),
+            options: new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+        var writeMethodNames = new HashSet<string>(StringComparer.Ordinal) { "MapPost", "MapPut", "MapDelete", "MapPatch" };
+        var violations = new List<string>();
+
+        foreach (var tree in syntaxTrees)
+        {
+            var semanticModel = compilation.GetSemanticModel(tree);
+            var root = tree.GetRoot();
+
+            foreach (var invocation in root.DescendantNodes().OfType<InvocationExpressionSyntax>())
+            {
+                var symbolInfo = semanticModel.GetSymbolInfo(invocation);
+                if (symbolInfo.Symbol is not IMethodSymbol method || !writeMethodNames.Contains(method.Name))
+                {
+                    continue;
+                }
+
+                // 確認這是 ASP.NET Core Minimal API 路由對映方法，不是巧合同名的其他方法——
+                // 這幾個方法一律定義在 Microsoft.AspNetCore 底下的擴充方法類別。
+                var containingNamespace = method.ContainingType?.ContainingNamespace?.ToDisplayString();
+                if (containingNamespace is null || !containingNamespace.StartsWith("Microsoft.AspNetCore", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                if (!ChainHasRequireRateLimiting(invocation))
+                {
+                    var lineNumber = tree.GetLineSpan(invocation.Span).StartLinePosition.Line + 1;
+                    violations.Add(
+                        $"{tree.FilePath}:{lineNumber}: {method.Name} 呼叫沒有掛 .RequireRateLimiting(...)——" +
+                        "公開非 GET 端點一律要限流（docs/14-invariants.md「公開寫入端點一律限流」）。");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0,
+            "發現公開端點的寫入呼叫沒有掛限流政策，任何人都能無限次呼叫、灌票或塞爆資料庫：\n"
+            + string.Join("\n", violations));
+    }
+
+    /// <summary>從 <c>MapPost</c>（或其他寫入方法）呼叫節點沿著 fluent chain 往外層走
+    /// （<c>.WithName(...).WithTags(...).RequireRateLimiting(...).Produces(...)</c> 這種一路
+    /// 串下去的寫法，語法樹上是一層層互相巢狀的 <c>MemberAccessExpression</c>／
+    /// <c>InvocationExpression</c>），檢查沿路有沒有任何一段是 <c>.RequireRateLimiting(...)</c>。
+    /// 只比對成員名稱字串（不追語意符號）——<c>RequireRateLimiting</c> 這個名稱在本專案裡不會
+    /// 跟其他無關方法撞名，字串比對已經足夠，不需要為此再多一層語意解析成本。</summary>
+    private static bool ChainHasRequireRateLimiting(InvocationExpressionSyntax mapInvocation)
+    {
+        SyntaxNode current = mapInvocation;
+
+        while (current.Parent is MemberAccessExpressionSyntax memberAccess
+               && memberAccess.Expression == current
+               && memberAccess.Parent is InvocationExpressionSyntax outerInvocation
+               && outerInvocation.Expression == memberAccess)
+        {
+            if (memberAccess.Name.Identifier.Text == "RequireRateLimiting")
+            {
+                return true;
+            }
+
+            current = outerInvocation;
+        }
+
+        return false;
+    }
 }

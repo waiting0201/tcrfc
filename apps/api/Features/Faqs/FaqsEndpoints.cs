@@ -80,8 +80,10 @@ public static class FaqsEndpoints
         })
         .WithName("IncrementFaqViewCount")
         .WithTags("Faqs")
+        .RequireRateLimiting(PublicRateLimitPolicies.LightInteraction)
         .Produces(StatusCodes.Status204NoContent)
-        .Produces(StatusCodes.Status404NotFound);
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status429TooManyRequests);
 
         // POST /api/v1/{club}/faqs/{slug}/feedback  body: { "helpful": true|false }
         app.MapPost("/api/v1/{club}/faqs/{slug}/feedback", async (
@@ -94,8 +96,10 @@ public static class FaqsEndpoints
         })
         .WithName("SubmitFaqFeedback")
         .WithTags("Faqs")
+        .RequireRateLimiting(PublicRateLimitPolicies.LightInteraction)
         .Produces(StatusCodes.Status204NoContent)
-        .Produces(StatusCodes.Status404NotFound);
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status429TooManyRequests);
 
         // POST /api/v1/{club}/faqs/search-misses  body: { "keyword": "..." }
         // 🔴 前台真正呈現「找不到結果」畫面給使用者看到的那一刻才呼叫，見 FaqsRepository.RecordSearchMissAsync。
@@ -117,7 +121,9 @@ public static class FaqsEndpoints
         })
         .WithName("RecordFaqSearchMiss")
         .WithTags("Faqs")
+        .RequireRateLimiting(PublicRateLimitPolicies.LightInteraction)
         .Produces(StatusCodes.Status204NoContent)
-        .Produces(StatusCodes.Status404NotFound);
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status429TooManyRequests);
     }
 }

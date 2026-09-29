@@ -6940,6 +6940,120 @@ reCAPTCHA／Turnstile）。盤點結果——**全系統目前沒有串接任何
    commit 卻找不到解釋；這與 `docs/18-work-errors.md` E-10「代號順移後舊代號語意改變」記過的
    教訓同一類——概念變更要能被回溯理解，不是憑空消失。
 
+## S1-18c：補齊公開寫入端點的限流缺口（2026-09-29，`backend-engineer`）
+
+### 背景：`RequireRateLimiting` 原本只掛在表單送出一個端點上
+
+S1-10／S1-17 只把 `Program.cs` 的依 IP 分區限流掛到 `POST .../forms/{formCode}/submissions`
+（10 表單中心公開送出）一個端點上。盤點後發現同樣「不需要登入、任何人都能呼叫」的其餘公開
+非 GET 端點完全沒有限流，任何人可以無限次呼叫，灌票（FAQ 👍／👎）、洗瀏覽數，或塞爆
+`faq_search_misses`／`registrations` 等表。
+
+### 盤點結果：`apps/api` 全部不需要登入的非 GET 端點
+
+判斷「需不需要登入」的依據是**檔案所在資料夾**：`Features/AdminXxx/` 底下的端點一律經過
+`IAdminClubAuthorizer`／`IAdminSystemAuthorizer` 型別層強制授權（見 `ArchitectureTests.cs`
+第一支測試），`Features/Xxx/`（非 Admin）底下的端點依既有架構慣例全部不需要登入（每個檔案
+開頭的 XML 文件註解都明文寫「全部不需要登入」）。
+
+| 路徑 | 用途 | 本輪之前是否限流 | 本輪處置 |
+|---|---|---|---|
+| `POST /api/v1/{club}/forms/{formCode}/submissions` | 10 表單中心公開送出 | ✅ 已有（`form-submission`，20／5 分鐘） | 不動（任務指示明文不改既有數值） |
+| `POST /api/v1/{club}/faqs/{slug}/views` | FAQ 瀏覽數＋1 | ❌ 無 | 新增，掛 `public-light-interaction` |
+| `POST /api/v1/{club}/faqs/{slug}/feedback` | FAQ 👍／👎 回饋 | ❌ 無 | 新增，掛 `public-light-interaction` |
+| `POST /api/v1/{club}/faqs/search-misses` | FAQ 零結果搜尋關鍵字記錄 | ❌ 無 | 新增，掛 `public-light-interaction` |
+| `POST /api/v1/{club}/news/{slug}/views` | 新聞瀏覽數＋1 | ❌ 無 | 新增，掛 `public-light-interaction` |
+| `POST /api/v1/{club}/programs/sessions/{sessionId}/registrations` | 05 課程與活動公開報名送出 | ❌ 無 | 新增，掛 `public-submission` |
+| `POST /api/v1/admin/auth/login` | 後台登入 | ❌ 無 IP 限流（有帳號鎖定，見下） | **本輪未動**，見下方說明 |
+| `POST /api/v1/admin/auth/refresh` | 後台更新權杖 | ❌ 無 IP 限流 | **本輪未動**，見下方說明 |
+| `POST /api/v1/admin/auth/logout` | 後台登出 | ❌ 無 IP 限流 | **本輪未動**，風險低（純清空 Cookie，無業務副作用可濫用） |
+
+**`Features/AdminAuth/AdminAuthEndpoints.cs` 的 `/login`／`/refresh`／`/logout` 三個端點雖然
+路由在 `Features/AdminXxx/` 之下，但呼叫當下確實不需要先登入**（`/login` 本來就是登入本身；
+`/refresh`／`/logout` 只檢查 Cookie，不檢查 JWT）——技術上符合任務指示「所有不需登入的非 GET
+端點」，因此列在這裡盤點，但**本輪刻意不動**：① `/login` 已有帳號層級的鎖定機制
+（`LoginOutcome.Locked`，見 `AdminAuthService`），跟本輪要解決的「公開內容端點被灌爆資料庫」
+是不同風險模型（帳號枚舉／暴力破解 vs. 業務資料表被灌爆），加不加 IP 限流、額度多少屬於另一個
+判斷、規劇書與 docs 都沒有明文要求，不屬於本輪任務指示點名的範圍（任務指示的例子全部是
+FAQ／瀏覽數這類公開內容端點）；② 硬把它們也套進 `public-light-interaction`／`public-submission`
+兩個政策不合理——登入端點的合理額度、要不要跟 `/login` 帳號鎖定分開計算，是需要另外設計的
+獨立題目，勉強共用會讓兩邊的數值互相牽制、日後很難個別調整。**這是刻意留下的缺口，不是漏看**，
+若日後要補，建議另開一個政策名稱、額度也重新評估（帳號枚舉的合理防禦額度通常比內容端點更嚴格）。
+`Features/Calendar`／`Features/Clubs`／`Features/Home`／`Features/Pages`／`Features/Players`／
+`Features/Schedule`／`Features/Seo`／`Features/SiteFacts`／`Features/Staff`／`Features/Teams`
+目前**沒有任何非 GET 端點**，盤點時確認過（`grep -n "app.Map\(Post\|Put\|Delete\|Patch\)"`
+逐檔掃過，結果是空的），不需要處置。
+
+### 兩個新政策：為什麼跟表單送出分開、數值怎麼來的
+
+新增 `Common/PublicRateLimitPolicies.cs` 集中兩個政策名稱與額度常數（`Program.cs` 註冊、
+各端點掛 `.RequireRateLimiting(...)`、`Tcrfc.Api.Tests` 驗證三邊共用同一組常數，不重複寫魔術
+數字）：
+
+- **`public-light-interaction`**（60 次／1 分鐘）：FAQ 瀏覽數／回饋／零結果搜尋、新聞瀏覽數——
+  都是「使用者正常瀏覽時就可能連續觸發好幾次」的輕量互動（連續點開多篇 FAQ、快速翻頁看多篇
+  新聞），額度刻意比表單寬鬆。
+- **`public-submission`**（20 次／5 分鐘）：目前只有 05 課程與活動的公開報名送出。跟表單送出
+  同一風險等級（都是「建立一筆真正業務紀錄」），數值刻意抄表單那組，但**用獨立政策名稱、獨立
+  額度計數**，不共用表單的計數——避免兩個功能互搶額度，也讓兩者未來各自調整數值互不牽連。
+
+兩組數字都跟既有 `form-submission` 政策一樣，**是「規劃書或 docs 沒寫、執行層自行決定」的
+具體選擇，沒有規格依據，屬最小可行防護**（比照 `Program.cs` 既有政策註冊時的既有慣例，
+`Common/CsvUtils.cs` 檔頭「沒定義就採最小可行」的既有慣例）。
+
+### 架構測試：忘記掛限流會讓 `dotnet test` 直接失敗
+
+`Tcrfc.Api.Tests/ArchitectureTests.cs` 新增第三支 Roslyn 語意掃描測試
+`公開端點的非GET寫入呼叫都必須掛限流政策`：掃 `Features/*`（排除 `Features/AdminXxx`，跟
+「公開DTO的物件鍵欄位」那支既有測試共用同一個 `IsUnderAdminFeature` 判斷），找每一個
+`MapPost`／`MapPut`／`MapDelete`／`MapPatch` 呼叫，沿著它的 fluent chain
+（`.WithName(...).Produces(...)` 那一長串）往外走，要求路上一定要出現 `.RequireRateLimiting(...)`，
+否則記一筆違規。往後任何人在 `Features/*`（非 Admin）新增公開非 GET 端點卻忘記掛限流，
+`dotnet test` 會直接失敗，不必等到真的被灌爆才發現——這是 `docs/14-invariants.md`「公開寫入
+端點一律限流」這條新不變量的自動化防呆。
+
+只驗證「有沒有掛」，不驗證掛的是哪個政策、額度是否合理——額度合理性是下面
+`PublicRateLimitPoliciesTests` 的職責。
+
+### 測試
+
+- **`Tcrfc.Api.Tests/PublicRateLimitPoliciesTests.cs`**（新增，2 項，不需要資料庫、不需要
+  `WebApplicationFactory`）：直接對 `PublicRateLimitPolicies` 實際設定的數值建一個
+  `PartitionedRateLimiter<string>`，驗證額度用盡後下一次請求被拒絕、且不同分區鍵（模擬不同
+  訪客 IP）互不影響。刻意不透過 HTTP 打——`TestServer` 底下 `RemoteIpAddress` 恆為 `null`，
+  所有透過真正 HTTP 請求的呼叫一律解析成同一個「unknown」分區鍵，沒辦法在那個環境下驗證
+  「不同 IP 分區互相獨立」，改用兩個不同的字串分區鍵直接餵限流器本身繞開這個環境限制。
+- **`Tcrfc.Api.Tests/PublicWriteEndpointRateLimitingTests.cs`**（新增，2 項，需要
+  `WebApplicationFactory`＋測試資料庫）：走真正 HTTP 管線驗證 `Program.cs` 真的把兩個政策
+  接到對應路由上（超過額度收到 429），跟上一份檔案分工不同——那份測政策本身的行為，這份測
+  「有沒有真的接上」。用共用的 `ApiCollection`／`ApiFixture`：這個 collection 目前只有純讀取
+  端點測試在用，不會互相污染分區計數；本檔每個政策只寫一支會把額度用盡的測試方法，避免同一個
+  「unknown」分區被多支測試方法的執行順序互相干擾。
+- **既有測試回歸**：`PublicFaqsTests`／`NewsPublicFilterAndViewCountTests`／
+  `AdminProgramsSessionsRegistrationsTests`（公開報名送出）皆與
+  `AdminFormsEnquiriesTests`／`AdminFaqsAndCategoriesTests` 共用 `AdminWriteCollection`，
+  對 `public-light-interaction`／`public-submission` 兩個政策實際呼叫次數分別約 13 次與
+  6 次，遠低於 60／20 的額度，跑過 82 項全部通過，沒有因為新增限流而誤傷。
+- **實際執行**（2026-09-29，本機 `tcrfc_club_test`）：`dotnet test Tcrfc.Api.Tests` 全數
+  533 項通過（0 失敗、0 略過），涵蓋上述新增 4 項＋既有 529 項回歸。
+
+### 同一 IP 對同一題可以重複投票 FAQ 回饋，本輪評估後刻意不做去重
+
+`faqs.helpful_count`／`unhelpful_count` 是彙總計數欄位，資料庫層沒有任何「這個訪客對這一題
+投過票」的紀錄（沒有 IP／裝置指紋／Cookie 之類的去重鍵），主站規劃書也沒有提到 FAQ 回饋需要
+防止重複投票（§3.12 只寫「回饋數據回寫後台供優化」，`docs/12b`／`docs/12` 都沒有提到去重）。
+本輪限流只能把「短時間內灌爆」的速度壓下來（60 次／1 分鐘），**不能防止同一個訪客用同一個 IP、
+分散在多個時間視窗內反覆對同一題投票**——這件事技術上可行，但**規劃書沒寫、任務指示也明確
+要求「規劃書沒寫的行為不要發明」**，因此本輪不新增任何去重機制（例如按 IP＋FAQ id 記一張
+去重表、或改用「已投過票」Cookie）。如果要補，需要先回頭跟規劃書要求方確認「回饋數據」是否
+真的需要防重複灌票這個特性，再決定去重鍵要用什麼（IP 太粗，同一個辦公室／校園網路會互相
+擋到；Cookie 又擋不住清 Cookie 的人），這是需要另外討論、不是本輪能自行判斷的範圍。
+
+### 沒有新的機密要加
+
+兩個新政策名稱與額度都是寫死在程式碼裡的常數，不是機密，不需要新增任何環境變數或
+`/opt/tcrfc/secrets/*.env` 項目。
+
 ## 相關文件
 
 - [`docs/12-database-schema.md`](../../docs/12-database-schema.md)／[`12a`](../../docs/12a-database-erd.md)／[`12b`](../../docs/12b-database-tables.md)／[`12c`](../../docs/12c-i18n-tables.md) — 資料表設計、權限模型、受限欄位、i18n 側表

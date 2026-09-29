@@ -53,8 +53,10 @@ public static class ProgramsEndpoints
         })
         .WithName("SubmitProgramRegistration")
         .WithTags("Programs")
+        .RequireRateLimiting(PublicRateLimitPolicies.Submission)
         .Produces<ProgramRegistrationSubmittedDto>()
         .Produces(StatusCodes.Status400BadRequest)
-        .Produces(StatusCodes.Status404NotFound);
+        .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status429TooManyRequests);
     }
 }
