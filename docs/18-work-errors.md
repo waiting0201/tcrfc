@@ -1632,3 +1632,28 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   `AdminBannersAndHomeSectionsTests.Banner_影片模式_建立成功_海報圖與影片鍵皆有值_公開端點吐出videoKey`
   用真實 Azurite 斷言兩個網址分屬不同容器（`/images-test/`／`/videos/`）來守。也不涵蓋
   `Features/Admin*`（見上方「修正」段的範圍說明）。
+
+### E-65 前台頁面直接比對 `matches.status` 字面值，沒有先查已有的單一來源工具（2026-09-29，S1-15，寫下當場被 lint 攔截）
+
+- **錯在哪**：改寫 `app/pages/zh/club/first-team/index.vue`（真實賽程資料驅動的「成績與積分榜」
+  區塊）與 `app/pages/zh/academy/teams.vue`（梯隊賽程列表）時，直接寫
+  `m.status === 'played'`／`m.status === 'scheduled'` 來判斷賽事是否已完賽，沒有先讀
+  `app/utils/schedule.ts` 檔頭「這是本檔案存在的核心理由，不要在別處另開第二份」的警告，
+  也沒有先用 `mapMatchStatus()` 這個既有的單一來源函式。
+- **為什麼會錯（根因，寫成可以被改掉的行為）**：寫這兩處判斷式時，心裡想的是「知道
+  資料庫這欄的字面值是什麼」（S1-14 交付報告已經記錄過 `'scheduled'`／`'played'` 的真實值），
+  就地照抄字面值做比較，沒有先養成「要用 `matches.status` 就先找 `app/utils/schedule.ts`」
+  的反射動作——即使已經讀過 `MATCH_STATUS_MAP` 的檔頭註解（本輪稍早為了寫
+  `formatMatchDate()`／`mapMatchStatus(m.status).label` 就已經在用這支檔案的另一個函式
+  `matchWeekday()`），還是在另一段程式碼裡憑印象手寫了字面值比較，等於在同一個檔案裡
+  同時用了「正確引用單一來源」與「另開一份判斷」兩種寫法。
+- **下次怎麼避免**：任何地方要用到 `matches.status` 的值，一律先呼叫
+  `mapMatchStatus(status).code`（`'upcoming'`／`'finished'`／`'postponed'`／`'cancelled'`／`'live'`）
+  做比較，不寫回資料庫原始字面值（`'scheduled'`／`'played'`…）；`npm run lint` 已包含
+  `lint:match-status`，寫完賽程相關程式碼、送出前先本機跑一次 `npm run lint`，不要等到
+  收尾才一次跑。
+- **防呆**：✅ **已有且本次確實生效**——`apps/web/scripts/check-match-status.mjs`
+  （`npm run lint:match-status`）在本次任務收尾前的 `npm run lint` 當場攔下兩個檔案，
+  訊息明確指出「同時出現 `'scheduled'`、`'played'` 字面值」，修正後（改用
+  `mapMatchStatus(m.status).code === 'finished'`／`=== 'upcoming'`）同一份 lint 轉綠。
+  這筆記錄的目的是提醒「先查單一來源工具」的習慣，不是這支腳本本身有缺口。

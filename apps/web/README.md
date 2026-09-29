@@ -540,6 +540,112 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
   名稱、`resultMetaLine` 日期格式），只驗證了程式碼邏輯（`firstTeamCode` 過濾條件、
   `clubScore`／`opponentScore` 主客場換算）與區塊本身確實會渲染，未接上真實資料庫核對。
 
+## S1-15（03.1 一線隊／04 學院 4.1・4.2・4.7／05 課程 5.1・5.2，2026-09-29）
+
+主站規劃書 §3.3（03.1）／§3.4（4.1／4.2／4.7）／§3.5（5.1／5.2）。改動檔案：
+`app/pages/zh/club/first-team/index.vue`、`app/pages/zh/academy/{overview,teams,join}.vue`、
+`app/pages/zh/programs/{childrens-training,summer-camp}/index.vue`、
+`shared/utils/{club-copy.ts,units.ts}`、新增 `app/composables/useFaqEmbed.ts`、
+`scripts/check-club-brand-leak.mjs`（`PROTECTED_PAGES` 新增兩頁）。
+
+### 各頁資料來源
+
+| 頁面 | 區塊 | 來源 |
+|---|---|---|
+| 03.1 一線隊 | 球員名單／教練團／賽程表 | 🟢 真資料：`GET /{club}/players\|staff\|schedule?team={D1\|BW1}`。**磐石與藍鯨共用同一套樣板**——改動前藍鯨這三區塊被 `v-if="isTcrfc"` 整段隱藏（理由寫的是「藍鯨 0 素材」），但 `db/seed` 其實已經替 `BW1` 種了 21 筆真實賽果與球員／教練名單，是本輪發現並修正的既有缺口（不是新迴歸），見 `docs/18-work-errors.md` 沒有另開一筆（不是「犯錯」，是修正轉述過期，已在檔頭註解說明） |
+| 03.1 | 成績與積分榜 | 🟡 成績（已完賽場次）改資料驅動；**積分榜維持靜態說明**——只有 `Features/AdminStandings` 後台端點，沒有公開讀取端點可接 |
+| 03.1 | 榮譽時間軸 | ⬜ 靜態、`isTcrfc` 專屬——沒有公開 API 可查「俱樂部歷史榮譽」（比照 `about/milestones.vue` 現況），且藍鯨無可查證的逐年獎盃資料可引用 |
+| 4.1 學院總覽 | 定位段落／數據亮點 | ⬜ 靜態，改為讀 `club-copy.ts` 的 `ACADEMY_OVERVIEW_*`／`ACADEMY_POSITIONING`（原本零俱樂部分支，字面寫死磐石內容，藍鯨版逐句節錄自 `content/blue-whale/squad/youth-teams.md`）。「數據亮點」兩俱樂部皆無對應公開 API |
+| 4.2 學院隊伍 | 名單／教練／賽程 | 🔵 真實 API（`players`／`staff`／`schedule`，不帶 `team` 篩選、前端依隊代碼過濾），分頁籤改依 `club-copy.ts` 的 `ACADEMY_TEAM_TABS` 動態產生：磐石 U15／U14／U12／其他年齡層（磐石學院球隊 `Team` 主檔尚未建立，故仍是空清單）；藍鯨只有 U15／U12 兩個真實 `Team`（`BW-U15`／`BW-U12`），沒有 U14、沒有「其他年齡層」——改動前分頁籤寫死磐石的三個代碼，藍鯨容器會用錯誤的隊代碼查詢，是本輪修正的既有缺口 |
+| 4.7 加入學院 | 常見問題快捷區塊（G-12） | 🟢 真資料：`GET /{club}/faqs/embeds/academy_admission`（S1-7a 已種掛載點字典，本輪首次消費）。**本頁對藍鯨整頁 404**（見下方「單元開關」） |
+| 5.1 兒童足球訓練 | 週期課表 | 🟢 真資料：`GET /{club}/programs?type=children_training` 取第一筆同類型項目，再打 `GET /{club}/programs/{slug}` 取 `sessions[]`。現況 `programs` 表 0 筆種子資料，故仍顯示既有「準備中」提示 |
+| 5.1／5.2 | 常見問題快捷區塊 | 🟢 真資料：`GET /{club}/faqs/embeds/program_detail`（同一掛載點兩頁共用，`db/seed` 的 `FAQ_EMBED_SLOTS` 字典本來就標註「課程詳情頁（5.x 各課程）」） |
+| 5.2 夏令營 | 早鳥價／剩餘名額／梯次 | 🟢 真資料：`GET /{club}/programs?type=summer_camp` 同上邏輯，取第一個 `open`／`waitlist` 梯次；無資料時維持既有「待公告」 |
+| 訓練地點（5.1）／教練團・對象內容（5.2） | 已知事實／空白區塊 | ⬜ 維持既有靜態或空白，不臆造——5.1 場地資訊本身已是已知正確事實，沒有理由用目前為空的 API 結果覆蓋；5.2 空白段落沒有對應內容來源，不是本輪要補的文案缺口 |
+
+`program_type` 值域（`children_training`／`summer_camp`／`winter_camp`／`specialist_training`／
+`school_community`）取自既有 `apps/admin/src/types/program.ts`（與
+`AdminProgramsRepository.AllowedProgramTypes` 一致），非本輪自訂。
+
+### 單元開關（藍鯨）
+
+`shared/utils/units.ts` 的 `BLUE_WHALE_DISABLED_UNITS` 新增 `'4.7'`／`'5.1'`／`'5.2'`：
+
+- **4.7（加入學院）**：藍鯨規劃書 §3.4「04 青年隊沿用主站 04 的梯隊版型，但不沿用招生與
+  課程報名架構」——整頁就是磐石的招生流程與費用表，明文排除。
+- **5.1／5.2（兒童足球訓練／夏令營）**：藍鯨自己的「05 推廣活動」是完全不同的活動集合
+  （社區與學校推廣、足球節、藍鯨盃），不是磐石課程頁換配色就能沿用的內容。這兩頁改動前
+  對兩俱樂部**零分支**（0 筆 `isTcrfc`／`clubKey` 判斷）——代表藍鯨容器過去會直接顯示磐石
+  課程內容，這是本輪盤點時發現的既有缺口，關閉後改回誠實的 404（`check-club-brand-leak.mjs`
+  對 404 有既有豁免）。
+
+`academy/{overview,teams,join}.vue` 的 `definePageMeta unit` 同時從粗粒度 `'04'` 改為細粒度
+`'4.1'`／`'4.2'`／`'4.7'`，讓 `units.ts` 能單獨關閉 4.7 而不影響 4.1／4.2（比照 `05` 系列頁面
+本來就是逐頁 `'5.1'`–`'5.5'` 的既有慣例）。
+
+⚠️ **範圍縮減（明確排除，非本輪判斷有誤）**：`academy/{coaches,curriculum,life,pathway}.vue`
+（4.3／4.4／4.5／4.6）**不在本輪範圍**，仍是粗粒度 `unit: '04'`、零俱樂部分支，藍鯨容器
+現況仍會顯示磐石內容（`check-club-brand-leak.mjs` 的「進度計」可見）。`programs/{winter-camp,
+specialist,school-community}/index.vue`（5.3–5.5）同樣未關閉、零分支，理由同上——STATUS.md
+把它們排在 `S2-10`，本輪不擴大範圍。
+
+### 驗收紀錄（2026-09-29）
+
+```
+npm run lint    # 0 errors, 527 warnings（低於既有基準 532，未新增）
+npm run build   # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+```
+
+本機用同一份映像檔起兩個容器（`NUXT_PUBLIC_CLUB=tcrfc` port 13001／`NUXT_PUBLIC_CLUB=bw`
+port 13002 且帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動**，依派工規則不自行
+啟動、不碰密碼），對六個改動頁的 `/zh/`／`/en/` 版本（共 12 條網址）逐一 `curl`：
+
+- 8 條（03.1、4.1、4.2 兩俱樂部 × 兩語系）全部 `200`，`<html lang>` 正確（`zh-Hant`／`en`）、
+  hreflang 三條齊全（`zh-Hant`／`en`／`x-default`）、`X-Robots-Tag: noindex, nofollow` 皆在。
+- 4 條（4.7、5.1、5.2 對藍鯨的 `/zh/`／`/en/`，共 6 條中的 4 條非 tcrfc 部分）**依設計回
+  `404`**（單元關閉），tcrfc 對應頁維持 `200`。
+- **`apps/api` 不可達時的優雅降級已確認**：03.1 球員／教練／賽程三區塊落回「準備中」文字，
+  4.2 各梯隊面板同樣落回「準備中」，5.1／5.2 的 Program／FAQ 區塊落回「待公告」／
+  「收錄中」提示，皆無 500 或未捕捉例外。
+- `node scripts/check-match-status.mjs`：本輪一度未過（03.1／4.2 直接比對 `m.status ===
+  'played'`／`'scheduled'` 字面值，未走 `mapMatchStatus()`），已修正並轉綠，記於
+  `docs/18-work-errors.md` `E-65`。
+- `NUXT_PUBLIC_SITE_NAME=台中藍鯨 node scripts/check-club-brand-leak.mjs
+  --base-url=http://127.0.0.1:13002`：`exit 0`，棘輪通過；`/zh/academy/overview/`／
+  `/zh/academy/teams/`（含對應 `/en/`）實測 0 筆磐石／`TCRFC`／學院詞彙命中，已新增進
+  `PROTECTED_PAGES`（13 → 15 頁）。
+- tcrfc 容器對 4.2 分頁籤實測：4 個分頁籤（U15／U14／U12／其他年齡層）；bw 容器實測：
+  2 個分頁籤（U15／U12），無「其他年齡層」面板——符合 `ACADEMY_TEAM_TABS` 設計。
+
+🔴 **未驗證項目**（因為 `apps/api` 未啟動，只能驗證請求參數與欄位對應，不能驗證真實資料的
+畫面呈現）：
+
+- `players`／`staff`／`schedule`／`programs`／`faqs/embeds` 五支 API 在有真實資料時的實際
+  渲染結果（欄位對應、`portrait_consent_status` 白名單、梯次早鳥價計算等）只做過程式碼與
+  DTO 比對，沒有用真實資料庫跑過。
+- 03.1 對藍鯨（`BW1`）真實 21 筆賽果、真實球員／教練名單在畫面上的實際內容（球員照片是否
+  正確依肖像同意顯示、賽事對手名稱是否恰好含有詞表字樣造成偶發性 brand-leak 假警報）未做
+  真實資料庫驗證，只做過靜態程式碼審視與「API 不可達時不會壞」的驗證。
+- 瀏覽器端互動（4.2 分頁籤鍵盤導覽、ARIA focus 行為）未做無頭瀏覽器模擬，只驗證 SSR 輸出的
+  HTML 結構與既有分頁邏輯改寫是否忠於原邏輯。
+
+### 規格疑點（列出，未自行決定）
+
+1. **`programs` 表現況 0 筆種子資料**：5.1／5.2 串接的 Program／FAQ 快捷區塊在目前資料庫
+   狀態下全部落回既有的靜態占位文字，實際效果要等後台建立課程項目與梯次後才看得出來。
+2. **4.3／4.4／4.5／4.6（學院發展路徑／訓練課程／教練團／學生生活）與 5.3–5.5（冬令營／
+   專項訓練／校園社區）仍是粗粒度 `unit: '04'`／`'5.x'` 且零俱樂部分支**，藍鯨容器目前仍會
+   顯示磐石專屬內容——不在 `S1-15` 範圍（STATUS.md 排在之後的工作），列出供下一輪處理時
+   參考本輪的做法（細粒度 `unit` ＋ `club-copy.ts` 分支 ＋ `units.ts` 視情況關閉）。
+3. **03.1 球員卡不再顯示外籍球員的獨立英文姓名列**：真實 `PlayerDto.name` 只回傳依語系
+   解析後的單一姓名欄位，不像舊版靜態內容那樣額外提供一行英文姓名——這是真實資料的欄位
+   形狀限制，不是本輪遺漏；如果客戶需要雙語姓名同時顯示，需要後端額外開放球員雙語姓名欄位。
+4. **教練頭銜的英文標籤（如「總教練 Head Coach」）目前只有中文**：`site/src/data/coaches-
+   d1.json` 只有 `role_zh`，沒有 `role_en`，API 的 `Title` 欄位因此只有中文——舊版靜態內容
+   手動補的英文頭銜（"Head Coach" 等）是搬遷時自行加上的文案，不是資料庫既有欄位，真實
+   API 接上後自然消失，屬於資料完整度問題，不是本輪的接線錯誤。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

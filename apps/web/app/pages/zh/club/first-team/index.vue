@@ -1,29 +1,83 @@
 <script setup lang="ts">
 // app/pages/zh/club/first-team/index.vue — 由 site/src/pages/zh/club/first-team/index.html 轉來
-// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+// （S0-9 靜態頁搬遷），S1-15 改為打真實球員／教練／賽程 API。
+//
+// 🔴 S1-15（2026-09-29）之前，本頁球員名單／教練團／賽程表／成績／榮譽時間軸五個區塊
+// 對藍鯨一律用 `v-if="isTcrfc"` 整段隱藏，理由寫的是「藍鯨目前這些區塊 0 素材」——
+// 這句話在寫下的當下沒有錯，但 db/seed/generate-club-seed-sql.py 其實已經替藍鯨一線隊
+// （`BW1`）種了 21 筆真實歷史賽果、真實球員與教練名單（S1-14 首頁改動時已用真實資料
+// 驗證過 BW1 的 21 場賽果），只是這一頁從未接上——是「轉述沒有跟著來源更新」的典型案例
+// （docs/14-invariants.md「轉述會過期，來源不會」）。本輪改為依俱樂部算出正確的
+// `Team.code`（磐石 `D1`／藍鯨 `BW1`，docs/14 踩雷點「BW1 不是第二個 D1」），球員／
+// 教練／賽程三個區塊改成資料驅動、兩俱樂部共用同一套樣板，不再整段隱藏。
+//
+// 「榮譽時間軸」維持 `isTcrfc` 靜態內容——沒有比賽結果或球隊主檔以外的公開 API
+// 可以查詢「俱樂部歷史榮譽」（比照 about/milestones.vue 同樣沒有公開 API 的現況），
+// 且本頁目前唯一能引用的藍鯨舊站文字（content/blue-whale/club-profile.md）沒有逐年
+// 可查證的獎盃時間軸，不得比照磐石那樣編一個出來。
 definePageMeta({ nav: 'club', unit: '3.1' })
 
-const { lp } = useLocale()
-
-// 文案依俱樂部切換：hero／SEO／球隊介紹段落取自 club-copy.ts。下方球員名單、
-// 教練團、賽程表、成績、榮譽時間軸都是動態內容（真人真事的名單／賽果，不進
-// club-copy.ts）——藍鯨目前這些區塊 0 素材（客戶尚未提供 2025 名單、12 個月
-// 賽程，docs/13-blue-whale-site.md §5 擋開發第 3、4 項），一律不顯示，不沿用
-// 磐石的球員／賽程資料頂替。
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const identity = computed(() => getClubIdentity(clubKey.value))
+const assets = computed(() => getClubAssets(clubKey.value))
 const hero = computed(() => FIRST_TEAM_HERO[clubKey.value])
+
+/** 一線隊代碼：磐石 `D1`／藍鯨 `BW1`（docs/14-invariants.md「隊別代號」：BW1 不是第二個
+ * D1，全站代號唯一）。 */
+const teamCode = computed(() => (isTcrfc.value ? 'D1' : 'BW1'))
+
+const { lp, locale } = useLocale()
 
 useSeoMeta({
   title: computed(() => FIRST_TEAM_SEO[clubKey.value].title),
   description: computed(() => FIRST_TEAM_SEO[clubKey.value].description),
 })
 
-// SportsTeam JSON-LD（GEO-05／S1-12f）：一線隊代碼固定 'D1'，比照 app/pages/zh/schedule.vue
-// 既有的 TEAM_TABS 寫法（兩隊皆用同一套代碼，不分俱樂部另開一份）。資料是否合格由 apps/api
-// 算好（見 useSchemaOrgClub.ts 檔頭），現況見 apps/web/README.md「S1-12f」節。
-useSportsTeamSchema('D1')
+// SportsTeam JSON-LD（GEO-05／S1-12f）：teamCode 依俱樂部算出（原本寫死 'D1'，藍鯨容器
+// 永遠查不到 'D1' 這支球隊，等於白跑一次 API——同一批修正一併處理）。
+useSportsTeamSchema(teamCode.value)
+
+// ---- 球員／教練／賽程：真實公開 API（05 課程與活動以外，03.1 唯一有真資料可接的三個
+// 區塊；「成績與積分榜」沒有獨立的公開積分榜端點——只有 Features/AdminStandings 這支
+// 後台端點，見 apps/web/README.md「S1-15」節，積分榜維持靜態說明） ----
+const club = config.public.club
+const [{ data: playersData }, { data: staffData }, { data: scheduleData }] = await Promise.all([
+  useFetch(`/api/backend/${club}/players`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
+  useFetch(`/api/backend/${club}/staff`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
+  useFetch(`/api/backend/${club}/schedule`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
+])
+
+const players = computed(() => playersData.value?.items ?? [])
+const coaches = computed(() => staffData.value?.items ?? [])
+const fixtures = computed(() => scheduleData.value?.items ?? [])
+const results = computed(() => fixtures.value.filter((m) => mapMatchStatus(m.status).code === 'finished'))
+/** 尚無已完賽數據時，「成績與積分榜」改顯示下一場的動態占位文字（比照
+ * app/pages/zh/index.vue 首頁「最新賽事區」既有的 upcomingMatch 計算邏輯，
+ * 這裡不重複 import 那支 composable，直接在本頁算一次即可）。 */
+const nextScheduledFixture = computed(() =>
+  fixtures.value.find((m) => mapMatchStatus(m.status).code === 'upcoming'),
+)
+
+function homeAwayLabel(homeAway: string | null): string {
+  if (homeAway === 'home') return '主場'
+  if (homeAway === 'away') return '客場'
+  return '—'
+}
+
+/** 賽程表「賽事」欄的對戰組合文字，依主客場把自家隊名排在正確的一邊。 */
+function matchupLabel(m: { homeAway: string | null; opponent: string | null }): string {
+  const self = identity.value.shortNameZh
+  const opponent = m.opponent ?? 'TBC'
+  if (m.homeAway === 'away') return `${opponent} vs ${self}`
+  return `${self} vs ${opponent}`
+}
+
+function formatMatchDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-')
+  return `${y}/${m}/${d}（${matchWeekday(dateStr).zh}）`
+}
 </script>
 
 <template>
@@ -57,333 +111,35 @@ useSportsTeamSchema('D1')
   </div>
 </section>
 
-<section v-if="isTcrfc" class="band paper-2-band" id="roster" aria-labelledby="roster-title">
+<section class="band paper-2-band" id="roster" aria-labelledby="roster-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker">SQUAD 2026/27</p>
+        <p class="kicker">SQUAD</p>
         <h2 class="section-title" id="roster-title">球員名單</h2>
       </div>
-      <p class="section-lede">28 名一線隊註冊球員，依背號排序。目前尚未提供球員照片，卡片以隊徽與背號作為識別視覺。</p>
+      <p class="section-lede">{{ players.length }} 名一線隊註冊球員，依背號排序。未取得肖像使用同意的球員以隊徽卡呈現，不顯示照片。</p>
     </div>
 
-    <div class="player-grid" id="player-grid">
-        <article class="player-card clip-card" data-pos="DF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">4</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">DF</span>
-            <p class="player-card__name">蔡俊昇</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">5</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">周宇杰</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="DF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">6</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">DF</span>
-            <p class="player-card__name">孫恩祈</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">7</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">龔致宇</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="FW">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">9</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">FW</span>
-            <p class="player-card__name">劉建緯</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">10</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">菲利普・希梅哲克</p>
-            <span class="player-card__en">Filip Šimeček</span>
-          </div>
-        </article>
-        <article class="player-card clip-card player-card--demo" data-pos="MF">
-          <a class="player-card__link" :href="lp('/zh/club/first-team/player/')" aria-label="查看 11 號楊朝景 球員詳情頁範本">
-            <div class="player-card__visual">
-              <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-              <span class="player-card__num">11</span>
-            </div>
-            <div class="player-card__body">
-              <span class="player-card__pos">MF</span>
-              <p class="player-card__name">楊朝景</p>
-              <span class="player-card__demo-tag">詳情頁範本 →</span>
-            </div>
-          </a>
-        </article>
-        <article class="player-card clip-card" data-pos="DF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">12</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">DF</span>
-            <p class="player-card__name">李毓霖</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">13</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">陳柏崴</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="FW">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">14</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">FW</span>
-            <p class="player-card__name">李偉綸</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">16</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">魏志荃</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">18</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">尼基塔・若桑</p>
-            <span class="player-card__en">Nichita Josan</span>
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="DF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">24</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">DF</span>
-            <p class="player-card__name">多米尼克・林普瑞希特</p>
-            <span class="player-card__en">Dominik Limprecht</span>
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="GK">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">25</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">GK</span>
-            <p class="player-card__name">伊戈・澤維斯</p>
-            <span class="player-card__en">Igor Zavis</span>
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">27</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">施靖堂</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="FW">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">28</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">FW</span>
-            <p class="player-card__name">陳治瑋</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">29</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">江均堯</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">32</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">柯岳廷</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">35</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">李鴻均</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">37</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">梁顥騰</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="FW">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">44</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">FW</span>
-            <p class="player-card__name">山內大空</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="MF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">45</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">MF</span>
-            <p class="player-card__name">胡淯翔</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="DF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">48</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">DF</span>
-            <p class="player-card__name">王義友</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="DF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">66</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">DF</span>
-            <p class="player-card__name">曾畇浩</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="GK">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">70</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">GK</span>
-            <p class="player-card__name">安德烈亞・柏思祺</p>
-            <span class="player-card__en">Andrea Boschi</span>
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="FW">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">77</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">FW</span>
-            <p class="player-card__name">林偉傑</p>
-
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="DF">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">78</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">DF</span>
-            <p class="player-card__name">羅倫佐・柯思達</p>
-            <span class="player-card__en">Lorenzo Costa</span>
-          </div>
-        </article>
-        <article class="player-card clip-card" data-pos="GK">
-          <div class="player-card__visual">
-            <img class="player-card__crest" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="64" height="67" aria-hidden="true">
-            <span class="player-card__num">99</span>
-          </div>
-          <div class="player-card__body">
-            <span class="player-card__pos">GK</span>
-            <p class="player-card__name">林駿樺</p>
-
-          </div>
-        </article>
+    <p v-if="players.length === 0" class="roster-note">名單準備中，稍後將於本頁公布。</p>
+    <div v-else class="player-grid" id="player-grid">
+      <article v-for="p in players" :key="p.id" class="player-card clip-card" :data-pos="p.position">
+        <div class="player-card__visual">
+          <img v-if="p.photoUrl" :src="p.photoUrl" :alt="`${p.name} 球員照片`" width="300" height="300" loading="lazy" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+          <img class="player-card__crest" :src="assets.headerMark.src" alt="" width="64" height="67" aria-hidden="true">
+          <span class="player-card__num">{{ p.shirtNo ?? '—' }}</span>
+        </div>
+        <div class="player-card__body">
+          <span class="player-card__pos">{{ p.position ?? '—' }}</span>
+          <p class="player-card__name">{{ p.name }}</p>
+        </div>
+      </article>
     </div>
-    <p class="roster-note">2026/27 賽季一線隊 28 人名單，可依守門員、後衛、中場、前鋒篩選。</p>
+    <p v-if="players.length > 0" class="roster-note">2026/27 賽季{{ players.length }}人名單，依背號排序（球員位置分類與篩選未提供）。</p>
   </div>
 </section>
 
-<section v-if="isTcrfc" class="band" id="coaches" aria-labelledby="coaches-title">
+<section class="band" id="coaches" aria-labelledby="coaches-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
@@ -391,77 +147,39 @@ useSportsTeamSchema('D1')
         <h2 class="section-title" id="coaches-title">教練團</h2>
       </div>
     </div>
-    <div class="coach-grid">
-      <article class="coach-card clip-card">
+    <p v-if="coaches.length === 0" class="roster-note">教練陣容準備中，稍後將於本頁公布。</p>
+    <div v-else class="coach-grid">
+      <article v-for="c in coaches" :key="c.id" class="coach-card clip-card">
         <div class="coach-card__visual">
-          <img src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="52" height="55" aria-hidden="true">
+          <img v-if="c.photoUrl" :src="c.photoUrl" :alt="`${c.name} 教練照片`" width="240" height="150" loading="lazy" style="width:100%; height:100%; object-fit:cover;">
+          <img v-else :src="assets.headerMark.src" alt="" width="52" height="55" aria-hidden="true">
         </div>
         <div class="coach-card__body">
-          <p class="coach-card__role">總教練 Head Coach</p>
-          <p class="coach-card__name">瑪蒂諾<span class="en">Matino Sofia</span></p>
-          
-        </div>
-      </article>
-      <article class="coach-card clip-card">
-        <div class="coach-card__visual">
-          <img src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="52" height="55" aria-hidden="true">
-        </div>
-        <div class="coach-card__body">
-          <p class="coach-card__role">教練 Coach</p>
-          <p class="coach-card__name">托馬斯・卡斯泰洛<span class="en">Thomas Castello</span></p>
-          
-        </div>
-      </article>
-      <article class="coach-card clip-card">
-        <div class="coach-card__visual">
-          <img src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="52" height="55" aria-hidden="true">
-        </div>
-        <div class="coach-card__body">
-          <p class="coach-card__role">守門員教練 Goalkeeping Coach</p>
-          <p class="coach-card__name">儒利亞諾・羅德里格斯<span class="en">Juliano Rodrigues</span></p>
-          
-        </div>
-      </article>
-      <article class="coach-card clip-card">
-        <div class="coach-card__visual">
-          <img src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" width="52" height="55" aria-hidden="true">
-        </div>
-        <div class="coach-card__body">
-          <p class="coach-card__role">體能教練 Fitness Coach</p>
-          <p class="coach-card__name">江奕璠</p>
-          
+          <p class="coach-card__role">{{ c.title ?? '教練團成員' }}</p>
+          <p class="coach-card__name">{{ c.name }}</p>
         </div>
       </article>
     </div>
   </div>
 </section>
 
-<section v-if="isTcrfc" class="band grain paper-2-band" id="fixtures" aria-labelledby="fixtures-title">
+<section class="band grain paper-2-band" id="fixtures" aria-labelledby="fixtures-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker">2026/27 SEASON</p>
+        <p class="kicker">SEASON</p>
         <h2 class="section-title" id="fixtures-title">賽程表</h2>
       </div>
       <div class="fixtures-actions">
         <a class="btn btn--dark btn--sm" :href="lp('/zh/schedule/')">查看完整行事曆</a>
-        <!-- 這是 public/assets/ics/ 底下的靜態下載檔，不是路由。link-checker 的 ESLint 規則只比對
-             .nuxt/link-checker/routes.json 的路由清單、看不到 public/，所以任何指向靜態檔的 href
-             都會被判成 "does not match any known route"（該規則只接受 routesFile／rootDir 兩個選項，
-             nuxt.config 的 linkChecker.excludeLinks 對它無效，已實測）。
-             ⚠️ 2026-09-22 的教訓：這個誤判曾經掩蓋一個真的壞掉的連結——S0-9 搬遷 80 頁時漏把
-             site/src/assets/ics/first-team-2026-27.ics 複製到 public/assets/ics/，按鈕真的會 404，
-             但這條錯誤長期被當成既有雜訊，沒有人去看它在說什麼。檔案已於同日補上。
-             所以這裡用單行排除而不是關掉整條規則：下一個指向不存在靜態檔的連結仍然要被抓到。 -->
-        <!-- eslint-disable-next-line link-checker/valid-route -->
-        <a class="btn btn--primary btn--sm" href="/assets/ics/first-team-2026-27.ics" download>訂閱一線隊賽程 (.ics)</a>
       </div>
     </div>
-    <p class="fixtures-note">資料與行事曆「一線隊」分類同源，共 21 場企業甲級聯賽例行賽，實際時間與場地請以官方最新公告為準（部分場地標示為 <b>TBC</b> 表示尚未確定）。</p>
+    <p class="fixtures-note">資料與行事曆「一線隊」分類同源，實際時間與場地請以官方最新公告為準（部分場地標示為 <b>TBC</b> 表示尚未確定）。</p>
 
-    <div class="table-wrap">
+    <p v-if="fixtures.length === 0" class="fixtures-note">賽程準備中，稍後將於本頁公布。</p>
+    <div v-else class="table-wrap">
       <table class="sched-table">
-        <caption class="visually-hidden">2026/27 企業甲級聯賽賽程</caption>
+        <caption class="visually-hidden">一線隊賽程</caption>
         <thead>
           <tr>
             <th scope="col">輪次</th>
@@ -473,181 +191,25 @@ useSportsTeamSchema('D1')
           </tr>
         </thead>
         <tbody>
-            <tr>
-              <td>1</td>
-              <td>2026/09/13（週日）</td>
-              <td>19:00</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>高雄先鋒 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>楠梓足球場</td>
-            </tr>
-            <tr>
-              <td>2</td>
-              <td>2026/09/20（週日）</td>
-              <td>16:30</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 台灣電力</td>
-              <td>西屯足球場</td>
-            </tr>
-            <tr>
-              <td>3</td>
-              <td>2026/10/11（週日）</td>
-              <td>16:00</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>陽信北競 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>汐止綜合運動場</td>
-            </tr>
-            <tr>
-              <td>4</td>
-              <td>2026/10/18（週日）</td>
-              <td>18:30</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>南市台鋼 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>台南市立足球場</td>
-            </tr>
-            <tr>
-              <td>5</td>
-              <td>2026/10/25（週日）</td>
-              <td>19:00</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 台中FUTURO</td>
-              <td>西屯足球場</td>
-            </tr>
-            <tr>
-              <td>6</td>
-              <td>2026/11/01（週日）</td>
-              <td>19:00</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>新北航源 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>輔仁大學足球場</td>
-            </tr>
-            <tr>
-              <td>7</td>
-              <td>2026/11/22（週日）</td>
-              <td>15:30</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 大同足球</td>
-              <td>TBC</td>
-            </tr>
-            <tr>
-              <td>8</td>
-              <td>2026/11/29（週日）</td>
-              <td>19:00</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 高雄先鋒</td>
-              <td>西屯足球場</td>
-            </tr>
-            <tr>
-              <td>9</td>
-              <td>2026/12/06（週日）</td>
-              <td>15:30</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>台灣電力 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>楠梓足球場</td>
-            </tr>
-            <tr>
-              <td>10</td>
-              <td>2026/12/13（週日）</td>
-              <td>19:00</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 陽信北競</td>
-              <td>西屯足球場</td>
-            </tr>
-            <tr>
-              <td>11</td>
-              <td>2027/01/24（週日）</td>
-              <td>16:00</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 南市台鋼</td>
-              <td>西屯足球場</td>
-            </tr>
-            <tr>
-              <td>12</td>
-              <td>2027/01/31（週日）</td>
-              <td>19:00</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>台中FUTURO <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>西屯足球場</td>
-            </tr>
-            <tr>
-              <td>13</td>
-              <td>2027/02/21（週日）</td>
-              <td>19:00</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 新北航源</td>
-              <td>西屯足球場</td>
-            </tr>
-            <tr>
-              <td>14</td>
-              <td>2027/02/28（週日）</td>
-              <td>16:00</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>大同足球 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>輔仁大學足球場</td>
-            </tr>
-            <tr>
-              <td>15</td>
-              <td>2027/03/07（週日）</td>
-              <td>19:00</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>高雄先鋒 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>楠梓足球場</td>
-            </tr>
-            <tr>
-              <td>16</td>
-              <td>2027/03/14（週日）</td>
-              <td>16:00</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 台灣電力</td>
-              <td>西屯足球場</td>
-            </tr>
-            <tr>
-              <td>17</td>
-              <td>2027/03/21（週日）</td>
-              <td>15:30</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>陽信北競 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>汐止綜合運動場</td>
-            </tr>
-            <tr>
-              <td>18</td>
-              <td>2027/04/11（週日）</td>
-              <td>18:30</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>南市台鋼 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>台南市立足球場</td>
-            </tr>
-            <tr>
-              <td>19</td>
-              <td>2027/04/18（週日）</td>
-              <td>19:00</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 台中FUTURO</td>
-              <td>西屯足球場</td>
-            </tr>
-            <tr>
-              <td>20</td>
-              <td>2027/04/25（週日）</td>
-              <td>15:30</td>
-              <td><span class="sched-ha sched-ha--away">客場</span></td>
-              <td>新北航源 <span class="sched-vs">vs</span> 台中磐石</td>
-              <td>台北田徑場</td>
-            </tr>
-            <tr>
-              <td>21</td>
-              <td>2027/05/02（週日）</td>
-              <td>16:30</td>
-              <td><span class="sched-ha sched-ha--home">主場</span></td>
-              <td>台中磐石 <span class="sched-vs">vs</span> 大同足球</td>
-              <td>西屯足球場</td>
-            </tr>
+          <tr v-for="m in fixtures" :key="m.id">
+            <td>{{ m.roundNo ?? '—' }}</td>
+            <td>{{ formatMatchDate(m.matchOn) }}</td>
+            <td>{{ m.kickoff ?? '—' }}</td>
+            <td><span :class="['sched-ha', m.homeAway === 'home' ? 'sched-ha--home' : 'sched-ha--away']">{{ homeAwayLabel(m.homeAway) }}</span></td>
+            <td>
+              {{ matchupLabel(m) }}
+              <template v-if="mapMatchStatus(m.status).code === 'finished'">（{{ m.scoreHome }} : {{ m.scoreAway }}）</template>
+              <template v-else-if="mapMatchStatus(m.status).code !== 'upcoming'">　{{ mapMatchStatus(m.status).label }}</template>
+            </td>
+            <td>{{ m.venue ?? 'TBC' }}</td>
+          </tr>
         </tbody>
       </table>
     </div>
   </div>
 </section>
 
-<section v-if="isTcrfc" class="band" id="results" aria-labelledby="results-title">
+<section class="band" id="results" aria-labelledby="results-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
@@ -655,8 +217,24 @@ useSportsTeamSchema('D1')
         <h2 class="section-title" id="results-title">成績與積分榜</h2>
       </div>
     </div>
-    <p>2026/27 企甲賽季首場賽事為 2026/09/13 客場對高雄先鋒，本頁建置時尚未開打，因此暫無比賽結果。</p>
-    
+
+    <template v-if="results.length > 0">
+      <ul class="results-list">
+        <li v-for="m in results" :key="m.id">
+          <span class="results-list__date">{{ formatMatchDate(m.matchOn) }}</span>
+          <span class="results-list__matchup">{{ matchupLabel(m) }}</span>
+          <span class="results-list__score">{{ m.scoreHome }} : {{ m.scoreAway }}</span>
+          <span v-if="m.competitionName" class="results-list__comp">{{ m.competitionName }}</span>
+        </li>
+      </ul>
+    </template>
+    <p v-else-if="nextScheduledFixture">
+      本季目前尚無已完賽數據，下一場為 {{ formatMatchDate(nextScheduledFixture.matchOn) }}
+      {{ homeAwayLabel(nextScheduledFixture.homeAway) }}對{{ nextScheduledFixture.opponent ?? 'TBC' }}。
+    </p>
+    <p v-else>本季目前尚無已完賽數據，賽程尚未公布。</p>
+
+    <p class="fixtures-note" style="margin-top:1.5rem;">積分榜由聯賽主辦單位公告，本站暫無可公開查詢的積分榜資料來源。</p>
   </div>
 </section>
 
@@ -676,7 +254,6 @@ useSportsTeamSchema('D1')
           <p class="timeline-item__title">全國乙級聯賽冠軍</p>
           <p class="timeline-item__desc">俱樂部創立首年即拿下全國乙級聯賽冠軍，隔年晉升企業甲級聯賽出賽。</p>
         </li>
-        
       </ol>
       <figure class="honours-photo clip-card clip-card--on-dark">
         <img src="/assets/img/club/first-team-02-trophy.jpg" alt="台中磐石獲得的獎盃，攝於俱樂部榮譽紀錄留影" loading="lazy" width="1920" height="1280">
@@ -778,6 +355,14 @@ useSportsTeamSchema('D1')
 .sched-ha--home{ background:var(--brand-aa); color:#fff; }
 .sched-ha--away{ background:var(--paper-2); color:var(--muted); border:1px solid var(--rule); }
 .sched-vs{ color:var(--muted); font-weight:600; margin:0 .35em; }
+
+/* 成績列表（S1-15 新增，資料驅動——原本這裡是純靜態一句話，見檔頭說明） */
+.results-list{ list-style:none; margin-top:1.5rem; display:flex; flex-direction:column; gap:.75rem; }
+.results-list li{ display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:baseline; padding:.75rem 1rem; background:var(--paper-2); font-size:.88rem; }
+.results-list__date{ font-weight:700; color:var(--muted); min-width:9rem; }
+.results-list__matchup{ font-weight:800; color:var(--heading); }
+.results-list__score{ font-weight:900; color:var(--brand-aa); font-variant-numeric:tabular-nums; }
+.results-list__comp{ font-size:.78rem; color:var(--muted); }
 
 /* 榮譽時間軸 */
 .honours-band{ color:#fff; padding-block:clamp(4rem,7vw,6.5rem); }

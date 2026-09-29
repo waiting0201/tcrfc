@@ -1,15 +1,48 @@
 <script setup lang="ts">
 // app/pages/zh/programs/childrens-training/index.vue — 由 site/src/pages/zh/programs/childrens-training/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+//
+// S1-15（2026-09-29）：本頁對藍鯨已整頁 404（units.ts 的 '5.1'，藍鯨自己的「05 推廣活動」
+// 是完全不同的活動集合，見該檔案說明），故本頁維持磐石專屬內容，不需要俱樂部分支。
+//
+// 本輪新增：讀真實 05 課程與活動公開 API（P1–P3，S1-9 後端已完成）查詢
+// `program_type='children_training'`（值域見 apps/admin/src/types/program.ts，
+// 與後台 apps/api/Features/AdminPrograms/AdminProgramsRepository.AllowedProgramTypes
+// 一致，5.1–5.5 逐頁對應五個固定代碼，非本輪自訂）。現況：`programs` 資料表兩俱樂部
+// 皆 0 筆種子資料（db/seed 尚未涵蓋課程模組），故本輪只做到「接了 API、目前空清單」，
+// 「週期課表」維持既有示意空表列，不臆造梯次。若之後後台真的建立本類型課程，
+// 表格會自動改顯示真實梯次（星期／時段／分級／地點），不需要再改樣板。
 definePageMeta({ nav: 'programs', unit: '5.1' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
+const config = useRuntimeConfig()
 
 useSeoMeta({
   title: '兒童足球訓練 Children\'s Training｜課程與活動｜台中磐石足球俱樂部',
   description:
     '台中磐石兒童足球訓練依混齡體驗、初學、技巧發展分級規劃，於西屯足球場等場地授課，提供週期課表與線上報名。',
 })
+
+const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
+  query: { type: 'children_training', pageSize: 5, lang: locale.value },
+})
+const firstProgram = computed(() => programList.value?.items?.[0] ?? null)
+// firstProgram 在這裡已經是上一個 await 完成後的定值（不是待解析的非同步狀態），
+// 用 `immediate: !!firstProgram.value` 決定要不要真的送出這支詳情請求即可，
+// 不需要用「URL 回傳 null」這種 useFetch 沒有明確支援的寫法（$fetch 的 URL 參數
+// 不接受 null，那樣寫在 SSR 階段會直接丟例外，不是優雅跳過）。
+const { data: programDetail } = await useFetch(
+  `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
+  { query: { lang: locale.value }, immediate: !!firstProgram.value },
+)
+/** 真實梯次資料（星期時段待客戶提供，目前 API 沒有「星期幾」欄位，週期課表用
+ * `weeklySchedule` 自由文字欄位顯示，不強行拆欄）。空陣列＝目前沒有已建立的梯次，
+ * 樣板落回既有示意空表列，不是接失敗。 */
+const sessions = computed(() => programDetail.value?.sessions ?? [])
+
+// G-12 常見問題快捷區塊：program_detail 掛載點（db/seed FAQ_EMBED_SLOTS「課程詳情頁
+// （5.x 各課程）」），四個固定掛載點之一，理由見 useFaqEmbed.ts 檔頭。
+const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
 </script>
 
 <template>
@@ -88,20 +121,43 @@ useSeoMeta({
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
       <h2>週期課表</h2>
-      <p>下表為課表欄位結構示意，實際上課星期、時段與適合分級將於梯次開放報名時公告。</p>
+      <p v-if="sessions.length === 0">梯次尚未開放報名，時段與適合分級將於後台建立梯次後自動顯示於本頁。</p>
+      <p v-else>目前開放中的梯次如下，時段為每週固定上課時間，實際場地請以梯次公告為準。</p>
     </div>
     <div class="table-wrap">
       <table class="data-table">
         <thead>
-          <tr><th scope="col">星期</th><th scope="col">時段</th><th scope="col">分級</th><th scope="col">地點</th></tr>
+          <tr><th scope="col">時段</th><th scope="col">分級／人數</th><th scope="col">地點</th></tr>
         </thead>
         <tbody>
-          <tr></tr>
-          <tr></tr>
-          <tr></tr>
+          <tr v-if="sessions.length === 0"><td colspan="3" class="is-pending">梯次資訊準備中</td></tr>
+          <tr v-for="s in sessions" :key="s.id">
+            <td>{{ s.weeklySchedule ?? '—' }}</td>
+            <td>{{ s.enrolledCount }}{{ s.capacity ? ` / ${s.capacity}` : '' }} 人</td>
+            <td>{{ s.venueName ?? '西屯足球場' }}</td>
+          </tr>
         </tbody>
       </table>
     </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">FAQ</p>
+        <h2 class="section-title">兒童足球訓練常見問題</h2>
+      </div>
+      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+    </div>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <dl v-else class="faq-embed-list">
+      <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
+        <dt>{{ f.question }}</dt>
+        <dd>{{ f.answer }}</dd>
+      </div>
+    </dl>
   </div>
 </section>
 
@@ -165,4 +221,10 @@ useSeoMeta({
 .photo-grid figure{ margin:0; position:relative; }
 .photo-grid img{ width:100%; aspect-ratio:4/3; object-fit:cover; display:block; }
 .photo-grid figcaption{ font-size:.72rem; color:var(--muted); margin-top:.5rem; line-height:1.5; }
+
+/* S1-15 新增：真實梯次為空、常見問題為空時的通用提示文字，以及 G-12 快捷區塊 */
+.is-pending{ color:var(--muted); font-style:italic; }
+.faq-embed-list{ margin-top:1.5rem; display:flex; flex-direction:column; gap:1.25rem; }
+.faq-embed-item dt{ font-weight:800; color:var(--heading); }
+.faq-embed-item dd{ margin:.4rem 0 0; color:var(--muted); font-size:.9rem; line-height:1.7; }
 </style>

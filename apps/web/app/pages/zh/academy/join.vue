@@ -1,13 +1,23 @@
 <script setup lang="ts">
 // app/pages/zh/academy/join.vue — 由 site/src/pages/zh/academy/join/index.html 轉來（S0-9 靜態頁搬遷）
-definePageMeta({ nav: "academy", unit: "04" })
+// S1-15：unit 由粗粒度 '04' 改為 '4.7'，讓 units.ts 能單獨關閉「加入學院」
+// 這一頁（招生流程與費用是磐石專屬內容，藍鯨規劃書 §3.4 明文不沿用），
+// 不影響同單元其餘頁面（4.1／4.2 仍然開放，見 units.ts 的說明）。
+definePageMeta({ nav: "academy", unit: "4.7" })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
+const config = useRuntimeConfig()
 
 useSeoMeta({
   title: "加入學院 Join the Academy｜台中磐石足球學院｜台中磐石足球俱樂部",
   description: "台中磐石足球學院招生對象、遴選流程與試訓資訊。費用與試訓場次等細節資料收集中，歡迎透過線上申請與我們聯繫。",
 })
+
+// G-12 常見問題快捷區塊（S1-15）：讀後台「額外」指定出現在 academy_admission
+// 掛載點的題目（S1-7a 已種 4 個固定掛載點代碼字典，見 useFaqEmbed.ts 檔頭）。
+// 本頁只服務磐石（本頁 unit='4.7' 對藍鯨已整頁 404，見 units.ts），club 固定讀
+// runtimeConfig 即可，不需要另外判斷俱樂部。
+const { faqs } = useFaqEmbed(config.public.club, 'academy_admission', locale.value)
 </script>
 
 <template>
@@ -157,7 +167,13 @@ useSeoMeta({
       </div>
       <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
     </div>
-    
+    <p v-if="faqs.length === 0" class="roster-note" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <dl v-else class="faq-embed-list">
+      <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
+        <dt>{{ f.question }}</dt>
+        <dd>{{ f.answer }}</dd>
+      </div>
+    </dl>
   </div>
 </section>
 </template>
@@ -201,4 +217,10 @@ useSeoMeta({
 .data-table tbody th{ font-weight:700; color:var(--heading); white-space:nowrap; }
 .data-table tbody tr:last-child th, .data-table tbody tr:last-child td{ border-bottom:0; }
 .pending-cell{ color:var(--brand-deep); font-weight:700; }
+
+/* G-12 常見問題快捷區塊（S1-15 新增，兩處沿用：本頁與 5.1／5.2 課程頁） */
+.roster-note{ font-size:.85rem; color:var(--muted); }
+.faq-embed-list{ margin-top:1.5rem; display:flex; flex-direction:column; gap:1.25rem; }
+.faq-embed-item dt{ font-weight:800; color:var(--heading); }
+.faq-embed-item dd{ margin:.4rem 0 0; color:var(--muted); font-size:.9rem; line-height:1.7; }
 </style>

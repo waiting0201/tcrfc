@@ -883,6 +883,94 @@ export const FIRST_TEAM_INTRO: ClubText<string> = {
 }
 
 // ---------------------------------------------------------------------------
+// 04 學院／青年隊（S1-15 新增）
+//
+// 🔴 藍鯨規劃書 §3.4：「04 青年隊沿用主站 04 的梯隊版型，但不沿用招生與課程報名
+// 架構」——本節只涵蓋 4.1 總覽與 4.2 隊伍兩頁，4.7 加入學院對藍鯨整頁關閉
+// （見 shared/utils/units.ts BLUE_WHALE_DISABLED_UNITS），不需要 bw 版文案。
+// 藍鯨文案逐句節錄、改寫自 content/blue-whale/squad/youth-teams.md 舊站原文
+// （紀律 11：藍鯨文案只能引用既有舊站內容，不得自行創作）。
+// ---------------------------------------------------------------------------
+
+export const ACADEMY_OVERVIEW_SEO: ClubText<SeoCopy> = {
+  tcrfc: {
+    title: '學院總覽 Academy Overview｜台中磐石足球學院｜台中磐石足球俱樂部',
+    description: '認識台中磐石足球學院的定位與訓練基地：銜接俱樂部品牌主張的青訓體系，以及學員數、教練數、升學率等數據亮點（資料收集中）。',
+  },
+  bw: {
+    title: '青年隊總覽｜台中藍鯨女子足球隊',
+    description: '台中藍鯨青年隊由 U15、U12 女子足球隊組成，銜接一線隊的競技體系。招生方式與課表待確認，詳情請洽俱樂部。',
+  },
+}
+
+export const ACADEMY_OVERVIEW_HERO: ClubText<HeroCopy> = {
+  tcrfc: {
+    h1Zh: '學院總覽',
+    h1En: 'Academy Overview',
+    lede: '台中磐石足球學院是台中磐石足球俱樂部的青訓體系，銜接俱樂部「在地扎根．放眼世界」的品牌主張與 Players First、Excellence、Global Pathways、Community、Integrity 五大核心價值，以分齡訓練陪伴學員成長。',
+  },
+  bw: {
+    h1Zh: '青年隊總覽',
+    h1En: null,
+    lede: '台中藍鯨青年隊由 U15、U12 女子足球隊組成，是銜接一線隊競技體系的梯隊。',
+  },
+}
+
+/** 學院／青年隊定位段落。藍鯨版直接節錄 youth-teams.md「隊伍定位（原文）」——
+ * 該段原文寫在 U15 隊頁面下，但敘述對象是整個藍鯨女足梯隊體系，用於總覽頁定位段落
+ * 語意相符，未新增文字。 */
+export const ACADEMY_POSITIONING: ClubText<string> = {
+  tcrfc: '台中磐石足球學院自俱樂部 2024 年成立起，作為銜接社區足球與競技體系的橋樑，目標是讓每一位學員都能在扎實的訓練環境中，依照自身節奏發展技術、戰術理解與品格，並為有能力銜接一線隊或海外舞台的球員，提供清晰可循的成長路徑。',
+  bw: '台中藍鯨是台灣最頂尖的女子足球俱樂部，球隊歷年造就了高達 21 位中華女足代表隊國手。青年隊希望青出於藍、更勝於藍，擴大學員足球未來的可能性（節錄自台中藍鯨官方網站青年隊招募原文）。',
+}
+
+export const ACADEMY_TEAMS_SEO: ClubText<SeoCopy> = {
+  tcrfc: {
+    title: '學院隊伍 Our Teams｜台中磐石足球學院｜台中磐石足球俱樂部',
+    description: '台中磐石足球學院 U15／U14／U12 及其他年齡層隊伍——各梯隊名單、教練、賽程與成績（資料收集中），並提供訂閱本隊行事曆功能。',
+  },
+  bw: {
+    title: '青年隊 U15／U12｜台中藍鯨女子足球隊',
+    description: '台中藍鯨青年隊 U15、U12 女子足球隊——各隊名單、教練與賽程（資料收集中）。',
+  },
+}
+
+export const ACADEMY_TEAMS_HERO: ClubText<HeroCopy> = {
+  tcrfc: {
+    h1Zh: '學院隊伍',
+    h1En: 'Our Teams',
+    lede: '台中磐石足球學院依年齡分為 U15、U14、U12 及其他年齡層梯隊，各隊皆設有專屬名單、教練、賽程與成績頁面，並可訂閱該隊行事曆，掌握每一場訓練與比賽。',
+  },
+  bw: {
+    h1Zh: '青年隊',
+    h1En: null,
+    lede: '台中藍鯨青年隊依年齡分為 U15、U12 女子足球隊，各隊名單、教練與賽程如下。',
+  },
+}
+
+/** 4.2 梯隊分頁定義：磐石四個分頁（U15／U14／U12／其他年齡層），藍鯨只有兩個實際隊伍
+ * （docs/12 §2b 種子資料：`BW-U15`／`BW-U12`，沒有 U14、沒有「其他年齡層」）。
+ * `teamCode: null` 代表「其他年齡層」這種沒有對應 `Team.code` 的靜態說明分頁，
+ * 目前只有磐石版本用得到。 */
+export interface AcademyTeamTab {
+  id: string
+  labelZh: string
+  teamCode: string | null
+}
+export const ACADEMY_TEAM_TABS: ClubText<AcademyTeamTab[]> = {
+  tcrfc: [
+    { id: 'u15', labelZh: 'U15', teamCode: 'U15' },
+    { id: 'u14', labelZh: 'U14', teamCode: 'U14' },
+    { id: 'u12', labelZh: 'U12', teamCode: 'U12' },
+    { id: 'other', labelZh: '其他年齡層', teamCode: null },
+  ],
+  bw: [
+    { id: 'u15', labelZh: 'U15', teamCode: 'BW-U15' },
+    { id: 'u12', labelZh: 'U12', teamCode: 'BW-U12' },
+  ],
+}
+
+// ---------------------------------------------------------------------------
 // 10 加入與聯絡
 // ---------------------------------------------------------------------------
 

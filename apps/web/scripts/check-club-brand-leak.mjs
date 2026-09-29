@@ -161,6 +161,12 @@ const PROTECTED_PAGES = [
   '/zh/club/first-team/',
   '/zh/join/',
   '/zh/join/contact/',
+  // S1-15（2026-09-29）：4.1／4.2 改讀 ACADEMY_OVERVIEW_*／ACADEMY_TEAMS_*／
+  // ACADEMY_TEAM_TABS（club-copy.ts），已用本機 bw 容器實測 0 筆命中，含 /en/ 版本
+  // （/en/ 與 /zh/ 是同一份頁面檔案，見 apps/web/README.md「多語系框架」）。4.7（加入
+  // 學院）與 05 課程頁（5.1／5.2）對藍鯨已整頁 404，不適用本清單（見 units.ts）。
+  '/zh/academy/overview/',
+  '/zh/academy/teams/',
 ]
 
 // ---------------------------------------------------------------------------
