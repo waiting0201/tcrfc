@@ -1,22 +1,30 @@
 <script setup lang="ts">
 // app/pages/zh/academy/coaches.vue — 由 site/src/pages/zh/academy/coaches/index.html 轉來（S0-9 靜態頁搬遷）
 //
-// S2-8（2026-09-29）：改為細粒度 unit '4.5' 並對藍鯨關閉（units.ts
-// BLUE_WHALE_DISABLED_UNITS）。本頁是磐石學院三位真實教練（徐翊／許志傑／黃聖傑，
-// 含真實照片）——真實人員資料，不能顯示成藍鯨的教練，也沒有已核實、非過期的藍鯨
-// 青年隊教練名單可換（`content/blue-whale/squad/coaching-staff.md` 標明「舊站教練
-// 經歷最新只到 2024，2025 賽季未更新」且無照片），故關閉，不需要俱樂部分支。
+// BW-C1（2026-09-29）：本頁對藍鯨重開（S2-8 曾以「沒有已核實、非過期的藍鯨青年隊
+// 教練名單」為由整頁 404，是誤用——藍鯨規劃書 §1.3 總則例外只有四項，不含 4.5，見
+// shared/utils/units.ts 檔頭）。教練名單本身仍缺（`content/blue-whale/squad/
+// coaching-staff.md` 標明「舊站教練經歷最新只到 2024，2025 賽季未更新」且無照片，
+// 拿可能已過期的名單當作現在的青年隊教練公開展示風險與臆造相近），這是「此頁此
+// 區塊內容缺漏」不是「整頁不存在」，改為顯示既有「收錄中」空狀態（比照 3.5 球員
+// 故事），不是 404。標題改「青年隊教練團」（不用「學院」字樣，見
+// check-club-brand-leak.mjs 詞表；04 對藍鯨依 docs/13 §3 一律稱「青年隊」）。
 definePageMeta({ nav: "academy", unit: "4.5" })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const identity = computed(() => getClubIdentity(clubKey.value))
 
-// S1-12d 收尾：梯隊代碼改讀 useSiteFacts('tcrfc')（後端公開端點）。
-const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+// S1-12d 收尾：梯隊代碼改讀 useSiteFacts(clubKey)（後端公開端點）。
+const { academyLabel } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: "學院教練團 Coaches｜台中磐石足球學院｜台中磐石足球俱樂部",
-  description: "認識台中磐石足球學院教練團：青訓總監徐翊、青訓教練許志傑與黃聖傑。證照、專長與負責梯隊等詳細資料收集中。",
+  title: computed(() => getYouthCoachesSeo(clubKey.value).title),
+  description: computed(() => getYouthCoachesSeo(clubKey.value).description),
 })
+const hero = computed(() => getYouthCoachesHero(clubKey.value))
 </script>
 
 <template>
@@ -24,20 +32,20 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/academy/')">足球學院</a></li>
-      <li aria-current="page">學院教練團</li>
+      <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
+      <li aria-current="page">{{ identity.academyShortLabelZh }}教練團</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/academy/life-09.jpg" alt="" width="1600" height="900">
+  <!-- 藍鯨無已核實、非過期的教練照片可用，不沿用磐石照片頂替 -->
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/academy/life-09.jpg" alt="" width="1600" height="900">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
-    <p class="page-hero__eyebrow">4.5 Coaches</p>
-    <h1>學院教練團<span class="en">Academy Coaches</span></h1>
-    <p class="page-hero__lede">
-      台中磐石足球學院教練團由 1 位青訓總監與 2 位青訓教練組成，陪伴各梯隊學員從基礎技術到比賽判讀逐步成長。
-    </p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '4.5 Coaches' : '4.5' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -48,7 +56,8 @@ useSeoMeta({
          `.visually-hidden` 標題慣例（見 zh/member/index.vue「member-title」、
          zh/news/[slug]/index.vue「article-body-title」），不影響版面。 -->
     <h2 id="coaches-list-title" class="visually-hidden">教練名單</h2>
-    <div class="grid grid--3 person-grid">
+
+    <div v-if="isTcrfc" class="grid grid--3 person-grid">
 
       <article class="person-card clip-card clip-card--outlined">
         <div class="person-card__photo person-card__photo--empty">
@@ -81,6 +90,7 @@ useSeoMeta({
       </article>
 
     </div>
+    <p v-else class="section-lede is-pending">教練名單整理中，待已核實、非過期的資料到位後將公布於本頁。</p>
 
     <h2 class="section-title" style="margin-top:4rem;">證照、專長與負責梯隊</h2>
     <p class="section-lede" style="margin-top:.5rem;">相關資料準備中，稍後將於本頁公布。</p>
@@ -92,8 +102,8 @@ useSeoMeta({
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
-        <span class="cta-card__title">學院隊伍</span>
-        <p class="cta-card__desc">查看 {{ tcrfcAcademyLabel() }} 各梯隊</p>
+        <span class="cta-card__title">{{ identity.academyShortLabelZh }}隊伍</span>
+        <p class="cta-card__desc">查看 {{ academyLabel() }} 各梯隊</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/curriculum/')">
         <span class="cta-card__num">4.4</span>
@@ -102,7 +112,7 @@ useSeoMeta({
       </a>
       <a class="cta-card" :href="lp('/zh/academy/life/')">
         <span class="cta-card__num">4.6</span>
-        <span class="cta-card__title">學院生活</span>
+        <span class="cta-card__title">{{ identity.academyShortLabelZh }}生活</span>
         <p class="cta-card__desc">訓練與比賽的日常紀錄</p>
       </a>
     </div>
@@ -111,6 +121,10 @@ useSeoMeta({
 </template>
 
 <style>
+/* 藍鯨無對應照片時的頁首佔位漸層（BW-C1 新增，沿用 academy/pathway.vue 等既有樣式） */
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+.is-pending{ color:var(--muted); font-style:italic; }
+
 /* ── 4.5 專屬元件：人物卡 person-card ─────────────────
    2.4 團隊成員、3.1 一線隊教練團等頁面都需要同款「照片＋職稱＋姓名＋簡介」卡片，
    強烈建議把 .person-card 收進 tcrfc.css 成為全站共用元件。 */

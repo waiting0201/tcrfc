@@ -1347,3 +1347,325 @@ export const COMMUNITY_PROGRAM_BODY_BW =
 /** 藍鯨教練培訓簡介，節錄自 programs.md §4「教練講習」（2025 年足球人才教練暨 TDS 守門員人才培訓）。 */
 export const COACH_TRAINING_BODY_BW =
   '台中藍鯨曾與國立臺灣體育運動大學、臺中市政府運動局等單位合辦教練講習，培養足球專業教練人才、更新訓練觀念與知識。'
+
+// ---------------------------------------------------------------------------
+// 03.2 球員發展系統 Player Development（BW-C1 重開）
+//
+// 🔴 S1-15／S2-8 兩輪曾以「藍鯨沒有對應的具名『系統』框架」為由整頁 404（見
+// units.ts 舊版檔頭）——這個判斷本身沒有錯（不得對藍鯨宣稱一套磐石自己的機構性
+// 框架），但錯的是拿它當關閉整頁的理由：藍鯨規劃書 §1.3 總則「例外只有四項單元
+// 取捨」不含 3.2，本頁應重開。八大主題（技術戰術分析、體能訓練、比賽判讀、心理
+// 韌性、影片分析、IDP 個人發展計畫、營養與生活、教育與語言）是通用足球培訓詞彙，
+// 不是磐石專屬機構事實，兩俱樂部可共用；每個模組的詳細內容本來就是「準備中」
+// 佔位文字（磐石版也是），不需要臆造新內容。唯一改的是 SEO／Hero 文案：避免對
+// 藍鯨使用「系統」這個暗示已建制完成的機構性框架用詞，改用「培育重點」。
+// ---------------------------------------------------------------------------
+
+export function getPlayerDevelopmentSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '球員培育重點｜台中藍鯨女子足球隊',
+      description: '台中藍鯨球員培育重點：技術戰術分析、體能訓練、比賽判讀、心理韌性、影片分析、個人發展計畫、營養與生活、教育與語言，各面向詳細內容整理中。',
+    }
+  }
+  return {
+    title: '球員發展系統 Player Development｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
+    description:
+      '台中磐石足球俱樂部球員發展系統：技術戰術分析、體能訓練、比賽判讀、心理韌性、影片分析、IDP 個人發展計畫、營養與生活、教育與語言，八大模組完整說明。',
+  }
+}
+
+export function getPlayerDevelopmentHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '球員培育重點',
+      h1En: null,
+      lede: '從技戰術到教育語言，八大面向是台中藍鯨球員培育關注的重點，支持一線隊與青年隊球員持續成長。點擊模組卡片展開詳細說明。',
+    }
+  }
+  return {
+    h1Zh: '球員發展系統',
+    h1En: 'Player Development',
+    lede: '從技戰術到教育語言，八大模組構成台中磐石球員發展系統的完整框架，支持一線隊與各梯隊球員朝職業與國際舞台邁進。點擊模組卡片展開詳細說明。',
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 03.4 國際發展通道 International Pathways（BW-C1 重開）
+//
+// 🔴 S2-8 曾以「藍鯨沒有海外合作俱樂部或旅外案例」為由整頁 404——但只查了「有沒有
+// 合作俱樂部 Logo」，沒有查沿革。`content/blue-whale/club-profile.md` §4 沿革其實有
+// 三筆真實旅外事實（2019 守門員蔡明容輸出旅外日本、2020 守門員程思瑜輸出旅外日本、
+// 2019 選手蘇育萱輸出旅外日本、2023 選手蘇育萱輸出旅外中國），其中蔡明容還有
+// `squad/player-tsai-ming-jung.md` 記錄的完整俱樂部經歷（2019–2022 效力日本
+// FC ふじざくら山梨／FC FUJIZAKURA YAMANASHI，2022 年返回台中藍鯨）——這是舊站
+// 已公開的球員經歷事實（該檔案自己註明「皆為舊站已公開的資訊」），不是未核實的
+// 臆測，可以文字引用（不含照片，肖像同意狀態未知）。
+// 藍鯨沒有可公開的海外「合作俱樂部」Logo 或協議（不同於「旅外球員」，兩者是不同
+// 事實），故地區頁籤改為球員實際旅外的日本／中國，合作俱樂部 Logo 牆對藍鯨維持
+// 空狀態，不得挪用磐石的三個海外俱樂部 Logo（Hellas Verona／Rayo Ciudad
+// Alcobendas／Rot-Weiss Ahlen）充數。
+// ---------------------------------------------------------------------------
+
+export function getInternationalPathwaysSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '國際發展通道｜台中藍鯨女子足球隊',
+      description: '台中藍鯨國際發展通道：球員旅外日本、中國的真實案例，以及海外試訓與媒合諮詢管道。',
+    }
+  }
+  return {
+    title: '國際發展通道 International Pathways｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
+    description:
+      '台中磐石足球俱樂部國際發展通道：從在地到海外俱樂部的完整路徑、歐洲／日本／香港分區資訊、合作俱樂部 Logo 牆，以及試訓球探與海外媒合諮詢管道。',
+  }
+}
+
+export function getInternationalPathwaysHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '國際發展通道',
+      h1En: null,
+      lede: '從台中出發，台中藍鯨已有球員成功旅外日本與中國，持續為選手建立通往國際舞台的路徑。',
+    }
+  }
+  return {
+    h1Zh: '國際發展通道',
+    h1En: 'International Pathways',
+    lede: 'LOCAL ROOTS. GLOBAL PATHWAYS. 從台中出發，透過一線隊與海外交流，為球員建立通往職業舞台的國際路徑。',
+  }
+}
+
+export interface IntlPathwayPlayerNote {
+  nameZh: string
+  descZh: string
+}
+
+/** 藍鯨旅外日本球員案例，逐字節錄自 club-profile.md §4 沿革與 player-tsai-ming-jung.md
+ * （唯一有完整俱樂部經歷紀錄的案例），不含照片（肖像同意狀態未知，比照 3.5 球員故事）。 */
+export const INTL_PATHWAY_JAPAN_NOTES_BW: IntlPathwayPlayerNote[] = [
+  { nameZh: '蔡明容 Tsai Ming-Jung', descZh: '守門員，2019–2022 年效力日本 FC ふじざくら山梨（FC Fujizakura Yamanashi），2022 年返回台中藍鯨。' },
+  { nameZh: '程思瑜', descZh: '守門員，2020 年輸出旅外日本成功（舊站沿革僅記錄年份，效力俱樂部名稱未提供）。' },
+  { nameZh: '蘇育萱', descZh: '2019 年輸出旅外日本成功（舊站沿革僅記錄年份，效力俱樂部名稱未提供）。' },
+]
+
+/** 藍鯨旅外中國球員案例，逐字節錄自 club-profile.md §4 沿革 2023 年第 3 點。 */
+export const INTL_PATHWAY_CHINA_NOTE_BW: IntlPathwayPlayerNote = {
+  nameZh: '蘇育萱',
+  descZh: '2023 年輸出旅外中國成功（舊站沿革僅記錄年份，效力俱樂部名稱未提供）。',
+}
+
+// ---------------------------------------------------------------------------
+// 04.5／04.6 青年隊教練團／青年隊生活 Youth Coaches／Youth Life（BW-C1 重開）
+//
+// 🔴 S2-8 曾以「沒有已核實、非過期的藍鯨青年隊教練名單／沒有已取得肖像同意的青年隊
+// 影像」為由整頁 404——這是「此頁此區塊內容缺漏」，不是「整頁不存在」，藍鯨規劃書
+// §1.3 總則例外不含 4.5／4.6，應重開頁面、缺漏區塊顯示既有空狀態（比照 3.5 球員
+// 故事）。標題刻意不用「學院」字樣（check-club-brand-leak.mjs 詞表禁詞，04 對藍鯨
+// 依 docs/13 §3 一律稱「青年隊」）。
+// ---------------------------------------------------------------------------
+
+export function getYouthCoachesSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '青年隊教練團｜台中藍鯨女子足球隊',
+      description: '台中藍鯨青年隊教練團：名單整理中，將於已核實資料到位後公布於本頁。',
+    }
+  }
+  return {
+    title: '學院教練團 Coaches｜台中磐石足球學院｜台中磐石足球俱樂部',
+    description: '認識台中磐石足球學院教練團：青訓總監徐翊、青訓教練許志傑與黃聖傑。證照、專長與負責梯隊等詳細資料收集中。',
+  }
+}
+
+export function getYouthCoachesHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '青年隊教練團',
+      h1En: null,
+      lede: '台中藍鯨青年隊教練團名單整理中，將於已核實、非過期的資料到位後公布於本頁。',
+    }
+  }
+  return {
+    h1Zh: '學院教練團',
+    h1En: 'Academy Coaches',
+    lede: '台中磐石足球學院教練團由 1 位青訓總監與 2 位青訓教練組成，陪伴各梯隊學員從基礎技術到比賽判讀逐步成長。',
+  }
+}
+
+export function getYouthLifeSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '青年隊生活｜台中藍鯨女子足球隊',
+      description: '台中藍鯨青年隊訓練與比賽日常影像，待肖像同意到位後將陸續公布於本頁。',
+    }
+  }
+  return {
+    title: '學院生活 Academy Life｜台中磐石足球學院｜台中磐石足球俱樂部',
+    description: '台中磐石足球學院的訓練日常、比賽與活動剪影，透過真實影像紀錄學員的成長點滴。',
+  }
+}
+
+export function getYouthLifeHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '青年隊生活',
+      h1En: null,
+      lede: '訓練日常、比賽現場與隊上活動——待肖像同意到位後，將陸續以影像記錄台中藍鯨青年隊學員的成長點滴。',
+    }
+  }
+  return {
+    h1Zh: '學院生活',
+    h1En: 'Academy Life',
+    lede: '訓練日常、比賽現場與隊上活動——用影像記錄台中磐石學院學員每一次奔跑與突破的瞬間。',
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 05.1–05.4 課程與活動四頁 Programs（BW-C1 重開）
+//
+// 🔴 藍鯨規劃書 §3.5（行 201）「05 推廣活動沿用主站 05 的活動版型；是否開放線上
+// 報名與收費，待確認」——這句話本身就是「頁面開放、報名／收費功能待確認（暫不
+// 開放）」的明文依據。S1-15／S2-10 兩輪把這句話誤讀成整頁關閉的理由，本輪重開。
+// ---------------------------------------------------------------------------
+
+/** 藍鯨真實課程班別，逐字節錄自 programs.md §1（社區足球學校）與 §2（運動 i 台灣
+ * 2.0－運動熱區 10 種課程規格），只取與「兒童足球訓練」對應的班別（3–15 歲），
+ * 不含守門員基礎班（另見 5.4 GOALKEEPER_CLASS_BW，規模與定位不同不合併）與成人
+ * 性質的野團足球賽。 */
+export interface ChildrensClassRow {
+  nameZh: string
+  ageZh: string
+  feeZh: string
+}
+export const CHILDRENS_TRAINING_CLASSES_BW: ChildrensClassRow[] = [
+  { nameZh: '社區幼幼足球班', ageZh: '3–4 歲', feeZh: '200 元／堂' },
+  { nameZh: '幼兒社區足球班', ageZh: '6–8 歲', feeZh: '200 元／堂' },
+  { nameZh: '藍鯨 U8／U10 足球教室', ageZh: '9–10 歲', feeZh: '200 元／堂' },
+  { nameZh: '藍鯨 U12 女子足球班', ageZh: '10–12 歲（限女性）', feeZh: '200 元／堂' },
+  { nameZh: '藍鯨 U15 女子足球班', ageZh: '13 歲以上（限女性）', feeZh: '200 元／堂' },
+]
+
+export function getChildrensTrainingSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '兒童足球訓練｜課程與活動｜台中藍鯨女子足球隊',
+      description: '台中藍鯨兒童足球訓練：社區足球學校「小藍鯨」與運動 i 台灣 2.0 課程，3–15 歲多種班別，太原足球場現場個人報名。',
+    }
+  }
+  return {
+    title: '兒童足球訓練 Children\'s Training｜課程與活動｜台中磐石足球俱樂部',
+    description: '台中磐石兒童足球訓練依混齡體驗、初學、技巧發展分級規劃，於台中磐石主場等場地授課，提供週期課表與線上報名。',
+  }
+}
+
+export function getChildrensTrainingHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '兒童足球訓練',
+      h1En: null,
+      lede: '台中藍鯨承接「運動 i 台灣 2.0」運動熱區推廣計畫，社區足球學校「小藍鯨」與多種分齡班別於太原足球場開課，免試上、免入會費，現場個人報名。',
+    }
+  }
+  return {
+    h1Zh: '兒童足球訓練',
+    h1En: 'Children\'s Training',
+    lede: '從第一次接觸足球到養成技巧，台中磐石依年齡與能力分級規劃課程，讓每個孩子都能在合適的節奏中成長。',
+  }
+}
+
+export function getSummerCampSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '夏令營｜課程與活動｜台中藍鯨女子足球隊',
+      description: '台中藍鯨目前尚未推出獨立的夏令營活動，暑期相關活動請關注官方社群與推廣活動頁面。',
+    }
+  }
+  return {
+    title: '夏令營 Summer Camp｜課程與活動｜台中磐石足球俱樂部',
+    description: '台中磐石足球夏令營，提供密集足球訓練與活動內容，梯次日期、地點與費用將於報名開放時公告，線上報名不接受金流付款。',
+  }
+}
+
+export function getSummerCampHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '夏令營',
+      h1En: null,
+      lede: '台中藍鯨目前尚未推出獨立的夏令營活動，是否開放另行規劃中。暑期期間可留意「兒童足球訓練」既有班別與官方社群公告。',
+    }
+  }
+  return {
+    h1Zh: '夏令營',
+    h1En: 'Summer Camp',
+    lede: '利用暑假密集接觸足球訓練，在專業教練帶領下累積球感、體能與團隊合作經驗。',
+  }
+}
+
+export function getWinterCampSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '冬令營｜課程與活動｜台中藍鯨女子足球隊',
+      description: '台中藍鯨目前尚未推出獨立的冬令營活動，寒假相關活動請關注官方社群與推廣活動頁面。',
+    }
+  }
+  return {
+    title: '冬令營 Winter Camp｜課程與活動｜台中磐石足球俱樂部',
+    description: '台中磐石足球冬令營，與夏令營共用版型與資料模型。梯次日期、地點、費用與教練團資訊將於報名開放時公告。',
+  }
+}
+
+export function getWinterCampHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '冬令營',
+      h1En: null,
+      lede: '台中藍鯨目前尚未推出獨立的冬令營活動，是否開放另行規劃中。寒假期間可留意「兒童足球訓練」既有班別與官方社群公告。',
+    }
+  }
+  return {
+    h1Zh: '冬令營',
+    h1En: 'Winter Camp',
+    lede: '寒假期間的密集足球訓練營，版型與資料模型與夏令營相同。梯次日期與費用將於報名開放前公告。',
+  }
+}
+
+/** 藍鯨守門員基礎班，逐字節錄自 programs.md §2 第 10 項——規模（7–12 歲、限額 10 位）
+ * 與定位（社區推廣性質）都不是磐石「六大專項競技訓練」同一種產品，不得套用六大專項
+ * 框架，維持它自己的真實樣貌單獨呈現。 */
+export const GOALKEEPER_CLASS_BW = {
+  nameZh: '藍鯨守門員基礎班',
+  ageZh: '7–12 歲（男女不拘，女生保留錄取名額，限額 10 位）',
+  feeZh: '200 元／堂',
+  scheduleZh: '每週 1.5 小時／堂',
+  signupZh: '須先填寫報名表單',
+  signupUrl: 'https://forms.gle/ffQTf1uaZinZd2mt5',
+}
+
+export function getSpecialistTrainingSeo(club: string): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '專項訓練｜課程與活動｜台中藍鯨女子足球隊',
+      description: '台中藍鯨專項訓練目前提供守門員基礎班（7–12 歲），其餘專項尚未推出，須先填寫報名表單。',
+    }
+  }
+  return {
+    title: '專項訓練 Specialist Training｜課程與活動｜台中磐石足球俱樂部',
+    description: '台中磐石專項訓練涵蓋守門員、前鋒、後衛、中場、體能與速度、高階訓練六大類別，由台中磐石教練團規劃執行，線上報名。',
+  }
+}
+
+export function getSpecialistTrainingHero(club: string): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '專項訓練',
+      h1En: null,
+      lede: '台中藍鯨目前提供守門員基礎班，針對守門位置設計專項訓練，其餘專項訓練尚未推出，後續開放將公布於本頁。',
+    }
+  }
+  return {
+    h1Zh: '專項訓練',
+    h1En: 'Specialist Training',
+    lede: '針對特定位置與能力設計的分科訓練，由台中磐石教練團依學員需求規劃課程目標與適合對象。',
+  }
+}

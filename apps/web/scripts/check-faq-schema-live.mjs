@@ -28,10 +28,12 @@
  * 後 3 個（`/zh/about/`／`/zh/checkout/`／`/zh/join/contact/`）只為了驗「頁面型別不得
  * 由網址猜測」而納入，跟 GEO-06／FAQPage 本身無關（見下方該節說明）。
  *
- * 藍鯨（`bw`）容器：`academy-admission`／`programs-camps`（S1-18b 已關閉，回 404）與
- * 3 個 G-12 嵌入頁（`academy/join`／`programs/childrens-training`／
- * `programs/summer-camp`，S1-15 已關閉，回 404）一律預期 404，不是這支腳本要抓的
- * 缺陷——同 `check-heading-structure.mjs` 對 404 路由的既有處理方式，遇到 404 就跳過。
+ * 藍鯨（`bw`）容器：BW-C1（2026-09-29）修正 S1-15／S2-8／S2-10 誤把「藍鯨沒有對應
+ * 內容」當成整頁 404 的理由後，`programs-camps`／`childrens-training`／`summer-camp`
+ * 等頁面已重開（見 shared/utils/units.ts 檔頭）。目前藍鯨容器只剩 `academy-admission`
+ * （12.2）與 `academy/join`（4.7）預期 404——依附同一項總則例外（04 不沿用招生與
+ * 課程報名架構），其餘路由一律預期 200，不是這支腳本要抓的缺陷——同
+ * `check-heading-structure.mjs` 對 404 路由的既有處理方式，遇到 404 就跳過。
  *
  * ## 用法
  *

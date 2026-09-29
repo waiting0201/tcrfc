@@ -590,6 +590,12 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
 specialist,school-community}/index.vue`（5.3–5.5）同樣未關閉、零分支，理由同上——STATUS.md
 把它們排在 `S2-10`，本輪不擴大範圍。
 
+> 🔴🔴 **已修正（BW-C1，2026-09-29）**：上面把 `5.1`／`5.2` 加進
+> `BLUE_WHALE_DISABLED_UNITS`（用 404 關閉整頁）違反藍鯨規劃書 §1.3 總則「例外只有四項
+> 單元取捨」——「藍鯨沒有對應的活動集合」是內容缺漏，不是關閉整頁的理由。`5.1`／`5.2`
+> 已於 BW-C1 重開（版型不變，內容改為藍鯨真實課程班別或誠實空狀態），詳見本檔「BW-C1」節
+> 與 [`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-76`。
+
 ### 驗收紀錄（2026-09-29）
 
 ```
@@ -2470,6 +2476,15 @@ coaches,life}.vue`（4.3–4.6）與 `club/opportunities/index.vue` 的藍鯨品
 | 4.5 學院教練團 | 🔴 **關閉**（新增 `units.ts` `'4.5'`，改為細粒度 `unit`） | 磐石學院三位真實教練（徐翊／許志傑／黃聖傑，含真實照片），不能顯示成藍鯨教練；`coaching-staff.md` 雖有鄭雅薰／李彥廷等人「曾任」U15 教練的舊站原文，但該檔案標明「舊站教練經歷最新只到 2024，2025 賽季未更新」且無照片，教練異動不是「創立年份」那種不會過期的事實，風險與臆造相近 |
 | 4.6 學院生活 | 🔴 **關閉**（新增 `units.ts` `'4.6'`，改為細粒度 `unit`） | 13 張磐石學院學員（未成年）真實訓練／比賽照片，不能挪用成藍鯨——藍鯨沒有對應、已核實肖像同意的青年隊照片可用（既有缺口，同 `S1-16`「缺內容清單」） |
 
+> 🔴🔴 **已修正（BW-C1，2026-09-29）**：上表把 `3.2`／`3.4`／`4.5`／`4.6` 標「關閉」
+> 違反藍鯨規劃書 §1.3 總則「例外只有四項單元取捨」——「藍鯨沒有對應真實內容」是內容
+> 缺漏，不是關閉整頁的理由。四頁已於 BW-C1 重開：`3.2`（球員培育重點文案，避免對藍鯨
+> 宣稱「系統」框架）、`3.4`（`club-profile.md` 沿革其實有真實旅外案例：蔡明容／程思瑜／
+> 蘇育萱旅外日本、蘇育萱旅外中國，本輪當時只查了「有沒有合作俱樂部 Logo」沒查沿革）、
+> `4.5`／`4.6`（教練名單／訓練影像維持既有「收錄中」空狀態，不放任何名字或照片）。
+> 下方「規格疑點」第 1 點已由 BW-C1 處理，見本檔「BW-C1」節與
+> [`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-76`。
+
 ### 3.3 球員機會：修正既有品牌外洩
 
 `club/opportunities/index.vue` 改動前固定呼叫 `useSiteFacts('tcrfc')`——單元 `'3.3'`
@@ -2558,6 +2573,13 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
 | 5.4 專項訓練 | 🔴 **關閉**（新增 `units.ts` `'5.4'`） | 🟢 真資料：`GET /{club}/programs?type=specialist_training`，新增「目前開放報名的專項」區塊；六大專項介紹卡片維持既有靜態內容 | 現況內容是磐石男子一線隊球員真實訓練照片與「台中磐石成人足球訓練營」具名宣傳文案；藍鯨唯一沾得上邊的是社區推廣性質的「藍鯨守門員基礎班」（`programs.md` §2 第 10 項，7–12 歲兒童班），規模與定位都不是同一種六大專項競技訓練產品 |
 | 5.5 校園與社區 | 🟢 **開放**，藍鯨版改讀真實建教合作內容 | 🟢 真資料：`GET /{club}/programs?type=school_community`；「合作學校列表」藍鯨版讀 `club-copy.ts` `SCHOOL_PARTNERS_BW`（5 校，逐字節錄 `club-profile.md` §1「建教合作」欄）；「社區計畫」／「教練培訓」讀 `COMMUNITY_PROGRAM_BODY_BW`／`COACH_TRAINING_BODY_BW`（節錄 `programs.md` §2／§4） | `content/blue-whale/club-profile.md` §1「建教合作」欄有 5 校真實名單、`programs.md` §2／§4 有真實社區推廣（運動 i 台灣 2.0）與教練講習內容，與本頁三個子區塊直接對應，有真實內容可換，不需要關閉 |
 
+> 🔴🔴 **已修正（BW-C1，2026-09-29）**：上表把 `5.3`／`5.4` 標「關閉」違反藍鯨規劃書
+> §1.3 總則「例外只有四項單元取捨」——下方「規格疑點」第 1 點當時已經點出這個張力，
+> 但選擇維持關閉、留給下一輪裁決；BW-C1 依總則明文重新判斷後改為重開：`5.3` 冬令營
+> 沒有找到對應真實活動，改為誠實空狀態；`5.4` 專項訓練改為只呈現真實對應的「藍鯨
+> 守門員基礎班」，不套用磐石六大專項框架。詳見本檔「BW-C1」節與
+> [`docs/18-work-errors.md`](../../docs/18-work-errors.md) `E-76`。
+
 三頁皆新增 `useFaqEmbed(club, 'program_detail', locale)`（同 5.1／5.2 既有掛載點）＋
 `useFaqPageSchema()`（GEO-06）；5.3／5.4 對藍鯨已 404，掛載點呼叫本身無副作用（頁面
 本來就不會渲染），不需要額外判斷。`useCourseSchema()`（GEO-05／S1-20 既有介面）三頁
@@ -2627,10 +2649,141 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
    或客戶裁決**：整個 05 單元是否要改為「1:1 開放＋盡力換真實內容」，而不是目前
    「部分關閉」的做法。這個疑點同時回溯適用於 `S1-15` 已關閉的 5.1／5.2，不只是
    本輪新關閉的 5.3／5.4。
+   ✅ **已裁決（BW-C1，2026-09-29）**：依 §1.3 總則明文字面重新判斷，「05 應該
+   1:1 開放」這個猜測是對的——`5.1`–`5.4` 已全部重開，詳見本檔「BW-C1」節。
 2. **5.4「目前開放報名的專項」清單的呈現粒度**：規劃書沒有規定六大專項各自要不要
    有獨立的 `Program` 主檔，本輪判斷用清單方式呈現真實 API 回傳的所有
    `specialist_training` 項目（不限定六類），是否要求後台逐一對應六大專項各建一筆
    `Program`，需要規格或客戶確認。
+
+## BW-C1（修正藍鯨關閉單元誤用，重開 3.2／3.4／4.5／4.6／5.1–5.4／12.3，2026-09-29，`frontend-architect`）
+
+使用者指出 S1-15／S2-8／S2-10 連續三輪把「藍鯨沒有對應真實內容」當成用 404 整頁關閉
+單元的正當理由，違反藍鯨規劃書 §1.3 總則（行 87–93）「本站與主站是同一套網站，只有
+配色不同」與 §2.1（行 92、135）「例外只有四項單元取捨」。本輪逐一覆查 `units.ts`
+`BLUE_WHALE_DISABLED_UNITS` 的 13 個項目，只保留能從四項例外**直接推導**的 3 個
+（`06`／`11`／`4.7`）與依附 `4.7` 的 `12.2`，其餘 9 個（`3.2`／`3.4`／`4.5`／`4.6`／
+`5.1`–`5.4`／`12.3`）全部重開。詳見 [`docs/18-work-errors.md`](../../docs/18-work-errors.md)
+`E-76`、[`docs/14-invariants.md`](../../docs/14-invariants.md) 新增條目。
+
+### 保留關閉與重開的依據（逐項附規劃書行號）
+
+| 單元 | 決定 | 依據 |
+|---|---|---|
+| `06`／`11` | 維持關閉 | 藍鯨規劃書 §2.1，行 92、135：總則四項例外之二 |
+| `4.7`（加入學院） | 維持關閉 | 藍鯨規劃書 §3.4，行 197：「04 青年隊沿用主站 04 的梯隊版型，但不沿用招生與課程報名架構」，4.7 整頁即為該架構 |
+| `12.2`（學院招生 FAQ） | 維持關閉 | 依附 `4.7` 同一項例外；**本輪修正**：先前只寫進 `FAQ_CATEGORY_UNIT_CODES`，漏了頁面本身 `unit-gate` 判斷用的主清單（見下方「本輪也修的一個新錯」） |
+| `3.2` 球員發展系統 | 🟢 重開 | 八大主題是通用足球培訓詞彙，兩俱樂部可共用；模組詳細內容本來就是「準備中」佔位文字（磐石版也是）。改為 SEO／Hero 依俱樂部切換（`getPlayerDevelopmentSeo/Hero`），藍鯨版避免使用「系統」這個暗示已建制機構框架的用詞，改稱「培育重點」 |
+| `3.4` 國際發展通道 | 🟢 重開 | `content/blue-whale/club-profile.md` §4 沿革有真實旅外案例：2019 守門員蔡明容旅外日本（`squad/player-tsai-ming-jung.md` 記錄完整俱樂部經歷：2019–2022 效力 FC ふじざくら山梨）、2020 守門員程思瑜旅外日本、2019 選手蘇育萱旅外日本、2023 選手蘇育萱旅外中國。地區頁籤改為 Japan／China，合作俱樂部 Logo 牆藍鯨維持空狀態（沒有可公開授權使用的海外合作俱樂部 Logo） |
+| `4.5` 學院教練團 | 🟢 重開 | 確實沒有已核實、非過期、已取得肖像同意的藍鯨教練名單可用，但這是「此頁此區塊內容缺漏」不是「整頁不存在」。標題改「青年隊教練團」（不用「學院」字樣），教練名單區塊顯示既有「收錄中」空狀態，不放任何名字或照片 |
+| `4.6` 學院生活 | 🟢 重開 | 同上，13 張磐石學員真實照片不能挪用，藝廊區塊對藍鯨改為「收錄中」空狀態，不放任何照片 |
+| `5.1` 兒童足球訓練 | 🟢 重開，真實內容 | 藍鯨規劃書 §3.5，行 201：「05 推廣活動沿用主站 05 的活動版型；是否開放線上報名與收費，待確認」——頁面開放、報名功能待確認的明文依據。`programs.md` §1（社區足球學校「小藍鯨」）＋§2（運動 i 台灣 2.0 課程表，3–15 歲）有真實對應內容 |
+| `5.2` 夏令營 | 🟢 重開，空狀態 | 同上明文依據；`programs.md` 沒有找到對應的夏令營產品，內容維持誠實空狀態 |
+| `5.3` 冬令營 | 🟢 重開，空狀態 | 同上，沒有找到對應的冬令營產品 |
+| `5.4` 專項訓練 | 🟢 重開，部分真實內容 | 同上明文依據；`programs.md` §2 第 10 項「藍鯨守門員基礎班」（7–12 歲）是唯一真實對應內容，不套用磐石「六大專項」框架，只呈現這一項真實課程 |
+| `12.3`（課程與營隊報名 FAQ） | 🟢 重開 | 依附 `5.1`–`5.4` 重開，內容本來就依 `club_id` 撈資料（`useFaqList`），無需額外處理 |
+
+### 各頁改動摘要
+
+- **`shared/utils/units.ts`**：整份重寫檔頭與 `BLUE_WHALE_DISABLED_UNITS`／
+  `FAQ_CATEGORY_UNIT_CODES`。新增紀律：陣列每一項都必須在同一行帶 `//` 行內註解且含
+  `§`，由新增的 `apps/web/scripts/check-bw-units-citation.mjs` 靜態檢查（掛進
+  `npm run lint` 的 `lint:bw-units-citation`）。
+- **`shared/utils/club-copy.ts`**：新增 8 組 `getXxxSeo()`／`getXxxHero()` 工廠函式
+  （`getPlayerDevelopmentSeo/Hero`、`getInternationalPathwaysSeo/Hero`、
+  `getYouthCoachesSeo/Hero`、`getYouthLifeSeo/Hero`、`getChildrensTrainingSeo/Hero`、
+  `getSummerCampSeo/Hero`、`getWinterCampSeo/Hero`、`getSpecialistTrainingSeo/Hero`）
+  與 5 個資料常數（`INTL_PATHWAY_JAPAN_NOTES_BW`、`INTL_PATHWAY_CHINA_NOTE_BW`、
+  `CHILDRENS_TRAINING_CLASSES_BW`、`GOALKEEPER_CLASS_BW`），內容一律逐字節錄
+  `content/blue-whale/` 舊站原文，附來源章節註解（延續紀律 11）。
+- **8 個頁面檔案**（`app/pages/zh/club/{player-development,international-pathways}/
+  index.vue`、`app/pages/zh/academy/{coaches,life}.vue`、`app/pages/zh/programs/
+  {childrens-training,summer-camp,winter-camp,specialist}/index.vue`）：加入
+  `clubKey`／`isTcrfc` 判斷，SEO／Hero 改讀上述工廠函式；藍鯨專屬真實內容區塊改讀
+  對應常數；沒有真實內容的區塊（教練名單、訓練影像、六大專項框架、合作夥伴 Logo、
+  往年花絮照片）對藍鯨顯示既有「準備中／收錄中」空狀態樣式，不放任何磐石專屬真實
+  人名、照片或機構宣稱；報名 CTA 對藍鯨不連到磐石專屬的 `/zh/join/academy/`／
+  `/zh/join/camp-registration/`，改連官方 LINE（`getClubAssets(clubKey).social.line`）
+  或真實舊站報名表單（`GOALKEEPER_CLASS_BW.signupUrl`，Google 表單）。
+- **`app/pages/zh/faq/programs-camps/index.vue`**：移除關閉理由的過期註解（`unit`
+  維持 `'12.3'`，本身邏輯不變，只是不再被關閉）。
+- **選單、hub 頁、CTA 卡片同步**：`SiteHeader.vue` 04／05 mega menu 本來就用
+  `isUnitEnabledForClub()` 動態判斷，`units.ts` 修正後自動恢復顯示，只更新了過期的
+  說明註解；`app/pages/zh/club/index.vue`（03 hub）、`club/opportunities/index.vue`、
+  `club/player-stories/index.vue`、`club/first-team/index.vue`、`academy/overview.vue`、
+  `academy/curriculum.vue`、`academy/teams.vue` 裡原本用 `v-if="isTcrfc"` 隱藏
+  3.2／3.4／4.5 連結的 CTA 卡片，移除隱藏並依俱樂部切換文案（部分卡片同時發現、修正
+  了先前遺漏的既有缺口，例如 `academy/teams.vue` 的 4.3 卡片也一直被誤綁在同一個
+  `isTcrfc` 判斷裡）。
+
+### 本輪也修的一個新錯（發現於驗證階段，同一次交付內修正）
+
+第一版把 `12.2` 只寫進 `FAQ_CATEGORY_UNIT_CODES`（分類 slug 對照表），以為這樣就夠
+——但 `faq/academy-admission/index.vue` 頁面本身也宣告 `definePageMeta({ unit: '12.2'
+})`，`unit-gate.global.ts` 檢查的是 `BLUE_WHALE_DISABLED_UNITS` 這份主清單，不是
+`FAQ_CATEGORY_UNIT_CODES`。用本機 bw 容器 `curl` 驗證時發現該頁誤回 `200`（該關閉的
+沒關閉），已補回 `BLUE_WHALE_DISABLED_UNITS` 的 `'12.2'` 項並重新驗證 404。這個錯已
+收進 `docs/18-work-errors.md` `E-76`（同一筆記兩個根因，不分開記兩筆）。
+
+### 驗證指令與實際結果（2026-09-29）
+
+```
+npm run lint    # 0 errors, 395 warnings（等於既有基準上限，未超過；曾一度為 399，
+                # 已修正 international-pathways/index.vue 新增元素的屬性順序後降回）
+npm run build   # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+```
+
+本機用同一份映像檔起 `tcrfc`（port 13001）／`bw`（port 13012，帶
+`NUXT_PUBLIC_SITE_NAME=台中藍鯨`）兩容器，`apps/api` 未啟動（依派工規則不自行啟動、
+不碰密碼，`GET /api/backend/*` 皆優雅降級為空清單／既有「待公告」提示，無 500）：
+
+- 8 個重開頁＋1 個 FAQ 分類頁的 `/zh/`／`/en/` 狀態碼（共 18 條網址）逐一 `curl`：
+  bw 容器全數 `200`；`academy/join`（4.7）與 `faq/academy-admission`（12.2）維持
+  `404`；tcrfc 容器對應頁面全數 `200`（未受影響）。`X-Robots-Tag: noindex, nofollow`
+  全數皆在。
+- 內容抽查（bw 容器）：`international-pathways` 出現「Japan 日本」「China 中國」
+  「蔡明容」「蘇育萱」「FC ふじざくら山梨」；`player-development` 出現「球員培育
+  重點」「八大面向」；`childrens-training` 出現「小藍鯨」「運動 i 台灣」「藍鯨
+  U15 女子足球班」「洽詢官方 LINE」；`academy/coaches` 出現「青年隊教練團」「教練
+  名單整理中」；`academy/life` 出現「青年隊生活」「訓練與比賽影像整理中」；
+  `programs/specialist` 出現「藍鯨守門員基礎班」「前往報名表單」；`summer-camp`
+  出現「目前尚無對應的夏令營活動」空狀態文字。tcrfc 容器對應頁面內容逐一比對，磐石
+  原有內容（八大模組、Hellas Verona、楊朝景等）未受影響。
+- `node scripts/check-bw-units-citation.mjs`：通過（4 項全部附 `§` 章節依據）。
+- `node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:13012`：
+  `PROTECTED_PAGES` 新增本輪 9 頁（8 個重開頁＋`faq/programs-camps`），共 33 頁全數
+  乾淨、棘輪未被違反（上一版 24 筆全部還在）。9 頁對應的 `/en/` 版本另行 `curl` 逐一
+  確認 0 筆「磐石」／「TCRFC」／「學院」命中（腳本本身路由清單目前只收 `/zh/`）。
+- `node scripts/check-heading-structure.mjs --base-url=http://127.0.0.1:13012`：
+  148 條路由 H1 唯一、標題不跳階 0 違規。
+- `node scripts/check-site-units-coverage.mjs`：通過（本輪 unit 代號未變更頂層代碼）。
+- `node scripts/check-faq-schema-live.mjs --base-url=http://127.0.0.1:13012`：通過，
+  0 個 `FAQPage` 節點（`apps/api` 未啟動，符合 GEO-05「資料不足時不輸出」）；已同步
+  更新腳本檔頭過期的「一律預期 404」說明。
+- Docker 容器日誌：除既有的 `apps/api` 連不上降級路徑外，無 `Vue warn`／
+  `TypeError`／`ReferenceError`。
+
+🔴 **未驗證項目**：`apps/api` 未啟動，只驗證了「API 打不到時優雅降級」這條路徑；
+真實 `programs`／`faqs` 種子資料下的實際渲染效果未驗證。
+
+### 仍有疑義的項目（列出，未自行決定）
+
+1. **`3.4` 國際發展通道的地區頁籤只涵蓋 Japan／China**：`club-profile.md` 沿革另有
+   「守門員程思瑜」「選手蘇育萱」旅外日本的紀錄，但未附效力俱樂部名稱（只有蔡明容
+   有完整俱樂部經歷可引用）；若客戶之後提供這兩位球員的效力俱樂部名稱，本頁可以
+   補上更完整的敘述，目前維持舊站原文的資訊粒度，不臆測俱樂部名稱。
+2. **`4.5`／`4.6` 的空狀態是否要進一步收窄**：`coaching-staff.md` 確實有鄭雅薰／
+   李彥廷「曾任」U15 教練的舊站原文，本輪判斷這份資料可能已過期（2025 賽季未更新）
+   而不用，維持「收錄中」空狀態；若客戶確認這份名單現況仍適用，可以改為顯示（比照
+   `3.4` 引用沿革事實文字、不附照片的做法）。
+3. **`/zh/club/`（03 hub）與 `/zh/programs/`（05 hub）兩頁整頁仍是既有記錄的缺口**
+   （固定磐石內容，零俱樂部分支）：本輪只修正了這兩頁裡連到 3.2／3.4／4.5 的 CTA
+   卡片隱藏邏輯，沒有把整頁改成雙俱樂部內容——那是 `S1-12d`／`S2-8` 已記錄的既有
+   缺口，不在本輪派工範圍內，需要時另立一輪處理。
+4. **`check-club-brand-leak.mjs` 的路由清單只收 `/zh/`**：本輪對新增的 9 頁 `/en/`
+   版本是手動 `curl` 逐一驗證，沒有讓腳本自動涵蓋——這是腳本本身的既有限制（見腳本
+   檔頭），不是本輪新增的缺口，但值得之後一併補上腳本自動掃 `/en/` 的能力。
 
 ## 相關文件
 

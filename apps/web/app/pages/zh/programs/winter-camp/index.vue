@@ -2,10 +2,11 @@
 // app/pages/zh/programs/winter-camp/index.vue — 由 site/src/pages/zh/programs/winter-camp/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 //
-// S2-10（2026-09-29）：本頁對藍鯨已整頁 404（units.ts BLUE_WHALE_DISABLED_UNITS 的
-// '5.3'）——與 5.2 共用同一份資料模型／版型，`content/blue-whale/programs.md` 的舊站
-// 內容盤點沒有對應的「寒假營隊」產品可換，故關閉，不需要俱樂部分支。理由見
-// shared/utils/units.ts 檔頭與 apps/web/README.md「S2-10」節。
+// BW-C1（2026-09-29）：本頁對藍鯨重開（S2-10 曾以「藍鯨沒有對應的寒假營隊產品」為由
+// 整頁 404，是誤用——理由同 programs/childrens-training/index.vue 檔頭）。
+// `content/blue-whale/programs.md` 舊站內容盤點確實沒有找到對應的「冬令營」產品，
+// 本頁對藍鯨內容維持誠實的空狀態（本頁磐石版原本就大量是「待公告」占位文字，
+// 不需要大改），改讀 getWinterCampSeo()／getWinterCampHero()（club-copy.ts）。
 //
 // 本輪新增：讀真實 05 課程與活動公開 API 查詢 `program_type='winter_camp'`（同
 // summer-camp/index.vue 既有做法）。現況 `programs` 表 0 筆種子資料，故本輪只做到
@@ -14,12 +15,14 @@ definePageMeta({ nav: 'programs', unit: '5.3' })
 
 const { lp, locale } = useLocale()
 const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: '冬令營 Winter Camp｜課程與活動｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球冬令營，與夏令營共用版型與資料模型。梯次日期、地點、費用與教練團資訊將於報名開放時公告。',
+  title: computed(() => getWinterCampSeo(clubKey.value).title),
+  description: computed(() => getWinterCampSeo(clubKey.value).description),
 })
+const hero = computed(() => getWinterCampHero(clubKey.value))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'winter_camp', pageSize: 5, lang: locale.value },
@@ -67,9 +70,9 @@ useCourseSchema(
 <section class="page-hero">
   <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">5.3</span>
   <div class="container">
-    <p class="page-hero__eyebrow">5.3 Programs</p>
-    <h1>冬令營<span class="en">Winter Camp</span></h1>
-    <p class="page-hero__lede">寒假期間的密集足球訓練營，版型與資料模型與夏令營相同。梯次日期與費用將於報名開放前公告。</p>
+    <p class="page-hero__eyebrow">5.3</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -148,7 +151,7 @@ useCourseSchema(
     </div>
     <p class="section-lede">梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
+      <a v-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
     </div>
   </div>

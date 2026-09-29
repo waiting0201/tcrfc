@@ -2,8 +2,16 @@
 // app/pages/zh/programs/childrens-training/index.vue — 由 site/src/pages/zh/programs/childrens-training/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 //
-// S1-15（2026-09-29）：本頁對藍鯨已整頁 404（units.ts 的 '5.1'，藍鯨自己的「05 推廣活動」
-// 是完全不同的活動集合，見該檔案說明），故本頁維持磐石專屬內容，不需要俱樂部分支。
+// BW-C1（2026-09-29）：本頁對藍鯨重開（S1-15 曾以「藍鯨『05 推廣活動』是完全不同的
+// 活動集合」為由整頁 404，是誤用——藍鯨規劃書 §3.5（行 201）「05 推廣活動沿用主站
+// 05 的活動版型；是否開放線上報名與收費，待確認」，這是「頁面開放、報名功能待定」
+// 的明文依據，不是關閉整頁的理由；見 shared/utils/units.ts 檔頭）。藍鯨其實有真實
+// 對應內容：`content/blue-whale/programs.md` §1（社區足球學校「小藍鯨」）與 §2
+// （運動 i 台灣 2.0 運動熱區課程表，3–15 歲多種班別），改為讀
+// getChildrensTrainingSeo()／getChildrensTrainingHero()／
+// CHILDRENS_TRAINING_CLASSES_BW（club-copy.ts）。報名 CTA 對藍鯨不接站內報名流程
+// （「是否開放線上報名」尚未確認），改顯示舊站真實報名方式（現場個人報名）＋
+// 官方 LINE 聯絡連結，不連到磐石專屬的 `/zh/join/academy/`。
 //
 // 本輪新增：讀真實 05 課程與活動公開 API（P1–P3，S1-9 後端已完成）查詢
 // `program_type='children_training'`（值域見 apps/admin/src/types/program.ts，
@@ -16,17 +24,18 @@ definePageMeta({ nav: 'programs', unit: '5.1' })
 
 const { lp, locale } = useLocale()
 const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const identity = computed(() => getClubIdentity(clubKey.value))
 
-// S1-12d 收尾：主場／地址改讀 useSiteFacts('tcrfc')（後端公開端點）。本頁對藍鯨已整頁
-// 404（見上方檔頭說明），固定讀 tcrfc 即可。
-const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+// BW-C1：改讀 useSiteFacts(clubKey)（後端公開端點），不再固定讀 tcrfc。
+const { facts, primaryVenue } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: '兒童足球訓練 Children\'s Training｜課程與活動｜台中磐石足球俱樂部',
-  description: computed(
-    () => `台中磐石兒童足球訓練依混齡體驗、初學、技巧發展分級規劃，於${tcrfcVenue.value.nameZh}等場地授課，提供週期課表與線上報名。`,
-  ),
+  title: computed(() => getChildrensTrainingSeo(clubKey.value).title),
+  description: computed(() => getChildrensTrainingSeo(clubKey.value).description),
 })
+const hero = computed(() => getChildrensTrainingHero(clubKey.value))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'children_training', pageSize: 5, lang: locale.value },
@@ -83,15 +92,17 @@ useCourseSchema(
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/programs/childrens-03.jpg" alt="" width="1600" height="1067">
+  <!-- 藍鯨無已核實可用的兒童訓練照片可用，不沿用磐石照片頂替 -->
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/programs/childrens-03.jpg" alt="" width="1600" height="1067">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
-    <p class="page-hero__eyebrow">5.1 Programs</p>
-    <h1>兒童足球訓練<span class="en">Children's Training</span></h1>
-    <p class="page-hero__lede">從第一次接觸足球到養成技巧，台中磐石依年齡與能力分級規劃課程，讓每個孩子都能在合適的節奏中成長。</p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '5.1 Programs' : '5.1' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
-<section class="band">
+<section v-if="isTcrfc" class="band">
   <div class="container">
     <div class="grid grid--2">
       <div class="prose">
@@ -121,25 +132,56 @@ useCourseSchema(
   </div>
 </section>
 
+<!-- 藍鯨：真實課程班別（programs.md §1／§2，年齡 3–15 歲），逐字節錄，非分級框架。 -->
+<section v-else class="band">
+  <div class="container">
+    <div class="grid grid--2">
+      <div class="prose">
+        <h2>課程班別</h2>
+        <p>社區足球學校「小藍鯨」承接臺中市政府「運動 i 台灣 2.0」運動熱區推廣計畫，依年齡分為多種班別，免試上、免測試、免入會費。</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th scope="col">班別</th><th scope="col">適合年齡</th><th scope="col">費用</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in CHILDRENS_TRAINING_CLASSES_BW" :key="c.nameZh">
+            <td>{{ c.nameZh }}</td>
+            <td>{{ c.ageZh }}</td>
+            <td>{{ c.feeZh }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 <section class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
       <div class="prose">
         <h2>訓練地點</h2>
-        <p>兒童足球訓練主要於台中磐石主場地舉行，實際梯次場地將於報名頁面標示。</p>
+        <p v-if="isTcrfc">兒童足球訓練主要於台中磐石主場地舉行，實際梯次場地將於報名頁面標示。</p>
+        <p v-else>課程主要於{{ primaryVenue.nameZh }}舉行，實際梯次場地將依公告為準。</p>
       </div>
       <div class="fact-panel">
         <dl style="margin:0;">
           <dt>主要場地</dt>
-          <dd>{{ tcrfcVenue.nameZh }}</dd>
-          <dt>地址</dt>
-          <dd>{{ tcrfcFacts.contact.address }}</dd>
-          <dt>地圖</dt>
-          <dd><a href="https://www.google.com/maps/search/?api=1&query=%E8%A5%BF%E5%B1%AF%E8%B6%B3%E7%90%83%E5%A0%B4%20%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B7%2011%20%E5%BC%84%2041%20%E8%99%9F" target="_blank" rel="noopener">在 Google 地圖開啟 <span class="visually-hidden">（新分頁開啟）</span></a></dd>
+          <dd>{{ primaryVenue.nameZh }}</dd>
+          <template v-if="facts.contact.address">
+            <dt>地址</dt>
+            <dd>{{ facts.contact.address }}</dd>
+          </template>
+          <template v-if="isTcrfc">
+            <dt>地圖</dt>
+            <dd><a href="https://www.google.com/maps/search/?api=1&query=%E8%A5%BF%E5%B1%AF%E8%B6%B3%E7%90%83%E5%A0%B4%20%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B7%2011%20%E5%BC%84%2041%20%E8%99%9F" target="_blank" rel="noopener">在 Google 地圖開啟 <span class="visually-hidden">（新分頁開啟）</span></a></dd>
+          </template>
         </dl>
       </div>
     </div>
-    
+
   </div>
 </section>
 
@@ -160,7 +202,7 @@ useCourseSchema(
           <tr v-for="s in sessions" :key="s.id">
             <td>{{ s.weeklySchedule ?? '—' }}</td>
             <td>{{ s.enrolledCount }}{{ s.capacity ? ` / ${s.capacity}` : '' }} 人</td>
-            <td>{{ s.venueName ?? tcrfcVenue.nameZh }}</td>
+            <td>{{ s.venueName ?? primaryVenue.nameZh }}</td>
           </tr>
         </tbody>
       </table>
@@ -187,7 +229,7 @@ useCourseSchema(
   </div>
 </section>
 
-<section class="band" style="background:var(--paper-2);" aria-labelledby="cft-gallery-title">
+<section v-if="isTcrfc" class="band" style="background:var(--paper-2);" aria-labelledby="cft-gallery-title">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
       <h2 id="cft-gallery-title">活動花絮：台中磐石足球節</h2>
@@ -201,7 +243,15 @@ useCourseSchema(
       <figure class="clip-card"><img src="/assets/img/programs/childrens-06.jpg" loading="lazy" width="1600" height="1067" alt="場邊觀眾為正在射門的兒童球員加油，家長舉傘遮陽觀賽"><figcaption>台中磐石足球節：場邊加油</figcaption></figure>
       <figure class="clip-card"><img src="/assets/img/programs/childrens-07.jpg" loading="lazy" width="1600" height="1067" alt="兩名兒童球員在球場上近身爭搶球權"><figcaption>台中磐石足球節：一對一對抗</figcaption></figure>
     </div>
-    
+
+  </div>
+</section>
+<section v-else class="band" style="background:var(--paper-2);" aria-labelledby="cft-gallery-title">
+  <div class="container">
+    <div class="prose">
+      <h2 id="cft-gallery-title">活動花絮</h2>
+      <p class="is-pending">活動花絮整理中，稍後將於本頁公布。</p>
+    </div>
   </div>
 </section>
 
@@ -210,13 +260,15 @@ useCourseSchema(
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker kicker--on-dark">ENROL NOW</p>
+        <p class="kicker kicker--on-dark">{{ isTcrfc ? 'ENROL NOW' : 'JOIN US' }}</p>
         <h2 class="section-title" id="cft-cta-title">立即為孩子報名</h2>
       </div>
     </div>
-    <p class="section-lede">選擇合適的分級，開始每週規律的足球訓練。站內不接受金流付款，梯次確認後將個別通知繳費方式。</p>
+    <p v-if="isTcrfc" class="section-lede">選擇合適的分級，開始每週規律的足球訓練。站內不接受金流付款，梯次確認後將個別通知繳費方式。</p>
+    <p v-else class="section-lede">免試上、免測試、免入會費，現場個人報名即可加入；報名方式與課表請洽台中藍鯨官方 LINE。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a class="btn btn--primary" :href="lp('/zh/join/academy/')">線上報名</a>
+      <a v-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/academy/')">線上報名</a>
+      <a v-else-if="identity.social.line" class="btn btn--primary" :href="identity.social.line" target="_blank" rel="noopener">洽詢官方 LINE</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
     </div>
   </div>
@@ -224,6 +276,9 @@ useCourseSchema(
 </template>
 
 <style>
+/* 藍鯨無對應照片時的頁首佔位漸層（BW-C1 新增，沿用 academy/pathway.vue 等既有樣式） */
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+
 /* PROGRAMS 單元共用元件（5.1–5.5 共用，重複三頁以上，建議收進 tcrfc.css） */
 .level-grid{ display:grid; gap:1.5rem; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); margin-top:1.5rem; }
 .level-card{ background:var(--paper-2); padding:1.75rem 1.5rem; border-top:3px solid var(--brand-aa); }

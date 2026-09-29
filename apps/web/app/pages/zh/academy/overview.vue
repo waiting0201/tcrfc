@@ -78,18 +78,18 @@ useSeoMeta({
         <span class="cta-card__title">{{ isTcrfc ? '學院隊伍' : '青年隊' }}</span>
         <p class="cta-card__desc">{{ isTcrfc ? `查看 ${tcrfcAcademyLabel()} 各梯隊` : `查看 ${bwAcademyLabel()} 兩個梯隊` }}</p>
       </a>
-      <template v-if="isTcrfc">
-        <a class="cta-card" :href="lp('/zh/academy/coaches/')">
-          <span class="cta-card__num">4.5</span>
-          <span class="cta-card__title">學院教練團</span>
-          <p class="cta-card__desc">認識帶領各梯隊的教練</p>
-        </a>
-        <a class="cta-card" :href="lp('/zh/academy/join/')">
-          <span class="cta-card__num">4.7</span>
-          <span class="cta-card__title">加入學院</span>
-          <p class="cta-card__desc">招生對象與遴選流程</p>
-        </a>
-      </template>
+      <!-- BW-C1：4.5 已重開（見 shared/utils/units.ts 檔頭），從原本綁在一起的
+           isTcrfc 區塊拆出來，兩俱樂部都顯示；4.7（招生架構）維持關閉，只有磐石顯示。 -->
+      <a class="cta-card" :href="lp('/zh/academy/coaches/')">
+        <span class="cta-card__num">4.5</span>
+        <span class="cta-card__title">{{ isTcrfc ? '學院教練團' : '青年隊教練團' }}</span>
+        <p class="cta-card__desc">認識帶領各梯隊的教練</p>
+      </a>
+      <a v-if="isTcrfc" class="cta-card" :href="lp('/zh/academy/join/')">
+        <span class="cta-card__num">4.7</span>
+        <span class="cta-card__title">加入學院</span>
+        <p class="cta-card__desc">招生對象與遴選流程</p>
+      </a>
       <a v-else class="cta-card" :href="lp('/zh/schedule/')">
         <span class="cta-card__num">13</span>
         <span class="cta-card__title">賽事行事曆</span>

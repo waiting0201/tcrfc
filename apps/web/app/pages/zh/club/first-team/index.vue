@@ -286,11 +286,14 @@ function formatMatchDate(dateStr: string): string {
         <p class="cta-card__desc">查看近期試訓場次日期、地點與報名方式。</p>
         <a class="btn btn--primary" :href="lp('/zh/club/opportunities/')">前往球員機會</a>
       </div>
+      <!-- BW-C1：3.2 已重開（見 shared/utils/units.ts 檔頭），藍鯨版標題與敘述避免
+           「系統」這個暗示已建制機構框架的用詞，理由同 club-copy.ts
+           getPlayerDevelopmentSeo()／getPlayerDevelopmentHero()。 -->
       <div class="cta-card">
         <p class="cta-card__num">3.2</p>
-        <p class="cta-card__title">球員發展系統</p>
-        <p class="cta-card__desc">了解一線隊如何透過八大模組培養球員的職業競爭力。</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/player-development/')">查看發展系統</a>
+        <p class="cta-card__title">{{ isTcrfc ? '球員發展系統' : '球員培育重點' }}</p>
+        <p class="cta-card__desc">{{ isTcrfc ? '了解一線隊如何透過八大模組培養球員的職業競爭力。' : '了解一線隊如何透過八大面向持續培育球員。' }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/player-development/')">{{ isTcrfc ? '查看發展系統' : '查看培育重點' }}</a>
       </div>
     </div>
   </div>

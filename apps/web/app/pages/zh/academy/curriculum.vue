@@ -119,11 +119,10 @@ const hero = computed(() => getAcademyCurriculumHero(clubKey.value))
         <span class="cta-card__title">{{ identity.academyShortLabelZh }}發展路徑</span>
         <p class="cta-card__desc">{{ isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑' }}</p>
       </a>
-      <!-- 4.5 學院教練團對藍鯨已整頁關閉（units.ts，S2-8：真實磐石教練人員資料，
-           無法挪用），不連結一個會 404 的頁面。 -->
-      <a v-if="isTcrfc" class="cta-card" :href="lp('/zh/academy/coaches/')">
+      <!-- BW-C1：4.5 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
+      <a class="cta-card" :href="lp('/zh/academy/coaches/')">
         <span class="cta-card__num">4.5</span>
-        <span class="cta-card__title">學院教練團</span>
+        <span class="cta-card__title">{{ identity.academyShortLabelZh }}教練團</span>
         <p class="cta-card__desc">認識帶領各梯隊的教練</p>
       </a>
       <!-- 4.7 加入學院對藍鯨已整頁關閉（既有 units.ts，S1-15），不連結一個會 404 的頁面。 -->

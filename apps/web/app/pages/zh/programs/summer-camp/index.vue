@@ -2,8 +2,13 @@
 // app/pages/zh/programs/summer-camp/index.vue — 由 site/src/pages/zh/programs/summer-camp/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 //
-// S1-15（2026-09-29）：本頁對藍鯨已整頁 404（units.ts 的 '5.2'，理由同
-// programs/childrens-training/index.vue 檔頭），故維持磐石專屬內容。
+// BW-C1（2026-09-29）：本頁對藍鯨重開（S1-15 曾以「藍鯨『05 推廣活動』是完全不同的
+// 活動集合」為由整頁 404，是誤用——理由同 programs/childrens-training/index.vue 檔頭）。
+// `content/blue-whale/programs.md` 舊站內容盤點沒有找到對應的「夏令營」產品（不同於
+// 5.1 兒童足球訓練有真實對應內容），本頁對藍鯨內容改為誠實的空狀態，不臆造，改讀
+// getSummerCampSeo()／getSummerCampHero()（club-copy.ts）。TCRFC 專屬的合作夥伴
+// 照片（Rot-Weiss Ahlen）與往年花絮照片對藍鯨隱藏。CTA 不連到磐石專屬的
+// `/zh/join/camp-registration/`，改導向已開放的聯絡頁面。
 //
 // 本輪新增：讀真實 05 課程與活動公開 API 查詢 `program_type='summer_camp'`
 // （值域來源同 childrens-training/index.vue 檔頭說明）。現況「早鳥價／剩餘名額／梯次」
@@ -13,12 +18,14 @@ definePageMeta({ nav: 'programs', unit: '5.2' })
 
 const { lp, locale } = useLocale()
 const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: '夏令營 Summer Camp｜課程與活動｜台中磐石足球俱樂部',
-  description:
-    '台中磐石足球夏令營，提供密集足球訓練與活動內容，梯次日期、地點與費用將於報名開放時公告，線上報名不接受金流付款。',
+  title: computed(() => getSummerCampSeo(clubKey.value).title),
+  description: computed(() => getSummerCampSeo(clubKey.value).description),
 })
+const hero = computed(() => getSummerCampHero(clubKey.value))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'summer_camp', pageSize: 5, lang: locale.value },
@@ -72,30 +79,32 @@ useCourseSchema(
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/programs/summer-camp-05.jpg" alt="" width="1600" height="1200">
+  <!-- 藍鯨目前沒有對應的夏令營活動，不沿用磐石照片頂替 -->
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/programs/summer-camp-05.jpg" alt="" width="1600" height="1200">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
-    <p class="page-hero__eyebrow">5.2 Programs</p>
-    <h1>夏令營<span class="en">Summer Camp</span></h1>
-    <p class="page-hero__lede">利用暑假密集接觸足球訓練，在專業教練帶領下累積球感、體能與團隊合作經驗。</p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '5.2 Programs' : '5.2' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
-<section class="band">
+<section v-if="isTcrfc" class="band">
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
       <div class="prose">
         <h2>適合對象與課程內容</h2>
-        
+
       </div>
       <div class="prose">
         <h2>教練團</h2>
-        
+
       </div>
     </div>
   </div>
 </section>
 
-<section class="band" style="background:var(--paper-2);">
+<section v-if="isTcrfc" class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
       <h2>合作夥伴</h2>
@@ -104,40 +113,43 @@ useCourseSchema(
     <div class="grid grid--2">
       <figure class="clip-card" style="margin:0;">
         <img src="/assets/img/programs/summer-camp-02.jpg" loading="lazy" width="1600" height="1200" alt="台中磐石與德國 Rot Weiss Ahlen 足球俱樂部代表於簽約儀式上握手，背板印有雙方隊徽與合作備忘錄字樣">
-        
+
       </figure>
-      
+
     </div>
   </div>
 </section>
 
 <section class="band">
   <div class="container">
-    <div class="grid grid--2" style="align-items:start;">
-      <div class="prose">
-        <h2>日期與地點</h2>
-        
-      </div>
-      <div class="prose">
-        <h2>報名（早鳥價／名額倒數）</h2>
-        
-      </div>
-    </div>
+    <template v-if="isTcrfc">
+      <div class="grid grid--2" style="align-items:start;">
+        <div class="prose">
+          <h2>日期與地點</h2>
 
-    <div class="signup-preview">
-      <div class="signup-preview__row">
-        <span>早鳥價</span>
-        <span class="signup-preview__value">{{ openSession?.earlyBirdPrice ? `NT$ ${openSession.earlyBirdPrice}` : '待公告' }}</span>
+        </div>
+        <div class="prose">
+          <h2>報名（早鳥價／名額倒數）</h2>
+
+        </div>
       </div>
-      <div class="signup-preview__row">
-        <span>剩餘名額</span>
-        <span class="signup-preview__value">{{ openSession?.capacity ? Math.max(openSession.capacity - openSession.enrolledCount, 0) : '待公告' }}</span>
+
+      <div class="signup-preview">
+        <div class="signup-preview__row">
+          <span>早鳥價</span>
+          <span class="signup-preview__value">{{ openSession?.earlyBirdPrice ? `NT$ ${openSession.earlyBirdPrice}` : '待公告' }}</span>
+        </div>
+        <div class="signup-preview__row">
+          <span>剩餘名額</span>
+          <span class="signup-preview__value">{{ openSession?.capacity ? Math.max(openSession.capacity - openSession.enrolledCount, 0) : '待公告' }}</span>
+        </div>
+        <div class="signup-preview__row">
+          <span>梯次</span>
+          <span class="signup-preview__value">{{ openSession ? `${openSession.startOn} ～ ${openSession.endOn}` : '待公告' }}</span>
+        </div>
       </div>
-      <div class="signup-preview__row">
-        <span>梯次</span>
-        <span class="signup-preview__value">{{ openSession ? `${openSession.startOn} ～ ${openSession.endOn}` : '待公告' }}</span>
-      </div>
-    </div>
+    </template>
+    <p v-else class="section-lede is-pending">目前尚無對應的夏令營活動，如未來規劃將於本頁與官方社群公布。</p>
   </div>
 </section>
 
@@ -160,7 +172,7 @@ useCourseSchema(
   </div>
 </section>
 
-<section class="band" style="background:var(--paper-2);" aria-labelledby="sc-gallery-title">
+<section v-if="isTcrfc" class="band" style="background:var(--paper-2);" aria-labelledby="sc-gallery-title">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
       <h2 id="sc-gallery-title">往年花絮</h2>
@@ -179,12 +191,13 @@ useCourseSchema(
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">SUMMER CAMP</p>
-        <h2 class="section-title" id="sc-cta-title">關注下一梯次夏令營</h2>
+        <h2 class="section-title" id="sc-cta-title">{{ isTcrfc ? '關注下一梯次夏令營' : '推廣活動最新消息' }}</h2>
       </div>
     </div>
-    <p class="section-lede">梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。</p>
+    <p v-if="isTcrfc" class="section-lede">梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。</p>
+    <p v-else class="section-lede">是否推出夏令營活動將視規劃進度公布，歡迎關注「推廣活動」總覽與官方社群最新消息。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
+      <a v-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
     </div>
   </div>
@@ -192,6 +205,9 @@ useCourseSchema(
 </template>
 
 <style>
+/* 藍鯨無對應照片時的頁首佔位漸層（BW-C1 新增，沿用 academy/pathway.vue 等既有樣式） */
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+
 /* PROGRAMS 單元共用元件（5.1–5.5 共用，重複三頁以上，建議收進 tcrfc.css） */
 .photo-grid{ display:grid; gap:1rem; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); }
 .photo-grid figure{ margin:0; position:relative; }

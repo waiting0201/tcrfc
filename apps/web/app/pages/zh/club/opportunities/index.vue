@@ -129,20 +129,21 @@ useFaqPageSchema(faqs)
 <section class="band grain cta-band" id="opp-cta" aria-labelledby="opp-cta-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="opp-cta-title">相關頁面</h2>
-    <div class="cta-grid" :style="isTcrfc ? 'grid-template-columns:repeat(2,minmax(0,1fr))' : 'grid-template-columns:1fr'">
+    <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
         <p class="cta-card__title">認識一線隊</p>
         <p class="cta-card__desc">加入前，先了解一線隊陣容、教練團與賽程。</p>
         <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
       </div>
-      <!-- 3.4 國際發展通道對藍鯨已整頁關閉（units.ts BLUE_WHALE_DISABLED_UNITS，S2-8：
-           內容全是磐石真實海外合作與旅外球員案例，藍鯨無對應內容可換），不連結一個會
-           404 的頁面。 -->
-      <div v-if="isTcrfc" class="cta-card">
+      <!-- BW-C1：3.4 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
+      <div class="cta-card">
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">國際發展通道</p>
-        <p class="cta-card__desc">了解球員如何透過台中磐石通往歐洲、日本、香港的舞台。</p>
+        <p class="cta-card__desc">
+          <template v-if="isTcrfc">了解球員如何透過台中磐石通往歐洲、日本、香港的舞台。</template>
+          <template v-else>了解球員如何透過台中藍鯨旅外日本、中國。</template>
+        </p>
         <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">查看國際通道</a>
       </div>
     </div>

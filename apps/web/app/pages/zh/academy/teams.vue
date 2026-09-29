@@ -178,18 +178,18 @@ useSeoMeta({
 <section class="band grain cta-band">
   <div class="container">
     <div class="cta-grid">
-      <template v-if="isTcrfc">
-        <a class="cta-card" :href="lp('/zh/academy/pathway/')">
-          <span class="cta-card__num">4.3</span>
-          <span class="cta-card__title">學院發展路徑</span>
-          <p class="cta-card__desc">從 U12 到一線隊／海外的成長路徑</p>
-        </a>
-        <a class="cta-card" :href="lp('/zh/academy/coaches/')">
-          <span class="cta-card__num">4.5</span>
-          <span class="cta-card__title">學院教練團</span>
-          <p class="cta-card__desc">認識帶領各梯隊的教練</p>
-        </a>
-      </template>
+      <!-- BW-C1：4.3／4.5 已重開（4.3 是 S2-8 的既有缺口再現，4.5 見
+           shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
+      <a class="cta-card" :href="lp('/zh/academy/pathway/')">
+        <span class="cta-card__num">4.3</span>
+        <span class="cta-card__title">{{ isTcrfc ? '學院發展路徑' : '青年隊發展路徑' }}</span>
+        <p class="cta-card__desc">{{ isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑' }}</p>
+      </a>
+      <a class="cta-card" :href="lp('/zh/academy/coaches/')">
+        <span class="cta-card__num">4.5</span>
+        <span class="cta-card__title">{{ isTcrfc ? '學院教練團' : '青年隊教練團' }}</span>
+        <p class="cta-card__desc">認識帶領各梯隊的教練</p>
+      </a>
       <a class="cta-card" :href="lp('/zh/schedule/')">
         <span class="cta-card__num">{{ isTcrfc ? '06' : '13' }}</span>
         <span class="cta-card__title">賽事行事曆</span>

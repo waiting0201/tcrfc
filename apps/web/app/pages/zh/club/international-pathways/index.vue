@@ -3,20 +3,27 @@
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 // ⛔ 原頁 <script>（地區分頁 tablist 切換）改寫為 onMounted，行為逐字等價。
 //
-// S2-8（2026-09-29）：本頁對藍鯨已整頁 404（units.ts BLUE_WHALE_DISABLED_UNITS 的 '3.4'）。
-// 內容 100% 是磐石一線隊真實的海外合作俱樂部（Hellas Verona／Rayo Ciudad Alcobendas／
-// Rot-Weiss Ahlen）與真實旅外球員（楊朝景，香港九龍城）——藍鯨規劃書與既有舊站內容
-// 盤點都沒有任何對應的海外合作或旅外案例可引用，沒有真實內容可換，故關閉，不需要
-// 俱樂部分支。理由見 shared/utils/units.ts 檔頭與 apps/web/README.md「S2-8」節。
+// BW-C1（2026-09-29）：本頁對藍鯨重開（S2-8 曾以「沒有海外合作俱樂部或旅外案例」為由
+// 整頁 404，是誤用——藍鯨規劃書 §1.3 總則例外只有四項，不含 3.4，見
+// shared/utils/units.ts 檔頭）。S2-8 當時只查了「有沒有合作俱樂部 Logo」，沒有查
+// club-profile.md §4 沿革——沿革其實有三筆真實旅外事實（蔡明容／程思瑜／蘇育萱旅外
+// 日本，蘇育萱另旅外中國），改為讀 getInternationalPathwaysSeo()／
+// getInternationalPathwaysHero() 與 INTL_PATHWAY_JAPAN_NOTES_BW／
+// INTL_PATHWAY_CHINA_NOTE_BW（club-copy.ts）。地區頁籤對藍鯨改為 Japan／China（球員
+// 實際旅外地區），合作俱樂部 Logo 牆藍鯨維持空狀態（沒有可公開授權使用的海外合作
+// 俱樂部 Logo，不得挪用磐石三個海外俱樂部 Logo 充數）。
 definePageMeta({ nav: 'club', unit: '3.4' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: '國際發展通道 International Pathways｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
-  description:
-    '台中磐石足球俱樂部國際發展通道：從在地到海外俱樂部的完整路徑、歐洲／日本／香港分區資訊、合作俱樂部 Logo 牆，以及試訓球探與海外媒合諮詢管道。',
+  title: computed(() => getInternationalPathwaysSeo(clubKey.value).title),
+  description: computed(() => getInternationalPathwaysSeo(clubKey.value).description),
 })
+const hero = computed(() => getInternationalPathwaysHero(clubKey.value))
 
 onMounted(() => {
   const tabs = document.querySelectorAll<HTMLButtonElement>('.region-tab')
@@ -45,11 +52,13 @@ onMounted(() => {
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/trencin-01.jpg" alt="" width="1920" height="1279">
+  <!-- 藍鯨無已核實可用的海外交流照片可用，不沿用磐石照片頂替（比照 academy/pathway.vue 既有做法） -->
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/trencin-01.jpg" alt="" width="1920" height="1279">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
-    <p class="page-hero__eyebrow">3.4 International Pathways</p>
-    <h1>國際發展通道<span class="en">International Pathways</span></h1>
-    <p class="page-hero__lede">LOCAL ROOTS. GLOBAL PATHWAYS. 從台中出發，透過一線隊與海外交流，為球員建立通往職業舞台的國際路徑。</p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '3.4 International Pathways' : '3.4' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -98,41 +107,72 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="region-tabs" role="tablist" aria-label="選擇地區">
+    <!-- 磐石：Europe／Japan／HK 三分區（有合作俱樂部與旅外球員）。
+         藍鯨：Japan／China 兩分區（真實旅外球員案例，見 club-copy.ts
+         INTL_PATHWAY_JAPAN_NOTES_BW／INTL_PATHWAY_CHINA_NOTE_BW），沒有可公開的
+         海外合作俱樂部 Logo，故不設 Europe 分區。 -->
+    <div v-if="isTcrfc" class="region-tabs" role="tablist" aria-label="選擇地區">
       <button type="button" class="region-tab" role="tab" id="tab-europe" aria-controls="panel-europe" aria-selected="true" data-region="europe">Europe 歐洲</button>
       <button type="button" class="region-tab" role="tab" id="tab-japan" aria-controls="panel-japan" aria-selected="false" data-region="japan" tabindex="-1">Japan 日本</button>
       <button type="button" class="region-tab" role="tab" id="tab-hk" aria-controls="panel-hk" aria-selected="false" data-region="hk" tabindex="-1">Hong Kong 香港</button>
     </div>
-
-    <div class="region-panel" id="panel-europe" role="tabpanel" aria-labelledby="tab-europe" data-region-panel="europe">
-      <p class="region-panel__desc">目前已建立聯繫的歐洲俱樂部，詳細合作內容與申請流程整理中。</p>
-      <div class="region-partners">
-        <div class="region-partner-tile"><img src="/assets/img/partners-intl/partner-intl-01-hellas-verona.webp" alt="Hellas Verona FC 標誌" loading="lazy" width="1920" height="1960"><span>Hellas Verona FC<br><small>義大利 Italy</small></span></div>
-        <div class="region-partner-tile"><img src="/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png" alt="Rayo Ciudad Alcobendas CF 標誌" loading="lazy" width="316" height="316"><span>Rayo Ciudad Alcobendas CF<br><small>西班牙 Spain</small></span></div>
-        <div class="region-partner-tile"><img src="/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp" alt="Rot-Weiss Ahlen 標誌" loading="lazy" width="1920" height="2430"><span>Rot-Weiss Ahlen<br><small>德國 Germany</small></span></div>
-      </div>
-
+    <div v-else class="region-tabs" role="tablist" aria-label="選擇地區">
+      <button id="tab-japan" type="button" class="region-tab" role="tab" aria-controls="panel-japan" aria-selected="true" data-region="japan">Japan 日本</button>
+      <button id="tab-china" type="button" class="region-tab" role="tab" aria-controls="panel-china" aria-selected="false" data-region="china" tabindex="-1">China 中國</button>
     </div>
 
-    <div class="region-panel" id="panel-japan" role="tabpanel" aria-labelledby="tab-japan" data-region-panel="japan" hidden>
-      <p class="region-panel__desc">日本尚無正式合作俱樂部或協議可公開，相關進展將更新於本頁。</p>
-    </div>
-
-    <div class="region-panel" id="panel-hk" role="tabpanel" aria-labelledby="tab-hk" data-region-panel="hk" hidden>
-      <p class="region-panel__desc">香港暫無正式合作俱樂部標誌或協議文件，但已有一線隊球員實際旅外案例：</p>
-      <div class="hk-player-note clip-card clip-card--on-dark">
-        <div class="hk-player-note__visual">
-          <img src="/assets/brand/svg/tcrfc-mark-white.svg" alt="" width="48" height="50" aria-hidden="true">
-          <span>11</span>
-        </div>
-        <div>
-          <p class="hk-player-note__name">楊朝景<span class="badge badge--on-dark">旅外</span></p>
-          <p class="hk-player-note__desc">一線隊 11 號中場，目前效力於香港九龍城（Kowloon City）。</p>
-          <a :href="lp('/zh/club/player-stories/')">查看球員故事 →</a>
+    <template v-if="isTcrfc">
+      <div class="region-panel" id="panel-europe" role="tabpanel" aria-labelledby="tab-europe" data-region-panel="europe">
+        <p class="region-panel__desc">目前已建立聯繫的歐洲俱樂部，詳細合作內容與申請流程整理中。</p>
+        <div class="region-partners">
+          <div class="region-partner-tile"><img src="/assets/img/partners-intl/partner-intl-01-hellas-verona.webp" alt="Hellas Verona FC 標誌" loading="lazy" width="1920" height="1960"><span>Hellas Verona FC<br><small>義大利 Italy</small></span></div>
+          <div class="region-partner-tile"><img src="/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png" alt="Rayo Ciudad Alcobendas CF 標誌" loading="lazy" width="316" height="316"><span>Rayo Ciudad Alcobendas CF<br><small>西班牙 Spain</small></span></div>
+          <div class="region-partner-tile"><img src="/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp" alt="Rot-Weiss Ahlen 標誌" loading="lazy" width="1920" height="2430"><span>Rot-Weiss Ahlen<br><small>德國 Germany</small></span></div>
         </div>
       </div>
 
-    </div>
+      <div class="region-panel" id="panel-japan" role="tabpanel" aria-labelledby="tab-japan" data-region-panel="japan" hidden>
+        <p class="region-panel__desc">日本尚無正式合作俱樂部或協議可公開，相關進展將更新於本頁。</p>
+      </div>
+
+      <div class="region-panel" id="panel-hk" role="tabpanel" aria-labelledby="tab-hk" data-region-panel="hk" hidden>
+        <p class="region-panel__desc">香港暫無正式合作俱樂部標誌或協議文件，但已有一線隊球員實際旅外案例：</p>
+        <div class="hk-player-note clip-card clip-card--on-dark">
+          <div class="hk-player-note__visual">
+            <img src="/assets/brand/svg/tcrfc-mark-white.svg" alt="" width="48" height="50" aria-hidden="true">
+            <span>11</span>
+          </div>
+          <div>
+            <p class="hk-player-note__name">楊朝景<span class="badge badge--on-dark">旅外</span></p>
+            <p class="hk-player-note__desc">一線隊 11 號中場，目前效力於香港九龍城（Kowloon City）。</p>
+            <a :href="lp('/zh/club/player-stories/')">查看球員故事 →</a>
+          </div>
+        </div>
+      </div>
+    </template>
+    <template v-else>
+      <div id="panel-japan" class="region-panel" role="tabpanel" aria-labelledby="tab-japan" data-region-panel="japan">
+        <p class="region-panel__desc">日本尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：</p>
+        <div v-for="note in INTL_PATHWAY_JAPAN_NOTES_BW" :key="note.nameZh" class="hk-player-note clip-card clip-card--on-dark" style="margin-bottom:1rem;">
+          <div class="hk-player-note__visual"><span aria-hidden="true">✈</span></div>
+          <div>
+            <p class="hk-player-note__name">{{ note.nameZh }}<span class="badge badge--on-dark">旅外</span></p>
+            <p class="hk-player-note__desc">{{ note.descZh }}</p>
+          </div>
+        </div>
+      </div>
+
+      <div id="panel-china" class="region-panel" role="tabpanel" aria-labelledby="tab-china" data-region-panel="china" hidden>
+        <p class="region-panel__desc">中國尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：</p>
+        <div class="hk-player-note clip-card clip-card--on-dark">
+          <div class="hk-player-note__visual"><span aria-hidden="true">✈</span></div>
+          <div>
+            <p class="hk-player-note__name">{{ INTL_PATHWAY_CHINA_NOTE_BW.nameZh }}<span class="badge badge--on-dark">旅外</span></p>
+            <p class="hk-player-note__desc">{{ INTL_PATHWAY_CHINA_NOTE_BW.descZh }}</p>
+          </div>
+        </div>
+      </div>
+    </template>
   </div>
 </section>
 
@@ -143,9 +183,9 @@ onMounted(() => {
         <p class="kicker">INTERNATIONAL PARTNERS</p>
         <h2 class="section-title" id="intl-partners-title">合作俱樂部</h2>
       </div>
-      <p class="section-lede">目前已取得標誌授權的合作俱樂部如下，更多合作內容持續更新中。</p>
+      <p class="section-lede">{{ isTcrfc ? '目前已取得標誌授權的合作俱樂部如下，更多合作內容持續更新中。' : '目前尚無可公開的海外合作俱樂部，相關進展將更新於本頁。' }}</p>
     </div>
-    <div class="sponsor-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+    <div v-if="isTcrfc" class="sponsor-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
       <div class="sponsor-tile"><img src="/assets/img/partners-intl/partner-intl-01-hellas-verona.webp" alt="Hellas Verona FC 標誌" loading="lazy" width="200" height="200"></div>
       <div class="sponsor-tile"><img src="/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png" alt="Rayo Ciudad Alcobendas CF 標誌" loading="lazy" width="200" height="200"></div>
       <div class="sponsor-tile"><img src="/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp" alt="Rot-Weiss Ahlen 標誌" loading="lazy" width="200" height="200"></div>
@@ -172,6 +212,9 @@ onMounted(() => {
 </template>
 
 <style>
+/* 藍鯨無對應照片時的頁首佔位漸層（BW-C1 新增，沿用 academy/pathway.vue 等既有樣式） */
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+
 /* 3.4 國際發展通道 — pathway-flow / region-tabs / hk-player-note
    .sponsor-grid、.sponsor-tile 為既有共用 CSS，此頁直接沿用未新增 */
 .pathway-flow{

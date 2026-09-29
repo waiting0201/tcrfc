@@ -2,12 +2,14 @@
 // app/pages/zh/programs/specialist/index.vue — 由 site/src/pages/zh/programs/specialist/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 //
-// S2-10（2026-09-29）：本頁對藍鯨已整頁 404（units.ts BLUE_WHALE_DISABLED_UNITS 的
-// '5.4')。內容是磐石男子一線隊球員真實訓練照片與「台中磐石成人足球訓練營」具名宣傳
-// 文案，與 3.4／4.5／4.6 同一種「真實事實無法替換」問題；藍鯨唯一沾得上邊的是社區
-// 推廣性質的「藍鯨守門員基礎班」（7–12 歲兒童班），規模與定位都不是同一種六大專項
-// 競技訓練產品，換抬頭字樣會構成臆造，故關閉，不需要俱樂部分支。理由見
-// shared/utils/units.ts 檔頭與 apps/web/README.md「S2-10」節。
+// BW-C1（2026-09-29）：本頁對藍鯨重開（S2-10 曾以「真實事實無法替換」為由整頁
+// 404，是誤用——理由同 programs/childrens-training/index.vue 檔頭）。藍鯨有部分真實
+// 對應內容：「藍鯨守門員基礎班」（programs.md §2 第 10 項，7–12 歲），但規模與定位
+// 不是磐石「六大專項競技訓練」同一種產品，不套用六大專項框架——改為單獨呈現這一項
+// 真實課程，其餘專項維持誠實的「尚未推出」空狀態。改讀 getSpecialistTrainingSeo()／
+// getSpecialistTrainingHero()／GOALKEEPER_CLASS_BW（club-copy.ts）。TCRFC 專屬的
+// 「AFC 教練證照」宣傳文案與訓練花絮照片對藍鯨隱藏，CTA 不連到磐石專屬的
+// `/zh/join/academy/`，改用真實舊站報名表單連結。
 //
 // 本輪新增：讀真實 05 課程與活動公開 API 查詢 `program_type='specialist_training'`。
 // 六大專項本身是固定分類介紹（既有靜態內容，非資料驅動），不覆寫；新增「目前開放
@@ -17,12 +19,14 @@ definePageMeta({ nav: 'programs', unit: '5.4' })
 
 const { lp, locale } = useLocale()
 const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: '專項訓練 Specialist Training｜課程與活動｜台中磐石足球俱樂部',
-  description:
-    '台中磐石專項訓練涵蓋守門員、前鋒、後衛、中場、體能與速度、高階訓練六大類別，由台中磐石教練團規劃執行，線上報名。',
+  title: computed(() => getSpecialistTrainingSeo(clubKey.value).title),
+  description: computed(() => getSpecialistTrainingSeo(clubKey.value).description),
 })
+const hero = computed(() => getSpecialistTrainingHero(clubKey.value))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'specialist_training', pageSize: 10, lang: locale.value },
@@ -68,15 +72,17 @@ useCourseSchema(
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/programs/specialist-06.jpg" alt="" width="1600" height="1067">
+  <!-- 藍鯨無對應的六大專項訓練照片可用，不沿用磐石照片頂替 -->
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/programs/specialist-06.jpg" alt="" width="1600" height="1067">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
-    <p class="page-hero__eyebrow">5.4 Programs</p>
-    <h1>專項訓練<span class="en">Specialist Training</span></h1>
-    <p class="page-hero__lede">針對特定位置與能力設計的分科訓練，由台中磐石教練團依學員需求規劃課程目標與適合對象。</p>
+    <p class="page-hero__eyebrow">{{ isTcrfc ? '5.4 Programs' : '5.4' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
-<section class="band">
+<section v-if="isTcrfc" class="band">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
       <h2>六大專項</h2>
@@ -119,6 +125,25 @@ useCourseSchema(
   </div>
 </section>
 
+<!-- 藍鯨：唯一真實對應的專項課程（守門員基礎班），不套用磐石六大專項框架。 -->
+<section v-else class="band">
+  <div class="container">
+    <div class="prose" style="margin-bottom:1.75rem;">
+      <h2>目前提供的專項</h2>
+      <p>台中藍鯨目前提供守門員基礎班，其餘專項訓練尚未推出，後續開放將公布於本頁。</p>
+    </div>
+
+    <div class="level-grid level-grid--specialist">
+      <div class="level-card">
+        <p class="level-card__num">01</p>
+        <h3>{{ GOALKEEPER_CLASS_BW.nameZh }}<span class="en">Goalkeeper</span></h3>
+        <p>適合年齡：{{ GOALKEEPER_CLASS_BW.ageZh }}。{{ GOALKEEPER_CLASS_BW.scheduleZh }}，{{ GOALKEEPER_CLASS_BW.feeZh }}。{{ GOALKEEPER_CLASS_BW.signupZh }}。</p>
+        <a class="btn btn--light" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener" style="margin-top:.75rem;">前往報名表單</a>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="eyebrow-row">
@@ -156,17 +181,17 @@ useCourseSchema(
   </div>
 </section>
 
-<section class="band" style="background:var(--paper-2);">
+<section v-if="isTcrfc" class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="prose">
       <h2>教練資格</h2>
       <p>依客戶提供之「台中磐石成人足球訓練營」宣傳資料，台中磐石專項訓練教練團具備 <span class="en">AFC</span> 教練證照。</p>
     </div>
-    
+
   </div>
 </section>
 
-<section class="band" aria-labelledby="sp-gallery-title">
+<section v-if="isTcrfc" class="band" aria-labelledby="sp-gallery-title">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
       <h2 id="sp-gallery-title">訓練與交流花絮</h2>
@@ -180,6 +205,14 @@ useCourseSchema(
     </div>
   </div>
 </section>
+<section v-else class="band" aria-labelledby="sp-gallery-title">
+  <div class="container">
+    <div class="prose">
+      <h2 id="sp-gallery-title">訓練與交流花絮</h2>
+      <p class="is-pending">花絮整理中，稍後將於本頁公布。</p>
+    </div>
+  </div>
+</section>
 
 <section class="band grain cta-band" aria-labelledby="sp-cta-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">5.4</span>
@@ -190,9 +223,11 @@ useCourseSchema(
         <h2 class="section-title" id="sp-cta-title">選擇你的專項</h2>
       </div>
     </div>
-    <p class="section-lede">梯次、地點與費用將於報名開放時公告，站內不接受金流付款。</p>
+    <p v-if="isTcrfc" class="section-lede">梯次、地點與費用將於報名開放時公告，站內不接受金流付款。</p>
+    <p v-else class="section-lede">守門員基礎班須先填寫報名表單，其餘專項尚未推出。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a class="btn btn--primary" :href="lp('/zh/join/academy/')">線上報名</a>
+      <a v-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/academy/')">線上報名</a>
+      <a v-else class="btn btn--primary" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener">前往報名表單</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
     </div>
   </div>
@@ -200,6 +235,9 @@ useCourseSchema(
 </template>
 
 <style>
+/* 藍鯨無對應照片時的頁首佔位漸層（BW-C1 新增，沿用 academy/pathway.vue 等既有樣式） */
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+
 /* PROGRAMS 單元共用元件（5.1–5.5 共用，重複三頁以上，建議收進 tcrfc.css） */
 .level-grid{ display:grid; gap:1.5rem; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); margin-top:1.5rem; }
 .level-card{ background:var(--paper); padding:1.75rem 1.5rem; border-top:3px solid var(--brand-aa); }

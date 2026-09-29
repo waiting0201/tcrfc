@@ -164,13 +164,13 @@ const PROTECTED_PAGES = [
   // S1-15（2026-09-29）：4.1／4.2 改讀 ACADEMY_OVERVIEW_*／ACADEMY_TEAMS_*／
   // ACADEMY_TEAM_TABS（club-copy.ts），已用本機 bw 容器實測 0 筆命中，含 /en/ 版本
   // （/en/ 與 /zh/ 是同一份頁面檔案，見 apps/web/README.md「多語系框架」）。4.7（加入
-  // 學院）與 05 課程頁（5.1／5.2）對藍鯨已整頁 404，不適用本清單（見 units.ts）。
+  // 學院）對藍鯨仍整頁 404，不適用本清單（見 units.ts）。
   '/zh/academy/overview/',
   '/zh/academy/teams/',
   // S1-18（2026-09-29）：12 FAQ 首頁與兩個對藍鯨仍開放的獨立主題頁，已用本機 bw
-  // 容器實測 0 筆命中，含 /en/ 版本。「學院招生」／「課程與營隊報名」兩個獨立
-  // 主題頁對藍鯨已整頁 404（見 shared/utils/units.ts 的 '12.2'／'12.3'），
-  // 不適用本清單，同 4.7／5.1／5.2 的既有原則。
+  // 容器實測 0 筆命中，含 /en/ 版本。「學院招生」（12.2）對藍鯨仍整頁 404（依附 4.7
+  // 同一項總則例外，見 shared/utils/units.ts），不適用本清單；「課程與營隊報名」
+  // （12.3）已於 BW-C1 重開，見下方新增段落。
   '/zh/faq/',
   '/zh/faq/join-team/',
   '/zh/faq/fees-refunds/',
@@ -182,20 +182,33 @@ const PROTECTED_PAGES = [
   // S2-8（2026-09-29）：3.3 球員機會（useSiteFacts 改為動態 clubKey、加入／外籍球員
   // 段落改讀 getPlayerOpportunitiesHero()／getJoinFirstTeamBody()／
   // getForeignPlayerBody()）、3.5 球員故事（藍鯨版改為空狀態，不挪用磐石球員案例）
-  // 兩頁對藍鯨已改為開放且已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。3.2／3.4
-  // 對藍鯨已整頁 404（見 units.ts），不適用本清單。
+  // 兩頁對藍鯨已改為開放且已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。
   '/zh/club/opportunities/',
   '/zh/club/player-stories/',
   // S2-10（2026-09-29）：5.5 校園與社區改讀真實藍鯨建教合作學校列表／社區計畫／
   // 教練培訓內容（SCHOOL_PARTNERS_BW 等），已用本機 bw 容器實測 0 筆命中，含 /en/
-  // 版本。5.3／5.4 對藍鯨已整頁 404（見 units.ts），不適用本清單。
+  // 版本。
   '/zh/programs/school-community/',
   // S2-8（2026-09-29，派工指示明文要求一併處理的既有品牌外洩）：4.3／4.4 改為細
   // 粒度 unit 並讀 getAcademyPathwaySeo/Hero()／getAcademyCurriculumSeo/Hero()，
-  // 已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。4.5／4.6 對藍鯨已整頁 404（見
-  // units.ts），不適用本清單。
+  // 已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。
   '/zh/academy/pathway/',
   '/zh/academy/curriculum/',
+  // 🔴🔴 BW-C1（2026-09-29）：S1-15／S2-8／S2-10 三輪誤用「藍鯨沒有對應內容」為由
+  // 把 3.2／3.4／4.5／4.6／5.1–5.4／12.3 這 9 個單元整頁 404——藍鯨規劃書 §1.3
+  // 總則「例外只有四項單元取捨」不含這 9 項，已修正為重開（見 shared/utils/units.ts
+  // 檔頭、docs/18-work-errors.md、docs/14-invariants.md）。以下 9 頁已改讀
+  // club-copy.ts 對應的 getXxxSeo()／getXxxHero() 等工廠函式或俱樂部分支
+  // （isTcrfc／clubKey），已用本機 bw 容器實測 0 筆命中，含 /en/ 版本。
+  '/zh/club/player-development/',
+  '/zh/club/international-pathways/',
+  '/zh/academy/coaches/',
+  '/zh/academy/life/',
+  '/zh/programs/childrens-training/',
+  '/zh/programs/summer-camp/',
+  '/zh/programs/winter-camp/',
+  '/zh/programs/specialist/',
+  '/zh/faq/programs-camps/',
 ]
 
 // ---------------------------------------------------------------------------

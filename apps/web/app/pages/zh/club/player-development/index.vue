@@ -2,20 +2,23 @@
 // app/pages/zh/club/player-development/index.vue — 由 site/src/pages/zh/club/player-development/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
 //
-// S2-8（2026-09-29）：本頁對藍鯨已整頁 404（units.ts BLUE_WHALE_DISABLED_UNITS 的 '3.2'）。
-// 內容是「台中磐石球員發展系統」八大模組這個具名的內部培訓框架，屬於磐石自己的機構性
-// 宣稱——content/blue-whale/ 既有舊站內容盤點沒有藍鯨對應的具名系統可引用，換個抬頭
-// 字樣就沿用會構成臆造機構事實，不是換配色，故關閉，不需要俱樂部分支。理由與取捨細節
-// 見 shared/utils/units.ts 檔頭與 apps/web/README.md「S2-8」節。
+// BW-C1（2026-09-29）：本頁對藍鯨重開（S2-8 曾以「沒有具名『系統』框架」為由整頁
+// 404，是誤用——藍鯨規劃書 §1.3 總則例外只有四項，不含 3.2，見 shared/utils/units.ts
+// 檔頭）。八大主題本身是通用足球培訓詞彙，兩俱樂部共用；每個模組詳細內容本來就是
+// 「準備中」佔位文字（磐石版也是）。改為讀 getPlayerDevelopmentSeo()／
+// getPlayerDevelopmentHero()，藍鯨版避免使用「系統」這個暗示已建制機構框架的用詞。
 definePageMeta({ nav: 'club', unit: '3.2' })
 
 const { lp } = useLocale()
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: '球員發展系統 Player Development｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
-  description:
-    '台中磐石足球俱樂部球員發展系統：技術戰術分析、體能訓練、比賽判讀、心理韌性、影片分析、IDP 個人發展計畫、營養與生活、教育與語言，八大模組完整說明。',
+  title: computed(() => getPlayerDevelopmentSeo(clubKey.value).title),
+  description: computed(() => getPlayerDevelopmentSeo(clubKey.value).description),
 })
+const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
 </script>
 
 <template>
@@ -24,17 +27,19 @@ useSeoMeta({
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
       <li><a :href="lp('/zh/club/')">俱樂部</a></li>
-      <li aria-current="page">球員發展系統</li>
+      <li aria-current="page">球員發展{{ clubKey === 'bw' ? '重點' : '系統' }}</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/trencin-05.jpg" alt="" width="1920" height="1279">
+  <!-- 藍鯨無已核實可用的訓練場景照片可用，不沿用磐石照片頂替（比照 academy/pathway.vue 既有做法） -->
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/trencin-05.jpg" alt="" width="1920" height="1279">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
-    <p class="page-hero__eyebrow">3.2 Player Development</p>
-    <h1>球員發展系統<span class="en">Player Development</span></h1>
-    <p class="page-hero__lede">從技戰術到教育語言，八大模組構成台中磐石球員發展系統的完整框架，支持一線隊與各梯隊球員朝職業與國際舞台邁進。點擊模組卡片展開詳細說明。</p>
+    <p class="page-hero__eyebrow">{{ clubKey === 'bw' ? '3.2' : '3.2 Player Development' }}</p>
+    <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
+    <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
 </section>
 
@@ -141,8 +146,11 @@ useSeoMeta({
 
       <div class="module-card module-card--summary">
         <p class="module-card__summary-kicker">WHY IT MATTERS</p>
-        <p class="module-card__summary-title">八大模組，一套完整體系</p>
-        <p class="module-card__summary-desc">八大模組共同構成一線隊與各梯隊球員的養成框架，銜接學院訓練與國際發展通道，是選手邁向職業舞台的核心支持系統。</p>
+        <p class="module-card__summary-title">{{ isTcrfc ? '八大模組，一套完整體系' : '八大面向，持續培育選手' }}</p>
+        <p class="module-card__summary-desc">
+          <template v-if="isTcrfc">八大模組共同構成一線隊與各梯隊球員的養成框架，銜接學院訓練與國際發展通道，是選手邁向職業舞台的核心支持系統。</template>
+          <template v-else>八大面向共同支持一線隊與青年隊球員的成長，銜接青年隊訓練與國際發展通道，協助選手持續進步。</template>
+        </p>
         <a class="module-card__summary-link" :href="lp('/zh/club/international-pathways/')">查看國際發展通道 →</a>
       </div>
     </div>
@@ -151,12 +159,12 @@ useSeoMeta({
 
 <section class="band grain cta-band" id="pd-cta" aria-labelledby="pd-cta-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="pd-cta-title">加入球員發展系統</h2>
+    <h2 class="visually-hidden" id="pd-cta-title">{{ isTcrfc ? '加入球員發展系統' : '加入球員培育重點' }}</h2>
     <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
         <p class="cta-card__title">認識一線隊</p>
-        <p class="cta-card__desc">看看球員發展系統支持的一線隊陣容與賽季表現。</p>
+        <p class="cta-card__desc">{{ isTcrfc ? '看看球員發展系統支持的一線隊陣容與賽季表現。' : '看看一線隊陣容與賽季表現。' }}</p>
         <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
       </div>
       <div class="cta-card">
@@ -171,6 +179,9 @@ useSeoMeta({
 </template>
 
 <style>
+/* 藍鯨無對應照片時的頁首佔位漸層（BW-C1 新增，沿用 academy/pathway.vue 等既有樣式） */
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+
 /* 3.2 球員發展系統 — 九宮格模組卡片（<details> 展開）
    與 3.1 player-card、3.5 story-card 為同系列淺底卡片元件，建議未來一併收進共用 CSS */
 .module-grid{

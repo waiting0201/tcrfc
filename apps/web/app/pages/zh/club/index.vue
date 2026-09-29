@@ -86,12 +86,12 @@ useSeoMeta({
         <p class="unit-link-card__desc">球隊介紹、球員名單與位置篩選、教練團、賽程表（含 .ics 訂閱）、成績與積分榜、榮譽時間軸。</p>
         <span class="unit-link-card__cta">查看一線隊 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
-      <!-- 3.2 球員發展系統對藍鯨已整頁關閉（units.ts，S2-8），不連結一個會 404 的頁面。 -->
-      <a v-if="isTcrfc" class="unit-link-card clip-card" :href="lp('/zh/club/player-development/')">
+      <!-- BW-C1：3.2 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
+      <a class="unit-link-card clip-card" :href="lp('/zh/club/player-development/')">
         <p class="unit-link-card__num">3.2</p>
         <p class="unit-link-card__en">Player Development</p>
         <p class="unit-link-card__zh">球員發展系統</p>
-        <p class="unit-link-card__desc">技術戰術、體能、比賽判讀、心理韌性、影片分析、IDP、營養生活、教育語言，八大模組完整說明。</p>
+        <p class="unit-link-card__desc">技術戰術、體能、比賽判讀、心理韌性、影片分析、IDP、營養生活、教育語言，八大面向完整說明。</p>
         <span class="unit-link-card__cta">認識發展系統 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="unit-link-card clip-card" :href="lp('/zh/club/opportunities/')">
@@ -101,12 +101,16 @@ useSeoMeta({
         <p class="unit-link-card__desc">加入台中磐石、試訓場次列表與線上報名、外籍球員招募管道。</p>
         <span class="unit-link-card__cta">查看機會 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
-      <!-- 3.4 國際發展通道對藍鯨已整頁關閉（units.ts，S2-8），不連結一個會 404 的頁面。 -->
-      <a v-if="isTcrfc" class="unit-link-card clip-card" :href="lp('/zh/club/international-pathways/')">
+      <!-- BW-C1：3.4 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏；
+           分區敘述依俱樂部切換（藍鯨是日本／中國，磐石是歐洲／日本／香港）。 -->
+      <a class="unit-link-card clip-card" :href="lp('/zh/club/international-pathways/')">
         <p class="unit-link-card__num">3.4</p>
         <p class="unit-link-card__en">International Pathways</p>
         <p class="unit-link-card__zh">國際發展通道</p>
-        <p class="unit-link-card__desc">在地到海外的完整路徑、歐洲／日本／香港分區、合作俱樂部與試訓球探管道。</p>
+        <p class="unit-link-card__desc">
+          <template v-if="isTcrfc">在地到海外的完整路徑、歐洲／日本／香港分區、合作俱樂部與試訓球探管道。</template>
+          <template v-else>在地到海外的真實旅外案例，日本／中國分區與海外媒合諮詢管道。</template>
+        </p>
         <span class="unit-link-card__cta">了解國際通道 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="unit-link-card clip-card" :href="lp('/zh/club/player-stories/')">
@@ -136,11 +140,14 @@ useSeoMeta({
         <p class="cta-card__desc">試訓場次日期、地點、對象與名額，一次掌握球員機會頁面。</p>
         <a class="btn btn--primary" :href="lp('/zh/club/opportunities/')">前往球員機會</a>
       </div>
-      <!-- 3.4 國際發展通道對藍鯨已整頁關閉（units.ts，S2-8），不連結一個會 404 的頁面。 -->
-      <div v-if="isTcrfc" class="cta-card">
+      <!-- BW-C1：3.4 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
+      <div class="cta-card">
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">海外發展諮詢</p>
-        <p class="cta-card__desc">想了解歐洲、日本、香港的合作管道？國際發展通道頁面說明完整路徑。</p>
+        <p class="cta-card__desc">
+          <template v-if="isTcrfc">想了解歐洲、日本、香港的合作管道？國際發展通道頁面說明完整路徑。</template>
+          <template v-else>想了解日本、中國的旅外案例？國際發展通道頁面說明完整路徑。</template>
+        </p>
         <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">了解國際通道</a>
       </div>
     </div>
