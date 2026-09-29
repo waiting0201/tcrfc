@@ -122,6 +122,103 @@ export function postponedNote(originalMatchOn: string | null, originalKickoff: s
   return originalKickoff ? `原定 ${originalMatchOn} ${originalKickoff}` : `原定 ${originalMatchOn}`
 }
 
+// ---------------------------------------------------------------------------
+// 依瀏覽器時區換算顯示（規劃書 v3.13 §3.13「時區處理」，S1-19 補完，2026-09-29）
+// ---------------------------------------------------------------------------
+
+/** 本俱樂部主場皆在台灣，`matches.match_on`／`kickoff` 存的是 Asia/Taipei 牆上時間
+ * 字面值，不是可直接換算時區的時間戳（比照 `apps/api/Features/Calendar/
+ * CalendarIcsRepository.cs` 檔頭同一條說明）。台灣全年無日光節約。 */
+export const TAIPEI_TIME_ZONE = 'Asia/Taipei'
+
+/**
+ * 把 Asia/Taipei 牆上時間（`matchOn` 純日期 ＋ `kickoff` "HH:mm"）換算成真正的 UTC
+ * 時間戳，供 `.ics`（`schedule.vue` 的 `toUtcIcs`）與依瀏覽器時區顯示
+ * （{@link matchTimeDisplay}）共用同一個換算來源，不要各自重算一次（兩邊曾經各寫
+ * 一份幾乎相同的 `Date.UTC(y, m-1, d, h-8, mi)`，這裡收斂成單一來源）。固定減 8
+ * 小時即可，不需要 `Intl`／時區資料庫查表。`kickoff` 為 `null`（例如 TBC）或格式
+ * 不合法時回傳 `null`——沒有確切開賽時間，無法換算成單一時間戳。
+ */
+export function matchInstantUtc(dateStr: string, kickoff: string | null): Date | null {
+  if (!kickoff) return null
+  const { y, m, d } = parseDateOnly(dateStr)
+  const [h, mi] = kickoff.split(':').map(Number)
+  if (h === undefined || mi === undefined || Number.isNaN(h) || Number.isNaN(mi)) return null
+  return new Date(Date.UTC(y, m - 1, d, h - 8, mi))
+}
+
+export interface MatchTimeDisplay {
+  weekdayZh: string
+  weekdayEn: string
+  day: string
+  monthAbbr: string
+  /** `null`＝沒有確切開賽時間可顯示（TBC 或原始資料缺 `kickoff`）。 */
+  kickoff: string | null
+  /** 這筆顯示值是否已換算為台灣以外的時區（畫面用於決定要不要顯示「已換算」提示）。 */
+  converted: boolean
+}
+
+/** 把任一真實時間戳依指定 IANA 時區格式化成本頁既有的顯示格式（週幾／日期／月份縮寫／
+ * 時：分）。中文週幾與既有 `WEEKDAY_ZH` 陣列格式一致——`Intl.DateTimeFormat('zh-Hant',
+ * {weekday:'short'})` 本身就會產生「週一」…「週日」這個格式，已實測核對過，不需要另外
+ * 維護一份中文週幾對照表。 */
+function formatInstantInZone(
+  instant: Date,
+  timeZone: string,
+): { weekdayZh: string; weekdayEn: string; day: string; monthAbbr: string; hourMinute: string } {
+  const weekdayZh = new Intl.DateTimeFormat('zh-Hant', { timeZone, weekday: 'short' }).format(instant)
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone, weekday: 'short', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(instant)
+  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ''
+  return { weekdayZh, weekdayEn: get('weekday').toUpperCase(), day: get('day'), monthAbbr: get('month').toUpperCase(), hourMinute: `${get('hour')}:${get('minute')}` }
+}
+
+/**
+ * 依瀏覽器時區換算顯示賽事的星期／日期／月份／開賽時間（規劃書 v3.13 §3.13「賽事時間
+ * 依瀏覽者所在時區換算顯示」）。
+ *
+ * 🔴 **`viewerTimeZone` 傳 `null` 時，直接回傳既有的 `matchWeekday()`／`matchDay()`／
+ * `matchMonthAbbr()`／原始 `kickoff` 字面值，完全不呼叫 `Intl`**——這是 SSR／掛載前
+ * 第一次渲染必須走的路徑：伺服器不知道瀏覽者的時區，此時顯示「資料庫存的台灣時間」是
+ * 唯一能保證 SSR 輸出與 client 掛載前第一次渲染逐字元相同的做法，不會出現 hydration
+ * mismatch。掛載後（`onMounted`）偵測到瀏覽器時區且不是 {@link TAIPEI_TIME_ZONE} 時，
+ * 呼叫端才傳入真正的時區字串，此時才用 `Intl.DateTimeFormat` 換算——這次更新發生在
+ * hydration 完成之後，Vue 只是照一般反應式更新 patch DOM，不算 mismatch。
+ */
+export function matchTimeDisplay(dateStr: string, kickoff: string | null, viewerTimeZone: string | null): MatchTimeDisplay {
+  const fallback: MatchTimeDisplay = {
+    weekdayZh: matchWeekday(dateStr).zh,
+    weekdayEn: matchWeekday(dateStr).en,
+    day: matchDay(dateStr),
+    monthAbbr: matchMonthAbbr(dateStr),
+    kickoff,
+    converted: false,
+  }
+  if (!viewerTimeZone || viewerTimeZone === TAIPEI_TIME_ZONE) return fallback
+  const instant = matchInstantUtc(dateStr, kickoff)
+  if (!instant) return fallback
+  const f = formatInstantInZone(instant, viewerTimeZone)
+  return { weekdayZh: f.weekdayZh, weekdayEn: f.weekdayEn, day: f.day, monthAbbr: f.monthAbbr, kickoff: f.hourMinute, converted: true }
+}
+
+/**
+ * 給俱樂部活動（`calendar_custom_events.starts_at`，真正的 UTC 時間戳，不是牆上時間
+ * 字面值）用的同一種顯示格式。`viewerTimeZone` 為 `null`（SSR／掛載前）時固定用
+ * {@link TAIPEI_TIME_ZONE} 呈現——跟 {@link matchTimeDisplay} 的 SSR-safe 理由略有不同：
+ * 這裡即使 SSR 階段就呼叫 `Intl` 也不會有 hydration mismatch 風險，因為只要兩端給
+ * `Intl` 同一個明確的 IANA 時區字串與同一個時間戳，輸出保證逐字元相同
+ * （ECMA-402 規範行為，不依賴執行環境的系統預設時區）。
+ */
+export function instantTimeDisplay(instant: Date, viewerTimeZone: string | null): MatchTimeDisplay {
+  const zone = viewerTimeZone ?? TAIPEI_TIME_ZONE
+  const f = formatInstantInZone(instant, zone)
+  return {
+    weekdayZh: f.weekdayZh, weekdayEn: f.weekdayEn, day: f.day, monthAbbr: f.monthAbbr, kickoff: f.hourMinute,
+    converted: viewerTimeZone !== null && viewerTimeZone !== TAIPEI_TIME_ZONE,
+  }
+}
+
 export function compTagLabel(comp: string | null): string {
   switch (comp) {
     case 'cup':

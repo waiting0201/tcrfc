@@ -53,6 +53,44 @@
 //     屬性（螢幕閱讀器不保證讀出），且月曆是用字串組 `innerHTML`，`ev.opponent`（後台可
 //     自由輸入的文字欄位）原本未經 HTML 逸出就直接插入屬性值與文字節點，是可被資料內容
 //     觸發的 HTML 注入風險——已加上 `escapeHtml()`。
+//
+// 🔴 S1-19 補完（2026-09-29，主 session 對照規劃書 §3.13 逐條複查後要求補齊）：
+//   - **時區換算**：原本頁首文案宣稱「依瀏覽器所在時區顯示」，但賽事卡片實際顯示的是
+//     資料庫存的台灣牆上時間字面值，從未真正換算——文案與行為不一致。已改為真的換算：
+//     `app/utils/schedule.ts` 新增 `matchTimeDisplay()`／`instantTimeDisplay()`，SSR／
+//     掛載前一律顯示台灣時間（與現行行為逐字元相同，不會有 hydration mismatch），掛載後
+//     （`onMounted`）用 `Intl.DateTimeFormat().resolvedOptions().timeZone` 偵測瀏覽器
+//     時區，不是 `Asia/Taipei` 時才用 `Intl` 換算更新顯示（這次更新在 hydration 完成後
+//     才發生，是正常的反應式 DOM patch，不算 mismatch）。
+//   - **俱樂部活動**：接上既有 `GET /api/v1/{club}/calendar/events?team=club`（本頁面
+//     一直沒接的既有公開端點），「俱樂部活動」分頁與「全部」檢視皆會顯示；賽果模式不顯示
+//     （後端 `ListClubEventsAsync` 檔頭明講「俱樂部活動沒有『賽果』的語意」）。**整合方式
+//     的決定**：club events 用獨立的 `clubEvents`／`visibleClubEvents` 計算屬性與獨立的
+//     卡片樣板（`club-event-card`），附加在既有賽事列表之後，不併入 `matches`／
+//     `monthGroups`／`visibleMatches` 那條既有管線——後者牽動月曆檢視、批次 `.ics`、
+//     `SportsEvent` JSON-LD、深層連結等大量既有邏輯，且 club events 目前完全沒有真實
+//     種子資料，不併入可以用最小改動涵蓋規格要求，同時把已驗證過的既有賽事管線風險降到
+//     最低。月曆檢視本輪未涵蓋俱樂部活動（只在列表檢視顯示），列為已知範圍縮減。
+//   - **依隊別訂閱**：查證 `apps/api` 只有單場 `.ics` 下載端點
+//     （`GET /api/v1/{club}/matches/{id}/ics`），沒有任何 webcal／訂閱 feed 端點
+//     （`L4` 行事曆進階訂閱匯出排在 `S2-6`，尚未開發）——**前台不自行產生假的訂閱網址**，
+//     選定隊別時頁首改為顯示「下一場賽事倒數」（真正可做的部分）與一句誠實的訂閱狀態說明
+//     （對應既有「訂閱賽程」區塊的既有文案，不是新造的說詞）。
+//   - **賽季篩選**：原本是 `disabled` 的裝飾用下拉選單，字面寫死「2026/27 賽季」——這對
+//     藍鯨是錯的事實（藍鯨兩個球季代碼是「2023」「2025」，不是「2026/27」），且藍鯨
+//     21 場歷史賽果其實橫跨兩個不同球季，原本的篩選功能對藍鯨完全不可用。已改為從
+//     `matches` 既有回應的 `seasonCode` 欄位（`MatchDto.SeasonCode`，前台介面原本沒有
+//     宣告這個既有欄位）動態算出可選賽季清單，預設選最新一季，真正可回溯往季，不需要
+//     新增後端端點。
+//   - **動作按鈕「賽事詳情」**：規劃書「賽事卡片欄位」表非條件式列出（「購票」「轉播
+//     資訊」皆標「若有」，`MatchDto` 沒有票務／轉播欄位，維持不顯示，屬於資料不存在
+//     而非漏做）。原本完全沒有這顆按鈕。查證站內沒有任何獨立的單場賽事詳情頁路由，
+//     比照規劃書「前台功能」表「事件詳情｜側邊抽屜或彈窗」實作為原生 `<dialog>` 彈窗
+//     （原生 focus trap、Escape 關閉、`::backdrop`，不需要手刻鍵盤陷阱）。
+//   - **行動版次要篩選收合**：賽季／賽事類型／主客場三個下拉原本在窄螢幕會直接换行擠在
+//     一起。新增「篩選」按鈕（`aria-expanded`），窄螢幕預設收合、點擊展開；桌面版不受
+//     影響（純 CSS media query 控制預設可見度，`filtersOpen` 初始值 `false` 在 SSR／
+//     掛載前 client 端第一次渲染皆相同，不影響 hydration）。
 definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule' })
 
 const config = useRuntimeConfig()
@@ -73,6 +111,14 @@ const { facts: clubFacts, academyLabel: clubAcademyLabel } = useSiteFacts(club)
 const { locale, lp } = useLocale()
 const { data } = await useFetch(`/api/backend/${club}/schedule`, { query: { pageSize: 200, lang: locale.value } })
 const matches = computed(() => data.value?.items ?? [])
+
+// 俱樂部活動（規劃書 v3.13 §3.13「資料來源」第二列：📣 俱樂部活動 Club Event，行事曆
+// 自建事件）——接上既有 `GET /api/v1/{club}/calendar/events?team=club`（本頁面 S0-9／
+// S1-12d 時期建成時就存在的既有公開端點，但從未接上，見檔頭「S1-19 補完」說明）。
+// 整合方式：獨立管線（`clubEvents`／`visibleClubEvents`），不併入 `matches`，理由同見檔頭。
+const { data: clubEventsData } = await useFetch(`/api/backend/${club}/calendar/events`, {
+  query: { team: 'club', pageSize: 100, lang: locale.value },
+})
 
 // SportsEvent JSON-LD（GEO-08）與 .ics UID 的網域皆用這裡的 `siteConfig.url`——S0-9b 已實測
 // `NUXT_PUBLIC_SITE_URL` 能在 runtime 正確覆寫（docs/13 §6 紀律 4），兩站各自跑出自己網域的
@@ -99,7 +145,39 @@ interface MatchItem {
    * 這筆賽事夠不夠格輸出 SportsEvent Schema，這裡直接讀，不在前台重新判斷一次「六個欄位夠不夠」
    * （docs/18-work-errors.md E-39）。 */
   schemaEligible: boolean
+  /** `MatchDto.SeasonCode`——API 一直都有回這個欄位，前台介面原本沒有宣告、也從未使用
+   * （S1-19 補完：賽季篩選改讀這個既有欄位，見 `availableSeasons`）。 */
+  seasonCode: string
 }
+
+/** 俱樂部活動卡片（`PublicCalendarEventDto` 的 `sourceType === 'custom'` 子集）。
+ * `startsAt`／`endsAt` 是真正的 UTC 時間戳（非牆上時間字面值），與 `MatchItem` 的
+ * `matchOn`／`kickoff` 是兩套不同語意，顯示換算各自呼叫 `app/utils/schedule.ts`
+ * 對應的函式（`instantTimeDisplay` vs. `matchTimeDisplay`），不要互用。 */
+interface ClubEventItem {
+  id: string
+  startsAt: string
+  endsAt: string | null
+  isAllDay: boolean
+  title: string
+  venueName: string | null
+  eventTypeCode: string | null
+  description: string | null
+  ctaUrl: string | null
+  coverUrl: string | null
+}
+const clubEvents = computed<ClubEventItem[]>(() =>
+  (clubEventsData.value?.items ?? [])
+    .filter((e) => (e as { sourceType?: string }).sourceType === 'custom')
+    .map((e) => {
+      const r = e as unknown as ClubEventItem
+      return {
+        id: r.id, startsAt: r.startsAt, endsAt: r.endsAt ?? null, isAllDay: r.isAllDay,
+        title: r.title, venueName: r.venueName ?? null, eventTypeCode: r.eventTypeCode ?? null,
+        description: r.description ?? null, ctaUrl: r.ctaUrl ?? null, coverUrl: r.coverUrl ?? null,
+      }
+    }),
+)
 
 const monthGroups = computed(() => {
   const map = new Map<string, MatchItem[]>()
@@ -149,20 +227,115 @@ function teamHeadLabel(filter: string): string {
   return `${tab.zh} 梯隊`
 }
 
-const state = reactive({ team: 'all', mode: 'fixtures', comp: 'all', ha: 'all', view: 'list' })
+/** 賽季篩選（規劃書 v3.13 §3.13「分頁與篩選」：賽季，預設當季，可回溯往季）。
+ * 從既有 `matches` 回應的 `seasonCode` 動態算出，不需要新增後端端點——藍鯨兩個球季
+ * 代碼是「2023」「2025」（`db/seed` 既有事實），字典序排序恰好等於時間序，磐石目前只有
+ * 一季「2026-27」，字典序排序同樣成立。取不到任何賽季代碼時退回 `'all'`（全部）。 */
+const availableSeasons = computed(() => Array.from(new Set(matches.value.map((m) => m.seasonCode).filter(Boolean))).sort())
+const defaultSeason = computed(() => availableSeasons.value.at(-1) ?? 'all')
+
+const state = reactive({ team: 'all', mode: 'fixtures', comp: 'all', ha: 'all', view: 'list', season: defaultSeason.value })
 const mounted = ref(false)
 /** 月曆點擊某天或帶 #fx-... 造訪時，即使不符目前篩選也要強制顯示這些場次——
  * 同一天可能不只一場賽事，S1-19 改為集合（見 `renderCalendar`／`jumpToMatches` 檔頭說明），
  * 原本用單一 id 會讓同一天第二場之後的賽事無法被展開。 */
 const forcedVisibleIds = ref<Set<string>>(new Set())
 
+/** 瀏覽器實際時區（規劃書 v3.13 §3.13「時區處理」）。`null`＝尚未偵測（SSR／掛載前）
+ * 或偵測到的就是 `Asia/Taipei`（兩者對顯示邏輯而言效果相同，見 `matchTimeDisplay()`
+ * 檔頭說明）。只在 `onMounted` 設定一次，不隨時間改變（瀏覽器時區在同一次瀏覽階段
+ * 不會變動）。 */
+const viewerTimeZone = ref<string | null>(null)
+
+/** 行動版次要篩選（賽季／賽事類型／主客場）收合狀態（規劃書 v3.13 §3.13「行動版次要
+ * 篩選收合於『篩選』按鈕內」）。初始值 `false` 在 SSR 與 client 掛載前第一次渲染皆相同
+ * （純 CSS media query 控制桌面／行動版預設可見度，本欄位只影響行動版），不影響
+ * hydration。 */
+const filtersOpen = ref(false)
+
+/** 單場賽事詳情彈窗（規劃書 v3.13 §3.13「賽事卡片欄位」動作按鈕「賽事詳情」／「前台
+ * 功能」「事件詳情：側邊抽屜或彈窗」）。站內沒有獨立的單場賽事頁路由，改用原生
+ * `<dialog>`（內建 focus trap、Escape 關閉、`::backdrop`）。 */
+const detailDialog = ref<HTMLDialogElement | null>(null)
+const detailMatch = ref<MatchItem | null>(null)
+function openDetail(m: MatchItem) {
+  detailMatch.value = m
+  nextTick(() => detailDialog.value?.showModal())
+}
+function closeDetail() {
+  detailDialog.value?.close()
+}
+/** 點擊 `<dialog>` 自身（即點擊 `::backdrop` 覆蓋的區域，不是內容區）視同關閉——`<dialog>`
+ * 原生只有 Escape 會關閉，點擊背景不會，這裡補上這個慣例互動。 */
+function onDetailDialogClick(e: MouseEvent) {
+  if (e.target === detailDialog.value) closeDetail()
+}
+
+/** 下一場賽事倒數（規劃書 v3.13 §3.13「隊別分類規則」第 3 點：「選定隊別後，頁面標頭
+ * 顯示：隊伍名稱、下一場賽事倒數」）。**只在 client 端計算並顯示**（`nextMatchCountdown`
+ * 初始為 `null`，SSR／掛載前不輸出）——倒數文字本質上是「現在時刻」與賽事時刻的相對差，
+ * SSR 渲染的當下與瀏覽器 hydration 完成的當下必然相差幾秒到幾百毫秒，若在 SSR 就算好
+ * 倒數文字，會跟 client 掛載後重新計算的文字不一致，是另一種 hydration mismatch 來源
+ * （比照時區換算的處理原則：非確定性內容一律延後到掛載後才計算並显示）。掛載後每分鐘
+ * 重新計算一次（毫秒級或秒級更新對「倒數」這種粗粒度資訊沒有實益，且會造成更頻繁的
+ * DOM 更新）。 */
+const nextMatchCountdown = ref<string | null>(null)
+let countdownTimer: ReturnType<typeof setInterval> | undefined
+function computeNextMatchCountdown(): string | null {
+  if (state.team === 'all' || state.team === 'club') return null
+  const upcoming = matches.value
+    .filter((m) => m.teamCode === state.team && mapMatchStatus(m.status).code === 'upcoming')
+    .slice()
+    .sort((a, b) => (a.matchOn === b.matchOn ? (a.kickoff ?? '').localeCompare(b.kickoff ?? '') : a.matchOn.localeCompare(b.matchOn)))[0]
+  if (!upcoming) return null
+  const instant = matchInstantUtc(upcoming.matchOn, upcoming.kickoff)
+  if (!instant) return null
+  const diffMs = instant.getTime() - Date.now()
+  if (diffMs <= 0) return '比賽即將開始'
+  const days = Math.floor(diffMs / 86_400_000)
+  const hours = Math.floor((diffMs % 86_400_000) / 3_600_000)
+  if (days > 0) return `距離下一場比賽尚有 ${days} 天 ${hours} 小時`
+  const minutes = Math.floor((diffMs % 3_600_000) / 60_000)
+  return hours > 0 ? `距離下一場比賽尚有 ${hours} 小時 ${minutes} 分鐘` : `距離下一場比賽尚有 ${minutes} 分鐘`
+}
+watch(() => state.team, () => {
+  if (mounted.value) nextMatchCountdown.value = computeNextMatchCountdown()
+})
+
 onMounted(() => {
   mounted.value = true
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (tz && tz !== TAIPEI_TIME_ZONE) viewerTimeZone.value = tz
+  } catch {
+    // Intl 不支援時區偵測：維持 null，畫面照舊顯示台灣時間，不視為錯誤。
+  }
+  nextMatchCountdown.value = computeNextMatchCountdown()
+  countdownTimer = setInterval(() => {
+    nextMatchCountdown.value = computeNextMatchCountdown()
+  }, 60_000)
   handleInitialHash()
+})
+onBeforeUnmount(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
 })
 
 function cardStatusCode(m: MatchItem): string {
   return mapMatchStatus(m.status).code
+}
+/** 賽事卡片左側時間欄的顯示值（規劃書 v3.13 §3.13「時區處理」），見
+ * `app/utils/schedule.ts` 的 `matchTimeDisplay()` 檔頭說明：`viewerTimeZone` 為 `null`
+ * 時（SSR／掛載前）回傳與既有行為逐字元相同的台灣時間，不會有 hydration mismatch。 */
+function timeOf(m: MatchItem) {
+  return matchTimeDisplay(m.matchOn, m.kickoff, viewerTimeZone.value)
+}
+/** 俱樂部活動卡片的時間欄顯示值。`isAllDay` 事件不顯示鐘點（只保留週幾／日期／月份，
+ * 一律以 Asia/Taipei 呈現——全天事件沒有確切時刻可換算），有確切時刻的事件則呼叫
+ * `instantTimeDisplay()` 依瀏覽器時區換算，與 `timeOf()` 是同一套顯示邏輯。 */
+function eventTimeOf(e: ClubEventItem) {
+  const instant = new Date(e.startsAt)
+  const display = instantTimeDisplay(instant, viewerTimeZone.value)
+  return e.isAllDay ? { ...display, kickoff: null, converted: false } : display
 }
 function cardMatches(m: MatchItem): boolean {
   const id = fixtureId(m.matchOn, m.homeAway, m.matchNo)
@@ -171,7 +344,8 @@ function cardMatches(m: MatchItem): boolean {
   const statusOk = state.mode === 'fixtures' ? cardStatusCode(m) === 'upcoming' : cardStatusCode(m) === 'finished'
   const compOk = state.comp === 'all' ? true : m.competitionTag === state.comp
   const haOk = state.ha === 'all' ? true : haCode(m.homeAway) === state.ha
-  return teamOk && statusOk && compOk && haOk
+  const seasonOk = state.season === 'all' ? true : m.seasonCode === state.season
+  return teamOk && statusOk && compOk && haOk && seasonOk
 }
 
 // SSR／掛載前：全部顯示（比照 mockup 執行 JS 前的原始 HTML：team=all、
@@ -188,19 +362,28 @@ function isGroupHidden(key: string): boolean {
   return !visibleMatches.value.some((m) => m.matchOn.slice(0, 7) === key)
 }
 
+// 「俱樂部活動」只在 all／club 分頁顯示；賽果模式一律不顯示（後端 `ListClubEventsAsync`
+// 檔頭明講「俱樂部活動沒有『賽果』的語意」，見檔頭「S1-19 補完」說明）。
+const showClubEvents = computed(() => state.mode === 'fixtures' && (state.team === 'all' || state.team === 'club'))
+const visibleClubEvents = computed(() => (showClubEvents.value ? clubEvents.value : []))
+
 const teamHeadName = computed(() => teamHeadLabel(state.team))
 // GEO-03（S1-12d）：聯賽名稱為單一來源（useSiteFacts 讀後端 API），不在此重複寫死
 // 字面值（改動前本頁不論 club 皆寫死磐石的聯賽全名，藍鯨容器會顯示錯誤的聯賽名稱）。
 const leagueName = computed(() => clubFacts.value.league.nameZh)
-const teamHeadMeta = computed(() =>
-  state.mode === 'results'
-    ? `2026/27 賽季 · ${leagueName.value} · 賽果`
-    : `2026/27 賽季 · ${leagueName.value} · 共 ${visibleMatches.value.length} 場`,
-)
-const isEmpty = computed(() => mounted.value && visibleMatches.value.length === 0)
+// S1-19 補完：賽季不再字面寫死「2026/27」（對藍鯨本來就是錯的事實，藍鯨球季代碼是
+// 「2023」「2025」），改讀 `state.season`（見 `availableSeasons`／`defaultSeason`）。
+const seasonLabel = computed(() => (state.season === 'all' ? '全部賽季' : `${state.season} 賽季`))
+const teamHeadMeta = computed(() => {
+  if (state.team === 'club') return `共 ${visibleClubEvents.value.length} 則俱樂部活動`
+  return state.mode === 'results'
+    ? `${seasonLabel.value} · ${leagueName.value} · 賽果`
+    : `${seasonLabel.value} · ${leagueName.value} · 共 ${visibleMatches.value.length} 場`
+})
+const isEmpty = computed(() => mounted.value && visibleMatches.value.length === 0 && visibleClubEvents.value.length === 0)
 const emptyDesc = computed(() => {
-  if (state.mode === 'results') return '本季（2026/27）尚未有已完成的賽事，賽果會在比賽結束後更新。'
   if (state.team === 'club') return '目前尚無公告的俱樂部活動（記者會、簽名會、球迷見面會等），請持續關注官方社群與最新消息。'
+  if (state.mode === 'results') return `本季（${seasonLabel.value}）尚未有已完成的賽事，賽果會在比賽結束後更新。`
   // 一線隊（D1／BW1）與「全部」皆已有真實賽事資料，其餘（各梯隊）尚無賽程可用。
   if (state.team !== 'all' && state.team !== firstTeamCode.value) {
     return `${teamHeadLabel(state.team)}的賽程資料尚未提供，待客戶提供各梯隊賽程表後將更新於本頁。`
@@ -487,10 +670,12 @@ function onBulkIcs() {
 
 useSeoMeta({
   title: computed(() => `賽事行事曆 Schedule｜${getClubAssets(club).nameZh}`),
-  description: computed(
-    () =>
-      `${getClubAssets(club).nameZh}完整賽事行事曆：2026/27 ${leagueName.value} ${matches.value.length} 場賽程，依隊別（一線隊／${clubAcademyLabel()}）分類，支援賽程賽果切換、月曆檢視與單場加入行事曆。`,
-  ),
+  description: computed(() => {
+    // S1-19 補完：賽季不再字面寫死「2026/27」（對藍鯨是錯的事實，藍鯨球季代碼是
+    // 「2023」「2025」，見 availableSeasons／seasonLabel 的既有說明）。
+    const seasonPart = defaultSeason.value === 'all' ? '' : `${defaultSeason.value} `
+    return `${getClubAssets(club).nameZh}完整賽事行事曆：${seasonPart}${leagueName.value} ${matches.value.length} 場賽程，依隊別（一線隊／${clubAcademyLabel()}）分類，支援賽程賽果切換、月曆檢視與單場加入行事曆。`
+  }),
 })
 
 // SportsEvent JSON-LD（GEO-08）。siteConfig 已提前宣告於檔案開頭（供 .ics UID 使用），
@@ -567,7 +752,8 @@ useHead(() => (
   <div class="container">
     <p class="page-hero__eyebrow">13 Schedule</p>
     <h1>賽事行事曆<span class="en">Schedule</span></h1>
-    <p class="page-hero__lede">一線隊與各梯隊的完整賽程與賽果，一頁掌握。所有時間皆依<strong>瀏覽器所在時區</strong>顯示，<strong>時間可能異動，正式時間請以官方公告為準</strong>。</p>
+    <p class="page-hero__lede">一線隊與各梯隊的完整賽程與賽果，一頁掌握。<strong>所有時間為當地時間，可能異動</strong>，正式時間請以官方公告為準。</p>
+    <p v-if="mounted && viewerTimeZone" class="page-hero__tz-note">已依您目前的裝置時區（<span class="en">{{ viewerTimeZone }}</span>）換算顯示；台灣官方公告時間請見各賽事詳情。</p>
   </div>
 </section>
 
@@ -594,6 +780,15 @@ useHead(() => (
         <div class="sched-teamhead">
           <p class="sched-teamhead__name" data-teamhead-name>{{ teamHeadName }}</p>
           <p class="sched-teamhead__meta" data-teamhead-meta>{{ teamHeadMeta }}</p>
+          <!-- 規劃書 v3.13 §3.13「選定隊別後，頁面標頭顯示：隊伍名稱、下一場賽事倒數；
+               並提供該隊別專屬的行事曆訂閱網址」。倒數只在 client 端算好才顯示（見
+               nextMatchCountdown 檔頭說明，避免 hydration mismatch）；訂閱網址目前後端
+               沒有 webcal feed 端點（見檔頭「S1-19 補完」），不自行產生假網址，改為誠實
+               告知現況並指向下方「訂閱賽程」區塊既有的 .ics 下載功能。 -->
+          <p v-if="mounted && nextMatchCountdown" class="sched-teamhead__countdown">{{ nextMatchCountdown }}</p>
+          <p v-if="state.team !== 'all' && state.team !== 'club'" class="sched-teamhead__subscribe-note">
+            {{ teamHeadName }}專屬的行事曆訂閱（<span class="en">webcal</span>）網址尚未上線（後端訂閱 feed 端點待開發，見下方「訂閱賽程」說明）；目前請於下方或各賽事卡片使用 <span class="en">.ics</span> 下載取得賽程。
+          </p>
         </div>
 
         <!-- 次層控制列 -->
@@ -603,11 +798,19 @@ useHead(() => (
             <button type="button" class="sched-toggle" data-mode="results" :aria-pressed="state.mode === 'results'" @click="setMode('results')">賽果 <span class="en">Results</span></button>
           </div>
 
-          <div class="sched-controls__selects">
+          <!-- 規劃書 v3.13 §3.13「行動版次要篩選收合於『篩選』按鈕內」。桌面版由 CSS
+               media query 恆常顯示（本按鈕在桌面版隱藏），行動版預設收合。 -->
+          <button
+            type="button" class="sched-filters-toggle" :aria-expanded="filtersOpen"
+            aria-controls="sched-filters-panel" @click="filtersOpen = !filtersOpen"
+          >篩選 <span class="en">Filters</span></button>
+
+          <div id="sched-filters-panel" class="sched-controls__selects" :class="{ 'is-open': filtersOpen }">
             <label class="sched-select">
               <span class="visually-hidden">賽季</span>
-              <select data-season disabled>
-                <option>2026/27 賽季</option>
+              <select v-model="state.season" data-season :disabled="availableSeasons.length === 0">
+                <option value="all">全部賽季</option>
+                <option v-for="s in availableSeasons" :key="s" :value="s">{{ s }} 賽季</option>
               </select>
             </label>
             <label class="sched-select">
@@ -652,10 +855,10 @@ useHead(() => (
                 :hidden="isCardHidden(m)"
               >
                 <div class="fixture-card__time">
-                  <span class="fixture-card__wd">{{ matchWeekday(m.matchOn).zh }} {{ matchWeekday(m.matchOn).en }}</span>
-                  <span class="fixture-card__date">{{ matchDay(m.matchOn) }}</span>
-                  <span class="fixture-card__mon">{{ matchMonthAbbr(m.matchOn) }}</span>
-                  <time class="fixture-card__kickoff" :datetime="`${m.matchOn}T${m.kickoff}:00+08:00`">{{ m.kickoff }}</time>
+                  <span class="fixture-card__wd">{{ timeOf(m).weekdayZh }} {{ timeOf(m).weekdayEn }}</span>
+                  <span class="fixture-card__date">{{ timeOf(m).day }}</span>
+                  <span class="fixture-card__mon">{{ timeOf(m).monthAbbr }}</span>
+                  <time v-if="timeOf(m).kickoff" class="fixture-card__kickoff" :datetime="matchInstantUtc(m.matchOn, m.kickoff)?.toISOString()">{{ timeOf(m).kickoff }}</time>
                 </div>
                 <div class="fixture-card__body">
                   <div class="fixture-card__meta">
@@ -699,10 +902,40 @@ useHead(() => (
                   </p>
                 </div>
                 <div class="fixture-card__actions">
+                  <button type="button" class="btn btn--outline btn--sm" data-detail-btn @click="openDetail(m)">賽事詳情</button>
                   <button type="button" class="btn btn--primary btn--sm" data-ics-btn @click="onIcsClick(m)">加入行事曆 <span class="en">.ics</span></button>
                   <button type="button" class="btn btn--dark btn--sm" data-share-btn @click="onShareClick(m)">{{ copiedId === fixtureId(m.matchOn, m.homeAway, m.matchNo) ? '連結已複製' : '分享此賽事' }}</button>
                 </div>
               </article>
+            </div>
+
+            <!-- 俱樂部活動（規劃書 v3.13 §3.13「資料來源」第二列，S1-19 補完）。獨立於
+                 賽事列表之後，見檔頭「S1-19 補完」的整合方式說明。 -->
+            <div v-if="visibleClubEvents.length > 0" class="club-events-block">
+              <h3 class="month-heading">俱樂部活動 <span class="en">Club Events</span></h3>
+              <div class="fixture-list">
+                <article v-for="e in visibleClubEvents" :key="e.id" class="fixture-card club-event-card">
+                  <div class="fixture-card__time">
+                    <span class="fixture-card__wd">{{ eventTimeOf(e).weekdayZh }} {{ eventTimeOf(e).weekdayEn }}</span>
+                    <span class="fixture-card__date">{{ eventTimeOf(e).day }}</span>
+                    <span class="fixture-card__mon">{{ eventTimeOf(e).monthAbbr }}</span>
+                    <time v-if="eventTimeOf(e).kickoff" class="fixture-card__kickoff" :datetime="e.startsAt">{{ eventTimeOf(e).kickoff }}</time>
+                  </div>
+                  <div class="fixture-card__body">
+                    <div class="fixture-card__meta">
+                      <span class="tag tag--club-event">俱樂部活動</span>
+                    </div>
+                    <p class="club-event-card__title">{{ e.title }}</p>
+                    <p v-if="e.description" class="club-event-card__desc">{{ e.description }}</p>
+                    <p v-if="e.venueName" class="fixture-card__venue">
+                      <span>{{ e.venueName }}</span><a class="fixture-card__map" :href="venueMapUrl(e.venueName)" target="_blank" rel="noopener">地圖<span class="visually-hidden">（另開新視窗）</span></a>
+                    </p>
+                  </div>
+                  <div class="fixture-card__actions">
+                    <a v-if="e.ctaUrl" class="btn btn--primary btn--sm" :href="e.ctaUrl" target="_blank" rel="noopener">活動詳情</a>
+                  </div>
+                </article>
+              </div>
             </div>
           </div>
 
@@ -719,6 +952,35 @@ useHead(() => (
 
       </div>
     </div>
+
+    <!-- 單場賽事詳情彈窗（規劃書 v3.13 §3.13「動作按鈕：賽事詳情」／「前台功能：事件
+         詳情」）。原生 <dialog>：內建 focus trap、Escape 關閉、::backdrop。 -->
+    <dialog ref="detailDialog" class="match-detail" aria-labelledby="match-detail-title" @click="onDetailDialogClick" @close="detailMatch = null">
+      <button type="button" class="match-detail__close" aria-label="關閉賽事詳情" @click="closeDetail">✕</button>
+      <template v-if="detailMatch">
+        <p class="match-detail__comp">{{ compTagLabel(detailMatch.competitionTag) }} · 第 {{ detailMatch.roundNo }} 輪 · {{ mapMatchStatus(detailMatch.status).label }}</p>
+        <h3 id="match-detail-title" class="match-detail__title">
+          {{ haCode(detailMatch.homeAway) === 'home' ? clubAssets.shortNameZh : detailMatch.opponent }}
+          <span class="match-detail__vs">vs</span>
+          {{ haCode(detailMatch.homeAway) === 'home' ? detailMatch.opponent : clubAssets.shortNameZh }}
+        </h3>
+        <p class="match-detail__time">{{ timeOf(detailMatch).weekdayZh }} {{ detailMatch.matchOn }}<template v-if="timeOf(detailMatch).kickoff"> · {{ timeOf(detailMatch).kickoff }}</template></p>
+        <p v-if="postponedNote(detailMatch.originalMatchOn, detailMatch.originalKickoff)" class="fixture-card__postponed">{{ postponedNote(detailMatch.originalMatchOn, detailMatch.originalKickoff) }}</p>
+        <p class="match-detail__venue">
+          <span :class="['ha-pill', haCode(detailMatch.homeAway) === 'home' ? 'ha-pill--home' : 'ha-pill--away']">{{ haCode(detailMatch.homeAway) === 'home' ? '主場 HOME' : '客場 AWAY' }}</span>
+          <template v-if="detailMatch.venue === 'TBC'">
+            <span class="tbc-note">場地未定 · VENUE TBC</span>
+          </template>
+          <template v-else>
+            <span>{{ detailMatch.venue }}</span><a class="fixture-card__map" :href="venueMapUrl(detailMatch.venue ?? '')" target="_blank" rel="noopener">地圖<span class="visually-hidden">（另開新視窗）</span></a>
+          </template>
+        </p>
+        <div class="match-detail__actions">
+          <button type="button" class="btn btn--primary btn--sm" @click="onIcsClick(detailMatch)">加入行事曆 <span class="en">.ics</span></button>
+          <button type="button" class="btn btn--dark btn--sm" @click="onShareClick(detailMatch)">{{ copiedId === fixtureId(detailMatch.matchOn, detailMatch.homeAway, detailMatch.matchNo) ? '連結已複製' : '分享此賽事' }}</button>
+        </div>
+      </template>
+    </dialog>
 
     <!-- 訂閱 -->
     <div class="sched-subscribe">
@@ -770,6 +1032,10 @@ useHead(() => (
 .sched-teamhead{ display:flex; align-items:baseline; gap:1rem; flex-wrap:wrap; margin-bottom:1.75rem; }
 .sched-teamhead__name{ font-size:1.3rem; font-weight:900; color:var(--heading); }
 .sched-teamhead__meta{ font-size:.85rem; color:var(--muted); }
+/* S1-19 補完：下一場賽事倒數／訂閱狀態說明，強制各自獨立成一行（flex-basis:100% 是
+   在已 flex-wrap 的父層裡讓子項目強制換行的既有技巧，不需要改動外層版面結構）。 */
+.sched-teamhead__countdown{ font-size:.85rem; font-weight:800; color:var(--brand-aa); flex-basis:100%; }
+.sched-teamhead__subscribe-note{ font-size:.78rem; color:var(--muted); flex-basis:100%; margin-top:.15rem; }
 
 .sched-controls{
   display:flex; align-items:center; justify-content:space-between; gap:1.25rem; flex-wrap:wrap;
@@ -786,6 +1052,20 @@ useHead(() => (
   font-family:inherit; color:var(--text); min-height:44px;
 }
 .sched-select select:disabled{ color:var(--muted); background:var(--paper-2); }
+
+/* S1-19 補完：行動版次要篩選收合（規劃書 v3.13 §3.13「行動版次要篩選收合於『篩選』
+   按鈕內」）。桌面版：按鈕隱藏、篩選列永遠顯示（既有行為不變）。行動版：篩選列預設
+   收合，按鈕顯示，點擊展開（`.is-open` 由 `filtersOpen` 控制）。 */
+.sched-filters-toggle{ display:none; }
+@media (max-width:720px){
+  .sched-filters-toggle{
+    display:inline-flex; align-items:center; gap:.4rem; padding:.6rem 1rem; font-size:.82rem; font-weight:700;
+    border:1px solid var(--rule); background:var(--paper); color:var(--text); min-height:44px;
+  }
+  .sched-filters-toggle[aria-expanded="true"]{ background:var(--ink); color:#fff; }
+  .sched-controls__selects{ display:none; flex-basis:100%; }
+  .sched-controls__selects.is-open{ display:flex; }
+}
 
 .sched-official-note{ font-size:.8rem; color:var(--muted); margin-bottom:2rem; }
 .sched-official-note::before{ content:"※ "; color:var(--brand-aa); font-weight:800; }
@@ -881,4 +1161,39 @@ useHead(() => (
 .sched-subscribe h2{ margin-bottom:.75rem; }
 .sched-subscribe p{ font-size:.92rem; line-height:1.75; color:var(--text); margin-bottom:1.25rem; }
 .sched-subscribe__fine{ font-size:.78rem; color:var(--muted); margin-top:1rem; margin-bottom:0; }
+
+/* S1-19 補完：頁首時區換算提示（規劃書 v3.13 §3.13「時區處理」）。 */
+.page-hero__tz-note{ font-size:.85rem; color:var(--muted); margin-top:.5rem; }
+
+/* S1-19 補完：俱樂部活動（規劃書 v3.13 §3.13「資料來源」第二列），沿用 fixture-card
+   的既有版面（同一個 class），只新增卡片內文與標籤兩個小元件。 */
+.club-events-block{ margin-top:2.5rem; }
+.tag--club-event{ background:var(--muted); }
+.club-event-card__title{ font-weight:800; font-size:1rem; color:var(--heading); margin-bottom:.4rem; }
+.club-event-card__desc{ font-size:.85rem; color:var(--text); line-height:1.6; margin-bottom:.5rem; }
+
+/* S1-19 補完：賽事詳情彈窗用到的按鈕樣式（既有 tcrfc.css 只有 primary／dark／light
+   三種，這裡新增一種低強調的外框樣式，供「賽事詳情」這類次要動作使用）。 */
+.btn--outline{ background:transparent; color:var(--ink); border:1px solid var(--rule); }
+.btn--outline:hover{ background:var(--paper-2); }
+
+/* S1-19 補完：單場賽事詳情彈窗（原生 <dialog>，規劃書 v3.13 §3.13「事件詳情：側邊
+   抽屜或彈窗」）。 */
+.match-detail{
+  position:relative; border:none; padding:clamp(1.5rem,4vw,2.5rem); max-width:32rem; width:calc(100% - 2rem);
+  background:var(--paper); box-shadow:0 10px 40px rgba(0,0,0,.25);
+}
+.match-detail::backdrop{ background:rgba(0,0,0,.5); }
+.match-detail__close{
+  position:absolute; top:.75rem; right:.75rem; width:2.25rem; height:2.25rem;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:transparent; border:1px solid var(--rule); font-size:1rem; color:var(--muted);
+}
+.match-detail__close:hover{ background:var(--paper-2); }
+.match-detail__comp{ font-size:.75rem; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--brand-aa); margin-bottom:.5rem; }
+.match-detail__title{ font-size:1.2rem; font-weight:900; color:var(--heading); margin:0 0 .6rem; padding-right:2rem; }
+.match-detail__vs{ font-size:.75rem; font-weight:800; color:var(--ghost); margin:0 .35rem; }
+.match-detail__time{ font-size:.95rem; color:var(--text); margin-bottom:.4rem; }
+.match-detail__venue{ display:flex; align-items:center; gap:.6rem; font-size:.9rem; color:var(--text); flex-wrap:wrap; margin:.75rem 0 1.25rem; }
+.match-detail__actions{ display:flex; gap:.6rem; flex-wrap:wrap; }
 </style>

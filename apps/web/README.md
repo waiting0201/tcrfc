@@ -2094,6 +2094,180 @@ docker build -f apps/web/Dockerfile apps/web   # 通過
 - 同一天多場賽事的月曆顯示（目前種子資料是否真的有同日多場賽事未查證，此為邏輯層修正，
   防止未來出現這種資料時失效，不代表目前已有這種資料可供肉眼核對畫面）。
 
+## S1-19 補完（主 session 對照規劃書 §3.13 逐條複查後要求補齊，2026-09-29，`frontend-architect`）
+
+主 session 對照規劃書 §3.13 全文複查上一節的交付，指出四項規格明文要求但尚未做的項目。
+本節記錄補完內容，**只改 `apps/web`**（沒有動 `apps/api`、`nuxt.config.ts`，`apps/api`
+未啟動）。
+
+### 1. 時區換算（§3.13「時區處理」／「左側時間欄」）
+
+**改動前**：頁首文案宣稱「所有時間皆依瀏覽器所在時區顯示」，但賽事卡片實際顯示的是
+資料庫存的 Asia/Taipei 牆上時間字面值，從未真正換算——文案與行為不一致。
+
+**改動後**：`app/utils/schedule.ts` 新增：
+- `matchInstantUtc(dateStr, kickoff)`：把 Asia/Taipei 牆上時間換算成真正的 UTC
+  `Date`（收斂自原本 `schedule.vue` 的 `toUtcIcs()` 內嵌邏輯，兩處共用同一個換算來源）。
+- `matchTimeDisplay(dateStr, kickoff, viewerTimeZone)`：`viewerTimeZone` 傳 `null`
+  時直接回傳既有的 `matchWeekday()`／`matchDay()`／`matchMonthAbbr()`／原始 `kickoff`
+  字面值，**完全不呼叫 `Intl`**；不是 `null` 且不等於 `Asia/Taipei` 時才用
+  `Intl.DateTimeFormat` 換算。
+- `instantTimeDisplay(instant, viewerTimeZone)`：給俱樂部活動（真正的 UTC 時間戳）用
+  的對應版本。
+
+**Hydration 安全設計**：`schedule.vue` 新增 `viewerTimeZone = ref<string | null>(null)`，
+只在 `onMounted()` 用 `Intl.DateTimeFormat().resolvedOptions().timeZone` 偵測一次。
+SSR 與 client 掛載前的第一次渲染都會用 `viewerTimeZone === null` 這條路徑，輸出與
+改動前逐字元相同（不呼叫 `Intl`），保證不會有 hydration mismatch；掛載後才可能更新
+顯示（若瀏覽器時區不是台灣），這次更新發生在 hydration 完成之後，是正常的反應式 DOM
+patch。已用本機容器實測 SSR 輸出：`viewerTimeZone`／`nextMatchCountdown` 兩個 client-only
+欄位相關的段落（`v-if="mounted && ..."`）在 SSR body 裡完全不存在（只出現在 `<style>`
+區塊的 CSS 選擇器字面值裡，不是實際 DOM 元素），確認掛載前後的 DOM 結構一致。
+
+頁首文案改為規劃書原文用語「**所有時間為當地時間，可能異動**」，並新增一行 client-only
+提示（偵測到非台灣時區時才顯示）：「已依您目前的裝置時區（`{時區}`）換算顯示；台灣
+官方公告時間請見各賽事詳情。」
+
+**範圍縮減（明確決定，列出理由）**：月曆分組（`monthGroups`）、賽事卡片錨點 id
+（`fixtureId()`）、`.ics` 的 `UID`、深層連結 `#fx-...` 全部維持用**資料庫存的原始
+台灣日期**，不隨顯示時區改變——這些是穩定識別碼與既有分享連結依賴的基準，若隨瀏覽器
+時區重新分組會讓同一場賽事在不同時區的使用者眼中被分到不同月份群組、id 改變會讓已經
+分享出去的連結失效。換算只發生在「這張卡片顯示的星期／日期／時刻」這個純顯示層級，
+不影響資料組織方式。
+
+### 2. 俱樂部活動（§3.13「資料來源」第二列、分頁規則第 2 點）
+
+**改動前**：「俱樂部活動」分頁已存在於隊別分頁清單，但沒有接任何資料來源，永遠顯示
+空狀態文案。
+
+**改動後**：接上既有 `GET /api/v1/{club}/calendar/events?team=club`（`apps/api`
+`Features/Calendar/CalendarRepository.cs` 既有的公開端點，在這個頁面主體建成
+（S0-9／S1-12d 時期）之後才由另一條工作線建成，但前台從未接上）。
+
+**整合方式的決定（coordinator 明確授權自行決定並記錄）**：club events 用獨立的
+`clubEvents`／`visibleClubEvents` 計算屬性與獨立的卡片樣板（`.club-event-card`，沿用
+`.fixture-card` 的既有版面骨架），附加在既有賽事列表之後，**不併入** `matches`／
+`monthGroups`／`visibleMatches` 那條既有管線。理由：
+- 後者牽動月曆檢視、批次 `.ics` 下載、`SportsEvent` JSON-LD、深層連結等大量已驗證過的
+  既有邏輯，把兩種形狀不同的資料（比賽 vs. 自建活動）塞進同一個型別與同一組篩選函式，
+  需要把 `cardMatches`／`isCardHidden`／`renderCalendar`／`sportsEvents` 全部改寫成能
+  處理判別聯集型別，是遠大於「補一個分頁的資料」這件事本身的重構，且會讓已經在
+  S1-19 主輪驗證過的既有賽事邏輯重新暴露在迴歸風險下。
+- `db/seed` 目前沒有任何 `calendar_custom_events` 種子資料，維持獨立管線不會犧牲任何
+  已知的真實內容，之後真的需要「賽事與活動在同一份月份分組列表裡逐日交錯」時，再視
+  實際內容量評估要不要合併。
+- 「全部」檢視包含俱樂部活動：`showClubEvents` 計算屬性讓 `state.team === 'all'` 時
+  一併顯示；「賽果」模式不顯示（後端 `ListClubEventsAsync` 檔頭明講「俱樂部活動沒有
+  『賽果』的語意」，`showClubEvents` 據此排除 `results` 模式）。
+
+**已知範圍縮減**：月曆檢視本輪未涵蓋俱樂部活動（只在列表檢視顯示）——`renderCalendar()`
+仍然只讀 `visibleMatches`，維持原樣不動，降低對既有已驗證邏輯的觸碰面。批次 `.ics`
+下載（`onBulkIcs`）也維持只打包賽事，不含俱樂部活動（後端目前也沒有自建活動的 `.ics`
+端點，見下一節）。這兩項都是本輪的明確取捨，留給下一個真正有俱樂部活動內容時的人評估
+是否要擴大範圍。
+
+### 3. 依隊別訂閱（§3.13「加入我的行事曆」、分頁規則第 3 點）
+
+**查證結果**：`apps/api` 只有單場 `.ics` 下載端點
+（`GET /api/v1/{club}/matches/{id}/ics`，`Features/Calendar/CalendarEndpoints.cs`），
+**沒有任何 webcal／訂閱 feed 端點**。`STATUS.md` `S2-6`（`L3`／`L4` 行事曆進階：分軌
+檢視、衝突偵測、拖曳改期、**訂閱匯出**）排在階段 2，尚未開發——這不是本輪查漏，是
+既有規劃就還沒排到的工作。**前台沒有自行產生假的訂閱網址**（依指示）。
+
+實際做的：
+- **下一場賽事倒數**（規劃書原文「選定隊別後，頁面標頭顯示：隊伍名稱、下一場賽事
+  倒數」的可實作部分）：`computeNextMatchCountdown()` 從已載入的 `matches` 找出目前
+  選定隊別最近的一場「未開始」賽事，算出天／小時／分鐘差距。**同樣是 client-only**
+  （`nextMatchCountdown` 初始 `null`，只在 `onMounted` 與之後每分鐘的 `setInterval`
+  更新）——倒數文字是「現在時刻」與賽事時刻的相對差，SSR 渲染當下與瀏覽器 hydration
+  完成當下必然相差數十到數百毫秒，若 SSR 就算好文字會跟 client 掛載後重新計算的文字
+  不一致，是另一種 hydration mismatch 來源，處理原則與時區換算一致：非確定性內容一律
+  延後到掛載後才計算並顯示。
+- **誠實的訂閱狀態說明**：選定特定隊別（非「全部」／「俱樂部活動」）時，頁面標頭新增
+  一行文字，明講「該隊別專屬的行事曆訂閱（webcal）網址尚未上線（後端訂閱 feed 端點
+  待開發）」，並指向頁面下方既有的「訂閱賽程」區塊使用 `.ics` 下載——不是新造的說詞，
+  既有「訂閱賽程」區塊的既有文案本來就已經誠實說明這件事，這裡只是在使用者實際點選
+  隊別、最可能想找訂閱功能的當下，把同一句誠實說明前移到看得到的地方。
+
+**回報給後端／下一輪的待補項目**：`L4` 需要新增至少一支「依隊別（`Team.code`）持續
+產生 `.ics` feed」的公開端點（`GET /api/v1/{club}/teams/{teamCode}/schedule.ics` 之類
+的形狀），且要考慮 webcal 快取／更新頻率與 `IQueryCache` 現有機制的關係——本輪只查證
+「不存在」，沒有進一步設計這支端點的形狀，留給 `S2-6` 真正動手時處理。
+
+### 4. §3.13 其餘明文項目逐條核對
+
+| 項目 | 狀態 | 說明 |
+|---|---|---|
+| 賽季篩選 | ✅ 本輪補上 | 原本是 `disabled` 的裝飾用下拉選單，字面寫死「2026/27 賽季」——這對藍鯨是錯的事實（藍鯨兩個球季代碼是「2023」「2025」，不是「2026/27」，且藍鯨 21 場歷史賽果橫跨這兩個不同球季，原本的篩選功能對藍鯨完全不可用）。改為從 `matches` 既有回應的 `seasonCode` 欄位（`MatchDto.SeasonCode`，API 一直都有回，前台介面原本沒有宣告、也從未使用）動態算出可選賽季清單（`availableSeasons`），預設選最新一季（`defaultSeason`），真正可回溯往季，不需要新增後端端點。順手修正 `teamHeadMeta`／SEO `description` 兩處原本同樣字面寫死「2026/27」的既有落差。 |
+| 賽事類型篩選 | ✅ 既有 | `state.comp`（全部／聯賽／盃賽／友誼賽／其他），S0-9 既有，本輪未變動。 |
+| 主客場篩選 | ✅ 既有 | `state.ha`（全部／主場／客場），S0-9 既有，本輪未變動。 |
+| 動作按鈕：賽事詳情 | ✅ 本輪補上 | 規劃書「賽事卡片欄位」表非條件式列出，原本完全沒有這顆按鈕。站內沒有任何獨立的單場賽事詳情頁路由，比照規劃書「前台功能」表「事件詳情｜側邊抽屜或彈窗」，實作為原生 `<dialog>` 彈窗（`detailDialog`／`detailMatch`／`openDetail()`／`closeDetail()`）——原生 focus trap、Escape 關閉、`::backdrop`，不需要手刻鍵盤陷阱，內容重用既有欄位（對戰、時間、場地＋地圖連結、狀態、延賽原定時間、`.ics`／分享按鈕）。 |
+| 動作按鈕：購票（若有） | ⬜ 維持不顯示，非漏做 | `MatchDto` 沒有票務欄位，站內也沒有商店與賽事的關聯機制，規劃書本身標「若有」，資料不存在時不顯示是正確行為。 |
+| 動作按鈕：轉播資訊（若有） | ⬜ 維持不顯示，非漏做 | 同上，`MatchDto` 沒有轉播／直播連結欄位，規劃書標「若有」。 |
+| 行動版次要篩選收合 | ✅ 本輪補上 | 賽季／賽事類型／主客場三個下拉原本在窄螢幕會直接换行擠在一起，沒有收合機制。新增「篩選」按鈕（`filtersOpen`，`aria-expanded`），窄螢幕（`max-width:720px`）預設收合、點擊展開；桌面版不受影響（純 CSS media query 控制預設可見度，按鈕本身在桌面版隱藏）。`filtersOpen` 初始值 `false` 在 SSR／掛載前 client 端第一次渲染皆相同，不影響 hydration。 |
+| 延賽顯示原定時間 | ✅ 既有，本輪確認未回歸 | `postponedNote()`（`app/utils/schedule.ts`，S0-9l 既有）維持不變，本輪新增的時區換算邏輯不影響這個欄位的顯示（`originalMatchOn`／`originalKickoff` 是獨立欄位，不經過 `matchTimeDisplay()`）。 |
+
+### 改了哪些檔案
+
+- [`app/utils/schedule.ts`](app/utils/schedule.ts)：新增 `TAIPEI_TIME_ZONE`／
+  `matchInstantUtc()`／`MatchTimeDisplay`／`matchTimeDisplay()`／`instantTimeDisplay()`
+  五個匯出，純新增，未改動既有匯出的簽章與行為。
+- [`app/pages/zh/schedule.vue`](app/pages/zh/schedule.vue)：本輪唯一大改的頁面
+  （時區偵測與顯示、俱樂部活動管線、賽季篩選、下一場倒數、賽事詳情彈窗、行動版篩選
+  收合，全部在這個檔案內）。
+
+### 驗證
+
+```bash
+npm run lint    # 0 錯誤、395 警告（與既有基準相同，未增加——過程中新增的 3 個
+                # attributes-order 警告已逐一修正回到基準內）
+npm run build   # 通過
+docker build -f apps/web/Dockerfile apps/web   # 通過
+```
+
+本機用同一份映像檔起兩個容器（`NUXT_PUBLIC_CLUB=tcrfc`／`NUXT_PUBLIC_CLUB=bw` 且帶
+`NUXT_PUBLIC_SITE_NAME=台中藍鯨`，**`apps/api` 未啟動**，依規則不自行啟動、不碰密碼）：
+
+- `/zh/schedule/`、`/en/schedule/` 兩容器皆 `200`，`X-Robots-Tag: noindex, nofollow`
+  仍在。
+- 頁首文案已改為「所有時間為當地時間，可能異動」（`curl` 確認逐字元存在）。
+- `viewerTimeZone`／`nextMatchCountdown` 相關的 `<p v-if="mounted && ...">` 段落
+  **確認不出現在 SSR 輸出的 body 裡**（只在 `<style>` 選擇器字面值出現），驗證
+  「client-only 內容延後渲染」的設計確實落地，不是空談。
+- 賽季下拉：`apps/api` 未啟動、`matches` 為空陣列時，正確退化為只有「全部賽季」一個
+  選項且 `disabled`（`availableSeasons.length === 0` 時停用），沒有殘留寫死的
+  「2026/27 賽季」字樣。
+- `<dialog class="match-detail">` 元素存在於 SSR 輸出（初始為空，`v-if="detailMatch"`
+  內容只在點擊「賽事詳情」後才有）。
+- 「篩選」收合按鈕（`.sched-filters-toggle`）存在於 SSR 輸出，`aria-expanded="false"`
+  初始值正確。
+- `node scripts/check-heading-structure.mjs --base-url=...`：兩容器皆 **H1 唯一、
+  標題不跳階 0 違規**（彈窗內容因 `v-if="detailMatch"` 初始為 `false`，不在初始 DOM
+  中，不影響此檢查）。
+- `node scripts/check-club-brand-leak.mjs --base-url=...<bw 容器>`：**`exit 0`**，
+  保護清單 19 頁（含 `/zh/schedule/`）維持全數乾淨，棘輪未被違反。
+- `node scripts/check-site-units-coverage.mjs`：通過（本輪未新增或修改 `unit` meta）。
+- `curl` 兩容器 `sitemap.xml`：仍收錄 `/zh/schedule/`／`/en/schedule/`，未受影響。
+- Docker 容器日誌（`docker logs`）確認除了既有的「`apps/api` 連不上」既有降級路徑
+  （`ECONNREFUSED`，`/schedule`／`/calendar/events` 兩個端點皆同一種既有模式，新增
+  的 `/calendar/events` 呼叫只是同一種既有降級模式多了一個端點，不是新的失敗型態）
+  以外，沒有任何 `Vue warn`／`TypeError`／`ReferenceError`。
+
+### 未驗證項目（延續上一節，新增本輪特有的）
+
+- **真實 `.ics` feed／webcal 訂閱**：後端本來就沒有這支端點，無從驗證，已列為後端
+  待補（見上方第 3 節）。
+- **非台灣時區的實際換算結果**：本機瀏覽器／容器時區皆為預設（多半是 UTC 或系統
+  時區），沒有實際切換系統時區跑一次瀏覽器並肉眼核對換算後的星期／日期／時刻是否
+  正確；只驗證了「SSR／掛載前不呼叫 `Intl`、掛載後才可能更新」這個 hydration-safe
+  的結構本身。
+- **下一場賽事倒數的即時性**：`setInterval` 每分鐘更新一次的邏輯只用原始碼審查確認，
+  沒有掛在瀏覽器裡實際等一分鐘看文字是否真的更新。
+- **原生 `<dialog>` 的 focus trap 與 Escape 關閉**：這是瀏覽器原生行為（不是本輪自己
+  刻的邏輯），依 HTML 標準規格應該正確，但沒有實機鍵盤操作測試確認。
+- **真實俱樂部活動資料下的畫面**：`db/seed` 目前沒有任何 `calendar_custom_events`
+  種子資料，`.club-event-card` 樣板只經過原始碼審查，沒有真實內容可供肉眼核對版面。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格
