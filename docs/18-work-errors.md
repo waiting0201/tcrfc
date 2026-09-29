@@ -61,6 +61,7 @@
 | E-66 | 2026-09-29 | `sed -i 's/<h4>/<h4 aria-level="2">/g'` 全域取代時，連自己剛寫進同一個檔案、內文提到 `<h4>` 字面值的說明註解也一併取代掉，註解變成「引用已經套用修正後的寫法在描述修正前的狀態」，自相矛盾 | ⚠️ 無（改用 Edit 工具做精確字串取代前先確認註解裡沒有同樣的字面值，或註解與程式碼分兩次下手） |
 | E-67 | 2026-09-29 | 派 S1-16 時，主 session 在派工指示裡把「藍鯨一線隊近期賽果」寫成可以接的範例；規劃書 §3.6「不含功能」明文排除藍鯨賽果，agent 照指示做出一個違反規格的區塊 | ⚠️ 無自動化；已移除區塊，派工前讀規格「不含功能」欄（見條目） |
 | E-68 | 2026-09-29 | S1-12d 收尾新增 `useSiteFacts.ts` 時，doc comment 裡舉例寫了字面值「U15／U14／U12」，`lint:fact-single-source` 當場攔下（它掃全文字內容，不分程式碼與註解） | ✅ 已生效——當場改寫成不含字面值的敘述；防呆已存在（該 lint 腳本本身），只是寫作習慣要跟上 |
+| E-69 | 2026-09-29 | S1-12d 收尾第二輪把 `club-copy.ts` 的 `HOME_HERO` 從 `export const` 改成 `export function getHomeHero(...)` 時，沒有先確認除了 Vue 頁面之外還有誰在讀這個匯出名稱——`scripts/check-homepage-fidelity.mjs` 用純文字掃描 `export const HOME_HERO` 這個字面模式核對 mockup 逐字值，改名後找不到宣告，`npm run lint` 當場報錯 | ✅ 已修（改寫該腳本改為解析 `export function getHomeHero` 函式本體的最後一個頂層 `return { ... }`）；下次改動 `club-copy.ts` 任何匯出名稱或型態（const↔function）前，先 `grep -rn` 整個 `apps/web`（含 `scripts/`，不是只看 `app/`）找出所有讀取者，這類手刻的正規表示式掃描腳本不會被 TypeScript 型別檢查涵蓋，改名不會在編譯期出錯 |
 | E-17 | 2026-09-21 | `@nuxtjs/seo` 的 `nuxt-seo-utils` 子模組蓋掉元件層 `useHead` 設的 `<html lang>`，`tagPriority: 'high'` 也蓋不掉 | ✅ 改用 `nuxt.config.ts` 的 `app.head.htmlAttrs.lang` |
 | E-18 | 2026-09-21<br>2026-09-22 | `@nuxtjs/sitemap` 的 runtime 動態來源在「一份 build、runtime 才決定 club」的架構下沒被偵測到，`/sitemap.xml` 永遠空；2026-09-22 查出**真正根因不是動態來源偵測**，是模組把命中全站 `noindex` route rule 的網址整批排除 | ✅ 已改自組 XML（`server/routes/sitemap.xml.ts`），繞過該模組的內建路由 |
 | E-19 | 2026-09-21 | `apps/api/Tcrfc.Api.csproj` 加了 `<InvariantGlobalization>true</InvariantGlobalization>`，`Microsoft.Data.SqlClient` 一開連線就丟 `System.NotSupportedException: Globalization Invariant Mode is not supported` | ✅ 已移除該屬性，並在 csproj 留註解說明原因 |
@@ -1706,3 +1707,31 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   寫完新檔案先跑一次 `npm run lint`，不要等到整批修改結束才一次跑。
 - **防呆**：✅ 已生效——`lint:fact-single-source` 本身就是防呆，本次確實在送出前攔下並修正，
   沒有流到後續流程。這筆記錄提醒的是「防呆已經存在，寫作習慣要跟上」，不是腳本本身有缺口。
+
+### E-69 把 `club-copy.ts` 的 `export const` 改成 `export function` 前，沒有搜整個 `apps/web`（只搜了 `app/`），漏看 `scripts/` 裡用正規表示式讀該匯出名稱的驗證腳本（2026-09-29，S1-12d 收尾第二輪）
+
+- **錯在哪**：把 `shared/utils/club-copy.ts` 依賴 GEO-03 事實的內容鍵（`HOME_HERO`／`HOME_SEO`
+  等 18 個）從 `export const NAME: ClubText<T> = {...}` 改成 `export function getXxx(club, facts)`
+  之前，用 `grep -rn "HOME_SEO\|HOME_HERO\|..." app shared` 找消費者，只涵蓋 Vue 頁面與
+  `shared/` 本身，沒有搜 `apps/web/scripts/`。`npm run lint` 跑到 `lint:homepage-fidelity` 時
+  才發現 `scripts/check-homepage-fidelity.mjs` 用 `clubCopySrc.indexOf('export const HOME_HERO')`
+  這種純文字掃描核對首頁 mockup 逐字值，改名後找不到宣告，直接報錯。
+- **為什麼會錯（根因）**：找「這個匯出名稱還有誰在用」時，直覺只想到「會 import 這個符號的
+  程式碼」，但這個專案有好幾支`scripts/check-*.mjs`（`check-club-copy.mjs`／
+  `check-homepage-fidelity.mjs`／`check-fact-single-source.mjs`／`check-match-status.mjs`）
+  是刻意設計成「不 import 原始碼、直接對檔案內容做正規表示式／字串掃描」——原因記在
+  `check-club-copy.mjs` 檔頭：這類檢查是為了頂住「型別保證只在手動指令下才成立」的缺口
+  （見該檔案「為什麼需要這支腳本」一節），所以它們刻意不透過 TypeScript 的 import 機制，
+  也就不會出現在一般的「誰引用了這個符號」搜尋直覺裡（IDE 的「Find References」對這種純
+  文字掃描一樣抓不到）。改名或改變匯出型態（`const` → `function`）不會在編譯期報錯，
+  只會在跑到對應的 `npm run lint` 子指令時才爆炸。
+- **下次怎麼避免**：改動 `shared/utils/club-copy.ts`（或任何有同類「純文字掃描」驗證腳本
+  的檔案）的匯出名稱、型態或結構前，`grep -rn` 的搜尋範圍要包含 `apps/web/scripts/`，
+  不能只搜 `app/`／`shared/`；更直接的做法是先跑一次 `npm run lint` 建立「改動前全綠」
+  的基準，改完立刻再跑一次，不要等到一整批頁面都改完才第一次執行。
+- **防呆**：✅ 已修正 `check-homepage-fidelity.mjs`（改為解析 `export function getHomeHero`
+  函式本體「最後一個頂層 `return { ... }`」，對應本檔工廠函式一律「`if` 判斷 bw 分支提前
+  return、tcrfc 分支是函式最後一個無條件 return」的既有寫作慣例）；⚠️ 沒有更通用的防呆——
+  這類手刻正規表示式腳本本質上就是繞過型別系統的權宜之計（`check-club-copy.mjs` 檔頭
+  自己也這麼說），下一次改到同名符號還是要靠這裡寫的「先搜 `scripts/`」提醒自己，
+  不是靠自動化。

@@ -17,9 +17,13 @@ const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const assets = computed(() => getClubAssets(clubKey.value))
-const heroCopy = computed(() => HOME_HERO[clubKey.value])
+// S1-12d 收尾第二輪：HOME_HERO／HOME_SEO／HOME_CTA_TRIO 三者含成立年份／聯賽／梯隊代碼
+// 事實，club-copy.ts 已改為工廠函式，改讀 useSiteFacts(club) 取得的 facts（單一來源，
+// 見 shared/utils/club-copy.ts 檔頭說明）。
+const { facts: siteFacts } = useSiteFacts(clubKey.value)
+const heroCopy = computed(() => getHomeHero(clubKey.value, siteFacts.value))
 const pillars = computed(() => HOME_PILLARS[clubKey.value])
-const ctaTrio = computed(() => HOME_CTA_TRIO[clubKey.value])
+const ctaTrio = computed(() => getHomeCtaTrio(clubKey.value, siteFacts.value))
 
 // S1-13：club-copy.ts 裡的 ctaPrimaryHref／pillars[].href／ctaTrio[].href 三組欄位存的是
 // 「裸的 /zh/... 路徑」（該檔案的資料格式一律如此，不隨語系變化），樣板消費這些欄位時要
@@ -28,8 +32,8 @@ const ctaTrio = computed(() => HOME_CTA_TRIO[clubKey.value])
 const { locale, lp } = useLocale()
 
 useSeoMeta({
-  title: computed(() => HOME_SEO[clubKey.value].title),
-  description: computed(() => HOME_SEO[clubKey.value].description),
+  title: computed(() => getHomeSeo(clubKey.value, siteFacts.value).title),
+  description: computed(() => getHomeSeo(clubKey.value, siteFacts.value).description),
 })
 
 // Organization JSON-LD（GEO-05／S1-12f）。首頁是最適合放站台層級 Organization 結構化資料的

@@ -35,8 +35,10 @@ const club = config.public.club
 const clubKey = computed<'tcrfc' | 'bw'>(() => (club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => ACADEMY_TEAMS_HERO[clubKey.value])
-const tabs = computed(() => ACADEMY_TEAM_TABS[clubKey.value])
+// S1-12d 收尾第二輪：hero／SEO／分頁定義三者含梯隊代碼事實，club-copy.ts 已改為工廠函式。
+const { facts } = useSiteFacts(clubKey.value)
+const hero = computed(() => getAcademyTeamsHero(clubKey.value, facts.value))
+const tabs = computed(() => getAcademyTeamTabs(clubKey.value, facts.value))
 /** 有真實 `Team.code` 可查詢的分頁（排除磐石的「其他年齡層」靜態說明分頁）。 */
 const teamTabs = computed(() => tabs.value.filter((t) => t.teamCode !== null))
 
@@ -79,8 +81,8 @@ function onTabKeydown(e: KeyboardEvent, index: number) {
 }
 
 useSeoMeta({
-  title: computed(() => ACADEMY_TEAMS_SEO[clubKey.value].title),
-  description: computed(() => ACADEMY_TEAMS_SEO[clubKey.value].description),
+  title: computed(() => getAcademyTeamsSeo(clubKey.value, facts.value).title),
+  description: computed(() => getAcademyTeamsSeo(clubKey.value, facts.value).description),
 })
 
 // ⛔ 本頁刻意不輸出 Person JSON-LD（S1-12f，2026-09-25）：梯隊球員是未成年學員。主站規劃書 GEO-02

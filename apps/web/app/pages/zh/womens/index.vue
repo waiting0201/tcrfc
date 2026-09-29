@@ -11,11 +11,15 @@
 //      一律由藍鯨官網呈現（見 docs/18-work-errors.md E-67）。
 //   3. ④外連藍鯨官網的按鈕原本寫死舊站網址 `https://www.tcbw2014.com/`——那是
 //      「既有 Google Sites 站台」，藍鯨規劃書 §1.4／主站規劃書 §3.6 明文「新站上線後
-//      301 轉址」，不是本頁的永久連結目標。藍鯨正式網域尚未定案（STATUS.md 阻塞
-//      清單），改讀 `nuxt.config.ts` 的 `runtimeConfig.public.blueWhaleSiteUrl`
-//      （預設 staging 網域 `https://bw-stg.tcrfc.tw`，比照 `NUXT_PUBLIC_SITE_URL`／
-//      `NUXT_PUBLIC_SITE_NAME` 既有的「staging 預設值＋容器啟動時可覆寫」做法，
-//      見 apps/web/README.md 環境變數表），正式網域定案後改 env 即可、不必動程式碼。
+//      301 轉址」，不是本頁的永久連結目標。
+//
+// S1-12d 收尾第二輪（2026-09-29）：④外連按鈕改讀後端 site-facts 公開端點的
+// `blueWhaleSiteUrl`（後台 `I` 網站設定可維護，見 apps/api/README.md「S1-12d」節
+// 「後續補完」）——單一維護處改到後台後，藍鯨正式網域定案只需要後台改一個值，
+// 不必再改環境變數或重新部署容器。API 打不到或這個欄位尚未設定（`null`／空字串）時，
+// 退回既有 `nuxt.config.ts` 的 `runtimeConfig.public.blueWhaleSiteUrl`（staging 網域
+// `https://bw-stg.tcrfc.tw` 預設值，見 apps/web/README.md 環境變數表），維持原本的
+// 「staging 預設值＋容器啟動時可覆寫」降級行為，不顯示空連結。
 //
 // 本頁只會在 tcrfc 容器渲染（bw 容器對單元 '06' 全站 404，見
 // shared/utils/units.ts BLUE_WHALE_DISABLED_UNITS），因此下面所有藍鯨資料一律
@@ -29,9 +33,16 @@ const bwAssets = getClubAssets('bw')
 // S1-12d 收尾：事實面板改讀 useSiteFacts('bw')（後端公開端點），不再是
 // shared/utils/site-facts.ts 的靜態快照——見 apps/api/README.md「S1-12d」節。
 // 本頁只會在 tcrfc 容器渲染（見上方檔頭說明），底部 CTA 卡另外需要磐石自己的
-// 梯隊代碼，故 tcrfc／bw 兩邊各呼叫一次。
+// 梯隊代碼，故 tcrfc／bw 兩邊各呼叫一次；`facts: tcrfcFacts` 同一次呼叫多取一個值，
+// 不新增 fetch，供下方 blueWhaleSiteUrl 使用（S1-12d 收尾第二輪）。
 const { facts: bwFacts } = useSiteFacts('bw')
-const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+const { academyLabel: tcrfcAcademyLabel, facts: tcrfcFacts } = useSiteFacts('tcrfc')
+
+// S1-12d 收尾第二輪：後端欄位為 null（尚未設定）或 API 打不到（降級快照裡固定是
+// null，見 shared/utils/site-facts.ts）時，退回既有環境變數預設值，不顯示空連結。
+const blueWhaleSiteUrl = computed(
+  () => tcrfcFacts.value.blueWhaleSiteUrl || config.public.blueWhaleSiteUrl,
+)
 
 useSeoMeta({
   title: '女子足球 Women\'s Football｜台中磐石足球俱樂部',
@@ -101,7 +112,7 @@ useSeoMeta({
     <h2 class="section-title" id="women-official-title" style="color:#fff;">完整名單、賽程與成績請至台中藍鯨官網</h2>
     <p class="section-lede on-dark" style="margin-inline:auto;">球員名單、教練陣容、賽程與比賽成績等資訊，皆由台中藍鯨官方網站呈現。</p>
     <div class="hero__ctas" style="margin-top:2rem;justify-content:center;">
-      <a class="btn btn--primary" :href="config.public.blueWhaleSiteUrl" target="_blank" rel="noopener">
+      <a class="btn btn--primary" :href="blueWhaleSiteUrl" target="_blank" rel="noopener">
         前往台中藍鯨官方網站
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" style="margin-left:.4em;vertical-align:-2px;"><path d="M7 17L17 7M9 7h8v8"/></svg>
         <span class="visually-hidden">（新分頁開啟）</span>

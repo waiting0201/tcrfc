@@ -17,16 +17,21 @@ const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => ACADEMY_OVERVIEW_HERO[clubKey.value])
 
 // S1-12d 收尾：梯隊代碼改讀 useSiteFacts（後端公開端點）。本頁兩俱樂部皆會渲染，
 // 兩邊各自的梯隊代碼都要能取得，故各自呼叫一次。
-const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
-const { academyLabel: bwAcademyLabel } = useSiteFacts('bw')
+// S1-12d 收尾第二輪：hero／SEO／ACADEMY_POSITIONING 三者含成立年份／梯隊代碼事實，
+// club-copy.ts 已改為工廠函式，一併從既有的兩次 useSiteFacts() 呼叫多取 facts，
+// 不新增額外的 fetch。
+const { facts: tcrfcFacts, academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
+const { facts: bwFacts, academyLabel: bwAcademyLabel } = useSiteFacts('bw')
+const activeFacts = computed(() => (isTcrfc.value ? tcrfcFacts.value : bwFacts.value))
+const hero = computed(() => getAcademyOverviewHero(clubKey.value, activeFacts.value))
+const positioning = computed(() => getAcademyPositioning(clubKey.value, activeFacts.value))
 
 useSeoMeta({
-  title: computed(() => ACADEMY_OVERVIEW_SEO[clubKey.value].title),
-  description: computed(() => ACADEMY_OVERVIEW_SEO[clubKey.value].description),
+  title: computed(() => getAcademyOverviewSeo(clubKey.value, activeFacts.value).title),
+  description: computed(() => getAcademyOverviewSeo(clubKey.value, activeFacts.value).description),
 })
 </script>
 
@@ -56,7 +61,7 @@ useSeoMeta({
   <div class="container">
     <div class="prose">
       <h2>{{ isTcrfc ? '學院定位' : '青年隊定位' }}</h2>
-      <p>{{ ACADEMY_POSITIONING[clubKey] }}</p>
+      <p>{{ positioning }}</p>
       <p v-if="isTcrfc">詳見 <a :href="lp('/zh/academy/pathway/')">4.3 學院發展路徑</a>。</p>
     </div>
 

@@ -11,7 +11,9 @@ const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const identity = computed(() => getClubIdentity(clubKey.value))
 const assets = computed(() => getClubAssets(clubKey.value))
-const hero = computed(() => ABOUT_INDEX_HERO[clubKey.value])
+// S1-12d 收尾第二輪：頁首 lede 含成立年份／聯賽事實，club-copy.ts 已改為工廠函式。
+const { facts } = useSiteFacts(clubKey.value)
+const hero = computed(() => getAboutIndexHero(clubKey.value, facts.value))
 const navDesc = computed(() => ABOUT_NAV_DESC[clubKey.value])
 
 useSeoMeta({

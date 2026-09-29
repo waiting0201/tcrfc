@@ -29,8 +29,10 @@
  * 涵蓋（對應 S0-9k 交付報告「A 類」清單，逐項可回溯到具體修過的欄位）：
  * - `HOME_PILLARS.tcrfc[i]` 四張卡片各自的 `id`（可能不存在）、`href`、
  *   img 的 `alt`／`width`／`height`。
- * - `HOME_HERO.tcrfc` 的 `ctaPrimaryHref`／`ctaSecondaryHref`／`ctaSecondaryLabelZh`
- *   （hero 「加入球隊」「認識台中磐石」兩個 CTA 的連結目標與第二顆文字）。
+ * - `getHomeHero(club, facts)` tcrfc 分支的 `ctaPrimaryHref`／`ctaSecondaryHref`／
+ *   `ctaSecondaryLabelZh`（hero 「加入球隊」「認識台中磐石」兩個 CTA 的連結目標與
+ *   第二顆文字。S1-12d 收尾第二輪把 `HOME_HERO` 常數改成這個工廠函式，這三個欄位
+ *   本身不是事實、沒有跟著改值，只是換了讀取方式，見下方 `extractTcrfcReturnFromFactory`）。
  *
  * ⛔ **明確不涵蓋**（老實列出，不要讓這支腳本的存在造成「首頁都驗過了」的錯覺）：
  * - 新聞卡片 href（`/zh/news/<slug>/`）——這正是 `/zh/` 退役的原因本身，`site/src` 的值
@@ -261,6 +263,45 @@ const expectedPillars = pillarMatches.map((m, i) => {
 // 從 club-copy.ts 解析出實際值
 // ---------------------------------------------------------------------------
 
+/**
+ * S1-12d 收尾第二輪（2026-09-29）：`HOME_HERO`／`HOME_SEO`／`HOME_CTA_TRIO` 這類含
+ * GEO-03 事實的常數已改成 `getHomeHero(club, facts)` 這種工廠函式（見
+ * shared/utils/club-copy.ts 檔頭「S1-12d 收尾第二輪」說明）。這支腳本只驗
+ * `ctaPrimaryHref`／`ctaSecondaryHref`／`ctaSecondaryLabelZh` 三個非事實欄位，改為
+ * 解析函式本體裡「最後一個頂層 `return { ... }`」——本檔工廠函式的既有慣例是
+ * `if (normalizeClub(club) === 'bw') { return {...bw...} }` 提前返回，
+ * 緊接著的最後一個 `return {...tcrfc...}` 就是 tcrfc 分支（沒有第三個分支），
+ * 不需要真的執行程式碼判斷 `normalizeClub()`，純文字掃描即可。
+ */
+function extractTcrfcReturnFromFactory(fnName) {
+  const declIdx = clubCopySrc.indexOf(`export function ${fnName}(`)
+  if (declIdx < 0) {
+    failures.push(`${CLUB_COPY_LABEL} 找不到 \`export function ${fnName}(\`。`)
+    return null
+  }
+  const bodyOpen = clubCopySrc.indexOf('{', clubCopySrc.indexOf(')', declIdx))
+  const bodyClose = bodyOpen >= 0 ? findMatchingBracket(clubCopySrc, bodyOpen, '{', '}') : -1
+  if (bodyOpen < 0 || bodyClose < 0) {
+    failures.push(`${CLUB_COPY_LABEL} 的 \`${fnName}\` 函式本體大括號配對不起來。`)
+    return null
+  }
+  const body = clubCopySrc.slice(bodyOpen, bodyClose + 1)
+  const returnRe = /\breturn\s*\{/g
+  let match
+  let lastObjText = null
+  while ((match = returnRe.exec(body)) !== null) {
+    const objOpen = match.index + match[0].length - 1
+    const objClose = findMatchingBracket(body, objOpen, '{', '}')
+    if (objClose >= 0) lastObjText = body.slice(objOpen, objClose + 1)
+  }
+  if (!lastObjText) {
+    failures.push(`${CLUB_COPY_LABEL} 的 \`${fnName}\` 找不到任何 \`return { ... }\`——`
+      + `函式簽章可能被改掉了，腳本無法解析 tcrfc 分支的期望值。`)
+    return null
+  }
+  return lastObjText
+}
+
 function extractTcrfcBlock(constName) {
   const declIdx = clubCopySrc.indexOf(`export const ${constName}`)
   if (declIdx < 0) {
@@ -283,27 +324,19 @@ function extractTcrfcBlock(constName) {
   return { body, tcrfcKeyIdx }
 }
 
-// HOME_HERO.tcrfc
+// getHomeHero(club, facts) 的 tcrfc 分支（原 HOME_HERO.tcrfc，S1-12d 收尾第二輪
+// 改成工廠函式，見上方 extractTcrfcReturnFromFactory 說明）
 let actualCta = {}
-const homeHero = extractTcrfcBlock('HOME_HERO')
-if (homeHero) {
-  const { body, tcrfcKeyIdx } = homeHero
-  const colonIdx = body.indexOf(':', tcrfcKeyIdx)
-  const objOpen = body.indexOf('{', colonIdx)
-  const objClose = objOpen >= 0 ? findMatchingBracket(body, objOpen, '{', '}') : -1
-  if (objOpen < 0 || objClose < 0) {
-    failures.push(`${CLUB_COPY_LABEL} 的 \`HOME_HERO.tcrfc\` 物件大括號配對不起來。`)
-  } else {
-    const objText = body.slice(objOpen, objClose + 1)
-    actualCta = {
-      ctaPrimaryHref: extractField(objText, 'ctaPrimaryHref'),
-      ctaSecondaryHref: extractField(objText, 'ctaSecondaryHref'),
-      ctaSecondaryLabelZh: extractField(objText, 'ctaSecondaryLabelZh'),
-    }
-    for (const key of ['ctaPrimaryHref', 'ctaSecondaryHref', 'ctaSecondaryLabelZh']) {
-      if (actualCta[key] === undefined) {
-        failures.push(`${CLUB_COPY_LABEL} 的 \`HOME_HERO.tcrfc\` 解析不出 \`${key}\` 欄位——欄位可能被改名或格式不再是簡單字面值。`)
-      }
+const homeHeroTcrfcText = extractTcrfcReturnFromFactory('getHomeHero')
+if (homeHeroTcrfcText) {
+  actualCta = {
+    ctaPrimaryHref: extractField(homeHeroTcrfcText, 'ctaPrimaryHref'),
+    ctaSecondaryHref: extractField(homeHeroTcrfcText, 'ctaSecondaryHref'),
+    ctaSecondaryLabelZh: extractField(homeHeroTcrfcText, 'ctaSecondaryLabelZh'),
+  }
+  for (const key of ['ctaPrimaryHref', 'ctaSecondaryHref', 'ctaSecondaryLabelZh']) {
+    if (actualCta[key] === undefined) {
+      failures.push(`${CLUB_COPY_LABEL} 的 \`getHomeHero\` tcrfc 分支解析不出 \`${key}\` 欄位——欄位可能被改名或格式不再是簡單字面值。`)
     }
   }
 }
@@ -350,7 +383,7 @@ if (failures.length === 0) {
   for (const [key, expected] of ctaChecks) {
     const actual = actualCta[key]
     if (actual !== expected) {
-      failures.push(`HOME_HERO.tcrfc.${key} 跟 mockup 對不上——`
+      failures.push(`getHomeHero tcrfc 分支的 ${key} 跟 mockup 對不上——`
         + `mockup（${MOCKUP_LABEL}）是 ${JSON.stringify(expected)}，`
         + `${CLUB_COPY_LABEL} 目前是 ${JSON.stringify(actual)}。`)
     }

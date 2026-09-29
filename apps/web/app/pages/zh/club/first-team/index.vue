@@ -22,7 +22,6 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => getClubIdentity(clubKey.value))
 const assets = computed(() => getClubAssets(clubKey.value))
-const hero = computed(() => FIRST_TEAM_HERO[clubKey.value])
 
 /** 一線隊代碼：磐石 `D1`／藍鯨 `BW1`（docs/14-invariants.md「隊別代號」：BW1 不是第二個
  * D1，全站代號唯一）。 */
@@ -30,13 +29,17 @@ const teamCode = computed(() => (isTcrfc.value ? 'D1' : 'BW1'))
 
 const { lp, locale } = useLocale()
 
-// S1-12d 收尾：主場／成立年份／首季頭銜改讀 useSiteFacts('tcrfc')（後端公開端點）。
-// 榮譽時間軸區塊只在 isTcrfc 時渲染，固定讀 tcrfc 即可。
-const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+// S1-12d 收尾第二輪：hero／SEO／球隊介紹三者都含主場／成立年份／首季頭銜／聯賽事實，
+// club-copy.ts 已改為工廠函式，一次呼叫 useSiteFacts(clubKey.value) 即可覆蓋整頁需求
+// ——原本固定寫 useSiteFacts('tcrfc') 只是因為當時只有榮譽時間軸（isTcrfc 專屬區塊）
+// 用得到，現在 hero／SEO／intro 兩俱樂部都要讀，改成動態帶入目前 club。
+const { facts, primaryVenue } = useSiteFacts(clubKey.value)
+const hero = computed(() => getFirstTeamHero(clubKey.value, facts.value))
+const intro = computed(() => getFirstTeamIntro(clubKey.value, facts.value))
 
 useSeoMeta({
-  title: computed(() => FIRST_TEAM_SEO[clubKey.value].title),
-  description: computed(() => FIRST_TEAM_SEO[clubKey.value].description),
+  title: computed(() => getFirstTeamSeo(clubKey.value, facts.value).title),
+  description: computed(() => getFirstTeamSeo(clubKey.value, facts.value).description),
 })
 
 // SportsTeam JSON-LD（GEO-05／S1-12f）：teamCode 依俱樂部算出（原本寫死 'D1'，藍鯨容器
@@ -97,7 +100,7 @@ function formatMatchDate(dateStr: string): string {
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無一線隊合影照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石球員合影頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/club/first-team-01-squad.jpg" :alt="`台中磐石一線隊球員於${tcrfcVenue.nameZh}合影`" width="1920" height="1280">
+  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/club/first-team-01-squad.jpg" :alt="`台中磐石一線隊球員於${primaryVenue.nameZh}合影`" width="1920" height="1280">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true"></div>
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '3.1 First Team' : '3.1' }}</p>
@@ -110,7 +113,7 @@ function formatMatchDate(dateStr: string): string {
   <div class="band-inner container">
     <div class="prose">
       <h2 id="team-overview-title">球隊介紹</h2>
-      <p>{{ FIRST_TEAM_INTRO[clubKey] }}</p>
+      <p>{{ intro }}</p>
     </div>
   </div>
 </section>
@@ -255,9 +258,9 @@ function formatMatchDate(dateStr: string): string {
       <ol class="timeline">
         <!-- GEO-03（S1-12d）：成立年份／首季頭銜／聯賽為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
         <li class="timeline-item">
-          <p class="timeline-item__year">{{ tcrfcFacts.foundedYear }}</p>
-          <p class="timeline-item__title">{{ tcrfcFacts.foundingTitleZh }}</p>
-          <p class="timeline-item__desc">俱樂部創立首年即拿下{{ tcrfcFacts.foundingTitleZh }}，隔年晉升{{ tcrfcFacts.league.nameZh }}出賽。</p>
+          <p class="timeline-item__year">{{ facts.foundedYear }}</p>
+          <p class="timeline-item__title">{{ facts.foundingTitleZh }}</p>
+          <p class="timeline-item__desc">俱樂部創立首年即拿下{{ facts.foundingTitleZh }}，隔年晉升{{ facts.league.nameZh }}出賽。</p>
         </li>
       </ol>
       <figure class="honours-photo clip-card clip-card--on-dark">

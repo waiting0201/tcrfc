@@ -42,16 +42,33 @@
 
 import type { ClubCode } from './club'
 // GEO-03／GEO-04（S1-12d）事實單一來源：成立年份、主場、聯賽三類事實不在本檔重複寫一份
-// 字面值，一律引用 site-facts.ts。
+// 字面值，一律引用後端 `GET /api/v1/{club}/site-facts`（`app/composables/useSiteFacts.ts`）。
 //
-// 🔴 已知限制（S1-12d 收尾，2026-09-29）：本檔刻意仍讀 site-facts.ts 的靜態 `SITE_FACTS`
-// 快照，沒有跟著改接 `app/composables/useSiteFacts.ts`（後端公開端點）——本檔是模組層級
-// 常數，在 import 當下同步組出以下近 40 處引用 SITE_FACTS 的 SEO／Hero 文案物件，沒有
-// Nuxt 元件的請求生命週期可以掛非同步抓取。要接上 API 得把本檔全部改成吃 facts 參數的
-// 工廠函式，並改寫 15 個以上消費頁面的呼叫方式，是遠超「一個 composable＋直接呼叫頁面」
-// 這一輪邊界的重構，留給下一輪決定是否要做（見 apps/web/README.md「S1-12d」節、
-// apps/api/README.md「S1-12d」節「已知缺口」）。
-import { academyTeamCodesLabel, getPrimaryVenue, SITE_FACTS } from './site-facts'
+// 🔴 S1-12d 收尾第二輪（2026-09-29）：本檔原本直接讀 site-facts.ts 的靜態 `SITE_FACTS`
+// 快照組文案，改事實不會反映到這裡。現在改為「吃事實參數的工廠函式」——凡是內容依賴
+// GEO-03 五類事實（成立年份、主場、聯賽、梯隊代碼、聯絡方式）的鍵，一律是
+// `getXxx(club, facts): T` 函式而不是 `ClubText<T>` 常數，`facts` 由呼叫端的
+// `useSiteFacts(club)` 取得（API 打不到時該 composable 自動退回 site-facts.ts 的
+// 靜態快照，本檔不需要知道這個降級細節）。**呼叫端必須確保傳入的 `facts` 對應同一個
+// `club`**（一律用同一次 `useSiteFacts(club)` 呼叫取得兩者），本檔不做交叉核對。
+// 不依賴事實的內容鍵（版型固定的 SEO／Hero／CTA 文案等）維持原本的 `ClubText<T>`
+// 靜態物件寫法，不要無謂改成函式。
+import type { SiteFacts } from './site-facts'
+
+function normalizeClub(club: string): ClubCode {
+  return club === 'bw' ? 'bw' : 'tcrfc'
+}
+
+/** 主場（`isHomeGround` 第一筆）。等價於 site-facts.ts 的 `getPrimaryVenue(club)`，
+ * 差別是這裡直接吃已經取得的 `facts`，不用再認識 `club` 字串去查表。 */
+function primaryVenueOf(facts: SiteFacts) {
+  return facts.venues.find((v) => v.isHomeGround) ?? facts.venues[0]!
+}
+
+/** 「U15／U14／U12」這種梯隊代碼組字，等價於 site-facts.ts 的 `academyTeamCodesLabel(club, sep)`。 */
+function squadCodesLabel(facts: SiteFacts, separator = '／'): string {
+  return facts.squadCodes.join(separator)
+}
 
 /** T | null 的 null＝本俱樂部明文不顯示這個區塊（見檔頭說明 2）。目前沒有任何內容鍵用到
  * 這個型別——本次交付的「隱藏」一律是動態內容區塊（球員／新聞／賽程等，不進本檔），
@@ -118,7 +135,6 @@ export interface ClubIdentity {
    * （docs/13-blue-whale-site.md §5 第 2 項），不得自行選一個顯示在頁面上。
    */
   brandTagEn: string | null
-  foundedZh: string
   /** 官方標語（沿用舊站已公開發布的中英文字句，非新譯）。null＝無對外標語。 */
   slogan: Bilingual | null
   /** SiteFooter 品牌欄一句話介紹 */
@@ -134,6 +150,14 @@ export interface ClubIdentity {
   }
 }
 
+// 🔴 S1-12d 收尾第二輪（2026-09-29）：`ClubIdentity` 原本有一個 `foundedZh` 欄位
+// （直接讀 SITE_FACTS 靜態快照），但全站沒有任何頁面實際讀取
+// `identity.foundedZh`（grep 全 `app/` 目錄零命中）——是已停用的死欄位，不是遺漏。
+// 移除它比照本輪「site-facts.ts 只剩降級備援角色」的目標：與其把整個
+// `CLUB_IDENTITY`／`getClubIdentity()`（SiteHeader／SiteFooter／十餘頁共用）改成
+// 吃 facts 參數的工廠函式去養一個沒人用的欄位，不如直接刪掉，需要「＿＿年創立」
+// 這句文字的頁面一律呼叫 `useSiteFacts(club).facts.value.foundedDisplayZh`
+// （見下方各 `getXxx()` 工廠函式的既有用法）。
 export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
   tcrfc: {
     aboutLabelZh: '關於台中磐石',
@@ -142,7 +166,6 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
     academyLabelEn: 'ACADEMY',
     academyShortLabelZh: '學院',
     brandTagEn: 'TCRFC',
-    foundedZh: SITE_FACTS.tcrfc.foundedDisplayZh,
     slogan: { zh: '在地扎根．放眼世界', en: 'LOCAL ROOTS. GLOBAL PATHWAYS.' },
     footerBlurb: '台中磐石足球俱樂部致力於透過專業模式，培育選手追求卓越，讓世界看見台灣足球。',
     copyrightZh: '© 2026 台中磐石足球俱樂部 Taichung Rock FC. All rights reserved.',
@@ -163,7 +186,6 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
     // 🔴 不得自行選定英文正式全名（舊站並存 Taichung Bluewhale／Taichung Blue
     // Whale Women's Football Team／Taichung blue whale 三種寫法，待客戶確認）。
     brandTagEn: null,
-    foundedZh: SITE_FACTS.bw.foundedDisplayZh,
     // 沿用舊站首頁已公開發布的中英文標語原文（content/blue-whale/club-profile.md §3），
     // 不是新譯——首頁一句英文說明「Taichung Blue Whale rides the waves towards
     // the open ocean」是舊站自己配的英文文案，不是我方新生產翻譯。
@@ -181,10 +203,6 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
       email: 'fbbh2014@gmail.com',
     },
   },
-}
-
-function normalizeClub(club: string): ClubCode {
-  return club === 'bw' ? 'bw' : 'tcrfc'
 }
 
 export function getClubIdentity(club: string): ClubIdentity {
@@ -228,39 +246,43 @@ export interface HomeHeroCopy {
   ctaSecondaryHref: string
 }
 
-export const HOME_SEO: ClubText<SeoCopy> = {
-  tcrfc: {
+/** 01 首頁 SEO——`description` 含成立年份／首季頭銜／聯賽事實，改為工廠函式（S1-12d 收尾第二輪）。 */
+export function getHomeSeo(club: string, facts: SiteFacts): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '台中藍鯨女子足球隊｜航向世界的藍鯨',
+      description: `台中藍鯨女子足球隊官方網站。隸屬臺中市女子足球協會，${facts.foundedDisplayZh}，${facts.league.nameZh}球隊，隊史五度奪得木蘭聯賽冠軍。一線隊、青年隊、推廣活動三大體系。`,
+    }
+  }
+  return {
     title: '台中磐石足球俱樂部 TCRFC｜在地扎根．放眼世界',
-    description:
-      `台中磐石足球俱樂部（TCRFC）官方網站。${SITE_FACTS.tcrfc.foundedDisplayZh}，${SITE_FACTS.tcrfc.foundedYear} ${SITE_FACTS.tcrfc.foundingTitleZh}。一線隊、台中磐石足球學院、課程與活動、女子足球四大體系。`,
-  },
-  bw: {
-    title: '台中藍鯨女子足球隊｜航向世界的藍鯨',
-    description:
-      `台中藍鯨女子足球隊官方網站。隸屬臺中市女子足球協會，${SITE_FACTS.bw.foundedDisplayZh}，${SITE_FACTS.bw.league.nameZh}球隊，隊史五度奪得木蘭聯賽冠軍。一線隊、青年隊、推廣活動三大體系。`,
-  },
+    description: `台中磐石足球俱樂部（TCRFC）官方網站。${facts.foundedDisplayZh}，${facts.foundedYear} ${facts.foundingTitleZh}。一線隊、台中磐石足球學院、課程與活動、女子足球四大體系。`,
+  }
 }
 
-export const HOME_HERO: ClubText<HomeHeroCopy> = {
-  tcrfc: {
+/** 01 首頁 Hero——`factLineZh` 含成立年份／首季頭銜事實，改為工廠函式（S1-12d 收尾第二輪）。 */
+export function getHomeHero(club: string, facts: SiteFacts): HomeHeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      kickerEn: 'Taichung Blue Whale rides the waves towards the open ocean',
+      headlineZh: '航向世界<br>的藍鯨',
+      // 「五度」是對 content/blue-whale/club-profile.md §4 沿革逐條「隊史第 X 座台灣
+      // 木蘭聯賽冠軍」明文出現次數的計數（2017／2018／2019／2021／2023 共五次），
+      // 是核算既有原文，不是新臆測的戰績。
+      factLineZh: `台中藍鯨女子足球隊 · <b>${facts.foundedDisplayZh}</b> · <b>隊史五度奪得木蘭聯賽冠軍</b>`,
+      ctaPrimaryHref: '/zh/join/player/',
+      ctaSecondaryLabelZh: '認識台中藍鯨',
+      ctaSecondaryHref: '/zh/about/',
+    }
+  }
+  return {
     kickerEn: 'LOCAL ROOTS. GLOBAL PATHWAYS.',
     headlineZh: '在地扎根<br>放眼世界',
-    factLineZh: `台中磐石足球俱樂部 · <b>${SITE_FACTS.tcrfc.foundedDisplayZh}</b> · <b>${SITE_FACTS.tcrfc.foundedYear} ${SITE_FACTS.tcrfc.foundingTitleZh}</b>`,
+    factLineZh: `台中磐石足球俱樂部 · <b>${facts.foundedDisplayZh}</b> · <b>${facts.foundedYear} ${facts.foundingTitleZh}</b>`,
     ctaPrimaryHref: '/zh/charity/',
     ctaSecondaryLabelZh: '認識台中磐石',
     ctaSecondaryHref: '/zh/culture/',
-  },
-  bw: {
-    kickerEn: 'Taichung Blue Whale rides the waves towards the open ocean',
-    headlineZh: '航向世界<br>的藍鯨',
-    // 「五度」是對 content/blue-whale/club-profile.md §4 沿革逐條「隊史第 X 座台灣
-    // 木蘭聯賽冠軍」明文出現次數的計數（2017／2018／2019／2021／2023 共五次），
-    // 是核算既有原文，不是新臆測的戰績。
-    factLineZh: `台中藍鯨女子足球隊 · <b>${SITE_FACTS.bw.foundedDisplayZh}</b> · <b>隊史五度奪得木蘭聯賽冠軍</b>`,
-    ctaPrimaryHref: '/zh/join/player/',
-    ctaSecondaryLabelZh: '認識台中藍鯨',
-    ctaSecondaryHref: '/zh/about/',
-  },
+  }
 }
 
 export interface PillarCopy {
@@ -305,9 +327,35 @@ export interface CtaCardCopy {
   href: string
 }
 
-/** 首頁與一線隊頁共用的「加入我們」CTA 三卡——磐石版逐字沿用既有 mockup 文案；藍鯨版改「企甲聯賽」為「木蘭聯賽」、學院為青年隊、俱樂部名稱代入，其餘句型不變。 */
-export const HOME_CTA_TRIO: ClubText<CtaCardCopy[]> = {
-  tcrfc: [
+/** 首頁與一線隊頁共用的「加入我們」CTA 三卡——磐石版逐字沿用既有 mockup 文案；藍鯨版改「企甲聯賽」為「木蘭聯賽」、學院為青年隊、俱樂部名稱代入，其餘句型不變。
+ * 只有 bw 版「加入青年隊」卡的 `descZh` 含梯隊代碼事實，改為工廠函式（S1-12d 收尾第二輪）。 */
+export function getHomeCtaTrio(club: string, facts: SiteFacts): CtaCardCopy[] {
+  if (normalizeClub(club) === 'bw') {
+    return [
+      {
+        num: '10.1',
+        titleZh: '加入球隊',
+        descZh: '具備競技實力、渴望在木蘭聯賽舞台證明自己？我們持續招募一線隊球員。',
+        ctaLabelZh: '填寫報名表',
+        href: '/zh/join/player/',
+      },
+      {
+        num: '10.2',
+        titleZh: '加入青年隊',
+        descZh: `${squadCodesLabel(facts)} 青少年女子足球隊，提供系統化的足球訓練。`,
+        ctaLabelZh: '洽詢報名',
+        href: '/zh/join/academy/',
+      },
+      {
+        num: '10.5',
+        titleZh: '成為合作夥伴',
+        descZh: '攜手台中藍鯨，透過女子足球平台觸及在地社群，共創品牌與社區的雙贏價值。',
+        ctaLabelZh: '洽談合作',
+        href: '/zh/join/partnership/',
+      },
+    ]
+  }
+  return [
     {
       num: '10.1',
       titleZh: '加入球隊',
@@ -329,30 +377,7 @@ export const HOME_CTA_TRIO: ClubText<CtaCardCopy[]> = {
       ctaLabelZh: '洽談合作',
       href: '/zh/join/partnership/',
     },
-  ],
-  bw: [
-    {
-      num: '10.1',
-      titleZh: '加入球隊',
-      descZh: '具備競技實力、渴望在木蘭聯賽舞台證明自己？我們持續招募一線隊球員。',
-      ctaLabelZh: '填寫報名表',
-      href: '/zh/join/player/',
-    },
-    {
-      num: '10.2',
-      titleZh: '加入青年隊',
-      descZh: `${academyTeamCodesLabel('bw')} 青少年女子足球隊，提供系統化的足球訓練。`,
-      ctaLabelZh: '洽詢報名',
-      href: '/zh/join/academy/',
-    },
-    {
-      num: '10.5',
-      titleZh: '成為合作夥伴',
-      descZh: '攜手台中藍鯨，透過女子足球平台觸及在地社群，共創品牌與社區的雙贏價值。',
-      ctaLabelZh: '洽談合作',
-      href: '/zh/join/partnership/',
-    },
-  ],
+  ]
 }
 
 // ---------------------------------------------------------------------------
@@ -382,17 +407,20 @@ export const ABOUT_INDEX_SEO: ClubText<SeoCopy> = {
   },
 }
 
-export const ABOUT_INDEX_HERO: ClubText<HeroCopy> = {
-  tcrfc: {
+/** about/index.vue 頁首——含成立年份／聯賽事實，改為工廠函式（S1-12d 收尾第二輪）。 */
+export function getAboutIndexHero(club: string, facts: SiteFacts): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '關於台中藍鯨',
+      h1En: null,
+      lede: `台中藍鯨女子足球隊隸屬臺中市女子足球協會，${facts.foundedDisplayZh}，是${facts.league.nameZh}的球隊之一。以下篇章帶你認識這支球隊從理念到組織的全貌。`,
+    }
+  }
+  return {
     h1Zh: '關於台中磐石',
     h1En: 'About TCRFC',
-    lede: `LOCAL ROOTS. GLOBAL PATHWAYS.｜在地扎根 · 放眼世界。台中磐石足球俱樂部 ${SITE_FACTS.tcrfc.foundedYear} 年於台中成立，以下八個篇章，帶你認識這支球隊從理念到組織的全貌。`,
-  },
-  bw: {
-    h1Zh: '關於台中藍鯨',
-    h1En: null,
-    lede: `台中藍鯨女子足球隊隸屬臺中市女子足球協會，${SITE_FACTS.bw.foundedDisplayZh}，是${SITE_FACTS.bw.league.nameZh}的球隊之一。以下篇章帶你認識這支球隊從理念到組織的全貌。`,
-  },
+    lede: `LOCAL ROOTS. GLOBAL PATHWAYS.｜在地扎根 · 放眼世界。台中磐石足球俱樂部 ${facts.foundedYear} 年於台中成立，以下八個篇章，帶你認識這支球隊從理念到組織的全貌。`,
+  }
 }
 
 /** about/index.vue 8 張導覽卡的描述，只有內容涉及俱樂部專屬架構（願景框架、五大核心價值、生態系）的 3 張需要藍鯨版本。 */
@@ -422,29 +450,33 @@ export const ABOUT_NAV_DESC: ClubText<{
   },
 }
 
-// 2.1 我們的故事
-export const OUR_STORY_SEO: ClubText<SeoCopy> = {
-  tcrfc: {
+// 2.1 我們的故事——SEO／Hero 含成立年份事實，改為工廠函式（S1-12d 收尾第二輪）。
+export function getOurStorySeo(club: string, facts: SiteFacts): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '我們的故事｜關於台中藍鯨｜台中藍鯨女子足球隊',
+      description: `台中藍鯨女子足球隊 ${facts.foundedYear} 年成立於台中，隸屬臺中市女子足球協會。認識這支球隊的定位與成立宗旨。`,
+    }
+  }
+  return {
     title: '我們的故事 Our Story｜關於台中磐石｜台中磐石足球俱樂部',
-    description: `台中磐石足球俱樂部（TCRFC）於 ${SITE_FACTS.tcrfc.foundedYear} 年在台中成立。這裡收錄俱樂部從創立至今的沿革故事，完整內文正在整理中。`,
-  },
-  bw: {
-    title: '我們的故事｜關於台中藍鯨｜台中藍鯨女子足球隊',
-    description: `台中藍鯨女子足球隊 ${SITE_FACTS.bw.foundedYear} 年成立於台中，隸屬臺中市女子足球協會。認識這支球隊的定位與成立宗旨。`,
-  },
+    description: `台中磐石足球俱樂部（TCRFC）於 ${facts.foundedYear} 年在台中成立。這裡收錄俱樂部從創立至今的沿革故事，完整內文正在整理中。`,
+  }
 }
 
-export const OUR_STORY_HERO: ClubText<HeroCopy> = {
-  tcrfc: {
+export function getOurStoryHero(club: string, facts: SiteFacts): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '我們的故事',
+      h1En: null,
+      lede: `台中藍鯨女子足球隊 ${facts.foundedDisplayZh}，隸屬臺中市女子足球協會，是${facts.league.nameZh}的球隊之一。`,
+    }
+  }
+  return {
     h1Zh: '我們的故事',
     h1En: 'Our Story',
-    lede: `LOCAL ROOTS. GLOBAL PATHWAYS.｜台中磐石足球俱樂部 ${SITE_FACTS.tcrfc.foundedYear} 年於台中成立。這裡是我們沿革故事的篇章，完整內文正在與俱樂部確認中。`,
-  },
-  bw: {
-    h1Zh: '我們的故事',
-    h1En: null,
-    lede: `台中藍鯨女子足球隊 ${SITE_FACTS.bw.foundedDisplayZh}，隸屬臺中市女子足球協會，是${SITE_FACTS.bw.league.nameZh}的球隊之一。`,
-  },
+    lede: `LOCAL ROOTS. GLOBAL PATHWAYS.｜台中磐石足球俱樂部 ${facts.foundedYear} 年於台中成立。這裡是我們沿革故事的篇章，完整內文正在與俱樂部確認中。`,
+  }
 }
 
 /** 直接節錄 content/blue-whale/club-profile.md §1「定位敘述（原文）」，未增刪文字。 */
@@ -639,19 +671,22 @@ export interface EcoNode {
   href: string
 }
 
-/** 藍鯨拿掉自我指涉節點（女子足球→本站），04 依 docs/13 §3 改為青年隊。 */
-export const ECOSYSTEM_NODES: ClubText<EcoNode[]> = {
-  tcrfc: [
-    { num: '3', slug: 'club', enLabel: 'Football Club', zhLabel: '一線隊', descZh: `征戰${SITE_FACTS.tcrfc.league.nameZh}的球隊本體，代號 First Team / 一線隊。`, href: '/zh/club/' },
-    { num: '4', slug: 'academy', enLabel: 'Academy', zhLabel: '台中磐石足球學院', descZh: `${academyTeamCodesLabel('tcrfc')} 三個梯隊，銜接一線隊的青訓體系。`, href: '/zh/academy/' },
+/** 藍鯨拿掉自我指涉節點（女子足球→本站），04 依 docs/13 §3 改為青年隊。
+ * 「一線隊」「學院」兩個節點的 `descZh` 含聯賽名稱／梯隊代碼事實，改為工廠函式（S1-12d 收尾第二輪）。 */
+export function getEcosystemNodes(club: string, facts: SiteFacts): EcoNode[] {
+  if (normalizeClub(club) === 'bw') {
+    return [
+      { num: '3', slug: 'club', enLabel: 'First Team', zhLabel: '一線隊', descZh: `出戰${facts.league.nameZh}的球隊本體。`, href: '/zh/club/' },
+      { num: '4', slug: 'youth', enLabel: 'Youth', zhLabel: '青年隊', descZh: `${squadCodesLabel(facts)} 青少年女子足球隊，銜接一線隊的青訓體系。`, href: '/zh/academy/' },
+      { num: '5', slug: 'programs', enLabel: 'Programs', zhLabel: '推廣活動', descZh: '社區足球學校、運動熱區課程、教練講習與足球節。', href: '/zh/programs/' },
+    ]
+  }
+  return [
+    { num: '3', slug: 'club', enLabel: 'Football Club', zhLabel: '一線隊', descZh: `征戰${facts.league.nameZh}的球隊本體，代號 First Team / 一線隊。`, href: '/zh/club/' },
+    { num: '4', slug: 'academy', enLabel: 'Academy', zhLabel: '台中磐石足球學院', descZh: `${squadCodesLabel(facts)} 三個梯隊，銜接一線隊的青訓體系。`, href: '/zh/academy/' },
     { num: '5', slug: 'programs', enLabel: 'Programs', zhLabel: '課程與活動', descZh: '兒童足球訓練、夏／冬令營、專項訓練與校園社區計畫。', href: '/zh/programs/' },
     { num: '6', slug: 'womens', enLabel: "Women's Football", zhLabel: '女子足球', descZh: '台中藍鯨女子隊，設有獨立的官方網站。', badgeZh: '官網入口', href: '/zh/womens/' },
-  ],
-  bw: [
-    { num: '3', slug: 'club', enLabel: 'First Team', zhLabel: '一線隊', descZh: `出戰${SITE_FACTS.bw.league.nameZh}的球隊本體。`, href: '/zh/club/' },
-    { num: '4', slug: 'youth', enLabel: 'Youth', zhLabel: '青年隊', descZh: `${academyTeamCodesLabel('bw')} 青少年女子足球隊，銜接一線隊的青訓體系。`, href: '/zh/academy/' },
-    { num: '5', slug: 'programs', enLabel: 'Programs', zhLabel: '推廣活動', descZh: '社區足球學校、運動熱區課程、教練講習與足球節。', href: '/zh/programs/' },
-  ],
+  ]
 }
 
 /**
@@ -667,15 +702,19 @@ export const ECOSYSTEM_TITLE: ClubText<string> = {
 }
 
 // 2.7 俱樂部歷程
-export const HISTORY_SEO: ClubText<SeoCopy> = {
-  tcrfc: {
+/** tcrfc 版 `description` 含成立年份事實，改為工廠函式（S1-12d 收尾第二輪）；bw 版全靜態，
+ * 但保持同一個函式簽章（`(club, facts)`），呼叫端不必判斷「這個鍵到底要不要傳 facts」。 */
+export function getHistorySeo(club: string, facts: SiteFacts): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '俱樂部歷程｜關於台中藍鯨｜台中藍鯨女子足球隊',
+      description: '台中藍鯨女子足球隊 2014～2025 年逐年沿革，整理自舊官網公開內容。',
+    }
+  }
+  return {
     title: '俱樂部歷程 Club History｜關於台中磐石｜台中磐石足球俱樂部',
-    description: `台中磐石足球俱樂部的圖文歷史敘事，記錄俱樂部自 ${SITE_FACTS.tcrfc.foundedYear} 年成立以來的發展歷程。完整內文正在整理中。`,
-  },
-  bw: {
-    title: '俱樂部歷程｜關於台中藍鯨｜台中藍鯨女子足球隊',
-    description: '台中藍鯨女子足球隊 2014～2025 年逐年沿革，整理自舊官網公開內容。',
-  },
+    description: `台中磐石足球俱樂部的圖文歷史敘事，記錄俱樂部自 ${facts.foundedYear} 年成立以來的發展歷程。完整內文正在整理中。`,
+  }
 }
 
 export const HISTORY_HERO: ClubText<HeroCopy> = {
@@ -862,35 +901,41 @@ export const MILESTONES_HERO: ClubText<HeroCopy> = {
 // 03 一線隊（只做靜態敘事文案；球員／教練／賽程名單屬動態內容，不進本檔）
 // ---------------------------------------------------------------------------
 
-export const FIRST_TEAM_SEO: ClubText<SeoCopy> = {
-  tcrfc: {
+/** 03 一線隊 SEO／Hero／球隊介紹——皆含聯賽名稱／成立年份／主場事實，改為工廠函式（S1-12d 收尾第二輪）。 */
+export function getFirstTeamSeo(club: string, facts: SiteFacts): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '一線隊｜台中藍鯨女子足球隊',
+      description: `台中藍鯨女子足球隊一線隊：出戰${facts.league.nameZh}，隊史五度奪冠。名單與賽程由後台維護，內容更新中。`,
+    }
+  }
+  return {
     title: '一線隊 First Team｜台中磐石足球俱樂部｜台中磐石足球俱樂部 TCRFC',
-    description:
-      `台中磐石足球俱樂部一線隊（First Team）：28 名註冊球員名單依背號排序、教練團陣容、2026/27 ${SITE_FACTS.tcrfc.league.nameZh}完整賽程與 .ics 訂閱、榮譽紀錄時間軸。`,
-  },
-  bw: {
-    title: '一線隊｜台中藍鯨女子足球隊',
-    description: `台中藍鯨女子足球隊一線隊：出戰${SITE_FACTS.bw.league.nameZh}，隊史五度奪冠。名單與賽程由後台維護，內容更新中。`,
-  },
+    description: `台中磐石足球俱樂部一線隊（First Team）：28 名註冊球員名單依背號排序、教練團陣容、2026/27 ${facts.league.nameZh}完整賽程與 .ics 訂閱、榮譽紀錄時間軸。`,
+  }
 }
 
-export const FIRST_TEAM_HERO: ClubText<HeroCopy> = {
-  tcrfc: {
+export function getFirstTeamHero(club: string, facts: SiteFacts): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '一線隊',
+      h1En: null,
+      lede: `台中藍鯨一線隊代表俱樂部出戰${facts.league.nameZh}，${facts.foundedDisplayZh}，隊史五度奪得聯賽冠軍。主場為${facts.venues.map((v) => v.nameZh).join('、')}。`,
+    }
+  }
+  return {
     h1Zh: '一線隊',
     h1En: 'First Team',
-    lede: `台中磐石一線隊代表俱樂部出戰${SITE_FACTS.tcrfc.league.nameZh}，是所有青訓與學院球員最終銜接的競技舞台。球隊 ${SITE_FACTS.tcrfc.foundedDisplayZh}，同年即拿下${SITE_FACTS.tcrfc.foundingTitleZh}，主場為${getPrimaryVenue('tcrfc').nameZh}。`,
-  },
-  bw: {
-    h1Zh: '一線隊',
-    h1En: null,
-    lede: `台中藍鯨一線隊代表俱樂部出戰${SITE_FACTS.bw.league.nameZh}，${SITE_FACTS.bw.foundedDisplayZh}，隊史五度奪得聯賽冠軍。主場為${SITE_FACTS.bw.venues.map((v) => v.nameZh).join('、')}。`,
-  },
+    lede: `台中磐石一線隊代表俱樂部出戰${facts.league.nameZh}，是所有青訓與學院球員最終銜接的競技舞台。球隊 ${facts.foundedDisplayZh}，同年即拿下${facts.foundingTitleZh}，主場為${primaryVenueOf(facts).nameZh}。`,
+  }
 }
 
 /** 對應 mockup「球隊介紹」段落——藍鯨版逐句改寫自 club-profile.md §1 已核實事實（成立年、聯賽名、主場），不臆測名次或賽季戰績。 */
-export const FIRST_TEAM_INTRO: ClubText<string> = {
-  tcrfc: `台中磐石足球俱樂部一線隊於 ${SITE_FACTS.tcrfc.foundedYear} 年隨俱樂部創立成軍，同年奪下${SITE_FACTS.tcrfc.foundingTitleZh}，現於${SITE_FACTS.tcrfc.league.nameZh}出賽。球隊主場設於${getPrimaryVenue('tcrfc').nameZh}，2026/27 賽季共排定 21 場企甲例行賽。`,
-  bw: `台中藍鯨一線隊於 ${SITE_FACTS.bw.foundedYear} 年隨俱樂部創立成軍，出戰${SITE_FACTS.bw.league.nameZh}，隊史累計五度奪得聯賽冠軍（2017、2018、2019、2021、2023）。球隊主場為${SITE_FACTS.bw.venues.map((v) => v.nameZh).join('、')}。名單與最新賽程由後台維護，本頁內容更新中。`,
+export function getFirstTeamIntro(club: string, facts: SiteFacts): string {
+  if (normalizeClub(club) === 'bw') {
+    return `台中藍鯨一線隊於 ${facts.foundedYear} 年隨俱樂部創立成軍，出戰${facts.league.nameZh}，隊史累計五度奪得聯賽冠軍（2017、2018、2019、2021、2023）。球隊主場為${facts.venues.map((v) => v.nameZh).join('、')}。名單與最新賽程由後台維護，本頁內容更新中。`
+  }
+  return `台中磐石足球俱樂部一線隊於 ${facts.foundedYear} 年隨俱樂部創立成軍，同年奪下${facts.foundingTitleZh}，現於${facts.league.nameZh}出賽。球隊主場設於${primaryVenueOf(facts).nameZh}，2026/27 賽季共排定 21 場企甲例行賽。`
 }
 
 // ---------------------------------------------------------------------------
@@ -903,60 +948,72 @@ export const FIRST_TEAM_INTRO: ClubText<string> = {
 // （紀律 11：藍鯨文案只能引用既有舊站內容，不得自行創作）。
 // ---------------------------------------------------------------------------
 
-export const ACADEMY_OVERVIEW_SEO: ClubText<SeoCopy> = {
-  tcrfc: {
+/** bw 版含梯隊代碼事實，tcrfc 版全靜態，改為工廠函式（S1-12d 收尾第二輪，理由同 getHistorySeo）。 */
+export function getAcademyOverviewSeo(club: string, facts: SiteFacts): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: '青年隊總覽｜台中藍鯨女子足球隊',
+      description: `台中藍鯨青年隊由 ${squadCodesLabel(facts, '、')} 女子足球隊組成，銜接一線隊的競技體系。招生方式與課表待確認，詳情請洽俱樂部。`,
+    }
+  }
+  return {
     title: '學院總覽 Academy Overview｜台中磐石足球學院｜台中磐石足球俱樂部',
     description: '認識台中磐石足球學院的定位與訓練基地：銜接俱樂部品牌主張的青訓體系，以及學員數、教練數、升學率等數據亮點（資料收集中）。',
-  },
-  bw: {
-    title: '青年隊總覽｜台中藍鯨女子足球隊',
-    description: `台中藍鯨青年隊由 ${academyTeamCodesLabel('bw', '、')} 女子足球隊組成，銜接一線隊的競技體系。招生方式與課表待確認，詳情請洽俱樂部。`,
-  },
+  }
 }
 
-export const ACADEMY_OVERVIEW_HERO: ClubText<HeroCopy> = {
-  tcrfc: {
+export function getAcademyOverviewHero(club: string, facts: SiteFacts): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '青年隊總覽',
+      h1En: null,
+      lede: `台中藍鯨青年隊由 ${squadCodesLabel(facts, '、')} 女子足球隊組成，是銜接一線隊競技體系的梯隊。`,
+    }
+  }
+  return {
     h1Zh: '學院總覽',
     h1En: 'Academy Overview',
     lede: '台中磐石足球學院是台中磐石足球俱樂部的青訓體系，銜接俱樂部「在地扎根．放眼世界」的品牌主張與 Players First、Excellence、Global Pathways、Community、Integrity 五大核心價值，以分齡訓練陪伴學員成長。',
-  },
-  bw: {
-    h1Zh: '青年隊總覽',
-    h1En: null,
-    lede: `台中藍鯨青年隊由 ${academyTeamCodesLabel('bw', '、')} 女子足球隊組成，是銜接一線隊競技體系的梯隊。`,
-  },
+  }
 }
 
 /** 學院／青年隊定位段落。藍鯨版直接節錄 youth-teams.md「隊伍定位（原文）」——
  * 該段原文寫在 U15 隊頁面下，但敘述對象是整個藍鯨女足梯隊體系，用於總覽頁定位段落
- * 語意相符，未新增文字。 */
-export const ACADEMY_POSITIONING: ClubText<string> = {
-  tcrfc: `台中磐石足球學院自俱樂部 ${SITE_FACTS.tcrfc.foundedYear} 年成立起，作為銜接社區足球與競技體系的橋樑，目標是讓每一位學員都能在扎實的訓練環境中，依照自身節奏發展技術、戰術理解與品格，並為有能力銜接一線隊或海外舞台的球員，提供清晰可循的成長路徑。`,
-  bw: '台中藍鯨是台灣最頂尖的女子足球俱樂部，球隊歷年造就了高達 21 位中華女足代表隊國手。青年隊希望青出於藍、更勝於藍，擴大學員足球未來的可能性（節錄自台中藍鯨官方網站青年隊招募原文）。',
+ * 語意相符，未新增文字。tcrfc 版含成立年份事實，改為工廠函式（S1-12d 收尾第二輪）。 */
+export function getAcademyPositioning(club: string, facts: SiteFacts): string {
+  if (normalizeClub(club) === 'bw') {
+    return '台中藍鯨是台灣最頂尖的女子足球俱樂部，球隊歷年造就了高達 21 位中華女足代表隊國手。青年隊希望青出於藍、更勝於藍，擴大學員足球未來的可能性（節錄自台中藍鯨官方網站青年隊招募原文）。'
+  }
+  return `台中磐石足球學院自俱樂部 ${facts.foundedYear} 年成立起，作為銜接社區足球與競技體系的橋樑，目標是讓每一位學員都能在扎實的訓練環境中，依照自身節奏發展技術、戰術理解與品格，並為有能力銜接一線隊或海外舞台的球員，提供清晰可循的成長路徑。`
 }
 
-export const ACADEMY_TEAMS_SEO: ClubText<SeoCopy> = {
-  tcrfc: {
+/** 4.2 學院隊伍／青年隊 SEO／Hero——皆含梯隊代碼事實，改為工廠函式（S1-12d 收尾第二輪）。 */
+export function getAcademyTeamsSeo(club: string, facts: SiteFacts): SeoCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      title: `青年隊 ${squadCodesLabel(facts)}｜台中藍鯨女子足球隊`,
+      description: `台中藍鯨青年隊 ${squadCodesLabel(facts, '、')} 女子足球隊——各隊名單、教練與賽程（資料收集中）。`,
+    }
+  }
+  return {
     title: '學院隊伍 Our Teams｜台中磐石足球學院｜台中磐石足球俱樂部',
-    description: `台中磐石足球學院 ${academyTeamCodesLabel('tcrfc')} 及其他年齡層隊伍——各梯隊名單、教練、賽程與成績（資料收集中），並提供訂閱本隊行事曆功能。`,
-  },
-  bw: {
-    title: `青年隊 ${academyTeamCodesLabel('bw')}｜台中藍鯨女子足球隊`,
-    description: `台中藍鯨青年隊 ${academyTeamCodesLabel('bw', '、')} 女子足球隊——各隊名單、教練與賽程（資料收集中）。`,
-  },
+    description: `台中磐石足球學院 ${squadCodesLabel(facts)} 及其他年齡層隊伍——各梯隊名單、教練、賽程與成績（資料收集中），並提供訂閱本隊行事曆功能。`,
+  }
 }
 
-export const ACADEMY_TEAMS_HERO: ClubText<HeroCopy> = {
-  tcrfc: {
+export function getAcademyTeamsHero(club: string, facts: SiteFacts): HeroCopy {
+  if (normalizeClub(club) === 'bw') {
+    return {
+      h1Zh: '青年隊',
+      h1En: null,
+      lede: `台中藍鯨青年隊依年齡分為 ${squadCodesLabel(facts, '、')} 女子足球隊，各隊名單、教練與賽程如下。`,
+    }
+  }
+  return {
     h1Zh: '學院隊伍',
     h1En: 'Our Teams',
-    lede: `台中磐石足球學院依年齡分為 ${academyTeamCodesLabel('tcrfc', '、')} 及其他年齡層梯隊，各隊皆設有專屬名單、教練、賽程與成績頁面，並可訂閱該隊行事曆，掌握每一場訓練與比賽。`,
-  },
-  bw: {
-    h1Zh: '青年隊',
-    h1En: null,
-    lede: `台中藍鯨青年隊依年齡分為 ${academyTeamCodesLabel('bw', '、')} 女子足球隊，各隊名單、教練與賽程如下。`,
-  },
+    lede: `台中磐石足球學院依年齡分為 ${squadCodesLabel(facts, '、')} 及其他年齡層梯隊，各隊皆設有專屬名單、教練、賽程與成績頁面，並可訂閱該隊行事曆，掌握每一場訓練與比賽。`,
+  }
 }
 
 /** 4.2 梯隊分頁定義：磐石四個分頁（U15／U14／U12／其他年齡層），藍鯨只有兩個實際隊伍
@@ -968,15 +1025,18 @@ export interface AcademyTeamTab {
   labelZh: string
   teamCode: string | null
 }
-// 🔴 GEO-03（S1-12d）：年齡層代碼本身（'U15'／'U14'／'U12'）的單一來源是
-// site-facts.ts 的 `squadCodes`，這裡只疊加 API 篩選用的俱樂部代碼前綴與
+// 🔴 GEO-03（S1-12d）：年齡層代碼本身（'U15'／'U14'／'U12'）的單一來源是後端
+// site-facts 端點的 `squadCodes`，這裡只疊加 API 篩選用的俱樂部代碼前綴與
 // 「其他年齡層」這個沒有對應 `Team.code` 的靜態分頁，不重新打一份年齡層清單。
-export const ACADEMY_TEAM_TABS: ClubText<AcademyTeamTab[]> = {
-  tcrfc: [
-    ...SITE_FACTS.tcrfc.squadCodes.map((code) => ({ id: code.toLowerCase(), labelZh: code, teamCode: code })),
+// 改為工廠函式（S1-12d 收尾第二輪）——`facts` 由呼叫端 `useSiteFacts(club)` 取得。
+export function getAcademyTeamTabs(club: string, facts: SiteFacts): AcademyTeamTab[] {
+  if (normalizeClub(club) === 'bw') {
+    return facts.squadCodes.map((code) => ({ id: code.toLowerCase(), labelZh: code, teamCode: `BW-${code}` }))
+  }
+  return [
+    ...facts.squadCodes.map((code) => ({ id: code.toLowerCase(), labelZh: code, teamCode: code })),
     { id: 'other', labelZh: '其他年齡層', teamCode: null },
-  ],
-  bw: SITE_FACTS.bw.squadCodes.map((code) => ({ id: code.toLowerCase(), labelZh: code, teamCode: `BW-${code}` })),
+  ]
 }
 
 // ---------------------------------------------------------------------------
@@ -1009,9 +1069,11 @@ export const JOIN_INDEX_HERO: ClubText<HeroCopy> = {
 }
 
 /** 10.2 卡片標籤——藍鯨依 docs/13 §3 用「青年隊」，不沿用磐石學院的招生用詞。 */
-export const JOIN_ACADEMY_CARD: ClubText<{ titleZh: string; descZh: string }> = {
-  tcrfc: { titleZh: '加入學院／兒童訓練', descZh: `學院 ${academyTeamCodesLabel('tcrfc')} 梯隊，或兒童訓練的混齡、初學、技巧發展班，同一份表單完成報名。` },
-  bw: { titleZh: '加入青年隊', descZh: `${academyTeamCodesLabel('bw')} 青少年女子足球隊招募，報名資格與費用請洽俱樂部。` },
+export function getJoinAcademyCard(club: string, facts: SiteFacts): { titleZh: string; descZh: string } {
+  if (normalizeClub(club) === 'bw') {
+    return { titleZh: '加入青年隊', descZh: `${squadCodesLabel(facts)} 青少年女子足球隊招募，報名資格與費用請洽俱樂部。` }
+  }
+  return { titleZh: '加入學院／兒童訓練', descZh: `學院 ${squadCodesLabel(facts)} 梯隊，或兒童訓練的混齡、初學、技巧發展班，同一份表單完成報名。` }
 }
 
 /**

@@ -1,21 +1,25 @@
 // shared/utils/site-facts.ts — GEO-03／GEO-04 事實單一來源（S1-12d，2026-09-29；
-// 2026-09-29 收尾更新角色定位，見下方「本檔現在的角色」）
+// 2026-09-29 收尾更新角色定位，2026-09-29 收尾第二輪進一步收斂為純降級角色，
+// 見下方「本檔現在的角色」）
 //
 // 主站規劃書 §7 GEO-03：「成立年份、主場與場地、梯隊組成、所屬聯賽、聯絡方式…全站只有
 // 一個維護處」；GEO-04：「結構化資料與明確文字同時呈現」。
 //
-// 🔴 本檔現在的角色（S1-12d 收尾，2026-09-29）：後端已補上
+// 🔴 本檔現在的角色（S1-12d 收尾第二輪，2026-09-29）：後端已補上
 // `GET /api/v1/{club}/site-facts?lang=zh|en` 公開端點（apps/api/README.md「S1-12d」節），
 // **本檔下方的 `SITE_FACTS` 靜態物件不再是主要來源**，改由
 // `app/composables/useSiteFacts.ts` 的 `useSiteFacts(club)` 讀 API 取值，頁面文字與
-// `useSchemaOrgClub.ts` 的 JSON-LD 一律改讀那支 composable。`SITE_FACTS` 保留下來只做
-// 兩件事：① 該 composable 在 API 失敗時的降級備援快照（不出 500）；
-// ② `shared/utils/club-copy.ts` 仍直接讀取（見該檔案，一個已知、有紀錄的例外——
-// club-copy.ts 是模組層級在 import 當下同步組出近 40 處引用的 SEO／Hero 文案物件，
-// 沒有 Nuxt 元件的請求生命週期可以掛非同步抓取，接上 API 是遠超本輪邊界的重構，
-// 留給下一輪）。**新增頁面請一律呼叫 `useSiteFacts(club)`，不要再直接讀本檔的
-// `SITE_FACTS`／`getPrimaryVenue`／`academyTeamCodesLabel`**（這三者仍保留給
-// club-copy.ts 與降級路徑使用，不要刪除）。
+// `useSchemaOrgClub.ts` 的 JSON-LD 一律改讀那支 composable。`shared/utils/club-copy.ts`
+// 原本是本檔唯一的直接消費者（模組層級在 import 當下同步組出近 40 處引用的 SEO／Hero
+// 文案物件），S1-12d 收尾第二輪已把 club-copy.ts 裡依賴事實的內容鍵全部改成
+// `getXxx(club, facts)` 工廠函式，改由呼叫端傳入 `useSiteFacts(club)` 取得的 `facts`——
+// **本檔現在只剩一個消費者**：`useSiteFacts.ts` 的 `mergeSiteFacts()` 在 API 打不到時
+// 拿 `SITE_FACTS[club]` 當降級備援快照（不出 500）。`getPrimaryVenue`／
+// `academyTeamCodesLabel` 兩個輔助函式目前沒有任何呼叫端（club-copy.ts 已改用自己的
+// `primaryVenueOf(facts)`／`squadCodesLabel(facts)`，吃 `facts` 而非 `club` 字串），
+// 保留匯出是為了維持本檔作為「靜態快照 + 其上輔助函式」的完整既有公開介面，
+// 沒有安全疑慮就不必為了「暫時沒人呼叫」而移除。**新增頁面請一律呼叫
+// `useSiteFacts(club)`，不要再直接讀本檔的 `SITE_FACTS`**。
 //
 // 🔴 內容紀律比照 club-copy.ts 檔頭：藍鯨的每一個值都要能對應到
 // content/blue-whale/club-profile.md 或既有頁面已核實的既有事實，不得自行臆測。
@@ -83,6 +87,13 @@ export interface SiteFacts {
     phone: string | null
     hours: string | null
   }
+  /** 台中藍鯨官網網址（S1-16／S1-12d 後續補完，2026-09-29）——概念上只屬於 `tcrfc`
+   * （藍鯨官網本身沒有 06 單元，`bw` 恆為 `null`）。後端已提供
+   * `PublicSiteFactsDto.BlueWhaleSiteUrl`（後台 `I` 網站設定可維護），本檔靜態快照
+   * 固定為 `null`——降級時由呼叫端（`womens/index.vue`）自行退回
+   * `useRuntimeConfig().public.blueWhaleSiteUrl`（staging 網域環境變數），不在這裡
+   * 放一個會過期的網址字面值。 */
+  blueWhaleSiteUrl: string | null
 }
 
 export const SITE_FACTS: Record<ClubCode, SiteFacts> = {
@@ -112,6 +123,7 @@ export const SITE_FACTS: Record<ClubCode, SiteFacts> = {
       phone: null,
       hours: null,
     },
+    blueWhaleSiteUrl: null,
   },
   bw: {
     foundedYear: '2014',
@@ -137,6 +149,7 @@ export const SITE_FACTS: Record<ClubCode, SiteFacts> = {
       phone: null,
       hours: null,
     },
+    blueWhaleSiteUrl: null,
   },
 }
 

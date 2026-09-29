@@ -24,12 +24,11 @@
 // 頁面的主要來源，只在 API 打不到時墊背；lint:fact-single-source 的既有防呆邏輯不受影響
 // （靜態字面值只允許留在 site-facts.ts 本身，這條規則沒有變）。
 //
-// 🔴 已知限制（回報，不在本輪範圍）：shared/utils/club-copy.ts 仍直接讀 site-facts.ts 的
-// 靜態 SITE_FACTS 常數，未接上本 composable。club-copy.ts 是模組層級（非元件）在 import
-// 當下就同步組出近 40 處引用 SITE_FACTS 的 SEO／Hero 文案物件，沒有 Nuxt 元件的請求生命
-// 週期可以掛非同步抓取——要接上 API 得把該檔全部改成吃 facts 參數的工廠函式，並改寫
-// 15 個以上消費頁面的呼叫方式，是遠超本輪邊界（一個 composable＋約 17 個直接呼叫頁面）
-// 的重構，留給下一輪決定是否要做。
+// ✅ S1-12d 收尾第二輪（2026-09-29）：上一輪這裡記錄的「club-copy.ts 仍直接讀
+// site-facts.ts 靜態快照」已解決——club-copy.ts 依賴事實的內容鍵全部改成
+// `getXxx(club, facts)` 工廠函式，呼叫端（各消費頁）改用本 composable 回傳的
+// `facts` 產生文案，不再從 club-copy.ts 內部讀取 SITE_FACTS。詳見
+// shared/utils/club-copy.ts 檔頭與 apps/web/README.md「S1-12d 收尾第二輪」節。
 import { SITE_FACTS, type SiteFacts, type SiteFactVenue } from '#shared/utils/site-facts'
 import type { ClubCode } from '#shared/utils/club'
 
@@ -60,6 +59,10 @@ interface PublicSiteFactsDto {
   squadStructureSummary: string
   squadCodes: string[]
   contact: PublicSiteFactsContactDto
+  /** 台中藍鯨官網網址（S1-16／S1-12d 後續補完）。概念上只屬於 `tcrfc`，`bw` 呼叫時恆為
+   * `null`。`null`＝尚未設定，呼叫端（womens/index.vue）應退回既有
+   * `useRuntimeConfig().public.blueWhaleSiteUrl`，不要顯示空連結。 */
+  blueWhaleSiteUrl: string | null
 }
 
 function normalizeClub(club: string): ClubCode {
@@ -102,6 +105,7 @@ function mergeSiteFacts(
       phone: zh.contact.phone,
       hours: zh.contact.hours,
     },
+    blueWhaleSiteUrl: zh.blueWhaleSiteUrl,
   }
 }
 

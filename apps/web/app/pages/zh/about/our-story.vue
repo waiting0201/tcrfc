@@ -10,14 +10,15 @@ const { lp } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => OUR_STORY_HERO[clubKey.value])
-// S1-12d 收尾：成立年份／首季頭銜／主場改讀 useSiteFacts('tcrfc')（後端公開端點），
-// 本段落只在 clubKey==='tcrfc' 時渲染，不需要依 clubKey 動態切換俱樂部。
-const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+// S1-12d 收尾第二輪：hero／SEO 含成立年份事實，club-copy.ts 已改為工廠函式；本頁 tcrfc
+// 專屬段落原本固定讀 useSiteFacts('tcrfc')，現在 hero／SEO 兩俱樂部都要讀，改為動態帶入
+// 目前 club（clubKey==='tcrfc' 時兩者等價）。
+const { facts, primaryVenue } = useSiteFacts(clubKey.value)
+const hero = computed(() => getOurStoryHero(clubKey.value, facts.value))
 
 useSeoMeta({
-  title: computed(() => OUR_STORY_SEO[clubKey.value].title),
-  description: computed(() => OUR_STORY_SEO[clubKey.value].description),
+  title: computed(() => getOurStorySeo(clubKey.value, facts.value).title),
+  description: computed(() => getOurStorySeo(clubKey.value, facts.value).description),
 })
 </script>
 
@@ -47,7 +48,7 @@ useSeoMeta({
     <div class="story-layout">
       <div v-if="clubKey === 'tcrfc'" class="prose">
         <!-- GEO-03（S1-12d）：成立年份／首季頭銜／主場為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
-        <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ tcrfcFacts.foundedYear }} 年</strong>在台中成立，同年即拿下<strong>{{ tcrfcFacts.foundingTitleZh }}</strong>。俱樂部主場設於{{ tcrfcVenue.nameZh }}，以「在地扎根．放眼世界」為品牌主張，逐步建立起一線隊、學院與課程並行的發展體系。</p>
+        <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ facts.foundedYear }} 年</strong>在台中成立，同年即拿下<strong>{{ facts.foundingTitleZh }}</strong>。俱樂部主場設於{{ primaryVenue.nameZh }}，以「在地扎根．放眼世界」為品牌主張，逐步建立起一線隊、學院與課程並行的發展體系。</p>
 
         <h2>圖文段落</h2>
         <p>本頁版型為長文編輯，支援圖文混排與引言區塊；正式內文與圖片確認後，將依段落穿插俱樂部歷年照片。</p>

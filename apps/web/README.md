@@ -57,7 +57,7 @@ curl -s http://127.0.0.1:3002/zh/ | grep -o 'data-club="[a-z]*"'   # bw
 | `NUXT_PUBLIC_SITE_URL` | 🔴 只在 `docker run`，**絕不在 `docker build`** | canonical／sitemap／`hreflang`／Schema／`og:image` 的網域來源（`docs/13-blue-whale-site.md` §6 紀律 7、8） |
 | `NUXT_PUBLIC_SITE_NAME` | 🔴 只在 `docker run`，同 `NUXT_PUBLIC_SITE_URL` 的規則 | 覆寫 `nuxt.config.ts` 的 `site.name`（`og:site_name`／`<title>` 後綴／Schema.org `WebSite.name` 三處都跟著換，實測與 `SITE_URL` 同一套 priority-stack）。**藍鯨容器一律帶 `台中藍鯨`**，忘記帶就會悄悄顯示 `nuxt.config.ts` 裡的預設值 `TCRFC`（docs/13 §6 紀律 11） |
 | `NUXT_PUBLIC_SITE_ENV` | `docker run` | `prelaunch`／`production`，目前只接住變數，三層防護（見 `docs/17-deployment.md` §10.4）留給 S0-9 之後接上 |
-| `NUXT_PUBLIC_BLUE_WHALE_SITE_URL` | 選填，`docker run`（有內建 staging 預設值，不像 `SITE_URL` 一定要給） | 主站 06 單元（女子足球）外連藍鯨官網的按鈕網址，預設 `https://bw-stg.tcrfc.tw`。藍鯨正式網域定案前不寫死正式網址，見 S1-16 |
+| `NUXT_PUBLIC_BLUE_WHALE_SITE_URL` | 選填，`docker run`（有內建 staging 預設值，不像 `SITE_URL` 一定要給） | 主站 06 單元（女子足球）外連藍鯨官網的按鈕網址，預設 `https://bw-stg.tcrfc.tw`。**S1-12d 收尾第二輪（2026-09-29）起降為備援值**：`womens/index.vue` 改以後端 `GET /api/v1/tcrfc/site-facts` 的 `blueWhaleSiteUrl` 為主要來源（後台 `I` 網站設定可維護），這個環境變數只在 API 打不到或該欄位尚未設定（`null`）時才生效，藍鯨正式網域定案後改後台設定值即可，不必再改這個環境變數或重新部署容器 |
 | `NITRO_PORT` / `NITRO_HOST` | 容器啟動 | `apps/web/Dockerfile` 已設定為 `3000` / `0.0.0.0` |
 
 ## 十條紀律落在哪個檔案（`docs/13-blue-whale-site.md` §6）
@@ -915,8 +915,121 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
   不主動 invalidate 的行為，前台未做對應測試（本輪不涉及後台編輯畫面）。
 
 **後端待補事項（不在本輪範圍，回報）**：
-- 主站規劃書 §3.6「藍鯨官網網址於後台 `I` 網站設定可維護」——後端已於 2026-09-29 補上 `blueWhaleSiteUrl`（見 `apps/api/README.md`「S1-12d」節「後續補完」）；`womens/index.vue` 仍讀 `useRuntimeConfig().public.blueWhaleSiteUrl`，待改接。
-- ~~`apps/admin` 尚無 `I` 模組編輯畫面~~：已於 2026-09-29 完成（`apps/admin/README.md`「I：網站設定」）。後端同日補上 `blueWhaleSiteUrl` 欄位與 `GET /admin/{club}/venues` 場地清單，前台 `womens/index.vue` 與後台挑選場地待改接。
+- ~~主站規劃書 §3.6「藍鯨官網網址於後台 `I` 網站設定可維護」——後端已於 2026-09-29 補上 `blueWhaleSiteUrl`……`womens/index.vue` 仍讀 `useRuntimeConfig().public.blueWhaleSiteUrl`，待改接~~：已於 S1-12d 收尾第二輪改接，見下方新增小節。
+- ~~`apps/admin` 尚無 `I` 模組編輯畫面~~：已於 2026-09-29 完成（`apps/admin/README.md`「I：網站設定」）。後端同日補上 `blueWhaleSiteUrl` 欄位與 `GET /admin/{club}/venues` 場地清單，前台 `womens/index.vue` 與後台挑選場地待改接（前台部分已於 S1-12d 收尾第二輪完成）。
+
+### S1-12d 收尾第二輪——`club-copy.ts` 改為工廠函式、`womens/index.vue` 改讀後端 `blueWhaleSiteUrl`（2026-09-29，`frontend-architect`）
+
+延續上方「S1-12d 收尾」節記錄的「已知限制」：`shared/utils/club-copy.ts`（1044 行，近 40 處
+引用 `SITE_FACTS`）當時沒有改接 `useSiteFacts()`，因為它是模組層級常數，在 `import` 當下同步
+組出一大批 SEO／Hero 文案物件，沒有 Nuxt 元件的請求生命週期可以掛非同步抓取。本輪把這個限制
+清掉。
+
+**新結構**：club-copy.ts 依賴 GEO-03 五類事實（成立年份、主場、聯賽、梯隊代碼、聯絡方式）的
+18 個內容鍵，全部從 `export const NAME: ClubText<T> = { tcrfc: {...}, bw: {...} }` 改成
+`export function getXxx(club: string, facts: SiteFacts): T`——函式內部固定寫法是
+`if (normalizeClub(club) === 'bw') { return {...bw...} }` 提前 return，接著一個無條件的
+`return {...tcrfc...}`（兩個俱樂部分支都硬寫在程式碼裡，不是從 `facts` 動態算出「該顯示哪個
+俱樂部」，`club` 參數純粹用來選文案分支，`facts` 提供該分支需要的事實數值）：
+
+`getHomeSeo`／`getHomeHero`／`getHomeCtaTrio`／`getAboutIndexHero`／`getOurStorySeo`／
+`getOurStoryHero`／`getEcosystemNodes`／`getHistorySeo`／`getFirstTeamSeo`／`getFirstTeamHero`／
+`getFirstTeamIntro`／`getAcademyOverviewSeo`／`getAcademyOverviewHero`／`getAcademyPositioning`／
+`getAcademyTeamsSeo`／`getAcademyTeamsHero`／`getAcademyTeamTabs`／`getJoinAcademyCard`。
+
+不依賴事實的既有內容鍵（`HOME_PILLARS`／`ABOUT_NAV_DESC`／`JOIN_INDEX_HERO`／
+`GOVERNANCE_HERO` 等，以及 `CLUB_IDENTITY` 扣掉下面提到的 `foundedZh` 之後的其餘欄位）
+**維持原樣**，沒有無謂改成函式。
+
+新增兩個模組內部輔助函式（不匯出）：`primaryVenueOf(facts)`／`squadCodesLabel(facts, sep?)`，
+等價於 site-facts.ts 既有的 `getPrimaryVenue(club)`／`academyTeamCodesLabel(club, sep?)`，
+差別是吃已經取得的 `facts` 物件、不用再認識 `club` 字串去查表。
+
+**`CLUB_IDENTITY.foundedZh` 直接刪除**（不是改成工廠函式）：盤點發現全站沒有任何頁面實際
+讀取 `identity.foundedZh`（`grep -rn "foundedZh" app` 零命中），是個讀著 SITE_FACTS 靜態快照
+但沒有消費者的死欄位。`CLUB_IDENTITY`／`getClubIdentity()` 被 `SiteHeader.vue`／
+`SiteFooter.vue` 與十餘個頁面共用，其餘欄位（`aboutLabelZh`／`slogan`／`social` 等）都不依賴
+事實——為了一個沒人用的欄位把整個 `CLUB_IDENTITY` 改成吃 facts 參數的工廠函式、牽動所有
+呼叫端，不符比例，直接刪除欄位本身才是對的做法（判斷寫在檔案裡的新增註解，供之後查證）。
+
+**各消費頁改法**：呼叫端一律先 `const { facts } = useSiteFacts(clubKey.value)`（或既有頁面
+已經在用的 `useSiteFacts('tcrfc')`／`useSiteFacts('bw')` 雙呼叫模式，見下方），再把原本
+`computed(() => HOME_SEO[clubKey.value])` 這種直接查表，改成
+`computed(() => getHomeSeo(clubKey.value, facts.value))`。改動的 9 個頁面檔案：
+`app/pages/zh/index.vue`、`club/first-team/index.vue`、`join/index.vue`、`about/index.vue`、
+`about/ecosystem.vue`、`about/our-story.vue`、`about/history.vue`、`academy/overview.vue`、
+`academy/teams.vue`。
+
+- `club/first-team/index.vue`／`about/our-story.vue`／`about/history.vue` 這三頁在上一輪
+  （S1-12d 收尾）已經因為某個 `v-if="isTcrfc"` 區塊固定呼叫過 `useSiteFacts('tcrfc')`——
+  本輪既然 hero／SEO 兩個俱樂部都要讀，改成動態的 `useSiteFacts(clubKey.value)`，變數名稱從
+  `tcrfcFacts`／`tcrfcVenue` 改回 `facts`／`primaryVenue`（`clubKey.value==='tcrfc'` 時兩者
+  等價，不影響那個 tcrfc 專屬區塊原本的顯示內容）。
+- `academy/overview.vue` 本來就因為畫面兩個俱樂部都會渲染，同時呼叫
+  `useSiteFacts('tcrfc')`／`useSiteFacts('bw')` 各一次（現有 fetch 不變），本輪只是從既有
+  呼叫多解構一個 `facts` 欄位，沒有新增 fetch 次數。
+- 其餘頁面（`index.vue`／`join/index.vue`／`about/index.vue`／`about/ecosystem.vue`／
+  `academy/teams.vue`）新增一次 `useSiteFacts(clubKey.value)`——`clubKey` 在單一容器內是
+  runtime 固定值（由 `NUXT_PUBLIC_CLUB` 決定），動態傳入不影響正確性，也不需要像
+  `academy/overview.vue` 那樣兩個俱樂部都抓。
+
+**`womens/index.vue` 的藍鯨官網連結**：改讀既有 `useSiteFacts('tcrfc')` 呼叫（本頁事實面板
+本來就在用）多解構出的 `facts.blueWhaleSiteUrl`（對應後端 `PublicSiteFactsDto.BlueWhaleSiteUrl`，
+`apps/api/README.md`「S1-12d」節「後續補完」已交付），`|| config.public.blueWhaleSiteUrl`
+退回既有環境變數。因此新增：`SiteFacts` 型別（`site-facts.ts`）與 `PublicSiteFactsDto`
+（`useSiteFacts.ts`）都補上 `blueWhaleSiteUrl: string | null` 欄位，`site-facts.ts` 靜態快照
+兩俱樂部皆固定 `null`（降級時一律退回環境變數，不在快照裡放一個會過期的網址字面值）。
+
+**`site-facts.ts` 現在的角色**：只剩 `useSiteFacts()` 的 `mergeSiteFacts()` 在 API 打不到時
+讀取 `SITE_FACTS[club]` 當降級備援快照這一個消費者；`getPrimaryVenue()`／
+`academyTeamCodesLabel()` 兩個輔助函式目前沒有任何呼叫端（`club-copy.ts` 已改用自己的
+`primaryVenueOf(facts)`／`squadCodesLabel(facts)`），保留匯出是維持既有公開介面完整，
+不是遺漏清理。
+
+**改壞了一支驗證腳本，已修好**：`scripts/check-homepage-fidelity.mjs` 原本用
+`clubCopySrc.indexOf('export const HOME_HERO')` 這種純文字掃描核對首頁 mockup 的 hero CTA
+逐字值，`HOME_HERO` 改成函式後找不到宣告，`npm run lint` 當場報錯攔下（見
+`docs/18-work-errors.md` `E-69`）。已改寫該腳本，解析 `export function getHomeHero` 函式
+本體「最後一個頂層 `return { ... }`」（對應本檔工廠函式的既有寫作慣例：bw 分支先用 `if`
+提前 return，tcrfc 分支是函式最後一個無條件 return），驗證邏輯本身（比對三個 CTA 欄位、
+四張支柱卡片）沒有改變。
+
+### SSR 輸出比對方法與結果（改動前後必須逐字一致）
+
+用 `git stash` 取得改動前的 `apps/web` 原始碼，各自 `docker build -f apps/web/Dockerfile`
+出一個映像檔（`tcrfc-web-before`／`tcrfc-web-s112d`），各起兩個容器（`tcrfc`／`bw`，皆未帶
+`NUXT_PUBLIC_BLUE_WHALE_SITE_URL`、`apps/api` 未啟動，走 API 打不到的降級快照路徑），對
+本輪實際改動的 9 個消費頁面 × `/zh/`／`/en/`（`womens` 只 tcrfc 容器有內容，bw 對單元 `06`
+本來就 404，兩容器都測）逐一 `curl` 全文比對：
+
+```
+tcrfc：/、/club/first-team/、/join/、/about/、/about/ecosystem/、/about/our-story/、
+       /about/history/、/academy/overview/、/academy/teams/、/womens/（各 zh／en，共 20 個網址）
+bw：  同上 9 頁（不含 womens，bw 上是 404）（各 zh／en，共 18 個網址）
+```
+
+**結果：38 個網址，改動前後 SSR 輸出逐字元完全一致（0 處差異）**——確認這是重構而非改文案。
+`/zh/womens/` 額外核對藍鯨官網按鈕的 `href` 兩容器映像檔皆輸出
+`https://bw-stg.tcrfc.tw`（環境變數預設值，因為 API 未啟動、`facts.blueWhaleSiteUrl` 走
+降級快照固定為 `null`，退回既有環境變數這條路徑本輪唯一驗證得到的路徑）。
+
+🔴 **未驗證項目**：API 打得到、後台已設定 `blueWhaleSiteUrl` 時前台是否正確顯示後台填的值
+（本輪只驗證「API 打不到／欄位為 null → 退回環境變數」這條路徑，延續 S1-12d 收尾同一個
+環境限制，`apps/api` 未啟動）。
+
+**驗收（2026-09-29）**：
+```
+npm run lint    # 0 errors, 527 warnings（等於既有基準上限，未超過）
+npm run build   # 成功
+docker build -f apps/web/Dockerfile apps/web   # 成功
+```
+本機起 `tcrfc`／`bw` 兩容器（`apps/api` 未啟動）：
+- `node scripts/check-heading-structure.mjs`：`tcrfc`（156 條路由）／`bw`（138 條路由）皆
+  H1 唯一、標題不跳階 0 違規。
+- `NUXT_PUBLIC_SITE_NAME=台中藍鯨 node scripts/check-club-brand-leak.mjs`（對 `bw`）：
+  保護清單（15 頁）全數乾淨，棘輪未被違反，exit 0。
+- `curl -I` 兩容器 `/zh/` 皆仍是 `X-Robots-Tag: noindex, nofollow`。
+- 上方「SSR 輸出比對方法與結果」的 38 網址比對。
 
 ## S1-12e（`GEO-07`／`GEO-08` 內容結構與引用資訊，2026-09-29，`frontend-architect`）
 

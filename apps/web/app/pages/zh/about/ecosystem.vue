@@ -11,7 +11,9 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const identity = computed(() => getClubIdentity(clubKey.value))
 const assets = computed(() => getClubAssets(clubKey.value))
 const hero = computed(() => ECOSYSTEM_HERO[clubKey.value])
-const nodes = computed(() => ECOSYSTEM_NODES[clubKey.value])
+// S1-12d 收尾第二輪：節點描述含聯賽名稱／梯隊代碼事實，club-copy.ts 已改為工廠函式。
+const { facts } = useSiteFacts(clubKey.value)
+const nodes = computed(() => getEcosystemNodes(clubKey.value, facts.value))
 const title = computed(() => ECOSYSTEM_TITLE[clubKey.value])
 
 // S1-13：nodes[].href 是 club-copy.ts 裡的裸 /zh/... 路徑，消費時要套 lp()，

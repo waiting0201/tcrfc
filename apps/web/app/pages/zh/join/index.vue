@@ -10,7 +10,9 @@ const { lp } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const hero = computed(() => JOIN_INDEX_HERO[clubKey.value])
-const academyCard = computed(() => JOIN_ACADEMY_CARD[clubKey.value])
+// S1-12d 收尾第二輪：10.2 卡片描述含梯隊代碼事實，club-copy.ts 已改為工廠函式。
+const { facts } = useSiteFacts(clubKey.value)
+const academyCard = computed(() => getJoinAcademyCard(clubKey.value, facts.value))
 const intlDesc = computed(() => JOIN_INTL_DESC[clubKey.value])
 const identity = computed(() => getClubIdentity(clubKey.value))
 // S0-9n（2026-09-23）：10.6「場地位置與地圖」卡片說明字面寫死「學院場地」，藍鯨站因此
