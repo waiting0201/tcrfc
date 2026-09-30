@@ -14,7 +14,6 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions, usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
-import { listAdminSeasons, type AdminSeasonListItemDto } from '@/api/adminCompetitions'
 import {
   exportMembers,
   JERSEY_STATUS_OPTIONS,
@@ -28,6 +27,7 @@ import {
   type MemberListItemDto,
   type MembershipSummaryDto,
 } from '@/api/adminMembers'
+import { listMembershipSeasons, type MembershipSeasonDto } from '@/api/adminMemberships'
 import { formatDateTime } from '@/utils/formatDateTime'
 
 const router = useRouter()
@@ -60,7 +60,7 @@ const filters = reactive<FilterState>(emptyFilter())
 const showMore = ref(false)
 
 const rows = ref<MemberListItemDto[]>([])
-const seasons = ref<AdminSeasonListItemDto[]>([])
+const seasons = ref<MembershipSeasonDto[]>([])
 const loading = ref(true)
 const loadError = ref<string | null>(null)
 const page = ref(1)
@@ -106,7 +106,7 @@ async function load() {
 
 async function loadSeasons() {
   try {
-    seasons.value = await listAdminSeasons(club.value)
+    seasons.value = await listMembershipSeasons(club.value)
   } catch {
     seasons.value = []
   }

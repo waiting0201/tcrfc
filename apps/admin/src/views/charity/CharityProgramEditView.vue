@@ -20,7 +20,7 @@ import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { enOrUndefined, nullIfBlank } from '@/api/adminCommon'
-import { listAdminNews } from '@/api/adminNews'
+import NewsPicker from '@/components/NewsPicker.vue'
 import { listPartners } from '@/api/adminPartners'
 import { listSponsors } from '@/api/adminSponsors'
 import {
@@ -62,7 +62,7 @@ const progress = ref<'ongoing' | 'completed'>('ongoing')
 const orgs = ref<OrgListItemDto[]>([])
 const partnerOptions = ref<Option[]>([])
 const sponsorOptions = ref<Option[]>([])
-const articleOptions = ref<Option[]>([])
+const articleSeed = ref<{ id: string; label: string }[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
@@ -122,7 +122,7 @@ function apply(d: ProgramDetailDto) {
   form.articleIds = d.articles.map((x) => x.id)
   mergeOptions(partnerOptions.value, d.partners)
   mergeOptions(sponsorOptions.value, d.sponsors)
-  mergeOptions(articleOptions.value, d.articles)
+  articleSeed.value = d.articles.map((r) => ({ id: r.id, label: r.title || r.slug }))
   coverUrl.value = d.coverUrl ?? null
   hasCover.value = !!d.coverKey
   gallery.value = d.images
@@ -133,16 +133,14 @@ function apply(d: ProgramDetailDto) {
 async function load() {
   loadState.value = 'loading'
   try {
-    const [o, partners, sponsors, news] = await Promise.all([
+    const [o, partners, sponsors] = await Promise.all([
       listOrgs(club.value).catch(() => [] as OrgListItemDto[]),
       listPartners(club.value).catch(() => []),
       listSponsors(club.value).catch(() => []),
-      listAdminNews(club.value, { pageSize: 100 }).catch(() => null),
     ])
     orgs.value = o
     partnerOptions.value = partners.map((p) => ({ id: p.id, label: p.nameZh || p.slug }))
     sponsorOptions.value = sponsors.map((s) => ({ id: s.id, label: s.nameZh || s.slug }))
-    articleOptions.value = (news?.items ?? []).map((n) => ({ id: n.id, label: n.titleZh || n.slug }))
     if (!isCreate.value && programId.value) apply(await getProgram(club.value, programId.value))
     coverFile.value = null
     removeCover.value = false
@@ -297,8 +295,8 @@ const back = () => router.push({ path: '/content/charity', query: { tab: 'progra
             <el-select v-model="form.sponsorIds" multiple filterable placeholder="選擇參與的贊助商" style="width: 100%"><el-option v-for="o in sponsorOptions" :key="o.id" :label="o.label" :value="o.id" /></el-select>
           </el-form-item>
           <el-form-item label="關聯報導">
-            <el-select v-model="form.articleIds" multiple filterable placeholder="選擇相關的新聞與故事" style="width: 100%"><el-option v-for="o in articleOptions" :key="o.id" :label="o.label" :value="o.id" /></el-select>
-            <p class="program-edit__hint">只列出最近的 100 篇文章；前台只顯示已發布的報導。</p>
+            <NewsPicker v-model="form.articleIds" :seed="articleSeed" :disabled="readOnly" />
+            <p class="program-edit__hint">可用關鍵字搜尋所有文章；前台只顯示已發布的報導。</p>
           </el-form-item>
         </el-card>
 

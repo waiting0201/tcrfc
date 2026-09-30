@@ -13,10 +13,10 @@ import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { enOrUndefined, nullIfBlank } from '@/api/adminCommon'
-import { listAdminSeasons } from '@/api/adminCompetitions'
 import {
   createMembershipPlan,
   getMembershipPlan,
+  listMembershipSeasons,
   updateMembershipPlan,
   type MembershipPlanDetailDto,
   type PlanStatus,
@@ -82,7 +82,7 @@ function applyDetail(d: MembershipPlanDetailDto) {
 async function load() {
   loadState.value = 'loading'
   try {
-    const seasons = await listAdminSeasons(activeClubId.value).catch(() => null)
+    const seasons = await listMembershipSeasons(activeClubId.value).catch(() => null)
     seasonsFailed.value = seasons === null
     seasonOptions.value = (seasons ?? []).map((s) => ({ id: s.id, code: s.code }))
     if (!isCreate.value && planId.value) applyDetail(await getMembershipPlan(activeClubId.value, planId.value))

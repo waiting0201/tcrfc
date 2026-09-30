@@ -64,6 +64,21 @@ export interface SavePlanPayload {
 
 const plans = (club: string) => `${club$(club)}/membership-plans`
 
+/**
+ * 會籍畫面專用的球季下拉（`member.membership.view`，C1 補）：只含目前俱樂部的球季，新→舊。
+ * 客服／行政沒有球隊管理的檢視權限，不可再借用 `GET …/seasons`（會 403）。
+ */
+export interface MembershipSeasonDto {
+  id: string
+  code: string
+  startOn: string
+  endOn: string
+}
+
+export function listMembershipSeasons(club: string): Promise<MembershipSeasonDto[]> {
+  return apiRequest<MembershipSeasonDto[]>(`${club$(club)}/membership-seasons`)
+}
+
 export function listMembershipPlans(club: string, params: { seasonId?: string; status?: string } = {}): Promise<MembershipPlanListItemDto[]> {
   return apiRequest<MembershipPlanListItemDto[]>(`${plans(club)}${buildQuery(params)}`)
 }

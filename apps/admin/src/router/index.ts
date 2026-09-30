@@ -89,6 +89,23 @@ const MembershipDetailView = () => import('@/views/members/MembershipDetailView.
 const JerseyListView = () => import('@/views/members/JerseyListView.vue')
 const PartnerStoreView = () => import('@/views/members/PartnerStoreView.vue')
 const PartnerStoreEditView = () => import('@/views/members/PartnerStoreEditView.vue')
+const MangaView = () => import('@/views/culture/MangaView.vue')
+const MangaEpisodeEditView = () => import('@/views/culture/MangaEpisodeEditView.vue')
+const FanEventListView = () => import('@/views/culture/FanEventListView.vue')
+const FanEventEditView = () => import('@/views/culture/FanEventEditView.vue')
+const ProductListView = () => import('@/views/shop/ProductListView.vue')
+const ProductEditView = () => import('@/views/shop/ProductEditView.vue')
+const InventoryView = () => import('@/views/shop/InventoryView.vue')
+const OrderListView = () => import('@/views/shop/OrderListView.vue')
+const OrderCreateView = () => import('@/views/shop/OrderCreateView.vue')
+const OrderDetailView = () => import('@/views/shop/OrderDetailView.vue')
+const ShippingView = () => import('@/views/shop/ShippingView.vue')
+const ReturnListView = () => import('@/views/shop/ReturnListView.vue')
+const ReturnDetailView = () => import('@/views/shop/ReturnDetailView.vue')
+const ShopSettingsView = () => import('@/views/shop/ShopSettingsView.vue')
+const DrawListView = () => import('@/views/members/DrawListView.vue')
+const DrawEditView = () => import('@/views/members/DrawEditView.vue')
+const DrawDetailView = () => import('@/views/members/DrawDetailView.vue')
 const CalendarCategoriesView = () => import('@/views/calendar/CalendarCategoriesView.vue')
 const CalendarSubscriptionsView = () => import('@/views/calendar/CalendarSubscriptionsView.vue')
 
@@ -433,6 +450,28 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
   { path: '/members/partner-stores/:id/edit', name: 'partner-store-edit', component: PartnerStoreEditView, props: true, meta: { label: '編輯特約店家', code: 'K4' } },
   { path: '/calendar/categories', name: 'calendar-categories', component: CalendarCategoriesView, meta: { label: '分類設定', code: 'L3' } },
   { path: '/calendar/subscriptions', name: 'calendar-subscriptions', component: CalendarSubscriptionsView, meta: { label: '訂閱與匯出', code: 'L4' } },
+  // ── C1 批（S3-1／S3-3／S3-4／S3-8）：F1 漫畫、F2 球迷會活動、S1–S6 站內商店、K5 抽獎名單 ──
+  { path: '/culture/manga', name: 'manga', component: MangaView, meta: { label: '漫畫', code: 'F1' } },
+  { path: '/culture/manga/episodes/new', name: 'manga-episode-new', component: MangaEpisodeEditView, meta: { label: '新增集數', code: 'F1' } },
+  { path: '/culture/manga/episodes/:id/edit', name: 'manga-episode-edit', component: MangaEpisodeEditView, props: true, meta: { label: '編輯集數', code: 'F1' } },
+  { path: '/culture/fan-events', name: 'fan-event-list', component: FanEventListView, meta: { label: '球迷會活動', code: 'F2' } },
+  { path: '/culture/fan-events/new', name: 'fan-event-new', component: FanEventEditView, meta: { label: '新增活動', code: 'F2' } },
+  { path: '/culture/fan-events/:id/edit', name: 'fan-event-edit', component: FanEventEditView, props: true, meta: { label: '編輯活動', code: 'F2' } },
+  { path: '/shop/products', name: 'shop-product-list', component: ProductListView, meta: { label: '商品與規格', code: 'S1' } },
+  { path: '/shop/products/new', name: 'shop-product-new', component: ProductEditView, meta: { label: '新增商品', code: 'S1' } },
+  { path: '/shop/products/:id/edit', name: 'shop-product-edit', component: ProductEditView, props: true, meta: { label: '編輯商品', code: 'S1' } },
+  { path: '/shop/inventory', name: 'shop-inventory', component: InventoryView, meta: { label: '庫存', code: 'S2' } },
+  { path: '/shop/orders', name: 'shop-order-list', component: OrderListView, meta: { label: '訂單', code: 'S3' } },
+  { path: '/shop/orders/new', name: 'shop-order-new', component: OrderCreateView, meta: { label: '手動建單', code: 'S3' } },
+  { path: '/shop/orders/:id', name: 'shop-order-detail', component: OrderDetailView, props: true, meta: { label: '訂單詳情', code: 'S3' } },
+  { path: '/shop/shipping', name: 'shop-shipping', component: ShippingView, meta: { label: '出貨與物流', code: 'S4' } },
+  { path: '/shop/returns', name: 'shop-return-list', component: ReturnListView, meta: { label: '退貨與退款', code: 'S5' } },
+  { path: '/shop/returns/:id', name: 'shop-return-detail', component: ReturnDetailView, props: true, meta: { label: '退貨案件', code: 'S5' } },
+  { path: '/shop/settings', name: 'shop-settings', component: ShopSettingsView, meta: { label: '設定與報表', code: 'S6' } },
+  { path: '/members/lottery', name: 'draw-list', component: DrawListView, meta: { label: '抽獎名單管理', code: 'K5' } },
+  { path: '/members/lottery/new', name: 'draw-new', component: DrawEditView, meta: { label: '新增抽獎活動', code: 'K5' } },
+  { path: '/members/lottery/:id', name: 'draw-detail', component: DrawDetailView, props: true, meta: { label: '抽獎活動管理', code: 'K5' } },
+  { path: '/members/lottery/:id/edit', name: 'draw-edit', component: DrawEditView, props: true, meta: { label: '編輯抽獎活動', code: 'K5' } },
 ]
 
 const implementedPaths = new Set(IMPLEMENTED_ROUTES.map((route) => route.path))

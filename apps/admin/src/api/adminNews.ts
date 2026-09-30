@@ -127,6 +127,46 @@ export function listAdminNews(club: string, params: ListAdminNewsParams = {}): P
   return apiRequest<AdminArticlePage>(`/api/v1/admin/${club}/news${query}`)
 }
 
+/** 關聯報導挑選視窗專用的精簡項目（`GET …/news/lookup`，不含內文）。 */
+export interface NewsLookupItemDto {
+  id: string
+  slug: string
+  categoryCode: string
+  status: string
+  statusLabel: string
+  publishedAt?: string | null
+  isShared: boolean
+  titleZh?: string | null
+  titleEn?: string | null
+}
+
+export interface NewsLookupPage {
+  items: NewsLookupItemDto[]
+  page: number
+  pageSize: number
+  totalCount: number
+  totalPages: number
+}
+
+/**
+ * 新聞挑選搜尋（C1）：關鍵字比對中英文標題與網址名稱，分頁（預設 20、上限 50），
+ * `ids` 可把已選取的識別碼解回標題（最多 200 個）。取代「一次列最多 100 篇」的舊做法。
+ */
+export function lookupNews(
+  club: string,
+  params: { keyword?: string; status?: string; category?: string; ids?: string[]; page?: number; pageSize?: number } = {},
+): Promise<NewsLookupPage> {
+  const search = new URLSearchParams()
+  if (params.keyword) search.set('keyword', params.keyword)
+  if (params.status) search.set('status', params.status)
+  if (params.category) search.set('category', params.category)
+  if (params.page) search.set('page', String(params.page))
+  if (params.pageSize) search.set('pageSize', String(params.pageSize))
+  for (const id of params.ids ?? []) search.append('ids', id)
+  const query = search.toString()
+  return apiRequest<NewsLookupPage>(`/api/v1/admin/${club}/news/lookup${query ? `?${query}` : ''}`)
+}
+
 export function getAdminNewsById(club: string, id: string): Promise<AdminArticleDetailDto> {
   return apiRequest<AdminArticleDetailDto>(`/api/v1/admin/${club}/news/${id}`)
 }

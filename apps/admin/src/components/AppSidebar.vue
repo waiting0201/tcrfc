@@ -8,6 +8,8 @@ import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
 import { useCalendarPermissions } from '@/composables/useCalendarPermissions'
 import { useCrudPermissions, usePermission, useViewUpdatePermissions } from '@/composables/useCrudPermissions'
+import { useClubFeatures } from '@/composables/useClubFeatures'
+import { activeClubId } from '@/auth/clubAccess'
 
 const props = defineProps<{
   collapse: boolean
@@ -60,7 +62,32 @@ const benefitPerm = useCrudPermissions('member.benefit')
 const calendarSettingPerm = useViewUpdatePermissions('calendar.setting')
 const calendarSubscriptionView = usePermission('calendar.subscription.view')
 const calendarExport = usePermission('calendar.export')
+const comicPerm = useCrudPermissions('culture.comic')
+const fanEventPerm = useCrudPermissions('culture.fan_event')
+const shopProductPerm = useCrudPermissions('shop.product')
+const shopCollectionPerm = useCrudPermissions('shop.collection')
+const shopInventoryPerm = useViewUpdatePermissions('shop.inventory')
+const shopOrderPerm = useCrudPermissions('shop.order')
+const shopShipmentPerm = useViewUpdatePermissions('shop.shipment')
+const shopRefundPerm = useViewUpdatePermissions('shop.refund')
+const shopSettingPerm = useViewUpdatePermissions('shop.setting')
+const shopReportView = usePermission('shop.report.view')
+const shopCredentialView = usePermission('shop.credential.view')
+const shopDonationCodePerm = useCrudPermissions('shop.donation_code')
+const drawPerm = useViewUpdatePermissions('member.draw')
+const drawAnnounce = usePermission('member.draw.announce')
+const { comicAvailable } = useClubFeatures()
 const CHILD_VISIBILITY: Record<string, () => boolean> = {
+  // 藍鯨不設漫畫：切到藍鯨時側欄不顯示（後端也會回 403）
+  F1: () => comicAvailable.value && comicPerm.canView.value,
+  F2: () => fanEventPerm.canView.value,
+  S1: () => shopProductPerm.canView.value || shopCollectionPerm.canView.value,
+  S2: () => shopInventoryPerm.canView.value,
+  S3: () => shopOrderPerm.canView.value,
+  S4: () => shopShipmentPerm.canView.value,
+  S5: () => shopRefundPerm.canView.value,
+  S6: () => shopSettingPerm.canView.value || shopReportView.value || shopCredentialView.value || shopDonationCodePerm.canView.value,
+  K5: () => drawPerm.canView.value || drawAnnounce.value,
   P4: () => trialPerm.canView.value,
   K1: () => memberAccountPerm.canView.value,
   K2: () => membershipPerm.canView.value || planPerm.canView.value || memberSettingPerm.canView.value,
@@ -84,6 +111,8 @@ const CHILD_VISIBILITY: Record<string, () => boolean> = {
 }
 
 const visibleGroups = computed<NavGroup[]>(() => {
+  // 依賴目前站台，切換俱樂部時重新計算（藍鯨隱藏漫畫）
+  void activeClubId.value
   const isSuperAdmin = authUser.value?.isSuperAdmin ?? false
   return NAV_GROUPS.map((group) => ({
     ...group,

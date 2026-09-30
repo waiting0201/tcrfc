@@ -13,8 +13,7 @@ import PaymentsTab from './parts/PaymentsTab.vue'
 import NumberingTab from './parts/NumberingTab.vue'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
-import { listAdminSeasons } from '@/api/adminCompetitions'
-import { listMembershipPlans, type MembershipPlanListItemDto } from '@/api/adminMemberships'
+import { listMembershipPlans, listMembershipSeasons, type MembershipPlanListItemDto } from '@/api/adminMemberships'
 
 const TABS = ['memberships', 'plans', 'payments', 'numbering'] as const
 type TabName = (typeof TABS)[number]
@@ -47,13 +46,13 @@ const seasonsFromApi = ref<{ id: string; code: string }[]>([])
 const seasons = computed(() => {
   const map = new Map<string, string>()
   for (const s of seasonsFromApi.value) map.set(s.id, s.code)
-  // 球季清單端點有自己的權限；讀不到時，至少用方案上出現過的球季
+  // 球季清單來自會籍專用端點；萬一讀取失敗，至少用方案上出現過的球季
   for (const p of plans.value) if (!map.has(p.seasonId)) map.set(p.seasonId, p.seasonCode)
   return [...map.entries()].map(([id, code]) => ({ id, code })).sort((a, b) => b.code.localeCompare(a.code))
 })
 
 async function loadRefs() {
-  const [s, p] = await Promise.allSettled([listAdminSeasons(club.value), listMembershipPlans(club.value)])
+  const [s, p] = await Promise.allSettled([listMembershipSeasons(club.value), listMembershipPlans(club.value)])
   seasonsFromApi.value = s.status === 'fulfilled' ? s.value.map((x) => ({ id: x.id, code: x.code })) : []
   plans.value = p.status === 'fulfilled' ? p.value : []
 }

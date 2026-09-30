@@ -18,7 +18,7 @@ import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { enOrUndefined, imageIntent, nullIfBlank } from '@/api/adminCommon'
-import { listAdminNews } from '@/api/adminNews'
+import NewsPicker from '@/components/NewsPicker.vue'
 import {
   addActivationImage,
   createActivation,
@@ -65,7 +65,7 @@ const hasLight = ref(false)
 const contractStatus = ref<string>('none')
 
 const packageOptions = ref<SponsorPackageListItemDto[]>([])
-const articleOptions = ref<{ id: string; label: string }[]>([])
+const articleSeed = ref<{ id: string; label: string; status?: string }[]>([])
 
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
@@ -96,21 +96,13 @@ function apply(d: SponsorDetailDto) {
   hasDark.value = !!d.logoDarkKey
   hasLight.value = !!d.logoLightKey
   contractStatus.value = d.contractStatus
-  // 已勾選但選項清單沒有的文章（例如未載入到的舊文章）補進選項，避免多選框顯示成一串識別碼
-  for (const a of d.articles) {
-    if (!articleOptions.value.some((o) => o.id === a.id)) articleOptions.value.push({ id: a.id, label: a.titleZh || a.slug })
-  }
+  articleSeed.value = d.articles.map((a) => ({ id: a.id, label: a.titleZh || a.slug, status: a.status }))
 }
 
 async function load() {
   loadState.value = 'loading'
   try {
-    const [pkgs, news] = await Promise.all([
-      listSponsorPackages(club.value).catch(() => [] as SponsorPackageListItemDto[]),
-      listAdminNews(club.value, { pageSize: 100 }).catch(() => null),
-    ])
-    packageOptions.value = pkgs
-    articleOptions.value = (news?.items ?? []).map((n) => ({ id: n.id, label: n.titleZh || n.slug }))
+    packageOptions.value = await listSponsorPackages(club.value).catch(() => [] as SponsorPackageListItemDto[])
     if (!isCreate.value && sponsorId.value) {
       apply(await getSponsor(club.value, sponsorId.value))
       await loadActivations()
@@ -353,10 +345,8 @@ async function galleryReorder(ids: string[]) {
             </el-select>
           </el-form-item>
           <el-form-item label="贊助故事（關聯文章）">
-            <el-select v-model="form.articleIds" multiple filterable placeholder="選擇要連結的新聞與故事" style="width: 100%">
-              <el-option v-for="a in articleOptions" :key="a.id" :label="a.label" :value="a.id" />
-            </el-select>
-            <p class="sponsor-edit__hint">只列出最近的 100 篇文章；前台只顯示已發布的文章。</p>
+            <NewsPicker v-model="form.articleIds" :seed="articleSeed" :disabled="readOnly" />
+            <p class="sponsor-edit__hint">可用關鍵字搜尋所有文章；前台只顯示已發布的文章。</p>
           </el-form-item>
         </el-card>
 
