@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build api",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["build", "/property:GenerateFullPaths=true", "/consoleloggerparameters:NoSummary"],
+      "options": { "cwd": "${workspaceFolder}/apps/api" },
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run api",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["run"],
+      "options": { "cwd": "${workspaceFolder}/apps/api" },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "test api",
+      "type": "process",
+      "command": "dotnet",
+      "args": ["test"],
+      "options": { "cwd": "${workspaceFolder}/apps/api/Tcrfc.Api.Tests" },
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}

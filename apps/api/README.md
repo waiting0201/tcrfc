@@ -3661,6 +3661,30 @@ apps/api/Tcrfc.Api.Tests/    # S0-7d：自動化測試專案（獨立 .csproj，
 
 ### 直接用 dotnet 跑（不經 Docker，最快的開發迴圈）
 
+#### 一行版（2026-09-30 起，推薦）：設定檔自動讀取，不必 export
+
+```bash
+# 第一次（或換機器）：從 .env 的 MSSQL_DEV_SA_PASSWORD 與 deploy/dev/club.env 的 JWT_SIGNING_KEY_CLUB
+# 產生 apps/api/appsettings.Development.json（已存在不覆寫，要重產加 --force；不會印出密碼）
+apps/api/scripts/init-local-settings.sh
+
+cd apps/api && dotnet run                      # 用 Properties/launchSettings.json 的 http 設定檔：Development、http://127.0.0.1:5299
+cd apps/api/Tcrfc.Api.Tests && dotnet test     # 沒有 export 也能跑；連線字串取自同一份檔案
+```
+
+- `appsettings.Development.json` **已被 `.gitignore` 與 `.dockerignore` 排除**（含密碼與金鑰），納管的只有
+  佔位範本 `appsettings.Development.example.json`（手動建立時複製它）。
+- 鍵名沿用環境變數的扁平鍵：`CLUB_SQL_CONNECTION_STRING`、`JWT_SIGNING_KEY_CLUB`、`CORS_ALLOWED_ORIGINS`、
+  `DATA_PROTECTION_KEYS_PATH`。要連 Redis／Azurite 才另加 `REDIS_HOST`、`AZURE_BLOB_CONNECTION_STRING` 等
+  （⚠️ 測試主機也會讀這個檔，加了會改變測試預期，見 `docs/14-invariants.md`；建議這兩項仍用環境變數臨時帶入）。
+- **環境變數優先於檔案**（ASP.NET Core 預設順序），所以下面舊的 export 做法照舊有效，Docker 與正式環境不受影響。
+- `dotnet test`：`Fixtures/TestLocalSettings.cs` 只在環境變數未設定時，從該檔補 `CLUB_SQL_CONNECTION_STRING`；
+  `TestDatabaseGuard` 的「只准連 `tcrfc_club`」檢查不變。JWT 金鑰仍由各 fixture 以環境變數設為測試專用值（E-79）。
+- VS Code：開專案根目錄按 F5 選「啟動並偵錯 API」（`.vscode/launch.json`／`tasks.json`，納管）。
+
+#### 替代方案：export 環境變數（舊做法）
+
+
 ```bash
 cd apps/api
 dotnet build
@@ -3680,7 +3704,7 @@ export JWT_SIGNING_KEY_CLUB="$(grep '^JWT_SIGNING_KEY_CLUB=' ../../deploy/dev/cl
 # 建議：固定 Data Protection 金鑰目錄，否則每次重啟都會讓已設定兩階段驗證的帳號解不開（見下方）
 export DATA_PROTECTION_KEYS_PATH="$HOME/.tcrfc/dp-keys"
 
-dotnet run --no-launch-profile
+dotnet run --no-launch-profile   # 明確不用 launchSettings，全靠上面的 export（此時仍會讀 appsettings.Development.json 若存在，但環境變數優先）
 ```
 
 > 🔴 **不要直接 source `deploy/dev/club.env` 的 `CLUB_SQL_CONNECTION_STRING`。**

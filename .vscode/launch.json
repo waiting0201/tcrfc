@@ -1,0 +1,19 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "啟動並偵錯 API（127.0.0.1:5299）",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "build api",
+      "program": "${workspaceFolder}/apps/api/bin/Debug/net10.0/Tcrfc.Api.dll",
+      "cwd": "${workspaceFolder}/apps/api",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_URLS": "http://127.0.0.1:5299"
+      },
+      "stopAtEntry": false,
+      "console": "internalConsole"
+    }
+  ]
+}

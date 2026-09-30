@@ -41,6 +41,9 @@ apps/**/*.tsbuildinfo
 # docs/20-cicd.md §7.2：機密一律不進 git，只有 *.env.example 範本納管。
 deploy/dev/club.env
 deploy/dev/charity.env
+# apps/api 本機設定（連線字串、JWT 金鑰）：ASP.NET Core 在 Development 環境自動讀取。
+# 範本 appsettings.Development.example.json 納管，實際檔由 apps/api/scripts/init-local-settings.sh 產生。
+apps/api/appsettings.Development.json
 # deploy/local-ddl.sh 的輸出（db/*.sql 轉成本機 SQL Server 相容版），隨時可重跑重建
 deploy/dev/.local-ddl-output/
 

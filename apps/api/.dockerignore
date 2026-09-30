@@ -12,6 +12,10 @@ obj
 .env
 .env.*
 !.env.example
+
+# 本機設定含連線字串與金鑰，絕不可被 COPY 進映像檔（正式環境一律用環境變數注入）。
+appsettings.Development.json
+scripts
 .git
 .gitignore
 .vscode

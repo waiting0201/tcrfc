@@ -187,6 +187,7 @@
 ## 2. 階段 1 — 主站 MVP ＋ 多俱樂部地基（約 8–10 週）
 
 > 🟡 **下次開工先看這段（2026-09-25 收工時寫）**
+> 0. **本機 API 現在只要在 `apps/api` 執行 `dotnet run`、測試只要在 `apps/api/Tcrfc.Api.Tests` 執行 `dotnet test`**，設定從不入版控的 `apps/api/appsettings.Development.json` 自動讀取（新環境先跑 `apps/api/scripts/init-local-settings.sh`；2026-09-30）。
 > 1. **先請使用者啟動本機 API**（`http://127.0.0.1:5299`，指令見 `apps/api/README.md`「直接用 dotnet 跑」；圖片上傳驗收另需 `azurite-blob`）。agent 不自行啟動、不經手資料庫密碼（`docs/14`）。確認方式：`curl -s http://127.0.0.1:5299/api/v1/tcrfc/schedule` 要有真資料。
 > 2. **API 起來後，一次補做累積的瀏覽器實機驗收**（各列都已標「未驗證」）：`S1-12`（`content.editor.login` 看不到全站 SEO／轉址）、`S1-12a`／`S1-12b`（後台改 `llms.txt`、AI 爬蟲設定，前台跟著變）、`S1-12c`（缺漏報表實際操作）、`S1-12f`（兩站 JSON-LD 輸出與品牌外洩檢查）、**`S1-12d`（前台已改接 `useSiteFacts()` 讀後端公開端點，2026-09-29 收尾——本機只驗證過「API 打不到→退回快照」，「API 打得到→顯示真實資料」這條路徑，含藍鯨場地真實地址／官方全名與 `useSchemaOrgClub.ts` 四個新 JSON-LD 欄位，還沒有真實資料可核對）**、`S1-13`（英文路由取得英文資料）、**`S1-14`（首頁 Hero／最新賽事／近期賽事／最新消息四個區塊在有真實資料時的實際畫面，見 `apps/web/README.md`「S1-14」節「未驗證項目」）**、**`S1-17`（7 張表單的 `POST .../submissions` 送出、新聞標籤篩選互動、`academy`／`player-stories` 兩分類「真的查到 0 筆」與「API 打不到降級」的區分，見 `apps/web/README.md`「S1-17」節「未驗證項目」）**、**`S1-18`（FAQ 搜尋／有用回饋 👍👎／單題深層連結三段互動在有真實問答資料下的實際行為，回饋 `POST` 是否真的被 `apps/api` 接受寫入，見 `apps/web/README.md`「S1-18」節「未驗證項目」——`faqs` 表目前也還沒有真實種子問答，這件事本身也要等後台編輯建立題目才補得齊）**、**`S1-18a`（`GEO-06` FAQPage Schema 在有真實問答資料下的完整輸出，只用臨時 fixture 手動驗證過一次，見 `apps/web/README.md`「S1-18a」節「驗證」——跟 `S1-18` 同一個 `faqs` 表種子資料缺口，補做時一起看）**。
 > 3. `S1-14`（首頁九大區塊、關於台中磐石）**已完成主體並接上真實 API（2026-09-29）**，剩真實資料驗收（見上一點）與兩項待裁決事項（藍鯨賽事區塊、磐石舊比分回填，見 `STATUS.md` S1-14 列）。

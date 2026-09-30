@@ -27,7 +27,8 @@ internal static class TestDatabaseGuard
     public const string RequiredDatabaseName = "tcrfc_club";
 
     /// <summary>
-    /// 讀取、驗證並回傳 <c>CLUB_SQL_CONNECTION_STRING</c>。任何一關沒過都會丟
+    /// 讀取、驗證並回傳 <c>CLUB_SQL_CONNECTION_STRING</c>（環境變數優先，其次是 <see cref="TestLocalSettings"/>
+    /// 從本機設定檔補上的值）。任何一關沒過都會丟
     /// <see cref="InvalidOperationException"/>，讓 xUnit 把使用這個 fixture 的每一項測試都
     /// 回報為「失敗」並附上這裡的訊息，不會悄悄跳過看起來像通過。
     /// </summary>
@@ -37,10 +38,10 @@ internal static class TestDatabaseGuard
         if (string.IsNullOrWhiteSpace(connectionString))
         {
             throw new InvalidOperationException(
-                "CLUB_SQL_CONNECTION_STRING 未設定，無法執行整合測試。請先執行 "
-                + $"./db/seed/setup-club-db.sh 建立並灌種子到本機網站庫（{RequiredDatabaseName}），"
-                + "再把 CLUB_SQL_CONNECTION_STRING 指向它後重跑 "
-                + "dotnet test（見 apps/api/README.md「怎麼跑」）。");
+                "CLUB_SQL_CONNECTION_STRING 未設定（環境變數與 apps/api/appsettings.Development.json 都沒有），"
+                + "無法執行整合測試。請執行 apps/api/scripts/init-local-settings.sh 產生本機設定檔，"
+                + $"並確認已用 ./db/seed/setup-club-db.sh 建立並灌種子到本機網站庫（{RequiredDatabaseName}）"
+                + "（見 apps/api/README.md「怎麼跑」）。");
         }
 
         string databaseName;
