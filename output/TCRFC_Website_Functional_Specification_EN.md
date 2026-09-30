@@ -1,9 +1,14 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.14
-> **Date**: 2026-08-14 (v3.14 revision: 2026-09-24)
+> **Document version**: v3.15
+> **Date**: 2026-08-14 (v3.15 revision: 2026-09-30)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.14*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.15*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.15 revision summary — changing the password and two-factor authentication (2FA) are optional for admin accounts; the Blue Whale scope question is narrowed**
+> **No new features; this tightens the sign-in flow and one open question.**
+> ① **Admin sign-in does not force a first-login password change and does not force 2FA, in production as well**: account holders may change their password and enable 2FA themselves on the account security page; **an account that has enabled 2FA must still enter the verification code at sign-in**. Where: 4.10 J1, section 8 non-functional requirements (Security row).
+> ② **Section 10 item 35 is narrowed to the Blue Whale core-value tags**: draws (K5) and partner stores (K4) follow the Blue Whale specification's section 1.3 general rule; the Blue Whale site has no comic (confirmed by the client on 2026-09-30). Where: section 10 item 35.
 
 > **v3.14 revision summary — match status gains "cancelled" in 4.3 C4 and the 5.1 `Match` type; B3 hero carousel gains draft and display-period state semantics**
 > **Both changes are state-semantics or field-level additions; no new functional scope.**
@@ -1225,6 +1230,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 **J1 Accounts**
 - Create / disable accounts, password policy, two-factor authentication (2FA)
+- **Changing the password and 2FA are optional**: sign-in does **not** force a first-login password change and does **not** force 2FA (production included); account holders may change the password and enable 2FA themselves on the account security page, and **an account that has enabled 2FA must enter the verification code at sign-in**
 - **New in v3.0**: set an account's **default club** `primary_club_id` (the site switcher's initial value)
 
 **J2 Roles and permissions**
@@ -1709,7 +1715,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Performance | Homepage LCP < 2.5s (4G), Lighthouse Performance ≥ 85 |
 | Compatibility | Latest two versions of Chrome / Safari / Edge / Firefox; iOS 15+, Android 10+ |
 | Accessibility | WCAG 2.1 AA |
-| Security | Forced HTTPS, 2FA on the admin, CSRF / XSS / SQL injection protection, upload type and size limits, optional admin IP allowlist; **member system**: password hashing, session timeout, lockout after failed sign-ins, brute-force protection; **shop**: checkout redirected to the payment provider's hosted page or SDK, **no card data stored**, payment callbacks signature-verified and **idempotent**, order-lookup tokens non-derivable and time-limited, dual authorisation for refunds and exports, **the runtime calling the payment API must have a fixed egress IP registered in the LINE Pay merchant portal** |
+| Security | Forced HTTPS, optional 2FA on the admin (enabled by the account holder), CSRF / XSS / SQL injection protection, upload type and size limits, optional admin IP allowlist; **member system**: password hashing, session timeout, lockout after failed sign-ins, brute-force protection; **shop**: checkout redirected to the payment provider's hosted page or SDK, **no card data stored**, payment callbacks signature-verified and **idempotent**, order-lookup tokens non-derivable and time-limited, dual authorisation for refunds and exports, **the runtime calling the payment API must have a fixed egress IP registered in the LINE Pay merchant portal** |
 | Personal data | Registrations, enquiries, **member data** (including LINE link identifiers), and **order recipient data** stored encrypted, with a retention policy and a data-subject deletion process; **minors' data requires guardian consent**. **Transaction records and invoices carry a statutory retention duty that takes precedence over deletion requests**: on account deletion an order keeps only the legally required fields and the rest is cleared |
 | Availability | 99.5% uptime target; daily backups retained off-site for 30 days |
 | Extensibility | Content types must be extensible (new age groups / seasons / program types / languages without code changes); **adding a third club must require only a new `Club` record and its authorisations, never a change to the table structure** (the `club_id` dimension and `AdminUserClub` are designed for exactly this); **the shop's payment provider, invoice provider, and shipping methods must be swappable — no provider's specifics may be hard-wired into the order flow** |
@@ -1839,7 +1845,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 32. **Member numbering**: does `member_no` stay globally unique at the account level, or does each club get its own membership numbering? **This decides draw serial-number allocation, the `DrawRoster` unique key and what appears on the membership card.**
 33. **Fulfilment staffing and stock location for Blue Whale goods**: who picks and packs, and where is the stock held? **This decides whether Blue Whale merchandise can be sold at all, and what delivery estimate the public site can promise** (cf. item 25).
 34. **Who holds the Blue Whale admin accounts, and their authorisation dates**: an empty `AdminUserClub.expires_on` means an indefinite grant. If a partner-club account is ever provisioned, it should track the partnership term so that it lapses automatically.
-35. **Which sections the Blue Whale site includes**: do draws (K5), the comic (F), partner stores (K4) and the five core values apply to Blue Whale? **This affects scope estimation and pricing.**
+35. **Blue Whale core-value tags**: the tag mechanism follows the Blue Whale specification's section 1.3 general rule; still to confirm is whether the tag wording reuses TCRFC's five phrases or Blue Whale sets its own (Blue Whale specification section 10 item 13). **This affects scope estimation and pricing.**
 36. **Shared content and canonical attribution**: articles with a null `club_id` appear on both sites — which site owns the canonical URL? The recommendation is this site, with the Blue Whale site linking across; to be confirmed.
 37. **The Blue Whale domain**: name, who owns it, who manages DNS. ⚠️ If the app is to support deep links into Blue Whale content, **that domain must be controlled by a party who can place** `.well-known/apple-app-site-association` and `assetlinks.json` on it.
 38. **The three Blue Whale brand assets still outstanding**: the **vector** logo master (with a dark variant), **print colour references** (PANTONE / CMYK), and the **official English name**. Web colour values are settled (sampled from the crest) and the raster master already covers @2x / @3x rasters, the favicon and the OG image — values and status in the Blue Whale specification §8.1 and §8.2. **The vector file, when obtained, must not be a redrawn mark, a screenshot trace, or an upscaled raster**; where an asset is still missing the corresponding areas are not rendered, with no placeholder imagery and no empty logo box.
