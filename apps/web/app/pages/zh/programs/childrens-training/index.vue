@@ -49,10 +49,13 @@ const { data: programDetail } = await useFetch(
   `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
   { query: { lang: locale.value }, immediate: !!firstProgram.value },
 )
-/** 真實梯次資料（星期時段待客戶提供，目前 API 沒有「星期幾」欄位，週期課表用
- * `weeklySchedule` 自由文字欄位顯示，不強行拆欄）。空陣列＝目前沒有已建立的梯次，
+/** 真實梯次資料（週期課表來自 `weeklySchedule` JSON，經 `formatWeeklySchedule` 轉成可讀文字）。空陣列＝目前沒有已建立的梯次，
  * 樣板落回既有示意空表列，不是接失敗。 */
 const sessions = computed(() => programDetail.value?.sessions ?? [])
+/** `weeklySchedule` 是 JSON 文字，交給共用格式化函式（依路由語系）；解析不了顯示「—」並在開發環境警告。 */
+function formatSchedule(raw: string | null | undefined): string {
+  return formatWeeklySchedule(raw, locale.value, import.meta.dev ? (m) => console.warn(`[weekly-schedule] ${m}`) : undefined) ?? '—'
+}
 
 // G-12 常見問題快捷區塊：program_detail 掛載點（db/seed FAQ_EMBED_SLOTS「課程詳情頁
 // （5.x 各課程）」），四個固定掛載點之一，理由見 useFaqEmbed.ts 檔頭。
@@ -200,7 +203,7 @@ useCourseSchema(
         <tbody>
           <tr v-if="sessions.length === 0"><td colspan="3" class="is-pending">梯次資訊準備中</td></tr>
           <tr v-for="s in sessions" :key="s.id">
-            <td>{{ s.weeklySchedule ?? '—' }}</td>
+            <td>{{ formatSchedule(s.weeklySchedule) }}</td>
             <td>{{ s.enrolledCount }}{{ s.capacity ? ` / ${s.capacity}` : '' }} 人</td>
             <td>{{ s.venueName ?? primaryVenue.nameZh }}</td>
           </tr>

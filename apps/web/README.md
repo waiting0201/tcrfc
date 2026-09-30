@@ -2965,6 +2965,20 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
 方案數與編號如上，bw 三頁「漫畫」0 筆；`check-club-brand-leak.mjs`（bw 全站 146 路由）與
 `check-heading-structure.mjs` 通過；`npm run lint` 0 錯誤 393 警告、`npm run build` 通過。
 
+## 梯次時段 `weekly_schedule` 格式化（2026-09-30，`frontend-architect`）
+
+`sessions.weekly_schedule` 是 JSON，API 原樣以字串輸出，前台原先直接印出 JSON 原文。
+- **共用函式**：`shared/utils/weekly-schedule.ts` 的 `formatWeeklySchedule(raw, locale, onWarn?)`，依路由語系輸出。
+  已知形狀：`{"mon":"18:00-19:30"}`、區間鍵 `{"mon-fri":"09:00-16:00"}`、值為自由文字 `{"mon":"1.5 小時"}`（藍鯨舊站原文，原樣顯示、不翻譯）；
+  另容許值為陣列（同日多時段）與逗號多天鍵。後台只驗證「合法 JSON」不限形狀，故解析寬鬆。
+- **降級**：空值回 `null`；有值卻解析不了（非 JSON、非物件、未知星期鍵、值不是時段文字）也回 `null`，頁面顯示「—」，
+  **絕不輸出原始 JSON**，開發環境（`import.meta.dev`）以 `console.warn` 警告。
+- **使用處**：目前只有 `app/pages/zh/programs/childrens-training/index.vue`（5.1）顯示 `weeklySchedule`；其他課程頁尚未顯示梯次時段，之後接上請呼叫同一函式。
+- **Course 結構化資料（S1-20）**：`buildCourseSchemaNode` 目前不輸出任何梯次或時段（無 `hasCourseInstance`），故無需改動；
+  日後若要輸出，正確表示為 `hasCourseInstance.courseSchedule`（schema.org `Schedule`：`byDay`／`startTime`／`endTime`／`repeatFrequency`），
+  不可塞入本函式的中文顯示字串。
+- **檢查**：`npm run lint:weekly-schedule`（`scripts/check-weekly-schedule.mjs`，20 組固定輸入，已併入 `npm run lint`）。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格
