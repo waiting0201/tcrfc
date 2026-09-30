@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.16
-> **Date**: 2026-08-14 (v3.16 revision: 2026-09-30)
+> **Document version**: v3.17
+> **Date**: 2026-08-14 (v3.17 revision: 2026-09-30)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.16*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.17*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.17 revision summary — the admin account security page does not offer a two-factor authentication (2FA) setup entry for now**
+> **No new features; this tightens the sign-in flow description.** The admin interface has no entry for enabling 2FA; the system keeps the 2FA capability so it can be opened up later; an account that has already enabled 2FA must still enter the verification code at sign-in; account holders can still change their own password. Landing points: 4.10 J1, section 8 non-functional requirements (Security row).
 
 > **v3.16 revision summary — the admin's primary colour follows the club being operated**
 > **No new functional scope; a visual addition to the admin general rules.** When the site switcher is set to Taichung Blue Whale, the admin's primary colour is the Blue Whale brand colour; switching back to Taichung Rock restores the Rock brand colour. The values reuse each club's already-settled brand colours. Where: 4.0 site switcher.
@@ -1232,8 +1235,9 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ### 4.10 J. System
 
 **J1 Accounts**
-- Create / disable accounts, password policy, two-factor authentication (2FA)
-- **Changing the password and 2FA are optional**: sign-in does **not** force a first-login password change and does **not** force 2FA (production included); account holders may change the password and enable 2FA themselves on the account security page, and **an account that has enabled 2FA must enter the verification code at sign-in**
+- Create / disable accounts, password policy
+- **Changing the password is optional**: sign-in does **not** force a first-login password change (production included); account holders may change the password themselves on the account security page
+- **The admin interface does not offer a two-factor authentication (2FA) setup entry for now**: the account security page shows no option to enable 2FA; the system keeps the 2FA capability so it can be opened up later; **an account that has already enabled 2FA must still enter the verification code at sign-in**
 - **New in v3.0**: set an account's **default club** `primary_club_id` (the site switcher's initial value)
 
 **J2 Roles and permissions**
@@ -1718,7 +1722,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 | Performance | Homepage LCP < 2.5s (4G), Lighthouse Performance ≥ 85 |
 | Compatibility | Latest two versions of Chrome / Safari / Edge / Firefox; iOS 15+, Android 10+ |
 | Accessibility | WCAG 2.1 AA |
-| Security | Forced HTTPS, optional 2FA on the admin (enabled by the account holder), CSRF / XSS / SQL injection protection, upload type and size limits, optional admin IP allowlist; **member system**: password hashing, session timeout, lockout after failed sign-ins, brute-force protection; **shop**: checkout redirected to the payment provider's hosted page or SDK, **no card data stored**, payment callbacks signature-verified and **idempotent**, order-lookup tokens non-derivable and time-limited, dual authorisation for refunds and exports, **the runtime calling the payment API must have a fixed egress IP registered in the LINE Pay merchant portal** |
+| Security | Forced HTTPS, admin 2FA (capability retained; no setup entry in the interface for now), CSRF / XSS / SQL injection protection, upload type and size limits, optional admin IP allowlist; **member system**: password hashing, session timeout, lockout after failed sign-ins, brute-force protection; **shop**: checkout redirected to the payment provider's hosted page or SDK, **no card data stored**, payment callbacks signature-verified and **idempotent**, order-lookup tokens non-derivable and time-limited, dual authorisation for refunds and exports, **the runtime calling the payment API must have a fixed egress IP registered in the LINE Pay merchant portal** |
 | Personal data | Registrations, enquiries, **member data** (including LINE link identifiers), and **order recipient data** stored encrypted, with a retention policy and a data-subject deletion process; **minors' data requires guardian consent**. **Transaction records and invoices carry a statutory retention duty that takes precedence over deletion requests**: on account deletion an order keeps only the legally required fields and the rest is cleared |
 | Availability | 99.5% uptime target; daily backups retained off-site for 30 days |
 | Extensibility | Content types must be extensible (new age groups / seasons / program types / languages without code changes); **adding a third club must require only a new `Club` record and its authorisations, never a change to the table structure** (the `club_id` dimension and `AdminUserClub` are designed for exactly this); **the shop's payment provider, invoice provider, and shipping methods must be swappable — no provider's specifics may be hard-wired into the order flow** |

@@ -110,7 +110,7 @@ N3 的異常佇列（行 517）也把「對帳差異」列為三類待人工處�
 
 | 表 | 用途 | 標記 |
 |---|---|---|
-| `AdminUser` | 後台帳號。**`username` 是唯一登入識別不是 Email**；2FA 為帳號持有人自行選用（不強制，已啟用者登入仍須驗證碼；客戶 2026-09-30 裁決，比照主站）；`must_change_password` 預設 `0`，僅供管理員要求某帳號改密碼，不做首次登入強制；密碼雜湊優先 Argon2id 次選 bcrypt | 🔒 |
+| `AdminUser` | 後台帳號。**`username` 是唯一登入識別不是 Email**；2FA 不強制，獨立後台介面暫不提供設定入口（系統能力保留、日後可開放；已啟用者登入仍須驗證碼；使用者 2026-09-30 裁決，比照主站 v3.17）；`must_change_password` 預設 `0`，僅供管理員要求某帳號改密碼，不做首次登入強制；密碼雜湊優先 Argon2id 次選 bcrypt | 🔒 |
 | `AdminRole` | 角色。**沿用主站 §6 的九個角色**，`is_system = true` 的種子資料 | |
 | `AdminUserRole` | `(admin_user_id, admin_role_id)`，多角色取聯集 | |
 | `Permission` | 權限碼字典 ＋ `is_restricted`／`sysadmin_only` | |
