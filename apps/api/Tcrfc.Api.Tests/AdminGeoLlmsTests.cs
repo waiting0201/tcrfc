@@ -10,7 +10,7 @@ using Xunit;
 namespace Tcrfc.Api.Tests;
 
 /// <summary>
-/// `GEO-01` <c>llms.txt</c> 內容維護（S1-12a）。打真正的 HTTP 管線與真正的 <c>tcrfc_club_dev</c>，
+/// `GEO-01` <c>llms.txt</c> 內容維護（S1-12a）。打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>，
 /// 跟這個測試專案既有的紀律一致（<c>AdminSeoTests</c> 同一套）。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]

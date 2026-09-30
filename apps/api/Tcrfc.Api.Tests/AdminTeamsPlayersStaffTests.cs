@@ -15,7 +15,7 @@ namespace Tcrfc.Api.Tests;
 /// <summary>
 /// S1-7：C1（球隊）／C2（球員）／C3（教練與團隊成員）後台 CRUD ＋ 前台公開唯讀端點——
 /// 不含圖片上傳的部分（授權、驗證、共同資料唯讀）。打真正的 HTTP 管線與真正的
-/// <c>tcrfc_club_dev</c>，形狀比照 <c>AdminClubsAndCompetitionsTests</c>（同一批 S1-3 續作的
+/// <c>tcrfc_club</c>，形狀比照 <c>AdminClubsAndCompetitionsTests</c>（同一批 S1-3 續作的
 /// 既有先例）。**含圖片上傳的成功案例**在 <see cref="AdminTeamsPlayersStaffUploadTests"/>
 /// （需要真實 Azurite，另開一個 collection——理由見該類別上的說明）。
 ///

@@ -12,7 +12,7 @@ namespace Tcrfc.Api.Tests;
 /// 🔴🔴🔴 2026-09-24（`S1-8` 續作，回應 <c>docs/18-work-errors.md</c> <c>E-52</c>）：
 /// <see cref="UserFacingMessageContentTests"/> 是原始碼靜態掃描，覆蓋面廣但看不到「JSON 序列化
 /// 之後實際送到瀏覽器的位元組長什麼樣子」。這支測試改用**代表性端點實打**——真正的 HTTP 管線、
-/// 真正的 <c>tcrfc_club_dev</c>，對每一個已知會回傳 400／403 的路徑，直接檢查回應本文，
+/// 真正的 <c>tcrfc_club</c>，對每一個已知會回傳 400／403 的路徑，直接檢查回應本文，
 /// 兩支測試互補（各自的涵蓋範圍與邊界見 <see cref="UserFacingMessageContentTests"/> 類別上的
 /// 完整說明），缺一不可：靜態掃描能看到「還沒有任何測試打到的程式碼路徑」，這支看到的是
 /// 「同一段程式碼經過完整 middleware／JSON 序列化管線之後，真的長什麼樣子」。

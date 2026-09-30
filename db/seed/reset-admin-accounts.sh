@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # db/seed/reset-admin-accounts.sh — 把種子測試帳號的密碼／2FA 狀態／鎖定計數還原成初始值
-# （只還原 tcrfc_club_dev，不動 tcrfc_charity_dev）
+# （只還原 tcrfc_club，不動 tcrfc_charity）
 #
 # 🔴 為什麼需要這支腳本：db/seed/apply-seed.sh 的「IF NOT EXISTS 才 INSERT」冪等策略對這件事
 # 沒有幫助——帳號列本來就已經存在，正常種子邏輯永遠不會回頭 UPDATE 它。但密碼、2FA 狀態、
@@ -10,11 +10,11 @@
 #
 # 做法：呼叫 generate-club-seed-sql.py --reset-admin-accounts 產生一組只含 UPDATE（不含
 # INSERT）的陳述式，只作用在 db/seed/generate-club-seed-sql.py 的 ADMIN_USERS 清單裡已經存在
-# 的帳號列，套用到本機 tcrfc_club_dev。角色指派（admin_user_roles）與俱樂部授權
+# 的帳號列，套用到本機 tcrfc_club。角色指派（admin_user_roles）與俱樂部授權
 # （admin_user_clubs）不受影響——那兩張表本來就是「新增才會種」，不會被端對端驗收弄髒。
 #
 # 安全模型與 db/seed/apply-seed.sh 逐字比照：目標容器可由 LOCAL_MSSQL_CONTAINER 環境變數指定
-# （預設 "sqlserver"），目標資料庫名稱寫死只允許 tcrfc_club_dev 一個。
+# （預設 "sqlserver"），目標資料庫名稱寫死只允許 tcrfc_club 一個。
 #
 # 用法：
 #   ./db/seed/reset-admin-accounts.sh            產生並套用
@@ -32,7 +32,7 @@ OUT_FILE="${OUT_DIR}/reset-admin-accounts.local.sql"
 LOCAL_MSSQL_CONTAINER="${LOCAL_MSSQL_CONTAINER:-sqlserver}"
 
 # ⛔ 本腳本唯一允許寫入的資料庫，比照 apply-seed.sh 的白名單模型，理由同該檔案的說明。
-readonly TARGET_DATABASE="tcrfc_club_dev"
+readonly TARGET_DATABASE="tcrfc_club"
 
 mkdir -p "${OUT_DIR}"
 

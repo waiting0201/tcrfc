@@ -9,7 +9,7 @@ namespace Tcrfc.Api.Tests;
 /// <summary>
 /// 網址名稱（slug）保留字與格式驗證的回歸測試（見 <see cref="Tcrfc.Api.Features.AdminNews.SlugPolicy"/>）。
 /// 涵蓋：09 個保留字逐一擋下、大小寫變形、建立與更新兩條路徑、以及合法網址名稱不受影響。
-/// 打真正的 HTTP 管線、真正的 <c>tcrfc_club_dev</c>，跟這個測試專案既有的紀律一致。
+/// 打真正的 HTTP 管線、真正的 <c>tcrfc_club</c>，跟這個測試專案既有的紀律一致。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)

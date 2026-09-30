@@ -14,7 +14,7 @@ namespace Tcrfc.Api.Tests;
 /// <summary>
 /// S1-10：`G1`（表單設計器）／`G2`（詢問收件匣）後台 CRUD ＋ 10 表單中心的公開讀取與送出端點。
 /// 形狀比照 <c>AdminProgramsSessionsRegistrationsTests</c>（同一批打真正 HTTP 管線與真正
-/// <c>tcrfc_club_dev</c> 的既有先例）。
+/// <c>tcrfc_club</c> 的既有先例）。
 ///
 /// 種子測試帳號（見 apps/api/README.md「種子測試帳號」）：
 /// <c>customer.service@tcrfc.test</c>（<c>customer_service_admin</c>，僅授權 <c>tcrfc</c>，

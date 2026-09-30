@@ -9,7 +9,7 @@ using Xunit;
 
 namespace Tcrfc.Api.Tests;
 
-/// <summary>J2 角色與權限端對端測試：打真正的 HTTP 管線與真正的 <c>tcrfc_club_dev</c>。</summary>
+/// <summary>J2 角色與權限端對端測試：打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>。</summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminRolesTests(AdminWriteApiFixture fixture)
 {

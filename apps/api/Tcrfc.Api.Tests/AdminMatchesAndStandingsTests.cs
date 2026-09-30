@@ -15,7 +15,7 @@ namespace Tcrfc.Api.Tests;
 /// <summary>
 /// S1-8：C4（賽程與賽果／積分榜）後台 CRUD ＋ CSV 批次匯入 ＋ **列級授權強制**
 /// （<c>role_permissions.scope_type</c> 的 <c>own_teams</c>／<c>academy_only</c>，
-/// <c>Security/TeamRowScope.cs</c>）。打真正的 HTTP 管線與真正的 <c>tcrfc_club_dev</c>，
+/// <c>Security/TeamRowScope.cs</c>）。打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>，
 /// 形狀比照 <c>AdminTeamsPlayersStaffTests</c>／<c>AdminClubsAndCompetitionsTests</c>。
 ///
 /// 種子資料現況（見 apps/api/README.md「種子測試帳號」）：<c>tcrfc</c> 只有 <c>D1</c>

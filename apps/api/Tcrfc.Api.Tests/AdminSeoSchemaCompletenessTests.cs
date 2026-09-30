@@ -20,7 +20,7 @@ namespace Tcrfc.Api.Tests;
 /// <see cref="AdminSeoSchemaCompletenessRepository"/>）與已接上輸出的兩個公開型別
 /// （<c>Article</c>／<c>SportsEvent</c> 的 <c>schemaEligible</c> 欄位）。判斷邏輯本身的純單元測試
 /// 在 <see cref="SchemaCompletenessTests"/>，這裡只驗證「資料庫查出來的值有沒有正確接上判斷、
-/// 正反例會不會如預期出現／消失」。打真正的 HTTP 管線與真正的 <c>tcrfc_club_test</c>，不 mock。
+/// 正反例會不會如預期出現／消失」。打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>，不 mock。
 /// 🔴 用 <see cref="AdminWriteAzuriteEnabledApiFixture"/>（不是普通的 <see cref="AdminWriteApiFixture"/>）：
 /// Article 正反例要真的上傳一張 OG 圖片，跟 <c>AdminSeoImageTests</c> 同一個理由，需要真正的
 /// Azurite 容器（<c>IImageStorageService</c> 不 mock）。

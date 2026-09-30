@@ -8,7 +8,7 @@ namespace Tcrfc.Api.Tests;
 
 /// <summary>
 /// 🔴🔴🔴 任務要求的「四種擋下情境」逐一有專屬測試，打真正的 HTTP 管線與真正的
-/// <c>tcrfc_club_dev</c>，反例用真實的攻擊形狀（偽造／過期／越權的權杖與授權組合），
+/// <c>tcrfc_club</c>，反例用真實的攻擊形狀（偽造／過期／越權的權杖與授權組合），
 /// 不是隨便塞錯值（docs/18-work-errors.md <c>E-39</c> 的教訓）。種子帳號與其授權組合見
 /// <c>db/seed/generate-club-seed-sql.py</c>「18.4 admin_users」。
 /// </summary>

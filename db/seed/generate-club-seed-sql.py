@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# db/seed/generate-club-seed-sql.py — 讀 site/src/data/*.json，產生主站庫（tcrfc_club_dev）的種子 T-SQL
+# db/seed/generate-club-seed-sql.py — 讀 site/src/data/*.json，產生主站庫（tcrfc_club）的種子 T-SQL
 #
 # 為什麼用「讀 JSON 產生 SQL」而不是把資料寫死在腳本裡：
 #   site/src/data/*.json 含球員姓名、教練姓名等個資性質欄位。這些 JSON 檔本身已經納入版控
@@ -28,7 +28,7 @@
 # 🔴 --reset-admin-accounts（2026-09-24 新增，回應前端 agent 端對端驗收後種子帳號狀態
 # 漂移的問題）：
 #   python3 db/seed/generate-club-seed-sql.py --reset-admin-accounts > db/seed/.generated/reset-admin-accounts.local.sql
-#   （或直接執行 db/seed/reset-admin-accounts.sh，會自動呼叫本腳本並套用到 tcrfc_club_dev）
+#   （或直接執行 db/seed/reset-admin-accounts.sh，會自動呼叫本腳本並套用到 tcrfc_club）
 #
 #   一般模式的「IF NOT EXISTS 才 INSERT」對「密碼、2FA 狀態、鎖定計數」這類**本來就會被
 #   正常使用改掉**的欄位沒有用——帳號列本來就已經存在，正常種子邏輯永遠不會回頭 UPDATE
@@ -170,8 +170,8 @@ emit("-- =======================================================================
 emit("-- db/seed/.generated/club-seed.local.sql — 自動產生，請勿手動編輯")
 emit("-- 產生自：db/seed/generate-club-seed-sql.py（來源：site/src/data/*.json）")
 emit("-- 冪等：可重複執行，每個實體用業務自然鍵判斷是否已存在。")
-emit("-- 目標資料庫：tcrfc_club_dev（本機既有 sqlserver 容器內，2026-09-21 起與 mssql-dev 合併），")
-emit("-- 不得對到 tcrfc_charity_dev，也不得對到同一個 instance 裡其他專案的資料庫。")
+emit("-- 目標資料庫：tcrfc_club（本機既有 sqlserver 容器內，2026-09-21 起與 mssql-dev 合併），")
+emit("-- 不得對到 tcrfc_charity，也不得對到同一個 instance 裡其他專案的資料庫。")
 emit("-- ============================================================================")
 emit()
 emit("-- SET 選項是連線層級、跨 GO 批次仍然有效（不像變數會被 GO 清空）。")

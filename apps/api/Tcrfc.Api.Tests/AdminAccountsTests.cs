@@ -11,7 +11,7 @@ namespace Tcrfc.Api.Tests;
 
 /// <summary>
 /// J1 帳號管理（含掛在帳號底下的 J4 俱樂部授權）端對端測試：打真正的 HTTP 管線與真正的
-/// <c>tcrfc_club_dev</c>。種子帳號見 <c>db/seed/generate-club-seed-sql.py</c>「18.4 admin_users」。
+/// <c>tcrfc_club</c>。種子帳號見 <c>db/seed/generate-club-seed-sql.py</c>「18.4 admin_users」。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)

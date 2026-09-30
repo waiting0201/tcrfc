@@ -159,7 +159,7 @@ public sealed class CacheBehaviorTests(RedisEnabledApiFixture fixture)
         Assert.NotNull(bwResult);
         Assert.True(tcrfcResult!.TotalCount > 0);
         // 🔴 2026-09-22：原本這裡斷言 bw 一定是 0 筆，但 BW-0g（藍鯨舊站資料匯入，見 git log）
-        // 是獨立且合法的任務，已經把真實藍鯨球員資料灌進 tcrfc_club_dev，bw 現在也有球員了。
+        // 是獨立且合法的任務，已經把真實藍鯨球員資料灌進 tcrfc_club，bw 現在也有球員了。
         // 改成驗證「兩邊球員 id 不重疊」——不論資料量怎麼變都能驗證 club_id 範圍真的有隔離，
         // 跟下面「Redis key 本身不重疊」是同一件事的兩種驗證角度（HTTP 回應層 ＋ 快取層）。
         var tcrfcIds = tcrfcResult.Items.Select(p => p.Id).ToHashSet();

@@ -13,7 +13,7 @@ namespace Tcrfc.Api.Tests;
 
 /// <summary>
 /// S1-12：H 搜尋與 AI 能見度——全站 SEO 預設／追蹤碼、301 轉址管理、孤立頁面偵測，
-/// 以及對應的公開讀取端點。打真正的 HTTP 管線與真正的 <c>tcrfc_club_dev</c>，不 mock，
+/// 以及對應的公開讀取端點。打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>，不 mock，
 /// 跟這個測試專案既有的紀律一致。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
@@ -59,7 +59,7 @@ public sealed class AdminSeoTests(AdminWriteApiFixture fixture)
     }
 
     /// <summary>
-    /// 🔴 驗收退回後補做（2026-09-25）：這個測試會寫入 <c>tcrfc_club_dev</c> 的 <c>settings</c>／
+    /// 🔴 驗收退回後補做（2026-09-25）：這個測試會寫入 <c>tcrfc_club</c> 的 <c>settings</c>／
     /// <c>settings_i18n</c>——那是本機開發環境同一份 API 唯一用的資料庫，寫入的值會立刻反映在
     /// 公開端點（本測試也依此斷言），若不還原，會**永久改變本機前台實際顯示的標題樣板**。測試前
     /// 先讀出原值，測試後（含斷言失敗時）用 <c>finally</c> 還原——這批設定目前沒有「刪除」語意
@@ -432,7 +432,7 @@ public sealed class AdminSeoTests(AdminWriteApiFixture fixture)
         publishResponse.EnsureSuccessStatusCode();
         // 🔴 發布會改變 updated_at——刪除時的並行權杖要用發布後的值，不是建立時的舊值，
         // 否則 DELETE 端點的 expectedUpdatedAt 對不起來會回 409，且這裡完全沒檢查回應狀態碼，
-        // 失敗會被靜默吞掉、在 tcrfc_club_dev 留下孤兒測試文章（已實測抓到，見 docs/18 E-62）。
+        // 失敗會被靜默吞掉、在 tcrfc_club 留下孤兒測試文章（已實測抓到，見 docs/18 E-62）。
         var published = (await publishResponse.Content.ReadFromJsonAsync<AdminArticleDetailDto>(TestJson.Options))!;
 
         try

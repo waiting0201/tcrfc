@@ -16,7 +16,7 @@ namespace Tcrfc.Api.Tests;
 /// 計時器，見該類別檔頭說明）。
 ///
 /// 🔴 這批測試會跟「真的在跑」的 <see cref="ScheduledPublishBackgroundService"/> 共用同一個
-/// <c>tcrfc_club_dev</c>——<c>AdminWriteApiFixture</c> 啟動 <c>Program</c> 時，這個 hosted
+/// <c>tcrfc_club</c>——<c>AdminWriteApiFixture</c> 啟動 <c>Program</c> 時，這個 hosted
 /// service 也會真的啟動並立刻執行一輪（見該類別檔頭「啟動後立刻執行一次」）。這是刻意接受的：
 /// 它跟這裡顯式呼叫的 <c>PublishDueArticlesAsync</c> 是同一支冪等方法，兩者互相競速也不影響
 /// 最終狀態是否正確——因此下面的斷言一律驗證「最終狀態」（DB 裡的 status／public API 的回應），

@@ -10,7 +10,7 @@ using Xunit;
 namespace Tcrfc.Api.Tests;
 
 /// <summary>
-/// `GEO-02` AI 爬蟲授權（S1-12b）。打真正的 HTTP 管線與真正的 <c>tcrfc_club_dev</c>。
+/// `GEO-02` AI 爬蟲授權（S1-12b）。打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminGeoCrawlerTests(AdminWriteApiFixture fixture)

@@ -17,17 +17,17 @@
 #   - 既有 `sqlserver` 容器（`mcr.microsoft.com/mssql/server:2022-latest`，與舊 `mssql-dev`
 #     完全同映像檔）monopolize 宿主機 1433 port，供**使用者另一個專案**使用，裡面已有約 25 個
 #     資料庫。**不是本 compose 管理，不會出現在本檔或 `docker compose ps` 裡。**
-#   - 本專案現在只是**在這個既有 instance 裡新增兩個資料庫**（`tcrfc_club_dev`、
-#     `tcrfc_charity_dev`），不再另開第二個 SQL Server 容器。
+#   - 本專案現在只是**在這個既有 instance 裡新增兩個資料庫**（`tcrfc_club`、
+#     `tcrfc_charity`），不再另開第二個 SQL Server 容器。
 #   - ⛔ **這個容器沒有掛任何 volume**（資料在容器可寫層）。`docker rm sqlserver` 會讓
-#     `tcrfc_club_dev`／`tcrfc_charity_dev` 連同使用者另一個專案的全部資料庫一起消失。
+#     `tcrfc_club`／`tcrfc_charity` 連同使用者另一個專案的全部資料庫一起消失。
 #     TCRFC 這兩個庫的復原方式是重跑 `deploy/local-ddl.sh --apply` ＋ `db/seed/apply-seed.sh`
 #     （見 deploy/README.md「`mssql_dev_data` 退場後的回收與復原」）；**別的專案的資料庫沒有
 #     這條復原路徑，這不是本專案能承擔的風險，只能記錄、不能替使用者決定要不要動這個容器。**
 #   - **風險性質也跟著變了**：以前怕的是「接到錯的容器」（靠寫死拒絕 `sqlserver` 這個名字防呆），
 #     現在兩個專案的資料庫住在同一個 instance 裡，怕的是「操作到錯的資料庫」。因此
 #     `deploy/local-ddl.sh`／`db/seed/apply-seed.sh` 的防呆改成：**目標容器可由環境變數指定
-#     （預設 `sqlserver`），但目標資料庫名稱寫死只允許 `tcrfc_club_dev`／`tcrfc_charity_dev`
+#     （預設 `sqlserver`），但目標資料庫名稱寫死只允許 `tcrfc_club`／`tcrfc_charity`
 #     兩個，其他名稱一律拒絕執行**；建庫一律 `IF NOT EXISTS`，任何情況下都不對 `master` 以外的
 #     既有資料庫下 `DROP`／`ALTER`。
 #   - **連線方式也跟著變了**：`sqlserver` 不是 compose 服務，`api` 容器連不到「服務名稱」，

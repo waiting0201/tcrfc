@@ -11,7 +11,7 @@ using Xunit;
 namespace Tcrfc.Api.Tests;
 
 /// <summary>
-/// J1 登入核心的端對端測試：打真正的 HTTP 管線與真正的 <c>tcrfc_club_dev</c>，涵蓋密碼驗證、
+/// J1 登入核心的端對端測試：打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>，涵蓋密碼驗證、
 /// 鎖定政策、強制 2FA、更新權杖輪替與重放偵測。種子帳號見
 /// <c>db/seed/generate-club-seed-sql.py</c>「18.4 admin_users」。
 /// </summary>

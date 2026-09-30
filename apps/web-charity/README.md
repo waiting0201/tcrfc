@@ -19,7 +19,7 @@ node .output/server/index.mjs
 ## 假資料
 
 **唯一來源是 [`db/seed/charity-fixtures.json`](../../db/seed/charity-fixtures.json)**（衍生自
-`db/seed/generate-charity-seed-sql.py`，灌進 `tcrfc_charity_dev` 的同一份種子），⛔ 本專案沒有
+`db/seed/generate-charity-seed-sql.py`，灌進 `tcrfc_charity` 的同一份種子），⛔ 本專案沒有
 另外手寫任何假資料。`scripts/sync-fixtures.mjs` 在 `npm run dev`／`npm run build` 前會自動把它
 複製到本機的 `.data/charity-fixtures.json`（不納版控，每次都重新同步，見該檔案開頭註解說明原因），
 `server/utils/fixtures.ts` 是唯一讀取這份資料的地方，所有頁面都經由 `server/api/charity/*` 這幾支

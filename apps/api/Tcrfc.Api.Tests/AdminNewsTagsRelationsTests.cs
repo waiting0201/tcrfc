@@ -10,7 +10,7 @@ namespace Tcrfc.Api.Tests;
 /// <summary>
 /// S1-5（B2 新聞與故事後端補完）：標籤、核心價值標籤、多型關聯、批次操作。
 /// 跟 <see cref="AdminNewsWriteTests"/> 同一種紀律——打真正的 HTTP 管線、真正的
-/// <c>tcrfc_club_dev</c>，不 mock，每個測試自己建立、自己清乾淨。
+/// <c>tcrfc_club</c>，不 mock，每個測試自己建立、自己清乾淨。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminNewsTagsRelationsTests(AdminWriteApiFixture fixture)

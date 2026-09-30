@@ -62,7 +62,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
     // ───────────────────────────── 全站預設 OG 圖片（Club.OgImageKey） ─────────────────────────────
 
     /// <summary>🔴 跟 <see cref="AdminSeoTests"/> 同一個理由：這個測試會真的改動
-    /// <c>tcrfc_club_dev</c> 的 <c>clubs.og_image_key</c>（本機開發環境唯一一份，會反映到公開
+    /// <c>tcrfc_club</c> 的 <c>clubs.og_image_key</c>（本機開發環境唯一一份，會反映到公開
     /// 端點），測試前後都要還原，不能留下痕跡。</summary>
     [Fact]
     public async Task 全站預設OgImage_上傳後解析出網址_移除後清空()
@@ -153,7 +153,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
 
             // 🔴（docs/18 E-62）並行權杖要一路追蹤到最新值：DELETE 端點要求 expectedUpdatedAt
             // 對得起來，發布會改變 updated_at，用建立時的舊值刪除會 409 且被靜默吞掉，在
-            // tcrfc_club_dev 留下孤兒測試文章——這是本輪實測抓到的既有寫法錯誤，本檔與
+            // tcrfc_club 留下孤兒測試文章——這是本輪實測抓到的既有寫法錯誤，本檔與
             // AdminSeoTests.cs 的類似清理呼叫已一併修正並都補上 Assert 確保清理真的成功。
             var currentUpdatedAt = created.UpdatedAt;
             try

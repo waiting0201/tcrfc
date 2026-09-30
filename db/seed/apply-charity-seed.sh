@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# db/seed/apply-charity-seed.sh — 產生並灌入本機開發用種子資料（只灌 tcrfc_charity_dev）
+# db/seed/apply-charity-seed.sh — 產生並灌入本機開發用種子資料（只灌 tcrfc_charity）
 #
 # 做兩件事：
 #   1. 執行 generate-charity-seed-sql.py，產生 db/seed/.generated/charity-seed.local.sql
 #      （不含真實個資——內容本身就是虛構測試資料，但產物仍統一放 .generated/ 不進版控，
 #      與 club-seed.local.sql 一致存放，方便管理）
-#   2. 用 sqlcmd 對本機 SQL Server instance 內的 tcrfc_charity_dev 資料庫套用該檔
+#   2. 用 sqlcmd 對本機 SQL Server instance 內的 tcrfc_charity 資料庫套用該檔
 #
 # 冪等：整份 .sql 用「業務自然鍵 IF NOT EXISTS 才 INSERT」寫成，可重複執行。
 #
@@ -15,13 +15,13 @@
 #   §0、§9）。`db/seed/apply-seed.sh` 的檔頭明文寫「慈善庫是獨立法人邊界，本腳本不處理
 #   慈善資料」——這是刻意的設計，不是遺漏。把兩庫的種子混進同一支腳本，或放寬那支腳本的
 #   白名單，等於在程式碼層面抹掉這條法人邊界，之後任何人接手都可能誤以為兩庫可以共用
-#   同一套灌資料流程。因此本檔獨立存在，目標資料庫白名單只認 tcrfc_charity_dev 一個，
+#   同一套灌資料流程。因此本檔獨立存在，目標資料庫白名單只認 tcrfc_charity 一個，
 #   不共用 db/seed/apply-seed.sh 的 TARGET_DATABASE 變數、不呼叫該腳本、也不被該腳本呼叫。
 #
 # 容器防呆模型與 db/seed/apply-seed.sh 相同（見 docker-compose.dev.yml 檔頭、
 # deploy/README.md）：本機的 SQL Server 是宿主機上既有的 `sqlserver` 容器，裡面同時住著
 # 使用者另一個專案的約 25 個資料庫，且沒有掛 volume。目標容器可由 LOCAL_MSSQL_CONTAINER
-# 環境變數指定（預設 "sqlserver"），但目標資料庫名稱寫死只允許 tcrfc_charity_dev 一個。
+# 環境變數指定（預設 "sqlserver"），但目標資料庫名稱寫死只允許 tcrfc_charity 一個。
 #
 # 用法：
 #   ./db/seed/apply-charity-seed.sh            產生並套用
@@ -38,9 +38,9 @@ OUT_FILE="${OUT_DIR}/charity-seed.local.sql"
 LOCAL_MSSQL_CONTAINER="${LOCAL_MSSQL_CONTAINER:-sqlserver}"
 
 # ⛔ 本腳本唯一允許寫入的資料庫。與 db/seed/apply-seed.sh 的白名單刻意分開維護——
-# 那支腳本的白名單只認 tcrfc_club_dev，這支只認 tcrfc_charity_dev，兩份清單互不覆蓋、
+# 那支腳本的白名單只認 tcrfc_club，這支只認 tcrfc_charity，兩份清單互不覆蓋、
 # 互不放寬，任何一支腳本都不會意外碰到對方的資料庫。
-readonly TARGET_DATABASE="tcrfc_charity_dev"
+readonly TARGET_DATABASE="tcrfc_charity"
 
 mkdir -p "${OUT_DIR}"
 

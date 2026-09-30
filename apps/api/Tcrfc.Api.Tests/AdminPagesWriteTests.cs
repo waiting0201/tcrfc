@@ -10,7 +10,7 @@ namespace Tcrfc.Api.Tests;
 /// <summary>
 /// B1 頁面管理寫入垂直切片的自動化回歸測試——涵蓋授權（401／403／跨俱樂部）、狀態轉換、
 /// 樂觀並行、slug 重複、雙語 SEO。形狀比照 <c>AdminNewsWriteTests</c>。全部打真正的 HTTP 管線、
-/// 真正的 <c>tcrfc_club_dev</c>，不 mock。
+/// 真正的 <c>tcrfc_club</c>，不 mock。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminPagesWriteTests(AdminWriteApiFixture fixture)

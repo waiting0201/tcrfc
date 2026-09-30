@@ -16,7 +16,7 @@ namespace Tcrfc.Api.Tests;
 /// <c>role_permissions.scope_type</c>：<c>all</c>（系統管理員全部看得到）、<c>academy_only</c>
 /// （只看得到學院梯隊）、<c>own_teams</c>（只看得到 <c>admin_user_teams</c> 授權且未過期的球隊）。
 ///
-/// 打真正的 HTTP 管線與真正的 <c>tcrfc_club_dev</c>，形狀比照 <c>AdminMatchesAndStandingsTests</c>
+/// 打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>，形狀比照 <c>AdminMatchesAndStandingsTests</c>
 /// 「列級授權_own_teams_只能碰admin_user_teams授權的球隊」——**用 <c>bw</c> 俱樂部**（三支球隊：
 /// <c>BW1</c> 一線隊、<c>BW-U15</c>／<c>BW-U12</c> 學院梯隊），不用 <c>tcrfc</c>（只有 <c>D1</c>
 /// 一支球隊，示範不出「收斂成部分球隊」的過濾效果）。

@@ -286,12 +286,12 @@ migration 也不會多出非預期的 `CreateIndex`。**這不影響 EF 查詢�
 從沒套用過的 migration 不會碰資料庫）；但如果要移除的是一支 `__EFMigrationsHistory` 已經有紀錄
 的既有 migration，`dotnet ef migrations remove` 預設會拒絕並提示先 revert；**加上 `--force` 之後，
 它會直接對連線中的資料庫執行該 migration 的 `Down()`（真的跑 `ALTER TABLE ... DROP COLUMN`／
-`DROP TABLE`），成功後才刪歷史紀錄與本機檔案**。S0-7k 實際在共用的 `tcrfc_club_dev` 上重現過：
+`DROP TABLE`），成功後才刪歷史紀錄與本機檔案**。S0-7k 實際在共用的本機開發庫（當時名為 `tcrfc_club_dev`，現為 `tcrfc_club`）上重現過：
 對已套用的 `AddMatchOriginalSchedule` 用 `--force` 移除，直接把另一個 agent 正在用的
 `matches.original_kickoff`／`original_match_on` 兩欄砍掉，發現後用重新 `add` 同名 migration
 ＋`dotnet ef database update` 補回去才復原。**下手前務必確認：這支 migration 的 `Down()`
 會不會刪掉別人正在依賴的表或欄位；會的話，改成直接手改既有 migration／Designer／snapshot 三個
-檔案（讓檔案內容對齊資料庫現況），不要用 `--force` 硬刪重建**——`tcrfc_club_dev` 常有多個 agent
+檔案（讓檔案內容對齊資料庫現況），不要用 `--force` 硬刪重建**——`tcrfc_club` 常有多個 agent
 同時在用，這條路徑的風險不是理論上的。
 
 ### 🔴 CI 防呆：`ci.yml` 的 `api` job 擋掉基準偏移進 PR
@@ -426,16 +426,14 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
    上傳端點（`Program.cs` 參照到尚未建立的 `UnavailableImageStorageService`）而編譯失敗**——
    這是暫時性的、與本次 CI/CD 任務無關的併發編輯狀態，不是 workflow 設計的問題；`ci.yml` 的
    `api` job 語法已用 `actionlint` 驗證過，實際跑動需要等 `apps/api` 那頭的變更完成或合併。
-   🔴 **2026-09-25（`S0-13`）更新**：`dotnet test` 改連專用的 `tcrfc_club_test`，不再連
-   `tcrfc_club_dev`——本機開發同樣改用 `db/seed/setup-test-db.sh`（串接
-   `deploy/local-ddl.sh --apply-test-db`＋`db/seed/apply-seed.sh`）建立這個資料庫，`ci.yml` 的
-   `api` job 直接沿用同一支腳本（`./db/seed/setup-test-db.sh --recreate`，容器指向
-   `mssql-ci`），**本機與 CI 對齊同一套流程，沒有另外寫一份 CI 專用的測試庫建置邏輯**。
-   `./deploy/local-ddl.sh --apply` 這一步仍保留，只為了建立慈善庫 `tcrfc_charity_dev`；
-   它連帶建立的 `tcrfc_club_dev` 在 CI 這個用完即丟的容器裡沒有任何步驟會用到，留著沒有風險
-   （容器隨 job 結束銷毀），拆開兩支腳本反而增加維護成本。原因見 `docs/14-invariants.md`
-   `S0-13` 一條、`apps/api/README.md`「怎麼跑」：`dotnet test` 與無頭瀏覽器實走原本共用
-   `tcrfc_club_dev`，同一天發生三次互相干擾。
+   🔴 **2026-09-30 更新（使用者裁決，取代 2026-09-25 `S0-13` 的獨立測試庫）**：本機與 CI 的資料庫
+   名稱對齊為 `tcrfc_club`（網站）／`tcrfc_charity`（慈善），`dotnet test` 直接連 `tcrfc_club`，
+   不再有 `tcrfc_club_test`。`ci.yml` 的 `api` job：`./deploy/local-ddl.sh --apply` 建兩庫 →
+   `./db/seed/setup-club-db.sh --recreate` 把 `tcrfc_club` 重建成乾淨的 DDL＋種子（容器指向
+   `mssql-ci`）→ `./db/seed/apply-charity-seed.sh` → 兩處 `CLUB_SQL_CONNECTION_STRING` 皆
+   `Database=tcrfc_club`，**本機與 CI 用同一批腳本**。CI 的 SQL Server 是用完即丟的容器，
+   同名不會與本機互相干擾；**正式環境 Azure SQL 的資料庫名稱（`sqldb-club`／`sqldb-charity`）不變**，
+   部署 workflow 沒有引用任何本機庫名。原因與代價見 `docs/14-invariants.md` `S0-13` 一條。
 2. **兩個測試 fixture（`RedisEnabledApiFixture`／`AdminWriteRedisEnabledApiFixture`）需要真正的
    `redis-server` 執行檔**——`ci.yml` 的 `api` job 加一步 `command -v redis-server || apt-get
    install -y redis-server`，不假設 `ubuntu-latest` 一定內建。

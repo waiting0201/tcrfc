@@ -12,7 +12,7 @@ namespace Tcrfc.Api.Tests;
 /// S1-11：13 賽事行事曆公開讀取端點——合併 <c>matches</c>（既有
 /// <c>Features/Schedule/MatchesRepository</c> 完全未改動）與**公開**的 <c>calendar_custom_events</c>
 /// （<c>is_public = 1</c>），以及單場賽事 <c>.ics</c> 下載。不需要登入，形狀比照
-/// <c>ScheduleOriginalDateTests</c>（打真正 HTTP 管線與真正 <c>tcrfc_club_dev</c>，測資自己寫入、
+/// <c>ScheduleOriginalDateTests</c>（打真正 HTTP 管線與真正 <c>tcrfc_club</c>，測資自己寫入、
 /// 自己刪除，不寫進 <c>db/seed</c>）。
 /// </summary>
 [Collection(ApiCollection.Name)]

@@ -11,7 +11,7 @@ namespace Tcrfc.Api.Tests;
 
 /// <summary>
 /// J4：<c>Club</c>（全域）與 <c>Competition</c>（俱樂部範圍）兩個型別的後台維護端點。
-/// 打真正的 HTTP 管線與真正的 <c>tcrfc_club_dev</c>。
+/// 打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminClubsAndCompetitionsTests(AdminWriteApiFixture fixture)

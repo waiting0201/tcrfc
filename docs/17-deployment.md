@@ -457,7 +457,7 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
 本節只記錄對這份文件（拓撲、DBMS 選型）而言重要的事實：
 
 - **兩個庫是同一個既有 SQL Server 2022 instance 裡的兩個獨立 database**
-  （`tcrfc_club_dev`、`tcrfc_charity_dev`），這件事本身沒變——變的只是「這個 instance
+  （`tcrfc_club`、`tcrfc_charity`；2026-09-30 起本機庫名與正式環境的邏輯名稱對齊、不再有 `_dev`／`_test` 後綴，也不再有獨立測試庫），這件事本身沒變——變的只是「這個 instance
   是本專案自己開的容器」變成「這個 instance 是使用者另一個專案原本就在用的既有容器，
   本專案借用來多開兩個資料庫」。**跟正式環境（兩個完全獨立的 Azure SQL 單庫）的落差因此
   多了一層**：本機不只是「兩庫同 instance」，還是「同 instance 裡混了其他專案的資料庫」——

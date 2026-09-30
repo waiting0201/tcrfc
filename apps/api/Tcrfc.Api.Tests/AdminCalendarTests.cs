@@ -11,7 +11,7 @@ namespace Tcrfc.Api.Tests;
 /// <summary>
 /// S1-11：L1 行事曆總覽（合併讀取 <c>matches</c>／<c>calendar_custom_events</c>）／L2 自建事件
 /// 後台 CRUD。形狀比照 <c>AdminMatchesAndStandingsTests</c>／<c>AdminProgramsSessionsRegistrationsTests</c>，
-/// 打真正 HTTP 管線與真正 <c>tcrfc_club_dev</c>。
+/// 打真正 HTTP 管線與真正 <c>tcrfc_club</c>。
 ///
 /// 種子測試帳號（見 apps/api/README.md「種子測試帳號」與「S1-11」段的權限指派）：
 /// <c>content.editor@tcrfc.test</c>（<c>content_editor</c>，僅授權 <c>tcrfc</c>，

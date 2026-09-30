@@ -28,8 +28,8 @@ Dockerfile 假設的是專案建好之後的產物形狀（`.output/`、`dist/`�
 
 > 這是一次**刻意的方向反轉**。S0-6c 當時的決定是「本機另開一個 `mssql-dev` 容器，絕對不要動
 > 既有的 `sqlserver` 容器」，理由是不確定共用是否安全。**使用者已於 2026-09-21 明確拍板改用
-> 既有容器**：`docker-compose.dev.yml` 的 `mssql-dev` 服務已移除，`tcrfc_club_dev`、
-> `tcrfc_charity_dev` 兩個資料庫現在建在宿主機上那個既有、非本專案 compose 管理的 `sqlserver`
+> 既有容器**：`docker-compose.dev.yml` 的 `mssql-dev` 服務已移除，`tcrfc_club`、
+> `tcrfc_charity` 兩個資料庫現在建在宿主機上那個既有、非本專案 compose 管理的 `sqlserver`
 > 容器裡（`mcr.microsoft.com/mssql/server:2022-latest`，與舊 `mssql-dev` 完全同映像檔，
 > `MSSQL_PID=developer`，佔用宿主機 `1433` port）。**那個容器是使用者另一個專案在用的**，
 > 裡面已有約 25 個屬於別的專案的資料庫——本專案只是在同一個 instance 裡多開兩個資料庫，
@@ -45,15 +45,17 @@ Dockerfile 假設的是專案建好之後的產物形狀（`.output/`、`dist/`�
 
 - `deploy/local-ddl.sh`、`db/seed/apply-seed.sh` 的目標容器現在可由環境變數
   `LOCAL_MSSQL_CONTAINER` 指定，**預設 `sqlserver`**（不再寫死拒絕這個名字）。
-- ⛔ **資料庫名稱寫死白名單**：`deploy/local-ddl.sh` 只認 `tcrfc_club_dev`／`tcrfc_charity_dev`
-  兩個；`db/seed/apply-seed.sh` 只認 `tcrfc_club_dev` 一個。任何其他資料庫名稱一律被腳本拒絕
+- ⛔ **資料庫名稱寫死白名單**：`deploy/local-ddl.sh` 只認 `tcrfc_club`／`tcrfc_charity`
+  兩個；`db/seed/apply-seed.sh`、`db/seed/setup-club-db.sh` 只認 `tcrfc_club` 一個，
+  `db/seed/apply-charity-seed.sh` 只認 `tcrfc_charity` 一個。任何其他資料庫名稱一律被腳本拒絕
   執行（`assert_allowed_database`／`TARGET_DATABASE` 常數），不接受呼叫端覆寫。
-- ⛔ **任何情況下都不對這個 instance 上的既有資料庫下 `DROP`／`ALTER`**。兩支腳本從頭到尾唯一
-  會執行的 DDL 動作是 `IF DB_ID(...) IS NULL CREATE DATABASE`（建庫，若不存在）與在
-  `tcrfc_club_dev`／`tcrfc_charity_dev` 內部建表，沒有任何程式碼路徑碰得到這兩個庫以外的物件。
+- ⛔ **任何情況下都不對這個 instance 上「非本專案兩庫」的資料庫下 `DROP`／`ALTER`**。腳本會執行的
+  DDL 動作是 `IF DB_ID(...) IS NULL CREATE DATABASE`（建庫，若不存在）、在 `tcrfc_club`／
+  `tcrfc_charity` 內部建表，以及**唯一的 `DROP DATABASE`：`local-ddl.sh --apply-club-db --recreate`
+  （含 `setup-club-db.sh --recreate`），只作用在 `tcrfc_club`**，沒有任何程式碼路徑碰得到這兩個庫以外的物件。
 - 兩支腳本執行 `--apply` 時**開頭都會先印出目標容器與目標資料庫**，不悄悄動手。
 - **驗證方式**：操作前後各對 `sqlserver` 容器跑一次 `SELECT name FROM sys.databases`，
-  比對差異應該只有新增 `tcrfc_club_dev`／`tcrfc_charity_dev` 這兩筆，其他 25 個既有資料庫
+  比對差異應該只有新增 `tcrfc_club`／`tcrfc_charity` 這兩筆，其他 25 個既有資料庫
   一筆都不該變動。
 
 ### ⛔ 這個既有容器沒有掛 volume——資料在容器可寫層
@@ -62,8 +64,8 @@ Dockerfile 假設的是專案建好之後的產物形狀（`.output/`、`dist/`�
 `sqlserver` 容器完全沒有掛任何 volume**（`docker inspect sqlserver` 的 `Mounts` 是空陣列）。
 這代表：
 
-- `docker rm sqlserver`（或任何導致這個容器被刪除重建的操作）會讓 `tcrfc_club_dev`、
-  `tcrfc_charity_dev`**連同使用者另一個專案的全部約 25 個資料庫一起消失**，且**沒有
+- `docker rm sqlserver`（或任何導致這個容器被刪除重建的操作）會讓 `tcrfc_club`、
+  `tcrfc_charity`**連同使用者另一個專案的全部約 25 個資料庫一起消失**，且**沒有
   volume 可以復原別的專案的資料**。
 - **這不是在警告使用者不要動這個容器**——那個容器是別的專案在用，何時重建、要不要重建，
   是使用者的決定，本專案沒有立場也沒有必要阻止；**這裡只記錄一件事**：如果哪天 TCRFC 的
@@ -72,11 +74,71 @@ Dockerfile 假設的是專案建好之後的產物形狀（`.output/`、`dist/`�
 - **TCRFC 這兩個庫的復原方式很簡單**（因為本來就是可重新產生的 mockup 資料，見
   [`../db/seed/README.md`](../db/seed/README.md)）：
   ```bash
-  ./deploy/local-ddl.sh --apply    # 重建 tcrfc_club_dev、tcrfc_charity_dev 的表結構
-  ./db/seed/apply-seed.sh          # 重灌主站庫的種子資料（慈善庫沒有種子來源，維持空表）
+  ./deploy/local-ddl.sh --apply         # 建 tcrfc_club、tcrfc_charity 的表結構（庫不存在時）
+  ./db/seed/setup-club-db.sh --recreate # 重建 tcrfc_club 並灌 DDL＋種子
+  ./db/seed/apply-charity-seed.sh       # 重灌慈善庫種子
   ```
   **別的專案的資料庫沒有這條路**——它們不是本專案管理的，本專案也沒有它們的建置腳本，
   這一點只能記錄、不能代為解決。
+
+## 🔴 2026-09-30：本機只保留兩個資料庫（`tcrfc_club`、`tcrfc_charity`）
+
+使用者裁決：本機資料庫只留**網站 `tcrfc_club`**與**慈善 `tcrfc_charity`**，取代舊的
+`tcrfc_club_dev`、`tcrfc_club_test`、`tcrfc_charity_dev`。**不再有獨立測試庫**——`dotnet test`
+直接跑在 `tcrfc_club` 上。**已知代價**：測試會改動後台看到的資料（測試帳號的 2FA、`settings`、
+孤兒測試資料），測試中途失敗可能留下殘骸；需要時重灌種子即可：
+
+```bash
+set -a; source .env; set +a
+./db/seed/setup-club-db.sh --recreate     # DROP＋CREATE tcrfc_club，灌 DDL＋種子
+```
+
+只想把種子帳號的密碼／2FA 還原：`./db/seed/reset-admin-accounts.sh`。**正式環境（Azure SQL 的
+`sqldb-club`／`sqldb-charity`）不受影響**，本次改動只涉及本機腳本、測試防護與 CI 內用完即丟的容器。
+
+### 遷移步驟（由使用者依序執行；agent 不連資料庫）
+
+```bash
+cd /Users/tim/webapps/TCRFC
+set -a; source .env; set +a                     # 取得 MSSQL_DEV_SA_PASSWORD（不要把它印出來）
+docker ps --filter name=sqlserver               # 確認既有容器在跑
+
+# 0. （建議）遷移前先記錄 instance 上的資料庫清單，供步驟 5 比對
+docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_DEV_SA_PASSWORD" -C \
+  -h -1 -W -Q "SET NOCOUNT ON; SELECT name FROM sys.databases ORDER BY name" > /tmp/dbs-before.txt
+
+# 1. 建立新庫並灌 DDL：tcrfc_club、tcrfc_charity（庫已存在且有表時，DDL 會失敗，屬預期，見步驟 2）
+./deploy/local-ddl.sh --apply
+
+# 2. 灌網站庫種子（想確保是乾淨的一份就用 --recreate，只 DROP tcrfc_club）
+./db/seed/setup-club-db.sh --recreate
+
+# 3. 灌慈善庫種子
+./db/seed/apply-charity-seed.sh
+
+# 4. 連線字串改指向新庫：.env 與 deploy/dev/*.env 的 Database= 已改（若你另有 shell 環境變數
+#    CLUB_SQL_CONNECTION_STRING／CHARITY_SQL_CONNECTION_STRING，把 Database= 也改成 tcrfc_club／tcrfc_charity）。
+#    確認只看 Database= 片段，不要印整行：
+grep -o "Database=[a-z_]*" deploy/dev/club.env deploy/dev/charity.env
+export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=$MSSQL_DEV_SA_PASSWORD;TrustServerCertificate=True;"
+
+# 5. 驗證新庫正常：跑測試＋啟動 API／後台實走（API 由你自己啟動，見 apps/api/README.md「怎麼跑」）
+dotnet test apps/api/Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj
+
+# 6. 確認新庫正常「之後」才刪舊庫（不可復原，且只點名這三個庫）
+docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_DEV_SA_PASSWORD" -C -Q "
+IF DB_ID('tcrfc_club_dev')    IS NOT NULL BEGIN ALTER DATABASE [tcrfc_club_dev]    SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [tcrfc_club_dev];    END;
+IF DB_ID('tcrfc_club_test')   IS NOT NULL BEGIN ALTER DATABASE [tcrfc_club_test]   SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [tcrfc_club_test];   END;
+IF DB_ID('tcrfc_charity_dev') IS NOT NULL BEGIN ALTER DATABASE [tcrfc_charity_dev] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [tcrfc_charity_dev]; END;"
+
+# 7. 比對：與步驟 0 相比，差異應只有「新增 tcrfc_club、tcrfc_charity；消失 上述三個舊庫」
+docker exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$MSSQL_DEV_SA_PASSWORD" -C \
+  -h -1 -W -Q "SET NOCOUNT ON; SELECT name FROM sys.databases ORDER BY name" > /tmp/dbs-after.txt
+diff /tmp/dbs-before.txt /tmp/dbs-after.txt
+```
+
+⚠️ 舊 `tcrfc_club_dev` 裡若有**只存在於該庫、種子重灌不回來的資料**（例如藍鯨真實球員資料、手動建立的
+測試內容），刪除前先確認；種子能重建的內容則不必保留。
 
 ## 本機怎麼起（等 apps/* 建好之後）
 
@@ -96,7 +158,7 @@ docker ps --filter name=sqlserver
 # 4. 起本機開發堆疊（要等 apps/* 有內容才 build 得起來；不再包含資料庫，資料庫是上一步的既有容器）
 docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 
-# 5. 轉換並灌入本機用的 DDL（對既有 sqlserver 容器建 tcrfc_club_dev／tcrfc_charity_dev 兩個庫）
+# 5. 轉換並灌入本機用的 DDL（對既有 sqlserver 容器建 tcrfc_club／tcrfc_charity 兩個庫）
 ./deploy/local-ddl.sh --apply
 ```
 
@@ -119,15 +181,15 @@ port——見 `deploy/dev/club.env.example`／`charity.env.example` 的連線字
 
 ## 🔴 本機兩個庫同一個 instance，正式是兩個獨立的 Azure SQL——現在還多一層：這個 instance 裡還有別的專案的資料庫
 
-`tcrfc_club_dev` 與 `tcrfc_charity_dev` 現在放在**同一個** `sqlserver` 容器裡（省資源，且是
+`tcrfc_club` 與 `tcrfc_charity` 現在放在**同一個** `sqlserver` 容器裡（省資源，且是
 既有容器，見上一節）。**正式環境不是這樣**——那是兩個完全獨立的 Azure SQL 單庫（`docs/17` §1）。
 
 ⚠️ **這個差異會製造一種本機測得過、正式一定爆的錯**：
 
 ```sql
 -- 本機跑得動（同 instance，三段式命名有效），正式環境直接失敗
-SELECT ... FROM tcrfc_charity_dev.dbo.donations d
-JOIN   tcrfc_club_dev.dbo.members m ON ...
+SELECT ... FROM tcrfc_charity.dbo.donations d
+JOIN   tcrfc_club.dbo.members m ON ...
 ```
 
 Azure SQL Database **不支援跨庫查詢**（`docs/14`），所以上面這種寫法在正式環境無論如何都不會動。
@@ -145,10 +207,9 @@ TCRFC 的兩個開發庫**與使用者另一個專案的約 25 個資料庫**。
 
 ## 種子資料（S0-6c）
 
-DDL 灌完之後，`tcrfc_club_dev` 還是空的。要灌 mockup 的球員／新聞／賽程等種子資料，
+DDL 灌完之後，`tcrfc_club` 還是空的。要灌 mockup 的球員／新聞／賽程等種子資料，
 見 [`../db/seed/README.md`](../db/seed/README.md)：`./db/seed/apply-seed.sh`（讀
-[`../site/src/data/*.json`](../site/src/data/) 產生冪等 T-SQL 並套用）。**慈善庫沒有種子來源**，
-只有主站庫會被灌資料。
+[`../site/src/data/*.json`](../site/src/data/) 產生冪等 T-SQL 並套用）。慈善庫另有 `./db/seed/apply-charity-seed.sh`。
 
 ---
 
@@ -157,8 +218,8 @@ DDL 灌完之後，`tcrfc_club_dev` 還是空的。要灌 mockup 的球員／新
 本機已有一個獨立、非本專案 compose 管理的容器，名為 `sqlserver`，佔用 `1433` port，
 是**使用者另一個專案在用的**，裡面已有約 25 個既有資料庫，且**沒有掛任何 volume**（見上方
 「這個既有容器沒有掛 volume」）。**不得重建、不得改埠繫結、不得加 volume、不得改任何設定、
-不得 `docker rm`／`docker restart`。** 本專案只被授權**在裡面建立 `tcrfc_club_dev`／
-`tcrfc_charity_dev` 這兩個新資料庫**，不做任何其他事。
+不得 `docker rm`／`docker restart`。** 本專案只被授權**在裡面建立 `tcrfc_club`／
+`tcrfc_charity` 這兩個新資料庫**，不做任何其他事。
 
 `deploy/local-ddl.sh`、`db/seed/apply-seed.sh` 預設對到這個容器名稱（`LOCAL_MSSQL_CONTAINER`
 環境變數可覆寫容器名稱，但資料庫名稱白名單寫死不可覆寫，見上方「防呆怎麼改」）。
@@ -174,7 +235,7 @@ DDL 灌完之後，`tcrfc_club_dev` 還是空的。要灌 mockup 的球員／新
 docker ps -a --filter "name=mssql-dev"
 docker volume ls --filter "name=mssql_dev_data"
 
-# 確認新環境（sqlserver 容器裡的 tcrfc_club_dev／tcrfc_charity_dev）已可用之後，
+# 確認新環境（sqlserver 容器裡的 tcrfc_club／tcrfc_charity）已可用之後，
 # 要回收舊容器與 volume：
 docker stop tcrfc-mssql-dev-1        # 若容器名稱不同，以 docker ps -a 的實際名稱為準
 docker rm tcrfc-mssql-dev-1

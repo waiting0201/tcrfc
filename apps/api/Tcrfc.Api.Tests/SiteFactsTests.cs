@@ -10,7 +10,7 @@ namespace Tcrfc.Api.Tests;
 
 /// <summary>
 /// S1-12d：`I` 網站設定——`GEO-03`／`GEO-04` 站台事實的後台讀寫與公開讀取。打真正的 HTTP 管線與
-/// 真正的 <c>tcrfc_club_test</c>，不 mock，跟這個測試專案既有的紀律一致（比照 <c>AdminSeoTests</c>）。
+/// 真正的 <c>tcrfc_club</c>，不 mock，跟這個測試專案既有的紀律一致（比照 <c>AdminSeoTests</c>）。
 ///
 /// 🔴 <see cref="站台事實_系統管理員_可讀可寫_完整輪替後還原()"/> 會寫入共用的
 /// <c>settings</c>／<c>settings_i18n</c>／<c>venues</c>／<c>venues_i18n</c>——測試前先讀出目前的

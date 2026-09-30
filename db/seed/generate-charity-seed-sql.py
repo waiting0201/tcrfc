@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# db/seed/generate-charity-seed-sql.py — 產生慈善捐款平台庫（tcrfc_charity_dev）的種子 T-SQL
+# db/seed/generate-charity-seed-sql.py — 產生慈善捐款平台庫（tcrfc_charity）的種子 T-SQL
 #
 # 🔴🔴 本檔產生的所有捐款人／店家聯絡人／統編／身分證等個資性質欄位，全部是虛構測試資料 🔴🔴
 #   ——不是真人姓名、不是真實 Email、不是真實電話、不是真實統一編號。
@@ -138,9 +138,9 @@ emit("-- 慈善協會的統一編號與法人登記尚未確定（STATUS.md B-7�
 emit("-- CharityProgramRef 快照資料同樣是虛構占位，不得沿用到任何正式環境。")
 emit("--")
 emit("-- 冪等：可重複執行，每個實體用業務自然鍵判斷是否已存在。")
-emit("-- 目標資料庫：tcrfc_charity_dev（本機既有 sqlserver 容器內）。")
-emit("-- 🔴 不得對到 tcrfc_club_dev，也不得對到同一個 instance 裡其他專案的資料庫。")
-emit("-- 🔴 不得與 tcrfc_club_dev 做任何跨庫 JOIN——本庫是完全獨立的法人邊界。")
+emit("-- 目標資料庫：tcrfc_charity（本機既有 sqlserver 容器內）。")
+emit("-- 🔴 不得對到 tcrfc_club，也不得對到同一個 instance 裡其他專案的資料庫。")
+emit("-- 🔴 不得與 tcrfc_club 做任何跨庫 JOIN——本庫是完全獨立的法人邊界。")
 emit("-- ============================================================================")
 emit()
 emit("SET XACT_ABORT ON;")

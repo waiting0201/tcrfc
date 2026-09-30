@@ -1,5 +1,10 @@
 # apps/api — api（單一 .NET 行程，唯讀讀取 API）
 
+> 🔴 **2026-09-30：本機資料庫已合併為 `tcrfc_club`（網站）與 `tcrfc_charity`（慈善）兩個。**
+> 本檔下方**歷史紀錄**（各輪驗收、migration 套用紀錄）提到的 `tcrfc_club_dev`、`tcrfc_club_test`
+> 是當時的名稱，現在都是 `tcrfc_club`，不逐條改寫以保留當時的證據；**操作步驟以「怎麼跑」與
+> 「直接用 dotnet 跑」為準**。
+
 **S0-7b（2026-09-21，`backend-engineer`）**：讓 Nuxt 前台（[`apps/web`](../web/README.md)）能打真實資料庫，
 建立球員、教練與職員、新聞、賽程與賽果、俱樂部主檔五組**唯讀** GET 端點。
 
@@ -3666,7 +3671,7 @@ dotnet build
 #    （見 docs/18-work-errors.md，本次任務期間在本機驗證時才發現，非常隱蔽因為
 #    程式仍會啟動、仍會嘗試連線，只是連線字串缺了 Database／帳密／TrustServerCertificate）。
 export ASPNETCORE_ENVIRONMENT=Development
-export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;Encrypt=False;"
+export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;Encrypt=False;"
 export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5174"   # 5174＝apps/admin 後台；少了它後台登入會被 CORS 擋下
 export ASPNETCORE_URLS="http://127.0.0.1:5299"
 # 🔴 必填：少了它行程照樣啟動，但 JWT 驗證參數是第一個請求進來時才建構，之後「每一支端點」
@@ -3694,7 +3699,7 @@ dotnet run --no-launch-profile
 > 一行版（從 `club.env` 取密碼、自己組連線字串，不必把密碼寫進指令）：
 > ```bash
 > PW=$(grep "^CLUB_SQL_CONNECTION_STRING" ../../deploy/dev/club.env | sed -n 's/.*Password=\([^;]*\);.*/\1/p')
-> export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=${PW};TrustServerCertificate=True;Encrypt=False;"
+> export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=${PW};TrustServerCertificate=True;Encrypt=False;"
 > ```
 
 > 🔴 **本機沒設 `DATA_PROTECTION_KEYS_PATH` 時，每次重啟 `dotnet run` 都會讓已經完成兩階段
@@ -3785,7 +3790,7 @@ docker build -t tcrfc-api-local .
 
 docker run -d --name tcrfc-api-local \
   --add-host=host.docker.internal:host-gateway \
-  -e CLUB_SQL_CONNECTION_STRING="Server=host.docker.internal,1433;Database=tcrfc_club_dev;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;" \
+  -e CLUB_SQL_CONNECTION_STRING="Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;" \
   -e ASPNETCORE_ENVIRONMENT=Production \
   -e CORS_ALLOWED_ORIGINS="http://localhost:3000" \
   -p 18080:8080 \
@@ -5369,11 +5374,12 @@ S0-7b 為止零測試——所有行為保證只存在於本檔的 curl 紀錄�
 
 ### 怎麼跑
 
-🔴🔴🔴 **S0-13（2026-09-25）起，`dotnet test` 一律連專用的測試資料庫 `tcrfc_club_test`，
-不再共用本機開發／無頭瀏覽器實走在用的 `tcrfc_club_dev`。** 在這之前兩者共用同一個
-`tcrfc_club_dev`，同一天發生三次互相干擾（測試把實走中帳號的 2FA 狀態、`settings` 的 SEO 值
-重置回種子），見 [`docs/14-invariants.md`](../../docs/14-invariants.md)、
-[`docs/18-work-errors.md`](../../docs/18-work-errors.md)、`STATUS.md` S0-13。
+🔴🔴🔴 **2026-09-30 起，`dotnet test` 直接跑在本機網站庫 `tcrfc_club` 上**（使用者裁決：本機只保留
+`tcrfc_club`、`tcrfc_charity` 兩庫，不再有獨立測試庫；S0-13 的 `tcrfc_club_test` 與開發用
+`tcrfc_club_dev` 已合併）。**已知代價**：測試會改動後台看到的資料，中途失敗可能留下殘骸；
+需要時 `./db/seed/setup-club-db.sh --recreate` 重灌即可。測試進行中不要同時用同一個庫做無頭瀏覽器實走
+（測試會重置種子帳號的 2FA 狀態與 `settings`，S0-13 當初就是為此才分庫）。見
+[`docs/14-invariants.md`](../../docs/14-invariants.md)、[`docs/18-work-errors.md`](../../docs/18-work-errors.md)。
 
 需要本機既有的 `sqlserver` 容器已啟動（同上方「怎麼跑（本機開發）」的前置；🔴 2026-09-21 起
 `mssql-dev` 已併入這個既有容器，不再是獨立服務，見 `deploy/README.md`）：
@@ -5383,20 +5389,20 @@ docker ps --filter name=sqlserver   # 確認既有容器在跑
 
 set -a; source .env; set +a   # 取得 MSSQL_DEV_SA_PASSWORD
 
-# 一鍵建立／灌 tcrfc_club_test（見 db/seed/setup-test-db.sh 檔頭說明）：
-# 第一次跑、或想從零重來一次乾淨的測試庫時用 --recreate；平常重灌種子（冪等）不用加。
-./db/seed/setup-test-db.sh --recreate
+# 一鍵建立／灌 tcrfc_club（見 db/seed/setup-club-db.sh 檔頭說明）：
+# 第一次跑、或想從零重來一次乾淨的資料庫時用 --recreate；平常重灌種子（冪等）不用加。
+./db/seed/setup-club-db.sh --recreate
 
-export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_test;User Id=sa;Password=${MSSQL_DEV_SA_PASSWORD};TrustServerCertificate=True;"
+export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=${MSSQL_DEV_SA_PASSWORD};TrustServerCertificate=True;"
 
 cd apps/api/Tcrfc.Api.Tests
 dotnet test
 ```
 
-⛔ **`CLUB_SQL_CONNECTION_STRING` 指到 `tcrfc_club_test` 以外的任何資料庫，`dotnet test` 會在
+⛔ **`CLUB_SQL_CONNECTION_STRING` 指到 `tcrfc_club` 以外的任何資料庫，`dotnet test` 會在
 每一個 fixture 的 `InitializeAsync()` 直接拒絕啟動**（`Fixtures/TestDatabaseGuard.cs`，見下方
-「六個 fixture、六種環境設定」前的說明）——這是刻意的硬性防呆，不是「建議」，防止重蹈 S0-13
-的覆轍（誤連 `tcrfc_club_dev` 或這個 SQL Server instance 上使用者其他專案的資料庫）。
+「六個 fixture、六種環境設定」前的說明）——這是刻意的硬性防呆，不是「建議」，防止誤連
+這個 SQL Server instance 上使用者其他專案的資料庫、`tcrfc_charity` 或已廢除的舊庫名。
 
 🔴 **S0-8 起額外需要 `azurite-blob` 執行檔**（`AdminWriteAzuriteEnabledApiFixture` 用）：
 `npm install -g azurite`（macOS／Linux 預設裝在 `/usr/local/bin/azurite-blob`，找不到時可用
@@ -5423,8 +5429,7 @@ Skipped: 0, Total: 30`），與 S0-7d 的既有結果一致——證明合併容
 `CLUB_SQL_CONNECTION_STRING`→檢查非空→開連線」，且完全沒有檢查連到的是哪一個資料庫，
 是造成 S0-13 那次三次互相干擾的直接原因。現在六個 fixture 的 `InitializeAsync()` 一律先呼叫
 `await TestDatabaseGuard.ResolveAndVerifyAsync()`：除了原本「未設定」「連不上」兩種失敗，新增
-第三種——**資料庫名稱必須精確等於 `tcrfc_club_test`，不是就直接丟例外**，不判斷「看起來像不像
-測試庫」。
+第三種——**資料庫名稱必須精確等於 `tcrfc_club`，不是就直接丟例外**，不做模糊比對。
 
 - `ApiFixture`：`REDIS_HOST` 清空（強制走 `NoOpQueryCache`），只驗證主站庫相關行為。
   **本輪起也是「開發模式開關關閉」狀態的代表**（不設 `ENABLE_UNSAFE_DEV_WRITES`），
@@ -6350,7 +6355,7 @@ Event、SportsEvent（行事曆）、Person、Article、Course、BreadcrumbList�
    `SchemaCompletenessTests` 18 項 ＋ `AdminSeoSchemaCompletenessTests` 4 項 ＋ 過程中發現／
    修正的既有計數差異；純單元測試不需要任何 fixture，整合測試需要
    `AdminWriteAzuriteEnabledApiFixture`——Article 正反例要真的上傳 OG 圖片）。
-2. 種子資料：新增 1 個權限碼（`seo.schema.view`），已用 `./db/seed/setup-test-db.sh`（測試庫）
+2. 種子資料：新增 1 個權限碼（`seo.schema.view`），已用 `./db/seed/setup-club-db.sh`（現為 tcrfc_club）
    與 `./db/seed/apply-seed.sh`（`tcrfc_club_dev`）灌入，`sqlcmd` 確認 `system_admin` 角色已
    自動取得。**沒有 migration**。
 3. `dotnet run` 本機真實啟動 `apps/api` ＋ `apps/web` `npm run build` 產物
@@ -6669,7 +6674,7 @@ dotnet test --filter FullyQualifiedName~SiteFactsTests   # 9/9 通過
 dotnet test                                     # 512/512 全過（既有 503 ＋ 本輪新增 9）
 docker build -f apps/api/Dockerfile apps/api    # 成功
 ```
-種子資料以 `./db/seed/setup-test-db.sh --recreate` 重建 `tcrfc_club_test` 後，直接用 `sqlcmd`
+種子資料以 `./db/seed/setup-club-db.sh --recreate` 重建 `tcrfc_club_test` 後，直接用 `sqlcmd`
 核對過 `settings`／`settings_i18n`／`venues`／`venues_i18n` 四張表的實際寫入內容（見上方「種子資料」
 的落差說明），不是只看 API 回應。
 
@@ -6770,7 +6775,7 @@ dotnet test                                               # 520/520 全過（既
 docker build -f apps/api/Dockerfile apps/api              # 成功
 ```
 
-種子資料以 `./db/seed/setup-test-db.sh` 重灌 `tcrfc_club_test` 後，直接用 `sqlcmd` 核對過
+種子資料以 `./db/seed/setup-club-db.sh` 重灌 `tcrfc_club_test` 後，直接用 `sqlcmd` 核對過
 `settings` 只有 `tcrfc` 一筆 `site.blue_whale_site_url`、`venues` 總筆數為 3，不是只看 API 回應。
 
 #### 已知缺口（回報，不在本輪範圍）

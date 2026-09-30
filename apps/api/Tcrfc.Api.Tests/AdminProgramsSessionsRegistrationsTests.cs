@@ -14,7 +14,7 @@ namespace Tcrfc.Api.Tests;
 /// <summary>
 /// S1-9：P1（課程／營隊項目）／P2（梯次與場次）／P3（報名管理）後台 CRUD ＋ 05 課程與活動的
 /// 公開讀取與報名送出端點。形狀比照 <c>AdminTeamsPlayersStaffTests</c>／
-/// <c>AdminMatchesAndStandingsTests</c>（同一批打真正 HTTP 管線與真正 <c>tcrfc_club_dev</c> 的
+/// <c>AdminMatchesAndStandingsTests</c>（同一批打真正 HTTP 管線與真正 <c>tcrfc_club</c> 的
 /// 既有先例）。
 ///
 /// 種子測試帳號（見 apps/api/README.md「種子測試帳號」）：

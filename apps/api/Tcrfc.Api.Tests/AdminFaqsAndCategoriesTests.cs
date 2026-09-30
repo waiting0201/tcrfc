@@ -10,7 +10,7 @@ namespace Tcrfc.Api.Tests;
 
 /// <summary>
 /// S1-6：B4 常見問題（<c>faqs</c>／<c>faq_categories</c>）後台讀寫。
-/// 打真正的 HTTP 管線與真正的 <c>tcrfc_club_dev</c>，不 mock。
+/// 打真正的 HTTP 管線與真正的 <c>tcrfc_club</c>，不 mock。
 /// </summary>
 [Collection(AdminWriteCollection.Name)]
 public sealed class AdminFaqsAndCategoriesTests(AdminWriteApiFixture fixture)

@@ -20,7 +20,7 @@ public sealed class ClubScopingTests(ApiFixture fixture)
     public async Task 跨俱樂部讀清單_球員名單彼此不重疊()
     {
         // 🔴 本測試原本寫死「bw 球員數應為 0」，2026-09-22 因為 BW-0g（藍鯨舊站資料匯入本機開發
-        // 資料庫，見 git log）這個獨立且合法的任務把真實藍鯨球員資料灌進 tcrfc_club_dev，
+        // 資料庫，見 git log）這個獨立且合法的任務把真實藍鯨球員資料灌進 tcrfc_club，
         // 這個假設從此不成立（bw 現在也有 28 名球員）。這不是 club_id 過濾失效——改成驗證
         // 「兩隊球員 id 集合互不重疊」，不論兩邊各自有多少筆資料都能驗證範圍真的有隔離，
         // 不會因為種子資料量變動就一直改測試（docs/18-work-errors.md 的精神：測試假設要挑
