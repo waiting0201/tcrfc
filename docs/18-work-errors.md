@@ -96,6 +96,7 @@
 | E-79 | 2026-09-30 | 主 session 給使用者的本機 API 啟動步驟漏了 `JWT_SIGNING_KEY_CLUB`（照抄 API README 範例，範例本身也漏），API 照常啟動但每支端點（含 `/healthz`）都回 500 | ✅ README 範例補上；✅ 程式端已於 2026-09-30 在 `Program.cs` `builder.Build()` 前驗證 |
 | E-81 | 2026-09-30 | 後台種子擴充前審計發現：三處整合測試對「共用資料庫種子長什麼樣」寫死假設——`AdminSeoImageTests` 的 `finally` 無條件刪掉 tcrfc 全部 `seo.*`／`tracking.*` 設定（註解假設「執行前理論上都不存在」）、`Standing_CSV匯入_整季替換` 斷言 `DeletedCount == 1`、`SiteFactsTests` 斷言電話與營業時間為 null；種子一擴充，前者靜默吃掉種子、後兩者直接失敗 | ✅ 三處已改成「先記下既有列、結束後還原」或不綁定種子值；⚠️ 無自動化（改種子仍要靠審計，見條目） |
 | E-82 | 2026-09-30 | `GeoCrawlerDefaults` 把未成年照片頁強制排除只寫給 `tcrfc`，註解稱「`bw` 尚未建置對應頁面、待路由落地才補」，實際藍鯨與磐石共用同一套前台路由，`academy/teams/` 早已渲染藍鯨青年隊（U15／U12）名單；磐石的 `academy/life/` 與三個課程照片頁也漏列 | 「頁面存不存在」以規劃書／STATUS 的「藍鯨尚未開發」推論，沒有 grep `apps/web` 的實際路由；個資防線清單也沒有對照 `apps/web` 逐頁核對 | 見下 |
+| E-83 | 2026-09-30 | 藍鯨站無條件輸出磐石照片（多含未成年學員）與磐石標誌，品牌外洩檢查（`check-club-brand-leak.mjs`）從 BW-C1 起已是全站 hard-fail，卻**全程沒有發現**：導覽下拉 7 張 `nav-*.jpg`（每個藍鯨頁面都有）、`about/*` 九頁與 `news/*` 八頁 hero、`academy/` hero（未成年學員）、`club/{opportunities,player-stories}` hero（Trenčín 交流）、首頁四大支柱四張圖、`partners/our-partners` 三家磐石國際夥伴隊徽、厚底緩震機能襪 7 張商品照（**每張右上角都印有 TCRFC 標誌**，BW-C1 卻誤稱「無隊徽通用配件」）、新聞卡與文章頁無封面時的磐石標誌佔位 | 檢查只比對**文字詞表**，而 `<img alt="">`、檔名、`background-image` 不含任何詞表用字；「哪些單元對藍鯨關閉」只針對頁面內容，沒有人逐張看過共用版位（導覽、hero、卡片）放的是誰的照片。BW-C1 更在 `index.vue` 註解與 README 寫下「通用足球場景照、不涉及任何俱樂部辨識內容」——**沒有實際打開圖片就下的斷言** | ✅ 新增 `check-club-image-leak.mjs`（與品牌詞彙檢查共用 `scripts/lib/collect-routes.mjs` 的同一套路由），掃 `<img>`／`<source>`／`<video poster>`／`style` 與樣式表 `url()`／`og:image`／JSON-LD／icon link，白名單制、不確定歸磐石；新增 `ClubHeroBg`／`ClubImg` 元件與 `hasNewsCover(slug, club)`。詳見下方 E-83 節 |
 
 ---
 
@@ -2058,3 +2059,10 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **下次怎麼避免**：🔴 個資防線類清單（排除路徑、肖像遮蔽）新增或核對時，一律以 `apps/web/app/pages` 實際路由與 `<img>` 掃描為依據，並寫明「逐頁核對過哪些頁」；不得以「該站尚未開發」為由留下缺口。前台若新增顯示未成年人照片的頁面，必須同一次交付補進 `ClubLocalizedSegments`。
 - **防呆**：測試 `CrawlerSettings_藍鯨_未成年照片路徑必定出現在公開端點`、`GetMandatoryExcludePaths_磐石_學員與課程照片頁兩語系皆在清單` 鎖定清單；「前台新增未成年照片頁須同步」尚無自動掃描（可考慮在 `apps/web` lint 掃 `academy/`、`programs/` 下含 `<img` 的頁面比對此清單），目前為「無」自動防呆。
 - **後續（2026-09-30）**：hero 背景頁的取捨已裁決為「不整頁排除、改擋圖片目錄」；測試 `GetMandatoryExcludePaths_學員照片圖片目錄_兩個俱樂部都在清單` 與 `CrawlerSettings_公開端點_學員照片圖片目錄必定出現` 鎖定 `/assets/img/academy/`、`/assets/img/programs/`。
+
+### E-83 品牌外洩檢查只比對文字，藍鯨站整站輸出磐石照片（含未成年學員）與磐石標誌卻全程沒被抓到（2026-09-30）
+
+- **錯在哪**：使用者指出 `academy/index.vue` hero 是磐石未成年學員照。實際盤點藍鯨站（bw 容器 SSR，`/zh/`＋`/en/` 共 146 條 200 路由）：**23 個不重複圖片來源是磐石素材，其中 7 張導覽照出現在全部 146 頁**（隱藏的 mega menu 仍在 HTML 裡，會被爬蟲與「另存圖片」取得）。另外**動態頁 `news/[slug]` 不在路由清單**，其無封面時的佔位圖是磐石標誌，單靠 SSR 掃描抓不到，是讀原始碼才找到。
+- **為什麼會錯（根因）**：① 檢查機制只做「文字詞表比對」，圖片不含詞表用字（`alt=""`、檔名 `nav-about.jpg`），是**檢查範圍的缺口**，不是某頁漏改；② 每輪「藍鯨單元取捨」只判斷**頁面內容**，共用版位（導覽、hero、卡片、商品）放了誰的照片沒人逐張看；③ BW-C1 在程式註解與 README 寫下「通用足球場景照、無隊徽通用配件」，**沒有打開圖片驗證就下斷言**——實際 7 張襪子照片每張右上角都印著 TCRFC 標誌，「四大支柱」四張是磐石球員與 Trenčín 青訓球員。
+- **下次怎麼避免**：🔴 判斷一張圖「通用／中性」之前**必須打開圖片看過**，不得從檔名、alt 或商品性質推論；不確定就歸磐石。新增任何 `<img>`／背景圖到兩站共用的頁面或元件，一律用 `ClubHeroBg`（頁首背景）、`ClubImg`（一般圖）或 `v-if="isTcrfc"`；藍鯨自己的素材放 `public/assets/brand/bw/`（已在允許清單）。檢查範圍與工具本身要對照「它能看見什麼」：文字檢查看不見圖片，圖片檢查看不見 API 回傳的資料，兩者的盲區要寫在檔頭。
+- **防呆**：✅ `apps/web/scripts/check-club-image-leak.mjs`：白名單制（`/assets/brand/bw/` ＋ 明列中性素材，目前 0 筆），其餘一律視為磐石而失敗；每次執行先跑抽取器自我測試（樣本涵蓋所有來源型別）。⚠️ 未掛進 `npm run lint`（需先跑起 bw 容器，理由同 `E-34`）；⚠️ **盲區**：API 回傳的圖片網址（藍鯨自己的橫幅、新聞封面、球員照）與動態路由 `[slug]` 不在掃描範圍——`apps/api` 有資料時來源網域不在允許清單，會被判違規，屆時須**有意識地**把藍鯨媒體來源加進 `ALLOWED_PREFIXES`，不要放寬成通配。

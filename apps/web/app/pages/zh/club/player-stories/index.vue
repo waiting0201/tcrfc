@@ -50,7 +50,7 @@ onMounted(() => {
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/trencin-02.jpg" alt="" width="1920" height="1279">
+  <ClubHeroBg src="/assets/img/trencin-02.jpg" width="1920" height="1279" />
   <div class="container">
     <p class="page-hero__eyebrow">3.5 Player Stories</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>

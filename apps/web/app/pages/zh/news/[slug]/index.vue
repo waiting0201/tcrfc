@@ -74,7 +74,7 @@ const matchFields = computed(() => {
 
 const eyebrow = computed(() => newsEyebrowText(article.value?.categoryCode ?? ''))
 const categoryBilingual = computed(() => newsCategoryBilingualLabel(article.value?.categoryCode ?? '', article.value?.categoryName))
-const coverExists = computed(() => (article.value ? hasNewsCover(article.value.slug) : false))
+const coverExists = computed(() => (article.value ? hasNewsCover(article.value.slug, club === 'bw' ? 'bw' : 'tcrfc') : false))
 
 // ── SEO／GEO ──────────────────────────────────────────────────────────────
 // canonical：交給 @nuxtjs/seo（nuxt-seo-utils）依 site.url ＋ 目前路徑自動產生，
@@ -221,7 +221,7 @@ watchEffect(() => {
 <section class="page-hero page-hero--media">
   <img
     class="page-hero__bg"
-    :src="coverExists ? newsCoverSrc(article?.slug ?? '') : '/assets/brand/svg/tcrfc-mark-black.svg'"
+    :src="coverExists ? newsCoverSrc(article?.slug ?? '') : newsFallbackMarkSrc(club === 'bw' ? 'bw' : 'tcrfc')"
     alt=""
     width="1600"
     height="1067"
@@ -286,9 +286,10 @@ watchEffect(() => {
       <h3 id="related-title">相關文章</h3>
       <div class="article-aside__list">
         <a v-for="r in related" :key="r.slug" class="news-card clip-card" :href="lp(`/zh/news/${r.slug}/`)" :data-title="newsTitleAttr(r.title)">
-          <div class="news-card__media">
+          <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(r.slug, club === 'bw' ? 'bw' : 'tcrfc') }]">
             <span class="news-card__tag">{{ r.categoryName }}</span>
-            <img :src="newsCoverSrc(r.slug)" alt="" loading="lazy" width="1600" height="1067">
+            <img v-if="hasNewsCover(r.slug, club === 'bw' ? 'bw' : 'tcrfc')" :src="newsCoverSrc(r.slug)" alt="" loading="lazy" width="1600" height="1067">
+            <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc('bw')" alt="" loading="lazy" width="64" height="63">
           </div>
           <div class="news-card__body">
             <p class="news-card__meta"><time :datetime="newsIsoDate(r.publishedAt)">{{ newsSlashDate(r.publishedAt) }}</time></p>

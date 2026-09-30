@@ -39,7 +39,7 @@ useFaqPageSchema(faqs)
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/academy/life-02.jpg" alt="" width="1600" height="900">
+  <ClubHeroBg src="/assets/img/academy/life-02.jpg" width="1600" height="900" />
   <div class="container">
     <p class="page-hero__eyebrow">4.7 Join the Academy</p>
     <h1>加入學院<span class="en">Join the Academy</span></h1>

@@ -43,7 +43,7 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/nav-about.jpg" alt="" width="1600" height="900">
+  <ClubHeroBg src="/assets/img/nav-about.jpg" width="1600" height="900" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ aboutEyebrow('2.8', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>

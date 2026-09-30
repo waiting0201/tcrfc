@@ -111,9 +111,55 @@ curl -s http://127.0.0.1:3002/zh/ | grep -o 'data-club="[a-z]*"'   # bw
 node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:3012
 ```
 
-離開碼：`PROTECTED_PAGES`（已宣告完工、必須保持乾淨的頁面）裡任何一頁命中詞表，或
-保護清單本身被棘輪擋下（清單只能往上加、不能往下拿）→ `1`；其餘頁面的命中只當進度計
-印出來，不影響離開碼。
+離開碼：任何非 `EXEMPT_PAGES` 例外的頁面命中詞表，或例外清單棘輪被違反（只能往下減）→ `1`。
+
+### 藍鯨圖片來源檢查（`E-83`，2026-09-30）
+
+詞彙檢查**看不見圖片**（`alt=""`、檔名 `nav-about.jpg` 都不含詞表用字）。
+`scripts/check-club-image-leak.mjs` 補這一塊，與詞彙檢查共用 `scripts/lib/collect-routes.mjs` 的路由
+（`/zh/`＋`/en/` 全部 200 路由）：
+
+```bash
+# bw 容器同樣要帶 NUXT_PUBLIC_SITE_NAME=台中藍鯨
+node scripts/check-club-image-leak.mjs --base-url=http://127.0.0.1:3012 [--inventory]
+```
+
+- **掃描來源**：`<img src/srcset>`、`<source>`、`<video poster/src>`、`<link rel=preload as=image>`、icon／apple-touch-icon、
+  inline `style` 與 `<style>`／外部樣式表的 `url(...)`、`og:image`／`twitter:image`、JSON-LD 的 `image`／`logo`／`thumbnailUrl`／`contentUrl`。
+  每次執行先跑抽取器自我測試（樣本涵蓋以上所有型別），漏抓任何一種即 `exit 2`。
+- **分類**：藍鯨素材（`/assets/brand/bw/`）→ 允許；`NEUTRAL_ALLOWED` 明列的中性素材（每筆附理由，**目前 0 筆**）→ 允許；
+  其餘**一律視為磐石素材（不確定歸磐石）**→ 失敗。`--inventory` 印出全站不重複來源與出現頁數。
+- **判斷「中性」前必須打開圖片看過**：厚底緩震機能襪 7 張商品照每張右上角都印有 TCRFC 標誌（BW-C1 曾誤稱「無隊徽通用配件」）。
+- **盲區**：API 回傳的圖片網址（藍鯨自己的橫幅／新聞封面／球員照）與動態路由 `news/[slug]` 不在掃描範圍。
+  `apps/api` 起來、藍鯨有自己的媒體後，來源網域不在允許清單會被判違規——屆時要**有意識地**把藍鯨媒體來源加進 `ALLOWED_PREFIXES`，不要放寬成通配。
+- **共用元件**：`ClubHeroBg`（頁首背景，藍鯨輸出既有 `page-hero__bg--pending` 漸層）、`ClubImg`（一般圖，藍鯨輸出同比例佔位方塊）、
+  `hasNewsCover(slug, club)`／`newsFallbackMarkSrc(club)`（`app/utils/news.ts`）。新增圖片到兩站共用位置請用這些或 `v-if="isTcrfc"`。
+
+**修正前命中清單**（bw 容器實測，146 條路由、26 個不重複來源、23 個磐石；修正後 3 個來源全為藍鯨隊徽／圖示、0 違規）：
+
+| 來源 | 頁面 |
+|---|---|
+| `nav-about/club/academy/programs/news/culture/partners.jpg`（磐石學員與球員） | **全部 146 頁**（導覽下拉，`SiteHeader.vue`） |
+| `nav-about.jpg` | `about/*` 九頁 hero |
+| `nav-news.jpg` | `news/{index,academy,camps-events,club,community,international,match,media,player-stories}` hero |
+| `nav-partners.jpg`／`nav-culture.jpg` | `partners/`、`culture/` hero |
+| `academy/life-05.jpg`（未成年學員）／`life-02.jpg` | `academy/` hero、`academy/join/` hero |
+| `trencin-04.jpg`／`trencin-02.jpg` | `club/opportunities/`、`club/player-stories/` hero |
+| `news-mcu.jpg`／`trencin-04.jpg`／`trencin-05.jpg`／`news-w20.jpg` | 首頁「四大支柱」圖卡 |
+| `merch-socks-01`–`07.jpg`（每張印有 TCRFC 標誌） | `shop/`、`shop/cushioned-socks/`、`cart/`、`culture/merchandise/` |
+| `partner-intl-01/02/03`（Hellas Verona、Rayo Alcobendas、Rot-Weiss Ahlen 隊徽） | `partners/our-partners/` |
+| `tcrfc-mark-white.svg` | `club/first-team/player/`（例外頁範本） |
+| `tcrfc-mark-black.svg`（無封面佔位） | `news/[slug]`、`NewsCard`、首頁新聞卡（動態，讀原始碼發現） |
+
+**各頁處置**：頁首背景圖 27 頁改 `<ClubHeroBg>`（tcrfc 輸出不變，bw 為漸層佔位）；導覽下拉七張特色圖加 `v-if="isTcrfc"`（按鈕保留）；
+首頁四大支柱圖 `v-if="isTcrfc"`（圖卡退為深色底＋scrim，並更正原註解「通用足球場景照」）；襪子商品照改 `<ClubImg>`；
+國際夥伴隊徽在藍鯨改顯示「尚未公開」空格；新聞無封面佔位標誌藍鯨改用藍鯨隊徽、且藍鯨不走本地封面路徑；球員範本頁磐石標誌對藍鯨隱藏。
+`og:image` 原本已是 `/assets/brand/bw/bw-crest-512.png`（`shared/utils/club.ts`），無須修改。
+
+**驗證（2026-09-30，`apps/api` 未啟動）**：`npm run lint` 0 錯誤／393 警告（基準 395）；`npm run build`、`docker build -f apps/web/Dockerfile apps/web` 皆過；
+本機 tcrfc／bw 兩容器：`check-club-image-leak.mjs`（bw）0 違規；`check-club-brand-leak.mjs`（bw）、`check-heading-structure.mjs`（兩站）、
+`check-site-units-coverage.mjs`、`check-bw-units-citation.mjs`、`check-faq-schema-live.mjs`（兩站）皆通過；tcrfc 164 條路由的圖片來源與頁首背景元素數，
+與修正前映像檔逐頁比對 0 差異；兩站 `X-Robots-Tag: noindex, nofollow` 仍在。**未驗證**：API 有資料時的圖片來源（見盲區）；兩站的瀏覽器視覺（藍鯨佔位方塊、頁首漸層版面）未截圖確認。
 
 ## 開發注意事項
 

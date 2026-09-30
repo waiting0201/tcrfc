@@ -46,7 +46,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/nav-news.jpg" alt="" width="1920" height="1279">
+  <ClubHeroBg src="/assets/img/nav-news.jpg" width="1920" height="1279" />
   <div class="container">
     <p class="page-hero__eyebrow">7.6 Camps & Events</p>
     <h1>營隊與活動<span class="en">Camps & Events</span></h1>

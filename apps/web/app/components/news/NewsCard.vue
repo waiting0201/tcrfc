@@ -21,7 +21,9 @@ interface NewsCardArticle {
 
 const props = withDefaults(defineProps<{ article: NewsCardArticle; hidden?: boolean }>(), { hidden: false })
 
-const cover = computed(() => hasNewsCover(props.article.slug))
+const config = useRuntimeConfig()
+const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
+const cover = computed(() => hasNewsCover(props.article.slug, clubKey.value))
 
 // S1-13：卡片連結一律留在目前語系（lp()），不要在 en 頁面把讀者導回 zh 網址——
 // 這個元件被 news/index.vue 與 5 個分類頁共用，修一次全部生效。
@@ -41,7 +43,7 @@ const { lp } = useLocale()
     <div :class="['news-card__media', { 'news-card__media--noimg': !cover }]">
       <span class="news-card__tag">{{ article.categoryName }}</span>
       <img v-if="cover" :src="newsCoverSrc(article.slug)" alt="" loading="lazy" width="1600" height="1067">
-      <img v-else class="news-card__media-mark" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" loading="lazy" width="64" height="67">
+      <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
     </div>
     <div class="news-card__body">
       <p class="news-card__meta"><time :datetime="newsIsoDate(article.publishedAt)">{{ newsSlashDate(article.publishedAt) }}</time></p>

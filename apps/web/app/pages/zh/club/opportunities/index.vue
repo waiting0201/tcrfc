@@ -43,7 +43,7 @@ useFaqPageSchema(faqs)
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/trencin-04.jpg" alt="" width="1920" height="1279">
+  <ClubHeroBg src="/assets/img/trencin-04.jpg" width="1920" height="1279" />
   <div class="container">
     <p class="page-hero__eyebrow">3.3 Player Opportunities</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>

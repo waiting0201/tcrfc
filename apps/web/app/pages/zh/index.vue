@@ -666,11 +666,12 @@ onBeforeUnmount(() => {
           <h2 class="section-title" id="pillars-title">四大支柱</h2>
         </div>
       </div>
-      <!-- 四大支柱／三大體系圖卡沿用既有 mockup 圖片（人物照為磐石既有素材，藍鯨
-           無對應照片，兩站共用同一組通用足球場景照，不涉及任何俱樂部辨識內容）。 -->
+      <!-- 四大支柱圖卡的四張照片全是磐石素材（news-mcu／trencin-04／trencin-05／news-w20，含磐石球員、
+           未成年青訓球員與贊助字樣），不是「通用足球場景照」（E-83 更正原註解）。藍鯨站不輸出照片，
+           圖卡退為深色底＋scrim（.pillar-card 本身的底色），待藍鯨素材到位再換。 -->
       <div class="pillars-grid">
         <a v-for="(pillar, i) in pillars" :id="pillar.id" :key="pillar.enLabel" class="pillar-card clip-card clip-card--on-dark" :href="lp(pillar.href)">
-          <img :src="['/assets/img/news-mcu.jpg', '/assets/img/trencin-04.jpg', '/assets/img/trencin-05.jpg', '/assets/img/news-w20.jpg'][i]" :alt="pillar.imgAlt" loading="lazy" :width="pillar.imgWidth" :height="pillar.imgHeight">
+          <img v-if="isTcrfc" :src="['/assets/img/news-mcu.jpg', '/assets/img/trencin-04.jpg', '/assets/img/trencin-05.jpg', '/assets/img/news-w20.jpg'][i]" :alt="pillar.imgAlt" loading="lazy" :width="pillar.imgWidth" :height="pillar.imgHeight">
           <div class="pillar-card__scrim" aria-hidden="true"></div>
           <div class="pillar-card__body">
             <p class="pillar-card__en">{{ pillar.enLabel }}</p>
@@ -706,10 +707,10 @@ onBeforeUnmount(() => {
           :href="lp(`/zh/news/${article.slug}/`)"
         >
           <div v-if="NEWS_VARIANTS[i] === 'wide'" class="news-card__inner" style="display:flex;width:100%;">
-            <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(article.slug) }]">
+            <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(article.slug, clubKey) }]">
               <span class="news-card__tag">{{ article.categoryName }}</span>
-              <img v-if="hasNewsCover(article.slug)" :src="newsCoverSrc(article.slug)" :alt="article.title ?? ''" loading="lazy" width="1600" height="1067">
-              <img v-else class="news-card__media-mark" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" loading="lazy" width="64" height="67">
+              <img v-if="hasNewsCover(article.slug, clubKey)" :src="newsCoverSrc(article.slug)" :alt="article.title ?? ''" loading="lazy" width="1600" height="1067">
+              <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">
               <p class="news-card__meta">{{ newsSlashDate(article.publishedAt) }}</p>
@@ -717,10 +718,10 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <template v-else>
-            <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(article.slug) }]">
+            <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(article.slug, clubKey) }]">
               <span class="news-card__tag">{{ article.categoryName }}</span>
-              <img v-if="hasNewsCover(article.slug)" :src="newsCoverSrc(article.slug)" :alt="article.title ?? ''" loading="lazy" width="1280" height="853">
-              <img v-else class="news-card__media-mark" src="/assets/brand/svg/tcrfc-mark-black.svg" alt="" loading="lazy" width="64" height="67">
+              <img v-if="hasNewsCover(article.slug, clubKey)" :src="newsCoverSrc(article.slug)" :alt="article.title ?? ''" loading="lazy" width="1280" height="853">
+              <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">
               <p class="news-card__meta">{{ newsSlashDate(article.publishedAt) }}</p>

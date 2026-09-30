@@ -31,6 +31,8 @@ const config = useRuntimeConfig()
 const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
 const identity = computed(() => getClubIdentity(club.value))
+// 導覽下拉的特色照片全是磐石（含未成年學員）——藍鯨站不輸出，只留按鈕（E-83、check-club-image-leak.mjs）。
+const isTcrfc = computed(() => club.value === 'tcrfc')
 const showWomens = computed(() => isUnitEnabledForClub('06', club.value))
 const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
 
@@ -203,7 +205,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/about/milestones/')">2.8 重要里程碑</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img src="/assets/img/nav-about.jpg" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" src="/assets/img/nav-about.jpg" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/about/our-story/')">認識{{ assets.shortNameZh }}</a>
                 </div>
               </div>
@@ -223,7 +225,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/club/player-stories/')">3.5 球員故事</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img src="/assets/img/nav-club.jpg" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" src="/assets/img/nav-club.jpg" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/join/player/')">加入球隊</a>
                 </div>
               </div>
@@ -246,7 +248,7 @@ onBeforeUnmount(() => {
                   <li v-if="isUnitEnabledForClub('4.7', club)"><a :href="lp('/zh/academy/join/')">4.7 加入{{ identity.academyShortLabelZh }}</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img src="/assets/img/nav-academy.jpg" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" src="/assets/img/nav-academy.jpg" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/join/academy/')">加入{{ identity.academyShortLabelZh }}</a>
                 </div>
               </div>
@@ -267,7 +269,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/programs/school-community/')">5.5 校園與社區計畫</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img src="/assets/img/nav-programs.jpg" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" src="/assets/img/nav-programs.jpg" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/join/academy/')">報名課程</a>
                 </div>
               </div>
@@ -290,7 +292,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/news/media/')">7.8 媒體專區</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img src="/assets/img/nav-news.jpg" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" src="/assets/img/nav-news.jpg" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/news/')">所有消息</a>
                 </div>
               </div>
@@ -308,7 +310,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/perks/')">8.4 特約店家</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img src="/assets/img/nav-culture.jpg" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" src="/assets/img/nav-culture.jpg" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/culture/fan-club/')">加入球迷會</a>
                 </div>
               </div>
@@ -325,7 +327,7 @@ onBeforeUnmount(() => {
                   <li><a :href="lp('/zh/partners/opportunities/')">9.4 贊助方案</a></li>
                 </ul>
                 <div class="mega__feature">
-                  <img src="/assets/img/nav-partners.jpg" alt="" width="440" height="280" loading="lazy">
+                  <img v-if="isTcrfc" src="/assets/img/nav-partners.jpg" alt="" width="440" height="280" loading="lazy">
                   <a class="btn btn--primary btn--sm" :href="lp('/zh/join/partnership/')">洽談贊助</a>
                 </div>
               </div>

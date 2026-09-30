@@ -44,6 +44,7 @@
   詞表：`磐石`／`TCRFC`／`學院`／`Taichung Rock`／`www.tcrfc.tw`（**不是裸 `tcrfc.tw`**——裸網域會撞到 `blueWhaleSiteUrl` 這個 runtime config 預設值，序列化進每一頁的 hydration payload，全站每頁誤判命中一次，見 `E-77`）。
   現有例外清單（均已附規格依據，見腳本內註解）：結帳／商店頁的「收款方為台中磐石足球俱樂部」（主站與藍鯨規劃書 §1.3 明文要求的真實揭露，不是外洩）、商品過渡期文案的 `www.tcrfc.tw` 舊站連結、`club/first-team/player/`（頁面自稱「範本」，磐石 11 號球員楊朝景真實示範資料，藍鯨球員名單與肖像同意尚未到位，STATUS.md 阻塞清單）。
   **用法不變**：`node scripts/check-club-brand-leak.mjs --base-url=http://127.0.0.1:PORT`，只對 bw 容器跑（tcrfc 站允許出現這些詞）。
+- 🔴🔴 **品牌外洩也包含圖片（`E-83`，2026-09-30）**：文字詞表看不見圖片，**藍鯨站不得輸出任何磐石圖片**（未成年學員、球員、隊徽、贊助、Trenčín 等一律不行）。`apps/web/scripts/check-club-image-leak.mjs`（與詞彙檢查共用 `scripts/lib/collect-routes.mjs` 的路由）對 bw 全站 `/zh/`＋`/en/` 抓 `<img>`／`<source>`／`<video poster>`／inline `style` 與樣式表 `url()`／`og:image`／JSON-LD `image`／`logo`／icon link，**白名單制**：只允許 `/assets/brand/bw/` 與腳本內 `NEUTRAL_ALLOWED` 明列（每筆附理由、目前 0 筆）的素材，**不確定一律歸磐石**。**判斷「中性」前必須打開圖片看過**——厚底緩震機能襪的商品照每張都印有 TCRFC 標誌，不是通用素材。新增圖片到兩站共用位置一律用 `ClubHeroBg`／`ClubImg` 元件或 `v-if="isTcrfc"`。盲區：API 回傳圖片與動態路由 `[slug]` 不在掃描內。用法：`node scripts/check-club-image-leak.mjs --base-url=http://127.0.0.1:PORT [--inventory]`。
 - 🧭 **後台是為了產出前台而存在的**（主站規劃書 **§4.0 後台設計通則，v3.7，2026-09-18 客戶指示**）。
   **模組依前台單元切分**，不依資料表切分；每個模組頁首寫明**它產出前台的哪一頁或哪一區塊**（對照表在規劃書 §4.0）。**對不上的模組就是切錯了。**
   **前後台同名**：前台叫「新聞中心」，後台就不叫「文章管理」。

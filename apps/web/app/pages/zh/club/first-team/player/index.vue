@@ -4,6 +4,8 @@
 definePageMeta({ nav: 'club', unit: '3.1' })
 
 const { lp } = useLocale()
+// 磐石標誌不得出現在藍鯨站（E-83）；本頁文字內容的例外見 check-club-brand-leak.mjs EXEMPT_PAGES。
+const isTcrfc = computed(() => useRuntimeConfig().public.club !== 'bw')
 
 useSeoMeta({
   title: '11 楊朝景（球員詳情頁範本）｜一線隊｜台中磐石足球俱樂部 TCRFC',
@@ -34,7 +36,7 @@ useSeoMeta({
 <section class="player-hero" aria-labelledby="player-name">
   <div class="container player-hero__inner">
     <div class="player-hero__visual clip-card clip-card--on-dark">
-      <img class="player-hero__crest" src="/assets/brand/svg/tcrfc-mark-white.svg" alt="" width="140" height="146" aria-hidden="true">
+      <img v-if="isTcrfc" class="player-hero__crest" src="/assets/brand/svg/tcrfc-mark-white.svg" alt="" width="140" height="146" aria-hidden="true">
       <span class="player-hero__num">11</span>
     </div>
     <div class="player-hero__info">

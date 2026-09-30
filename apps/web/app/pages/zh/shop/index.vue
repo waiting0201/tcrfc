@@ -111,7 +111,7 @@ useSeoMeta({
 
       <article class="product-card">
         <a class="product-card__media" :href="lp('/zh/shop/cushioned-socks/')" aria-label="厚底緩震機能襪">
-          <img src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" loading="lazy" width="1600" height="1600">
+          <ClubImg src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" loading="lazy" width="1600" height="1600" />
         </a>
         <div class="product-card__body">
           <p class="product-card__name"><a :href="lp('/zh/shop/cushioned-socks/')">厚底緩震機能襪</a></p>

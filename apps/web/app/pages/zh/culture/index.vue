@@ -35,7 +35,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/nav-culture.jpg" alt="" width="1600" height="900">
+  <ClubHeroBg src="/assets/img/nav-culture.jpg" width="1600" height="900" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '08 TCRFC Culture' : '08 Culture' }}</p>
     <h1>{{ identity.cultureLabelZh }}<span class="en">Culture</span></h1>

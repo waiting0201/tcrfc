@@ -75,8 +75,19 @@ export function newsCategoryBilingualLabel(categoryCode: string, categoryNameZh:
 /** 唯一已知缺封面圖的文章 slug（見檔頭說明），其餘一律用 newsCoverSrc() 推導路徑 */
 export const NEWS_NO_COVER_SLUGS: ReadonlySet<string> = new Set(['2025-05-17-match-051'])
 
-export function hasNewsCover(slug: string): boolean {
+/**
+ * 本地封面圖（`public/assets/img/news/{slug}.jpg`）全部是**磐石**文章的照片（含未成年學員）。
+ * 藍鯨站一律視為沒有本地封面（E-83：藍鯨站不得輸出任何磐石圖片），改走無圖佔位——
+ * 藍鯨自己的封面圖將來由 API／媒體庫提供，不走這條本地路徑推導。
+ */
+export function hasNewsCover(slug: string, club: 'tcrfc' | 'bw' = 'tcrfc'): boolean {
+  if (club === 'bw') return false
   return !NEWS_NO_COVER_SLUGS.has(slug)
+}
+
+/** 無封面圖時的佔位標誌（磐石＝磐石標誌、藍鯨＝藍鯨隊徽，藍鯨站不得出現磐石標誌）。 */
+export function newsFallbackMarkSrc(club: 'tcrfc' | 'bw' = 'tcrfc'): string {
+  return club === 'bw' ? '/assets/brand/bw/bw-crest-512.png' : '/assets/brand/svg/tcrfc-mark-black.svg'
 }
 
 export function newsCoverSrc(slug: string): string {

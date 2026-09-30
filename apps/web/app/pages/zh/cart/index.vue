@@ -76,7 +76,7 @@ useSeoMeta({
             <tr>
               <td>
                 <div class="cart-item">
-                  <img src="/assets/img/merch/merch-socks-03.jpg" alt="厚底緩震機能襪 經典紅" loading="lazy" width="200" height="200">
+                  <ClubImg src="/assets/img/merch/merch-socks-03.jpg" alt="厚底緩震機能襪 經典紅" loading="lazy" width="200" height="200" />
                   <div>
                     <p class="cart-item__name"><a :href="lp('/zh/shop/cushioned-socks/')">厚底緩震機能襪</a></p>
                     <p class="cart-item__variant">經典紅 ・ 尺寸 L ・ NT$120</p>

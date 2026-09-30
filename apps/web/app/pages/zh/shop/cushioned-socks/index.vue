@@ -39,15 +39,15 @@ useSeoMeta({
 
       <div class="product-gallery">
         <div class="product-gallery__main">
-          <img src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" width="1600" height="1600">
+          <ClubImg src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" width="1600" height="1600" />
         </div>
         <ul class="product-gallery__thumbs">
-          <li><img src="/assets/img/merch/merch-socks-02.jpg" alt="向日黃款" loading="lazy" width="200" height="200"></li>
-          <li><img src="/assets/img/merch/merch-socks-03.jpg" alt="經典紅款" loading="lazy" width="200" height="200"></li>
-          <li><img src="/assets/img/merch/merch-socks-04.jpg" alt="櫻桃紅款" loading="lazy" width="200" height="200"></li>
-          <li><img src="/assets/img/merch/merch-socks-05.jpg" alt="海軍藍款" loading="lazy" width="200" height="200"></li>
-          <li><img src="/assets/img/merch/merch-socks-06.jpg" alt="極簡黑款" loading="lazy" width="200" height="200"></li>
-          <li><img src="/assets/img/merch/merch-socks-07.jpg" alt="純淨白款" loading="lazy" width="200" height="200"></li>
+          <li><ClubImg src="/assets/img/merch/merch-socks-02.jpg" alt="向日黃款" loading="lazy" width="200" height="200" /></li>
+          <li><ClubImg src="/assets/img/merch/merch-socks-03.jpg" alt="經典紅款" loading="lazy" width="200" height="200" /></li>
+          <li><ClubImg src="/assets/img/merch/merch-socks-04.jpg" alt="櫻桃紅款" loading="lazy" width="200" height="200" /></li>
+          <li><ClubImg src="/assets/img/merch/merch-socks-05.jpg" alt="海軍藍款" loading="lazy" width="200" height="200" /></li>
+          <li><ClubImg src="/assets/img/merch/merch-socks-06.jpg" alt="極簡黑款" loading="lazy" width="200" height="200" /></li>
+          <li><ClubImg src="/assets/img/merch/merch-socks-07.jpg" alt="純淨白款" loading="lazy" width="200" height="200" /></li>
         </ul>
       </div>
 
@@ -65,12 +65,12 @@ useSeoMeta({
             <span>顏色<span class="req" aria-hidden="true">*</span></span>
           </div>
           <ul class="variant-swatches" role="group" aria-label="選擇顏色">
-            <li><button class="variant-swatch" type="button" aria-pressed="true"><img src="/assets/img/merch/merch-socks-02.jpg" alt="" width="200" height="200"><span>向日黃</span></button></li>
-            <li><button class="variant-swatch" type="button" aria-pressed="false"><img src="/assets/img/merch/merch-socks-03.jpg" alt="" width="200" height="200"><span>經典紅</span></button></li>
-            <li><button class="variant-swatch" type="button" aria-pressed="false"><img src="/assets/img/merch/merch-socks-04.jpg" alt="" width="200" height="200"><span>櫻桃紅</span></button></li>
-            <li><button class="variant-swatch" type="button" aria-pressed="false"><img src="/assets/img/merch/merch-socks-05.jpg" alt="" width="200" height="200"><span>海軍藍</span></button></li>
-            <li><button class="variant-swatch" type="button" aria-pressed="false"><img src="/assets/img/merch/merch-socks-06.jpg" alt="" width="200" height="200"><span>極簡黑</span></button></li>
-            <li><button class="variant-swatch" type="button" aria-pressed="false"><img src="/assets/img/merch/merch-socks-07.jpg" alt="" width="200" height="200"><span>純淨白</span></button></li>
+            <li><button class="variant-swatch" type="button" aria-pressed="true"><ClubImg src="/assets/img/merch/merch-socks-02.jpg" alt="" width="200" height="200" /><span>向日黃</span></button></li>
+            <li><button class="variant-swatch" type="button" aria-pressed="false"><ClubImg src="/assets/img/merch/merch-socks-03.jpg" alt="" width="200" height="200" /><span>經典紅</span></button></li>
+            <li><button class="variant-swatch" type="button" aria-pressed="false"><ClubImg src="/assets/img/merch/merch-socks-04.jpg" alt="" width="200" height="200" /><span>櫻桃紅</span></button></li>
+            <li><button class="variant-swatch" type="button" aria-pressed="false"><ClubImg src="/assets/img/merch/merch-socks-05.jpg" alt="" width="200" height="200" /><span>海軍藍</span></button></li>
+            <li><button class="variant-swatch" type="button" aria-pressed="false"><ClubImg src="/assets/img/merch/merch-socks-06.jpg" alt="" width="200" height="200" /><span>極簡黑</span></button></li>
+            <li><button class="variant-swatch" type="button" aria-pressed="false"><ClubImg src="/assets/img/merch/merch-socks-07.jpg" alt="" width="200" height="200" /><span>純淨白</span></button></li>
           </ul>
         </div>
 

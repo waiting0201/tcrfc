@@ -7,6 +7,8 @@ const { lp } = useLocale()
 const config = useRuntimeConfig()
 // BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。本頁實際夥伴名單本來就是
 // 「建置中」佔位狀態（見下方 hero lede），沒有真實名單需要處理兩隊分區問題。
+// 三家國際夥伴（Hellas Verona／Rayo Alcobendas／Rot-Weiss Ahlen）是磐石的合作對象，藍鯨站不得輸出其隊徽（E-83）。
+const isTcrfc = computed(() => config.public.club !== 'bw')
 const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
@@ -51,15 +53,18 @@ useSeoMeta({
   <div class="container">
     <h2 class="section-title partner-type-title" id="international-title">國際夥伴<span class="en">International Partners</span></h2>
     <div class="sponsor-grid">
-      <div class="sponsor-tile">
+      <div v-if="isTcrfc" class="sponsor-tile">
         <img src="/assets/img/partners-intl/partner-intl-01-hellas-verona.webp" alt="義大利 Hellas Verona FC 隊徽" loading="lazy" width="200" height="200">
       </div>
-      <div class="sponsor-tile">
+      <div v-else class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
+      <div v-if="isTcrfc" class="sponsor-tile">
         <img src="/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png" alt="西班牙 Rayo Ciudad Alcobendas CF 隊徽" loading="lazy" width="200" height="200">
       </div>
-      <div class="sponsor-tile">
+      <div v-else class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
+      <div v-if="isTcrfc" class="sponsor-tile">
         <img src="/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp" alt="德國 Rot-Weiss Ahlen 隊徽" loading="lazy" width="200" height="200">
       </div>
+      <div v-else class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
       <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
     </div>
   </div>

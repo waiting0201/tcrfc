@@ -104,11 +104,10 @@
 import { execSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readdirSync, statSync } from 'node:fs'
+import { collectAllRoutes } from './lib/collect-routes.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = resolve(HERE, '../../..')
-const PAGES_DIR = resolve(HERE, '../app/pages')
 const THIS_FILE_REL = 'apps/web/scripts/check-club-brand-leak.mjs'
 
 // ---------------------------------------------------------------------------
@@ -179,30 +178,8 @@ function findExemption(route, term) {
   return EXEMPT_PAGES.some((e) => e.route === route && e.terms.includes(term))
 }
 
-// ---------------------------------------------------------------------------
-// 路由清單：從 app/pages 檔案樹算出來，zh／en 都收（比照 check-heading-structure.mjs，
-// en 路由是 pages:extend 在 build 時從 zh 複製出來的孿生路由，原始碼裡沒有實體 en/
-// 目錄，見 nuxt.config.ts）。排除動態路由（檔名或目錄含 `[`）——那些頁面的可抓取
-// 網址取決於後端當下有哪些 slug，不是這支腳本要驗的範圍。
-// ---------------------------------------------------------------------------
-function collectRoutes(dir, base = '') {
-  const routes = []
-  for (const entry of readdirSync(dir)) {
-    if (entry.includes('[')) continue
-    const full = resolve(dir, entry)
-    if (statSync(full).isDirectory()) {
-      routes.push(...collectRoutes(full, `${base}/${entry}`))
-    } else if (entry.endsWith('.vue')) {
-      const name = entry.replace(/\.vue$/, '')
-      const path = name === 'index' ? `${base}/` : `${base}/${name}/`
-      routes.push(path || '/')
-    }
-  }
-  return routes
-}
-
-const zhRoutes = [...new Set(collectRoutes(PAGES_DIR))].filter((r) => r.startsWith('/zh/')).sort()
-const routes = [...zhRoutes, ...zhRoutes.map((r) => `/en${r.slice(3)}`)]
+// 路由清單：與 check-club-image-leak.mjs 共用 scripts/lib/collect-routes.mjs
+const routes = collectAllRoutes()
 
 // ---------------------------------------------------------------------------
 // 例外清單棘輪：這一版的 EXEMPT_PAGES 必須是上一版的子集合（只能減少）。
