@@ -21,7 +21,7 @@ import {
   type InventoryItemDto,
   type InventoryMovementDto,
 } from '@/api/adminShop'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -278,7 +278,7 @@ const signed = (n: number) => (n > 0 ? `+${n}` : String(n))
           <el-empty v-if="movements.length === 0" description="沒有符合條件的異動紀錄" />
           <template v-else>
             <el-table v-if="!isMobile" :data="movements" row-key="id">
-              <el-table-column label="時間" width="150"><template #default="{ row }">{{ formatUtcDateTime(row.occurredAt) }}</template></el-table-column>
+              <el-table-column label="時間" width="150"><template #default="{ row }">{{ formatDateTime(row.occurredAt) }}</template></el-table-column>
               <el-table-column label="商品／規格" min-width="180"><template #default="{ row }"><div>{{ row.productName }}</div><div class="inventory__muted">{{ row.sku }}</div></template></el-table-column>
               <el-table-column label="類型" width="100" prop="movementTypeLabel" />
               <el-table-column label="數量" width="80"><template #default="{ row }"><strong>{{ signed(row.quantity) }}</strong></template></el-table-column>
@@ -292,7 +292,7 @@ const signed = (n: number) => (n > 0 ? `+${n}` : String(n))
             <MobileCardList v-else :rows="movements" row-key="id">
               <template #title="{ row }">{{ row.productName }}・{{ row.movementTypeLabel }} {{ signed(row.quantity) }}</template>
               <template #meta="{ row }">
-                <span>{{ formatUtcDateTime(row.occurredAt) }}</span><span>{{ row.sku }}</span>
+                <span>{{ formatDateTime(row.occurredAt) }}</span><span>{{ row.sku }}</span>
                 <span>異動後 {{ row.stockAfter }} ／ {{ row.reservedAfter }}</span>
                 <span v-if="row.reason">{{ row.reason }}</span><span>{{ row.handledByName || '系統' }}</span>
               </template>

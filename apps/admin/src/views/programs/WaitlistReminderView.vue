@@ -14,7 +14,7 @@ import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { listWaitlistReminders, promoteAdminRegistration, type WaitlistEntryDto, type WaitlistReminderDto } from '@/api/adminRegistrations'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const { breakpoint } = useBreakpoint()

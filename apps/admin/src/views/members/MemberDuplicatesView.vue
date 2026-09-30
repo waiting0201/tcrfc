@@ -11,7 +11,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { listMemberDuplicates, mergeMembers, type DuplicateGroupDto, type DuplicateMemberDto } from '@/api/adminMembers'
 
 const router = useRouter()

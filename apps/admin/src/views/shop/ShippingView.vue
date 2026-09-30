@@ -27,7 +27,7 @@ import {
   type ShipmentImportResultDto,
   type ShipmentListItemDto,
 } from '@/api/adminShop'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { orderStatusTag } from '@/utils/shopStatus'
 
 const router = useRouter()
@@ -219,7 +219,7 @@ const printNow = () => window.print()
       </div>
       <div class="ship-print__sheet">
         <h2 class="ship-print__title">揀貨單</h2>
-        <p class="ship-print__meta">共 {{ picking.orderCount }} 張訂單、{{ picking.totalQuantity }} 件商品・產生時間 {{ formatUtcDateTime(picking.generatedAt) }}（只含已付款與備貨中的訂單，依規格編號加總）</p>
+        <p class="ship-print__meta">共 {{ picking.orderCount }} 張訂單、{{ picking.totalQuantity }} 件商品・產生時間 {{ formatDateTime(picking.generatedAt) }}（只含已付款與備貨中的訂單，依規格編號加總）</p>
         <p v-if="picking.lines.length === 0" class="ship-print__meta">目前沒有需要揀貨的品項。</p>
         <div v-else class="ship-print__scroll">
           <table class="ship-print__table">
@@ -318,7 +318,7 @@ const printNow = () => window.print()
                 <span v-else class="shipping__muted">—</span>
               </template>
             </el-table-column>
-            <el-table-column label="下單時間" width="150"><template #default="{ row }">{{ formatUtcDateTime(row.createdAt) }}</template></el-table-column>
+            <el-table-column label="下單時間" width="150"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
           </el-table>
           <MobileCardList v-else :rows="rows" row-key="orderId">
             <template #title="{ row }">

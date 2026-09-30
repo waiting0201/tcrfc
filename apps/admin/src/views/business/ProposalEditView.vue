@@ -10,7 +10,7 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { formatFileSize, saveBlob } from '@/utils/downloadFile'
 import {
   addProposalFile,

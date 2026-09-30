@@ -14,7 +14,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminCompetitions, type AdminCompetitionListItemDto } from '@/api/adminCompetitions'
 import { AdminApiError } from '@/api/http'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 

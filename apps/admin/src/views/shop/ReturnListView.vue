@@ -15,7 +15,7 @@ import { useViewUpdatePermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { listRefunds, REFUND_STATUS_OPTIONS, type RefundListItemDto } from '@/api/adminShop'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { formatMoney } from '@/utils/formatMoney'
 import { refundStatusTag } from '@/utils/shopStatus'
 
@@ -102,7 +102,7 @@ function onCreated(id: string | null) {
           <el-table-column label="原因" min-width="160" prop="reason" />
           <el-table-column label="退回商品" width="100"><template #default="{ row }">{{ row.needsReturn ? '需要退回' : '不需退回' }}</template></el-table-column>
           <el-table-column label="付款方式" width="110" prop="paymentMethodLabel" />
-          <el-table-column label="申請時間" width="150"><template #default="{ row }">{{ formatUtcDateTime(row.createdAt) }}</template></el-table-column>
+          <el-table-column label="申請時間" width="150"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
           <el-table-column label="操作" width="80" fixed="right"><template #default="{ row }"><el-button size="small" text type="primary" @click="go(row)">處理</el-button></template></el-table-column>
         </el-table>
         <MobileCardList v-else :rows="rows" row-key="id">

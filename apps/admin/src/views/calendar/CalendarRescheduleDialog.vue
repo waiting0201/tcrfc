@@ -18,7 +18,7 @@ import {
   type AdminCalendarConflictDto,
   type AdminCalendarEventDto,
 } from '@/api/adminCalendar'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { addDaysUtc, daysBetweenDates, formatDate, formatDateTime } from '@/utils/dateTime'
 
 const props = defineProps<{
   modelValue: boolean
@@ -34,7 +34,7 @@ const emit = defineEmits<{
 }>()
 
 const isMatch = computed(() => props.event?.sourceType === 'match')
-const currentDay = computed(() => props.event?.startsAt.slice(0, 10) ?? '')
+const currentDay = computed(() => (props.event ? formatDate(props.event.startsAt) : ''))
 
 const newDay = ref('')
 const kickoff = ref<string | null>(null)
@@ -59,17 +59,9 @@ watch(
 
 const unchanged = computed(() => !newDay.value || (newDay.value === currentDay.value && !kickoffTouched.value))
 
-/** 後端的時間戳是 UTC；少數回應沒帶時區字尾，一律當 UTC 解讀。 */
-function parseUtc(value: string): Date {
-  return new Date(/(Z|[+-]\d\d:?\d\d)$/.test(value) ? value : `${value}Z`)
-}
-
-function daysBetween(fromDay: string, toDay: string): number {
-  return Math.round((Date.parse(`${toDay}T00:00:00Z`) - Date.parse(`${fromDay}T00:00:00Z`)) / 86400000)
-}
-
+/** 依天數平移（台灣沒有日光節約，一天＝24 小時）；一律回帶 `Z` 的 UTC。 */
 function shiftIso(value: string, days: number): string {
-  return new Date(parseUtc(value).getTime() + days * 86400000).toISOString()
+  return addDaysUtc(value, days) ?? value
 }
 
 async function submit(acknowledge: boolean) {
@@ -87,7 +79,7 @@ async function submit(acknowledge: boolean) {
         acknowledgeConflicts: acknowledge,
       })
     } else {
-      const delta = daysBetween(currentDay.value, newDay.value)
+      const delta = daysBetweenDates(currentDay.value, newDay.value)
       await moveAdminCustomEvent(club, event.sourceId, {
         startsAt: shiftIso(event.startsAt, delta),
         endsAt: event.endsAt ? shiftIso(event.endsAt, delta) : null,

@@ -14,7 +14,7 @@ import { listAdminEnquiries, downloadAdminEnquiriesCsv, type AdminEnquiryListIte
 import { AdminApiError } from '@/api/http'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
 import { FORM_CODE_ORDER, formCodeLabel, ENQUIRY_STATUS_ORDER, enquiryStatusTagType, type FormCode } from '@/types/forms'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const club = computed(() => activeClubId.value)

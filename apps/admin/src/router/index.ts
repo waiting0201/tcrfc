@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { ALL_NAV_ITEMS } from '@/data/nav'
 import { authUser, isAuthenticated, isBootstrapped, markBootstrapped } from '@/auth/session'
 import { refreshAccessToken } from '@/api/adminAuth'
 import { activeClubId, ensureClubsLoaded } from '@/auth/clubAccess'
@@ -12,7 +11,6 @@ const PageListView = () => import('@/views/pages/PageListView.vue')
 const PageEditView = () => import('@/views/pages/PageEditView.vue')
 const NewsListView = () => import('@/views/news/NewsListView.vue')
 const NewsEditView = () => import('@/views/news/NewsEditView.vue')
-const PlaceholderView = () => import('@/views/PlaceholderView.vue')
 const NotFoundView = () => import('@/views/NotFoundView.vue')
 const LoginView = () => import('@/views/auth/LoginView.vue')
 const AccountSecurityView = () => import('@/views/account/AccountSecurityView.vue')
@@ -108,6 +106,19 @@ const DrawEditView = () => import('@/views/members/DrawEditView.vue')
 const DrawDetailView = () => import('@/views/members/DrawDetailView.vue')
 const CalendarCategoriesView = () => import('@/views/calendar/CalendarCategoriesView.vue')
 const CalendarSubscriptionsView = () => import('@/views/calendar/CalendarSubscriptionsView.vue')
+const NewsletterView = () => import('@/views/forms/NewsletterView.vue')
+const AdvertiserView = () => import('@/views/ads/AdvertiserView.vue')
+const CampaignListView = () => import('@/views/ads/CampaignListView.vue')
+const CampaignDetailView = () => import('@/views/ads/CampaignDetailView.vue')
+const AdReportView = () => import('@/views/ads/AdReportView.vue')
+const ReleaseView = () => import('@/views/app/ReleaseView.vue')
+const AppContentView = () => import('@/views/app/AppContentView.vue')
+const PushView = () => import('@/views/app/PushView.vue')
+const PushEditView = () => import('@/views/app/PushEditView.vue')
+const PushDetailView = () => import('@/views/app/PushDetailView.vue')
+const DeviceView = () => import('@/views/app/DeviceView.vue')
+const AppSettingsView = () => import('@/views/app/AppSettingsView.vue')
+const AuditView = () => import('@/views/system/AuditView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -472,19 +483,22 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
   { path: '/members/lottery/new', name: 'draw-new', component: DrawEditView, meta: { label: '新增抽獎活動', code: 'K5' } },
   { path: '/members/lottery/:id', name: 'draw-detail', component: DrawDetailView, props: true, meta: { label: '抽獎活動管理', code: 'K5' } },
   { path: '/members/lottery/:id/edit', name: 'draw-edit', component: DrawEditView, props: true, meta: { label: '編輯抽獎活動', code: 'K5' } },
+  // ── D 批：G3 電子報、E4–E6 App 廣告（兩隊共用，不分俱樂部）、M1–M5 行動 App 後台、J3 稽核與備份 ──
+  { path: '/inquiries/newsletter', name: 'newsletter', component: NewsletterView, meta: { label: '電子報', code: 'G3' } },
+  { path: '/business/advertisers', name: 'ad-advertisers', component: AdvertiserView, meta: { label: '廣告主與版位', code: 'E4' } },
+  { path: '/business/campaigns', name: 'ad-campaign-list', component: CampaignListView, meta: { label: '投放檔期', code: 'E5' } },
+  { path: '/business/campaigns/:id', name: 'ad-campaign-detail', component: CampaignDetailView, props: true, meta: { label: '檔期詳情', code: 'E5' } },
+  { path: '/business/ad-reports', name: 'ad-reports', component: AdReportView, meta: { label: '成效報表', code: 'E6' } },
+  { path: '/app/releases', name: 'app-releases', component: ReleaseView, meta: { label: '版本發布', code: 'M1' } },
+  { path: '/app/content', name: 'app-content', component: AppContentView, meta: { label: '內容編排', code: 'M2' } },
+  { path: '/app/push', name: 'app-push', component: PushView, meta: { label: '推播', code: 'M3' } },
+  { path: '/app/push/new', name: 'app-push-new', component: PushEditView, meta: { label: '新增推播', code: 'M3' } },
+  { path: '/app/push/:id', name: 'app-push-detail', component: PushDetailView, props: true, meta: { label: '推播詳情', code: 'M3' } },
+  { path: '/app/push/:id/edit', name: 'app-push-edit', component: PushEditView, props: true, meta: { label: '編輯推播', code: 'M3' } },
+  { path: '/app/devices', name: 'app-devices', component: DeviceView, meta: { label: '推播裝置', code: 'M4' } },
+  { path: '/app/settings', name: 'app-settings', component: AppSettingsView, meta: { label: 'App 設定與連線檢查', code: 'M5' } },
+  { path: '/system/audit', name: 'system-audit', component: AuditView, meta: { label: '稽核與備份', code: 'J3', sysadminOnly: true } },
 ]
-
-const implementedPaths = new Set(IMPLEMENTED_ROUTES.map((route) => route.path))
-
-/** 側欄裡「尚未建置」的模組，全部指到同一個 PlaceholderView，帶上模組名稱與代號 */
-const PLACEHOLDER_ROUTES: RouteRecordRaw[] = ALL_NAV_ITEMS.filter(
-  (item) => !item.implemented && !implementedPaths.has(item.path),
-).map((item) => ({
-  path: item.path,
-  name: `placeholder-${item.code}`,
-  component: PlaceholderView,
-  meta: { label: item.label, code: item.code },
-}))
 
 const router = createRouter({
   history: createWebHistory(),
@@ -497,7 +511,6 @@ const router = createRouter({
       children: [
         { path: '', redirect: '/dashboard' },
         ...IMPLEMENTED_ROUTES,
-        ...PLACEHOLDER_ROUTES,
       ],
     },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },

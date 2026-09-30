@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ContentStatus } from '@/types/common'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 /**
  * 狀態四態的呈現（docs/21-admin-ui.md §4.2）。深色語意底＋亮色語意文字，不是 Element Plus

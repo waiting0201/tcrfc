@@ -30,7 +30,7 @@ import type { BatchResultDto } from '@/api/adminCommon'
 import { AdminApiError } from '@/api/http'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { REGISTRATION_STATUS_ORDER, registrationStatusTagType } from '@/types/program'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const BATCH_LIMIT = 200
 

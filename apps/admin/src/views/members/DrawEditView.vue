@@ -20,7 +20,7 @@ import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { enOrUndefined, nullIfBlank } from '@/api/adminCommon'
 import { createDraw, DRAW_OCCASION_OPTIONS, getDraw, updateDraw, type DrawDetailDto } from '@/api/adminDraws'
-import { localInputToUtc, utcToLocalInput } from '@/utils/formatDateTime'
+import { taipeiInputToUtc, utcToTaipeiInput } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,8 +54,8 @@ const pageTitle = computed(() => (isCreate.value ? '新增抽獎活動' : `編�
 
 function apply(d: DrawDetailDto) {
   form.drawCode = d.drawCode
-  form.snapshotAt = utcToLocalInput(d.snapshotAt)
-  form.drawnAt = utcToLocalInput(d.drawnAt)
+  form.snapshotAt = utcToTaipeiInput(d.snapshotAt)
+  form.drawnAt = utcToTaipeiInput(d.drawnAt)
   form.drawOccasion = d.drawOccasion ?? ''
   form.claimDeadlineOn = d.claimDeadlineOn ?? ''
   form.internalNote = d.internalNote ?? ''
@@ -103,8 +103,8 @@ async function handleSave() {
   saving.value = true
   const payload = {
     drawCode: locked.value ? undefined : nullIfBlank(form.drawCode) ?? undefined,
-    snapshotAt: locked.value ? undefined : localInputToUtc(form.snapshotAt),
-    drawnAt: localInputToUtc(form.drawnAt),
+    snapshotAt: locked.value ? undefined : taipeiInputToUtc(form.snapshotAt),
+    drawnAt: taipeiInputToUtc(form.drawnAt),
     drawOccasion: form.drawOccasion || null,
     claimDeadlineOn: form.claimDeadlineOn || null,
     internalNote: nullIfBlank(form.internalNote),

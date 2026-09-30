@@ -12,7 +12,7 @@ import { listAdminForms, type AdminFormListItemDto } from '@/api/adminForms'
 import { AdminApiError } from '@/api/http'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
 import { FORM_CODE_ORDER, formCodeLabel } from '@/types/forms'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const club = computed(() => activeClubId.value)

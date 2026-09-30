@@ -26,7 +26,7 @@ import {
   type TrialRegistrationListItemDto,
 } from '@/api/adminTrials'
 import { REGISTRATION_STATUS_ORDER, registrationStatusTagType } from '@/types/program'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const props = defineProps<{ id: string }>()
 

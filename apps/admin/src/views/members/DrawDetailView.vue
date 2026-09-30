@@ -17,7 +17,7 @@ import { useViewUpdatePermissions, usePermission } from '@/composables/useCrudPe
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { closeDraw, getDraw, voidDraw, type DrawDetailDto } from '@/api/adminDraws'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -117,7 +117,7 @@ async function doVoid() {
             <el-tag :type="statusTag(draw.status)" size="large">{{ draw.statusLabel }}</el-tag>
             <span class="draw-detail__code">活動代碼 {{ draw.drawCode }}</span>
             <div class="draw-detail__muted">
-              資格基準時間 {{ formatUtcDateTime(draw.snapshotAt) || '未設定' }}・開獎時間 {{ formatUtcDateTime(draw.drawnAt) || '未設定' }}<template v-if="draw.claimDeadlineOn">・領獎期限 {{ draw.claimDeadlineOn }}</template>
+              資格基準時間 {{ formatDateTime(draw.snapshotAt) || '未設定' }}・開獎時間 {{ formatDateTime(draw.drawnAt) || '未設定' }}<template v-if="draw.claimDeadlineOn">・領獎期限 {{ draw.claimDeadlineOn }}</template>
             </div>
             <div class="draw-detail__muted">合格 {{ draw.rosterVersion > 0 ? draw.totalCount : 0 }} 人・中獎 {{ draw.winnerCount }}・備取 {{ draw.backupCount }}・已發放 {{ draw.fulfilledCount }}</div>
           </div>

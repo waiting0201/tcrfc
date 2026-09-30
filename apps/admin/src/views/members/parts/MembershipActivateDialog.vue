@@ -10,6 +10,7 @@ import { activeClubId, availableClubs } from '@/auth/clubAccess'
 import { activateMembership, type MembershipDetailDto, type MembershipPlanListItemDto } from '@/api/adminMemberships'
 import { nullIfBlank } from '@/api/adminCommon'
 import { errorMessage, formatMoney, todayString } from './membershipHelpers'
+import { pickerDateToDateOnly, taipeiToday } from '@/utils/dateTime'
 
 const props = defineProps<{ modelValue: boolean; plans: MembershipPlanListItemDto[] }>()
 const emit = defineEmits<{
@@ -48,7 +49,7 @@ function onPlanChange() {
 }
 
 function disabledFuture(date: Date): boolean {
-  return date.getTime() > Date.now()
+  return pickerDateToDateOnly(date) > taipeiToday()
 }
 
 function validate(): string | null {

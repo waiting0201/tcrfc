@@ -14,7 +14,7 @@ import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { lookupNews, type NewsLookupItemDto } from '@/api/adminNews'
 import { createAnnouncementDraft, getAnnouncementPreview, linkAnnouncementArticle, markAnnounced, type AnnouncementPreviewDto, type DrawDetailDto } from '@/api/adminDraws'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const props = defineProps<{ draw: DrawDetailDto }>()
 const emit = defineEmits<{ (e: 'changed'): void }>()
@@ -149,7 +149,7 @@ async function doMark() {
         <dl class="announce__dl announce__preview">
           <div><dt>活動</dt><dd>{{ preview.drawName }}</dd></div>
           <div v-if="preview.prizeDescription"><dt>獎品</dt><dd>{{ preview.prizeDescription }}</dd></div>
-          <div><dt>資格基準時間</dt><dd>{{ formatUtcDateTime(preview.snapshotAt) }}</dd></div>
+          <div><dt>資格基準時間</dt><dd>{{ formatDateTime(preview.snapshotAt) }}</dd></div>
           <div><dt>合格人數</dt><dd>{{ preview.eligibleCount }} 人</dd></div>
         </dl>
         <el-empty v-if="preview.winners.length === 0" description="還沒有中獎人" :image-size="48" />

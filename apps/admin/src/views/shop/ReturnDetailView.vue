@@ -14,7 +14,7 @@ import { usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { approveRefund, executeRefund, getRefund, receiveRefund, rejectRefund, type RefundDetailDto } from '@/api/adminShop'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { formatMoney } from '@/utils/formatMoney'
 import { orderStatusTag, refundStatusTag } from '@/utils/shopStatus'
 
@@ -148,7 +148,7 @@ const steps = computed(() => {
           <div>
             <el-tag :type="refundStatusTag(refund.status)" size="large">{{ refund.statusLabel }}</el-tag>
             <strong class="refund-detail__amount">{{ formatMoney(refund.refundAmount) }}</strong>
-            <div class="refund-detail__muted">申請 {{ formatUtcDateTime(refund.createdAt) }}・{{ refund.needsReturn ? '需要退回商品' : '不需退回商品' }}</div>
+            <div class="refund-detail__muted">申請 {{ formatDateTime(refund.createdAt) }}・{{ refund.needsReturn ? '需要退回商品' : '不需退回商品' }}</div>
           </div>
           <div class="refund-detail__actions">
             <template v-if="canUpdate">
@@ -183,9 +183,9 @@ const steps = computed(() => {
         <el-col :xs="24" :md="12">
           <el-card shadow="never" header="處理紀錄" class="refund-detail__block">
             <dl class="refund-detail__dl">
-              <div><dt>收貨驗收</dt><dd>{{ refund.receivedAt ? `${formatUtcDateTime(refund.receivedAt)}（${refund.receivedByName || '—'}）` : refund.needsReturn ? '尚未驗收' : '不需退回' }}</dd></div>
+              <div><dt>收貨驗收</dt><dd>{{ refund.receivedAt ? `${formatDateTime(refund.receivedAt)}（${refund.receivedByName || '—'}）` : refund.needsReturn ? '尚未驗收' : '不需退回' }}</dd></div>
               <div><dt>退款方式</dt><dd>{{ refund.refundMethodLabel || '—' }}</dd></div>
-              <div><dt>退款時間</dt><dd>{{ refund.refundedAt ? `${formatUtcDateTime(refund.refundedAt)}（${refund.refundedByName || '—'}）` : '尚未退款' }}</dd></div>
+              <div><dt>退款時間</dt><dd>{{ refund.refundedAt ? `${formatDateTime(refund.refundedAt)}（${refund.refundedByName || '—'}）` : '尚未退款' }}</dd></div>
               <div v-if="refund.refundReference"><dt>退款序號</dt><dd>{{ refund.refundReference }}</dd></div>
             </dl>
           </el-card>

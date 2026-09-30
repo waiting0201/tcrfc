@@ -21,7 +21,7 @@ import {
   type ShopCredentialsDto,
   type ShopEnvironment,
 } from '@/api/adminShop'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const club = computed(() => activeClubId.value)
 const data = ref<ShopCredentialsDto | null>(null)
@@ -139,7 +139,7 @@ async function saveRetry() {
 
 function envStatus(env?: CredentialEnvDto): string {
   if (!env || !env.configured) return '尚未設定'
-  return `已設定${env.identifierMasked ? `（識別碼 ${env.identifierMasked}）` : ''}${env.rotatedAt ? `・密鑰更新於 ${formatUtcDateTime(env.rotatedAt)}` : ''}`
+  return `已設定${env.identifierMasked ? `（識別碼 ${env.identifierMasked}）` : ''}${env.rotatedAt ? `・密鑰更新於 ${formatDateTime(env.rotatedAt)}` : ''}`
 }
 </script>
 

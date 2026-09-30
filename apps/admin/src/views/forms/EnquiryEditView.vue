@@ -37,7 +37,7 @@ import {
 import { getPublicForm } from '@/api/publicForms'
 import { AdminApiError } from '@/api/http'
 import { ENQUIRY_STATUS_ORDER, enquiryStatusTagType } from '@/types/forms'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()

@@ -14,7 +14,7 @@ import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { nullIfBlank } from '@/api/adminCommon'
 import { getShopSettings, saveShopSettings, type ShopLocaleText, type ShopSettingsDto } from '@/api/adminShop'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const { canUpdate } = useViewUpdatePermissions('shop.setting')
 const club = computed(() => activeClubId.value)
@@ -158,7 +158,7 @@ async function save() {
       </el-form>
       <div class="settings__foot">
         <el-button v-if="canUpdate" type="primary" :loading="saving" :disabled="!isDirty" @click="save">儲存商店設定</el-button>
-        <span v-if="updatedAt" class="settings__hint">最後更新 {{ formatUtcDateTime(updatedAt) }}</span>
+        <span v-if="updatedAt" class="settings__hint">最後更新 {{ formatDateTime(updatedAt) }}</span>
       </div>
     </template>
   </div>

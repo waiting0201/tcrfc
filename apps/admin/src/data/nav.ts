@@ -3,7 +3,7 @@ import type { NavGroup, NavChild, NavModule } from '@/types/nav'
 /**
  * 側欄導覽資料（docs/21-admin-ui.md §1）：14 個一級模組、6 組視覺分組。
  * 有子模組的模組渲染成 el-sub-menu（手風琴 unique-opened）；沒有子模組的（A／I）是葉節點。
- * `implemented: false` 的項目點進去會看到 PlaceholderView（「這個模組還沒做」），不是死連結。
+ * 全部模組都已有畫面（D 批完成後不再有佔位頁）；`implemented` 旗標目前不影響路由，新增模組時請同時新增路由。
  */
 export const NAV_GROUPS: NavGroup[] = [
   {
@@ -125,9 +125,9 @@ export const NAV_GROUPS: NavGroup[] = [
           { code: 'E1', label: '夥伴', path: '/business/partners', implemented: true },
           { code: 'E2', label: '贊助', path: '/business/sponsorships', implemented: true },
           { code: 'E3', label: '提案下載', path: '/business/proposals', implemented: true },
-          { code: 'E4', label: '廣告主與版位', path: '/business/advertisers', implemented: false },
-          { code: 'E5', label: '投放檔期', path: '/business/campaigns', implemented: false },
-          { code: 'E6', label: '成效報表', path: '/business/ad-reports', implemented: false },
+          { code: 'E4', label: '廣告主與版位', path: '/business/advertisers', implemented: true },
+          { code: 'E5', label: '投放檔期', path: '/business/campaigns', implemented: true },
+          { code: 'E6', label: '成效報表', path: '/business/ad-reports', implemented: true },
         ],
       },
       {
@@ -144,7 +144,7 @@ export const NAV_GROUPS: NavGroup[] = [
         children: [
           { code: 'G1', label: '設計器', path: '/inquiries/builder', implemented: true },
           { code: 'G2', label: '收件匣', path: '/inquiries/inbox', implemented: true },
-          { code: 'G3', label: '電子報', path: '/inquiries/newsletter', implemented: false },
+          { code: 'G3', label: '電子報', path: '/inquiries/newsletter', implemented: true },
         ],
       },
     ],
@@ -156,11 +156,11 @@ export const NAV_GROUPS: NavGroup[] = [
         code: 'M',
         label: '行動 App',
         children: [
-          { code: 'M1', label: '版本發布', path: '/app/releases', implemented: false },
-          { code: 'M2', label: '內容編排', path: '/app/content', implemented: false },
-          { code: 'M3', label: '推播', path: '/app/push', implemented: false },
-          { code: 'M4', label: '推播裝置', path: '/app/devices', implemented: false },
-          { code: 'M5', label: 'App 設定與連線檢查', path: '/app/settings', implemented: false },
+          { code: 'M1', label: '版本發布', path: '/app/releases', implemented: true },
+          { code: 'M2', label: '內容編排', path: '/app/content', implemented: true },
+          { code: 'M3', label: '推播', path: '/app/push', implemented: true },
+          { code: 'M4', label: '推播裝置', path: '/app/devices', implemented: true },
+          { code: 'M5', label: 'App 設定與連線檢查', path: '/app/settings', implemented: true },
         ],
       },
       {
@@ -171,7 +171,7 @@ export const NAV_GROUPS: NavGroup[] = [
         children: [
           { code: 'J1', label: '帳號', path: '/system/accounts', implemented: true },
           { code: 'J2', label: '角色與權限', path: '/system/roles', implemented: true },
-          { code: 'J3', label: '稽核與備份', path: '/system/audit', implemented: false },
+          { code: 'J3', label: '稽核與備份', path: '/system/audit', implemented: true },
           { code: 'J4', label: '俱樂部與授權管理', path: '/system/clubs', implemented: true },
         ],
       },

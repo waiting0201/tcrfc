@@ -76,11 +76,33 @@ const shopCredentialView = usePermission('shop.credential.view')
 const shopDonationCodePerm = useCrudPermissions('shop.donation_code')
 const drawPerm = useViewUpdatePermissions('member.draw')
 const drawAnnounce = usePermission('member.draw.announce')
+// D 批：電子報、App 廣告、行動 App 後台各模組——沒有對應權限碼的角色不顯示（例如合作球隊管理沒有任何廣告與 App 權限）
+const newsletterView = usePermission('form.newsletter.view')
+const adAdvertiserView = usePermission('ad.advertiser.view')
+const adSlotView = usePermission('ad.slot.view')
+const adCampaignView = usePermission('ad.campaign.view')
+const adReportView = usePermission('ad.report.view')
+const appReleaseView = usePermission('app.release.view')
+const appLayoutView = usePermission('app.layout.view')
+const appPushView = usePermission('app.push.view')
+const appDeviceView = usePermission('app.device.view')
+const appConfigView = usePermission('app.config.view')
+const appCredentialView = usePermission('app.credential.view')
+const appDiagnosticView = usePermission('app.diagnostic.view')
 const { comicAvailable } = useClubFeatures()
 const CHILD_VISIBILITY: Record<string, () => boolean> = {
   // 藍鯨不設漫畫：切到藍鯨時側欄不顯示（後端也會回 403）
   F1: () => comicAvailable.value && comicPerm.canView.value,
   F2: () => fanEventPerm.canView.value,
+  G3: () => newsletterView.value,
+  E4: () => adAdvertiserView.value || adSlotView.value,
+  E5: () => adCampaignView.value,
+  E6: () => adReportView.value,
+  M1: () => appReleaseView.value,
+  M2: () => appLayoutView.value,
+  M3: () => appPushView.value,
+  M4: () => appDeviceView.value,
+  M5: () => appConfigView.value || appCredentialView.value || appDiagnosticView.value,
   S1: () => shopProductPerm.canView.value || shopCollectionPerm.canView.value,
   S2: () => shopInventoryPerm.canView.value,
   S3: () => shopOrderPerm.canView.value,

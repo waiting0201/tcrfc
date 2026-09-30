@@ -31,7 +31,7 @@ import {
   type BatchOperationResultDto,
   type FaqCsvImportResultDto,
 } from '@/api/adminFaq'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { AdminApiError } from '@/api/http'
 
 const router = useRouter()

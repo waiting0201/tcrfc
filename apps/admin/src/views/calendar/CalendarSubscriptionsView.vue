@@ -26,6 +26,7 @@ import { listAdminVenues, type AdminVenueListItemDto } from '@/api/adminVenues'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { saveBlob } from '@/utils/downloadFile'
+import { daysBetweenDates, dateOnlyToPickerDate, pickerDateToDateOnly, taipeiToday } from '@/utils/dateTime'
 import { MATCH_COMPETITION_TAG_LABEL, MATCH_STATUS_ORDER, matchStatusLabel } from '@/types/match'
 import { CALENDAR_CLUB_TEAM_VALUE } from '@/types/calendar'
 
@@ -82,12 +83,9 @@ async function copy(text: string) {
 }
 
 // ── 匯出 ─────────────────────────────────────────────────────────────────────────────
-function toDateOnly(d: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-}
+const toDateOnly = pickerDateToDateOnly
 function monthRange(): [string, string] {
-  const now = new Date()
+  const now = dateOnlyToPickerDate(taipeiToday())!
   return [toDateOnly(new Date(now.getFullYear(), now.getMonth(), 1)), toDateOnly(new Date(now.getFullYear(), now.getMonth() + 1, 1))]
 }
 
@@ -122,7 +120,7 @@ async function handleExport() {
   exportError.value = null
   const [from, to] = exportForm.range ?? []
   if (!from || !to) return void (exportError.value = '請選擇匯出的期間')
-  if ((Date.parse(to) - Date.parse(from)) / 86400000 > 366) return void (exportError.value = '匯出期間最長 366 天')
+  if (daysBetweenDates(from, to) > 366) return void (exportError.value = '匯出期間最長 366 天')
   exporting.value = true
   try {
     const result = await exportCalendar(club.value, {

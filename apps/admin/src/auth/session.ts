@@ -1,4 +1,5 @@
 import { computed, reactive } from 'vue'
+import { parseUtc } from '@/utils/dateTime'
 
 /**
  * 登入工作階段狀態（單一真實來源）。跟專案既有慣例一致（見 `data/newsStore.ts`／`data/activeClub.ts`
@@ -54,7 +55,7 @@ export interface SessionPayload {
 
 export function setSession(payload: SessionPayload): void {
   state.accessToken = payload.accessToken
-  state.accessTokenExpiresAt = Date.parse(payload.accessTokenExpiresAtUtc)
+  state.accessTokenExpiresAt = parseUtc(payload.accessTokenExpiresAtUtc).getTime()
   state.user = {
     // 登入／換權杖回應本身不含姓名（見 `Features/AdminAuth/AdminAuthDtos.cs` 的 `LoginResponse`／
     // `RefreshResponse`），先用帳號字串頂著，避免畫面在 `/me` 查回來之前完全沒有名字可顯示；

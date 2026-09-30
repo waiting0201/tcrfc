@@ -5,7 +5,7 @@
  * 列印時外殼（側欄、頂欄、頁首）與 `.no-print` 元素都會被隱藏，只留這張表——
  * 外殼元件用 scoped 樣式，所以這裡的列印規則放在非 scoped 的 `<style>`，並用 `!important` 蓋過它們。
  */
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import type { SignInRowDto } from '@/api/adminTrials'
 
 defineProps<{

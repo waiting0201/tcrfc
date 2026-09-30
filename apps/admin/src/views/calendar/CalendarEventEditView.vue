@@ -31,6 +31,7 @@ import {
 } from '@/api/adminCalendar'
 import { AdminApiError } from '@/api/http'
 import { REPEAT_RULE_LABEL, REPEAT_RULE_ORDER, type RepeatRule } from '@/types/calendar'
+import { dateOnlyToPickerDate as fromDateOnlyString, pickerDateToAllDayUtc, pickerDateToDateOnly as toDateOnlyString, pickerDateToUtc, utcToPickerDate } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -40,24 +41,6 @@ const { canManageCustomEvents } = useCalendarPermissions()
 // `MatchEditView.vue` 檔頭說明：建立成功後 `router.replace` 不會重新掛載這個元件實例。
 const isCreate = computed(() => route.name === 'calendar-event-new')
 const eventId = ref<string | undefined>(route.params.id as string | undefined)
-
-function toDateOnlyString(date: Date | null): string | null {
-  if (!date) return null
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-function fromDateOnlyString(value: string | null | undefined): Date | null {
-  if (!value) return null
-  const parsed = new Date(`${value}T00:00:00`)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
-function fromIsoString(value: string | null | undefined): Date | null {
-  if (!value) return null
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
 
 const form = reactive({
   eventTypeId: '' as string,
@@ -109,8 +92,8 @@ async function loadEvent() {
     if (!isCreate.value && eventId.value) {
       const detail = await getAdminCalendarCustomEvent(activeClubId.value, eventId.value)
       form.eventTypeId = detail.eventTypeId ?? ''
-      form.startsAt = fromIsoString(detail.startsAt)
-      form.endsAt = fromIsoString(detail.endsAt)
+      form.startsAt = utcToPickerDate(detail.startsAt)
+      form.endsAt = utcToPickerDate(detail.endsAt)
       form.isAllDay = detail.isAllDay
       form.repeatRule = (detail.repeatRule as RepeatRule) ?? ''
       form.repeatUntil = fromDateOnlyString(detail.repeatUntil)
@@ -187,8 +170,9 @@ function validate(): boolean {
 function buildPayload(): SaveCalendarCustomEventPayload {
   return {
     eventTypeId: form.eventTypeId || null,
-    startsAt: form.startsAt!.toISOString(),
-    endsAt: form.endsAt ? form.endsAt.toISOString() : null,
+    // 全天活動：後端以「UTC 日期」整天計，送選擇日期的 00:00Z；一般活動送台灣時間換算後的 UTC
+    startsAt: (form.isAllDay ? pickerDateToAllDayUtc(form.startsAt) : pickerDateToUtc(form.startsAt))!,
+    endsAt: form.isAllDay ? pickerDateToAllDayUtc(form.endsAt) : pickerDateToUtc(form.endsAt),
     isAllDay: form.isAllDay,
     repeatRule: form.repeatRule || null,
     repeatUntil: form.repeatRule ? toDateOnlyString(form.repeatUntil) : null,

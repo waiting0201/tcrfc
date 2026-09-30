@@ -14,7 +14,7 @@ import { useViewUpdatePermissions, usePermission } from '@/composables/useCrudPe
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { exportDrawPublic, generateRoster, listRoster, previewRoster, type DrawDetailDto, type RosterRowDto } from '@/api/adminDraws'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const props = defineProps<{ draw: DrawDetailDto }>()
 const emit = defineEmits<{ (e: 'changed'): void }>()
@@ -147,8 +147,8 @@ async function doExport(purpose: string) {
       <dl class="roster__dl">
         <div><dt>目前版本</dt><dd>第 {{ draw.rosterVersion }} 版</dd></div>
         <div><dt>合格人數</dt><dd>{{ draw.totalCount }} 人</dd></div>
-        <div><dt>資格基準時間</dt><dd>{{ formatUtcDateTime(draw.snapshotAt) }}</dd></div>
-        <div><dt>鎖定</dt><dd>{{ formatUtcDateTime(draw.lockedAt) }}（{{ draw.lockedByName || '—' }}）</dd></div>
+        <div><dt>資格基準時間</dt><dd>{{ formatDateTime(draw.snapshotAt) }}</dd></div>
+        <div><dt>鎖定</dt><dd>{{ formatDateTime(draw.lockedAt) }}（{{ draw.lockedByName || '—' }}）</dd></div>
         <div><dt>名單雜湊</dt><dd class="roster__hash">{{ draw.rosterHash || '—' }}</dd></div>
       </dl>
       <p class="roster__hint">名單雜湊用來證明名單鎖定後沒有被更動；同時具備兩隊會籍的人在兩邊的名單各佔一個序號。</p>
@@ -161,14 +161,14 @@ async function doExport(purpose: string) {
         <el-button v-if="can('regenerate_roster')" type="danger" plain @click="regenReason = ''; regenError = null; regenOpen = true">作廢並重產名單</el-button>
       </template>
       <el-button v-if="canView && hasRoster" @click="exportOpen = true">匯出公開版名單</el-button>
-      <span v-if="previewResult" class="roster__preview">試算結果：以 {{ formatUtcDateTime(previewResult.asOf) }} 為基準，共 {{ previewResult.eligibleCount }} 位合格會員（不寫入資料、不配發序號）。</span>
+      <span v-if="previewResult" class="roster__preview">試算結果：以 {{ formatDateTime(previewResult.asOf) }} 為基準，共 {{ previewResult.eligibleCount }} 位合格會員（不寫入資料、不配發序號）。</span>
     </div>
 
     <template v-if="hasRoster">
       <el-card shadow="never" header="名單版本歷程" class="roster__block">
         <el-table :data="draw.versions" row-key="version" size="small">
           <el-table-column label="版本" width="70"><template #default="{ row }">第 {{ row.version }} 版</template></el-table-column>
-          <el-table-column label="產生時間" width="150"><template #default="{ row }">{{ formatUtcDateTime(row.generatedAt) }}</template></el-table-column>
+          <el-table-column label="產生時間" width="150"><template #default="{ row }">{{ formatDateTime(row.generatedAt) }}</template></el-table-column>
           <el-table-column label="合格人數" width="90" prop="totalCount" />
           <el-table-column label="狀態" min-width="180">
             <template #default="{ row }">

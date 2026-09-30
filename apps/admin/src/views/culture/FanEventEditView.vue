@@ -32,7 +32,7 @@ import {
   type FanEventDetailDto,
   type FanEventStatus,
 } from '@/api/adminFanEvents'
-import { localInputToUtc, utcToLocalInput } from '@/utils/formatDateTime'
+import { taipeiInputToMs, taipeiInputToUtc, utcToTaipeiInput } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -71,9 +71,9 @@ const tab = ref<'info' | 'registrations'>('info')
 
 function apply(d: FanEventDetailDto) {
   form.slug = d.slug ?? ''
-  form.startsAt = utcToLocalInput(d.startsAt)
-  form.endsAt = utcToLocalInput(d.endsAt)
-  form.registrationDeadlineAt = utcToLocalInput(d.registrationDeadlineAt)
+  form.startsAt = utcToTaipeiInput(d.startsAt)
+  form.endsAt = utcToTaipeiInput(d.endsAt)
+  form.registrationDeadlineAt = utcToTaipeiInput(d.registrationDeadlineAt)
   form.unlimited = d.capacity === null || d.capacity === undefined
   form.capacity = d.capacity ?? 30
   form.isPaidMembersOnly = d.isPaidMembersOnly
@@ -123,9 +123,9 @@ useUnsavedChanges(isDirty)
 function validate(): string | null {
   if (!form.nameZh.trim()) return '請輸入中文活動名稱'
   if (form.status === 'published' && !form.startsAt) return '發布前必須填寫開始時間'
-  const start = form.startsAt ? new Date(form.startsAt).getTime() : null
-  const end = form.endsAt ? new Date(form.endsAt).getTime() : null
-  const deadline = form.registrationDeadlineAt ? new Date(form.registrationDeadlineAt).getTime() : null
+  const start = form.startsAt ? taipeiInputToMs(form.startsAt) : null
+  const end = form.endsAt ? taipeiInputToMs(form.endsAt) : null
+  const deadline = form.registrationDeadlineAt ? taipeiInputToMs(form.registrationDeadlineAt) : null
   if (start !== null && end !== null && end < start) return '結束時間不能早於開始時間'
   if (start !== null && deadline !== null && deadline > start) return '報名截止時間不能晚於開始時間'
   if (!form.unlimited && (!Number.isInteger(form.capacity) || form.capacity < 1)) return '名額必須是 1 以上的整數'
@@ -140,9 +140,9 @@ async function handleSave() {
   saving.value = true
   const payload = {
     slug: nullIfBlank(form.slug) ?? undefined,
-    startsAt: localInputToUtc(form.startsAt),
-    endsAt: localInputToUtc(form.endsAt),
-    registrationDeadlineAt: localInputToUtc(form.registrationDeadlineAt),
+    startsAt: taipeiInputToUtc(form.startsAt),
+    endsAt: taipeiInputToUtc(form.endsAt),
+    registrationDeadlineAt: taipeiInputToUtc(form.registrationDeadlineAt),
     capacity: form.unlimited ? null : form.capacity,
     isPaidMembersOnly: form.isPaidMembersOnly,
     venueId: form.venueId || null,

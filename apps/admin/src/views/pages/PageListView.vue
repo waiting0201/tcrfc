@@ -15,7 +15,7 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { activeClubId } from '@/auth/clubAccess'
 import { deleteAdminPage, listAdminPages, type AdminPageListItemDto } from '@/api/adminPages'
 import { AdminApiError } from '@/api/http'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const { breakpoint } = useBreakpoint()

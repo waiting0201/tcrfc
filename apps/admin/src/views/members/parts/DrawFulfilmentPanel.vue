@@ -14,6 +14,7 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useViewUpdatePermissions, usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
+import { formatDate } from '@/utils/dateTime'
 import {
   batchFulfilmentStatus,
   exportDrawShipping,
@@ -227,8 +228,8 @@ async function doExport(purpose: string) {
           <el-table-column label="發放狀態" width="120">
             <template #default="{ row }">
               <el-tag :type="statusTag(row.effectiveStatus)" size="small">{{ row.effectiveStatusLabel }}</el-tag>
-              <div v-if="row.shippedAt" class="fulfil__hint">寄出 {{ row.shippedAt.slice(0, 10) }}</div>
-              <div v-if="row.claimedAt" class="fulfil__hint">領取 {{ row.claimedAt.slice(0, 10) }}</div>
+              <div v-if="row.shippedAt" class="fulfil__hint">寄出 {{ formatDate(row.shippedAt) }}</div>
+              <div v-if="row.claimedAt" class="fulfil__hint">領取 {{ formatDate(row.claimedAt) }}</div>
             </template>
           </el-table-column>
           <el-table-column v-if="editable" label="操作" width="80" fixed="right"><template #default="{ row }"><el-button size="small" text type="primary" @click="openEdit(row)">編輯</el-button></template></el-table-column>

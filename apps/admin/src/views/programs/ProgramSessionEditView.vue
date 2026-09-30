@@ -27,6 +27,7 @@ import {
 } from '@/api/adminProgramSessions'
 import { AdminApiError } from '@/api/http'
 import { SESSION_STATUS_ORDER } from '@/types/program'
+import { dateOnlyToPickerDate as fromDateOnlyString, pickerDateToDateOnly as toDateOnlyString, pickerDateToUtc, utcToPickerDate } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -57,24 +58,6 @@ const loadErrorMessage = ref('')
 const saving = ref(false)
 const formError = ref<string | null>(null)
 
-function toDateOnlyString(date: Date | null): string | null {
-  if (!date) return null
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-function fromDateOnlyString(value: string | null | undefined): Date | null {
-  if (!value) return null
-  const parsed = new Date(`${value}T00:00:00`)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
-function fromIsoString(value: string | null | undefined): Date | null {
-  if (!value) return null
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
-
 async function loadPrograms() {
   try {
     programs.value = await listAdminPrograms(activeClubId.value)
@@ -97,8 +80,8 @@ async function loadSession() {
       form.price = detail.price ?? null
       form.earlyBirdPrice = detail.earlyBirdPrice ?? null
       form.earlyBirdUntil = fromDateOnlyString(detail.earlyBirdUntil)
-      form.signupOpensAt = fromIsoString(detail.signupOpensAt)
-      form.signupClosesAt = fromIsoString(detail.signupClosesAt)
+      form.signupOpensAt = utcToPickerDate(detail.signupOpensAt)
+      form.signupClosesAt = utcToPickerDate(detail.signupClosesAt)
       form.status = (detail.status as typeof form.status) ?? ''
       enrolledCount.value = detail.enrolledCount
     } else if (route.query.programId) {
@@ -166,8 +149,8 @@ function buildPayload(): CreateSessionPayload {
     price: form.price,
     earlyBirdPrice: form.earlyBirdPrice,
     earlyBirdUntil: toDateOnlyString(form.earlyBirdUntil),
-    signupOpensAt: form.signupOpensAt ? form.signupOpensAt.toISOString() : null,
-    signupClosesAt: form.signupClosesAt ? form.signupClosesAt.toISOString() : null,
+    signupOpensAt: pickerDateToUtc(form.signupOpensAt),
+    signupClosesAt: pickerDateToUtc(form.signupClosesAt),
     status: form.status || null,
   }
 }

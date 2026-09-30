@@ -16,7 +16,7 @@ import {
 } from '@/api/adminCalendar'
 import { AdminApiError } from '@/api/http'
 import { useCalendarPermissions } from '@/composables/useCalendarPermissions'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { CALENDAR_CLUB_TEAM_VALUE, repeatRuleLabel } from '@/types/calendar'
 
 const router = useRouter()

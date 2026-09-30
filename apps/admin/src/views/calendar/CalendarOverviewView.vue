@@ -34,7 +34,7 @@ import {
 import { AdminApiError } from '@/api/http'
 import { useCalendarPermissions } from '@/composables/useCalendarPermissions'
 import { usePermission } from '@/composables/useCrudPermissions'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { dateOnlyToPickerDate, diffMs, formatDate, formatDateTime, pickerDateToDateOnly, taipeiToday } from '@/utils/dateTime'
 import { MATCH_COMPETITION_TAG_LABEL, MATCH_STATUS_ORDER, matchStatusLabel } from '@/types/match'
 import { CALENDAR_CLUB_TEAM_VALUE, calendarSourceTagType, calendarSourceTypeLabel } from '@/types/calendar'
 import CalendarRescheduleDialog from './CalendarRescheduleDialog.vue'
@@ -65,19 +65,21 @@ function teamCodesLabel(codes: string[]): string {
 
 // ── 檢視範圍：月曆檢視跟著目前顯示的月份走，列表檢視用日期區間選擇器（預設本月）───────────────
 
-function toDateOnlyString(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+const toDateOnlyString = pickerDateToDateOnly
+
+/** 「今天」以台灣日期為準（不是瀏覽器所在時區）。 */
+function todayPickerDate(): Date {
+  return dateOnlyToPickerDate(taipeiToday())!
 }
 
 function defaultMonthRange(): [Date, Date] {
-  const now = new Date()
+  const now = todayPickerDate()
   const from = new Date(now.getFullYear(), now.getMonth(), 1)
   const to = new Date(now.getFullYear(), now.getMonth() + 1, 1)
   return [from, to]
 }
 
-const calendarValue = ref(new Date())
+const calendarValue = ref(todayPickerDate())
 const listRange = ref<[Date, Date]>(defaultMonthRange())
 
 const queryRange = computed<[Date, Date]>(() => {
@@ -172,7 +174,7 @@ async function bootstrap() {
   filters.venueId = ''
   filters.status = ''
   filters.type = ''
-  calendarValue.value = new Date()
+  calendarValue.value = todayPickerDate()
   listRange.value = defaultMonthRange()
   await Promise.all([loadTeams(), loadFilterSources()])
   await loadEvents()
@@ -213,10 +215,10 @@ function isConflicting(e: AdminCalendarEventDto): boolean {
   return conflictKeys.value.has(eventKey(e))
 }
 
-/** 賽事只有日期＋開賽時間（不能拿時間戳轉本地時區）；自建活動是 UTC 時間點。 */
+/** 賽事只有日期＋開賽時間（開賽時間是台灣當地時間文字）；自建活動是 UTC 時間點，一律換成台灣時間顯示。 */
 function displayWhen(e: AdminCalendarEventDto): string {
-  if (e.sourceType === 'match') return `${e.startsAt.slice(0, 10)}${e.kickoff ? ` ${e.kickoff}` : ''}`
-  return e.isAllDay ? `${formatDateTime(e.startsAt).slice(0, 10)}（全天）` : formatDateTime(e.startsAt)
+  if (e.sourceType === 'match') return `${formatDate(e.startsAt)}${e.kickoff ? ` ${e.kickoff}` : ''}`
+  return e.isAllDay ? `${formatDate(e.startsAt)}（全天）` : formatDateTime(e.startsAt)
 }
 
 // ── 改期（拖曳＋按鈕）─────────────────────────────────────────────────────────────────
@@ -260,7 +262,7 @@ function onDragOver(e: DragEvent) {
 function onDrop(day: string) {
   const event = draggedEvent.value
   draggedEvent.value = null
-  if (!event || event.startsAt.slice(0, 10) === day) return
+  if (!event || formatDate(event.startsAt) === day) return
   openReschedule(event, day)
 }
 
@@ -274,18 +276,18 @@ function onRescheduled() {
 const eventsByDay = computed(() => {
   const map = new Map<string, AdminCalendarEventDto[]>()
   for (const e of events.value) {
-    const day = e.startsAt.slice(0, 10)
+    const day = formatDate(e.startsAt) // 依台灣日期歸類：台灣清晨的活動（UTC 是前一天）才會落在正確那天
     if (!map.has(day)) map.set(day, [])
     map.get(day)!.push(e)
   }
-  for (const list of map.values()) list.sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+  for (const list of map.values()) list.sort((a, b) => diffMs(a.startsAt, b.startsAt))
   return map
 })
 
-const sortedListEvents = computed(() => [...events.value].sort((a, b) => a.startsAt.localeCompare(b.startsAt)))
+const sortedListEvents = computed(() => [...events.value].sort((a, b) => diffMs(a.startsAt, b.startsAt)))
 
 function sortEvents(list: AdminCalendarEventDto[]): AdminCalendarEventDto[] {
-  return [...list].sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+  return [...list].sort((a, b) => diffMs(a.startsAt, b.startsAt))
 }
 
 const MAX_CHIPS_PER_DAY = 3

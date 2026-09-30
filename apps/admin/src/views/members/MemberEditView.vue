@@ -12,6 +12,7 @@ import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { nullIfBlank } from '@/api/adminCommon'
 import { createMember, MEMBER_LOCALE_OPTIONS, type MemberLocale } from '@/api/adminMembers'
+import { pickerDateToDateOnly, taipeiToday } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -97,7 +98,7 @@ async function handleSave() {
             <el-form-item label="電話"><el-input v-model="form.phone" maxlength="32" inputmode="tel" /></el-form-item>
           </el-col>
           <el-col :xs="24" :sm="12">
-            <el-form-item label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="(d: Date) => d.getTime() > Date.now()" /></el-form-item>
+            <el-form-item label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" :disabled-date="(d: Date) => pickerDateToDateOnly(d) > taipeiToday()" /></el-form-item>
           </el-col>
           <el-col :xs="24" :sm="12">
             <el-form-item label="語系偏好">

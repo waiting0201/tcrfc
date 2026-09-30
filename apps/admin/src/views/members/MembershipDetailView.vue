@@ -22,6 +22,7 @@ import {
   type MembershipTier,
 } from '@/api/adminMemberships'
 import { clubNameOf, effectiveStatusLabel, errorMessage, expiryText, formatMoney, STATUS_TAG, tierLabel } from './parts/membershipHelpers'
+import { formatDateTime } from '@/utils/dateTime'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -137,7 +138,7 @@ async function revoke(card: MembershipCardDto) {
     ElMessage.error(errorMessage(error, '停用失敗，請稍後再試'))
   }
 }
-const fmtTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('zh-TW', { hour12: false }) : '—')
+const fmtTime = (iso?: string | null) => formatDateTime(iso) || '—'
 </script>
 
 <template>

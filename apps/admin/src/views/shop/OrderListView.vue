@@ -29,7 +29,7 @@ import {
   type OrderFilter,
   type OrderListItemDto,
 } from '@/api/adminShop'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { formatMoney } from '@/utils/formatMoney'
 import { orderStatusTag } from '@/utils/shopStatus'
 
@@ -262,7 +262,7 @@ const go = (row: OrderListItemDto) => router.push(`/shop/orders/${row.id}`)
               <el-tag v-if="row.isManual" size="small" type="info">手動建單</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="下單時間" width="150"><template #default="{ row }">{{ formatUtcDateTime(row.createdAt) }}</template></el-table-column>
+          <el-table-column label="下單時間" width="150"><template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template></el-table-column>
           <el-table-column label="買家／收件人" min-width="130">
             <template #default="{ row }"><div>{{ row.recipientName || '—' }}</div><div class="orders__muted">{{ row.isMember ? '會員' : '非會員' }}・{{ row.itemCount }} 件</div></template>
           </el-table-column>
@@ -284,7 +284,7 @@ const go = (row: OrderListItemDto) => router.push(`/shop/orders/${row.id}`)
             <span>{{ row.paymentMethodLabel }}・{{ row.paymentStatusLabel }}</span>
             <span>{{ row.deliveryMethodLabel }}</span>
             <span>{{ row.recipientName || '—' }}</span>
-            <span>{{ formatUtcDateTime(row.createdAt) }}</span>
+            <span>{{ formatDateTime(row.createdAt) }}</span>
           </template>
           <template #actions="{ row }"><el-button size="small" text type="primary" @click="go(row)">查看</el-button></template>
         </MobileCardList>

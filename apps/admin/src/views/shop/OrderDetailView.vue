@@ -29,7 +29,7 @@ import {
   type OrderDetailDto,
   type ShipOrderPayload,
 } from '@/api/adminShop'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { formatMoney } from '@/utils/formatMoney'
 import { orderStatusTag, refundStatusTag } from '@/utils/shopStatus'
 
@@ -207,8 +207,8 @@ function onRefundCreated(id: string | null) {
           <div>
             <el-tag :type="orderStatusTag(order.orderStatus)" size="large">{{ order.orderStatus }}</el-tag>
             <el-tag v-if="order.isManual" type="info" class="order-detail__tag">手動建單</el-tag>
-            <div class="order-detail__muted">下單 {{ formatUtcDateTime(order.createdAt) }}<template v-if="order.paidAt">・付款 {{ formatUtcDateTime(order.paidAt) }}</template><template v-if="order.completedAt">・完成 {{ formatUtcDateTime(order.completedAt) }}</template></div>
-            <div v-if="order.cancelledAt" class="order-detail__muted">取消 {{ formatUtcDateTime(order.cancelledAt) }}：{{ order.cancelReason || '（未填原因）' }}</div>
+            <div class="order-detail__muted">下單 {{ formatDateTime(order.createdAt) }}<template v-if="order.paidAt">・付款 {{ formatDateTime(order.paidAt) }}</template><template v-if="order.completedAt">・完成 {{ formatDateTime(order.completedAt) }}</template></div>
+            <div v-if="order.cancelledAt" class="order-detail__muted">取消 {{ formatDateTime(order.cancelledAt) }}：{{ order.cancelReason || '（未填原因）' }}</div>
           </div>
           <div class="order-detail__actions">
             <el-button v-if="has('prepare') && canUpdateOrder" :loading="acting" @click="doPrepare">標為備貨中</el-button>
@@ -280,9 +280,9 @@ function onRefundCreated(id: string | null) {
           <div><dt>物流商</dt><dd>{{ order.shipment.carrier || '—' }}</dd></div>
           <div><dt>物流單號</dt><dd>{{ order.shipment.trackingNo || '尚未回填' }}</dd></div>
           <div v-if="order.shipment.storeBranchCode"><dt>門市代碼</dt><dd>{{ order.shipment.storeBranchCode }}</dd></div>
-          <div><dt>出貨時間</dt><dd>{{ formatUtcDateTime(order.shipment.shippedAt) || '—' }}</dd></div>
+          <div><dt>出貨時間</dt><dd>{{ formatDateTime(order.shipment.shippedAt) || '—' }}</dd></div>
           <div v-if="order.shipment.pickupStatusLabel"><dt>領取狀態</dt><dd>{{ order.shipment.pickupStatusLabel }}<template v-if="order.shipment.pickupDeadlineOn">（領取期限 {{ order.shipment.pickupDeadlineOn }}）</template></dd></div>
-          <div v-if="order.shipment.arrivalNotifiedAt"><dt>到店通知</dt><dd>{{ formatUtcDateTime(order.shipment.arrivalNotifiedAt) }}</dd></div>
+          <div v-if="order.shipment.arrivalNotifiedAt"><dt>到店通知</dt><dd>{{ formatDateTime(order.shipment.arrivalNotifiedAt) }}</dd></div>
         </dl>
         <template v-if="order.shipment && order.deliveryMethod === 'cvs_pickup' && order.orderStatus === '已出貨' && canUpdateShipment">
           <el-button size="small" :loading="acting" :disabled="!!order.shipment.arrivalNotifiedAt" @click="doArrival">記錄到店通知</el-button>
@@ -296,7 +296,7 @@ function onRefundCreated(id: string | null) {
             <p v-if="!order.invoice" class="order-detail__hint">尚無發票紀錄。電子發票尚未串接（取得商店號後啟用），目前不會自動開立。</p>
             <dl v-else class="order-detail__dl">
               <div><dt>發票號碼</dt><dd>{{ order.invoice.invoiceNo || '—' }}</dd></div>
-              <div><dt>開立時間</dt><dd>{{ formatUtcDateTime(order.invoice.issuedAt) || '—' }}</dd></div>
+              <div><dt>開立時間</dt><dd>{{ formatDateTime(order.invoice.issuedAt) || '—' }}</dd></div>
               <div><dt>開立狀態</dt><dd>{{ order.invoice.issueStatus || '—' }}</dd></div>
               <div><dt>作廢狀態</dt><dd>{{ order.invoice.voidStatus || '—' }}</dd></div>
             </dl>
@@ -310,7 +310,7 @@ function onRefundCreated(id: string | null) {
                 <div>
                   <el-tag :type="refundStatusTag(r.status)" size="small">{{ r.statusLabel }}</el-tag>
                   <strong class="order-detail__refund-amount">{{ formatMoney(r.refundAmount) }}</strong>
-                  <div class="order-detail__muted">{{ r.reason }}・{{ formatUtcDateTime(r.createdAt) }}</div>
+                  <div class="order-detail__muted">{{ r.reason }}・{{ formatDateTime(r.createdAt) }}</div>
                 </div>
                 <el-button v-if="canViewRefund" size="small" text type="primary" @click="router.push(`/shop/returns/${r.id}`)">查看</el-button>
               </div>

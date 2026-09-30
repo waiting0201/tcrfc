@@ -21,7 +21,7 @@ import {
   type AdminRedirectDto,
   type RedirectCsvImportResultDto,
 } from '@/api/adminSeo'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { AdminApiError } from '@/api/http'
 
 const club = computed(() => activeClubId.value)

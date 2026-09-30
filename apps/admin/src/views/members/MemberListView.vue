@@ -28,7 +28,7 @@ import {
   type MembershipSummaryDto,
 } from '@/api/adminMembers'
 import { listMembershipSeasons, type MembershipSeasonDto } from '@/api/adminMemberships'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const { breakpoint } = useBreakpoint()

@@ -21,6 +21,7 @@ import { listAdminProgramSessions, type AdminSessionListItemDto } from '@/api/ad
 import { createAdminRegistration, getAdminRegistration, updateAdminRegistration } from '@/api/adminRegistrations'
 import { AdminApiError } from '@/api/http'
 import { REGISTRATION_STATUS_ORDER, type RegistrationStatus } from '@/types/program'
+import { dateOnlyToPickerDate as fromDateOnlyString, pickerDateToDateOnly as toDateOnlyString } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,18 +59,6 @@ const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
 const formError = ref<string | null>(null)
-
-function toDateOnlyString(date: Date | null): string | null {
-  if (!date) return null
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-function fromDateOnlyString(value: string | null | undefined): Date | null {
-  if (!value) return null
-  const parsed = new Date(`${value}T00:00:00`)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
 
 async function loadSessions() {
   try {

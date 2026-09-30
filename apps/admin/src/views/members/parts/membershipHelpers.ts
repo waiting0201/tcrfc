@@ -1,6 +1,7 @@
 import { availableClubs } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import type { MembershipListItemDto, MembershipStatus, MembershipTier } from '@/api/adminMemberships'
+import { taipeiToday } from '@/utils/dateTime'
 
 export type TagType = 'success' | 'info' | 'warning' | 'danger'
 
@@ -44,10 +45,9 @@ export function clubNameOf(code: string | null | undefined): string {
   return availableClubs.value.find((c) => c.code === code)?.name ?? code
 }
 
+/** 今天的台灣日期 `YYYY-MM-DD`。 */
 export function todayString(): string {
-  const d = new Date()
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  return taipeiToday()
 }
 
 export function formatMoney(value: number | null | undefined): string {

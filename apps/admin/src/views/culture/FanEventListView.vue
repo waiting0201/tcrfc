@@ -14,7 +14,7 @@ import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
 import { deleteFanEvent, listFanEvents, type FanEventListItemDto } from '@/api/adminFanEvents'
-import { formatUtcDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const { breakpoint } = useBreakpoint()
@@ -122,7 +122,7 @@ const go = (row: FanEventListItemDto) => router.push(`/culture/fan-events/${row.
               <el-tag v-if="row.isPaidMembersOnly" size="small" type="warning">限付費會員</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="活動時間" min-width="150"><template #default="{ row }">{{ formatUtcDateTime(row.startsAt) || '尚未設定' }}</template></el-table-column>
+          <el-table-column label="活動時間" min-width="150"><template #default="{ row }">{{ formatDateTime(row.startsAt) || '尚未設定' }}</template></el-table-column>
           <el-table-column label="報名（已報名／名額）" min-width="150"><template #default="{ row }">{{ capacityText(row) }}</template></el-table-column>
           <el-table-column label="報名狀況" width="100">
             <template #default="{ row }">
@@ -145,7 +145,7 @@ const go = (row: FanEventListItemDto) => router.push(`/culture/fan-events/${row.
           <template #meta="{ row }">
             <el-tag :type="row.status === 'published' ? 'success' : 'info'" size="small">{{ row.statusLabel }}</el-tag>
             <el-tag v-if="row.isPaidMembersOnly" size="small" type="warning">限付費會員</el-tag>
-            <span>{{ formatUtcDateTime(row.startsAt) || '尚未設定時間' }}</span>
+            <span>{{ formatDateTime(row.startsAt) || '尚未設定時間' }}</span>
             <span>報名 {{ capacityText(row) }}</span>
           </template>
           <template #actions="{ row }">

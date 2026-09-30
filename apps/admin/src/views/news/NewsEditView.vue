@@ -41,6 +41,7 @@ import {
   type NewsTag,
   type RelationTargetType,
 } from '@/types/news'
+import { nowAsPickerDate, pickerDateToUtc } from '@/utils/dateTime'
 
 const route = useRoute()
 const router = useRouter()
@@ -495,11 +496,11 @@ function confirmSchedule() {
     ElMessage.warning('請選擇排程發布的日期與時間')
     return
   }
-  if (scheduleDateTime.value.getTime() <= Date.now()) {
+  if (scheduleDateTime.value.getTime() <= nowAsPickerDate().getTime()) {
     ElMessage.warning('排程發布時間必須晚於現在')
     return
   }
-  const publishAt = scheduleDateTime.value.toISOString()
+  const publishAt = pickerDateToUtc(scheduleDateTime.value)!
   scheduleDialogVisible.value = false
   saveAndMaybeTransition({ kind: 'schedule', publishAt })
 }
@@ -819,7 +820,7 @@ function retryLoad() {
         <el-date-picker
           v-model="scheduleDateTime"
           type="datetime"
-          placeholder="選擇日期與時間"
+          placeholder="選擇日期與時間（台灣時間）"
           style="width: 100%"
         />
       </el-form-item>

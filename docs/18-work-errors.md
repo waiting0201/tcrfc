@@ -2198,3 +2198,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 #### 🔵 `E-90` 升級（2026-09-30，D 批）：時間戳不帶 `Z` 的「慣例」改為全域機制
 
 `E-90` 記的防呆是「無全域檢查」，C 批畫面回報前端只能猜 JSON 時間戳有沒有時區。D 批新增 `Common/UtcDateTimeJsonConverter`（註冊於 `JsonOptions`）：`DateTime` **輸出一律 UTC 並帶 `Z`**、輸入無時區記號視為 UTC（`Kind=Unspecified` 不會被當成本機時間換算）。防呆從「人工確認每個新欄位」變成「全域機制」。發現的直接後果：D 批自己的檔期更新驗證（拿 GET 回來的時間 PUT 回去比對）在轉換器之前會差 8 小時。
+
+#### 🔵 `E-90` 前端段（2026-09-30，D 批畫面）：前端同一類錯在「送出」與「分格」兩端各犯一次，防呆改為 lint
+
+後端把時間統一成「輸出 UTC 帶 `Z`、輸入無時區一律當 UTC」之後，前端回頭稽核發現：A 批以前與 B／C 批的畫面有**三種**寫法會差 8 小時——① `Date.toISOString()` 直接送出（結果剛好是對的，但只在瀏覽器位於台灣時區時）；② 日期時間輸入框的本地字串未帶時區就送；③ 月曆分格用 `startsAt.slice(0, 10)`（UTC 日期，台灣清晨的活動落在前一天）。另有 `formatDateTime`（依瀏覽器本機時區）與 `formatUtcDateTime` 兩套並存，新畫面各挑一套。
+**根因（可被改掉的行為）**：時間處理沒有單一入口，每個畫面各自 `new Date(...)`／`toISOString()`／`slice`，「這樣寫在我的電腦上是對的」就過關。
+**防呆（✅ 已有）**：全站時間收斂到 `apps/admin/src/utils/dateTime.ts`（一律以 UTC 解析、以 Asia/Taipei 固定 +8 顯示與輸入，不依賴瀏覽器時區）；`eslint.config.mjs` 的 `no-restricted-syntax`／`vue/no-restricted-syntax` 在 `src/**` 擋 `toISOString`、`toLocaleDateString`、`toLocaleTimeString`、`getHours`／`getMinutes`／`getSeconds`、單一參數的 `new Date(字串)`、`Date.parse`（`utils/dateTime.ts` 自身除外），`npm run lint` 會失敗。全天活動另有規則：後端以 UTC 日期計，送 `該日T00:00:00Z`（`pickerDateToAllDayUtc`）。
+**仍無防呆**：日期時間輸入框沒有 `value-format` 時回傳 `Date`，本機欄位會被當成台灣牆上時鐘（`pickerDateToUtc`）——新增欄位時必須用 `utcToPickerDate`／`pickerDateToUtc` 成對使用，lint 抓不到成對性。

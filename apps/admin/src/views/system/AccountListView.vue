@@ -16,7 +16,7 @@ import {
   type AdminAccountListItemDto,
 } from '@/api/adminAccounts'
 import { AdminApiError } from '@/api/http'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 

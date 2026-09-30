@@ -20,7 +20,7 @@ import {
 } from '@/api/adminNews'
 import { AdminApiError } from '@/api/http'
 import { NEWS_CATEGORY_LABEL, type NewsArticle, type NewsCategory } from '@/types/news'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const { breakpoint } = useBreakpoint()

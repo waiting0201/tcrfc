@@ -28,6 +28,7 @@ import {
   type SaveBannerPayload,
 } from '@/api/adminHome'
 import { AdminApiError } from '@/api/http'
+import { formatDate, parseUtc, pickerDateToUtc, utcToPickerDate } from '@/utils/dateTime'
 
 const club = computed(() => activeClubId.value)
 
@@ -137,8 +138,8 @@ async function openEditBannerDialog(row: AdminBannerListItemDto) {
     Object.assign(bannerForm, {
       id: detail.id,
       mediaType: detail.mediaType,
-      startAt: detail.startAt ? new Date(detail.startAt) : null,
-      endAt: detail.endAt ? new Date(detail.endAt) : null,
+      startAt: utcToPickerDate(detail.startAt),
+      endAt: utcToPickerDate(detail.endAt),
       sortOrder: detail.sortOrder,
       titleZh: detail.zh.title ?? '',
       titleEn: detail.en?.title ?? '',
@@ -185,8 +186,8 @@ function buildBannerPayload(): SaveBannerPayload {
 
   return {
     mediaType: bannerForm.mediaType,
-    startAt: bannerForm.startAt ? bannerForm.startAt.toISOString() : null,
-    endAt: bannerForm.endAt ? bannerForm.endAt.toISOString() : null,
+    startAt: pickerDateToUtc(bannerForm.startAt),
+    endAt: pickerDateToUtc(bannerForm.endAt),
     sortOrder: bannerForm.sortOrder,
     content: {
       zh: {
@@ -267,8 +268,8 @@ async function handleDeleteBanner(row: AdminBannerListItemDto) {
 
 function bannerPeriodLabel(row: AdminBannerListItemDto): string {
   if (!row.startAt && !row.endAt) return '不限期間'
-  const start = row.startAt ? row.startAt.slice(0, 10) : '（不限起始）'
-  const end = row.endAt ? row.endAt.slice(0, 10) : '（不限結束）'
+  const start = row.startAt ? formatDate(row.startAt) : '（不限起始）'
+  const end = row.endAt ? formatDate(row.endAt) : '（不限結束）'
   return `${start} ～ ${end}`
 }
 
@@ -281,8 +282,8 @@ const bannerStatusLabel = (status: string): string => (status === 'published' ? 
 function bannerVisibilityLabel(row: AdminBannerListItemDto): string {
   if (row.status !== 'published') return '不顯示（草稿）'
   const now = Date.now()
-  if (row.startAt && now < new Date(row.startAt).getTime()) return '不顯示（尚未到上架時間）'
-  if (row.endAt && now > new Date(row.endAt).getTime()) return '不顯示（已過下架時間）'
+  if (row.startAt && now < parseUtc(row.startAt).getTime()) return '不顯示（尚未到上架時間）'
+  if (row.endAt && now > parseUtc(row.endAt).getTime()) return '不顯示（已過下架時間）'
   return '顯示中'
 }
 

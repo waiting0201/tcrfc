@@ -11,7 +11,7 @@ import { activeClubId } from '@/auth/clubAccess'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
 import { AdminApiError } from '@/api/http'
 import { TEAM_GENDER_LABEL, TEAM_TYPE_LABEL, type TeamGender, type TeamType } from '@/types/team'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
 const club = computed(() => activeClubId.value)

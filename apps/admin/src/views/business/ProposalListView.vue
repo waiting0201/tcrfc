@@ -13,7 +13,7 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCanExportLeads, useCrudPermissions, useViewUpdatePermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
-import { formatDateTime } from '@/utils/formatDateTime'
+import { formatDateTime } from '@/utils/dateTime'
 import { saveBlob } from '@/utils/downloadFile'
 import {
   deleteProposal,
