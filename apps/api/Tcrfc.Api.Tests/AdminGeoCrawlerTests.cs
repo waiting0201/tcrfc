@@ -215,9 +215,9 @@ public sealed class AdminGeoCrawlerTests(AdminWriteApiFixture fixture)
         }
     }
 
-    /// <summary>跨俱樂部：藍鯨目前沒有對應的未成年學員照片頁面，強制清單不應該把 <c>tcrfc</c>
-    /// 專屬的 <c>/zh/academy/teams/</c> 也套用到 <c>bw</c>，且 <c>tcrfc</c> 後台加的路徑不會
-    /// 出現在 <c>bw</c> 的公開端點。</summary>
+    /// <summary>跨俱樂部：<c>tcrfc</c> 後台自加的路徑不會出現在 <c>bw</c> 的公開端點，且 <c>tcrfc</c>
+    /// 專屬的課程照片頁（兒童訓練、夏令營、專項訓練）不會被套用到 <c>bw</c>。藍鯨的青年隊
+    /// 未成年照片頁則另由 <c>CrawlerSettings_藍鯨_未成年照片路徑必定出現在公開端點</c> 保證。</summary>
     [Fact]
     public async Task CrawlerSettings_跨俱樂部_強制清單與後台自加路徑不互相污染()
     {
@@ -236,12 +236,52 @@ public sealed class AdminGeoCrawlerTests(AdminWriteApiFixture fixture)
                 .Content.ReadFromJsonAsync<PublicCrawlerSettingsDto>(TestJson.Options);
 
             Assert.DoesNotContain(marker, bwSettings!.ExcludePaths);
-            Assert.DoesNotContain("/zh/academy/teams/", bwSettings.ExcludePaths);
-            Assert.DoesNotContain("/en/academy/teams/", bwSettings.ExcludePaths);
+            Assert.DoesNotContain("/zh/programs/childrens-training/", bwSettings.ExcludePaths);
+            Assert.DoesNotContain("/en/programs/summer-camp/", bwSettings.ExcludePaths);
         }
         finally
         {
             await RestoreCrawlerRowsAsync("tcrfc", originalTcrfc);
+        }
+    }
+
+    /// <summary>🔴 藍鯨規劃書 §7 第 4 點：U15／U12 未成年球員照片路徑一律排除。藍鯨與磐石共用同一套前台路由，
+    /// 青年隊名單（<c>academy/teams/</c>）與訓練影像（<c>academy/life/</c>）兩頁的 <c>/zh/</c>、<c>/en/</c>
+    /// 版本都必須出現在 <c>bw</c> 的強制清單與公開端點（含後台自加清單為空的預設情境）。</summary>
+    [Fact]
+    public async Task CrawlerSettings_藍鯨_未成年照片路徑必定出現在公開端點()
+    {
+        string[] required =
+        [
+            "/zh/academy/teams/", "/en/academy/teams/",
+            "/zh/academy/life/", "/en/academy/life/",
+        ];
+
+        var mandatory = GeoCrawlerDefaults.GetMandatoryExcludePaths("bw");
+        foreach (var path in required)
+        {
+            Assert.Contains(path, mandatory);
+        }
+
+        using var publicClient = fixture.CreateClient();
+        var dto = await (await publicClient.GetAsync("/api/v1/bw/seo/crawler-settings"))
+            .Content.ReadFromJsonAsync<PublicCrawlerSettingsDto>(TestJson.Options);
+        foreach (var path in required)
+        {
+            Assert.Contains(path, dto!.ExcludePaths);
+        }
+    }
+
+    /// <summary>磐石的學員／課程照片頁（含兒童訓練、夏令營、專項訓練）兩個語系都在強制清單，
+    /// 純函式測試，不碰資料庫。</summary>
+    [Fact]
+    public void GetMandatoryExcludePaths_磐石_學員與課程照片頁兩語系皆在清單()
+    {
+        var mandatory = GeoCrawlerDefaults.GetMandatoryExcludePaths("tcrfc");
+        foreach (var segment in new[] { "academy/teams/", "academy/life/", "programs/childrens-training/", "programs/summer-camp/", "programs/specialist/" })
+        {
+            Assert.Contains($"/zh/{segment}", mandatory);
+            Assert.Contains($"/en/{segment}", mandatory);
         }
     }
 

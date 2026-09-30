@@ -6119,12 +6119,20 @@ DDL 異動：`geo.llms_positioning`／`geo.llms_key_pages`／`geo.llms_facts_sum
 | 訂單查詢 | `order/lookup/` | `/zh/order/lookup/`、`/en/order/lookup/` |
 | 會員卡驗證頁 | 不展開語系 | `/m/` |
 
-外加 **`tcrfc` 專屬**一條：`academy/teams/` → `/zh/academy/teams/`、`/en/academy/teams/`
-（U15／U14／U12 學院梯隊名單，未成年球員）。
-🔴 **`bw` 目前沒有對應的強制路徑**——藍鯨規劃書「04 為青年隊（U15／U12 女子隊），不沿用學院的
-招生與課程架構」，該隊的前台路由尚未建置（`bw` 官網本身尚未開發），本輪不虛構一個尚不存在的
-網址；待該路由落地時**必須**回頭在 `GetMandatoryExcludePaths` 的 `ClubLocalizedSegments` 補上，
-已記錄為 `STATUS.md` `BW-7`／`S1-12b` 待辦，不是本輪遺漏。
+外加**俱樂部專屬的未成年照片頁**（`ClubLocalizedSegments`，每條 ×2 語系；兩隊共用同一套前台路由，
+藍鯨青年隊 U15／U12 與磐石學院走同樣網址）：
+
+| 俱樂部 | 片段 | 依據（`apps/web/app/pages/zh/…`） |
+|---|---|---|
+| `tcrfc`、`bw` | `academy/teams/` | `academy/teams.vue`：梯隊球員名單與照片（`bw` 為 BW-U15／BW-U12） |
+| `tcrfc`、`bw` | `academy/life/` | `academy/life.vue`：訓練影像牆（`bw` 目前為「肖像同意後公布」空狀態，先擋不等上架才補） |
+| `tcrfc` | `programs/childrens-training/`、`programs/summer-camp/`、`programs/specialist/` | 三頁皆有兒童／學員照片牆；`bw` 版對應區塊未渲染（`isTcrfc` 分支），`bw` 若補學員照片須回頭加入 |
+
+（2026-09-30 修正：先前誤記「`bw` 沒有對應頁面、待路由落地才補」——實際 `teams.vue` 早已渲染藍鯨青年隊名單，
+見 `docs/18-work-errors.md`。）
+仍未列入：僅以**裝飾性 hero 背景**使用學員照片的頁面（`academy/index`、`overview`、`pathway`、
+`curriculum`、`coaches`、`join`，`programs/index` 卡片圖），列入與否是「擋整頁 SEO」對「擋背景圖」
+的取捨，待使用者裁決（可改擋 `/assets/img/academy/`、`/assets/img/programs/` 圖片目錄）。
 
 ⚠️ **不含 `/zh/join/`（單元入口頁）、`/zh/join/location/`（Location & Map）、
 `/zh/join/contact/`（Contact Information）**——這三頁是靜態資訊頁，不收集個資，規劃書「七類
@@ -6198,7 +6206,7 @@ DDL 異動：`geo.llms_positioning`／`geo.llms_key_pages`／`geo.llms_facts_sum
 路徑**（2026-09-25 驗收退回後補做新增，見下方說明）、系統管理員可讀可寫並驗證輸入格式（代理
 格式錯誤／重複、路徑格式錯誤／缺結尾斜線皆 400）、🔴 **反例：後台清空自行再加的排除路徑後，
 公開端點的強制排除路徑仍然存在**、跨俱樂部（強制清單與後台自加路徑不互相污染，`bw` 沒有
-`tcrfc` 專屬的 `/zh/academy/teams/`／`/en/academy/teams/`）。
+`tcrfc` 專屬的課程照片頁；`bw` 的 `academy/teams/`、`academy/life/` 兩語系必定出現）。
 
 ### 驗收紀錄（2026-09-25，本機環境，含驗收退回後補做 `/en/` 版本的重新驗證）
 
@@ -6225,8 +6233,7 @@ DDL 異動：`geo.llms_positioning`／`geo.llms_key_pages`／`geo.llms_facts_sum
      正確列出 21 條強制排除路徑（`/zh/…` 與 `/en/…` 成對），五個預設 AI 代理各自區塊同樣完整
      複製這 21 條；`Sitemap:` 一行正確帶 `NUXT_PUBLIC_SITE_URL`。
    - `curl /robots.txt`（`NUXT_PUBLIC_CLUB=bw`，`production`）：`User-agent: *` 區塊正確列出
-     19 條（9 個共用片段 ×2 語系＋`/m/`），**沒有** `academy/teams/` 的任何語系版本，驗證
-     `bw` 專屬清單為空且跨俱樂部不污染。
+     19 條（9 個共用片段 ×2 語系＋`/m/`），當時**沒有** `academy/teams/`（2026-09-30 已補 `academy/teams/`、`academy/life/`，`bw` 現為 23 條）。
    - 上一輪（`S1-12b` 首次完成）已驗證過的「未設定環境變數」「`Production` 拼錯大小寫」封鎖側
      行為、`X-Robots-Tag` 不受影響、AI 代理允許／拒絕分流，本輪未改動這些邏輯，未重複列出。
 5. `npm run lint`：`apps/web`（0 錯誤，既有警告與本輪無關）、`apps/admin`（全過，本輪未修改

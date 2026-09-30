@@ -53,10 +53,34 @@ public static class GeoCrawlerDefaults
         "order/lookup/",
     ];
 
-    /// <summary>俱樂部專屬的語系無關路徑片段（目前只有 <c>tcrfc</c> 這一條，見下方檔頭說明）。</summary>
+    /// <summary>
+    /// 俱樂部專屬的語系無關路徑片段——**未成年學員／球員照片所在頁面**（見下方檔頭說明）。
+    /// 兩個俱樂部共用同一套前台路由（<c>apps/web/app/pages/zh/…</c>，藍鯨容器只是換
+    /// <c>NUXT_PUBLIC_CLUB</c>），所以藍鯨的青年隊（U15／U12）頁面路徑與磐石學院相同，
+    /// 不是另有一組藍鯨網址。
+    /// - 兩隊皆有：<c>academy/teams/</c>（梯隊球員名單與照片）、<c>academy/life/</c>（訓練與比賽
+    ///   影像；藍鯨目前為「肖像同意到位後公布」空狀態，但頁面就是為未成年影像而設，先擋不等
+    ///   照片上架才補）。
+    /// - 僅 <c>tcrfc</c>：<c>programs/childrens-training/</c>、<c>programs/summer-camp/</c>、
+    ///   <c>programs/specialist/</c>——三頁皆有兒童／學員照片牆，藍鯨版目前對應區塊未渲染
+    ///   （<c>isTcrfc</c> 分支），藍鯨若日後補上學員照片，須回頭在此加上（否則就把這三頁
+    ///   一併放進共用清單）。
+    /// </summary>
     private static readonly Dictionary<string, string[]> ClubLocalizedSegments = new(StringComparer.OrdinalIgnoreCase)
     {
-        ["tcrfc"] = ["academy/teams/"],
+        ["tcrfc"] =
+        [
+            "academy/teams/",
+            "academy/life/",
+            "programs/childrens-training/",
+            "programs/summer-camp/",
+            "programs/specialist/",
+        ],
+        ["bw"] =
+        [
+            "academy/teams/",
+            "academy/life/",
+        ],
     };
 
     /// <summary>
@@ -82,14 +106,12 @@ public static class GeoCrawlerDefaults
     /// - 訂單查詢：docs/01-site-architecture.md §5「URL 規則」，<c>/zh/order/lookup/</c>。
     /// - 會員卡驗證頁：規劃書行 1679，路徑本身固定是 <c>/m/</c>（**不含語系前綴，不展開**——
     ///   `/m/&lt;token&gt;` 本身就是站在語系目錄之外的短網址，docs/14 既有敘述如此）。
-    /// - 未成年學員照片：**目前僅 <c>tcrfc</c> 有對應頁面**——<c>/zh/academy/teams/</c>
-    ///   （<c>apps/web/app/pages/zh/academy/teams.vue</c>，U15／U14／U12 學院梯隊名單，
-    ///   <c>players.portrait_consent_status</c> 未同意的球員本來就不會回傳照片，這裡是
-    ///   defense-in-depth 的第二層，擋的是頁面本身而非單張圖片）。**藍鯨（`bw`）尚未建置對應頁面**
-    ///   （藍鯨規劃書「04 為青年隊，U15／U12 女子隊，不沿用學院的招生與課程架構」，前台路由
-    ///   尚未定案，見 STATUS.md BW-7／S1-12b 待辦）——待該路由落地時**必須**回頭在
-    ///   <see cref="ClubLocalizedSegments"/> 補上這個俱樂部的對應片段，不是本輪遺漏，是排定的
-    ///   後續工作（本輪不虛構一個尚不存在的網址）。
+    /// - 未成年學員照片：見 <see cref="ClubLocalizedSegments"/>。<c>tcrfc</c>：<c>academy/teams/</c>
+    ///   （U15／U14／U12 梯隊名單，<c>players.portrait_consent_status</c> 未同意者本來就不回傳
+    ///   照片，這裡是 defense-in-depth 第二層，擋頁面而非單張圖片）、<c>academy/life/</c>、
+    ///   三個課程頁。<c>bw</c>（U15／U12）：<c>academy/teams/</c>、<c>academy/life/</c>——
+    ///   藍鯨與磐石共用同一套路由（2026-09-30 修正：先前誤以為藍鯨「尚未建置對應頁面」，
+    ///   實際 <c>apps/web</c> 早已用同一個 <c>teams.vue</c> 渲染藍鯨青年隊名單）。
     ///
     /// ✅ **2026-09-25（協調者驗收退回）：`/en/` 版本現在就一併輸出，不留成「上線時再補」的
     /// 已知缺口**——站上目前只有 <c>/zh/</c> 頁面是既有事實，但對不存在的 <c>/en/…</c> 路徑輸出
