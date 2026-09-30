@@ -185,7 +185,7 @@ const fileSizeLabel = computed(() => {
 
 .video-uploader__dropzone--drag-over {
   border-color: var(--admin-primary);
-  background: rgb(232 91 169 / 8%);
+  background: color-mix(in srgb, var(--admin-primary) 8%, transparent);
 }
 
 .video-uploader__existing {

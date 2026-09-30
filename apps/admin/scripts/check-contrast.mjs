@@ -27,6 +27,11 @@
  *
  * 色票的真實來源是 docs/21-admin-ui.md §7／§4／§15。**要改色值先改那份文件**，
  * 再同步這裡與 admin-theme.css，三者不一致時本腳本會失敗。
+ *
+ * 2026-09-30：**兩組色票各跑一遍**（磐石＝`html.dark`、藍鯨＝`html.dark[data-club='bw']`）。
+ * 藍鯨組只覆寫背景四層＋輸入框底、操作主色四階、草稿 tag 底；文字階層／邊框／四態語意色／
+ * 危險警告成功色兩組共用（藍鯨背景比磐石更暗，共用值只會更好，但仍全部重算，不假設）。
+ * 任何一組不過都會讓整支腳本失敗。
  */
 
 import { readFileSync } from 'node:fs'
@@ -56,12 +61,22 @@ const AA_UI = 3.0 // UI 元件與圖形邊界（含邊框、focus 外框）
 // ── 色票定義（來源：docs/21-admin-ui.md §7、§4、§15）────────────────────
 
 /** 四層背景色階 ＋ 輸入框底（§7.2，v3 由品牌黑推導） */
-const BACKGROUNDS = {
+const BG_TCRFC = {
   '--admin-bg-canvas': '#150F0D',
   '--admin-bg-surface': '#231916',
   '--admin-bg-surface-2': '#31231F',
   '--admin-bg-overlay': '#3F2D28',
   '--admin-bg-input': '#070504',
+}
+
+/** 藍鯨背景（2026-09-30）：canvas／surface 直接取藍鯨 --ink／--ink-2（docs/13 §6a），surface-2／overlay
+ * 沿用磐石那組的 4.5pp 明度級距由 --ink-2 衍生，input 取純黑（比 canvas 更暗做出凹陷感） */
+const BG_BW = {
+  '--admin-bg-canvas': '#040000',
+  '--admin-bg-surface': '#1D1919',
+  '--admin-bg-surface-2': '#292424',
+  '--admin-bg-overlay': '#362E2E',
+  '--admin-bg-input': '#000000',
 }
 
 /** 文字階層（§7.3，v3 暖化）。disabled 依 WCAG 豁免對比度要求，不參與笛卡兒積，見 EXEMPT */
@@ -97,11 +112,20 @@ const EXEMPT = {
 }
 
 /** 操作主色（§7.5，v3 由 Element Plus 預設藍改為品牌桃紅系） */
-const PRIMARY = {
+const PRIMARY_TCRFC = {
   '--admin-primary': '#E85BA9',
   '--admin-primary-fill': '#D61E83',
   '--admin-primary-fill-hover': '#AE186B',
   '--admin-primary-fill-active': '#841852',
+}
+
+/** 藍鯨操作主色（2026-09-30）：--brand-bright／--brand-aa／--brand-deep 逐字取自 club-bw.css（docs/13 §6a），
+ * active 為衍生色，公式同磐石（--brand-deep 與 --ink 7:3 混色） */
+const PRIMARY_BW = {
+  '--admin-primary': '#50B0E4',
+  '--admin-primary-fill': '#1A78AA',
+  '--admin-primary-fill-hover': '#156088',
+  '--admin-primary-fill-active': '#10435F',
 }
 
 /** 邊框（規格 vs 實作比對用，含上面笛卡兒積已涵蓋的 token） */
@@ -112,70 +136,76 @@ const BORDERS = {
 /**
  * 成對色票：笛卡兒積涵蓋不到的、前景與背景綁定的組合
  * （§4.2 四態 tag、§4.3 語意色、§7.5 實心按鈕、§7.4 邊框 UI 門檻）
+ * 依調色盤產生：背景與主色隨俱樂部變，語意色與文字階層兩組共用。
  */
-const PAIRS = [
-  // 四態 tag（§4.2）：草稿跟著新暖色階連動，其餘三態獨立配色未改值
-  ['草稿 tag', '#B7B0AC', '#31231F', AA_TEXT],
-  ['排程發布 tag', '#FFB84D', '#3A2E14', AA_TEXT],
-  ['已發布 tag', '#5FD68A', '#13301F', AA_TEXT],
-  ['已停用 tag', '#C98BA8', '#33202B', AA_TEXT],
+function pairsFor(BG, P) {
+  const canvas = BG['--admin-bg-canvas']
+  const surface = BG['--admin-bg-surface']
+  const surface2 = BG['--admin-bg-surface-2']
+  const input = BG['--admin-bg-input']
+  const overlay = BG['--admin-bg-overlay']
+  const pr = P['--admin-primary']
+  const pairs = [
+    // 四態 tag（§4.2）：草稿底跟著 surface-2 連動，其餘三態獨立配色兩組共用
+    ['草稿 tag', '#B7B0AC', surface2, AA_TEXT],
+    ['排程發布 tag', '#FFB84D', '#3A2E14', AA_TEXT],
+    ['已發布 tag', '#5FD68A', '#13301F', AA_TEXT],
+    ['已停用 tag', '#C98BA8', '#33202B', AA_TEXT],
 
-  // 操作型語意色文字，置於 surface 上（§4.3，v3 危險色橘紅化）
-  ['危險文字', '#FFAD94', '#231916', AA_TEXT],
-  ['警告文字', '#FFB84D', '#231916', AA_TEXT],
-  ['成功文字', '#5FD68A', '#231916', AA_TEXT],
-  ['中性／資訊文字 on surface-2', '#B7B0AC', '#31231F', AA_TEXT],
+    // 操作型語意色文字，置於 surface 上（§4.3）
+    ['危險文字', '#FFAD94', surface, AA_TEXT],
+    ['警告文字', '#FFB84D', surface, AA_TEXT],
+    ['成功文字', '#5FD68A', surface, AA_TEXT],
+    ['中性／資訊文字 on surface-2', '#B7B0AC', surface2, AA_TEXT],
 
-  // 實心語意按鈕（§4.3）
-  ['危險按鈕白字', '#FFFFFF', '#B35A3F', AA_TEXT],
-  ['成功按鈕白字', '#FFFFFF', '#2E7D4F', AA_TEXT],
-  // 警告按鈕刻意用深字：白字只有 1.72:1，深字 11.04:1（§4.3）
-  ['警告按鈕深字', '#150F0D', '#FFB84D', AA_TEXT],
+    // 實心語意按鈕（§4.3）
+    ['危險按鈕白字', '#FFFFFF', '#B35A3F', AA_TEXT],
+    ['成功按鈕白字', '#FFFFFF', '#2E7D4F', AA_TEXT],
+    // 警告按鈕刻意用深字（字色取 canvas，§4.3）
+    ['警告按鈕深字（canvas 字色）', canvas, '#FFB84D', AA_TEXT],
 
-  // 實心主要按鈕三態，白字（§7.5：--brand-aa／--brand-deep／衍生 active 色）
-  ['主按鈕白字（--brand-aa）', '#FFFFFF', '#D61E83', AA_TEXT],
-  ['主按鈕 hover 白字（--brand-deep）', '#FFFFFF', '#AE186B', AA_TEXT],
-  ['主按鈕 active 白字（衍生色）', '#FFFFFF', '#841852', AA_TEXT],
+    // 實心主要按鈕三態，白字（§7.5）
+    ['主按鈕白字（fill）', '#FFFFFF', P['--admin-primary-fill'], AA_TEXT],
+    ['主按鈕 hover 白字', '#FFFFFF', P['--admin-primary-fill-hover'], AA_TEXT],
+    ['主按鈕 active 白字', '#FFFFFF', P['--admin-primary-fill-active'], AA_TEXT],
 
-  // primary 當文字色（§7.5）：v3 起明文「四層過、overlay 不過」，這裡只放過得了的四層，
-  // overlay 那組移到 COUNTER_EXAMPLES 釘住，不混進「必須全過」的清單
-  ['primary 文字 on canvas', '#E85BA9', '#150F0D', AA_TEXT],
-  ['primary 文字 on surface', '#E85BA9', '#231916', AA_TEXT],
-  ['primary 文字 on surface-2', '#E85BA9', '#31231F', AA_TEXT],
-  ['primary 文字 on input', '#E85BA9', '#070504', AA_TEXT],
+    // primary 當文字色（§7.5）
+    ['primary 文字 on canvas', pr, canvas, AA_TEXT],
+    ['primary 文字 on surface', pr, surface, AA_TEXT],
+    ['primary 文字 on surface-2', pr, surface2, AA_TEXT],
+    ['primary 文字 on input', pr, input, AA_TEXT],
 
-  // focus 外框：UI 元件門檻 3:1，非文字用途，對五層背景都要驗（focus 外框可能出現在任何底上）
-  ['focus 外框 on canvas', '#E85BA9', '#150F0D', AA_UI],
-  ['focus 外框 on surface', '#E85BA9', '#231916', AA_UI],
-  ['focus 外框 on surface-2', '#E85BA9', '#31231F', AA_UI],
-  ['focus 外框 on overlay', '#E85BA9', '#3F2D28', AA_UI],
-  ['focus 外框 on input', '#E85BA9', '#070504', AA_UI],
-]
+    // focus 外框：UI 元件門檻 3:1，五層背景都要驗
+    ['focus 外框 on canvas', pr, canvas, AA_UI],
+    ['focus 外框 on surface', pr, surface, AA_UI],
+    ['focus 外框 on surface-2', pr, surface2, AA_UI],
+    ['focus 外框 on overlay', pr, overlay, AA_UI],
+    ['focus 外框 on input', pr, input, AA_UI],
+  ]
+  return pairs
+}
 
 /**
  * 反例／已知限制：文件用來論證「這個做法不行」的數字，或明文承認「這組沒過但接受」的限制。
- * 結論方向對的時候沒有東西會反彈，所以 E-31 才會讓錯的反例數字混過去——這裡把反例也釘住，
- * 數字漂移一樣會失敗。部分項目用範圍（[min, max]）而不是單一期望值，因為文件本身就是說
- * 「落在某個區間內都算沒有回歸」，不是要求小數點後精確吻合。
+ * 數字漂移一樣會失敗。部分項目用範圍（[min, max]）。
  */
-const COUNTER_EXAMPLES = [
-  // 歷史反例，v3 已無此色，純粹防止未來不小心又接回 Element Plus 預設藍
+const COUNTER_TCRFC = [
   ['白字套 Element Plus 預設藍（歷史反例，v3 已無此色）', '#FFFFFF', '#409EFF', 2.78],
   ['警告按鈕若用白字（§4.3 反例，過不了 AA 所以按鈕改深字）', '#FFFFFF', '#FFB84D', 1.72],
-  // v3 新增：品牌色反例（§7.5：這是 --brand-aa／--brand-deep 存在的理由）
   ['白字套 --brand 正色 #E0218A（§7.5 反例）', '#FFFFFF', '#E0218A', 4.42],
   ['白字套 --brand-bright #E85BA9（§7.5 反例，更不夠）', '#FFFFFF', '#E85BA9', 3.23],
-  // v3 新增：primary 當文字色對 overlay 是規格明文承認的「已知且接受的限制」（§7.5／§6.3），
-  // 不列入必過清單，但要釘住數字不能悄悄變化——落在 3.9–4.1 之間都算沒有回歸
+  // primary 當文字色對 overlay 是規格明文承認的「已知且接受的限制」（§7.5／§6.3）
   ['primary 文字 on overlay（§7.5／§6.3 明文已知限制，非必過項目）', '#E85BA9', '#3F2D28', [3.9, 4.1]],
-  // 本次修正的根因記錄：border-input 的暖化等亮度換算值對 overlay 過不了 3:1，
-  // 這裡釘住舊值的實際數字，證明換成 #8A7E75 是必要的，不是隨意選的替代值
   [
     '（迴歸記錄）border-input 若用暖化等亮度換算值 #7A6F68 on overlay（過不了 3:1，因此改用 #8A7E75）',
     '#7A6F68',
     '#3F2D28',
     2.66,
   ],
+]
+const COUNTER_BW = [
+  // 藍鯨的 --brand 正色與 --brand-bright 拿來當實心底配白字不夠，是 --brand-aa／--brand-deep 存在的理由
+  ['白字套藍鯨 --brand #2196D5（反例）', '#FFFFFF', '#2196D5', 3.29],
 ]
 
 // ── 檢查 ────────────────────────────────────────────────────────────────
@@ -184,96 +214,6 @@ const failures = []
 const lines = []
 let checkedCount = 0
 
-// 1. 文字笛卡兒積：每階文字 × 每層背景
-lines.push('【1】文字 × 背景 全組合（AA_TEXT 4.5:1，不挑，這是 E-31 的重點）')
-for (const [tName, tHex] of Object.entries(TEXTS)) {
-  for (const [bName, bHex] of Object.entries(BACKGROUNDS)) {
-    const ratio = contrast(tHex, bHex)
-    const pass = ratio >= AA_TEXT
-    checkedCount++
-    if (!pass) {
-      failures.push(
-        `${tName} (${tHex}) on ${bName} (${bHex}) = ${ratio.toFixed(2)}:1，未達 AA ${AA_TEXT}:1`,
-      )
-    }
-    lines.push(
-      `    ${pass ? '✓' : '✗'} ${tName.padEnd(24)} on ${bName.padEnd(22)} ${ratio.toFixed(2).padStart(6)}:1`,
-    )
-  }
-}
-
-// 2. 邊框笛卡兒積：邊框 token × 每層背景（這次新補的洞，門檻 3:1）
-lines.push('')
-lines.push('【2】邊框 × 背景 全組合（AA_UI 3:1，這次新補的洞——上一輪只驗了兩組，漏了 overlay）')
-for (const [tName, tHex] of Object.entries(BORDERS_CARTESIAN)) {
-  for (const [bName, bHex] of Object.entries(BACKGROUNDS)) {
-    const ratio = contrast(tHex, bHex)
-    const pass = ratio >= AA_UI
-    checkedCount++
-    if (!pass) {
-      failures.push(
-        `${tName} (${tHex}) on ${bName} (${bHex}) = ${ratio.toFixed(2)}:1，未達 AA_UI ${AA_UI}:1`,
-      )
-    }
-    lines.push(
-      `    ${pass ? '✓' : '✗'} ${tName.padEnd(24)} on ${bName.padEnd(22)} ${ratio.toFixed(2).padStart(6)}:1`,
-    )
-  }
-}
-
-// 3. 豁免 token：算出來但不強制過門檻，理由印出來
-lines.push('')
-lines.push('【3】豁免 token（不強制過門檻，但逐層算出數字＋理由，不是默默跳過）')
-for (const [tName, { hex, reason }] of Object.entries(EXEMPT)) {
-  for (const [bName, bHex] of Object.entries(BACKGROUNDS)) {
-    const ratio = contrast(hex, bHex)
-    checkedCount++
-    lines.push(
-      `    ~ ${tName.padEnd(24)} on ${bName.padEnd(22)} ${ratio.toFixed(2).padStart(6)}:1  （豁免：${reason}）`,
-    )
-  }
-}
-
-// 4. 成對色票
-lines.push('')
-lines.push('【4】成對色票（四態、語意色、按鈕、primary 文字四層、focus 外框五層）')
-for (const [label, fg, bg, threshold] of PAIRS) {
-  const ratio = contrast(fg, bg)
-  const pass = ratio >= threshold
-  checkedCount++
-  if (!pass) {
-    failures.push(`${label}：${fg} on ${bg} = ${ratio.toFixed(2)}:1，未達門檻 ${threshold}:1`)
-  }
-  lines.push(
-    `    ${pass ? '✓' : '✗'} ${label.padEnd(46)} ${ratio.toFixed(2).padStart(6)}:1  (門檻 ${threshold})`,
-  )
-}
-
-// 5. 反例／已知限制數字釘住
-lines.push('')
-lines.push('【5】反例與已知限制（文件用來論證「不能這樣做」或「這組已知不過」的數字，漂移就失敗）')
-for (const [label, fg, bg, expected] of COUNTER_EXAMPLES) {
-  const ratio = contrast(fg, bg)
-  checkedCount++
-  let ok
-  let expectedLabel
-  if (Array.isArray(expected)) {
-    const [min, max] = expected
-    ok = ratio >= min && ratio <= max
-    expectedLabel = `${min}–${max}`
-  } else {
-    ok = Math.abs(ratio - expected) < 0.01
-    expectedLabel = `${expected}`
-  }
-  if (!ok) {
-    failures.push(`${label}：實算 ${ratio.toFixed(2)}:1，但文件記的是 ${expectedLabel}:1`)
-  }
-  lines.push(`    ${ok ? '✓' : '✗'} ${label.padEnd(60)} ${ratio.toFixed(2)}:1`)
-}
-
-// 6. 規格 vs 實作：admin-theme.css 的值要與上面的定義一致
-lines.push('')
-lines.push('【6】規格（docs/21 §7／§15）vs 實作（admin-theme.css）')
 let css
 try {
   css = readFileSync(THEME_CSS, 'utf8')
@@ -282,25 +222,157 @@ try {
   css = null
 }
 
-if (css) {
-  const exemptHexOnly = Object.fromEntries(
-    Object.entries(EXEMPT).map(([k, v]) => [k, v.hex]),
-  )
-  const ALL_TOKENS = { ...BACKGROUNDS, ...TEXTS, ...exemptHexOnly, ...PRIMARY, ...BORDERS }
-  for (const [token, expected] of Object.entries(ALL_TOKENS)) {
-    // 比對時大小寫不敏感（CSS 常寫小寫十六進位）
-    const m = css.match(new RegExp(`${token}\\s*:\\s*(#[0-9a-fA-F]{6})`))
-    if (!m) {
-      failures.push(`admin-theme.css 找不到 ${token} 的定義`)
-      lines.push(`    ✗ ${token.padEnd(28)} 未定義`)
-      continue
+/** 取出某個選擇器開頭的區塊本文（到第一個 `}` 為止；admin-theme.css 的俱樂部區塊內沒有巢狀大括號） */
+function blockOf(selectorRegex) {
+  if (!css) return ''
+  const m = css.match(new RegExp(`${selectorRegex}\\s*\\{([^}]*)\\}`))
+  return m ? m[1] : ''
+}
+
+const PALETTES = [
+  {
+    name: '磐石',
+    BG: BG_TCRFC,
+    P: PRIMARY_TCRFC,
+    counters: COUNTER_TCRFC,
+    // 磐石＝預設值＝`html.dark` 區塊本身
+    block: () => blockOf('html\\.dark'),
+    fallbackBlock: () => '',
+  },
+  {
+    name: '藍鯨',
+    BG: BG_BW,
+    P: PRIMARY_BW,
+    counters: COUNTER_BW,
+    block: () => blockOf("html\\.dark\\[data-club='bw'\\]"),
+    // 藍鯨區塊沒覆寫的 token（文字、邊框、語意色）繼承磐石區塊的值
+    fallbackBlock: () => blockOf('html\\.dark'),
+  },
+]
+
+for (const { name, BG: BACKGROUNDS, P: PRIMARY, counters, block, fallbackBlock } of PALETTES) {
+  const tag = `〔${name}〕`
+  const PAIRS = pairsFor(BACKGROUNDS, PRIMARY)
+  lines.push('')
+  lines.push(`════════ ${name}色票 ════════`)
+
+  // 1. 文字笛卡兒積：每階文字 × 每層背景
+  lines.push('【1】文字 × 背景 全組合（AA_TEXT 4.5:1，不挑，這是 E-31 的重點）')
+  for (const [tName, tHex] of Object.entries(TEXTS)) {
+    for (const [bName, bHex] of Object.entries(BACKGROUNDS)) {
+      const ratio = contrast(tHex, bHex)
+      const pass = ratio >= AA_TEXT
+      checkedCount++
+      if (!pass) {
+        failures.push(
+          `${tag}${tName} (${tHex}) on ${bName} (${bHex}) = ${ratio.toFixed(2)}:1，未達 AA ${AA_TEXT}:1`,
+        )
+      }
+      lines.push(
+        `    ${pass ? '✓' : '✗'} ${tName.padEnd(24)} on ${bName.padEnd(22)} ${ratio.toFixed(2).padStart(6)}:1`,
+      )
     }
-    const actual = m[1].toUpperCase()
-    const ok = actual === expected.toUpperCase()
+  }
+
+  // 2. 邊框笛卡兒積：邊框 token × 每層背景（門檻 3:1）
+  lines.push('')
+  lines.push('【2】邊框 × 背景 全組合（AA_UI 3:1）')
+  for (const [tName, tHex] of Object.entries(BORDERS_CARTESIAN)) {
+    for (const [bName, bHex] of Object.entries(BACKGROUNDS)) {
+      const ratio = contrast(tHex, bHex)
+      const pass = ratio >= AA_UI
+      checkedCount++
+      if (!pass) {
+        failures.push(
+          `${tag}${tName} (${tHex}) on ${bName} (${bHex}) = ${ratio.toFixed(2)}:1，未達 AA_UI ${AA_UI}:1`,
+        )
+      }
+      lines.push(
+        `    ${pass ? '✓' : '✗'} ${tName.padEnd(24)} on ${bName.padEnd(22)} ${ratio.toFixed(2).padStart(6)}:1`,
+      )
+    }
+  }
+
+  // 3. 豁免 token：算出來但不強制過門檻，理由印出來
+  lines.push('')
+  lines.push('【3】豁免 token（不強制過門檻，但逐層算出數字＋理由，不是默默跳過）')
+  for (const [tName, { hex, reason }] of Object.entries(EXEMPT)) {
+    for (const [bName, bHex] of Object.entries(BACKGROUNDS)) {
+      const ratio = contrast(hex, bHex)
+      checkedCount++
+      lines.push(
+        `    ~ ${tName.padEnd(24)} on ${bName.padEnd(22)} ${ratio.toFixed(2).padStart(6)}:1  （豁免：${reason}）`,
+      )
+    }
+  }
+
+  // 4. 成對色票
+  lines.push('')
+  lines.push('【4】成對色票（四態、語意色、按鈕、primary 文字四層、focus 外框五層）')
+  for (const [label, fg, bg, threshold] of PAIRS) {
+    const ratio = contrast(fg, bg)
+    const pass = ratio >= threshold
+    checkedCount++
+    if (!pass) {
+      failures.push(`${tag}${label}：${fg} on ${bg} = ${ratio.toFixed(2)}:1，未達門檻 ${threshold}:1`)
+    }
+    lines.push(
+      `    ${pass ? '✓' : '✗'} ${label.padEnd(46)} ${ratio.toFixed(2).padStart(6)}:1  (門檻 ${threshold})`,
+    )
+  }
+
+  // 5. 反例／已知限制數字釘住
+  lines.push('')
+  lines.push('【5】反例與已知限制（漂移就失敗）')
+  for (const [label, fg, bg, expected] of counters) {
+    const ratio = contrast(fg, bg)
+    checkedCount++
+    let ok
+    let expectedLabel
+    if (Array.isArray(expected)) {
+      const [min, max] = expected
+      ok = ratio >= min && ratio <= max
+      expectedLabel = `${min}–${max}`
+    } else {
+      ok = Math.abs(ratio - expected) < 0.01
+      expectedLabel = `${expected}`
+    }
     if (!ok) {
-      failures.push(`${token}：admin-theme.css 是 ${actual}，docs/21 §7／§15 是 ${expected}`)
+      failures.push(`${tag}${label}：實算 ${ratio.toFixed(2)}:1，但文件記的是 ${expectedLabel}:1`)
     }
-    lines.push(`    ${ok ? '✓' : '✗'} ${token.padEnd(28)} ${actual}`)
+    lines.push(`    ${ok ? '✓' : '✗'} ${label.padEnd(60)} ${ratio.toFixed(2)}:1`)
+  }
+
+  // 6. 規格 vs 實作：admin-theme.css 該調色盤區塊的值要與上面的定義一致
+  lines.push('')
+  lines.push('【6】規格 vs 實作（admin-theme.css）')
+  if (css) {
+    const own = block()
+    const fallback = fallbackBlock()
+    if (!own) failures.push(`${tag}admin-theme.css 找不到這組色票的區塊`)
+    const exemptHexOnly = Object.fromEntries(Object.entries(EXEMPT).map(([k, v]) => [k, v.hex]))
+    const ALL_TOKENS = { ...BACKGROUNDS, ...TEXTS, ...exemptHexOnly, ...PRIMARY, ...BORDERS }
+    for (const [token, expected] of Object.entries(ALL_TOKENS)) {
+      const re = new RegExp(`${token}\\s*:\\s*(#[0-9a-fA-F]{6})`)
+      const m = own.match(re) ?? fallback.match(re)
+      if (!m) {
+        failures.push(`${tag}admin-theme.css 找不到 ${token} 的定義`)
+        lines.push(`    ✗ ${token.padEnd(28)} 未定義`)
+        continue
+      }
+      const actual = m[1].toUpperCase()
+      const ok = actual === expected.toUpperCase()
+      if (!ok) {
+        failures.push(`${tag}${token}：admin-theme.css 是 ${actual}，本腳本（docs/21 §7／§15）是 ${expected}`)
+      }
+      lines.push(`    ${ok ? '✓' : '✗'} ${token.padEnd(28)} ${actual}`)
+    }
+    // 草稿 tag 底必須跟著 surface-2（藍鯨區塊要自己覆寫，否則會殘留磐石暖棕）
+    const draft = (own.match(/--admin-status-draft-bg\s*:\s*(#[0-9a-fA-F]{6})/) ??
+      fallback.match(/--admin-status-draft-bg\s*:\s*(#[0-9a-fA-F]{6})/))?.[1]
+    const draftOk = draft?.toUpperCase() === BACKGROUNDS['--admin-bg-surface-2'].toUpperCase()
+    if (!draftOk) failures.push(`${tag}--admin-status-draft-bg（${draft}）沒有等於 surface-2`)
+    lines.push(`    ${draftOk ? '✓' : '✗'} --admin-status-draft-bg        ${draft} （須等於 surface-2）`)
   }
 }
 
@@ -316,13 +388,13 @@ if (failures.length > 0) {
   console.error(`✗ 色票對比度檢查未通過（${failures.length} 項）：\n`)
   for (const f of failures) console.error(`  - ${f}`)
   console.error(
-    '\n色票的真實來源是 docs/21-admin-ui.md §7／§4／§15。' +
+    '\n色票的真實來源是 docs/21-admin-ui.md §7／§4／§15（藍鯨組見 docs/13 §6a）。' +
       '\n要改色值請先改那份文件，再同步本腳本與 admin-theme.css。',
   )
   process.exit(1)
 }
 
 console.log(
-  `✓ 色票對比度檢查通過（共 ${checkedCount} 組組合：文字×背景笛卡兒積、邊框×背景笛卡兒積、` +
-    `豁免 token 記錄、成對色票、反例釘住 ＋ token 值與 docs/21 §7／§15 一致）`,
+  `✓ 色票對比度檢查通過（磐石＋藍鯨兩組，共 ${checkedCount} 組組合：文字×背景笛卡兒積、邊框×背景笛卡兒積、` +
+    `豁免 token 記錄、成對色票、反例釘住 ＋ token 值與 admin-theme.css 一致）`,
 )

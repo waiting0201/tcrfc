@@ -14,6 +14,7 @@
  * 對 overlay 只有 2.66:1，過不了 3:1，已改用門檻反推的 `#8A7E75`，見下方註解與 check-contrast.mjs）。
  */
 html.dark {
+  /* 本區塊＝磐石預設值；藍鯨（data-club='bw'）的覆寫在下方 `html.dark[data-club='bw']` 區塊 */
   /* ── 四層背景色階（§7.2：v3 起由品牌黑 --ink／--ink-2 推導，不再是與品牌無關的中性冷灰）──── */
   --admin-bg-canvas: #150f0d; /* 內容區背景（路由容器），最暗。衍生值：--ink 同色相/彩度，L -4.5pp */
   --admin-bg-surface: #231916; /* 側欄、頁面列、el-card 預設底。= --ink 原值 */
@@ -120,6 +121,38 @@ html.dark {
   --admin-font-family: 'Noto Sans TC', -apple-system, 'PingFang TC', sans-serif;
 }
 
+/**
+ * 藍鯨配色（2026-09-30，主站規劃書 v3.16 §4.0：切換站台時後台主色隨之切換為該俱樂部品牌色）。
+ *
+ * 機制：`@/auth/clubTheme` 在 <html> 上設 `data-club="bw"`（首次繪製由 index.html 內嵌 script
+ * 同步設定），本區塊以更高優先權（class＋屬性）覆寫上面 `html.dark` 的背景四層、操作主色、草稿 tag 底。
+ * 沒有 data-club、或值為 tcrfc 時本區塊不生效＝磐石預設。文字階層、邊框、四態與危險／警告／成功色
+ * 兩組共用（藍鯨背景比磐石更暗，對比只會更好，check-contrast.mjs 兩組都重算過）。
+ *
+ * ⚠️ 色值唯一來源：apps/web/public/assets/css/club-bw.css（docs/13 §6a／brand/blue-whale/README.md）。
+ * --brand-bright #50B0E4／--brand-aa #1A78AA／--brand-deep #156088／--ink #040000／--ink-2 #1D1919
+ * 逐字取用，不自行調色。以下三種是**衍生值**（藍鯨變數沒有對應色階）：
+ *   1. surface-2／overlay：以 --ink-2 為底，沿用磐石那組的 4.5pp 明度級距往上推（L 10.6→15.1→19.6）
+ *   2. input 底：純黑 #000000（比 canvas #040000 更暗，維持「凹陷」層次）
+ *   3. primary-fill-active：--brand-deep 與 --ink 以 7:3 混色（與磐石同公式）
+ * 磐石的 canvas 是「--ink 再暗 4.5pp」，藍鯨 --ink 已是近黑（L 0.8）沒有再暗的空間，
+ * 所以藍鯨改為 canvas＝--ink、surface＝--ink-2，級距因此比磐石大一階。
+ */
+html.dark[data-club='bw'] {
+  --admin-bg-canvas: #040000; /* = --ink */
+  --admin-bg-surface: #1d1919; /* = --ink-2 */
+  --admin-bg-surface-2: #292424; /* 衍生：--ink-2 L+4.5pp */
+  --admin-bg-overlay: #362e2e; /* 衍生：surface-2 再 L+4.5pp */
+  --admin-bg-input: #000000; /* 衍生：比 canvas 更暗 */
+
+  --admin-primary: #50b0e4; /* = --brand-bright */
+  --admin-primary-fill: #1a78aa; /* = --brand-aa，白字 4.87:1 */
+  --admin-primary-fill-hover: #156088; /* = --brand-deep，白字 6.86:1 */
+  --admin-primary-fill-active: #10435f; /* 衍生：--brand-deep 與 --ink 7:3 混色 */
+
+  --admin-status-draft-bg: #292424; /* = 藍鯨 surface-2，草稿 tag 跟著背景色階連動 */
+}
+
 * {
   box-sizing: border-box;
 }
@@ -193,10 +226,10 @@ body {
 }
 
 /* 表格列選中（勾選）：primary 12% 透明疊色，不整列反白（§2.4）
-   ⚠️ 這行本來就沒有透過 CSS 變數，是寫死的 rgb 字面值，整批換色時容易漏掉（§15.1）：
-   rgb(232 91 169 / 12%) = --admin-primary #E85BA9 的 rgb 等效值 */
+   ⚠️ 2026-09-30 起改用 color-mix 跟著 --admin-primary 走（原本寫死 rgb(232 91 169 / 12%)，
+   切換俱樂部主色後會殘留磐石桃紅；整批換色時容易漏掉，見 §15.1） */
 .el-table {
-  --el-table-current-row-bg-color: rgb(232 91 169 / 12%);
+  --el-table-current-row-bg-color: color-mix(in srgb, var(--admin-primary) 12%, transparent);
   --el-table-row-hover-bg-color: var(--admin-bg-surface-2);
 }
 

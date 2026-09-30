@@ -3,7 +3,8 @@ import { ElMessage } from 'element-plus'
 import { ALL_NAV_ITEMS } from '@/data/nav'
 import { authUser, isAuthenticated, isBootstrapped, markBootstrapped } from '@/auth/session'
 import { refreshAccessToken } from '@/api/adminAuth'
-import { ensureClubsLoaded } from '@/auth/clubAccess'
+import { activeClubId, ensureClubsLoaded } from '@/auth/clubAccess'
+import { DEFAULT_CLUB_CODE, applyClubTheme } from '@/auth/clubTheme'
 
 const AdminLayout = () => import('@/layouts/AdminLayout.vue')
 const DashboardView = () => import('@/views/DashboardView.vue')
@@ -403,6 +404,8 @@ router.beforeEach(async (to) => {
   await ensureBootstrapped()
 
   if (to.meta.public) {
+    // 登入頁（尚未選擇俱樂部）固定用磐石預設配色；登入後 ensureClubsLoaded 會依俱樂部換色
+    applyClubTheme(DEFAULT_CLUB_CODE)
     // 已經登入卻又想進登入頁：直接送去後台首頁，不必再看一次登入表單。
     if (to.name === 'login' && isAuthenticated.value) return '/dashboard'
     return true
@@ -430,6 +433,8 @@ router.beforeEach(async (to) => {
   // 內部本來就有 `state.loaded` 短路（見該檔案），`await` 只有第一次導頁會真的等網路來回，之後
   // 每次導頁都是立即 resolve，不會拖慢整體導覽速度。
   await ensureClubsLoaded()
+  // 從登入頁進來時 ensureClubsLoaded 可能已短路（state.loaded），這裡再對齊一次配色
+  applyClubTheme(activeClubId.value)
 
   return true
 })

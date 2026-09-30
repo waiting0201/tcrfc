@@ -2027,3 +2027,14 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   缺值或短於 32 字元即丟 `InvalidOperationException`、行程啟動失敗。測試主機 fixture 都在建立 `Server` 前
   以 `Environment.SetEnvironmentVariable` 設定該鍵，環境變數於 `CreateBuilder` 即已讀入，故不受影響
   （若日後 fixture 改用 `ConfigureAppConfiguration` 覆寫此鍵，會來不及——須維持環境變數作法）。
+
+### E-80 為了比對警告數在共用工作樹用 `git stash`，會把其他 agent 未提交的檔案一起暫存（2026-09-30）
+
+- **錯在哪**：做後台配色切換時，為了比對「改動前後 build 警告數」，直接在共用工作樹跑 `git stash`／`git stash pop`。
+  當時 `docs/12c`、`docs/12d` 是另一個 agent 正在改、尚未提交的檔案，被一併暫存又還原；
+  所幸當下沒有寫入交錯、還原完整，但這是運氣，不是設計。
+- **為什麼會錯（根因）**：把「工作樹」當成只有自己在用；比對基準線時選了會動到全樹的指令，而不是只動自己檔案的做法。
+- **下次怎麼避免**：多 agent 並行時不對共用工作樹跑 `git stash`／`checkout .`／`reset`。要比對基準線，
+  用 `git worktree add` 開獨立目錄，或直接讀 `git show HEAD:<檔案>` 比對；警告數這類「數字沒變」的確認，
+  看輸出裡的警告種類即可（本次只有 chunk 大小警告一種，改動與此無關）。
+- **防呆**：無（紀律問題）。同類再犯要改成 hook 攔截 `git stash`。

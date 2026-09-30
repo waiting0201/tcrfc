@@ -4,6 +4,7 @@ import { setDisplayName } from '@/auth/session'
 import type { AdminMePermissionDto, AdminMeRoleDto } from '@/api/adminAuth'
 import tcrfcCrest from '@/assets/brand/tcrfc-mark-pink.svg'
 import bwCrest from '@/assets/brand/bw-crest-48.png'
+import { DEFAULT_CLUB_CODE, applyClubTheme, persistClub, readPersistedClub } from '@/auth/clubTheme'
 
 /**
  * 站台切換器可切換的俱樂部清單。
@@ -23,6 +24,9 @@ import bwCrest from '@/assets/brand/bw-crest-48.png'
  * 是 `docs/18-work-errors.md` E-39 同類風險，已在 apps/api/README.md「S1-10 修正」根治）。同一次
  * 呼叫的 `adminUserId` 存進 `currentAdminUserId`（S1-10 起新增）——G2 詢問收件匣「指派給我自己」
  * 用得到，見 `EnquiryEditView.vue`。
+ *
+ * 🎨 **配色（2026-09-30）**：`activeClubId` 的寫入一律走 `setActiveClub()`，同時記住選擇並在
+ * <html> 設 `data-club`（`@/auth/clubTheme`），後台主色因此跟著俱樂部換。
  *
  * ⚠️ **切換器仍然只是介面便利，不是安全邊界**（docs/21-admin-ui.md §5）：真正的範圍檢查一律由
  * 後端 `AdminClubAuthorizer` 在每一次俱樂部範圍請求時即時判斷。這裡列出的清單現在雖然已經是
@@ -71,14 +75,21 @@ export const currentPermissionCodes = computed(() => new Set(permissions.value.m
 const adminUserId = ref<string | null>(null)
 export const currentAdminUserId = computed(() => adminUserId.value)
 
-const internalActiveClubId = ref('tcrfc')
+const internalActiveClubId = ref(readPersistedClub() ?? DEFAULT_CLUB_CODE)
 
 /** 目前站台切換器選到的俱樂部代碼，模組層級單例、跨元件共用（沿用改版前 `data/activeClub.ts`
  * 的既有設計理由：後台各種俱樂部範圍端點都要知道「現在選的是哪一隊」）。 */
+/** 唯一的寫入點：改 state、記住選擇、同步換配色（主站規劃書 v3.16 §4.0），三件事不可分開做。 */
+function setActiveClub(code: string): void {
+  internalActiveClubId.value = code
+  persistClub(code)
+  applyClubTheme(code)
+}
+
 export const activeClubId = computed({
   get: () => internalActiveClubId.value,
   set: (value: string) => {
-    internalActiveClubId.value = value
+    setActiveClub(value)
   },
 })
 
@@ -102,7 +113,10 @@ export async function ensureClubsLoaded(force = false): Promise<void> {
     const primary = me.clubGrants.find((g) => g.isPrimary)?.clubCode
     const currentStillValid = state.clubs.some((c) => c.code === internalActiveClubId.value)
     if (!currentStillValid) {
-      internalActiveClubId.value = primary ?? state.clubs[0]?.code ?? internalActiveClubId.value
+      setActiveClub(primary ?? state.clubs[0]?.code ?? internalActiveClubId.value)
+    } else {
+      // 記住的俱樂部仍有效：確保配色與它一致（index.html 內嵌 script 已先套過一次，這裡是保險）
+      applyClubTheme(internalActiveClubId.value)
     }
   } catch {
     // 讀不到個人檔案就先留空——各頁面既有的「連不上後台服務」錯誤畫面會處理接下來的 API 呼叫失敗，
@@ -118,5 +132,7 @@ export function resetClubAccess(): void {
   roles.value = []
   permissions.value = []
   adminUserId.value = null
-  internalActiveClubId.value = 'tcrfc'
+  internalActiveClubId.value = DEFAULT_CLUB_CODE
+  persistClub(null)
+  applyClubTheme(DEFAULT_CLUB_CODE)
 }

@@ -8,6 +8,18 @@
     <!-- 後台不需要 SEO，但仍要擋掉搜尋引擎（CLAUDE.md 全域規定第 5 條，nginx 端也有一份 X-Robots-Tag） -->
     <meta name="robots" content="noindex, nofollow" />
     <title>TCRFC 後台管理</title>
+    <!-- 首次繪製前同步套用俱樂部配色（src/auth/clubTheme.ts 的 readPersistedClub／applyClubTheme 同一份邏輯，
+         兩邊要一起改）：重新整理時不會先閃磐石色再變藍鯨。登入頁固定磐石預設，所以 /login 不套。
+         localStorage 讀不到（私密視窗等）就維持磐石預設。 -->
+    <script>
+      try {
+        var c = window.localStorage.getItem('tcrfc-admin-active-club')
+        var onLogin = /^\/login(\/|$)/.test(window.location.pathname)
+        document.documentElement.setAttribute('data-club', c === 'bw' && !onLogin ? 'bw' : 'tcrfc')
+      } catch (e) {
+        document.documentElement.setAttribute('data-club', 'tcrfc')
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

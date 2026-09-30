@@ -308,9 +308,9 @@ const fileSizeLabel = computed(() => {
 
 .image-uploader__dropzone--drag-over {
   border-color: var(--admin-primary);
-  /* rgb(232 91 169 / 8%) = --admin-primary #E85BA9 的 rgb 等效值。這是拖曳提示疊色，
-     不是 §9.1 的中性看片台（那是選圖後的預覽底色，兩者是不同區塊），整批換色時要跟著換 */
-  background: rgb(232 91 169 / 8%);
+  /* 8% 主色疊色，跟著 --admin-primary 走（切換俱樂部時自動換色）。這是拖曳提示疊色，
+     不是 §9.1 的中性看片台（那是選圖後的預覽底色，兩者是不同區塊） */
+  background: color-mix(in srgb, var(--admin-primary) 8%, transparent);
 }
 
 .image-uploader__existing {

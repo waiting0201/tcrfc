@@ -107,10 +107,34 @@ Element Plus 預設藍版本已整批換掉，**不做主題切換開關，不�
 狀態 tag 換成深色語意底＋亮色文字、編輯頁分段卡片改用四層背景色階（tonal elevation）取代陰影、
 圖片預覽區塊加了不隨主題變化的「中性看片台」。細節見下方各節與 `docs/21` §1–§9。
 
+✅ **俱樂部配色切換（2026-09-30，主站規劃書 v3.16 §4.0）：後台切到台中藍鯨時整套主色換成藍鯨色，切回磐石恢復**。
+
+- **機制**：`src/auth/clubAccess.ts` 的 `activeClubId` 是唯一 state，所有寫入走 `setActiveClub()`——改 state、記住選擇
+  （`localStorage` 鍵 `tcrfc-admin-active-club`，只是便利，讀寫 try/catch）、呼叫 `src/auth/clubTheme.ts` 的
+  `applyClubTheme()` 在 `<html>` 設 `data-club="tcrfc|bw"`。`src/styles/admin-theme.css` 的
+  `html.dark[data-club='bw']` 區塊覆寫背景四層＋輸入框底、`--admin-primary*` 四階、草稿 tag 底；Element Plus 的
+  `--el-color-primary*` 是 `var(--admin-primary*)` 參照所以跟著換。原本寫死的 `rgb(232 91 169 / n%)`（表格選中列、
+  兩個上傳元件拖曳提示）改為 `color-mix(in srgb, var(--admin-primary) n%, transparent)`。
+- **首次繪製**：`index.html` 的內嵌 script 在第一次繪製前同步讀 `localStorage` 設 `data-club`（與 `clubTheme.ts`
+  邏輯一致，改一邊要改另一邊），重新整理不會先閃磐石色。**副作用**：目前俱樂部選擇現在會跨重新整理保留
+  （以前重整會回到帳號主要俱樂部）；`ensureClubsLoaded` 仍會校正成帳號有授權的俱樂部。
+- **登入頁**：尚未選擇俱樂部，固定磐石預設（router `beforeEach` 對公開路由套磐石；內嵌 script 在 `/login` 也不套藍鯨）；
+  登出（`resetClubAccess`）清掉記住的選擇。
+- **隊徽**：唯一有隊徽的位置是 `SiteSwitcher.vue`（頂欄），本來就依 `activeClubId` 換成 `bw-crest-48.png`，全後台沒有其他磐石標誌。
+- **色值**：藍鯨逐字取自 `apps/web/public/assets/css/club-bw.css`（`docs/13` §6a）。`--brand-bright #50B0E4`→primary、
+  `--brand-aa #1A78AA`→實心按鈕、`--brand-deep #156088`→hover、`--ink #040000`→canvas、`--ink-2 #1D1919`→surface。
+  **衍生值（藍鯨變數沒有對應色階）**：surface-2 `#292424`／overlay `#362E2E`（`--ink-2` 依磐石 4.5pp 級距往上推）、
+  input `#000000`、按下態 `#10435F`（`--brand-deep` 與 `--ink` 7:3 混色，同磐石公式）。完整對照表見 `docs/21` §5.1。
+- **對比度檢查**：`scripts/check-contrast.mjs` 改為磐石、藍鯨兩組各跑一遍（含「admin-theme.css 區塊值與腳本一致」與
+  「草稿 tag 底須等於 surface-2」）；文字階層／邊框／語意色兩組共用但仍逐組重算。藍鯨組全數通過（最低：
+  tertiary 文字 on overlay 4.84:1、border-input on overlay 3.35:1、focus 外框 on overlay 5.46:1）。
+- **驗收**：`npm run lint`／`build` 皆過；`dist` CSS 靜態確認兩組變數輸出、`index.html` 含內嵌 script。
+  🔴 **瀏覽器實走（登入後切換俱樂部、重新整理）未驗證**，需要 API。
+
 🔴 **配色 v3（2026-09-22）：中性深灰＋Element Plus 藍 → 品牌黑＋品牌桃紅**（依 `docs/21` §4／§5／§7／§15
 重做）：四層背景色階改由品牌黑 `--ink`／`--ink-2` 推導、操作主色改用品牌桃紅系 `--brand-aa`／
 `--brand-bright`／`--brand-deep`、文字與邊框階跟著暖化、危險色橘紅化（`H≈0°→14°`）、站台切換器隊徽
-從純色色塊改用兩隊各自的真實隊徽圖像（`src/assets/brand/`）。**切換站台仍然不換主色**（`docs/21`
+從純色色塊改用兩隊各自的真實隊徽圖像（`src/assets/brand/`）。**（2026-09-30 已改：切換站台時主色隨俱樂部換，見下方「俱樂部配色切換」）原本切換站台不換主色**（`docs/21`
 §5.1／§5.1.1：後台永遠是磐石桃紅）。中性看片台（`--admin-lightbox-*`）明文不隨這次換色調整，維持
 中性冷灰。`--admin-border-input` 用的是**門檻反推值 `#8A7E75`**，不是暖化等亮度換算的 `#7A6F68`——
 後者對 `overlay` 只有 2.66:1，過不了 3:1 的 UI 元件門檻，這條與 E-31 同根因，已寫進
