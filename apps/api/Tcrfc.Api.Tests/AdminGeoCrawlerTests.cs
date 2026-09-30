@@ -285,6 +285,37 @@ public sealed class AdminGeoCrawlerTests(AdminWriteApiFixture fixture)
         }
     }
 
+    /// <summary>🔴 2026-09-30（主 session 裁決）：學員照片所在的圖片目錄（不分語系）兩個俱樂部都必須在
+    /// 強制清單；純函式測試，不碰資料庫。頁面本身（學院首頁等）不整頁排除，所以也斷言它們不在清單。</summary>
+    [Theory]
+    [InlineData("tcrfc")]
+    [InlineData("bw")]
+    public void GetMandatoryExcludePaths_學員照片圖片目錄_兩個俱樂部都在清單(string clubCode)
+    {
+        var mandatory = GeoCrawlerDefaults.GetMandatoryExcludePaths(clubCode);
+
+        Assert.Contains("/assets/img/academy/", mandatory);
+        Assert.Contains("/assets/img/programs/", mandatory);
+
+        // 不整頁排除：學院首頁與課程首頁必須維持可被收錄。
+        Assert.DoesNotContain("/zh/academy/", mandatory);
+        Assert.DoesNotContain("/zh/programs/", mandatory);
+    }
+
+    /// <summary>公開端點（<c>robots.txt</c> 實際消費的來源）同樣要含學員照片圖片目錄，兩個俱樂部皆然。</summary>
+    [Theory]
+    [InlineData("tcrfc")]
+    [InlineData("bw")]
+    public async Task CrawlerSettings_公開端點_學員照片圖片目錄必定出現(string clubCode)
+    {
+        using var publicClient = fixture.CreateClient();
+        var dto = await (await publicClient.GetAsync($"/api/v1/{clubCode}/seo/crawler-settings"))
+            .Content.ReadFromJsonAsync<PublicCrawlerSettingsDto>(TestJson.Options);
+
+        Assert.Contains("/assets/img/academy/", dto!.ExcludePaths);
+        Assert.Contains("/assets/img/programs/", dto.ExcludePaths);
+    }
+
     private static string RequireConnectionString() =>
         Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING")
         ?? throw new InvalidOperationException("CLUB_SQL_CONNECTION_STRING 未設定。");

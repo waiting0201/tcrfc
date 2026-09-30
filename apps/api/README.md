@@ -6130,9 +6130,18 @@ DDL 異動：`geo.llms_positioning`／`geo.llms_key_pages`／`geo.llms_facts_sum
 
 （2026-09-30 修正：先前誤記「`bw` 沒有對應頁面、待路由落地才補」——實際 `teams.vue` 早已渲染藍鯨青年隊名單，
 見 `docs/18-work-errors.md`。）
-仍未列入：僅以**裝飾性 hero 背景**使用學員照片的頁面（`academy/index`、`overview`、`pathway`、
-`curriculum`、`coaches`、`join`，`programs/index` 卡片圖），列入與否是「擋整頁 SEO」對「擋背景圖」
-的取捨，待使用者裁決（可改擋 `/assets/img/academy/`、`/assets/img/programs/` 圖片目錄）。
+**學員照片圖片目錄**（2026-09-30 主 session 裁決，`StaticExcludePaths`，不分語系、不分俱樂部、不展開）：
+
+| 路徑 | 依據（`apps/web/public/assets/img/`） |
+|---|---|
+| `/assets/img/academy/` | `life-01…13.jpg` 訓練與比賽影像；另含成人教練照 `coach-hsu-chih-chieh.jpg`，一併被擋（可接受的取捨） |
+| `/assets/img/programs/` | `childrens-*`、`summer-camp-*`、`specialist-*` 全為兒童與學員照片 |
+
+只以**裝飾性 hero 背景**使用學員照片的頁面（`academy/index`、`overview`、`pathway`、`curriculum`、
+`coaches`、`join`，`programs/index`）**不整頁排除**（依 `GEO-02` 原文「學員照片」，避免學院行銷頁無法被收錄），
+改以擋圖片目錄保護。`robots.txt` 的排除清單套在 `User-agent: *`（另加每個「允許」的 AI 代理區塊），
+所以搜尋引擎的圖片索引也會略過這兩個目錄——正符合保護學員照片的目的。
+🔴 前台若新增學員照片目錄，須同一次交付補進 `StaticExcludePaths`。
 
 ⚠️ **不含 `/zh/join/`（單元入口頁）、`/zh/join/location/`（Location & Map）、
 `/zh/join/contact/`（Contact Information）**——這三頁是靜態資訊頁，不收集個資，規劃書「七類
@@ -6244,9 +6253,7 @@ DDL 異動：`geo.llms_positioning`／`geo.llms_key_pages`／`geo.llms_facts_sum
 ### 已知缺口（回報，不在本輪自行判斷做或不做）
 
 1. **後台畫面待做**：`apps/admin` 完全未改動（任務邊界僅 `apps/api`／`apps/web`）。
-2. **`bw` 缺少未成年學員照片頁面的強制排除路徑**：見上方「強制排除路徑」小節，藍鯨官網本身
-   尚未開發，`STATUS.md` `BW-7` 待辦——這一項仍待該路由真的落地才能補，跟 `/en/` 不同（`/en/`
-   已於本輪一併補上，見上方「2026-09-25（協調者驗收退回後補做）」說明）。
+2. ~~`bw` 缺少未成年學員照片頁面的強制排除路徑~~：已於 2026-09-30 補上（見上方「強制排除路徑」與 `docs/18` E-82）。
 3. **`GEO-05`（結構化資料完整性檢查）／`GEO-03`／`GEO-04`（事實單一來源與雙重呈現）不在本輪
    範圍**：依 `STATUS.md` 排程分屬 `S1-12c`（後台）、`S1-12d`（主站前台）。
 

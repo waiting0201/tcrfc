@@ -2057,3 +2057,4 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **為什麼會錯（根因）**：判斷「頁面是否存在」時用了「藍鯨官網尚未開發」這個計畫層敘述，而不是去 grep `apps/web` 的實際路由；且清單只對照 `academy/teams/` 一頁，沒有逐頁掃「哪些頁面渲染未成年人照片」。
 - **下次怎麼避免**：🔴 個資防線類清單（排除路徑、肖像遮蔽）新增或核對時，一律以 `apps/web/app/pages` 實際路由與 `<img>` 掃描為依據，並寫明「逐頁核對過哪些頁」；不得以「該站尚未開發」為由留下缺口。前台若新增顯示未成年人照片的頁面，必須同一次交付補進 `ClubLocalizedSegments`。
 - **防呆**：測試 `CrawlerSettings_藍鯨_未成年照片路徑必定出現在公開端點`、`GetMandatoryExcludePaths_磐石_學員與課程照片頁兩語系皆在清單` 鎖定清單；「前台新增未成年照片頁須同步」尚無自動掃描（可考慮在 `apps/web` lint 掃 `academy/`、`programs/` 下含 `<img` 的頁面比對此清單），目前為「無」自動防呆。
+- **後續（2026-09-30）**：hero 背景頁的取捨已裁決為「不整頁排除、改擋圖片目錄」；測試 `GetMandatoryExcludePaths_學員照片圖片目錄_兩個俱樂部都在清單` 與 `CrawlerSettings_公開端點_學員照片圖片目錄必定出現` 鎖定 `/assets/img/academy/`、`/assets/img/programs/`。

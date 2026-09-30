@@ -84,6 +84,23 @@ public static class GeoCrawlerDefaults
     };
 
     /// <summary>
+    /// 🔴 **學員照片所在的圖片目錄**（不分語系、不分俱樂部，兩隊皆套用；2026-09-30 主 session 裁決）。
+    /// 依 GEO-02 原文「學院與課程的**學員照片**」：只在頁首當裝飾背景使用學員照片的頁面（學院首頁、
+    /// 總覽、路徑、課綱、教練、加入學院、課程首頁）不整頁排除，以免學院行銷頁無法被收錄；改為排除
+    /// 學員照片實體所在的目錄。盤點依據（<c>apps/web/public/assets/img/</c>）：
+    /// <c>academy/</c>（<c>life-01…13.jpg</c> 訓練／比賽影像；另含成人教練照
+    /// <c>coach-hsu-chih-chieh.jpg</c>，一併被擋是可接受的取捨）、<c>programs/</c>
+    /// （<c>childrens-*</c>／<c>summer-camp-*</c>／<c>specialist-*</c> 皆為兒童與學員照片）。
+    /// 這兩個路徑沿用 <c>User-agent: *</c> 的既有套用範圍，搜尋引擎圖片索引也會因此略過這些目錄——
+    /// 正符合保護未成年人的目的。
+    /// </summary>
+    private static readonly string[] StaticExcludePaths =
+    [
+        "/assets/img/academy/",
+        "/assets/img/programs/",
+    ];
+
+    /// <summary>
     /// 🔴 **強制排除路徑（個資防線，不是 SEO 設定）**——docs/14-invariants.md：「這條排除是個資
     /// 防線，不是 SEO 設定，不得為了『讓 AI 多抓一點』而放寬」。這份清單**由程式碼寫死**，
     /// 不存在 <c>settings</c>，後台完全沒有任何 API 能讀到「目前的強制清單」再把它整批覆蓋掉——
@@ -137,6 +154,7 @@ public static class GeoCrawlerDefaults
         }
 
         paths.Add("/m/");
+        paths.AddRange(StaticExcludePaths);
 
         return paths;
     }

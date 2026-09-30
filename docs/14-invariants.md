@@ -87,6 +87,7 @@
   一律不得回傳球員或教練照片。這條同時是 `GEO-02`（AI 爬蟲排除未成年學員與球員照片路徑）能落地執行
   的資料前提——沒有這個欄位，「排除未同意的素材」無從查詢起，見 [`12-database-schema.md`](12-database-schema.md#12-踩雷點) 第 32 點。
   ✅ **（2026-09-24 客戶裁決）後台不建同意書檔案留存或覈實流程**，只保留這個狀態欄位由操作者手動設定，見 [`15-out-of-scope-record.md`](15-out-of-scope-record.md)。
+- 🔴 **`GEO-02` 強制排除的學員照片以「頁面＋圖片目錄」兩層防護**（2026-09-30 主 session 裁決）：會收件或整頁為未成年影像的頁面（`academy/teams/`、`academy/life/`、`programs/{childrens-training,summer-camp,specialist}/`）整頁排除；只在頁首當背景用學員照片的學院行銷頁**不整頁排除**（避免學院頁無法收錄），改排除圖片目錄 `/assets/img/academy/`、`/assets/img/programs/`（不分語系、兩俱樂部皆適用，`GeoCrawlerDefaults.StaticExcludePaths`）。排除套在 `User-agent: *`，圖片搜尋也不索引。前台新增學員照片目錄時須同次補進清單。
 - **隊別代號**：`D1`（磐石一線隊）／**`BW1`（藍鯨一線隊）**／`U15`／`U14`／`U12`。
   代號**維持全站唯一**（它是行事曆訂閱網址與 `/zh/schedule/d1/` 的識別鍵，**不得改成「俱樂部 × 代號」複合鍵**）。對外顯示磐石寫 `First Team / 一線隊`、藍鯨寫 `Blue Whale First Team / 藍鯨一線隊`。
   **`Team.type` 的 `women` 值已於 v3.0 廢除**，改用獨立的 `Team.gender`（`men`／`women`／`mixed`）——性別是球隊屬性不是隊型。`type = first_team` 由「全站僅一筆」改為「**每個俱樂部至多一筆**」。
