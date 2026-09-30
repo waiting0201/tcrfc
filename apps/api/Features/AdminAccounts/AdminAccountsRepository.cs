@@ -116,8 +116,9 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
             Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email,
             PrimaryClubId = request.PrimaryClubId,
             PasswordHash = PasswordHasher.Hash(request.InitialPassword),
-            // 🔴 一律強制首次登入改密（見 CreateAdminAccountRequest 上的說明），不接受呼叫端指定 false。
-            MustChangePassword = true,
+            // 2026-09-30 使用者裁決「都放寬」：改密碼已是選用，新建帳號預設不提示改密碼
+            // （帳號列表不出現「待改密碼」標籤）。只有管理員代為重設密碼時才會設為 true。
+            MustChangePassword = false,
             Status = "active",
             IsSuperAdmin = request.IsSuperAdmin,
             TwoFactorEnabled = false,
@@ -236,6 +237,8 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         AdminAuthService.ValidatePasswordPolicy(newPassword, user.Username);
 
         user.PasswordHash = PasswordHasher.Hash(newPassword);
+        // 刻意保留為 true：這是「管理員替持有人設了密碼」的明確事件，旗標僅作提示（不強制），
+        // 讓前端能標示「待改密碼」、持有人自行改密碼後回到 false。與「新建帳號預設 false」是兩回事。
         user.MustChangePassword = true;
         user.PasswordChangedAt = DateTime.UtcNow;
         user.FailedAttemptCount = 0;

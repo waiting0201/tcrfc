@@ -1271,7 +1271,7 @@ IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = {role_sq(rol
 ADMIN_USERS = [
     # (username, display_name, password_hash, is_super_admin, must_change_password, two_factor_enabled, role_code, club_grants)
     ("sa@system.local", "Super Admin", "$argon2id$v=19$m=65536,t=3,p=1$qA4b7/CNXFRrB044hvtBzQ==$j2coAMUKbu3mFe+Vyf1oXd4E1Rq8F1RHO/KHt4lDHQ4=",
-     True, True, False, "system_admin", []),
+     True, False, False, "system_admin", []),
     ("super.admin@tcrfc.test", "系統管理員（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$zi4N9bpx0UfKi4XF1FoSlA==$S/20fV7gT9mFmaGaZ2fcAuSBZ4Pb99QdKqEqrdp6uBA=",
      True, False, False, "system_admin", []),
     ("content.editor@tcrfc.test", "內容編輯（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
@@ -1294,8 +1294,9 @@ ADMIN_USERS = [
     # （主站規劃書 §6「資料範圍規則」、AdminClubAuthorizer 的第③步）。
     ("expired.grant@tcrfc.test", "已過期授權（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
      False, False, False, "content_editor", [("tcrfc", "yesterday")]),
-    # 🔴 專供 AdminAuthTests 走完整登入鎖定／2FA 設定流程的帳號，狀態刻意跟 sa@system.local 一樣
-    # （must_change_password=1、two_factor_enabled=0），但不是正式的種子超管本身，避免測試改動
+    # 🔴 專供 AdminAuthTests 走完整登入鎖定／2FA 設定流程的帳號，狀態刻意「尚未改過密碼」
+    # （must_change_password=1——唯一保留為 1 的種子帳號，用來驗證改密碼後旗標清除；two_factor_enabled=0），
+    # 而 sa@system.local 自 2026-09-30 起為 must_change_password=0。它不是正式的種子超管本身，避免測試改動
     # 影響到 sa@system.local 這個「文件與客戶都認得」的帳號。測試結束後會把這個帳號重設回本狀態
     # （見 AdminAuthTests 的清理邏輯），讓測試可重複執行。
     ("fresh.setup@tcrfc.test", "尚未完成設定（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$qA4b7/CNXFRrB044hvtBzQ==$j2coAMUKbu3mFe+Vyf1oXd4E1Rq8F1RHO/KHt4lDHQ4=",

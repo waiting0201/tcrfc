@@ -79,10 +79,10 @@ public sealed record AdminAccountDetailDto
 
 /// <summary>
 /// 建立帳號。✅ **已裁決（2026-09-24，coordinator）**：規劃書 §4.10 J1 只寫「新增／停用帳號、
-/// 密碼政策、兩階段驗證」，**不做邀請信**——「建立者指定初始密碼＋強制首次改密」即是定案寫法，
+/// 密碼政策、兩階段驗證」，**不做邀請信**——「建立者指定初始密碼」即是定案寫法（2026-09-30 起不再強制首次改密），
 /// 不是暫時的最小可行方案。系統信目前只有 9 封（會員 5＋商店 4，docs/14-invariants.md），本來就
 /// 沒有「後台帳號邀請信」樣板。<c>must_change_password</c>
-/// 一律強制為 <c>true</c>（比照種子超管 <c>sa@system.local</c> 的既有慣例），初始密碼由建立者
+/// 新建時預設為 <c>false</c>（2026-09-30 使用者裁決，改密碼為選用），初始密碼由建立者
 /// 透過站外管道（口頭、既有的內部溝通管道）轉交，不透過系統寄送——見 apps/api/README.md。
 /// </summary>
 public sealed record CreateAdminAccountRequest

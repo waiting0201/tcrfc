@@ -317,7 +317,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | **登入識別** | **`AdminUser.username`，UNIQUE。這是唯一的登入查詢鍵** |
 | `AdminUser.email` | 🔒 **僅供系統通知與密碼重設。不設唯一索引、不得作為登入查詢鍵、可為空** |
 | 種子超級管理員 | `username` = **`sa@system.local`**（**它長得像 Email，但存在 `username` 欄，不是 Email**）；`display_name` = `Super Admin`；`is_super_admin = true` |
-| 種子密碼 | **`Admin@123`**，以**雜湊儲存**（演算法待選型，優先 Argon2id，次選 bcrypt）。種子帳號建立時 `must_change_password = true`（欄位保留，供管理員要求某帳號改密碼用）；**主站規劃書 v3.15 起登入流程不強制首次變更密碼**（客戶 2026-09-30 裁決，正式環境亦同），變更密碼由帳號持有人自行於帳號安全頁操作 |
+| 種子密碼 | **`Admin@123`**，以**雜湊儲存**（演算法待選型，優先 Argon2id，次選 bcrypt）。**`must_change_password` 預設 `0`（`DEFAULT 0`，2026-09-30 使用者裁決「都放寬」）**：新建帳號與本機種子帳號一律為 `0`，帳號列表不因預設值出現「待改密碼」標籤；欄位保留，僅在**管理員代為重設他人密碼**時設為 `1`（提示該帳號持有人換掉管理員設定的密碼，**只是提示、不強制**），持有人自行變更密碼後回到 `0`（唯一例外：測試帳號 `fresh.setup@tcrfc.test` 刻意種為 `1`，用來驗證「改密碼後旗標清除」）；**主站規劃書 v3.15 起登入流程不強制首次變更密碼**（客戶 2026-09-30 裁決，正式環境亦同），變更密碼由帳號持有人自行於帳號安全頁操作 |
 | 密碼政策 | J 模組要求，以 `password_changed_at` 支援到期強制更換 |
 | 2FA | `two_factor_enabled`／`two_factor_secret_encrypted`／`two_factor_confirmed_at`。**主站規劃書 v3.15 起 2FA 為選用**（§4.10 J1、§8〈安全〉列；客戶 2026-09-30 裁決，正式環境亦同）：登入不強制啟用，帳號持有人自行於帳號安全頁設定；**`two_factor_enabled = true` 的帳號登入時仍須輸入驗證碼**。三欄保留 |
 | 登入失敗鎖定 | `failed_attempt_count` ＋ `locked_until`。**這是狀態欄位不是日誌表** |

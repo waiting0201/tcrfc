@@ -1583,7 +1583,7 @@ CREATE TABLE admin_users (
   username                        nvarchar(64)     NOT NULL,
   primary_club_id                 uniqueidentifier NULL,
   password_hash                   nvarchar(255)    NOT NULL,
-  must_change_password            bit              NOT NULL DEFAULT 1,
+  must_change_password            bit              NOT NULL DEFAULT 0,
   password_changed_at             datetime2(3)     NULL,
   display_name                    nvarchar(64)     NOT NULL,
   email                            nvarchar(255)   NULL,

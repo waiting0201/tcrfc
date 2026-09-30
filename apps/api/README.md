@@ -105,8 +105,9 @@ Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③
 帳號鎖定、IP 限流、登入時序拉平、權杖設計均未動。
 
 **給後台前端的接法**：`/login` 成功回應仍帶 `mustChangePassword`／`twoFactorEnabled`，欄位與型別
-不變，但**只是提示**——前端不可再依它強制跳轉到改密／2FA 頁；要提示時（例如建立帳號時預設
-`must_change_password=true`）顯示可略過的橫幅即可。所有後台端點在這兩個旗標為任何值時都可用。
+不變，但**只是提示**——前端不可再依它強制跳轉到改密／2FA 頁；要提示時（例如管理員代為重設他人密碼後
+`must_change_password=true`）顯示可略過的橫幅即可。**新建帳號預設 `must_change_password=false`**（`DEFAULT 0`，migration
+`AlignAdminUserMustChangePasswordDefault`）；只有 `POST /accounts/{id}/reset-password` 會把它設為 `true`（提示、不強制）。所有後台端點在這兩個旗標為任何值時都可用。
 
 ### `ClubScope` 與授權怎麼接
 
@@ -442,14 +443,14 @@ HTTP 200
 
 | `username` | 密碼 | 角色 | 俱樂部授權 | 狀態 | 用途 |
 |---|---|---|---|---|---|
-| `sa@system.local` | `Admin@123` | `system_admin` | — | `must_change_password=1`／`2FA 未啟用` | **真正的種子超管**（docs/12b §7.6 明文的帳號），可直接登入使用（不再強制改密／2FA） |
+| `sa@system.local` | `Admin@123` | `system_admin` | — | `must_change_password=0`（2026-09-30 起）／`2FA 未啟用` | **真正的種子超管**（docs/12b §7.6 明文的帳號），可直接登入使用（不再強制改密／2FA） |
 | `clean.login@tcrfc.test` | `SuperAdmin@123` | `system_admin` | — | 可直接登入 | 唯一能走完整 `/login` HTTP 往返的「已就緒」帳號（見下方原因） |
 | `super.admin@tcrfc.test` | `SuperAdmin@123` | `system_admin` | — | `2FA 未啟用`（2026-09-30 起） | 可直接登入；`TestAdminTokens` 亦可直接簽權杖 |
 | `content.editor@tcrfc.test` | `ContentEditor@123` | `content_editor` | `tcrfc` | 同上 | 大多數 AdminNews 測試預設用這個 |
 | `viewer@tcrfc.test` | `Viewer@123` | `viewer` | `tcrfc` | 同上 | 唯讀角色測試 |
 | `partner.club@tcrfc.test` | `PartnerClub@123` | `partner_club_manager`（`own_clubs`） | 僅 `bw` | 同上 | 情境二／四 |
 | `expired.grant@tcrfc.test` | `ContentEditor@123` | `content_editor` | `tcrfc`（**已過期**） | 同上 | 情境三 |
-| `fresh.setup@tcrfc.test` | `Admin@123` | `viewer` | `tcrfc` | `must_change_password=1`，`2FA 未啟用` | 完整 2FA 設定流程測試（`AdminAuthTests` 用完會重設回本狀態） |
+| `fresh.setup@tcrfc.test` | `Admin@123` | `viewer` | `tcrfc` | `must_change_password=1`（**唯一保留為 1 的種子帳號**，測試依賴它驗證改密碼後旗標清除），`2FA 未啟用` | 完整 2FA 設定流程測試（`AdminAuthTests` 用完會重設回本狀態） |
 | `lockout.test@tcrfc.test` | `Viewer@123` | `viewer` | `tcrfc` | 同上 | 連續失敗鎖定測試專用（避免與其他測試共用帳號互相污染） |
 | `academy.login@tcrfc.test` | `ContentEditor@123` | `academy_program` | 僅 `bw` | 可直接登入 | 學院／課程管理的端對端實走帳號（S1-8） |
 | `customer.service.login@tcrfc.test` | `ContentEditor@123` | `customer_service_admin` | `tcrfc` | 可直接登入 | 客服／行政的端對端實走帳號（S1-11 補） |
@@ -666,8 +667,8 @@ coordinator 第二輪補派新增，見下方「第二輪補派：J4 球隊授�
 
 1. ✅ **已裁決（2026-09-24，coordinator）**：J1 建立帳號**不做邀請信**——規劃書 §4.10 J1 只寫
    「新增／停用帳號、密碼政策、兩階段驗證」，這不是暫時的最小可行方案，是定案寫法。建立者直接
-   在 `POST /accounts` 指定初始密碼，`must_change_password` 一律強制 `true`（比照種子超管
-   `sa@system.local` 的既有慣例），初始密碼由建立者透過站外管道轉交。系統信目前只有 9 封
+   在 `POST /accounts` 指定初始密碼，`must_change_password` 新建時為 `false`（2026-09-30 使用者裁決改密碼為選用，
+   原「一律強制 `true`」已取消），初始密碼由建立者透過站外管道轉交。系統信目前只有 9 封
    （會員 5＋商店 4，`docs/14-invariants.md`），本來就沒有「後台帳號邀請信」樣板，不需要新增。
 2. **防呆：不能讓系統歸零到沒有啟用中的最高管理權限帳號**（task 5，規劃書未明文，執行層安全
    措施）：`AdminAccountsRepository.EnsureNotLastActiveSuperAdminAsync` 在「停用帳號」與「把
@@ -3870,7 +3871,7 @@ session 使用。**Blob 已在 S0-8 接上，JWT 已在 S1 接上**，見下方�
 | 🔒 `POST /api/v1/admin/auth/2fa/disable` | S1 新增。需登入＋重輸密碼 | — |
 | 🔒🔴 `GET /api/v1/admin/accounts` | S1-3 續作新增。需登入＋`system.account.view`（`sysadmin_only`）。帳號清單，全域端點 | `status`、`keyword`、`page`、`pageSize` |
 | 🔒🔴 `GET /api/v1/admin/accounts/{id}` | 同上＋`system.account.view` | — |
-| 🔒🔴 `POST /api/v1/admin/accounts` | 同上＋`system.account.create`。建立帳號，一律強制 `must_change_password=true` | — |
+| 🔒🔴 `POST /api/v1/admin/accounts` | 同上＋`system.account.create`。建立帳號，`must_change_password` 預設 `false`（2026-09-30 起） | — |
 | 🔒🔴 `PUT /api/v1/admin/accounts/{id}` | 同上＋`system.account.update`。更新基本資料與角色指派 | — |
 | 🔒🔴 `POST /api/v1/admin/accounts/{id}/status` | 同上＋`system.account.update`。啟用／停用，停用立即撤銷既有更新權杖 | — |
 | 🔒🔴 `POST /api/v1/admin/accounts/{id}/reset-password` | 同上＋`system.account.update`。代為重設密碼，撤銷既有更新權杖 | — |

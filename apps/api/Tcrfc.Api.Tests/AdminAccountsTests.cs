@@ -62,9 +62,37 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
 
             var created = await response.Content.ReadFromJsonAsync<AdminAccountDetailDto>(TestJson.Options);
             Assert.NotNull(created);
-            Assert.True(created!.MustChangePassword); // 一律強制首次登入改密，不接受呼叫端關閉。
+            Assert.False(created!.MustChangePassword); // 2026-09-30 起新建帳號預設不提示改密碼（改密碼為選用）。
             Assert.False(created.TwoFactorEnabled);
             Assert.Contains("viewer", created.RoleCodes);
+        }
+        finally
+        {
+            await DeleteAccountByUsernameAsync(username);
+        }
+    }
+
+    [Fact]
+    public async Task 建立帳號_預設不需改密碼_列表與登入回應皆為false()
+    {
+        using var adminClient = await CreateSuperAdminClientAsync();
+        var username = $"test.defaultpw.{Guid.NewGuid():N}@tcrfc.test";
+        const string password = "InitialPassword-123";
+
+        try
+        {
+            var created = await CreateAccountAsync(adminClient, username, password, ["viewer"]);
+            Assert.False(created.MustChangePassword);
+
+            // 帳號列表不應因預設值而出現「待改密碼」（前端以此旗標決定是否顯示標籤）。
+            var detail = await adminClient.GetFromJsonAsync<AdminAccountDetailDto>($"/api/v1/admin/accounts/{created.Id}", TestJson.Options);
+            Assert.False(detail!.MustChangePassword);
+
+            using var ownClient = fixture.CreateClient();
+            var login = await ownClient.PostAsJsonAsync("/api/v1/admin/auth/login", new LoginRequest(username, password, null));
+            Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+            var body = await login.Content.ReadFromJsonAsync<LoginResponse>(TestJson.Options);
+            Assert.False(body!.MustChangePassword);
         }
         finally
         {
@@ -173,7 +201,7 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.Unauthorized, refreshAfterReset.StatusCode);
 
             var detail = await adminClient.GetFromJsonAsync<AdminAccountDetailDto>($"/api/v1/admin/accounts/{created.Id}", TestJson.Options);
-            Assert.True(detail!.MustChangePassword);
+            Assert.True(detail!.MustChangePassword); // 管理員代為重設：仍為提示旗標（不強制），與「新建預設 false」是兩回事。
         }
         finally
         {

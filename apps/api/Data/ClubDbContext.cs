@@ -495,7 +495,7 @@ public partial class ClubDbContext : DbContext
                 .HasPrecision(3)
                 .HasColumnName("locked_until");
             entity.Property(e => e.MustChangePassword)
-                .HasDefaultValue(true)
+                .HasDefaultValue(false)
                 .HasColumnName("must_change_password");
             entity.Property(e => e.PasswordChangedAt)
                 .HasPrecision(3)
