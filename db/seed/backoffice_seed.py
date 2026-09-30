@@ -879,3 +879,270 @@ IF NOT EXISTS (SELECT 1 FROM redirects WHERE club_id = {club_sq} AND from_path =
     for club_code in ("tcrfc", "bw"):
         setting_value(club_code, "geo.crawler_agents", jdump(CRAWLER_AGENTS), "geo")
         setting_value(club_code, "geo.crawler_extra_exclude_paths", jdump(CRAWLER_EXTRA_EXCLUDE[club_code]), "geo")
+
+    # ========================================================================
+    # 34–41. E1 夥伴／E2 贊助／E3 提案與 Lead／B5 慈善／B6 媒體專區／C5 榮譽（2026-09-30，E1a 後台 API 任務）
+    #
+    # 🔴 全部是【測試】虛構資料：沒有任何真實來源（bw 夥伴早已有真實種子，見主腳本 §17，這裡不動）。
+    # 名稱一律以「【測試】」開頭；Email 一律 example.com；金額與名額是整數，一律視為測試。
+    # 圖片與檔案：沒有可上傳的公開素材與 Azurite 上傳腳本，所有 *_key 一律留空（NULL），
+    # 媒體資源的 file_key（NOT NULL）用佔位鍵 seed-placeholder/no-file 且一律 draft（公開端點只回 published，不會顯示壞連結）。
+    # 只種 tcrfc（慈善單元不屬於藍鯨，藍鯨夥伴／贊助另有真實種子或尚無資料）。
+    # ========================================================================
+    tc = clubs["tcrfc"]
+    D1 = "(SELECT id FROM teams WHERE code = N'D1')"
+
+    emit("-- ── 34. partners／partners_i18n：E1 夥伴（tcrfc，五種類型各一，全部【測試】） ──")
+    PARTNERS_TEST = [
+        ("test-partner-strategic", "策略夥伴", "台灣", "【測試】示範策略夥伴", "Test Strategic Partner", "【測試】共同推動在地足球發展的策略合作。", "2026-01-01", None, 0, 1, 1),
+        ("test-partner-international", "國際夥伴", "日本", "【測試】示範國際夥伴", "Test International Partner", "【測試】國際球探與交流合作。", "2026-03-01", "2027-02-28", 1, 1, 0),
+        ("test-partner-training", "訓練夥伴", "台灣", "【測試】示範訓練夥伴", "Test Training Partner", "【測試】體能與技術訓練合作。", "2025-07-01", "2026-06-30", 2, 0, 0),
+        ("test-partner-education", "教育夥伴", "台灣", "【測試】示範教育夥伴", None, "【測試】校園與社區足球推廣合作。", None, None, 3, 0, 0),
+        ("test-partner-brand", "品牌夥伴", "台灣", "【測試】示範品牌夥伴", "Test Brand Partner", None, None, None, 4, 0, 1),
+    ]
+    for slug, ptype, country, zh, en, content, start, end, order, footer, home in PARTNERS_TEST:
+        pid = new_id("partner", "tcrfc", slug)
+        lines = [
+            f"  INSERT INTO partners (id, club_id, slug, partner_type, country, website_url, start_on, end_on, show_in_footer, show_on_home, sort_order) "
+            f"VALUES (@id, {tc}, {esc(slug)}, {esc(ptype)}, {esc(country)}, N'https://example.com/{slug}', {esc(start)}, {esc(end)}, {footer}, {home}, {order});",
+            f"  INSERT INTO partners_i18n (partner_id, locale, name, content) VALUES (@id, N'zh-Hant', {esc(zh)}, {esc(content)});",
+        ]
+        if en:
+            lines.append(f"  INSERT INTO partners_i18n (partner_id, locale, name, content) VALUES (@id, N'en', {esc(en)}, NULL);")
+        block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM partners WHERE club_id = {tc} AND slug = {esc(slug)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(pid)};
+{chr(10).join(lines)}
+END
+""")
+
+    emit("-- ── 35. sponsors／sponsors_i18n／sponsor_packages／sponsor_package_links／sponsor_activations：E2 贊助（tcrfc，全部【測試】） ──")
+    PACKAGES_TEST = [  # 規劃書 §3.9 9.4 九種方案名稱（真實）＋ 內容／價格（測試）
+        ("test-package-club", "俱樂部贊助", "Club Sponsorship", 500000, 1000000, 1),
+        ("test-package-academy", "學院贊助", "Academy Sponsorship", 200000, 400000, 1),
+        ("test-package-team", "球隊贊助", "Team Sponsorship", 300000, 600000, 1),
+        ("test-package-camp", "營隊贊助", "Camp Sponsorship", 100000, 200000, 1),
+        ("test-package-international", "國際計畫贊助", "International Programme Sponsorship", None, None, 0),
+        ("test-package-comic", "漫畫內容合作", "Comic Content Partnership", 80000, 150000, 1),
+        ("test-package-merch", "商品合作", "Merchandise Partnership", None, None, 0),
+        ("test-package-fanclub", "球迷會贊助", "Fan Club Sponsorship", 50000, 100000, 1),
+        ("test-package-naming", "場館冠名", "Venue Naming Rights", 1000000, 2000000, 0),
+    ]
+    for i, (slug, zh, en, pmin, pmax, public) in enumerate(PACKAGES_TEST):
+        pkg_id = new_id("sponsor_package", "tcrfc", slug)
+        status = "published" if i < 8 else "draft"
+        block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM sponsor_packages WHERE club_id = {tc} AND slug = {esc(slug)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(pkg_id)};
+  INSERT INTO sponsor_packages (id, club_id, slug, price_min, price_max, is_price_public, sort_order, status)
+  VALUES (@id, {tc}, {esc(slug)}, {esc(pmin)}, {esc(pmax)}, {public}, {i}, {esc(status)});
+  INSERT INTO sponsor_packages_i18n (sponsor_package_id, locale, name, content, benefit_list, audience)
+  VALUES (@id, N'zh-Hant', {esc(zh)}, {esc("【測試】方案內容說明。正式內容上線前請於後台替換。")},
+          {esc("【測試】權益一：場邊看板" + chr(10) + "【測試】權益二：官網露出" + chr(10) + "【測試】權益三：活動邀請")}, {esc("【測試】適合企業與品牌")});
+  INSERT INTO sponsor_packages_i18n (sponsor_package_id, locale, name) VALUES (@id, N'en', {esc(en)});
+END
+""")
+
+    SPONSORS_TEST = [  # slug, tier, zh, en, start, end, alert_on, packages
+        ("test-sponsor-main", "主贊助", "【測試】示範主贊助商", "Test Main Sponsor", "2026-01-01", "2027-06-30", None, ["test-package-club"]),
+        ("test-sponsor-official", "官方贊助", "【測試】示範官方贊助商", "Test Official Sponsor", "2025-10-01", "2026-12-31", "2026-09-01", ["test-package-team", "test-package-camp"]),
+        ("test-sponsor-support", "支持夥伴", "【測試】示範支持夥伴", None, "2025-01-01", "2026-06-30", "2026-05-01", ["test-package-fanclub"]),
+    ]
+    for i, (slug, tier, zh, en, start, end, alert, pkgs) in enumerate(SPONSORS_TEST):
+        sid = new_id("sponsor", "tcrfc", slug)
+        link_sql = "\n".join(
+            f"  INSERT INTO sponsor_package_links (sponsor_id, sponsor_package_id) VALUES (@id, (SELECT id FROM sponsor_packages WHERE club_id = {tc} AND slug = {esc(p)}));"
+            for p in pkgs)
+        en_sql = f"  INSERT INTO sponsors_i18n (sponsor_id, locale, name) VALUES (@id, N'en', {esc(en)});" if en else ""
+        block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM sponsors WHERE club_id = {tc} AND slug = {esc(slug)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(sid)};
+  INSERT INTO sponsors (id, club_id, slug, tier, contract_start_on, contract_end_on, contact_name, contact_phone, contact_email, expiry_alert_on, sort_order)
+  VALUES (@id, {tc}, {esc(slug)}, {esc(tier)}, {esc(start)}, {esc(end)}, {esc("【測試】聯絡人")}, N'04-0000-0000', N'sponsor-{i}@example.com', {esc(alert)}, {i});
+  INSERT INTO sponsors_i18n (sponsor_id, locale, name, content) VALUES (@id, N'zh-Hant', {esc(zh)}, {esc("【測試】贊助內容：示範用，正式內容上線前請於後台替換。")});
+{en_sql}
+{link_sql}
+END
+""")
+
+    ACTIVATIONS_TEST = [
+        ("test-sponsor-main", "【測試】示範贊助活動：開幕戰球迷日", "2026-09-13", "【測試】現場約 500 人參與，社群曝光 10 萬次（示範數字）。"),
+        ("test-sponsor-main", "【測試】示範贊助活動：青訓體驗營", "2026-07-20", "【測試】共 60 位小朋友參加（示範數字）。"),
+    ]
+    for j, (sponsor_slug, title, day, summary) in enumerate(ACTIVATIONS_TEST):
+        aid = new_id("sponsor_activation", "tcrfc", sponsor_slug, str(j))
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM sponsor_activations_i18n i WHERE i.locale = N'zh-Hant' AND i.title = {esc(title)})
+BEGIN
+  INSERT INTO sponsor_activations (id, club_id, sponsor_id, happened_on, sort_order)
+  VALUES ({esc(aid)}, {tc}, (SELECT id FROM sponsors WHERE club_id = {tc} AND slug = {esc(sponsor_slug)}), {esc(day)}, {j});
+  INSERT INTO sponsor_activations_i18n (sponsor_activation_id, locale, title, result_summary)
+  VALUES ({esc(aid)}, N'zh-Hant', {esc(title)}, {esc(summary)});
+END
+""")
+
+    emit("-- ── 36. proposals／enquiries：E3 提案（兩份 A/B 草稿，沒有檔案）與三筆 Lead（全部【測試】） ──")
+    for slug_key, title, version in (("a", "【測試】贊助提案簡介（A 版）", 1), ("b", "【測試】贊助提案簡介（B 版）", 2)):
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM proposals WHERE club_id = {tc} AND title = {esc(title)})
+  INSERT INTO proposals (id, club_id, title, version_no, status)
+  VALUES ({esc(new_id("proposal", "tcrfc", slug_key))}, {tc}, {esc(title)}, {version}, N'draft');
+""")
+    LEADS_TEST = [
+        ("a", "【測試】示範公司甲", "【測試】聯絡人甲", "lead-a@example.com", "/zh/partners/sponsorship/", "新進"),
+        ("a", "【測試】示範公司乙", "【測試】聯絡人乙", "lead-b@example.com", "/zh/partners/", "處理中"),
+        ("b", "【測試】示範公司丙", "【測試】聯絡人丙", "lead-c@example.com", "/zh/partners/sponsorship/", "已回覆"),
+    ]
+    for k, (ab, company, name, email, source, status) in enumerate(LEADS_TEST):
+        eid = new_id("enquiry", "proposal_download", "tcrfc", str(k))
+        form_sq = f"(SELECT id FROM forms WHERE club_id = {tc} AND form_code = N'proposal_download')"
+        def ans(field_key, value):
+            return (f"  INSERT INTO enquiry_answers (enquiry_id, form_field_id, value) VALUES (@id, "
+                    f"(SELECT id FROM form_fields WHERE form_id = {form_sq} AND field_key = N'{field_key}'), {esc(value)});")
+        block(f"""
+DECLARE @id uniqueidentifier = {esc(eid)};
+IF NOT EXISTS (SELECT 1 FROM enquiries WHERE id = @id)
+BEGIN
+  INSERT INTO enquiries (id, club_id, form_id, proposal_id, source_path, utm_source, status)
+  VALUES (@id, {tc}, {form_sq}, (SELECT id FROM proposals WHERE id = {esc(new_id("proposal", "tcrfc", ab))}), {esc(source)}, N'seed-test', {esc(status)});
+{ans("company", company)}
+{ans("name", name)}
+{ans("contact", email)}
+END
+""")
+
+    emit("-- ── 37. charities／charity_programs／impact_records／impact_metrics／settings：B5 慈善與社會影響（tcrfc，全部【測試】） ──")
+    CHARITIES_TEST = [
+        ("test-org-a", "【測試】示範公益團體甲", "Test Charity A", "【測試】這是示範用的公益團體簡介。"),
+        ("test-org-b", "【測試】示範公益團體乙", None, "【測試】另一個示範用的公益團體。"),
+    ]
+    for slug, zh, en, intro in CHARITIES_TEST:
+        cid = new_id("charity", "tcrfc", slug)
+        en_sql = f"  INSERT INTO charities_i18n (charity_id, locale, name) VALUES (@id, N'en', {esc(en)});" if en else ""
+        block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM charities WHERE club_id = {tc} AND slug = {esc(slug)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(cid)};
+  INSERT INTO charities (id, club_id, slug, website_url, contact_name, contact_phone)
+  VALUES (@id, {tc}, {esc(slug)}, N'https://example.com/{slug}', {esc("【測試】聯絡窗口")}, N'04-0000-0000');
+  INSERT INTO charities_i18n (charity_id, locale, name, intro) VALUES (@id, N'zh-Hant', {esc(zh)}, {esc(intro)});
+{en_sql}
+END
+""")
+
+    PROGRAMS_TEST = [  # slug, charity slug, zh, en, start, end, status, pinned, order
+        ("test-charity-program-a", "test-org-a", "【測試】示範慈善計畫：偏鄉足球捐贈", "Test Charity Program A", "2026-03-01", None, "published", 1, 0),
+        ("test-charity-program-b", "test-org-b", "【測試】示範慈善計畫：公益義賽", None, "2025-05-01", "2025-12-31", "published", 0, 1),
+        ("test-charity-program-c", "test-org-a", "【測試】示範慈善計畫（草稿）", None, "2026-10-01", None, "draft", 0, 2),
+    ]
+    for slug, org, zh, en, start, end, status, pinned, order in PROGRAMS_TEST:
+        pid = new_id("charity_program", "tcrfc", slug)
+        content = jdump([{"blockType": "text", "content": {"body": bi("<p>【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。</p>")}}])
+        en_sql = (f"  INSERT INTO charity_programs_i18n (charity_program_id, locale, name) VALUES (@id, N'en', {esc(en)});" if en else "")
+        block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM charity_programs WHERE club_id = {tc} AND slug = {esc(slug)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(pid)};
+  INSERT INTO charity_programs (id, club_id, slug, charity_id, start_on, end_on, status, sort_order, is_pinned)
+  VALUES (@id, {tc}, {esc(slug)}, (SELECT id FROM charities WHERE club_id = {tc} AND slug = {esc(org)}), {esc(start)}, {esc(end)}, {esc(status)}, {order}, {pinned});
+  INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, content, donation_content)
+  VALUES (@id, N'zh-Hant', {esc(zh)}, {esc("【測試】偏鄉學童")}, {esc(content)}, {esc("【測試】足球 50 顆、訓練背心 100 件（示範數字）")});
+{en_sql}
+END
+""")
+    block(f"""
+INSERT INTO charity_program_partners (charity_program_id, partner_id)
+SELECT p.id, x.id FROM charity_programs p CROSS JOIN partners x
+WHERE p.club_id = {tc} AND p.slug = N'test-charity-program-a' AND x.club_id = {tc} AND x.slug = N'test-partner-strategic'
+  AND NOT EXISTS (SELECT 1 FROM charity_program_partners l WHERE l.charity_program_id = p.id AND l.partner_id = x.id);
+INSERT INTO charity_program_sponsors (charity_program_id, sponsor_id)
+SELECT p.id, x.id FROM charity_programs p CROSS JOIN sponsors x
+WHERE p.club_id = {tc} AND p.slug = N'test-charity-program-a' AND x.club_id = {tc} AND x.slug = N'test-sponsor-main'
+  AND NOT EXISTS (SELECT 1 FROM charity_program_sponsors l WHERE l.charity_program_id = p.id AND l.sponsor_id = x.id);
+""")
+
+    RECORDS_TEST = [  # key, org, program, day, donation, location, brief
+        ("a", "test-org-a", "test-charity-program-a", "2026-04-10", "【測試】足球 50 顆、訓練背心 100 件（示範數字）", "【測試】示範地點：南投縣", "【測試】示範簡述。"),
+        ("b", "test-org-b", "test-charity-program-b", "2025-11-22", "【測試】獎助學金 5 名（示範數字）", "【測試】示範地點：台中市", None),
+    ]
+    for key, org, prog, day, donation, loc, brief in RECORDS_TEST:
+        rid = new_id("impact_record", "tcrfc", key)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM impact_records_i18n WHERE locale = N'zh-Hant' AND donation_content = {esc(donation)})
+BEGIN
+  INSERT INTO impact_records (id, club_id, charity_program_id, charity_id, happened_on, sort_order)
+  VALUES ({esc(rid)}, {tc}, (SELECT id FROM charity_programs WHERE club_id = {tc} AND slug = {esc(prog)}),
+          (SELECT id FROM charities WHERE club_id = {tc} AND slug = {esc(org)}), {esc(day)}, 0);
+  INSERT INTO impact_records_i18n (impact_record_id, locale, donation_content, location, brief_description)
+  VALUES ({esc(rid)}, N'zh-Hant', {esc(donation)}, {esc(loc)}, {esc(brief)});
+END
+""")
+
+    METRICS_TEST = [  # key, zh, unit, value, public, program(None=全站)
+        ("groups", "【測試】合作公益團體數", "個", 2, 1, None),
+        ("items", "【測試】累計捐助項次", "項", 155, 1, None),
+        ("amount", "【測試】累計捐助金額（不公開）", "元", 123456, 0, "test-charity-program-a"),
+    ]
+    for key, zh, unit, value, public, prog in METRICS_TEST:
+        mid = new_id("impact_metric", "tcrfc", key)
+        prog_sql = f"(SELECT id FROM charity_programs WHERE club_id = {tc} AND slug = {esc(prog)})" if prog else "NULL"
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM impact_metrics_i18n WHERE locale = N'zh-Hant' AND name = {esc(zh)})
+BEGIN
+  INSERT INTO impact_metrics (id, club_id, charity_program_id, metric_key, metric_value, is_public, sort_order)
+  VALUES ({esc(mid)}, {tc}, {prog_sql}, {esc("seed-" + key)}, {value}, {public}, 0);
+  INSERT INTO impact_metrics_i18n (impact_metric_id, locale, name, unit) VALUES ({esc(mid)}, N'zh-Hant', {esc(zh)}, {esc(unit)});
+END
+""")
+
+    emit("-- ── 37b. settings：charity.*（捐款導流與參與方式）。導流網址是 example.com 測試值；文案已依規劃書 §3.11 點明收受者 ──")
+    setting_value("tcrfc", "charity.donation_url", "https://charity.example.com/", "charity")
+    setting_i18n("tcrfc", "charity.donation_cta", "【測試】球迷捐款（捐款由台灣足球策略發展協會收受）", "【測試】Fan donations (received by the Taiwan Football Strategic Development Association)", "charity")
+    setting_i18n("tcrfc", "charity.fan_cta", "【測試】球迷捐款", "【測試】Donate", "charity")
+    setting_i18n("tcrfc", "charity.corporate_cta", "【測試】企業合作公益專案", "【測試】Corporate partnership", "charity")
+    setting_value("tcrfc", "charity.corporate_url", "/zh/join/", "charity")
+
+    emit("-- ── 38. press_resources：B6 媒體專區（三類各一，全部 draft＋佔位檔案鍵；【測試】） ──")
+    PRESS_TEST = [
+        ("test-press-release", "press_release", "【測試】示範新聞稿", "Test Press Release", 0),
+        ("test-brand-kit", "brand_kit", "【測試】示範品牌識別包", "Test Brand Kit", 1),
+        ("test-hires-image", "hires_image", "【測試】示範高解析圖", None, 2),
+    ]
+    for slug, rtype, zh, en, order in PRESS_TEST:
+        rid = new_id("press_resource", "tcrfc", slug)
+        en_sql = f"  INSERT INTO press_resources_i18n (press_resource_id, locale, title) VALUES (@id, N'en', {esc(en)});" if en else ""
+        block(f"""
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM press_resources WHERE club_id = {tc} AND slug = {esc(slug)};
+IF @id IS NULL
+BEGIN
+  SET @id = {esc(rid)};
+  INSERT INTO press_resources (id, club_id, slug, resource_type, file_key, sort_order, status)
+  VALUES (@id, {tc}, {esc(slug)}, {esc(rtype)}, N'seed-placeholder/no-file', {order}, N'draft');
+  INSERT INTO press_resources_i18n (press_resource_id, locale, title, description)
+  VALUES (@id, N'zh-Hant', {esc(zh)}, {esc("【測試】示範說明。這筆沒有真實檔案（佔位），請於後台上傳後再改為顯示。")});
+{en_sql}
+END
+""")
+
+    emit("-- ── 39. achievements：C5 榮譽（tcrfc 一線隊，三筆【測試】） ──")
+    for k, (year, comp, placing) in enumerate((
+        (2026, "【測試】示範盃賽", "冠軍"), (2025, "【測試】示範聯賽", "第三名"), (2024, "【測試】示範友誼賽", "亞軍"))):
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM achievements WHERE club_id = {tc} AND competition_name = {esc(comp)})
+  INSERT INTO achievements (id, club_id, season_id, team_id, year, competition_name, placing)
+  VALUES ({esc(new_id("achievement", "tcrfc", str(k)))}, {tc}, {season_sq(tc, "2026-27")}, {D1}, {year}, {esc(comp)}, {esc(placing)});
+""")

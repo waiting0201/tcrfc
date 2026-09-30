@@ -156,6 +156,8 @@
 - **目前哪裡都沒有**：`docs/12a` §5.5 的 `sponsor` 屬性方塊沒有內容／說明欄位；`docs/12c` 起草的 `sponsor_i18n` 也只推定 `name`（見 `12c` §2），未包含贊助內容文字
 
 #### ⬛ 贊助活動（Activations）——**整個型別在 ERD 與 `docs/12` §4 表總覽都不存在**
+
+> ✅ **已於 E1a（2026-09-30）建立**：`sponsor_activations`／`sponsor_activations_i18n`／`sponsor_activation_images`（`db/club-schema.sql`、`docs/12` §4.4、§12 第 43 點）。下方為當時的缺漏記錄，保留作歷史。
 - **規劃書行513**（前台 9.2）：「現有贊助商（依等級：主贊助／官方／支持）、贊助故事（案例文章）、**贊助活動紀錄**」
 - **規劃書行1134**（後台 E2）：「**贊助活動（Activations）**：活動名稱、日期、圖集、成效摘要」
 - **目前哪裡都沒有**：`docs/12` §4.4「E 商業模組（5）」只列 `Partner`／`Sponsor`／`SponsorPackage`／`Proposal`／`ProposalFile` 五張表，**沒有對應「贊助活動」的型別**；`docs/12a` §5.5 的 ERD 同樣沒有任何 `sponsor_activation` 或類似實體。這不是欄位漏了，是**規劃書明文要求的一個完整子功能（含活動名稱、日期、圖集、成效摘要四個欄位與一張圖集子表）從資料模型裡整個不見了**

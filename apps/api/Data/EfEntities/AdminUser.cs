@@ -373,6 +373,14 @@ public partial class AdminUser
 
     public virtual ICollection<Shipment> ShipmentUpdatedByNavigations { get; set; } = new List<Shipment>();
 
+    public virtual ICollection<SponsorActivation> SponsorActivationCreatedByNavigations { get; set; } = new List<SponsorActivation>();
+
+    public virtual ICollection<SponsorActivationImage> SponsorActivationImageCreatedByNavigations { get; set; } = new List<SponsorActivationImage>();
+
+    public virtual ICollection<SponsorActivationImage> SponsorActivationImageUpdatedByNavigations { get; set; } = new List<SponsorActivationImage>();
+
+    public virtual ICollection<SponsorActivation> SponsorActivationUpdatedByNavigations { get; set; } = new List<SponsorActivation>();
+
     public virtual ICollection<Sponsor> SponsorCreatedByNavigations { get; set; } = new List<Sponsor>();
 
     public virtual ICollection<SponsorPackage> SponsorPackageCreatedByNavigations { get; set; } = new List<SponsorPackage>();

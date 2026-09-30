@@ -58,6 +58,8 @@ public partial class ClubDbContext : DbContext
 
     public virtual DbSet<CharityProgram> CharityPrograms { get; set; }
 
+    public virtual DbSet<CharityProgramArticle> CharityProgramArticles { get; set; }
+
     public virtual DbSet<CharityProgramImage> CharityProgramImages { get; set; }
 
     public virtual DbSet<CharityProgramsI18n> CharityProgramsI18ns { get; set; }
@@ -259,6 +261,14 @@ public partial class ClubDbContext : DbContext
     public virtual DbSet<Shipment> Shipments { get; set; }
 
     public virtual DbSet<Sponsor> Sponsors { get; set; }
+
+    public virtual DbSet<SponsorActivation> SponsorActivations { get; set; }
+
+    public virtual DbSet<SponsorActivationImage> SponsorActivationImages { get; set; }
+
+    public virtual DbSet<SponsorActivationsI18n> SponsorActivationsI18ns { get; set; }
+
+    public virtual DbSet<SponsorArticle> SponsorArticles { get; set; }
 
     public virtual DbSet<SponsorPackage> SponsorPackages { get; set; }
 
@@ -1262,12 +1272,14 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.EndOn).HasColumnName("end_on");
+            entity.Property(e => e.IsPinned).HasColumnName("is_pinned");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
             entity.Property(e => e.Slug)
                 .HasMaxLength(160)
                 .HasColumnName("slug");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.StartOn).HasColumnName("start_on");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
@@ -1295,6 +1307,59 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.CharityProgramUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_charity_programs_updated_by");
+
+            entity.HasMany(d => d.Partners).WithMany(p => p.CharityPrograms)
+                .UsingEntity<Dictionary<string, object>>(
+                    "CharityProgramPartner",
+                    r => r.HasOne<Partner>().WithMany()
+                        .HasForeignKey("PartnerId")
+                        .HasConstraintName("FK_charity_program_partners_partner"),
+                    l => l.HasOne<CharityProgram>().WithMany()
+                        .HasForeignKey("CharityProgramId")
+                        .HasConstraintName("FK_charity_program_partners_program"),
+                    j =>
+                    {
+                        j.HasKey("CharityProgramId", "PartnerId");
+                        j.ToTable("charity_program_partners");
+                        j.IndexerProperty<Guid>("CharityProgramId").HasColumnName("charity_program_id");
+                        j.IndexerProperty<Guid>("PartnerId").HasColumnName("partner_id");
+                    });
+
+            entity.HasMany(d => d.Sponsors).WithMany(p => p.CharityPrograms)
+                .UsingEntity<Dictionary<string, object>>(
+                    "CharityProgramSponsor",
+                    r => r.HasOne<Sponsor>().WithMany()
+                        .HasForeignKey("SponsorId")
+                        .HasConstraintName("FK_charity_program_sponsors_sponsor"),
+                    l => l.HasOne<CharityProgram>().WithMany()
+                        .HasForeignKey("CharityProgramId")
+                        .HasConstraintName("FK_charity_program_sponsors_program"),
+                    j =>
+                    {
+                        j.HasKey("CharityProgramId", "SponsorId");
+                        j.ToTable("charity_program_sponsors");
+                        j.IndexerProperty<Guid>("CharityProgramId").HasColumnName("charity_program_id");
+                        j.IndexerProperty<Guid>("SponsorId").HasColumnName("sponsor_id");
+                    });
+        });
+
+        modelBuilder.Entity<CharityProgramArticle>(entity =>
+        {
+            entity.HasKey(e => new { e.CharityProgramId, e.ArticleId });
+
+            entity.ToTable("charity_program_articles");
+
+            entity.Property(e => e.CharityProgramId).HasColumnName("charity_program_id");
+            entity.Property(e => e.ArticleId).HasColumnName("article_id");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+
+            entity.HasOne(d => d.Article).WithMany(p => p.CharityProgramArticles)
+                .HasForeignKey(d => d.ArticleId)
+                .HasConstraintName("FK_charity_program_articles_article");
+
+            entity.HasOne(d => d.CharityProgram).WithMany(p => p.CharityProgramArticles)
+                .HasForeignKey(d => d.CharityProgramId)
+                .HasConstraintName("FK_charity_program_articles_program");
         });
 
         modelBuilder.Entity<CharityProgramImage>(entity =>
@@ -1302,6 +1367,8 @@ public partial class ClubDbContext : DbContext
             entity.HasKey(e => e.Id).IsClustered(false);
 
             entity.ToTable("charity_program_images");
+
+            entity.HasIndex(e => new { e.CharityProgramId, e.SortOrder }, "IX_charity_program_images_program");
 
             entity.HasIndex(e => e.RowSeq, "UQ_charity_program_images_row_seq")
                 .IsUnique()
@@ -2059,6 +2126,8 @@ public partial class ClubDbContext : DbContext
 
             entity.HasIndex(e => new { e.FormId, e.Status, e.CreatedAt }, "IX_enquiries_form_status_created").IsDescending(false, false, true);
 
+            entity.HasIndex(e => e.ProposalId, "IX_enquiries_proposal");
+
             entity.HasIndex(e => e.RowSeq, "UQ_enquiries_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -2075,6 +2144,7 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.FormId).HasColumnName("form_id");
             entity.Property(e => e.InternalNote).HasColumnName("internal_note");
+            entity.Property(e => e.ProposalId).HasColumnName("proposal_id");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -2116,6 +2186,11 @@ public partial class ClubDbContext : DbContext
                 .HasForeignKey(d => d.FormId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_enquiries_form");
+
+            entity.HasOne(d => d.Proposal).WithMany(p => p.Enquiries)
+                .HasForeignKey(d => d.ProposalId)
+                .OnDelete(DeleteBehavior.SetNull)
+                .HasConstraintName("FK_enquiries_proposal");
 
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.EnquiryUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
@@ -2867,6 +2942,7 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -2906,6 +2982,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Name)
                 .HasMaxLength(64)
                 .HasColumnName("name");
+            entity.Property(e => e.Unit)
+                .HasMaxLength(16)
+                .HasColumnName("unit");
 
             entity.HasOne(d => d.ImpactMetric).WithMany(p => p.ImpactMetricsI18ns)
                 .HasForeignKey(d => d.ImpactMetricId)
@@ -2939,9 +3018,11 @@ public partial class ClubDbContext : DbContext
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
             entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.IsPinned).HasColumnName("is_pinned");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -2975,6 +3056,8 @@ public partial class ClubDbContext : DbContext
             entity.HasKey(e => e.Id).IsClustered(false);
 
             entity.ToTable("impact_record_images");
+
+            entity.HasIndex(e => new { e.ImpactRecordId, e.SortOrder }, "IX_impact_record_images_record");
 
             entity.HasIndex(e => e.RowSeq, "UQ_impact_record_images_row_seq")
                 .IsUnique()
@@ -4153,6 +4236,14 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.HappenedOn).HasColumnName("happened_on");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
+            entity.Property(e => e.ImageKey)
+                .HasMaxLength(500)
+                .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.IsVisible)
+                .HasDefaultValue(true, "DF_milestones_is_visible")
+                .HasColumnName("is_visible");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -4190,6 +4281,9 @@ public partial class ClubDbContext : DbContext
                 .HasMaxLength(10)
                 .HasColumnName("locale");
             entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.ImageAlt)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt");
             entity.Property(e => e.Title)
                 .HasMaxLength(200)
                 .HasColumnName("title");
@@ -4806,6 +4900,7 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Locale)
                 .HasMaxLength(10)
                 .HasColumnName("locale");
+            entity.Property(e => e.Content).HasColumnName("content");
             entity.Property(e => e.Name)
                 .HasMaxLength(128)
                 .HasColumnName("name");
@@ -5524,6 +5619,7 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("row_seq");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
+                .HasDefaultValue("draft", "DF_proposals_status")
                 .HasColumnName("status");
             entity.Property(e => e.Title)
                 .HasMaxLength(128)
@@ -6193,6 +6289,145 @@ public partial class ClubDbContext : DbContext
                         j.IndexerProperty<Guid>("SponsorId").HasColumnName("sponsor_id");
                         j.IndexerProperty<Guid>("SponsorPackageId").HasColumnName("sponsor_package_id");
                     });
+        });
+
+        modelBuilder.Entity<SponsorActivation>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("sponsor_activations");
+
+            entity.HasIndex(e => new { e.SponsorId, e.HappenedOn }, "IX_sponsor_activations_sponsor").IsDescending(false, true);
+
+            entity.HasIndex(e => e.RowSeq, "UQ_sponsor_activations_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.ClubId).HasColumnName("club_id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.HappenedOn).HasColumnName("happened_on");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.SponsorId).HasColumnName("sponsor_id");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.Club).WithMany(p => p.SponsorActivations)
+                .HasForeignKey(d => d.ClubId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_sponsor_activations_club");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.SponsorActivationCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_sponsor_activations_created_by");
+
+            entity.HasOne(d => d.Sponsor).WithMany(p => p.SponsorActivations)
+                .HasForeignKey(d => d.SponsorId)
+                .HasConstraintName("FK_sponsor_activations_sponsor");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.SponsorActivationUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_sponsor_activations_updated_by");
+        });
+
+        modelBuilder.Entity<SponsorActivationImage>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("sponsor_activation_images");
+
+            entity.HasIndex(e => new { e.SponsorActivationId, e.SortOrder }, "IX_sponsor_activation_images_activation");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_sponsor_activation_images_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
+            entity.Property(e => e.ImageKey)
+                .HasMaxLength(500)
+                .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.SponsorActivationId).HasColumnName("sponsor_activation_id");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.SponsorActivationImageCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_sponsor_activation_images_created_by");
+
+            entity.HasOne(d => d.SponsorActivation).WithMany(p => p.SponsorActivationImages)
+                .HasForeignKey(d => d.SponsorActivationId)
+                .HasConstraintName("FK_sponsor_activation_images_act");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.SponsorActivationImageUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_sponsor_activation_images_updated_by");
+        });
+
+        modelBuilder.Entity<SponsorActivationsI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.SponsorActivationId, e.Locale });
+
+            entity.ToTable("sponsor_activations_i18n");
+
+            entity.Property(e => e.SponsorActivationId).HasColumnName("sponsor_activation_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.ResultSummary).HasColumnName("result_summary");
+            entity.Property(e => e.Title)
+                .HasMaxLength(200)
+                .HasColumnName("title");
+
+            entity.HasOne(d => d.SponsorActivation).WithMany(p => p.SponsorActivationsI18ns)
+                .HasForeignKey(d => d.SponsorActivationId)
+                .HasConstraintName("FK_sponsor_activations_i18n_act");
+        });
+
+        modelBuilder.Entity<SponsorArticle>(entity =>
+        {
+            entity.HasKey(e => new { e.SponsorId, e.ArticleId });
+
+            entity.ToTable("sponsor_articles");
+
+            entity.Property(e => e.SponsorId).HasColumnName("sponsor_id");
+            entity.Property(e => e.ArticleId).HasColumnName("article_id");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+
+            entity.HasOne(d => d.Article).WithMany(p => p.SponsorArticles)
+                .HasForeignKey(d => d.ArticleId)
+                .HasConstraintName("FK_sponsor_articles_article");
+
+            entity.HasOne(d => d.Sponsor).WithMany(p => p.SponsorArticles)
+                .HasForeignKey(d => d.SponsorId)
+                .HasConstraintName("FK_sponsor_articles_sponsor");
         });
 
         modelBuilder.Entity<SponsorPackage>(entity =>

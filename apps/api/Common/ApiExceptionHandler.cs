@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
+using Tcrfc.Api.Documents;
 using Tcrfc.Api.Features.AdminAccounts;
 using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminBanners;
@@ -86,6 +87,10 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status400BadRequest, "圖片無法處理", imageProcessing.Message),
             UploadSlotNotAllowedException slotNotAllowed =>
                 (StatusCodes.Status400BadRequest, "不支援的圖片欄位", slotNotAllowed.Message),
+
+            // ── E1a 檔案上傳共用元件（Documents）──────────────────────────────────────
+            DocumentProcessingException documentProcessing =>
+                (StatusCodes.Status400BadRequest, "檔案無法處理", documentProcessing.Message),
 
             // ── v3.14 影片上傳共用元件（Videos）──────────────────────────────────────
             VideoProcessingException videoProcessing =>
@@ -211,6 +216,14 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             // ── S1-12d 新增：I 網站設定（Features/AdminSiteFacts）────────────────────────
             AdminSiteFactsValidationException siteFactsValidation =>
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", siteFactsValidation.Message),
+
+            // ── E1a 新增：E1／E2／E3／B5／B6／C5 共用例外（Common/AdminExceptions.cs）───────────
+            AdminValidationException adminValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", adminValidation.Message),
+            AdminConflictException adminConflict =>
+                (StatusCodes.Status409Conflict, adminConflict.Title, adminConflict.Message),
+            SharedContentReadOnlyException sharedContentReadOnly =>
+                (StatusCodes.Status403Forbidden, "共用內容唯讀", sharedContentReadOnly.Message),
 
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),

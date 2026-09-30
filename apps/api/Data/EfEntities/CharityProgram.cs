@@ -31,7 +31,13 @@ public partial class CharityProgram
 
     public Guid? UpdatedBy { get; set; }
 
+    public int SortOrder { get; set; }
+
+    public bool IsPinned { get; set; }
+
     public virtual Charity Charity { get; set; } = null!;
+
+    public virtual ICollection<CharityProgramArticle> CharityProgramArticles { get; set; } = new List<CharityProgramArticle>();
 
     public virtual ICollection<CharityProgramImage> CharityProgramImages { get; set; } = new List<CharityProgramImage>();
 
@@ -46,4 +52,8 @@ public partial class CharityProgram
     public virtual ICollection<ImpactRecord> ImpactRecords { get; set; } = new List<ImpactRecord>();
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
+
+    public virtual ICollection<Partner> Partners { get; set; } = new List<Partner>();
+
+    public virtual ICollection<Sponsor> Sponsors { get; set; } = new List<Sponsor>();
 }

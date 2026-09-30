@@ -267,6 +267,12 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 系統管理員 | SEO／設定 **✔全** | `seo.setting.view/update`（全站 SEO 預設、追蹤碼、robots.txt 自訂規則）、`seo.redirect.*`（含 `import`）、`seo.report.view`（孤立頁面偵測）、`seo.llms.view/update`（`GEO-01` `llms.txt` 維護，S1-12a）、`seo.crawler.view/update`（`GEO-02` AI 爬蟲授權，S1-12b）、`seo.schema.view`（`GEO-05` 結構化資料完整性檢查，S1-12c）——**六組皆 `sysadmin_only`** |
 | 內容編輯 | SEO／設定 **單頁 SEO** | 不新增權限碼——`content.page.update`／`content.article.update` 既有請求已擴充 `canonicalPath`／`isNoindex`／`isExcludedFromSitemap`／`seoKeywords` 四個欄位，跟隨既有內容編輯權限，不是獨立的 SEO 權限碼 |
 | 系統管理員 | 網站設定 **✔全**（S1-12d 新增） | `site.fact.view/update`（成立年份、主場與場地、所屬聯賽、梯隊組成、聯絡方式、**台中藍鯨官網網址**——`GEO-03`／`GEO-04`／主站規劃書 §3.6）——**`sysadmin_only`** |
+| 商務／贊助 | 商業／贊助 **✔全**（E1a 新增） | `business.partner.*`（E1 夥伴）、`business.sponsor.*`（E2 贊助商與贊助活動）、`business.sponsor_package.*`（E2 贊助方案）、`business.proposal.*`（E3 提案與檔案）、`business.lead.view`／`update`（E3 Lead 名單）、**`business.lead.export`（`is_restricted`）** |
+| 內容編輯／公關媒體／檢視者 | 商業／贊助 **唯讀**（E1a 新增） | 只給 `business.partner.view`／`sponsor.view`／`sponsor_package.view`／`proposal.view`。🔴 **不給 `business.lead.*`**：Lead 含公司、姓名、Email，矩陣「唯讀」講的是夥伴與贊助內容，最小授權原則不外推到個資 |
+| 合作球隊管理 | 商業／贊助 **自家夥伴與贊助**（E1a 新增） | 夥伴／贊助商／方案／提案 全動作＋`business.lead.view`／`update`（`own_clubs`）；**不含 Lead 匯出** |
+| 內容編輯／公關媒體 | 慈善 **✔編輯**（E1a 新增） | `charity.content.*`（公益團體／慈善計畫／事蹟／影響力數據，含刪除，理由同 `content.article.*`）、`charity.setting.view`／`update`（捐款導流與參與方式設定）。商務／贊助、檢視者 唯讀；**合作球隊管理無**（慈善是磐石主站單元，藍鯨不設） |
+| 內容編輯／公關媒體 | 內容 **✔編輯**（B6 媒體專區，E1a 新增） | `content.press.*`；檢視者 唯讀；合作球隊管理 view／create／update（不含刪除，比照 `content.article.*`） |
+| 競技／球隊管理 | 球隊／賽事 **✔全**（C5，E1a 新增） | `team.achievement.*`（榮譽）、`team.milestone.*`（里程碑）。學院／課程管理：**只有 `team.achievement.*` 且 `scope_type = academy_only`**（榮譽有 `team_id`，列級授權生效）；`team.milestone.*` 不給（里程碑沒有球隊維度，無從判斷「學院梯隊」，理由同 C4 積分榜）。其餘角色唯讀 |
 
 > **S1-12d 新增（2026-09-29）**：規劃書 §6 權限矩陣**沒有「網站設定」欄**（`I` 模組在本輪之前
 > 完全沒有後端實作）。本輪比照 `seo.*`／`system.*` 既有先例——「全站層級設定、非逐篇內容編輯」

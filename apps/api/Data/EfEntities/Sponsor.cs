@@ -45,9 +45,15 @@ public partial class Sponsor
 
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
+    public virtual ICollection<SponsorActivation> SponsorActivations { get; set; } = new List<SponsorActivation>();
+
+    public virtual ICollection<SponsorArticle> SponsorArticles { get; set; } = new List<SponsorArticle>();
+
     public virtual ICollection<SponsorsI18n> SponsorsI18ns { get; set; } = new List<SponsorsI18n>();
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
+
+    public virtual ICollection<CharityProgram> CharityPrograms { get; set; } = new List<CharityProgram>();
 
     public virtual ICollection<SponsorPackage> SponsorPackages { get; set; } = new List<SponsorPackage>();
 }

@@ -23,6 +23,14 @@ public partial class Milestone
 
     public Guid? UpdatedBy { get; set; }
 
+    public string? ImageKey { get; set; }
+
+    public int? ImageWidth { get; set; }
+
+    public int? ImageHeight { get; set; }
+
+    public bool IsVisible { get; set; }
+
     public virtual Club Club { get; set; } = null!;
 
     public virtual AdminUser? CreatedByNavigation { get; set; }

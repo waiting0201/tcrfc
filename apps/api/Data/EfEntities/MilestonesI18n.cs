@@ -13,5 +13,7 @@ public partial class MilestonesI18n
 
     public string? Description { get; set; }
 
+    public string? ImageAlt { get; set; }
+
     public virtual Milestone Milestone { get; set; } = null!;
 }

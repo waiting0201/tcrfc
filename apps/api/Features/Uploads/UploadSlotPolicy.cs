@@ -57,6 +57,18 @@ public static class UploadSlotPolicy
             // 屬於 H 模組的編輯情境（跟標題模板、預設描述同一個表單），不是 J4 品牌／法人資料的
             // 編輯情境；J4 既有的 logo／favicon 欄位維持原本刻意唯讀，不受本次影響。
             ["clubs"] = new HashSet<string>(StringComparer.Ordinal) { "ogImage" },
+            // E1a 新增（2026-09-30）：E1 夥伴、E2 贊助、B5 慈善、B6 媒體專區、C5 里程碑的圖片欄位。
+            // 每一格都對應 db/club-schema.sql 真實存在的 *_key 欄位（或子表 image_key）。
+            ["partners"] = new HashSet<string>(StringComparer.Ordinal) { "logoDark", "logoLight" },
+            ["sponsors"] = new HashSet<string>(StringComparer.Ordinal) { "logoDark", "logoLight" },
+            ["sponsor_activation_images"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            ["charities"] = new HashSet<string>(StringComparer.Ordinal) { "logo" },
+            ["charity_programs"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
+            ["charity_program_images"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            ["impact_records"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            ["impact_record_images"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            ["press_resources"] = new HashSet<string>(StringComparer.Ordinal) { "cover", "image" },
+            ["milestones"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
         };
 
     public static void Validate(string entityType, string field)

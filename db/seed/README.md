@@ -269,6 +269,12 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 | 〃 | `settings`：`geo.llms_positioning`／`key_pages`／`facts_summary`／`license`／`contact` | 五區塊 zh＋en | 五區塊 zh；en 只有 `key_pages`／`license`／`contact` | **真實**（已核實事實與公開社群連結）；tcrfc 聯絡 Email 為**測試** |
 | 〃 | `settings`：`geo.crawler_agents`（五個預設代理皆允許）、`geo.crawler_extra_exclude_paths` | 有（`[]`） | 有（`[]`） | 規劃書 §7 `GEO-02` 條文範例 |
 | 網站設定 | `settings`：`site.*`（補齊） | 電話、營業時間（中文）、梯隊敘述英文 | 電話、營業時間（中文）、成立日英文顯示、梯隊敘述英文 | 電話與營業時間**測試**；英文為已核實中文事實的直譯 |
+| 合作夥伴 E1（E1a 新增，2026-09-30） | `partners`／`partners_i18n`（含 `content`） | 5（五種類型各一；1 筆合作期間已結束、驗證公開端點只列進行中） | 既有 26 筆真實（主腳本 §17），未動 | **全測試** |
+| 贊助 E2 | `sponsors`／`sponsor_packages`／`sponsor_package_links`／`sponsor_activations` | 贊助商 3（三等級；1 筆已到提醒日、1 筆合約已結束）／方案 9（規劃書九種名稱，價格為測試）／活動 2 | — | **全測試**（方案名稱是規劃書 §3.9 9.4 的真實用詞，內容與價格為測試） |
+| 提案與 Lead E3 | `proposals`／`enquiries`（`proposal_id`）／`enquiry_answers` | 提案 2（A/B 草稿，**沒有檔案**）／Lead 3（`@example.com`，含三種跟進狀態） | — | **全測試**（公司與姓名皆【測試】前綴） |
+| 慈善 B5 | `charities`／`charity_programs`／`charity_program_partners`／`charity_program_sponsors`／`impact_records`／`impact_metrics`／`settings`（`charity.*`） | 團體 2／計畫 3（置頂進行中、已完成、草稿）／事蹟 2／統計 3（含 1 筆不公開金額）／導流設定（網址 `charity.example.com`，文案已點明協會） | —（藍鯨不設慈善單元） | **全測試** |
+| 媒體專區 B6 | `press_resources`／`press_resources_i18n` | 3（三類各一，**draft＋佔位檔案鍵 `seed-placeholder/no-file`**，公開端點不會顯示） | — | **全測試** |
+| 榮譽 C5 | `achievements` | 3（一線隊 D1，2024–2026） | — | **全測試**（里程碑既有真實種子，未動） |
 
 ### 🔴 測試值清單（正式資料上線前逐一替換）
 
@@ -289,6 +295,7 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 | `article_tags`／`value_tag_links` | tcrfc 既有新聞的標籤與核心價值歸類 | 種子的編輯性判斷（match→賽事；international→國際交流＋全球通道；community→社區＋社區；camps-events→青訓發展＋以球員為本） | tcrfc |
 | `articles.is_featured` | 精選 | 依日期最新兩篇 | tcrfc |
 | `redirects` | 新站對應頁 | 由舊網址名稱推得的建議，**客戶尚未決定** | tcrfc、bw |
+| `partners`／`sponsors`／`sponsor_packages`／`sponsor_activations`／`proposals`／`enquiries`（Lead）／`charities`／`charity_programs`／`impact_*`／`press_resources`／`achievements`（slug 或名稱含 `test-`、`【測試】`） | 全部欄位（含整數價格與金額） | 【測試】…／`@example.com`／`charity.example.com`／`seed-placeholder/no-file` | 只有 tcrfc |
 
 ### 刻意沒種的（與原因）
 
@@ -297,7 +304,7 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 - **`site.founding_date`（tcrfc）**：成立月日至今沒有核實來源，日期欄位無法用前綴標示為測試，不種假日期。tcrfc 的 `site.founding_date_display` 英文也刻意不種（`SiteFactsTests` 用它驗證「缺英文時回退中文」）。
 - **課程教練連結（`program_staff`）、報名（`registrations`）、詢問收件匣（`enquiries`）、會員／會籍**：涉及個資或需要真實人員，不種。教練連結需要「課程與教練」的真實對應。
 - **磐石學院球隊 U15／U14／U12（`teams`）**：性別與年齡帶的真實定義沒有來源（`gender` 是必填），不臆測；`site.squad_codes` 已有這三個代碼但 `teams` 表沒有對應列（既有落差，`apps/api/README.md`「S1-12d」節已記）。
-- **夥伴（tcrfc）、贊助、慈善、商店、漫畫、球迷活動（`E`／`B5`／`S`／`F` 模組）**：後台尚未完成（`STATUS.md` S2 以後），本輪只涵蓋已完成的 S1 模組。bw 夥伴早已有種子。
+- **商店、漫畫、球迷活動（`S`／`F` 模組）**：後台尚未完成（`STATUS.md` S2 以後）。**夥伴、贊助、提案與 Lead、慈善、媒體專區、榮譽已於 E1a（2026-09-30）補種**（見上表；圖片一律沒有，媒體資源與提案沒有真實檔案）。bw 夥伴早已有真實種子。
 - **賽程賽果**：早已有種子，本輪未動。
 - **`tcrfc` 新聞 `articles_i18n.body`／`summary`**：文稿仍是讀不到的 `.gdoc`，留白是刻意的（見上方「哪些事不能做」）。
 

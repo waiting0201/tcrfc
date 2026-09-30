@@ -1034,6 +1034,47 @@ PERMISSIONS = [
     # 「規劃書沒寫清楚、自行判斷」。
     ("site.fact.view", "I", "I1", "site", "view", 1, 0, 1, "檢視網站設定（站台事實）", "View Site Facts"),
     ("site.fact.update", "I", "I1", "site", "update", 1, 0, 1, "編輯網站設定（站台事實）", "Update Site Facts"),
+    # E1a 新增（2026-09-30，backend-engineer）：E1 夥伴／E2 贊助商與贊助方案／E3 提案與 Lead／B5 慈善／B6 媒體專區／C5 榮譽與里程碑。
+    # E 模組 domain 取 "business"（規劃書 §6 矩陣「商業／贊助」欄）；B5 domain 取 "charity"（矩陣「慈善」欄）；
+    # B6 沿用 "content"；C5 沿用 "team"。全部 is_club_scoped=1、非 sysadmin_only。
+    # 🔴 business.lead.export（is_restricted=1）：Lead 名單含公司、姓名、Email 等個資，匯出須額外授權（docs/12b §7.5）。
+    ("business.partner.view", "E", "E1", "business", "view", 1, 0, 0, "檢視合作夥伴", "View Partners"),
+    ("business.partner.create", "E", "E1", "business", "create", 1, 0, 0, "新增合作夥伴", "Create Partners"),
+    ("business.partner.update", "E", "E1", "business", "update", 1, 0, 0, "編輯合作夥伴", "Update Partners"),
+    ("business.partner.delete", "E", "E1", "business", "delete", 1, 0, 0, "刪除合作夥伴", "Delete Partners"),
+    ("business.sponsor.view", "E", "E2", "business", "view", 1, 0, 0, "檢視贊助商", "View Sponsors"),
+    ("business.sponsor.create", "E", "E2", "business", "create", 1, 0, 0, "新增贊助商", "Create Sponsors"),
+    ("business.sponsor.update", "E", "E2", "business", "update", 1, 0, 0, "編輯贊助商與贊助活動", "Update Sponsors"),
+    ("business.sponsor.delete", "E", "E2", "business", "delete", 1, 0, 0, "刪除贊助商", "Delete Sponsors"),
+    ("business.sponsor_package.view", "E", "E2", "business", "view", 1, 0, 0, "檢視贊助方案", "View Sponsorship Packages"),
+    ("business.sponsor_package.create", "E", "E2", "business", "create", 1, 0, 0, "新增贊助方案", "Create Sponsorship Packages"),
+    ("business.sponsor_package.update", "E", "E2", "business", "update", 1, 0, 0, "編輯贊助方案", "Update Sponsorship Packages"),
+    ("business.sponsor_package.delete", "E", "E2", "business", "delete", 1, 0, 0, "刪除贊助方案", "Delete Sponsorship Packages"),
+    ("business.proposal.view", "E", "E3", "business", "view", 1, 0, 0, "檢視提案簡介", "View Proposals"),
+    ("business.proposal.create", "E", "E3", "business", "create", 1, 0, 0, "新增提案簡介", "Create Proposals"),
+    ("business.proposal.update", "E", "E3", "business", "update", 1, 0, 0, "編輯提案簡介與檔案", "Update Proposals"),
+    ("business.proposal.delete", "E", "E3", "business", "delete", 1, 0, 0, "刪除提案簡介", "Delete Proposals"),
+    ("business.lead.view", "E", "E3", "business", "view", 1, 0, 0, "檢視提案下載名單", "View Proposal Leads"),
+    ("business.lead.update", "E", "E3", "business", "update", 1, 0, 0, "標記提案下載名單的跟進狀態", "Update Proposal Leads"),
+    ("business.lead.export", "E", "E3", "business", "export", 1, 1, 0, "匯出提案下載名單", "Export Proposal Leads"),
+    ("charity.content.view", "B", "B5", "charity", "view", 1, 0, 0, "檢視慈善內容", "View Charity Content"),
+    ("charity.content.create", "B", "B5", "charity", "create", 1, 0, 0, "新增慈善內容", "Create Charity Content"),
+    ("charity.content.update", "B", "B5", "charity", "update", 1, 0, 0, "編輯慈善內容", "Update Charity Content"),
+    ("charity.content.delete", "B", "B5", "charity", "delete", 1, 0, 0, "刪除慈善內容", "Delete Charity Content"),
+    ("charity.setting.view", "B", "B5", "charity", "view", 1, 0, 0, "檢視捐款導流與參與方式設定", "View Charity Settings"),
+    ("charity.setting.update", "B", "B5", "charity", "update", 1, 0, 0, "編輯捐款導流與參與方式設定", "Update Charity Settings"),
+    ("content.press.view", "B", "B6", "content", "view", 1, 0, 0, "檢視媒體專區", "View Press Resources"),
+    ("content.press.create", "B", "B6", "content", "create", 1, 0, 0, "新增媒體資源", "Create Press Resources"),
+    ("content.press.update", "B", "B6", "content", "update", 1, 0, 0, "編輯媒體資源", "Update Press Resources"),
+    ("content.press.delete", "B", "B6", "content", "delete", 1, 0, 0, "刪除媒體資源", "Delete Press Resources"),
+    ("team.achievement.view", "C", "C5", "team", "view", 1, 0, 0, "檢視榮譽", "View Achievements"),
+    ("team.achievement.create", "C", "C5", "team", "create", 1, 0, 0, "新增榮譽", "Create Achievements"),
+    ("team.achievement.update", "C", "C5", "team", "update", 1, 0, 0, "編輯榮譽", "Update Achievements"),
+    ("team.achievement.delete", "C", "C5", "team", "delete", 1, 0, 0, "刪除榮譽", "Delete Achievements"),
+    ("team.milestone.view", "C", "C5", "team", "view", 1, 0, 0, "檢視里程碑", "View Milestones"),
+    ("team.milestone.create", "C", "C5", "team", "create", 1, 0, 0, "新增里程碑", "Create Milestones"),
+    ("team.milestone.update", "C", "C5", "team", "update", 1, 0, 0, "編輯里程碑", "Update Milestones"),
+    ("team.milestone.delete", "C", "C5", "team", "delete", 1, 0, 0, "刪除里程碑", "Delete Milestones"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -1248,6 +1289,71 @@ ROLE_PERMISSIONS = [
         "calendar.view",
         "calendar.custom_event.view", "calendar.custom_event.create",
         "calendar.custom_event.update", "calendar.custom_event.delete",
+    ], "own_clubs"),
+    # ── E1a 新增（2026-09-30）：E1／E2／E3／B5／B6／C5，逐欄依規劃書 §6 矩陣展開 ─────────────────
+    # 「商業／贊助」欄（E1 夥伴、E2 贊助、E3 提案）：商務／贊助 ✔全；內容編輯／公關媒體／檢視者 唯讀；
+    # 合作球隊管理 ✔自家夥伴與贊助（own_clubs）；其餘角色「—」。
+    # 🔴 Lead 名單（business.lead.*）含個資（公司、姓名、Email），本輪依最小授權原則只給商務／贊助與合作球隊管理，
+    # 唯讀角色（內容編輯／公關媒體／檢視者）**不給 lead.view**——矩陣「唯讀」講的是夥伴與贊助內容，沒有涵蓋潛在贊助商的個資；
+    # 匯出（restricted）只給商務／贊助（矩陣「✔全」）。這是工程判斷，見 apps/api/README.md 的 E3 段「規劃書沒寫清楚」。
+    ("business_sponsorship", [
+        "business.partner.view", "business.partner.create", "business.partner.update", "business.partner.delete",
+        "business.sponsor.view", "business.sponsor.create", "business.sponsor.update", "business.sponsor.delete",
+        "business.sponsor_package.view", "business.sponsor_package.create", "business.sponsor_package.update", "business.sponsor_package.delete",
+        "business.proposal.view", "business.proposal.create", "business.proposal.update", "business.proposal.delete",
+        "business.lead.view", "business.lead.update", "business.lead.export",
+    ], "all"),
+    ("content_editor", [
+        "business.partner.view", "business.sponsor.view", "business.sponsor_package.view", "business.proposal.view",
+    ], "all"),
+    ("pr_media", [
+        "business.partner.view", "business.sponsor.view", "business.sponsor_package.view", "business.proposal.view",
+    ], "all"),
+    ("viewer", [
+        "business.partner.view", "business.sponsor.view", "business.sponsor_package.view", "business.proposal.view",
+    ], "all"),
+    ("partner_club_manager", [
+        "business.partner.view", "business.partner.create", "business.partner.update", "business.partner.delete",
+        "business.sponsor.view", "business.sponsor.create", "business.sponsor.update", "business.sponsor.delete",
+        "business.sponsor_package.view", "business.sponsor_package.create", "business.sponsor_package.update", "business.sponsor_package.delete",
+        "business.proposal.view", "business.proposal.create", "business.proposal.update", "business.proposal.delete",
+        "business.lead.view", "business.lead.update",
+    ], "own_clubs"),
+    # 「慈善」欄（B5）：內容編輯 ✔編輯、公關媒體 ✔編輯（含刪除，理由同 content.article.*）；商務／贊助、檢視者 唯讀；
+    # 合作球隊管理「—」（慈善是磐石主站單元，藍鯨不設，見藍鯨規劃書 §1.3）；其餘「—」。
+    ("content_editor", [
+        "charity.content.view", "charity.content.create", "charity.content.update", "charity.content.delete",
+        "charity.setting.view", "charity.setting.update",
+    ], "all"),
+    ("pr_media", [
+        "charity.content.view", "charity.content.create", "charity.content.update", "charity.content.delete",
+        "charity.setting.view", "charity.setting.update",
+    ], "all"),
+    ("business_sponsorship", ["charity.content.view", "charity.setting.view"], "all"),
+    ("viewer", ["charity.content.view", "charity.setting.view"], "all"),
+    # 「內容」欄（B6 媒體專區）：內容編輯 ✔編輯／發布、公關媒體 ✔編輯（含刪除）；檢視者 唯讀；
+    # 合作球隊管理 ✔自家內容（view／create／update，不含刪除，比照 content.article.* 既有保守預設）。
+    ("content_editor", ["content.press.view", "content.press.create", "content.press.update", "content.press.delete"], "all"),
+    ("pr_media", ["content.press.view", "content.press.create", "content.press.update", "content.press.delete"], "all"),
+    ("viewer", ["content.press.view"], "all"),
+    ("partner_club_manager", ["content.press.view", "content.press.create", "content.press.update"], "own_clubs"),
+    # 「球隊／賽事」欄（C5 榮譽與里程碑）：競技／球隊管理 ✔全；內容編輯／商務贊助／公關媒體／檢視者 唯讀；
+    # 合作球隊管理 ✔自家（own_clubs）；學院／課程管理「學院梯隊」——榮譽有 team_id，給 academy_only（TeamRowScope 生效）；
+    # 里程碑是俱樂部層級時間軸、沒有球隊維度，無從判斷「學院梯隊」，不給學院／課程管理（理由同 C4 積分榜，先不給好過給了擋不住）。
+    ("team_competition", [
+        "team.achievement.view", "team.achievement.create", "team.achievement.update", "team.achievement.delete",
+        "team.milestone.view", "team.milestone.create", "team.milestone.update", "team.milestone.delete",
+    ], "all"),
+    ("academy_program", [
+        "team.achievement.view", "team.achievement.create", "team.achievement.update", "team.achievement.delete",
+    ], "academy_only"),
+    ("content_editor", ["team.achievement.view", "team.milestone.view"], "all"),
+    ("business_sponsorship", ["team.achievement.view", "team.milestone.view"], "all"),
+    ("pr_media", ["team.achievement.view", "team.milestone.view"], "all"),
+    ("viewer", ["team.achievement.view", "team.milestone.view"], "all"),
+    ("partner_club_manager", [
+        "team.achievement.view", "team.achievement.create", "team.achievement.update", "team.achievement.delete",
+        "team.milestone.view", "team.milestone.create", "team.milestone.update", "team.milestone.delete",
     ], "own_clubs"),
 ]
 

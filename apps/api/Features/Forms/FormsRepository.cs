@@ -70,8 +70,11 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
             cancellationToken);
     }
 
+    /// <param name="proposalId">E3（2026-09-30）：只有提案下載表單（<c>proposal_download</c>）由
+    /// <c>Features/Proposals</c> 傳入，寫進 <c>enquiries.proposal_id</c>，讓 Lead 名單知道下載的是哪一份提案（A/B 版本）；
+    /// 一般表單送出一律為 <c>null</c>。</param>
     public async Task<SubmitFormResultDto> SubmitAsync(
-        ClubScope scope, string formCode, SubmitFormRequest request, CancellationToken cancellationToken)
+        ClubScope scope, string formCode, SubmitFormRequest request, CancellationToken cancellationToken, Guid? proposalId = null)
     {
         // 誘捕欄位有值＝機器人：安靜回成功、不寫入任何資料，避免讓機器人知道自己被擋下。
         if (!string.IsNullOrEmpty(request.Website))
@@ -124,14 +127,15 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
         var now = DateTime.UtcNow;
 
         const string insertEnquirySql = """
-            INSERT INTO enquiries (id, club_id, form_id, source_path, utm_source, utm_campaign, status, created_at, updated_at)
-            VALUES (@Id, @ClubId, @FormId, @SourcePath, @UtmSource, @UtmCampaign, N'新進', @Now, @Now)
+            INSERT INTO enquiries (id, club_id, form_id, proposal_id, source_path, utm_source, utm_campaign, status, created_at, updated_at)
+            VALUES (@Id, @ClubId, @FormId, @ProposalId, @SourcePath, @UtmSource, @UtmCampaign, N'新進', @Now, @Now)
             """;
         await connection.ExecuteAsync(new CommandDefinition(insertEnquirySql, new
         {
             Id = enquiryId,
             scope.ClubId,
             FormId = form.Id,
+            ProposalId = proposalId,
             request.SourcePath,
             request.UtmSource,
             request.UtmCampaign,

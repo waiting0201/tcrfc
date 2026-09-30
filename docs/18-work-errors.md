@@ -98,6 +98,9 @@
 | E-82 | 2026-09-30 | `GeoCrawlerDefaults` 把未成年照片頁強制排除只寫給 `tcrfc`，註解稱「`bw` 尚未建置對應頁面、待路由落地才補」，實際藍鯨與磐石共用同一套前台路由，`academy/teams/` 早已渲染藍鯨青年隊（U15／U12）名單；磐石的 `academy/life/` 與三個課程照片頁也漏列 | 「頁面存不存在」以規劃書／STATUS 的「藍鯨尚未開發」推論，沒有 grep `apps/web` 的實際路由；個資防線清單也沒有對照 `apps/web` 逐頁核對 | 見下 |
 | E-83 | 2026-09-30 | 藍鯨站無條件輸出磐石照片（多含未成年學員）與磐石標誌，品牌外洩檢查（`check-club-brand-leak.mjs`）從 BW-C1 起已是全站 hard-fail，卻**全程沒有發現**：導覽下拉 7 張 `nav-*.jpg`（每個藍鯨頁面都有）、`about/*` 九頁與 `news/*` 八頁 hero、`academy/` hero（未成年學員）、`club/{opportunities,player-stories}` hero（Trenčín 交流）、首頁四大支柱四張圖、`partners/our-partners` 三家磐石國際夥伴隊徽、厚底緩震機能襪 7 張商品照（**每張右上角都印有 TCRFC 標誌**，BW-C1 卻誤稱「無隊徽通用配件」）、新聞卡與文章頁無封面時的磐石標誌佔位 | 檢查只比對**文字詞表**，而 `<img alt="">`、檔名、`background-image` 不含任何詞表用字；「哪些單元對藍鯨關閉」只針對頁面內容，沒有人逐張看過共用版位（導覽、hero、卡片）放的是誰的照片。BW-C1 更在 `index.vue` 註解與 README 寫下「通用足球場景照、不涉及任何俱樂部辨識內容」——**沒有實際打開圖片就下的斷言** | ✅ 新增 `check-club-image-leak.mjs`（與品牌詞彙檢查共用 `scripts/lib/collect-routes.mjs` 的同一套路由），掃 `<img>`／`<source>`／`<video poster>`／`style` 與樣式表 `url()`／`og:image`／JSON-LD／icon link，白名單制、不確定歸磐石；新增 `ClubHeroBg`／`ClubImg` 元件與 `hasNewsCover(slug, club)`。詳見下方 E-83 節 |
 | E-84 | 2026-09-30 | 公開行事曆讀場地名稱的 SQL 用 `NULL AS Text2`，SQL Server 推成 int，Dapper 對不上 `I18nTextRow(string? Text2)` 建構子，只要自建活動有指定場地就 500；種子補上這類資料後才被測試抓到 | ✅ 改 `CAST(NULL AS nvarchar(1))`；`CalendarPublicTests` 以種子資料覆蓋 |
+| E-85 | 2026-09-30 | 新增子表列時把帶 `Guid` 主鍵（資料庫有 `DEFAULT NEWID()`）的實體只加進父實體的導覽集合（`proposal.ProposalFiles.Add(new ProposalFile { Id = Guid.NewGuid() … })`），EF 因為 `Id` 已有值而當成既有列，送出 `UPDATE`（連 `row_seq` 一起更新），資料庫回「Cannot update identity column 'row_seq'」，端點 500 | ✅ `AdminBusinessUploadTests` 提案檔案上傳案例覆蓋；⚠️ 無 lint（寫入端一律 `dbContext.XxxSet.Add(...)`） |
+| E-86 | 2026-09-30 | 把 `dotnet ef dbcontext scaffold` 的新輸出用 diff「只取新增行」合併進手改過的 `ClubDbContext.cs`：19 個合理新增之外還夾帶 17 段重複／無關的屬性設定（`Article.CanonicalPath`、`Banner.Status`、`Faq*` 等），因為先前的 agent 把那些設定分組放在檔案別處，與 scaffold 排列不同，diff 判成「新增」 | ✅ 合併前先看 `git diff`、發現後以關鍵字白名單重做；⚠️ 無腳本（見 E-86 節的固定做法） |
+| E-87 | 2026-09-30 | 補種子測試帳號前沒有先 grep 既有的 `ADMIN_USERS`，另加了 `business.sponsor@`／`pr.media@` 兩個帳號，結果 `business.sponsorship@`／`pr.media@` 早已存在（S1-10／S1-11 補過），差點留下兩組功能重複的帳號 | ✅ 種子執行後以 `SELECT` 核對角色與帳號清單才發現，已從腳本與資料庫移除；⚠️ 無 |
 
 ---
 
@@ -789,6 +792,39 @@
   寫明「這支腳本看不到元件庫自帶文案，所以只能改成檢查語系有沒有設」。用「把 `locale` 拿掉確認腳本抓得到、
   改回來確認會過」實測過。⚠️ **殘餘風險**：這只擋得住「語系沒設」，擋不住某個元件的中文翻譯本身不合我們
   的用語規範，那仍要靠看畫面。
+
+
+### E-85 EF Core：子實體有 `Guid` 主鍵時只加進父實體導覽集合會被當成既有列（2026-09-30，E1a 後台 API）
+
+- **錯在哪**：`AdminProposalsRepository.AddFileAsync` 用 `proposal.ProposalFiles.Add(new ProposalFile { Id = Guid.NewGuid(), … })` 新增檔案。
+  EF 對「主鍵屬性已有非預設值、且該主鍵設定為 `ValueGeneratedOnAdd`」的實體，經導覽集合被追蹤時判為 **Modified**，
+  產生 `UPDATE proposal_files SET … row_seq = …`，SQL Server 回 `Cannot update identity column 'row_seq'`，端點 500。
+- **為什麼會錯（根因）**：把「集合 `.Add`」當成「標記為新增」。既有寫入端（`AdminStaffRepository`、`AdminFaqsRepository`…）
+  對帶 `Guid` 主鍵的子實體一律同時呼叫 `dbContext.XxxSet.Add(...)`，我照抄了複合主鍵（無生成值）那一類的寫法。
+- **下次怎麼避免**：新增任何有 `Guid Id`（資料庫 `DEFAULT NEWID()`）的實體，一律 `dbContext.XxxSet.Add(entity)` 明確標記；
+  複合主鍵且沒有生成值的連結表（`sponsor_articles` 等）才可以只加進導覽集合。
+- **防呆**：✅ `AdminBusinessUploadTests` 的提案檔案上傳案例（測試打真實資料庫，這個錯誤只會在真的存檔時爆）。⚠️ 沒有靜態掃描。
+
+### E-86 scaffold 輸出與手改過的 `ClubDbContext` 用 diff 合併，會夾帶重複與無關的設定（2026-09-30，E1a）
+
+- **錯在哪**：先把 DDL 套到本機庫、重新 scaffold 到暫存目錄，再用 `difflib` 把「新增行」插進 `apps/api/Data/ClubDbContext.cs`。
+  結果 36 個插入區塊裡有 17 個是重複或無關的（`Article.CanonicalPath`、`ArticlesI18n.SeoKeywords`、`Banner.Status`／`VideoKey`、
+  `FaqEmbedSlot.Name`、`FormFieldsI18n` 整個實體區塊…），如果直接編譯，`ClubDbContext` 會對同一個屬性設定兩次。
+- **為什麼會錯（根因）**：假設「scaffold 輸出 ≈ 現有檔案 ＋ 我這次的異動」。實際上先前的 agent 手改時把部分屬性設定放在檔案的其他位置
+  （S1-12 的單頁 SEO、S1-7a 的輪播欄位等各自成段），行序與 scaffold 不同，diff 判成「新增」；`DbSet`／實體檔則沒有這個問題。
+- **下次怎麼避免**：**只取跟本次新表新欄位有關的區塊**——用關鍵字白名單過濾插入區塊（表名、欄位名、外鍵與索引名），
+  過濾後逐段看 `git diff` 再編譯；再用 `dotnet ef migrations add Probe` 確認 Up／Down 為空（模型與 snapshot 同步），最後 `migrations remove`。
+  實體檔（`Data/EfEntities/*.cs`）同樣只插入新屬性，行尾混用 CRLF／LF 的處理見 agent 記憶「EF scaffold file editing」。
+- **防呆**：⚠️ 無腳本（每次異動欄位名不同，白名單要人挑）。`Probe` migration 檢查能抓到「模型與 snapshot 不一致」，抓不到「重複設定」（EF 對同一屬性重複呼叫 Fluent API 不報錯，後者覆蓋前者），
+  所以**合併後必看 diff** 是唯一防線。
+
+### E-87 補種子測試帳號前沒有先查既有帳號（2026-09-30，E1a）
+
+- **錯在哪**：為了測 E1／E2／B5／B6 的角色矩陣，在 `generate-club-seed-sql.py` 新增 `business.sponsor@tcrfc.test`（商務／贊助）與 `pr.media@tcrfc.test`（公關／媒體）；
+  兩個角色的測試帳號在 S1-10／S1-11 早就補過（`business.sponsorship@`、`pr.media@`）。
+- **為什麼會錯（根因）**：只看了 `ADMIN_USERS` 開頭幾筆（內容編輯、檢視者、合作球隊管理…），沒有 grep 整份清單就判斷「沒有這兩個角色」。
+- **下次怎麼避免**：新增種子帳號前先 `grep -n "role_code" ` 或直接查 `admin_users` 對 `admin_user_roles` 的角色分佈。
+- **防呆**：無。已從腳本與資料庫移除多餘的 `business.sponsor@`。
 
 ---
 

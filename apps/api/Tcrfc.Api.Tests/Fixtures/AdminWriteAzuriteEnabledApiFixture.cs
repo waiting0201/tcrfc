@@ -31,6 +31,11 @@ public sealed class AdminWriteAzuriteEnabledApiFixture : WebApplicationFactory<P
     /// <summary>給測試直接檢查上傳結果用的容器用戶端——跟應用程式自己那條連線分開，純粹用來斷言。</summary>
     public BlobContainerClient InspectorContainer { get; private set; } = null!;
 
+    /// <summary>E1a 新增：檔案儲存的兩個容器（預設名稱 <c>documents</c>＝公開下載、<c>proposals</c>＝私有提案檔），
+    /// 同樣只供測試斷言物件是否寫入／刪除。</summary>
+    public BlobContainerClient InspectorDocumentsContainer { get; private set; } = null!;
+    public BlobContainerClient InspectorProposalsContainer { get; private set; } = null!;
+
     // 2026-09-29：見 TestRateLimitOverrides 檔頭——一般用途 fixture 一律覆寫成寬鬆值，改用
     // ConfigureAppConfiguration，只影響這一個測試主機自己的 IConfiguration。
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -80,6 +85,8 @@ public sealed class AdminWriteAzuriteEnabledApiFixture : WebApplicationFactory<P
         Environment.SetEnvironmentVariable("AZURE_BLOB_CONTAINER_IMAGES", ContainerName);
 
         InspectorContainer = new BlobContainerClient(connectionStringForBlob, ContainerName);
+        InspectorDocumentsContainer = new BlobContainerClient(connectionStringForBlob, "documents");
+        InspectorProposalsContainer = new BlobContainerClient(connectionStringForBlob, "proposals");
 
         // 立刻建立測試主機，確保上面設定的環境變數在 Program.cs 執行的當下就是這個 fixture 要的值
         // （原因見 ApiFixture／RedisEnabledApiFixture 的同一段註解）。

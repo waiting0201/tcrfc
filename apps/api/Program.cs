@@ -13,6 +13,7 @@ using Tcrfc.Api.Data;
 using Tcrfc.Api.Features.AdminAccounts;
 using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminBanners;
+using Tcrfc.Api.Features.AdminCharity;
 using Tcrfc.Api.Features.AdminCalendar;
 using Tcrfc.Api.Features.AdminClubs;
 using Tcrfc.Api.Features.AdminCompetitions;
@@ -20,16 +21,21 @@ using Tcrfc.Api.Features.AdminEnquiries;
 using Tcrfc.Api.Features.AdminFaqs;
 using Tcrfc.Api.Features.AdminForms;
 using Tcrfc.Api.Features.AdminHomeSections;
+using Tcrfc.Api.Features.AdminHonors;
 using Tcrfc.Api.Features.AdminMatches;
 using Tcrfc.Api.Features.AdminNews;
 using Tcrfc.Api.Features.AdminPages;
+using Tcrfc.Api.Features.AdminPartners;
 using Tcrfc.Api.Features.AdminPlayers;
+using Tcrfc.Api.Features.AdminPress;
+using Tcrfc.Api.Features.AdminProposals;
 using Tcrfc.Api.Features.AdminPrograms;
 using Tcrfc.Api.Features.AdminRegistrations;
 using Tcrfc.Api.Features.AdminRoles;
 using Tcrfc.Api.Features.AdminSeo;
 using Tcrfc.Api.Features.AdminSessions;
 using Tcrfc.Api.Features.AdminSiteFacts;
+using Tcrfc.Api.Features.AdminSponsors;
 using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
@@ -46,10 +52,17 @@ using Tcrfc.Api.Features.Programs;
 using Tcrfc.Api.Features.Schedule;
 using Tcrfc.Api.Features.Seo;
 using Tcrfc.Api.Features.SiteFacts;
+using Tcrfc.Api.Features.CharityImpact;
+using Tcrfc.Api.Features.Honors;
+using Tcrfc.Api.Features.Partners;
+using Tcrfc.Api.Features.Press;
+using Tcrfc.Api.Features.Proposals;
+using Tcrfc.Api.Features.Sponsors;
 using Tcrfc.Api.Features.Staff;
 using Tcrfc.Api.Features.Teams;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Security;
+using Tcrfc.Api.Documents;
 using Tcrfc.Api.Videos;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -165,6 +178,25 @@ builder.Services.AddScoped<AdminTeamsRepository>();
 // ── S1-7：C1–C3 球隊／球員／教練俱樂部範圍 CRUD ─────────────────────────────
 builder.Services.AddScoped<AdminPlayersRepository>();
 builder.Services.AddScoped<AdminStaffRepository>();
+builder.Services.AddScoped<AdminPartnersRepository>();
+builder.Services.AddScoped<AdminSponsorsRepository>();
+builder.Services.AddScoped<AdminSponsorPackagesRepository>();
+builder.Services.AddScoped<AdminSponsorActivationsRepository>();
+builder.Services.AddScoped<AdminProposalsRepository>();
+builder.Services.AddScoped<AdminLeadsRepository>();
+builder.Services.AddScoped<AdminCharityOrgsRepository>();
+builder.Services.AddScoped<AdminCharityProgramsRepository>();
+builder.Services.AddScoped<AdminImpactRecordsRepository>();
+builder.Services.AddScoped<AdminImpactMetricsRepository>();
+builder.Services.AddScoped<AdminCharitySettingsRepository>();
+builder.Services.AddScoped<AdminPressRepository>();
+builder.Services.AddScoped<AdminHonorsRepository>();
+builder.Services.AddScoped<PartnersRepository>();
+builder.Services.AddScoped<SponsorsRepository>();
+builder.Services.AddScoped<CharityRepository>();
+builder.Services.AddScoped<PressRepository>();
+builder.Services.AddScoped<HonorsRepository>();
+builder.Services.AddScoped<ProposalsRepository>();
 
 // ── S1-8：C4 賽程與賽果／積分榜俱樂部範圍 CRUD ＋ CSV 批次匯入 ─────────────────
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminMatches.AdminMatchesRepository>();
@@ -256,6 +288,15 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString))
     // E-64 修正：影片物件鍵 → 公開網址，跟圖片那顆 IImagePublicUrlResolver 同一個機制、
     // 分開宣告（容器不同，見 IVideoPublicUrlResolver 檔頭）。
     builder.Services.AddSingleton<IVideoPublicUrlResolver, BlobVideoPublicUrlResolver>();
+
+    // E1a：非圖片、非影片的檔案（新聞稿 PDF、品牌識別包 ZIP、贊助提案 PDF）。兩個具名容器：公開下載與私有
+    // （提案 PDF 只能經 API 串流）。容器名稱可用環境變數覆寫，預設值見 Documents/BlobDocumentStorageService。
+    builder.Services.AddKeyedSingleton("documents-public",
+        new BlobContainerClient(blobConnectionString, builder.Configuration["AZURE_BLOB_CONTAINER_DOCUMENTS"] ?? "documents"));
+    builder.Services.AddKeyedSingleton("documents-private",
+        new BlobContainerClient(blobConnectionString, builder.Configuration["AZURE_BLOB_CONTAINER_PROPOSALS"] ?? "proposals"));
+    builder.Services.AddSingleton<IDocumentStorageService, BlobDocumentStorageService>();
+    builder.Services.AddSingleton<IDocumentPublicUrlResolver, BlobDocumentPublicUrlResolver>();
 }
 else
 {
@@ -263,6 +304,8 @@ else
     builder.Services.AddSingleton<IVideoStorageService, UnavailableVideoStorageService>();
     builder.Services.AddSingleton<IImagePublicUrlResolver, UnavailableImagePublicUrlResolver>();
     builder.Services.AddSingleton<IVideoPublicUrlResolver, UnavailableVideoPublicUrlResolver>();
+    builder.Services.AddSingleton<IDocumentStorageService, UnavailableDocumentStorageService>();
+    builder.Services.AddSingleton<IDocumentPublicUrlResolver, UnavailableDocumentPublicUrlResolver>();
 }
 
 // ── 各功能模組的 repository ──────────────────────────────────────────────
@@ -556,6 +599,18 @@ app.MapAdminTeamsEndpoints();
 // ── S1-7：C1–C3 球隊／球員／教練俱樂部範圍 CRUD ─────────────────────────────
 app.MapAdminPlayersEndpoints();
 app.MapAdminStaffEndpoints();
+app.MapAdminPartnersEndpoints();
+app.MapAdminSponsorsEndpoints();
+app.MapAdminProposalsEndpoints();
+app.MapAdminCharityEndpoints();
+app.MapAdminPressEndpoints();
+app.MapAdminHonorsEndpoints();
+app.MapPartnersEndpoints();
+app.MapSponsorsEndpoints();
+app.MapCharityEndpoints();
+app.MapPressEndpoints();
+app.MapHonorsEndpoints();
+app.MapProposalsEndpoints();
 app.MapAdminMatchesEndpoints();
 app.MapAdminStandingsEndpoints();
 

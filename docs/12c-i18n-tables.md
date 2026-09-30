@@ -40,7 +40,7 @@
 | `match_i18n` | `opponent`、`venue` | `docs/12` §2.4（`Match.opponent_en`／`venue_en`，行1498） |
 | `member_draw_i18n` | `name`、`prize_description`、`rules`、`notes` | `docs/12` §2.4（K5，行1297） |
 | `membership_benefit_i18n` | `group_label`、`free_value`、`paid_value` | `docs/12` §2.4（行1288–1289） |
-| `partner_i18n` | 未逐欄明列；依 E1 原文（行1129）至少含 `name` | `docs/12` §2.4（行1129） |
+| `partner_i18n` | 未逐欄明列；依 E1 原文（行1129）至少含 `name`。**E1a 補 `content`（合作內容，`nvarchar(max)`，行1129「合作內容」）** | `docs/12` §2.4（行1129） |
 | `sponsor_i18n` | 未逐欄明列；依 E2 原文（行1132）至少含 `name` | `docs/12` §2.4（行1132） |
 | `setting_i18n` | 未逐欄明列；文案類設定值 | `docs/12` §2.4、§4.0（`Setting` 列） |
 
@@ -188,6 +188,7 @@
 |---|---|---|---|
 | `title` | `string(200)` | 高 | 行1098：「里程碑（2.8）：日期、**標題**、描述、圖片…」＋行329（2.8 前台「事件描述」） |
 | `description` | `text` | 高 | 同上 |
+| `image_alt` | `string(200)` | 高 | **E1a 新增**。圖片替代文字，依圖片欄位組「`_alt_zh`／`_alt_en` 走 i18n 側表」規則（C5「圖片」，主表同時補 `image_key`／`image_width`／`image_height`／`is_visible`） |
 
 ---
 
@@ -214,6 +215,13 @@
 ---
 
 ### 3.4 E 商業模組
+
+#### `SponsorActivation` → `sponsor_activation_i18n`（E1a 新增）
+
+| 欄位 | 型別 | 信心度 | 依據 |
+|---|---|---|---|
+| `title` | `string(200)` | 高 | 行1134：「贊助活動（Activations）：**活動名稱**、日期、圖集、**成效摘要**」 |
+| `result_summary` | `text` | 高 | 同上（成效摘要）。主表 `sponsor_activations` 只有日期與排序，圖集在子表 `sponsor_activation_images` |
 
 #### `Sponsor` → `sponsor_i18n`
 
@@ -421,7 +429,7 @@
 | 欄位 | 型別 | 信心度 | 依據 |
 |---|---|---|---|
 | `name` | `string(64)` | 中 | 行1054：「影響力數據：可自訂統計項目（**名稱**、單位、數值、是否公開）」，未標語系 |
-| `unit` | `string(16)` | 低 | 同上（「單位」，如「人」「場」「元」，是否需要雙語見 [§4](#4-信心度低的欄位)） |
+| `unit` | `string(16)` | 中 | **E1a 已建**（原列於 §4 低信心度）。規劃書行1054 明文「單位」，中英單位本就不同（人／persons、元／NTD），走側表 |
 
 ---
 

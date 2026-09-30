@@ -15,7 +15,7 @@ public partial class Proposal
 
     public int VersionNo { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
 
@@ -28,6 +28,8 @@ public partial class Proposal
     public virtual Club Club { get; set; } = null!;
 
     public virtual AdminUser? CreatedByNavigation { get; set; }
+
+    public virtual ICollection<Enquiry> Enquiries { get; set; } = new List<Enquiry>();
 
     public virtual ICollection<ProposalFile> ProposalFiles { get; set; } = new List<ProposalFile>();
 

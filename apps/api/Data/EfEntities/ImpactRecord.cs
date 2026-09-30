@@ -31,6 +31,10 @@ public partial class ImpactRecord
 
     public Guid? UpdatedBy { get; set; }
 
+    public int SortOrder { get; set; }
+
+    public bool IsPinned { get; set; }
+
     public virtual Charity Charity { get; set; } = null!;
 
     public virtual CharityProgram? CharityProgram { get; set; }

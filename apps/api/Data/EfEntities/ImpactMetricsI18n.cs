@@ -11,5 +11,7 @@ public partial class ImpactMetricsI18n
 
     public string? Name { get; set; }
 
+    public string? Unit { get; set; }
+
     public virtual ImpactMetric ImpactMetric { get; set; } = null!;
 }

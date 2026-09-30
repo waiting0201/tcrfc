@@ -11,5 +11,7 @@ public partial class PartnersI18n
 
     public string? Name { get; set; }
 
+    public string? Content { get; set; }
+
     public virtual Partner Partner { get; set; } = null!;
 }

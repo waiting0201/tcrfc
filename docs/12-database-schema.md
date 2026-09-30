@@ -84,7 +84,7 @@
 | 涵蓋範圍 | 主站全部（含站內商店 `S`）＋ 後台帳號與權限 `J`。⚠️ **慈善 `N` 已於 v3.0 移出**（獨立資料庫） |
 | 排除範圍 | **行動 App 的十一個型別**（`M` 模組與 `E4–E6`）；**慈善捐款平台的全部資料表**（獨立系統） |
 | 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam`，移出慈善 6 個 |
-| 資料表 | **107 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。**S1-8 新增 `FaqEmbedSlot`／`FaqEmbedSlotLink` 兩張，105 → 107**。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
+| 資料表 | **113 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。**S1-8 新增 `FaqEmbedSlot`／`FaqEmbedSlotLink` 兩張，105 → 107**；**E1a（2026-09-30）新增 `SponsorActivation`／`SponsorActivationImage`／`SponsorArticle`／`CharityProgramPartner`／`CharityProgramSponsor`／`CharityProgramArticle` 六張，107 → 113**（第 43 點）。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
 | ER 圖 | 12 張 `erDiagram` ＋ 2 張 `flowchart`，每張 ≤ 12 實體 |
 
@@ -337,7 +337,7 @@ flowchart LR
 
 ## 4. 資料表總覽
 
-**107 張**（`CalendarEvent` 是視圖），另有約 40 張 `*_i18n` 側表。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
+**113 張**（`CalendarEvent` 是視圖），另有約 40 張 `*_i18n` 側表（E1a 新增 `sponsor_activations_i18n`）。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
 圖例：🌐 有 i18n 側表｜🔒 含受限或加密欄位｜📸 值複製快照，不可回頭 join。
 **`club_id` 欄**：**●** 必填｜**○** 可為空（＝兩隊共同）｜**—** 不加。
 判定準則與逐表清單見主站規劃書 **§5.4**（行 1533–1579）。
@@ -412,7 +412,7 @@ flowchart LR
 | `MatchLineup` | — | 先發與替補名單 | |
 | `Standing` | **●** | 積分榜 `(season_id, team_name, ...)`。**對手隊名是自由文字不是 `Team`** | |
 | `Achievement` | **●** | 榮譽（年份、賽事、名次、隊伍） | |
-| `Milestone` | **●** | 里程碑時間軸 | 🌐 |
+| `Milestone` | **●** | 里程碑時間軸。E1a 補：圖片欄位組（`image_key`／`image_width`／`image_height`，替代文字在側表 `image_alt`）、`is_visible`（是否顯示於時間軸） | 🌐 |
 
 > ⚠️ **`Team` 是兩隊各自的隊伍**：磐石 `D1`／`U15`／`U14`／`U12`，藍鯨 `BW1` 與其青年隊。
 > **兩隊都有「一線隊」，所以任何同時呈現兩隊賽事的畫面，每張卡片都必須標球隊。**
@@ -438,18 +438,21 @@ flowchart LR
 > 狀態），`db/club-schema.sql` 已核實不建 `sessions_i18n`。此前 🌐 標記過寬。**`Trial` 保留 🌐**——`docs/12c` §4
 > 列有低信心度候選欄位（`audience`），`db/club-schema.sql` 目前選擇不建 `trials_i18n`，仍待確認非本輪裁決範圍。
 
-### 4.4 E 商業模組（5）
+### 4.4 E 商業模組（8）
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
-| `Partner` | **●** | 合作夥伴（B2B Logo 牆）：Logo **深底／淺底兩版**、類型、國家、合作內容與期間、官網、排序、曝光位置 | 🌐 |
+| `Partner` | **●** | 合作夥伴（B2B Logo 牆）：Logo **深底／淺底兩版**、類型、國家、合作內容與期間、官網、排序、曝光位置。**合作內容 `content` 在側表 `partners_i18n`**（E1a 補） | 🌐 |
 | `Sponsor` | **●** | 贊助商：Logo 兩版、**等級**、合約期間、贊助內容、聯絡窗口、到期提醒、排序 | 🌐 |
 | `SponsorPackage` | **●** | 贊助方案（9 種）：內容、權益清單、適合對象、價格區間（**可設不公開**）、上下架。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 |
-| `Proposal` | **●** | 提案簡介（多版本、多語 PDF） | |
+| `Proposal` | **●** | 提案簡介（多版本、多語 PDF）。`status` **收斂為 `draft`／`published`、`NOT NULL DEFAULT 'draft'`**（E1a） | |
 | `ProposalFile` | — | `(proposal_id, locale, file_key, version)` | |
+| `SponsorActivation` | **●** | **贊助活動（Activations）**（E2）：活動日期、排序；名稱與成效摘要在 `sponsor_activations_i18n`。**E1a 新增**（`docs/12d` 記過的「型別總表缺席」） | 🌐 |
+| `SponsorActivationImage` | — | 贊助活動圖集：`(sponsor_activation_id, image_key, image_width, image_height, sort_order)` | |
+| `SponsorArticle` | — | **贊助故事**：`(sponsor_id, article_id, sort_order)`。刻意不用 `article_relations`（該表由 B2 編輯器整批取代，混入會被清掉） | |
 
 > 🔴 **兩隊的夥伴與贊助商須分區呈現不得混列**（合約是各自簽的）。同一家公司同時是兩隊的夥伴時**各建一筆**。
-> ⚠️ **提案下載的 Lead 名單仍走 `Enquiry`**，不另建 Lead 表。
+> ⚠️ **提案下載的 Lead 名單仍走 `Enquiry`**，不另建 Lead 表。**E1a 新增 `enquiries.proposal_id`**（可為空，`ON DELETE SET NULL`）記錄下載的是哪一份提案（9.4「可 A/B 版本」）。
 > ✅ **`Proposal` 不建 `*_i18n` 側表**（2026-09-22 核實）：規劃書行 1111「多版本／多語系」指的是 **PDF 檔案本身**
 > 的語系，由 `ProposalFile(locale, file_key)` 承載；`proposal.title` 是單一欄位，不是要有中英文標題。此前 🌐
 > 標記是把「檔案多語」誤讀成「資料列多語」，`db/club-schema.sql` 已核實不建 `proposals_i18n`。
@@ -604,15 +607,18 @@ flowchart LR
 > 🔴 **`PaymentChannel` 主站只會有俱樂部一列**；協會的憑證在慈善獨立庫，兩邊不共用。
 > ⚠️ **「訂單是否於結帳時依俱樂部拆單」尚未定案**（`STATUS.md` B-8）。現行禁止混買故不會發生，**開放混買前必須先答**。
 
-### 4.12 B6 慈善內容（主站，5）
+### 4.12 B5 慈善內容（主站，8）
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
 | `Charity` | **○** | 受贈公益團體：名稱、簡介、Logo、官網 | 🌐 |
-| `CharityProgram` | **○** | **已執行的公益計畫**（11.2）：**`cover_key` 封面**、對象、期間、狀態、流程。`status` **收斂為 `draft`／`published`**（S1-8）。⚠️ **本表在主站庫**（本檔），慈善獨立庫的 `CharityProgramRef` 是唯讀快照，不受影響 | 🌐 |
+| `CharityProgram` | **○** | **已執行的公益計畫**（11.2）：**`cover_key` 封面**、對象、期間、狀態、流程。E1a 加 `sort_order`／`is_pinned`（B5「排序與置頂」）。`status` **收斂為 `draft`／`published`**（S1-8）。⚠️ **本表在主站庫**（本檔），慈善獨立庫的 `CharityProgramRef` 是唯讀快照，不受影響 | 🌐 |
 | `CharityProgramImage` | — | **圖集**（§3.11 的「活動圖片藝廊」）`(charity_program_id, image_key, sort_order)` | |
-| `ImpactRecord` | **○** | 慈善事蹟紀錄。**三項核心資料必填**：公益團體名稱、捐助內容、活動圖片 | 🌐 |
-| `ImpactMetric` | **○** | 影響力統計項目（**金額類預設不公開**） | 🌐 |
+| `ImpactRecord` | **○** | 慈善事蹟紀錄。**三項核心資料必填**：公益團體名稱、捐助內容、活動圖片。E1a 加 `sort_order`／`is_pinned` | 🌐 |
+| `ImpactMetric` | **○** | 影響力統計項目（**金額類預設不公開**）。E1a：**`charity_program_id` 改為可為空**（全站層級統計項目）、加 `sort_order`；單位 `unit` 在側表 | 🌐 |
+| `CharityProgramPartner` | — | 慈善計畫 ↔ 贊助夥伴（`Partner`）多對多（§3.11「共同參與的公益計畫」），E1a 新增 | |
+| `CharityProgramSponsor` | — | 慈善計畫 ↔ 贊助商（`Sponsor`）多對多，E1a 新增 | |
+| `CharityProgramArticle` | — | 慈善計畫 ↔ 關聯報導（7.7 新聞）`(charity_program_id, article_id, sort_order)`，E1a 新增 | |
 
 > 🔴 **這四張留在主站作為主檔**，慈善獨立庫只有唯讀快照；**兩邊不同步時以主站為準、不得即時 join**。
 > ⚠️ **慈善捐款平台的 `N` 模組 8 張表與其約 14 張機制表已移出本檔**（慈善 v2.0 起為獨立後台與獨立資料庫），
@@ -785,6 +791,17 @@ flowchart LR
     重算一次）：`Article` 是「這篇文章專屬 OG 圖片 > 全站預設 OG 圖片 > 這篇文章的封面圖片
     （`cover_key`）」；`Page` 沒有封面圖片可回退，是「這個頁面專屬 OG 圖片 > 全站預設 OG 圖片」。
     migration 名稱 `AddSeoOgImageFields`。
+43. 🔴 **（E1a，2026-09-30）後台 E1／E2／E3／B5／B6／C5 落地時補齊的綱要，全部是把規劃書已有的功能落到資料表，不是新增規格**
+    （比照 §14.3 既有先例；`db/club-schema.sql` 與 migration `AlignSchemaE1a` 同步，本機 `tcrfc_club` 已套用）：
+    ① `partners_i18n.content`（E1「合作內容」）；② 新表 `sponsor_activations`／`_i18n`／`sponsor_activation_images`（E2「贊助活動」，
+    `docs/12d` 早已記為缺席）與 `sponsor_articles`（E2「贊助故事：關聯文章」——**不用 `article_relations`**：B2 新聞編輯器儲存時整批取代該表，
+    混入 `sponsor` 類型會被清掉）；③ 新表 `charity_program_partners`／`charity_program_sponsors`／`charity_program_articles`
+    （§3.11「慈善計畫可標記贊助夥伴」、B5「關聯報導」）；④ `charity_programs`／`impact_records` 加 `sort_order`／`is_pinned`（B5「排序與置頂」）；
+    ⑤ `impact_metrics.charity_program_id` **改為可為空**（規劃書沒有要求統計項目必須掛計畫，前台 11.4 是「累計統計」）、加 `sort_order`，
+    `impact_metrics_i18n.unit`（B5「單位」，中英不同）；⑥ `milestones` 補圖片欄位組與 `is_visible`、`milestones_i18n.image_alt`（C5「圖片、是否顯示於時間軸」）；
+    ⑦ `enquiries.proposal_id`（9.4「可 A/B 版本」）；⑧ 值域收斂：`proposals.status` → `NOT NULL DEFAULT 'draft'`＋`CK_proposals_status`、
+    `press_resources.resource_type` 加 `CK_press_resources_resource_type`（`press_release`／`brand_kit`／`hires_image`），套用前兩表皆 0 筆。
+    **仍未補**：圖片欄位組的雙語 alt（夥伴／贊助商 Logo、慈善圖集）——與既有 `staff`／`players` 同一個既有落差。
 
 ---
 

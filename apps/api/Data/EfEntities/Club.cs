@@ -169,6 +169,8 @@ public partial class Club
 
     public virtual ICollection<Shipment> Shipments { get; set; } = new List<Shipment>();
 
+    public virtual ICollection<SponsorActivation> SponsorActivations { get; set; } = new List<SponsorActivation>();
+
     public virtual ICollection<SponsorPackage> SponsorPackages { get; set; } = new List<SponsorPackage>();
 
     public virtual ICollection<Sponsor> Sponsors { get; set; } = new List<Sponsor>();

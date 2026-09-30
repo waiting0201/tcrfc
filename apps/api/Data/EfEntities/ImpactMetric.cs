@@ -11,13 +11,15 @@ public partial class ImpactMetric
 
     public Guid? ClubId { get; set; }
 
-    public Guid CharityProgramId { get; set; }
+    public Guid? CharityProgramId { get; set; }
 
     public string MetricKey { get; set; } = null!;
 
     public int? MetricValue { get; set; }
 
     public bool IsPublic { get; set; }
+
+    public int SortOrder { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
@@ -27,7 +29,7 @@ public partial class ImpactMetric
 
     public Guid? UpdatedBy { get; set; }
 
-    public virtual CharityProgram CharityProgram { get; set; } = null!;
+    public virtual CharityProgram? CharityProgram { get; set; }
 
     public virtual Club? Club { get; set; }
 

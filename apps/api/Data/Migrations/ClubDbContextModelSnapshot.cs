@@ -52,6 +52,36 @@ namespace Tcrfc.Api.Data.Migrations
                     b.ToTable("article_tags", (string)null);
                 });
 
+            modelBuilder.Entity("CharityProgramPartner", b =>
+                {
+                    b.Property<Guid>("CharityProgramId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("charity_program_id");
+
+                    b.Property<Guid>("PartnerId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("partner_id");
+
+                    b.HasKey("CharityProgramId", "PartnerId");
+
+                    b.ToTable("charity_program_partners", (string)null);
+                });
+
+            modelBuilder.Entity("CharityProgramSponsor", b =>
+                {
+                    b.Property<Guid>("CharityProgramId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("charity_program_id");
+
+                    b.Property<Guid>("SponsorId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("sponsor_id");
+
+                    b.HasKey("CharityProgramId", "SponsorId");
+
+                    b.ToTable("charity_program_sponsors", (string)null);
+                });
+
             modelBuilder.Entity("FaqCategoryLink", b =>
                 {
                     b.Property<Guid>("FaqId")
@@ -1422,6 +1452,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("end_on");
 
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_pinned");
+
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
@@ -1434,6 +1468,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasMaxLength(160)
                         .HasColumnType("nvarchar(160)")
                         .HasColumnName("slug");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
 
                     b.Property<DateOnly?>("StartOn")
                         .HasColumnType("date")
@@ -1474,6 +1512,25 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_charity_programs_row_seq"));
 
                     b.ToTable("charity_programs", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.CharityProgramArticle", b =>
+                {
+                    b.Property<Guid>("CharityProgramId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("charity_program_id");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("article_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("CharityProgramId", "ArticleId");
+
+                    b.ToTable("charity_program_articles", (string)null);
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.CharityProgramImage", b =>
@@ -1530,6 +1587,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "CharityProgramId", "SortOrder" }, "IX_charity_program_images_program");
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_charity_program_images_row_seq")
                         .IsUnique();
@@ -2542,6 +2601,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("internal_note");
 
+                    b.Property<Guid?>("ProposalId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("proposal_id");
+
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
@@ -2593,6 +2656,8 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.HasIndex(new[] { "FormId", "Status", "CreatedAt" }, "IX_enquiries_form_status_created")
                         .IsDescending(false, false, true);
+
+                    b.HasIndex(new[] { "ProposalId" }, "IX_enquiries_proposal");
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_enquiries_row_seq")
                         .IsUnique();
@@ -3557,7 +3622,7 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("(newid())");
 
-                    b.Property<Guid>("CharityProgramId")
+                    b.Property<Guid?>("CharityProgramId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("charity_program_id");
 
@@ -3597,6 +3662,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
 
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(3)
@@ -3635,6 +3704,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)")
                         .HasColumnName("name");
+
+                    b.Property<string>("Unit")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("unit");
 
                     b.HasKey("ImpactMetricId", "Locale");
 
@@ -3691,12 +3765,20 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("image_width");
 
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_pinned");
+
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("row_seq");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -3775,6 +3857,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "ImpactRecordId", "SortOrder" }, "IX_impact_record_images_record");
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_impact_record_images_row_seq")
                         .IsUnique();
@@ -5325,6 +5409,25 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("date")
                         .HasColumnName("happened_on");
 
+                    b.Property<int?>("ImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("image_height");
+
+                    b.Property<string>("ImageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_key");
+
+                    b.Property<int?>("ImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("image_width");
+
+                    b.Property<bool>("IsVisible")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasColumnName("is_visible")
+                        .HasDefaultValue(true, "DF_milestones_is_visible");
+
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
@@ -5373,6 +5476,11 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("description");
+
+                    b.Property<string>("ImageAlt")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("image_alt");
 
                     b.Property<string>("Title")
                         .HasMaxLength(200)
@@ -6259,6 +6367,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)")
                         .HasColumnName("locale");
+
+                    b.Property<string>("Content")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("content");
 
                     b.Property<string>("Name")
                         .HasMaxLength(128)
@@ -7184,9 +7296,12 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
 
                     b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasDefaultValue("draft", "DF_proposals_status");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -8089,6 +8204,191 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_sponsors_row_seq"));
 
                     b.ToTable("sponsors", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorActivation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<Guid>("ClubId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("club_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly?>("HappenedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("happened_on");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<Guid>("SponsorId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("sponsor_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "SponsorId", "HappenedOn" }, "IX_sponsor_activations_sponsor")
+                        .IsDescending(false, true);
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_sponsor_activations_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_sponsor_activations_row_seq"));
+
+                    b.ToTable("sponsor_activations", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorActivationImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<int?>("ImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("image_height");
+
+                    b.Property<string>("ImageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_key");
+
+                    b.Property<int?>("ImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("image_width");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<Guid>("SponsorActivationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("sponsor_activation_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "SponsorActivationId", "SortOrder" }, "IX_sponsor_activation_images_activation");
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_sponsor_activation_images_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_sponsor_activation_images_row_seq"));
+
+                    b.ToTable("sponsor_activation_images", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorActivationsI18n", b =>
+                {
+                    b.Property<Guid>("SponsorActivationId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("sponsor_activation_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("ResultSummary")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("result_summary");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("title");
+
+                    b.HasKey("SponsorActivationId", "Locale");
+
+                    b.ToTable("sponsor_activations_i18n", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorArticle", b =>
+                {
+                    b.Property<Guid>("SponsorId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("sponsor_id");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("article_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("SponsorId", "ArticleId");
+
+                    b.ToTable("sponsor_articles", (string)null);
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorPackage", b =>
@@ -9165,6 +9465,40 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasConstraintName("FK_article_tags_tag");
                 });
 
+            modelBuilder.Entity("CharityProgramPartner", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.CharityProgram", null)
+                        .WithMany()
+                        .HasForeignKey("CharityProgramId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_charity_program_partners_program");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Partner", null)
+                        .WithMany()
+                        .HasForeignKey("PartnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_charity_program_partners_partner");
+                });
+
+            modelBuilder.Entity("CharityProgramSponsor", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.CharityProgram", null)
+                        .WithMany()
+                        .HasForeignKey("CharityProgramId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_charity_program_sponsors_program");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Sponsor", null)
+                        .WithMany()
+                        .HasForeignKey("SponsorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_charity_program_sponsors_sponsor");
+                });
+
             modelBuilder.Entity("FaqCategoryLink", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.FaqCategory", null)
@@ -9714,6 +10048,27 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("UpdatedByNavigation");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.CharityProgramArticle", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Article", "Article")
+                        .WithMany("CharityProgramArticles")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_charity_program_articles_article");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.CharityProgram", "CharityProgram")
+                        .WithMany("CharityProgramArticles")
+                        .HasForeignKey("CharityProgramId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_charity_program_articles_program");
+
+                    b.Navigation("Article");
+
+                    b.Navigation("CharityProgram");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.CharityProgramImage", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.CharityProgram", "CharityProgram")
@@ -10119,6 +10474,12 @@ namespace Tcrfc.Api.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_enquiries_form");
 
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Proposal", "Proposal")
+                        .WithMany("Enquiries")
+                        .HasForeignKey("ProposalId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("FK_enquiries_proposal");
+
                     b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
                         .WithMany("EnquiryUpdatedByNavigations")
                         .HasForeignKey("UpdatedBy")
@@ -10131,6 +10492,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("CreatedByNavigation");
 
                     b.Navigation("Form");
+
+                    b.Navigation("Proposal");
 
                     b.Navigation("UpdatedByNavigation");
                 });
@@ -10502,7 +10865,6 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasOne("Tcrfc.Api.Data.EfEntities.CharityProgram", "CharityProgram")
                         .WithMany("ImpactMetrics")
                         .HasForeignKey("CharityProgramId")
-                        .IsRequired()
                         .HasConstraintName("FK_impact_metrics_program");
 
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
@@ -12145,6 +12507,99 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("UpdatedByNavigation");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorActivation", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
+                        .WithMany("SponsorActivations")
+                        .HasForeignKey("ClubId")
+                        .IsRequired()
+                        .HasConstraintName("FK_sponsor_activations_club");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("SponsorActivationCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_sponsor_activations_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Sponsor", "Sponsor")
+                        .WithMany("SponsorActivations")
+                        .HasForeignKey("SponsorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_sponsor_activations_sponsor");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("SponsorActivationUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_sponsor_activations_updated_by");
+
+                    b.Navigation("Club");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("Sponsor");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorActivationImage", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("SponsorActivationImageCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_sponsor_activation_images_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.SponsorActivation", "SponsorActivation")
+                        .WithMany("SponsorActivationImages")
+                        .HasForeignKey("SponsorActivationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_sponsor_activation_images_act");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("SponsorActivationImageUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_sponsor_activation_images_updated_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("SponsorActivation");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorActivationsI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.SponsorActivation", "SponsorActivation")
+                        .WithMany("SponsorActivationsI18ns")
+                        .HasForeignKey("SponsorActivationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_sponsor_activations_i18n_act");
+
+                    b.Navigation("SponsorActivation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorArticle", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Article", "Article")
+                        .WithMany("SponsorArticles")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_sponsor_articles_article");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Sponsor", "Sponsor")
+                        .WithMany("SponsorArticles")
+                        .HasForeignKey("SponsorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_sponsor_articles_sponsor");
+
+                    b.Navigation("Article");
+
+                    b.Navigation("Sponsor");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorPackage", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
@@ -12844,6 +13299,14 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.Navigation("ShipmentUpdatedByNavigations");
 
+                    b.Navigation("SponsorActivationCreatedByNavigations");
+
+                    b.Navigation("SponsorActivationImageCreatedByNavigations");
+
+                    b.Navigation("SponsorActivationImageUpdatedByNavigations");
+
+                    b.Navigation("SponsorActivationUpdatedByNavigations");
+
                     b.Navigation("SponsorCreatedByNavigations");
 
                     b.Navigation("SponsorPackageCreatedByNavigations");
@@ -12891,7 +13354,11 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.Navigation("ArticlesI18ns");
 
+                    b.Navigation("CharityProgramArticles");
+
                     b.Navigation("MemberDraws");
+
+                    b.Navigation("SponsorArticles");
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.ArticleCategory", b =>
@@ -12931,6 +13398,8 @@ namespace Tcrfc.Api.Data.Migrations
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.CharityProgram", b =>
                 {
+                    b.Navigation("CharityProgramArticles");
+
                     b.Navigation("CharityProgramImages");
 
                     b.Navigation("CharityProgramsI18ns");
@@ -13059,6 +13528,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("Settings");
 
                     b.Navigation("Shipments");
+
+                    b.Navigation("SponsorActivations");
 
                     b.Navigation("SponsorPackages");
 
@@ -13334,6 +13805,8 @@ namespace Tcrfc.Api.Data.Migrations
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Proposal", b =>
                 {
+                    b.Navigation("Enquiries");
+
                     b.Navigation("ProposalFiles");
                 });
 
@@ -13371,7 +13844,18 @@ namespace Tcrfc.Api.Data.Migrations
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Sponsor", b =>
                 {
+                    b.Navigation("SponsorActivations");
+
+                    b.Navigation("SponsorArticles");
+
                     b.Navigation("SponsorsI18ns");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorActivation", b =>
+                {
+                    b.Navigation("SponsorActivationImages");
+
+                    b.Navigation("SponsorActivationsI18ns");
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.SponsorPackage", b =>

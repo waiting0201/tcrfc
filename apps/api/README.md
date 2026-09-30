@@ -3566,6 +3566,280 @@ No changes have been made to the model since the last migration.
 
 ---
 
+## E1a：E1 夥伴／E2 贊助／E3 提案與 Lead／B5 慈善／B6 媒體專區／C5 榮譽與里程碑（2026-09-30，`backend-engineer`）
+
+主站規劃書 §4.5 E1–E3、§4.2 B5／B6、§4.3 C5（後台），產出前台 09 合作夥伴與贊助、11 慈善與社會影響、7.8 媒體專區、02 關於（榮譽與里程碑）。
+沿用既有架構：`AdminClubScope`／`IAdminClubAuthorizer`、權限碼、`ApiExceptionHandler`、`multipart` 圖片欄位直傳、EF 寫入＋Dapper 公開讀取＋`IQueryCache` 寫入失效。
+**新增元件**：`Common/AdminExceptions.cs`（`AdminValidationException` 400／`AdminConflictException` 409／`SharedContentReadOnlyException` 403）、
+`Common/AdminInput.cs`（輸入驗證小工具）、`Features/Uploads/{AdminMultipartForm,UploadTransaction}.cs`（多欄位上傳補償交易）、
+`Documents/`（PDF／ZIP 檔案儲存，公開＋私有兩個容器）。**給畫面的人：只讀這一節就能串接，不需要看程式碼。**
+
+### 通則（六個模組全部適用）
+
+| 項目 | 規定 |
+|---|---|
+| 路徑與授權 | 後台一律 `/api/v1/admin/{club}/…`，`Authorization: Bearer <存取權杖>`。未登入 401；帳號對該俱樂部沒有授權或沒有該權限碼 403；跨俱樂部的 id 一律 **404**（不洩漏存在與否）。 |
+| 錯誤格式 | `application/problem+json`：`{ "title", "status", "detail", "instance" }`。**`detail` 是日常中文，可直接顯示給使用者**（不含資料表名／欄位名／權限碼）。400＝輸入有誤（`title`＝「輸入內容有誤」）；409＝重複或仍被引用（`title` 依情況，如「網址名稱重複」「團體仍被引用」）；403＝沒有權限（`title`＝「沒有權限」）或共同內容唯讀（`title`＝「共用內容唯讀」）。 |
+| 雙語內容 | `content: { zh: {…}, en?: {…} }`。**`zh` 必填**（名稱／標題欄位必填），`en` 可省略。**PUT 是整份取代**：省略 `en` ＝ 移除既有英文版；英文版的名稱／標題空白也視為沒有英文版。回應的 `zh`／`en` **不做語系回退**（原封回傳，`en` 沒有時為 `null`）。 |
+| 網址名稱 `slug` | 全部選填：省略＝自動產生（優先用英文名稱轉小寫連字號，否則 `前綴-8位隨機字元`）。有填時格式只能是小寫英文字母、數字與連字號，重複 409（同一俱樂部內唯一）。PUT 省略 `slug` ＝ 維持不變。介面文案請稱「網址名稱」。 |
+| 日期 | `DateOnly` 一律 `yyyy-MM-dd`；時間戳為 UTC ISO 8601。 |
+| 圖片欄位 | 建立／更新含圖片者是 **`multipart/form-data`**：欄位 `payload`（JSON 文字，camelCase）＋各端點宣告的檔案欄位。**選檔不上傳、儲存才上傳**（§4.0）；JPG／PNG／WebP、單檔 ≤ 10 MB、伺服器一律重新編碼為 WebP（長邊 ≤ 2560px、去 EXIF）。回應內每個圖片欄位有三個屬性：`xxxKey`（內部鍵，不要顯示）、`xxxUrl`（主檔完整網址）、`xxxThumbUrl`（160px 縮圖，僅列表回應）。圖片欄位語意：**新檔案＝換圖**（舊物件寫入成功後才刪）、`removeXxx: true`＝移除、都沒有＝維持不變；**同時給新檔案與 `removeXxx` → 400**。圖片錯誤（格式不支援／太大／空檔）400，`title`＝「圖片無法處理」。 |
+| 檔案欄位 | 新聞稿、品牌識別包、贊助提案是 **PDF 或 ZIP**（以檔頭判斷不看副檔名）、單檔 ≤ 50 MB，錯誤 400，`title`＝「檔案無法處理」。 |
+| 關聯陣列 | `packageIds`／`articleIds`／`partnerIds`／`sponsorIds`：**省略（null）＝維持不變；空陣列 `[]`＝清空；有值＝整份取代**。含不存在或別的俱樂部的 id → 400。 |
+| 排序 | 各清單的 `PUT …/order`，body `{ "ids": ["…"] }`：清單內的 id 依序排最前（`sortOrder` 重排為 0,1,2…），未列出的維持相對順序在其後；重複或不存在的 id → 400；成功 204。 |
+| 批次 | `POST …/batch/*` body `{ "ids": [...] }`（1–200 筆）→ `{ "updatedCount": n, "skipped": [{ "id", "reason" }] }`。能處理的處理、不能處理的列進 `skipped`（不是全有全無）。 |
+| 共同內容 | `club_id` 可為空的表（B5 四張、B6 一張）：清單與詳情會一併列出共同列（`isShared: true`），但**編輯／刪除一律 403**（`title`＝「共用內容唯讀」）。建立一律歸屬呼叫端當下的俱樂部。 |
+| 分頁 | 有分頁的清單回 `{ items, page, pageSize, totalCount, totalPages }`，`page`／`pageSize` 查詢參數，預設 20、上限 100。其餘清單直接回陣列。 |
+| 快取 | 每次寫入會讓對應公開端點的快取立即失效（不需要前端處理）。 |
+
+### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，`role_permissions` 已種入）
+
+| 權限碼 | 用途 | 系統管理員 | 商務／贊助 | 內容編輯 | 公關／媒體 | 競技／球隊 | 學院／課程 | 檢視者 | 合作球隊管理（僅自家） |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| `business.partner.*`（view／create／update／delete） | E1 夥伴 | 全 | 全 | 唯讀 | 唯讀 | — | — | 唯讀 | 全 |
+| `business.sponsor.*` | E2 贊助商＋贊助活動 | 全 | 全 | 唯讀 | 唯讀 | — | — | 唯讀 | 全 |
+| `business.sponsor_package.*` | E2 贊助方案 | 全 | 全 | 唯讀 | 唯讀 | — | — | 唯讀 | 全 |
+| `business.proposal.*` | E3 提案與檔案 | 全 | 全 | 唯讀 | 唯讀 | — | — | 唯讀 | 全 |
+| `business.lead.view`／`update` | E3 Lead 名單（含個資） | 全 | ✔ | — | — | — | — | — | ✔ |
+| `business.lead.export`（🔴 受限） | Lead 名單 CSV | ✔ | ✔ | — | — | — | — | — | — |
+| `charity.content.*` | B5 團體／計畫／事蹟／數據 | 全 | 唯讀 | 全 | 全 | — | — | 唯讀 | — |
+| `charity.setting.view`／`update` | B5 捐款導流與參與方式 | 全 | 唯讀 | ✔ | ✔ | — | — | 唯讀 | — |
+| `content.press.*` | B6 媒體專區 | 全 | — | 全 | 全 | — | — | 唯讀 | view／create／update |
+| `team.achievement.*` | C5 榮譽（**帶球隊列級授權**） | 全 | 唯讀 | 唯讀 | 唯讀 | 全 | 全（`academy_only`） | 唯讀 | 全 |
+| `team.milestone.*` | C5 里程碑 | 全 | 唯讀 | 唯讀 | 唯讀 | 全 | — | 唯讀 | 全 |
+
+角色與權限的中文對照由 J2 畫面依 `permissions.name_zh` 顯示（例：「檢視合作夥伴」「匯出提案下載名單」）。`GET /api/v1/admin/auth/me` 回傳目前帳號持有的權限碼清單，畫面用它決定要不要顯示按鈕。
+
+---
+
+### E1 夥伴 `/api/v1/admin/{club}/partners`（產出前台 09.1、首頁 Logo 牆、頁尾）
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /partners?partnerType=&keyword=` | `business.partner.view` | 清單（陣列，依 `sortOrder`），`keyword` 搜網址名稱與名稱 |
+| `GET /partners/types` | `business.partner.view` | `{ standardTypes: ["策略夥伴","國際夥伴","訓練夥伴","教育夥伴","品牌夥伴"], usedTypes: [...] }`，供類型下拉（可選標準類型，也允許該俱樂部自訂，如藍鯨的「指導單位」） |
+| `GET /partners/{id}` | 同上 | 詳情，找不到 404 |
+| `POST /partners` | `business.partner.create` | **multipart**：`payload` ＋ 選填檔案欄位 `logoDark`（深色底 Logo）、`logoLight`（淺色底 Logo）。201 |
+| `PUT /partners/{id}` | `business.partner.update` | multipart，同上；`payload` 內 `removeLogoDark`／`removeLogoLight` 移除 Logo |
+| `DELETE /partners/{id}` | `business.partner.delete` | 204；Logo 物件、課程夥伴關聯、慈善計畫關聯一併清除 |
+| `PUT /partners/order` | `business.partner.update` | 排序（見通則） |
+
+**payload（建立與更新同形）**：`slug?`、`partnerType`（必填，≤32 字，自由文字）、`country?`（≤32）、`startOn?`／`endOn?`（合作期間，結束不可早於開始）、`websiteUrl?`（http／https 完整網址）、`showInFooter`、`showOnHome`、`sortOrder`（預設 0）、`content.zh.name`（必填，≤128）／`content.zh.content?`（合作內容）、`content.en?`、`removeLogoDark?`、`removeLogoLight?`。
+**回應**：清單項 `{ id, slug, partnerType, country, startOn, endOn, websiteUrl, showInFooter, showOnHome, sortOrder, logoDarkKey/Url/ThumbUrl, logoLightKey/Url/ThumbUrl, nameZh, nameEn, isActive（合作期間涵蓋今天；沒填起訖視為進行中）, updatedAt }`；詳情多 `zh`／`en`（`{ name, content }`）、`createdAt`。
+**錯誤**：400（夥伴類型空白、網址格式錯、期間顛倒、名稱空白、圖片問題）、409（網址名稱重複）、404。
+
+### E2 贊助商／贊助方案／贊助活動（產出前台 09.2、09.4）
+
+**贊助商** `/api/v1/admin/{club}/sponsors`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /sponsors?tier=&contractStatus=&keyword=` | `business.sponsor.view` | 陣列。`contractStatus`：`alert`（已到提醒日）／`expired`（合約已結束）／`active`（進行中，含 alert），其他值 400 |
+| `GET /sponsors/{id}` | 同上 | 詳情含 `packages`（已勾選方案）、`articles`（贊助故事，含標題與狀態） |
+| `POST /sponsors` | `business.sponsor.create` | **multipart**：`payload` ＋ `logoDark`／`logoLight`。201 |
+| `PUT /sponsors/{id}` | `business.sponsor.update` | multipart；`removeLogoDark`／`removeLogoLight` |
+| `DELETE /sponsors/{id}` | `business.sponsor.delete` | 204；活動與圖集、Logo 物件一併清除 |
+| `PUT /sponsors/order` | `business.sponsor.update` | 排序 |
+
+**payload**：`slug?`、`tier`（必填：`主贊助`／`官方贊助`／`支持夥伴`，中文字面）、`contractStartOn?`／`contractEndOn?`（不可顛倒）、`expiryAlertOn?`（到期提醒日，不可晚於合約結束日）、`contactName?`（≤64）／`contactPhone?`（≤32）／`contactEmail?`（Email 格式）、`sortOrder`、`content.zh.name`（必填）／`content.zh.content?`（贊助內容）、`packageIds?`（贊助方案，關聯陣列語意）、`articleIds?`（贊助故事＝關聯文章，只能選本俱樂部或共同的文章）。
+**回應**新增 `contractStatus`：`none`（沒填結束日）／`active`／`alert`（已到提醒日且合約尚未結束）／`expired`。**列表畫面用它標示到期提醒**。清單項另有 `packageCount`、`activationCount`。
+**贊助商聯絡窗口只出現在後台**，公開端點不輸出。
+
+**贊助方案** `/api/v1/admin/{club}/sponsor-packages`（純 JSON）
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /sponsor-packages?status=` | `business.sponsor_package.view` | 陣列（`draft`／`published`） |
+| `GET /sponsor-packages/{id}` | 同上 | |
+| `POST /sponsor-packages` | `business.sponsor_package.create` | 201 |
+| `PUT /sponsor-packages/{id}` | `business.sponsor_package.update` | |
+| `DELETE /sponsor-packages/{id}` | `business.sponsor_package.delete` | 204，贊助商的方案勾選一併解除 |
+| `PUT /sponsor-packages/order` | `business.sponsor_package.update` | 排序 |
+
+**body**：`slug?`、`priceMin?`／`priceMax?`（≥0，上限不可低於下限）、`isPricePublic`（預設 `true`；**`false` 時公開端點完全不輸出價格**）、`sortOrder`、`status`（必填 `draft`／`published`）、`content.zh`：`name`（必填）／`content?`（方案內容）／`benefitList?`（權益清單，純文字一行一項）／`audience?`（適合對象，≤128）。九種方案是規劃書內容，不限制筆數。
+
+**贊助活動（含圖集）** `/api/v1/admin/{club}/sponsors/{sponsorId}/activations`（權限碼沿用 `business.sponsor.view`／`update`）
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET …/activations` | 陣列（日期新到舊）；贊助商不存在或屬於別的俱樂部 404 |
+| `GET …/activations/{id}` | |
+| `POST …/activations` | JSON：`happenedOn?`、`sortOrder`、`content.zh.title`（必填，≤200）／`content.zh.resultSummary?`（成效摘要）、`content.en?`。201 |
+| `PUT …/activations/{id}` | 同上 |
+| `DELETE …/activations/{id}` | 204，圖集物件一併清除 |
+| `POST …/activations/{id}/images` | **multipart，只有檔案欄位 `file`（一次一張）**；回傳完整活動（201），圖片加在最後 |
+| `DELETE …/activations/{id}/images/{imageId}` | 204 |
+| `PUT …/activations/{id}/images/order` | 排序，回傳完整活動 |
+
+活動回應：`{ id, sponsorId, happenedOn, sortOrder, zh, en, images: [{ id, imageKey, imageUrl, thumbUrl, imageWidth, imageHeight, sortOrder }], updatedAt }`。
+
+### E3 提案與 Lead（產出前台 9.4 CTA「下載提案簡介」）
+
+**提案** `/api/v1/admin/{club}/proposals`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /proposals` | `business.proposal.view` | 陣列：`{ id, title, versionNo, status, locales: ["zh","en"], fileCount, leadCount, updatedAt }`（`leadCount`＝這份提案累計被下載次數，用來比較 A/B 版本） |
+| `GET /proposals/{id}` | 同上 | 含 `files: [{ id, locale, versionNo, fileBytes, createdAt }]` |
+| `POST /proposals` | `business.proposal.create` | JSON `{ title(必填≤128), versionNo(≥1，預設1), status }`；**建立時不能直接 `published`**（還沒有檔案）。201 |
+| `PUT /proposals/{id}` | `business.proposal.update` | 同上；**沒有任何檔案的提案不能改成 `published`**（400） |
+| `DELETE /proposals/{id}` | `business.proposal.delete` | 204；檔案物件刪除，**已產生的 Lead 保留**（其 `proposalId` 變為空） |
+| `POST /proposals/{id}/files` | `business.proposal.update` | **multipart**：`payload` `{ locale: "zh"｜"en", versionNo? }`（省略＝沿用提案版本號）＋ `file`（PDF 或 ZIP，≤50MB）。同提案同語言同版本重複 → 409。201，回傳完整提案 |
+| `DELETE /proposals/{id}/files/{fileId}` | `business.proposal.update` | 已發布提案的最後一份檔案不能刪（400，請先改回草稿）；回傳完整提案 |
+| `GET /proposals/{id}/files/{fileId}/download` | `business.proposal.view` | 後台預覽／下載（串流，不受前台表單關卡限制） |
+
+提案檔放**私有容器**，沒有公開網址；訪客必須填表單才會拿到限時連結（見下方公開端點）。「設定下載表單欄位」由 G1 表單設計器維護表單代碼 `proposal_download`，本模組不重複提供。
+
+**Lead 名單** `/api/v1/admin/{club}/proposal-leads`（Lead 就是 `form_code = proposal_download` 的詢問，不另建表；含個資）
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /proposal-leads?proposalId=&status=&keyword=&dateFrom=&dateTo=&page=&pageSize=` | `business.lead.view` | 分頁。項目：`{ id, company, name, email, proposalId, proposalTitle, sourcePath, utmSource, utmCampaign, status, assigneeAdminUserId, tags, createdAt }`（誰下載、公司、時間、來源頁面） |
+| `GET /proposal-leads/{id}` | 同上 | 詳情多 `proposalVersionNo`、`internalNote`、`updatedAt` |
+| `PUT /proposal-leads/{id}` | `business.lead.update` | 標記跟進：`{ status（必填：新進／處理中／已回覆／已結案／無效）, assigneeAdminUserId?, internalNote?, tags?(≤255) }` |
+| `GET /proposal-leads/assignable-users` | `business.lead.update` | 指派負責人選單：`[{ id, displayName }]`（該俱樂部有效授權且持有 `business.lead.update` 的帳號＋系統管理員）。指派給不在這份清單的人 → 400 |
+| `GET /proposal-leads/export?…同篩選` | `business.lead.export`（🔴 受限） | CSV（UTF-8 BOM，欄位標題中文：公司、姓名、Email、下載的提案、來源頁面、UTM 來源、跟進狀態、標籤、下載時間） |
+
+### B5 慈善與社會影響 `/api/v1/admin/{club}/charity/…`（產出前台 11.1–11.4、球迷捐款導流）
+
+權限碼：內容四項共用 `charity.content.view／create／update／delete`；導流設定 `charity.setting.view／update`。四張主檔表 `club_id` 可為空（共同列唯讀，見通則）。**慈善是磐石主站單元，藍鯨不設**（藍鯨規劃書 §1.3）：合作球隊管理角色沒有慈善權限；若系統管理員切到藍鯨站台操作，資料會建在藍鯨名下但前台不顯示。
+
+**公益團體** `/charity/organizations`：`GET`（陣列，`?keyword=`）／`GET /{id}`／`POST`（multipart：`payload` ＋ 選填 `logo`）／`PUT /{id}`（multipart，`removeLogo`）／`DELETE /{id}`（**仍被慈善計畫或事蹟引用 → 409**，訊息含筆數）。
+payload：`slug?`、`websiteUrl?`（http／https）、`contactName?`（≤64）、`contactPhone?`（≤32）、`content.zh.name`（必填）／`content.zh.intro?`、`content.en?`、`removeLogo?`。詳情多 **`programs`／`records`（合作紀錄，唯讀彙整：這個團體受贈的計畫與事蹟）**；清單項有 `programCount`／`recordCount`。
+
+**慈善計畫** `/charity/programs`：`GET ?status=&keyword=&page=&pageSize=`（分頁，排序＝置頂優先→排序值→開始日新到舊）／`GET /{id}`／`POST`（multipart：`payload` ＋ 選填 `cover` 封面）／`PUT /{id}`（multipart，`removeCover`）／`DELETE /{id}`（**仍被事蹟或影響力數據引用 → 409**）。
+payload：`slug?`、`charityId`（必填，受贈公益團體）、`startOn?`／`endOn?`、`status`（必填 `draft`／`published`）、`sortOrder`、`isPinned`（置頂）、`content.zh`：`name`（必填，≤128）／`targetAudience?`（對象，≤200）／`content?`（**緣起與內容：區塊編輯器整段 JSON 字串，只驗證是合法 JSON**）／`donationContent?`（捐助內容）、`content.en?`、`partnerIds?`（贊助夥伴＝E1 夥伴）、`sponsorIds?`（贊助夥伴＝E2 贊助商）、`articleIds?`（關聯報導＝7.7 新聞）、`removeCover?`。
+回應：`progress`（**`ongoing`／`completed` 由期間推導**：沒填結束日或結束日尚未到＝進行中；`status` 是發布狀態，兩者不同）、`partners`／`sponsors`／`articles`（`[{ id, slug, title }]`）、`images`（活動圖片藝廊，不含封面）。
+**圖集**：`POST /{id}/images`（multipart，`file` 單張，201 回完整計畫）／`DELETE /{id}/images/{imageId}`（204）／`PUT /{id}/images/order`（排序，回完整計畫）。
+
+**事蹟紀錄** `/charity/records`：`GET ?charityId=&programId=&year=&keyword=&page=&pageSize=`（分頁，置頂優先→排序值→日期新到舊）／`GET /{id}`／`POST`／`PUT /{id}`／`DELETE /{id}`。
+**三項必填**：`charityId`（公益團體）、`content.zh.donationContent`（捐助內容，如「足球 50 顆、訓練背心 100 件」）、**活動圖片**。建立為 multipart：`payload` ＋ **必填 `image`**（主圖，缺少 → 400「事蹟紀錄必須上傳活動圖片」）；更新時 `image` 選填（換主圖，**主圖不可移除**）。其餘 payload：`charityProgramId?`（所屬計畫）、`happenedOn?`、`sortOrder`、`isPinned`、`content.zh.location?`（≤128）／`content.zh.briefDescription?`（簡述）、`content.en?`。
+**其他活動圖片（可多張）**：`POST /{id}/images`／`DELETE /{id}/images/{imageId}`／`PUT /{id}/images/order`，同計畫圖集。詳情回應含 `imageKey/imageUrl/imageWidth/imageHeight`（主圖）與 `images`（其餘）。
+
+**影響力數據** `/charity/metrics`（純 JSON）：`GET ?programId=`（陣列）／`GET /{id}`／`POST`／`PUT /{id}`／`DELETE /{id}`。
+body：`charityProgramId?`（**可不掛計畫＝全站層級統計項目**）、`value?`（整數）、`isPublic`（**預設 `false`；金額類項目一律預設不公開，要公開必須明確送 `true`**）、`sortOrder`、`content.zh.name`（必填，≤64）／`content.zh.unit?`（單位，≤16，如「人」「場」「元」）、`content.en?`。
+
+**捐款導流與參與方式設定** `/charity/settings`：`GET`／`PUT`（整份取代，未送的欄位＝清空，每個俱樂部各一份）。body／回應：
+`{ donationUrl?, donationCta?: { zh, en }, corporateCta?: { zh, en }, corporateUrl?, fanCta?: { zh, en } }`。驗證：`donationUrl` 必須 **https**；設定了 `donationUrl` 時 **`donationCta.zh` 必填且必須包含「台灣足球策略發展協會」**（規劃書 §3.11：CTA 須點明捐款由協會收受，不得讓人誤以為捐給台中磐石），否則 400；`corporateUrl` 是站內路徑（以 `/` 開頭，不可 `//`）或 https 網址；`fanCta` 導向固定為 `donationUrl`。**前台不得寫死捐款網址，一律讀公開端點 `GET /api/v1/{club}/charity/cta`。**
+
+### B6 媒體專區 `/api/v1/admin/{club}/press-resources`（產出前台 7.8）
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET ?resourceType=&status=&keyword=&page=&pageSize=` | `content.press.view` | 分頁；共同列一併列出（`isShared`）。項目：`{ id, slug, isShared, resourceType, status, publishedOn, sortOrder, downloadCount（唯讀，累計下載次數）, fileBytes, coverThumbUrl, titleZh, titleEn, updatedAt }` |
+| `GET /{id}` | 同上 | 詳情：`fileKey`、`fileUrl`（後台預覽，部署層未開放容器公開讀取時可能無法直接開）、`coverKey/coverUrl/coverWidth/coverHeight`、`zh`／`en`（`{ title, description }`） |
+| `POST` | `content.press.create` | **multipart**：`payload` ＋ **必填 `file`** ＋ 選填 `cover`（封面圖，**高解析圖類別不可傳**）。201 |
+| `PUT /{id}` | `content.press.update` | multipart；`file` 選填（換檔）、`cover` 選填、`removeCover`。**類別在「高解析圖」與其他類別間切換時必須同時重新上傳檔案**（400） |
+| `DELETE /{id}` | `content.press.delete` | 204，檔案與封面物件一併清除 |
+| `PUT /order` | `content.press.update` | 排序（只能排本俱樂部自己的資源） |
+| `POST /batch/show`｜`/batch/hide` | `content.press.update` | 批次顯示／隱藏；顯示且沒有發布日期時自動填今天 |
+| `POST /batch/type` | `content.press.update` | body `{ ids, resourceType }` 批次改類別；**文件類↔高解析圖不相容，該筆進 `skipped`**（原因中文） |
+
+payload：`slug?`、`resourceType`（必填：`press_release` 新聞稿／`brand_kit` 品牌識別包／`hires_image` 高解析圖）、`status`（必填 `draft` 隱藏／`published` 顯示）、`publishedOn?`、`sortOrder`、`content.zh.title`（必填，≤200）／`content.zh.description?`、`content.en?`、`removeCover?`。
+檔案規則：新聞稿與品牌識別包的 `file` 是 **PDF 或 ZIP**（≤50MB，不轉檔）；**高解析圖的 `file` 是圖片**（JPG／PNG／WebP，走圖片通則重新編碼：主檔長邊 ≤2560px、去 EXIF／GPS，並自動產生縮圖，**不另外上傳封面**）。
+
+### C5 榮譽與里程碑（產出前台 02 關於）
+
+**榮譽** `/api/v1/admin/{club}/achievements`（`team.achievement.view／create／update／delete`；🔴 **帶球隊列級授權**：學院／課程管理只能寫學院梯隊的榮譽，把榮譽改掛到範圍外球隊也擋下，403）
+`GET ?teamId=&seasonId=&year=`（陣列，年份新到舊）／`GET /{id}`／`POST`／`PUT /{id}`／`DELETE /{id}`（204）。
+body：`seasonId`（必填，本俱樂部球季，選單用既有 `GET /api/v1/admin/{club}/seasons`）、`teamId`（必填，本俱樂部球隊，選單可用 `GET /api/v1/admin/{club}/teams`；範圍受限帳號用 `GET …/teams/writable?module=team`）、`year?`（省略＝取球季開始日的西元年）、`competitionName`（必填，≤128）、`placing`（必填，≤32，如「冠軍」）。
+回應：`{ id, seasonId, seasonCode, teamId, teamCode, teamNameZh, year, competitionName, placing, updatedAt }`（隊別／球季代號僅供辨識，畫面請顯示球隊名稱）。
+
+**里程碑** `/api/v1/admin/{club}/milestones`（`team.milestone.view／create／update／delete`，不套球隊列級授權）
+`GET`（陣列，日期由舊到新）／`GET /{id}`／`POST`（multipart：`payload` ＋ 選填 `image`）／`PUT /{id}`（multipart，`removeImage`）／`DELETE /{id}`。
+payload：`happenedOn`（必填）、`sortOrder`、`isVisible`（**是否顯示於前台時間軸**，預設 `true`）、`content.zh.title`（必填，≤200）／`description?`／`imageAlt?`（圖片替代文字，≤200）、`content.en?`、`removeImage?`。
+回應：`{ id, happenedOn, sortOrder, isVisible, imageKey, imageUrl, imageThumbUrl, imageWidth, imageHeight, zh, en, updatedAt }`。
+
+---
+
+### 公開讀取端點（不需要登入；`lang=zh|en`，英文缺漏回退中文）
+
+| 端點 | 前台 | 說明 |
+|---|---|---|
+| `GET /api/v1/{club}/partners?type=&home=&footer=&lang=` | 09.1、首頁 Logo 牆、頁尾 | 陣列。**只列合作期間涵蓋今天的夥伴**；`type` 依類型、`home=true` 只列「首頁曝光」、`footer=true` 只列「頁尾曝光」。項目：`{ id, slug, partnerType, country, startOn, endOn, websiteUrl, showInFooter, showOnHome, sortOrder, name, content, logoDarkUrl, logoLightUrl, charityPrograms: [{ slug, name }] }`（`charityPrograms`＝共同參與的公益計畫，只含已發布的計畫） |
+| `GET /api/v1/{club}/sponsors?lang=` | 09.2 | 依等級（主贊助→官方贊助→支持夥伴）排序；**合約已結束的不列**；含 `stories`（贊助故事，已發布文章的 `slug/title/summary`）、`activations`（贊助活動紀錄，含 `images`）、`charityPrograms`。**不輸出聯絡窗口、合約日期、到期提醒** |
+| `GET /api/v1/{club}/sponsor-packages?lang=` | 09.4 | 只列已發布的方案；**價格區間只有後台設為公開時才輸出**，否則 `priceMin`／`priceMax` 為 `null` |
+| `GET /api/v1/{club}/proposals` | 9.4 CTA | 已發布且至少有一份檔案的提案：`[{ id, title, versionNo, locales }]`（**不含檔案網址**）。前台依 A/B 版本自行挑一份 |
+| `POST /api/v1/{club}/proposals/{id}/download-requests` | 9.4 CTA | 限流 `public-submission`（20 次／5 分鐘／IP）。body：`{ company, name, email, consent: true, lang?, sourcePath?, utmSource?, utmCampaign?, website? }`。**建立 Lead（帶提案編號）並回傳 30 分鐘有效的下載連結** `{ downloadPath, expiresAt }`。400（日常中文：請填寫…／Email 格式不正確／請勾選同意條款…）、404（提案不存在或未發布或沒有檔案）、429。`website` 是誘捕欄位：有值就安靜回 `{ downloadPath: null }`，不建 Lead |
+| `GET /api/v1/{club}/proposals/downloads/{token}` | 9.4 CTA | 憑上面拿到的路徑下載（串流 PDF／ZIP，`Cache-Control: private, no-store`）。權杖過期、被竄改、換俱樂部、提案改回草稿一律 404 |
+| `GET /api/v1/{club}/charity/programs?lang=&page=&pageSize=` | 11.2 列表 | 只列已發布；置頂優先。項目含 `progress`（`ongoing`／`completed`）、`coverUrl`、`charityName` |
+| `GET /api/v1/{club}/charity/programs/{slug}?lang=` | 11.2 詳情 | 計畫緣起（`content`，區塊 JSON 字串）、受贈公益團體 `charity`、`donationContent`、`images` 藝廊、`partners`／`sponsors`（含 Logo）、`articles`（關聯報導，已發布） |
+| `GET /api/v1/{club}/charity/records?program=<slug>&year=&lang=&page=&pageSize=` | 11.3 | 三項核心資料：`charityName`、`donationContent`、`imageUrl`＋`images`；另有 `happenedOn`、`location`、`briefDescription`、`programSlug`／`programName`。`GET …/charity/records/years` 回有事蹟的年份（年份篩選用） |
+| `GET /api/v1/{club}/charity/impact?lang=` | 11.4 | `{ metrics（只含後台標為公開的項目）, charityCount, donationItemCount（事蹟筆數）, regions（服務地區＝事蹟地點）, charities（Logo 牆） }` |
+| `GET /api/v1/{club}/charity/cta?lang=` | 11 各頁 CTA | `{ donationUrl, donationCta, fanCta, corporateCta, corporateUrl }`。**捐款網址與文案來自後台 B5 設定**；沒設定網址時 `donationUrl`／`donationCta`／`fanCta` 皆 `null`（前台不顯示球迷捐款按鈕）。藍鯨一律為空 |
+| `GET /api/v1/{club}/press?type=&lang=&page=&pageSize=` | 7.8 | 只列已發布；`type`＝`press_release`／`brand_kit`／`hires_image`（其他值 400）。項目含 `downloadPath`、`fileBytes`、`fileExtension`、`coverUrl` |
+| `GET /api/v1/{club}/press/{slug}/download` | 7.8 | 限流 `public-light-interaction`。**累計下載次數後 302 轉址到檔案**；未發布或找不到 404 |
+| `GET /api/v1/{club}/achievements?team=<隊別代號>&lang=` | 02 榮譽 | `[{ id, year, seasonCode, teamCode, teamName, competitionName, placing }]`，年份新到舊 |
+| `GET /api/v1/{club}/milestones?lang=` | 02 時間軸 | 只列「顯示於時間軸」的里程碑，日期由舊到新；`imageUrl`／`imageAlt`／`imageWidth`／`imageHeight` |
+
+公開端點的圖片一律只給完整網址（`xxxUrl`），不給物件鍵。所有快取 key 帶俱樂部與語系維度；跨日相關的（合作期間、合約到期、計畫進行狀態）帶日期維度，不會拖到 TTL 才更新。
+
+### 資料庫綱要異動（`db/club-schema.sql`、migration `AlignSchemaE1a`）
+
+規劃書寫了、原綱要沒有落點的欄位／表，**全部是把規劃書已有的功能落到資料表，不是新增規格**（`docs/12` §14.3 既有先例）：
+
+| 異動 | 理由（規劃書出處） |
+|---|---|
+| `partners_i18n.content` | E1「合作內容」 |
+| 新表 `sponsor_activations`／`sponsor_activations_i18n`／`sponsor_activation_images` | E2「贊助活動（活動名稱、日期、圖集、成效摘要）」，`docs/12d` 早已記為「型別總表缺席」 |
+| 新表 `sponsor_articles` | E2「贊助故事：關聯文章」。不用 `article_relations`：那張表由 B2 新聞編輯器整批取代，混入會被清掉 |
+| 新表 `charity_program_partners`／`charity_program_sponsors`／`charity_program_articles` | §3.11「慈善計畫可標記贊助夥伴（關聯 E1/E2）」、B5「關聯報導（7.7）」 |
+| `charity_programs`／`impact_records` 加 `sort_order`、`is_pinned` | B5「顯示控制：於慈善單元內的排序與置頂」 |
+| `impact_metrics.charity_program_id` 改可為空、加 `sort_order`；`impact_metrics_i18n.unit` | B5「影響力數據：名稱、單位、數值、是否公開」；前台 11.4 是「累計統計」，沒有要求統計項目必須掛在某個計畫 |
+| `milestones` 加 `image_key`／`image_width`／`image_height`／`is_visible`；`milestones_i18n.image_alt` | C5「里程碑：日期、標題、描述、圖片、是否顯示於時間軸」 |
+| `enquiries.proposal_id`（外鍵 `ON DELETE SET NULL`） | 9.4「可 A/B 版本」——Lead 要知道下載的是哪一份提案 |
+| `proposals.status` 改 `NOT NULL DEFAULT 'draft'`＋`CK_proposals_status`；`press_resources.resource_type` 加 `CK_press_resources_resource_type` | 值域收斂，同 `AlignSchemaS19Programs` 的既有先例；套用前兩表皆 0 筆 |
+
+本機庫已對 `tcrfc_club` 套用（等同 migration `20260930065939_AlignSchemaE1a`；`dotnet ef migrations add Probe` 驗證為空 migration，模型與 snapshot 同步）。
+EF 實體：新增 5 個實體檔（`CharityProgramArticle`／`SponsorActivation`／`SponsorActivationImage`／`SponsorActivationsI18n`／`SponsorArticle`），其餘既有實體與 `ClubDbContext` 只**插入**新屬性與新表設定（未整檔重新 scaffold，理由與注意事項見 `patterns_ef_scaffold_editing` 與 `docs/18-work-errors.md` E-85）。
+
+### 種子（`db/seed/backoffice_seed.py` §34–39，全部【測試】虛構資料，搜尋「【測試】」可找出）
+
+tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助商 3（三個等級；其中 1 筆已到提醒日、1 筆合約已結束）、贊助方案 9（規劃書九種名稱）、贊助活動 2、提案 2（A/B 草稿，無檔案）、Lead 3（`@example.com`）、公益團體 2、慈善計畫 3（1 置頂進行中、1 已完成、1 草稿）、事蹟 2、影響力數據 3（含 1 筆不公開的金額）、捐款導流設定（網址 `charity.example.com`，文案已依規劃書點明協會）、媒體資源 3（**draft＋佔位檔案鍵**，公開端點不會顯示）、榮譽 3。
+沒有圖片與真實檔案（沒有可上傳的公開素材）。權限碼 37 個與角色指派已在 `generate-club-seed-sql.py` 種入。
+
+### 規劃書沒寫清楚、本輪自行判斷（保守做法，需要使用者確認的列在「待裁決」）
+
+1. **檔案格式與大小**：規劃書只定義圖片通則。新聞稿／品牌識別包／提案只收 PDF 與 ZIP、≤50MB、不轉檔不掃毒（`Documents/DocumentUploadOptions.cs` 檔頭）。
+2. **提案下載的表單關卡**：檔案放私有容器，只有「填表單→拿限時連結」一條路；連結 30 分鐘有效（Data Protection time-limited 權杖，綁定俱樂部與檔案，不查庫）。
+3. **Lead 的可見範圍**：Lead 含個資，`business.lead.view` 只給商務／贊助與合作球隊管理（矩陣「唯讀」講的是夥伴與贊助內容），匯出只給商務／贊助。
+4. **夥伴／贊助商「現有」的判斷**：夥伴依合作期間、贊助商依合約結束日自動下架（沒填日期＝視為進行中）。
+5. **慈善進行狀態**：`ongoing`／`completed` 由期間推導，不另設欄位；`draft`／`published` 是發布狀態。
+6. **影響力數據預設不公開**：沒有「是否金額類」欄位，採最保守做法——所有項目預設不公開。
+7. **慈善導流文案必須點明「台灣足球策略發展協會」**（§3.11 明文），後端強制驗證（設定了網址就必填、且必含該名稱）。
+8. **事蹟沒有草稿狀態**（規劃書沒有為事蹟定義發布流程），建立即前台可見；活動圖片建立時必填。
+9. **高解析圖走圖片通則**：主檔長邊 ≤2560px、去 EXIF／GPS，等於「高解析」受 2560px 上限約束。
+10. **C5 學院／課程管理**：榮譽給 `academy_only`（有球隊維度），里程碑不給（沒有球隊維度，理由同 C4 積分榜）。
+
+### 待裁決（規劃書沒寫、又會影響客戶看得到的行為；先採上述保守做法）
+
+- **B6 高解析圖是否例外保留原檔尺寸**：現況受 §4.0 通則約束（≤2560px 重新編碼）。若媒體專區要提供真正的原尺寸高解析原檔，需要例外條款（並決定 EXIF／GPS 是否保留）。
+- **夥伴類型是否限定五種**：現況允許自訂（藍鯨既有種子是「指導單位」「官方合作夥伴」）；`GET /partners/types` 同時回標準五種與實際用過的。
+- **Lead 唯讀角色可見性**：內容編輯／公關媒體／檢視者目前看不到 Lead 名單（個資最小授權），若客戶希望唯讀可看需補權限碼指派。
+- **慈善事蹟／團體「共同列」的建立入口**：目前只有 DB 層與超管能產生共同列（俱樂部範圍端點一律建成自家資料），與 `docs/14`「共同內容只有超管能建立」一致，但尚無超管專用的共同內容建立畫面。
+
+### 測試（`Tcrfc.Api.Tests`，新增 6 個檔案、31 項；全套 585／585 通過，含 `ArchitectureTests` 的「公開 DTO 物件鍵欄位須有對應網址」「公開非 GET 須掛限流」）
+
+| 檔案 | 項數 | 涵蓋 |
+|---|---:|---|
+| `AdminBusinessModulesTests` | 9 | E1／E2／E3：授權矩陣、跨俱樂部 404、驗證與 400／409、排序、到期提醒狀態、關聯陣列語意、提案發布規則、Lead 篩選／更新／指派驗證／匯出受限碼 |
+| `AdminCharityTests` | 4 | B5：授權矩陣、完整流程與引用保護（409）、共同列唯讀（403）、導流設定驗證（收受者、https） |
+| `AdminPressAndHonorsTests` | 6 | B6 授權與驗證、共同列與批次略過、公開端點；C5 榮譽（球隊列級授權）、里程碑顯示旗標 |
+| `AdminBusinessUploadTests` | 5 | **真實 Azurite**：Logo 換圖／移除／刪除時物件清理、媒體資源 PDF／高解析圖／下載累計、提案私有檔的表單關卡與限時連結／Lead 帶提案／竄改與跨俱樂部失效、事蹟必填圖片與圖集、贊助活動圖集與里程碑圖片 |
+| `BusinessPublicEndpointsTests` | 6 | 公開端點：合作期間篩選、贊助商排序與不輸出聯絡窗口、價格不公開、慈善計畫／事蹟／影響力數據／導流、關聯陣列語意 |
+| `BusinessCacheInvalidationTests` | 1 | **真實 Redis**：夥伴、贊助方案、導流設定寫入後公開端點立即看到新值 |
+
+### 已知限制
+
+- 圖片欄位組目前只有 `_key`／寬高，**沒有雙語 alt 文字**（夥伴／贊助商 Logo 前台以名稱當 alt；里程碑有 `imageAlt`）——與既有 staff／players 同一個既有落差，未在本輪擴張。
+- 伺服器端不掃毒、不檢查 ZIP 內容；PDF 只驗檔頭。
+- 提案下載沒有「一次性連結」（30 分鐘內可重複下載同一份）；Lead 只在「要求連結」時建立一次。
+- 未做 App 端與慈善獨立庫的同步（慈善庫的 `charity_program_refs` 快照不受本輪異動影響）。
+- 公開端點使用 Dapper 手寫 SQL，欄位別名與 record 的對應由測試涵蓋；新增欄位時要同步 SQL 與 record（Dapper 對 `date` 欄位一律用 `DateTime` 接再轉 `DateOnly`）。
+
+
+---
+
 ## 目錄結構
 
 ```
@@ -3926,6 +4200,8 @@ session 使用。**Blob 已在 S0-8 接上，JWT 已在 S1 接上**，見下方�
 | 🔒 `GET /api/v1/admin/{club}/competitions/{id}` | 同上＋`team.competition.view` | — |
 | 🔒 `POST /api/v1/admin/{club}/competitions` | 同上＋`team.competition.create`。狀態只接受 `draft`／`published` | — |
 | 🔒 `PUT /api/v1/admin/{club}/competitions/{id}` | 同上＋`team.competition.update` | — |
+
+> **E1a（2026-09-30）新增**：E1 夥伴、E2 贊助商／方案／活動、E3 提案與 Lead、B5 慈善、B6 媒體專區、C5 榮譽與里程碑的後台端點 87 支與公開端點 16 支，完整契約見「E1a」整節（含權限碼矩陣與每支端點的欄位／驗證／錯誤碼），本表不逐條重複。
 
 🔒 標記的端點需要 `Authorization: Bearer <存取權杖>`，未登入回 401、已登入但無權回 403，
 見「S1：J1–J3 登入與授權地基」整節。🔴 標記的是**全域端點**（不含 `{club}` 路由段，用

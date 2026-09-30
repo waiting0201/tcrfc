@@ -51,11 +51,15 @@ public partial class Article
 
     public virtual ICollection<ArticlesI18n> ArticlesI18ns { get; set; } = new List<ArticlesI18n>();
 
+    public virtual ICollection<CharityProgramArticle> CharityProgramArticles { get; set; } = new List<CharityProgramArticle>();
+
     public virtual Club? Club { get; set; }
 
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
     public virtual ICollection<MemberDraw> MemberDraws { get; set; } = new List<MemberDraw>();
+
+    public virtual ICollection<SponsorArticle> SponsorArticles { get; set; } = new List<SponsorArticle>();
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
 

@@ -409,6 +409,7 @@ CREATE TABLE press_resources (
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NULL,
   slug            nvarchar(160)    NOT NULL,
+  -- E1-a（2026-09-30）：值域對應前台 7.8 三類——press_release 新聞稿／brand_kit 品牌識別包／hires_image 高解析圖。
   resource_type   nvarchar(32)     NOT NULL,
   file_key        nvarchar(500)    NOT NULL,
   file_bytes      int              NULL,
@@ -425,7 +426,8 @@ CREATE TABLE press_resources (
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_press_resources PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_press_resources_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_press_resources_row_seq UNIQUE CLUSTERED (row_seq),
+  CONSTRAINT CK_press_resources_resource_type CHECK (resource_type IN ('press_release','brand_kit','hires_image'))
 );
 
 CREATE TABLE press_resources_i18n (
@@ -955,6 +957,12 @@ CREATE TABLE milestones (
   club_id         uniqueidentifier NOT NULL,
   happened_on     date             NOT NULL,
   sort_order      int              NOT NULL DEFAULT 0,
+  -- E1-a（2026-09-30）：規劃書 C5（行 1098）「里程碑：日期、標題、描述、圖片、是否顯示於時間軸」——
+  -- 原本缺圖片欄位組與顯示旗標。圖片替代文字在 milestones_i18n.image_alt。
+  image_key       nvarchar(500)    NULL,
+  image_width     int              NULL,
+  image_height    int              NULL,
+  is_visible      bit              NOT NULL CONSTRAINT DF_milestones_is_visible DEFAULT 1,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -968,6 +976,7 @@ CREATE TABLE milestones_i18n (
   locale          nvarchar(10)     NOT NULL,
   title           nvarchar(200)    NULL,
   description     nvarchar(max)    NULL,
+  image_alt       nvarchar(200)    NULL,
   CONSTRAINT PK_milestones_i18n PRIMARY KEY CLUSTERED (milestone_id, locale)
 );
 
@@ -1138,6 +1147,8 @@ CREATE TABLE partners_i18n (
   partner_id      uniqueidentifier NOT NULL,
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(128)    NULL,
+  -- E1-a（2026-09-30）：規劃書 E1（行 1129）「合作內容」——原本 ERD 與本表都沒有落點，補在側表（前台可見文字，雙語）。
+  content         nvarchar(max)    NULL,
   CONSTRAINT PK_partners_i18n PRIMARY KEY CLUSTERED (partner_id, locale)
 );
 
@@ -1220,13 +1231,16 @@ CREATE TABLE proposals (
   club_id         uniqueidentifier NOT NULL,
   title           nvarchar(128)    NOT NULL,
   version_no      int              NOT NULL DEFAULT 1,
-  status          nvarchar(16)     NULL,
+  -- E1-a（2026-09-30）：收斂為 draft／published（理由同 press_resources：不提供排程）。published＝前台
+  -- 「取得下載連結」流程可用；draft 不可下載。原為可為空且無約束。
+  status          nvarchar(16)     NOT NULL CONSTRAINT DF_proposals_status DEFAULT 'draft',
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_proposals PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_proposals_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_proposals_row_seq UNIQUE CLUSTERED (row_seq),
+  CONSTRAINT CK_proposals_status CHECK (status IN ('draft','published'))
 );
 
 -- (proposal_id, locale, file_key, version) 之形狀（docs/12 §4.4）；version_no 對應 ERD 未逐欄畫出但文字明列的欄位。
@@ -1244,6 +1258,58 @@ CREATE TABLE proposal_files (
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_proposal_files PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_proposal_files_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 贊助活動（Activations）：規劃書 E2（行 1134）「活動名稱、日期、圖集、成效摘要」，對應前台 9.2「贊助活動紀錄」。
+-- E1-a（2026-09-30）新增——docs/12d「B 類：型別總表沒有但功能在後台章節」的既有先例（docs/12 §14.3）。
+CREATE TABLE sponsor_activations (
+  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq         bigint IDENTITY(1,1) NOT NULL,
+  club_id         uniqueidentifier NOT NULL,
+  sponsor_id      uniqueidentifier NOT NULL,
+  happened_on     date             NULL,
+  sort_order      int              NOT NULL DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by      uniqueidentifier NULL,
+  updated_by      uniqueidentifier NULL,
+  CONSTRAINT PK_sponsor_activations PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_sponsor_activations_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE sponsor_activations_i18n (
+  sponsor_activation_id uniqueidentifier NOT NULL,
+  locale                nvarchar(10)     NOT NULL,
+  title                 nvarchar(200)    NULL,
+  result_summary        nvarchar(max)    NULL,
+  CONSTRAINT PK_sponsor_activations_i18n PRIMARY KEY CLUSTERED (sponsor_activation_id, locale)
+);
+
+-- 圖集（一列一組圖片欄位：物件鍵、寬、高、排序）。
+CREATE TABLE sponsor_activation_images (
+  id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq               bigint IDENTITY(1,1) NOT NULL,
+  sponsor_activation_id uniqueidentifier NOT NULL,
+  image_key             nvarchar(500)    NOT NULL,
+  image_width           int              NULL,
+  image_height          int              NULL,
+  sort_order            int              NOT NULL DEFAULT 0,
+  created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by            uniqueidentifier NULL,
+  updated_by            uniqueidentifier NULL,
+  CONSTRAINT PK_sponsor_activation_images PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_sponsor_activation_images_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 贊助故事：贊助商與關聯文章（規劃書 E2 行 1133「贊助故事：關聯文章（7.x）」）。
+-- 不用 article_relations：那張表的 target_type 值域由 B2 新聞編輯器管理（整批取代語意），
+-- 混入 sponsor 會被 B2 儲存時清掉。
+CREATE TABLE sponsor_articles (
+  sponsor_id      uniqueidentifier NOT NULL,
+  article_id      uniqueidentifier NOT NULL,
+  sort_order      int              NOT NULL DEFAULT 0,
+  CONSTRAINT PK_sponsor_articles PRIMARY KEY CLUSTERED (sponsor_id, article_id)
 );
 
 /* ============================================================================
@@ -1436,6 +1502,9 @@ CREATE TABLE enquiries (
   club_id                   uniqueidentifier NOT NULL,
   form_id                   uniqueidentifier NOT NULL,
   assignee_admin_user_id    uniqueidentifier NULL,
+  -- E1-a（2026-09-30）：提案下載 Lead 是下載了哪一份提案（規劃書 §3.9 9.4「可 A/B 版本」）。
+  -- 只有 form_code='proposal_download' 的收件會有值，其餘表單為 NULL；提案刪除時設為 NULL，不連帶刪除 Lead。
+  proposal_id               uniqueidentifier NULL,
   source_path               nvarchar(500)    NULL,
   utm_source                nvarchar(255)    NULL,
   utm_campaign              nvarchar(255)    NULL,
@@ -2402,6 +2471,10 @@ CREATE TABLE charity_programs (
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
                     CHECK (status IN ('draft','published')),
   cover_key       nvarchar(500)    NULL,
+  -- E1-a（2026-09-30）：規劃書 B5「顯示控制：於慈善單元內的排序與置頂」。is_pinned 的置頂項目排最前，
+  -- 其餘依 sort_order（小者在前）再依日期。
+  sort_order      int              NOT NULL DEFAULT 0,
+  is_pinned       bit              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -2446,6 +2519,9 @@ CREATE TABLE impact_records (
   image_width           int              NULL,
   image_height          int              NULL,
   happened_on           date             NULL,
+  -- E1-a（2026-09-30）：同 charity_programs（規劃書 B5「顯示控制」）。
+  sort_order            int              NOT NULL DEFAULT 0,
+  is_pinned             bit              NOT NULL DEFAULT 0,
   created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
@@ -2484,10 +2560,13 @@ CREATE TABLE impact_metrics (
   id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   club_id               uniqueidentifier NULL,
-  charity_program_id    uniqueidentifier NOT NULL,
+  -- E1-a（2026-09-30）：改為可為空。規劃書 B5「影響力數據：可自訂統計項目（名稱、單位、數值、是否公開）」
+  -- 沒有要求統計項目必須掛在某個計畫底下；前台 11.4 是「累計統計」，全站層級的項目沒有所屬計畫。
+  charity_program_id    uniqueidentifier NULL,
   metric_key            nvarchar(64)     NOT NULL,
   metric_value          int              NULL,
   is_public             bit              NOT NULL DEFAULT 0,
+  sort_order            int              NOT NULL DEFAULT 0,
   created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
@@ -2500,7 +2579,30 @@ CREATE TABLE impact_metrics_i18n (
   impact_metric_id  uniqueidentifier NOT NULL,
   locale             nvarchar(10)    NOT NULL,
   name               nvarchar(64)    NULL,
+  -- E1-a（2026-09-30）：規劃書 B5 明文「單位」（如「人」「場」「元」）；中英單位本就不同，走側表。
+  unit               nvarchar(16)    NULL,
   CONSTRAINT PK_impact_metrics_i18n PRIMARY KEY CLUSTERED (impact_metric_id, locale)
+);
+
+-- 慈善計畫的關聯：贊助夥伴（規劃書 §3.11「慈善計畫可標記贊助夥伴（關聯 E1/E2）」，於夥伴頁顯示
+-- 「共同參與的公益計畫」）與相關報導（B5「關聯報導（7.7）」）。E1-a（2026-09-30）新增。
+CREATE TABLE charity_program_partners (
+  charity_program_id uniqueidentifier NOT NULL,
+  partner_id         uniqueidentifier NOT NULL,
+  CONSTRAINT PK_charity_program_partners PRIMARY KEY CLUSTERED (charity_program_id, partner_id)
+);
+
+CREATE TABLE charity_program_sponsors (
+  charity_program_id uniqueidentifier NOT NULL,
+  sponsor_id         uniqueidentifier NOT NULL,
+  CONSTRAINT PK_charity_program_sponsors PRIMARY KEY CLUSTERED (charity_program_id, sponsor_id)
+);
+
+CREATE TABLE charity_program_articles (
+  charity_program_id uniqueidentifier NOT NULL,
+  article_id         uniqueidentifier NOT NULL,
+  sort_order         int              NOT NULL DEFAULT 0,
+  CONSTRAINT PK_charity_program_articles PRIMARY KEY CLUSTERED (charity_program_id, article_id)
 );
 
 /* ============================================================================
@@ -2595,6 +2697,11 @@ CREATE INDEX IX_enquiries_form_status_created           ON enquiries (form_id, s
 CREATE UNIQUE INDEX UQ_form_fields_one_summary_per_form ON form_fields (form_id) WHERE is_summary = 1;
 CREATE INDEX IX_admin_refresh_tokens_user               ON admin_refresh_tokens (admin_user_id);
 CREATE INDEX IX_enquiries_assignee                      ON enquiries (assignee_admin_user_id);
+CREATE INDEX IX_enquiries_proposal                      ON enquiries (proposal_id);
+CREATE INDEX IX_sponsor_activations_sponsor             ON sponsor_activations (sponsor_id, happened_on DESC);
+CREATE INDEX IX_sponsor_activation_images_activation    ON sponsor_activation_images (sponsor_activation_id, sort_order);
+CREATE INDEX IX_charity_program_images_program          ON charity_program_images (charity_program_id, sort_order);
+CREATE INDEX IX_impact_record_images_record             ON impact_record_images (impact_record_id, sort_order);
 CREATE INDEX IX_admin_user_clubs_user_active            ON admin_user_clubs (admin_user_id, is_active);
 
 -- 帶 club_id 的內容表：(slug, club_id)，供路由解析（俱樂部專屬優先、回退共同）
@@ -2940,6 +3047,17 @@ ALTER TABLE sponsor_package_links ADD CONSTRAINT FK_sponsor_package_links_sponso
 ALTER TABLE sponsor_package_links ADD CONSTRAINT FK_sponsor_package_links_pkg     FOREIGN KEY (sponsor_package_id) REFERENCES sponsor_packages(id) ON DELETE CASCADE;
 ALTER TABLE proposals             ADD CONSTRAINT FK_proposals_club               FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE proposal_files        ADD CONSTRAINT FK_proposal_files_proposal      FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE CASCADE;
+ALTER TABLE enquiries             ADD CONSTRAINT FK_enquiries_proposal           FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE SET NULL;
+ALTER TABLE sponsor_activations   ADD CONSTRAINT FK_sponsor_activations_club     FOREIGN KEY (club_id) REFERENCES clubs(id);
+ALTER TABLE sponsor_activations   ADD CONSTRAINT FK_sponsor_activations_sponsor  FOREIGN KEY (sponsor_id) REFERENCES sponsors(id) ON DELETE CASCADE;
+ALTER TABLE sponsor_activations   ADD CONSTRAINT FK_sponsor_activations_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE sponsor_activations   ADD CONSTRAINT FK_sponsor_activations_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE sponsor_activations_i18n ADD CONSTRAINT FK_sponsor_activations_i18n_act FOREIGN KEY (sponsor_activation_id) REFERENCES sponsor_activations(id) ON DELETE CASCADE;
+ALTER TABLE sponsor_activation_images ADD CONSTRAINT FK_sponsor_activation_images_act FOREIGN KEY (sponsor_activation_id) REFERENCES sponsor_activations(id) ON DELETE CASCADE;
+ALTER TABLE sponsor_activation_images ADD CONSTRAINT FK_sponsor_activation_images_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE sponsor_activation_images ADD CONSTRAINT FK_sponsor_activation_images_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE sponsor_articles      ADD CONSTRAINT FK_sponsor_articles_sponsor     FOREIGN KEY (sponsor_id) REFERENCES sponsors(id) ON DELETE CASCADE;
+ALTER TABLE sponsor_articles      ADD CONSTRAINT FK_sponsor_articles_article     FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE;
 
 -- 4.5 F 文化模組
 ALTER TABLE comic_characters       ADD CONSTRAINT FK_comic_characters_club       FOREIGN KEY (club_id) REFERENCES clubs(id);
@@ -3072,6 +3190,12 @@ ALTER TABLE impact_record_images    ADD CONSTRAINT FK_impact_record_images_recor
 ALTER TABLE impact_metrics          ADD CONSTRAINT FK_impact_metrics_club             FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE impact_metrics          ADD CONSTRAINT FK_impact_metrics_program          FOREIGN KEY (charity_program_id) REFERENCES charity_programs(id);
 ALTER TABLE impact_metrics_i18n     ADD CONSTRAINT FK_impact_metrics_i18n_metric      FOREIGN KEY (impact_metric_id) REFERENCES impact_metrics(id) ON DELETE CASCADE;
+ALTER TABLE charity_program_partners  ADD CONSTRAINT FK_charity_program_partners_program  FOREIGN KEY (charity_program_id) REFERENCES charity_programs(id) ON DELETE CASCADE;
+ALTER TABLE charity_program_partners  ADD CONSTRAINT FK_charity_program_partners_partner  FOREIGN KEY (partner_id) REFERENCES partners(id) ON DELETE CASCADE;
+ALTER TABLE charity_program_sponsors  ADD CONSTRAINT FK_charity_program_sponsors_program  FOREIGN KEY (charity_program_id) REFERENCES charity_programs(id) ON DELETE CASCADE;
+ALTER TABLE charity_program_sponsors  ADD CONSTRAINT FK_charity_program_sponsors_sponsor  FOREIGN KEY (sponsor_id) REFERENCES sponsors(id) ON DELETE CASCADE;
+ALTER TABLE charity_program_articles  ADD CONSTRAINT FK_charity_program_articles_program  FOREIGN KEY (charity_program_id) REFERENCES charity_programs(id) ON DELETE CASCADE;
+ALTER TABLE charity_program_articles  ADD CONSTRAINT FK_charity_program_articles_article  FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE;
 
 /* ============================================================================
    CalendarEvent 視圖（一般 VIEW，UNION ALL；禁止 indexed view／WITH SCHEMABINDING）

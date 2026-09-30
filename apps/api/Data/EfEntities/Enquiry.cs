@@ -35,6 +35,8 @@ public partial class Enquiry
 
     public Guid? UpdatedBy { get; set; }
 
+    public Guid? ProposalId { get; set; }
+
     public virtual AdminUser? AssigneeAdminUser { get; set; }
 
     public virtual Club Club { get; set; } = null!;
@@ -44,6 +46,8 @@ public partial class Enquiry
     public virtual ICollection<EnquiryAnswer> EnquiryAnswers { get; set; } = new List<EnquiryAnswer>();
 
     public virtual Form Form { get; set; } = null!;
+
+    public virtual Proposal? Proposal { get; set; }
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
 }

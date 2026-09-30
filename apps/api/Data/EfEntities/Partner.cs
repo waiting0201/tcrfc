@@ -45,6 +45,8 @@ public partial class Partner
 
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
+    public virtual ICollection<CharityProgram> CharityPrograms { get; set; } = new List<CharityProgram>();
+
     public virtual ICollection<PartnersI18n> PartnersI18ns { get; set; } = new List<PartnersI18n>();
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
