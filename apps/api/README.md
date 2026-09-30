@@ -3663,7 +3663,7 @@ dotnet build
 #    程式仍會啟動、仍會嘗試連線，只是連線字串缺了 Database／帳密／TrustServerCertificate）。
 export ASPNETCORE_ENVIRONMENT=Development
 export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;Encrypt=False;"
-export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001"
+export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5174"   # 5174＝apps/admin 後台；少了它後台登入會被 CORS 擋下
 export ASPNETCORE_URLS="http://127.0.0.1:5299"
 
 dotnet run --no-launch-profile
