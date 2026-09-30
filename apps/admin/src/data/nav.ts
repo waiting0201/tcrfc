@@ -21,8 +21,8 @@ export const NAV_GROUPS: NavGroup[] = [
           { code: 'B2', label: '新聞與故事', path: '/content/news', implemented: true },
           { code: 'B3', label: '首頁編排', path: '/content/homepage', implemented: true },
           { code: 'B4', label: '常見問題', path: '/content/faq', implemented: true },
-          { code: 'B5', label: '慈善與社會影響', path: '/content/charity', implemented: false },
-          { code: 'B6', label: '媒體專區', path: '/content/media', implemented: false },
+          { code: 'B5', label: '慈善與社會影響', path: '/content/charity', implemented: true },
+          { code: 'B6', label: '媒體專區', path: '/content/media', implemented: true },
         ],
       },
       {
@@ -72,7 +72,7 @@ export const NAV_GROUPS: NavGroup[] = [
           { code: 'C4', label: '賽程與賽果', path: '/teams/matches', implemented: true },
           { code: 'C4', label: '積分榜', path: '/teams/standings', implemented: true },
           { code: 'C4', label: '賽事系列', path: '/teams/competitions', implemented: true },
-          { code: 'C5', label: '榮譽與里程碑', path: '/teams/honours', implemented: false },
+          { code: 'C5', label: '榮譽與里程碑', path: '/teams/honours', implemented: true },
         ],
       },
       {
@@ -122,9 +122,9 @@ export const NAV_GROUPS: NavGroup[] = [
         code: 'E',
         label: '商業模組',
         children: [
-          { code: 'E1', label: '夥伴', path: '/business/partners', implemented: false },
-          { code: 'E2', label: '贊助', path: '/business/sponsorships', implemented: false },
-          { code: 'E3', label: '提案下載', path: '/business/proposals', implemented: false },
+          { code: 'E1', label: '夥伴', path: '/business/partners', implemented: true },
+          { code: 'E2', label: '贊助', path: '/business/sponsorships', implemented: true },
+          { code: 'E3', label: '提案下載', path: '/business/proposals', implemented: true },
           { code: 'E4', label: '廣告主與版位', path: '/business/advertisers', implemented: false },
           { code: 'E5', label: '投放檔期', path: '/business/campaigns', implemented: false },
           { code: 'E6', label: '成效報表', path: '/business/ad-reports', implemented: false },

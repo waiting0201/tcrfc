@@ -232,3 +232,53 @@ async function performUploadRequest<T>(path: string, formData: FormData, options
 export function apiUploadRequest<T>(path: string, formData: FormData, options: UploadRequestOptions = {}): Promise<T> {
   return performUploadRequest<T>(path, formData, options, false)
 }
+
+/**
+ * 需要帶登入權杖的檔案下載（CSV 匯出、後台預覽提案檔案）：回傳 `Blob` 與伺服器建議的檔名，
+ * 由呼叫端交給 `@/utils/downloadFile` 觸發瀏覽器下載。401 的 refresh-retry 與其他請求共用同一套邏輯。
+ */
+export interface BlobResult {
+  blob: Blob
+  /** 取自 `Content-Disposition`；伺服器沒給就是 `null`，呼叫端自行決定預設檔名。 */
+  filename: string | null
+}
+
+function parseFilename(disposition: string | null): string | null {
+  if (!disposition) return null
+  const star = /filename\*=UTF-8''([^;]+)/i.exec(disposition)
+  if (star) {
+    try {
+      return decodeURIComponent(star[1])
+    } catch {
+      return star[1]
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(disposition)
+  return plain ? plain[1] : null
+}
+
+export async function apiBlobRequest(path: string, isRetry = false): Promise<BlobResult> {
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, { headers: buildHeaders(false), credentials: 'include' })
+  } catch (cause) {
+    throw new AdminApiError('network', '無法連線到後台服務，請確認 apps/api 是否已啟動、網路是否正常。', {
+      detail: cause instanceof Error ? cause.message : String(cause),
+    })
+  }
+
+  if (response.status === 401 && !isRetry) {
+    const body401 = await readErrorBody(response.clone())
+    if (looksLikeSessionExpired(body401)) {
+      const refreshed = await refreshAccessToken()
+      if (refreshed) return apiBlobRequest(path, true)
+      redirectToLogin()
+      throw new AdminApiError('unauthenticated', '登入已逾期，請重新登入。', { status: 401 })
+    }
+    throw classifyByStatus(body401, 401)
+  }
+  if (!response.ok) {
+    throw classifyByStatus(await readErrorBody(response), response.status)
+  }
+  return { blob: await response.blob(), filename: parseFilename(response.headers.get('Content-Disposition')) }
+}

@@ -56,6 +56,21 @@ const LlmsContentView = () => import('@/views/seo/LlmsContentView.vue')
 const AiCrawlerView = () => import('@/views/seo/AiCrawlerView.vue')
 const SchemaCompletenessView = () => import('@/views/seo/SchemaCompletenessView.vue')
 const SiteFactsView = () => import('@/views/settings/SiteFactsView.vue')
+const PartnerListView = () => import('@/views/business/PartnerListView.vue')
+const PartnerEditView = () => import('@/views/business/PartnerEditView.vue')
+const SponsorshipListView = () => import('@/views/business/SponsorshipListView.vue')
+const SponsorEditView = () => import('@/views/business/SponsorEditView.vue')
+const SponsorPackageEditView = () => import('@/views/business/SponsorPackageEditView.vue')
+const ProposalListView = () => import('@/views/business/ProposalListView.vue')
+const ProposalEditView = () => import('@/views/business/ProposalEditView.vue')
+const CharityView = () => import('@/views/charity/CharityView.vue')
+const CharityOrgEditView = () => import('@/views/charity/CharityOrgEditView.vue')
+const CharityProgramEditView = () => import('@/views/charity/CharityProgramEditView.vue')
+const CharityRecordEditView = () => import('@/views/charity/CharityRecordEditView.vue')
+const MediaListView = () => import('@/views/media/MediaListView.vue')
+const MediaEditView = () => import('@/views/media/MediaEditView.vue')
+const HonoursView = () => import('@/views/honours/HonoursView.vue')
+const MilestoneEditView = () => import('@/views/honours/MilestoneEditView.vue')
 
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
@@ -350,6 +365,30 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     props: true,
     meta: { label: '編輯俱樂部', code: 'J4', sysadminOnly: true },
   },
+  { path: '/business/partners', name: 'partner-list', component: PartnerListView, meta: { label: '夥伴', code: 'E1' } },
+  { path: '/business/partners/new', name: 'partner-new', component: PartnerEditView, meta: { label: '新增夥伴', code: 'E1' } },
+  { path: '/business/partners/:id/edit', name: 'partner-edit', component: PartnerEditView, props: true, meta: { label: '編輯夥伴', code: 'E1' } },
+  { path: '/business/sponsorships', name: 'sponsorship-list', component: SponsorshipListView, meta: { label: '贊助', code: 'E2' } },
+  { path: '/business/sponsorships/sponsors/new', name: 'sponsor-new', component: SponsorEditView, meta: { label: '新增贊助商', code: 'E2' } },
+  { path: '/business/sponsorships/sponsors/:id/edit', name: 'sponsor-edit', component: SponsorEditView, props: true, meta: { label: '編輯贊助商', code: 'E2' } },
+  { path: '/business/sponsorships/packages/new', name: 'sponsor-package-new', component: SponsorPackageEditView, meta: { label: '新增贊助方案', code: 'E2' } },
+  { path: '/business/sponsorships/packages/:id/edit', name: 'sponsor-package-edit', component: SponsorPackageEditView, props: true, meta: { label: '編輯贊助方案', code: 'E2' } },
+  { path: '/business/proposals', name: 'proposal-list', component: ProposalListView, meta: { label: '提案下載', code: 'E3' } },
+  { path: '/business/proposals/new', name: 'proposal-new', component: ProposalEditView, meta: { label: '新增提案', code: 'E3' } },
+  { path: '/business/proposals/:id/edit', name: 'proposal-edit', component: ProposalEditView, props: true, meta: { label: '編輯提案', code: 'E3' } },
+  { path: '/content/charity', name: 'charity-list', component: CharityView, meta: { label: '慈善與社會影響', code: 'B5' } },
+  { path: '/content/charity/organizations/new', name: 'charity-org-new', component: CharityOrgEditView, meta: { label: '新增公益團體', code: 'B5' } },
+  { path: '/content/charity/organizations/:id/edit', name: 'charity-org-edit', component: CharityOrgEditView, props: true, meta: { label: '編輯公益團體', code: 'B5' } },
+  { path: '/content/charity/programs/new', name: 'charity-program-new', component: CharityProgramEditView, meta: { label: '新增慈善計畫', code: 'B5' } },
+  { path: '/content/charity/programs/:id/edit', name: 'charity-program-edit', component: CharityProgramEditView, props: true, meta: { label: '編輯慈善計畫', code: 'B5' } },
+  { path: '/content/charity/records/new', name: 'charity-record-new', component: CharityRecordEditView, meta: { label: '新增事蹟紀錄', code: 'B5' } },
+  { path: '/content/charity/records/:id/edit', name: 'charity-record-edit', component: CharityRecordEditView, props: true, meta: { label: '編輯事蹟紀錄', code: 'B5' } },
+  { path: '/content/media', name: 'media-list', component: MediaListView, meta: { label: '媒體專區', code: 'B6' } },
+  { path: '/content/media/new', name: 'media-new', component: MediaEditView, meta: { label: '新增媒體資源', code: 'B6' } },
+  { path: '/content/media/:id/edit', name: 'media-edit', component: MediaEditView, props: true, meta: { label: '編輯媒體資源', code: 'B6' } },
+  { path: '/teams/honours', name: 'honours', component: HonoursView, meta: { label: '榮譽與里程碑', code: 'C5' } },
+  { path: '/teams/honours/milestones/new', name: 'milestone-new', component: MilestoneEditView, meta: { label: '新增里程碑', code: 'C5' } },
+  { path: '/teams/honours/milestones/:id/edit', name: 'milestone-edit', component: MilestoneEditView, props: true, meta: { label: '編輯里程碑', code: 'C5' } },
 ]
 
 const implementedPaths = new Set(IMPLEMENTED_ROUTES.map((route) => route.path))

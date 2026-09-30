@@ -7,6 +7,7 @@ import { authUser } from '@/auth/session'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
 import { useCalendarPermissions } from '@/composables/useCalendarPermissions'
+import { useCrudPermissions, useViewUpdatePermissions } from '@/composables/useCrudPermissions'
 
 const props = defineProps<{
   collapse: boolean
@@ -40,6 +41,14 @@ const SYSADMIN_ONLY_MODULE_CODES = new Set(['J', 'H', 'I'])
 const programPermissions = useProgramPermissions()
 const formsPermissions = useFormsPermissions()
 const calendarPermissions = useCalendarPermissions()
+const partnerPerm = useCrudPermissions('business.partner')
+const sponsorPerm = useCrudPermissions('business.sponsor')
+const proposalPerm = useCrudPermissions('business.proposal')
+const leadPerm = useViewUpdatePermissions('business.lead')
+const charityPerm = useCrudPermissions('charity.content')
+const pressPerm = useCrudPermissions('content.press')
+const achievementPerm = useCrudPermissions('team.achievement')
+const milestonePerm = useCrudPermissions('team.milestone')
 const CHILD_VISIBILITY: Record<string, () => boolean> = {
   P1: () => programPermissions.canViewItems.value,
   P2: () => programPermissions.canViewItems.value,
@@ -48,6 +57,12 @@ const CHILD_VISIBILITY: Record<string, () => boolean> = {
   G2: () => formsPermissions.canViewInbox.value,
   L1: () => calendarPermissions.canViewOverview.value,
   L2: () => calendarPermissions.canViewCustomEvents.value,
+  E1: () => partnerPerm.canView.value,
+  E2: () => sponsorPerm.canView.value,
+  E3: () => proposalPerm.canView.value || leadPerm.canView.value,
+  B5: () => charityPerm.canView.value,
+  B6: () => pressPerm.canView.value,
+  C5: () => achievementPerm.canView.value || milestonePerm.canView.value,
 }
 
 const visibleGroups = computed<NavGroup[]>(() => {
