@@ -2932,6 +2932,30 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
    本輪只處理「不得沿用磐石內容」這一半，沒有處理「藍鯨這三個子單元究竟要
    放什麼」這一半——這是內容企劃問題，不是本輪工程盤點能回答的。
 
+## 藍鯨規劃書 v1.9：08 不設 8.1 漫畫（2026-09-30，`frontend-architect`）
+
+依據：藍鯨規劃書 v1.9 §1.3／§2.1（行 136）／§3.1（行 182）／§3.8（行 232）——總則例外由四項增為**五項**，`08` 不設 `8.1` 漫畫；`8.2` 球迷會、`8.3` 官方商品、`8.4` 特約店家比照主站，「有內容就顯示，沒有就顯示空狀態」。磐石站不受影響。
+
+移除漫畫的位置（全部走同一個開關 `isUnitEnabledForClub('8.1', club)`）：
+
+| 位置 | 做法 |
+|---|---|
+| `shared/utils/units.ts` | `BLUE_WHALE_DISABLED_UNITS` 加 `'8.1'`（行內註解引用 §2.1 行 136，`lint:bw-units-citation` 通過，現為 5 項） |
+| `culture/manga` 頁面（zh／en） | 頁面本來就宣告 `unit: '8.1'`，不需細粒度改代號；middleware 對 bw 回 404 |
+| `SiteHeader.vue` 文化 mega menu | 8.1 項目加 `v-if="isUnitEnabledForClub('8.1', club)"` |
+| `culture/index.vue`（文化單元首頁） | 8.1 卡片、`<title>`／description、hero 導言、卡片區標題與導言中的「漫畫」字樣，bw 全部換掉；8.2／8.3 卡片不再用磐石照片（`fanclub-event-04.jpg`、`merch-jersey-01.jpg`）當背景，文案改中性 |
+| 首頁、頁尾、`sitemap.xml`、`llms.txt`／`llms-en.txt` | 本來就沒有漫畫連結（sitemap／llms 只列到單元層級 `08`，不含子頁），實測 bw 全為 0 筆 |
+
+8.2／8.3 空狀態（後台 `F2`／`S1` 尚未開發，藍鯨維持誠實空狀態，文案「內容由後台提供，目前尚無可顯示的內容」，不寫「尚未推出」「開發中」這類沒有依據的狀態宣稱）：
+
+- `culture/fan-club`：bw 只留「球迷活動」一區空狀態（先前的「方案尚未推出，敬請期待」是規格沒有的說法，已改）。
+- `culture/merchandise`：bw 原本展示機能襪（磐石商店商品）、「學院商品／球迷商品 開發中」、指向磐石舊官網的商店區，全部對 bw 隱藏，改為單一空狀態；hero 背景改用無圖漸層。`check-club-brand-leak.mjs` 因此**移除** `culture/merchandise` 兩筆例外（`www.tcrfc.tw` 已不出現）。
+- `EXEMPT_PAGES`：`culture/manga`、`culture/fan-club` 在本輪開工時腳本裡已不在清單（`README`／`STATUS` 上一輪的敘述已過時，以腳本為準）；本輪只移除 merchandise 兩筆，棘輪通過。
+
+驗證（bw 容器帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`）：見交付報告。
+
+未動、留待決定：`partners/opportunities`（9.4）與 `join/partnership` 表單仍有「漫畫內容合作」贊助方案——藍鯨規劃書 §3.9 只說「沿用主站 09 的贊助方案版型」，沒有明文刪除，故不擅自改；`shop/*` 商店頁對 bw 仍顯示機能襪（8.3 商店範疇，本輪未動）。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

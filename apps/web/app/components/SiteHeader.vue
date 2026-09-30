@@ -301,7 +301,7 @@ onBeforeUnmount(() => {
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a :href="lp('/zh/culture/manga/')">8.1 {{ assets.shortNameZh }}漫畫</a></li>
+                  <li v-if="isUnitEnabledForClub('8.1', club)"><a :href="lp('/zh/culture/manga/')">8.1 {{ assets.shortNameZh }}漫畫</a></li>
                   <li><a :href="lp('/zh/culture/fan-club/')">8.2 {{ assets.shortNameZh }}球迷會</a></li>
                   <li><a :href="lp('/zh/culture/merchandise/')">8.3 官方商品</a></li>
                   <li><a :href="lp('/zh/shop/')">8.3 官方商店 SHOP</a></li>

@@ -6,15 +6,21 @@ definePageMeta({ nav: 'culture', unit: '08' })
 const { lp } = useLocale()
 const config = useRuntimeConfig()
 // BW-C1（品牌外洩全站盤點）：改讀既有的 getClubIdentity()／getClubAssets()。本頁只做
-// 單元 hub 導覽卡的文字換名，8.1–8.3 子頁（漫畫／球迷會／商品）本身內容是否需要
-// 雙俱樂部化，超出本輪盤點範圍，列入交付報告的規格疑點，不在本頁自行臆造內容。
+// 單元 hub 導覽卡的文字換名。藍鯨規劃書 v1.9 §2.1（行 136）：08 不設 8.1 漫畫，
+// 8.1 卡片與所有漫畫字樣對藍鯨一律不出現（由 isUnitEnabledForClub('8.1') 決定，
+// 與選單、sitemap、llms.txt 同一個開關）；8.2／8.3 比照主站，內容由後台提供。
 const identity = computed(() => getClubIdentity(config.public.club))
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const isTcrfc = computed(() => config.public.club !== 'bw')
+const showManga = computed(() => isUnitEnabledForClub('8.1', config.public.club))
 
 useSeoMeta({
-  title: computed(() => `${identity.value.cultureLabelZh} Culture｜漫畫、球迷會、官方商品｜${clubAssets.value.nameZh}`),
-  description: computed(() => `認識${clubAssets.value.nameZh}的文化單元：免費線上閱讀的${clubAssets.value.shortNameZh}漫畫、${clubAssets.value.shortNameZh}球迷會入會與福利，以及官方商品與線上商店。`),
+  title: computed(() => (showManga.value
+    ? `${identity.value.cultureLabelZh} Culture｜漫畫、球迷會、官方商品｜${clubAssets.value.nameZh}`
+    : `${identity.value.cultureLabelZh} Culture｜球迷會、官方商品｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (showManga.value
+    ? `認識${clubAssets.value.nameZh}的文化單元：免費線上閱讀的${clubAssets.value.shortNameZh}漫畫、${clubAssets.value.shortNameZh}球迷會入會與福利，以及官方商品與線上商店。`
+    : `認識${clubAssets.value.nameZh}的文化單元：${clubAssets.value.shortNameZh}球迷會、官方商品與線上商店，以及特約店家。`)),
 })
 </script>
 
@@ -33,7 +39,8 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '08 TCRFC Culture' : '08 Culture' }}</p>
     <h1>{{ identity.cultureLabelZh }}<span class="en">Culture</span></h1>
-    <p class="page-hero__lede">從漫畫世界觀、球迷會到官方商品，{{ identity.cultureLabelZh }}是{{ clubAssets.shortNameZh }}與球迷、社群之間最直接的情感連結。</p>
+    <p v-if="showManga" class="page-hero__lede">從漫畫世界觀、球迷會到官方商品，{{ identity.cultureLabelZh }}是{{ clubAssets.shortNameZh }}與球迷、社群之間最直接的情感連結。</p>
+    <p v-else class="page-hero__lede">從球迷會、官方商品到特約店家，{{ identity.cultureLabelZh }}是{{ clubAssets.shortNameZh }}與球迷、社群之間最直接的情感連結。</p>
   </div>
 </section>
 
@@ -43,13 +50,14 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">EXPLORE</p>
-        <h2 class="section-title" id="culture-hub-title">{{ identity.cultureLabelZh }}三大單元</h2>
+        <h2 class="section-title" id="culture-hub-title">{{ identity.cultureLabelZh }}{{ showManga ? '三大單元' : '單元' }}</h2>
       </div>
-      <p class="section-lede">點選卡片深入了解{{ clubAssets.shortNameZh }}漫畫、球迷會與官方商品。</p>
+      <p v-if="showManga" class="section-lede">點選卡片深入了解{{ clubAssets.shortNameZh }}漫畫、球迷會與官方商品。</p>
+      <p v-else class="section-lede">點選卡片深入了解{{ clubAssets.shortNameZh }}球迷會與官方商品。</p>
     </div>
 
     <div class="unit-grid">
-      <a class="unit-card" :href="lp('/zh/culture/manga/')">
+      <a v-if="showManga" class="unit-card" :href="lp('/zh/culture/manga/')">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">8.1</p>
@@ -59,22 +67,24 @@ useSeoMeta({
         </div>
       </a>
       <a class="unit-card" :href="lp('/zh/culture/fan-club/')">
-        <img src="/assets/img/fanclub/fanclub-event-04.jpg" alt="" loading="lazy" width="1600" height="1067">
+        <img v-if="isTcrfc" src="/assets/img/fanclub/fanclub-event-04.jpg" alt="" loading="lazy" width="1600" height="1067">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">8.2</p>
           <p class="unit-card__title">{{ clubAssets.shortNameZh }}球迷會<span class="en">Fan Club</span></p>
-          <p class="unit-card__desc">付費會籍方案、會員權益對照與球迷活動報名、回顧。</p>
-          <span class="unit-card__link">加入球迷會 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <p v-if="isTcrfc" class="unit-card__desc">付費會籍方案、會員權益對照與球迷活動報名、回顧。</p>
+          <p v-else class="unit-card__desc">球迷活動與回顧，內容由後台提供。</p>
+          <span class="unit-card__link">{{ isTcrfc ? '加入球迷會' : '看球迷會' }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
       <a class="unit-card" :href="lp('/zh/culture/merchandise/')">
-        <img src="/assets/img/merch/merch-jersey-01.jpg" alt="" loading="lazy" width="1600" height="1067">
+        <img v-if="isTcrfc" src="/assets/img/merch/merch-jersey-01.jpg" alt="" loading="lazy" width="1600" height="1067">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">8.3</p>
           <p class="unit-card__title">官方商品<span class="en">Merchandise</span></p>
-          <p class="unit-card__desc">俱樂部、{{ identity.academyShortLabelZh }}、球迷三大系列官方商品，可於站內商店選購。</p>
+          <p v-if="isTcrfc" class="unit-card__desc">俱樂部、{{ identity.academyShortLabelZh }}、球迷三大系列官方商品，可於站內商店選購。</p>
+          <p v-else class="unit-card__desc">官方商品與線上商店，商品內容由後台提供。</p>
           <span class="unit-card__link">看商品 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>

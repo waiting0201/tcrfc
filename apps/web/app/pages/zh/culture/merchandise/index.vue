@@ -17,7 +17,7 @@ useSeoMeta({
   title: computed(() => `官方商品 Merchandise｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`),
   description: computed(() => (isTcrfc.value
     ? '台中磐石足球俱樂部官方商品：俱樂部、學院、球迷三大系列。線上商店建置中，屆時可直接於本站選購。'
-    : `${clubAssets.value.nameZh}官方商品：目前提供機能襪等通用配件，其餘系列開發中。線上商店建置中，屆時可直接於本站選購。`)),
+    : `${clubAssets.value.nameZh}官方商品。商品內容由後台提供，目前尚無可顯示的商品。`)),
 })
 </script>
 
@@ -34,12 +34,12 @@ useSeoMeta({
 
 <section class="page-hero page-hero--media">
   <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/merch/merch-jersey-01.jpg" alt="球員身著台中磐石桃紅色主場球衣，胸前印有 Joma、TCRFC 隊徽與 San Pellegrino 贊助字樣" width="1600" height="900">
-  <img v-else class="page-hero__bg" src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列" width="1600" height="900">
+  <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">8.3 Merchandise</p>
     <h1>官方商品<span class="en">Merchandise</span></h1>
     <p v-if="isTcrfc" class="page-hero__lede">俱樂部、學院、球迷三大系列的官方商品。要選購請前往<a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
-    <p v-else class="page-hero__lede">通用配件商品，要選購請前往<a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
+    <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}官方商品資料由後台提供，目前尚無可顯示的內容。</p>
   </div>
 </section>
 
@@ -115,52 +115,22 @@ useSeoMeta({
   </div>
 </section>
 
-<!-- bw：無磐石球衣可放的「俱樂部商品」區塊，改成只呈現無隊徽的通用配件（機能襪）。 -->
-<section v-else class="band grain" id="club-collection" aria-labelledby="club-collection-title">
-  <div class="band-inner container">
+<!-- bw：商品資料由後台商店模組（S1）維護，後台尚未開發、目前沒有已核實的藍鯨商品，
+     依藍鯨規劃書 §2.1（行 136）「有內容就顯示，沒有就顯示空狀態」，不放磐石商品。 -->
+<section v-else id="club-collection" class="band" aria-labelledby="club-collection-title">
+  <div class="container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker kicker--on-dark">MERCHANDISE</p>
-        <h2 id="club-collection-title" class="section-title" style="color:#fff">通用配件</h2>
+        <p class="kicker">MERCHANDISE</p>
+        <h2 id="club-collection-title" class="section-title">官方商品</h2>
       </div>
-      <p class="section-lede">目前提供的官方商品。</p>
     </div>
-
-    <div class="grid grid--2">
-      <article class="merch-card">
-        <div class="merch-card__media">
-          <img src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" loading="lazy" width="1600" height="1600">
-        </div>
-        <div class="merch-card__body">
-          <p class="merch-card__name">厚底緩震機能襪</p>
-          <p class="merch-card__price">價格以商店頁面為準</p>
-          <ul class="swatch-row" aria-label="可選顏色">
-            <li><img src="/assets/img/merch/merch-socks-02.jpg" alt="向日黃" loading="lazy" width="200" height="200"><span>向日黃</span></li>
-            <li><img src="/assets/img/merch/merch-socks-03.jpg" alt="經典紅" loading="lazy" width="200" height="200"><span>經典紅</span></li>
-            <li><img src="/assets/img/merch/merch-socks-04.jpg" alt="櫻桃紅" loading="lazy" width="200" height="200"><span>櫻桃紅</span></li>
-            <li><img src="/assets/img/merch/merch-socks-05.jpg" alt="海軍藍" loading="lazy" width="200" height="200"><span>海軍藍</span></li>
-            <li><img src="/assets/img/merch/merch-socks-06.jpg" alt="極簡黑" loading="lazy" width="200" height="200"><span>極簡黑</span></li>
-            <li><img src="/assets/img/merch/merch-socks-07.jpg" alt="純淨白" loading="lazy" width="200" height="200"><span>純淨白</span></li>
-          </ul>
-          <div class="table-scroll" style="margin-top:1rem">
-            <table class="size-table">
-              <caption class="visually-hidden">襪子尺碼表</caption>
-              <thead><tr><th scope="col">尺碼</th><th scope="col">腳長</th><th scope="col">筒長</th></tr></thead>
-              <tbody>
-                <tr><th scope="row">M</th><td>20–21 cm</td><td>15 cm</td></tr>
-                <tr><th scope="row">L</th><td>23–24 cm</td><td>17 cm</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <a class="btn btn--primary btn--block" :href="lp('/zh/shop/cushioned-socks/')">選購 NT$120</a>
-        </div>
-      </article>
-    </div>
+    <p class="is-pending">商品內容由後台提供，目前尚無可顯示的商品。</p>
   </div>
 </section>
 
 <!-- SPEC 3.8 §8.3 — Academy / Fan Collection（尚無商品） -->
-<section class="band" id="other-collections" aria-labelledby="other-collections-title">
+<section v-if="isTcrfc" id="other-collections" class="band" aria-labelledby="other-collections-title">
   <div class="container">
     <div class="eyebrow-row">
       <div>
@@ -181,7 +151,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band grain grain--2 store-band" aria-labelledby="store-cta-title">
+<section v-if="isTcrfc" class="band grain grain--2 store-band" aria-labelledby="store-cta-title">
   <div class="band-inner container">
     <div class="store-band__grid" style="grid-template-columns:1fr">
       <div>
@@ -198,6 +168,9 @@ useSeoMeta({
 </template>
 
 <style>
+.is-pending{ color:var(--muted); font-style:italic; }
+.page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
+
 /* 商品卡（merch-card）：建議收進共用 CSS */
 .merch-card{ background:var(--paper); border:1px solid var(--rule); display:flex; flex-direction:column; }
 .merch-card__media{ aspect-ratio:3/2; overflow:hidden; background:var(--paper-2); }

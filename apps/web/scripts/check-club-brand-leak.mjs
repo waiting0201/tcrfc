@@ -124,20 +124,6 @@ const FORBIDDEN_TERMS = ['磐石', 'TCRFC', '學院', 'Taichung Rock', 'www.tcrf
 // ---------------------------------------------------------------------------
 const EXEMPT_PAGES = [
   {
-    route: '/zh/culture/merchandise/',
-    terms: ['www.tcrfc.tw'],
-    reason:
-      '過渡期文案明確引導訪客「站內商店上線前，仍可透過舊官網 www.tcrfc.tw 選購」——' +
-      '這是磐石自己商店過渡期的真實網址，本頁對藍鯨若整頁沒有 isTcrfc 判斷才是問題；' +
-      '05-08 單元雙俱樂部化前，先例外放行網域本身這個詞（BW-C1 盤點時的既有缺口，' +
-      '見交付報告「規格疑點」——本頁其餘磐石專屬商品內容仍是尚待雙俱樂部化的範圍）。',
-  },
-  {
-    route: '/en/culture/merchandise/',
-    terms: ['www.tcrfc.tw'],
-    reason: '同上（同一份頁面檔案的 en 版本，見 apps/web/README.md「多語系框架」）。',
-  },
-  {
     route: '/zh/checkout/',
     terms: ['磐石'],
     reason:

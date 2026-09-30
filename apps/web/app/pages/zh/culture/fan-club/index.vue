@@ -18,7 +18,7 @@ useSeoMeta({
     : `球迷會｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`)),
   description: computed(() => (isTcrfc.value
     ? '加入台中磐石球迷會：入會表單、會員福利分級對照，以及球迷活動報名與回顧。'
-    : `${clubAssets.value.shortNameZh}球迷會方案尚未推出，敬請期待。`)),
+    : `${clubAssets.value.nameZh}球迷會。球迷會活動由後台提供，目前尚無可顯示的內容。`)),
 })
 </script>
 
@@ -41,7 +41,7 @@ useSeoMeta({
     <h1 v-if="isTcrfc">台中磐石球迷會<span class="en">Fan Club</span></h1>
     <h1 v-else>球迷會<span class="en">Fan Club</span></h1>
     <p v-if="isTcrfc" class="page-hero__lede">與台中磐石一起在場邊吶喊。球迷會即台中磐石的付費會籍，除了球衣，還能在特約店家享有更多折扣，並優先參與球迷活動。</p>
-    <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}球迷會方案尚未推出，敬請期待。</p>
+    <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}球迷會的活動內容由後台提供，目前尚無可顯示的內容。</p>
   </div>
 </section>
 
@@ -184,10 +184,16 @@ useSeoMeta({
 </section>
 </template>
 <template v-else>
-<section class="band" aria-labelledby="fanclub-pending-title">
+<!-- 球迷會活動由後台 F2 維護（尚未開發）；藍鯨規劃書 §2.1（行 136）：有內容就顯示，沒有就顯示空狀態。 -->
+<section id="events" class="band" aria-labelledby="events-title">
   <div class="container">
-    <h2 id="fanclub-pending-title" class="visually-hidden">球迷會方案</h2>
-    <p class="is-pending">{{ clubAssets.shortNameZh }}球迷會方案尚未推出，敬請期待。</p>
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">FAN EVENTS</p>
+        <h2 id="events-title" class="section-title">球迷活動</h2>
+      </div>
+    </div>
+    <p class="is-pending">球迷活動由後台提供，目前尚無可顯示的內容。</p>
   </div>
 </section>
 </template>
