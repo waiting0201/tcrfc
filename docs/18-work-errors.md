@@ -105,6 +105,10 @@
 | E-89 | 2026-09-30 | C1 批的第一版 `AdminCultureTests` 在 `finally` 無條件刪掉種子的 `comic.%` 設定，與 `E-81` 同一類（測試以「這批鍵理論上不存在」當還原手段），測試仍綠燈、種子被吃掉 | ✅ `C1Test.SnapshotSettingsAsync`＋`AdminC1MiscTests.種子基線_C1示範資料沒有被測試清理吃掉` |
 | E-90 | 2026-09-30 | 後台時間欄位 UTC 轉換對 `Kind=Unspecified` 呼叫 `ToUniversalTime()`（當本機時間換算），與 EF 讀回、JSON 不帶 `Z` 的慣例不符，時間差 8 小時 | ✅ `AdminDrawsTests`／`AdminCultureTests` 時間往返斷言 |
 | E-91 | 2026-09-30 | ① K5 抽獎資格只收 `active` 會籍，漏了「狀態已過期但日期涵蓋抽獎快照日」的會員；② 成本欄位權限先憑印象定 sysadmin 專屬，沒先查 `docs/12b` §7（實為 sysadmin＋商務） | ⚠️ ①測試覆蓋；②無（靠實作前查表） |
+| E-92 | 2026-09-30 | D 批 M4／M5／M1 的清單篩選把驗證函式（`AppInput.RequirePlatform`、`AdminInput.OneOf`）直接寫在 EF `Where(...)` 的 lambda 裡，驗證丟出的 400 例外被 EF 包成 `InvalidOperationException`，端點回 500 | ✅ 改成先驗證再組查詢；`AdminAppTests` 壞篩選參數 400 案例（M4／M5 診斷） |
+| E-93 | 2026-09-30 | 推播發送在同一個 scoped `DbContext` 內用 `FirstAsync` 讀回批次，但核可流程已經追蹤了同一個實體，EF 回傳舊的追蹤實體（計數仍是 0），狀態算成 `sent` 而不是 `partial` | ✅ 改用不追蹤查詢＋set-based 更新；`AdminAppTests` 部分送出案例 |
+| E-94 | 2026-09-30 | 種子把 28 列日聚合塞進單一 `VALUES` 產生一行超過 8000 字元的 SQL，`sqlcmd` 從標準輸入讀取時把行切斷（`SELEC` / `T`），整個區塊語法錯誤；先前我逐批用 `-i` 檔案驗證沒有重現，`apply-seed.sh` 實際走的是標準輸入 | ✅ 每列一行；驗證改用與 `apply-seed.sh` 完全相同的指令與輸入方式 |
+| E-95 | 2026-09-30 | 用 Python 改既有檔案時一律以 `utf-8-sig` 讀寫，替原本沒有 BOM 的 `Program.cs`／`CsvUtils.cs`／`PublicRateLimitPolicies.cs` 加上 BOM，讓 `git diff` 出現整檔第一行變更 | ✅ 改完看 `git diff --stat` 才發現並還原；⚠️ 無 |
 
 ---
 
@@ -2152,3 +2156,45 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **為什麼會錯（根因）**：① 以狀態欄位代替規格寫的「日期涵蓋抽獎快照日」；② 憑印象下決定，沒查已有明文的欄位級可見性表。
 - **下次怎麼避免**：資格與可見性類規則先逐字查 `docs/12b`／規劃書，再寫程式與種子；測試以種子的邊界案例（已過期、跨俱樂部）覆蓋。
 - **防呆**：✅ `AdminDrawsTests` 資格案例、`AdminShopCatalogTests` 成本可見性（含夥伴球隊負向案例）；②無自動化。
+
+### E-92 把會丟 400 的驗證函式寫在 EF `Where` 的 lambda 裡，變成 500（2026-09-30，D 批 M4／M5／M1）
+
+- **錯在哪**：`q.Where(d => d.Platform == AppInput.RequirePlatform(platform))`、`q.Where(r => r.ReportType == AdminInput.OneOf(type, …))`。EF 翻譯 lambda 時會**執行**這些呼叫（它們不依賴實體欄位，被當成參數求值），驗證失敗的 `AdminValidationException` 被包成 `InvalidOperationException`（`ApiExceptionHandler` 不認得）→ 500。壞的篩選參數本來該是 400。
+- **為什麼會錯（根因）**：想把「驗證」和「條件」寫在同一行省一個區域變數；沒意識到 lambda 裡的呼叫會在查詢翻譯階段執行，而且例外會被包裝。
+- **下次怎麼避免**：**驗證一律寫在組查詢之前**（`var pf = RequirePlatform(platform); q = q.Where(d => d.Platform == pf);`）。
+- **防呆**：✅ `AdminAppTests`（M4 裝置篩選、M5 診斷篩選的壞參數 → 400）；⚠️ 無靜態檢查（可日後加 Roslyn 掃描「`Where` lambda 內呼叫 `Admin*Input`／`*Require*`」）。
+
+### E-93 同一個 scoped `DbContext` 內，追蹤中的實體讓「重新讀回」拿到舊值（2026-09-30，D 批 M3）
+
+- **錯在哪**：`PushDispatcher.DispatchAsync` 在發送完成後用 `dbContext.PushMessages.FirstAsync(...)` 讀回批次、以其 `FailedCount` 決定最終狀態。但核可流程（`AdminAppPushRepository.ApproveAsync`）在**同一個請求、同一個 scoped `DbContext`** 已經追蹤了這個批次；EF 的 identity resolution 對已追蹤的實體**不會用資料庫的新值覆蓋屬性**，讀回的是核可當下的舊值（計數 0）。發送過程中用 raw SQL 累加的計數因此讀不到，「部分送出」被算成「已發送」。
+- **為什麼會錯（根因）**：raw SQL／`ExecuteUpdate` 改的是資料庫，不會更新追蹤中的實體；把「同一個 context」當成「每次都讀到最新」。
+- **下次怎麼避免**：**用 raw SQL 或 `ExecuteUpdate` 累加的欄位，之後要讀就用 `AsNoTracking()`（或 `ExecuteUpdate` 收尾）**，不要用會回傳追蹤實體的查詢；服務物件可能在別的 repository 已經載入實體之後才被呼叫。
+- **防呆**：✅ `AdminAppTests.M3_分眾…部分送出`（權杖失效 → `partial`、計數正確）。
+
+### E-94 種子把數十列塞進單一 `VALUES` 成為超長行，`sqlcmd` 由標準輸入讀取時把行切斷（2026-09-30，D 批）
+
+- **錯在哪**：`backoffice_seed.py` 的示範日聚合以 `", ".join(rows)` 產生一行約 9000 字元的 SQL；`apply-seed.sh` 用 `sqlcmd < 檔案`（標準輸入）套用，`sqlcmd` 行緩衝在 8000 字元附近把 `SELECT` 切成 `SELEC`／`T`，整個區塊語法錯誤（7 個訊息），而不是整體失敗。
+- **為什麼會錯（根因）**：驗證用的是「切批後逐批用 `-i 檔案`」與「`-i /dev/stdin` 且加 `-I`」，都不是 `apply-seed.sh` 實際的呼叫方式（`-f 65001 -b`、標準輸入），所以第一次沒有重現。**驗證路徑與實際路徑不同，等於沒驗證**。
+- **下次怎麼避免**：產生 SQL 時**每列一行**（長 `VALUES` 一律換行）；驗證種子一律跑 `./db/seed/apply-seed.sh` 本身並 `grep -c "^Msg"` 輸出（必須 0），不自己拼指令。
+- **防呆**：✅ 已改每列一行；⚠️ 無自動檢查（可在產生器尾端加「任何單行超過 4000 字元就報錯」）。
+
+### E-95 用腳本改檔時一律以 `utf-8-sig` 讀寫，替沒有 BOM 的檔案加了 BOM（2026-09-30，D 批）
+
+- **錯在哪**：為了保險以 `encoding='utf-8-sig'` 讀寫 `Program.cs`、`Common/CsvUtils.cs`、`Common/PublicRateLimitPolicies.cs`，寫回時加上原本沒有的 BOM，`git diff` 顯示第一行整行變更。
+- **為什麼會錯（根因）**：專案的 C# 檔有的有 BOM（EF 產生檔）、有的沒有，沒有先判斷原檔狀態就統一處理。
+- **下次怎麼避免**：改檔的腳本先 `raw.startswith(b'\xef\xbb\xbf')` 記住原狀，寫回時**保持原樣**（也保持原本的 CRLF／LF）；改完一律看 `git diff --stat`，不合理的整檔變更先查再往下做。
+- **防呆**：⚠️ 無（靠 `git diff --stat`）。
+
+#### 🔴 `E-44` 升級（2026-09-30，D 批派工）：**派工單要求「規劃書明確要求就照規劃書做」，等於把 `E-44` 的錯再設計進流程一次**
+
+D 批派工單對 J3 寫「若規劃書明確要求後台可查閱稽核紀錄，就依規劃書實作…；若沒要求才只做規劃書有寫的部分」。規劃書 J3 **確實**明確要求操作稽核與登入紀錄，照這個條件式就會重建 `E-44` 已被使用者撤回的兩張日誌表。
+`backend-engineer` 在動工前先查 `docs/12` §13.1 與 `E-44`，判定「客戶對範圍的指示（§13.1）與使用者 2026-09-23 裁決優先於規劃書的條文」，**沒有建表**，只做不需要表的部分（帳號活動概況與登入異常提醒），並列為待裁決。
+**升級**：`E-44` 的「把規劃書某節寫進任務範圍之前先查那一節有沒有被登記成本期不做」對**條件式派工單**同樣成立——條件是「規劃書寫了就做」時，**先查 §13 的落差清單再判斷條件是否成立**。這是同一類錯第二次出現在**派工單**上（第一次是任務範圍，這次是判斷條件），依全域規定 13 不新增編號；防呆仍是「派工前掃 `docs/12` §13 與 `docs/15`」，**D 批已補機制**：`SchemaInvariantsTests`（掃 `db/club-schema.sql` 不得出現任何 `*audit*／*login*／*export*／*operation*` 日誌表，並鎖定 `ad_events`／`app_diagnostic_reports` 不得有會員、IP、定位、廣告識別碼欄位）；客戶重新確認稽核政策後，要先改 `docs/12` §13.1 再放行這支測試。
+
+#### 🔴 `E-81`／`E-89` 再升級（2026-09-30，D 批）：測試斷言仍在假設共用庫的種子資料
+
+D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ 我插入的那筆」，但種子（`db/seed/backoffice_seed.py` §59）本來就有一筆啟動耗時回報，中位數被種子拉動而失敗（跑測試當下就抓到，沒有進版控）。這是 `E-81`／`E-89` 同一類（**測試以「共用庫裡只有我的資料」為前提**）的第三次。已改為斷言「落在我的兩筆之間」。**機制**：新增種子前，`AppTest`／`C1Test` 的清理與斷言一律**先過濾出自己的資料（前綴 `ZZTEST`／`test-dev-`／`zz-test-`）或拍照還原**；聚合類斷言（中位數、總數、排名）**不得在含種子的表上直接斷言精確值**。
+
+#### 🔵 `E-90` 升級（2026-09-30，D 批）：時間戳不帶 `Z` 的「慣例」改為全域機制
+
+`E-90` 記的防呆是「無全域檢查」，C 批畫面回報前端只能猜 JSON 時間戳有沒有時區。D 批新增 `Common/UtcDateTimeJsonConverter`（註冊於 `JsonOptions`）：`DateTime` **輸出一律 UTC 並帶 `Z`**、輸入無時區記號視為 UTC（`Kind=Unspecified` 不會被當成本機時間換算）。防呆從「人工確認每個新欄位」變成「全域機制」。發現的直接後果：D 批自己的檔期更新驗證（拿 GET 回來的時間 PUT 回去比對）在轉換器之前會差 8 小時。

@@ -359,3 +359,10 @@ set -a && source .env && set +a          # 需要 MSSQL_DEV_SA_PASSWORD
   （`INSERT INTO staff (id, club_id)` 沒有這一欄），這個決定**要等 C3 模組實際開工、seed 腳本補上
   `staff_group` 賦值時才會真正套用**，本次只記錄決定，不代表已經填值，也不要因此去改這支腳本或重灌資料庫。
   同一筆記錄另見 [`../docs/12d-field-audit.md`](../docs/12d-field-audit.md) §9。
+
+## D 批種子（2026-09-30，`backoffice_seed.py` §55–59，全部【測試】虛構）
+
+G3 電子報名單 5 筆（`example.com`）、M2 深連結 9 條與首頁九個固定區塊／快捷入口／「更多」分頁／公告條、M5 功能開關 4 個（`payment_mode=external`）與憑證列管 3 筆、M1 版本 3 筆（含各平台最低支援版本 0.9.0）、
+E4–E6 版位 2／廣告主 2／檔期 2（含 1 個已結束檔期與 14 天日聚合示範）、M3／M4／M5 示範裝置 5 台（**沒有推播權杖**）、推播 2 則、診斷回報 3 筆。權限碼 38 個與角色指派在 `generate-club-seed-sql.py`。
+**沒有圖片**（廣告素材與備援 `image_key` 為 NULL）。🔴 **驗證一律跑 `./db/seed/apply-seed.sh` 本身並確認輸出沒有 `Msg`**（`docs/18` `E-94`：超長單行 SQL 會被 `sqlcmd` 從標準輸入讀取時切斷）。
+測試對這批資料的約定見 `apps/api/README.md` D 批「測試」：測試資料用 `ZZTEST`／`test-dev-`／`zz-test-` 前綴，會動共用設定的測試拍照還原。

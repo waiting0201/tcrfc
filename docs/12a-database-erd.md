@@ -1356,6 +1356,30 @@ erDiagram
 > ✅ **`club_i18n`（`name`／`description`）已補畫**——`docs/12c` §5 第 2 點記錄的「`Club.description` 完全遺失」
 > 已解決，`club` 主表不再放 `name_zh`／`name_en`，兩者都在本側表；`db/club-schema.sql` 已建表。
 
+### 5.11b App 與廣告（D 批，2026-09-30）
+
+> 明細見 [`12b`](12b-database-tables.md) §16。**全部不加 `club_id`**。🔴 `ad_events` 不存 `member_id`／完整 IP／定位座標／廣告識別碼；`app_credentials` 只存列管資訊、不存金鑰。
+
+```mermaid
+erDiagram
+  advertiser ||--o{ ad_campaign : "廣告主 → 檔期"
+  ad_slot ||--o{ ad_campaign : "一個檔期綁一個版位"
+  ad_campaign ||--o{ ad_creative : "依語系分別上傳"
+  ad_creative ||--o{ ad_event : "原始事件 90 天"
+  ad_creative ||--o{ ad_daily_stat : "日聚合"
+  sponsor |o--o{ advertiser : "sponsor_id 可為空（不合併）"
+  app_device ||--o{ push_topic_subscription : "追蹤與推播訂閱"
+  member |o--o{ app_device : "member_id 弱關聯"
+  push_message ||--o{ push_message_stat : "送出／送達／開啟（批次×平台×語系）"
+  app_deep_link |o--o{ app_layout_item : "版面項目的連結"
+  ad_slot { string slot_code UK  int rotation_cap  string fallback_image_key }
+  ad_campaign { string status  int weight  string goal_type  int delivered_today  int delivered_total  int contract_amount }
+  ad_event { string event_type  datetime occurred_at  string device_install_id  char32 dedupe_key }
+  app_device { string device_install_id UK  string push_token_encrypted  string push_token_status  uuid member_id }
+  push_message { string status  string audience_tier  uuid reviewed_by  bigint send_cursor }
+  app_release { string platform  string version  bool is_min_supported  bool is_recommended }
+```
+
 ### 5.12 i18n 機制示例
 
 其餘約 37 張 `*_i18n` 側表**結構形狀相同**（複合主鍵 `(<entity>_id, locale)` ＋ 內容欄位），仍**不入本檔的圖**

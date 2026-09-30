@@ -15,7 +15,7 @@ public partial class NewsletterSubscriber
 
     public string? Source { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public DateTime? SubscribedAt { get; set; }
 
@@ -26,6 +26,8 @@ public partial class NewsletterSubscriber
     public Guid? CreatedBy { get; set; }
 
     public Guid? UpdatedBy { get; set; }
+
+    public DateTime? UnsubscribedAt { get; set; }
 
     public virtual Club Club { get; set; } = null!;
 

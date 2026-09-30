@@ -39,4 +39,18 @@ public static class PublicRateLimitPolicies
     public const string Submission = "public-submission";
     public const int SubmissionPermitLimit = 20;
     public static readonly TimeSpan SubmissionWindow = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// D 批（2026-09-30，App 公開端點）：裝置註冊、訂閱更新、廣告事件批次、診斷回報、通知開啟回報共用的政策名稱。
+    /// 行動網路大量使用者共用同一個來源 IP（電信業者的 CGNAT），所以額度比網頁表單寬鬆：每 IP 每分鐘 <see cref="AppPermitLimit"/> 次，
+    /// 且額度可用設定 <see cref="AppPermitLimitConfigKey"/> 覆寫（測試主機用寬鬆值，同 <c>AdminAuthRateLimitOptions</c> 的做法）。
+    /// 廣告事件是「一批最多 200 筆」的批次上報，正常 App 每 30 秒才送一次，這個額度遠高於正常使用。
+    /// </summary>
+    public const string App = "public-app";
+    public const int AppPermitLimit = 120;
+    public const string AppPermitLimitConfigKey = "APP_PUBLIC_RATE_LIMIT_PERMITS";
+    public static readonly TimeSpan AppWindow = TimeSpan.FromMinutes(1);
+
+    public static int ResolveAppPermitLimit(IConfiguration configuration)
+        => int.TryParse(configuration[AppPermitLimitConfigKey], out var v) && v > 0 ? v : AppPermitLimit;
 }

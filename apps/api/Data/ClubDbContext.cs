@@ -319,6 +319,31 @@ public partial class ClubDbContext : DbContext
     public virtual DbSet<Venue> Venues { get; set; }
 
     public virtual DbSet<VenuesI18n> VenuesI18ns { get; set; }
+    public virtual DbSet<AdCampaign> AdCampaigns { get; set; }
+    public virtual DbSet<AdCreative> AdCreatives { get; set; }
+    public virtual DbSet<AdDailyStat> AdDailyStats { get; set; }
+    public virtual DbSet<AdEvent> AdEvents { get; set; }
+    public virtual DbSet<AdSlot> AdSlots { get; set; }
+    public virtual DbSet<AdSlotsI18n> AdSlotsI18ns { get; set; }
+    public virtual DbSet<Advertiser> Advertisers { get; set; }
+    public virtual DbSet<AdvertisersI18n> AdvertisersI18ns { get; set; }
+    public virtual DbSet<AppAnnouncement> AppAnnouncements { get; set; }
+    public virtual DbSet<AppAnnouncementsI18n> AppAnnouncementsI18ns { get; set; }
+    public virtual DbSet<AppCredential> AppCredentials { get; set; }
+    public virtual DbSet<AppDeepLink> AppDeepLinks { get; set; }
+    public virtual DbSet<AppDeepLinksI18n> AppDeepLinksI18ns { get; set; }
+    public virtual DbSet<AppDevice> AppDevices { get; set; }
+    public virtual DbSet<AppDiagnosticReport> AppDiagnosticReports { get; set; }
+    public virtual DbSet<AppFeatureFlag> AppFeatureFlags { get; set; }
+    public virtual DbSet<AppLayoutItem> AppLayoutItems { get; set; }
+    public virtual DbSet<AppLayoutItemsI18n> AppLayoutItemsI18ns { get; set; }
+    public virtual DbSet<AppRelease> AppReleases { get; set; }
+    public virtual DbSet<AppReleasesI18n> AppReleasesI18ns { get; set; }
+    public virtual DbSet<AppSetting> AppSettings { get; set; }
+    public virtual DbSet<PushMessage> PushMessages { get; set; }
+    public virtual DbSet<PushMessageStat> PushMessageStats { get; set; }
+    public virtual DbSet<PushMessagesI18n> PushMessagesI18ns { get; set; }
+    public virtual DbSet<PushTopicSubscription> PushTopicSubscriptions { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -4699,10 +4724,14 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("source");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
+                .HasDefaultValue("subscribed")
                 .HasColumnName("status");
             entity.Property(e => e.SubscribedAt)
                 .HasPrecision(3)
                 .HasColumnName("subscribed_at");
+            entity.Property(e => e.UnsubscribedAt)
+                .HasPrecision(3)
+                .HasColumnName("unsubscribed_at");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -7601,6 +7630,1222 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.Venue).WithMany(p => p.VenuesI18ns)
                 .HasForeignKey(d => d.VenueId)
                 .HasConstraintName("FK_venues_i18n_venue");
+        });
+
+        modelBuilder.Entity<AdCampaign>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("ad_campaigns");
+
+            entity.HasIndex(e => e.AdvertiserId, "IX_ad_campaigns_advertiser");
+
+            entity.HasIndex(e => new { e.SlotId, e.Status, e.StartsAt }, "IX_ad_campaigns_slot_status");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_ad_campaigns_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.AdvertiserId).HasColumnName("advertiser_id");
+            entity.Property(e => e.ContractAmount).HasColumnName("contract_amount");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.DailyImpressionCap).HasColumnName("daily_impression_cap");
+            entity.Property(e => e.DeliveredOn).HasColumnName("delivered_on");
+            entity.Property(e => e.DeliveredToday).HasColumnName("delivered_today");
+            entity.Property(e => e.DeliveredTotal).HasColumnName("delivered_total");
+            entity.Property(e => e.EndsAt)
+                .HasPrecision(3)
+                .HasColumnName("ends_at");
+            entity.Property(e => e.GoalImpressions).HasColumnName("goal_impressions");
+            entity.Property(e => e.GoalType)
+                .HasMaxLength(16)
+                .HasDefaultValue("traffic")
+                .HasColumnName("goal_type");
+            entity.Property(e => e.IsAmountHidden)
+                .HasDefaultValue(true)
+                .HasColumnName("is_amount_hidden");
+            entity.Property(e => e.Name)
+                .HasMaxLength(160)
+                .HasColumnName("name");
+            entity.Property(e => e.PauseReason)
+                .HasMaxLength(255)
+                .HasColumnName("pause_reason");
+            entity.Property(e => e.PausedFrom)
+                .HasMaxLength(16)
+                .HasColumnName("paused_from");
+            entity.Property(e => e.PerDeviceDailyCap).HasColumnName("per_device_daily_cap");
+            entity.Property(e => e.ReviewedAt)
+                .HasPrecision(3)
+                .HasColumnName("reviewed_at");
+            entity.Property(e => e.ReviewedBy).HasColumnName("reviewed_by");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SlotId).HasColumnName("slot_id");
+            entity.Property(e => e.StartsAt)
+                .HasPrecision(3)
+                .HasColumnName("starts_at");
+            entity.Property(e => e.Status)
+                .HasMaxLength(16)
+                .HasDefaultValue("draft")
+                .HasColumnName("status");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.Property(e => e.Weight)
+                .HasDefaultValue(1)
+                .HasColumnName("weight");
+
+            entity.HasOne(d => d.Advertiser).WithMany(p => p.AdCampaigns)
+                .HasForeignKey(d => d.AdvertiserId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ad_campaigns_advertiser");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AdCampaignCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_ad_campaigns_created_by");
+
+            entity.HasOne(d => d.ReviewedByNavigation).WithMany(p => p.AdCampaignReviewedByNavigations)
+                .HasForeignKey(d => d.ReviewedBy)
+                .HasConstraintName("FK_ad_campaigns_reviewed_by");
+
+            entity.HasOne(d => d.Slot).WithMany(p => p.AdCampaigns)
+                .HasForeignKey(d => d.SlotId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_ad_campaigns_slot");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AdCampaignUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_ad_campaigns_updated_by");
+        });
+        modelBuilder.Entity<AdCreative>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("ad_creatives");
+
+            entity.HasIndex(e => e.CampaignId, "IX_ad_creatives_campaign");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_ad_creatives_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.AltText)
+                .HasMaxLength(200)
+                .HasColumnName("alt_text");
+            entity.Property(e => e.CampaignId).HasColumnName("campaign_id");
+            entity.Property(e => e.ClickUrl)
+                .HasMaxLength(500)
+                .HasColumnName("click_url");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.CtaText)
+                .HasMaxLength(60)
+                .HasColumnName("cta_text");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
+            entity.Property(e => e.ImageKey)
+                .HasMaxLength(500)
+                .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.IsPaused).HasColumnName("is_paused");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.RejectReason)
+                .HasMaxLength(255)
+                .HasColumnName("reject_reason");
+            entity.Property(e => e.ReviewStatus)
+                .HasMaxLength(16)
+                .HasDefaultValue("pending")
+                .HasColumnName("review_status");
+            entity.Property(e => e.ReviewedAt)
+                .HasPrecision(3)
+                .HasColumnName("reviewed_at");
+            entity.Property(e => e.ReviewedBy).HasColumnName("reviewed_by");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.Theme)
+                .HasMaxLength(8)
+                .HasDefaultValue("both")
+                .HasColumnName("theme");
+            entity.Property(e => e.Title)
+                .HasMaxLength(160)
+                .HasColumnName("title");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.Property(e => e.VariantTag)
+                .HasMaxLength(8)
+                .HasColumnName("variant_tag");
+            entity.Property(e => e.VideoKey)
+                .HasMaxLength(500)
+                .HasColumnName("video_key");
+
+            entity.HasOne(d => d.Campaign).WithMany(p => p.AdCreatives)
+                .HasForeignKey(d => d.CampaignId)
+                .HasConstraintName("FK_ad_creatives_campaign");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AdCreativeCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_ad_creatives_created_by");
+
+            entity.HasOne(d => d.ReviewedByNavigation).WithMany(p => p.AdCreativeReviewedByNavigations)
+                .HasForeignKey(d => d.ReviewedBy)
+                .HasConstraintName("FK_ad_creatives_reviewed_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AdCreativeUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_ad_creatives_updated_by");
+        });
+        modelBuilder.Entity<AdDailyStat>(entity =>
+        {
+            entity.HasKey(e => new { e.StatDate, e.CampaignId, e.CreativeId, e.SlotId, e.Platform, e.Locale });
+
+            entity.ToTable("ad_daily_stats");
+
+            entity.HasIndex(e => new { e.CampaignId, e.StatDate }, "IX_ad_daily_stats_campaign_date");
+
+            entity.Property(e => e.StatDate).HasColumnName("stat_date");
+            entity.Property(e => e.CampaignId).HasColumnName("campaign_id");
+            entity.Property(e => e.CreativeId).HasColumnName("creative_id");
+            entity.Property(e => e.SlotId).HasColumnName("slot_id");
+            entity.Property(e => e.Platform)
+                .HasMaxLength(8)
+                .HasColumnName("platform");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Clicks).HasColumnName("clicks");
+            entity.Property(e => e.Impressions).HasColumnName("impressions");
+            entity.Property(e => e.UniqueDevices).HasColumnName("unique_devices");
+
+            entity.HasOne(d => d.Creative).WithMany(p => p.AdDailyStats)
+                .HasForeignKey(d => d.CreativeId)
+                .HasConstraintName("FK_ad_daily_stats_creative");
+        });
+        modelBuilder.Entity<AdEvent>(entity =>
+        {
+            entity.ToTable("ad_events");
+
+            entity.HasIndex(e => new { e.CampaignId, e.OccurredAt }, "IX_ad_events_campaign_occurred");
+
+            entity.HasIndex(e => new { e.DeviceInstallId, e.CreativeId, e.OccurredAt }, "IX_ad_events_device_creative");
+
+            entity.HasIndex(e => new { e.AggregatedAt, e.OccurredAt }, "IX_ad_events_unaggregated");
+
+            entity.HasIndex(e => e.DedupeKey, "UQ_ad_events_dedupe_key").IsUnique();
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.AggregatedAt)
+                .HasPrecision(3)
+                .HasColumnName("aggregated_at");
+            entity.Property(e => e.AppVersion)
+                .HasMaxLength(32)
+                .HasColumnName("app_version");
+            entity.Property(e => e.BatchId)
+                .HasMaxLength(64)
+                .HasColumnName("batch_id");
+            entity.Property(e => e.CampaignId).HasColumnName("campaign_id");
+            entity.Property(e => e.CreativeId).HasColumnName("creative_id");
+            entity.Property(e => e.DedupeKey)
+                .HasMaxLength(32)
+                .IsUnicode(false)
+                .IsFixedLength()
+                .HasColumnName("dedupe_key");
+            entity.Property(e => e.DeviceInstallId)
+                .HasMaxLength(64)
+                .HasColumnName("device_install_id");
+            entity.Property(e => e.EventType)
+                .HasMaxLength(12)
+                .HasColumnName("event_type");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.OccurredAt)
+                .HasPrecision(3)
+                .HasColumnName("occurred_at");
+            entity.Property(e => e.Platform)
+                .HasMaxLength(8)
+                .HasColumnName("platform");
+            entity.Property(e => e.PresentationId)
+                .HasMaxLength(64)
+                .HasColumnName("presentation_id");
+            entity.Property(e => e.ReceivedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("received_at");
+            entity.Property(e => e.SlotId).HasColumnName("slot_id");
+
+            entity.HasOne(d => d.Creative).WithMany(p => p.AdEvents)
+                .HasForeignKey(d => d.CreativeId)
+                .HasConstraintName("FK_ad_events_creative");
+        });
+        modelBuilder.Entity<AdSlot>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("ad_slots");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_ad_slots_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.HasIndex(e => e.SlotCode, "UQ_ad_slots_slot_code").IsUnique();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.AllowVideo).HasColumnName("allow_video");
+            entity.Property(e => e.AllowedFormats)
+                .HasMaxLength(64)
+                .HasColumnName("allowed_formats");
+            entity.Property(e => e.AspectRatio)
+                .HasMaxLength(16)
+                .HasColumnName("aspect_ratio");
+            entity.Property(e => e.BlockOrder).HasColumnName("block_order");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.FallbackImageHeight).HasColumnName("fallback_image_height");
+            entity.Property(e => e.FallbackImageKey)
+                .HasMaxLength(500)
+                .HasColumnName("fallback_image_key");
+            entity.Property(e => e.FallbackImageWidth).HasColumnName("fallback_image_width");
+            entity.Property(e => e.FallbackLink)
+                .HasMaxLength(500)
+                .HasColumnName("fallback_link");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.MaxFileKb).HasColumnName("max_file_kb");
+            entity.Property(e => e.MinHeight).HasColumnName("min_height");
+            entity.Property(e => e.MinWidth).HasColumnName("min_width");
+            entity.Property(e => e.RotationCap)
+                .HasDefaultValue(1)
+                .HasColumnName("rotation_cap");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.ScreenCode)
+                .HasMaxLength(16)
+                .HasColumnName("screen_code");
+            entity.Property(e => e.SessionImpressionCap).HasColumnName("session_impression_cap");
+            entity.Property(e => e.SlotCode)
+                .HasMaxLength(64)
+                .HasColumnName("slot_code");
+            entity.Property(e => e.Surface)
+                .HasMaxLength(8)
+                .HasDefaultValue("app")
+                .HasColumnName("surface");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AdSlotCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_ad_slots_created_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AdSlotUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_ad_slots_updated_by");
+        });
+        modelBuilder.Entity<AdSlotsI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.AdSlotId, e.Locale });
+
+            entity.ToTable("ad_slots_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_ad_slots_i18n_locale");
+
+            entity.Property(e => e.AdSlotId).HasColumnName("ad_slot_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.FallbackAlt)
+                .HasMaxLength(200)
+                .HasColumnName("fallback_alt");
+            entity.Property(e => e.Name)
+                .HasMaxLength(128)
+                .HasColumnName("name");
+
+            entity.HasOne(d => d.AdSlot).WithMany(p => p.AdSlotsI18ns)
+                .HasForeignKey(d => d.AdSlotId)
+                .HasConstraintName("FK_ad_slots_i18n_slot");
+        });
+        modelBuilder.Entity<Advertiser>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("advertisers");
+
+            entity.HasIndex(e => e.Status, "IX_advertisers_status");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_advertisers_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.ContactEmail)
+                .HasMaxLength(255)
+                .HasColumnName("contact_email");
+            entity.Property(e => e.ContactName)
+                .HasMaxLength(100)
+                .HasColumnName("contact_name");
+            entity.Property(e => e.ContactPhone)
+                .HasMaxLength(40)
+                .HasColumnName("contact_phone");
+            entity.Property(e => e.ContractNote)
+                .HasMaxLength(1000)
+                .HasColumnName("contract_note");
+            entity.Property(e => e.CooperationEndOn).HasColumnName("cooperation_end_on");
+            entity.Property(e => e.CooperationStartOn).HasColumnName("cooperation_start_on");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SponsorId).HasColumnName("sponsor_id");
+            entity.Property(e => e.Status)
+                .HasMaxLength(16)
+                .HasDefaultValue("negotiating")
+                .HasColumnName("status");
+            entity.Property(e => e.TaxId)
+                .HasMaxLength(16)
+                .HasColumnName("tax_id");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AdvertiserCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_advertisers_created_by");
+
+            entity.HasOne(d => d.Sponsor).WithMany(p => p.Advertisers)
+                .HasForeignKey(d => d.SponsorId)
+                .HasConstraintName("FK_advertisers_sponsor");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AdvertiserUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_advertisers_updated_by");
+        });
+        modelBuilder.Entity<AdvertisersI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.AdvertiserId, e.Locale });
+
+            entity.ToTable("advertisers_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_advertisers_i18n_locale");
+
+            entity.Property(e => e.AdvertiserId).HasColumnName("advertiser_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Name)
+                .HasMaxLength(128)
+                .HasColumnName("name");
+
+            entity.HasOne(d => d.Advertiser).WithMany(p => p.AdvertisersI18ns)
+                .HasForeignKey(d => d.AdvertiserId)
+                .HasConstraintName("FK_advertisers_i18n_advertiser");
+        });
+        modelBuilder.Entity<AppAnnouncement>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("app_announcements");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_app_announcements_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.AudienceClubId).HasColumnName("audience_club_id");
+            entity.Property(e => e.AudienceTier)
+                .HasMaxLength(16)
+                .HasDefaultValue("all")
+                .HasColumnName("audience_tier");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.EndsAt)
+                .HasPrecision(3)
+                .HasColumnName("ends_at");
+            entity.Property(e => e.IsEnabled)
+                .HasDefaultValue(true)
+                .HasColumnName("is_enabled");
+            entity.Property(e => e.LinkUrl)
+                .HasMaxLength(500)
+                .HasColumnName("link_url");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.StartsAt)
+                .HasPrecision(3)
+                .HasColumnName("starts_at");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.AudienceClub).WithMany(p => p.AppAnnouncements)
+                .HasForeignKey(d => d.AudienceClubId)
+                .HasConstraintName("FK_app_announcements_club");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AppAnnouncementCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_app_announcements_created_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AppAnnouncementUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_app_announcements_updated_by");
+        });
+        modelBuilder.Entity<AppAnnouncementsI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.AppAnnouncementId, e.Locale });
+
+            entity.ToTable("app_announcements_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_app_announcements_i18n_locale");
+
+            entity.Property(e => e.AppAnnouncementId).HasColumnName("app_announcement_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Message)
+                .HasMaxLength(200)
+                .HasColumnName("message");
+
+            entity.HasOne(d => d.AppAnnouncement).WithMany(p => p.AppAnnouncementsI18ns)
+                .HasForeignKey(d => d.AppAnnouncementId)
+                .HasConstraintName("FK_app_announcements_i18n_item");
+        });
+        modelBuilder.Entity<AppCredential>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("app_credentials");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_app_credentials_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.CreatedOn).HasColumnName("created_on");
+            entity.Property(e => e.ExpiresOn).HasColumnName("expires_on");
+            entity.Property(e => e.ExternalRef)
+                .HasMaxLength(200)
+                .HasColumnName("external_ref");
+            entity.Property(e => e.Kind)
+                .HasMaxLength(32)
+                .HasColumnName("kind");
+            entity.Property(e => e.Label)
+                .HasMaxLength(120)
+                .HasColumnName("label");
+            entity.Property(e => e.LastRotatedOn).HasColumnName("last_rotated_on");
+            entity.Property(e => e.Note)
+                .HasMaxLength(500)
+                .HasColumnName("note");
+            entity.Property(e => e.RotationPeriodDays).HasColumnName("rotation_period_days");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AppCredentialCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_app_credentials_created_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AppCredentialUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_app_credentials_updated_by");
+        });
+        modelBuilder.Entity<AppDeepLink>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("app_deep_links");
+
+            entity.HasIndex(e => e.Code, "UQ_app_deep_links_code").IsUnique();
+
+            entity.HasIndex(e => e.RowSeq, "UQ_app_deep_links_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.AppLink)
+                .HasMaxLength(200)
+                .HasColumnName("app_link");
+            entity.Property(e => e.Code)
+                .HasMaxLength(48)
+                .HasColumnName("code");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.IsActive)
+                .HasDefaultValue(true)
+                .HasColumnName("is_active");
+            entity.Property(e => e.RequiresLogin).HasColumnName("requires_login");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.Property(e => e.WebUrl)
+                .HasMaxLength(500)
+                .HasColumnName("web_url");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AppDeepLinkCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_app_deep_links_created_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AppDeepLinkUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_app_deep_links_updated_by");
+        });
+        modelBuilder.Entity<AppDeepLinksI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.AppDeepLinkId, e.Locale });
+
+            entity.ToTable("app_deep_links_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_app_deep_links_i18n_locale");
+
+            entity.Property(e => e.AppDeepLinkId).HasColumnName("app_deep_link_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Label)
+                .HasMaxLength(120)
+                .HasColumnName("label");
+
+            entity.HasOne(d => d.AppDeepLink).WithMany(p => p.AppDeepLinksI18ns)
+                .HasForeignKey(d => d.AppDeepLinkId)
+                .HasConstraintName("FK_app_deep_links_i18n_link");
+        });
+        modelBuilder.Entity<AppDevice>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("app_devices");
+
+            entity.HasIndex(e => e.LastActiveAt, "IX_app_devices_last_active");
+
+            entity.HasIndex(e => e.MemberId, "IX_app_devices_member");
+
+            entity.HasIndex(e => e.PushTokenHash, "IX_app_devices_token_hash");
+
+            entity.HasIndex(e => e.DeviceInstallId, "UQ_app_devices_install_id").IsUnique();
+
+            entity.HasIndex(e => e.RowSeq, "UQ_app_devices_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.AppVersion)
+                .HasMaxLength(32)
+                .HasColumnName("app_version");
+            entity.Property(e => e.DeviceInstallId)
+                .HasMaxLength(64)
+                .HasColumnName("device_install_id");
+            entity.Property(e => e.FirstSeenAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("first_seen_at");
+            entity.Property(e => e.LastActiveAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("last_active_at");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.MemberId).HasColumnName("member_id");
+            entity.Property(e => e.OsVersion)
+                .HasMaxLength(32)
+                .HasColumnName("os_version");
+            entity.Property(e => e.Platform)
+                .HasMaxLength(8)
+                .HasColumnName("platform");
+            entity.Property(e => e.PushPermission)
+                .HasMaxLength(16)
+                .HasDefaultValue("not_determined")
+                .HasColumnName("push_permission");
+            entity.Property(e => e.PushTokenEncrypted)
+                .HasMaxLength(2048)
+                .HasColumnName("push_token_encrypted");
+            entity.Property(e => e.PushTokenHash)
+                .HasMaxLength(64)
+                .IsUnicode(false)
+                .IsFixedLength()
+                .HasColumnName("push_token_hash");
+            entity.Property(e => e.PushTokenStatus)
+                .HasMaxLength(12)
+                .HasDefaultValue("none")
+                .HasColumnName("push_token_status");
+            entity.Property(e => e.RefreshTokenExpiresAt)
+                .HasPrecision(3)
+                .HasColumnName("refresh_token_expires_at");
+            entity.Property(e => e.RefreshTokenHash)
+                .HasMaxLength(64)
+                .IsUnicode(false)
+                .IsFixedLength()
+                .HasColumnName("refresh_token_hash");
+            entity.Property(e => e.RefreshTokenRotatedAt)
+                .HasPrecision(3)
+                .HasColumnName("refresh_token_rotated_at");
+            entity.Property(e => e.RevokedAt)
+                .HasPrecision(3)
+                .HasColumnName("revoked_at");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+
+            entity.HasOne(d => d.Member).WithMany(p => p.AppDevices)
+                .HasForeignKey(d => d.MemberId)
+                .HasConstraintName("FK_app_devices_member");
+        });
+        modelBuilder.Entity<AppDiagnosticReport>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("app_diagnostic_reports");
+
+            entity.HasIndex(e => e.ReceivedAt, "IX_app_diagnostic_reports_received");
+
+            entity.HasIndex(e => new { e.ReportType, e.Status }, "IX_app_diagnostic_reports_type");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_app_diagnostic_reports_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.AppVersion)
+                .HasMaxLength(32)
+                .HasColumnName("app_version");
+            entity.Property(e => e.BuildNumber)
+                .HasMaxLength(32)
+                .HasColumnName("build_number");
+            entity.Property(e => e.Detail).HasColumnName("detail");
+            entity.Property(e => e.DeviceInstallId)
+                .HasMaxLength(64)
+                .HasColumnName("device_install_id");
+            entity.Property(e => e.MetricValue).HasColumnName("metric_value");
+            entity.Property(e => e.OccurredAt)
+                .HasPrecision(3)
+                .HasColumnName("occurred_at");
+            entity.Property(e => e.OsVersion)
+                .HasMaxLength(32)
+                .HasColumnName("os_version");
+            entity.Property(e => e.Platform)
+                .HasMaxLength(8)
+                .HasColumnName("platform");
+            entity.Property(e => e.ReceivedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("received_at");
+            entity.Property(e => e.ReportType)
+                .HasMaxLength(16)
+                .HasColumnName("report_type");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.Status)
+                .HasMaxLength(16)
+                .HasDefaultValue("new")
+                .HasColumnName("status");
+            entity.Property(e => e.Summary)
+                .HasMaxLength(500)
+                .HasColumnName("summary");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AppDiagnosticReports)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_app_diagnostic_reports_updated_by");
+        });
+        modelBuilder.Entity<AppFeatureFlag>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("app_feature_flags");
+
+            entity.HasIndex(e => new { e.FlagKey, e.Platform }, "UQ_app_feature_flags_key_platform").IsUnique();
+
+            entity.HasIndex(e => e.RowSeq, "UQ_app_feature_flags_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.Description)
+                .HasMaxLength(255)
+                .HasColumnName("description");
+            entity.Property(e => e.FlagKey)
+                .HasMaxLength(64)
+                .HasColumnName("flag_key");
+            entity.Property(e => e.IsEnabled).HasColumnName("is_enabled");
+            entity.Property(e => e.Platform)
+                .HasMaxLength(8)
+                .HasDefaultValue("all")
+                .HasColumnName("platform");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.StringValue)
+                .HasMaxLength(32)
+                .HasColumnName("string_value");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AppFeatureFlagCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_app_feature_flags_created_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AppFeatureFlagUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_app_feature_flags_updated_by");
+        });
+        modelBuilder.Entity<AppLayoutItem>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("app_layout_items");
+
+            entity.HasIndex(e => new { e.Kind, e.ItemKey }, "UQ_app_layout_items_kind_key").IsUnique();
+
+            entity.HasIndex(e => e.RowSeq, "UQ_app_layout_items_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.DeepLinkId).HasColumnName("deep_link_id");
+            entity.Property(e => e.IconKey)
+                .HasMaxLength(48)
+                .HasColumnName("icon_key");
+            entity.Property(e => e.IsEnabled)
+                .HasDefaultValue(true)
+                .HasColumnName("is_enabled");
+            entity.Property(e => e.ItemKey)
+                .HasMaxLength(48)
+                .HasColumnName("item_key");
+            entity.Property(e => e.Kind)
+                .HasMaxLength(16)
+                .HasColumnName("kind");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AppLayoutItemCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_app_layout_items_created_by");
+
+            entity.HasOne(d => d.DeepLink).WithMany(p => p.AppLayoutItems)
+                .HasForeignKey(d => d.DeepLinkId)
+                .HasConstraintName("FK_app_layout_items_deep_link");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AppLayoutItemUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_app_layout_items_updated_by");
+        });
+        modelBuilder.Entity<AppLayoutItemsI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.AppLayoutItemId, e.Locale });
+
+            entity.ToTable("app_layout_items_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_app_layout_items_i18n_locale");
+
+            entity.Property(e => e.AppLayoutItemId).HasColumnName("app_layout_item_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Label)
+                .HasMaxLength(120)
+                .HasColumnName("label");
+
+            entity.HasOne(d => d.AppLayoutItem).WithMany(p => p.AppLayoutItemsI18ns)
+                .HasForeignKey(d => d.AppLayoutItemId)
+                .HasConstraintName("FK_app_layout_items_i18n_item");
+        });
+        modelBuilder.Entity<AppRelease>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("app_releases");
+
+            entity.HasIndex(e => new { e.Platform, e.Version }, "UQ_app_releases_platform_version").IsUnique();
+
+            entity.HasIndex(e => e.RowSeq, "UQ_app_releases_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.BuildNumber)
+                .HasMaxLength(32)
+                .HasColumnName("build_number");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.IsMinSupported).HasColumnName("is_min_supported");
+            entity.Property(e => e.IsRecommended).HasColumnName("is_recommended");
+            entity.Property(e => e.Platform)
+                .HasMaxLength(8)
+                .HasColumnName("platform");
+            entity.Property(e => e.ReleasedOn).HasColumnName("released_on");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.Status)
+                .HasMaxLength(16)
+                .HasDefaultValue("testing")
+                .HasColumnName("status");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.Property(e => e.Version)
+                .HasMaxLength(32)
+                .HasColumnName("version");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.AppReleaseCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_app_releases_created_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AppReleaseUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_app_releases_updated_by");
+        });
+        modelBuilder.Entity<AppReleasesI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.AppReleaseId, e.Locale });
+
+            entity.ToTable("app_releases_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_app_releases_i18n_locale");
+
+            entity.Property(e => e.AppReleaseId).HasColumnName("app_release_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.ForceMessage)
+                .HasMaxLength(500)
+                .HasColumnName("force_message");
+            entity.Property(e => e.RecommendMessage)
+                .HasMaxLength(500)
+                .HasColumnName("recommend_message");
+            entity.Property(e => e.WhatsNew)
+                .HasMaxLength(2000)
+                .HasColumnName("whats_new");
+
+            entity.HasOne(d => d.AppRelease).WithMany(p => p.AppReleasesI18ns)
+                .HasForeignKey(d => d.AppReleaseId)
+                .HasConstraintName("FK_app_releases_i18n_release");
+        });
+        modelBuilder.Entity<AppSetting>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("app_settings");
+
+            entity.HasIndex(e => e.SettingKey, "UQ_app_settings_key").IsUnique();
+
+            entity.HasIndex(e => e.RowSeq, "UQ_app_settings_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SettingKey)
+                .HasMaxLength(64)
+                .HasColumnName("setting_key");
+            entity.Property(e => e.SettingValue).HasColumnName("setting_value");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.AppSettings)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_app_settings_updated_by");
+        });
+        modelBuilder.Entity<PushMessage>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("push_messages");
+
+            entity.HasIndex(e => new { e.Status, e.ScheduledAt }, "IX_push_messages_status_scheduled");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_push_messages_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.AudienceClubId).HasColumnName("audience_club_id");
+            entity.Property(e => e.AudienceEstimate).HasColumnName("audience_estimate");
+            entity.Property(e => e.AudienceTeamCodes).HasColumnName("audience_team_codes");
+            entity.Property(e => e.AudienceTier)
+                .HasMaxLength(16)
+                .HasDefaultValue("all")
+                .HasColumnName("audience_tier");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.DeepLink)
+                .HasMaxLength(500)
+                .HasColumnName("deep_link");
+            entity.Property(e => e.DeliveredCount).HasColumnName("delivered_count");
+            entity.Property(e => e.FailedCount).HasColumnName("failed_count");
+            entity.Property(e => e.FailureMessage)
+                .HasMaxLength(255)
+                .HasColumnName("failure_message");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
+            entity.Property(e => e.ImageKey)
+                .HasMaxLength(500)
+                .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.Kind)
+                .HasMaxLength(16)
+                .HasDefaultValue("announcement")
+                .HasColumnName("kind");
+            entity.Property(e => e.OpenedCount).HasColumnName("opened_count");
+            entity.Property(e => e.RejectNote)
+                .HasMaxLength(255)
+                .HasColumnName("reject_note");
+            entity.Property(e => e.ReviewedAt)
+                .HasPrecision(3)
+                .HasColumnName("reviewed_at");
+            entity.Property(e => e.ReviewedBy).HasColumnName("reviewed_by");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.ScheduledAt)
+                .HasPrecision(3)
+                .HasColumnName("scheduled_at");
+            entity.Property(e => e.SendCursor).HasColumnName("send_cursor");
+            entity.Property(e => e.SentAt)
+                .HasPrecision(3)
+                .HasColumnName("sent_at");
+            entity.Property(e => e.SentCount).HasColumnName("sent_count");
+            entity.Property(e => e.Status)
+                .HasMaxLength(16)
+                .HasDefaultValue("draft")
+                .HasColumnName("status");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.AudienceClub).WithMany(p => p.PushMessages)
+                .HasForeignKey(d => d.AudienceClubId)
+                .HasConstraintName("FK_push_messages_club");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.PushMessageCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_push_messages_created_by");
+
+            entity.HasOne(d => d.ReviewedByNavigation).WithMany(p => p.PushMessageReviewedByNavigations)
+                .HasForeignKey(d => d.ReviewedBy)
+                .HasConstraintName("FK_push_messages_reviewed_by");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.PushMessageUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_push_messages_updated_by");
+        });
+        modelBuilder.Entity<PushMessageStat>(entity =>
+        {
+            entity.HasKey(e => new { e.PushMessageId, e.Platform, e.Locale });
+
+            entity.ToTable("push_message_stats");
+
+            entity.Property(e => e.PushMessageId).HasColumnName("push_message_id");
+            entity.Property(e => e.Platform)
+                .HasMaxLength(8)
+                .HasColumnName("platform");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Delivered).HasColumnName("delivered");
+            entity.Property(e => e.Opened).HasColumnName("opened");
+            entity.Property(e => e.Sent).HasColumnName("sent");
+
+            entity.HasOne(d => d.PushMessage).WithMany(p => p.PushMessageStats)
+                .HasForeignKey(d => d.PushMessageId)
+                .HasConstraintName("FK_push_message_stats_message");
+        });
+        modelBuilder.Entity<PushMessagesI18n>(entity =>
+        {
+            entity.HasKey(e => new { e.PushMessageId, e.Locale });
+
+            entity.ToTable("push_messages_i18n");
+
+            entity.HasIndex(e => e.Locale, "IX_push_messages_i18n_locale");
+
+            entity.Property(e => e.PushMessageId).HasColumnName("push_message_id");
+            entity.Property(e => e.Locale)
+                .HasMaxLength(10)
+                .HasColumnName("locale");
+            entity.Property(e => e.Body)
+                .HasMaxLength(500)
+                .HasColumnName("body");
+            entity.Property(e => e.ImageAlt)
+                .HasMaxLength(200)
+                .HasColumnName("image_alt");
+            entity.Property(e => e.Title)
+                .HasMaxLength(120)
+                .HasColumnName("title");
+
+            entity.HasOne(d => d.PushMessage).WithMany(p => p.PushMessagesI18ns)
+                .HasForeignKey(d => d.PushMessageId)
+                .HasConstraintName("FK_push_messages_i18n_message");
+        });
+        modelBuilder.Entity<PushTopicSubscription>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("push_topic_subscriptions");
+
+            entity.HasIndex(e => new { e.TopicType, e.TopicValue, e.IsPushEnabled }, "IX_push_topic_subscriptions_topic");
+
+            entity.HasIndex(e => new { e.DeviceId, e.TopicType, e.TopicValue }, "UQ_push_topic_subscriptions_device_topic").IsUnique();
+
+            entity.HasIndex(e => e.RowSeq, "UQ_push_topic_subscriptions_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.DeviceId).HasColumnName("device_id");
+            entity.Property(e => e.IsFollowing)
+                .HasDefaultValue(true)
+                .HasColumnName("is_following");
+            entity.Property(e => e.IsPushEnabled)
+                .HasDefaultValue(true)
+                .HasColumnName("is_push_enabled");
+            entity.Property(e => e.MemberId).HasColumnName("member_id");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.TopicType)
+                .HasMaxLength(16)
+                .HasColumnName("topic_type");
+            entity.Property(e => e.TopicValue)
+                .HasMaxLength(64)
+                .HasColumnName("topic_value");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+
+            entity.HasOne(d => d.Device).WithMany(p => p.PushTopicSubscriptions)
+                .HasForeignKey(d => d.DeviceId)
+                .HasConstraintName("FK_push_topic_subscriptions_device");
+
+            entity.HasOne(d => d.Member).WithMany(p => p.PushTopicSubscriptions)
+                .HasForeignKey(d => d.MemberId)
+                .HasConstraintName("FK_push_topic_subscriptions_member");
         });
 
         OnModelCreatingPartial(modelBuilder);

@@ -14,9 +14,10 @@
    🔴 範圍邊界：
      - 本庫只涵蓋主站（含站內商店 S）＋ 後台帳號與權限 J。
      - 不含慈善捐款平台（獨立庫 sqldb-charity，見另案 docs/16-charity-schema.md）。
-     - 不含行動 App 專屬 11 個型別（AdSlot／Advertiser／AdCampaign／AdCreative／
+     - 行動 App 專屬 11 個型別（AdSlot／Advertiser／AdCampaign／AdCreative／
        AdEvent／AdDailyStat／AppDevice／PushTopicSubscription／PushMessage／
-       AppRelease／AppDiagnosticReport）。
+       AppRelease／AppDiagnosticReport）原本不在本檔；D 批（2026-09-30，AP-1）依
+       docs/12 §13.2「屆時另出延伸設計」以 docs/12b §16 新增於 4.13 一節（共 25 張）。
      - 🔴 本庫與慈善庫（sqldb-charity）之間絕對不得有外鍵、不得跨庫查詢。
 
    —— 硬性技術約束（docs/12 §1.2、§1.4，docs/17 §6，本次任務指示）——
@@ -43,7 +44,7 @@
        子表承載加 sort_order。全系統不設媒體庫。
    10. 索引、唯一鍵、外鍵刪除行為依 docs/12b §11.1／§11.2／§11.3；未逐一
        列出行為的關係一律預設 NO ACTION（省略 ON DELETE 子句）。
-   11. 輸出結構：本檔先依 4.0–4.12 分模組建表（僅含欄位與主鍵／叢集鍵／
+   11. 輸出結構：本檔先依 4.0–4.13 分模組建表（僅含欄位與主鍵／叢集鍵／
        CHECK），再統一建唯一鍵、統一建索引、統一建外鍵，最後 CREATE VIEW。
 
    —— 定序（COLLATE）提醒 ——
@@ -1587,14 +1588,17 @@ CREATE TABLE enquiry_answers (
 );
 
 -- 電子報名單：來源、訂閱／退訂狀態。唯一鍵 (club_id, email)——同一人可只退訂其中一站。
+-- D 批（G3，2026-09-30）：status 收斂為 NOT NULL DEFAULT 'subscribed'＋值域約束（subscribed／unsubscribed）；
+-- 新增 unsubscribed_at（退訂時間，退訂同意須可舉證，見 docs/12 §12 第 46 點）。
 CREATE TABLE newsletter_subscribers (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   email           nvarchar(255)    NOT NULL,
   source          nvarchar(64)     NULL,
-  status          nvarchar(16)     NULL,
+  status          nvarchar(16)     NOT NULL DEFAULT 'subscribed' CHECK (status IN ('subscribed','unsubscribed')),
   subscribed_at   datetime2(3)     NULL,
+  unsubscribed_at datetime2(3)     NULL,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -2814,6 +2818,472 @@ CREATE TABLE charity_program_articles (
 );
 
 /* ============================================================================
+   4.13 M 行動 App ＋ E4–E6 廣告 ＋ G3 電子報（AP-1／S3-10，2026-09-30，D 批）
+   ============================================================================
+   🔴 這一節是 docs/12b §16 的落地。原本本檔範圍「不含行動 App 的十一個型別」（檔頭），
+      D 批（共用後台 M1–M5、E4–E6）需要它們，故依 docs/12 §13.2「屆時另出延伸設計」新增。
+   - 11 個 App 型別（AdSlot／Advertiser／AdCampaign／AdCreative／AdEvent／AdDailyStat／AppDevice／
+     PushTopicSubscription／PushMessage／AppRelease／AppDiagnosticReport）皆不加 club_id
+     （App 規劃書 §10.1：兩隊共用一個 App，廣告與推播不分俱樂部；主站 §5.4 的 50／9 清單不含它們）。
+   - 為 M2／M3／M5 補的附屬表（規劃書 §8.1–8.5 功能的落點，不是新規格）：
+     app_deep_links／app_layout_items／app_announcements（M2 內容編排）、push_message_stats（M3 送出／送達／開啟）、
+     app_feature_flags／app_credentials／app_settings（M5）、及各自的 *_i18n 側表。
+   - 沒有任何日誌表：ad_events 是 App 規劃書 §7.6 明定的「原始事件」（功能單元，保存 90 天後清除），
+     push_message_stats 只有彙總數字，不記錄個人層級的推播行為。
+   ============================================================================ */
+
+-- 廣告版位（App 規劃書 §7.2）。長期資產。slot_code 唯一。兒童向畫面（學院、課程）不建版位。
+CREATE TABLE ad_slots (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  slot_code              nvarchar(64)     NOT NULL,
+  surface                nvarchar(8)      NOT NULL DEFAULT 'app' CHECK (surface IN ('app','web')),
+  screen_code            nvarchar(16)     NULL,
+  block_order            int              NULL,
+  aspect_ratio           nvarchar(16)     NULL,
+  min_width              int              NULL,
+  min_height             int              NULL,
+  max_file_kb            int              NULL,
+  allowed_formats        nvarchar(64)     NULL,
+  allow_video            bit              NOT NULL DEFAULT 0,
+  session_impression_cap int              NULL,
+  rotation_cap           int              NOT NULL DEFAULT 1 CHECK (rotation_cap BETWEEN 1 AND 10),
+  fallback_image_key     nvarchar(500)    NULL,
+  fallback_image_width   int              NULL,
+  fallback_image_height  int              NULL,
+  fallback_link          nvarchar(500)    NULL,
+  is_active              bit              NOT NULL DEFAULT 1,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_ad_slots PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_ad_slots_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE ad_slots_i18n (
+  ad_slot_id      uniqueidentifier NOT NULL,
+  locale          nvarchar(10)     NOT NULL,
+  name            nvarchar(128)    NULL,
+  fallback_alt    nvarchar(200)    NULL,
+  CONSTRAINT PK_ad_slots_i18n PRIMARY KEY CLUSTERED (ad_slot_id, locale)
+);
+
+-- 廣告主（§7.3）。sponsor_id 可為空，指向既有贊助商，只用來避免重複維護聯絡窗口，不是合併兩者。
+CREATE TABLE advertisers (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  tax_id                 nvarchar(16)     NULL,
+  contact_name           nvarchar(100)    NULL,
+  contact_phone          nvarchar(40)     NULL,
+  contact_email          nvarchar(255)    NULL,
+  contract_note          nvarchar(1000)   NULL,
+  cooperation_start_on   date             NULL,
+  cooperation_end_on     date             NULL,
+  sponsor_id             uniqueidentifier NULL,
+  status                 nvarchar(16)     NOT NULL DEFAULT 'negotiating' CHECK (status IN ('negotiating','active','ended')),
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_advertisers PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_advertisers_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE advertisers_i18n (
+  advertiser_id   uniqueidentifier NOT NULL,
+  locale          nvarchar(10)     NOT NULL,
+  name            nvarchar(128)    NULL,
+  CONSTRAINT PK_advertisers_i18n PRIMARY KEY CLUSTERED (advertiser_id, locale)
+);
+
+-- 投放檔期（§7.4）。狀態機：draft → pending_review → scheduled → running → ended → closed；
+-- running ↔ paused（paused_from 記住暫停前的狀態）；任一狀態可轉 voided（不可逆）。
+-- 「素材未通過審核的檔期不得進入 running」由應用層強制。delivered_today／delivered_on 供 pacing；
+-- delivered_total 是本檔補的累計（「目標 vs 已達成」不必每次加總日聚合）。
+CREATE TABLE ad_campaigns (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  advertiser_id          uniqueidentifier NOT NULL,
+  slot_id                uniqueidentifier NOT NULL,
+  name                   nvarchar(160)    NOT NULL,
+  starts_at              datetime2(3)     NOT NULL,
+  ends_at                datetime2(3)     NOT NULL,
+  weight                 int              NOT NULL DEFAULT 1 CHECK (weight BETWEEN 1 AND 100),
+  daily_impression_cap   int              NULL,
+  per_device_daily_cap   int              NULL,
+  goal_type              nvarchar(16)     NOT NULL DEFAULT 'traffic' CHECK (goal_type IN ('guaranteed','traffic')),
+  goal_impressions       int              NULL,
+  delivered_today        int              NOT NULL DEFAULT 0,
+  delivered_on           date             NULL,
+  delivered_total        int              NOT NULL DEFAULT 0,
+  contract_amount        int              NULL,
+  is_amount_hidden       bit              NOT NULL DEFAULT 1,
+  status                 nvarchar(16)     NOT NULL DEFAULT 'draft'
+                           CHECK (status IN ('draft','pending_review','scheduled','running','paused','ended','closed','voided')),
+  paused_from            nvarchar(16)     NULL,
+  pause_reason           nvarchar(255)    NULL,
+  reviewed_by            uniqueidentifier NULL,
+  reviewed_at            datetime2(3)     NULL,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_ad_campaigns PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_ad_campaigns_row_seq UNIQUE CLUSTERED (row_seq),
+  CONSTRAINT CK_ad_campaigns_period CHECK (ends_at > starts_at)
+);
+
+-- 廣告素材（§8.8）。依語系分別上傳（locale 存 zh-Hant／en）；圖或影片（影片需海報圖）；
+-- 審核狀態 pending／approved／rejected；is_paused 供單一素材緊急暫停。
+CREATE TABLE ad_creatives (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  campaign_id            uniqueidentifier NOT NULL,
+  locale                 nvarchar(10)     NOT NULL,
+  image_key              nvarchar(500)    NULL,
+  image_width            int              NULL,
+  image_height           int              NULL,
+  video_key              nvarchar(500)    NULL,
+  alt_text               nvarchar(200)    NULL,
+  title                  nvarchar(160)    NULL,
+  cta_text               nvarchar(60)     NULL,
+  click_url              nvarchar(500)    NULL,
+  theme                  nvarchar(8)      NOT NULL DEFAULT 'both' CHECK (theme IN ('light','dark','both')),
+  variant_tag            nvarchar(8)      NULL,
+  review_status          nvarchar(16)     NOT NULL DEFAULT 'pending' CHECK (review_status IN ('pending','approved','rejected')),
+  reject_reason          nvarchar(255)    NULL,
+  reviewed_by            uniqueidentifier NULL,
+  reviewed_at            datetime2(3)     NULL,
+  is_paused              bit              NOT NULL DEFAULT 0,
+  sort_order             int              NOT NULL DEFAULT 0,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_ad_creatives PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_ad_creatives_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 原始事件（§7.6，保存 90 天）。🔴 不存 member_id、完整 IP、定位座標、廣告識別碼（§7.8）。
+-- id 為 bigint 叢集主鍵（高量寫入、不對外）；dedupe_key＝事件類型｜素材｜裝置｜秒（曝光）或 5 秒桶（點擊）的雜湊，
+-- 唯一鍵擋伺服器端去重（§9.6）。aggregated_at 由每日聚合作業標記。
+CREATE TABLE ad_events (
+  id                     bigint IDENTITY(1,1) NOT NULL,
+  event_type             nvarchar(12)     NOT NULL CHECK (event_type IN ('impression','click')),
+  creative_id            uniqueidentifier NOT NULL,
+  campaign_id            uniqueidentifier NOT NULL,
+  slot_id                uniqueidentifier NOT NULL,
+  occurred_at            datetime2(3)     NOT NULL,
+  received_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  device_install_id      nvarchar(64)     NOT NULL,
+  platform               nvarchar(8)      NULL,
+  app_version            nvarchar(32)     NULL,
+  locale                 nvarchar(10)     NULL,
+  presentation_id        nvarchar(64)     NULL,
+  batch_id               nvarchar(64)     NULL,
+  dedupe_key             char(32)         NOT NULL,
+  aggregated_at          datetime2(3)     NULL,
+  CONSTRAINT PK_ad_events PRIMARY KEY CLUSTERED (id)
+);
+
+-- 日聚合（§7.6，長期保存）。維度 日期 × 檔期 × 素材 × 版位 × 平台 × 語系；CTR 由 clicks／impressions 現算不存。
+CREATE TABLE ad_daily_stats (
+  stat_date              date             NOT NULL,
+  campaign_id            uniqueidentifier NOT NULL,
+  creative_id            uniqueidentifier NOT NULL,
+  slot_id                uniqueidentifier NOT NULL,
+  platform               nvarchar(8)      NOT NULL,
+  locale                 nvarchar(10)     NOT NULL,
+  impressions            int              NOT NULL DEFAULT 0,
+  clicks                 int              NOT NULL DEFAULT 0,
+  unique_devices         int              NOT NULL DEFAULT 0,
+  CONSTRAINT PK_ad_daily_stats PRIMARY KEY CLUSTERED (stat_date, campaign_id, creative_id, slot_id, platform, locale)
+);
+
+-- App 裝置（§10.1）。可獨立存在（未登入亦註冊），member_id 為可空弱關聯。
+-- 推播權杖加密儲存（Data Protection），push_token_hash 只供去重與失效清理比對。
+-- 更新權杖四欄（雜湊、到期、上次輪替、撤銷）由會員登入（AP-3）使用，M4 不讀寫。
+CREATE TABLE app_devices (
+  id                          uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                     bigint IDENTITY(1,1) NOT NULL,
+  device_install_id           nvarchar(64)     NOT NULL,
+  platform                    nvarchar(8)      NOT NULL CHECK (platform IN ('ios','android')),
+  os_version                  nvarchar(32)     NULL,
+  app_version                 nvarchar(32)     NULL,
+  locale                      nvarchar(10)     NULL,
+  push_token_encrypted        nvarchar(2048)   NULL,
+  push_token_hash             char(64)         NULL,
+  push_token_status           nvarchar(12)     NOT NULL DEFAULT 'none' CHECK (push_token_status IN ('none','valid','invalid')),
+  push_permission             nvarchar(16)     NOT NULL DEFAULT 'not_determined'
+                                CHECK (push_permission IN ('not_determined','granted','denied','provisional')),
+  member_id                   uniqueidentifier NULL,
+  first_seen_at               datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  last_active_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  refresh_token_hash          char(64)         NULL,
+  refresh_token_expires_at    datetime2(3)     NULL,
+  refresh_token_rotated_at    datetime2(3)     NULL,
+  revoked_at                  datetime2(3)     NULL,
+  CONSTRAINT PK_app_devices PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_app_devices_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 追蹤與推播訂閱（§10.1）。topic_type：team（值＝球隊代碼）／news_category（值＝分類代碼）／club（值＝俱樂部代碼）。
+-- 以 device_id 關聯裝置（規劃書欄位 device_install_id 的內部外鍵形式）。is_following 與 is_push_enabled 分離。
+CREATE TABLE push_topic_subscriptions (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  device_id              uniqueidentifier NOT NULL,
+  member_id              uniqueidentifier NULL,
+  topic_type             nvarchar(16)     NOT NULL CHECK (topic_type IN ('team','news_category','club')),
+  topic_value            nvarchar(64)     NOT NULL,
+  is_following           bit              NOT NULL DEFAULT 1,
+  is_push_enabled        bit              NOT NULL DEFAULT 1,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT PK_push_topic_subscriptions PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_push_topic_subscriptions_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 推播批次（§6、§8.3）。狀態：draft → pending_review → scheduled → sending → sent／partial／failed；cancelled。
+-- 🔴 雙人覆核：reviewed_by 必須與 created_by 不同，且為系統管理員（規劃書 §11 補充規則 2）。
+-- 分眾三維度（§6.3）：會籍層級、追蹤球隊、俱樂部歸屬；語系由裝置決定。不做行為定向。
+-- send_cursor：分批送出時已處理到的 app_devices.row_seq，失敗重送從游標續送（避免不記錄個人層級投遞紀錄卻重複送）。
+CREATE TABLE push_messages (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  kind                   nvarchar(16)     NOT NULL DEFAULT 'announcement' CHECK (kind IN ('announcement','news','match')),
+  image_key              nvarchar(500)    NULL,
+  image_width            int              NULL,
+  image_height           int              NULL,
+  deep_link              nvarchar(500)    NULL,
+  audience_tier          nvarchar(16)     NOT NULL DEFAULT 'all' CHECK (audience_tier IN ('all','fan_club','registered','anonymous')),
+  audience_club_id       uniqueidentifier NULL,
+  audience_team_codes    json             NULL,
+  scheduled_at           datetime2(3)     NULL,
+  status                 nvarchar(16)     NOT NULL DEFAULT 'draft'
+                           CHECK (status IN ('draft','pending_review','scheduled','sending','sent','partial','failed','cancelled')),
+  reject_note            nvarchar(255)    NULL,
+  reviewed_by            uniqueidentifier NULL,
+  reviewed_at            datetime2(3)     NULL,
+  sent_at                datetime2(3)     NULL,
+  audience_estimate      int              NULL,
+  sent_count             int              NOT NULL DEFAULT 0,
+  delivered_count        int              NOT NULL DEFAULT 0,
+  failed_count           int              NOT NULL DEFAULT 0,
+  opened_count           int              NOT NULL DEFAULT 0,
+  send_cursor            bigint           NOT NULL DEFAULT 0,
+  failure_message        nvarchar(255)    NULL,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_push_messages PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_push_messages_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE push_messages_i18n (
+  push_message_id uniqueidentifier NOT NULL,
+  locale          nvarchar(10)     NOT NULL,
+  title           nvarchar(120)    NULL,
+  body            nvarchar(500)    NULL,
+  image_alt       nvarchar(200)    NULL,
+  CONSTRAINT PK_push_messages_i18n PRIMARY KEY CLUSTERED (push_message_id, locale)
+);
+
+-- 送出／送達／開啟三個彙總數字（§6.6），維度 批次 × 平台 × 語系。「送達」＝推播服務接受且未回報權杖失效，
+-- 不等於到達裝置。不記錄個人層級的開啟行為。
+CREATE TABLE push_message_stats (
+  push_message_id uniqueidentifier NOT NULL,
+  platform        nvarchar(8)      NOT NULL,
+  locale          nvarchar(10)     NOT NULL,
+  sent            int              NOT NULL DEFAULT 0,
+  delivered       int              NOT NULL DEFAULT 0,
+  opened          int              NOT NULL DEFAULT 0,
+  CONSTRAINT PK_push_message_stats PRIMARY KEY CLUSTERED (push_message_id, platform, locale)
+);
+
+-- App 版本（§8.1）。is_min_supported：低於此版本啟動時強制更新；is_recommended：低於此版本建議更新（可略過）。
+-- 每個平台各至多一筆為 true（應用層強制，不加篩選唯一索引）。
+CREATE TABLE app_releases (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  platform               nvarchar(8)      NOT NULL CHECK (platform IN ('ios','android')),
+  version                nvarchar(32)     NOT NULL,
+  build_number           nvarchar(32)     NULL,
+  released_on            date             NULL,
+  status                 nvarchar(16)     NOT NULL DEFAULT 'testing' CHECK (status IN ('testing','live','withdrawn')),
+  is_min_supported       bit              NOT NULL DEFAULT 0,
+  is_recommended         bit              NOT NULL DEFAULT 0,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_app_releases PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_app_releases_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE app_releases_i18n (
+  app_release_id    uniqueidentifier NOT NULL,
+  locale            nvarchar(10)     NOT NULL,
+  whats_new         nvarchar(2000)   NULL,
+  force_message     nvarchar(500)    NULL,
+  recommend_message nvarchar(500)    NULL,
+  CONSTRAINT PK_app_releases_i18n PRIMARY KEY CLUSTERED (app_release_id, locale)
+);
+
+-- App 端診斷與錯誤回報（§10.1，M5 的收件處）。🔴 不得存個資：不記 member_id、完整 IP、定位座標。保存 90 天。
+CREATE TABLE app_diagnostic_reports (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  device_install_id      nvarchar(64)     NULL,
+  platform               nvarchar(8)      NOT NULL CHECK (platform IN ('ios','android')),
+  app_version            nvarchar(32)     NOT NULL,
+  build_number           nvarchar(32)     NULL,
+  os_version             nvarchar(32)     NULL,
+  occurred_at            datetime2(3)     NOT NULL,
+  report_type            nvarchar(16)     NOT NULL
+                           CHECK (report_type IN ('crash','abnormal_exit','api_error','startup_time','user_report')),
+  metric_value           int              NULL,
+  summary                nvarchar(500)    NULL,
+  detail                 nvarchar(max)    NULL,
+  status                 nvarchar(16)     NOT NULL DEFAULT 'new' CHECK (status IN ('new','reviewing','resolved','ignored')),
+  received_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_app_diagnostic_reports PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_app_diagnostic_reports_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 深連結對照表（§2.3、§8.2）：App 畫面 ↔ 官網網址，供推播與廣告素材選用。
+CREATE TABLE app_deep_links (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  code                   nvarchar(48)     NOT NULL,
+  app_link               nvarchar(200)    NOT NULL,
+  web_url                nvarchar(500)    NULL,
+  requires_login         bit              NOT NULL DEFAULT 0,
+  is_active              bit              NOT NULL DEFAULT 1,
+  sort_order             int              NOT NULL DEFAULT 0,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_app_deep_links PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_app_deep_links_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE app_deep_links_i18n (
+  app_deep_link_id  uniqueidentifier NOT NULL,
+  locale            nvarchar(10)     NOT NULL,
+  label             nvarchar(120)    NULL,
+  CONSTRAINT PK_app_deep_links_i18n PRIMARY KEY CLUSTERED (app_deep_link_id, locale)
+);
+
+-- 首頁區塊／快捷入口／「更多」分頁項目的開關與排序（§8.2）。home_section 為 §3.1 的九個固定區塊（不可新增刪除，只開關排序）。
+CREATE TABLE app_layout_items (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  kind                   nvarchar(16)     NOT NULL CHECK (kind IN ('home_section','quick_entry','more_item')),
+  item_key               nvarchar(48)     NOT NULL,
+  deep_link_id           uniqueidentifier NULL,
+  icon_key               nvarchar(48)     NULL,
+  sort_order             int              NOT NULL DEFAULT 0,
+  is_enabled             bit              NOT NULL DEFAULT 1,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_app_layout_items PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_app_layout_items_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE app_layout_items_i18n (
+  app_layout_item_id uniqueidentifier NOT NULL,
+  locale             nvarchar(10)     NOT NULL,
+  label              nvarchar(120)    NULL,
+  CONSTRAINT PK_app_layout_items_i18n PRIMARY KEY CLUSTERED (app_layout_item_id, locale)
+);
+
+-- App 專屬公告條（§8.2）：文案（中英）、連結、顯示期間、目標對象。
+CREATE TABLE app_announcements (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  link_url               nvarchar(500)    NULL,
+  starts_at              datetime2(3)     NULL,
+  ends_at                datetime2(3)     NULL,
+  audience_tier          nvarchar(16)     NOT NULL DEFAULT 'all' CHECK (audience_tier IN ('all','fan_club','registered','anonymous')),
+  audience_club_id       uniqueidentifier NULL,
+  is_enabled             bit              NOT NULL DEFAULT 1,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_app_announcements PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_app_announcements_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE app_announcements_i18n (
+  app_announcement_id uniqueidentifier NOT NULL,
+  locale              nvarchar(10)     NOT NULL,
+  message             nvarchar(200)    NULL,
+  CONSTRAINT PK_app_announcements_i18n PRIMARY KEY CLUSTERED (app_announcement_id, locale)
+);
+
+-- App 端功能開關（§8.5、docs/19 §7）。命名 {模組}_{功能} 小寫蛇形（ads_enabled、map_enabled…）。
+-- string_value：三態旗標的值（目前只有 payment_mode：off／external／inapp，docs/19 §10），布林旗標為空。
+CREATE TABLE app_feature_flags (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  flag_key               nvarchar(64)     NOT NULL,
+  is_enabled             bit              NOT NULL DEFAULT 0,
+  string_value           nvarchar(32)     NULL,
+  platform               nvarchar(8)      NOT NULL DEFAULT 'all' CHECK (platform IN ('all','ios','android')),
+  description            nvarchar(255)    NULL,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_app_feature_flags PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_app_feature_flags_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 金鑰與憑證列管（§8.5）。🔴 只存「列管資訊」（種類、代號、日期），絕不存金鑰本身（金鑰在 Key Vault／環境變數）。
+-- 部分金鑰沒有到期日，告警以 rotation_period_days 為基準；到期或屆期前 60 天告警。
+CREATE TABLE app_credentials (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  kind                   nvarchar(32)     NOT NULL
+                           CHECK (kind IN ('apns_key','fcm_credential','apple_developer_program','google_play_account','maps_api_key','other')),
+  label                  nvarchar(120)    NOT NULL,
+  external_ref           nvarchar(200)    NULL,
+  created_on             date             NOT NULL,
+  last_rotated_on        date             NULL,
+  expires_on             date             NULL,
+  rotation_period_days   int              NULL,
+  note                   nvarchar(500)    NULL,
+  created_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by             uniqueidentifier NULL,
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_app_credentials PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_app_credentials_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- App 全域設定（json 值，只存不查）：maintenance.ios／maintenance.android／maintenance.all（維護模式）、
+-- push.rules（自動推播規則：賽事提醒提前時數、到期提醒天數）。
+CREATE TABLE app_settings (
+  id                     uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                bigint IDENTITY(1,1) NOT NULL,
+  setting_key            nvarchar(64)     NOT NULL,
+  setting_value          json             NULL,
+  updated_at             datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_by             uniqueidentifier NULL,
+  CONSTRAINT PK_app_settings PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_app_settings_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+/* ============================================================================
    統一建唯一鍵（業務語意的唯一鍵；row_seq 叢集唯一鍵已隨主鍵定義於建表區）
    ============================================================================ */
 
@@ -2878,6 +3348,17 @@ ALTER TABLE charity_programs      ADD CONSTRAINT UQ_charity_programs_club_slug  
 -- clubs 自身欄位唯一鍵
 ALTER TABLE clubs ADD CONSTRAINT UQ_clubs_code   UNIQUE (code);
 ALTER TABLE clubs ADD CONSTRAINT UQ_clubs_domain UNIQUE (domain);
+
+-- 4.13 M 行動 App ＋ E4–E6 廣告（D 批）
+ALTER TABLE ad_slots               ADD CONSTRAINT UQ_ad_slots_slot_code             UNIQUE (slot_code);
+ALTER TABLE ad_events              ADD CONSTRAINT UQ_ad_events_dedupe_key           UNIQUE (dedupe_key);
+ALTER TABLE app_devices            ADD CONSTRAINT UQ_app_devices_install_id         UNIQUE (device_install_id);
+ALTER TABLE push_topic_subscriptions ADD CONSTRAINT UQ_push_topic_subscriptions_device_topic UNIQUE (device_id, topic_type, topic_value);
+ALTER TABLE app_releases           ADD CONSTRAINT UQ_app_releases_platform_version  UNIQUE (platform, version);
+ALTER TABLE app_deep_links         ADD CONSTRAINT UQ_app_deep_links_code            UNIQUE (code);
+ALTER TABLE app_layout_items       ADD CONSTRAINT UQ_app_layout_items_kind_key      UNIQUE (kind, item_key);
+ALTER TABLE app_feature_flags      ADD CONSTRAINT UQ_app_feature_flags_key_platform UNIQUE (flag_key, platform);
+ALTER TABLE app_settings           ADD CONSTRAINT UQ_app_settings_key               UNIQUE (setting_key);
 
 /* ============================================================================
    統一建索引（docs/12b §11.2；覆蓋索引與篩選索引的細部調校屬實作階段，不在此指定）
@@ -2984,6 +3465,30 @@ CREATE INDEX IX_charities_i18n_locale                ON charities_i18n (locale);
 CREATE INDEX IX_charity_programs_i18n_locale         ON charity_programs_i18n (locale);
 CREATE INDEX IX_impact_records_i18n_locale           ON impact_records_i18n (locale);
 CREATE INDEX IX_impact_metrics_i18n_locale           ON impact_metrics_i18n (locale);
+
+-- 4.13 M 行動 App ＋ E4–E6 廣告（D 批）
+CREATE INDEX IX_advertisers_status                    ON advertisers (status);
+CREATE INDEX IX_ad_campaigns_slot_status              ON ad_campaigns (slot_id, status, starts_at);
+CREATE INDEX IX_ad_campaigns_advertiser               ON ad_campaigns (advertiser_id);
+CREATE INDEX IX_ad_creatives_campaign                 ON ad_creatives (campaign_id);
+CREATE INDEX IX_ad_events_unaggregated                ON ad_events (aggregated_at, occurred_at);
+CREATE INDEX IX_ad_events_device_creative             ON ad_events (device_install_id, creative_id, occurred_at);
+CREATE INDEX IX_ad_events_campaign_occurred           ON ad_events (campaign_id, occurred_at);
+CREATE INDEX IX_ad_daily_stats_campaign_date          ON ad_daily_stats (campaign_id, stat_date);
+CREATE INDEX IX_app_devices_last_active               ON app_devices (last_active_at);
+CREATE INDEX IX_app_devices_member                    ON app_devices (member_id);
+CREATE INDEX IX_app_devices_token_hash                ON app_devices (push_token_hash);
+CREATE INDEX IX_push_topic_subscriptions_topic        ON push_topic_subscriptions (topic_type, topic_value, is_push_enabled);
+CREATE INDEX IX_push_messages_status_scheduled        ON push_messages (status, scheduled_at);
+CREATE INDEX IX_app_diagnostic_reports_received       ON app_diagnostic_reports (received_at);
+CREATE INDEX IX_app_diagnostic_reports_type           ON app_diagnostic_reports (report_type, status);
+CREATE INDEX IX_ad_slots_i18n_locale                  ON ad_slots_i18n (locale);
+CREATE INDEX IX_advertisers_i18n_locale               ON advertisers_i18n (locale);
+CREATE INDEX IX_push_messages_i18n_locale             ON push_messages_i18n (locale);
+CREATE INDEX IX_app_releases_i18n_locale              ON app_releases_i18n (locale);
+CREATE INDEX IX_app_deep_links_i18n_locale            ON app_deep_links_i18n (locale);
+CREATE INDEX IX_app_layout_items_i18n_locale          ON app_layout_items_i18n (locale);
+CREATE INDEX IX_app_announcements_i18n_locale         ON app_announcements_i18n (locale);
 
 /* ============================================================================
    統一建外鍵（先共通稽核欄位 created_by／updated_by，再逐模組業務外鍵）
@@ -3443,6 +3948,55 @@ ALTER TABLE charity_program_sponsors  ADD CONSTRAINT FK_charity_program_sponsors
 ALTER TABLE charity_program_sponsors  ADD CONSTRAINT FK_charity_program_sponsors_sponsor  FOREIGN KEY (sponsor_id) REFERENCES sponsors(id) ON DELETE CASCADE;
 ALTER TABLE charity_program_articles  ADD CONSTRAINT FK_charity_program_articles_program  FOREIGN KEY (charity_program_id) REFERENCES charity_programs(id) ON DELETE CASCADE;
 ALTER TABLE charity_program_articles  ADD CONSTRAINT FK_charity_program_articles_article  FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE;
+
+-- 4.13 M 行動 App ＋ E4–E6 廣告（D 批）。稽核欄位 created_by／updated_by／reviewed_by → admin_users。
+ALTER TABLE ad_slots              ADD CONSTRAINT FK_ad_slots_created_by       FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE ad_slots              ADD CONSTRAINT FK_ad_slots_updated_by       FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE ad_slots_i18n         ADD CONSTRAINT FK_ad_slots_i18n_slot        FOREIGN KEY (ad_slot_id) REFERENCES ad_slots(id) ON DELETE CASCADE;
+ALTER TABLE advertisers           ADD CONSTRAINT FK_advertisers_created_by    FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE advertisers           ADD CONSTRAINT FK_advertisers_updated_by    FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE advertisers           ADD CONSTRAINT FK_advertisers_sponsor       FOREIGN KEY (sponsor_id) REFERENCES sponsors(id);
+ALTER TABLE advertisers_i18n      ADD CONSTRAINT FK_advertisers_i18n_advertiser FOREIGN KEY (advertiser_id) REFERENCES advertisers(id) ON DELETE CASCADE;
+ALTER TABLE ad_campaigns          ADD CONSTRAINT FK_ad_campaigns_created_by   FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE ad_campaigns          ADD CONSTRAINT FK_ad_campaigns_updated_by   FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE ad_campaigns          ADD CONSTRAINT FK_ad_campaigns_reviewed_by  FOREIGN KEY (reviewed_by) REFERENCES admin_users(id);
+ALTER TABLE ad_campaigns          ADD CONSTRAINT FK_ad_campaigns_advertiser   FOREIGN KEY (advertiser_id) REFERENCES advertisers(id);
+ALTER TABLE ad_campaigns          ADD CONSTRAINT FK_ad_campaigns_slot         FOREIGN KEY (slot_id) REFERENCES ad_slots(id);
+ALTER TABLE ad_creatives          ADD CONSTRAINT FK_ad_creatives_created_by   FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE ad_creatives          ADD CONSTRAINT FK_ad_creatives_updated_by   FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE ad_creatives          ADD CONSTRAINT FK_ad_creatives_reviewed_by  FOREIGN KEY (reviewed_by) REFERENCES admin_users(id);
+ALTER TABLE ad_creatives          ADD CONSTRAINT FK_ad_creatives_campaign     FOREIGN KEY (campaign_id) REFERENCES ad_campaigns(id) ON DELETE CASCADE;
+ALTER TABLE ad_events             ADD CONSTRAINT FK_ad_events_creative        FOREIGN KEY (creative_id) REFERENCES ad_creatives(id) ON DELETE CASCADE;
+ALTER TABLE ad_daily_stats        ADD CONSTRAINT FK_ad_daily_stats_creative   FOREIGN KEY (creative_id) REFERENCES ad_creatives(id) ON DELETE CASCADE;
+ALTER TABLE app_devices           ADD CONSTRAINT FK_app_devices_member        FOREIGN KEY (member_id) REFERENCES members(id);
+ALTER TABLE push_topic_subscriptions ADD CONSTRAINT FK_push_topic_subscriptions_device FOREIGN KEY (device_id) REFERENCES app_devices(id) ON DELETE CASCADE;
+ALTER TABLE push_topic_subscriptions ADD CONSTRAINT FK_push_topic_subscriptions_member FOREIGN KEY (member_id) REFERENCES members(id);
+ALTER TABLE push_messages         ADD CONSTRAINT FK_push_messages_created_by  FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE push_messages         ADD CONSTRAINT FK_push_messages_updated_by  FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE push_messages         ADD CONSTRAINT FK_push_messages_reviewed_by FOREIGN KEY (reviewed_by) REFERENCES admin_users(id);
+ALTER TABLE push_messages         ADD CONSTRAINT FK_push_messages_club        FOREIGN KEY (audience_club_id) REFERENCES clubs(id);
+ALTER TABLE push_messages_i18n    ADD CONSTRAINT FK_push_messages_i18n_message FOREIGN KEY (push_message_id) REFERENCES push_messages(id) ON DELETE CASCADE;
+ALTER TABLE push_message_stats    ADD CONSTRAINT FK_push_message_stats_message FOREIGN KEY (push_message_id) REFERENCES push_messages(id) ON DELETE CASCADE;
+ALTER TABLE app_releases          ADD CONSTRAINT FK_app_releases_created_by   FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE app_releases          ADD CONSTRAINT FK_app_releases_updated_by   FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE app_releases_i18n     ADD CONSTRAINT FK_app_releases_i18n_release FOREIGN KEY (app_release_id) REFERENCES app_releases(id) ON DELETE CASCADE;
+ALTER TABLE app_diagnostic_reports ADD CONSTRAINT FK_app_diagnostic_reports_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE app_deep_links        ADD CONSTRAINT FK_app_deep_links_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE app_deep_links        ADD CONSTRAINT FK_app_deep_links_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE app_deep_links_i18n   ADD CONSTRAINT FK_app_deep_links_i18n_link  FOREIGN KEY (app_deep_link_id) REFERENCES app_deep_links(id) ON DELETE CASCADE;
+ALTER TABLE app_layout_items      ADD CONSTRAINT FK_app_layout_items_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE app_layout_items      ADD CONSTRAINT FK_app_layout_items_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE app_layout_items      ADD CONSTRAINT FK_app_layout_items_deep_link  FOREIGN KEY (deep_link_id) REFERENCES app_deep_links(id);
+ALTER TABLE app_layout_items_i18n ADD CONSTRAINT FK_app_layout_items_i18n_item  FOREIGN KEY (app_layout_item_id) REFERENCES app_layout_items(id) ON DELETE CASCADE;
+ALTER TABLE app_announcements     ADD CONSTRAINT FK_app_announcements_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE app_announcements     ADD CONSTRAINT FK_app_announcements_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE app_announcements     ADD CONSTRAINT FK_app_announcements_club       FOREIGN KEY (audience_club_id) REFERENCES clubs(id);
+ALTER TABLE app_announcements_i18n ADD CONSTRAINT FK_app_announcements_i18n_item FOREIGN KEY (app_announcement_id) REFERENCES app_announcements(id) ON DELETE CASCADE;
+ALTER TABLE app_feature_flags     ADD CONSTRAINT FK_app_feature_flags_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE app_feature_flags     ADD CONSTRAINT FK_app_feature_flags_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE app_credentials       ADD CONSTRAINT FK_app_credentials_created_by   FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE app_credentials       ADD CONSTRAINT FK_app_credentials_updated_by   FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE app_settings          ADD CONSTRAINT FK_app_settings_updated_by      FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 
 /* ============================================================================
    CalendarEvent 視圖（一般 VIEW，UNION ALL；禁止 indexed view／WITH SCHEMABINDING）

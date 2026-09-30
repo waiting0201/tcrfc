@@ -361,7 +361,7 @@ public sealed class AdminShopProductsRepository(
             throw new AdminValidationException("初始庫存不可為負數。");
         }
 
-        await EnsureSkuFreeAsync(sku, null, cancellationToken);
+        await EnsureSkuFreeAsync(scope, sku, null, cancellationToken);
         var maxOrder = await db.ProductVariants.Where(v => v.ProductId == productId).Select(v => (int?)v.SortOrder).MaxAsync(cancellationToken);
         var now = DateTime.UtcNow;
         var row = new ProductVariant
@@ -396,7 +396,7 @@ public sealed class AdminShopProductsRepository(
 
         if (!string.Equals(sku, row.Sku, StringComparison.Ordinal))
         {
-            await EnsureSkuFreeAsync(sku, id, cancellationToken);
+            await EnsureSkuFreeAsync(scope, sku, id, cancellationToken);
             row.Sku = sku;
         }
 
@@ -562,12 +562,20 @@ public sealed class AdminShopProductsRepository(
         }
     }
 
-    private async Task EnsureSkuFreeAsync(string sku, Guid? exceptId, CancellationToken cancellationToken)
+    /// <summary>貨號在全站唯一（跨俱樂部也一樣，規劃書 §5.4）。🔴 撞號時的訊息<b>不得透露另一個俱樂部的資料</b>：
+    /// 只有「撞到本俱樂部自己的規格」才說明是誰用了；撞到別的俱樂部（呼叫端看不到、也無權看到的資料）一律只說「這個貨號無法使用」，
+    /// 不說已被使用、也不說在哪裡——否則合作球隊的帳號可以用貨號探測對方有哪些商品。</summary>
+    private async Task EnsureSkuFreeAsync(AdminClubScope scope, string sku, Guid? exceptId, CancellationToken cancellationToken)
     {
-        if (await db.ProductVariants.AsNoTracking().AnyAsync(v => v.Sku == sku && v.Id != exceptId, cancellationToken))
+        var clashes = await db.ProductVariants.AsNoTracking().Where(v => v.Sku == sku && v.Id != exceptId).Select(v => v.ClubId).ToListAsync(cancellationToken);
+        if (clashes.Count == 0)
         {
-            throw new AdminConflictException("貨號重複", $"貨號「{sku}」已經被使用，貨號在全站不可重複。");
+            return;
         }
+
+        throw clashes.Contains(scope.ClubId)
+            ? new AdminConflictException("貨號重複", $"貨號「{sku}」已經被這個俱樂部的另一個規格使用，請換一個。")
+            : new AdminConflictException("貨號無法使用", $"貨號「{sku}」無法使用，請換一個。");
     }
 
     private async Task EnsureCollectionAsync(AdminClubScope scope, Guid? collectionId, CancellationToken cancellationToken)

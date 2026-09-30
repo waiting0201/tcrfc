@@ -262,6 +262,23 @@ services:
 訂單狀態機、庫存扣減與回補、退款紀錄照常運作。**取得商店號後只換這兩個註冊與實作**，並依本節登記出口 IP；
 金流憑證由後台 S6 寫入、加密保存、API 不回傳。
 
+### D 批的接縫：推播傳輸、EDM、Cloudflare 靜態設定（2026-09-30，`backend-engineer`）
+
+**尚未到位的外部服務一律以介面隔開、預設註冊「尚未串接」實作**（同上一節的做法）：後台邏輯（排程、分眾、覆核、紀錄、統計）照常運作，
+呼叫外部的那一步回「尚未串接」，**回應如實說明，不假裝成功**。取得服務後**只換 `Program.cs` 的註冊與實作**，不改後台邏輯。
+
+| 接縫 | 介面與預設實作 | 卡在什麼 | 串接時要做什麼 |
+|---|---|---|---|
+| **推播傳輸（APNs／FCM）** | `IPushTransport`／`NotConfiguredPushTransport`（`Features/AdminApp/PushTransport.cs`，`IsConfigured=false`） | APNs `.p8` 金鑰與 FCM 服務帳號未建立（App 也尚未開發）；會員條款推播蒐集告知未完成前不得啟用（App 規劃書 §6.7、§16.2 第 12 項） | 實作 `SendAsync`：APNs HTTP/2（`.p8` token 認證，一把金鑰通吃兩個環境）／FCM HTTP v1（service account 換 OAuth2 token）；**回報結果分類**：2xx＝`Accepted`；APNs `410 Unregistered`／FCM `UNREGISTERED`｜`INVALID_ARGUMENT`＝`InvalidToken`（呼叫端會把該裝置權杖標記失效）；APNs `429`／FCM `RESOURCE_EXHAUSTED`／網路錯誤＝`RetryLater`（**不標記失效**），自行做指數退避；**權杖與訊息內容不得寫入日誌**；payload 不放任何個資、不使用靜默推播。**推播會走 Azure VM 的出口 IP，不像 LINE Pay 需要登記白名單**。金鑰放 Key Vault／環境變數，M5 只列管（種類、日期），不存金鑰 |
+| **EDM 平台** | `INewsletterEdmSync`／`NotConfiguredEdmSync`（`Features/AdminNewsletter/NewsletterEdmSync.cs`） | 供應商未定 | 實作 `SyncAsync`：**必須同時處理退訂名單（抑制清單）**；官網仍不做電子報群發（規劃書 §1.3），寄送在平台端 |
+| **Cloudflare 靜態設定（設定下發第 1 層）** | `IAppConfigPublisher`／`NotConfiguredAppConfigPublisher`（`Features/AppPublic/AppConfigPublisher.cs`） | Cloudflare 上的 Workers KV／R2 尚未建立（`docs/19` §7：VM 全滅時 App 仍要讀得到維護與強制更新公告） | 實作 `PublishAsync` 把 `AppConfigDocument`（`AppConfigComposer` 產生，與 `GET /api/v1/app/config` 同一份內容）write-through 推上去；**必須 fail-open**：推送失敗只回報結果，不得讓後台存檔失敗（資料庫才是真實來源）；`IsConfigured` 要如實回報 |
+
+**推播發送的資料流**（`PushDispatcher`）：後台核可（雙人覆核）→ 分眾在 .NET 端解析成裝置清單（**不使用 FCM topic**）→ 每批 500 台依裝置語系選文案、16 併發直送 → 逐批推進 `send_cursor` 並累加「送出／送達／開啟」彙總（**不逐裝置記錄投遞結果**，避免變成個人層級的推播行為紀錄）→ 失敗重送從游標續送。傳輸未串接時第一台探路即整批中止，批次停在 `failed` 並保留。
+
+**背景作業**（hosted service，單一 VM 單一 API 行程的前提）：`AppMaintenanceBackgroundService` 預設每 60 秒——到點的推播發送、廣告檔期推進、廣告事件聚合（有未聚合事件的**台灣當地日期**整天重算，冪等）、清除 90 天前已聚合的事件與診斷回報。`APP_JOBS_INTERVAL_SECONDS=0` 停用。**若日後改多副本**：推播發送有原子領取（`UPDATE … WHERE status='scheduled'`），其餘作業冪等，可以並行；但廣告事件聚合會重複計算同一天（結果相同、只是浪費），必要時加分散式鎖。
+
+**新增的環境設定**：`APP_JOBS_INTERVAL_SECONDS`（背景作業間隔秒數，0＝停用）、`APP_PUBLIC_RATE_LIMIT_PERMITS`（App 公開寫入端點每 IP 每分鐘額度，預設 120）。推播權杖加密用既有的 **Data Protection 金鑰環（`DATA_PROTECTION_KEYS_PATH` 必須掛持久化 volume）**——金鑰環遺失會讓所有已儲存的推播權杖無法解密，**App 重新註冊時才會恢復**（權杖不是不可重建的資料，但重建期間推播中斷）。
+
 ---
 
 ## 4. 快取策略
@@ -583,6 +600,18 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 公開容器的存取 | 跟圖片容器同一種處理：程式一律以「無公開存取」建立容器，是否對外公開讀取或接 CDN 是**部署層決定**；`documents` 未開放前，前台 7.8 的下載連結（302 轉址）會指到不可讀的網址 | 見 `IImagePublicUrlResolver` 檔頭；這裡回傳的網址格式正確，等部署層開放即可，不需改程式 |
 | 私有提案的下載 | **只經 API 串流**：訪客 `POST` 表單建立 Lead 後拿到 **30 分鐘**限時連結，`GET` 由 API 從私有容器串流，`Cache-Control: private, no-store` | 權杖用 ASP.NET Core Data Protection 的 time-limited protector 簽發（綁定俱樂部與檔案，不查庫）。⚠️ **金鑰環須持久化**（同 2FA 密鑰的既有要求，`DATA_PROTECTION_KEYS_PATH`）——容器重建後金鑰換掉，**已發出但未使用的連結會失效**（最多影響 30 分鐘內的連結，訪客重新填表即可，比 2FA 密鑰遺失輕微） |
 | Kestrel 請求主體上限 | 沿用 `圖片 10 MB ＋ 影片 50 MB ＋ 1 MB` 的總上限，足以容納「檔案 ≤ 50 MB ＋ 封面圖 ≤ 10 MB」的同一次 multipart 請求 | 不需要為檔案另外調高上限 |
+
+### 備份與還原（J3「資料備份」，2026-09-30，`backend-engineer` 補記）
+
+規劃書 J3 寫「每日自動備份，可手動還原點」，`docs/12` §13.4 已判定它是基礎設施設定、**不是資料表也沒有後台 API**。本節記下實際做法與缺口，**這是執行層決定，不是規格**：
+
+| 項目 | 現況與做法 |
+|---|---|
+| 自動備份 | **Azure SQL Database 內建**：完整＋差異＋交易記錄備份由平台自動執行（不需要、也無法自己排程），提供**時間點還原（PITR）**。**Basic 層 PITR 保留期最長 7 天**（`docs/17` §6 前述 Basic／5 DTU）；Standard 以上可設 1–35 天 |
+| 「手動還原點」 | Azure SQL **沒有「手動建立還原點」**：PITR 是連續的、可還原到保留期內任一時間點；需要固定留存請用 **長期保留（LTR，每週／每月／每年備份，最長 10 年）**，或手動匯出 **BACPAC** 到 Blob。**這兩項都需要人在 Azure 設定，後台沒有對應功能** |
+| 還原 | 一律**還原成新資料庫**（`tcrfc_club_restored`）再切換連線字串或搬資料，不能就地覆蓋。還原演練與 RTO 記錄是 §7 風險 1 的既有要求 |
+| 圖片與檔案（Blob） | **不在資料庫備份內**。啟用 Blob **軟刪除與版本控制**（建議保留 14 天以上）；`images` 的衍生檔可由主檔重建，`proposals`（私有提案）與 `documents` 需要另外的備份或異地複製 |
+| 缺口（請客戶與委託方知悉） | ① Basic 層 7 天保留期對「發現得晚的誤刪」偏短，建議上線時至少啟用 **LTR 每週備份 4 週**（費用另計）；② 備份存放區域預設與資料庫同區（Japan East），需要異地備援請選 geo-redundant 備份儲存；③ **後台看不到備份狀態與還原點**，需要在 Azure 入口網站查；④ **沒有稽核表**（`docs/12` §13.1），還原後無法比對「誰在還原點之後做了什麼」 |
 
 ---
 

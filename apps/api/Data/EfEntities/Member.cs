@@ -66,4 +66,6 @@ public partial class Member
     public virtual ICollection<Registration> Registrations { get; set; } = new List<Registration>();
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
+    public virtual ICollection<AppDevice> AppDevices { get; set; } = new List<AppDevice>();
+    public virtual ICollection<PushTopicSubscription> PushTopicSubscriptions { get; set; } = new List<PushTopicSubscription>();
 }

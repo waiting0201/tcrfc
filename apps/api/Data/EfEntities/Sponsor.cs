@@ -56,4 +56,5 @@ public partial class Sponsor
     public virtual ICollection<CharityProgram> CharityPrograms { get; set; } = new List<CharityProgram>();
 
     public virtual ICollection<SponsorPackage> SponsorPackages { get; set; } = new List<SponsorPackage>();
+    public virtual ICollection<Advertiser> Advertisers { get; set; } = new List<Advertiser>();
 }

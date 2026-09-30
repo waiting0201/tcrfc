@@ -69,8 +69,9 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
         try
         {
             Assert.Equal(HttpStatusCode.Unauthorized, (await anonymous.GetAsync(Draws)).StatusCode);
-            // 公關／媒體只有公布稿交接，連活動清單都不能看；內容編輯完全沒有 K5
-            Assert.Equal(HttpStatusCode.Forbidden, (await pr.GetAsync(Draws)).StatusCode);
+            // 公關／媒體有「檢視（遮罩）」與公布稿交接，能打開活動清單撰寫公布稿；但不能建立、更新、匯出。內容編輯完全沒有 K5
+            // （C 批畫面回報：原本只給公布稿權限，該角色打不開任何活動）
+            Assert.Equal(HttpStatusCode.OK, (await pr.GetAsync(Draws)).StatusCode);
             Assert.Equal(HttpStatusCode.Forbidden, (await editor.GetAsync(Draws)).StatusCode);
             Assert.Equal(HttpStatusCode.Forbidden, (await pr.PostAsync(Draws, BizTest.Multipart(DrawPayload(code)))).StatusCode);
 
@@ -446,7 +447,9 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
 
             // 受限版：需要 member.draw.export（公關／媒體沒有），只匯出已回填的中獎人，含手機與 Email
             Assert.Equal(HttpStatusCode.Forbidden, (await pr.GetAsync($"{export}/winners?purpose=x")).StatusCode);
-            Assert.Equal(HttpStatusCode.Forbidden, (await pr.GetAsync($"{export}/public?purpose=x")).StatusCode);
+            // 公開遮罩版只需要「檢視」：公關／媒體撰寫公布稿本來就只取得遮罩版名單（規劃書 §6），可匯出（仍須填用途並寫敏感操作日誌）
+            Assert.Equal(HttpStatusCode.OK, (await pr.GetAsync($"{export}/public?purpose=x")).StatusCode);
+            Assert.Equal(HttpStatusCode.BadRequest, (await pr.GetAsync($"{export}/public")).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await service.GetAsync($"{export}/winners")).StatusCode);
             var winnersResponse = await service.GetAsync($"{export}/winners?purpose={Uri.EscapeDataString("聯絡中獎人")}");
             Assert.Equal($"draw-{code}-v1-winners.csv", winnersResponse.Content.Headers.ContentDisposition?.FileName);
@@ -479,7 +482,13 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             Assert.Contains('○', winner.MaskedName!);
             Assert.DoesNotContain("會員乙", await C1Test.BodyAsync(await pr.GetAsync($"{Draws}/{draw.Id}/announcement-preview")));
             Assert.Equal(2, preview.EligibleCount);
-            Assert.Equal(HttpStatusCode.Forbidden, (await pr.GetAsync($"{Draws}/{draw.Id}/roster")).StatusCode); // 不因此取得名單存取權
+            // 公關／媒體有「檢視（遮罩）」：名單看得到，但姓名一律遮罩、完整值需要 member.pii.reveal（沒有）；不因此取得任何會員模組權限
+            var maskedRoster = await pr.GetAsync($"{Draws}/{draw.Id}/roster");
+            Assert.Equal(HttpStatusCode.OK, maskedRoster.StatusCode);
+            var rosterText = await maskedRoster.Content.ReadAsStringAsync();
+            Assert.DoesNotContain("會員甲", rosterText);
+            Assert.DoesNotContain("會員乙", rosterText);
+            Assert.Equal(HttpStatusCode.Forbidden, (await pr.GetAsync("/api/v1/admin/tcrfc/members")).StatusCode);
         }
         finally
         {
@@ -505,6 +514,8 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.Conflict, (await C1Test.PostEmptyAsync(service, $"{url}/mark-announced")).StatusCode);
 
             // 公關／媒體產生公布稿：一律草稿、Club News、加掛標籤、內容只有遮罩名單
+            Assert.Equal(HttpStatusCode.OK, (await pr.GetAsync(url)).StatusCode); // 公關／媒體看得到活動詳情（不含完整個資）
+            Assert.Equal(HttpStatusCode.Forbidden, (await C1Test.PutJsonAsync(pr, $"{url}/winners", new { winners = new[] { new { serialNo = 1, prizeName = "x" } } })).StatusCode);
             var draft = await BizTest.ReadAsync<AdminAnnouncementDraftDto>(await C1Test.PostEmptyAsync(pr, $"{url}/announcement-draft"));
             Assert.Equal($"member-draw-{code.ToLowerInvariant()}", draft.ArticleSlug);
             Assert.Equal(draft.ArticleId, draft.Draw.AnnouncementArticleId);

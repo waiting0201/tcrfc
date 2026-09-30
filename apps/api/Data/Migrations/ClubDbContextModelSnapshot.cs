@@ -232,6 +232,607 @@ namespace Tcrfc.Api.Data.Migrations
                     b.ToTable("achievements", (string)null);
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdCampaign", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<Guid>("AdvertiserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("advertiser_id");
+
+                    b.Property<int?>("ContractAmount")
+                        .HasColumnType("int")
+                        .HasColumnName("contract_amount");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<int?>("DailyImpressionCap")
+                        .HasColumnType("int")
+                        .HasColumnName("daily_impression_cap");
+
+                    b.Property<DateOnly?>("DeliveredOn")
+                        .HasColumnType("date")
+                        .HasColumnName("delivered_on");
+
+                    b.Property<int>("DeliveredToday")
+                        .HasColumnType("int")
+                        .HasColumnName("delivered_today");
+
+                    b.Property<int>("DeliveredTotal")
+                        .HasColumnType("int")
+                        .HasColumnName("delivered_total");
+
+                    b.Property<DateTime>("EndsAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("ends_at");
+
+                    b.Property<int?>("GoalImpressions")
+                        .HasColumnType("int")
+                        .HasColumnName("goal_impressions");
+
+                    b.Property<string>("GoalType")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("traffic")
+                        .HasColumnName("goal_type");
+
+                    b.Property<bool>("IsAmountHidden")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_amount_hidden");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("PauseReason")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("pause_reason");
+
+                    b.Property<string>("PausedFrom")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("paused_from");
+
+                    b.Property<int?>("PerDeviceDailyCap")
+                        .HasColumnType("int")
+                        .HasColumnName("per_device_daily_cap");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<Guid>("SlotId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("slot_id");
+
+                    b.Property<DateTime>("StartsAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("starts_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("draft")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<int>("Weight")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("weight");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "AdvertiserId" }, "IX_ad_campaigns_advertiser");
+
+                    b.HasIndex(new[] { "SlotId", "Status", "StartsAt" }, "IX_ad_campaigns_slot_status");
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_ad_campaigns_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_ad_campaigns_row_seq"));
+
+                    b.ToTable("ad_campaigns", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdCreative", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<string>("AltText")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("alt_text");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("campaign_id");
+
+                    b.Property<string>("ClickUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("click_url");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("CtaText")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)")
+                        .HasColumnName("cta_text");
+
+                    b.Property<int?>("ImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("image_height");
+
+                    b.Property<string>("ImageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_key");
+
+                    b.Property<int?>("ImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("image_width");
+
+                    b.Property<bool>("IsPaused")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_paused");
+
+                    b.Property<string>("Locale")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("RejectReason")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("reject_reason");
+
+                    b.Property<string>("ReviewStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("pending")
+                        .HasColumnName("review_status");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<string>("Theme")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasDefaultValue("both")
+                        .HasColumnName("theme");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)")
+                        .HasColumnName("title");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("VariantTag")
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasColumnName("variant_tag");
+
+                    b.Property<string>("VideoKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("video_key");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "CampaignId" }, "IX_ad_creatives_campaign");
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_ad_creatives_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_ad_creatives_row_seq"));
+
+                    b.ToTable("ad_creatives", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdDailyStat", b =>
+                {
+                    b.Property<DateOnly>("StatDate")
+                        .HasColumnType("date")
+                        .HasColumnName("stat_date");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("campaign_id");
+
+                    b.Property<Guid>("CreativeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("creative_id");
+
+                    b.Property<Guid>("SlotId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("slot_id");
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasColumnName("platform");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<int>("Clicks")
+                        .HasColumnType("int")
+                        .HasColumnName("clicks");
+
+                    b.Property<int>("Impressions")
+                        .HasColumnType("int")
+                        .HasColumnName("impressions");
+
+                    b.Property<int>("UniqueDevices")
+                        .HasColumnType("int")
+                        .HasColumnName("unique_devices");
+
+                    b.HasKey("StatDate", "CampaignId", "CreativeId", "SlotId", "Platform", "Locale");
+
+                    b.HasIndex(new[] { "CampaignId", "StatDate" }, "IX_ad_daily_stats_campaign_date");
+
+                    b.ToTable("ad_daily_stats", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdEvent", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime?>("AggregatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("aggregated_at");
+
+                    b.Property<string>("AppVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("app_version");
+
+                    b.Property<string>("BatchId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("batch_id");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("campaign_id");
+
+                    b.Property<Guid>("CreativeId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("creative_id");
+
+                    b.Property<string>("DedupeKey")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .IsUnicode(false)
+                        .HasColumnType("char(32)")
+                        .HasColumnName("dedupe_key")
+                        .IsFixedLength();
+
+                    b.Property<string>("DeviceInstallId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("device_install_id");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)")
+                        .HasColumnName("event_type");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasColumnName("platform");
+
+                    b.Property<string>("PresentationId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("presentation_id");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("received_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid>("SlotId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("slot_id");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex(new[] { "CampaignId", "OccurredAt" }, "IX_ad_events_campaign_occurred");
+
+                    b.HasIndex(new[] { "DeviceInstallId", "CreativeId", "OccurredAt" }, "IX_ad_events_device_creative");
+
+                    b.HasIndex(new[] { "AggregatedAt", "OccurredAt" }, "IX_ad_events_unaggregated");
+
+                    b.HasIndex(new[] { "DedupeKey" }, "UQ_ad_events_dedupe_key")
+                        .IsUnique();
+
+                    b.ToTable("ad_events", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdSlot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<bool>("AllowVideo")
+                        .HasColumnType("bit")
+                        .HasColumnName("allow_video");
+
+                    b.Property<string>("AllowedFormats")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("allowed_formats");
+
+                    b.Property<string>("AspectRatio")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("aspect_ratio");
+
+                    b.Property<int?>("BlockOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("block_order");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<int?>("FallbackImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("fallback_image_height");
+
+                    b.Property<string>("FallbackImageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("fallback_image_key");
+
+                    b.Property<int?>("FallbackImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("fallback_image_width");
+
+                    b.Property<string>("FallbackLink")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("fallback_link");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<int?>("MaxFileKb")
+                        .HasColumnType("int")
+                        .HasColumnName("max_file_kb");
+
+                    b.Property<int?>("MinHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("min_height");
+
+                    b.Property<int?>("MinWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("min_width");
+
+                    b.Property<int>("RotationCap")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1)
+                        .HasColumnName("rotation_cap");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<string>("ScreenCode")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("screen_code");
+
+                    b.Property<int?>("SessionImpressionCap")
+                        .HasColumnType("int")
+                        .HasColumnName("session_impression_cap");
+
+                    b.Property<string>("SlotCode")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("slot_code");
+
+                    b.Property<string>("Surface")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasDefaultValue("app")
+                        .HasColumnName("surface");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_ad_slots_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_ad_slots_row_seq"));
+
+                    b.HasIndex(new[] { "SlotCode" }, "UQ_ad_slots_slot_code")
+                        .IsUnique();
+
+                    b.ToTable("ad_slots", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdSlotsI18n", b =>
+                {
+                    b.Property<Guid>("AdSlotId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("ad_slot_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("FallbackAlt")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("fallback_alt");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("name");
+
+                    b.HasKey("AdSlotId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_ad_slots_i18n_locale");
+
+                    b.ToTable("ad_slots_i18n", (string)null);
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdminRefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -573,6 +1174,1021 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("AdminUserId", "TeamId");
 
                     b.ToTable("admin_user_teams", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Advertiser", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<string>("ContactEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("contact_email");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasColumnName("contact_name");
+
+                    b.Property<string>("ContactPhone")
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)")
+                        .HasColumnName("contact_phone");
+
+                    b.Property<string>("ContractNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)")
+                        .HasColumnName("contract_note");
+
+                    b.Property<DateOnly?>("CooperationEndOn")
+                        .HasColumnType("date")
+                        .HasColumnName("cooperation_end_on");
+
+                    b.Property<DateOnly?>("CooperationStartOn")
+                        .HasColumnType("date")
+                        .HasColumnName("cooperation_start_on");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<Guid?>("SponsorId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("sponsor_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("negotiating")
+                        .HasColumnName("status");
+
+                    b.Property<string>("TaxId")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("tax_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "Status" }, "IX_advertisers_status");
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_advertisers_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_advertisers_row_seq"));
+
+                    b.ToTable("advertisers", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdvertisersI18n", b =>
+                {
+                    b.Property<Guid>("AdvertiserId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("advertiser_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("name");
+
+                    b.HasKey("AdvertiserId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_advertisers_i18n_locale");
+
+                    b.ToTable("advertisers_i18n", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppAnnouncement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<Guid?>("AudienceClubId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("audience_club_id");
+
+                    b.Property<string>("AudienceTier")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("all")
+                        .HasColumnName("audience_tier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime?>("EndsAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("ends_at");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_enabled");
+
+                    b.Property<string>("LinkUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("link_url");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<DateTime?>("StartsAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("starts_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_app_announcements_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_announcements_row_seq"));
+
+                    b.ToTable("app_announcements", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppAnnouncementsI18n", b =>
+                {
+                    b.Property<Guid>("AppAnnouncementId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("app_announcement_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("message");
+
+                    b.HasKey("AppAnnouncementId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_app_announcements_i18n_locale");
+
+                    b.ToTable("app_announcements_i18n", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppCredential", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateOnly>("CreatedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("created_on");
+
+                    b.Property<DateOnly?>("ExpiresOn")
+                        .HasColumnType("date")
+                        .HasColumnName("expires_on");
+
+                    b.Property<string>("ExternalRef")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("external_ref");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("kind");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("label");
+
+                    b.Property<DateOnly?>("LastRotatedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("last_rotated_on");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("note");
+
+                    b.Property<int?>("RotationPeriodDays")
+                        .HasColumnType("int")
+                        .HasColumnName("rotation_period_days");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_app_credentials_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_credentials_row_seq"));
+
+                    b.ToTable("app_credentials", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDeepLink", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<string>("AppLink")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("app_link");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("nvarchar(48)")
+                        .HasColumnName("code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsActive")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_active");
+
+                    b.Property<bool>("RequiresLogin")
+                        .HasColumnType("bit")
+                        .HasColumnName("requires_login");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("WebUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("web_url");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "Code" }, "UQ_app_deep_links_code")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_app_deep_links_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_deep_links_row_seq"));
+
+                    b.ToTable("app_deep_links", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDeepLinksI18n", b =>
+                {
+                    b.Property<Guid>("AppDeepLinkId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("app_deep_link_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("label");
+
+                    b.HasKey("AppDeepLinkId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_app_deep_links_i18n_locale");
+
+                    b.ToTable("app_deep_links_i18n", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<string>("AppVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("app_version");
+
+                    b.Property<string>("DeviceInstallId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("device_install_id");
+
+                    b.Property<DateTime>("FirstSeenAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("first_seen_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<DateTime>("LastActiveAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("last_active_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<Guid?>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<string>("OsVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("os_version");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasColumnName("platform");
+
+                    b.Property<string>("PushPermission")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("not_determined")
+                        .HasColumnName("push_permission");
+
+                    b.Property<string>("PushTokenEncrypted")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)")
+                        .HasColumnName("push_token_encrypted");
+
+                    b.Property<string>("PushTokenHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("push_token_hash")
+                        .IsFixedLength();
+
+                    b.Property<string>("PushTokenStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(12)
+                        .HasColumnType("nvarchar(12)")
+                        .HasDefaultValue("none")
+                        .HasColumnName("push_token_status");
+
+                    b.Property<DateTime?>("RefreshTokenExpiresAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("refresh_token_expires_at");
+
+                    b.Property<string>("RefreshTokenHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("refresh_token_hash")
+                        .IsFixedLength();
+
+                    b.Property<DateTime?>("RefreshTokenRotatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("refresh_token_rotated_at");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "LastActiveAt" }, "IX_app_devices_last_active");
+
+                    b.HasIndex(new[] { "MemberId" }, "IX_app_devices_member");
+
+                    b.HasIndex(new[] { "PushTokenHash" }, "IX_app_devices_token_hash");
+
+                    b.HasIndex(new[] { "DeviceInstallId" }, "UQ_app_devices_install_id")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_app_devices_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_devices_row_seq"));
+
+                    b.ToTable("app_devices", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDiagnosticReport", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<string>("AppVersion")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("app_version");
+
+                    b.Property<string>("BuildNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("build_number");
+
+                    b.Property<string>("Detail")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("detail");
+
+                    b.Property<string>("DeviceInstallId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("device_install_id");
+
+                    b.Property<int?>("MetricValue")
+                        .HasColumnType("int")
+                        .HasColumnName("metric_value");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("OsVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("os_version");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasColumnName("platform");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("received_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<string>("ReportType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("report_type");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("new")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("summary");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "ReceivedAt" }, "IX_app_diagnostic_reports_received");
+
+                    b.HasIndex(new[] { "ReportType", "Status" }, "IX_app_diagnostic_reports_type");
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_app_diagnostic_reports_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_diagnostic_reports_row_seq"));
+
+                    b.ToTable("app_diagnostic_reports", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppFeatureFlag", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("FlagKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("flag_key");
+
+                    b.Property<bool>("IsEnabled")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_enabled");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasDefaultValue("all")
+                        .HasColumnName("platform");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<string>("StringValue")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("string_value");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "FlagKey", "Platform" }, "UQ_app_feature_flags_key_platform")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_app_feature_flags_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_feature_flags_row_seq"));
+
+                    b.ToTable("app_feature_flags", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppLayoutItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<Guid?>("DeepLinkId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("deep_link_id");
+
+                    b.Property<string>("IconKey")
+                        .HasMaxLength(48)
+                        .HasColumnType("nvarchar(48)")
+                        .HasColumnName("icon_key");
+
+                    b.Property<bool>("IsEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_enabled");
+
+                    b.Property<string>("ItemKey")
+                        .IsRequired()
+                        .HasMaxLength(48)
+                        .HasColumnType("nvarchar(48)")
+                        .HasColumnName("item_key");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("kind");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "Kind", "ItemKey" }, "UQ_app_layout_items_kind_key")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_app_layout_items_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_layout_items_row_seq"));
+
+                    b.ToTable("app_layout_items", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppLayoutItemsI18n", b =>
+                {
+                    b.Property<Guid>("AppLayoutItemId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("app_layout_item_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("Label")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("label");
+
+                    b.HasKey("AppLayoutItemId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_app_layout_items_i18n_locale");
+
+                    b.ToTable("app_layout_items_i18n", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppRelease", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<string>("BuildNumber")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("build_number");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<bool>("IsMinSupported")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_min_supported");
+
+                    b.Property<bool>("IsRecommended")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_recommended");
+
+                    b.Property<string>("Platform")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasColumnName("platform");
+
+                    b.Property<DateOnly?>("ReleasedOn")
+                        .HasColumnType("date")
+                        .HasColumnName("released_on");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("testing")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("version");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "Platform", "Version" }, "UQ_app_releases_platform_version")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_app_releases_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_releases_row_seq"));
+
+                    b.ToTable("app_releases", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppReleasesI18n", b =>
+                {
+                    b.Property<Guid>("AppReleaseId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("app_release_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("ForceMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("force_message");
+
+                    b.Property<string>("RecommendMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("recommend_message");
+
+                    b.Property<string>("WhatsNew")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)")
+                        .HasColumnName("whats_new");
+
+                    b.HasKey("AppReleaseId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_app_releases_i18n_locale");
+
+                    b.ToTable("app_releases_i18n", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<string>("SettingKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("setting_key");
+
+                    b.Property<string>("SettingValue")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("setting_value");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "SettingKey" }, "UQ_app_settings_key")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_app_settings_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_app_settings_row_seq"));
+
+                    b.ToTable("app_settings", (string)null);
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Article", b =>
@@ -6067,14 +7683,22 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnName("source");
 
                     b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("subscribed")
                         .HasColumnName("status");
 
                     b.Property<DateTime?>("SubscribedAt")
                         .HasPrecision(3)
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("subscribed_at");
+
+                    b.Property<DateTime?>("UnsubscribedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("unsubscribed_at");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -8036,6 +9660,304 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_proposal_files_row_seq"));
 
                     b.ToTable("proposal_files", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<Guid?>("AudienceClubId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("audience_club_id");
+
+                    b.Property<int?>("AudienceEstimate")
+                        .HasColumnType("int")
+                        .HasColumnName("audience_estimate");
+
+                    b.Property<string>("AudienceTeamCodes")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("audience_team_codes");
+
+                    b.Property<string>("AudienceTier")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("all")
+                        .HasColumnName("audience_tier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("DeepLink")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("deep_link");
+
+                    b.Property<int>("DeliveredCount")
+                        .HasColumnType("int")
+                        .HasColumnName("delivered_count");
+
+                    b.Property<int>("FailedCount")
+                        .HasColumnType("int")
+                        .HasColumnName("failed_count");
+
+                    b.Property<string>("FailureMessage")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("failure_message");
+
+                    b.Property<int?>("ImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("image_height");
+
+                    b.Property<string>("ImageKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_key");
+
+                    b.Property<int?>("ImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("image_width");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("announcement")
+                        .HasColumnName("kind");
+
+                    b.Property<int>("OpenedCount")
+                        .HasColumnType("int")
+                        .HasColumnName("opened_count");
+
+                    b.Property<string>("RejectNote")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("reject_note");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("reviewed_at");
+
+                    b.Property<Guid?>("ReviewedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("reviewed_by");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<DateTime?>("ScheduledAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("scheduled_at");
+
+                    b.Property<long>("SendCursor")
+                        .HasColumnType("bigint")
+                        .HasColumnName("send_cursor");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("sent_at");
+
+                    b.Property<int>("SentCount")
+                        .HasColumnType("int")
+                        .HasColumnName("sent_count");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasDefaultValue("draft")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "Status", "ScheduledAt" }, "IX_push_messages_status_scheduled");
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_push_messages_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_push_messages_row_seq"));
+
+                    b.ToTable("push_messages", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessageStat", b =>
+                {
+                    b.Property<Guid>("PushMessageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("push_message_id");
+
+                    b.Property<string>("Platform")
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)")
+                        .HasColumnName("platform");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<int>("Delivered")
+                        .HasColumnType("int")
+                        .HasColumnName("delivered");
+
+                    b.Property<int>("Opened")
+                        .HasColumnType("int")
+                        .HasColumnName("opened");
+
+                    b.Property<int>("Sent")
+                        .HasColumnType("int")
+                        .HasColumnName("sent");
+
+                    b.HasKey("PushMessageId", "Platform", "Locale");
+
+                    b.ToTable("push_message_stats", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessagesI18n", b =>
+                {
+                    b.Property<Guid>("PushMessageId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("push_message_id");
+
+                    b.Property<string>("Locale")
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("locale");
+
+                    b.Property<string>("Body")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("body");
+
+                    b.Property<string>("ImageAlt")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("image_alt");
+
+                    b.Property<string>("Title")
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)")
+                        .HasColumnName("title");
+
+                    b.HasKey("PushMessageId", "Locale");
+
+                    b.HasIndex(new[] { "Locale" }, "IX_push_messages_i18n_locale");
+
+                    b.ToTable("push_messages_i18n", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushTopicSubscription", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid>("DeviceId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("device_id");
+
+                    b.Property<bool>("IsFollowing")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_following");
+
+                    b.Property<bool>("IsPushEnabled")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_push_enabled");
+
+                    b.Property<Guid?>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<string>("TopicType")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("topic_type");
+
+                    b.Property<string>("TopicValue")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("topic_value");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "TopicType", "TopicValue", "IsPushEnabled" }, "IX_push_topic_subscriptions_topic");
+
+                    b.HasIndex(new[] { "DeviceId", "TopicType", "TopicValue" }, "UQ_push_topic_subscriptions_device_topic")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_push_topic_subscriptions_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_push_topic_subscriptions_row_seq"));
+
+                    b.ToTable("push_topic_subscriptions", (string)null);
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Redirect", b =>
@@ -10335,6 +12257,132 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("UpdatedByNavigation");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdCampaign", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Advertiser", "Advertiser")
+                        .WithMany("AdCampaigns")
+                        .HasForeignKey("AdvertiserId")
+                        .IsRequired()
+                        .HasConstraintName("FK_ad_campaigns_advertiser");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AdCampaignCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_ad_campaigns_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "ReviewedByNavigation")
+                        .WithMany("AdCampaignReviewedByNavigations")
+                        .HasForeignKey("ReviewedBy")
+                        .HasConstraintName("FK_ad_campaigns_reviewed_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdSlot", "Slot")
+                        .WithMany("AdCampaigns")
+                        .HasForeignKey("SlotId")
+                        .IsRequired()
+                        .HasConstraintName("FK_ad_campaigns_slot");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AdCampaignUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_ad_campaigns_updated_by");
+
+                    b.Navigation("Advertiser");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("ReviewedByNavigation");
+
+                    b.Navigation("Slot");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdCreative", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdCampaign", "Campaign")
+                        .WithMany("AdCreatives")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ad_creatives_campaign");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AdCreativeCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_ad_creatives_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "ReviewedByNavigation")
+                        .WithMany("AdCreativeReviewedByNavigations")
+                        .HasForeignKey("ReviewedBy")
+                        .HasConstraintName("FK_ad_creatives_reviewed_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AdCreativeUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_ad_creatives_updated_by");
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("ReviewedByNavigation");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdDailyStat", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdCreative", "Creative")
+                        .WithMany("AdDailyStats")
+                        .HasForeignKey("CreativeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ad_daily_stats_creative");
+
+                    b.Navigation("Creative");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdEvent", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdCreative", "Creative")
+                        .WithMany("AdEvents")
+                        .HasForeignKey("CreativeId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ad_events_creative");
+
+                    b.Navigation("Creative");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdSlot", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AdSlotCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_ad_slots_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AdSlotUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_ad_slots_updated_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdSlotsI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdSlot", "AdSlot")
+                        .WithMany("AdSlotsI18ns")
+                        .HasForeignKey("AdSlotId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_ad_slots_i18n_slot");
+
+                    b.Navigation("AdSlot");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdminRefreshToken", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "AdminUser")
@@ -10440,6 +12488,236 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("AdminUser");
 
                     b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Advertiser", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AdvertiserCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_advertisers_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Sponsor", "Sponsor")
+                        .WithMany("Advertisers")
+                        .HasForeignKey("SponsorId")
+                        .HasConstraintName("FK_advertisers_sponsor");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AdvertiserUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_advertisers_updated_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("Sponsor");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdvertisersI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Advertiser", "Advertiser")
+                        .WithMany("AdvertisersI18ns")
+                        .HasForeignKey("AdvertiserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_advertisers_i18n_advertiser");
+
+                    b.Navigation("Advertiser");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppAnnouncement", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "AudienceClub")
+                        .WithMany("AppAnnouncements")
+                        .HasForeignKey("AudienceClubId")
+                        .HasConstraintName("FK_app_announcements_club");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AppAnnouncementCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_app_announcements_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AppAnnouncementUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_app_announcements_updated_by");
+
+                    b.Navigation("AudienceClub");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppAnnouncementsI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AppAnnouncement", "AppAnnouncement")
+                        .WithMany("AppAnnouncementsI18ns")
+                        .HasForeignKey("AppAnnouncementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_app_announcements_i18n_item");
+
+                    b.Navigation("AppAnnouncement");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppCredential", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AppCredentialCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_app_credentials_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AppCredentialUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_app_credentials_updated_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDeepLink", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AppDeepLinkCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_app_deep_links_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AppDeepLinkUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_app_deep_links_updated_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDeepLinksI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AppDeepLink", "AppDeepLink")
+                        .WithMany("AppDeepLinksI18ns")
+                        .HasForeignKey("AppDeepLinkId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_app_deep_links_i18n_link");
+
+                    b.Navigation("AppDeepLink");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDevice", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Member", "Member")
+                        .WithMany("AppDevices")
+                        .HasForeignKey("MemberId")
+                        .HasConstraintName("FK_app_devices_member");
+
+                    b.Navigation("Member");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDiagnosticReport", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AppDiagnosticReports")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_app_diagnostic_reports_updated_by");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppFeatureFlag", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AppFeatureFlagCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_app_feature_flags_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AppFeatureFlagUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_app_feature_flags_updated_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppLayoutItem", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AppLayoutItemCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_app_layout_items_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AppDeepLink", "DeepLink")
+                        .WithMany("AppLayoutItems")
+                        .HasForeignKey("DeepLinkId")
+                        .HasConstraintName("FK_app_layout_items_deep_link");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AppLayoutItemUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_app_layout_items_updated_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("DeepLink");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppLayoutItemsI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AppLayoutItem", "AppLayoutItem")
+                        .WithMany("AppLayoutItemsI18ns")
+                        .HasForeignKey("AppLayoutItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_app_layout_items_i18n_item");
+
+                    b.Navigation("AppLayoutItem");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppRelease", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("AppReleaseCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_app_releases_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AppReleaseUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_app_releases_updated_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppReleasesI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AppRelease", "AppRelease")
+                        .WithMany("AppReleasesI18ns")
+                        .HasForeignKey("AppReleaseId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_app_releases_i18n_release");
+
+                    b.Navigation("AppRelease");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppSetting", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("AppSettings")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_app_settings_updated_by");
+
+                    b.Navigation("UpdatedByNavigation");
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Article", b =>
@@ -13071,6 +15349,80 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("UpdatedByNavigation");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessage", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "AudienceClub")
+                        .WithMany("PushMessages")
+                        .HasForeignKey("AudienceClubId")
+                        .HasConstraintName("FK_push_messages_club");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("PushMessageCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_push_messages_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "ReviewedByNavigation")
+                        .WithMany("PushMessageReviewedByNavigations")
+                        .HasForeignKey("ReviewedBy")
+                        .HasConstraintName("FK_push_messages_reviewed_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("PushMessageUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_push_messages_updated_by");
+
+                    b.Navigation("AudienceClub");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("ReviewedByNavigation");
+
+                    b.Navigation("UpdatedByNavigation");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessageStat", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.PushMessage", "PushMessage")
+                        .WithMany("PushMessageStats")
+                        .HasForeignKey("PushMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_push_message_stats_message");
+
+                    b.Navigation("PushMessage");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessagesI18n", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.PushMessage", "PushMessage")
+                        .WithMany("PushMessagesI18ns")
+                        .HasForeignKey("PushMessageId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_push_messages_i18n_message");
+
+                    b.Navigation("PushMessage");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushTopicSubscription", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AppDevice", "Device")
+                        .WithMany("PushTopicSubscriptions")
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_push_topic_subscriptions_device");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Member", "Member")
+                        .WithMany("PushTopicSubscriptions")
+                        .HasForeignKey("MemberId")
+                        .HasConstraintName("FK_push_topic_subscriptions_member");
+
+                    b.Navigation("Device");
+
+                    b.Navigation("Member");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Redirect", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
@@ -13870,6 +16222,25 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("Venue");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdCampaign", b =>
+                {
+                    b.Navigation("AdCreatives");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdCreative", b =>
+                {
+                    b.Navigation("AdDailyStats");
+
+                    b.Navigation("AdEvents");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdSlot", b =>
+                {
+                    b.Navigation("AdCampaigns");
+
+                    b.Navigation("AdSlotsI18ns");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AdminRefreshToken", b =>
                 {
                     b.Navigation("InverseReplacedBy");
@@ -13886,6 +16257,22 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.Navigation("AchievementUpdatedByNavigations");
 
+                    b.Navigation("AdCampaignCreatedByNavigations");
+
+                    b.Navigation("AdCampaignReviewedByNavigations");
+
+                    b.Navigation("AdCampaignUpdatedByNavigations");
+
+                    b.Navigation("AdCreativeCreatedByNavigations");
+
+                    b.Navigation("AdCreativeReviewedByNavigations");
+
+                    b.Navigation("AdCreativeUpdatedByNavigations");
+
+                    b.Navigation("AdSlotCreatedByNavigations");
+
+                    b.Navigation("AdSlotUpdatedByNavigations");
+
                     b.Navigation("AdminRefreshTokens");
 
                     b.Navigation("AdminRoleCreatedByNavigations");
@@ -13897,6 +16284,38 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("AdminUserClubGrantedByNavigations");
 
                     b.Navigation("AdminUserTeams");
+
+                    b.Navigation("AdvertiserCreatedByNavigations");
+
+                    b.Navigation("AdvertiserUpdatedByNavigations");
+
+                    b.Navigation("AppAnnouncementCreatedByNavigations");
+
+                    b.Navigation("AppAnnouncementUpdatedByNavigations");
+
+                    b.Navigation("AppCredentialCreatedByNavigations");
+
+                    b.Navigation("AppCredentialUpdatedByNavigations");
+
+                    b.Navigation("AppDeepLinkCreatedByNavigations");
+
+                    b.Navigation("AppDeepLinkUpdatedByNavigations");
+
+                    b.Navigation("AppDiagnosticReports");
+
+                    b.Navigation("AppFeatureFlagCreatedByNavigations");
+
+                    b.Navigation("AppFeatureFlagUpdatedByNavigations");
+
+                    b.Navigation("AppLayoutItemCreatedByNavigations");
+
+                    b.Navigation("AppLayoutItemUpdatedByNavigations");
+
+                    b.Navigation("AppReleaseCreatedByNavigations");
+
+                    b.Navigation("AppReleaseUpdatedByNavigations");
+
+                    b.Navigation("AppSettings");
 
                     b.Navigation("ArticleCategoryCreatedByNavigations");
 
@@ -14184,6 +16603,12 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.Navigation("ProposalUpdatedByNavigations");
 
+                    b.Navigation("PushMessageCreatedByNavigations");
+
+                    b.Navigation("PushMessageReviewedByNavigations");
+
+                    b.Navigation("PushMessageUpdatedByNavigations");
+
                     b.Navigation("RedirectCreatedByNavigations");
 
                     b.Navigation("RedirectUpdatedByNavigations");
@@ -14267,6 +16692,40 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("VenueUpdatedByNavigations");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Advertiser", b =>
+                {
+                    b.Navigation("AdCampaigns");
+
+                    b.Navigation("AdvertisersI18ns");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppAnnouncement", b =>
+                {
+                    b.Navigation("AppAnnouncementsI18ns");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDeepLink", b =>
+                {
+                    b.Navigation("AppDeepLinksI18ns");
+
+                    b.Navigation("AppLayoutItems");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppDevice", b =>
+                {
+                    b.Navigation("PushTopicSubscriptions");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppLayoutItem", b =>
+                {
+                    b.Navigation("AppLayoutItemsI18ns");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.AppRelease", b =>
+                {
+                    b.Navigation("AppReleasesI18ns");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Article", b =>
                 {
                     b.Navigation("ArticleRelations");
@@ -14342,6 +16801,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("AdminUserClubs");
 
                     b.Navigation("AdminUsers");
+
+                    b.Navigation("AppAnnouncements");
 
                     b.Navigation("Articles");
 
@@ -14440,6 +16901,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("Programs");
 
                     b.Navigation("Proposals");
+
+                    b.Navigation("PushMessages");
 
                     b.Navigation("Redirects");
 
@@ -14593,6 +17056,8 @@ namespace Tcrfc.Api.Data.Migrations
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Member", b =>
                 {
+                    b.Navigation("AppDevices");
+
                     b.Navigation("Carts");
 
                     b.Navigation("EmailLogs");
@@ -14606,6 +17071,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("Memberships");
 
                     b.Navigation("Orders");
+
+                    b.Navigation("PushTopicSubscriptions");
 
                     b.Navigation("Registrations");
                 });
@@ -14748,6 +17215,13 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("ProposalFiles");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.PushMessage", b =>
+                {
+                    b.Navigation("PushMessageStats");
+
+                    b.Navigation("PushMessagesI18ns");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.RefundRequest", b =>
                 {
                     b.Navigation("RefundRequestItems");
@@ -14782,6 +17256,8 @@ namespace Tcrfc.Api.Data.Migrations
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Sponsor", b =>
                 {
+                    b.Navigation("Advertisers");
+
                     b.Navigation("SponsorActivations");
 
                     b.Navigation("SponsorArticles");

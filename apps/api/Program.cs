@@ -17,6 +17,11 @@ using Tcrfc.Api.Features.AdminComics;
 using Tcrfc.Api.Features.AdminFanEvents;
 using Tcrfc.Api.Features.AdminShop;
 using Tcrfc.Api.Features.AdminDraws;
+using Tcrfc.Api.Features.AdminNewsletter;
+using Tcrfc.Api.Features.AdminAds;
+using Tcrfc.Api.Features.AdminApp;
+using Tcrfc.Api.Features.AdminSecurity;
+using Tcrfc.Api.Features.AppPublic;
 using Tcrfc.Api.Features.AdminCharity;
 using Tcrfc.Api.Features.AdminCalendar;
 using Tcrfc.Api.Features.AdminClubs;
@@ -50,6 +55,11 @@ using Tcrfc.Api.Features.AdminStaff;
 using Tcrfc.Api.Features.AdminStandings;
 using Tcrfc.Api.Features.AdminTeams;
 using Tcrfc.Api.Features.AdminVenues;
+using Tcrfc.Api.Features.AdminAds;
+using Tcrfc.Api.Features.AdminApp;
+using Tcrfc.Api.Features.AdminNewsletter;
+using Tcrfc.Api.Features.AdminSecurity;
+using Tcrfc.Api.Features.AppPublic;
 using Tcrfc.Api.Features.Calendar;
 using Tcrfc.Api.Features.Clubs;
 using Tcrfc.Api.Features.Faqs;
@@ -94,6 +104,8 @@ builder.WebHost.ConfigureKestrel(options =>
 builder.Services.Configure<JsonOptions>(options =>
 {
     options.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
+    // D 批（2026-09-30）：DateTime 一律輸出 UTC 並帶 Z、輸入沒有時區記號視為 UTC，見 Common/UtcDateTimeJsonConverter.cs。
+    options.SerializerOptions.Converters.Add(new Tcrfc.Api.Common.UtcDateTimeJsonConverter());
 });
 
 // ── 資料存取：唯讀查詢一律走 Dapper（docs/17-deployment.md §0），寫入走 EF Core（本輪新增） ──
@@ -404,6 +416,36 @@ builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopDonationCodesRe
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.ILinePayGateway, Tcrfc.Api.Features.AdminShop.NotConfiguredLinePayGateway>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.IEInvoiceService, Tcrfc.Api.Features.AdminShop.NotConfiguredEInvoiceService>();
 builder.Services.AddScoped<SensitiveActionLogger>();
+
+// ── D 批（2026-09-30）：G3 電子報、E4–E6 廣告、M1–M5 App 後台、App 公開端點、J3 帳號活動 ──
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminNewsletter.AdminNewsletterRepository>();
+builder.Services.AddSingleton<Tcrfc.Api.Features.AdminNewsletter.INewsletterEdmSync, Tcrfc.Api.Features.AdminNewsletter.NotConfiguredEdmSync>(); // 供應商未定，見 docs/17 §3「D 批的接縫」
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminAds.AdminAdSlotsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminAds.AdminAdvertisersRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminAds.AdminAdCampaignsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminAds.AdminAdCreativesRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminAds.AdminAdReportsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminAds.AdCreativeMapper>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminAds.AdMaintenanceService>();
+builder.Services.AddScoped<PushTokenProtector>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AppPublic.AppConfigComposer>();
+builder.Services.AddSingleton<Tcrfc.Api.Features.AppPublic.IAppConfigPublisher, Tcrfc.Api.Features.AppPublic.NotConfiguredAppConfigPublisher>(); // Cloudflare 靜態設定尚未建立，見 docs/19 §7
+builder.Services.AddSingleton<Tcrfc.Api.Features.AdminApp.IPushTransport, Tcrfc.Api.Features.AdminApp.NotConfiguredPushTransport>(); // APNs／FCM 金鑰尚未建立，見 docs/19 §5
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.PushContentGuard>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.PushDispatcher>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.PushRulesStore>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AdminAppReleasesRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AdminAppLayoutRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AdminAppPushRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AdminAppDevicesRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminApp.AdminAppConfigRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AppPublic.AppDevicesService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AppPublic.AppLayoutReader>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AppPublic.AdServingService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AppPublic.AdEventIngestService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AppPublic.AppDiagnosticsIntake>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminSecurity.AdminSecurityOverviewRepository>();
+builder.Services.AddHostedService<Tcrfc.Api.Features.AdminApp.AppMaintenanceBackgroundService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminMembers.MemberNumberGenerator>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminMembers.AdminMembersRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminMemberships.AdminMembershipPlansRepository>();
@@ -521,6 +563,21 @@ builder.Services.AddRateLimiter(options =>
         {
             PermitLimit = PublicRateLimitPolicies.SubmissionPermitLimit,
             Window = PublicRateLimitPolicies.SubmissionWindow,
+            QueueLimit = 0,
+        });
+    });
+
+    // ── D 批（2026-09-30）：App 公開寫入端點（裝置註冊、訂閱、廣告事件、診斷、通知開啟）。額度讀
+    // httpContext.RequestServices 的 IConfiguration（理由同下方 admin-login 政策），測試可覆寫，見
+    // PublicRateLimitPolicies.App 的說明。
+    options.AddPolicy(PublicRateLimitPolicies.App, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = PublicRateLimitPolicies.ResolveAppPermitLimit(configuration),
+            Window = PublicRateLimitPolicies.AppWindow,
             QueueLimit = 0,
         });
     });
@@ -720,6 +777,13 @@ app.MapAdminShopCatalogEndpoints();
 app.MapAdminShopOrdersEndpoints();
 app.MapAdminShopBackofficeEndpoints();
 app.MapAdminDrawsEndpoints();
+
+// ── D 批（2026-09-30）：G3 電子報、E4–E6 廣告、M1–M5 App 後台、J3 帳號活動、App 公開端點 ──
+app.MapAdminNewsletterEndpoints();
+app.MapAdminAdsEndpoints();
+app.MapAdminAppEndpoints();
+app.MapAdminSecurityEndpoints();
+app.MapAppPublicEndpoints();
 
 app.Run();
 

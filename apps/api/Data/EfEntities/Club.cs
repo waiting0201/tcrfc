@@ -186,4 +186,6 @@ public partial class Club
     public virtual ICollection<Trial> Trials { get; set; } = new List<Trial>();
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
+    public virtual ICollection<AppAnnouncement> AppAnnouncements { get; set; } = new List<AppAnnouncement>();
+    public virtual ICollection<PushMessage> PushMessages { get; set; } = new List<PushMessage>();
 }

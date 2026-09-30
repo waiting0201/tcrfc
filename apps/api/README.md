@@ -4122,7 +4122,7 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 
 | 項目 | 規定 |
 |---|---|
-| 時間戳與日期 | **時間戳一律是 UTC**，回應的 JSON **不帶時區記號**（例如 `2026-09-30T09:12:33.123`，前端一律當 UTC 解析，顯示時 +8 小時）。**送進來的時間戳也一樣：無時區記號視為 UTC**（帶 `Z` 或 `+08:00` 的照標示換算）。日期欄位（`claimDeadlineOn`、`pickupDeadlineOn`、`settledOn`…）是台灣當地日期 `yyyy-MM-dd`。 |
+| 時間戳與日期 | **時間戳一律是 UTC，回應的 JSON 一律帶 `Z`**（例如 `2026-09-30T09:12:33.123Z`；**D 批起全站統一**，見下方「全站時間格式通則」）——前端用 `new Date(value)` 直接解析即可，顯示時 +8 小時，不必再猜有沒有時區。**送進來的時間戳：無時區記號視為 UTC**（帶 `Z` 或 `+08:00` 的照標示換算）。日期欄位（`claimDeadlineOn`、`pickupDeadlineOn`、`settledOn`…）是台灣當地日期 `yyyy-MM-dd`。 |
 | 圖片 | 同 E1a：含圖片的建立／更新是 `multipart/form-data`（`payload` ＋ 檔案欄位）；圖集（漫畫內頁、活動回顧、商品圖）用獨立端點 `POST …/pages`／`…/images`（檔案欄位 `files`，**一次可多張**，整批全有或全無：任何一張不合格 → 400 且不留物件）。 |
 | 訂單狀態 | **訂單狀態 `orderStatus` 資料庫本身就是中文**（`待付款／已付款／備貨中／已出貨／已完成／已取消／退貨處理中／已退款`），直接顯示、直接當篩選參數傳。其餘狀態（付款狀態、退款案件、庫存異動…）是英文代碼＋`…Label`。 |
 | 個資遮罩 | **訂單收件人（姓名／電話／地址）視同會員個資**：完整值需 `shop.order.reveal`（系統管理員、客服／行政、合作球隊管理）；其餘一律遮罩，回應有 `isMasked`（這份是不是遮罩值）與（詳情）`canReveal`。**沒有 reveal 權限時關鍵字搜尋只比對訂單編號**（否則搜尋會變成探測個資的工具）。抽獎名單與報名名單同理（`member.pii.reveal`）。 |
@@ -4134,7 +4134,55 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 | 不做 | 通知信（中獎通知、訂單通知、退款通知全部不寄，全系統沒有寄信通路）、折扣碼與會員價、多倉別／批號／預購、物流商 API、兩隊分潤計算與結算單、前台抽獎頁。 |
 | 待付款釋回 | 目前**沒有背景排程**：`POST …/shop/orders/release-expired`（`shop.order.update`）把逾時未付款的訂單釋回庫存；日後前台結帳上線時由排程呼叫同一支服務。 |
 
-### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，`role_permissions` 已種入，共 49 碼）
+### C1 回應形狀補充（2026-09-30，D 批回應 C 批畫面的回報）
+
+> 下列都是**既有端點**的實際回應形狀，前面各表只寫「回詳情」的地方在這裡展開。所有金額是**整數元**、時間戳帶 `Z`、`…Label` 是日常中文直接顯示。
+
+**庫存異動類型代碼（`movementType`，共 9 個，`GET …/inventory/movements` 的篩選參數 `type` 與 `POST …/inventory/movements` 的 `type` 用同一組代碼）**
+
+| 代碼 | 標籤 | 誰產生 | `quantity` 正負與影響 |
+|---|---|---|---|
+| `stock_in` | 進貨 | 人工（`POST /movements`） | ＋，增加庫存量 |
+| `stocktake` | 盤點 | 人工 | 送出的是「實際盤點總數」，記錄的 `quantity` ＝差額（可正可負），庫存量改成盤點值 |
+| `damage` | 報損 | 人工（原因必填） | －，減少庫存量 |
+| `adjust` | 調整 | 人工（原因必填） | 正負皆可（≠0） |
+| `reserve` | 下單保留 | **系統**（建立待付款訂單） | ＋，只增加「已保留量」，庫存量不變 |
+| `release` | 釋回保留 | **系統**（待付款取消／逾時釋回） | －，只減少已保留量 |
+| `sale` | 售出扣減 | **系統**（付款成立；現場收款建單即扣） | －，同時減少庫存量與（有保留時）已保留量 |
+| `cancel_restock` | 取消回補 | **系統**（已付款／備貨中的訂單被取消） | ＋，增加庫存量 |
+| `return_restock` | 退貨回補 | **系統**（退貨驗收 `receive` 且 `restock: true`） | ＋，增加庫存量 |
+
+人工只能送前四個（`POST /movements` 送其他代碼 → 400）；後五個只由系統流程產生，列表與訂單詳情的異動紀錄都看得到（`orderNo` 帶出關聯訂單）。`stockAfter`／`reservedAfter` 是該筆異動當下的快照。
+
+**`POST /orders`（人工建立訂單）→ 201，回 `AdminOrderDetailDto`**：
+`{ id, orderNo, createdAt, paidAt, completedAt, cancelledAt, cancelReason, subtotal, shippingFee, total, linepayTransactionId（現場收款為 null）, paymentStatus, paymentStatusLabel, paymentMethod, paymentMethodLabel, orderStatus（中文）, deliveryMethod, deliveryMethodLabel, shipmentStatusLabel, isMember, memberId, memberNo, isManual, sellingClubId, sellingClubCode, sellingClubName, collectingClubId, collectingClubName, recipientName／recipientPhone／recipientAddress（依權限遮罩）, customerNote, internalNote, settlementStatus(+Label), settledOn, settlementNote, items, shipment, invoice, refunds, availableActions, isMasked, canReveal, updatedAt }`。
+子物件：`items[] = { id, variantId, productName, variantLabel, sku, unitPrice（下單當下的價格快照）, quantity, lineTotal, refundedQuantity }`；`shipment = { id, carrier, trackingNo, storeBranchCode, shippedAt, deliveredAt, pickupStatus(waiting／picked_up／overdue)(+Label), pickupDeadlineOn, arrivalNotifiedAt }`（尚未出貨為 `null`）；`invoice = { invoiceNo, issuedAt, issueStatus, voidStatus }`（沒有發票為 `null`）；`refunds[] = { id, status(+Label), refundAmount, reason, createdAt }`；`availableActions` 是動作代碼陣列（`mark_paid`／`prepare`／`ship`／`complete`／`cancel`／`request_refund`，畫面依此顯示按鈕，伺服器端仍各自檢查狀態）。**任何狀態動作（`prepare`／`cancel`／`ship`／`complete`／備註／分帳）的回應都是這個形狀。**
+
+**S5 退款案件動作的回應**：`approve`／`reject`／`receive` 都回 `AdminRefundDetailDto`：
+`{ id, orderId, orderNo, orderStatus, orderTotal, orderRefundedTotal, paymentMethod(+Label), status(+Label), refundAmount, reason, needsReturn, reviewNote, approvedByName, receivedAt, receivedByName, refundMethod(+Label), refundReference, refundedAt, refundedByName, items: [ { orderItemId, productName, variantLabel, sku, quantity, unitPrice } ], availableActions, createdAt, updatedAt }`；
+`availableActions` 依狀態與權限給出：申請中→`approve`／`reject`；已核准（需退回）→`receive`／`reject`；已核准（不需退回）或已驗收→`execute`（**只有 `shop.refund.execute` 的人才看得到 `execute`**）。**`execute` 回 `{ refund: <上面的詳情>, invoiceAction: string｜null }`**；狀態不對一律 409（訊息「案件狀態不允許」＋目前狀態）；`reject` 的 `note` 必填（400）。
+
+**F2 報名 `POST …/fan-events/{id}/registrations`（201）與 `PUT …/registrations/{registrationId}` 都回 `AdminFanEventRegistrationDto`**：
+`{ id, memberId, memberNo, isMember, applicantName, phone, email（依 member.pii.reveal 遮罩）, status(registered／waitlist／cancelled／attended), statusLabel, note, createdAt, isMasked }`。`PUT` 之後重新讀清單即可看到候補遞補後的名額；**取消已報名者不會自動遞補候補者**（由人工把候補改成已報名，名額由伺服器把關）。
+
+**K5 動作的回應形狀**
+
+| 端點 | 回應 |
+|---|---|
+| `POST /{id}/roster/preview` | `{ asOf, eligibleCount }`（不寫入） |
+| `POST /{id}/roster`（產生／作廢重產） | 活動詳情 `AdminDrawDetailDto`（含 `versions[]`、`rosterHash`、`availableActions[]`） |
+| `PUT /{id}/winners`、`POST /{id}/winners/remove` | `{ updatedCount, draw: <活動詳情> }` |
+| `PUT /{id}/fulfilment/{serialNo}` | 單筆發放 `{ serialNo, memberNo, memberName, isBackup, prizeName, claimMethod(+Label), recipientName, recipientPhone, recipientAddress, fulfilmentStatus, effectiveStatus(+Label), shippedAt, claimedAt, note, isMasked }` |
+| `POST /{id}/fulfilment/batch/status` | `{ updatedCount, skipped: [ { serialNo, reason } ] }` |
+| `POST /{id}/announcement-draft`（201） | `{ articleId, articleSlug, draw: <活動詳情> }` |
+| `PUT /{id}/announcement-article`、`POST /{id}/mark-announced`、`POST /{id}/close`、`POST /{id}/void` | 活動詳情 |
+| `GET /{id}/announcement-preview` | `{ drawName, prizeDescription, snapshotAt, eligibleCount, winners: [ { serialNo, memberNo, maskedName, prizeName } ] }` |
+
+**規格編號（貨號）重複的 409 措辭（C 批回報第 2 項）**：貨號全站唯一（跨俱樂部）。撞到**本俱樂部**自己的規格 → 「貨號「X」已經被這個俱樂部的另一個規格使用，請換一個」；撞到**別的俱樂部**的規格 → 只回「貨號「X」無法使用，請換一個」，**不說已被使用、不說在哪一隊**（受範圍限制的帳號不得靠貨號探測對方的商品）。同理會員 Email 撞號（全站唯一）回「這個 Email 目前無法用來建立新的會員帳號…」，不確認這個人存在。
+
+**全站時間格式通則（D 批統一，2026-09-30）**：`DateTime`（時間戳）**一律輸出 UTC 並帶 `Z`**；輸入無時區記號視為 UTC。實作在 `Common/UtcDateTimeJsonConverter.cs`（註冊於 `Program.cs` 的 `JsonOptions`），**所有模組同一套**（含 S1 以前的舊模組——它們原本輸出不帶 `Z` 的 UTC，如 `2026-09-30T09:12:33.123`，這個改動讓前端不必再猜）。`DateOnly`（台灣當地日期）與帶位移的 `DateTimeOffset` 不受影響。（E-90 的 `Kind=Unspecified` 規則不變：不得當成伺服器本機時間換算。）
+
+### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，`role_permissions` 已種入，共 50 碼）
 
 | 權限碼 | 用途 | 系統管理員 | 內容編輯 | 商務／贊助 | 公關／媒體 | 客服／行政 | 檢視者 | 合作球隊管理（僅自家） |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
@@ -4155,8 +4203,9 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 | `shop.credential.view／update`（**sysadmin_only**＋受限） | S6 LINE Pay 與發票憑證 | ✔ | — | — | — | — | — | — |
 | `shop.report.view`／`shop.report.export`（🔴 受限） | S6 報表／匯出 | 全 | — | 全 | — | — | — | 只有 view |
 | `shop.donation_code.*`（**全系統共用，不分俱樂部**） | S6 發票捐贈碼 | 全 | — | 全 | — | — | — | — |
-| `member.draw.view／create／update` | K5 抽獎活動、名單、中獎人、發放 | 全 | — | — | — | 全 | — | — |
-| `member.draw.announce` | K5 產生公布稿（**只取得遮罩名單**） | ✔ | — | — | ✔ | ✔ | — | — |
+| `member.draw.view` | K5 檢視抽獎活動、名單、發放（**姓名與收件資訊一律遮罩，完整值需 `member.pii.reveal`**） | 全 | — | — | **唯讀（遮罩）**（C 批畫面回報後補：公關／媒體要能打開活動才寫得了公布稿） | 全 | — | — |
+| `member.draw.create／update` | K5 建立活動、產生名單、回填中獎人、發放 | 全 | — | — | — | 全 | — | — |
+| `member.draw.announce` | K5 產生公布稿（**只取得遮罩名單**；需搭配 `member.draw.view` 才打得開活動） | ✔ | — | — | ✔ | ✔ | — | — |
 | `member.draw.export`（🔴 受限） | K5 中獎人聯絡名單與出貨清單 | ✔ | — | — | — | ✔ | — | — |
 
 `GET /api/v1/admin/auth/me` 回傳權限碼清單，畫面用它決定要不要顯示按鈕（**權限碼只給程式判斷，不得顯示**）。
@@ -8158,3 +8207,262 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 `AdminSeoImageTests`（`DeleteSeoTextSettingsAsync` 改為快照後還原）、`AdminMatchesAndStandingsTests`
 （`Standing_CSV匯入_整季替換` 記下既有列、`DeletedCount` 算進去並於 `finally` 補回）、`SiteFactsTests`
 （電話／營業時間改為只驗證有值）。⚠️ 這三處只確認過 `dotnet build` 通過，**未重跑 `dotnet test`**，灌庫後請跑全套。
+
+---
+
+## D 批：G3 電子報／E4–E6 App 廣告／M1–M5 App 後台／J3 帳號活動／App 公開端點（2026-09-30，`backend-engineer`）
+
+主站規劃書 §4.7 G3、§4.5 E4–E6、§4 M、§4.10 J3；App 規劃書 §6、§7、§8、§9.2、§10、§11；`docs/19` §5／§6／§7；對應 `STATUS.md` 的 `S3-10`、`AP-1`。
+沿用 E1a／B1／C1 的通則（錯誤格式 `ProblemDetails`、`content: { zh, en? }` 雙語、`PUT` 整份取代、分頁形狀、跨範圍一律 404、敏感操作日誌）與 C1 的**全站時間格式通則**（時間戳一律 UTC 帶 `Z`）。
+**本節只寫 D 批新增的規則與每支端點的契約。給畫面的人：只讀這一節就能串接，不需要看程式碼。**
+
+### D 批通則
+
+| 項目 | 規定 |
+|---|---|
+| 路徑 | G3 走俱樂部範圍 `/api/v1/admin/{club}/newsletter/…`（名單兩站各自獨立）。**廣告與 App 不分俱樂部（App 是兩隊共用平台）**：`/api/v1/admin/ads/…`（E4–E6）、`/api/v1/admin/app/…`（M1–M5）、`/api/v1/admin/security/overview`（J3），全部走全域授權（`IAdminSystemAuthorizer`），**沒有 `{club}` 路由段**，權限碼的 `is_club_scoped=0`。App 公開端點 `/api/v1/app/…`（匿名）。 |
+| 權限 | 見下方矩陣。**合作球隊管理沒有任何 `ad.*`／`app.*`**（規劃書 §11）。`sysadmin_only` 的碼即使角色被勾選也只有系統管理員能持有。畫面用 `GET /auth/me` 的權限碼決定按鈕；**權限碼只給程式判斷，不得顯示**。 |
+| 個資 | 電子報名單（Email）、推播權杖、裝置識別碼**視同個資**：匯出必填 `purpose`（≤200 字，缺 → 400）並寫敏感操作日誌；推播權杖加密儲存、**任何回應都不含權杖**（只有 `reveal=true` 且有 `app.device.reveal` 才回完整值）；裝置識別碼在清單只給遮罩（前 4 碼＋`****`＋後 2 碼）。CSV 一律 UTF-8 BOM，**含使用者輸入的文字欄位以 `'` 中和公式注入**（`= + - @`）。 |
+| 圖片與影片 | 同 E1a：含圖片的建立／更新是 `multipart/form-data`（`payload` ＋ 檔案欄位），寫入失敗補償刪除已上傳物件。廣告素材另可附影片（檔案欄位 `video`，不轉碼）；素材圖上傳時就檢查版位規格（最小尺寸→長寬比→檔案大小）。回應只給完整網址（`imageUrl`／`imageThumbUrl`／`videoUrl`），公開回應**沒有物件鍵**。 |
+| 尚未串接的接縫 | **推播傳輸（APNs／FCM）、EDM 平台、Cloudflare 靜態設定**都以介面隔開、預設「尚未串接」實作：後台邏輯照常運作，回應**如實說明**沒串接（不假裝成功），見 `docs/17` §3「D 批的接縫」。 |
+| 背景作業 | `AppMaintenanceBackgroundService`（hosted service，預設每 60 秒；`APP_JOBS_INTERVAL_SECONDS` 覆寫，**0＝停用**，整合測試主機停用）：到點的推播發送、廣告檔期依起訖時間推進、廣告事件每日聚合、清除 90 天前的已聚合事件與診斷回報。手動觸發：`POST /ads/maintenance/run`（`ad.maintenance.run`）、`POST /app/push/dispatch-due`（`app.push.approve`）。 |
+| 限流 | App 公開**寫入**端點掛 `public-app` 政策（每 IP 每分鐘 120 次，行動網路共用 IP 所以較寬；`APP_PUBLIC_RATE_LIMIT_PERMITS` 覆寫；架構測試強制寫入端點必掛限流）。公開讀取端點不限流（靠邊緣快取）。 |
+| 快取標頭 | 內容對所有裝置相同的讀取（`/config`、沒帶裝置識別的 `/layout`／`/notifications`）：`public, max-age=60, stale-while-revalidate=60, stale-if-error=86400`；**帶了裝置識別的回應一律 `private, no-store`**（內容因裝置而異，不得被邊緣快取誤送給別人）；`/ads/{slotCode}` 沒帶裝置識別 `public, max-age=60`、帶了 `no-store`（每人頻次上限）。 |
+
+### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，共 38 碼）
+
+| 權限碼 | 用途 | 系統管理員 | 內容編輯 | 商務／贊助 | 公關／媒體 | 客服／行政 | 檢視者 | 合作球隊管理 |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| `form.newsletter.view／update` | G3 名單檢視、新增、退訂、同步 EDM | 全 | — | — | — | 全 | — | 全（僅自家） |
+| `form.newsletter.export`（🔴 受限） | G3 匯出 CSV | ✔ | — | — | — | — | — | — |
+| `ad.advertiser.*`、`ad.slot.*`（view／create／update／delete） | E4 廣告主、版位 | 全 | — | 全 | — | — | 唯讀 | — |
+| `ad.campaign.view／create／update／delete` | E5 檔期與素材（送審、結案、作廢、素材上傳） | 全 | — | 全 | — | — | 唯讀 | — |
+| `ad.campaign.review` | E5 審核檔期與素材（核可／退回） | ✔ | — | ✔ | — | — | — | — |
+| `ad.campaign.pause` | E5 緊急暫停與恢復（檔期與素材） | ✔ | — | ✔ | — | — | — | — |
+| `ad.contract.view／update`（🔴 受限） | 合約金額檢視／編輯（**規劃書寫「財務可見」，專案沒有財務角色**） | ✔ | — | ✔ | — | — | — | — |
+| `ad.report.view` | E6 成效報表 | 全 | — | ✔ | ✔ | — | ✔ | — |
+| `ad.report.export`（🔴 受限） | E6 報表匯出 | ✔ | — | ✔ | — | — | — | — |
+| `ad.maintenance.run`（**sysadmin_only**） | 手動執行廣告維護作業 | ✔ | — | — | — | — | — | — |
+| `app.release.view` | M1 檢視版本與維護模式 | ✔ | — | — | — | — | ✔ | — |
+| `app.release.update`（**sysadmin_only**） | M1 版本、更新門檻、維護模式 | ✔ | — | — | — | — | — | — |
+| `app.layout.view／update` | M2 內容編排與深連結 | 全 | 全 | — | — | — | 唯讀 | — |
+| `app.push.view／create` | M3 檢視、建立、預覽、試送、送審、取消、刪除草稿 | 全 | — | — | 全 | — | 唯讀 | — |
+| `app.push.approve`（**sysadmin_only**） | M3 覆核（核可／退回）、失敗重送、自動推播規則、手動觸發到點發送 | ✔ | — | — | — | — | — | — |
+| `app.device.view` | M4 裝置清單（遮罩）與統計 | ✔ | — | — | — | ✔ | ✔ | — |
+| `app.device.reveal`（🔴 受限＋**sysadmin_only**） | M4 檢視完整識別碼與推播權杖 | ✔ | — | — | — | — | — | — |
+| `app.device.update`（**sysadmin_only**） | M4 失效權杖清理 | ✔ | — | — | — | — | — | — |
+| `app.config.view` | M5 檢視功能開關、連線檢查 | ✔ | — | — | — | — | ✔ | — |
+| `app.config.update`（**sysadmin_only**） | M5 管理功能開關 | ✔ | — | — | — | — | — | — |
+| `app.credential.view／update`（🔴 受限＋**sysadmin_only**） | M5 金鑰與憑證列管、輪替 | ✔ | — | — | — | — | — | — |
+| `app.diagnostic.view`／`update` | M5 診斷回報檢視／處理狀態 | ✔（兩者） | — | — | — | — | view | — |
+| `system.audit.view`（既有，**sysadmin_only**） | J3 帳號活動概況 | ✔ | — | — | — | — | — | — |
+
+---
+
+### G3 電子報 `/api/v1/admin/{club}/newsletter`
+
+名單 `(club_id, email)` 唯一：**同一人可以只退訂其中一站**（另一站的名單不受影響）。用對方俱樂部的路由操作這一筆一律 404。
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /subscribers?status=&source=&keyword=&page=&pageSize=` | view | 分頁（新→舊）：`{ id, email, source, sourceLabel（沒填顯示「未註明」）, status(subscribed／unsubscribed), statusLabel(已訂閱／已退訂), subscribedAt, unsubscribedAt, updatedAt }`；`keyword` 比對 Email；`status` 錯誤 → 400 |
+| `GET /summary` | view | `{ subscribedCount, unsubscribedCount, sources: [ { source, sourceLabel, count } ] }`（來源分布只算目前訂閱中的人） |
+| `POST /subscribers` → 201 | update | `{ email（必填，轉小寫）, source?（預設「後台新增」）}`。**已在名單中 → 409；曾經退訂 → 409「不能由後台直接加回」**（退訂是法遵事實） |
+| `PUT /subscribers/{id}/status` | update | `{ status, reason? }`。改成 `unsubscribed` 記 `unsubscribedAt`；改回 `subscribed` **必須填 `reason`（≤200，說明是訂閱者本人要求）**，否則 400，並寫敏感操作日誌 |
+| `DELETE /subscribers/{id}` → 204 | update | 個資刪除請求；**不留退訂紀錄**（只是要求退訂請改用退訂）；寫日誌 |
+| `GET /export?purpose=&status=&source=&keyword=` | `form.newsletter.export`（🔴） | CSV：`Email,來源,狀態,訂閱時間,退訂時間`（訂閱／退訂時間為 UTC）；用途必填 |
+| `GET /edm` | view | `{ configured, provider, message }`（**目前恆為 `configured:false`**：供應商未定） |
+| `POST /edm/sync` | update | 把「訂閱名單＋退訂名單」交給 EDM 平台：`{ configured, subscribedCount, unsubscribedCount, syncedCount, message }`；**未串接時 `configured:false`、`syncedCount:0`、說明「尚未串接」**（不是錯誤）。退訂名單一併送出（抑制清單） |
+
+**沒有公開訂閱／退訂端點**（官網頁尾訂閱表單屬前台工作，本批沒有）；**不做電子報群發**（官網仍不寄信，規劃書 §1.3），EDM 平台端才寄。
+
+---
+
+### E4 版位與廣告主 `/api/v1/admin/ads`
+
+**版位 `/slots`**：`GET`（陣列）／`GET /{id}`／`POST`（201）／`PUT /{id}`／`DELETE /{id}`（**有檔期 → 409，請改停用**）／`GET /{id}/schedule`（見 E5）。
+**版位 `<AdminAdSlotDto>`**：`{ id, slotCode, surface("app"), screenCode, blockOrder, aspectRatio("16:9"), minWidth, minHeight, maxFileKb, allowedFormats, allowVideo, sessionImpressionCap, rotationCap(1–10), fallbackImageKey, fallbackImageUrl, fallbackImageThumbUrl, fallbackLink, isActive, nameZh, nameEn, fallbackAltZh, fallbackAltEn, campaignCount, updatedAt }`。
+**寫入（multipart）**：`payload` `{ slotCode（必填，格式「畫面_位置」小寫英數底線，例 `home_top`，**建立後不可改**）, screenCode?, blockOrder?, aspectRatio?（「寬:高」）, minWidth?, minHeight?, maxFileKb?, allowedFormats?, allowVideo, sessionImpressionCap?, rotationCap（1–10）, fallbackLink?, isActive, removeFallbackImage?, content: { zh: { name（必填）, fallbackAlt? }, en? } }` ＋ 選填檔案欄位 `fallbackImage`（備援素材，自家內容，**版位永不空白**）。
+🔴 規則：**兒童向畫面（`S15`／`S16`／`S17`：課程列表、課程報名表、我的報名）不設版位 → 400**；**不設慈善相關版位**（代號含 `charity`／`donation` → 400）；代號重複 409；代號改動 400。
+
+**廣告主 `/advertisers`**：`GET ?status=&keyword=`（陣列）／`GET /{id}`／`POST`（201）／`PUT /{id}`／`DELETE /{id}`（**有檔期 → 409**）／`GET /sponsor-options?keyword=`（挑選贊助商：`[ { id, name, clubCode } ]`，跨俱樂部）。
+**`<AdminAdvertiserDto>`**：`{ id, nameZh, nameEn, taxId, contactName, contactPhone, contactEmail, contractNote, cooperationStartOn, cooperationEndOn, sponsorId, sponsorName, status(negotiating洽談中／active合作中／ended已結束), statusLabel, campaignCount, updatedAt }`。
+**寫入（JSON）**：`{ taxId?, contactName?, contactPhone?, contactEmail?, contractNote?, cooperationStartOn?, cooperationEndOn?, sponsorId?（**可為空，指向既有贊助商，只用來避免重複維護聯絡窗口，不是合併**）, status?（預設 negotiating）, content: { zh: { name（必填）}, en? } }`。合作已結束的廣告主不能再建立新檔期（400）。
+
+---
+
+### E5 檔期與素材 `/api/v1/admin/ads/campaigns`、`/creatives`
+
+**狀態機**：`draft 草稿 → pending_review 待審核 → scheduled 已排程 → running 投放中 → ended 已結束 → closed 已結案`；`running ↔ paused 已暫停`（恢復時回到暫停前狀態：投放中／已排程／已過期則直接結束）；`voided 已作廢`（任一狀態，不可逆）。**已排程→投放中→已結束由起訖時間自動推進**（背景作業、公開投放端點與後台讀取都會推進，最多延遲 30 秒）。
+🔴 **素材未通過審核的檔期不得進入投放中**：核可（→已排程）需要至少一個「已通過」的素材；自動推進與「恢復」都需要「已通過且未暫停」的素材。
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /campaigns?status=&slotId=&advertiserId=&keyword=` | `ad.campaign.view` | 陣列（開始時間新→舊，最多 500）：`{ id, name, advertiserId, advertiserName, slotId, slotCode, slotName, startsAt, endsAt, weight, goalType(guaranteed曝光保證／traffic導流), goalTypeLabel, goalImpressions, deliveredTotal, status, statusLabel, creativeCount, approvedCreativeCount, updatedAt }` |
+| `GET /campaigns/{id}` | 同上 | 詳情：以上＋`dailyImpressionCap`、`perDeviceDailyCap`、`deliveredToday`、**`contractAmount`（沒有 `ad.contract.view` → `null`）、`contractAmountLabel`（沒權限＝「不公開」；有權限＝「NT$ 30,000」／「尚未填寫」）、`isAmountHidden`（沒權限 `null`）**、`pauseReason`（暫停或作廢原因）、`reviewedBy`／`reviewedAt`、`availableActions[]`、**`pacing`**（`{ goalImpressions, delivered, expectedByNow, dailyTarget, status(ahead超前／on_track正常／behind落後), statusLabel }`，只有曝光保證型）、`creatives[]`、`updatedAt` |
+| `POST /campaigns` → 201／`PUT /campaigns/{id}` | create／update | JSON：`{ advertiserId, slotId, name, startsAt, endsAt（必須晚於開始）, weight?（1–100，預設 1）, dailyImpressionCap?, perDeviceDailyCap?, goalType?（預設 traffic）, goalImpressions?（**曝光保證必填**）, contractAmount?, isAmountHidden? }`。**金額欄位需要 `ad.contract.update`，沒有權限卻帶非空值 → 403**。草稿可改全部；**待審核不能改（先退回）**；**已排程／投放中／已暫停只能改名稱、權重與兩個上限，改廣告主／版位／期間／目標 → 409（請作廢重建）**；已結束／結案／作廢 → 409。版位停用或廣告主已結束 → 400 |
+| `DELETE /campaigns/{id}` → 204 | delete | **只有草稿**；否則 409（請作廢） |
+| `POST /campaigns/{id}/submit` | update | 草稿 → 待審核（**至少要有一個素材**，否則 409） |
+| `POST /campaigns/{id}/approve` | `ad.campaign.review` | 待審核 → 已排程（需已通過素材，否則 409）；開始時間已過就直接進入投放中 |
+| `POST /campaigns/{id}/return` | 同上 | 待審核 → 草稿 |
+| `POST /campaigns/{id}/pause` | `ad.campaign.pause` | `{ reason（必填）}` 已排程／投放中 → 已暫停（**緊急暫停：立刻停止投放**） |
+| `POST /campaigns/{id}/resume` | 同上 | 已暫停 → 回到原狀態（需已通過且未暫停的素材，否則 409） |
+| `POST /campaigns/{id}/close` | update | 已結束 → 已結案 |
+| `POST /campaigns/{id}/void` | update | `{ reason（必填）}` 任一狀態 → 已作廢（不可逆） |
+| `GET /slots/{id}/schedule?from=&to=` | `ad.campaign.view` | **衝突檢視**：同版位同時段的檔期（待審核／已排程／投放中／已暫停，預設從現在起 30 天）：`{ slotId, slotCode, rotationCap, maxConcurrent（期間內同時最多幾個檔期）, exceedsRotationCap（只是提示，不擋存檔）, items: [ { campaignId, name, advertiserName, startsAt, endsAt, weight, status, statusLabel, weightSharePercent } ] }` |
+
+所有狀態動作回檔期詳情；狀態不對 → 409（「目前狀態不能這樣操作」）。
+
+**素材**：`GET /campaigns/{id}/creatives`（陣列）；`POST /campaigns/{id}/creatives`（201，multipart）；`PUT /creatives/{id}`（multipart）；`DELETE /creatives/{id}`（204；**只有草稿／待審核的檔期能刪，之後只能暫停**，成效要留著對帳）；`POST /creatives/{id}/approve`、`/reject`（`{ reason（必填）}`）（`ad.campaign.review`；只能從「待審」）；`POST /creatives/{id}/pause`、`/resume`（`ad.campaign.pause`；單一素材緊急暫停）。寫入權限 `ad.campaign.update`。
+**寫入 payload**：`{ locale("zh"｜"en"，依語系分別上傳), altText（必填 ≤200）, title?, ctaText?, clickUrl?（`tcrfc://…` 或 http(s)）, theme?（light／dark／both）, variantTag?（"A"｜"B"）, removeVideo? }` ＋ 檔案欄位 `image`（**新增必填**；影片素材的圖片是海報）、選填 `video`（**版位不允許影片 → 400**）。素材規格檢查（版位設定）：最小尺寸 → 長寬比（容差 2%）→ 檔案大小；不合 400。
+**`<AdminAdCreativeDto>`**：`{ id, campaignId, locale("zh"｜"en"), imageKey, imageUrl, imageThumbUrl, imageWidth, imageHeight, videoKey, videoUrl, altText, title, ctaText, clickUrl, theme(+ThemeLabel), variantTag, reviewStatus(pending待審／approved通過／rejected退回)(+Label), rejectReason, reviewedAt, isPaused, updatedAt }`。
+🔴 **素材內容被修改（文案、點擊目的地、換圖、換影片）後一律回到「待審」**；**沒有任何改動的儲存不會退回待審**。
+
+---
+
+### E6 成效報表與維護 `/api/v1/admin/ads`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /reports?from=&to=&campaignId=&slotId=&creativeId=&platform=&locale=&groupBy=` | `ad.report.view` | `from`／`to` 是台灣日期（預設最近 30 天，最長 366 天）；`platform`：`ios`／`android`；`locale`：`zh`／`en`；`groupBy`：`campaign`（預設）／`slot`／`creative`／`platform`／`locale`／`date`。回 `{ from, to, groupBy, rows: [ { label, id, impressions, clicks, ctr（百分比兩位小數）, uniqueDevices } ], total, pendingEvents, pacing: [ { campaignId, campaignName, pacing } ] }`。**沒有任何個人層級資料**（裝置清單、會員關聯）。`pendingEvents`＞0 表示期間內還有尚未聚合的原始事件（數字還沒包含它們，請系統管理員執行維護作業）。⚠️ **`uniqueDevices` 跨多日彙總是「每日不重複裝置數的加總」（裝置日）**，不是期間內的真正不重複人數 |
+| `GET /reports/export?…同上…&purpose=` | `ad.report.export`（🔴） | CSV：`項目,曝光數,點擊數,點擊率（%）,不重複裝置數`（最後一列合計）；用途必填，**日誌記錄誰、哪個檔期（或全部）、期間、用途**。PDF 匯出不提供（畫面可列印） |
+| `POST /maintenance/run` | `ad.maintenance.run` | 推進檔期、聚合、清除：`{ campaignsStarted, campaignsEnded, eventsAggregated, daysRebuilt, eventsPurged, diagnosticsPurged, overdueUnaggregated }`。`overdueUnaggregated`＞0＝**聚合落後告警**（超過 2 天仍未聚合，或超過 90 天無法重算的事件；清除只刪已聚合的，所以不會刪掉還沒聚合的資料） |
+
+**曝光與點擊的定義（App 規劃書 §7.5）由 App 端量測**（可見面積 ≥50% 連續 ≥1 秒；備援素材與載入失敗不計）；伺服器端只做去重與時間關卡，見下方「廣告事件」。**贊助商 Logo 牆不計曝光、不入報表。**
+
+---
+
+### M1 版本與維護 `/api/v1/admin/app`（**寫入僅系統管理員**）
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /releases?platform=` | `app.release.view` | 陣列（同平台版本新→舊）：`{ id, platform(ios／android), platformLabel, version, buildNumber, releasedOn, status(testing測試／live已上架／withdrawn已下架)(+Label), isMinSupported, isRecommended, zh?: { whatsNew, forceMessage, recommendMessage }, en?, updatedAt }` |
+| `POST /releases` → 201／`PUT /releases/{id}` | `app.release.update` | `{ platform, version（`主.次.修`，建置號不參與比較）, buildNumber?, releasedOn?, status?（預設 testing）, content: { zh: { whatsNew?, forceMessage?, recommendMessage? }, en? } }`。同平台同版本 409；**版本號與平台建立後不能改（400）**；被設為更新門檻的版本不能改成測試／下架（409）。`PUT` 回 `{ value: <版本>, edgePublish }` |
+| `DELETE /releases/{id}` → 204 | 同上 | 只有未上架且未被設為門檻的版本（409） |
+| `PUT /releases/{id}/flags` | 同上 | `{ isMinSupported, isRecommended, confirmForceUpdate }`：**最低支援版本**（低於它啟動時強制更新、不可略過）與**建議版本**（低於它建議更新、可略過並每 7 天再提醒）。**只有已上架的版本能設為門檻（409）**；每平台各至多一筆（設新的自動取消舊的）；🔴 **設最低支援版本必須 `confirmForceUpdate: true`（二次確認，否則 409 說明「會強制舊版更新」）**。回 `{ value, edgePublish }`，寫日誌 |
+| `GET /maintenance` | view | `[ { scope(all／ios／android), scopeLabel, enabled, messageZh, messageEn } ]`（固定三筆） |
+| `PUT /maintenance/{scope}` | update | `{ enabled, messageZh?, messageEn? }`；**開啟必須填繁中訊息（400）**。回 `{ value, edgePublish }`，寫日誌 |
+
+**`edgePublish`**：`{ published: bool, message }`——設定存檔後是否已同步到 Cloudflare 靜態設定（`docs/19` §7 第 1 層來源，VM 全滅時 App 仍讀得到「維護中」）。**目前恆為 `published:false`＋「尚未串接」說明，存檔本身一律成功**（畫面應顯示這句提醒，不是錯誤）。
+
+### M2 內容編排 `/api/v1/admin/app/layout`（`app.layout.view／update`）
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET /items?kind=` | 版面項目（依 `kind`、排序）：`{ id, kind(home_section首頁區塊／quick_entry快捷入口／more_item「更多」分頁項目), kindLabel, itemKey, deepLinkId, deepLinkCode, iconKey, sortOrder, isEnabled, isFixed, labelZh, labelEn }`。**首頁區塊固定九個（`isFixed:true`）：`next_match`、`ad_home_top`、`latest_news`、`member_card`、`recent_matches`、`ad_home_mid`、`nearby_stores`、`quick_entries`、`sponsor_wall`，只能開關與排序、改名稱與連結，不能新增或刪除** |
+| `POST /items` → 201／`PUT /items/{id}` | `{ kind（僅 quick_entry／more_item）, itemKey（新增必填，小寫英數底線，同類型唯一 → 409）, deepLinkId?, iconKey?, isEnabled, label: { zh（必填）, en? } }`（`PUT` 忽略 `kind`／`itemKey`） |
+| `DELETE /items/{id}` → 204 | 首頁區塊 → 409 |
+| `POST /items/reorder` | `{ kind, ids }` 排到最前面，其餘維持相對順序；含不屬於該類型的 id 或重複 → 400。回該類型的項目陣列 |
+| `GET／POST／PUT／DELETE /deep-links` | **深連結對照表**：`{ id, code, appLink, webUrl, requiresLogin, isActive, sortOrder, labelZh, labelEn, usedByCount }`；寫入 `{ code（小寫英數底線，唯一 409）, appLink（**必須 `tcrfc://` 開頭**，否則 400；scheme 固定）, webUrl?, requiresLogin, isActive, label: { zh, en? } }`；**有版面項目使用時不能刪（409）** |
+| `GET／POST／PUT／DELETE /announcements` | **公告條**：`{ id, messageZh, messageEn, linkUrl, startsAt, endsAt, audienceTier(all／fan_club／registered／anonymous)(+Label), audienceClubCode, isEnabled, isActiveNow }`；寫入 `{ message: { zh（必填 ≤200）, en? }, linkUrl?（`tcrfc://` 或 http(s)）, startsAt?, endsAt?（須晚於開始）, audienceTier?, audienceClubCode?, isEnabled }` |
+
+**不做** App 內的內容 CRUD（新聞、賽事、球員、店家仍在既有模組維護，M2 只管呈現順序與開關）。
+
+### M3 推播 `/api/v1/admin/app/push`（雙人覆核）
+
+**流程**：公關／媒體 **建立草稿（`draft`）→ 預覽／試送 → 送審（`pending_review`）** → **另一位**系統管理員 **核可（→ `scheduled`，時間到就發送）**；`sending` 是發送中；結果 `sent 已發送`／`partial 部分送出`／`failed 失敗`；`cancelled 已取消`。
+🔴 **核可者不得是建立者本人（409「必須由另一位系統管理員覆核」）——系統管理員自己建立的批次一樣要另一位核可。**🔴 **二次確認**：核可必須帶 `expectedAudience`（操作者在畫面上看到的預估觸及裝置數），與伺服器當下重算的人數不同 → 409（分眾在核可前變動了）；沒有任何符合條件的裝置 → 409。
+🔴 **系統層阻擋（建立、修改、送審、核可、試送都檢查）**：**推播不得成為繞過「中獎只以最新消息公布」承諾的後門**——標題或內文（中英）含「中獎」「得獎」「獲獎」「抽中」「winner」等字樣 → 409；**深連結指向帶「球迷會員抽獎」標籤的文章（`tcrfc://news/{slug}` 或官網新聞網址）→ 409**。分眾條件本身沒有「以中獎名單為對象」的維度，所以無法用分眾送到中獎人。**自動推播（新聞發布）必須先呼叫 `PushContentGuard.IsMemberDrawArticleAsync`：帶抽獎標籤的文章一律不自動推播。**
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /messages?status=` | `app.push.view` | 陣列（新→舊，最多 200）：`{ id, titleZh, kind, status, statusLabel, scheduledAt, sentAt, sentCount, deliveredCount, openedCount, createdBy, createdAt }` |
+| `GET /messages/{id}` | 同上 | 詳情：`{ id, kind, status, statusLabel, content: { zh: { title, body, imageAlt }, en? }, imageKey, imageUrl, deepLink, audienceTier(+Label), audienceClubCode, audienceTeamCodes[], scheduledAt, audienceEstimate, createdBy, reviewedBy, reviewedAt, rejectNote, sentAt, sentCount, deliveredCount, failedCount, openedCount, failureMessage, stats: [ { platform, platformLabel, locale, localeLabel, sent, delivered, opened } ], statsNote, availableActions[], updatedAt }`。**`statsNote` 是三個數字的語意說明，畫面必須照這個措辭呈現**：送出＝我方交給推播服務的則數；**送達＝推播服務已接受且沒有回報權杖失效，不等於已到達使用者手機**；開啟＝App 回報的次數，**系統不追蹤是哪一位使用者開啟** |
+| `POST /messages` → 201／`PUT /messages/{id}` | `app.push.create` | **multipart**：`payload` `{ kind?（announcement 預設／news／match）, deepLink?（`tcrfc://…` 或 http(s)）, audienceTier?（all 預設／fan_club／registered／anonymous）, audienceClubCode?（**用於一般公告，不得用於商業訊息的差別投放**）, audienceTeamCodes?（追蹤球隊，只算推播開啟的追蹤）, scheduledAt?（不可是過去）, removeImage?, content: { zh: { title（必填 ≤120）, body（必填 ≤500）, imageAlt? }, en?（**文案須雙語**，英文缺漏時英文語系的裝置收到繁中）} }` ＋ 選填 `image`。**只有草稿能修改**（待審核請先退回） |
+| `DELETE /messages/{id}` → 204 | 同上 | 只有草稿或已取消的批次（409） |
+| `POST /estimate` | `app.push.view` | **發送前分眾人數試算**（只回人數，不寫入、不回傳裝置清單）：`{ audienceTier?, audienceClubCode?, audienceTeamCodes? }` → `{ total, breakdown: [ { platform, platformLabel, locale, localeLabel, sent（＝該群人數）, delivered:0, opened:0 } ] }`。**只算「權杖有效且已允許推播」的裝置** |
+| `GET /messages/{id}/preview` | 同上 | **預覽（雙語各一）**：`{ zh, en, enEffective（沒有英文時英文裝置實際看到的＝繁中）, deepLink, imageUrl, audienceSummary }` |
+| `POST /messages/{id}/test-send` | `app.push.create` | 指定測試裝置試送：`{ deviceInstallIds（1–10 台）}` → `{ configured, sent, failed, unknownDevices, message }`。**傳輸尚未串接時 `configured:false`＋「尚未串接」說明** |
+| `POST /messages/{id}/submit` | 同上 | 草稿 → 待覆核（繁中標題與內文必填） |
+| `POST /messages/{id}/approve` | `app.push.approve` | `{ expectedAudience }`（見上）→ 已排程；**排程時間沒填或已到就立刻發送**（傳輸未串接時批次停在 `failed`，`failureMessage`＝「推播服務尚未串接…」，**不動任何裝置、不動游標，串接後可重送**） |
+| `POST /messages/{id}/return` | 同上 | `{ note（必填）}` 待覆核 → 草稿 |
+| `POST /messages/{id}/cancel` | `app.push.create` | 取消尚未送達的批次（草稿／待覆核／已排程）；已發送或發送中 → 409 |
+| `POST /messages/{id}/retry` | `app.push.approve` | 失敗／部分送出（已核可）重送：**從游標續送，已處理的裝置不會重送**（權杖失效或暫時性失敗的個別裝置不會重試——已知限制） |
+| `POST /dispatch-due` | 同上 | 手動觸發「已核可且排程時間已到」的批次發送 → `{ dispatched }`（背景作業本來就會做） |
+| `GET／PUT /rules` | view／`app.push.approve` | **自動推播規則**：`{ matchReminderHours（1–72，預設 2）, membershipExpiryDays（預設 [30,7]，1–5 個 1–365 的不重複天數，大到小排列）, toggles: [ { key, label, enabled } ] }`；`PUT` 只送要改的欄位，`toggles` 是 `{ key: bool }`。九個開關：`match_reminder`／`venue_confirmed`／`match_change`／`match_result`／**`news_published`（預設關閉）**／`membership_expiry`／`membership_activated`／`jersey_status`／`program_status`。⚠️ **只保存規則，實際觸發（掃描賽事與到期、產生批次）屬 App 開發階段** |
+
+**分眾（規劃書 §6.3，刻意不做行為定向）**：會籍層級（`all`／`fan_club`＝持有有效球迷會員會籍／`registered`＝已登入但不是有效球迷會員／`anonymous`＝未登入裝置）、追蹤球隊（`is_push_enabled` 才算）、俱樂部歸屬（追蹤該俱樂部、追蹤其球隊、或持有其會籍；有指定俱樂部時 `fan_club` 只看該俱樂部的會籍）。**分眾一律在 .NET 端解析成裝置清單，不使用 FCM topic**（付費狀態不送進 Google 的索引）。
+
+### M4 裝置 `/api/v1/admin/app/devices`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET ?platform=&appVersion=&permission=&tokenStatus=&page=&pageSize=` | `app.device.view` | 分頁（最近活躍優先）：`{ id, deviceInstallIdMasked, platform(+Label), osVersion, appVersion, locale("zh"｜"en"), localeLabel, pushPermission(not_determined尚未詢問／granted已允許／denied已拒絕／provisional暫時允許)(+Label), pushTokenStatus(none沒有權杖／valid有效／invalid已失效)(+Label), isMemberBound, firstSeenAt, lastActiveAt }`。**沒有權杖欄位；`isMemberBound` 只說有沒有綁定會員，不給會員資料** |
+| `GET /{id}?reveal=true` | view；`reveal=true` 需 `app.device.reveal` | `{ device, deviceInstallId, pushToken, subscriptionCount, revealed }`；不帶 `reveal` 時 `deviceInstallId`／`pushToken` 為 `null`；`reveal=true` 沒權限 → **403**，有權限寫日誌 |
+| `GET /stats?platform=&belowVersion=` | view | `{ totalDevices, activeLast7Days, activeLast30Days, invalidTokenCount, byVersion: [ { platform, platformLabel, appVersion, count } ], byPermission: [ { key, label, count } ], devicesBelowVersion }`（`platform`＋`belowVersion` 才有最後一項：**供決定最低支援版本**） |
+| `POST /cleanup-invalid-tokens` | `app.device.update` | 把「已失效」的權杖資料清空（狀態改為沒有權杖，裝置列與追蹤偏好保留）→ `{ tokensCleared }` |
+
+### M5 設定、憑證、診斷與連線檢查 `/api/v1/admin/app`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET／POST／PUT／DELETE /config/flags` | view／`app.config.update` | **功能開關**：`{ id, flagKey, isEnabled, stringValue, platform(all／ios／android), platformLabel, description, updatedAt }`；`POST`／`PUT` 回 `{ value, edgePublish }`（`DELETE` 回 `{ value:true, edgePublish }`）。`flagKey` 格式 `{模組}_{功能}` 小寫蛇形（`ads_enabled`、`map_enabled`…）；同名同平台 409；**建立後名稱與平台範圍不能改（400）**；同名時**單一平台的值優先於 `all`**。**`payment_mode`（`off`／`external`／`inapp`，填在 `stringValue`）是唯一的三態開關**（其他開關填 `stringValue` → 400）；🔴 **只能降級：不得建立為 `inapp`、不得從 `external`／`off` 改成 `inapp`（409）**；已經是 `inapp` 的可以降級回 `external`／`off`（以 `external` 送審、通過後再遠端開 `inapp` 是違規，會被商店下架） |
+| `GET／POST／PUT／DELETE /config/credentials`、`POST /config/credentials/{id}/rotate?newExpiresOn=` | `app.credential.view／update`（🔴） | **金鑰與憑證列管——只存列管資訊，絕不存金鑰本身**：`{ id, kind(apns_keyAPNs金鑰／fcm_credentialFCM認證資料／apple_developer_program／google_play_account／maps_api_key／other)(+KindLabel), label, externalRef（Key ID 之類，不是金鑰）, createdOn, lastRotatedOn, expiresOn, rotationPeriodDays, nextDueOn, daysUntilDue, health(ok正常／due_soon即將屆期／overdue已屆期／untracked未設定期限)(+HealthLabel), note }`。**部分金鑰沒有到期日：無 `expiresOn` 時以「上次輪替日（沒有就建立日）＋輪替週期」為基準；已屆期或屆期前 60 天告警**；清單依下次屆期日排序（最急的在前，沒有期限的在最後）。`rotate`：上次輪替日＝今天（台灣日期），可同時給新的屆期日（必須晚於今天），**寫日誌** |
+| `GET /config/connection-check` | `app.config.view` | `{ checkedAt, items: [ { key, label, status(ok正常／warning注意／not_configured尚未串接／error異常), statusLabel, message } ] }`，項目：`database`、`push_transport`（APNs／FCM）、`edge_config`（Cloudflare 靜態設定）、`credentials`（有已屆期 → error、60 天內屆期或沒有列管 → warning）、`min_version`（兩個平台都要有最低支援版本）、`diagnostics`（未處理的崩潰回報）。**「尚未串接」與「異常」分開顯示**；連線檢查不會真的送任何推播 |
+| `GET /diagnostics?type=&status=&platform=&appVersion=&page=&pageSize=` | `app.diagnostic.view` | 分頁（新→舊）：`{ id, platform(+Label), appVersion, buildNumber, osVersion, occurredAt, reportType(crash崩潰／abnormal_exit異常退出／api_errorAPI錯誤／startup_time啟動耗時／user_report使用者回報)(+Label), metricValue, summary, status(new新回報／reviewing處理中／resolved已解決／ignored略過)(+Label) }`（**清單不含技術細節**） |
+| `GET /diagnostics/{id}` | 同上 | `{ report, detail }` |
+| `PUT /diagnostics/{id}/status` | `app.diagnostic.update` | `{ status }` → 清單項目形狀 |
+| `GET /diagnostics/summary?days=` | view | 近 N 天（預設 7、最多 90）：`{ days, byVersion: [ { platform, appVersion, crashes, activeDevices, devicesWithCrash, crashFreeDevicePercent } ], byType, startupMedianMs, startupP90Ms, apiErrorNote }`。**無崩潰裝置比例是近似值**（只算有註冊裝置識別的回報）；**API 錯誤率需要分母（總請求數），診斷回報只有錯誤次數，這裡只彙總次數**（正式錯誤率由伺服器端請求監控提供） |
+
+### J3 帳號活動概況 `GET /api/v1/admin/security/overview`（`system.audit.view`，僅系統管理員）
+
+回 `{ generatedAt, auditTrailAvailable(**恆為 false**), auditTrailMessage, activeAccounts, lockedAccounts, dormantAccounts, alerts: [ { kind(locked被鎖定／failed_attempts連續登入失敗／dormant久未登入／never_logged_in從未登入), kindLabel, accountId, username, message } ], accounts: [ { id, username, displayName, status, isSuperAdmin, twoFactorEnabled, lastLoginAt, failedAttemptCount, lockedUntil, isLockedNow, daysSinceLastLogin, passwordChangedAt, createdAt } ] }`。
+**規則**：只對「啟用中」的帳號告警；連續失敗 ≥3 次、久未登入 ≥90 天、建立超過 7 天從未登入。**不含密碼雜湊與雙因素密鑰。**
+
+**🔴 J3 的判定（為什麼只有這個）**：規劃書 J3 寫「操作稽核記錄（誰在何時對哪筆資料做了什麼）保存 ≥12 個月」「登入紀錄與異常提醒」「每日自動備份」，§4.11／§4.13 也多處要求「匯出寫入稽核日誌」。**但**：`docs/12` §13.1 記著**委託方明文指示「本次資料庫設計不含 log」**（不建 `AuditLog`／`LoginLog`／`ExportLog`／`OperationLog`），且 **2026-09-23 使用者已裁決撤回**先前做出的 `admin_audit_logs`／`admin_login_logs`（見上方「稽核記錄（J3）：已撤回」與 `docs/18` E-44）。所以 D 批**沒有**依規劃書建稽核表——規劃書是規格的真實來源，但 §13.1 是**客戶對範圍的指示**，宣告這一段本期不實作。做了規劃書允許且不需要日誌表的部分：帳號狀態概況與登入異常提醒；備份不是資料表（見 `docs/17` §6）。**「須寫稽核」的操作**（廣告成效匯出、電子報匯出／重新訂閱／刪除、App 憑證輪替、推播核可／取消／重送／試送、更新門檻與維護模式、裝置完整值檢視、失效權杖清理…）照 B／C 批的做法寫 **`SensitiveActionLogger`**（結構化日誌，不含個資本身），這不是稽核表。**待客戶重新確認稽核政策**（見下方「待裁決」第 1 項）。
+
+---
+
+### App 公開端點 `/api/v1/app`（匿名；App 與官網共用同一套 API，B-14）
+
+裝置識別 `deviceInstallId`：8–64 個英數字元或連字號（解除安裝即失效、不跨 App）。**所有錯誤是 `ProblemDetails`（400／404／409），訊息為日常中文，不洩漏內部細節**。
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `PUT /devices/{deviceInstallId}` | **裝置註冊／更新**：`{ platform("ios"｜"android"), osVersion?, appVersion?（`主.次.修`）, locale?("zh"｜"en"，推播語系以此為準), pushToken?（沒帶＝不動既有權杖）, pushPermission?(not_determined／granted／denied／provisional) }` → `{ deviceInstallId, isNew, pushTokenStatus }`。**權杖加密儲存**；**同一個權杖出現在別的裝置列（重裝、換機）時舊列的權杖失效**（不會重複收到）。限流 |
+| `GET／PUT /devices/{deviceInstallId}/subscriptions` | **追蹤與推播訂閱**：`[ { topicType(team球隊代碼／news_category新聞分類代碼／club俱樂部代碼), topicValue, isFollowing, isPushEnabled } ]`。`PUT` `{ items: [...], replaceAll? }`：**只更新列出的項目**（`replaceAll:true` 才移除沒列出的）；對象必須存在（400）；同一批不可重複（400）；最多 100 筆；**「追蹤但不推播」是合法組合**；裝置沒註冊 → 404。回目前完整訂閱清單；`GET` 為 `private, no-store` |
+| `GET /config?platform=&appVersion=` | **設定讀取**（`docs/19` §7 第 2 層來源）：`{ generatedAt, ios: <平台設定>, android: <平台設定>, evaluation }`；`<平台設定> = { minSupportedVersion, recommendedVersion, forceUpdateMessage: { zh, en }, recommendUpdateMessage, whatsNew, maintenance: { enabled, message: { zh, en } }, featureFlags: { "ads_enabled": true, … } }`；帶 `platform` 與 `appVersion` 才有 `evaluation: { maintenance, updateRequired, updateRecommended }`（App 也可自己用文件內容判斷，兩者一致）。**版本用語意化比較，建置號不參與**（`1.10.0` > `1.9.0`）。可邊緣快取 |
+| `GET /layout?lang=&deviceInstallId=` | **內容編排**：`{ generatedAt, homeSections: [ { code, label, icon, deepLink, webUrl } ]（只含啟用的、依排序）, quickEntries, moreItems, announcements: [ { id, message, linkUrl, endsAt } ]（期間內且啟用；**目標對象非「全部」的公告只有帶 `deviceInstallId` 才依會籍層級與俱樂部篩選**）, deepLinks: [ { code, label, appLink, webUrl, requiresLogin } ] }` |
+| `GET /notifications?lang=&deviceInstallId=` | **通知中心**：已送出（`sent`／`partial`）的推播，**保留 90 天**，最多 50 則，新→舊：`{ id, title, body, imageUrl, deepLink, sentAt }`。**沒帶裝置識別只列對所有人發送的訊息；帶了就列這台裝置是對象的**。標題與內文依 `lang`，缺漏回退繁中 |
+| `POST /push/{messageId}/opened` → 204 | **通知被開啟**：`{ deviceInstallId }`。**只累加該批次（平台×語系）的彙總數字，不記錄是哪台裝置**；因此同一台重複回報無法去重（已知限制，靠限流）。批次不存在或尚未送出／裝置未註冊 → 404。限流 |
+| `GET /ads/{slotCode}?lang=&deviceInstallId=&theme=` | **廣告投放**：`{ slotCode, isFallback, disclosureLabel("廣告"｜"Ad"，**每個版位必須顯示的揭露標示**), sessionImpressionCap, items: [ { creativeId, campaignId, isFallback, imageUrl, imageWidth, imageHeight, videoUrl, altText, title, ctaText, clickUrl, theme } ] }`。**投放規則**：只投「投放中且在起訖時間內」的檔期、只投「已通過審核且未暫停」的素材（依 `lang` 取素材，沒有就回退繁中）、每日曝光上限、**每人（每裝置）每日頻次上限**（帶 `deviceInstallId` 才套用）、**曝光保證型 pacing**（剩餘量平均分配到剩餘天數，今天的份額用完先停；達到目標即停）、同版位依**權重加權隨機（不重複抽取，最多到版位的輪播張數上限）**；**沒有可投放的就回備援素材**（`isFallback:true`、`creativeId:null`——**備援不計曝光**；版位沒設備援圖則 `items:[]`）。版位不存在或已停用 → 404 |
+| `POST /ads/events` | **廣告事件批次上報**：`{ batchId?, deviceInstallId, platform, appVersion?, locale?, events: [ { type("impression"｜"click"), creativeId, occurredAt（含時區的 ISO 8601，**以發生時間記錄**，離線暫存的事件帶原始時間）, presentationId?（每次素材裝載進版位的 UUID，同一個只算一次曝光）} ]（1–200 筆）}` → `{ accepted, duplicates, rejected: [ { index, reason(invalid／too_old超過24小時／future／unknown_creative／not_serving) } ] }`。**伺服器端去重**：曝光以 `presentationId`（沒有就以素材＋裝置＋秒）、**點擊同裝置同素材 5 秒內只計 1 次**；同一批整份重送全部算重複（冪等）；檔期與版位由素材推導（不信任 App 傳來的）；草稿與作廢檔期的素材不收。**不存 `member_id`、完整 IP、定位座標、廣告識別碼。** 限流 |
+| `POST /diagnostics` → 202 | **診斷與錯誤回報**：`{ reports: [ { deviceInstallId?, platform, appVersion, buildNumber?, osVersion?, occurredAt, type(crash／abnormal_exit／api_error／startup_time／user_report), metricValue?, summary?, detail? } ]（1–50 筆）}` → `{ accepted }`。**不得存個資**：自由文字中的 Email 與 8 位以上數字入庫前遮成 `[已遮蔽]`；發生時間超過 7 天前 → 400；保存 90 天。限流 |
+
+**不在這裡的 App 端點**（規劃書 §9.2 有列，屬 AP-2／AP-3）：賽事／新聞／球隊／特約店家／課程／夥伴／FAQ 的列表與單筆（多數已是既有公開端點，`/api/v1/{club}/…`）、會員註冊登入與權杖續期、會員卡、會籍與付款、球衣、我的報名、抽獎資訊、`俱樂部`／`賽事系列` 列表。**會員綁定裝置（`app_devices.member_id`）由會員登入（AP-3）寫入，本批不提供。**
+
+---
+
+### 表與種子變更（D 批）
+
+- **綱要**（`db/club-schema.sql` 的 **4.13**＋EF migration `AlignSchemaD1`，同步 `docs/12`／`12a`／`12b` §16／`12c`）：**新增 25 張表**（廣告 8、App 營運 8、M2 內容編排 6、M5 設定 3）；`newsletter_subscribers.status` 收斂為 `NOT NULL DEFAULT 'subscribed'` 並加 `unsubscribed_at`。**表 162 → 187**。本機庫已對 `tcrfc_club` 套用。
+- **migration 歷史對齊**：本機庫是由 `club-schema.sql` 建的，`__EFMigrationsHistory` 表原本不存在（C 批的 `AlignSchemaC1` 因此顯示待套用）。已逐欄核對本機庫與 EF 模型一致（新增 `EfModelMatchesDatabaseTests`，資料庫與模型的表／欄位雙向比對，長期守著），建立歷史表並補登全部 18 筆 migration（`InitialBaseline` … `AlignSchemaC1`、`AlignSchemaD1`）；`dotnet ef database update` 回報沒有待套用、`has-pending-model-changes` 綠燈。⚠️ **不要在這個庫執行 `database update` 來「補跑」舊 migration**——表已存在會失敗。
+- **權限**：38 個新權限碼與角色指派（見上表）；**另補 `member.draw.view` 給公關／媒體**（C 批畫面回報：原本該角色只有公布稿權限，打不開任何抽獎活動；姓名與收件資訊仍一律遮罩）。
+- **種子**（`db/seed/backoffice_seed.py` §55–59，全部【測試】虛構）：電子報名單 5 筆（`example.com`，tcrfc 3 訂閱＋1 退訂、bw 1）；深連結 9 條（規劃書 §2.3 的 8 條＋會籍升級）、**首頁九個區塊**、快捷入口 2、「更多」分頁 8、公告條 1；功能開關 4（`ads_enabled`／`map_enabled`／`biometric_unlock_enabled`／`payment_mode=external`）；版本 3（iOS 0.9.0 已上架且為最低支援版本、iOS 1.0.0 測試中、Android 0.9.0）；憑證列管 3；版位 2（`home_top`、`home_mid`）、廣告主 2、檔期 2（1 個已結束的曝光保證檔期含 **14 天 × 2 平台的示範日聚合**、1 個草稿）；示範裝置 5 台（**都沒有推播權杖**，所以不會被誤送）、推播 2 則（1 已發送含虛構統計、1 草稿）、診斷回報 3。**沒有圖片**（素材與備援 `image_key` 為 NULL）。**跑法**：`set -a; source .env; set +a; ./db/seed/apply-seed.sh`（冪等）。
+
+### 測試（`Tcrfc.Api.Tests`，新增／更動）
+
+`AdminNewsletterTests`（6）、`AdminAdsTests`（8）、`AdminAdCreativeUploadTests`（2，真實 Azurite）、`AppPublicTests`（10）、`AdminAppTests`（13）、`AdminSecurityTests`（2）、`EfModelMatchesDatabaseTests`（1）；共用工具 `AppTestSupport.cs`（**測試資料一律用 `ZZTEST`／`test-dev-`／`zz-test-` 前綴並在 `finally` 清掉；會動到共用設定的測試用 `AppTest.SnapshotAppStateAsync` 拍照還原**——版本旗標、維護模式、功能開關、憑證、自動推播規則；`RecordingPushTransport` 模擬「已串接」的推播傳輸）。整合測試主機以 `AppTestEnvironment` 停用 App 背景作業並把 App 公開端點限流調寬。既有測試更動：`AdminDrawsTests`（公關／媒體現在可檢視遮罩名單）、`AdminShopCatalogTests`（貨號撞號措辭）、`AppPublicTests` 內對 `AppLayoutItemDto` 的欄位名。
+
+### 待裁決（規劃書沒寫或與既有指示衝突，本批先採最保守做法）
+
+1. **稽核日誌（J3）**：規劃書要求可查閱的操作稽核（≥12 個月）、登入紀錄、匯出稽核，但委託方指示不建日誌表（§13.1）且使用者 2026-09-23 裁決撤回。本批只做帳號活動概況與登入異常提醒，「須寫稽核」的操作寫結構化日誌（正式環境進 Application Insights）。**若客戶要求可查詢的稽核紀錄，需要建 `AuditLog`／`LoginLog`／`ExportLog` 並改寫 `SensitiveActionLogger`（呼叫端不用改）**——需要客戶先重新確認政策，並先改 `docs/12` §13.1。
+2. **資料備份（J3）**：規劃書「每日自動備份，可手動還原點」是基礎設施設定。後台**沒有備份與還原功能**（見 `docs/17` §6「備份與還原（J3）」：Azure SQL 內建備份的保留期與 Basic 層限制、建議的補強）。
+3. **合約金額的可見角色**：規劃書 §11 寫「廣告合約金額僅商務／贊助與**財務**可見」，但專案的十個角色沒有財務。本批給商務／贊助與系統管理員（`ad.contract.view／update`）；若要有財務角色須先建角色（J2）。
+4. **電子報公開訂閱／退訂**：G3 只做後台；官網頁尾訂閱表單與退訂連結（含 token）是前台工作，且全系統沒有寄信通路，退訂連結由 EDM 平台提供。
+5. **推播雙人覆核只有一位系統管理員時**：核可者不得是建立者，意味著公關建立、系統管理員核可。若只剩一個系統管理員帳號又要自己建立推播，會無法核可（刻意如此，規劃書 §11「雙人覆核」）。
+6. **廣告素材的「素材審核」與「檔期審核」是兩層**：規劃書 §8.8 寫「素材審核：待審／通過／退回」，§7.4 寫檔期狀態機含「待審核」與「審核者」。本批：素材各自審核（`ad.campaign.review`），檔期核可（同一權限）需至少一個已通過素材；沒有另設「審核者」角色。
+7. **`payment_mode` 的降級方向**：`off < external < inapp`，`off→external` 視為合法（重新啟用外開瀏覽器），只有「升到 `inapp`」被禁止。
+8. **廣告曝光的「台灣日期」邊界**：每日聚合、報表日期、每日上限與 pacing 的「今天」都以台灣當地日期（UTC+8）切日，與 K5／商店報表一致。
+
+### 已知限制
+
+- **推播傳輸、EDM、Cloudflare 靜態設定尚未串接**（介面＋預設「尚未串接」實作）；APNs／FCM 金鑰未建立。批次核可後停在 `failed` 並保留，串接後按「重送」。**會員條款完成推播蒐集告知（App 規劃書 §16.2 第 12 項）前不得啟用推播**（§6.7）——本批的 App 端點沒有做這道閘門（由 App 端與傳輸實作把關）。
+- **自動推播只有規則設定**，沒有觸發程式（賽事提醒、到期提醒、新聞發布）。
+- **推播統計無個人層級**：不逐裝置記錄投遞結果，所以「重送」只能從游標續送、個別失敗的裝置不會重試；開啟回報無法去重。
+- **`uniqueDevices` 跨日彙總是裝置日**；原始事件只留 90 天，超過 90 天仍未聚合的事件不會重算。
+- **廣告報表沒有 PDF 匯出**（規劃書 §7.7 寫 CSV 與 PDF）；CSV 已有。
+- **通知中心只有「已送出的一般推播」**；對單一會員的推播（會籍開通、到期）與其收件匣屬 AP-3 之後。
+- **廣告投放沒有做每日跨日的 `delivered_today` 主動歸零**：以 `delivered_on` 日期比對，讀取時視同 0。
+- 診斷回報的 `deviceInstallId` 目前不強制要求該裝置已註冊；崩潰裝置比例只算有帶識別的回報。
+- 電子報名單沒有匯入功能（CSV 匯入）；沒有批次退訂。

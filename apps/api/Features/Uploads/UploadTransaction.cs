@@ -1,5 +1,6 @@
 using Tcrfc.Api.Documents;
 using Tcrfc.Api.Images;
+using Tcrfc.Api.Videos;
 
 namespace Tcrfc.Api.Features.Uploads;
 
@@ -9,6 +10,15 @@ public sealed class OrphanedObjects
 {
     public List<string> ImageKeys { get; } = [];
     public List<(DocumentBucket Bucket, string Key)> Documents { get; } = [];
+    public List<string> VideoKeys { get; } = [];
+
+    public void Video(string? key)
+    {
+        if (!string.IsNullOrWhiteSpace(key))
+        {
+            VideoKeys.Add(key);
+        }
+    }
 
     public void Image(string? key)
     {
@@ -32,9 +42,10 @@ public sealed class OrphanedObjects
 /// （<c>CancellationToken.None</c>，理由見 docs/18 E-47：請求被取消時補償刪除若沿用同一個 token 會當場失敗）；
 /// 成功就刪掉被換掉的舊物件。跟 <c>AdminStaffEndpoints</c> 的手寫 try/catch 同一套語意，只是多個欄位共用一份。
 /// </summary>
-public sealed class UploadTransaction(IImageStorageService images, IDocumentStorageService documents)
+public sealed class UploadTransaction(IImageStorageService images, IDocumentStorageService documents, IVideoStorageService? videos = null)
 {
     private readonly List<string> _uploadedImages = [];
+    private readonly List<string> _uploadedVideos = [];
     private readonly List<(DocumentBucket Bucket, string Key)> _uploadedDocuments = [];
 
     public async Task<UploadedImageInfo> AddImageAsync(
@@ -95,6 +106,30 @@ public sealed class UploadTransaction(IImageStorageService images, IDocumentStor
         return info;
     }
 
+    /// <summary>影片上傳（D 批 E5 廣告素材）：不轉碼，格式由 <see cref="IVideoStorageService"/> 驗證。需要建構時提供影片儲存服務。</summary>
+    public async Task<UploadedVideoInfo> AddVideoAsync(IFormFile file, string objectKeyPrefix, CancellationToken cancellationToken)
+    {
+        if (videos is null)
+        {
+            throw new InvalidOperationException("這個上傳交易沒有提供影片儲存服務。");
+        }
+
+        if (file.Length == 0)
+        {
+            throw new EmptyVideoException();
+        }
+
+        if (file.Length > VideoUploadOptions.MaxUploadBytes)
+        {
+            throw new VideoTooLargeException();
+        }
+
+        var bytes = await ReadAsync(file, cancellationToken);
+        var info = await videos.UploadAsync(bytes, objectKeyPrefix, cancellationToken);
+        _uploadedVideos.Add(info.Key);
+        return info;
+    }
+
     /// <summary>資料列寫入失敗：刪掉本次請求已經上傳的全部物件。</summary>
     public async Task RollbackAsync()
     {
@@ -106,6 +141,11 @@ public sealed class UploadTransaction(IImageStorageService images, IDocumentStor
         foreach (var (bucket, key) in _uploadedDocuments)
         {
             await documents.DeleteAsync(bucket, key, CancellationToken.None);
+        }
+
+        foreach (var key in _uploadedVideos)
+        {
+            await videos!.DeleteAsync(key, CancellationToken.None);
         }
     }
 
@@ -120,6 +160,14 @@ public sealed class UploadTransaction(IImageStorageService images, IDocumentStor
         foreach (var (bucket, key) in orphans.Documents)
         {
             await documents.DeleteAsync(bucket, key, CancellationToken.None);
+        }
+
+        if (videos is not null)
+        {
+            foreach (var key in orphans.VideoKeys)
+            {
+                await videos.DeleteAsync(key, CancellationToken.None);
+            }
         }
     }
 

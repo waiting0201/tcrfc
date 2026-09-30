@@ -1657,3 +1657,227 @@ BEGIN
     ({esc(d2)}, N'zh-Hant', N'【測試】直播球迷抽獎（草稿）', N'【測試】球迷圍巾三條', NULL, NULL);
 END
 """)
+
+    # ── 55. D 批：G3 電子報、E4–E6 廣告、M1–M5 App 後台 ───────────────────────────────────────────────
+    # 🔴 全部是【測試】虛構資料（電子報 Email 用 example.com、廣告主與裝置一眼可辨）。真實結構（首頁九個區塊、深連結對照、
+    #   功能開關預設）取自 App 規劃書 §3.1／§2.3 與 docs/19 §7，不加【測試】前綴。沒有圖片（廣告素材 image_key 為 NULL，公開投放端點會回沒有圖的項目——
+    #   種子只用於後台畫面驗證，不用於 App 實測）。
+    bwc = clubs["bw"]
+    emit("-- ── 55. newsletter_subscribers：G3 電子報名單（tcrfc 3 訂閱＋1 退訂、bw 1 訂閱；example.com） ──")
+    for club_sq, club_code, email, status, source in [
+        (tc, "tcrfc", "test.subscriber1@example.com", "subscribed", "官網頁尾訂閱"),
+        (tc, "tcrfc", "test.subscriber2@example.com", "subscribed", "活動現場填單"),
+        (tc, "tcrfc", "test.subscriber3@example.com", "subscribed", "官網頁尾訂閱"),
+        (tc, "tcrfc", "test.unsubscribed@example.com", "unsubscribed", "官網頁尾訂閱"),
+        (bwc, "bw", "test.subscriber-bw@example.com", "subscribed", "官網頁尾訂閱"),
+    ]:
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM newsletter_subscribers WHERE club_id = {club_sq} AND email = {esc(email)})
+  INSERT INTO newsletter_subscribers (id, club_id, email, source, status, subscribed_at, unsubscribed_at)
+  VALUES ({esc(new_id("newsletter", club_code, email))}, {club_sq}, {esc(email)}, {esc(source)}, {esc(status)}, DATEADD(day, -20, SYSUTCDATETIME()),
+          {"DATEADD(day, -5, SYSUTCDATETIME())" if status == "unsubscribed" else "NULL"});
+""")
+
+    emit("-- ── 56. app_deep_links／app_layout_items：M2 深連結對照（規劃書 §2.3 的 8 條）、首頁九個區塊、快捷入口、「更多」分頁 ──")
+    DEEP_LINKS = [
+        ("schedule_d1", "tcrfc://schedule/d1", "/zh/schedule/d1/", 0, "賽程（磐石一線隊）", "Schedule (Rock FC First Team)"),
+        ("schedule_bw1", "tcrfc://schedule/bw1", None, 0, "賽程（藍鯨一線隊）", "Schedule (Blue Whale First Team)"),
+        ("match", "tcrfc://match/{id}", "/zh/schedule/{slug}", 0, "賽事詳情", "Match Details"),
+        ("news", "tcrfc://news/{slug}", "/zh/news/{slug}", 0, "新聞內文", "News Article"),
+        ("player", "tcrfc://player/{slug}", "/zh/club/first-team/player/{slug}", 0, "球員詳情", "Player Profile"),
+        ("store", "tcrfc://store/{id}", "/zh/perks/{slug}", 0, "特約店家詳情", "Partner Store"),
+        ("program", "tcrfc://program/{slug}", "/zh/programs/{slug}", 0, "課程詳情", "Program Details"),
+        ("membercard", "tcrfc://membercard", None, 1, "會員卡", "Membership Card"),
+        ("upgrade", "tcrfc://upgrade", "/zh/member/upgrade/", 0, "會籍升級", "Membership Upgrade"),
+    ]
+    for i, (code, app_link, web, login, zh, en) in enumerate(DEEP_LINKS):
+        lid = new_id("app_deep_link", code)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM app_deep_links WHERE code = {esc(code)})
+BEGIN
+  INSERT INTO app_deep_links (id, code, app_link, web_url, requires_login, is_active, sort_order)
+  VALUES ({esc(lid)}, {esc(code)}, {esc(app_link)}, {esc(web) if web else 'NULL'}, {login}, 1, {i});
+  INSERT INTO app_deep_links_i18n (app_deep_link_id, locale, label) VALUES ({esc(lid)}, N'zh-Hant', {esc(zh)}), ({esc(lid)}, N'en', {esc(en)});
+END
+""")
+    LAYOUT = [
+        ("home_section", "next_match", None, "下一場賽事", "Next Match"),
+        ("home_section", "ad_home_top", None, "廣告版位（首頁上）", "Ad Slot (Home Top)"),
+        ("home_section", "latest_news", None, "最新消息", "Latest News"),
+        ("home_section", "member_card", "membercard", "會員卡快捷", "Membership Card"),
+        ("home_section", "recent_matches", None, "近期賽事", "Recent Matches"),
+        ("home_section", "ad_home_mid", None, "廣告版位（首頁中）", "Ad Slot (Home Middle)"),
+        ("home_section", "nearby_stores", None, "特約店家（附近）", "Nearby Partner Stores"),
+        ("home_section", "quick_entries", None, "快捷入口", "Quick Entries"),
+        ("home_section", "sponsor_wall", None, "贊助商 Logo 牆", "Sponsors"),
+        ("quick_entry", "programs", "program", "課程報名", "Programs"),
+        ("quick_entry", "shop", None, "商店", "Shop"),
+        ("more_item", "teams", None, "球隊名單", "Teams"),
+        ("more_item", "partner_stores", None, "特約店家", "Partner Stores"),
+        ("more_item", "programs", "program", "課程報名", "Programs"),
+        ("more_item", "partners", None, "夥伴贊助", "Partners & Sponsors"),
+        ("more_item", "charity", None, "慈善（外連）", "Charity (external)"),
+        ("more_item", "shop", None, "商店", "Shop"),
+        ("more_item", "faq", None, "FAQ", "FAQ"),
+        ("more_item", "follow_settings", None, "追蹤設定", "Follow Settings"),
+        ("more_item", "settings", None, "設定", "Settings"),
+    ]
+    order: dict = {}
+    for kind, key, link, zh, en in LAYOUT:
+        n = order.get(kind, 0)
+        order[kind] = n + 1
+        iid = new_id("app_layout_item", kind, key)
+        link_sql = f"(SELECT id FROM app_deep_links WHERE code = {esc(link)})" if link else "NULL"
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM app_layout_items WHERE kind = {esc(kind)} AND item_key = {esc(key)})
+BEGIN
+  INSERT INTO app_layout_items (id, kind, item_key, deep_link_id, sort_order, is_enabled)
+  VALUES ({esc(iid)}, {esc(kind)}, {esc(key)}, {link_sql}, {n}, 1);
+  INSERT INTO app_layout_items_i18n (app_layout_item_id, locale, label) VALUES ({esc(iid)}, N'zh-Hant', {esc(zh)}), ({esc(iid)}, N'en', {esc(en)});
+END
+""")
+    a1 = new_id("app_announcement", "test-1")
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM app_announcements WHERE id = {esc(a1)})
+BEGIN
+  INSERT INTO app_announcements (id, link_url, starts_at, ends_at, audience_tier, is_enabled)
+  VALUES ({esc(a1)}, NULL, DATEADD(day, -1, SYSUTCDATETIME()), DATEADD(year, 5, SYSUTCDATETIME()), N'all', 1);
+  INSERT INTO app_announcements_i18n (app_announcement_id, locale, message)
+  VALUES ({esc(a1)}, N'zh-Hant', N'【測試】App 專屬公告條：歡迎使用台中磐石 × 台中藍鯨官方 App。'), ({esc(a1)}, N'en', N'[Test] App announcement bar.');
+END
+""")
+
+    emit("-- ── 57. app_feature_flags／app_releases／app_credentials：M1、M5（功能開關預設取自 docs/19 §7、§10；版本與憑證為【測試】） ──")
+    for key, enabled, sval, desc in [
+        ("ads_enabled", 1, None, "廣告版位總開關"), ("map_enabled", 1, None, "附近店家地圖"),
+        ("biometric_unlock_enabled", 0, None, "會員卡生物辨識快速開啟（選配）"), ("payment_mode", 1, "external", "付款模式（off／external／inapp）：首個上架版本不含 App 內付款，只能降級不得反向開啟 inapp"),
+    ]:
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM app_feature_flags WHERE flag_key = {esc(key)} AND platform = N'all')
+  INSERT INTO app_feature_flags (id, flag_key, is_enabled, string_value, platform, description)
+  VALUES ({esc(new_id("app_flag", key))}, {esc(key)}, {enabled}, {esc(sval) if sval else 'NULL'}, N'all', {esc(desc)});
+""")
+    for platform, version, status, is_min, is_rec, note in [
+        ("ios", "0.9.0", "live", 1, 0, "【測試】最低支援版本示範"), ("ios", "1.0.0", "testing", 0, 0, "【測試】測試中的版本"),
+        ("android", "0.9.0", "live", 1, 0, "【測試】最低支援版本示範"),
+    ]:
+        rid = new_id("app_release", platform, version)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM app_releases WHERE platform = {esc(platform)} AND version = {esc(version)})
+BEGIN
+  INSERT INTO app_releases (id, platform, version, build_number, released_on, status, is_min_supported, is_recommended)
+  VALUES ({esc(rid)}, {esc(platform)}, {esc(version)}, N'900', '2026-09-30', {esc(status)}, {is_min}, {is_rec});
+  INSERT INTO app_releases_i18n (app_release_id, locale, whats_new, force_message, recommend_message)
+  VALUES ({esc(rid)}, N'zh-Hant', {esc(note)}, N'【測試】請更新到最新版本才能繼續使用。', N'【測試】有新版本可以更新。'),
+         ({esc(rid)}, N'en', N'[Test] release', N'[Test] Please update to keep using the app.', N'[Test] A new version is available.');
+END
+""")
+    for kind, label, ref, created, rotated, expires, period in [
+        ("apns_key", "【測試】APNs 金鑰（.p8）", "TESTKEYID01", "2026-01-15", "2026-06-01", None, 365),
+        ("fcm_credential", "【測試】FCM 服務帳號", "test-project-000", "2026-01-15", None, None, 180),
+        ("apple_developer_program", "【測試】Apple 開發者帳號會籍", None, "2025-11-01", None, "2026-11-20", None),
+    ]:
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM app_credentials WHERE kind = {esc(kind)} AND label = {esc(label)})
+  INSERT INTO app_credentials (id, kind, label, external_ref, created_on, last_rotated_on, expires_on, rotation_period_days, note)
+  VALUES ({esc(new_id("app_credential", kind))}, {esc(kind)}, {esc(label)}, {esc(ref) if ref else 'NULL'}, '{created}', {f"'{rotated}'" if rotated else 'NULL'},
+          {f"'{expires}'" if expires else 'NULL'}, {period if period else 'NULL'}, N'【測試】只存列管資訊，金鑰本身不進資料庫。');
+""")
+
+    emit("-- ── 58. ad_slots／advertisers／ad_campaigns／ad_creatives／ad_daily_stats：E4–E6（2 版位、2 廣告主、1 個已結束的曝光保證檔期含 14 天示範成效；【測試】） ──")
+    for code, screen, order_no, ratio, minw, minh, zh, en in [
+        ("home_top", "S01", 2, "16:9", 1280, 720, "首頁上方版位", "Home Top"),
+        ("home_mid", "S01", 6, "3:1", 1200, 400, "首頁中段版位", "Home Middle"),
+    ]:
+        sid = new_id("ad_slot", code)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM ad_slots WHERE slot_code = {esc(code)})
+BEGIN
+  INSERT INTO ad_slots (id, slot_code, surface, screen_code, block_order, aspect_ratio, min_width, min_height, max_file_kb, allowed_formats, allow_video, session_impression_cap, rotation_cap, is_active)
+  VALUES ({esc(sid)}, {esc(code)}, N'app', {esc(screen)}, {order_no}, {esc(ratio)}, {minw}, {minh}, 500, N'JPEG／PNG／WebP', 0, 3, 3, 1);
+  INSERT INTO ad_slots_i18n (ad_slot_id, locale, name, fallback_alt)
+  VALUES ({esc(sid)}, N'zh-Hant', {esc("【測試】" + zh)}, N'【測試】自家內容'), ({esc(sid)}, N'en', {esc("[Test] " + en)}, N'[Test] House content');
+END
+""")
+    for key, zh, en, status in [("a", "【測試】廣告主甲", "[Test] Advertiser A", "active"), ("b", "【測試】廣告主乙", "[Test] Advertiser B", "negotiating")]:
+        aid = new_id("advertiser", key)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM advertisers WHERE id = {esc(aid)})
+BEGIN
+  INSERT INTO advertisers (id, tax_id, contact_name, contact_phone, contact_email, contract_note, cooperation_start_on, status)
+  VALUES ({esc(aid)}, N'00000000', N'【測試】聯絡人', N'0900-000-000', N'advertiser-{key}@example.com', N'【測試】合約備註', '2026-09-01', {esc(status)});
+  INSERT INTO advertisers_i18n (advertiser_id, locale, name) VALUES ({esc(aid)}, N'zh-Hant', {esc(zh)}), ({esc(aid)}, N'en', {esc(en)});
+END
+""")
+    camp = new_id("ad_campaign", "seed-ended")
+    crea = new_id("ad_creative", "seed-ended")
+    import datetime as _dt
+    stat_rows = []
+    for d in range(14):
+        day = _dt.date.today() - _dt.timedelta(days=15 - d)
+        for platform, share in (("ios", 6), ("android", 4)):
+            imp = 100 + (d * 7) % 40 + share * 10
+            stat_rows.append(f"('{day.isoformat()}', {esc(camp)}, {esc(crea)}, (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'{platform}', N'zh-Hant', {imp}, {imp // 25}, {imp * 8 // 10})")
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM ad_campaigns WHERE id = {esc(camp)})
+BEGIN
+  INSERT INTO ad_campaigns (id, advertiser_id, slot_id, name, starts_at, ends_at, weight, goal_type, goal_impressions, delivered_total, contract_amount, is_amount_hidden, status)
+  VALUES ({esc(camp)}, {esc(new_id("advertiser", "a"))}, (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'【測試】已結束的曝光保證檔期',
+          DATEADD(day, -16, SYSUTCDATETIME()), DATEADD(day, -2, SYSUTCDATETIME()), 3, N'guaranteed', 5000, 3900, 30000, 1, N'ended');
+  INSERT INTO ad_creatives (id, campaign_id, locale, alt_text, title, cta_text, click_url, theme, review_status)
+  VALUES ({esc(crea)}, {esc(camp)}, N'zh-Hant', N'【測試】素材替代文字', N'【測試】廣告標題', N'了解更多', N'https://example.com/ad', N'both', N'approved');
+  INSERT INTO ad_daily_stats (stat_date, campaign_id, creative_id, slot_id, platform, locale, impressions, clicks, unique_devices) VALUES
+    {(","+chr(10)+"    ").join(stat_rows)};
+END
+""")
+    draft = new_id("ad_campaign", "seed-draft")
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM ad_campaigns WHERE id = {esc(draft)})
+  INSERT INTO ad_campaigns (id, advertiser_id, slot_id, name, starts_at, ends_at, weight, goal_type, status)
+  VALUES ({esc(draft)}, {esc(new_id("advertiser", "b"))}, (SELECT id FROM ad_slots WHERE slot_code = N'home_mid'), N'【測試】草稿檔期',
+          DATEADD(day, 7, SYSUTCDATETIME()), DATEADD(day, 21, SYSUTCDATETIME()), 1, N'traffic', N'draft');
+""")
+
+    emit("-- ── 59. app_devices／push_messages／app_diagnostic_reports：M3、M4、M5（5 台示範裝置不含權杖、1 則已發送＋1 則草稿推播、3 筆診斷；【測試】） ──")
+    for i, (platform, ver, perm, tstat, locale) in enumerate([
+        ("ios", "0.9.0", "granted", "none", "zh-Hant"), ("ios", "0.9.0", "denied", "none", "en"), ("android", "0.9.0", "granted", "invalid", "zh-Hant"),
+        ("android", "0.8.0", "not_determined", "none", "zh-Hant"), ("android", "0.9.0", "granted", "none", "en"),
+    ]):
+        did = f"test-device-seed-{i:04d}"
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM app_devices WHERE device_install_id = {esc(did)})
+  INSERT INTO app_devices (id, device_install_id, platform, os_version, app_version, locale, push_token_status, push_permission, first_seen_at, last_active_at)
+  VALUES ({esc(new_id("app_device", did))}, {esc(did)}, {esc(platform)}, N'測試', {esc(ver)}, {esc(locale)}, {esc(tstat)}, {esc(perm)}, DATEADD(day, -{20 - i}, SYSUTCDATETIME()), DATEADD(day, -{i}, SYSUTCDATETIME()));
+""")
+    pm1 = new_id("push_message", "seed-sent")
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM push_messages WHERE id = {esc(pm1)})
+BEGIN
+  INSERT INTO push_messages (id, kind, audience_tier, status, reviewed_at, sent_at, audience_estimate, sent_count, delivered_count, failed_count, opened_count)
+  VALUES ({esc(pm1)}, N'announcement', N'all', N'sent', DATEADD(day, -3, SYSUTCDATETIME()), DATEADD(day, -3, SYSUTCDATETIME()), 120, 120, 118, 2, 37);
+  INSERT INTO push_messages_i18n (push_message_id, locale, title, body)
+  VALUES ({esc(pm1)}, N'zh-Hant', N'【測試】主場開賽提醒', N'【測試】這是示範用的已發送推播，數字為虛構。'), ({esc(pm1)}, N'en', N'[Test] Match day', N'[Test] Demo message.');
+  INSERT INTO push_message_stats (push_message_id, platform, locale, sent, delivered, opened) VALUES
+    ({esc(pm1)}, N'ios', N'zh-Hant', 60, 59, 20), ({esc(pm1)}, N'android', N'zh-Hant', 40, 39, 12), ({esc(pm1)}, N'android', N'en', 20, 20, 5);
+END
+""")
+    pm2 = new_id("push_message", "seed-draft")
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM push_messages WHERE id = {esc(pm2)})
+BEGIN
+  INSERT INTO push_messages (id, kind, audience_tier, status) VALUES ({esc(pm2)}, N'announcement', N'fan_club', N'draft');
+  INSERT INTO push_messages_i18n (push_message_id, locale, title, body)
+  VALUES ({esc(pm2)}, N'zh-Hant', N'【測試】球迷會員專屬公告（草稿）', N'【測試】草稿內容。'), ({esc(pm2)}, N'en', NULL, NULL);
+END
+""")
+    for i, (platform, ver, rtype, metric, summary, status) in enumerate([
+        ("ios", "0.9.0", "startup_time", 1800, "【測試】冷啟動耗時", "new"),
+        ("android", "0.9.0", "crash", None, "【測試】示範崩潰摘要", "new"),
+        ("android", "0.8.0", "api_error", 3, "【測試】API 逾時 3 次", "resolved"),
+    ]):
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM app_diagnostic_reports WHERE id = {esc(new_id("app_diag", str(i)))})
+  INSERT INTO app_diagnostic_reports (id, device_install_id, platform, app_version, build_number, os_version, occurred_at, report_type, metric_value, summary, detail, status)
+  VALUES ({esc(new_id("app_diag", str(i)))}, {esc(f"test-device-seed-{i:04d}")}, {esc(platform)}, {esc(ver)}, N'900', N'測試', DATEADD(day, -{i + 1}, SYSUTCDATETIME()), {esc(rtype)},
+          {metric if metric is not None else 'NULL'}, {esc(summary)}, N'【測試】示範技術細節（不含個資）。', {esc(status)});
+""")

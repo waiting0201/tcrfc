@@ -298,6 +298,15 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 客服／行政 | 會員 **✔ 檢視／處理**（K1–K4，B1 新增，取代上一格的概念性寫法） | `member.account.view／create／update`、`member.pii.reveal`（解除遮罩）、`member.export`（`is_restricted`，K1 名單與續會名單）、`member.membership.view／create／update`（開通、調整、批次到期）、`member.plan.view`（**不含**方案新增編輯刪除）、`member.setting.view`、`member.jersey.view／create／update`、`member.jersey.export`（`is_restricted`）、`member.store.*`、`member.benefit.*`。**不含** `member.account.merge`（`sysadmin_only`） |
 | 合作球隊管理 | 會員 **僅自家會籍，`Member` 主檔遮罩**（B1 新增） | 只給 `member.account.view`、`member.membership.view`、`member.plan.view`、`member.jersey.view`（`own_clubs`），**不含** `member.pii.reveal`／任何處理與匯出。K4 特約店家與權益不給 |
 | 系統管理員 | 會員（B1 新增） | 全部 `member.*`，含 `member.account.merge`（合併重複帳號，不可逆，`sysadmin_only`）。`member.setting.update`（會員編號規則）、`member.plan.create／update／delete` 目前也只有系統管理員 |
+| 公關／媒體 | 會員 **K5 公布稿交接**（C 批畫面回報後修正，2026-09-30） | `member.draw.view`（**遮罩版**抽獎活動與名單）＋`member.draw.announce`（產生公布稿草稿）。🔴 原本只給 `announce`，但抽獎清單與詳情都要 `view`，公關／媒體打不開任何活動、無從撰寫公布稿；補 `view` **不洩漏個資**——姓名、收件人資料一律遮罩，完整值需 `member.pii.reveal`（公關／媒體沒有）。**仍不給** `member.draw.create／update／export` 與任何會員模組權限（規劃書 §6：只取得遮罩版名單） |
+| 客服／行政 | 詢問 **G3 電子報**（D 批新增） | `form.newsletter.view`／`update`（新增、退訂、同步 EDM）。**不含** `form.newsletter.export`（`is_restricted`，僅系統管理員，比照會員名單匯出）。檢視者不給（含 Email 個資）；合作球隊管理 `view`／`update`（`own_clubs`） |
+| 商務／贊助 | 商業 **E4–E6 廣告 ✔全**（D 批新增） | `ad.advertiser.*`、`ad.slot.*`、`ad.campaign.view／create／update／delete／review／pause`、**`ad.contract.view／update`（`is_restricted`，合約金額）**、`ad.report.view`、**`ad.report.export`（`is_restricted`）**。**不含** `ad.maintenance.run`（`sysadmin_only`）。⚠️ 規劃書 §11 寫「財務 檢視合約金額」，但本專案十個角色沒有財務角色（見 §7.2），合約金額目前只有商務／贊助與系統管理員 |
+| 公關／媒體 | 廣告 **檢視報表**（D 批新增） | 只有 `ad.report.view`（**不含**匯出與合約金額）。檢視者「檢視（不含金額）」：`ad.advertiser.view`、`ad.slot.view`、`ad.campaign.view`、`ad.report.view`。**合作球隊管理無任何 `ad.*`**（規劃書 §11） |
+| 內容編輯 | 行動 App **M2 內容編排**（D 批新增） | `app.layout.view`／`update`（首頁區塊開關與排序、快捷入口、「更多」分頁、公告條、深連結對照） |
+| 公關／媒體 | 行動 App **M3 推播（需覆核）**（D 批新增） | `app.push.view`／`create`（建立、預覽、試送、送審）。🔴 **`app.push.approve`（覆核、重送、自動推播規則）為 `sysadmin_only`，且核可者不得是建立者本人**（雙人覆核，規劃書 §11 補充規則 2） |
+| 客服／行政 | 行動 App **M4 檢視（遮罩）**（D 批新增） | 只有 `app.device.view`。完整值 `app.device.reveal`（`is_restricted`＋`sysadmin_only`）、失效權杖清理 `app.device.update`（`sysadmin_only`）。檢視者 `app.release.view`、`app.layout.view`、`app.push.view`、`app.device.view`、`app.config.view`、`app.diagnostic.view` |
+| 系統管理員 | 行動 App **M1／M5**（D 批新增） | `app.release.update`（版本、更新門檻、維護模式）、`app.config.update`（功能開關）、`app.credential.view`／`update`（憑證列管，`is_restricted`）、`app.diagnostic.update`——**全部 `sysadmin_only`**（規劃書 §11：誤設最低支援版本會讓全體使用者無法使用；合作球隊管理無權限） |
+| 系統管理員 | **J3 帳號活動概況**（D 批） | `system.audit.view`（早已存在，`sysadmin_only`）。🔴 **只回帳號目前狀態與登入異常提醒**，沒有操作稽核記錄與登入歷程（§13.1，見 `docs/12` §12 第 46 點） |
 | 內容編輯／競技／商務／檢視者 | 課程／報名 **唯讀**（P4，B1 新增） | `program.trial.view`、`program.trial_registration.view`。學院／課程管理 ✔全（`program.trial.*`、`program.trial_registration.view／create／update／export`）；客服／行政「報名處理」＝場次唯讀＋`program.trial_registration.view／update`；合作球隊管理 ✔自家（不含匯出）；公關／媒體「—」 |
 | 所有持有 `calendar.view` 的角色 | 行事曆（L3／L4，B1 新增） | `calendar.setting.view`、`calendar.subscription.view`、`calendar.export`（行事曆是公開資料，不設 `is_restricted`）。`calendar.setting.update` 給內容編輯／公關媒體／合作球隊管理（比照自建事件）；**賽事類型（`event_types`）兩隊共用，寫入一律只有系統管理員**。賽事改期用來源模組的 `team.match.update`＋球隊列級授權，自建活動改期用 `calendar.custom_event.update`，整季 CSV 匯入用 `team.match.create` |
 
@@ -618,3 +627,58 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 ---
 
 > ⚠️ **慈善捐款平台的資料表全部不在本檔**（獨立後台與獨立資料庫），另出 [`16-charity-schema.md`](16-charity-schema.md)。
+
+---
+
+## 16. 行動 App 與廣告型別（D 批延伸設計，2026-09-30）
+
+> **來源**：App 規劃書 §7（廣告）、§8.1–8.9（後台 M／E4–E6）、§10.1（型別）、§6（推播）、§12（個資）；`docs/19` §5／§6／§7。
+> **不是新規格**：欄位都是規劃書 §10.1 列出的，加上 M2／M3／M5 功能需要的附屬表（標「補」）。
+> DDL 在 `db/club-schema.sql` 的 **4.13**；EF 實體與 migration `AlignSchemaD1`。**全部不加 `club_id`**（兩隊共用一個 App，見 `docs/12` §12 第 46 點）。
+> 通則同 [§6](#6-關鍵資料表明細)：`id` 非叢集主鍵＋`row_seq` 叢集鍵（`ad_events` 是 `bigint IDENTITY` 叢集主鍵、`ad_daily_stats`／`push_message_stats`／`*_i18n` 是複合主鍵）；
+> 金額 `int` 元；雙語走 `*_i18n`（`zh-Hant` 必存、`en` 可缺）；json 欄位在 Azure SQL 為原生 `json`（本機 SQL Server 2022 轉 `nvarchar(max)`，見 `deploy/local-ddl.sh`）；時間戳一律 UTC。
+
+### 16.1 廣告（E4–E6）
+
+| 表 | 欄位重點（規劃書欄位；標「補」者為本檔補的） | 約束與索引 |
+|---|---|---|
+| `ad_slots` | `slot_code`（`<畫面>_<位置>`，唯一，建立後不可改）、`surface`（`app`；預留 `web`）、`screen_code`／`block_order`（畫面位置，§2.2）、素材規格：`aspect_ratio`（`16:9`）／`min_width`／`min_height`／`max_file_kb`／`allowed_formats`、`allow_video`、`session_impression_cap`、`rotation_cap`（1–10）、備援素材：`fallback_image_key`／`_width`／`_height`／`fallback_link`、`is_active` | `UQ(slot_code)`。**兒童向畫面（S15／S16／S17 課程與報名）不設版位；不設慈善相關版位**（應用層強制） |
+| `ad_slots_i18n` | `name`、`fallback_alt`（備援素材說明文字） | PK `(ad_slot_id, locale)` |
+| `advertisers` | `tax_id`、`contact_name`／`contact_phone`／`contact_email`、`contract_note`、`cooperation_start_on`／`_end_on`、**`sponsor_id`（可為空 → `sponsors`）**、`status`（`negotiating`／`active`／`ended`） | `sponsor_id` 只用來避免重複維護聯絡窗口，**不是合併**（五種商業對象不混用，App 規劃書 §10.3） |
+| `advertisers_i18n` | `name` | |
+| `ad_campaigns` | `advertiser_id`、`slot_id`（一個檔期綁一個版位，不做多對多）、`name`、`starts_at`／`ends_at`（`CK ends_at > starts_at`）、`weight`（1–100）、`daily_impression_cap`、`per_device_daily_cap`、`goal_type`（`guaranteed`／`traffic`）、`goal_impressions`、`delivered_today`＋`delivered_on`（pacing 計數，跨日以 `delivered_on` 判斷重置）、**補：`delivered_total`**（累計，「目標 vs 已達成」不必每次加總日聚合）、`contract_amount`（🔒 受限：`ad.contract.view`）＋`is_amount_hidden`、`status`、**補：`paused_from`／`pause_reason`**（暫停前狀態與原因、作廢原因）、`reviewed_by`／`reviewed_at` | 狀態機 `draft → pending_review → scheduled → running → ended → closed`；`running ↔ paused`（回到暫停前狀態）；`voided`（任一狀態，不可逆）。🔴 **素材未通過審核的檔期不得進入 `running`**。`IX(slot_id, status, starts_at)` |
+| `ad_creatives` | `campaign_id`、`locale`（依語系分別上傳）、`image_key`／`_width`／`_height`、`video_key`（影片仍須海報圖）、`alt_text`、`title`、`cta_text`、`click_url`（`tcrfc://` 或 http(s)）、`theme`（`light`／`dark`／`both`）、`variant_tag`（A／B）、`review_status`（`pending`／`approved`／`rejected`）＋`reject_reason`／`reviewed_by`／`reviewed_at`、**補：`is_paused`**（單一素材緊急暫停）、`sort_order` | 🔴 素材內容被修改（含換圖）後回到 `pending`；已排程或投放過的檔期不能刪素材（成效要留著對帳） |
+| `ad_events` | **原始事件（保存 90 天）**：`event_type`（`impression`／`click`）、`creative_id`／`campaign_id`／`slot_id`、`occurred_at`（發生時間，不是上傳時間）、`received_at`、`device_install_id`、`platform`／`app_version`／`locale`、`presentation_id`、`batch_id`、**補：`dedupe_key char(32)`**（去重鍵，唯一）、`aggregated_at`。🔴 **不存 `member_id`、完整 IP、定位座標、廣告識別碼** | `UQ(dedupe_key)`；`IX(aggregated_at, occurred_at)`、`IX(device_install_id, creative_id, occurred_at)`。去重：曝光以 `presentation_id`（沒有就以素材＋裝置＋秒）、點擊以「同裝置同素材 5 秒」；拒收超過 24 小時與明顯在未來的事件 |
+| `ad_daily_stats` | 日期（**台灣當地日期**）× 檔期 × 素材 × 版位 × 平台 × 語系 → `impressions`／`clicks`／`unique_devices`（**CTR 由 clicks／impressions 現算，不存**） | 複合主鍵。⚠️ 跨多日彙總時 `unique_devices` 只能加總（＝裝置日），不是期間內真正的不重複人數（原始事件只留 90 天且不跨日去重） |
+
+**聚合作業**（`AdMaintenanceService`）：有未聚合事件的日期整天重算（冪等）；清除只刪「已聚合且超過 90 天」的事件；超過 2 天仍未聚合者告警（聚合失敗不得靜默跳過）；只重算保留期內的日期。
+
+### 16.2 App 營運（M1／M3／M4／M5）
+
+| 表 | 欄位重點 | 約束與索引 |
+|---|---|---|
+| `app_devices` | `device_install_id`（唯一，解除安裝即失效、不跨 App）、`platform`、`os_version`／`app_version`／`locale`、`push_token_encrypted`（**Data Protection 加密**）＋`push_token_hash`（SHA-256，只供去重與失效清理）＋`push_token_status`（`none`／`valid`／`invalid`）、`push_permission`（`not_determined`／`granted`／`denied`／`provisional`）、`member_id`（可為空的弱關聯，登出即解除）、`first_seen_at`／`last_active_at`、更新權杖四欄（`refresh_token_hash`／`_expires_at`／`_rotated_at`、`revoked_at`——**AP-3 會員登入使用，M4 不讀寫**） | `UQ(device_install_id)`。🔒 **權杖視同個資**：後台清單只給遮罩識別碼，完整值需 `app.device.reveal` |
+| `push_topic_subscriptions` | `device_id`（規劃書欄位 `device_install_id` 的內部外鍵形式）、`member_id`、`topic_type`（`team`／`news_category`／`club`）、`topic_value`（球隊代碼／分類代碼／俱樂部代碼）、`is_following`、`is_push_enabled` | `UQ(device_id, topic_type, topic_value)`；**這是我們自己的表，不是 FCM topic**（docs/19 §5） |
+| `push_messages` | `kind`（`announcement`／`news`／`match`）、`image_key`／`_width`／`_height`、`deep_link`、分眾：`audience_tier`（`all`／`fan_club`／`registered`／`anonymous`）＋`audience_club_id`＋`audience_team_codes`（json），`scheduled_at`、`status`（`draft → pending_review → scheduled → sending → sent／partial／failed`；`cancelled`）、`reject_note`、**`reviewed_by`／`reviewed_at`（🔴 雙人覆核：不得是 `created_by`）**、`sent_at`、`audience_estimate`、`sent_count`／`delivered_count`／`failed_count`／`opened_count`、**補：`send_cursor`**（分批送出的游標：已處理到的 `app_devices.row_seq`，失敗重送從這裡續，避免不記錄個人層級投遞紀錄卻重複送）、`failure_message` | `IX(status, scheduled_at)`。分眾三維度（會籍層級、追蹤球隊、俱樂部歸屬），**刻意不做行為定向** |
+| `push_messages_i18n` | `title`、`body`、`image_alt`（**文案須雙語**，英文缺漏時英文語系裝置收到繁中） | |
+| `push_message_stats` | **補**：`(push_message_id, platform, locale)` → `sent`／`delivered`／`opened`。「送達」＝推播服務接受且未回報權杖失效，**不等於到達裝置**；🔴 **不記錄個人層級的開啟行為** | 複合主鍵 |
+| `app_releases` | `platform`、`version`（`主.次.修`，建置號不參與比較）、`build_number`、`released_on`、`status`（`testing`／`live`／`withdrawn`）、`is_min_supported`（低於它強制更新）、`is_recommended`（低於它建議更新，可略過） | `UQ(platform, version)`。每平台各至多一筆為 true（應用層強制，不加篩選唯一索引）；只有 `live` 的版本能設為門檻；被設為門檻的版本不能下架或刪除；設最低支援版本須二次確認 |
+| `app_releases_i18n` | `whats_new`、`force_message`、`recommend_message` | |
+| `app_diagnostic_reports` | `device_install_id`（可為空）、`platform`、`app_version`／`build_number`／`os_version`、`occurred_at`、`report_type`（`crash`／`abnormal_exit`／`api_error`／`startup_time`／`user_report`）、**補：`metric_value`**（啟動耗時毫秒或錯誤次數）、`summary`／`detail`、`status`（`new`／`reviewing`／`resolved`／`ignored`） | 🔴 **不得存個資**：不記 `member_id`、完整 IP、定位座標；自由文字入庫前把 Email 與 8 位以上數字遮成 `[已遮蔽]`；保存 90 天 |
+
+### 16.3 M2 內容編排與 M5 設定（補的附屬表）
+
+| 表 | 欄位重點 | 說明 |
+|---|---|---|
+| `app_deep_links`（＋`_i18n.label`） | `code`（唯一）、`app_link`（**必須 `tcrfc://`**）、`web_url`、`requires_login`、`is_active`、`sort_order` | 深連結對照表（§2.3：App 畫面 ↔ 官網網址，供推播與廣告素材選用）。有版面項目引用時不能刪 |
+| `app_layout_items`（＋`_i18n.label`） | `kind`（`home_section`／`quick_entry`／`more_item`）、`item_key`、`deep_link_id`、`icon_key`、`sort_order`、`is_enabled` | `UQ(kind, item_key)`。**首頁區塊是 §3.1 的固定九個**（種子種入，只能開關與排序，不能新增或刪除） |
+| `app_announcements`（＋`_i18n.message`） | `link_url`、`starts_at`／`ends_at`、`audience_tier`、`audience_club_id`、`is_enabled` | App 專屬公告條；目標對象只在帶裝置識別的讀取才篩選 |
+| `app_feature_flags` | `flag_key`（`{模組}_{功能}` 小寫蛇形）、`is_enabled`、`string_value`（**三態旗標的值，目前只有 `payment_mode`：`off`／`external`／`inapp`**）、`platform`（`all`／`ios`／`android`）、`description` | `UQ(flag_key, platform)`；平台值優先於 `all`。🔴 `payment_mode` **只能降級**：不得從 `external`／`off` 遠端開成 `inapp`（docs/19 §10） |
+| `app_credentials` | `kind`（`apns_key`／`fcm_credential`／`apple_developer_program`／`google_play_account`／`maps_api_key`／`other`）、`label`、`external_ref`（Key ID 之類，**不是金鑰**）、`created_on`／`last_rotated_on`／`expires_on`／`rotation_period_days`、`note` | 🔴 **只存列管資訊，絕不存金鑰本身**。部分金鑰沒有到期日：無 `expires_on` 時以「上次輪替日（沒有就建立日）＋輪替週期」為基準；**已屆期或屆期前 60 天告警**；輪替寫敏感操作日誌 |
+| `app_settings` | `setting_key`（唯一）、`setting_value`（json，只存不查） | `maintenance.all`／`maintenance.ios`／`maintenance.android`（維護模式：`enabled`＋雙語訊息）、`push.rules`（自動推播規則：賽事提醒提前小時數、會籍到期提醒天數、各類自動推播開關） |
+
+### 16.4 這一節刻意沒有的東西
+
+- 沒有任何日誌表：`ad_events`（功能單元、90 天）、`push_message_stats`（彙總數字）都不是「誰在何時做了什麼」的旁路記錄；**沒有 `push_delivery` 之類的逐裝置投遞表**（會變成個人層級的推播行為紀錄）。
+- 沒有通知中心專用表：App 通知中心（§3.13）＝已送出的 `push_messages`（`sent`／`partial`、90 天內）依分眾過濾；會籍到期、開通完成這類「對單一會員」的推播屬 AP-3 之後，那時再定收件匣的資料形狀。
+- 沒有 `Club` 之外的俱樂部維度：`audience_club_id` 只用於分眾條件，不是資料歸屬。

@@ -214,8 +214,17 @@ public sealed class AdminShopCatalogTests(AdminWriteApiFixture fixture)
             var bwProduct = await BizTest.ReadAsync<AdminProductDetailDto>(await C1Test.PostJsonAsync(admin, "/api/v1/admin/bw/shop/products", ProductPayload(BizTest.Unique("bwp"))));
             try
             {
-                Assert.Equal(HttpStatusCode.Conflict, (await C1Test.PostJsonAsync(admin, url, new { sku, price = 1 })).StatusCode);
-                Assert.Equal(HttpStatusCode.Conflict, (await C1Test.PostJsonAsync(admin, $"/api/v1/admin/bw/shop/products/{bwProduct.Id}/variants", new { sku, price = 1 })).StatusCode);
+                var sameClub = await C1Test.PostJsonAsync(admin, url, new { sku, price = 1 });
+                Assert.Equal(HttpStatusCode.Conflict, sameClub.StatusCode);
+                Assert.Contains("這個俱樂部的另一個規格", await sameClub.Content.ReadAsStringAsync());
+                var crossClub = await C1Test.PostJsonAsync(admin, $"/api/v1/admin/bw/shop/products/{bwProduct.Id}/variants", new { sku, price = 1 });
+                Assert.Equal(HttpStatusCode.Conflict, crossClub.StatusCode);
+                // 🔴 撞到「別的俱樂部」的貨號：訊息不得透露它已被使用、更不得說在全站或哪一隊（合作球隊帳號會拿貨號探測對方的商品）
+                var crossText = await crossClub.Content.ReadAsStringAsync();
+                Assert.Contains("無法使用", crossText);
+                Assert.DoesNotContain("已經被", crossText);
+                Assert.DoesNotContain("全站", crossText);
+                Assert.DoesNotContain("俱樂部", crossText);
             }
             finally
             {

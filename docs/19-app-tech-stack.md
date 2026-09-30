@@ -380,6 +380,20 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 
 ---
 
+## 11b. 後端落點：本檔各節在 `apps/api` 的哪裡（D 批，2026-09-30）
+
+> 後台 `M1–M5`／`E4–E6` 與 App 公開端點已在 `apps/api` 實作（契約見 [`apps/api/README.md`](../apps/api/README.md) D 批節，表見 [`12b`](12b-database-tables.md) §16）。
+> **App 客戶端仍未開發**——下表是「後端已經備好、客戶端要對齊的東西」，**不是新規格**。
+
+| 本檔 | 後端落點 | 客戶端要對齊的地方 |
+|---|---|---|
+| §4 更新權杖／§7 設定下發 | `app_devices` 更新權杖四欄（AP-3 使用，M4 不讀寫）；`GET /api/v1/app/config`（`Features/AppPublic/AppConfigComposer`）與後台存檔時的 `IAppConfigPublisher`（**Cloudflare 靜態設定尚未串接**） | 第 1 層（Cloudflare JSON）與第 2 層（API）**內容相同**；`evaluation` 是伺服器代算的判斷，客戶端也可自行判斷，兩者必須一致；**版本用語意化比較，建置號不參與**；`payment_mode` 是 `stringValue`（`off`／`external`／`inapp`），只會降級，不會反向開啟 |
+| §5 推播傳輸 | `IPushTransport`（**尚未串接**）、`PushDispatcher`（分眾在 .NET 端解析、逐批直送、游標續送）、`PushContentGuard`（中獎通知系統層阻擋）；**雙人覆核**（核可者≠建立者）與二次確認人數 | 裝置註冊帶 `locale`（推播語系）、`pushToken`、`pushPermission`；權杖失效由推播服務回報後伺服器標記，App 下次啟動要重新註冊權杖；「開啟」回報 `POST /api/v1/app/push/{id}/opened` 只累加彙總；**通知中心**讀 `GET /api/v1/app/notifications`（90 天、依分眾）。**payload 不放個資、不使用靜默推播** |
+| §6.4 事件佇列 | `POST /api/v1/app/ads/events`（`AdEventIngestService`）：拒收超過 24 小時與未來 5 分鐘以上的事件、`presentationId` 去重、點擊 5 秒去重、檔期與版位由素材推導；批次上限 200；**同一 `batchId` 整份重送是安全的（全部算重複）** | 事件 `occurredAt` ＝單調時鐘推算＋`server_skew`（§6.1 時鐘校正，`server_skew` 由 `/config` 回應的 `Date` 標頭算）；**備援素材（`isFallback:true`、`creativeId:null`）不啟動量測器、不發事件**；每次素材裝載產生新的 `presentationId` |
+| §6 廣告投放 | `GET /api/v1/app/ads/{slotCode}`（`AdServingService`）：只投投放中＋已審核未暫停的素材、每日上限、每人頻次上限（帶 `deviceInstallId` 才套用）、曝光保證 pacing、權重加權隨機（不重複、至多輪播上限）、無檔期回備援；回應的 `disclosureLabel`（「廣告」／「Ad」）**必須顯示** | 預先下載當日檔期素材（§2.4）；`sessionImpressionCap` 由 App 端控制單次使用的曝光；**帶裝置識別的請求不可被邊緣快取**（回應 `no-store`） |
+| §8 監控 | `POST /api/v1/app/diagnostics`（`AppDiagnosticsIntake`）→ `app_diagnostic_reports`；後台 M5 診斷收件匣與彙總（無崩潰裝置比例、啟動耗時中位數／P90） | payload 去識別化（**伺服器端也會把 Email 與 8 位以上數字遮成 `[已遮蔽]`，但不能依賴它**）；發生時間不得超過 7 天前；API 錯誤率需要分母，診斷回報只送次數 |
+| §7 定位 | 後端沒有任何座標欄位（`ad_events`、`app_diagnostic_reports` 皆無） | 座標只存在於記憶體 |
+
 ## 12. 本檔不決定的事
 
 - **§16.2 技術前提第 17 項：推播是否走自家直送** —— 本檔建議直送（§5），但客戶可能有既有的服務商合約

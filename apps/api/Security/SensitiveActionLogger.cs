@@ -13,4 +13,15 @@ public sealed class SensitiveActionLogger(ILogger<SensitiveActionLogger> logger)
         => logger.LogInformation(
             "敏感操作 {Action}｜帳號 {AdminUserId}（{Username}）｜俱樂部 {Club}｜對象 {Subject}｜筆數 {Count}｜用途 {Purpose}",
             action, scope.Identity.AdminUserId, scope.Identity.Username, scope.ClubCode, subject, count, purpose);
+
+    /// <summary>不分俱樂部的系統級後台操作（廣告成效匯出、App 憑證輪替、推播核可、裝置完整值檢視等，D 批）。
+    /// 「俱樂部」欄固定寫 <c>-</c>；其餘欄位語意同上。</summary>
+    public void Record(AdminSystemScope scope, string action, string? subject = null, int? count = null, string? purpose = null)
+        => Record(scope.Identity, action, subject, count, purpose);
+
+    /// <summary>同上，直接以已驗證的身分記錄（給只拿到 <see cref="AdminIdentity"/> 的服務層）。</summary>
+    public void Record(AdminIdentity identity, string action, string? subject = null, int? count = null, string? purpose = null)
+        => logger.LogInformation(
+            "敏感操作 {Action}｜帳號 {AdminUserId}（{Username}）｜俱樂部 {Club}｜對象 {Subject}｜筆數 {Count}｜用途 {Purpose}",
+            action, identity.AdminUserId, identity.Username, "-", subject, count, purpose);
 }

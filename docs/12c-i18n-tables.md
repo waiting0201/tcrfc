@@ -513,3 +513,20 @@
    顯示文字，只有 en 列使用），**不新增 `placeholder`**（規劃書全文未提及提示文字，維持最小可行，
    不多加規劃書沒有要求的欄位）。完整說明見本檔 [§3.6](#36-g-表單與詢問) 與
    `docs/12-database-schema.md` §12 第 40 點。
+
+---
+
+## 附：D 批新增的 8 張 `*_i18n` 側表（2026-09-30，App 與廣告）
+
+形狀同上（複合主鍵 `(<entity>_id, locale)`、`zh-Hant` 必存、`en` 可缺）。欄位依據是 App 規劃書 §7.2／§7.3／§8.1／§8.2／§8.3／§10.4（「廣告素材與推播文案同樣適用雙語」）。
+`ad_creatives` **不走側表**：素材依語系分別上傳（一個素材一個語系，`locale` 是該列自己的欄位）。
+
+| 側表 | 語系化欄位 | 依據 |
+|---|---|---|
+| `ad_slots_i18n` | `name`、`fallback_alt` | §7.2「名稱（中／英）」「備援素材」（備援圖的說明文字須雙語） |
+| `advertisers_i18n` | `name` | §7.3「名稱（中／英）」 |
+| `push_messages_i18n` | `title`、`body`、`image_alt` | §6「推播文案須雙語」；依裝置語系送出，英文缺漏回退繁中 |
+| `app_releases_i18n` | `whats_new`、`force_message`、`recommend_message` | §8.1 更新說明與強制／建議更新的提示文案（中英） |
+| `app_deep_links_i18n` | `label` | §8.2 深連結對照表的畫面名稱 |
+| `app_layout_items_i18n` | `label` | §8.2 快捷入口與「更多」分頁項目名稱 |
+| `app_announcements_i18n` | `message` | §8.2 公告條文案（中英） |

@@ -503,7 +503,8 @@ public sealed class AdminMembersRepository(
 
         if (await db.Members.AsNoTracking().AnyAsync(m => m.Email == email, cancellationToken))
         {
-            throw new AdminConflictException("Email 已被使用", "這個 Email 已經有會員帳號了，請直接搜尋該會員，不要重複建立。");
+            // 🔴 會員帳號全站唯一（一人一帳號，跨俱樂部）：撞號的可能是對方俱樂部的會員，訊息不得確認「這個人存在」或暗示去搜尋。
+            throw new AdminConflictException("Email 無法使用", "這個 Email 目前無法用來建立新的會員帳號，請確認輸入是否正確；若這位會員已經加入，請直接在會員名單裡搜尋。");
         }
 
         Member? created = null;

@@ -303,6 +303,16 @@
     **B1（2026-09-30）暫行做法**：會員名單／續會名單／球衣出貨清單／試訓名單的匯出、解除個資遮罩、合併帳號、調整會籍等敏感操作，寫**應用程式結構化日誌**（`SensitiveActionLogger`：帳號、俱樂部、對象、筆數、用途，**不含個資**），匯出一律必填「用途」。這不是稽核表；客戶若要求可查詢的稽核紀錄要另行裁決。
     **會員個資（K1／K3）**：名單一律遮罩，完整值只有「會員詳情 `reveal=true`」與有 `member.pii.reveal` 的角色看得到；沒有解除權限者的搜尋只比對會員編號；LINE 識別碼與 QR 憑證字串**永不出現在任何後台回應**；受限帳號只看得到自己授權俱樂部的會籍列，直接打對方的 id 是 404。
     但 **`EmailLog`、`InventoryMovement`、`PageVersion`、`FaqSearchMiss` 不是日誌是功能單元**，一律保留。
+    **D 批（2026-09-30）沿用同一條**：J3 的「操作稽核記錄」「登入紀錄」**仍不建表**（客戶指示與 2026-09-23 使用者裁決仍有效，`docs/18` `E-44` 升級段；`SchemaInvariantsTests` 守著）。
+    `system.audit.view` 只提供「帳號目前狀態＋登入異常提醒」的唯讀概況（`GET /api/v1/admin/security/overview`，`auditTrailAvailable` 恆為 `false`）；
+    **匯出電子報／廣告成效、App 憑證輪替、推播核可、更新門檻與維護模式、裝置完整值檢視**同樣寫 `SensitiveActionLogger`。
+    **`ad_events`（原始事件，90 天）與 `push_message_stats`（彙總數字）不是日誌表**：不存 `member_id`、完整 IP、定位座標、廣告識別碼，也不逐裝置記錄推播投遞或開啟。
+  - **（D 批）App 與廣告的不變量**：① **推播不得成為繞過「中獎只以最新消息公布」的後門**——`PushContentGuard` 在建立／送審／核可／試送都擋「中獎」字樣與帶抽獎標籤文章的深連結，自動推播（新聞發布）必須先問 `IsMemberDrawArticleAsync`；
+    ② **推播核可是雙人覆核**（核可者≠建立者，且需 `sysadmin_only` 的 `app.push.approve`）並要回報預估人數作二次確認；
+    ③ **最低支援版本會強制舊版更新**：設定必須 `confirmForceUpdate`、只有已上架版本能設為門檻；**`payment_mode` 只能降級不得反向開成 `inapp`**；
+    ④ **兒童向畫面（S15／S16／S17）與慈善相關不設廣告版位**；**素材未通過審核的檔期不得進入投放中**；素材被改回到待審；
+    ⑤ **推播權杖加密儲存、後台清單遮罩、完整值需 `app.device.reveal`**；⑥ **`app_credentials` 只存列管資訊，絕不存金鑰本身**；
+    ⑦ **JSON 時間戳一律 UTC 帶 `Z`**（`Common/UtcDateTimeJsonConverter`，輸入無時區記號視為 UTC）；⑧ **EF `Where` lambda 內不得呼叫會丟驗證例外的函式**（`docs/18` `E-92`）。
   - **後台帳號用 `username` 登入不用 Email**：`AdminUser.username` UNIQUE，`email` 只作通知、不唯一、不作登入鍵。
     種子超管 `sa@system.local`／`Admin@123`（雜湊儲存、不強制首次更換）——**它長得像 Email 但存在 `username` 欄**。
     **前台 `Member` 維持 Email ＋ LINE 登入不變，兩套帳號完全獨立。**

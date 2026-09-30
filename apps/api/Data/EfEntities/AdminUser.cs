@@ -440,4 +440,31 @@ public partial class AdminUser
     public virtual ICollection<Venue> VenueUpdatedByNavigations { get; set; } = new List<Venue>();
 
     public virtual ICollection<AdminRole> AdminRoles { get; set; } = new List<AdminRole>();
+    public virtual ICollection<AdCampaign> AdCampaignCreatedByNavigations { get; set; } = new List<AdCampaign>();
+    public virtual ICollection<AdCampaign> AdCampaignReviewedByNavigations { get; set; } = new List<AdCampaign>();
+    public virtual ICollection<AdCampaign> AdCampaignUpdatedByNavigations { get; set; } = new List<AdCampaign>();
+    public virtual ICollection<AdCreative> AdCreativeCreatedByNavigations { get; set; } = new List<AdCreative>();
+    public virtual ICollection<AdCreative> AdCreativeReviewedByNavigations { get; set; } = new List<AdCreative>();
+    public virtual ICollection<AdCreative> AdCreativeUpdatedByNavigations { get; set; } = new List<AdCreative>();
+    public virtual ICollection<AdSlot> AdSlotCreatedByNavigations { get; set; } = new List<AdSlot>();
+    public virtual ICollection<AdSlot> AdSlotUpdatedByNavigations { get; set; } = new List<AdSlot>();
+    public virtual ICollection<Advertiser> AdvertiserCreatedByNavigations { get; set; } = new List<Advertiser>();
+    public virtual ICollection<Advertiser> AdvertiserUpdatedByNavigations { get; set; } = new List<Advertiser>();
+    public virtual ICollection<AppAnnouncement> AppAnnouncementCreatedByNavigations { get; set; } = new List<AppAnnouncement>();
+    public virtual ICollection<AppAnnouncement> AppAnnouncementUpdatedByNavigations { get; set; } = new List<AppAnnouncement>();
+    public virtual ICollection<AppCredential> AppCredentialCreatedByNavigations { get; set; } = new List<AppCredential>();
+    public virtual ICollection<AppCredential> AppCredentialUpdatedByNavigations { get; set; } = new List<AppCredential>();
+    public virtual ICollection<AppDeepLink> AppDeepLinkCreatedByNavigations { get; set; } = new List<AppDeepLink>();
+    public virtual ICollection<AppDeepLink> AppDeepLinkUpdatedByNavigations { get; set; } = new List<AppDeepLink>();
+    public virtual ICollection<AppDiagnosticReport> AppDiagnosticReports { get; set; } = new List<AppDiagnosticReport>();
+    public virtual ICollection<AppFeatureFlag> AppFeatureFlagCreatedByNavigations { get; set; } = new List<AppFeatureFlag>();
+    public virtual ICollection<AppFeatureFlag> AppFeatureFlagUpdatedByNavigations { get; set; } = new List<AppFeatureFlag>();
+    public virtual ICollection<AppLayoutItem> AppLayoutItemCreatedByNavigations { get; set; } = new List<AppLayoutItem>();
+    public virtual ICollection<AppLayoutItem> AppLayoutItemUpdatedByNavigations { get; set; } = new List<AppLayoutItem>();
+    public virtual ICollection<AppRelease> AppReleaseCreatedByNavigations { get; set; } = new List<AppRelease>();
+    public virtual ICollection<AppRelease> AppReleaseUpdatedByNavigations { get; set; } = new List<AppRelease>();
+    public virtual ICollection<AppSetting> AppSettings { get; set; } = new List<AppSetting>();
+    public virtual ICollection<PushMessage> PushMessageCreatedByNavigations { get; set; } = new List<PushMessage>();
+    public virtual ICollection<PushMessage> PushMessageReviewedByNavigations { get; set; } = new List<PushMessage>();
+    public virtual ICollection<PushMessage> PushMessageUpdatedByNavigations { get; set; } = new List<PushMessage>();
 }

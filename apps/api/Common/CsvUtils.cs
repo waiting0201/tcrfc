@@ -17,6 +17,18 @@ namespace Tcrfc.Api.Common;
 /// </summary>
 public static class CsvUtils
 {
+    /// <summary>CSV 公式注入防護（D 批新增）：匯出含使用者輸入的欄位（Email、姓名、備註）時，開頭是 <c>= + - @</c> 或定位／換行字元的值
+    /// 會被 Excel 當公式執行，前面補一個單引號讓它變成純文字。只用於「來源不受信任的文字欄位」，數字與日期不需要。</summary>
+    public static string? SafeCell(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return value;
+        }
+
+        return value[0] is '=' or '+' or '-' or '@' or '\t' or '\r' ? "'" + value : value;
+    }
+
     /// <summary>單一欄位編碼：含逗號、雙引號、換行才需要用雙引號包住，欄位內雙引號跳脫成兩個。</summary>
     public static string EncodeField(string? value)
     {

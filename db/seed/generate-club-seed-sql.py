@@ -1181,6 +1181,51 @@ PERMISSIONS = [
     ("member.draw.update", "K", "K5", "member", "update", 1, 0, 0, "產生名單、回填中獎人與處理獎品發放", "Update Member Draws"),
     ("member.draw.announce", "K", "K5", "member", "update", 1, 0, 0, "產生抽獎公布稿草稿（只看得到遮罩名單）", "Announce Member Draws"),
     ("member.draw.export", "K", "K5", "member", "export", 1, 1, 0, "匯出中獎人聯絡名單與獎品出貨清單", "Export Member Draw Winners"),
+    # ── D 批（2026-09-30）：G3 電子報、E4–E6 App 廣告、M1–M5 App 後台 ─────────────────────────────────
+    # G3（domain 沿用 enquiry）：電子報名單含 Email，匯出為受限（is_restricted），僅系統管理員（自動涵蓋）。
+    ("form.newsletter.view", "G", "G3", "enquiry", "view", 1, 0, 0, "檢視電子報訂閱名單", "View Newsletter Subscribers"),
+    ("form.newsletter.update", "G", "G3", "enquiry", "update", 1, 0, 0, "新增、退訂與同步電子報訂閱者", "Update Newsletter Subscribers"),
+    ("form.newsletter.export", "G", "G3", "enquiry", "export", 1, 1, 0, "匯出電子報訂閱名單", "Export Newsletter Subscribers"),
+    # E4–E6（domain=ad，is_club_scoped=0：App 廣告不分俱樂部）。合作球隊管理沒有任何 ad.*（規劃書 §11）。
+    # 審核與緊急暫停各自獨立（ad.campaign.review／pause）；合約金額另有 ad.contract.view／update（受限）；
+    # 成效報表匯出受限（寫敏感操作日誌）；ad.maintenance.run 是手動觸發聚合與清除，僅系統管理員。
+    ("ad.advertiser.view", "E", "E4", "ad", "view", 0, 0, 0, "檢視廣告主", "View Advertisers"),
+    ("ad.advertiser.create", "E", "E4", "ad", "create", 0, 0, 0, "新增廣告主", "Create Advertisers"),
+    ("ad.advertiser.update", "E", "E4", "ad", "update", 0, 0, 0, "編輯廣告主", "Update Advertisers"),
+    ("ad.advertiser.delete", "E", "E4", "ad", "delete", 0, 0, 0, "刪除廣告主", "Delete Advertisers"),
+    ("ad.slot.view", "E", "E4", "ad", "view", 0, 0, 0, "檢視廣告版位", "View Ad Slots"),
+    ("ad.slot.create", "E", "E4", "ad", "create", 0, 0, 0, "新增廣告版位", "Create Ad Slots"),
+    ("ad.slot.update", "E", "E4", "ad", "update", 0, 0, 0, "編輯廣告版位與備援素材", "Update Ad Slots"),
+    ("ad.slot.delete", "E", "E4", "ad", "delete", 0, 0, 0, "刪除廣告版位", "Delete Ad Slots"),
+    ("ad.campaign.view", "E", "E5", "ad", "view", 0, 0, 0, "檢視投放檔期與素材", "View Ad Campaigns"),
+    ("ad.campaign.create", "E", "E5", "ad", "create", 0, 0, 0, "建立投放檔期", "Create Ad Campaigns"),
+    ("ad.campaign.update", "E", "E5", "ad", "update", 0, 0, 0, "編輯檔期、素材、送審、結案與作廢", "Update Ad Campaigns"),
+    ("ad.campaign.delete", "E", "E5", "ad", "delete", 0, 0, 0, "刪除草稿檔期", "Delete Ad Campaigns"),
+    ("ad.campaign.review", "E", "E5", "ad", "review", 0, 0, 0, "審核檔期與廣告素材", "Review Ad Campaigns"),
+    ("ad.campaign.pause", "E", "E5", "ad", "pause", 0, 0, 0, "緊急暫停與恢復檔期、素材", "Pause Ad Campaigns"),
+    ("ad.contract.view", "E", "E5", "ad", "view", 0, 1, 0, "檢視廣告合約金額", "View Ad Contract Amounts"),
+    ("ad.contract.update", "E", "E5", "ad", "update", 0, 1, 0, "編輯廣告合約金額", "Update Ad Contract Amounts"),
+    ("ad.report.view", "E", "E6", "ad", "view", 0, 0, 0, "檢視廣告成效報表", "View Ad Reports"),
+    ("ad.report.export", "E", "E6", "ad", "export", 0, 1, 0, "匯出廣告成效報表", "Export Ad Reports"),
+    ("ad.maintenance.run", "E", "E6", "ad", "run", 0, 0, 1, "手動執行廣告維護作業（推進檔期、聚合、清除）", "Run Ad Maintenance"),
+    # M1–M5（domain=app，is_club_scoped=0）。M1 版本與維護僅系統管理員可寫（誤設最低支援版本會讓全體使用者無法使用）；
+    # M3 核可僅系統管理員且雙人覆核；M4 完整值與清理僅系統管理員；憑證列管僅系統管理員。
+    ("app.release.view", "M", "M1", "app", "view", 0, 0, 0, "檢視 App 版本與維護模式", "View App Releases"),
+    ("app.release.update", "M", "M1", "app", "update", 0, 0, 1, "管理 App 版本、強制更新與維護模式", "Update App Releases"),
+    ("app.layout.view", "M", "M2", "app", "view", 0, 0, 0, "檢視 App 內容編排與深連結", "View App Layout"),
+    ("app.layout.update", "M", "M2", "app", "update", 0, 0, 0, "編排首頁區塊、快捷入口、更多分頁、公告條與深連結", "Update App Layout"),
+    ("app.push.view", "M", "M3", "app", "view", 0, 0, 0, "檢視推播批次與發送紀錄", "View Push Messages"),
+    ("app.push.create", "M", "M3", "app", "create", 0, 0, 0, "建立推播批次、預覽、試送與送審", "Create Push Messages"),
+    ("app.push.approve", "M", "M3", "app", "approve", 0, 0, 1, "覆核推播批次、重送與設定自動推播規則", "Approve Push Messages"),
+    ("app.device.view", "M", "M4", "app", "view", 0, 0, 0, "檢視推播裝置（遮罩）與統計", "View App Devices"),
+    ("app.device.reveal", "M", "M4", "app", "reveal", 0, 1, 1, "檢視推播權杖與裝置識別碼完整值", "Reveal App Device Tokens"),
+    ("app.device.update", "M", "M4", "app", "update", 0, 0, 1, "清理失效推播權杖", "Update App Devices"),
+    ("app.config.view", "M", "M5", "app", "view", 0, 0, 0, "檢視功能開關與連線檢查", "View App Config"),
+    ("app.config.update", "M", "M5", "app", "update", 0, 0, 1, "管理 App 功能開關", "Update App Config"),
+    ("app.credential.view", "M", "M5", "app", "view", 0, 1, 1, "檢視 App 金鑰與憑證列管", "View App Credentials"),
+    ("app.credential.update", "M", "M5", "app", "update", 0, 1, 1, "管理 App 金鑰與憑證列管與輪替", "Update App Credentials"),
+    ("app.diagnostic.view", "M", "M5", "app", "view", 0, 0, 0, "檢視 App 診斷回報", "View App Diagnostics"),
+    ("app.diagnostic.update", "M", "M5", "app", "update", 0, 0, 0, "處理 App 診斷回報", "Update App Diagnostics"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -1554,10 +1599,33 @@ ROLE_PERMISSIONS = [
         "shop.setting.view", "shop.setting.update", "shop.report.view",
     ], "own_clubs"),
     # K5：只有系統管理員（自動涵蓋）與客服／行政（含受限匯出）；公關／媒體只有公布稿交接（遮罩名單）。
+    # 🔴 2026-09-30（C 批畫面回報）：公關／媒體補 member.draw.view——抽獎清單與詳情都要 view，只給 announce 時
+    # 這個角色打不開任何活動、無從撰寫公布稿。view 不洩漏個資：姓名與收件人資料一律遮罩，完整值需 member.pii.reveal
+    # （公關／媒體沒有）。仍不給 create／update／export 與任何會員模組權限（規劃書 §6）。
     ("customer_service_admin", [
         "member.draw.view", "member.draw.create", "member.draw.update", "member.draw.announce", "member.draw.export",
     ], "all"),
-    ("pr_media", ["member.draw.announce"], "all"),
+    ("pr_media", ["member.draw.view", "member.draw.announce"], "all"),
+    # ── D 批（2026-09-30）：G3／E4–E6／M1–M5，逐欄依規劃書 §6 矩陣與 App 規劃書 §11 展開 ──────────────
+    # G3（詢問欄）：客服／行政 ✔全（檢視與處理，匯出受限僅系統管理員）；檢視者不給（含 Email 個資）；合作球隊管理 ✔自家。
+    ("customer_service_admin", ["form.newsletter.view", "form.newsletter.update"], "all"),
+    ("partner_club_manager", ["form.newsletter.view", "form.newsletter.update"], "own_clubs"),
+    # E4–E6（廣告欄）：商務／贊助 ✔全（含合約金額與成效匯出）；公關／媒體「檢視報表」；財務角色本專案尚未建立（十個角色沒有財務），
+    # 合約金額因此只有商務／贊助與系統管理員可見；檢視者「檢視（不含金額）」；合作球隊管理無權限。
+    ("business_sponsorship", [
+        "ad.advertiser.view", "ad.advertiser.create", "ad.advertiser.update", "ad.advertiser.delete",
+        "ad.slot.view", "ad.slot.create", "ad.slot.update", "ad.slot.delete",
+        "ad.campaign.view", "ad.campaign.create", "ad.campaign.update", "ad.campaign.delete", "ad.campaign.review", "ad.campaign.pause",
+        "ad.contract.view", "ad.contract.update", "ad.report.view", "ad.report.export",
+    ], "all"),
+    ("pr_media", ["ad.report.view"], "all"),
+    ("viewer", ["ad.advertiser.view", "ad.slot.view", "ad.campaign.view", "ad.report.view"], "all"),
+    # M1–M5（行動 App 欄）：內容編輯 M2 內容編排；公關／媒體 M3 建立（需覆核，核可僅系統管理員）；客服／行政 M4 檢視（遮罩）；
+    # 檢視者「檢視」。M1 版本、M5 設定與憑證只有系統管理員（sysadmin_only，自動涵蓋）。
+    ("content_editor", ["app.layout.view", "app.layout.update"], "all"),
+    ("pr_media", ["app.push.view", "app.push.create"], "all"),
+    ("customer_service_admin", ["app.device.view"], "all"),
+    ("viewer", ["app.release.view", "app.layout.view", "app.push.view", "app.device.view", "app.config.view", "app.diagnostic.view"], "all"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")

@@ -13,10 +13,12 @@
 > 與 DBMS 相關的抉擇集中在 [§1.4](#14-dbms-相依的五件事已定案)，**型別對照見 [§1.1](#11-型別對照)**。
 > **`*_i18n` 側表的欄位清單在 [`12c-i18n-tables.md`](12c-i18n-tables.md)**（本檔 §4 只用 🌐 標「有沒有側表」，不列欄位）。
 >
-> **不含行動 App 的十一個型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／
-> `AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`／`AppDiagnosticReport`），見 [`11-mobile-app.md`](11-mobile-app.md)。
-> **App 開發前不得建立這些表**，屆時另出延伸設計。
-> ⚠️ **`Club` 與 `Competition` 屬於本檔範圍**（主站 v3.0 起定義於主站型別表），不在上列十個之中。
+> **行動 App 的十一個型別**（`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／
+> `AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`／`AppDiagnosticReport`）**原本不在本檔**，
+> **2026-09-30（D 批，共用後台 `M1–M5` 與 `E4–E6`）依 [§13.2](#132-行動-app-的十一個型別) 的「屆時另出延伸設計」新增**：
+> 表定義在 [`12b`](12b-database-tables.md) **§16**（連同 M2／M3／M5 的 14 張附屬表與側表，共 **25 張**，DDL 在 `db/club-schema.sql` 的 **4.13**）。
+> App 的**客戶端**開發（`AP-2` 起）仍不屬於本檔。
+> ⚠️ **`Club` 與 `Competition` 屬於本檔範圍**（主站 v3.0 起定義於主站型別表），不在上列十一個之中。
 >
 > **本檔沒有任何日誌表**（委託方指示），代價與補償見 [§13.1](#131-沒有稽核與登入日誌表)。
 >
@@ -337,7 +339,7 @@ flowchart LR
 
 ## 4. 資料表總覽
 
-**116 張**（`CalendarEvent` 是視圖），另有約 40 張 `*_i18n` 側表（E1a 新增 `sponsor_activations_i18n`）。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
+**116 張**（`CalendarEvent` 是視圖；D 批另加 4.13 的 25 張，本機庫共 187 張表），另有約 40 張 `*_i18n` 側表（E1a 新增 `sponsor_activations_i18n`）。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
 圖例：🌐 有 i18n 側表｜🔒 含受限或加密欄位｜📸 值複製快照，不可回頭 join。
 **`club_id` 欄**：**●** 必填｜**○** 可為空（＝兩隊共同）｜**—** 不加。
 判定準則與逐表清單見主站規劃書 **§5.4**（行 1533–1579）。
@@ -629,6 +631,26 @@ flowchart LR
 > ⚠️ **慈善捐款平台的 `N` 模組 8 張表與其約 14 張機制表已移出本檔**（慈善 v2.0 起為獨立後台與獨立資料庫），
 > 另出 [`16-charity-schema.md`](16-charity-schema.md)（`STATUS.md` S0-5）。**`Donation` 完全不屬於本系統。**
 
+### 4.13 M 行動 App ＋ E4–E6 廣告（25，D 批新增）
+
+明細與欄位見 [`12b`](12b-database-tables.md) §16。**全部不加 `club_id`**（兩隊共用一個 App）。
+
+| 表 | 用途 | 標記 |
+|---|---|---|
+| `AdSlot`／`AdSlotI18n` | 廣告版位（代號、畫面位置、素材規格、輪播上限、備援素材） | 🌐 |
+| `Advertiser`／`AdvertiserI18n` | 廣告主與合約；`sponsor_id` 可為空，指向既有 `Sponsor`（不合併） | 🌐 |
+| `AdCampaign` | 投放檔期與狀態機、權重、上限、曝光保證目標與 pacing 計數、**合約金額（受限）** | 🔒 |
+| `AdCreative` | 廣告素材（依語系、圖或影片、審核狀態、A/B 標記、緊急暫停） | |
+| `AdEvent` | **原始事件**（曝光與點擊，保存 90 天）。**不存 `member_id`、完整 IP、定位座標、廣告識別碼** | |
+| `AdDailyStat` | 日聚合（日期 × 檔期 × 素材 × 版位 × 平台 × 語系），長期保存 | |
+| `AppDevice` | 裝置（推播權杖加密、會員弱關聯、更新權杖四欄） | 🔒 |
+| `PushTopicSubscription` | 追蹤與推播訂閱（`is_following`／`is_push_enabled` 分離） | |
+| `PushMessage`／`PushMessageI18n`／`PushMessageStat` | 推播批次（雙人覆核、分眾條件、發送游標）、雙語文案、送出／送達／開啟彙總 | 🌐 |
+| `AppRelease`／`AppReleaseI18n` | App 版本、最低支援版本與建議版本旗標、更新說明與提示文案 | 🌐 |
+| `AppDiagnosticReport` | App 端診斷與錯誤回報（不存個資，保存 90 天） | |
+| `AppDeepLink`／`AppLayoutItem`／`AppAnnouncement`（各含 `*_I18n`） | M2 內容編排：深連結對照、首頁區塊／快捷入口／「更多」分頁項目、公告條 | 🌐 |
+| `AppFeatureFlag`／`AppCredential`／`AppSetting` | M5：功能開關、金鑰與憑證列管（只存列管資訊）、全域設定（維護模式、自動推播規則） | |
+
 ---
 
 > **§5 ER 圖移至 [`12a-database-erd.md`](12a-database-erd.md)；§6–§11 移至 [`12b-database-tables.md`](12b-database-tables.md)。**
@@ -833,6 +855,20 @@ flowchart LR
     **不變**：`comic_pages`／`fan_event_images`／`draw_roster_versions` 仍不加 `club_id`（由父表推導）；`withholding_data_encrypted` 欄位保留、本批沒有端點（扣繳門檻待會計師確認）；**稽核仍無表**，K5 與 S 模組的匯出、檢視完整個資、退款執行同樣寫 `SensitiveActionLogger`。
     庫存**只透過庫存異動改動**（`apps/api` 的 `InventoryService`，`ArchitectureTests` 用反射與原始碼掃描鎖定），金流與電子發票以介面隔開、**本期不串接**（B-10），見 `apps/api/README.md`「C1」節。
 
+46. 🔴 **（D 批，2026-09-30）G3 電子報、E4–E6 廣告、M1–M5 App 後台落地時補齊的綱要**——把規劃書已有的功能落到資料表，不是新增規格
+    （`db/club-schema.sql` 與 migration `AlignSchemaD1` 同步，本機 `tcrfc_club` 已套用；共 **162 → 187 張**）：
+    ① **`newsletter_subscribers`**：`status` 收斂為 `NOT NULL DEFAULT 'subscribed'`＋`CK_newsletter_subscribers_status`（`subscribed`／`unsubscribed`）、
+    新增 `unsubscribed_at`（退訂時間，退訂同意須可舉證）；**唯一鍵 `(club_id, email)` 不變**——同一人可只退訂其中一站，退訂後不得由後台「新增」繞過，重新訂閱須註明是訂閱者本人要求；
+    ② 新增 **25 張表**（明細見 [`12b`](12b-database-tables.md) §16）：廣告 8（`ad_slots`／`advertisers` 與各自 `*_i18n`、`ad_campaigns`、`ad_creatives`、`ad_events`、`ad_daily_stats`）、
+    App 營運 8（`app_devices`、`push_topic_subscriptions`、`push_messages`＋`_i18n`＋`push_message_stats`、`app_releases`＋`_i18n`、`app_diagnostic_reports`）、
+    M2 內容編排 6（`app_deep_links`、`app_layout_items`、`app_announcements` 與各自 `*_i18n`）、M5 3（`app_feature_flags`、`app_credentials`、`app_settings`）；
+    ③ **`club_id` 一律不加**（App 規劃書 §10.1：兩隊共用一個 App，廣告與推播不分俱樂部；主站 §5.4 的 50／9 清單不含它們）；
+    ④ **沒有任何日誌表**：`ad_events` 是 App 規劃書 §7.6 明定的「原始事件」（功能單元，保存 90 天後清除，只存彙總以外的最小欄位，**不存 `member_id`、完整 IP、定位座標、廣告識別碼**）；
+    `push_message_stats` 只有彙總數字（送出／送達／開啟），**不記錄個人層級的推播行為**；`app_credentials` 只存列管資訊，**絕不存金鑰本身**；
+    ⑤ **J3 稽核**：規劃書 J3 要求「操作稽核記錄保存 ≥ 12 個月」「登入紀錄與異常提醒」，但 §13.1 的委託方指示（與 2026-09-23 使用者裁決撤回 `admin_audit_logs`／`admin_login_logs`）仍然有效——
+    **D 批不建任何稽核或登入日誌表**，`system.audit.view` 只提供「帳號目前狀態」的唯讀概況與登入異常提醒（最後登入、連續失敗、鎖定、久未登入），並如實標示沒有稽核記錄；
+    廣告成效匯出、App 憑證輪替、推播核可、裝置完整值檢視等「須寫稽核」的操作照 B／C 批的做法寫 `SensitiveActionLogger`。**待客戶重新確認稽核政策**（見 `apps/api/README.md` D 批「待裁決」）。
+
 ---
 
 ## 13. 與規劃書的已知落差
@@ -881,12 +917,14 @@ flowchart LR
 
 > **本落差尚未回寫規劃書**（主站維持 v2.6、慈善站維持 v1.5）。實作前若要正式收斂範圍，須依 [`00-harness.md`](00-harness.md) §2.5 的同步鏈 跑完改版鏈。
 
-### 13.2 不含行動 App 的十一個型別
+### 13.2 行動 App 的十一個型別
 
-`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`／`AppDiagnosticReport` **不在本檔**，見 [`11-mobile-app.md`](11-mobile-app.md)。
+`AdSlot`／`Advertiser`／`AdCampaign`／`AdCreative`／`AdEvent`／`AdDailyStat`／`AppDevice`／`PushTopicSubscription`／`PushMessage`／`AppRelease`／`AppDiagnosticReport`，見 [`11-mobile-app.md`](11-mobile-app.md)。
 
-App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不含 App，**提前建表只會產生沒人維護的空表**。
-**v2.5 為 App 加在既有型別上的欄位已經在綱要裡**（`PartnerStore.lat`／`lng`、`Venue.lat`／`lng`、`Registration.member_id`、`Match` 英文欄位與 `competition`／`status`、`Member.signup_source` 含 `app`），所以 App 開發時**不必改動既有表結構**，只需新增那十一張表。
+App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-20）刻意不建**（沒人維護的空表），並註明「App 開發時只需新增那十一張表」。
+🔵 **2026-09-30（D 批）已新增**：共用後台的 `M1–M5`（版本／內容編排／推播／裝置／設定與連線檢查）與 `E4–E6`（廣告）有實際的後台與公開 API，
+表必須先存在——**延伸設計寫在 [`12b`](12b-database-tables.md) §16**（含 M2／M3／M5 附屬的 14 張表與側表），DDL 在 `db/club-schema.sql` 的 **4.13**。
+**v2.5 為 App 加在既有型別上的欄位早就在綱要裡**（`PartnerStore.lat`／`lng`、`Venue.lat`／`lng`、`Registration.member_id`、`Match` 英文欄位與 `competition`／`status`、`Member.signup_source` 含 `app`），所以沒有改動任何既有表結構（唯一例外是 G3 的 `newsletter_subscribers`，見第 46 點）。
 
 ### 13.3 雙語採側表而非並排欄位
 
@@ -895,6 +933,7 @@ App 規劃書寫明這些型別「共用主站資料庫」，但本次範圍不�
 ### 13.4 規劃書 J 模組的「資料備份」不在綱要內
 
 「每日自動備份，可手動還原點」（行 1035）屬**基礎設施設定**，不是資料表，選定 DBMS 與託管環境後再定。
+🔵 D 批（2026-09-30）補記：實際做法與缺口寫在 [`17-deployment.md`](17-deployment.md) §6「備份與還原（J3）」；後台**沒有備份 API**。
 
 ---
 
