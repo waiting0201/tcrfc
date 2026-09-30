@@ -97,6 +97,7 @@
 | E-81 | 2026-09-30 | 後台種子擴充前審計發現：三處整合測試對「共用資料庫種子長什麼樣」寫死假設——`AdminSeoImageTests` 的 `finally` 無條件刪掉 tcrfc 全部 `seo.*`／`tracking.*` 設定（註解假設「執行前理論上都不存在」）、`Standing_CSV匯入_整季替換` 斷言 `DeletedCount == 1`、`SiteFactsTests` 斷言電話與營業時間為 null；種子一擴充，前者靜默吃掉種子、後兩者直接失敗 | ✅ 三處已改成「先記下既有列、結束後還原」或不綁定種子值；⚠️ 無自動化（改種子仍要靠審計，見條目） |
 | E-82 | 2026-09-30 | `GeoCrawlerDefaults` 把未成年照片頁強制排除只寫給 `tcrfc`，註解稱「`bw` 尚未建置對應頁面、待路由落地才補」，實際藍鯨與磐石共用同一套前台路由，`academy/teams/` 早已渲染藍鯨青年隊（U15／U12）名單；磐石的 `academy/life/` 與三個課程照片頁也漏列 | 「頁面存不存在」以規劃書／STATUS 的「藍鯨尚未開發」推論，沒有 grep `apps/web` 的實際路由；個資防線清單也沒有對照 `apps/web` 逐頁核對 | 見下 |
 | E-83 | 2026-09-30 | 藍鯨站無條件輸出磐石照片（多含未成年學員）與磐石標誌，品牌外洩檢查（`check-club-brand-leak.mjs`）從 BW-C1 起已是全站 hard-fail，卻**全程沒有發現**：導覽下拉 7 張 `nav-*.jpg`（每個藍鯨頁面都有）、`about/*` 九頁與 `news/*` 八頁 hero、`academy/` hero（未成年學員）、`club/{opportunities,player-stories}` hero（Trenčín 交流）、首頁四大支柱四張圖、`partners/our-partners` 三家磐石國際夥伴隊徽、厚底緩震機能襪 7 張商品照（**每張右上角都印有 TCRFC 標誌**，BW-C1 卻誤稱「無隊徽通用配件」）、新聞卡與文章頁無封面時的磐石標誌佔位 | 檢查只比對**文字詞表**，而 `<img alt="">`、檔名、`background-image` 不含任何詞表用字；「哪些單元對藍鯨關閉」只針對頁面內容，沒有人逐張看過共用版位（導覽、hero、卡片）放的是誰的照片。BW-C1 更在 `index.vue` 註解與 README 寫下「通用足球場景照、不涉及任何俱樂部辨識內容」——**沒有實際打開圖片就下的斷言** | ✅ 新增 `check-club-image-leak.mjs`（與品牌詞彙檢查共用 `scripts/lib/collect-routes.mjs` 的同一套路由），掃 `<img>`／`<source>`／`<video poster>`／`style` 與樣式表 `url()`／`og:image`／JSON-LD／icon link，白名單制、不確定歸磐石；新增 `ClubHeroBg`／`ClubImg` 元件與 `hasNewsCover(slug, club)`。詳見下方 E-83 節 |
+| E-84 | 2026-09-30 | 公開行事曆讀場地名稱的 SQL 用 `NULL AS Text2`，SQL Server 推成 int，Dapper 對不上 `I18nTextRow(string? Text2)` 建構子，只要自建活動有指定場地就 500；種子補上這類資料後才被測試抓到 | ✅ 改 `CAST(NULL AS nvarchar(1))`；`CalendarPublicTests` 以種子資料覆蓋 |
 
 ---
 
@@ -2067,3 +2068,15 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **為什麼會錯（根因）**：① 檢查機制只做「文字詞表比對」，圖片不含詞表用字（`alt=""`、檔名 `nav-about.jpg`），是**檢查範圍的缺口**，不是某頁漏改；② 每輪「藍鯨單元取捨」只判斷**頁面內容**，共用版位（導覽、hero、卡片、商品）放了誰的照片沒人逐張看；③ BW-C1 在程式註解與 README 寫下「通用足球場景照、無隊徽通用配件」，**沒有打開圖片驗證就下斷言**——實際 7 張襪子照片每張右上角都印著 TCRFC 標誌，「四大支柱」四張是磐石球員與 Trenčín 青訓球員。
 - **下次怎麼避免**：🔴 判斷一張圖「通用／中性」之前**必須打開圖片看過**，不得從檔名、alt 或商品性質推論；不確定就歸磐石。新增任何 `<img>`／背景圖到兩站共用的頁面或元件，一律用 `ClubHeroBg`（頁首背景）、`ClubImg`（一般圖）或 `v-if="isTcrfc"`；藍鯨自己的素材放 `public/assets/brand/bw/`（已在允許清單）。檢查範圍與工具本身要對照「它能看見什麼」：文字檢查看不見圖片，圖片檢查看不見 API 回傳的資料，兩者的盲區要寫在檔頭。
 - **防呆**：✅ `apps/web/scripts/check-club-image-leak.mjs`：白名單制（`/assets/brand/bw/` ＋ 明列中性素材，目前 0 筆），其餘一律視為磐石而失敗；每次執行先跑抽取器自我測試（樣本涵蓋所有來源型別）。⚠️ 未掛進 `npm run lint`（需先跑起 bw 容器，理由同 `E-34`）；⚠️ **盲區**：API 回傳的圖片網址（藍鯨自己的橫幅、新聞封面、球員照）與動態路由 `[slug]` 不在掃描範圍——`apps/api` 有資料時來源網域不在允許清單，會被判違規，屆時須**有意識地**把藍鯨媒體來源加進 `ALLOWED_PREFIXES`，不要放寬成通配。
+
+### E-84 Dapper 對應 record 時，SQL 的裸 `NULL` 欄位型別被推成 int（2026-09-30）
+
+- **錯在哪**：`Features/Calendar/CalendarRepository.cs` 的 `LoadVenueNamesAsync` 以
+  `SELECT … name AS Text1, NULL AS Text2` 對應 `record I18nTextRow(Guid Id, string Locale, string? Text1, string? Text2)`。
+  SQL Server 對無型別的 `NULL` 推成 `int`，Dapper 找不到 `(Guid, string, string, int)` 的建構子而丟例外，
+  公開行事曆只要有「指定場地的自建活動」就回 500。
+- **為什麼會錯（根因）**：共用 record 時用裸 `NULL` 補欄位，沒有標型別；而測試資料從來沒有「有場地的自建活動」，
+  這條路徑沒被執行過。2026-09-30 種子補齊後台資料後，`CalendarPublicTests` 兩項才失敗。
+- **下次怎麼避免**：SQL 裡補位的 `NULL` 一律 `CAST(NULL AS <與 record 相同的型別>)`；
+  新增讀取路徑時，種子至少要有一筆會走到該路徑的資料。
+- **防呆**：`CalendarPublicTests` 現在以種子中的場地活動覆蓋此路徑；全套 554／554 通過。

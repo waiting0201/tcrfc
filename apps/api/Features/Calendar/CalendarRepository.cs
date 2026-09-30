@@ -428,7 +428,7 @@ public sealed class CalendarRepository(
         }
 
         var locales = LocaleFallbackChain(dbLocale);
-        const string sql = "SELECT venue_id AS Id, locale AS Locale, name AS Text1, NULL AS Text2 FROM venues_i18n WHERE venue_id IN @Ids AND locale IN @Locales";
+        const string sql = "SELECT venue_id AS Id, locale AS Locale, name AS Text1, CAST(NULL AS nvarchar(1)) AS Text2 FROM venues_i18n WHERE venue_id IN @Ids AND locale IN @Locales";
         var rows = await connection.QueryAsync<I18nTextRow>(new CommandDefinition(
             sql, new { Ids = venueIds, Locales = locales }, cancellationToken: cancellationToken));
 
