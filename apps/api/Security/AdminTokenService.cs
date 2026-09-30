@@ -31,19 +31,31 @@ public sealed class AdminTokenService(IConfiguration configuration)
     public static readonly TimeSpan AccessTokenLifetime = TimeSpan.FromMinutes(15);
     public static readonly TimeSpan RefreshTokenLifetime = TimeSpan.FromDays(14);
 
+    public const int MinSigningKeyLength = 32;
+
+    /// <summary>
+    /// 啟動期驗證簽章金鑰（E-79）：Program.cs 在 <c>builder.Build()</c> 之前呼叫，缺值或太短就讓行程
+    /// 啟動失敗。⚠️ 原本只靠 <see cref="SigningKey"/> 的執行期檢查，而 JwtBearer 的驗證參數是在
+    /// **第一個請求**才建構，結果是「起得來但每支端點（含 /healthz）都 500」。
+    /// </summary>
+    public static void ValidateSigningKeyConfigured(IConfiguration configuration)
+    {
+        var key = configuration[ConfigKey];
+        if (string.IsNullOrWhiteSpace(key) || key.Length < MinSigningKeyLength)
+        {
+            // ⛔ 正式環境的簽章金鑰太短等於整個系統的登入可以被暴力破解偽造——
+            // 寧可啟動失敗，不要用一把弱金鑰悄悄跑起來。
+            throw new InvalidOperationException(
+                $"{ConfigKey} 未設定或長度不足 {MinSigningKeyLength} 字元，無法安全簽發後台登入權杖。");
+        }
+    }
+
     private SymmetricSecurityKey SigningKey
     {
         get
         {
-            var key = configuration[ConfigKey];
-            if (string.IsNullOrWhiteSpace(key) || key.Length < 32)
-            {
-                // ⛔ 正式環境的簽章金鑰太短等於整個系統的登入可以被暴力破解偽造——
-                // 寧可啟動失敗，不要用一把弱金鑰悄悄跑起來。
-                throw new InvalidOperationException(
-                    $"{ConfigKey} 未設定或長度不足 32 字元，無法安全簽發後台登入權杖。");
-            }
-            return new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(key));
+            ValidateSigningKeyConfigured(configuration);
+            return new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(configuration[ConfigKey]!));
         }
     }
 

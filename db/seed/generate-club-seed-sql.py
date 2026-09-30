@@ -1260,42 +1260,40 @@ IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = {role_sq(rol
   VALUES ({role_sq(role_code)}, {perm_sq(perm_code)}, {esc(scope_type)});
 """)
 
-# admin_users：種子超管（docs/12b-database-tables.md §7.6 明文的帳號本身）＋ 四個「已可直接使用」
-# 的測試帳號（two_factor_enabled 直接設為 1、two_factor_secret_encrypted 留 NULL）。
-# 🔴 後兩者的密碼雜湊是本次用 apps/api 實際的 PasswordHasher（Argon2id）算出來的真雜湊，
-# 不是像慈善庫種子腳本那樣的占位字串——這批帳號可以真的登入。two_factor_secret_encrypted
-# 留 NULL 是刻意的：ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本在行程外
-# 執行，沒有能力產生「這個行程解得開」的密文；AdminClubAuthorizer 只檢查 two_factor_enabled
-# 布林值本身（見 Security/AdminClubAuthorizer.cs），不會去解密這個欄位，所以直接把布林值種為
-# 已完成即可讓這些帳號通過強制 2FA 檢查——真正要驗證「TOTP 碼本身對不對」的流程，
-# 走 sa@system.local 這個帳號實際呼叫 /2fa/setup、/2fa/confirm 兩個端點（測試見
-# apps/api/Tcrfc.Api.Tests/AdminAuthTests.cs）。
+# admin_users：種子超管（docs/12b-database-tables.md §7.6 明文的帳號本身）＋ 一批測試帳號。
+# 🔴 2026-09-30（使用者裁決）：後台登入不再強制首次改密與啟用 2FA，AdminAccountGate 已不檢查這兩欄。
+# 因此測試帳號一律種為 two_factor_enabled=0——先前種成 1（且 two_factor_secret_encrypted 為 NULL）
+# 純粹是為了繞過強制 2FA 閘門；閘門移除後，這種「已啟用但沒有真實密鑰」的帳號反而無法 /login
+# （已啟用 2FA 的帳號登入必須輸入驗證碼，密鑰卻是 NULL）。整合測試用 TestAdminTokens 直接簽權杖，
+# 不受影響。「-login」孿生帳號因此變得多餘，但保留以免弄壞既有測試與驗收腳本。
+# 密碼雜湊是用 apps/api 實際的 PasswordHasher（Argon2id）算出的真雜湊，這批帳號可以真的登入。
+# 已在資料庫裡的帳號不會被 INSERT 冪等策略更新，需跑 reset-admin-accounts.sh 才會套用新值。
 ADMIN_USERS = [
     # (username, display_name, password_hash, is_super_admin, must_change_password, two_factor_enabled, role_code, club_grants)
     ("sa@system.local", "Super Admin", "$argon2id$v=19$m=65536,t=3,p=1$qA4b7/CNXFRrB044hvtBzQ==$j2coAMUKbu3mFe+Vyf1oXd4E1Rq8F1RHO/KHt4lDHQ4=",
      True, True, False, "system_admin", []),
     ("super.admin@tcrfc.test", "系統管理員（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$zi4N9bpx0UfKi4XF1FoSlA==$S/20fV7gT9mFmaGaZ2fcAuSBZ4Pb99QdKqEqrdp6uBA=",
-     True, False, True, "system_admin", []),
+     True, False, False, "system_admin", []),
     ("content.editor@tcrfc.test", "內容編輯（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
-     False, False, True, "content_editor", [("tcrfc", None)]),
+     False, False, False, "content_editor", [("tcrfc", None)]),
     ("viewer@tcrfc.test", "檢視者（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$Yas4MM7rRKPwY6uB3kh9NQ==$Ga0YQU8vLGh9mTJ6cbfVwDL66Guv54QyNHq44I46lD4=",
-     False, False, True, "viewer", [("tcrfc", None)]),
+     False, False, False, "viewer", [("tcrfc", None)]),
     ("partner.club@tcrfc.test", "合作球隊管理（測試帳號，僅藍鯨）", "$argon2id$v=19$m=65536,t=3,p=1$QAl31fxqFgoUhEuvf6+j3w==$gtn5/eEYXVsALxi8DR1g4sWdzrnT3BQ1BI4m48MJjqc=",
-     False, False, True, "partner_club_manager", [("bw", None)]),
+     False, False, False, "partner_club_manager", [("bw", None)]),
     # S1-7 新增：C1–C3（team.team.*／team.player.*／team.staff.* ✔全）測試帳號，只授權 tcrfc——
     # 沿用 content.editor@tcrfc.test 的雜湊（純測試帳號不需各自唯一密碼，跟 expired.grant 同例）。
     ("team.manager@tcrfc.test", "競技／球隊管理（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
-     False, False, True, "team_competition", [("tcrfc", None)]),
+     False, False, False, "team_competition", [("tcrfc", None)]),
     # S1-8 新增：學院／課程管理測試帳號，授權 bw（不是 tcrfc）——tcrfc 目前只有 D1（first_team），
     # 沒有任何 academy 類型球隊可供測試 academy_only 列級授權；bw 有 BW1（first_team）與
     # BW-U15／BW-U12（academy），兩種類型並存，剛好可以測「academy_only 只准碰 academy、
     # 一線隊即使同俱樂部也擋下」。沿用 content.editor@tcrfc.test 的雜湊（純測試帳號）。
     ("academy.manager@tcrfc.test", "學院／課程管理（測試帳號，僅藍鯨）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
-     False, False, True, "academy_program", [("bw", None)]),
+     False, False, False, "academy_program", [("bw", None)]),
     # 🔴 授權已過期的測試帳號：expires_on 給昨天日期，專門用來驗證「授權有起訖日，到期自動失效」
     # （主站規劃書 §6「資料範圍規則」、AdminClubAuthorizer 的第③步）。
     ("expired.grant@tcrfc.test", "已過期授權（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
-     False, False, True, "content_editor", [("tcrfc", "yesterday")]),
+     False, False, False, "content_editor", [("tcrfc", "yesterday")]),
     # 🔴 專供 AdminAuthTests 走完整登入鎖定／2FA 設定流程的帳號，狀態刻意跟 sa@system.local 一樣
     # （must_change_password=1、two_factor_enabled=0），但不是正式的種子超管本身，避免測試改動
     # 影響到 sa@system.local 這個「文件與客戶都認得」的帳號。測試結束後會把這個帳號重設回本狀態
@@ -1304,7 +1302,7 @@ ADMIN_USERS = [
      False, True, False, "viewer", [("tcrfc", None)]),
     # 🔴 專供登入鎖定測試使用的獨立帳號——鎖定狀態是可變狀態，跟其他測試共用帳號會互相污染。
     ("lockout.test@tcrfc.test", "鎖定測試專用（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$Yas4MM7rRKPwY6uB3kh9NQ==$Ga0YQU8vLGh9mTJ6cbfVwDL66Guv54QyNHq44I46lD4=",
-     False, False, True, "viewer", [("tcrfc", None)]),
+     False, False, False, "viewer", [("tcrfc", None)]),
     # 🔴 唯一「兩階段驗證已停用」且「不需要先改密碼」的帳號——上面幾個「已可直接使用」的帳號
     # two_factor_enabled 都直接種為 1 但沒有真正可解密的密鑰（見本節開頭說明，只能靠
     # TestAdminTokens 直接簽權杖繞過登入本身），沒有一個帳號能真的完整走一次
@@ -1321,14 +1319,14 @@ ADMIN_USERS = [
     # S1-9 新增：測試「報名處理」（customer_service_admin）與「完全沒有課程權限」（pr_media，
     # 矩陣「課程／報名」欄是「—」）兩種情境，沿用 content.editor@tcrfc.test 的雜湊（純測試帳號）。
     ("customer.service@tcrfc.test", "客服／行政（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
-     False, False, True, "customer_service_admin", [("tcrfc", None)]),
+     False, False, False, "customer_service_admin", [("tcrfc", None)]),
     ("pr.media@tcrfc.test", "公關／媒體（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
-     False, False, True, "pr_media", [("tcrfc", None)]),
+     False, False, False, "pr_media", [("tcrfc", None)]),
     # S1-10 新增：測試 G2「合作／贊助類詢問」局部權限（business_sponsorship），沿用
     # content.editor@tcrfc.test 的雜湊（純測試帳號）。business_sponsorship 角色本身早已存在
     # （S1-3 種子），但先前沒有任何測試帳號被指派過這個角色。
     ("business.sponsorship@tcrfc.test", "商務／贊助（測試帳號）", "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",
-     False, False, True, "business_sponsorship", [("tcrfc", None)]),
+     False, False, False, "business_sponsorship", [("tcrfc", None)]),
     # S1-11 新增（2026-09-25，補種子測試帳號缺口）：customer.service@tcrfc.test／pr.media@tcrfc.test
     # 兩個帳號跟 academy.manager@tcrfc.test 同一種問題——two_factor_enabled=1 但沒有真實密鑰，
     # 無頭瀏覽器／端對端驗收無法真的完成 /login。比照既有 academy.login／clean.login 的「-login」

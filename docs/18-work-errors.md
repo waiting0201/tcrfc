@@ -93,7 +93,7 @@
 | E-72 | 2026-09-29 | S1-15 建了 13 賽事行事曆（`app/pages/zh/schedule.vue`）卻沒有把它補進 `shared/utils/site-units.ts` 的 `SITE_UNITS`，導致 `sitemap.xml`／`llms.txt`（兩者共用 `getEnabledSiteUnits`）從建成那天起就漏收這個單元；S1-18 本輪核對 12 FAQ 該補進同一份清單時才連帶發現。**S1-18b 複查時再連帶發現第二筆同類缺漏**：10 加入與聯絡（S1-17 建置完成）同樣沒有補進 `SITE_UNITS` | ✅ **S1-18b（2026-09-29）已補齊 `10`／`13` 兩筆並實機驗證兩容器 `sitemap.xml`／`llms.txt` 皆收錄**；✅ **防呆已自動化**：`apps/web/scripts/check-site-units-coverage.mjs`（掛進 `npm run lint` 的 `lint:site-units-coverage`）掃描 `app/pages/zh/` 全部 `definePageMeta({ unit: 'XX' })`，取頂層代碼比對 `SITE_UNITS` 或腳本內 `EXCLUDED_TOP_LEVEL_UNITS` 排除清單，兩者都沒有就讓 `lint` 失敗——已用「暫時拿掉 `SITE_UNITS` 的 `'13'`」實測紅燈、改回綠燈 |
 | E-77 | 2026-09-29 | BW-C1 品牌外洩全站盤點改寫 `check-club-brand-leak.mjs` 詞表時，第一版把裸網域 `tcrfc.tw` 列進詞表，實測發現藍鯨站**每一頁**（含完全乾淨的頁面）都命中一次——根因是 `nuxt.config.ts` 的 `blueWhaleSiteUrl: 'https://bw-stg.tcrfc.tw'` 這個 runtime config 預設值會被序列化進**每一頁**的 hydration payload，而這個網址本身是藍鯨自己的 staging 網域（兩站共用上層網域），不是磐石網域外洩，裸字串對這個問題完全沒有鑑別力 | ✅ 改用含 `www.` 前綴的 `www.tcrfc.tw`（磐石舊站實際寫法），`bw-stg.tcrfc.tw` 沒有 `www.` 前綴不受影響；下次要在詞表裡放「網域」這種候選詞前，先假設它會撞到 runtime config 或環境變數的預設值，全站每頁跑一次再看命中是否有鑑別力，不要只看命中頁面本身像不像真的問題 |
 | E-78 | 2026-09-29 | BW-C1 把 `shop/home-jersey-2026/index.vue` 商品詳情整段內容（含唯一的 `<h1>`）用 `v-if="isTcrfc"` 隱藏、bw 版只留一段 `<p>` 空狀態文字，沒有另外補 `<h1>`——`check-heading-structure.mjs` 實測跑 bw 容器時抓到「沒有 H1」，是本輪才發現的新迴歸，不是既有缺口 | ✅ 已在 bw 空狀態分支補上對應的 `<h1>`；下次把整段內容（含標題層級）用 `v-if`/`v-else` 拆成兩個分支時，兩個分支都要自己滿足「恰好一個 H1」，不能預設「反正原本有 H1，藏起來的那半邊不用管」——`check-heading-structure.mjs` 就是為了抓這一類回歸而存在，改完content gating 一定要實測兩個 club 容器都跑一次，不能只跑改動的那一邊 |
-| E-79 | 2026-09-30 | 主 session 給使用者的本機 API 啟動步驟漏了 `JWT_SIGNING_KEY_CLUB`（照抄 API README 範例，範例本身也漏），API 照常啟動但每支端點（含 `/healthz`）都回 500 | ✅ README 範例補上；⚠️ 程式端缺值時未在啟動期失敗，待修 |
+| E-79 | 2026-09-30 | 主 session 給使用者的本機 API 啟動步驟漏了 `JWT_SIGNING_KEY_CLUB`（照抄 API README 範例，範例本身也漏），API 照常啟動但每支端點（含 `/healthz`）都回 500 | ✅ README 範例補上；✅ 程式端已於 2026-09-30 在 `Program.cs` `builder.Build()` 前驗證 |
 
 ---
 
@@ -2022,6 +2022,8 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   「寧可啟動失敗」沒有生效。
 - **下次怎麼避免**：給使用者啟動步驟時，以環境變數表的「必填」欄為準逐項核對，不以範例區塊為準；
   必填設定要在 `builder.Build()` 前讀一次，缺值就讓啟動失敗。
-- **防呆**：README 範例已補上（並加 `DATA_PROTECTION_KEYS_PATH`）。⚠️ 啟動期檢查尚未實作——
-  待後端測試可執行後，由 `backend-engineer` 在 `Program.cs` 於 Build 前驗證 `JWT_SIGNING_KEY_CLUB`
-  （注意測試主機的設定覆寫時機，見 S1-18d 的 `ConfigureWebHost` 說明）。
+- **防呆**：README 範例已補上（並加 `DATA_PROTECTION_KEYS_PATH`）。✅ 啟動期檢查已實作（2026-09-30）：
+  `Program.cs` 在 `builder.Build()` 前呼叫 `AdminTokenService.ValidateSigningKeyConfigured(builder.Configuration)`，
+  缺值或短於 32 字元即丟 `InvalidOperationException`、行程啟動失敗。測試主機 fixture 都在建立 `Server` 前
+  以 `Environment.SetEnvironmentVariable` 設定該鍵，環境變數於 `CreateBuilder` 即已讀入，故不受影響
+  （若日後 fixture 改用 `ConfigureAppConfiguration` 覆寫此鍵，會來不及——須維持環境變數作法）。

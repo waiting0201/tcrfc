@@ -6,8 +6,7 @@ namespace Tcrfc.Api.Features.AdminAuth;
 /// J1 帳號管理：登入、更新權杖、登出、變更密碼、2FA 設定。
 /// ⚠️ 這一組端點**不是**俱樂部範圍端點（沒有 <c>{club}</c> 路由段），不經過
 /// <see cref="IAdminClubAuthorizer"/>——2FA 設定與變更密碼正是用來滿足
-/// <see cref="AdminClubAuthorizer"/> 強制要求的兩個前提，本身當然不能被同一個檢查卡住，
-/// 否則會是雞生蛋蛋生雞的死結。這裡改用只確認「有沒有登入」的最小檢查。
+/// 選用的帳號安全功能（2026-09-30 起不再是存取其他端點的前提）。這裡用只確認「有沒有登入」的最小檢查。
 /// </summary>
 public static class AdminAuthEndpoints
 {

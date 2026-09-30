@@ -87,49 +87,22 @@ public sealed class AdminClubAuthorizerTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
-    public async Task 額外情境_已完成改密但尚未完成2FA_擋下俱樂部範圍端點()
+    public async Task 額外情境_未改密且未啟用2FA的帳號_可直接存取俱樂部範圍端點與me()
     {
-        // fresh.setup@tcrfc.test 的 must_change_password=1 且 two_factor_enabled=0——
-        // AdminClubAuthorizer 依序檢查兩者，這裡先滿足密碼更換這一關，單獨驗證 2FA 那一關
-        // 真的會擋下（否則兩個檢查疊在一起，測不出「2FA 本身有沒有被強制」，只測得出
-        // 「有一項前提沒滿足」）。測完把帳號重設回種子狀態，讓測試可重複執行。
+        // 2026-09-30 使用者裁決：後台不再強制首次改密與啟用 2FA。fresh.setup@tcrfc.test 種子狀態是
+        // must_change_password=1 且 two_factor_enabled=0（先前會被 AdminAccountGate 兩道檢查擋下 403）——
+        // 現在什麼都不用做就該通過。不修改帳號狀態，因此不需要清理。
+        // ⚠️ 若種子被先前的驗收弄髒（已改密或已啟用 2FA），結果仍然是 200，這條測試不依賴該狀態成立，
+        // 但「未改密＋未啟用 2FA」的覆蓋力需要種子是乾淨的（reset-admin-accounts.sh）。
         using var client = fixture.CreateClient();
         var token = await TestAdminTokens.IssueAccessTokenForSeededUserAsync("fresh.setup@tcrfc.test");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        try
-        {
-            var changePassword = await client.PostAsJsonAsync("/api/v1/admin/auth/change-password",
-                new Tcrfc.Api.Features.AdminAuth.ChangePasswordRequest("Admin@123", "TempPassword-Escrow-1"));
-            Assert.Equal(HttpStatusCode.NoContent, changePassword.StatusCode);
+        var newsResponse = await client.GetAsync("/api/v1/admin/tcrfc/news");
+        var meResponse = await client.GetAsync("/api/v1/admin/auth/me");
 
-            var response = await client.GetAsync("/api/v1/admin/tcrfc/news");
-
-            Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
-            var body = await response.Content.ReadAsStringAsync();
-            Assert.Contains("2FA", body);
-        }
-        finally
-        {
-            await ResetFreshSetupPasswordAsync();
-        }
-    }
-
-    private static async Task ResetFreshSetupPasswordAsync()
-    {
-        var connectionString = Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING")
-            ?? throw new InvalidOperationException("CLUB_SQL_CONNECTION_STRING 未設定。");
-        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(connectionString);
-        await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            UPDATE admin_users
-            SET password_hash = @OriginalHash, must_change_password = 1
-            WHERE username = 'fresh.setup@tcrfc.test'
-            """;
-        command.Parameters.AddWithValue("@OriginalHash",
-            "$argon2id$v=19$m=65536,t=3,p=1$qA4b7/CNXFRrB044hvtBzQ==$j2coAMUKbu3mFe+Vyf1oXd4E1Rq8F1RHO/KHt4lDHQ4=");
-        await command.ExecuteNonQueryAsync();
+        Assert.Equal(HttpStatusCode.OK, newsResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.OK, meResponse.StatusCode);
     }
 
     [Fact]

@@ -9,6 +9,6 @@ namespace Tcrfc.Api.Security;
 public interface IAdminSystemAuthorizer
 {
     /// <exception cref="AdminUnauthenticatedException">沒有登入、權杖缺漏或無效。</exception>
-    /// <exception cref="AdminForbiddenException">已登入，但帳號已停用／尚未完成強制改密或 2FA／沒有這項操作的權限碼。</exception>
+    /// <exception cref="AdminForbiddenException">已登入，但帳號已停用／沒有這項操作的權限碼。</exception>
     Task<AdminSystemScope> AuthorizeAsync(HttpContext httpContext, string permissionCode, CancellationToken cancellationToken);
 }

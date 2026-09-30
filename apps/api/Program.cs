@@ -203,6 +203,9 @@ if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
 // ⚠️ AdminTokenService 需要 JWT_SIGNING_KEY_CLUB 才能建構驗證參數，這裡直接讀
 // builder.Configuration（DI 容器此時還沒建好，不能注入），與 AdminTokenService 執行期
 // 讀同一把設定鍵是同一個值，行為一致。
+// E-79：必填設定在 Build 前驗證，缺值時啟動失敗（而不是每個請求 500）。測試主機的 fixture 皆以
+// Environment.SetEnvironmentVariable 在建立 Server 前設定此鍵，環境變數在 CreateBuilder 時就已讀入。
+AdminTokenService.ValidateSigningKeyConfigured(builder.Configuration);
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>

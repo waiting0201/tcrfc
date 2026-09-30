@@ -50,7 +50,7 @@ public sealed class AdminClubAuthorizer(ClubDbContext db, IClubResolver clubReso
     private async Task<(ClubScope Club, AdminIdentity Identity)> AuthorizeAccountAndClubAsync(
         HttpContext httpContext, string clubCode, CancellationToken cancellationToken)
     {
-        // ①＋帳號本身狀態（存在、啟用、已改密、已完成 2FA）：抽到 AdminAccountGate 共用
+        // ①＋帳號本身狀態（存在、啟用；2026-09-30 起不再檢查改密與 2FA）：抽到 AdminAccountGate 共用
         // （本輪新增，供 AdminSystemAuthorizer 共用同一組判斷，見該檔案上的說明）。
         var identity = await AdminAccountGate.RequireActiveAccountAsync(db, httpContext, cancellationToken);
 

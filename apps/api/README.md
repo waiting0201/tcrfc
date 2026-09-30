@@ -98,11 +98,15 @@ Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③
 2FA 密鑰會永久無法解密**（不是可恢復的錯誤，是資料實質遺失）。部署時務必設定
 `DATA_PROTECTION_KEYS_PATH` 指向持久化 volume 路徑，細節見 `TwoFactorSecretProtector.cs` 檔頭。
 
-**強制密碼更換與強制 2FA 在哪裡擋**：`Security/AdminClubAuthorizer.cs` 對**每一個俱樂部範圍端點**
-（含 `Features/AdminNews` 全部路由）在授權檢查的第②③步之間插入這兩個檢查——
-`must_change_password=true` 或 `two_factor_enabled=false` 一律 403。`/auth/change-password`、
-`/auth/2fa/setup`、`/auth/2fa/confirm` 本身不是俱樂部範圍端點（沒有 `{club}` 路由段），
-不經過 `AdminClubAuthorizer`，才不會變成雞生蛋蛋生雞的死結。
+**🔴 2026-09-30 使用者裁決：改密與 2FA 不再強制（正式環境亦同）。** `Security/AdminAccountGate.cs`
+只檢查帳號存在且 `status=active`，**不再**因 `must_change_password=true` 或 `two_factor_enabled=false`
+回 403。變更密碼與 2FA 設定／停用保留為選用功能（帳號安全頁仍可用）。**已啟用 2FA 的帳號登入時仍須
+輸入驗證碼**：`/login` 密碼正確但沒帶 `totpCode` 回 `status: "totp_required"`，流程不變。
+帳號鎖定、IP 限流、登入時序拉平、權杖設計均未動。
+
+**給後台前端的接法**：`/login` 成功回應仍帶 `mustChangePassword`／`twoFactorEnabled`，欄位與型別
+不變，但**只是提示**——前端不可再依它強制跳轉到改密／2FA 頁；要提示時（例如建立帳號時預設
+`must_change_password=true`）顯示可略過的橫幅即可。所有後台端點在這兩個旗標為任何值時都可用。
 
 ### `ClubScope` 與授權怎麼接
 
@@ -122,8 +126,8 @@ Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③
    中介軟體完成（簽章、`issuer`、`audience`、效期），這裡只讀解析後的 claims。
 2. **俱樂部存不存在**——沿用既有 `IClubResolver.ResolveAsync`，行為與既有公開端點**完全不變**
    （含 Redis 快取）。
-3. **帳號目前狀態**——重查 `status`／`is_super_admin`／`must_change_password`／
-   `two_factor_enabled`（不信任 JWT claims，理由見上）；`is_super_admin=true` 跳過下一步
+3. **帳號目前狀態**——重查 `status`／`is_super_admin`（2026-09-30 起不再查 `must_change_password`／
+   `two_factor_enabled`；不信任 JWT claims，理由見上）；`is_super_admin=true` 跳過下一步
    （規劃書 §6「系統管理員跳過整個資料範圍查詢」）。
 4. **資料範圍**——非超管查 `admin_user_clubs`：`WHERE admin_user_id=@id AND club_id=@clubId
    AND is_active=1 AND (expires_on IS NULL OR expires_on >= 今天)`，查無列即 403。
@@ -321,7 +325,7 @@ HTTP 200
 這條額外驗「`own_clubs` 角色本身沒有任何特殊旁路能繞過範圍檢查」，見
 `AdminClubAuthorizerTests.情境四_own_clubs角色打別的俱樂部_擋下`。
 
-以上四段輸出對應的自動化測試見 `Tcrfc.Api.Tests/AdminClubAuthorizerTests.cs`（連同「未完成 2FA」
+以上四段輸出對應的自動化測試見 `Tcrfc.Api.Tests/AdminClubAuthorizerTests.cs`（連同「未改密且未啟用 2FA 可直接存取」
 「公開唯讀端點不受影響」兩個額外情境，共 7 個測試方法），token 由 `TestAdminTokens` 直接呼叫
 `AdminTokenService` 簽發（不必先真的完成登入＋2FA，理由見該檔案上的說明），curl 示範則是拿同一把
 `JWT_SIGNING_KEY_CLUB` 用等效邏輯手動簽出的 token 對真正在跑的行程實測，兩者互相印證。
@@ -340,7 +344,7 @@ HTTP 200
 | 登入但無俱樂部授權一律擋下 | 情境二 curl／`AdminClubAuthorizerTests.情境二`＋反向對照 |
 | 授權已過期一律擋下 | 情境三 curl／`AdminClubAuthorizerTests.情境三` |
 | `own_clubs` 角色打別的俱樂部一律擋下 | 情境四 curl／`AdminClubAuthorizerTests.情境四` |
-| 未完成強制前提（改密碼／2FA）一律擋下 | `AdminClubAuthorizerTests.額外情境_已完成改密但尚未完成2FA_擋下俱樂部範圍端點` |
+| ~~未完成強制前提（改密碼／2FA）一律擋下~~ 2026-09-30 已取消；未改密且未啟用 2FA 可直接存取 | `AdminClubAuthorizerTests.額外情境_未改密且未啟用2FA的帳號_可直接存取俱樂部範圍端點與me` |
 | 正式環境（`ASPNETCORE_ENVIRONMENT=Production`）行為與開發環境一致 | 上面四段 curl 全部對 `ASPNETCORE_ENVIRONMENT=Production` 的行程實測，不是只測過 Development |
 | 既有公開唯讀端點不受影響 | `AdminClubAuthorizerTests.額外情境_公開唯讀端點的行為完全不受影響`＋既有 `ClubScopingTests`／`SqlInjectionTests` 全數通過 |
 | **刪除後重驗**：`dotnet test` 131/131 全過 | 見下方「測試結果」 |
@@ -438,9 +442,9 @@ HTTP 200
 
 | `username` | 密碼 | 角色 | 俱樂部授權 | 狀態 | 用途 |
 |---|---|---|---|---|---|
-| `sa@system.local` | `Admin@123` | `system_admin` | — | `must_change_password=1`／`2FA 未啟用` | **真正的種子超管**（docs/12b §7.6 明文的帳號），走完整強制流程 |
+| `sa@system.local` | `Admin@123` | `system_admin` | — | `must_change_password=1`／`2FA 未啟用` | **真正的種子超管**（docs/12b §7.6 明文的帳號），可直接登入使用（不再強制改密／2FA） |
 | `clean.login@tcrfc.test` | `SuperAdmin@123` | `system_admin` | — | 可直接登入 | 唯一能走完整 `/login` HTTP 往返的「已就緒」帳號（見下方原因） |
-| `super.admin@tcrfc.test` | `SuperAdmin@123` | `system_admin` | — | `2FA` 已標記啟用但無真實密鑰 | 供 `TestAdminTokens` 直接簽權杖用，略過登入 |
+| `super.admin@tcrfc.test` | `SuperAdmin@123` | `system_admin` | — | `2FA 未啟用`（2026-09-30 起） | 可直接登入；`TestAdminTokens` 亦可直接簽權杖 |
 | `content.editor@tcrfc.test` | `ContentEditor@123` | `content_editor` | `tcrfc` | 同上 | 大多數 AdminNews 測試預設用這個 |
 | `viewer@tcrfc.test` | `Viewer@123` | `viewer` | `tcrfc` | 同上 | 唯讀角色測試 |
 | `partner.club@tcrfc.test` | `PartnerClub@123` | `partner_club_manager`（`own_clubs`） | 僅 `bw` | 同上 | 情境二／四 |
@@ -453,14 +457,13 @@ HTTP 200
 | `business.sponsorship.login@tcrfc.test` | `ContentEditor@123` | `business_sponsorship` | `tcrfc` | 可直接登入 | 商務／贊助的端對端實走帳號（S1-11 補） |
 | `content.editor.login@tcrfc.test` | `ContentEditor@123` | `content_editor` | `tcrfc` | 可直接登入 | 內容編輯的端對端實走帳號（S1-12 補，見「S1-12」段落④） |
 
-⚠️ **為什麼大多數「已就緒」帳號的 `two_factor_enabled` 是種子直接設 `1` 但沒有真正可解密的密鑰**：
-ASP.NET Core Data Protection 的金鑰環綁在執行中的行程，種子腳本在行程外執行，沒有能力產生「這個
-行程解得開」的密文。`AdminClubAuthorizer` 只檢查 `two_factor_enabled` 布林值本身，不會去解密這個
-欄位，所以直接種布林值就能讓這些帳號通過強制 2FA 檢查——**但這也代表這些帳號無法透過真正的
-`/login` 端點完成登入**（送出任何驗證碼都會被拒，因為沒有真實密鑰算得出正確答案）。需要測試
-「真正的登入 HTTP 往返」時，只能用 `two_factor_enabled=0` 的帳號（`sa@system.local`／
-`clean.login@tcrfc.test`／`fresh.setup@tcrfc.test`），或走完整的「設定 2FA」流程之後再登入
-（`AdminAuthTests.完整2FA設定流程...` 示範了後者）。
+⚠️ **2026-09-30 種子帳號處置**：原本大多數測試帳號的 `two_factor_enabled` 種為 `1` 但沒有真實密鑰
+（`two_factor_secret_encrypted` 為 NULL），唯一目的是繞過強制 2FA 閘門。閘門移除後，這種帳號反而無法
+`/login`（已啟用 2FA 必須輸入驗證碼，密鑰卻不存在）。因此 `generate-club-seed-sql.py` 的
+`ADMIN_USERS` 已全部改為 `two_factor_enabled=0`——**表格中所有帳號現在都可直接登入**，整合測試用的
+`TestAdminTokens` 直接簽權杖不受影響。已存在於資料庫的帳號不會被 INSERT 冪等策略更新，需執行
+`./db/seed/reset-admin-accounts.sh`（`--reset-admin-accounts` 模式）才會套用。想測 `totp_required`
+流程時，走 `AdminAuthTests.完整2FA設定流程...` 那種「先實際設定 2FA」的作法。
 
 🔴 **「-login」變體帳號的既有慣例（S1-8 起）**：每當一輪新增角色的測試帳號會撞到上述限制、且
 該角色需要被無頭瀏覽器／端對端驗收真的登入過一次時，另開一個 `two_factor_enabled=0`、角色與
@@ -571,7 +574,7 @@ J1／J2／J4（`Club` 主檔與 `admin_user_clubs` 授權）是**全域端點**�
 | `ArchitectureTests` | 掃 `ClubScope`／`AdminClubScope` | 同一支測試追加掃 `AdminSystemScope`（見該檔案的 `ForbiddenFullyQualifiedNames`／`allowList`） |
 
 **共用的部分抽成 `Security/AdminAccountGate.cs`**：「這個存取權杖對應的帳號，現在還活著嗎」
-（存在、`status=active`、`must_change_password=false`、`two_factor_enabled=true`）這組判斷原本
+（存在、`status=active`；2026-09-30 起不再檢查 `must_change_password`／`two_factor_enabled`）這組判斷原本
 整段寫在 `AdminClubAuthorizer` 內，本輪抽成 internal static 方法，`AdminClubAuthorizer` 與
 `AdminSystemAuthorizer` 共用同一份——避免日後改帳號閘門邏輯（例如新增鎖定條件）時忘記改其中一邊。
 **這是純抽取，沒有改變 `AdminClubAuthorizer` 的行為**：既有 168 項測試（含 `AdminClubAuthorizerTests`
@@ -3827,7 +3830,7 @@ compose 網路裡）。
 | ~~`ENABLE_UNSAFE_DEV_WRITES`~~ | 2026-09-23 起不存在 | 舊機制的環境旗標，隨 `Security/DevWriteGate.cs` 一併刪除，本檔任何程式碼都不再讀取這個鍵名，見「開發模式開關：已刪除」整節 |
 | `AZURE_BLOB_CONNECTION_STRING` | 選填（S0-8） | 圖片上傳共用元件的物件儲存連線字串。**未設定不會讓服務無法啟動**（跟 `CLUB_SQL_CONNECTION_STRING` 不同）——只有真的呼叫圖片上傳／刪除時才會需要它，沒設定時注入 `UnavailableImageStorageService`（上傳丟出訊息清楚的例外，刪除安靜略過）。本機開發見下方「本機開發：Azurite」，正式環境見 VM 上 `/opt/tcrfc/secrets/club.env` |
 | `AZURE_BLOB_CONTAINER_IMAGES` | 選填（S0-8） | 圖片物件儲存的容器名稱，預設 `images` |
-| `JWT_SIGNING_KEY_CLUB` | 🔴🔴🔴 S1 起必填 | 後台存取權杖的簽章金鑰，**至少 32 字元，太短直接啟動失敗**（`AdminTokenService` 的建構期檢查，寧可啟動失敗也不要用弱金鑰悄悄跑起來）。鍵名不是本輪新發明，`deploy/dev/club.env`／`docs/20-cicd.md` §7.2 早就預留。⚠️ **上線前暫用網址與正式期建議用不同值**（`docs/14-invariants.md` 既有規則） |
+| `JWT_SIGNING_KEY_CLUB` | 🔴🔴🔴 S1 起必填 | 後台存取權杖的簽章金鑰，**至少 32 字元，缺值或太短在啟動期直接失敗**（`Program.cs` 於 `builder.Build()` 前呼叫 `AdminTokenService.ValidateSigningKeyConfigured`，E-79 修正——原本只有第一個請求才檢查，行程起得來但每支端點 500）。鍵名不是本輪新發明，`deploy/dev/club.env`／`docs/20-cicd.md` §7.2 早就預留。⚠️ **上線前暫用網址與正式期建議用不同值**（`docs/14-invariants.md` 既有規則） |
 | `DATA_PROTECTION_KEYS_PATH` | 🔴🔴🔴 S1 起正式環境必填 | 2FA 密鑰加密金鑰環的持久化路徑。**沒設定不會讓服務無法啟動**（本機開發沒有也能跑，只是每次容器重建都要重設 2FA），但正式環境沒設定＝容器重建後全部使用者的 2FA 永久無法解密，見 `Security/TwoFactorSecretProtector.cs` 檔頭的完整說明，這是本次程式碼無法防呆的部署前置條件 |
 
 ⛔ **S0-8 之後仍完全不碰 LINE Pay**——這個鍵名雖然已經在 `docker-compose.yml` 的

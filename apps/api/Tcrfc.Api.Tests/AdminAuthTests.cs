@@ -171,7 +171,7 @@ public sealed class AdminAuthTests(AdminWriteApiFixture fixture)
 
         try
         {
-            // ① 尚未啟用 2FA 時，登入不需要驗證碼即可成功，但 mustChangePassword 為 true。
+            // ① 尚未啟用 2FA 時，登入不需要驗證碼即可成功，mustChangePassword 仍為 true（僅為提示，不再強制）。
             var firstLogin = await client.PostAsJsonAsync("/api/v1/admin/auth/login",
                 new LoginRequest(username, "Admin@123", null));
             Assert.Equal(HttpStatusCode.OK, firstLogin.StatusCode);
@@ -181,8 +181,8 @@ public sealed class AdminAuthTests(AdminWriteApiFixture fixture)
 
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", firstLoginBody.AccessToken);
 
-            // ② 先滿足「強制先改密碼」，否則後面打俱樂部範圍端點會被 AdminClubAuthorizer 擋下
-            //    （2FA 設定端點本身不受此限，但這裡刻意連同密碼政策一起驗一次完整流程）。
+            // ② 變更密碼（2026-09-30 起是選用功能、不再是打俱樂部範圍端點的前提；
+            //    這裡仍連同密碼政策一起驗一次完整流程）。
             var changePassword = await client.PostAsJsonAsync("/api/v1/admin/auth/change-password",
                 new ChangePasswordRequest("Admin@123", "NewPassword-Fresh-1"));
             Assert.Equal(HttpStatusCode.NoContent, changePassword.StatusCode);
