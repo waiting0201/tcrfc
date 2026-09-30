@@ -19,6 +19,8 @@ public partial class PartnerStore
 
     public string? Address { get; set; }
 
+    public string? Region { get; set; }
+
     public decimal? Lat { get; set; }
 
     public decimal? Lng { get; set; }
@@ -27,9 +29,11 @@ public partial class PartnerStore
 
     public string? BusinessHours { get; set; }
 
+    public string? MapUrl { get; set; }
+
     public string? WebsiteUrl { get; set; }
 
-    public string? ApplicableTier { get; set; }
+    public string ApplicableTier { get; set; } = null!;
 
     public DateOnly? StartOn { get; set; }
 
@@ -37,7 +41,7 @@ public partial class PartnerStore
 
     public int SortOrder { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
 

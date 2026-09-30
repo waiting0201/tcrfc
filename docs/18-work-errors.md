@@ -101,6 +101,7 @@
 | E-85 | 2026-09-30 | 新增子表列時把帶 `Guid` 主鍵（資料庫有 `DEFAULT NEWID()`）的實體只加進父實體的導覽集合（`proposal.ProposalFiles.Add(new ProposalFile { Id = Guid.NewGuid() … })`），EF 因為 `Id` 已有值而當成既有列，送出 `UPDATE`（連 `row_seq` 一起更新），資料庫回「Cannot update identity column 'row_seq'」，端點 500 | ✅ `AdminBusinessUploadTests` 提案檔案上傳案例覆蓋；⚠️ 無 lint（寫入端一律 `dbContext.XxxSet.Add(...)`） |
 | E-86 | 2026-09-30 | 把 `dotnet ef dbcontext scaffold` 的新輸出用 diff「只取新增行」合併進手改過的 `ClubDbContext.cs`：19 個合理新增之外還夾帶 17 段重複／無關的屬性設定（`Article.CanonicalPath`、`Banner.Status`、`Faq*` 等），因為先前的 agent 把那些設定分組放在檔案別處，與 scaffold 排列不同，diff 判成「新增」 | ✅ 合併前先看 `git diff`、發現後以關鍵字白名單重做；⚠️ 無腳本（見 E-86 節的固定做法） |
 | E-87 | 2026-09-30 | 補種子測試帳號前沒有先 grep 既有的 `ADMIN_USERS`，另加了 `business.sponsor@`／`pr.media@` 兩個帳號，結果 `business.sponsorship@`／`pr.media@` 早已存在（S1-10／S1-11 補過），差點留下兩組功能重複的帳號 | ✅ 種子執行後以 `SELECT` 核對角色與帳號清單才發現，已從腳本與資料庫移除；⚠️ 無 |
+| E-88 | 2026-09-30 | `Common/IcsBuilder.FoldLine` 的「不切斷 UTF-8 字元」迴圈讀 `bytes[offset + limit]` 沒檢查是否已到陣列尾端，**任何需要折疊（超過 75 位元組）的行，最後一段必定丟 `IndexOutOfRangeException`**；單一賽事下載的標題與地點都很短所以從沒觸發，S2-6 訂閱 feed 第一次輸出長行才 500 | ✅ `IcsBuilderTests` 長行折疊四組參數（含剛好落在 75 位元組邊界者） |
 
 ---
 
@@ -2116,3 +2117,14 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **下次怎麼避免**：SQL 裡補位的 `NULL` 一律 `CAST(NULL AS <與 record 相同的型別>)`；
   新增讀取路徑時，種子至少要有一筆會走到該路徑的資料。
 - **防呆**：`CalendarPublicTests` 現在以種子中的場地活動覆蓋此路徑；全套 554／554 通過。
+
+### E-88 ICS 長行折疊在最後一段讀到陣列外，只是沒有人產出過需要折疊的行（2026-09-30，S2-6 訂閱 feed）
+
+- **錯在哪**：`IcsBuilder.FoldLine` 為了「不把多位元組 UTF-8 字元從中間切斷」，用 `while (limit > 1 && (bytes[offset + limit] & 0xC0) == 0x80)` 往回找切點。
+  當這一段已經取到行尾（`offset + limit == bytes.Length`），`bytes[offset + limit]` 讀到陣列外一格，丟 `IndexOutOfRangeException`。
+  任何超過 75 位元組的行（中文說明、長地點、長活動標題）折疊到最後一段都會中；訂閱 feed 端點因此回 500。
+- **為什麼會錯（根因）**：S1-19 寫這個折疊函式時只用單一賽事下載驗證，那條路徑的標題與地點都在 75 位元組內，
+  **「需要折疊」這個分支從來沒有被任何測試或真實輸出執行過**（`IcsBuilderTests` 五項都是短行）。
+- **下次怎麼避免**：新增／改動輸出格式化函式時，測試必須涵蓋「會走到每個分支的輸入」——長行、剛好落在邊界的行、多位元組字元跨邊界；
+  寫「往回找切點」這類讀取 `array[i + n]` 的迴圈，先問 `i + n` 會不會等於長度。
+- **防呆**：✅ `IcsBuilderTests.長行折疊_每行不超過75位元組_且不切斷中文字_摺疊還原後與原文一致`（20／24／25／80 個中文字四組，摺疊還原後與原文逐字相同）。

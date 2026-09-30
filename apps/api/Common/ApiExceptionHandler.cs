@@ -225,6 +225,10 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             SharedContentReadOnlyException sharedContentReadOnly =>
                 (StatusCodes.Status403Forbidden, "共用內容唯讀", sharedContentReadOnly.Message),
 
+            // ── B1 新增：P4 試訓（Features/AdminTrials）、L 行事曆進階（Features/AdminCalendar）──────
+            Tcrfc.Api.Features.AdminTrials.TrialNotFoundException trialNotFound =>
+                (StatusCodes.Status404NotFound, "找不到試訓場次", trialNotFound.Message),
+
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),
         };

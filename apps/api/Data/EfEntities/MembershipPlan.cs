@@ -25,7 +25,11 @@ public partial class MembershipPlan
 
     public int SortOrder { get; set; }
 
-    public string? Status { get; set; }
+    public DateOnly? StartsOn { get; set; }
+
+    public DateOnly? EndsOn { get; set; }
+
+    public string Status { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
 
@@ -40,6 +44,8 @@ public partial class MembershipPlan
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
     public virtual ICollection<MembershipBenefit> MembershipBenefits { get; set; } = new List<MembershipBenefit>();
+
+    public virtual ICollection<Membership> Memberships { get; set; } = new List<Membership>();
 
     public virtual ICollection<MembershipPayment> MembershipPayments { get; set; } = new List<MembershipPayment>();
 

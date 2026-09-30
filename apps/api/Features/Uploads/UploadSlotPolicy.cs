@@ -69,6 +69,8 @@ public static class UploadSlotPolicy
             ["impact_record_images"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
             ["press_resources"] = new HashSet<string>(StringComparer.Ordinal) { "cover", "image" },
             ["milestones"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            // B1 新增（2026-09-30）：K4 特約店家照片／Logo（partner_stores.image_key）。
+            ["partner_stores"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
         };
 
     public static void Validate(string entityType, string field)

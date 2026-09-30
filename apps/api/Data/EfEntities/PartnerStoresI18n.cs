@@ -11,6 +11,8 @@ public partial class PartnerStoresI18n
 
     public string? Name { get; set; }
 
+    public string? Address { get; set; }
+
     public string? OfferContent { get; set; }
 
     public virtual PartnerStore PartnerStore { get; set; } = null!;

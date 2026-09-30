@@ -28,7 +28,10 @@ public sealed class AdminCalendarOverviewRepository(IClubSqlConnectionFactory co
 {
     private sealed record MatchRow(
         Guid Id, DateTime MatchOn, string? Kickoff, string? HomeAway, string? Opponent,
-        string? Status, Guid? VenueId);
+        string? Status, Guid? VenueId, string? CompetitionTag);
+
+    /// <summary>S2-6：試訓（<c>trials</c>，只有 L3「試訓同步至行事曆」開關開啟、<c>sync_to_calendar = 1</c> 的場次才會出現）。</summary>
+    private sealed record TrialRow(Guid Id, DateTime TrialOn, Guid? VenueId, string? Audience, Guid? TeamId, string? TeamCode);
 
     // ⚠️ RepeatUntil 用 DateTime? 不是 DateOnly?——SQL `date` 欄位經 Microsoft.Data.SqlClient
     // 回報的 CLR 型別一律是 DateTime，Dapper 的 record 建構子具現化要求型別逐一相符
@@ -48,7 +51,7 @@ public sealed class AdminCalendarOverviewRepository(IClubSqlConnectionFactory co
     /// </summary>
     public async Task<IReadOnlyList<AdminCalendarEventDto>> ListAsync(
         AdminClubScope scope, DateOnly fromDate, DateOnly toDateExclusive, string? teamCode, string? sourceType,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Guid? venueId = null, string? status = null, string? type = null)
     {
         using var connection = connectionFactory.CreateConnection();
 
@@ -57,23 +60,27 @@ public sealed class AdminCalendarOverviewRepository(IClubSqlConnectionFactory co
         {
             const string matchSql = """
                 SELECT DISTINCT m.id AS Id, m.match_on AS MatchOn, m.kickoff AS Kickoff, m.home_away AS HomeAway,
-                       m.opponent AS Opponent, m.status AS Status, m.venue_id AS VenueId
+                       m.opponent AS Opponent, m.status AS Status, m.venue_id AS VenueId, m.competition AS CompetitionTag
                 FROM matches m
                 LEFT JOIN match_teams mt ON mt.match_id = m.id
                 LEFT JOIN teams t ON t.id = mt.team_id
                 WHERE m.club_id = @ClubId
                   AND m.match_on >= @FromDate AND m.match_on < @ToDateExclusive
                   AND (@TeamCode IS NULL OR t.code = @TeamCode)
+                  AND (@VenueId IS NULL OR m.venue_id = @VenueId)
+                  AND (@Status IS NULL OR m.status = @Status)
+                  AND (@Type IS NULL OR m.competition = @Type)
                 ORDER BY m.match_on
                 """;
             matches = (await connection.QueryAsync<MatchRow>(new CommandDefinition(
                 matchSql,
-                new { scope.ClubId, FromDate = fromDate, ToDateExclusive = toDateExclusive, TeamCode = teamCode },
+                new { scope.ClubId, FromDate = fromDate, ToDateExclusive = toDateExclusive, TeamCode = teamCode, VenueId = venueId, Status = status, Type = type },
                 cancellationToken: cancellationToken))).AsList();
         }
 
         var customEvents = new List<CustomEventRow>();
-        if (sourceType is null or "custom")
+        // 依狀態篩選時只看賽事（自建活動沒有狀態）。
+        if (sourceType is null or "custom" && status is null)
         {
             // 候選範圍刻意放寬（起始時間在查詢範圍結束前、重複結束日在查詢範圍開始後或未設定），
             // 精確的每一次重複展開交給 RecurrenceExpander 在下方逐筆處理。
@@ -88,6 +95,8 @@ public sealed class AdminCalendarOverviewRepository(IClubSqlConnectionFactory co
                 WHERE c.club_id = @ClubId
                   AND c.starts_at < @ToDateExclusiveTs
                   AND (c.repeat_until IS NULL OR c.repeat_until >= @FromDate)
+                  AND (@VenueId IS NULL OR c.venue_id = @VenueId)
+                  AND (@Type IS NULL OR et.code = @Type)
                   AND (@TeamCode IS NULL
                        OR (@TeamCode = N'club' AND NOT EXISTS (
                              SELECT 1 FROM calendar_event_teams cet WHERE cet.source_type = N'custom' AND cet.source_id = c.id))
@@ -101,15 +110,34 @@ public sealed class AdminCalendarOverviewRepository(IClubSqlConnectionFactory co
                 {
                     scope.ClubId, FromDate = fromDate,
                     ToDateExclusiveTs = toDateExclusive.ToDateTime(TimeOnly.MinValue),
-                    TeamCode = teamCode,
+                    TeamCode = teamCode, VenueId = venueId, Type = type,
                 },
+                cancellationToken: cancellationToken))).AsList();
+        }
+
+        var trials = new List<TrialRow>();
+        if (sourceType is null or "trial" && status is null && type is null)
+        {
+            const string trialSql = """
+                SELECT t.id AS Id, t.trial_on AS TrialOn, t.venue_id AS VenueId, i.audience AS Audience, t.team_id AS TeamId, tm.code AS TeamCode
+                FROM trials t
+                LEFT JOIN trials_i18n i ON i.trial_id = t.id AND i.locale = N'zh-Hant'
+                LEFT JOIN teams tm ON tm.id = t.team_id
+                WHERE t.club_id = @ClubId AND t.sync_to_calendar = 1
+                  AND t.trial_on >= @FromDate AND t.trial_on < @ToDateExclusive
+                  AND (@TeamCode IS NULL OR tm.code = @TeamCode)
+                  AND (@VenueId IS NULL OR t.venue_id = @VenueId)
+                """;
+            trials = (await connection.QueryAsync<TrialRow>(new CommandDefinition(
+                trialSql,
+                new { scope.ClubId, FromDate = fromDate, ToDateExclusive = toDateExclusive, TeamCode = teamCode, VenueId = venueId },
                 cancellationToken: cancellationToken))).AsList();
         }
 
         var matchIds = matches.Select(m => m.Id).ToList();
         var customIds = customEvents.Select(c => c.Id).ToList();
         var teamCodesBySource = await LoadTeamCodesAsync(connection, matchIds, customIds, cancellationToken);
-        var venueIds = matches.Select(m => m.VenueId).Concat(customEvents.Select(c => c.VenueId))
+        var venueIds = matches.Select(m => m.VenueId).Concat(customEvents.Select(c => c.VenueId)).Concat(trials.Select(t => t.VenueId))
             .Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
         var venueNameById = await LoadVenueNamesAsync(connection, venueIds, cancellationToken);
 
@@ -132,6 +160,25 @@ public sealed class AdminCalendarOverviewRepository(IClubSqlConnectionFactory co
                 VenueName = m.VenueId is { } vid ? venueNameById.GetValueOrDefault(vid) : null,
                 Status = m.Status,
                 HomeAway = m.HomeAway,
+                VenueId = m.VenueId,
+                Kickoff = m.Kickoff,
+                CompetitionTag = m.CompetitionTag,
+            });
+        }
+
+        foreach (var t in trials)
+        {
+            results.Add(new AdminCalendarEventDto
+            {
+                SourceType = "trial",
+                SourceId = t.Id,
+                StartsAt = t.TrialOn,
+                EndsAt = null,
+                IsAllDay = true,
+                Title = t.Audience is { Length: > 0 } a ? $"試訓：{a}" : "試訓",
+                TeamCodes = t.TeamCode is null ? [] : [t.TeamCode],
+                VenueName = t.VenueId is { } tvid ? venueNameById.GetValueOrDefault(tvid) : null,
+                VenueId = t.VenueId,
             });
         }
 
@@ -160,6 +207,7 @@ public sealed class AdminCalendarOverviewRepository(IClubSqlConnectionFactory co
                     VenueName = c.VenueId is { } vid ? venueNameById.GetValueOrDefault(vid) : null,
                     EventTypeCode = c.EventTypeCode,
                     IsPublic = c.IsPublic,
+                    VenueId = c.VenueId,
                 });
             }
         }

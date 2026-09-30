@@ -41,11 +41,14 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
     private static readonly HashSet<string> OccupyingStatuses =
         new(StringComparer.Ordinal) { "待確認", "已確認", "已繳費", "完成" };
 
-    public async Task<IReadOnlyList<AdminRegistrationListItemDto>> ListAsync(
-        AdminClubScope scope, Guid? sessionId, string? status, CancellationToken cancellationToken)
+    /// <summary>S2-4 進階篩選（規劃書 §4.4 P3「篩選：課程、梯次、狀態、日期、是否為會員」＋關鍵字搜尋）。
+    /// 日期指報名建立日期（含當天）。<c>Keyword</c> 比對報名編號、學員姓名、電話、Email。</summary>
+    public sealed record ExtraFilter(Guid? ProgramId = null, string? Keyword = null, bool? IsMember = null, DateOnly? DateFrom = null, DateOnly? DateTo = null);
+
+    private IQueryable<Registration> Filtered(AdminClubScope scope, Guid? sessionId, string? status, ExtraFilter? extra)
     {
         var query = dbContext.Registrations.AsNoTracking()
-            .Where(r => r.ClubId == scope.ClubId && r.SessionId != null); // P4 試訓不在本次範圍。
+            .Where(r => r.ClubId == scope.ClubId && r.SessionId != null); // 試訓報名在 P4（Features/AdminTrials）。
 
         if (sessionId is Guid s)
         {
@@ -55,6 +58,46 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
         {
             query = query.Where(r => r.Status == status);
         }
+
+        if (extra is not null)
+        {
+            if (extra.ProgramId is Guid programId)
+            {
+                query = query.Where(r => r.Session!.ProgramId == programId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(extra.Keyword))
+            {
+                var k = extra.Keyword.Trim();
+                query = query.Where(r => r.ApplicantName.Contains(k) || r.RegistrationNo.Contains(k)
+                    || (r.Phone != null && r.Phone.Contains(k)) || (r.Email != null && r.Email.Contains(k)));
+            }
+
+            if (extra.IsMember is bool isMember)
+            {
+                query = isMember ? query.Where(r => r.MemberId != null) : query.Where(r => r.MemberId == null);
+            }
+
+            if (extra.DateFrom is DateOnly from)
+            {
+                var fromTs = from.ToDateTime(TimeOnly.MinValue);
+                query = query.Where(r => r.CreatedAt >= fromTs);
+            }
+
+            if (extra.DateTo is DateOnly to)
+            {
+                var toTs = to.AddDays(1).ToDateTime(TimeOnly.MinValue);
+                query = query.Where(r => r.CreatedAt < toTs);
+            }
+        }
+
+        return query;
+    }
+
+    public async Task<IReadOnlyList<AdminRegistrationListItemDto>> ListAsync(
+        AdminClubScope scope, Guid? sessionId, string? status, CancellationToken cancellationToken, ExtraFilter? extra = null)
+    {
+        var query = Filtered(scope, sessionId, status, extra);
 
         return await query
             .OrderByDescending(r => r.RowSeq)
@@ -200,6 +243,157 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
         return await GetByIdAsync(scope, id, cancellationToken);
     }
 
+    // ═══════════════════ S2-4 報名進階：批次、候補遞補、簽到表 ═══════════════════
+
+    /// <summary>批次改狀態（規劃書 §4.4 P3 操作：確認／取消／加入候補）。逐筆套用與單筆更新相同的名額連動；能處理的處理、
+    /// 不能處理的列進 <c>skipped</c>（不是全有全無）。已經是目標狀態的視為略過。</summary>
+    public async Task<BatchOperationResultDto> BatchStatusAsync(
+        AdminClubScope scope, IReadOnlyList<Guid> ids, string status, Guid? operatorId, CancellationToken cancellationToken)
+    {
+        if (!AllowedStatuses.Contains(status))
+        {
+            throw new AdminRegistrationValidationException(
+                "狀態只能是「待確認」「已確認」「已繳費」「完成」「取消」或「候補」其中一種。");
+        }
+
+        if (ids.Count is 0 or > 200)
+        {
+            throw new AdminRegistrationValidationException("一次最多處理 200 筆，至少選 1 筆。");
+        }
+
+        var distinct = ids.Distinct().ToList();
+        var registrations = await dbContext.Registrations
+            .Where(r => r.ClubId == scope.ClubId && r.SessionId != null && distinct.Contains(r.Id)).ToListAsync(cancellationToken);
+        var skipped = new List<BatchSkippedItemDto>();
+        var updated = 0;
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        foreach (var id in distinct)
+        {
+            var registration = registrations.FirstOrDefault(r => r.Id == id);
+            if (registration is null)
+            {
+                skipped.Add(new BatchSkippedItemDto { Id = id, Reason = "找不到這筆報名。" });
+                continue;
+            }
+
+            if (registration.Status == status)
+            {
+                skipped.Add(new BatchSkippedItemDto { Id = id, Reason = "已經是這個狀態。" });
+                continue;
+            }
+
+            var oldOccupies = OccupyingStatuses.Contains(registration.Status);
+            var newOccupies = OccupyingStatuses.Contains(status);
+            registration.Status = status;
+            registration.UpdatedAt = DateTime.UtcNow;
+            registration.UpdatedBy = operatorId;
+            await dbContext.SaveChangesAsync(cancellationToken);
+            if (oldOccupies != newOccupies && registration.SessionId is Guid sessionId)
+            {
+                await AdjustEnrolledCountAsync(sessionId, newOccupies ? +1 : -1, cancellationToken);
+            }
+
+            updated++;
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return new BatchOperationResultDto { UpdatedCount = updated, Skipped = skipped };
+    }
+
+    /// <summary>候補遞補：候補 → 已確認（佔用名額）。後台是人為判斷，不擋下超額。</summary>
+    public async Task<AdminRegistrationDetailDto?> PromoteAsync(AdminClubScope scope, Guid id, Guid? operatorId, CancellationToken cancellationToken)
+    {
+        var registration = await dbContext.Registrations.FirstOrDefaultAsync(
+            r => r.Id == id && r.ClubId == scope.ClubId && r.SessionId != null, cancellationToken);
+        if (registration is null)
+        {
+            return null;
+        }
+
+        if (registration.Status != "候補")
+        {
+            throw new AdminRegistrationValidationException("只有候補中的報名才能遞補。");
+        }
+
+        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
+        registration.Status = "已確認";
+        registration.UpdatedAt = DateTime.UtcNow;
+        registration.UpdatedBy = operatorId;
+        await dbContext.SaveChangesAsync(cancellationToken);
+        await AdjustEnrolledCountAsync(registration.SessionId!.Value, +1, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return await GetByIdAsync(scope, id, cancellationToken);
+    }
+
+    /// <summary>「候補遞補提醒」清單（規劃書 §4.4 P3 名額控管）：有空位、而且還有人在候補的梯次，附依報名先後排序的候補名單。
+    /// 通知信本輪未寄送（見類別檔頭），由承辦人員依這份清單電話聯繫。</summary>
+    public async Task<IReadOnlyList<AdminWaitlistReminderDto>> WaitlistRemindersAsync(AdminClubScope scope, CancellationToken cancellationToken)
+    {
+        var sessions = await dbContext.Sessions.AsNoTracking()
+            .Where(s => s.ClubId == scope.ClubId && s.Capacity != null && s.EnrolledCount < s.Capacity && s.Status != "已結束"
+                        && dbContext.Registrations.Any(r => r.SessionId == s.Id && r.Status == "候補"))
+            .Select(s => new
+            {
+                s.Id, s.StartOn, s.EndOn, Capacity = s.Capacity!.Value, s.EnrolledCount,
+                ProgramName = s.TrainingProgram.ProgramsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
+            })
+            .OrderBy(s => s.StartOn)
+            .ToListAsync(cancellationToken);
+        if (sessions.Count == 0)
+        {
+            return [];
+        }
+
+        var sessionIds = sessions.Select(s => s.Id).ToList();
+        var waiting = await dbContext.Registrations.AsNoTracking()
+            .Where(r => r.SessionId != null && sessionIds.Contains(r.SessionId.Value) && r.Status == "候補")
+            .OrderBy(r => r.CreatedAt).ThenBy(r => r.RowSeq)
+            .ToListAsync(cancellationToken);
+        return sessions.Select(s => new AdminWaitlistReminderDto
+        {
+            SessionId = s.Id, ProgramNameZh = s.ProgramName, StartOn = s.StartOn, EndOn = s.EndOn, Capacity = s.Capacity,
+            EnrolledCount = s.EnrolledCount, Vacancy = s.Capacity - s.EnrolledCount,
+            Waiting = waiting.Where(r => r.SessionId == s.Id).Select((r, i) => new AdminWaitlistEntryDto
+            {
+                Order = i + 1, RegistrationId = r.Id, RegistrationNo = r.RegistrationNo, ApplicantName = r.ApplicantName, Phone = r.Phone,
+                GuardianName = r.GuardianName, GuardianPhone = r.GuardianPhone, QueuedAt = r.CreatedAt,
+            }).ToList(),
+        }).ToList();
+    }
+
+    /// <summary>簽到表資料（畫面直接列印）：只列會到場的人（待確認、已確認、已繳費、完成），不含健康聲明與備註。</summary>
+    public async Task<AdminRegistrationSignInSheetDto?> SignInSheetAsync(AdminClubScope scope, Guid sessionId, CancellationToken cancellationToken)
+    {
+        var info = await dbContext.Sessions.AsNoTracking().Where(s => s.Id == sessionId && s.ClubId == scope.ClubId)
+            .Select(s => new
+            {
+                s.StartOn, s.EndOn,
+                ProgramName = s.TrainingProgram.ProgramsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
+                VenueName = s.Venue == null ? null : s.Venue.VenuesI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (info is null)
+        {
+            return null;
+        }
+
+        var attending = OccupyingStatuses.ToArray();
+        var rows = await dbContext.Registrations.AsNoTracking()
+            .Where(r => r.SessionId == sessionId && r.ClubId == scope.ClubId && attending.Contains(r.Status))
+            .OrderBy(r => r.ApplicantName).ThenBy(r => r.RowSeq).ToListAsync(cancellationToken);
+        return new AdminRegistrationSignInSheetDto
+        {
+            SessionId = sessionId, ProgramNameZh = info.ProgramName, StartOn = info.StartOn, EndOn = info.EndOn, VenueName = info.VenueName,
+            GeneratedAt = DateTime.UtcNow,
+            Rows = rows.Select((r, i) => new AdminRegistrationSignInRowDto
+            {
+                No = i + 1, RegistrationNo = r.RegistrationNo, ApplicantName = r.ApplicantName, Phone = r.Phone, GuardianName = r.GuardianName,
+                GuardianPhone = r.GuardianPhone, Status = r.Status,
+            }).ToList(),
+        };
+    }
+
     /// <summary>名單匯出（規劃書行 1090「匯出 Excel：名單匯出（含分組欄位）」）。本輪比照既有
     /// FAQ／賽程／積分榜三個模組的既有慣例（<c>Common/CsvUtils.cs</c> 檔頭），以 CSV 實作——
     /// 本專案沒有任何 Excel（<c>.xlsx</c>）產生套件，「Excel 匯出」在既有程式碼裡一律是「CSV，
@@ -207,19 +401,10 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
     /// **刻意不包含 <c>HealthDeclaration</c>（健康聲明）欄**——名單匯出的用途是人數控管與簽到，
     /// 不需要醫療類個資，這是資料最小化的判斷，不是遺漏。「簽到表列印」由前台／後台畫面直接把這份
     /// 清單資料印出即可，後端不需要另外產生 PDF。</summary>
-    public async Task<string> ExportCsvAsync(AdminClubScope scope, Guid? sessionId, string? status, CancellationToken cancellationToken)
+    public async Task<string> ExportCsvAsync(
+        AdminClubScope scope, Guid? sessionId, string? status, CancellationToken cancellationToken, ExtraFilter? extra = null)
     {
-        var query = dbContext.Registrations.AsNoTracking()
-            .Where(r => r.ClubId == scope.ClubId && r.SessionId != null);
-
-        if (sessionId is Guid s)
-        {
-            query = query.Where(r => r.SessionId == s);
-        }
-        if (status is not null)
-        {
-            query = query.Where(r => r.Status == status);
-        }
+        var query = Filtered(scope, sessionId, status, extra);
 
         var rows = await query
             .OrderBy(r => r.Session!.TrainingProgram.Slug).ThenBy(r => r.RowSeq)

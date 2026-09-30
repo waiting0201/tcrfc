@@ -23,6 +23,10 @@ public partial class Trial
 
     public bool SyncToCalendar { get; set; }
 
+    public int EnrolledCount { get; set; }
+
+    public string Status { get; set; } = null!;
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
@@ -38,6 +42,8 @@ public partial class Trial
     public virtual ICollection<Registration> Registrations { get; set; } = new List<Registration>();
 
     public virtual Team? Team { get; set; }
+
+    public virtual ICollection<TrialsI18n> TrialsI18ns { get; set; } = new List<TrialsI18n>();
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
 

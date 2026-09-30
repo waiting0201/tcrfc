@@ -21,19 +21,78 @@ public static class AdminRegistrationsEndpoints
             .WithTags("AdminRegistrations")
             .WithDescription("P3 俱樂部範圍的課程報名管理，需要登入與俱樂部授權。只服務課程報名（session），不含 P4 試訓。");
 
-        // GET /api/v1/admin/{club}/registrations?sessionId=&status=
+        // GET /api/v1/admin/{club}/registrations?sessionId=&status=&programId=&keyword=&isMember=&dateFrom=&dateTo=
         group.MapGet("", async (
-            string club, Guid? sessionId, string? status, HttpContext httpContext,
-            IAdminClubAuthorizer authorizer, AdminRegistrationsRepository repository, CancellationToken cancellationToken) =>
+            string club, Guid? sessionId, string? status, Guid? programId, string? keyword, bool? isMember, DateOnly? dateFrom, DateOnly? dateTo,
+            HttpContext httpContext, IAdminClubAuthorizer authorizer, AdminRegistrationsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
-            var result = await repository.ListAsync(scope, sessionId, status, cancellationToken);
+            var extra = new AdminRegistrationsRepository.ExtraFilter(programId, keyword, isMember, dateFrom, dateTo);
+            var result = await repository.ListAsync(scope, sessionId, status, cancellationToken, extra);
             return Results.Ok(result);
         })
         .WithName("AdminListRegistrations")
         .Produces<IReadOnlyList<AdminRegistrationListItemDto>>()
         .Produces(StatusCodes.Status401Unauthorized)
         .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
+        // S2-4 報名進階 ─────────────────────────────────────────────
+
+        // GET /registrations/waitlist-reminders —— 有空位而且還有人候補的梯次（候補遞補提醒清單）。
+        group.MapGet("/waitlist-reminders", async (
+            string club, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminRegistrationsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
+            return Results.Ok(await repository.WaitlistRemindersAsync(scope, cancellationToken));
+        })
+        .WithName("AdminWaitlistReminders")
+        .Produces<IReadOnlyList<AdminWaitlistReminderDto>>();
+
+        // GET /registrations/sign-in-sheet?sessionId= —— 簽到表資料（畫面直接列印）。
+        group.MapGet("/sign-in-sheet", async (
+            string club, Guid? sessionId, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminRegistrationsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
+            if (sessionId is null)
+            {
+                throw new AdminRegistrationValidationException("請先選擇要列印簽到表的梯次。");
+            }
+
+            var sheet = await repository.SignInSheetAsync(scope, sessionId.Value, cancellationToken);
+            return sheet is null ? Results.NotFound() : Results.Ok(sheet);
+        })
+        .WithName("AdminRegistrationSignInSheet")
+        .Produces<AdminRegistrationSignInSheetDto>()
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status404NotFound);
+
+        // POST /registrations/batch/status —— 批次確認／取消／加入候補等。
+        group.MapPost("/batch/status", async (
+            string club, BatchRegistrationStatusRequest request, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminRegistrationsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
+            return Results.Ok(await repository.BatchStatusAsync(scope, request.Ids, request.Status, scope.Identity.AdminUserId, cancellationToken));
+        })
+        .WithName("AdminBatchRegistrationStatus")
+        .Produces<Tcrfc.Api.Common.BatchOperationResultDto>()
+        .Produces(StatusCodes.Status400BadRequest);
+
+        // POST /registrations/{id}/promote —— 候補遞補（候補 → 已確認）。
+        group.MapPost("/{id:guid}/promote", async (
+            string club, Guid id, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminRegistrationsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionUpdate, cancellationToken);
+            var promoted = await repository.PromoteAsync(scope, id, scope.Identity.AdminUserId, cancellationToken);
+            return promoted is null ? Results.NotFound() : Results.Ok(promoted);
+        })
+        .WithName("AdminPromoteRegistration")
+        .Produces<AdminRegistrationDetailDto>()
+        .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status404NotFound);
 
         group.MapGet("/{id:guid}", async (
@@ -50,13 +109,14 @@ public static class AdminRegistrationsEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
 
-        // GET /api/v1/admin/{club}/registrations/export?sessionId=&status=  → CSV（Excel 可直接開啟）。
+        // GET /api/v1/admin/{club}/registrations/export?sessionId=&status=&programId=&keyword=&isMember=&dateFrom=&dateTo=  → CSV（Excel 可直接開啟）。
         group.MapGet("/export", async (
-            string club, Guid? sessionId, string? status, HttpContext httpContext,
-            IAdminClubAuthorizer authorizer, AdminRegistrationsRepository repository, CancellationToken cancellationToken) =>
+            string club, Guid? sessionId, string? status, Guid? programId, string? keyword, bool? isMember, DateOnly? dateFrom, DateOnly? dateTo,
+            HttpContext httpContext, IAdminClubAuthorizer authorizer, AdminRegistrationsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionExport, cancellationToken);
-            var csv = await repository.ExportCsvAsync(scope, sessionId, status, cancellationToken);
+            var extra = new AdminRegistrationsRepository.ExtraFilter(programId, keyword, isMember, dateFrom, dateTo);
+            var csv = await repository.ExportCsvAsync(scope, sessionId, status, cancellationToken, extra);
             var bytes = CsvUtils.ToUtf8BytesWithBom(csv);
             return Results.File(bytes, "text/csv; charset=utf-8", $"registrations-{club}-{DateTime.UtcNow:yyyyMMdd}.csv");
         })

@@ -41,7 +41,9 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `email` | UNIQUE，🔒 受限。**前台登入識別**（與後台 `AdminUser.username` 無關） |
 | `signup_source` | `web`／`line`／`admin`／`app`。**不含 `google`**——不採用 Google 登入 |
 | `line_user_id_encrypted` | 🔒 加密儲存，**不得匯出** |
-| `status` | `active`／`suspended`／`deleted` |
+| `status` | `active`／`suspended`／`deleted`。**「未驗證」不是狀態值**：`status = 'active'` 且 `email_verified_at IS NULL`（K1 畫面推得） |
+| `email_verified_at`／`last_login_at`／`internal_note`／`locale`（B1） | Email 驗證時間（空＝未驗證）／最後登入（取代登入紀錄表）／後台內部備註／語系偏好（`zh-Hant`／`en`，可空） |
+| `merged_into_member_id`（B1） | 合併帳號的去向。被合併的帳號 `status = 'deleted'`、個資清除（Email 換成 `merged-<編號>@merged.invalid`）、指向保留帳號；**不建日誌表** |
 | 🔴 **已移出的三欄** | **`tier`／`membership_start_on`／`membership_end_on` 已移入 `Membership`**。看到還寫在 `Member` 上的是舊規格 |
 | 刪帳號 | **欄位清除不是刪列**：保留 `member_no` 與遮罩姓名，其餘個資清除。稅法要求保留的訂單與發票**優先於刪除請求** |
 
@@ -54,6 +56,9 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `tier` | `registered`（免費）／`fan_club`（付費＝球迷會員） |
 | 計期 | **球季制**，同一俱樂部的會籍全體同時到期。**兩隊球季不同步**（`Season` 也帶 `club_id`） |
 | `membership_start_on`／`membership_end_on` | 由 `MembershipPayment` 開通時寫入 |
+| `status`（B1） | `pending`（升級申請待確認）／`active`／`expired`／`cancelled`。**有效與否以到期日為準**：`active` 但 `membership_end_on` 已過的，後台一律顯示為已到期（`effectiveStatus`），`status` 欄是人工覆寫（取消、批次到期） |
+| `membership_plan_id`（B1） | 目前方案（可空：免費會籍沒有方案）；歷次付款仍各自記在 `membership_payments.membership_plan_id` |
+| `last_adjust_reason`／`last_adjusted_at`（B1） | K2「手動調整層級」的異動原因，**只留最近一次**（不建異動歷程表） |
 | 抽獎資格 | **算出來的布林值**：該俱樂部的 `tier = 'fan_club'` AND `membership_end_on >= snapshot_at` AND `Member.status = 'active'`。**沒有欄位、沒有表** |
 | 雙會籍 | 同時持有兩隊付費會籍者**在兩份抽獎名單各佔一號**，活動辦法須明示可分別參加 |
 | 刪除 | `Member` → `Membership` 是 **`RESTRICT`**——會籍涉金流與發票，刪帳號不得連帶刪會籍 |
@@ -69,6 +74,19 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | 唯一性 | **一張卡只有一組 token**，官網驗證頁與 App 內卡片共用。發兩組＝兩份可撤銷狀態，撤銷必漏一邊 |
 | 驗證頁欄位 | 🔴 **不得新增「適用球隊」欄位**——token 已隱含俱樂部。「一張卡標示兩種會籍」不可採 |
 | 折扣使用 | 到店**出示卡片目視即可**。**不核銷、不計次、店家不需系統**——所以沒有 `redemption` 任何表 |
+| `status`／`revoked_at`（B1） | `active`／`revoked`。會籍被取消時其會員卡一併停用；「重新產生 QR」是**換 `token`、`reissue_count` +1**（同一張卡、舊憑證立即失效），後台永不回傳 `token` 本身 |
+
+### 6.5b K 模組其餘表的 B1 補充
+
+| 表 | 規則 |
+|---|---|
+| `MembershipPlan` | `(club_id, season_id, code)` 唯一；`status`：`draft`（下架）／`published`（上架）；有會籍或付款紀錄使用時不可刪除、不可換球季 |
+| `MembershipPayment` | 手動開通時寫入：`club_id`＝**受益俱樂部**（目前操作的俱樂部）、`collecting_club_id`＝**收款主體俱樂部**（`clubs.is_collecting_subject = 1`，代收代付）；`method`：`linepay`／`onsite`；`handled_by`＝經辦人 |
+| `MembershipBenefit` | **不帶 `club_id`**，靠父表方案；`benefit_group`：`member_card`／`store_discount`／`jersey`／`event`；`status`：`draft`／`published`；側表 `name`／`description`／`group_label`（由分組代碼自動帶入雙語）／`free_value`／`paid_value` |
+| `JerseyIssue` | `membership_id`（可空，舊資料）；`status`：`pending`／`shipped`／`received`；`delivery_method`：`ship`（寄送，須有電話與地址）／`pickup`（到場領取，不能標「已寄出」）；件數不得超過方案 `jersey_quota` |
+| `PartnerStore` | `club_id` 可為空＝兩隊共同（**只有系統管理員能編輯**）；`applicable_tier`：`all`／`fan_club`；`status`：`draft`／`published`；`address` 存中文地址、`partner_stores_i18n.address` 只存英文；`business_hours` 是 `json` 欄位，後台以 **JSON 字串值**儲存自由文字；`lat`／`lng` 成對、人工確認後儲存（不做即時 geocoding） |
+| `Trial`（P4） | `status`：`開放`／`額滿`／`候補`／`已結束`；`enrolled_count` 由報名狀態原子調整（待確認／已確認／已繳費／完成佔名額，取消與候補不佔）；達 `capacity` 時「開放」單向轉「額滿」 |
+| `CalendarTeamSetting`（L3） | `team_id` UNIQUE；`colour`／`sort_order` 空＝沿用 `teams.team_color`／`teams.sort_order`；`is_public = 0` 的隊別不出現在前台選單，其訂閱 feed 回 404 |
 
 ### 6.6 `MemberDraw` / `DrawRoster`
 
@@ -273,6 +291,11 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | 內容編輯／公關媒體 | 慈善 **✔編輯**（E1a 新增） | `charity.content.*`（公益團體／慈善計畫／事蹟／影響力數據，含刪除，理由同 `content.article.*`）、`charity.setting.view`／`update`（捐款導流與參與方式設定）。商務／贊助、檢視者 唯讀；**合作球隊管理無**（慈善是磐石主站單元，藍鯨不設） |
 | 內容編輯／公關媒體 | 內容 **✔編輯**（B6 媒體專區，E1a 新增） | `content.press.*`；檢視者 唯讀；合作球隊管理 view／create／update（不含刪除，比照 `content.article.*`） |
 | 競技／球隊管理 | 球隊／賽事 **✔全**（C5，E1a 新增） | `team.achievement.*`（榮譽）、`team.milestone.*`（里程碑）。學院／課程管理：**只有 `team.achievement.*` 且 `scope_type = academy_only`**（榮譽有 `team_id`，列級授權生效）；`team.milestone.*` 不給（里程碑沒有球隊維度，無從判斷「學院梯隊」，理由同 C4 積分榜）。其餘角色唯讀 |
+| 客服／行政 | 會員 **✔ 檢視／處理**（K1–K4，B1 新增，取代上一格的概念性寫法） | `member.account.view／create／update`、`member.pii.reveal`（解除遮罩）、`member.export`（`is_restricted`，K1 名單與續會名單）、`member.membership.view／create／update`（開通、調整、批次到期）、`member.plan.view`（**不含**方案新增編輯刪除）、`member.setting.view`、`member.jersey.view／create／update`、`member.jersey.export`（`is_restricted`）、`member.store.*`、`member.benefit.*`。**不含** `member.account.merge`（`sysadmin_only`） |
+| 合作球隊管理 | 會員 **僅自家會籍，`Member` 主檔遮罩**（B1 新增） | 只給 `member.account.view`、`member.membership.view`、`member.plan.view`、`member.jersey.view`（`own_clubs`），**不含** `member.pii.reveal`／任何處理與匯出。K4 特約店家與權益不給 |
+| 系統管理員 | 會員（B1 新增） | 全部 `member.*`，含 `member.account.merge`（合併重複帳號，不可逆，`sysadmin_only`）。`member.setting.update`（會員編號規則）、`member.plan.create／update／delete` 目前也只有系統管理員 |
+| 內容編輯／競技／商務／檢視者 | 課程／報名 **唯讀**（P4，B1 新增） | `program.trial.view`、`program.trial_registration.view`。學院／課程管理 ✔全（`program.trial.*`、`program.trial_registration.view／create／update／export`）；客服／行政「報名處理」＝場次唯讀＋`program.trial_registration.view／update`；合作球隊管理 ✔自家（不含匯出）；公關／媒體「—」 |
+| 所有持有 `calendar.view` 的角色 | 行事曆（L3／L4，B1 新增） | `calendar.setting.view`、`calendar.subscription.view`、`calendar.export`（行事曆是公開資料，不設 `is_restricted`）。`calendar.setting.update` 給內容編輯／公關媒體／合作球隊管理（比照自建事件）；**賽事類型（`event_types`）兩隊共用，寫入一律只有系統管理員**。賽事改期用來源模組的 `team.match.update`＋球隊列級授權，自建活動改期用 `calendar.custom_event.update`，整季 CSV 匯入用 `team.match.create` |
 
 > **S1-12d 新增（2026-09-29）**：規劃書 §6 權限矩陣**沒有「網站設定」欄**（`I` 模組在本輪之前
 > 完全沒有後端實作）。本輪比照 `seo.*`／`system.*` 既有先例——「全站層級設定、非逐篇內容編輯」

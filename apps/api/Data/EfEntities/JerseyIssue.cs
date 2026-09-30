@@ -23,9 +23,13 @@ public partial class JerseyIssue
 
     public string? Address { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public DateOnly? ShippedOn { get; set; }
+
+    public DateOnly? ReceivedOn { get; set; }
+
+    public Guid? MembershipId { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
@@ -40,6 +44,8 @@ public partial class JerseyIssue
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
     public virtual Member Member { get; set; } = null!;
+
+    public virtual Membership? Membership { get; set; }
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
 }

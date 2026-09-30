@@ -21,7 +21,13 @@ public partial class Membership
 
     public DateOnly? MembershipEndOn { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
+
+    public Guid? MembershipPlanId { get; set; }
+
+    public string? LastAdjustReason { get; set; }
+
+    public DateTime? LastAdjustedAt { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
@@ -33,6 +39,8 @@ public partial class Membership
 
     public virtual Club Club { get; set; } = null!;
 
+    public virtual ICollection<JerseyIssue> JerseyIssues { get; set; } = new List<JerseyIssue>();
+
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
     public virtual Member Member { get; set; } = null!;
@@ -40,6 +48,8 @@ public partial class Membership
     public virtual ICollection<MemberCard> MemberCards { get; set; } = new List<MemberCard>();
 
     public virtual ICollection<MembershipPayment> MembershipPayments { get; set; } = new List<MembershipPayment>();
+
+    public virtual MembershipPlan? MembershipPlan { get; set; }
 
     public virtual Season Season { get; set; } = null!;
 

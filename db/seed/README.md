@@ -275,6 +275,10 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 | 慈善 B5 | `charities`／`charity_programs`／`charity_program_partners`／`charity_program_sponsors`／`impact_records`／`impact_metrics`／`settings`（`charity.*`） | 團體 2／計畫 3（置頂進行中、已完成、草稿）／事蹟 2／統計 3（含 1 筆不公開金額）／導流設定（網址 `charity.example.com`，文案已點明協會） | —（藍鯨不設慈善單元） | **全測試** |
 | 媒體專區 B6 | `press_resources`／`press_resources_i18n` | 3（三類各一，**draft＋佔位檔案鍵 `seed-placeholder/no-file`**，公開端點不會顯示） | — | **全測試** |
 | 榮譽 C5 | `achievements` | 3（一線隊 D1，2024–2026） | — | **全測試**（里程碑既有真實種子，未動） |
+| 試訓 P4（B1 新增，2026-09-30） | `trials`／`trials_i18n`／`registrations`（`trial_id`） | 場次 2（一線隊：1 場開放、1 場已結束）＋報名 3／藍鯨 U15 場次 1＋報名 1 | 場次 1＋報名 1（見左） | **全測試**（報名者【測試】前綴、電話全 0、`@example.com`；`enrolled_count` 與報名狀態一致） |
+| 會員系統 K1–K3（B1 新增） | `members`／`memberships`／`member_cards`／`membership_payments`／`membership_plans`(+`_i18n`)／`jersey_issues` | 方案 2（單人、家庭）；會員 7 位涵蓋雙會籍、現場入會、未驗證、停用、疑似重複帳號、即將到期；會籍 8、卡 9、付款 4、球衣 4 | 方案 1；藍鯨會籍 2（皆已到期球季 2025） | **全測試**（會員編號 `M900001`–`M900007`、姓名【測試】、Email `@example.com`；即將到期的示範會籍到期日 2026-10-15 是固定日期，過了就變成已到期） |
+| 特約店家與權益 K4 | `partner_stores`(+`_i18n`)／`membership_benefits`(+`_i18n`) | 店家 4（含 1 家草稿）＋兩隊共同 1；權益 6 條（四個分組） | 店家 1 | **全測試**（座標為台中市區近似值，非真實店家；沒有圖片） |
+| 行事曆設定 L3（B1 新增） | `settings`：`calendar.*`／`member.no_*`；`calendar_team_settings`(+`_i18n`) | 預設檢視、範圍、隊別、試訓同步（關閉）；`D1` 顯示名稱與代表色 | 同左；`BW1` 顯示名稱與代表色、`BW-U12` 不公開（示範） | 顯示名稱與色碼是**測試值**（色碼取自既有隊徽色，非正式定案） |
 
 ### 🔴 測試值清單（正式資料上線前逐一替換）
 
@@ -302,7 +306,7 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 - **`seo.robots_custom_rules`**：會原樣寫進 `robots.txt`，沒有需求就不預設；**`tracking.*`（GA4／GTM／Meta Pixel／LINE）**：假的追蹤碼會讓前台載入無效腳本，沒有真實 ID 不種；**全站預設 OG 圖**：`clubs.og_image_key` 需要圖片上傳。三者都留空，等真實值。
 - **藍鯨英文**（`seo.title_template` en、`geo.llms_positioning`／`facts_summary` en）：英文正式全名待客戶確認（`docs/14`），不自行挑一個；`site.founding_title`／`site.league_name` en 同。
 - **`site.founding_date`（tcrfc）**：成立月日至今沒有核實來源，日期欄位無法用前綴標示為測試，不種假日期。tcrfc 的 `site.founding_date_display` 英文也刻意不種（`SiteFactsTests` 用它驗證「缺英文時回退中文」）。
-- **課程教練連結（`program_staff`）、報名（`registrations`）、詢問收件匣（`enquiries`）、會員／會籍**：涉及個資或需要真實人員，不種。教練連結需要「課程與教練」的真實對應。
+- **課程教練連結（`program_staff`）、課程報名、詢問收件匣（`enquiries`）**：涉及個資或需要真實人員，不種。教練連結需要「課程與教練」的真實對應。（**會員／會籍與試訓報名已於 B1 補種虛構資料**，見上表：全部【測試】前綴與 `example.com`，不含任何真實個資。）
 - **磐石學院球隊 U15／U14／U12（`teams`）**：性別與年齡帶的真實定義沒有來源（`gender` 是必填），不臆測；`site.squad_codes` 已有這三個代碼但 `teams` 表沒有對應列（既有落差，`apps/api/README.md`「S1-12d」節已記）。
 - **商店、漫畫、球迷活動（`S`／`F` 模組）**：後台尚未完成（`STATUS.md` S2 以後）。**夥伴、贊助、提案與 Lead、慈善、媒體專區、榮譽已於 E1a（2026-09-30）補種**（見上表；圖片一律沒有，媒體資源與提案沒有真實檔案）。bw 夥伴早已有真實種子。
 - **賽程賽果**：早已有種子，本輪未動。

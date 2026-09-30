@@ -87,3 +87,60 @@ public sealed record UpdateAdminRegistrationRequest
     public string? Note { get; init; }
     public required string Status { get; init; }
 }
+
+/// <summary>候補遞補提醒：某個梯次有空位而且還有人在候補。</summary>
+public sealed record AdminWaitlistReminderDto
+{
+    public required Guid SessionId { get; init; }
+    public string? ProgramNameZh { get; init; }
+    public DateOnly? StartOn { get; init; }
+    public DateOnly? EndOn { get; init; }
+    public required int Capacity { get; init; }
+    public required int EnrolledCount { get; init; }
+    public required int Vacancy { get; init; }
+
+    /// <summary>依報名先後排序的候補名單。</summary>
+    public required IReadOnlyList<AdminWaitlistEntryDto> Waiting { get; init; }
+}
+
+public sealed record AdminWaitlistEntryDto
+{
+    public required int Order { get; init; }
+    public required Guid RegistrationId { get; init; }
+    public required string RegistrationNo { get; init; }
+    public required string ApplicantName { get; init; }
+    public string? Phone { get; init; }
+    public string? GuardianName { get; init; }
+    public string? GuardianPhone { get; init; }
+    public required DateTime QueuedAt { get; init; }
+}
+
+/// <summary>課程梯次簽到表資料（畫面直接列印）。</summary>
+public sealed record AdminRegistrationSignInSheetDto
+{
+    public required Guid SessionId { get; init; }
+    public string? ProgramNameZh { get; init; }
+    public DateOnly? StartOn { get; init; }
+    public DateOnly? EndOn { get; init; }
+    public string? VenueName { get; init; }
+    public required DateTime GeneratedAt { get; init; }
+    public required IReadOnlyList<AdminRegistrationSignInRowDto> Rows { get; init; }
+}
+
+public sealed record AdminRegistrationSignInRowDto
+{
+    public required int No { get; init; }
+    public required string RegistrationNo { get; init; }
+    public required string ApplicantName { get; init; }
+    public string? Phone { get; init; }
+    public string? GuardianName { get; init; }
+    public string? GuardianPhone { get; init; }
+    public required string Status { get; init; }
+}
+
+/// <summary>批次改報名狀態。</summary>
+public sealed record BatchRegistrationStatusRequest
+{
+    public required IReadOnlyList<Guid> Ids { get; init; }
+    public required string Status { get; init; }
+}

@@ -17,11 +17,13 @@ public partial class MemberCard
 
     public string Token { get; set; } = null!;
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public int ReissueCount { get; set; }
 
     public DateTime? IssuedAt { get; set; }
+
+    public DateTime? RevokedAt { get; set; }
 
     public DateTime CreatedAt { get; set; }
 

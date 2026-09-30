@@ -28,7 +28,13 @@ using Tcrfc.Api.Features.AdminPages;
 using Tcrfc.Api.Features.AdminPartners;
 using Tcrfc.Api.Features.AdminPlayers;
 using Tcrfc.Api.Features.AdminPress;
+using Tcrfc.Api.Features.AdminBenefits;
+using Tcrfc.Api.Features.AdminJerseys;
+using Tcrfc.Api.Features.AdminMembers;
+using Tcrfc.Api.Features.AdminPartnerStores;
+using Tcrfc.Api.Features.AdminMemberships;
 using Tcrfc.Api.Features.AdminProposals;
+using Tcrfc.Api.Features.AdminTrials;
 using Tcrfc.Api.Features.AdminPrograms;
 using Tcrfc.Api.Features.AdminRegistrations;
 using Tcrfc.Api.Features.AdminRoles;
@@ -216,6 +222,12 @@ builder.Services.AddScoped<FormsRepository>();
 // ── S1-11：L1 行事曆總覽／L2 自建事件 ＋ 13 賽事行事曆公開讀取（含單場 .ics） ──────
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminCalendar.AdminCalendarOverviewRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminCalendar.AdminCalendarCustomEventsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminCalendar.AdminCalendarTracksRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminCalendar.AdminCalendarSettingsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminCalendar.AdminCalendarSubscriptionsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminCalendar.AdminCalendarExportRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Calendar.CalendarFeedRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Calendar.CalendarSettingsPublicRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Calendar.CalendarRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Calendar.CalendarIcsRepository>();
 
@@ -363,6 +375,19 @@ builder.Services.AddScoped<SiteFactsRepository>();
 
 // ── S1-12d 後續缺口補完：全站共用場地主檔唯讀清單（見 Features/AdminVenues 檔頭） ──────────
 builder.Services.AddScoped<AdminVenuesRepository>();
+
+// B1（S2-4／S2-5／S2-6）：P4 試訓、K1–K4 會員系統、L3／L4 行事曆進階。
+builder.Services.AddScoped<ClubSettingsStore>();
+builder.Services.AddScoped<SensitiveActionLogger>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminMembers.MemberNumberGenerator>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminMembers.AdminMembersRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminMemberships.AdminMembershipPlansRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminMemberships.AdminMembershipsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminJerseys.AdminJerseysRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminPartnerStores.AdminPartnerStoresRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminBenefits.AdminBenefitsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminTrials.AdminTrialsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminTrials.AdminTrialRegistrationsRepository>();
 
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 const string CorsPolicyName = "ClubFrontends";
@@ -580,6 +605,7 @@ app.MapFormsEndpoints();
 
 // ── S1-11：13 賽事行事曆公開讀取（合併賽事＋公開自建事件、單場 .ics） ────────────
 app.MapCalendarEndpoints();
+app.MapCalendarFeedEndpoints();
 
 app.MapAdminAuthEndpoints();
 
@@ -635,6 +661,7 @@ app.MapAdminEnquiriesEndpoints();
 
 // ── S1-11：L1 行事曆總覽／L2 自建事件 ────────────────────────────────────
 app.MapAdminCalendarEndpoints();
+app.MapAdminCalendarAdvancedEndpoints();
 
 // ── S1-12：H 搜尋與 AI 能見度 ─────────────────────────────────────────────
 app.MapAdminSeoSettingsEndpoints();
@@ -656,6 +683,12 @@ app.MapSiteFactsEndpoints();
 
 // ── S1-12d 後續缺口補完：全站共用場地主檔唯讀清單 ────────────────────────────
 app.MapAdminVenuesEndpoints();
+app.MapAdminMembersEndpoints();
+app.MapAdminMembershipsEndpoints();
+app.MapAdminJerseysEndpoints();
+app.MapAdminPartnerStoresEndpoints();
+app.MapAdminBenefitsEndpoints();
+app.MapAdminTrialsEndpoints();
 
 app.Run();
 

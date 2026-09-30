@@ -1096,7 +1096,8 @@ CREATE TABLE registrations (
 );
 
 -- 試訓場次：日期、場地、對象、名額、截止。同步行事曆由 L3 開關決定，預設關閉。
--- ⚠️ 待確認：docs/12 標🌐，但僅有低信心度候選欄位（audience，docs/12c §4），本版不建 trials_i18n。
+-- B1（2026-09-30，S2-4）：加 status／enrolled_count（名額控管，比照 sessions）與 trials_i18n（對象 audience，
+-- 規劃書 P4「日期、地點、對象、名額、報名截止」的「對象」是文字，需雙語，見 docs/12c §4）。
 CREATE TABLE trials (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -1107,12 +1108,24 @@ CREATE TABLE trials (
   capacity          int              NULL,
   deadline_on       date             NULL,
   sync_to_calendar  bit              NOT NULL DEFAULT 0,
+  enrolled_count    int              NOT NULL DEFAULT 0,
+  status            nvarchar(16)     NOT NULL DEFAULT N'開放',
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_trials PRIMARY KEY NONCLUSTERED (id),
-  CONSTRAINT UQ_trials_row_seq UNIQUE CLUSTERED (row_seq)
+  CONSTRAINT UQ_trials_row_seq UNIQUE CLUSTERED (row_seq),
+  -- 狀態值沿用 sessions.status 的中文字面（規劃書 P2「開放／額滿／候補／已結束」；試訓沒有另訂值域）。
+  CONSTRAINT CK_trials_status CHECK (status IN (N'開放',N'額滿',N'候補',N'已結束'))
+);
+
+-- 試訓場次的對象說明（例：「U15 男足，2011–2012 年出生」）。
+CREATE TABLE trials_i18n (
+  trial_id        uniqueidentifier NOT NULL,
+  locale          nvarchar(10)     NOT NULL,
+  audience        nvarchar(255)    NULL,
+  CONSTRAINT PK_trials_i18n PRIMARY KEY CLUSTERED (trial_id, locale)
 );
 
 /* ============================================================================
@@ -1793,6 +1806,14 @@ CREATE TABLE members (
                                  CHECK (signup_source IN ('web','line','admin','app')),
   status                      nvarchar(16)     NOT NULL DEFAULT 'active'
                                  CHECK (status IN ('active','suspended','deleted')),
+  -- B1（2026-09-30，S2-5）K1 名單要求的欄位：Email 驗證時間（NULL＝未驗證，K1 的「未驗證」狀態由此推得，
+  -- 不另設 status 值）、最後登入（取代「登入紀錄」表，同 admin_users.last_login_at）、內部備註、語系偏好、
+  -- 合併帳號時的去向（不建日誌表，合併紀錄以被合併帳號留下的這一欄為準）。
+  email_verified_at           datetime2(3)     NULL,
+  last_login_at               datetime2(3)     NULL,
+  internal_note               nvarchar(max)    NULL,
+  locale                      nvarchar(10)     NULL CHECK (locale IN (N'zh-Hant',N'en')),
+  merged_into_member_id       uniqueidentifier NULL,
   created_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by                  uniqueidentifier NULL,
@@ -1812,7 +1833,15 @@ CREATE TABLE memberships (
                               CHECK (tier IN ('registered','fan_club')),
   membership_start_on       date             NULL,
   membership_end_on         date             NULL,
-  status                    nvarchar(16)     NULL,
+  -- B1（2026-09-30，S2-5）：status 值域收斂為 pending（升級申請待確認）／active／expired／cancelled，
+  -- 對應 §3.14 升級頁的「待確認／已開通／已到期」與後台手動取消。membership_plan_id：規劃書 §5.1 Membership
+  -- 「方案」欄的落點（目前方案；歷次付款仍各自記在 membership_payments.membership_plan_id）。
+  -- last_adjust_reason／last_adjusted_at：K2「手動調整層級（含異動原因紀錄）」——不建日誌表，只留最近一次。
+  membership_plan_id        uniqueidentifier NULL,
+  status                    nvarchar(16)     NOT NULL DEFAULT 'active'
+                              CHECK (status IN ('pending','active','expired','cancelled')),
+  last_adjust_reason        nvarchar(255)    NULL,
+  last_adjusted_at          datetime2(3)     NULL,
   created_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by                uniqueidentifier NULL,
@@ -1829,9 +1858,11 @@ CREATE TABLE member_cards (
   club_id           uniqueidentifier NOT NULL,
   holder_name       nvarchar(64)     NOT NULL,
   token             nvarchar(64)     NOT NULL,
-  status            nvarchar(16)     NULL,
+  -- B1（2026-09-30）：status 值域 active／revoked；revoked_at 供「重新產生 QR」與停用會籍時撤銷。
+  status            nvarchar(16)     NOT NULL DEFAULT 'active' CHECK (status IN ('active','revoked')),
   reissue_count     int              NOT NULL DEFAULT 0,
   issued_at         datetime2(3)     NULL,
+  revoked_at        datetime2(3)     NULL,
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
@@ -1853,7 +1884,10 @@ CREATE TABLE membership_plans (
   jersey_quota      int              NOT NULL DEFAULT 0,
   mid_season_rule   nvarchar(255)    NULL,
   sort_order        int              NOT NULL DEFAULT 0,
-  status            nvarchar(16)     NULL,
+  -- B1（2026-09-30）：規劃書 K2 方案設定「期間起訖」「上下架」的落點。status 值域 draft（下架）／published（上架）。
+  starts_on         date             NULL,
+  ends_on           date             NULL,
+  status            nvarchar(16)     NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
@@ -1898,8 +1932,12 @@ CREATE TABLE membership_benefits (
   id                    uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq               bigint IDENTITY(1,1) NOT NULL,
   membership_plan_id    uniqueidentifier NOT NULL,
-  benefit_group         nvarchar(64)     NOT NULL,
+  -- B1（2026-09-30）：benefit_group 值域 member_card／store_discount／jersey／event（規劃書 K4 分組
+  -- 「會員卡／店家折扣／球衣／活動」）；status 為上下架（draft／published）。
+  benefit_group         nvarchar(64)     NOT NULL
+                          CHECK (benefit_group IN ('member_card','store_discount','jersey','event')),
   sort_order            int              NOT NULL DEFAULT 0,
+  status                nvarchar(16)     NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
   created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
@@ -1912,6 +1950,9 @@ CREATE TABLE membership_benefits (
 CREATE TABLE membership_benefits_i18n (
   membership_benefit_id uniqueidentifier NOT NULL,
   locale                 nvarchar(10)    NOT NULL,
+  -- B1（2026-09-30）：name／description 為 K4「條目名稱（中／英）、說明（中／英）」。
+  name                   nvarchar(128)   NULL,
+  description            nvarchar(max)   NULL,
   group_label            nvarchar(64)    NULL,
   free_value             nvarchar(255)   NULL,
   paid_value             nvarchar(255)   NULL,
@@ -1927,10 +1968,15 @@ CREATE TABLE jersey_issues (
   recipient_name    nvarchar(64)     NOT NULL,
   phone             nvarchar(32)     NULL,
   size              nvarchar(16)     NULL,
-  delivery_method   nvarchar(32)     NULL,
+  -- B1（2026-09-30，S2-5 K3）：membership_id 記錄這件球衣是哪份會籍的權益（家庭方案依 jersey_quota 逐件登記）；
+  -- delivery_method 值域 ship（寄送）／pickup（到場領取）；status 值域 pending／shipped／received；
+  -- received_on 為領取日期。
+  delivery_method   nvarchar(32)     NULL CHECK (delivery_method IN ('ship','pickup')),
   address           nvarchar(500)    NULL,
-  status            nvarchar(16)     NULL,
+  status            nvarchar(16)     NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','shipped','received')),
   shipped_on        date             NULL,
+  received_on       date             NULL,
+  membership_id     uniqueidentifier NULL,
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
@@ -1947,17 +1993,21 @@ CREATE TABLE partner_stores (
   slug                nvarchar(160)    NOT NULL,
   image_key           nvarchar(500)    NULL,
   category            nvarchar(32)     NULL,
+  -- B1（2026-09-30，S2-5 K4）：address 存中文地址（座標定位與既有決定不變）；英文地址在 partner_stores_i18n.address。
+  -- region（縣市／地區，供 8.4 地區篩選）、map_url（地圖連結）為規劃書 K4 欄位「地圖連結」「地區篩選項目」的落點。
   address             nvarchar(500)    NULL,
+  region              nvarchar(32)     NULL,
   lat                 decimal(9,6)     NULL,
   lng                 decimal(9,6)     NULL,
   phone               nvarchar(32)     NULL,
   business_hours      json             NULL,
+  map_url             nvarchar(500)    NULL,
   website_url         nvarchar(500)    NULL,
-  applicable_tier     nvarchar(16)     NULL,
+  applicable_tier     nvarchar(16)     NOT NULL DEFAULT 'all' CHECK (applicable_tier IN ('all','fan_club')),
   start_on            date             NULL,
   end_on              date             NULL,
   sort_order          int              NOT NULL DEFAULT 0,
-  status              nvarchar(16)     NULL,
+  status              nvarchar(16)     NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
   created_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at          datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by          uniqueidentifier NULL,
@@ -1971,6 +2021,7 @@ CREATE TABLE partner_stores_i18n (
   partner_store_id  uniqueidentifier NOT NULL,
   locale             nvarchar(10)    NOT NULL,
   name               nvarchar(128)   NULL,
+  address             nvarchar(500)  NULL,
   offer_content       nvarchar(max)  NULL,
   CONSTRAINT PK_partner_stores_i18n PRIMARY KEY CLUSTERED (partner_store_id, locale)
 );
@@ -2115,6 +2166,43 @@ CREATE TABLE event_types_i18n (
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(64)     NULL,
   CONSTRAINT PK_event_types_i18n PRIMARY KEY CLUSTERED (event_type_id, locale)
+);
+
+-- L3 隊別分類設定（B1，2026-09-30，S2-6）：分類項目由 C1 球隊帶入，這裡只存前台顯示上的覆寫——
+-- 顯示名稱（側表）、排序、代表色、是否公開。三者皆可為空＝沿用 teams 本身的值（team_color／sort_order／公開）。
+CREATE TABLE calendar_team_settings (
+  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq         bigint IDENTITY(1,1) NOT NULL,
+  club_id         uniqueidentifier NOT NULL,
+  team_id         uniqueidentifier NOT NULL,
+  colour          nvarchar(16)     NULL,
+  sort_order      int              NULL,
+  is_public       bit              NOT NULL DEFAULT 1,
+  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by      uniqueidentifier NULL,
+  updated_by      uniqueidentifier NULL,
+  CONSTRAINT PK_calendar_team_settings PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_calendar_team_settings_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE calendar_team_settings_i18n (
+  calendar_team_setting_id uniqueidentifier NOT NULL,
+  locale                   nvarchar(10)     NOT NULL,
+  display_name             nvarchar(64)     NULL,
+  CONSTRAINT PK_calendar_team_settings_i18n PRIMARY KEY CLUSTERED (calendar_team_setting_id, locale)
+);
+
+-- L4 訂閱數統計（B1，2026-09-30，S2-6）：公開的 webcal feed 每次被抓取時，記「哪個 feed、哪一天、哪個來源」。
+-- client_hash 是 IP＋User-Agent 的加鹽雜湊（HMAC-SHA256，不存原始 IP），只用來估算「有幾個不同的訂閱來源」；
+-- 這是統計用的去識別化計數，不是操作日誌（本庫不建 AuditLog／LoginLog 等，見檔頭第 8 點）。保存 90 天。
+-- feed_key：'all'（全站）或球隊代碼（teams.code）。
+CREATE TABLE calendar_feed_fetches (
+  club_id         uniqueidentifier NOT NULL,
+  feed_key        nvarchar(16)     NOT NULL,
+  fetched_on      date             NOT NULL,
+  client_hash     char(64)         NOT NULL,
+  CONSTRAINT PK_calendar_feed_fetches PRIMARY KEY CLUSTERED (club_id, feed_key, fetched_on, client_hash)
 );
 
 /* ============================================================================
@@ -2652,6 +2740,7 @@ ALTER TABLE fan_events            ADD CONSTRAINT UQ_fan_events_club_slug        
 ALTER TABLE forms                 ADD CONSTRAINT UQ_forms_club_code               UNIQUE (club_id, form_code);
 ALTER TABLE newsletter_subscribers ADD CONSTRAINT UQ_newsletter_subscribers_club_email UNIQUE (club_id, email);
 ALTER TABLE memberships           ADD CONSTRAINT UQ_memberships_member_club_season UNIQUE (member_id, club_id, season_id);
+ALTER TABLE calendar_team_settings ADD CONSTRAINT UQ_calendar_team_settings_team UNIQUE (team_id);
 ALTER TABLE member_cards          ADD CONSTRAINT UQ_member_cards_token            UNIQUE (token);
 ALTER TABLE membership_plans      ADD CONSTRAINT UQ_membership_plans_club_season_code UNIQUE (club_id, season_id, code);
 ALTER TABLE partner_stores        ADD CONSTRAINT UQ_partner_stores_club_slug      UNIQUE (club_id, slug);
@@ -2680,6 +2769,12 @@ CREATE INDEX IX_matches_season_matchon                ON matches (season_id, mat
 CREATE INDEX IX_matches_status_matchon                ON matches (status, match_on);
 CREATE INDEX IX_calendar_event_teams_team_source       ON calendar_event_teams (team_id, source_type);
 CREATE INDEX IX_registrations_session_status           ON registrations (session_id, status);
+CREATE INDEX IX_registrations_trial_status             ON registrations (trial_id, status);
+CREATE INDEX IX_trials_club_on                         ON trials (club_id, trial_on);
+CREATE INDEX IX_trials_i18n_locale                     ON trials_i18n (locale);
+CREATE INDEX IX_members_phone                          ON members (phone);
+CREATE INDEX IX_jersey_issues_club_status              ON jersey_issues (club_id, status);
+CREATE INDEX IX_calendar_team_settings_i18n_locale     ON calendar_team_settings_i18n (locale);
 CREATE INDEX IX_registrations_member                   ON registrations (member_id);
 CREATE INDEX IX_orders_member_created                  ON orders (member_id, created_at DESC);
 CREATE INDEX IX_orders_order_status                    ON orders (order_status);
@@ -3031,6 +3126,16 @@ ALTER TABLE sessions        ADD CONSTRAINT FK_sessions_venue         FOREIGN KEY
 ALTER TABLE registrations   ADD CONSTRAINT FK_registrations_club     FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE registrations   ADD CONSTRAINT FK_registrations_session  FOREIGN KEY (session_id) REFERENCES sessions(id);
 ALTER TABLE registrations   ADD CONSTRAINT FK_registrations_trial    FOREIGN KEY (trial_id) REFERENCES trials(id);
+ALTER TABLE trials_i18n     ADD CONSTRAINT FK_trials_i18n_trial       FOREIGN KEY (trial_id) REFERENCES trials(id) ON DELETE CASCADE;
+ALTER TABLE members         ADD CONSTRAINT FK_members_merged_into     FOREIGN KEY (merged_into_member_id) REFERENCES members(id);
+ALTER TABLE memberships     ADD CONSTRAINT FK_memberships_plan        FOREIGN KEY (membership_plan_id) REFERENCES membership_plans(id);
+ALTER TABLE jersey_issues   ADD CONSTRAINT FK_jersey_issues_membership FOREIGN KEY (membership_id) REFERENCES memberships(id);
+ALTER TABLE calendar_team_settings ADD CONSTRAINT FK_calendar_team_settings_club FOREIGN KEY (club_id) REFERENCES clubs(id);
+ALTER TABLE calendar_team_settings ADD CONSTRAINT FK_calendar_team_settings_team FOREIGN KEY (team_id) REFERENCES teams(id) ON DELETE CASCADE;
+ALTER TABLE calendar_team_settings ADD CONSTRAINT FK_calendar_team_settings_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE calendar_team_settings ADD CONSTRAINT FK_calendar_team_settings_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE calendar_team_settings_i18n ADD CONSTRAINT FK_calendar_team_settings_i18n_setting FOREIGN KEY (calendar_team_setting_id) REFERENCES calendar_team_settings(id) ON DELETE CASCADE;
+ALTER TABLE calendar_feed_fetches ADD CONSTRAINT FK_calendar_feed_fetches_club FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE registrations   ADD CONSTRAINT FK_registrations_member   FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
 ALTER TABLE trials          ADD CONSTRAINT FK_trials_club            FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE trials          ADD CONSTRAINT FK_trials_team            FOREIGN KEY (team_id) REFERENCES teams(id);

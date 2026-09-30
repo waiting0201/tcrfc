@@ -27,6 +27,16 @@ public partial class Member
 
     public string Status { get; set; } = null!;
 
+    public DateTime? EmailVerifiedAt { get; set; }
+
+    public DateTime? LastLoginAt { get; set; }
+
+    public string? InternalNote { get; set; }
+
+    public string? Locale { get; set; }
+
+    public Guid? MergedIntoMemberId { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public DateTime UpdatedAt { get; set; }
@@ -45,7 +55,11 @@ public partial class Member
 
     public virtual ICollection<JerseyIssue> JerseyIssues { get; set; } = new List<JerseyIssue>();
 
+    public virtual ICollection<Member> InverseMergedIntoMember { get; set; } = new List<Member>();
+
     public virtual ICollection<Membership> Memberships { get; set; } = new List<Membership>();
+
+    public virtual Member? MergedIntoMember { get; set; }
 
     public virtual ICollection<Order> Orders { get; set; } = new List<Order>();
 

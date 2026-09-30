@@ -282,6 +282,9 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
                 t.Code,
                 t.Colour,
                 t.Icon,
+                t.IsPublic,
+                t.SortOrder,
+                UsageCount = t.CalendarCustomEvents.Count,
                 NameZh = t.EventTypesI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 NameEn = t.EventTypesI18ns.Where(i => i.Locale == "en").Select(i => i.Name).FirstOrDefault(),
             })
@@ -295,6 +298,9 @@ public sealed class AdminCalendarCustomEventsRepository(ClubDbContext dbContext,
             Icon = r.Icon,
             NameZh = r.NameZh,
             NameEn = r.NameEn,
+            IsPublic = r.IsPublic,
+            SortOrder = r.SortOrder,
+            UsageCount = r.UsageCount,
         }).ToList();
     }
 

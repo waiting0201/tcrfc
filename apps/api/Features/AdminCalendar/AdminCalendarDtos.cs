@@ -33,10 +33,19 @@ public sealed record AdminCalendarEventDto
 
     /// <summary>僅 <c>custom</c> 有值：是否公開於前台。</summary>
     public bool? IsPublic { get; init; }
+
+    /// <summary>S2-6：場地 id（分軌檢視、衝突偵測、依場地篩選用）。</summary>
+    public Guid? VenueId { get; init; }
+
+    /// <summary>S2-6：僅 <c>match</c> 有值——開賽時間（<c>HH:mm</c>，當地時間）。<c>StartsAt</c> 對賽事只有日期，時間在這裡。</summary>
+    public string? Kickoff { get; init; }
+
+    /// <summary>S2-6：僅 <c>match</c> 有值——賽事類型（<c>league</c>／<c>cup</c>／<c>friendly</c>／<c>other</c>）。</summary>
+    public string? CompetitionTag { get; init; }
 }
 
-/// <summary>L3「賽事類型維護」正式的 CRUD 管理畫面留給 S2-6，本輪只開一支唯讀端點讓 L2 建立／編輯
-/// 事件時能選擇分類——見 <c>db/seed/generate-club-seed-sql.py</c>「event_types 六個起始分類」段。</summary>
+/// <summary>L3 賽事／活動類型。<c>GET calendar/event-types</c>（L2 選單用）與 L3 維護畫面共用這個形狀；
+/// S2-6 起補上 <c>IsPublic</c>／<c>SortOrder</c>／<c>UsageCount</c>（有自建事件使用時不能刪除）。</summary>
 public sealed record AdminEventTypeDto
 {
     public required Guid Id { get; init; }
@@ -45,6 +54,9 @@ public sealed record AdminEventTypeDto
     public string? Icon { get; init; }
     public string? NameZh { get; init; }
     public string? NameEn { get; init; }
+    public bool IsPublic { get; init; } = true;
+    public int SortOrder { get; init; }
+    public int UsageCount { get; init; }
 }
 
 public sealed record AdminCalendarEventLocaleContent

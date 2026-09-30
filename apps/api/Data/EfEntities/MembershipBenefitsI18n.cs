@@ -9,6 +9,10 @@ public partial class MembershipBenefitsI18n
 
     public string Locale { get; set; } = null!;
 
+    public string? Name { get; set; }
+
+    public string? Description { get; set; }
+
     public string? GroupLabel { get; set; }
 
     public string? FreeValue { get; set; }

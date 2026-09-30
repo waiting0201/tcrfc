@@ -13,7 +13,14 @@ namespace Tcrfc.Api.Common;
 /// </summary>
 public static class IcsBuilder
 {
-    public static string BuildSingleEvent(IcsEvent calendarEvent)
+    public static string BuildSingleEvent(IcsEvent calendarEvent) => BuildCalendar(null, [calendarEvent]);
+
+    /// <summary>
+    /// S2-6（L4 訂閱）：多個事件的 <c>VCALENDAR</c>，供 webcal 訂閱 feed 使用。<paramref name="calendarName"/> 非空時加上
+    /// <c>X-WR-CALNAME</c> 與建議的重新整理間隔（訂閱型行事曆的慣例，Google／Apple 行事曆會參考）；
+    /// 為 <c>null</c> 時輸出與單一事件下載逐字相同（<see cref="BuildSingleEvent"/> 就是它的特例）。
+    /// </summary>
+    public static string BuildCalendar(string? calendarName, IEnumerable<IcsEvent> events)
     {
         var lines = new List<string>
         {
@@ -22,10 +29,38 @@ public static class IcsBuilder
             "PRODID:-//TCRFC//Calendar//ZH-TW",
             "CALSCALE:GREGORIAN",
             "METHOD:PUBLISH",
-            "BEGIN:VEVENT",
-            $"UID:{Escape(calendarEvent.Uid)}",
-            $"DTSTAMP:{FormatUtc(DateTime.UtcNow)}",
         };
+        if (!string.IsNullOrWhiteSpace(calendarName))
+        {
+            lines.Add($"X-WR-CALNAME:{Escape(calendarName)}");
+            lines.Add("REFRESH-INTERVAL;VALUE=DURATION:PT6H");
+            lines.Add("X-PUBLISHED-TTL:PT6H");
+        }
+
+        foreach (var calendarEvent in events)
+        {
+            AppendEvent(lines, calendarEvent);
+        }
+
+        lines.Add("END:VCALENDAR");
+
+        var sb = new StringBuilder();
+        foreach (var line in lines)
+        {
+            foreach (var folded in FoldLine(line))
+            {
+                sb.Append(folded).Append("\r\n"); // RFC 5545 §3.1 規定行結尾一律 CRLF。
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static void AppendEvent(List<string> lines, IcsEvent calendarEvent)
+    {
+        lines.Add("BEGIN:VEVENT");
+        lines.Add($"UID:{Escape(calendarEvent.Uid)}");
+        lines.Add($"DTSTAMP:{FormatUtc(DateTime.UtcNow)}");
 
         if (calendarEvent.IsAllDay)
         {
@@ -66,18 +101,6 @@ public static class IcsBuilder
         lines.Add($"CREATED:{FormatUtc(calendarEvent.CreatedAtUtc)}");
         lines.Add($"LAST-MODIFIED:{FormatUtc(calendarEvent.UpdatedAtUtc)}");
         lines.Add("END:VEVENT");
-        lines.Add("END:VCALENDAR");
-
-        var sb = new StringBuilder();
-        foreach (var line in lines)
-        {
-            foreach (var folded in FoldLine(line))
-            {
-                sb.Append(folded).Append("\r\n"); // RFC 5545 §3.1 規定行結尾一律 CRLF。
-            }
-        }
-
-        return sb.ToString();
     }
 
     private static string FormatUtc(DateTime value) => value.ToUniversalTime().ToString("yyyyMMdd'T'HHmmss'Z'");
@@ -108,7 +131,7 @@ public static class IcsBuilder
         {
             var limit = Math.Min(maxOctets - (first ? 0 : 1), bytes.Length - offset);
             // 不得把一個多位元組 UTF-8 字元從中間切斷——往回找到安全的切點。
-            while (limit > 1 && (bytes[offset + limit] & 0xC0) == 0x80)
+            while (limit > 1 && offset + limit < bytes.Length && (bytes[offset + limit] & 0xC0) == 0x80)
             {
                 limit--;
             }

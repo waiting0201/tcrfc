@@ -1075,6 +1075,55 @@ PERMISSIONS = [
     ("team.milestone.create", "C", "C5", "team", "create", 1, 0, 0, "新增里程碑", "Create Milestones"),
     ("team.milestone.update", "C", "C5", "team", "update", 1, 0, 0, "編輯里程碑", "Update Milestones"),
     ("team.milestone.delete", "C", "C5", "team", "delete", 1, 0, 0, "刪除里程碑", "Delete Milestones"),
+    # ── B1 新增（2026-09-30，S2-4／S2-5／S2-6）：P4 試訓、K1–K4 會員系統、L3／L4 行事曆進階 ──────────
+    # P4（module=P、submodule=P4、domain=program）：場次與報名名單各自一組。trials／registrations（試訓報名）
+    # 皆 club_id 必填。匯出（is_restricted）含個資，比照 P3 不給客服／行政。
+    ("program.trial.view", "P", "P4", "program", "view", 1, 0, 0, "檢視試訓場次", "View Trials"),
+    ("program.trial.create", "P", "P4", "program", "create", 1, 0, 0, "建立試訓場次", "Create Trials"),
+    ("program.trial.update", "P", "P4", "program", "update", 1, 0, 0, "編輯試訓場次", "Update Trials"),
+    ("program.trial.delete", "P", "P4", "program", "delete", 1, 0, 0, "刪除試訓場次", "Delete Trials"),
+    ("program.trial_registration.view", "P", "P4", "program", "view", 1, 0, 0, "檢視試訓報名", "View Trial Registrations"),
+    ("program.trial_registration.create", "P", "P4", "program", "create", 1, 0, 0, "建立試訓報名（後台代填）", "Create Trial Registrations"),
+    ("program.trial_registration.update", "P", "P4", "program", "update", 1, 0, 0, "處理試訓報名", "Update Trial Registrations"),
+    ("program.trial_registration.export", "P", "P4", "program", "export", 1, 1, 0, "匯出試訓報名名單", "Export Trial Registrations"),
+    # K1（module=K、submodule=K1、domain=member）。member.pii.reveal：解除 Member 主檔遮罩（矩陣「僅系統管理員與
+    # 客服／行政可完整檢視」）；member.account.merge：帳號合併不可逆，sysadmin_only；member.export：K1 名單與續會名單
+    # CSV（is_restricted，寫日誌並須填用途）。
+    ("member.account.view", "K", "K1", "member", "view", 1, 0, 0, "檢視會員名單", "View Member Accounts"),
+    ("member.account.create", "K", "K1", "member", "create", 1, 0, 0, "建立會員（現場入會）", "Create Member Accounts"),
+    ("member.account.update", "K", "K1", "member", "update", 1, 0, 0, "處理會員帳號（停用、備註、重產會員卡 QR）", "Update Member Accounts"),
+    ("member.account.merge", "K", "K1", "member", "execute", 1, 0, 1, "合併重複會員帳號", "Merge Member Accounts"),
+    ("member.pii.reveal", "K", "K1", "member", "reveal", 1, 0, 0, "檢視會員完整個資", "Reveal Member PII"),
+    ("member.export", "K", "K1", "member", "export", 1, 1, 0, "匯出會員名單", "Export Members"),
+    # K2
+    ("member.membership.view", "K", "K2", "member", "view", 1, 0, 0, "檢視會籍與付款紀錄", "View Memberships"),
+    ("member.membership.create", "K", "K2", "member", "create", 1, 0, 0, "開通會籍（手動開通與續會）", "Activate Memberships"),
+    ("member.membership.update", "K", "K2", "member", "update", 1, 0, 0, "調整會籍（層級、到期、批次到期）", "Update Memberships"),
+    ("member.plan.view", "K", "K2", "member", "view", 1, 0, 0, "檢視會籍方案", "View Membership Plans"),
+    ("member.plan.create", "K", "K2", "member", "create", 1, 0, 0, "新增會籍方案", "Create Membership Plans"),
+    ("member.plan.update", "K", "K2", "member", "update", 1, 0, 0, "編輯會籍方案", "Update Membership Plans"),
+    ("member.plan.delete", "K", "K2", "member", "delete", 1, 0, 0, "刪除會籍方案", "Delete Membership Plans"),
+    ("member.setting.view", "K", "K2", "member", "view", 1, 0, 0, "檢視會員編號規則", "View Member Settings"),
+    ("member.setting.update", "K", "K2", "member", "update", 1, 0, 0, "編輯會員編號規則", "Update Member Settings"),
+    # K3
+    ("member.jersey.view", "K", "K3", "member", "view", 1, 0, 0, "檢視球衣發放", "View Jersey Issues"),
+    ("member.jersey.create", "K", "K3", "member", "create", 1, 0, 0, "建立球衣登記（後台代填）", "Create Jersey Issues"),
+    ("member.jersey.update", "K", "K3", "member", "update", 1, 0, 0, "處理球衣發放", "Update Jersey Issues"),
+    ("member.jersey.export", "K", "K3", "member", "export", 1, 1, 0, "匯出球衣出貨清單", "Export Jersey Issues"),
+    # K4：特約店家與權益對照表（不含個資）
+    ("member.store.view", "K", "K4", "member", "view", 1, 0, 0, "檢視特約店家", "View Partner Stores"),
+    ("member.store.create", "K", "K4", "member", "create", 1, 0, 0, "新增特約店家", "Create Partner Stores"),
+    ("member.store.update", "K", "K4", "member", "update", 1, 0, 0, "編輯特約店家", "Update Partner Stores"),
+    ("member.store.delete", "K", "K4", "member", "delete", 1, 0, 0, "刪除特約店家", "Delete Partner Stores"),
+    ("member.benefit.view", "K", "K4", "member", "view", 1, 0, 0, "檢視權益對照表", "View Membership Benefits"),
+    ("member.benefit.create", "K", "K4", "member", "create", 1, 0, 0, "新增權益條目", "Create Membership Benefits"),
+    ("member.benefit.update", "K", "K4", "member", "update", 1, 0, 0, "編輯權益條目", "Update Membership Benefits"),
+    ("member.benefit.delete", "K", "K4", "member", "delete", 1, 0, 0, "刪除權益條目", "Delete Membership Benefits"),
+    # L3／L4（domain 沿用 calendar）。行事曆資料是公開資訊，訂閱與匯出不設 is_restricted。
+    ("calendar.setting.view", "L", "L3", "calendar", "view", 1, 0, 0, "檢視行事曆分類與顯示設定", "View Calendar Settings"),
+    ("calendar.setting.update", "L", "L3", "calendar", "update", 1, 0, 0, "編輯行事曆分類與顯示設定", "Update Calendar Settings"),
+    ("calendar.subscription.view", "L", "L4", "calendar", "view", 1, 0, 0, "檢視行事曆訂閱網址與訂閱數", "View Calendar Subscriptions"),
+    ("calendar.export", "L", "L4", "calendar", "export", 1, 0, 0, "匯出行事曆（CSV／.ics）", "Export Calendar"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -1355,6 +1404,48 @@ ROLE_PERMISSIONS = [
         "team.achievement.view", "team.achievement.create", "team.achievement.update", "team.achievement.delete",
         "team.milestone.view", "team.milestone.create", "team.milestone.update", "team.milestone.delete",
     ], "own_clubs"),
+    # ── B1 新增（2026-09-30）：P4 試訓、K1–K4 會員、L3／L4 行事曆進階 ─────────────────────────────
+    # P4：依矩陣「課程／報名」欄（同 P1–P3）。內容編輯／競技／商務／檢視者唯讀；學院／課程管理 ✔全（含匯出）；
+    # 客服／行政「報名處理」＝場次唯讀＋報名檢視與處理（不含建立與匯出）；公關／媒體「—」；合作球隊管理 ✔自家（不含匯出）。
+    ("content_editor", ["program.trial.view", "program.trial_registration.view"], "all"),
+    ("team_competition", ["program.trial.view", "program.trial_registration.view"], "all"),
+    ("business_sponsorship", ["program.trial.view", "program.trial_registration.view"], "all"),
+    ("viewer", ["program.trial.view", "program.trial_registration.view"], "all"),
+    ("academy_program", [
+        "program.trial.view", "program.trial.create", "program.trial.update", "program.trial.delete",
+        "program.trial_registration.view", "program.trial_registration.create", "program.trial_registration.update",
+        "program.trial_registration.export",
+    ], "all"),
+    ("customer_service_admin", ["program.trial.view", "program.trial_registration.view", "program.trial_registration.update"], "all"),
+    ("partner_club_manager", [
+        "program.trial.view", "program.trial.create", "program.trial.update", "program.trial.delete",
+        "program.trial_registration.view", "program.trial_registration.create", "program.trial_registration.update",
+    ], "own_clubs"),
+    # K：矩陣「會員」欄——只有系統管理員（自動涵蓋）與客服／行政「✔ 檢視／處理」，合作球隊管理「僅自家會籍，Member 主檔遮罩」
+    # （本輪只給檢視，不含處理與 member.pii.reveal），其餘角色皆「—」（規劃書 §6：會員模組的權限不因行動 App 或商店而擴大）。
+    # 客服／行政不含：member.account.merge（sysadmin_only）、方案的新增編輯刪除（費用屬經營決策，先只給檢視）。
+    ("customer_service_admin", [
+        "member.account.view", "member.account.create", "member.account.update", "member.pii.reveal", "member.export",
+        "member.membership.view", "member.membership.create", "member.membership.update",
+        "member.plan.view", "member.setting.view",
+        "member.jersey.view", "member.jersey.create", "member.jersey.update", "member.jersey.export",
+        "member.store.view", "member.store.create", "member.store.update", "member.store.delete",
+        "member.benefit.view", "member.benefit.create", "member.benefit.update", "member.benefit.delete",
+    ], "all"),
+    ("partner_club_manager", [
+        "member.account.view", "member.membership.view", "member.plan.view", "member.jersey.view",
+    ], "own_clubs"),
+    # L3／L4：行事曆欄沒有任何角色是「—」，訂閱網址與匯出是公開資料的另一種取得方式，凡持有 calendar.view 者皆可看；
+    # L3 設定的編輯比照自建事件（內容編輯／公關媒體／合作球隊管理自家）。賽事類型是兩隊共用（不帶 club_id），
+    # 非系統管理員一律唯讀（見 apps/api/README.md「B1」節）。
+    ("content_editor", ["calendar.setting.view", "calendar.setting.update", "calendar.subscription.view", "calendar.export"], "all"),
+    ("pr_media", ["calendar.setting.view", "calendar.setting.update", "calendar.subscription.view", "calendar.export"], "all"),
+    ("team_competition", ["calendar.setting.view", "calendar.subscription.view", "calendar.export"], "all"),
+    ("academy_program", ["calendar.setting.view", "calendar.subscription.view", "calendar.export"], "all"),
+    ("business_sponsorship", ["calendar.setting.view", "calendar.subscription.view", "calendar.export"], "all"),
+    ("customer_service_admin", ["calendar.setting.view", "calendar.subscription.view", "calendar.export"], "all"),
+    ("viewer", ["calendar.setting.view", "calendar.subscription.view", "calendar.export"], "all"),
+    ("partner_club_manager", ["calendar.setting.view", "calendar.setting.update", "calendar.subscription.view", "calendar.export"], "own_clubs"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")

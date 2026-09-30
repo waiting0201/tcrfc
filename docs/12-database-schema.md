@@ -432,11 +432,11 @@ flowchart LR
 | `ProgramPartner` | — | `(program_id, partner_id)` 合作單位 | |
 | `Session` | **●** | 梯次／場次：期間、時段、場地、名額、已報名數、價格、報名起訖、狀態。**永不進 `CalendarEvent`** | |
 | `Registration` | **●** | 報名。**`member_id` 可為空**（非會員可報名）；**繳費線下** | 🔒 |
-| `Trial` | **●** | 試訓場次：日期、場地、對象、名額、截止。**同步行事曆由 L3 開關決定，預設關閉** | 🌐 |
+| `Trial` | **●** | 試訓場次：日期、場地、對象、名額、截止；**`enrolled_count`／`status`（開放／額滿／候補／已結束）比照 `Session`（B1）**。**同步行事曆由 L3 開關決定，預設關閉**（開關寫入設定並連動各場次的 `sync_to_calendar`） | 🌐 |
 
 > ✅ **`Session` 不建 `*_i18n` 側表**（2026-09-22 核實）：規劃書與 ERD 全文查無任何文字型欄位（全部是日期／數字／
-> 狀態），`db/club-schema.sql` 已核實不建 `sessions_i18n`。此前 🌐 標記過寬。**`Trial` 保留 🌐**——`docs/12c` §4
-> 列有低信心度候選欄位（`audience`），`db/club-schema.sql` 目前選擇不建 `trials_i18n`，仍待確認非本輪裁決範圍。
+> 狀態），`db/club-schema.sql` 已核實不建 `sessions_i18n`。此前 🌐 標記過寬。**`Trial` 保留 🌐**——B1（2026-09-30，S2-4）
+> 依規劃書 P4「對象」建立 `trials_i18n.audience`，見 `docs/12c` §3.3。
 
 ### 4.4 E 商業模組（8）
 
@@ -577,7 +577,9 @@ flowchart LR
 | `CalendarCustomEvent` | **●** | **L2 自建事件——行事曆唯一的自有資料**：雙語標題、全天／多日、場地、封面、CTA、前台可見性 | 🌐 |
 | `CalendarEventTeam` | — | `team_codes[]` 的關聯表實作 `(source_type, source_id, team_id)` | |
 | `CalendarEventException` | — | L2 重複規則的例外日期 | |
-| `EventType` | — | 賽事／活動類型：圖示、色彩、顯示規則、是否公開 | 🌐 |
+| `EventType` | — | 賽事／活動類型：圖示、色彩、顯示規則、是否公開。**兩隊共用（不帶 `club_id`），寫入只有系統管理員**（B1） | 🌐 |
+| `CalendarTeamSetting` | **●** | **L3 隊別分類的前台顯示覆寫（B1 新增）**：`team_id` UNIQUE、代表色、排序、是否公開；顯示名稱在 `calendar_team_settings_i18n`。分類項目本身由 C1 球隊帶入，這裡只存覆寫（空＝沿用球隊本身的值） | 🌐 |
+| `CalendarFeedFetch` | **●** | **L4 訂閱數統計（B1 新增）**：`(club_id, feed_key, fetched_on, client_hash)`。`client_hash` 是 IP＋User-Agent 的 HMAC 雜湊（不存原始 IP），同來源同天一筆，保存 90 天。**去識別化的計數，不是操作日誌** | |
 
 > ⚠️ **行事曆是彙整層不是資料源。** 賽事在 C4 維護，複製一份到行事曆＝兩個真實來源，必然不同步。
 > ⚠️ **`Session` 課程時段永不進入**；`Trial` 由 L3 開關決定、**預設關閉**。
@@ -802,6 +804,20 @@ flowchart LR
     ⑦ `enquiries.proposal_id`（9.4「可 A/B 版本」）；⑧ 值域收斂：`proposals.status` → `NOT NULL DEFAULT 'draft'`＋`CK_proposals_status`、
     `press_resources.resource_type` 加 `CK_press_resources_resource_type`（`press_release`／`brand_kit`／`hires_image`），套用前兩表皆 0 筆。
     **仍未補**：圖片欄位組的雙語 alt（夥伴／贊助商 Logo、慈善圖集）——與既有 `staff`／`players` 同一個既有落差。
+44. 🔴 **（B1，2026-09-30）後台 P4 試訓、K1–K4 會員系統、L3／L4 行事曆進階落地時補齊的綱要**——同樣是把規劃書已有的功能落到資料表，不是新增規格
+    （`db/club-schema.sql` 與 migration `AlignSchemaB1` 同步，本機 `tcrfc_club` 已套用，套用前相關表皆 0 筆）：
+    ① `trials` 加 `enrolled_count`／`status`（`CK_trials_status`：開放／額滿／候補／已結束，值域沿用 `sessions.status`）＋新表 `trials_i18n(audience)`；
+    ② `members` 加 `email_verified_at`（K1「未驗證」狀態由它推得，**不另設 `status` 值**）、`last_login_at`（取代「登入紀錄」表，同 `admin_users.last_login_at`）、
+    `internal_note`、`locale`（語系偏好）、`merged_into_member_id`（合併帳號的去向，**不建日誌表**，合併紀錄以被合併帳號留下的這一欄為準）；
+    ③ `memberships` 加 `membership_plan_id`（§5.1 Membership「方案」欄）、`last_adjust_reason`／`last_adjusted_at`（K2「手動調整層級（含異動原因）」只留最近一次，
+    **不建異動歷程表**）；`status` 收斂為 `NOT NULL DEFAULT 'active'`＋`CK_memberships_status`（pending／active／expired／cancelled）；
+    ④ `member_cards.status` 收斂為 `active`／`revoked`＋`revoked_at`；⑤ `membership_plans` 加 `starts_on`／`ends_on`（K2「期間起訖」）、`status`（draft＝下架／published＝上架）；
+    ⑥ `membership_benefits` 加 `status`、`benefit_group` 值域（member_card／store_discount／jersey／event）、`membership_benefits_i18n.name`／`description`；
+    ⑦ `jersey_issues` 加 `membership_id`（家庭方案依 `jersey_quota` 逐件登記）、`received_on`，`status`（pending／shipped／received）與 `delivery_method`（ship／pickup）加值域；
+    ⑧ `partner_stores` 加 `region`（8.4 地區篩選）、`map_url`（K4「地圖連結」），`applicable_tier`（all／fan_club）與 `status`（draft／published）收斂、`partner_stores_i18n.address`（英文地址）；
+    ⑨ 新表 `calendar_team_settings`／`_i18n`（L3 隊別分類覆寫）、`calendar_feed_fetches`（L4 訂閱數統計）。
+    **不變**：`Member` 仍不加 `club_id`、`MembershipBenefit` 仍不加 `club_id`（範圍靠「方案屬於目前俱樂部」）、`Trial` 是否同步行事曆仍由 L3 開關決定（開關連動 `trials.sync_to_calendar`，視圖不改）。
+    **稽核仍無表**（§13.1）：匯出與個資檢視的「誰、何時、幾筆、用途」目前寫進應用程式結構化日誌（`SensitiveActionLogger`），不落資料表，見 `apps/api/README.md`「B1」節「待裁決」。
 
 ---
 

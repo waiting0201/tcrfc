@@ -1146,3 +1146,233 @@ IF NOT EXISTS (SELECT 1 FROM achievements WHERE club_id = {tc} AND competition_n
   INSERT INTO achievements (id, club_id, season_id, team_id, year, competition_name, placing)
   VALUES ({esc(new_id("achievement", "tcrfc", str(k)))}, {tc}, {season_sq(tc, "2026-27")}, {D1}, {year}, {esc(comp)}, {esc(placing)});
 """)
+
+    # ========================================================================
+    # 42–49. P4 試訓／K 會員系統／L3 行事曆設定（2026-09-30，B1 後台 API 任務，S2-4／S2-5／S2-6）
+    #
+    # 🔴 全部是【測試】虛構資料：會員姓名一律「【測試】會員○」、Email 一律 @example.com、電話一律 0900-000-0XX
+    # （不能加前綴的欄位以 example.com／全 0 電話標明）。不含任何真實個資。密碼雜湊沿用測試帳號的公開測試雜湊
+    # （Argon2id，明文 ContentEditor@123），純本機測試用，前台會員登入尚未開發（S2-11）。
+    # 會籍付款是【測試】金額。沒有圖片（特約店家 image_key 留空）。
+    # ========================================================================
+    bw = clubs["bw"]
+    BW1 = "(SELECT id FROM teams WHERE code = N'BW1')"
+    BWU15 = "(SELECT id FROM teams WHERE code = N'BW-U15')"
+    TEST_HASH = "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ="
+
+    emit("-- ── 42. trials／trials_i18n／registrations：P4 試訓場次與報名（tcrfc 一線隊、bw 青年隊，全部【測試】） ──")
+    TRIALS_TEST = [  # key, club_code, team_sq, venue keyword, trial_on, capacity, deadline, status, audience zh, audience en
+        ("d1-open", "tcrfc", D1, "西屯", "2026-11-14", 20, "2026-11-07", "開放",
+         "【測試】一線隊公開試訓：18 歲以上，具比賽經驗者", "Test open trial for the first team: age 18+, match experience required"),
+        ("d1-past", "tcrfc", D1, "西屯", "2026-08-16", 15, "2026-08-09", "已結束",
+         "【測試】一線隊夏季試訓（已結束）", "Test summer trial (closed)"),
+        ("bwu15-open", "bw", BWU15, "豐原", "2026-12-05", 12, "2026-11-28", "開放",
+         "【測試】青年隊 U15 試訓：2011–2012 年出生", "Test U15 youth trial: born 2011–2012"),
+    ]
+    for key, ccode, team, venue_kw, on, cap, deadline, status, aud_zh, aud_en in TRIALS_TEST:
+        tid = new_id("trial", ccode, key)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM trials_i18n WHERE audience = {esc(aud_zh)})
+BEGIN
+  INSERT INTO trials (id, club_id, team_id, venue_id, trial_on, capacity, deadline_on, sync_to_calendar, status)
+  VALUES ({esc(tid)}, {clubs[ccode]}, {team}, {venue_by_keyword_sq(venue_kw)}, {esc(on)}, {cap}, {esc(deadline)}, 0, {esc(status)});
+  INSERT INTO trials_i18n (trial_id, locale, audience) VALUES ({esc(tid)}, N'zh-Hant', {esc(aud_zh)});
+  INSERT INTO trials_i18n (trial_id, locale, audience) VALUES ({esc(tid)}, N'en', {esc(aud_en)});
+END
+""")
+    TRIAL_REGS = [  # no, trial key, club, name, phone, email, birth, guardian, status
+        ("SEED-TRIAL-0001", "d1-open", "tcrfc", "【測試】試訓者甲", "0900-000-101", "trial-a@example.com", "2001-03-04", None, "已確認"),
+        ("SEED-TRIAL-0002", "d1-open", "tcrfc", "【測試】試訓者乙", "0900-000-102", "trial-b@example.com", "1999-07-21", None, "待確認"),
+        ("SEED-TRIAL-0003", "d1-open", "tcrfc", "【測試】試訓者丙", "0900-000-103", "trial-c@example.com", "2000-12-01", None, "候補"),
+        ("SEED-TRIAL-0004", "bwu15-open", "bw", "【測試】青年試訓者丁", "0900-000-104", "trial-d@example.com", "2011-05-05", "【測試】家長丁", "待確認"),
+    ]
+    for no, tkey, ccode, name, phone, email, birth, guardian, status in TRIAL_REGS:
+        tid = new_id("trial", ccode, tkey)
+        occupies = 1 if status in ("待確認", "已確認", "已繳費", "完成") else 0
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM registrations WHERE registration_no = {esc(no)})
+BEGIN
+  INSERT INTO registrations (id, registration_no, club_id, trial_id, applicant_name, phone, email, birth_on, guardian_name, guardian_phone, status)
+  VALUES ({esc(new_id("registration", no))}, {esc(no)}, {clubs[ccode]}, {esc(tid)}, {esc(name)}, {esc(phone)}, {esc(email)}, {esc(birth)},
+          {esc(guardian)}, {esc("0900-000-199" if guardian else None)}, {esc(status)});
+  UPDATE trials SET enrolled_count = enrolled_count + {occupies} WHERE id = {esc(tid)};
+END
+""")
+
+    emit("-- ── 43. membership_plans／membership_plans_i18n：K2 會籍方案（tcrfc 2026-27 單人＋家庭、bw 2025 單人，【測試】價格） ──")
+    PLANS_TEST = [  # club, season, code, fee, cards, jerseys, rule, starts, ends, order, zh, en, note zh
+        ("tcrfc", "2026-27", "single", 1200, 1, 1, "【測試】季中入會照比例計價", "2026-09-13", "2027-05-02", 0, "【測試】球迷會員（單人）", "Fan Club Member (Single)", "【測試】含會員卡一張、入會球衣一件。"),
+        ("tcrfc", "2026-27", "family", 3000, 3, 3, "【測試】季中入會不折價", "2026-09-13", "2027-05-02", 1, "【測試】球迷會員（家庭）", "Fan Club Member (Family)", "【測試】1 位成人＋2 位小童，含會員卡三張、球衣三件。"),
+        ("bw", "2025", "single", 800, 1, 1, "【測試】季中入會照比例計價", "2025-04-23", "2025-06-15", 0, "【測試】藍鯨球迷會員（單人）", "Blue Whale Fan Club (Single)", "【測試】含會員卡一張、入會球衣一件。"),
+    ]
+    for ccode, season, code, fee, cards, jerseys, rule, starts, ends, order, zh, en, note in PLANS_TEST:
+        pid = new_id("membership_plan", ccode, season, code)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = {clubs[ccode]} AND season_id = {season_sq(clubs[ccode], season)} AND code = {esc(code)})
+BEGIN
+  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, mid_season_rule, sort_order, starts_on, ends_on, status)
+  VALUES ({esc(pid)}, {clubs[ccode]}, {season_sq(clubs[ccode], season)}, {esc(code)}, {fee}, {cards}, {jerseys}, {esc(rule)}, {order}, {esc(starts)}, {esc(ends)}, N'published');
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES ({esc(pid)}, N'zh-Hant', {esc(zh)}, {esc(note)});
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES ({esc(pid)}, N'en', {esc(en)}, NULL);
+END
+""")
+
+    emit("-- ── 44. members／memberships／member_cards／membership_payments／jersey_issues：K1–K3（7 位虛構會員，涵蓋雙會籍、即將到期、停用、疑似重複帳號） ──")
+    # no, name, email, phone, birth, source, status, verified, locale, note
+    MEMBERS_TEST = [
+        ("M900001", "【測試】會員甲", "member-a@example.com", "0900-000-001", "1990-01-15", "web", "active", 1, "zh-Hant", "【測試】雙會籍示範：同時持有磐石與藍鯨付費會籍。"),
+        ("M900002", "【測試】會員乙", "member-b@example.com", "0900-000-002", "1985-06-30", "line", "active", 1, "zh-Hant", None),
+        ("M900003", "【測試】會員丙", "member-c@example.com", "0900-000-003", "1978-11-02", "admin", "active", 1, "en", "【測試】現場入會。"),
+        ("M900004", "【測試】會員丁", "member-d@example.com", "0900-000-004", "2000-02-29", "web", "active", 0, "zh-Hant", "【測試】Email 尚未驗證。"),
+        ("M900005", "【測試】會員戊", "member-e@example.com", "0900-000-005", "1995-09-09", "app", "suspended", 1, "zh-Hant", "【測試】已停用帳號示範。"),
+        ("M900006", "【測試】會員己", "member-f@example.com", "0900-000-006", "1992-04-18", "web", "active", 1, "zh-Hant", None),
+        ("M900007", "【測試】會員甲（另一個帳號）", "member-a2@example.com", "0900-000-001", "1990-01-15", "line", "active", 1, "zh-Hant", "【測試】與會員甲同一支電話，供「疑似重複帳號」比對示範。"),
+    ]
+    for no, name, email, phone, birth, source, status, verified, locale, note in MEMBERS_TEST:
+        mid = new_id("member", no)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM members WHERE member_no = {esc(no)})
+  INSERT INTO members (id, member_no, name, email, password_hash, phone, birth_on, signup_source, status, email_verified_at, last_login_at, internal_note, locale)
+  VALUES ({esc(mid)}, {esc(no)}, {esc(name)}, {esc(email)}, {esc(TEST_HASH)}, {esc(phone)}, {esc(birth)}, {esc(source)}, {esc(status)},
+          {"SYSUTCDATETIME()" if verified else "NULL"}, {"DATEADD(day, -3, SYSUTCDATETIME())" if verified else "NULL"}, {esc(note)}, {esc(locale)});
+""")
+    # member no, club, season, plan code, tier, start, end, status, payment (method, amount, paid_on) | None
+    MEMBERSHIPS_TEST = [
+        ("M900001", "tcrfc", "2026-27", "single", "fan_club", "2026-09-20", "2027-05-02", "active", ("linepay", 1200, "2026-09-20")),
+        ("M900001", "bw", "2025", "single", "fan_club", "2025-04-25", "2025-06-15", "expired", ("onsite", 800, "2025-04-25")),
+        ("M900002", "tcrfc", "2026-27", "family", "fan_club", "2026-09-22", "2027-05-02", "active", ("onsite", 3000, "2026-09-22")),
+        ("M900003", "tcrfc", "2026-27", None, "registered", "2026-09-13", "2027-05-02", "active", None),
+        ("M900004", "tcrfc", "2026-27", None, "registered", "2026-09-25", "2027-05-02", "pending", None),
+        ("M900005", "tcrfc", "2026-27", "single", "fan_club", "2026-09-14", "2026-10-15", "active", ("linepay", 1200, "2026-09-14")),
+        ("M900006", "bw", "2025", None, "registered", "2025-04-23", "2025-06-15", "active", None),
+        ("M900007", "tcrfc", "2026-27", None, "registered", "2026-09-27", "2027-05-02", "active", None),
+    ]
+    for no, ccode, season, plan, tier, start, end, status, pay in MEMBERSHIPS_TEST:
+        msid = new_id("membership", no, ccode, season)
+        cs = clubs[ccode]
+        plan_sql = f"(SELECT id FROM membership_plans WHERE club_id = {cs} AND season_id = {season_sq(cs, season)} AND code = {esc(plan)})" if plan else "NULL"
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM memberships WHERE member_id = (SELECT id FROM members WHERE member_no = {esc(no)}) AND club_id = {cs} AND season_id = {season_sq(cs, season)})
+BEGIN
+  INSERT INTO memberships (id, member_id, club_id, season_id, tier, membership_start_on, membership_end_on, status, membership_plan_id)
+  VALUES ({esc(msid)}, (SELECT id FROM members WHERE member_no = {esc(no)}), {cs}, {season_sq(cs, season)}, {esc(tier)}, {esc(start)}, {esc(end)}, {esc(status)}, {plan_sql});
+  INSERT INTO member_cards (id, membership_id, club_id, holder_name, token, status, issued_at)
+  VALUES ({esc(new_id("member_card", msid))}, {esc(msid)}, {cs}, (SELECT name FROM members WHERE member_no = {esc(no)}),
+          {esc(hashlib.sha256(("seed-card-token|" + msid).encode()).hexdigest()[:43])}, N'active', SYSUTCDATETIME());
+END
+""")
+        if pay:
+            method, amount, paid_on = pay
+            block(f"""
+IF NOT EXISTS (SELECT 1 FROM membership_payments WHERE membership_id = {esc(msid)})
+  INSERT INTO membership_payments (id, membership_id, club_id, collecting_club_id, membership_plan_id, method, amount, paid_on, note, activated_start_on, activated_end_on)
+  VALUES ({esc(new_id("membership_payment", msid))}, {esc(msid)}, {cs}, {clubs["tcrfc"]}, {plan_sql}, {esc(method)}, {amount}, {esc(paid_on)}, N'【測試】種子付款紀錄', {esc(start)}, {esc(end)});
+""")
+    # 家庭方案的副卡（card_quota=3，主卡已在上面建立）
+    block(f"""
+IF (SELECT COUNT(*) FROM member_cards WHERE membership_id = {esc(new_id("membership", "M900002", "tcrfc", "2026-27"))}) < 2
+  INSERT INTO member_cards (id, membership_id, club_id, holder_name, token, status, issued_at)
+  VALUES ({esc(new_id("member_card", "M900002-extra-1"))}, {esc(new_id("membership", "M900002", "tcrfc", "2026-27"))}, {clubs["tcrfc"]}, N'【測試】副卡持有人（小童）',
+          {esc(hashlib.sha256(b"seed-card-token|M900002-extra-1").hexdigest()[:43])}, N'active', SYSUTCDATETIME());
+""")
+    JERSEYS_TEST = [  # member no, club, season, recipient, size, method, status, shipped, address
+        ("M900001", "tcrfc", "2026-27", "【測試】會員甲", "L", "ship", "pending", None, "【測試】台中市西屯區測試路 1 號"),
+        ("M900002", "tcrfc", "2026-27", "【測試】會員乙", "M", "pickup", "pending", None, None),
+        ("M900002", "tcrfc", "2026-27", "【測試】副卡持有人（小童）", "S", "ship", "shipped", "2026-09-28", "【測試】台中市北屯區測試路 2 號"),
+        ("M900005", "tcrfc", "2026-27", "【測試】會員戊", "XL", "pickup", "received", None, None),
+    ]
+    for no, ccode, season, recipient, size, method, status, shipped, address in JERSEYS_TEST:
+        msid = new_id("membership", no, ccode, season)
+        jid = new_id("jersey_issue", no, recipient)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM jersey_issues WHERE id = {esc(jid)})
+  INSERT INTO jersey_issues (id, club_id, member_id, membership_id, recipient_name, phone, size, delivery_method, address, status, shipped_on, received_on)
+  VALUES ({esc(jid)}, {clubs[ccode]}, (SELECT id FROM members WHERE member_no = {esc(no)}), {esc(msid)}, {esc(recipient)}, N'0900-000-099', {esc(size)}, {esc(method)},
+          {esc(address)}, {esc(status)}, {esc(shipped)}, {"'2026-09-29'" if status == "received" else "NULL"});
+""")
+
+    emit("-- ── 45. settings：member.no_prefix／no_digits（K2 會員編號規則）與 calendar.*（L3 顯示設定） ──")
+    for ccode in ("tcrfc", "bw"):
+        setting_value(ccode, "member.no_prefix", "M", "member")
+        setting_value(ccode, "member.no_digits", "6", "member")
+        setting_value(ccode, "calendar.default_view", "list", "calendar")
+        setting_value(ccode, "calendar.default_range", "upcoming", "calendar")
+        setting_value(ccode, "calendar.sync_trials", "false", "calendar")
+    setting_value("tcrfc", "calendar.default_team", "D1", "calendar")
+    setting_value("tcrfc", "calendar.embed.first_team_code", "D1", "calendar")
+    setting_value("tcrfc", "calendar.embed.home_teams", jdump(["D1"]), "calendar")
+    setting_value("bw", "calendar.default_team", "BW1", "calendar")
+    setting_value("bw", "calendar.embed.first_team_code", "BW1", "calendar")
+    setting_value("bw", "calendar.embed.home_teams", jdump(["BW1"]), "calendar")
+
+    emit("-- ── 46. calendar_team_settings：L3 隊別分類顯示設定（一線隊顯示名稱與代表色；藍鯨青年隊 U12 示範不公開） ──")
+    for ccode, team_code, zh, en, colour, order, public in (
+        ("tcrfc", "D1", "一線隊", "First Team", "#0B3D91", 0, 1),
+        ("bw", "BW1", "藍鯨一線隊", "Blue Whale First Team", "#2196D5", 0, 1),
+        ("bw", "BW-U12", "U12 青年隊", "U12 Youth", None, 3, 0),
+    ):
+        sid = new_id("calendar_team_setting", team_code)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM calendar_team_settings WHERE team_id = (SELECT id FROM teams WHERE code = N'{team_code}'))
+BEGIN
+  INSERT INTO calendar_team_settings (id, club_id, team_id, colour, sort_order, is_public)
+  VALUES ({esc(sid)}, {clubs[ccode]}, (SELECT id FROM teams WHERE code = N'{team_code}'), {esc(colour)}, {order}, {public});
+  INSERT INTO calendar_team_settings_i18n (calendar_team_setting_id, locale, display_name) VALUES ({esc(sid)}, N'zh-Hant', {esc(zh)});
+  INSERT INTO calendar_team_settings_i18n (calendar_team_setting_id, locale, display_name) VALUES ({esc(sid)}, N'en', {esc(en)});
+END
+""")
+
+    emit("-- ── 47. partner_stores／partner_stores_i18n：K4 特約店家（tcrfc 4 家、兩隊共同 1 家、bw 1 家，全部【測試】，座標為台中市區近似值） ──")
+    STORES_TEST = [  # slug, club_code|None, category, region, zh name, en name, zh addr, en addr, lat, lng, tier, status, offer zh, offer en
+        ("test-store-cafe", "tcrfc", "餐飲", "台中市西屯區", "【測試】示範咖啡館", "Test Cafe", "【測試】台中市西屯區測試路 10 號", "No. 10 Test Rd., Xitun Dist., Taichung", 24.1810, 120.6060, "all", "published",
+         "【測試】出示會員卡飲品九折", "Test: 10% off drinks with member card"),
+        ("test-store-sports", "tcrfc", "運動用品", "台中市北屯區", "【測試】示範運動用品店", "Test Sports Shop", "【測試】台中市北屯區測試路 20 號", None, 24.1830, 120.7080, "fan_club", "published",
+         "【測試】付費會員全店九五折", "Test: 5% off for fan club members"),
+        ("test-store-gym", "tcrfc", "健身", "台中市南屯區", "【測試】示範健身房", None, "【測試】台中市南屯區測試路 30 號", None, None, None, "all", "draft",
+         "【測試】體驗課程一堂免費（草稿，尚未上架）", None),
+        ("test-store-food", "tcrfc", "餐飲", "台中市西區", "【測試】示範小吃店", "Test Snack Shop", "【測試】台中市西區測試路 40 號", None, 24.1400, 120.6640, "all", "published",
+         "【測試】招牌小吃加購優惠", "Test: snack combo discount"),
+        ("test-store-shared", None, "生活", "台中市", "【測試】兩隊共同特約店家", "Test Shared Partner Store", "【測試】台中市測試路 50 號", "No. 50 Test Rd., Taichung", 24.1500, 120.6800, "all", "published",
+         "【測試】兩隊會員皆適用的優惠", "Test: offer valid for both clubs' members"),
+        ("test-store-bw", "bw", "餐飲", "台中市豐原區", "【測試】藍鯨示範店家", None, "【測試】台中市豐原區測試路 60 號", None, 24.2520, 120.7220, "all", "published",
+         "【測試】藍鯨會員專屬優惠", None),
+    ]
+    for i, (slug, ccode, cat, region, zh, en, addr_zh, addr_en, lat, lng, tier, status, offer_zh, offer_en) in enumerate(STORES_TEST):
+        sid = new_id("partner_store", ccode or "shared", slug)
+        club_sql = clubs[ccode] if ccode else "NULL"
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM partner_stores WHERE slug = {esc(slug)})
+BEGIN
+  INSERT INTO partner_stores (id, club_id, slug, category, region, address, lat, lng, phone, website_url, map_url, applicable_tier, start_on, sort_order, status)
+  VALUES ({esc(sid)}, {club_sql}, {esc(slug)}, {esc(cat)}, {esc(region)}, {esc(addr_zh)}, {esc(lat)}, {esc(lng)}, N'04-0000-0000', N'https://example.com/{slug}',
+          N'https://maps.example.com/{slug}', {esc(tier)}, N'2026-01-01', {i}, {esc(status)});
+  INSERT INTO partner_stores_i18n (partner_store_id, locale, name, address, offer_content) VALUES ({esc(sid)}, N'zh-Hant', {esc(zh)}, NULL, {esc(offer_zh)});
+  {"INSERT INTO partner_stores_i18n (partner_store_id, locale, name, address, offer_content) VALUES (" + esc(sid) + ", N'en', " + esc(en) + ", " + esc(addr_en) + ", " + esc(offer_en) + ");" if en else ""}
+END
+""")
+
+    emit("-- ── 48. membership_benefits／membership_benefits_i18n：K4 權益對照表（掛在 tcrfc 單人方案，六條【測試】條目，分組涵蓋四類） ──")
+    BENEFITS_TEST = [  # group, order, zh name, en name, zh desc, free, paid
+        ("member_card", 0, "電子會員卡", "Digital member card", "【測試】手機出示即可", "✓", "✓"),
+        ("store_discount", 1, "全會員適用的特約店家折扣", "Partner store discounts (all members)", "【測試】標示「全會員適用」的店家", "✓", "✓"),
+        ("store_discount", 2, "限付費會員的特約店家折扣", "Partner store discounts (fan club only)", "【測試】標示「限付費」的店家", "✗", "✓"),
+        ("jersey", 3, "入會球衣", "Membership jersey", "【測試】依方案含球衣件數", "✗", "一件"),
+        ("event", 4, "球迷活動優先報名", "Priority sign-up for fan events", "【測試】球迷見面會等活動", "✗", "✓"),
+        ("event", 5, "球迷會員抽獎資格", "Fan club prize draw eligibility", "【測試】會籍有效期間自動具備", "✗", "✓"),
+    ]
+    single_plan_sq = f"(SELECT id FROM membership_plans WHERE club_id = {tc} AND season_id = {season_sq(tc, '2026-27')} AND code = N'single')"
+    group_labels = {"member_card": ("會員卡", "Member card"), "store_discount": ("店家折扣", "Store discounts"), "jersey": ("球衣", "Jersey"), "event": ("活動", "Events")}
+    for group, order, zh, en, desc, free, paid in BENEFITS_TEST:
+        bid = new_id("membership_benefit", "tcrfc-single", str(order))
+        gl_zh, gl_en = group_labels[group]
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM membership_benefits WHERE membership_plan_id = {single_plan_sq} AND sort_order = {order})
+BEGIN
+  INSERT INTO membership_benefits (id, membership_plan_id, benefit_group, sort_order, status)
+  VALUES ({esc(bid)}, {single_plan_sq}, {esc(group)}, {order}, N'published');
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
+  VALUES ({esc(bid)}, N'zh-Hant', {esc(zh)}, {esc(desc)}, {esc(gl_zh)}, {esc(free)}, {esc(paid)});
+  INSERT INTO membership_benefits_i18n (membership_benefit_id, locale, name, description, group_label, free_value, paid_value)
+  VALUES ({esc(bid)}, N'en', {esc(en)}, NULL, {esc(gl_en)}, {esc(free)}, {esc(paid)});
+END
+""")

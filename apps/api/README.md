@@ -3840,6 +3840,259 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 
 ---
 
+## B1：P4 試訓／K1–K4 會員系統／L3–L4 行事曆進階（2026-09-30，`backend-engineer`）
+
+主站規劃書 §4.4 P4（＋P3 進階）、§4.11 K1–K4、§4.12 L1 進階／L3／L4（後台），對應 `STATUS.md` 的 `S2-4`／`S2-5`／`S2-6`。
+沿用 E1a 的全部通則（路徑、錯誤格式、`content: { zh, en? }` 雙語、`PUT` 整份取代、`PUT …/order`、`POST …/batch/*`、分頁形狀、跨俱樂部 id 一律 404，見「E1a」整節的「通則」表），
+**本節只寫 B1 新增的規則與每支端點的契約。給畫面的人：只讀這一節就能串接，不需要看程式碼。**
+
+### B1 通則（新增）
+
+| 項目 | 規定 |
+|---|---|
+| 給畫面顯示的標籤 | 資料庫存英文代碼，回應**同時給代碼與中文標籤**（`tier`／`tierLabel`、`status`／`statusLabel`、`effectiveStatus`／`effectiveStatusLabel`、`deliveryMethod`／`deliveryMethodLabel`…）。篩選一律傳**代碼**；畫面只顯示標籤，不顯示代碼（§4.0）。試訓與課程報名的狀態本來就是中文字面（`待確認`…），照傳照顯示。 |
+| **個資遮罩**（K1／K3） | 會員名單一律遮罩（姓名 `王○明`、Email `a***@gmail.com`、電話 `09******78`、生日 `****-**-**`、地址前 6 字＋`***`）。**完整值只有兩條路**：① 會員詳情 `GET …/members/{id}?reveal=true`（需 `member.pii.reveal`，沒有權限 → 403）；② K3 球衣的收件資訊：持有 `member.pii.reveal` 的角色直接看到完整值（出貨要用），其餘遮罩。回應一律有 `isMasked`（這份回應是不是遮罩值）與（詳情）`canReveal`（你有沒有解除遮罩的權限，畫面用來決定要不要顯示「顯示完整資料」按鈕）。**LINE 綁定識別碼、密碼雜湊、QR 憑證字串（token）永遠不出現在任何回應**（只有 `lineBound: true/false`）。 |
+| 搜尋不能繞過遮罩 | 沒有 `member.pii.reveal` 的人，`keyword` **只比對會員編號**（否則搜尋結果會變成探測個資的工具）；有權限者才比對姓名／Email／電話。 |
+| 資料範圍（兩層） | `Member` 是帳號層（不分俱樂部）、`Membership` 才分俱樂部。**名單預設只列「在目前操作的俱樂部有會籍」的會員**；`crossClub=true` 改為「你有授權的所有俱樂部」（系統管理員為全部、含尚無會籍的帳號）。**無論哪種，回應裡的會籍列只含你有授權的俱樂部**——受限帳號（合作球隊管理）絕對看不到對方俱樂部的任何會籍列；直接打對方會員的 id → 404。 |
+| 匯出與敏感操作 | 匯出端點需要受限權限碼（`is_restricted`）＋**必填 `purpose`（用途備註，≤200 字，缺 → 400）**。匯出、解除遮罩、停用／啟用帳號、重產 QR、合併帳號、調整會籍、批次到期、球衣出貨清單都會寫**結構化敏感操作日誌**（帳號、俱樂部、對象、筆數、用途；不含個資）。🔴 本庫依委託方指示沒有日誌表，這是暫行落點，見「待裁決」。 |
+| 到期日為準 | 會籍「有效與否」以**到期日**為準：`status = active` 但到期日已過的，回應的 `effectiveStatus` 是 `expired`。篩選與畫面都用 `effectiveStatus`；`status` 欄只是人工覆寫（待確認／取消／批次到期）。 |
+| 通知信 | 「會籍開通確認」「候補遞補」「延賽通知」等**本輪一律不寄**：全系統沒有寄信通路（`email_logs` 只是紀錄表）。相關端點回應不含「已通知」語意，`rescheduled.notificationSent` 恆為 `false`。 |
+
+### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，`role_permissions` 已種入，共 39 碼）
+
+| 權限碼 | 用途 | 系統管理員 | 客服／行政 | 學院／課程 | 內容／競技／商務／檢視者 | 公關／媒體 | 合作球隊管理（僅自家） |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|
+| `program.trial.view／create／update／delete` | P4 場次 | 全 | 唯讀 | 全 | 唯讀 | — | 全 |
+| `program.trial_registration.view／create／update` | P4 報名名單 | 全 | 檢視＋處理（無建立） | 全 | 唯讀 | — | 全 |
+| `program.trial_registration.export`（🔴 受限） | 試訓名單 CSV | ✔ | — | ✔ | — | — | — |
+| `member.account.view`／`create`／`update` | K1 名單、現場建立、處理帳號 | 全 | 全 | — | — | — | 只有 view |
+| `member.pii.reveal` | 解除遮罩（會員詳情、K3 收件資訊、匯出時的搜尋比對） | ✔ | ✔ | — | — | — | — |
+| `member.export`（🔴 受限） | K1 名單 CSV、續會名單 CSV | ✔ | ✔ | — | — | — | — |
+| `member.account.merge`（sysadmin_only） | 合併重複帳號（不可逆） | ✔ | — | — | — | — | — |
+| `member.membership.view`／`create`／`update` | K2 會籍、付款紀錄；開通（create）；調整、會員卡、批次到期（update） | 全 | 全 | — | — | — | 只有 view |
+| `member.plan.view`／`create`／`update`／`delete` | K2 方案 | 全 | 只有 view | — | — | — | 只有 view |
+| `member.setting.view`／`update` | K2 會員編號規則 | 全 | 只有 view | — | — | — | — |
+| `member.jersey.view`／`create`／`update` | K3 | 全 | 全 | — | — | — | 只有 view |
+| `member.jersey.export`（🔴 受限） | K3 出貨清單 CSV | ✔ | ✔ | — | — | — | — |
+| `member.store.*`／`member.benefit.*`（view／create／update／delete） | K4 特約店家、權益對照表 | 全 | 全 | — | — | — | — |
+| `calendar.setting.view` | L3 讀取 | ✔ | ✔ | ✔ | ✔（全部） | ✔ | ✔ |
+| `calendar.setting.update` | L3 寫入（隊別設定、預設檢視、試訓同步）；**賽事類型只有系統管理員** | ✔ | — | — | 只有內容編輯 | ✔ | ✔ |
+| `calendar.subscription.view`／`calendar.export` | L4 訂閱網址與訂閱數／匯出（行事曆是公開資料，不設受限） | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
+
+改期／匯入不另開碼：**賽事改期＝`team.match.update` ＋球隊列級授權**（行事曆權限跟隨來源模組）、**自建活動改期＝`calendar.custom_event.update`**、**整季賽程 CSV 匯入＝`team.match.create`**。
+檢視 `GET /api/v1/admin/auth/me` 的權限碼清單決定按鈕顯示。合作球隊管理（藍鯨方）第一階段可不指派使用者，但範圍已在資料存取層強制。
+
+---
+
+### P4 試訓場次 `/api/v1/admin/{club}/trials`（產出前台 3.3／4.7／6.3 試訓資訊）
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /trials?teamId=&status=&from=&to=` | `program.trial.view` | 陣列（依試訓日新→舊） |
+| `GET /trials/{id}` | 同上 | 詳情，404 |
+| `POST /trials` → 201 | `program.trial.create` | JSON |
+| `PUT /trials/{id}` | `program.trial.update` | JSON，整份取代 |
+| `DELETE /trials/{id}` → 204 | `program.trial.delete` | **有任何報名 → 409**（改狀態為「已結束」） |
+| `GET /trials/{id}/registrations?status=&keyword=&isMember=` | `program.trial_registration.view` | 陣列（依報名先後）。`keyword` 比對編號／姓名／電話／Email |
+| `GET /trials/{id}/registrations/{regId}` | 同上 | 詳情（含健康聲明） |
+| `POST /trials/{id}/registrations` → 201 | `…registration.create` | 後台代填 |
+| `PUT /trials/{id}/registrations/{regId}` | `…registration.update` | 整份覆寫（確認／取消／加入候補／備註） |
+| `POST /trials/{id}/registrations/{regId}/promote` | `…registration.update` | 候補 → 已確認（佔名額）；非候補 → 400 |
+| `GET /trials/{id}/registrations/export?status=&purpose=` | `…registration.export` | CSV（UTF-8 BOM）。**不含健康聲明**。缺 `purpose` → 400 |
+| `GET /trials/{id}/sign-in-sheet` | `…registration.view` | 簽到表資料（畫面直接列印）：只列會到場的人（待確認／已確認／已繳費／完成），**不含健康聲明與備註** |
+
+**場次 payload**：`teamId?`（省略＝俱樂部整體試訓）、`venueId?`、`trialOn`（必填，`yyyy-MM-dd`）、`capacity?`（≥1，省略＝不限）、`deadlineOn?`（不可晚於試訓日）、`status?`（`開放`／`額滿`／`候補`／`已結束`；新增省略＝開放、更新省略＝不變）、`content.zh.audience`（必填，對象說明，≤255）／`content.en?.audience`。
+**回應**：清單項 `{ id, teamId, teamCode, teamName, venueId, venueName, trialOn, capacity, enrolledCount, deadlineOn, status, isSignupOpen, syncToCalendar, audienceZh, audienceEn, waitlistCount, updatedAt }`（`isSignupOpen`＝狀態為開放且試訓日與截止日都還沒過）；詳情多 `zh`／`en`（`{ audience }`）、`createdAt`。
+**名額連動**：報名狀態 `待確認／已確認／已繳費／完成` 佔名額，`取消／候補` 不佔；用原子 SQL 調整 `enrolledCount`，**達 `capacity` 時「開放」自動轉「額滿」（單向，取消後不會自動轉回，由人工決定）**。後台不擋超額（人為判斷，可直接遞補到超額）。名額不能調到低於已報名人數（400）。
+`syncToCalendar` 是 L3 的全站開關的結果（新場次沿用目前開關值），P4 不逐場設定。
+**報名 payload（新增）**：`applicantName`（必填）、`phone?`、`email?`、`birthOn?`、`guardianName?`、`guardianPhone?`、`healthDeclaration?`、`note?`、`memberId?`（可為空，非會員可報名）、`status?`（省略＝待確認）；更新同形且 `status` 必填。**報名回應**：清單項 `{ id, registrationNo, memberId, isMember, applicantName, phone, email, birthOn, guardianName, guardianPhone, note, status, createdAt }`、詳情多 `trialId`／`healthDeclaration`／`updatedAt`。報名編號 `TCRFC-yyyyMMdd-XXXXXX`（同課程報名）。
+**錯誤**：400（名額／截止日／球隊或場地不存在／狀態值／姓名空白／用途缺）、404（場次不存在或不屬於這個俱樂部）、409（刪除有報名的場次）。
+
+### P3 報名進階（新增於既有 `/api/v1/admin/{club}/registrations`）
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /registrations?sessionId=&status=&programId=&keyword=&isMember=&dateFrom=&dateTo=` | `program.registration.view` | 既有清單加進階篩選（回應形狀不變，仍是陣列）。`dateFrom`／`dateTo` 是報名建立日（含當天） |
+| `GET /registrations/export?…同上…` | `program.registration.export` | 既有 CSV 匯出也吃同一組篩選（欄位含課程名稱、梯次開始日期＝分組欄位） |
+| `POST /registrations/batch/status` | `program.registration.update` | body `{ ids: [...], status }`（1–200 筆）→ `{ updatedCount, skipped: [{ id, reason }] }`。逐筆套用與單筆相同的名額連動；已是該狀態或找不到的進 `skipped` |
+| `POST /registrations/{id}/promote` | 同上 | 候補 → 已確認（佔名額）；非候補 → 400 |
+| `GET /registrations/waitlist-reminders` | `program.registration.view` | **候補遞補提醒清單**：有空位而且還有人候補的梯次 `[{ sessionId, programNameZh, startOn, endOn, capacity, enrolledCount, vacancy, waiting: [{ order, registrationId, registrationNo, applicantName, phone, guardianName, guardianPhone, queuedAt }] }]`（候補依報名先後排序）。通知信本輪不寄，由承辦依此清單電話聯繫 |
+| `GET /registrations/sign-in-sheet?sessionId=` | `program.registration.view` | 簽到表資料 `{ sessionId, programNameZh, startOn, endOn, venueName, generatedAt, rows: [{ no, registrationNo, applicantName, phone, guardianName, guardianPhone, status }] }`；缺 `sessionId` → 400、梯次不存在 → 404。只列會到場的人，不含健康聲明與備註 |
+
+---
+
+### K1 會員名單 `/api/v1/admin/{club}/members`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /members?crossClub=&keyword=&clubCode=&tier=&membershipStatus=&status=&signupSource=&lineBound=&registeredFrom=&registeredTo=&seasonId=&expiringWithinDays=&jerseyStatus=&locale=&page=&pageSize=` | `member.account.view` | 分頁（預設 20、上限 100）。**一律遮罩**。篩選：`tier`＝`registered`／`fan_club`；`membershipStatus`＝`pending`／`active`／`expired`／`cancelled`（依有效狀態）；`status`＝`active`／`unverified`／`suspended`／`deleted`（省略＝不含已刪除／已合併）；`signupSource`＝`web`／`line`／`admin`／`app`；`expiringWithinDays`＝1–366（有效會籍且到期日在這幾天內）；`jerseyStatus`＝`pending`／`shipped`／`received`；`locale`＝`zh-Hant`／`en`；會籍相關條件（層級／狀態／球季／即將到期／俱樂部）套在**同一份會籍**上 |
+| `GET /members/{id}?reveal=true` | `member.account.view`（`reveal` 另需 `member.pii.reveal`） | 詳情 |
+| `POST /members` → 201 | `member.account.create` | 現場入會（`signupSource = admin`）。**沒有設定登入密碼**，會員日後用「忘記密碼」自行設定；Email 視為未驗證；會員編號依 K2 的編號規則產生。Email 重複 → 409 |
+| `PUT /members/{id}/status` | `member.account.update` | `{ status: "active"｜"suspended", reason? }`。**沒有任何會籍的帳號只有系統管理員能處理**（受限帳號 → 404） |
+| `PUT /members/{id}/note` | 同上 | `{ internalNote }`（≤2000，空白＝清除） |
+| `POST /members/{id}/cards/{cardId}/reissue` | 同上 | 重新產生會員卡 QR：**同一張卡換一組新憑證、舊憑證立即失效**，`reissueCount` +1。只能處理目前操作的俱樂部的卡；已停用的卡 → 400。回應不含憑證字串 |
+| `GET /members/duplicates?crossClub=` | `member.account.view` | 疑似重複帳號 `[{ matchKind: "phone"｜"email", matchKindLabel, members: [{ id, memberNo, name, email, phone, createdAt, membershipCount }] }]`（遮罩）。比對：同一支電話（去符號、`+886` 視為 `0`）；Email 正規化後相同（大小寫、Gmail 的點號與 `+標籤`） |
+| `POST /members/merge` | `member.account.merge`（**sysadmin_only**） | `{ targetMemberId, sourceMemberId }`（保留哪個、併掉哪個）→ `{ targetMemberId, targetMemberNo, sourceMemberNo, movedMemberships, movedRegistrations, movedOrders, movedJerseys }`。會籍、付款、報名、訂單、球衣、寄信紀錄、購物車、球迷活動報名轉給保留帳號；被併帳號變 `deleted`（保留會員編號、姓名遮罩、Email 換成 `merged-…@merged.invalid`、電話／生日／LINE 清除、無法登入），`mergedIntoMemberNo` 指向保留帳號。**兩個帳號在同一俱樂部同一球季都有會籍 → 整批 409**（請先處理掉其中一份）。不可逆 |
+| `GET /members/export?purpose=…（同名單篩選）` | `member.export` | CSV（UTF-8 BOM），**每份會籍一列**（沒有會籍者一列空白會籍）；欄位：會員編號、姓名、Email、電話、俱樂部、球季、會員層級、會籍狀態、到期日、註冊來源、帳號狀態、語系偏好、註冊日期。**不含生日與 LINE 識別碼**。範圍與名單完全相同 |
+
+**清單項**：`{ id, memberNo, name, email, phone, signupSource(+Label), lineBound, status, displayStatus(+Label), locale(+Label), createdAt, lastLoginAt, jerseyStatus(+Label), memberships: [ { membershipId, clubId, clubCode, clubName, seasonId, seasonCode, tier(+Label), status, effectiveStatus(+Label), startOn, endOn, daysToExpire, planId, planName } ], isMasked }`。`displayStatus`＝`unverified` 表示帳號啟用但 Email 尚未驗證（不是資料庫狀態值）。
+**詳情**：以上欄位加 `birthOn`（`yyyy-MM-dd` 或遮罩 `****-**-**`）、`emailVerifiedAt`、`internalNote`、`mergedIntoMemberNo`、`canReveal`，`memberships[]` 每筆為 `{ membership: <上面的摘要>, lastAdjustReason, lastAdjustedAt, payments: [ { id, planName, method(+Label), amount, paidOn, collectingClubCode, beneficiaryClubCode, note, handledByName, activatedStartOn, activatedEndOn, createdAt } ], cards: [ { id, membershipId, holderName, status(+Label), issuedAt, revokedAt, reissueCount } ] }`，另有 `jerseyIssues: [ { id, clubCode, recipientName, size, deliveryMethod(+Label), status(+Label), shippedOn, receivedOn } ]`。持卡人與領用人姓名同樣遮罩。**沒有「登入紀錄」清單**（本庫不建日誌表，只有 `lastLoginAt`）。
+**沒做**：「重寄驗證信」「代發密碼重設信」（全系統沒有寄信通路）——畫面先不放這兩顆按鈕。
+
+### K2 會籍與方案
+
+**方案** `/api/v1/admin/{club}/membership-plans`（`member.plan.*`）：
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET ?seasonId=&status=` | 陣列（球季新→舊、排序）：`{ id, seasonId, seasonCode, code, fee, cardQuota, jerseyQuota, startsOn, endsOn, sortOrder, status, statusLabel, nameZh, nameEn, membershipCount, updatedAt }` |
+| `GET /{id}` | 詳情多 `midSeasonRule`、`zh`／`en`（`{ name, benefitNote }`）、`createdAt` |
+| `POST`／`PUT /{id}` | payload：`seasonId`（必填，須屬於目前俱樂部）、`code`（必填，小寫英數與連字號 ≤32，**同俱樂部同球季內不可重複 → 409**）、`fee`（≥0，元）、`cardQuota`（1–10，預設 1）、`jerseyQuota`（0–10）、`midSeasonRule?`、`startsOn?`／`endsOn?`、`sortOrder`、`status`（`published` 上架／`draft` 下架，預設 `draft`）、`content.zh.name`（必填）／`content.zh.benefitNote?`／`content.en?`。**有會籍或付款紀錄使用時不能換球季（400）** |
+| `DELETE /{id}` | 204；**有會籍或付款紀錄使用 → 409**（改為下架）。方案底下的權益條目一併刪除 |
+| `PUT /order` | 排序（`{ ids }`） |
+
+**會籍** `/api/v1/admin/{club}/memberships`（只看得到目前操作的俱樂部）：
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET ?memberId=&keyword=&tier=&status=&seasonId=&planId=&expiringWithinDays=&page=&pageSize=` | `member.membership.view` | 分頁；**會籍到期提醒清單＝`expiringWithinDays=30`**（依到期日近→遠）。清單項 `{ membershipId, memberId, memberNo, memberName（遮罩）, tier, status, effectiveStatus(+Label), seasonId, seasonCode, startOn, endOn, daysToExpire, planId, planName, cardCount, paidTotal, updatedAt }` |
+| `GET /{id}` | 同上 | 詳情 `{ membership, lastAdjustReason, lastAdjustedAt, payments[], cards[], cardQuota, jerseyQuota }` |
+| `POST /activate` | `member.membership.create` | **手動開通／續會**。body：`memberId`、`planId`（須屬於目前俱樂部且**上架**）、`beneficiaryClubId?`（受益俱樂部；省略或＝目前俱樂部，不同 → 400）、`paymentMethod`（`linepay`／`onsite`）、`amount`（≥0，實收元）、`paidOn`（不可晚於今天）、`note?`、`startOn?`（省略＝方案起日；方案已開始則今天）、`endOn?`（省略＝方案迄日，再省略用球季結束日）。找到或建立「這位會員在這個俱樂部這個球季」的會籍 → 升為球迷會員、設起訖 → 寫一筆付款紀錄（**同時記受益俱樂部與收款法人**：`collectingClubCode` 恆為收款主體俱樂部＝代收代付）→ 確保有一張使用中的會員卡（不足的副卡另用 `POST /{id}/cards`）。**續會＝用下一球季的方案再開通一次**。同一會籍、同方案、同付款日、同金額重複送出 → 409。**補登已結束球季的會籍必須明確給 `startOn` 與 `endOn`**（否則 400「方案期間已結束」）。回傳會籍詳情 |
+| `POST /` → 201 | `member.membership.create` | 建立免費（一般會員）會籍與第一張卡：`{ memberId, seasonId }`；已有 → 409 |
+| `PUT /{id}/adjust` | `member.membership.update` | 手動調整：`{ tier?, status?, startOn?, endOn?, reason }`，**`reason` 必填、至少改一項**。**只留最近一次原因**（不建歷程表）。改成 `cancelled` 時其會員卡一併停用 |
+| `POST /{id}/cards` | 同上 | 新增副卡（家庭方案）：`{ holderName }`；**不得超過方案 `cardQuota`（409）** |
+| `POST /{id}/cards/{cardId}/revoke` | 同上 | 停用單張卡 |
+| `POST /expire-batch` | 同上 | **球季末批次到期處理（依目前俱樂部各自執行）**：`{ asOf?, seasonId?, dryRun? }` → `{ asOf, count, dryRun }`。把「到期日早於基準日的有效會籍」標為已到期；先 `dryRun: true` 試算件數 |
+| `GET /renewal-export?kind=expiring｜expired&days=30&seasonId=&purpose=` | `member.export`（🔴） | **續會名單 CSV**：`expiring`（預設，`days` 1–366，預設 30）或 `expired`（已到期尚未續會）。含姓名／Email／電話，須填 `purpose` |
+
+**付款紀錄** `GET /api/v1/admin/{club}/membership-payments?membershipId=&from=&to=&page=&pageSize=`（`member.membership.view`）：`{ payment: { id, planName, method(+Label), amount, paidOn, collectingClubCode, beneficiaryClubCode, note, handledByName, … }, membershipId, memberId, memberNo, seasonCode }`（供對帳）。
+**會員編號規則** `GET／PUT /api/v1/admin/{club}/member-settings`（`member.setting.view／update`）：`{ memberNoPrefix（英數 ≤8，可空）, memberNoDigits（4–10） }`，`GET` 另回 `nextMemberNoPreview`。預設 `M`＋6 位數字；只影響**後台建立**的新會員，已存在的編號不變。
+**金流不做**（LINE Pay 商店號未到位，B-10）：只有客服核對款項後的手動開通與人工登錄的付款紀錄；內部端點 `POST /api/membership/activate`（自動化接口）**本期不啟用**。
+
+### K3 球衣發放 `/api/v1/admin/{club}/jerseys`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET ?status=&size=&deliveryMethod=&memberId=&membershipId=&keyword=&page=&pageSize=` | `member.jersey.view` | 分頁，**待處理→已寄出→已領取**排序。收件資訊依 `member.pii.reveal` 遮罩（有權限者的每次名單查詢會寫日誌） |
+| `GET /size-summary?status=pending` | 同上 | **依尺寸統計備貨量** `[{ size, sizeLabel, total, ship, pickup }]`（依 XS…4XL 排序，未填尺寸另列「未填尺寸」）；`status` 省略＝待處理 |
+| `GET /{id}` | 同上 | `{ id, memberId, memberNo, membershipId, recipientName, phone, size, deliveryMethod(+Label), address, status(+Label), shippedOn, receivedOn, createdAt, updatedAt, isMasked }` |
+| `POST /` → 201 | `member.jersey.create` | 後台代填：`{ membershipId, recipientName, phone?, size, deliveryMethod（"ship"｜"pickup"）, address? }`；**寄送必須有電話與地址**；**件數不得超過方案 `jerseyQuota`（409；免費會籍不含球衣）**；尺寸自動轉大寫 |
+| `PUT /{id}` | `member.jersey.update` | 只改有帶的欄位（省略＝不變）。**修改領用人／電話／地址需要 `member.pii.reveal`（否則 403）**。狀態：`pending`／`shipped`／`received`——`shipped` 只有寄送的球衣可用（到場領取請直接標已領取），記寄出日；`received` 記領取日；回 `pending` 清掉兩個日期；可往回改（更正誤按）。狀態變更**即時反映在會員端**（同一張表） |
+| `POST /batch/status` | 同上 | `{ ids（1–200）, status }` → `{ updatedCount, skipped }`（不符規則的列進 `skipped`） |
+| `GET /export?status=&purpose=` | `member.jersey.export`（🔴） | 出貨清單 CSV（**含完整收件資訊**），須填 `purpose` |
+
+### K4 特約店家與權益
+
+**特約店家** `/api/v1/admin/{club}/partner-stores`（`member.store.*`，**multipart**：`payload` JSON ＋選填檔案欄位 `image`，圖片規則同 E1a 通則）：
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET ?category=&region=&status=&tier=&keyword=` | 陣列，**含兩隊共同的店家（`isShared: true`，所有俱樂部看得到、只有系統管理員能編輯，其餘 403「共用內容唯讀」）**：`{ id, slug, isShared, category, region, address, lat, lng, phone, applicableTier(+Label), startOn, endOn, isActive, sortOrder, status(+Label), imageKey/Url/ThumbUrl, nameZh, nameEn, offerZh, updatedAt }` |
+| `GET /filters` | `{ categories, regions }`——8.4 清單頁分類與地區篩選項目（由實際用過的值自然形成，自由文字） |
+| `GET /{id}` | 詳情多 `businessHours`（自由文字）、`mapUrl`、`websiteUrl`、`zh`／`en`（`{ name, address, offerContent }`）、`createdAt` |
+| `POST`（201）／`PUT /{id}` | payload：`slug?`（省略自動產生）、`category?`（≤32）、`region?`（≤32）、`lat?`＋`lng?`（**成對，人工確認後儲存**；範圍 ±90／±180）、`phone?`、`businessHours?`（≤500）、`mapUrl?`／`websiteUrl?`（http／https）、`applicableTier`（`all` 全會員／`fan_club` 限付費）、`startOn?`／`endOn?`（合作起訖）、`sortOrder`、`status`（`published`／`draft`）、`isShared?`（**只有系統管理員可建立兩隊共同的店家**，更新時忽略）、`removeImage?`、`content.zh.name`（必填）／`address?`／`offerContent?`、`content.en?`。中文地址存店家主檔（供座標定位）、英文地址存英文版 |
+| `DELETE /{id}` | 204（共同店家 → 403） |
+| `PUT /order` | 排序（只含本俱樂部的店家，共同店家不參與 → 400） |
+
+🔴 **「由地址定位」輔助按鈕本輪沒有做**：需要外部地址轉座標服務（Google／內政部等），尚未選定，見「待裁決」。目前座標由人工輸入。
+
+**權益對照表** `/api/v1/admin/{club}/membership-benefits`（`member.benefit.*`）：條目**掛在方案底下**（`membership_benefits` 不帶 `club_id`，範圍靠「方案屬於目前俱樂部」強制）。
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET ?planId=&group=&status=` | 陣列（依球季、方案排序、條目排序）：`{ id, planId, planCode, planName, seasonCode, group, groupLabel, sortOrder, status(+Label), nameZh, nameEn, freeValueZh, paidValueZh, updatedAt }` |
+| `GET /groups` | 分組 `[{ code, label }]`：`member_card` 會員卡／`store_discount` 店家折扣／`jersey` 球衣／`event` 活動 |
+| `GET /{id}` | 詳情 `zh`／`en`：`{ name, description, freeValue, paidValue }` |
+| `POST`（201）／`PUT /{id}` | payload：`planId`（必填，屬於目前俱樂部；**更新時不可變更**）、`group`、`sortOrder?`（省略＝排在該方案最後）、`status`（`published`／`draft`）、`content.zh.name`（必填）／`description?`／`freeValue?`（如「✓」「✗」「9 折」）／`paidValue?`、`content.en?`。分組的雙語顯示文案由系統依分組代碼自動帶入 |
+| `DELETE /{id}` | 204 |
+| `PUT /order` | `{ planId, ids }`：同一方案內重排（含不屬於該方案的 id → 400） |
+
+---
+
+### L1 進階 `/api/v1/admin/{club}/calendar`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /events?from=&to=&team=&sourceType=&venueId=&status=&type=` | `calendar.view` | 既有總覽補三個篩選：`venueId`（場地）、`status`（賽事狀態 `scheduled／live／played／postponed／cancelled`；**依狀態篩選時自建活動不出現**）、`type`（賽事類型 `league／cup／friendly／other` 或自建活動類型代碼）；`sourceType` 新增 `trial`（**只有 L3 試訓同步開關開啟時，才有試訓來源**）。回應每筆多 `venueId`、`kickoff`（僅賽事，`HH:mm`；賽事的 `startsAt` 只有日期）、`competitionTag`（僅賽事） |
+| `GET /tracks?from=&to=` | `calendar.view` | **隊別分軌檢視**（預設本月，上限 366 天）：`{ from, toExclusive, tracks: [{ teamId, teamCode, name, colour, sortOrder, events: [<總覽事件>] }], clubEvents: [...], conflicts: [...] }`。每支球隊一條軌道（名稱／代表色／排序沿用 L3，沒設定就沿用球隊本身）；**一場跨隊賽事同時出現在它涉及的每條軌道**；沒有隊別的自建活動與同步試訓在 `clubEvents` |
+| `GET /conflicts?from=&to=` | `calendar.view` | **衝突偵測**：`[{ reasons: ["venue"｜"team"], description（日常中文，可直接顯示）, venueName, sharedTeamCodes, first: {…事件}, second: {…事件} }]`。規則：兩件事**時段重疊**且（**同一場地**或**同一梯隊**）。賽事沒有時長，估 2 小時（同 .ics）；沒有開賽時間視為整天；已取消的賽事與試訓（只有日期）不參與；自建活動的時間是 UTC 時間點，全天活動以 UTC 日期整天計 |
+| `POST /matches/{id}/reschedule` | `team.match.update`＋球隊列級授權 | **賽事拖曳改期**：`{ matchOn, kickoff?, markAsPostponed?, acknowledgeConflicts? }`。`kickoff`：省略＝維持、`""`＝清除、`HH:mm`＝新時間；`markAsPostponed: true`＝同時標為延賽並記下原定日期／時間（第一次標記時記錄，之後再改期不覆蓋）；預設 false（只改日期，例如更正輸入）。**新時段有衝突且沒帶 `acknowledgeConflicts: true` → 409，`Content-Type: application/problem+json`，除了 `title`（「排程衝突」）與 `detail` 外多 `conflicts`（同上格式）與 `saved: false`，沒有寫入**——畫面警示後帶確認旗標重送。成功 `{ saved: true, sourceType, sourceId, startsAt, kickoff, status, originalMatchOn, conflicts: [], notificationSent: false }`。已開賽／已結束／已取消的賽事 → 400；範圍外的球隊 → 403 |
+| `POST /custom-events/{id}/move` | `calendar.custom_event.update` | **自建活動拖曳改期**：`{ startsAt, endsAt?, isAllDay?, acknowledgeConflicts? }`（UTC）；衝突處理同上。**重複活動改的是整個系列的起始時間**（例外日期不會跟著位移） |
+
+### L3 分類與顯示設定 `/api/v1/admin/{club}/calendar`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /settings` | `calendar.setting.view` | `{ defaultView（list｜month）, defaultRange（upcoming｜this_month｜next_30_days｜season）, defaultTeamCode（all 或隊別代碼）, homeTeamCodes[], firstTeamCode, syncTrials, teams[], eventTypes[] }`。`teams[]`：`{ teamId, code, type, teamNameZh, displayNameZh, displayNameEn, colour（覆寫）, effectiveColour, sortOrder（覆寫）, effectiveSortOrder, isPublic }`；`eventTypes[]` 同下方賽事類型 |
+| `PUT /settings` | `calendar.setting.update` | `{ defaultView, defaultRange, defaultTeamCode?, homeTeamCodes?, firstTeamCode?, syncTrials }`（隊別代碼必須屬於目前俱樂部，否則 400）。`homeTeamCodes`＝首頁近期賽事元件顯示哪些隊別（空＝全部公開隊別）；`firstTeamCode`＝一線隊頁固定顯示的隊別（各梯隊頁自動顯示自己那隊，不需設定）。**`syncTrials`＝「試訓是否同步至行事曆」（預設關閉）：寫入設定並連動該俱樂部所有試訓的同步旗標**，回傳完整設定 |
+| `PUT /settings/teams` | 同上 | 整批更新隊別分類：`{ teams: [{ teamId, displayNameZh?, displayNameEn?, colour?（#RRGGBB）, sortOrder?, isPublic }] }`（沒列出的隊別不變；空白覆寫＝沿用球隊本身）。**`isPublic: false` 的隊別不出現在前台選單，其訂閱 feed 回 404** |
+| `GET /event-types`（既有） | `calendar.custom_event.view` | 賽事／活動類型 `[{ id, code, colour, icon, nameZh, nameEn, isPublic, sortOrder, usageCount }]`（`usageCount`＝有幾個自建活動使用） |
+| `GET /event-types/icons` | `calendar.setting.view` | **系統預設圖示集**（20 個）`[{ code, label }]`；賽事類型的圖示只能從這裡選，**不是上傳圖片** |
+| `POST`（201）／`PUT /event-types/{id}`／`DELETE /event-types/{id}`（204）／`PUT /event-types/order` | `calendar.setting.update` | payload `{ code（小寫英文開頭，英數底線連字號，全站唯一 → 409；建立後不可變更）, nameZh, nameEn?, colour?（#RRGGBB）, icon?（圖示集內）, isPublic, sortOrder }`。🔴 **賽事類型是兩隊共用資料（不帶俱樂部）：只有系統管理員能寫，其餘角色 → 403「共用內容唯讀」**；有自建活動使用 → 刪除 409 |
+
+### L4 訂閱與匯出
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/calendar/subscriptions` | `calendar.subscription.view` | `{ feeds: [{ feedKey（all｜隊別代碼）, label, httpsUrl, webcalUrl, subscribers30d, subscribers7d, lastFetchedOn, isPublic }], statsNote }`。第一筆是全站，之後每支隊別一筆（依 L3 排序）。**網址以這次請求的網址為基底**（部署時 API 由 Caddy 反向代理，需確保轉送 `Host`／`X-Forwarded-*`）。**訂閱數是估計值**：以「最近有多少個不同的訂閱來源（IP＋User-Agent 雜湊）」計算，Google 行事曆由 Google 伺服器代抓，多位訂閱者會算成一個，`statsNote` 有說明，畫面請照顯示 |
+| `GET /api/v1/admin/{club}/calendar/export?format=csv｜ics&from=&to=&team=&sourceType=&venueId=&status=&type=` | `calendar.export` | 指定期間匯出（預設本月，上限 366 天），篩選同總覽。CSV 欄位：類別、日期、開始時間、結束時間、標題／對手、隊別、場地、主客場、狀態、類型、是否公開；`.ics` 為標準行事曆檔。**不公開的自建活動只有持有 `calendar.custom_event.view` 的人匯得到** |
+| `POST /api/v1/admin/{club}/calendar/matches/import` | `team.match.create`＋球隊列級授權 | **整季賽程 CSV 匯入，與 C4 賽程匯入共用同一套機制**（同一份 CSV 格式、同一個匯入函式）。body 是 CSV 原始位元組（不是 multipart）；格式錯誤 400 |
+| `GET /api/v1/{club}/calendar/feed.ics?team=D1&lang=zh` | **公開，不需登入** | **webcal 訂閱 feed**（`text/calendar`，`Cache-Control: public, max-age=900`，限流同輕量互動）。`team` 省略或 `all`＝全站；不存在的隊別或 L3 設為不公開 → 404。內容：賽事（含取消——`STATUS:CANCELLED`——與延賽，客戶端才會同步）、前台公開的自建活動（重複規則展開）、L3 同步的試訓（全天）；範圍今天前 90 天到後 400 天；隊別 feed 只含該隊別事件（沒有隊別的俱樂部活動只在全站 feed）；含 `X-WR-CALNAME` 與 6 小時重新整理建議。**每次抓取會記一筆去識別化的訂閱來源**（HMAC 雜湊，同來源同天一筆，保存 90 天） |
+| `GET /api/v1/{club}/calendar/settings?lang=zh` | **公開** | 前台讀 L3 設定：`{ defaultView, defaultRange, defaultTeamCode, homeTeamCodes, firstTeamCode, teams: [{ code, displayName, colour, sortOrder }], eventTypes: [{ code, name, colour, icon }] }`（只含公開的隊別與賽事類型；快取實體 `calendar`，L3 寫入時失效） |
+
+---
+
+### 資料庫綱要異動（`db/club-schema.sql`、migration `AlignSchemaB1`）
+
+全部是把規劃書已有的功能落到資料表（`docs/12` §12 第 44 點有完整清單與理由）：`trials` 加 `enrolled_count`／`status`＋新表 `trials_i18n(audience)`；`members` 加 `email_verified_at`／`last_login_at`／`internal_note`／`locale`／`merged_into_member_id`；
+`memberships` 加 `membership_plan_id`／`last_adjust_reason`／`last_adjusted_at` 並收斂 `status`；`member_cards` 收斂 `status`＋`revoked_at`；`membership_plans` 加 `starts_on`／`ends_on`／`status`；`membership_benefits`（＋`_i18n`）加 `status`／`name`／`description` 與分組值域；
+`jersey_issues` 加 `membership_id`／`received_on` 並收斂狀態與領取方式；`partner_stores`（＋`_i18n`）加 `region`／`map_url`／英文地址並收斂 `applicable_tier`／`status`；新表 `calendar_team_settings`（＋`_i18n`）、`calendar_feed_fetches`。
+本機庫已對 `tcrfc_club` 套用（套用前這些表皆 0 筆，`dotnet ef migrations add Probe` 驗證為空 migration，模型與 snapshot 同步）；`db/club-schema.sql` 已用 `SET PARSEONLY ON` 逐批解析驗證語法。EF 實體：新增 4 個（`TrialsI18n`／`CalendarTeamSetting`／`CalendarTeamSettingsI18n`／`CalendarFeedFetch`），其餘只**插入**新屬性與新表設定（同 E1a 的做法，未整檔重新 scaffold）。
+另修一個既有 bug：`IcsBuilder.FoldLine` 折疊最後一段讀到陣列外（`docs/18` E-88，訂閱 feed 才第一次觸發）。
+
+### 種子（`db/seed/backoffice_seed.py` §42–48，全部【測試】虛構資料）
+
+- **會員 7 位**（`M900001`–`M900007`，Email `@example.com`、電話 `0900-000-0XX`）：涵蓋**雙會籍**（甲：磐石＋藍鯨球迷會員）、現場入會、Email 未驗證、已停用、疑似重複帳號（甲與己同一支電話）、**即將到期**（戊，磐石到期日 2026-10-15）、LINE 來源；會籍 8 份（含待確認與已到期）、會員卡 9 張（家庭方案含副卡）、付款紀錄 4 筆、球衣 4 件（三種狀態、含尺寸）。
+- **方案 3 個**：磐石 2026-27 單人（1200 元、1 卡 1 衣）／家庭（3000 元、3 卡 3 衣）、藍鯨 2025 單人；**權益條目 6 條**（四個分組）；**特約店家 6 家**（磐石 4 含 1 家草稿、兩隊共同 1、藍鯨 1；座標為台中市區近似值）。
+- **試訓 3 場**（磐石一線隊 2 場含 1 場已結束、藍鯨 U15 1 場）、試訓報名 4 筆。
+- **行事曆設定**：兩俱樂部的預設檢視／範圍／隊別／試訓同步（預設關閉）、`D1`／`BW1` 的顯示名稱與代表色、藍鯨 `BW-U12` 示範「不公開」。會員編號規則 `M`＋6 位。
+- 權限碼 39 個與角色指派已在 `generate-club-seed-sql.py` 種入。沒有圖片。**跑法**：`set -a; source .env; set +a; ./db/seed/apply-seed.sh`（冪等）。
+
+### 測試（新增 56 項，全套 641 項通過）
+
+| 測試類別 | 項數 | 涵蓋 |
+|---|---:|---|
+| `AdminMembersTests` | 16 | 未登入／無權限／跨俱樂部；名單一律遮罩且回應本文不含真實個資；合作球隊管理只看得到自家會籍（含 `crossClub` 也繞不過、對方會員 404）；無解除權限時搜尋不比對個資；系統管理員跨俱樂部雙會籍；各種篩選與未知代碼 400；即將到期；詳情遮罩／解除／403；回應不含 token 與 LINE；建立會員（編號規則、重複 409、格式錯）；停用啟用與備註；重產 QR（舊憑證失效）；重複帳號比對（電話、Gmail 點號）；合併（權限、轉移、被併帳號清除、衝突 409、不可重複合併）；匯出（用途、權限、BOM、不含生日） |
+| `AdminMembershipsTests` | 10 | 方案 CRUD／驗證／重複／排序／使用中保護；開通（付款紀錄雙欄位、重複、受益俱樂部、下架方案、跨俱樂部方案）；調整（原因、取消停用卡、家庭方案副卡上限）；批次到期（試算再執行、只動符合基準日者）；清單篩選與遮罩；續會名單匯出；會員編號規則 |
+| `AdminJerseysAndStoresTests` | 8 | 球衣（件數上限、狀態流轉與寄送規則、尺寸統計排序、批次略過、遮罩與改收件人 403、匯出）；特約店家（CRUD、雙語地址、座標成對、網址驗證、篩選項目、共同店家唯讀）；權益條目（CRUD、分組、跨方案／跨俱樂部、排序） |
+| `AdminTrialsAndRegistrationsTests` | 6 | 試訓權限矩陣；種子可讀；CRUD 與驗證；報名名額連動（額滿自動關閉、候補不佔、取消釋回、遞補、有報名不能刪除、簽到表）；客服可處理不可建立不可匯出、匯出不含健康聲明；P3 進階（篩選、批次、遞補提醒、簽到表） |
+| `AdminCalendarAdvancedTests` | 11 | 分軌與衝突偵測（同場地同梯隊重疊、取消與不重疊不算）；總覽新篩選；賽事改期（衝突 409 不寫入、確認後寫入、延賽記原定日期、驗證與權限）；自建活動改期；L3 設定與試訓同步連動；隊別設定與不公開隊別 feed 404；賽事類型僅系統管理員；feed 內容與訂閱數；匯出 CSV／ics；CSV 匯入權限；公開設定端點 |
+| `IcsBuilderTests`（新增 5 項） | 5 | 長行折疊回歸（E-88）、多事件日曆 |
+
+### 待裁決（規劃書沒寫、本輪先採最保守做法）
+
+1. **稽核日誌**：規劃書要求「匯出／個資檢視須寫入稽核日誌（誰、何時、幾筆、用途）」，但委託方明示本庫不建日誌表（`docs/12` §13.1）。本輪暫行做法是寫應用程式結構化日誌（`SensitiveActionLogger`，正式環境進 Application Insights，不含個資）。**建議客戶重新確認稽核表的政策**——若要求可查詢的稽核紀錄，需要建 `AuditLog`／`ExportLog` 並改寫 `SensitiveActionLogger`（呼叫端不用改）。同理「手動調整層級的異動原因」只留最近一次，若要完整歷程也需要表。
+2. **通知**：會籍開通確認信、候補遞補提醒信、課程／試訓確認信、賽事改期通知、重寄驗證信、代發密碼重設信——全系統沒有寄信通路，`EmailLog.type` 值域也封閉（會員 5＋商店 4，沒有課程與試訓通知）。需要先決定寄信服務與是否擴充值域。
+3. **由地址定位（K4）**：需外部 geocoding 服務，尚未選定供應商；座標目前人工輸入。
+4. **合併帳號的權限**：規劃書寫了合併功能但沒指定誰能做；不可逆且牽涉會籍與付款，本輪限系統管理員（`sysadmin_only`）。客服／行政是否可合併待裁決。
+5. **方案管理的權限**：費用是經營決策，本輪客服／行政只給方案檢視；日常誰來新增方案／改價（現在只有系統管理員）待裁決。
+6. **合作球隊管理（藍鯨方）的會員權限**：矩陣寫「僅自家會籍、Member 主檔遮罩」，本輪只給檢視（名單、會籍、方案、球衣），**沒有處理與匯出**；是否能替藍鯨會員開通／調整待裁決。
+7. **收款主體**：`collecting_club_id` 取 `clubs.is_collecting_subject = 1` 的俱樂部（現況磐石）。若兩隊都標為收款主體會取排序最前者；藍鯨是否日後成為獨立收款主體時要重看。
+8. **賽事改期預設不標延賽**：規劃書只說「拖曳調整日期回寫賽事資料（改期時觸發通知）」，沒說改期是否等於延賽。預設只改日期（`markAsPostponed: false`），畫面若要「改期＝延賽」請帶 `true`。
+9. **自建活動時區**：`calendar_custom_events.starts_at` 是 UTC 時間點（既有決定），全天活動以 UTC 日期計；衝突偵測與 feed 沿用這個口徑。若畫面以當地時間建立全天活動，需在畫面端換算成 UTC 再送。
+10. **會員編號規則是每俱樂部一份設定，但會員編號全站唯一**：兩個俱樂部設定不同前綴是允許的；相同前綴時共用同一個流水號序列。
+
+### 已知限制
+
+- 訂閱 feed 的來源辨識靠 IP＋User-Agent 雜湊，**無法精確計算訂閱人數**（見 `statsNote`）；行程內去重用記憶體，多實例部署時每個實例各記一次（資料庫主鍵擋重複，只是多一次寫入嘗試）。
+- 衝突偵測的賽事時長是估計值（2 小時），且只比對「賽事＋自建活動」；課程梯次永不進行事曆（規則不變）。
+- K1 名單的「重複帳號」在記憶體比對（單次最多載入該範圍內全部會員），會員數上萬時要改成資料庫端比對；目前資料量無此問題。
+- `dotnet test` 對共用的 `tcrfc_club` 執行：訂閱數的測試會在 `calendar_feed_fetches` 留下每天最多幾筆去識別化列（不清理，因為行程內去重會讓清掉的列不再重寫）。
+- 特約店家照片沒有種子（無可上傳的公開素材）；`business_hours` 只接自由文字。
+- 前台公開端點（會員中心、`/m/<token>` 驗證頁、8.4 特約店家清單、權益對照表公開讀取）**不在本批**（`S2-11`）；本批只提供 L3 設定與訂閱 feed 兩支公開端點。
+
+---
+
 ## 目錄結構
 
 ```
@@ -4202,6 +4455,9 @@ session 使用。**Blob 已在 S0-8 接上，JWT 已在 S1 接上**，見下方�
 | 🔒 `PUT /api/v1/admin/{club}/competitions/{id}` | 同上＋`team.competition.update` | — |
 
 > **E1a（2026-09-30）新增**：E1 夥伴、E2 贊助商／方案／活動、E3 提案與 Lead、B5 慈善、B6 媒體專區、C5 榮譽與里程碑的後台端點 87 支與公開端點 16 支，完整契約見「E1a」整節（含權限碼矩陣與每支端點的欄位／驗證／錯誤碼），本表不逐條重複。
+>
+> **B1（2026-09-30）新增**：P4 試訓場次與報名（含 P3 報名進階）、K1 會員名單、K2 會籍與方案、K3 球衣發放、K4 特約店家與權益對照表、L1 進階（分軌／衝突／改期）、L3 分類與顯示設定、L4 訂閱與匯出，
+> 後台端點 79 支與公開端點 2 支（`calendar/feed.ics`、`calendar/settings`），完整契約見「B1」整節，本表不逐條重複。
 
 🔒 標記的端點需要 `Authorization: Bearer <存取權杖>`，未登入回 401、已登入但無權回 403，
 見「S1：J1–J3 登入與授權地基」整節。🔴 標記的是**全域端點**（不含 `{club}` 路由段，用

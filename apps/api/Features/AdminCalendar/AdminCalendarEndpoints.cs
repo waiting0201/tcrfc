@@ -23,15 +23,17 @@ public static class AdminCalendarEndpoints
             .WithTags("AdminCalendar")
             .WithDescription("L1 行事曆總覽／L2 自建事件維護，需要登入與俱樂部授權。");
 
-        // GET /api/v1/admin/{club}/calendar/events?from=2026-10-01&to=2026-11-01&team=D1&sourceType=match
+        // GET /api/v1/admin/{club}/calendar/events?from=2026-10-01&to=2026-11-01&team=D1&sourceType=match&venueId=&status=&type=
+        // sourceType：match／custom／trial（試訓只有 L3 開關開啟、同步至行事曆的場次）。status 僅賽事有（篩選時自建活動不出現）；
+        // type：賽事類型（league／cup／friendly／other）或自建活動類型代碼。
         group.MapGet("/events", async (
-            string club, DateOnly? from, DateOnly? to, string? team, string? sourceType,
+            string club, DateOnly? from, DateOnly? to, string? team, string? sourceType, Guid? venueId, string? status, string? type,
             HttpContext httpContext, IAdminClubAuthorizer authorizer, AdminCalendarOverviewRepository repository,
             CancellationToken cancellationToken) =>
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
             var (fromDate, toDateExclusive) = NormalizeRange(from, to);
-            var result = await repository.ListAsync(scope, fromDate, toDateExclusive, team, sourceType, cancellationToken);
+            var result = await repository.ListAsync(scope, fromDate, toDateExclusive, team, sourceType, cancellationToken, venueId, status, type);
             return Results.Ok(result);
         })
         .WithName("AdminListCalendarEvents")
@@ -217,7 +219,7 @@ public static class AdminCalendarEndpoints
     /// <summary>預設一個月範圍（本月 1 日～下月 1 日），與月曆檢視的自然使用情境一致；呼叫端可用
     /// <c>from</c>／<c>to</c> 明確指定其他範圍（例如列表檢視要看更長區間）。上限 366 天，避免一次
     /// 查詢整個資料庫的賽事與活動（合併讀取沒有分頁，範圍越大回應越大）。</summary>
-    private static (DateOnly From, DateOnly ToExclusive) NormalizeRange(DateOnly? from, DateOnly? to)
+    internal static (DateOnly From, DateOnly ToExclusive) NormalizeRange(DateOnly? from, DateOnly? to)
     {
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var normalizedFrom = from ?? new DateOnly(today.Year, today.Month, 1);
