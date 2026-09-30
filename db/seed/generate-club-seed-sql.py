@@ -1801,15 +1801,17 @@ SITE_FACTS = [
         "2024", None, "2024 年創立", None,
         "全國乙級聯賽冠軍", None,
         "企業甲級聯賽", "Enterprise Premier League", None, None,
-        "一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系", None,
+        "一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系",
+        "A development pathway with the first team and the Academy (U15 / U14 / U12) running in parallel",
         ["U15", "U14", "U12"],
     ),
     (
         CLUB_BW, "bw",
-        "2014", "2014-04-12", "2014 年 4 月 12 日成立", None,
+        "2014", "2014-04-12", "2014 年 4 月 12 日成立", "Founded on April 12, 2014",
         None, None,
         "台灣木蘭足球聯賽", None, "木蘭聯賽", None,
-        "一線隊與青年隊（U15／U12）兩個梯隊並行的發展體系", None,
+        "一線隊與青年隊（U15／U12）兩個梯隊並行的發展體系",
+        "A development pathway with the first team and the youth teams (U15 / U12) running in parallel",
         ["U15", "U12"],
     ),
 ]
@@ -1826,7 +1828,13 @@ for (club_sq, club_code, founded_year, founding_date_iso, founding_date_display_
     emit_site_setting_i18n(club_sq, club_code, "site.league_short_name", league_short_name_zh, league_short_name_en)
     emit_site_setting_i18n(club_sq, club_code, "site.squad_structure_summary", squad_structure_zh, squad_structure_en)
     emit_site_setting_value(club_sq, club_code, "site.squad_codes", ",".join(squad_codes))
-    # site.contact_phone／site.contact_hours 刻意不種：兩俱樂部皆未核實（見本節檔頭說明）。
+    # 🔴 2026-09-30（使用者要求後台打開就有資料可看）：電話與營業時間兩俱樂部皆未核實，改種「一看就知道
+    # 是測試值」的內容——電話是全 0 的號碼（不可能存在）、營業時間加【測試】前綴且只有中文（英文可空；
+    # SiteFactsTests 也假設營業時間沒有英文列）。已登記在 db/seed/README.md「測試值清單」，
+    # 正式資料上線前逐一替換。⚠️ tcrfc 的 site.founding_date_display 英文刻意不種：SiteFactsTests
+    # 用它驗證「缺英文時回退中文」，且成立月日（site.founding_date）至今沒有核實來源，不種假日期。
+    emit_site_setting_value(club_sq, club_code, "site.contact_phone", "04-0000-0000")
+    emit_site_setting_i18n(club_sq, club_code, "site.contact_hours", "【測試】平日 09:00–18:00", None)
 
 # site.blue_whale_site_url（主站規劃書 §3.6「06 女子足球」入口頁「前往台中藍鯨官網」按鈕）：
 # 概念上只屬於台中磐石（tcrfc），只種這一筆，不種 bw——藍鯨官網本身沒有 06 單元（見
@@ -1870,6 +1878,20 @@ BEGIN
   VALUES (@id, {CLUB_BW}, N'site.home_venue_ids', @venueIds, N'site');
 END
 """)
+
+# ============================================================================
+# 25–33. 後台已完成模組的種子（2026-09-30）：頁面、輪播、FAQ、課程與梯次、積分榜、自建事件、新聞標籤、
+# 301 轉址、全站 SEO 預設、llms.txt、AI 爬蟲。資料與 SQL 產生邏輯獨立放在 backoffice_seed.py（真實內容與
+# 測試值的界線、來源、冪等寫法都寫在該檔檔頭），本檔只負責把主腳本的 helper 傳進去。
+# ============================================================================
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import backoffice_seed  # noqa: E402
+
+backoffice_seed.emit_all(
+    emit=emit, block=block, esc=esc, new_id=new_id,
+    clubs={"tcrfc": CLUB_TCRFC, "bw": CLUB_BW},
+    season_sq=season_sq, venue_by_keyword_sq=venue_by_keyword_sq, category_sq=category_sq,
+)
 
 if "--reset-admin-accounts" in sys.argv:
     # 🔴 丟掉上面（一般模式）已經累積的全部輸出，只印重設用的 UPDATE 陳述式——

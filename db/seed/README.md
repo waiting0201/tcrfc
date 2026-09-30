@@ -20,6 +20,7 @@
 | 檔案 | 用途 |
 |---|---|
 | [`generate-club-seed-sql.py`](generate-club-seed-sql.py) | 讀 [`site/src/data/*.json`](../../site/src/data/)（六個 mockup 資料檔），產生冪等的 T-SQL——`tcrfc_club_dev`／`tcrfc_club_test` 共用同一份定義，差別只在灌到哪個資料庫 |
+| [`backoffice_seed.py`](backoffice_seed.py) | 🔴 **2026-09-30 新增**：後台已完成模組的種子資料定義與 T-SQL 產生（頁面、輪播、FAQ、課程與梯次、積分榜、自建事件、新聞標籤、301 轉址、SEO／llms.txt／AI 爬蟲設定）。由 `generate-club-seed-sql.py` 尾端 `import` 呼叫，**不是獨立執行的腳本**；真實內容與測試值的界線見下方「後台模組種子（2026-09-30）」 |
 | [`apply-seed.sh`](apply-seed.sh) | 呼叫上面那支腳本，再用 `sqlcmd` 把產生的 SQL 灌進本機 SQL Server（既有 `sqlserver` 容器）；容器名稱可用 `LOCAL_MSSQL_CONTAINER` 環境變數覆寫，**目標資料庫預設 `tcrfc_club_dev`，可用 `SEED_TARGET_DATABASE` 環境變數覆寫成 `tcrfc_club_test`**（白名單僅這兩個名字，S0-13 新增） |
 | [`setup-test-db.sh`](setup-test-db.sh) | 🔴 **S0-13 新增**：一鍵建立／灌整合測試專用庫 `tcrfc_club_test`（串接 `deploy/local-ddl.sh --apply-test-db` ＋本檔的 `apply-seed.sh`），見下方「整合測試專用庫」一節 |
 | [`generate-charity-seed-sql.py`](generate-charity-seed-sql.py) | 產生 `tcrfc_charity_dev` 冪等的 T-SQL。**資料直接寫在腳本內**（不像 club 腳本讀外部 JSON）——因為這批資料**從一開始就是虛構測試資料**，不是需要另外隔離的真人個資，見下方一節的說明 |
@@ -158,7 +159,7 @@ Server=host.docker.internal,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MS
 | `schedule.json` | `matches`／`matches_i18n`／`match_teams` | 21 |
 | `news.json` | `articles`／`articles_i18n` | 83 |
 | — | `venues`／`venues_i18n`（S1-12d 新增：台中磐石主場「西屯足球場」；台中藍鯨的太原／豐原兩筆早於本表列出的版本就已建立，見「藍鯨場地」段） | 3 |
-| `apps/web/shared/utils/site-facts.ts`（已核實真實值） | `settings`／`settings_i18n`（`setting_group='site'`，`GEO-03`／`GEO-04` 站台事實，見 `apps/api/README.md`「S1-12d」節） | 兩俱樂部各約 9 個鍵，**另加 `site.blue_whale_site_url` 只種給 `tcrfc` 一筆**（主站規劃書 §3.6，2026-09-29 後續補，見 `apps/api/README.md`「S1-12d」節「藍鯨官網網址」） |
+| `apps/web/shared/utils/site-facts.ts`（已核實真實值） | `settings`／`settings_i18n`（`setting_group='site'`，`GEO-03`／`GEO-04` 站台事實，見 `apps/api/README.md`「S1-12d」節；電話與營業時間為 2026-09-30 補的**測試值**） | 兩俱樂部各約 11 個鍵，**另加 `site.blue_whale_site_url` 只種給 `tcrfc` 一筆**（主站規劃書 §3.6，2026-09-29 後續補，見 `apps/api/README.md`「S1-12d」節「藍鯨官網網址」） |
 
 ## ⛔ 哪些事不能做
 
@@ -258,6 +259,83 @@ Server=host.docker.internal,1433;Database=tcrfc_club_dev;User Id=sa;Password=<MS
 在 `INSERT` 區塊之外**另外加一句獨立、可重複執行的 `UPDATE ... WHERE <業務自然鍵>`**（見
 `generate-club-seed-sql.py` 第 8 節），涵蓋「列已存在但缺新欄位的值」這種情況；只改 `INSERT`
 只對「全新建庫」有效，對「既有庫追加欄位」無效。
+
+## 後台模組種子（2026-09-30）
+
+> 使用者要求「後台打開就有資料可以看、可以測試」。定義與 SQL 產生在 [`backoffice_seed.py`](backoffice_seed.py)（每筆資料旁都註明來源），
+> 冪等寫法沿用主腳本（業務自然鍵找不到才 `INSERT`、`block()` 自動包交易），**重跑 `apply-seed.sh` 不會重複插入**；
+> 兩俱樂部資料以 `club_id` 區隔，共用主檔（標籤、FAQ 分類、事件類型）不帶 `club_id`。
+> 🔴 **只有「列不存在才建」**：已存在的列不會被回填新欄位（同上方「DDL 改了…」一節的說明）；要讓既有列換成新值請手動改或重建庫。
+
+### 種了什麼（筆數，tcrfc／bw）
+
+| 模組（後台名稱） | 表 | tcrfc | bw | 資料來源 |
+|---|---|---|---|---|
+| 頁面 | `pages`／`pages_i18n`／`page_blocks`／`page_versions`（v1 快照＋預覽權杖） | 3 頁（2 發布＋1 草稿）／7 區塊 | 4 頁（3 發布＋1 草稿）／7 區塊 | **真實**：`club-copy.ts` 已核實文案（願景使命、足球理念、藍鯨我們的故事／發展願景／口號）；草稿頁為**測試** |
+| 首頁輪播 | `banners`／`banners_i18n` | 2（draft） | 2（draft） | 第一張文字取自 `getHomeHero` 已核實文案（**真實**），第二張**測試**；圖片沒有，見下方「圖片」 |
+| 常見問題 | `faqs`／`faqs_i18n`／`faq_category_links`／`faq_embed_slot_links` | 10 題（十個分類各一）／4 個嵌入點皆有 | 10 題／2 個嵌入點有（`trials`、`program_detail`；藍鯨不設學院招生，無贊助題） | tcrfc **全測試**；bw **真實**（`content/blue-whale/programs.md` §3 的 8 題＋`squad/youth-teams.md` U15 的 2 題，舊站原文） |
+| 課程與梯次 | `programs`／`programs_i18n`／`sessions` | 6 課程（五種型別各一＋1 草稿）／7 梯次（開放／額滿／候補／已結束皆有） | 12 課程／12 梯次 | tcrfc **全測試**；bw **真實**（`programs.md` §1 社區足球學校、§2 運動 i 台灣十種課程、§4 教練講習） |
+| 賽程賽果／積分榜 | `standings` | 6（2026-27） | 6（2023） | **全測試**（沒有真實積分來源）。賽程賽果早已有種子（tcrfc 21 場、bw 21 場），本輪未動 |
+| 行事曆自建事件 | `calendar_custom_events`（＋i18n、`calendar_event_teams`、`calendar_event_exceptions`） | 5（含每週重複＋例外日、全天、不公開各一） | 3（1 筆**真實**過往活動＋2 測試；含每兩週重複） | bw 真實：2024 台中女子足球節（`programs.md` §5，日期 2024-07-13 經 `news-index.md` #4 互證）；其餘**測試** |
+| 新聞 | `tags`／`tags_i18n`（全域）、`article_tags`、`value_tag_links`、`articles.is_featured`；bw 另新增 3 篇 `articles` | tag 5 個（全域）；既有 83 篇新聞掛 72 個標籤、16 個核心價值標籤；最新 2 篇設為精選 | 3 篇測試新聞（`bw-test-news-*`，只有標題與摘要） | 標籤名稱是功能性分類詞；**歸類是種子的編輯性判斷**（見下）；bw 新聞**全測試**（舊站 17 則都是外部媒體連結，不得轉載，見 `news-index.md`） |
+| 搜尋與 AI 能見度 | `redirects` | 31（19 組來源路徑） | 40（20 組來源路徑，未編碼＋百分比編碼各一筆，藍鯨規劃書 §7 第 3 點） | tcrfc 取自 `舊官網URL盤點.csv`；bw 取自 `site-map.md`。**新站對應頁是種子依名稱推得的建議，客戶「決定」欄仍為空** |
+| 〃 | `settings`：`seo.title_template`／`seo.default_description` | zh＋en | zh（bw 英文全名待確認，不種 en） | **真實**（`CLUB_IDENTITY` 已核實文案） |
+| 〃 | `settings`：`geo.llms_positioning`／`key_pages`／`facts_summary`／`license`／`contact` | 五區塊 zh＋en | 五區塊 zh；en 只有 `key_pages`／`license`／`contact` | **真實**（已核實事實與公開社群連結）；tcrfc 聯絡 Email 為**測試** |
+| 〃 | `settings`：`geo.crawler_agents`（五個預設代理皆允許）、`geo.crawler_extra_exclude_paths` | 有（`[]`） | 有（`[]`） | 規劃書 §7 `GEO-02` 條文範例 |
+| 網站設定 | `settings`：`site.*`（補齊） | 電話、營業時間（中文）、梯隊敘述英文 | 電話、營業時間（中文）、成立日英文顯示、梯隊敘述英文 | 電話與營業時間**測試**；英文為已核實中文事實的直譯 |
+
+### 🔴 測試值清單（正式資料上線前逐一替換）
+
+文字欄位一律以「【測試】」前綴標明；不能加前綴的欄位用一看就不可能存在的值。**搜尋 `【測試】` 即可找出全部文字型測試值。**
+
+| 表／設定鍵 | 欄位 | 測試值 | 兩俱樂部 |
+|---|---|---|---|
+| `settings` `site.contact_phone` | 值 | `04-0000-0000` | tcrfc、bw |
+| `settings_i18n` `site.contact_hours` | zh | 【測試】平日 09:00–18:00 | tcrfc、bw |
+| `settings_i18n` `geo.llms_contact` | zh／en 內的 Email | `contact@example.com`（附【測試】說明） | 只有 tcrfc（bw 用舊站公開的官方信箱，已核實） |
+| `pages`（slug `test-draft-page`）＋`page_blocks`＋`page_versions` | 標題、SEO、內文 | 【測試】草稿頁面 | tcrfc、bw |
+| `banners_i18n` | 第二張輪播的標題、副標、圖片說明；第一張的圖片說明；兩張的 `image_key` | 【測試】…；`image_key` = `seed-placeholder/no-image`（**不是真實物件**） | tcrfc、bw |
+| `faqs`／`faqs_i18n`（slug `test-faq-01`～`10`） | 問題、答案 | 【測試】…常見問題範例？／測試用內容 | 只有 tcrfc |
+| `programs`／`programs_i18n`／`sessions`（slug `test-*`） | 名稱、簡介、梯次的日期／名額／價格／時段 | 名稱含【測試】；**價格與名額是整數無法加前綴，一律視為測試** | 只有 tcrfc |
+| `standings` | `team_name`、名次、出賽、積分 | 【測試】隊伍 A～F＋編造數字 | tcrfc、bw |
+| `calendar_custom_events`（title 含【測試】者） | 標題、說明、日期時間 | 【測試】… | tcrfc 全部 5 筆；bw 2 筆（`2024 台中女子足球節` 那筆是真實） |
+| `articles`（slug `bw-test-news-*`）＋`articles_i18n` | 標題、摘要 | 【測試】… | 只有 bw |
+| `article_tags`／`value_tag_links` | tcrfc 既有新聞的標籤與核心價值歸類 | 種子的編輯性判斷（match→賽事；international→國際交流＋全球通道；community→社區＋社區；camps-events→青訓發展＋以球員為本） | tcrfc |
+| `articles.is_featured` | 精選 | 依日期最新兩篇 | tcrfc |
+| `redirects` | 新站對應頁 | 由舊網址名稱推得的建議，**客戶尚未決定** | tcrfc、bw |
+
+### 刻意沒種的（與原因）
+
+- **`seo.robots_custom_rules`**：會原樣寫進 `robots.txt`，沒有需求就不預設；**`tracking.*`（GA4／GTM／Meta Pixel／LINE）**：假的追蹤碼會讓前台載入無效腳本，沒有真實 ID 不種；**全站預設 OG 圖**：`clubs.og_image_key` 需要圖片上傳。三者都留空，等真實值。
+- **藍鯨英文**（`seo.title_template` en、`geo.llms_positioning`／`facts_summary` en）：英文正式全名待客戶確認（`docs/14`），不自行挑一個；`site.founding_title`／`site.league_name` en 同。
+- **`site.founding_date`（tcrfc）**：成立月日至今沒有核實來源，日期欄位無法用前綴標示為測試，不種假日期。tcrfc 的 `site.founding_date_display` 英文也刻意不種（`SiteFactsTests` 用它驗證「缺英文時回退中文」）。
+- **課程教練連結（`program_staff`）、報名（`registrations`）、詢問收件匣（`enquiries`）、會員／會籍**：涉及個資或需要真實人員，不種。教練連結需要「課程與教練」的真實對應。
+- **磐石學院球隊 U15／U14／U12（`teams`）**：性別與年齡帶的真實定義沒有來源（`gender` 是必填），不臆測；`site.squad_codes` 已有這三個代碼但 `teams` 表沒有對應列（既有落差，`apps/api/README.md`「S1-12d」節已記）。
+- **夥伴（tcrfc）、贊助、慈善、商店、漫畫、球迷活動（`E`／`B5`／`S`／`F` 模組）**：後台尚未完成（`STATUS.md` S2 以後），本輪只涵蓋已完成的 S1 模組。bw 夥伴早已有種子。
+- **賽程賽果**：早已有種子，本輪未動。
+- **`tcrfc` 新聞 `articles_i18n.body`／`summary`**：文稿仍是讀不到的 `.gdoc`，留白是刻意的（見上方「哪些事不能做」）。
+
+### 圖片
+
+種子只寫文字。`banners.image_key` 是 `NOT NULL`，而 repo 內沒有可公開上傳的素材與 Azurite 上傳腳本（`site/src/assets/img/`、`apps/web/public/assets/img/` 不納管，且含未成年學員照片，**不得**拿來用），所以輪播以 **draft** 狀態＋佔位鍵寫入：後台列表看得到、可編輯、可測試發布流程；公開端點只回 `published`，**前台不會出現壞圖**（首頁繼續用既有靜態素材頂替）。要看到真實輪播請在後台上傳圖片後改為發布。其他 `*_key` 欄位（新聞封面、球員照片、課程封面、頁面 OG 圖）一律留空。
+
+### ⚠️ 前台顯示的已知落差（種子欄位無法解決，回報給前台）
+
+- **梯次「時段」欄**：`sessions.weekly_schedule` 依 API 規則必須是合法 JSON（後台提示範例 `{ mon: 18:00-19:30 }`），而前台 `programs/*.vue` 把它當字串**原樣印出**（沒有解析），所以畫面會出現 `{"mon":"18:00-19:30"}` 這樣的文字。要好看需要前台解析，或後端／規格另訂欄位形狀。
+- **藍鯨青年隊名單頁未列入 AI 爬蟲強制排除**：`GeoCrawlerDefaults` 的 `/zh/academy/teams/` 只對 tcrfc 生效，`AdminGeoCrawlerTests` 還明文斷言 bw 不含該路徑；bw 站同一路由是 U15／U12 青年隊，藍鯨規劃書 BW-7 要求排除。種子**不能**繞過（會讓該測試失敗），需要後端補 `ClubLocalizedSegments["bw"]` 並同步改測試。
+
+### 灌庫步驟（使用者執行）
+
+```bash
+set -a && source .env && set +a          # 需要 MSSQL_DEV_SA_PASSWORD
+./db/seed/apply-seed.sh                   # 灌 tcrfc_club_dev（冪等，可重複執行）
+# 整合測試庫（可選）：
+./db/seed/setup-test-db.sh                # 重灌 tcrfc_club_test 的種子（冪等）
+# 灌完後跑一次 apps/api 全套測試，確認三處調整過的測試通過（見 docs/18-work-errors.md E-81）
+```
+
+> 既有本機庫已有資料時，`apply-seed.sh` 只會**補上缺的列**，不會改動已存在的列——本輪新增的資料都是全新列，所以直接生效；
+> 但 `site.contact_phone`／`site.contact_hours` 若你手動改過就不會被覆蓋。
 
 ## 已知落差（詳細對照見本次回報／`docs/12d-field-audit.md`）
 

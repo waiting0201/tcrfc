@@ -94,6 +94,7 @@
 | E-77 | 2026-09-29 | BW-C1 品牌外洩全站盤點改寫 `check-club-brand-leak.mjs` 詞表時，第一版把裸網域 `tcrfc.tw` 列進詞表，實測發現藍鯨站**每一頁**（含完全乾淨的頁面）都命中一次——根因是 `nuxt.config.ts` 的 `blueWhaleSiteUrl: 'https://bw-stg.tcrfc.tw'` 這個 runtime config 預設值會被序列化進**每一頁**的 hydration payload，而這個網址本身是藍鯨自己的 staging 網域（兩站共用上層網域），不是磐石網域外洩，裸字串對這個問題完全沒有鑑別力 | ✅ 改用含 `www.` 前綴的 `www.tcrfc.tw`（磐石舊站實際寫法），`bw-stg.tcrfc.tw` 沒有 `www.` 前綴不受影響；下次要在詞表裡放「網域」這種候選詞前，先假設它會撞到 runtime config 或環境變數的預設值，全站每頁跑一次再看命中是否有鑑別力，不要只看命中頁面本身像不像真的問題 |
 | E-78 | 2026-09-29 | BW-C1 把 `shop/home-jersey-2026/index.vue` 商品詳情整段內容（含唯一的 `<h1>`）用 `v-if="isTcrfc"` 隱藏、bw 版只留一段 `<p>` 空狀態文字，沒有另外補 `<h1>`——`check-heading-structure.mjs` 實測跑 bw 容器時抓到「沒有 H1」，是本輪才發現的新迴歸，不是既有缺口 | ✅ 已在 bw 空狀態分支補上對應的 `<h1>`；下次把整段內容（含標題層級）用 `v-if`/`v-else` 拆成兩個分支時，兩個分支都要自己滿足「恰好一個 H1」，不能預設「反正原本有 H1，藏起來的那半邊不用管」——`check-heading-structure.mjs` 就是為了抓這一類回歸而存在，改完content gating 一定要實測兩個 club 容器都跑一次，不能只跑改動的那一邊 |
 | E-79 | 2026-09-30 | 主 session 給使用者的本機 API 啟動步驟漏了 `JWT_SIGNING_KEY_CLUB`（照抄 API README 範例，範例本身也漏），API 照常啟動但每支端點（含 `/healthz`）都回 500 | ✅ README 範例補上；✅ 程式端已於 2026-09-30 在 `Program.cs` `builder.Build()` 前驗證 |
+| E-81 | 2026-09-30 | 後台種子擴充前審計發現：三處整合測試對「共用資料庫種子長什麼樣」寫死假設——`AdminSeoImageTests` 的 `finally` 無條件刪掉 tcrfc 全部 `seo.*`／`tracking.*` 設定（註解假設「執行前理論上都不存在」）、`Standing_CSV匯入_整季替換` 斷言 `DeletedCount == 1`、`SiteFactsTests` 斷言電話與營業時間為 null；種子一擴充，前者靜默吃掉種子、後兩者直接失敗 | ✅ 三處已改成「先記下既有列、結束後還原」或不綁定種子值；⚠️ 無自動化（改種子仍要靠審計，見條目） |
 
 ---
 
@@ -2038,3 +2039,13 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
   用 `git worktree add` 開獨立目錄，或直接讀 `git show HEAD:<檔案>` 比對；警告數這類「數字沒變」的確認，
   看輸出裡的警告種類即可（本次只有 chunk 大小警告一種，改動與此無關）。
 - **防呆**：無（紀律問題）。同類再犯要改成 hook 攔截 `git stash`。
+
+### E-81 整合測試對共用庫的種子資料寫死假設（「這批鍵理論上不存在」「總數一定是 N」「欄位一定是 null」），種子擴充時靜默吃掉種子或直接失敗（2026-09-30，後台種子擴充前審計發現）
+
+- **錯在哪**：使用者要求後台打開就有資料，`db/seed/` 要新增頁面、FAQ、課程、積分榜、SEO 設定等。派 QA 對 `apps/api/Tcrfc.Api.Tests` 做唯讀審計，找到三處既有測試把「種子目前是空的／是某個值」當前提：
+  ① `AdminSeoImageTests` 三個測試的 `finally` 呼叫 `DeleteSeoTextSettingsAsync`，無條件 `DELETE` tcrfc 全部 `seo.%`／`tracking.%` 設定，註解寫「執行前這批鍵理論上都不存在，直接刪除即是還原」——種子一旦種了 `seo.title_template`，每跑一次測試就被永久刪除，而**測試本身仍綠燈**；
+  ② `Standing_CSV匯入_整季替換` 斷言 `DeletedCount == 1`，且 tcrfc 只有 2026-27 一個球季，種子 6 列必然落在同一季，整季替換會刪 7 列並永久吃掉種子；
+  ③ `SiteFactsTests` 斷言公開端點 `Contact.Phone`／`Contact.Hours` 為 null，種子種了測試電話就失敗。
+- **為什麼會錯（根因）**：測試的清理與斷言以「共用庫的**現在**是什麼」為隱含前提（與 `E-36` 同一根因的另一面：那次是種子改了沒跑測試，這次是測試假設種子不會改），而不是「測試前先記下、測試後還原」。第一版（`E-62` 之前）寫清理時只想到「別留下自己建的資料」，沒想到「別刪掉別人（種子）建的資料」。
+- **下次怎麼避免**：🔴 整合測試只要會 `DELETE`／整批替換共用庫的既有列，一律用「前置快照、`finally` 還原」，不得以「應該不存在」當還原手段；斷言種子基線值時，只綁定「有值／無值」，不綁定會被正式資料取代的測試值。**擴充 `db/seed/` 前先派審計掃 `Tcrfc.Api.Tests`**（本次做法：唯讀 QA agent 逐檔讀、列出「斷言／假設｜失敗原因｜建議」表）。
+- **防呆**：三處已於同一次交付改好（`AdminSeoImageTests` 改 `CaptureSeoTextSettingsAsync`／`RestoreSeoTextSettingsAsync` 快照還原；`Standing_CSV匯入_整季替換` 記下既有列、`DeletedCount` 算進去並於 `finally` 補回；`SiteFactsTests` 改為只驗證有值）。⚠️ 這三處**未在本機重跑 `dotnet test`**（本輪限制：不得連資料庫、不得組合密碼），只確認 `dotnet build` 通過；使用者灌庫後請跑一次 `apps/api` 全套測試確認。無自動化能偵測「測試假設種子為空」——同類再犯要考慮測試基底類別統一提供快照還原工具。

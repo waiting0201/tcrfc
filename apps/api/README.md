@@ -6599,7 +6599,7 @@ DI 註冊、路由掛載、例外轉狀態碼。
 `db/seed/generate-club-seed-sql.py` 新增「24. site facts」段（緊接在既有「23. event_types」之後，
 `--reset-admin-accounts` 分支之前），把 `apps/web/shared/utils/site-facts.ts` 目前兩站的已核實真實值
 寫入 `settings`／`settings_i18n`；並新增台中磐石（tcrfc）主場「西屯足球場」的 `Venue` 列（既有種子
-只建了藍鯨的兩座場地）。電話與營業時間兩俱樂部皆未核實，刻意不種（`NULL`，不放佔位假資料）。
+只建了藍鯨的兩座場地）。電話與營業時間兩俱樂部皆未核實，S1-12d 當時刻意不種；**2026-09-30 起改種明顯的測試值**（電話 `04-0000-0000`、營業時間「【測試】平日 09:00–18:00」且只有中文），見 [`db/seed/README.md`](../../db/seed/README.md)「測試值清單」與「後台模組種子（2026-09-30）」一節。
 
 🔴 **盤點時發現的既有資料落差（不是本輪造成，回報給下一輪決定）**：台中藍鯨兩座既有 `Venue` 列
 （太原足球場／豐原體育場，S1-11 賽事匯入時已建立）的 `venues_i18n.address` 其實**已經有真實地址**
@@ -7295,3 +7295,16 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 - [`apps/web/README.md`](../web/README.md) — 這支 API 唯讀端點的呼叫端（Nuxt 前台骨架）
 - [`apps/admin/src/views/news/`](../admin/src/views/news/) — 這支 API 後台端點要餵的畫面（✅ 已接上，2026-09-22）
 - [`apps/admin/src/`](../admin/src/) 的 `ImageUploader.vue` — S0-8 圖片上傳共用元件的契約消費端（✅ **已接上，2026-09-22**，走單一 multipart 契約「儲存才上傳」，契約見本檔「圖片上傳共用元件」整節）
+
+## 後台模組種子（2026-09-30，`backend-engineer`）
+
+使用者要求「後台打開就有資料可以看、可以測試」。`db/seed/backoffice_seed.py`（由 `generate-club-seed-sql.py`
+尾端呼叫）為已完成的後台模組種下兩俱樂部各自一份資料：`B1` 頁面、`B3` 輪播（draft）、`B4` FAQ、`P1／P2` 課程與梯次、
+`C4` 積分榜、`L2` 自建事件、`B2` 標籤與核心價值標籤、`H` 301 轉址、全站 SEO 預設、`llms.txt` 五區塊、AI 爬蟲設定，
+以及 `I` 網站設定補齊電話／營業時間／英文值。**真實內容與測試值的界線、來源、筆數、測試值清單與灌庫步驟見
+[`db/seed/README.md`](../../db/seed/README.md)「後台模組種子（2026-09-30）」一節。**
+
+三個既有整合測試因此一併調整（否則種子被吃掉或測試失敗，見 `docs/18-work-errors.md` `E-81`）：
+`AdminSeoImageTests`（`DeleteSeoTextSettingsAsync` 改為快照後還原）、`AdminMatchesAndStandingsTests`
+（`Standing_CSV匯入_整季替換` 記下既有列、`DeletedCount` 算進去並於 `finally` 補回）、`SiteFactsTests`
+（電話／營業時間改為只驗證有值）。⚠️ 這三處只確認過 `dotnet build` 通過，**未重跑 `dotnet test`**，灌庫後請跑全套。

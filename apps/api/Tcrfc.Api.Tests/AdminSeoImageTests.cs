@@ -69,6 +69,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
     {
         using var client = await CreateSuperAdminClientAsync();
         var original = await CaptureClubOgImageAsync();
+        var seoTextSnapshot = await CaptureSeoTextSettingsAsync();
 
         try
         {
@@ -105,7 +106,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
             await RestoreClubOgImageAsync(original);
             // settings 文字欄位（title_template／default_description）也是這個測試寫入的，
             // 一併清乾淨，理由與 AdminSeoTests 的還原邏輯相同。
-            await DeleteSeoTextSettingsAsync();
+            await RestoreSeoTextSettingsAsync(seoTextSnapshot);
         }
     }
 
@@ -119,6 +120,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
         var slug = $"s1-12-og-{Guid.NewGuid():N}";
 
         var originalClubOg = await CaptureClubOgImageAsync();
+        var seoTextSnapshot = await CaptureSeoTextSettingsAsync();
         try
         {
             // 先設定全站預設 OG 圖片，確認「文章自己的圖片」蓋得過它。
@@ -181,7 +183,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
         finally
         {
             await RestoreClubOgImageAsync(originalClubOg);
-            await DeleteSeoTextSettingsAsync();
+            await RestoreSeoTextSettingsAsync(seoTextSnapshot);
         }
     }
 
@@ -193,6 +195,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
         var slug = $"s1-12-og-fallback-{Guid.NewGuid():N}";
 
         var originalClubOg = await CaptureClubOgImageAsync();
+        var seoTextSnapshot = await CaptureSeoTextSettingsAsync();
         try
         {
             var settingsResponse = await superAdmin.PutAsync("/api/v1/admin/tcrfc/seo/settings",
@@ -241,7 +244,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
         finally
         {
             await RestoreClubOgImageAsync(originalClubOg);
-            await DeleteSeoTextSettingsAsync();
+            await RestoreSeoTextSettingsAsync(seoTextSnapshot);
         }
     }
 
@@ -321,27 +324,102 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
     /// <summary>
     /// 🔴 <c>AdminSeoSettingsRepository.UpdateAsync</c> 每次 PUT 會把全部七個
     /// <c>seo.*</c>／<c>tracking.*</c> 鍵都建一列（即使請求沒有帶值，也會建一列
-    /// <c>setting_value = NULL</c> 的列）——不是只建這個測試明確傳了值的
-    /// <c>seo.title_template</c>／<c>seo.default_description</c> 兩個鍵。第一版這裡只刪那兩個鍵，
-    /// 實測後發現另外五個鍵（<c>seo.robots_custom_rules</c>、四個 <c>tracking.*</c>）會留下空值列
-    /// 殘留在 <c>tcrfc_club_dev</c>，已修正為整組刪除，跟 <see cref="AdminSeoTests"/> 的還原邏輯
-    /// 一致範圍。本測試檔執行前這批鍵理論上都不存在，直接刪除即是還原。
+    /// <c>setting_value = NULL</c> 的列）。
+    ///
+    /// 🔴 2026-09-30 改為「快照後還原」：種子資料（<c>db/seed/backoffice_seed.py</c> 第 33 節）現在會種
+    /// <c>seo.title_template</c>／<c>seo.default_description</c>，原本「執行前這批鍵理論上都不存在，直接刪除
+    /// 即是還原」的假設不再成立——無條件刪除會在每次跑整合測試後把種子吃掉。改成測試前記下 tcrfc 全部
+    /// <c>seo.%</c>／<c>tracking.%</c> 列（含逐語系值），測試後先清空再原樣寫回。
     /// </summary>
-    private static async Task DeleteSeoTextSettingsAsync()
+    private sealed record SeoTextSettingRow(Guid Id, string SettingKey, string? SettingValue, string? SettingGroup);
+
+    private sealed record SeoTextSettingI18nRow(Guid SettingId, string Locale, string? Value);
+
+    private sealed record SeoTextSnapshot(List<SeoTextSettingRow> Settings, List<SeoTextSettingI18nRow> I18n);
+
+    private static async Task<SeoTextSnapshot> CaptureSeoTextSettingsAsync()
     {
         await using var connection = new SqlConnection(RequireConnectionString());
         await connection.OpenAsync();
-        await using var command = connection.CreateCommand();
-        command.CommandText = """
-            DELETE si FROM settings_i18n si
-            JOIN settings s ON s.id = si.setting_id
-            JOIN clubs c ON c.id = s.club_id
-            WHERE c.code = 'tcrfc' AND (s.setting_key LIKE 'seo.%' OR s.setting_key LIKE 'tracking.%');
 
-            DELETE s FROM settings s
-            JOIN clubs c ON c.id = s.club_id
-            WHERE c.code = 'tcrfc' AND (s.setting_key LIKE 'seo.%' OR s.setting_key LIKE 'tracking.%');
-            """;
-        await command.ExecuteNonQueryAsync();
+        var settings = new List<SeoTextSettingRow>();
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT s.id, s.setting_key, s.setting_value, s.setting_group
+                FROM settings s JOIN clubs c ON c.id = s.club_id
+                WHERE c.code = 'tcrfc' AND (s.setting_key LIKE 'seo.%' OR s.setting_key LIKE 'tracking.%');
+                """;
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                settings.Add(new SeoTextSettingRow(
+                    reader.GetGuid(0), reader.GetString(1),
+                    reader.IsDBNull(2) ? null : reader.GetString(2), reader.IsDBNull(3) ? null : reader.GetString(3)));
+            }
+        }
+
+        var i18n = new List<SeoTextSettingI18nRow>();
+        await using (var command = connection.CreateCommand())
+        {
+            command.CommandText = """
+                SELECT si.setting_id, si.locale, si.value
+                FROM settings_i18n si
+                JOIN settings s ON s.id = si.setting_id JOIN clubs c ON c.id = s.club_id
+                WHERE c.code = 'tcrfc' AND (s.setting_key LIKE 'seo.%' OR s.setting_key LIKE 'tracking.%');
+                """;
+            await using var reader = await command.ExecuteReaderAsync();
+            while (await reader.ReadAsync())
+            {
+                i18n.Add(new SeoTextSettingI18nRow(reader.GetGuid(0), reader.GetString(1), reader.IsDBNull(2) ? null : reader.GetString(2)));
+            }
+        }
+
+        return new SeoTextSnapshot(settings, i18n);
+    }
+
+    private static async Task RestoreSeoTextSettingsAsync(SeoTextSnapshot snapshot)
+    {
+        await using var connection = new SqlConnection(RequireConnectionString());
+        await connection.OpenAsync();
+
+        await using (var delete = connection.CreateCommand())
+        {
+            delete.CommandText = """
+                DELETE si FROM settings_i18n si
+                JOIN settings s ON s.id = si.setting_id
+                JOIN clubs c ON c.id = s.club_id
+                WHERE c.code = 'tcrfc' AND (s.setting_key LIKE 'seo.%' OR s.setting_key LIKE 'tracking.%');
+
+                DELETE s FROM settings s
+                JOIN clubs c ON c.id = s.club_id
+                WHERE c.code = 'tcrfc' AND (s.setting_key LIKE 'seo.%' OR s.setting_key LIKE 'tracking.%');
+                """;
+            await delete.ExecuteNonQueryAsync();
+        }
+
+        foreach (var row in snapshot.Settings)
+        {
+            await using var insert = connection.CreateCommand();
+            insert.CommandText = """
+                INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+                VALUES (@Id, (SELECT id FROM clubs WHERE code = 'tcrfc'), @Key, @Value, @Group);
+                """;
+            insert.Parameters.AddWithValue("@Id", row.Id);
+            insert.Parameters.AddWithValue("@Key", row.SettingKey);
+            insert.Parameters.AddWithValue("@Value", (object?)row.SettingValue ?? DBNull.Value);
+            insert.Parameters.AddWithValue("@Group", (object?)row.SettingGroup ?? DBNull.Value);
+            await insert.ExecuteNonQueryAsync();
+        }
+
+        foreach (var row in snapshot.I18n)
+        {
+            await using var insert = connection.CreateCommand();
+            insert.CommandText = "INSERT INTO settings_i18n (setting_id, locale, value) VALUES (@SettingId, @Locale, @Value);";
+            insert.Parameters.AddWithValue("@SettingId", row.SettingId);
+            insert.Parameters.AddWithValue("@Locale", row.Locale);
+            insert.Parameters.AddWithValue("@Value", (object?)row.Value ?? DBNull.Value);
+            await insert.ExecuteNonQueryAsync();
+        }
     }
 }

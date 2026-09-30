@@ -247,8 +247,10 @@ public sealed class SiteFactsTests(AdminWriteApiFixture fixture)
         Assert.True(venue.IsHomeGround);
 
         Assert.Equal(venue.Address, dto.Contact.Address);
-        Assert.Null(dto.Contact.Phone);
-        Assert.Null(dto.Contact.Hours);
+        // 電話與營業時間沒有核實資料，種子放的是明顯的測試值（db/seed/README.md「測試值清單」）；
+        // 這裡只驗證「有值會被公開端點帶出」，不綁定測試值本身，正式資料替換後測試仍成立。
+        Assert.False(string.IsNullOrWhiteSpace(dto.Contact.Phone));
+        Assert.False(string.IsNullOrWhiteSpace(dto.Contact.Hours));
         Assert.Equal("https://bw-stg.tcrfc.tw", dto.BlueWhaleSiteUrl);
     }
 

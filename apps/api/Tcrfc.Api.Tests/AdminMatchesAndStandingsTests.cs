@@ -506,6 +506,11 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
         using var client = await CreateClientAsync("team.manager@tcrfc.test");
         var seasonId = await GetSeasonIdAsync("tcrfc", "2026-27");
 
+        // 🔴 種子資料（db/seed/backoffice_seed.py 第 29 節）在這個球季本來就有一批積分榜列；「整季替換」
+        // 會把它們一併換掉，所以先記下既有列，斷言刪除筆數時要算進去，結束後再還原，不能讓測試把種子吃掉。
+        var seededRows = await client.GetFromJsonAsync<List<AdminStandingListItemDto>>(
+            $"/api/v1/admin/tcrfc/standings?seasonId={seasonId}", TestJson.Options);
+
         // 先種一筆舊資料，確認匯入後會被整批換掉。
         var staleResponse = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/standings", new CreateAdminStandingRequest
         {
@@ -526,7 +531,7 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.OK, response.StatusCode);
             var result = await response.Content.ReadFromJsonAsync<StandingCsvImportResultDto>(TestJson.Options);
             Assert.Equal(2, result!.ReplacedCount);
-            Assert.Equal(1, result.DeletedCount);
+            Assert.Equal(seededRows!.Count + 1, result.DeletedCount); // 種子列（若有）＋剛建立的舊資料
             Assert.Empty(result.Errors);
 
             var list = await client.GetFromJsonAsync<List<AdminStandingListItemDto>>(
@@ -538,6 +543,18 @@ public sealed class AdminMatchesAndStandingsTests(AdminWriteApiFixture fixture)
         finally
         {
             await DeleteStandingsBySeasonAsync(seasonId, "應該被替換掉的舊資料", "積分榜CSV測試A", "積分榜CSV測試B");
+
+            // 還原種子列：整季替換可能已經把它們刪掉；只補目前不存在的（測試中途失敗、尚未匯入時它們仍在）。
+            var currentRows = await client.GetFromJsonAsync<List<AdminStandingListItemDto>>(
+                $"/api/v1/admin/tcrfc/standings?seasonId={seasonId}", TestJson.Options);
+            foreach (var seeded in seededRows!.Where(r => currentRows!.All(c => c.TeamName != r.TeamName)))
+            {
+                var restoreResponse = await client.PostAsJsonAsync("/api/v1/admin/tcrfc/standings", new CreateAdminStandingRequest
+                {
+                    SeasonId = seasonId, TeamName = seeded.TeamName, Rank = seeded.Rank, Played = seeded.Played, Points = seeded.Points,
+                });
+                Assert.Equal(HttpStatusCode.Created, restoreResponse.StatusCode);
+            }
         }
     }
 
