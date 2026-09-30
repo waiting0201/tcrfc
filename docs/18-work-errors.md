@@ -93,6 +93,7 @@
 | E-72 | 2026-09-29 | S1-15 建了 13 賽事行事曆（`app/pages/zh/schedule.vue`）卻沒有把它補進 `shared/utils/site-units.ts` 的 `SITE_UNITS`，導致 `sitemap.xml`／`llms.txt`（兩者共用 `getEnabledSiteUnits`）從建成那天起就漏收這個單元；S1-18 本輪核對 12 FAQ 該補進同一份清單時才連帶發現。**S1-18b 複查時再連帶發現第二筆同類缺漏**：10 加入與聯絡（S1-17 建置完成）同樣沒有補進 `SITE_UNITS` | ✅ **S1-18b（2026-09-29）已補齊 `10`／`13` 兩筆並實機驗證兩容器 `sitemap.xml`／`llms.txt` 皆收錄**；✅ **防呆已自動化**：`apps/web/scripts/check-site-units-coverage.mjs`（掛進 `npm run lint` 的 `lint:site-units-coverage`）掃描 `app/pages/zh/` 全部 `definePageMeta({ unit: 'XX' })`，取頂層代碼比對 `SITE_UNITS` 或腳本內 `EXCLUDED_TOP_LEVEL_UNITS` 排除清單，兩者都沒有就讓 `lint` 失敗——已用「暫時拿掉 `SITE_UNITS` 的 `'13'`」實測紅燈、改回綠燈 |
 | E-77 | 2026-09-29 | BW-C1 品牌外洩全站盤點改寫 `check-club-brand-leak.mjs` 詞表時，第一版把裸網域 `tcrfc.tw` 列進詞表，實測發現藍鯨站**每一頁**（含完全乾淨的頁面）都命中一次——根因是 `nuxt.config.ts` 的 `blueWhaleSiteUrl: 'https://bw-stg.tcrfc.tw'` 這個 runtime config 預設值會被序列化進**每一頁**的 hydration payload，而這個網址本身是藍鯨自己的 staging 網域（兩站共用上層網域），不是磐石網域外洩，裸字串對這個問題完全沒有鑑別力 | ✅ 改用含 `www.` 前綴的 `www.tcrfc.tw`（磐石舊站實際寫法），`bw-stg.tcrfc.tw` 沒有 `www.` 前綴不受影響；下次要在詞表裡放「網域」這種候選詞前，先假設它會撞到 runtime config 或環境變數的預設值，全站每頁跑一次再看命中是否有鑑別力，不要只看命中頁面本身像不像真的問題 |
 | E-78 | 2026-09-29 | BW-C1 把 `shop/home-jersey-2026/index.vue` 商品詳情整段內容（含唯一的 `<h1>`）用 `v-if="isTcrfc"` 隱藏、bw 版只留一段 `<p>` 空狀態文字，沒有另外補 `<h1>`——`check-heading-structure.mjs` 實測跑 bw 容器時抓到「沒有 H1」，是本輪才發現的新迴歸，不是既有缺口 | ✅ 已在 bw 空狀態分支補上對應的 `<h1>`；下次把整段內容（含標題層級）用 `v-if`/`v-else` 拆成兩個分支時，兩個分支都要自己滿足「恰好一個 H1」，不能預設「反正原本有 H1，藏起來的那半邊不用管」——`check-heading-structure.mjs` 就是為了抓這一類回歸而存在，改完content gating 一定要實測兩個 club 容器都跑一次，不能只跑改動的那一邊 |
+| E-79 | 2026-09-30 | 主 session 給使用者的本機 API 啟動步驟漏了 `JWT_SIGNING_KEY_CLUB`（照抄 API README 範例，範例本身也漏），API 照常啟動但每支端點（含 `/healthz`）都回 500 | ✅ README 範例補上；⚠️ 程式端缺值時未在啟動期失敗，待修 |
 
 ---
 
@@ -2009,3 +2010,18 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **防呆**：✅ 已補上 bw 分支的 `<h1>`；`check-heading-structure.mjs` 本身就是這類
   回歸的防呆機制（已存在，本次是使用紀律問題，不是機制缺口）——**下次收尾一律
   兩個 club 容器都跑過標題結構檢查才算完工**，不是只跑改動意圖所在的那個容器。
+
+### E-79 本機啟動步驟漏必填的 `JWT_SIGNING_KEY_CLUB`，API 起得來但全部 500（2026-09-30）
+
+- **錯在哪**：使用者要在本機測後台，主 session 照 `apps/api/README.md`「怎麼跑」的範例列出環境變數，
+  範例本身沒有 `JWT_SIGNING_KEY_CLUB`。API 正常啟動、監聽 5299，但所有請求（連不查資料庫的 `/healthz`）
+  都回 500。只列出行程的環境變數**名稱**確認後，才確定是缺這個值。
+- **為什麼會錯（根因）**：① 給操作步驟前沒有核對 README 的環境變數表（第 3825 行明寫「S1 起必填」），
+  只抄了範例區塊；② 程式把 JWT 驗證參數的建構放在 `AddJwtBearer` 的 options 委派裡，**第一個請求才執行**，
+  所以「缺必填設定」不是啟動失敗，而是每個請求 500——`AdminTokenService` 建構期檢查原本想要的
+  「寧可啟動失敗」沒有生效。
+- **下次怎麼避免**：給使用者啟動步驟時，以環境變數表的「必填」欄為準逐項核對，不以範例區塊為準；
+  必填設定要在 `builder.Build()` 前讀一次，缺值就讓啟動失敗。
+- **防呆**：README 範例已補上（並加 `DATA_PROTECTION_KEYS_PATH`）。⚠️ 啟動期檢查尚未實作——
+  待後端測試可執行後，由 `backend-engineer` 在 `Program.cs` 於 Build 前驗證 `JWT_SIGNING_KEY_CLUB`
+  （注意測試主機的設定覆寫時機，見 S1-18d 的 `ConfigureWebHost` 說明）。

@@ -3665,6 +3665,11 @@ export ASPNETCORE_ENVIRONMENT=Development
 export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club_dev;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;Encrypt=False;"
 export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5174"   # 5174＝apps/admin 後台；少了它後台登入會被 CORS 擋下
 export ASPNETCORE_URLS="http://127.0.0.1:5299"
+# 🔴 必填：少了它行程照樣啟動，但 JWT 驗證參數是第一個請求進來時才建構，之後「每一支端點」
+#    （連 /healthz）都回 500（E-79）。值取自 deploy/dev/club.env，不必把金鑰打在指令上：
+export JWT_SIGNING_KEY_CLUB="$(grep '^JWT_SIGNING_KEY_CLUB=' ../../deploy/dev/club.env | cut -d= -f2-)"
+# 建議：固定 Data Protection 金鑰目錄，否則每次重啟都會讓已設定兩階段驗證的帳號解不開（見下方）
+export DATA_PROTECTION_KEYS_PATH="$HOME/.tcrfc/dp-keys"
 
 dotnet run --no-launch-profile
 ```
