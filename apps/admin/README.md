@@ -167,12 +167,15 @@ curl http://localhost:8080/healthz      # 應該回 "ok"
 **路由守衛**（`src/router/index.ts` 的 `router.beforeEach`）依序判斷：
 1. 開機靜默 `refresh`（`ensureBootstrapped()`，只跑一次）試著用更新權杖 Cookie 恢復工作階段。
 2. 未登入 → 導去 `/login`（帶 `redirect` 查詢參數，登入成功後導回原本要去的頁面）。
-3. **已登入但 `must_change_password` 或兩階段驗證尚未啟用** → 強制導去
-   `/account/security?forced=password`／`?forced=totp`（`src/views/account/AccountSecurityView.vue`），
-   同一頁同時服務「被強制」與「使用者自己從選單點進來調整」兩種情境，`forced` 查詢參數只影響
-   要不要顯示提示 banner 與完成後要不要自動導回 `/dashboard`。⚠️ **這兩個前提是後端
-   `AdminAccountGate` 真正擋住每一個俱樂部範圍與系統範圍端點的條件**（見 apps/api/README.md），
-   前端這裡只是提前把使用者導去做完，不是安全邊界——就算跳過這一頁，後端一樣會擋。
+3. **（2026-09-30 使用者裁決）不再強制改密與強制 2FA**：已登入後不論 `must_change_password`／
+   `two_factor_enabled` 為何，守衛都不再導向 `/account/security?forced=...`（`needsForcedOnboarding`
+   與 `forced` 查詢參數已整個移除），登入後直接進 `/dashboard` 或原本要去的頁面，正式環境亦同。
+   `/account/security`（`AccountSecurityView.vue`）保留為使用者自己從選單「帳號安全設定」進來調整
+   密碼與兩階段驗證的地方，頁面只有一段「建議啟用兩階段驗證、非必要」的溫和文字。
+   **已啟用 2FA 的帳號登入時仍要輸入驗證碼**（`LoginView.vue` 的 `totp_required` 流程不變）。
+   `session.ts` 的 `mustChangePassword`／`twoFactorEnabled` 改為「回應缺漏時視為 `false`」，前端不依賴
+   後端是否還回傳這兩個欄位。帳號列表「安全設定」欄的「待改密／未啟用兩階段驗證」標籤是給管理員看的
+   資訊，非強制，保留。
 4. **`meta.sysadminOnly` 的路由**（J1／J2／J4）非系統管理員直接改網址進入會被彈回 `/dashboard`
    並跳出「你的帳號沒有權限進入這個模組」——這也只是第二層提醒，`AppSidebar.vue` 依
    `authUser.value?.isSuperAdmin` 整組濾掉側欄項目是第一層，**真正把關永遠是後端**每個
@@ -559,6 +562,12 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
 `npm run lint`／`npm run typecheck`／`npm run build` 全過。實際起 `apps/api`
 （`dotnet run --no-launch-profile`，連本機既有 `sqlserver` 容器的 `tcrfc_club_dev`）與
 `npm run dev`（`:5174`），用無頭 Chrome + CDP 寫腳本驅動真實瀏覽器（不是模擬 fetch）逐步操作：
+
+
+> **2026-09-30 更新**：以下各節的「強制改密／強制 2FA／`forced=` 導向」為當時（S1 階段）的實走紀錄；
+> 該強制流程已依使用者裁決移除，現行行為見上方「登入與工作階段」第 3 點。新的實走步驟：以任一帳號
+> 登入後直接進 `/dashboard`；從使用者選單進「帳號安全設定」可自行改密或啟用 2FA；已啟用 2FA 的帳號
+> 登入仍須輸入驗證碼。
 
 1. **登入 ＋ 兩階段驗證**：`sa@system.local`（種子超管）帳密登入 → 因為
    `must_change_password=1` 被導去 `/account/security?forced=password` → 更改密碼成功後

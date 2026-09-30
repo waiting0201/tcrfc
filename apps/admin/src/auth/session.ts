@@ -42,19 +42,14 @@ const state = reactive<SessionState>({
 
 export const authUser = computed(() => state.user)
 export const isAuthenticated = computed(() => state.accessToken !== null && state.user !== null)
-/** 強制流程尚未走完：首次登入改密，或兩階段驗證尚未啟用（兩者皆為 `AdminAccountGate` 在
- * 伺服器端強制擋下的前提，前端這裡只是提前導引使用者去把它做完，不是真正的安全邊界）。 */
-export const needsForcedOnboarding = computed(
-  () => state.user !== null && (state.user.mustChangePassword || !state.user.twoFactorEnabled),
-)
-
 export interface SessionPayload {
   accessToken: string
   accessTokenExpiresAtUtc: string
   username: string
   isSuperAdmin: boolean
-  mustChangePassword: boolean
-  twoFactorEnabled: boolean
+  /** 2026-09-30 起後端不再強制改密與 2FA，欄位僅供帳號安全頁顯示；後端可能不再回傳，一律容許缺漏。 */
+  mustChangePassword?: boolean
+  twoFactorEnabled?: boolean
 }
 
 export function setSession(payload: SessionPayload): void {
@@ -67,8 +62,8 @@ export function setSession(payload: SessionPayload): void {
     displayName: state.user?.username === payload.username && state.user.displayName ? state.user.displayName : payload.username,
     username: payload.username,
     isSuperAdmin: payload.isSuperAdmin,
-    mustChangePassword: payload.mustChangePassword,
-    twoFactorEnabled: payload.twoFactorEnabled,
+    mustChangePassword: payload.mustChangePassword ?? false,
+    twoFactorEnabled: payload.twoFactorEnabled ?? false,
   }
 }
 

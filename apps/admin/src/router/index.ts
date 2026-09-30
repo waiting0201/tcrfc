@@ -1,7 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ALL_NAV_ITEMS } from '@/data/nav'
-import { authUser, isAuthenticated, isBootstrapped, markBootstrapped, needsForcedOnboarding } from '@/auth/session'
+import { authUser, isAuthenticated, isBootstrapped, markBootstrapped } from '@/auth/session'
 import { refreshAccessToken } from '@/api/adminAuth'
 import { ensureClubsLoaded } from '@/auth/clubAccess'
 
@@ -410,13 +410,6 @@ router.beforeEach(async (to) => {
 
   if (!isAuthenticated.value) {
     return { name: 'login', query: to.fullPath !== '/' ? { redirect: to.fullPath } : undefined }
-  }
-
-  // 首次登入強制改密／尚未啟用兩階段驗證：導去帳號安全設定頁把它做完（伺服器端仍是最終把關，
-  // 見 apps/api/README.md「強制密碼更換與強制 2FA 在哪裡擋」）。
-  if (needsForcedOnboarding.value && to.name !== 'account-security') {
-    const reason = authUser.value?.mustChangePassword ? 'password' : 'totp'
-    return { name: 'account-security', query: { forced: reason } }
   }
 
   // 僅系統管理員可見的模組（J1／J2／J4），非系統管理員即使直接改網址也導回儀表板——

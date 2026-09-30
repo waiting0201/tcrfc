@@ -2,17 +2,12 @@
 /**
  * 帳號安全設定：更改密碼＋兩階段驗證（J1）。
  *
- * 這一頁身兼兩種情境，共用同一份表單邏輯：
- * ① **強制流程**——首次登入（`must_change_password=true`）或尚未啟用兩階段驗證
- *    （`two_factor_enabled=false`）時，路由守衛（`router/index.ts`）會把使用者導來這裡，
- *    帶上 `?forced=password` 或 `?forced=totp` 告訴這一頁「使用者是被逼過來的、為什麼」。
- *    這兩個前提是 `AdminAccountGate` 在伺服器端真正擋住每一個俱樂部範圍與系統範圍端點的條件
- *    （見 apps/api/README.md「強制密碼更換與強制 2FA 在哪裡擋」），前端這裡只是提前把使用者
- *    導去把它做完，不是真正的安全邊界——就算使用者用網址列硬跳過這一頁，後端仍會擋下所有操作。
- * ② **一般帳號設定**——從使用者選單「帳號安全設定」進來，兩段都當成可自由調整的一般設定用。
+ * 2026-09-30 使用者裁決：首次登入不再強制改密、也不再強制啟用兩階段驗證（正式環境亦同），
+ * 這一頁只剩使用者自己從選單「帳號安全設定」進來調整的用途，沒有任何強制導向或 `forced` 參數。
+ * 已啟用兩階段驗證的帳號登入時仍要輸入驗證碼（見 `LoginView.vue` 的 `totp_required` 流程）。
  */
-import { computed, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   beginTwoFactorSetup,
@@ -23,13 +18,7 @@ import {
 import { AdminApiError } from '@/api/http'
 import { authUser, patchUserFlags } from '@/auth/session'
 
-const route = useRoute()
 const router = useRouter()
-
-const forcedReason = computed(() => {
-  const value = route.query.forced
-  return value === 'password' || value === 'totp' ? value : null
-})
 
 const user = authUser
 
@@ -54,15 +43,6 @@ async function submitChangePassword() {
     patchUserFlags({ mustChangePassword: false })
     pwForm.value = { currentPassword: '', newPassword: '', confirmPassword: '' }
     ElMessage.success('密碼已更新')
-    if (forcedReason.value === 'password') {
-      if (user.value?.twoFactorEnabled) {
-        router.push('/dashboard')
-      } else {
-        // 密碼改完了，但兩階段驗證還沒設定——把網址的 forced 參數換成 totp，
-        // 讓上面的提示訊息與接下來要做的事保持一致，不留一個講「還沒改密碼」的過期提示。
-        router.replace({ name: 'account-security', query: { forced: 'totp' } })
-      }
-    }
   } catch (error) {
     pwError.value = error instanceof AdminApiError ? error.message : '密碼更新失敗，請稍後再試。'
   } finally {
@@ -100,9 +80,6 @@ async function submitTotpConfirm() {
     totpSetup.value = null
     totpCode.value = ''
     ElMessage.success('已啟用兩階段驗證')
-    if (forcedReason.value === 'totp') {
-      router.push('/dashboard')
-    }
   } catch (error) {
     totpError.value = error instanceof AdminApiError ? error.message : '驗證碼不正確，請稍後再試。'
   } finally {
@@ -144,23 +121,6 @@ function goBack() {
     <div class="account-security__inner">
       <h1 class="account-security__title">帳號安全設定</h1>
 
-      <el-alert
-        v-if="forcedReason === 'password'"
-        title="為了帳號安全，首次登入必須先更改密碼，才能繼續使用後台。"
-        type="warning"
-        show-icon
-        :closable="false"
-        class="account-security__forced-alert"
-      />
-      <el-alert
-        v-else-if="forcedReason === 'totp'"
-        title="為了帳號安全，必須先啟用兩階段驗證，才能繼續使用後台。"
-        type="warning"
-        show-icon
-        :closable="false"
-        class="account-security__forced-alert"
-      />
-
       <el-card shadow="never" header="更改密碼" class="account-security__card">
         <el-alert v-if="pwError" :title="pwError" type="error" show-icon class="account-security__error" />
         <el-form label-position="top">
@@ -191,6 +151,9 @@ function goBack() {
         </template>
         <template v-else>
           <p class="account-security__status">目前尚未啟用兩階段驗證。</p>
+          <p class="account-security__hint">
+            建議啟用兩階段驗證：即使密碼外流，別人沒有你手機上的驗證碼也登不進來。這不是必要設定，你可以隨時自行開啟。
+          </p>
           <el-alert v-if="totpError" :title="totpError" type="error" show-icon class="account-security__error" />
           <el-button v-if="!totpSetup" type="primary" @click="startTotpSetup">開始設定</el-button>
           <template v-else>
@@ -215,7 +178,7 @@ function goBack() {
         </template>
       </el-card>
 
-      <el-button v-if="!forcedReason" text @click="goBack">返回後台</el-button>
+      <el-button text @click="goBack">返回後台</el-button>
     </div>
   </div>
 </template>
@@ -240,7 +203,6 @@ function goBack() {
   margin: 0 0 var(--admin-space-4);
 }
 
-.account-security__forced-alert,
 .account-security__error {
   margin-bottom: var(--admin-space-4);
 }
