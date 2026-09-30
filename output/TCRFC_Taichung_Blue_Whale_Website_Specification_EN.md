@@ -1,10 +1,14 @@
 # Taichung Blue Whale — Official Website Functional Specification
 
-> **Document version**: v1.8
-> **Date**: 2026-09-10 (v1.8 revision: 2026-09-18)
+> **Document version**: v1.9
+> **Date**: 2026-09-10 (v1.9 revision: 2026-09-30)
 > **Content principal**: Taichung Blue Whale Women's Football Team
 > **System principal**: **shares the admin and database** of the Taichung Rock FC official website
-> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.8*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.9*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v1.9 revision summary — `08` Culture has no comic**
+> Taichung Blue Whale has no comic. **The rule in §1.3 has five section-level exceptions** (§2.1): `06` and `11` are not built, `04` is YOUTH, `08` does not build `8.1` Comic, and `09` must be zoned.
+> `08`'s `8.2` Fan Club, `8.3` official merchandise and `8.4` partner perks follow the main site, with data maintained in the admin: **shown when the admin holds content, an empty state when it does not**. The home page carries no latest-comic-episode block. Nothing else in functional scope changes.
 
 > **v1.8 revision summary — uploaded images are always saved as resized derivatives**
 > **No functional changes.** This site shares the main site's admin, so the **image-upload rule** in website specification **v3.9 §4.0** applies in full:
@@ -22,8 +26,8 @@
 
 > **v1.5 revision summary — stated explicitly: the same website as the main site, differing only in colour**
 > 1. **§1.3 adds a governing rule**: the Blue Whale site's templates, components, page structure, interaction behaviour and functionality **match the main site exactly**; **the only brand difference is colour** (seven variables sampled from the crest). Whatever the main site has, this site has; any detail this document does not state is identical to the same section of the main-site specification.
-> 2. **The rule has exactly four exceptions**, all at section level (§2.1): 06 and 11 are not built, 04 is YOUTH, and 09 must be zoned. Nothing outside those four is designed separately.
-> 3. **§2.1 and §8.1 refer back to the rule**, and **§10's scope questions narrow from 12 to 11** (draws, the comic and partner stores are built as on the main site under the rule). Functional scope, section structure, data model and admin design are **unchanged**.
+> 2. **The rule's exceptions are limited to section-level choices** (listed one by one in §2.1). Nothing outside them is designed separately.
+> 3. **§2.1 and §8.1 refer back to the rule**, and **§10's scope questions narrow from 12 to 11** (draws and partner stores are built as on the main site under the rule). Functional scope, section structure, data model and admin design are **unchanged**.
 
 > **v1.4 revision summary — brand colours settled, sampled from the crest**
 > 1. **Brand colours follow the crest** (§8.1): primary `#2196D5`, AA-safe variant for small text `#1A78AA`, dark `#040000`. All seven brand variables are listed with their contrast verification.
@@ -75,8 +79,8 @@ The goal is to bring Blue Whale's content up to the same level as the Taichung R
 > **The only brand difference is colour** — the seven brand variables take their values from the Blue Whale crest (§8.1); everything else in the styling is carried over unchanged.
 > **Whatever the main site has, this site has; whatever the main site does not have, this site does not build.**
 >
-> **The rule has exactly four exceptions**, all at section level (§2.1): `06 WOMEN'S FOOTBALL` is not built, `11 CHARITY & IMPACT` is not built, `04` is **YOUTH** rather than the academy, and `09 PARTNERS` must be **zoned** separately from Taichung Rock.
-> Outside those four, any detail this document does not state is **identical to the same section of the main-site specification** — it is not an omission.
+> **The rule has exactly five exceptions**, all at section level (§2.1): `06 WOMEN'S FOOTBALL` is not built, `11 CHARITY & IMPACT` is not built, `04` is **YOUTH** rather than the academy, `08` does not build **`8.1` Comic**, and `09 PARTNERS` must be **zoned** separately from Taichung Rock.
+> Outside those five, any detail this document does not state is **identical to the same section of the main-site specification** — it is not an omission.
 
 - **Public site**: 11 top-level sections, two languages (Traditional Chinese / English), Member Centre, on-site shop.
 - **Admin**: **no new modules**. Blue Whale's content, teams, programmes, members and orders are all maintained in the main site's existing modules, partitioned by `club_id` and by data-scope permissions (§4).
@@ -93,7 +97,7 @@ The goal is to bring Blue Whale's content up to the same level as the Taichung R
 
 ### 2.1 Sections
 
-Mirrors the main site's 13 sections, **omitting two and adapting two**:
+Mirrors the main site's 13 sections, **omitting two sections and one sub-section, and adapting two**:
 
 ```
 Taichung Blue Whale official website (its own domain)
@@ -103,7 +107,7 @@ Taichung Blue Whale official website (its own domain)
 ├── 04 YOUTH              U15 / U12 girls' teams                       ← existing at Blue Whale
 ├── 05 PROGRAMS           Community and school outreach, football festival, Blue Whale Cup
 ├── 07 NEWS
-├── 08 CULTURE + SHOP
+├── 08 CULTURE + SHOP    Fan Club, merchandise, partner perks (no 8.1 Comic)
 ├── 09 PARTNERS           ← must be zoned separately from Taichung Rock, never mixed
 ├── 10 JOIN / CONTACT
 ├── 12 FAQ
@@ -115,12 +119,13 @@ Taichung Blue Whale official website (its own domain)
 |---|---|---|
 | **06 WOMEN'S FOOTBALL** | **Not built** | **Self-referential** — this entire site is women's football. The main site's 06 is the entry point to it; this site does not need one of its own |
 | **11 CHARITY & IMPACT** | **Not built** | Organised and collected for by the Taiwan Football Strategic Development Association; no bearing on Blue Whale |
+| **08 CULTURE, 8.1 Comic** | **Not built** | Taichung Blue Whale has no comic. `08`'s `8.2` Fan Club, `8.3` official merchandise and online shop, and `8.4` partner perks **follow the main site**, with data from the admin's `F2` Fan Club Events, `S` Shop module and `K4` Partner Perks — **shown when there is content, an empty state when there is not**, never placeholder content. Admin `F1` Comic Management is not used under the Blue Whale site |
 | 04 ACADEMY | **Becomes YOUTH** | Blue Whale's existing structure is U15 and U12 girls' teams, not Taichung Rock's academy system. **The admissions and programme-registration architecture is not carried over** |
 | 09 PARTNERS | **Must be zoned** | The two clubs' sponsorship contracts are signed separately and **must never be mixed** (main-site specification §5.1) |
 
-> **These four are the *complete* set of exceptions to the governing rule in §1.3.** Outside them, each section's page structure, block arrangement and functionality match the main site and are not designed separately.
+> **These five are the *complete* set of exceptions to the governing rule in §1.3.** Outside them, each section's page structure, block arrangement and functionality match the main site and are not designed separately.
 
-> **The section numbers deliberately preserve the main site's mapping** (skipping 06 and 11) rather than renumbering to 01–11. Because the two sites share one admin, **consistent section numbers substantially reduce mistakes** when staff switch between sites in the same interface.
+> **The section numbers deliberately preserve the main site's mapping** (skipping 06 and 11, with `08` keeping the main site's numbers from `8.2` onward) rather than renumbering to 01–11. Because the two sites share one admin, **consistent section numbers substantially reduce mistakes** when staff switch between sites in the same interface.
 
 ### 2.2 URL rules
 
@@ -160,7 +165,7 @@ Follows the main site: URLs mirror the site hierarchy, language prefixes `/zh/` 
 
 Follows the main site's block structure and templates, with Blue Whale content. The four pillars become **First Team / Youth / Outreach / Fixtures**.
 
-**Excluded**: the main site's women's-football referral card (this site *is* women's football) and the charity block.
+**Excluded**: the main site's women's-football referral card (this site *is* women's football), the charity block and the latest-comic-episode block.
 
 ### 3.2 【02】About
 
@@ -208,7 +213,9 @@ Follows the main site's logo wall and sponsorship-package templates.
 
 ### 3.8 Remaining sections
 
-`07 News`, `08 Culture`, `10 Join / Contact` and `12 FAQ` follow the identically named main-site sections in function and template, with Blue Whale content.
+`07 News`, `10 Join / Contact` and `12 FAQ` follow the identically named main-site sections in function and template, with Blue Whale content.
+
+`08 Culture` follows main-site 08 **without `8.1` Comic**; `8.2` Fan Club, `8.3` official merchandise and online shop, and `8.4` partner perks follow the main site, with Blue Whale content. Data is maintained in the admin under `F2` Fan Club Events, the `S` Shop module and `K4` Partner Perks — **shown when the admin holds content, an empty state when it does not**.
 
 **The privacy notice on 10 Join / Contact must name this site's actual collecting entity** (maintained in the admin under `I` Site Settings, never hard-coded into a template), with its own inbox rather than the main site's.
 

@@ -1,8 +1,8 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.5
-> **Date**: 2026-09-14 (v1.5 revision: 2026-09-18)
-> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.8
+> **Document version**: v1.6
+> **Date**: 2026-09-14 (v1.6 revision: 2026-09-30)
+> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.9
 > **Content principal**: Taichung Blue Whale Women's Football Team
 
 > **How to read this document**
@@ -29,7 +29,7 @@
 
 **The Blue Whale site is the same website as the Taichung Rock site; only the colours differ.**
 The templates, page structure, the arrangement of every block, the way it is operated and the admin functionality **all match the Taichung Rock site** — nothing is designed separately. **The only things replaced are the brand colours and the crest**, with the colours taken from the Blue Whale crest (section 6).
-Four sections differ, because the two teams are not alike: there is no "Women's Football" section (the whole site is women's football), no "Charity & Impact" section, "Academy" becomes **Youth** (the U15 and U12 girls' teams), and "Partners & Sponsors" is **shown separately** from Taichung Rock's.
+Five sections differ, because the two teams are not alike: there is no "Women's Football" section (the whole site is women's football), no "Charity & Impact" section, "Culture" has no comic, "Academy" becomes **Youth** (the U15 and U12 girls' teams), and "Partners & Sponsors" is **shown separately** from Taichung Rock's.
 
 Taichung Blue Whale has **its own address, its own front-end site, and its own colours and crest**, in Chinese and English.
 
@@ -64,7 +64,7 @@ The structure follows the Taichung Rock site, with **11 sections**. The numberin
 | **04** | **Youth** | U15 and U12 girls' teams |
 | **05** | **Programmes** | Community and school work, football festivals, the Blue Whale Cup |
 | **07** | **News** | Latest news, match reports, features |
-| **08** | **Culture & Shop** | Brand story, merchandise |
+| **08** | **Culture & Shop** | Brand story, supporters' club, merchandise, partner perks |
 | **09** | **Partners & Sponsors** | Blue Whale's own partners and sponsors, enquiry form |
 | **10** | **Join / Contact** | Player recruitment, joining as a member, contact and map |
 | **12** | **FAQ** | Searchable questions and answers |
@@ -80,6 +80,8 @@ Plus the **member area**, visible once signed in.
 | **Charity & Impact** | Charitable fundraising is run by the Taiwan Football Strategic Development Association and is unrelated to Blue Whale |
 
 **One section is renamed**: Rock's "Academy" becomes "**Youth**" here — Blue Whale's existing structure is U15 and U12 girls' teams, not Rock's academy intake system, and the academy's course and admission framework is not carried over.
+
+**Culture has no comic**: Taichung Blue Whale has no comic, so this section keeps the supporters' club, merchandise and partner perks, in the same templates as the Rock site; content appears when the admin holds it, and a "coming soon" note shows when there is none yet.
 
 > ⚠️ **Partners and sponsors must be shown separately from Rock's and never mixed.** The two clubs sign their own agreements; a company sponsoring both appears on each site in its own right.
 
@@ -132,7 +134,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | | Sponsors and packages | Tiers and entitlements | **Blue Whale's own sponsors** |
 | | Proposal and download tracking | Who downloaded the proposal | Blue Whale's proposal |
 | | Advertising slots | App advertising, flights, performance | **Shared; no Blue Whale access** |
-| **Culture** | Comic | Characters, episodes | Used if Blue Whale has one |
+| **Culture** | Comic | Characters, episodes | **Not used on this site** |
 | | Supporters' club events | Event scheduling | Blue Whale's events |
 | **Enquiries** | Form designer | Building form fields | Blue Whale's forms |
 | | Inbox | Form submissions | Blue Whale's submissions |
@@ -224,6 +226,6 @@ The Blue Whale site reuses the Taichung Rock site's **layout system** — cards,
 
 ---
 
-> Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.4
-> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.7　·　11 sections plus the member area　·　Chinese and English
+> Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.6
+> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.9　·　11 sections plus the member area　·　Chinese and English
 > **Shares the admin and database of the Taichung Rock FC website; content and brand remain separate.**

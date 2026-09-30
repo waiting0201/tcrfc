@@ -32,12 +32,12 @@
 |---|---|---|---|---|---|
 | 1 | **TCRFC 官網主站前台** | 現有網域，13 單元＋站內商店，中英雙語 | 共用 ② | 俱樂部 | [主站規劃書](output/TCRFC_前後台功能規劃書.md) v3.14 §3 |
 | 2 | **共用後台 Admin** | 一個入口＋站台切換器，**14 個模組字母**（`A B C P E F G H I J K L M S`；慈善的 `N` 是獨立後台不算在內） | **本體** | — | 同上 §4 |
-| 3 | **台中藍鯨官網前台** | **獨立網域**，11 單元，中英雙語 | **共用 ②**（`club_id` 分資料） | 內容藍鯨／收款俱樂部 | [藍鯨規劃書](output/TCRFC_台中藍鯨官網功能規劃書.md) v1.8 |
+| 3 | **台中藍鯨官網前台** | **獨立網域**，11 單元，中英雙語 | **共用 ②**（`club_id` 分資料） | 內容藍鯨／收款俱樂部 | [藍鯨規劃書](output/TCRFC_台中藍鯨官網功能規劃書.md) v1.9 |
 | 4 | **慈善捐款平台** | **獨立網域**，掃碼捐款前台＋自己的後台 | **完全獨立**（自建約 22 張表） | **台灣足球策略發展協會** | [慈善規劃書](output/TCRFC_慈善捐款平台功能規劃書.md) v2.5 |
 | 5 | **行動 App** | **原生 iOS（Swift／SwiftUI）＋ Android（Kotlin／Compose）**，雙隊共同平台 | 共用 ②（後台 `M1–M5`） | 俱樂部（**首版不含 App 內付款**） | [App 規劃書](output/TCRFC_行動App功能規劃書.md) v3.13、[`docs/19`](docs/19-app-tech-stack.md) |
 
 > **③ 藍鯨站與主站是同一套網站，只有配色不同**（藍鯨規劃書 §1.3 總則）。前端複製 `site/` 骨架、換 7 個 CSS 變數；
-> 例外只有四項單元取捨。**不要為藍鯨站另做設計。**
+> 例外只有五項單元取捨。**不要為藍鯨站另做設計。**
 
 ---
 
@@ -199,6 +199,7 @@
 > 10. `S1-20`（Schema 第二批：SportsEvent 場地地址補齊、Event、Course）**已完成（2026-09-29）**。新增 `PublicCalendarEventDto`／`ProgramDetailDto` 兩個後端待補欄位（`SchemaEligible` 布林值，見 `apps/web/README.md`「S1-20」節），真實資料下的完整輸出同樣只用臨時 fixture 驗證過（已還原），列入「補做」清單（見第 2 點，同一批 API 起來後一次補）。**階段 1 主站前台的 `⬜` 列已全數做完**；`S2-1`–`S2-6` 是後台模組（不同 agent 分工，`backend-engineer`／`system-analyst` 起頭），`S2-8`（03.2–03.5）／`S2-10`（05.3–05.5）是下一批可動工的主站前台工作（前置 `S1-15` 已完成），之後照表往下。
 > 11. `S2-8`（03.2–03.5 球員發展、球員機會、國際發展通道、球員故事）／`S2-10`（05.3–05.5 冬令營、專項訓練、校園社區）**已完成（2026-09-29）**。藍鯨取捨：3.2／3.4／5.3／5.4 關閉（真實磐石專屬事實或具名系統，無藍鯨對應內容可換），3.3／3.5／5.5 開放（3.3 修正既有品牌外洩缺口、3.5 藍鯨改空狀態、5.5 讀真實建教合作內容）；**一併處理派工指示要求的既有品牌外洩**：`academy/{pathway,curriculum}.vue`（4.3／4.4）改開放，`academy/{coaches,life}.vue`（4.5／4.6）關閉，並修正 `SiteHeader.vue`／`club/index.vue`／`academy/pathway.vue`／`academy/curriculum.vue` 對已關閉單元（含既有的 4.7／5.1／5.2）從未加上判斷、選單與 CTA 卡片會連到 404 頁面的既有缺口。真實資料下的渲染（`programs`／`faqs` 表皆 0 筆種子資料）**未用真實 `apps/api` 資料實測**，列入「補做」清單（見第 2 點，同一批 API 起來後一次補）。詳見 `apps/web/README.md`「S2-8」／「S2-10」兩節「規格疑點」——§1.3「四項以外不得另行設計」與 05 單元部分關閉之間的張力，回溯適用於 `S1-15` 已關閉的 5.1／5.2，留給下一次覆查規格或客戶裁決。
 > 12. 🔴🔴 **`BW-C1`（修正藍鯨關閉單元誤用，2026-09-29，`frontend-architect`）已完成**——上一點與 `S1-15` 把 `3.2`／`3.4`／`4.5`／`4.6`／`5.1`–`5.4`／`12.3` 共 9 個單元用 404 整頁關閉，違反藍鯨規劃書 §1.3 總則「例外只有四項單元取捨」，已重開（只保留 `06`／`11`／`4.7`／`12.2` 四項能直接推導的關閉）。**下次開工前若要動 `shared/utils/units.ts` 的 `BLUE_WHALE_DISABLED_UNITS`，先讀該檔案檔頭與 `docs/14-invariants.md` 的對應條目，不要只核對「藍鯨規劃書有沒有明文排除」，要回頭核對「是不是四項例外之一」**。詳見 `apps/web/README.md`「BW-C1」節、`docs/18-work-errors.md` `E-76`。
+> 　　🔵 **2026-09-30 追加（藍鯨規劃書 v1.9，客戶回覆台中藍鯨沒有漫畫）**：總則例外為**五項**，新增 `08` 不設 `8.1` 漫畫。**前台待 `frontend-architect` 依 v1.9 處理**：`8.1` 漫畫（`culture/manga` 各頁）改列入 `BLUE_WHALE_DISABLED_UNITS`（須附 `§2.1` 引用，`lint:bw-units-citation` 會擋）並自 `check-club-brand-leak.mjs` 的 `EXEMPT_PAGES` 移除；`8.2` 球迷會（`culture/fan-club`）與周邊商品／特約店家**比照主站**，後台（`F2`／`S1`／`K4`，尚未開發）有內容就顯示、沒有就空狀態，不再列入例外；藍鯨首頁不含漫畫最新集數；導覽與 sitemap／`llms.txt` 不得出現藍鯨漫畫連結。
 > 13. 🔴 **`BW-C1`品牌外洩全站盤點（2026-09-29，`frontend-architect`）已完成**——`check-club-brand-leak.mjs` 改為自動收集全站路由（`/zh/`＋`/en/`）、預設 hard-fail（例外需列入腳本內 `EXEMPT_PAGES` 並附規格依據，只能往下減不能往上加），抓出舊版手動清單漏掉的 76 頁（含 `join/international-player/` 整頁 10.4 從未關閉卻從未檢查過）；修正後 bw 容器全站通過，剩 `culture/manga`／`culture/fan-club`（磐石原創 IP／付費會籍，無藍鯨對應內容，已做誠實空狀態）與 `club/first-team/player`（球員詳情頁範本，藍鯨球員名單與肖像同意未到位）留在例外清單。**03／04／05 單元 hub 頁（`club/index.vue`／`academy/index.vue`／`programs/index.vue`）與 08 CULTURE hub 一併雙俱樂部化**。詳見 `apps/web/README.md`「BW-C1 品牌外洩全站盤點」節、`docs/18-work-errors.md` `E-77`／`E-78`。
 
 > 🔵 **S0-3d 的 43 筆分類結果（2026-09-20）**：**全部規劃書都寫了，缺的是 ERD，所以一次同步鏈都不用跑。**
@@ -325,7 +326,7 @@
 | BW-8 | ⬜ | **藍鯨站 Schema 全輸出**（比照主站逐型別，資料不足時不輸出該型別） | 主站 `GEO-05` | BW-3 |
 
 > 🔵 **BW-2〜BW-5 的頁面結構與功能一律照主站，不另行設計**（藍鯨 §1.3 總則）。
-> 例外只有四項：不設 06、不設 11、04 為青年隊、09 分區。
+> 例外只有五項：不設 06、不設 11、04 為青年隊、08 不設 8.1 漫畫、09 分區。
 > **主要成本不是開發是內容生產**——沿革、球員簡介、賽事資料、英文翻譯。
 
 ---
@@ -419,6 +420,7 @@
 
 | 日期 | 事項 |
 |---|---|
+| 2026-09-30 | **藍鯨規劃書升為 v1.9（客戶回覆：台中藍鯨沒有漫畫，`system-analyst`）**：總則例外增至五項（`08` 不設 `8.1` 漫畫）；`8.2` 球迷會、周邊商品、特約店家維持比照主站。中英雙版與客戶版中英雙版（v1.6）已同步、四份 PDF 已重產、`docs/00`／`13`／`14`／`CLAUDE.md` 已同步，行號對照表已重算。**主站規劃書未動**（第 10 章第 35 點仍列漫畫，見 `docs/13` 踩雷點 8）；前台改動待 `frontend-architect`（見上方第 12 點追加） |
 | 2026-09-29 | **`S1-20` 完成（`frontend-architect`）**：主站前台 `GEO-05` 結構化資料第二批——SportsEvent（既有輸出補齊場地地址）、Event（俱樂部活動，新增）、Course（課程，新增）。新增 `shared/utils/schema-batch2.ts`（純函式單一來源）、`app/composables/useClubEventSchema.ts`／`useCourseSchema.ts`、`scripts/check-schema-batch2.mjs`（22 項固定 fixture 驗證，已掛 `npm run lint`）。過程中發現並修正 `nuxt-schema-org` 的 `eventResolver` `inheritMeta` 框架陷阱（無資料時會拿全站 SEO meta／預設 OG 圖頂替 `description`／`image`，改為明確填 `null` 讓框架序列化前的 `stripNullProperties()` 清除）。詳見上方 S1-20 列與 `apps/web/README.md`「S1-20」節 |
 | 2026-09-29 | **`S1-12e` 完成（`frontend-architect`）**：主站前台 `GEO-07`／`GEO-08` 內容結構與引用資訊。新增 `scripts/check-heading-structure.mjs`（對 SSR 輸出檢查 H1 唯一與標題不跳階），修正前發現並修好 4 處跳階（`SiteFooter.vue` 全站性 h2→h4 跳階、`academy/coaches.vue`／`academy/teams.vue` 各一處缺 h2），`news/[slug]/index.vue` 補上可見「作者」欄位值。詳見上方 S1-12e 列與 `apps/web/README.md`「S1-12e」節。過程中自己用 `sed` 全域取代誤改了剛寫的說明註解，記於 `docs/18-work-errors.md` `E-66` |
 | 2026-09-29 | **`S1-15` 完成（`frontend-architect`）**：主站前台 03.1 一線隊（基本）、04 學院 4.1／4.2／4.7、05 課程 5.1／5.2。詳見上方 S1-15 列與 `apps/web/README.md`「S1-15」節（各頁資料來源表、單元開關決定、驗收紀錄、範圍縮減、規格疑點）。過程中 `npm run lint:match-status` 攔下一次字面值誤用，記於 `docs/18-work-errors.md` `E-65` |
