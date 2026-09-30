@@ -48,7 +48,7 @@ It nonetheless **shares one admin and one database with the Taichung Rock site**
 
 **Why not build two of everything?** Two admins would mean two sets of accounts, two maintenance routines and two learning curves — and Blue Whale is currently run by Taichung Rock's own staff, who would be switching between them. One admin with the data kept apart is the cheapest arrangement to maintain.
 
-**Switching**: a switcher at the top of the admin selects whether you are working on Rock or Blue Whale; every list then shows only that club's data.
+**Switching**: a switcher at the top of the admin selects whether you are working on Rock or Blue Whale; every list then shows only that club's data, and the admin's colours change to Blue Whale's brand colours (Rock's when switched back).
 
 ---
 

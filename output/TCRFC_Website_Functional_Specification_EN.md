@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.15
-> **Date**: 2026-08-14 (v3.15 revision: 2026-09-30)
+> **Document version**: v3.16
+> **Date**: 2026-08-14 (v3.16 revision: 2026-09-30)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.15*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.16*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.16 revision summary — the admin's primary colour follows the club being operated**
+> **No new functional scope; a visual addition to the admin general rules.** When the site switcher is set to Taichung Blue Whale, the admin's primary colour is the Blue Whale brand colour; switching back to Taichung Rock restores the Rock brand colour. The values reuse each club's already-settled brand colours. Where: 4.0 site switcher.
 
 > **v3.15 revision summary — changing the password and two-factor authentication (2FA) are optional for admin accounts; the Blue Whale scope question is narrowed**
 > **No new features; this tightens the sign-in flow and one open question.**
@@ -937,7 +940,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 > **The Charity Donation Platform has its own admin and its own database and is not a module of this admin.** **What this site carries is `B5 Charity & Impact`** (the content of section 11); the two are different things.
 
 > **Site switcher (new in v3.0)**
-> This admin carries two clubs' websites. Users sign in with **the same account through the same entry point** and pick the club they are working on from a **site switcher** at the top of the screen; after switching, every list, editor and report **shows only that club's data**.
+> This admin carries two clubs' websites. Users sign in with **the same account through the same entry point** and pick the club they are working on from a **site switcher** at the top of the screen; after switching, every list, editor and report **shows only that club's data**, and **the admin's primary colour switches to that club's brand colour** (Taichung Rock uses the Rock brand colour, Taichung Blue Whale uses the Blue Whale brand colour; the values reuse each club's already-settled brand colours, with no new colour values).
 > - The switcher lists only the clubs that account is **authorised for and whose authorisation has not expired** (see 5.3 `AdminUserClub`). It is hidden for accounts authorised for a single club.
 > - It defaults to `AdminUser.primary_club_id`.
 > - **Shared content (`club_id` null) is visible under either site but read-only to scope-limited accounts** (see 5.4).

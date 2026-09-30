@@ -123,7 +123,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 
 **You do not need to compress images before uploading them.** Choose a picture, press Save, and the system resizes it to a web-friendly size, converts it to a lighter format, and prepares smaller copies for mobile screens and list views; any location data embedded in the photo is stripped at the same time. Each page then loads the size it actually needs, so phones never download the large version — pages open faster and storage stays small.
 
-**One entrance, two clubs kept apart.** After signing in, a switcher at the top of the screen selects which club is being worked on; every list and report then shows only that club's data. Anyone authorised for a single club never sees the switcher.
+**One entrance, two clubs kept apart.** After signing in, a switcher at the top of the screen selects which club is being worked on; every list and report then shows only that club's data, and the admin's colours change to that club's brand colours. Anyone authorised for a single club never sees the switcher.
 
 | Module | Submodule | What it does |
 |---|---|---|
