@@ -102,6 +102,9 @@
 | E-86 | 2026-09-30 | 把 `dotnet ef dbcontext scaffold` 的新輸出用 diff「只取新增行」合併進手改過的 `ClubDbContext.cs`：19 個合理新增之外還夾帶 17 段重複／無關的屬性設定（`Article.CanonicalPath`、`Banner.Status`、`Faq*` 等），因為先前的 agent 把那些設定分組放在檔案別處，與 scaffold 排列不同，diff 判成「新增」 | ✅ 合併前先看 `git diff`、發現後以關鍵字白名單重做；⚠️ 無腳本（見 E-86 節的固定做法） |
 | E-87 | 2026-09-30 | 補種子測試帳號前沒有先 grep 既有的 `ADMIN_USERS`，另加了 `business.sponsor@`／`pr.media@` 兩個帳號，結果 `business.sponsorship@`／`pr.media@` 早已存在（S1-10／S1-11 補過），差點留下兩組功能重複的帳號 | ✅ 種子執行後以 `SELECT` 核對角色與帳號清單才發現，已從腳本與資料庫移除；⚠️ 無 |
 | E-88 | 2026-09-30 | `Common/IcsBuilder.FoldLine` 的「不切斷 UTF-8 字元」迴圈讀 `bytes[offset + limit]` 沒檢查是否已到陣列尾端，**任何需要折疊（超過 75 位元組）的行，最後一段必定丟 `IndexOutOfRangeException`**；單一賽事下載的標題與地點都很短所以從沒觸發，S2-6 訂閱 feed 第一次輸出長行才 500 | ✅ `IcsBuilderTests` 長行折疊四組參數（含剛好落在 75 位元組邊界者） |
+| E-89 | 2026-09-30 | C1 批的第一版 `AdminCultureTests` 在 `finally` 無條件刪掉種子的 `comic.%` 設定，與 `E-81` 同一類（測試以「這批鍵理論上不存在」當還原手段），測試仍綠燈、種子被吃掉 | ✅ `C1Test.SnapshotSettingsAsync`＋`AdminC1MiscTests.種子基線_C1示範資料沒有被測試清理吃掉` |
+| E-90 | 2026-09-30 | 後台時間欄位 UTC 轉換對 `Kind=Unspecified` 呼叫 `ToUniversalTime()`（當本機時間換算），與 EF 讀回、JSON 不帶 `Z` 的慣例不符，時間差 8 小時 | ✅ `AdminDrawsTests`／`AdminCultureTests` 時間往返斷言 |
+| E-91 | 2026-09-30 | ① K5 抽獎資格只收 `active` 會籍，漏了「狀態已過期但日期涵蓋抽獎快照日」的會員；② 成本欄位權限先憑印象定 sysadmin 專屬，沒先查 `docs/12b` §7（實為 sysadmin＋商務） | ⚠️ ①測試覆蓋；②無（靠實作前查表） |
 
 ---
 
@@ -2128,3 +2131,24 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **下次怎麼避免**：新增／改動輸出格式化函式時，測試必須涵蓋「會走到每個分支的輸入」——長行、剛好落在邊界的行、多位元組字元跨邊界；
   寫「往回找切點」這類讀取 `array[i + n]` 的迴圈，先問 `i + n` 會不會等於長度。
 - **防呆**：✅ `IcsBuilderTests.長行折疊_每行不超過75位元組_且不切斷中文字_摺疊還原後與原文一致`（20／24／25／80 個中文字四組，摺疊還原後與原文逐字相同）。
+
+### E-89 整合測試又一次把種子設定當成「不存在」而無條件刪除（2026-09-30，C1 批 F1 漫畫）
+
+- **錯在哪**：`AdminCultureTests` 第一版的 `finally` 以 `DELETE FROM settings WHERE setting_key LIKE 'comic.%'` 清理，種子的 `comic.about_*` 設定因此被永久刪除，測試本身仍綠燈；是重灌前核對種子筆數才發現。
+- **為什麼會錯（根因）**：與 `E-81` 完全同一根因——寫清理時只想「別留下自己建的」，沒想「別刪掉別人（種子）建的」；`E-81` 的防呆只是一段文字紀律，寫測試時沒有工具可用、也沒有失敗信號。
+- **下次怎麼避免**：🔴 會動共用設定的測試一律呼叫 `C1Test.SnapshotSettingsAsync(prefix)`（前置快照、`finally` 還原）；新增種子類別時，同步在 `SeedBaselineTests` 風格的基線測試補一列。
+- **防呆**：✅ `C1TestSupport.SnapshotSettingsAsync`；✅ `AdminC1MiscTests.種子基線_C1示範資料沒有被測試清理吃掉`（種子被吃掉時，下一次全套測試會失敗並列出缺哪一類）。**`E-81` 至此升級為機制，不再另記第三筆。**
+
+### E-90 UTC 轉換對 `Kind=Unspecified` 的時間值當成本機時間換算（2026-09-30，C1 批 K5／F2）
+
+- **錯在哪**：輸入的 `DateTime`（JSON 不帶 `Z`）Kind 為 `Unspecified`，直接 `ToUniversalTime()` 會依伺服器時區位移；測試時區為 UTC+8 時存入值差 8 小時。
+- **為什麼會錯（根因）**：沒對照專案慣例「資料庫與 JSON 一律 UTC、不帶 `Z`，未指定 Kind 者視為 UTC」，套用了常見寫法。
+- **下次怎麼避免**：Kind 為 `Local` 才 `ToUniversalTime()`，`Unspecified` 一律 `SpecifyKind(…, Utc)`；比對時間的測試用毫秒容差並比較 UTC 值。
+- **防呆**：✅ 抽獎與球迷會活動的時間往返測試；⚠️ 無全域檢查，新增時間欄位端點時要人工確認。
+
+### E-91 K5 資格漏掉「已過期但日期涵蓋快照日」，成本權限未查規格就先決定（2026-09-30，C1 批）
+
+- **錯在哪**：① 抽獎資格只收 `active`，種子中藍鯨 M900001（狀態 `expired`、日期涵蓋）被排除；② `shop.cost.*` 先設為 sysadmin 專屬，實際 `docs/12b` §7 規定 sysadmin＋商務可見。
+- **為什麼會錯（根因）**：① 以狀態欄位代替規格寫的「日期涵蓋抽獎快照日」；② 憑印象下決定，沒查已有明文的欄位級可見性表。
+- **下次怎麼避免**：資格與可見性類規則先逐字查 `docs/12b`／規劃書，再寫程式與種子；測試以種子的邊界案例（已過期、跨俱樂部）覆蓋。
+- **防呆**：✅ `AdminDrawsTests` 資格案例、`AdminShopCatalogTests` 成本可見性（含夥伴球隊負向案例）；②無自動化。

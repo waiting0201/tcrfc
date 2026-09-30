@@ -71,6 +71,14 @@ public static class UploadSlotPolicy
             ["milestones"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
             // B1 新增（2026-09-30）：K4 特約店家照片／Logo（partner_stores.image_key）。
             ["partner_stores"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            // C1 新增（2026-09-30）：F1 漫畫、F2 球迷會活動、S1 商品圖集的圖片欄位。
+            ["comic_characters"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            ["comic_episodes"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
+            ["comic_pages"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            ["fan_events"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
+            ["fan_event_images"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            ["product_images"] = new HashSet<string>(StringComparer.Ordinal) { "image" },
+            ["member_draws"] = new HashSet<string>(StringComparer.Ordinal) { "cover" },
         };
 
     public static void Validate(string entityType, string field)

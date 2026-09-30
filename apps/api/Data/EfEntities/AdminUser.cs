@@ -127,6 +127,14 @@ public partial class AdminUser
 
     public virtual ICollection<DrawRoster> DrawRosterUpdatedByNavigations { get; set; } = new List<DrawRoster>();
 
+    public virtual ICollection<DrawRosterVersion> DrawRosterVersionCreatedByNavigations { get; set; } = new List<DrawRosterVersion>();
+
+    public virtual ICollection<DrawRosterVersion> DrawRosterVersionGeneratedByNavigations { get; set; } = new List<DrawRosterVersion>();
+
+    public virtual ICollection<DrawRosterVersion> DrawRosterVersionUpdatedByNavigations { get; set; } = new List<DrawRosterVersion>();
+
+    public virtual ICollection<DrawRosterVersion> DrawRosterVersionVoidedByNavigations { get; set; } = new List<DrawRosterVersion>();
+
     public virtual ICollection<EmailLog> EmailLogCreatedByNavigations { get; set; } = new List<EmailLog>();
 
     public virtual ICollection<EmailLog> EmailLogUpdatedByNavigations { get; set; } = new List<EmailLog>();
@@ -146,6 +154,10 @@ public partial class AdminUser
     public virtual ICollection<EventType> EventTypeUpdatedByNavigations { get; set; } = new List<EventType>();
 
     public virtual ICollection<FanEvent> FanEventCreatedByNavigations { get; set; } = new List<FanEvent>();
+
+    public virtual ICollection<FanEventImage> FanEventImageCreatedByNavigations { get; set; } = new List<FanEventImage>();
+
+    public virtual ICollection<FanEventImage> FanEventImageUpdatedByNavigations { get; set; } = new List<FanEventImage>();
 
     public virtual ICollection<FanEventRegistration> FanEventRegistrationCreatedByNavigations { get; set; } = new List<FanEventRegistration>();
 
@@ -350,6 +362,10 @@ public partial class AdminUser
     public virtual ICollection<RefundRequest> RefundRequestApprovedByNavigations { get; set; } = new List<RefundRequest>();
 
     public virtual ICollection<RefundRequest> RefundRequestCreatedByNavigations { get; set; } = new List<RefundRequest>();
+
+    public virtual ICollection<RefundRequest> RefundRequestReceivedByNavigations { get; set; } = new List<RefundRequest>();
+
+    public virtual ICollection<RefundRequest> RefundRequestRefundedByNavigations { get; set; } = new List<RefundRequest>();
 
     public virtual ICollection<RefundRequest> RefundRequestUpdatedByNavigations { get; set; } = new List<RefundRequest>();
 

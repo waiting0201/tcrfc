@@ -22,6 +22,13 @@
   ③ **慈善捐款導流文案（設定了捐款網址時）必須點明「台灣足球策略發展協會」**，後端強制驗證，前台不得寫死捐款網址、一律讀 `GET /api/v1/{club}/charity/cta`；④ **影響力數據金額類預設不公開**（`is_public` 預設 `false`，公開端點只輸出 `is_public = 1`）；
   ⑤ **贊助商聯絡窗口、合約日期、到期提醒不進公開 DTO**；未公開價格的贊助方案公開端點完全不輸出價格。**贊助故事不用 `article_relations`**（B2 儲存時整批取代該表）。
 
+- 🔵 **C1 批（F1 漫畫／F2 球迷會活動／S1–S6 站內商店後台／K5 抽獎）的五條不能改壞的規則**（2026-09-30，細節見 `apps/api/README.md`「C1」節）：
+  ① **庫存的 `stock_qty`／`reserved_qty` 只有 `InventoryService` 能寫**（交易內 `UPDLOCK`、每次異動一筆 `inventory_movements`、資料庫 CHECK 擋負庫存），其他程式碼不得直接改，`AdminC1MiscTests` 的原始碼掃描會失敗；
+  ② **商店與抽獎相關類別不得注入 `IQueryCache`**（庫存、金流冪等、會籍與訂單狀態、購物車不得讀快取），同一組測試以反射鎖住；
+  ③ **`ILinePayGateway`／`IEInvoiceService` 目前是「未串接」實作**（介面已定、呼叫端不變），正式串接只換實作、不改訂單狀態機；訂單狀態轉換一律條件式單句更新（冪等，不會重複扣庫存或重複退款）；
+  ④ **時間欄位：資料庫與 JSON 一律 UTC、不帶 `Z`，`Unspecified` 視為 UTC**；日期欄位是台灣當地日期（`TaiwanClock`）；
+  ⑤ **整合測試動到共用設定必須快照還原**（`C1Test.SnapshotSettingsAsync`，`E-81`／`E-89`），`種子基線_C1示範資料…` 測試守著種子不被吃掉。漫畫功能藍鯨一律 403（`FeatureNotAvailableException`）。
+
 - 📄 **轉述會過期，來源不會——把狀態類敘述當成行動依據之前，一律回查來源**（2026-09-22 立，
   根因與實例見 [`18-work-errors.md`](18-work-errors.md) **`E-34` 升級段**）。
   **哪些是「轉述」**：[`../STATUS.md`](../STATUS.md) 的工作列與備註、`docs/` 裡的待辦／缺口／待裁決段落、

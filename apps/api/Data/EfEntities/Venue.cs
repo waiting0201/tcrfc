@@ -29,6 +29,8 @@ public partial class Venue
 
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
+    public virtual ICollection<FanEvent> FanEvents { get; set; } = new List<FanEvent>();
+
     public virtual ICollection<Match> Matches { get; set; } = new List<Match>();
 
     public virtual ICollection<Session> Sessions { get; set; } = new List<Session>();

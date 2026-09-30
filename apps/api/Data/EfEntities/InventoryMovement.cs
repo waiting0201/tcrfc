@@ -15,7 +15,7 @@ public partial class InventoryMovement
 
     public Guid? OrderId { get; set; }
 
-    public string? MovementType { get; set; }
+    public string MovementType { get; set; } = null!;
 
     public int Quantity { get; set; }
 
@@ -32,6 +32,10 @@ public partial class InventoryMovement
     public Guid? CreatedBy { get; set; }
 
     public Guid? UpdatedBy { get; set; }
+
+    public int? StockAfter { get; set; }
+
+    public int? ReservedAfter { get; set; }
 
     public virtual Club Club { get; set; } = null!;
 

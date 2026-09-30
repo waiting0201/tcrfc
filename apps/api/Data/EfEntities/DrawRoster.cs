@@ -43,6 +43,20 @@ public partial class DrawRoster
 
     public Guid? UpdatedBy { get; set; }
 
+    public int RosterVersion { get; set; }
+
+    public bool IsBackup { get; set; }
+
+    public string? RecipientName { get; set; }
+
+    public string? RecipientPhone { get; set; }
+
+    public string? RecipientAddress { get; set; }
+
+    public DateTime? ClaimedAt { get; set; }
+
+    public DateTime? ShippedAt { get; set; }
+
     public virtual Club Club { get; set; } = null!;
 
     public virtual AdminUser? CreatedByNavigation { get; set; }

@@ -23,6 +23,10 @@ public partial class ComicPage
 
     public Guid? UpdatedBy { get; set; }
 
+    public int? ImageWidth { get; set; }
+
+    public int? ImageHeight { get; set; }
+
     public virtual ComicEpisode ComicEpisode { get; set; } = null!;
 
     public virtual AdminUser? CreatedByNavigation { get; set; }

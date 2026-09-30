@@ -1361,7 +1361,9 @@ CREATE TABLE comic_episodes (
   episode_no      int              NOT NULL,
   cover_key       nvarchar(500)    NULL,
   published_on    date             NULL,
-  status          nvarchar(16)     NULL,
+  -- C1（2026-09-30）：收斂為 draft／published、NOT NULL DEFAULT 'draft'（同 press_resources）；is_latest 由後台在每次異動後重算。
+  status          nvarchar(16)     NOT NULL DEFAULT 'draft'
+                    CONSTRAINT CK_comic_episodes_status CHECK (status IN ('draft','published')),
   is_latest       bit              NOT NULL DEFAULT 0,
   view_count      int              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -1385,6 +1387,8 @@ CREATE TABLE comic_pages (
   row_seq           bigint IDENTITY(1,1) NOT NULL,
   comic_episode_id  uniqueidentifier NOT NULL,
   image_key         nvarchar(500)    NOT NULL,
+  image_width       int              NULL,
+  image_height      int              NULL,
   sort_order        int              NOT NULL DEFAULT 0,
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -1403,6 +1407,13 @@ CREATE TABLE fan_events (
   starts_at               datetime2(3)     NULL,
   capacity                int              NULL,
   is_paid_members_only    bit              NOT NULL DEFAULT 0,
+  -- C1（2026-09-30，F2 球迷活動 CRUD）：封面、結束時間、報名截止、場地、上下架。
+  cover_key               nvarchar(500)    NULL,
+  ends_at                 datetime2(3)     NULL,
+  registration_deadline_at datetime2(3)    NULL,
+  venue_id                uniqueidentifier NULL,
+  status                  nvarchar(16)     NOT NULL DEFAULT 'draft'
+                            CONSTRAINT CK_fan_events_status CHECK (status IN ('draft','published')),
   created_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by              uniqueidentifier NULL,
@@ -1416,17 +1427,49 @@ CREATE TABLE fan_events_i18n (
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(128)    NULL,
   description      nvarchar(max)   NULL,
+  location         nvarchar(200)   NULL,
   CONSTRAINT PK_fan_events_i18n PRIMARY KEY CLUSTERED (fan_event_id, locale)
 );
 
--- 活動報名，member_id 可為空。
+-- 活動回顧圖集（一列一組圖片欄位：物件鍵、寬、高、排序）。由 fan_events 推導，不帶 club_id。
+CREATE TABLE fan_event_images (
+  id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq         bigint IDENTITY(1,1) NOT NULL,
+  fan_event_id    uniqueidentifier NOT NULL,
+  image_key       nvarchar(500)    NOT NULL,
+  image_width     int              NULL,
+  image_height    int              NULL,
+  sort_order      int              NOT NULL DEFAULT 0,
+  created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by      uniqueidentifier NULL,
+  updated_by      uniqueidentifier NULL,
+  CONSTRAINT PK_fan_event_images PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_fan_event_images_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 活動回顧的關聯文章。刻意不用 article_relations（該表由 B2 新聞編輯器整批取代，同 sponsor_articles）。
+CREATE TABLE fan_event_articles (
+  fan_event_id    uniqueidentifier NOT NULL,
+  article_id      uniqueidentifier NOT NULL,
+  sort_order      int              NOT NULL DEFAULT 0,
+  CONSTRAINT PK_fan_event_articles PRIMARY KEY CLUSTERED (fan_event_id, article_id)
+);
+
+-- 活動報名，member_id 可為空（非會員報名時記 applicant_name／phone／email）。
+-- status：registered 已報名／waitlist 候補／cancelled 已取消／attended 已到場；registered＋attended 佔名額。
 CREATE TABLE fan_event_registrations (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   fan_event_id    uniqueidentifier NOT NULL,
   member_id       uniqueidentifier NULL,
-  status          nvarchar(16)     NULL,
+  status          nvarchar(16)     NOT NULL DEFAULT 'registered'
+                    CONSTRAINT CK_fan_event_registrations_status CHECK (status IN ('registered','waitlist','cancelled','attended')),
+  applicant_name  nvarchar(64)     NULL,
+  phone           nvarchar(32)     NULL,
+  email           nvarchar(255)    NULL,
+  note            nvarchar(500)    NULL,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -2046,6 +2089,7 @@ CREATE TABLE member_draws (
   locked_by                 uniqueidentifier NULL,
   locked_at                 datetime2(3)     NULL,
   cover_key                 nvarchar(500)    NULL,
+  internal_note             nvarchar(max)    NULL,
   created_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by                uniqueidentifier NULL,
@@ -2065,20 +2109,31 @@ CREATE TABLE member_draws_i18n (
 );
 
 -- 合格名單快照，一人一列。值複製，鎖定後不得重排。
+-- C1（K5）：roster_version 標明所屬名單版本（作廢重產時舊版保留，唯一鍵含版本）；is_backup 備取；
+-- recipient_*／claimed_at／shipped_at 供獎品發放（比照 K3）。
 CREATE TABLE draw_rosters (
   id                              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq                         bigint IDENTITY(1,1) NOT NULL,
   club_id                         uniqueidentifier NOT NULL,
   member_draw_id                  uniqueidentifier NOT NULL,
+  roster_version                  int              NOT NULL DEFAULT 1,
   serial_no                       int              NOT NULL,
   member_no_snapshot               nvarchar(32)    NOT NULL,
   name_snapshot                    nvarchar(64)    NULL,
   tier_snapshot                     nvarchar(16)   NULL CHECK (tier_snapshot IN ('registered','fan_club')),
   membership_end_on_snapshot         date          NULL,
   is_winner                        bit              NOT NULL DEFAULT 0,
+  is_backup                        bit              NOT NULL DEFAULT 0,
   prize_name                       nvarchar(128)    NULL,
-  claim_method                     nvarchar(32)     NULL,
-  fulfilment_status                nvarchar(16)     NULL,
+  claim_method                     nvarchar(32)     NULL
+                                     CONSTRAINT CK_draw_rosters_claim_method CHECK (claim_method IS NULL OR claim_method IN ('ship','pickup')),
+  fulfilment_status                nvarchar(16)     NULL
+                                     CONSTRAINT CK_draw_rosters_fulfilment CHECK (fulfilment_status IS NULL OR fulfilment_status IN ('pending','shipped','claimed')),
+  recipient_name                   nvarchar(64)     NULL,
+  recipient_phone                  nvarchar(32)     NULL,
+  recipient_address                nvarchar(500)    NULL,
+  claimed_at                       datetime2(3)     NULL,
+  shipped_at                       datetime2(3)     NULL,
   withholding_data_encrypted        nvarchar(255)   NULL,
   note                              nvarchar(max)   NULL,
   created_at                       datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -2087,6 +2142,29 @@ CREATE TABLE draw_rosters (
   updated_by                       uniqueidentifier NULL,
   CONSTRAINT PK_draw_rosters PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_draw_rosters_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 名單版本歷程（K5）：每次產生名單一列；作廢重產時舊版標記作廢原因與時間，不刪除。由 member_draws 推導，不帶 club_id。
+CREATE TABLE draw_roster_versions (
+  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq           bigint IDENTITY(1,1) NOT NULL,
+  member_draw_id    uniqueidentifier NOT NULL,
+  roster_version    int              NOT NULL,
+  snapshot_at       datetime2(3)     NOT NULL,
+  total_count       int              NOT NULL,
+  roster_hash       nvarchar(64)     NOT NULL,
+  generated_by      uniqueidentifier NULL,
+  generated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  voided_at         datetime2(3)     NULL,
+  voided_by         uniqueidentifier NULL,
+  void_reason       nvarchar(255)    NULL,
+  created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  created_by        uniqueidentifier NULL,
+  updated_by        uniqueidentifier NULL,
+  CONSTRAINT PK_draw_roster_versions PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_draw_roster_versions_row_seq UNIQUE CLUSTERED (row_seq),
+  CONSTRAINT UQ_draw_roster_versions_draw_ver UNIQUE (member_draw_id, roster_version)
 );
 
 /* ============================================================================
@@ -2248,6 +2326,9 @@ CREATE TABLE products (
   sort_order      int              NOT NULL DEFAULT 0,
   status          nvarchar(16)     NOT NULL DEFAULT 'draft'
                     CHECK (status IN ('draft','published')),
+  -- C1（S1）：缺貨時的呈現——show_unavailable 顯示但不可購買／hide 自動隱藏。
+  out_of_stock_behavior nvarchar(16) NOT NULL DEFAULT 'show_unavailable'
+                    CONSTRAINT CK_products_oos CHECK (out_of_stock_behavior IN ('show_unavailable','hide')),
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -2298,12 +2379,18 @@ CREATE TABLE product_variants (
   cost            int              NULL,
   stock_qty       int              NOT NULL DEFAULT 0,
   reserved_qty    int              NOT NULL DEFAULT 0,
-  status          nvarchar(16)     NULL,
+  -- C1（S1／S2）：active 販售中／inactive 停售；低庫存門檻（空＝用俱樂部設定）；排序。
+  -- stock_qty 只透過庫存異動（inventory_movements）改動；可售量＝stock_qty－reserved_qty。
+  status          nvarchar(16)     NOT NULL DEFAULT 'active'
+                    CONSTRAINT CK_product_variants_status CHECK (status IN ('active','inactive')),
+  low_stock_threshold int          NULL,
+  sort_order      int              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
   updated_by      uniqueidentifier NULL,
   CONSTRAINT PK_product_variants PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT CK_product_variants_stock CHECK (stock_qty >= 0 AND reserved_qty >= 0 AND reserved_qty <= stock_qty),
   CONSTRAINT UQ_product_variants_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
@@ -2314,8 +2401,15 @@ CREATE TABLE inventory_movements (
   club_id               uniqueidentifier NOT NULL,
   product_variant_id    uniqueidentifier NOT NULL,
   order_id              uniqueidentifier NULL,
-  movement_type         nvarchar(32)     NULL,
+  -- C1（S2）：stock_in 進貨／stocktake 盤點／damage 報損／adjust 調整／reserve 下單保留／release 釋回保留／
+  -- sale 付款成立扣減／cancel_restock 取消回補／return_restock 退貨回補。
+  -- quantity 是有正負號的變動量：reserve／release 變動的是 reserved_qty，其餘變動的是 stock_qty；
+  -- stock_after／reserved_after 是異動後的快照，供追溯。
+  movement_type         nvarchar(32)     NOT NULL
+                          CONSTRAINT CK_inventory_movements_type CHECK (movement_type IN ('stock_in','stocktake','damage','adjust','reserve','release','sale','cancel_restock','return_restock')),
   quantity              int              NOT NULL,
+  stock_after           int              NULL,
+  reserved_after        int              NULL,
   reason                nvarchar(255)    NULL,
   handled_by            uniqueidentifier NULL,
   occurred_at           datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -2376,6 +2470,19 @@ CREATE TABLE orders (
                                CHECK (delivery_method IN ('home_delivery','cvs_pickup','onsite_pickup')),
   is_manual                  bit             NOT NULL DEFAULT 0,
   paid_at                    datetime2(3)    NULL,
+  -- C1（S3）：付款方式（onsite＝現場收款）、顧客備註、內部註記、代收代付分帳旗標（人工標記，不是狀態機）、
+  -- 完成／取消時間與取消原因。
+  payment_method             nvarchar(16)    NOT NULL DEFAULT 'linepay'
+                               CONSTRAINT CK_orders_payment_method CHECK (payment_method IN ('linepay','onsite')),
+  customer_note              nvarchar(500)   NULL,
+  internal_note              nvarchar(max)   NULL,
+  settlement_status          nvarchar(16)    NOT NULL DEFAULT 'pending'
+                               CONSTRAINT CK_orders_settlement_status CHECK (settlement_status IN ('pending','settled')),
+  settled_on                 date            NULL,
+  settlement_note            nvarchar(500)   NULL,
+  completed_at               datetime2(3)    NULL,
+  cancelled_at               datetime2(3)    NULL,
+  cancel_reason              nvarchar(255)   NULL,
   created_at                 datetime2(3)    NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                 datetime2(3)    NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by                 uniqueidentifier NULL,
@@ -2416,7 +2523,11 @@ CREATE TABLE shipments (
   store_branch_code     nvarchar(32)     NULL,
   shipped_at            datetime2(3)     NULL,
   delivered_at          datetime2(3)     NULL,
-  pickup_status         nvarchar(16)     NULL,
+  -- C1（S4）：waiting 待領取／picked_up 已領取（逾期＝待領取且已過 pickup_deadline_on，讀取時換算）；到店通知只記已通知時間。
+  pickup_status         nvarchar(16)     NULL
+                          CONSTRAINT CK_shipments_pickup_status CHECK (pickup_status IS NULL OR pickup_status IN ('waiting','picked_up')),
+  pickup_deadline_on    date             NULL,
+  arrival_notified_at   datetime2(3)     NULL,
   created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
@@ -2432,11 +2543,20 @@ CREATE TABLE refund_requests (
   club_id         uniqueidentifier NOT NULL,
   order_id        uniqueidentifier NOT NULL,
   reason          nvarchar(255)    NULL,
-  status          nvarchar(16)     NULL,
+  -- C1（S5）：requested 申請中／approved 已核准／received 已驗收退回品／processing 退款處理中（防重複執行）／
+  -- refunded 已退款／rejected 已駁回。
+  status          nvarchar(16)     NOT NULL DEFAULT 'requested'
+                    CONSTRAINT CK_refund_requests_status CHECK (status IN ('requested','approved','received','processing','refunded','rejected')),
   refund_amount   int              NULL,
   refund_method   nvarchar(32)     NULL,
   approved_by     uniqueidentifier NULL,
   refunded_at     datetime2(3)     NULL,
+  needs_return    bit              NOT NULL DEFAULT 1,
+  received_at     datetime2(3)     NULL,
+  received_by     uniqueidentifier NULL,
+  review_note     nvarchar(500)    NULL,
+  refunded_by     uniqueidentifier NULL,
+  refund_reference nvarchar(64)    NULL,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by      uniqueidentifier NULL,
@@ -2745,8 +2865,10 @@ ALTER TABLE member_cards          ADD CONSTRAINT UQ_member_cards_token          
 ALTER TABLE membership_plans      ADD CONSTRAINT UQ_membership_plans_club_season_code UNIQUE (club_id, season_id, code);
 ALTER TABLE partner_stores        ADD CONSTRAINT UQ_partner_stores_club_slug      UNIQUE (club_id, slug);
 ALTER TABLE member_draws          ADD CONSTRAINT UQ_member_draws_club_code        UNIQUE (club_id, draw_code);
-ALTER TABLE draw_rosters          ADD CONSTRAINT UQ_draw_rosters_draw_serial      UNIQUE (member_draw_id, serial_no);
-ALTER TABLE draw_rosters          ADD CONSTRAINT UQ_draw_rosters_draw_member_no   UNIQUE (member_draw_id, member_no_snapshot);
+ALTER TABLE draw_rosters          ADD CONSTRAINT UQ_draw_rosters_draw_ver_serial    UNIQUE (member_draw_id, roster_version, serial_no);
+ALTER TABLE draw_rosters          ADD CONSTRAINT UQ_draw_rosters_draw_ver_member_no UNIQUE (member_draw_id, roster_version, member_no_snapshot);
+ALTER TABLE comic_episodes        ADD CONSTRAINT UQ_comic_episodes_club_no        UNIQUE (club_id, episode_no);
+ALTER TABLE shipments             ADD CONSTRAINT UQ_shipments_order               UNIQUE (order_id);
 ALTER TABLE collections           ADD CONSTRAINT UQ_collections_club_slug         UNIQUE (club_id, slug);
 ALTER TABLE products              ADD CONSTRAINT UQ_products_club_slug            UNIQUE (club_id, slug);
 ALTER TABLE payment_channels      ADD CONSTRAINT UQ_payment_channels_owner_type_env UNIQUE (owner_club_id, channel_type, environment);
@@ -2781,6 +2903,13 @@ CREATE INDEX IX_orders_order_status                    ON orders (order_status);
 CREATE INDEX IX_orders_payment_status_created           ON orders (payment_status, created_at);
 CREATE INDEX IX_orders_club_created                     ON orders (club_id, created_at DESC);
 CREATE INDEX IX_order_items_order                       ON order_items (order_id);
+CREATE INDEX IX_orders_selling_created                  ON orders (selling_club_id, created_at DESC);
+CREATE INDEX IX_product_variants_product                ON product_variants (product_id);
+CREATE UNIQUE INDEX UQ_fan_event_registrations_event_member ON fan_event_registrations (fan_event_id, member_id) WHERE member_id IS NOT NULL AND status <> 'cancelled';
+CREATE INDEX IX_fan_event_registrations_event_status    ON fan_event_registrations (fan_event_id, status);
+CREATE INDEX IX_refund_requests_club_status             ON refund_requests (club_id, status);
+CREATE INDEX IX_refund_requests_order                   ON refund_requests (order_id);
+CREATE INDEX IX_draw_rosters_draw_winner                ON draw_rosters (member_draw_id, roster_version, is_winner);
 CREATE INDEX IX_inventory_movements_variant_occurred     ON inventory_movements (product_variant_id, occurred_at DESC);
 CREATE INDEX IX_memberships_club_status_end             ON memberships (club_id, status, membership_end_on);
 CREATE INDEX IX_memberships_member                      ON memberships (member_id);
@@ -3173,6 +3302,12 @@ ALTER TABLE comic_episodes_i18n    ADD CONSTRAINT FK_comic_episodes_i18n_ep     
 ALTER TABLE comic_pages            ADD CONSTRAINT FK_comic_pages_episode         FOREIGN KEY (comic_episode_id) REFERENCES comic_episodes(id) ON DELETE CASCADE;
 ALTER TABLE fan_events             ADD CONSTRAINT FK_fan_events_club             FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE fan_events_i18n        ADD CONSTRAINT FK_fan_events_i18n_event       FOREIGN KEY (fan_event_id) REFERENCES fan_events(id) ON DELETE CASCADE;
+ALTER TABLE fan_events             ADD CONSTRAINT FK_fan_events_venue            FOREIGN KEY (venue_id) REFERENCES venues(id);
+ALTER TABLE fan_event_images       ADD CONSTRAINT FK_fan_event_images_event      FOREIGN KEY (fan_event_id) REFERENCES fan_events(id) ON DELETE CASCADE;
+ALTER TABLE fan_event_images       ADD CONSTRAINT FK_fan_event_images_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE fan_event_images       ADD CONSTRAINT FK_fan_event_images_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
+ALTER TABLE fan_event_articles     ADD CONSTRAINT FK_fan_event_articles_event    FOREIGN KEY (fan_event_id) REFERENCES fan_events(id) ON DELETE CASCADE;
+ALTER TABLE fan_event_articles     ADD CONSTRAINT FK_fan_event_articles_article  FOREIGN KEY (article_id) REFERENCES articles(id) ON DELETE CASCADE;
 ALTER TABLE fan_event_registrations ADD CONSTRAINT FK_fan_event_registrations_club FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE fan_event_registrations ADD CONSTRAINT FK_fan_event_registrations_event FOREIGN KEY (fan_event_id) REFERENCES fan_events(id);
 ALTER TABLE fan_event_registrations ADD CONSTRAINT FK_fan_event_registrations_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE SET NULL;
@@ -3235,6 +3370,11 @@ ALTER TABLE member_draws            ADD CONSTRAINT FK_member_draws_locked_by    
 ALTER TABLE member_draws_i18n       ADD CONSTRAINT FK_member_draws_i18n_draw          FOREIGN KEY (member_draw_id) REFERENCES member_draws(id) ON DELETE CASCADE;
 ALTER TABLE draw_rosters            ADD CONSTRAINT FK_draw_rosters_club               FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE draw_rosters            ADD CONSTRAINT FK_draw_rosters_draw               FOREIGN KEY (member_draw_id) REFERENCES member_draws(id);
+ALTER TABLE draw_roster_versions    ADD CONSTRAINT FK_draw_roster_versions_draw       FOREIGN KEY (member_draw_id) REFERENCES member_draws(id);
+ALTER TABLE draw_roster_versions    ADD CONSTRAINT FK_draw_roster_versions_generated_by FOREIGN KEY (generated_by) REFERENCES admin_users(id);
+ALTER TABLE draw_roster_versions    ADD CONSTRAINT FK_draw_roster_versions_voided_by  FOREIGN KEY (voided_by) REFERENCES admin_users(id);
+ALTER TABLE draw_roster_versions    ADD CONSTRAINT FK_draw_roster_versions_created_by FOREIGN KEY (created_by) REFERENCES admin_users(id);
+ALTER TABLE draw_roster_versions    ADD CONSTRAINT FK_draw_roster_versions_updated_by FOREIGN KEY (updated_by) REFERENCES admin_users(id);
 
 -- 4.10 L 行事曆管理
 ALTER TABLE calendar_custom_events       ADD CONSTRAINT FK_calendar_custom_events_club       FOREIGN KEY (club_id) REFERENCES clubs(id);
@@ -3273,6 +3413,8 @@ ALTER TABLE shipments           ADD CONSTRAINT FK_shipments_order               
 ALTER TABLE refund_requests     ADD CONSTRAINT FK_refund_requests_club          FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE refund_requests     ADD CONSTRAINT FK_refund_requests_order         FOREIGN KEY (order_id) REFERENCES orders(id);
 ALTER TABLE refund_requests     ADD CONSTRAINT FK_refund_requests_approved_by   FOREIGN KEY (approved_by) REFERENCES admin_users(id);
+ALTER TABLE refund_requests     ADD CONSTRAINT FK_refund_requests_received_by   FOREIGN KEY (received_by) REFERENCES admin_users(id);
+ALTER TABLE refund_requests     ADD CONSTRAINT FK_refund_requests_refunded_by   FOREIGN KEY (refunded_by) REFERENCES admin_users(id);
 ALTER TABLE refund_request_items ADD CONSTRAINT FK_refund_request_items_request FOREIGN KEY (refund_request_id) REFERENCES refund_requests(id) ON DELETE CASCADE;
 ALTER TABLE refund_request_items ADD CONSTRAINT FK_refund_request_items_item    FOREIGN KEY (order_item_id) REFERENCES order_items(id);
 ALTER TABLE store_invoices      ADD CONSTRAINT FK_store_invoices_club           FOREIGN KEY (club_id) REFERENCES clubs(id);

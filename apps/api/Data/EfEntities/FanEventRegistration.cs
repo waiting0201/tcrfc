@@ -15,7 +15,7 @@ public partial class FanEventRegistration
 
     public Guid? MemberId { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
 
@@ -24,6 +24,14 @@ public partial class FanEventRegistration
     public Guid? CreatedBy { get; set; }
 
     public Guid? UpdatedBy { get; set; }
+
+    public string? ApplicantName { get; set; }
+
+    public string? Phone { get; set; }
+
+    public string? Email { get; set; }
+
+    public string? Note { get; set; }
 
     public virtual Club Club { get; set; } = null!;
 

@@ -1124,6 +1124,63 @@ PERMISSIONS = [
     ("calendar.setting.update", "L", "L3", "calendar", "update", 1, 0, 0, "編輯行事曆分類與顯示設定", "Update Calendar Settings"),
     ("calendar.subscription.view", "L", "L4", "calendar", "view", 1, 0, 0, "檢視行事曆訂閱網址與訂閱數", "View Calendar Subscriptions"),
     ("calendar.export", "L", "L4", "calendar", "export", 1, 0, 0, "匯出行事曆（CSV／.ics）", "Export Calendar"),
+    # ── C1 新增（2026-09-30，S3-1／S3-3／S3-4／S3-8）：F1 漫畫、F2 球迷會活動、S1–S6 站內商店、K5 抽獎名單 ──────
+    # F（module=F、domain=culture）：漫畫與球迷會活動皆 club_id 必填。F1 對藍鯨不使用（藍鯨規劃書 v1.9），由端點擋下。
+    ("culture.comic.view", "F", "F1", "culture", "view", 1, 0, 0, "檢視漫畫", "View Comics"),
+    ("culture.comic.create", "F", "F1", "culture", "create", 1, 0, 0, "新增漫畫角色與集數", "Create Comics"),
+    ("culture.comic.update", "F", "F1", "culture", "update", 1, 0, 0, "編輯漫畫企劃、角色與集數", "Update Comics"),
+    ("culture.comic.delete", "F", "F1", "culture", "delete", 1, 0, 0, "刪除漫畫角色與集數", "Delete Comics"),
+    ("culture.fan_event.view", "F", "F2", "culture", "view", 1, 0, 0, "檢視球迷會活動與報名名單", "View Fan Events"),
+    ("culture.fan_event.create", "F", "F2", "culture", "create", 1, 0, 0, "新增球迷會活動", "Create Fan Events"),
+    ("culture.fan_event.update", "F", "F2", "culture", "update", 1, 0, 0, "編輯球迷會活動與處理報名", "Update Fan Events"),
+    ("culture.fan_event.delete", "F", "F2", "culture", "delete", 1, 0, 0, "刪除球迷會活動", "Delete Fan Events"),
+    # S（module=S、domain=shop）。商品／庫存／訂單／出貨／退貨皆帶 club_id（訂單另以 selling_club_id 判定範圍）。
+    # shop.cost.*：成本欄位僅授權角色可見（is_restricted）；shop.order.reveal：訂單收件人資料完整值；
+    # shop.order.export／shop.report.export：匯出（is_restricted）；shop.refund.execute：退款執行僅系統管理員（sysadmin_only）；
+    # shop.credential.*：LINE Pay 與電子發票憑證僅系統管理員（sysadmin_only）；shop.donation_code.*：捐贈碼名單全系統共用（is_club_scoped=0）。
+    ("shop.collection.view", "S", "S1", "shop", "view", 1, 0, 0, "檢視商品系列", "View Shop Collections"),
+    ("shop.collection.create", "S", "S1", "shop", "create", 1, 0, 0, "新增商品系列", "Create Shop Collections"),
+    ("shop.collection.update", "S", "S1", "shop", "update", 1, 0, 0, "編輯商品系列與系列介紹文", "Update Shop Collections"),
+    ("shop.collection.delete", "S", "S1", "shop", "delete", 1, 0, 0, "刪除商品系列", "Delete Shop Collections"),
+    ("shop.product.view", "S", "S1", "shop", "view", 1, 0, 0, "檢視商品", "View Products"),
+    ("shop.product.create", "S", "S1", "shop", "create", 1, 0, 0, "新增商品", "Create Products"),
+    ("shop.product.update", "S", "S1", "shop", "update", 1, 0, 0, "編輯商品文案、圖片與上下架", "Update Products"),
+    ("shop.product.delete", "S", "S1", "shop", "delete", 1, 0, 0, "刪除商品", "Delete Products"),
+    ("shop.variant.view", "S", "S1", "shop", "view", 1, 0, 0, "檢視商品規格與售價", "View Product Variants"),
+    ("shop.variant.create", "S", "S1", "shop", "create", 1, 0, 0, "新增商品規格", "Create Product Variants"),
+    ("shop.variant.update", "S", "S1", "shop", "update", 1, 0, 0, "編輯商品規格與售價", "Update Product Variants"),
+    ("shop.variant.delete", "S", "S1", "shop", "delete", 1, 0, 0, "刪除商品規格", "Delete Product Variants"),
+    ("shop.cost.view", "S", "S1", "shop", "view", 1, 1, 0, "檢視商品成本", "View Product Costs"),
+    ("shop.cost.update", "S", "S1", "shop", "update", 1, 1, 0, "編輯商品成本", "Update Product Costs"),
+    ("shop.inventory.view", "S", "S2", "shop", "view", 1, 0, 0, "檢視庫存與異動紀錄", "View Inventory"),
+    ("shop.inventory.update", "S", "S2", "shop", "update", 1, 0, 0, "進貨、盤點、報損與調整庫存", "Update Inventory"),
+    ("shop.order.view", "S", "S3", "shop", "view", 1, 0, 0, "檢視訂單（收件人資料依權限遮罩）", "View Orders"),
+    ("shop.order.create", "S", "S3", "shop", "create", 1, 0, 0, "建立與補登訂單（現場收款）", "Create Orders"),
+    ("shop.order.update", "S", "S3", "shop", "update", 1, 0, 0, "處理訂單狀態、備註與分帳標記", "Update Orders"),
+    ("shop.order.reveal", "S", "S3", "shop", "reveal", 1, 0, 0, "檢視訂單收件人完整資料", "Reveal Order Recipient"),
+    ("shop.order.export", "S", "S3", "shop", "export", 1, 1, 0, "匯出訂單", "Export Orders"),
+    ("shop.shipment.view", "S", "S4", "shop", "view", 1, 0, 0, "檢視出貨與揀貨單", "View Shipments"),
+    ("shop.shipment.update", "S", "S4", "shop", "update", 1, 0, 0, "處理出貨、物流單號與自取", "Update Shipments"),
+    ("shop.refund.view", "S", "S5", "shop", "view", 1, 0, 0, "檢視退貨退款案件", "View Refund Requests"),
+    ("shop.refund.update", "S", "S5", "shop", "update", 1, 0, 0, "建立、審核與驗收退貨退款案件", "Update Refund Requests"),
+    ("shop.refund.execute", "S", "S5", "shop", "execute", 1, 0, 1, "執行退款", "Execute Refunds"),
+    ("shop.setting.view", "S", "S6", "shop", "view", 1, 0, 0, "檢視商店設定", "View Shop Settings"),
+    ("shop.setting.update", "S", "S6", "shop", "update", 1, 0, 0, "編輯運費與商店政策", "Update Shop Settings"),
+    ("shop.credential.view", "S", "S6", "shop", "view", 1, 1, 1, "檢視金流與發票憑證狀態", "View Payment Credentials"),
+    ("shop.credential.update", "S", "S6", "shop", "update", 1, 1, 1, "編輯金流與發票憑證", "Update Payment Credentials"),
+    ("shop.report.view", "S", "S6", "shop", "view", 1, 0, 0, "檢視商店報表", "View Shop Reports"),
+    ("shop.report.export", "S", "S6", "shop", "export", 1, 1, 0, "匯出商店報表與分帳彙總", "Export Shop Reports"),
+    ("shop.donation_code.view", "S", "S6", "shop", "view", 0, 0, 0, "檢視發票捐贈碼名單", "View Donation Codes"),
+    ("shop.donation_code.create", "S", "S6", "shop", "create", 0, 0, 0, "新增發票捐贈碼", "Create Donation Codes"),
+    ("shop.donation_code.update", "S", "S6", "shop", "update", 0, 0, 0, "編輯發票捐贈碼", "Update Donation Codes"),
+    ("shop.donation_code.delete", "S", "S6", "shop", "delete", 0, 0, 0, "刪除發票捐贈碼", "Delete Donation Codes"),
+    # K5 抽獎名單管理（domain 沿用 member）。產生與鎖定名單限系統管理員與客服／行政；受限版中獎人清單匯出須額外授權；
+    # 公關／媒體只有 member.draw.announce（只取得遮罩版名單來撰寫公布稿，不因此取得會員模組權限，規劃書 §6）。
+    ("member.draw.view", "K", "K5", "member", "view", 1, 0, 0, "檢視抽獎活動與遮罩名單", "View Member Draws"),
+    ("member.draw.create", "K", "K5", "member", "create", 1, 0, 0, "建立抽獎活動", "Create Member Draws"),
+    ("member.draw.update", "K", "K5", "member", "update", 1, 0, 0, "產生名單、回填中獎人與處理獎品發放", "Update Member Draws"),
+    ("member.draw.announce", "K", "K5", "member", "update", 1, 0, 0, "產生抽獎公布稿草稿（只看得到遮罩名單）", "Announce Member Draws"),
+    ("member.draw.export", "K", "K5", "member", "export", 1, 1, 0, "匯出中獎人聯絡名單與獎品出貨清單", "Export Member Draw Winners"),
 ]
 
 emit("-- ── 18.2 permissions：J 系統管理 ＋ B2 新聞（本次唯一接真實授權的既有模組） ─────")
@@ -1446,6 +1503,61 @@ ROLE_PERMISSIONS = [
     ("customer_service_admin", ["calendar.setting.view", "calendar.subscription.view", "calendar.export"], "all"),
     ("viewer", ["calendar.setting.view", "calendar.subscription.view", "calendar.export"], "all"),
     ("partner_club_manager", ["calendar.setting.view", "calendar.setting.update", "calendar.subscription.view", "calendar.export"], "own_clubs"),
+    # ── C1 新增（2026-09-30）：F1／F2／S1–S6／K5 ──────────────────────────────────────────────────────
+    # F：矩陣「內容」欄——內容編輯、公關／媒體 ✔編輯（全）；檢視者唯讀；合作球隊管理 ✔自家內容，但藍鯨不設漫畫，只給球迷會活動。
+    # 競技／學院／商務「撰稿」只指新聞撰稿，不擴及文化模組，本輪不指派。
+    ("content_editor", [
+        "culture.comic.view", "culture.comic.create", "culture.comic.update", "culture.comic.delete",
+        "culture.fan_event.view", "culture.fan_event.create", "culture.fan_event.update", "culture.fan_event.delete",
+    ], "all"),
+    ("pr_media", [
+        "culture.comic.view", "culture.comic.create", "culture.comic.update", "culture.comic.delete",
+        "culture.fan_event.view", "culture.fan_event.create", "culture.fan_event.update", "culture.fan_event.delete",
+    ], "all"),
+    ("viewer", ["culture.comic.view", "culture.fan_event.view"], "all"),
+    ("partner_club_manager", [
+        "culture.fan_event.view", "culture.fan_event.create", "culture.fan_event.update", "culture.fan_event.delete",
+    ], "own_clubs"),
+    # S：矩陣「商店」欄。內容編輯「S1 文案／圖」（可看規格，不含售價編輯與成本）；商務／贊助「S1／S6（訂單個資遮罩）」，
+    # 不得取得訂單個資與退款權；客服／行政 ✔S2–S5（不含退款執行，退款執行 sysadmin_only）；公關／媒體唯讀；
+    # 檢視者「唯讀（不含金額）」——只給商品與系列檢視，不給規格（售價）；合作球隊管理「自家商品與訂單」。
+    # 成本（shop.cost.*，docs/12b §7：系統管理員與商務／贊助）；憑證（shop.credential.*）、退款執行（shop.refund.execute）只有系統管理員。
+    ("content_editor", [
+        "shop.collection.view", "shop.collection.create", "shop.collection.update",
+        "shop.product.view", "shop.product.create", "shop.product.update", "shop.variant.view",
+    ], "all"),
+    ("business_sponsorship", [
+        "shop.collection.view", "shop.collection.create", "shop.collection.update", "shop.collection.delete",
+        "shop.product.view", "shop.product.create", "shop.product.update", "shop.product.delete",
+        "shop.variant.view", "shop.variant.create", "shop.variant.update", "shop.variant.delete",
+        "shop.cost.view", "shop.cost.update",
+        "shop.inventory.view", "shop.order.view",
+        "shop.setting.view", "shop.setting.update", "shop.report.view", "shop.report.export",
+        "shop.donation_code.view", "shop.donation_code.create", "shop.donation_code.update", "shop.donation_code.delete",
+    ], "all"),
+    ("pr_media", ["shop.collection.view", "shop.product.view", "shop.variant.view"], "all"),
+    ("customer_service_admin", [
+        "shop.product.view", "shop.variant.view",
+        "shop.inventory.view", "shop.inventory.update",
+        "shop.order.view", "shop.order.create", "shop.order.update", "shop.order.reveal", "shop.order.export",
+        "shop.shipment.view", "shop.shipment.update",
+        "shop.refund.view", "shop.refund.update",
+    ], "all"),
+    ("viewer", ["shop.collection.view", "shop.product.view"], "all"),
+    ("partner_club_manager", [
+        "shop.collection.view", "shop.collection.create", "shop.collection.update", "shop.collection.delete",
+        "shop.product.view", "shop.product.create", "shop.product.update", "shop.product.delete",
+        "shop.variant.view", "shop.variant.create", "shop.variant.update", "shop.variant.delete",
+        "shop.inventory.view", "shop.inventory.update",
+        "shop.order.view", "shop.order.create", "shop.order.update", "shop.order.reveal",
+        "shop.shipment.view", "shop.shipment.update", "shop.refund.view",
+        "shop.setting.view", "shop.setting.update", "shop.report.view",
+    ], "own_clubs"),
+    # K5：只有系統管理員（自動涵蓋）與客服／行政（含受限匯出）；公關／媒體只有公布稿交接（遮罩名單）。
+    ("customer_service_admin", [
+        "member.draw.view", "member.draw.create", "member.draw.update", "member.draw.announce", "member.draw.export",
+    ], "all"),
+    ("pr_media", ["member.draw.announce"], "all"),
 ]
 
 emit("-- ── 18.3 role_permissions ──────────────────────────────────────────")

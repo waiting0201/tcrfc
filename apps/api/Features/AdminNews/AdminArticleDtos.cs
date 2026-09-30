@@ -283,3 +283,17 @@ public sealed record BatchOperationResultDto
     public required int UpdatedCount { get; init; }
     public required IReadOnlyList<BatchOperationSkippedItemDto> Skipped { get; init; }
 }
+
+/// <summary>C1 新增：挑選文章用的精簡項目（<c>GET …/news/lookup</c>），不含內文。</summary>
+public sealed record AdminNewsLookupItemDto
+{
+    public required Guid Id { get; init; }
+    public required string Slug { get; init; }
+    public required string CategoryCode { get; init; }
+    public required string Status { get; init; }
+    public required string StatusLabel { get; init; }
+    public DateTime? PublishedAt { get; init; }
+    public required bool IsShared { get; init; }
+    public string? TitleZh { get; init; }
+    public string? TitleEn { get; init; }
+}

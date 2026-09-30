@@ -13,5 +13,7 @@ public partial class FanEventsI18n
 
     public string? Description { get; set; }
 
+    public string? Location { get; set; }
+
     public virtual FanEvent FanEvent { get; set; } = null!;
 }

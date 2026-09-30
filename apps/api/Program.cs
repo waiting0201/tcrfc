@@ -13,6 +13,10 @@ using Tcrfc.Api.Data;
 using Tcrfc.Api.Features.AdminAccounts;
 using Tcrfc.Api.Features.AdminAuth;
 using Tcrfc.Api.Features.AdminBanners;
+using Tcrfc.Api.Features.AdminComics;
+using Tcrfc.Api.Features.AdminFanEvents;
+using Tcrfc.Api.Features.AdminShop;
+using Tcrfc.Api.Features.AdminDraws;
 using Tcrfc.Api.Features.AdminCharity;
 using Tcrfc.Api.Features.AdminCalendar;
 using Tcrfc.Api.Features.AdminClubs;
@@ -378,6 +382,27 @@ builder.Services.AddScoped<AdminVenuesRepository>();
 
 // B1（S2-4／S2-5／S2-6）：P4 試訓、K1–K4 會員系統、L3／L4 行事曆進階。
 builder.Services.AddScoped<ClubSettingsStore>();
+builder.Services.AddScoped<ClubTextSettings>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminComics.AdminComicsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminFanEvents.AdminFanEventsRepository>();
+// ── C1（S3-3／S3-4）：站內商店 S1–S6。⛔ 庫存、訂單、商品可購買狀態屬「不得讀快取」五類——這些類別刻意不注入 IQueryCache（ArchitectureTests 鎖定）。
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminDraws.AdminDrawsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.InventoryService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.ShopSettingsReader>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopCollectionsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopProductsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.ShopOrderLifecycle>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopInventoryRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopOrdersRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopShipmentsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopRefundsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopSettingsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopCredentialsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopReportsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.AdminShopDonationCodesRepository>();
+// 金流與電子發票接縫：B-10（LINE Pay 商店號未到位）本期不串接，預設註冊「尚未串接」實作；日後換掉這兩行即可，後台邏輯不需改動。
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.ILinePayGateway, Tcrfc.Api.Features.AdminShop.NotConfiguredLinePayGateway>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminShop.IEInvoiceService, Tcrfc.Api.Features.AdminShop.NotConfiguredEInvoiceService>();
 builder.Services.AddScoped<SensitiveActionLogger>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminMembers.MemberNumberGenerator>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminMembers.AdminMembersRepository>();
@@ -689,6 +714,12 @@ app.MapAdminJerseysEndpoints();
 app.MapAdminPartnerStoresEndpoints();
 app.MapAdminBenefitsEndpoints();
 app.MapAdminTrialsEndpoints();
+app.MapAdminComicsEndpoints();
+app.MapAdminFanEventsEndpoints();
+app.MapAdminShopCatalogEndpoints();
+app.MapAdminShopOrdersEndpoints();
+app.MapAdminShopBackofficeEndpoints();
+app.MapAdminDrawsEndpoints();
 
 app.Run();
 

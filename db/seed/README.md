@@ -301,6 +301,18 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 | `redirects` | 新站對應頁 | 由舊網址名稱推得的建議，**客戶尚未決定** | tcrfc、bw |
 | `partners`／`sponsors`／`sponsor_packages`／`sponsor_activations`／`proposals`／`enquiries`（Lead）／`charities`／`charity_programs`／`impact_*`／`press_resources`／`achievements`（slug 或名稱含 `test-`、`【測試】`） | 全部欄位（含整數價格與金額） | 【測試】…／`@example.com`／`charity.example.com`／`seed-placeholder/no-file` | 只有 tcrfc |
 
+### C1 批新增（2026-09-30，區段 49–54）
+
+| 模組 | 表 | tcrfc | bw | 資料來源 |
+|---|---|---|---|---|
+| 漫畫 F1 | `settings` `comic.about_*`／`comic_characters`／`comic_episodes`／`comic_pages` | 企劃說明＋3 角色＋3 集草稿 | 無（藍鯨不設漫畫） | **全測試** |
+| 球迷會活動 F2 | `fan_events`(+`_i18n`)／`fan_event_registrations` | 4 場（含額滿、已結束）＋報名 | — | **全測試** |
+| 站內商店 S1–S6 | `settings` `shop.*`（18）／`invoice_donation_codes`（`9990001`、`9990002`）／`collections`／`products`／`product_variants`／`orders`／`shipments`／`refund_requests` | 4 系列／6 商品／11 規格／9 訂單（涵蓋各狀態）／3 出貨／2 退款 | 含 1 筆藍鯨訂單（驗證俱樂部隔離） | **全測試**（`TEST-`／`SEED-` 前綴；`TEST-BALL` 庫存 0 用來驗證缺貨） |
+| 抽獎 K5 | `member_draws`／`draw_rosters`／`draw_roster_versions`、`settings` `member.draw_notice_confirmed` | `TEST-DRAW-01`（已抽出，名單 2 人）、`TEST-DRAW-02`（草稿） | — | **全測試** |
+
+C1 的測試值一律視為測試：所有 `【測試】`、`TEST-`、`SEED-` 前綴值，捐贈碼 `9990001`／`9990002`，以及整數價格、庫存、數量。權限：C1 新增 49 個權限碼與角色對應寫在 `generate-club-seed-sql.py`（`cost.*` 只給 sysadmin＋商務）。
+`AdminC1MiscTests.種子基線_C1示範資料…` 會檢查上述資料是否仍在；失敗時重跑 `apply-seed.sh`。
+
 ### 刻意沒種的（與原因）
 
 - **`seo.robots_custom_rules`**：會原樣寫進 `robots.txt`，沒有需求就不預設；**`tracking.*`（GA4／GTM／Meta Pixel／LINE）**：假的追蹤碼會讓前台載入無效腳本，沒有真實 ID 不種；**全站預設 OG 圖**：`clubs.og_image_key` 需要圖片上傳。三者都留空，等真實值。

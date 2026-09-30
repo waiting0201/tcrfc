@@ -94,6 +94,8 @@ public partial class ClubDbContext : DbContext
 
     public virtual DbSet<DrawRoster> DrawRosters { get; set; }
 
+    public virtual DbSet<DrawRosterVersion> DrawRosterVersions { get; set; }
+
     public virtual DbSet<EmailLog> EmailLogs { get; set; }
 
     public virtual DbSet<EmailTemplate> EmailTemplates { get; set; }
@@ -109,6 +111,10 @@ public partial class ClubDbContext : DbContext
     public virtual DbSet<EventTypesI18n> EventTypesI18ns { get; set; }
 
     public virtual DbSet<FanEvent> FanEvents { get; set; }
+
+    public virtual DbSet<FanEventArticle> FanEventArticles { get; set; }
+
+    public virtual DbSet<FanEventImage> FanEventImages { get; set; }
 
     public virtual DbSet<FanEventRegistration> FanEventRegistrations { get; set; }
 
@@ -1808,6 +1814,8 @@ public partial class ClubDbContext : DbContext
 
             entity.ToTable("comic_episodes");
 
+            entity.HasIndex(e => new { e.ClubId, e.EpisodeNo }, "UQ_comic_episodes_club_no").IsUnique();
+
             entity.HasIndex(e => e.RowSeq, "UQ_comic_episodes_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -1832,6 +1840,7 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("row_seq");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
+                .HasDefaultValue("draft", "DF_comic_episodes_status")
                 .HasColumnName("status");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
@@ -1894,9 +1903,11 @@ public partial class ClubDbContext : DbContext
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
             entity.Property(e => e.ImageKey)
                 .HasMaxLength(500)
                 .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -2016,9 +2027,11 @@ public partial class ClubDbContext : DbContext
 
             entity.ToTable("draw_rosters");
 
-            entity.HasIndex(e => new { e.MemberDrawId, e.MemberNoSnapshot }, "UQ_draw_rosters_draw_member_no").IsUnique();
+            entity.HasIndex(e => new { e.MemberDrawId, e.RosterVersion, e.IsWinner }, "IX_draw_rosters_draw_winner");
 
-            entity.HasIndex(e => new { e.MemberDrawId, e.SerialNo }, "UQ_draw_rosters_draw_serial").IsUnique();
+            entity.HasIndex(e => new { e.MemberDrawId, e.RosterVersion, e.MemberNoSnapshot }, "UQ_draw_rosters_draw_ver_member_no").IsUnique();
+
+            entity.HasIndex(e => new { e.MemberDrawId, e.RosterVersion, e.SerialNo }, "UQ_draw_rosters_draw_ver_serial").IsUnique();
 
             entity.HasIndex(e => e.RowSeq, "UQ_draw_rosters_row_seq")
                 .IsUnique()
@@ -2030,6 +2043,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.ClaimMethod)
                 .HasMaxLength(32)
                 .HasColumnName("claim_method");
+            entity.Property(e => e.ClaimedAt)
+                .HasPrecision(3)
+                .HasColumnName("claimed_at");
             entity.Property(e => e.ClubId).HasColumnName("club_id");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
@@ -2039,6 +2055,7 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.FulfilmentStatus)
                 .HasMaxLength(16)
                 .HasColumnName("fulfilment_status");
+            entity.Property(e => e.IsBackup).HasColumnName("is_backup");
             entity.Property(e => e.IsWinner).HasColumnName("is_winner");
             entity.Property(e => e.MemberDrawId).HasColumnName("member_draw_id");
             entity.Property(e => e.MemberNoSnapshot)
@@ -2052,10 +2069,25 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.PrizeName)
                 .HasMaxLength(128)
                 .HasColumnName("prize_name");
+            entity.Property(e => e.RecipientAddress)
+                .HasMaxLength(500)
+                .HasColumnName("recipient_address");
+            entity.Property(e => e.RecipientName)
+                .HasMaxLength(64)
+                .HasColumnName("recipient_name");
+            entity.Property(e => e.RecipientPhone)
+                .HasMaxLength(32)
+                .HasColumnName("recipient_phone");
+            entity.Property(e => e.RosterVersion)
+                .HasDefaultValue(1, "DF_draw_rosters_version")
+                .HasColumnName("roster_version");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
             entity.Property(e => e.SerialNo).HasColumnName("serial_no");
+            entity.Property(e => e.ShippedAt)
+                .HasPrecision(3)
+                .HasColumnName("shipped_at");
             entity.Property(e => e.TierSnapshot)
                 .HasMaxLength(16)
                 .HasColumnName("tier_snapshot");
@@ -2085,6 +2117,78 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.DrawRosterUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_draw_rosters_updated_by");
+        });
+
+        modelBuilder.Entity<DrawRosterVersion>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("draw_roster_versions");
+
+            entity.HasIndex(e => new { e.MemberDrawId, e.RosterVersion }, "UQ_draw_roster_versions_draw_ver").IsUnique();
+
+            entity.HasIndex(e => e.RowSeq, "UQ_draw_roster_versions_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.GeneratedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("generated_at");
+            entity.Property(e => e.GeneratedBy).HasColumnName("generated_by");
+            entity.Property(e => e.MemberDrawId).HasColumnName("member_draw_id");
+            entity.Property(e => e.RosterHash)
+                .HasMaxLength(64)
+                .HasColumnName("roster_hash");
+            entity.Property(e => e.RosterVersion).HasColumnName("roster_version");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SnapshotAt)
+                .HasPrecision(3)
+                .HasColumnName("snapshot_at");
+            entity.Property(e => e.TotalCount).HasColumnName("total_count");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.Property(e => e.VoidReason)
+                .HasMaxLength(255)
+                .HasColumnName("void_reason");
+            entity.Property(e => e.VoidedAt)
+                .HasPrecision(3)
+                .HasColumnName("voided_at");
+            entity.Property(e => e.VoidedBy).HasColumnName("voided_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.DrawRosterVersionCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_draw_roster_versions_created_by");
+
+            entity.HasOne(d => d.GeneratedByNavigation).WithMany(p => p.DrawRosterVersionGeneratedByNavigations)
+                .HasForeignKey(d => d.GeneratedBy)
+                .HasConstraintName("FK_draw_roster_versions_generated_by");
+
+            entity.HasOne(d => d.MemberDraw).WithMany(p => p.DrawRosterVersions)
+                .HasForeignKey(d => d.MemberDrawId)
+                .OnDelete(DeleteBehavior.ClientSetNull)
+                .HasConstraintName("FK_draw_roster_versions_draw");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.DrawRosterVersionUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_draw_roster_versions_updated_by");
+
+            entity.HasOne(d => d.VoidedByNavigation).WithMany(p => p.DrawRosterVersionVoidedByNavigations)
+                .HasForeignKey(d => d.VoidedBy)
+                .HasConstraintName("FK_draw_roster_versions_voided_by");
         });
 
         modelBuilder.Entity<EmailLog>(entity =>
@@ -2416,12 +2520,21 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("id");
             entity.Property(e => e.Capacity).HasColumnName("capacity");
             entity.Property(e => e.ClubId).HasColumnName("club_id");
+            entity.Property(e => e.CoverKey)
+                .HasMaxLength(500)
+                .HasColumnName("cover_key");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.EndsAt)
+                .HasPrecision(3)
+                .HasColumnName("ends_at");
             entity.Property(e => e.IsPaidMembersOnly).HasColumnName("is_paid_members_only");
+            entity.Property(e => e.RegistrationDeadlineAt)
+                .HasPrecision(3)
+                .HasColumnName("registration_deadline_at");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -2431,11 +2544,16 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.StartsAt)
                 .HasPrecision(3)
                 .HasColumnName("starts_at");
+            entity.Property(e => e.Status)
+                .HasMaxLength(16)
+                .HasDefaultValue("draft", "DF_fan_events_status")
+                .HasColumnName("status");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("updated_at");
             entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+            entity.Property(e => e.VenueId).HasColumnName("venue_id");
 
             entity.HasOne(d => d.Club).WithMany(p => p.FanEvents)
                 .HasForeignKey(d => d.ClubId)
@@ -2449,6 +2567,76 @@ public partial class ClubDbContext : DbContext
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.FanEventUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
                 .HasConstraintName("FK_fan_events_updated_by");
+
+            entity.HasOne(d => d.Venue).WithMany(p => p.FanEvents)
+                .HasForeignKey(d => d.VenueId)
+                .HasConstraintName("FK_fan_events_venue");
+        });
+
+        modelBuilder.Entity<FanEventArticle>(entity =>
+        {
+            entity.HasKey(e => new { e.FanEventId, e.ArticleId });
+
+            entity.ToTable("fan_event_articles");
+
+            entity.Property(e => e.FanEventId).HasColumnName("fan_event_id");
+            entity.Property(e => e.ArticleId).HasColumnName("article_id");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+
+            entity.HasOne(d => d.Article).WithMany(p => p.FanEventArticles)
+                .HasForeignKey(d => d.ArticleId)
+                .HasConstraintName("FK_fan_event_articles_article");
+
+            entity.HasOne(d => d.FanEvent).WithMany(p => p.FanEventArticles)
+                .HasForeignKey(d => d.FanEventId)
+                .HasConstraintName("FK_fan_event_articles_event");
+        });
+
+        modelBuilder.Entity<FanEventImage>(entity =>
+        {
+            entity.HasKey(e => e.Id).IsClustered(false);
+
+            entity.ToTable("fan_event_images");
+
+            entity.HasIndex(e => e.RowSeq, "UQ_fan_event_images_row_seq")
+                .IsUnique()
+                .IsClustered();
+
+            entity.Property(e => e.Id)
+                .HasDefaultValueSql("(newid())")
+                .HasColumnName("id");
+            entity.Property(e => e.CreatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("created_at");
+            entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.FanEventId).HasColumnName("fan_event_id");
+            entity.Property(e => e.ImageHeight).HasColumnName("image_height");
+            entity.Property(e => e.ImageKey)
+                .HasMaxLength(500)
+                .HasColumnName("image_key");
+            entity.Property(e => e.ImageWidth).HasColumnName("image_width");
+            entity.Property(e => e.RowSeq)
+                .ValueGeneratedOnAdd()
+                .HasColumnName("row_seq");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
+            entity.Property(e => e.UpdatedAt)
+                .HasPrecision(3)
+                .HasDefaultValueSql("(sysutcdatetime())")
+                .HasColumnName("updated_at");
+            entity.Property(e => e.UpdatedBy).HasColumnName("updated_by");
+
+            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.FanEventImageCreatedByNavigations)
+                .HasForeignKey(d => d.CreatedBy)
+                .HasConstraintName("FK_fan_event_images_created_by");
+
+            entity.HasOne(d => d.FanEvent).WithMany(p => p.FanEventImages)
+                .HasForeignKey(d => d.FanEventId)
+                .HasConstraintName("FK_fan_event_images_event");
+
+            entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.FanEventImageUpdatedByNavigations)
+                .HasForeignKey(d => d.UpdatedBy)
+                .HasConstraintName("FK_fan_event_images_updated_by");
         });
 
         modelBuilder.Entity<FanEventRegistration>(entity =>
@@ -2457,6 +2645,12 @@ public partial class ClubDbContext : DbContext
 
             entity.ToTable("fan_event_registrations");
 
+            entity.HasIndex(e => new { e.FanEventId, e.Status }, "IX_fan_event_registrations_event_status");
+
+            entity.HasIndex(e => new { e.FanEventId, e.MemberId }, "UQ_fan_event_registrations_event_member")
+                .IsUnique()
+                .HasFilter("([member_id] IS NOT NULL AND [status]<>'cancelled')");
+
             entity.HasIndex(e => e.RowSeq, "UQ_fan_event_registrations_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -2464,19 +2658,32 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
+            entity.Property(e => e.ApplicantName)
+                .HasMaxLength(64)
+                .HasColumnName("applicant_name");
             entity.Property(e => e.ClubId).HasColumnName("club_id");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.Email)
+                .HasMaxLength(255)
+                .HasColumnName("email");
             entity.Property(e => e.FanEventId).HasColumnName("fan_event_id");
             entity.Property(e => e.MemberId).HasColumnName("member_id");
+            entity.Property(e => e.Note)
+                .HasMaxLength(500)
+                .HasColumnName("note");
+            entity.Property(e => e.Phone)
+                .HasMaxLength(32)
+                .HasColumnName("phone");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
+                .HasDefaultValue("registered", "DF_fan_event_registrations_status")
                 .HasColumnName("status");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
@@ -2521,6 +2728,9 @@ public partial class ClubDbContext : DbContext
                 .HasMaxLength(10)
                 .HasColumnName("locale");
             entity.Property(e => e.Description).HasColumnName("description");
+            entity.Property(e => e.Location)
+                .HasMaxLength(200)
+                .HasColumnName("location");
             entity.Property(e => e.Name)
                 .HasMaxLength(128)
                 .HasColumnName("name");
@@ -3264,9 +3474,11 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Reason)
                 .HasMaxLength(255)
                 .HasColumnName("reason");
+            entity.Property(e => e.ReservedAfter).HasColumnName("reserved_after");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
+            entity.Property(e => e.StockAfter).HasColumnName("stock_after");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -3389,7 +3601,7 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("size");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
-                .HasDefaultValue("pending")
+                .HasDefaultValue("pending", "DF_jersey_issues_status")
                 .HasColumnName("status");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
@@ -3839,7 +4051,7 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("row_seq");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
-                .HasDefaultValue("active")
+                .HasDefaultValue("active", "DF_member_cards_status")
                 .HasColumnName("status");
             entity.Property(e => e.Token)
                 .HasMaxLength(64)
@@ -3903,6 +4115,7 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.DrawnAt)
                 .HasPrecision(3)
                 .HasColumnName("drawn_at");
+            entity.Property(e => e.InternalNote).HasColumnName("internal_note");
             entity.Property(e => e.LockedAt)
                 .HasPrecision(3)
                 .HasColumnName("locked_at");
@@ -4017,7 +4230,7 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.SeasonId).HasColumnName("season_id");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
-                .HasDefaultValue("active")
+                .HasDefaultValue("active", "DF_memberships_status")
                 .HasColumnName("status");
             entity.Property(e => e.Tier)
                 .HasMaxLength(16)
@@ -4252,7 +4465,7 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.StartsOn).HasColumnName("starts_on");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
-                .HasDefaultValue("draft")
+                .HasDefaultValue("draft", "DF_membership_plans_status")
                 .HasColumnName("status");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
@@ -4524,6 +4737,8 @@ public partial class ClubDbContext : DbContext
 
             entity.HasIndex(e => new { e.PaymentStatus, e.CreatedAt }, "IX_orders_payment_status_created");
 
+            entity.HasIndex(e => new { e.SellingClubId, e.CreatedAt }, "IX_orders_selling_created").IsDescending(false, true);
+
             entity.HasIndex(e => e.LookupToken, "UQ_orders_lookup_token").IsUnique();
 
             entity.HasIndex(e => e.OrderNo, "UQ_orders_order_no").IsUnique();
@@ -4535,16 +4750,29 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
+            entity.Property(e => e.CancelReason)
+                .HasMaxLength(255)
+                .HasColumnName("cancel_reason");
+            entity.Property(e => e.CancelledAt)
+                .HasPrecision(3)
+                .HasColumnName("cancelled_at");
             entity.Property(e => e.ClubId).HasColumnName("club_id");
             entity.Property(e => e.CollectingClubId).HasColumnName("collecting_club_id");
+            entity.Property(e => e.CompletedAt)
+                .HasPrecision(3)
+                .HasColumnName("completed_at");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.CustomerNote)
+                .HasMaxLength(500)
+                .HasColumnName("customer_note");
             entity.Property(e => e.DeliveryMethod)
                 .HasMaxLength(16)
                 .HasColumnName("delivery_method");
+            entity.Property(e => e.InternalNote).HasColumnName("internal_note");
             entity.Property(e => e.IsManual).HasColumnName("is_manual");
             entity.Property(e => e.LinepayTransactionId)
                 .HasMaxLength(64)
@@ -4563,6 +4791,10 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.PaidAt)
                 .HasPrecision(3)
                 .HasColumnName("paid_at");
+            entity.Property(e => e.PaymentMethod)
+                .HasMaxLength(16)
+                .HasDefaultValue("linepay", "DF_orders_payment_method")
+                .HasColumnName("payment_method");
             entity.Property(e => e.PaymentStatus)
                 .HasMaxLength(16)
                 .HasDefaultValue("pending")
@@ -4580,6 +4812,14 @@ public partial class ClubDbContext : DbContext
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
             entity.Property(e => e.SellingClubId).HasColumnName("selling_club_id");
+            entity.Property(e => e.SettledOn).HasColumnName("settled_on");
+            entity.Property(e => e.SettlementNote)
+                .HasMaxLength(500)
+                .HasColumnName("settlement_note");
+            entity.Property(e => e.SettlementStatus)
+                .HasMaxLength(16)
+                .HasDefaultValue("pending", "DF_orders_settlement_status")
+                .HasColumnName("settlement_status");
             entity.Property(e => e.ShippingFee).HasColumnName("shipping_fee");
             entity.Property(e => e.Subtotal).HasColumnName("subtotal");
             entity.Property(e => e.Total).HasColumnName("total");
@@ -4970,7 +5210,7 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("address");
             entity.Property(e => e.ApplicableTier)
                 .HasMaxLength(16)
-                .HasDefaultValue("all")
+                .HasDefaultValue("all", "DF_partner_stores_applicable_tier")
                 .HasColumnName("applicable_tier");
             entity.Property(e => e.BusinessHours).HasColumnName("business_hours");
             entity.Property(e => e.Category)
@@ -5011,7 +5251,7 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.StartOn).HasColumnName("start_on");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
-                .HasDefaultValue("draft")
+                .HasDefaultValue("draft", "DF_partner_stores_status")
                 .HasColumnName("status");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
@@ -5466,6 +5706,10 @@ public partial class ClubDbContext : DbContext
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
             entity.Property(e => e.IsNewArrival).HasColumnName("is_new_arrival");
+            entity.Property(e => e.OutOfStockBehavior)
+                .HasMaxLength(16)
+                .HasDefaultValue("show_unavailable", "DF_products_oos")
+                .HasColumnName("out_of_stock_behavior");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -5555,6 +5799,8 @@ public partial class ClubDbContext : DbContext
 
             entity.ToTable("product_variants");
 
+            entity.HasIndex(e => e.ProductId, "IX_product_variants_product");
+
             entity.HasIndex(e => e.RowSeq, "UQ_product_variants_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -5574,6 +5820,7 @@ public partial class ClubDbContext : DbContext
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.LowStockThreshold).HasColumnName("low_stock_threshold");
             entity.Property(e => e.Price).HasColumnName("price");
             entity.Property(e => e.ProductId).HasColumnName("product_id");
             entity.Property(e => e.ReservedQty).HasColumnName("reserved_qty");
@@ -5587,8 +5834,10 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Sku)
                 .HasMaxLength(64)
                 .HasColumnName("sku");
+            entity.Property(e => e.SortOrder).HasColumnName("sort_order");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
+                .HasDefaultValue("active", "DF_product_variants_status")
                 .HasColumnName("status");
             entity.Property(e => e.StockQty).HasColumnName("stock_qty");
             entity.Property(e => e.UpdatedAt)
@@ -5929,6 +6178,10 @@ public partial class ClubDbContext : DbContext
 
             entity.ToTable("refund_requests");
 
+            entity.HasIndex(e => new { e.ClubId, e.Status }, "IX_refund_requests_club_status");
+
+            entity.HasIndex(e => e.OrderId, "IX_refund_requests_order");
+
             entity.HasIndex(e => e.RowSeq, "UQ_refund_requests_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -5943,22 +6196,37 @@ public partial class ClubDbContext : DbContext
                 .HasDefaultValueSql("(sysutcdatetime())")
                 .HasColumnName("created_at");
             entity.Property(e => e.CreatedBy).HasColumnName("created_by");
+            entity.Property(e => e.NeedsReturn)
+                .HasDefaultValue(true, "DF_refund_requests_needs_return")
+                .HasColumnName("needs_return");
             entity.Property(e => e.OrderId).HasColumnName("order_id");
             entity.Property(e => e.Reason)
                 .HasMaxLength(255)
                 .HasColumnName("reason");
+            entity.Property(e => e.ReceivedAt)
+                .HasPrecision(3)
+                .HasColumnName("received_at");
+            entity.Property(e => e.ReceivedBy).HasColumnName("received_by");
             entity.Property(e => e.RefundAmount).HasColumnName("refund_amount");
             entity.Property(e => e.RefundMethod)
                 .HasMaxLength(32)
                 .HasColumnName("refund_method");
+            entity.Property(e => e.RefundReference)
+                .HasMaxLength(64)
+                .HasColumnName("refund_reference");
             entity.Property(e => e.RefundedAt)
                 .HasPrecision(3)
                 .HasColumnName("refunded_at");
+            entity.Property(e => e.RefundedBy).HasColumnName("refunded_by");
+            entity.Property(e => e.ReviewNote)
+                .HasMaxLength(500)
+                .HasColumnName("review_note");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
+                .HasDefaultValue("requested", "DF_refund_requests_status")
                 .HasColumnName("status");
             entity.Property(e => e.UpdatedAt)
                 .HasPrecision(3)
@@ -5983,6 +6251,14 @@ public partial class ClubDbContext : DbContext
                 .HasForeignKey(d => d.OrderId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_refund_requests_order");
+
+            entity.HasOne(d => d.ReceivedByNavigation).WithMany(p => p.RefundRequestReceivedByNavigations)
+                .HasForeignKey(d => d.ReceivedBy)
+                .HasConstraintName("FK_refund_requests_received_by");
+
+            entity.HasOne(d => d.RefundedByNavigation).WithMany(p => p.RefundRequestRefundedByNavigations)
+                .HasForeignKey(d => d.RefundedBy)
+                .HasConstraintName("FK_refund_requests_refunded_by");
 
             entity.HasOne(d => d.UpdatedByNavigation).WithMany(p => p.RefundRequestUpdatedByNavigations)
                 .HasForeignKey(d => d.UpdatedBy)
@@ -6315,6 +6591,8 @@ public partial class ClubDbContext : DbContext
 
             entity.ToTable("shipments");
 
+            entity.HasIndex(e => e.OrderId, "UQ_shipments_order").IsUnique();
+
             entity.HasIndex(e => e.RowSeq, "UQ_shipments_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -6322,6 +6600,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.Id)
                 .HasDefaultValueSql("(newid())")
                 .HasColumnName("id");
+            entity.Property(e => e.ArrivalNotifiedAt)
+                .HasPrecision(3)
+                .HasColumnName("arrival_notified_at");
             entity.Property(e => e.Carrier)
                 .HasMaxLength(32)
                 .HasColumnName("carrier");
@@ -6335,6 +6616,7 @@ public partial class ClubDbContext : DbContext
                 .HasPrecision(3)
                 .HasColumnName("delivered_at");
             entity.Property(e => e.OrderId).HasColumnName("order_id");
+            entity.Property(e => e.PickupDeadlineOn).HasColumnName("pickup_deadline_on");
             entity.Property(e => e.PickupStatus)
                 .HasMaxLength(16)
                 .HasColumnName("pickup_status");
@@ -6365,8 +6647,8 @@ public partial class ClubDbContext : DbContext
                 .HasForeignKey(d => d.CreatedBy)
                 .HasConstraintName("FK_shipments_created_by");
 
-            entity.HasOne(d => d.Order).WithMany(p => p.Shipments)
-                .HasForeignKey(d => d.OrderId)
+            entity.HasOne(d => d.Order).WithOne(p => p.Shipment)
+                .HasForeignKey<Shipment>(d => d.OrderId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_shipments_order");
 

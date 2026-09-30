@@ -4093,6 +4093,281 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 
 ---
 
+### B1 回應形狀補齊（C1 批補記，2026-09-30）
+
+畫面端原本是讀 DTO 推定的形狀，這裡逐項寫死。所有回應都是 camelCase；`<Label>` 結尾的欄位是日常中文標籤；日期 `yyyy-MM-dd`；時間戳是 UTC ISO 8601（**JSON 不帶 `Z`**，前端一律當 UTC 解析，見 C1 通則）。
+
+| 端點 | 回應形狀 |
+|---|---|
+| `POST /members` → 201、`PUT /members/{id}/status`、`PUT /members/{id}/note` | **一律回會員詳情**（同 `GET /members/{id}`）：`{ id, memberNo, name, email, phone, birthOn, signupSource(+Label), lineBound, status, displayStatus(+Label), locale(+Label), emailVerifiedAt, createdAt, lastLoginAt, internalNote, mergedIntoMemberNo, memberships: [ { membership: <會籍摘要>, lastAdjustReason, lastAdjustedAt, payments[], cards[] } ], jerseyIssues: [ { id, clubId, clubCode, recipientName, size, deliveryMethod(+Label), status(+Label), shippedOn, receivedOn } ], isMasked, canReveal }`。`birthOn` 是字串（`yyyy-MM-dd` 或遮罩 `****-**-**`）。建立後回應的個資是否遮罩依呼叫者是否有 `member.pii.reveal`。 |
+| `GET /trials/{id}/sign-in-sheet` | `{ trialId, trialOn, teamName, venueName, audienceZh, generatedAt, rows: [ { no, registrationNo, applicantName, phone, guardianName, guardianPhone, status } ] }`（`rows` 只含會到場的人：待確認／已確認／已繳費／完成；不含健康聲明與備註） |
+| K3 `GET /jerseys` 清單項 | 分頁 `{ items, page, pageSize, totalCount, totalPages }`，每一項與 `GET /jerseys/{id}` 完全相同：`{ id, memberId, memberNo, membershipId, recipientName, phone, size, deliveryMethod(+Label), address, status, statusLabel, shippedOn, receivedOn, createdAt, updatedAt, isMasked }`（收件三欄依 `member.pii.reveal` 遮罩） |
+| K2 會籍詳情 `GET /memberships/{id}`、`POST /memberships`、`POST /memberships/activate`、`PUT /memberships/{id}/adjust`、`POST /memberships/{id}/cards`… | `{ membership: <會籍清單項>, lastAdjustReason, lastAdjustedAt, payments: [ <付款> ], cards: [ <卡> ], cardQuota, jerseyQuota }`。**`membership`（＝清單項）欄位**：`{ membershipId, memberId, memberNo, memberName（遮罩）, tier(+Label), status, effectiveStatus(+Label), seasonId, seasonCode, startOn, endOn, daysToExpire, planId, planName, cardCount, paidTotal, updatedAt }`。**付款 `<付款>`**：`{ id, planId, planName, method(+Label), amount, paidOn, collectingClubCode, beneficiaryClubCode, note, handledByName, activatedStartOn, activatedEndOn, createdAt }`；**卡 `<卡>`**：`{ id, membershipId, holderName, status(+Label), issuedAt, revokedAt, reissueCount }`（**不含 QR 憑證字串**） |
+| `GET /membership-payments` | **分頁物件**（不是陣列，已定案）：`{ items: [ { payment: <付款>, membershipId, memberId, memberNo, seasonCode } ], page, pageSize, totalCount, totalPages }` |
+| L4 `POST /calendar/matches/import` | body 是 CSV 原始位元組。全部通過 → **200** `{ importedCount, errors: [] }`；有任何一列不合格（含與資料庫既有場次編號衝突）→ **400** `{ importedCount: 0, errors: [ { rowNumber, reason } ] }`（`rowNumber` 從 1 起算，表頭是第 1 行；**整批不寫入**，不是部分成功；`reason` 是日常中文）。球隊列級授權不合格的列也算列錯誤（不是 403）。**檔案是空的或表頭不符** → 400 一般錯誤格式（`{ title, status, detail }`，不是 `errors` 陣列），表頭必須依序是 C4 賽程匯入的欄位 |
+
+### 會籍球季下拉（C1 補，2026-09-30）
+
+`GET /api/v1/admin/{club}/membership-seasons`（**`member.membership.view`**）→ `[ { id, code, startOn, endOn } ]`，只含目前俱樂部的球季（新→舊）。給會籍畫面（方案表單、開通、續會名單）用——客服／行政沒有 `team.competition.view`，**不要再借用 `GET …/seasons`**（會 403）。
+
+---
+
+## C1：F1 漫畫／F2 球迷會活動／S1–S6 站內商店／K5 抽獎名單／新聞挑選搜尋（2026-09-30，`backend-engineer`）
+
+主站規劃書 §4.6 F1／F2、§4.13 S1–S6、§4.11 K5（後台），對應 `STATUS.md` 的 `S3-1`／`S3-3`／`S3-4`／`S3-8`。
+沿用 E1a／B1 的全部通則（路徑、錯誤格式、`content: { zh, en? }` 雙語、`PUT` 整份取代、`PUT …/order`、`POST …/batch/*`、分頁形狀、跨俱樂部 id 一律 404、標籤欄位、敏感操作日誌）。
+**本節只寫 C1 新增的規則與每支端點的契約。給畫面的人：只讀這一節就能串接，不需要看程式碼。**
+
+### C1 通則（新增）
+
+| 項目 | 規定 |
+|---|---|
+| 時間戳與日期 | **時間戳一律是 UTC**，回應的 JSON **不帶時區記號**（例如 `2026-09-30T09:12:33.123`，前端一律當 UTC 解析，顯示時 +8 小時）。**送進來的時間戳也一樣：無時區記號視為 UTC**（帶 `Z` 或 `+08:00` 的照標示換算）。日期欄位（`claimDeadlineOn`、`pickupDeadlineOn`、`settledOn`…）是台灣當地日期 `yyyy-MM-dd`。 |
+| 圖片 | 同 E1a：含圖片的建立／更新是 `multipart/form-data`（`payload` ＋ 檔案欄位）；圖集（漫畫內頁、活動回顧、商品圖）用獨立端點 `POST …/pages`／`…/images`（檔案欄位 `files`，**一次可多張**，整批全有或全無：任何一張不合格 → 400 且不留物件）。 |
+| 訂單狀態 | **訂單狀態 `orderStatus` 資料庫本身就是中文**（`待付款／已付款／備貨中／已出貨／已完成／已取消／退貨處理中／已退款`），直接顯示、直接當篩選參數傳。其餘狀態（付款狀態、退款案件、庫存異動…）是英文代碼＋`…Label`。 |
+| 個資遮罩 | **訂單收件人（姓名／電話／地址）視同會員個資**：完整值需 `shop.order.reveal`（系統管理員、客服／行政、合作球隊管理）；其餘一律遮罩，回應有 `isMasked`（這份是不是遮罩值）與（詳情）`canReveal`。**沒有 reveal 權限時關鍵字搜尋只比對訂單編號**（否則搜尋會變成探測個資的工具）。抽獎名單與報名名單同理（`member.pii.reveal`）。 |
+| 匯出 | 受限匯出（`shop.order.export`、`shop.report.export`、`member.draw.export`）＋公開版名單匯出：**必填 `purpose`（≤200 字，缺 → 400）**，寫敏感操作日誌。訂單匯出**先套資料範圍（`selling_club_id`）再套受限欄位授權**，兩道關卡。CSV 一律 UTF-8 BOM。 |
+| 資料範圍 | 商品／庫存／出貨／退款以 `club_id`；**訂單一律以 `selling_club_id` 為目前俱樂部**（受範圍限制的帳號看不到別的俱樂部的訂單）。藍鯨的訂單由磐石代收（`collectingClubId` 是收款主體俱樂部），只在藍鯨站台看得到。 |
+| 庫存 | **庫存量與已保留量只透過庫存異動改動**（`inventory_movements`，可追溯數量、原因、經辦人）；規格 CRUD 不能直接改庫存（新增規格時的 `initialStock` 也是記成一筆進貨）。可售量＝庫存量－已保留量。**庫存、訂單、商品可購買狀態一律不讀快取**（`ArchitectureTests` 鎖定；並行安全靠交易內對規格列加更新鎖，並行扣減不會超賣）。 |
+| 缺貨／可售 | 商品在資料庫只有 `draft`（下架）／`published`（上架）兩態；**「缺貨」由庫存自動判定**（`displayStatus = sold_out`：已上架且所有販售中規格可售量 ≤ 0）。 |
+| 金流與發票 | **不串接**（B-10：LINE Pay 商店號未到位）。金流與電子發票以介面隔開（`ILinePayGateway`／`IEInvoiceService`，預設「尚未串接」實作）；訂單狀態機、庫存扣減與回補、退款紀錄等後台邏輯都能用。LINE Pay 訂單的退款執行目前回 **409「LINE Pay 尚未串接」**（案件退回原狀態）；現場收款訂單走人工退款。 |
+| 不做 | 通知信（中獎通知、訂單通知、退款通知全部不寄，全系統沒有寄信通路）、折扣碼與會員價、多倉別／批號／預購、物流商 API、兩隊分潤計算與結算單、前台抽獎頁。 |
+| 待付款釋回 | 目前**沒有背景排程**：`POST …/shop/orders/release-expired`（`shop.order.update`）把逾時未付款的訂單釋回庫存；日後前台結帳上線時由排程呼叫同一支服務。 |
+
+### 權限碼與角色矩陣（`db/seed/generate-club-seed-sql.py`，`role_permissions` 已種入，共 49 碼）
+
+| 權限碼 | 用途 | 系統管理員 | 內容編輯 | 商務／贊助 | 公關／媒體 | 客服／行政 | 檢視者 | 合作球隊管理（僅自家） |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| `culture.comic.view／create／update／delete` | F1 漫畫（**藍鯨不設，端點回 403**） | 全 | 全 | — | 全 | — | 唯讀 | —（藍鯨不設漫畫） |
+| `culture.fan_event.view／create／update／delete` | F2 球迷會活動與報名 | 全 | 全 | — | 全 | — | 唯讀 | 全 |
+| `shop.collection.*`（view／create／update／delete） | S1 商品系列 | 全 | view／create／update | 全 | 唯讀 | — | 唯讀 | 全 |
+| `shop.product.*` | S1 商品、圖集 | 全 | view／create／update | 全 | 唯讀 | 唯讀 | 唯讀 | 全 |
+| `shop.variant.*` | S1 規格與售價（**檢視者沒有＝看不到金額**） | 全 | 唯讀 | 全 | 唯讀 | 唯讀 | — | 全 |
+| `shop.cost.view／update`（🔴 受限） | 商品成本（依 `docs/12b` §7：系統管理員與商務／贊助） | ✔ | — | ✔ | — | — | — | — |
+| `shop.inventory.view／update` | S2 庫存 | 全 | — | 唯讀 | — | 全 | — | 全 |
+| `shop.order.view／create／update` | S3 訂單、人工建立、狀態動作與分帳標記 | 全 | — | 唯讀（遮罩） | — | 全 | — | 全 |
+| `shop.order.reveal` | 訂單收件人完整資料 | ✔ | — | — | — | ✔ | — | ✔ |
+| `shop.order.export`（🔴 受限） | 訂單 CSV | ✔ | — | — | — | ✔ | — | — |
+| `shop.shipment.view／update` | S4 出貨與物流 | 全 | — | — | — | 全 | — | 全 |
+| `shop.refund.view／update` | S5 退貨案件（建立、審核、驗收） | 全 | — | — | — | 全 | — | 唯讀 |
+| `shop.refund.execute`（**sysadmin_only**） | 執行退款 | ✔ | — | — | — | — | — | — |
+| `shop.setting.view／update` | S6 運費與政策 | 全 | — | 全 | — | — | — | 全 |
+| `shop.credential.view／update`（**sysadmin_only**＋受限） | S6 LINE Pay 與發票憑證 | ✔ | — | — | — | — | — | — |
+| `shop.report.view`／`shop.report.export`（🔴 受限） | S6 報表／匯出 | 全 | — | 全 | — | — | — | 只有 view |
+| `shop.donation_code.*`（**全系統共用，不分俱樂部**） | S6 發票捐贈碼 | 全 | — | 全 | — | — | — | — |
+| `member.draw.view／create／update` | K5 抽獎活動、名單、中獎人、發放 | 全 | — | — | — | 全 | — | — |
+| `member.draw.announce` | K5 產生公布稿（**只取得遮罩名單**） | ✔ | — | — | ✔ | ✔ | — | — |
+| `member.draw.export`（🔴 受限） | K5 中獎人聯絡名單與出貨清單 | ✔ | — | — | — | ✔ | — | — |
+
+`GET /api/v1/admin/auth/me` 回傳權限碼清單，畫面用它決定要不要顯示按鈕（**權限碼只給程式判斷，不得顯示**）。
+
+---
+
+### F1 漫畫 `/api/v1/admin/{club}/comic`（藍鯨 → 一律 403「台中藍鯨不設漫畫，這個功能只在台中磐石使用。」，系統管理員也一樣）
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET／PUT /about` | view／update | **企劃設定（8.1 世界觀說明頁）** `{ zh: { title, body }, en?: { title, body }, updatedAt }`；PUT 整份取代（省略 `en` ＝ 移除英文版；`title` ≤ 200、`body` ≤ 20000）。 |
+| `GET /characters` | view | 陣列（依 `sortOrder`）：`{ id, playerId, playerName, imageKey, imageUrl, imageThumbUrl, sortOrder, zh: { name, description }, en?, updatedAt }` |
+| `GET /characters/{id}` | view | 同上單筆 |
+| `POST /characters` → 201／`PUT /characters/{id}` | create／update | **multipart**：`payload` `{ playerId?（關聯真實球員，須屬於本俱樂部，否則 400）, sortOrder?, removeImage?, content: { zh: { name（必填 ≤64）, description? }, en? } }` ＋ 選填檔案欄位 `image`。新增省略 `sortOrder` ＝ 排最後。圖片規則同 E1a（新檔＝換圖、`removeImage`、同時給 → 400） |
+| `DELETE /characters/{id}` → 204 | delete | 一併刪圖片物件 |
+| `PUT /characters/order` → 204 | update | `{ ids }` 重排 |
+| `GET /episodes?status=` | view | 陣列（集數新→舊）：`{ id, episodeNo, coverKey, coverUrl, coverThumbUrl, publishedOn, status(draft／published), statusLabel, isLatest, viewCount, pageCount, titleZh, titleEn, updatedAt }` |
+| `GET /episodes/{id}` | view | 詳情：以上＋`zh: { title }`、`en?`、`pages: [ { id, imageKey, imageUrl, imageThumbUrl, imageWidth, imageHeight, sortOrder } ]`、`createdAt` |
+| `POST /episodes` → 201／`PUT /episodes/{id}` | create／update | **multipart**：`payload` `{ episodeNo（≥1，同俱樂部唯一 → 重複 409）, publishedOn?, status（"draft"｜"published"）, removeCover?, content: { zh: { title（必填 ≤128） }, en? } }` ＋ 選填 `cover`。**新集數不能直接發布（還沒有內頁 → 400）；發布必須至少一張內頁**；發布時沒填 `publishedOn` ＝ 今天。 |
+| `DELETE /episodes/{id}` → 204 | delete | 一併刪封面與全部內頁物件 |
+| `POST /episodes/{id}/pages` → 201 | update | **multipart，檔案欄位 `files`（多張，≤60）**，依上傳順序接在既有內頁之後；回集數詳情 |
+| `DELETE /episodes/{id}/pages/{pageId}` → 204 | update | 已發布的集數不能刪光內頁（409） |
+| `PUT /episodes/{id}/pages/order` | update | `{ ids }` → 集數詳情 |
+
+**`isLatest` 是系統自動判定，不是人工勾選**：已發布、發布日不晚於今天（沒有發布日視為已到）的**最大集數**；每次新增／更新／刪除集數後重算（未來發布日的集數不算）。全部集數免費公開閱讀，沒有付費牆欄位。閱讀數 `viewCount` 唯讀（前台讀取時累計）。
+
+### F2 球迷會活動 `/api/v1/admin/{club}/fan-events`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET ?status=&from=&to=&keyword=` | view | 陣列（開始時間新→舊）：`{ id, slug, startsAt, endsAt, registrationDeadlineAt, capacity, isPaidMembersOnly, status(draft／published), statusLabel, coverKey, coverThumbUrl, venueId, nameZh, nameEn, registeredCount, waitlistCount, isRegistrationOpen, updatedAt }`。`from`／`to` 是台灣日期（含當天）。`registeredCount` ＝ 已報名＋已到場（佔名額）；`isRegistrationOpen` ＝ 已發布、截止與開始時間還沒過、名額有空位 |
+| `GET /{id}` | view | 詳情：以上＋`coverUrl`、`venueName`、`zh／en?: { name, description, location }`、`images: [ { id, imageKey, imageUrl, imageThumbUrl, imageWidth, imageHeight, sortOrder } ]`（**活動回顧圖集**）、`articles: [ { id, slug, titleZh, status } ]`（**活動回顧的關聯文章**）、`createdAt` |
+| `POST` → 201／`PUT /{id}` | create／update | **multipart**：`payload` `{ slug?, startsAt?, endsAt?, registrationDeadlineAt?（不可晚於開始）, capacity?（≥1，省略＝不限；不可低於已報名人數 → 409）, isPaidMembersOnly, venueId?, status, removeCover?, articleIds?（省略＝不變；[]＝清空；有值＝整份取代，須是本俱樂部或共用文章）, content: { zh: { name（必填）, description?, location? }, en? } }` ＋ 選填 `cover`。**發布必須填開始時間**。 |
+| `DELETE /{id}` → 204 | delete | **已有任何報名紀錄 → 409**（改為草稿）；一併刪封面與圖集物件 |
+| `POST /{id}/images` → 201 | update | multipart `files`（多張，≤40）→ 詳情 |
+| `DELETE /{id}/images/{imageId}` → 204／`PUT /{id}/images/order` | update | 同 F1 內頁 |
+| `GET /{id}/registrations?status=&keyword=` | view | 陣列：`{ id, memberId, memberNo, isMember, applicantName, phone, email, status(registered／waitlist／cancelled／attended), statusLabel, note, createdAt, isMasked }`。**姓名／電話／Email 依 `member.pii.reveal` 遮罩**（F2 的角色不因此取得會員模組權限）；沒有權限時 `keyword` 只比對會員編號 |
+| `POST /{id}/registrations` → 201 | update | 後台代填：`{ memberId?, applicantName?, phone?, email?, note? }`。會員報名只給 `memberId`；非會員必須有姓名與電話或 Email。**限付費會員的活動：非會員 → 400、沒有有效球迷會員會籍的會員 → 400**；同一會員重複報名 → 409；**名額已滿自動進候補**（回應 `status: "waitlist"`） |
+| `PUT /{id}/registrations/{registrationId}` | update | `{ status, note? }`：`registered`／`waitlist`／`cancelled`／`attended`。轉入佔名額的狀態（已報名／已到場）時名額已滿 → 409；只有已報名的人能標到場；`note` 省略＝不變、空字串＝清除 |
+
+### S1 商品與規格 `/api/v1/admin/{club}/shop/…`
+
+**系列 `/collections`**（`shop.collection.*`）：`GET ?status=` 陣列 `{ id, slug, sortOrder, status, statusLabel, nameZh, nameEn, productCount, updatedAt }`；`GET /{id}` 詳情多 `zh／en?: { name, narrative }`（**系列介紹文**）、`createdAt`；`POST`（201）／`PUT /{id}`：`{ slug?, sortOrder?, status（draft／published）, content: { zh: { name, narrative? }, en? } }`；`DELETE /{id}`（**系列底下有商品 → 409**）；`PUT /order`。
+
+**商品 `/products`**（`shop.product.*`）：
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET ?status=&collectionId=&keyword=&page=&pageSize=` | 分頁。項目：`{ id, slug, collectionId, collectionName, isNewArrival, sortOrder, status(draft／published), displayStatus(draft／published／sold_out), displayStatusLabel（下架（草稿）／上架／缺貨）, outOfStockBehavior(show_unavailable／hide), outOfStockBehaviorLabel, coverThumbUrl, nameZh, nameEn, variantCount, priceMin, priceMax, availableTotal, updatedAt }`。**`priceMin`／`priceMax`／`availableTotal` 只有持有 `shop.variant.view` 才有，否則 `null`**（檢視者看不到金額）。`keyword` 比對網址名稱、商品名稱與貨號 |
+| `GET /{id}` | 詳情：以上＋`sizeChart`（任意 JSON，沒有＝`null`）、`zh／en?: { name, narrative, seoTitle, seoDescription, tags（逗號分隔） }`、`images: [ { id, imageKey, imageUrl, imageThumbUrl, width, height, sortOrder } ]`、`variants: [ <規格> ]`（沒有 `shop.variant.view` → `[]`）、`canViewVariants`、`canViewCost`、`createdAt` |
+| `POST`（201）／`PUT /{id}` | JSON：`{ slug?, collectionId?（須屬於本俱樂部）, isNewArrival, sortOrder?, status, outOfStockBehavior?, sizeChart?（任意 JSON；PUT 省略＝清除）, content: { zh: { name（必填）, narrative?, seoTitle?, seoDescription?, tags? }, en? } }`。**新增時不能直接上架；上架前必須至少有一個販售中規格（400）**；`outOfStockBehavior` 省略：新增＝`show_unavailable`、更新＝不變 |
+| `DELETE /{id}` → 204 | **已有訂單 → 409**（改為下架）；一併刪規格與圖片物件 |
+| `PUT /order` | 排序 |
+| `POST /{id}/images` → 201／`DELETE /{id}/images/{imageId}`／`PUT /{id}/images/order` | 圖集（`files` 多張 ≤20），權限 `shop.product.update`；回商品詳情 |
+
+**規格 `/products/{productId}/variants`**（`shop.variant.*`）：`GET`（陣列）／`GET /{id}`／`POST`（201）／`PUT /{id}`／`DELETE /{id}`（**有訂單或保留紀錄 → 409，請改為停售**；沒有訂單的規格連同其庫存異動一併刪除）／`PUT /order`。
+**規格 `<規格>`**：`{ id, productId, sku, size, colour, label（「尺寸／顏色」）, price, salePrice, effectivePrice, cost, stockQty, reservedQty, availableQty, status(active／inactive), statusLabel, lowStockThreshold, isLowStock, sortOrder, updatedAt }`。**`cost` 只有 `shop.cost.view` 看得到，其餘為 `null`**。
+**寫入 payload**：`{ sku（必填，≤64，不可含空白，**全站唯一**含跨俱樂部 → 409）, size?, colour?, price（≥0）, salePrice?（0..price）, cost?, clearCost?, status?（active 預設／inactive）, lowStockThreshold?, sortOrder?, initialStock?（**只有新增有效**，記成一筆進貨）}`。**改成本需要 `shop.cost.update`，否則帶 `cost`／`clearCost` → 403；沒帶＝維持不變。** 庫存量不在這裡改。
+
+### S2 庫存 `/api/v1/admin/{club}/shop/inventory`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET ?keyword=&productId=&lowStockOnly=&status=&page=&pageSize=` | `shop.inventory.view` | 分頁，依可售量少→多：`{ variantId, productId, productName, productStatus, sku, label, status(+Label), stockQty, reservedQty, availableQty, lowStockThreshold, isLowStock }`。**`lowStockOnly=true` ＝ 補貨提醒清單**（販售中且可售量 ≤ 門檻；門檻＝規格自己的，沒有就用俱樂部設定 `lowStockThreshold`，預設 5） |
+| `GET /movements?variantId=&type=&from=&to=&orderId=&page=&pageSize=` | 同上 | 分頁（新→舊）：`{ id, variantId, sku, productName, movementType, movementTypeLabel（進貨／盤點／報損／調整／下單保留／釋回保留／售出扣減／取消回補／退貨回補）, quantity（**有正負號**；`reserve`／`release` 是保留量的變動，其餘是庫存量）, stockAfter, reservedAfter, reason, orderId, orderNo, handledByName, occurredAt }` |
+| `POST /movements` → 201 | `shop.inventory.update` | `{ variantId, type, quantity, reason? }`：`stock_in`（quantity > 0，增加）／`damage`（quantity > 0，減少，**原因必填**）／`adjust`（quantity 正負皆可、≠0，**原因必填**）／`stocktake`（**quantity＝實際盤點的庫存總數**，異動量＝差額，原因預設「盤點」）。扣到低於已保留量或負數 → **409「規格「XXX」的可售量不足（目前只剩 N）…」**，庫存不變、不留紀錄。回 `{ movement, item }`（`item` 同清單項） |
+
+### S3 訂單 `/api/v1/admin/{club}/shop/orders`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET ?paymentStatus=&orderStatus=&deliveryMethod=&paymentMethod=&settlementStatus=&isMember=&from=&to=&keyword=&page=&pageSize=` | `shop.order.view` | 分頁（新→舊）。`paymentStatus`：`pending／paid／failed／expired／refunded`；`deliveryMethod`：`home_delivery`（宅配）／`cvs_pickup`（超商取貨）／`onsite_pickup`（現場自取）；`paymentMethod`：`linepay`／`onsite`；`settlementStatus`：`pending`／`settled`；`from`／`to` 台灣日期（含當天）。項目：`{ id, orderNo, createdAt, paidAt, subtotal, shippingFee, total, paymentStatus(+Label), paymentMethod(+Label), orderStatus, deliveryMethod(+Label), shipmentStatusLabel（未出貨／已出貨／已送達／已領取）, isMember, isManual, sellingClubId, sellingClubCode, sellingClubName, settlementStatus(+Label), recipientName（遮罩依權限）, itemCount, isMasked }`。訂單編號依俱樂部加前綴 `TR-`／`BW-` |
+| `GET /{id}` | 同上 | 詳情：`{ id, orderNo, createdAt, paidAt, completedAt, cancelledAt, cancelReason, subtotal, shippingFee, total, linepayTransactionId, paymentStatus(+Label), paymentMethod(+Label), orderStatus, deliveryMethod(+Label), shipmentStatusLabel, isMember, memberId, memberNo, isManual, sellingClubId/Code/Name, collectingClubId, collectingClubName, recipientName, recipientPhone, recipientAddress, customerNote, internalNote, settlementStatus(+Label), settledOn, settlementNote, items: [ { id, variantId, productName, variantLabel, sku, unitPrice, quantity, lineTotal, refundedQuantity } ]（**值複製快照，改名改價不影響歷史訂單**）, shipment: { id, carrier, trackingNo, storeBranchCode, shippedAt, deliveredAt, pickupStatus(waiting／picked_up／overdue), pickupStatusLabel, pickupDeadlineOn, arrivalNotifiedAt }｜null, invoice: { invoiceNo, issuedAt, issueStatus, voidStatus }｜null, refunds: [ { id, status(+Label), refundAmount, reason, createdAt } ], availableActions[], isMasked, canReveal, updatedAt }`。**`availableActions`（畫面依此顯示按鈕）**：`prepare`／`ship`／`complete`／`cancel`／`request_refund` |
+| `POST` → 201 | `shop.order.create` | **人工建立與補登（現場收款）**：`{ items: [ { variantId, quantity } ]（1–50 個品項；同規格重複會合併）, deliveryMethod, recipientName?, recipientPhone?, recipientAddress?, memberId?, customerNote?, internalNote?, shippingFee?（覆寫）, completeImmediately?（僅現場自取，訂單直接完成）}`。宅配須有姓名＋電話＋地址、超商取貨須有姓名＋電話。**付款方式固定「現場收款」、付款狀態已付款、當下扣庫存（售出）**；價格取當下售價（有促銷價用促銷價）；運費依俱樂部設定（現場自取免運、達免運門檻免運，可用 `shippingFee` 覆寫）。可售量不足 → **409 且整張訂單不成立**。**購物車不得跨俱樂部混買**：規格必須屬於目前俱樂部（否則 400）。`sellingClubId` ＝ 目前俱樂部；`collectingClubId` ＝收款主體俱樂部（代收代付） |
+| `PUT /{id}/notes` | `shop.order.update` | `{ internalNote }`（空白＝清除）→ 詳情 |
+| `PUT /{id}/settlement` | 同上 | **代收代付分帳標記**（人工旗標，**不是狀態機**，系統不計算應付金額、不產生結算單）：`{ status（pending／settled）, settledOn?（標已結算省略＝今天）, note? }`；尚未付款的訂單 → 409 |
+| `POST /batch/settlement` | 同上 | `{ ids（1–200）, status, settledOn?, note? }` → `{ updatedCount, skipped: [ { id, reason } ] }` |
+| `POST /release-expired` | 同上 | 釋回逾時未付款的訂單（逾時＝俱樂部設定 `pendingTimeoutMinutes`，預設 30）→ `{ expiredCount, timeoutMinutes }` |
+| `POST /{id}/prepare` | 同上 | 已付款 → 備貨中 |
+| `POST /{id}/cancel` | 同上 | `{ reason（必填）}`。**待付款**：釋回保留的庫存；**已付款／備貨中**：回補庫存並**自動建立一張「已核准、不需退回商品」的全額退款案件**（等系統管理員執行退款）；其餘狀態 → 409（已出貨的請走退貨退款） |
+| `POST /{id}/ship` | `shop.shipment.update` | `{ carrier?, trackingNo?（可先出貨、之後回填）, storeBranchCode?（**超商取貨必填**）, pickupDeadlineOn?（現場自取的領取期限）}`：已付款／備貨中 → 已出貨並建立出貨資料；現場自取＝備妥待領（`pickupStatus: waiting`） |
+| `PUT /{id}/shipment` | 同上 | 更正物流資料 `{ carrier?, trackingNo?, storeBranchCode?, pickupDeadlineOn? }`（整份取代這四欄） |
+| `POST /{id}/arrival-notified` | 同上 | 超商取貨到店通知（只記錄時間並進入待領取，**本系統不寄任何通知**）：`{ pickupDeadlineOn? }` |
+| `POST /{id}/complete` | 同上 | 已出貨 → 已完成（超商取貨與現場自取同時標記已領取） |
+| `GET /export?purpose=…（同清單篩選）` | `shop.order.export`（🔴） | CSV，**含完整收件人資料**；上限 20000 列（超過 400 請縮小條件） |
+
+**所有狀態動作都是帶前置狀態的單句更新**：狀態不對 → 409（訊息「訂單狀態不允許」＋目前狀態），並行重送只有一個會成功，**不會重複扣庫存或重複退款**。動作回應一律是最新的訂單詳情。
+**狀態機**：`待付款 → 已付款 → 備貨中 → 已出貨 → 已完成`；分支 `已取消`（待付款逾時／取消）、`退貨處理中`（有處理中的退貨案件）、`已退款`（全額退款完成）。**付款成立（金流回呼）由內部服務 `ShopOrderLifecycle.ConfirmPaymentAsync` 提供**（冪等：重送不重複扣庫存；已逾時的訂單不能再成立），前台結帳與 LINE Pay 回呼上線時呼叫它，目前只有現場收款（建單即已付款）會走到扣減。
+
+### S4 出貨 `/api/v1/admin/{club}/shop/shipments`
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET ?orderStatus=&deliveryMethod=&pickupStatus=&keyword=&page=&pageSize=` | `shop.shipment.view` | 分頁。預設列出已付款／備貨中／已出貨的訂單（`orderStatus` 只接受這三個）；`pickupStatus`：`waiting`／`picked_up`／`overdue`（**待領取且已過領取期限＝逾期，讀取時換算**）。項目：`{ orderId, orderNo, orderStatus, deliveryMethod(+Label), createdAt, recipientName（依權限遮罩）, itemCount, shipment, isMasked }`（`shipment` 同訂單詳情） |
+| `GET /picking-list?orderIds=…&orderIds=…` | 同上 | **揀貨單**（畫面直接列印）：待出貨（已付款／備貨中）訂單的品項依貨號加總 `{ generatedAt, orderCount, totalQuantity, lines: [ { sku, productName, variantLabel, quantity, orderCount } ] }`；省略 `orderIds`＝全部待出貨訂單（一次指定最多 200 張） |
+| `GET /dispatch-slips?orderIds=…` | 同上 | **出貨單資料**（一張訂單一張，1–100 張）：`[ { orderId, orderNo, deliveryMethod(+Label), recipientName, recipientPhone, recipientAddress, storeBranchCode, customerNote, items: [ { sku, productName, variantLabel, quantity } ], isMasked } ]`；收件人依 `shop.order.reveal` 遮罩，有權限者的每次取得寫日誌 |
+| `POST /batch/ship` | `shop.shipment.update` | `{ ids（1–200）, carrier? }` 批次標記已出貨 → `{ updatedCount, skipped: [ { id, reason } ] }`（超商取貨缺門市代碼、狀態不對的略過） |
+| `POST /import` | 同上 | **物流單號 CSV 批次回填**：multipart 檔案欄位 `file`（≤2 MB、≤2000 列）。第一列表頭，順序不拘，欄位 `訂單編號`（必填）、`物流單號`（必填）、`物流商`、`門市代碼`（英文表頭 `order_no`／`tracking_no`／`carrier`／`store_branch_code` 也可）。已付款／備貨中的訂單一併標記已出貨；已出貨／已完成的只更新物流資料；其餘略過 → `{ updatedCount, skipped: [ { row, orderNo, reason } ] }` |
+
+### S5 退貨與退款 `/api/v1/admin/{club}/shop/refunds`
+
+案件承接前台以**表單或客服信箱**進來的申請（不做專屬的線上退貨精靈），由客服在後台建立。狀態：`requested 申請中 → approved 已核准 → received 已驗收退回品 → refunded 已退款`（`processing` 退款處理中是執行瞬間的鎖定狀態），另有 `rejected 已駁回`。**不需退回商品的案件（`needsReturn: false`，例如取消未出貨訂單自動建立的）核准後直接可執行退款。**
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET ?status=&keyword=&page=&pageSize=` | `shop.refund.view` | 分頁（申請中優先）：`{ id, orderId, orderNo, status(+Label), refundAmount, reason, needsReturn, paymentMethod(+Label), refundMethod(+Label), createdAt, updatedAt }`；`keyword` 比對訂單編號 |
+| `GET /{id}` | 同上 | 詳情：以上＋`orderStatus`、`orderTotal`、`orderRefundedTotal`、`reviewNote`、`approvedByName`、`receivedAt`、`receivedByName`、`refundReference`、`refundedAt`、`refundedByName`、`items: [ { orderItemId, productName, variantLabel, sku, quantity, unitPrice } ]`、`availableActions[]`（`approve`／`reject`／`receive`／`execute`） |
+| `POST` → 201 | `shop.refund.update` | `{ orderId, reason（必填）, items: [ { orderItemId, quantity } ]（**支援部分退款**，不可超過尚可退的數量）, refundAmount?（省略＝所退品項小計；要連運費一起退請自行填，不可超過這張訂單尚可退的金額）, needsReturn?（預設 true）}`。**只有已出貨／已完成的已付款訂單可申請**（尚未出貨請直接取消訂單，409）；同一張訂單同時只能有一件處理中案件（409）；建立後訂單進入「退貨處理中」 |
+| `POST /{id}/approve` | 同上 | `{ note? }` 申請中 → 已核准 |
+| `POST /{id}/reject` | 同上 | `{ note（必填）}` 申請中／已核准 → 已駁回；訂單回到「已完成」或「已出貨」（沒有其他處理中案件時） |
+| `POST /{id}/receive` | 同上 | **退回驗收**：`{ restock?（預設 true，商品損毀無法再賣請設 false）, note? }` 已核准（需退回）→ 已驗收；`restock` 時把品項**回補庫存**（`return_restock` 異動）。不需退回的案件 → 409 |
+| `POST /{id}/execute` | `shop.refund.execute`（**sysadmin_only**） | `{ note? }` **退款執行**：LINE Pay 訂單走原路退回（**目前 409「LINE Pay 尚未串接」，案件退回原狀態、不會留下已退款痕跡**）；現場收款訂單以**人工退款**登錄經辦人。**防重複退款**：先以單句更新搶到「退款處理中」，並行的第二個請求 409。成功後：**全額**（累計退款達訂單總額）→ 付款狀態 `refunded`、訂單「已退款」（已取消的訂單維持「已取消」）；**部分退款** → 訂單回到「已完成」、付款狀態維持已付款。**已開立的發票同步登記作廢（全額）或折讓（部分）**。回 `{ refund: <詳情>, invoiceAction }`，`invoiceAction`（有發票才有）是給畫面的一句話——**電子發票服務未串接時註明「請至發票服務端手動處理發票 XXX」** |
+
+### S6 設定與報表
+
+**商店設定** `GET／PUT /api/v1/admin/{club}/shop/settings`（`shop.setting.view／update`；**運費設定是俱樂部層級**，兩隊各自一份；`PUT` 整份取代）：
+`{ collectingSubject: { clubId, name, notice }, shippingFee（單一固定運費，元）, freeShippingThreshold?（免運門檻；省略＝不設）, excludedRegions: string[]（離島與不配送地區，去除重複，≤60）, lowStockThreshold（預設 5）, pendingTimeoutMinutes（5–1440，預設 30）, entryTitle／entryIntro／policyNotice／policyShipping／policyReturns／policyTerms: { zh?, en? }（商店入口與政策，中英，各 ≤20000 字）, updatedAt }`。
+**🔴 介面必須顯示 `collectingSubject.notice`**（「本商店的收款主體是俱樂部，不是慈善捐款平台的主辦協會…」）。**不做重量或級距計費。**
+
+**憑證** `/api/v1/admin/{club}/shop/credentials`（**僅系統管理員**：`shop.credential.*` 是 sysadmin_only；憑證屬於**收款主體俱樂部**，不論從哪個站台操作都是同一組）：
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET` | `{ collectingSubject, environment（sandbox／production，目前使用的金流環境）, linePay: { sandbox, production }, eInvoice: { sandbox, production }, invoiceRetry: { maxRetries, intervalMinutes }, integrationConnected }`；每個環境 `{ configured, identifierMasked（例 `******7890`）, invoicePrefix, rotatedAt（金鑰輪替時間）}`。**密鑰永遠不回傳、識別碼只回遮罩、任何日誌都不含密鑰；憑證以 Data Protection 加密存放。`integrationConnected` 恆為 `false`（B-10：憑證可先存放，系統目前不會用它連線）** |
+| `PUT /linepay` | `{ environment, channelId, channelSecret? }`：第一次設定必須有密鑰；之後省略密鑰＝沿用；**換密鑰才更新輪替時間** → 回 GET 的內容 |
+| `PUT /einvoice` | `{ environment, merchantId?, apiKey?, invoicePrefix（字軌，兩位大寫英文字母，小寫會轉大寫）}` |
+| `PUT /mode` | `{ environment }` 金流環境開關（測試／正式） |
+| `PUT /invoice-retry` | `{ maxRetries（0–10）, intervalMinutes（1–1440）}` 開立與作廢的重試設定 |
+
+**報表** `/api/v1/admin/{club}/shop/reports`：
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /summary?from=&to=` | `shop.report.view` | 預設最近 30 天（`from`／`to` 台灣日期含當天，最長 800 天）：`{ from, to, grossRevenue, refundedAmount, netRevenue, orderCount, averageOrderValue, returnOrderCount, returnRatePercent, topSkus: [ { sku, productName, variantLabel, quantity, revenue } ]（前 10，依數量）, lowStockCount, outOfStockCount, totalAvailableQuantity }`。**口徑（現金基礎）**：營收＝付款成立時間落在期間內的訂單總額（含運費，不論之後是否取消）；退款＝退款執行時間落在期間內的金額；淨營收＝營收－退款；客單價＝營收÷訂單數；退貨率＝期間內有退款的訂單數÷訂單數；庫存是即時值 |
+| `GET /by-selling-club?from=&to=` | 同上 | **依 `selling_club_id` 的加總，供線下分帳**：只列帳號有授權的俱樂部（系統管理員＝全部）`[ { sellingClubId, sellingClubCode, sellingClubName, orderCount, grossRevenue, refundedAmount, netRevenue, settledAmount（分帳標記為已結算的訂單總額）, pendingSettlementAmount（待結算） } ]`。**不計算應付金額、不產生結算單**（兩隊分潤走線下合約） |
+| `GET /export?kind=summary｜by-selling-club&from=&to=&purpose=…` | `shop.report.export`（🔴） | CSV（`kind` 省略＝summary），須填用途並寫日誌 |
+
+**發票捐贈碼**（**全系統共用、不分俱樂部**，走全域路徑，不含 `{club}`）`/api/v1/admin/shop/donation-codes`（`shop.donation_code.*`）：`GET`（陣列 `{ id, code, orgName, isActive, sortOrder, updatedAt }`）／`GET /{id}`／`POST`（201）／`PUT /{id}`／`DELETE /{id}`（204）；payload `{ code（3–7 位數字，重複 409）, orgName（必填）, isActive?（預設 true）, sortOrder? }`。
+
+### K5 抽獎名單 `/api/v1/admin/{club}/draws`
+
+**🔴 系統不抽出**：沒有任何隨機抽出的端點；實體抽獎於現場或直播由人工進行，中獎人以**序號**回填。各俱樂部各自舉辦（不合辦）。**資格條件固定、不可由後台自訂**：基準時間當下持有**本活動主辦俱樂部**的球迷會員（`fan_club`）會籍（**狀態有效或已批次到期但基準時間落在會籍期間內**；待確認與已取消不算）且帳號啟用；同時持有兩隊會籍者在兩份名單各佔一號（**活動辦法須明示「同時具備兩隊會籍者可分別參加兩隊抽獎」**）。
+
+**狀態流**：`draft 草稿 → roster_locked 名單已鎖定 → drawn 已抽出 → announced 已公布 → closed 已結案`，另有 `voided 作廢`（結案前任何時候）。
+
+| 方法 路徑 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /notice`／`PUT /notice` | view／update | **蒐集告知確認**：`{ confirmed, confirmedAt }`；PUT `{ confirmed }`。**未確認前不得舉辦抽獎——產生名單會 409**（會員條款須增列「會籍有效期間將自動列入球迷會員抽獎合格名單；中獎時，姓名將以遮罩方式於最新消息公布」，每個俱樂部各自確認） |
+| `GET ?status=&keyword=&page=&pageSize=` | `member.draw.view` | 分頁（新→舊）：`{ id, drawCode, nameZh, nameEn, snapshotAt, drawnAt, drawOccasion(+Label), claimDeadlineOn, status, statusLabel, rosterVersion, totalCount（合格人數）, winnerCount, backupCount, fulfilledCount（已寄出或已領取）, announcementArticleId, announcementStatus(+Label), createdByName, createdAt, updatedAt }` |
+| `GET /{id}` | 同上 | 詳情：以上＋`coverKey／coverUrl／coverThumbUrl`、`internalNote`、`rosterHash`、`lockedAt`、`lockedByName`、`zh／en?: { name, prizeDescription, rules, notes }`、`versions: [ { version, snapshotAt, totalCount, rosterHash, generatedAt, generatedByName, voidedAt, voidReason, isCurrent } ]`（**名單版本歷程，作廢的舊版保留、不可刪除**）、`availableActions[]`（`edit`／`generate_roster`／`regenerate_roster`／`record_winners`／`announce`／`mark_announced`／`close`／`void`／`delete`） |
+| `POST` → 201／`PUT /{id}` | `create`／`update` | **multipart**：`payload` `{ drawCode?（英數字與連字號 ≤32，同俱樂部唯一 → 409；新增省略＝自動產生 `Dyyyymmdd-XXXX`；會出現在匯出檔名）, snapshotAt?（資格基準時間，UTC；**省略且有開獎時間＝開獎日（台灣時間）當天 00:00**）, drawnAt?（開獎時間，UTC）, drawOccasion?（home_match 主場賽事日／livestream 直播／other 其他）, claimDeadlineOn?（領獎期限）, internalNote?, removeCover?, content: { zh: { name（必填）, prizeDescription?, rules?（**活動辦法：鎖定名單前必填**）, notes? }, en? } }` ＋ 選填 `cover`。**名單鎖定後不能改活動代碼與基準時間（409）**；已結案／作廢不能編輯 |
+| `DELETE /{id}` → 204 | update | **只有還沒產生過名單的草稿**可刪；否則 409（不辦了請作廢） |
+| `POST /{id}/roster/preview` | update | **試算**：`{ asOf, eligibleCount }`，不寫入資料、不配發序號（沒設基準時間 → 400） |
+| `POST /{id}/roster` | update | **產生並鎖定名單**：依會員編號升冪配發連號序號 1…N（一人一號），複製當下姓名、會員編號、層級與到期日，記錄基準時間、合格人數、**名單雜湊（SHA-256）**與執行人，狀態 → 名單已鎖定。前置：蒐集告知已確認、有基準時間、**活動辦法（中文）已填**、至少一位合格會員（各 409／400）。**名單已鎖定時再送＝作廢重產**：`{ voidReason（必填）}`，版本 +1、舊版標記作廢並保留；已進入抽出階段（已抽出／已公布）不可重產（409）。回活動詳情 |
+| `GET /{id}/roster?version=&keyword=&winnersOnly=&page=&pageSize=` | view | 分頁（序號升冪，預設目前版本，可指定舊版 `version`）：`{ serialNo, memberNo, name, tier(+Label), membershipEndOn, isWinner, isBackup, prizeName, isMasked }`。**姓名依 `member.pii.reveal` 遮罩（王○明）**；沒有權限時 `keyword` 只比對序號與會員編號 |
+| `PUT /{id}/winners` | update | **回填中獎人（以序號為準）**：`{ winners: [ { serialNo, prizeName（中獎必填 ≤128）, isBackup? } ]（1–200 筆，序號不可重複）, reason? }`。系統比對序號存在於目前版本，不符 → 400；**備取**（`isBackup: true`，原中獎人逾期未領時遞補）；**遞補＝同一個序號再送一次 `isBackup: false` 與獎項**；中獎人不能直接改備取（409，請先取消中獎）。首次回填中獎人時狀態 → 已抽出。**名單已公布後再修改必須填 `reason`（400）**；已結案／作廢 409。回 `{ updatedCount, draw }` |
+| `POST /{id}/winners/remove` | update | `{ serialNos, reason? }` 取消中獎／備取標記（清除發放資料）；全部取消後狀態回到名單已鎖定 |
+| `GET /{id}/fulfilment?status=&claimMethod=&page=&pageSize=` | view | **獎品發放（比照 K3）**：中獎人清單 `{ serialNo, memberNo, memberName, isBackup, prizeName, claimMethod(ship 寄送／pickup 現場領取)(+Label), recipientName, recipientPhone, recipientAddress, fulfilmentStatus(pending／shipped／claimed), effectiveStatus(+Label), shippedAt, claimedAt, note, isMasked }`。**`effectiveStatus`：待處理且已過領獎期限自動為 `overdue`（逾期）**；姓名與收件資訊依 `member.pii.reveal` 遮罩 |
+| `PUT /{id}/fulfilment/{serialNo}` | update | `{ claimMethod?, recipientName?, recipientPhone?, recipientAddress?, status?, note? }`（省略＝不變；`note` 空字串＝清除）。**改收件資訊需要 `member.pii.reveal`（否則 403）**；`shipped` 只有寄送的能標且必須有收件人姓名／電話／地址（400）；`claimed` 記領取時間；`pending` 清掉兩個時間。只有已抽出／已公布的活動可改（409）。非中獎序號 → 404 |
+| `POST /{id}/fulfilment/batch/status` | update | `{ serialNos, status }` → `{ updatedCount, skipped: [ { serialNo, reason } ] }` |
+| `GET /{id}/export/public?purpose=` | view | **現場抽獎／可公開投影版 CSV** `draw-<活動代碼>-v<版本>-public.csv`：抽獎序號、會員編號、**遮罩姓名**、活動代碼、名單版本、基準時間（台灣時間）。全體合格名單，與 K1 檢視同級權限，**須填用途並寫日誌** |
+| `GET /{id}/export/winners?purpose=` | `member.draw.export`（🔴） | **中獎人聯絡用（受限版）** `…-winners.csv`：**僅已回填的中獎人**（不得匯出全體合格名單的完整個資），欄位：抽獎序號、會員編號、姓名、手機、Email、領獎方式、收件人、收件電話、收件地址、獎項 |
+| `GET /{id}/export/shipping?purpose=` | 同上 | **獎品出貨清單** `…-shipping.csv`（比照 K3）：中獎人、獎項、領獎方式、收件資訊、發放狀態（逾期會標示） |
+| `GET /{id}/announcement-preview` | `member.draw.announce` | 公布稿預覽 `{ drawName, prizeDescription, snapshotAt, eligibleCount, winners: [ { serialNo, memberNo, maskedName, prizeName } ] }`——**公關／媒體只拿到遮罩名單，不因此取得會員模組權限** |
+| `POST /{id}/announcement-draft` → 201 | 同上 | **交接 B2**：產生一篇**草稿**文章（分類 7.1 Club News＝`club`、加掛標籤「球迷會員抽獎／Member Draw」〔slug `member-draw`〕，內文只有活動名稱、獎品、基準時間、合格人數與遮罩後中獎名單），並連結到活動 → `{ articleId, articleSlug, draw }`。已連結過 → 409。**內文是 `{"blocks":[{"type":"paragraph","text":"…"}]}` 區塊 JSON**（格式以文章編輯器為準，見待裁決） |
+| `PUT /{id}/announcement-article` | 同上 | `{ articleId }` 連結既有文章（須是本俱樂部或共用；已結案／作廢 409） |
+| `POST /{id}/mark-announced` | `update` | 已抽出 → 已公布：**連結的文章必須已發布**（否則 409 說明）。列表顯示公布狀態與連結 |
+| `POST /{id}/close` | 同上 | 已公布 → 已結案（唯讀） |
+| `POST /{id}/void` | 同上 | `{ reason（必填）}` 作廢（保留資料，不可刪除；原因記在內部備註） |
+
+**個資與稽核**：抽獎名單視同會員個資。產生／重產名單、回填中獎人、取消中獎、匯出（三種）、檢視完整姓名與收件資訊、結案、作廢都寫**敏感操作日誌**（活動代碼、版本、雜湊、序號、筆數、用途／原因，**不含個資本身**）。**不寄中獎通知信、不做站內信、不做 LINE 推播**；如需聯繫中獎人由客服電話處理。**扣繳憑單資料（身分證統一編號、戶籍地址）本批不蒐集**（門檻待會計師確認，`withholding_data_encrypted` 欄位保留、沒有端點），首波獎品單價建議壓在門檻以下。
+
+### 新聞挑選搜尋（A 批畫面回報，2026-09-30）
+
+`GET /api/v1/admin/{club}/news/lookup?keyword=&status=&category=&ids=&page=&pageSize=`（`content.article.view`）——**關聯報導的挑選視窗專用**（球迷會活動回顧、贊助故事、抽獎公布稿…）：範圍同新聞清單（本俱樂部＋共用）；`keyword` 比對**中文標題、英文標題與網址名稱**；**分頁**（預設 20、上限 50，舊文章翻頁就選得到，不受「一次最多 100 篇」限制）；`ids`（可重複 `ids=<id>&ids=<id>`，最多 200）把已選取的 id 解回標題；依發布時間新→舊（草稿排後）。回 `{ items: [ { id, slug, categoryCode, status, statusLabel, publishedAt, isShared, titleZh, titleEn } ], page, pageSize, totalCount, totalPages }`（精簡欄位，不含內文）。既有 `GET …/news?keyword=` 的關鍵字也一併擴充為比對英文標題與網址名稱。
+
+### 待裁決（規劃書沒寫又影響客戶可見行為，本批先採最保守做法）
+
+1. **商品狀態「草稿」與「下架」無法區分**：規劃書 S1 寫四態（草稿／上架／缺貨／下架），但 S1-8 已把 `products.status` 收斂為 `draft`／`published`（同 `press_resources`），故只有「下架（草稿）」一種；缺貨由庫存自動判定。要區分需加欄位並重開該決定。
+2. **成本欄位的授權角色**：規劃書只寫「成本僅授權角色可見」，`docs/12b` §7 寫明「系統管理員、商務／贊助」——照它指派 `shop.cost.view／update`（其他角色沒有；合作球隊管理有規格權限但沒有成本），日後由 J2 角色管理調整。
+3. **合作球隊管理（藍鯨方）的商店權限**：矩陣寫「自家商品與訂單」。本批給商品／規格／庫存／訂單（含 `shop.order.reveal`）／出貨／退款檢視／設定／報表檢視，**不含**成本、退款處理與執行、匯出、憑證。
+4. **人工建立訂單的付款方式**：規劃書「人工建立與補登（現場收款、賽事日擺攤）」——本批固定「現場收款」、當下即已付款並扣庫存；沒有「人工建立待付款訂單」。
+5. **取消已付款訂單的退款**：規劃書只寫「取消回補」。本批取消已付款／備貨中訂單時**自動建立全額退款案件**（已核准、不需退回），等系統管理員執行退款，避免「取消了卻沒人退款」。
+6. **待付款逾時釋回沒有背景排程**：規劃書寫「自動釋回」，但前台結帳尚未開發、系統裡目前沒有排程機制；本批提供服務與 `release-expired` 端點，前台結帳上線時需補排程（例如每分鐘一次）。
+7. **公布稿內文格式**：抽獎公布稿以 `{"blocks":[{"type":"paragraph","text":"…"}]}` 寫入文章內文，實際格式以 B2 文章編輯器（`apps/admin`）為準，不合時請告知調整。
+8. **蒐集告知確認**：規劃書要求「未完成告知前不得舉辦抽獎」，告知文字在會員條款（I 設定）。本批以 `member.draw_notice_confirmed` 旗標（每俱樂部）承接：管理者確認條款已增列後在 K5 勾選，未勾選不能產生名單。條款本身的維護不在本批。
+9. **歷史基準時間的資格判定**：以會籍的起訖日期與「有效／已到期」狀態判定，**會員帳號狀態取「現在」的值**（沒有帳號狀態歷程）。
+10. **電子發票與稅務**：代收代付的稅務認定與發票字軌屬規劃書 §10 待確認事項；退款登記作廢／折讓的欄位已備，實際開立與作廢待服務串接。
+11. **報表口徑**：見 S6 報表（現金基礎，取消的已付款訂單仍計入營收直到退款執行）；若要改為會計認列口徑需另行定義。
+
+### 已知限制
+
+- 金流（LINE Pay）與電子發票**不串接**（B-10）；前台結帳、金流回呼、發票開立都尚未開發，訂單只能由後台「現場收款」建立（種子另有示範用的待付款／已付款…各狀態訂單）。
+- 沒有寄信通路：中獎通知、訂單通知、到店通知、退款通知一律不寄；到店通知只記錄時間。
+- 公開讀取端點（前台漫畫閱讀、球迷活動報名、商店櫥窗與購物車、結帳）本批**未做**（任務範圍是後台 API）；因此本批寫入不做公開快取失效。
+- 庫存並行安全靠資料庫更新鎖；單機單資料庫前提下成立，換成多副本讀取複本需重新評估。
+- 訂單匯出上限 20000 列；報表期間上限 800 天。
+- 名單產生一次寫入全部合格會員（數千人可）；上萬人以上需改批次寫入。
+
+### 表與種子變更（C1）
+
+- **綱要**（`db/club-schema.sql`＋EF migration `AlignSchemaC1`，同步 `docs/12`／`12b`／`12c`）：新增 **3 張表**（`fan_event_images`、`fan_event_articles`、`draw_roster_versions`）；`comic_episodes`（`status` 收斂為 `draft`／`published`、`UNIQUE(club_id, episode_no)`）、`comic_pages`（圖片寬高）、`fan_events`（封面、結束時間、報名截止、場地、狀態）與 `fan_events_i18n`（地點）、`fan_event_registrations`（狀態約束、非會員姓名／電話／Email／備註、**同活動同會員唯一（排除已取消）**）、`products`（缺貨顯示方式）、`product_variants`（狀態、低庫存門檻、排序、**庫存非負且保留量 ≤ 庫存量的 CHECK**）、`inventory_movements`（類型約束、異動後水位）、`orders`（付款方式、顧客備註、內部註記、**分帳旗標**、完成／取消時間與原因）、`shipments`（領取期限、到店通知、**每張訂單一筆**）、`refund_requests`（狀態約束、是否需退回、驗收、審核意見、退款經辦、退款序號）、`member_draws`（內部備註）、`draw_rosters`（**名單版本，唯一鍵含版本**、備取、收件資訊、寄出／領取時間、發放與領獎方式約束）。
+- **權限**：49 個新權限碼與角色指派（見上表）。
+- **種子**（`db/seed/backoffice_seed.py`，全部【測試】虛構）：漫畫企劃設定＋3 角色＋3 集草稿；球迷活動 4 場（磐石 3、藍鯨 1）與報名；商店設定與 2 個發票捐贈碼（`9990001`／`9990002`）；商品系列 4、商品 6（含低庫存、缺貨、草稿示範）、規格 11；訂單 9 張（磐石 8 涵蓋待付款／已付款／備貨中／已出貨／已完成／已取消／退貨處理中／現場收款，藍鯨 1 張代收代付）、出貨 3 筆、退款案件 2 件，庫存與異動同步；抽獎 2 場（`TEST-DRAW-01` 已抽出，名單 2 人、1 位中獎；`TEST-DRAW-02` 草稿）與蒐集告知確認。
+
+### 測試（`Tcrfc.Api.Tests`）
+
+`AdminCultureTests`（F1／F2＋商品圖集與抽獎封面，真實 Azurite）、`AdminShopCatalogTests`（S1／S2，含並行扣減不超賣）、`AdminShopOrdersTests`（S3／S4／S5，含並行搶最後庫存、付款回呼冪等、逾時釋回、假金流下並行退款只退一次）、`AdminShopSettingsTests`（S6）、`AdminDrawsTests`（K5）、`AdminC1MiscTests`（新聞挑選搜尋、會籍球季、商店類別不注入快取的反射檢查＋庫存欄位只有 `InventoryService` 能寫的原始碼掃描）。共用工具 `C1TestSupport.cs`／`ShopTestSupport.cs`。**測試一律在 `finally` 清資料；會改動共用設定的測試用 `C1Test.SnapshotSettingsAsync` 拍照還原（`E-81`／`E-89`）。**
+
+---
+
 ## 目錄結構
 
 ```

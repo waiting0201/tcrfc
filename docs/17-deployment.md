@@ -254,6 +254,14 @@ services:
 ⚠️ **App 首個上架版本不含 App 內付款**（App 規劃書 v3.10 §5.1），**但這不代表不需要固定出口 IP**——
 站內商店與慈善平台都走 API 串接，本節的架構理由一字不變，且 App 的 Phase E 會回到這條路上。
 
+### 商店金流與電子發票的接縫（C1，2026-09-30）
+
+商店號與發票管道未到位（`B-10`）前，`apps/api` 以介面隔開真正的串接：
+`ILinePayGateway`、`IEInvoiceService`（[`Features/AdminShop/ShopPaymentGateways.cs`](../apps/api/Features/AdminShop/ShopPaymentGateways.cs)），
+目前在 `Program.cs` 註冊為 `NotConfiguredLinePayGateway`／`NotConfiguredEInvoiceService`——呼叫時回「尚未串接」，
+訂單狀態機、庫存扣減與回補、退款紀錄照常運作。**取得商店號後只換這兩個註冊與實作**，並依本節登記出口 IP；
+金流憑證由後台 S6 寫入、加密保存、API 不回傳。
+
 ---
 
 ## 4. 快取策略

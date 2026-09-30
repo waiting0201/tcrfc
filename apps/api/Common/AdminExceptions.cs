@@ -18,3 +18,7 @@ public sealed class AdminConflictException(string title, string message) : Excep
 /// 形狀比照 <c>SharedStaffReadOnlyException</c>。對應 403。</summary>
 public sealed class SharedContentReadOnlyException(string subject)
     : Exception($"這是兩隊共用的{subject}，目前僅系統管理員可以編輯。");
+
+/// <summary>這個功能對目前的俱樂部不適用（例如台中藍鯨不設漫畫，藍鯨規劃書 §1.3／§2.1）。對應 403；
+/// 訊息是給畫面顯示的日常中文，由呼叫端提供。</summary>
+public sealed class FeatureNotAvailableException(string message) : Exception(message);

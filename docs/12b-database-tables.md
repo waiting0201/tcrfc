@@ -95,11 +95,12 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `club_id` | **兩張都必填**。**各俱樂部各自舉辦抽獎** |
 | `MemberDraw.status` | `draft`／`roster_locked`／`drawn`／`announced`／`closed`／`voided` |
 | `snapshot_at` | 資格基準時間。名單於此刻**一次性寫入**，會員無法自行建立 |
-| `roster_version` | 名單版本。有誤只能**整份作廢重產**（版本 +1），**舊版保留不刪** |
+| `roster_version` | 名單版本。有誤只能**整份作廢重產**（版本 +1），**舊版保留不刪**。**C1：`draw_rosters.roster_version` 標明每列所屬版本，唯一鍵含版本；版本歷程（基準時間、合格人數、雜湊、產生人、作廢時間與原因）在新表 `draw_roster_versions`，作廢版本不得刪除** |
 | `roster_hash` | 名單雜湊，供開獎當下的完整性佐證 |
-| `DrawRoster.serial_no` | **依 `member_no` 升冪連號配發，一人一號**。`(member_draw_id, serial_no)` UNIQUE。鎖定後不得重排 |
+| `DrawRoster.serial_no` | **依 `member_no` 升冪連號配發，一人一號**。`(member_draw_id, roster_version, serial_no)` UNIQUE（C1：含版本）。鎖定後不得重排 |
 | 快照欄位 | `member_no_snapshot`／`name_snapshot`／`tier_snapshot`／`membership_end_on_snapshot` 皆**值複製**，母表變動不追溯 |
-| `is_winner` | **後台人工回填**——系統不抽出，實體開獎在現場或直播進行 |
+| `is_winner`／`is_backup` | **後台人工回填**（以序號為準）——系統不抽出，實體開獎在現場或直播進行；`is_backup`＝備取，遞補＝同序號改為中獎（C1） |
+| 獎品發放（C1） | `claim_method`（`ship`／`pickup`）、`recipient_name`／`recipient_phone`／`recipient_address`（🔒 遮罩）、`fulfilment_status`（`pending`／`shipped`／`claimed`，**逾期＝待處理且已過 `claim_deadline_on`，讀取時換算**）、`shipped_at`／`claimed_at`，比照 K3 球衣 |
 | `withholding_data_encrypted` | 🔒 **僅達扣繳門檻時蒐集**，加密、預設遮罩 |
 | 通知 | **不發中獎通知信、不推播**。中獎只以最新消息公布（7.1 ＋`球迷會員抽獎` 標籤，遮罩） |
 
@@ -118,6 +119,9 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `delivery_method` | `home_delivery`／`cvs_pickup`／`onsite_pickup` |
 | `shipping_fee` | **單一固定運費**，免運門檻另存 `Setting`。**沒有級距、沒有重量計費** |
 | `is_manual` | 現場銷售補登（S3），退款人工執行並記 `handled_by` |
+| `payment_method`（C1） | `linepay`／`onsite`（現場收款）。現場收款訂單建立即已付款、直接售出扣庫存 |
+| `settlement_status`（C1） | `pending`／`settled`，附 `settled_on`／`settlement_note`——**代收代付的人工分帳旗標，不是狀態機**；系統不計算應付金額、不產生結算單 |
+| `customer_note`／`internal_note`／`completed_at`／`cancelled_at`／`cancel_reason`（C1） | 顧客備註、內部註記、完成與取消時間與原因 |
 | 收件人三欄 | 🔒 **視同會員個資**：完整值僅系統管理員、客服／行政與出貨角色可見 |
 | 不存在的欄位 | `discount_code`、`member_price`、`points_used`、`card_no`、`shipping_tier` ——**一律沒有** |
 
@@ -405,7 +409,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `Order` | `recipient_name`、`recipient_phone`、`recipient_address` | 🔒 ⚖️ | 系統管理員、客服／行政、出貨角色 | 行 1327 |
 | `OrderItem`／`StoreInvoice` | 全表 | ⚖️ | — | 稅法保存，年限待確認第 28 點 |
 | `StoreInvoice` | `carrier_id_encrypted` | 🔐 | 系統管理員 | S6 |
-| `ProductVariant` | `cost` | 🔒 | 系統管理員、商務／贊助 | S1 |
+| `ProductVariant` | `cost` | 🔒 | 系統管理員、商務／贊助（**C1 權限碼 `shop.cost.view`／`shop.cost.update`，is_restricted**；檢視者連規格與售價都看不到，`shop.variant.view`） | S1 |
 | `PaymentChannel` | `credential_encrypted` | 🔐 | **僅系統管理員** | S6 |
 | `DrawRoster` | `name_snapshot` | 🔒 | 系統管理員、客服／行政（公關只拿遮罩版） | 行 1322 |
 | `DrawRoster` | `withholding_data_encrypted` | 🔐 ⚖️ | **僅系統管理員**，達扣繳門檻才蒐集 | 行 1142–1155 |
@@ -557,7 +561,11 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `AdminUserClub` | `(admin_user_id, club_id)` |
 | `AdminUserTeam` | `(admin_user_id, team_id)` |
 | `PaymentChannel` | **`(owner_club_id, channel_type, environment)`** |
-| `DrawRoster` | `(member_draw_id, serial_no)`、`(member_draw_id, member_no_snapshot)` |
+| `DrawRoster` | `(member_draw_id, roster_version, serial_no)`、`(member_draw_id, roster_version, member_no_snapshot)`（C1：含版本） |
+| `DrawRosterVersion`（C1） | `(member_draw_id, roster_version)` |
+| `ComicEpisode`（C1） | `(club_id, episode_no)` |
+| `Shipment`（C1） | `(order_id)`（每張訂單一筆） |
+| `FanEventRegistration`（C1） | `(fan_event_id, member_id)`，**過濾唯一索引**：`member_id` 非空且狀態不是 `cancelled` |
 | `Locale` | `code` |
 | `PressResource` | `(club_id, slug)` |
 | `FaqEmbedSlot` | `code`（S1-8 新增） |
@@ -580,7 +588,10 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `OrderItem` | `(order_id)` | |
 | `InventoryMovement` | `(product_variant_id, occurred_at desc)` | 庫存異動查詢 |
 | `Membership` | `(club_id, status, membership_end_on)`、`(member_id)` | 會籍到期提醒、會員中心逐俱樂部列出 |
-| `DrawRoster` | `(member_draw_id, serial_no)` | 名單匯出 |
+| `DrawRoster` | `(member_draw_id, roster_version, serial_no)`、`(member_draw_id, roster_version, is_winner)` | 名單匯出、中獎人清單 |
+| `Order`（C1 補） | `(selling_club_id, created_at desc)` | 後台依賣方俱樂部（資料範圍）過濾 |
+| `ProductVariant`（C1 補） | `(product_id)` | 商品的規格清單 |
+| `RefundRequest`（C1 補） | `(club_id, status)`、`(order_id)` | 案件清單、訂單的退款案件 |
 | `EmailLog` | `(member_id, sent_at desc)`、`(type, sent_at)` | |
 | `Enquiry` | `(form_id, status, created_at desc)`、`(assignee_admin_user_id)` | 收件匣 |
 | `AdminUserClub` | `(admin_user_id, is_active)` | **每個請求都要算資料範圍，這條是熱路徑** |

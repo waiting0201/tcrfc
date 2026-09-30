@@ -29,7 +29,7 @@ public partial class ProductVariant
 
     public int ReservedQty { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public DateTime CreatedAt { get; set; }
 
@@ -38,6 +38,10 @@ public partial class ProductVariant
     public Guid? CreatedBy { get; set; }
 
     public Guid? UpdatedBy { get; set; }
+
+    public int? LowStockThreshold { get; set; }
+
+    public int SortOrder { get; set; }
 
     public virtual ICollection<CartItem> CartItems { get; set; } = new List<CartItem>();
 

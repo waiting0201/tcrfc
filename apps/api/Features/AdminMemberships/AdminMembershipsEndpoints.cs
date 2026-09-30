@@ -1,4 +1,5 @@
 using Tcrfc.Api.Common;
+using Tcrfc.Api.Features.AdminCompetitions;
 using Tcrfc.Api.Security;
 
 namespace Tcrfc.Api.Features.AdminMemberships;
@@ -24,6 +25,27 @@ public static class AdminMembershipsEndpoints
         MapPlans(app);
         MapMemberships(app);
         MapSettings(app);
+        MapSeasons(app);
+    }
+
+    /// <summary>GET /api/v1/admin/{club}/membership-seasons —— 會籍畫面（方案表單、開通、續會名單）的球季下拉選單。
+    /// 權限碼 <c>member.membership.view</c>（客服／行政沒有 <c>team.competition.view</c>，不能借用 <c>/seasons</c>）。
+    /// 回應形狀與 <c>GET …/seasons</c> 相同：<c>[{ id, code, startOn, endOn }]</c>，只含目前俱樂部的球季（新→舊）。</summary>
+    private static void MapSeasons(IEndpointRouteBuilder app)
+    {
+        app.MapGet("/api/v1/admin/{club}/membership-seasons", async (
+            string club, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminCompetitionsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, MembershipView, cancellationToken);
+            return Results.Ok(await repository.ListSeasonsAsync(scope, cancellationToken));
+        })
+        .WithTags("AdminMemberships")
+        .WithName("AdminListMembershipSeasons")
+        .Produces<IReadOnlyList<AdminSeasonListItemDto>>()
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
     }
 
     private static void MapPlans(IEndpointRouteBuilder app)

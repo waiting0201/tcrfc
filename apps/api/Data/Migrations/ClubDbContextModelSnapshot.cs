@@ -2169,9 +2169,12 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
 
                     b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasDefaultValue("draft", "DF_comic_episodes_status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -2191,6 +2194,9 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "ClubId", "EpisodeNo" }, "UQ_comic_episodes_club_no")
+                        .IsUnique();
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_comic_episodes_row_seq")
                         .IsUnique();
@@ -2246,11 +2252,19 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<int?>("ImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("image_height");
+
                     b.Property<string>("ImageKey")
                         .IsRequired()
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("image_key");
+
+                    b.Property<int?>("ImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("image_width");
 
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
@@ -2411,6 +2425,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(32)")
                         .HasColumnName("claim_method");
 
+                    b.Property<DateTime?>("ClaimedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("claimed_at");
+
                     b.Property<Guid>("ClubId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("club_id");
@@ -2430,6 +2449,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
                         .HasColumnName("fulfilment_status");
+
+                    b.Property<bool>("IsBackup")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_backup");
 
                     b.Property<bool>("IsWinner")
                         .HasColumnType("bit")
@@ -2463,6 +2486,27 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(128)")
                         .HasColumnName("prize_name");
 
+                    b.Property<string>("RecipientAddress")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("recipient_address");
+
+                    b.Property<string>("RecipientName")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("recipient_name");
+
+                    b.Property<string>("RecipientPhone")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("recipient_phone");
+
+                    b.Property<int>("RosterVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasColumnName("roster_version")
+                        .HasDefaultValue(1, "DF_draw_rosters_version");
+
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
@@ -2473,6 +2517,11 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<int>("SerialNo")
                         .HasColumnType("int")
                         .HasColumnName("serial_no");
+
+                    b.Property<DateTime?>("ShippedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("shipped_at");
 
                     b.Property<string>("TierSnapshot")
                         .HasMaxLength(16)
@@ -2499,10 +2548,12 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
 
-                    b.HasIndex(new[] { "MemberDrawId", "MemberNoSnapshot" }, "UQ_draw_rosters_draw_member_no")
+                    b.HasIndex(new[] { "MemberDrawId", "RosterVersion", "IsWinner" }, "IX_draw_rosters_draw_winner");
+
+                    b.HasIndex(new[] { "MemberDrawId", "RosterVersion", "MemberNoSnapshot" }, "UQ_draw_rosters_draw_ver_member_no")
                         .IsUnique();
 
-                    b.HasIndex(new[] { "MemberDrawId", "SerialNo" }, "UQ_draw_rosters_draw_serial")
+                    b.HasIndex(new[] { "MemberDrawId", "RosterVersion", "SerialNo" }, "UQ_draw_rosters_draw_ver_serial")
                         .IsUnique();
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_draw_rosters_row_seq")
@@ -2511,6 +2562,106 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_draw_rosters_row_seq"));
 
                     b.ToTable("draw_rosters", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.DrawRosterVersion", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<DateTime>("GeneratedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("generated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("GeneratedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("generated_by");
+
+                    b.Property<Guid>("MemberDrawId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_draw_id");
+
+                    b.Property<string>("RosterHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("roster_hash");
+
+                    b.Property<int>("RosterVersion")
+                        .HasColumnType("int")
+                        .HasColumnName("roster_version");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<DateTime>("SnapshotAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("snapshot_at");
+
+                    b.Property<int>("TotalCount")
+                        .HasColumnType("int")
+                        .HasColumnName("total_count");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("void_reason");
+
+                    b.Property<DateTime?>("VoidedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("voided_at");
+
+                    b.Property<Guid?>("VoidedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("voided_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "MemberDrawId", "RosterVersion" }, "UQ_draw_roster_versions_draw_ver")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_draw_roster_versions_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_draw_roster_versions_row_seq"));
+
+                    b.ToTable("draw_roster_versions", (string)null);
                 });
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.EmailLog", b =>
@@ -2928,6 +3079,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("club_id");
 
+                    b.Property<string>("CoverKey")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("cover_key");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(3)
@@ -2939,9 +3095,19 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<DateTime?>("EndsAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("ends_at");
+
                     b.Property<bool>("IsPaidMembersOnly")
                         .HasColumnType("bit")
                         .HasColumnName("is_paid_members_only");
+
+                    b.Property<DateTime?>("RegistrationDeadlineAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("registration_deadline_at");
 
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
@@ -2961,6 +3127,14 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("starts_at");
 
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("status")
+                        .HasDefaultValue("draft", "DF_fan_events_status");
+
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(3)
@@ -2971,6 +3145,10 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<Guid?>("UpdatedBy")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("updated_by");
+
+                    b.Property<Guid?>("VenueId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("venue_id");
 
                     b.HasKey("Id");
 
@@ -2989,17 +3167,32 @@ namespace Tcrfc.Api.Data.Migrations
                     b.ToTable("fan_events", (string)null);
                 });
 
-            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.FanEventRegistration", b =>
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.FanEventArticle", b =>
+                {
+                    b.Property<Guid>("FanEventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("fan_event_id");
+
+                    b.Property<Guid>("ArticleId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("article_id");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("FanEventId", "ArticleId");
+
+                    b.ToTable("fan_event_articles", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.FanEventImage", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("id")
                         .HasDefaultValueSql("(newid())");
-
-                    b.Property<Guid>("ClubId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("club_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -3016,9 +3209,19 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("fan_event_id");
 
-                    b.Property<Guid?>("MemberId")
-                        .HasColumnType("uniqueidentifier")
-                        .HasColumnName("member_id");
+                    b.Property<int?>("ImageHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("image_height");
+
+                    b.Property<string>("ImageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("image_key");
+
+                    b.Property<int?>("ImageWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("image_width");
 
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
@@ -3027,10 +3230,9 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
 
-                    b.Property<string>("Status")
-                        .HasMaxLength(16)
-                        .HasColumnType("nvarchar(16)")
-                        .HasColumnName("status");
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -3046,6 +3248,101 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_fan_event_images_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_fan_event_images_row_seq"));
+
+                    b.ToTable("fan_event_images", (string)null);
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.FanEventRegistration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<string>("ApplicantName")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("applicant_name");
+
+                    b.Property<Guid>("ClubId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("club_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("created_by");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("email");
+
+                    b.Property<Guid>("FanEventId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("fan_event_id");
+
+                    b.Property<Guid?>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("note");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("phone");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("status")
+                        .HasDefaultValue("registered", "DF_fan_event_registrations_status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("updated_by");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "FanEventId", "Status" }, "IX_fan_event_registrations_event_status");
+
+                    b.HasIndex(new[] { "FanEventId", "MemberId" }, "UQ_fan_event_registrations_event_member")
+                        .IsUnique()
+                        .HasFilter("([member_id] IS NOT NULL AND [status]<>'cancelled')");
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_fan_event_registrations_row_seq")
                         .IsUnique();
@@ -3069,6 +3366,11 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<string>("Description")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("description");
+
+                    b.Property<string>("Location")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("location");
 
                     b.Property<string>("Name")
                         .HasMaxLength(128)
@@ -4052,6 +4354,7 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnName("handled_by");
 
                     b.Property<string>("MovementType")
+                        .IsRequired()
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)")
                         .HasColumnName("movement_type");
@@ -4080,12 +4383,20 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("reason");
 
+                    b.Property<int?>("ReservedAfter")
+                        .HasColumnType("int")
+                        .HasColumnName("reserved_after");
+
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
                         .HasColumnName("row_seq");
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<int?>("StockAfter")
+                        .HasColumnType("int")
+                        .HasColumnName("stock_after");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -4264,8 +4575,8 @@ namespace Tcrfc.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasDefaultValue("pending")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasDefaultValue("pending", "DF_jersey_issues_status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -4864,8 +5175,8 @@ namespace Tcrfc.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasDefaultValue("active")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasDefaultValue("active", "DF_member_cards_status");
 
                     b.Property<string>("Token")
                         .IsRequired()
@@ -4950,6 +5261,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasPrecision(3)
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("drawn_at");
+
+                    b.Property<string>("InternalNote")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("internal_note");
 
                     b.Property<DateTime?>("LockedAt")
                         .HasPrecision(3)
@@ -5121,8 +5436,8 @@ namespace Tcrfc.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasDefaultValue("active")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasDefaultValue("active", "DF_memberships_status");
 
                     b.Property<string>("Tier")
                         .IsRequired()
@@ -5444,8 +5759,8 @@ namespace Tcrfc.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasDefaultValue("draft")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasDefaultValue("draft", "DF_membership_plans_status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -5795,6 +6110,16 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("(newid())");
 
+                    b.Property<string>("CancelReason")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("cancel_reason");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("cancelled_at");
+
                     b.Property<Guid>("ClubId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("club_id");
@@ -5802,6 +6127,11 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<Guid>("CollectingClubId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("collecting_club_id");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("completed_at");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -5814,10 +6144,19 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<string>("CustomerNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("customer_note");
+
                     b.Property<string>("DeliveryMethod")
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
                         .HasColumnName("delivery_method");
+
+                    b.Property<string>("InternalNote")
+                        .HasColumnType("nvarchar(max)")
+                        .HasColumnName("internal_note");
 
                     b.Property<bool>("IsManual")
                         .HasColumnType("bit")
@@ -5857,6 +6196,14 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("paid_at");
 
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("payment_method")
+                        .HasDefaultValue("linepay", "DF_orders_payment_method");
+
                     b.Property<string>("PaymentStatus")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -5890,6 +6237,23 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<Guid>("SellingClubId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("selling_club_id");
+
+                    b.Property<DateOnly?>("SettledOn")
+                        .HasColumnType("date")
+                        .HasColumnName("settled_on");
+
+                    b.Property<string>("SettlementNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("settlement_note");
+
+                    b.Property<string>("SettlementStatus")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("settlement_status")
+                        .HasDefaultValue("pending", "DF_orders_settlement_status");
 
                     b.Property<int>("ShippingFee")
                         .HasColumnType("int")
@@ -5927,6 +6291,9 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasIndex(new[] { "OrderStatus" }, "IX_orders_order_status");
 
                     b.HasIndex(new[] { "PaymentStatus", "CreatedAt" }, "IX_orders_payment_status_created");
+
+                    b.HasIndex(new[] { "SellingClubId", "CreatedAt" }, "IX_orders_selling_created")
+                        .IsDescending(false, true);
 
                     b.HasIndex(new[] { "LookupToken" }, "UQ_orders_lookup_token")
                         .IsUnique();
@@ -6440,8 +6807,8 @@ namespace Tcrfc.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasDefaultValue("all")
-                        .HasColumnName("applicable_tier");
+                        .HasColumnName("applicable_tier")
+                        .HasDefaultValue("all", "DF_partner_stores_applicable_tier");
 
                     b.Property<string>("BusinessHours")
                         .HasColumnType("nvarchar(max)")
@@ -6525,8 +6892,8 @@ namespace Tcrfc.Api.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasDefaultValue("draft")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasDefaultValue("draft", "DF_partner_stores_status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -7200,6 +7567,14 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("bit")
                         .HasColumnName("is_new_arrival");
 
+                    b.Property<string>("OutOfStockBehavior")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("out_of_stock_behavior")
+                        .HasDefaultValue("show_unavailable", "DF_products_oos");
+
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bigint")
@@ -7360,6 +7735,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<int?>("LowStockThreshold")
+                        .HasColumnType("int")
+                        .HasColumnName("low_stock_threshold");
+
                     b.Property<int>("Price")
                         .HasColumnType("int")
                         .HasColumnName("price");
@@ -7394,10 +7773,17 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(64)")
                         .HasColumnName("sku");
 
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int")
+                        .HasColumnName("sort_order");
+
                     b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasDefaultValue("active", "DF_product_variants_status");
 
                     b.Property<int>("StockQty")
                         .HasColumnType("int")
@@ -7417,6 +7803,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "ProductId" }, "IX_product_variants_product");
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_product_variants_row_seq")
                         .IsUnique();
@@ -7751,6 +8139,12 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("created_by");
 
+                    b.Property<bool>("NeedsReturn")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasColumnName("needs_return")
+                        .HasDefaultValue(true, "DF_refund_requests_needs_return");
+
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("order_id");
@@ -7759,6 +8153,15 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("reason");
+
+                    b.Property<DateTime?>("ReceivedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("received_at");
+
+                    b.Property<Guid?>("ReceivedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("received_by");
 
                     b.Property<int?>("RefundAmount")
                         .HasColumnType("int")
@@ -7769,10 +8172,24 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(32)")
                         .HasColumnName("refund_method");
 
+                    b.Property<string>("RefundReference")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("refund_reference");
+
                     b.Property<DateTime?>("RefundedAt")
                         .HasPrecision(3)
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("refunded_at");
+
+                    b.Property<Guid?>("RefundedBy")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("refunded_by");
+
+                    b.Property<string>("ReviewNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("review_note");
 
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
@@ -7782,9 +8199,12 @@ namespace Tcrfc.Api.Data.Migrations
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
 
                     b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
-                        .HasColumnName("status");
+                        .HasColumnName("status")
+                        .HasDefaultValue("requested", "DF_refund_requests_status");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -7800,6 +8220,10 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "ClubId", "Status" }, "IX_refund_requests_club_status");
+
+                    b.HasIndex(new[] { "OrderId" }, "IX_refund_requests_order");
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_refund_requests_row_seq")
                         .IsUnique();
@@ -8254,6 +8678,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("(newid())");
 
+                    b.Property<DateTime?>("ArrivalNotifiedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("arrival_notified_at");
+
                     b.Property<string>("Carrier")
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)")
@@ -8282,6 +8711,10 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Property<Guid>("OrderId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("order_id");
+
+                    b.Property<DateOnly?>("PickupDeadlineOn")
+                        .HasColumnType("date")
+                        .HasColumnName("pickup_deadline_on");
 
                     b.Property<string>("PickupStatus")
                         .HasMaxLength(16)
@@ -8324,6 +8757,9 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "OrderId" }, "UQ_shipments_order")
+                        .IsUnique();
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_shipments_row_seq")
                         .IsUnique();
@@ -10701,6 +11137,45 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("UpdatedByNavigation");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.DrawRosterVersion", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("DrawRosterVersionCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_draw_roster_versions_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "GeneratedByNavigation")
+                        .WithMany("DrawRosterVersionGeneratedByNavigations")
+                        .HasForeignKey("GeneratedBy")
+                        .HasConstraintName("FK_draw_roster_versions_generated_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.MemberDraw", "MemberDraw")
+                        .WithMany("DrawRosterVersions")
+                        .HasForeignKey("MemberDrawId")
+                        .IsRequired()
+                        .HasConstraintName("FK_draw_roster_versions_draw");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("DrawRosterVersionUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_draw_roster_versions_updated_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "VoidedByNavigation")
+                        .WithMany("DrawRosterVersionVoidedByNavigations")
+                        .HasForeignKey("VoidedBy")
+                        .HasConstraintName("FK_draw_roster_versions_voided_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("GeneratedByNavigation");
+
+                    b.Navigation("MemberDraw");
+
+                    b.Navigation("UpdatedByNavigation");
+
+                    b.Navigation("VoidedByNavigation");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.EmailLog", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
@@ -10892,9 +11367,63 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasForeignKey("UpdatedBy")
                         .HasConstraintName("FK_fan_events_updated_by");
 
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Venue", "Venue")
+                        .WithMany("FanEvents")
+                        .HasForeignKey("VenueId")
+                        .HasConstraintName("FK_fan_events_venue");
+
                     b.Navigation("Club");
 
                     b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("UpdatedByNavigation");
+
+                    b.Navigation("Venue");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.FanEventArticle", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Article", "Article")
+                        .WithMany("FanEventArticles")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_fan_event_articles_article");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.FanEvent", "FanEvent")
+                        .WithMany("FanEventArticles")
+                        .HasForeignKey("FanEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_fan_event_articles_event");
+
+                    b.Navigation("Article");
+
+                    b.Navigation("FanEvent");
+                });
+
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.FanEventImage", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "CreatedByNavigation")
+                        .WithMany("FanEventImageCreatedByNavigations")
+                        .HasForeignKey("CreatedBy")
+                        .HasConstraintName("FK_fan_event_images_created_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.FanEvent", "FanEvent")
+                        .WithMany("FanEventImages")
+                        .HasForeignKey("FanEventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("FK_fan_event_images_event");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
+                        .WithMany("FanEventImageUpdatedByNavigations")
+                        .HasForeignKey("UpdatedBy")
+                        .HasConstraintName("FK_fan_event_images_updated_by");
+
+                    b.Navigation("CreatedByNavigation");
+
+                    b.Navigation("FanEvent");
 
                     b.Navigation("UpdatedByNavigation");
                 });
@@ -12591,6 +13120,16 @@ namespace Tcrfc.Api.Data.Migrations
                         .IsRequired()
                         .HasConstraintName("FK_refund_requests_order");
 
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "ReceivedByNavigation")
+                        .WithMany("RefundRequestReceivedByNavigations")
+                        .HasForeignKey("ReceivedBy")
+                        .HasConstraintName("FK_refund_requests_received_by");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "RefundedByNavigation")
+                        .WithMany("RefundRequestRefundedByNavigations")
+                        .HasForeignKey("RefundedBy")
+                        .HasConstraintName("FK_refund_requests_refunded_by");
+
                     b.HasOne("Tcrfc.Api.Data.EfEntities.AdminUser", "UpdatedByNavigation")
                         .WithMany("RefundRequestUpdatedByNavigations")
                         .HasForeignKey("UpdatedBy")
@@ -12603,6 +13142,10 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("CreatedByNavigation");
 
                     b.Navigation("Order");
+
+                    b.Navigation("ReceivedByNavigation");
+
+                    b.Navigation("RefundedByNavigation");
 
                     b.Navigation("UpdatedByNavigation");
                 });
@@ -12811,8 +13354,8 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasConstraintName("FK_shipments_created_by");
 
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Order", "Order")
-                        .WithMany("Shipments")
-                        .HasForeignKey("OrderId")
+                        .WithOne("Shipment")
+                        .HasForeignKey("Tcrfc.Api.Data.EfEntities.Shipment", "OrderId")
                         .IsRequired()
                         .HasConstraintName("FK_shipments_order");
 
@@ -13415,6 +13958,14 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.Navigation("DrawRosterUpdatedByNavigations");
 
+                    b.Navigation("DrawRosterVersionCreatedByNavigations");
+
+                    b.Navigation("DrawRosterVersionGeneratedByNavigations");
+
+                    b.Navigation("DrawRosterVersionUpdatedByNavigations");
+
+                    b.Navigation("DrawRosterVersionVoidedByNavigations");
+
                     b.Navigation("EmailLogCreatedByNavigations");
 
                     b.Navigation("EmailLogUpdatedByNavigations");
@@ -13434,6 +13985,10 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("EventTypeUpdatedByNavigations");
 
                     b.Navigation("FanEventCreatedByNavigations");
+
+                    b.Navigation("FanEventImageCreatedByNavigations");
+
+                    b.Navigation("FanEventImageUpdatedByNavigations");
 
                     b.Navigation("FanEventRegistrationCreatedByNavigations");
 
@@ -13637,6 +14192,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.Navigation("RefundRequestCreatedByNavigations");
 
+                    b.Navigation("RefundRequestReceivedByNavigations");
+
+                    b.Navigation("RefundRequestRefundedByNavigations");
+
                     b.Navigation("RefundRequestUpdatedByNavigations");
 
                     b.Navigation("RegistrationCreatedByNavigations");
@@ -13715,6 +14274,8 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("ArticlesI18ns");
 
                     b.Navigation("CharityProgramArticles");
+
+                    b.Navigation("FanEventArticles");
 
                     b.Navigation("MemberDraws");
 
@@ -13958,6 +14519,10 @@ namespace Tcrfc.Api.Data.Migrations
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.FanEvent", b =>
                 {
+                    b.Navigation("FanEventArticles");
+
+                    b.Navigation("FanEventImages");
+
                     b.Navigation("FanEventRegistrations");
 
                     b.Navigation("FanEventsI18ns");
@@ -14047,6 +14612,8 @@ namespace Tcrfc.Api.Data.Migrations
 
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.MemberDraw", b =>
                 {
+                    b.Navigation("DrawRosterVersions");
+
                     b.Navigation("DrawRosters");
 
                     b.Navigation("MemberDrawsI18ns");
@@ -14097,7 +14664,7 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.Navigation("RefundRequests");
 
-                    b.Navigation("Shipments");
+                    b.Navigation("Shipment");
 
                     b.Navigation("StoreInvoices");
                 });
@@ -14285,6 +14852,8 @@ namespace Tcrfc.Api.Data.Migrations
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Venue", b =>
                 {
                     b.Navigation("CalendarCustomEvents");
+
+                    b.Navigation("FanEvents");
 
                     b.Navigation("Matches");
 

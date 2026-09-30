@@ -45,11 +45,15 @@ public partial class MemberDraw
 
     public Guid? UpdatedBy { get; set; }
 
+    public string? InternalNote { get; set; }
+
     public virtual Article? AnnouncementArticle { get; set; }
 
     public virtual Club Club { get; set; } = null!;
 
     public virtual AdminUser? CreatedByNavigation { get; set; }
+
+    public virtual ICollection<DrawRosterVersion> DrawRosterVersions { get; set; } = new List<DrawRosterVersion>();
 
     public virtual ICollection<DrawRoster> DrawRosters { get; set; } = new List<DrawRoster>();
 

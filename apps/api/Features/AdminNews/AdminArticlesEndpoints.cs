@@ -55,6 +55,23 @@ public static class AdminArticlesEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
 
+        // GET /api/v1/admin/{club}/news/lookup?keyword=&status=&category=&ids=&page=&pageSize=
+        // C1 新增：關聯報導的挑選視窗——關鍵字比對中文／英文標題與網址名稱、可分頁；ids 用來把已選取的 id 解回標題。
+        // 🔴 路由要宣告在 /{id:guid} 之前（兩者不會互相吃掉：lookup 不是 guid，但放前面比較不會讓人誤會）。
+        group.MapGet("/lookup", async (
+            string club, string? keyword, string? status, string? category, Guid[]? ids, int? page, int? pageSize,
+            HttpContext httpContext, IAdminClubAuthorizer authorizer, AdminArticlesRepository repository, CancellationToken cancellationToken) =>
+        {
+            var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionView, cancellationToken);
+            var (normalizedPage, normalizedPageSize) = PagingQuery.Normalize(page, pageSize, defaultPageSize: 20, maxPageSize: 50);
+            return Results.Ok(await repository.LookupAsync(adminScope, keyword, status, category, ids, normalizedPage, normalizedPageSize, cancellationToken));
+        })
+        .WithName("AdminLookupNews")
+        .Produces<PagedResult<AdminNewsLookupItemDto>>()
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
+
         // GET /api/v1/admin/{club}/news/{id}
         group.MapGet("/{id:guid}", async (
             string club, Guid id, HttpContext httpContext, IAdminClubAuthorizer authorizer,

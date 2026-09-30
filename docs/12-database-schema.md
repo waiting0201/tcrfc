@@ -84,7 +84,7 @@
 | 涵蓋範圍 | 主站全部（含站內商店 `S`）＋ 後台帳號與權限 `J`。⚠️ **慈善 `N` 已於 v3.0 移出**（獨立資料庫） |
 | 排除範圍 | **行動 App 的十一個型別**（`M` 模組與 `E4–E6`）；**慈善捐款平台的全部資料表**（獨立系統） |
 | 型別覆蓋 | ⚠️ **待重算**：主站 v3.0 新增 `Club`／`Competition`／`Membership`／`MemberCard`／`AdminUserClub`／`AdminUserTeam`，移出慈善 6 個 |
-| 資料表 | **113 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。**S1-8 新增 `FaqEmbedSlot`／`FaqEmbedSlotLink` 兩張，105 → 107**；**E1a（2026-09-30）新增 `SponsorActivation`／`SponsorActivationImage`／`SponsorArticle`／`CharityProgramPartner`／`CharityProgramSponsor`／`CharityProgramArticle` 六張，107 → 113**（第 43 點）。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
+| 資料表 | **116 張**（`CalendarEvent` 是**視圖**）＋ 約 40 張 `*_i18n` 側表。逐張見 [§4](#4-資料表總覽)。**S1-8 新增 `FaqEmbedSlot`／`FaqEmbedSlotLink` 兩張，105 → 107**；**E1a（2026-09-30）新增 `SponsorActivation`／`SponsorActivationImage`／`SponsorArticle`／`CharityProgramPartner`／`CharityProgramSponsor`／`CharityProgramArticle` 六張，107 → 113**（第 43 點）；**C1（2026-09-30）新增 `FanEventImage`／`FanEventArticle`／`DrawRosterVersion` 三張，113 → 116**（第 45 點）。⚠️ **本檔的計數口徑是「§4 逐列」，非逐張實體 DDL 檔比對**——`db/club-schema.sql` 實際 `CREATE TABLE` 另有 `SponsorPackageLink`（§4.4）與 `ImpactRecordImage`（§4.12 的圖集子表模式，比照 `CharityProgramImage`）兩張已建但本節尚未收錄，屬既有落差、不在本次（`S1-3` 補 `AdminRefreshToken`）範圍內 |
 | 型別詞彙 | `uuid`／`string(n)`／`text`／`int`／`decimal(p,s)`／`bool`／`date`／`datetime`／`json`／`enum` |
 | ER 圖 | 12 張 `erDiagram` ＋ 2 張 `flowchart`，每張 ≤ 12 實體 |
 
@@ -337,7 +337,7 @@ flowchart LR
 
 ## 4. 資料表總覽
 
-**113 張**（`CalendarEvent` 是視圖），另有約 40 張 `*_i18n` 側表（E1a 新增 `sponsor_activations_i18n`）。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
+**116 張**（`CalendarEvent` 是視圖），另有約 40 張 `*_i18n` 側表（E1a 新增 `sponsor_activations_i18n`）。⚠️ 計數口徑見 [§0](#0-一分鐘理解)。
 圖例：🌐 有 i18n 側表｜🔒 含受限或加密欄位｜📸 值複製快照，不可回頭 join。
 **`club_id` 欄**：**●** 必填｜**○** 可為空（＝兩隊共同）｜**—** 不加。
 判定準則與逐表清單見主站規劃書 **§5.4**（行 1533–1579）。
@@ -458,15 +458,17 @@ flowchart LR
 > 標記是把「檔案多語」誤讀成「資料列多語」，`db/club-schema.sql` 已核實不建 `proposals_i18n`。
 > ⚠️ 商品一律在 `S1` 維護，`ProductShowcase` **綱要中不存在**。**`E4` 現在是「廣告主與版位管理」**（行動 App），看到舊文件寫 `E4 商品櫥窗` 一律視為錯誤。
 
-### 4.5 F 文化模組（5）
+### 4.5 F 文化模組（7）
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
 | `ComicCharacter` | **●** | 漫畫角色，`player_id` **可為空**（可對應真實球員為原型） | 🌐 |
-| `ComicEpisode` | **●** | 集數、閱讀數 | 🌐 |
-| `ComicPage` | — | 內頁 `(episode_id, sort_order, image_key)` | |
-| `FanEvent` | **●** | 球迷會活動 | 🌐 |
-| `FanEventRegistration` | **●** | 活動報名，`member_id` 可為空 | 🔒 |
+| `ComicEpisode` | **●** | 集數、閱讀數。C1：`status` **收斂為 `draft`／`published`、`NOT NULL DEFAULT 'draft'`**（同 `press_resources`），`UNIQUE(club_id, episode_no)`；`is_latest` 由後台在每次異動後**自動重算**（已發布且發布日不晚於今天的最大集數） | 🌐 |
+| `ComicPage` | — | 內頁 `(episode_id, sort_order, image_key, image_width, image_height)` | |
+| `FanEvent` | **●** | 球迷會活動。C1 補：`cover_key`、`ends_at`、`registration_deadline_at`、`venue_id`（可空）、`status`（`draft`／`published`）；地點文字在側表 `fan_events_i18n.location` | 🌐 |
+| `FanEventImage` | — | **活動回顧圖集**（C1 新增）：`(fan_event_id, image_key, image_width, image_height, sort_order)`，由 `FanEvent` 推導 | |
+| `FanEventArticle` | — | **活動回顧的關聯文章**（C1 新增）：`(fan_event_id, article_id, sort_order)`。刻意不用 `article_relations`（該表由 B2 編輯器整批取代，同 `SponsorArticle`） | |
+| `FanEventRegistration` | **●** | 活動報名，`member_id` 可為空。C1：`status` `NOT NULL DEFAULT 'registered'`＋`CK_fan_event_registrations_status`（registered／waitlist／cancelled／attended；已報名與已到場佔名額）、非會員報名用 `applicant_name`／`phone`／`email`、`note`；**同活動同會員唯一（排除已取消，過濾唯一索引）** | 🔒 |
 
 > ⚠️ 漫畫**全部免費公開、不設付費牆、不需登入**——沒有任何權限或購買欄位。
 > ⚠️ **會員名單、會籍方案與權益對照表在 `K`，不在 `F`**。
@@ -550,7 +552,7 @@ flowchart LR
 > 🔴 **資料範圍必須在資料存取層強制**，介面隱藏不算數——擋不住直接呼叫端點與匯出。
 > 明細見 [§7](12b-database-tables.md#7-權限模型j-模組)。**本模組不含 `AuditLog`、`LoginLog`、`ExportLog`**，見 [§13.1](#131-沒有稽核與登入日誌表)。`AdminRefreshToken` 是例外——**它不是被排除的日誌表**（判準見 §7.7）：拿掉它，輪替與重放偵測直接做不到。
 
-### 4.9 K 會員管理（10）
+### 4.9 K 會員管理（11）
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
@@ -562,8 +564,9 @@ flowchart LR
 | `MembershipBenefit` | — | 權益對照條目（**由父表 `MembershipPlan` 推導**）：分組、免費層值、付費層值、排序。**單一維護點，前台三處共用** | 🌐 |
 | `JerseyIssue` | **●** | 球衣發放，**一件一列**：領用人姓名、尺寸、配送方式、地址、狀態 | 🔒 |
 | `PartnerStore` | **○** | 特約店家（**適用範圍可設單一俱樂部或兩隊共同**，主站 §3.14）：類別、地址、電話、營業時間、優惠內容、適用層級、合作起訖、**`lat`／`lng`**（K4 人工確認後儲存）。**無金流無分潤** | 🌐 |
-| `MemberDraw` | **●** | 抽獎活動：`snapshot_at`、開獎時間、領獎期限、狀態、`roster_version`、`total_count`、`roster_hash`。**各俱樂部各自舉辦** | 🌐 |
-| `DrawRoster` | **●** | **合格名單快照，一人一列** | 🔒 📸 |
+| `MemberDraw` | **●** | 抽獎活動：`snapshot_at`、開獎時間、領獎期限、狀態、`roster_version`、`total_count`、`roster_hash`。**各俱樂部各自舉辦**。C1 補 `internal_note` | 🌐 |
+| `DrawRoster` | **●** | **合格名單快照，一人一列**。C1：`roster_version`（**唯一鍵含版本**：`(member_draw_id, roster_version, serial_no)`／`(…, member_no_snapshot)`，作廢重產時舊版保留）、`is_backup`（備取）、`recipient_*`／`shipped_at`／`claimed_at`（獎品發放，比照 K3）、`claim_method`（ship／pickup）與 `fulfilment_status`（pending／shipped／claimed）加值域約束 | 🔒 📸 |
+| `DrawRosterVersion` | — | **名單版本歷程**（C1 新增）：每次產生名單一列 `(member_draw_id, roster_version, snapshot_at, total_count, roster_hash, generated_by/at, voided_at/by, void_reason)`；作廢的舊版**不得刪除**。由 `MemberDraw` 推導，不帶 `club_id` | |
 
 > 🔴 **`Member` 不帶 `tier`／`membership_start_on`／`membership_end_on`**——三欄已移入 `Membership`。看到還寫在 `Member` 上的是舊規格。
 > ⚠️ **抽獎資格是算出來的布林值**，**沒有 `DrawEntry`／`Ticket`／`Point`／`Weight` 任何表或欄位**。一人一號，不因消費／簽到／分享增加機會。
@@ -589,16 +592,16 @@ flowchart LR
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
 | `Collection` | **●** | 商品分類，含品牌敘事區塊。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 |
-| `Product` | **●** | 商品：分類、標籤、敘事、尺碼表、狀態（含缺貨自動判定）、排序、SEO。**無會員價欄位**。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 |
+| `Product` | **●** | 商品：分類、標籤、敘事、尺碼表、狀態（含缺貨自動判定）、排序、SEO。**無會員價欄位**。`status` **收斂為 `draft`／`published`**（S1-8）；C1 補 `out_of_stock_behavior`（`show_unavailable` 顯示但不可購買／`hide` 自動隱藏，預設前者） | 🌐 |
 | `ProductImage` | — | 圖集 `(product_id, sort_order, image_key)` | |
-| `ProductVariant` | **●** | **SKU**：尺寸／顏色、貨號（**維持全站唯一**——揀貨與庫存識別鍵）、售價、促銷價、**成本（受限）**、庫存量、預留量 | 🔒 |
-| `InventoryMovement` | **●** | 庫存異動：類型、數量、原因、**經辦人**、時間、關聯訂單 | |
+| `ProductVariant` | **●** | **SKU**：尺寸／顏色、貨號（**維持全站唯一**——揀貨與庫存識別鍵）、售價、促銷價、**成本（受限）**、庫存量、預留量。C1：`status`（`active`／`inactive`，`NOT NULL`）、`low_stock_threshold`（空＝用俱樂部設定）、`sort_order`；**`CK_product_variants_stock`：庫存非負且保留量 ≤ 庫存量**。🔴 **庫存量與保留量只透過庫存異動改動**（S2） | 🔒 |
+| `InventoryMovement` | **●** | 庫存異動：類型、數量、原因、**經辦人**、時間、關聯訂單。C1：`movement_type` `NOT NULL`＋`CK_inventory_movements_type`（stock_in／stocktake／damage／adjust／reserve／release／sale／cancel_restock／return_restock）、`stock_after`／`reserved_after`（異動後水位）；`quantity` 有正負號，`reserve`／`release` 變動保留量、其餘變動庫存量 | |
 | `Cart` | **●** | 購物車：`member_id`（可空）或 `anonymous_token`；**登入後合併**。🔴 **不得跨俱樂部混買，切換站台即切換購物車** | |
 | `CartItem` | — | `(cart_id, product_variant_id, quantity)` | |
-| `Order` | **●** | **訂單**：訂單編號（**維持全站唯一**，加前綴）、`member_id` 可為空、收件人資料（**受限**）、金額、LINE Pay 交易編號與付款狀態、出貨狀態、查詢 token、`is_manual`。**`selling_club_id`（受益方）＋ `collecting_club_id`（收款法人）** | 🔒 |
+| `Order` | **●** | **訂單**：訂單編號（**維持全站唯一**，加前綴）、`member_id` 可為空、收件人資料（**受限**）、金額、LINE Pay 交易編號與付款狀態、出貨狀態、查詢 token、`is_manual`。**`selling_club_id`（受益方）＋ `collecting_club_id`（收款法人）**。C1 補 `payment_method`（`linepay`／`onsite` 現場收款）、`customer_note`、`internal_note`、**代收代付分帳旗標 `settlement_status`（`pending`／`settled`，人工標記不是狀態機）＋`settled_on`／`settlement_note`**、`completed_at`、`cancelled_at`／`cancel_reason`；`order_status` 值域為中文八態（見 CHECK） | 🔒 |
 | `OrderItem` | **●** | 訂單品項：**SKU 快照**（商品名稱、規格、單價**值複製**）、數量、小計。`club_id` **值複製自 `Order`** | 📸 |
-| `Shipment` | **●** | 出貨：物流方式、單號（**CSV 回填，不串物流商 API**）、時間、超商門市代碼、自取領取狀態 | 🔒 |
-| `RefundRequest` | **●** | 退貨退款申請：原因、狀態、退款金額與方式 | |
+| `Shipment` | **●** | 出貨：物流方式、單號（**CSV 回填，不串物流商 API**）、時間、超商門市代碼、自取領取狀態。C1：**每張訂單一筆**（`UQ_shipments_order`）、`pickup_status` 值域（`waiting`／`picked_up`，**逾期＝待領取且已過 `pickup_deadline_on`，讀取時換算**）、`pickup_deadline_on`、`arrival_notified_at`（只記到店通知時間，不寄通知） | 🔒 |
+| `RefundRequest` | **●** | 退貨退款申請：原因、狀態、退款金額與方式。C1：`status` `NOT NULL DEFAULT 'requested'`＋`CK_refund_requests_status`（requested／approved／received／processing／refunded／rejected；`processing` 是執行退款時搶佔的鎖定狀態，防重複退款）、`needs_return`、驗收（`received_at`／`received_by`）、`review_note`、退款經辦 `refunded_by`、`refund_reference`（金流退款序號）；`refund_method`：`linepay`／`manual` | |
 | `RefundRequestItem` | — | 退貨品項（支援部分退款） | |
 | `StoreInvoice` | **●** | **電子發票**：號碼、開立時間、**載具／統編／捐贈碼三選一**、開立結果與重試、作廢與折讓。`club_id` 值複製自 `Order` | 🔒 📸 |
 | `InvoiceDonationCode` | — | 捐贈碼名單（S6 維護）。**全系統共用** | |
@@ -818,6 +821,17 @@ flowchart LR
     ⑨ 新表 `calendar_team_settings`／`_i18n`（L3 隊別分類覆寫）、`calendar_feed_fetches`（L4 訂閱數統計）。
     **不變**：`Member` 仍不加 `club_id`、`MembershipBenefit` 仍不加 `club_id`（範圍靠「方案屬於目前俱樂部」）、`Trial` 是否同步行事曆仍由 L3 開關決定（開關連動 `trials.sync_to_calendar`，視圖不改）。
     **稽核仍無表**（§13.1）：匯出與個資檢視的「誰、何時、幾筆、用途」目前寫進應用程式結構化日誌（`SensitiveActionLogger`），不落資料表，見 `apps/api/README.md`「B1」節「待裁決」。
+
+45. 🔴 **（C1，2026-09-30）後台 F1 漫畫、F2 球迷會活動、S1–S6 站內商店、K5 抽獎名單落地時補齊的綱要**——同樣是把規劃書已有的功能落到資料表，不是新增規格
+    （`db/club-schema.sql` 與 migration `AlignSchemaC1` 同步，本機 `tcrfc_club` 已套用，套用前相關表皆 0 筆；共 **113 → 116 張**）：
+    ① `comic_episodes.status` 收斂為 `NOT NULL DEFAULT 'draft'`＋`CK_comic_episodes_status`（draft／published），新增 `UQ_comic_episodes_club_no`，`comic_pages` 加圖片寬高；
+    ② `fan_events` 加封面、結束時間、報名截止、場地（`venue_id`）、`status`（草稿／已發布），`fan_events_i18n.location`；新表 `fan_event_images`（回顧圖集）、`fan_event_articles`（回顧關聯文章）；
+    `fan_event_registrations.status` 收斂為 `NOT NULL DEFAULT 'registered'`＋約束（registered／waitlist／cancelled／attended），加非會員報名欄位與**同活動同會員唯一（排除已取消）**；
+    ③ `products.out_of_stock_behavior`；`product_variants.status` 收斂為 `active`／`inactive`、加 `low_stock_threshold`／`sort_order`、**庫存非負且保留量 ≤ 庫存量**；`inventory_movements.movement_type` 加值域約束與 `stock_after`／`reserved_after`；
+    ④ `orders` 加 `payment_method`（現場收款）、`customer_note`／`internal_note`、**分帳旗標 `settlement_status`／`settled_on`／`settlement_note`**、`completed_at`／`cancelled_at`／`cancel_reason`；`shipments` 每單一筆、領取期限與到店通知；`refund_requests` 加狀態機約束、是否需退回、驗收、審核意見、退款經辦與序號；
+    ⑤ `member_draws.internal_note`；`draw_rosters` 加 `roster_version`（**唯一鍵改含版本**，作廢重產時舊版保留）、`is_backup`、獎品發放欄位；新表 `draw_roster_versions`（名單版本歷程，作廢的舊版不得刪除）。
+    **不變**：`comic_pages`／`fan_event_images`／`draw_roster_versions` 仍不加 `club_id`（由父表推導）；`withholding_data_encrypted` 欄位保留、本批沒有端點（扣繳門檻待會計師確認）；**稽核仍無表**，K5 與 S 模組的匯出、檢視完整個資、退款執行同樣寫 `SensitiveActionLogger`。
+    庫存**只透過庫存異動改動**（`apps/api` 的 `InventoryService`，`ArchitectureTests` 用反射與原始碼掃描鎖定），金流與電子發票以介面隔開、**本期不串接**（B-10），見 `apps/api/README.md`「C1」節。
 
 ---
 

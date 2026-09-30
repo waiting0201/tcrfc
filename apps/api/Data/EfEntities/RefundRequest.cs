@@ -15,7 +15,7 @@ public partial class RefundRequest
 
     public string? Reason { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public int? RefundAmount { get; set; }
 
@@ -33,6 +33,18 @@ public partial class RefundRequest
 
     public Guid? UpdatedBy { get; set; }
 
+    public bool NeedsReturn { get; set; }
+
+    public DateTime? ReceivedAt { get; set; }
+
+    public Guid? ReceivedBy { get; set; }
+
+    public string? ReviewNote { get; set; }
+
+    public Guid? RefundedBy { get; set; }
+
+    public string? RefundReference { get; set; }
+
     public virtual AdminUser? ApprovedByNavigation { get; set; }
 
     public virtual Club Club { get; set; } = null!;
@@ -41,7 +53,11 @@ public partial class RefundRequest
 
     public virtual Order Order { get; set; } = null!;
 
+    public virtual AdminUser? ReceivedByNavigation { get; set; }
+
     public virtual ICollection<RefundRequestItem> RefundRequestItems { get; set; } = new List<RefundRequestItem>();
+
+    public virtual AdminUser? RefundedByNavigation { get; set; }
 
     public virtual AdminUser? UpdatedByNavigation { get; set; }
 }

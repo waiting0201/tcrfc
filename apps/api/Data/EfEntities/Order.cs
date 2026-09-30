@@ -53,6 +53,24 @@ public partial class Order
 
     public Guid? UpdatedBy { get; set; }
 
+    public string PaymentMethod { get; set; } = null!;
+
+    public string? CustomerNote { get; set; }
+
+    public string? InternalNote { get; set; }
+
+    public string SettlementStatus { get; set; } = null!;
+
+    public DateOnly? SettledOn { get; set; }
+
+    public string? SettlementNote { get; set; }
+
+    public DateTime? CompletedAt { get; set; }
+
+    public DateTime? CancelledAt { get; set; }
+
+    public string? CancelReason { get; set; }
+
     public virtual Club Club { get; set; } = null!;
 
     public virtual Club CollectingClub { get; set; } = null!;
@@ -69,7 +87,7 @@ public partial class Order
 
     public virtual Club SellingClub { get; set; } = null!;
 
-    public virtual ICollection<Shipment> Shipments { get; set; } = new List<Shipment>();
+    public virtual Shipment? Shipment { get; set; }
 
     public virtual ICollection<StoreInvoice> StoreInvoices { get; set; } = new List<StoreInvoice>();
 

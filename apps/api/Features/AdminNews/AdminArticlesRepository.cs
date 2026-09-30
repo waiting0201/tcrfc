@@ -80,9 +80,8 @@ public sealed class AdminArticlesRepository(
 
         if (!string.IsNullOrWhiteSpace(keyword))
         {
-            // 只搜尋中文標題（zh-Hant 是必填語系，任何一篇文章都一定有這個側表列）。
-            query = query.Where(a => a.ArticlesI18ns.Any(i =>
-                i.Locale == RequestLocale.DefaultDbLocale && i.Title != null && i.Title.Contains(keyword)));
+            // 比對中文標題、英文標題與網址名稱（C1：關聯報導挑選要能用英文或網址名稱找舊文章）。
+            query = query.Where(a => a.Slug.Contains(keyword) || a.ArticlesI18ns.Any(i => i.Title != null && i.Title.Contains(keyword)));
         }
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -141,6 +140,58 @@ public sealed class AdminArticlesRepository(
         }).ToList();
 
         return new PagedResult<AdminArticleListItemDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+    }
+
+    /// <summary>
+    /// C1 新增：<b>挑選文章用的輕量搜尋</b>（球迷會活動回顧、贊助故事、抽獎公布稿等「關聯報導」的挑選視窗）。
+    /// 範圍同清單（本俱樂部＋共用）；<c>keyword</c> 比對中文標題、英文標題與網址名稱；<c>ids</c> 用來把「已選取」的 id 解回標題；
+    /// 依發布時間新→舊（草稿排後面）。回應是精簡欄位，不含內文。
+    /// </summary>
+    public async Task<PagedResult<AdminNewsLookupItemDto>> LookupAsync(
+        AdminClubScope scope, string? keyword, string? status, string? categoryCode, IReadOnlyList<Guid>? ids,
+        int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var query = dbContext.Articles.AsNoTracking().Where(a => a.ClubId == scope.ClubId || a.ClubId == null);
+        if (ids is { Count: > 0 })
+        {
+            var idList = ids.Distinct().Take(200).ToList();
+            query = query.Where(a => idList.Contains(a.Id));
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            query = query.Where(a => a.Status == status);
+        }
+
+        if (!string.IsNullOrWhiteSpace(categoryCode))
+        {
+            query = query.Where(a => a.ArticleCategory.Code == categoryCode);
+        }
+
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var k = keyword.Trim();
+            query = query.Where(a => a.Slug.Contains(k) || a.ArticlesI18ns.Any(i => i.Title != null && i.Title.Contains(k)));
+        }
+
+        var total = await query.CountAsync(cancellationToken);
+        var rows = await query
+            .OrderByDescending(a => a.PublishedAt != null).ThenByDescending(a => a.PublishedAt).ThenByDescending(a => a.UpdatedAt)
+            .Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(a => new AdminNewsLookupItemDto
+            {
+                Id = a.Id,
+                Slug = a.Slug,
+                CategoryCode = a.ArticleCategory.Code,
+                Status = a.Status,
+                StatusLabel = a.Status == "published" ? "已發布" : a.Status == "scheduled" ? "排程發布中" : "草稿",
+                PublishedAt = a.PublishedAt,
+                IsShared = a.ClubId == null,
+                TitleZh = a.ArticlesI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Title).FirstOrDefault(),
+                TitleEn = a.ArticlesI18ns.Where(i => i.Locale == "en").Select(i => i.Title).FirstOrDefault(),
+            })
+            .ToListAsync(cancellationToken);
+        return new PagedResult<AdminNewsLookupItemDto> { Items = rows, Page = page, PageSize = pageSize, TotalCount = total };
     }
 
     /// <summary>後台單篇詳情。跨俱樂部（非共用、非本俱樂部）回傳 <c>null</c>（404），

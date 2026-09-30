@@ -17,7 +17,7 @@ public partial class ComicEpisode
 
     public DateOnly? PublishedOn { get; set; }
 
-    public string? Status { get; set; }
+    public string Status { get; set; } = null!;
 
     public bool IsLatest { get; set; }
 

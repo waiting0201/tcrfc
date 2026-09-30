@@ -33,6 +33,10 @@ public partial class Shipment
 
     public Guid? UpdatedBy { get; set; }
 
+    public DateOnly? PickupDeadlineOn { get; set; }
+
+    public DateTime? ArrivalNotifiedAt { get; set; }
+
     public virtual Club Club { get; set; } = null!;
 
     public virtual AdminUser? CreatedByNavigation { get; set; }

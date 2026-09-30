@@ -57,6 +57,8 @@ public partial class Article
 
     public virtual AdminUser? CreatedByNavigation { get; set; }
 
+    public virtual ICollection<FanEventArticle> FanEventArticles { get; set; } = new List<FanEventArticle>();
+
     public virtual ICollection<MemberDraw> MemberDraws { get; set; } = new List<MemberDraw>();
 
     public virtual ICollection<SponsorArticle> SponsorArticles { get; set; } = new List<SponsorArticle>();

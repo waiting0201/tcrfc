@@ -31,6 +31,8 @@ public partial class Product
 
     public Guid? UpdatedBy { get; set; }
 
+    public string OutOfStockBehavior { get; set; } = null!;
+
     public virtual Club Club { get; set; } = null!;
 
     public virtual Collection? Collection { get; set; }

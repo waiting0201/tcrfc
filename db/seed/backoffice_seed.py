@@ -1376,3 +1376,284 @@ BEGIN
   VALUES ({esc(bid)}, N'en', {esc(en)}, NULL, {esc(gl_en)}, {esc(free)}, {esc(paid)});
 END
 """)
+
+    # ========================================================================
+    # C1（2026-09-30，S3-1／S3-3／S3-4／S3-8）：F1 漫畫、F2 球迷會活動、S1–S6 站內商店、K5 抽獎名單
+    # 🔴 全部是虛構測試資料，一律以「【測試】」前綴或 TEST-／SEED- 代碼標明（見 db/seed/README.md「測試值清單」）。
+    # 🔴 個資：收件人、會員一律虛構（example.com／0900-000-XXX／「【測試】」姓名）；不含任何真人資料。
+    # 🔴 圖片：不種圖片（沒有可上傳的公開素材），漫畫集數一律草稿（發布規則要求至少一張內頁）。
+    # ========================================================================
+    tc = clubs["tcrfc"]
+    bw = clubs["bw"]
+
+    emit("-- ── 49. F1 漫畫（tcrfc）：企劃設定 settings＋3 個角色＋3 集草稿（藍鯨不設漫畫，不種） ──")
+    setting_i18n("tcrfc", "comic.about_title", "【測試】漫畫世界觀", "[Test] Comic universe", "comic")
+    setting_i18n("tcrfc", "comic.about_body", "【測試】這是測試用的漫畫世界觀說明，正式內容上線前請於後台替換。", "[Test] Placeholder universe description for the comic.", "comic")
+    for i, (zh, en) in enumerate([("【測試】角色甲", "Test Character A"), ("【測試】角色乙", "Test Character B"), ("【測試】角色丙", "Test Character C")]):
+        cid = new_id("comic_character", "tcrfc", str(i))
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM comic_characters_i18n WHERE comic_character_id = {esc(cid)})
+BEGIN
+  INSERT INTO comic_characters (id, club_id, sort_order) VALUES ({esc(cid)}, {tc}, {i});
+  INSERT INTO comic_characters_i18n (comic_character_id, locale, name, description) VALUES ({esc(cid)}, N'zh-Hant', {esc(zh)}, N'【測試】角色設定占位文字。');
+  INSERT INTO comic_characters_i18n (comic_character_id, locale, name, description) VALUES ({esc(cid)}, N'en', {esc(en)}, NULL);
+END
+""")
+    for no in (1, 2, 3):
+        eid = new_id("comic_episode", "tcrfc", str(no))
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM comic_episodes WHERE club_id = {tc} AND episode_no = {no})
+BEGIN
+  INSERT INTO comic_episodes (id, club_id, episode_no, status, is_latest, view_count) VALUES ({esc(eid)}, {tc}, {no}, N'draft', 0, 0);
+  INSERT INTO comic_episodes_i18n (comic_episode_id, locale, title) VALUES ({esc(eid)}, N'zh-Hant', {esc(f"【測試】第 {no} 集")});
+  INSERT INTO comic_episodes_i18n (comic_episode_id, locale, title) VALUES ({esc(eid)}, N'en', {esc(f"[Test] Episode {no}")});
+END
+""")
+
+    emit("-- ── 50. F2 球迷會活動：tcrfc 3 場（付費限定／公開／草稿）＋報名、bw 1 場 ──")
+    FAN_EVENTS = [  # slug, club, name zh, en, description, days offset, capacity, paid_only, status
+        ("test-fan-meet", "tcrfc", "【測試】球迷見面會（付費會員限定）", "[Test] Fan meet-up (fan club members only)", "【測試】球員與付費球迷會員面對面，名額 30 人。", 14, 30, 1, "published"),
+        ("test-match-day-party", "tcrfc", "【測試】主場賽事日球迷派對", "[Test] Match-day fan party", "【測試】主場賽事日的球迷同樂活動，不限名額。", 30, None, 0, "published"),
+        ("test-past-event", "tcrfc", "【測試】上季球迷活動回顧（草稿）", "[Test] Last season fan event (draft)", "【測試】已結束的活動，回顧圖集與文章尚未整理。", -30, 50, 0, "draft"),
+        ("test-bw-fan-day", "bw", "【測試】藍鯨球迷日", "[Test] Blue Whale fan day", "【測試】藍鯨方的球迷活動示範。", 20, 40, 0, "published"),
+    ]
+    for slug, ccode, zh, en, desc, days, cap, paid_only, status in FAN_EVENTS:
+        fid = new_id("fan_event", ccode, slug)
+        cs = clubs[ccode]
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM fan_events WHERE club_id = {cs} AND slug = {esc(slug)})
+BEGIN
+  INSERT INTO fan_events (id, club_id, slug, starts_at, ends_at, registration_deadline_at, capacity, is_paid_members_only, status)
+  VALUES ({esc(fid)}, {cs}, {esc(slug)}, DATEADD(day, {days}, SYSUTCDATETIME()), DATEADD(hour, 3, DATEADD(day, {days}, SYSUTCDATETIME())),
+          DATEADD(day, {days - 2}, SYSUTCDATETIME()), {esc(cap)}, {paid_only}, {esc(status)});
+  INSERT INTO fan_events_i18n (fan_event_id, locale, name, description, location) VALUES ({esc(fid)}, N'zh-Hant', {esc(zh)}, {esc(desc)}, N'【測試】台中市西屯區測試路 1 號');
+  INSERT INTO fan_events_i18n (fan_event_id, locale, name, description, location) VALUES ({esc(fid)}, N'en', {esc(en)}, NULL, NULL);
+END
+""")
+    for slug, ccode, member_no, guest, status in (
+        ("test-fan-meet", "tcrfc", "M900001", None, "registered"),
+        ("test-fan-meet", "tcrfc", "M900002", None, "registered"),
+        ("test-match-day-party", "tcrfc", "M900003", None, "registered"),
+        ("test-match-day-party", "tcrfc", None, "【測試】路人甲", "waitlist"),
+    ):
+        fid = new_id("fan_event", ccode, slug)
+        rid = new_id("fan_event_registration", slug, member_no or guest)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM fan_event_registrations WHERE id = {esc(rid)})
+  INSERT INTO fan_event_registrations (id, club_id, fan_event_id, member_id, status, applicant_name, phone, email)
+  VALUES ({esc(rid)}, {clubs[ccode]}, {esc(fid)}, {f"(SELECT id FROM members WHERE member_no = {esc(member_no)})" if member_no else "NULL"}, {esc(status)},
+          {esc(guest)}, {esc("0900-000-301" if guest else None)}, {esc("guest@example.com" if guest else None)});
+""")
+
+    emit("-- ── 51. S6 商店設定、發票捐贈碼（虛構代碼 999000X） ──")
+    SHOP_SETTINGS = {
+        "tcrfc": {"shipping_fee": "80", "free_shipping_threshold": "2000", "excluded_regions": jdump(["【測試】離島地區"]), "low_stock_threshold": "5", "pending_timeout_minutes": "30"},
+        "bw": {"shipping_fee": "100", "free_shipping_threshold": "1500", "excluded_regions": jdump(["【測試】離島地區"]), "low_stock_threshold": "3", "pending_timeout_minutes": "30"},
+    }
+    for ccode, values in SHOP_SETTINGS.items():
+        for key, value in values.items():
+            setting_value(ccode, "shop." + key, value, "shop")
+        setting_i18n(ccode, "shop.entry_title", "【測試】官方商店", "[Test] Official shop", "shop")
+        setting_i18n(ccode, "shop.entry_intro", "【測試】商店入口說明占位文字。", "[Test] Shop entry placeholder.", "shop")
+        setting_i18n(ccode, "shop.policy_shipping", "【測試】運送說明占位文字：宅配、超商取貨與現場自取。", "[Test] Shipping policy placeholder.", "shop")
+        setting_i18n(ccode, "shop.policy_returns", "【測試】退換貨政策占位文字。", "[Test] Returns policy placeholder.", "shop")
+    for code, name, active, order in (("9990001", "【測試】示範公益團體甲", 1, 0), ("9990002", "【測試】示範公益團體乙（已停用）", 0, 1)):
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM invoice_donation_codes WHERE code = {esc(code)})
+  INSERT INTO invoice_donation_codes (id, code, org_name, is_active, sort_order) VALUES ({esc(new_id("donation_code", code))}, {esc(code)}, {esc(name)}, {active}, {order});
+""")
+
+    emit("-- ── 52. S1／S2 商品系列、商品、規格與庫存（tcrfc 5 件、bw 1 件；含低庫存與缺貨示範） ──")
+    COLLECTIONS = [  # club, slug, zh, en, narrative, order
+        ("tcrfc", "test-club-collection", "【測試】俱樂部系列", "[Test] Club collection", "【測試】俱樂部系列的品牌敘事占位文字。", 0),
+        ("tcrfc", "test-academy-collection", "【測試】學院系列", "[Test] Academy collection", "【測試】學院系列的品牌敘事占位文字。", 1),
+        ("tcrfc", "test-fan-collection", "【測試】球迷系列", "[Test] Fan collection", "【測試】球迷系列的品牌敘事占位文字。", 2),
+        ("bw", "test-bw-collection", "【測試】藍鯨系列", "[Test] Blue Whale collection", "【測試】藍鯨系列的品牌敘事占位文字。", 0),
+    ]
+    for ccode, slug, zh, en, narrative, order in COLLECTIONS:
+        col_id = new_id("collection", ccode, slug)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM collections WHERE club_id = {clubs[ccode]} AND slug = {esc(slug)})
+BEGIN
+  INSERT INTO collections (id, club_id, slug, sort_order, status) VALUES ({esc(col_id)}, {clubs[ccode]}, {esc(slug)}, {order}, N'published');
+  INSERT INTO collections_i18n (collection_id, locale, name, narrative) VALUES ({esc(col_id)}, N'zh-Hant', {esc(zh)}, {esc(narrative)});
+  INSERT INTO collections_i18n (collection_id, locale, name, narrative) VALUES ({esc(col_id)}, N'en', {esc(en)}, NULL);
+END
+""")
+    # club, slug, collection slug, zh, en, status, new, (sku, size, colour, price, sale, cost, initial_stock)
+    PRODUCTS = [
+        ("tcrfc", "test-home-jersey", "test-club-collection", "【測試】主場球衣", "[Test] Home jersey", "published", 1,
+         [("TEST-JSY-S", "S", "藍", 1800, None, 900, 20), ("TEST-JSY-M", "M", "藍", 1800, None, 900, 20), ("TEST-JSY-L", "L", "藍", 1800, None, 900, 20), ("TEST-JSY-XL", "XL", "藍", 1800, 1600, 900, 12)]),
+        ("tcrfc", "test-training-jacket", "test-academy-collection", "【測試】訓練外套", "[Test] Training jacket", "published", 0,
+         [("TEST-JKT-M", "M", "黑", 1500, None, 700, 10), ("TEST-JKT-L", "L", "黑", 1500, None, 700, 10)]),
+        ("tcrfc", "test-scarf", "test-fan-collection", "【測試】球迷圍巾", "[Test] Fan scarf", "published", 0,
+         [("TEST-SCARF", None, "藍白", 500, 450, 200, 6)]),
+        ("tcrfc", "test-limited-ball", "test-fan-collection", "【測試】限量紀念球（缺貨示範）", "[Test] Limited ball (sold-out demo)", "published", 1,
+         [("TEST-BALL", None, None, 1200, None, 600, 1)]),
+        ("tcrfc", "test-draft-product", "test-fan-collection", "【測試】尚未上架的商品", "[Test] Draft product", "draft", 0,
+         [("TEST-DRAFT", None, None, 300, None, 100, 5)]),
+        ("bw", "test-bw-jersey", "test-bw-collection", "【測試】藍鯨球衣", "[Test] Blue Whale jersey", "published", 1,
+         [("TEST-BW-JSY-M", "M", "藍", 1600, None, 800, 15), ("TEST-BW-JSY-L", "L", "藍", 1600, None, 800, 15)]),
+    ]
+    variant_id = {}
+    for order, (ccode, slug, col_slug, zh, en, status, is_new, variants) in enumerate(PRODUCTS):
+        cs = clubs[ccode]
+        pid = new_id("product", ccode, slug)
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM products WHERE club_id = {cs} AND slug = {esc(slug)})
+BEGIN
+  INSERT INTO products (id, club_id, slug, collection_id, is_new_arrival, sort_order, status, out_of_stock_behavior)
+  VALUES ({esc(pid)}, {cs}, {esc(slug)}, (SELECT id FROM collections WHERE club_id = {cs} AND slug = {esc(col_slug)}), {is_new}, {order}, {esc(status)}, N'show_unavailable');
+  INSERT INTO products_i18n (product_id, locale, name, narrative, tags) VALUES ({esc(pid)}, N'zh-Hant', {esc(zh)}, N'【測試】商品敘事占位文字。', N'【測試】,示範');
+  INSERT INTO products_i18n (product_id, locale, name, narrative, tags) VALUES ({esc(pid)}, N'en', {esc(en)}, NULL, NULL);
+END
+""")
+        for vi, (sku, size, colour, price, sale, cost, initial) in enumerate(variants):
+            vid = new_id("product_variant", sku)
+            variant_id[sku] = (vid, ccode)
+            block(f"""
+IF NOT EXISTS (SELECT 1 FROM product_variants WHERE sku = {esc(sku)})
+BEGIN
+  INSERT INTO product_variants (id, club_id, product_id, sku, size, colour, price, sale_price, cost, stock_qty, reserved_qty, status, sort_order)
+  VALUES ({esc(vid)}, {cs}, {esc(pid)}, {esc(sku)}, {esc(size)}, {esc(colour)}, {price}, {esc(sale)}, {cost}, 0, 0, N'active', {vi});
+  UPDATE product_variants SET stock_qty = {initial}, updated_at = SYSUTCDATETIME() WHERE id = {esc(vid)};
+  INSERT INTO inventory_movements (id, club_id, product_variant_id, movement_type, quantity, stock_after, reserved_after, reason)
+  VALUES ({esc(new_id("inventory_movement", sku, "initial"))}, {cs}, {esc(vid)}, N'stock_in', {initial}, {initial}, 0, N'【測試】初始庫存');
+END
+""")
+
+    emit("-- ── 53. S3／S4／S5 訂單（tcrfc 8 張涵蓋各狀態＋現場收款、bw 1 張代收代付）、出貨、退款案件；庫存與異動同步 ──")
+    # order key, club, status, payment_status, method, delivery, hours_ago, lines [(sku, qty)], recipient idx, manual, shipping_fee
+    ORDERS = [
+        ("TR-SEED-0001", "tcrfc", "待付款", "pending", "linepay", "home_delivery", 0.2, [("TEST-JSY-M", 1)], 1, 0, 80),
+        ("TR-SEED-0002", "tcrfc", "已付款", "paid", "linepay", "home_delivery", 6, [("TEST-SCARF", 2)], 2, 0, 80),
+        ("TR-SEED-0003", "tcrfc", "備貨中", "paid", "linepay", "cvs_pickup", 30, [("TEST-JSY-L", 1), ("TEST-JKT-M", 1)], 3, 0, 60),
+        ("TR-SEED-0004", "tcrfc", "已出貨", "paid", "linepay", "home_delivery", 55, [("TEST-JSY-S", 1)], 4, 0, 80),
+        ("TR-SEED-0005", "tcrfc", "已完成", "paid", "linepay", "cvs_pickup", 200, [("TEST-JKT-L", 1)], 5, 0, 60),
+        ("TR-SEED-0006", "tcrfc", "已取消", "paid", "linepay", "home_delivery", 80, [("TEST-SCARF", 1)], 6, 0, 80),
+        ("TR-SEED-0007", "tcrfc", "退貨處理中", "paid", "linepay", "home_delivery", 260, [("TEST-JSY-XL", 2)], 7, 0, 0),
+        ("TR-SEED-0008", "tcrfc", "已完成", "paid", "onsite", "onsite_pickup", 100, [("TEST-BALL", 1)], 8, 1, 0),
+        ("BW-SEED-0001", "bw", "已付款", "paid", "linepay", "home_delivery", 12, [("TEST-BW-JSY-M", 1)], 9, 0, 100),
+    ]
+    sold_by_variant = {}
+    reserved_by_variant = {}
+    for key, ccode, status, pay_status, method, delivery, hours, lines, ridx, manual, ship_fee in ORDERS:
+        cs = clubs[ccode]
+        oid = new_id("order", key)
+        subtotal = 0
+        item_sql = []
+        movement_sql = []
+        for sku, qty in lines:
+            vid, _ = variant_id[sku]
+            price = next(v[3] if v[4] is None else v[4] for p in PRODUCTS for v in p[7] if v[0] == sku)
+            subtotal += price * qty
+            iid = new_id("order_item", key, sku)
+            label_row = next(v for p in PRODUCTS for v in p[7] if v[0] == sku)
+            label = "／".join(x for x in (label_row[1], label_row[2]) if x)
+            pname = next(p[3] for p in PRODUCTS if any(v[0] == sku for v in p[7]))
+            item_sql.append(f"INSERT INTO order_items (id, club_id, order_id, product_variant_id, product_name_snapshot, variant_label_snapshot, sku_snapshot, unit_price_snapshot, quantity, line_total) "
+                            f"VALUES ({esc(iid)}, {cs}, {esc(oid)}, {esc(vid)}, {esc(pname)}, {esc(label or None)}, {esc(sku)}, {price}, {qty}, {price * qty});")
+            if status == "待付款":
+                reserved_by_variant[sku] = reserved_by_variant.get(sku, 0) + qty
+                movement_sql.append((sku, "reserve", qty, "【測試】下單保留"))
+            else:
+                sold_by_variant[sku] = sold_by_variant.get(sku, 0) + qty
+                movement_sql.append((sku, "sale", -qty, "【測試】" + ("現場收款訂單" if manual else "付款成立，扣減庫存")))
+                if status == "已取消":
+                    sold_by_variant[sku] -= qty
+                    movement_sql.append((sku, "cancel_restock", qty, "【測試】取消未出貨訂單"))
+        total = subtotal + ship_fee
+        completed = "SYSUTCDATETIME()" if status == "已完成" else "NULL"
+        cancelled = "SYSUTCDATETIME()" if status == "已取消" else "NULL"
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM orders WHERE order_no = {esc(key)})
+BEGIN
+  INSERT INTO orders (id, order_no, club_id, selling_club_id, collecting_club_id, lookup_token, recipient_name, recipient_phone, recipient_address,
+                      subtotal, shipping_fee, total, payment_status, order_status, delivery_method, is_manual, payment_method, paid_at, completed_at,
+                      cancelled_at, cancel_reason, customer_note, internal_note, settlement_status, created_at)
+  VALUES ({esc(oid)}, {esc(key)}, {cs}, {cs}, {clubs["tcrfc"]}, {esc(hashlib.sha256(("seed-order-token|" + key).encode()).hexdigest()[:43])},
+          {esc(f"【測試】收件人{ridx}")}, {esc(f"0900-000-2{ridx:02d}")}, {esc(f"【測試】台中市測試區測試路 {ridx} 號")},
+          {subtotal}, {ship_fee}, {total}, {esc(pay_status)}, {esc(status)}, {esc(delivery)}, {manual}, {esc(method)},
+          {"DATEADD(minute, -" + str(int(hours * 60) - 5) + ", SYSUTCDATETIME())" if pay_status == "paid" else "NULL"}, {completed}, {cancelled},
+          {esc("【測試】顧客取消" if status == "已取消" else None)}, {esc("【測試】示範訂單" if ridx in (2, 5) else None)},
+          {esc("【測試】內部註記示範" if ridx == 3 else None)}, N'pending', DATEADD(minute, -{int(hours * 60)}, SYSUTCDATETIME()));
+  {chr(10).join("  " + s for s in item_sql)}
+END
+""")
+        for sku, mtype, qty, reason in movement_sql:
+            vid, _ = variant_id[sku]
+            block(f"""
+IF NOT EXISTS (SELECT 1 FROM inventory_movements WHERE id = {esc(new_id("inventory_movement", key, sku, mtype))})
+  INSERT INTO inventory_movements (id, club_id, product_variant_id, order_id, movement_type, quantity, reason)
+  VALUES ({esc(new_id("inventory_movement", key, sku, mtype))}, {cs}, {esc(vid)}, {esc(oid)}, {esc(mtype)}, {qty}, {esc(reason)});
+""")
+    # 依訂單結算庫存水位（只在種子第一次寫入時動；用 UPDATE 依「初始庫存－已售＋…」重算，冪等：以異動總和為準）
+    for sku, (vid, _) in variant_id.items():
+        block(f"""
+UPDATE product_variants SET
+  stock_qty = COALESCE((SELECT SUM(CASE WHEN movement_type IN (N'reserve', N'release') THEN 0 ELSE quantity END) FROM inventory_movements WHERE product_variant_id = {esc(vid)}), 0),
+  reserved_qty = COALESCE((SELECT SUM(CASE WHEN movement_type IN (N'reserve', N'release') THEN quantity ELSE 0 END) FROM inventory_movements WHERE product_variant_id = {esc(vid)}), 0)
+WHERE id = {esc(vid)};
+""")
+    # 出貨資料
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM shipments WHERE order_id = {esc(new_id("order", "TR-SEED-0004"))})
+  INSERT INTO shipments (id, club_id, order_id, carrier, tracking_no, shipped_at)
+  VALUES ({esc(new_id("shipment", "TR-SEED-0004"))}, {tc}, {esc(new_id("order", "TR-SEED-0004"))}, N'【測試】物流商', N'TEST0000000004', DATEADD(hour, -30, SYSUTCDATETIME()));
+IF NOT EXISTS (SELECT 1 FROM shipments WHERE order_id = {esc(new_id("order", "TR-SEED-0005"))})
+  INSERT INTO shipments (id, club_id, order_id, carrier, tracking_no, store_branch_code, shipped_at, delivered_at, pickup_status, pickup_deadline_on, arrival_notified_at)
+  VALUES ({esc(new_id("shipment", "TR-SEED-0005"))}, {tc}, {esc(new_id("order", "TR-SEED-0005"))}, N'【測試】超商物流', N'TEST0000000005', N'TEST001',
+          DATEADD(hour, -150, SYSUTCDATETIME()), DATEADD(hour, -100, SYSUTCDATETIME()), N'picked_up', CAST(DATEADD(day, -3, SYSUTCDATETIME()) AS date), DATEADD(hour, -120, SYSUTCDATETIME()));
+IF NOT EXISTS (SELECT 1 FROM shipments WHERE order_id = {esc(new_id("order", "TR-SEED-0008"))})
+  INSERT INTO shipments (id, club_id, order_id, shipped_at, delivered_at, pickup_status)
+  VALUES ({esc(new_id("shipment", "TR-SEED-0008"))}, {tc}, {esc(new_id("order", "TR-SEED-0008"))}, DATEADD(hour, -100, SYSUTCDATETIME()), DATEADD(hour, -100, SYSUTCDATETIME()), N'picked_up');
+""")
+    # 退款案件：TR-SEED-0006（取消未出貨，自動建立、不需退回、已核准）；TR-SEED-0007（申請中，部分退款，需退回）
+    o6 = new_id("order", "TR-SEED-0006")
+    o7 = new_id("order", "TR-SEED-0007")
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM refund_requests WHERE order_id = {esc(o6)})
+BEGIN
+  INSERT INTO refund_requests (id, club_id, order_id, reason, status, refund_amount, needs_return, review_note)
+  VALUES ({esc(new_id("refund", "TR-SEED-0006"))}, {tc}, {esc(o6)}, N'取消訂單：【測試】顧客取消', N'approved', (SELECT total FROM orders WHERE id = {esc(o6)}), 0, N'取消未出貨訂單，系統自動建立全額退款案件');
+  INSERT INTO refund_request_items (refund_request_id, order_item_id, quantity)
+  SELECT {esc(new_id("refund", "TR-SEED-0006"))}, id, quantity FROM order_items WHERE order_id = {esc(o6)};
+END
+IF NOT EXISTS (SELECT 1 FROM refund_requests WHERE order_id = {esc(o7)})
+BEGIN
+  INSERT INTO refund_requests (id, club_id, order_id, reason, status, refund_amount, needs_return)
+  VALUES ({esc(new_id("refund", "TR-SEED-0007"))}, {tc}, {esc(o7)}, N'【測試】尺寸不合，申請退一件', N'requested', 1600, 1);
+  INSERT INTO refund_request_items (refund_request_id, order_item_id, quantity)
+  SELECT TOP 1 {esc(new_id("refund", "TR-SEED-0007"))}, id, 1 FROM order_items WHERE order_id = {esc(o7)};
+END
+""")
+
+    emit("-- ── 54. K5 抽獎名單：蒐集告知確認、tcrfc 1 場已抽出（名單 2 人、1 位中獎）＋1 場草稿 ──")
+    setting_value("tcrfc", "member.draw_notice_confirmed", "2026-09-30T00:00:00.0000000Z", "member")
+    DRAW_ROSTER = [(1, "M900001", "【測試】會員甲", "2027-05-02"), (2, "M900002", "【測試】會員乙", "2027-05-02")]
+    roster_text = "TEST-DRAW-01|1\n" + "".join(f"{s}|{m}|{n}|fan_club|{e}\n" for s, m, n, e in DRAW_ROSTER)
+    roster_hash = hashlib.sha256(roster_text.encode("utf-8")).hexdigest()
+    d1 = new_id("member_draw", "tcrfc", "TEST-DRAW-01")
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM member_draws WHERE club_id = {tc} AND draw_code = N'TEST-DRAW-01')
+BEGIN
+  INSERT INTO member_draws (id, club_id, draw_code, snapshot_at, drawn_at, draw_occasion, claim_deadline_on, status, roster_version, total_count, roster_hash, locked_at)
+  VALUES ({esc(d1)}, {tc}, N'TEST-DRAW-01', '2026-09-25T16:00:00', '2026-09-26T10:00:00', N'home_match', '2026-12-31', N'drawn', 1, 2, {esc(roster_hash)}, SYSUTCDATETIME());
+  INSERT INTO member_draws_i18n (member_draw_id, locale, name, prize_description, rules, notes) VALUES
+    ({esc(d1)}, N'zh-Hant', N'【測試】主場賽事日球迷抽獎', N'【測試】簽名球衣一件', N'【測試】活動辦法占位文字：資格為基準時間當下持有本俱樂部有效球迷會員會籍；同時具備兩隊會籍者可分別參加兩隊抽獎。', N'【測試】注意事項占位文字');
+  INSERT INTO member_draws_i18n (member_draw_id, locale, name, prize_description, rules, notes) VALUES
+    ({esc(d1)}, N'en', N'[Test] Match-day fan prize draw', N'[Test] One signed jersey', NULL, NULL);
+  INSERT INTO draw_roster_versions (id, member_draw_id, roster_version, snapshot_at, total_count, roster_hash) VALUES ({esc(new_id("draw_roster_version", "TEST-DRAW-01", "1"))}, {esc(d1)}, 1, '2026-09-25T16:00:00', 2, {esc(roster_hash)});
+  {"".join(f"INSERT INTO draw_rosters (id, club_id, member_draw_id, roster_version, serial_no, member_no_snapshot, name_snapshot, tier_snapshot, membership_end_on_snapshot, is_winner, prize_name, claim_method, fulfilment_status, recipient_name, recipient_phone, recipient_address) VALUES ({esc(new_id('draw_roster', 'TEST-DRAW-01', str(s)))}, {tc}, {esc(d1)}, 1, {s}, {esc(m)}, {esc(n)}, N'fan_club', {esc(e)}, {1 if s == 1 else 0}, {esc('【測試】簽名球衣' if s == 1 else None)}, {esc('ship' if s == 1 else None)}, {esc('pending' if s == 1 else None)}, {esc('【測試】會員甲' if s == 1 else None)}, {esc('0900-000-001' if s == 1 else None)}, {esc('【測試】台中市西屯區測試路 1 號' if s == 1 else None)});" for s, m, n, e in DRAW_ROSTER)}
+END
+""")
+    d2 = new_id("member_draw", "tcrfc", "TEST-DRAW-02")
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM member_draws WHERE club_id = {tc} AND draw_code = N'TEST-DRAW-02')
+BEGIN
+  INSERT INTO member_draws (id, club_id, draw_code, snapshot_at, drawn_at, draw_occasion, status, roster_version)
+  VALUES ({esc(d2)}, {tc}, N'TEST-DRAW-02', DATEADD(day, 20, SYSUTCDATETIME()), DATEADD(day, 20, SYSUTCDATETIME()), N'livestream', N'draft', 1);
+  INSERT INTO member_draws_i18n (member_draw_id, locale, name, prize_description, rules, notes) VALUES
+    ({esc(d2)}, N'zh-Hant', N'【測試】直播球迷抽獎（草稿）', N'【測試】球迷圍巾三條', NULL, NULL);
+END
+""")

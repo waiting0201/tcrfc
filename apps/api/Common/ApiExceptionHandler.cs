@@ -222,6 +222,10 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", adminValidation.Message),
             AdminConflictException adminConflict =>
                 (StatusCodes.Status409Conflict, adminConflict.Title, adminConflict.Message),
+            Tcrfc.Api.Features.AdminShop.InsufficientStockException insufficientStock =>
+                (StatusCodes.Status409Conflict, "庫存不足", insufficientStock.Message),
+            FeatureNotAvailableException featureNotAvailable =>
+                (StatusCodes.Status403Forbidden, "此功能不適用", featureNotAvailable.Message),
             SharedContentReadOnlyException sharedContentReadOnly =>
                 (StatusCodes.Status403Forbidden, "共用內容唯讀", sharedContentReadOnly.Message),
 
