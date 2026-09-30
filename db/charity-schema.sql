@@ -124,8 +124,9 @@ CREATE TABLE locales (
     CONSTRAINT PK_locales PRIMARY KEY CLUSTERED (code)
 );
 
--- 後台帳號。username 是唯一登入識別，不是 Email；強制 2FA；密碼雜湊優先
--- Argon2id 次選 bcrypt。欄位形狀比照主站 admin_users（docs/16 §3 註記「與主
+-- 後台帳號。username 是唯一登入識別，不是 Email；2FA 為帳號持有人自行選用
+-- （不強制，已啟用者登入仍須驗證碼；2026-09-30 裁決，比照主站）；密碼雜湊優先
+-- Argon2id 次選 bcrypt。must_change_password 預設 0，僅供管理員要求改密碼。欄位形狀比照主站 admin_users（docs/16 §3 註記「與主
 -- 站同形」，見 docs/12b §7.6）。
 CREATE TABLE admin_users (
     seq                          bigint IDENTITY(1,1) NOT NULL,
