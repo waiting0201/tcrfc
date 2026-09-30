@@ -210,9 +210,6 @@ const isEmpty = computed(() => !loading.value && !listError.value && accounts.va
             <el-tag v-if="row.mustChangePassword" type="warning" size="small" class="account-list__inline-tag">
               待改密
             </el-tag>
-            <el-tag v-if="!row.twoFactorEnabled" type="warning" size="small" class="account-list__inline-tag">
-              未啟用兩階段驗證
-            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="最後登入" width="160">

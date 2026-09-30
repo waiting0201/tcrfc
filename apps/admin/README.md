@@ -195,11 +195,14 @@ curl http://localhost:8080/healthz      # 應該回 "ok"
    `two_factor_enabled` 為何，守衛都不再導向 `/account/security?forced=...`（`needsForcedOnboarding`
    與 `forced` 查詢參數已整個移除），登入後直接進 `/dashboard` 或原本要去的頁面，正式環境亦同。
    `/account/security`（`AccountSecurityView.vue`）保留為使用者自己從選單「帳號安全設定」進來調整
-   密碼與兩階段驗證的地方，頁面只有一段「建議啟用兩階段驗證、非必要」的溫和文字。
+   密碼的地方。**（同日再裁決）兩階段驗證的啟用／停用入口已從介面隱藏**：帳號安全設定頁只剩
+   「更改密碼」；`adminAuth.ts` 的 `beginTwoFactorSetup`／`confirmTwoFactorSetup`／`disableTwoFactor`
+   保留但不在介面引用，日後開放時接回即可。
    **已啟用 2FA 的帳號登入時仍要輸入驗證碼**（`LoginView.vue` 的 `totp_required` 流程不變）。
    `session.ts` 的 `mustChangePassword`／`twoFactorEnabled` 改為「回應缺漏時視為 `false`」，前端不依賴
-   後端是否還回傳這兩個欄位。帳號列表「安全設定」欄的「待改密／未啟用兩階段驗證」標籤是給管理員看的
-   資訊，非強制，保留。
+   後端是否還回傳這兩個欄位。帳號列表「安全設定」欄只留「待改密」標籤，「未啟用兩階段驗證」標籤已隱藏
+   （使用者無法處理的狀態）。管理員對他人帳號的「重設兩階段驗證」動作保留（已啟用 2FA 的帳號
+   遺失驗證器時仍需要解鎖途徑）。
 4. **`meta.sysadminOnly` 的路由**（J1／J2／J4）非系統管理員直接改網址進入會被彈回 `/dashboard`
    並跳出「你的帳號沒有權限進入這個模組」——這也只是第二層提醒，`AppSidebar.vue` 依
    `authUser.value?.isSuperAdmin` 整組濾掉側欄項目是第一層，**真正把關永遠是後端**每個

@@ -47,7 +47,7 @@ export interface SessionPayload {
   accessTokenExpiresAtUtc: string
   username: string
   isSuperAdmin: boolean
-  /** 2026-09-30 起後端不再強制改密與 2FA，欄位僅供帳號安全頁顯示；後端可能不再回傳，一律容許缺漏。 */
+  /** 2026-09-30 起後端不再強制改密與 2FA，介面已不顯示（2026-09-30 裁決隱藏 2FA），欄位僅保留型別相容；後端可能不再回傳，一律容許缺漏。 */
   mustChangePassword?: boolean
   twoFactorEnabled?: boolean
 }
