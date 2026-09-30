@@ -2956,6 +2956,15 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
 
 未動、留待決定：`partners/opportunities`（9.4）與 `join/partnership` 表單仍有「漫畫內容合作」贊助方案——藍鯨規劃書 §3.9 只說「沿用主站 09 的贊助方案版型」，沒有明文刪除，故不擅自改；`shop/*` 商店頁對 bw 仍顯示機能襪（8.3 商店範疇，本輪未動）。
 
+
+### 連帶：9.4 贊助方案不列「漫畫內容合作」（2026-09-30，主 session）
+
+藍鯨沒有漫畫就不可能提供漫畫合作，屬 v1.9 §2.1 的直接推導。`partners/opportunities`、`partners/index`、
+`join/partnership` 以 `isUnitEnabledForClub('8.1', club)` 為唯一判斷：藍鯨隱藏漫畫方案卡與表單勾選項，
+方案數改為「八種」、後續卡片編號改為連續 01–08；磐石維持九種、01–09。實測：兩站 `/zh/`、`/en/` 頁面
+方案數與編號如上，bw 三頁「漫畫」0 筆；`check-club-brand-leak.mjs`（bw 全站 146 路由）與
+`check-heading-structure.mjs` 通過；`npm run lint` 0 錯誤 393 警告、`npm run build` 通過。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

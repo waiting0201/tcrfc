@@ -8,10 +8,12 @@ const config = useRuntimeConfig()
 const isTcrfc = computed(() => config.public.club !== 'bw')
 // BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。
 const clubAssets = computed(() => getClubAssets(config.public.club))
+// 藍鯨規劃書 v1.9 §2.1：藍鯨不設 8.1 漫畫，贊助方案少一項（見 partners/opportunities）。
+const planCountZh = computed(() => (isUnitEnabledForClub('8.1', config.public.club) ? '九' : '八'))
 
 useSeoMeta({
   title: computed(() => `合作夥伴與贊助 Partners & Sponsors｜${clubAssets.value.nameZh}`),
-  description: computed(() => `${clubAssets.value.nameZh}的合作夥伴、贊助商、成為合作夥伴的價值主張，以及九種贊助方案總覽。`),
+  description: computed(() => `${clubAssets.value.nameZh}的合作夥伴、贊助商、成為合作夥伴的價值主張，以及${planCountZh.value}種贊助方案總覽。`),
 })
 </script>
 
@@ -78,7 +80,7 @@ useSeoMeta({
         <div class="unit-card__body">
           <p class="unit-card__num">9.4</p>
           <p class="unit-card__title">贊助方案<span class="en">Sponsorship Opportunities</span></p>
-          <p class="unit-card__desc">九種贊助方案卡片，找到最適合的合作規模。</p>
+          <p class="unit-card__desc">{{ planCountZh }}種贊助方案卡片，找到最適合的合作規模。</p>
           <span class="unit-card__link">查看方案 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>

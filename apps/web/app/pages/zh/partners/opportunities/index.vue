@@ -9,10 +9,15 @@ const config = useRuntimeConfig()
 // 「學院贊助」比照 join/partnership/index.vue 既有做法改讀 identity.academyShortLabelZh。
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const identity = computed(() => getClubIdentity(config.public.club))
+// 藍鯨規劃書 v1.9 §2.1：藍鯨不設 8.1 漫畫，因此也沒有「漫畫內容合作」方案；
+// 方案數與後續編號跟著同一個單元開關走，不另寫俱樂部判斷。
+const mangaEnabled = computed(() => isUnitEnabledForClub('8.1', config.public.club))
+const planCountZh = computed(() => (mangaEnabled.value ? '九' : '八'))
+const planNum = (n: number) => String(mangaEnabled.value || n < 6 ? n : n - 1).padStart(2, '0')
 
 useSeoMeta({
   title: computed(() => `贊助方案 Sponsorship Opportunities｜合作夥伴與贊助｜${clubAssets.value.nameZh}`),
-  description: computed(() => `${clubAssets.value.nameZh}九種贊助方案：俱樂部、${identity.value.academyShortLabelZh}、球隊、營隊、國際計畫、漫畫內容、商品、球迷會、場館冠名。`),
+  description: computed(() => `${clubAssets.value.nameZh}${planCountZh.value}種贊助方案：俱樂部、${identity.value.academyShortLabelZh}、球隊、營隊、國際計畫、${mangaEnabled.value ? '漫畫內容、' : ''}商品、球迷會、場館冠名。`),
 })
 </script>
 
@@ -31,14 +36,14 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">9.4 Sponsorship Opportunities</p>
     <h1>贊助方案<span class="en">Sponsorship Opportunities</span></h1>
-    <p class="page-hero__lede">九種贊助方案，涵蓋俱樂部、{{ identity.academyShortLabelZh }}、球隊、營隊到場館冠名，找到最適合的合作規模。</p>
+    <p class="page-hero__lede">{{ planCountZh }}種贊助方案，涵蓋俱樂部、{{ identity.academyShortLabelZh }}、球隊、營隊到場館冠名，找到最適合的合作規模。</p>
   </div>
 </section>
 
-<!-- SPEC 3.9 §9.4 — 九種贊助方案卡片 -->
+<!-- SPEC 3.9 §9.4 — 贊助方案卡片（磐石九種；藍鯨不設漫畫為八種，藍鯨規劃書 v1.9 §2.1） -->
 <section class="band grain" id="plans" aria-labelledby="plans-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="plans-title">九種贊助方案</h2>
+    <h2 class="visually-hidden" id="plans-title">{{ planCountZh }}種贊助方案</h2>
     <div class="grid grid--3 plan-grid">
       <article class="plan-card">
         <p class="plan-card__num">01</p>
@@ -70,26 +75,26 @@ useSeoMeta({
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
         <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
-      <article class="plan-card">
+      <article v-if="mangaEnabled" class="plan-card">
         <p class="plan-card__num">06</p>
         <h3 class="plan-card__title">漫畫內容合作<span class="en">Manga Content Partnership</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
         <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
-        <p class="plan-card__num">07</p>
+        <p class="plan-card__num">{{ planNum(7) }}</p>
         <h3 class="plan-card__title">商品合作<span class="en">Merchandise Partnership</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
         <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
-        <p class="plan-card__num">08</p>
+        <p class="plan-card__num">{{ planNum(8) }}</p>
         <h3 class="plan-card__title">球迷會贊助<span class="en">Fan Club Sponsorship</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
         <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>
       </article>
       <article class="plan-card">
-        <p class="plan-card__num">09</p>
+        <p class="plan-card__num">{{ planNum(9) }}</p>
         <h3 class="plan-card__title">場館冠名<span class="en">Venue Naming Rights</span></h3>
         <p class="plan-card__desc">洽詢方案時將提供完整權益說明。</p>
         <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">洽詢方案</a>

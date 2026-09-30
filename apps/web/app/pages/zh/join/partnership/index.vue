@@ -26,6 +26,8 @@ const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const identity = computed(() => getClubIdentity(config.public.club))
 const isTcrfc = computed(() => config.public.club !== 'bw')
+// 藍鯨規劃書 v1.9 §2.1：藍鯨不設 8.1 漫畫，贊助方案不列「漫畫內容合作」。
+const mangaEnabled = computed(() => isUnitEnabledForClub('8.1', config.public.club))
 
 useSeoMeta({
   title: computed(() => `合作夥伴與贊助洽詢 Partnership & Sponsorship｜加入與聯絡｜${clubAssets.value.nameZh}`),
@@ -241,7 +243,7 @@ async function onSubmit() {
               <input id="pn-plan-international" v-model="plan" type="checkbox" name="plan" value="international">
               <label for="pn-plan-international">國際計畫贊助</label>
             </div>
-            <div class="checkbox-field">
+            <div v-if="mangaEnabled" class="checkbox-field">
               <input id="pn-plan-manga" v-model="plan" type="checkbox" name="plan" value="manga">
               <label for="pn-plan-manga">漫畫內容合作</label>
             </div>
