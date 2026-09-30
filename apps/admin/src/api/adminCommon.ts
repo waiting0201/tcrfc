@@ -2,7 +2,8 @@
  * E1a 六個模組（夥伴／贊助／提案下載／慈善／媒體專區／榮譽與里程碑）共用的 API 小工具。
  * 契約：apps/api/README.md「E1a」節「通則」。
  */
-import { apiRequest, apiUploadRequest } from './http'
+import { apiBlobRequest, apiRequest, apiUploadRequest } from './http'
+import { saveBlob } from '@/utils/downloadFile'
 
 /** 雙語內容的單一語系，各模組欄位不同，這裡只約束形狀。 */
 export interface BilingualContentInput<T> {
@@ -82,4 +83,11 @@ export function enOrUndefined<T extends object>(en: T, requiredKey: keyof T & st
 export function nullIfBlank(value: string | null | undefined): string | null {
   const v = (value ?? '').trim()
   return v === '' ? null : v
+}
+
+/** 需要登入權杖的檔案下載（CSV 匯出、簽到表以外的檔案）：取回 Blob 後交給瀏覽器另存。
+ * `fallbackName` 只在伺服器沒給檔名時使用。 */
+export async function downloadExport(path: string, fallbackName: string): Promise<void> {
+  const result = await apiBlobRequest(path)
+  saveBlob(result.blob, result.filename ?? fallbackName)
 }

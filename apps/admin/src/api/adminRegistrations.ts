@@ -2,8 +2,9 @@
  * `apps/api` P3「報名管理」後台端點（`Features/AdminRegistrations`），對照 apps/api/README.md「S1-9」。
  * 只服務課程報名（`sessionId` 非空），不含 P4 試訓（`trialId`，留給 `S2-4`）。
  */
-import { apiRequest, AdminApiError, API_BASE_URL } from './http'
-import { getAccessToken } from '@/auth/session'
+import { apiRequest } from './http'
+import { buildQuery, downloadExport, postBatch, type BatchResultDto } from './adminCommon'
+import type { SignInRowDto } from './adminTrials'
 
 export interface AdminRegistrationListItemDto {
   id: string
@@ -45,9 +46,15 @@ export interface AdminRegistrationDetailDto {
   updatedAt: string
 }
 
+/** 清單與匯出共用的篩選（P3 進階）。`dateFrom`／`dateTo` 是報名建立日（含當天）。 */
 export interface ListAdminRegistrationsParams {
   sessionId?: string
   status?: string
+  programId?: string
+  keyword?: string
+  isMember?: boolean
+  dateFrom?: string
+  dateTo?: string
 }
 
 /** 後台代填報名（電話／現場報名）。P4 不在本次範圍，故不接受 `trialId`。 */
@@ -84,11 +91,7 @@ export function listAdminRegistrations(
   club: string,
   params: ListAdminRegistrationsParams = {},
 ): Promise<AdminRegistrationListItemDto[]> {
-  const search = new URLSearchParams()
-  if (params.sessionId) search.set('sessionId', params.sessionId)
-  if (params.status) search.set('status', params.status)
-  const query = search.toString() ? `?${search.toString()}` : ''
-  return apiRequest<AdminRegistrationListItemDto[]>(`/api/v1/admin/${club}/registrations${query}`)
+  return apiRequest<AdminRegistrationListItemDto[]>(`/api/v1/admin/${club}/registrations${buildQuery({ ...params })}`)
 }
 
 export function getAdminRegistration(club: string, id: string): Promise<AdminRegistrationDetailDto> {
@@ -107,38 +110,61 @@ export function updateAdminRegistration(
   return apiRequest<AdminRegistrationDetailDto>(`/api/v1/admin/${club}/registrations/${id}`, { method: 'PUT', body: payload })
 }
 
-/** CSV 匯出（比照 `adminFaq.ts` 的 `downloadAdminFaqsCsv` 既有做法：直接 fetch 拿 blob 觸發下載，
- * 不透過 `apiRequest`——那支預期回應是 JSON）。`sessionId`／`status` 篩選條件同列表。 */
-export async function downloadAdminRegistrationsCsv(
-  club: string,
-  params: ListAdminRegistrationsParams = {},
-): Promise<void> {
-  const search = new URLSearchParams()
-  if (params.sessionId) search.set('sessionId', params.sessionId)
-  if (params.status) search.set('status', params.status)
-  const query = search.toString() ? `?${search.toString()}` : ''
+/** CSV 匯出，吃與清單同一組篩選；檔名由伺服器提供（沒給才用備用檔名）。 */
+export function downloadAdminRegistrationsCsv(club: string, params: ListAdminRegistrationsParams = {}): Promise<void> {
+  return downloadExport(`/api/v1/admin/${club}/registrations/export${buildQuery({ ...params })}`, `registrations-${club}.csv`)
+}
 
-  const token = getAccessToken()
-  const headers: Record<string, string> = {}
-  if (token) headers.Authorization = `Bearer ${token}`
+/** 批次改狀態（1–200 筆）；已是該狀態或找不到的列進 `skipped`。 */
+export function batchUpdateRegistrationStatus(club: string, ids: string[], status: string): Promise<BatchResultDto> {
+  return postBatch(`/api/v1/admin/${club}/registrations/batch/status`, { ids, status })
+}
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/admin/${club}/registrations/export${query}`, {
-    headers,
-    credentials: 'include',
-  })
-  if (!response.ok) {
-    if (response.status === 403) {
-      throw new AdminApiError('forbidden', '你沒有權限執行這個操作。', { status: 403 })
-    }
-    throw new AdminApiError('server', '匯出失敗，請稍後再試。', { status: response.status })
-  }
-  const blob = await response.blob()
-  const url = URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = `registrations-${club}.csv`
-  document.body.appendChild(link)
-  link.click()
-  link.remove()
-  URL.revokeObjectURL(url)
+/** 候補 → 已確認（佔名額）；非候補列後端回 400。 */
+export function promoteAdminRegistration(club: string, id: string): Promise<AdminRegistrationDetailDto> {
+  return apiRequest<AdminRegistrationDetailDto>(`/api/v1/admin/${club}/registrations/${id}/promote`, { method: 'POST' })
+}
+
+// ── 候補遞補提醒 ────────────────────────────────────────────────────────────────
+
+export interface WaitlistEntryDto {
+  order: number
+  registrationId: string
+  registrationNo: string
+  applicantName: string
+  phone?: string | null
+  guardianName?: string | null
+  guardianPhone?: string | null
+  queuedAt: string
+}
+
+export interface WaitlistReminderDto {
+  sessionId: string
+  programNameZh?: string | null
+  startOn?: string | null
+  endOn?: string | null
+  capacity?: number | null
+  enrolledCount: number
+  vacancy: number
+  waiting: WaitlistEntryDto[]
+}
+
+export function listWaitlistReminders(club: string): Promise<WaitlistReminderDto[]> {
+  return apiRequest<WaitlistReminderDto[]>(`/api/v1/admin/${club}/registrations/waitlist-reminders`)
+}
+
+// ── 課程簽到表 ──────────────────────────────────────────────────────────────────
+
+export interface RegistrationSignInSheetDto {
+  sessionId: string
+  programNameZh?: string | null
+  startOn?: string | null
+  endOn?: string | null
+  venueName?: string | null
+  generatedAt: string
+  rows: SignInRowDto[]
+}
+
+export function getRegistrationSignInSheet(club: string, sessionId: string): Promise<RegistrationSignInSheetDto> {
+  return apiRequest<RegistrationSignInSheetDto>(`/api/v1/admin/${club}/registrations/sign-in-sheet${buildQuery({ sessionId })}`)
 }

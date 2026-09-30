@@ -72,6 +72,26 @@ const MediaEditView = () => import('@/views/media/MediaEditView.vue')
 const HonoursView = () => import('@/views/honours/HonoursView.vue')
 const MilestoneEditView = () => import('@/views/honours/MilestoneEditView.vue')
 
+const TrialListView = () => import('@/views/programs/TrialListView.vue')
+const TrialEditView = () => import('@/views/programs/TrialEditView.vue')
+const TrialRegistrationListView = () => import('@/views/programs/TrialRegistrationListView.vue')
+const TrialRegistrationEditView = () => import('@/views/programs/TrialRegistrationEditView.vue')
+const TrialSignInSheetView = () => import('@/views/programs/TrialSignInSheetView.vue')
+const WaitlistReminderView = () => import('@/views/programs/WaitlistReminderView.vue')
+const RegistrationSignInSheetView = () => import('@/views/programs/RegistrationSignInSheetView.vue')
+const MemberListView = () => import('@/views/members/MemberListView.vue')
+const MemberDetailView = () => import('@/views/members/MemberDetailView.vue')
+const MemberEditView = () => import('@/views/members/MemberEditView.vue')
+const MemberDuplicatesView = () => import('@/views/members/MemberDuplicatesView.vue')
+const MembershipPlanView = () => import('@/views/members/MembershipPlanView.vue')
+const MembershipPlanEditView = () => import('@/views/members/MembershipPlanEditView.vue')
+const MembershipDetailView = () => import('@/views/members/MembershipDetailView.vue')
+const JerseyListView = () => import('@/views/members/JerseyListView.vue')
+const PartnerStoreView = () => import('@/views/members/PartnerStoreView.vue')
+const PartnerStoreEditView = () => import('@/views/members/PartnerStoreEditView.vue')
+const CalendarCategoriesView = () => import('@/views/calendar/CalendarCategoriesView.vue')
+const CalendarSubscriptionsView = () => import('@/views/calendar/CalendarSubscriptionsView.vue')
+
 /**
  * 已經真的做出功能的路徑，優先於「還沒做」的通用佔位路由。
  * 對照 docs/21-admin-ui.md §10：外殼＋儀表板＋新聞與故事列表／編輯頁，
@@ -389,6 +409,30 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
   { path: '/teams/honours', name: 'honours', component: HonoursView, meta: { label: '榮譽與里程碑', code: 'C5' } },
   { path: '/teams/honours/milestones/new', name: 'milestone-new', component: MilestoneEditView, meta: { label: '新增里程碑', code: 'C5' } },
   { path: '/teams/honours/milestones/:id/edit', name: 'milestone-edit', component: MilestoneEditView, props: true, meta: { label: '編輯里程碑', code: 'C5' } },
+  // ── B1 批（S2-4～S2-6）：P4 試訓與 P3 進階、K1–K4 會員系統、L3／L4 行事曆進階 ──
+  { path: '/programs/trials', name: 'trial-list', component: TrialListView, meta: { label: '試訓場次', code: 'P4' } },
+  { path: '/programs/trials/new', name: 'trial-new', component: TrialEditView, meta: { label: '新增試訓場次', code: 'P4' } },
+  { path: '/programs/trials/:id/edit', name: 'trial-edit', component: TrialEditView, props: true, meta: { label: '編輯試訓場次', code: 'P4' } },
+  { path: '/programs/trials/:id/registrations', name: 'trial-registration-list', component: TrialRegistrationListView, props: true, meta: { label: '試訓報名名單', code: 'P4' } },
+  { path: '/programs/trials/:id/registrations/new', name: 'trial-registration-new', component: TrialRegistrationEditView, props: true, meta: { label: '新增試訓報名', code: 'P4' } },
+  { path: '/programs/trials/:id/registrations/:regId/edit', name: 'trial-registration-edit', component: TrialRegistrationEditView, props: true, meta: { label: '處理試訓報名', code: 'P4' } },
+  { path: '/programs/trials/:id/sign-in', name: 'trial-sign-in', component: TrialSignInSheetView, props: true, meta: { label: '試訓簽到表', code: 'P4' } },
+  { path: '/programs/enrollments/waitlist', name: 'registration-waitlist', component: WaitlistReminderView, meta: { label: '候補遞補提醒', code: 'P3' } },
+  { path: '/programs/enrollments/sign-in', name: 'registration-sign-in', component: RegistrationSignInSheetView, meta: { label: '課程簽到表', code: 'P3' } },
+  { path: '/members/list', name: 'member-list', component: MemberListView, meta: { label: '會員名單', code: 'K1' } },
+  { path: '/members/list/new', name: 'member-new', component: MemberEditView, meta: { label: '現場建立會員', code: 'K1' } },
+  { path: '/members/list/duplicates', name: 'member-duplicates', component: MemberDuplicatesView, meta: { label: '重複帳號比對', code: 'K1' } },
+  { path: '/members/list/:id', name: 'member-detail', component: MemberDetailView, props: true, meta: { label: '會員詳情', code: 'K1' } },
+  { path: '/members/plans', name: 'membership-plan-list', component: MembershipPlanView, meta: { label: '會籍與方案', code: 'K2' } },
+  { path: '/members/plans/new', name: 'membership-plan-new', component: MembershipPlanEditView, meta: { label: '新增方案', code: 'K2' } },
+  { path: '/members/plans/memberships/:id', name: 'membership-detail', component: MembershipDetailView, props: true, meta: { label: '會籍詳情', code: 'K2' } },
+  { path: '/members/plans/:id/edit', name: 'membership-plan-edit', component: MembershipPlanEditView, props: true, meta: { label: '編輯方案', code: 'K2' } },
+  { path: '/members/jerseys', name: 'jersey-list', component: JerseyListView, meta: { label: '球衣發放', code: 'K3' } },
+  { path: '/members/partner-stores', name: 'partner-store-list', component: PartnerStoreView, meta: { label: '特約店家與權益', code: 'K4' } },
+  { path: '/members/partner-stores/new', name: 'partner-store-new', component: PartnerStoreEditView, meta: { label: '新增特約店家', code: 'K4' } },
+  { path: '/members/partner-stores/:id/edit', name: 'partner-store-edit', component: PartnerStoreEditView, props: true, meta: { label: '編輯特約店家', code: 'K4' } },
+  { path: '/calendar/categories', name: 'calendar-categories', component: CalendarCategoriesView, meta: { label: '分類設定', code: 'L3' } },
+  { path: '/calendar/subscriptions', name: 'calendar-subscriptions', component: CalendarSubscriptionsView, meta: { label: '訂閱與匯出', code: 'L4' } },
 ]
 
 const implementedPaths = new Set(IMPLEMENTED_ROUTES.map((route) => route.path))

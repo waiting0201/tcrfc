@@ -1,0 +1,91 @@
+<script setup lang="ts">
+/**
+ * 會籍與方案：同頁四個分頁——會籍（到期提醒）、方案、付款紀錄、會員編號規則。
+ * 目前分頁記在網址的 `?tab=`，重新整理不會跳回第一頁。
+ */
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
+import PageHeader from '@/components/PageHeader.vue'
+import MembershipsTab from './parts/MembershipsTab.vue'
+import PlansTab from './parts/PlansTab.vue'
+import PaymentsTab from './parts/PaymentsTab.vue'
+import NumberingTab from './parts/NumberingTab.vue'
+import { usePermission } from '@/composables/useCrudPermissions'
+import { activeClubId } from '@/auth/clubAccess'
+import { listAdminSeasons } from '@/api/adminCompetitions'
+import { listMembershipPlans, type MembershipPlanListItemDto } from '@/api/adminMemberships'
+
+const TABS = ['memberships', 'plans', 'payments', 'numbering'] as const
+type TabName = (typeof TABS)[number]
+
+const route = useRoute()
+const router = useRouter()
+const canViewMemberships = usePermission('member.membership.view')
+const canViewPlans = usePermission('member.plan.view')
+const canViewSettings = usePermission('member.setting.view')
+const club = computed(() => activeClubId.value)
+
+function readTab(): TabName {
+  const q = route.query.tab
+  return typeof q === 'string' && (TABS as readonly string[]).includes(q) ? (q as TabName) : 'memberships'
+}
+const tab = ref<TabName>(readTab())
+watch(tab, (t) => {
+  if (readTab() !== t) router.replace({ query: { ...route.query, tab: t } })
+})
+watch(
+  () => route.query.tab,
+  () => {
+    if (route.name === 'membership-plan-list') tab.value = readTab()
+  },
+)
+
+// 各分頁共用的參考資料：球季、方案
+const plans = ref<MembershipPlanListItemDto[]>([])
+const seasonsFromApi = ref<{ id: string; code: string }[]>([])
+const seasons = computed(() => {
+  const map = new Map<string, string>()
+  for (const s of seasonsFromApi.value) map.set(s.id, s.code)
+  // 球季清單端點有自己的權限；讀不到時，至少用方案上出現過的球季
+  for (const p of plans.value) if (!map.has(p.seasonId)) map.set(p.seasonId, p.seasonCode)
+  return [...map.entries()].map(([id, code]) => ({ id, code })).sort((a, b) => b.code.localeCompare(a.code))
+})
+
+async function loadRefs() {
+  const [s, p] = await Promise.allSettled([listAdminSeasons(club.value), listMembershipPlans(club.value)])
+  seasonsFromApi.value = s.status === 'fulfilled' ? s.value.map((x) => ({ id: x.id, code: x.code })) : []
+  plans.value = p.status === 'fulfilled' ? p.value : []
+}
+onMounted(loadRefs)
+watch(club, loadRefs)
+</script>
+
+<template>
+  <div class="plan-view">
+    <PageHeader title="會籍與方案">
+      <template #meta><FrontendUnitBanner module-code="K2" /></template>
+    </PageHeader>
+
+    <el-tabs v-model="tab" class="plan-view__tabs">
+      <el-tab-pane v-if="canViewMemberships" label="會籍" name="memberships" lazy>
+        <MembershipsTab :plans="plans" :seasons="seasons" />
+      </el-tab-pane>
+      <el-tab-pane v-if="canViewPlans" label="方案" name="plans" lazy>
+        <PlansTab :seasons="seasons" @changed="loadRefs" />
+      </el-tab-pane>
+      <el-tab-pane v-if="canViewMemberships" label="付款紀錄" name="payments" lazy>
+        <PaymentsTab />
+      </el-tab-pane>
+      <el-tab-pane v-if="canViewSettings" label="會員編號規則" name="numbering" lazy>
+        <NumberingTab />
+      </el-tab-pane>
+    </el-tabs>
+  </div>
+</template>
+
+<style scoped>
+.plan-view { min-width: 0; }
+.plan-view__tabs { min-width: 0; }
+.plan-view__tabs :deep(.el-tabs__content) { overflow: visible; }
+</style>

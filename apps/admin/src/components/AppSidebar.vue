@@ -7,7 +7,7 @@ import { authUser } from '@/auth/session'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { useFormsPermissions } from '@/composables/useFormsPermissions'
 import { useCalendarPermissions } from '@/composables/useCalendarPermissions'
-import { useCrudPermissions, useViewUpdatePermissions } from '@/composables/useCrudPermissions'
+import { useCrudPermissions, usePermission, useViewUpdatePermissions } from '@/composables/useCrudPermissions'
 
 const props = defineProps<{
   collapse: boolean
@@ -49,7 +49,25 @@ const charityPerm = useCrudPermissions('charity.content')
 const pressPerm = useCrudPermissions('content.press')
 const achievementPerm = useCrudPermissions('team.achievement')
 const milestonePerm = useCrudPermissions('team.milestone')
+const trialPerm = useCrudPermissions('program.trial')
+const memberAccountPerm = useCrudPermissions('member.account')
+const membershipPerm = useCrudPermissions('member.membership')
+const planPerm = useCrudPermissions('member.plan')
+const memberSettingPerm = useViewUpdatePermissions('member.setting')
+const jerseyPerm = useCrudPermissions('member.jersey')
+const storePerm = useCrudPermissions('member.store')
+const benefitPerm = useCrudPermissions('member.benefit')
+const calendarSettingPerm = useViewUpdatePermissions('calendar.setting')
+const calendarSubscriptionView = usePermission('calendar.subscription.view')
+const calendarExport = usePermission('calendar.export')
 const CHILD_VISIBILITY: Record<string, () => boolean> = {
+  P4: () => trialPerm.canView.value,
+  K1: () => memberAccountPerm.canView.value,
+  K2: () => membershipPerm.canView.value || planPerm.canView.value || memberSettingPerm.canView.value,
+  K3: () => jerseyPerm.canView.value,
+  K4: () => storePerm.canView.value || benefitPerm.canView.value,
+  L3: () => calendarSettingPerm.canView.value,
+  L4: () => calendarSubscriptionView.value || calendarExport.value,
   P1: () => programPermissions.canViewItems.value,
   P2: () => programPermissions.canViewItems.value,
   P3: () => programPermissions.canViewRegistrations.value,

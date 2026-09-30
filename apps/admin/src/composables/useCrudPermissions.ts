@@ -30,3 +30,9 @@ export function useCanExportLeads() {
   const isSuperAdmin = useIsSuperAdmin()
   return computed(() => isSuperAdmin.value || hasPermission('business.lead.export'))
 }
+
+/** 單一權限碼的「有沒有」判斷（匯出、解除遮罩、合併這類獨立權限碼）。只決定要不要顯示按鈕，不是安全邊界。 */
+export function usePermission(code: string) {
+  const isSuperAdmin = useIsSuperAdmin()
+  return computed(() => isSuperAdmin.value || hasPermission(code))
+}

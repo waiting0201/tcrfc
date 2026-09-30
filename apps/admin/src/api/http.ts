@@ -25,6 +25,7 @@ export type AdminApiErrorKind =
   | 'concurrency-conflict' // 409，資料已被其他人變更
   | 'featured-limit' // 409，置頂精選已達上限
   | 'status-conflict' // 409，狀態轉換不允許
+  | 'schedule-conflict' // 409，行事曆改期遇到時段衝突（`body.conflicts` 帶衝突清單）
   | 'forbidden' // 403，沒有權限／共用內容唯讀
   | 'not-found' // 404
   | 'invalid-credential' // 401，但不是「登入已逾期」——是密碼／驗證碼本身不正確一類的業務判斷
@@ -37,12 +38,15 @@ export class AdminApiError extends Error {
   kind: AdminApiErrorKind
   status?: number
   detail?: string
+  /** 原始的錯誤本文（ProblemDetails 加上端點自帶欄位），例如改期衝突的 `conflicts`。 */
+  body?: unknown
 
-  constructor(kind: AdminApiErrorKind, message: string, options?: { status?: number; detail?: string }) {
+  constructor(kind: AdminApiErrorKind, message: string, options?: { status?: number; detail?: string; body?: unknown }) {
     super(message)
     this.kind = kind
     this.status = options?.status
     this.detail = options?.detail
+    this.body = options?.body
   }
 }
 
@@ -79,6 +83,7 @@ function classifyByStatus(body: ErrorBody | null, status: number): AdminApiError
     if (title === '資料已被變更') return new AdminApiError('concurrency-conflict', detail, { status, detail })
     if (title === '置頂精選已達上限') return new AdminApiError('featured-limit', detail, { status, detail })
     if (title === '狀態轉換不允許') return new AdminApiError('status-conflict', detail, { status, detail })
+    if (title === '排程衝突') return new AdminApiError('schedule-conflict', detail || '這個時段與其他行程衝突', { status, detail, body })
     return new AdminApiError('unknown', detail || '這筆資料目前無法這樣操作', { status, detail })
   }
   return new AdminApiError('server', '伺服器發生未預期的錯誤，請稍後再試。', { status, detail })
