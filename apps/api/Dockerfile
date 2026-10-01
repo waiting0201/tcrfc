@@ -28,7 +28,8 @@ RUN dotnet publish -c Release -o /app/publish --no-restore
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
 WORKDIR /app
 
-# mcr.microsoft.com/dotnet 系列映像檔自 .NET 8 起內建非 root 使用者 "app"（uid 64198），
+# mcr.microsoft.com/dotnet 系列映像檔自 .NET 8 起內建非 root 使用者 "app"（uid/gid 1654，2026-10-01 以 `docker run --rm --entrypoint id mcr.microsoft.com/dotnet/aspnet:10.0 app` 實測；
+# 先前此處寫 64198 是錯的——compose 的 Data Protection 金鑰目錄擁有者依這個 uid 設定，見 docker-compose.yml），
 # 官方範本本就是 `USER app`，不需要自行建立使用者。
 # 基底是 Debian slim，預設不含 curl，healthcheck 要用就得裝——體積換取「用一般人看得懂的方式探活」。
 RUN apt-get update \

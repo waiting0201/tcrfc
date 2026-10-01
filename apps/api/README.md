@@ -103,6 +103,8 @@ Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③
 金鑰環存在容器本機檔案系統，**容器重建（不是重啟）沒有把金鑰目錄掛到持久化 volume，所有使用者的
 2FA 密鑰會永久無法解密**（不是可恢復的錯誤，是資料實質遺失）。部署時務必設定
 `DATA_PROTECTION_KEYS_PATH` 指向持久化 volume 路徑，細節見 `TwoFactorSecretProtector.cs` 檔頭。
+🔵 **2026-10-01 起有啟動檢查（E-109，`Common/DataProtectionKeyRing.cs`）**：`Production` 下該變數未設、空白、目錄不存在或
+不可寫（實際寫入並刪除探測檔）一律**啟動失敗**，訊息指向 `infra/README.md` §4.3「金鑰環」；非 Production 維持沒設就不持久化。
 
 **🔴 2026-09-30 使用者裁決：改密與 2FA 不再強制（正式環境亦同）。** `Security/AdminAccountGate.cs`
 只檢查帳號存在且 `status=active`，**不再**因 `must_change_password=true` 或 `two_factor_enabled=false`
@@ -4714,7 +4716,7 @@ compose 網路裡）。
 | `AZURE_BLOB_CONTAINER_IMAGES` | 選填（S0-8） | 圖片物件儲存的容器名稱，預設 `images` |
 | `AZURE_BLOB_PUBLIC_BASE_URL` | 選填（2026-10-01） | **公開網址基底**，如 `https://img-stg.tcrfc.tw`（Cloudflare CDN 子網域）。圖片／影片／documents 三個公開解析器改組 `{base}/{容器}/{key}`（key 逐段 URL 編碼、base 尾斜線自動處理）；**上傳與刪除仍走 `AZURE_BLOB_CONNECTION_STRING`**，`proposals` 私有容器不受影響。未設定＝回退 `BlobContainerClient.Uri`（本機 Azurite 不變）。須為絕對 https URL（`Development` 放行 http），不得含帳密／query／fragment，格式錯誤**啟動即失敗**。實作 `Common/PublicBlobUrl.cs`，測試 `PublicBlobBaseUrlTests`。正式環境寫在 VM 的 `club.env`，**不要**寫進 compose 的 `environment:`（會以空字串覆蓋 env_file） |
 | `JWT_SIGNING_KEY_CLUB` | 🔴🔴🔴 S1 起必填 | 後台存取權杖的簽章金鑰，**至少 32 字元，缺值或太短在啟動期直接失敗**（`Program.cs` 於 `builder.Build()` 前呼叫 `AdminTokenService.ValidateSigningKeyConfigured`，E-79 修正——原本只有第一個請求才檢查，行程起得來但每支端點 500）。鍵名不是本輪新發明，`deploy/dev/club.env`／`docs/20-cicd.md` §7.2 早就預留。⚠️ **上線前暫用網址與正式期建議用不同值**（`docs/14-invariants.md` 既有規則） |
-| `DATA_PROTECTION_KEYS_PATH` | 🔴🔴🔴 S1 起正式環境必填 | 2FA 密鑰加密金鑰環的持久化路徑。**沒設定不會讓服務無法啟動**（本機開發沒有也能跑，只是每次容器重建都要重設 2FA），但正式環境沒設定＝容器重建後全部使用者的 2FA 永久無法解密，見 `Security/TwoFactorSecretProtector.cs` 檔頭的完整說明，這是本次程式碼無法防呆的部署前置條件 |
+| `DATA_PROTECTION_KEYS_PATH` | 🔴🔴🔴 S1 起正式環境必填 | 2FA 密鑰加密金鑰環的持久化路徑。**非 Production 沒設定不會讓服務無法啟動**（本機開發沒有也能跑，只是每次重啟都要重設 2FA）；🔵 **`Production` 缺值、空白、目錄不存在或不可寫（實際寫入探測檔）一律啟動失敗**（2026-10-01，E-109，`Common/DataProtectionKeyRing.cs`，測試 `DataProtectionKeyRingTests`）。正式環境沒持久化＝容器重建後 2FA 等已加密資料永久無法解密，見 `Security/TwoFactorSecretProtector.cs` 檔頭 |
 
 ⛔ **S0-8 之後仍完全不碰 LINE Pay**——這個鍵名雖然已經在 `docker-compose.yml` 的
 `api` 服務與 `deploy/dev/{club,charity}.env` 裡預留，但本檔的程式碼**沒有讀取它**，留給接下來實作商店金流的

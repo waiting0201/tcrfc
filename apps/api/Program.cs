@@ -257,13 +257,14 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Calendar.CalendarRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Calendar.CalendarIcsRepository>();
 
 // Data Protection：加密 admin_users.two_factor_secret_encrypted（Security/TwoFactorSecretProtector.cs）。
-// 🔴 正式環境務必設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
-// 密鑰永久無法解密——見 TwoFactorSecretProtector.cs 檔頭的完整說明，這不是本次程式碼能防呆的事。
+// 🔴 正式環境必須設定 DATA_PROTECTION_KEYS_PATH 指向持久化 volume，否則容器重建後全部 2FA
+// 密鑰永久無法解密——見 TwoFactorSecretProtector.cs 檔頭；Production 缺值會啟動失敗（下方）。
 var dataProtection = builder.Services.AddDataProtection().SetApplicationName("Tcrfc.Admin");
-var dataProtectionKeysPath = builder.Configuration["DATA_PROTECTION_KEYS_PATH"];
-if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
+// Production 缺值、目錄不存在或不可寫會在啟動時丟例外（E-109，Common/DataProtectionKeyRing.cs）。
+var dataProtectionKeysDirectory = Tcrfc.Api.Common.DataProtectionKeyRing.Resolve(builder.Configuration, builder.Environment);
+if (dataProtectionKeysDirectory is not null)
 {
-    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath));
+    dataProtection.PersistKeysToFileSystem(dataProtectionKeysDirectory);
 }
 
 // JWT Bearer：只驗證存取權杖（簽章、issuer、audience、效期），不做任何資料庫查詢——

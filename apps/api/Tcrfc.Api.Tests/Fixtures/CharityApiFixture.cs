@@ -299,6 +299,9 @@ public sealed class CharityDisabledApiFixture : WebApplicationFactory<Program>, 
         Environment.SetEnvironmentVariable("JWT_SIGNING_KEY_CHARITY", null);
         // Production：不載入 appsettings.Development.json（那份本機檔案可能帶有慈善連線字串，會讓慈善被啟用）。
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Production");
+        // Production 啟動檢查要求金鑰環目錄存在且可寫（E-109）：給暫存目錄，不放寬檢查。
+        _keysDir = Directory.CreateTempSubdirectory("tcrfc-dp-keys-").FullName;
+        Environment.SetEnvironmentVariable("DATA_PROTECTION_KEYS_PATH", _keysDir);
         Environment.SetEnvironmentVariable("REDIS_HOST", null);
         Environment.SetEnvironmentVariable("REDIS_PASSWORD", null);
         _ = Server;
@@ -307,8 +310,15 @@ public sealed class CharityDisabledApiFixture : WebApplicationFactory<Program>, 
     public new async Task DisposeAsync()
     {
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
+        Environment.SetEnvironmentVariable("DATA_PROTECTION_KEYS_PATH", null);
         await base.DisposeAsync();
+        if (_keysDir is not null)
+        {
+            try { Directory.Delete(_keysDir, true); } catch (IOException) { }
+        }
     }
+
+    private string? _keysDir;
 }
 
 [CollectionDefinition(Name)]

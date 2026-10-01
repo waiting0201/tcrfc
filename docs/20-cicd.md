@@ -364,28 +364,17 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 > 存放路徑建議 `/opt/tcrfc/secrets/`，**在 `actions/checkout` 的工作目錄之外**（checkout 目錄每次 run 可能被清乾淨，機密檔必須是獨立、持久的路徑），`docker-compose.yml` 用絕對路徑的 `env_file:` 引用。檔案權限 `600`，擁有者是 runner 的服務帳號。
 > ⚠️ **俱樂部與協會的憑證分屬不同主體**（`17` §5），即使同放一台 VM，**建議實體上拆成兩個檔案**（`club.env`／`charity.env`），存取與輪替各自由各自的持有人負責，不要混在一個檔案裡——這是治理上的區隔，不只是技術上的。
 
-| 變數（示意，實際命名待 `backend-engineer` 定案） | 用途 | 持有人 |
-|---|---|---|
-| `CLUB_SQL_CONNECTION_STRING` | `api` 連 `tcrfc_club` | 俱樂部（系統管理） |
-| `CHARITY_SQL_CONNECTION_STRING` | `api` 連 `tcrfc_charity` | **協會**（`17` §5：獨立資料庫） |
-| `REDIS_PASSWORD` | `api` 連 `redis` 容器 | 俱樂部（系統管理） |
-| `LINE_PAY_CLUB_CHANNEL_ID` / `_SECRET` | 官網商店結帳＋藍鯨代收代付 | 俱樂部 |
-| `LINE_PAY_ASSOCIATION_CHANNEL_ID` / `_SECRET` | 慈善捐款 | **協會**（不得與俱樂部共用，`14` 已明文） |
-| `INVOICE_SERVICE_API_KEY_CLUB` | 電子發票（俱樂部字軌） | 俱樂部 |
-| `INVOICE_SERVICE_API_KEY_CHARITY` | 電子發票（協會字軌，**不得共用字軌**，STATUS B-10） | **協會** |
-| `JWT_SIGNING_KEY_CLUB` | 官網前後台登入權杖簽章 | 俱樂部（系統管理） |
-| `JWT_SIGNING_KEY_CHARITY` | 慈善後台獨立帳號體系的權杖簽章（`17` §5 獨立 2FA） | 協會 |
-| `LINE_LOGIN_CHANNEL_ID` / `_SECRET` | 會員 LINE 一鍵登入 | 俱樂部 |
-| `LINE_LOGIN_REDIRECT_URIS` | 會員 LINE 登入的前台回呼網址白名單（逗號分隔，須與 LINE Developers 登記的 Callback URL 一致；非機密，但放設定不寫死） | 俱樂部 |
-| `JWT_SIGNING_KEY_MEMBER`（選用，建議設） | 會員（前台帳號）登入權杖簽章；**必須與 `JWT_SIGNING_KEY_CLUB` 不同**。沒設時由後者衍生 | 俱樂部（系統管理） |
-| `MEMBERSHIP_ACTIVATE_CREDENTIAL`（選用） | 內部會籍開通端點的憑證（≥32 字元）；沒設＝端點停用 | 俱樂部（系統管理） |
-| `MEMBER_EMAIL_LINK_BASE_URL`（選用） | 驗證信／重設密碼信的連結站台網址（預設 `https://{clubs.domain}`） | 俱樂部 |
-| `AZURE_BLOB_CONNECTION_STRING`（club） | 圖片上傳 | 俱樂部 |
-| `AZURE_BLOB_PUBLIC_BASE_URL`（club，非機密，選填） | 公開圖片／影片／documents 的 CDN 網址基底，如 `https://img-stg.tcrfc.tw`；寫在 VM 的 `club.env`；慈善對應 `AZURE_BLOB_PUBLIC_BASE_URL_CHARITY` 寫在 `charity.env`，不共用 | 俱樂部／協會 |
-| `AZURE_BLOB_CONNECTION_STRING_CHARITY` | 慈善圖片上傳。✅ **2026-10-01 使用者決定慈善使用獨立的儲存體帳戶**（`sttcrfccharity<uniq>`，容器 `charity-images`，由 Bicep 建立，見 `17` §13）；連線字串用 `az storage account show-connection-string` 取得後只放 VM 的 `charity.env` | **協會** |
-| `APNS_KEY_ID` / `.p8` 內容 / `FCM_SERVICE_ACCOUNT_JSON` | `api` 呼叫推播（後台 `M3`） | 俱樂部（App 帳號主體是俱樂部，`19` §9） |
+> 🔵 **2026-10-01 起以 [`infra/README.md`](../infra/README.md) §4.3「設定鍵盤點」為準**（依 `apps/api` 程式逐鍵核對：必填／選填／預設、歸屬哪個檔、外部憑證未到位時該填什麼）。機密檔由 [`infra/provision-secrets.sh`](../infra/provision-secrets.sh) 產生並寫入 VM。下表只留「持有人」這個治理資訊與重點：
 
-> ⚠️ 以上變數名為規劃階段示意，**實際命名由建立 `api` 專案時的 `backend-engineer` 定案**，本檔不強制欄位名，只強制「這些東西是什麼、放哪裡、誰是持有人」三件事。
+| 鍵 | 檔案 | 持有人 | 重點 |
+|---|---|---|---|
+| `CLUB_SQL_CONNECTION_STRING`、`AZURE_BLOB_CONNECTION_STRING`、`JWT_SIGNING_KEY_CLUB`、`JWT_SIGNING_KEY_MEMBER`（≥32 字元，兩者不同值） | `club.env` | 俱樂部（系統管理） | 必填；缺值或過短啟動失敗 |
+| `CHARITY_SQL_CONNECTION_STRING`、`AZURE_BLOB_CONNECTION_STRING_CHARITY`、`JWT_SIGNING_KEY_CHARITY` | `charity.env` | **協會**（不得與俱樂部共用任何值） | `CHARITY_SQL_CONNECTION_STRING` 漏設＝慈善平台無聲關閉 |
+| `REDIS_PASSWORD`、六個 `*_DOMAIN`、`SITE_ENV`、`CADDYFILE`、`ACME_EMAIL`、`PRELAUNCH_BASIC_AUTH_*`、`GHCR_OWNER`、`IMAGE_TAG` | `/opt/tcrfc/.env`（compose 用，暫定位置，見 §9a） | 俱樂部（系統管理） | `REDIS_PASSWORD` 不要再寫進 club.env |
+| `DATA_PROTECTION_KEYS_PATH` | compose 固定值（非機密）＋ VM `/opt/tcrfc/data-protection` bind mount | 俱樂部（系統管理） | 🔴 金鑰環，遺失＝已加密資料永久無法解密 |
+| 選用且**正式環境未到位時不設**：`PAYMENT_GATEWAY`／`INVOICE_ISSUER`（設 `fake` 會讓 Production 啟動失敗）、`EMAIL_SENDER`、`LINE_LOGIN_*`、`CHARITY_ALLOW_FAKE_PROVIDERS`、`TURNSTILE_SECRET_KEY_CHARITY`、`MEMBERSHIP_ACTIVATE_CREDENTIAL`、`AZURE_BLOB_PUBLIC_BASE_URL(_CHARITY)` | 對應檔案 | 俱樂部／協會 | 各鍵的未設行為見 `infra/README.md` §4.3 |
+| 🔵 **程式不讀**：`LINE_PAY_*`、`INVOICE_SERVICE_API_KEY_*`、`APNS_KEY_ID`／`.p8`／`FCM_SERVICE_ACCOUNT_JSON` | — | — | 商店與慈善的金流／發票憑證存在資料庫（後台設定頁，Data Protection 加密）；APNs／FCM 傳輸尚未實作。**舊表列的這些名稱是規劃階段示意，勿照填** |
+
 
 ---
 
@@ -473,7 +462,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 - **VM 與 self-hosted runner 本身**（STATUS.md S0-6，Azure 資源尚未開通）——這是唯一的硬阻塞，
   其餘都是「VM 就緒後把佔位內容填實」的文書工作：
   1. 拿掉 `if: false`，`runs-on` 換成 `[self-hosted, tcrfc-vm]`；
-  2. `docker compose pull && up -d` 的實際部署目錄路徑（`deploy/README.md` 或屆時的 VM 佈署慣例）；
+  2. `docker compose pull && up -d` 的實際部署目錄路徑（`deploy/README.md` 或屆時的 VM 佈署慣例）；**compose 用的 `.env` 暫定放 VM 的 `/opt/tcrfc/.env`**（`infra/provision-secrets.sh` 寫入），CD 段實作時以 `--env-file /opt/tcrfc/.env` 讀取或複製進 checkout 目錄，並回頭更新 `infra/README.md` §4.3；🔴 `api` 的 Data Protection 金鑰環是 bind mount `/opt/tcrfc/data-protection`（`create_host_path: false`），**部署程序不得刪除或重建這個目錄**；
   3. `/healthz`／`/readyz` 健康檢查的 retry 迴圈（§6 已設計，未寫成 shell）；
   4. 失敗自動回滾讀 `/opt/tcrfc/deploy-state.env` 的實際邏輯；
   5. Cloudflare 快取清除（需要 `CLOUDFLARE_API_TOKEN`，見 §7.1，此 secret 目前也還沒建立）；
@@ -496,7 +485,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | # | 項目 | 動作 |
 |---|---|---|
 | 1 | **VM 建好、Docker 裝好** | 在 VM 上安裝 GitHub Actions self-hosted runner（`./config.sh` 用一次性註冊 token，設定 label `tcrfc-vm`），設成 systemd 服務常駐 |
-| 2 | **VM 上建 `.env` 檔** | 依 §7.2 建立 `/opt/tcrfc/secrets/club.env`、`charity.env`，權限 `600` |
+| 2 | **VM 上建 `.env` 檔** | 🔵 執行 [`infra/provision-secrets.sh`](../infra/provision-secrets.sh)（建 `club.env`／`charity.env`／`/opt/tcrfc/.env`／金鑰環目錄並驗證，見 `infra/README.md` §4.3） |
 | 3 | **VM 本機建 `deploy-state.env`** | 空檔即可，首次部署後自動寫入 |
 | 4 | **NSG** | **確認 CI/CD 不需要新增任何 inbound 規則**——這是方案 B 的重點驗證項，回頭核對 `17` §9 驗證 1–3 不受影響 |
 | 5 | **ghcr 套件建立** | 第一次 `deploy.yml` 跑完會自動建立五個套件；手動把它們的 visibility 設為 **Public**（新套件預設常常是 private，要手動切） |

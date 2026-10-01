@@ -120,6 +120,7 @@
 | E-106 | 2026-10-01 | 文件各寫各的：`docs/17` §2 規定儲存體只放行 VNet（訪客無法直連），§6 與 `apps/api` 卻假設圖片／文件是公開的 blob 直連網址；寫 Bicep 時才對撞。同時 `docs/16`／`17`／`20` 的正式庫名 `sqldb-*` 與本機 `tcrfc_*` 並存 | ⚠️ 無 |
 | E-107 | 2026-10-01 | 派工單把使用者的 SSH 來源 IP 原值寫給 agent，agent 在 `infra/README.md` 的 secrets 表把它當範例值寫進去——**同一列還寫著「放 secret 是為了不洩漏 IP」**；公開 repo，commit 前主 session 掃描才抓到 | ⚠️ 無（commit 前 grep 使用者提供的機密值） |
 | E-108 | 2026-10-01 | 給使用者跑的一次性 Azure 設定腳本寫成「只跑一次的直線流程」：`set -e` 下 federated credential 重跑必失敗、`|| echo` 吞掉建角色的真正錯誤、固定 sleep 等 RBAC 生效、未驗證輸入、放在 session 暫存區；使用者讀了覺得不對才回頭審 | ✅ `infra/bootstrap.sh` 每步先查後建、`retry` 取代固定 sleep、寫 secrets 前斷言分支限制只有 `master`；`shellcheck -S warning` 通過 |
+| E-109 | 2026-10-01 | `docker-compose.yml` 的 `api` 沒設 `DATA_PROTECTION_KEYS_PATH`、也沒掛 volume——程式沒讀到該變數不會報錯，Data Protection 金鑰環只活在容器可寫層，**容器一重建就讓 2FA、慈善身分證字號與載具、推播權杖、商店與慈善金流／發票憑證全部永久無法解密**；寫 VM 機密檔的任務盤點設定鍵時才發現。同時發現 `apps/api/Dockerfile` 註解把非 root 使用者 uid 寫成 64198（實測 1654），照它建目錄會讓 api 寫不進去 | ✅ compose 已修；`apps/api` 啟動檢查已實作（2026-10-01）；`docs/14` 已加不變量 |
 
 ---
 
@@ -2306,3 +2307,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **防呆**：部分——`infra/bootstrap.sh` 已照上述改寫；沒有 CI 掃描 `*.sh`。
 - **第二次（同日）**：改寫版交付後使用者回報「沒辦法跑」——**第一行就失敗**：`az account show --query '{訂閱:name,…}'` 的 JMESPath 鍵不接受中文。`bash -n` 與 `shellcheck` 都抓不到，因為那是 `az` 執行期才解析的字串。**根因同一類：沒有實際執行過**。補上的做法：交付前把腳本中所有唯讀指令（`show`／`list`／`exists`）逐一真跑一次，並以 `echo n | bash infra/bootstrap.sh` 跑到第一個確認點。同時查到舊版已建好資源群組、身分與 federated credential，停在角色指派（推測是新身分尚未同步到 Entra，舊版只等 20 秒；新版改為重試）。
 - **第三次（同日）**：使用者執行時第 98 行 `RG�: unbound variable`——**macOS 內建 bash 3.2 會把緊接在 `$VAR` 後的全形字元（如「）」）吃進變數名稱**，`set -u` 下直接中止。`bash -n`／`shellcheck` 都抓不到，前一次的「唯讀指令逐一真跑」也沒涵蓋到這行。修法：全檔變數一律寫成 `${VAR}`；並以 `az`／`gh` 假指令在 `/bin/bash`（3.2）下**把整支腳本從頭跑到尾**驗證每一條寫入路徑。**防呆升級**：給使用者跑、含中文輸出的 shell 腳本，變數一律加大括號，交付前用 `/bin/bash` 加假指令完整跑一次（寫入 [`14`](14-invariants.md) 前先看是否再犯）。
+- **第四次（2026-10-01，`infra/provision-secrets.sh`，交付前自己抓到）**：假指令全程測試時，**經 ssh 送到 VM 執行的遠端腳本**（heredoc）裡又有 `"$image）"`，在 3.2 下 `image�: unbound variable`。腳本主體已逐一加大括號，卻漏了「內嵌在腳本裡、送去別台機器執行的那一段」。**這是同一類錯第四次出現，只是這次被「用 `/bin/bash` ＋假指令完整跑一次」這個機制攔下**——證明該機制有效，且要涵蓋內嵌的遠端腳本。補強檢查（交付前必跑）：`grep -nP '\$[A-Za-z_0-9]+[^\x00-\x7F]' <腳本>` 必須無輸出。
+
+### E-109 compose 的 api 漏掛 Data Protection 金鑰環，程式又不會因此報錯（2026-10-01，基礎設施 IaC）
+- **錯在哪**：`apps/api` 讀 `DATA_PROTECTION_KEYS_PATH` 才呼叫 `PersistKeysToFileSystem`；`docker-compose.yml` 的 `api` 沒有這個環境變數，也沒掛 volume。沒設不報錯，金鑰環只存在容器可寫層，容器重建（每次部署都會發生）＝所有 Data Protection 加密的資料永久無法解密。文件（`docs/14`、`docs/17` §5／§6）與 `apps/api/README.md` 都寫了「正式環境必須掛持久化 volume」，**但沒有任何一個檔案兌現**——文件寫了要求，實作沒人對照。另：`apps/api/Dockerfile` 註解寫非 root 使用者 uid 為 64198，實測 `mcr.microsoft.com/dotnet/aspnet:10.0` 的 `app` 是 1654（照舊註解建目錄會讓 api 寫不進去，且要到第一次加密才爆）。
+- **根因（可改掉的行為）**：①「要求」寫在文件、「落實」在另一個檔案，沒有人逐條把文件裡的部署前置條件對照到 compose／IaC；②程式端「沒設定就靜默退回不持久化」，缺口沒有任何訊號；③映像檔內建使用者的 uid 憑印象寫進註解，沒用 `docker run --entrypoint id` 實測。
+- **下次怎麼避免**：寫或改 compose／IaC 時，先 grep `docs/` 與 `apps/api/README.md` 裡所有「正式環境必須／務必」的句子，逐條對照落實位置；涉及容器內檔案權限的數字（uid／gid）一律實測，不憑記憶。
+- **防呆**：部分——compose 已加 `DATA_PROTECTION_KEYS_PATH` 與 bind mount（`create_host_path: false`，目錄不存在 compose 直接報錯）；`infra/provision-secrets.sh` 建目錄並在驗證階段檢查擁有者與權限；`docs/14` 已加不變量。✅ **2026-10-01 補上**：`apps/api/Common/DataProtectionKeyRing.cs` 在 Production 缺值、空白、目錄不存在或不可寫（實際寫入並刪除探測檔）時於啟動丟例外，訊息指向 `infra/README.md` §4.3；`DataProtectionKeyRingTests` 覆蓋，以 Production 起的測試 fixture 補暫存目錄。之後有人拿掉 compose 掛載，API 會直接起不來。

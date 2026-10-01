@@ -417,6 +417,7 @@ key  = v{ver}:{club}:{locale}:article:{slug}    // 實際快取 key
 - **慈善的任何讀寫路徑不得接觸 Redis**
 - 慈善端點掛獨立 host 與獨立授權 policy，走協會的帳號體系
 - 兩組 LINE Pay 憑證與兩組連線字串分開的設定來源，**不得共用同一個 `.env`**
+- 🔴 **Data Protection 金鑰環必須掛持久化目錄**（2026-10-01 補上，E-109）：`docker-compose.yml` 的 `api` 以 bind mount 把 VM 的 `/opt/tcrfc/data-protection`（uid/gid 1654、`700`）掛到容器 `/var/lib/tcrfc/data-protection`，並以 `DATA_PROTECTION_KEYS_PATH` 指向它。`api` 沒讀到該變數**不會報錯**，金鑰環只活在容器可寫層，容器重建＝所有已加密資料（2FA、慈善身分證字號與載具、推播權杖、提案連結、商店與慈善的金流／發票憑證）永久無法解密。金鑰**每 90 天輪替**、無自動備份，備份與還原見 [`infra/README.md`](../infra/README.md) §4.3「金鑰環」；目錄由 `infra/provision-secrets.sh` 建立（不能放 cloud-init，`customData` 不可變）
 
 **落地（CH-2／CH-3，2026-10-01，`apps/api/CharityPlatform/`）**：上面五條都已用程式與測試守住——`CharityDbContext` 與 `ClubDbContext` 互不引用型別（`CharityArchitectureTests` 掃兩個方向）、慈善完全不碰 `IQueryCache`／Redis（同一支測試掃）、慈善後台是**自己的 JWT 方案與 Cookie 名稱**（`__Host-tcrfc-charity-admin-rt`，與主站不同名，因為兩個後台打同一個 API 網域）、設定來源是 `charity.env`（`CHARITY_SQL_CONNECTION_STRING`／`JWT_SIGNING_KEY_CHARITY`／`TURNSTILE_SECRET_KEY_CHARITY`…）。**慈善 API 以 `CHARITY_SQL_CONNECTION_STRING` 為開關**：沒設定時不註冊也不對映端點，只跑俱樂部的環境完全不受影響。
 🔴 **假金流／假發票／假寄信只在 `Development`（或明確 `CHARITY_ALLOW_FAKE_PROVIDERS=true`）運作**，正式環境（協會的 LINE Pay 商店號與發票管道未到位時）一律「尚未設定」——捐款頁會顯示服務暫時無法使用，而不是假裝成功。🔴 **`DATA_PROTECTION_KEYS_PATH` 要掛持久化 volume**：慈善的捐款人身分證字號用 Data Protection 加密，金鑰環遺失＝永久無法解密（見 [`14`](14-invariants.md)）。慈善背景維護（逾時轉換、憑證重試）在非 Development 預設啟動，同一個行程裡；失敗只記錄、不會拖垮俱樂部 API。
@@ -1232,4 +1233,4 @@ scripts/check-node-version.mjs` 離開碼 0；分別故意改壞 `apps/admin/Doc
 2. ✅ **`DB_COLLATION`**：`SQL_Latin1_General_CP1_CI_AS`，寫在 `main.bicepparam`。
 3. ✅ **預算幣別**：美元，維持 100；粗估月費約 US$95–110 仍貼近上限（[`infra/README.md`](../infra/README.md) §8）。
 4. **`api` 的資料庫帳號**：預設以 SQL 管理員連線；建議另建最小權限使用者（[`20`](20-cicd.md) §7.2 未定案）。
-5. **Data Protection 金鑰環在 VM 磁碟上無自動備份**（§5、[`14`](14-invariants.md)）。
+5. **Data Protection 金鑰環在 VM 磁碟上無自動備份**（§5、[`14`](14-invariants.md)）。2026-10-01 起已掛 bind mount 持久化（容器重建不再遺失），**備份方式待使用者決定**：手動每季 tar（現行建議）／VM cron 上傳私有 blob／改程式用 Blob＋Key Vault 持久化（Key Vault 目前刻意不開）。✅ **`apps/api` 啟動檢查已實作（2026-10-01）**：Production 缺 `DATA_PROTECTION_KEYS_PATH`、空白、目錄不存在或不可寫（實際寫入並刪除探測檔）即啟動失敗（`Common/DataProtectionKeyRing.cs`，見 [`18`](18-work-errors.md) E-109）。

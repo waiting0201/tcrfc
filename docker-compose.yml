@@ -256,6 +256,10 @@ services:
       # 刻意不列在這裡：environment 的空值會覆蓋 env_file，兩個鍵一律寫在 VM 的 secrets env 檔（infra/README.md §4.7）。
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
+      # 🔴 Data Protection 金鑰環（docs/17 §5、docs/14）：2FA 密鑰、慈善身分證字號與載具、推播權杖、提案連結
+      # 都用它加密。api 沒讀到這個變數不會報錯，金鑰只活在容器可寫層，容器一重建就全部無法解密（E-109）。
+      # 路徑對應下方 volumes 的 bind mount，不是機密，所以寫在這裡而不是 secrets env 檔。
+      DATA_PROTECTION_KEYS_PATH: /var/lib/tcrfc/data-protection
       # ── 網域（docs/17-deployment.md §10.2）：補之前完全沒有的缺口 ──────────────
       # 過去 api 容器收不到任何網域變數，系統信連結、CORS 允許來源都無處可取值，只能寫死。
       # 這裡補上同一組六個網域變數，供 backend-engineer 建 api 專案時組信件連結、CORS 清單、
@@ -276,6 +280,18 @@ services:
       # 依 IP 分區的濫用防護限流（見 apps/api/README.md「S1-17 修正」段、
       # apps/api/Security/TrustedProxyConfiguration.cs 檔頭）。
       TRUSTED_PROXY_IPS: 172.28.238.2,172.28.238.3,172.28.238.4
+    # 🔴 金鑰環用 bind mount（不用具名 volume）：①`docker compose down -v` 不會把它一起刪掉；
+    # ②路徑固定，備份只要 `sudo tar` 這個目錄。`create_host_path: false`：來源目錄不存在時 compose 直接報錯，
+    # 而不是讓 docker 自動建一個 root 擁有的空目錄（api 以 uid 1654 寫不進去，要到第一次加密才爆）。
+    # 目錄由 infra/provision-secrets.sh 建立（擁有者 uid/gid 1654＝aspnet 映像檔內建的非 root 使用者 `app`，
+    # 權限 0700；不能放進 cloud-init，VM 建立後 customData 不可變）。換 .NET 映像檔大版本時重驗：
+    # `docker run --rm --entrypoint id mcr.microsoft.com/dotnet/aspnet:10.0 app`。
+    volumes:
+      - type: bind
+        source: /opt/tcrfc/data-protection
+        target: /var/lib/tcrfc/data-protection
+        bind:
+          create_host_path: false
     networks: [internal]
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/readyz"]

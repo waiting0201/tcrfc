@@ -117,7 +117,12 @@ services:
         required: true
       - path: ./deploy/dev/charity.env
         required: true
+    # 正式版的 Data Protection 金鑰環 bind mount（/opt/tcrfc/data-protection，只存在於正式 VM）在本機不存在，
+    # 且 create_host_path: false 會讓 compose 直接報錯，所以用 !override 蓋掉，並把路徑設為空值（＝不持久化，
+    # 與本機既有行為相同：容器重建要重設 2FA，見 apps/api/README.md「建議本機也固定一個金鑰目錄」）。
+    volumes: !override []
     environment:
+      DATA_PROTECTION_KEYS_PATH: ""
       REDIS_PASSWORD: ${REDIS_PASSWORD:-dev-redis-password}
       # S0-8：容器化跑法（本機 compose）走 azurite 這個服務名稱，不是 club.env 裡給
       # 「直接 dotnet run（不經 Docker）」用的 UseDevelopmentStorage=true（那個值展開後永遠指向

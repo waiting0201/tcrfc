@@ -14,6 +14,7 @@
 |---|---|
 | [`main.bicep`](main.bicep) | 入口，範圍是 resource group `rg-tcrfc-prod` |
 | [`main.bicepparam`](main.bicepparam) | 參數檔：Cloudflare IP 段寫在這裡；機密與個人化的值由環境變數帶入 |
+| [`provision-secrets.sh`](provision-secrets.sh) | 在 Mac 執行：把機密檔與金鑰環目錄寫進 VM 並驗證（§4.3） |
 | [`cloud-init.yaml`](cloud-init.yaml) | VM 首次開機：安裝 Docker ＋ Compose、建 `runner` 使用者與 `/opt/tcrfc/` 目錄 |
 | [`modules/network.bicep`](modules/network.bicep) | VNet、`snet-app`、NSG、靜態 Public IP（含鎖） |
 | [`modules/compute.bicep`](modules/compute.bicep) | NIC、VM |
@@ -193,7 +194,7 @@ Settings → Environments → New environment → `production` → **Deployment 
 | Secret | `ALERT_EMAIL` | 告警與預算通知收件 Email | 同上（個資） |
 | Secret（可選） | `ENTRA_ADMIN_OBJECT_ID` | Entra 管理員的物件 ID（`az ad user show --id <upn> --query id -o tsv`） | 同上 |
 
-SQL 管理員密碼請另存密碼管理器——之後 `api` 的連線字串要用到（步驟 7）。
+SQL 管理員密碼請另存密碼管理器——`provision-secrets.sh`（§4.3）要你再輸入一次來組連線字串。
 
 ### 步驟 6：第一次部署
 
@@ -263,46 +264,115 @@ sudo ./svc.sh status
 
 GitHub Runners 頁面應顯示 `vm-tcrfc-prod` 為 Idle、label `tcrfc-vm`。
 
-### 4.3 建機密檔 `/opt/tcrfc/secrets/*.env`
+### 4.3 機密檔與設定鍵（`api` 在正式環境讀的每一個鍵）
 
-> 變數清單與持有人見 [`docs/20-cicd.md`](../docs/20-cicd.md) §7.2；實際命名以 [`apps/api/README.md`](../apps/api/README.md)
-> 與 [`deploy/dev/club.env.example`](../deploy/dev/club.env.example)／[`charity.env.example`](../deploy/dev/charity.env.example) 為準。
-> 🔴 **俱樂部與協會的憑證分兩個檔案**，權限 `600`、擁有者 `runner`，**不進 git、不貼進任何對話或 log**。
+> 🔵 **一鍵做法：在自己的 Mac 執行 [`provision-secrets.sh`](provision-secrets.sh)。** 它用 `az` 取連線字串、用 `openssl` 產生 JWT 金鑰與 Redis 密碼、
+> 互動輸入 SQL 管理員密碼與測試站 Basic Auth，**經 ssh stdin 管線**寫進 VM 的 `club.env`／`charity.env`／`/opt/tcrfc/.env`（本機不落地、不進命令列、不印出），
+> 並建立 Data Protection 金鑰環目錄，最後在 VM 上列出鍵名（有值／空）並實際連一次兩個資料庫。可重跑；已存在的檔案會先問是否覆寫，
+> **已有的 JWT 金鑰與 Redis 密碼預設沿用**，只有你選擇才重生。
+>
+> ```bash
+> bash infra/provision-secrets.sh
+> ```
+>
+> 前置：`az login`、`ssh` 連得到 VM（來源 IP 在 NSG 名單內）、VM 上已有 `/opt/tcrfc/secrets`（§4.1）。SQL 管理員密碼不得含 `;` `'` `"` `\` 或前後空白（連線字串無法安全表示）。
+> 🔴 **檔案都放在 VM 的 `/opt/tcrfc/`，不進 git、不貼進任何對話或 log。** 俱樂部與協會的憑證分兩個檔案（`docs/20` §7.2、`docs/17` §5）。
+> 值一律用**單引號**包起來：compose 的 `env_file` 與 `.env` 會把未加引號的 `$` 當變數展開（bcrypt 雜湊與密碼常含 `$`）；手動編輯時請維持單引號。
 
-連線字串的來源（在**自己的電腦**用 `az` 取，不要印在公開的地方）：
+#### 設定鍵盤點（依 `apps/api` 程式逐一核對，2026-10-01）
 
-| 變數 | 來源 |
-|---|---|
-| `CLUB_SQL_CONNECTION_STRING`（`club.env`） | `Server=tcp:<SQL FQDN>,1433;Database=tcrfc_club;User ID=<sqlAdminLogin>;Password=<SQL_ADMIN_PASSWORD>;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;`。FQDN 見部署輸出 `sqlServerFqdn` |
-| `CHARITY_SQL_CONNECTION_STRING`（`charity.env`） | 同上，`Database=tcrfc_charity` |
-| `AZURE_BLOB_CONNECTION_STRING`（`club.env`） | `az storage account show-connection-string -g rg-tcrfc-prod -n sttcrfcclub<uniq> --query connectionString -o tsv` |
-| `AZURE_BLOB_CONNECTION_STRING_CHARITY`（`charity.env`） | 同上，帳戶換成 `sttcrfccharity<uniq>`；容器預設 `charity-images`（`AZURE_BLOB_CONTAINER_CHARITY` 不必設） |
-| `AZURE_BLOB_CONTAINER_*`（`club.env`） | 預設值 `images`／`videos`／`documents`／`proposals` 與 Bicep 建的容器一致，不必設 |
+**來源三處**：`club.env`（俱樂部）、`charity.env`（協會）、compose（`docker-compose.yml` 的 `api.environment`，值來自 `/opt/tcrfc/.env` 或固定值）。
+「未設時的行為」是**正式環境（`ASPNETCORE_ENVIRONMENT=Production`，Dockerfile 寫死）**下的實際行為。
 
-在 VM 上建檔（編輯時不要讓值進 shell history）：
+**A. 必須有（缺了起不來，或功能無聲消失）**
 
-```bash
-sudo -iu runner
-umask 077
-nano /opt/tcrfc/secrets/club.env      # 貼上；存檔
-nano /opt/tcrfc/secrets/charity.env
-chmod 600 /opt/tcrfc/secrets/*.env && ls -l /opt/tcrfc/secrets
-```
+| 鍵 | 放哪 | 必填？ | 未設／錯誤時的行為 | 備註 |
+|---|---|---|---|---|
+| `CLUB_SQL_CONNECTION_STRING` | club.env | ✅ | 啟動丟例外 | 腳本以 `az` 查到的 FQDN／管理員登入名＋你輸入的密碼組出 |
+| `CHARITY_SQL_CONNECTION_STRING` | charity.env | ✅（實質） | ⚠️ **整個慈善平台不註冊，無聲關閉**（`/readyz` 的 `charity_db` 只顯示 `not_configured`，不擋 ready） | 漏設不會有錯誤，只會 404 |
+| `JWT_SIGNING_KEY_CLUB` | club.env | ✅ | 缺或 **< 32 字元** → 啟動失敗 | 腳本產 64 字元 hex。⚠️ 也是行事曆訂閱 token 的 HMAC 金鑰：重生會讓既有訂閱連結失效 |
+| `JWT_SIGNING_KEY_CHARITY` | charity.env | ✅ | 慈善啟用時缺或 < 32 字元 → 啟動失敗 | 與俱樂部不同值；慈善捐款單號也用它推導，**請勿輪替**（`CharityOptions.ResolveOrderNoSecret`） |
+| `JWT_SIGNING_KEY_MEMBER` | club.env | 強烈建議 | 未設 → 由 `JWT_SIGNING_KEY_CLUB` 衍生（可運作，但兩個身分體系共用一把根金鑰）；設了但 < 32 字元 → 啟動失敗 | 必須與 CLUB 不同值 |
+| `DATA_PROTECTION_KEYS_PATH` | compose（固定 `/var/lib/tcrfc/data-protection`） | 🔴 ✅ | **不報錯**；金鑰環只在容器可寫層，**容器一重建，2FA 密鑰、慈善身分證字號與載具、推播權杖、提案下載連結全部永久無法解密**（E-109） | 對應 bind mount `/opt/tcrfc/data-protection`，見下方「金鑰環」。🔵 `api` 在 Production 缺值、目錄不存在或不可寫會**啟動失敗**（`Common/DataProtectionKeyRing.cs`） |
+| `REDIS_HOST`／`REDIS_PASSWORD` | compose | ✅ | 缺 `REDIS_HOST` → 無快取（no-op，仍可跑）；密碼不符 → 快取 fail-open | 密碼來自 `.env` 的 `REDIS_PASSWORD`；**不要**再寫進 club.env（compose 的 `environment` 會蓋掉它） |
+| `CORS_ALLOWED_ORIGINS` | compose（由五個網域組出） | ✅ | Production 缺 → **沒有任何來源被允許**，瀏覽器端全部被擋 | 不需手動設，改 `.env` 的網域即可 |
+| `TRUSTED_PROXY_IPS` | compose（`172.28.238.2,.3,.4`） | ✅ | 缺 → 不掛 `UseForwardedHeaders`，限流把所有人當成同一個來源 | 與 compose 固定 IP 成對，勿單改一邊 |
+| 六個 `*_DOMAIN`（含 `CHARITY_DOMAIN`） | compose | ✅ | `CHARITY_DOMAIN` 缺 → 付款返回網址解析不出來，付款端點回 503 | 來自 `.env` |
+
+**B. 外部憑證／服務：到位前正式環境該怎麼填**
+
+| 鍵 | 放哪 | 外部憑證未到位時 | 行為與理由 |
+|---|---|---|---|
+| `AZURE_BLOB_CONNECTION_STRING` | club.env | **填**（Bicep 已建帳戶） | 未設 → 上傳功能「不可用」（呼叫時才丟例外，不影響啟動） |
+| `AZURE_BLOB_CONNECTION_STRING_CHARITY` | charity.env | **填** | 未設 → 慈善圖片上傳不可用 |
+| `AZURE_BLOB_CONTAINER_IMAGES`／`_VIDEOS`／`_DOCUMENTS`／`_PROPOSALS`／`_CHARITY` | — | **不設** | 預設值（`images`／`videos`／`documents`／`proposals`／`charity-images`）就是 Bicep 建的容器 |
+| `AZURE_BLOB_PUBLIC_BASE_URL`／`AZURE_BLOB_PUBLIC_BASE_URL_CHARITY` | club.env／charity.env | **不設**，等 Cloudflare 圖片網域實測通過（§4.7）再填 | 未設 → 回退儲存體網址（可用）；設了但不是絕對 https → **啟動失敗** |
+| `PAYMENT_GATEWAY` | club.env | **不設** | 未設 → 會籍付款「尚未串接」，端點如實回報；🔴 設成 `fake` → **Production 啟動失敗**（刻意）。LINE Pay 商店號（B-10）到位、實作換掉 DI 註冊後才有真值 |
+| `INVOICE_ISSUER` | club.env | **不設** | 同上，`fake` 在 Production 啟動失敗；商店發票「尚未串接」 |
+| `EMAIL_SENDER`／`EMAIL_OUTBOX_PATH` | — | **不設** | Production **永遠**用「尚未串接」實作（`localfile` 在 Production 不註冊，因信件含一次性權杖）：驗證信、重設密碼信不會寄出，呼叫端如實回報。寄信供應商（B-16）決定後才有新鍵 |
+| `LINE_LOGIN_CHANNEL_ID`／`_SECRET`／`LINE_LOGIN_REDIRECT_URIS` | club.env | **不設** | 三項缺一 → LINE 登入端點回 **503**（不假成功）。到位後三個一起填；`REDIRECT_URIS` 逗號分隔，須與 LINE Developers 登記的 Callback URL 逐字一致 |
+| `CHARITY_ALLOW_FAKE_PROVIDERS` | charity.env | **不設（絕不填 `true`）** | 未設 → 慈善金流／發票／寄信一律「尚未設定」，捐款頁顯示服務暫時無法使用；`true` 會讓假金流對任何交易回扣款成功、**把假捐款寫進正式資料庫**（`docs/17` §5） |
+| `TURNSTILE_SECRET_KEY_CHARITY` | charity.env | **不設** | ⚠️ 這一項**不是**「顯示尚未設定」：未設 → 人機驗證**一律放行**，只剩 IP 限流。設了之後前台必須同時有 `NUXT_PUBLIC_TURNSTILE_SITE_KEY`（目前 compose 的 `nuxt-charity` 沒有給）——**只設後端不設前端 → 沒有 token → 所有捐款被擋** |
+| `MEMBERSHIP_ACTIVATE_CREDENTIAL` | club.env | **不設** | 未設 → 內部會籍開通端點停用（設的話 ≥32 字元） |
+| `MEMBER_EMAIL_LINK_BASE_URL` | — | **不設** | 它是**單一值**，設了會讓主站與藍鯨兩個俱樂部的信件連結都指向同一站；不設則用資料庫 `clubs.domain`（確認該欄位是 stg 網域或之後的正式網域） |
+| `CHARITY_ASSOCIATION_NOTIFY_EMAIL` | charity.env | **不設** | 未設 → 發票開立失敗不寄通知，仍標記失敗進後台佇列。是個人 Email，不進公開 repo；且目前沒有寄信管道 |
+| `CHARITY_PUBLIC_BASE_URL` | — | **不設** | 由 `CHARITY_DOMAIN` 組出 `https://{網域}` |
+| `LINE_PAY_*`、`INVOICE_SERVICE_API_KEY_*`、`APNS_KEY_ID`、`FCM_SERVICE_ACCOUNT_JSON` | — | **不放任何檔案** | 🔵 **程式不讀這些鍵**（grep 無命中）：商店與慈善的 LINE Pay／發票憑證存在資料庫（後台設定頁，Data Protection 加密，所以**更依賴金鑰環**）；APNs／FCM 傳輸尚未實作。`docs/20` §7.2 舊表列的這幾個名稱是規劃階段示意 |
+
+**C. 調校旋鈕（預設值即可，不要設）**
+
+| 鍵 | 預設 | 鍵 | 預設 |
+|---|---|---|---|
+| `ADMIN_LOGIN_RATE_LIMIT_PERMIT_LIMIT` | 5 | `CHARITY_WORKERS_ENABLED` | Production 開（設 `false` 才關） |
+| `ADMIN_REFRESH_RATE_LIMIT_PERMIT_LIMIT` | 30 | `CHARITY_WORKER_INTERVAL_SECONDS` | 60 |
+| `APP_PUBLIC_RATE_LIMIT_PERMITS` | 120 | `CHARITY_PAYMENT_TIMEOUT_MINUTES` | 30 |
+| `MEMBER_AUTH_RATE_LIMIT_PERMITS` | 30 | `CHARITY_INVOICE_RETRY_MINUTES` | 10 |
+| `MEMBER_WRITE_RATE_LIMIT_PERMITS` | 60 | `CHARITY_PUBLIC_WRITE_RATE_LIMIT_PERMITS`／`_READ_` | 30／120 |
+| `APP_JOBS_INTERVAL_SECONDS` | 60（≤0 停用） | `SHOP_JOBS_INTERVAL_SECONDS` | Production 60（0 停用） |
+| `SCHEDULED_PUBLISH_INTERVAL_SECONDS` | 60 | `QUERY_CACHE_TTL_SECONDS`／`REDIS_PORT` | 300／6379 |
+
+⚠️ `ASPNETCORE_ENVIRONMENT`（Dockerfile 寫死 `Production`）不要在任何 env 檔覆寫；上述「未設時的行為」全部以它為前提。
+
+**compose 本身用的 `/opt/tcrfc/.env`**：`GHCR_OWNER`、`IMAGE_TAG`、`SITE_ENV`（缺則 compose 報錯）、六個 `*_DOMAIN`、`ACME_EMAIL`、`CADDYFILE`、`PRELAUNCH_BASIC_AUTH_USER`／`_HASH`、`REDIS_PASSWORD`。
+腳本寫入 `SITE_ENV=prelaunch`、`CADDYFILE=./deploy/Caddyfile.prelaunch` 與 `.env.example` 的六個 stg 網域；Basic Auth 雜湊在 VM 上以與 compose 同版的 `caddy hash-password` 產生（密碼走 stdin）。
+不要填 `MSSQL_DEV_SA_PASSWORD`（只給本機開發）。**切正式網址時**手動編輯此檔（§5），之後腳本會因 `SITE_ENV=production` 拒絕改動它。
+
+> `.env` 放哪、deploy job 怎麼讀到它，`docs/20` §9a「CD 段還缺什麼」尚未定案（`deploy.yml` 部署段目前 `if: false`）。
+> 暫定放 `/opt/tcrfc/.env`，CD 段實作時以 `--env-file /opt/tcrfc/.env` 或複製進 checkout 目錄處理，屆時回頭更新本節。
+
+#### 金鑰環（Data Protection）——🔴 沒有它，已加密的資料永久無法解密
+
+- **位置**：VM 的 `/opt/tcrfc/data-protection`（擁有者 uid／gid `1654`＝aspnet 映像檔內建的 `app` 使用者，權限 `700`），bind mount 進 `api` 容器的 `/var/lib/tcrfc/data-protection`，由 `DATA_PROTECTION_KEYS_PATH` 指向。
+  選 bind mount 而非具名 volume：`docker compose down -v` 刪不掉它、路徑固定好備份；`create_host_path: false` 讓「目錄不存在」變成 compose 的明確錯誤，而不是 docker 自動建一個 root 擁有、api 寫不進去的空目錄。
+- **目錄由 `provision-secrets.sh` 建立**（不能放 cloud-init：VM 建立後 `customData` 不可變，改了會讓 `infra.yml` 部署失敗）。**重建 VM 後要重跑腳本，並先把備份還原進這個目錄。**
+- 金鑰檔是**明文 XML**（Linux 上沒有 DPAPI），只靠目錄權限保護；備份檔等同機密，**不進 repo、不寄信**。
+- **金鑰每 90 天自動輪替**（舊金鑰保留、新增一把）。所以備份必須**定期重做**——只備份一次，輪替後還原出來會少一把新金鑰，新資料解不開。
+- **備份**（在 Mac 執行，輸出檔存進密碼管理器附件或加密磁碟，之後每季一次，或每次輪替後）：
+
+  ```bash
+  IP=$(az network public-ip show -g rg-tcrfc-prod -n pip-tcrfc-prod --query ipAddress -o tsv)
+  ssh azureuser@"${IP}" 'sudo tar -C /opt/tcrfc -cz data-protection' > "tcrfc-dp-keys-$(date +%Y%m%d).tgz"
+  ```
+
+- **還原**（新 VM，api 尚未啟動前）：
+
+  ```bash
+  ssh azureuser@"${IP}" 'sudo tar -C /opt/tcrfc -xz && sudo chown -R 1654:1654 /opt/tcrfc/data-protection && sudo chmod 700 /opt/tcrfc/data-protection' < tcrfc-dp-keys-YYYYMMDD.tgz
+  ```
+
+- **驗證 uid**（換 .NET 映像檔大版本時重驗）：`docker run --rm --entrypoint id mcr.microsoft.com/dotnet/aspnet:10.0 app`（2026-10-01 實測 `uid=1654`；`apps/api/Dockerfile` 舊註解寫的 64198 是錯的，已更正）。
+- **待使用者決定的備份方式**：手動每季 tar（現行建議，零成本）／VM 上 cron 打包後上傳私有 blob（需要憑證與一個新容器）／程式改用 Azure Blob＋Key Vault 持久化金鑰（要改 `apps/api`，且 Key Vault 目前刻意不開，`docs/17`）。
+- **`api` 啟動檢查**（2026-10-01，E-109）：Production 下 `DATA_PROTECTION_KEYS_PATH` 未設、空白、目錄不存在或不可寫（啟動時實際寫入並刪除探測檔）一律丟例外、容器起不來；錯誤訊息指向本節。看到 `api` 容器反覆重啟且日誌有此訊息，先查目錄是否存在、擁有者是否 `1654:1654`、權限 `700`。
+- **驗證容器真的寫入了金鑰環**（第一次 `api` 起來並用到加密功能之後）：`sudo ls -l /opt/tcrfc/data-protection` 應有 `key-*.xml`。目錄一直是空的＝路徑沒對上，立刻查。
 
 ⚠️ 兩個資料庫的 SQL 防火牆只放行 `snet-app`：**從你的電腦（含 SSMS／Azure Data Studio）連不上是預期行為**
 （`docs/17` §9 驗證 4）。首次建庫（`db/club-schema.sql`／`db/charity-schema.sql`，`docs/20` §9 第 8 項）要從 VM 上執行，
 例如在 VM 起一個含 `sqlcmd` 的容器。管理用的 SQL 管理員帳號只用於建庫與緊急處理；
-`api` 日常連線改用權限較小的資料庫使用者是建議的後續強化（目前文件未定案，列於 §9 待決 4）。
+`api` 日常連線改用權限較小的資料庫使用者是建議的後續強化（目前文件未定案，列於 §8 待決 4）。
 
-### 4.4 建 compose 用的 `.env`
+### 4.4 compose 用的 `.env`
 
-範本是 [`/.env.example`](../.env.example)：複製成 VM 上的 `.env`，填 `GHCR_OWNER`、`IMAGE_TAG`、六個 `*_DOMAIN`、
-`SITE_ENV`、`CADDYFILE`、`ACME_EMAIL`、`PRELAUNCH_BASIC_AUTH_*`、`REDIS_PASSWORD`。
-（不要填 `MSSQL_DEV_SA_PASSWORD`，那只給本機開發。）
-
-⚠️ **`.env` 要放在哪、deploy job 怎麼讀到它**，`docs/20` §9a「CD 段還缺什麼」尚未定案
-（`deploy.yml` 部署段目前 `if: false`）。暫定放 `/opt/tcrfc/.env`，CD 段實作時以 `--env-file /opt/tcrfc/.env`
-或複製進 checkout 目錄處理，屆時回頭更新本節。
+已併入 §4.3（`provision-secrets.sh` 一併產生 `/opt/tcrfc/.env`，鍵清單見該節末段）。手動建立時以 [`/.env.example`](../.env.example) 為範本。
 
 ### 4.5 Cloudflare DNS（手動）
 
@@ -421,7 +491,7 @@ az monitor metrics alert list -g $RG --query '[].{name:name, sev:severity, enabl
 | 情境 | 做法 |
 |---|---|
 | 一次 infra 變更出問題 | `git revert` 該 commit → push `master` → 管線以 Incremental 重新套用舊內容。**注意**：舊模板沒有的資源不會被刪，新增的資源要手動清掉（先移除鎖） |
-| VM 壞掉／要重建 | Public IP 與 NIC 是獨立資源、OS 磁碟 `deleteOption: Detach`：刪 VM 後重新部署即可掛回同一個 IP。**IP 不變，LINE Pay 白名單不受影響**。重建後要重做 §4（cloud-init 自動、runner 註冊與機密檔手動） |
+| VM 壞掉／要重建 | Public IP 與 NIC 是獨立資源、OS 磁碟 `deleteOption: Detach`：刪 VM 後重新部署即可掛回同一個 IP。**IP 不變，LINE Pay 白名單不受影響**。重建後要重做 §4（cloud-init 自動、runner 註冊手動、機密檔與金鑰環目錄重跑 `provision-secrets.sh`；**金鑰環要先從備份還原**，否則已加密資料永久無法解密，§4.3「金鑰環」） |
 | 資料庫誤刪／損毀 | PITR 還原成新庫（`tcrfc_club_restored`），再切連線字串，詳見 `docs/17` §6「備份與還原」。Basic 只保留 7 天，**且備份僅 Local 冗餘（無異地）** |
 | 誤刪 Blob | 軟刪除／版本控制 14 天內可還原（入口網站或 `az storage blob undelete`） |
 
@@ -468,7 +538,7 @@ az monitor metrics alert list -g $RG --query '[].{name:name, sev:severity, enabl
    - 慈善：`CharityPublicCatalog` 會回傳 `charity-images` 的圖片網址給公開頁面（專案封面、店家 Logo），所以同樣公開。**慈善後台上傳的圖片一律視為公開素材**，不得上傳不能公開的東西（例如收據、證件）。
    - 匿名可讀的 blob 網址只要知道完整路徑就讀得到（物件鍵含 GUID、不可猜，但不是機密）；不能列舉。
 2. **資料庫備份只有 Local 冗餘、PITR 7 天、無 LTR**（使用者決定）：區域性災難或發現太晚的誤刪無法回復。
-3. **Data Protection 金鑰環在 VM 磁碟上**（`DATA_PROTECTION_KEYS_PATH` 的 volume，`docs/17` §5）：OS 磁碟為單點，遺失＝已加密資料（身分證字號、載具號碼、2FA、推播權杖）無法解密。**磁碟層沒有自動備份**，建議另行備份該 volume（待決）。
+3. **Data Protection 金鑰環在 VM 磁碟上**（`/opt/tcrfc/data-protection` bind mount，`docs/17` §5、本檔 §4.3「金鑰環」）：OS 磁碟為單點，遺失＝已加密資料（身分證字號、載具號碼、2FA、推播權杖、商店與慈善的金流／發票憑證）無法解密。**磁碟層沒有自動備份、金鑰每 90 天輪替**，需定期手動備份（待決：是否改自動化）。
 4. **預算 100 可能偏緊**（見下方成本）。
 
 ### 成本概估（粗估，單位 US$／月，以 Azure 定價計算機核實）
@@ -491,5 +561,5 @@ az monitor metrics alert list -g $RG --query '[].{name:name, sev:severity, enabl
 2. ~~公開圖片配送方式~~ ✅ 已決定（公開容器＋Cloudflare），**待做**：Cloudflare 端設定與在 env 檔填入公開網址基底（`apps/api` 程式已完成），見 §4.7。
 3. ~~預算金額與帳單幣別~~ ✅ 已確認帳單幣別為美元，預算維持 100。
 4. **`api` 使用的資料庫帳號**：目前文件預設以 SQL 管理員連線；建議另建最小權限的資料庫使用者（`docs/20` §7.2 未定案）。
-5. **Data Protection 金鑰環的備份方式**：見風險 3。
+5. **Data Protection 金鑰環的備份方式**：見風險 3 與 §4.3「金鑰環」（現行建議每季手動 tar，是否自動化待決）。
 6. **失敗通知管道**（`docs/20` §8，沿用既有待決）：infra workflow 失敗時目前只有 GitHub 預設的 Email 通知。

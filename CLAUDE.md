@@ -35,7 +35,7 @@
 | **資料庫綱要** | ✅ **v3.0 已同步、可轉 DDL**（2026-09-20，[`docs/12-database-schema.md`](docs/12-database-schema.md)）。**103 張表**，`club_id` **50 必填／9 可為空／43 不加**。原「v3.0 落差」的 **13 項**必須以規劃書為準的事項（**第 13 項為 v3.5 的圖片欄位直傳：`MediaAsset`／`MediaFolder`／`MediaUsage` 三表移除、10 處外鍵改欄位組**）；**§0／§1.4／§7 權限模型／女足相關敘述已先行更新**，但 **§4 資料表總覽、17 張 ERD、§6 五節明細、§11.1 唯一鍵表、§14 檢核表尚未逐一改寫**。**轉 DDL 前必須完成** |
 | **技術選型** | ✅ **已定案**（2026-09-18，見 [`docs/17`](docs/17-deployment.md)）：**Nuxt 4 SSR ＋ .NET／EF Core＋Dapper ＋ Azure SQL ＋ Azure Blob ＋ Redis**，跑在**單一 Azure VM（Japan East／東京）** 的 Docker 上（前台三個、後台兩個、API 一個、快取一個），Cloudflare 在前。**規劃書仍不記技術選型**（§1.3 明文排除），結果只在導航層；**App 客戶端另見 [`docs/19`](docs/19-app-tech-stack.md)**。`docs/12` §1.4 的**五件事已全部定案** |
 | **部署與金流前提** | 🔴 **LINE Pay 正式環境須登記付款伺服器的出口 IP**——這條外部約束是選「自架 VM ＋ 靜態 Public IP」的原因，也是規劃書 v3.8／v2.4 唯一新增的內容。**改機器＝改白名單，等同停機事件**。⚠️ 另有**五類資料不得讀快取**（庫存、金流冪等、會員卡驗證、會籍與訂單狀態、購物車），見 [`docs/14`](docs/14-invariants.md) |
-| 網站本體 | 🟡 **前後台功能與 API 串接已完成一輪**（2026-10-01）：`apps/web`（Nuxt 4，主站＋藍鯨）、`apps/admin`、`apps/web-charity`、`apps/admin-charity`、`apps/api`（985 項測試全綠）。**金流、發票、寄信只有介面＋本機假實作**（卡 `B-7`／`B-10`／`B-16`）；**尚未對真實 API 實機驗收**；行動 App 客戶端未開始。逐項見 [`STATUS.md`](STATUS.md) |
+| 網站本體 | 🟡 **前後台功能與 API 串接已完成一輪**（2026-10-01）：`apps/web`（Nuxt 4，主站＋藍鯨）、`apps/admin`、`apps/web-charity`、`apps/admin-charity`、`apps/api`（1014 項測試全綠）。**金流、發票、寄信只有介面＋本機假實作**（卡 `B-7`／`B-10`／`B-16`）；**尚未對真實 API 實機驗收**；行動 App 客戶端未開始。逐項見 [`STATUS.md`](STATUS.md) |
 | 內容 | 🔄 **已首批交件**（456MB／212 張原始照片／113 篇文稿）。盤點見 [`docs/09-intake-inventory.md`](docs/09-intake-inventory.md)。**阻塞：文稿全為 `.gdoc` 捷徑，本機讀不到** |
 | 版本控制 | ✅ 已 `git init`。收件夾與大型素材未納管，覆寫或刪除前仍請先看過內容 |
 
