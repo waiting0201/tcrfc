@@ -119,6 +119,7 @@
 | E-103 | 2026-10-01 | 派 CH-2／CH-3 時，派工單寫「目前慈善 DbContext 已有的程式」「兩個 DbContext：主站與慈善」，**實際上不存在**：CH-1 只建了資料庫與種子，沒有任何 EF 實體、連線註冊、後台帳號體系或授權器。agent 因此要從零 scaffold `CharityDbContext`、建 migration 基準、做獨立 JWT 方案／登入／授權器／更新權杖表（多出一張規劃書沒寫的 `admin_refresh_tokens`），範圍與工時都比派工單預期大得多 | ⚠️ 無（派工前 grep 一下 `DbContext` 與 `Features/` 目錄就能發現；見條目） |
 | E-106 | 2026-10-01 | 文件各寫各的：`docs/17` §2 規定儲存體只放行 VNet（訪客無法直連），§6 與 `apps/api` 卻假設圖片／文件是公開的 blob 直連網址；寫 Bicep 時才對撞。同時 `docs/16`／`17`／`20` 的正式庫名 `sqldb-*` 與本機 `tcrfc_*` 並存 | ⚠️ 無 |
 | E-107 | 2026-10-01 | 派工單把使用者的 SSH 來源 IP 原值寫給 agent，agent 在 `infra/README.md` 的 secrets 表把它當範例值寫進去——**同一列還寫著「放 secret 是為了不洩漏 IP」**；公開 repo，commit 前主 session 掃描才抓到 | ⚠️ 無（commit 前 grep 使用者提供的機密值） |
+| E-108 | 2026-10-01 | 給使用者跑的一次性 Azure 設定腳本寫成「只跑一次的直線流程」：`set -e` 下 federated credential 重跑必失敗、`|| echo` 吞掉建角色的真正錯誤、固定 sleep 等 RBAC 生效、未驗證輸入、放在 session 暫存區；使用者讀了覺得不對才回頭審 | ✅ `infra/bootstrap.sh` 每步先查後建、`retry` 取代固定 sleep、寫 secrets 前斷言分支限制只有 `master`；`shellcheck -S warning` 通過 |
 
 ---
 
@@ -2297,3 +2298,11 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：主 session 派工時把使用者給的原值直接貼進派工單，沒有標註「此值只進 secret、不得寫入任何檔案」；agent 寫文件時順手把手上的具體值當範例。
 - **下次怎麼避免**：派工單裡凡是要進 secret 的值，**不貼原值**，只寫「由使用者自行填入 GitHub secret」；commit 前對工作區 grep 使用者在對話中提供的 IP、帳號、Email 等值。
 - **防呆**：無。
+
+### E-108 交給使用者執行的設定腳本沒有當成正式產出審查（2026-10-01，基礎設施 IaC）
+- **錯在哪**：把 `infra/README.md` §3 的指令直接串成腳本放在 scratchpad 交給使用者，只跑了 `bash -n`。實際問題：`set -e` 下重跑會死在已存在的 federated credential；`az role definition create … || echo "已存在"` 把權限不足等錯誤也當成「已存在」；用固定 `sleep 90` 等 RBAC 傳播；`~/.ssh` 不存在時 `ssh-keygen` 失敗；IP、密碼未驗證且 `read` 會吃掉前後空白；檔案在 session 暫存區、不進版控。使用者讀完說「感覺有問題」才回頭審。
+- **根因（可改掉的行為）**：把「會對雲端與 GitHub 產生不可逆設定的腳本」當成一次性草稿，**沒有用「中途失敗後重跑」這個情境檢查每一步**，也沒跑 `shellcheck`。
+- **下次怎麼避免**：交給使用者跑、會改外部狀態的腳本，一律①每步先查後建（可重跑）②不用 `|| echo` 吞錯③等待用重試迴圈④輸入要驗證⑤放進版控⑥`shellcheck -S warning` 通過才交付。
+- **防呆**：部分——`infra/bootstrap.sh` 已照上述改寫；沒有 CI 掃描 `*.sh`。
+- **第二次（同日）**：改寫版交付後使用者回報「沒辦法跑」——**第一行就失敗**：`az account show --query '{訂閱:name,…}'` 的 JMESPath 鍵不接受中文。`bash -n` 與 `shellcheck` 都抓不到，因為那是 `az` 執行期才解析的字串。**根因同一類：沒有實際執行過**。補上的做法：交付前把腳本中所有唯讀指令（`show`／`list`／`exists`）逐一真跑一次，並以 `echo n | bash infra/bootstrap.sh` 跑到第一個確認點。同時查到舊版已建好資源群組、身分與 federated credential，停在角色指派（推測是新身分尚未同步到 Entra，舊版只等 20 秒；新版改為重試）。
+- **第三次（同日）**：使用者執行時第 98 行 `RG�: unbound variable`——**macOS 內建 bash 3.2 會把緊接在 `$VAR` 後的全形字元（如「）」）吃進變數名稱**，`set -u` 下直接中止。`bash -n`／`shellcheck` 都抓不到，前一次的「唯讀指令逐一真跑」也沒涵蓋到這行。修法：全檔變數一律寫成 `${VAR}`；並以 `az`／`gh` 假指令在 `/bin/bash`（3.2）下**把整支腳本從頭跑到尾**驗證每一條寫入路徑。**防呆升級**：給使用者跑、含中文輸出的 shell 腳本，變數一律加大括號，交付前用 `/bin/bash` 加假指令完整跑一次（寫入 [`14`](14-invariants.md) 前先看是否再犯）。

@@ -73,6 +73,10 @@ staging 環境（全專案只有本機與正式兩套，`docs/20` §1）。
 
 > 以下需要訂閱 **Owner**（或同等：能建資源群組、建自訂角色、指派角色）的人在自己的終端機做一次。
 > 這些步驟是「部署管線自己的地基」，不能由管線自己建。
+>
+> 🔵 **步驟 0–5 已合併成 [`bootstrap.sh`](bootstrap.sh)**：`bash infra/bootstrap.sh`。可重跑（已存在的會略過），
+> 機密在執行時輸入、直接寫進 GitHub secret 不落地，並在寫 secrets 前確認 `production` 只允許 `master`。
+> 只剩步驟 5a（Fork PR 核准）要到網頁設定。下面逐步說明保留作為參考與疑難排解用。
 
 ### 步驟 0：工具與登入
 
@@ -115,14 +119,15 @@ az identity create --resource-group "$RG" --name id-tcrfc-deploy --location japa
 CLIENT_ID=$(az identity show -g "$RG" -n id-tcrfc-deploy --query clientId -o tsv)
 PRINCIPAL_ID=$(az identity show -g "$RG" -n id-tcrfc-deploy --query principalId -o tsv)
 
-# subject 綁死「repo + environment:production」。owner/repo 取自 git remote（Remote_GitHub）：waiting0201/tcrfc
+# subject 綁死「repo + environment:production」。本 repo 啟用 GitHub「不可變 subject」，前綴帶 owner／repo 數字 ID，
+# 以 `gh api repos/waiting0201/tcrfc/actions/oidc/customization/sub` 的 sub_claim_prefix 為準（bootstrap.sh 會自動查）
 # ⚠️ subject 區分大小寫，必須與 GitHub 上的 owner/repo 大小寫一致
 az identity federated-credential create \
   --resource-group "$RG" \
   --identity-name id-tcrfc-deploy \
   --name github-production \
   --issuer https://token.actions.githubusercontent.com \
-  --subject 'repo:waiting0201/tcrfc:environment:production' \
+  --subject 'repo:waiting0201@5709750/tcrfc@1334739698:environment:production' \
   --audiences api://AzureADTokenExchange
 ```
 
@@ -438,7 +443,7 @@ az monitor metrics alert list -g $RG --query '[].{name:name, sev:severity, enabl
 
 | 症狀 | 原因與處理 |
 |---|---|
-| `azure/login` 失敗 `AADSTS700213`／`No matching federated identity record` | subject 不符。確認 job 有 `environment: production`、repo 大小寫與 `repo:waiting0201/tcrfc:environment:production` 完全一致；從非 `master` 分支跑會被 Environment 分支限制擋掉 |
+| `azure/login` 失敗 `AADSTS700213`／`No matching federated identity record` | subject 不符。本 repo 啟用 GitHub「不可變 subject」，格式帶 owner／repo 的數字 ID（查：`gh api repos/waiting0201/tcrfc/actions/oidc/customization/sub` 的 `sub_claim_prefix`）；`bootstrap.sh` 會自動查並修正。另確認 job 有 `environment: production`、repo 大小寫與 `repo:waiting0201@5709750/tcrfc@1334739698:environment:production` 完全一致；從非 `master` 分支跑會被 Environment 分支限制擋掉 |
 | `AuthorizationFailed` ... `Microsoft.Authorization/locks/write` | 步驟 4(b) 的自訂角色沒指派或還沒生效（等 1–2 分鐘） |
 | `AuthorizationFailed` ... `Microsoft.Consumption/budgets/write` | 補指派 `Cost Management Contributor`（資源群組範圍） |
 | `MissingSubscriptionRegistration` | 步驟 1 沒做完或某個命名空間漏了 |

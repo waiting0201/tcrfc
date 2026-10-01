@@ -520,7 +520,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | PR 檢查 | `infra-validate.yml`（`pull_request`，只讀、無 secrets、無 `id-token`）：`az bicep lint`／`build`／`build-params`。同一支以 `workflow_call` 被 `infra.yml` 先行呼叫 |
 | 步驟 | validate → 檢查必要設定都已填 → `azure/login`（OIDC）→ `what-if`（輸出貼進 job summary）→ `deploy`（`--mode Incremental`，**絕不用 Complete**） |
 | 執行環境 | GitHub-hosted `ubuntu-latest`；**不使用 self-hosted runner**，與 §4 完全分開 |
-| 登入 | **OIDC（federated credential），不存 client secret**。部署身分是 user-assigned managed identity `id-tcrfc-deploy`，federated credential 的 subject 綁 `repo:waiting0201/tcrfc:environment:production` |
+| 登入 | **OIDC（federated credential），不存 client secret**。部署身分是 user-assigned managed identity `id-tcrfc-deploy`，federated credential 的 subject 綁 `repo:waiting0201@5709750/tcrfc@1334739698:environment:production` |
 | 授權範圍 | 只有資源群組 `rg-tcrfc-prod`：Contributor ＋ 只含 `Microsoft.Authorization/locks/*` 的自訂角色（建 `CanNotDelete` 鎖用）。沒有任何訂閱層級權限 |
 | Environment | 沿用 `production`（Deployment branches 僅 `master`）。`id-token: write` 只開在 deploy job |
 | Secrets／Variables | secrets：`SQL_ADMIN_PASSWORD`、`SSH_ALLOWED_CIDR`、`ALERT_EMAIL`、（可選）`ENTRA_ADMIN_OBJECT_ID`；variables：`AZURE_CLIENT_ID`／`AZURE_TENANT_ID`／`AZURE_SUBSCRIPTION_ID`、`SSH_PUBLIC_KEY`、（可選）`ENTRA_ADMIN_LOGIN`。完整表格見 `infra/README.md` §3 步驟 5c |

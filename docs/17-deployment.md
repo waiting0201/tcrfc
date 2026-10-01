@@ -1190,7 +1190,7 @@ scripts/check-node-version.mjs` 離開碼 0；分別故意改壞 `apps/admin/Doc
 | 儲存體（**慈善獨立**） | `sttcrfccharity<uniq>` | 容器 `charity-images`（對應 `AZURE_BLOB_CONTAINER_CHARITY` 預設值，**匿名 blob 讀取**，慈善前台顯示封面與 Logo）；🔒 |
 | 告警／預算 | `ag-tcrfc-prod-ops`、三個 metric alert、`budget-tcrfc-prod-monthly` | 兩個庫資料空間 ≥1.5 GB、VM CPU Credits Remaining 偏低；預算 100／月（帳單幣別），80% 與 100% 寄信 |
 | 鎖 | `lock-*` | Public IP、SQL 伺服器、兩個儲存體：`CanNotDelete` |
-| 部署身分（人工建） | `id-tcrfc-deploy` | user-assigned managed identity；federated credential subject `repo:waiting0201/tcrfc:environment:production`；Contributor ＋只含 `Microsoft.Authorization/locks/*` 的自訂角色，範圍僅 `rg-tcrfc-prod` |
+| 部署身分（人工建） | `id-tcrfc-deploy` | user-assigned managed identity；federated credential subject `repo:waiting0201@5709750/tcrfc@1334739698:environment:production`；Contributor ＋只含 `Microsoft.Authorization/locks/*` 的自訂角色，範圍僅 `rg-tcrfc-prod` |
 
 ### 這次定案的兩件事（使用者 2026-10-01）
 
