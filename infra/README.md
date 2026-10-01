@@ -15,6 +15,7 @@
 | [`main.bicep`](main.bicep) | 入口，範圍是 resource group `rg-tcrfc-prod` |
 | [`main.bicepparam`](main.bicepparam) | 參數檔：Cloudflare IP 段寫在這裡；機密與個人化的值由環境變數帶入 |
 | [`provision-secrets.sh`](provision-secrets.sh) | 在 Mac 執行：把機密檔與金鑰環目錄寫進 VM 並驗證（§4.3） |
+| [`../deploy/prod-db-init.sh`](../deploy/prod-db-init.sh) | 在 VM 上執行：正式庫首次初始化（建表、參照資料、migration 歷史、第一個管理員；§4.8） |
 | [`cloud-init.yaml`](cloud-init.yaml) | VM 首次開機：安裝 Docker ＋ Compose、建 `runner` 使用者與 `/opt/tcrfc/` 目錄 |
 | [`modules/network.bicep`](modules/network.bicep) | VNet、`snet-app`、NSG、靜態 Public IP（含鎖） |
 | [`modules/compute.bicep`](modules/compute.bicep) | NIC、VM |
@@ -431,6 +432,69 @@ Cloudflare 偶爾會調整 IP 段（來源 <https://www.cloudflare.com/ips/>）�
    - **改用 Cloudflare Worker**（`fetch('https://<帳戶>.blob.core.windows.net' + path)`）代理並設快取。不依賴 Host／SNI 覆寫，免費方案有每日請求額度限制（以官方定價為準）。若 Origin Rules 實測不通，退到這個。
 3. 快取規則：對 `/images/*`、`/videos/*`、`/documents/*` 設 Cache Everything 與適當 TTL；影片較大，確認方案的單檔快取上限（以 Cloudflare 官方文件為準，未查證）。
 4. 驗證：不經 Cloudflare 的 blob 直連網址也會成功（因為匿名公開），要擋掉直連需另做（例如 Worker 驗證來源）；目前**不擋**，流量與費用會落在儲存體。
+
+### 4.8 正式庫首次初始化（建表 → 參照資料 → migration 歷史 → 第一個管理員）
+
+> 🔴 **只做一次。** 對象是 §2 部署出來的兩個**空**資料庫 `tcrfc_club`、`tcrfc_charity`。腳本 [`deploy/prod-db-init.sh`](../deploy/prod-db-init.sh) 會在目標庫「有任何使用者物件」時拒絕執行，所以重跑是安全的（只會被擋下），但**請不要用它對已有資料的庫做任何事**。
+> 設計理由（為什麼是人工腳本而不是 `db-migrate.yml`、DDL 與 EF migration 的對照結果、json 型別）見 [`docs/20`](../docs/20-cicd.md) §5「正式庫首次初始化」；灌哪些資料、哪些不灌見 [`db/seed/README.md`](../db/seed/README.md)「正式庫的參照資料」。
+
+**前置（缺一不可）**
+
+1. 含本節腳本的 commit 已 push 到 `master`，且 `deploy.yml` 已把 `ghcr.io/waiting0201/tcrfc-api:master` 建好並設為 **Public**（`create-admin` 要用該映像檔算密碼雜湊——必須是含 `--hash-password` 的版本）。
+2. VM 上 §4.3 的 `club.env`、`charity.env`、`/opt/tcrfc/.env` 都已就緒（`provision-secrets.sh` 已通過連線測試）。`/opt/tcrfc/.env` 的 `TCRFC_DOMAIN`／`BW_DOMAIN` 會被寫進 `clubs.domain`——**目前是 stg 網域，這就是暫用網址階段該有的值**；切正式網址（§5）時要到後台「俱樂部」改 domain。
+3. 以 **runner 使用者**執行（機密檔擁有者是 runner、權限 600）：`sudo -iu runner`。runner 已在 docker 群組。
+
+**步驟**
+
+```bash
+# 在 VM 上，以 runner 身分
+git clone --depth 1 https://github.com/waiting0201/tcrfc.git ~/tcrfc-src   # 之後更新用 git -C ~/tcrfc-src pull
+cd ~/tcrfc-src && git log -1 --format='%h %s'                               # 確認是預期的 commit
+docker pull ghcr.io/waiting0201/tcrfc-api:master                            # 取最新映像檔
+
+# 1. 唯讀預檢：連線、庫名、現況應為 empty
+./deploy/prod-db-init.sh preflight club
+./deploy/prod-db-init.sh preflight charity
+
+# 2. 初始化（各自要手動輸入「INIT <庫名>」確認）；結尾自動驗證，全綠才算完成
+./deploy/prod-db-init.sh init club
+./deploy/prod-db-init.sh init charity
+
+# 3. 第一個管理員（互動輸入帳號、顯示名稱、Email、密碼兩次；密碼不顯示、不進命令列與 log）
+./deploy/prod-db-init.sh create-admin club
+./deploy/prod-db-init.sh create-admin charity    # 慈善後台是獨立帳號體系，由協會指定的人建立
+
+# 4. 事後可隨時唯讀複查
+./deploy/prod-db-init.sh verify club
+./deploy/prod-db-init.sh verify charity
+```
+
+之後再依 §5 之前的流程起容器（`docker compose up -d`）；`api` 的 `/readyz` 應回 `club_db: ok`、`charity_db: ok`。用剛建的帳號登入主站後台與慈善後台各一次。
+
+**預期結果（以 DDL 與 `db/prod/*.sql` 實際為準，腳本自動核對）**：主站 **189 表／482 外鍵／1 視圖**、`__EFMigrationsHistory` **20 筆**；慈善 **30 表／67 外鍵／0 視圖**、**2 筆**；`admin_users` 各 1 筆。參照資料筆數寫在 SQL 檔頭的 `-- MANIFEST` 行（主站角色 10、權限碼 260、角色權限 782、固定表單 18、表單欄位 114、首頁區塊 18…；慈善角色 9、權限碼 24、角色權限 45）。
+
+**第一個管理員**
+
+- 建的是**系統管理員**（`is_super_admin`，與 `system_admin` 角色）：不需另外授權俱樂部就能管理兩個俱樂部、能新增其他帳號。之後的帳號一律在後台「帳號與角色」建立；`create-admin` 只在 `admin_users` 為空時可用。
+- 密碼只存在你的腦中／密碼管理器：Argon2id 雜湊由 `api` 映像檔（與登入驗證同一份程式）計算，密碼只走標準輸入。**不建立 `must_change_password`**：此旗標只是「管理員代為重設」的提示，不強制（`docs/14`），本人輸入的密碼不需要它。
+- 拒絕測試帳號命名（`sa@system.local`、`*.test`、`*.local`、`@example.*`）。🔴 **種子的 `sa@system.local`／`Admin@123` 絕不能出現在正式庫**；`verify` 會檢查。
+- 🟡 兩階段驗證：後台目前不提供設定入口（`docs/14`，v3.17 裁決），所以第一個管理員只有密碼保護。密碼請用高強度並存進密碼管理器。
+- 🟡 **唯一管理員忘記密碼**：後台沒有「忘記密碼」流程給管理員（只能由另一位系統管理員重設）。因此**建議上線後盡快再建第二個系統管理員**。萬一只有一個又忘記，補救是對資料庫更新 `admin_users.password_hash`（用 `docker run --rm -i <api 映像檔> --hash-password` 算雜湊，以 `sqlcmd` 的 `$(變數)` 帶入，不要把雜湊寫進命令列歷史）。
+
+**失敗與回復**
+
+| 狀況 | 怎麼辦 |
+|---|---|
+| `preflight` 連不上 | 確認以 runner 身分、在 VM 內執行；SQL 防火牆只放行 `snet-app`，從別處連不上是預期（§4.3 末段）。`SQL_ADMIN_PASSWORD` 與 `club.env` 內不一致時重跑 `provision-secrets.sh` |
+| `init` 說「不是空的」 | 狀態 `initialized`＝已經做完了，改跑 `verify`；`partial`＝上次中途失敗或有人手動建過表，看輸出判斷，確認是 `init` 中斷後用 `wipe-partial <club\|charity>`（要輸入「WIPE <庫名>」；**有 `__EFMigrationsHistory` 或 `admin_users` 有資料一律拒絕**），再重跑 `init` |
+| 驗證有 `[不符]` | 腳本以非零離開、不會自動修。把完整輸出貼給 `backend-engineer`；**不要手動補資料讓它變綠** |
+| `create-admin` 失敗 | 整段在同一交易內，已回滾，修正後直接重跑 |
+| `--hash-password` 失敗 | 映像檔不是含此功能的版本——確認 `deploy.yml` 的 `build-api` 已對該 commit 成功、`docker pull` 到最新 |
+| Azure SQL 回報 `json` 相關錯誤 | 先查資料庫相容性層級（`SELECT compatibility_level FROM sys.databases`）；本機 SQL Server 2025 在 160 與 170 都能建 `json` 欄位，但正式庫未實測（`docs/20` §5） |
+
+🔴 **已知的程式與原生 `json` 不相容（`docs/20` §5，待裁決）**：後台儲存「含營業時間的特約店家」會在正式庫回 500（`partner_stores.business_hours` 被寫成 JSON 字串純量，原生 `json` 只收物件與陣列）。建表本身不受影響；**裁決前請勿在正式後台建立／編輯含營業時間的特約店家**，其餘 json 欄位的同類風險見該節。
+
+⚠️ **這支腳本使用 SQL 管理員帳號**（連線字串來自 `club.env`／`charity.env`），與 `api` 日常連線相同（§8 待決 4：之後建議改用最小權限的資料庫使用者）。
 
 ## 5. 從測試網址切到正式網址
 

@@ -94,6 +94,15 @@ using Tcrfc.Api.Security;
 using Tcrfc.Api.Documents;
 using Tcrfc.Api.Videos;
 
+// ── 一次性維運指令（不啟動 Web 主機、不讀設定、不連資料庫）：正式庫首次建立第一個管理員時，
+// 由 deploy/prod-db-init.sh 以 `docker run -i <api 映像檔> --hash-password` 呼叫，密碼只走標準輸入。
+// 見 Security/PasswordHashCli.cs 與 docs/20 §5「正式庫首次初始化」。
+if (args is [PasswordHashCli.Flag])
+{
+    Environment.ExitCode = PasswordHashCli.Run(Console.In, Console.Out, Console.Error);
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ── S0-8：Kestrel 請求主體上限，讓「檔案太大」一律得到我們自訂的友善訊息 ──────────────────

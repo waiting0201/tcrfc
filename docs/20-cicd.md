@@ -192,10 +192,12 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 
 | 階段 | 用什麼 | 誰跑、怎麼跑 |
 |---|---|---|
-| **建庫（僅一次）** | 現有 `db/*.sql` 整份腳本 | **人工執行**，不進 CI／CD（STATUS S0-6，暫緩中）。這是「創世」不是「部署」 |
+| **建庫（僅一次）** | 現有 `db/*.sql` 整份腳本 ＋ `db/prod/*-reference-data.sql` 參照資料 ＋ 手寫 `__EFMigrationsHistory` | **人工在 VM 上執行 [`deploy/prod-db-init.sh`](../deploy/prod-db-init.sh)**，不進 CI／CD。這是「創世」不是「部署」。做法與理由見下方「🔵 正式庫首次初始化」 |
 | **建庫之後的每次結構變更** | **EF Core Migrations** | 見下方流程，**與例行程式部署脫鉤，走獨立核准關卡** |
 
-**EF Core 與現有手寫 DDL 怎麼接軌**：`api` 專案第一次建立時，對著已經用 `db/*.sql` 建好的資料庫跑 `dotnet ef dbcontext scaffold`（reverse engineer），產出 Entity 類別，並建立一個**標記為已套用的空白基準 migration**（`dotnet ef migrations add InitialBaseline`，然後 `dotnet ef migrations add InitialBaseline --context ... ` 標記為已執行，不實際重跑 DDL）。**這步驟是一次性的 handoff，交給 `backend-engineer` 在建立 `api` 專案時做**，之後才進入「每次改動都是一個新 migration」的常態。
+**EF Core 與現有手寫 DDL 怎麼接軌**：`api` 專案第一次建立時，對著已經用 `db/*.sql` 建好的資料庫跑 `dotnet ef dbcontext scaffold`（reverse engineer），產出 Entity 類別，並建立一個**標記為已套用的空白基準 migration**（`InitialBaseline`，`Up()`／`Down()` 刻意清空）。✅ 這步驟已完成（兩個 context 各有 `InitialBaseline`），之後進入「每次改動都是一個新 migration」的常態。
+
+> 🔴 **正式庫「標記為已套用」不能用 `dotnet ef database update`**（2026-10-01）：`InitialBaseline` 之後的 migration 有真的 `ALTER`／`CHECK`／`UPDATE`（例如 `AlignSchemaS17a`、`AlignSchemaB1`），對「已經用最新 `db/club-schema.sql` 建好」的庫執行它們會重複套用而失敗或改壞。正確做法是**直接在 `__EFMigrationsHistory` 寫入全部 migration**，由 `deploy/prod-db-init.sh` 完成（見下節）。**往後新增的 migration 才由 `db-migrate.yml` 走核准關卡套用。**
 
 ### 關卡設計
 
@@ -233,6 +235,55 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 2. 觀察沒問題後，另開一個 migration 真的刪掉舊欄位（收縮期，走同一套核准關卡）。
 
 ⚠️ **Azure SQL Basic 層的自動備份（PITR）只保留 7 天**，這是唯一的救命索——`db-migrate.yml` 的 job summary 要把 `dotnet ef migrations script --idempotent` 的輸出貼出來，讓核准者在按 Approve 前真的看得到要跑什麼 SQL，不是盲按。
+
+### 🔵 正式庫首次初始化（2026-10-01，`backend-engineer`）
+
+**走哪條路：人工 SSH 到 VM 執行 `deploy/prod-db-init.sh`，不做成 `db-migrate.yml` 的首次模式。** 理由：
+
+| 考量 | 說明 |
+|---|---|
+| 一次性、需要人在場 | 要手動輸入庫名確認，還要輸入第一個管理員的密碼。GitHub `workflow_dispatch` 的 inputs 會出現在 run 頁面與 log，**密碼不能走 input**；做成 secret 又等於把正式管理員密碼放進 GitHub |
+| 與「核准關卡」的分工 | `production-db` Environment 的 Required reviewers 管的是**例行、可重複**的 migration（每次改綱要都要有人看過 SQL 再按）。首次建庫不是 migration，是創世：沒有「前一版」可比，核准者看不到有意義的 diff |
+| 還不存在 | `db-migrate.yml` 尚未實作（§9a），且依賴 self-hosted runner 的 checkout；首次建庫不該等它 |
+| 防護在腳本本身 | 只對 `*.database.windows.net`、庫名必須是 `tcrfc_club`／`tcrfc_charity`、**目標庫完全沒有使用者物件才執行**、輸入庫名才動手 |
+
+**日後 `db-migrate.yml` 的責任**：開頭先檢查 `__EFMigrationsHistory` 存在；不存在就**拒絕並指向 `prod-db-init.sh`**（不要在空庫上跑 `dotnet ef database update` ——它會從空 `InitialBaseline` 開始、跑出一個缺表的資料庫）。
+
+**順序（`init <club|charity>`，每個庫各跑一次、互不讀對方的設定檔）**
+
+1. **建表**：`db/club-schema.sql`／`db/charity-schema.sql` **原樣**（含 Azure SQL 原生 `json` 型別，不做 `nvarchar(max)` 轉換——那是 `deploy/local-ddl.sh` 給本機 SQL Server 2022 的副本）。
+2. **參照資料**：`db/prod/club-reference-data.sql`／`charity-reference-data.sql`（由 `db/seed/generate-prod-reference-sql.py` 自原種子產生器篩出，**不是**種子資料；清單與界線見 [`db/seed/README.md`](../db/seed/README.md)「正式庫的參照資料」）。
+3. **`__EFMigrationsHistory`**：自 `apps/api/**/Migrations/*.Designer.cs` 的 `[Migration("…")]` 取出全部 ID 寫入，`ProductVersion` 取自 `ModelSnapshot`（目前 `10.0.0`，與 `Microsoft.EntityFrameworkCore` 套件版本一致）。🔴 **這一步放最後，因為它就是「初始化完成」的標記**：有歷史表＝已完成（`init` 與 `wipe-partial` 都拒絕再動）；沒有歷史表但有物件＝中途失敗的半成品，只能用 `wipe-partial` 清掉重來。
+4. **驗證**：資料表／外鍵／視圖數（**自 DDL 去註解後計數**，不寫死：目前主站 **189／482／1**、慈善 **30／67／0**；STATUS S0-6b 當時的 144／380 與 29／65 已隨後來新增的表過期）、歷史筆數（主站 20、慈善 2）、參照資料各表筆數（讀 SQL 檔頭的 `-- MANIFEST` 行）、中文編碼、沒有測試帳號、`clubs.domain` 不是佔位值。
+5. **第一個管理員**：`create-admin <club|charity>`，互動輸入，詳見 `infra/README.md` §4.8。
+
+**DDL 是否等於「所有 migration 套用後」？（2026-10-01 逐項比對）**
+
+方法：用 EF 對**目前模型**產生 `GenerateCreateScript()`（`has-pending-model-changes` 已確認模型＝snapshot，所以這等於「所有 migration 套用後」），在兩個空庫分別建模型版與 DDL 版，比對 `sys.*` 目錄（欄位型別／長度／精度／可空／identity／計算欄位／定序、索引與鍵、外鍵含刪除動作、CHECK、視圖）。（EF 無法從空 `InitialBaseline` 重建綱要，所以不能「從零套 migration」比對。）
+
+- **完全一致**：主站 189 表、1,879 欄、482 外鍵；慈善 30 表、322 欄、67 外鍵——欄位屬性、外鍵、慈善的索引**逐項相同**；migration 裡新增的每一個 CHECK 在 DDL 都有對應（見下，名稱可能不同）。
+- **差異（EF 模型 ≠ DDL，已回報主 session，不自行選邊）**：
+  1. **索引 3 項**：`IX_form_fields_i18n_locale` 只在 EF 模型（DDL 沒有）；`UQ_form_fields_one_summary_per_form`（篩選唯一）與 `IX_registrations_trial_status` 只在 DDL（EF 模型沒有）。
+  2. **5 個 `UNIQUE (club_id, slug)` 的篩選條件**：`charities`／`charity_programs`／`faqs`／`partner_stores`／`press_resources`，EF 模型帶 `WHERE club_id IS NOT NULL`（EF 對可空欄位的唯一索引預設加的篩選），DDL 是無篩選的 `UNIQUE` 約束（`docs/17` §6 第 5 項的定案）。
+  3. **EF 不認識 DDL 的 default 與 CHECK**：111（主站）／27（慈善）個欄位的 `DEFAULT` 只在 DDL；CHECK 約束 DDL 有 97／29 個、EF 模型 3／0 個；視圖 `calendar_events` 只在 DDL。這些是 DDL 比 EF 嚴格，正常。
+  4. **CHECK 名稱**：migration 用 `CK_<表>_<欄>` 命名，DDL 有不少是 SQL Server 自動命名（`CK__ad_campai__goal___51DA19CB`）。**未來若有 migration 要 `DROP CONSTRAINT <名稱>`，對正式庫會找不到**——寫法要改為先用目錄查名稱。
+- **對首次初始化的影響**：沒有。差異都不影響「標記為已套用」，也不影響目前的查詢行為；但第 1、2 項會讓**下一支碰到這些索引的 migration** 與正式庫不一致，建議由系統分析師裁決「以哪邊為準」後補一支對齊的 migration（比照 `AlignIndexesWithDdl`）。
+- **migration 裡沒有任何參照資料的 `INSERT`**（只有舊資料的 `UPDATE ... SET status`），所以「標記為已套用」不會漏掉該有的資料。
+
+**json 型別（正式庫用原樣 DDL，本機與整合測試是 `nvarchar(max)`）的驗證——🔴 發現一處程式與原生 `json` 不相容，待使用者裁決**
+
+`deploy/local-ddl.sh` 的轉換只動 10 個欄位型別（主站 10、慈善另 2 欄宣告：`page_blocks.content`、`page_versions.snapshot`、`articles_i18n.body`、`programs_i18n.content`、`sessions.weekly_schedule`、`partner_stores.business_hours`、`products.size_chart`、`charity_programs_i18n.content`、`push_messages.audience_team_codes`、`app_settings.setting_value`；慈善 `donation_payments.raw_response`、`donation_projects_i18n.description`）。為了驗證原樣 DDL，在本機另起 **SQL Server 2025 容器（原生 `json`，相容性層級 160 與 170 都能建欄位）**，用**原樣 DDL** 重跑：
+
+- ✅ 原樣 DDL 建表、`prod-db-init.sh` 全流程、整份開發種子（含寫入 json 欄位的陳述式）、`/readyz` 與後台登入全部成功；`Microsoft.Data.SqlClient 7.1.0` 讀寫 json 欄位正常。
+- ✅ 整套 `apps/api` 測試（接在這個 2025 庫上）**1,016 通過、3 失敗**，失敗的 3 項：
+  1. 🔴 **2 項是 json 不相容（真問題）**：`AdminJerseysAndStoresTests` 的特約店家建立／兩隊共同兩項回 500。原因：`AdminPartnerStoresRepository.cs:254` 把營業時間寫成 `JsonSerializer.Serialize("週一至週五 11:00–21:00")`——**一個 JSON 字串純量**；**原生 `json` 型別只收物件與陣列**（實測：`"abc"`、`123`、`true`、`null`、一般文字、`""` 全部被拒，`[]`、`{...}`、`[1,2]` 可），錯誤是 `Msg 13609 JSON text is not properly formatted. Unexpected character '"' is found at position 0.`。`nvarchar(max)` 不驗證，所以本機與測試都沒發現。**正式環境（Azure SQL，`json`）後台儲存任何含營業時間的特約店家都會 500。**
+     同類風險（尚未逐一驗證，測試資料都是物件／陣列所以沒踩到）：`AdminInput.OptionalJson`（`Common/AdminInput.cs:149`）與 `AdminProgramsRepository.cs:353`、`AdminShopProductsRepository.SerializeSizeChart`、`AdminSessionsRepository`（`weekly_schedule`）只驗「是合法 JSON」，使用者若貼純量（數字、字串、`true`）會通過驗證卻在寫入時 500。
+  2. ⚪ 1 項**與 json 無關**：`MembershipOrderTests.已付款但開通出錯…`——測試預期種子的 tcrfc `single` 方案 `ends_on IS NULL`，但新種子灌出來是 `2027-05-02`（既有開發庫 `tcrfc_club` 該列被手動改成 NULL，與新建庫不同）。**既有的種子與測試不一致**，在任何新建庫上都會失敗。
+- **修法選項（請使用者／系統分析師裁決，我不自行選邊——`docs/17` §6 第 2 項已定案用原生 `json`）**：
+  - **A．改程式（建議）**：營業時間改存物件（如 `{"text":"…"}` 或沿用既有 `ReadHours` 讀回的形狀），其餘 json 欄位的驗證改成「必須是物件或陣列」並回 400；補一個在 2025 容器上跑的 CI 或定期驗證，避免測試只在 `nvarchar(max)` 上通過。優點：保留 §6 的決定，之後可用 JSON 索引；缺點：要改前後台對營業時間的契約。
+  - **B．改 DDL**：正式庫也用 `nvarchar(max)`（可加 `CHECK (ISJSON(col) = 1)`），與本機與測試完全一致。優點：零程式修改、零新風險；缺點：推翻 §6 第 2 項（失去 JSON 型別與日後的 JSON 索引），且要同步改 `docs/12`、`db/*.sql`、EF 模型的欄位型別。
+  - **C．維持現狀、單點止血**：只改 `partner_stores.business_hours` 一處。不建議——其他欄位仍有同類風險。
+- ⚠️ 無法在本機驗證的前提：Azure SQL **資料庫相容性層級**（本機 2025 在 160 與 170 都通過，Azure 若停在更低層級才有差異）。建庫後請 `SELECT compatibility_level FROM sys.databases` 確認。
 
 ### 🔴 新增 migration 的驗收：一定要跑一次「Probe」確認基準沒有偏移（`docs/18-work-errors.md` E-45）
 
@@ -300,7 +351,7 @@ migration 也不會多出非預期的 `CreateIndex`。**這不影響 EF 查詢�
 `dotnet ef migrations add <名稱> --context CharityDbContext -o CharityPlatform/Data/Migrations --namespace Tcrfc.Api.CharityPlatform.Data.Migrations`，
 `dotnet ef database update --context CharityDbContext`。⚠️ **陷阱**：`--namespace` 會讓 `CharityDbContextModelSnapshot.cs` 被放到 `apps/api/Tcrfc/Api/CharityPlatform/Data/Migrations/`（依命名空間推路徑，不是 `-o` 的目錄），要**手動移回** `CharityPlatform/Data/Migrations/` 並刪掉多出來的 `apps/api/Tcrfc/`，否則下一次 `add` 拿空模型當基準（E-45 同一種形狀）。
 目前兩支：`InitialBaseline`（空 `Up`／`Down`，已套用基準）與 `AddAdminRefreshTokens`（`IF OBJECT_ID … IS NULL` 守衛的冪等 `Up`——`db/charity-schema.sql` 新建的庫已有這張表）。
-`ci.yml` 另有一道同款健檢（`has-pending-model-changes --context CharityDbContext`）。**正式環境首次建庫**（本檔「首次建庫」清單第 8 項）流程不變：先跑 `db/charity-schema.sql`，再用 `dotnet ef database update --context CharityDbContext` 標記基準；因 `AddAdminRefreshTokens` 是冪等的，兩種庫（新 DDL 建的、CH-1 舊 DDL 建的）都能成功。
+`ci.yml` 另有一道同款健檢（`has-pending-model-changes --context CharityDbContext`）。**正式環境首次建庫**（本檔「首次建庫」清單第 8 項）改走 `deploy/prod-db-init.sh init charity`（見下節）：先跑 `db/charity-schema.sql`、灌參照資料，再**手寫** `__EFMigrationsHistory`（含 `InitialBaseline` 與 `AddAdminRefreshTokens` 兩筆）。~~原寫「用 `dotnet ef database update` 標記基準」~~ 已作廢：新 DDL 已含 `admin_refresh_tokens`，標記為已套用即可，不需要（也不應該）讓 EF 再執行一次 migration。
 
 ### 🔴 CI 防呆：`ci.yml` 的 `api` job 擋掉基準偏移進 PR
 
@@ -491,7 +542,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | 5 | **ghcr 套件建立** | 第一次 `deploy.yml` 跑完會自動建立五個套件；手動把它們的 visibility 設為 **Public**（新套件預設常常是 private，要手動切） |
 | 6 | **GitHub Environments** | 建立 `production`（Deployment branches：僅 `master`）與 `production-db`（同上 ＋ Required reviewers，至少 1 人） |
 | 7 | **Cloudflare API Token** | 建立僅 `Zone.Cache Purge` 權限、限定三個 zone 的 token，存進 GitHub Secret `CLOUDFLARE_API_TOKEN` |
-| 8 | **首次建庫** | 人工執行 `db/club-schema.sql`／`db/charity-schema.sql`（不進 CI），完成後跑 `dotnet ef dbcontext scaffold` 建立 EF Core 基準 migration（§5） |
+| 8 | **首次建庫** | 🔵 在 VM 上以 runner 使用者執行 [`deploy/prod-db-init.sh`](../deploy/prod-db-init.sh)（`init`／`create-admin`／`verify`，步驟見 [`infra/README.md`](../infra/README.md) §4.8；設計見本檔 §5「正式庫首次初始化」）。EF 基準 migration 早已建立，這步只負責把它們寫進 `__EFMigrationsHistory` |
 | 9 | **LINE Pay 出口 IP 驗證** | 依 `17` §9 驗證 1，**這步驟獨立於 CI/CD，部署管線建好後跑一次即可**，之後除非換 VM 不必重跑 |
 | 10 | **首次部署演練** | 先在**非 LINE Pay 正式串接前**（即 §3.6 商店結帳上線前）完整跑一次 push → build → deploy → 健康檢查 → （刻意製造一次失敗）驗證自動回滾真的會動作 |
 

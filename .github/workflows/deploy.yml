@@ -83,6 +83,10 @@ jobs:
     name: 建置並推送映像檔（tcrfc-nuxt-club）
     needs: changes
     if: needs.changes.outputs.web == 'true'
+    # 被呼叫的 workflow 要 packages: write；呼叫端 job 必須授予同等權限，否則整支 workflow startup_failure
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/_node-app-deploy.yml
     with:
       app_dir: apps/web
@@ -93,6 +97,10 @@ jobs:
     name: 建置並推送映像檔（tcrfc-nuxt-charity）
     needs: changes
     if: needs.changes.outputs.web_charity == 'true'
+    # 被呼叫的 workflow 要 packages: write；呼叫端 job 必須授予同等權限，否則整支 workflow startup_failure
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/_node-app-deploy.yml
     with:
       app_dir: apps/web-charity
@@ -103,6 +111,10 @@ jobs:
     name: 建置並推送映像檔（tcrfc-admin-web）
     needs: changes
     if: needs.changes.outputs.admin == 'true'
+    # 被呼叫的 workflow 要 packages: write；呼叫端 job 必須授予同等權限，否則整支 workflow startup_failure
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/_node-app-deploy.yml
     with:
       app_dir: apps/admin
@@ -113,6 +125,10 @@ jobs:
     name: 建置並推送映像檔（tcrfc-admin-charity）
     needs: changes
     if: needs.changes.outputs.admin_charity == 'true'
+    # 被呼叫的 workflow 要 packages: write；呼叫端 job 必須授予同等權限，否則整支 workflow startup_failure
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/_node-app-deploy.yml
     with:
       app_dir: apps/admin-charity

@@ -9049,3 +9049,10 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 6. **`carrier_type` 值域**：寫入用代碼，讀取相容舊中文標籤。
 7. **公開端點限流額度**與**Turnstile 驗證服務壞掉時放行**：規劃書沒給數字／沒說，採最小可行。
 8. **新增權限碼 `n3.donation.recheck_payment`**：異常佇列的處理動作。
+
+---
+
+## 維運指令：`--hash-password`（正式庫第一個管理員，2026-10-01）
+
+`dotnet Tcrfc.Api.dll --hash-password`（容器內：`docker run --rm -i <api 映像檔> --hash-password`）：從**標準輸入**讀一行密碼，把與後台登入驗證同一份 `PasswordHasher`（Argon2id）算出的雜湊印到標準輸出，**不啟動 Web 主機、不讀設定、不連資料庫**。退出碼 0 成功、1 密碼不合政策（至少 10 字元）或未提供、2 內部錯誤；錯誤訊息不含密碼。實作在 `Security/PasswordHashCli.cs`，`Program.cs` 最前面分流；測試 `Tcrfc.Api.Tests/PasswordHashCliTests.cs`。
+唯一呼叫端是 `deploy/prod-db-init.sh create-admin`（`infra/README.md` §4.8）。**不要**改成接受命令列參數或環境變數的密碼——那會進 `ps`／shell 歷史。

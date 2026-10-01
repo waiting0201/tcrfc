@@ -15,6 +15,53 @@
 > 舊的 `tcrfc_club_dev`、`tcrfc_club_test`、`tcrfc_charity_dev` 廢除；**不再有獨立測試庫**，
 > `apps/api` 的 `dotnet test` 直接跑在 `tcrfc_club` 上。見下方「本機網站庫與整合測試（`tcrfc_club`）」一節。
 
+## 正式庫的參照資料（`db/prod/`，2026-10-01）——🔴 種子資料絕不能灌進正式庫
+
+本目錄其餘一切（`apply-seed.sh`、`generate-*-seed-sql.py`、`reset-admin-accounts.sh`）都是**本機開發**用，內含 mockup 內容、【測試】資料、虛構會員與訂單，以及**種子超管 `sa@system.local`／`Admin@123`**。**正式庫（Azure SQL）首次初始化只用 [`db/prod/`](../prod/) 底下的兩個檔案**，由 [`generate-prod-reference-sql.py`](generate-prod-reference-sql.py) 自原產生器**篩出**（定義仍只有一份，不另抄）：
+
+- `db/prod/club-reference-data.sql`（主站庫）、`db/prod/charity-reference-data.sql`（慈善庫，獨立產生、獨立執行，docs/17 §5）。
+- **允許清單制**：只有列在腳本 `ALLOW_CLUB`／`ALLOW_CHARITY` 的區段編號會輸出；之後新增的種子區段**預設不進正式庫**，要進必須在腳本裡明確加一行。輸出另有內容守衛（【測試】、`@example`、`*.test`、Argon2id 雜湊、測試密碼、`INSERT INTO admin_users` 任何一個出現就整份拒絕寫出）。
+- 改了原產生器或允許清單後執行 `python3 db/seed/generate-prod-reference-sql.py` 重新產生並一併提交；`--check` 只比對、不一致 exit 1（可掛 CI）。
+- 檔頭的 `-- MANIFEST table=n` 是各表預期筆數，`deploy/prod-db-init.sh` 灌完後逐表核對。
+- 怎麼灌：[`deploy/prod-db-init.sh`](../../deploy/prod-db-init.sh)，步驟見 [`infra/README.md`](../../infra/README.md) §4.8。
+
+**判準**：「沒有這些列，程式會丟例外、404、被外鍵擋住，或後台無法操作」＝系統運作必需；球員、新聞、頁面文案、賽程這類**後台都能自己建的內容**不算。
+
+### ✅ 灌（系統運作必需，皆取自規劃書的固定項目）
+
+| 庫 | 表（筆數，含 `*_i18n`） | 來源／理由 |
+|---|---|---|
+| 主站 | `locales` 2 | 所有 `*_i18n` 側表的外鍵目標 |
+| 主站 | `clubs` 2、`clubs_i18n` 3 | 台中磐石、台中藍鯨：路由與一切 `club_id` 的根。`domain` **不寫死**，取自 VM `/opt/tcrfc/.env` 的 `TCRFC_DOMAIN`／`BW_DOMAIN`（暫用網址階段就是 stg 網域）。藍鯨英文全名仍待確認，故 `clubs_i18n` 藍鯨只有中文 |
+| 主站 | `admin_roles` 10、`permissions` 260、`role_permissions` 782 | 規劃書 §6 角色與權限矩陣；非系統管理員的授權完全依賴這三張表 |
+| 主站 | `article_categories` 8（＋16）、`faq_categories` 10（＋20）、`faq_embed_slots` 4 | 規劃書 7.1–7.8／3.12／G-12 的固定字典；新聞與 FAQ 的外鍵目標 |
+| 主站 | `home_sections` 18、`forms` 18、`form_fields` 114（＋228） | 首頁九大固定區塊、九個固定表單與預設欄位，兩俱樂部各一份（後台只能排序／編輯，不能憑空新增） |
+| 主站 | `event_types` 6（＋12） | L2 自建事件的起始分類（記者會、簽名會……）；後台 L3 可再編輯 |
+| 慈善 | `locales` 2、`admin_roles` 9、`permissions` 24、`role_permissions` 45 | 慈善後台自己的帳號體系（與主站庫互不包含） |
+
+**`settings` 沒有任何必需列**：抽樣核對的鍵（`member.no_prefix`／`member.no_digits`、`shop.*`、`geo.crawler_*`）程式都有預設值；其餘鍵請在後台驗收時逐一確認「缺列時前台與 API 的行為」。
+
+### ⛔ 不得進正式庫（測試或 mockup）
+
+- **帳號**：種子 `admin_users` 全部（`sa@system.local`、`*@tcrfc.test`……）、`admin_user_roles`／`admin_user_clubs`。第一個管理員由 `create-admin` 建立。
+- **全部【測試】內容**：頁面草稿、輪播（`seed-placeholder/no-image`）、tcrfc 的 FAQ／課程／梯次／積分榜／行事曆事件／夥伴／贊助／提案與 Lead／慈善與社會影響／媒體專區／榮譽／試訓與報名／會員與會籍與球衣／特約店家與權益／漫畫／球迷會活動／商店設定與商品與訂單／抽獎／電子報名單／App 裝置與推播與廣告／診斷回報，以及兩俱樂部的 `site.contact_phone`（`04-0000-0000`）與 `site.contact_hours`。
+- **mockup 骨架**：`players`／`staff`／`matches`／`articles`（`site/src/data/*.json`）。
+- **慈善庫種子**：`charity_refs`、店家、項目、捐款、金流、發票、結算、對帳、稽核、`email_logs`、`payment_channels`（sandbox 占位憑證）、四個種子帳號——全部虛構。
+
+### ❓ 待使用者或客戶決定（我不自行判定，預設不灌）
+
+| # | 項目 | 為什麼卡住 | 預設 |
+|---|---|---|---|
+| 1 | **球隊（`D1`／`BW1`／`BW-U15`／`BW-U12`）、球季、賽事系列（企甲）、場地（西屯足球場）** | 後台都能建，屬內容；但 `site.squad_codes`、行事曆訂閱網址（`/schedule/d1/`）依賴球隊代號。球季起訖是種子由賽程**推導**（非官方）。`BW-U15`／`BW-U12` 的性別與年齡帶沒有來源 | 不灌；上線前在後台建，或決定匯入範圍後另案 |
+| 2 | **`site.*` 站台事實**（成立年、聯賽名、梯隊敘述、藍鯨網址；GEO-03／04 與 `llms.txt` 的事實來源） | 種子的值是「已核實真實值」，但電話與營業時間是測試值、藍鯨英文全名待確認 | 不灌；後台「網站設定」填 |
+| 3 | **藍鯨舊站整理的真實內容**（2024 名單、教練團、賽事 21 場、里程碑、夥伴 26、FAQ 10、課程 12、活動） | 含真人姓名與經歷；規劃書與 CLAUDE.md 第 7 條要求肖像／個資同意在先 | 不灌 |
+| 4 | **頁面真實文案、SEO／GEO 預設**（願景使命、`seo.title_template`、`geo.llms_*`） | 已核實但屬內容；是否以種子文案為起點由客戶決定 | 不灌 |
+| 5 | **301 轉址**（舊網址 → 新網址） | 客戶「決定」欄至今為空，對應頁是種子推測 | 不灌；切正式網址前處理 |
+| 6 | **`event_types` 的色碼與圖示** | 種子註解自述「隨意選用」，不是客戶定案 | 已灌（後台可改）；若要等客戶定案再灌，從 `ALLOW_CLUB` 移除 `23` |
+| 7 | **行動 App 固定資料**（`app_deep_links` 8 條、`app_layout_items`、`app_feature_flags` 預設） | 部分取自規劃書 §2.3／`docs/19`，部分是測試；App 客戶端尚未開發 | 不灌；App 上線前決定 |
+| 8 | **慈善 `settings`（`donation.*` 文案）與 `email_templates`（4 封信）** | 種子內容是「開發占位文字」，正式文案待協會與法務確認；**缺列時慈善前台的行為尚未核對** | 不灌；上線前由協會提供文案並先驗證缺列行為 |
+| 9 | **正式網域切換後 `clubs.domain`** | 初始化時是 stg 網域 | 切網址（infra §5）時在後台「俱樂部」改 |
+
 ## 這個目錄有什麼
 
 | 檔案 | 用途 |

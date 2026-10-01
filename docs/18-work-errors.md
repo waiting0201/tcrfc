@@ -121,6 +121,7 @@
 | E-107 | 2026-10-01 | 派工單把使用者的 SSH 來源 IP 原值寫給 agent，agent 在 `infra/README.md` 的 secrets 表把它當範例值寫進去——**同一列還寫著「放 secret 是為了不洩漏 IP」**；公開 repo，commit 前主 session 掃描才抓到 | ⚠️ 無（commit 前 grep 使用者提供的機密值） |
 | E-108 | 2026-10-01 | 給使用者跑的一次性 Azure 設定腳本寫成「只跑一次的直線流程」：`set -e` 下 federated credential 重跑必失敗、`|| echo` 吞掉建角色的真正錯誤、固定 sleep 等 RBAC 生效、未驗證輸入、放在 session 暫存區；使用者讀了覺得不對才回頭審 | ✅ `infra/bootstrap.sh` 每步先查後建、`retry` 取代固定 sleep、寫 secrets 前斷言分支限制只有 `master`；`shellcheck -S warning` 通過 |
 | E-109 | 2026-10-01 | `docker-compose.yml` 的 `api` 沒設 `DATA_PROTECTION_KEYS_PATH`、也沒掛 volume——程式沒讀到該變數不會報錯，Data Protection 金鑰環只活在容器可寫層，**容器一重建就讓 2FA、慈善身分證字號與載具、推播權杖、商店與慈善金流／發票憑證全部永久無法解密**；寫 VM 機密檔的任務盤點設定鍵時才發現。同時發現 `apps/api/Dockerfile` 註解把非 root 使用者 uid 寫成 64198（實測 1654），照它建目錄會讓 api 寫不進去 | ✅ compose 已修；`apps/api` 啟動檢查已實作（2026-10-01）；`docs/14` 已加不變量 |
+| E-110 | 2026-10-01 | `deploy.yml` 從 2026-09-25 起每次 push 都 `startup_failure`（呼叫 reusable workflow 的 job 沒授予被呼叫端要的 `packages: write`），六天、十餘次 push 沒人追；`actionlint` 通過所以本機看不出來。直到正式庫初始化要用 api 映像檔才發現 ghcr 從未有映像檔 | ⚠️ 無（建議：push 後檢查 `gh run list` 的結論，`startup_failure` 視同紅燈） |
 
 ---
 
@@ -2314,3 +2315,9 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：①「要求」寫在文件、「落實」在另一個檔案，沒有人逐條把文件裡的部署前置條件對照到 compose／IaC；②程式端「沒設定就靜默退回不持久化」，缺口沒有任何訊號；③映像檔內建使用者的 uid 憑印象寫進註解，沒用 `docker run --entrypoint id` 實測。
 - **下次怎麼避免**：寫或改 compose／IaC 時，先 grep `docs/` 與 `apps/api/README.md` 裡所有「正式環境必須／務必」的句子，逐條對照落實位置；涉及容器內檔案權限的數字（uid／gid）一律實測，不憑記憶。
 - **防呆**：部分——compose 已加 `DATA_PROTECTION_KEYS_PATH` 與 bind mount（`create_host_path: false`，目錄不存在 compose 直接報錯）；`infra/provision-secrets.sh` 建目錄並在驗證階段檢查擁有者與權限；`docs/14` 已加不變量。✅ **2026-10-01 補上**：`apps/api/Common/DataProtectionKeyRing.cs` 在 Production 缺值、空白、目錄不存在或不可寫（實際寫入並刪除探測檔）時於啟動丟例外，訊息指向 `infra/README.md` §4.3；`DataProtectionKeyRingTests` 覆蓋，以 Production 起的測試 fixture 補暫存目錄。之後有人拿掉 compose 掛載，API 會直接起不來。
+
+### E-110 `deploy.yml` 連續六天 startup_failure 沒人追（2026-10-01，CI/CD）
+- **錯在哪**：`deploy.yml` 的四個 `uses: ./.github/workflows/_node-app-deploy.yml` job 沒有 `permissions:`，而被呼叫端的 job 要 `packages: write`；呼叫端 workflow 層級只給 `contents: read`，GitHub 判定權限超出呼叫端而整支 workflow 拒絕啟動（`startup_failure`，0 個 job）。自 2026-09-25 起每次 push 都失敗，ghcr 因此從未產出任何映像檔。
+- **根因（可改掉的行為）**：`actionlint` 不檢查跨檔的權限繼承，本機驗證「通過」就當作 workflow 沒問題；push 後只看自己關心的那支 workflow（例如 `infra.yml`），對其他 workflow 的紅燈視而不見——本 session 也在 2026-10-01 兩度看到 `startup_failure` 並標為「之後再處理」。
+- **下次怎麼避免**：呼叫 reusable workflow 的 job 一律顯式寫 `permissions:`，且不得少於被呼叫端各 job 要的權限；push 後檢查**所有**被觸發 workflow 的結論，`startup_failure` 當天處理。
+- **防呆**：無。
