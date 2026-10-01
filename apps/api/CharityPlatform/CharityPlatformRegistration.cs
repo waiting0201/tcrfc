@@ -98,7 +98,9 @@ public static class CharityPlatformRegistration
         else
         {
             var container = new BlobContainerClient(blobConnection, configuration["AZURE_BLOB_CONTAINER_CHARITY"] ?? "charity-images");
-            services.AddSingleton<ICharityImageStorage>(sp => new BlobCharityImageStorage(container, sp.GetRequiredService<ILogger<BlobCharityImageStorage>>()));
+            // 公開網址基底（指到 Cloudflare CDN 子網域）：慈善自己的設定，來源是 charity.env，不與俱樂部共用。
+            var publicBase = PublicBlobBaseUrl.FromConfiguration(configuration, "AZURE_BLOB_PUBLIC_BASE_URL_CHARITY", builder.Environment.IsDevelopment());
+            services.AddSingleton<ICharityImageStorage>(sp => new BlobCharityImageStorage(container, publicBase, sp.GetRequiredService<ILogger<BlobCharityImageStorage>>()));
         }
 
         // ── 前台（公開）與後台的 service ───────────────────────────────────────────

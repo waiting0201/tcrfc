@@ -1,5 +1,6 @@
 using Azure.Storage.Blobs;
 using Microsoft.Extensions.DependencyInjection;
+using Tcrfc.Api.Common;
 
 namespace Tcrfc.Api.Videos;
 
@@ -7,7 +8,7 @@ namespace Tcrfc.Api.Videos;
 /// <see cref="BlobVideoStorageService"/> 共用同一個具名（<c>"videos"</c>）容器單例
 /// （見 Program.cs 的 DI 註冊），理由比照
 /// <see cref="Tcrfc.Api.Images.BlobImagePublicUrlResolver"/> 對圖片容器的作法。</summary>
-public sealed class BlobVideoPublicUrlResolver([FromKeyedServices("videos")] BlobContainerClient container) : IVideoPublicUrlResolver
+public sealed class BlobVideoPublicUrlResolver([FromKeyedServices("videos")] BlobContainerClient container, PublicBlobBaseUrl publicBaseUrl) : IVideoPublicUrlResolver
 {
     public string? Resolve(string? objectKey)
     {
@@ -16,6 +17,6 @@ public sealed class BlobVideoPublicUrlResolver([FromKeyedServices("videos")] Blo
             return null;
         }
 
-        return container.GetBlobClient(objectKey).Uri.ToString();
+        return publicBaseUrl.Build(container, objectKey);
     }
 }

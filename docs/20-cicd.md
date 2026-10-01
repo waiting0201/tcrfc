@@ -9,8 +9,8 @@
 > **App 的 CI 已在 [`19-app-tech-stack.md`](19-app-tech-stack.md) §9 定案，是兩個獨立 private repo，
 > 與本檔完全不相交**——本檔只管官網三前台、兩後台、API 這六個應用共用的這個（公開）repo。
 >
-> 🔴 **Azure 資源目前一個都還沒開**（STATUS S0-6／S0-7 暫緩）。本檔設計成**開通前就能把 workflow 寫好、
-> 開通後只填 IP 與 secrets 就能跑**——凡是依賴實際 Azure 資源的步驟都標了「待補」，收在 §9。
+> 🔴 **Azure 資源目前一個都還沒開**（2026-10-01 使用者已解除暫緩、**Bicep 與 `infra.yml` 已寫但尚未部署**，見 §10 與 [`17`](17-deployment.md) §13）。
+> 本檔設計成**開通前就能把 workflow 寫好、開通後只填 IP 與 secrets 就能跑**——凡是依賴實際 Azure 資源的步驟都標了「待補」，收在 §9。
 > 🔴 **這個 repo 是公開的**（`waiting0201/tcrfc`），所有設計以此為最高前提。
 >
 > ✅ **CI 段已實作**（S0-7c，2026-09-22）：`.github/workflows/` 已有 `ci.yml`／`deploy.yml`（含兩份
@@ -366,8 +366,8 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 
 | 變數（示意，實際命名待 `backend-engineer` 定案） | 用途 | 持有人 |
 |---|---|---|
-| `CLUB_SQL_CONNECTION_STRING` | `api` 連 `sqldb-club` | 俱樂部（系統管理） |
-| `CHARITY_SQL_CONNECTION_STRING` | `api` 連 `sqldb-charity` | **協會**（`17` §5：獨立資料庫） |
+| `CLUB_SQL_CONNECTION_STRING` | `api` 連 `tcrfc_club` | 俱樂部（系統管理） |
+| `CHARITY_SQL_CONNECTION_STRING` | `api` 連 `tcrfc_charity` | **協會**（`17` §5：獨立資料庫） |
 | `REDIS_PASSWORD` | `api` 連 `redis` 容器 | 俱樂部（系統管理） |
 | `LINE_PAY_CLUB_CHANNEL_ID` / `_SECRET` | 官網商店結帳＋藍鯨代收代付 | 俱樂部 |
 | `LINE_PAY_ASSOCIATION_CHANNEL_ID` / `_SECRET` | 慈善捐款 | **協會**（不得與俱樂部共用，`14` 已明文） |
@@ -381,7 +381,8 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | `MEMBERSHIP_ACTIVATE_CREDENTIAL`（選用） | 內部會籍開通端點的憑證（≥32 字元）；沒設＝端點停用 | 俱樂部（系統管理） |
 | `MEMBER_EMAIL_LINK_BASE_URL`（選用） | 驗證信／重設密碼信的連結站台網址（預設 `https://{clubs.domain}`） | 俱樂部 |
 | `AZURE_BLOB_CONNECTION_STRING`（club） | 圖片上傳 | 俱樂部 |
-| ⚠️ `AZURE_BLOB_CONNECTION_STRING`（charity，**是否需要獨立 Storage Account 待確認**） | 若慈善也走「圖片欄位直傳」，比照資料庫的獨立原則，**存放體很可能也該分兩個 Storage Account**——`17` 未明文，建議與 §5 一併確認 | 協會 |
+| `AZURE_BLOB_PUBLIC_BASE_URL`（club，非機密，選填） | 公開圖片／影片／documents 的 CDN 網址基底，如 `https://img-stg.tcrfc.tw`；寫在 VM 的 `club.env`；慈善對應 `AZURE_BLOB_PUBLIC_BASE_URL_CHARITY` 寫在 `charity.env`，不共用 | 俱樂部／協會 |
+| `AZURE_BLOB_CONNECTION_STRING_CHARITY` | 慈善圖片上傳。✅ **2026-10-01 使用者決定慈善使用獨立的儲存體帳戶**（`sttcrfccharity<uniq>`，容器 `charity-images`，由 Bicep 建立，見 `17` §13）；連線字串用 `az storage account show-connection-string` 取得後只放 VM 的 `charity.env` | **協會** |
 | `APNS_KEY_ID` / `.p8` 內容 / `FCM_SERVICE_ACCOUNT_JSON` | `api` 呼叫推播（後台 `M3`） | 俱樂部（App 帳號主體是俱樂部，`19` §9） |
 
 > ⚠️ 以上變數名為規劃階段示意，**實際命名由建立 `api` 專案時的 `backend-engineer` 定案**，本檔不強制欄位名，只強制「這些東西是什麼、放哪裡、誰是持有人」三件事。
@@ -393,7 +394,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 - **`nuxt-club` 品牌切換的實作細節**（CSS 變數怎麼在 runtime 換、favicon 怎麼依 host 選）——部署層假設是「一個映像檔、環境變數切換」，實作交給 `frontend-architect`；技術上真的做不到才退回兩個映像檔（見 §3）
 - **失敗通知的實際管道**（Email／LINE Notify／Slack）——workflow 先留 webhook 佔位
 - **`apps/*` 目錄結構的確切命名**——本檔用的路徑是規劃慣例，實際建專案骨架時可調整（S0-7a／S0-9）
-- **慈善平台圖片儲存體是否需要獨立 Storage Account**——`17` 未明文，見 §7.2 的待確認項
+- ~~慈善平台圖片儲存體是否需要獨立 Storage Account~~ ✅ **2026-10-01 已決定獨立**（見 §7.2、`17` §13）
 - **`master` 是否強制 PR review**——目前單人開發非強制，建議但不列為硬性關卡（DB migration 的關卡已經是硬性的）
 - **是否要做零停機部署（藍綠）**——現在的秒級空窗被判定可接受；量到使用者有感再升級，升級成本是雙倍容器資源
 - **db-migrate.yml 的自動觸發時機**——用「偵測到 `apps/api/Migrations/**` 有新檔就起草待核准」還是「完全手動 `workflow_dispatch`」，留給實作時依團隊習慣決定，兩者都符合「與例行部署脫鉤＋人工核准」這個硬性要求
@@ -444,7 +445,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
    `./db/seed/setup-club-db.sh --recreate` 把 `tcrfc_club` 重建成乾淨的 DDL＋種子（容器指向
    `mssql-ci`）→ `./db/seed/apply-charity-seed.sh` → 兩處 `CLUB_SQL_CONNECTION_STRING` 皆
    `Database=tcrfc_club`，**本機與 CI 用同一批腳本**。CI 的 SQL Server 是用完即丟的容器，
-   同名不會與本機互相干擾；**正式環境 Azure SQL 的資料庫名稱（`sqldb-club`／`sqldb-charity`）不變**，
+   同名不會與本機互相干擾；**正式環境 Azure SQL 的資料庫名稱與本機相同（`tcrfc_club`／`tcrfc_charity`，2026-10-01 起，原稱 `sqldb-*`）**，
    部署 workflow 沒有引用任何本機庫名。原因與代價見 `docs/14-invariants.md` `S0-13` 一條。
 2. **兩個測試 fixture（`RedisEnabledApiFixture`／`AdminWriteRedisEnabledApiFixture`）需要真正的
    `redis-server` 執行檔**——`ci.yml` 的 `api` job 加一步 `command -v redis-server || apt-get
@@ -504,3 +505,26 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | 8 | **首次建庫** | 人工執行 `db/club-schema.sql`／`db/charity-schema.sql`（不進 CI），完成後跑 `dotnet ef dbcontext scaffold` 建立 EF Core 基準 migration（§5） |
 | 9 | **LINE Pay 出口 IP 驗證** | 依 `17` §9 驗證 1，**這步驟獨立於 CI/CD，部署管線建好後跑一次即可**，之後除非換 VM 不必重跑 |
 | 10 | **首次部署演練** | 先在**非 LINE Pay 正式串接前**（即 §3.6 商店結帳上線前）完整跑一次 push → build → deploy → 健康檢查 → （刻意製造一次失敗）驗證自動回滾真的會動作 |
+
+---
+
+## 10. 基礎設施部署 workflow（`infra.yml`，2026-10-01）
+
+> 🔵 **與本檔其餘部分的 workflow 是兩條不同的線**：`ci.yml`／`deploy.yml` 處理**應用程式**（build → ghcr → VM 上的 self-hosted runner 部署）；
+> `infra.yml` 處理 **Azure 資源本身**（Bicep），**跑在 GitHub-hosted runner**——它要建出 VM，所以不能依賴 VM 上的 runner。
+> 資源清單與決定見 [`17`](17-deployment.md) §13，操作手冊見 [`../infra/README.md`](../infra/README.md)。
+
+| 項目 | 設計 |
+|---|---|
+| 觸發 | push `master` 且 `infra/**`（或兩支 infra workflow 檔）有變動；`workflow_dispatch`（可勾「只跑 what-if」）。**沒有 `pull_request`／`pull_request_target`** |
+| PR 檢查 | `infra-validate.yml`（`pull_request`，只讀、無 secrets、無 `id-token`）：`az bicep lint`／`build`／`build-params`。同一支以 `workflow_call` 被 `infra.yml` 先行呼叫 |
+| 步驟 | validate → 檢查必要設定都已填 → `azure/login`（OIDC）→ `what-if`（輸出貼進 job summary）→ `deploy`（`--mode Incremental`，**絕不用 Complete**） |
+| 執行環境 | GitHub-hosted `ubuntu-latest`；**不使用 self-hosted runner**，與 §4 完全分開 |
+| 登入 | **OIDC（federated credential），不存 client secret**。部署身分是 user-assigned managed identity `id-tcrfc-deploy`，federated credential 的 subject 綁 `repo:waiting0201/tcrfc:environment:production` |
+| 授權範圍 | 只有資源群組 `rg-tcrfc-prod`：Contributor ＋ 只含 `Microsoft.Authorization/locks/*` 的自訂角色（建 `CanNotDelete` 鎖用）。沒有任何訂閱層級權限 |
+| Environment | 沿用 `production`（Deployment branches 僅 `master`）。`id-token: write` 只開在 deploy job |
+| Secrets／Variables | secrets：`SQL_ADMIN_PASSWORD`、`SSH_ALLOWED_CIDR`、`ALERT_EMAIL`、（可選）`ENTRA_ADMIN_OBJECT_ID`；variables：`AZURE_CLIENT_ID`／`AZURE_TENANT_ID`／`AZURE_SUBSCRIPTION_ID`、`SSH_PUBLIC_KEY`、（可選）`ENTRA_ADMIN_LOGIN`。完整表格見 `infra/README.md` §3 步驟 5c |
+| 防護鏈（公開 repo） | 與 §4 同一套：**第 0 條（Fork PR 需核准）是地基**；federated credential 綁 Environment ＋ Environment 僅 `master` → 非 `master` 的 run 拿不到 Azure token；workflow 內另有 `if: github.ref == 'refs/heads/master'`。**SSH 來源 IP、Email 一律放 secret（log 中會被遮蔽）；部署輸出不印到 log**（公開 repo 的 log 人人可看） |
+| 與 §7.1 的關係 | 這些 secrets／variables 只給 `infra.yml` 用；應用程式的機密仍遵守 §7「能在 VM 本機解決的不進 GitHub」 |
+| 鎖的效果 | Public IP、SQL 伺服器、兩個儲存體帳戶加 `CanNotDelete`。防的是人為誤刪；部署身分本身能管鎖，所以**防不了被入侵的管線**——靠上列防護鏈控管 |
+

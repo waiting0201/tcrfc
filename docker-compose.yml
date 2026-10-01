@@ -252,6 +252,8 @@ services:
       - path: /opt/tcrfc/secrets/charity.env
         required: false
     environment:
+      # 公開圖片網址基底 AZURE_BLOB_PUBLIC_BASE_URL（club.env）／AZURE_BLOB_PUBLIC_BASE_URL_CHARITY（charity.env）
+      # 刻意不列在這裡：environment 的空值會覆蓋 env_file，兩個鍵一律寫在 VM 的 secrets env 檔（infra/README.md §4.7）。
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
       # ── 網域（docs/17-deployment.md §10.2）：補之前完全沒有的缺口 ──────────────

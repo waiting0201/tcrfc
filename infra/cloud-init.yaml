@@ -1,0 +1,45 @@
+#cloud-config
+# cloud-init：VM 首次開機時安裝 Docker Engine ＋ Compose 外掛，並建立部署用的使用者與目錄。
+#
+# 這份只做「機器層」的準備。以下三件事需要一次性 token 或機密，刻意不在這裡做（見 infra/README.md）：
+#   1. 註冊 GitHub Actions self-hosted runner（一次性註冊 token）
+#   2. 建立 /opt/tcrfc/secrets/club.env、charity.env（機密）
+#   3. 建立 /opt/tcrfc/.env（compose 用，含網域與 Redis 密碼）
+#
+# ⚠️ 本檔內容會成為 VM 的 osProfile.customData，VM 建立後不可變（見 modules/compute.bicep 檔頭）。
+
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - unattended-upgrades
+
+write_files:
+  # 容器日誌輪替：Docker 預設不輪替，64 GB 的 OS 磁碟會被日誌慢慢吃滿。
+  - path: /etc/docker/daemon.json
+    permissions: '0644'
+    content: |
+      {
+        "log-driver": "json-file",
+        "log-opts": { "max-size": "10m", "max-file": "3" }
+      }
+
+runcmd:
+  - [bash, -euxo, pipefail, -c, "install -m 0755 -d /etc/apt/keyrings"]
+  - [bash, -euxo, pipefail, -c, "curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc"]
+  - [bash, -euxo, pipefail, -c, "chmod a+r /etc/apt/keyrings/docker.asc"]
+  - [bash, -euxo, pipefail, -c, "echo \"deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable\" > /etc/apt/sources.list.d/docker.list"]
+  - [bash, -euxo, pipefail, -c, "apt-get update"]
+  - [bash, -euxo, pipefail, -c, "DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin"]
+  - [bash, -euxo, pipefail, -c, "systemctl enable --now docker"]
+  # runner 服務帳號：只加入 docker 群組，不給 sudo（docs/20 §4 防護 4）
+  - [bash, -euxo, pipefail, -c, "id runner >/dev/null 2>&1 || useradd --create-home --shell /bin/bash --groups docker runner"]
+  # 部署目錄與機密目錄（機密在 actions/checkout 工作目錄之外，docs/20 §7.2）
+  - [bash, -euxo, pipefail, -c, "install -d -o runner -g runner -m 0755 /opt/tcrfc"]
+  - [bash, -euxo, pipefail, -c, "install -d -o runner -g runner -m 0700 /opt/tcrfc/secrets"]
+  - [bash, -euxo, pipefail, -c, "install -d -o runner -g runner -m 0755 /opt/tcrfc/actions-runner"]
+  - [bash, -euxo, pipefail, -c, "touch /opt/tcrfc/deploy-state.env && chown runner:runner /opt/tcrfc/deploy-state.env"]
+  - [bash, -euxo, pipefail, -c, "touch /var/lib/cloud/instance/tcrfc-bootstrap-done"]

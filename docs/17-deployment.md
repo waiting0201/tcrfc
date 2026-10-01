@@ -22,6 +22,7 @@
 | DBMS | **Azure SQL Database**，兩個獨立單庫，先用 Basic |
 | 物件儲存 | **Azure Blob Storage** |
 | 執行環境 | **單一 Azure VM（Japan East／東京）＋ Docker**，前台、後台、API、Redis 全在此 VM |
+| 基礎設施 | **Bicep（`infra/`），push `master` 經 OIDC 自動部署**；已寫未部署，見本檔 §13 |
 | 網路 | **單一 VNet**，PaaS 以 **VNet Service Endpoint** 接入 |
 | 邊緣 | Cloudflare（DNS／CDN／WAF，proxy 回源 VM） |
 | 前端建置 Node.js | **`node:24.13.1-alpine`（四個 Node 應用一致）**，2026-09-22 定案；**版本防漂移**（S0-9h）見 [§12](#12-前端建置用的-nodejs-版本) |
@@ -66,7 +67,7 @@
    └──────────────────────────┼─────────────────┼─────────────────┘
                               ▼                 ▼
                  Azure SQL（兩個獨立單庫）   Azure Blob Storage
-                 sqldb-club / sqldb-charity  圖片與檔案
+                 tcrfc_club / tcrfc_charity  圖片與檔案（俱樂部、慈善各一個帳戶）
 ```
 
 **八個容器**：`proxy`、`nuxt-tcrfc`、`nuxt-bw`、`nuxt-charity`、`admin-web`、`admin-charity`、`api`、`redis`。
@@ -401,7 +402,7 @@ key  = v{ver}:{club}:{locale}:article:{slug}    // 實際快取 key
 | 獨立網域 | ✅ | 各自網域 |
 | 獨立前台 | ✅ | `nuxt-charity` 獨立 instance |
 | **獨立後台** | ✅ | `admin-charity` 獨立 instance、獨立帳號體系、獨立 2FA |
-| 獨立資料庫 | ✅ | `sqldb-charity` 獨立 Azure SQL |
+| 獨立資料庫 | ✅ | `tcrfc_charity` 獨立 Azure SQL 單庫（2026-10-01 起正式庫名與本機一致，原稱 `sqldb-charity`／`sqldb-club` 僅是拓撲圖上的代稱） |
 | **不得即時 join、不得同步查詢主站資料庫**（§9.4） | ✅ **平台強制** | **Azure SQL Database 不支援三段式跨庫查詢**，同一個邏輯伺服器或彈性集區也一樣。唯一繞道是 Elastic Query（長年 Preview、僅 SELECT、僅 SQL 驗證、不支援私人端點）。**只要不啟用它，這是硬邊界不是紀律** |
 | 不共用任何執行環境 | ❌ | 共用 VM，且 API 同一個行程 |
 | 任一方停機不得影響另一方 | ❌ | API 或 VM 停機兩邊一起停 |
@@ -643,8 +644,8 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 自動備份 | **Azure SQL Database 內建**：完整＋差異＋交易記錄備份由平台自動執行（不需要、也無法自己排程），提供**時間點還原（PITR）**。**Basic 層 PITR 保留期最長 7 天**（`docs/17` §6 前述 Basic／5 DTU）；Standard 以上可設 1–35 天 |
 | 「手動還原點」 | Azure SQL **沒有「手動建立還原點」**：PITR 是連續的、可還原到保留期內任一時間點；需要固定留存請用 **長期保留（LTR，每週／每月／每年備份，最長 10 年）**，或手動匯出 **BACPAC** 到 Blob。**這兩項都需要人在 Azure 設定，後台沒有對應功能** |
 | 還原 | 一律**還原成新資料庫**（`tcrfc_club_restored`）再切換連線字串或搬資料，不能就地覆蓋。還原演練與 RTO 記錄是 §7 風險 1 的既有要求 |
-| 圖片與檔案（Blob） | **不在資料庫備份內**。啟用 Blob **軟刪除與版本控制**（建議保留 14 天以上）；`images` 的衍生檔可由主檔重建，`proposals`（私有提案）與 `documents` 需要另外的備份或異地複製 |
-| 缺口（請客戶與委託方知悉） | ① Basic 層 7 天保留期對「發現得晚的誤刪」偏短，建議上線時至少啟用 **LTR 每週備份 4 週**（費用另計）；② 備份存放區域預設與資料庫同區（Japan East），需要異地備援請選 geo-redundant 備份儲存；③ **後台看不到備份狀態與還原點**，需要在 Azure 入口網站查；④ **沒有稽核表**（`docs/12` §13.1），還原後無法比對「誰在還原點之後做了什麼」 |
+| 圖片與檔案（Blob） | **不在資料庫備份內**。Blob **軟刪除與版本控制 14 天**（✅ 2026-10-01 已寫進 Bicep，見 §13，並附生命週期規則清舊版本）；`images` 的衍生檔可由主檔重建，`proposals`（私有提案）與 `documents` 需要另外的備份或異地複製 |
+| 缺口（請客戶與委託方知悉） | ① Basic 層 7 天保留期對「發現得晚的誤刪」偏短，原建議上線時至少啟用 **LTR 每週備份 4 週**——🔵 **2026-10-01 使用者決定不設 LTR**（維持 7 天 PITR，風險由使用者承擔）；② 備份存放區域預設與資料庫同區（Japan East）——🔵 **2026-10-01 使用者決定備份儲存冗餘設 Local，不做異地**（比 Azure 預設的 geo 冗餘更窄：連同區的區域性災難都無法回復，Bicep 明確寫 `requestedBackupStorageRedundancy: Local`）；③ **後台看不到備份狀態與還原點**，需要在 Azure 入口網站查；④ **沒有稽核表**（`docs/12` §13.1），還原後無法比對「誰在還原點之後做了什麼」 |
 
 ---
 
@@ -662,12 +663,14 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 8 | **G-02 搜尋第一期不完整** | `LIKE` 比對做不到分類篩選與關鍵字高亮 | 登記為已知落差；升級路徑為 Azure SQL 內建全文檢索 |
 | 9 | ~~區域延遲與出口 IP 的時序耦合~~ **已解除** | **2026-09-20 於申請商店號前改為 Japan East**，正好趕在登記出口 IP 之前定案 | ✅ 此後再遷區域仍要改 LINE Pay 白名單，成本照舊高——**視同停機事件，不要再動** |
 | 10 | **App 在 API 全滅時無法宣告維護中** | 用來宣告「維護中」的設定端點與 API 同一個行程 | App 的設定、最低支援版本與維護模式另有一份**靜態備援放在 Cloudflare**（Workers KV／R2），不經 VM；強制更新畫面的版面與雙語文案打包進 App。見 [`19`](19-app-tech-stack.md) §7
+| 11 | ✅ **已結案（2026-10-01）**：~~公開圖片在「儲存體只允許 snet-app」下讀不到~~ → 使用者決定「公開容器＋Cloudflare」；**代價**：兩個儲存體帳戶失去 VNet 層隔離，`proposals` 只剩「無匿名存取＋共用金鑰保密」。原問題： 使用者 2026-10-01 決定儲存體只放行 VNet 規則、不開公開存取；但 `BlobImagePublicUrlResolver`／`BlobDocumentPublicUrlResolver` 回傳 blob 直連網址，訪客瀏覽器不在 `snet-app` | Bicep 已改：`images`／`videos`／`documents`／`charity-images` 為 `publicAccess: Blob`，`proposals` 私有。✅ **`apps/api` 公開網址基底已完成（2026-10-01）**：新增 `AZURE_BLOB_PUBLIC_BASE_URL`（俱樂部 `club.env`）／`AZURE_BLOB_PUBLIC_BASE_URL_CHARITY`（慈善 `charity.env`），四個解析器改組 `{base}/{容器}/{key}`，上傳與刪除仍走連線字串，未設定回退 `BlobContainerClient.Uri`，格式錯誤啟動即失敗（見 `apps/api/README.md`）。🔴 **剩餘待做**：Cloudflare 端 Host／SNI 處理待實測，見 `infra/README.md` §4.7 |
+| 12 | **備份僅 Local 冗餘、無 LTR、PITR 7 天** | 使用者 2026-10-01 決定（見 §6「備份與還原」） | 已知取捨，不是缺漏；區域性災難或 7 天後才發現的誤刪無法回復 |
 
 ---
 
 ## 8. 本檔不決定的事
 
-- ~~網站與 API 的 CI 管線~~ ✅ **已規劃於 [`20-cicd.md`](20-cicd.md)**（2026-09-20）：GHCR ＋ VM 上的 self-hosted runner ＋ 需人工核准的資料庫遷移關卡。**workflow 檔尚未撰寫。App 的兩條管線見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §9**
+- ~~網站與 API 的 CI 管線~~ ✅ **已規劃於 [`20-cicd.md`](20-cicd.md)**（2026-09-20）：GHCR ＋ VM 上的 self-hosted runner ＋ 需人工核准的資料庫遷移關卡。**CI 段 workflow 已於 S0-7c 撰寫、基礎設施 workflow 見 §13。App 的兩條管線見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §9**
 - **Azure SQL 定序的具體值** —— 建庫前定，建庫後不可改
 - **Redis 是否需要持久化** —— 採 cache-aside 後可視為純快取，預設不開 AOF；若日後拿它存 session 再重新評估
 - **各 entity 的快取 TTL 實際值** —— §4 只定了「先做共用小資料」的順序，數值待量測後定
@@ -1154,3 +1157,79 @@ scripts/check-node-version.mjs` 離開碼 0；分別故意改壞 `apps/admin/Doc
 
 ---
 
+---
+
+## 13. 基礎設施即程式碼（Bicep ＋ push 自動部署，2026-10-01，`deployment-engineer`）
+
+> 🔵 **執行層決定。** 使用者於 2026-10-01 解除 Azure 資源暫緩（STATUS `S0-6`／`S0-7`）。Bicep 與 workflow **已寫、已用 `az bicep build`／`lint` 與 `actionlint` 驗證，尚未對真實訂閱部署**。
+> 操作手冊（一次性手動步驟、VM 設定、驗證、回滾、疑難排解）在 [`infra/README.md`](../infra/README.md)，本節只記決定與理由。
+
+### 檔案與流程
+
+| 路徑 | 內容 |
+|---|---|
+| [`infra/main.bicep`](../infra/main.bicep)、[`infra/main.bicepparam`](../infra/main.bicepparam) | 入口（範圍 `rg-tcrfc-prod`）與參數檔 |
+| [`infra/modules/`](../infra/modules/) | `network`／`compute`／`sql`／`storage`／`monitoring` 五個模組 |
+| [`infra/cloud-init.yaml`](../infra/cloud-init.yaml) | VM 首次開機：Docker ＋ Compose、`runner` 使用者、`/opt/tcrfc/` 目錄、Docker 日誌輪替 |
+| [`.github/workflows/infra.yml`](../.github/workflows/infra.yml) | push `master`（`infra/**` 有變動）或手動 → `what-if` → `deploy`，OIDC 登入，`environment: production` |
+| [`.github/workflows/infra-validate.yml`](../.github/workflows/infra-validate.yml) | PR 與 `infra.yml` 共用的 lint／build，無任何憑證 |
+
+**部署一律 Incremental，絕不用 Complete**（會刪掉模板沒寫的資源，例如手動建的部署身分）。**這條 workflow 跑在 GitHub-hosted runner**，與 [`20`](20-cicd.md) §4 在 VM 上的 self-hosted runner（負責應用程式部署）是兩回事。
+
+### 資源清單與命名
+
+| 資源 | 名稱 | 要點 |
+|---|---|---|
+| 資源群組（人工建） | `rg-tcrfc-prod` | Japan East。**人工建而非 subscription scope 的 main**：部署身分只授權到這個群組（最小權限） |
+| VNet／子網／NSG | `vnet-tcrfc-prod`／`snet-app`／`nsg-tcrfc-prod-app` | Service Endpoint `Microsoft.Sql`＋`Microsoft.Storage`；入站 443／80 僅 Cloudflare IPv4 段、SSH 僅 `SSH_ALLOWED_CIDR`、其餘明確拒絕 |
+| Public IP | `pip-tcrfc-prod` | Standard／Static／獨立資源（§2）；🔒 |
+| VM | `vm-tcrfc-prod` | `Standard_B2ms`、Ubuntu 24.04 LTS、Premium SSD 64 GB、SSH 金鑰；NIC 與 OS 磁碟 `deleteOption: Detach` |
+| SQL 伺服器 | `sql-tcrfc-prod-<uniq>` | 僅 VNet 規則、無 IP 規則；🔒 |
+| 資料庫 | **`tcrfc_club`、`tcrfc_charity`** | Basic；備份冗餘 **Local**；PITR 7 天；**不設 LTR** |
+| 儲存體（俱樂部） | `sttcrfcclub<uniq>` | 匿名 blob 讀取：`images`／`videos`／`documents`；私有：`proposals`；允許公開網路；🔒 |
+| 儲存體（**慈善獨立**） | `sttcrfccharity<uniq>` | 容器 `charity-images`（對應 `AZURE_BLOB_CONTAINER_CHARITY` 預設值，**匿名 blob 讀取**，慈善前台顯示封面與 Logo）；🔒 |
+| 告警／預算 | `ag-tcrfc-prod-ops`、三個 metric alert、`budget-tcrfc-prod-monthly` | 兩個庫資料空間 ≥1.5 GB、VM CPU Credits Remaining 偏低；預算 100／月（帳單幣別），80% 與 100% 寄信 |
+| 鎖 | `lock-*` | Public IP、SQL 伺服器、兩個儲存體：`CanNotDelete` |
+| 部署身分（人工建） | `id-tcrfc-deploy` | user-assigned managed identity；federated credential subject `repo:waiting0201/tcrfc:environment:production`；Contributor ＋只含 `Microsoft.Authorization/locks/*` 的自訂角色，範圍僅 `rg-tcrfc-prod` |
+
+### 這次定案的兩件事（使用者 2026-10-01）
+
+1. **Azure SQL 備份儲存冗餘設 Local、不設 LTR**——不做異地（取捨見 §6「備份與還原」與 §7 風險 12）。
+2. **慈善另開獨立儲存體帳戶**，比照資料庫的獨立原則（解決 [`20`](20-cicd.md) §7.2 與 §8 原列的「慈善圖片儲存體是否獨立」待確認項）。程式端本來就分兩組設定（`AZURE_BLOB_CONNECTION_STRING`／`AZURE_BLOB_CONNECTION_STRING_CHARITY`），不需改程式。
+
+另：正式資料庫名稱定為 `tcrfc_club`／`tcrfc_charity`（與本機一致），取代本檔與 `docs/16`、`docs/20` 先前的 `sqldb-club`／`sqldb-charity` 代稱。
+
+### 執行層決定（Bicep 實作時自行判斷）
+
+| 決定 | 理由 |
+|---|---|
+| 範圍用 resource group、RG 人工建 | 部署身分最小權限；只多一條 `az group create` |
+| 部署身分用 **user-assigned managed identity** 而非 App Registration | 不需要 Entra 目錄權限、無 client secret；對 GitHub OIDC 效果相同 |
+| 鎖權限用**自訂角色**（只有 `Microsoft.Authorization/locks/*`）而非 User Access Administrator | UAA 能改任何角色指派，權限過大 |
+| SSH 來源、Email、Entra 物件 ID 放 **GitHub secrets**（不是 variables、不進 `main.bicepparam`） | 公開 repo 的 Actions log 人人可看；secret 值會被遮蔽，what-if 輸出才不洩漏 |
+| workflow **不印出部署輸出**（Public IP、SQL FQDN） | 同上；改由 `az` 或入口網站查 |
+| `DB_COLLATION` 已定為 `SQL_Latin1_General_CP1_CI_AS`（使用者 2026-10-01），寫死在 `main.bicepparam` | 建庫後不可改；與本機 SQL Server 容器預設一致 |
+| 儲存體加**生命週期規則**刪 14 天前的舊版本 | 版本控制本身不會過期，不加規則舊版本無限累積計費 |
+| NSG 最後加明確 `deny-all-inbound`（4000） | 讓「其餘全關」寫在模板裡而不是只靠預設規則 |
+| `defaultOutboundAccess: false` 於 `snet-app` | §2 已註明預設出站退場；出站由 Public IP 提供，刻意配置 |
+| VM 開 Trusted Launch、Boot diagnostics（受控儲存） | 零成本的強化，不需另開儲存體 |
+| 預算掛在資源群組範圍、起算日固定 `2026-10-01` | 部署身分不需訂閱層權限；起算日不隨每次部署改動 |
+| `infra-validate.yml` 獨立一支 | PR 只讀無憑證，與有 `id-token: write` 的 `infra.yml` 物理分離 |
+
+### 不開的資源（刻意）
+
+| 資源 | 為什麼不開 |
+|---|---|
+| ACR | 映像檔放 GHCR 公開套件，VM 免憑證 pull（[`20`](20-cicd.md) §2） |
+| Key Vault | 機密放 VM `/opt/tcrfc/secrets/`（[`20`](20-cicd.md) §7.2）；多一個資源與一組存取治理，目前規模不值得 |
+| Azure Cache for Redis | Redis 是 compose 容器（§1），託管版月費遠高於本案需求 |
+| Private Endpoint | 用免費的 Service Endpoint（§2） |
+| staging 環境 | 全專案只有本機與正式兩套（[`20`](20-cicd.md) §1，E-13） |
+
+### 待決與結案
+
+1. ✅ **公開圖片與 `documents` 下載（2026-10-01 結案）**：公開容器＋Cloudflare。取捨：帳戶須允許公開網路，**失去 VNet 層隔離**；`proposals` 靠無匿名存取＋共用金鑰保密；`apps/api` 用連線字串，維持 `allowSharedKeyAccess=true`（Managed Identity 為後續強化）；慈善 `charity-images` 同樣公開。`apps/api` 「公開網址基底」設定**已完成**（`AZURE_BLOB_PUBLIC_BASE_URL`／`AZURE_BLOB_PUBLIC_BASE_URL_CHARITY`，分別寫在 `club.env`／`charity.env`，不共用；`proposals` 私有容器不受影響）。**仍待做**：Cloudflare Host／SNI 實測，並在 VM 的兩個 env 檔填入 CDN 網域（如 `https://img-stg.tcrfc.tw`）。
+2. ✅ **`DB_COLLATION`**：`SQL_Latin1_General_CP1_CI_AS`，寫在 `main.bicepparam`。
+3. ✅ **預算幣別**：美元，維持 100；粗估月費約 US$95–110 仍貼近上限（[`infra/README.md`](../infra/README.md) §8）。
+4. **`api` 的資料庫帳號**：預設以 SQL 管理員連線；建議另建最小權限使用者（[`20`](20-cicd.md) §7.2 未定案）。
+5. **Data Protection 金鑰環在 VM 磁碟上無自動備份**（§5、[`14`](14-invariants.md)）。

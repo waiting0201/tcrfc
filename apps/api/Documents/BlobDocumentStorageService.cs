@@ -1,6 +1,7 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Microsoft.Extensions.DependencyInjection;
+using Tcrfc.Api.Common;
 
 namespace Tcrfc.Api.Documents;
 
@@ -107,10 +108,10 @@ public sealed class BlobDocumentStorageService(
     }
 }
 
-public sealed class BlobDocumentPublicUrlResolver([FromKeyedServices("documents-public")] BlobContainerClient container) : IDocumentPublicUrlResolver
+public sealed class BlobDocumentPublicUrlResolver([FromKeyedServices("documents-public")] BlobContainerClient container, PublicBlobBaseUrl publicBaseUrl) : IDocumentPublicUrlResolver
 {
     public string? Resolve(string? objectKey)
-        => string.IsNullOrWhiteSpace(objectKey) ? null : container.GetBlobClient(objectKey).Uri.ToString();
+        => string.IsNullOrWhiteSpace(objectKey) ? null : publicBaseUrl.Build(container, objectKey);
 }
 
 /// <summary><c>AZURE_BLOB_CONNECTION_STRING</c> 未設定時的替身，比照 <c>UnavailableVideoStorageService</c>。</summary>

@@ -1,6 +1,7 @@
 using Azure.Storage.Blobs;
 using Azure.Storage.Blobs.Models;
 using Tcrfc.Api.Images;
+using Tcrfc.Api.Common;
 
 namespace Tcrfc.Api.CharityPlatform.Storage;
 
@@ -25,7 +26,7 @@ public interface ICharityImageStorage
     Task DeleteAsync(string? mainObjectKey, CancellationToken cancellationToken);
 }
 
-public sealed class BlobCharityImageStorage(BlobContainerClient container, ILogger<BlobCharityImageStorage> logger) : ICharityImageStorage
+public sealed class BlobCharityImageStorage(BlobContainerClient container, PublicBlobBaseUrl publicBaseUrl, ILogger<BlobCharityImageStorage> logger) : ICharityImageStorage
 {
     private const string ContentType = "image/webp";
     private const string CacheControl = "public, max-age=31536000, immutable"; // 物件鍵含隨機值，內容不可變
@@ -34,7 +35,7 @@ public sealed class BlobCharityImageStorage(BlobContainerClient container, ILogg
     private volatile bool _ensured;
 
     public string? Resolve(string? objectKey)
-        => string.IsNullOrWhiteSpace(objectKey) ? null : container.GetBlobClient(objectKey).Uri.ToString();
+        => string.IsNullOrWhiteSpace(objectKey) ? null : publicBaseUrl.Build(container, objectKey);
 
     public async Task<UploadedImageInfo> UploadAsync(byte[] rawBytes, string objectKeyPrefix, CancellationToken cancellationToken)
     {

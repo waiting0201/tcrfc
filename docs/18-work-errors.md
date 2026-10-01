@@ -117,6 +117,8 @@
 | E-101 | 2026-10-01 | F 批商店測試的「確保電子發票字軌」輔助函式硬寫 `environment = 'sandbox'`，但商店的金流／發票環境是 S6 設定 `shop.payment_environment`（可切 production）；程式端依設定取通道，測試補了錯環境的字軌，付款後發票停在 `pending`，**第一次跑完整流程測試就紅燈** | ✅ 輔助函式改讀 `shop.payment_environment`（`ShopPublicTests.ChannelEnvironmentAsync`） |
 | E-102 | 2026-10-01 | 慈善 N3 捐款詳情的個資遮罩只對「看起來像個資的欄位」（姓名、Email、身分證字號、地址）做，漏了**預設值就是捐款人姓名**的收據抬頭（`receipt_title`），預設遮罩的詳情回應仍帶出完整姓名；整合測試斷言「遮罩回應裡完整姓名一字不出現」時才抓到，沒有進版控 | ✅ `CharityAdminDonationsTests.詳情預設遮罩…`（斷言完整姓名、Email、身分證字號、地址都不在遮罩回應的任何位置）；欄位清單另靠 `CharityArchitectureTests` 反射鎖住後台回應型別不得有密文欄位 |
 | E-103 | 2026-10-01 | 派 CH-2／CH-3 時，派工單寫「目前慈善 DbContext 已有的程式」「兩個 DbContext：主站與慈善」，**實際上不存在**：CH-1 只建了資料庫與種子，沒有任何 EF 實體、連線註冊、後台帳號體系或授權器。agent 因此要從零 scaffold `CharityDbContext`、建 migration 基準、做獨立 JWT 方案／登入／授權器／更新權杖表（多出一張規劃書沒寫的 `admin_refresh_tokens`），範圍與工時都比派工單預期大得多 | ⚠️ 無（派工前 grep 一下 `DbContext` 與 `Features/` 目錄就能發現；見條目） |
+| E-106 | 2026-10-01 | 文件各寫各的：`docs/17` §2 規定儲存體只放行 VNet（訪客無法直連），§6 與 `apps/api` 卻假設圖片／文件是公開的 blob 直連網址；寫 Bicep 時才對撞。同時 `docs/16`／`17`／`20` 的正式庫名 `sqldb-*` 與本機 `tcrfc_*` 並存 | ⚠️ 無 |
+| E-107 | 2026-10-01 | 派工單把使用者的 SSH 來源 IP 原值寫給 agent，agent 在 `infra/README.md` 的 secrets 表把它當範例值寫進去——**同一列還寫著「放 secret 是為了不洩漏 IP」**；公開 repo，commit 前主 session 掃描才抓到 | ⚠️ 無（commit 前 grep 使用者提供的機密值） |
 
 ---
 
@@ -2282,3 +2284,16 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：把「Cookie 不存在」與「Cookie 為空字串」當同一件事卻用只處理 null 的運算子。
 - **下次怎麼避免**：兩個來源擇一一律用 `||` 並在註解說明；驗證 Cookie 流程要涵蓋「清除後的殘值」。
 - **防呆**：無（`server/utils/shop-session.ts` 與 `server/utils/member-session.ts` 兩處皆已改為 `||`）。
+
+### E-106 部署文件的兩條前提互相衝突卻沒人對撞，直到要寫成 Bicep 才浮現（2026-10-01，基礎設施 IaC）
+- **錯在哪**：① `docs/17` §2 規定「儲存體只允許 snet-app 的 VNet 規則」，而 §6「檔案上傳」與 `apps/api/Images/BlobImagePublicUrlResolver.cs` 回傳的是 **blob 直連網址**、期待公開讀取——兩者同時成立時，訪客瀏覽器讀不到任何公開圖片與 `documents` 下載。S0-8 與 E1a 把它記成「部署層待決」，但 §2 的網路規則從來沒回頭標示這個衝突。② 正式資料庫名稱在 `docs/16`／`17`／`20` 寫 `sqldb-club`／`sqldb-charity`，本機與 CI 用 `tcrfc_club`／`tcrfc_charity`，沒有任何一處決定「正式庫要叫什麼」。
+- **根因（可改掉的行為）**：每份文件各自描述「自己那一層」（網路、上傳元件、資料庫命名），**沒有任何一步要求把它們在同一個資源上對照**；直到要把資源寫成一份可部署的模板時，才被迫同時決定。
+- **下次怎麼避免**：新增或修改「某個資源的存取規則」時，grep 全 `docs/` 與 `apps/api` 找誰會**從哪裡**存取它（訪客瀏覽器、VM、後台、CI），把「誰從哪來」寫成表；命名也要有單一來源（本次定為 `tcrfc_club`／`tcrfc_charity`，記於 `docs/17` §13）。
+- **防呆**：無。公開圖片配送方式仍待使用者決定（`docs/17` §13 待決 1、§7 風險 11）。
+- **後續（2026-10-01）**：使用者決定「公開容器＋Cloudflare」，Bicep 已改；庫名統一為 `tcrfc_*`。**新發現的缺口**：`apps/api` 的四個公開網址解析器只用連線字串的網域，沒有「公開網址基底」設定，無法不改程式就指到 CDN 網域**已補上（2026-10-01，`backend-engineer`）**：新增 `AZURE_BLOB_PUBLIC_BASE_URL`／`AZURE_BLOB_PUBLIC_BASE_URL_CHARITY`（`apps/api/Common/PublicBlobUrl.cs`），四個解析器套用，單元測試 `PublicBlobBaseUrlTests`。防呆仍為「無」。
+
+### E-107 公開 repo 的手冊寫進使用者的 SSH 來源 IP（2026-10-01，基礎設施 IaC）
+- **錯在哪**：使用者提供的 SSH 固定來源 IP 被設計成 GitHub secret（理由正是公開 repo 的 log 人人可看），但 `infra/README.md` 的 secrets 清單把原值寫成「目前的固定來源」範例，等於把 secret 本身放進版控。commit 前主 session 對工作區 grep 該值才抓到，沒有進版控。
+- **根因（可改掉的行為）**：主 session 派工時把使用者給的原值直接貼進派工單，沒有標註「此值只進 secret、不得寫入任何檔案」；agent 寫文件時順手把手上的具體值當範例。
+- **下次怎麼避免**：派工單裡凡是要進 secret 的值，**不貼原值**，只寫「由使用者自行填入 GitHub secret」；commit 前對工作區 grep 使用者在對話中提供的 IP、帳號、Email 等值。
+- **防呆**：無。

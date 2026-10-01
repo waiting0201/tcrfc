@@ -334,6 +334,11 @@ if (!string.IsNullOrWhiteSpace(blobConnectionString))
 {
     var blobContainerName = builder.Configuration["AZURE_BLOB_CONTAINER_IMAGES"] ?? "images";
     builder.Services.AddSingleton(new BlobContainerClient(blobConnectionString, blobContainerName));
+    // 公開網址基底（選填）：讓圖片／影片／documents 的公開網址指到 Cloudflare CDN 子網域；上傳與刪除仍走連線字串。
+    // 未設定時回退 BlobContainerClient.Uri；格式錯誤（非絕對 https，Development 放行 http）啟動即失敗。
+    // 只套用在三個公開解析器；proposals 私有容器只經 API 串流，不經此設定。
+    builder.Services.AddSingleton(PublicBlobBaseUrl.FromConfiguration(
+        builder.Configuration, "AZURE_BLOB_PUBLIC_BASE_URL", builder.Environment.IsDevelopment()));
     builder.Services.AddSingleton<IImageStorageService, BlobImageStorageService>();
     // S1-12（驗收退回後補做）：物件鍵 → 公開網址，供 OG 圖片等需要輸出完整網址的情境使用。
     builder.Services.AddSingleton<IImagePublicUrlResolver, BlobImagePublicUrlResolver>();

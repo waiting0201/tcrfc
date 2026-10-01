@@ -1,0 +1,41 @@
+# .github/workflows/infra-validate.yml — Bicep 語法與 lint 檢查（不碰 Azure、不需要任何 secret）
+#
+# 兩種用法：
+#   1. pull_request（含 fork）：只要 infra/** 有變動就檢查。只讀、無 secrets、無 id-token，
+#      與 ci.yml 同一套隔離原則（docs/20 §1「Fork PR 隔離」）。
+#   2. workflow_call：infra.yml（push master 部署）在 what-if 之前先呼叫，確保部署的就是驗過的內容。
+#
+# 🔴 這個 workflow 刻意不做 what-if／部署：那需要 Azure 登入，只放在 infra.yml 且只在 master 跑。
+
+name: Infra Validate
+
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra-validate.yml'
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  bicep:
+    name: bicep build ＋ lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: bicep lint（有 error 即失敗；warning 會顯示）
+        run: az bicep lint --file infra/main.bicep
+      - name: bicep build（驗證編譯，不產生檔案）
+        run: az bicep build --file infra/main.bicep --stdout > /dev/null
+      - name: bicep build-params（以假值驗證參數檔與參數對得上）
+        # 假值只為了讓 readEnvironmentVariable() 能展開；不是任何真實設定
+        env:
+          SSH_ALLOWED_CIDR: 192.0.2.1/32
+          SSH_PUBLIC_KEY: ssh-ed25519 AAAAplaceholder
+          SQL_ADMIN_PASSWORD: placeholder-not-a-secret
+          ALERT_EMAIL: ops@example.invalid
+        run: az bicep build-params --file infra/main.bicepparam --stdout > /dev/null

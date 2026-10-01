@@ -16,7 +16,7 @@
 
 | 項目 | 決定 |
 |---|---|
-| 資料庫 | **`sqldb-charity`，與 `sqldb-club` 完全獨立**（Azure SQL，各自單庫） |
+| 資料庫 | **`tcrfc_charity`（原稱 `sqldb-charity`），與 `tcrfc_club`（原稱 `sqldb-club`）完全獨立**（Azure SQL，各自單庫） |
 | 表數 | **26 張**（含 CH-3 新增的 `AdminRefreshToken`）＋ 4 張 `*_i18n` 側表 |
 | 租戶維度 | **沒有 `club_id`**——單一法人，不是多俱樂部架構 |
 | 會員 | **沒有 `Member`**——捐款人不登入不註冊，只填姓名與 Email |

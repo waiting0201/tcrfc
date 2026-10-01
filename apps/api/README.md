@@ -4712,6 +4712,7 @@ compose 網路裡）。
 | ~~`ENABLE_UNSAFE_DEV_WRITES`~~ | 2026-09-23 起不存在 | 舊機制的環境旗標，隨 `Security/DevWriteGate.cs` 一併刪除，本檔任何程式碼都不再讀取這個鍵名，見「開發模式開關：已刪除」整節 |
 | `AZURE_BLOB_CONNECTION_STRING` | 選填（S0-8） | 圖片上傳共用元件的物件儲存連線字串。**未設定不會讓服務無法啟動**（跟 `CLUB_SQL_CONNECTION_STRING` 不同）——只有真的呼叫圖片上傳／刪除時才會需要它，沒設定時注入 `UnavailableImageStorageService`（上傳丟出訊息清楚的例外，刪除安靜略過）。本機開發見下方「本機開發：Azurite」，正式環境見 VM 上 `/opt/tcrfc/secrets/club.env` |
 | `AZURE_BLOB_CONTAINER_IMAGES` | 選填（S0-8） | 圖片物件儲存的容器名稱，預設 `images` |
+| `AZURE_BLOB_PUBLIC_BASE_URL` | 選填（2026-10-01） | **公開網址基底**，如 `https://img-stg.tcrfc.tw`（Cloudflare CDN 子網域）。圖片／影片／documents 三個公開解析器改組 `{base}/{容器}/{key}`（key 逐段 URL 編碼、base 尾斜線自動處理）；**上傳與刪除仍走 `AZURE_BLOB_CONNECTION_STRING`**，`proposals` 私有容器不受影響。未設定＝回退 `BlobContainerClient.Uri`（本機 Azurite 不變）。須為絕對 https URL（`Development` 放行 http），不得含帳密／query／fragment，格式錯誤**啟動即失敗**。實作 `Common/PublicBlobUrl.cs`，測試 `PublicBlobBaseUrlTests`。正式環境寫在 VM 的 `club.env`，**不要**寫進 compose 的 `environment:`（會以空字串覆蓋 env_file） |
 | `JWT_SIGNING_KEY_CLUB` | 🔴🔴🔴 S1 起必填 | 後台存取權杖的簽章金鑰，**至少 32 字元，缺值或太短在啟動期直接失敗**（`Program.cs` 於 `builder.Build()` 前呼叫 `AdminTokenService.ValidateSigningKeyConfigured`，E-79 修正——原本只有第一個請求才檢查，行程起得來但每支端點 500）。鍵名不是本輪新發明，`deploy/dev/club.env`／`docs/20-cicd.md` §7.2 早就預留。⚠️ **上線前暫用網址與正式期建議用不同值**（`docs/14-invariants.md` 既有規則） |
 | `DATA_PROTECTION_KEYS_PATH` | 🔴🔴🔴 S1 起正式環境必填 | 2FA 密鑰加密金鑰環的持久化路徑。**沒設定不會讓服務無法啟動**（本機開發沒有也能跑，只是每次容器重建都要重設 2FA），但正式環境沒設定＝容器重建後全部使用者的 2FA 永久無法解密，見 `Security/TwoFactorSecretProtector.cs` 檔頭的完整說明，這是本次程式碼無法防呆的部署前置條件 |
 
@@ -8989,6 +8990,7 @@ LINE Pay 返回 {前台網址}/{lang}/result/{orderNo}?transactionId=…
 | `CHARITY_ALLOW_FAKE_PROVIDERS` | `true` 才允許非 Development 使用假金流／假發票／假寄信（預備環境整合驗收用） |
 | `TURNSTILE_SECRET_KEY_CHARITY` | 設定後建單要求通過 Cloudflare Turnstile |
 | `AZURE_BLOB_CONNECTION_STRING_CHARITY`／`AZURE_BLOB_CONTAINER_CHARITY` | 慈善圖片儲存 |
+| `AZURE_BLOB_PUBLIC_BASE_URL_CHARITY` | 慈善圖片的公開網址基底（CDN 子網域），規則同 `AZURE_BLOB_PUBLIC_BASE_URL`，但**慈善自己的設定、寫在 `charity.env`，不與俱樂部共用**；未設定回退容器網域，格式錯誤啟動即失敗 |
 | `CHARITY_WORKERS_ENABLED`／`CHARITY_WORKER_INTERVAL_SECONDS`／`CHARITY_PAYMENT_TIMEOUT_MINUTES`／`CHARITY_INVOICE_RETRY_MINUTES` | 背景維護 |
 | `DATA_PROTECTION_KEYS_PATH` | 🔴 **比主站 2FA 嚴重**：遺失金鑰環＝已加密的捐款人身分證字號永久無法解密（捐款人不登入，無從補填）。正式環境務必持久化或改接 Key Vault |
 

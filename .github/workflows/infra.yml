@@ -1,0 +1,123 @@
+# .github/workflows/infra.yml — 部署 Azure 基礎設施（Bicep，OIDC 登入，先 what-if 再 deploy）
+#
+# 對應 docs/17「基礎設施即程式碼」與 docs/20 §10。
+# 🔴 這條跑在 GitHub-hosted runner，因為它要建出 VM；與 docs/20 §4 的 self-hosted runner
+#    （跑在 VM 上、負責應用程式部署）是兩回事，不共用、不互相依賴。
+#
+# 觸發：只有 push master 且 infra/** 有變動，或手動 workflow_dispatch。
+#   ⛔ 沒有 pull_request／pull_request_target：fork PR 拿不到任何 Azure 權限（docs/20 §1、§4）。
+#
+# 權限鏈（公開 repo 的防護，缺一不可）：
+#   1. job 需要 environment: production；該 Environment 設 Deployment branches 僅 master
+#   2. Azure 端的 federated credential subject 綁死 repo:<owner>/<repo>:environment:production
+#      → 非 master 的 run 進不了 Environment → 領不到 OIDC token → 登入不了 Azure
+#   3. 部署身分只在 rg-tcrfc-prod 有 Contributor（＋鎖管理自訂角色），沒有訂閱層級權限
+#   4. 另有 `if: github.ref == 'refs/heads/master'` 當 workflow 內的第二道，防自己人誤觸
+#
+# 🔴 公開 repo 的 Actions log 人人可看：
+#   - SSH 來源 IP、Email 等放 GitHub secrets（log 中會被遮蔽）
+#   - 部署輸出（outputs）不印出；Public IP 等請到入口網站或用 az 查
+#
+# 部署一律 Incremental（絕不用 Complete：它會刪掉模板沒寫的資源，例如手動建的部署身分）。
+
+name: Infra Deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/infra.yml'
+      - '.github/workflows/infra-validate.yml'
+  workflow_dispatch:
+    inputs:
+      whatif_only:
+        description: '只跑 what-if、不部署'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-production
+  cancel-in-progress: false # 部署不能被半途取消
+
+env:
+  RESOURCE_GROUP: rg-tcrfc-prod
+
+jobs:
+  validate:
+    name: 驗證 Bicep
+    if: github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/infra-validate.yml
+
+  deploy:
+    name: what-if → deploy
+    needs: validate
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write # OIDC：只有這個 job 有
+    # 機密與個人化的值：由 main.bicepparam 的 readEnvironmentVariable() 讀入
+    env:
+      SQL_ADMIN_PASSWORD: ${{ secrets.SQL_ADMIN_PASSWORD }}
+      SSH_ALLOWED_CIDR: ${{ secrets.SSH_ALLOWED_CIDR }}
+      ALERT_EMAIL: ${{ secrets.ALERT_EMAIL }}
+      ENTRA_ADMIN_OBJECT_ID: ${{ secrets.ENTRA_ADMIN_OBJECT_ID }}
+      SSH_PUBLIC_KEY: ${{ vars.SSH_PUBLIC_KEY }}
+      ENTRA_ADMIN_LOGIN: ${{ vars.ENTRA_ADMIN_LOGIN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 檢查必要設定都已填
+        run: |
+          missing=0
+          for name in SQL_ADMIN_PASSWORD SSH_ALLOWED_CIDR ALERT_EMAIL SSH_PUBLIC_KEY; do
+            if [ -z "${!name}" ]; then
+              echo "::error::GitHub Environment「production」缺少 $name（secrets／variables 清單見 infra/README.md）"
+              missing=1
+            fi
+          done
+          exit $missing
+
+      - name: 登入 Azure（OIDC，無長期金鑰）
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: what-if（預覽變更，不動任何資源）
+        shell: bash # 明確指定才會帶 -o pipefail，避免 tee 吃掉 az 的失敗碼
+        run: |
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --mode Incremental \
+            --template-file infra/main.bicep \
+            --parameters infra/main.bicepparam \
+            --no-prompt true \
+            --only-show-errors 2>&1 | tee whatif.txt
+          {
+            echo '## Bicep what-if（Incremental）'
+            echo '```'
+            sed 's/\x1b\[[0-9;]*m//g' whatif.txt | head -c 60000
+            echo
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: deploy（Incremental）
+        if: github.event_name == 'push' || inputs.whatif_only != true
+        run: |
+          az deployment group create \
+            --name "infra-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" \
+            --resource-group "$RESOURCE_GROUP" \
+            --mode Incremental \
+            --template-file infra/main.bicep \
+            --parameters infra/main.bicepparam \
+            --no-prompt true \
+            --only-show-errors \
+            --output none
+          echo '部署完成。輸出值（Public IP、SQL FQDN 等）不印在公開 log，請用 az deployment group show 或入口網站查。' >> "$GITHUB_STEP_SUMMARY"
