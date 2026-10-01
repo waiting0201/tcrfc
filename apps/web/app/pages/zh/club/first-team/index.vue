@@ -15,6 +15,8 @@
 // 可以查詢「俱樂部歷史榮譽」（比照 about/milestones.vue 同樣沒有公開 API 的現況），
 // 且本頁目前唯一能引用的藍鯨舊站文字（content/blue-whale/club-profile.md）沒有逐年
 // 可查證的獎盃時間軸，不得比照磐石那樣編一個出來。
+import type { PlayerStatsResponse, StandingsResponse } from '#shared/utils/standings'
+
 definePageMeta({ nav: 'club', unit: '3.1' })
 
 const config = useRuntimeConfig()
@@ -46,9 +48,8 @@ useSeoMeta({
 // 永遠查不到 'D1' 這支球隊，等於白跑一次 API——同一批修正一併處理）。
 useSportsTeamSchema(teamCode.value)
 
-// ---- 球員／教練／賽程：真實公開 API（05 課程與活動以外，03.1 唯一有真資料可接的三個
-// 區塊；「成績與積分榜」沒有獨立的公開積分榜端點——只有 Features/AdminStandings 這支
-// 後台端點，見 apps/web/README.md「S1-15」節，積分榜維持靜態說明） ----
+// ---- 球員／教練／賽程：真實公開 API（03.1 的三個區塊）。積分榜與球員數據原本沒有公開端點，
+// S3-9（2026-10-01）起接上 `standings`／`stats/players`（見下方「S3-9」段與 apps/web/README.md「S3-5／S3-5a／S3-9」節） ----
 const club = config.public.club
 const [{ data: playersData }, { data: staffData }, { data: scheduleData }] = await Promise.all([
   useFetch(`/api/backend/${club}/players`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
@@ -57,6 +58,78 @@ const [{ data: playersData }, { data: staffData }, { data: scheduleData }] = awa
 ])
 
 const players = computed(() => playersData.value?.items ?? [])
+
+// ---- S3-9：積分榜與球員數據（自動彙總）----
+// `GET /{club}/standings`（C4 手動維護或匯入，只有 名次／出賽／積分）與 `GET /{club}/stats/players`
+// （只計「已結束」賽事：進球、黃紅牌、出賽＝先發名單＋有事件的替補；**助攻沒有資料來源，自動彙總為 null**，
+// 顯示「—」而不是 0；後台手動輸入的球季數據以手動為準）。球季以網址 `?season=` 表示（兩區塊共用同一個球季選單，
+// `<form method="get">` 無 JS 也能切換）；不指定時由後端挑「今天落在起訖內」的球季。
+// 不放「更多統計」：規劃書只寫「積分榜表格（自動或手動維護）」，沒有勝負平與得失球欄位，後端也沒有，不自行加欄位。
+const route = useRoute()
+const seasonParam = computed(() => safeSeasonParam(route.query.season))
+const [{ data: standings }, { data: playerStats }] = await Promise.all([
+  useFetch<StandingsResponse | null>(`/api/backend/${config.public.club}/standings`, {
+    query: computed(() => (seasonParam.value ? { season: seasonParam.value } : {})),
+    default: () => null,
+  }),
+  useFetch<PlayerStatsResponse | null>(`/api/backend/${config.public.club}/stats/players`, {
+    query: computed(() => ({ team: teamCode.value, lang: locale.value, ...(seasonParam.value ? { season: seasonParam.value } : {}) })),
+    default: () => null,
+  }),
+])
+const standingRows = computed(() => standings.value?.items ?? [])
+const statRows = computed(() => playerStats.value?.items ?? [])
+const seasonOptions = computed(() => [...new Set([...(standings.value?.seasons ?? []), ...(playerStats.value?.seasons ?? [])])])
+const shownSeason = computed(() => standings.value?.season?.code ?? playerStats.value?.season?.code ?? seasonParam.value)
+const hasManualStat = computed(() => statRows.value.some(r => r.source === 'manual'))
+
+// 榮譽時間軸（C5 榮譽，S2-7 輪補上）：`GET /api/backend/{club}/achievements?team={一線隊代碼}`（年份新到舊）。
+// 🔴 前面檔頭「沒有公開 API 可查歷史榮譽」已過時（後端 E1a 批新增）。後端有任何一筆榮譽就換成後台資料
+// （兩俱樂部共用同一版型，藍鯨有資料也會顯示）；沒有（含 API 打不到）時，磐石維持下方以 site-facts 單一來源組出
+// 的既有一筆（成立首年頭銜），藍鯨整段不顯示（沒有可查證的獎盃資料，不得編造）。
+const { data: achievementsData } = await useFetch<Array<{
+  id: string
+  year: number | null
+  teamName: string | null
+  competitionName: string | null
+  placing: string | null
+}>>(`/api/backend/${config.public.club}/achievements`, {
+  query: { team: teamCode.value, lang: locale.value },
+  key: `achievements-${config.public.club}-${teamCode.value}-${locale.value}`,
+})
+const achievements = computed(() => achievementsData.value ?? [])
+
+// Person JSON-LD（GEO-05／S1-12f 遺留項目，S2-7 輪補上）：一線隊球員（成年）逐人輸出。
+// 🔴 閘門三道，缺一不輸出：①`schemaEligible`（apps/api 單一來源，E-39；只要求姓名）；
+// ②**已知未滿 18 歲者一律不輸出**（GEO-02 個資防線：未成年素材不給 AI 爬蟲，主站規劃書；一線隊名單
+// 理論上是成年球員，但名單可能含 17 歲的高中生簽約球員，不能只靠「一線隊＝成年」的推論）——出生日期
+// 沒填的視為依球隊性質成年，這是判斷不是規格，見 README「S2-7」節規格疑點；③`image` 只在 `photoUrl`
+// 有值（＝已同意肖像使用，後端 fail-closed）時才帶。`jobTitle` 只用後台填的位置，沒填不輸出。
+function isKnownMinor(birthOn: string | null | undefined): boolean {
+  if (!birthOn) return false
+  const [y, m, d] = birthOn.split('-').map(Number)
+  if (!y || !m || !d) return false
+  const now = new Date()
+  let age = now.getUTCFullYear() - y
+  if (now.getUTCMonth() + 1 < m || (now.getUTCMonth() + 1 === m && now.getUTCDate() < d)) age -= 1
+  return age < 18
+}
+watchEffect(() => {
+  const eligible = players.value.filter((p: { id?: string, schemaEligible?: boolean, name?: string | null, birthOn?: string | null }) =>
+    p.schemaEligible && p.name && !isKnownMinor(p.birthOn))
+  if (eligible.length === 0) return
+  useSchemaOrg(
+    eligible.map((p: { id: string, name: string, position?: string | null, photoUrl?: string | null }) =>
+      definePerson({
+        // 唯一 @id（見 about/our-people.vue 同一處說明、docs/18 E-96）：不給就全部合併成站台身分節點。
+        '@id': `player-${p.id}`,
+        name: p.name,
+        jobTitle: p.position ?? undefined,
+        image: p.photoUrl ?? undefined,
+      }),
+    ),
+  )
+})
 const coaches = computed(() => staffData.value?.items ?? [])
 const fixtures = computed(() => scheduleData.value?.items ?? [])
 const results = computed(() => fixtures.value.filter((m) => mapMatchStatus(m.status).code === 'finished'))
@@ -138,7 +211,7 @@ function formatMatchDate(dateStr: string): string {
         </div>
         <div class="player-card__body">
           <span class="player-card__pos">{{ p.position ?? '—' }}</span>
-          <p class="player-card__name">{{ p.name }}</p>
+          <p class="player-card__name"><a class="sh-player-link" :href="lp(`/zh/club/first-team/player/${p.id}/`)">{{ p.name }}</a></p>
         </div>
       </article>
     </div>
@@ -241,11 +314,80 @@ function formatMatchDate(dateStr: string): string {
     </p>
     <p v-else>本季目前尚無已完賽數據，賽程尚未公布。</p>
 
-    <p class="fixtures-note" style="margin-top:1.5rem;">積分榜由聯賽主辦單位公告，本站暫無可公開查詢的積分榜資料來源。</p>
+    <h3 class="sh-subhead" id="standings">積分榜<template v-if="shownSeason">　{{ shownSeason }}</template></h3>
+    <form v-if="seasonOptions.length > 1" class="sh-season-form" method="get" :action="route.path">
+      <div>
+        <label for="season-select">賽季</label>
+        <select id="season-select" name="season">
+          <option v-for="c in seasonOptions" :key="c" :value="c" :selected="c === shownSeason">{{ c }}</option>
+        </select>
+      </div>
+      <button class="btn btn--dark btn--sm" type="submit">切換賽季</button>
+    </form>
+    <div v-if="standingRows.length" class="sh-table-wrap">
+      <table class="sh-stats-table">
+        <caption class="visually-hidden">{{ shownSeason }} 賽季積分榜</caption>
+        <thead>
+          <tr><th scope="col">名次</th><th scope="col">球隊</th><th scope="col">出賽</th><th scope="col">積分</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="(r, i) in standingRows" :key="`${r.teamName}-${i}`">
+            <td>{{ rankCell(r.rank) }}</td>
+            <td>{{ r.teamName }}</td>
+            <td :class="{ 'is-null': r.played === null }">{{ statCell(r.played) }}</td>
+            <td :class="{ 'is-null': r.points === null }">{{ statCell(r.points) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p v-else class="fixtures-note" style="margin-top:1rem;">本賽季積分榜尚無資料，後台登錄後將於此公布。</p>
+    <p v-if="standingRows.length" class="fixtures-note">
+      積分榜由本俱樂部手動維護或匯入聯賽主辦單位公告的資料，實際名次以聯賽公告為準<template v-if="standings?.updatedAt">；最後更新 {{ formatTaipeiDateTime(standings.updatedAt, locale) }}</template>。
+    </p>
   </div>
 </section>
 
-<section v-if="isTcrfc" class="band grain honours-band" id="honours" aria-labelledby="honours-title">
+<section class="band paper-2-band" id="player-stats" aria-labelledby="player-stats-title">
+  <div class="band-inner container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">PLAYER STATS</p>
+        <h2 class="section-title" id="player-stats-title">球員數據</h2>
+      </div>
+      <p v-if="shownSeason" class="section-lede">{{ shownSeason }} 賽季</p>
+    </div>
+    <div v-if="statRows.length" class="sh-table-wrap">
+      <table class="sh-stats-table">
+        <caption class="visually-hidden">{{ shownSeason }} 賽季球員數據</caption>
+        <thead>
+          <tr>
+            <th scope="col">球員</th><th scope="col">背號</th><th scope="col">位置</th>
+            <th scope="col">出賽</th><th scope="col">進球</th><th scope="col">助攻</th><th scope="col">黃牌</th><th scope="col">紅牌</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in statRows" :key="r.playerId">
+            <td><a class="sh-player-link" :href="lp(`/zh/club/first-team/player/${r.playerId}/`)">{{ r.name ?? '—' }}</a></td>
+            <td>{{ statCell(r.shirtNo) }}</td>
+            <td>{{ r.position ?? '—' }}</td>
+            <td>{{ statCell(r.appearances) }}</td>
+            <td>{{ statCell(r.goals) }}</td>
+            <td :class="{ 'is-null': r.assists === null }">{{ statCell(r.assists) }}</td>
+            <td>{{ statCell(r.yellowCards) }}</td>
+            <td>{{ statCell(r.redCards) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p v-else class="roster-note">本賽季尚無球員數據。</p>
+    <p v-if="statRows.length" class="fixtures-note">
+      數據由已結束的賽事紀錄自動彙總（出賽＝先發名單，加上雖列替補但該場有進球或黃紅牌者）；賽事紀錄沒有助攻資料，助攻欄顯示「—」表示未記錄，不是 0。
+      <template v-if="hasManualStat">部分球員的數據為後台手動登錄，以手動登錄為準。</template>
+    </p>
+  </div>
+</section>
+
+<section v-if="isTcrfc || achievements.length" class="band grain honours-band" id="honours" aria-labelledby="honours-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">01</span>
   <div class="band-inner container">
     <div class="eyebrow-row">
@@ -254,8 +396,15 @@ function formatMatchDate(dateStr: string): string {
         <h2 class="section-title" id="honours-title">榮譽時間軸</h2>
       </div>
     </div>
-    <div class="honours-layout">
-      <ol class="timeline">
+    <div class="honours-layout" :style="isTcrfc ? undefined : 'grid-template-columns:1fr'">
+      <ol v-if="achievements.length" class="timeline">
+        <li v-for="a in achievements" :key="a.id" class="timeline-item">
+          <p class="timeline-item__year">{{ a.year ?? '—' }}</p>
+          <p class="timeline-item__title">{{ [a.competitionName, a.placing].filter(Boolean).join(' ') }}</p>
+          <p v-if="a.teamName" class="timeline-item__desc">{{ a.teamName }}</p>
+        </li>
+      </ol>
+      <ol v-else class="timeline">
         <!-- GEO-03（S1-12d）：成立年份／首季頭銜／聯賽為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
         <li class="timeline-item">
           <p class="timeline-item__year">{{ facts.foundedYear }}</p>
@@ -263,7 +412,7 @@ function formatMatchDate(dateStr: string): string {
           <p class="timeline-item__desc">俱樂部創立首年即拿下{{ facts.foundingTitleZh }}，隔年晉升{{ facts.league.nameZh }}出賽。</p>
         </li>
       </ol>
-      <figure class="honours-photo clip-card clip-card--on-dark">
+      <figure v-if="isTcrfc" class="honours-photo clip-card clip-card--on-dark">
         <img src="/assets/img/club/first-team-02-trophy.jpg" alt="台中磐石獲得的獎盃，攝於俱樂部榮譽紀錄留影" loading="lazy" width="1920" height="1280">
       </figure>
     </div>

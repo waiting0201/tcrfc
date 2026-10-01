@@ -1,11 +1,14 @@
-// app/composables/useCheckoutDraft.ts — 捐款表單草稿的跨頁保存。
+// app/composables/useCheckoutDraft.ts — 捐款表單草稿與建單冪等鍵的保存。
 //
 // 規劃書 §3.3：「表單狀態需在導向 LINE Pay 前保存，付款失敗返回時不得要求重填」。
-// 本專案沒有真正的後端訂單狀態機（mockup 階段），用 Nuxt 的 useState 在同一個 client-side
-// session 內跨頁保留最後一次表單輸入，滿足「從結果頁按重試回到表單時不清空」的體驗要求。
-// ⚠️ 這是 mockup 專屬的克難做法：真正串接 LINE Pay 後，保存與復原的權威來源會是後端的
-// 捐款單本身（依 order_no 查回），不會是瀏覽器記憶體，這裡列入 docs/22 §6 待決回報同類的
-// 「本輪假設值」，不是最終架構。
+// 付款失敗／取消返回結果頁後，重試走的是「沿用原捐款單」的 `POST /donations/{orderNo}/pay`，
+// 不重新建單、也不需要重填，所以草稿只負責同一個頁面內的表單狀態（含建單失敗後的重送）。
+// ⛔ 草稿含身分證字號等個資，只放在瀏覽器記憶體（useState），不寫入 localStorage／Cookie。
+//
+// 冪等鍵（`Idempotency-Key`，16–64 個英數／底線／連字號）：
+//   - 同一份表單內容重複送出（連點、網路中斷後重試）要沿用同一個鍵，後端才會回原單而不重複建單；
+//   - 使用者改了表單內容就換新鍵（同鍵不同內容後端回 409）。
+//   用「送出內容的指紋」判斷是否改過：指紋相同就沿用，不同就產生新鍵。
 export interface CheckoutDraft {
   projectSlug: string
   storeSlug: string | null
@@ -21,7 +24,11 @@ export interface CheckoutDraft {
   receiptTitle: string
   nationalId: string
   address: string
+  isAnnualSummary: boolean
   agreedToPrivacy: boolean
+  /** 最近一次送出的內容指紋與當時使用的冪等鍵。 */
+  lastFingerprint: string | null
+  idempotencyKey: string | null
 }
 
 export function emptyCheckoutDraft(projectSlug: string, storeSlug: string | null): CheckoutDraft {
@@ -40,7 +47,10 @@ export function emptyCheckoutDraft(projectSlug: string, storeSlug: string | null
     receiptTitle: '',
     nationalId: '',
     address: '',
+    isAnnualSummary: false,
     agreedToPrivacy: false,
+    lastFingerprint: null,
+    idempotencyKey: null,
   }
 }
 
@@ -49,25 +59,15 @@ export function useCheckoutDraft(projectSlug: string, storeSlug: string | null) 
     emptyCheckoutDraft(projectSlug, storeSlug))
 }
 
-/** 送出表單後產生的模擬訂單，供付款轉場頁與結果頁讀取（同樣是 mockup 專屬的暫存機制）。 */
-export interface MockOrder {
-  orderNo: string
-  projectSlug: string
-  projectNameZh: string
-  projectNameEn: string
-  amount: number
-  createdAt: string
+/** 產生冪等鍵：UUID（36 字元、英數與連字號，落在後端 16–64 的範圍內）。 */
+export function newIdempotencyKey(): string {
+  return globalThis.crypto.randomUUID()
 }
 
-export function useMockOrder(orderNo: string) {
-  return useState<MockOrder | null>(`charity-mock-order-${orderNo}`, () => null)
-}
-
-export function generateMockOrderNo(): string {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
-  const rand = String(Math.floor(Math.random() * 90000) + 10000)
-  return `DN${y}${m}${d}-${rand}`
+/** 依本次送出的內容決定使用哪個冪等鍵：內容沒變沿用，內容變了換新。 */
+export function resolveIdempotencyKey(draft: CheckoutDraft, fingerprint: string): string {
+  if (draft.idempotencyKey && draft.lastFingerprint === fingerprint) return draft.idempotencyKey
+  draft.idempotencyKey = newIdempotencyKey()
+  draft.lastFingerprint = fingerprint
+  return draft.idempotencyKey
 }

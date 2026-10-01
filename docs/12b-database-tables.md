@@ -41,6 +41,9 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `email` | UNIQUE，🔒 受限。**前台登入識別**（與後台 `AdminUser.username` 無關） |
 | `signup_source` | `web`／`line`／`admin`／`app`。**不含 `google`**——不採用 Google 登入 |
 | `line_user_id_encrypted` | 🔒 加密儲存，**不得匯出** |
+| `line_user_id_hash`（E 批） | LINE userId 的 SHA-256 小寫十六進位（`char(64)`）。**篩選唯一索引** `WHERE line_user_id_hash IS NOT NULL`（一個 LINE 帳號只能綁一個會員）；只供「用 LINE 帳號找會員」，不得匯出 |
+| `failed_attempt_count`／`locked_until`（E 批） | 登入失敗次數與鎖定到期時間（規劃書 §3.14「登入失敗次數限制」）；連續 5 次失敗鎖 15 分鐘，成功登入歸零。與 `admin_users` 同一套機制 |
+| `password_hash` 的 `!` 前綴（E 批） | 以 `!` 開頭＝**尚未設定密碼**（LINE 註冊者；被合併的帳號也用 `!merged-…`），`PasswordHasher.Verify` 一律回 false。「至少保留一種登入方式」（規劃書 §3.14）據此判斷：解除 LINE 綁定前須已設定密碼 |
 | `status` | `active`／`suspended`／`deleted`。**「未驗證」不是狀態值**：`status = 'active'` 且 `email_verified_at IS NULL`（K1 畫面推得） |
 | `email_verified_at`／`last_login_at`／`internal_note`／`locale`（B1） | Email 驗證時間（空＝未驗證）／最後登入（取代登入紀錄表）／後台內部備註／語系偏好（`zh-Hant`／`en`，可空） |
 | `merged_into_member_id`（B1） | 合併帳號的去向。被合併的帳號 `status = 'deleted'`、個資清除（Email 換成 `merged-<編號>@merged.invalid`）、指向保留帳號；**不建日誌表** |
@@ -88,6 +91,14 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `Trial`（P4） | `status`：`開放`／`額滿`／`候補`／`已結束`；`enrolled_count` 由報名狀態原子調整（待確認／已確認／已繳費／完成佔名額，取消與候補不佔）；達 `capacity` 時「開放」單向轉「額滿」 |
 | `CalendarTeamSetting`（L3） | `team_id` UNIQUE；`colour`／`sort_order` 空＝沿用 `teams.team_color`／`teams.sort_order`；`is_public = 0` 的隊別不出現在前台選單，其訂閱 feed 回 404 |
 
+### 6.5c 會員前台新增的兩張表與一個欄位（E 批，2026-10-01）
+
+| 表／欄位 | 規則 |
+|---|---|
+| `member_refresh_tokens` | 欄位同 §7.7（`token_hash` 唯一、`issued_at`／`expires_at`／`revoked_at`／`replaced_by_id`），另加 **`is_persistent`**（「記住我」：Cookie 帶到期日、較長效期；否則為工作階段 Cookie）。**輪替與重放偵測規則同 §7.7**：每次續期撤銷舊的、發新的；已撤銷的權杖再被使用 → 撤銷該會員全部有效權杖。**變更密碼、重設密碼、「登出全部裝置」都撤銷全部**（App 規劃書 §4.3）。⚠️ 與 App 的更新權杖鏈（`app_devices` 四欄）互不相干 |
+| `membership_orders` | **唯一鍵**：`order_no`；`(member_id, idempotency_key)`。**`status`**：`created`／`pending_payment`／`paid`／`activated`／`expired`／`activation_failed`／`cancelled`／`refunded`（App 規劃書 §5.3 七個狀態＋「建立訂單」）。`created` 也是網頁的「升級申請待確認」（主站 §3.14：客服核對款項後在 K2 開通）；`pending_payment` 才有 `expires_at`（請款後 15 分鐘）、`payment_transaction_id`、`payment_url`。**`amount` 只由伺服器依 `membership_plan_id` 的 `fee` 計算**，用戶端傳的金額一律忽略。`activation_source`：`payment`（付款確認後）／`internal`（內部端點）／`admin`（客服在 K2 開通了同一份申請）。**同一會員同一方案同時只有一張未完成（`created`／`pending_payment`）的訂單**（應用層強制） |
+| `membership_payments.membership_order_id` | 可空；有值時**篩選唯一**——一張訂單最多一筆付款紀錄，重複開通在資料庫層就寫不進去（冪等的最後一道保險）。手動開通（K2）仍為空 |
+
 ### 6.6 `MemberDraw` / `DrawRoster`
 
 | 項目 | 規則 |
@@ -122,10 +133,14 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `payment_method`（C1） | `linepay`／`onsite`（現場收款）。現場收款訂單建立即已付款、直接售出扣庫存 |
 | `settlement_status`（C1） | `pending`／`settled`，附 `settled_on`／`settlement_note`——**代收代付的人工分帳旗標，不是狀態機**；系統不計算應付金額、不產生結算單 |
 | `customer_note`／`internal_note`／`completed_at`／`cancelled_at`／`cancel_reason`（C1） | 顧客備註、內部註記、完成與取消時間與原因 |
+| **`buyer_email`**（F 批） | 非會員結帳的買家 Email（規劃書「填 Email 即可」）。訂單成立信、`/order/lookup` 的「訂單編號＋Email」比對依據；後台人工建單可為空。🔒 視同會員個資 |
+| **`idempotency_key`／`request_fingerprint`**（F 批） | 前台結帳冪等：`(club_id, idempotency_key)` **篩選唯一**。指紋＝擁有者（會員 id 或購物車權杖雜湊）＋請求內容的 SHA-256；**不含購物車內容**（成功後購物車已清空，重送仍須回原訂單）。後台人工建單兩欄為空 |
+| **`payment_url`**（F 批） | LINE Pay 請款後的付款網址，只在待付款期間有值；請款期間 `linepay_transaction_id` 暫存 `RESERVING` 作為並行搶佔旗標 |
 | 收件人三欄 | 🔒 **視同會員個資**：完整值僅系統管理員、客服／行政與出貨角色可見 |
 | 不存在的欄位 | `discount_code`、`member_price`、`points_used`、`card_no`、`shipping_tier` ——**一律沒有** |
 
 > 🔴 **`Cart.club_id` 必填，不得跨俱樂部混買**，切換站台即切換購物車。
+> **購物車（F 批）**：`(club_id, member_id)` 篩選唯一（一個會員在一個俱樂部最多一台）；訪客購物車以 `anonymous_token` ＝**權杖的 SHA-256**（篩選唯一）定位，權杖本身不落庫、遺失無法補發；`cart_items` 只存「規格＋數量」，**不存價格快照**（價格與可售量每次顯示都重新計算）。超過 30 天沒動過的訪客購物車由維護作業清除。
 > ⚠️ **「訂單是否於結帳時依俱樂部拆單」尚未定案**（`STATUS.md` B-8，繫於代收代付的稅務認定）。
 > 現行禁止混買故不會發生，**開放混買前必須先答**。
 
@@ -145,7 +160,8 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 |---|---|
 | `club_id` | **必填，值複製自 `Order`** |
 | 抬頭 | **俱樂部**。與協會發票**分屬不同字軌**，不得共用 |
-| 三選一 | `carrier_type`＋`carrier_id_encrypted`（載具）／`tax_id`（統編）／`donation_code`（捐贈碼）——**恰有一組非空** |
+| 三選一 | `carrier_type`＋`carrier_id_encrypted`（載具）／`tax_id`（統編）／`donation_code`（捐贈碼）——**恰有一組非空**。`carrier_type` 值域：`mobile_barcode`（手機條碼）／`citizen_cert`（自然人憑證）。**`carrier_id_encrypted` 為 `nvarchar(500)`**（F 批放寬，Data Protection 密文長度） |
+| 建立時機（F 批） | **結帳時**建一列 `issue_status = pending`，只記顧客選的方式；**付款確認後**才呼叫 `IInvoiceIssuer` 開立。失敗記 `failed`＋`retry_count`，由重試作業補開（次數與間隔用 S6「發票重試」設定）。**沒付款而取消／逾時的訂單，未開立的資料列由維護作業清掉** |
 | `issue_status` | `pending`／`issued`／`failed`，失敗可重試（`retry_count`） |
 | `void_status` | `none`／`voided`（作廢）／`allowance`（折讓）。**退貨必須作廢或折讓** |
 | 前提 | **LINE Pay 本身不開發票**，須另接發票服務（`STATUS.md` B-10） |

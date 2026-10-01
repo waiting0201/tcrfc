@@ -9,7 +9,14 @@ const isTcrfc = computed(() => config.public.club !== 'bw')
 // BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。
 const clubAssets = computed(() => getClubAssets(config.public.club))
 // 藍鯨規劃書 v1.9 §2.1：藍鯨不設 8.1 漫畫，贊助方案少一項（見 partners/opportunities）。
-const planCountZh = computed(() => (isUnitEnabledForClub('8.1', config.public.club) ? '九' : '八'))
+// S2-7：後台已發布任何贊助方案時，方案數改讀實際張數（與 9.4 同一份資料、同一個換算）；沒有才用規劃書固定的九／八。
+const { packages } = await useSponsorPackages()
+const CN_NUM = ['', '一', '兩', '三', '四', '五', '六', '七', '八', '九', '十']
+const planCountZh = computed(() => {
+  const n = packages.value.length
+  if (n === 0) return isUnitEnabledForClub('8.1', config.public.club) ? '九' : '八'
+  return n <= 10 ? (CN_NUM[n] ?? String(n)) : String(n)
+})
 
 useSeoMeta({
   title: computed(() => `合作夥伴與贊助 Partners & Sponsors｜${clubAssets.value.nameZh}`),

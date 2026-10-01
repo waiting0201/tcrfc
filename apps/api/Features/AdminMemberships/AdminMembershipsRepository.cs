@@ -117,6 +117,64 @@ public sealed class AdminMembershipsRepository(
         return new PagedResult<AdminMembershipListItemDto> { Items = rows.Select(r => ToListItem(r)).ToList(), Page = page, PageSize = pageSize, TotalCount = total };
     }
 
+    // ═══════════════════════════ 待確認申請（網頁升級申請） ═══════════════════════════
+
+    private static readonly HashSet<string> ApplicationStatuses = new(StringComparer.Ordinal)
+    {
+        "created", "pending_payment", "paid", "activated", "expired", "activation_failed", "cancelled", "refunded",
+    };
+
+    /// <summary>
+    /// K2「待確認申請」：會員在網頁送出的升級申請（<c>membership_orders</c>）。預設只列 <c>created</c>（待客服核對款項）；
+    /// 可用 <paramref name="status"/> 看其他狀態（例如 <c>activation_failed</c>＝已付款但開通失敗、需客服處理）。限定目前俱樂部（<c>club_id</c> ＝受益俱樂部）。
+    /// 🔴 <b>讀取當下才換算逾時</b>：待付款超過期限的訂單以 <c>expired</c> 顯示，不改庫（改庫是會員端讀訂單時的事）。
+    /// </summary>
+    public async Task<PagedResult<AdminMembershipApplicationDto>> ListApplicationsAsync(
+        AdminClubScope scope, string? status, string? keyword, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var wanted = string.IsNullOrWhiteSpace(status) ? "created" : status.Trim();
+        AdminInput.OneOf(wanted, ApplicationStatuses, "申請狀態", "「待確認」「待付款」「已付款」「已開通」「已逾時」「開通失敗」「已取消」或「已退款」");
+        var canReveal = await CanRevealAsync(scope, cancellationToken);
+        var query = db.MembershipOrders.AsNoTracking().Where(o => o.ClubId == scope.ClubId);
+        var now = DateTime.UtcNow;
+        query = wanted switch
+        {
+            "expired" => query.Where(o => o.Status == "expired" || (o.Status == "pending_payment" && o.ExpiresAt != null && o.ExpiresAt <= now)),
+            "pending_payment" => query.Where(o => o.Status == "pending_payment" && (o.ExpiresAt == null || o.ExpiresAt > now)),
+            var other => query.Where(o => o.Status == other),
+        };
+        if (!string.IsNullOrWhiteSpace(keyword))
+        {
+            var k = keyword.Trim();
+            query = canReveal
+                ? query.Where(o => o.OrderNo.Contains(k) || o.Member.MemberNo.Contains(k) || o.Member.Name.Contains(k) || o.Member.Email.Contains(k)
+                                   || (o.Member.Phone != null && o.Member.Phone.Contains(k)))
+                : query.Where(o => o.OrderNo.Contains(k) || o.Member.MemberNo.Contains(k));
+        }
+
+        var total = await query.CountAsync(cancellationToken);
+        var rows = await query.OrderBy(o => o.RowSeq).Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(o => new
+            {
+                o.OrderNo, o.MemberId, o.Member.MemberNo, o.Member.Name, o.Member.Email, o.Member.Phone, o.MembershipPlanId, PlanCode = o.MembershipPlan.Code,
+                PlanName = o.MembershipPlan.MembershipPlansI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
+                o.MembershipPlan.SeasonId, SeasonCode = o.MembershipPlan.Season.Code, o.Amount, o.Status, o.ExpiresAt, o.ActivatedAt, o.CreatedAt, o.UpdatedAt,
+            }).ToListAsync(cancellationToken);
+        var items = rows.Select(r =>
+        {
+            var effective = r.Status == "pending_payment" && r.ExpiresAt is DateTime e && e <= now ? "expired" : r.Status;
+            return new AdminMembershipApplicationDto
+            {
+                OrderNo = r.OrderNo, MemberId = r.MemberId, MemberNo = r.MemberNo,
+                MemberName = canReveal ? r.Name : PiiMasking.MaskName(r.Name), MemberEmail = canReveal ? r.Email : PiiMasking.MaskEmail(r.Email),
+                MemberPhone = canReveal ? r.Phone : PiiMasking.MaskPhone(r.Phone), PlanId = r.MembershipPlanId, PlanCode = r.PlanCode, PlanName = r.PlanName,
+                SeasonId = r.SeasonId, SeasonCode = r.SeasonCode, Amount = r.Amount, Status = effective, StatusLabel = MemberCenter.MembershipOrderLabels.Of(effective, false),
+                ExpiresAt = r.ExpiresAt, ActivatedAt = r.ActivatedAt, CreatedAt = r.CreatedAt, UpdatedAt = r.UpdatedAt,
+            };
+        }).ToList();
+        return new PagedResult<AdminMembershipApplicationDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = total };
+    }
+
     private sealed record Row(
         Guid Id, Guid MemberId, string MemberNo, string MemberName, string Tier, string Status, Guid SeasonId, string SeasonCode,
         DateOnly? StartOn, DateOnly? EndOn, Guid? PlanId, string? PlanName, int CardCount, int PaidTotal, DateTime UpdatedAt);
@@ -334,6 +392,20 @@ public sealed class AdminMembershipsRepository(
         if (!hasActiveCard)
         {
             db.MemberCards.Add(NewCard(membership.Id, scope.ClubId, member.Name, scope.Identity.AdminUserId, now));
+        }
+
+        // E 批（2026-10-01）：會員在網頁送出的「升級申請」（membership_orders.created，同一份方案）由客服核對款項開通後一併結案，
+        // 會員中心的狀態才會從「待確認」變成「已開通」。已向金流方請款中的訂單（pending_payment）不動，避免客服開通後會員又完成付款而重複扣款。
+        var applications = await db.MembershipOrders
+            .Where(o => o.MemberId == member.Id && o.ClubId == scope.ClubId && o.MembershipPlanId == plan.Id && o.Status == "created")
+            .ToListAsync(cancellationToken);
+        foreach (var application in applications)
+        {
+            application.Status = "activated";
+            application.ActivatedAt = now;
+            application.ActivationSource = "admin";
+            application.MembershipId = membership.Id;
+            application.UpdatedAt = now;
         }
 
         await db.SaveChangesAsync(cancellationToken);

@@ -1,56 +1,48 @@
 <script setup lang="ts">
-// pages/[lang]/pay/[orderNo].vue — 付款模擬轉場（docs/22-charity-ui.md §2.6，🔴 本輪不接 LINE Pay）。
-// 這個 URL（/{lang}/pay/<order_no>）是本檔案自訂的路由，規劃書與 docs/22 都沒有給這一頁指定網址
-// （規劃書 §3.4 只描述流程「送出 → 建立捐款單 → 導向 LINE Pay」，沒有前台自己的轉場頁 URL）；
-// 選這個路徑純粹是 mockup 動線需要一個可以停留、倒數、導向結果頁的畫面，之後真正串接 LINE Pay 時
-// 這一頁會被整個換成「導去 LINE Pay 網域」的一次性轉導，屆時這個路由多半直接淘汰。
+// pages/[lang]/pay/[orderNo].vue — 模擬 LINE Pay 付款頁（僅限本機／預備環境）。
+//
+// 對應後端的 `FakePaymentGateway`：它把付款網址指回前台這一頁 `/{lang}/pay/{單號}?transactionId=…`
+// （apps/api README「慈善 CH-2／CH-3」）。真實的 LINE Pay 會直接帶著 transactionId 返回結果頁
+// `/{lang}/result/{單號}?transactionId=…`（取消則帶 `?cancel=1`），不會經過這一頁。
+// 🔴 正式環境不得出現：只有 `import.meta.dev` 或明確設定 `NUXT_PUBLIC_SIMULATED_PAYMENT=true` 才開，其餘回 404。
 import { useLang } from '../../../composables/useLang'
-import { useMockOrder } from '../../../composables/useCheckoutDraft'
-import { formatTwd } from '../../../utils/currency'
 
 definePageMeta({ layout: 'default' })
 
 const route = useRoute()
 const orderNo = route.params.orderNo as string
+const config = useRuntimeConfig()
+const enabled = import.meta.dev || config.public.simulatedPayment === true || String(config.public.simulatedPayment) === 'true'
 
 const { lang, tr } = useLang()
 
-const order = useMockOrder(orderNo)
-
-let timer: ReturnType<typeof setTimeout> | undefined
-
-function proceedToResult() {
-  navigateTo(`/${lang.value}/result/${orderNo}?demo=success`)
+if (!enabled && import.meta.server) {
+  setResponseStatus(useRequestEvent()!, 404)
 }
 
-onMounted(() => {
-  timer = setTimeout(proceedToResult, 2200)
-})
+const transactionId = computed(() => (typeof route.query.transactionId === 'string' ? route.query.transactionId : ''))
+const successHref = computed(() => `/${lang.value}/result/${encodeURIComponent(orderNo)}?transactionId=${encodeURIComponent(transactionId.value)}`)
+const cancelHref = computed(() => `/${lang.value}/result/${encodeURIComponent(orderNo)}?cancel=1`)
 
-onBeforeUnmount(() => {
-  if (timer) clearTimeout(timer)
-})
-
-useHead({ title: `${tr.value.pay.heading} | ${tr.value.associationName}` })
+useHead(() => ({ title: `${tr.value.pay.simTitle} | ${tr.value.associationName}` }))
 </script>
 
 <template>
   <div class="container">
-    <section class="section text-center">
-      <div class="spinner" role="status" aria-live="polite">
-        <span class="visually-hidden">{{ tr.pay.heading }}</span>
-      </div>
-      <p><strong>{{ tr.pay.heading }}</strong></p>
+    <section v-if="enabled" class="section text-center">
+      <h1>{{ tr.pay.simTitle }}</h1>
+      <p class="notice-row">{{ tr.pay.simNotice }}</p>
+      <p class="text-secondary">{{ tr.result.orderNo }}：{{ orderNo }}</p>
 
-      <div class="card" style="max-width: 360px; margin: var(--sp-4) auto;">
-        <p class="text-secondary" style="margin-bottom: 4px;">{{ tr.pay.orderNo }}：{{ orderNo }}</p>
-        <p v-if="order" class="text-secondary" style="margin-bottom: 0;">{{ tr.pay.amount }}：{{ formatTwd(order.amount) }}</p>
+      <div class="stack" style="max-width: 360px; margin: var(--sp-4) auto;">
+        <NuxtLink :to="successHref" class="btn btn-primary">{{ tr.pay.simSuccess }}</NuxtLink>
+        <NuxtLink :to="cancelHref" class="btn btn-secondary">{{ tr.pay.simCancel }}</NuxtLink>
       </div>
+    </section>
 
-      <p class="text-tertiary">
-        {{ tr.pay.fallbackHint }}
-        <button type="button" class="btn-link" @click="proceedToResult">{{ tr.pay.retryLink }}</button>
-      </p>
+    <section v-else class="section text-center">
+      <h1>{{ tr.result.notFound }}</h1>
+      <NuxtLink :to="`/${lang}/`" class="btn btn-primary">{{ tr.result.backHome }}</NuxtLink>
     </section>
   </div>
 </template>

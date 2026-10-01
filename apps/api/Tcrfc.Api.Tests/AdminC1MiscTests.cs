@@ -120,14 +120,14 @@ public sealed class AdminC1MiscTests(AdminWriteApiFixture fixture)
         Assert.True(missing.Count == 0, "種子資料被吃掉了：" + string.Join("、", missing) + "。請重灌種子（./db/seed/apply-seed.sh，冪等），並找出上一輪哪支測試清掉了它（docs/18 E-81）。");
     }
 
-    /// <summary>docs/14：庫存、金流冪等、會員卡驗證、會籍與訂單付款狀態、購物車「不得讀快取」。站內商店整組（Features/AdminShop）
+    /// <summary>docs/14：庫存、金流冪等、會員卡驗證、會籍與訂單付款狀態、購物車「不得讀快取」。站內商店整組（Features/AdminShop、前台 Features/Shop）
     /// 與庫存／訂單有關的類別一律不注入快取服務——靠人記半年後一定會破，所以用反射鎖住。</summary>
     [Fact]
     public void 站內商店與抽獎類別不注入快取服務()
     {
         var assembly = typeof(Program).Assembly;
         var offenders = assembly.GetTypes()
-            .Where(t => t.Namespace is "Tcrfc.Api.Features.AdminShop" or "Tcrfc.Api.Features.AdminDraws")
+            .Where(t => t.Namespace is "Tcrfc.Api.Features.AdminShop" or "Tcrfc.Api.Features.AdminDraws" or "Tcrfc.Api.Features.Shop") // F 批：前台商店（目錄、購物車、結帳、訂單）同樣不得注入快取
             .SelectMany(t => t.GetConstructors(BindingFlags.Public | BindingFlags.Instance | BindingFlags.NonPublic)
                 .SelectMany(c => c.GetParameters()).Where(p => typeof(IQueryCache).IsAssignableFrom(p.ParameterType)).Select(p => $"{t.Name}({p.Name})"))
             .ToList();

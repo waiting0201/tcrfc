@@ -258,6 +258,49 @@ export function downloadRenewalExport(
   return downloadExport(`${memberships(club)}/renewal-export${query}`, '續會名單.csv')
 }
 
+// ── 待確認申請（網頁會員送出的升級／續會申請） ──────────
+
+export type ApplicationStatus = 'created' | 'pending_payment' | 'paid' | 'activated' | 'expired' | 'activation_failed' | 'cancelled' | 'refunded'
+
+export interface MembershipApplicationDto {
+  orderNo: string
+  memberId: string
+  memberNo?: string | null
+  /** 姓名／Email／電話依「完整個資」權限由後端遮罩，前端不還原。 */
+  memberName?: string | null
+  memberEmail?: string | null
+  memberPhone?: string | null
+  planId: string
+  planCode?: string | null
+  planName?: string | null
+  seasonId: string
+  seasonCode?: string | null
+  /** 伺服器依方案算出的應收金額。 */
+  amount: number
+  status: ApplicationStatus
+  statusLabel?: string | null
+  expiresAt?: string | null
+  activatedAt?: string | null
+  createdAt: string
+  updatedAt?: string | null
+}
+
+/** 從「待確認申請」開通時帶入開通視窗的會員、方案與應收金額；手動開通不帶。 */
+export interface ActivatePrefill {
+  member: MemberSearchItemDto
+  planId: string
+  amount: number
+  /** 申請編號，只用來在視窗上提示是在處理哪一筆申請。 */
+  orderNo?: string
+}
+
+export function listMembershipApplications(
+  club: string,
+  params: { status?: ApplicationStatus; keyword?: string; page?: number; pageSize?: number } = {},
+): Promise<PagedResult<MembershipApplicationDto>> {
+  return apiRequest<PagedResult<MembershipApplicationDto>>(`${club$(club)}/membership-applications${buildQuery({ ...params })}`)
+}
+
 // ── 付款紀錄 ──────────────────────────────────────────
 
 export interface MembershipPaymentRowDto {

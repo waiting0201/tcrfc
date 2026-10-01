@@ -565,3 +565,46 @@ textarea {
   clip: rect(0 0 0 0);
   white-space: nowrap;
 }
+
+/* ---- CH-2 串接新增 ---- */
+.block-content p,
+.block-content blockquote,
+.block-content ul {
+  margin: 0 0 var(--sp-3);
+}
+
+.block-content blockquote {
+  padding-left: var(--sp-4);
+  border-left: 3px solid var(--charity-border);
+  color: var(--charity-text-secondary);
+}
+
+.cover-img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  object-fit: cover;
+  border-radius: var(--radius-card);
+  margin-bottom: var(--sp-4);
+}
+
+.store-logo {
+  display: block;
+  max-height: 56px;
+  width: auto;
+  max-width: 200px;
+  margin-bottom: var(--sp-2);
+}
+
+.turnstile-slot {
+  min-height: 0;
+  margin-bottom: var(--sp-4);
+}
+
+.form-error-banner {
+  border: 2px solid var(--charity-danger);
+  border-radius: var(--radius-card);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-4);
+}

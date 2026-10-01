@@ -1,45 +1,29 @@
 # apps/web-charity — nuxt-charity（慈善捐款平台前台）
 
-Nuxt 4 SSR 的可點 mockup，捐款人使用、不登入不註冊。動線：掃碼落地頁 → 項目詳情頁（含捐款表單）
-→ 付款模擬轉場 → 結果頁（三態）→ 徵信名單／隱私權政策／捐款須知。規格來源見
-[`docs/22-charity-ui.md`](../../docs/22-charity-ui.md)（版面與視覺）與
-[`docs/10-charity-donation-site.md`](../../docs/10-charity-donation-site.md)（功能規格）。
+Nuxt 4 SSR，捐款人使用、不登入不註冊。**已接真 API**（CH-2，2026-10-01）：掃碼落地頁 → 項目列表與詳情 →
+捐款表單 → 付款跳轉 → 付款返回（confirm／cancel）→ 結果頁（輪詢）→ 隱私權政策／捐款須知。
+主辦與收款主體是**台灣足球策略發展協會**（不是俱樂部），CTA 與文案一律明示。**慈善平台明文不做 SEO／GEO**，全站 `noindex`。
+規格來源：[`docs/22-charity-ui.md`](../../docs/22-charity-ui.md)（版面）、[`docs/10-charity-donation-site.md`](../../docs/10-charity-donation-site.md)（功能）、
+後端契約見 [`apps/api/README.md`](../api/README.md)「慈善 CH-2／CH-3」。
 
 ## 怎麼跑
 
 ```bash
 cd apps/web-charity
 npm install
-npm run build      # prebuild 會先跑 scripts/sync-fixtures.mjs 同步假資料
-node .output/server/index.mjs
+npm run dev        # 或 npm run build && node .output/server/index.mjs
+npm run typecheck  # nuxt typecheck
+npm run lint
 ```
 
-開發模式：`npm run dev`（predev 同樣會先同步假資料）。
+環境變數（皆為 Nuxt runtimeConfig，執行期才讀，見 `nuxt.config.ts`）：
 
-## 假資料
-
-**唯一來源是 [`db/seed/charity-fixtures.json`](../../db/seed/charity-fixtures.json)**（衍生自
-`db/seed/generate-charity-seed-sql.py`，灌進 `tcrfc_charity` 的同一份種子），⛔ 本專案沒有
-另外手寫任何假資料。`scripts/sync-fixtures.mjs` 在 `npm run dev`／`npm run build` 前會自動把它
-複製到本機的 `.data/charity-fixtures.json`（不納版控，每次都重新同步，見該檔案開頭註解說明原因），
-`server/utils/fixtures.ts` 是唯一讀取這份資料的地方，所有頁面都經由 `server/api/charity/*` 這幾支
-唯讀端點取得資料，JSON 本身不會被打進瀏覽器端的 bundle。
-
-`npm run lint` 會執行 `python3 ../../db/seed/emit-charity-fixtures.py --check`，確認
-`db/seed/charity-fixtures.json` 與種子腳本本身沒有漂移。
-
-### 🔴 已知缺口：Docker 建置 context
-
-`Dockerfile` 的 `COPY . .` 目前假設 build context 就是 `apps/web-charity/` 本身
-（`docs/20-cicd.md` §3 的 paths-filter 慣例），但 `db/seed/charity-fixtures.json` 在 monorepo
-根目錄，不在這個 context 裡。**本地 `npm run build`／`npm run dev` 沒有這個問題**（完整
-monorepo checkout 下 `scripts/sync-fixtures.mjs` 找得到來源檔案，已實測通過），但如果之後
-`docker build` 真的以 `apps/web-charity/` 為 context 建置這個映像檔，`RUN npm run build` 這一步
-會在 `prebuild` 找不到來源檔案而失敗。這是部署層的建置 context 設計問題，留給
-`deployment-engineer`／CI 設定決定：要嘛把這個 Dockerfile 的 build context 改成 repo root，
-要嘛在 `docker build` 前的 CI 步驟裡先把 `db/seed/charity-fixtures.json` 暫存進這個目錄。
-Dockerfile 檔頭已加註解說明，本次任務範圍只到 `apps/web-charity/` 底下，沒有動 CI／
-`docker-compose` 設定。
+| 變數 | 用途 | 預設 |
+|---|---|---|
+| `NUXT_API_INTERNAL_BASE` | SSR 階段呼叫 api（Docker 內網 `http://api:8080`） | `http://127.0.0.1:5299` |
+| `NUXT_PUBLIC_API_BASE` | 瀏覽器階段呼叫 api（公開 API 網域） | `http://127.0.0.1:5299` |
+| `NUXT_PUBLIC_TURNSTILE_SITE_KEY` | 設了才顯示 Turnstile（須與後端 `TURNSTILE_SECRET_KEY_CHARITY` 一起開） | 空（不顯示） |
+| `NUXT_PUBLIC_SIMULATED_PAYMENT` | `true` 才開 `/{lang}/pay/<單號>` 模擬付款頁（對應後端假金流）；`nuxt dev` 時一律開 | `false` |
 
 ## 技術判斷
 
@@ -80,40 +64,64 @@ Dockerfile 檔頭已加註解說明，本次任務範圍只到 `apps/web-charity
 | 路徑 | 說明 |
 |---|---|
 | `/` | 302 導向 `/zh/` |
-| `/{lang}/` | 一般入口 |
-| `/{lang}/s/<store_slug>` | 掃碼落地頁 |
-| `/{lang}/p/<project_slug>` | 項目詳情頁（含捐款表單，可帶 `?s=<store_slug>` 承接店家歸屬） |
-| `/{lang}/pay/<order_no>` | 付款模擬轉場（🔴 本檔自訂路由，規劃書沒有明訂這一頁的網址，見頁面內註解） |
-| `/{lang}/result/<order_no>` | 結果頁三態 |
-| `/{lang}/donors/` | 捐款徵信名單 |
-| `/{lang}/privacy/` | 隱私權政策 |
-| `/{lang}/terms/` | 捐款須知 |
-
-### 三態結果頁的實際示範連結
-
-種子資料（`db/seed/charity-fixtures.json`）裡本來就涵蓋六種捐款狀態，結果頁直接依這些真實狀態
-決定顯示哪一態，三態都能實際點到（不需要先跑過一次捐款表單）：
-
-- **成功**：`/zh/result/DEVTEST-DN-0001`（`paid`）、`/zh/result/DEVTEST-DN-0007`（`refunded`，
-  額外顯示「已退款」標籤，仍視為成功模板，因為當初付款是成功的）
-- **未完成**：`/zh/result/DEVTEST-DN-0005`（`failed`）、`/zh/result/DEVTEST-DN-0006`（`expired`）
-- **處理中**：`/zh/result/DEVTEST-DN-0003`（`pending`）、`/zh/result/DEVTEST-DN-0004`（`created`）
-
-從捐款表單實際送出的新訂單（不在種子裡）預設顯示「成功」（`?demo=success`，付款轉場頁自動附加），
-這是 mockup 沒有真實後端狀態機的克難做法，`app/composables/useCheckoutDraft.ts` 檔頭有說明。
-
-## 已知限制（mockup 專屬，非最終架構）
-
-- 表單草稿與模擬訂單用 Nuxt 的 `useState` 存在瀏覽器記憶體，重新整理頁面會遺失（真正串接後端後，
-  復原的權威來源會是後端的捐款單本身，不會是瀏覽器狀態）。
-- 付款轉場頁的倒數秒數（2.2 秒）與結果頁「處理中」轉為逾時文案的秒數（8 秒）都是本輪 mockup 的
-  建議值，不是最終規格——`docs/22-charity-ui.md` §6 第 3 項已經列了同一個待決事項。
-- 「相關的慈善計畫」區塊只顯示文字（機構名稱、計畫名稱），沒有做成可點連結外連主站單元 11.2——
-  因為 `apps/web` 的單元 11 尚未建置、也還沒有確認的網址可以連，連一個猜測的網址風險更高。
+| `/{lang}/` | 一般入口（項目卡片牆） |
+| `/{lang}/s/<store_slug>` | 掃碼落地頁；對不到有效店家（API 回 `store: null`）一律降級成一般入口，不報錯，並清掉殘留的店家 Cookie |
+| `/{lang}/p/<project_slug>` | 項目詳情頁（含捐款表單；店家歸屬優先序 `?s=` > Cookie > 無） |
+| `/{lang}/pay/<order_no>` | 🔴 **僅測試環境**：模擬 LINE Pay 付款頁（見上表 `NUXT_PUBLIC_SIMULATED_PAYMENT`），正式環境回 404 |
+| `/{lang}/result/<order_no>` | 付款返回頁＋結果頁（`?transactionId=` → confirm、`?cancel=1` → cancel、其餘 → 查詢） |
+| `/{lang}/donors/` | 徵信名單（⚠️ 後端無端點，只顯示「未開放」或「準備中」） |
+| `/{lang}/privacy/`、`/{lang}/terms/` | 內容來自 `GET /settings`（後台維護），前台不自編法律文字 |
 
 ## 相關文件
 
 - [`docs/22-charity-ui.md`](../../docs/22-charity-ui.md) — 版面與視覺規格（配色、色票、a11y 規則）
 - [`docs/10-charity-donation-site.md`](../../docs/10-charity-donation-site.md) — 功能規格
-- [`docs/16-charity-schema.md`](../../docs/16-charity-schema.md) — 資料表（本專案透過 fixtures 間接對應）
-- [`db/seed/README.md`](../../db/seed/README.md) — 假資料的真實來源與怎麼重新產生
+- [`docs/16-charity-schema.md`](../../docs/16-charity-schema.md) — 資料表（本專案只透過公開 API 取得資料）
+
+## CH-2 串接（2026-10-01）
+
+### 資料來源
+
+全部資料來自 apps/api 的公開端點 `/api/v1/donation-platform/…`，由 `app/composables/useCharityApi.ts` 統一呼叫：
+SSR 讀取走內網（結果隨 payload 帶到瀏覽器），**寫入與輪詢由瀏覽器直打公開 API 網域**——不經 Nuxt 代轉，理由：api 的限流依訪客真實 IP，
+`nuxt-charity` 容器刻意不在 `TRUSTED_PROXY_IPS`（docs/14），代轉會讓全站捐款人共用一份額度（30 次／10 分鐘）。代價是 api 的 CORS 必須允許本站網域。
+本機開發要把 `http://localhost:3003`（或你用的埠）加進 api 的 `CORS_ALLOWED_ORIGINS`（Development 預設清單只有 3000／3001／3002／5174）。
+
+### 流程與冪等
+
+填表送出 → `POST /donations`（`Idempotency-Key`＝UUID；表單內容沒變就沿用同一個鍵，內容變了換新鍵）→ `POST /donations/{單號}/pay` → 整頁導向 `paymentUrl`。
+建單成功但發起付款失敗時，再按一次送出會沿用同一個鍵，後端回原單，不會重複建單。付款失敗／取消後的重試走「沿用原單」的 `/pay`，不需重填。
+結果頁：`?transactionId=` → `confirm`（成功才清掉網址參數）；confirm 暫時打不通時**保留參數**並明示「請不要重複付款」；`?cancel=1` → `cancel`；
+`processing:true` 每 3 秒輪詢，約 3 分鐘後停止並提供「重新查詢結果」按鈕（不無限轉圈）。發票開立失敗對外一律顯示「開立中」。
+
+### 範圍縮減與缺口
+
+- **徵信名單**：後端無公開端點（CH-5），頁面不顯示任何名單、不用假資料頂替；`creditListEnabled=false` 時頁尾連結也隱藏。
+- **Turnstile**：後端沒有「是否啟用」的查詢端點，前台以 `NUXT_PUBLIC_TURNSTILE_SITE_KEY` 決定要不要顯示，兩邊必須一起開（後端開、前台沒給 → 建單回 422）。**未以真實 site key 實測**（只驗證不給 key 時的流程）。
+- 「連回俱樂部官網 11 章成果紀錄」（規劃書 §3.1）：沒有確認的網址，不放猜測的連結。
+- 英文版協會名稱一律「the Association」＋中文正式名，不自創英文全名（docs/22 §6 第 5 項）。
+- 表單草稿只存在瀏覽器記憶體（含身分證字號等個資，不寫 localStorage），重新整理會清空。
+
+### 規格疑點
+
+1. 規劃書 §3.4 要「逾時上限與逾時後文案需明確定義」但未給秒數：本輪採輪詢 3 秒、提示 15 秒、停止 3 分鐘（執行層值，可調）。
+2. 捐贈發票的愛心碼在規劃書是「必填」，舊 mockup 未驗證；現在必填並驗 3–7 碼數字（與後端一致）。
+3. 手機條碼後端只收大寫，前台送出前轉大寫。
+
+### 🔴 待使用者處理：殘留的舊 mockup 檔案
+
+本輪 agent 要刪除下列已無人使用的假資料檔案時被權限分類器擋下，**尚未刪除**，目前以 `nuxt.config.ts` 的 `ignore` 暫時排除（不會被打包成路由）：
+
+- `server/api/charity/`（整個資料夾）、`server/utils/fixtures.ts`、`scripts/sync-fixtures.mjs`、`fixtures/charity-fixtures.json`、（本機的 `.data/`）
+
+刪除後請一併移除 `nuxt.config.ts` 的 `ignore` 設定。注意 `db/seed/emit-charity-fixtures.py` 仍會產生並檢查 `apps/web-charity/fixtures/charity-fixtures.json`（`apps/admin-charity` 的 `lint:fixtures` 會呼叫它）：
+**要刪 `fixtures/` 之前，須先請維護該腳本的人把 web-charity 從匯出目標拿掉**，否則 admin-charity 的 lint 會失敗。Dockerfile 的「build context 缺口」註解已隨之失效。
+
+### 驗收步驟（等使用者啟動 API 並合併後）
+
+1. 使用者啟動 `apps/api`（port 5299，並設 `CHARITY_SQL_CONNECTION_STRING`、`JWT_SIGNING_KEY_CHARITY`，`CORS_ALLOWED_ORIGINS` 含本站來源；本機假金流需 `Development`）。agent 不啟動 API、不碰密碼（E-56）。
+2. `NUXT_PUBLIC_SIMULATED_PAYMENT` 在 `nuxt dev` 下自動開。`npm run dev` → 開 `/zh/`，確認項目卡片來自種子資料。
+3. 用種子店家的 slug 開 `/zh/s/<slug>` → 點項目 → 填表 → 送出 → 進模擬付款頁 → 「模擬付款成功」→ 結果頁顯示成功與遮罩個資。
+4. 重複：取消返回 → 結果頁「尚未完成」→「重新嘗試付款」沿用原單。
+5. 亂填店家 slug → 頁面降級為一般入口且可正常捐款。
+6. `curl -I /zh/` 確認 `X-Robots-Tag: noindex, nofollow`。

@@ -37,6 +37,8 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     <!-- 物件儲存：正式環境接 Azure Blob，本機開發接 Azurite（見 README「本機開發：Azurite」）。 -->
     <PackageReference Include="Azure.Storage.Blobs" Version="12.29.2" />
+    <!-- CH-3 慈善 N1：店家 QR Code（PNG／SVG）。純受控程式碼（不依賴 System.Drawing／原生函式庫），MIT 授權，容器化部署安全。 -->
+    <PackageReference Include="QRCoder" Version="1.8.0" />
   </ItemGroup>
 
   <!-- Tcrfc.Api.Tests（S0-7d）是本目錄底下的獨立子專案，沒有 .sln 把兩者的建置範圍分開，

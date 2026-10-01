@@ -292,12 +292,46 @@ IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = {role_sq(rol
   VALUES ({role_sq(role_code)}, {perm_sq(perm_code)}, {esc(scope_type)});
 """)
 
+# ----------------------------------------------------------------------------
+# 3b. CH-3（2026-10-01）新增的權限碼：異常佇列「已扣款但確認失敗」的處理動作——重新向金流確認付款結果。
+#     🔴 刻意放在這裡、不併入上面的 PERMISSIONS／ROLE_PERMISSION_MAP：那兩個常數會被 emit-charity-fixtures.py
+#     匯出成前端 fixtures（三份副本、前端 lint 會 --check 同步），動它們等於逼兩個前端同步改檔；
+#     這個權限只有 API 用到（後台畫面尚未有對應操作），先獨立一塊，前端要用時再併回常數並重產 fixtures。
+#     非「三類需稽核」的操作，但會動到金流狀態，限系統管理員與客服／行政（同 reveal／export 的角色範圍）。
+# ----------------------------------------------------------------------------
+EXTRA_PERMISSIONS = [
+    ("n3.donation.recheck_payment", "N3", "donation", "execute", "重新確認付款結果", "Recheck Payment Result", False, False),
+]
+EXTRA_ROLE_PERMISSIONS = {
+    "system_admin": ["n3.donation.recheck_payment"],
+    "customer_service_admin": ["n3.donation.recheck_payment"],
+}
+
+emit("-- ── 3b. CH-3 新增的權限碼（API 專用，未併入匯出給前端的常數，理由見上方註解） ────────")
+for code, submodule, domain, action, name_zh, name_en, is_restricted, sysadmin_only in EXTRA_PERMISSIONS:
+    perm_id = new_id("permission", code)
+    block(f"""
+IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = {esc(code)})
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, name_zh, name_en, is_restricted, sysadmin_only)
+  VALUES ({esc(perm_id)}, {esc(code)}, N'N', {esc(submodule)}, {esc(domain)}, {esc(action)}, {esc(name_zh)}, {esc(name_en)}, {esc(is_restricted)}, {esc(sysadmin_only)});
+""")
+for role_code, perm_codes in EXTRA_ROLE_PERMISSIONS.items():
+    for perm_code in perm_codes:
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = {role_sq(role_code)} AND permission_id = {perm_sq(perm_code)})
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ({role_sq(role_code)}, {perm_sq(perm_code)}, NULL);
+""")
+
 # ============================================================================
 # 4. admin_users：一組種子超管 ＋ 三個對應不同角色的測試帳號，讓後台「帳號與角色」
-#    畫面的 mockup 有多筆可看。密碼雜湊全部是明顯的測試占位字串，不是真的雜湊——
-#    這幾個帳號目前無法用來真的登入（後端尚未實作雜湊驗證），must_change_password 全設
-#    為 1，提醒未來接上真的認證機制前不得沿用這批雜湊值。username 是登入識別，看起來
-#    像 Email 但不是（比照主站 docs/12 慣例：種子超管 sa@system.local）。
+#    畫面有多筆可看。username 是登入識別，看起來像 Email 但不是（比照主站 docs/12 慣例：
+#    種子超管 sa@system.local）。
+#    🔴 CH-3（2026-10-01）起：慈善後台登入已實作，這四個帳號改用<b>真的 Argon2id 雜湊</b>，可以直接登入
+#    （雜湊值與主站種子帳號共用同一批已知密碼的雜湊，見 apps/api/README.md「慈善 CH-2／CH-3」的帳號表；
+#    ⛔ 只供本機開發，正式環境不得沿用，建庫後第一件事是用真帳號取代並停用這四個）。
+#    CH-1b 時期建好的本機庫裡，這四列仍是 DEV-SEED- 開頭的占位雜湊——下面的 UPDATE 只升級「還是占位雜湊」的列，
+#    已經被人改過密碼的不動。2FA 不強制、不強制首次改密（2026-09-30 使用者裁決，比照主站）。
 # ============================================================================
 ADMIN_USERS = [
     ("sa@charity.local", None, "系統管理員（測試帳號）", "system_admin", True),
@@ -306,12 +340,19 @@ ADMIN_USERS = [
     ("viewer@charity.local", None, "唯讀檢視（測試帳號）", "viewer", False),
 ]
 
-emit("-- ── 4. admin_users：種子超管 ＋ 三個角色測試帳號 ─────────────────────────")
-emit("-- ⚠️ password_hash 全部是明顯的測試占位字串（DEV-SEED- 開頭），不是真的雜湊值，")
-emit("-- 目前無法用來登入。正式接上認證機制後，這批帳號的密碼必須重設，不得沿用。")
+# 已知密碼的 Argon2id 雜湊（apps/api 的 PasswordHasher 算出，與 generate-club-seed-sql.py 同一批）。
+# 刻意不放進 ADMIN_USERS 元組：ADMIN_USERS 會被 emit-charity-fixtures.py 匯出給前端，雜湊值不該進 fixtures。
+DEV_PASSWORD_HASHES = {
+    "sa@charity.local": "$argon2id$v=19$m=65536,t=3,p=1$qA4b7/CNXFRrB044hvtBzQ==$j2coAMUKbu3mFe+Vyf1oXd4E1Rq8F1RHO/KHt4lDHQ4=",  # Admin@123
+    "cs.admin@charity.local": "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",  # ContentEditor@123
+    "biz.admin@charity.local": "$argon2id$v=19$m=65536,t=3,p=1$UMd2bX7X1E+kvJZReK7EXQ==$hZSGgfUeivSwdQGUg/7Bc8bHO8oHbiBuObGaPXR50EQ=",  # ContentEditor@123
+    "viewer@charity.local": "$argon2id$v=19$m=65536,t=3,p=1$Yas4MM7rRKPwY6uB3kh9NQ==$Ga0YQU8vLGh9mTJ6cbfVwDL66Guv54QyNHq44I46lD4=",  # Viewer@123
+}
+
+emit("-- ── 4. admin_users：種子超管 ＋ 三個角色測試帳號（真 Argon2id 雜湊，可登入，僅供本機開發） ──────")
 for username, email, display_name, role_code, is_super in ADMIN_USERS:
     user_id = new_id("admin_user", username)
-    fake_hash = f"DEV-SEED-NOT-A-REAL-HASH::{username}"
+    real_hash = DEV_PASSWORD_HASHES[username]
     block(f"""
 DECLARE @id uniqueidentifier;
 SELECT @id = id FROM admin_users WHERE username = {esc(username)};
@@ -319,8 +360,11 @@ IF @id IS NULL
 BEGIN
   SET @id = {esc(user_id)};
   INSERT INTO admin_users (id, username, email, display_name, password_hash, must_change_password, is_super_admin, status)
-  VALUES (@id, {esc(username)}, {esc(email)}, {esc(display_name)}, {esc(fake_hash)}, 1, {esc(is_super)}, N'active');
+  VALUES (@id, {esc(username)}, {esc(email)}, {esc(display_name)}, {esc(real_hash)}, 0, {esc(is_super)}, N'active');
 END
+ELSE
+  UPDATE admin_users SET password_hash = {esc(real_hash)}, must_change_password = 0
+  WHERE id = @id AND password_hash LIKE N'DEV-SEED-NOT-A-REAL-HASH%';
 """)
     block(f"""
 IF NOT EXISTS (SELECT 1 FROM admin_user_roles WHERE admin_user_id = {admin_sq(username)} AND admin_role_id = {role_sq(role_code)})

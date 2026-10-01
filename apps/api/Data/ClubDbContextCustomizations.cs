@@ -28,6 +28,12 @@ public partial class ClubDbContext
         modelBuilder.Entity<Page>()
             .Property(p => p.UpdatedAt)
             .IsConcurrencyToken();
+
+        // E 批（2026-10-01，S2-11）：會員前台新增的欄位與兩張表，見 ClubDbContextMemberFront.cs。
+        ConfigureMemberFront(modelBuilder);
+
+        // F 批（2026-10-01，S3-5）：前台結帳新增的訂單欄位、購物車索引與載具密文欄寬，見 ClubDbContextShopFront.cs。
+        ConfigureShopFront(modelBuilder);
     }
 
     // 🔴 S0-7k／S0-7l（2026-09-24，docs/18-work-errors.md E-45／docs/20-cicd.md §5）：

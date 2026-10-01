@@ -3,7 +3,7 @@
  * 挑選會員：遠端搜尋（會員名單端點），結果姓名為遮罩值。
  * 沒有「解除遮罩」權限的人，關鍵字只會比對會員編號，所以提示以會員編號為主。
  */
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { activeClubId } from '@/auth/clubAccess'
 import { searchMembers, type MemberSearchItemDto } from '@/api/adminMemberships'
 import { errorMessage } from './membershipHelpers'
@@ -11,7 +11,16 @@ import { errorMessage } from './membershipHelpers'
 const model = defineModel<string>({ default: '' })
 const emit = defineEmits<{ (e: 'picked', member: MemberSearchItemDto | null): void }>()
 
+/** 預先帶入的會員（例如從待確認申請開通），讓下拉框一開始就顯示會員而不是一串識別碼。 */
+const props = defineProps<{ seed?: MemberSearchItemDto | null }>()
 const options = ref<MemberSearchItemDto[]>([])
+watch(
+  () => props.seed,
+  (seed) => {
+    if (seed && !options.value.some((o) => o.id === seed.id)) options.value = [seed, ...options.value]
+  },
+  { immediate: true },
+)
 const loading = ref(false)
 const searchError = ref<string | null>(null)
 

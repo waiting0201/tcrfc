@@ -48,6 +48,11 @@
         _admin_user）維持原樣，因為那些從一開始就是欄位名的簡稱，不是物理
         表名的字面複製。
 
+   修訂：2026-10-01（CH-3，慈善後台 API）
+     4. 新增 admin_refresh_tokens（更新權杖工作階段狀態，後台登入輪替與重放偵測的
+        必要狀態，不是日誌表；形狀同主站，本庫獨立一份）。其餘表一律未動。
+        規劃書沒有寫這個實作機制，列為待裁決（docs/16 §10）。
+
    ----------------------------------------------------------------------------
    技術約束（對應任務書的硬性規定，編號沿用）：
 
@@ -178,6 +183,27 @@ CREATE TABLE admin_user_roles (
     admin_user_id uniqueidentifier NOT NULL,
     admin_role_id uniqueidentifier NOT NULL,
     CONSTRAINT PK_admin_user_roles PRIMARY KEY CLUSTERED (admin_user_id, admin_role_id)
+);
+
+-- 更新權杖的工作階段狀態（CH-3，2026-10-01 新增）。🔴 不是日誌表，是登入輪替與重放偵測的
+-- 必要狀態：刪掉它，後台登入工作階段就無法安全地輪替或撤銷。形狀與用意同主站
+-- admin_refresh_tokens（db/club-schema.sql，docs/12b §7.7），本庫是另一套帳號體系，獨立一份，
+-- 不共用表、不共用登入。token_hash 只存 SHA-256，原始權杖不落地；replaced_by_id 串成輪替鏈，
+-- 偵測到舊權杖被重放時一次撤銷該帳號全部有效權杖。刻意不存來源 IP 與裝置字串
+-- （同主站 2026-09-23 裁決：只寫入、沒有讀取端、沒有清除機制）。
+-- 規劃書 §10 只寫「帳號與權限」，沒有寫更新權杖這個實作機制，列為待裁決（docs/16 §10）。
+CREATE TABLE admin_refresh_tokens (
+    seq             bigint IDENTITY(1,1) NOT NULL,
+    id              uniqueidentifier NOT NULL DEFAULT NEWID(),
+    admin_user_id   uniqueidentifier NOT NULL,
+    token_hash      nvarchar(128)    NOT NULL,
+    issued_at       datetime2(3)     NOT NULL DEFAULT (SYSUTCDATETIME()),
+    expires_at      datetime2(3)     NOT NULL,
+    revoked_at      datetime2(3)     NULL,
+    replaced_by_id  uniqueidentifier NULL,       -- 自參照 → admin_refresh_tokens.id
+    CONSTRAINT PK_admin_refresh_tokens PRIMARY KEY NONCLUSTERED (id),
+    CONSTRAINT UQ_admin_refresh_tokens_seq UNIQUE CLUSTERED (seq),
+    CONSTRAINT UQ_admin_refresh_tokens_token_hash UNIQUE (token_hash)
 );
 
 -- 權限碼字典。與主站 Permission 同形（docs/16 §2.3，2026-09-20 更新）：保留
@@ -783,6 +809,7 @@ CREATE INDEX IX_donation_payments_donation_id    ON donation_payments (donation_
 CREATE INDEX IX_donation_invoices_donation_id    ON donation_invoices (donation_id);
 CREATE INDEX IX_charity_program_refs_charity_ref ON charity_program_refs (charity_ref_id);
 CREATE INDEX IX_email_logs_email_template_id     ON email_logs (email_template_id);
+CREATE INDEX IX_admin_refresh_tokens_user        ON admin_refresh_tokens (admin_user_id);
 
 
 /* ============================================================================
@@ -879,6 +906,16 @@ ALTER TABLE admin_user_roles
     ADD CONSTRAINT FK_admin_user_roles_role
     FOREIGN KEY (admin_role_id) REFERENCES admin_roles (id)
     ON DELETE CASCADE;
+
+ALTER TABLE admin_refresh_tokens
+    ADD CONSTRAINT FK_admin_refresh_tokens_user
+    FOREIGN KEY (admin_user_id) REFERENCES admin_users (id)
+    ON DELETE CASCADE;
+
+ALTER TABLE admin_refresh_tokens
+    ADD CONSTRAINT FK_admin_refresh_tokens_replaced
+    FOREIGN KEY (replaced_by_id) REFERENCES admin_refresh_tokens (id);
+    -- 自參照，SQL Server 不允許自參照 FK 使用 CASCADE，維持 NO ACTION
 
 ALTER TABLE role_permissions
     ADD CONSTRAINT FK_role_permissions_role

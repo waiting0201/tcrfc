@@ -136,6 +136,29 @@ export default defineNuxtConfig({
         'Referrer-Policy': 'strict-origin-when-cross-origin',
       },
     },
+    // 🔴 S2-11 會員中心：會員相關的頁面與 API 回應一律不得被 SSR／CDN／瀏覽器快取（docs/14 不變量）。
+    // `/m/**` 是電子會員卡公開驗證頁（`/m/{token}`，Cache-Control: no-store 是主站 §3.14 與 API 契約的要求）。
+    // routeRules 會與上面的 `/**` 合併，X-Robots-Tag noindex 仍然保留。
+    '/zh/member/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/en/member/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/m/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/api/member-auth/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/api/backend/member/**': { headers: { 'Cache-Control': 'no-store' } },
+    // 🔴 S3-5 站內商店：庫存、購物車、訂單、付款狀態不得被 SSR／CDN／瀏覽器快取（docs/14 不變量）。
+    // 商品列表與詳情顯示即時可售狀態，購物車／結帳／訂單頁是個人化頁面，BFF 代理 `/api/shop/**` 同樣 no-store。
+    // 這些規則與上面的 `/**` 合併，X-Robots-Tag noindex 仍然保留。
+    '/zh/shop/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/en/shop/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/zh/cart/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/en/cart/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/zh/checkout/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/en/checkout/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/zh/order/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/en/order/**': { headers: { 'Cache-Control': 'no-store' } },
+    '/api/shop/**': { headers: { 'Cache-Control': 'no-store' } },
+    // 舊的球員詳情「範本」頁（寫死楊朝景的示範資料）已由資料驅動的 `/club/first-team/player/{id}/` 取代（S3-9）。
+    '/zh/club/first-team/player': { redirect: { to: '/zh/club/first-team/#roster', statusCode: 302 } },
+    '/en/club/first-team/player': { redirect: { to: '/en/club/first-team/#roster', statusCode: 302 } },
     // site/src/_redirects 逐條移植（10.2＋10.3、10.6＋10.7 合併後的舊網址，規劃書 v1.9）
     '/zh/join/childrens-training/**': { redirect: { to: '/zh/join/academy/', statusCode: 301 } },
     '/zh/join/sponsorship/**': { redirect: { to: '/zh/join/partnership/', statusCode: 301 } },

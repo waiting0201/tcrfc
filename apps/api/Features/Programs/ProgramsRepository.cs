@@ -230,8 +230,10 @@ public sealed class ProgramsRepository(
     /// 單一 <c>UPDATE</c> 陳述式本身就有隱含的列鎖定保護，兩個併發請求不會同時判定「還有名額」。
     /// 這是規劃書「額滿自動關閉、候補遞補」在報名寫入路徑上的落點。
     /// </summary>
+    /// <param name="memberId">E 批：帶著有效會員權杖報名時記到 <c>registrations.member_id</c>（行動 App 的「我的報名」，App 規劃書 §3.9／§9.2：課程報名「匿名或會員，會員身分時寫入 member_id」）。
+    /// 網頁前台不做報名歸戶（主站規劃書 §3.14），不帶權杖就是 null，行為與先前完全相同。</param>
     public async Task<ProgramRegistrationSubmittedDto> SubmitRegistrationAsync(
-        ClubScope scope, Guid sessionId, SubmitProgramRegistrationRequest request, CancellationToken cancellationToken)
+        ClubScope scope, Guid sessionId, SubmitProgramRegistrationRequest request, CancellationToken cancellationToken, Guid? memberId = null)
     {
         if (string.IsNullOrWhiteSpace(request.ApplicantName))
         {
@@ -290,10 +292,10 @@ public sealed class ProgramsRepository(
 
         const string insertSql = """
             INSERT INTO registrations
-                (id, registration_no, club_id, session_id, applicant_name, phone, email, birth_on,
+                (id, registration_no, club_id, session_id, member_id, applicant_name, phone, email, birth_on,
                  guardian_name, guardian_phone, health_declaration, note, status, created_at, updated_at)
             VALUES
-                (@Id, @RegistrationNo, @ClubId, @SessionId, @ApplicantName, @Phone, @Email, @BirthOn,
+                (@Id, @RegistrationNo, @ClubId, @SessionId, @MemberId, @ApplicantName, @Phone, @Email, @BirthOn,
                  @GuardianName, @GuardianPhone, @HealthDeclaration, @Note, @Status, @Now, @Now)
             """;
         await connection.ExecuteAsync(new CommandDefinition(insertSql, new
@@ -302,6 +304,7 @@ public sealed class ProgramsRepository(
             RegistrationNo = registrationNo,
             scope.ClubId,
             SessionId = sessionId,
+            MemberId = memberId,
             request.ApplicantName,
             request.Phone,
             request.Email,

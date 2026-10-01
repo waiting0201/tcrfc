@@ -211,3 +211,35 @@ public sealed record UpdateAdminMemberSettingsRequest
     /// <summary>流水號位數：4 到 10。</summary>
     public required int MemberNoDigits { get; init; }
 }
+
+/// <summary>
+/// K2「待確認申請」清單的一列（F 批，2026-10-01）：會員在網頁會員中心送出的升級申請（<c>membership_orders</c>，狀態 <c>created</c>＝待客服核對款項）。
+/// 客服核對款項後用 <c>POST …/memberships/activate</c> 開通——本列帶了開通所需的 <see cref="MemberId"/>／<see cref="PlanId"/>／<see cref="Amount"/>，
+/// 開通成功時會一併把同一份申請結案（<c>status → activated</c>，<c>activation_source = admin</c>），清單上就不會再出現。
+/// 姓名、Email、電話依「完整個資」權限遮罩（同會籍清單）。
+/// </summary>
+public sealed record AdminMembershipApplicationDto
+{
+    public required string OrderNo { get; init; }
+    public required Guid MemberId { get; init; }
+    public required string MemberNo { get; init; }
+    public string? MemberName { get; init; }
+    public string? MemberEmail { get; init; }
+    public string? MemberPhone { get; init; }
+    public required Guid PlanId { get; init; }
+    public required string PlanCode { get; init; }
+    public string? PlanName { get; init; }
+    public required Guid SeasonId { get; init; }
+    public required string SeasonCode { get; init; }
+
+    /// <summary>伺服器依方案算好的應收金額（元）。</summary>
+    public required int Amount { get; init; }
+
+    /// <summary><c>created</c>／<c>pending_payment</c>／<c>paid</c>／<c>activated</c>／<c>expired</c>／<c>activation_failed</c>／<c>cancelled</c>／<c>refunded</c>。</summary>
+    public required string Status { get; init; }
+    public required string StatusLabel { get; init; }
+    public DateTime? ExpiresAt { get; init; }
+    public DateTime? ActivatedAt { get; init; }
+    public required DateTime CreatedAt { get; init; }
+    public required DateTime UpdatedAt { get; init; }
+}

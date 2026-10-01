@@ -72,7 +72,7 @@ export function useFormSubmit(formCode: string) {
  * `{ message }`／`{ detail }` 形狀，見 apps/api 的 PublicFormSubmissionValidationException
  * 系列例外如何被轉成 ProblemDetails）。取不到就回傳 null，交由呼叫端使用通用文案，
  * 不在這裡假設一定拿得到、也不把整包例外物件字串化塞給使用者看。 */
-function extractErrorMessage(err: unknown): string | null {
+export function extractErrorMessage(err: unknown): string | null {
   if (!err || typeof err !== 'object') return null
   const data = (err as { data?: unknown }).data
   if (!data) return null

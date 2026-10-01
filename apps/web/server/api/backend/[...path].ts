@@ -28,9 +28,74 @@ const FORM_SUBMISSION_PATH = /^[a-z][a-z0-9-]*\/forms\/[a-z][a-z0-9_]*\/submissi
 // 直打的端點。slug 允許小寫英數與連字號（同 FaqSlugPolicy 的既有慣例）。
 const FAQ_FEEDBACK_PATH = /^[a-z][a-z0-9-]*\/faqs\/[a-z0-9-]+\/feedback$/
 
+// ── S2-7／S2-12 新增：09 提案簡介下載（Lead 追蹤）與 7.8 媒體專區下載 ────────────────
+// 規劃書 §3.9 9.4 CTA「檔案下載表單：填寫公司／姓名／Email → 取得下載連結（同時建立 Lead 記錄）」
+// 對應 apps/api `POST /api/v1/{club}/proposals/{id}/download-requests`（Features/Proposals）。
+// 跟表單送出、FAQ 回饋同一層考量：只放行這一種路徑形狀（id 必須是 GUID），不是「POST 且
+// 非表單就一律放行」。端點本身掛 `public-submission` 限流（依 IP 分區），所以同樣要轉發訪客
+// 真實 IP（見下方 forwardedIpHeaders）。
+const PROPOSAL_DOWNLOAD_REQUEST_PATH = /^[a-z][a-z0-9-]*\/proposals\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/download-requests$/i
+
+// 兩條「檔案下載」GET 路徑不能走下面 GET 分支的 `$fetch`（它會把二進位內容當 JSON／文字解析，
+// 丟掉 Content-Type／Content-Disposition，也會在伺服器端自己跟著 302 走掉）：
+//   - 提案檔：`/{club}/proposals/downloads/{token}`，API 串流 PDF／ZIP（`Cache-Control: private,
+//     no-store`，權杖 30 分鐘有效）→ 用 sendProxy 原樣串流轉出，標頭一起帶。
+//   - 媒體資源：`/{club}/press/{slug}/download`，API 累計下載次數後 302 到檔案的公開網址 →
+//     不跟隨轉址，把 Location 原樣回給瀏覽器（檔案由瀏覽器直接向儲存體取，不經過 Nuxt）。
+const PROPOSAL_FILE_PATH = /^[a-z][a-z0-9-]*\/proposals\/downloads\/[A-Za-z0-9_.~-]+$/
+const PRESS_DOWNLOAD_PATH = /^[a-z][a-z0-9-]*\/press\/[a-z0-9-]+\/download$/
+
+/** 轉發訪客真實 IP 給 apps/api 的限流（原理見下方 POST 分支的長註解，E-71）。 */
+function forwardedIpHeaders(event: Parameters<typeof getRequestHeader>[0]): Record<string, string> | undefined {
+  const realIp = getRequestHeader(event, 'x-real-ip')?.trim()
+  return realIp && isIP(realIp) ? { 'x-forwarded-for': realIp } : undefined
+}
+
 export default defineEventHandler(async (event) => {
   const path = event.context.params?.path ?? ''
   const method = event.method
+
+  // ── S2-11／S3-2：會員中心與文化互動端點（白名單、帶權杖、原樣轉回後端狀態碼與 ProblemDetails）──
+  // 規則與「不放行 pay／confirm」的理由見 server/utils/member-proxy.ts 檔頭。命中白名單才處理，
+  // 沒命中完全沿用下面既有邏輯。會員端點的 Cookie（更新權杖）只在 server/api/member-auth/* 讀取。
+  const member = await handleMemberProxy(event, method, path)
+  if (member.handled) return member.body
+
+  if (method === 'GET' && PROPOSAL_FILE_PATH.test(path)) {
+    // 不用 sendProxy：它預設把瀏覽器送來的請求標頭（含 cookie／Authorization）整份轉給 apps/api，
+    // 與這支代理「不轉發任何認證」的既有原則不符。改成自己發請求、只挑回應標頭轉出。
+    const res = await $fetch.raw<ReadableStream>(`/api/v1/${path}`, {
+      baseURL: backendApiBase(),
+      responseType: 'stream',
+      ignoreResponseError: true,
+      headers: forwardedIpHeaders(event),
+    })
+    if (res.status !== 200 || !res._data) {
+      throw createError({ statusCode: res.status === 200 ? 404 : res.status, statusMessage: res.status === 429 ? 'Too Many Requests' : 'Not Found' })
+    }
+    for (const name of ['content-type', 'content-disposition', 'content-length']) {
+      const value = res.headers.get(name)
+      if (value) setResponseHeader(event, name, value)
+    }
+    // apps/api 明文 `private, no-store`（權杖連結，30 分鐘有效），原樣保留，不得被 CDN 快取。
+    setResponseHeader(event, 'cache-control', res.headers.get('cache-control') ?? 'private, no-store')
+    return sendStream(event, res._data)
+  }
+
+  if (method === 'GET' && PRESS_DOWNLOAD_PATH.test(path)) {
+    const res = await $fetch.raw(`/api/v1/${path}`, {
+      baseURL: backendApiBase(),
+      redirect: 'manual',
+      ignoreResponseError: true,
+      headers: forwardedIpHeaders(event),
+    })
+    const location = res.headers.get('location')
+    if (res.status >= 300 && res.status < 400 && location && /^https?:\/\//i.test(location)) {
+      return await sendRedirect(event, location, 302)
+    }
+    // 404（未發布／找不到）與限流 429 原樣轉成同狀態碼，不偽造成功。
+    throw createError({ statusCode: res.status >= 400 ? res.status : 404, statusMessage: res.status === 429 ? 'Too Many Requests' : 'Not Found' })
+  }
 
   if (method === 'GET') {
     // 既有行為不變：無 body，直接轉發查詢字串。
@@ -38,7 +103,7 @@ export default defineEventHandler(async (event) => {
     return await $fetch(`/api/v1/${path}`, { baseURL: backendApiBase(), method, query })
   }
 
-  if (method !== 'POST' || !(FORM_SUBMISSION_PATH.test(path) || FAQ_FEEDBACK_PATH.test(path))) {
+  if (method !== 'POST' || !(FORM_SUBMISSION_PATH.test(path) || FAQ_FEEDBACK_PATH.test(path) || PROPOSAL_DOWNLOAD_REQUEST_PATH.test(path))) {
     throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })
   }
 
@@ -65,13 +130,10 @@ export default defineEventHandler(async (event) => {
   // header_up 會覆蓋訪客自送的同名標頭；本容器沒有對外發布 port，只有 Caddy 連得進來。
   // 轉給 apps/api 時以「單一值」的 X-Forwarded-For 送出，對應 api 端信任 web 容器、ForwardLimit=1。
   // 取不到（本機開發沒有 Caddy）時不送標頭，不刻意造假。
-  const realIp = getRequestHeader(event, 'x-real-ip')?.trim()
-  const clientIp = realIp && isIP(realIp) ? realIp : undefined
-
   return await $fetch(`/api/v1/${path}`, {
     baseURL: backendApiBase(),
     method,
     body,
-    headers: clientIp ? { 'x-forwarded-for': clientIp } : undefined,
+    headers: forwardedIpHeaders(event),
   })
 })

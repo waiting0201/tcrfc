@@ -1,11 +1,14 @@
 <script setup lang="ts">
 // app/pages/zh/news/media.vue — 由 site/src/pages/zh/news/media/index.html 轉來（S0-9 靜態頁搬遷）
+import type { PressResource, PressResourceType } from '#shared/utils/press'
+import type { PagedResponse } from '#shared/utils/api-types'
+
 definePageMeta({ nav: "news", unit: "07" })
 
 const config = useRuntimeConfig()
 const club = config.public.club
 const isTcrfc = computed(() => club !== 'bw')
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
 
 // BW-C1（品牌外洩全站盤點）：title／description 原本固定寫死「台中磐石足球俱樂部」；
 // 分類導覽改用共用元件 NewsCategoryTabs（理由同 academy.vue／player-stories.vue）；
@@ -13,6 +16,27 @@ const { lp } = useLocale()
 // 的實際向量檔案，藍鯨目前只有隊徽點陣主檔、沒有向量（CLAUDE.md 品牌資產列「向量
 // 原始檔仍未提供」），不得把磐石的向量檔案路徑掛在藍鯨站上假裝藍鯨也有一整包可下載
 // 的品牌識別包，改為只對 tcrfc 顯示，bw 顯示誠實的「尚未提供」空狀態。
+// S2-12（7.8 媒體專區）：新聞稿／品牌識別包／高解析圖庫三類資源讀 `GET /api/backend/{club}/press`（後台 B6，只回
+// 已發布；共同列一併回、專屬優先，所以磐石與藍鯨各自只會看到自己的＋共用的資源）。
+// 🔴 下載一律經同源代理 `/api/backend/{club}/press/{slug}/download`（API 累計下載次數後 302 到檔案），不直接輸出
+// 檔案網址，這樣後台的「累計下載次數」才準。
+// 🔴 磐石的「靜態品牌識別包」（隊徽 SVG／PNG、社群分享圖，直接由 logo 主檔向量萃取）是真實可下載檔案，保留為過渡內容；
+// 後台 B6 建立的「品牌識別包」資源另列在其下，兩者並存、不互相取代。藍鯨沒有向量主檔（CLAUDE.md 品牌資產列），
+// 只顯示後台 B6 建立的資源，沒有就誠實空狀態。
+// 🔴 媒體聯絡窗口（7.8.4）導 10.6 媒體聯絡表單（規劃書 §3.7），不在本頁另放聯絡資料。
+async function fetchPress(type: PressResourceType) {
+  const { data } = await useFetch<PagedResponse<PressResource>>(`/api/backend/${club}/press`, {
+    query: { type, lang: locale.value, pageSize: 100 },
+    key: `press-${club}-${type}-${locale.value}`,
+  })
+  return computed(() => data.value?.items ?? [])
+}
+const [pressReleases, brandKits, hiresImages] = await Promise.all([
+  fetchPress('press_release'),
+  fetchPress('brand_kit'),
+  fetchPress('hires_image'),
+])
+
 useSeoMeta({
   title: computed(() => `媒體專區 Media｜新聞 News｜${getClubAssets(club).nameZh}`),
   description: computed(() => (isTcrfc.value
@@ -110,7 +134,34 @@ useSeoMeta({
         <h2 class="section-title" id="brandkit-title" style="color:#fff">品牌識別包</h2>
       </div>
     </div>
-    <p style="margin-top:1.5rem;color:var(--muted-dark)">品牌識別包（隊徽向量檔、社群分享圖）尚未提供，稍後將於本頁公布。</p>
+    <p v-if="!brandKits.length" style="margin-top:1.5rem;color:var(--muted-dark)">品牌識別包（隊徽向量檔、社群分享圖）尚未提供，稍後將於本頁公布。</p>
+    <ul v-else class="press-list press-list--dark">
+      <li v-for="r in brandKits" :key="r.id" class="press-item">
+        <div class="press-item__main">
+          <p class="press-item__title">{{ r.title }}</p>
+          <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
+          <p class="press-item__meta">{{ [slashDate(r.publishedOn), fileKindLabel(r.fileExtension), formatFileSize(r.fileBytes)].filter(Boolean).join(' · ') }}</p>
+        </div>
+        <a v-if="pressDownloadHref(club, r.slug)" class="btn btn--primary btn--sm" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="`下載：${r.title}`">下載</a>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- 磐石：後台 B6 另外建立的品牌識別包資源，列在靜態識別包之後（兩者並存） -->
+<section v-if="isTcrfc && brandKits.length" class="band grain grain--2" aria-labelledby="brandkit-more-title">
+  <div class="band-inner container">
+    <h2 class="section-title" id="brandkit-more-title" style="color:#fff">更多識別素材</h2>
+    <ul class="press-list press-list--dark">
+      <li v-for="r in brandKits" :key="r.id" class="press-item">
+        <div class="press-item__main">
+          <p class="press-item__title">{{ r.title }}</p>
+          <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
+          <p class="press-item__meta">{{ [slashDate(r.publishedOn), fileKindLabel(r.fileExtension), formatFileSize(r.fileBytes)].filter(Boolean).join(' · ') }}</p>
+        </div>
+        <a v-if="pressDownloadHref(club, r.slug)" class="btn btn--primary btn--sm" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="`下載：${r.title}`">下載</a>
+      </li>
+    </ul>
   </div>
 </section>
 
@@ -122,7 +173,17 @@ useSeoMeta({
         <h2 class="section-title" id="press-title">新聞稿下載</h2>
       </div>
     </div>
-    
+    <ul v-if="pressReleases.length" class="press-list">
+      <li v-for="r in pressReleases" :key="r.id" class="press-item">
+        <div class="press-item__main">
+          <p class="press-item__title">{{ r.title }}</p>
+          <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
+          <p class="press-item__meta">{{ [slashDate(r.publishedOn), fileKindLabel(r.fileExtension), formatFileSize(r.fileBytes)].filter(Boolean).join(' · ') }}</p>
+        </div>
+        <a v-if="pressDownloadHref(club, r.slug)" class="btn btn--dark btn--sm" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="`下載：${r.title}`">下載</a>
+      </li>
+    </ul>
+    <p v-else class="press-empty">新聞稿整理中，稍後將於本頁公布。</p>
   </div>
 </section>
 
@@ -134,7 +195,15 @@ useSeoMeta({
         <h2 class="section-title" id="gallery-title">高解析圖庫</h2>
       </div>
     </div>
-    
+    <ul v-if="hiresImages.length" class="press-gallery">
+      <li v-for="r in hiresImages" :key="r.id">
+        <a v-if="pressDownloadHref(club, r.slug)" class="press-gallery__item" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="`下載高解析圖：${r.title}`">
+          <img v-if="r.coverUrl" :src="r.coverUrl" :alt="r.description ?? r.title ?? ''" loading="lazy" width="640" height="427">
+          <span class="press-gallery__cap">{{ r.title }}<small v-if="formatFileSize(r.fileBytes)"> · {{ formatFileSize(r.fileBytes) }}</small></span>
+        </a>
+      </li>
+    </ul>
+    <p v-else class="press-empty">高解析圖庫整理中，稍後將於本頁公布。</p>
   </div>
 </section>
 
@@ -146,7 +215,8 @@ useSeoMeta({
         <h2 class="section-title" id="mediacontact-title">媒體聯絡窗口</h2>
       </div>
     </div>
-    
+    <p class="press-empty">媒體採訪、轉載授權與資料索取，請透過媒體聯絡表單與我們聯繫。</p>
+    <p><a class="btn btn--dark btn--sm" :href="lp('/zh/join/media/')">前往媒體聯絡表單</a></p>
   </div>
 </section>
 </template>
@@ -159,4 +229,23 @@ useSeoMeta({
    into shared tcrfc.css, see build report.
    ============================================================ */
 .news-toolbar{ display:flex; flex-direction:column; gap:1.25rem; margin-bottom:1.75rem; }
+
+/* 7.8 媒體資源清單與圖庫（S2-12） */
+.press-list{ list-style:none; padding:0; margin:1.5rem 0 0; display:flex; flex-direction:column; border-top:1px solid var(--rule); }
+.press-item{ display:flex; gap:1.25rem; align-items:center; justify-content:space-between; padding:1.1rem 0; border-bottom:1px solid var(--rule); }
+.press-item__main{ min-width:0; }
+.press-item__title{ font-weight:800; color:var(--heading); line-height:1.5; }
+.press-item__desc{ font-size:.88rem; line-height:1.7; color:var(--text); margin-top:.25rem; white-space:pre-line; }
+.press-item__meta{ font-size:.78rem; font-weight:700; color:var(--muted); margin-top:.3rem; }
+.press-list--dark{ border-top-color:rgba(255,255,255,.15); }
+.press-list--dark .press-item{ border-bottom-color:rgba(255,255,255,.15); }
+.press-list--dark .press-item__title{ color:#fff; }
+.press-list--dark .press-item__desc, .press-list--dark .press-item__meta{ color:var(--muted-dark); }
+.press-gallery{ list-style:none; padding:0; margin:1.5rem 0 0; display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:1rem; }
+.press-gallery__item{ display:block; text-decoration:none; color:inherit; }
+.press-gallery__item img{ width:100%; aspect-ratio:3/2; object-fit:cover; display:block; background:var(--paper-2); }
+.press-gallery__cap{ display:block; font-size:.82rem; font-weight:700; margin-top:.4rem; color:var(--heading); }
+.press-gallery__cap small{ font-weight:500; color:var(--muted); }
+.press-empty{ margin:1.25rem 0; color:var(--muted); font-size:.9rem; }
+@media (max-width:560px){ .press-item{ flex-direction:column; align-items:flex-start; } }
 </style>

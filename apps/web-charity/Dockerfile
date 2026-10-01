@@ -7,17 +7,7 @@
 #
 # 產物假設：`npm run build` 產出 Nuxt 4 的 `.output/`，內含 `.output/server/index.mjs`。
 #
-# 🔴 已知缺口，留給 deployment-engineer／CI 設定確認（本次任務範圍只到 apps/web-charity/ 底下，
-# 不擅自改動 docker-compose／CI 設定，見本次任務回報）：
-# 假資料的唯一來源 db/seed/charity-fixtures.json 位在 monorepo 根目錄，本專案用
-# `npm run build` 的 `prebuild` 生命週期腳本（scripts/sync-fixtures.mjs）在建置前把它同步進
-# 本專案內的 .data/ 目錄再 import——這在「完整 monorepo checkout 下直接跑 npm run build」時
-# 沒問題（本地開發、CI 的 lint／unit test 步驟），但如果這個 Dockerfile 實際被建置時的
-# build context 局限在 apps/web-charity/ 本身（docs/20-cicd.md §3 的 paths-filter 慣例看起來
-# 是這樣），`COPY . .` 拿不到 monorepo 根目錄的 db/seed/，sync-fixtures.mjs 會在 RUN npm run
-# build 這一步失敗。需要 deployment-engineer／CI 決定：要嘛把這個 Dockerfile 的 build context
-# 改成 repo root，要嘛在 docker build 前的 CI 步驟裡把 db/seed/charity-fixtures.json 暫存進
-# 這個目錄下再建置。本檔沒有自行假設其中一種解法。
+# （2026-10-01）前台已改接真 API，不再依賴 db/seed 的假資料，先前「build context 缺 charity-fixtures.json」的缺口已不存在。
 
 FROM node:24.13.1-alpine AS deps
 WORKDIR /app

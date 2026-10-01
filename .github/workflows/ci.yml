@@ -229,9 +229,37 @@ jobs:
           dotnet tool restore
           dotnet ef migrations has-pending-model-changes --context ClubDbContext
 
+      # ── CH-3（2026-10-01）：慈善 CharityDbContext 的同一組健檢（獨立資料庫、獨立 migration 歷史）──────
+      # snapshot 放在 CharityPlatform/Data/Migrations/。⚠️ `dotnet ef migrations add --namespace …` 會把 snapshot 放到
+      # apps/api/Tcrfc/Api/CharityPlatform/…（依命名空間推路徑），要手動移回；這支檢查找的是正確位置，放錯會讓這一步變紅。
+      # 慈善平台有設定 CHARITY_SQL_CONNECTION_STRING 才啟用，啟用時 JWT_SIGNING_KEY_CHARITY 必填（缺值啟動失敗），所以兩個都要給；
+      # 兩個 JWT 金鑰只是讓 host 建得起來，不是任何環境的真實值。
+      - name: EF Core migrations 基準健檢（慈善：snapshot 存在性 ＋ 模型與 snapshot 是否一致）
+        env:
+          CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+          JWT_SIGNING_KEY_CLUB: "ci-only-jwt-signing-key-club-0123456789abcdef"
+          CHARITY_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_charity;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+          JWT_SIGNING_KEY_CHARITY: "ci-only-jwt-signing-key-charity-0123456789abcdef"
+        run: |
+          set -euo pipefail
+          cd apps/api
+          if compgen -G "CharityPlatform/Data/Migrations/*.Designer.cs" > /dev/null; then
+            if [ ! -f "CharityPlatform/Data/Migrations/CharityDbContextModelSnapshot.cs" ]; then
+              echo "::error::存在慈善 Migrations/*.Designer.cs 但找不到 CharityPlatform/Data/Migrations/CharityDbContextModelSnapshot.cs（snapshot 被刪、忘記 commit，或被 dotnet ef 放到 apps/api/Tcrfc/Api/… 沒有移回）。"
+              exit 1
+            fi
+          fi
+          dotnet tool restore
+          dotnet ef migrations has-pending-model-changes --context CharityDbContext
+
       - name: dotnet test（Tcrfc.Api.Tests，接真正的 SQL Server 與 redis-server）
         env:
           CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+          # CH-3：慈善整合測試（CharityApiFixture）需要的連線字串（庫名由 CharityTestDatabaseGuard 硬性限定為 tcrfc_charity）。
+          # 🔴 這兩個變數設在整個測試步驟，所以每個測試主機都會啟用慈善平台——JWT_SIGNING_KEY_CHARITY 因此也必須在這裡給
+          # （啟用時必填，缺值啟動失敗）；金鑰只是 CI 用完即丟的值，不是任何環境的真實憑證。
+          CHARITY_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_charity;User Id=sa;Password=${{ env.CI_MSSQL_SA_PASSWORD }};TrustServerCertificate=True;"
+          JWT_SIGNING_KEY_CHARITY: "ci-only-jwt-signing-key-charity-0123456789abcdef"
         run: dotnet test apps/api/Tcrfc.Api.Tests/Tcrfc.Api.Tests.csproj -c Release --no-restore
 
       - uses: docker/setup-buildx-action@v3

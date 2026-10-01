@@ -1,24 +1,38 @@
 <script setup lang="ts">
-// app/pages/zh/culture/fan-club/index.vue — 由 site/src/pages/zh/culture/fan-club/index.html 轉來
-// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+// app/pages/zh/culture/fan-club/index.vue — 8.2 球迷會（付費會籍的介紹與加入頁，主站 §3.8，S3-2）
+//
+// 區塊：會籍方案（後台 K2 `membership/plans`）／權益對照（K4，與加入頁、會員中心共用同一元件與資料）／
+// 特約店家預告（8.4）／球迷活動列表與回顧（F2 `fan-events`）／球迷會員抽獎（純說明段落，非互動區塊）。
+// 兩個俱樂部同一版型（藍鯨規劃書 §1.3、§5.1）；資料依容器的 `club` 由後端分區，藍鯨目前沒有現行方案與活動，
+// 顯示誠實的空狀態。BW-C1 當時的「藍鯨尚未推出」整頁空狀態已隨後端資料到位而移除。
+import { formatPlainDate, formatTaipeiDateTime } from '#shared/utils/member'
+import type { FanEvent } from '#shared/utils/member'
+
 definePageMeta({ nav: 'culture', unit: '8.2' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
 const config = useRuntimeConfig()
-const isTcrfc = computed(() => config.public.club !== 'bw')
-// BW-C1（品牌外洩全站盤點）：本頁是磐石的付費球迷會籍方案（真實分級方案、真實活動
-// 照片），藍鯨沒有已核實的對應付費會籍方案可以引用（紀律 11：不得自行創作），與
-// culture/manga/index.vue 同一種處理：對藍鯨顯示誠實的「尚未推出」空狀態。
-const clubAssets = computed(() => getClubAssets(config.public.club))
-const identity = computed(() => getClubIdentity(config.public.club))
+const club = config.public.club
+const isTcrfc = computed(() => club !== 'bw')
+const clubAssets = computed(() => getClubAssets(club))
+const identity = computed(() => getClubIdentity(club))
+
+const { plans, failed: plansFailed } = await useMembershipPlans()
+const lang = locale.value
+const [{ data: upcoming }, { data: past }] = await Promise.all([
+  useFetch<FanEvent[]>(`/api/backend/${club}/fan-events`, { query: { phase: 'upcoming', lang }, key: `fan-events-${club}-upcoming-${lang}` }),
+  useFetch<FanEvent[]>(`/api/backend/${club}/fan-events`, { query: { phase: 'past', lang }, key: `fan-events-${club}-past-${lang}` }),
+])
+const safeImg = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
+const feeText = (n: number) => `NT$ ${n.toLocaleString('zh-TW')}`
+// 過渡內容：磐石既有的 4 張真實活動照片，後台 F2 出現任何一筆「活動回顧」資料即整批退場，不混搭
+const showStaticReview = computed(() => isTcrfc.value && (past.value ?? []).length === 0)
 
 useSeoMeta({
   title: computed(() => (isTcrfc.value
     ? '台中磐石球迷會 Fan Club｜台中磐石文化｜台中磐石足球俱樂部'
     : `球迷會｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isTcrfc.value
-    ? '加入台中磐石球迷會：入會表單、會員福利分級對照，以及球迷活動報名與回顧。'
-    : `${clubAssets.value.nameZh}球迷會。球迷會活動由後台提供，目前尚無可顯示的內容。`)),
+  description: computed(() => `加入${clubAssets.value.nameZh}球迷會：會籍方案、會員福利分級對照，以及球迷活動報名與回顧。`),
 })
 </script>
 
@@ -40,12 +54,10 @@ useSeoMeta({
     <p class="page-hero__eyebrow">8.2 Fan Club</p>
     <h1 v-if="isTcrfc">台中磐石球迷會<span class="en">Fan Club</span></h1>
     <h1 v-else>球迷會<span class="en">Fan Club</span></h1>
-    <p v-if="isTcrfc" class="page-hero__lede">與台中磐石一起在場邊吶喊。球迷會即台中磐石的付費會籍，除了球衣，還能在特約店家享有更多折扣，並優先參與球迷活動。</p>
-    <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}球迷會的活動內容由後台提供，目前尚無可顯示的內容。</p>
+    <p class="page-hero__lede">與{{ clubAssets.shortNameZh }}一起在場邊吶喊。球迷會即{{ clubAssets.shortNameZh }}的付費會籍，除了球衣，還能在特約店家享有更多折扣，並優先參與球迷活動。</p>
   </div>
 </section>
 
-<template v-if="isTcrfc">
 <!-- SPEC 3.8 §8.2 — Membership Plans 會籍方案 -->
 <section class="band" id="join" aria-labelledby="join-title">
   <div class="container">
@@ -57,38 +69,32 @@ useSeoMeta({
     </div>
 
     <p class="section-lede" style="margin-top:.75rem">
-      球迷會員即台中磐石的付費會籍，以<strong>球季</strong>為單位計算，全體同時到期，於球季末辦理續會。
+      球迷會員即{{ clubAssets.shortNameZh }}的付費會籍，以<strong>球季</strong>為單位計算，全體同時到期，於球季末辦理續會。
       會費以 LINE Pay 收款連結或現場收款繳交，完成後由俱樂部開通會籍。
     </p>
 
-    <div class="grid grid--2 plan-grid">
-      <article class="plan-card">
-        <h3 class="plan-card__name">單人方案</h3>
-        <p class="plan-card__price pending-cell">年費待定</p>
+    <div v-if="plans.length > 0" class="grid grid--2 plan-grid">
+      <article v-for="p in plans" :key="p.code" class="plan-card">
+        <h3 class="plan-card__name">{{ p.name }}</h3>
+        <p class="plan-card__price">{{ feeText(p.fee) }}／{{ p.seasonCode }} 球季</p>
         <ul class="plan-card__list">
-          <li>電子會員卡 1 張</li>
-          <li>入會球衣（件數待定）</li>
+          <li>電子會員卡 {{ p.cardQuota }} 張</li>
+          <li v-if="p.jerseyQuota > 0">入會球衣 {{ p.jerseyQuota }} 件</li>
           <li>特約店家折扣，含「限付費會員」品項</li>
           <li>球迷活動優先報名</li>
+          <li v-if="p.startsOn || p.endsOn">會籍期間 {{ formatPlainDate(p.startsOn) }} – {{ formatPlainDate(p.endsOn) }}</li>
+          <li v-if="p.benefitNote">{{ p.benefitNote }}</li>
+          <li v-if="p.midSeasonRule">季中入會：{{ p.midSeasonRule }}</li>
         </ul>
-        <a class="btn btn--primary btn--block" :href="lp('/zh/member/#tab-register')">加入會員後升級</a>
-      </article>
-      <article class="plan-card">
-        <h3 class="plan-card__name">家庭方案</h3>
-        <p class="plan-card__price pending-cell">是否開放與費用待定</p>
-        <ul class="plan-card__list">
-          <li>電子會員卡多張（1 位成人 + 數位小童）</li>
-          <li>入會球衣，每張卡各一件</li>
-          <li>特約店家折扣，含「限付費會員」品項</li>
-          <li>球迷活動優先報名</li>
-        </ul>
-        <a class="btn btn--dark btn--block" :href="lp('/zh/join/general/')">洽詢家庭方案</a>
+        <a class="btn btn--primary btn--block" :href="lp('/zh/member/')">加入或升級</a>
       </article>
     </div>
-
-    <div class="pending-note">
-      年費金額、是否開設家庭方案、各方案含幾件球衣、球季起訖日與球衣尺碼表待補
-      —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 3、4、5、7、8 點。
+    <div v-else class="pending-note">
+      <template v-if="plansFailed">會籍方案暫時無法載入，請稍後再試。</template>
+      <template v-else>
+        <strong>目前沒有開放加入的會籍方案</strong> —— 球季與方案（含年費、含幾張卡與幾件球衣）公布後，會在這裡顯示並開放申請。
+        您可以先<a :href="lp('/zh/member/#tab-register')">免費加入會員</a>。
+      </template>
     </div>
   </div>
 </section>
@@ -103,14 +109,10 @@ useSeoMeta({
 <!-- SPEC 3.8 §8.4 — 特約店家導引 -->
 <section class="band paper-2-band" aria-labelledby="perks-title">
   <div class="container">
-    <div class="perks-lead">
-      <div>
-        <p class="kicker">PARTNER PERKS</p>
-        <h2 class="section-title" id="perks-title">特約店家折扣</h2>
-        <p class="section-lede">到店出示電子會員卡即可享折扣，店家目視查驗，不需額外手續。付費會員另可使用標示「限付費會員」的優惠。</p>
-      </div>
-      <a class="btn btn--dark" :href="lp('/zh/perks/')">查看完整店家清單</a>
-    </div>
+    <p class="kicker">PARTNER PERKS</p>
+    <h2 class="section-title" id="perks-title">特約店家折扣</h2>
+    <p class="section-lede">到店出示電子會員卡即可享折扣，店家目視查驗，不需額外手續。付費會員另可使用標示「限付費會員」的優惠。</p>
+    <MemberPerksTeaser />
   </div>
 </section>
 
@@ -124,19 +126,36 @@ useSeoMeta({
       </div>
     </div>
 
-    <div class="grid grid--2">
-      <article class="event-card">
-        
-        <a class="btn btn--dark btn--sm" :href="lp('/zh/member/')">我要報名</a>
-      </article>
-      <article class="event-card">
-        
-        <a class="btn btn--dark btn--sm" :href="lp('/zh/member/')">我要報名</a>
-      </article>
-    </div>
+    <ul v-if="(upcoming ?? []).length > 0" class="fe-list">
+      <li v-for="e in upcoming" :key="e.slug" class="fe-card">
+        <div v-if="safeImg(e.coverThumbUrl || e.coverUrl)" class="fe-card__media"><img :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="e.name" loading="lazy" width="640" height="427"></div>
+        <div class="fe-card__body">
+          <h3 class="fe-card__title">{{ e.name }}</h3>
+          <p class="fe-card__meta">
+            <template v-if="e.startsAt">{{ formatTaipeiDateTime(e.startsAt, locale) }}<br></template>
+            <template v-if="e.location">{{ e.location }}<br></template>
+            <span v-if="e.isPaidMembersOnly" class="mc-badge mc-badge--ok">限付費球迷會員</span>
+            <span v-if="e.isFull" class="mc-badge">名額已滿・可候補</span>
+            <span v-else-if="e.spotsLeft !== null" class="mc-badge">剩餘 {{ e.spotsLeft }} 名</span>
+          </p>
+          <a class="btn btn--dark btn--sm" :href="lp(`/zh/culture/fan-club/events/${e.slug}/`)">{{ e.isRegistrationOpen ? '詳情與報名' : '活動詳情' }}</a>
+        </div>
+      </li>
+    </ul>
+    <p v-else class="is-pending" style="margin-top:1.25rem;">目前沒有即將舉辦的球迷活動，公布後會在這裡開放報名。</p>
 
     <h3 style="margin-top:2.5rem;font-size:1.15rem;font-weight:800;color:var(--heading)">活動回顧</h3>
-    <div class="grid grid--4" style="margin-top:1.25rem">
+    <ul v-if="(past ?? []).length > 0" class="fe-list">
+      <li v-for="e in past" :key="e.slug" class="fe-card">
+        <div v-if="safeImg(e.coverThumbUrl || e.coverUrl)" class="fe-card__media"><img :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="e.name" loading="lazy" width="640" height="427"></div>
+        <div class="fe-card__body">
+          <h4 class="fe-card__title">{{ e.name }}</h4>
+          <p class="fe-card__meta"><template v-if="e.startsAt">{{ formatTaipeiDateTime(e.startsAt, locale) }}<br></template><template v-if="e.location">{{ e.location }}</template></p>
+          <a class="btn btn--dark btn--sm" :href="lp(`/zh/culture/fan-club/events/${e.slug}/`)">活動回顧</a>
+        </div>
+      </li>
+    </ul>
+    <div v-else-if="showStaticReview" class="grid grid--4" style="margin-top:1.25rem">
       <figure class="event-photo">
         <img src="/assets/img/fanclub/fanclub-event-01.jpg" alt="球迷會周邊展示：主場球衣、TCRFC 球帽、背包與造型抱枕" loading="lazy" width="1600" height="1067">
       </figure>
@@ -150,7 +169,7 @@ useSeoMeta({
         <img src="/assets/img/fanclub/fanclub-event-04.jpg" alt="球員、學員與球迷於球場大合照" loading="lazy" width="1600" height="1067">
       </figure>
     </div>
-    
+    <p v-else class="is-pending" style="margin-top:1.25rem;">還沒有活動回顧。</p>
   </div>
 </section>
 
@@ -170,33 +189,14 @@ useSeoMeta({
       <li><strong>現場或直播人工開獎</strong>，抽出的是抽獎序號，過程公開可見證。</li>
       <li><strong>獎品為實體物品</strong>，人工寄送或現場領取，領取方式比照入會球衣。</li>
       <li><strong>結果公布於最新消息</strong>，名單一律遮罩（抽獎序號、會員編號、姓名遮罩）。</li>
+      <li><strong>各俱樂部各自舉辦抽獎</strong>：同時具備兩隊付費會籍者，可分別參加兩隊的抽獎（在每一次抽獎中仍只有一個號）。</li>
     </ul>
     <p class="benefits__note">
       各次抽獎的獎品、名額、資格基準時間與開獎時間，一律於最新消息公布。
       <a :href="lp('/zh/news/')">前往最新消息 →</a>
     </p>
-
-    <div class="pending-note">
-      首波抽獎的獎品內容、開獎時間與場合、領獎期限與活動辦法待補
-      —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 16–20 點。
-    </div>
   </div>
 </section>
-</template>
-<template v-else>
-<!-- 球迷會活動由後台 F2 維護（尚未開發）；藍鯨規劃書 §2.1（行 136）：有內容就顯示，沒有就顯示空狀態。 -->
-<section id="events" class="band" aria-labelledby="events-title">
-  <div class="container">
-    <div class="eyebrow-row">
-      <div>
-        <p class="kicker">FAN EVENTS</p>
-        <h2 id="events-title" class="section-title">球迷活動</h2>
-      </div>
-    </div>
-    <p class="is-pending">球迷活動由後台提供，目前尚無可顯示的內容。</p>
-  </div>
-</section>
-</template>
 </template>
 
 <style>

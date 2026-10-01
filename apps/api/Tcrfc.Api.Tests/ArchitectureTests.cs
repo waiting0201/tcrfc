@@ -68,6 +68,9 @@ public sealed class ArchitectureTests
         // S1-8 新增（列級授權強制）：TeamRowScope 是同一套「型別層強制授權」的第四個型別，
         // 見 Security/TeamRowScope.cs 檔頭「取捨」段——沒有理由讓它逃過同一道 Roslyn 語意掃描。
         "Tcrfc.Api.Security.TeamRowScope",
+        // CH-3 新增：慈善後台的授權結果型別，同一套「型別層強制授權」的第五個型別（慈善是獨立後台、獨立帳號體系，
+        // 所以不併入上面任何一個），唯一產生者是 CharityPlatform/Security/CharityAdminAuthorizer.cs。
+        "Tcrfc.Api.CharityPlatform.Security.CharityAdminScope",
     ];
 
     private static string RepoRoot([CallerFilePath] string thisFilePath = "")
@@ -88,6 +91,7 @@ public sealed class ArchitectureTests
             Path.Combine(apiDir, "Security", "ClubResolver.cs"),         // ClubScope 的唯一產生者
             Path.Combine(apiDir, "Security", "AdminSystemAuthorizer.cs"), // AdminSystemScope 的唯一產生者
             Path.Combine(apiDir, "Security", "AdminTeamRowScopeResolver.cs"), // TeamRowScope 的唯一產生者
+            Path.Combine(apiDir, "CharityPlatform", "Security", "CharityAdminAuthorizer.cs"), // CharityAdminScope 的唯一產生者
         };
 
         var sourceFiles = Directory.EnumerateFiles(apiDir, "*.cs", SearchOption.AllDirectories)

@@ -294,6 +294,14 @@ migration 也不會多出非預期的 `CreateIndex`。**這不影響 EF 查詢�
 檔案（讓檔案內容對齊資料庫現況），不要用 `--force` 硬刪重建**——`tcrfc_club` 常有多個 agent
 同時在用，這條路徑的風險不是理論上的。
 
+### 🔵 慈善庫的 migration（CH-3，2026-10-01）
+
+慈善庫有自己的 `CharityDbContext`（`apps/api/CharityPlatform/Data/`），**獨立的 migration 歷史**，流程同上，只是換 context 與輸出目錄：
+`dotnet ef migrations add <名稱> --context CharityDbContext -o CharityPlatform/Data/Migrations --namespace Tcrfc.Api.CharityPlatform.Data.Migrations`，
+`dotnet ef database update --context CharityDbContext`。⚠️ **陷阱**：`--namespace` 會讓 `CharityDbContextModelSnapshot.cs` 被放到 `apps/api/Tcrfc/Api/CharityPlatform/Data/Migrations/`（依命名空間推路徑，不是 `-o` 的目錄），要**手動移回** `CharityPlatform/Data/Migrations/` 並刪掉多出來的 `apps/api/Tcrfc/`，否則下一次 `add` 拿空模型當基準（E-45 同一種形狀）。
+目前兩支：`InitialBaseline`（空 `Up`／`Down`，已套用基準）與 `AddAdminRefreshTokens`（`IF OBJECT_ID … IS NULL` 守衛的冪等 `Up`——`db/charity-schema.sql` 新建的庫已有這張表）。
+`ci.yml` 另有一道同款健檢（`has-pending-model-changes --context CharityDbContext`）。**正式環境首次建庫**（本檔「首次建庫」清單第 8 項）流程不變：先跑 `db/charity-schema.sql`，再用 `dotnet ef database update --context CharityDbContext` 標記基準；因 `AddAdminRefreshTokens` 是冪等的，兩種庫（新 DDL 建的、CH-1 舊 DDL 建的）都能成功。
+
 ### 🔴 CI 防呆：`ci.yml` 的 `api` job 擋掉基準偏移進 PR
 
 `.github/workflows/ci.yml` 的 `api` job 在 `dotnet build` 之後、`dotnet test` 之前加了一步
@@ -368,6 +376,10 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | `JWT_SIGNING_KEY_CLUB` | 官網前後台登入權杖簽章 | 俱樂部（系統管理） |
 | `JWT_SIGNING_KEY_CHARITY` | 慈善後台獨立帳號體系的權杖簽章（`17` §5 獨立 2FA） | 協會 |
 | `LINE_LOGIN_CHANNEL_ID` / `_SECRET` | 會員 LINE 一鍵登入 | 俱樂部 |
+| `LINE_LOGIN_REDIRECT_URIS` | 會員 LINE 登入的前台回呼網址白名單（逗號分隔，須與 LINE Developers 登記的 Callback URL 一致；非機密，但放設定不寫死） | 俱樂部 |
+| `JWT_SIGNING_KEY_MEMBER`（選用，建議設） | 會員（前台帳號）登入權杖簽章；**必須與 `JWT_SIGNING_KEY_CLUB` 不同**。沒設時由後者衍生 | 俱樂部（系統管理） |
+| `MEMBERSHIP_ACTIVATE_CREDENTIAL`（選用） | 內部會籍開通端點的憑證（≥32 字元）；沒設＝端點停用 | 俱樂部（系統管理） |
+| `MEMBER_EMAIL_LINK_BASE_URL`（選用） | 驗證信／重設密碼信的連結站台網址（預設 `https://{clubs.domain}`） | 俱樂部 |
 | `AZURE_BLOB_CONNECTION_STRING`（club） | 圖片上傳 | 俱樂部 |
 | ⚠️ `AZURE_BLOB_CONNECTION_STRING`（charity，**是否需要獨立 Storage Account 待確認**） | 若慈善也走「圖片欄位直傳」，比照資料庫的獨立原則，**存放體很可能也該分兩個 Storage Account**——`17` 未明文，建議與 §5 一併確認 | 協會 |
 | `APNS_KEY_ID` / `.p8` 內容 / `FCM_SERVICE_ACCOUNT_JSON` | `api` 呼叫推播（後台 `M3`） | 俱樂部（App 帳號主體是俱樂部，`19` §9） |

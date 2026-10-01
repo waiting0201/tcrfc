@@ -1,15 +1,106 @@
 <script setup lang="ts">
-// app/pages/zh/charity/impact-stories.vue — 由 site/src/pages/zh/charity/impact-stories/index.html
-// 轉來（S0-9 資料驅動頁搬遷）。內容性質與踩雷點同 about/milestones.vue 檔頭說明：
-// 不是 API 資料，是 mockup 人工寫死的精選時間軸，搬遷的是共用的年份篩選 script
-// （已抽成 useYearChips()，與 about/milestones 共用）。
+// app/pages/zh/charity/impact-stories.vue — 11.3 慈善事蹟紀錄（S2-9 起接上真實 API）
+//
+// 資料來源：`GET /api/backend/{club}/charity/records?lang=&pageSize=50`＋`.../records/years`（後台 B5「事蹟紀錄」）。
+// 每筆三項核心資料：公益團體名稱（charityName）、捐助內容（donationContent）、活動圖片（imageUrl＋images）。
+// 時間軸依年份分組、年份篩選鈕沿用 useYearChips（與 about/milestones 共用）。
+// 🔴 後端單次最多 50 筆（`maxPageSize`）；超過 50 筆時本頁只顯示最新 50 筆並附「更多紀錄」提示——前台目前
+// 沒有分頁 UI（年份篩選需要整批資料在 client），見 README「S2-9」節範圍縮減。
+// 🔴 後端沒有任何事蹟紀錄（含 API 打不到）時，退回 mockup 時代人工整理的三筆真實事蹟（俱樂部既有新聞報導
+// 為憑據，S0-9 搬遷保留）；後台一旦建立任何一筆事蹟，整頁換成後台資料（不混搭兩個來源）——這三筆應該由
+// 內容人員補登進後台 B5（回報「待內容補登」）。
+// 🔴 單元 11 對藍鯨整頁 404（藍鯨規劃書 §2.1）。
+import type { ImpactRecord } from '#shared/utils/charity'
+import type { PagedResponse } from '#shared/utils/api-types'
+
 definePageMeta({ nav: 'charity', unit: '11' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
+const config = useRuntimeConfig()
+const club = config.public.club
+const { donateLink } = await useCharityCta()
 
 useSeoMeta({
   title: '慈善事蹟紀錄 Impact Stories｜慈善與社會影響｜台中磐石足球俱樂部',
   description: '台中磐石足球俱樂部的慈善事蹟時間軸：受贈公益團體、捐助內容與活動圖片紀錄，支援年份篩選。',
+})
+
+const { data } = await useFetch<PagedResponse<ImpactRecord>>(`/api/backend/${club}/charity/records`, {
+  query: { lang: locale.value, pageSize: 50 },
+  key: `charity-records-${club}-${locale.value}`,
+})
+
+interface TimelineFact { label: string, text: string, href?: string }
+interface TimelineItem {
+  key: string
+  date: string
+  imageUrl: string | null
+  imageAlt: string
+  imageWidth: number
+  imageHeight: number
+  extraThumbs: string[]
+  title: string
+  facts: TimelineFact[]
+}
+interface TimelineYear { key: string, label: string, items: TimelineItem[] }
+
+/** 後端沒有任何事蹟時的過渡內容（見檔頭）：三筆都有對應的俱樂部新聞報導。 */
+const STATIC_YEARS: TimelineYear[] = [
+  { key: '2026', label: '2026', items: [{
+    key: 's-2026-01-12', date: '2026-01-12', imageUrl: '/assets/img/news/2026-01-12-community-017.jpg',
+    imageAlt: '台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場', imageWidth: 640, imageHeight: 427, extraThumbs: [],
+    title: '潭秀非營利幼兒園',
+    facts: [
+      { label: '捐助內容', text: '英語書籍（與 Subkarma 合作捐贈）' },
+      { label: '相關報導', text: '台中磐石攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園', href: '/zh/news/community/' },
+    ],
+  }] },
+  { key: '2025', label: '2025', items: [{
+    key: 's-2025-05-03', date: '2025-05-03', imageUrl: '/assets/img/news/2025-05-03-camps-056.jpg',
+    imageAlt: '2025台中磐石盃足球邀請賽活動現場', imageWidth: 640, imageHeight: 480, extraThumbs: [],
+    title: '台中磐石盃少年足球隊伍',
+    facts: [{ label: '相關活動', text: '2025 台中磐石盃足球邀請賽' }],
+  }] },
+  { key: '2024', label: '2024', items: [{
+    key: 's-2024-07-23', date: '2024-07-23', imageUrl: null, imageAlt: '', imageWidth: 640, imageHeight: 427, extraThumbs: [],
+    title: '潭秀國中暨嶺東高中聯隊', facts: [],
+  }] },
+]
+
+const apiRecords = computed(() => data.value?.items ?? [])
+const usingApi = computed(() => apiRecords.value.length > 0)
+const totalCount = computed(() => data.value?.totalCount ?? 0)
+
+const years = computed<TimelineYear[]>(() => {
+  if (!usingApi.value) return STATIC_YEARS
+  const groups = new Map<string, TimelineYear>()
+  for (const r of apiRecords.value) {
+    const y = recordYear(r)
+    const key = y == null ? 'undated' : String(y)
+    let g = groups.get(key)
+    if (!g) {
+      g = { key, label: y == null ? '未標日期' : String(y), items: [] }
+      groups.set(key, g)
+    }
+    const facts: TimelineFact[] = []
+    if (r.donationContent) facts.push({ label: '捐助內容', text: r.donationContent })
+    if (r.location) facts.push({ label: '地點', text: r.location })
+    if (r.briefDescription) facts.push({ label: '說明', text: r.briefDescription })
+    if (r.programSlug) facts.push({ label: '所屬計畫', text: r.programName ?? r.programSlug, href: `/zh/charity/programs/${r.programSlug}/` })
+    g.items.push({
+      key: r.id,
+      date: r.happenedOn ?? '',
+      imageUrl: r.imageUrl,
+      imageAlt: r.charityName ? `${r.charityName} 活動照片` : '',
+      imageWidth: r.imageWidth ?? 640,
+      imageHeight: r.imageHeight ?? 427,
+      extraThumbs: r.images.slice(0, 2).map((i) => i.thumbUrl ?? i.imageUrl),
+      title: r.charityName ?? '',
+      facts,
+    })
+  }
+  // 後端排序＝置頂優先、排序值、日期新到舊：年份區塊改依年份新到舊，區塊內保留後端順序；未標日期殿後。
+  return [...groups.values()].sort((a, b) => (a.key === 'undated' ? 1 : b.key === 'undated' ? -1 : Number(b.key) - Number(a.key)))
 })
 
 const { activeYear, isPressed, isPanelHidden } = useYearChips()
@@ -41,60 +132,34 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
 
     <div class="year-filter" role="group" aria-label="選擇年份">
       <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">全部</button>
-      <button class="year-chip" type="button" data-year="2024" :aria-pressed="isPressed('2024')" @click="activeYear = '2024'">2024</button>
-      <button class="year-chip" type="button" data-year="2025" :aria-pressed="isPressed('2025')" @click="activeYear = '2025'">2025</button>
-      <button class="year-chip" type="button" data-year="2026" :aria-pressed="isPressed('2026')" @click="activeYear = '2026'">2026</button>
+      <button v-for="y in years" :key="y.key" class="year-chip" type="button" :data-year="y.key" :aria-pressed="isPressed(y.key)" @click="activeYear = y.key">{{ y.label }}</button>
     </div>
 
     <div class="timeline">
-      <section class="timeline-year" data-year-panel="2026" id="impact-2026" :hidden="isPanelHidden('2026')">
-        <h3 class="timeline-year__anchor">2026</h3>
+      <section v-for="y in years" :id="`impact-${y.key}`" :key="y.key" class="timeline-year" :data-year-panel="y.key" :hidden="isPanelHidden(y.key)">
+        <h3 class="timeline-year__anchor">{{ y.label }}</h3>
         <ol class="timeline-list">
-          <li class="timeline-item">
-            <p class="timeline-item__date">2026-01-12</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2026-01-12-community-017.jpg" alt="台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場" loading="lazy" width="640" height="427"></div>
+          <li v-for="it in y.items" :key="it.key" :class="['timeline-item', { 'timeline-item--no-media': !it.imageUrl }]">
+            <p v-if="it.date" class="timeline-item__date">{{ it.date }}</p>
+            <div v-if="it.imageUrl" class="timeline-item__media"><img :src="it.imageUrl" :alt="it.imageAlt" loading="lazy" :width="it.imageWidth" :height="it.imageHeight"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">公益團體 Beneficiary</p>
-              <h4 class="timeline-item__title">潭秀非營利幼兒園</h4>
-              <dl class="impact-facts">
-                <div><dt>捐助內容</dt><dd>英語書籍（與 Subkarma 合作捐贈）</dd></div>
-                <div><dt>相關報導</dt><dd><a :href="lp('/zh/news/community/')">台中磐石攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園</a></dd></div>
+              <h4 class="timeline-item__title">{{ it.title }}</h4>
+              <dl v-if="it.facts.length" class="impact-facts">
+                <div v-for="f in it.facts" :key="f.label">
+                  <dt>{{ f.label }}</dt>
+                  <dd><a v-if="f.href" :href="lp(f.href)">{{ f.text }}</a><template v-else>{{ f.text }}</template></dd>
+                </div>
               </dl>
-            </div>
-          </li>
-        </ol>
-      </section>
-
-      <section class="timeline-year" data-year-panel="2025" id="impact-2025" :hidden="isPanelHidden('2025')">
-        <h3 class="timeline-year__anchor">2025</h3>
-        <ol class="timeline-list">
-          <li class="timeline-item">
-            <p class="timeline-item__date">2025-05-03</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-05-03-camps-056.jpg" alt="2025台中磐石盃足球邀請賽活動現場" loading="lazy" width="640" height="480"></div>
-            <div class="timeline-item__body">
-              <p class="timeline-item__tag">公益團體 Beneficiary</p>
-              <h4 class="timeline-item__title">台中磐石盃少年足球隊伍</h4>
-              <dl class="impact-facts">
-                <div><dt>相關活動</dt><dd>2025 台中磐石盃足球邀請賽</dd></div>
-              </dl>
-            </div>
-          </li>
-        </ol>
-      </section>
-
-      <section class="timeline-year" data-year-panel="2024" id="impact-2024" :hidden="isPanelHidden('2024')">
-        <h3 class="timeline-year__anchor">2024</h3>
-        <ol class="timeline-list">
-          <li class="timeline-item timeline-item--no-media">
-            <p class="timeline-item__date">2024-07-23</p>
-            <div class="timeline-item__body">
-              <p class="timeline-item__tag">公益團體 Beneficiary</p>
-              <h4 class="timeline-item__title">潭秀國中暨嶺東高中聯隊</h4>
+              <p v-if="it.extraThumbs.length" class="impact-thumbs">
+                <img v-for="(t, ti) in it.extraThumbs" :key="ti" :src="t" alt="" loading="lazy" width="96" height="64">
+              </p>
             </div>
           </li>
         </ol>
       </section>
     </div>
+    <p v-if="usingApi && totalCount > apiRecords.length" class="impact-more">目前顯示最新 {{ apiRecords.length }} 筆，共 {{ totalCount }} 筆紀錄。</p>
   </div>
 </section>
 
@@ -113,10 +178,10 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
         <span class="cta-card__title">慈善計畫</span>
         <p class="cta-card__desc">正在進行與已完成的公益計畫</p>
       </a>
-      <a class="cta-card" :href="lp('/zh/charity/#donate')">
+      <a class="cta-card" :href="donateLink.href" :target="donateLink.external ? '_blank' : undefined" :rel="donateLink.external ? 'noopener noreferrer' : undefined">
         <span class="cta-card__num">01</span>
         <span class="cta-card__title">支持我們</span>
-        <p class="cta-card__desc">企業合作與球迷捐款兩種參與方式</p>
+        <p class="cta-card__desc">企業合作與球迷捐款兩種參與方式；球迷捐款由{{ CHARITY_RECIPIENT }}的慈善捐款平台承接</p>
       </a>
     </div>
   </div>
@@ -180,4 +245,8 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
   .timeline-item{ grid-template-columns:1fr; }
   .timeline-item__media{ width:100%; aspect-ratio:16/9; margin-bottom:.75rem; }
 }
+
+.impact-thumbs{ display:flex; gap:.4rem; margin-top:.6rem; }
+.impact-thumbs img{ width:96px; height:64px; object-fit:cover; }
+.impact-more{ margin-top:2rem; font-size:.85rem; color:var(--muted); }
 </style>

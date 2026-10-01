@@ -145,6 +145,10 @@ watchEffect(() => {
   useSchemaOrg(
     eligible.map((p) =>
       definePerson({
+        // 🔴 必須明確給每人一個唯一 @id：definePerson 預設 @id 是站台身分節點（#identity），多人共用同一個
+        // @id 會被 nuxt-schema-org 合併成「一個」Person（8 位教練只輸出最後一位，且被當成整站的主體）。
+        // 見 docs/18-work-errors.md E-96。
+        '@id': `person-${p.id}`,
         name: p.nameZh,
         jobTitle: p.role ?? undefined,
         image: p.photoUrl ?? undefined,

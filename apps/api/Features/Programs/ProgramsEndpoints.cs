@@ -44,11 +44,13 @@ public static class ProgramsEndpoints
 
         // POST /api/v1/{club}/programs/sessions/{sessionId}/registrations
         app.MapPost("/api/v1/{club}/programs/sessions/{sessionId:guid}/registrations", async (
-            string club, Guid sessionId, SubmitProgramRegistrationRequest request,
-            IClubResolver clubResolver, ProgramsRepository repository, CancellationToken cancellationToken) =>
+            string club, Guid sessionId, SubmitProgramRegistrationRequest request, HttpContext httpContext,
+            IClubResolver clubResolver, MemberAuthenticator memberAuthenticator, ProgramsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var result = await repository.SubmitRegistrationAsync(scope, sessionId, request, cancellationToken);
+            // E 批：帶有效會員權杖（行動 App）就記 member_id；沒帶（網頁前台）完全照舊。權杖無效不報錯，視為訪客報名。
+            var member = await memberAuthenticator.TryAsync(httpContext, cancellationToken);
+            var result = await repository.SubmitRegistrationAsync(scope, sessionId, request, cancellationToken, member?.MemberId);
             return Results.Ok(result);
         })
         .WithName("SubmitProgramRegistration")

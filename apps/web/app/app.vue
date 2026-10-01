@@ -70,6 +70,11 @@ useHead(() => ({
     // 選擇器會命中（見 club-bw.css 的 :root[data-club='bw'] 前綴），故兩站共用同一份
     // <link> 清單也安全。
     { rel: 'stylesheet', href: '/assets/css/club-bw.css' },
+    // S2-11／S3-2：會員中心與 08 文化互動的補充樣式（tcrfc.css 一個位元都不改，新元件樣式獨立成檔；
+    // 只用 tcrfc.css 的 design tokens，兩個俱樂部自動換色）。
+    { rel: 'stylesheet', href: '/assets/css/member.css' },
+    // S3-5／S3-9：站內商店與積分榜、球員數據的補充樣式（同樣只用 design tokens）。
+    { rel: 'stylesheet', href: '/assets/css/shop.css' },
     ...assets.value.favicon.map((icon) => ({
       rel: 'icon',
       href: icon.href,

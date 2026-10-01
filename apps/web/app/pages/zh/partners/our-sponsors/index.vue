@@ -1,11 +1,48 @@
 <script setup lang="ts">
-// app/pages/zh/partners/our-sponsors/index.vue — 由 site/src/pages/zh/partners/our-sponsors/index.html 轉來
-// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+// app/pages/zh/partners/our-sponsors/index.vue — 9.2 贊助商（S2-7 起接上真實 API）
+//
+// 資料來源：`GET /api/backend/{club}/sponsors?lang=`（apps/api Features/Sponsors，後台 E2）。
+// 後端已依等級（主贊助→官方贊助→支持夥伴）排序、已排除合約結束者，並**不輸出**聯絡窗口、合約日期與到期
+// 提醒（docs/14 E1a 規則⑤）——本頁不得另外去要這些欄位。
+// 🔴 分區：端點以 club_id 分區，只讀目前容器所屬俱樂部（見 usePartners.ts 檔頭）。
+// 🔴 贊助故事＝後台關聯的「已發布文章」（slug／title／summary），連到 07 新聞逐篇網址 `/zh/news/{slug}/`；
+// 贊助活動紀錄＝每位贊助商底下的活動（日期、標題、成效摘要、圖集），本頁彙整成一張依日期新到舊的表。
+// 🔴 空狀態：該等級沒有贊助商維持既有「尚未公開」虛線格；故事／活動沒有資料維持既有「準備中」文字。
+// 🔴 等級字面值：後端是「主贊助／官方贊助／支持夥伴」，mockup 第三區標題沿用「支持贊助」——
+// 用 `match` 對後端字面值、`title` 放頁面標題，兩者刻意分開（SPONSOR_TIER_SECTIONS）。
+import type { PublicSponsor } from '#shared/utils/partners'
+import { SPONSOR_TIER_SECTIONS, groupByKnownType, pickLogoUrl } from '#shared/utils/partners'
+
 definePageMeta({ nav: 'partners', unit: '9.2' })
 
 const { lp } = useLocale()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const charityEnabled = isUnitEnabledForClub('11', config.public.club)
+
+const { sponsors } = await useSponsorList()
+
+const tiers = computed(() => groupByKnownType(
+  sponsors.value,
+  (s) => s.tier,
+  SPONSOR_TIER_SECTIONS.map((t) => ({ key: t.key, match: t.tier, title: t.heading, en: t.en })),
+))
+/** 有任何詳情欄位的贊助商才進詳情清單（只有名稱的不重複列一次）。 */
+function rosterItems(items: PublicSponsor[]): PublicSponsor[] {
+  return items.filter((s) => s.content || (charityEnabled && s.charityPrograms.length))
+}
+const BAND_CLASSES = ['band grain', 'band', 'band grain grain--2'] as const
+function bandClass(i: number): string {
+  return BAND_CLASSES[i] ?? (i % 2 === 0 ? 'band grain' : 'band')
+}
+function isDark(i: number): boolean {
+  return bandClass(i).includes('grain')
+}
+
+const stories = computed(() => sponsors.value.flatMap((s) => s.stories.map((st) => ({ ...st, sponsorName: s.name }))))
+const activations = computed(() => sponsors.value
+  .flatMap((s) => s.activations.map((a) => ({ ...a, sponsorName: s.name })))
+  .sort((a, b) => (b.happenedOn ?? '').localeCompare(a.happenedOn ?? '')))
 
 useSeoMeta({
   title: computed(() => `贊助商 Our Sponsors｜合作夥伴與贊助｜${clubAssets.value.nameZh}`),
@@ -32,41 +69,28 @@ useSeoMeta({
   </div>
 </section>
 
-<!-- SPEC 3.9 §9.2 — 依等級：主贊助／官方／支持 -->
-<section class="band grain" id="title-sponsors" aria-labelledby="title-sponsors-title">
-  <div class="band-inner container">
-    <h2 class="section-title partner-type-title" id="title-sponsors-title" style="color:#fff">主贊助<span class="en">Title Sponsors</span></h2>
-    <div class="sponsor-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-      <div class="sponsor-tile sponsor-tile--empty" style="aspect-ratio:16/9"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty" style="aspect-ratio:16/9"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty" style="aspect-ratio:16/9"><span>尚未公開</span></div>
-    </div>
-  </div>
-</section>
+<!-- SPEC 3.9 §9.2 — 依等級：主贊助／官方／支持（＋俱樂部自訂等級） -->
+<section v-for="(tier, i) in tiers" :id="tier.key" :key="tier.key" :class="bandClass(i)" :aria-labelledby="`${tier.key}-title`">
+  <div :class="isDark(i) ? 'band-inner container' : 'container'">
+    <h2 :id="`${tier.key}-title`" class="section-title partner-type-title" :style="isDark(i) ? 'color:#fff' : undefined">{{ tier.title }}<span v-if="tier.en" class="en">{{ tier.en }}</span></h2>
 
-<section class="band" id="official-sponsors" aria-labelledby="official-sponsors-title">
-  <div class="container">
-    <h2 class="section-title partner-type-title" id="official-sponsors-title">官方贊助<span class="en">Official Sponsors</span></h2>
-    <div class="sponsor-grid">
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
+    <div v-if="tier.items.length" class="sponsor-grid" :style="tier.key === 'title-sponsors' ? 'grid-template-columns:repeat(3,minmax(0,1fr))' : undefined">
+      <PartnerLogoTile v-for="s in tier.items" :key="s.id" :name="s.name" :logo-url="pickLogoUrl(s)" />
     </div>
-  </div>
-</section>
+    <div v-else class="sponsor-grid" :style="tier.key === 'title-sponsors' ? 'grid-template-columns:repeat(3,minmax(0,1fr))' : undefined">
+      <div v-for="n in (tier.key === 'title-sponsors' ? 3 : 5)" :key="n" class="sponsor-tile sponsor-tile--empty" :style="tier.key === 'title-sponsors' ? 'aspect-ratio:16/9' : undefined"><span>尚未公開</span></div>
+    </div>
 
-<section class="band grain grain--2" id="supporting-sponsors" aria-labelledby="supporting-sponsors-title">
-  <div class="band-inner container">
-    <h2 class="section-title partner-type-title" id="supporting-sponsors-title" style="color:#fff">支持贊助<span class="en">Supporting Sponsors</span></h2>
-    <div class="sponsor-grid">
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
-    </div>
+    <ul v-if="rosterItems(tier.items).length" class="partner-roster">
+      <li v-for="s in rosterItems(tier.items)" :key="s.id" class="partner-roster__item">
+        <h3 class="partner-roster__name">{{ s.name }}</h3>
+        <p v-if="s.content" class="partner-roster__content">{{ s.content }}</p>
+        <p v-if="charityEnabled && s.charityPrograms.length" class="partner-roster__link">
+          共同參與的公益計畫：
+          <template v-for="(c, ci) in s.charityPrograms" :key="c.slug"><span v-if="ci">、</span><a :href="lp(`/zh/charity/programs/${c.slug}/`)">{{ c.name ?? c.slug }}</a></template>
+        </p>
+      </li>
+    </ul>
   </div>
 </section>
 
@@ -80,13 +104,14 @@ useSeoMeta({
       </div>
     </div>
     <div class="grid grid--3">
-      <article class="story-card">
-        <p>贊助故事準備中，稍後將於本頁公布。</p>
-      </article>
-      <article class="story-card">
-        <p>贊助故事準備中，稍後將於本頁公布。</p>
-      </article>
-      <article class="story-card">
+      <a v-for="st in stories" :key="`${st.sponsorName}-${st.slug}`" class="story-card story-card--link" :href="lp(`/zh/news/${st.slug}/`)">
+        <span class="story-card__body">
+          <span v-if="st.sponsorName" class="story-card__kicker">{{ st.sponsorName }}</span>
+          <strong class="story-card__title">{{ st.title }}</strong>
+          <span v-if="st.summary" class="story-card__summary">{{ st.summary }}</span>
+        </span>
+      </a>
+      <article v-if="!stories.length" class="story-card">
         <p>贊助故事準備中，稍後將於本頁公布。</p>
       </article>
     </div>
@@ -103,7 +128,18 @@ useSeoMeta({
           <tr><th scope="col">日期</th><th scope="col">活動</th><th scope="col">合作贊助商</th></tr>
         </thead>
         <tbody>
-          <tr><td colspan="3">活動紀錄準備中，稍後將於本頁公布。</td></tr>
+          <tr v-for="a in activations" :key="a.id">
+            <td>{{ a.happenedOn ? a.happenedOn.replaceAll('-', '/') : '—' }}</td>
+            <td>
+              <strong class="activity-title">{{ a.title }}</strong>
+              <span v-if="a.resultSummary" class="activity-summary">{{ a.resultSummary }}</span>
+              <span v-if="a.images.length" class="activity-thumbs">
+                <img v-for="(img, ii) in a.images.slice(0, 3)" :key="ii" :src="img.thumbUrl ?? img.imageUrl" alt="" loading="lazy" width="96" height="64">
+              </span>
+            </td>
+            <td>{{ a.sponsorName }}</td>
+          </tr>
+          <tr v-if="!activations.length"><td colspan="3">活動紀錄準備中，稍後將於本頁公布。</td></tr>
         </tbody>
       </table>
     </div>
@@ -128,4 +164,26 @@ useSeoMeta({
 .benefit-table th, .benefit-table td{ padding:.85rem 1.1rem; border:1px solid rgba(255,255,255,.12); font-size:.88rem; text-align:left; }
 .benefit-table thead th{ background:rgba(255,255,255,.06); font-weight:800; }
 .benefit-table td{ color:var(--muted-dark); }
+
+/* 夥伴／贊助商詳情清單（與 9.1 同一份寫法，S2-7） */
+.partner-roster{ list-style:none; padding:0; margin:2rem 0 0; display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1.5rem; }
+.partner-roster__name{ font-size:1rem; font-weight:800; color:var(--heading); margin:0 0 .35rem; }
+.partner-roster__content{ font-size:.88rem; line-height:1.7; color:var(--text); margin:0 0 .5rem; white-space:pre-line; }
+.partner-roster__link{ font-size:.82rem; margin:0 0 .25rem; color:var(--muted); }
+.partner-roster__link a{ color:var(--brand-aa); text-decoration:underline; }
+.grain .partner-roster__name, .grain--2 .partner-roster__name{ color:#fff; }
+.grain .partner-roster__content, .grain--2 .partner-roster__content, .grain .partner-roster__link, .grain--2 .partner-roster__link{ color:var(--muted-dark); }
+.grain .partner-roster__link a, .grain--2 .partner-roster__link a{ color:var(--brand); }
+
+.story-card--link{ text-decoration:none; color:inherit; transition:border-color var(--dur-fast) var(--ease); }
+.story-card--link:hover{ border-color:var(--brand-aa); }
+.story-card__body{ display:flex; flex-direction:column; gap:.4rem; }
+.story-card__kicker{ font-size:.68rem; font-weight:800; letter-spacing:.06em; color:var(--brand-aa); }
+.story-card__title{ font-size:1rem; line-height:1.5; color:var(--heading); }
+.story-card__summary{ font-size:.85rem; line-height:1.6; color:var(--muted); }
+
+.activity-title{ display:block; color:#fff; font-weight:800; }
+.activity-summary{ display:block; margin-top:.3rem; line-height:1.6; }
+.activity-thumbs{ display:flex; gap:.4rem; margin-top:.5rem; }
+.activity-thumbs img{ width:96px; height:64px; object-fit:cover; }
 </style>

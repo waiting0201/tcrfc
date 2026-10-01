@@ -3,10 +3,11 @@
  * 單列頂欄（docs/22-charity-ui.md §3.3／§3.4）：沒有站台切換器（慈善庫沒有 club_id），
  * 全域控制只剩 hamburger／通知／使用者選單三項，56px 綽綽有餘，不做 apps/admin 那種兩列頂欄。
  */
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import UserMenu from './UserMenu.vue'
-import { RECONCILIATION_DISCREPANCIES } from '@/data/reconciliationAudit'
+import { countAnomalies } from '@/api/donations'
+import { hasPermission } from '@/auth/session'
 
 defineProps<{
   isMobile: boolean
@@ -18,10 +19,20 @@ const emit = defineEmits<{
 
 const route = useRoute()
 
-/** 通知數字：待處理的對帳差異筆數（真的算出來的數字，不是隨便寫的裝飾用假數字） */
-const pendingCount = computed(
-  () => RECONCILIATION_DISCREPANCIES.filter((d) => d.resolutionStatus === 'pending').length,
-)
+/** 通知數字：待處理的異常筆數（已扣款但確認失敗、憑證開立失敗、已退款但憑證未作廢、對帳差異）。
+ * 只有看得到捐款紀錄的人才查；查不到就不顯示數字，不影響其他畫面。 */
+const counts = ref<number | null>(null)
+const pendingCount = computed(() => counts.value ?? 0)
+
+onMounted(async () => {
+  if (!hasPermission('n3.donation.view')) return
+  try {
+    const c = await countAnomalies()
+    counts.value = c.confirmFailed + c.invoiceFailed + c.invoiceVoidPending + c.reconciliation
+  } catch {
+    counts.value = null
+  }
+})
 </script>
 
 <template>
@@ -35,7 +46,7 @@ const pendingCount = computed(
 
     <div class="app-topbar__spacer" />
 
-    <router-link to="/donations?tab=reconciliation" class="app-topbar__notif" aria-label="待處理的對帳差異">
+    <router-link to="/donations?tab=anomaly" class="app-topbar__notif" aria-label="待處理的異常">
       <el-badge :value="pendingCount" :hidden="pendingCount === 0">
         <el-icon :size="20"><Bell /></el-icon>
       </el-badge>

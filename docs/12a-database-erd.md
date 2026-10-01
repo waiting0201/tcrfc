@@ -696,6 +696,10 @@ erDiagram
   member ||--o{ membership : "一人可有多份會籍"
   membership ||--o{ member_card : "每份會籍一張卡（card_quota 可大於 1）"
   membership ||--o{ membership_payment : ""
+  member ||--o{ membership_order : "E 批：會籍付款訂單（冪等鍵 member×key 唯一）"
+  membership_plan ||--o{ membership_order : ""
+  membership_order ||--o| membership_payment : "開通時記來源訂單（一張訂單最多一筆）"
+  member ||--o{ member_refresh_token : "E 批：網頁登入的更新權杖（輪替鏈）"
   member ||--o{ jersey_issue : "jersey_quota 可大於 1"
   membership_plan ||--o{ membership_payment : ""
   membership_plan ||--o{ membership_benefit : ""
@@ -712,9 +716,40 @@ erDiagram
     string_32 phone
     date birth_on
     string_255 line_user_id_encrypted
+    string_64 line_user_id_hash UK
+    int failed_attempt_count
+    datetime locked_until
     string_32 signup_source
     enum status
     datetime created_at
+  }
+  membership_order {
+    uuid id PK
+    string_32 order_no UK
+    uuid member_id FK
+    uuid club_id FK
+    uuid collecting_club_id FK
+    uuid membership_plan_id FK
+    string_64 idempotency_key
+    int amount
+    enum status
+    string_16 payment_method
+    string_64 payment_transaction_id
+    datetime expires_at
+    datetime paid_at
+    datetime activated_at
+    string_16 activation_source
+    uuid membership_id FK
+  }
+  member_refresh_token {
+    uuid id PK
+    uuid member_id FK
+    string_128 token_hash UK
+    bool is_persistent
+    datetime issued_at
+    datetime expires_at
+    datetime revoked_at
+    uuid replaced_by_id FK
   }
   membership {
     uuid id PK
@@ -760,6 +795,7 @@ erDiagram
     uuid handled_by FK
     date activated_start_on
     date activated_end_on
+    uuid membership_order_id FK
   }
   membership_benefit {
     uuid id PK
@@ -988,6 +1024,10 @@ erDiagram
     string_32 delivery_method
     bool is_manual
     datetime paid_at
+    string_255 buyer_email
+    string_64 idempotency_key
+    string_64 request_fingerprint
+    string_500 payment_url
     datetime created_at
   }
   order_item {
@@ -1037,7 +1077,7 @@ erDiagram
     string_32 invoice_no
     datetime issued_at
     string_16 carrier_type
-    string_64 carrier_id_encrypted
+    string_500 carrier_id_encrypted
     string_16 tax_id
     string_16 donation_code
     enum issue_status

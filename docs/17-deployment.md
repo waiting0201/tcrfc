@@ -279,6 +279,36 @@ services:
 
 **新增的環境設定**：`APP_JOBS_INTERVAL_SECONDS`（背景作業間隔秒數，0＝停用）、`APP_PUBLIC_RATE_LIMIT_PERMITS`（App 公開寫入端點每 IP 每分鐘額度，預設 120）。推播權杖加密用既有的 **Data Protection 金鑰環（`DATA_PROTECTION_KEYS_PATH` 必須掛持久化 volume）**——金鑰環遺失會讓所有已儲存的推播權杖無法解密，**App 重新註冊時才會恢復**（權杖不是不可重建的資料，但重建期間推播中斷）。
 
+### E 批的接縫：寄信、會籍付款金流、LINE Login（2026-10-01，`backend-engineer`）
+
+同上一節的做法：**尚未到位的外部服務一律以介面隔開、預設註冊「尚未串接」實作**，呼叫端如實回報、不假裝成功；取得服務後**只換 `Program.cs` 的註冊與實作**。
+
+| 接縫 | 介面與預設實作 | 卡在什麼 | 串接時要做什麼 |
+|---|---|---|---|
+| **系統信寄送** | `IEmailSender`／`NotConfiguredEmailSender`（正式）、`LocalFileEmailSender`（**只在 Development**，寫成文字檔，`EMAIL_OUTBOX_PATH`）（`Features/Email/IEmailSender.cs`） | **寄信供應商未定**（Azure Communication Services Email／SendGrid／SMTP…）。全系統原本沒有任何寄信通路 | 實作 `SendAsync`（回傳 false＝沒寄出，呼叫端會如實告知）；🔴 **在這之前正式環境無人能完成註冊的 Email 驗證**（驗證前不能用密碼登入）；寄信域名要設 SPF／DKIM／DMARC；信件含一次性權杖，**日誌不得記信件內容與收件人**。五封系統信本批做三封（註冊驗證、密碼重設、會籍開通確認），到期前 30 天提醒與到期通知需背景排程 |
+| **會籍付款（LINE Pay）** | `IPaymentGateway`／`NotConfiguredPaymentGateway`（正式）、`LocalFakePaymentGateway`（**Development 預設**；`PAYMENT_GATEWAY=fake` 在 **Production 啟動即失敗**）（`Features/MembershipPayments/IPaymentGateway.cs`） | **俱樂部 LINE Pay 商店號未取得（STATUS B-10）**；App 首版不含 App 內付款（`docs/19` §10） | 實作 `ReserveAsync`（Request API）／`ConfirmAsync`（Confirm API，`confirmUrlType: CLIENT`）；**金額一律傳訂單上伺服器算好的值**；**登記本節的出口 IP**；與商店的 `ILinePayGateway` 日後共用同一個俱樂部商店號與 HTTP 客戶端。訂單、冪等鍵、開通邏輯（`MembershipOrderService`／`MembershipActivationService`）**一行不用改** |
+| **LINE 一鍵登入** | `ILineLoginClient`／`LineLoginClient`（程式完成，**缺憑證時端點回 503**） | LINE Developers 的 Login Channel 未建立 | 設 `LINE_LOGIN_CHANNEL_ID`／`_SECRET`／`LINE_LOGIN_REDIRECT_URIS`（金鑰放 Key Vault／環境變數，**不進版控**），並在 LINE Developers 登記相同的 Callback URL。LINE Login 的呼叫是**一般 HTTPS 出站請求，不像 LINE Pay 需要登記出口 IP** |
+| **內部會籍開通端點** | `POST /api/membership/activate`，憑證 `MEMBERSHIP_ACTIVATE_CREDENTIAL`（≥32 字元，沒設或太短＝端點停用 503） | 沒有呼叫它的內部元件（LINE Pay 回呼處理要等商店號） | 由日後的付款回呼處理器呼叫；**不得對外開放**（Caddy／Cloudflare 規則擋掉 `/api/membership/*`，只允許 `api` 容器同網路的內部呼叫） |
+
+**會員權杖簽章金鑰**：`JWT_SIGNING_KEY_MEMBER`（≥32 字元）。**正式環境建議設獨立的一把**；沒設時由 `JWT_SIGNING_KEY_CLUB` 以 HKDF 衍生（密碼學上互相獨立，不是「共用同一把」）。會員與後台權杖另有獨立的 issuer／audience 與驗證機制，互不認帳。
+**新增的環境設定**一覽見 [`apps/api/README.md`](../apps/api/README.md)「E 批」節的「環境設定」表與 [`20-cicd.md`](20-cicd.md) §7.2。
+
+### F 批的接縫：商店前台付款與電子發票開立（2026-10-01，`backend-engineer`）
+
+站內商店前台結帳（`Features/Shop`）**沿用 E 批的 `IPaymentGateway` 與 `IEmailSender`，不另起爐灶**；唯一新增的接縫是「開發票」：
+
+| 接縫 | 介面與預設實作 | 卡在什麼 | 串接時要做什麼 |
+|---|---|---|---|
+| **商店付款（LINE Pay）** | 同 E 批的 `IPaymentGateway`（`ReserveAsync`／`ConfirmAsync`）。商店與會籍付款**共用同一個介面、同一個俱樂部商店號**；訂單模型與狀態機各自獨立（商店走 `ShopOrderLifecycle`） | **B-10：LINE Pay 商店號未取得** | 取得商店號後實作 `IPaymentGateway`（同 E 批）。商店特有的兩件事：① `ReserveAsync` 的 `ProductName` 是「首項商品名＋等」；② **真實 LINE Pay 的 Confirm 是「伺服器對伺服器、以頻道密鑰簽章」**，`POST …/shop/orders/{orderNo}/confirm` 就是呼叫它的地方（交易識別比對＋金額用訂單上算好的值）。**LINE Pay 退款仍走 C1 的 `ILinePayGateway`（後台 S5）**，未串接 |
+| **電子發票開立** | `IInvoiceIssuer`／`NotConfiguredInvoiceIssuer`（正式）、`LocalFakeInvoiceIssuer`（**Development 預設**；`INVOICE_ISSUER=fake` 在 **Production 啟動即失敗**）（`Features/Shop/IInvoiceIssuer.cs`） | **發票加值中心／發票服務未選定與申請（B-10）**；**俱樂部的發票字軌尚未取得** | 實作 `IssueAsync`（**須冪等：同一訂單編號重複呼叫不得開兩張**）；字軌取收款主體（俱樂部）名下 `payment_channels` 的 `einvoice` 通道（**不得與慈善平台的協會字軌共用**），沒有字軌就開立失敗、由重試補開。退貨作廢／折讓走 C1 的 `IEInvoiceService`，日後同一家服務可由同一個類別實作兩個介面 |
+| **寄信（商店交易信）** | 同 E 批的 `IEmailSender`。商店交易信是**獨立的一組四封**（訂單成立、付款完成、出貨通知、退款完成），**F 批只做前兩封**（`ShopEmailTemplates`） | 供應商未定（同 E 批） | 出貨通知與退款完成是**後台動作的副作用**（S4 出貨、S5 退款），需在 `ShopOrderLifecycle.ShipAsync` 與退款執行處呼叫 `IEmailSender`——**尚未做**，見 `apps/api/README.md` F 批「只留介面」 |
+
+**背景作業**：`ShopMaintenanceBackgroundService`（同 `AppMaintenanceBackgroundService` 的形狀）——① 逾時未付款訂單自動取消並釋回庫存（S6「待付款保留時間」，預設 30 分鐘）；② 發票開立失敗重試（S6「發票重試」）；③ 清除未付款取消訂單遺留的待開立發票資料列與超過 30 天的訪客購物車。**`SHOP_JOBS_INTERVAL_SECONDS`**：未設定時 **Production 預設 60 秒、其餘環境停用**（整合測試與本機開發不被背景作業干擾）；`0` 停用。停用不會讓逾時訂單永遠占著庫存——**讀取訂單與結帳庫存不足時會先掃一輪**（讀到時換算）。單一 VM 單一 API 行程的前提；若日後改多副本，逾時釋回是帶前置狀態的單句更新（冪等）、發票開立介面要求冪等，可以並行。
+
+**快取**：商店前台（`Features/Shop` 整個命名空間）**不注入 `IQueryCache`**（反射測試鎖定，同 `Features/AdminShop`）、所有回應 `Cache-Control: no-store`——庫存、購物車、訂單、付款狀態屬 §4 的「不得讀快取」五類。**Cloudflare 規則不得對 `/api/v1/*/shop/*` 設快取。**
+**新增的環境設定**：`INVOICE_ISSUER`（`fake`＝本機假發票，Development 預設，Production 設了即啟動失敗）、`SHOP_JOBS_INTERVAL_SECONDS`（見上）。訪客權杖標頭 `X-Cart-Token`／`X-Order-Token`、`Idempotency-Key`：**反向代理與 Cloudflare 不得剝除**（CORS 對本 API 已是 `AllowAnyHeader`）。
+**Data Protection 金鑰環**：載具號碼（`store_invoices.carrier_id_encrypted`）與推播權杖、2FA 密鑰同一套金鑰環（`DATA_PROTECTION_KEYS_PATH` 必須掛持久化 volume）——**遺失金鑰環＝已付款但尚未開立發票的載具無法解密**（開立失敗並重試用完後需人工處理）。
+
 ---
 
 ## 4. 快取策略
@@ -386,6 +416,9 @@ key  = v{ver}:{club}:{locale}:article:{slug}    // 實際快取 key
 - **慈善的任何讀寫路徑不得接觸 Redis**
 - 慈善端點掛獨立 host 與獨立授權 policy，走協會的帳號體系
 - 兩組 LINE Pay 憑證與兩組連線字串分開的設定來源，**不得共用同一個 `.env`**
+
+**落地（CH-2／CH-3，2026-10-01，`apps/api/CharityPlatform/`）**：上面五條都已用程式與測試守住——`CharityDbContext` 與 `ClubDbContext` 互不引用型別（`CharityArchitectureTests` 掃兩個方向）、慈善完全不碰 `IQueryCache`／Redis（同一支測試掃）、慈善後台是**自己的 JWT 方案與 Cookie 名稱**（`__Host-tcrfc-charity-admin-rt`，與主站不同名，因為兩個後台打同一個 API 網域）、設定來源是 `charity.env`（`CHARITY_SQL_CONNECTION_STRING`／`JWT_SIGNING_KEY_CHARITY`／`TURNSTILE_SECRET_KEY_CHARITY`…）。**慈善 API 以 `CHARITY_SQL_CONNECTION_STRING` 為開關**：沒設定時不註冊也不對映端點，只跑俱樂部的環境完全不受影響。
+🔴 **假金流／假發票／假寄信只在 `Development`（或明確 `CHARITY_ALLOW_FAKE_PROVIDERS=true`）運作**，正式環境（協會的 LINE Pay 商店號與發票管道未到位時）一律「尚未設定」——捐款頁會顯示服務暫時無法使用，而不是假裝成功。🔴 **`DATA_PROTECTION_KEYS_PATH` 要掛持久化 volume**：慈善的捐款人身分證字號用 Data Protection 加密，金鑰環遺失＝永久無法解密（見 [`14`](14-invariants.md)）。慈善背景維護（逾時轉換、憑證重試）在非 Development 預設啟動，同一個行程裡；失敗只記錄、不會拖垮俱樂部 API。
 
 ---
 

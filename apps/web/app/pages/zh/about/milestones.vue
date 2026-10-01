@@ -12,7 +12,7 @@
 // 「資料驅動頁」搬遷——不要誤以為這裡漏接了 API。
 definePageMeta({ nav: 'about', unit: '02' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
 
 // 文案依俱樂部切換：hero／SEO 取自 club-copy.ts。藍鯨這一輪不重建本頁的年份
 // 篩選時間軸元件（12 年份、資料量與磐石的 3 年份差異太大，須另外設計互動），
@@ -29,6 +29,39 @@ useSeoMeta({
 })
 
 const { activeYear, isPressed, isPanelHidden } = useYearChips()
+
+// ---- S2-7 輪補上（C5 里程碑，後端公開端點已存在）----
+// `GET /api/backend/{club}/milestones?lang=`（後台 C5「里程碑」，只列「顯示於時間軸」者、日期由舊到新）。
+// 🔴 前面檔頭「沒有里程碑資源」的說明已過時（後端 E1a 批新增了端點）。處理方式比照 11.3 慈善事蹟：
+// 後端有任何一筆里程碑就整頁換成後台資料（兩俱樂部共用同一套時間軸版型，藍鯨也能顯示）；後端沒有（含 API
+// 打不到）時，磐石維持下方人工整理的靜態時間軸（真實大事記，過渡內容，應由內容人員補登後台），藍鯨維持既有
+// 說明文字。後台資料沒有「分類標籤」欄位（俱樂部／國際／榮譽），所以動態版不顯示標籤行，不臆造分類。
+interface MilestoneDto {
+  id: string
+  happenedOn: string
+  title: string | null
+  description: string | null
+  imageUrl: string | null
+  imageAlt: string | null
+  imageWidth: number | null
+  imageHeight: number | null
+}
+const { data: milestoneData } = await useFetch<MilestoneDto[]>(`/api/backend/${config.public.club}/milestones`, {
+  query: { lang: locale.value },
+  key: `milestones-${config.public.club}-${locale.value}`,
+})
+const apiMilestones = computed(() => (milestoneData.value ?? []).filter((m) => m.title))
+const usingApi = computed(() => apiMilestones.value.length > 0)
+/** 藍鯨 hero 文案原寫「時間軸尚未依藍鯨資料重建」，後台有里程碑資料時這句就不成立，改用中性說明。 */
+const lede = computed(() => (usingApi.value && clubKey.value === 'bw' ? `${identity.value.shortNameZh}的重要里程碑，可依年份篩選查看。` : hero.value.lede))
+const milestoneYears = computed(() => {
+  const groups = new Map<string, MilestoneDto[]>()
+  for (const m of apiMilestones.value) {
+    const y = m.happenedOn.slice(0, 4)
+    groups.set(y, [...(groups.get(y) ?? []), m])
+  }
+  return [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([year, items]) => ({ year, items }))
+})
 </script>
 
 <template>
@@ -47,18 +80,45 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
   <div class="container">
     <p class="page-hero__eyebrow">{{ aboutEyebrow('2.8', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
-    <p class="page-hero__lede">{{ hero.lede }}</p>
+    <p class="page-hero__lede">{{ lede }}</p>
   </div>
 </section>
 
-<section v-if="clubKey !== 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title-bw">
+<section v-if="usingApi" class="band milestones-band" aria-labelledby="milestones-title-api">
+  <div class="band-inner container">
+    <h2 id="milestones-title-api" class="visually-hidden">重要里程碑時間軸</h2>
+
+    <div class="year-filter" role="group" aria-label="選擇年份">
+      <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">全部</button>
+      <button v-for="y in milestoneYears" :key="y.year" class="year-chip" type="button" :data-year="y.year" :aria-pressed="isPressed(y.year)" @click="activeYear = y.year">{{ y.year }}</button>
+    </div>
+
+    <div class="timeline">
+      <section v-for="y in milestoneYears" :id="`milestones-${y.year}`" :key="y.year" class="timeline-year" :data-year-panel="y.year" :hidden="isPanelHidden(y.year)">
+        <h3 class="timeline-year__anchor">{{ y.year }}</h3>
+        <ol class="timeline-list">
+          <li v-for="m in y.items" :key="m.id" :class="['timeline-item', { 'timeline-item--no-media': !m.imageUrl }]">
+            <p class="timeline-item__date">{{ m.happenedOn }}</p>
+            <div v-if="m.imageUrl" class="timeline-item__media"><img :src="m.imageUrl" :alt="m.imageAlt ?? ''" loading="lazy" :width="m.imageWidth ?? 640" :height="m.imageHeight ?? 427"></div>
+            <div class="timeline-item__body">
+              <h4 class="timeline-item__title">{{ m.title }}</h4>
+              <p v-if="m.description" class="timeline-item__desc">{{ m.description }}</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+    </div>
+  </div>
+</section>
+
+<section v-if="!usingApi && clubKey !== 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title-bw">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="milestones-title-bw">重要里程碑</h2>
     <p class="section-lede">本頁的年份篩選時間軸尚未依藍鯨資料重建，完整的 2014～2025 逐年沿革請見 <a :href="lp('/zh/about/history/')">2.7 俱樂部歷程</a>。</p>
   </div>
 </section>
 
-<section v-if="clubKey === 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title">
+<section v-if="!usingApi && clubKey === 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title">
   <div class="band-inner container">
     <h2 class="visually-hidden" id="milestones-title">重要里程碑時間軸</h2>
 
@@ -280,4 +340,5 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
   .timeline-item{ grid-template-columns:1fr; }
   .timeline-item__media{ width:100%; aspect-ratio:16/9; margin-bottom:.75rem; }
 }
+.timeline-item__desc{ font-size:.88rem; line-height:1.7; color:var(--text); white-space:pre-line; }
 </style>

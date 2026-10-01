@@ -8,7 +8,7 @@ export function isValidEmail(value: string): boolean {
 
 export function isValidMobileCarrier(value: string): boolean {
   // 手機條碼載具格式：斜線 + 7 碼英數（規劃書 §5.2）。
-  return /^\/[0-9A-Z.+-]{7}$/i.test(value.trim())
+  return /^\/[0-9A-Z.+-]{7}$/.test(value.trim().toUpperCase())
 }
 
 /** 統一編號檢查碼驗證（財政部公告的加權公式）。 */
@@ -23,7 +23,7 @@ export function isValidTaxId(value: string): boolean {
 
   let total = 0
   for (let i = 0; i < 8; i++) {
-    total += sumDigits(nums[i] * weights[i])
+    total += sumDigits((nums[i] ?? 0) * (weights[i] ?? 0))
   }
 
   if (total % 10 === 0) return true
@@ -32,14 +32,24 @@ export function isValidTaxId(value: string): boolean {
   return false
 }
 
+/** 捐贈碼（愛心碼）：3–7 碼數字（與後端 CharityDonationRules 相同）。 */
+export function isValidLoveCode(value: string): boolean {
+  return /^\d{3,7}$/.test(value.trim())
+}
+
+/** 身分證字號檢核碼（內政部公告的加權公式；供捐贈收據的選填欄位，後端會再驗一次並加密儲存）。 */
+export function isValidNationalId(value: string): boolean {
+  const id = value.trim().toUpperCase()
+  if (!/^[A-Z][1289]\d{8}$/.test(id)) return false
+  const letters = 'ABCDEFGHJKLMNPQRSTUVXYWZIO'
+  const n = letters.indexOf(id.charAt(0)) + 10
+  const digits = [Math.floor(n / 10), n % 10, ...id.slice(1).split('').map(Number)]
+  const weights = [1, 9, 8, 7, 6, 5, 4, 3, 2, 1, 1]
+  const sum = digits.reduce((acc, d, i) => acc + d * (weights[i] ?? 0), 0)
+  return sum % 10 === 0
+}
+
 export function isAmountInRange(amount: number, min: number, max: number): boolean {
   return Number.isFinite(amount) && amount >= min && amount <= max
 }
 
-/** 結果頁不顯示完整個資（規劃書 §3.5），Email 遮罩成 a***@domain 的形式。 */
-export function maskEmail(email: string): string {
-  const [local, domain] = email.split('@')
-  if (!domain) return email
-  const visible = local.slice(0, 1) || '*'
-  return `${visible}***@${domain}`
-}

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 會籍與方案：同頁四個分頁——會籍（到期提醒）、方案、付款紀錄、會員編號規則。
+ * 會籍與方案：同頁五個分頁——會籍（到期提醒）、待確認申請、方案、付款紀錄、會員編號規則。
  * 目前分頁記在網址的 `?tab=`，重新整理不會跳回第一頁。
  */
 import { computed, onMounted, ref, watch } from 'vue'
@@ -8,14 +8,15 @@ import { useRoute, useRouter } from 'vue-router'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MembershipsTab from './parts/MembershipsTab.vue'
+import ApplicationsTab from './parts/ApplicationsTab.vue'
 import PlansTab from './parts/PlansTab.vue'
 import PaymentsTab from './parts/PaymentsTab.vue'
 import NumberingTab from './parts/NumberingTab.vue'
 import { usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
-import { listMembershipPlans, listMembershipSeasons, type MembershipPlanListItemDto } from '@/api/adminMemberships'
+import { listMembershipApplications, listMembershipPlans, listMembershipSeasons, type MembershipPlanListItemDto } from '@/api/adminMemberships'
 
-const TABS = ['memberships', 'plans', 'payments', 'numbering'] as const
+const TABS = ['memberships', 'applications', 'plans', 'payments', 'numbering'] as const
 type TabName = (typeof TABS)[number]
 
 const route = useRoute()
@@ -56,8 +57,24 @@ async function loadRefs() {
   seasonsFromApi.value = s.status === 'fulfilled' ? s.value.map((x) => ({ id: x.id, code: x.code })) : []
   plans.value = p.status === 'fulfilled' ? p.value : []
 }
-onMounted(loadRefs)
-watch(club, loadRefs)
+// 「待確認申請」分頁標籤上的待辦數（只取總筆數，不載入清單）
+const pendingCount = ref(0)
+async function loadPendingCount() {
+  if (!canViewMemberships.value) return
+  try {
+    pendingCount.value = (await listMembershipApplications(club.value, { status: 'created', pageSize: 1 })).totalCount
+  } catch {
+    pendingCount.value = 0 // 徽章讀不到就不顯示，不影響其他分頁
+  }
+}
+onMounted(() => {
+  loadRefs()
+  loadPendingCount()
+})
+watch(club, () => {
+  loadRefs()
+  loadPendingCount()
+})
 </script>
 
 <template>
@@ -69,6 +86,12 @@ watch(club, loadRefs)
     <el-tabs v-model="tab" class="plan-view__tabs">
       <el-tab-pane v-if="canViewMemberships" label="會籍" name="memberships" lazy>
         <MembershipsTab :plans="plans" :seasons="seasons" />
+      </el-tab-pane>
+      <el-tab-pane v-if="canViewMemberships" name="applications" lazy>
+        <template #label>
+          待確認申請<el-badge v-if="pendingCount > 0" :value="pendingCount" :max="99" class="plan-view__badge" />
+        </template>
+        <ApplicationsTab :plans="plans" @count="(n: number) => (pendingCount = n)" />
       </el-tab-pane>
       <el-tab-pane v-if="canViewPlans" label="方案" name="plans" lazy>
         <PlansTab :seasons="seasons" @changed="loadRefs" />
@@ -86,5 +109,6 @@ watch(club, loadRefs)
 <style scoped>
 .plan-view { min-width: 0; }
 .plan-view__tabs { min-width: 0; }
+.plan-view__badge { margin-left: 6px; vertical-align: middle; }
 .plan-view__tabs :deep(.el-tabs__content) { overflow: visible; }
 </style>

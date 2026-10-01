@@ -146,8 +146,8 @@
 
 ## SHOP 官方商店　`行 366–406`（v2.6 新增，屬 8.3）
 
-> **前台骨架已建**（7 頁）：`/zh/shop/`（列表）→ `/zh/shop/home-jersey-2026/`、`/zh/shop/cushioned-socks/`（詳情）→ `/zh/cart/` → `/zh/checkout/` → `/zh/checkout/complete/`；另有 `/zh/order/lookup/`。
-> **只有版型與流程，沒有後端**：無購物車狀態、無金流、無庫存、無發票，按鈕不送出，每頁掛 `.mock-flag` 標示。8.3 `/zh/culture/merchandise/` 維持品牌櫥窗並導向商店。
+> **已接真實商店 API（S3-5，2026-10-01）**：`/zh/shop/`（列表，篩選／排序／分頁）→ `/zh/shop/{slug}/`（動態詳情，規格選擇、尺碼表、Product Schema）→ `/zh/cart/` → `/zh/checkout/`（`Idempotency-Key`、四種發票）→ LINE Pay → `/zh/checkout/complete/`（`?orderNo=&transactionId=` 確認、`&cancel=1` 取消）；另有 `/zh/order/lookup/`、`/zh/shop/policy/`、會員中心「我的訂單」。訪客購物車／訂單權杖只存 HttpOnly Cookie，由 `server/api/shop/[...path].ts` BFF 帶標頭。細節見 `apps/web/README.md`「S3-5／S3-5a／S3-9」節。
+> `shop/info.paymentAvailable=false`（LINE Pay 未串接）時結帳頁明示暫未開放並停用送出。8.3 `/zh/culture/merchandise/` 維持品牌櫥窗並導向商店。
 
 **這是本站唯一會跟使用者收錢的前台流程**（會籍、課程費、捐款都不在這裡）。
 

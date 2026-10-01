@@ -53,4 +53,28 @@ public static class PublicRateLimitPolicies
 
     public static int ResolveAppPermitLimit(IConfiguration configuration)
         => int.TryParse(configuration[AppPermitLimitConfigKey], out var v) && v > 0 ? v : AppPermitLimit;
+
+    /// <summary>
+    /// E 批（2026-10-01，S2-11 會員前台）：會員登入／註冊／驗證信／忘記密碼／重設密碼／LINE 登入這類「對帳號下手」的公開端點。
+    /// 風險模型同後台登入（密碼暴力破解、密碼噴灑、用「忘記密碼」洗版寄信），所以額度嚴：每 IP 每 5 分鐘 <see cref="MemberAuthPermitLimit"/> 次。
+    /// 帳號本身另有「連續 5 次失敗鎖 15 分鐘」，兩層互補（同 <c>AdminAuthEndpoints.LoginRateLimitPolicyName</c> 的說明）。
+    /// 額度可用設定 <see cref="MemberAuthPermitLimitConfigKey"/> 覆寫（測試主機用寬鬆值）。
+    /// </summary>
+    public const string MemberAuth = "public-member-auth";
+    public const int MemberAuthPermitLimit = 30;
+    public const string MemberAuthPermitLimitConfigKey = "MEMBER_AUTH_RATE_LIMIT_PERMITS";
+    public static readonly TimeSpan MemberAuthWindow = TimeSpan.FromMinutes(5);
+
+    /// <summary>E 批：已登入會員的寫入（改資料、重產 QR、球衣登記、建立訂單、報名活動…）與公開的報名送出。每 IP 每分鐘 <see cref="MemberWritePermitLimit"/> 次，
+    /// 可用 <see cref="MemberWritePermitLimitConfigKey"/> 覆寫。</summary>
+    public const string MemberWrite = "public-member-write";
+    public const int MemberWritePermitLimit = 60;
+    public const string MemberWritePermitLimitConfigKey = "MEMBER_WRITE_RATE_LIMIT_PERMITS";
+    public static readonly TimeSpan MemberWriteWindow = TimeSpan.FromMinutes(1);
+
+    public static int ResolveMemberAuthPermitLimit(IConfiguration configuration)
+        => int.TryParse(configuration[MemberAuthPermitLimitConfigKey], out var v) && v > 0 ? v : MemberAuthPermitLimit;
+
+    public static int ResolveMemberWritePermitLimit(IConfiguration configuration)
+        => int.TryParse(configuration[MemberWritePermitLimitConfigKey], out var v) && v > 0 ? v : MemberWritePermitLimit;
 }

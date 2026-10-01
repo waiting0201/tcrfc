@@ -1,0 +1,80 @@
+/* shop.css — 站內商店 8.3（S3-5）、積分榜與球員數據（S3-9）的補充樣式。
+   tcrfc.css 一個位元都不改（docs/13 §6 紀律 10）；只用 tcrfc.css 已定義的 design tokens，不寫任何字面色值
+   （紀律 1），兩個俱樂部自動換色。商品卡、購物車表格、摘要、規格選擇、步驟條等主體樣式沿用 tcrfc.css 既有定義。 */
+
+/* 表單欄位錯誤：tcrfc.css 的 .field-error 預設 display:none（原給靜態骨架的 JS 切換），元件以 is-shown 顯示 */
+.field-error.is-shown{ display:block; }
+.form-field input[aria-invalid="true"], .form-field select[aria-invalid="true"], .form-field textarea[aria-invalid="true"]{ border-color:var(--brand-deep); }
+.form-field input:focus-visible, .form-field select:focus-visible, .form-field textarea:focus-visible{ outline:2px solid var(--brand-aa); outline-offset:1px; }
+.checkbox-field input:focus-visible{ outline:2px solid var(--brand-aa); outline-offset:2px; }
+
+/* 篩選列 */
+.sh-price-range{ display:inline-flex; align-items:center; gap:.4rem; }
+.sh-price-range input{ width:6.5rem; min-height:44px; padding:0 .6rem; border:1px solid var(--rule); background:var(--paper); color:var(--text); font-size:.88rem; font-family:var(--font); }
+.sh-check{ display:inline-flex; align-items:center; gap:.5rem; min-height:44px; }
+.sh-check label{ text-transform:none; letter-spacing:0; font-size:.88rem; font-weight:700; color:var(--text); }
+.sh-clear{ display:inline-flex; align-items:center; min-height:44px; font-size:.85rem; font-weight:700; color:var(--brand-aa); text-decoration:underline; }
+
+/* 商品卡 */
+.product-card__flag--muted{ background:var(--ink); }
+.product-grid{ min-width:0; }
+
+/* 分頁 */
+.sh-pager{ display:flex; flex-wrap:wrap; gap:1rem; align-items:center; justify-content:center; margin-top:2.5rem; }
+.sh-pager__now{ font-size:.85rem; font-weight:700; color:var(--muted); }
+
+/* 商品詳情 */
+.sh-thumb{ padding:0; border:0; background:none; cursor:pointer; line-height:0; }
+.sh-thumb[aria-pressed="true"] img{ border-color:var(--brand); }
+.sh-thumb:focus-visible{ outline:2px solid var(--brand-aa); outline-offset:2px; }
+.sh-narrative{ white-space:pre-line; line-height:1.9; color:var(--text); max-width:46rem; overflow-wrap:anywhere; }
+.sh-policy{ margin-top:2rem; }
+.sh-policy:first-child{ margin-top:0; }
+.sh-policy h3{ font-size:1.15rem; font-weight:800; color:var(--heading); margin-bottom:.6rem; }
+.buy-row .btn[disabled]{ opacity:.55; cursor:not-allowed; }
+
+/* 購物車 */
+.sh-issue{ font-size:.78rem; font-weight:700; color:var(--brand-deep); margin-top:.4rem; }
+.qty button[disabled], .qty input[disabled]{ opacity:.5; cursor:not-allowed; }
+.cart-item__remove[disabled]{ opacity:.5; cursor:not-allowed; }
+.cart-table{ min-width:0; }
+.sh-order__items{ margin-top:1.5rem; }
+.btn--linepay[disabled]{ opacity:.55; cursor:not-allowed; }
+.summary .btn[disabled]{ opacity:.55; cursor:not-allowed; }
+
+/* 訂單清單（會員中心「我的訂單」） */
+.sh-orderlist{ list-style:none; padding:0; margin:1rem 0 0; display:grid; gap:1rem; }
+.sh-orderrow{ border:1px solid var(--rule); background:var(--paper); padding:1rem 1.25rem; }
+.sh-orderrow__head{ display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; justify-content:space-between; }
+.sh-orderrow__meta{ font-size:.82rem; color:var(--muted); margin-top:.4rem; overflow-wrap:anywhere; }
+
+/* 積分榜與球員數據（3.1 一線隊） */
+.sh-table-wrap{ overflow-x:auto; margin-top:1rem; }
+.sh-stats-table{ width:100%; min-width:520px; border-collapse:collapse; font-size:.88rem; }
+.sh-stats-table th, .sh-stats-table td{ padding:.6rem .75rem; border-bottom:1px solid var(--rule); text-align:center; }
+.sh-stats-table th:first-child, .sh-stats-table td:first-child{ text-align:left; }
+.sh-stats-table thead th{ background:var(--paper-2); font-weight:800; color:var(--heading); font-size:.78rem; letter-spacing:.04em; }
+.sh-stats-table .is-self{ background:var(--paper-2); font-weight:800; }
+.sh-stats-table .is-null{ color:var(--muted); }
+.sh-season-form{ display:flex; flex-wrap:wrap; gap:.75rem; align-items:flex-end; margin-top:1rem; }
+.sh-season-form select{ min-height:44px; padding:0 .9rem; border:1px solid var(--rule); background:var(--paper); color:var(--text); font-size:.88rem; font-family:var(--font); }
+.sh-season-form label{ font-size:.75rem; font-weight:800; color:var(--muted); display:block; margin-bottom:.3rem; }
+.sh-subhead{ font-size:1.05rem; font-weight:800; color:var(--heading); margin-top:2rem; }
+.sh-player-link{ color:inherit; text-decoration:none; }
+.sh-player-link:hover, .sh-player-link:focus-visible{ color:var(--brand-aa); text-decoration:underline; }
+
+/* 首頁「官方商店入口」精選商品（S3-5） */
+.sh-entry-grid{ list-style:none; padding:0; margin:0; display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1rem; min-width:0; }
+.sh-entry-card a{ display:flex; flex-direction:column; gap:.4rem; color:inherit; text-decoration:none; }
+.sh-entry-card img{ width:100%; aspect-ratio:1/1; object-fit:cover; background:var(--ink-2); }
+.sh-entry-card__name{ font-size:.9rem; font-weight:700; line-height:1.4; }
+.sh-entry-card__price{ font-size:.85rem; font-weight:800; color:var(--brand-bright); }
+.sh-entry-card a:hover .sh-entry-card__name, .sh-entry-card a:focus-visible .sh-entry-card__name{ text-decoration:underline; }
+
+/* B1 區塊內容（ContentPageBlocks） */
+.pb > * + *{ margin-top:2rem; }
+.pb-quote{ border-left:4px solid var(--brand); padding:.5rem 0 .5rem 1.25rem; font-size:1.1rem; line-height:1.8; color:var(--heading); }
+.pb-quote footer{ margin-top:.5rem; font-size:.85rem; color:var(--muted); }
+.pb-list{ padding-left:1.25rem; line-height:1.9; }
+.pb-list li + li{ margin-top:.6rem; }
+.pb-stats{ grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); }

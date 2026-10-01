@@ -19,6 +19,30 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/charity.css'],
 
+  // 後端 API 位址（慈善 CH-2 公開端點，apps/api 的 `/api/v1/donation-platform/…`）。
+  //   - apiInternalBase：SSR 階段走 Docker 內部網路（NUXT_API_INTERNAL_BASE=http://api:8080），不繞 Caddy／Cloudflare。
+  //   - public.apiBase：瀏覽器端直接呼叫公開 API 網域（NUXT_PUBLIC_API_BASE=https://{API_DOMAIN}）。
+  //     🔴 寫入端點（建單、付款、確認、取消）與結果頁輪詢一律由瀏覽器直打，不經 Nuxt 伺服器代轉：
+  //     api 的公開限流依「訪客真實 IP」分區，`nuxt-charity` 容器刻意不在 TRUSTED_PROXY_IPS 內
+  //     （docs/14-invariants.md），代轉會讓所有捐款人在 api 眼中變成同一個 IP，30 次／10 分鐘的額度被全站共用。
+  //   - public.turnstileSiteKey：後端設了 TURNSTILE_SECRET_KEY_CHARITY 才需要給（NUXT_PUBLIC_TURNSTILE_SITE_KEY）。
+  //   - public.simulatedPayment：只給本機／預備環境用的「模擬 LINE Pay 付款頁」（/{lang}/pay/<單號>）開關，
+  //     對應後端假金流 FakePaymentGateway；正式環境一律不給（NUXT_PUBLIC_SIMULATED_PAYMENT）。
+  // 預設值與 apps/web 的 backendApiBase() 相同（本機 dotnet run 的監聽位址 http://127.0.0.1:5299）。
+  runtimeConfig: {
+    apiInternalBase: 'http://127.0.0.1:5299',
+    public: {
+      apiBase: 'http://127.0.0.1:5299',
+      turnstileSiteKey: '',
+      simulatedPayment: false,
+    },
+  },
+
+  // 🔴 暫時排除舊 mockup 的假資料端點與讀取工具（server/api/charity/**、server/utils/fixtures.ts）：
+  // 前台已改接真 API（useCharityApi），這幾個檔案是待刪除的殘留（本輪 agent 的刪檔操作被權限分類器擋下，
+  // 留給使用者確認後刪除，見 README「待使用者處理」）。刪除後這個 ignore 設定一併移除。
+  ignore: ['server/api/charity/**', 'server/utils/fixtures.ts'],
+
   nitro: {
     // Dockerfile 用 `node .output/server/index.mjs` 直接執行，標準 Node 部署。
     preset: 'node-server',

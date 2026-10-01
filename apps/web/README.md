@@ -3025,6 +3025,158 @@ docker build -f apps/web/Dockerfile apps/web   # 成功
   不可塞入本函式的中文顯示字串。
 - **檢查**：`npm run lint:weekly-schedule`（`scripts/check-weekly-schedule.mjs`，20 組固定輸入，已併入 `npm run lint`）。
 
+## S2-7／S2-9／S2-12／S3-9／S1-14 收尾／S1-12f（接上「後端公開端點已存在」的頁面，2026-10-01，`frontend-architect`）
+
+派工：把 `apps/api` 已有公開端點的主站前台頁接上真實資料。**只動 `apps/web`**。新增共用：`shared/utils/{partners,charity,press,content-blocks,api-types}.ts`、
+`app/composables/{usePartners,useCharityCta}.ts`、`app/components/PartnerLogoTile.vue`。通則：一律以容器的 `config.public.club` 組網址（磐石／藍鯨由後端 `club_id` 分區，不混列）；
+API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500；`/en/` 由孿生路由產生，`lang` 參數跟隨路由，頁面固定文案仍是中文（沿用 S1-13 範圍）。
+
+### 資料來源表
+
+| 列／頁 | 端點 | 狀態 |
+|---|---|---|
+| S1-14 首頁贊助夥伴 Logo 牆 | `GET partners?home=true` | 🟢 接上；依 9.1 類型順序排、最多 15 家，點擊到 9.1。無資料維持 10 個空格 |
+| S1-14 首頁 Hero 迷你新聞卡 | 既有 `news`（與「最新消息」同一份排序取前 2 篇） | 🟢 有新聞用真資料；0 篇時磐石退回既有靜態兩張、藍鯨不顯示 |
+| 頁尾贊助夥伴 Logo（主站 §2 Footer） | `GET partners?footer=true` | 🟢 `SiteFooter.vue` 新增 Logo 列（不 await，無資料整段不輸出，最多 8 家） |
+| S2-7 9.1 合作夥伴 | `partners` | 🟢 五類＋俱樂部自訂類型（如藍鯨「指導單位」）分區；Logo 牆＋詳情（內容、期間、國家、官網、共同公益計畫）。磐石「國際夥伴」後台尚無資料時沿用三個既有海外隊徽，有資料即整批換掉 |
+| S2-7 9.2 贊助商 | `sponsors` | 🟢 三等級＋自訂等級；贊助故事連 `/zh/news/{slug}/`；活動紀錄彙整成依日期表（含成效摘要、縮圖）。不輸出聯絡窗口／合約日期（後端本來就不給） |
+| S2-7 9.4 贊助方案＋提案下載 | `sponsor-packages`、`proposals`、`POST proposals/{id}/download-requests` | 🟢 後台無已發布方案時維持既有 9（藍鯨 8）張靜態卡；價格只在後台公開時顯示。下載表單（公司／姓名／Email／個資同意／honeypot／UTM／sourcePath）送出建 Lead，成功後顯示 30 分鐘限時連結。同頁新增 G-12 FAQ 快捷區塊（`faqs/embeds/sponsorship`，首次消費）＋FAQPage Schema |
+| S2-9 11.1 慈善理念 | 無（B5 沒有 11.1 內容端點） | ⬜ 維持靜態 |
+| S2-9 11.2 慈善計畫 | `charity/programs`、`programs/{slug}`、`records?program=` | 🟢 列表（`?page=N`，12 筆）＋**新增詳情頁** `/zh/charity/programs/{slug}/`（緣起與執行過程、捐助內容、受贈團體、藝廊、執行紀錄、夥伴／贊助商、相關報導）。`programs.vue` 改為 `programs/index.vue`（避免 Nuxt 把它當巢狀父層，URL 不變）。內容區塊 JSON 以純文字節點渲染，**不 v-html** |
+| S2-9 11.3 慈善事蹟 | `charity/records`（pageSize 50） | 🟢 年份分組＋年份篩選。後端 0 筆時退回 mockup 的 3 筆真實事蹟（過渡，應補登後台 B5） |
+| S2-9 11.4 影響力數據 | `charity/impact` | 🟢 團體數／捐助項次／地區數／公開統計項；計數 0 顯示「—」；金額類由後端預設不公開，前台不補算。0 資料退回既有 3 團體 |
+| S2-9 CTA（CH-6） | `charity/cta` | 🟢 11 全區「球迷捐款」卡片與 11 首頁按鈕讀後台設定（外連 https、`noopener`）；後台文案沒提到協會就不採用、退回含「台灣足球策略發展協會」的固定文案。未設定網址維持 disabled 佔位與說明 |
+| S2-12 7.8 媒體專區 | `press?type=`×3 | 🟢 新聞稿／品牌識別包／高解析圖庫＋媒體聯絡導 10.6。磐石保留既有靜態識別包（真實向量檔），後台 B6 資源另列「更多識別素材」；藍鯨只顯示 B6 資源，無則空狀態 |
+| S3-9 積分榜、球員數據彙總 | ❌ **無公開端點** | ⛔ 未做。`apps/api` 只有 `Features/AdminStandings`（後台），沒有任何積分榜或球員數據公開端點，見下方缺口 |
+| S1-12f 一線隊球員 Person | 既有 `players`（`schemaEligible`） | 🟢 `first-team` 輸出 Person（閘門：schemaEligible＋非已知未滿 18 歲＋照片只在已同意時）。**順手修正 E-96**：`our-people.vue` 的教練 Person 原本全部合併成一個 |
+| （C5，順手）02 里程碑、3.1 榮譽 | `milestones`、`achievements` | 🟢 後端有資料就換成後台資料（兩俱樂部共用），否則維持原靜態／空狀態 |
+| S1-12d | — | ⬜ 本輪無可做項：剩下是「API 實機驗收」與使用者啟動 API 才能驗的部分 |
+
+### 代理與下載（`server/api/backend/[...path].ts`）
+
+新增三條白名單：`POST {club}/proposals/{GUID}/download-requests`（轉發訪客真實 IP 給限流，同表單）；`GET {club}/proposals/downloads/{token}`（串流 PDF/ZIP，只轉出 content-type／disposition／length，保留 `private, no-store`，**不轉發 cookie／Authorization**）；
+`GET {club}/press/{slug}/download`（不跟隨轉址，把 Location 回給瀏覽器，下載次數才會累計）。其餘 POST 仍 405。`sitemap` 新增慈善計畫詳情網址（僅開放 11 的俱樂部，最多 50 筆）。
+
+### 單元開關／藍鯨
+09 對藍鯨維持開放、與磐石分區（端點分區）；11 對藍鯨維持 404（沿用 §2.1，詳情頁同）；7.8 兩站皆開。本輪未新增任何單元關閉。
+
+### 範圍縮減與判斷（非規格）
+1. 夥伴／頁尾 Logo「輪播」未做動態輪播，改靜態列（首頁 15、頁尾 8）；規格寫輪播，待設計定動畫。
+2. 提案 A/B：不隨機（會造成 hydration 不一致、Lead 比較基準不可重現），固定挑「有目前語系檔案、版本最大」的一份。
+3. 11.3 只取前 50 筆（後端 maxPageSize），超過只顯示提示；年份晶片來自已載入資料，未用 `records/years`。
+4. 一線隊 Person：出生日期未填者視為成年（一線隊性質）；已知未滿 18 一律不輸出。需使用者確認這條判斷。
+5. 過渡內容（國際夥伴三隊徽、11.3／11.4 三筆事蹟、磐石靜態里程碑）在後台出現任何一筆資料即整批退場，不混搭；應由內容人員補登後台。
+6. 動態路由 `charity/programs/[slug]` 不在 `collect-routes` 檢查範圍（含 `[` 的頁面一律略過），標題結構以假資料手動核對過。
+
+### 驗證（2026-10-01）
+`npm run lint` 0 錯誤／364 警告（基準 395，未增加）；`npm run build` 通過。**未啟動 apps/api**（E-56）：用 scratchpad 的假後端（固定測試資料、非專案檔）餵兩個容器驗證：
+各頁 tcrfc／bw 內容分區正確、bw 不出現磐石夥伴；11 對 bw 404；詳情頁 404／內容 XSS 字串被轉義；POST 轉發 IP 且不轉 cookie、下載標頭正確、press 302 保留、非法路徑 405／404；
+`noindex` 仍在；API 打不到時全部落回空狀態且無 500；`check-heading-structure`（兩站）、`check-faq-schema-live`（兩站）、`check-club-brand-leak`／`check-club-image-leak`（bw，API 關閉時）皆過。
+**限制**：假資料下 `check-club-image-leak` 會把 API 圖片網域判違規（既有盲區，真實資料出現後須有意識把藍鯨媒體來源加進 `ALLOWED_PREFIXES`）；瀏覽器端互動（表單真實送出、年份篩選）只驗 SSR 與代理契約，未做瀏覽器操作；頁尾／首頁 Logo 列、Hero 迷你新聞卡的視覺只看了 9.1／9.4／詳情頁三張截圖。
+
+### 使用者實機驗收步驟（API port 5299 由使用者啟動）
+1. 後台建：夥伴（勾首頁／頁尾曝光，含深淺底 Logo）、贊助商＋故事＋活動、已發布贊助方案、有檔案的已發布提案、新聞稿／識別包／高解析圖、慈善計畫＋事蹟＋公開統計、B5 捐款導流設定、里程碑／榮譽。
+2. `NUXT_API_INTERNAL_BASE=http://127.0.0.1:5299` 起兩個容器（見「怎麼跑」），逐頁對照上表；9.4 實際填表取得下載連結並點下載；7.8 點下載確認後台累計次數增加；`/zh/charity/programs/{slug}/` 與 `/en/`。
+3. 跑 `check-club-image-leak.mjs`，視結果決定藍鯨媒體網域是否加入允許清單。
+
+## S2-11 會員中心／S3-2 08 文化（接上 E 批公開端點，2026-10-01，`frontend-architect`）
+
+只動 `apps/web`。新增相依：`qrcode-generator@1.4.4`（QR 純前端產生，內容不離開瀏覽器）。新增樣式檔 `public/assets/css/member.css`（`app.vue` 載入；只用 design tokens，`tcrfc.css` 未動）。
+
+### 架構：Nuxt 伺服器是會員工作階段的 BFF
+- 後端一律以 `tokenDelivery: "body"` 呼叫；**更新權杖只存在本站 HttpOnly Cookie**（`tcrfc-member-rt-{club}`，HTTPS 時 `__Host-` 前綴＋`Secure`，`SameSite=Strict`，`p.`／`s.` 前綴記「記住我」）；存取權杖（15 分鐘）只在瀏覽器記憶體，不落 localStorage。理由：瀏覽器只和 Nuxt 同源，後端 Cookie 屬性（`SameSite=None`、`__Host-`）是為直連 API 網域設計，經代理轉發兩個方向都容易靜默失敗。與派工「瀏覽器 Cookie 模式」的效果相同（JS 讀不到更新權杖），實作位置不同。
+- `server/api/member-auth/{login,refresh,logout,logout-all,change-password,line-callback,line-complete}.post.ts`：持有 Cookie，回應本文剝掉 `refreshToken`；一律 `assertSameOrigin`（Origin／Sec-Fetch-Site）＋`no-store`。
+- `server/utils/member-proxy.ts`＋`[...path].ts` 入口：**白名單**（方法＋路徑形狀＋是否需 Bearer）、只轉發 `Authorization`／`Idempotency-Key`／訪客 IP，**不轉發 Cookie**，原樣轉回後端狀態碼與 ProblemDetails。**刻意不放行 `pay`／`confirm`**（主站 §3.14 網頁站內結帳未拍板）。
+- **refresh single-flight**：分頁內共用 Promise；跨分頁 Web Locks＋BroadcastChannel 廣播新存取權杖／登出；伺服器端同一更新權杖「進行中」的請求合併成一次後端呼叫（不留結果快取）。實測：兩分頁同時載入 `replayRevokes=0`、併發兩次 refresh 只打一次後端、舊 Cookie 重放被後端撤銷。
+- 快取：`nuxt.config.ts` routeRules 對 `/zh|en/member/**`、`/m/**`、`/api/member-auth/**`、`/api/backend/member/**` 加 `Cache-Control: no-store`；會員頁 `noindex`；會員資料只在瀏覽器端載入（SSR 只有「載入中」殼）。
+
+### 資料來源表
+| 頁 | 端點 | 狀態 |
+|---|---|---|
+| `/zh/member/` 登入／加入 | `member/auth/register|resend-verification`、BFF `login` | 🟢 失敗依 `code`（未驗證信箱、`account_locked`＋`lockedUntil` 以台灣時間顯示）；`emailSent=false` 如實告知「驗證信尚未寄出」 |
+| `verify-email?token=`、`reset-password?token=`、`forgot-password` | `verify-email`、`reset-password`、`forgot-password`（一律 202） | 🟢 `/en/` 孿生自動產生 |
+| LINE 登入／綁定／補 Email 註冊 | `line/authorize`、BFF `line-callback`／`line-complete`、`DELETE me/line` | 🟢 `state` 存 sessionStorage 並比對（15 分鐘、取用即清）；503 顯示「暫不提供」。導回頁 `/zh/member/line-callback/` |
+| 會員中心（我的會籍／電子會員卡／球衣登記／個人資料與安全） | `member/memberships|cards|jerseys|me`、`membership-orders`、`{club}/member/memberships/join` 等 | 🟢 藍鯨 409 `season_not_available` 顯示後端說明；QR＝`{站台網址}/m/{token}` |
+| 升級續會 | `POST {club}/member/membership-orders`（`Idempotency-Key`，鍵存 sessionStorage 至成功） | 🟢 只送 `created` 申請；畫面說明由工作人員聯繫收款開通；藍鯨會籍明示「款項由台中磐石足球俱樂部代收」（藍鯨規劃書 §5.2，僅登入後客戶端渲染） |
+| `/m/{token}` 驗證頁 | `m/{token}` | 🟢 SSR、`no-store`、`noindex`、404 同一句話、只顯示後端五個欄位；`?lang=en` |
+| 權益對照表 | `membership/benefits` | 🟢 `ContentMembershipBenefits` 改資料驅動（三處共用）；後台無資料時落回既有靜態說明表 |
+| 8.4 特約店家 | `partner-stores`、`filters`、`{slug}` | 🟢 清單（篩選走網址 query）＋新增詳情 `/zh/perks/{slug}/`；無資料誠實空狀態 |
+| 8.1 漫畫 | `comic/about|characters|episodes|episodes/latest|episodes/{n}`、`POST …/views` | 🟢 首頁＋新增閱讀器 `/zh/culture/manga/{n}/`（分頁／捲動、鍵盤、滑動、上下集）；內容純文字渲染，不 v-html |
+| 8.2 球迷會 | `membership/plans`、`fan-events`（upcoming／past）、詳情、報名、取消 | 🟢 兩俱樂部同版型（移除 BW-C1 的藍鯨整頁空狀態）；新增詳情 `/zh/culture/fan-club/events/{slug}/`；限付費活動未登入引導登入（`?next=`）、`fan_club_required` 顯示後端說明 |
+
+### 單元開關
+8.1 對藍鯨維持 404（`unit: '8.1'`，閱讀器頁同；導覽早已以 `isUnitEnabledForClub` 擋；後端亦 403）。其餘無新增關閉。
+
+### 範圍縮減與規格疑點
+1. **不做「我的報名」**：派工單列了，但主站 §3.14 明文網頁前台不納入（App 才有）；API README 也寫「網頁前台不做歸戶」，以規劃書為準。
+2. **「我的訂單」不在本輪**（商店下一輪）。首頁「最新集數同步曝光」未做（首頁編排 B3 尚無對應區塊定義）。
+3. 球衣尺寸為自由文字（尺碼表客戶未提供）；QR 內容用目前站台網址，另一俱樂部站台亦能驗證（驗證頁只認 token）。
+4. LINE 導回網址須登記在後端 `LINE_LOGIN_REDIRECT_URIS` 與 LINE Developers（`https://{站台}/zh/member/line-callback/`）。
+5. 規格疑點：藍鯨 §5.2 要求「會籍付款頁」明示代收方，目前只加在升級申請區（藍鯨會籍）；是否也要放 8.2 方案區請裁決。磐石 8.2 過渡內容（4 張活動照）在後台出現任何「活動回顧」即整批退場。
+
+### 驗證（2026-10-01）
+`npm run lint` 0 錯誤／340 警告（基準 364，未增加）；`npm run build` 通過；`nuxi typecheck` 本輪新增檔案 0 錯誤。**未啟動 apps/api**（E-56）：以 scratchpad 假後端（模擬 E 批契約）＋兩個容器＋CDP 實機走完：註冊／未驗證登入／登入／重新整理還原／電子卡 QR／升級申請（冪等鍵、無 pay／confirm 呼叫、Cookie 不轉給後端）／LINE 503／state 不符丟棄／跨分頁登出與併發 refresh／驗證頁／閱讀器／活動報名取消／限付費活動／特約店家篩選；390px 無橫向溢出；`check-heading-structure`、`check-faq-schema-live`、`check-club-brand-leak`、`check-club-image-leak` 兩站皆過。限制：未對真實 API 與真實 LINE／寄信驗證。
+
+### 使用者實機驗收（API port 5299 由使用者啟動）
+1. 後台建：會籍方案與權益條目、特約店家、球迷會活動（含限付費）、漫畫（已發布且發布日已到）。
+2. 起兩個容器（見「怎麼跑」，`NUXT_API_INTERNAL_BASE=http://127.0.0.1:5299`）；`EMAIL_OUTBOX_PATH` 的信件檔點連結走完驗證與重設密碼。
+3. 走一遍：註冊→驗證→登入→會員卡 QR（手機掃開 `/m/…`）→重產 QR 舊連結 404→升級申請→後台 K2 開通→會籍變「已開通」→球衣登記→兩分頁同時開會員中心→活動報名。
+4. 藍鯨容器：`/zh/culture/manga/` 404、加入藍鯨得到「沒有開放的球季」說明。
+
+## S3-5／S3-5a／S3-9（8.3 站內商店 7 頁流程、Product Schema、積分榜與球員數據，2026-10-01，`frontend-architect`）
+
+只動 `apps/web`。對接 `apps/api README`「F 批」契約。新增：`server/api/shop/[...path].ts`（BFF）、`server/utils/shop-session.ts`、`shared/utils/{shop,shop-schema,standings,core-values,page-blocks}.ts`、`app/composables/{useShop,useShopInfo,useProductSchema}.ts`、`app/components/shop/ShopOrderView.vue`、`app/components/member/MemberOrders.vue`、`app/components/content/PageBlocks.vue`、`public/assets/css/shop.css`、`scripts/check-shop-lib.mjs`（已掛 `npm run lint`，91 項斷言）。
+
+### 架構：商店 BFF `/api/shop/**`
+- 瀏覽器與 SSR 只呼叫 `/api/shop/{endpoint}`，俱樂部取自容器 `NUXT_PUBLIC_CLUB`（瀏覽器**不能指定**，購物車不得跨俱樂部混買）。**白名單**列明方法＋路徑形狀＋身分模式，其餘 404／405；查詢字串只放行各路由列出的鍵並檢查形狀。非目錄請求一律 `assertSameOrigin`。
+- 訪客購物車權杖 `X-Cart-Token`、訂單權杖 `X-Order-Token` 只存 **HttpOnly Cookie**（`tcrfc-shop-ct-{club}`／`tcrfc-shop-ot-{club}`，HTTPS 時 `__Host-`，SameSite=Lax，30 天），由 BFF 依 Cookie 帶標頭，**回應本文剝掉 `cartToken`／`accessToken`**。不轉發瀏覽器 Cookie。件數另寫非 HttpOnly 的 `tcrfc-shop-n-{club}`（只有一個整數）供頁首購物車徽章（原本寫死「2」，已改真值，僅瀏覽器端渲染）。
+- 會員：瀏覽器帶 15 分鐘存取權杖（沿用 `useMemberSession`）。登入後載入購物車走 `cart/merge`（沒有訪客 Cookie 時 BFF 直接回會員購物車）；merge 成功清掉訪客 Cookie。信件連結權杖查單成功後權杖寫進 Cookie（可繼續付款），並把網址上的 `token` 移除。
+- `pay` 回的 `paymentUrl` 非 `https://` 一律視為 null。全部 `Cache-Control: no-store`（BFF、`/zh|en/{shop,cart,checkout,order}/**` routeRules）；購物車／結帳／結果／查單／會員頁 `noindex`，內容只在瀏覽器端載入。
+
+### 資料來源表
+| 頁 | 狀態 |
+|---|---|
+| `/zh/shop/` 列表 | 🟢 篩選（系列／尺寸／顏色／價格／新上市）、排序、分頁（網址 query＋`<form method="get">`，無 JS 可用）；缺貨／優惠／新上市標示；`info` 入口介紹、運費規則；藍鯨明示代收 |
+| `/zh/shop/{slug}/` 詳情（取代兩張寫死示意頁） | 🟢 圖集、規格選擇（尺寸／顏色／自訂標籤，售完停用）、可售量、促銷價、尺碼表（容錯解析後端 JSON）、商品介紹（純文字）、加入購物車／直接結帳；不存在 404；Product＋Offer Schema |
+| `/zh/cart/` | 🟢 數量／移除／小計／運費／免運差額皆後端值；`canCheckout=false` 停用結帳；庫存錯誤顯示後端說明並重新載入 |
+| `/zh/checkout/` | 🟢 收件資料、三種配送、四種發票（載具格式、統編檢核碼、捐贈碼清單）、條款；冪等鍵存 sessionStorage 至成功；建單後請款並導向 LINE Pay；請款失敗保留訂單可重試；會員自動帶入帳號資料 |
+| `/zh/checkout/complete/` | 🟢 `?orderNo&transactionId`→confirm、`&cancel=1`→cancel、其餘查看狀態；**付款成功只認後端 `paymentStatus=paid`**（偽造 transactionId 實測不會顯示成功） |
+| `/zh/order/lookup/` | 🟢 訂單編號＋Email（遮罩）、`?token=` 信件連結（完整、可付款）；找不到同一句話 |
+| 會員中心「我的訂單」 | 🟢 清單、展開明細、待付款可付款／取消；退換貨只連政策頁與聯絡表單（規格不做退貨精靈） |
+| `/zh/shop/policy/`（新增） | 🟢 購物須知／運送／退換貨／交易條款（S6 維護，空段不顯示） |
+| 首頁官方商店入口 | 🟢 前 3 件上架商品（名稱／圖／價，不顯示庫存）；磐石無商品維持靜態入口，藍鯨無商品整區不顯示 |
+| 首頁核心價值 | 🟢 `home/core-values`（排序、名稱）＋前台依 `code` 補說明；API 空／失敗退回同順序備援；仍只對磐石顯示（藍鯨版標籤文字待確認） |
+| 3.1 一線隊積分榜／球員數據 | 🟢 `standings`、`stats/players`，球季 `?season=`；**助攻 `null` 顯示「—」、0 顯示 0**；無資料誠實空狀態 |
+| 球員詳情（取代「範本」頁） | 🟢 `/zh/club/first-team/player/{id}/`：基本資料＋`players/{id}/stats` 本季與逐季；名單卡片連過去；舊 `/player/` 302 回名單 |
+| 11.1 慈善理念 | 🟢 讀 `pages/charity/commitment`（區塊於伺服器端正規化為純文字節點、連結白名單）；無頁面／無可渲染區塊維持靜態內容 |
+
+### 規格判斷與範圍縮減（非規格，請裁決）
+1. **`paymentAvailable=false`（或取不到 info）時結帳頁停用送出、不建單**。API README 寫「可結帳至建立訂單」，但建了付不了只會占庫存 30 分鐘；主要要求是明示並不得假裝付款成功。
+2. **付款導回網址約定**（API 目前未指定，見缺口一）：`{站台}/{lang}/checkout/complete/?orderNo={no}&transactionId=…`／`&cancel=1`，建構函式 `checkoutReturnUrl`。
+3. Product Schema：多規格用 `AggregateOffer`，`@id` 全唯一，AggregateOffer 的 `availability` 明確給（模組會替缺值補 InStock）；供貨狀態 `<5 件`＝LimitedAvailability，不輸出具體庫存。
+4. 規格選項來源（尺寸／顏色下拉）取不帶篩選的前 60 件；超過 60 件商品時選項可能不全。
+5. 圖文左右、藝廊、影音、手風琴、檔案下載等 B1 區塊本輪不渲染（只渲染純文字型）。
+6. 球員詳情不顯示生日（未成年個資）；「相關新聞」「影片」兩區塊沒有資料來源，已移除而非放空殼。
+7. 13 賽事行事曆頁**沒有**放積分榜／球員數據（規格 §3.1 把它們放在一線隊「成績與排名」），只在 3.1 一線隊頁。
+8. 新聞的「商品頁 SEO 標題」採後台 `seoTitle`，沒有則自動組。
+
+### API 缺口
+1. **LINE Pay 導回網址**：`IPaymentGateway.ReserveAsync` 沒有 confirm／cancel URL 參數；正式實作需把 LINE Pay 的 `confirmUrl`／`cancelUrl` 設成上面第 2 點的網址（LINE Pay 會附 `transactionId`）。
+2. 球員沒有 slug／單一球員端點（App 規劃書深連結寫 `/player/{slug}`），目前以 GUID、並由名單端點取基本資料（上限 100）。
+3. 商品列表沒有「可用篩選選項」端點（尺寸／顏色清單）。
+
+### 驗證（2026-10-01）
+`npm run lint` 0 錯誤／305 警告（基準 340，未增加）；`npm run build` 通過；`nuxi typecheck` 新增檔案 0 錯誤（既有檔案的既有錯誤未動）。**未啟動 apps/api**（E-56）：scratchpad 假後端（依 F 批契約，非專案檔）＋兩個容器：
+- BFF 52 項（`curl`／Node）：白名單 404／405、跨站 403、未知 query 被丟、Cookie 屬性、後端**從未收到 Cookie 標頭**、權杖剝除、**並行 6 個同鍵只成立一張**、重複／並行 confirm 冪等、遮罩查單、權杖查單。
+- 瀏覽器 CDP E2E：訪客全流程（選規格→購物車→錯誤驗證→**雙擊送出只一張訂單**→導向 LINE Pay→導回確認→重整→偽造 transactionId→取消→查單）；會員流程（登入→merge→預填→我的訂單）；`paymentAvailable=false`；藍鯨明示代收；核心價值／B1 理念；390px 13 頁無橫向溢出。
+- `check-heading-structure`、`check-faq-schema-live`（兩站）、`check-club-brand-leak`／`check-club-image-leak`（bw，API 關閉；假資料開著時圖片網域會被判違規，既有盲區）皆過。品牌例外清單只減不增（移除 socks 與 player 兩組）。
+**限制**：未對真實 API／LINE Pay／寄信驗證；假後端的冪等是它自己實作，真正的並行冪等由 API 測試鎖定。
+
+### 使用者實機驗收（API port 5299 由使用者啟動）
+1. 後台建：S6 入口與政策、系列、上架商品（含多規格、促銷價、尺碼表 JSON、圖片）、發票捐贈碼；賽事積分榜與已結束賽事；B1 頁面 `charity/commitment`。
+2. `NUXT_API_INTERNAL_BASE=http://127.0.0.1:5299` 起兩個容器，走：商品→購物車→結帳（`PAYMENT_GATEWAY=fake` 時請款回假網址，可手動開 `…/checkout/complete/?orderNo=…&transactionId=FAKE-{訂單編號}` 模擬導回）→我的訂單；Production 設定下 `paymentAvailable=false` 應看到停用說明。
+3. 藍鯨容器：商品頁／結帳頁出現代收說明；首頁商店入口隨商品出現。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

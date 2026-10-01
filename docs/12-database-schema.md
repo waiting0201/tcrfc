@@ -563,6 +563,8 @@ flowchart LR
 | `MemberCard` | **●** | **電子會員卡，一張一列**；**`membership_id` 必填——每份會籍一張卡**。持卡人姓名、`token`（UNIQUE，**不可由會員編號推導**）、狀態、補發次數 | 🔒 |
 | `MembershipPlan` | **●** | 會籍方案：費用、`season_id`、期間、`card_quota`、`jersey_quota`、季中計價規則 | 🌐 |
 | `MembershipPayment` | **●** | 會籍付款與開通：方式、金額、日期、**經辦人**、開通起訖；**`collecting_club_id`（收款法人）**供代收代付分帳 | 🔒 |
+| `MembershipOrder` | **●** | **（E 批新增）會籍付款訂單**：訂單編號、受益俱樂部（`club_id`）與收款主體（`collecting_club_id`）、方案、**伺服器重算的金額**、**冪等鍵**（`(member_id, idempotency_key)` 唯一）、狀態機（App 規劃書 §5.3）。與商店 `Order` 分開 | 🔒 |
+| `MemberRefreshToken` | — | **（E 批新增）會員網頁登入的更新權杖**：只存雜湊、輪替鏈、重放偵測；同 `AdminRefreshToken`，**不是日誌表**。App 的權杖鏈在 `AppDevice` | — |
 | `MembershipBenefit` | — | 權益對照條目（**由父表 `MembershipPlan` 推導**）：分組、免費層值、付費層值、排序。**單一維護點，前台三處共用** | 🌐 |
 | `JerseyIssue` | **●** | 球衣發放，**一件一列**：領用人姓名、尺寸、配送方式、地址、狀態 | 🔒 |
 | `PartnerStore` | **○** | 特約店家（**適用範圍可設單一俱樂部或兩隊共同**，主站 §3.14）：類別、地址、電話、營業時間、優惠內容、適用層級、合作起訖、**`lat`／`lng`**（K4 人工確認後儲存）。**無金流無分潤** | 🌐 |
@@ -868,6 +870,22 @@ flowchart LR
     ⑤ **J3 稽核**：規劃書 J3 要求「操作稽核記錄保存 ≥ 12 個月」「登入紀錄與異常提醒」，但 §13.1 的委託方指示（與 2026-09-23 使用者裁決撤回 `admin_audit_logs`／`admin_login_logs`）仍然有效——
     **D 批不建任何稽核或登入日誌表**，`system.audit.view` 只提供「帳號目前狀態」的唯讀概況與登入異常提醒（最後登入、連續失敗、鎖定、久未登入），並如實標示沒有稽核記錄；
     廣告成效匯出、App 憑證輪替、推播核可、裝置完整值檢視等「須寫稽核」的操作照 B／C 批的做法寫 `SensitiveActionLogger`。**待客戶重新確認稽核政策**（見 `apps/api/README.md` D 批「待裁決」）。
+
+47. 🔴 **（E 批，2026-10-01）主站前台會員中心（S2-11）落地時補齊的綱要**——把規劃書已有的功能（§3.14 登入失敗次數限制、LINE 一鍵登入、App 規劃書 §5.3／§5.4／§9.7 付款訂單與冪等開通）落到資料表，不是新增規格
+    （`db/club-schema.sql` 與 migration `AlignSchemaE2` 同步，本機 `tcrfc_club` 已套用；**187 → 189 張**）：
+    ① **`members` 加三欄**：`failed_attempt_count`／`locked_until`（登入失敗鎖定，同 `admin_users`）、`line_user_id_hash`（LINE userId 的 SHA-256，**篩選唯一索引**——`line_user_id_encrypted` 每次密文不同，不能拿來「用 LINE 帳號找會員」）。
+    `password_hash` 以 `!` 開頭＝尚未設定密碼（LINE 註冊者）；
+    ② **新表 `member_refresh_tokens`**：會員（網頁）登入的更新權杖，**與 `admin_refresh_tokens` 同一套機制與同一條判準**（§7.7：拿掉它輪替與撤銷做不到，不是 §13.1 的日誌表）。⚠️ **App 的更新權杖仍掛在 `app_devices`**（App 規劃書 §10.1，一裝置一鏈），不使用本表；
+    ③ **新表 `membership_orders`**：會籍付款訂單（App 規劃書 §5.3 狀態機、§5.4 冪等鍵、§9.6）。`(member_id, idempotency_key)` 唯一、`amount` 由伺服器依方案重算、`club_id`＝受益俱樂部／`collecting_club_id`＝收款主體。
+    **規劃書 §10.1 型別表漏列這個型別**（只在 §5.3／§5.4／§9.2 以「付款訂單」「訂單編號」出現），本批依 §5.3 的七個狀態落表；**與站內商店 `orders` 完全分開**（主站 §3.14：會籍不走商店結帳）；
+    ④ **`membership_payments.membership_order_id`**（可空，篩選唯一索引）：由訂單開通時記下來源，**一張訂單最多一筆付款紀錄**——冪等開通的資料庫層保險（App 規劃書 §9.7）。
+    **刻意沒有的**：Email 驗證與密碼重設**不建表**（簽章式、有時效的無狀態權杖，用 Data Protection，見 `apps/api/README.md` E 批）；`Member.paid_until` **不新增**——App 規劃書 §5.3／§9.7 提到的 `paid_until` 就是 `memberships.membership_end_on`（會籍起訖在 `Membership`，`Member` 不放，見 `12b` §6.3「已移出的三欄」）；`email_logs` 本批不寫（`type` 字面值未定，見 `apps/api/README.md` E 批「待裁決」）。
+
+48. 🔴 **（F 批，2026-10-01）站內商店前台結帳（S3-5）落地時補齊的綱要**——把規劃書 §3.8 8.3 已有的功能（非會員「填 Email 即可」結帳、結帳冪等、付款網址、訪客購物車、發票載具）落到欄位與索引，**沒有新增表**（`db/club-schema.sql` 與 migration `AlignSchemaF1` 同步，本機 `tcrfc_club` 已套用，**表數不變**）：
+    ① **`orders` 加四欄**：`buyer_email`（非會員結帳買家 Email；訂單成立信與 `/order/lookup`「訂單編號＋Email」比對用，後台人工建單為空）、`idempotency_key`＋`request_fingerprint`（前台結帳冪等；**`(club_id, idempotency_key)` 篩選唯一索引**——並行重送由資料庫層擋下；指紋＝擁有者＋請求內容的 SHA-256，同鍵不同內容或不同擁有者 → 409）、`payment_url`（LINE Pay 請款後的付款網址，付款成立後清空）；
+    ② **`carts` 加兩條篩選唯一索引**：`(club_id, member_id)`（一個會員在一個俱樂部最多一台）、`anonymous_token`（**存權杖的 SHA-256，權杖本身不落庫**）；
+    ③ **`store_invoices.carrier_id_encrypted` 由 `nvarchar(64)` 放寬為 `nvarchar(500)`**——Data Protection 密文遠超過 64；載具號碼不得明文存放（§4.13 受限欄位）。
+    **刻意沒有的**：不新增「訂單過期時間」欄位（逾時＝`created_at` ＋ S6「待付款保留時間」，讀到時換算＋背景作業清掃）；不新增發票失敗原因欄位（記結構化日誌，`retry_count` 計次）；不為「超商取貨門市」加欄位（門市名稱／代碼寫入 `recipient_address`，出貨時 S4 另填 `shipments.store_branch_code`）；**不拆單**（`B-8` 未定案，現行禁止混買）。
 
 ---
 

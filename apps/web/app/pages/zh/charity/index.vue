@@ -4,6 +4,12 @@ definePageMeta({ nav: "charity", unit: "11", bodyClass: "page-charity" })
 
 const { lp } = useLocale()
 
+// S2-9（CH-6）：球迷捐款導流網址與文案讀後台 B5 設定（`GET /api/backend/{club}/charity/cta`），不寫死。
+// 本站不處理金流、不放金額選項／捐款表單；收受者是台灣足球策略發展協會，不是俱樂部（規劃書 §3.11）。
+const { cta, donationUrl, corporateLink } = await useCharityCta()
+/** 後台文案只有「提到協會」才採用；沒提到就退回本頁固定文案（固定文案已明示收受者），避免讓人誤以為是捐給俱樂部。 */
+const fanCtaText = computed(() => (cta.value.fanCta?.includes(CHARITY_RECIPIENT) ? cta.value.fanCta : null))
+
 useSeoMeta({
   title: "慈善與社會影響 Charity & Impact｜台中磐石足球俱樂部",
   description: "台中磐石足球俱樂部的慈善與社會影響單元：慈善理念與投入領域、慈善計畫、事蹟紀錄、影響力數據，以及企業合作與球迷捐款兩種參與方式。",
@@ -110,15 +116,15 @@ useSeoMeta({
       <p class="section-lede">不論是企業還是球迷，都有合適的參與方式。</p>
     </div>
     <div class="cta-grid">
-      <a class="cta-card" :href="lp('/zh/partners/opportunities/')">
+      <a class="cta-card" :href="corporateLink.href" :target="corporateLink.external ? '_blank' : undefined" :rel="corporateLink.external ? 'noopener noreferrer' : undefined">
         <span class="cta-card__num">9.4</span>
         <span class="cta-card__title">企業合作公益專案</span>
-        <p class="cta-card__desc">攜手企業推動長期公益方案，詳見合作夥伴的贊助方案頁面。</p>
+        <p class="cta-card__desc">{{ cta.corporateCta ?? '攜手企業推動長期公益方案，詳見合作夥伴的贊助方案頁面。' }}</p>
       </a>
       <a class="cta-card" href="#donate">
         <span class="cta-card__num">01</span>
         <span class="cta-card__title">球迷捐款</span>
-        <p class="cta-card__desc">透過台灣足球策略發展協會的慈善捐款平台線上捐款，支持指定的捐款項目。</p>
+        <p class="cta-card__desc">{{ fanCtaText ?? '透過台灣足球策略發展協會的慈善捐款平台線上捐款，支持指定的捐款項目。' }}</p>
       </a>
     </div>
   </div>
@@ -164,8 +170,15 @@ useSeoMeta({
     </div>
 
     <div class="donate-action">
-      <button class="btn btn--primary" type="button" disabled aria-disabled="true">前往協會慈善捐款平台（網域待定）</button>
-      <p class="pending-inline">慈善捐款平台網域待補 —— 客戶尚未確認網域名稱，捐款平台亦尚未開發。上方按鈕目前為 disabled 佔位。平台主辦與收款主體為台灣足球策略發展協會（規劃書 v1.4），CTA 文案須明示收受者。</p>
+      <template v-if="donationUrl">
+        <!-- 導流網址與文案來自後台 B5 設定（S2-9）；後端強制該文案點明「台灣足球策略發展協會」 -->
+        <a class="btn btn--primary" :href="donationUrl" target="_blank" rel="noopener noreferrer">前往台灣足球策略發展協會慈善捐款平台（另開新分頁）</a>
+        <p v-if="cta.donationCta" class="donate-action__note">{{ cta.donationCta }}</p>
+      </template>
+      <template v-else>
+        <button class="btn btn--primary" type="button" disabled aria-disabled="true">前往協會慈善捐款平台（網域待定）</button>
+        <p class="pending-inline">慈善捐款平台網域待補 —— 客戶尚未確認網域名稱，捐款平台亦尚未開發。上方按鈕目前為 disabled 佔位。平台主辦與收款主體為台灣足球策略發展協會（規劃書 v1.4），CTA 文案須明示收受者。後台「慈善與社會影響」設定捐款網址後，此處會自動換成可點擊的外連按鈕。</p>
+      </template>
     </div>
   </div>
 </section>
@@ -254,4 +267,5 @@ useSeoMeta({
 .donate-note a{ color:var(--brand-aa); text-decoration:underline; }
 
 .donate-action{ margin-top:2rem; display:flex; flex-direction:column; align-items:flex-start; gap:.6rem; }
+.donate-action__note{ max-width:72ch; font-size:.85rem; line-height:1.7; color:var(--muted); }
 </style>

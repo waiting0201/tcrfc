@@ -1,5 +1,16 @@
 <script setup lang="ts">
+// S2-11：資料來源改為後台 K4（`GET /{club}/membership/benefits`，一份資料多處使用）。
+// 後台尚未建立任何上架條目（API 失敗或空表）時，**落回下方既有的靜態說明表**——那張表只寫規劃書 3.14
+// 已定案的層級規則，金額、件數等客戶未決事項仍以「待補」標示，不是假資料。
 const { lp } = useLocale()
+const { benefits } = await useMembershipBenefits()
+const groups = computed(() => (benefits.value?.groups ?? []).filter(g => g.items.length > 0))
+const hasData = computed(() => groups.value.length > 0)
+
+/** 對照欄位值：空值顯示「—」並附螢幕閱讀器文字（不得只靠符號傳達「沒有」）。 */
+function cell(value: string | null | undefined): string {
+  return value && value.trim() ? value.trim() : ''
+}
 </script>
 
 <template>
@@ -13,7 +24,37 @@ const { lp } = useLocale()
   <h2 class="section-title" id="benefits-title">會員權益對照</h2>
   <p class="section-lede">加入會員即可享特約店家折扣；升級付費會籍另可獲得球衣。以下權益未登入亦可查看。</p>
 
-  <div class="table-scroll">
+  <div v-if="hasData" class="table-scroll">
+    <table class="benefits-table">
+      <caption class="visually-hidden">一般會員與球迷會員（付費）的權益對照表<template v-if="benefits?.planName">：{{ benefits.planName }}</template></caption>
+      <thead>
+        <tr>
+          <th scope="col">權益項目</th>
+          <th scope="col">一般會員 <span class="en">Registered</span><span class="benefits-table__price">免費</span></th>
+          <th scope="col">球迷會員 <span class="en">Fan Club</span><span class="benefits-table__price">付費會籍</span></th>
+        </tr>
+      </thead>
+      <tbody v-for="g in groups" :key="g.group">
+        <tr class="benefits-table__group"><th colspan="3" scope="colgroup">{{ g.groupLabel }}</th></tr>
+        <tr v-for="item in g.items" :key="`${g.group}-${item.name}`">
+          <th scope="row">
+            {{ item.name }}
+            <span v-if="item.description" class="benefits-table__desc">{{ item.description }}</span>
+          </th>
+          <td>
+            <template v-if="cell(item.freeValue)">{{ cell(item.freeValue) }}</template>
+            <template v-else><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">無</span></template>
+          </td>
+          <td>
+            <template v-if="cell(item.paidValue)">{{ cell(item.paidValue) }}</template>
+            <template v-else><span class="cross" aria-hidden="true">—</span><span class="visually-hidden">無</span></template>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div v-else class="table-scroll">
     <table class="benefits-table">
       <caption class="visually-hidden">一般會員與球迷會員（付費）的權益對照表</caption>
       <thead>
@@ -68,7 +109,7 @@ const { lp } = useLocale()
     <a :href="lp('/zh/perks/')">查看特約店家清單 →</a>
   </p>
 
-  <div class="pending-note">
+  <div v-if="!hasData" class="pending-note">
     年費金額、方案內容（是否設家庭方案、各含幾件球衣）、球季起訖日、球衣尺碼表，
     以及抽獎的獎品內容、開獎時間與活動辦法待補
     —— 屬客戶決策項目，見規劃書第 10 章尚待確認事項第 3、4、5、7、8 點與第 16–20 點。
@@ -93,6 +134,8 @@ const { lp } = useLocale()
 .benefits-table td{ color:var(--text); }
 .benefits-table .tick{ color:var(--brand-aa); font-weight:800; }
 .benefits-table .cross{ color:var(--muted); }
+.benefits-table__group th{ background:var(--paper-2); font-size:.78rem; letter-spacing:.06em; color:var(--muted); font-weight:800; }
+.benefits-table__desc{ display:block; margin-top:.25rem; font-size:.78rem; font-weight:400; color:var(--muted); line-height:1.6; }
 .benefits__note{ margin-top:1.25rem; font-size:.88rem; color:var(--text); }
 .benefits__note a{ color:var(--brand-aa); font-weight:700; text-decoration:underline; }
 .pending-cell{ color:var(--muted); font-style:italic; }

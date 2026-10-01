@@ -72,9 +72,8 @@ useSeoMeta({
         <div class="unit-card__body">
           <p class="unit-card__num">8.2</p>
           <p class="unit-card__title">{{ clubAssets.shortNameZh }}球迷會<span class="en">Fan Club</span></p>
-          <p v-if="isTcrfc" class="unit-card__desc">付費會籍方案、會員權益對照與球迷活動報名、回顧。</p>
-          <p v-else class="unit-card__desc">球迷活動與回顧，內容由後台提供。</p>
-          <span class="unit-card__link">{{ isTcrfc ? '加入球迷會' : '看球迷會' }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          <p class="unit-card__desc">付費會籍方案、會員權益對照與球迷活動報名、回顧。</p>
+          <span class="unit-card__link">加入球迷會 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>
       <a class="unit-card" :href="lp('/zh/culture/merchandise/')">

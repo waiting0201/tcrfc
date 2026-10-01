@@ -1,21 +1,22 @@
 <script setup lang="ts">
-/**
- * 使用者選單。⛔ 沒有真的認證（見 src/data/session.ts 檔頭），但為了讓「不同角色看到不同
- * 畫面」（例如 §3.7.3 退款按鈕的權限判斷）可以被實際點著看，這裡做成可以切換測試身分。
- */
+/** 使用者選單：顯示登入者姓名與角色、登出。 */
 import { computed } from 'vue'
-import { ADMIN_USERS, currentUser, switchUser } from '@/data/session'
+import { useRouter } from 'vue-router'
+import { authUser } from '@/auth/session'
+import { logout } from '@/api/auth'
 
-const displayName = computed(() => currentUser.value.displayName)
-const roleName = computed(() => currentUser.value.roleNameZh)
+const router = useRouter()
+const displayName = computed(() => authUser.value?.displayName || '使用者')
+const roleName = computed(() => (authUser.value?.roleNames.length ? authUser.value.roleNames.join('、') : authUser.value?.isSuperAdmin ? '系統管理員' : ''))
 
-function handleCommand(username: string) {
-  switchUser(username)
+async function handleLogout() {
+  await logout()
+  await router.replace({ name: 'login' })
 }
 </script>
 
 <template>
-  <el-dropdown trigger="click" @command="handleCommand">
+  <el-dropdown trigger="click" @command="handleLogout">
     <button type="button" class="user-menu">
       <el-avatar :size="28" class="user-menu__avatar">{{ displayName.slice(0, 1) }}</el-avatar>
       <span class="user-menu__name admin-hide-on-mobile">{{ displayName }}</span>
@@ -25,12 +26,9 @@ function handleCommand(username: string) {
       <el-dropdown-menu>
         <div class="user-menu__current">
           <p class="user-menu__current-name">{{ displayName }}</p>
-          <p class="user-menu__current-role">目前身分：{{ roleName }}</p>
+          <p v-if="roleName" class="user-menu__current-role">{{ roleName }}</p>
         </div>
-        <el-dropdown-item divided disabled>切換測試身分（僅供 mockup 展示權限差異）</el-dropdown-item>
-        <el-dropdown-item v-for="u in ADMIN_USERS" :key="u.username" :command="u.username">
-          {{ u.displayName }}（{{ u.roleNameZh }}）
-        </el-dropdown-item>
+        <el-dropdown-item divided command="logout">登出</el-dropdown-item>
       </el-dropdown-menu>
     </template>
   </el-dropdown>

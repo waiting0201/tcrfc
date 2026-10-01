@@ -48,6 +48,10 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             ClubNotFoundException clubNotFound =>
                 (StatusCodes.Status404NotFound, "找不到俱樂部", clubNotFound.Message),
 
+            // ── CH-2／CH-3：慈善平台業務例外（CharityPlatform/），帶自己的狀態碼與標題，不必逐一列在這裡 ──
+            Tcrfc.Api.CharityPlatform.Common.CharityApiException charityApi =>
+                (charityApi.StatusCode, charityApi.Title, charityApi.Message),
+
             // ── 本輪新增：登入與授權（Security/、Features/AdminAuth）─────────────────────
             AdminUnauthenticatedException unauthenticated =>
                 (StatusCodes.Status401Unauthorized, "請先登入", unauthenticated.Message),
@@ -229,6 +233,22 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             SharedContentReadOnlyException sharedContentReadOnly =>
                 (StatusCodes.Status403Forbidden, "共用內容唯讀", sharedContentReadOnly.Message),
 
+            // ── E 批新增：主站前台會員中心／會員付款訂單／球迷會活動報名（Common/MemberExceptions.cs）─────────────
+            MemberValidationException memberValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", memberValidation.Message),
+            MemberUnauthenticatedException memberUnauthenticated =>
+                (StatusCodes.Status401Unauthorized, "請先登入", memberUnauthenticated.Message),
+            MemberForbiddenException memberForbidden =>
+                (StatusCodes.Status403Forbidden, "無法執行", memberForbidden.Message),
+            MemberNotFoundException memberNotFound =>
+                (StatusCodes.Status404NotFound, "找不到資料", memberNotFound.Message),
+            MemberConflictException memberConflict =>
+                (StatusCodes.Status409Conflict, memberConflict.Title, memberConflict.Message),
+            MemberAccountLockedException memberLocked =>
+                (StatusCodes.Status423Locked, "帳號暫時鎖定", memberLocked.Message),
+            FeatureNotConfiguredException notConfigured =>
+                (StatusCodes.Status503ServiceUnavailable, "服務尚未啟用", notConfigured.Message),
+
             // ── B1 新增：P4 試訓（Features/AdminTrials）、L 行事曆進階（Features/AdminCalendar）──────
             Tcrfc.Api.Features.AdminTrials.TrialNotFoundException trialNotFound =>
                 (StatusCodes.Status404NotFound, "找不到試訓場次", trialNotFound.Message),
@@ -244,13 +264,25 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
         }
 
         httpContext.Response.StatusCode = statusCode;
-        await httpContext.Response.WriteAsJsonAsync(new ProblemDetails
+        var problem = new ProblemDetails
         {
             Status = statusCode,
             Title = title,
             Detail = detail,
             Instance = httpContext.Request.Path,
-        }, cancellationToken);
+        };
+        // E 批：會員端點的例外帶機器可讀的 code，前端依它決定流程（例如 email_not_verified → 顯示「重寄驗證信」）。
+        if (exception is ICodedApiException coded)
+        {
+            problem.Extensions["code"] = coded.Code;
+        }
+
+        if (exception is MemberAccountLockedException locked)
+        {
+            problem.Extensions["lockedUntil"] = locked.LockedUntilUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
 
         return true;
     }

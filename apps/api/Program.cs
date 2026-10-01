@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using StackExchange.Redis;
 using Tcrfc.Api.Caching;
+using Tcrfc.Api.CharityPlatform;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Features.AdminAccounts;
@@ -22,6 +23,14 @@ using Tcrfc.Api.Features.AdminAds;
 using Tcrfc.Api.Features.AdminApp;
 using Tcrfc.Api.Features.AdminSecurity;
 using Tcrfc.Api.Features.AppPublic;
+using Tcrfc.Api.Features.Comics;
+using Tcrfc.Api.Features.FanEvents;
+using Tcrfc.Api.Features.Shop;
+using Tcrfc.Api.Features.Standings;
+using Tcrfc.Api.Features.MemberAuth;
+using Tcrfc.Api.Features.MemberCenter;
+using Tcrfc.Api.Features.MembershipPayments;
+using Tcrfc.Api.Features.MembershipPublic;
 using Tcrfc.Api.Features.AdminCharity;
 using Tcrfc.Api.Features.AdminCalendar;
 using Tcrfc.Api.Features.AdminClubs;
@@ -266,6 +275,7 @@ if (!string.IsNullOrWhiteSpace(dataProtectionKeysPath))
 // E-79：必填設定在 Build 前驗證，缺值時啟動失敗（而不是每個請求 500）。測試主機的 fixture 皆以
 // Environment.SetEnvironmentVariable 在建立 Server 前設定此鍵，環境變數在 CreateBuilder 時就已讀入。
 AdminTokenService.ValidateSigningKeyConfigured(builder.Configuration);
+MemberTokenService.ValidateConfigured(builder.Configuration); // E 批：會員權杖的金鑰（未設 JWT_SIGNING_KEY_MEMBER 時由後台金鑰衍生）
 builder.Services
     .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -285,7 +295,28 @@ builder.Services
             },
         };
     });
+
+// E 批（2026-10-01，S2-11）：會員（前台帳號）的存取權杖——獨立的驗證機制、獨立的 issuer／audience、獨立的簽章金鑰，
+// 與上面的後台機制互不認帳，見 Security/MemberTokenService.cs。不是預設機制：只有會員端點透過 MemberAuthenticator 明確要求它。
+builder.Services
+    .AddAuthentication()
+    .AddJwtBearer(MemberTokenService.Scheme, options =>
+    {
+        options.TokenValidationParameters = new MemberTokenService(builder.Configuration).GetValidationParameters();
+        options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+        {
+            OnChallenge = context =>
+            {
+                context.HandleResponse(); // 同後台：不用框架預設的空白 401，由 MemberAuthenticator 丟例外、統一格式化
+                return Task.CompletedTask;
+            },
+        };
+    });
 builder.Services.AddAuthorization();
+
+// ── CH-2／CH-3（2026-10-01）：慈善捐款平台（獨立後台、獨立資料庫、協會收款）。有 CHARITY_SQL_CONNECTION_STRING 才啟用，
+// 沒設定時不註冊任何服務也不對映端點；實作都在 apps/api/CharityPlatform/，與主站 Features 完全分開。
+builder.AddCharityPlatform();
 
 // ── S0-8 圖片上傳共用元件：Azure Blob Storage（本機開發接 Azurite，連線字串格式相容） ──────
 // AZURE_BLOB_CONNECTION_STRING 未設定時**不得讓行程無法啟動**——跟 CLUB_SQL_CONNECTION_STRING
@@ -457,6 +488,82 @@ builder.Services.AddScoped<Tcrfc.Api.Features.AdminTrials.AdminTrialsRepository>
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminTrials.AdminTrialRegistrationsRepository>();
 
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
+// ── E 批（2026-10-01，S2-11／S3-2）：主站前台會員中心、會籍付款訂單、文化公開端點 ──────────────────────────
+builder.Services.AddHttpClient(Tcrfc.Api.Features.MemberAuth.LineLoginClient.HttpClientName);
+builder.Services.AddSingleton<Tcrfc.Api.Features.MemberAuth.ILineLoginClient, Tcrfc.Api.Features.MemberAuth.LineLoginClient>(); // 憑證缺值時端點回 503，見 LineLoginClient
+builder.Services.AddSingleton<MemberTokenService>();
+builder.Services.AddSingleton<Tcrfc.Api.Features.MemberAuth.MemberSecureTokens>();
+builder.Services.AddScoped<MemberAuthenticator>();
+builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.MemberSessionService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.MemberMembershipService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.MemberAuthService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.MemberCenter.MemberCenterService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.MembershipPayments.MembershipActivationService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.MembershipPayments.MembershipOrderService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.MembershipPublic.MembershipPublicRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Comics.ComicsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.FanEvents.FanEventsRepository>();
+
+// F 批（2026-10-01，S3-5 站內商店前台）：目錄、購物車、結帳與訂單、發票、定時維護。🔴 這一組類別刻意不注入 IQueryCache（庫存、購物車、訂單狀態不得讀快取）。
+builder.Services.AddScoped<Tcrfc.Api.Features.Standings.StandingsRepository>(); // F 批：公開積分榜與球員數據彙總
+builder.Services.AddScoped<Tcrfc.Api.Features.Shop.ShopCatalogRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Shop.ShopCartService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Shop.ShopInvoiceService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Shop.ShopOrderService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Shop.ShopMaintenanceService>();
+builder.Services.AddHostedService<Tcrfc.Api.Features.Shop.ShopMaintenanceBackgroundService>();
+
+// 寄信接縫：開發環境（或非 Production 且 EMAIL_SENDER=localfile）寫成本機檔案；其餘環境「尚未串接」（供應商留待部署時決定，docs/17 §3「E 批的接縫」）。
+// 🔴 Production 絕不註冊本機寫檔實作（信件含一次性權杖）。
+var localEmail = !builder.Environment.IsProduction()
+                 && (builder.Environment.IsDevelopment() || string.Equals(builder.Configuration["EMAIL_SENDER"], "localfile", StringComparison.OrdinalIgnoreCase));
+if (localEmail)
+{
+    builder.Services.AddSingleton<Tcrfc.Api.Features.Email.IEmailSender, Tcrfc.Api.Features.Email.LocalFileEmailSender>();
+}
+else
+{
+    builder.Services.AddSingleton<Tcrfc.Api.Features.Email.IEmailSender, Tcrfc.Api.Features.Email.NotConfiguredEmailSender>();
+}
+
+// 會籍付款金流接縫：LINE Pay 商店號未取得（B-10），預設「尚未串接」；開發環境預設用本機假金流（絕不碰真實金流）。
+// PAYMENT_GATEWAY=fake 在 Production 啟動就失敗——寧可起不來，也不要讓假金流在正式環境開通會籍。
+var paymentGatewayMode = builder.Configuration["PAYMENT_GATEWAY"];
+var fakePayment = string.Equals(paymentGatewayMode, "fake", StringComparison.OrdinalIgnoreCase)
+                  || (builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(paymentGatewayMode));
+if (fakePayment && builder.Environment.IsProduction())
+{
+    throw new InvalidOperationException("PAYMENT_GATEWAY=fake 不得用於 Production 環境。");
+}
+
+if (fakePayment)
+{
+    builder.Services.AddSingleton<Tcrfc.Api.Features.MembershipPayments.IPaymentGateway, Tcrfc.Api.Features.MembershipPayments.LocalFakePaymentGateway>();
+}
+else
+{
+    builder.Services.AddSingleton<Tcrfc.Api.Features.MembershipPayments.IPaymentGateway, Tcrfc.Api.Features.MembershipPayments.NotConfiguredPaymentGateway>(); // 取得商店號後只換這一行，見 docs/17 §3
+}
+
+// 商店電子發票開立接縫：發票服務未選定（B-10），預設「尚未串接」；開發環境預設用本機假發票（絕不碰任何發票服務）。
+// INVOICE_ISSUER=fake 在 Production 啟動就失敗——寧可起不來，也不要讓假發票號碼出現在正式訂單上。
+var invoiceIssuerMode = builder.Configuration["INVOICE_ISSUER"];
+var fakeInvoice = string.Equals(invoiceIssuerMode, "fake", StringComparison.OrdinalIgnoreCase)
+                  || (builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(invoiceIssuerMode));
+if (fakeInvoice && builder.Environment.IsProduction())
+{
+    throw new InvalidOperationException("INVOICE_ISSUER=fake 不得用於 Production 環境。");
+}
+
+if (fakeInvoice)
+{
+    builder.Services.AddSingleton<Tcrfc.Api.Features.Shop.IInvoiceIssuer, Tcrfc.Api.Features.Shop.LocalFakeInvoiceIssuer>();
+}
+else
+{
+    builder.Services.AddSingleton<Tcrfc.Api.Features.Shop.IInvoiceIssuer, Tcrfc.Api.Features.Shop.NotConfiguredInvoiceIssuer>(); // 取得發票服務後只換這一行，見 docs/17 §3
+}
+
 const string CorsPolicyName = "ClubFrontends";
 var corsOrigins = (builder.Configuration["CORS_ALLOWED_ORIGINS"] ?? string.Empty)
     .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -578,6 +685,30 @@ builder.Services.AddRateLimiter(options =>
         {
             PermitLimit = PublicRateLimitPolicies.ResolveAppPermitLimit(configuration),
             Window = PublicRateLimitPolicies.AppWindow,
+            QueueLimit = 0,
+        });
+    });
+
+    // ── E 批（2026-10-01，S2-11）：會員登入類與會員寫入類兩個政策，額度與理由見 PublicRateLimitPolicies.MemberAuth／MemberWrite。
+    options.AddPolicy(PublicRateLimitPolicies.MemberAuth, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = PublicRateLimitPolicies.ResolveMemberAuthPermitLimit(configuration),
+            Window = PublicRateLimitPolicies.MemberAuthWindow,
+            QueueLimit = 0,
+        });
+    });
+    options.AddPolicy(PublicRateLimitPolicies.MemberWrite, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = PublicRateLimitPolicies.ResolveMemberWritePermitLimit(configuration),
+            Window = PublicRateLimitPolicies.MemberWriteWindow,
             QueueLimit = 0,
         });
     });
@@ -784,6 +915,19 @@ app.MapAdminAdsEndpoints();
 app.MapAdminAppEndpoints();
 app.MapAdminSecurityEndpoints();
 app.MapAppPublicEndpoints();
+
+// ── E 批（2026-10-01）：會員中心與文化公開端點 ─────────────────────────────────────
+app.MapMemberAuthEndpoints();
+app.MapMemberCenterEndpoints();
+app.MapMembershipOrderEndpoints();
+app.MapMembershipPublicEndpoints();
+app.MapComicsEndpoints();
+app.MapFanEventsEndpoints();
+app.MapShopEndpoints();
+app.MapStandingsEndpoints();
+
+// ── CH-2／CH-3：慈善捐款平台前台公開端點、慈善後台登入與 N1–N3 API（未啟用時什麼都不做）──
+app.MapCharityPlatform();
 
 app.Run();
 

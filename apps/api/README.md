@@ -14,6 +14,7 @@ Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③
 
 ~~🔴 不含：登入與權限~~ ← **已於 S1（下方）補上**。仍不含：商店與金流、除新聞以外的後台模組寫入端點、
 慈善捐款平台的業務功能（S0-7d 對慈善庫只做「開一條連線探活」，不做任何查詢，見下方「`/readyz` 範圍」）。
+**🔴 2026-10-01 更新：慈善捐款平台的後端 API（CH-2 公開端點＋CH-3 獨立後台）已補上，見文末「慈善 CH-2／CH-3」**——實作在 `CharityPlatform/`，與主站 `Features/` 完全分開。
 
 ---
 
@@ -4547,7 +4548,7 @@ dotnet build
 #    程式仍會啟動、仍會嘗試連線，只是連線字串缺了 Database／帳密／TrustServerCertificate）。
 export ASPNETCORE_ENVIRONMENT=Development
 export CLUB_SQL_CONNECTION_STRING="Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=<你的 MSSQL_DEV_SA_PASSWORD>;TrustServerCertificate=True;Encrypt=False;"
-export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5174"   # 5174＝apps/admin 後台；少了它後台登入會被 CORS 擋下
+export CORS_ALLOWED_ORIGINS="http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:5174,http://localhost:5175"   # 5174＝apps/admin 後台、3003／5175＝慈善前台／慈善後台；少了它們登入會被 CORS 擋下
 export ASPNETCORE_URLS="http://127.0.0.1:5299"
 # 🔴 必填：少了它行程照樣啟動，但 JWT 驗證參數是第一個請求進來時才建構，之後「每一支端點」
 #    （連 /healthz）都回 500（E-79）。值取自 deploy/dev/club.env，不必把金鑰打在指令上：
@@ -8466,3 +8467,581 @@ Argon2id 編碼雜湊值。「帳號不存在」路徑現在會對這組假雜�
 - **廣告投放沒有做每日跨日的 `delivered_today` 主動歸零**：以 `delivered_on` 日期比對，讀取時視同 0。
 - 診斷回報的 `deviceInstallId` 目前不強制要求該裝置已註冊；崩潰裝置比例只算有帶識別的回報。
 - 電子報名單沒有匯入功能（CSV 匯入）；沒有批次退訂。
+
+---
+
+## E 批：會員前台（S2-11）與文化公開端點（S3-2）（2026-10-01，`backend-engineer`）
+
+主站規劃書 §3.14 會員中心、§3.8 08 文化（8.1 漫畫、8.2 球迷會、8.4 特約店家）、§4.11 K；App 規劃書 §4 會員與認證、§5.3／§5.4／§9.7 付款訂單與冪等開通、§9.2／§9.3；對應 `STATUS.md` 的 `S2-11`、`S3-2`（並為 `AP-3` 備好會員端點與訂單／開通邏輯）。
+沿用既有通則：路徑 `/api/v1/{club}/…`、錯誤一律 `ProblemDetails`、**時間戳 UTC 帶 `Z`**、`?lang=zh|en`（英文缺漏回退繁中）、公開寫入一律依 IP 限流。**給前端的人：只讀這一節就能串接，不需要看程式碼。**
+
+### E 批通則（新增）
+
+| 項目 | 規定 |
+|---|---|
+| **錯誤格式** | `ProblemDetails`（`title`／`status`／`detail`）＋**`code`**（機器可讀，前端依它決定流程；`detail` 是給人看的日常中文，可直接顯示）。鎖定時另有 `lockedUntil`（UTC）。下表「代碼」欄是全部會出現的 `code`。 |
+| **會員權杖** | **存取權杖**：JWT、15 分鐘，`Authorization: Bearer …`。**與後台權杖完全分開**：獨立驗證機制（`MemberBearer`）、獨立 issuer／audience（`tcrfc-member`／`tcrfc-member-api`）、獨立簽章金鑰（`JWT_SIGNING_KEY_MEMBER`；**沒設時由 `JWT_SIGNING_KEY_CLUB` 以 HKDF 衍生**，密碼學上互相獨立，所以本機與既有測試不必多設環境變數）。拿後台權杖打會員端點、反之亦然，一律 **401**（有測試）。claims 只有 `sub`（會員 id）與 `jti`，**每個受保護端點仍即時查庫確認帳號啟用**——停用／刪除的帳號立刻失效，不必等 15 分鐘。 |
+| **更新權杖** | 不透明亂數、**只存 SHA-256 雜湊**（新表 `member_refresh_tokens`）、**每次使用即輪替**、**舊權杖被重放＝外流，撤銷該會員全部更新權杖**；變更密碼／重設密碼／登出全部裝置／刪除帳號也撤銷全部。「記住我」＝30 天（持久 Cookie），否則 24 小時（工作階段 Cookie）。⚠️ **瀏覽器同時開兩個分頁各自 refresh 會互相踢掉**——前端要 single-flight（同 `docs/19` §3）。App 的更新權杖鏈仍掛在 `app_devices`（App 規劃書 §10.1，AP-3 才做），**不使用本表**。 |
+| **權杖遞送方式** | `tokenDelivery`：`cookie`（**預設，瀏覽器**）→ 更新權杖放 `__Host-tcrfc-member-rt` Cookie（`HttpOnly; Secure; SameSite=None; Path=/`，**不設 Domain**），回應本文**沒有**更新權杖，前端 `fetch` 要 `credentials: 'include'`；`body`（**App、Nuxt 伺服器端代理**）→ 回應本文有 `refreshToken`／`refreshTokenExpiresAt`，**不設 Cookie**，呼叫端自己存安全儲存區，續期時 `POST /auth/refresh` 本文帶 `{ "refreshToken": "…" }`。 |
+| **只能讀寫本人資料** | 所有會員端點的查詢條件**一律來自權杖裡的會員 id**，不接受路由或本文傳會員 id（App 規劃書 §9.3 硬規則）；別人的會籍／卡／訂單／球衣一律 **404**。 |
+| **限流** | `POST /auth/*`（登入、註冊、驗證信、忘記／重設／變更密碼、LINE）與刪帳號、內部開通：每 IP **5 分鐘 30 次**（`public-member-auth`，`MEMBER_AUTH_RATE_LIMIT_PERMITS` 可覆寫）；其餘會員寫入（個人資料、重產 QR、球衣、建立／請款／確認／取消訂單、活動報名／取消、卡片驗證頁）：每 IP **每分鐘 60 次**（`public-member-write`，`MEMBER_WRITE_RATE_LIMIT_PERMITS`）；漫畫閱讀數沿用 `public-light-interaction`。超過回 **429**。登入另有**帳號鎖定**：連續 5 次失敗鎖 15 分鐘（423，`code: account_locked`），鎖定中連正確密碼也不放行，成功登入歸零。 |
+| **不洩漏帳號是否存在** | 登入失敗（查無此人／密碼錯／已刪除）**同一句訊息、同樣耗時**（查無此人也跑一次 Argon2id）；忘記密碼、重寄驗證信**一律 202**；唯一例外是**註冊**（Email 已註冊回 409，使用者需要知道該去登入——靠限流壓住枚舉，見待裁決 2）。 |
+| **日期與標籤** | 日期欄位（`startOn`／`endOn`／`validUntil`…）是台灣當地日期 `yyyy-MM-dd`；有 `…Label` 的欄位是日常中文（`?lang=en` 時英文）直接顯示。會籍「有效與否」**以到期日為準**（`status` 欄仍是 `active` 但到期日已過 → 回 `expired`）。 |
+
+### 會員（帳號）`/api/v1/member/…`
+
+| 方法 路徑 | 登入 | 說明 |
+|---|:-:|---|
+| `POST /auth/register` | — | `{ club, email, password, name, phone?, birthOn?, lang? }` → **201** `{ memberNo, emailVerificationRequired: true, emailSent }`。建立**未驗證**帳號（`signup_source=web`）並寄驗證信；`emailSent=false` 代表寄信服務尚未串接（正式環境目前如此，前端要如實告知）。`club` 是註冊的站台（驗證後在該俱樂部成為一般會員）。Email 一律轉小寫；密碼 8–128 字元、須含英文字母與數字、不得是常見弱密碼（`weak_password`）；Email 已註冊 → 409 `email_taken`。 |
+| `POST /auth/verify-email` | — | `{ token }`（信件連結的 `token`）→ 200 `{ verified: true, club }`。**冪等**；順便為該俱樂部建立免費（一般會員）會籍與第一張會員卡。無效／過期／用途不符 → 400 `token_invalid`。權杖 24 小時。 |
+| `POST /auth/resend-verification` | — | `{ email, club, lang? }` → **一律 202**。 |
+| `POST /auth/login` | — | `{ email, password, rememberMe?, tokenDelivery? }` → 200 **`MemberSession`**：`{ accessToken, accessTokenExpiresAt, refreshToken?, refreshTokenExpiresAt?, member: { memberNo, name, emailVerified, hasPassword, lineBound } }`。401 `invalid_credentials`；403 `email_not_verified`（密碼正確才告知）／`account_suspended`；423 `account_locked`。**Email 驗證前不能用密碼登入。** |
+| `POST /auth/refresh` | — | 本文 `{ refreshToken? }` 或 Cookie → 200 `MemberSession`（新的更新權杖）；401 `session_expired`（同時清掉 Cookie）。 |
+| `POST /auth/logout` | — | 撤銷目前的更新權杖並清 Cookie → 204。 |
+| `POST /auth/logout-all` | ✅ | 撤銷全部裝置 → 204。 |
+| `POST /auth/forgot-password` | — | `{ email, club, lang? }` → **一律 202**。帳號存在才寄信；連結 1 小時有效。 |
+| `POST /auth/reset-password` | — | `{ token, newPassword }` → 204。**連結只能用一次**（權杖內含目前密碼雜湊的指紋，密碼一改就失效）；成功後**全部裝置登出**、解除鎖定，並**順便完成 Email 驗證**（能收到信＝控制信箱）。 |
+| `POST /auth/change-password` | ✅ | `{ currentPassword?, newPassword, tokenDelivery? }` → 200 `MemberSession`（**撤銷全部其他裝置**，替目前這台發新權杖）。已設定密碼者 `currentPassword` 必填（錯 → 401）；**LINE 註冊、尚未設定密碼者留空即設定第一組密碼**。 |
+| `GET /me` | ✅ | 個人資料 `{ memberNo, name, email, phone, birthOn, locale("zh"｜"en"｜null), emailVerified, hasPassword, lineBound, signupSource(+Label), createdAt }`。**本人看自己的資料不遮罩**；永遠不含密碼雜湊、LINE 識別碼、權杖。 |
+| `PUT /me` | ✅ | `{ name, phone?, birthOn?, locale? }` 整份取代（省略＝清除）。**Email 不可由此修改**（登入鍵；本批不提供換 Email）。 |
+| `DELETE /me` | ✅ | `{ password }`（沒有密碼的 LINE 帳號改填 `{ confirm: "DELETE" }`）→ 204。**欄位清除、不是刪列**：保留會員編號與遮罩姓名，Email 改成不可寄送的佔位值、電話／生日／LINE／密碼清除；**會員卡全部作廢**、更新權杖全撤、App 裝置解除綁定、球衣收件個資清除、未完成訂單取消。**保留**會籍列與付款紀錄（稅法與會計法規優先於刪除請求）與已鎖定的抽獎名單快照。 |
+| `POST /auth/line/authorize` | bind 才要 | `{ club, mode: "login"｜"bind", redirectUri? }` → `{ authorizeUrl, state }`。`redirectUri` 必須在 `LINE_LOGIN_REDIRECT_URIS` 白名單（省略＝第一個）。**前端要把 `state` 存起來（sessionStorage），LINE 導回時與網址上的 `state` 比對，不符就丟棄**（防登入 CSRF）。憑證未設定 → **503** `line_not_configured`。 |
+| `POST /auth/line/callback` | bind 才要 | `{ code, state, tokenDelivery? }`（前端從導回網址取 `code`、`state`）→ `{ status: "logged_in", session }`／`{ status: "bound" }`／`{ status: "signup_required", ticket, displayName, suggestedEmail }`。授權碼經 LINE 驗證 id_token 與 nonce。**找不到會員時不自動併入同 Email 的既有帳號**（LINE 的 Email 不保證驗證過，見待裁決 3）。綁定：LINE 已綁別人 → 409 `line_in_use`；自己已綁 → 409 `line_already_bound`；state 內的會員必須就是目前登入的人。 |
+| `POST /auth/line/complete` | — | `{ club, ticket, email, name?, phone?, birthOn?, lang?, tokenDelivery? }` → 200 `MemberSession`。補 Email 完成 LINE 註冊（`signup_source=line`，**沒有密碼**）；直接成為該俱樂部一般會員；仍寄 Email 驗證信。Email 已有帳號 → 409 `email_taken`（引導先用 Email 登入、再到設定綁定 LINE）。票據 15 分鐘。 |
+| `DELETE /me/line` | ✅ | 解除 LINE 綁定 → 204。**至少保留一種登入方式**：沒設定過密碼 → 409 `password_required`。 |
+
+**信件連結（前端要實作的兩個頁面）**：`{站台網址}/{zh|en}/member/verify-email?token=…` 與 `{站台網址}/{zh|en}/member/reset-password?token=…`。站台網址預設 `https://{clubs.domain}`，本機用 `MEMBER_EMAIL_LINK_BASE_URL`（如 `http://localhost:3000`）覆寫。本機開發信件寫成文字檔（`EMAIL_OUTBOX_PATH`，預設 `{暫存目錄}/tcrfc-email-outbox`），**點檔案裡的連結即可走完驗證**。
+
+### 會員中心 `/api/v1/member/…`（帶會員權杖；`{club}` 路由寫入端點另需 Email 已驗證）
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET /member/memberships?lang=` | **我的會籍**：`{ memberships: [ { id, club:{code,name,logoLightUrl,logoDarkUrl,brandColor,brandSecondaryColor}, seasonCode, tier(+Label), status(+Label), startOn, endOn, planCode, planName, cardQuota, jerseyQuota, isCurrentSeason, renewalDue, pendingOrder:{orderNo,status,statusLabel}｜null, cards:[…] } ], joinableClubs: [ {code,name} ] }`。**逐俱樂部、一人每俱樂部一份**；`renewalDue`＝到期前 30 天內且仍有效（顯示續會提示）；`pendingOrder` 有值＝升級申請待確認（網頁的「待確認」就是它）；沒有目前球季會籍的俱樂部在 `joinableClubs`（顯示加入入口，不隱藏）。 |
+| `POST /{club}/member/memberships/join` | 加入這個俱樂部（免費一般會員，建立會籍與第一張卡），冪等。該俱樂部沒有開放的球季 → 409 `season_not_available`（**藍鯨目前就是這樣**，其 2025 球季已結束）。 |
+| `GET /member/cards?lang=` | **電子會員卡**（每份會籍一張、家庭方案多張，已展平）：`{ id, membershipId, club:{…品牌}, memberNo, holderName, tier(+Label), validUntil, status("valid"｜"expired"｜"revoked")(+Label), isValid, token, reissueCount, issuedAt }`。`token` 是這張卡的 QR 憑證，**QR 內容＝`{官網網址}/m/{token}`，在裝置端／前端組出**；只有本人看得到。 |
+| `POST /member/cards/{cardId}/regenerate` | **重新產生 QR**：同一張卡換 token、`reissueCount` +1，**舊 token 立即失效**。別人的卡 404；已停用的卡 409 `card_revoked`。 |
+| `GET /m/{token}?lang=` | **電子會員卡公開驗證頁（不需登入）**。回應**只有**：`nameInitial`（姓名首字）、`memberNo`、`tier`／`tierLabel`、`status`（`valid`｜`expired`）／`statusLabel`。🔴 **不得新增欄位**（尤其「適用球隊」，主站 §3.14／App §3.6）；查無、已撤銷、帳號停用或刪除一律 **404**（不分原因）；**`Cache-Control: no-store`、直接查庫不讀快取**（docs/14）。 |
+| `GET /member/jerseys?lang=` | **球衣登記概況**：每份付費會籍一組 `{ membershipId, clubCode, clubName, seasonCode, quota, used, canRegister, items:[{ id, recipientName, phone, size, deliveryMethod(+Label), address, status(+Label), shippedOn, receivedOn, editable }] }`。沒有球衣額度也沒有登記的會籍不列。 |
+| `POST /{club}/member/jerseys` | `{ membershipId, recipientName, size, deliveryMethod: "ship"｜"pickup", phone?, address? }` → 201。**只有有效的球迷會員會籍**（409 `not_fan_club`）；**件數受方案 `jerseyQuota` 限制**（409 `jersey_quota_reached`，並行也不會超收）；寄送必須有電話與地址；尺寸轉大寫。 |
+| `PUT /{club}/member/jerseys/{id}` | 同上欄位（不含 `membershipId`）；**只有「待處理」能改**，已寄出／已領取 → 409 `jersey_locked`。 |
+| `GET /member/registrations` | **我的課程／試訓報名**（行動 App 的「我的報名」用，網頁前台不做歸戶，主站 §3.14）。報名時**帶著會員權杖**才會記到會員（見下方「既有端點的異動」）。 |
+
+### 會籍付款訂單（App 規劃書 §5.3／§5.4／§9.7）
+
+> 🔴 **範圍提醒**：主站 §3.14 寫明「會籍的網頁站內結帳仍不做，要不要改走商店結帳是尚未拍板的修訂」。本批的訂單端點是 **App 規劃書 Phase B 明文要求先做完的訂單與冪等開通**（`docs/19` §10），**網頁前端在拍板前只應使用「升級申請」（建立訂單後停在 `created`，不呼叫 `pay`／`confirm`）**；`canPayOnline` 在正式環境因金流未串接（B-10）**恆為 false**。
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `POST /{club}/member/membership-orders` | 標頭 **`Idempotency-Key`（必填，8–64 字元，英數與 `_-:.`）**；本文 `{ planCode }`——**沒有金額欄位，金額一律由伺服器依方案重算**（夾帶的金額被忽略）。→ **201** 新訂單／**200** 同一冪等鍵同內容重送（回原訂單，並行也只成立一張）。409：`idempotency_key_reused`（同鍵不同內容）、`open_order_exists`（同方案已有未完成訂單）、`already_fan_club`（本球季已是球迷會員）、`plan_closed`（方案期間已結束）；404 `plan_not_found`；400 `plan_free`。需 Email 已驗證。 |
+| `GET /member/membership-orders?lang=`／`GET …/{orderNo}` | 我的訂單（最近 50 筆）／單筆。待付款超過 15 分鐘**讀到時換算**為 `expired`。 |
+| `POST /member/membership-orders/{orderNo}/pay` | 向金流方請款 → `pending_payment`、`paymentUrl`（把使用者導過去）、`expiresAt`（15 分鐘）；重複呼叫回同一個網址。**金流尚未串接 → 503 `payment_not_configured`**（訂單維持 `created`，不會被誤標成待付款）；金流方失敗退回 `created` 可重試。 |
+| `POST /member/membership-orders/{orderNo}/confirm` | `{ transactionId }`（使用者從 LINE Pay 導回後，前端帶回交易識別；`confirmUrlType` 採 CLIENT，`docs/17` §3）。**由伺服器向金流方確認**（金額用訂單上的值），成功才標 `paid` 並**立即冪等開通**→ 200 訂單（`activated`）。`transaction_mismatch`（400）、`order_expired`／`payment_failed`／`order_not_pending`（409）；已 `paid`／`activated` 重複確認 → 200（冪等）。**用戶端無法自己宣稱付款成功。** |
+| `POST /member/membership-orders/{orderNo}/cancel` | `created`／`pending_payment` → `cancelled`（冪等）。 |
+| `POST /api/membership/activate` | **伺服器內部**（憑證保護，**不對外開放**）：標頭 `X-Internal-Credential`＝`MEMBERSHIP_ACTIVATE_CREDENTIAL`（≥32 字元；**沒設定或太短 → 整個端點 503**；錯 → 401，固定時間比對）；本文 `{ orderNo }`。冪等：已開通回 `{ …, alreadyActivated: true }`；訂單未付款 409 `order_not_paid`。 |
+
+**訂單狀態** `status`：`created`（待確認）→ `pending_payment`（待付款）→ `paid`（已付款）→ `activated`（已開通）；另有 `expired`（已逾時）、`activation_failed`（開通失敗，客服處理中）、`cancelled`、`refunded`（僅後台人工）。
+
+**開通的三道冪等防線**：① 以條件式 `UPDATE … paid → activated` 搶佔，**並以 `sp_getapplock` 讓同一張訂單一次只有一個交易動資料**（並行測試實測會死結，見 `docs/18` E-97）；② 已開通再呼叫直接回原結果，不重複延長會籍、不重複寫付款紀錄；③ `membership_payments.membership_order_id` 篩選唯一索引（一張訂單最多一筆付款紀錄）。**不得靜默失敗**：已付款但開通出錯時，訂單標 `activation_failed`（附原因）、寫 **`Critical` 日誌**（正式環境會觸發 Application Insights 告警）、回 409 `activation_failed`。開通成功寄「會籍開通確認」信（寄信失敗不影響開通）。
+**與後台 K2 的銜接**：客服在 K2 開通同一位會員同一方案時，會員先前送出、仍是 `created` 的升級申請**一併結案**（`activation_source = admin`），會員中心的狀態才會從「待確認」變「已開通」。已向金流方請款中的訂單（`pending_payment`）不動，避免重複扣款。
+
+### 公開讀取（不需登入）
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET /{club}/membership/plans?lang=` | 會籍方案（8.2 Membership Plans、升級頁）：`{ code, name, benefitNote, fee, cardQuota, jerseyQuota, midSeasonRule, seasonCode, startsOn, endsOn }`。只列**已上架且球季未結束**的方案。藍鯨目前沒有現行方案（空陣列）。 |
+| `GET /{club}/membership/benefits?planCode=&lang=` | **權益對照表**（免費 vs 付費逐條對照，一份資料多處使用）：`{ planCode, planName, groups:[{ group, groupLabel, items:[{ name, description, freeValue, paidValue }] }] }`，分組依序 `member_card`／`store_discount`／`jersey`／`event`，只列上架條目。省略 `planCode`＝最早的現行方案（沒有 → 空表）；方案不存在 404。 |
+| `GET /{club}/partner-stores?category=&region=&tier=&lang=` | **特約店家清單**（8.4）：本俱樂部專屬＋兩隊共同（`isShared`）、**已上架且在合作期間內**。`{ slug, name, category, region, address, lat, lng, phone, businessHours, offerContent, applicableTier("all"｜"fan_club")(+Label), mapUrl, websiteUrl, imageUrl, isShared }`；`lat`／`lng` 給 App 的附近地圖（距離計算在裝置端）。 |
+| `GET /{club}/partner-stores/filters` | 目前有上架店家的 `categories`／`regions`（篩選項目）。 |
+| `GET /{club}/partner-stores/{slug}?lang=` | 店家詳情；草稿、合作期間外、別隊店家 404。 |
+
+### 08 文化
+
+**8.1 漫畫 `/api/v1/{club}/comic/…`**（**全部免費、不需登入、沒有付費牆欄位**；🔴 **藍鯨一律 403**「台中藍鯨不設漫畫」，比照後台 F1；種子的 3 集都是草稿，所以公開列表目前是空的）：
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET /comic/about` | 企劃說明（世界觀）`{ title, body }`。 |
+| `GET /comic/characters` | 角色卡牆 `{ id, name, description, imageUrl, imageThumbUrl, playerId }`（`playerId`＝原型球員，可為空）。 |
+| `GET /comic/episodes` | 集數列表（**新→舊**）`{ episodeNo, title, coverUrl, coverThumbUrl, publishedOn, isLatest, pageCount }`。只含**已發布且發布日不晚於今天**的集數；**`isLatest` 讀取時即時判定**（可見集數中最大者），不信任資料庫欄位——到了發布日不必等後台重算。 |
+| `GET /comic/episodes/latest` | 最新集數（首頁同步曝光、8.1 置頂區塊）；沒有可見集數 404。 |
+| `GET /comic/episodes/{episodeNo}` | **線上閱讀器資料**：`{ episodeNo, title, coverUrl, publishedOn, isLatest, pages:[{ pageNo, imageUrl, imageThumbUrl, width, height }], previousEpisodeNo, nextEpisodeNo }`（分頁／捲動雙模式由前端決定）。草稿與未到發布日 404。 |
+| `POST /comic/episodes/{episodeNo}/views` | 閱讀數＋1（資料庫端遞增），固定 204；前端閱讀器載入後另外呼叫一次。 |
+
+**8.2 球迷會活動 `/api/v1/{club}/fan-events/…`**：
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET /fan-events?phase=upcoming｜past` | 活動列表：`{ slug, name, location, startsAt, endsAt, registrationDeadlineAt, capacity, spotsLeft, isPaidMembersOnly, isRegistrationOpen, isFull, phase, coverUrl, coverThumbUrl }`。`phase=past` 即「活動回顧」（新→舊）；省略＝全部。`spotsLeft`／`capacity` 為 null＝不限名額；**額滿時 `isRegistrationOpen` 仍為 true（報名會進候補）**，用 `isFull` 顯示「候補」。 |
+| `GET /fan-events/{slug}` | `{ event:{…同上}, description, venueName, images:[…活動回顧圖集], articles:[{slug,title}]（關聯文章，只列已發布）, myRegistration:{status,statusLabel}｜null }`。**帶會員權杖時才有 `myRegistration`**（匿名永遠 null）。 |
+| `POST /fan-events/{slug}/registrations` | `{ applicantName?, phone?, email?, note? }` → **201** `{ status("registered"｜"waitlist"), statusLabel, isWaitlisted }`。**會員**（帶權杖）只需 `note`，報名記到會員、不另存個資；**非會員**必須有 `applicantName` 與（`phone` 或 `email`）。**限付費會員的活動**：沒登入 → 401 `login_required`、沒有有效球迷會員會籍 → 403 `fan_club_required`。**名額已滿自動進候補**（交易內鎖活動列再數名額，並行不超收）；重複報名 409 `already_registered`（會員依 id，非會員依 Email 或電話）；截止或已開始 409 `registration_closed`。回應**不含任何個資**。限流 `public-member-write`。 |
+| `DELETE /fan-events/{slug}/registrations/me` | 會員取消自己的報名（已報名或候補）→ 204；沒有有效報名 404。**取消已報名者不會自動遞補候補者**（同後台 F2，由客服人工處理）。 |
+
+### 既有端點的異動
+
+- `POST /api/v1/{club}/programs/sessions/{sessionId}/registrations`：**多了選用的會員權杖**——帶有效權杖才把 `registrations.member_id` 記為該會員（行動 App 的「我的報名」；App 規劃書 §9.2「會員身分時寫入 member_id」）。**沒帶（網頁前台）或權杖無效，行為與先前完全相同**，不報錯。
+- 後台 `POST /api/v1/admin/{club}/memberships/activate`（K2 手動開通）：開通時一併結案會員的 `created` 升級申請（見上）。其餘後台端點、回應形狀**一行未改**。
+
+### 資料庫綱要異動（`db/club-schema.sql`、migration `AlignSchemaE2`）
+
+先改 `docs/12`（第 47 點）、`docs/12b`（§6.3、§6.5c）再改 DDL 與 EF；本機 `tcrfc_club` 已套用（`dotnet ef migrations has-pending-model-changes` 無待處理變更，`EfModelMatchesDatabaseTests` 綠燈，`db/club-schema.sql` 用 `SET PARSEONLY ON` 解析驗證）。**187 → 189 張**：
+`members` 加 `failed_attempt_count`／`locked_until`／`line_user_id_hash`（篩選唯一索引）；新表 `member_refresh_tokens`、`membership_orders`；`membership_payments` 加 `membership_order_id`（篩選唯一索引）。EF 對映放在 `Data/ClubDbContextMemberFront.cs` 與 `Data/EfEntities/Member.FrontEnd.cs`（**不動 scaffold 產生檔**，重新 scaffold 不會被覆寫）。
+**刻意不建表**：Email 驗證與密碼重設用 **Data Protection 簽章式、有時效的無狀態權杖**（purpose 互相隔離，跨用途不能互換）；LINE 的 state 與註冊票據同理。⚠️ 沿用 `DATA_PROTECTION_KEYS_PATH` 持久化（金鑰環遺失只讓「尚未使用的連結」失效，重寄即可，不是資料遺失）。
+
+### 環境設定（新增）
+
+| 變數 | 必填 | 說明 |
+|---|---|---|
+| `JWT_SIGNING_KEY_MEMBER` | 否（**正式環境建議設獨立的一把**，≥32 字元） | 會員存取權杖的簽章金鑰。沒設時由 `JWT_SIGNING_KEY_CLUB` 衍生。 |
+| `LINE_LOGIN_CHANNEL_ID`／`LINE_LOGIN_CHANNEL_SECRET`／`LINE_LOGIN_REDIRECT_URIS` | 否 | LINE 一鍵登入。任一缺值 → LINE 端點回 503（不是 500）。`REDIRECT_URIS` 是逗號分隔的**前端回呼網址白名單**（需同時登記在 LINE Developers 的 Callback URL）。⛔ 不寫死、不進版控。 |
+| `MEMBER_EMAIL_LINK_BASE_URL` | 否 | 信件連結的站台網址（預設 `https://{clubs.domain}`）。 |
+| `EMAIL_SENDER`／`EMAIL_OUTBOX_PATH` | 否 | 開發環境預設把信寫成檔案（`EMAIL_OUTBOX_PATH` 指定目錄）；**Production 絕不註冊寫檔實作**，在寄信供應商選定前一律「尚未串接」。 |
+| `PAYMENT_GATEWAY` | 否 | `fake`＝本機假金流（**Development 預設；`Production` 設了就啟動失敗**）；其餘＝「尚未串接」。 |
+| `MEMBERSHIP_ACTIVATE_CREDENTIAL` | 否 | 內部開通端點的憑證（≥32 字元）。沒設＝端點停用。 |
+| `MEMBER_AUTH_RATE_LIMIT_PERMITS`／`MEMBER_WRITE_RATE_LIMIT_PERMITS` | 否 | 兩個限流政策的額度覆寫（測試主機用寬鬆值）。 |
+
+### 測試（`Tcrfc.Api.Tests`，新增 49 項，全套 775 項通過）
+
+| 測試類別 | 項數 | 涵蓋 |
+|---|---:|---|
+| `MemberAuthTests` | 17 | 註冊（大小寫、弱密碼、重複、無此俱樂部）；Email 驗證（冪等、竄改、用途不符、驗證前不能登入、驗證後有會籍與卡）；忘記／重寄一律 202 且不寄信；登入失敗訊息一致；Cookie 模式（HttpOnly／Secure／SameSite=None／無 Domain／記住我）與 Body 模式；更新權杖輪替、**重放撤銷整批**、Cookie 續期、登出、登出全部；**5 次失敗鎖定**與解鎖；停用帳號權杖即時失效；重設密碼（一次性連結、全部登出、順便驗證）；變更密碼（撤銷其他裝置）；個人資料驗證；**刪除帳號欄位清除、卡作廢、可重新註冊**；**會員／後台權杖互不認帳**；金鑰衍生；LINE 未設定 503、登入／補 Email 註冊／不自動併入／解除綁定限制、綁定（state 不能替別人綁、一個 LINE 一個帳號）；**限流 429** |
+| `MembershipOrderTests` | 13 | 建立訂單（金額由伺服器算、夾帶金額被忽略、冪等鍵必填、Email 未驗證 403）；冪等（同鍵同內容一張、同鍵不同內容 409、**並行 6 個同鍵只成立 1 張**、同方案不能兩張未完成）；別人的訂單 404；完整付款流程（請款冪等、**交易識別不符 400**、開通後會籍／付款紀錄雙欄位／會員卡／開通確認信、重複確認不重複開通、已是球迷會員不能再買）；免費升級沿用同一份會籍列；逾時；金流未串接 503；金流方失敗退回；**內部開通端點憑證保護**與**並行 12 個呼叫只開通一次**；開通失敗標 `activation_failed`；K2 開通結案申請；藍鯨方案已結束 |
+| `MemberCenterTests` | 6 | 我的會籍（品牌、卡、可加入俱樂部、藍鯨 409）；續會提示與到期；**公開驗證頁只回約定欄位、`no-store`、過期／撤銷／停用 404**；重產 QR（舊 token 立即失效、別人的卡 404）；球衣登記（額度、並行不超收、寄出後鎖定、別人 404）；我的報名（帶權杖才歸戶、壞權杖視為訪客） |
+| `MembershipPublicTests` | 3 | 方案、權益對照表（分組順序、下架條目、英文回退）、特約店家（共同／別隊／草稿／合作期間／篩選） |
+| `CulturePublicTests` | 10 | 漫畫（藍鯨 403、草稿與未來發布日不見、最新集數即時判定、上下集導覽、閱讀數、角色與企劃）；活動（列表／詳情、非會員報名與候補、**並行 8 人報名不超收**、截止、限付費會員三種身分、取消報名） |
+
+測試用 `CapturingEmailSender`（收信）與 `FakeLineLoginClient`（不連 LINE）取代 DI 註冊（`AdminWriteApiFixture`）；測試資料用 `mtest-`／9000 以上集數前綴，測完清除（含新表），不動種子。
+
+### 只留介面、尚未串接
+
+| 項目 | 現況 | 串接時 |
+|---|---|---|
+| **寄信供應商** | `IEmailSender`＋`NotConfiguredEmailSender`（正式）／`LocalFileEmailSender`（開發） | 實作 `SendAsync`、換 `Program.cs` 註冊；`emailSent` 會自動變 true。🔴 **在這之前正式環境無人能完成 Email 驗證**（見 `docs/17` §3） |
+| **LINE Pay（會籍）** | `IPaymentGateway`＋`NotConfiguredPaymentGateway`（正式）／`LocalFakePaymentGateway`（開發） | 取得俱樂部商店號（B-10）→ 實作 `ReserveAsync`／`ConfirmAsync`、登記出口 IP（`docs/17` §3）、換註冊 |
+| **LINE Login** | 程式完成，缺憑證 | 設 `LINE_LOGIN_*`，LINE Developers 登記 Callback URL |
+| **到期前 30 天提醒信、到期通知** | 未做（需背景排程；五封信之外兩封） | 排程呼叫 `IEmailSender`＋`MemberEmailTemplates` 擴充 |
+| **App 登入（AppDevice 權杖鏈）** | 未做（AP-3） | 沿用 `MemberTokenService`；更新權杖改掛 `app_devices`（`tokenDelivery=body` 已預留） |
+
+### 規劃書沒寫、本批先採最保守做法（待裁決）
+
+1. **網頁會籍站內結帳**：見上方「範圍提醒」。訂單／付款端點依 App 規劃書先做；網頁升級頁在使用者拍板（主站 §10 待確認）前只用 `created` 申請。**後台 K2 目前看不到這些申請**（`created` 訂單沒有清單畫面）——建議 K2 清單加「待確認申請」分頁，需後台畫面工作。
+2. **註冊時 Email 已註冊回 409**（可被用來探測 Email 是否註冊過）：UX 上使用者需要知道該去登入，靠每 IP 5 分鐘 30 次限流壓住。若要完全不洩漏，改為一律 202 並寄「此 Email 已註冊」信（寄信通路未通前做不了）。
+3. **LINE 登入不自動併入同 Email 的既有帳號**：規劃書寫「以 Email 或手機號碼比對後合併為單一帳號」，但 LINE 提供的 Email 不保證經過驗證，自動併入等於讓人用別人的 Email 接管帳號。改為：找不到 LINE 綁定時帶票據請使用者補 Email；Email 已有帳號 → 409，引導先用 Email 登入、再到設定綁定。後台 K1 的「合併帳號」仍可由客服處理。
+4. **密碼強度**：規劃書沒寫。本批：8–128 字元、至少一個英文字母與一個數字、不得是常見弱密碼或等於 Email。
+5. **`email_logs` 不寫**：該表 `type` 值域「會員 5＋商店 4」字面值未定（`db/club-schema.sql` 刻意不加 CHECK），本批寄信不寫紀錄。
+6. **稽核**：會籍開通的「觸發來源、訂單編號、異動前後會籍狀態」（App 規劃書 §9.7）寫結構化日誌，不建稽核表（沿用 D 批待裁決 1）。
+7. **未成年閘門與監護人同意**（App 規劃書 §4.5）是 App 的規定，主站規劃書 §3.14 沒有對應條文；本批 `birthOn` 選填、不擋註冊，App 端自行實作閘門。
+8. **刪除帳號不清報名紀錄**：課程／試訓／活動的報名紀錄含報名者填的姓名電話，規劃書的清除範圍（App §4.6）只列 `Member`、裝置、會員卡 token，本批照辦；若要連報名者資料一併清除需另行裁決。
+9. **不提供換 Email**（登入鍵、驗證流程都要重做，規劃書沒寫）。
+10. **同一個更新權杖並行使用會被視為重放**：兩個分頁同時 refresh 會互踢，前端務必 single-flight。
+
+---
+
+## F 批：商店與前台缺口公開端點（2026-10-01，`backend-engineer`）
+
+主站規劃書 §3.8 8.3 站內商店、§3.1 首頁、§3.3 3.1／§4.3 C2／C4、§3.11 11.1、§4.11 K2；藍鯨規劃書 §5.2／§5.3；對應 `STATUS.md` 的 `S3-5`（商店前台後端）、`S3-9`（積分榜與球員數據），並補上前端回報的四個缺口與 K2「待確認申請」。
+沿用 E 批通則：路徑 `/api/v1/{club}/…`、錯誤一律 `ProblemDetails`（`title`／`status`／`detail` ＋機器可讀的 **`code`**，`detail` 是日常中文可直接顯示）、時間戳 UTC 帶 `Z`、`?lang=zh|en`（英文缺漏回退繁中）、公開寫入一律依 IP 限流。**給前端的人：只讀這一節就能串接，不需要看程式碼。**
+
+### 端點一覽
+
+| 方法 路徑 | 登入 | 說明 |
+|---|:-:|---|
+| `GET /{club}/shop/info` | — | 商店入口與政策（購物須知、運送說明、退換貨政策、交易條款，中英）、運費規則（固定運費＋免運門檻）、不配送地區、三種配送方式、**發票捐贈碼清單**、收款主體名稱、`paymentAvailable`（LINE Pay 是否已可用）、系列清單 |
+| `GET /{club}/shop/collections` | — | 系列（Collection）＋品牌敘事（`narrative`）＋上架商品數 |
+| `GET /{club}/shop/products` | — | 商品列表。`collection=<slug>`、`tag=`、`minPrice`／`maxPrice`（以**目前售價**）、`size=`、`colour=`、`isNew=true`、`sort=newest｜price_asc｜price_desc`（預設後台排序）、`page`／`pageSize`（預設 24、最多 60）。每筆：名稱、系列、標籤、`isNewArrival`、封面、`priceMin`／`priceMax`、`listPriceMin`＋`onSale`（促銷時畫刪除線）、`stockStatus`（`in_stock`／`low_stock`／`sold_out`）、`sizes`／`colours` |
+| `GET /{club}/shop/products/{slug}` | — | 商品詳情：圖集、敘事、**尺碼表 `sizeChart`**（JSON，原樣）、SEO 欄位、規格清單（`id`、`sku`、`size`、`colour`、`label`、`listPrice`、`price`、`onSale`、`availableQty`（最高回報 99）、`purchasable`）。草稿或別隊商品 404 |
+| `GET /{club}/shop/cart` | 會員或訪客 | 購物車（見下「購物車」） |
+| `POST /{club}/shop/cart/items` | 會員或訪客 | `{ variantId, quantity }` 加入（數量累加） |
+| `PUT /{club}/shop/cart/items/{variantId}` | 會員或訪客 | `{ quantity }` 設定數量（`0`＝移除） |
+| `DELETE /{club}/shop/cart/items/{variantId}`／`DELETE /{club}/shop/cart` | 會員或訪客 | 移除一項／清空 |
+| `POST /{club}/shop/cart/merge` | 會員 | 登入後把訪客購物車（`X-Cart-Token`）併入會員購物車 |
+| `POST /{club}/shop/checkout` | 會員或訪客 | 結帳建立訂單（標頭 `Idempotency-Key` 必填）。**成立 201，冪等重送 200** |
+| `GET /{club}/shop/orders/{orderNo}` | 會員本人或 `X-Order-Token` | 訂單詳情 |
+| `POST /{club}/shop/orders/{orderNo}/pay` | 同上 | 向 LINE Pay 請款，回付款網址（冪等） |
+| `POST /{club}/shop/orders/{orderNo}/confirm` | 同上 | `{ transactionId }` 付款導回後確認（伺服器向金流方確認，不信用戶端） |
+| `POST /{club}/shop/orders/{orderNo}/cancel` | 同上 | 取消**待付款**訂單並釋回庫存（LINE Pay 取消導回頁用） |
+| `POST /{club}/shop/orders/lookup` | — | 前台 `/order/lookup`：`{ orderNo, email }` 或 `{ token }`（信件連結） |
+| `GET /{club}/shop/my-orders` | 會員 | 會員中心「我的訂單」（本人在該俱樂部的訂單，新→舊最多 50 筆） |
+| `GET /{club}/standings?season=` | — | 賽事積分榜（見下） |
+| `GET /{club}/stats/players?season=&team=&lang=` | — | 球員數據（自動彙總；見下） |
+| `GET /{club}/players/{id}/stats` | — | 單一球員逐季數據（球員詳情頁） |
+| `GET /{club}/home/core-values` | — | 首頁「五大核心價值」 |
+| `GET /admin/{club}/membership-applications` | 後台（`member.membership.view`） | K2「待確認申請」（見下） |
+
+兩個站台（`tcrfc`／`bw`）各自一份資料，**路徑上的 `{club}` 就是站台**；別隊的商品、規格、訂單一律 404。
+
+### 通則（商店）
+
+| 項目 | 規定 |
+|---|---|
+| **不得快取** | 🔴 商店所有回應 `Cache-Control: no-store`；`Features/Shop` 不注入快取服務（反射測試鎖定）。庫存、購物車、訂單、付款狀態每次直接查庫（docs/14 五類）。**Cloudflare 與前台 SSR 不得快取這些端點的回應。** |
+| **兩種權杖** | **購物車權杖 `X-Cart-Token`**：訪客第一次加入商品時，回應的 `cartToken` 欄位帶出（**只有那一次**），前台存起來（localStorage／Cookie 皆可）並在之後每次購物車／結帳請求帶上；伺服器**只存雜湊**，遺失無法補發（等於新購物車）。**訂單權杖 `X-Order-Token`**：非會員結帳成立的那一次回應 `accessToken` 帶出（信件連結也帶它），之後用它操作這張訂單（付款、確認、取消、查詢）；**自訂單成立起 30 天有效**，過期後仍可用「訂單編號＋Email」查詢。有效的會員 `Authorization: Bearer` 優先於 `X-Cart-Token`。|
+| **限流** | 購物車與訂單的寫入動作（含結帳、請款、確認、取消）：每 IP 每分鐘 60 次（`public-member-write`）；**訪客查單**：每 IP 5 分鐘 30 次（`public-member-auth`，防訂單編號枚舉）。超過回 **429**。 |
+| **金額** | 🔴 **請求本文沒有任何金額欄位**。購物車與結帳的小計、運費、總額一律由伺服器依「現在的價格與規則」重算；購物車只存規格與數量，不存價格。 |
+| **俱樂部** | 🔴 購物車以 `(club_id, 擁有者)` 區隔，**不得跨俱樂部混買**：拿另一隊的規格加入購物車回 404；同一個權杖換站台看到的是空車（切換站台即切換購物車）。訂單的賣方俱樂部（`selling_club_id`）＝站台，收款主體（`collecting_club_id`）＝系統設定的收款主體俱樂部（藍鯨商品也由本俱樂部收款，代收代付）。**不拆單**（B-8 未定案，現行禁止混買所以不會發生）。 |
+| **常見 `code`** | `variant_not_found`（404，規格不存在／已下架／別隊）、`insufficient_stock`（409，帶「目前只剩 N 件」）、`quantity_limit`（409，單項上限 99）、`cart_full`（409，最多 50 種）、`cart_empty`（409）、`item_unavailable`（409）、`idempotency_key_required`（400）、`idempotency_key_reused`（409）、`invoice_required`／`invalid_carrier`／`invalid_tax_id`／`invalid_donation_code`／`invalid_email`／`invalid_phone`／`invalid_address`／`invalid_pickup_store`／`invalid_delivery_method`／`region_not_deliverable`（400）、`order_not_found`（404）、`order_not_payable`／`order_expired`／`order_not_cancellable`／`order_state_changed`／`payment_failed`／`payment_in_progress`（409）、`transaction_mismatch`（400）、`payment_not_configured`（503，LINE Pay 尚未串接）。 |
+
+### 購物車
+
+`GET …/shop/cart` 與所有購物車寫入端點都回同一種形狀：
+
+```json
+{
+  "cartToken": "…只在新發出訪客購物車的那一次才有，否則 null…",
+  "clubCode": "tcrfc",
+  "items": [{
+    "variantId": "…", "productSlug": "home-jersey-2026", "productName": "…", "variantLabel": "M／白",
+    "sku": "HJ26-M", "imageThumbUrl": "…", "listPrice": 1980, "unitPrice": 1780, "onSale": true,
+    "quantity": 2, "lineTotal": 3560, "availableQty": 5, "purchasable": true, "issue": null, "issueMessage": null
+  }],
+  "itemCount": 2, "subtotal": 3560,
+  "shipping": { "fee": 0, "freeThreshold": 3000, "amountToFree": null },
+  "canCheckout": true
+}
+```
+
+- `issue`：`unavailable`（商品已下架或規格停售，須移除）／`insufficient_stock`（庫存不足，須調整數量）；有任何一列不可購買 → `canCheckout=false`。
+- `shipping.fee` 是宅配／超商取貨的運費（已套免運門檻）；現場自取永遠 0（結帳回應會算好實際值）。
+- 加入與設定數量時即檢查可售量與單項上限（99）；**購物車不保留庫存**，真正保留發生在結帳。
+- 登入後：呼叫 `POST …/shop/cart/merge`（帶會員權杖＋原本的 `X-Cart-Token`），訪客購物車併入會員購物車（數量相加）並刪除，重複呼叫安全。會員購物車存帳號，跨裝置保留。
+- 訪客購物車超過 30 天沒動過由維護作業清除。
+
+### 結帳 → 付款 → 結果（時序）
+
+1. `POST …/shop/checkout`，標頭 `Idempotency-Key`（8–64 字元的英數與 `-_:.`）＋會員權杖或 `X-Cart-Token`：
+
+```json
+{
+  "email": "buyer@example.com", "recipientName": "王小明", "recipientPhone": "0912-345-678",
+  "deliveryMethod": "home_delivery", "recipientAddress": "台中市…", "pickupStore": null,
+  "customerNote": "…", "lang": "zh",
+  "invoice": { "type": "mobile_barcode", "carrierId": "/ABC+123" }
+}
+```
+
+   - `deliveryMethod`：`home_delivery`（必填 `recipientAddress`）／`cvs_pickup`（必填 `pickupStore`＝門市名稱或代碼，存進訂單的收件地址欄）／`onsite_pickup`（現場自取，免運）。聯絡電話一律必填。**會員可省略 `email`／`recipientName`／`recipientPhone`，伺服器用帳號資料補**；非會員必填 `email`。
+   - 發票（必開電子發票，**四選一型態、三選一內容**）：`mobile_barcode`（`carrierId`：`/` 開頭共 8 碼）／`citizen_cert`（`carrierId`：2 英文＋14 數字）／`tax_id`（`taxId`：8 位數字，含**統編檢核碼**驗證）／`donation`（`donationCode`：須在 `shop/info.donationCodes` 清單內）。
+   - 地址含後台 S6 設定的「不配送地區」→ 400 `region_not_deliverable`。
+   - **成功 201**：回 `ShopOrder`（見下）；**下單即保留庫存**（可售量減少，庫存量不變）、購物車同一個交易內清空、寄「訂單成立」信（訪客的信帶具時效的查詢連結）。**非會員的回應含 `accessToken`**。
+   - **冪等**：同一把 `Idempotency-Key` 重送 → **200 且回原訂單**（即使購物車已清空）；同鍵但內容不同、或別的擁有者拿同一把鍵 → 409 `idempotency_key_reused`。**並行**重送同一把鍵只會成立一張。
+   - **庫存不足** → 409 `insufficient_stock`（訊息指出哪一項、剩幾件），**整張訂單不成立、購物車保留**，可調整數量重試。庫存被「已逾時但還沒被清掃」的待付款訂單占住時，結帳會先清掃再成立。
+2. `POST …/shop/orders/{orderNo}/pay`（會員 Bearer 或 `X-Order-Token`）→ 回 `ShopOrder`，`paymentUrl` 是 LINE Pay 付款頁，前台把使用者導過去。**重複呼叫回同一個網址**。LINE Pay 未串接時 503 `payment_not_configured`（`shop/info.paymentAvailable=false`，前台應先告知）。**本機開發註冊假金流**：`paymentUrl` 是 `https://fake-linepay.invalid/pay/{orderNo}`，交易識別是 `FAKE-{orderNo}`。
+3. 使用者在 LINE Pay 付完款導回前台的 `confirmUrl` 頁，前台呼叫 `POST …/shop/orders/{orderNo}/confirm`，本文 `{ "transactionId": "…" }`（LINE Pay 導回時帶的 `transactionId`）。伺服器**向金流方確認**後：訂單 `已付款`、**庫存扣減**（保留轉為售出）、開立電子發票、寄「付款完成」信。**重複／並行確認冪等**（庫存只扣一次、發票只開一張、信只寄一封）。交易識別不符 400 `transaction_mismatch`。
+4. 使用者在 LINE Pay 按取消導回 `cancelUrl` 頁：呼叫 `POST …/shop/orders/{orderNo}/cancel`，釋回庫存；也可以什麼都不做——**待付款超過 S6「待付款保留時間」（預設 30 分鐘）自動取消並釋回庫存**（`status` 變 `已取消`、`paymentStatus` 變 `expired`；讀取訂單與背景作業都會換算）。**已付款的訂單不能取消**（409 `order_not_cancellable`，請走客服申請退換貨）。
+
+### `ShopOrder`（結帳、請款、確認、取消、詳情、查詢共用）
+
+`orderNo`（`TR-yyyyMMdd-XXXXXX`／藍鯨 `BW-…`）、`status`（**日常中文標籤，直接顯示**：待付款／已付款／備貨中／已出貨／已完成／已取消／退貨處理中／已退款；`?lang=en` 為英文）、`paymentStatus`＋`paymentStatusLabel`、`paymentMethodLabel`、`deliveryMethodLabel`、`subtotal`／`shippingFee`／`total`、`items[]`（建單當下的**快照**：`productName`、`variantLabel`、`sku`、`unitPrice`、`quantity`、`lineTotal`）、收件資料、`invoice`（`type`／`typeLabel`／`status`（`pending`／`issued`）／`statusLabel`／`invoiceNo`／`taxId`／`donationCode`；**開立失敗對顧客一律顯示「處理中」**，系統自動重試）、`shipment`（`carrier`／`trackingNo`／`shippedAt`／`pickupStatusLabel`／`pickupDeadlineOn`，出貨後才有）、`paymentUrl`（待付款且已請款才有）、`expiresAt`（待付款的保留期限）、`canPay`／`canCancel`、`createdAt`／`paidAt`、`isMasked`。
+**遮罩**：以「訂單編號＋Email」查到的訪客只拿到**遮罩的收件人姓名、電話、地址與 Email**（`isMasked=true`）；持有 `X-Order-Token` 或會員本人拿完整值。**載具號碼永不回傳**（只存加密密文）。
+
+### 訪客查單（前台 `/order/lookup`）
+
+`POST …/shop/orders/lookup`：`{ "orderNo": "TR-…", "email": "…" }`（訂單編號大小寫、Email 大小寫不拘）或 `{ "token": "…" }`（訂單成立信的連結 `…/{lang}/order/lookup/?token=…`，**30 天有效**）。**找不到、Email 不符、權杖過期一律同一個 404 `order_not_found`**（不洩漏訂單是否存在）；只查本站台（另一隊站台查不到）。
+
+### 賽事積分榜、球員數據
+
+- `GET …/standings?season=2026-27` → `{ season: { code, startOn, endOn } | null, seasons: ["2026-27", …], items: [{ rank, teamName, played, points }], updatedAt }`。依名次排序，**沒有名次者墊底**。不帶 `season`：取「今天落在起訖內」的球季（沒有就取最新有資料的）；指定不存在的球季＝空榜（`season: null`）。積分榜資料只有 `rank／played／points`（C4 手動維護或匯入），**沒有勝負平與得失球**——規劃書沒要求，不自行加欄位。
+- `GET …/stats/players?season=&team=D1` → `{ season, seasons, items: [{ playerId, name, teamCode, shirtNo, position, photoUrl, appearances, goals, assists, yellowCards, redCards, source }] }`，依進球、出賽、背號排序。**彙總規則**：只計狀態為「已結束」的賽事；進球＝進球筆數；黃／紅牌＝牌筆數；**出賽＝先發名單的場次＋雖列替補但該場有進球或牌的場次**（賽事紀錄沒有出場分鐘）；**助攻沒有資料來源，自動彙總時為 `null`**。後台若手動輸入了該球員該球季的數據（`player_season_stats`），**以手動為準**（`source=manual`）。`photoUrl` 受肖像同意 fail-closed 規則（未同意為 null）。
+- `GET …/players/{id}/stats` → `{ playerId, seasons: [{ seasonCode, appearances, goals, assists, yellowCards, redCards, source }] }`（新→舊）；別隊球員 404。
+
+### 首頁核心價值
+
+`GET …/home/core-values` → 固定五項 `[{ code, nameZh, nameEn, sortOrder, learnMorePageSlug }]`，`code` 與文章的核心價值標籤同一組（`players_first`／`excellence`／`global_pathways`／`community`／`integrity`），`learnMorePageSlug`＝`about/philosophy`（2.3 足球理念）。圖示由前台依 `code` 對應。**規劃書 §3.1 資料來源欄寫「後台設定」，但後台沒有編輯這五項的畫面或欄位**——五項是規劃書 §1.2 定死的品牌主張，所以由伺服器固定目錄提供，兩站共用。區塊的開關與排序仍由 `GET …/home-sections`（`core_values`）決定。
+
+### K2「待確認申請」（後台）
+
+`GET /api/v1/admin/{club}/membership-applications?status=created&keyword=&page=&pageSize=`（權限碼 `member.membership.view`；俱樂部範圍；姓名／Email／電話依「完整個資」權限遮罩）→ `PagedResult`，每列：
+
+`orderNo`、`memberId`、`memberNo`、`memberName`／`memberEmail`／`memberPhone`、`planId`／`planCode`／`planName`、`seasonId`／`seasonCode`、`amount`（伺服器依方案算的應收金額）、`status`／`statusLabel`、`expiresAt`、`activatedAt`、`createdAt`、`updatedAt`。
+
+- 預設只列 `created`（＝網頁會員送出的升級申請，待客服核對款項）。`status` 可為 `created`／`pending_payment`／`paid`／`activated`／`expired`／`activation_failed`（已付款但開通失敗，**客服要處理**）／`cancelled`／`refunded`；不合法 400。待付款超過期限者以 `expired` 顯示。
+- **畫面的徽章數字**＝`?status=created&pageSize=1` 回應的 `totalCount`。
+- **開通動作沿用既有 `POST …/memberships/activate`**，本文帶本列的 `memberId`、`planId`、`amount`（再加 `paymentMethod`、`paidOn`）；開通成功時**會一併把同一份申請結案**（`status → activated`、`activation_source = admin`），清單上就不會再出現（E 批既有行為，F 批補測試）。
+
+### 資料庫綱要異動（`db/club-schema.sql`、migration `AlignSchemaF1`）
+
+先改 `docs/12`（第 48 點）、`docs/12b`（§6.7／§6.9）、`docs/12a` 再改 DDL 與 EF；本機 `tcrfc_club` 已套用（`dotnet ef migrations has-pending-model-changes` 無待處理變更，**表數不變**）。`orders` 加 `buyer_email`／`idempotency_key`／`request_fingerprint`／`payment_url`，`(club_id, idempotency_key)` 篩選唯一；`carts` 加兩條篩選唯一索引；`store_invoices.carrier_id_encrypted` 放寬為 `nvarchar(500)`。EF 對映放在 `Data/ClubDbContextShopFront.cs` 與 `Data/EfEntities/Order.ShopFront.cs`（**不動 scaffold 產生檔**）。**里程碑「分類」欄位沒有新增**——見下方「規格疑點」第 1 點。
+
+### 環境設定（新增）
+
+| 變數 | 必填 | 說明 |
+|---|---|---|
+| `INVOICE_ISSUER` | 否 | `fake`＝本機假發票（**Development 預設；Production 設了就啟動失敗**）；其餘＝「尚未串接」。 |
+| `SHOP_JOBS_INTERVAL_SECONDS` | 否 | 商店維護作業間隔：**未設定時 Production 預設 60、其餘環境停用**；`0` 停用。內容：逾時訂單釋回、發票重試、清理待開立發票資料列與舊訪客購物車。 |
+
+沿用 E 批的 `PAYMENT_GATEWAY`（`fake`＝本機假金流）、`EMAIL_SENDER`／`EMAIL_OUTBOX_PATH`、`MEMBER_EMAIL_LINK_BASE_URL`（信件連結的站台網址）。
+
+### 測試（`Tcrfc.Api.Tests`，新增 17 項）
+
+| 測試類別 | 項數 | 涵蓋 |
+|---|---:|---|
+| `ShopPublicTests` | 13 | 目錄（篩選、促銷價、新上市、缺貨判定、自動隱藏、草稿與別隊不可見、**庫存即時不快取**、`no-store`）；商店入口；購物車（訪客權杖、累加、庫存上限、**不跨俱樂部混買**、下架標示、會員購物車、登入合併）；**完整訪客流程**（金額重算、保留庫存、請款冪等、**並行 6 個確認只成立一次**：庫存只扣一次／發票一張／信一封、載具密文、查詢遮罩、權杖過期）；會員結帳歸戶與「我的訂單」、別人 404；結帳驗證（四種發票格式、統編檢核碼、捐贈碼、配送欄位、冪等鍵必填）；**冪等**（同鍵重送、同鍵異內容 409、別人拿同一把鍵 409、**並行 8 個同鍵只成立 1 張**）；**防超賣**（庫存 3、**10 個訪客同時結帳恰好 3 張成立**、其餘 409、保留量＝庫存；多規格**交錯下單不死結**）；取消與逾時（讀到時換算、庫存被逾時訂單占住時結帳先清掃再成立）；**維護作業**（逾時釋回、發票失敗後補字軌重試補開、清理、冪等重跑） |
+| `FrontGapsPublicTests` | 4 | 首頁核心價值；積分榜（排序、無名次墊底、球季選擇、別隊看不到）；球員數據（**自動彙總規則**、未結束賽事不計、手動優先、肖像 fail-closed、隊別篩選、逐季、別隊 404）；**K2 待確認申請**（出現、遮罩、篩選、請款後換狀態、開通後結案、俱樂部範圍、需登入） |
+
+測試資料用 `【測試】`／`【F測試】` 前綴與 `TST-F` 球季，測完清除（商品、訂單、發票、購物車、字軌通道、賽事、球季），不動種子；字軌通道若已存在就沿用（沒字軌則暫時補 `ZZ`，測完還原）。
+
+### 只留介面、尚未串接
+
+| 項目 | 現況 | 串接時 |
+|---|---|---|
+| **LINE Pay（商店）** | 沿用 E 批 `IPaymentGateway`（`NotConfigured`／`LocalFake`）。結帳、請款、確認、冪等、逾時釋回全部以假金流跑通 | 取得俱樂部商店號（B-10）→ 實作 `IPaymentGateway`、登記出口 IP（`docs/17` §3）、換註冊；**商店邏輯一行不用改**。退款仍走 C1 的 `ILinePayGateway`（未串接） |
+| **電子發票開立** | 新介面 `IInvoiceIssuer`（`NotConfigured`／`LocalFake`）；付款確認時開立、失敗重試 | 選定發票服務、取得**俱樂部字軌**（寫入後台 S6 的電子發票設定）→ 實作 `IssueAsync`（須冪等）、換註冊。退貨作廢／折讓仍走 C1 的 `IEInvoiceService`（未串接） |
+| **商店交易信（出貨通知、退款完成）** | 只做了「訂單成立」「付款完成」兩封（`ShopEmailTemplates`）；出貨與退款是後台動作的副作用，**尚未接** | 在 `ShopOrderLifecycle.ShipAsync`、退款執行處呼叫 `IEmailSender`；`IEmailSender` 本身供應商未定（E 批） |
+| **發票補開後的通知** | 付款完成信寫「發票將於開立後顯示在訂單頁面」；重試補開成功**不另寄信**（規劃書四封之外會變第五封） | 待裁決，見下 |
+
+### 自行判斷的事（規劃書沒逐條定義，採最保守做法）
+
+1. **訂單權杖與信件連結 30 天有效**（規劃書只寫「具時效性」）；**待付款保留時間沿用 S6 設定**（預設 30 分鐘）；**單項數量上限 99、購物車最多 50 種規格、訪客購物車保留 30 天**。
+2. **以「訂單編號＋Email」查單只給遮罩的收件資料**；持權杖才給完整值。**付款、確認、取消一律需要會員本人或訂單權杖**（光有訂單編號＋Email 不能付款）。
+3. **缺貨且設定「自動隱藏」只從列表隱藏，詳情網址仍可開啟**並標示缺貨（避免已流通的連結突然 404；若要連詳情一起 404，改 `ShopCatalogRepository.GetProductAsync` 一行）。
+4. **超商取貨的門市存進訂單的收件地址欄**（前綴「超商取貨門市：」），出貨時 S4 另填 `shipments.store_branch_code`——規劃書沒有為此定義欄位。
+5. **LINE Pay 的 `Confirm` 就是「伺服器向金流方確認」的位置**，沒有另做「金流 webhook」端點（LINE Pay v3 沒有付款結果 webhook；回呼＝使用者導回 `confirmUrl`）。若串接時發現必須支援非同步回呼，再加 `POST /api/shop/payments/linepay/notify`（驗簽、冪等，內部走同一個 `ShopOrderLifecycle.ConfirmPaymentAsync`）。
+6. **球員出賽的認定**（先發＋有事件的替補）與**助攻不彙總**：賽事紀錄沒有出場分鐘與助攻資料。若要精確出賽或助攻，要先改規格（賽事紀錄加欄位）。
+7. **核心價值固定目錄**（見上）。
+
+### 規格疑點與待裁決（需要使用者或客戶回覆）
+
+1. **里程碑「分類」欄位（俱樂部／國際／榮譽）規劃書沒有**：主站規劃書 §4.3 C5 只有「日期、標題、描述、圖片、是否顯示於時間軸」，§3.2 2.8 只有「年份錨點、圖片、事件描述、年份篩選」。**本批不做**（`docs/12` 的 `milestones` 表也沒有此欄）。前台若要分類，**請先確認要改規格**（走同步鏈：規劃書 C5 → `docs/12` → DDL → migration → 後台 C5 表單）。
+2. **11.1 慈善理念沒有新增端點**：規劃書 §3.11 11.1 寫「區塊編輯器排版」，B5 沒有對應內容型別——它是 **B1 頁面管理**的一頁。前台用既有 `GET /api/v1/tcrfc/pages/charity/commitment`（頁面 slug 沿用網址路徑，同 `about/philosophy`）。**目前種子沒有這一頁**（只有 `about/our-story`、`about/vision-mission`、`about/philosophy`、測試草稿頁），**需要補種子內容**（四大投入領域的區塊文案，客戶提供）或請後台人員在 B1 建立 `charity/commitment`（`published`）。
+3. **退換貨申請沒有前台端點**：規劃書 §3.8 8.3 寫「退換貨政策頁與申請管道（**表單或客服信箱，不做專屬的線上退貨精靈**）」，S5 的案件由客服在後台建立（`POST /admin/{club}/shop/refunds` 既有）。前台「我的訂單」的「退換貨申請入口」＝連到政策頁與聯絡表單／客服信箱。**若要改成會員自助送出申請，是規格異動**。
+4. **「訂單是否於結帳時依俱樂部拆單」（B-8）仍未定案**：本批維持**禁止混買、不拆單**。
+5. **出貨通知與退款完成兩封信的接線**、**發票補開成功是否通知**（見上「只留介面」）。
+6. **STATUS B-10 仍擋「正式付款」**：LINE Pay 商店號與發票服務／字軌未到位前，正式環境 `shop/info.paymentAvailable=false`、請款回 503；前台可完整展示與結帳至「建立訂單」，但無法付款。
+
+
+---
+
+## 慈善 CH-2／CH-3：捐款主幹公開端點＋慈善獨立後台 API（2026-10-01，`backend-engineer`）
+
+**範圍**：慈善捐款平台（協會主辦與收款，[`docs/10`](../../docs/10-charity-donation-site.md)／[`docs/16`](../../docs/16-charity-schema.md)）的**後端 API**——CH-2 前台公開端點（掃碼落地 → 項目 → 建單（冪等）→ 付款 → 確認 → 結果 → 憑證 → 感謝信）與 CH-3 獨立後台（`N1` 店家與 QR、`N2` 項目、`N3` 捐款紀錄與異常佇列）。**不含前端**。實作全部在 [`CharityPlatform/`](CharityPlatform/)，與主站 `Features/` 完全分開。
+
+### 一眼看懂
+
+| 項目 | 內容 |
+|---|---|
+| 啟用條件 | 設定 `CHARITY_SQL_CONNECTION_STRING` 才註冊與對映（沒設＝慈善端點全部 404，主站完全不受影響）；啟用時 `JWT_SIGNING_KEY_CHARITY` 必填（缺值啟動失敗） |
+| 資料庫 | **獨立的 `CharityDbContext`**（`tcrfc_charity`）；與 `ClubDbContext` 不共用連線、不共用 migration。**所有讀寫走 EF**，沒有 Dapper；🔴 **完全不碰 Redis／`IQueryCache`**（docs/16 §7：冪等與金流狀態不得讀快取，慈善整個不接快取） |
+| 路徑 | 公開 `/api/v1/donation-platform/…`；後台 `/api/v1/donation-platform/admin/…`（避開主站的 `/api/v1/{club}/charity/…` 與 `/api/v1/admin/…`） |
+| 帳號體系 | **完全獨立**：自己的 `admin_users`／角色／權限，自己的 JWT 方案（`CharityAdminBearer`，issuer／audience／金鑰都與主站不同）、自己的更新權杖 Cookie `__Host-tcrfc-charity-admin-rt`（🔴 與主站 `__Host-tcrfc-admin-rt` 不同名：兩個後台打同一個 API 網域，同名會互相蓋掉登入） |
+| 時間 | 全部 UTC、JSON 帶 `Z`（既有慣例）；「期間」篩選與憑證「當期」判斷以台灣日期 |
+| 錯誤格式 | 一律 `ProblemDetails`（`status`／`title`／`detail`，`detail` 是日常中文）；`429` 沒有 body |
+| 型別層授權 | 後台每支端點先 `ICharityAdminAuthorizer.AuthorizeAsync(...)` 拿 `CharityAdminScope`，service 方法第一個參數就是它（`CharityAdminScope` 建構子 `internal`，唯一產生者是 `CharityAdminAuthorizer`；`ArchitectureTests` 已納入 Roslyn 語意掃描，`CharityArchitectureTests` 另掃端點與 service 簽章） |
+
+### 外部服務接縫（目前只有本機假實作）
+
+| 介面 | 位置 | 狀態 |
+|---|---|---|
+| `IPaymentGateway`（LINE Pay，協會商店號） | `CharityPlatform/Payments/` | 🟡 **只有 `FakePaymentGateway`**。協會商店號未申請（STATUS B-7）。付款網址指回前台既有的模擬頁 `/{lang}/pay/{orderNo}?transactionId=…`；交易識別碼 `FAKE-DECLINE-` 開頭視為金流拒絕（手動測失敗分支） |
+| `IInvoiceIssuer`（電子發票／捐贈收據，協會字軌） | `CharityPlatform/Invoices/` | 🟡 **只有 `FakeInvoiceIssuer`**。廠商未指定、協會統編未取得。憑證號碼 `{字軌}-{單號}`（同單號同憑證，天然冪等）；字軌讀慈善庫 `payment_channels.invoice_prefix`（**不得與俱樂部共用**） |
+| `IEmailSender`（四封系統信） | `CharityPlatform/Mail/` | 🟡 **只有 `FakeEmailSender`**（只寫日誌，不真的寄）。寄信服務未選定 |
+| `ITurnstileVerifier` | `CharityPlatform/Security/` | 🟡 預設放行；設定 `TURNSTILE_SECRET_KEY_CHARITY` 就改走 Cloudflare siteverify（已實作，單元測試用假 HTTP 處理器驗證，未連網實測）。驗證服務本身壞掉時**放行**（第一道 IP 限流仍在） |
+| `ICharityImageStorage`（Logo／封面） | `CharityPlatform/Storage/` | ✅ 慈善自己的容器（`AZURE_BLOB_CONNECTION_STRING_CHARITY`／`AZURE_BLOB_CONTAINER_CHARITY`，預設 `charity-images`）；沒設用替身（讀取回無圖、上傳回 503）。圖片處理重用主站 `ImageProcessor`（WebP、2560、去 EXIF、四個衍生檔） |
+
+🔴 **假實作的環境防線**（`CharityFakeGuard`）：假金流對任何交易回「扣款成功」、假發票編出像發票號碼的字串——在正式環境等於憑空確認收款、偽造憑證。所以三個假實作**只在 `Development`（或明確設 `CHARITY_ALLOW_FAKE_PROVIDERS=true`）運作**，其餘環境一律丟「尚未設定」（金流／發票回 503，寄信記成 `email_logs.status = 'failed'`），不會假裝成功。正式實作到位時，`CharityPlatformRegistration` 裡三行 `AddSingleton` 換掉即可，流程不動。
+
+### 公開端點（不需要登入）
+
+語系 `?lang=zh|en`（缺漏回退繁中，回應有 `isFallback`）。🔴 **公開回應絕不含**：分潤百分比、金流交易識別碼、`*_encrypted`、物件儲存的原始鍵（一律換成完整網址）、募款進度（規劃書 §3.2 v1.2 無進度條／目標／累計）；`CharityArchitectureTests` 用反射鎖住這些欄位名稱。
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `GET /settings` | 站台文案（首頁說明、感謝語、捐款須知、隱私權政策）、全站預設單筆金額範圍、徵信名單是否開放 |
+| `GET /stores/{slug}` | 掃碼落地頁的店家識別。🔴 **對不到有效店家（不存在、已停止、不在合作期間）回 `200 { "store": null }`，不報錯**（規劃書 §2.2 第 5 點：視同無店家歸屬）。`logoUrl` 為 `null` 時前台降級為純文字店名，不留空框 |
+| `GET /projects` | 已上架項目卡片牆（依排序）。無募款進度 |
+| `GET /projects/{slug}` | 項目詳情：說明內文（區塊編輯器 JSON 原樣）、款項用途、金額選項、**生效的單筆金額範圍**（項目沒設就用全站預設）、`invoiceMode`、撥付對象與慈善計畫名稱快照 |
+| `POST /donations` | **建立捐款單**。標頭 `Idempotency-Key`（16–64 個英數／底線／連字號，前端用 UUID 即可）**必填**。首次回 `201`，同一個鍵重複送出回 `200` 並沿用原單（`created: false`）；同一個鍵送了不同內容回 `409`。見下 |
+| `POST /donations/{orderNo}/pay` | 發起付款，回 `paymentUrl` 要導向的網址。`created`／`failed`／`expired` 可（重）新發起，**沿用原單**；已有進行中的付款就沿用同一個網址，不再呼叫金流 |
+| `POST /donations/{orderNo}/confirm` | 使用者從 LINE Pay 返回後呼叫，body `{ "transactionId": "…" }`（返回網址帶回的值）。**冪等**，回結果頁資料 |
+| `POST /donations/{orderNo}/cancel` | 使用者在 LINE Pay 取消、返回本站。`pending → failed`（可重試），冪等 |
+| `GET /donations/{orderNo}` | 結果頁資料（前台約每 3 秒輪詢）。🔴 姓名與 Email **遮罩**，不含完整個資 |
+
+**建單請求**（`camelCase`）：
+
+```json
+{
+  "projectSlug": "…", "storeSlug": "…或省略", "amount": 500,
+  "donorName": "王小明", "donorEmail": "a@example.com", "isAnonymous": false, "consentPrivacy": true,
+  "invoice": { "type": "mobile_carrier", "mobileCarrier": "/ABC+123" },
+  "lang": "zh", "turnstileToken": "…（啟用後必填）"
+}
+```
+
+`invoice` 依項目的 `invoiceMode` 填對應那組：
+
+| `invoiceMode` | 欄位 |
+|---|---|
+| `b2c_invoice` | `type` 必填：`mobile_carrier`（`mobileCarrier`，`/` ＋ 7 碼）／`love_code`（`loveCode`，3–7 碼數字）／`tax_id`（`taxId` 8 碼並通過**檢核碼**＋`invoiceTitle` 必填） |
+| `donation_receipt` | `receiptTitle`（省略就帶入捐款人姓名）、選填 `nationalId`（身分證字號，須通過檢核碼；**加密儲存**）、選填 `address`、`isAnnualSummary` |
+
+驗證失敗一律 `400`（日常中文訊息）；金額超出範圍 `422`；項目不存在或未上架 `404`；`store` 無效**不報錯**；人機驗證不過 `422`。
+
+**結果頁資料** `status`：`created`／`pending`／`paid`／`failed`／`expired`／`refunded`。`processing: true`（`pending`）時前台顯示「處理中」並輪詢，**文案不得讓人誤以為失敗而重複付款**；`canRetry: true`（`created`／`failed`／`expired`）時顯示重試按鈕（呼叫 `/pay`，不重新建單、不要求重填）。`invoiceStatus` 只有 `pending`／`issued`——開立失敗對外一律仍顯示「處理中」，失敗細節是協會內部的人工補開佇列。
+
+**前端接法（建議流程）**
+
+```
+填表送出 → POST /donations（帶 Idempotency-Key；同一次送出沿用同一個鍵，使用者改了表單內容就換新鍵）
+         → POST /donations/{orderNo}/pay → 導向 paymentUrl
+LINE Pay 返回 {前台網址}/{lang}/result/{orderNo}?transactionId=…
+         → POST /donations/{orderNo}/confirm {transactionId}（取消返回則帶 ?cancel=1 → POST …/cancel）
+         → 結果頁：status=pending 時輪詢 GET /donations/{orderNo}
+```
+
+付款網址與返回網址的前台基底是 `CHARITY_PUBLIC_BASE_URL`（沒設就用 compose 給 api 的 `CHARITY_DOMAIN` 組出；本機預設 `http://charity.localhost`；非本機都沒有就回 503，不拿錯的網址去導向金流）。
+
+### 🔴 冪等與「已扣款但 Confirm 失敗」
+
+- **建單冪等**：資料庫沒有 `idempotency_key` 欄位，不自己發明——**單號由冪等鍵經 HMAC 決定性推導**（`CH` ＋16 碼，用 `JWT_SIGNING_KEY_CHARITY` 作秘密），同鍵同號，並發撞 `UQ_donations_order_no`，輸的回頭讀贏的那張（測試：8 個並發請求只建一張）。
+- **付款冪等**：所有狀態轉移是條件式更新（`UPDATE … WHERE status IN (…)`），只有贏得轉移的請求才入帳、寄感謝信、開票；重複 `confirm` 只回傳目前結果（測試：重複 3 次、並發 6 個，金流只確認一次、憑證只開一次、感謝信只寄一次）。
+- **Confirm 結果未知**（金流連線中斷、逾時）：捐款單**維持 `pending`**、最近一次付款標 `failed`——這個組合就是「待人工處理」的定義（金流明確失敗一律轉捐款單 `failed`，所以此組合只可能是結果未知）。此時：回應給使用者 `processing: true`（不是失敗）；**禁止重新發起付款**（`409`，避免重複扣款）；使用者按取消也不動；背景逾時工作**不會**轉成 `expired`；後台異常佇列列出，客服用「重新確認付款結果」（或使用者重新整理再 `confirm`）重新向金流確認，成功就走正常收尾。
+- **`expired` 的單金流端晚到的成功仍會收下**（使用者在最後一刻付款）。
+- 金流確認成功之後的所有資料庫寫入用 `CancellationToken.None`——錢已經動了，不能因為使用者關掉頁面而少記一半；寄信失敗與開票失敗都不會讓付款回應變成失敗。
+
+### 限流（公開寫入端點一律依訪客 IP）
+
+| 政策 | 額度（預設，可用環境變數覆寫） | 掛在 |
+|---|---|---|
+| `charity-public-write` | 30 次／10 分鐘／IP（`CHARITY_PUBLIC_WRITE_RATE_LIMIT_PERMITS`）。⚠️ 掃碼場景常見店家 Wi-Fi 同出口，所以不壓到個位數 | 建單、發起付款、確認、取消 |
+| `charity-public-read` | 120 次／分鐘／IP（`CHARITY_PUBLIC_READ_RATE_LIMIT_PERMITS`） | 結果頁輪詢（擋大量枚舉單號） |
+| `charity-admin-login`／`charity-admin-refresh` | 與主站共用設定鍵（`ADMIN_LOGIN_RATE_LIMIT_PERMIT_LIMIT`／`ADMIN_REFRESH_RATE_LIMIT_PERMIT_LIMIT`），政策與計數分開 | 後台登入、更新權杖 |
+
+額度是「規劃書沒給數字、執行層自行決定」的最小可行防護，上線後依實際流量調整。`CharityArchitectureTests` 掃：所有公開非 GET 端點與結果頁輪詢一定掛限流。
+
+### 慈善後台登入與個人檔案（`/api/v1/donation-platform/admin/auth/…`）
+
+請求與回應形狀**刻意與主站 `/api/v1/admin/auth/…` 相同**（`LoginRequest`／`LoginResponse`），兩個後台前端的登入程式碼可以共用。
+
+| 方法 路徑 | 說明 |
+|---|---|
+| `POST /login` | `{ username, password, totpCode? }`。成功回存取權杖（15 分鐘 JWT）並設更新權杖 Cookie；`401` 不區分帳號不存在或密碼錯（時序也補齊）；連續 5 次失敗鎖 15 分鐘（`423`）；已啟用 2FA 的帳號沒帶驗證碼回 `{ status: "totp_required" }` |
+| `POST /refresh` | 讀 Cookie，輪替更新權杖；舊權杖被重放時撤銷該帳號全部有效權杖 |
+| `POST /logout` | 撤銷更新權杖並清 Cookie |
+| `POST /change-password` | `{ currentPassword, newPassword }`（≥ 10 字元、不得等於帳號） |
+| `POST /2fa/setup`／`/2fa/confirm`／`/2fa/disable` | 選用（2026-09-30 裁決，不強制）；密鑰用慈善專屬用途加密 |
+| `GET /me` | 個人檔案：角色與**持有的權限碼**（只給前端決定顯示或隱藏按鈕，介面不得顯示權限碼）。沒有俱樂部授權清單與站台切換器（單一法人） |
+
+**本機種子帳號**（`db/seed/generate-charity-seed-sql.py` §4，🔴 只供本機開發，正式環境不得沿用）：
+
+| `username` | 密碼 | 角色 |
+|---|---|---|
+| `sa@charity.local` | `Admin@123` | 系統管理員（`is_super_admin`） |
+| `cs.admin@charity.local` | `ContentEditor@123` | 客服／行政 |
+| `biz.admin@charity.local` | `ContentEditor@123` | 商務／贊助 |
+| `viewer@charity.local` | `Viewer@123` | 檢視者 |
+
+（CH-1b 時期建好的本機庫裡這四列是 `DEV-SEED-` 占位雜湊，重跑 `./db/seed/apply-charity-seed.sh` 會升級成真雜湊——只升級仍是占位的列，不覆蓋被改過的密碼。）
+
+### 後台端點（全部需要登入，`Authorization: Bearer <存取權杖>`）
+
+權限碼是種子 `permissions.code`（常數在 `CharityPlatform/Common/CharityPermissions.cs`）。**角色權限對照見 `db/seed/generate-charity-seed-sql.py` 的 `ROLE_PERMISSION_MAP`**：系統管理員全部；客服／行政＝N3 檢視／個資明文／匯出／重新確認、N5 檢視／開立／作廢、N6 檢視；商務／贊助＝N1 檢視／編輯、N2 檢視／編輯／上下架、N6 檢視；檢視者＝七個模組各一個唯讀碼；其餘五個角色在慈善後台沒有職能。
+
+**N1 店家與 QR**（`/stores`）
+
+| 方法 路徑 | 權限 | 說明 |
+|---|---|---|
+| `GET /stores?keyword&status&page&pageSize` | `n1.donation_store.view` | 列表，含**累計筆數、金額、應付回饋金**（只計 `paid`） |
+| `GET /stores/{id}` | 同上 | 詳情，含 `qrTargetUrl` |
+| `POST /stores`／`PUT /stores/{id}` | `…manage` | 建立／更新。`slug` **一律由系統產生**（80 bits 亂數，不可由編號推導，請求帶了也忽略）。🔴 **`storeSharePct` 實際發生變化時另需 `n1.donation_store.share_pct`（403），並在同一次儲存寫稽核**（新舊值）；省略＝不變 |
+| `POST /stores/{id}/regenerate-slug` | `…manage` | body `{ "confirm": true }`（二次確認，否則 400）。**舊 QR 立即失效**（前台視同無店家歸屬），寫稽核記錄操作者 |
+| `POST /stores/{id}/logo`／`DELETE …/logo` | `…manage` | multipart 欄位 `file`；新圖寫入成功才刪舊物件 |
+| `GET /stores/{id}/qr?format=png\|svg&size=` | `…manage` 或 `…export` | QR 容錯等級 **Q**、四周留白 4 模組；內容只有 `{前台網址}/zh/s/{slug}`（不帶金額或分潤參數）。`size`＝每模組像素數（預設 10，PNG 碼區約 300 像素，印刷未達 3 公分請用 SVG 或調大）。🔴 **`format=pdf` 回 `501`**：印刷版需要協會標誌（資產未到位，規劃書明文不得自造）與中文字型 |
+| `GET /stores/qr-export?format=png\|svg` | `n1.donation_store.export` | 全部「合作中」店家的 QR 打包成 zip |
+
+**N2 捐款項目**（`/projects`）
+
+| 方法 路徑 | 權限 | 說明 |
+|---|---|---|
+| `GET /projects?status=` | `n2.donation_project.view` | 列表。🔴 **刻意沒有累計金額或筆數**（累計數字只存在 N6 報表） |
+| `GET /projects/charity-refs` | 同上 | 撥付對象與慈善計畫候選清單（主站主檔的**唯讀複本**） |
+| `GET /projects/{id}` | 同上 | 詳情（雙語欄位、金額選項、快照） |
+| `POST /projects`／`PUT /projects/{id}` | `…manage` | 建立（草稿）／更新（**整筆取代**；標註「省略代表不變」的欄位例外：`slug`、`amountOptions`、`projectSharePct`、`sortOrder`）。`slug` 省略時由英文名稱自動產生，重複 `409`。金額選項最多 12 組、由小到大存、必須落在單筆範圍內。撥付對象與慈善計畫只傳參照碼，名稱**值複製**成快照（只選計畫會自動帶出所屬公益團體；組合不一致 `400`）。🔴 **`projectSharePct` 變化時另需 `n2.donation_project.share_pct` 並寫稽核** |
+| `POST /projects/{id}/publish`／`/unpublish` | `…publish` | 上下架 |
+| `POST /projects/{id}/cover`／`DELETE …/cover` | `…manage` | 封面圖 |
+
+🔴 **儲存時驗證店家分潤＋項目分潤 ≤ 100%**（規劃書 §6.2，超過 `400`）：捐款是「某店 × 某項目」的組合，所以兩邊儲存都擋——店家儲存時比對**所有項目中最高的項目分潤**，項目儲存時比對**合作中店家中最高的店家分潤**（已停止的店家不算，重新啟用時會被檢查）。
+
+**N3 捐款紀錄與異常佇列**（`/donations`）
+
+| 方法 路徑 | 權限 | 說明 |
+|---|---|---|
+| `GET /donations?from&to&status&projectId&storeId&noStore&invoiceStatus&amountMin&amountMax&keyword&page&pageSize` | `n3.donation.view` | 列表（`from`／`to` 是**台灣日期**，含頭尾兩天）。列表**不含捐款人資料** |
+| `GET /donations/{id}?reveal=true` | `…view`；`reveal=true` 另需 `n3.donation.reveal`（沒權限回 `403`，**不會悄悄降級成遮罩**） | 詳情：金流交易（不含 `raw_response`）、分潤快照、憑證、退款、時間軸、`needsManualReview`。🔴 **個資預設在 API 層遮罩**：姓名（`王○○明`）、Email（`a***@…`）、收據抬頭（預設就是姓名）、身分證字號（`A******789`）、載具、地址；`reveal=true` 回明文並**寫稽核**（摘要不含個資） |
+| `POST /donations/{id}/refund` | `n3.donation.refund`（**僅系統管理員**） | body `{ "reason": "…" }`（2–255 字）。僅全額、僅 `paid`。先對金流退款，成功才改本站狀態；連動憑證**當期作廢／跨期折讓**與退款通知信；🔴 寫稽核（金額＋原因，不含個資）。金流拒絕 `409`、中斷 `503`，本站狀態不動。🔴 同一筆的並發退款用**交易層級 `sp_getapplock`** 串行化（拿不到鎖回 `409`「退款處理中」；實測沒有鎖時 6 個並發請求打了 6 次金流退款） |
+| `GET /donations/export?…同上篩選…&purpose=` | `n3.donation.export` | 含個資的明細 CSV（UTF-8 BOM、**CSV 公式注入防護**）。🔴 **`purpose`（用途備註，≥ 4 字）必填**，稽核記錄「篩選條件＋筆數＋用途備註」；單次上限 5 萬筆，超過回 `422`（不靜默截斷） |
+| `GET /donations/anomalies?kind=` | `…view` | 異常佇列：`confirm_failed`（已扣款但確認失敗）／`invoice_failed`（憑證開立失敗）／`invoice_void_pending`（已退款但憑證未作廢）／`reconciliation`（對帳差異，目前是種子資料；對帳排程屬 CH-4） |
+| `GET /donations/anomalies/counts` | 同上 | 四類各有幾筆（導覽徽章用） |
+| `POST /donations/{id}/recheck-payment` | `n3.donation.recheck_payment`（**本輪新增**） | 對 `confirm_failed` 的單重新向金流確認；成功走正常收尾 |
+| `POST /donations/{id}/resend-thanks` | `n3.donation.reveal` | 補寄感謝信（會寄到捐款人 Email，所以需要能看個資的角色） |
+| `POST /donations/{id}/invoice/reissue` | `n5.donation_invoice.issue` | 開立失敗的重新開立；已開立 `409` |
+
+稽核紀錄（`audit_logs`）的動作代碼見 `CharityAuditActions`：退款、分潤設定（店家／項目）、個資明文檢視、匯出、QR 網址重產、重寄感謝信、重開憑證、重新確認付款。**稽核與被稽核的變更在同一次 `SaveChanges` 提交**；`CharityAuditLogger` 只有 `Stage` 一個公開方法（append-only，沒有更新與刪除）。**目前沒有查詢稽核紀錄的端點**（N7／稽核頁屬後續）。
+
+### 背景維護（`CharityBackgroundService`）
+
+每 60 秒（`CHARITY_WORKER_INTERVAL_SECONDS`）跑一輪：① 逾時（`created` 超過 30 分鐘、`pending` 最近一次付款發起超過 30 分鐘 → `expired`，`CHARITY_PAYMENT_TIMEOUT_MINUTES`；**不碰待人工處理的單**）② 憑證重試（付款後第一次開立失敗的，固定間隔重試，超過 10 分鐘仍失敗標 `failed` 並通知協會，`CHARITY_INVOICE_RETRY_MINUTES`）。🔴 **Development 預設關閉**（需明確設 `CHARITY_WORKERS_ENABLED=true`）：它會改動本機種子捐款的狀態；非 Development 預設開，設 `false` 可關。失敗只記錄，不讓背景服務終止（否則會拖垮同一個行程裡的俱樂部 API）。
+
+### 環境變數
+
+| 變數 | 用途 |
+|---|---|
+| `CHARITY_SQL_CONNECTION_STRING`（必）／`JWT_SIGNING_KEY_CHARITY`（必，≥ 32 字元） | 啟用慈善平台；本機見 `deploy/dev/charity.env.example`，`scripts/init-local-settings.sh` 會一併寫進 `appsettings.Development.json` |
+| `CHARITY_PUBLIC_BASE_URL` | 前台公開網址（付款返回網址、QR 目標網址）。**沒設就由 compose 本來就給 api 的 `CHARITY_DOMAIN` 組出**（`https://{網域}`，`*.localhost` 用 `http://`），再沒有才是本機預設 `http://charity.localhost`；非本機三個都沒有時付款回 503 |
+| `CHARITY_ASSOCIATION_NOTIFY_EMAIL` | 接收「憑證開立失敗通知」的協會信箱；沒設就只標記失敗進佇列，不寄信 |
+| `CHARITY_ALLOW_FAKE_PROVIDERS` | `true` 才允許非 Development 使用假金流／假發票／假寄信（預備環境整合驗收用） |
+| `TURNSTILE_SECRET_KEY_CHARITY` | 設定後建單要求通過 Cloudflare Turnstile |
+| `AZURE_BLOB_CONNECTION_STRING_CHARITY`／`AZURE_BLOB_CONTAINER_CHARITY` | 慈善圖片儲存 |
+| `CHARITY_WORKERS_ENABLED`／`CHARITY_WORKER_INTERVAL_SECONDS`／`CHARITY_PAYMENT_TIMEOUT_MINUTES`／`CHARITY_INVOICE_RETRY_MINUTES` | 背景維護 |
+| `DATA_PROTECTION_KEYS_PATH` | 🔴 **比主站 2FA 嚴重**：遺失金鑰環＝已加密的捐款人身分證字號永久無法解密（捐款人不登入，無從補填）。正式環境務必持久化或改接 Key Vault |
+
+### Migration
+
+`CharityDbContext` 的 EF 基準（比照主站 E-45 流程）：
+
+```bash
+cd apps/api
+dotnet ef migrations add <名稱> --context CharityDbContext -o CharityPlatform/Data/Migrations --namespace Tcrfc.Api.CharityPlatform.Data.Migrations
+# ⚠️ 該指令會把 ModelSnapshot 放到 apps/api/Tcrfc/Api/CharityPlatform/Data/Migrations/ ——要手動移回
+#    CharityPlatform/Data/Migrations/ 並刪掉多出來的 apps/api/Tcrfc/ 資料夾
+dotnet ef database update --context CharityDbContext
+```
+
+| Migration | 內容 |
+|---|---|
+| `InitialBaseline`（`20261001011658`） | **已套用的空白基準**（`Up`／`Down` 刻意清空）：29 張表是 `db/charity-schema.sql` 手寫 DDL 建的 |
+| `AddAdminRefreshTokens`（`20261001011736`） | 新增 `admin_refresh_tokens`（登入更新權杖的工作階段狀態）。`Up` 是 `IF OBJECT_ID … IS NULL` 守衛過的 SQL（冪等）：`db/charity-schema.sql`（2026-10-01 起）新建的庫已經有這張表，只有 CH-1 時期的本機庫缺它 |
+
+Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remove`）已做過，模型與 snapshot 一致。`dotnet ef dbcontext scaffold "Name=CHARITY_SQL_CONNECTION_STRING" …` 重新 scaffold 時，`AdminRefreshToken` 的實體與 `AdminUser.AdminRefreshTokens` 導覽屬性要保留（`CharityDbContextCustomizations.cs` 不受影響）。
+
+### 測試（`Tcrfc.Api.Tests`，新增）
+
+| 檔案 | 內容 |
+|---|---|
+| `CharityDonationRulesTests` | 分潤捨去與尾差（含 2000 組隨機金額三者必加總等於金額）、單號推導、統編／身分證／手機條碼／捐贈碼檢核、憑證當期判斷 |
+| `CharityDonationFlowTests` | 建單（冪等重送、**並發 8 個同鍵只建一張**、同鍵不同內容 409、驗證）、店家歸屬、付款、**確認冪等（重複 3 次、並發 6 個）**、拒絕／取消／重試、**Confirm 結果未知整條路徑**、逾時與晚到確認、憑證失敗重試與通知、寄信失敗不影響收款 |
+| `CharityPublicCatalogTests` | 落地頁、卡片牆、詳情、文案、回退與不洩漏欄位 |
+| `CharityAdminAuthTests` | 登入、鎖定、輪替與重放偵測、**主站與慈善權杖互不接受**、2FA、改密碼 |
+| `CharityAdminStoresTests`／`CharityAdminProjectsTests`／`CharityAdminDonationsTests` | 授權矩陣、分潤獨立授權＋稽核、100% 約束、slug 重產、QR、Logo、遮罩與明文稽核、退款三連動、匯出、異常佇列與處理動作 |
+| `CharityArchitectureTests` | 授權不可繞過、限流必掛、**慈善與主站互不相依**、不讀快取、稽核 append-only、回應欄位、假實作的環境防線 |
+| `CharityAbuseProtectionTests` | 限流 429（獨立主機，額度 3）、Turnstile、慈善未啟用時整個不存在 |
+| `CharityEfModelMatchesDatabaseTests` | `CharityDbContext` 與慈善庫逐表逐欄一致 |
+
+測試用 `CharityApiFixture`：真的 HTTP 管線＋真的 `tcrfc_charity`（`CharityTestDatabaseGuard` 硬性限定庫名），金流／發票／寄信換成可編排替身；測試資料用可辨識標記（帳號 `ct-*@charity-test.invalid`、項目 `ct-*`、店家 `CT店家*`、Email `*@charity-test.invalid`）並在每個測試後依標記清掉，**不碰種子資料**（背景維護的 `RunOnceAsync` 有 `onlyDonations` 測試接縫，整合測試只處理自己的捐款）。
+
+### 本輪沒做（只留介面或不在範圍）
+
+- **LINE Pay／電子發票／寄信**：只有假實作與介面（見上）。
+- **含店名的印刷版 QR PDF**：`501`，待協會標誌資產與中文字型。
+- **N4 回饋金結算、N5 發票管理頁、N6 報表、對帳排程**（CH-4）：退款的「回饋金沖回」只改狀態，結算引擎（CH-4）依狀態排除或以負項沖回；異常佇列的對帳差異目前讀種子資料。
+- **徵信名單、成果回顧、英文版系統信、N7 站台設定**（CH-5）。
+- **店家 CSV 批次匯入**（規劃書 §6.1「批次作業」）。
+- **後台查詢稽核紀錄的端點**。
+
+### 待裁決（規劃書與 docs/16 都答不到，詳見 [`docs/16`](../../docs/16-charity-schema.md) §10／§11）
+
+1. **`admin_refresh_tokens`**：規劃書沒寫這個實作機制，比照主站先例新增（含 DDL、docs、migration）。
+2. **徵信名單逐筆隱藏**、**Email 軟性比對會員**：資料模型沒有落點，沒做。
+3. **「待人工處理」的定義**：用「`pending` ＋最近一次付款 `failed`」，沒有專屬欄位。
+4. **憑證自動重試**：沒有嘗試次數欄位，固定間隔＋總期限，非指數退避。
+5. **系統信語系**：沒有記錄捐款人語系，一律繁中。
+6. **`carrier_type` 值域**：寫入用代碼，讀取相容舊中文標籤。
+7. **公開端點限流額度**與**Turnstile 驗證服務壞掉時放行**：規劃書沒給數字／沒說，採最小可行。
+8. **新增權限碼 `n3.donation.recheck_payment`**：異常佇列的處理動作。

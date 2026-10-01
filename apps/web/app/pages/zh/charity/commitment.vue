@@ -1,5 +1,7 @@
 <script setup lang="ts">
 // app/pages/zh/charity/commitment.vue — 由 site/src/pages/zh/charity/commitment/index.html 轉來（S0-9 靜態頁搬遷）
+import type { PageBlockNode, RawPageBlock } from '#shared/utils/page-blocks'
+
 definePageMeta({ nav: "charity", unit: "11" })
 
 const { lp } = useLocale()
@@ -8,9 +10,29 @@ const { lp } = useLocale()
 // 對藍鯨已整頁 404（藍鯨規劃書不設「11 慈善與社會影響」），固定讀 tcrfc 即可。
 const { facts: tcrfcFacts } = useSiteFacts('tcrfc')
 
+// S3-5（順手）：11.1 慈善理念改讀 B1 頁面管理的 `charity/commitment`（`GET /api/v1/tcrfc/pages/charity/commitment`，
+// 規劃書 §3.11 11.1「區塊編輯器排版」）。**後端有已發布且含可渲染區塊的頁面就用後台內容，否則（含 404、API 打不到、
+// 區塊全是本輪不渲染的型別）維持下方既有的靜態內容**——種子目前沒有這一頁。後台頁面沒有標題欄位，h1 維持固定標題。
+// 區塊只渲染純文字型（見 shared/utils/page-blocks.ts），不 v-html。
+const { locale } = useLocale()
+interface RawCommitmentPage {
+  seoTitle: string | null
+  seoDescription: string | null
+  blocks: RawPageBlock[]
+}
+// `transform`：在進入頁面 payload 之前就把區塊正規化成安全的純文字節點（原始 JSON 不進 payload）
+const { data: cmsPage } = await useFetch<{ seoTitle: string | null, seoDescription: string | null, blocks: PageBlockNode[] } | null>('/api/backend/tcrfc/pages/charity/commitment', {
+  query: { lang: locale.value },
+  key: `charity-commitment-${locale.value}`,
+  default: () => null,
+  transform: (p: RawCommitmentPage) => ({ seoTitle: p.seoTitle, seoDescription: p.seoDescription, blocks: normalizePageBlocks(p.blocks) }),
+})
+const cmsBlocks = computed(() => cmsPage.value?.blocks ?? [])
+const useCms = computed(() => cmsBlocks.value.length > 0)
+
 useSeoMeta({
-  title: "慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部",
-  description: "台中磐石足球俱樂部的慈善理念與四大投入領域：青少年扶助、偏鄉足球、弱勢家庭與公益義賽，實踐 Community 社區共好核心價值。",
+  title: computed(() => (useCms.value && cmsPage.value?.seoTitle) || "慈善理念與投入領域 Our Commitment｜慈善與社會影響｜台中磐石足球俱樂部"),
+  description: computed(() => (useCms.value && cmsPage.value?.seoDescription) || "台中磐石足球俱樂部的慈善理念與四大投入領域：青少年扶助、偏鄉足球、弱勢家庭與公益義賽，實踐 Community 社區共好核心價值。"),
 })
 </script>
 
@@ -34,10 +56,17 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band commitment-band" aria-labelledby="commitment-title">
+<section v-if="useCms" class="band commitment-band" aria-labelledby="commitment-title">
+  <div class="band-inner container">
+    <h2 id="commitment-title" class="visually-hidden">慈善理念說明</h2>
+    <ContentPageBlocks :blocks="cmsBlocks" />
+  </div>
+</section>
+
+<section v-else class="band commitment-band" aria-labelledby="commitment-title">
   <div class="band-inner container">
     <div class="prose">
-      <h2 class="visually-hidden" id="commitment-title">慈善理念說明</h2>
+      <h2 id="commitment-title" class="visually-hidden">慈善理念說明</h2>
       <!-- GEO-03（S1-12d）：成立年份為單一來源 site-facts.ts，不在此重複寫死字面值（本頁僅磐石有內容，慈善單元藍鯨不設）。 -->
       <p>台中磐石足球俱樂部自 {{ tcrfcFacts.foundedYear }} 年成立以來，將「<strong>Community 社區共好</strong>」列為五大核心價值之一，相信足球能為社區帶來的影響不只在球場上。我們相信優質的足球資源不該只集中在少數人身上，因此持續尋找機會，把訓練、場地與人才帶到需要的地方。</p>
 
@@ -78,7 +107,7 @@ useSeoMeta({
 <section class="band grain cta-band" aria-labelledby="commitment-cta-title">
   <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">11.1</span>
   <div class="band-inner container">
-    <h2 class="section-title" id="commitment-cta-title">看看理念如何落實</h2>
+    <h2 id="commitment-cta-title" class="section-title">看看理念如何落實</h2>
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/charity/programs/')">
         <span class="cta-card__num">11.2</span>

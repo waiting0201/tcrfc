@@ -11,6 +11,26 @@ const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const identity = computed(() => getClubIdentity(config.public.club))
 
+// S2-11（8.4 特約店家）：清單來自後台 K4（`partner-stores`，本俱樂部專屬＋兩隊共同、已上架且在合作期間內），
+// 篩選（類別／地區／適用層級）走網址 query，SSR 與無 JS 皆可用；沒有已上架店家時顯示誠實的空狀態。
+const route = useRoute()
+const router = useRouter()
+const filterQuery = computed(() => ({
+  category: typeof route.query.category === 'string' ? route.query.category : '',
+  region: typeof route.query.region === 'string' ? route.query.region : '',
+  tier: route.query.tier === 'all' || route.query.tier === 'fan_club' ? route.query.tier : '',
+}))
+const { stores, failed, pending } = await usePartnerStores(() => filterQuery.value)
+const { filters } = await usePartnerStoreFilters()
+const filtered = computed(() => Boolean(filterQuery.value.category || filterQuery.value.region || filterQuery.value.tier))
+
+function setFilter(key: 'category' | 'region' | 'tier', value: string) {
+  const query: Record<string, string> = {}
+  for (const [k, v] of Object.entries({ ...filterQuery.value, [key]: value })) if (v) query[k] = v
+  router.replace({ query })
+}
+const safeImg = (u: string | null) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
+
 useSeoMeta({
   title: computed(() => `特約店家 Partner Perks｜${clubAssets.value.nameZh}`),
   description: computed(() => `${clubAssets.value.shortNameZh}會員的特約店家折扣清單。到店出示電子會員卡即可享有優惠，依店家標示適用一般會員或付費球迷會員。`),
@@ -48,78 +68,59 @@ useSeoMeta({
       <a class="btn btn--dark btn--sm" :href="lp('/zh/member/#tab-register')">加入會員</a>
     </div>
 
-    <div class="store-filters" aria-label="店家篩選">
+    <div class="store-filters" role="group" aria-label="店家篩選">
       <div class="store-filters__group">
-        <span class="store-filters__label">類別</span>
-        <select aria-label="依類別篩選" disabled>
-          <option>全部類別（名單待補）</option>
+        <label class="store-filters__label" for="sf-category">類別</label>
+        <select id="sf-category" :value="filterQuery.category" @change="setFilter('category', ($event.target as HTMLSelectElement).value)">
+          <option value="">全部類別</option>
+          <option v-for="c in filters.categories" :key="c" :value="c">{{ c }}</option>
         </select>
       </div>
       <div class="store-filters__group">
-        <span class="store-filters__label">地區</span>
-        <select aria-label="依地區篩選" disabled>
-          <option>全部地區（名單待補）</option>
+        <label class="store-filters__label" for="sf-region">地區</label>
+        <select id="sf-region" :value="filterQuery.region" @change="setFilter('region', ($event.target as HTMLSelectElement).value)">
+          <option value="">全部地區</option>
+          <option v-for="r in filters.regions" :key="r" :value="r">{{ r }}</option>
         </select>
       </div>
       <div class="store-filters__group">
-        <span class="store-filters__label">適用層級</span>
-        <select aria-label="依適用層級篩選" disabled>
-          <option>全部</option>
+        <label class="store-filters__label" for="sf-tier">適用層級</label>
+        <select id="sf-tier" :value="filterQuery.tier" @change="setFilter('tier', ($event.target as HTMLSelectElement).value)">
+          <option value="">全部</option>
+          <option value="all">全會員適用</option>
+          <option value="fan_club">限付費會員</option>
         </select>
       </div>
     </div>
 
-    <div class="pending-note">
-      <strong>特約店家名單待補</strong> —— 客戶尚未提供合作店家資料（店名、地址、電話、營業時間、優惠內容、適用層級）。
-      本站不做票務與門票套票，付費會籍的價值主要建立在店家折扣與球衣之上，
-      因此<strong>首波店家名單的數量與品質，直接決定付費層能否成立</strong>，須於上線前談定。
-      見規劃書 8.4 上線前提與第 10 章尚待確認事項第 3 點。
-    </div>
+    <p class="result-count" role="status">{{ pending ? '載入中…' : `共 ${stores.length} 家店家` }}</p>
 
-    <!-- 店家卡版型骨架：實際資料到位後，每張卡對應一筆 PartnerStore -->
-    <div class="grid grid--3 store-grid" aria-hidden="true">
-      <article class="store-card">
-        <div class="store-card__media"></div>
-        <div class="store-card__body">
-          <p class="store-card__cat">類別</p>
-          <h3 class="store-card__name">店家名稱</h3>
-          <p class="store-card__offer">優惠內容</p>
-          <ul class="store-card__meta">
-            <li>地址</li>
-            <li>電話</li>
-            <li>營業時間</li>
-          </ul>
-          <p class="store-card__tier">適用層級</p>
-        </div>
+    <div v-if="stores.length > 0" class="grid grid--3 store-grid">
+      <article v-for="st in stores" :key="st.slug" class="store-card">
+        <a class="store-card__link" :href="lp(`/zh/perks/${st.slug}/`)">
+          <div class="store-card__media">
+            <img v-if="safeImg(st.imageUrl)" :src="safeImg(st.imageUrl)!" :alt="st.name" loading="lazy" width="640" height="427">
+          </div>
+          <div class="store-card__body">
+            <p v-if="st.category" class="store-card__cat">{{ st.category }}<template v-if="st.region">・{{ st.region }}</template></p>
+            <h3 class="store-card__name">{{ st.name }}</h3>
+            <p v-if="st.offerContent" class="store-card__offer">{{ st.offerContent }}</p>
+            <ul class="store-card__meta">
+              <li v-if="st.address">{{ st.address }}</li>
+              <li v-if="st.phone">{{ st.phone }}</li>
+              <li v-if="st.businessHours">{{ st.businessHours }}</li>
+            </ul>
+            <p class="store-card__tier" :class="{ 'store-card__tier--paid': st.applicableTier === 'fan_club' }">{{ st.applicableTierLabel }}</p>
+          </div>
+        </a>
       </article>
-      <article class="store-card">
-        <div class="store-card__media"></div>
-        <div class="store-card__body">
-          <p class="store-card__cat">類別</p>
-          <h3 class="store-card__name">店家名稱</h3>
-          <p class="store-card__offer">優惠內容</p>
-          <ul class="store-card__meta">
-            <li>地址</li>
-            <li>電話</li>
-            <li>營業時間</li>
-          </ul>
-          <p class="store-card__tier">適用層級</p>
-        </div>
-      </article>
-      <article class="store-card">
-        <div class="store-card__media"></div>
-        <div class="store-card__body">
-          <p class="store-card__cat">類別</p>
-          <h3 class="store-card__name">店家名稱</h3>
-          <p class="store-card__offer">優惠內容</p>
-          <ul class="store-card__meta">
-            <li>地址</li>
-            <li>電話</li>
-            <li>營業時間</li>
-          </ul>
-          <p class="store-card__tier">適用層級</p>
-        </div>
-      </article>
+    </div>
+    <div v-else class="pending-note">
+      <template v-if="failed">店家名單暫時無法載入，請稍後再試。</template>
+      <template v-else-if="filtered">沒有符合條件的店家，請調整篩選條件。</template>
+      <template v-else>
+        <strong>合作店家名單尚未公布</strong> —— 目前沒有已上架的特約店家。名單公布後會在這裡顯示每家店的優惠內容、地址、營業時間與適用層級。
+      </template>
     </div>
   </div>
 </section>
@@ -193,9 +194,9 @@ useSeoMeta({
   padding:.55rem .9rem; border:1px solid var(--rule); background:var(--paper);
   font-size:.85rem; color:var(--text);
 }
-.store-filters select:disabled{ color:var(--muted); background:var(--paper-2); }
 
-.store-grid{ margin-top:1.75rem; opacity:.4; }
+.store-grid{ margin-top:1.75rem; }
+.store-card__media img{ width:100%; height:100%; object-fit:cover; display:block; }
 .store-card{ background:var(--paper); border:1px solid var(--rule); display:flex; flex-direction:column; }
 .store-card__media{ aspect-ratio:3/2; background:var(--paper-2); border-bottom:1px solid var(--rule); }
 .store-card__body{ padding:1.35rem 1.5rem 1.5rem; }

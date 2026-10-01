@@ -6,6 +6,10 @@
 // ⛔ 原頁本身沒有頁內 style／script 標籤（唯一的行為邏輯來自共用的 site/src/assets/js/site.js），
 // 這裡把該檔「賽事切換 tabs」與「主視覺輪播」兩段頁面專屬邏輯移入 script setup
 // （sticky header／行動選單／mega menu 屬於版型層級，已移到 app/components/SiteHeader.vue）。
+import type { PagedResponse } from '#shared/utils/api-types'
+import type { CoreValueDto } from '#shared/utils/core-values'
+import type { ShopProductListItem } from '#shared/utils/shop'
+
 definePageMeta({ nav: 'home', unit: '01', bodyClass: 'page-home' })
 
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：SEO、Hero 標語與
@@ -48,6 +52,43 @@ useOrganizationSchema()
 // 目前沒有對應的公開讀取端點（見 apps/web/README.md「S1-14」節「哪些是真資料」表），
 // 這兩區塊維持既有靜態呈現，不臆造 API。
 const { isSectionEnabled } = useHomeSections(config.public.club)
+
+// S3-9：五大核心價值改接 `GET /api/backend/{club}/home/core-values`（固定五項：code／中英名稱／排序／「了解更多」頁面）。
+// 說明文字與圖示由前台依 `code` 對應（shared/utils/core-values.ts）；後端打不到或回空時退回同順序的備援。
+// 區塊本身仍只對磐石顯示（藍鯨版標籤文字尚待客戶確認，藍鯨規劃書 §10 第 13 點）；藍鯨不發這個請求。
+const { data: coreValuesData } = await useFetch<CoreValueDto[]>(`/api/backend/${config.public.club}/home/core-values`, {
+  default: () => [],
+  immediate: isTcrfc.value,
+})
+const coreValues = computed(() => buildCoreValueViews(coreValuesData.value))
+const coreValuesMore = computed(() => coreValueLearnMorePath(coreValuesData.value))
+
+// S3-5：官方商店入口（shop_entry）改接商店資料——「精選商品與 Collection 入口」。精選＝後台排序的前 3 件上架商品
+// （商品列表端點的預設排序）。只顯示名稱／圖片／價格，**不顯示庫存狀態**（首頁沒有 no-store，庫存不得出現在可被快取的畫面）。
+// 磐石：沒有任何上架商品時維持既有的靜態入口（真實球衣照片）；藍鯨：沒有商品整個區塊不顯示。
+const { data: shopEntryData } = await useFetch<PagedResponse<ShopProductListItem> | null>('/api/shop/products', {
+  query: computed(() => ({ pageSize: 3, lang: locale.value })),
+  key: `home-shop-entry-${config.public.club}-${locale.value}`,
+  default: () => null,
+})
+const shopEntryProducts = computed(() => shopEntryData.value?.items ?? [])
+const showShopEntry = computed(() => isSectionEnabled('shop_entry') && (isTcrfc.value || shopEntryProducts.value.length > 0))
+
+// 贊助夥伴 Logo 牆（partner_logos）：S2-7 起接上 `GET /api/backend/{club}/partners?home=true`（後台 E1 勾選
+// 「首頁曝光」的夥伴；只回合作期間涵蓋今天者）。規劃書 §3.1「依等級排序輪播，可點擊至 9.1」——
+// 排序：依 9.1 五類型順序（策略→國際→訓練→教育→品牌，後端 `sortOrder` 在同類型內維持），自訂類型殿後；
+// 🔴 「輪播」目前不做動態輪播（>15 家時只顯示前 15 家並附「查看全部夥伴」連結），理由見 README「S2-7」節。
+// 藍鯨與磐石由端點的 club 分區，不混列。
+const { partners: homePartners } = await usePartnerList({ home: true })
+const HOME_PARTNER_LIMIT = 15
+const homePartnerTiles = computed(() => {
+  const order = new Map<string, number>(PARTNER_TYPE_SECTIONS.map((t, i) => [t.type, i]))
+  return homePartners.value
+    .map((p, idx) => ({ p, idx, rank: order.get(p.partnerType ?? '') ?? PARTNER_TYPE_SECTIONS.length }))
+    .sort((a, b) => a.rank - b.rank || a.idx - b.idx)
+    .map((x) => x.p)
+    .slice(0, HOME_PARTNER_LIMIT)
+})
 
 // Banner（B3 首頁輪播）：apps/api 已於 E-64（2026-09-29）修正 `HomeRepository.ListBannersAsync`，
 // 新增 `imageUrl`／`videoUrl`（由 `IImagePublicUrlResolver`／`IVideoPublicUrlResolver` 解析
@@ -183,6 +224,9 @@ const homeNews = computed(() => {
     })
     .slice(0, 5)
 })
+/** Hero 內的兩張迷你新聞卡（`hero__news`）：有真實新聞就取最前面兩篇（與下方「最新消息」同一份排序），
+ * 沒有才退回既有靜態兩張（磐石）。藍鯨 0 篇時維持不顯示。 */
+const heroNews = computed(() => homeNews.value.slice(0, 2))
 /** 首頁 mosaic 版位固定 5 格（feature／sml×2／wide×2），資料不足 5 篇時依序省略後面的格子。 */
 const NEWS_VARIANTS = ['feature', 'sml', 'sml', 'wide', 'wide'] as const
 
@@ -459,7 +503,20 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <!-- 藍鯨新聞 07 單元自有全文 0 篇（gap-analysis.md §4 #3），不沿用磐石新聞頂替，本區塊不顯示。 -->
-          <div v-if="isTcrfc" class="hero__news">
+          <div v-if="heroNews.length || isTcrfc" class="hero__news">
+            <template v-if="heroNews.length">
+              <a v-for="a in heroNews" :key="a.slug" class="hero-card clip-card clip-card--on-dark" :href="lp(`/zh/news/${a.slug}/`)">
+                <div class="hero-card__media">
+                  <img v-if="hasNewsCover(a.slug, clubKey)" :src="newsCoverSrc(a.slug)" alt="" loading="lazy" width="1280" height="853">
+                  <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
+                </div>
+                <div class="hero-card__body">
+                  <span class="hero-card__tag">{{ a.categoryName }}</span>
+                  <span class="hero-card__title">{{ a.title }}</span>
+                </div>
+              </a>
+            </template>
+            <template v-else>
             <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
                 <img src="/assets/img/news-trencin.jpg" alt="台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流" loading="lazy" width="1280" height="853">
@@ -478,6 +535,7 @@ onBeforeUnmount(() => {
                 <span class="hero-card__title">企甲聯賽：台中磐石 3-0 銘傳大學</span>
               </div>
             </a>
+            </template>
           </div>
         </div>
       </div>
@@ -622,37 +680,14 @@ onBeforeUnmount(() => {
         <p class="section-lede">從台中出發：培育本土選手邁向職業、成為在地榮耀的來源，並以足球讓世界看見台灣。</p>
       </div>
       <div class="values-grid">
-        <div class="value-card">
-          <p class="value-card__num">01</p>
-          <p class="value-card__en">Players First</p>
-          <p class="value-card__zh">以球員為本</p>
-          <p class="value-card__desc">所有訓練規劃與資源配置，皆以球員的長期發展與福祉為核心考量。</p>
-        </div>
-        <div class="value-card">
-          <p class="value-card__num">02</p>
-          <p class="value-card__en">Excellence</p>
-          <p class="value-card__zh">追求卓越</p>
-          <p class="value-card__desc">建立專業化訓練與教練體系，協助選手邁向職業舞台所需的實力與態度。</p>
-        </div>
-        <div class="value-card">
-          <p class="value-card__num">03</p>
-          <p class="value-card__en">Global Pathways</p>
-          <p class="value-card__zh">國際發展</p>
-          <p class="value-card__desc">從台中出發、放眼世界，透過海外交流建立選手與職業舞台接軌的路徑。</p>
-        </div>
-        <div class="value-card">
-          <p class="value-card__num">04</p>
-          <p class="value-card__en">Community</p>
-          <p class="value-card__zh">社區共好</p>
-          <p class="value-card__desc">紮根台中在地，成為社區認同與榮耀的來源，與球迷共同成長。</p>
-        </div>
-        <div class="value-card">
-          <p class="value-card__num">05</p>
-          <p class="value-card__en">Integrity</p>
-          <p class="value-card__zh">誠信專業</p>
-          <p class="value-card__desc">以誠信治理與專業制度，支撐俱樂部長期穩健發展。</p>
+        <div v-for="v in coreValues" :key="v.code" class="value-card">
+          <p class="value-card__num">{{ v.num }}</p>
+          <p class="value-card__en">{{ v.nameEn }}</p>
+          <p class="value-card__zh">{{ v.nameZh }}</p>
+          <p v-if="v.desc" class="value-card__desc">{{ v.desc }}</p>
         </div>
       </div>
+      <p v-if="coreValuesMore" class="sponsor-more"><a :href="lp(coreValuesMore)">了解足球理念與五大核心價值 →</a></p>
     </div>
   </section>
 
@@ -733,20 +768,30 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <!-- SPEC 3.8 — Official store band
-       藍鯨商店 0 商品、無物流與價格資訊（gap-analysis.md §4 #1），本區塊不顯示。 -->
-  <section v-if="isTcrfc && isSectionEnabled('shop_entry')" class="band grain grain--2 store-band" aria-labelledby="store-title">
+  <!-- SPEC 3.1「官方商店入口」＋ 3.8 — Official store band（S3-5 接商店資料）
+       有上架商品：顯示精選商品卡（名稱／圖片／價格）與站內商店入口（站內頁面，不另開新分頁）。
+       磐石沒有任何上架商品：維持既有的靜態入口（真實球衣照片）；藍鯨沒有商品：整個區塊不顯示（showShopEntry）。 -->
+  <section v-if="showShopEntry" class="band grain grain--2 store-band" aria-labelledby="store-title">
     <span class="ghost-num ghost-num--dark" aria-hidden="true">08</span>
     <div class="band-inner container">
       <div class="store-band__grid">
         <div>
           <p class="kicker kicker--on-dark">TEAM UP IN STYLE</p>
           <h2 class="section-title" id="store-title">官方商店</h2>
-          <p>主客場球衣、周邊配件與訓練服飾，穿上台中磐石桃紅，與球隊一起在場邊、場上同進退。</p>
-          <a class="btn btn--primary" :href="lp('/zh/culture/merchandise/')">官方商品 MERCHANDISE</a>
-          <p class="store-band__fine">詳細商品與購買方式請至官方商品頁面查看。</p>
+          <p>{{ isTcrfc ? '主客場球衣、周邊配件與訓練服飾，穿上台中磐石桃紅，與球隊一起在場邊、場上同進退。' : `${assets.nameZh}官方商店，選購球隊商品，與球隊一起同進退。` }}</p>
+          <a class="btn btn--primary" :href="lp('/zh/shop/')">前往官方商店 SHOP</a>
+          <p class="store-band__fine">結帳以 LINE Pay 付款並開立電子發票。</p>
         </div>
-        <div class="store-visual clip-card clip-card--on-dark">
+        <ul v-if="shopEntryProducts.length" class="sh-entry-grid">
+          <li v-for="p in shopEntryProducts" :key="p.slug" class="sh-entry-card">
+            <a :href="lp(`/zh/shop/${p.slug}/`)">
+              <img v-if="p.imageThumbUrl || p.imageUrl" :src="(p.imageThumbUrl || p.imageUrl) ?? ''" :alt="p.name || ''" loading="lazy" width="320" height="320">
+              <span class="sh-entry-card__name">{{ p.name || p.slug }}</span>
+              <span class="sh-entry-card__price">{{ formatPriceRange(p.priceMin, p.priceMax) ?? '暫無販售' }}</span>
+            </a>
+          </li>
+        </ul>
+        <div v-else class="store-visual clip-card clip-card--on-dark">
           <img src="/assets/img/player-09-liu.jpg" alt="球員身著台中磐石主場球衣" loading="lazy" width="620" height="620">
           <span class="store-visual__badge">台中磐石主場球衣</span>
         </div>
@@ -765,17 +810,18 @@ onBeforeUnmount(() => {
         <p class="section-lede">感謝以下夥伴支持{{ assets.nameZh }}的每一步成長。</p>
       </div>
 
-      <div class="sponsor-grid" aria-hidden="true">
-        <div class="sponsor-tile sponsor-tile--empty"></div>
-        <div class="sponsor-tile sponsor-tile--empty"></div>
-        <div class="sponsor-tile sponsor-tile--empty"></div>
-        <div class="sponsor-tile sponsor-tile--empty"></div>
-        <div class="sponsor-tile sponsor-tile--empty"></div>
-        <div class="sponsor-tile sponsor-tile--empty"></div>
-        <div class="sponsor-tile sponsor-tile--empty"></div>
-        <div class="sponsor-tile sponsor-tile--empty"></div>
-        <div class="sponsor-tile sponsor-tile--empty"></div>
-        <div class="sponsor-tile sponsor-tile--empty"></div>
+      <div v-if="homePartnerTiles.length" class="sponsor-grid">
+        <PartnerLogoTile
+          v-for="p in homePartnerTiles"
+          :key="p.id"
+          :name="p.name"
+          :logo-url="pickLogoUrl(p)"
+          :href="lp('/zh/partners/our-partners/')"
+        />
+      </div>
+      <p v-if="homePartnerTiles.length" class="sponsor-more"><a :href="lp('/zh/partners/our-partners/')">查看全部合作夥伴 →</a></p>
+      <div v-else class="sponsor-grid" aria-hidden="true">
+        <div v-for="n in 10" :key="n" class="sponsor-tile sponsor-tile--empty"></div>
       </div>
     </div>
   </section>
@@ -797,6 +843,8 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
+.sponsor-more{ margin-top:1.25rem; font-size:.88rem; font-weight:700; }
+.sponsor-more a{ color:var(--brand-aa); text-decoration:underline; }
 /* 藍鯨首頁 hero 無授權照片可用時的純色回退（見 script setup 開頭說明）——
    只用既有 --brand 系列 token，不引入新色碼，遵守「顏色只能是 CSS custom
    properties」（docs/13-blue-whale-site.md §6 紀律 1）。 */

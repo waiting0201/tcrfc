@@ -17,7 +17,7 @@
 | 項目 | 決定 |
 |---|---|
 | 資料庫 | **`sqldb-charity`，與 `sqldb-club` 完全獨立**（Azure SQL，各自單庫） |
-| 表數 | **25 張** ＋ 4 張 `*_i18n` 側表 |
+| 表數 | **26 張**（含 CH-3 新增的 `AdminRefreshToken`）＋ 4 張 `*_i18n` 側表 |
 | 租戶維度 | **沒有 `club_id`**——單一法人，不是多俱樂部架構 |
 | 會員 | **沒有 `Member`**——捐款人不登入不註冊，只填姓名與 Email |
 | 稽核 | 🔴 **有 `AuditLog`**（與主站相反，理由見 [§9](#9-與主站綱要的四項差異)） |
@@ -62,7 +62,7 @@
 
 ---
 
-## 2. 資料表總覽（25）
+## 2. 資料表總覽（26）
 
 圖例：🌐 有 i18n 側表｜🔒 含受限或加密欄位｜📸 值複製快照，不可回頭 join。
 
@@ -106,7 +106,7 @@ N3 的異常佇列（行 517）也把「對帳差異」列為三類待人工處�
 > 🟡 **這兩張表是 §9.3 第 2 條「清單同步採 CSV 匯入或唯讀 API 拉取」的落地形式**，屬實作手段；
 > 規劃書沒有把它們列為型別，**建表前請確認這個讀法**（[§10](#10-本檔不決定的事)）。
 
-### 2.3 後台帳號與權限（5）
+### 2.3 後台帳號與權限（6）
 
 | 表 | 用途 | 標記 |
 |---|---|---|
@@ -115,6 +115,7 @@ N3 的異常佇列（行 517）也把「對帳差異」列為三類待人工處�
 | `AdminUserRole` | `(admin_user_id, admin_role_id)`，多角色取聯集 | |
 | `Permission` | 權限碼字典 ＋ `is_restricted`／`sysadmin_only` | |
 | `RolePermission` | `(admin_role_id, permission_id)` | |
+| `AdminRefreshToken` | **更新權杖的工作階段狀態**（CH-3，2026-10-01 新增，形狀與用意同主站 [`12b` §7.7](12b-database-tables.md#77-admin_refresh_tokens更新權杖的工作階段狀態s1-3-新增2026-09-23-補文件)）：`token_hash`（只存 SHA-256）、`issued_at`／`expires_at`、`revoked_at`、`replaced_by_id`（輪替鏈，重放偵測用）。**登入輪替與重放偵測的必要狀態，不是日誌表**；刻意不存來源 IP 與裝置字串。⚠️ **規劃書 §10 只寫「帳號與權限」，沒有寫這個實作機制**，列為待裁決（[§10](#10-本檔不決定的事)） | 🔒 |
 
 > 🔴 **沒有 `AdminUserClub`／`AdminUserTeam`**——本平台是單一法人，沒有資料範圍維度。
 > 🔴 **`Permission` 與主站同形**（[`12b` §7.3](12b-database-tables.md#73-權限碼命名)）：保留 `module_code`／`submodule_code`／`domain`／`action` 四欄分解
@@ -176,6 +177,8 @@ erDiagram
   admin_role ||--o{ role_permission : ""
   permission ||--o{ role_permission : ""
   admin_user ||--o{ audit_log : ""
+  admin_user ||--o{ admin_refresh_token : "登入工作階段（CH-3）"
+  admin_refresh_token |o--o| admin_refresh_token : "輪替鏈 replaced_by_id"
   email_template ||--o{ email_log : ""
   locale ||--o{ ui_string_translation : ""
   ui_string ||--o{ ui_string_translation : ""
@@ -322,6 +325,15 @@ erDiagram
     uuid charity_ref_id FK
     string_128 name
     datetime imported_at
+  }
+  admin_refresh_token {
+    uuid id PK
+    uuid admin_user_id FK
+    string_128 token_hash UK
+    datetime issued_at
+    datetime expires_at
+    datetime revoked_at
+    uuid replaced_by_id FK
   }
   audit_log {
     uuid id PK
@@ -497,3 +509,32 @@ erDiagram
 - **個資保存期限** —— 規劃書 §11.1 標為待客戶與法務確認，直接影響 `Donation`／`DonationInvoice` 的清理策略
 - **協會的法人登記與統編** —— `STATUS.md` **B-7**，**這是上線前提不是一般待確認事項**
 - **定序、Redis 持久化、CI 管線** —— 同 [`17` §8](17-deployment.md)
+- 🟡 **`AdminRefreshToken` 是規劃書沒寫的實作機制**（CH-3，2026-10-01）：沒有它登入工作階段無法安全輪替或撤銷（存取權杖只有 15 分鐘，沒有更新權杖就得每 15 分鐘重新登入）。
+  比照主站 `admin_refresh_tokens` 的先例（[`12` §2](12-database-schema.md) 把它歸為功能單元不是日誌）新增，**請確認**這個讀法；若不接受，替代方案是只發長效存取權杖（安全性較差，不建議）。
+- 🟡 **`carrier_type` 值域沒有定義**：種子（CH-1b）存的是中文標籤（`手機條碼載具`／`捐贈發票`／`統一編號`），API 寫入一律用代碼 `mobile_carrier`／`love_code`／`tax_id`，讀取時把舊的中文標籤正規化回代碼。是否要把種子改成代碼並加 `CHECK`，待裁決。
+- 🟡 **規劃書要求但資料模型沒有承載、本輪沒做的功能**（不自己發明欄位，列為待裁決）：
+  ① **徵信名單逐筆隱藏**（規劃書 §3.6「亦可逐筆隱藏」、§6.3「隱藏於徵信名單」）——`donations` 沒有隱藏旗標；
+  ② **N3 的「以 Email 軟性比對會員」**（§6.3）——v2.0 起本庫不得持有主站連線、Azure SQL 不支援跨庫查詢，只能由主站提供唯讀 API，**主站尚無此端點**；
+  ③ **捐款人語系**（系統信要不要寄英文版）——`donations` 沒有記錄語系的欄位，目前系統信一律繁中；
+  ④ **發票自動重試的嘗試次數**（§5.3「自動重試若干次（含退避）」）——`donation_invoices` 沒有嘗試次數欄位，目前是固定間隔重試＋總期限（預設 10 分鐘），不是指數退避。
+- 🔴 **「待人工處理」（已扣款但 Confirm 失敗）沒有專屬欄位**：規劃書 §4.3 要求「標記為待人工處理、進異常佇列」，但 `donations`／`donation_payments` 沒有這個旗標。**CH-3 的執行層定義（見 [§11](#11-ch-2ch-3-實作補記執行層決定)）：`donations.status = 'pending'` ＋最近一次 `donation_payments.status = 'failed'`**——因為金流明確回覆的失敗一律把捐款單轉成 `failed`，所以「單 pending、付款 failed」只可能是「結果未知」。請確認這個讀法，否則需要加欄位。
+
+---
+
+## 11. CH-2／CH-3 實作補記（執行層決定）
+
+> 2026-10-01，`backend-engineer`。以下是實作時規劃書與本檔都答不到、由執行層決定的事；細節與契約在 [`apps/api/README.md`](../apps/api/README.md)「慈善 CH-2／CH-3」。
+
+| 議題 | 決定 |
+|---|---|
+| **冪等鍵怎麼存** | 資料庫沒有 `idempotency_key` 欄位，**不自己發明**。改讓單號成為冪等鍵的函式：`order_no = "CH" ＋ HMAC-SHA256(伺服器秘密, "order\|" ＋ 冪等鍵) 前 80 bits 的 Base32（16 碼）`。同一個冪等鍵永遠算出同一個單號，並發的兩個請求撞 `UQ_donations_order_no`，輸的回頭讀贏的那張。單號同時是結果頁網址的一部分，沒有秘密就算不出來（80 bits，不可猜測） |
+| **分潤快照時點** | 建單時寫「暫算」的分潤（`CHECK` 約束要求三個金額相加等於 `amount`，所以不能留空），**付款成立（`paid`）時依當下設定重算並覆寫**（規劃書 §8.4）。事後改設定不追溯 |
+| **狀態轉移** | 一律條件式更新（`UPDATE … WHERE status IN (預期狀態)`），由資料庫保證只有一個請求贏得轉移；贏的才寄信、開票。逾時工作把 `created` 與「最近一次付款已發起超過 30 分鐘」的 `pending` 轉 `expired`，**不碰「待人工處理」的單**；`expired` 的單金流端晚到的成功仍會被收下 |
+| **付款重試** | 重試沿用原單（`failed`／`expired`／`created` → `pending`），每次發起付款新增一列 `donation_payments`，`PaymentRequest.Attempt` 讓正式金流實作組出不重複的金流端 orderId |
+| **憑證開立** | 付款確認當下先試一次；失敗的由背景工作固定間隔重試，超過期限（預設自付款成功起 10 分鐘）標記 `failed`、寄開立失敗通知給協會（`CHARITY_ASSOCIATION_NOTIFY_EMAIL`）。加值中心明確拒絕不重試、直接 `failed`。**年度彙總開立**（`is_annual_summary`）不在逐筆流程內，留給年底作業 |
+| **退款連動** | 金流退款成功後才改本站狀態：憑證當期（台灣時間單數月起的雙月期）內作廢、跨期折讓；憑證作廢失敗不影響退款，進異常佇列 `invoice_void_pending`。**回饋金沖回（§8.5）屬 N4 結算（CH-4）**，本輪只把狀態改成 `refunded` |
+| **退款串行化** | 沒有「退款中」這個捐款單狀態（`CHECK` 約束沒有），只靠最後的條件式更新擋不住並發退款——兩個請求會各打一次金流退款。同一筆捐款的退款用**交易層級的 `sp_getapplock`**（`LockTimeout = 0`）包住「讀取檢查 → 金流退款 → 更新與稽核 → 提交」，拿不到鎖回 `409`。實測：沒有鎖 6 個並發請求打了 6 次金流退款，有鎖 1 次 |
+| **個資加密** | `national_id_encrypted`／`carrier_id_encrypted`／`two_factor_secret_encrypted` 用 ASP.NET Core Data Protection，三個用途字串互相隔離。🔴 **金鑰環遺失 ＝ 已加密的身分證字號永久無法解密**（捐款人不登入，沒有管道補填），正式環境務必持久化金鑰環（`DATA_PROTECTION_KEYS_PATH`）或改接 Key Vault |
+| **權限碼** | 沿用種子的 23 個；**新增 `n3.donation.recheck_payment`**（異常佇列的「重新確認付款結果」，系統管理員與客服／行政）。種子裡檢視者的 `scope_type = 'masked'` 不解讀——個資預設遮罩、`reveal` 才看明文是同一件事 |
+| **稽核** | 規劃書三類操作（退款、分潤設定、含個資匯出）＋個資明文檢視、店家 QR 網址重產、重寄感謝信、重開憑證、重新確認付款。稽核與被稽核的變更在同一次 `SaveChanges` 提交；`AuditLogger` 只有 `Stage`，沒有更新與刪除的方法 |
+

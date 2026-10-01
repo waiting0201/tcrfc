@@ -3016,6 +3016,14 @@ namespace Tcrfc.Api.Data.Migrations
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
 
+                    b.HasIndex(new[] { "AnonymousToken" }, "UQ_carts_anonymous_token")
+                        .IsUnique()
+                        .HasFilter("[anonymous_token] IS NOT NULL");
+
+                    b.HasIndex(new[] { "ClubId", "MemberId" }, "UQ_carts_club_member")
+                        .IsUnique()
+                        .HasFilter("[member_id] IS NOT NULL");
+
                     b.HasIndex(new[] { "RowSeq" }, "UQ_carts_row_seq")
                         .IsUnique();
 
@@ -6634,6 +6642,12 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("datetime2(3)")
                         .HasColumnName("email_verified_at");
 
+                    b.Property<int>("FailedAttemptCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_attempt_count");
+
                     b.Property<string>("InternalNote")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("internal_note");
@@ -6648,10 +6662,22 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(255)")
                         .HasColumnName("line_user_id_encrypted");
 
+                    b.Property<string>("LineUserIdHash")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("line_user_id_hash")
+                        .IsFixedLength();
+
                     b.Property<string>("Locale")
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)")
                         .HasColumnName("locale");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("locked_until");
 
                     b.Property<string>("MemberNo")
                         .IsRequired()
@@ -6720,6 +6746,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.HasIndex(new[] { "Email" }, "UQ_members_email")
                         .IsUnique();
+
+                    b.HasIndex(new[] { "LineUserIdHash" }, "UQ_members_line_user_id_hash")
+                        .IsUnique()
+                        .HasFilter("[line_user_id_hash] IS NOT NULL");
 
                     b.HasIndex(new[] { "MemberNo" }, "UQ_members_member_no")
                         .IsUnique();
@@ -6987,6 +7017,73 @@ namespace Tcrfc.Api.Data.Migrations
                     b.ToTable("member_draws_i18n", (string)null);
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.MemberRefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("expires_at");
+
+                    b.Property<bool>("IsPersistent")
+                        .HasColumnType("bit")
+                        .HasColumnName("is_persistent");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("issued_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<Guid?>("ReplacedById")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("replaced_by_id");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("revoked_at");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)")
+                        .HasColumnName("token_hash");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "MemberId" }, "IX_member_refresh_tokens_member");
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_member_refresh_tokens_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_member_refresh_tokens_row_seq"));
+
+                    b.HasIndex(new[] { "TokenHash" }, "UQ_member_refresh_tokens_token_hash")
+                        .IsUnique();
+
+                    b.ToTable("member_refresh_tokens", (string)null);
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Membership", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7204,6 +7301,149 @@ namespace Tcrfc.Api.Data.Migrations
                     b.ToTable("membership_benefits_i18n", (string)null);
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.MembershipOrder", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("id")
+                        .HasDefaultValueSql("(newid())");
+
+                    b.Property<DateTime?>("ActivatedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("activated_at");
+
+                    b.Property<string>("ActivationSource")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("activation_source");
+
+                    b.Property<int>("Amount")
+                        .HasColumnType("int")
+                        .HasColumnName("amount");
+
+                    b.Property<Guid>("ClubId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("club_id");
+
+                    b.Property<Guid>("CollectingClubId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("collecting_club_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("expires_at");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("failure_reason");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("idempotency_key");
+
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("member_id");
+
+                    b.Property<Guid?>("MembershipId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("membership_id");
+
+                    b.Property<Guid>("MembershipPlanId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("membership_plan_id");
+
+                    b.Property<string>("OrderNo")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("order_no");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("paid_at");
+
+                    b.Property<string>("PaymentMethod")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("payment_method");
+
+                    b.Property<string>("PaymentTransactionId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("payment_transaction_id");
+
+                    b.Property<string>("PaymentUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("payment_url");
+
+                    b.Property<long>("RowSeq")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("row_seq");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<long>("RowSeq"));
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)")
+                        .HasDefaultValue("created")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("(sysutcdatetime())");
+
+                    b.HasKey("Id");
+
+                    SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "ClubId", "Status" }, "IX_membership_orders_club_status");
+
+                    b.HasIndex(new[] { "MemberId", "CreatedAt" }, "IX_membership_orders_member_created")
+                        .IsDescending(false, true);
+
+                    b.HasIndex(new[] { "MemberId", "IdempotencyKey" }, "UQ_membership_orders_member_idempotency")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "OrderNo" }, "UQ_membership_orders_order_no")
+                        .IsUnique();
+
+                    b.HasIndex(new[] { "RowSeq" }, "UQ_membership_orders_row_seq")
+                        .IsUnique();
+
+                    SqlServerIndexBuilderExtensions.IsClustered(b.HasIndex(new[] { "RowSeq" }, "UQ_membership_orders_row_seq"));
+
+                    b.ToTable("membership_orders", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_membership_orders_activation_source", "[activation_source] IS NULL OR [activation_source] IN ('payment','internal','admin')");
+
+                            t.HasCheckConstraint("CK_membership_orders_payment_method", "[payment_method] IS NULL OR [payment_method] IN ('linepay')");
+
+                            t.HasCheckConstraint("CK_membership_orders_status", "[status] IN ('created','pending_payment','paid','activated','expired','activation_failed','cancelled','refunded')");
+                        });
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.MembershipPayment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -7251,6 +7491,10 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("membership_id");
 
+                    b.Property<Guid?>("MembershipOrderId")
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("membership_order_id");
+
                     b.Property<Guid>("MembershipPlanId")
                         .HasColumnType("uniqueidentifier")
                         .HasColumnName("membership_plan_id");
@@ -7290,6 +7534,10 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "MembershipOrderId" }, "UQ_membership_payments_order")
+                        .IsUnique()
+                        .HasFilter("[membership_order_id] IS NOT NULL");
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_membership_payments_row_seq")
                         .IsUnique();
@@ -7734,6 +7982,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnName("id")
                         .HasDefaultValueSql("(newid())");
 
+                    b.Property<string>("BuyerEmail")
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)")
+                        .HasColumnName("buyer_email");
+
                     b.Property<string>("CancelReason")
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)")
@@ -7777,6 +8030,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
                         .HasColumnName("delivery_method");
+
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("idempotency_key");
 
                     b.Property<string>("InternalNote")
                         .HasColumnType("nvarchar(max)")
@@ -7836,6 +8094,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasDefaultValue("pending")
                         .HasColumnName("payment_status");
 
+                    b.Property<string>("PaymentUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("payment_url");
+
                     b.Property<string>("RecipientAddress")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
@@ -7850,6 +8113,13 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("nvarchar(32)")
                         .HasColumnName("recipient_phone");
+
+                    b.Property<string>("RequestFingerprint")
+                        .HasMaxLength(64)
+                        .IsUnicode(false)
+                        .HasColumnType("char(64)")
+                        .HasColumnName("request_fingerprint")
+                        .IsFixedLength();
 
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
@@ -7918,6 +8188,10 @@ namespace Tcrfc.Api.Data.Migrations
 
                     b.HasIndex(new[] { "SellingClubId", "CreatedAt" }, "IX_orders_selling_created")
                         .IsDescending(false, true);
+
+                    b.HasIndex(new[] { "ClubId", "IdempotencyKey" }, "UQ_orders_club_idempotency")
+                        .IsUnique()
+                        .HasFilter("[idempotency_key] IS NOT NULL");
 
                     b.HasIndex(new[] { "LookupToken" }, "UQ_orders_lookup_token")
                         .IsUnique();
@@ -11351,8 +11625,8 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasDefaultValueSql("(newid())");
 
                     b.Property<string>("CarrierIdEncrypted")
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
                         .HasColumnName("carrier_id_encrypted");
 
                     b.Property<string>("CarrierType")
@@ -14481,6 +14755,24 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("MemberDraw");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.MemberRefreshToken", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .IsRequired()
+                        .HasConstraintName("FK_member_refresh_tokens_member");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.MemberRefreshToken", "ReplacedBy")
+                        .WithMany()
+                        .HasForeignKey("ReplacedById")
+                        .HasConstraintName("FK_member_refresh_tokens_replaced");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("ReplacedBy");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.Membership", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
@@ -14567,6 +14859,48 @@ namespace Tcrfc.Api.Data.Migrations
                     b.Navigation("MembershipBenefit");
                 });
 
+            modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.MembershipOrder", b =>
+                {
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
+                        .WithMany()
+                        .HasForeignKey("ClubId")
+                        .IsRequired()
+                        .HasConstraintName("FK_membership_orders_club");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "CollectingClub")
+                        .WithMany()
+                        .HasForeignKey("CollectingClubId")
+                        .IsRequired()
+                        .HasConstraintName("FK_membership_orders_collecting_club");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Member", "Member")
+                        .WithMany()
+                        .HasForeignKey("MemberId")
+                        .IsRequired()
+                        .HasConstraintName("FK_membership_orders_member");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.Membership", "Membership")
+                        .WithMany()
+                        .HasForeignKey("MembershipId")
+                        .HasConstraintName("FK_membership_orders_membership");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.MembershipPlan", "MembershipPlan")
+                        .WithMany()
+                        .HasForeignKey("MembershipPlanId")
+                        .IsRequired()
+                        .HasConstraintName("FK_membership_orders_plan");
+
+                    b.Navigation("Club");
+
+                    b.Navigation("CollectingClub");
+
+                    b.Navigation("Member");
+
+                    b.Navigation("Membership");
+
+                    b.Navigation("MembershipPlan");
+                });
+
             modelBuilder.Entity("Tcrfc.Api.Data.EfEntities.MembershipPayment", b =>
                 {
                     b.HasOne("Tcrfc.Api.Data.EfEntities.Club", "Club")
@@ -14596,6 +14930,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasForeignKey("MembershipId")
                         .IsRequired()
                         .HasConstraintName("FK_membership_payments_membership");
+
+                    b.HasOne("Tcrfc.Api.Data.EfEntities.MembershipOrder", null)
+                        .WithMany()
+                        .HasForeignKey("MembershipOrderId")
+                        .HasConstraintName("FK_membership_payments_order");
 
                     b.HasOne("Tcrfc.Api.Data.EfEntities.MembershipPlan", "MembershipPlan")
                         .WithMany("MembershipPayments")

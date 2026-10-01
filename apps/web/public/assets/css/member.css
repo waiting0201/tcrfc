@@ -1,0 +1,137 @@
+/* member.css — 會員中心（S2-11）與 08 文化互動（S3-2）的補充樣式。
+   tcrfc.css 一個位元都不改（docs/13 §6 紀律 10），新增的元件樣式放這裡；只用 tcrfc.css 已定義的
+   design tokens（--paper／--paper-2／--rule／--heading／--text／--muted／--brand／--brand-aa／--brand-deep／--ink），
+   不寫任何字面色值（紀律 1：顏色只能是 CSS custom properties），所以兩個俱樂部自動換色。
+   例外：電子會員卡卡面顏色來自後端回傳的俱樂部品牌色（已驗證為 #RRGGBB），以 CSS 變數 --mc-card-main／--mc-card-sub 傳入。 */
+
+/* ── 表單：tcrfc.css 的 .form-field 清單沒有 password／select 以外的型別 ── */
+.form-field input[type=password]{ width:100%; border:1px solid var(--rule); background:var(--paper); padding:.75rem .9rem; font-size:.95rem; font-family:inherit; color:var(--text); }
+.form-field input[readonly]{ background:var(--paper-2); color:var(--muted); }
+.form-field input:focus-visible, .form-field select:focus-visible, .form-field textarea:focus-visible{ outline:2px solid var(--brand-aa); outline-offset:1px; }
+
+/* ── 訊息 ── */
+.mc-alert{ margin:1rem 0; padding:.9rem 1.1rem; font-size:.88rem; line-height:1.7; border-left:4px solid var(--rule); background:var(--paper-2); color:var(--text); }
+.mc-alert p + p{ margin-top:.4rem; }
+.mc-alert--ok{ border-left-color:var(--brand-aa); }
+.mc-alert--info{ border-left-color:var(--brand); }
+.mc-alert--error{ border-left-color:var(--brand-deep); color:var(--brand-deep); font-weight:700; }
+.mc-empty{ color:var(--muted); font-size:.92rem; padding:1.25rem 0; }
+.mc-note{ font-size:.88rem; line-height:1.8; color:var(--text); margin:.6rem 0; }
+.mc-note--small{ font-size:.8rem; color:var(--muted); }
+.mc-note a, .mc-empty a{ color:var(--brand-aa); text-decoration:underline; font-weight:700; }
+.mc-link{ background:none; border:0; padding:0; font:inherit; font-weight:700; color:var(--brand-aa); text-decoration:underline; cursor:pointer; }
+.mc-link:disabled{ opacity:.5; cursor:not-allowed; }
+.mc-mono{ font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:.85em; word-break:break-all; }
+.mc-legend{ display:block; font-size:.85rem; font-weight:700; color:var(--heading); margin-bottom:.4rem; }
+.mc-h3{ font-size:1.05rem; font-weight:800; color:var(--heading); margin-bottom:.6rem; }
+.mc-actions{ display:flex; flex-wrap:wrap; gap:.75rem; margin-top:1rem; }
+.mc-radios{ display:flex; flex-wrap:wrap; gap:1.5rem; }
+.mc-radio{ display:flex; align-items:center; gap:.5rem; font-size:.92rem; color:var(--text); }
+.mc-badge{ display:inline-block; padding:.15rem .6rem; font-size:.75rem; font-weight:800; background:var(--paper-2); border:1px solid var(--rule); color:var(--text); }
+.mc-badge--ok{ border-color:var(--brand-aa); color:var(--brand-aa); }
+.mc-badge--off{ color:var(--muted); }
+
+/* ── 會員中心框架 ── */
+.mc-dashboard{ min-width:0; }
+.mc-welcome{ display:flex; flex-wrap:wrap; gap:1rem; align-items:center; justify-content:space-between; margin-bottom:1.25rem; font-size:.95rem; }
+.mc-tabs{ display:flex; flex-wrap:wrap; gap:.25rem; border-bottom:2px solid var(--rule); margin-bottom:2rem; overflow-x:auto; }
+.mc-section{ margin-top:2.5rem; padding-top:1.75rem; border-top:1px solid var(--rule); }
+.mc-section:first-child{ margin-top:0; padding-top:0; border-top:0; }
+.mc-danger{ border-top-color:var(--brand-deep); }
+.mc-delform{ margin-top:1rem; max-width:24rem; }
+.mc-benefits-wrap{ margin-top:3rem; }
+
+/* ── 會籍 ── */
+.mc-membership{ border:1px solid var(--rule); background:var(--paper); padding:1.5rem; margin-bottom:1.5rem; }
+.mc-membership__head{ display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; margin-bottom:1rem; }
+.mc-membership__head h3{ font-size:1.15rem; font-weight:800; color:var(--heading); }
+.mc-dl{ display:grid; grid-template-columns:repeat(auto-fit,minmax(11rem,1fr)); gap:.9rem 1.5rem; margin:0 0 1rem; }
+.mc-dl dt{ font-size:.75rem; font-weight:700; color:var(--muted); }
+.mc-dl dd{ margin:.15rem 0 0; font-size:.92rem; color:var(--text); overflow-wrap:anywhere; }
+.mc-upgrade{ margin-top:1rem; }
+.mc-plans{ margin-top:1rem; }
+.mc-planlist{ list-style:none; padding:0; margin:1rem 0 0; display:grid; gap:1rem; }
+.mc-plan{ border:1px solid var(--rule); background:var(--paper-2); padding:1rem 1.25rem; display:grid; gap:.75rem; }
+.mc-plan__name{ font-weight:800; color:var(--heading); }
+.mc-plan__fee{ font-weight:700; color:var(--brand-aa); margin-top:.2rem; }
+.mc-join, .mc-orders, .mc-jersey-group{ margin-top:2.5rem; }
+.mc-join h3, .mc-orders h3, .mc-jersey-group h3{ font-size:1.05rem; font-weight:800; color:var(--heading); }
+.mc-joinlist{ list-style:none; padding:0; margin:1rem 0 0; display:grid; gap:1rem; }
+.mc-joinlist li{ display:flex; flex-wrap:wrap; gap:.75rem 1rem; align-items:center; }
+.mc-table{ width:100%; min-width:560px; border-collapse:collapse; background:var(--paper); margin-top:1rem; }
+.mc-table th, .mc-table td{ padding:.7rem .9rem; border:1px solid var(--rule); font-size:.85rem; text-align:left; vertical-align:top; }
+.mc-table thead th{ background:var(--paper-2); font-weight:800; color:var(--heading); }
+.mc-orders .table-scroll, .mc-jerseys .table-scroll{ overflow-x:auto; }
+.mc-jersey-list{ list-style:none; padding:0; margin:1rem 0; display:grid; gap:1rem; }
+.mc-jersey{ border:1px solid var(--rule); background:var(--paper); padding:1.1rem 1.25rem; }
+.mc-jersey-form{ margin-top:2rem; max-width:40rem; }
+
+/* ── 電子會員卡 ── */
+.mc-subtabs{ display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1.5rem; }
+.mc-subtabs__tab{ padding:.5rem 1rem; font-size:.85rem; font-weight:700; border:1px solid var(--rule); background:var(--paper); color:var(--text); cursor:pointer; }
+.mc-subtabs__tab[aria-selected="true"]{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+.mc-cardwrap{ display:grid; grid-template-columns:minmax(0,24rem) minmax(0,1fr); gap:2rem; align-items:start; }
+@media (max-width:820px){ .mc-cardwrap{ grid-template-columns:minmax(0,1fr); } }
+.member-card{
+  --mc-card-main:var(--brand); --mc-card-sub:var(--ink);
+  background:linear-gradient(155deg,var(--mc-card-main) 0%,var(--mc-card-sub) 100%);
+  color:#fff; padding:1.5rem; border-radius:6px; box-shadow:0 8px 24px rgba(0,0,0,.18);
+}
+.member-card--off{ filter:grayscale(.85); }
+.member-card__head{ display:flex; align-items:center; gap:.75rem; flex-wrap:wrap; margin-bottom:1.25rem; }
+.member-card__logo{ height:40px; width:auto; }
+.member-card__club{ font-weight:800; font-size:1.05rem; flex:1; }
+.member-card__tier{ font-size:.75rem; font-weight:800; padding:.2rem .65rem; border:1px solid rgba(255,255,255,.7); }
+.member-card__body{ display:grid; gap:1.25rem; }
+.member-card .member-qr{ max-width:13rem; margin-inline:auto; }
+.member-card__meta{ display:grid; grid-template-columns:1fr 1fr; gap:.75rem 1rem; margin:0; }
+.member-card__meta dt{ font-size:.7rem; opacity:.8; }
+.member-card__meta dd{ margin:.1rem 0 0; font-weight:700; font-size:.92rem; overflow-wrap:anywhere; }
+.member-card__off{ margin-top:1rem; font-size:.82rem; background:rgba(0,0,0,.35); padding:.6rem .8rem; }
+
+/* ── 公開驗證頁 /m/{token} ── */
+.verify-card{ max-width:30rem; margin:0 auto; border:2px solid var(--rule); background:var(--paper); padding:2rem 1.75rem; text-align:center; }
+.verify-card--valid{ border-color:var(--brand-aa); }
+.verify-card--bad{ border-color:var(--brand-deep); }
+.verify-card__status{ font-size:1.6rem; font-weight:900; margin:.5rem 0 1.25rem; color:var(--heading); }
+.verify-card--valid .verify-card__status{ color:var(--brand-aa); }
+.verify-card--bad .verify-card__status{ color:var(--brand-deep); }
+.verify-card dl{ display:grid; gap:.9rem; margin:0; text-align:left; }
+.verify-card dt{ font-size:.75rem; color:var(--muted); font-weight:700; }
+.verify-card dd{ margin:.1rem 0 0; font-size:1.15rem; font-weight:800; color:var(--heading); }
+
+/* ── 特約店家（8.4）：清單版型在 pages/zh/perks/index.vue，這裡只補卡片連結與詳情頁 ── */
+.store-card a.store-card__link{ color:inherit; text-decoration:none; display:block; height:100%; }
+.store-card__tier--paid{ color:var(--brand-aa); font-weight:800; }
+.store-detail{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.2fr); gap:2rem; align-items:start; }
+@media (max-width:820px){ .store-detail{ grid-template-columns:minmax(0,1fr); } }
+.store-detail img{ width:100%; height:auto; display:block; }
+.store-detail dl{ display:grid; gap:1rem; margin:0; }
+.store-detail dt{ font-size:.75rem; color:var(--muted); font-weight:700; }
+.store-detail dd{ margin:.15rem 0 0; font-size:.95rem; color:var(--text); overflow-wrap:anywhere; }
+
+/* ── 08 文化：球迷活動、漫畫閱讀器 ── */
+.fe-list{ list-style:none; padding:0; margin:1.5rem 0 0; display:grid; grid-template-columns:repeat(auto-fit,minmax(18rem,1fr)); gap:1.25rem; }
+.fe-card{ background:var(--paper-2); border:1px solid var(--rule); display:flex; flex-direction:column; min-width:0; }
+.fe-card__media{ aspect-ratio:3/2; background:var(--paper); overflow:hidden; }
+.fe-card__media img{ width:100%; height:100%; object-fit:cover; display:block; }
+.fe-card__body{ padding:1.1rem 1.25rem 1.4rem; display:flex; flex-direction:column; gap:.5rem; flex:1; }
+.fe-card__title{ font-weight:800; color:var(--heading); font-size:1.05rem; }
+.fe-card__meta{ font-size:.82rem; color:var(--muted); line-height:1.7; }
+.fe-card__body .btn{ margin-top:auto; align-self:flex-start; }
+.fe-gallery{ display:grid; grid-template-columns:repeat(auto-fit,minmax(14rem,1fr)); gap:1rem; margin-top:1.25rem; }
+.fe-gallery img{ width:100%; height:auto; display:block; }
+.ep-card a.ep-card__link{ color:inherit; text-decoration:none; display:block; }
+.ep-card__cover img{ width:100%; height:100%; object-fit:cover; display:block; }
+.ep-card__cover{ overflow:hidden; }
+.reader__page{ display:block; margin:0 auto; max-width:100%; height:auto; }
+.reader.is-scroll .reader__frame{ align-items:stretch; }
+.reader:not(.is-scroll) .reader__frame{ min-height:0; }
+.reader__counter{ font-size:.8rem; color:var(--muted-dark); }
+.reader__nav-btn:not(:disabled){ cursor:pointer; color:#fff; }
+.reader__nav-link{ display:inline-flex; align-items:center; min-height:40px; padding:0 1rem; font-size:.8rem; font-weight:700; border:1px solid rgba(255,255,255,.18); color:#fff; text-decoration:none; }
+.char-card--live{ border-style:solid; }
+.char-card--live .char-card__portrait{ padding:0; overflow:hidden; }
+.char-card--live .char-card__portrait img{ width:100%; height:100%; object-fit:cover; display:block; }
+.char-card__name{ margin-top:.85rem; font-weight:800; color:#fff; font-size:.95rem; }
+.char-card__desc{ margin-top:.3rem; font-size:.8rem; color:var(--muted-dark); line-height:1.6; }

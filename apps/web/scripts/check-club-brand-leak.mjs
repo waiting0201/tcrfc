@@ -146,32 +146,6 @@ const EXEMPT_PAGES = [
     terms: ['磐石'],
     reason: '同上（同一份頁面檔案的 en 版本）。',
   },
-  {
-    route: '/zh/shop/cushioned-socks/',
-    terms: ['磐石'],
-    reason: '「收款方：台中磐石足球俱樂部」付款須知揭露，理由同 /zh/checkout/（藍鯨規劃書 §1.3／主站規劃書 §1.3）。',
-  },
-  {
-    route: '/en/shop/cushioned-socks/',
-    terms: ['磐石'],
-    reason: '同上（同一份頁面檔案的 en 版本）。',
-  },
-  {
-    route: '/zh/club/first-team/player/',
-    terms: ['磐石', 'TCRFC'],
-    reason:
-      '本頁明文自稱「球員詳情頁範本」（頁面本身的 template-banner 區塊），以磐石一線隊' +
-      '11 號球員楊朝景的真實名單資料示範正式站球員詳情頁的版型結構，正式站上線後由 CMS' +
-      '依球員名單自動產生——這是設計範本，不是待補的藍鯨頁面內容。藍鯨球員名單與肖像同意' +
-      '尚未到位（STATUS.md 阻塞清單），沒有可替換的真實藍鯨球員資料，換成假資料會違反' +
-      '「不得臆造」紀律，換成另一位真實磐石球員一樣沒有解決「這是磐石球員」的問題。既有' +
-      '舊版棘輪清單本來就不含這一頁，是同一個既有缺口的延續，不是本輪新增。',
-  },
-  {
-    route: '/en/club/first-team/player/',
-    terms: ['磐石', 'TCRFC'],
-    reason: '同上（同一份頁面檔案的 en 版本）。',
-  },
 ]
 
 function findExemption(route, term) {

@@ -1,40 +1,35 @@
 <script setup lang="ts">
-// app/pages/zh/culture/manga/index.vue — 由 site/src/pages/zh/culture/manga/index.html 轉來
-// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
-// ⛔ 原頁 <script>（線上閱讀器分頁／捲動模式切換）改寫為 onMounted，行為逐字等價。
+// app/pages/zh/culture/manga/index.vue — 8.1 台中磐石漫畫（主站 §3.8，S3-2）
+//
+// 資料來自後台 F1（`GET {club}/comic/about|characters|episodes|episodes/latest`）。**全部免費開放、不需登入、沒有付費牆**。
+// 🔴 藍鯨不設 8.1（藍鯨規劃書 v1.9 §2.1）：頁面宣告 `unit: '8.1'`，unit-gate middleware 對藍鯨容器直接 404；
+// 後端對藍鯨一律 403。導覽（SiteHeader／culture hub）也用同一個 `isUnitEnabledForClub('8.1')` 擋，所以前台沒有入口。
+// 資料不足時顯示誠實的空狀態（後端種子的 3 集都是草稿，公開列表目前是空的），不放示意集數。
+import type { ComicAbout, ComicCharacter, ComicEpisode } from '#shared/utils/member'
+
 definePageMeta({ nav: 'culture', unit: '8.1' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
 const config = useRuntimeConfig()
-const isTcrfc = computed(() => config.public.club !== 'bw')
-// BW-C1（品牌外洩全站盤點）：本頁是「台中磐石漫畫」——磐石專屬的原創漫畫企劃
-// （世界觀、角色設定、集數內容皆為磐石原創 IP），藍鯨沒有對應的漫畫企劃可以引用或
-// 節錄（紀律 11：藍鯨文案只能引用既有內容，不得自行創作），與本輪其餘「有真實舊站
-// 內容可換」的頁面不同性質——不是換個俱樂部名稱就能通用，本頁對藍鯨顯示誠實的
-// 「尚未推出」空狀態，不臆造藍鯨自己的漫畫角色與劇情。
-const clubAssets = computed(() => getClubAssets(config.public.club))
-const identity = computed(() => getClubIdentity(config.public.club))
+const club = config.public.club
+const identity = computed(() => getClubIdentity(club))
+
+const lang = locale.value
+const [{ data: about }, { data: characters }, { data: episodes }, { data: latest }] = await Promise.all([
+  useFetch<ComicAbout>(`/api/backend/${club}/comic/about`, { query: { lang }, key: `comic-about-${club}-${lang}` }),
+  useFetch<ComicCharacter[]>(`/api/backend/${club}/comic/characters`, { query: { lang }, key: `comic-chars-${club}-${lang}` }),
+  useFetch<ComicEpisode[]>(`/api/backend/${club}/comic/episodes`, { query: { lang }, key: `comic-eps-${club}-${lang}` }),
+  // 沒有可見集數時後端回 404：視為「沒有最新集數」，不是錯誤
+  useFetch<ComicEpisode>(`/api/backend/${club}/comic/episodes/latest`, { query: { lang }, key: `comic-latest-${club}-${lang}` }),
+])
+
+const paragraphs = computed(() => (about.value?.body ?? '').split(/\n{1,}/).map(p => p.trim()).filter(Boolean))
+const safeImg = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
+const fmtDate = (d: string | null) => formatPlainDate(d)
 
 useSeoMeta({
-  title: computed(() => (isTcrfc.value
-    ? '台中磐石漫畫 TCRFC Manga｜台中磐石文化｜台中磐石足球俱樂部'
-    : `漫畫｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isTcrfc.value
-    ? '台中磐石漫畫是台中磐石足球俱樂部的原創漫畫企劃：世界觀設定、角色卡牆與集數線上閱讀器，全部免費開放、不需登入。'
-    : `${clubAssets.value.shortNameZh}漫畫企劃尚未推出，敬請期待。`)),
-})
-
-onMounted(() => {
-  const reader = document.getElementById('manga-reader')
-  if (!reader) return
-  const buttons = reader.querySelectorAll<HTMLButtonElement>('.reader__mode-btn')
-  buttons.forEach((btn) => {
-    btn.addEventListener('click', () => {
-      buttons.forEach((b) => b.setAttribute('aria-pressed', 'false'))
-      btn.setAttribute('aria-pressed', 'true')
-      reader.classList.toggle('is-scroll', btn.dataset.mode === 'scroll')
-    })
-  })
+  title: '台中磐石漫畫 TCRFC Manga｜台中磐石文化｜台中磐石足球俱樂部',
+  description: '台中磐石漫畫是台中磐石足球俱樂部的原創漫畫企劃：世界觀設定、角色卡牆與集數線上閱讀器，全部免費開放、不需登入。',
 })
 </script>
 
@@ -44,134 +39,121 @@ onMounted(() => {
     <ol>
       <li><a :href="lp('/zh/')">首頁</a></li>
       <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
-      <li aria-current="page">{{ isTcrfc ? '台中磐石漫畫' : '漫畫' }}</li>
+      <li aria-current="page">台中磐石漫畫</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero">
   <div class="container">
-    <p class="page-hero__eyebrow">{{ isTcrfc ? '8.1 TCRFC Manga / Comics' : '8.1 Manga / Comics' }}</p>
-    <h1 v-if="isTcrfc">台中磐石漫畫<span class="en">Manga / Comics</span></h1>
-    <h1 v-else>漫畫<span class="en">Manga / Comics</span></h1>
-    <p v-if="isTcrfc" class="page-hero__lede">以台中磐石為原型的原創漫畫企劃，角色設定與球員故事交織。全部集數<b style="color:#fff">免費開放、不需登入、無付費牆</b>。</p>
-    <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}漫畫企劃尚未推出，敬請期待。</p>
+    <p class="page-hero__eyebrow">8.1 TCRFC Manga / Comics</p>
+    <h1>台中磐石漫畫<span class="en">Manga / Comics</span></h1>
+    <p class="page-hero__lede">以台中磐石為原型的原創漫畫企劃，角色設定與球員故事交織。全部集數<b style="color:#fff">免費開放、不需登入、無付費牆</b>。</p>
   </div>
 </section>
 
-<template v-if="isTcrfc">
+<!-- SPEC 3.8 §8.1 — Latest Episode 最新集數（置頂區塊） -->
+<section v-if="latest" id="latest" class="band" aria-labelledby="latest-title">
+  <div class="container">
+    <div class="eyebrow-row">
+      <div>
+        <p class="kicker">LATEST EPISODE</p>
+        <h2 id="latest-title" class="section-title">最新集數</h2>
+      </div>
+    </div>
+    <div class="mg-latest">
+      <a class="mg-latest__cover" :href="lp(`/zh/culture/manga/${latest.episodeNo}/`)" :aria-label="`閱讀第 ${latest.episodeNo} 集：${latest.title}`">
+        <img v-if="safeImg(latest.coverUrl)" :src="safeImg(latest.coverUrl)!" :alt="`第 ${latest.episodeNo} 集封面`" width="480" height="640">
+        <span v-else>EP{{ String(latest.episodeNo).padStart(2, '0') }}</span>
+      </a>
+      <div>
+        <p class="mg-latest__no">第 {{ latest.episodeNo }} 集</p>
+        <h3 class="mg-latest__title">{{ latest.title }}</h3>
+        <p v-if="latest.publishedOn" class="mc-note mc-note--small">發布日 {{ fmtDate(latest.publishedOn) }}　共 {{ latest.pageCount }} 頁</p>
+        <p><a class="btn btn--primary" :href="lp(`/zh/culture/manga/${latest.episodeNo}/`)">開始閱讀</a></p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- SPEC 3.8 §8.1 — About the Project 關於企劃 -->
-<section class="band" id="about-project" aria-labelledby="about-project-title">
+<section id="about-project" class="band" aria-labelledby="about-project-title">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">ABOUT THE PROJECT</p>
-        <h2 class="section-title" id="about-project-title">關於企劃</h2>
+        <h2 id="about-project-title" class="section-title">{{ about?.title || '關於企劃' }}</h2>
       </div>
     </div>
     <div class="prose">
-      <p>企劃介紹準備中，稍後將於本頁公開。</p>
+      <p v-for="(p, i) in paragraphs" :key="i">{{ p }}</p>
+      <p v-if="paragraphs.length === 0">企劃介紹準備中，稍後將於本頁公開。</p>
     </div>
   </div>
 </section>
 
 <!-- SPEC 3.8 §8.1 — Characters 角色卡牆 -->
-<section class="band grain" id="characters" aria-labelledby="characters-title">
+<section id="characters" class="band grain" aria-labelledby="characters-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">CHARACTERS</p>
-        <h2 class="section-title" id="characters-title" style="color:#fff">角色介紹</h2>
+        <h2 id="characters-title" class="section-title" style="color:#fff">角色介紹</h2>
       </div>
-      <p class="section-lede">角色設定可關聯一線隊原型球員，詳情頁待角色資料到位後另建。</p>
+      <p class="section-lede">角色設定可關聯一線隊原型球員。</p>
     </div>
 
-    <div class="grid grid--4 char-wall">
-      <div class="char-card">
-        <div class="char-card__portrait" aria-hidden="true">?</div>
-        <p class="char-card__pending">角色 01 尚未公開</p>
-      </div>
-      <div class="char-card">
-        <div class="char-card__portrait" aria-hidden="true">?</div>
-        <p class="char-card__pending">角色 02 尚未公開</p>
-      </div>
-      <div class="char-card">
-        <div class="char-card__portrait" aria-hidden="true">?</div>
-        <p class="char-card__pending">角色 03 尚未公開</p>
-      </div>
-      <div class="char-card">
-        <div class="char-card__portrait" aria-hidden="true">?</div>
-        <p class="char-card__pending">角色 04 尚未公開</p>
-      </div>
+    <div v-if="(characters ?? []).length > 0" class="grid grid--4 char-wall">
+      <article v-for="c in characters" :key="c.id" class="char-card char-card--live">
+        <div class="char-card__portrait">
+          <img v-if="safeImg(c.imageThumbUrl || c.imageUrl)" :src="safeImg(c.imageThumbUrl || c.imageUrl)!" :alt="c.name" loading="lazy" width="320" height="427">
+          <span v-else aria-hidden="true">?</span>
+        </div>
+        <h3 class="char-card__name">{{ c.name }}</h3>
+        <p v-if="c.description" class="char-card__desc">{{ c.description }}</p>
+      </article>
     </div>
+    <p v-else class="char-card__pending" style="margin-top:1.5rem;">角色設定尚未公開，敬請期待。</p>
   </div>
 </section>
 
 <!-- SPEC 3.8 §8.1 — Episodes 集數列表 -->
-<section class="band" id="episodes" aria-labelledby="episodes-title">
+<section id="episodes" class="band" aria-labelledby="episodes-title">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">EPISODES</p>
-        <h2 class="section-title" id="episodes-title">集數列表</h2>
+        <h2 id="episodes-title" class="section-title">集數列表</h2>
       </div>
     </div>
-    <div class="grid grid--3">
-      <article class="ep-card">
-        <div class="ep-card__cover" aria-hidden="true"><span>EP01</span></div>
-        <p class="ep-card__title">尚未發布</p>
+    <div v-if="(episodes ?? []).length > 0" class="grid grid--3">
+      <article v-for="e in episodes" :key="e.episodeNo" class="ep-card">
+        <a class="ep-card__link" :href="lp(`/zh/culture/manga/${e.episodeNo}/`)">
+          <div class="ep-card__cover">
+            <img v-if="safeImg(e.coverThumbUrl || e.coverUrl)" :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="`第 ${e.episodeNo} 集封面`" loading="lazy" width="480" height="640">
+            <span v-else>EP{{ String(e.episodeNo).padStart(2, '0') }}</span>
+          </div>
+          <p class="ep-card__title">
+            <strong>第 {{ e.episodeNo }} 集　{{ e.title }}</strong>
+            <span v-if="e.isLatest" class="mc-badge mc-badge--ok" style="margin-left:.5rem;">最新</span>
+            <br><span class="mc-note mc-note--small">{{ fmtDate(e.publishedOn) }}　{{ e.pageCount }} 頁</span>
+          </p>
+        </a>
       </article>
-      <article class="ep-card">
-        <div class="ep-card__cover" aria-hidden="true"><span>EP02</span></div>
-        <p class="ep-card__title">尚未發布</p>
-      </article>
-      <article class="ep-card">
-        <div class="ep-card__cover" aria-hidden="true"><span>EP03</span></div>
-        <p class="ep-card__title">尚未發布</p>
-      </article>
     </div>
-  </div>
-</section>
-
-<!-- SPEC 3.8 §8.1 — Online Reader 線上閱讀器（分頁／捲動雙模式、上下集導覽、行動手勢） -->
-<section class="band grain grain--2" id="reader" aria-labelledby="reader-title">
-  <div class="band-inner container">
-    <div class="eyebrow-row">
-      <div>
-        <p class="kicker kicker--on-dark">ONLINE READER</p>
-        <h2 class="section-title" id="reader-title" style="color:#fff">線上閱讀器</h2>
-      </div>
-      <p class="section-lede">切換分頁／捲動模式，行動裝置支援左右滑動換頁與上下滑動捲動閱讀。</p>
-    </div>
-
-    <div class="reader" id="manga-reader">
-      <div class="reader__toolbar">
-        <div class="reader__modes" role="group" aria-label="切換閱讀模式">
-          <button type="button" class="reader__mode-btn" data-mode="paginated" aria-pressed="true">分頁模式</button>
-          <button type="button" class="reader__mode-btn" data-mode="scroll" aria-pressed="false">捲動模式</button>
-        </div>
-        <div class="reader__nav">
-          <button type="button" class="reader__nav-btn" disabled aria-label="上一集">← 上一集</button>
-          <button type="button" class="reader__nav-btn" disabled aria-label="下一集">下一集 →</button>
-        </div>
-      </div>
-      <div class="reader__frame" aria-live="polite">
-        <p>尚無可預覽集數</p>
-        <p class="reader__frame-note">集數原稿到位後，此處將顯示分頁或捲動式閱讀畫面，並支援行動裝置手勢滑動。</p>
-      </div>
-    </div>
+    <p v-else class="is-pending">尚未發布任何集數，敬請期待。</p>
   </div>
 </section>
 
 <!-- SPEC 3.1 — 頁尾 CTA -->
 <section class="band" aria-labelledby="manga-cta-title">
   <div class="container">
-    <h2 class="visually-hidden" id="manga-cta-title">加入球迷會看更多台中磐石文化內容</h2>
+    <h2 id="manga-cta-title" class="visually-hidden">加入球迷會看更多台中磐石文化內容</h2>
     <div class="grid grid--2">
       <div class="cta-card" style="background:var(--ink)">
         <p class="cta-card__num">8.2</p>
         <p class="cta-card__title">加入台中磐石球迷會</p>
-        <p class="cta-card__desc">成為球迷會成員，第一時間收到新集數上線通知與角色設定花絮。</p>
+        <p class="cta-card__desc">成為球迷會成員，優先參與球迷活動，並享有特約店家折扣與入會球衣。</p>
         <a class="btn btn--primary" :href="lp('/zh/culture/fan-club/')">前往球迷會</a>
       </div>
       <div class="cta-card" style="background:var(--ink)">
@@ -183,15 +165,6 @@ onMounted(() => {
     </div>
   </div>
 </section>
-</template>
-<template v-else>
-<section class="band" aria-labelledby="manga-pending-title">
-  <div class="container">
-    <h2 id="manga-pending-title" class="visually-hidden">漫畫企劃</h2>
-    <p class="is-pending">{{ clubAssets.shortNameZh }}漫畫企劃尚未推出，敬請期待。</p>
-  </div>
-</section>
-</template>
 </template>
 
 <style>
@@ -205,7 +178,7 @@ onMounted(() => {
 }
 .char-card__pending{ margin-top:.85rem; font-size:.82rem; color:var(--muted-dark); }
 
-/* 集數卡骨架 */
+/* 集數卡 */
 .ep-card{ background:var(--paper-2); border:1px solid var(--rule); }
 .ep-card__cover{
   aspect-ratio:3/4; display:flex; align-items:center; justify-content:center;
@@ -213,30 +186,11 @@ onMounted(() => {
 }
 .ep-card__title{ padding:1rem 1.1rem; font-size:.85rem; }
 
-/* 線上閱讀器：建議收進共用 CSS（其他集數頁與角色詳情頁都會用到） */
-.reader{ background:var(--ink); border:1px solid rgba(255,255,255,.1); }
-.reader__toolbar{
-  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:1rem;
-  padding:1.1rem 1.25rem; border-bottom:1px solid rgba(255,255,255,.1);
-}
-.reader__modes{ display:flex; gap:.5rem; }
-.reader__mode-btn{
-  min-height:40px; padding:0 1rem; font-size:.8rem; font-weight:800;
-  background:transparent; border:2px solid rgba(255,255,255,.18); color:var(--muted-dark);
-  transition:all var(--dur-fast) var(--ease);
-}
-.reader__mode-btn[aria-pressed="true"]{ background:var(--brand-aa); border-color:var(--brand-aa); color:#fff; }
-.reader__nav{ display:flex; gap:.5rem; }
-.reader__nav-btn{
-  min-height:40px; padding:0 1rem; font-size:.8rem; font-weight:700;
-  background:transparent; border:1px solid rgba(255,255,255,.18); color:var(--muted-dark);
-}
-.reader__nav-btn:disabled{ opacity:.4; cursor:not-allowed; }
-.reader__frame{
-  min-height:360px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:.6rem;
-  padding:2.5rem 1.5rem; text-align:center; color:var(--muted-dark);
-}
-.reader__frame p:first-child{ font-size:1.05rem; font-weight:800; color:#fff; }
-.reader__frame-note{ font-size:.82rem; max-width:44ch; line-height:1.7; }
-.reader.is-scroll .reader__frame{ min-height:520px; }
+/* 最新集數 */
+.mg-latest{ display:grid; grid-template-columns:minmax(0,14rem) minmax(0,1fr); gap:2rem; align-items:center; margin-top:1.5rem; }
+@media (max-width:640px){ .mg-latest{ grid-template-columns:minmax(0,1fr); } }
+.mg-latest__cover{ display:flex; aspect-ratio:3/4; align-items:center; justify-content:center; background:var(--ink-2); color:rgba(255,255,255,.3); font-weight:900; overflow:hidden; text-decoration:none; }
+.mg-latest__cover img{ width:100%; height:100%; object-fit:cover; display:block; }
+.mg-latest__no{ font-size:.8rem; font-weight:800; color:var(--brand-aa); letter-spacing:.06em; }
+.mg-latest__title{ font-size:1.4rem; font-weight:900; color:var(--heading); margin:.3rem 0 .75rem; }
 </style>

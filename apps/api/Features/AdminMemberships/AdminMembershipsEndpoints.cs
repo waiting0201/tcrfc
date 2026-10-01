@@ -26,6 +26,30 @@ public static class AdminMembershipsEndpoints
         MapMemberships(app);
         MapSettings(app);
         MapSeasons(app);
+        MapApplications(app);
+    }
+
+    /// <summary>GET /api/v1/admin/{club}/membership-applications?status=created&amp;keyword=&amp;page=&amp;pageSize= —— K2「待確認申請」：
+    /// 會員在網頁送出的升級申請（預設 <c>created</c>＝待客服核對款項）。權限碼 <c>member.membership.view</c>；姓名／Email／電話依完整個資權限遮罩。
+    /// 客服核對款項後用 <c>POST …/memberships/activate</c>（帶本列的 <c>memberId</c>、<c>planId</c>、<c>amount</c>）開通，開通時會一併把這份申請結案。
+    /// 待確認筆數（畫面的徽章數字）＝ <c>?status=created&amp;pageSize=1</c> 回應的 <c>totalCount</c>。</summary>
+    private static void MapApplications(IEndpointRouteBuilder app)
+    {
+        app.MapGet("/api/v1/admin/{club}/membership-applications", async (
+            string club, string? status, string? keyword, int? page, int? pageSize, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminMembershipsRepository repository, CancellationToken cancellationToken) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(httpContext, club, MembershipView, cancellationToken);
+            var (p, ps) = PagingQuery.Normalize(page, pageSize, defaultPageSize: 20, maxPageSize: 100);
+            return Results.Ok(await repository.ListApplicationsAsync(scope, status, keyword, p, ps, cancellationToken));
+        })
+        .WithTags("AdminMemberships")
+        .WithName("AdminListMembershipApplications")
+        .Produces<PagedResult<AdminMembershipApplicationDto>>()
+        .Produces(StatusCodes.Status400BadRequest)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound);
     }
 
     /// <summary>GET /api/v1/admin/{club}/membership-seasons —— 會籍畫面（方案表單、開通、續會名單）的球季下拉選單。

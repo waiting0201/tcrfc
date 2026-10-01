@@ -8,6 +8,8 @@
 # 來源：
 #   - 根目錄 .env 的 MSSQL_DEV_SA_PASSWORD（本機 SQL Server 容器的 SA 密碼）
 #   - deploy/dev/club.env 的 JWT_SIGNING_KEY_CLUB
+#   - deploy/dev/charity.env 的 JWT_SIGNING_KEY_CHARITY（慈善後台獨立帳號體系的權杖簽章；檔案不存在或沒有這個鍵就
+#     退回固定的本機預設值——慈善平台因此一律啟用，CH-2／CH-3 起 CHARITY_SQL_CONNECTION_STRING 有設定才會註冊慈善 API）
 # 已存在的檔案不覆寫，除非加 --force。本腳本不會把密碼或金鑰印到終端機。
 set -euo pipefail
 
@@ -42,18 +44,25 @@ if [[ ${#JWT_KEY} -lt 32 ]]; then
 fi
 
 CONN="Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;"
+CHARITY_CONN="Server=127.0.0.1,1433;Database=tcrfc_charity;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True;Encrypt=False;"
+CHARITY_JWT_KEY="$(read_kv "$ROOT_DIR/deploy/dev/charity.env" JWT_SIGNING_KEY_CHARITY 2>/dev/null || true)"
+if [[ ${#CHARITY_JWT_KEY} -lt 32 ]]; then
+  CHARITY_JWT_KEY="local-dev-jwt-signing-key-charity-change-me"
+fi
 DP_PATH="$HOME/.local/share/tcrfc-dev/dataprotection-keys"
 mkdir -p "$DP_PATH"
 
 # 用 python 的 json 序列化，確保特殊字元被正確跳脫；值經環境變數傳入，不會出現在命令列參數。
 umask 077
-CONN="$CONN" JWT_KEY="$JWT_KEY" DP_PATH="$DP_PATH" TARGET="$TARGET" python3 - <<'PY'
+CONN="$CONN" CHARITY_CONN="$CHARITY_CONN" CHARITY_JWT_KEY="$CHARITY_JWT_KEY" JWT_KEY="$JWT_KEY" DP_PATH="$DP_PATH" TARGET="$TARGET" python3 - <<'PY'
 import json, os
 doc = {
     "Logging": {"LogLevel": {"Default": "Information", "Microsoft.AspNetCore": "Warning"}},
     "CLUB_SQL_CONNECTION_STRING": os.environ["CONN"],
     "JWT_SIGNING_KEY_CLUB": os.environ["JWT_KEY"],
-    "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:5174",
+    "CHARITY_SQL_CONNECTION_STRING": os.environ["CHARITY_CONN"],
+    "JWT_SIGNING_KEY_CHARITY": os.environ["CHARITY_JWT_KEY"],
+    "CORS_ALLOWED_ORIGINS": "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:5174,http://localhost:5175",
     "DATA_PROTECTION_KEYS_PATH": os.environ["DP_PATH"],
 }
 with open(os.environ["TARGET"], "w", encoding="utf-8") as f:

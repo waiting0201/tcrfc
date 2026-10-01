@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import AppSidebar from '@/components/AppSidebar.vue'
 import AppTopbar from '@/components/AppTopbar.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 
 const STORAGE_KEY = 'tcrfc-charity-admin-sidebar-collapsed'
 
+const route = useRoute()
 const { breakpoint } = useBreakpoint()
 
 const desktopCollapsed = ref(localStorage.getItem(STORAGE_KEY) === '1')
@@ -71,6 +73,14 @@ function handleNavigate() {
         <AppTopbar :is-mobile="isMobile" @toggle-sidebar="toggleSidebar" />
       </el-header>
       <el-main class="admin-layout__main">
+        <el-alert
+          v-if="route.meta.demo"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="這是示範畫面：這個功能的後端尚未提供，畫面上的資料是示範用的，不是真實紀錄，操作也不會儲存。"
+          class="admin-layout__demo"
+        />
         <router-view />
       </el-main>
     </el-container>
@@ -129,6 +139,10 @@ function handleNavigate() {
 
 .admin-layout__header {
   padding: 0;
+}
+
+.admin-layout__demo {
+  margin-bottom: var(--charity-admin-space-4);
 }
 
 .admin-layout__main {

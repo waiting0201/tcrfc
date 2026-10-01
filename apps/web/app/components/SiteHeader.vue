@@ -43,6 +43,8 @@ const activeNav = computed(() => route.meta.nav as string | undefined)
 // （S1-13，shared/utils/locale.ts 的單一真實來源），不得改回寫死 /zh/——語系切換器
 // 本身另外用 switchTo()（見下方樣板），因為它要「切去另一個語系」，不是「留在目前語系」。
 const { locale, lp, switchTo } = useLocale()
+// 購物車件數（S3-5）：讀 BFF 寫的非 HttpOnly 提示 Cookie，只在瀏覽器端有值（SSR 一律 0，不讓 HTML 帶出個人狀態）。
+const cartCount = useCartBadge()
 
 // ---- Sticky header shadow ----
 const headerEl = ref<HTMLElement | null>(null)
@@ -341,9 +343,9 @@ onBeforeUnmount(() => {
         <button class="icon-btn" type="button" aria-label="搜尋">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>
         </button>
-        <a class="icon-btn" :href="lp('/zh/cart/')" aria-label="購物車（2 件商品）">
+        <a class="icon-btn" :href="lp('/zh/cart/')" :aria-label="cartCount > 0 ? `購物車（${cartCount} 件商品）` : '購物車'">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h2l2.4 10.4a2 2 0 0 0 2 1.6h7.7a2 2 0 0 0 2-1.55L21 8H6" /><circle cx="10" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /></svg>
-          <span class="cart-count" aria-hidden="true">2</span>
+          <span v-if="cartCount > 0" class="cart-count" aria-hidden="true">{{ cartCount > 99 ? '99+' : cartCount }}</span>
         </a>
         <a class="btn btn--primary btn--sm" :href="lp('/zh/join/')">加入我們 JOIN</a>
         <button ref="openBtnEl" class="icon-btn hamburger" type="button" id="menu-open-btn" aria-haspopup="true" aria-controls="mobile-nav" aria-expanded="false" aria-label="開啟選單" @click="openMobileNav">

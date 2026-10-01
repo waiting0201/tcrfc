@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { PublicPartner } from '#shared/utils/partners'
 // app/components/SiteFooter.vue — 由 site/src/partials/footer.html 轉來（DOM／class 不動）
 //
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：品牌欄一句話介紹、
@@ -23,6 +24,18 @@ const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
 // 頁尾導覽連結（本檔 19 處 href）一律用 lp() 換算成目前語系版本（S1-13，
 // shared/utils/locale.ts 單一真實來源）；語系切換器本身另外用 switchTo()。
 const { locale, lp, switchTo } = useLocale()
+
+// 贊助夥伴 Logo（主站規劃書 §2 全域導覽「Footer：…贊助夥伴 Logo 輪播…」，S2-7 接上）：
+// `GET /api/backend/{club}/partners?footer=true`（後台 E1 勾選「頁尾曝光」；只回合作期間涵蓋今天者，各俱樂部
+// 只讀自己的夥伴）。🔴 刻意**不 await**：頁尾在每一頁，await 會把元件變成非同步元件（需要 Suspense）、
+// 且 API 慢時拖住整頁；useFetch 不 await 時 SSR 仍會等資料（onServerPrefetch），client 端導覽時才非同步填入。
+// 沒有任何頁尾夥伴（含 API 打不到）整段不輸出，不留空框。頁尾是深色底，Logo 優先用「深底版」。
+// 「輪播」目前不做動態輪播（最多靜態列出 8 家），理由見 README「S2-7」節。
+const { data: footerPartnerData } = useFetch<PublicPartner[]>(() => `/api/backend/${club.value}/partners`, {
+  query: computed(() => ({ lang: locale.value, footer: true })),
+  key: `partners-footer-${config.public.club}-${locale.value}`,
+})
+const footerPartners = computed(() => (footerPartnerData.value ?? []).slice(0, 8))
 </script>
 
 <template>
@@ -82,6 +95,22 @@ const { locale, lp, switchTo } = useLocale()
         </div>
       </div>
 
+      <nav v-if="footerPartners.length" class="footer-partners" aria-label="合作夥伴">
+        <p class="footer-partners__label">合作夥伴</p>
+        <ul class="footer-partners__list">
+          <li v-for="p in footerPartners" :key="p.id">
+            <a v-if="safeExternalUrl(p.websiteUrl)" :href="safeExternalUrl(p.websiteUrl) ?? undefined" target="_blank" rel="noopener noreferrer" :aria-label="`${p.name}（另開新分頁）`">
+              <img v-if="p.logoDarkUrl ?? p.logoLightUrl" :src="p.logoDarkUrl ?? p.logoLightUrl ?? undefined" alt="" loading="lazy" width="120" height="48">
+              <span v-else>{{ p.name }}</span>
+            </a>
+            <template v-else>
+              <img v-if="p.logoDarkUrl ?? p.logoLightUrl" :src="p.logoDarkUrl ?? p.logoLightUrl ?? undefined" :alt="p.name ?? ''" loading="lazy" width="120" height="48">
+              <span v-else>{{ p.name }}</span>
+            </template>
+          </li>
+        </ul>
+      </nav>
+
       <div class="footer-bottom">
         <p>{{ identity.copyrightZh }}</p>
         <div class="legal-links">
@@ -95,3 +124,13 @@ const { locale, lp, switchTo } = useLocale()
     </div>
   </footer>
 </template>
+
+<style>
+/* 頁尾贊助夥伴 Logo 列（S2-7）：深色底、單排可換行，Logo 一律縮到同高 */
+.footer-partners{ display:flex; flex-wrap:wrap; align-items:center; gap:1rem 2rem; padding:1.75rem 0; border-bottom:1px solid rgba(255,255,255,.08); }
+.footer-partners__label{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#fff; }
+.footer-partners__list{ display:flex; flex-wrap:wrap; align-items:center; gap:1rem 1.75rem; list-style:none; margin:0; padding:0; }
+.footer-partners__list img{ display:block; height:36px; width:auto; max-width:140px; object-fit:contain; opacity:.8; transition:opacity var(--dur-fast) var(--ease); }
+.footer-partners__list a:hover img{ opacity:1; }
+.footer-partners__list span{ font-size:.85rem; font-weight:700; color:var(--muted-dark); }
+</style>

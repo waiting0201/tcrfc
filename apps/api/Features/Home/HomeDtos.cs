@@ -61,3 +61,15 @@ public sealed record HomeSectionDto
     /// 不在這裡展開完整輪播內容，避免同一份資料在兩個端點各自序列化一次。</summary>
     public Guid? FeaturedBannerId { get; init; }
 }
+
+/// <summary>首頁「五大核心價值」的一項（規劃書 §1.2、§3.1）。圖示由前台依 <see cref="Code"/> 對應；名稱中英文同時回傳（區塊要求「中英名稱」並陳）。</summary>
+public sealed record CoreValueDto
+{
+    public required string Code { get; init; }
+    public required string NameZh { get; init; }
+    public required string NameEn { get; init; }
+    public required int SortOrder { get; init; }
+
+    /// <summary>「了解更多」連結的頁面代稱（B1 頁面 <c>about/philosophy</c>＝2.3 足球理念）；前台依語系與站台組成實際網址。</summary>
+    public string LearnMorePageSlug { get; init; } = "about/philosophy";
+}

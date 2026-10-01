@@ -1861,6 +1861,12 @@ CREATE TABLE members (
   internal_note               nvarchar(max)    NULL,
   locale                      nvarchar(10)     NULL CHECK (locale IN (N'zh-Hant',N'en')),
   merged_into_member_id       uniqueidentifier NULL,
+  -- E 批（2026-10-01，S2-11 會員前台）：登入失敗次數限制（規劃書 §3.14「登入失敗次數限制」，同 admin_users 的鎖定機制）；
+  -- line_user_id_hash 是 LINE userId 的 SHA-256（line_user_id_encrypted 是 Data Protection 加密、每次密文不同，無法拿來查找，
+  -- LINE 一鍵登入必須能「用 LINE userId 找到會員」）。password_hash 以 '!' 開頭＝尚未設定密碼（LINE 註冊者），不可用密碼登入。
+  failed_attempt_count        int              NOT NULL DEFAULT 0,
+  locked_until                datetime2(3)     NULL,
+  line_user_id_hash           char(64)         NULL,
   created_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by                  uniqueidentifier NULL,
@@ -1966,12 +1972,66 @@ CREATE TABLE membership_payments (
   handled_by            uniqueidentifier NULL,
   activated_start_on    date             NULL,
   activated_end_on      date             NULL,
+  -- E 批：由付款訂單開通時記下來源訂單；篩選唯一索引確保「一張訂單最多一筆付款紀錄」（冪等開通的資料庫層保險，App 規劃書 §9.7）。
+  membership_order_id   uniqueidentifier NULL,
   created_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at            datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by            uniqueidentifier NULL,
   updated_by            uniqueidentifier NULL,
   CONSTRAINT PK_membership_payments PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_membership_payments_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+-- 會員登入的更新權杖（E 批新增，2026-10-01）：與 admin_refresh_tokens 同一套機制與判準（docs/12b §7.7：拿掉它，輪替與撤銷做不到，
+-- 不是 §13.1 排除的日誌表）。token_hash 存 SHA-256，原始權杖不落地；replaced_by_id 串成輪替鏈，舊權杖被重放時整批撤銷。
+-- is_persistent＝「記住我」（影響 Cookie 與到期天數）。🔴 App 的更新權杖仍掛在 app_devices（App 規劃書 §10.1，一裝置一鏈），不使用本表。
+CREATE TABLE member_refresh_tokens (
+  id                uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq           bigint IDENTITY(1,1) NOT NULL,
+  member_id         uniqueidentifier NOT NULL,
+  token_hash        nvarchar(128)    NOT NULL,
+  is_persistent     bit              NOT NULL DEFAULT 0,
+  issued_at         datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  expires_at        datetime2(3)     NOT NULL,
+  revoked_at        datetime2(3)     NULL,
+  replaced_by_id    uniqueidentifier NULL,
+  CONSTRAINT PK_member_refresh_tokens PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_member_refresh_tokens_row_seq UNIQUE CLUSTERED (row_seq),
+  CONSTRAINT UQ_member_refresh_tokens_token_hash UNIQUE (token_hash)
+);
+
+-- 會籍付款訂單（E 批新增，2026-10-01；App 規劃書 §5.3 付款狀態機、§5.4 兩段式流程與冪等性、§9.6）。
+-- 一張訂單＝「某會員要買某俱樂部某方案」：amount 由伺服器依方案重算（不信任用戶端），idempotency_key 讓重送只成立一筆
+-- （唯一鍵 (member_id, idempotency_key)）。club_id＝受益俱樂部、collecting_club_id＝收款主體（恆為俱樂部，藍鯨會籍代收代付，§5.2）。
+-- status：created 已建立（也是網頁「升級申請待確認」，由客服核對款項後開通）／pending_payment 待付款（已向 LINE Pay 請款，expires_at 15 分鐘）／
+-- paid 已付款／activated 已開通／expired 已逾時／activation_failed 開通失敗（已收款但開通異常，須告警並人工處理）／cancelled 已取消／refunded 已退款（僅後台人工發起）。
+-- 🔴 與站內商店訂單（orders）完全分開：會籍不走商店結帳（主站 §3.14「會籍的網頁站內結帳仍不做」）。
+CREATE TABLE membership_orders (
+  id                      uniqueidentifier NOT NULL DEFAULT NEWID(),
+  row_seq                 bigint IDENTITY(1,1) NOT NULL,
+  order_no                nvarchar(32)     NOT NULL,
+  member_id               uniqueidentifier NOT NULL,
+  club_id                 uniqueidentifier NOT NULL,
+  collecting_club_id      uniqueidentifier NOT NULL,
+  membership_plan_id      uniqueidentifier NOT NULL,
+  idempotency_key         nvarchar(64)     NOT NULL,
+  amount                  int              NOT NULL,
+  status                  nvarchar(24)     NOT NULL DEFAULT 'created'
+                            CONSTRAINT CK_membership_orders_status CHECK (status IN
+                              ('created','pending_payment','paid','activated','expired','activation_failed','cancelled','refunded')),
+  payment_method          nvarchar(16)     NULL CONSTRAINT CK_membership_orders_payment_method CHECK (payment_method IS NULL OR payment_method IN ('linepay')),
+  payment_transaction_id  nvarchar(64)     NULL,
+  payment_url             nvarchar(500)    NULL,
+  expires_at              datetime2(3)     NULL,
+  paid_at                 datetime2(3)     NULL,
+  activated_at            datetime2(3)     NULL,
+  activation_source       nvarchar(16)     NULL CONSTRAINT CK_membership_orders_activation_source CHECK (activation_source IS NULL OR activation_source IN ('payment','internal','admin')),
+  membership_id           uniqueidentifier NULL,
+  failure_reason          nvarchar(255)    NULL,
+  created_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  updated_at              datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
+  CONSTRAINT PK_membership_orders PRIMARY KEY NONCLUSTERED (id),
+  CONSTRAINT UQ_membership_orders_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
 -- 權益對照條目（由父表 membership_plans 推導）：分組、排序。不帶 club_id。
@@ -2487,6 +2547,13 @@ CREATE TABLE orders (
   completed_at               datetime2(3)    NULL,
   cancelled_at               datetime2(3)    NULL,
   cancel_reason              nvarchar(255)   NULL,
+  -- F 批（2026-10-01，S3-5 前台結帳）：非會員結帳「填 Email 即可」（規劃書 §3.8 8.3），所以訂單要有買家 Email
+  -- （訂單成立信、`/order/lookup` 的「訂單編號＋Email」比對）；前台結帳的冪等鍵與請求指紋；LINE Pay 請款後的付款網址。
+  -- idempotency_key／request_fingerprint 後台人工建單為空；payment_url 只在待付款期間有值。
+  buyer_email                nvarchar(255)   NULL,
+  idempotency_key            nvarchar(64)    NULL,
+  request_fingerprint        char(64)        NULL,
+  payment_url                nvarchar(500)   NULL,
   created_at                 datetime2(3)    NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                 datetime2(3)    NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by                 uniqueidentifier NULL,
@@ -2587,7 +2654,8 @@ CREATE TABLE store_invoices (
   invoice_no            nvarchar(32)     NULL,
   issued_at             datetime2(3)     NULL,
   carrier_type          nvarchar(16)     NULL,
-  carrier_id_encrypted   nvarchar(64)    NULL,
+  -- F 批：載具號碼以 Data Protection 加密，密文長度遠超過原本的 64，放寬為 500（同 payment_channels.credential_encrypted）。
+  carrier_id_encrypted   nvarchar(500)   NULL,
   tax_id                nvarchar(16)     NULL,
   donation_code         nvarchar(16)     NULL,
   issue_status          nvarchar(16)     NOT NULL DEFAULT 'pending'
@@ -3295,6 +3363,11 @@ ALTER TABLE orders           ADD CONSTRAINT UQ_orders_order_no       UNIQUE (ord
 ALTER TABLE orders           ADD CONSTRAINT UQ_orders_lookup_token   UNIQUE (lookup_token);
 ALTER TABLE members          ADD CONSTRAINT UQ_members_member_no     UNIQUE (member_no);
 ALTER TABLE members          ADD CONSTRAINT UQ_members_email         UNIQUE (email);
+-- E 批：LINE userId 雜湊一人一帳號（篩選唯一索引：SQL Server 的唯一索引把 NULL 當相等，沒綁 LINE 的帳號不能互撞）。
+CREATE UNIQUE INDEX UQ_members_line_user_id_hash ON members (line_user_id_hash) WHERE line_user_id_hash IS NOT NULL;
+CREATE UNIQUE INDEX UQ_membership_payments_order ON membership_payments (membership_order_id) WHERE membership_order_id IS NOT NULL;
+ALTER TABLE membership_orders ADD CONSTRAINT UQ_membership_orders_order_no UNIQUE (order_no);
+ALTER TABLE membership_orders ADD CONSTRAINT UQ_membership_orders_member_idempotency UNIQUE (member_id, idempotency_key);
 
 -- 不帶 club_id 的內容字典（全站唯一）
 ALTER TABLE article_categories ADD CONSTRAINT UQ_article_categories_code UNIQUE (code);
@@ -3386,6 +3459,12 @@ CREATE INDEX IX_orders_club_created                     ON orders (club_id, crea
 CREATE INDEX IX_order_items_order                       ON order_items (order_id);
 CREATE INDEX IX_orders_selling_created                  ON orders (selling_club_id, created_at DESC);
 CREATE INDEX IX_product_variants_product                ON product_variants (product_id);
+-- F 批（2026-10-01，S3-5）：前台購物車與結帳。
+-- 一個會員在一個俱樂部最多一台購物車；訪客購物車以「權杖的 SHA-256」（carts.anonymous_token）為鍵，權杖本身不落庫。
+CREATE UNIQUE INDEX UQ_carts_club_member                ON carts (club_id, member_id) WHERE member_id IS NOT NULL;
+CREATE UNIQUE INDEX UQ_carts_anonymous_token            ON carts (anonymous_token) WHERE anonymous_token IS NOT NULL;
+-- 結帳冪等：同一俱樂部同一冪等鍵只成立一張訂單（並行重送由這條索引擋下，見 Features/Shop）。
+CREATE UNIQUE INDEX UQ_orders_club_idempotency          ON orders (club_id, idempotency_key) WHERE idempotency_key IS NOT NULL;
 CREATE UNIQUE INDEX UQ_fan_event_registrations_event_member ON fan_event_registrations (fan_event_id, member_id) WHERE member_id IS NOT NULL AND status <> 'cancelled';
 CREATE INDEX IX_fan_event_registrations_event_status    ON fan_event_registrations (fan_event_id, status);
 CREATE INDEX IX_refund_requests_club_status             ON refund_requests (club_id, status);
@@ -3394,6 +3473,9 @@ CREATE INDEX IX_draw_rosters_draw_winner                ON draw_rosters (member_
 CREATE INDEX IX_inventory_movements_variant_occurred     ON inventory_movements (product_variant_id, occurred_at DESC);
 CREATE INDEX IX_memberships_club_status_end             ON memberships (club_id, status, membership_end_on);
 CREATE INDEX IX_memberships_member                      ON memberships (member_id);
+CREATE INDEX IX_member_refresh_tokens_member             ON member_refresh_tokens (member_id);
+CREATE INDEX IX_membership_orders_member_created         ON membership_orders (member_id, created_at DESC);
+CREATE INDEX IX_membership_orders_club_status            ON membership_orders (club_id, status);
 CREATE INDEX IX_email_logs_member_sent                  ON email_logs (member_id, sent_at DESC);
 CREATE INDEX IX_email_logs_type_sent                    ON email_logs (type, sent_at);
 CREATE INDEX IX_enquiries_form_status_created           ON enquiries (form_id, status, created_at DESC);
@@ -3862,6 +3944,14 @@ ALTER TABLE membership_payments     ADD CONSTRAINT FK_membership_payments_member
 ALTER TABLE membership_payments     ADD CONSTRAINT FK_membership_payments_club       FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE membership_payments     ADD CONSTRAINT FK_membership_payments_collecting_club FOREIGN KEY (collecting_club_id) REFERENCES clubs(id);
 ALTER TABLE membership_payments     ADD CONSTRAINT FK_membership_payments_plan        FOREIGN KEY (membership_plan_id) REFERENCES membership_plans(id);
+ALTER TABLE membership_payments     ADD CONSTRAINT FK_membership_payments_order       FOREIGN KEY (membership_order_id) REFERENCES membership_orders(id);
+ALTER TABLE member_refresh_tokens   ADD CONSTRAINT FK_member_refresh_tokens_member    FOREIGN KEY (member_id) REFERENCES members(id);
+ALTER TABLE member_refresh_tokens   ADD CONSTRAINT FK_member_refresh_tokens_replaced  FOREIGN KEY (replaced_by_id) REFERENCES member_refresh_tokens(id);
+ALTER TABLE membership_orders       ADD CONSTRAINT FK_membership_orders_member        FOREIGN KEY (member_id) REFERENCES members(id);
+ALTER TABLE membership_orders       ADD CONSTRAINT FK_membership_orders_club          FOREIGN KEY (club_id) REFERENCES clubs(id);
+ALTER TABLE membership_orders       ADD CONSTRAINT FK_membership_orders_collecting_club FOREIGN KEY (collecting_club_id) REFERENCES clubs(id);
+ALTER TABLE membership_orders       ADD CONSTRAINT FK_membership_orders_plan          FOREIGN KEY (membership_plan_id) REFERENCES membership_plans(id);
+ALTER TABLE membership_orders       ADD CONSTRAINT FK_membership_orders_membership    FOREIGN KEY (membership_id) REFERENCES memberships(id);
 ALTER TABLE membership_payments     ADD CONSTRAINT FK_membership_payments_handled_by  FOREIGN KEY (handled_by) REFERENCES admin_users(id);
 ALTER TABLE membership_benefits     ADD CONSTRAINT FK_membership_benefits_plan        FOREIGN KEY (membership_plan_id) REFERENCES membership_plans(id) ON DELETE CASCADE;
 ALTER TABLE membership_benefits_i18n ADD CONSTRAINT FK_membership_benefits_i18n_benefit FOREIGN KEY (membership_benefit_id) REFERENCES membership_benefits(id) ON DELETE CASCADE;

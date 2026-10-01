@@ -7,12 +7,12 @@ import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import MemberPicker from './MemberPicker.vue'
 import { activeClubId, availableClubs } from '@/auth/clubAccess'
-import { activateMembership, type MembershipDetailDto, type MembershipPlanListItemDto } from '@/api/adminMemberships'
+import { activateMembership, type ActivatePrefill, type MembershipDetailDto, type MembershipPlanListItemDto } from '@/api/adminMemberships'
 import { nullIfBlank } from '@/api/adminCommon'
 import { errorMessage, formatMoney, todayString } from './membershipHelpers'
 import { pickerDateToDateOnly, taipeiToday } from '@/utils/dateTime'
 
-const props = defineProps<{ modelValue: boolean; plans: MembershipPlanListItemDto[] }>()
+const props = defineProps<{ modelValue: boolean; plans: MembershipPlanListItemDto[]; prefill?: ActivatePrefill | null }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', v: boolean): void
   (e: 'done', detail: MembershipDetailDto): void
@@ -40,6 +40,12 @@ watch(
   (open) => {
     if (!open) return
     form.value = { memberId: '', planId: '', paymentMethod: 'onsite', amount: 0, paidOn: todayString(), note: '', startOn: '', endOn: '' }
+    const pre = props.prefill
+    if (pre) {
+      form.value.memberId = pre.member.id
+      form.value.planId = pre.planId
+      form.value.amount = pre.amount
+    }
     error.value = null
   },
 )
@@ -102,6 +108,9 @@ async function submit() {
     :close-on-click-modal="false"
     @update:model-value="(v: boolean) => emit('update:modelValue', v)"
   >
+    <el-alert v-if="prefill" type="success" :closable="false" show-icon class="dlg__alert">
+      正在處理會員的升級申請{{ prefill.orderNo ? `（${prefill.orderNo}）` : '' }}。已帶入會員、方案與應收金額，請核對實收款項後確認開通；開通後這筆申請會從待確認清單移除。
+    </el-alert>
     <el-alert type="info" :closable="false" show-icon class="dlg__alert">
       這是客服核對款項後的手動開通，系統不會向會員收款。續會請選擇「下一球季」的方案再開通一次。
       補登已結束球季的會籍時，必須填寫開始日與結束日。
@@ -109,7 +118,7 @@ async function submit() {
     <el-alert v-if="error" :title="error" type="warning" show-icon class="dlg__alert" @close="error = null" />
     <el-form label-position="top" @submit.prevent="submit">
       <el-form-item label="會員" required>
-        <MemberPicker v-model="form.memberId" />
+        <MemberPicker v-model="form.memberId" :seed="prefill?.member ?? null" />
       </el-form-item>
       <el-form-item label="方案（僅列出已上架的方案）" required>
         <el-select v-model="form.planId" placeholder="選擇方案" style="width: 100%" @change="onPlanChange">

@@ -109,6 +109,14 @@
 | E-93 | 2026-09-30 | 推播發送在同一個 scoped `DbContext` 內用 `FirstAsync` 讀回批次，但核可流程已經追蹤了同一個實體，EF 回傳舊的追蹤實體（計數仍是 0），狀態算成 `sent` 而不是 `partial` | ✅ 改用不追蹤查詢＋set-based 更新；`AdminAppTests` 部分送出案例 |
 | E-94 | 2026-09-30 | 種子把 28 列日聚合塞進單一 `VALUES` 產生一行超過 8000 字元的 SQL，`sqlcmd` 從標準輸入讀取時把行切斷（`SELEC` / `T`），整個區塊語法錯誤；先前我逐批用 `-i` 檔案驗證沒有重現，`apply-seed.sh` 實際走的是標準輸入 | ✅ 每列一行；驗證改用與 `apply-seed.sh` 完全相同的指令與輸入方式 |
 | E-95 | 2026-09-30 | 用 Python 改既有檔案時一律以 `utf-8-sig` 讀寫，替原本沒有 BOM 的 `Program.cs`／`CsvUtils.cs`／`PublicRateLimitPolicies.cs` 加上 BOM，讓 `git diff` 出現整檔第一行變更 | ✅ 改完看 `git diff --stat` 才發現並還原；⚠️ 無 |
+| E-96 | 2026-10-01 | `definePerson()` 沒給 `@id`，`nuxt-schema-org` 把同頁多位教練／球員全併進站台身分節點 `#identity`：`our-people.vue`（S1-12f）8 位教練只輸出 1 筆，一線隊球員一開始犯同一個錯；驗收只看「有 Person」沒數節點數 | ⚠️ 無（已修兩頁；`check-schema-batch2` 未涵蓋 Person） |
+| E-97 | 2026-10-01 | E 批會籍開通（`MembershipActivationService`）第一版只靠條件式 `UPDATE … WHERE status='paid'` 搶佔做冪等，單一呼叫與循序重複都對；**並行測試（12 個同訂單呼叫）才暴露死結**：輸家的 UPDATE 先鎖 PK 索引項目再等聚集索引列鎖，贏家寫付款紀錄時外鍵檢查要 S 鎖同一個 PK 項目，互等，SQL Server 選一方當死結犧牲者，被 catch-all 誤標成 `activation_failed` 並丟 409／500 | ✅ 開通交易開頭加 `sp_getapplock`（每張訂單一把、交易結束自動釋放）；`MembershipOrderTests.內部開通端點_冪等_重複與並行呼叫只開通一次` 鎖定（12 個並行呼叫） |
+| E-98 | 2026-10-01 | 新增 `MapDelete("/me", (MemberDeleteAccountRequest request, …) => …)` 時沒標 `[FromBody]`：ASP.NET Core 不允許對 DELETE **推斷**請求本文，整個 API **啟動失敗**（所有 `WebApplicationFactory` 測試 17 項同時全紅，訊息「Body was inferred but the method does not allow inferred body parameters」），不是只有那一支端點壞掉 | ✅ 加 `[FromBody]`；測試 fixture 啟動就會抓到（本批靠跑測試立即發現）；⚠️ 無靜態檢查——**新增帶 JSON 本文的 `MapDelete`／`MapGet` 一律明標 `[FromBody]`** |
+| E-99 | 2026-10-01 | 前台會員頁兩處「看起來接好、實際沒作用」：① 登入成功後靠子元件 `emit('done')` 做 `?next=` 轉址，但登入一成功狀態翻轉、子元件立刻被卸載，事件被丟掉，不轉址；② 元件放在 `components/culture/` 底下卻用 `<FanEventRegistration>` 標籤，Nuxt 自動匯入名稱帶目錄前綴（`CultureFanEventRegistration`），解析不到只輸出空的自訂元素、無任何錯誤（與 `ContentMembershipBenefits` 同類） | ⚠️ 無（靠 CDP 實機走完流程才發現；build／lint 全綠） |
+| E-100 | 2026-10-01 | F 批 `dotnet ef migrations add` 之後直接 `dotnet ef database update --no-build` 失敗（「模型有待處理變更」）——`--no-build` 用的是 `migrations add` **之前**建好的組件，裡面還沒有新 migration 類別，EF 以為模型與 migration 對不上 | ⚠️ 無（`migrations add` 後一律先 `dotnet build` 再 `update`） |
+| E-101 | 2026-10-01 | F 批商店測試的「確保電子發票字軌」輔助函式硬寫 `environment = 'sandbox'`，但商店的金流／發票環境是 S6 設定 `shop.payment_environment`（可切 production）；程式端依設定取通道，測試補了錯環境的字軌，付款後發票停在 `pending`，**第一次跑完整流程測試就紅燈** | ✅ 輔助函式改讀 `shop.payment_environment`（`ShopPublicTests.ChannelEnvironmentAsync`） |
+| E-102 | 2026-10-01 | 慈善 N3 捐款詳情的個資遮罩只對「看起來像個資的欄位」（姓名、Email、身分證字號、地址）做，漏了**預設值就是捐款人姓名**的收據抬頭（`receipt_title`），預設遮罩的詳情回應仍帶出完整姓名；整合測試斷言「遮罩回應裡完整姓名一字不出現」時才抓到，沒有進版控 | ✅ `CharityAdminDonationsTests.詳情預設遮罩…`（斷言完整姓名、Email、身分證字號、地址都不在遮罩回應的任何位置）；欄位清單另靠 `CharityArchitectureTests` 反射鎖住後台回應型別不得有密文欄位 |
+| E-103 | 2026-10-01 | 派 CH-2／CH-3 時，派工單寫「目前慈善 DbContext 已有的程式」「兩個 DbContext：主站與慈善」，**實際上不存在**：CH-1 只建了資料庫與種子，沒有任何 EF 實體、連線註冊、後台帳號體系或授權器。agent 因此要從零 scaffold `CharityDbContext`、建 migration 基準、做獨立 JWT 方案／登入／授權器／更新權杖表（多出一張規劃書沒寫的 `admin_refresh_tokens`），範圍與工時都比派工單預期大得多 | ⚠️ 無（派工前 grep 一下 `DbContext` 與 `Features/` 目錄就能發現；見條目） |
 
 ---
 
@@ -2185,6 +2193,69 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
 - **下次怎麼避免**：改檔的腳本先 `raw.startswith(b'\xef\xbb\xbf')` 記住原狀，寫回時**保持原樣**（也保持原本的 CRLF／LF）；改完一律看 `git diff --stat`，不合理的整檔變更先查再往下做。
 - **防呆**：⚠️ 無（靠 `git diff --stat`）。
 
+### E-96 `definePerson()` 沒給 `@id`，多位教練／球員被合併成一個 Person（2026-10-01，S2-7 輪補做 Person 時抓到，錯誤原先存在於 S1-12f）
+- **錯在哪**：`about/our-people.vue`（S1-12f）用 `definePerson()` 對每位教練各呼叫一次，但沒給 `@id`。`nuxt-schema-org` 的 Person 預設 `@id` 是站台身分節點 `#identity`，所有人合併成**一個** Person（只剩最後一位，且被當成整站主體）。8 位教練實際只輸出 1 筆。本輪新增的一線隊球員 Person 一開始犯同一個錯。
+- **為什麼會錯（根因）**：驗收只看「JSON-LD 有出現 Person」，沒有數節點數與比對 `@id`；S1-12f 當時 `apps/api` 未啟動、沒有真實多筆資料可數。
+- **下次怎麼避免**：任何「一頁輸出多個同型別節點」的 `defineXxx()` 一律明確給唯一 `@id`；驗證時用假後端餵多筆資料，數輸出節點數。
+- **防呆**：⚠️ 無（已修 `our-people.vue`、`first-team/index.vue`；`check-schema-batch2` 未涵蓋 Person）。
+
+### E-97 會籍開通只靠條件式 UPDATE 做冪等，並行時索引取鎖順序死結（2026-10-01，E 批 S2-11）
+
+- **錯在哪**：第一版 `ActivateCoreAsync` 用 `UPDATE membership_orders SET status='activated' WHERE id=@id AND status='paid'` 當搶佔，判斷「贏的才繼續、輸的回傳已開通」。單次呼叫、循序重複呼叫都正確，我也因此判斷冪等沒問題；**真正並行（12 個請求同一張訂單）時 SQL Server 回「死結犧牲者」**：輸家的 UPDATE 以 `id` 搜尋，先鎖 `PK_membership_orders`（非叢集）索引項目、再等聚集索引的列鎖（贏家持有）；贏家接著寫 `membership_payments`，外鍵檢查要對 `membership_orders` 的 PK 索引項目取 S 鎖——被輸家的 U 鎖擋住，兩邊互等。犧牲者被我的 catch-all 當成「開通失敗」：訂單標 `activation_failed`、寫 Critical 日誌、回 409，**還有一部分回 500**。
+- **為什麼會錯（根因）**：把「條件式 UPDATE 是原子的」等同於「並行安全」。原子性只保證單一陳述式，**不保證同一交易內多個陳述式對多個索引的取鎖順序一致**；有外鍵的表尤其如此（外鍵檢查是額外的隱性讀取）。我用的是「會失敗才會發現」的驗證——單元式的循序測試永遠綠燈。
+- **下次怎麼避免**：任何「同一筆資料被多個請求同時開通／扣款／發放」的交易，一律先用 `sp_getapplock`（`@LockOwner='Transaction'`，資源名含業務鍵）把同一筆資料的處理**排成佇列**，再做條件式 UPDATE；並且**冪等邏輯一定要有並行測試**（`Task.WhenAll` 打同一個鍵 10 次以上），不能只測重複送出。catch-all 要區分「業務衝突」與「基礎設施錯誤（死結、逾時）」，後者不得改寫成使用者看得到的業務狀態（本批保留 catch-all 是因為「已付款卻無法開通」必須留下可追蹤狀態；死結不再發生之後，它只會接到真正的資料錯誤）。
+- **防呆**：✅ `MembershipActivationService` 開通交易開頭取應用程式鎖；✅ `MembershipOrderTests` 的並行測試（12 個呼叫只開通一次，付款紀錄恰一筆）；球衣登記與球迷會活動報名同樣有並行測試（`UPDLOCK` 鎖父列後再數件數／名額）。
+
+### E-98 新增帶 JSON 本文的 `MapDelete` 漏標 `[FromBody]`，整個 API 啟動失敗（2026-10-01，E 批）
+
+- **錯在哪**：`DELETE /api/v1/member/me` 要收 `{ password }` 或 `{ confirm }`，我照 POST 的寫法直接把 record 當 lambda 參數。ASP.NET Core minimal API 對 **DELETE／GET** 不推斷請求本文，路由建立時丟 `InvalidOperationException`，`app.Run()` 失敗——**整個主機起不來**，所有整合測試同時紅燈，不是單一端點 500。
+- **為什麼會錯（根因）**：POST／PUT 可以省略 `[FromBody]` 是慣例，手感延伸到 DELETE。啟動期錯誤要靠跑到整合測試才看得到，編譯不會擋。
+- **下次怎麼避免**：新增帶本文的 `MapDelete`／`MapGet` 一律明標 `[Microsoft.AspNetCore.Mvc.FromBody]`；寫完端點先跑任一支整合測試確認主機能啟動，再往下寫測試。
+- **防呆**：⚠️ 無靜態檢查（啟動即失敗，測試必然抓到；本批當下就抓到，沒有進版控）。
+
+### E-99 會員前台：登入後轉址靠會被卸載的子元件事件、元件放子目錄導致標籤解析不到（2026-10-01，S2-11／S3-2）
+
+- **錯在哪**：① `MemberAuthPanel` 登入成功後 `emit('done')` 讓頁面轉去 `?next=`，但 `login()` 內部先翻轉 `isLoggedIn`，父層 `v-else-if` 立即卸載面板，後面的 emit 被丟掉，`?next=` 不生效（限付費活動「登入後回到活動頁」整條斷掉）。② `FanEventRegistration.vue` 放在 `components/culture/`，樣板寫 `<FanEventRegistration>`，實際自動匯入名稱是 `CultureFanEventRegistration`，SSR 輸出 `<faneventregistration>` 空元素，只有 hydration 警告。
+- **為什麼會錯（根因）**：① 把「動作完成」的通知放在會因同一動作而消失的元件上；② 沒在寫完時用瀏覽器實際點過；元件目錄前綴規則在 `MembershipBenefits.vue` 檔頭早有記載，但沒回頭查。
+- **下次怎麼避免**：跨狀態翻轉的副作用（轉址）放在父層對狀態的 `watch`，不靠子元件事件；新元件一律放 `components/` 根目錄或用含前綴的標籤名，寫完用 CDP 走一次流程、看 SSR 有無小寫自訂元素。
+- **防呆**：⚠️ 無（可加：build 後 grep SSR 輸出是否含已知元件的小寫標籤）。
+
+### E-100 `dotnet ef migrations add` 之後直接 `database update --no-build` 失敗（2026-10-01，F 批）
+
+- **錯在哪**：為了省建置時間，`migrations add AlignSchemaF1` 之後立刻 `dotnet ef database update --no-build`，EF 回報「`ClubDbContext` 有待處理的模型變更，請先加 migration」。實際上 migration 檔已經產生，只是**組件裡沒有它**。
+- **為什麼會錯（根因）**：`--no-build` 使用的是 `migrations add` 執行**之前**的建置輸出；新產生的 `.cs` 沒被編進去，EF 比對「模型」與「組件內的 migration 快照」就判成有差異。
+- **下次怎麼避免**：`migrations add` 之後一律先 `dotnet build`，再 `database update`（兩個指令之間不加 `--no-build`，或先自己建置）；`has-pending-model-changes` 同理。
+- **防呆**：⚠️ 無（錯誤訊息明確、沒有造成資料異動，只是白跑一次）。
+
+### E-101 測試輔助函式把環境值寫死，與程式「依設定取值」的行為對不上（2026-10-01，F 批）
+
+- **錯在哪**：商店測試要讓發票能開出來，需要收款主體名下的 `einvoice` 字軌通道；輔助函式硬寫 `environment = 'sandbox'`。但 `ShopInvoiceService` 依 S6 設定 `shop.payment_environment`（本機的設定值不是 `sandbox`——由修正後測試轉綠推得）選通道，於是測試補的通道沒被用到，發票停在 `pending`。
+- **為什麼會錯（根因）**：憑「測試環境應該是 sandbox」的印象寫輔助函式，沒先看種子與設定實際值；程式碼本身則讀設定而不是常數。
+- **下次怎麼避免**：測試輔助函式要模擬某個設定的效果時，先讀同一個設定值（同一個鍵），不憑印象寫死。
+- **防呆**：✅ `ShopPublicTests.ChannelEnvironmentAsync` 讀 `shop.payment_environment`；整套流程測試（`訪客完整流程…`、`維護作業…`）會在字軌取錯環境時立刻失敗。
+
+
+### E-102 個資遮罩只遮「長得像個資的欄位」，漏了預設值就是姓名的收據抬頭（2026-10-01，CH-3 N3）
+
+- **錯在哪**：`CharityDonationsAdminService` 詳情把 `Donor.Name`／`Email`、身分證字號、地址、載具都遮罩了，卻把 `DonationInvoice.receipt_title` 原樣回傳。規劃書 §5.2 明文「收據抬頭預設帶入捐款人姓名」，所以預設遮罩的詳情回應仍含完整姓名。
+- **為什麼會錯（根因）**：遮罩清單是**照欄位名稱的字面意思**挑的（名稱像 name／email／id 才遮），不是**沿著資料來源**挑的（「哪些欄位的內容來自捐款人輸入」）。`receipt_title` 名稱不像個資，但值是從 `donor_name` 帶入的。
+- **下次怎麼避免**：新增含個資的回應時，先列「捐款人（或會員）輸入了哪些值」，再逐一確認每個值在回應裡出現的**每一個欄位**；測試不要只斷言「某個欄位被遮罩」，要斷言「**原始值在整份回應文字裡一個字都找不到**」。
+- **防呆**：✅ `CharityAdminDonationsTests.詳情預設遮罩姓名與Email_身分證字號與地址也遮罩_明文需reveal且每次寫稽核`（對整份回應 JSON 做 `DoesNotContain`）。⚠️ 新增的回應欄位仍要人工想一次資料來源。
+
+### E-103 派工單假設慈善 DbContext 與帳號體系已存在，實際沒有（2026-10-01，CH-2／CH-3 派工）
+
+- **錯在哪**：派工單寫「目前慈善 DbContext 已有的程式」「後端專案（.NET／EF Core＋Dapper，兩個 DbContext：主站與慈善）」。`STATUS.md` 的 CH-1 只記「本機建庫已完成、29 張表與資料庫逐張一致」，`apps/api` 裡沒有任何 `CharityDbContext`、慈善實體、`CHARITY_SQL_CONNECTION_STRING` 的註冊（只有 `/readyz` 開一條探活連線）、慈善後台帳號與權限的程式。agent 從零做了 scaffold、migration 基準、獨立 JWT 方案、登入與更新權杖、授權器，並因此新增了規劃書沒寫的 `admin_refresh_tokens`。
+- **為什麼會錯（根因）**：派工單是照「CH-1 完成」與「兩個資料庫」**推論**後端程式也有兩套，沒有實際 `grep DbContext`／看 `Features/` 與 `Data/` 目錄就寫進指示。
+- **下次怎麼避免**：派工單裡凡是「已有／已完成」的前置，**用 `grep`／`ls` 驗過再寫**；`STATUS.md` 的 ✅ 只代表它自己那一列（建庫），不代表依賴它的程式也存在。
+- **防呆**：⚠️ 無自動化。已於本次交付回報主 session，並把 `admin_refresh_tokens` 列為待裁決（`docs/16` §10）。
+
+### E-104 並行請求測試拿「第一個回應」斷言只有贏家才會有的結果，間歇性失敗（2026-10-01，F 批＋慈善合併後完整跑）
+
+- **錯在哪**：`ShopPublicTests.訪客完整流程…` 並行送 6 個 `confirm`，斷言 `confirms[0]`（陣列第一個，也就是第一個被送出的請求）的發票狀態是 `issued`。完整套件 984 過 1 失敗（`pending`），單獨跑 `ShopPublicTests` 連續全過，後來再跑完整套 985 全過——**同一份程式碼時過時不過**。
+- **根因**：一開始懷疑共用狀態（字軌通道、`shop.payment_environment`、背景服務、慈善合併帶來的同名 `IInvoiceIssuer`），逐項查證都排除：`DisableTestParallelization` 已開、商店維護服務在非 Production 預設停用、慈善的 `IInvoiceIssuer` 是另一個命名空間的另一個型別、兩個 fixture 各自替換自己的服務。真正原因是**競態**：`ShopOrderService.ConfirmAsync` 只有「第一個把付款狀態翻成已付款」的請求（贏家）會接著開發票；其餘請求走冪等分支，看到 `paid` 就立刻回傳，**此時贏家可能還沒開完發票**，回應裡的發票就是 `pending`。陣列索引 0 是「最先送出」，不是「贏家」。負載與時序一變（跑完整套時機器較忙），輸家搶在贏家前回應的機率就上來。這是產品行為（冪等回應不等發票）合理，錯在測試把「哪個請求會贏」當成確定的。
+- **下次怎麼避免**：對並行請求寫斷言時，**不要用陣列索引挑一個回應來斷言「只有贏家才有」的欄位**。要嘛斷言「至少一個回應符合」（`Assert.Contains`），要嘛等全部完成後**重讀資源的最終狀態**再斷言。看到「單獨跑過、完整跑偶爾不過」先查**競態與時序**，再查共用狀態；兩者的證據不同：共用狀態是穩定重現的，競態是間歇的。
+- **防呆**：⚠️ 無自動化（無法靜態判斷「哪個索引是贏家」）。已修正該測試（`Assert.Contains` 找贏家＋全部完成後 `GET` 重讀訂單）。`CharityDonationFlowTests` 與 `MembershipOrderTests` 的同類並行測試已檢視，只斷言資料庫終態與次數，沒有這個問題。
+
 #### 🔴 `E-44` 升級（2026-09-30，D 批派工）：**派工單要求「規劃書明確要求就照規劃書做」，等於把 `E-44` 的錯再設計進流程一次**
 
 D 批派工單對 J3 寫「若規劃書明確要求後台可查閱稽核紀錄，就依規劃書實作…；若沒要求才只做規劃書有寫的部分」。規劃書 J3 **確實**明確要求操作稽核與登入紀錄，照這個條件式就會重建 `E-44` 已被使用者撤回的兩張日誌表。
@@ -2205,3 +2276,9 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 **根因（可被改掉的行為）**：時間處理沒有單一入口，每個畫面各自 `new Date(...)`／`toISOString()`／`slice`，「這樣寫在我的電腦上是對的」就過關。
 **防呆（✅ 已有）**：全站時間收斂到 `apps/admin/src/utils/dateTime.ts`（一律以 UTC 解析、以 Asia/Taipei 固定 +8 顯示與輸入，不依賴瀏覽器時區）；`eslint.config.mjs` 的 `no-restricted-syntax`／`vue/no-restricted-syntax` 在 `src/**` 擋 `toISOString`、`toLocaleDateString`、`toLocaleTimeString`、`getHours`／`getMinutes`／`getSeconds`、單一參數的 `new Date(字串)`、`Date.parse`（`utils/dateTime.ts` 自身除外），`npm run lint` 會失敗。全天活動另有規則：後端以 UTC 日期計，送 `該日T00:00:00Z`（`pickerDateToAllDayUtc`）。
 **仍無防呆**：日期時間輸入框沒有 `value-format` 時回傳 `Date`，本機欄位會被當成台灣牆上時鐘（`pickerDateToUtc`）——新增欄位時必須用 `utcToPickerDate`／`pickerDateToUtc` 成對使用，lint 抓不到成對性。
+
+### E-105 Cookie 讀取用 `??` 把「已清除但仍被送來的空字串」當成有值（2026-10-01，S3-5 商店 BFF）
+- **錯在哪**：`shop-session.ts` 讀 `__Host-` 與一般兩種命名的 Cookie 時用 `a ?? b`，空字串不會退回 `b`，購物車權杖被讀成空而丟失（假後端驗證時，手寫的 Cookie 容器把「Max-Age=0 的清除 Set-Cookie」當成空值回送才抓到；真實瀏覽器會丟棄過期 Cookie，所以不一定在生產出現）。
+- **根因（可改掉的行為）**：把「Cookie 不存在」與「Cookie 為空字串」當同一件事卻用只處理 null 的運算子。
+- **下次怎麼避免**：兩個來源擇一一律用 `||` 並在註解說明；驗證 Cookie 流程要涵蓋「清除後的殘值」。
+- **防呆**：無（`server/utils/shop-session.ts` 與 `server/utils/member-session.ts` 兩處皆已改為 `||`）。
