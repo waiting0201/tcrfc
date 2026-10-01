@@ -87,7 +87,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `MembershipPayment` | 手動開通時寫入：`club_id`＝**受益俱樂部**（目前操作的俱樂部）、`collecting_club_id`＝**收款主體俱樂部**（`clubs.is_collecting_subject = 1`，代收代付）；`method`：`linepay`／`onsite`；`handled_by`＝經辦人 |
 | `MembershipBenefit` | **不帶 `club_id`**，靠父表方案；`benefit_group`：`member_card`／`store_discount`／`jersey`／`event`；`status`：`draft`／`published`；側表 `name`／`description`／`group_label`（由分組代碼自動帶入雙語）／`free_value`／`paid_value` |
 | `JerseyIssue` | `membership_id`（可空，舊資料）；`status`：`pending`／`shipped`／`received`；`delivery_method`：`ship`（寄送，須有電話與地址）／`pickup`（到場領取，不能標「已寄出」）；件數不得超過方案 `jersey_quota` |
-| `PartnerStore` | `club_id` 可為空＝兩隊共同（**只有系統管理員能編輯**）；`applicable_tier`：`all`／`fan_club`；`status`：`draft`／`published`；`address` 存中文地址、`partner_stores_i18n.address` 只存英文；`business_hours` 是 `json` 欄位，後台以 **JSON 字串值**儲存自由文字；`lat`／`lng` 成對、人工確認後儲存（不做即時 geocoding） |
+| `PartnerStore` | `club_id` 可為空＝兩隊共同（**只有系統管理員能編輯**）；`applicable_tier`：`all`／`fan_club`；`status`：`draft`／`published`；`address` 存中文地址、`partner_stores_i18n.address` 只存英文；`business_hours` 是 `json` 欄位，後台把自由文字存成 **JSON 物件 `{"text":"…"}`**（⛔ 不是字串純量——原生 `json` 型別只收物件與陣列，`docs/18` `E-111`；讀取端相容舊的字串純量，對外 API 仍是純文字）；`lat`／`lng` 成對、人工確認後儲存（不做即時 geocoding） |
 | `Trial`（P4） | `status`：`開放`／`額滿`／`候補`／`已結束`；`enrolled_count` 由報名狀態原子調整（待確認／已確認／已繳費／完成佔名額，取消與候補不佔）；達 `capacity` 時「開放」單向轉「額滿」 |
 | `CalendarTeamSetting`（L3） | `team_id` UNIQUE；`colour`／`sort_order` 空＝沿用 `teams.team_color`／`teams.sort_order`；`is_public = 0` 的隊別不出現在前台選單，其訂閱 feed 回 404 |
 
@@ -591,6 +591,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `ComicEpisode`（C1） | `(club_id, episode_no)` |
 | `Shipment`（C1） | `(order_id)`（每張訂單一筆） |
 | `FanEventRegistration`（C1） | `(fan_event_id, member_id)`，**過濾唯一索引**：`member_id` 非空且狀態不是 `cancelled` |
+| `FormField`（S1-10） | `(form_id)`，**過濾唯一索引** `WHERE is_summary = 1`：同一張表單最多一個「內容摘要」欄位（`UQ_form_fields_one_summary_per_form`，第二道防線，主要防線在應用層；2026-10-01 對齊 DDL） |
 | `Locale` | `code` |
 | `PressResource` | `(club_id, slug)` |
 | `FaqEmbedSlot` | `code`（S1-8 新增） |
@@ -621,6 +622,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `Enquiry` | `(form_id, status, created_at desc)`、`(assignee_admin_user_id)` | 收件匣 |
 | `AdminUserClub` | `(admin_user_id, is_active)` | **每個請求都要算資料範圍，這條是熱路徑** |
 | `FaqEmbedSlotLink` | `(faq_embed_slot_id)`（S1-8 新增） | 依掛載點反查有哪些題目被額外指定 |
+| `Registration`（試訓補） | `(trial_id, status)`（`IX_registrations_trial_status`） | `registrations` 同時服務梯次與試訓，試訓報名清單依 `trial_id` 查（2026-10-01 對齊 DDL） |
 | 帶 `club_id` 的內容表 | `(slug, club_id)` | 路由解析：俱樂部專屬優先、回退共同 |
 | 所有 `*_i18n` | `(locale)` | 翻譯狀態矩陣 |
 

@@ -219,6 +219,8 @@ public sealed class AdminJerseysAndStoresTests(AdminWriteApiFixture fixture)
             Assert.Equal("No. 1 Test Rd.", created.En!.Address);
             Assert.Equal("週一至週五 11:00–21:00", created.BusinessHours);
             Assert.Equal(24.18m, created.Lat);
+            // 營業時間存進 json 欄位必須是物件（原生 json 不收字串純量，E-111）：{"text":"…"}
+            await BizTest.ScalarGuidAsync("SELECT id FROM partner_stores WHERE id = @I AND LEFT(CAST(business_hours AS nvarchar(max)), 1) = '{'", ("@I", created.Id));
             Assert.StartsWith("test-store-", created.Slug); // 有英文名稱：由英文名稱轉出
 
             var updated = await BizTest.ReadAsync<AdminPartnerStoreDetailDto>(await service.PutAsync($"/api/v1/admin/tcrfc/partner-stores/{created.Id}",

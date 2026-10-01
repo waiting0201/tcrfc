@@ -431,7 +431,7 @@ key  = v{ver}:{club}:{locale}:article:{slug}    // 實際快取 key
 | # | 議題 | 定案 |
 |---|---|---|
 | 1 | **陣列欄位** | **維持關聯表**。`ValueTagLink` 是多型關聯，要能反查「哪些內容掛了這個標籤」；`CalendarEventTeam`、`FaqCategoryLink` 同理。SQL Server 無陣列型別，此項無變數 |
-| 2 | **JSON 欄位** | 用 **Azure SQL 原生 `json` 型別**（已 GA，二進位儲存、`JSON_VALUE` 相容、JSON 索引推出中），不用 `nvarchar(max)`。**維持「只存不查」作為設計紀律**，但原生型別保留逃生口 |
+| 2 | **JSON 欄位** | 用 **Azure SQL 原生 `json` 型別**（已 GA，二進位儲存、`JSON_VALUE` 相容、JSON 索引推出中），不用 `nvarchar(max)`。**維持「只存不查」作為設計紀律**，但原生型別保留逃生口。🔴 **原生 `json` 只接受 JSON 物件或陣列**（字串、數字、`true`／`false`、`null` 字面值、空字串都被拒，`Msg 13609`），本機 2022 的 `nvarchar(max)` 不會擋，所以**寫入 json 欄位的程式一律只寫物件或陣列，輸入驗證不符回 400**（`Common/JsonColumn.cs`，`docs/14`、`docs/18` `E-111`）；驗證用 `apps/api/scripts/native-json-test.sh`（SQL Server 2025 原生 json 容器＋原樣 DDL） |
 | 3 | **`CalendarEvent`** | 第一期用**一般 VIEW**（UNION）。⚠️ **SQL Server 的 indexed view 明文禁止 UNION／UNION ALL**，所以沒有 materialized view 這條升級路；效能不足時走**索引表 ＋ 來源模組寫入時同步**，或先靠 Redis 吸收 |
 | 4 | **全文檢索** | **第一期用跨表 `LIKE` 比對**，不建搜尋索引表、不預先加索引（資料量在數百至數千列，掃描可接受）。升級路徑是 **Azure SQL 內建全文檢索**（有中文斷詞），**不需要外掛 Meilisearch** |
 | 5 | **NULL 語意** | **弱讀法：`UNIQUE (club_id, slug)` 就夠**——SQL Server 的唯一索引把 NULL 當成相等，不需要篩選唯一索引、不需要觸發器。網址對應哪一筆由路由優先順序解決，見下 |

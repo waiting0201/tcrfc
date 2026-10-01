@@ -160,22 +160,6 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
         };
     }
 
-    /// <summary>營業時間欄位是 json：後台存的是 JSON 字串值（自由文字），這裡還原成純文字。</summary>
-    private static string? ReadHours(string? stored)
-    {
-        if (string.IsNullOrWhiteSpace(stored))
-        {
-            return null;
-        }
-
-        try
-        {
-            using var doc = JsonDocument.Parse(stored);
-            return doc.RootElement.ValueKind == JsonValueKind.String ? doc.RootElement.GetString() : stored;
-        }
-        catch (JsonException)
-        {
-            return stored;
-        }
-    }
+    /// <summary>營業時間欄位是 json：後台存 <c>{"text":"…"}</c>（自由文字），這裡還原成純文字；相容舊的 JSON 字串值。</summary>
+    private static string? ReadHours(string? stored) => JsonColumn.UnwrapText(stored);
 }

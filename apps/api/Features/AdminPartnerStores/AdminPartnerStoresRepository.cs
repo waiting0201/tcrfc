@@ -251,7 +251,7 @@ public sealed class AdminPartnerStoresRepository(ClubDbContext db, IImagePublicU
         store.Lat = request.Lat;
         store.Lng = request.Lng;
         store.Phone = v.Phone;
-        store.BusinessHours = v.Hours is null ? null : JsonSerializer.Serialize(v.Hours); // json 欄位：以 JSON 字串值儲存
+        store.BusinessHours = JsonColumn.WrapText(v.Hours); // json 欄位只收物件或陣列：自由文字包成 {"text":"…"}（docs/18 E-111）
         store.MapUrl = v.MapUrl;
         store.WebsiteUrl = v.WebsiteUrl;
         store.ApplicableTier = request.ApplicableTier;
@@ -307,23 +307,7 @@ public sealed class AdminPartnerStoresRepository(ClubDbContext db, IImagePublicU
 
     private string? Thumb(string? key) => key is null ? null : imageUrls.Resolve(ImageObjectKey.ForThumbnail(key));
 
-    private static string? ReadHours(string? stored)
-    {
-        if (string.IsNullOrWhiteSpace(stored))
-        {
-            return null;
-        }
-
-        try
-        {
-            using var doc = JsonDocument.Parse(stored);
-            return doc.RootElement.ValueKind == JsonValueKind.String ? doc.RootElement.GetString() : stored;
-        }
-        catch (JsonException)
-        {
-            return stored;
-        }
-    }
+    private static string? ReadHours(string? stored) => JsonColumn.UnwrapText(stored);
 
     private AdminPartnerStoreDetailDto ToDetail(PartnerStore store)
     {

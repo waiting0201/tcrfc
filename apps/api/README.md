@@ -18,6 +18,26 @@ Redis 檢查 ② `Caching/IQueryCache.cs` 接縫接上真正的 Redis 實作 ③
 
 ---
 
+## 原生 json 測試（2026-10-01，`docs/18` `E-111`）
+
+正式環境（Azure SQL）的 `json` 欄位是**原生 json 型別，只收 JSON 物件或陣列**；本機預設的 SQL Server 2022 容器沒有原生 json，`deploy/local-ddl.sh` 把它轉成 `nvarchar(max)`（什麼都收），所以**只在預設的 `tcrfc_club` 上跑 `dotnet test` 看不到純量寫入錯誤**。這支腳本用 `mcr.microsoft.com/mssql/server:2025-latest`（原生 json）接**原樣** `db/*.sql`（不經轉換）跑整套測試：
+
+```bash
+apps/api/scripts/native-json-test.sh up       # 建獨立容器（127.0.0.1:14335）、建兩庫（原樣 DDL）、灌既有種子；已存在就重用
+apps/api/scripts/native-json-test.sh test     # 在該容器上跑 dotnet test（可附參數，例如 --filter "FullyQualifiedName~JsonColumn"）
+apps/api/scripts/native-json-test.sh reset    # 測試弄髒資料庫時：丟掉兩庫重建
+apps/api/scripts/native-json-test.sh down     # 移除容器
+apps/api/scripts/native-json-test.sh sql "SELECT 1" [資料庫]   # 除錯用
+```
+
+- **與開發用的 `sqlserver` 容器完全隔離**：獨立容器名（`tcrfc-mssql2025-nativejson`）、獨立埠、隨機 SA 密碼（存 `~/.cache/tcrfc-native-json/sa-password`，權限 600，不進版控、不印出）；只用既有的 `db/seed/apply-seed.sh`／`apply-charity-seed.sh`（以環境變數指向該容器），不碰任何既有庫。
+- 結果（2026-10-01，本輪修正後）：**2025 原生 json 1,046 項全綠；2022 本機 1,046 項全綠**。修正前同一套在 2025 上 1,016／1,019（3 項失敗：2 項營業時間字串純量、1 項 `MembershipOrderTests` 依賴手改種子）。
+- **守門規則**：寫入 json 欄位的內容必須是物件或陣列（`Common/JsonColumn.cs`，`docs/14`）；自由文字包成 `{"text":"…"}`（營業時間）；輸入驗證不符回 400（訊息為日常中文）。12 個 json 欄位與逐一處置見 [`docs/20`](../../docs/20-cicd.md) §5。
+- **新聞內文 `articles_i18n.body`**：後台送純文字，寫入時包成 `{"text":"…"}`（物件／陣列原樣保存，為區塊編輯器保留），讀取（後台詳情、公開單篇 `bodyJson`）一律還原成原文字，對外契約不變、前端不用改（`JsonColumn.NormalizeTextOrStructured`／`UnwrapText`；`ArticleBodyJsonColumnTests`）。
+- CI 目前仍接 2022；建議改接 2025 映像檔並灌原樣 DDL（評估見 `docs/20` §5，未改 CI）。
+
+---
+
 ## S1：J1–J3 登入與授權地基（2026-09-23，`backend-engineer`）
 
 **背景**：S0-7 到 S0-8 為止，`apps/api` 完全沒有身分驗證（grep `Authentication`／`Authorize`／

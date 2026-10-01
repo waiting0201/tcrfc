@@ -373,6 +373,12 @@ public sealed class CharityProjectsAdminService(
             return null;
         }
 
+        if (element.Value.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
+        {
+            // 原生 json 欄位只收物件或陣列（docs/18 E-111）
+            throw new AdminValidationException($"{label}不是合法的區塊內容格式，請確認編輯器的輸出。");
+        }
+
         var text = element.Value.GetRawText();
         if (System.Text.Encoding.UTF8.GetByteCount(text) > MaxDescriptionBytes)
         {

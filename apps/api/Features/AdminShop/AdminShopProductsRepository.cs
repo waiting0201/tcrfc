@@ -587,7 +587,20 @@ public sealed class AdminShopProductsRepository(
     }
 
     private static string? SerializeSizeChart(JsonElement? element)
-        => element is JsonElement e && e.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined) ? e.GetRawText() : null;
+    {
+        if (element is not JsonElement e || e.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
+        {
+            return null;
+        }
+
+        // 原生 json 欄位只收物件或陣列，純量會在資料庫層變成 500（docs/18 E-111），在這裡擋成 400。
+        if (e.ValueKind is not (JsonValueKind.Object or JsonValueKind.Array))
+        {
+            throw new AdminValidationException("尺寸表格式不正確，請重新填寫尺寸表。");
+        }
+
+        return e.GetRawText();
+    }
 
     private static JsonElement? ParseSizeChart(string? raw)
     {

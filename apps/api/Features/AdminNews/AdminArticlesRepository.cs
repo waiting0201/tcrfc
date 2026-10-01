@@ -787,7 +787,8 @@ public sealed class AdminArticlesRepository(
 
         existing.Title = content.Title;
         existing.Summary = content.Summary;
-        existing.Body = content.Body;
+        // articles_i18n.body 在正式環境是原生 json（只收物件／陣列，E-111）：純文字包成 {"text":"…"}，物件／陣列原樣存；讀取一律 UnwrapText。
+        existing.Body = JsonColumn.NormalizeTextOrStructured(content.Body);
         existing.SeoTitle = content.SeoTitle;
         existing.SeoDescription = content.SeoDescription;
         existing.SeoKeywords = content.SeoKeywords;
@@ -1012,7 +1013,7 @@ public sealed class AdminArticlesRepository(
             {
                 Title = zh?.Title,
                 Summary = zh?.Summary,
-                Body = zh?.Body,
+                Body = JsonColumn.UnwrapText(zh?.Body),
                 SeoTitle = zh?.SeoTitle,
                 SeoDescription = zh?.SeoDescription,
                 SeoKeywords = zh?.SeoKeywords,
@@ -1022,7 +1023,7 @@ public sealed class AdminArticlesRepository(
             {
                 Title = en.Title,
                 Summary = en.Summary,
-                Body = en.Body,
+                Body = JsonColumn.UnwrapText(en.Body),
                 SeoTitle = en.SeoTitle,
                 SeoDescription = en.SeoDescription,
                 SeoKeywords = en.SeoKeywords,

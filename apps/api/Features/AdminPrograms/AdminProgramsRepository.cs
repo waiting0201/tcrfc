@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Caching;
+using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
@@ -341,20 +342,17 @@ public sealed class AdminProgramsRepository(ClubDbContext dbContext, IQueryCache
     /// docs/14-invariants.md「後端任何會回給使用者的訊息都視同介面文字」，故在寫入前先在應用層
     /// 驗證一次語法合法性，提前給出看得懂的中文錯誤訊息。不驗證區塊結構本身，理由見
     /// <see cref="AdminProgramLocaleContent"/> 上的說明。</summary>
-    internal static void ValidateContentJson(string? content)
+    public static void ValidateContentJson(string? content)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
             return;
         }
 
-        try
+        // 不只語法：根節點必須是物件或陣列，原生 json 欄位不收純量（docs/18 E-111）。
+        if (!JsonColumn.IsObjectOrArray(content))
         {
-            using var _ = JsonDocument.Parse(content);
-        }
-        catch (JsonException)
-        {
-            throw new AdminProgramValidationException("課程內容不是合法的 JSON 格式，請確認區塊編輯器的輸出內容。");
+            throw new AdminProgramValidationException("內容格式不正確，請確認區塊編輯器或週期時段表的輸出內容。");
         }
     }
 

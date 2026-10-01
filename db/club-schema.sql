@@ -3571,6 +3571,10 @@ CREATE INDEX IX_app_releases_i18n_locale              ON app_releases_i18n (loca
 CREATE INDEX IX_app_deep_links_i18n_locale            ON app_deep_links_i18n (locale);
 CREATE INDEX IX_app_layout_items_i18n_locale          ON app_layout_items_i18n (locale);
 CREATE INDEX IX_app_announcements_i18n_locale         ON app_announcements_i18n (locale);
+-- 對齊 docs/12b §11.2「所有 *_i18n 建 (locale) 索引」：form_fields_i18n 原本漏了（2026-10-01，AlignIndexesWithDdl2）
+CREATE INDEX IX_form_fields_i18n_locale                 ON form_fields_i18n (locale);
+-- 同上：sponsor_activations_i18n 也漏了（DDL 與 EF 原本都沒有，2026-10-01 一併補齊）
+CREATE INDEX IX_sponsor_activations_i18n_locale         ON sponsor_activations_i18n (locale);
 
 /* ============================================================================
    統一建外鍵（先共通稽核欄位 created_by／updated_by，再逐模組業務外鍵）

@@ -42,6 +42,18 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
 
     private static Task<int> CountAsync(string sql, params (string, object?)[] p) => CountScalarAsync(sql, p);
 
+    private static async Task<(Guid PlanId, DateOnly? EndsOn)> PlanOfOrderAsync(string orderNo)
+    {
+        await using var connection = new Microsoft.Data.SqlClient.SqlConnection(Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING"));
+        await connection.OpenAsync();
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT p.id, p.ends_on FROM membership_plans p JOIN membership_orders o ON o.membership_plan_id = p.id WHERE o.order_no = @N";
+        command.Parameters.AddWithValue("@N", orderNo);
+        await using var reader = await command.ExecuteReaderAsync();
+        Assert.True(await reader.ReadAsync());
+        return (reader.GetGuid(0), reader.IsDBNull(1) ? null : DateOnly.FromDateTime(reader.GetDateTime(1)));
+    }
+
     private static async Task<int> CountScalarAsync(string sql, (string Name, object? Value)[] parameters)
     {
         await using var connection = new Microsoft.Data.SqlClient.SqlConnection(Environment.GetEnvironmentVariable("CLUB_SQL_CONNECTION_STRING"));
@@ -358,10 +370,11 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     {
         var m = await _scope.CreateVerifiedMemberAsync("internal-fail");
         var orderNo = (await ReadJsonAsync(await m.Client.SendAsync(Create("single", Key())))).GetProperty("orderNo").GetString()!;
-        // 模擬方案期間已結束（付款後才發現）：開通必須失敗並留下可追蹤的狀態。種子的 tcrfc single 方案 ends_on 本來就是 NULL，finally 還原成 NULL。
-        Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_plans p JOIN membership_orders o ON o.membership_plan_id = p.id WHERE o.order_no = @N AND p.ends_on IS NULL", ("@N", orderNo)));
+        // 模擬方案期間已結束（付款後才發現）：開通必須失敗並留下可追蹤的狀態。
+        // 不依賴方案原本的 ends_on（本機庫被手動改過、新建庫是種子值）：先快照原值，finally 原樣還原。
+        var (planId, originalEndsOn) = await PlanOfOrderAsync(orderNo);
         await BizTest.ExecuteSqlAsync("UPDATE membership_orders SET status = 'paid', paid_at = SYSUTCDATETIME() WHERE order_no = @N", ("@N", orderNo));
-        await BizTest.ExecuteSqlAsync("UPDATE membership_plans SET ends_on = '2020-01-01' WHERE id = (SELECT membership_plan_id FROM membership_orders WHERE order_no = @N)", ("@N", orderNo));
+        await BizTest.ExecuteSqlAsync("UPDATE membership_plans SET ends_on = '2020-01-01' WHERE id = @P", ("@P", planId));
         try
         {
             using var factory = WithCredential(Credential);
@@ -375,7 +388,7 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
         }
         finally
         {
-            await BizTest.ExecuteSqlAsync("UPDATE membership_plans SET ends_on = NULL WHERE id = (SELECT membership_plan_id FROM membership_orders WHERE order_no = @N)", ("@N", orderNo));
+            await BizTest.ExecuteSqlAsync("UPDATE membership_plans SET ends_on = @E WHERE id = @P", ("@P", planId), ("@E", originalEndsOn.HasValue ? (object)originalEndsOn.Value.ToDateTime(TimeOnly.MinValue) : DBNull.Value));
         }
     }
 

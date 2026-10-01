@@ -463,12 +463,13 @@ public sealed class CharityDonationService(
             return false;
         }
 
+        var safeRaw = JsonColumn.CoerceToObject(rawResponse); // json 欄位只收物件或陣列（docs/18 E-111）
         await db.DonationPayments
             .Where(p => p.Id == paymentId)
             .ExecuteUpdateAsync(s => s
                 .SetProperty(p => p.Status, PaymentStatus.Confirmed)
                 .SetProperty(p => p.ConfirmedAt, now)
-                .SetProperty(p => p.RawResponse, rawResponse)
+                .SetProperty(p => p.RawResponse, safeRaw)
                 .SetProperty(p => p.UpdatedAt, now),
                 CancellationToken.None);
 
@@ -488,11 +489,12 @@ public sealed class CharityDonationService(
 
         if (moved == 1)
         {
+            var safeRaw = JsonColumn.CoerceToObject(rawResponse);
             await db.DonationPayments
                 .Where(p => p.Id == paymentId)
                 .ExecuteUpdateAsync(s => s
                     .SetProperty(p => p.Status, paymentStatus)
-                    .SetProperty(p => p.RawResponse, p => rawResponse ?? p.RawResponse)
+                    .SetProperty(p => p.RawResponse, p => safeRaw ?? p.RawResponse)
                     .SetProperty(p => p.UpdatedAt, now),
                     CancellationToken.None);
         }

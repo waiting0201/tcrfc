@@ -136,7 +136,9 @@ public static partial class AdminInput
         return $"{prefix}-{Guid.NewGuid():N}"[..(prefix.Length + 9)];
     }
 
-    /// <summary>區塊編輯器整段 JSON 的語法檢查（不驗證區塊結構），理由同 <c>AdminProgramsRepository.ValidateContentJson</c>。</summary>
+    /// <summary>區塊編輯器整段 JSON 的檢查（不驗證區塊結構），理由同 <c>AdminProgramsRepository.ValidateContentJson</c>。
+    /// 除了語法，還要求根節點是<b>物件或陣列</b>：正式環境的 json 欄位是原生 json 型別，純量（字串、數字、
+    /// true、null）會被資料庫拒絕而變成 500（docs/18 E-111），所以在這裡擋成 400。</summary>
     public static string? OptionalJson(string? content, string label)
     {
         if (string.IsNullOrWhiteSpace(content))
@@ -144,11 +146,7 @@ public static partial class AdminInput
             return null;
         }
 
-        try
-        {
-            using var _ = System.Text.Json.JsonDocument.Parse(content);
-        }
-        catch (System.Text.Json.JsonException)
+        if (!JsonColumn.IsObjectOrArray(content))
         {
             throw new AdminValidationException($"{label}不是合法的區塊內容格式，請確認編輯器的輸出。");
         }

@@ -249,7 +249,7 @@ public sealed class ArticlesRepository(
                     PublishedAt = article.PublishedAt,
                     Title = title,
                     Summary = RequestLocale.Pick(requested?.Summary, fallback?.Summary),
-                    BodyJson = RequestLocale.Pick(requested?.Body, fallback?.Body),
+                    BodyJson = RequestLocale.Pick(JsonColumn.UnwrapText(requested?.Body), JsonColumn.UnwrapText(fallback?.Body)), // 純文字內文存成 {"text":"…"}，對外還原（E-111）
                     SeoTitle = RequestLocale.Pick(requested?.SeoTitle, fallback?.SeoTitle),
                     SeoDescription = RequestLocale.Pick(requested?.SeoDescription, fallback?.SeoDescription),
                     SeoKeywords = RequestLocale.Pick(requested?.SeoKeywords, fallback?.SeoKeywords),

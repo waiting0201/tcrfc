@@ -93,6 +93,7 @@
   `apps/api/Features/AdminPages/PageBlockContentProcessor.cs` 檔頭。**日後任何「只存不查」JSON 欄位
   需要雙語時，先確認資料庫是否已經拒絕建側表**（`docs/12` §1 第 3 條「主表已放的欄位優先」），
   拒絕了就走這個巢狀物件慣例，不要另外發明第三種雙語形狀。
+- 🔴🔴 **寫入 `json` 欄位的內容必須是 JSON 物件或陣列，輸入驗證不符一律回 400，不得讓它走到資料庫變成 500**（`docs/18` `E-111`，2026-10-01）：正式環境（Azure SQL）的 `json` 是**原生型別**，字串、數字、`true`／`false`、`null` 字面值、空字串全部被拒（`Msg 13609`）；本機 2022 與預設測試用的 `nvarchar(max)` 什麼都收，**只在 2022 上綠不代表正式環境能寫**。共同守門在 `apps/api/Common/JsonColumn.cs`（`IsObjectOrArray`）：空白視為 `NULL`、其餘必須是物件或陣列。**自由文字**存進 json 欄位要包成物件（`JsonColumn.WrapText` → `{"text":"…"}`，如 `partner_stores.business_hours`；新聞內文 `articles_i18n.body` 收純文字時同樣包成 `{"text":"…"}`、物件／陣列輸入原樣存為區塊編輯器保留，用 `NormalizeTextOrStructured`），**所有讀取端一律 `UnwrapText` 還原，對外契約維持純文字**（相容舊字串純量）；**外部原始回應**（金流）用 `CoerceToObject`。新增或改動 json 欄位的寫入路徑，要在 `JsonColumnTests` 補測，並跑 `apps/api/scripts/native-json-test.sh`（SQL Server 2025 原生 json 容器＋原樣 DDL）。12 個 json 欄位清單見 `docs/20` §5。
 - 🔴 **`players`／`staff.portrait_consent_status` 預設值永遠是 `'not_consented'`，改成別的預設值是個資事故**
   （S1-8，2026-09-24；藍鯨規劃書行 198／321：「球員照片須有肖像同意（未成年須監護人同意）。同意未到位
   的球員不顯示照片，以預設圖或純文字卡呈現——不得放假圖」；主站規劃書行 1361／1691 為既有的未成年

@@ -63,6 +63,9 @@ public sealed class AdminCharityTests(AdminWriteApiFixture fixture)
             // 內容不是合法 JSON → 400；找不到公益團體 → 400；別的俱樂部的夥伴 → 400
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/v1/admin/tcrfc/charity/programs",
                 BizTest.Multipart(NewProgram(org.Id, content: "{not json")))).StatusCode);
+            // 內容是合法 JSON 但根是純量（字串、數字）→ 一樣 400：正式環境的 json 欄位只收物件或陣列（E-111）
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/v1/admin/tcrfc/charity/programs",
+                BizTest.Multipart(NewProgram(org.Id, content: "\"純文字\"")))).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/v1/admin/tcrfc/charity/programs",
                 BizTest.Multipart(NewProgram(Guid.NewGuid())))).StatusCode);
             Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/v1/admin/tcrfc/charity/programs",

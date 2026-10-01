@@ -471,7 +471,7 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 
 之後再依 §5 之前的流程起容器（`docker compose up -d`）；`api` 的 `/readyz` 應回 `club_db: ok`、`charity_db: ok`。用剛建的帳號登入主站後台與慈善後台各一次。
 
-**預期結果（以 DDL 與 `db/prod/*.sql` 實際為準，腳本自動核對）**：主站 **189 表／482 外鍵／1 視圖**、`__EFMigrationsHistory` **20 筆**；慈善 **30 表／67 外鍵／0 視圖**、**2 筆**；`admin_users` 各 1 筆。參照資料筆數寫在 SQL 檔頭的 `-- MANIFEST` 行（主站角色 10、權限碼 260、角色權限 782、固定表單 18、表單欄位 114、首頁區塊 18…；慈善角色 9、權限碼 24、角色權限 45）。
+**預期結果（以 DDL 與 `db/prod/*.sql` 實際為準，腳本自動核對）**：主站 **189 表／482 外鍵／1 視圖**、`__EFMigrationsHistory` **21 筆**；慈善 **30 表／67 外鍵／0 視圖**、**2 筆**；`admin_users` 各 1 筆。參照資料筆數寫在 SQL 檔頭的 `-- MANIFEST` 行（主站角色 10、權限碼 260、角色權限 782、固定表單 18、表單欄位 114、首頁區塊 18…；慈善角色 9、權限碼 24、角色權限 45）。
 
 **第一個管理員**
 
@@ -492,7 +492,7 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 | `--hash-password` 失敗 | 映像檔不是含此功能的版本——確認 `deploy.yml` 的 `build-api` 已對該 commit 成功、`docker pull` 到最新 |
 | Azure SQL 回報 `json` 相關錯誤 | 先查資料庫相容性層級（`SELECT compatibility_level FROM sys.databases`）；本機 SQL Server 2025 在 160 與 170 都能建 `json` 欄位，但正式庫未實測（`docs/20` §5） |
 
-🔴 **已知的程式與原生 `json` 不相容（`docs/20` §5，待裁決）**：後台儲存「含營業時間的特約店家」會在正式庫回 500（`partner_stores.business_hours` 被寫成 JSON 字串純量，原生 `json` 只收物件與陣列）。建表本身不受影響；**裁決前請勿在正式後台建立／編輯含營業時間的特約店家**，其餘 json 欄位的同類風險見該節。
+✅ **原生 `json` 不相容已於 2026-10-01 修正（`docs/20` §5、`docs/18` `E-111`）**：營業時間改存 `{"text":"…"}`，其餘 json 欄位寫入端以 `Common/JsonColumn.cs` 守門（純量回 400）。新聞內文 `body` 純文字寫入時包成 `{"text":"…"}`、讀取還原，對外不變，後台新聞照常可儲存；**初始化後請勿用舊版 api 映像檔**（舊版仍會把營業時間寫成字串純量而 500），以 `build-api` 在本修正之後建出的映像檔為準。
 
 ⚠️ **這支腳本使用 SQL 管理員帳號**（連線字串來自 `club.env`／`charity.env`），與 `api` 日常連線相同（§8 待決 4：之後建議改用最小權限的資料庫使用者）。
 

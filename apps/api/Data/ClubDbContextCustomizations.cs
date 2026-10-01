@@ -34,6 +34,9 @@ public partial class ClubDbContext
 
         // F 批（2026-10-01，S3-5）：前台結帳新增的訂單欄位、購物車索引與載具密文欄寬，見 ClubDbContextShopFront.cs。
         ConfigureShopFront(modelBuilder);
+
+        // 索引對齊 DDL（2026-10-01，docs/20 §5 差異清單；docs/18 E-111 同批），見 ClubDbContextIndexAlignment.cs。
+        ConfigureIndexAlignment(modelBuilder);
     }
 
     // 🔴 S0-7k／S0-7l（2026-09-24，docs/18-work-errors.md E-45／docs/20-cicd.md §5）：

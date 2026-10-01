@@ -18,6 +18,9 @@
 #   這些不是欄位型別宣告，不能被誤換。已實測：club-schema.sql 精準命中 10 處、
 #   charity-schema.sql 精準命中 2 處欄位宣告，註解行一處都沒被動到。
 #
+# ⚠️ 轉換後的 nvarchar(max) 什麼都收，原生 json 只收物件／陣列——驗證 json 寫入行為請用
+#    apps/api/scripts/native-json-test.sh（SQL Server 2025 原生 json 容器＋原樣 DDL，docs/18 E-111）。
+#
 # 用法：
 #   deploy/local-ddl.sh                          只產生轉換後的 SQL，印出結果路徑
 #   deploy/local-ddl.sh --apply                  產生後，額外對本機 SQL Server instance 執行 sqlcmd

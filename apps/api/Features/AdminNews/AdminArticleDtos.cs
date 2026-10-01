@@ -11,9 +11,8 @@ public sealed record AdminArticleLocaleContent
     public string? Title { get; init; }
     public string? Summary { get; init; }
 
-    /// <summary>對應 <c>articles_i18n.body</c>（實際型別是 <c>nvarchar(max)</c>，見 README
-    /// 「body 欄位的型別落差」——不強制驗證是 JSON，目前 apps/admin 的 mockup 送的是純文字，
-    /// 不是區塊編輯器的 JSON 結構）。</summary>
+    /// <summary>對應 <c>articles_i18n.body</c>（正式環境是原生 <c>json</c> 型別，只收 JSON 物件或陣列）。
+    /// 純文字寫入時包成 <c>{"text":"…"}</c>，物件／陣列原樣保存；讀取（後台與公開端點）一律還原成原文字，對外契約不變（docs/18 E-111）。</summary>
     public string? Body { get; init; }
     public string? SeoTitle { get; init; }
     public string? SeoDescription { get; init; }
