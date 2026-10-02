@@ -86,7 +86,9 @@ function classifyByStatus(body: ErrorBody | null, status: number): AdminApiError
     if (title === '排程衝突') return new AdminApiError('schedule-conflict', detail || '這個時段與其他行程衝突', { status, detail, body })
     return new AdminApiError('unknown', detail || '這筆資料目前無法這樣操作', { status, detail })
   }
-  return new AdminApiError('server', '伺服器發生未預期的錯誤，請稍後再試。', { status, detail })
+  // 🔴 一定要帶 `body`：503 的 `code`（geocoder_unavailable＝暫時故障、其他＝尚未啟用）靠它區分，
+  // 先前漏帶，「由地址定位」暫時故障會被誤判成尚未啟用而把按鈕停用（docs/18 E-140）。
+  return new AdminApiError('server', '伺服器發生未預期的錯誤，請稍後再試。', { status, detail, body })
 }
 
 async function readErrorBody(response: Response): Promise<ErrorBody | null> {

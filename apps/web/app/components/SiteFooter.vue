@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { PublicPartner } from '#shared/utils/partners'
+import { menuItemHref, type PublicMenuItem } from '#shared/utils/site-settings'
 // app/components/SiteFooter.vue — 由 site/src/partials/footer.html 轉來（DOM／class 不動）
 //
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：品牌欄一句話介紹、
@@ -36,6 +37,65 @@ const { data: footerPartnerData } = useFetch<PublicPartner[]>(() => `/api/backen
   key: `partners-footer-${config.public.club}-${locale.value}`,
 })
 const footerPartners = computed(() => (footerPartnerData.value ?? []).slice(0, 8))
+
+// I2 選單管理（H 批）：後台設定了頁尾選單就改讀 API，沒有時沿用下方寫死的三欄連結（過渡策略，見 useSiteMenus.ts）。
+// 每個有子項目的頂層項目是一欄（標題＋連結）；沒有子項目的頂層項目集中放進最後一欄「更多連結」。
+const { footer: apiFooter } = useSiteMenus()
+const useApiFooter = computed(() => apiFooter.value.length > 0)
+interface FooterColumn { id: string, title: string, links: PublicMenuItem[] }
+const footerColumns = computed<FooterColumn[]>(() => {
+  const columns: FooterColumn[] = apiFooter.value
+    .filter((i) => i.children.length > 0)
+    .map((i) => ({ id: i.id, title: i.label, links: i.children }))
+  const loose = apiFooter.value.filter((i) => i.children.length === 0)
+  if (loose.length > 0) columns.push({ id: 'loose', title: '更多連結', links: loose })
+  return columns
+})
+function hrefOf(item: PublicMenuItem): string | null {
+  return menuItemHref(item, lp)
+}
+
+// G-09 電子報訂閱（H 批）：POST newsletter/subscribe。單一確認（勾選同意即訂閱）、不寄確認信；
+// 曾退訂的信箱再送出不會改回訂閱，且回應不透露名單狀態，所以成功文案刻意中性（「已收到」而非「訂閱完成」）。
+// 介面字串（`newsletter.*`）是 I4 字串翻譯表的示範接入點：後台建立同代號字串即覆寫，沒建立就用原本的文字。
+const { t } = useUiStrings()
+const nlEmail = ref('')
+const nlConsent = ref(false)
+const nlWebsite = ref('')
+const nlStatus = ref<'idle' | 'submitting' | 'success' | 'error'>('idle')
+const nlMessage = ref('')
+async function onSubscribe() {
+  if (nlStatus.value === 'submitting') return
+  nlMessage.value = ''
+  if (!nlConsent.value) {
+    nlStatus.value = 'error'
+    nlMessage.value = t('newsletter.consent_required', '請先勾選同意，才能訂閱電子報。')
+    return
+  }
+  // 誘捕欄位有值＝機器人：安靜當作成功，不送出（端點本身另有依 IP 的限流）。
+  if (nlWebsite.value) {
+    nlStatus.value = 'success'
+    nlMessage.value = t('newsletter.success', '已收到您的訂閱申請，感謝您！')
+    return
+  }
+  nlStatus.value = 'submitting'
+  try {
+    await $fetch(`/api/backend/${club.value}/newsletter/subscribe`, {
+      method: 'POST',
+      body: { email: nlEmail.value.trim(), consent: true, source: 'footer', website: nlWebsite.value || undefined },
+    })
+    nlStatus.value = 'success'
+    nlMessage.value = t('newsletter.success', '已收到您的訂閱申請，感謝您！')
+    nlEmail.value = ''
+    nlConsent.value = false
+  }
+  catch (err: unknown) {
+    nlStatus.value = 'error'
+    const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
+    nlMessage.value = extractErrorMessage(err)
+      ?? (status === 429 ? '送出次數過多，請稍候幾分鐘再試。' : t('newsletter.error', '訂閱失敗，請確認 Email 格式後再試一次。'))
+  }
+}
 </script>
 
 <template>
@@ -52,6 +112,18 @@ const footerPartners = computed(() => (footerPartnerData.value ?? []).slice(0, 8
           </nav>
         </div>
 
+        <template v-if="useApiFooter">
+          <div v-for="col in footerColumns" :key="col.id" class="footer-col">
+            <h4 aria-level="2">{{ col.title }}</h4>
+            <ul>
+              <li v-for="link in col.links" :key="link.id">
+                <a v-if="hrefOf(link)" :href="hrefOf(link)!" v-bind="link.isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {}">{{ link.label }}</a>
+                <span v-else>{{ link.label }}</span>
+              </li>
+            </ul>
+          </div>
+        </template>
+        <template v-else>
         <div class="footer-col">
           <h4 aria-level="2">俱樂部</h4>
           <ul>
@@ -84,14 +156,24 @@ const footerPartners = computed(() => (footerPartnerData.value ?? []).slice(0, 8
             <li><a :href="lp('/zh/join/location/')">場地位置與地圖</a></li>
           </ul>
         </div>
+        </template>
         <div class="footer-col newsletter">
-          <h4 aria-level="2">訂閱電子報</h4>
-          <p>第一時間收到{{ assets.shortNameZh }}賽事戰報與活動資訊。</p>
-          <form @submit.prevent>
+          <h4 aria-level="2">{{ t('newsletter.title', '訂閱電子報') }}</h4>
+          <p>{{ t('newsletter.lede', `第一時間收到${assets.shortNameZh}賽事戰報與活動資訊。`) }}</p>
+          <form @submit.prevent="onSubscribe">
             <label class="visually-hidden" for="newsletter-email">電子郵件地址</label>
-            <input type="email" id="newsletter-email" placeholder="輸入您的 Email" autocomplete="email" required>
-            <button type="submit">訂閱</button>
+            <input id="newsletter-email" v-model="nlEmail" type="email" placeholder="輸入您的 Email" autocomplete="email" required maxlength="254">
+            <div class="visually-hidden" aria-hidden="true">
+              <label for="newsletter-website">Leave this field blank</label>
+              <input id="newsletter-website" v-model="nlWebsite" type="text" name="website" tabindex="-1" autocomplete="off">
+            </div>
+            <button type="submit" :disabled="nlStatus === 'submitting'">{{ t('newsletter.button', '訂閱') }}</button>
           </form>
+          <div class="newsletter__consent">
+            <input id="newsletter-consent" v-model="nlConsent" type="checkbox">
+            <label for="newsletter-consent">{{ t('newsletter.consent', '我同意接收電子報，並已閱讀') }}<a :href="lp('/zh/privacy/')">{{ t('newsletter.privacy_link', '隱私權政策') }}</a></label>
+          </div>
+          <p v-if="nlMessage" class="newsletter__status" :class="`newsletter__status--${nlStatus}`" :role="nlStatus === 'error' ? 'alert' : 'status'">{{ nlMessage }}</p>
         </div>
       </div>
 
@@ -126,6 +208,15 @@ const footerPartners = computed(() => (footerPartnerData.value ?? []).slice(0, 8
 </template>
 
 <style>
+/* G-09 電子報訂閱回饋（H 批）：深色頁尾底，勾選同意與狀態訊息 */
+.newsletter__consent{ display:flex; align-items:flex-start; gap:.5rem; margin-top:.75rem; font-size:.78rem; line-height:1.5; color:var(--muted-dark); }
+.newsletter .newsletter__consent{ max-width:320px; }
+.newsletter .newsletter__consent input[type="checkbox"]{ width:16px; min-width:16px; height:16px; min-height:0; padding:0; margin-top:.2rem; flex:0 0 auto; }
+.newsletter .newsletter__consent label{ flex:1 1 auto; min-width:0; }
+.newsletter__consent a{ color:#fff; text-decoration:underline; }
+.newsletter__status{ margin-top:.6rem; font-size:.8rem; line-height:1.5; }
+.newsletter__status--success{ color:#fff; }
+.newsletter__status--error{ color:#FFB4B4; }
 /* 頁尾贊助夥伴 Logo 列（S2-7）：深色底、單排可換行，Logo 一律縮到同高 */
 .footer-partners{ display:flex; flex-wrap:wrap; align-items:center; gap:1rem 2rem; padding:1.75rem 0; border-bottom:1px solid rgba(255,255,255,.08); }
 .footer-partners__label{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:#fff; }

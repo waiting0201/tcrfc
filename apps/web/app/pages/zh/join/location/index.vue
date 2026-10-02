@@ -22,6 +22,17 @@ const mapQuery = computed(() => encodeURIComponent(facts.value.contact.address ?
 const mapEmbedSrc = computed(() => `https://www.google.com/maps?q=${mapQuery.value}&output=embed`)
 const mapNavHref = computed(() => `https://www.google.com/maps/search/?api=1&query=${mapQuery.value}`)
 
+// I5 場地管理（H 批）：後台維護的場地（名稱、地址、經緯度、交通說明、照片）。有資料時改由 API 呈現場地卡、地圖與交通說明，
+// 沒有資料（API 無場地或打不到）時沿用上方 site-facts 的既有內容（過渡策略）。
+const { venues } = await usePublicVenues()
+const hasApiVenues = computed(() => venues.value.length > 0)
+const apiPrimaryVenue = computed(() => venues.value.find((v) => v.isHome) ?? venues.value[0] ?? null)
+const apiEmbedSrc = computed(() => (apiPrimaryVenue.value ? venueEmbedSrc(apiPrimaryVenue.value) : null))
+const showMap = computed(() => (hasApiVenues.value ? !!apiEmbedSrc.value : !!facts.value.contact.address))
+const embedSrc = computed(() => (hasApiVenues.value ? apiEmbedSrc.value : mapEmbedSrc.value))
+const primaryNavHref = computed(() => (apiPrimaryVenue.value ? venueMapHref(apiPrimaryVenue.value) : null) ?? mapNavHref.value)
+const primaryName = computed(() => apiPrimaryVenue.value?.name ?? primaryVenue.value.nameZh)
+
 useSeoMeta({
   title: computed(() => `場地位置與地圖 Location & Map｜加入與聯絡｜${getClubAssets(clubKey.value).nameZh}`),
   description: computed(() => (isTcrfc.value
@@ -60,7 +71,15 @@ useSeoMeta({
       </div>
     </div>
 
-    <div v-if="isTcrfc" class="grid grid--3">
+    <div v-if="hasApiVenues" class="grid grid--3">
+      <article v-for="v in venues" :key="v.id" class="venue-card">
+        <img v-if="v.photoUrl" class="venue-card__photo" :src="v.photoUrl" :alt="v.photoAlt ?? ''" :width="v.photoWidth ?? undefined" :height="v.photoHeight ?? undefined" loading="lazy">
+        <p class="venue-card__label">{{ v.isHome ? '主場' : '場地' }}</p>
+        <h3 class="venue-card__name">{{ v.name }}</h3>
+        <p class="venue-card__addr">{{ v.address ?? '地址資訊準備中，稍後將於本頁公布。' }}</p>
+      </article>
+    </div>
+    <div v-else-if="isTcrfc" class="grid grid--3">
       <article class="venue-card">
         <p class="venue-card__label">訓練基地</p>
         <h3 class="venue-card__name">Training Base</h3>
@@ -105,8 +124,8 @@ useSeoMeta({
 
     <div class="map-embed">
       <iframe
-        v-if="facts.contact.address"
-        :src="mapEmbedSrc"
+        v-if="showMap"
+        :src="embedSrc ?? undefined"
         :title="`Google Map：${getClubAssets(clubKey).shortNameZh}主場位置`"
         loading="lazy"
         referrerpolicy="no-referrer-when-downgrade"
@@ -125,7 +144,17 @@ useSeoMeta({
         <h2 class="section-title" id="directions-title">怎麼到場地</h2>
       </div>
     </div>
-    <div class="grid grid--3">
+    <div v-if="hasApiVenues" class="grid grid--3">
+      <div v-for="v in venues" :key="v.id" class="direction-card">
+        <p class="direction-card__mode">{{ v.name }}</p>
+        <template v-if="splitParagraphs(v.directions).length > 0">
+          <p v-for="(para, i) in splitParagraphs(v.directions)" :key="i" class="direction-card__text">{{ para }}</p>
+        </template>
+        <p v-else>詳細路線指引準備中，稍後將於本頁公布。</p>
+        <a v-if="venueMapHref(v)" :href="venueMapHref(v)!" target="_blank" rel="noopener">開啟 Google 導航<span class="visually-hidden">（新分頁開啟）</span></a>
+      </div>
+    </div>
+    <div v-else class="grid grid--3">
       <div class="direction-card">
         <p class="direction-card__mode">開車</p>
         <p>詳細路線指引準備中，稍後將於本頁公布。</p>
@@ -136,7 +165,7 @@ useSeoMeta({
       </div>
       <div class="direction-card">
         <p class="direction-card__mode">導航連結</p>
-        <a :href="mapNavHref" target="_blank" rel="noopener">開啟 Google 導航（{{ primaryVenue.nameZh }}）<span class="visually-hidden">（新分頁開啟）</span></a>
+        <a :href="primaryNavHref" target="_blank" rel="noopener">開啟 Google 導航（{{ primaryName }}）<span class="visually-hidden">（新分頁開啟）</span></a>
       </div>
     </div>
   </div>
@@ -163,5 +192,7 @@ useSeoMeta({
 .direction-card{ padding:1.75rem; border:1px solid var(--rule); background:var(--paper); }
 .direction-card__mode{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); margin-bottom:.9rem; }
 .direction-card p{ font-size:.85rem; color:var(--muted); }
+.direction-card__text{ white-space:pre-line; overflow-wrap:anywhere; margin-bottom:.6rem; }
+.venue-card__photo{ display:block; width:100%; height:auto; aspect-ratio:16/9; object-fit:cover; margin-bottom:1rem; }
 .direction-card a{ font-size:.85rem; font-weight:700; color:var(--brand-aa); }
 </style>

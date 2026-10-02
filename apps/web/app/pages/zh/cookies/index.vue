@@ -8,6 +8,9 @@ const config = useRuntimeConfig()
 // BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets().nameZh，理由同 privacy/index.vue。
 const clubNameZh = computed(() => getClubAssets(config.public.club).nameZh)
 
+// I3 全域設定（H 批）：同 privacy/index.vue——後台填寫了 Cookie 政策就改顯示該內容，否則沿用既有靜態文字。
+const { policy, paragraphs } = await usePolicy('cookie')
+
 useSeoMeta({
   title: computed(() => `Cookie 政策 Cookie Policy｜${clubNameZh.value}`),
   description: computed(() => `${clubNameZh.value} Cookie 政策：說明本站使用的 Cookie 類型與管理方式。`),
@@ -36,7 +39,11 @@ useSeoMeta({
   <div class="band-inner container">
     <h2 class="visually-hidden" id="cookies-title">Cookie 政策內文</h2>
 
-    <div class="prose">
+    <div v-if="policy" class="prose policy-body">
+      <p v-for="(para, i) in paragraphs" :key="i" class="policy-body__p">{{ para }}</p>
+      <p v-if="policy.updatedAt" class="policy-body__updated">最後更新：{{ policy.updatedAt.slice(0, 10).replaceAll('-', '/') }}</p>
+    </div>
+    <div v-else class="prose">
       <h2>一、什麼是 Cookie</h2>
 
       <h2>二、本站使用的 Cookie 類型</h2>
@@ -80,4 +87,7 @@ useSeoMeta({
 .cookie-type-card{ background:var(--paper-2); border:1px solid var(--rule); padding:1.5rem; }
 .cookie-type-card__label{ font-weight:800; color:var(--brand-aa); margin-bottom:.5rem; font-size:.92rem; }
 .cookie-type-card p{ font-size:.85rem; line-height:1.6; color:var(--text); }
+.policy-body{ max-width:78ch; }
+.policy-body__p{ white-space:pre-line; overflow-wrap:anywhere; margin:0 0 1.1rem; line-height:1.85; }
+.policy-body__updated{ margin-top:2rem; font-size:.82rem; color:var(--muted); }
 </style>

@@ -44,6 +44,16 @@ const PROPOSAL_DOWNLOAD_REQUEST_PATH = /^[a-z][a-z0-9-]*\/proposals\/[0-9a-f]{8}
 // 主站規劃書 §3.14：網頁前台維持不做報名歸戶）。
 const PROGRAM_REGISTRATION_PATH = /^[a-z][a-z0-9-]*\/programs\/sessions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/registrations$/i
 
+// ── 2026-10-02 H 批新增：P4 試訓公開報名、G-09 電子報訂閱／退訂、G-02 搜尋零結果記錄 ──────────────
+// 對應 apps/api（apps/api/README.md「H 批」§2／§3／§4）：
+//   - `POST /api/v1/{club}/trials/{trialId}/registrations`（掛 `public-trial-registration` 限流依 IP 分區，要轉發訪客 IP）
+//   - `POST /api/v1/{club}/newsletter/subscribe`／`unsubscribe`（掛 `public-newsletter` 限流，訂閱與退訂共用）
+//   - `POST /api/v1/{club}/faqs/search-misses`（既有端點，全站搜尋零結果時記錄；本批前沒有前台呼叫端）
+// 同樣只放行這幾種路徑形狀（trialId 必須是 GUID），不是「POST 且非表單就一律放行」。
+const TRIAL_REGISTRATION_PATH = /^[a-z][a-z0-9-]*\/trials\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/registrations$/i
+const NEWSLETTER_PATH = /^[a-z][a-z0-9-]*\/newsletter\/(subscribe|unsubscribe)$/
+const SEARCH_MISS_PATH = /^[a-z][a-z0-9-]*\/faqs\/search-misses$/
+
 // 兩條「檔案下載」GET 路徑不能走下面 GET 分支的 `$fetch`（它會把二進位內容當 JSON／文字解析，
 // 丟掉 Content-Type／Content-Disposition，也會在伺服器端自己跟著 302 走掉）：
 //   - 提案檔：`/{club}/proposals/downloads/{token}`，API 串流 PDF／ZIP（`Cache-Control: private,
@@ -57,6 +67,25 @@ const PRESS_DOWNLOAD_PATH = /^[a-z][a-z0-9-]*\/press\/[a-z0-9-]+\/download$/
 function forwardedIpHeaders(event: Parameters<typeof getRequestHeader>[0]): Record<string, string> | undefined {
   const realIp = getRequestHeader(event, 'x-real-ip')?.trim()
   return realIp && isIP(realIp) ? { 'x-forwarded-for': realIp } : undefined
+}
+
+/**
+ * 上游 4xx → 以 createError 重丟同狀態碼並把後端的中文訊息放進 `message`（E-131／H 批）。
+ * $fetch 丟出的 FetchError 不是 h3 的「已處理錯誤」，Nitro 正式環境會把它當未處理例外，`message` 一律變 "Server Error"、
+ * `data` 被拿掉——瀏覽器永遠看不到後端刻意寫給使用者的訊息。POST 分支早在課程報名時修過；H 批的全站搜尋（GET，
+ * 400 會說明「英文關鍵字至少需要 2 個字元」）同樣需要，所以 GET 分支也走這個函式。回 null＝不是 4xx，呼叫端自行處理。
+ */
+function clientErrorFrom(err: unknown) {
+  const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
+  if (typeof status !== 'number' || status < 400 || status >= 500) return null
+  const data = (err as { data?: unknown }).data
+  let message = ''
+  if (typeof data === 'string') message = data
+  else if (data && typeof data === 'object') {
+    const d = data as { detail?: unknown, message?: unknown, title?: unknown }
+    message = [d.detail, d.message, d.title].find((v): v is string => typeof v === 'string' && v.length > 0) ?? ''
+  }
+  return createError({ statusCode: status, statusMessage: status === 429 ? 'Too Many Requests' : undefined, message: message || undefined })
 }
 
 export default defineEventHandler(async (event) => {
@@ -108,10 +137,16 @@ export default defineEventHandler(async (event) => {
   if (method === 'GET') {
     // 既有行為不變：無 body，直接轉發查詢字串。
     const query = getQuery(event)
-    return await $fetch(`/api/v1/${path}`, { baseURL: backendApiBase(), method, query })
+    try {
+      return await $fetch(`/api/v1/${path}`, { baseURL: backendApiBase(), method, query })
+    }
+    catch (err: unknown) {
+      // 4xx：保留後端訊息（上面說明）；5xx 與連不上維持原行為（原樣丟出）
+      throw clientErrorFrom(err) ?? err
+    }
   }
 
-  if (method !== 'POST' || !(FORM_SUBMISSION_PATH.test(path) || FAQ_FEEDBACK_PATH.test(path) || PROPOSAL_DOWNLOAD_REQUEST_PATH.test(path) || PROGRAM_REGISTRATION_PATH.test(path))) {
+  if (method !== 'POST' || !(FORM_SUBMISSION_PATH.test(path) || FAQ_FEEDBACK_PATH.test(path) || PROPOSAL_DOWNLOAD_REQUEST_PATH.test(path) || PROGRAM_REGISTRATION_PATH.test(path) || TRIAL_REGISTRATION_PATH.test(path) || NEWSLETTER_PATH.test(path) || SEARCH_MISS_PATH.test(path))) {
     throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })
   }
 
@@ -154,17 +189,6 @@ export default defineEventHandler(async (event) => {
     })
   }
   catch (err: unknown) {
-    const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
-    if (typeof status === 'number' && status >= 400 && status < 500) {
-      const data = (err as { data?: unknown }).data
-      let message = ''
-      if (typeof data === 'string') message = data
-      else if (data && typeof data === 'object') {
-        const d = data as { detail?: unknown, message?: unknown, title?: unknown }
-        message = [d.detail, d.message, d.title].find((v): v is string => typeof v === 'string' && v.length > 0) ?? ''
-      }
-      throw createError({ statusCode: status, statusMessage: status === 429 ? 'Too Many Requests' : undefined, message: message || undefined })
-    }
-    throw createError({ statusCode: 502, statusMessage: 'Bad Gateway' })
+    throw clientErrorFrom(err) ?? createError({ statusCode: 502, statusMessage: 'Bad Gateway' })
   }
 })
