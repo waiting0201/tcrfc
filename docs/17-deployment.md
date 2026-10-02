@@ -723,18 +723,18 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 
 ### 10.1 上線前的暫用網址（已定案）
 
-一律用已持有、DNS 自控的 `tcrfc.tw` 子網域，**不臨時申請新網域、不用第三方免費子網域服務**：
+**2026-10-02 改定：暫用網址改掛在 `4webdemo.com`**（開發方自有、已在 Cloudflare 代管的 demo 網域），不再用 `tcrfc.tw` 子網域。六個網址一律放在**同一層**子網域並加 `tcrfc-` 前綴——🔴 **Cloudflare 免費憑證（Universal SSL）只涵蓋 `*.4webdemo.com` 一層**，`admin.tcrfc.4webdemo.com` 這種兩層的寫法在 Cloudflare 邊緣會憑證錯誤；前綴則避免與同網域上其他客戶的 demo 撞名。DNS 為 A 紀錄指向 VM 靜態 Public IP、**Proxied**（NSG 只放行 Cloudflare 段），SSL/TLS 模式 **Full (strict)**。
 
 | 服務 | 上線前暫用網址 | 對應正式網址（六個中五個尚未定案） |
 |---|---|---|
-| 主站前台 | `stg.tcrfc.tw` | `tcrfc.tw` 或 `www.tcrfc.tw`——**尚未定案**，見 §10.6 |
-| 藍鯨官網前台 | `bw-stg.tcrfc.tw` | 藍鯨自己的網域，擋在 B-4 |
-| 慈善平台前台 | `charity-stg.tcrfc.tw` | 慈善自己的網域，擋在 B-7 |
-| 官網共用後台 | `admin-stg.tcrfc.tw` | `admin.tcrfc.tw`——**不受主站切換影響，可提前定案**（見 §10.7） |
-| 慈善獨立後台 | `admin-charity-stg.tcrfc.tw` | 依慈善網域決定 |
-| API | `api-stg.tcrfc.tw` | `api.tcrfc.tw` |
+| 主站前台 | `tcrfc.4webdemo.com` | `tcrfc.tw` 或 `www.tcrfc.tw`——**尚未定案**，見 §10.6 |
+| 藍鯨官網前台 | `tcrfc-bw.4webdemo.com` | 藍鯨自己的網域，擋在 B-4 |
+| 慈善平台前台 | `tcrfc-charity.4webdemo.com` | 慈善自己的網域，擋在 B-7 |
+| 官網共用後台 | `tcrfc-admin.4webdemo.com` | `admin.tcrfc.tw`——**不受主站切換影響，可提前定案**（見 §10.7） |
+| 慈善獨立後台 | `tcrfc-admin-charity.4webdemo.com` | 依慈善網域決定 |
+| API | `tcrfc-api.4webdemo.com` | `api.tcrfc.tw` |
 
-**選這條路的理由**：`tcrfc.tw` 本身的 DNS 控制權已在手上（不像藍鯨與慈善還在等網域），子網域的 TLS 憑證用
+**選這條路的理由**（原為 `tcrfc.tw` 子網域時寫下，換成 `4webdemo.com` 後同樣成立）：DNS 控制權在手上，子網域的 TLS 憑證用
 既有的 Caddy 自動 HTTPS 機制照樣簽得出來，且**切換時只需要改 `.env` 的值再重啟 `proxy`**——
 不需要換基礎設施、不需要換資料庫、不需要換 CI 設定。這正是 [`13-blue-whale-site.md`](13-blue-whale-site.md) §6
 紀律 7、8「網域只能在 `docker run` 階段給」這個既有設計換來的紅利：**上線前到正式期的切換，本質上只是換一次環境變數的值**。

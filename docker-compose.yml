@@ -101,12 +101,13 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${IMAGE_TAG:-master}
     restart: unless-stopped
     environment:
       NUXT_PUBLIC_CLUB: tcrfc
       # ⛔ 只在這裡（run 階段）給，絕不在 build 階段給——docs/13 §6 紀律 7、8
       NUXT_PUBLIC_SITE_URL: https://${TCRFC_DOMAIN}
+      NUXT_PUBLIC_BLUE_WHALE_SITE_URL: https://${BW_DOMAIN} # 主站 04 女足頁導往藍鯨站；不給就落回 nuxt.config.ts 寫死的預設值
       # prelaunch／production 切換旗標（docs/17-deployment.md §10.4）：prelaunch 時輸出
       # robots.txt Disallow: / 與 X-Robots-Tag noindex，蓋掉 GEO-02 正式規則。
       # ⚠️ 這是同一套正式環境的兩個階段，不是兩套環境——環境只有本機開發與正式 VM 兩套。
@@ -138,7 +139,7 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${IMAGE_TAG:-latest} # 與 nuxt-tcrfc 同一個映像檔
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${IMAGE_TAG:-master} # 與 nuxt-tcrfc 同一個映像檔
     restart: unless-stopped
     environment:
       NUXT_PUBLIC_CLUB: bw
@@ -168,7 +169,7 @@ services:
     build:
       context: ./apps/web-charity
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-charity:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-charity:${IMAGE_TAG:-master}
     restart: unless-stopped
     environment:
       NUXT_PUBLIC_SITE_URL: https://${CHARITY_DOMAIN}
@@ -193,7 +194,7 @@ services:
     build:
       context: ./apps/admin
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-web:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-web:${IMAGE_TAG:-master}
     restart: unless-stopped
     environment:
       # SPA 的 API 基底網址；若專案設計成建置期注入，這裡要改成傳給 build 的 ARG，需同步調整 Dockerfile
@@ -214,7 +215,7 @@ services:
     build:
       context: ./apps/admin-charity
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-charity:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-charity:${IMAGE_TAG:-master}
     restart: unless-stopped
     environment:
       VITE_API_BASE: https://${API_DOMAIN}
@@ -235,7 +236,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-api:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-api:${IMAGE_TAG:-master}
     restart: unless-stopped
     depends_on:
       redis: { condition: service_healthy }

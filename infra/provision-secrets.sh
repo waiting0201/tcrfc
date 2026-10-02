@@ -27,7 +27,7 @@
 #   VM_USER         VM 管理員，預設 azureuser
 #   SSH_KEY         SSH 私鑰路徑，預設交給 ssh 自己決定
 #   GHCR_OWNER      預設取 .env.example
-#   IMAGE_TAG       預設 latest（正式部署由 deploy.yml 覆寫成 git SHA）
+#   IMAGE_TAG       預設 master（deploy.yml 只推 :master 與 git SHA 兩種標籤，沒有 :latest）
 #   MSSQL_TOOLS_IMAGE  驗證連線用的映像檔，預設 mcr.microsoft.com/mssql-tools
 set -euo pipefail
 
@@ -77,7 +77,7 @@ for k in ${DOMAIN_KEYS}; do
   valid_domain "${v}" || die ".env.example 的 ${k} 解析不到合法網域"
 done
 GHCR_OWNER="${GHCR_OWNER:-$(example_get GHCR_OWNER)}"
-IMAGE_TAG="${IMAGE_TAG:-latest}"
+IMAGE_TAG="${IMAGE_TAG:-master}"
 [ -n "${GHCR_OWNER}" ] || die "GHCR_OWNER 為空"
 
 # ── az 查詢（唯讀）──────────────────────────────────────────────────────

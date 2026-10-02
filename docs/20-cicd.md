@@ -43,6 +43,7 @@
 | 事件 | Workflow | 動作 | 跑在哪 |
 |---|---|---|---|
 | push → `master` | `deploy.yml` | build（僅變動的應用）→ push ghcr → 部署 → 健康檢查 → 失敗自動回滾 → 清快取 | build 用 hosted；部署用 self-hosted |
+| 手動（`workflow_dispatch`） | `deploy.yml` | **五個映像檔全部重建並推送**（不看變動範圍）。首次部署、映像檔遺失或要強制重建時用（2026-10-02 加，E-112）。映像檔標籤只有 `:master` 與 git SHA，**沒有 `:latest`**——`IMAGE_TAG` 預設 `master` | hosted |
 | `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ OpenAPI 漂移檢查（若後台前端有型別產生器） | 一律 hosted |
 | 手動 | `db-migrate.yml` | 套用 EF Core migration，需 `production-db` 環境核准 | self-hosted |
 | 手動 | `rollback.yml` | 指定 SHA 重新部署舊映像檔 | self-hosted |

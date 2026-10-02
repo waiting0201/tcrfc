@@ -123,6 +123,7 @@
 | E-109 | 2026-10-01 | `docker-compose.yml` 的 `api` 沒設 `DATA_PROTECTION_KEYS_PATH`、也沒掛 volume——程式沒讀到該變數不會報錯，Data Protection 金鑰環只活在容器可寫層，**容器一重建就讓 2FA、慈善身分證字號與載具、推播權杖、商店與慈善金流／發票憑證全部永久無法解密**；寫 VM 機密檔的任務盤點設定鍵時才發現。同時發現 `apps/api/Dockerfile` 註解把非 root 使用者 uid 寫成 64198（實測 1654），照它建目錄會讓 api 寫不進去 | ✅ compose 已修；`apps/api` 啟動檢查已實作（2026-10-01）；`docs/14` 已加不變量 |
 | E-110 | 2026-10-01 | `deploy.yml` 從 2026-09-25 起每次 push 都 `startup_failure`（呼叫 reusable workflow 的 job 沒授予被呼叫端要的 `packages: write`），六天、十餘次 push 沒人追；`actionlint` 通過所以本機看不出來。直到正式庫初始化要用 api 映像檔才發現 ghcr 從未有映像檔 | ⚠️ 無（建議：push 後檢查 `gh run list` 的結論，`startup_failure` 視同紅燈） |
 | E-111 | 2026-10-01 | 正式環境（Azure SQL）的 `json` 欄位是原生型別、只收物件／陣列，但本機與測試是 `nvarchar(max)`（什麼都收）：`partner_stores.business_hours` 被寫成 JSON 字串純量、新聞內文接受任意純文字、多個「只驗是合法 JSON」的輸入允許純量，正式後台儲存會 500，**整套 1,000+ 項測試全綠、本機實測也全綠**；直到拿 SQL Server 2025 原生 json 容器接原樣 DDL 演練才發現 | ✅ `Common/JsonColumn.cs` 統一守門（結構化輸入的純量回 400；自由文字欄位如營業時間、新聞內文包成 `{"text":"…"}`）；`JsonColumnTests`；`apps/api/scripts/native-json-test.sh`（原生 json 容器，可重跑）；`docs/14` 不變量。⚠️ CI 仍接 2022（建議改 2025，見 `docs/20` §5） |
+| E-112 | 2026-10-02 | 第一次要在 VM 起容器時才發現兩處「設定與產出沒對撞」：compose／`.env.example`／`provision-secrets.sh` 的 `IMAGE_TAG` 預設是 `latest`，但 `deploy.yml` 只推 `:master` 與 git SHA，照預設起會拉不到映像檔；主站 `nuxt-tcrfc` 沒給 `NUXT_PUBLIC_BLUE_WHALE_SITE_URL`，女足頁導往藍鯨站的連結落回 `nuxt.config.ts` 寫死的 `bw-stg.tcrfc.tw` | ⚠️ 無 |
 
 ---
 
@@ -2328,3 +2329,9 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：①**測試環境與正式環境的欄位型別不同，卻沒有任何一次測試在正式型別上跑過**——「把 `json` 轉成 `nvarchar(max)` 只是驗證環境的限制」這句話（`docs/12` §1.4、`docs/20`）只描述了「DDL 沒寫錯」，沒有追問「型別換掉之後哪些行為不再被檢驗」；②驗證邏輯寫成「是不是合法 JSON」（語法），而原生型別的契約是「根節點是物件或陣列」（結構），兩者不同卻被當成同一件事；③「自由文字存進 json 欄位」被當成「序列化成 JSON 字串」，沒有想過原生 json 不收純量；④同一個欄位的寫入點分散在各 repository，沒有共同守門，每個作者各自決定驗到哪裡。
 - **下次怎麼避免**：①任何「測試環境換掉了某個正式環境型別／行為」的差異，必須列出**哪些行為因此不再被檢驗**，並在正式型別上跑一次（本案是 SQL Server 2025 容器＋原樣 DDL）；②json 欄位的寫入一律走 `Common/JsonColumn.cs`（`IsObjectOrArray`／`WrapText`／`CoerceToObject`），**不要各自 `JsonDocument.Parse` 驗語法就算數**；③自由文字不要直接序列化成 JSON 字串，包成物件；④新增 json 欄位時，在 `JsonColumnTests` 補純量案例。
 - **防呆**：✅ `JsonColumn`＋`JsonColumnTests`（2022 與 2025 行為一致）；✅ `apps/api/scripts/native-json-test.sh` 可重跑原生 json 全套測試（本輪 2025：1,046 項全綠）；✅ `docs/14` 不變量。⚠️ **CI 仍接 SQL Server 2022**，下一個新增的 json 寫入點若沒走 `JsonColumn`、又沒人手動跑原生 json 腳本，仍會重演——建議 `ci.yml` 的 `api` job 改接 `mcr.microsoft.com/mssql/server:2025-latest` 並灌原樣 `db/*.sql`（`docs/20` §5，`deployment-engineer`）。
+
+### E-112 部署設定的預設值從未對照 CI 實際產出與執行期覆寫（2026-10-02，部署）
+- **錯在哪**：① `IMAGE_TAG` 在 compose、`.env.example`、`infra/provision-secrets.sh` 三處預設 `latest`，`deploy.yml` 卻只推 `:master` 與 git SHA——從未有過 `:latest`。② `apps/web/nuxt.config.ts` 的 `blueWhaleSiteUrl` 預設寫死 `https://bw-stg.tcrfc.tw`，compose 的 `nuxt-tcrfc` 沒有用 `NUXT_PUBLIC_BLUE_WHALE_SITE_URL` 覆寫；暫用網域改為 `*.4webdemo.com` 後，主站女足頁會導往不存在的網址。
+- **根因（可改掉的行為）**：各檔各自寫「合理的預設值」，沒有一步要求「把 compose 會拉的映像檔標籤對照 CI 會推的標籤」「把 `nuxt.config.ts` 的每個 `runtimeConfig.public` 網址鍵對照 compose 的 `environment:`」。因為在 VM 上從沒真的起過容器，兩者都沒有被執行期撞到。
+- **下次怎麼避免**：新增 `runtimeConfig.public` 中含網址的鍵時，同一次交付在 compose 對應服務加 `NUXT_PUBLIC_*` 覆寫；改 CI 推送標籤時 grep `IMAGE_TAG`。
+- **防呆**：無。

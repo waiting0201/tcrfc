@@ -21,6 +21,8 @@ name: Deploy
 on:
   push:
     branches: [master]
+  # 手動觸發＝五個映像檔全部重建（首次部署、映像檔遺失或要強制重建時用）
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -36,16 +38,17 @@ jobs:
     permissions:
       contents: read
     outputs:
-      web: ${{ steps.filter.outputs.web }}
-      web_charity: ${{ steps.filter.outputs.web_charity }}
-      admin: ${{ steps.filter.outputs.admin }}
-      admin_charity: ${{ steps.filter.outputs.admin_charity }}
-      api: ${{ steps.filter.outputs.api }}
-      deploy_config: ${{ steps.filter.outputs.deploy_config }}
+      web: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.web }}
+      web_charity: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.web_charity }}
+      admin: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.admin }}
+      admin_charity: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.admin_charity }}
+      api: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.api }}
+      deploy_config: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.deploy_config }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
         id: filter
+        if: github.event_name != 'workflow_dispatch'
         with:
           filters: |
             web:
