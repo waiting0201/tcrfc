@@ -23,7 +23,7 @@
 | [`modules/compute.bicep`](modules/compute.bicep) | NIC、VM |
 | [`modules/sql.bicep`](modules/sql.bicep) | Azure SQL 伺服器 ＋ 兩個 Basic 資料庫（含鎖） |
 | [`modules/storage.bicep`](modules/storage.bicep) | 儲存體帳戶（俱樂部、慈善各呼叫一次，含鎖） |
-| [`modules/monitoring.bicep`](modules/monitoring.bicep) | Action Group、三個指標告警、月預算 |
+| [`modules/monitoring.bicep`](modules/monitoring.bicep) | Action Group、七個指標告警（兩庫資料空間 1.5 GB、兩庫各兩級 DTU、VM CPU 額度）、月預算 |
 | [`../.github/workflows/infra.yml`](../.github/workflows/infra.yml) | push `master`（`infra/**` 有變動）→ what-if → deploy |
 | [`../.github/workflows/infra-validate.yml`](../.github/workflows/infra-validate.yml) | PR 與 `infra.yml` 共用的 `bicep lint`／`build`，不需任何憑證 |
 
@@ -56,7 +56,7 @@
 | 儲存體（俱樂部） | `sttcrfcclub<uniq>` | 容器 `images`／`videos`／`documents`（**匿名 blob 讀取**）、`proposals`（私有）；帳戶允許公開網路；🔒 CanNotDelete |
 | 儲存體（慈善） | `sttcrfccharity<uniq>` | 容器 `charity-images`（**匿名 blob 讀取**，慈善前台要顯示封面與 Logo）；帳戶允許公開網路；🔒 CanNotDelete |
 | Action Group | `ag-tcrfc-prod-ops` | Email → `ALERT_EMAIL` |
-| 告警 | `alert-tcrfc-prod-tcrfc_club-storage-1_5gb`、`alert-tcrfc-prod-tcrfc_charity-storage-1_5gb`、`alert-tcrfc-prod-vm-cpu-credits-low` | 資料空間 ≥ 1.5 GB（`storage` 指標）；CPU Credits Remaining < 100（可調） |
+| 告警 | `alert-tcrfc-prod-tcrfc_club-storage-1_5gb`、`alert-tcrfc-prod-tcrfc_charity-storage-1_5gb`、`alert-tcrfc-prod-vm-cpu-credits-low` | 資料空間 ≥ 1.5 GB（`storage` 指標）；`alert-tcrfc-prod-<庫>-dtu-80`／`-dtu-95`（`dtu_consumption_percent` 平均 ≥ 80%／95%，S0-10 壓測建議值，見 [`deploy/loadtest/README.md`](../deploy/loadtest/README.md)）；CPU Credits Remaining < 100（可調） |
 | 預算 | `budget-tcrfc-prod-monthly` | 資源群組範圍、每月 US$100（帳單幣別為美元）、實際花費 80% 與 100% 寄信 |
 | 鎖 | `lock-pip-tcrfc-prod`、`lock-sql-tcrfc-prod-<uniq>`、`lock-sttcrfcclub<uniq>`、`lock-sttcrfccharity<uniq>` | 皆 `CanNotDelete` |
 

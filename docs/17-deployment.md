@@ -466,6 +466,23 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
   衍生檔在**伺服器端寫入時一次產完**（`ImageSharp`），不走 on-the-fly 轉檔，因此 CDN 命中率高、VM 不承擔轉檔尖峰。
 - DTU 風險已由 Redis 大幅緩解，但**上線前仍要壓測一次**。
   層級變更是線上作業，不足即升 S0（10 DTU／250 GB，約 US$15／月）。
+  ⚠️ 升級層級**不會**自動放寬資料庫的 `maxSizeBytes`（Bicep 目前寫死 2 GB），要另用 `--max-size`，且 Bicep 的 `sku` 與 `maxSizeBytes` 要同步改，否則下次 `infra.yml` 會改回去。
+
+### 上線前壓測（S0-10，2026-10-02，`deployment-engineer`）
+
+> 🔵 **執行層決定。** 腳本與操作手冊已寫好，**尚未執行**（待使用者核准）。手冊在 [`deploy/loadtest/README.md`](../deploy/loadtest/README.md)，本節只記決定與理由。
+
+| 決定 | 理由 |
+|---|---|
+| 工具用 **k6**，腳本放 `deploy/loadtest/`（`lib.js`／`read.js`／`write-charity.js`） | 單一執行檔、腳本是 JS、門檻直接寫進腳本（不過即非 0 結束），可進 CI；與 `deploy/` 既有的「部署相關腳本」歸類一致 |
+| 目標**只允許** `*.4webdemo.com` 與本機，網域防呆**無覆寫旗標** | 測試站就是正式 VM（§10.1，全專案只有本機與正式兩套環境），打錯網域＝打到正式站或第三方；防呆放在腳本 init 階段，一個請求都不送 |
+| 預設跑**唯讀** `read.js`；寫入只有慈善假金流流程，需 `LOADTEST_ENABLE_WRITES=yes` | 寫入會在**正式庫**建資料列。只走 `FakePaymentGateway`（`CHARITY_ALLOW_FAKE_PROVIDERS`），付款網址交易識別碼不是 `FAKE-` 開頭立即中止；商店結帳需登入且金流未接，不屬本次範圍 |
+| 限流**不繞過、不加白名單**：唯讀腳本只打沒掛限流的 GET；寫入腳本預設壓在 30 次／10 分鐘／IP 之內 | API 限流只認 IP 分區、沒有白名單機制；要壓併發寫入須暫時調高 `CHARITY_PUBLIC_*_RATE_LIMIT_PERMITS`，**跑完必須移除並連同 `CHARITY_ALLOW_FAKE_PROVIDERS` 一起撤掉**（手冊 §4） |
+| 通過標準：失敗率 < 1%；前台頁 p95 < 1.5 s／p99 < 3 s；公開 API p95 < 500 ms／p99 < 1.5 s；DTU 平均 < 80%；CPU 額度不歸零 | 規劃書與 `docs/` 沒有效能規格，屬**執行層預設**，壓測後可依實測調整（改 `lib.js` 並同步手冊） |
+| 資料空間 1.5 GB 告警**已在 Bicep**（`monitoring.bicep` 的 `storage` 指標 ≥ 1,610,612,736 bytes，兩庫各一條，嚴重度 1）；**新增 DTU 告警**：`dtu_consumption_percent` 平均 ≥ 80%（15 分鐘，嚴重度 2）與 ≥ 95%（10 分鐘，嚴重度 1），兩庫各兩條 | 沿用既有 IaC 做法，不另寫 `az` 腳本。用「持續」而非瞬間值避免噪音；Basic 5 DTU 吃滿只是變慢，故分預警與緊急兩級。告警隨 `infra.yml` 在合併後建立 |
+| DTU 不足的升級路徑：`az sql db update --service-objective S0`（線上），再 `--max-size`，並同步改 Bicep | 步驟與注意事項見手冊 §7 |
+
+**壓測結果**（待填，執行後補日期、曲線、DTU／CPU 峰值、拐點、結論）：尚未執行。
 
 ### 型別對照與其他定案
 
@@ -1198,7 +1215,7 @@ scripts/check-node-version.mjs` 離開碼 0；分別故意改壞 `apps/admin/Doc
 | 資料庫 | **`tcrfc_club`、`tcrfc_charity`** | Basic；備份冗餘 **Local**；PITR 7 天；**不設 LTR** |
 | 儲存體（俱樂部） | `sttcrfcclub<uniq>` | 匿名 blob 讀取：`images`／`videos`／`documents`；私有：`proposals`；允許公開網路；🔒 |
 | 儲存體（**慈善獨立**） | `sttcrfccharity<uniq>` | 容器 `charity-images`（對應 `AZURE_BLOB_CONTAINER_CHARITY` 預設值，**匿名 blob 讀取**，慈善前台顯示封面與 Logo）；🔒 |
-| 告警／預算 | `ag-tcrfc-prod-ops`、三個 metric alert、`budget-tcrfc-prod-monthly` | 兩個庫資料空間 ≥1.5 GB、VM CPU Credits Remaining 偏低；預算 100／月（帳單幣別），80% 與 100% 寄信 |
+| 告警／預算 | `ag-tcrfc-prod-ops`、七個 metric alert、`budget-tcrfc-prod-monthly` | 兩個庫資料空間 ≥1.5 GB、兩個庫各兩級 DTU（≥80%／≥95%，S0-10）、VM CPU Credits Remaining 偏低；預算 100／月（帳單幣別），80% 與 100% 寄信 |
 | 鎖 | `lock-*` | Public IP、SQL 伺服器、兩個儲存體：`CanNotDelete` |
 | 部署身分（人工建） | `id-tcrfc-deploy` | user-assigned managed identity；federated credential subject `repo:waiting0201@5709750/tcrfc@1334739698:environment:production`；Contributor ＋只含 `Microsoft.Authorization/locks/*` 的自訂角色，範圍僅 `rg-tcrfc-prod` |
 

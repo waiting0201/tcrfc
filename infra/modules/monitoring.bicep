@@ -80,6 +80,50 @@ resource dbStorageAlerts 'Microsoft.Insights/metricAlerts@2018-03-01' = [
   }
 ]
 
+// DTU 告警（S0-10 壓測建議值，docs/17 §6）：Basic 只有 5 DTU，DTU 不足「只是變慢」而非失敗，
+// 所以分兩級：持續偏高先預警（warning）、接近滿載再升級（critical）。升級是線上作業，見 deploy/loadtest/README.md。
+var dtuAlerts = [
+  { suffix: 'dtu-80', severity: 2, threshold: 80, window: 'PT15M', freq: 'PT5M', note: '平均 DTU 使用率 ≥ 80% 持續 15 分鐘；規劃升級 S0（10 DTU）' }
+  { suffix: 'dtu-95', severity: 1, threshold: 95, window: 'PT10M', freq: 'PT5M', note: '平均 DTU 使用率 ≥ 95% 持續 10 分鐘；請線上升級 S0（az sql db update --service-objective S0）' }
+]
+
+resource dbDtuAlerts 'Microsoft.Insights/metricAlerts@2018-03-01' = [
+  for (item, k) in flatten(map(range(0, length(databaseNames)), i => map(dtuAlerts, a => union(a, { dbIndex: i })))): {
+    name: 'alert-${namePrefix}-${databaseNames[item.dbIndex]}-${item.suffix}'
+    location: 'global'
+    properties: {
+      description: '${databaseNames[item.dbIndex]}：${item.note}'
+      severity: item.severity
+      enabled: true
+      scopes: [
+        databaseIds[item.dbIndex]
+      ]
+      evaluationFrequency: item.freq
+      windowSize: item.window
+      criteria: {
+        'odata.type': 'Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria'
+        allOf: [
+          {
+            criterionType: 'StaticThresholdCriterion'
+            name: 'dtu-consumption-percent'
+            metricNamespace: 'Microsoft.Sql/servers/databases'
+            metricName: 'dtu_consumption_percent'
+            operator: 'GreaterThanOrEqual'
+            threshold: item.threshold
+            timeAggregation: 'Average'
+          }
+        ]
+      }
+      autoMitigate: true
+      actions: [
+        {
+          actionGroupId: actionGroup.id
+        }
+      ]
+    }
+  }
+]
+
 // B 系列叢發型 VM：SSR 持續高載會耗盡 CPU 額度（docs/17 §1「VM 規格」）
 resource vmCpuCreditsAlert 'Microsoft.Insights/metricAlerts@2018-03-01' = {
   name: 'alert-${namePrefix}-vm-cpu-credits-low'

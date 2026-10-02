@@ -93,3 +93,6 @@ output/TCRFC_Mobile_App_Feature_Overview_EN.html
 # Python 快取（db/seed/emit-charity-fixtures.py 用 importlib 載入種子腳本時產生）
 __pycache__/
 *.pyc
+
+# 壓測輸出（deploy/loadtest/README.md）
+deploy/loadtest/*.json
