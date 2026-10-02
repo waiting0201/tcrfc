@@ -72,6 +72,8 @@ erDiagram
     slug slug UK
     uuid article_category_id FK
     string_500 cover_key
+    int cover_width
+    int cover_height
     bool is_featured
     int view_count
     enum status

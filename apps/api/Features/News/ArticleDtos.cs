@@ -37,6 +37,14 @@ public sealed record ArticleListItemDto
     /// 這裡單純是這篇文章封面圖本身，給列表卡片 <c>&lt;img src&gt;</c> 用。<c>null</c>＝沒有封面圖。
     /// </summary>
     public string? CoverUrl { get; init; }
+
+    /// <summary>封面主檔（縮小後）寬高（S0-7h，2026-10-02）。前台 <c>&lt;img&gt;</c> 必帶寬高避免 CLS；
+    /// 無封面或資料尚未回填時為 <c>null</c>。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
+
+    /// <summary>封面替代文字（S0-7h），已依語系回退；<c>null</c>＝尚未填寫，前台改用文章標題當 alt。</summary>
+    public string? CoverAlt { get; init; }
     public required bool IsFeatured { get; init; }
     public DateTime? PublishedAt { get; init; }
     public string? Title { get; init; }
@@ -61,6 +69,11 @@ public sealed record ArticleDetailDto
     /// <summary><see cref="CoverKey"/> 完整可公開存取網址（E-64 修正，2026-09-29）。跟
     /// <see cref="OgImageUrl"/> 的區別同 <c>ArticleListItemDto.CoverUrl</c> 上的說明。</summary>
     public string? CoverUrl { get; init; }
+
+    /// <summary>封面寬高與替代文字，說明同 <see cref="ArticleListItemDto.CoverWidth"/>（S0-7h）。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
+    public string? CoverAlt { get; init; }
     public required bool IsFeatured { get; init; }
     public int ViewCount { get; init; }
     public DateTime? PublishedAt { get; init; }

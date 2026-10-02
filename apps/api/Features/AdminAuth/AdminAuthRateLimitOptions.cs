@@ -58,6 +58,23 @@ public static class AdminAuthRateLimitOptions
 
     public const string RefreshPermitLimitConfigKey = "ADMIN_REFRESH_RATE_LIMIT_PERMIT_LIMIT";
 
+    /// <summary>
+    /// 2026-10-02（S1-18 收尾）：「已登入後仍會驗證密碼或 TOTP 驗證碼」的三個端點
+    /// （<c>/change-password</c>、<c>/2fa/confirm</c>、<c>/2fa/disable</c>）的額度：**每 IP 每分鐘 10 次**。
+    /// 風險模型：持有一把被竊的短效存取權杖的攻擊者，可把這三支端點當成「現行密碼／6 位數驗證碼」
+    /// 的猜測神諭（oracle），而帳號層級的登入鎖定不會被這些端點觸發；因此需要自己的 IP 限流。
+    /// 正常人為操作（改密碼、啟用／停用 2FA）一分鐘不會超過個位數次，10 次留有打錯數次的餘裕。
+    /// 執行層判斷，無規劃書條文。
+    /// </summary>
+    public const int CredentialCheckPermitLimitDefault = 10;
+
+    public const string CredentialCheckPermitLimitConfigKey = "ADMIN_CREDENTIAL_CHECK_RATE_LIMIT_PERMIT_LIMIT";
+
+    public static readonly TimeSpan CredentialCheckWindow = TimeSpan.FromMinutes(1);
+
+    public static int ResolveCredentialCheckPermitLimit(IConfiguration configuration)
+        => ResolvePositivePermitLimit(configuration, CredentialCheckPermitLimitConfigKey, CredentialCheckPermitLimitDefault);
+
     /// <summary>兩個政策共用固定 1 分鐘視窗——理由見本類別檔頭「為什麼只讓額度可設定」。</summary>
     public static readonly TimeSpan LoginWindow = TimeSpan.FromMinutes(1);
 

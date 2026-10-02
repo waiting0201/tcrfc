@@ -78,6 +78,7 @@ public static class TestRateLimitOverrides
             {
                 [AdminAuthRateLimitOptions.LoginPermitLimitConfigKey] = permitLimit,
                 [AdminAuthRateLimitOptions.RefreshPermitLimitConfigKey] = permitLimit,
+                [AdminAuthRateLimitOptions.CredentialCheckPermitLimitConfigKey] = permitLimit,
                 // E 批：會員登入類與會員寫入類兩個政策也一併放寬（同樣共用 TestServer 的單一「unknown」IP 分區）。
                 [PublicRateLimitPolicies.MemberAuthPermitLimitConfigKey] = permitLimit,
                 [PublicRateLimitPolicies.MemberWritePermitLimitConfigKey] = permitLimit,

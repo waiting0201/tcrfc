@@ -61,4 +61,25 @@ public sealed class AdminAuthRateLimitingTests(AdminAuthRateLimitTestApiFixture 
         var exceeded = await client.PostAsync("/api/v1/admin/auth/refresh", content: null);
         Assert.Equal(HttpStatusCode.TooManyRequests, exceeded.StatusCode);
     }
+    /// <summary>S1-18 收尾（2026-10-02）：三個「已登入後仍驗證密碼／TOTP」的端點共用同一個
+    /// <c>admin-credential-check</c> 政策。未帶存取權杖也會先被限流中介軟體計數（限流在 handler 之前），
+    /// 所以不需要真的登入即可驗證。</summary>
+    [Theory]
+    [InlineData("/api/v1/admin/auth/change-password")]
+    [InlineData("/api/v1/admin/auth/2fa/confirm")]
+    [InlineData("/api/v1/admin/auth/2fa/disable")]
+    public async Task 驗證密碼或驗證碼的端點_超過額度後回429(string route)
+    {
+        using var client = fixture.CreateClient();
+
+        // 三個端點共用同一個分區計數，所以每個案例都要先取得「目前剩餘額度」不可行；
+        // 改為連打 TestPermitLimit + 1 次，只要最後一次（或之前任何一次）出現 429 即證明掛上了。
+        var saw429 = false;
+        for (var i = 0; i <= AdminAuthRateLimitTestApiFixture.TestPermitLimit; i++)
+        {
+            var response = await client.PostAsJsonAsync(route, new { });
+            if (response.StatusCode == HttpStatusCode.TooManyRequests) { saw429 = true; break; }
+        }
+        Assert.True(saw429, $"{route} 連續呼叫超過額度後應該回 429。");
+    }
 }

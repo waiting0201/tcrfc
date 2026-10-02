@@ -55,7 +55,7 @@ public static class MemberAuthEndpoints
         group.MapPost("/auth/login", async (MemberLoginRequest request, HttpContext http, MemberAuthService auth, CancellationToken ct) =>
         {
             var (tokens, summary) = await auth.LoginAsync(request, ct);
-            return WriteSession(http, tokens, summary, IsBodyMode(request.TokenDelivery));
+            return WriteSession(http, tokens, summary, IsBodyMode(request.TokenDelivery, request.DeviceInstallId));
         })
         .WithName("MemberLogin")
         .RequireRateLimiting(PublicRateLimitPolicies.MemberAuth)
@@ -150,7 +150,7 @@ public static class MemberAuthEndpoints
         {
             var me = await authenticator.RequireAsync(http, ct);
             var (tokens, summary) = await auth.ChangePasswordAsync(me.MemberId, request, ct);
-            return WriteSession(http, tokens, summary, IsBodyMode(request.TokenDelivery));
+            return WriteSession(http, tokens, summary, IsBodyMode(request.TokenDelivery, request.DeviceInstallId));
         })
         .WithName("MemberChangePassword")
         .RequireRateLimiting(PublicRateLimitPolicies.MemberAuth)
@@ -183,7 +183,7 @@ public static class MemberAuthEndpoints
                 return Results.Ok(dto);
             }
 
-            var bodyMode = IsBodyMode(request.TokenDelivery);
+            var bodyMode = IsBodyMode(request.TokenDelivery, request.DeviceInstallId);
             ApplyRefresh(http, tokens, bodyMode);
             return Results.Ok(dto with
             {
@@ -205,7 +205,7 @@ public static class MemberAuthEndpoints
         {
             var club = await clubs.ResolveAsync(request.Club ?? string.Empty, ct);
             var (session, tokens) = await auth.LineCompleteAsync(request, club, ct);
-            var bodyMode = IsBodyMode(request.TokenDelivery);
+            var bodyMode = IsBodyMode(request.TokenDelivery, request.DeviceInstallId);
             ApplyRefresh(http, tokens, bodyMode);
             return Results.Ok(session! with
             {
@@ -230,6 +230,35 @@ public static class MemberAuthEndpoints
         .RequireRateLimiting(PublicRateLimitPolicies.MemberWrite)
         .Produces(StatusCodes.Status204NoContent)
         .Produces(StatusCodes.Status409Conflict);
+
+        // ── App 裝置（AP-3）：會員自己的裝置清單與單一裝置撤銷 ──────────────────────
+        // 規劃書 §4.3 只硬性要求「登出全部裝置」；單一裝置撤銷是「更新權杖須可由伺服器端撤銷」的自然延伸，無畫面規格（由 App 設定頁自行決定是否使用）。
+        group.MapGet("/devices", async (
+            HttpContext http, MemberAuthenticator authenticator, AppDeviceSessionService appSessions, CancellationToken ct) =>
+        {
+            var me = await authenticator.RequireAsync(http, ct);
+            var devices = await appSessions.ListForMemberAsync(me.MemberId, ct);
+            return Results.Ok(devices.Select(d => new MemberDeviceDto
+            {
+                DeviceId = d.DeviceId, Platform = d.Platform, OsVersion = d.OsVersion, AppVersion = d.AppVersion,
+                LastActiveAt = d.LastActiveAt, HasActiveSession = d.HasActiveSession,
+            }).ToList());
+        })
+        .WithName("MemberListDevices")
+        .Produces<IReadOnlyList<MemberDeviceDto>>()
+        .Produces(StatusCodes.Status401Unauthorized);
+
+        group.MapPost("/devices/{deviceId:guid}/revoke", async (
+            Guid deviceId, HttpContext http, MemberAuthenticator authenticator, AppDeviceSessionService appSessions, CancellationToken ct) =>
+        {
+            var me = await authenticator.RequireAsync(http, ct);
+            return await appSessions.RevokeDeviceAsync(me.MemberId, deviceId, ct) ? Results.NoContent() : throw new MemberNotFoundException();
+        })
+        .WithName("MemberRevokeDevice")
+        .RequireRateLimiting(PublicRateLimitPolicies.MemberWrite)
+        .Produces(StatusCodes.Status204NoContent)
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status404NotFound);
 
         // ── 個人資料 ─────────────────────────────────────────────────────────
         group.MapGet("/me", async (HttpContext http, MemberAuthenticator authenticator, MemberAuthService auth, CancellationToken ct) =>
@@ -267,7 +296,9 @@ public static class MemberAuthEndpoints
         .Produces(StatusCodes.Status401Unauthorized);
     }
 
-    private static bool IsBodyMode(string? delivery) => string.Equals(delivery, "body", StringComparison.OrdinalIgnoreCase);
+    /// <summary>App（帶 <c>deviceInstallId</c>）一律 body 交付：沒有 Cookie 這回事，更新權杖要進安全儲存區。</summary>
+    private static bool IsBodyMode(string? delivery, string? deviceInstallId = null)
+        => !string.IsNullOrEmpty(deviceInstallId) || string.Equals(delivery, "body", StringComparison.OrdinalIgnoreCase);
 
     private static IResult WriteSession(HttpContext http, MemberSessionTokens tokens, MemberSummaryDto summary, bool bodyMode)
     {

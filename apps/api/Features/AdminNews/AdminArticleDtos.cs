@@ -24,6 +24,11 @@ public sealed record AdminArticleLocaleContent
     /// <summary>OG 圖片替代文字（S1-12 驗收退回後補做）。對應 <c>articles_i18n.og_image_alt</c>，
     /// 逐語系。</summary>
     public string? OgImageAlt { get; init; }
+
+    /// <summary>封面圖片替代文字（S0-7h，2026-10-02）。對應 <c>articles_i18n.cover_alt</c>，逐語系。
+    /// 規劃書 §4.0 圖片欄位組要求「雙語 Alt」；有封面圖卻沒填 Alt 不擋存檔（規劃書未要求必填），
+    /// 前台輸出時回退為文章標題。</summary>
+    public string? CoverAlt { get; init; }
 }
 
 /// <summary>
@@ -218,6 +223,10 @@ public sealed record AdminArticleDetailDto
     public required string Slug { get; init; }
     public required string CategoryCode { get; init; }
     public string? CoverKey { get; init; }
+
+    /// <summary>封面主檔（縮小後）寬高，S0-7h。無封面時為 null。</summary>
+    public int? CoverWidth { get; init; }
+    public int? CoverHeight { get; init; }
     public required bool IsFeatured { get; init; }
     public required string Status { get; init; }
     public DateTime? PublishedAt { get; init; }

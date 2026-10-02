@@ -9076,3 +9076,65 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 
 `dotnet Tcrfc.Api.dll --hash-password`（容器內：`docker run --rm -i <api 映像檔> --hash-password`）：從**標準輸入**讀一行密碼，把與後台登入驗證同一份 `PasswordHasher`（Argon2id）算出的雜湊印到標準輸出，**不啟動 Web 主機、不讀設定、不連資料庫**。退出碼 0 成功、1 密碼不合政策（至少 10 字元）或未提供、2 內部錯誤；錯誤訊息不含密碼。實作在 `Security/PasswordHashCli.cs`，`Program.cs` 最前面分流；測試 `Tcrfc.Api.Tests/PasswordHashCliTests.cs`。
 唯一呼叫端是 `deploy/prod-db-init.sh create-admin`（`infra/README.md` §4.8）。**不要**改成接受命令列參數或環境變數的密碼——那會進 `ps`／shell 歷史。
+
+---
+
+## G 批（2026-10-02，`backend-engineer`）：S1-18 認證端點限流收尾、S0-7h 文章封面欄位組、S2-5 由地址定位、AP-3 App 更新權杖鏈
+
+> 🔴 **本批的整合測試在撰寫當下沒有執行**：撰寫環境無法取得資料庫連線憑證（不得在指令列帶密碼、也不得自行載入 `.env`），所以只跑了不需要資料庫的測試（程式與測試皆編譯通過，`ArchitectureTests`、更新權杖編碼、地址定位替身、限流額度解析共 39 項通過）。**需要在有 `tcrfc_club` 的環境（`./db/seed/setup-club-db.sh` → `dotnet test`）完整跑一次；跑之前先對 `tcrfc_club` 套用 migration `AlignSchemaG1`（或執行 `db/club-schema.sql` 對應的三個欄位：`articles.cover_width`／`cover_height`、`articles_i18n.cover_alt`）**，否則文章相關的既有測試會因欄位不存在而失敗。新增約 35 項測試，見各節。
+
+### 1. S1-18 認證端點限流收尾
+
+盤點結果：`/login`、`/refresh` 的依 IP 限流**早已在 S1-18d（2026-09-29）完成**（`admin-login` 每 IP 每分鐘 5 次、`admin-refresh` 30 次；STATUS 的「後台登入端點尚無 IP 限流」是過期敘述，已更正，見 `docs/18` E-117）。本批補的是**漏網的三支「已登入後仍驗證密碼／TOTP」的端點**：
+
+| 端點 | 政策 | 理由 |
+|---|---|---|
+| `POST /api/v1/admin/auth/change-password` | `admin-credential-check`（每 IP 每分鐘 10 次，`ADMIN_CREDENTIAL_CHECK_RATE_LIMIT_PERMIT_LIMIT` 可調，未設定／非正整數退回 10） | 持有被竊的短效存取權杖者可把它當「現行密碼」猜測神諭，帳號鎖定機制不會被這些端點觸發 |
+| `POST …/2fa/confirm`（驗證 6 位數碼）、`POST …/2fa/disable`（驗證密碼） | 同上 | 同上 |
+
+- **刻意豁免**（`ArchitectureTests` 明列）：`/logout`（只清 Cookie＋撤銷單筆權杖）、`/me`（唯讀、需 JWT）、`/2fa/setup`（需 JWT，只產生尚未啟用的密鑰、不驗證任何憑證）。
+- **架構測試改成預設全擋**：`AdminAuth所有認證端點除明列豁免外都必須掛限流政策`——掃 `AdminAuthEndpoints.cs` 內所有 `Map*`，沒掛 `.RequireRateLimiting` 又不在豁免清單就紅燈；日後新增認證端點忘了掛會直接被擋。
+- 測試：`AdminAuthRateLimitingTests` 加 3 項（三個端點各自超過額度回 429，Theory）、`AdminAuthRateLimitPoliciesTests` 加 1 項（預設額度與壞設定退回嚴格預設）；`TestRateLimitOverrides` 把一般 fixture 的新政策額度也放寬。
+- 慈善後台（`CharityPlatform`）的同類端點在另一個資料庫那側，本批未動。
+
+### 2. S0-7h `articles` 封面圖片欄位組
+
+- **綱要**（先文件、再 DDL、再 migration）：`articles.cover_width`／`cover_height`（`int NULL`）、`articles_i18n.cover_alt`（`nvarchar(200) NULL`）。migration **`AlignSchemaG1`**（冪等：先 `COL_LENGTH` 查再加，正式庫是 DDL 建的、本機庫不是，兩邊都能套）。`docs/12` §12 第 49 點、`12a`、`12c`、`12d` §11／§12 已同步。
+- **上傳流程**：`UploadedImageInfo.Width/Height`（主檔縮小後尺寸）寫回；新建、換圖、移除封面三態都與物件鍵同進同出（`CoverKeyUpdate` 帶寬高；移除封面一併清空寬高）；不夾檔案只改 Alt 時寬高維持。
+- **後台契約**：`AdminArticleLocaleContent` 新增 `coverAlt`（zh／en 各一，**不要求必填**，規劃書未要求）；`AdminArticleDetailDto` 新增 `coverWidth`／`coverHeight`。→ **前端要做**：文章編輯頁封面圖片旁加「圖片說明（替代文字）」中英兩個輸入框，送出時放進 `content.zh.coverAlt`／`content.en.coverAlt`；封面預覽可用 `coverWidth`／`coverHeight` 預留版面。
+- **公開契約**：`ArticleListItemDto`、`ArticleDetailDto` 新增 `coverWidth`／`coverHeight`／`coverAlt`（已依語系回退，英文空白回中文；無封面時三者皆 `null`）。→ **前台要做**：新聞卡片與詳情的封面 `<img>` 帶 `width`／`height`，`alt` 用 `coverAlt`，空值回退文章標題；`Article` JSON-LD 的 `image` 可帶寬高。OG 圖片優先序最後一層（封面回退）改為輸出封面的寬高與封面 Alt。
+- **同規則其他表**：全表重掃見 `docs/12d` §12——**24 個圖片欄位缺寬高、30 個缺 Alt**，本批只補 `articles`（理由：每個缺口都要同時接上對應模組的上傳流程、DTO 與前台，只補欄位會留下永遠為空的假象；標誌／圖示類是否需要 Alt 是規格解讀，需確認）。
+- **S0-7h 另兩項「待確認」**（置頂精選限 3 逐俱樂部、狀態轉換規則）**未動**，仍待客戶確認。
+- 測試：`AdminNewsCoverFieldGroupTests` 5 項（建立寫回寬高與雙語 Alt、大圖存縮小後尺寸且依 EXIF 轉正、不換圖只改 Alt／換圖／移除封面三態、公開 API 帶出寬高與依語系回退的 Alt 與 OG 回退、無封面時一律 null）。
+
+### 3. S2-5 特約店家「由地址定位」
+
+- **規劃書沒有指定供應商**（只寫「由地址定位輔助按鈕，**人工確認後儲存**，不做執行期即時 geocoding」），所以比照 `IPaymentGateway` 慣例：`Features/Geocoding/IGeocoder`＋`NotConfiguredGeocoder`（正式預設）＋`LocalFakeGeocoder`（Development；`GEOCODER=fake` 在 Production 啟動即失敗）。**正式供應商列為待決**，設定方式寫在 `docs/17` §3「G 批的接縫」。
+- **端點**（權限 `member.store.create` 或 `member.store.update` 任一）：
+  - `POST /api/v1/admin/{club}/partner-stores/locate`，body `{ "address": "…" }` → `200 { lat, lng }`／`404`（查無，訊息為日常中文）／`400`（空地址、超過 500 字）／`503 geocoder_not_configured`。**只回候選座標，不寫入任何資料**——這是「人工確認後儲存」的按鈕。
+  - 新增／更新店家（multipart `payload`）新增 `autoLocate: bool`（預設 `false`）：`true` 且**沒有手動座標**時，儲存時由伺服器依**中文地址**定位。**手動 `lat`／`lng` 永遠優先**（可覆寫任何自動結果）；定位失敗**不阻擋存檔**，座標留空。
+  - 新增／更新的回應多一個 `autoLocateStatus`：`skipped`（沒要求或已手動填）／`located`（已自動填入，請管理者確認）／`not_found`（查無或沒有地址）／`unavailable`（服務未啟用或供應商故障）；`GET` 不帶此欄。
+- → **前端要做**：K4 店家表單地址旁加「由地址定位」按鈕（呼叫 `/locate`，把結果填進緯度／經度欄讓人確認）、表單加「儲存時由地址定位」勾選；儲存後依 `autoLocateStatus` 顯示提示（用語見 `docs/06` 對照表）。
+- **與任務敘述的差異**：交辦寫「後台存檔時自動定位」，規劃書寫「人工確認後儲存」。本批把自動定位做成**管理者明確勾選才發生**，預設不自動，兩者並存；是否要改成預設勾選屬產品決定。
+- 地址不寫入日誌；App 與前台訪客的請求永遠不會觸發定位。
+- 測試：`GeocoderTests` 3 項（不需資料庫）、`AdminPartnerStoreLocateTests` 4 項（權限、預覽不寫入與查無／空地址、自動定位的手動優先／未要求／查無／故障／更新、未串接時 503 與存檔仍成功）。
+
+### 4. AP-3（後端部分）App 更新權杖鏈
+
+完整設計決定見 `docs/19` §4「伺服器端實作」。重點：
+
+- **掛在 `app_devices` 的既有四個欄位**，不動綱要。權杖格式 `ad1.{裝置列 id}.{簽發毫秒}.{亂數}.{HMAC 簽章}`——因為規劃書只給四欄、沒有「前一把雜湊」，簽章＋簽發時間讓「已被輪替掉的真權杖」與「亂猜的垃圾」可區分：後者無副作用拒絕，前者觸發重用偵測。
+- **沿用既有會員端點，不另開一套**：`POST /api/v1/member/auth/login`（以及 `/auth/line/callback`、`/auth/line/complete`、`/auth/change-password`）新增選填 `deviceInstallId`——帶了就把鏈掛在該裝置並強制 body 交付（回應含 `refreshToken`／`refreshTokenExpiresAt`，`ad1.` 開頭）；`/auth/refresh`、`/auth/logout` 依前綴分流。裝置須先 `PUT /api/v1/app/devices/{id}` 註冊，否則 `400 device_not_registered`。
+- **新端點**（會員 Bearer）：`GET /api/v1/member/devices`（自己的裝置：`deviceId`、`platform`、`osVersion`、`appVersion`、`lastActiveAt`、`hasActiveSession`，不含裝置識別碼與推播權杖）、`POST /api/v1/member/devices/{deviceId}/revoke`（`204`；別人的裝置一律 `404`；掛 `member-write` 限流）。**規劃書 §4.3 只硬性要求「登出全部裝置」，單一裝置撤銷是執行層補充，無畫面規格。**
+- **撤銷涵蓋**：登出、登出全部裝置、改密碼、重設密碼、刪除帳號、會員被停用、重用偵測、會員自行撤銷某裝置；撤銷後解除 `member_id` 綁定（裝置列與推播訂閱保留，符合 App 規劃書 §4.4）。`MemberSessionService.RevokeAllAsync` 現在同時撤銷網頁鏈與全部裝置鏈。
+- ⚠️ **已知取捨**：「伺服器已輪替、回應在途中遺失」的重試會被判為重用而登出該裝置（沒有前一把雜湊可做寬限）；細節與選項見 `docs/19` §4。
+- 測試：`AppRefreshTokenCodecTests` 8 項（不需資料庫）、`AppDeviceSessionTests` 11 項（發放只存雜湊並綁定、輪替且時間遞增、重用偵測連新權杖一起失效與重新登入恢復、偽造簽章不登出任何人、登出、登出全部與改密碼、裝置撤銷與別人裝置 404、裝置未註冊、過期不算重用、會員停用、網頁鏈不受影響）。
+
+### 本批的待決事項
+
+1. **地址定位供應商**（Google／TGOS／Azure Maps）與預算——`docs/17` §3。
+2. **標誌／圖示類圖片要不要 Alt**，以及其餘 24／30 個圖片欄位何時補——`docs/12d` §12。
+3. **自動定位要不要預設勾選**（目前預設不勾，符合「人工確認後儲存」）。
+4. **S0-7h 兩項**：置頂精選限 3 是否逐俱樂部、`publish`／`schedule` 狀態轉換規則——仍待客戶確認。
+5. **App 更新權杖「回應遺失重試」被登出**的容忍度——若實測太常發生，需向規劃書 §10.1 申請增列「前一把權杖雜湊」欄位。
+6. **單一裝置撤銷端點**是否需要對應 App 畫面（規劃書只要求登出全部裝置）。

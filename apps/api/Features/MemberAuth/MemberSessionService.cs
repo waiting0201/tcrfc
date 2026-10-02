@@ -14,13 +14,21 @@ public sealed record MemberSessionTokens(
 /// 不透明亂數、只存 SHA-256 雜湊、每次使用即輪替、<b>已撤銷的權杖再被使用＝外洩，撤銷該會員全部有效權杖</b>（App 規劃書 §4.3 的同一套哲學）。
 /// 「記住我」：存續 30 天（Cookie 帶到期日）；否則 24 小時（工作階段 Cookie）。輪替時沿用同一種類型，並重新計算效期（滑動）。
 /// </summary>
-public sealed class MemberSessionService(ClubDbContext db, MemberTokenService tokens)
+/// <para>AP-3（2026-10-02）：App 的更新權杖鏈掛在 <c>app_devices</c>（<see cref="AppDeviceSessionService"/>）。本類別是兩條鏈的單一入口——
+/// 核發時帶 <c>deviceInstallId</c> 就走裝置鏈；輪替與登出依權杖字串前綴（<c>ad1.</c>）分流；<see cref="RevokeAllAsync"/> 兩條鏈一併撤銷。
+/// 這樣既有的登入、LINE、改密碼、刪除帳號流程不必各自知道 App 的存在。</para>
+public sealed class MemberSessionService(ClubDbContext db, MemberTokenService tokens, AppDeviceSessionService appSessions)
 {
     public static readonly TimeSpan PersistentLifetime = TimeSpan.FromDays(30);
     public static readonly TimeSpan SessionLifetime = TimeSpan.FromHours(24);
 
-    public async Task<MemberSessionTokens> IssueAsync(Guid memberId, bool persistent, CancellationToken cancellationToken)
+    public async Task<MemberSessionTokens> IssueAsync(Guid memberId, bool persistent, CancellationToken cancellationToken, string? deviceInstallId = null)
     {
+        if (!string.IsNullOrEmpty(deviceInstallId))
+        {
+            return await appSessions.IssueAsync(deviceInstallId, memberId, cancellationToken);
+        }
+
         var (row, raw) = NewRow(memberId, persistent);
         db.MemberRefreshTokens.Add(row);
         await db.SaveChangesAsync(cancellationToken);
@@ -33,6 +41,11 @@ public sealed class MemberSessionService(ClubDbContext db, MemberTokenService to
         if (string.IsNullOrWhiteSpace(rawToken) || rawToken.Length > 256)
         {
             return null;
+        }
+
+        if (AppRefreshTokenCodec.LooksLikeAppToken(rawToken))
+        {
+            return await appSessions.RotateAsync(rawToken, cancellationToken);
         }
 
         var hash = AdminTokenService.HashRefreshToken(rawToken);
@@ -76,6 +89,12 @@ public sealed class MemberSessionService(ClubDbContext db, MemberTokenService to
             return;
         }
 
+        if (AppRefreshTokenCodec.LooksLikeAppToken(rawToken))
+        {
+            await appSessions.RevokeAsync(rawToken, cancellationToken);
+            return;
+        }
+
         var hash = AdminTokenService.HashRefreshToken(rawToken);
         var now = DateTime.UtcNow;
         await db.MemberRefreshTokens.Where(t => t.TokenHash == hash && t.RevokedAt == null)
@@ -88,6 +107,7 @@ public sealed class MemberSessionService(ClubDbContext db, MemberTokenService to
         var now = DateTime.UtcNow;
         await db.MemberRefreshTokens.Where(t => t.MemberId == memberId && t.RevokedAt == null)
             .ExecuteUpdateAsync(s => s.SetProperty(t => t.RevokedAt, now), cancellationToken);
+        await appSessions.RevokeAllForMemberAsync(memberId, cancellationToken);
     }
 
     private (MemberRefreshToken Row, string Raw) NewRow(Guid memberId, bool persistent)

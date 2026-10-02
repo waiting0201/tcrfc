@@ -894,7 +894,7 @@ public sealed partial class AdminDrawsRepository(
             },
             Tags = [new AdminArticleTagInput { Slug = MemberDrawTagSlug, NameZh = "球迷會員抽獎", NameEn = "Member Draw" }],
         };
-        await articles.CreateAsync(scope, articleId, request, null, ImageFieldUpdate.Keep, scope.Identity.AdminUserId, cancellationToken);
+        await articles.CreateAsync(scope, articleId, request, null, null, null, ImageFieldUpdate.Keep, scope.Identity.AdminUserId, cancellationToken);
         draw.AnnouncementArticleId = articleId;
         draw.UpdatedAt = DateTime.UtcNow;
         draw.UpdatedBy = scope.Identity.AdminUserId;

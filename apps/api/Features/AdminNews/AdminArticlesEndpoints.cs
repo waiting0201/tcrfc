@@ -106,11 +106,15 @@ public static class AdminArticlesEndpoints
             // 「這張圖屬於哪一筆將要建立的資料列」，見 AdminArticlesRepository.CreateAsync 上的說明。
             var articleId = Guid.NewGuid();
             string? coverKey = null;
+            int? coverWidth = null;
+            int? coverHeight = null;
             if (file is not null)
             {
                 UploadSlotPolicy.Validate("articles", "cover");
                 var uploaded = await UploadCoverAsync(adminScope, articleId, file, imageStorage, cancellationToken);
                 coverKey = uploaded.Key;
+                coverWidth = uploaded.Width;
+                coverHeight = uploaded.Height;
             }
 
             // S1-12 新增：OG 圖片覆寫，獨立於封面圖片之外，同一次請求的 ogImage 欄位。
@@ -124,7 +128,7 @@ public static class AdminArticlesEndpoints
 
             try
             {
-                var created = await repository.CreateAsync(adminScope, articleId, request, coverKey, ogImageUpdate, operatorId, cancellationToken);
+                var created = await repository.CreateAsync(adminScope, articleId, request, coverKey, coverWidth, coverHeight, ogImageUpdate, operatorId, cancellationToken);
                 return Results.Created($"/api/v1/admin/{club}/news/{created.Id}", created);
             }
             catch
@@ -188,7 +192,7 @@ public static class AdminArticlesEndpoints
                 UploadSlotPolicy.Validate("articles", "cover");
                 var uploaded = await UploadCoverAsync(adminScope, id, file, imageStorage, cancellationToken);
                 uploadedKey = uploaded.Key;
-                coverUpdate = CoverKeyUpdate.Set(uploaded.Key);
+                coverUpdate = CoverKeyUpdate.Set(uploaded.Key, uploaded.Width, uploaded.Height);
             }
             else if (request.RemoveCover)
             {

@@ -232,7 +232,7 @@ public sealed class AdminArticlesRepository(
     /// </summary>
     public async Task<AdminArticleDetailDto> CreateAsync(
         AdminClubScope scope, Guid articleId, CreateArticleRequest request, string? coverKey,
-        ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
+        int? coverWidth, int? coverHeight, ImageFieldUpdate ogImageUpdate, Guid? operatorId, CancellationToken cancellationToken)
     {
         ValidateContent(request.Content);
         SlugPolicy.Validate(request.Slug);
@@ -267,6 +267,8 @@ public sealed class AdminArticlesRepository(
             Slug = request.Slug,
             ArticleCategoryId = category.Id,
             CoverKey = coverKey,
+            CoverWidth = coverKey is null ? null : coverWidth,
+            CoverHeight = coverKey is null ? null : coverHeight,
             IsFeatured = request.IsFeatured,
             Status = "draft", // 🔴 一律從草稿開始，狀態轉換是獨立端點（Publish／Schedule），不接受這裡帶入
             PublishedAt = null,
@@ -371,6 +373,13 @@ public sealed class AdminArticlesRepository(
         article.Slug = request.Slug;
         article.ArticleCategoryId = category.Id;
         article.CoverKey = effectiveCoverKey;
+        if (coverUpdate.Change)
+        {
+            // S0-7h：寬高與物件鍵同進同出（換圖寫新值、清空寫 null），Keep 時不碰。
+            article.CoverWidth = coverUpdate.Width;
+            article.CoverHeight = coverUpdate.Height;
+        }
+
         article.IsFeatured = request.IsFeatured;
         article.CanonicalPath = string.IsNullOrWhiteSpace(request.CanonicalPath) ? null : request.CanonicalPath;
         article.IsNoindex = request.IsNoindex;
@@ -793,6 +802,7 @@ public sealed class AdminArticlesRepository(
         existing.SeoDescription = content.SeoDescription;
         existing.SeoKeywords = content.SeoKeywords;
         existing.OgImageAlt = content.OgImageAlt;
+        existing.CoverAlt = content.CoverAlt;
     }
 
     private async Task<ArticleCategory> ResolveCategoryAsync(string categoryCode, CancellationToken cancellationToken)
@@ -997,6 +1007,8 @@ public sealed class AdminArticlesRepository(
             Slug = article.Slug,
             CategoryCode = article.ArticleCategory.Code,
             CoverKey = article.CoverKey,
+            CoverWidth = article.CoverWidth,
+            CoverHeight = article.CoverHeight,
             IsFeatured = article.IsFeatured,
             ViewCount = article.ViewCount,
             Status = article.Status,
@@ -1018,6 +1030,7 @@ public sealed class AdminArticlesRepository(
                 SeoDescription = zh?.SeoDescription,
                 SeoKeywords = zh?.SeoKeywords,
                 OgImageAlt = zh?.OgImageAlt,
+                CoverAlt = zh?.CoverAlt,
             },
             En = en is null ? null : new AdminArticleLocaleContent
             {
@@ -1028,6 +1041,7 @@ public sealed class AdminArticlesRepository(
                 SeoDescription = en.SeoDescription,
                 SeoKeywords = en.SeoKeywords,
                 OgImageAlt = en.OgImageAlt,
+                CoverAlt = en.CoverAlt,
             },
             Tags = article.Tags
                 .Select(t => new AdminArticleTagDto

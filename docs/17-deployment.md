@@ -310,6 +310,17 @@ services:
 **新增的環境設定**：`INVOICE_ISSUER`（`fake`＝本機假發票，Development 預設，Production 設了即啟動失敗）、`SHOP_JOBS_INTERVAL_SECONDS`（見上）。訪客權杖標頭 `X-Cart-Token`／`X-Order-Token`、`Idempotency-Key`：**反向代理與 Cloudflare 不得剝除**（CORS 對本 API 已是 `AllowAnyHeader`）。
 **Data Protection 金鑰環**：載具號碼（`store_invoices.carrier_id_encrypted`）與推播權杖、2FA 密鑰同一套金鑰環（`DATA_PROTECTION_KEYS_PATH` 必須掛持久化 volume）——**遺失金鑰環＝已付款但尚未開立發票的載具無法解密**（開立失敗並重試用完後需人工處理）。
 
+### G 批的接縫：特約店家「由地址定位」（2026-10-02，`backend-engineer`，S2-5）
+
+**規劃書沒有指定 geocoding 供應商**（主站 §4.11 K4／App §3.8 只寫「由地址定位輔助按鈕，人工確認後儲存，不做執行期即時 geocoding」），所以同前幾批的做法：以介面隔開、預設「尚未串接」，**正式供應商列為待決**。
+
+| 接縫 | 介面與預設實作 | 卡在什麼 | 串接時要做什麼 |
+|---|---|---|---|
+| **地址 → 經緯度** | `IGeocoder`／`NotConfiguredGeocoder`（正式；預覽按鈕回 503 `geocoder_not_configured`，儲存時勾「由地址定位」不阻擋存檔、回 `autoLocateStatus: "unavailable"`）、`LocalFakeGeocoder`（**只在 Development**；`GEOCODER=fake` 在 **Production 啟動即失敗**；同地址永遠同座標，地址含「查無」回查無、含「故障」模擬供應商故障）（`Features/Geocoding/IGeocoder.cs`） | **供應商未選定**（候選：Google Geocoding API／TGOS 國土測繪中心／Azure Maps；需客戶決定預算與資料可用範圍） | 實作 `GeocodeAsync`（查無回 `null`，供應商故障拋例外）；金鑰放環境變數／Key Vault，**不進版控**；🔴 **日誌不得記地址原文**；🔴 **只供後台 K4 在伺服器端呼叫，App 與前台訪客的請求永遠不得觸發**（規劃書：不做執行期 geocoding，使用者位置與查詢不得送出）；呼叫是一般 HTTPS 出站請求，不像 LINE Pay 需要登記出口 IP；注意供應商的條款是否允許「快取／長期儲存座標」（本系統會存進 `partner_stores.lat/lng`） |
+
+**設定**：`GEOCODER`（`fake`＝本機假定位，Development 預設；Production 設了即啟動失敗）。供應商選定後新增該供應商的金鑰設定鍵，並只換 `Program.cs` 的註冊。
+**行為**（`apps/api/README.md`「G 批」節有完整契約）：`POST /api/v1/admin/{club}/partner-stores/locate` 只回候選座標、**不寫入任何資料**（符合「人工確認後儲存」）；新增／更新店家時請求帶 `autoLocate: true` 且**沒有手動座標**才由伺服器依中文地址定位，**手動座標永遠優先**，失敗不阻擋存檔。
+
 ---
 
 ## 4. 快取策略

@@ -304,6 +304,8 @@ CREATE TABLE page_versions (
 -- S1-12（H 單頁 SEO）：canonical_path／is_noindex／is_excluded_from_sitemap，理由同 pages，見上方註解。
 -- og_image_key／_width／_height：OG 圖片覆寫（驗收退回後補做，2026-09-25）——與既有 cover_key
 -- 是兩個獨立欄位，OG 圖片未設定時前台回退用 cover_key，見 apps/api/README.md「S1-12」段。
+-- cover_width／cover_height（S0-7h，2026-10-02）：封面圖片欄位組補齊寬高（存主檔縮小後的尺寸，
+-- 前台必帶寬高以避免 CLS）；封面替代文字在 articles_i18n.cover_alt。
 CREATE TABLE articles (
   id                  uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq             bigint IDENTITY(1,1) NOT NULL,
@@ -311,6 +313,8 @@ CREATE TABLE articles (
   slug                nvarchar(160)    NOT NULL,
   article_category_id uniqueidentifier NOT NULL,
   cover_key           nvarchar(500)    NULL,
+  cover_width         int              NULL,
+  cover_height        int              NULL,
   is_featured         bit              NOT NULL DEFAULT 0,
   view_count          int              NOT NULL DEFAULT 0,
   status              nvarchar(16)     NOT NULL DEFAULT 'draft'
@@ -331,7 +335,7 @@ CREATE TABLE articles (
 );
 
 -- 文章逐語系內容（docs/12 §2.2 範例表）。seo_keywords：S1-12 新增，單頁 Meta Keywords。
--- og_image_alt：OG 圖片替代文字（逐語系）。
+-- og_image_alt：OG 圖片替代文字（逐語系）。cover_alt：封面圖片替代文字（S0-7h，2026-10-02，逐語系）。
 CREATE TABLE articles_i18n (
   article_id      uniqueidentifier NOT NULL,
   locale          nvarchar(10)     NOT NULL,
@@ -342,6 +346,7 @@ CREATE TABLE articles_i18n (
   seo_description nvarchar(300)    NULL,
   seo_keywords    nvarchar(200)    NULL,
   og_image_alt    nvarchar(200)    NULL,
+  cover_alt       nvarchar(200)    NULL,
   CONSTRAINT PK_articles_i18n PRIMARY KEY CLUSTERED (article_id, locale)
 );
 

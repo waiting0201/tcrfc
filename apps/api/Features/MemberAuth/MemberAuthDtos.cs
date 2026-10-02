@@ -7,7 +7,8 @@ public sealed record MemberVerifyEmailRequest(string Token);
 
 public sealed record MemberResendVerificationRequest(string Email, string Club, string? Lang);
 
-public sealed record MemberLoginRequest(string Email, string Password, bool RememberMe = false, string? TokenDelivery = null);
+/// <summary><c>DeviceInstallId</c>（App 專用，AP-3）：帶了就把更新權杖鏈掛在該裝置（<c>app_devices</c>），並強制 <c>body</c> 交付；裝置須已註冊。</summary>
+public sealed record MemberLoginRequest(string Email, string Password, bool RememberMe = false, string? TokenDelivery = null, string? DeviceInstallId = null);
 
 public sealed record MemberRefreshRequest(string? RefreshToken = null, string? TokenDelivery = null);
 
@@ -16,7 +17,7 @@ public sealed record MemberForgotPasswordRequest(string Email, string Club, stri
 public sealed record MemberResetPasswordRequest(string Token, string NewPassword);
 
 /// <summary><c>CurrentPassword</c>：已設定密碼者必填；LINE 註冊、尚未設定密碼者留空（直接設定第一組密碼）。</summary>
-public sealed record MemberChangePasswordRequest(string? CurrentPassword, string NewPassword, string? TokenDelivery = null);
+public sealed record MemberChangePasswordRequest(string? CurrentPassword, string NewPassword, string? TokenDelivery = null, string? DeviceInstallId = null);
 
 public sealed record MemberUpdateProfileRequest(string Name, string? Phone, DateOnly? BirthOn, string? Locale);
 
@@ -25,9 +26,9 @@ public sealed record MemberDeleteAccountRequest(string? Password, string? Confir
 
 public sealed record MemberLineAuthorizeRequest(string Club, string Mode, string? RedirectUri);
 
-public sealed record MemberLineCallbackRequest(string Code, string State, string? TokenDelivery = null);
+public sealed record MemberLineCallbackRequest(string Code, string State, string? TokenDelivery = null, string? DeviceInstallId = null);
 
-public sealed record MemberLineCompleteRequest(string Club, string Ticket, string Email, string? Name, string? Phone, DateOnly? BirthOn, string? Lang, string? TokenDelivery = null);
+public sealed record MemberLineCompleteRequest(string Club, string Ticket, string Email, string? Name, string? Phone, DateOnly? BirthOn, string? Lang, string? TokenDelivery = null, string? DeviceInstallId = null);
 
 public sealed record MemberSummaryDto
 {
@@ -55,6 +56,17 @@ public sealed record MemberRegisteredDto
 
     /// <summary>驗證信是否真的寄出（寄信供應商尚未串接時為 false，前端要如實告知，見 README E 批）。</summary>
     public required bool EmailSent { get; init; }
+}
+
+/// <summary>會員自己的 App 裝置（AP-3）。<c>DeviceId</c> 是裝置列的 id（不是 <c>device_install_id</c>）；<c>HasActiveSession</c>＝這支裝置的登入仍有效。</summary>
+public sealed record MemberDeviceDto
+{
+    public required Guid DeviceId { get; init; }
+    public required string Platform { get; init; }
+    public string? OsVersion { get; init; }
+    public string? AppVersion { get; init; }
+    public required DateTime LastActiveAt { get; init; }
+    public required bool HasActiveSession { get; init; }
 }
 
 public sealed record MemberProfileDto
