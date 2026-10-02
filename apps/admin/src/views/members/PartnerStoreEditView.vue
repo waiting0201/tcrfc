@@ -74,7 +74,7 @@ const loadedShared = ref(false)
 const autoLocate = ref(false)
 /** 「由地址定位」按鈕的進行狀態與結果提示（人工確認後再儲存）。 */
 const locating = ref(false)
-/** 後端回 503＝定位服務尚未串接：按鈕與勾選都停用並說明，不讓人一直試。 */
+/** 後端回 503 且非 `geocoder_unavailable`＝定位服務尚未串接：按鈕與勾選都停用並說明，不讓人一直試。 */
 const locateUnavailable = ref(false)
 const locateNotice = ref<{ type: 'success' | 'warning' | 'info'; text: string } | null>(null)
 
@@ -154,7 +154,10 @@ async function handleLocate() {
     form.lng = lng
     locateNotice.value = { type: 'success', text: '已依地址填入座標，請對照地圖確認無誤後再儲存。' }
   } catch (error) {
-    if (error instanceof AdminApiError && error.status === 503) {
+    if (error instanceof AdminApiError && error.status === 503 && (error.body as { code?: string } | undefined)?.code === 'geocoder_unavailable') {
+      // 已啟用但供應商暫時故障或額度用盡：不停用按鈕，可稍後再試。
+      locateNotice.value = { type: 'warning', text: '定位服務暫時無法使用，請稍後再試或手動輸入座標。' }
+    } else if (error instanceof AdminApiError && error.status === 503) {
       locateUnavailable.value = true
       locateNotice.value = { type: 'info', text: '定位服務尚未啟用，請手動輸入座標。' }
     } else if (error instanceof AdminApiError && error.kind === 'not-found') {

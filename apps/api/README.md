@@ -9293,7 +9293,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 ### 本批的待決事項
 
 1. ~~地址定位供應商~~ **已定 Google Maps（2026-10-02）**；剩**使用者申請並限制金鑰**、設預算告警與每日配額（`docs/17` §3），以及 🔴 **Google 條款對座標長期儲存（30 日）與「不得與非 Google 地圖併用」的法遵風險**（`docs/17` §7 風險 13，待使用者確認、未改設計）。
-1a. 後台店家表單（`apps/admin` `PartnerStoreEditView.vue`）目前把**任何 503** 都當成「定位服務尚未串接」而停用按鈕與勾選；Google 版的 `geocoder_unavailable`（供應商暫時故障／額度用盡）也是 503，會讓按鈕停用到重新整理頁面為止。前端若要區分，讀 ProblemDetails／回應的 `code`（`geocoder_not_configured` vs `geocoder_unavailable`）；影響小，未動前端。
+1a. ~~後台店家表單把任何 503 都當成「尚未串接」~~：**已修（2026-10-02）**——`PartnerStoreEditView.vue` 讀回應的 `code`，`geocoder_unavailable`（供應商暫時故障／額度用盡）只提示稍後再試、不停用按鈕；其餘 503（`geocoder_not_configured`）才停用。
 2. **標誌／圖示類圖片要不要 Alt**，以及其餘 24／30 個圖片欄位何時補——`docs/12d` §12。
 3. **自動定位要不要預設勾選**（目前預設不勾，符合「人工確認後儲存」）。
 4. **S0-7h 兩項**：置頂精選限 3 是否逐俱樂部、`publish`／`schedule` 狀態轉換規則——仍待客戶確認。
