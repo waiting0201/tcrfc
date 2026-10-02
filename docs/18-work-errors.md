@@ -2424,6 +2424,7 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **錯在哪**：AP-3 更新權杖鏈的 `AppDeviceSessionTests.登出全部裝置與變更密碼_兩台裝置的鏈都被撤銷`，在 worktree 寫成（沒有資料庫連線），合併後主 session 實跑穩定回 401。測試在變更密碼後先重放撤銷前的舊權杖，觸發重用偵測撤銷整條鏈，接著拿新權杖 refresh 自然失敗。程式行為符合 docs/19 §4，錯的是測試的步驟順序。
 - **根因（可改掉的行為）**：把「編譯通過」當成「測試正確」交付；worktree 不含 gitignored 的 `apps/api/appsettings.Development.json`，所以依賴資料庫的測試在工作樹裡跑不起來，卻沒有要求合併後補跑。
 - **下次怎麼避免**：派工到 worktree 的後端任務，回報必須分列「已實跑」與「僅編譯」的測試；主 session 合併後在主工作目錄跑完整 `dotnet test` 才算完成。
+- **同類再犯（2026-10-02，H 批 5 項）→ 升級為派工規則**：**依賴 `tcrfc_club`／`tcrfc_charity` 的後端工作不派到獨立 worktree**，一律在主工作目錄執行（worktree 沒有 gitignored 的 `apps/api/appsettings.Development.json`，資料庫測試跑不起來）；需要並行時，前端進 worktree、後端留主目錄。後端 agent 交付前必須自己跑完相關測試類別與完整 `dotnet test`。
 - **防呆**：⚠️ 部分（2026-10-02 H 批升級，不另記第二筆）：[`OfflineQueryTranslation`](../apps/api/Tcrfc.Api.Tests/OfflineQueryTranslation.cs)——不需資料庫，把 `ClubDbContext` 指向必定連不上的位址後執行被測 repository 方法：EF 查詢**翻譯失敗**會丟 `could not be translated`（測試紅燈），翻譯成功只會得到連線被拒的 `SqlException`（通過），並有一支工具自我驗證測試確認它真的會抓到不可翻譯的查詢。H 批新增的所有 repository（儀表板、搜尋、試訓、前後台網站設定、場地、EDM）的 EF 查詢因此在工作樹就驗過。**只證明「翻得成 SQL」**，不證明欄位名稱與資料庫一致（那是 `EfModelMatchesDatabaseTests`）、更不證明資料行為（權限過濾、計數、冪等、語系回退）——這些仍靠合併後的完整 `dotnet test`；`BeginTransaction` 之後的查詢與 `ExecuteUpdate` 也走不到翻譯階段。
 
 ### E-122 憑印象寫了不存在的 CSS 變數名稱，樣式悄悄失效（2026-10-02，慈善後台報表）
