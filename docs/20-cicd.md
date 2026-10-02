@@ -15,8 +15,9 @@
 >
 > ✅ **CI 段已實作**（S0-7c，2026-09-22）：`.github/workflows/` 已有 `ci.yml`／`deploy.yml`（含兩份
 > 內部可重用 workflow）、`.node-version`／`scripts/check-node-version.mjs`（S0-9h 版本防漂移）。
-> **CD（部署到正式 VM）段仍是 §9 那張表——workflow 檔裡的部署 job 目前 `if: false` 停用**，
-> 細節見 **§9a「實作進度」**。
+> ✅ **CD 段已實作**（2026-10-02）：`deploy.yml` 的部署 job、`rollback.yml`、`deploy/cd-deploy.sh`、
+> `deploy/cd-purge-cache.sh` 已寫成並以假 docker／curl 在 `/bin/bash` 3.2 下驗證（`deploy/test-cd.sh`）；
+> 設計見 **§4a**，回滾見 **§6**，實作進度與「第一次部署」見 **§9a**。**`db-migrate.yml` 仍未實作**（§5）。
 
 ---
 
@@ -42,11 +43,11 @@
 
 | 事件 | Workflow | 動作 | 跑在哪 |
 |---|---|---|---|
-| push → `master` | `deploy.yml` | build（僅變動的應用）→ push ghcr → 部署 → 健康檢查 → 失敗自動回滾 → 清快取 | build 用 hosted；部署用 self-hosted |
+| push → `master` | `deploy.yml` | build（僅變動的應用）→ push ghcr → 部署 → 健康檢查 → 失敗自動回滾 → 清快取（選配） | build 用 hosted；部署用 self-hosted（label `tcrfc-vm`，`environment: production`） |
 | 手動（`workflow_dispatch`） | `deploy.yml` | **五個映像檔全部重建並推送**（不看變動範圍）。首次部署、映像檔遺失或要強制重建時用（2026-10-02 加，E-112）。映像檔標籤只有 `:master` 與 git SHA，**沒有 `:latest`**——`IMAGE_TAG` 預設 `master` | hosted |
 | `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ OpenAPI 漂移檢查（若後台前端有型別產生器） | 一律 hosted |
 | 手動 | `db-migrate.yml` | 套用 EF Core migration，需 `production-db` 環境核准 | self-hosted |
-| 手動 | `rollback.yml` | 指定 SHA 重新部署舊映像檔 | self-hosted |
+| 手動 | `rollback.yml` ✅ | 輸入 SHA，把正式 VM 退回那一版（映像檔標籤；不重建、不 migrate），§6 | self-hosted |
 
 **不建 staging 分支／環境。** 理由：
 
@@ -182,6 +183,76 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 ### 部署後：清 Cloudflare 快取
 
 健康檢查通過後，依**哪個映像檔換了**決定清哪個 zone：`nuxt-club` 換了 → 清 tcrfc 與藍鯨兩個 zone；`nuxt-charity` 換了 → 清慈善 zone；只有 `api`／`admin-*` 換了 → 不清（後台與 API 不經 Cloudflare 快取內容）。用一個 **Cloudflare API Token，僅 `Zone.Cache Purge` 權限、限定這幾個 zone**，存 GitHub Secret（這是少數真的需要進 GitHub Secrets 的東西，因為 purge 呼叫的是 Cloudflare API 不是 VM 本機資源）。
+
+---
+
+### 4a. CD 實作（2026-10-02）
+
+> 🔵 **本節是 §4 的落地**：`deploy.yml` 的 `deploy` job、`rollback.yml`、[`deploy/cd-deploy.sh`](../deploy/cd-deploy.sh)、
+> [`deploy/cd-purge-cache.sh`](../deploy/cd-purge-cache.sh)。邏輯放在腳本、不寫在 workflow 的 `run:` 裡——可以用假 docker 測
+> （[`deploy/test-cd.sh`](../deploy/test-cd.sh)，`/bin/bash deploy/test-cd.sh`，60 項斷言），且 workflow 只傳 `env:`，不把任何輸入內插進 shell 字串。
+
+**流程**
+
+```
+push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動的）─▶ deploy（self-hosted，environment: production）
+                                                                         │ actions/checkout（persist-credentials: false）
+                                                                         │ deploy/cd-deploy.sh
+                                                                         │   1 取鎖、前置檢查（SHA 格式、.env、compose config）
+                                                                         │   2 讀 deploy-state.env 的上一版標籤
+                                                                         │   3 算本次五個映像檔的標籤
+                                                                         │   4 缺的從 ghcr 拉；浮動的 master 先另存 cd-prev
+                                                                         │   5 docker compose up -d --wait；Caddyfile 變了就重建 proxy
+                                                                         │   6 健康檢查（逾時 300 秒）
+                                                                         │   7 失敗→退回上一版並再檢查｜成功→寫 state／history
+                                                                         ▼ deploy/cd-purge-cache.sh（選配，只在成功時）
+```
+
+**何時部署**：`needs` 全部 build job 與 `changes`；**任何一個失敗或被取消就不部署**（舊版繼續跑）；被 skip 的 build 不擋（`!cancelled()`）。
+只有「至少一個映像檔重建」或「`deploy/**`／`docker-compose.yml` 有變」才部署（`workflow_dispatch` 全部視為有變）。
+`github.repository`、`github.ref == refs/heads/master` 與事件種類另在 job 條件式再擋一次。`concurrency: cd-production`（**不可取消**，與 `rollback.yml` 共用群組）。
+
+**在哪個目錄跑：runner 的 checkout 目錄，`/home/runner/tcrfc-src` 退役**
+
+| 考量 | 決定 |
+|---|---|
+| 唯一來源 | compose 專案目錄＝`/opt/tcrfc/actions-runner/_work/tcrfc/tcrfc`（`actions/checkout` 的固定路徑）。`docker-compose.yml`、`deploy/Caddyfile*` 永遠等於本次提交，不需要另一份 git clone 去 `pull`（那份會有「忘了 pull」「髒工作樹」「與 workflow 版本不同步」三種漂移） |
+| compose 專案名 | `docker-compose.yml` 頂端有 `name: tcrfc`，與現行容器前綴 `tcrfc-` 一致；**專案名不依目錄名**，不會起第二套容器撞埠。**不要**在 CD 或手動指令加 `-p` 或設 `COMPOSE_PROJECT_NAME` |
+| `.env` | 以 `--env-file /opt/tcrfc/.env` 讀（不複製進 checkout，checkout 的 `git clean` 也碰不到它）。🔴 compose 只在**沒給** `--env-file` 時才自動載入專案目錄的 `.env`，所以 checkout 目錄裡有沒有 `.env` 都不影響 |
+| `CADDYFILE` | `.env` 的 `./deploy/Caddyfile.prelaunch` 是**相對於 compose 專案目錄**，解析為 `<checkout>/deploy/Caddyfile.prelaunch`，是本次提交的版本 |
+| 🔴 **首次切換會把八個容器全部重建一次** | 容器的設定 hash 含 `build.context` 與 bind mount 的**絕對路徑**；專案目錄從 `/home/runner/tcrfc-src` 換成 checkout 目錄，路徑變了，compose 判定每個服務都要重建。**預期會有一次約 1–2 分鐘的整站中斷**（`up --wait` 依 `depends_on` 順序起）。Redis 快取清空（可接受，cache-aside）；`api` 的金鑰環是 bind mount `/opt/tcrfc/data-protection`，**不受影響**；`caddy_data` 具名 volume 保留，憑證不會重領。之後專案目錄固定，不再發生。**建議安排在離峰時段做第一次** |
+| `tcrfc-src` 退役 | 第一次 CD 部署**成功**後，在 VM 上 `rm -rf /home/runner/tcrfc-src`（使用者手動，本工作不碰 VM）。⚠️ 在那之前、之後都**不要再從那個目錄執行 `docker compose up`**——那會把專案目錄換回去，再重建一次整站，並讓 proxy 掛到舊 Caddyfile |
+
+**映像檔標籤（本節最容易做錯的地方）**
+
+`deploy.yml` 只重建「有變動」的映像檔，所以**沒重建的映像檔沒有該次 git SHA 的標籤**；全部共用一個 `IMAGE_TAG=<sha>` 會拉不到。因此：
+
+- `docker-compose.yml` 改為**每個映像檔各一個變數**：`TAG_NUXT_CLUB`／`TAG_NUXT_CHARITY`／`TAG_ADMIN_WEB`／`TAG_ADMIN_CHARITY`／`TAG_API`，沒設才退回 `IMAGE_TAG`，再退回 `master`（`${TAG_API:-${IMAGE_TAG:-master}}`）。手動 `docker compose up -d` 不必設，沿用 `.env` 的 `IMAGE_TAG='master'`，行為與現在相同。
+- CD 以**行程環境變數**逐一指定（環境變數優先於 `--env-file`），**不改寫 `/opt/tcrfc/.env`**。
+- 本次標籤＝**有重建的用 `<git sha>`，其餘沿用 `deploy-state.env` 記錄的上一版**；沒有紀錄的視為 `master`。
+- `deploy-state.env` 記**最後一次成功部署**的五個標籤；`deploy-history.log` 每次成功追加一行（含 `mode=deploy|rollback`），人工回滾靠它找回「那一版當時的完整標籤組合」。
+
+> ⚠️ **已知限制：被 GitHub 取消的排隊中 run**。GitHub 的 `concurrency` 即使 `cancel-in-progress: false`，**同群組只保留一個排隊中的 run，更舊的排隊 run 會被取消**。若兩次 push 間隔極短，被取消的那次的映像檔**根本沒建**，而下一次 push 的 paths-filter 只比對自己這次的變動——被跳過的那次若改了 `apps/api` 而下一次沒碰，`api` 會停在舊版而不報錯。單人開發、push 間隔通常夠長，風險低；**防線**：Actions 手動 Run workflow（`deploy.yml`）會**全部重建並部署**，連續快速 push 後跑一次即可對齊。job summary 的映像檔表可核對每個映像檔實際標籤。
+
+**健康檢查**（逾時 `CD_HEALTH_TIMEOUT`＝300 秒，每 5 秒重試，三關全過才算成功）
+
+1. `docker compose ps -a -q` 的容器數 ＝ compose 服務數（8），且每個 `running` 且 healthy（沒定義 healthcheck 的只要 running）。
+2. `docker compose exec -T api curl http://127.0.0.1:8080/readyz` 回 `"status":"ready"`（`club_db`／`charity_db` 失敗＝不就緒；`redis: degraded` 只在 summary 警告，不算失敗，呼應 `17` §4）。
+3. 六個網址經 **VM 本機**以 `curl --resolve <網域>:443:127.0.0.1` 打 Caddy，要 200（五個前台／後台打 `/`，API 打 `/readyz`）。**不走公開 IP／Cloudflare**：NSG 只放 Cloudflare 段，VM 自連自己的公開 IP 會被擋或繞一圈；`--resolve` 保留 SNI 與憑證驗證，測得到「proxy 依 Host 分流到上游」，測不到 Cloudflare 那一段（那段由 §9 第 10 項首次演練與 `17` §9 驗證負責）。
+
+**Caddyfile 是單一檔案 bind mount 的陷阱**：git 換檔會產生新 inode，容器仍抱著舊檔，且 compose 看不出（來源路徑字串沒變）。所以 `up` 之後腳本直接比對「執行中 proxy 讀到的 `/etc/caddy/Caddyfile` 雜湊」與 checkout 裡的檔案，不同就 `up -d --no-deps --force-recreate proxy`（TLS 憑證在 `caddy_data` volume，不會重領）。
+
+**失敗與回滾**：任何一關失敗（含 `up --wait` 逾時）→ 先把「上一版標籤」的映像檔確認在本機（沒有就拉）→ 以上一版標籤再 `up -d --wait` 與同一套健康檢查 → job 標記失敗（結束碼 1＝已退回；2＝退回也失敗）。**退回只退映像檔，不退 `deploy/`、`docker-compose.yml`**（checkout 是新版）；若問題出在設定檔，`git revert` 後 push。`deploy-state.env` 失敗時**不更新**。
+
+**首次銜接（`deploy-state.env` 是空的、容器是手動以 `:master` 起的）**
+
+- 空狀態＝每個映像檔的「上一版」視為 `master`。因為 `:master` 是浮動標籤、build 已把它指向新版，**單靠標籤退不回「手動啟動的那一版」**，所以對「將被換掉、且上一版是 `master`」的映像檔，腳本先用 `docker inspect` 取出**現在正在跑的映像檔 ID**，在本機另打 `…:cd-prev` 標籤，退回時用它。這個標籤只在本機，**不會、也不需要推到 ghcr**（退回用 `--pull never`）。
+- 首次部署成功後 state 才有紀錄，**下一次起**退回目標是真正的 SHA 標籤。「手動 `:master` 的那一版」在首次成功後就不再可回滾（本機 `cd-prev` 標籤還在，但不在 history 裡）——這是刻意的，首次銜接前沒有可追溯的版本。
+- 沒重建的映像檔在 state 裡記 `master`，保持目前跑的那份不動（腳本不會對它們 `pull`）。
+
+**清 Cloudflare 快取（選配）**：`deploy/cd-purge-cache.sh`，只在部署成功後跑。**沒設 `CLOUDFLARE_API_TOKEN` 就略過並在 summary 註明；呼叫失敗也只警告，結束碼恆為 0，部署不會因此失敗。** 依「哪個映像檔換了」決定：`nuxt_club` → 主站與藍鯨主機；`nuxt_charity` → 慈善主機；只換 `api`／`admin-*` 不清。用 **依主機名稱清除（`{"hosts":[…]}`）**，不是 `purge_everything`——暫用網域 `4webdemo.com` 與其他網站共用同一個 zone，整區清會連帶清掉別人的快取。token 經 `curl -K -` 從 stdin 餵，不出現在命令列。需要：secret `CLOUDFLARE_API_TOKEN`（權限 **Zone → Cache Purge → Purge**，限定對應 zone）、Actions Variables `CF_ZONE_ID_TCRFC`／`CF_ZONE_ID_BW`／`CF_ZONE_ID_CHARITY`（暫用網域期間三個是同一個 zone ID）。
+
+**不做的事**：不執行任何 migration（§5）；不 build（hosted runner 做完了）；不改寫 `/opt/tcrfc/.env` 與 `/opt/tcrfc/secrets/*`；不刪除 `/opt/tcrfc/data-protection`；不 `docker compose down`、不 `--remove-orphans`、不 `docker system prune`。失敗通知管道仍待使用者選定（§8）。
 
 ---
 
@@ -399,12 +470,13 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 
 | 環節 | 設計 |
 |---|---|
-| **映像檔 tag** | 一律用 **git SHA**（不可變）。回滾＝重新指向舊 SHA 的映像檔，**不需要重新建置**（映像檔已經在 ghcr 上） |
-| **部署後健康檢查** | 不是「容器有沒有活著」，是**應用層探針**：`api` 提供 `/readyz`（真的檢查兩個 `DbContext` 能連線、Redis 連線失敗算警告不算失敗——呼應 `17` §4「Redis 掛掉不得讓請求失敗」）；`nuxt-*`／`admin-*` 提供 `/healthz`（至少確認 SSR 行程存活＋能打到 `api`）。部署 job 對每個換了的容器 retry 檢查（如 10 次、間隔 5 秒，給 .NET 冷啟動時間） |
-| **失敗自動回滾** | 健康檢查連續失敗 → deploy job 自動把該 service 的映像檔 tag 改回**上一次成功部署記錄的 SHA**，重跑 `docker compose up -d`，**workflow 標記為失敗並通知**（不會安靜吞掉） |
-| **成功記錄** | 每次健康檢查通過後，把 `<service>=<sha>` 寫進 VM 本機一個 `/opt/tcrfc/deploy-state.env` 檔（不進 git）。下次部署失敗要回滾時，讀的就是這個檔的上一行 |
-| **人工回滾** | 重跑 `rollback.yml`（`workflow_dispatch`，輸入要回滾到的 SHA），同樣走 self-hosted runner、同樣跑健康檢查 |
-| **通知** | 失敗（部署失敗、健康檢查失敗、自動回滾發生）都要通知——用什麼管道（Email／LINE Notify／Slack）待使用者選，先在 workflow 留一個 `on: failure` 的通知 step 佔位 |
+| **映像檔 tag** | 有重建的映像檔用 **git SHA**（不可變），沒重建的沿用上一版標籤（每個映像檔各自一個 `TAG_*` 變數，§4a）。回滾＝重新指向舊標籤的映像檔，**不需要重新建置**（映像檔已經在 ghcr 上） |
+| **部署後健康檢查** | ✅ 已實作（§4a）：容器全 healthy ＋ `api` `/readyz` 為 `ready`（兩個 `DbContext` 能連線、Redis 失敗只警告，呼應 `17` §4）＋ 六個網址經 VM 本機 `--resolve` 回 200；逾時 300 秒、每 5 秒重試 |
+| **失敗自動回滾** | ✅ 健康檢查逾時或 `up` 失敗 → 腳本把五個映像檔標籤改回 `deploy-state.env` 記錄的上一個成功版本，`up -d --wait` 後再跑一次健康檢查；workflow 標記失敗（結束碼 1＝已退回、2＝退回也失敗）。**只退映像檔，不退 `deploy/`／compose 設定**。首次銜接的退路是本機 `:cd-prev` 標籤（§4a） |
+| **成功記錄** | ✅ 健康檢查通過後寫 `/opt/tcrfc/deploy-state.env`（`LAST_GOOD_SHA`、`LAST_GOOD_AT`、五個 `TAG_*`，不進 git；失敗不更新），並在 `/opt/tcrfc/deploy-history.log` 追加一行（時間、SHA、五個映像檔標籤、`mode`、`result=ok`） |
+| **人工回滾** | ✅ `rollback.yml`（Actions → Rollback → Run workflow，輸入 40 字元 SHA）。標籤來源：① `deploy-history.log` 裡那一版的完整標籤組合（最準）；② 歷史沒有就用「ghcr 上存在 `:<sha>` 的映像檔用該標籤，其餘沿用目前」；兩者都找不到則中止。同樣 self-hosted、同樣健康檢查，失敗退回「回滾前」的版本，成功更新 state 並在 history 記一筆 `mode=rollback`。**不重建、不 migrate、不退 `deploy/` 設定** |
+| **人工處理（自動退回也失敗，結束碼 2）** | VM 狀態不確定：在 VM 上 `cd /opt/tcrfc/actions-runner/_work/tcrfc/tcrfc`，`docker compose --env-file /opt/tcrfc/.env ps` 與 `logs <服務>` 看哪個不健康；確認 `cat /opt/tcrfc/deploy-state.env` 的上一版標籤，手動 `TAG_API=<標籤> … docker compose --env-file /opt/tcrfc/.env up -d --pull never`（五個 `TAG_*` 依 state）。**不要刪 `/opt/tcrfc/data-protection`** |
+| **通知** | 失敗（部署失敗、健康檢查失敗、自動回滾發生）都要通知——用什麼管道（Email／LINE Notify／Slack）**待使用者選**；目前失敗會讓 workflow 紅燈（GitHub 預設寄信給 repo 擁有者）並在 job summary 寫明原因與是否已退回，`deploy.yml` 留有註解佔位 |
 
 ---
 
@@ -416,12 +488,12 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 
 | Secret | 用途 | 誰用 |
 |---|---|---|
-| `CLOUDFLARE_API_TOKEN` | 部署後清快取，僅 `Zone.Cache Purge` 權限，限定官網／藍鯨／慈善三個 zone | `deploy.yml` |
+| `CLOUDFLARE_API_TOKEN`（**選配**，✅ 腳本已支援；沒設就略過清快取） | 部署後清快取，僅 `Zone.Cache Purge` 權限，限定官網／藍鯨／慈善三個 zone（暫用網域期間只有 `4webdemo.com` 一個 zone） | `deploy.yml`（`deploy/cd-purge-cache.sh`） |
 | （選用）`NOTIFY_WEBHOOK_URL` | 部署失敗／回滾通知 | 所有 workflow 的失敗通知 step |
 
 > `ghcr.io` 推送用內建 `secrets.GITHUB_TOKEN`（`permissions: packages: write`），**不另外開 PAT**。
 > self-hosted runner 註冊 token 是一次性的，**不是常駐 secret**，註冊完即棄用。
-> Cloudflare zone ID（tcrfc／藍鯨／慈善）不是機密，放 **Actions Variables** 不放 Secrets。
+> Cloudflare zone ID（tcrfc／藍鯨／慈善）不是機密，放 **Actions Variables**（`CF_ZONE_ID_TCRFC`／`CF_ZONE_ID_BW`／`CF_ZONE_ID_CHARITY`）不放 Secrets。
 
 ### 7.2 VM 本機 `.env`（不進 GitHub，任何形式都不進 git）
 
@@ -469,11 +541,13 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | §1「觸發與分支」的 `ci.yml` | ✅ `pull_request` → 五個應用的 lint／build／docker build（`push: false`）／dotnet test |
 | [`.github/workflows/_node-app.yml`](../.github/workflows/_node-app.yml) | 同上（內部用） | ✅ 四個 Node 應用共用的可重用 workflow（`push: false` 版） |
 | [`.github/workflows/_node-app-deploy.yml`](../.github/workflows/_node-app-deploy.yml) | §1／§2「映像檔要放哪裡」 | ✅ 四個 Node 應用共用的可重用 workflow（`push: true` 版，供 `deploy.yml` 呼叫） |
-| [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | §1「觸發與分支」的 `deploy.yml` | 🟡 **只做了 build＋push 段**（現在能跑，不需要 VM）；**部署段整個 `if: false` 停用**，見下方「CD 段還缺什麼」 |
+| [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | §1「觸發與分支」的 `deploy.yml` | ✅ build＋push 段（S0-7c）＋ **部署 job（2026-10-02 啟用，§4a）** |
+| [`.github/workflows/rollback.yml`](../.github/workflows/rollback.yml) | §6「人工回滾」 | ✅ 2026-10-02 |
+| [`deploy/cd-deploy.sh`](../deploy/cd-deploy.sh)、[`deploy/cd-purge-cache.sh`](../deploy/cd-purge-cache.sh) | §4a | ✅ 2026-10-02：部署／回滾／健康檢查／state 與 history；清 Cloudflare 快取（選配） |
+| [`deploy/test-cd.sh`](../deploy/test-cd.sh) | §4a | ✅ 以假 docker／curl／sha256sum 在 `/bin/bash` 3.2 跑 60 項斷言（首次銜接、只換 api、只改設定、proxy 重建、失敗→退回成功、退回也失敗＝結束碼 2、前置檢查失敗、人工回滾兩種標籤來源、鎖、清快取三種情境） |
+| [`.github/actionlint.yaml`](../.github/actionlint.yaml) | — | `tcrfc-vm` 自訂 runner label，讓 `actionlint .github/workflows/*.yml` 通過 |
 
-**尚未建立**：`db-migrate.yml`、`rollback.yml`（§5／§6 設計的兩個手動觸發 workflow）——
-兩者都預設「self-hosted runner 已存在」，VM 隨 STATUS.md S0-6 暫緩，**沒有先做出兩個一定會失敗
-或永遠不會被觸發的空殼 workflow**，等 VM 就緒、`deploy.yml` 的部署段解禁時一併補上。
+**尚未建立**：`db-migrate.yml`（§5）。（`rollback.yml` 已於 2026-10-02 建立。）
 
 ### CI 段的設計決定（比 §0–§8 原文多出的細節）
 
@@ -521,24 +595,21 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
    workflow）——兩邊觸發的事件與下游動作不同（`ci.yml` 不需要 `deploy_config` 這個輸出），
    抽出去要多傳一個「要不要這個輸出」的參數，判斷是不值得為了省 20 行再多一層間接。
 
-### CD 段還缺什麼（`deploy.yml` 的部署 job，`if: false`）
+### CD 段（2026-10-02 已實作）——還剩什麼
 
-- **VM 與 self-hosted runner 本身**（STATUS.md S0-6，Azure 資源尚未開通）——這是唯一的硬阻塞，
-  其餘都是「VM 就緒後把佔位內容填實」的文書工作：
-  1. 拿掉 `if: false`，`runs-on` 換成 `[self-hosted, tcrfc-vm]`；
-  2. `docker compose pull && up -d` 的實際部署目錄路徑（`deploy/README.md` 或屆時的 VM 佈署慣例）；**compose 用的 `.env` 暫定放 VM 的 `/opt/tcrfc/.env`**（`infra/provision-secrets.sh` 寫入），CD 段實作時以 `--env-file /opt/tcrfc/.env` 讀取或複製進 checkout 目錄，並回頭更新 `infra/README.md` §4.3；🔴 `api` 的 Data Protection 金鑰環是 bind mount `/opt/tcrfc/data-protection`（`create_host_path: false`），**部署程序不得刪除或重建這個目錄**；
-  3. `/healthz`／`/readyz` 健康檢查的 retry 迴圈（§6 已設計，未寫成 shell）；
-  4. 失敗自動回滾讀 `/opt/tcrfc/deploy-state.env` 的實際邏輯；
-  5. Cloudflare 快取清除（需要 `CLOUDFLARE_API_TOKEN`，見 §7.1，此 secret 目前也還沒建立）；
-  6. 失敗通知的實際管道（§8「本檔不決定的事」，webhook URL 待使用者選）。
-- **`db-migrate.yml`／`rollback.yml`**：完全未開始，同樣卡在 self-hosted runner。
-- **§4 防護鏈第 0 條（GitHub repo 設定）**：「Actions → Fork pull request workflows → Require
-  approval for all outside collaborators」——這是**唯一不需要等 VM、現在就能做**的防護，因為它
-  是 repo 層級設定、不是 workflow 檔案能表達的東西。**本次任務沒有代為變更 GitHub repo 設定**
-  （不確定的帳號權限操作，且不在「撰寫 workflow 檔」的授權範圍內），留給使用者手動到
-  repo 的 Settings → Actions → General 確認並勾選。**建議現在就做，不必等 S0-6**——反正還沒有
-  self-hosted runner，這條設定現在生效與否對現況沒有實質差異，但晚做不如早做，之後忘記的風險
-  比現在花一分鐘設定的成本高。
+已兌現：拿掉 `if: false`、`runs-on: [self-hosted, tcrfc-vm]`、`environment: production`、不可取消的 `concurrency`、
+部署目錄（runner 的 checkout，`tcrfc-src` 退役）、`--env-file /opt/tcrfc/.env`、健康檢查、失敗自動回滾、`deploy-state.env`、
+Cloudflare 清快取（選配）、`rollback.yml`。細節與取捨全在 **§4a**。
+
+**還沒做／待使用者**：
+
+1. **第一次 push 後的觀察**（§9 第 10 項首次演練）：會有一次整站約 1–2 分鐘中斷（專案目錄換路徑，八個容器全部重建）；見 `infra/README.md` §6「日常部署」。
+2. **`tcrfc-src` 的清除**：首次 CD 成功後使用者在 VM 上 `rm -rf /home/runner/tcrfc-src`。
+3. **Cloudflare 清快取 token**（選配）：建立後存 secret `CLOUDFLARE_API_TOKEN`＋三個 Actions Variables（§4a）；沒建立不影響部署。
+4. **失敗通知管道**（§8）。
+5. **失敗路徑尚未在真實 VM 演練**：`test-cd.sh` 以假 docker 涵蓋退回路徑，真實 VM 上的第一次失敗要靠觀察（job summary 會寫原因與是否已退回）；成功路徑與 `rollback.yml` 建議在首次 CD 成功後立刻各跑一次（§9 第 10 項）。
+6. **`db-migrate.yml`**：未實作（§5）。
+7. **§4 防護鏈第 0 條**：✅ 已確認（2026-10-02 `gh api` 唯讀查詢：Fork PR 核准政策為 `all_external_contributors`；Environment `production` 的 Deployment branches 為自訂分支策略）。
 
 ---
 
@@ -550,11 +621,11 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 |---|---|---|
 | 1 | **VM 建好、Docker 裝好** | 在 VM 上安裝 GitHub Actions self-hosted runner（`./config.sh` 用一次性註冊 token，設定 label `tcrfc-vm`），設成 systemd 服務常駐 |
 | 2 | **VM 上建 `.env` 檔** | 🔵 執行 [`infra/provision-secrets.sh`](../infra/provision-secrets.sh)（建 `club.env`／`charity.env`／`/opt/tcrfc/.env`／金鑰環目錄並驗證，見 `infra/README.md` §4.3） |
-| 3 | **VM 本機建 `deploy-state.env`** | 空檔即可，首次部署後自動寫入 |
+| 3 | **VM 本機建 `deploy-state.env`** | ✅ 空檔即可（cloud-init 已建），首次 CD 部署成功後由 `deploy/cd-deploy.sh` 寫入；同時建立 `deploy-history.log`（runner 擁有 `/opt/tcrfc`，腳本自行建立） |
 | 4 | **NSG** | **確認 CI/CD 不需要新增任何 inbound 規則**——這是方案 B 的重點驗證項，回頭核對 `17` §9 驗證 1–3 不受影響 |
 | 5 | **ghcr 套件建立** | 第一次 `deploy.yml` 跑完會自動建立五個套件；手動把它們的 visibility 設為 **Public**（新套件預設常常是 private，要手動切） |
 | 6 | **GitHub Environments** | 建立 `production`（Deployment branches：僅 `master`）與 `production-db`（同上 ＋ Required reviewers，至少 1 人） |
-| 7 | **Cloudflare API Token** | 建立僅 `Zone.Cache Purge` 權限、限定三個 zone 的 token，存進 GitHub Secret `CLOUDFLARE_API_TOKEN` |
+| 7 | **Cloudflare API Token**（選配） | 建立僅 `Zone.Cache Purge` 權限、限定對應 zone 的 token，存進 GitHub Secret `CLOUDFLARE_API_TOKEN`，並設 Actions Variables `CF_ZONE_ID_TCRFC`／`CF_ZONE_ID_BW`／`CF_ZONE_ID_CHARITY`。**沒設就略過清快取，不影響部署**（§4a） |
 | 8 | **首次建庫** | 🔵 在 VM 上以 runner 使用者執行 [`deploy/prod-db-init.sh`](../deploy/prod-db-init.sh)（`init`／`create-admin`／`verify`，步驟見 [`infra/README.md`](../infra/README.md) §4.8；設計見本檔 §5「正式庫首次初始化」）。EF 基準 migration 早已建立，這步只負責把它們寫進 `__EFMigrationsHistory` |
 | 9 | **LINE Pay 出口 IP 驗證** | 依 `17` §9 驗證 1，**這步驟獨立於 CI/CD，部署管線建好後跑一次即可**，之後除非換 VM 不必重跑 |
 | 10 | **首次部署演練** | 先在**非 LINE Pay 正式串接前**（即 §3.6 商店結帳上線前）完整跑一次 push → build → deploy → 健康檢查 → （刻意製造一次失敗）驗證自動回滾真的會動作 |

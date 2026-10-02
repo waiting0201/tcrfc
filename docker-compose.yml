@@ -94,12 +94,16 @@ services:
         limits:
           memory: 128M
 
+  # 🔵 映像檔標籤：每個映像檔各有自己的 TAG_* 變數（TAG_NUXT_CLUB／TAG_NUXT_CHARITY／TAG_ADMIN_WEB／
+  # TAG_ADMIN_CHARITY／TAG_API），沒設才退回 IMAGE_TAG，再退回 master。原因：deploy.yml 只重建「有變動」的
+  # 映像檔，沒重建的映像檔沒有該次 git SHA 的標籤，不能全部共用同一個 SHA（docs/20-cicd.md §4a）。
+  # CD（deploy/cd-deploy.sh）以環境變數逐一指定；手動 `docker compose up -d` 時不必設，沿用 .env 的 IMAGE_TAG。
   # ── 前台：主站與藍鯨共用同一個映像檔（docs/13 §6、docs/20-cicd.md §3） ──────
   nuxt-tcrfc:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${IMAGE_TAG:-master}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${TAG_NUXT_CLUB:-${IMAGE_TAG:-master}}
     restart: unless-stopped
     environment:
       NUXT_PUBLIC_CLUB: tcrfc
@@ -140,7 +144,7 @@ services:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${IMAGE_TAG:-master} # 與 nuxt-tcrfc 同一個映像檔
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-club:${TAG_NUXT_CLUB:-${IMAGE_TAG:-master}} # 與 nuxt-tcrfc 同一個映像檔
     restart: unless-stopped
     environment:
       NUXT_PUBLIC_CLUB: bw
@@ -171,7 +175,7 @@ services:
     build:
       context: ./apps/web-charity
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-charity:${IMAGE_TAG:-master}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-nuxt-charity:${TAG_NUXT_CHARITY:-${IMAGE_TAG:-master}}
     restart: unless-stopped
     environment:
       NUXT_PUBLIC_SITE_URL: https://${CHARITY_DOMAIN}
@@ -196,7 +200,7 @@ services:
     build:
       context: ./apps/admin
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-web:${IMAGE_TAG:-master}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-web:${TAG_ADMIN_WEB:-${IMAGE_TAG:-master}}
     restart: unless-stopped
     environment:
       # SPA 的 API 基底網址；若專案設計成建置期注入，這裡要改成傳給 build 的 ARG，需同步調整 Dockerfile
@@ -217,7 +221,7 @@ services:
     build:
       context: ./apps/admin-charity
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-charity:${IMAGE_TAG:-master}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-charity:${TAG_ADMIN_CHARITY:-${IMAGE_TAG:-master}}
     restart: unless-stopped
     environment:
       VITE_API_BASE: https://${API_DOMAIN}
@@ -238,7 +242,7 @@ services:
     build:
       context: ./apps/api
       dockerfile: Dockerfile
-    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-api:${IMAGE_TAG:-master}
+    image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-api:${TAG_API:-${IMAGE_TAG:-master}}
     restart: unless-stopped
     depends_on:
       redis: { condition: service_healthy }

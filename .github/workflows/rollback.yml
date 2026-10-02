@@ -1,0 +1,49 @@
+# .github/workflows/rollback.yml — 人工回滾：把正式 VM 退回指定的那一版（docs/20-cicd.md §6）
+#
+# 只有 workflow_dispatch 觸發，輸入一個 40 字元 git SHA。標籤來源：
+#   1. /opt/tcrfc/deploy-history.log 裡那一版當時的「完整五個映像檔標籤組合」（最準）
+#   2. 歷史沒有就退回「ghcr 上存在 :<sha> 標籤的映像檔用該標籤，其餘沿用目前版本」
+# 然後走與部署相同的流程（deploy/cd-deploy.sh）：拉映像檔 → up -d --wait → 健康檢查；
+# 失敗退回「回滾前的版本」；成功才更新 deploy-state.env。**不重新建置、不執行 migration。**
+#
+# ⚠️ 只退回映像檔，不退回 deploy/、docker-compose.yml（checkout 永遠是「本 workflow 被觸發的那個 master 提交」）。
+# 設定檔有問題要 `git revert` 後 push master 走 deploy.yml。
+#
+# 🔴 防護鏈（docs/20 §4）：只被 workflow_dispatch 觸發；job 參照 environment: production（僅 master）；
+# 另判斷 ref 與 repo。輸入值一律經 env 傳入並在腳本內驗證格式，不內插進 shell 字串。
+
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 要回滾到的 git SHA（40 字元；查 Actions 的 Deploy 紀錄或 VM 上 /opt/tcrfc/deploy-history.log）
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  rollback:
+    name: 回滾正式 VM
+    if: github.repository == 'waiting0201/tcrfc' && github.ref == 'refs/heads/master'
+    runs-on: [self-hosted, tcrfc-vm]
+    environment: production
+    permissions:
+      contents: read
+    concurrency:
+      group: cd-production # 與 deploy.yml 的部署 job 同一群組：不同時動 VM
+      cancel-in-progress: false
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: 回滾（docker compose up -d --wait ＋ 健康檢查）
+        env:
+          CD_MODE: rollback
+          CD_SHA: ${{ inputs.sha }}
+        run: /bin/bash deploy/cd-deploy.sh

@@ -10,6 +10,7 @@
 |---|---|
 | [`Caddyfile`](Caddyfile) | 正式環境的 proxy 設定：依 Host 分流到五個上游、自動 TLS |
 | [`Caddyfile.prelaunch`](Caddyfile.prelaunch) | **同一台正式 VM 在正式網址到位前**用（不是另一套環境），與 `Caddyfile` 幾乎相同，差異只有三個公開前台加 `X-Robots-Tag` 標頭（無帳密；[`docs/17-deployment.md`](../docs/17-deployment.md) §10.4）。用 `.env` 的 `CADDYFILE` 指定，**沒有第二份 compose 檔** |
+| [`cd-deploy.sh`](cd-deploy.sh)、[`cd-purge-cache.sh`](cd-purge-cache.sh)、[`test-cd.sh`](test-cd.sh) | **CD（2026-10-02，[`docs/20`](../docs/20-cicd.md) §4a）**：`deploy.yml`／`rollback.yml` 在 VM 上呼叫的部署／回滾／健康檢查腳本、清 Cloudflare 快取（選配）、以假 docker 驗證前兩者的測試（`/bin/bash deploy/test-cd.sh`）。**不要手動執行前兩支**，除非照 `docs/14` 的規則 |
 | [`Caddyfile.dev`](Caddyfile.dev) | 本機開發用，明文 HTTP，`auto_https off` |
 | [`local-ddl.sh`](local-ddl.sh) | 把 `db/*.sql` 轉成本機 SQL Server 2022 相容版本（`json`→`nvarchar(max)`），不改動原始檔 |
 | [`dev/club.env.example`](dev/club.env.example)／[`dev/charity.env.example`](dev/charity.env.example) | 本機開發用機密範本，複製成同目錄下拿掉 `.example` 的檔名後使用（該檔名已被 `.gitignore` 排除） |

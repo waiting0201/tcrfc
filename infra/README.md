@@ -239,7 +239,7 @@ ls -ld /opt/tcrfc /opt/tcrfc/secrets            # secrets 應為 drwx------，�
 
 > 這是 `docs/20` §4 方案 B：VM 主動連 GitHub，NSG 不需要為 CI 開任何 inbound。
 > **這個 runner 與 `infra.yml` 無關**——`infra.yml` 跑在 GitHub-hosted runner（建 VM 的時候 VM 還不存在）。
-> 此 runner 日後給 `deploy.yml`／`db-migrate.yml`／`rollback.yml` 用（`docs/20` §9 第 1 項）。
+> 此 runner 給 `deploy.yml` 的部署 job 與 `rollback.yml` 用（`db-migrate.yml` 尚未實作；`docs/20` §4a、§9 第 1 項）。
 
 1. GitHub → repo Settings → Actions → Runners → **New self-hosted runner** → Linux / x64，
    照頁面給的「下載」指令取得**當下的最新版本連結**與一次性 **註冊 token**（token 約 1 小時失效，不是常駐機密）。
@@ -339,8 +339,9 @@ GitHub Runners 頁面應顯示 `vm-tcrfc-prod` 為 Idle、label `tcrfc-vm`。
 腳本寫入 `SITE_ENV=prelaunch`、`CADDYFILE=./deploy/Caddyfile.prelaunch` 與 `.env.example` 的六個 stg 網域；測試站**沒有 Basic Auth**（2026-10-02 使用者決定拿掉）；舊 `.env` 若還有 `PRELAUNCH_BASIC_AUTH_USER`／`_HASH`，覆寫時不會寫回（無害，compose 已不讀）。
 不要填 `MSSQL_DEV_SA_PASSWORD`（只給本機開發）。**切正式網址時**手動編輯此檔（§5），之後腳本會因 `SITE_ENV=production` 拒絕改動它。
 
-> `.env` 放哪、deploy job 怎麼讀到它，`docs/20` §9a「CD 段還缺什麼」尚未定案（`deploy.yml` 部署段目前 `if: false`）。
-> 暫定放 `/opt/tcrfc/.env`，CD 段實作時以 `--env-file /opt/tcrfc/.env` 或複製進 checkout 目錄處理，屆時回頭更新本節。
+> ✅ `/opt/tcrfc/.env` 是**固定位置**（2026-10-02 定案）：CD（`deploy/cd-deploy.sh`）以 `--env-file /opt/tcrfc/.env` 讀它，不複製進 checkout、不改寫它。
+> `.env` 的 `IMAGE_TAG` 只是**備援預設**（手動 `docker compose up -d` 用）；CD 以行程環境變數 `TAG_NUXT_CLUB`／`TAG_NUXT_CHARITY`／`TAG_ADMIN_WEB`／`TAG_ADMIN_CHARITY`／`TAG_API` 逐一覆寫，見 `docs/20` §4a。
+> `CADDYFILE=./deploy/Caddyfile.prelaunch` 的相對路徑是**相對於 compose 專案目錄（runner 的 checkout 目錄）**。
 
 #### 金鑰環（Data Protection）——🔴 沒有它，已加密的資料永久無法解密
 
@@ -597,6 +598,25 @@ curl -sI "$(grep '^MEDIA_BASE_URL=' /opt/tcrfc/.env | cut -d= -f2-)/site/hero-01
 改 `infra/**` → PR（`infra-validate.yml` 自動跑 lint／build）→ 合併 `master` → `infra.yml` 自動 what-if ＋ deploy。
 要只預覽：Actions → Infra Deploy → Run workflow → 勾選 **只跑 what-if**。
 
+### 日常部署（CD，2026-10-02 起）
+
+**平常什麼都不用做**：合併／push `master` → `deploy.yml` 在 GitHub 上建置有變動的映像檔 → VM 上的 runner 拉映像檔、`docker compose up -d --wait`、健康檢查 → 失敗自動退回上一版 → 成功才記錄版本。看結果：Actions → Deploy → 最新一次 run → **deploy job 的 Summary**（版本、五個映像檔標籤、健康檢查結果、是否退回、是否清了快取）。
+
+| 想做的事 | 做法 |
+|---|---|
+| 強制重建並部署全部 | Actions → Deploy → Run workflow（`master`）：五個映像檔全部重建後部署 |
+| 手動回滾到某一版 | Actions → **Rollback** → Run workflow，輸入 40 字元 git SHA（`master`）。SHA 從 Actions 的 Deploy 紀錄或 VM 上 `cat /opt/tcrfc/deploy-history.log` 取得（每行：時間、SHA、五個映像檔標籤、`mode`、`result=ok`）。**只退映像檔**，不退 `deploy/`、compose 設定、資料庫；設定有問題用 `git revert` 再 push |
+| 看目前部署的版本 | VM：`cat /opt/tcrfc/deploy-state.env` |
+| 自動退回也失敗（job 結束碼 2、summary 寫「自動退回也失敗」） | VM 上 `cd /opt/tcrfc/actions-runner/_work/tcrfc/tcrfc`；`docker compose --env-file /opt/tcrfc/.env ps`、`logs <服務>`；依 `deploy-state.env` 帶齊五個 `TAG_*` 再 `docker compose --env-file /opt/tcrfc/.env up -d --pull never`。**不要刪 `/opt/tcrfc/data-protection`** |
+
+**第一次 CD 部署（一次性）**：專案目錄從 `/home/runner/tcrfc-src`（手動起容器時的目錄）換成 runner 的 checkout 目錄，compose 會把**八個容器全部重建一次**（約 1–2 分鐘整站中斷，Redis 快取清空；`api` 金鑰環與 Caddy 憑證 volume 不受影響）。建議離峰時段。首次成功後在 VM 上 `rm -rf /home/runner/tcrfc-src`，**之後不要再從舊目錄執行 `docker compose`**。首次成功前的「手動 `:master` 那一版」只在失敗時以本機 `:cd-prev` 標籤退回，成功後不再可回滾。
+
+**Cloudflare 清快取 token（選配，沒設就略過清快取，不影響部署）**
+1. Cloudflare → My Profile → API Tokens → Create Token → Custom：權限 **Zone → Cache Purge → Purge**，Zone Resources 只選 `4webdemo.com`（日後換正式網域再加對應 zone）。
+2. GitHub → repo Settings → Environments → `production` → Environment secrets 加 `CLOUDFLARE_API_TOKEN`。
+3. 同處 Environment variables 加 `CF_ZONE_ID_TCRFC`／`CF_ZONE_ID_BW`／`CF_ZONE_ID_CHARITY`（zone ID 在 Cloudflare 網域 Overview 右下角；暫用網域期間三個值相同）。
+腳本依主機名稱清除（只清 `tcrfc-*.4webdemo.com` 這幾個主機，不動同一 zone 的其他網站），且只在前台映像檔有換時才清。
+
 ### 驗證（對照 `docs/17` §9）
 
 ```bash
@@ -646,7 +666,7 @@ az monitor metrics alert list -g $RG --query '[].{name:name, sev:severity, enabl
 | SQL 儲存與 DTU | `tcrfc_club`／`tcrfc_charity` → Monitoring → Metrics → `Data space used`、`DTU percentage` |
 | 費用與預算 | Cost Management → Budgets → `budget-tcrfc-prod-monthly`；Cost analysis 篩選資源群組 |
 | VM 開機問題 | `vm-tcrfc-prod` → Boot diagnostics；VM 內 `/var/log/cloud-init-output.log` |
-| 部署紀錄 | Actions → Infra Deploy；Azure：資源群組 → Deployments |
+| 部署紀錄 | Actions → Infra Deploy（基礎設施）、Deploy（應用程式，看 job Summary）、Rollback；Azure：資源群組 → Deployments；VM：`/opt/tcrfc/deploy-history.log` |
 | 容器 log | VM 上 `docker compose logs <service>`（已設輪替，每容器最多約 30 MB） |
 
 ---

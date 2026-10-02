@@ -12,6 +12,14 @@
 
 ## 速查
 
+- 🔴 **正式 VM 的容器只由 CD 管：compose 專案目錄是 runner 的 checkout 目錄，映像檔標籤一律每個映像檔各自一個 `TAG_*`**（2026-10-02，`docs/20` §4a）。
+  ① **不要在 VM 上手動 `docker compose up -d`**，尤其不要從 `/home/runner/tcrfc-src`（首次 CD 成功後即退役）：專案目錄不同＝設定 hash 不同＝八個容器全部重建一次，且 proxy 會掛到舊 Caddyfile；
+  確要手動，在 checkout 目錄用 `--env-file /opt/tcrfc/.env` 並**自己帶齊五個 `TAG_*`**（照 `deploy-state.env`），否則標籤退回 `.env` 的 `IMAGE_TAG=master`，等於把已部署的 SHA 版本換成浮動標籤。
+  ② **不要用單一 `IMAGE_TAG=<sha>` 部署**——`deploy.yml` 只重建有變動的映像檔，沒重建的沒有該 SHA 標籤，拉不到。
+  ③ **不要加 `-p`／`COMPOSE_PROJECT_NAME`**：專案名由 compose 檔的 `name: tcrfc` 決定，與現行容器一致。
+  ④ `deploy-state.env`／`deploy-history.log` 只由 `deploy/cd-deploy.sh` 寫入，勿手改；`/opt/tcrfc/.env`、`secrets/`、`data-protection/` 部署程序不得改寫或刪除。
+  ⑤ Caddyfile 是單檔 bind mount，git 換檔後容器仍抱舊檔；CD 以「比對執行中 proxy 的檔案雜湊」決定是否重建 proxy，不要改成只靠 compose 的重建判斷。
+
 - 🔴 **客戶照片不得被 import 進建置，也不得進映像檔**（2026-10-02 使用者決定，`E-113`）。`apps/web/public/assets/img/`（含未成年學員肖像，不納版控）
   一律寫成 `siteImg('/assets/img/…')`（`apps/web/app/utils/siteImage.ts`），**不得**寫靜態 `src="/assets/img/…"`、`import … from '/assets/img/…'`、
   `new URL('/assets/img/…', import.meta.url)`、CSS `url(/assets/img/…)`——Nuxt 編譯器會把前兩者變成建置期 import，乾淨 checkout 直接 `UNRESOLVED_IMPORT`。

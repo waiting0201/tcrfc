@@ -686,7 +686,7 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 
 ## 8. 本檔不決定的事
 
-- ~~網站與 API 的 CI 管線~~ ✅ **已規劃於 [`20-cicd.md`](20-cicd.md)**（2026-09-20）：GHCR ＋ VM 上的 self-hosted runner ＋ 需人工核准的資料庫遷移關卡。**CI 段 workflow 已於 S0-7c 撰寫、基礎設施 workflow 見 §13。App 的兩條管線見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §9**
+- ~~網站與 API 的 CI 管線~~ ✅ **已規劃於 [`20-cicd.md`](20-cicd.md)**（2026-09-20）：GHCR ＋ VM 上的 self-hosted runner ＋ 需人工核准的資料庫遷移關卡。**CI 段 workflow 已於 S0-7c 撰寫、CD 段（部署 job、`rollback.yml`、`deploy/cd-deploy.sh`）已於 2026-10-02 撰寫（`20` §4a；專案目錄＝runner checkout，映像檔標籤逐一指定），基礎設施 workflow 見 §13。App 的兩條管線見 [`19-app-tech-stack.md`](19-app-tech-stack.md) §9**
 - **Azure SQL 定序的具體值** —— 建庫前定，建庫後不可改
 - **Redis 是否需要持久化** —— 採 cache-aside 後可視為純快取，預設不開 AOF；若日後拿它存 session 再重新評估
 - **各 entity 的快取 TTL 實際值** —— §4 只定了「先做共用小資料」的順序，數值待量測後定

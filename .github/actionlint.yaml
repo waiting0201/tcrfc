@@ -1,0 +1,4 @@
+# actionlint 設定：自訂 self-hosted runner label（正式 VM 的 runner，docs/20-cicd.md §4）
+self-hosted-runner:
+  labels:
+    - tcrfc-vm
