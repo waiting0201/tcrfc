@@ -220,6 +220,9 @@ data class ArticleDetailDto(
     val categoryName: String? = null,
     val coverKey: String? = null,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
     val isFeatured: Boolean,
     val viewCount: Int? = null,
     val publishedAt: JsonElement? = null,
@@ -251,6 +254,9 @@ data class ArticleListItemDto(
     val categoryName: String? = null,
     val coverKey: String? = null,
     val coverUrl: String? = null,
+    val coverWidth: Int? = null,
+    val coverHeight: Int? = null,
+    val coverAlt: String? = null,
     val isFeatured: Boolean,
     val publishedAt: JsonElement? = null,
     val title: String? = null,
@@ -684,6 +690,7 @@ data class MemberChangePasswordRequest(
     val currentPassword: String? = null,
     val newPassword: String,
     val tokenDelivery: String? = null,
+    val deviceInstallId: String? = null,
 )
 
 @Serializable
@@ -700,6 +707,16 @@ data class MemberClubBrandDto(
 data class MemberDeleteAccountRequest(
     val password: String? = null,
     val confirm: String? = null,
+)
+
+@Serializable
+data class MemberDeviceDto(
+    val deviceId: String,
+    val platform: String,
+    val osVersion: String? = null,
+    val appVersion: String? = null,
+    val lastActiveAt: JsonElement,
+    val hasActiveSession: Boolean,
 )
 
 @Serializable
@@ -791,6 +808,7 @@ data class MemberLineCallbackRequest(
     val code: String,
     val state: String,
     val tokenDelivery: String? = null,
+    val deviceInstallId: String? = null,
 )
 
 @Serializable
@@ -803,6 +821,7 @@ data class MemberLineCompleteRequest(
     val birthOn: String? = null,
     val lang: String? = null,
     val tokenDelivery: String? = null,
+    val deviceInstallId: String? = null,
 )
 
 @Serializable
@@ -811,6 +830,7 @@ data class MemberLoginRequest(
     val password: String,
     val rememberMe: Boolean? = null,
     val tokenDelivery: String? = null,
+    val deviceInstallId: String? = null,
 )
 
 @Serializable

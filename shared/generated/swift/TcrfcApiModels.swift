@@ -535,6 +535,9 @@ public struct ArticleDetailDto: Codable, Equatable, Sendable {
     public var categoryName: String?
     public var coverKey: String?
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
     public var isFeatured: Bool
     public var viewCount: Int?
     public var publishedAt: JSONValue?
@@ -564,6 +567,9 @@ public struct ArticleDetailDto: Codable, Equatable, Sendable {
         categoryName: String? = nil,
         coverKey: String? = nil,
         coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil,
         isFeatured: Bool,
         viewCount: Int? = nil,
         publishedAt: JSONValue? = nil,
@@ -592,6 +598,9 @@ public struct ArticleDetailDto: Codable, Equatable, Sendable {
         self.categoryName = categoryName
         self.coverKey = coverKey
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
         self.isFeatured = isFeatured
         self.viewCount = viewCount
         self.publishedAt = publishedAt
@@ -623,6 +632,9 @@ public struct ArticleListItemDto: Codable, Equatable, Sendable {
     public var categoryName: String?
     public var coverKey: String?
     public var coverUrl: String?
+    public var coverWidth: Int?
+    public var coverHeight: Int?
+    public var coverAlt: String?
     public var isFeatured: Bool
     public var publishedAt: JSONValue?
     public var title: String?
@@ -637,6 +649,9 @@ public struct ArticleListItemDto: Codable, Equatable, Sendable {
         categoryName: String? = nil,
         coverKey: String? = nil,
         coverUrl: String? = nil,
+        coverWidth: Int? = nil,
+        coverHeight: Int? = nil,
+        coverAlt: String? = nil,
         isFeatured: Bool,
         publishedAt: JSONValue? = nil,
         title: String? = nil,
@@ -650,6 +665,9 @@ public struct ArticleListItemDto: Codable, Equatable, Sendable {
         self.categoryName = categoryName
         self.coverKey = coverKey
         self.coverUrl = coverUrl
+        self.coverWidth = coverWidth
+        self.coverHeight = coverHeight
+        self.coverAlt = coverAlt
         self.isFeatured = isFeatured
         self.publishedAt = publishedAt
         self.title = title
@@ -1708,15 +1726,18 @@ public struct MemberChangePasswordRequest: Codable, Equatable, Sendable {
     public var currentPassword: String?
     public var newPassword: String
     public var tokenDelivery: String?
+    public var deviceInstallId: String?
 
     public init(
         currentPassword: String? = nil,
         newPassword: String,
-        tokenDelivery: String? = nil
+        tokenDelivery: String? = nil,
+        deviceInstallId: String? = nil
     ) {
         self.currentPassword = currentPassword
         self.newPassword = newPassword
         self.tokenDelivery = tokenDelivery
+        self.deviceInstallId = deviceInstallId
     }
 }
 
@@ -1755,6 +1776,31 @@ public struct MemberDeleteAccountRequest: Codable, Equatable, Sendable {
     ) {
         self.password = password
         self.confirm = confirm
+    }
+}
+
+public struct MemberDeviceDto: Codable, Equatable, Sendable {
+    public var deviceId: String
+    public var platform: String
+    public var osVersion: String?
+    public var appVersion: String?
+    public var lastActiveAt: JSONValue
+    public var hasActiveSession: Bool
+
+    public init(
+        deviceId: String,
+        platform: String,
+        osVersion: String? = nil,
+        appVersion: String? = nil,
+        lastActiveAt: JSONValue,
+        hasActiveSession: Bool
+    ) {
+        self.deviceId = deviceId
+        self.platform = platform
+        self.osVersion = osVersion
+        self.appVersion = appVersion
+        self.lastActiveAt = lastActiveAt
+        self.hasActiveSession = hasActiveSession
     }
 }
 
@@ -1969,15 +2015,18 @@ public struct MemberLineCallbackRequest: Codable, Equatable, Sendable {
     public var code: String
     public var state: String
     public var tokenDelivery: String?
+    public var deviceInstallId: String?
 
     public init(
         code: String,
         state: String,
-        tokenDelivery: String? = nil
+        tokenDelivery: String? = nil,
+        deviceInstallId: String? = nil
     ) {
         self.code = code
         self.state = state
         self.tokenDelivery = tokenDelivery
+        self.deviceInstallId = deviceInstallId
     }
 }
 
@@ -1990,6 +2039,7 @@ public struct MemberLineCompleteRequest: Codable, Equatable, Sendable {
     public var birthOn: String?
     public var lang: String?
     public var tokenDelivery: String?
+    public var deviceInstallId: String?
 
     public init(
         club: String,
@@ -1999,7 +2049,8 @@ public struct MemberLineCompleteRequest: Codable, Equatable, Sendable {
         phone: String? = nil,
         birthOn: String? = nil,
         lang: String? = nil,
-        tokenDelivery: String? = nil
+        tokenDelivery: String? = nil,
+        deviceInstallId: String? = nil
     ) {
         self.club = club
         self.ticket = ticket
@@ -2009,6 +2060,7 @@ public struct MemberLineCompleteRequest: Codable, Equatable, Sendable {
         self.birthOn = birthOn
         self.lang = lang
         self.tokenDelivery = tokenDelivery
+        self.deviceInstallId = deviceInstallId
     }
 }
 
@@ -2017,17 +2069,20 @@ public struct MemberLoginRequest: Codable, Equatable, Sendable {
     public var password: String
     public var rememberMe: Bool?
     public var tokenDelivery: String?
+    public var deviceInstallId: String?
 
     public init(
         email: String,
         password: String,
         rememberMe: Bool? = nil,
-        tokenDelivery: String? = nil
+        tokenDelivery: String? = nil,
+        deviceInstallId: String? = nil
     ) {
         self.email = email
         self.password = password
         self.rememberMe = rememberMe
         self.tokenDelivery = tokenDelivery
+        self.deviceInstallId = deviceInstallId
     }
 }
 

@@ -137,6 +137,15 @@
       ]
     },
     {
+      "code": "device_not_registered",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
       "code": "email_not_verified",
       "httpStatus": [
         403
@@ -170,6 +179,15 @@
       ],
       "exceptions": [
         "MemberForbiddenException"
+      ]
+    },
+    {
+      "code": "geocoder_not_configured",
+      "httpStatus": [
+        503
+      ],
+      "exceptions": [
+        "FeatureNotConfiguredException"
       ]
     },
     {
