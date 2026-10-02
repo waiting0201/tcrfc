@@ -185,6 +185,96 @@ public sealed class CharityProjectsAdminService(
         return await GetAsync(scope, id, cancellationToken);
     }
 
+    /// <summary>
+    /// 只編輯項目的「內文」三項（一句話說明、說明內文、款項用途；zh／en）——區塊編輯器儲存用（規劃書 §6.2「說明內文（區塊編輯器）」）。
+    /// 與 <see cref="UpdateAsync"/> 的整筆取代不同：這裡<b>省略的欄位不變</b>，所以編輯器不必把分潤、金額選項、撥付對象全部帶回來，也就不會
+    /// 在編輯文字時意外碰到需要獨立授權的分潤設定。說明內文送空物件 <c>{}</c> 或空陣列 <c>[]</c> 代表清空；款項用途與一句話說明送空字串代表清空。
+    /// </summary>
+    public async Task<AdminProjectDetailDto?> UpdateContentAsync(
+        CharityAdminScope scope, Guid id, UpdateProjectContentRequest request, string sourceIp, CancellationToken cancellationToken)
+    {
+        var project = await db.DonationProjects.Include(p => p.DonationProjectsI18ns).SingleOrDefaultAsync(p => p.Id == id, cancellationToken);
+        if (project is null)
+        {
+            return null;
+        }
+
+        var zh = project.DonationProjectsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
+        if (zh is null)
+        {
+            throw new AdminValidationException("這個項目還沒有繁中內容，請先在項目基本資料填寫名稱。");
+        }
+
+        var changed = new List<string>();
+        string? ApplyText(string? input, string label, int max, string? current, string field, string locale, out bool touched)
+        {
+            touched = input is not null;
+            if (input is null)
+            {
+                return current;
+            }
+
+            var value = input.Trim();
+            if (value.Length > max)
+            {
+                throw new AdminValidationException($"{label}不可超過 {max:N0} 個字。");
+            }
+
+            changed.Add($"{field}（{locale}）");
+            return value.Length == 0 ? null : value;
+        }
+
+        string? ApplyJson(JsonElement? input, string label, string? current, string field, string locale, out bool touched)
+        {
+            touched = input is not null && input.Value.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined);
+            if (!touched)
+            {
+                return current;
+            }
+
+            var isEmpty = (input!.Value.ValueKind == JsonValueKind.Object && !input.Value.EnumerateObject().Any())
+                          || (input.Value.ValueKind == JsonValueKind.Array && input.Value.GetArrayLength() == 0);
+            changed.Add($"{field}（{locale}）");
+            return isEmpty ? null : JsonText(input, label);
+        }
+
+        zh.OneLiner = ApplyText(request.OneLinerZh, "一句話說明（繁中）", 255, zh.OneLiner, "一句話說明", "繁中", out _);
+        zh.Description = ApplyJson(request.DescriptionZh, "說明內文（繁中）", zh.Description, "說明內文", "繁中", out _);
+        zh.FundUsage = ApplyText(request.FundUsageZh, "款項用途（繁中）", 5_000, zh.FundUsage, "款項用途", "繁中", out _);
+
+        var en = project.DonationProjectsI18ns.FirstOrDefault(i => i.Locale == "en");
+        var enOneLiner = ApplyText(request.OneLinerEn, "一句話說明（英文）", 255, en?.OneLiner, "一句話說明", "英文", out var t1);
+        var enDescription = ApplyJson(request.DescriptionEn, "說明內文（英文）", en?.Description, "說明內文", "英文", out var t2);
+        var enFundUsage = ApplyText(request.FundUsageEn, "款項用途（英文）", 5_000, en?.FundUsage, "款項用途", "英文", out var t3);
+        if (t1 || t2 || t3)
+        {
+            if (en is null)
+            {
+                // name 是必填：英文列不存在時以繁中名稱頂著（前台本來就會回退，這裡只是滿足欄位限制；與 UpdateAsync 同一個做法）。
+                db.DonationProjectsI18ns.Add(new DonationProjectsI18n
+                {
+                    DonationProjectId = id, Locale = "en", Name = zh.Name, OneLiner = enOneLiner, Description = enDescription, FundUsage = enFundUsage,
+                });
+            }
+            else
+            {
+                en.OneLiner = enOneLiner;
+                en.Description = enDescription;
+                en.FundUsage = enFundUsage;
+            }
+        }
+
+        if (changed.Count > 0)
+        {
+            project.UpdatedAt = DateTime.UtcNow;
+            project.UpdatedBy = scope.Identity.AdminUserId;
+            audit.Stage(scope, CharityAuditActions.ProjectContentUpdate, CharityAuditTargets.Project, id, $"編輯項目內文：{string.Join("、", changed)}", null, sourceIp);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return await GetAsync(scope, id, cancellationToken);
+    }
+
     /// <summary>上架／下架。上架前必須有繁中名稱（前台沒有名稱的項目不會輸出）。</summary>
     public async Task<AdminProjectDetailDto?> SetPublishedAsync(CharityAdminScope scope, Guid id, bool published, CancellationToken cancellationToken)
     {

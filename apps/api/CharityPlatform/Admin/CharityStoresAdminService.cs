@@ -335,6 +335,243 @@ public sealed class CharityStoresAdminService(
         return baseUrl is null ? null : $"{baseUrl}/zh/s/{slug}";
     }
 
+    // ═══════════════════════════════════════════════════════════════════════
+    // 批次匯入店家（規劃書 §6.1「批次匯入店家資料（CSV）」）
+    // ═══════════════════════════════════════════════════════════════════════
+
+    /// <summary>匯入檔的表頭（依序，完全相符）。欄位順序與名稱是契約，後台「下載範本」給的就是這一列。</summary>
+    public static readonly IReadOnlyList<string> ImportHeader =
+    [
+        "店家名稱（繁中）", "店家名稱（英文）", "類別", "地址", "聯絡人", "電話", "合作開始日", "合作結束日", "狀態", "店家分潤（%）",
+    ];
+
+    public const int MaxImportRows = 500;
+
+    /// <summary>範本 CSV（UTF-8 BOM）：表頭＋一列示範。</summary>
+    public byte[] BuildImportTemplate(CharityAdminScope scope)
+        => CsvUtils.ToUtf8BytesWithBom(CsvUtils.BuildCsv(new List<IEnumerable<string?>>
+        {
+            ImportHeader,
+            new string?[] { "範例咖啡店", "Example Cafe", "餐飲", "台中市西區範例路 1 號", "王小明", "04-2222-3333", "2026-10-01", "2027-09-30", "合作中", "5" },
+        }));
+
+    /// <summary>
+    /// 批次匯入店家。🔴 規則（規劃書只寫「可批次匯入（CSV）」，下面是執行層決定，寫在 README 與 docs/16）：
+    /// <list type="bullet">
+    /// <item><b>整批驗證、任一列有錯整批不寫入</b>（比照主站 FAQ 匯入）；錯誤逐列回報，列號與 Excel 一致。</item>
+    /// <item><c>store_slug</c> 一律由系統產生，檔案裡沒有這一欄（QR 網址不可由外部指定，規劃書 §2.3）。</item>
+    /// <item><b>重複判定</b>＝繁中店名與地址（去空白、不分大小寫）都相同，對照<b>既有全部店家（含已停止）</b>與<b>檔案裡較前面的列</b>。
+    /// 因為 slug 是系統產生的，沒有可靠的自然鍵能做「更新」，所以匯入只做<b>新增</b>；同一份檔案重複匯入會被重複判定擋下，不會產生重複店家（冪等）。
+    /// 預設重複視為錯誤；<c>skipDuplicates=true</c> 時重複的列改為略過並回報。</item>
+    /// <item>分潤欄位非 0 的列，操作者需持有「設定店家分潤」權限（否則整批 403），並為每家店各寫一筆分潤稽核；另受「店家＋項目 ≤ 100%」限制。</item>
+    /// <item>一次最多 <see cref="MaxImportRows"/> 家。</item>
+    /// </list>
+    /// </summary>
+    public async Task<AdminStoreImportResultDto> ImportCsvAsync(
+        CharityAdminScope scope, string csvContent, bool skipDuplicates, string sourceIp, CancellationToken cancellationToken)
+    {
+        var rows = CsvUtils.Parse(csvContent);
+        if (rows.Count == 0)
+        {
+            throw new AdminValidationException("檔案是空的，找不到任何資料列。");
+        }
+
+        if (rows[0].Count != ImportHeader.Count || !rows[0].Select(h => h.Trim()).SequenceEqual(ImportHeader, StringComparer.Ordinal))
+        {
+            throw new AdminValidationException($"檔案格式不正確，表頭必須依序是「{string.Join("、", ImportHeader)}」（可下載範本）。");
+        }
+
+        if (rows.Count - 1 > MaxImportRows)
+        {
+            throw new AdminValidationException($"一次最多匯入 {MaxImportRows} 家店家，這份檔案有 {rows.Count - 1} 列，請分批匯入。");
+        }
+
+        if (rows.Count == 1)
+        {
+            throw new AdminValidationException("檔案裡只有表頭，沒有任何店家資料。");
+        }
+
+        var errors = new List<AdminStoreImportRowIssueDto>();
+        var skipped = new List<AdminStoreImportRowIssueDto>();
+        var parsed = new List<(int RowNumber, Validated Value)>();
+        var maxProjectPct = await db.DonationProjects.AsNoTracking().Select(p => (decimal?)p.ProjectSharePct).MaxAsync(cancellationToken) ?? 0m;
+
+        // 既有店家的（繁中店名＋地址）指紋，含已停止的。
+        var existing = await db.DonationStores.AsNoTracking()
+            .Select(s => new { s.Address, Name = s.DonationStoresI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault() })
+            .ToListAsync(cancellationToken);
+        var seen = new Dictionary<string, int?>(StringComparer.Ordinal);
+        foreach (var e in existing.Where(e => e.Name is not null))
+        {
+            seen.TryAdd(Fingerprint(e.Name!, e.Address), null);
+        }
+
+        for (var i = 1; i < rows.Count; i++)
+        {
+            var rowNumber = i + 1;
+            var cells = rows[i];
+            if (cells.Count != ImportHeader.Count)
+            {
+                errors.Add(new(rowNumber, $"欄位數不正確，應為 {ImportHeader.Count} 欄，實際 {cells.Count} 欄。"));
+                continue;
+            }
+
+            var problems = new List<string>();
+            string? Text(int col, string label, int max, bool required = false)
+            {
+                try
+                {
+                    return required ? AdminInput.RequireText(cells[col], label, max) : AdminInput.OptionalText(cells[col], label, max);
+                }
+                catch (AdminValidationException ex)
+                {
+                    problems.Add(ex.Message);
+                    return null;
+                }
+            }
+
+            var nameZh = Text(0, "店家名稱（繁中）", 128, required: true);
+            var nameEn = Text(1, "店家名稱（英文）", 128);
+            var category = Text(2, "類別", 64);
+            var address = Text(3, "地址", 500);
+            var contact = Text(4, "聯絡人", 64);
+            var phone = Text(5, "電話", 32);
+            var startOn = ParseImportDate(cells[6], "合作開始日", problems);
+            var endOn = ParseImportDate(cells[7], "合作結束日", problems);
+            if (startOn is not null && endOn is not null && endOn < startOn)
+            {
+                problems.Add("合作結束日不可早於開始日。");
+            }
+
+            var statusText = cells[8].Trim();
+            string? status = statusText switch
+            {
+                "" or "合作中" or "active" => "active",
+                "已停止" or "inactive" => "inactive",
+                _ => null,
+            };
+            if (status is null)
+            {
+                problems.Add("狀態只能填「合作中」或「已停止」（留空視為合作中）。");
+            }
+
+            decimal? pct = 0m;
+            var pctText = cells[9].Trim().TrimEnd('%').Trim();
+            if (pctText.Length > 0)
+            {
+                if (!decimal.TryParse(pctText, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var parsedPct)
+                    || parsedPct < 0m || parsedPct > 100m || decimal.Round(parsedPct, 2) != parsedPct)
+                {
+                    problems.Add("店家分潤須介於 0 到 100 之間，最多兩位小數。");
+                    pct = null;
+                }
+                else
+                {
+                    pct = parsedPct;
+                }
+            }
+
+            if (status == "active" && pct is { } p && p > 0m && p + maxProjectPct > 100m)
+            {
+                problems.Add($"店家分潤 {p}% 加上項目分潤（目前最高 {maxProjectPct}%）超過 100%。");
+            }
+
+            if (problems.Count > 0 || nameZh is null || status is null || pct is null)
+            {
+                errors.Add(new(rowNumber, string.Join("；", problems)));
+                continue;
+            }
+
+            var key = Fingerprint(nameZh, address);
+            if (seen.TryGetValue(key, out var firstRow))
+            {
+                var reason = firstRow is { } earlier ? $"與檔案第 {earlier} 列重複（店名與地址相同）。" : "與既有店家重複（店名與地址相同）。";
+                (skipDuplicates ? skipped : errors).Add(new(rowNumber, reason));
+                continue;
+            }
+
+            seen[key] = rowNumber;
+            parsed.Add((rowNumber, new Validated(nameZh, nameEn, null, null, category, address, contact, phone, startOn, endOn, status, pct)));
+        }
+
+        if (errors.Count > 0)
+        {
+            return new AdminStoreImportResultDto { ImportedCount = 0, Errors = errors, Skipped = skipped };
+        }
+
+        if (parsed.Any(r => r.Value.SharePct is > 0m))
+        {
+            await RequireSharePctPermissionAsync(scope, cancellationToken);
+        }
+
+        var now = DateTime.UtcNow;
+        var usedSlugs = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (_, v) in parsed)
+        {
+            var store = new DonationStore
+            {
+                Id = Guid.NewGuid(),
+                Category = v.Category,
+                Address = v.Address,
+                ContactName = v.ContactName,
+                ContactPhone = v.ContactPhone,
+                StoreSharePct = v.SharePct ?? 0m,
+                StartOn = v.StartOn,
+                EndOn = v.EndOn,
+                Status = v.Status,
+                CreatedAt = now,
+                UpdatedAt = now,
+                CreatedBy = scope.Identity.AdminUserId,
+                UpdatedBy = scope.Identity.AdminUserId,
+            };
+            do
+            {
+                store.StoreSlug = NewSlug();
+            }
+            while (!usedSlugs.Add(store.StoreSlug));
+
+            db.DonationStores.Add(store);
+            db.DonationStoresI18ns.Add(new DonationStoresI18n { DonationStoreId = store.Id, Locale = RequestLocale.DefaultDbLocale, Name = v.NameZh });
+            if (v.NameEn is not null)
+            {
+                db.DonationStoresI18ns.Add(new DonationStoresI18n { DonationStoreId = store.Id, Locale = "en", Name = v.NameEn });
+            }
+
+            if (store.StoreSharePct != 0m)
+            {
+                audit.Stage(scope, CharityAuditActions.StoreSharePctSet, CharityAuditTargets.Store, store.Id, $"批次匯入建立店家，店家分潤 0% → {store.StoreSharePct}%", null, sourceIp);
+            }
+        }
+
+        // 極小機率：新產生的 slug 撞到既有店家（80 bits 亂數，實務上不會發生；撞了就整批失敗，由唯一鍵擋下，不靜默吞掉）。
+        audit.Stage(scope, CharityAuditActions.StoreImport, CharityAuditTargets.Store, null,
+            $"批次匯入店家 {parsed.Count} 家（略過重複 {skipped.Count} 列）", null, sourceIp);
+        await db.SaveChangesAsync(cancellationToken);
+
+        return new AdminStoreImportResultDto { ImportedCount = parsed.Count, Errors = [], Skipped = skipped };
+    }
+
+    private static string Fingerprint(string nameZh, string? address)
+        => $"{nameZh.Trim().ToLowerInvariant()}|{(address ?? string.Empty).Trim().ToLowerInvariant()}";
+
+    private static DateOnly? ParseImportDate(string raw, string label, List<string> problems)
+    {
+        var text = raw.Trim();
+        if (text.Length == 0)
+        {
+            return null;
+        }
+
+        if (DateOnly.TryParseExact(text, ["yyyy-MM-dd", "yyyy-M-d", "yyyy/MM/dd", "yyyy/M/d"], System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out var date))
+        {
+            return date;
+        }
+
+        problems.Add($"{label}格式不正確，請填 2026-10-01 這樣的日期。");
+        return null;
+    }
+
     // ───────────────────────────────────────────────────────────────────────
 
     private async Task RequireSharePctPermissionAsync(CharityAdminScope scope, CancellationToken cancellationToken)

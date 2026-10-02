@@ -17,6 +17,24 @@
 
 ---
 
+## §0 處理狀態（2026-10-02 回填）
+
+> **本檔是 2026-09-20 的盤點快照**。盤點發現的缺漏後來已逐項落進 [`docs/16`](16-charity-schema.md) 與 [`db/charity-schema.sql`](../db/charity-schema.sql)，
+> 但本檔當時沒有回頭標記，導致「對帳結果沒有資料結構」這類已解決的項目仍以未解決的姿態留在這裡（`E-02` 型殘留，記於 [`18`](18-work-errors.md) `E-117`）。
+> 以下是逐項結案狀態；§3–§8 的正文保留當時的盤點原文，**不再代表現況**。
+
+| 盤點項目 | 結案狀態 | 落點 |
+|---|---|---|
+| §3 十筆缺欄位（`logo_key`／`cover_key`／`invoice_title`／`receipt_title`／`is_annual_summary`／`void_reason`＋`voided_by`／`remit_method`／`clawback_reason` 等） | ✅ 已解 | `docs/16` §3 ER 圖與 `db/charity-schema.sql` 都已有；EF 實體與 `CharityEfModelMatchesDatabaseTests` 逐欄核對 |
+| ⬛ **對帳結果沒有資料結構** | ✅ 已解 | `reconciliation_runs`／`reconciliation_discrepancies` 兩張表（`docs/16` §2.1b、`db/charity-schema.sql`）；CH-4 於 2026-10-02 實作每日對帳排程、手動對帳與差異處理，見 [`apps/api/README.md`](../apps/api/README.md)「慈善 CH-3 補完／CH-4 帳務與報表／CH-5 延伸」 |
+| §4 🟡 `Settlement` 狀態異動的經辦人與時間 | ✅ 結案（不加欄位） | 每次異動（確認結算／登記付款）寫 `audit_logs`（經辦人＋時間，append-only，比單一 `updated_by` 更完整）；結算單 API 的 `settledAt/By`、`paidRegisteredAt/By` 取自稽核 |
+| §4 🟡 `AuditLog` 匯出筆數 | ✅ 結案（不加欄位） | 筆數寫在 `change_summary`（「匯出含個資明細 N 筆；條件：…」），用途備註在 `purpose_note`；稽核查詢端點 `GET /audit-logs` 可依關鍵字查 |
+| §10 徵信名單**逐筆隱藏**無落點 | ✅ 已解 | `donations.is_credit_hidden`（2026-10-02，EF migration `AddCreditHiddenAndSettlementLineKey`），見 `docs/16` §4.1、§12 |
+| 附帶：§7.2「依項目」報表的**目標達成率** | ⚠️ 規劃書自相矛盾，未解 | 報表端點**不輸出**這一欄（沒有分母）；仍待走同步鏈修掉規劃書 §7.2 該句 |
+| §10 其餘（系統信語系、憑證重試次數、軟性比對會員、冪等鍵、`carrier_type` 值域） | 🟡 維持現狀 | 見 `docs/16` §10、§11 的執行層決定與待裁決 |
+
+---
+
 ## §1 核對方法與判準
 
 **核對方式**：以規劃書 §6 後台功能規劃（行 466–551，N1–N7 七個模組）與 §9 資料模型（行 633–683）為主，
@@ -103,6 +121,8 @@
 - **目前 `docs/16` 哪裡都沒有**：`docs/16` §3 ER 圖的 `settlement_line { }` 屬性方塊為 `id`／`settlement_id`／`donation_id`／`share_amount`／`is_clawback`。原捐款單號已由 `donation_id` 承接，但「沖回原因」的文字說明沒有對應欄位——`is_clawback` 只是布林旗標，不能承載原因文字
 
 ### ⬛ 對帳結果——**規劃書明文要求的資料結構，在 `docs/16` §2 的 23 張表清單裡完全不存在**
+
+> ✅ **已解（見上方 §0）**——以下為 2026-09-20 的盤點原文，保留作紀錄。
 
 - **規劃書行 402–406**（§4.5 對帳）：「每日將本站的 `paid` 捐款單與 LINE Pay 的交易明細比對／差異情形（本站有金流無、金流有本站無、金額不符）列為異常清單供人工處理／**對帳結果保留供稽核**」
 - **規劃書行 517**（N3 異常佇列）：「獨立分頁列出「已扣款但確認失敗」「發票開立失敗」「**對帳差異**」三類待人工處理項目」
@@ -193,7 +213,7 @@
 
 | 規劃書要求 | 問題 | 本輪做法 |
 |---|---|---|
-| §3.6／§6.3 徵信名單**逐筆隱藏** | 🔴 `donations` 沒有隱藏旗標 | 不做。徵信名單頁本身是 CH-5 |
+| §3.6／§6.3 徵信名單**逐筆隱藏** | ~~🔴 `donations` 沒有隱藏旗標~~ ✅ **2026-10-02 已解** | 新增 `donations.is_credit_hidden`；N3 端點 `POST /donations/{id}/credit-visibility`；公開徵信名單排除已隱藏者 |
 | §6.3 N3 以 Email **軟性比對會員** | 🔴 本庫不得持有主站連線（§9.3），主站沒有對應的唯讀端點 | 不做 |
 | §3.5 系統信語系 | 🟡 `donations` 沒有記錄捐款人語系 | 系統信一律繁中 |
 | §5.3 憑證自動重試「若干次（含退避）」 | 🟡 `donation_invoices` 沒有嘗試次數欄位 | 固定間隔重試＋總期限，非指數退避 |
@@ -211,3 +231,4 @@
 | v1.0 | 2026-09-20 | 首版，慈善捐款平台 23 張表全表欄位盤點 |
 | v1.1 | 2026-09-22 | 新增 §9：灌種子資料時發現 `DonationProject.status` 分不出「已下架」與「已結束」 |
 | v1.2 | 2026-10-01 | 新增 §10：CH-2／CH-3 實作 API 時新發現的缺口 |
+| v1.3 | 2026-10-02 | 新增 §0 處理狀態：回填各項盤點結案狀態（對帳結果型別早已存在、逐筆隱藏已落地）；§3–§8 正文維持 2026-09-20 原文 |

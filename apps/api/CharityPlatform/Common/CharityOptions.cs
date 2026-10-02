@@ -67,6 +67,13 @@ public static class CharityOptions
         return !environment.IsDevelopment() || string.Equals(configured, "true", StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>每日對帳排程：台灣時間幾點（整點）以後才對前一天的帳（規劃書 §4.5「每日」）。預設 4——等金流端前一天的交易明細穩定。
+    /// 只在背景工作啟用時運作；管理員隨時可在後台手動對任一天重跑。</summary>
+    public const string ReconciliationAfterHourConfigKey = "CHARITY_RECONCILIATION_AFTER_HOUR";
+
+    public static int ResolveReconciliationAfterHour(IConfiguration configuration)
+        => int.TryParse(configuration[ReconciliationAfterHourConfigKey], out var v) && v is >= 0 and <= 23 ? v : 4;
+
     /// <summary>背景工作的掃描間隔（秒）。預設 60。</summary>
     public const string WorkerIntervalSecondsConfigKey = "CHARITY_WORKER_INTERVAL_SECONDS";
 

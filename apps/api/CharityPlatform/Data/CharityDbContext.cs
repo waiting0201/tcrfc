@@ -455,6 +455,7 @@ public partial class CharityDbContext : DbContext
                 .HasMaxLength(20)
                 .HasColumnName("invoice_mode");
             entity.Property(e => e.IsAnonymous).HasColumnName("is_anonymous");
+            entity.Property(e => e.IsCreditHidden).HasColumnName("is_credit_hidden");
             entity.Property(e => e.OrderNo)
                 .HasMaxLength(32)
                 .HasColumnName("order_no");
@@ -1435,6 +1436,8 @@ public partial class CharityDbContext : DbContext
             entity.HasIndex(e => e.DonationId, "IX_settlement_lines_donation_id");
 
             entity.HasIndex(e => e.SettlementId, "IX_settlement_lines_settlement_id");
+
+            entity.HasIndex(e => new { e.SettlementId, e.DonationId, e.IsClawback }, "UQ_settlement_lines_settlement_donation_kind").IsUnique();
 
             entity.HasIndex(e => e.Seq, "UQ_settlement_lines_seq")
                 .IsUnique()

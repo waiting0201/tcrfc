@@ -13,8 +13,8 @@
 -- 預期列數（deploy/prod-db-init.sh 灌完後逐表核對；`-- MANIFEST` 行是機器讀的）：
 -- MANIFEST admin_roles=9
 -- MANIFEST locales=2
--- MANIFEST permissions=24
--- MANIFEST role_permissions=45
+-- MANIFEST permissions=27
+-- MANIFEST role_permissions=49
 -- ============================================================================
 
 SET XACT_ABORT ON;
@@ -639,12 +639,47 @@ IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = N'n3.donation.recheck_paym
   VALUES (N'1dea463c-865c-5faa-93e6-54c06c6abefb', N'n3.donation.recheck_payment', N'N', N'N3', N'donation', N'execute', N'重新確認付款結果', N'Recheck Payment Result', 0, 0);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = N'n4.settlement.mark_paid')
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, name_zh, name_en, is_restricted, sysadmin_only)
+  VALUES (N'e1817147-678e-5508-a55f-54ee2f8fb349', N'n4.settlement.mark_paid', N'N', N'N4', N'settlement', N'execute', N'登記結算單已付款', N'Register Settlement Payment', 1, 0);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = N'n7.audit_log.view')
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, name_zh, name_en, is_restricted, sysadmin_only)
+  VALUES (N'fc447748-8d4f-5748-bf07-a77381e1944b', N'n7.audit_log.view', N'N', N'N7', N'audit_log', N'view', N'檢視稽核紀錄', N'View Audit Logs', 1, 1);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = N'n3.donation.hide_credit')
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, name_zh, name_en, is_restricted, sysadmin_only)
+  VALUES (N'cc00616a-e768-54a0-8ce8-1a765f4a3aba', N'n3.donation.hide_credit', N'N', N'N3', N'donation', N'execute', N'隱藏或恢復徵信名單顯示', N'Hide Donor From Credit List', 0, 0);
+GO
+
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n3.donation.recheck_payment'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n3.donation.recheck_payment'), NULL);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n4.settlement.mark_paid'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n4.settlement.mark_paid'), NULL);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n7.audit_log.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n7.audit_log.view'), NULL);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n3.donation.hide_credit'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n3.donation.hide_credit'), NULL);
+GO
+
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'customer_service_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n3.donation.recheck_payment'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'customer_service_admin'), (SELECT id FROM permissions WHERE code = N'n3.donation.recheck_payment'), NULL);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'customer_service_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n3.donation.hide_credit'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'customer_service_admin'), (SELECT id FROM permissions WHERE code = N'n3.donation.hide_credit'), NULL);
 GO

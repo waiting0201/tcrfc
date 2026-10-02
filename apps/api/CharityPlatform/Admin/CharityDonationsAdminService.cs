@@ -56,6 +56,7 @@ public sealed class CharityDonationsAdminService(
                 d.DonationProjectId,
                 d.DonationStoreId,
                 d.IsAnonymous,
+                d.IsCreditHidden,
                 ProjectName = d.DonationProject.DonationProjectsI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 StoreName = d.DonationStore == null ? null : d.DonationStore.DonationStoresI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Name).FirstOrDefault(),
                 Invoice = d.DonationInvoices.OrderByDescending(i => i.Seq).Select(i => new { i.IssueStatus, i.VoidStatus }).FirstOrDefault(),
@@ -80,6 +81,7 @@ public sealed class CharityDonationsAdminService(
                 InvoiceStatus = r.Invoice?.IssueStatus,
                 InvoiceVoidStatus = r.Invoice?.VoidStatus,
                 IsAnonymous = r.IsAnonymous,
+                IsCreditHidden = r.IsCreditHidden,
                 NeedsManualReview = r.Status == DonationStatus.Pending && r.LatestPaymentStatus == PaymentStatus.Failed,
             }).ToList(),
             Page = p,
@@ -177,6 +179,7 @@ public sealed class CharityDonationsAdminService(
             Invoice = invoice is null ? null : ToInvoiceDto(invoice, reveal),
             Refund = d.Status == DonationStatus.Refunded ? new AdminRefundDto(d.RefundReason, d.RefundedByNavigation?.DisplayName) : null,
             NeedsManualReview = d.Status == DonationStatus.Pending && latestPayment?.Status == PaymentStatus.Failed,
+            IsCreditHidden = d.IsCreditHidden,
             Timeline = timeline.OrderBy(t => t.At).ToList(),
         };
     }
@@ -347,6 +350,28 @@ public sealed class CharityDonationsAdminService(
 
         await command.ExecuteNonQueryAsync(cancellationToken);
         return (int)result.Value! >= 0; // 0＝取得、1＝等待後取得；負數＝逾時、被取消、死結、錯誤
+    }
+
+    /// <summary>
+    /// 隱藏／恢復徵信名單顯示（規劃書 §3.6「亦可逐筆隱藏」、§6.3 N3 操作）。只影響公開徵信名單頁，不動捐款本身。
+    /// 匿名捐款本來就不會列入，仍允許標記（之後若改為具名也不會被意外列出）。每次調整寫稽核。
+    /// </summary>
+    public async Task<AdminCreditVisibilityDto> SetCreditVisibilityAsync(
+        CharityAdminScope scope, Guid id, bool hidden, string sourceIp, CancellationToken cancellationToken)
+    {
+        var donation = await db.Donations.SingleOrDefaultAsync(d => d.Id == id, cancellationToken)
+            ?? throw new CharityNotFoundException("找不到這筆捐款。");
+        if (donation.IsCreditHidden != hidden)
+        {
+            donation.IsCreditHidden = hidden;
+            donation.UpdatedAt = DateTime.UtcNow;
+            donation.UpdatedBy = scope.Identity.AdminUserId;
+            audit.Stage(scope, CharityAuditActions.DonationCreditVisibility, CharityAuditTargets.Donation, id,
+                hidden ? "從徵信名單隱藏" : "恢復徵信名單顯示", null, sourceIp);
+            await db.SaveChangesAsync(cancellationToken);
+        }
+
+        return new AdminCreditVisibilityDto(donation.Id, donation.IsAnonymous, donation.IsCreditHidden);
     }
 
     public async Task<bool> ResendThanksAsync(CharityAdminScope scope, Guid id, string sourceIp, CancellationToken cancellationToken)

@@ -40,6 +40,7 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
     public ScriptedPaymentGateway Gateway { get; } = new();
     public ScriptedInvoiceIssuer Invoices { get; } = new();
     public CapturingEmailSender Mail { get; } = new();
+    public ScriptedReconciliationSource Reconciliation { get; } = new();
     public InMemoryCharityImageStorage Images { get; } = new();
 
     private string _connectionString = string.Empty;
@@ -74,6 +75,8 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         services.RemoveAll<IInvoiceIssuer>();
         services.RemoveAll<IEmailSender>();
         services.RemoveAll<ICharityImageStorage>();
+        services.RemoveAll<IPaymentReconciliationSource>();
+        services.AddSingleton<IPaymentReconciliationSource>(Reconciliation);
         services.RemoveAll<ITurnstileVerifier>();
         services.AddSingleton<ITurnstileVerifier>(Turnstile);
         services.AddSingleton<IPaymentGateway>(Gateway);
@@ -114,6 +117,7 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         Gateway.Reset();
         Invoices.Reset();
         Mail.Reset();
+        Reconciliation.Reset();
         Images.Reset();
         Turnstile.Reset();
     }
@@ -159,6 +163,25 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         }
 
         return new CharityTestAdmin(id, username, isSuperAdmin, IssueToken(id, username, isSuperAdmin));
+    }
+
+    /// <summary>建立一個只持有指定權限碼的臨時角色（代碼 <c>ct-role-*</c>，<see cref="CleanupAsync"/> 會清掉），回傳角色代碼——用來驗證「核對的人」與「登記付款的人」權限分離這類種子角色表達不出的組合。</summary>
+    public async Task<string> CreateRoleAsync(params string[] permissionCodes)
+    {
+        var code = $"ct-role-{Guid.NewGuid():N}"[..20];
+        await ExecuteAsync("INSERT INTO admin_roles (id, code, name_zh, name_en, is_system) VALUES (NEWID(), @c, N'測試角色', N'Test Role', 0)", ("@c", code));
+        foreach (var permission in permissionCodes)
+        {
+            var linked = await ExecuteAsync(
+                "INSERT INTO role_permissions (admin_role_id, permission_id) SELECT r.id, p.id FROM admin_roles r CROSS JOIN permissions p WHERE r.code = @c AND p.code = @p",
+                ("@c", code), ("@p", permission));
+            if (linked != 1)
+            {
+                throw new InvalidOperationException($"找不到權限碼 '{permission}'——請先執行 dotnet ef database update --context CharityDbContext。");
+            }
+        }
+
+        return code;
     }
 
     public static string IssueToken(Guid adminUserId, string username, bool isSuperAdmin)
@@ -220,8 +243,13 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
         const string sql = """
             DELETE FROM audit_logs WHERE admin_user_id IN (SELECT id FROM admin_users WHERE username LIKE N'ct-%@charity-test.invalid');
             DELETE FROM email_logs WHERE recipient_email LIKE N'%@charity-test.invalid';
+            DELETE FROM reconciliation_discrepancies WHERE reconciliation_run_id IN (SELECT id FROM reconciliation_runs WHERE source LIKE N'ct-%');
+            DELETE FROM reconciliation_runs WHERE source LIKE N'ct-%';
             DELETE FROM reconciliation_discrepancies WHERE donation_id IN (SELECT id FROM donations WHERE donor_email LIKE N'%@charity-test.invalid');
             DELETE FROM settlement_lines WHERE donation_id IN (SELECT id FROM donations WHERE donor_email LIKE N'%@charity-test.invalid');
+            DELETE FROM settlements WHERE id NOT IN (SELECT settlement_id FROM settlement_lines)
+                AND (payee_id IN (SELECT donation_store_id FROM donation_stores_i18n WHERE name LIKE N'CT店家%')
+                     OR payee_id IN (SELECT id FROM donation_projects WHERE project_slug LIKE N'ct-%'));
             DELETE FROM donation_payments WHERE donation_id IN (SELECT id FROM donations WHERE donor_email LIKE N'%@charity-test.invalid');
             DELETE FROM donation_invoices WHERE donation_id IN (SELECT id FROM donations WHERE donor_email LIKE N'%@charity-test.invalid');
             DELETE FROM donations WHERE donor_email LIKE N'%@charity-test.invalid';
@@ -229,6 +257,8 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             DELETE FROM donation_projects WHERE project_slug LIKE N'ct-%';
             DELETE FROM donation_stores WHERE id IN (SELECT donation_store_id FROM donation_stores_i18n WHERE name LIKE N'CT店家%');
             DELETE FROM admin_users WHERE username LIKE N'ct-%@charity-test.invalid';
+            DELETE FROM role_permissions WHERE admin_role_id IN (SELECT id FROM admin_roles WHERE code LIKE N'ct-role-%');
+            DELETE FROM admin_roles WHERE code LIKE N'ct-role-%';
             """;
         await ExecuteAsync(sql);
     }
@@ -285,6 +315,22 @@ public sealed class CharityRateLimitApiFixture : CharityApiFixture
 public sealed class CharityRateLimitCollection : ICollectionFixture<CharityRateLimitApiFixture>
 {
     public const string Name = "charity-api-rate-limit";
+}
+
+/// <summary>
+/// 專門驗證徵信名單與成果回顧的公開讀取限流：獨立的測試主機（獨立的限流計數）。不與 <see cref="CharityRateLimitApiFixture"/> 共用——
+/// 測試主機的 <c>RemoteIpAddress</c> 是空的，所有請求落在同一個計數桶，把「公開讀取」額度用盡會害同一個主機上的其他限流測試失敗。
+/// </summary>
+public sealed class CharityRecognitionRateLimitApiFixture : CharityApiFixture
+{
+    public const int Permits = 3;
+    protected override string ReadPermits => Permits.ToString();
+}
+
+[CollectionDefinition(Name)]
+public sealed class CharityRecognitionRateLimitCollection : ICollectionFixture<CharityRecognitionRateLimitApiFixture>
+{
+    public const string Name = "charity-api-rate-limit-recognition";
 }
 
 /// <summary>未設定慈善連線字串時的測試主機（Production 環境，不讀 appsettings.Development.json）：整個慈善平台不應存在。</summary>

@@ -29,6 +29,9 @@ public partial class Donation
 
     public bool IsAnonymous { get; set; }
 
+    /// <summary>後台逐筆「隱藏於徵信名單」旗標（規劃書 §3.6／§6.3；CH-5 新增）。預設 false。</summary>
+    public bool IsCreditHidden { get; set; }
+
     public decimal StoreSharePctSnapshot { get; set; }
 
     public decimal ProjectSharePctSnapshot { get; set; }

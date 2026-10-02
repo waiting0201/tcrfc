@@ -30,6 +30,9 @@ public sealed record AdminDonationListItemDto
 
     /// <summary>🔴 待人工處理（捐款單 pending 且最近一次付款 failed＝付款確認結果未知，可能已扣款）。</summary>
     public required bool NeedsManualReview { get; init; }
+
+    /// <summary>後台已把這筆捐款從徵信名單隱藏（規劃書 §6.3「隱藏於徵信名單」）。僅在具名捐款才有意義。</summary>
+    public bool IsCreditHidden { get; init; }
 }
 
 public sealed record AdminDonationDetailDto
@@ -53,6 +56,9 @@ public sealed record AdminDonationDetailDto
     public required AdminInvoiceDto? Invoice { get; init; }
     public required AdminRefundDto? Refund { get; init; }
     public required bool NeedsManualReview { get; init; }
+
+    /// <summary>是否已從徵信名單隱藏。</summary>
+    public bool IsCreditHidden { get; init; }
 
     /// <summary>狀態與操作的時間軸（建單、發起付款、付款確認、退款、補寄信、重開憑證等）。</summary>
     public required IReadOnlyList<AdminTimelineEntryDto> Timeline { get; init; }
@@ -125,3 +131,11 @@ public sealed record AdminAnomalyDto
 }
 
 public sealed record AdminAnomalyCountsDto(int ConfirmFailed, int InvoiceFailed, int InvoiceVoidPending, int Reconciliation);
+
+/// <summary>調整徵信名單顯示。<c>hidden = true</c> 隱藏、<c>false</c> 恢復。</summary>
+public sealed record SetCreditVisibilityRequest
+{
+    public bool Hidden { get; init; }
+}
+
+public sealed record AdminCreditVisibilityDto(Guid DonationId, bool IsAnonymous, bool IsCreditHidden);

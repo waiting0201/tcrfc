@@ -301,10 +301,16 @@ IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = {role_sq(rol
 # ----------------------------------------------------------------------------
 EXTRA_PERMISSIONS = [
     ("n3.donation.recheck_payment", "N3", "donation", "execute", "重新確認付款結果", "Recheck Payment Result", False, False),
+    # CH-4／CH-5（2026-10-02）：規劃書 §10「結算單的已付款登記需與執行匯款者分離」→ 以獨立權限碼分離（docs/16 §4.2「不落資料表」）；
+    # 稽核紀錄查詢屬勸募法遵的受限資料（含操作者與來源 IP），只給系統管理員。
+    ("n4.settlement.mark_paid", "N4", "settlement", "execute", "登記結算單已付款", "Register Settlement Payment", True, False),
+    ("n7.audit_log.view", "N7", "audit_log", "view", "檢視稽核紀錄", "View Audit Logs", True, True),
+    # 規劃書 §6.3 N3 操作「隱藏於徵信名單」（客服受理捐款人要求時處理；改變公開頁面內容，所以獨立一個碼並寫稽核）。
+    ("n3.donation.hide_credit", "N3", "donation", "execute", "隱藏或恢復徵信名單顯示", "Hide Donor From Credit List", False, False),
 ]
 EXTRA_ROLE_PERMISSIONS = {
-    "system_admin": ["n3.donation.recheck_payment"],
-    "customer_service_admin": ["n3.donation.recheck_payment"],
+    "system_admin": ["n3.donation.recheck_payment", "n4.settlement.mark_paid", "n7.audit_log.view", "n3.donation.hide_credit"],
+    "customer_service_admin": ["n3.donation.recheck_payment", "n3.donation.hide_credit"],
 }
 
 emit("-- ── 3b. CH-3 新增的權限碼（API 專用，未併入匯出給前端的常數，理由見上方註解） ────────")

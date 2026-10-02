@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Tcrfc.Api.CharityPlatform.Data;
 
@@ -11,9 +12,11 @@ using Tcrfc.Api.CharityPlatform.Data;
 namespace Tcrfc.Api.CharityPlatform.Data.Migrations
 {
     [DbContext(typeof(CharityDbContext))]
-    partial class CharityDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261002042845_AddCreditHiddenAndSettlementLineKey")]
+    partial class AddCreditHiddenAndSettlementLineKey
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

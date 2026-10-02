@@ -244,7 +244,7 @@ Server=host.docker.internal,1433;Database=tcrfc_club;User Id=sa;Password=<MSSQL_
 | 分類 | 表 | 筆數 | 涵蓋的狀態／分支 |
 |---|---|---|---|
 | 語系 | `locales` | 2 | zh-Hant／en |
-| 後台帳號權限 | `admin_roles`／`permissions`／`role_permissions`／`admin_users`／`admin_user_roles` | 9／**24**／**45**／4／4 | 沿用主站九個角色；5 個與慈善無對應職能的角色刻意不掛權限（見腳本註解）。🔴 **CH-3（2026-10-01）**：①新增 API 專用權限碼 `n3.donation.recheck_payment`（腳本 §3b，**刻意不併入匯出給前端 fixtures 的 `PERMISSIONS`／`ROLE_PERMISSION_MAP`**，免得逼兩個前端同步改檔）；②四個種子帳號改用**真的 Argon2id 雜湊、可登入**（`sa@charity.local`／`Admin@123`、`cs.admin@`／`biz.admin@`＝`ContentEditor@123`、`viewer@`＝`Viewer@123`，🔴 只供本機開發）。CH-1b 時期建好的庫裡仍是 `DEV-SEED-` 占位雜湊，重跑 `apply-charity-seed.sh` 會升級（只動仍是占位的列） |
+| 後台帳號權限 | `admin_roles`／`permissions`／`role_permissions`／`admin_users`／`admin_user_roles` | 9／**27**／**49**／4／4 | 沿用主站九個角色；5 個與慈善無對應職能的角色刻意不掛權限（見腳本註解）。🔴 **CH-3（2026-10-01）**：①新增 API 專用權限碼 `n3.donation.recheck_payment`（腳本 §3b，**刻意不併入匯出給前端 fixtures 的 `PERMISSIONS`／`ROLE_PERMISSION_MAP`**，免得逼兩個前端同步改檔）；②四個種子帳號改用**真的 Argon2id 雜湊、可登入**（`sa@charity.local`／`Admin@123`、`cs.admin@`／`biz.admin@`＝`ContentEditor@123`、`viewer@`＝`Viewer@123`，🔴 只供本機開發）。CH-1b 時期建好的庫裡仍是 `DEV-SEED-` 占位雜湊，重跑 `apply-charity-seed.sh` 會升級（只動仍是占位的列）。🔴 **CH-4／CH-5（2026-10-02）**：再新增三個 API 專用權限碼（同在腳本 §3b 的 `EXTRA_PERMISSIONS`）——`n4.settlement.mark_paid`（登記已付款，與執行結算分離）、`n7.audit_log.view`（稽核查詢，僅系統管理員）、`n3.donation.hide_credit`（徵信名單逐筆隱藏，系統管理員與客服／行政）；已建好的庫由 EF migration `AddCh4Ch5Permissions` 補上，不必重灌種子 |
 | 主站唯讀複本 | `charity_refs`／`charity_program_refs` | 2／3 | 虛構占位（協會統編未定，不得沿用正式環境） |
 | 店家 | `donation_stores`（+i18n） | 3 | 不同類別、有／無 Logo、合作中／已停止 |
 | 項目 | `donation_projects`（+i18n）／`donation_amount_options` | 3／10 | 已上架 ×2（不同 `invoice_mode`）＋已下架 ×1（⚠️ 綱要沒有「已結束」狀態值，見腳本註解的已知缺口） |

@@ -49,6 +49,25 @@ public static partial class CharityPublicEndpoints
             return project is null ? Results.NotFound() : Results.Ok(project);
         }).WithName("CharityGetProject").Produces<PublicProjectDetailDto>().Produces(StatusCodes.Status404NotFound);
 
+        // GET /credit-list?lang=zh&projectSlug=&from=&to=&page=&pageSize= —— 捐款徵信名單（規劃書 §3.6）。只輸出姓名；後台整站關閉時 enabled=false。
+        // 掛 Read 限流：這是公開端點上唯一會成批輸出人名的查詢，擋大量爬取。
+        group.MapGet("/credit-list", async (
+            string? projectSlug, DateOnly? from, DateOnly? to, int? page, int? pageSize, CharityRecognitionCatalog catalog, CancellationToken cancellationToken) =>
+            Results.Ok(await catalog.GetCreditListAsync(projectSlug, from, to, page, pageSize, cancellationToken)))
+            .WithName("CharityGetCreditList")
+            .RequireRateLimiting(CharityRateLimitPolicies.Read)
+            .Produces<PublicCreditListDto>()
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status429TooManyRequests);
+
+        // GET /impact?lang=zh —— 成果回顧頁（規劃書 §2.1）：已上架項目關聯的慈善計畫摘要與導回主站的網址。
+        group.MapGet("/impact", async (string? lang, CharityRecognitionCatalog catalog, CancellationToken cancellationToken) =>
+            Results.Ok(await catalog.GetImpactAsync(RequestLocale.ToDbLocale(lang), cancellationToken)))
+            .WithName("CharityGetImpact")
+            .RequireRateLimiting(CharityRateLimitPolicies.Read)
+            .Produces<PublicImpactDto>()
+            .Produces(StatusCodes.Status429TooManyRequests);
+
         // POST /donations —— 建立捐款單。標頭 Idempotency-Key 必填；同一個鍵重複送出沿用原單（200），首次建立回 201。
         group.MapPost("/donations", async (
             CreateDonationRequest request, HttpContext httpContext, ITurnstileVerifier turnstile,

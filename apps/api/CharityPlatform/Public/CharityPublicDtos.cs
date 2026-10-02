@@ -204,3 +204,47 @@ public sealed record PublicDonationResultDto
     /// <summary>可以重試付款（<c>created</c>／<c>failed</c>／<c>expired</c>）：重試沿用原單，不重新建單、不要求重填（規劃書 §3.3、§4.3）。</summary>
     public required bool CanRetry { get; init; }
 }
+
+/// <summary>
+/// 捐款徵信名單（規劃書 §3.6）。🔴 <b>只有姓名</b>：不含金額、Email、店家、單號、時間——連「這個人捐了幾次」都不能被推出來
+/// （同名去重，順序依姓名排序而非時間）。只列捐款人在捐款表單明示選擇「具名」、且後台沒有逐筆隱藏、且付款成立（<c>paid</c>）的捐款。
+/// <c>enabled = false</c>（後台整站關閉）時不回傳任何名單。
+/// </summary>
+public sealed record PublicCreditListDto
+{
+    public required bool Enabled { get; init; }
+    public required IReadOnlyList<string> Names { get; init; }
+    public required int Page { get; init; }
+    public required int PageSize { get; init; }
+    public required int TotalCount { get; init; }
+}
+
+/// <summary>成果回顧頁（規劃書 §2.1 <c>/{lang}/impact/</c>）：已上架項目關聯的慈善計畫摘要，並導回主站。
+/// 🔴 計畫名稱與公益團體名稱是<b>快照</b>（不即時查主站、不做 join，規劃書 §9.3）；成果數據與故事在主站，這裡只負責導流。</summary>
+public sealed record PublicImpactDto
+{
+    /// <summary>俱樂部官網網址（後台 N7 設定）；未設定時為 <c>null</c>，前台不顯示導回連結。</summary>
+    public required string? ClubSiteUrl { get; init; }
+
+    public required IReadOnlyList<PublicImpactProgramDto> Programs { get; init; }
+    public required bool IsFallback { get; init; }
+}
+
+public sealed record PublicImpactProgramDto
+{
+    /// <summary>慈善計畫的參照碼（主站 <c>CharityProgram</c>）；項目只指定公益團體、沒有指定計畫時為 <c>null</c>。</summary>
+    public required string? ProgramRefCode { get; init; }
+
+    public required string? ProgramName { get; init; }
+    public required string? CharityName { get; init; }
+    public required IReadOnlyList<PublicImpactProjectDto> Projects { get; init; }
+}
+
+public sealed record PublicImpactProjectDto
+{
+    public required string Slug { get; init; }
+    public required string Name { get; init; }
+    public required string? OneLiner { get; init; }
+    public required string? CoverUrl { get; init; }
+    public required string? CoverAlt { get; init; }
+}

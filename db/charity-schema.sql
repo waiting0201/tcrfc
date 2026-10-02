@@ -441,6 +441,7 @@ CREATE TABLE donations (
     donor_name                  nvarchar(64)     NOT NULL,
     donor_email                 nvarchar(255)    NOT NULL,
     is_anonymous                bit              NOT NULL DEFAULT (0),
+    is_credit_hidden            bit              NOT NULL DEFAULT (0),   -- 後台逐筆隱藏於徵信名單（規劃書 §3.6／§6.3，CH-5 新增）
     store_share_pct_snapshot    decimal(5,2)     NOT NULL DEFAULT (0),
     project_share_pct_snapshot  decimal(5,2)     NOT NULL DEFAULT (0),
     store_amount                int              NOT NULL DEFAULT (0),
@@ -788,6 +789,9 @@ CREATE INDEX IX_donation_invoices_issue_status   ON donation_invoices (issue_sta
 -- 沖回對應
 CREATE INDEX IX_settlement_lines_settlement_id   ON settlement_lines (settlement_id);
 CREATE INDEX IX_settlement_lines_donation_id     ON settlement_lines (donation_id);
+-- 同一份結算單內，一筆捐款最多一條正項、一條沖回負項（CH-4 新增的資料層後盾；跨結算單的「一筆捐款每種對象只進一份結算」
+-- 由應用程式在結算產生時以 sp_getapplock 串行化＋排除查詢保證，無法用單一唯一索引表達）。
+CREATE UNIQUE INDEX UQ_settlement_lines_settlement_donation_kind ON settlement_lines (settlement_id, donation_id, is_clawback);
 
 -- 稽核查詢
 CREATE INDEX IX_audit_logs_occurred_at_desc      ON audit_logs (occurred_at DESC);

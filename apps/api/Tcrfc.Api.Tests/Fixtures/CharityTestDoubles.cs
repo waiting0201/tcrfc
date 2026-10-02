@@ -185,3 +185,34 @@ public sealed class ScriptedTurnstileVerifier : ITurnstileVerifier
         return Task.FromResult(Result);
     }
 }
+
+/// <summary>
+/// 可編排的每日對帳來源：測試自己決定「金流端那天有哪些交易」，才走得到三種差異與「取不到明細」。
+/// 來源代號固定 <c>ct-recon</c>（清理依 <c>source LIKE 'ct-%'</c> 刪除測試產生的對帳批次，不碰種子的 <c>linepay</c> 批次）。
+/// </summary>
+public sealed class ScriptedReconciliationSource : IPaymentReconciliationSource
+{
+    public const string Name = "ct-recon";
+
+    public string SourceName => Name;
+
+    public bool Unavailable { get; set; }
+
+    public List<GatewayTransaction> Transactions { get; } = [];
+
+    public void Reset()
+    {
+        Unavailable = false;
+        Transactions.Clear();
+    }
+
+    public Task<IReadOnlyList<GatewayTransaction>> ListTransactionsAsync(DateOnly taiwanDate, CancellationToken cancellationToken)
+    {
+        if (Unavailable)
+        {
+            throw new PaymentGatewayUnavailableException("scripted: reconciliation source unavailable");
+        }
+
+        return Task.FromResult<IReadOnlyList<GatewayTransaction>>(Transactions.ToList());
+    }
+}

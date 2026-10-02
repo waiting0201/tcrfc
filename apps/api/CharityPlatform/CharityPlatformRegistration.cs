@@ -10,6 +10,7 @@ using Tcrfc.Api.CharityPlatform.Invoices;
 using Tcrfc.Api.CharityPlatform.Mail;
 using Tcrfc.Api.CharityPlatform.Payments;
 using Tcrfc.Api.CharityPlatform.Public;
+using Tcrfc.Api.CharityPlatform.Reconciliation;
 using Tcrfc.Api.CharityPlatform.Security;
 using Tcrfc.Api.CharityPlatform.Storage;
 using Tcrfc.Api.CharityPlatform.Workers;
@@ -74,6 +75,9 @@ public static class CharityPlatformRegistration
         services.AddSingleton<IPaymentGateway, FakePaymentGateway>();
         services.AddSingleton<IInvoiceIssuer, FakeInvoiceIssuer>();
         services.AddSingleton<IEmailSender, FakeEmailSender>();
+        // 每日對帳的金流交易明細來源（規劃書 §4.5）。本機假實作＝以本站自己的金流紀錄當明細（永遠一致，只驗證流程）；
+        // 正式實作（B-7，協會 LINE Pay 的交易查詢／結算檔）到位時換掉這一行。取不到明細一律記成失敗批次，不會判定全部差異。
+        services.AddScoped<IPaymentReconciliationSource, FakePaymentReconciliationSource>();
 
         // ── Turnstile：有設定密鑰才啟用，否則放行（第一道防線是 IP 限流）──────────────────
         var turnstileSecret = configuration[CloudflareTurnstileVerifier.SecretConfigKey];
@@ -111,6 +115,14 @@ public static class CharityPlatformRegistration
         services.AddScoped<CharityStoresAdminService>();
         services.AddScoped<CharityProjectsAdminService>();
         services.AddScoped<CharityDonationsAdminService>();
+        services.AddScoped<CharityRecognitionCatalog>();
+        services.AddScoped<CharityReconciliationRunner>();
+        services.AddScoped<CharitySettlementsAdminService>();
+        services.AddScoped<CharityReconciliationAdminService>();
+        services.AddScoped<CharityInvoicesAdminService>();
+        services.AddScoped<CharityReportsAdminService>();
+        services.AddScoped<CharitySettingsAdminService>();
+        services.AddScoped<CharityAuditQueryService>();
 
         // ── 背景維護（逾時轉換、憑證重試）：Development 預設關閉，見 CharityOptions.WorkersEnabled ──
         services.AddScoped<CharityMaintenanceRunner>();

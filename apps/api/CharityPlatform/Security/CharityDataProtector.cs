@@ -20,6 +20,7 @@ public sealed class CharityDataProtector(IDataProtectionProvider provider)
     private const string NationalIdPurpose = "Tcrfc.Charity.NationalId.v1";
     private const string CarrierPurpose = "Tcrfc.Charity.CarrierId.v1";
     private const string TwoFactorPurpose = "Tcrfc.Charity.TwoFactorSecret.v1";
+    private const string ChannelCredentialPurpose = "Tcrfc.Charity.PaymentChannelCredential.v1";
 
     public string EncryptNationalId(string plain) => provider.CreateProtector(NationalIdPurpose).Protect(plain);
 
@@ -28,6 +29,11 @@ public sealed class CharityDataProtector(IDataProtectionProvider provider)
     public string EncryptCarrierId(string plain) => provider.CreateProtector(CarrierPurpose).Protect(plain);
 
     public string? TryDecryptCarrierId(string? cipher) => TryUnprotect(CarrierPurpose, cipher);
+
+    /// <summary>N7 金流／發票憑證（<c>payment_channels.credential_encrypted</c>）。後台永遠不回傳明文，只有串接實作在呼叫金流時解密。</summary>
+    public string EncryptChannelCredential(string plain) => provider.CreateProtector(ChannelCredentialPurpose).Protect(plain);
+
+    public string? TryDecryptChannelCredential(string? cipher) => TryUnprotect(ChannelCredentialPurpose, cipher);
 
     public string EncryptTwoFactorSecret(byte[] secret)
         => provider.CreateProtector(TwoFactorPurpose).Protect(Convert.ToBase64String(secret));
