@@ -261,8 +261,11 @@ public sealed class AppDeviceSessionTests(AdminWriteApiFixture fixture) : IAsync
             new { currentPassword = MemberTestScope.Password, newPassword = "New-Passw0rd!x", deviceInstallId = deviceA }, TestJson.WriteOptions);
         var changed = await ReadSessionAsync(change);
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshRawAsync(anonymous, b2.RefreshToken)).StatusCode);
+        // 先確認新發的那組可用，再重放撤銷前的舊權杖：舊權杖簽章合法、簽發時間早於現行那把，
+        // 依重用偵測規則會被視為外洩並撤銷這條鏈，所以重放必須放在最後（放前面會連新權杖一起殺掉）。
+        var rotated = await ReadSessionAsync(await RefreshRawAsync(anonymous, changed.RefreshToken));
         Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshRawAsync(anonymous, a2.RefreshToken)).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await RefreshRawAsync(anonymous, changed.RefreshToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshRawAsync(anonymous, rotated.RefreshToken)).StatusCode);
     }
 
     [Fact]
