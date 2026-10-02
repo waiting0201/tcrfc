@@ -17,6 +17,7 @@
 | [`provision-secrets.sh`](provision-secrets.sh) | 在 Mac 執行：把機密檔與金鑰環目錄寫進 VM 並驗證（§4.3） |
 | [`upload-site-images.sh`](upload-site-images.sh) | 在 Mac 執行：把前台的站台照片處理成 WebP 並上傳 Blob（§4.9） |
 | [`../deploy/prod-db-init.sh`](../deploy/prod-db-init.sh) | 在 VM 上執行：正式庫首次初始化（建表、參照資料、migration 歷史、第一個管理員；§4.8） |
+| [`../.github/workflows/db-migrate.yml`](../.github/workflows/db-migrate.yml)、[`../deploy/db-migrate.sh`](../deploy/db-migrate.sh) | 正式庫之後的 migration：預覽 → VM 唯讀比對 → `production-db` 核准 → 套用（§6「資料庫 migration」） |
 | [`cloud-init.yaml`](cloud-init.yaml) | VM 首次開機：安裝 Docker ＋ Compose、建 `runner` 使用者與 `/opt/tcrfc/` 目錄 |
 | [`modules/network.bicep`](modules/network.bicep) | VNet、`snet-app`、NSG、靜態 Public IP（含鎖） |
 | [`modules/compute.bicep`](modules/compute.bicep) | NIC、VM |
@@ -239,7 +240,7 @@ ls -ld /opt/tcrfc /opt/tcrfc/secrets            # secrets 應為 drwx------，�
 
 > 這是 `docs/20` §4 方案 B：VM 主動連 GitHub，NSG 不需要為 CI 開任何 inbound。
 > **這個 runner 與 `infra.yml` 無關**——`infra.yml` 跑在 GitHub-hosted runner（建 VM 的時候 VM 還不存在）。
-> 此 runner 給 `deploy.yml` 的部署 job 與 `rollback.yml` 用（`db-migrate.yml` 尚未實作；`docs/20` §4a、§9 第 1 項）。
+> 此 runner 給 `deploy.yml` 的部署 job 與 `rollback.yml` 用（另 `db-migrate.yml` 的 `pending`／`apply` 兩個 job，§6「資料庫 migration」；`docs/20` §4a、§9 第 1 項）。
 
 1. GitHub → repo Settings → Actions → Runners → **New self-hosted runner** → Linux / x64，
    照頁面給的「下載」指令取得**當下的最新版本連結**與一次性 **註冊 token**（token 約 1 小時失效，不是常駐機密）。
@@ -498,6 +499,8 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 
 ⚠️ **這支腳本使用 SQL 管理員帳號**（連線字串來自 `club.env`／`charity.env`），與 `api` 日常連線相同（§8 待決 4：之後建議改用最小權限的資料庫使用者）。
 
+**之後的結構變更不再用這支腳本**，走 §6「資料庫 migration」（`db-migrate.yml`）。分工：`prod-db-init.sh`＝庫完全是空的時候做一次的「創世」；`db-migrate.yml`＝庫已初始化之後的每一支新 migration（它遇到沒有 `__EFMigrationsHistory` 的庫會拒絕並指回這裡）。
+
 ### 4.9 站台照片（Blob）
 
 > 🔵 **使用者 2026-10-02 決定**：主站前台約 150 張客戶照片（`apps/web/public/assets/img/`，不納版控，含未成年學員）**不進 repo、不進映像檔**，改由 Azure Blob 提供。前台程式端的改法見 `STATUS.md` S0-9o；本節是上傳與設定。
@@ -616,6 +619,81 @@ curl -sI "$(grep '^MEDIA_BASE_URL=' /opt/tcrfc/.env | cut -d= -f2-)/site/hero-01
 2. GitHub → repo Settings → Environments → `production` → Environment secrets 加 `CLOUDFLARE_API_TOKEN`。
 3. 同處 Environment variables 加 `CF_ZONE_ID_TCRFC`／`CF_ZONE_ID_BW`／`CF_ZONE_ID_CHARITY`（zone ID 在 Cloudflare 網域 Overview 右下角；暫用網域期間三個值相同）。
 腳本依主機名稱清除（只清 `tcrfc-*.4webdemo.com` 這幾個主機，不動同一 zone 的其他網站），且只在前台映像檔有換時才清。
+
+### 資料庫 migration（`db-migrate.yml`，2026-10-02 起）
+
+> 設計理由、防呆清單、演練結果：[`docs/20`](../docs/20-cicd.md) §5「`db-migrate.yml` 實作」。程式碼：[`db-migrate.yml`](../.github/workflows/db-migrate.yml)、[`deploy/db-migrate.sh`](../deploy/db-migrate.sh)。
+
+**什麼時候用**：改了 Entity、PR 合併進 `master`、其中**帶有新的 migration**（`apps/api/Data/Migrations/` 或 `apps/api/CharityPlatform/Data/Migrations/`）時。**順序永遠是先 migrate、後 deploy**（`docs/20` §5）：`deploy.yml` 只換映像檔、不碰資料庫；結構變更用「展開—收縮」，舊版 api 要能在新結構上跑，因為 `rollback.yml` 也只退映像檔、不退結構。
+
+**一次性前置：建立 `production-db` 環境（🔴 必須在第一次執行前建好）**
+
+GitHub 對「不存在的 environment」會在 job 引用時**自動建立一個沒有任何保護的同名環境**——核准關卡就被靜默繞過。所以先建好；`db-migrate.yml` 的 `preview` job 在 `dry_run=false` 時也會檢查它存在、有 Required reviewers、Deployment branches 僅 `master`，不符就失敗。指令（由 repo 擁有者在自己的電腦執行，需要 repo 管理權限）：
+
+```bash
+# 1. 建環境：Required reviewers＝repo 擁有者 waiting0201（user id 5709750；查法 gh api users/waiting0201 --jq .id）。
+#    prevent_self_review=false：單人 repo，觸發的人也是核准的人，設 true 就沒有人能核准（有第二位維運者後再改 true）。
+#    can_admins_bypass=false：連管理員也不能跳過核准。
+gh api -X PUT repos/waiting0201/tcrfc/environments/production-db --input - <<'JSON'
+{
+  "reviewers": [{ "type": "User", "id": 5709750 }],
+  "prevent_self_review": false,
+  "can_admins_bypass": false,
+  "deployment_branch_policy": { "protected_branches": false, "custom_branch_policies": true }
+}
+JSON
+
+# 2. Deployment branches 只允許 master
+gh api -X POST repos/waiting0201/tcrfc/environments/production-db/deployment-branch-policies -f name=master -f type=branch
+
+# 3. 驗證（預期：reviewers 只有 waiting0201、custom_branch_policies=true、分支清單只有 master）
+gh api repos/waiting0201/tcrfc/environments/production-db \
+  --jq '{reviewers:[.protection_rules[]|select(.type=="required_reviewers")|.reviewers[].reviewer.login], branch_policy:.deployment_branch_policy}'
+gh api repos/waiting0201/tcrfc/environments/production-db/deployment-branch-policies --jq '[.branch_policies[].name]'
+```
+
+（`production` 環境已存在，僅 `master`、無 reviewers；`db-migrate.yml` 的唯讀比對 job 掛在它上面。）
+
+**怎麼跑**
+
+1. **先預覽（`dry_run=true`，預設）**：Actions → **DB Migrate** → Run workflow（分支 `master`）→ `target`（`club`／`charity`／`both`）→ 保持勾選 `dry_run`。沒有核准關卡、沒有任何寫入。
+2. 看 **「比對正式庫（唯讀）」job 的 Summary**：每個庫的歷史筆數、repo 內 migration 數、**待套用名單**與**每一支的 SQL**。沒有待套用就到此為止。
+3. 要真的套用：再跑一次，**取消勾選 `dry_run`**。`apply` job 會停在 **`production-db` 的核准關卡**——Run 頁面出現「Review deployments」→ 勾選 `production-db` → 讀完上面的 SQL → **Approve and deploy**。
+4. 核准後 `apply` 會**再比對一次**（名單與你核准時看到的不同就拒絕、什麼都不執行），然後以 sqlcmd 執行**經 SHA-256 鎖定、與預覽相同的** SQL，結束後驗證「歷史表筆數＝repo 筆數、待套用 0」。結果在 `apply` job 的 Summary。
+5. 再讓 `deploy.yml` 部署使用新結構的 api。
+
+**不打算核准就按 Reject 或取消那次 run**：`apply` 掛著等核准時占住 `cd-production` 群組，後面的部署會排在它後面。
+
+**核准者要看什麼**：① 待套用名單是不是你預期的那幾支（不多不少）；② SQL 有沒有 `DROP`／`DELETE`／改型別這類破壞性操作（有就確認走了展開—收縮）；③ `target` 是不是對的庫。Azure SQL Basic 層 **PITR 只有 7 天**，這是唯一的救命索，不是盲按。
+
+**結果與行為**
+
+| 情形 | 行為 |
+|---|---|
+| 沒有待套用 | `apply` 整個跳過，不要求核准；Summary 寫「沒有待套用」 |
+| 套用成功 | 每支 migration 各自一個交易；Summary 寫「歷史 N 筆＝repo N 筆」 |
+| **套用失敗** | **不自動重試、不自動回復。** 失敗的那一支已被交易回滾；在它之前已提交的維持已套用（不是整批全成全敗）。Summary 貼出 sqlcmd 的錯誤、現況（歷史筆數與仍待套用名單）與下一步 |
+| 庫沒初始化（沒有 `__EFMigrationsHistory`） | 拒絕，指回 §4.8 的 `prod-db-init.sh` |
+| 歷史表有 repo 不認得的 migration | 拒絕（你可能從舊 commit 觸發，或有人動過歷史表）；用 `master` 最新 commit 重跑 |
+| 核准後名單變了 | 拒絕、什麼都沒執行；重新觸發讓核准者重看 |
+
+**失敗怎麼辦**
+
+1. 讀 `apply` job Summary 的錯誤與「目前狀態」。多半是 migration 的 SQL 與正式庫現況不符（記得**正式庫是 DDL 建的、不是 migration 長出來的**，`docs/20` §5「migration 注意事項」）。
+2. 修正走 **PR → master → 重新觸發**（冪等：已套用的會自動跳過）。**不要手動改 `__EFMigrationsHistory`**，除非你已確認那支的結果完整存在。
+3. 在問題釐清前，**不要部署依賴新結構的 api**；必要時用 `rollback.yml` 退回映像檔（它不動資料庫）。
+4. 資料已受損、無法就地修復 → **PITR 還原成新庫**（只能還原成新庫、不能就地覆蓋；Basic 只保留 7 天、備份僅 Local 冗餘，`docs/17` §6）：
+   ```bash
+   RG=rg-tcrfc-prod
+   SQLSRV=$(az sql server list -g $RG --query '[0].name' -o tsv)
+   # 還原時間點用 UTC；選「套用 migration 之前」的時間
+   az sql db restore -g $RG -s $SQLSRV -n tcrfc_club --dest-name tcrfc_club_restored --time "2026-10-03T01:00:00Z"
+   ```
+   還原完成後核對資料，再依 `docs/17` §6 切換連線字串（改 VM 上 `/opt/tcrfc/secrets/club.env` 的 `Database=`，重啟 `api`；**LINE Pay 白名單只綁 VM 出口 IP，換庫不影響**）。庫名改變會讓 `db-migrate.sh` 的「庫名必須是 `tcrfc_club`」檢查拒絕——還原後要嘛把舊庫改名、把還原庫改回 `tcrfc_club`，要嘛暫時只靠人工處理，不要放寬腳本的檢查。
+
+**上線後第一次驗證（預期 pending 為零）**：建好 `production-db` 後，先跑一次 `target=both`、`dry_run=true`。正式庫已由 `prod-db-init.sh` 寫入全部 migration（club 21 筆、charity 2 筆），所以 Summary 應顯示兩個庫都是「**待套用 0 支**」、結尾「沒有待套用的 migration」，且**不會出現核准關卡**。這同時驗證了 runner 讀得到 env 檔、容器連得上庫、歷史表解析正常。若出現「待套用」或「歷史表有 repo 不認得的 migration」，先別往下做，看名單判斷是哪邊落後。
+
+**第一次 `dry_run=false` 的注意**：`preview` job 會用 `GITHUB_TOKEN`（`actions: read`）呼叫 `gh api …/environments/production-db` 做守門檢查，這一步**尚未在 GitHub 上實測**；若因 token 權限被誤擋，錯誤訊息會帶 API 回應，確認環境確實建好後再回頭調整 workflow 的 `permissions`。
 
 ### 驗證（對照 `docs/17` §9）
 

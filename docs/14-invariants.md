@@ -20,6 +20,13 @@
   ④ `deploy-state.env`／`deploy-history.log` 只由 `deploy/cd-deploy.sh` 寫入，勿手改；`/opt/tcrfc/.env`、`secrets/`、`data-protection/` 部署程序不得改寫或刪除。
   ⑤ Caddyfile 是單檔 bind mount，git 換檔後容器仍抱舊檔；CD 以「比對執行中 proxy 的檔案雜湊」決定是否重建 proxy，不要改成只靠 compose 的重建判斷。
 
+- 🔴 **正式庫的結構變更只走 `db-migrate.yml`，且 `production-db` 環境必須先建好**（2026-10-02，`docs/20` §5「`db-migrate.yml` 實作」）。
+  ① **`deploy.yml`／`rollback.yml` 永遠不碰資料庫**；順序是先 migrate、後 deploy，結構變更用展開—收縮（`rollback.yml` 只退映像檔、不退結構）。
+  ② ⛔ **不要在正式庫跑 `dotnet ef database update`、不要手改 `__EFMigrationsHistory`**（正式庫是 DDL 建的，歷史表是 `prod-db-init.sh` 寫的）；套用的東西＝preview 產出、SHA-256 鎖定、核准者讀過的 `idempotent.sql`。
+  ③ 🔴 **workflow 引用不存在的 environment，GitHub 會自動建立「無保護」的同名環境**＝核准關卡被靜默繞過；`production-db`（Required reviewers ＋ 僅 `master`）要事先建（`infra/README.md`「資料庫 migration」）。
+  ④ **sqlcmd（Linux 的 `mssql-tools`）不支援 `-f`**，不要加 `-f 65001`；要 `-I`（QUOTED_IDENTIFIER ON）。⑤ **EF 的 `--idempotent` 是每支 migration 一個交易，失敗只回滾那一支**，不是整批全成全敗；Basic 層 PITR 只有 7 天。
+  ⑥ 公開 repo 的 Actions log 人人可看：腳本**不得印伺服器主機名稱**（只印資料庫名），密碼不進命令列／log／summary。
+
 - 🔴 **客戶照片不得被 import 進建置，也不得進映像檔**（2026-10-02 使用者決定，`E-113`）。`apps/web/public/assets/img/`（含未成年學員肖像，不納版控）
   一律寫成 `siteImg('/assets/img/…')`（`apps/web/app/utils/siteImage.ts`），**不得**寫靜態 `src="/assets/img/…"`、`import … from '/assets/img/…'`、
   `new URL('/assets/img/…', import.meta.url)`、CSS `url(/assets/img/…)`——Nuxt 編譯器會把前兩者變成建置期 import，乾淨 checkout 直接 `UNRESOLVED_IMPORT`。

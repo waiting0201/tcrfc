@@ -17,7 +17,7 @@
 > 內部可重用 workflow）、`.node-version`／`scripts/check-node-version.mjs`（S0-9h 版本防漂移）。
 > ✅ **CD 段已實作**（2026-10-02）：`deploy.yml` 的部署 job、`rollback.yml`、`deploy/cd-deploy.sh`、
 > `deploy/cd-purge-cache.sh` 已寫成並以假 docker／curl 在 `/bin/bash` 3.2 下驗證（`deploy/test-cd.sh`）；
-> 設計見 **§4a**，回滾見 **§6**，實作進度與「第一次部署」見 **§9a**。**`db-migrate.yml` 仍未實作**（§5）。
+> 設計見 **§4a**，回滾見 **§6**，實作進度與「第一次部署」見 **§9a**。**`db-migrate.yml` 已於 2026-10-02 實作**（§5「`db-migrate.yml` 實作」）。
 
 ---
 
@@ -32,7 +32,7 @@
 | **建置環境** | 一律 **GitHub-hosted runner**（`ubuntu-latest`），**VM 與 self-hosted runner 都不 build** | 保護 B2ms 的叢發 CPU 額度；公開 repo 的 hosted runner 分鐘數**無限免費** |
 | **五個映像檔** | `nuxt-club`（給 `nuxt-tcrfc`／`nuxt-bw` 共用，環境變數決定品牌）、`nuxt-charity`、`admin-web`、`admin-charity`、`api` | 主站／藍鯨「同一套網站只換配色」→ 一個映像檔兩個容器；慈善前台與兩個後台功能本質不同 → 各自一個 |
 | **部署方式** | **VM 上跑一個 GitHub Actions self-hosted runner**，deploy job 在 VM 本機執行 `docker compose pull && up -d` | **這是解掉「SSH 來源 IP 是浮動的」這題的方法**——不用 SSH 進 VM，VM 自己主動連 GitHub，NSG 完全不用為 CI 開洞 |
-| **DB 遷移關卡** | **EF Core Migrations**，套用一律走獨立、需人工核准的 GitHub Environment（`production-db`，Required reviewers），**與例行部署完全脫鉤** | 「push 就自動改 prod 的資料庫結構」對 2 GB 硬上限、單機無備援的架構風險太高 |
+| **DB 遷移關卡** | **EF Core Migrations**，套用一律走獨立、需人工核准的 GitHub Environment（`production-db`，Required reviewers），**與例行部署完全脫鉤**。✅ **`db-migrate.yml` 2026-10-02 已實作**（預覽 → VM 唯讀比對 → 核准 → 套用，§5「`db-migrate.yml` 實作」） | 「push 就自動改 prod 的資料庫結構」對 2 GB 硬上限、單機無備援的架構風險太高 |
 | **失敗與回滾** | 映像檔一律以 **git SHA** 為 tag；部署後跑健康檢查，失敗自動退回上一個 SHA；人工回滾＝重跑 `workflow_dispatch` 指定舊 SHA | 不需要 blue-green，只要「有上一版可以退」 |
 | **Secrets 存放原則** | **能在 VM 本機解決的，不進 GitHub Secrets**——資料庫連線字串、LINE Pay 憑證、Redis 密碼全部放 VM 上的 `.env` 檔，只有「GitHub-hosted 步驟自己要用」的東西（如 Cloudflare 快取清除 token）才是 GitHub Secret | self-hosted runner 讓部署發生在 VM 本機，大部分機密**從來不需要離開 VM**——這是對公開 repo 最重要的降險設計 |
 | **部署後動作** | 健康檢查通過才清 Cloudflare 快取（依變動的站台選擇性清） | 內容頁多半在 Cloudflare 邊緣快取，不清舊版會留著 |
@@ -265,7 +265,7 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 | 階段 | 用什麼 | 誰跑、怎麼跑 |
 |---|---|---|
 | **建庫（僅一次）** | 現有 `db/*.sql` 整份腳本 ＋ `db/prod/*-reference-data.sql` 參照資料 ＋ 手寫 `__EFMigrationsHistory` | **人工在 VM 上執行 [`deploy/prod-db-init.sh`](../deploy/prod-db-init.sh)**，不進 CI／CD。這是「創世」不是「部署」。做法與理由見下方「🔵 正式庫首次初始化」 |
-| **建庫之後的每次結構變更** | **EF Core Migrations** | 見下方流程，**與例行程式部署脫鉤，走獨立核准關卡** |
+| **建庫之後的每次結構變更** | **EF Core Migrations** | ✅ [`db-migrate.yml`](../.github/workflows/db-migrate.yml)（2026-10-02 已實作，見下方「`db-migrate.yml` 實作」），**與例行程式部署脫鉤，走獨立核准關卡** |
 
 **EF Core 與現有手寫 DDL 怎麼接軌**：`api` 專案第一次建立時，對著已經用 `db/*.sql` 建好的資料庫跑 `dotnet ef dbcontext scaffold`（reverse engineer），產出 Entity 類別，並建立一個**標記為已套用的空白基準 migration**（`InitialBaseline`，`Up()`／`Down()` 刻意清空）。✅ 這步驟已完成（兩個 context 各有 `InitialBaseline`），之後進入「每次改動都是一個新 migration」的常態。
 
@@ -280,13 +280,19 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
                                       合併進 master（不會自動套用到 prod）
                                                             │
                                                             ▼
-                              手動觸發 db-migrate.yml（或偵測到 apps/api/Migrations/** 有新檔自動起草，但暫停待核准）
+                              手動觸發 db-migrate.yml（workflow_dispatch：target＝club／charity／both、dry_run 預設 true）
                                                             │
+                                                            ▼
+              preview（GitHub-hosted）：dotnet ef migrations script --idempotent ＋ 每支 migration 單獨的 SQL，SHA-256 鎖定
+                                                            │
+                                                            ▼
+              pending（VM，唯讀，environment: production）：讀 __EFMigrationsHistory，與 repo 比對，列出「待套用」與其 SQL
+                                                            │  dry_run=true 或沒有待套用 → 到此結束，沒有核准關卡
                                                             ▼
                     ⛔ GitHub Environment「production-db」— Required reviewers（人工在 GitHub UI 按下 Approve）
                                                             │
                                                             ▼
-                         self-hosted runner 執行 dotnet ef database update（讀 VM 本機 .env 的連線字串）
+                  apply（VM）：再比對一次（名單與核准時不同就拒絕）→ sqlcmd 容器執行同一份 SQL → 驗證歷史表
                                                             │
                                                             ▼
                                         成功 → 記錄套用的 migration 名稱；失敗 → 停在原地，不自動重試
@@ -306,7 +312,7 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 1. 先部署「不再使用舊欄位」的 `api`（展開期，新舊欄位並存）；
 2. 觀察沒問題後，另開一個 migration 真的刪掉舊欄位（收縮期，走同一套核准關卡）。
 
-⚠️ **Azure SQL Basic 層的自動備份（PITR）只保留 7 天**，這是唯一的救命索——`db-migrate.yml` 的 job summary 要把 `dotnet ef migrations script --idempotent` 的輸出貼出來，讓核准者在按 Approve 前真的看得到要跑什麼 SQL，不是盲按。
+⚠️ **Azure SQL Basic 層的自動備份（PITR）只保留 7 天**，這是唯一的救命索——`db-migrate.yml` 的 job summary 把**待套用的每一支 migration 的 SQL** 與 `idempotent.sql` 全文貼出來，讓核准者在按 Approve 前真的看得到要跑什麼 SQL，不是盲按（做法見下節）。
 
 ### 🔵 正式庫首次初始化（2026-10-01，`backend-engineer`）
 
@@ -316,10 +322,10 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 |---|---|
 | 一次性、需要人在場 | 要手動輸入庫名確認，還要輸入第一個管理員的密碼。GitHub `workflow_dispatch` 的 inputs 會出現在 run 頁面與 log，**密碼不能走 input**；做成 secret 又等於把正式管理員密碼放進 GitHub |
 | 與「核准關卡」的分工 | `production-db` Environment 的 Required reviewers 管的是**例行、可重複**的 migration（每次改綱要都要有人看過 SQL 再按）。首次建庫不是 migration，是創世：沒有「前一版」可比，核准者看不到有意義的 diff |
-| 還不存在 | `db-migrate.yml` 尚未實作（§9a），且依賴 self-hosted runner 的 checkout；首次建庫不該等它 |
+| 與 `db-migrate.yml` 的分工 | `db-migrate.yml`（已實作）只處理「已初始化的庫」的後續 migration，依賴 self-hosted runner 的 checkout 與已存在的歷史表；首次建庫不走它 |
 | 防護在腳本本身 | 只對 `*.database.windows.net`、庫名必須是 `tcrfc_club`／`tcrfc_charity`、**目標庫完全沒有使用者物件才執行**、輸入庫名才動手 |
 
-**日後 `db-migrate.yml` 的責任**：開頭先檢查 `__EFMigrationsHistory` 存在；不存在就**拒絕並指向 `prod-db-init.sh`**（不要在空庫上跑 `dotnet ef database update` ——它會從空 `InitialBaseline` 開始、跑出一個缺表的資料庫）。
+**`db-migrate.yml` 的責任（✅ 已兌現：`read_state` 檢查，不存在就拒絕並指向本腳本）**：開頭先檢查 `__EFMigrationsHistory` 存在；不存在就**拒絕並指向 `prod-db-init.sh`**（不要在空庫上跑 `dotnet ef database update` ——它會從空 `InitialBaseline` 開始、跑出一個缺表的資料庫）。
 
 **順序（`init <club|charity>`，每個庫各跑一次、互不讀對方的設定檔）**
 
@@ -361,13 +367,57 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 - ⚠️ 仍無法在本機驗證的前提：Azure SQL **資料庫相容性層級**（本機 2025 在 160 與 170 都通過，Azure 若停在更低層級才有差異）。建庫後請 `SELECT compatibility_level FROM sys.databases` 確認。
 - ⚪ **`MembershipOrderTests.已付款但開通出錯…`（與 json 無關，已修）**：原本斷言種子的 tcrfc `single` 方案 `ends_on IS NULL`，那是既有開發庫被手動改過的結果（新建庫是 `2027-05-02`），在任何新建庫上必失敗。改成**測試自己準備狀態**：先快照方案原本的 `ends_on`、改成過去日期觸發開通失敗、`finally` 原樣還原。
 
+### 🔵 `db-migrate.yml` 實作（2026-10-02，`deployment-engineer`）
+
+> 檔案：[`.github/workflows/db-migrate.yml`](../.github/workflows/db-migrate.yml)、[`deploy/db-migrate.sh`](../deploy/db-migrate.sh)（`generate`／`pending`／`apply` 三個子命令，邏輯全在腳本，workflow 只傳 `env:`）、
+> [`deploy/test-db-migrate.sh`](../deploy/test-db-migrate.sh)（假 docker 模擬 sqlcmd 回應，`/bin/bash` 3.2，88 項斷言）。操作手冊：[`infra/README.md`](../infra/README.md)「資料庫 migration」。
+
+**三個 job**
+
+| job | 在哪跑 | environment | 做什麼 |
+|---|---|---|---|
+| `preview` | GitHub-hosted | —（無需核准） | `dotnet ef migrations script --idempotent`（會被執行的那一份）＋對每支 migration 各產一份單獨的 SQL（`script <前一支> <這一支>`，給人讀）＋ `SHA256SUMS`；upload artifact `migrate-sql`；SHA256SUMS 的雜湊以 job output 傳下去。`dry_run=false` 時先用 API 確認 `production-db` 存在、有 Required reviewers、Deployment branches 僅 `master`（見下「環境自動建立的陷阱」）。**不連資料庫** |
+| `pending` | VM（`[self-hosted, tcrfc-vm]`） | `production`（僅 `master`，**無 reviewers**） | **唯讀**：連正式庫讀 `__EFMigrationsHistory`，與 checkout 內的 migration（以 `*.Designer.cs` 的 `[Migration("…")]` 為準）比對，把**待套用名單、名單雜湊與每支的 SQL** 寫進 job summary，輸出 `has_pending`／`<target>_hash`。這就是核准者要讀的頁面 |
+| `apply` | VM | **`production-db`（Required reviewers）** | 只在 `dry_run=false` **且** `has_pending=true` 時存在；核准後**再比對一次**，名單雜湊與核准時看到的不同就拒絕；以 sqlcmd 容器執行 artifact 裡的 `idempotent.sql`；結束後驗證 `歷史表筆數＝repo 筆數、待套用 0` |
+
+`pending`、`apply` 兩個 job 都與 `deploy.yml`／`rollback.yml` 共用 `concurrency: cd-production`（不可取消）。⚠️ `apply` 在**等核准期間**可能占住群組，把後面的部署排在後面：不打算核准就按 Reject 或取消那次 run。
+
+**為什麼是「idempotent SQL ＋ sqlcmd 容器」，不是 efbundle**（任務允許兩者擇一）
+
+1. **核准者讀到的就是會被執行的東西。** `apply` 執行的位元組＝`preview` 產出的位元組（`SHA256SUMS` 的雜湊經 job output 傳遞並逐檔核對）；`efbundle` 是不透明的二進位，審的 SQL 與執行的程式碼之間只能「相信 EF 做同一件事」。
+2. **不新增任何要維護的東西**：不必在 VM 裝 .NET SDK（本來就不行）、不必改 api 映像檔（它是 aspnet 執行環境，沒有 SDK／`dotnet-ef`）、不必另建 bundle artifact；sqlcmd 容器與 `prod-db-init.sh` 同一個映像檔、同一種連線方式（env 檔 → `docker run -e NAME` 不帶值），已在正式庫實測過。
+3. **冪等**：EF 的 `--idempotent` 為每支 migration 包 `IF NOT EXISTS (… __EFMigrationsHistory …)`，已套用的自動跳過；上次中途失敗後重跑是安全的。
+- 代價：`idempotent.sql` 在 `preview` 時就定案，不知道資料庫現況；所以另有 `pending` 把「現況」補上。核准與套用之間若有人動了歷史表，名單雜湊對不上，`apply` 拒絕。
+
+**交易與失敗行為（EF 預設，沒有被改）**：EF 對每支 migration 開一個 `BEGIN TRANSACTION … COMMIT`；`sqlcmd -b` 遇錯即中止並斷線，未提交的交易由 SQL Server 回滾。所以**失敗的那一支完全沒套用，在它之前已提交的維持已套用**，**不是**「整批要嘛全成要嘛全敗」。含 `suppressTransaction` 的操作（例如 `ALTER DATABASE`）不在交易內。**不自動重試、不自動回復**；summary 寫明失敗輸出、現況（歷史筆數與仍待套用名單）與下一步。救命索是 PITR（Basic 只有 **7 天**，還原成新庫，見 [`infra/README.md`](../infra/README.md)「資料庫 migration」與 `17` §6）。
+
+**sqlcmd 的旗標（本機演練實測出來的）**：用 `-b -I`（`-I`＝`QUOTED_IDENTIFIER ON`，有篩選索引的 DDL 需要）。🔴 **不要加 `-f 65001`**：Linux 的 `mssql-tools` sqlcmd 不支援 `-f`（回 `Unknown Option`），預設已是 UTF-8；EF 產出的檔案開頭有 UTF-8 BOM，由 `generate` 移除（`E-116`）。
+
+**防呆（`deploy/db-migrate.sh`）**
+
+| 防呆 | 位置 |
+|---|---|
+| 正式模式只允許 `*.database.windows.net`；資料庫名必須等於目標（`club`→`tcrfc_club`、`charity`→`tcrfc_charity`），防止 club 的 migration 打進 charity | `load_connection` |
+| 演練覆寫（`DBM_REHEARSAL`／`DBM_TRUST_CERT`／`DBM_EXPECT_DB_*`）只能一起用，且演練時拒絕連 Azure SQL | `target_defaults`、`load_connection` |
+| 連線資訊只經環境變數進容器（`docker run -e NAME` 不帶值），**不印伺服器主機名稱**（公開 repo 的 log 人人可看）；密碼不進命令列、log、summary | `sqlcmd_container`、測試「機密不外洩」 |
+| artifact 完整性：`SHA256SUMS` 的雜湊＝`preview` job output，每個檔案雜湊相符、沒有多出來的檔案；待套用的每一支都必須在 `idempotent.sql` 與 `per-migration/` 裡 | `verify_artifact`、`inspect_target` |
+| 歷史表不存在（庫沒初始化）→ 拒絕並指向 `prod-db-init.sh`；歷史表有 repo 不認得的 migration（從舊 commit 觸發）→ 拒絕；歷史表筆數與讀到的 ID 數不符（輸出被截斷）→ 拒絕 | `read_state` |
+| `DBM_DRY_RUN` 必須明確是 `true`／`false`；`target`、雜湊、路徑一律驗證格式 | `cmd_apply`、`target_list`、`require_abs_dir` |
+| `both` 時兩個庫**先全部預檢通過才動手**，依序套用（club → charity），一個失敗就停，後面的不碰 | `cmd_apply` |
+
+**🔴 環境自動建立的陷阱**：workflow 引用**不存在**的 environment 時，GitHub 會自動建立一個**沒有任何保護**的同名環境——核准關卡被靜默繞過。所以 `production-db` 必須**事先**建好（指令在 `infra/README.md`「資料庫 migration」）；`preview` job 在 `dry_run=false` 時以 `gh api repos/…/environments/production-db` 檢查存在、Required reviewers ≥ 1、Deployment branches 剛好只有 `master`，否則失敗。⚠️ 這個 API 呼叫用的是 `GITHUB_TOKEN`（`actions: read`），**第一次真的跑時要確認這一步沒有因權限而誤擋**（尚未在 GitHub 上實測）。
+
+**驗證（2026-10-02）**：`/bin/bash deploy/test-db-migrate.sh` 88 項通過（假 docker 模擬 sqlcmd 的回應形狀：歷史表已存在且 pending 為零、有 pending、兩支 pending 第二支失敗、both 其一失敗、核准後名單變了、庫名不符、非 Azure 主機、artifact 被改、歷史比 repo 多、輸出被截斷、歷史表不存在、輸入驗證、密碼與主機不外洩；另對 `-I`、雜湊比對、庫名檢查各做一次變異測試，皆能讓測試變紅）；`shellcheck -S warning`、`actionlint` 通過。**另對本機 SQL Server 2022 容器的拋棄式資料庫、以真實 `mssql-tools` sqlcmd 容器與真實 `dotnet ef` 產出的 SQL 演練**：慈善庫 pending 1 → dry_run 不寫入 → 套用成功（資料表建立、歷史 2 筆）→ 再跑 pending 為零；手造一支中途出錯的腳本 → 交易回滾（半成品表不存在、歷史不變）、summary 寫明狀態與下一步；主站庫對「DDL 不存在」的空庫套用 `AlignIndexesWithDdl2` 如預期失敗並回報。**未實測**：對真實 Azure SQL 與真實 VM（本機 2022 沒有 `json` 型別，無法用 `db/club-schema.sql` 建主站演練庫）、GitHub 上的核准流程。
+
+**上線後第一次驗證**：先跑 `dry_run=true`、`target=both`——**預期兩個庫「待套用 0 支」**（正式庫已由 `prod-db-init.sh` 寫入全部 migration：club 21 筆、charity 2 筆），summary 顯示「沒有待套用的 migration」、不出現核准關卡。這同時驗證了 runner 能讀 env 檔、容器能連庫、歷史表解析正常。
+
 ### 🔴 migration 注意事項（`AlignIndexesWithDdl2` 起生效）
 
 1. **正式庫是 DDL 建的，不是 migration 長出來的**（`prod-db-init.sh` 把全部 migration 寫進歷史表）。**之後每支新 migration 的 `Up()` 都必須在「DDL 建的庫」上正確執行**——驗收要用這個形狀：`db/*.sql` 原樣建庫 → 手寫歷史表（除新 migration 外全部）→ `dotnet ef database update`（做法見 `AlignIndexesWithDdl2` 的驗收段）。只在 EF 模型建的庫上通過不算數。
 2. **索引與約束的名稱與型態以 DDL 為準**：DDL 的唯一鍵多半是**約束**（`ALTER TABLE … ADD CONSTRAINT … UNIQUE`），`DROP INDEX` 對它無效，要用 `DROP CONSTRAINT`；寫成「先查 `sys.indexes`／`sys.key_constraints` 再決定」最穩。
 3. **CHECK 約束不要用名稱**（見上「CHECK 名稱」影響評估）：要拆舊 CHECK 就用 `sys.check_constraints`（`parent_object_id`＋`parent_column_id` 或 `definition`）動態查出名稱再 `DROP`；要 `AlterColumn` 的欄位先查有沒有 CHECK 依賴它。
 4. **寫入 json 欄位的程式一律只寫物件或陣列**（`docs/14`，`E-111`）；新增 json 欄位要在 `Common/JsonColumn.cs` 的守門之下，並在 `JsonColumnTests` 補測。
-5. **待辦（尚未實作）：`db-migrate.yml`**（本檔「關卡設計」）。正式庫之後要套用新 migration（含 `AlignIndexesWithDdl2`，若正式庫在它合併前就已初始化）走這條：手動觸發 → `production-db` 核准 → self-hosted runner 跑 `dotnet ef database update`。**在 `db-migrate.yml` 做出來之前，正式庫沒有例行套用 migration 的通道**；`AlignIndexesWithDdl2` 在正式庫的實際效果＝補上 `IX_form_fields_i18n_locale`、`IX_sponsor_activations_i18n_locale`（若 DDL 是補上前建的庫），其餘無操作，所以**不套用也不影響執行**，不是阻塞。注意：若正式庫在這支 migration 進 `master` 之前就由 `prod-db-init.sh` 初始化，歷史表只有前 20 筆，`db-migrate` 第一次套用就是它；若在之後初始化，歷史表已含此筆，DDL 已含該索引，也無事。
+5. ✅ **`db-migrate.yml` 已實作（2026-10-02，見上節）**。正式庫之後要套用新 migration 走這條：手動觸發 → `pending` 唯讀比對 → `production-db` 核准 → `apply`。`AlignIndexesWithDdl2` 在正式庫的實際效果＝補上 `IX_form_fields_i18n_locale`、`IX_sponsor_activations_i18n_locale`（若 DDL 是補上前建的庫），其餘無操作，所以**不套用也不影響執行**，不是阻塞；**正式庫已於 2026-10-02 初始化，歷史表已含該筆（21 筆），第一次 `db-migrate` 預期待套用為零**。
 
 ### 🔴 新增 migration 的驗收：一定要跑一次「Probe」確認基準沒有偏移（`docs/18-work-errors.md` E-45）
 
@@ -473,6 +523,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | **映像檔 tag** | 有重建的映像檔用 **git SHA**（不可變），沒重建的沿用上一版標籤（每個映像檔各自一個 `TAG_*` 變數，§4a）。回滾＝重新指向舊標籤的映像檔，**不需要重新建置**（映像檔已經在 ghcr 上） |
 | **部署後健康檢查** | ✅ 已實作（§4a）：容器全 healthy ＋ `api` `/readyz` 為 `ready`（兩個 `DbContext` 能連線、Redis 失敗只警告，呼應 `17` §4）＋ 六個網址經 VM 本機 `--resolve` 回 200（`curl -L` 跟隨轉址，前台 `/` 會 302 到 `/zh/`，E-115）；逾時 300 秒、每 5 秒重試 |
 | **失敗自動回滾** | ✅ 健康檢查逾時或 `up` 失敗 → 腳本把五個映像檔標籤改回 `deploy-state.env` 記錄的上一個成功版本，`up -d --wait` 後再跑一次健康檢查；workflow 標記失敗（結束碼 1＝已退回、2＝退回也失敗）。**只退映像檔，不退 `deploy/`／compose 設定**。首次銜接的退路是本機 `:cd-prev` 標籤（§4a） |
+| **資料庫 migration 失敗** | `db-migrate.yml` 不自動重試、不自動回復；失敗的那支已被交易回滾、先前已提交的維持已套用。summary 寫明現況與下一步；修正後走 PR → master → 重新觸發（冪等）。救命索是 PITR（Basic 7 天）。見 §5「`db-migrate.yml` 實作」。**`rollback.yml` 與 `deploy.yml` 都不碰資料庫**，退回映像檔不會退回結構（所以結構變更一律用展開—收縮，舊版 api 要能在新結構上跑） |
 | **成功記錄** | ✅ 健康檢查通過後寫 `/opt/tcrfc/deploy-state.env`（`LAST_GOOD_SHA`、`LAST_GOOD_AT`、五個 `TAG_*`，不進 git；失敗不更新），並在 `/opt/tcrfc/deploy-history.log` 追加一行（時間、SHA、五個映像檔標籤、`mode`、`result=ok`） |
 | **人工回滾** | ✅ `rollback.yml`（Actions → Rollback → Run workflow，輸入 40 字元 SHA）。標籤來源：① `deploy-history.log` 裡那一版的完整標籤組合（最準）；② 歷史沒有就用「ghcr 上存在 `:<sha>` 的映像檔用該標籤，其餘沿用目前」；兩者都找不到則中止。同樣 self-hosted、同樣健康檢查，失敗退回「回滾前」的版本，成功更新 state 並在 history 記一筆 `mode=rollback`。**不重建、不 migrate、不退 `deploy/` 設定** |
 | **人工處理（自動退回也失敗，結束碼 2）** | VM 狀態不確定：在 VM 上 `cd /opt/tcrfc/actions-runner/_work/tcrfc/tcrfc`，`docker compose --env-file /opt/tcrfc/.env ps` 與 `logs <服務>` 看哪個不健康；確認 `cat /opt/tcrfc/deploy-state.env` 的上一版標籤，手動 `TAG_API=<標籤> … docker compose --env-file /opt/tcrfc/.env up -d --pull never`（五個 `TAG_*` 依 state）。**不要刪 `/opt/tcrfc/data-protection`** |
@@ -522,7 +573,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 - ~~慈善平台圖片儲存體是否需要獨立 Storage Account~~ ✅ **2026-10-01 已決定獨立**（見 §7.2、`17` §13）
 - **`master` 是否強制 PR review**——目前單人開發非強制，建議但不列為硬性關卡（DB migration 的關卡已經是硬性的）
 - **是否要做零停機部署（藍綠）**——現在的秒級空窗被判定可接受；量到使用者有感再升級，升級成本是雙倍容器資源
-- **db-migrate.yml 的自動觸發時機**——用「偵測到 `apps/api/Migrations/**` 有新檔就起草待核准」還是「完全手動 `workflow_dispatch`」，留給實作時依團隊習慣決定，兩者都符合「與例行部署脫鉤＋人工核准」這個硬性要求
+- ~~db-migrate.yml 的自動觸發時機~~ ✅ **2026-10-02 定案：完全手動 `workflow_dispatch`**（不偵測 `Migrations/**` 自動起草）。理由：套用時機要由人決定（先 migrate 後 deploy 的順序、離峰、PITR 只有 7 天），自動起草會多出一個「有 run 掛著等核准、占住 `cd-production` 群組」的狀態
 - **App 端（`tcrfc-app-ios`／`tcrfc-app-android`）的 CI**——已在 `19-app-tech-stack.md` §9 定案，與本檔的 self-hosted runner 無關，**App CI 不得共用這台 VM 的 runner**（macOS/Android 建置資源需求不同，也不該讓行動端建置佔用部署用的 runner）
 
 ---
@@ -547,7 +598,10 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | [`deploy/test-cd.sh`](../deploy/test-cd.sh) | §4a | ✅ 以假 docker／curl／sha256sum 在 `/bin/bash` 3.2 跑 60 項斷言（首次銜接、只換 api、只改設定、proxy 重建、失敗→退回成功、退回也失敗＝結束碼 2、前置檢查失敗、人工回滾兩種標籤來源、鎖、清快取三種情境） |
 | [`.github/actionlint.yaml`](../.github/actionlint.yaml) | — | `tcrfc-vm` 自訂 runner label，讓 `actionlint .github/workflows/*.yml` 通過 |
 
-**尚未建立**：`db-migrate.yml`（§5）。（`rollback.yml` 已於 2026-10-02 建立。）
+| [`.github/workflows/db-migrate.yml`](../.github/workflows/db-migrate.yml)、[`deploy/db-migrate.sh`](../deploy/db-migrate.sh) | §5「`db-migrate.yml` 實作」 | ✅ 2026-10-02：預覽 → VM 唯讀比對 → `production-db` 核准 → 套用 |
+| [`deploy/test-db-migrate.sh`](../deploy/test-db-migrate.sh) | 同上 | ✅ 以假 docker 在 `/bin/bash` 3.2 跑 88 項斷言；另以本機 SQL Server 2022 ＋真實 sqlcmd 容器演練過 |
+
+**尚未建立**：無（`rollback.yml`、`db-migrate.yml` 均已建立）。
 
 ### CI 段的設計決定（比 §0–§8 原文多出的細節）
 
@@ -608,7 +662,7 @@ Cloudflare 清快取（選配）、`rollback.yml`。細節與取捨全在 **§4a
 3. **Cloudflare 清快取 token**（選配）：建立後存 secret `CLOUDFLARE_API_TOKEN`＋三個 Actions Variables（§4a）；沒建立不影響部署。
 4. **失敗通知管道**（§8）。
 5. **失敗路徑尚未在真實 VM 演練**：`test-cd.sh` 以假 docker 涵蓋退回路徑，真實 VM 上的第一次失敗要靠觀察（job summary 會寫原因與是否已退回）；成功路徑與 `rollback.yml` 建議在首次 CD 成功後立刻各跑一次（§9 第 10 項）。
-6. **`db-migrate.yml`**：未實作（§5）。
+6. ✅ **`db-migrate.yml`**：2026-10-02 已實作（§5「`db-migrate.yml` 實作」）。**待使用者建立 `production-db` 環境**（`infra/README.md`「資料庫 migration」的 `gh api` 指令）並跑一次 `dry_run=true` 驗證。
 7. **§4 防護鏈第 0 條**：✅ 已確認（2026-10-02 `gh api` 唯讀查詢：Fork PR 核准政策為 `all_external_contributors`；Environment `production` 的 Deployment branches 為自訂分支策略）。
 
 ---
@@ -624,7 +678,7 @@ Cloudflare 清快取（選配）、`rollback.yml`。細節與取捨全在 **§4a
 | 3 | **VM 本機建 `deploy-state.env`** | ✅ 空檔即可（cloud-init 已建），首次 CD 部署成功後由 `deploy/cd-deploy.sh` 寫入；同時建立 `deploy-history.log`（runner 擁有 `/opt/tcrfc`，腳本自行建立） |
 | 4 | **NSG** | **確認 CI/CD 不需要新增任何 inbound 規則**——這是方案 B 的重點驗證項，回頭核對 `17` §9 驗證 1–3 不受影響 |
 | 5 | **ghcr 套件建立** | 第一次 `deploy.yml` 跑完會自動建立五個套件；手動把它們的 visibility 設為 **Public**（新套件預設常常是 private，要手動切） |
-| 6 | **GitHub Environments** | 建立 `production`（Deployment branches：僅 `master`）與 `production-db`（同上 ＋ Required reviewers，至少 1 人） |
+| 6 | **GitHub Environments** | 建立 `production`（Deployment branches：僅 `master`；✅ 已建）與 `production-db`（同上 ＋ Required reviewers，至少 1 人；指令見 `infra/README.md`「資料庫 migration」）。🔴 `production-db` 要**先建**再跑 `db-migrate.yml`，否則 GitHub 會自動建立無保護的同名環境 |
 | 7 | **Cloudflare API Token**（選配） | 建立僅 `Zone.Cache Purge` 權限、限定對應 zone 的 token，存進 GitHub Secret `CLOUDFLARE_API_TOKEN`，並設 Actions Variables `CF_ZONE_ID_TCRFC`／`CF_ZONE_ID_BW`／`CF_ZONE_ID_CHARITY`。**沒設就略過清快取，不影響部署**（§4a） |
 | 8 | **首次建庫** | 🔵 在 VM 上以 runner 使用者執行 [`deploy/prod-db-init.sh`](../deploy/prod-db-init.sh)（`init`／`create-admin`／`verify`，步驟見 [`infra/README.md`](../infra/README.md) §4.8；設計見本檔 §5「正式庫首次初始化」）。EF 基準 migration 早已建立，這步只負責把它們寫進 `__EFMigrationsHistory` |
 | 9 | **LINE Pay 出口 IP 驗證** | 依 `17` §9 驗證 1，**這步驟獨立於 CI/CD，部署管線建好後跑一次即可**，之後除非換 VM 不必重跑 |

@@ -1,0 +1,218 @@
+# .github/workflows/db-migrate.yml — 正式庫（Azure SQL）的 EF Core migration：預覽 → VM 唯讀比對 → 人工核准 → 套用
+#
+# 對應 docs/20-cicd.md §5「資料庫遷移關卡」。與 deploy.yml（只換映像檔、永遠不碰資料庫）完全脫鉤：
+# 要讓新版 api 用到新欄位，順序是「先跑本 workflow、再讓 deploy.yml 部署」。
+#
+# 只有 workflow_dispatch 觸發（不被 push／PR 觸發）。輸入：target（club／charity／both）、dry_run（預設 true）。
+#
+#   preview（GitHub-hosted）──▶ pending（VM，唯讀，environment: production）──▶ apply（VM，environment: production-db 核准）
+#     dotnet ef migrations script        連正式庫讀 __EFMigrationsHistory，          Required reviewers 按 Approve 後：
+#     --idempotent（會被執行的那份）         與 repo 比對，列出「待套用」與其 SQL         再比對一次（名單變了就拒絕）→ sqlcmd 執行
+#     ＋每支 migration 單獨的 SQL              沒有任何寫入                              同一份 SHA-256 鎖定的 SQL → 驗證歷史表
+#
+#   dry_run=true（預設）：只到 pending 為止，沒有核准關卡、沒有任何寫入。
+#   沒有待套用的 migration：apply 整個 job 被跳過，不需要核准。
+#
+# 為什麼用 idempotent SQL ＋ sqlcmd 容器而不是 efbundle：核准者讀到的 SQL＝實際執行的 SQL（SHA-256 鎖定）、
+# 不必在 VM 裝 .NET SDK、與 deploy/prod-db-init.sh 同一種連線方式。細節在 deploy/db-migrate.sh 檔頭與 docs/20 §5。
+#
+# 🔴 防護鏈（docs/20 §4）：self-hosted 只出現在 pending／apply 兩個 job；本檔只被 workflow_dispatch 觸發，
+# 沒有 pull_request／pull_request_target；每個 job 都判斷 repo 與 ref（只有 master）；
+# pending 參照 environment: production、apply 參照 environment: production-db，兩者的 Deployment branches 都僅 master；
+# 所有輸入經 env 傳入並在 deploy/db-migrate.sh 內驗證格式，不內插進 shell 字串；persist-credentials: false。
+# 第 0 條（repo 設定「Fork pull request workflows 需核准」）是地基，在 GitHub 設定而不在本檔。
+#
+# 🔴 production-db 必須「事先」建好（Required reviewers ＋ 僅 master）：GitHub 對「不存在的 environment」
+# 會在 job 引用時自動建立一個**沒有任何保護**的環境，等於核准關卡被靜默繞過。preview job 在 dry_run=false 時
+# 會用 API 確認它存在且有 Required reviewers，否則直接失敗（建立指令在 infra/README.md「資料庫 migration」）。
+#
+# 🔴 與 deploy.yml／rollback.yml 共用 concurrency 群組 cd-production（pending、apply 兩個 job）：不與部署同時動 VM。
+# 注意：apply 在等核准期間可能占住群組，把後面的部署排在後面——不打算核准就 Reject 或取消那次 run，別讓它掛著。
+
+name: DB Migrate
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 要處理的資料庫（club＝主站與藍鯨共用的 tcrfc_club；charity＝慈善平台獨立庫 tcrfc_charity）
+        required: true
+        type: choice
+        options:
+          - club
+          - charity
+          - both
+        default: both
+      dry_run:
+        description: 只預覽與比對，不套用（沒有核准關卡）。要真的套用請取消勾選
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    name: 預覽（產生 SQL）
+    if: github.repository == 'waiting0201/tcrfc' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read # 讀 production-db 環境的保護規則（下面的守門步驟）
+    timeout-minutes: 20
+    outputs:
+      club_sha: ${{ steps.gen.outputs.club_sha }}
+      charity_sha: ${{ steps.gen.outputs.charity_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # 守門：真的要寫入時，production-db 必須已存在、有 Required reviewers、Deployment branches 僅 master。
+      # 不存在時 GitHub 會在 apply job 啟動時自動建立「無保護」的環境（核准被繞過）。這裡先擋。
+      - name: 確認 production-db 環境有核准關卡
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if ! env_json="$(gh api "repos/${REPO}/environments/production-db" 2>&1)"; then
+            echo "::error::讀不到 environment「production-db」（尚未建立，或 token 無權讀取）。GitHub 會自動建立無保護的同名環境，所以必須先照 infra/README.md「資料庫 migration」建好 Required reviewers 再執行。API 回應：${env_json}"
+            exit 1
+          fi
+          reviewers="$(jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers[]?] | length' <<<"${env_json}")"
+          custom_branches="$(jq '.deployment_branch_policy.custom_branch_policies // false' <<<"${env_json}")"
+          if [ "${reviewers}" -lt 1 ]; then
+            echo "::error::environment「production-db」沒有 Required reviewers——拒絕套用（這會讓核准關卡形同虛設）。"
+            exit 1
+          fi
+          if [ "${custom_branches}" != "true" ]; then
+            echo "::error::environment「production-db」的 Deployment branches 不是「Selected branches」——請限定只有 master。"
+            exit 1
+          fi
+          policies="$(gh api "repos/${REPO}/environments/production-db/deployment-branch-policies" --jq '[.branch_policies[].name] | sort | join(",")')"
+          if [ "${policies}" != "master" ]; then
+            echo "::error::environment「production-db」允許的分支是「${policies}」，必須剛好只有 master。"
+            exit 1
+          fi
+          echo "production-db：${reviewers} 位 Required reviewers，Deployment branches 僅 master。"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 還原 NuGet 套件快取
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('apps/api/packages.lock.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: 還原與建置 api（--locked-mode，與 Dockerfile 一致；dotnet ef 用 --no-build）
+        run: |
+          set -euo pipefail
+          dotnet restore apps/api/Tcrfc.Api.csproj --locked-mode
+          dotnet build apps/api/Tcrfc.Api.csproj -c Release --no-restore
+          cd apps/api
+          dotnet tool restore
+
+      # 產生 SQL 不連資料庫；建置 DbContext 需要連線字串的「鍵」存在（同 ci.yml 的基準健檢），值只是佔位。
+      - name: 產生 idempotent.sql 與每支 migration 的預覽 SQL
+        id: gen
+        env:
+          DBM_TARGET: ${{ inputs.target }}
+          DBM_DRY_RUN: ${{ inputs.dry_run }}
+          DBM_SQL_DIR: ${{ runner.temp }}/migrate-sql
+          CLUB_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_club;User Id=sa;Password=unused-placeholder;TrustServerCertificate=True;"
+          JWT_SIGNING_KEY_CLUB: "ci-only-jwt-signing-key-club-0123456789abcdef"
+          CHARITY_SQL_CONNECTION_STRING: "Server=127.0.0.1,1433;Database=tcrfc_charity;User Id=sa;Password=unused-placeholder;TrustServerCertificate=True;"
+          JWT_SIGNING_KEY_CHARITY: "ci-only-jwt-signing-key-charity-0123456789abcdef"
+        run: /bin/bash deploy/db-migrate.sh generate "${DBM_TARGET}"
+
+      - name: 上傳 SQL（pending／apply 兩個 job 會下載同一份，並以 SHA-256 核對）
+        uses: actions/upload-artifact@v4
+        with:
+          name: migrate-sql
+          path: ${{ runner.temp }}/migrate-sql
+          if-no-files-found: error
+          retention-days: 30
+
+  pending:
+    name: 比對正式庫（唯讀）
+    needs: preview
+    if: github.repository == 'waiting0201/tcrfc' && github.ref == 'refs/heads/master'
+    runs-on: [self-hosted, tcrfc-vm]
+    # 只讀資料庫、不寫入，所以不需要核准；但 self-hosted 的 job 一律掛在 production（Deployment branches 僅 master），
+    # 避免有人在別的分支改 workflow 後把這個 job 派到 VM 上。
+    environment: production
+    permissions:
+      contents: read
+    concurrency:
+      group: cd-production
+      cancel-in-progress: false
+    timeout-minutes: 15
+    outputs:
+      has_pending: ${{ steps.pending.outputs.has_pending }}
+      club_hash: ${{ steps.pending.outputs.club_hash }}
+      charity_hash: ${{ steps.pending.outputs.charity_hash }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: migrate-sql
+          path: ${{ runner.temp }}/migrate-sql
+
+      - name: 列出待套用的 migration（唯讀）
+        id: pending
+        env:
+          DBM_TARGET: ${{ inputs.target }}
+          DBM_DRY_RUN: ${{ inputs.dry_run }}
+          DBM_SQL_DIR: ${{ runner.temp }}/migrate-sql
+          DBM_EXPECT_SHA_CLUB: ${{ needs.preview.outputs.club_sha }}
+          DBM_EXPECT_SHA_CHARITY: ${{ needs.preview.outputs.charity_sha }}
+        run: /bin/bash deploy/db-migrate.sh pending "${DBM_TARGET}"
+
+  apply:
+    name: 套用 migration（需核准）
+    needs: [preview, pending]
+    # 沒有待套用、或 dry_run=true：整個 job 跳過，不會要求核准。
+    if: >-
+      ${{ github.repository == 'waiting0201/tcrfc'
+      && github.ref == 'refs/heads/master'
+      && !inputs.dry_run
+      && needs.pending.outputs.has_pending == 'true' }}
+    runs-on: [self-hosted, tcrfc-vm]
+    environment: production-db # ⛔ Required reviewers（人工 Approve）＋ Deployment branches 僅 master
+    permissions:
+      contents: read
+    concurrency:
+      group: cd-production
+      cancel-in-progress: false
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: migrate-sql
+          path: ${{ runner.temp }}/migrate-sql
+
+      # 失敗不自動重試；腳本在 job summary 寫明狀態與下一步（PITR 還原指引見 infra/README.md「資料庫 migration」）。
+      - name: 套用（再比對一次待套用名單 → sqlcmd 執行 SHA-256 鎖定的 SQL → 驗證歷史表）
+        env:
+          DBM_TARGET: ${{ inputs.target }}
+          DBM_DRY_RUN: ${{ inputs.dry_run }}
+          DBM_SQL_DIR: ${{ runner.temp }}/migrate-sql
+          DBM_EXPECT_SHA_CLUB: ${{ needs.preview.outputs.club_sha }}
+          DBM_EXPECT_SHA_CHARITY: ${{ needs.preview.outputs.charity_sha }}
+          DBM_EXPECT_PENDING_HASH_CLUB: ${{ needs.pending.outputs.club_hash }}
+          DBM_EXPECT_PENDING_HASH_CHARITY: ${{ needs.pending.outputs.charity_hash }}
+        run: /bin/bash deploy/db-migrate.sh apply "${DBM_TARGET}"
