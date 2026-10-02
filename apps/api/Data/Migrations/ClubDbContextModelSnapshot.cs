@@ -12282,10 +12282,18 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("decimal(9, 6)")
                         .HasColumnName("lng");
 
+                    b.Property<int?>("PhotoHeight")
+                        .HasColumnType("int")
+                        .HasColumnName("photo_height");
+
                     b.Property<string>("PhotoKey")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)")
                         .HasColumnName("photo_key");
+
+                    b.Property<int?>("PhotoWidth")
+                        .HasColumnType("int")
+                        .HasColumnName("photo_width");
 
                     b.Property<long>("RowSeq")
                         .ValueGeneratedOnAdd()
@@ -12345,6 +12353,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)")
                         .HasColumnName("name");
+
+                    b.Property<string>("PhotoAlt")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)")
+                        .HasColumnName("photo_alt");
 
                     b.HasKey("VenueId", "Locale");
 

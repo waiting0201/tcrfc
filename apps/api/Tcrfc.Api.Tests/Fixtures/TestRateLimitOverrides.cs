@@ -82,6 +82,10 @@ public static class TestRateLimitOverrides
                 // E 批：會員登入類與會員寫入類兩個政策也一併放寬（同樣共用 TestServer 的單一「unknown」IP 分區）。
                 [PublicRateLimitPolicies.MemberAuthPermitLimitConfigKey] = permitLimit,
                 [PublicRateLimitPolicies.MemberWritePermitLimitConfigKey] = permitLimit,
+                // 2026-10-02：全站搜尋、電子報訂閱、試訓報名三個公開端點（同樣共用 TestServer 的單一「unknown」IP 分區）。
+                [PublicRateLimitPolicies.SearchPermitLimitConfigKey] = permitLimit,
+                [PublicRateLimitPolicies.NewsletterPermitLimitConfigKey] = permitLimit,
+                [PublicRateLimitPolicies.TrialRegistrationPermitLimitConfigKey] = permitLimit,
             });
         });
     }

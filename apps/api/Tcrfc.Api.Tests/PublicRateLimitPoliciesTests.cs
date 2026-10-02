@@ -1,4 +1,5 @@
 using System.Threading.RateLimiting;
+using Microsoft.Extensions.Configuration;
 using Tcrfc.Api.Common;
 using Xunit;
 
@@ -47,6 +48,54 @@ public sealed class PublicRateLimitPoliciesTests
 
         await AssertPermitLimitEnforcedAndPartitionsIndependentAsync(
             limiter, PublicRateLimitPolicies.SubmissionPermitLimit, ipA: "198.51.100.10", ipB: "198.51.100.20");
+    }
+
+    [Fact]
+    public async Task Search政策_額度用盡後拒絕_不同分區互不影響()
+    {
+        using var limiter = CreateFixedWindowLimiter(PublicRateLimitPolicies.SearchPermitLimit, PublicRateLimitPolicies.SearchWindow);
+        await AssertPermitLimitEnforcedAndPartitionsIndependentAsync(
+            limiter, PublicRateLimitPolicies.SearchPermitLimit, ipA: "203.0.113.30", ipB: "203.0.113.40");
+    }
+
+    [Fact]
+    public async Task Newsletter政策_額度用盡後拒絕_不同分區互不影響()
+    {
+        using var limiter = CreateFixedWindowLimiter(PublicRateLimitPolicies.NewsletterPermitLimit, PublicRateLimitPolicies.NewsletterWindow);
+        await AssertPermitLimitEnforcedAndPartitionsIndependentAsync(
+            limiter, PublicRateLimitPolicies.NewsletterPermitLimit, ipA: "198.51.100.30", ipB: "198.51.100.40");
+    }
+
+    [Fact]
+    public async Task TrialRegistration政策_額度用盡後拒絕_不同分區互不影響()
+    {
+        using var limiter = CreateFixedWindowLimiter(PublicRateLimitPolicies.TrialRegistrationPermitLimit, PublicRateLimitPolicies.TrialRegistrationWindow);
+        await AssertPermitLimitEnforcedAndPartitionsIndependentAsync(
+            limiter, PublicRateLimitPolicies.TrialRegistrationPermitLimit, ipA: "192.0.2.30", ipB: "192.0.2.40");
+    }
+
+    [Theory]
+    [InlineData(PublicRateLimitPolicies.SearchPermitLimitConfigKey, PublicRateLimitPolicies.SearchPermitLimit)]
+    [InlineData(PublicRateLimitPolicies.NewsletterPermitLimitConfigKey, PublicRateLimitPolicies.NewsletterPermitLimit)]
+    [InlineData(PublicRateLimitPolicies.TrialRegistrationPermitLimitConfigKey, PublicRateLimitPolicies.TrialRegistrationPermitLimit)]
+    public void 額度可由設定覆寫_缺值或非法值回到預設(string key, int expectedDefault)
+    {
+        var empty = new ConfigurationBuilder().Build();
+        var overridden = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { [key] = "777" }).Build();
+        var invalid = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { [key] = "-3" }).Build();
+
+        int Resolve(IConfiguration c) => key switch
+        {
+            PublicRateLimitPolicies.SearchPermitLimitConfigKey => PublicRateLimitPolicies.ResolveSearchPermitLimit(c),
+            PublicRateLimitPolicies.NewsletterPermitLimitConfigKey => PublicRateLimitPolicies.ResolveNewsletterPermitLimit(c),
+            _ => PublicRateLimitPolicies.ResolveTrialRegistrationPermitLimit(c),
+        };
+
+        Assert.Equal(expectedDefault, Resolve(empty));
+        Assert.Equal(777, Resolve(overridden));
+        Assert.Equal(expectedDefault, Resolve(invalid));
     }
 
     /// <summary>兩個政策目前用的都是 <c>FixedWindowRateLimiter</c>＋<c>QueueLimit = 0</c>——跟

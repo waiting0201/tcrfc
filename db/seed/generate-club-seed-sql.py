@@ -1034,6 +1034,28 @@ PERMISSIONS = [
     # 「規劃書沒寫清楚、自行判斷」。
     ("site.fact.view", "I", "I1", "site", "view", 1, 0, 1, "檢視網站設定（站台事實）", "View Site Facts"),
     ("site.fact.update", "I", "I1", "site", "update", 1, 0, 1, "編輯網站設定（站台事實）", "Update Site Facts"),
+    # I 網站設定其餘子模組（2026-10-02，backend-engineer，規劃書 §4.9）：I2 選單管理／I3 全域設定／I4 多語系管理與字串翻譯表／
+    # I5 場地管理／I6 EDM 平台設定。規劃書 §6 矩陣沒有「網站設定」欄（只有「SEO／設定」欄：內容編輯「單頁 SEO」、翻譯人員「字串翻譯表」），
+    # 比照 site.fact.* / seo.* 既有先例：除字串翻譯表外，十個角色只有系統管理員可存取（sysadmin_only=1）。
+    # 字串翻譯表三碼 sysadmin_only=0：view＝檢視；update＝新增／刪除／改任何語系；translate＝只能改非預設語系（英文），不得動繁中原文
+    # （矩陣補充規則 ※ 翻譯人員僅能編輯 en 語系欄位）——端點在伺服器端強制，翻譯人員只被指派 view＋translate。
+    # 選單／全域設定／多語系／EDM 設定是各俱樂部各一份（is_club_scoped=1）；字串翻譯表與場地是全站共用主檔（is_club_scoped=0，
+    # 端點仍掛 {club} 路由只是為了沿用俱樂部授權管線，同 AdminVenues 先例）。EDM 設定含憑證，視為受限（is_restricted=1）。
+    ("site.menu.view", "I", "I2", "site", "view", 1, 0, 1, "檢視選單管理", "View Menus"),
+    ("site.menu.update", "I", "I2", "site", "update", 1, 0, 1, "編輯主選單、Mega Menu 與頁尾選單", "Update Menus"),
+    ("site.global.view", "I", "I3", "site", "view", 1, 0, 1, "檢視全域設定", "View Global Settings"),
+    ("site.global.update", "I", "I3", "site", "update", 1, 0, 1, "編輯 Logo、品牌色、Favicon、政策頁與維護模式", "Update Global Settings"),
+    ("site.locale.view", "I", "I4", "site", "view", 1, 0, 1, "檢視多語系設定與翻譯狀態總覽", "View Language Settings"),
+    ("site.locale.update", "I", "I4", "site", "update", 1, 0, 1, "編輯啟用語系、備援規則與日期數字格式", "Update Language Settings"),
+    ("site.string.view", "I", "I4", "site", "view", 0, 0, 0, "檢視介面字串翻譯表", "View UI Strings"),
+    ("site.string.update", "I", "I4", "site", "update", 0, 0, 0, "新增、刪除與編輯介面字串（含繁中原文）", "Update UI Strings"),
+    ("site.string.translate", "I", "I4", "site", "update", 0, 0, 0, "翻譯介面字串（僅非預設語系）", "Translate UI Strings"),
+    ("site.venue.view", "I", "I5", "site", "view", 0, 0, 1, "檢視場地管理", "View Venues"),
+    ("site.venue.create", "I", "I5", "site", "create", 0, 0, 1, "新增場地", "Create Venues"),
+    ("site.venue.update", "I", "I5", "site", "update", 0, 0, 1, "編輯場地（地址、經緯度、交通說明、照片）", "Update Venues"),
+    ("site.venue.delete", "I", "I5", "site", "delete", 0, 0, 1, "刪除場地", "Delete Venues"),
+    ("site.edm.view", "I", "I6", "site", "view", 1, 1, 1, "檢視 EDM 平台設定", "View EDM Settings"),
+    ("site.edm.update", "I", "I6", "site", "update", 1, 1, 1, "編輯 EDM 平台設定與憑證", "Update EDM Settings"),
     # E1a 新增（2026-09-30，backend-engineer）：E1 夥伴／E2 贊助商與贊助方案／E3 提案與 Lead／B5 慈善／B6 媒體專區／C5 榮譽與里程碑。
     # E 模組 domain 取 "business"（規劃書 §6 矩陣「商業／贊助」欄）；B5 domain 取 "charity"（矩陣「慈善」欄）；
     # B6 沿用 "content"；C5 沿用 "team"。全部 is_club_scoped=1、非 sysadmin_only。
@@ -1620,6 +1642,9 @@ ROLE_PERMISSIONS = [
     ], "all"),
     ("pr_media", ["ad.report.view"], "all"),
     ("viewer", ["ad.advertiser.view", "ad.slot.view", "ad.campaign.view", "ad.report.view"], "all"),
+    # I4 字串翻譯表（2026-10-02）：矩陣「SEO／設定」欄翻譯人員＝字串翻譯表。這是第一個在伺服器端真的強制「僅翻譯欄位」的模組
+    # （site.string.translate 只能改非預設語系、不得新增／刪除／改繁中原文），所以翻譯人員可以只被指派這兩碼。
+    ("translator", ["site.string.view", "site.string.translate"], "translate_only"),
     # M1–M5（行動 App 欄）：內容編輯 M2 內容編排；公關／媒體 M3 建立（需覆核，核可僅系統管理員）；客服／行政 M4 檢視（遮罩）；
     # 檢視者「檢視」。M1 版本、M5 設定與憑證只有系統管理員（sysadmin_only，自動涵蓋）。
     ("content_editor", ["app.layout.view", "app.layout.update"], "all"),

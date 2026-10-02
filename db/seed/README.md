@@ -33,7 +33,7 @@
 |---|---|---|
 | 主站 | `locales` 2 | 所有 `*_i18n` 側表的外鍵目標 |
 | 主站 | `clubs` 2、`clubs_i18n` 3 | 台中磐石、台中藍鯨：路由與一切 `club_id` 的根。`domain` **不寫死**，取自 VM `/opt/tcrfc/.env` 的 `TCRFC_DOMAIN`／`BW_DOMAIN`（暫用網址階段就是 stg 網域）。藍鯨英文全名仍待確認，故 `clubs_i18n` 藍鯨只有中文 |
-| 主站 | `admin_roles` 10、`permissions` 260、`role_permissions` 782 | 規劃書 §6 角色與權限矩陣；非系統管理員的授權完全依賴這三張表 |
+| 主站 | `admin_roles` 10、`permissions` 275、`role_permissions` 799 | 規劃書 §6 角色與權限矩陣；非系統管理員的授權完全依賴這三張表 |
 | 主站 | `article_categories` 8（＋16）、`faq_categories` 10（＋20）、`faq_embed_slots` 4 | 規劃書 7.1–7.8／3.12／G-12 的固定字典；新聞與 FAQ 的外鍵目標 |
 | 主站 | `home_sections` 18、`forms` 18、`form_fields` 114（＋228） | 首頁九大固定區塊、九個固定表單與預設欄位，兩俱樂部各一份（後台只能排序／編輯，不能憑空新增） |
 | 主站 | `event_types` 6（＋12） | L2 自建事件的起始分類（記者會、簽名會……）；後台 L3 可再編輯 |

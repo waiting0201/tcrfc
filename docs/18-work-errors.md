@@ -133,10 +133,11 @@
 | E-118 | 2026-10-02 | `STATUS.md` 的 `S1-18` 列到 2026-10-02 還寫著「後台登入端點尚無 IP 限流，另案處理」，但 `/login`／`/refresh` 的限流早在 S1-18d（2026-09-29）完成並有測試（只記在 `apps/api/README.md`）；照 STATUS 派工會重做一遍已完成的事，真正漏網的三支（變更密碼、2FA 確認／停用）反而沒人提 | ⚠️ 無（靠完工時同步 STATUS） |
 | E-119 | 2026-10-02 | N7 站台設定的整合測試改了共用本機庫上的單一份設定（`settings`／`email_templates`／`payment_channels`），還原時只還原 `value`，沒還原 `updated_by`：這些列已指向測試帳號，**測試帳號被外鍵擋住無法清理**，後續每個測試的 fixture 啟動清理都失敗（一次 6 項失敗，並留下殘骸要手動修） | ✅ 還原快照一併記錄 `updated_at`／`updated_by`／`created_by`；快照只要動共用設定就整組拍下 |
 | E-120 | 2026-10-02 | 為「公開讀取」限流加了一個把額度用盡的測試，放進既有的限流 fixture：測試主機的 `RemoteIpAddress` 是空的，所有請求落在同一個計數桶，用盡額度害同一個主機上另一項既有限流測試失敗（順序相依的偶發紅燈） | ✅ 獨立的 `CharityRecognitionRateLimitApiFixture`（自己的主機、自己的計數） |
-| E-121 | 2026-10-02 | AP-3 的 `AppDeviceSessionTests` 在沒有資料庫的工作樹寫完、只確認「編譯通過」就交付；合併後實跑，「登出全部與變更密碼」一支穩定 401——測試先重放舊權杖觸發了重用偵測（程式正確，測試順序錯） | 「編譯通過」被當成「測試寫對了」 | 依賴資料庫的新測試沒實跑過，一律在回報標「未執行」，合併後由主 session 在有庫的環境補跑才算完成；工作樹缺 `appsettings.Development.json` 是根源 | 無 |
+| E-121 | 2026-10-02 | AP-3 的 `AppDeviceSessionTests` 在沒有資料庫的工作樹寫完、只確認「編譯通過」就交付；合併後實跑，「登出全部與變更密碼」一支穩定 401——測試先重放舊權杖觸發了重用偵測（程式正確，測試順序錯） | 「編譯通過」被當成「測試寫對了」 | 依賴資料庫的新測試沒實跑過，一律在回報標「未執行」，合併後由主 session 在有庫的環境補跑才算完成；工作樹缺 `appsettings.Development.json` 是根源 | ⚠️ 部分（2026-10-02 升級）：`OfflineQueryTranslation` 離線翻譯冒煙工具擋住「EF 查詢翻譯不了」這一類；資料行為仍靠合併後完整測試 |
 | E-122 | 2026-10-02 | 慈善後台報表的趨勢條寫了 `var(--charity-info)`，但實際定義的變數只有 `--charity-info-text`／`-bg`（`--charity-info` 只出現在 `docs/22` §5 的速查表）；樣式表引用不存在的變數不會報錯，背景變透明，趨勢欄整欄看起來是空的，`vue-tsc`、eslint、`vite build`、禁用詞、對比度檢查全綠，是看截圖才發現 | ✅ `apps/admin-charity/scripts/check-css-vars.mjs`（掛進 `npm run lint`） |
 | E-123 | 2026-10-02 | 用 Python 讀寫 `Program.cs` 時沒保留換行，把混有 CRLF 的檔案整段正規化成 LF，一個 13 行的改動變成 47 行 diff，連沒碰的行都變了 | 無（`git diff --stat` 肉眼檢查抓到） |
 | E-124 | 2026-10-02 | 合併含新 migration（`AlignSchemaG1`、慈善 `AddCreditHiddenAndSettlementLineKey`／`AddCh4Ch5Permissions`）的程式後直接 push master，`deploy.yml` 換上新版 api，正式庫尚未跑 `db-migrate.yml`，測試站新聞 API 回 500 | push 前沒檢查「這批有沒有新 migration」 | push 前 `git diff Remote_GitHub/master --stat -- apps/api/Data/Migrations` 有輸出就先跑 `db-migrate.yml` | 無 |
+| E-125 | 2026-10-02 | 儀表板放行規則第一版只列「各區塊用到的權限碼」，沒有對十個角色逐一走過登入首頁：**翻譯人員**（只持字串翻譯表權限）會在登入後的第一頁拿到 403；內容區塊的新聞數字對沒有新聞權限者回 0（看不到被當成沒有）。寫「每個角色的儀表板」整合測試時才發現，交付前已修 | ⚠️ 部分：`DashboardApiTests` 逐角色斷言（需資料庫，未實跑）＋離線測試鎖放行碼集合含翻譯人員權限 |
 
 ---
 
@@ -2418,7 +2419,7 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **錯在哪**：AP-3 更新權杖鏈的 `AppDeviceSessionTests.登出全部裝置與變更密碼_兩台裝置的鏈都被撤銷`，在 worktree 寫成（沒有資料庫連線），合併後主 session 實跑穩定回 401。測試在變更密碼後先重放撤銷前的舊權杖，觸發重用偵測撤銷整條鏈，接著拿新權杖 refresh 自然失敗。程式行為符合 docs/19 §4，錯的是測試的步驟順序。
 - **根因（可改掉的行為）**：把「編譯通過」當成「測試正確」交付；worktree 不含 gitignored 的 `apps/api/appsettings.Development.json`，所以依賴資料庫的測試在工作樹裡跑不起來，卻沒有要求合併後補跑。
 - **下次怎麼避免**：派工到 worktree 的後端任務，回報必須分列「已實跑」與「僅編譯」的測試；主 session 合併後在主工作目錄跑完整 `dotnet test` 才算完成。
-- **防呆**：無（靠合併後的完整測試）。
+- **防呆**：⚠️ 部分（2026-10-02 H 批升級，不另記第二筆）：[`OfflineQueryTranslation`](../apps/api/Tcrfc.Api.Tests/OfflineQueryTranslation.cs)——不需資料庫，把 `ClubDbContext` 指向必定連不上的位址後執行被測 repository 方法：EF 查詢**翻譯失敗**會丟 `could not be translated`（測試紅燈），翻譯成功只會得到連線被拒的 `SqlException`（通過），並有一支工具自我驗證測試確認它真的會抓到不可翻譯的查詢。H 批新增的所有 repository（儀表板、搜尋、試訓、前後台網站設定、場地、EDM）的 EF 查詢因此在工作樹就驗過。**只證明「翻得成 SQL」**，不證明欄位名稱與資料庫一致（那是 `EfModelMatchesDatabaseTests`）、更不證明資料行為（權限過濾、計數、冪等、語系回退）——這些仍靠合併後的完整 `dotnet test`；`BeginTransaction` 之後的查詢與 `ExecuteUpdate` 也走不到翻譯階段。
 
 ### E-122 憑印象寫了不存在的 CSS 變數名稱，樣式悄悄失效（2026-10-02，慈善後台報表）
 
@@ -2448,3 +2449,9 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：push master 前一律跑 `git diff Remote_GitHub/master --stat -- apps/api/Data/Migrations apps/api/CharityPlatform/Data/Migrations`；有輸出就先向使用者說明並走 `db-migrate.yml`，套用後再 push。
 - **防呆**：無。可考慮在 `deploy.yml` 加一步：比對映像內 migration 清單與正式庫 `__EFMigrationsHistory`，有未套用的就中止部署。
 
+### E-125 儀表板只對「規格列的區塊」設計放行，沒有對每個角色的登入落點走一遍（2026-10-02，H 批 A 儀表板）
+
+- **錯在哪**：儀表板端點的放行條件第一版是「呼叫者持有任一個區塊用到的檢視／建立權限」，清單從規劃書 §4.1 的區塊反推。翻譯人員角色（本批才有第一個可被指派的權限：字串翻譯表）不在任何區塊的權限裡，登入後第一頁（儀表板）會回 `403`——使用者進得了後台卻第一頁就看到「沒有權限」。同一版的內容區塊把「沒有新聞檢視權限」回成 `0`，畫面會顯示「本月發布 0 篇」，與「真的 0 篇」無法區分。
+- **根因（可改掉的行為）**：以「規格列了哪些區塊」為單位設計權限，沒有以「哪個角色登入後會看到什麼」為單位驗證；`DTO` 數字欄位預設用不可為空的 `int`，把「無權限」與「零」混成同一個值。
+- **下次怎麼避免**：做「所有角色都會進入」的頁面（首頁、儀表板、個人設定）時，先列出十個角色與各自持有的權限，逐一寫出該角色的落點結果再寫程式；依權限出現的數字欄位一律用可為空型別，`null`＝看不到、`0`＝真的是零。
+- **防呆**：⚠️ 部分——[`DashboardApiTests`](../apps/api/Tcrfc.Api.Tests/DashboardApiTests.cs) 有「翻譯人員進得去儀表板、看不到其他區塊、新聞數字是 null 不是 0」與「檢視者／內容編輯／客服各自的區塊」斷言，但**需要資料庫、撰寫時未實跑**；離線測試 `儀表板放行權限碼集合…` 只鎖權限碼集合的組成。

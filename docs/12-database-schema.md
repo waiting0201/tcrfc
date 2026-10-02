@@ -167,7 +167,7 @@
 | 1 | **陣列欄位** | 一律以關聯表表達：`team_codes[]` → `CalendarEventTeam`；`value_tags[]` → `ValueTagLink`；FAQ 複選分類 → `FaqCategoryLink` | **維持關聯表。** SQL Server 無陣列型別，且 `ValueTagLink` 是多型關聯、要能反查「哪些內容掛了這個標籤」，關聯表本來就是對的形狀 |
 | 2 | **JSON 欄位的查詢** | `json` 欄位一律「**只存不查**」：`PageBlock.content` 等。任何需要篩選、排序、統計的資料都拉成實欄位。⚠️ **`RolePermission.scope_value` 已於 v3.0 刪除**——它正是「只存不查」害的：資料範圍需要能被查詢，改由 `AdminUserClub`／`AdminUserTeam` 承載 | **用原生 `json` 型別**（已 GA，二進位儲存、`JSON_VALUE` 相容、JSON 索引推出中），不用 `nvarchar(max)`。**「只存不查」維持為設計紀律**，原生型別只是保留逃生口。<br>🔴 **本機用 SQL Server 2022 容器驗證 DDL 時要先把 `json` 換成 `nvarchar(max)`**——原生 `json` 型別只在 Azure SQL Database 與 SQL Server 2025 有，2022 會報 `Msg 2715 Cannot find data type json`。**這是驗證環境的限制，不是 DDL 寫錯** |
 | 3 | **`CalendarEvent` 的實作形式** | 定義為**視圖**（`source_type` + `source_id` UNION）。若效能不足，改為**索引表**並以來源模組的寫入觸發同步 | **第一期用一般 VIEW。** 🔴 **SQL Server 的 indexed view 明文禁止 `UNION`／`UNION ALL`**，所以**沒有 materialized view 這條升級路**——不要去試。效能不足時直接走索引表 ＋ 寫入時同步，或先由 Redis 吸收 |
-| 4 | **全文檢索**（G-02 站內搜尋） | 綱要不含任何搜尋索引表，搜尋屬應用層 | **第一期用跨表 `LIKE` 比對**，不建搜尋索引表、不預先加索引（資料量在數百至數千列，掃描可接受）。升級路徑是 **Azure SQL 內建全文檢索**（有中文斷詞），**不需要外掛 Meilisearch／Typesense**。⚠️ 第一期做不到 G-02 要求的分類篩選與關鍵字高亮，屬**已知功能落差** |
+| 4 | **全文檢索**（G-02 站內搜尋） | 綱要不含任何搜尋索引表，搜尋屬應用層 | **第一期用跨表 `LIKE` 比對**，不建搜尋索引表、不預先加索引（資料量在數百至數千列，掃描可接受）。升級路徑是 **Azure SQL 內建全文檢索**（有中文斷詞），**不需要外掛 Meilisearch／Typesense**。✅ H 批（2026-10-02）已做到 G-02 的分類篩選（`type`＋`facets`）與高亮所需資料（`tokens`＋`snippet`，高亮由前端做），見 `apps/api/README.md`「H 批」§4；不做的是繁中斷詞與相關度排序 |
 | **5** | **可為空的 `club_id` 出現在唯一鍵裡的 NULL 語意** | 技術中立寫法：「`(club_id, slug)` 唯一，**且 `club_id` 為空時 `slug` 亦須全站唯一**」 | **採弱讀法，`UNIQUE (club_id, slug)` 就夠**——SQL Server 的唯一索引**把 NULL 當成相等**，複合唯一鍵本身已擋掉兩筆 `(NULL, 'about')`。**不加篩選唯一索引、不加觸發器**；「哪一筆對應這個網址」由路由的優先順序解決，見下 |
 
 > ✅ **第 5 件已定案（2026-09-20）：弱讀法 ＋ 路由優先順序。**
@@ -509,7 +509,7 @@ flowchart LR
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
 | `MenuItem` | **●** | 主選單／Mega Menu／Footer：多層級（`parent_id`）、排序、外部連結 | 🌐 |
-| `Venue` | — | 場地：地址、**`lat`／`lng`**、交通說明、照片。**刻意不加**——場地是地理實體，兩隊共用同一座球場；重複建會產生兩組人工標的座標 | 🌐 |
+| `Venue` | — | 場地：地址、**`lat`／`lng`**、交通說明、照片（**H 批補圖片欄位組：`photo_width`／`photo_height`、`venues_i18n.photo_alt`**，見 §12 第 50 點）。**刻意不加**——場地是地理實體，兩隊共用同一座球場；重複建會產生兩組人工標的座標 | 🌐 |
 
 > 其餘 I 模組內容（多語系、聯絡資訊、外部服務、全域設定、商店設定）走 `Locale`／`UiString`／`Setting`。
 > ⚠️ **LINE Pay 與發票憑證不在 `Setting`**，在 `PaymentChannel`（S6，僅系統管理員）。
@@ -892,6 +892,17 @@ flowchart LR
     ② **`articles_i18n.cover_alt`**（`nvarchar(200) NULL`）：封面替代文字，逐語系；英文空白時回退中文，兩者皆空前台改用文章標題。**不要求必填**（規劃書未要求，不發明）。
     ③ 既有資料列三欄皆為 `NULL`；前台沒有寬高時不輸出寬高屬性、沒有 Alt 時回退標題。OG 圖片優先序最後一層（封面回退）改輸出封面寬高與封面 Alt。
     ⚠️ **同一條規則在其他表的缺口不只這一張**——全表重掃見 [`docs/12d`](12d-field-audit.md) §12（24 個圖片欄位缺寬高、30 個缺 Alt），**本批只補 `articles`**，其餘待逐表補欄位並接上各自的後台上傳流程。
+
+50. 🔴 **（H 批，2026-10-02）I 網站設定其餘子模組落地（I2 選單／I3 全域設定／I4 多語系與字串翻譯表／I5 場地／I6 EDM 設定）**——**表數不變**（144），只加 3 個欄位與一批設定鍵；`db/club-schema.sql` 與 migration `AlignSchemaI1` 同步（冪等，先查再加）：
+    ① **`venues.photo_width`／`photo_height`**（`int NULL`）＋ **`venues_i18n.photo_alt`**（`nvarchar(200) NULL`）：場地照片補齊圖片欄位組（規劃書 v3.5 §4.0，同第 49 點的規則）；尺寸存主檔縮小後的值，既有列皆 `NULL`。`Venue` 仍**刻意不帶 `club_id`**。
+    ② **`menu_items`／`menu_items_i18n`、`ui_strings`／`ui_string_translations`、`locales` 早已在綱要裡**，本批只補後台與公開端點，沒有改結構。`menu_items.menu_location` 的值域在**應用層**限定為 `main`／`mega`／`footer`（沒有加 CHECK）；`url` 內部連結存不含語系前綴的路徑、外部連結存完整 http(s) 網址（`is_external` 由請求指定）。
+    ③ **新增的 `settings` 鍵**（`club_id` 必填，每俱樂部一份；詞彙集中於 `apps/api/Features/SiteSettings/SiteSettingKeys.cs`，改鍵名只改那裡）：
+       - `policy.cookie`／`policy.privacy`／`policy.member_terms`（`setting_group='policy'`，內文逐語系存 `settings_i18n.value`，**純文字**，不收 HTML）；
+       - `maintenance.enabled`（單一值 `"1"`＝開啟）／`maintenance.message`（逐語系）（`setting_group='maintenance'`）；
+       - `i18n.fallback_mode`（單一值 `show_default`／`hide`）／`i18n.date_format`（逐語系樣式，如 `YYYY/MM/DD`）／`i18n.number_format`（逐語系範例，如 `1,234.56`）（`setting_group='i18n'`）；
+       - `edm.enabled`／`edm.provider`／`edm.list_id`／`edm.sender_email`（單一值）、`edm.api_key_encrypted`（**Data Protection 密文，只寫不讀**）（`setting_group='edm'`）。
+    ④ **權限碼 15 個**（`site.menu.*`／`site.global.*`／`site.locale.*`／`site.string.*`／`site.venue.*`／`site.edm.*`，見 [`12b`](12b-database-tables.md) §7.4「H 批」）：permissions 260 → **275**、role_permissions 782 → **799**（系統管理員 15 ＋ 翻譯人員 2）。**已建好的庫只能靠 migration 取得**（`db/prod/club-reference-data.sql` 與種子是新建庫用的同一份定義，id 為同一組決定性 UUID）。
+    ⑤ **刻意沒有的**：不建「翻譯狀態」表（總覽由各內容側表即時計算，「完成」＝該語系側表列存在且主要文字欄位非空）；不為標誌／Favicon 補寬高與 Alt（`docs/12d` §12 同一個既有落差）；不新增語系（`RequestLocale` 只認 `en`，見 `apps/api/README.md` H 批待決 2）。
 
 ---
 

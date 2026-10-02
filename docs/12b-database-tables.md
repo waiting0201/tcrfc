@@ -267,7 +267,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `Permission` 欄位 | 值域 |
 |---|---|
 | `module_code` | `A` `B` `C` `E` `F` `G` `H` `I` `J` `K` `L` `P` `S`。⚠️ **v3.0 移除 `N`**（慈善已獨立）。**禁用 `D`（撞 `D1`）／`U`（撞 `U15`）／`O`（形近 `0`）／`M`（App，本檔不含）** |
-| `submodule_code` | `B1`–`B6`、`C1`–`C5`、`P1`–`P4`、`E1`–`E6`（**E4–E6 為 App 廣告**）、`F1`–`F2`、`G1`–`G3`、**`J1`–`J4`（v3.0：`J4` 為俱樂部與授權管理）**、`K1`–`K5`、`L1`–`L4`、`S1`–`S6`、`H1`–`H6`、**`I1`（S1-12d 新增，2026-09-29：`I` 網站設定首次有後端實作，規劃書原文沒有逐項編號，本輪自行分配）**。⚠️ **v3.0 移除 `N1`–`N7`** |
+| `submodule_code` | `B1`–`B6`、`C1`–`C5`、`P1`–`P4`、`E1`–`E6`（**E4–E6 為 App 廣告**）、`F1`–`F2`、`G1`–`G3`、**`J1`–`J4`（v3.0：`J4` 為俱樂部與授權管理）**、`K1`–`K5`、`L1`–`L4`、`S1`–`S6`、`H1`–`H6`、**`I1`（S1-12d 新增，2026-09-29：`I` 網站設定首次有後端實作，規劃書原文沒有逐項編號，本輪自行分配）、`I2`–`I6`（H 批，2026-10-02：選單／全域設定／多語系與字串翻譯表／場地／EDM 設定，同樣自行分配）**。⚠️ **v3.0 移除 `N1`–`N7`** |
 | `domain` | `content` `faq` `charity` `team` `program` `calendar` `member` `business` `shop` `enquiry` `seo` `system` `site`（**`site` 為 S1-12d 新增，`I` 網站設定的 GEO-03／GEO-04 事實**）。⚠️ **v3.0 移除 `donation`**（慈善已獨立） |
 | `action` | `view` `create` `update` `delete` `publish` `export` `translate` `execute` `reveal` |
 | `is_restricted` | **須額外授權**：會員名單匯出、訂單匯出、K5 winners 匯出、慈善明細匯出、分潤設定 |
@@ -337,6 +337,21 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 > `IAdminClubAuthorizer.AuthorizeAnyAsync` 讓 `site.fact.view` 或 `team.match.view` 任一通過即可
 > ——這支端點只是既有 `venues` 主檔的唯讀清單，不是需要獨立把關的新業務功能，見
 > `apps/api/README.md`「S1-12d」節「藍鯨官網網址」與「場地清單端點」兩小節。
+
+> **H 批新增（2026-10-02）**：`I` 網站設定其餘子模組落地，新增 **15 個權限碼**（module=`I`，domain=`site`；permissions 260 → 275、role_permissions 782 → 799）。矩陣沒有「網站設定」欄（只有「SEO／設定」欄：內容編輯「單頁 SEO」、**翻譯人員「字串翻譯表」**），判斷延續上方 `site.fact.*`／`seo.*` 的先例：
+
+| 權限碼 | 子模組 | `is_club_scoped` | `sysadmin_only` | 持有者 |
+|---|---|---|---|---|
+| `site.menu.view`／`update` | `I2` 選單管理 | 1 | 1 | 僅系統管理員 |
+| `site.global.view`／`update` | `I3` 全域設定（Logo、品牌色、Favicon、政策頁、維護模式） | 1 | 1 | 僅系統管理員 |
+| `site.locale.view`／`update` | `I4` 多語系管理（語系、備援規則、日期數字格式、翻譯狀態總覽） | 1 | 1 | 僅系統管理員 |
+| `site.string.view`／`update`／`translate` | `I4` 字串翻譯表 | 0（全站共用主檔） | **0** | 系統管理員全部；**翻譯人員 `view`＋`translate`**（`scope_type='translate_only'`） |
+| `site.venue.view`／`create`／`update`／`delete` | `I5` 場地管理 | 0（`Venue` 不帶 `club_id`） | 1 | 僅系統管理員 |
+| `site.edm.view`／`update` | `I6` EDM 平台設定 | 1 | 1，且 `is_restricted=1`（含憑證） | 僅系統管理員 |
+
+- **`site.string.update` 與 `site.string.translate` 的分工是伺服器端強制的**（規劃書 §6 補充規則 ※：翻譯人員僅能編輯 `en` 語系欄位，不得修改繁中原文）：`translate` 只能新增／修改／清除非預設語系的翻譯；請求中任何改動繁中原文或分組的內容 → 整個請求 `403`；新增與刪除字串一律要 `update`。這是**第一個真的在伺服器端做出「僅翻譯欄位」限制的模組**，所以翻譯人員才能被指派權限（其他模組的 `translate_only` 仍待欄位級強制，見 `generate-club-seed-sql.py` 翻譯人員段落的說明）。
+- 儀表板（`A`）**沒有專屬權限碼**：呼叫者持有儀表板用到的任一檢視／建立權限即可進入，各區塊再依對應模組權限決定有沒有（`AdminDashboardRepository.AllCandidateCodes`）；翻譯人員與持有 `site.locale.view` 者看得到全類別的「未翻譯內容數」。
+- 既有 `GET /api/v1/admin/{club}/venues`（清單）允許 `site.fact.view`／`team.match.view`／`site.venue.view` 任一通過；其餘場地端點要 `site.venue.*`。
 
 > **S1-12 新增（2026-09-25）**：矩陣「SEO／設定」欄除了內容編輯的「單頁 SEO」外，**十個角色裡只有
 > 系統管理員打勾**，性質上與 J 模組的「系統」欄同樣是單一角色的排他欄位，因此 `seo.setting.*`／

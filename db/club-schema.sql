@@ -1642,12 +1642,16 @@ CREATE TABLE menu_items_i18n (
 );
 
 -- 場地：地址、lat／lng、交通說明、照片。刻意不帶 club_id——兩隊共用同一座球場。
+-- I5（2026-10-02）：照片補齊圖片欄位組（規劃書 v3.5 §4.0「物件鍵、寬、高、雙語 Alt」）：photo_width／photo_height
+-- 存主檔縮小後的尺寸（前台必帶寬高以避免 CLS），替代文字在 venues_i18n.photo_alt。三欄皆可為空，既有資料列維持 NULL。
 CREATE TABLE venues (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   lat             decimal(9,6)     NULL,
   lng             decimal(9,6)     NULL,
   photo_key       nvarchar(500)    NULL,
+  photo_width     int              NULL,
+  photo_height    int              NULL,
   sort_order      int              NOT NULL DEFAULT 0,
   created_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at      datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
@@ -1663,6 +1667,7 @@ CREATE TABLE venues_i18n (
   name            nvarchar(128)    NULL,
   address         nvarchar(255)    NULL,
   directions      nvarchar(max)    NULL,
+  photo_alt       nvarchar(200)    NULL,
   CONSTRAINT PK_venues_i18n PRIMARY KEY CLUSTERED (venue_id, locale)
 );
 
