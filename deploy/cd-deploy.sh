@@ -11,7 +11,7 @@
 #   4. 缺的映像檔從 ghcr 拉；標籤是浮動的 master 且要被換掉時，先把「現在正在跑的映像檔」在本機另打
 #      一個 cd-prev 標籤，當首次銜接與自動回滾的退路
 #   5. docker compose up -d --wait；Caddyfile 內容與執行中的 proxy 不同就強制重建 proxy
-#   6. 健康檢查：容器全 healthy、api /readyz、六個網址經 VM 本機（--resolve 127.0.0.1）回 200
+#   6. 健康檢查：容器全 healthy、api /readyz、六個網址經 VM 本機（--resolve 127.0.0.1，跟隨轉址）回 200
 #   7. 失敗 → 自動退回上一個成功版本並再檢查一次；成功 → 更新 deploy-state.env 與 deploy-history.log
 #
 # 輸入（環境變數，全部由 workflow 以 env: 傳入，不內插進 shell 字串）：
@@ -304,9 +304,10 @@ check_once() {
     [ -n "${domain}" ] || { LAST_FAILURE="${pair%%:*} 在 ${CD_ENV_FILE} 是空的"; return 1; }
     # --resolve 把網域直接指到本機 Caddy：不經 Cloudflare、不受 NSG 只放 Cloudflare 段的限制，
     # 但仍走 TLS（SNI 與憑證都用真實網域），測得到「proxy 依 Host 分流到上游」這一層。
-    code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 --resolve "${domain}:443:127.0.0.1" "https://${domain}${path}" 2> /dev/null || true)"
+    # -L：前台的 / 會 302 到 /zh/（E-115），跟著轉址後才判斷；轉址目標仍是同一網域，--resolve 照樣生效。
+    code="$(curl -sS -L --max-redirs 3 -o /dev/null -w '%{http_code}' --max-time 15 --resolve "${domain}:443:127.0.0.1" "https://${domain}${path}" 2> /dev/null || true)"
     if [ "${code}" != 200 ]; then
-      LAST_FAILURE="https://${domain}${path} 回 ${code:-（連不上）}，預期 200"
+      LAST_FAILURE="https://${domain}${path}（跟隨轉址後）回 ${code:-（連不上）}，預期 200"
       return 1
     fi
   done

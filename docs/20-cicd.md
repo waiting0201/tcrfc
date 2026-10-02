@@ -471,7 +471,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | 環節 | 設計 |
 |---|---|
 | **映像檔 tag** | 有重建的映像檔用 **git SHA**（不可變），沒重建的沿用上一版標籤（每個映像檔各自一個 `TAG_*` 變數，§4a）。回滾＝重新指向舊標籤的映像檔，**不需要重新建置**（映像檔已經在 ghcr 上） |
-| **部署後健康檢查** | ✅ 已實作（§4a）：容器全 healthy ＋ `api` `/readyz` 為 `ready`（兩個 `DbContext` 能連線、Redis 失敗只警告，呼應 `17` §4）＋ 六個網址經 VM 本機 `--resolve` 回 200；逾時 300 秒、每 5 秒重試 |
+| **部署後健康檢查** | ✅ 已實作（§4a）：容器全 healthy ＋ `api` `/readyz` 為 `ready`（兩個 `DbContext` 能連線、Redis 失敗只警告，呼應 `17` §4）＋ 六個網址經 VM 本機 `--resolve` 回 200（`curl -L` 跟隨轉址，前台 `/` 會 302 到 `/zh/`，E-115）；逾時 300 秒、每 5 秒重試 |
 | **失敗自動回滾** | ✅ 健康檢查逾時或 `up` 失敗 → 腳本把五個映像檔標籤改回 `deploy-state.env` 記錄的上一個成功版本，`up -d --wait` 後再跑一次健康檢查；workflow 標記失敗（結束碼 1＝已退回、2＝退回也失敗）。**只退映像檔，不退 `deploy/`／compose 設定**。首次銜接的退路是本機 `:cd-prev` 標籤（§4a） |
 | **成功記錄** | ✅ 健康檢查通過後寫 `/opt/tcrfc/deploy-state.env`（`LAST_GOOD_SHA`、`LAST_GOOD_AT`、五個 `TAG_*`，不進 git；失敗不更新），並在 `/opt/tcrfc/deploy-history.log` 追加一行（時間、SHA、五個映像檔標籤、`mode`、`result=ok`） |
 | **人工回滾** | ✅ `rollback.yml`（Actions → Rollback → Run workflow，輸入 40 字元 SHA）。標籤來源：① `deploy-history.log` 裡那一版的完整標籤組合（最準）；② 歷史沒有就用「ghcr 上存在 `:<sha>` 的映像檔用該標籤，其餘沿用目前」；兩者都找不到則中止。同樣 self-hosted、同樣健康檢查，失敗退回「回滾前」的版本，成功更新 state 並在 history 記一筆 `mode=rollback`。**不重建、不 migrate、不退 `deploy/` 設定** |

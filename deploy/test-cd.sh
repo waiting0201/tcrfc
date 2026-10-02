@@ -99,6 +99,11 @@ esac
 if [ -f "${FAKE_DIR}/running" ]; then
   for t in ${FAKE_BAD:-}; do grep -q "=${t}\$" "${FAKE_DIR}/running" && { printf '502'; exit 0; }; done
 fi
+# 比照真實前台：網站根目錄 / 會 302 到 /zh/；沒帶 -L 就只看得到 302（E-115 回歸測試）
+case "$*" in
+  *-L*) ;;
+  *"https://"*"/") printf '302'; exit 0 ;;
+esac
 printf '200'
 EOF
 chmod +x "${FAKEBIN}/curl"

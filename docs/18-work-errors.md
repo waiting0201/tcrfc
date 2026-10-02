@@ -126,6 +126,7 @@
 | E-112 | 2026-10-02 | 第一次要在 VM 起容器時才發現兩處「設定與產出沒對撞」：compose／`.env.example`／`provision-secrets.sh` 的 `IMAGE_TAG` 預設是 `latest`，但 `deploy.yml` 只推 `:master` 與 git SHA，照預設起會拉不到映像檔；主站 `nuxt-tcrfc` 沒給 `NUXT_PUBLIC_BLUE_WHALE_SITE_URL`，女足頁導往藍鯨站的連結落回 `nuxt.config.ts` 寫死的 `bw-stg.tcrfc.tw` | ⚠️ 無 |
 | E-113 | 2026-10-02 | S0-9 把 mockup 照片改成模板靜態 `src`（Vue 編譯器轉成 import）後，從未在沒有照片的乾淨 checkout 建置過；GitHub Actions 建 `tcrfc-nuxt-club` 失敗（UNRESOLVED_IMPORT） | ✅ `siteImg()` ＋ `npm run lint:site-images` 禁止繞過；照片改由 Blob 提供 |
 | E-114 | 2026-10-02 | 正式 VM 第一次 `docker compose up`：`proxy` 固定 `172.28.238.2`，但它依賴其他服務健康後才啟動，先起來的 `redis`（無固定 IP）被自動分到 `.2`，`proxy` 以「Address already in use」失敗 | ✅ `docker-compose.yml` 的 `internal` 網路加 `ip_range: 172.28.238.128/25`，自動分配不再落在固定 IP 段 |
+| E-115 | 2026-10-02 | 第一次 CD：健康檢查要求前台 `/` 回 200，但前台 `/` 一律 302 到 `/zh/`，判定失敗→退回→退回也用同一檢查而失敗，結束碼 2；實際上網站與容器全部正常。假 `curl` 對任何網址都回 200，60 項測試全綠卻沒抓到 | ✅ 健康檢查改 `curl -L --max-redirs 3`；`deploy/test-cd.sh` 的假 `curl` 對 `/` 沒帶 `-L` 回 302（拿掉修正會失敗 27 項） |
 
 ---
 
@@ -2349,3 +2350,9 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：設固定 IP 時沒有同時把自動分配的範圍隔開；本機開發用另一份 compose、CI 只起 api，從沒在一次 `up` 裡同時起過全部 8 個容器。
 - **下次怎麼避免**：用 `ipv4_address` 就同時設 `ip_range` 把自動分配限縮到不重疊的範圍。
 - **防呆**：`ip_range: 172.28.238.128/25`。
+
+### E-115 健康檢查的期望值沒有對照網站的真實回應（2026-10-02，CD）
+- **錯在哪**：`deploy/cd-deploy.sh` 對六個網址都要求 HTTP 200，但三個前台的 `/` 依語系規則一律 302 到 `/zh/`。第一次 CD 因此判定新版失敗並退回，退回又用同一檢查而失敗（結束碼 2），讓人誤以為整站壞掉。
+- **根因（可改掉的行為）**：寫健康檢查時憑「首頁應該 200」的假設，沒有先對已上線的網址實際 `curl` 一次；測試用的假 `curl` 一律回 200，等於把同一個假設寫進測試。
+- **下次怎麼避免**：健康檢查的期望值先對真實環境量一次再寫；假的外部指令要模擬真實回應的形狀（轉址、錯誤碼），而不是一律成功。
+- **防呆**：`curl -L`；假 `curl` 對 `/` 未帶 `-L` 回 302。
