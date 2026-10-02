@@ -2,7 +2,7 @@ using Microsoft.Data.SqlClient;
 
 namespace Tcrfc.Api.Tests;
 
-/// <summary>I 網站設定與儀表板整合測試共用的小工具：臨時翻譯人員帳號、選單快照還原。🔴 工作樹無資料庫憑證，這些工具與使用它們的測試<b>尚未實跑</b>（docs/18 E-121）。</summary>
+/// <summary>I 網站設定與儀表板整合測試共用的小工具：臨時翻譯人員帳號、選單快照還原。注意：T-SQL 變數與參數名稱不分大小寫，局部變數與參數不可僅大小寫不同（docs/18 E-121）。</summary>
 internal static class SiteSettingsTest
 {
     private static string ConnectionString =>
@@ -16,12 +16,12 @@ internal static class SiteSettingsTest
             """
             DECLARE @u uniqueidentifier = NEWID();
             INSERT INTO admin_users (id, username, password_hash, display_name, status, is_super_admin)
-            VALUES (@u, @U, N'not-a-real-hash', N'ZZTEST 翻譯人員', N'active', 0);
+            VALUES (@u, @Name, N'not-a-real-hash', N'ZZTEST 翻譯人員', N'active', 0);
             INSERT INTO admin_user_roles (admin_user_id, admin_role_id) SELECT @u, id FROM admin_roles WHERE code = N'translator';
             INSERT INTO admin_user_clubs (admin_user_id, club_id, granted_on, is_active)
             SELECT @u, id, CAST(SYSUTCDATETIME() AS date), 1 FROM clubs WHERE code = N'tcrfc';
             """,
-            ("@U", username));
+            ("@Name", username));
         return username;
     }
 
@@ -29,7 +29,7 @@ internal static class SiteSettingsTest
     {
         await BizTest.ExecuteSqlAsync(
             """
-            DECLARE @u uniqueidentifier = (SELECT id FROM admin_users WHERE username = @U);
+            DECLARE @u uniqueidentifier = (SELECT id FROM admin_users WHERE username = @Name);
             IF @u IS NOT NULL
             BEGIN
               DELETE FROM admin_user_roles WHERE admin_user_id = @u;
@@ -38,7 +38,7 @@ internal static class SiteSettingsTest
               DELETE FROM admin_users WHERE id = @u;
             END
             """,
-            ("@U", username));
+            ("@Name", username));
     }
 
     /// <summary>拍下某俱樂部全部選單項目，回傳還原委派（測試改動共用庫前後一定要用，E-81／E-119）。</summary>

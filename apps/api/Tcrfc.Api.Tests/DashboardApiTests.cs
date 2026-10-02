@@ -211,10 +211,14 @@ public sealed class DashboardApiTests(AdminWriteApiFixture fixture)
 
             var beforeEn = before.Content.Untranslated.Single(u => u.Locale == "en");
             var afterEn = after.Content.Untranslated.Single(u => u.Locale == "en");
-            Assert.Equal(beforeEn.Count + 1, afterEn.Count); // 只有草稿那篇缺英文
+            // 缺英文：草稿那篇新聞（+1）與兩題只有繁中的 FAQ（+2）；以差值斷言，不受共用庫既有資料影響
+            Assert.Equal(beforeEn.Count + 3, afterEn.Count);
             Assert.Equal(
                 (beforeEn.ByType.FirstOrDefault(t => t.Type == "article")?.Count ?? 0) + 1,
                 afterEn.ByType.Single(t => t.Type == "article").Count);
+            Assert.Equal(
+                (beforeEn.ByType.FirstOrDefault(t => t.Type == "faq")?.Count ?? 0) + 2,
+                afterEn.ByType.Single(t => t.Type == "faq").Count);
 
             Assert.Equal("ZZDASH 負評題目", after.Faq!.TopQuestions[0].Question);
             Assert.Contains(after.Faq.NegativeFeedback, f => f.Question == "ZZDASH 負評題目" && f.UnhelpfulCount == 5);
@@ -302,10 +306,12 @@ public sealed class DashboardApiTests(AdminWriteApiFixture fixture)
             Assert.Contains(after.Forms, f => f.FormCode == "general_contact" && f.Count >= 1);
             Assert.DoesNotContain(after.Forms, f => f.Count <= 0);
 
-            // 內容編輯沒有詢問／報名／會員權限：這些序列是 null（不是 0）
+            // 內容編輯沒有詢問／提案／會員權限：這些序列是 null（不是 0）。
+            // 但種子賦予內容編輯 program.registration.view（課程報名檢視），所以報名序列是數字（非 null）；以此鎖住「有權限就有數字」。
             var editorView = await BizTest.ReadAsync<AdminDashboardConversionDto>(await editor.GetAsync(Url + "/conversion"));
             Assert.Null(editorView.Totals.Enquiries);
-            Assert.Null(editorView.Totals.Registrations);
+            Assert.Null(editorView.Totals.ProposalDownloads);
+            Assert.NotNull(editorView.Totals.Registrations);
             Assert.Null(editorView.Totals.NewMembers);
             Assert.All(editorView.Buckets, b => Assert.Null(b.NewPaidMemberships));
             Assert.Empty(editorView.Forms);
