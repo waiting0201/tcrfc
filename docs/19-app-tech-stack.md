@@ -20,7 +20,7 @@
 |---|---|
 | iOS | **Swift 5.9+／SwiftUI 為主，導覽容器用 UIKit**（iOS 15+） |
 | Android | **Kotlin 2.x／Jetpack Compose ＋ Material 3**（`minSdk 29`） |
-| 型別來源 | .NET 產 **OpenAPI 3.1 進版控** → 兩端各自產生 DTO（**不產 client**） |
+| 型別來源 | .NET 建置期產 **OpenAPI 3.1 進版控**（`shared/openapi.json`）→ `shared/generated/` 產生 Swift／Kotlin DTO（**不產 client**）；AP-8 ✅ |
 | 本機儲存 | 兩端 **SQLite**：iOS GRDB.swift／Android SQLDelight，**共用一份 DDL** |
 | 權杖 | 存取 **JWT 15 分鐘** ＋ 更新 **不透明字串 90 天滑動、可撤銷、每次使用即輪替** |
 | 安全儲存 | iOS Keychain（`AfterFirstUnlockThisDeviceOnly`）／Android **Tink ＋ Keystore** |
@@ -82,22 +82,48 @@ Kotlin 2.x／JDK 17／AGP 8.x，`minSdk 29`，**`targetSdk` 跟隨 Play 的當�
 App 規劃書 §9.2 的端點清單**只有資源、動作、呼叫者三欄，全表只有一個真實路徑，沒有 schema**。
 型別的真實來源必須另外建立，而且**只能有一份**。
 
-**決定：後端 .NET 以 Swashbuckle／NSwag 產出 OpenAPI 3.1，該檔進版控，作為 API 的機器可讀真實來源。**
+**決定：後端 .NET 在「建置期」產出 OpenAPI 3.1，濾成 App 可呼叫的範圍後進版控（`shared/openapi.json`），作為 API 的機器可讀真實來源。**
+✅ **已實作（AP-8，2026-10-02）**：`shared/` 目錄在本 repo 根目錄，總覽與重新產生方式見 [`shared/README.md`](../shared/README.md)。
 
 | 檔案 | 產生者 | 消費者 |
 |---|---|---|
-| `shared/openapi.json` | .NET CI | iOS `swift-openapi-generator`／Android `openapi-generator` |
-| `shared/cache-schema.sql` | 手寫（一份 DDL ＋ migration 編號） | iOS GRDB `DatabaseMigrator`／Android SQLDelight `.sq` |
-| `shared/cache-policy.json` | 手寫（§2.4 時效表逐 key） | 兩端產生常數檔 |
-| `shared/deeplinks.json` | 手寫（§2.3 的 8 條 ＋ 官網回退網址） | 兩端產生路由表；**同時產生官網要放的 AASA／assetlinks 的 `paths` 區段** |
-| `shared/error-codes.json` | 後端定義（§9.5：代碼 ＋ 雙語訊息 ＋ 可否重試） | 兩端產生錯誤映射 |
-| `shared/ad-viewability-cases.json` | 手寫（§6 的測試案例） | 兩端跑同一份單元測試 |
+| `shared/openapi.json` | **產生檔**：`shared/scripts/gen-openapi.sh`（`apps/api` 建置期，不連資料庫）→ `filter-openapi.mjs` 排除後台／慈善平台／伺服器內部端點並正規化 | 兩端的 DTO 產生（見下）；App 端點的真實來源仍是規劃書 §9.2 |
+| `shared/generated/swift/TcrfcApiModels.swift`、`shared/generated/kotlin/TcrfcApiModels.kt` | **產生檔**：`shared/scripts/gen-dto.mjs`（只有 DTO，無 client） | 兩端 App 直接取用 |
+| `shared/cache-schema.sql` | 手寫（一份 DDL ＋ `-- migration: N` 編號區塊） | iOS GRDB `DatabaseMigrator`／Android SQLDelight `.sq` |
+| `shared/cache-policy.json` | 手寫（§2.4 時效表逐 key，另含會員卡 7 天、事件佇列、圖片、網路常數） | 兩端產生常數檔 |
+| `shared/deeplinks.json` | 手寫（§2.3 的 8 條 ＋ 官網回退網址 ＋ `universalLinkPaths` ＋ 解析測資） | 兩端產生路由表；**`universalLinkPaths` 供 AP-9 產出官網要放的 AASA／assetlinks（Team ID 與 package name 填入後才能產）** |
+| `shared/error-codes.json` | **產生檔**：`shared/scripts/gen-error-codes.mjs` 掃 `apps/api` 實際會回的 `code`（81 個，皆為會員一族），不發明規格；雙語訊息與可否重試的缺口寫在檔內 `pending` | 兩端產生錯誤映射 |
+| `shared/ad-viewability.md`、`shared/ad-viewability-cases.json` | 手寫（§6 的行為規格與 22 筆測資：18 筆曝光＋4 筆點擊去重） | 兩端跑同一份單元測試；`check-shared.py` 內有參考實作驗證測資 |
+
+**DTO 工具的選擇（2026-10-02）**：自寫約 200 行的 `shared/scripts/gen-dto.mjs`，**不採用** swift-openapi-generator／openapi-generator。理由：
+① 兩者都連 client 一起產，而紀律 1 要求只產 DTO；
+② swift-openapi-generator 需要 Swift 工具鏈，無法在 GitHub-hosted ubuntu runner 上便宜地跑漂移檢查；
+③ 本 API 的 schema 形狀單純（物件、陣列、純量、可為空、字典，沒有 enum／繼承），遇到沒處理過的形狀產生器會直接報錯而不是默默產錯；
+④ 零相依、離線、輸出完全決定性。
+型別對應：時間與 uuid 一律 `String`（時間解析交給 App 的時間工具）；`int32`→`Int`、`int64`→`Int64`／`Long`；可為空或非必填→Optional（Swift）／`= null`（Kotlin）；任意 JSON→`JSONValue`／`JsonElement`。Kotlin 套件名稱預設 `tw.tcrfc.app.api.dto`（`gen-dto.mjs` 第一個常數，AP-7 建 repo 後若要改只改那一行）。
+Kotlin 端的 `Json` 設定請用 `ignoreUnknownKeys = true`，讓後端新增欄位時舊版 App 不會解析失敗。
+⚠️ Swift 檔已用 `swiftc -typecheck` 驗過；**Kotlin 檔尚未以 `kotlinc` 驗證**（環境沒有 Kotlin 編譯器），AP-7 的 Android 專案第一次編譯時就是驗證。
 
 **三條紀律**：
 
 1. **只產生 DTO，不產生 client。** 產生器產的 client 塞不進權杖續期、冪等鍵、離線佇列、退避重試這些橫切關注。
-2. 🔴 **CI 的漂移檢查**：兩個 App repo 的 CI 重跑產生器後 `git diff --exit-code`，有差異就 fail。後端改了 API 而 App 沒同步，在 CI 就擋下來。
+2. 🔴 **CI 的漂移檢查**分兩側：
+   - **後端這一側（已實作）**：本 repo 的 `ci.yml` 有 `shared-contract` job，重新產生後 `git diff --exit-code`，有差異就 fail（[`20-cicd.md`](20-cicd.md) §3）。後端改了 API 而沒重新產生並提交 `shared/`，在 PR 就會擋下來。
+   - **App 端（AP-7 時實作）**：兩個 App repo 固定取用 `shared/` 的某個版本，CI 比對自己取用的那份是否等於上游；上游升版時兩端各自升級並重跑單元測試。取用方式（sparse checkout 固定 commit／發布 tag 的 tarball）**AP-7 決定**——App repo 是 private、本 repo 是公開的，單向取用沒有權限問題。
 3. **`shared/` 是執行層產物，不得放規格。** 要新增欄位語意，先改規劃書。
+
+**目前 `shared/` 揭露的缺口（皆為待決，不在 `shared/` 補規格）**：
+
+| # | 缺口 | 現況 |
+|---|---|---|
+| 1 | **錯誤結構**：規劃書 §9.5 要求「代碼、雙語訊息、是否可重試」 | 後端只有 RFC 7807 `ProblemDetails`：`code` 僅會員一族例外才有（81 個），訊息只有繁中，沒有 `retryable`；其餘例外（400／403／404／409）沒有 `code`。App 端暫以狀態碼判斷重試（5xx 重試、4xx 不重試）。要補須先改後端 |
+| 2 | **App 端點範圍**：`openapi.json` 目前是「全部非後台端點」（124 條路徑），含官網專用的 SEO、表單、行事曆 feed 等 | 規劃書 §9.2 的清單才是 App 真正會呼叫的；收斂成白名單屬後續優化（`filter-openapi.mjs` 的 `EXCLUDED_PREFIXES` 改成白名單即可） |
+| 3 | **官網路徑與深連結對照的落差**：`apps/web` 目前的 `/zh/schedule` 是單頁（沒有 `/schedule/d1/`、`/schedule/{slug}`）、球員頁是 `/zh/club/first-team/player/[id]`（規劃書 §2.3 寫 `{slug}`）、沒有 `/zh/member/upgrade/` 與 `/zh/app/` | 網站專案要配合（規劃書 §2.3「對官網的依賴」）；非 `shared/` 能解決 |
+| 4 | **英文路徑**：§2.3 對照表只列 `/zh/`；`universalLinkPaths` 因此只有 `/zh/` | 確認主站 URL 規則後加入 `/en/` |
+| 5 | **藍鯨**：`tcrfc://schedule/bw1` 的官網回退網址、藍鯨網域（B-4） | 未定，`deeplinks.json` 以 `null` 標示 |
+| 6 | **未知深連結的行為**（路徑不存在、缺參數）、`/schedule/{隊別代號}` 與 `/schedule/{賽事 slug}` 的區分 | 規劃書只規定「未安裝時回退官網，不得顯示錯誤頁」 |
+| 7 | **會員卡 7 天提醒跨「裝置重啟」**：單調時鐘在重啟後重置，§4 的「取牆鐘差與單調差較大者」在重啟後單調差失效 | `member_card` 目前存 `last_verified_monotonic_ms`；重啟後如何處理（例如改只看牆鐘並接受可被改時鐘）本檔未決，需產品確認 |
+| 8 | **曝光連續區間的起點**（見 `shared/ad-viewability.md` §6） | 取「第一筆達標取樣」，偏保守；對帳需要更精確再改規劃書 |
 
 ---
 

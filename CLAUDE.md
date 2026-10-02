@@ -54,6 +54,7 @@
 | [`STATUS.md`](STATUS.md) | **工作追蹤表**：五個平台、阻塞清單、階段 0–4 的逐項工作 | 執行層（本專案自用） |
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
 | [`db/`](db/) | **資料庫 DDL**：`club-schema.sql`（主站）與 `charity-schema.sql`（慈善獨立庫）。**綱要的真實來源是 [`docs/12`](docs/12-database-schema.md)／[`docs/16`](docs/16-charity-schema.md)，改綱要要先改文件再改 DDL** | 交付物 |
+| [`shared/`](shared/) | **行動 App 契約目錄**（AP-8）：由 `apps/api` 產生的 OpenAPI、Swift／Kotlin DTO、錯誤碼，加手寫的 SQLite DDL、快取時效、深連結、廣告可見度測資。**後端改 API 後要跑 `shared/scripts/gen-all.sh`**，CI 會檢查漂移，見 [`shared/README.md`](shared/README.md) | 執行層產物 |
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
 | [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖、協會立案證書。**不納版控**（客戶資產且含個資，GitHub repo 是公開的），clone 下來不會有這個資料夾 | 客戶提供素材 |
 | [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) | 給客戶放既有檔案的分類結構（83 個資料夾，對應 13 單元） | 內容收件 |

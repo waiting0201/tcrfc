@@ -41,6 +41,7 @@ jobs:
       admin: ${{ steps.filter.outputs.admin }}
       admin_charity: ${{ steps.filter.outputs.admin_charity }}
       api: ${{ steps.filter.outputs.api }}
+      shared: ${{ steps.filter.outputs.shared }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -65,6 +66,10 @@ jobs:
               - '.node-version'
             api:
               - 'apps/api/**'
+            shared:
+              - 'shared/**'
+              - 'apps/api/**'
+              - '.node-version'
 
   # ── 四個 Node 應用：lint（含 S0-9h 的 Node 版本防漂移檢查）＋ docker build（不 push） ──
   web:
@@ -273,8 +278,56 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,scope=api,mode=max
 
-  # ── OpenAPI 漂移檢查：待補 ──────────────────────────────────────────────────
-  # docs/20-cicd.md §1 提到「若後台前端有型別產生器」才需要這一步——apps/admin／
-  # apps/admin-charity 目前是手寫 TypeScript 型別，沒有從 apps/api 的 OpenAPI schema
-  # 產生前端型別的工具鏈，這一步暫時沒有東西可檢查。等後台改用型別產生器時，在這裡加一個
-  # job：重新產生型別、`git diff --exit-code` 比對是否與已提交的型別檔一致。
+  # ── shared/ 契約漂移檢查（AP-8，docs/19 §2 紀律 2、docs/20 §3「shared-contract」）─────────────
+  # apps/api 的 API 一變，shared/openapi.json、Swift／Kotlin DTO、錯誤碼表就必須跟著重新產生並提交；
+  # 這一步重跑產生器後 `git diff --exit-code`，有差異就失敗。
+  #
+  # 🔴 公開 repo 防護鏈（docs/20 §4）：跑在 GitHub-hosted runner（ubuntu-latest），不碰 self-hosted；
+  # 全程不使用任何 secrets、不推送任何東西；權限只有 contents: read。
+  # 產生 OpenAPI 時需要的連線字串與簽章金鑰是 shared/scripts/gen-openapi.sh 內寫死的假值
+  # （連不上任何東西，也不是任何環境的憑證），所以 CI 不需要資料庫、Redis、Blob。
+  #
+  # apps/admin／apps/admin-charity 仍是手寫 TypeScript 型別，沒有型別產生器——那一側的漂移檢查
+  # 等後台改用型別產生器時再加（docs/20 §1）。
+  shared-contract:
+    name: shared/ 契約漂移檢查（OpenAPI／DTO／錯誤碼）
+    needs: changes
+    if: needs.changes.outputs.shared == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      # Node 版本的唯一事實來源是 .node-version（S0-9h），與 _node-app.yml 做法一致。
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: '.node-version'
+
+      - name: 還原 NuGet 套件快取
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('apps/api/packages.lock.json', 'apps/api/Tcrfc.Api.Tests/packages.lock.json') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: dotnet restore（--locked-mode，鎖檔漂移直接失敗）
+        run: dotnet restore apps/api/Tcrfc.Api.csproj --locked-mode
+
+      - name: 重新產生 shared/（OpenAPI、Swift／Kotlin DTO、錯誤碼）並跑一致性檢查
+        run: ./shared/scripts/gen-all.sh
+
+      - name: 漂移檢查（重新產生後的 shared/ 與 packages.lock.json 必須與已提交內容完全一致）
+        run: |
+          set -euo pipefail
+          # intent-to-add：讓「產生器新增、但沒提交」的檔案也算差異
+          git add --intent-to-add shared
+          if ! git diff --exit-code -- shared apps/api/packages.lock.json; then
+            echo "::error::shared/ 與 apps/api 不一致。請在本機執行 ./shared/scripts/gen-all.sh 並提交變更（docs/19 §2）。"
+            exit 1
+          fi

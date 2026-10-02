@@ -45,7 +45,7 @@
 |---|---|---|---|
 | push → `master` | `deploy.yml` | build（僅變動的應用）→ push ghcr → 部署 → 健康檢查 → 失敗自動回滾 → 清快取（選配） | build 用 hosted；部署用 self-hosted（label `tcrfc-vm`，`environment: production`） |
 | 手動（`workflow_dispatch`） | `deploy.yml` | **五個映像檔全部重建並推送**（不看變動範圍）。首次部署、映像檔遺失或要強制重建時用（2026-10-02 加，E-112）。映像檔標籤只有 `:master` 與 git SHA，**沒有 `:latest`**——`IMAGE_TAG` 預設 `master` | hosted |
-| `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ OpenAPI 漂移檢查（若後台前端有型別產生器） | 一律 hosted |
+| `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ **`shared/` 契約漂移檢查**（`shared-contract` job，AP-8，見 §3；後台前端若日後有型別產生器再加另一個漂移檢查） | 一律 hosted |
 | 手動 | `db-migrate.yml` | 套用 EF Core migration，需 `production-db` 環境核准 | self-hosted |
 | 手動 | `rollback.yml` ✅ | 輸入 SHA，把正式 VM 退回那一版（映像檔標籤；不重建、不 migrate），§6 | self-hosted |
 
@@ -131,6 +131,22 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 > 原規劃的路徑是 `apps/nuxt-club`／`apps/admin-web`，本節當時已明文「實際建立專案骨架時可調整」——
 > S0-7a 實際採用上表這組更短的名稱（`web`／`web-charity`／`admin`／`admin-charity`／`api`），
 > 已回填本節；**目錄一對一映射映像檔**這個原則有保留，`paths-filter` 依然切得乾淨。
+
+### `shared-contract`：App 契約漂移檢查（AP-8，2026-10-02）
+
+`shared/`（[`docs/19`](19-app-tech-stack.md) §2）裡有四類**產生檔**——`openapi.json`、Swift／Kotlin DTO、`error-codes.json`——來源是 `apps/api`。
+後端改了 API 卻沒重新產生並提交，App 與後端的契約就悄悄分岔，所以 `ci.yml` 有一個獨立 job：
+
+| 項目 | 內容 |
+|---|---|
+| 觸發 | `paths-filter` 的 `shared` 輸出：`shared/**`、`apps/api/**`、`.node-version` 任一有變動 |
+| 跑在哪 | `ubuntu-latest`（**GitHub-hosted**）；`permissions: contents: read`；**不使用任何 secrets、不推送、不碰 self-hosted**——符合 §4 防護鏈，與其他 CI job 相同 |
+| 步驟 | `setup-dotnet`＋`setup-node`（`.node-version`）→ `dotnet restore --locked-mode` → `shared/scripts/gen-all.sh`（建置期產生 OpenAPI → 產生 DTO → 掃描錯誤碼 → `check-shared.py` 一致性檢查）→ `git add --intent-to-add shared` ＋ `git diff --exit-code -- shared apps/api/packages.lock.json` |
+| 為什麼不需要資料庫 | OpenAPI 由 `Microsoft.Extensions.ApiDescription.Server` 在**建置期**以記憶體內的 host 讀端點中繼資料，不開 Kestrel、不開連線。`gen-openapi.sh` 寫死的連線字串與簽章金鑰是**假值**（連不上任何東西、不是任何環境的憑證），只為通過 `Program.cs` 的啟動檢查 |
+| 失敗時 | 在本機執行 `./shared/scripts/gen-all.sh`，把變更的產生檔一起提交 |
+| 與正式環境的關係 | `Tcrfc.Api.csproj` 的 `OpenApiGenerateDocuments` 預設 `false`（只在腳本傳 `-p:OpenApiGenerateDocuments=true` 時產生），Docker 建置與一般建置不受影響；**正式環境依然不公開 OpenAPI／swagger**（`Program.cs` 只在 `Development` 掛 `MapOpenApi`，[`17`](17-deployment.md) 風險表第 7 項） |
+
+> ⚠️ 這條漂移檢查只守本 repo 這一側（產生檔 = 後端現況）。**App 端（`tcrfc-app-ios`／`tcrfc-app-android`，AP-7）的檢查是另一件事**：它們固定在某個 `shared/` 版本，CI 比對自己取用的那份是否等於上游，見 `docs/19` §2。
 
 **PR（`ci.yml`）**：`lint` → `unit test` → `docker build`（`push: false`，只驗證 Dockerfile 能建成）→ 整合測試（見 §1 的「CI 當 staging」）。
 **Push master（`deploy.yml`）**：同樣先 build，成功才 `push: true` 到 ghcr，再進部署 job。
@@ -590,6 +606,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | [`.node-version`](../.node-version) | §3「快取」的 node-version 交叉參照 | ✅ 單一事實來源，見 [`17-deployment.md` §12](17-deployment.md#12-前端建置用的-nodejs-版本) |
 | [`scripts/check-node-version.mjs`](../scripts/check-node-version.mjs) | 同上 | ✅ 掛進四個 `package.json` 的 `lint`，S0-9h |
 | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | §1「觸發與分支」的 `ci.yml` | ✅ `pull_request` → 五個應用的 lint／build／docker build（`push: false`）／dotnet test |
+| `ci.yml` 的 `shared-contract` job、[`shared/scripts/`](../shared/scripts/) | §3「`shared-contract`」 | ✅ 2026-10-02（AP-8）：重新產生 `shared/` 後 `git diff --exit-code`；已用 actionlint 檢查 |
 | [`.github/workflows/_node-app.yml`](../.github/workflows/_node-app.yml) | 同上（內部用） | ✅ 四個 Node 應用共用的可重用 workflow（`push: false` 版） |
 | [`.github/workflows/_node-app-deploy.yml`](../.github/workflows/_node-app-deploy.yml) | §1／§2「映像檔要放哪裡」 | ✅ 四個 Node 應用共用的可重用 workflow（`push: true` 版，供 `deploy.yml` 呼叫） |
 | [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | §1「觸發與分支」的 `deploy.yml` | ✅ build＋push 段（S0-7c）＋ **部署 job（2026-10-02 啟用，§4a）** |

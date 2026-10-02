@@ -1,0 +1,768 @@
+{
+  "$comment": "自動產生，請勿手改。產生器：shared/scripts/gen-error-codes.mjs（docs/19 §2）。來源是 apps/api 原始碼，不是規格；App 規劃書 §9.5 的目標結構與現況的差距見 pending。",
+  "envelope": {
+    "format": "application/problem+json（RFC 7807 ProblemDetails）",
+    "fields": {
+      "status": "HTTP 狀態碼（整數）",
+      "title": "短標題（繁中）",
+      "detail": "可直接呈現給使用者的訊息（目前只有繁中，不洩漏內部實作細節）",
+      "instance": "請求路徑",
+      "code": "機器可讀代碼——只有「會員一族」例外才有（見 codes）；缺少時 App 只能依 status 處理",
+      "lockedUntil": "僅 account_locked（423）：解鎖時間，UTC ISO 8601"
+    }
+  },
+  "retryRule": {
+    "source": "App 規劃書 §9.5「網路錯誤與伺服器 5xx 可自動重試，採指數退避；4xx 不重試」",
+    "retryStatus": "status >= 500，或沒有收到回應的網路錯誤",
+    "noRetryStatus": "所有 4xx（含 423）",
+    "backoff": "1／2／4 秒加 jitter，最多 3 次（docs/19 §3）",
+    "exception": "付款訂單建立帶冪等鍵時，5xx 可即時以同一冪等鍵重試；不可暫存後補送（docs/19 §3）"
+  },
+  "codes": [
+    {
+      "code": "account_locked",
+      "httpStatus": [
+        423
+      ],
+      "exceptions": [
+        "MemberAccountLockedException"
+      ]
+    },
+    {
+      "code": "account_suspended",
+      "httpStatus": [
+        403
+      ],
+      "exceptions": [
+        "MemberForbiddenException"
+      ]
+    },
+    {
+      "code": "activation_failed",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "activation_in_progress",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "already_fan_club",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "already_registered",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "card_revoked",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "cart_empty",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "cart_full",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "cart_item_not_found",
+      "httpStatus": [
+        404
+      ],
+      "exceptions": [
+        "MemberNotFoundException"
+      ]
+    },
+    {
+      "code": "collecting_subject_missing",
+      "httpStatus": [
+        503
+      ],
+      "exceptions": [
+        "FeatureNotConfiguredException"
+      ]
+    },
+    {
+      "code": "confirmation_required",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "conflict",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "email_not_verified",
+      "httpStatus": [
+        403
+      ],
+      "exceptions": [
+        "MemberForbiddenException"
+      ]
+    },
+    {
+      "code": "email_taken",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "fan_club_required",
+      "httpStatus": [
+        403
+      ],
+      "exceptions": [
+        "MemberForbiddenException"
+      ]
+    },
+    {
+      "code": "forbidden",
+      "httpStatus": [
+        403
+      ],
+      "exceptions": [
+        "MemberForbiddenException"
+      ]
+    },
+    {
+      "code": "idempotency_key_required",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "idempotency_key_reused",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "insufficient_stock",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "internal_activation_disabled",
+      "httpStatus": [
+        503
+      ],
+      "exceptions": [
+        "FeatureNotConfiguredException"
+      ]
+    },
+    {
+      "code": "invalid_address",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_birth_on",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_carrier",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_credential",
+      "httpStatus": [
+        401
+      ],
+      "exceptions": [
+        "MemberUnauthenticatedException"
+      ]
+    },
+    {
+      "code": "invalid_credentials",
+      "httpStatus": [
+        401
+      ],
+      "exceptions": [
+        "MemberUnauthenticatedException"
+      ]
+    },
+    {
+      "code": "invalid_delivery_method",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_donation_code",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_email",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_locale",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_mode",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_name",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_note",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_phone",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_pickup_store",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_quantity",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_recipient_name",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_redirect_uri",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invalid_tax_id",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "invoice_required",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "item_unavailable",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "jersey_locked",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "jersey_quota_reached",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "line_already_bound",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "line_exchange_failed",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "line_in_use",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "line_not_configured",
+      "httpStatus": [
+        503
+      ],
+      "exceptions": [
+        "FeatureNotConfiguredException"
+      ]
+    },
+    {
+      "code": "line_unreachable",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "login_required",
+      "httpStatus": [
+        401
+      ],
+      "exceptions": [
+        "MemberUnauthenticatedException"
+      ]
+    },
+    {
+      "code": "lookup_fields_required",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "not_configured",
+      "httpStatus": [
+        503
+      ],
+      "exceptions": [
+        "FeatureNotConfiguredException"
+      ]
+    },
+    {
+      "code": "not_fan_club",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "not_found",
+      "httpStatus": [
+        404
+      ],
+      "exceptions": [
+        "MemberNotFoundException"
+      ]
+    },
+    {
+      "code": "open_order_exists",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "order_expired",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "order_not_cancellable",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "order_not_found",
+      "httpStatus": [
+        404
+      ],
+      "exceptions": [
+        "MemberNotFoundException"
+      ]
+    },
+    {
+      "code": "order_not_paid",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "order_not_payable",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "order_not_pending",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "order_state_changed",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "password_required",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "payment_failed",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "payment_in_progress",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "payment_not_configured",
+      "httpStatus": [
+        503
+      ],
+      "exceptions": [
+        "FeatureNotConfiguredException"
+      ]
+    },
+    {
+      "code": "plan_closed",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "plan_free",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "plan_not_found",
+      "httpStatus": [
+        404
+      ],
+      "exceptions": [
+        "MemberNotFoundException"
+      ]
+    },
+    {
+      "code": "quantity_limit",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "region_not_deliverable",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "registration_closed",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "season_not_available",
+      "httpStatus": [
+        409
+      ],
+      "exceptions": [
+        "MemberConflictException"
+      ]
+    },
+    {
+      "code": "session_expired",
+      "httpStatus": [
+        401
+      ],
+      "exceptions": [
+        "MemberUnauthenticatedException"
+      ]
+    },
+    {
+      "code": "state_invalid",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "ticket_invalid",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "token_invalid",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "transaction_mismatch",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "unauthenticated",
+      "httpStatus": [
+        401
+      ],
+      "exceptions": [
+        "MemberUnauthenticatedException"
+      ]
+    },
+    {
+      "code": "validation_failed",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    },
+    {
+      "code": "variant_not_found",
+      "httpStatus": [
+        404
+      ],
+      "exceptions": [
+        "MemberNotFoundException"
+      ]
+    },
+    {
+      "code": "weak_password",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ]
+    }
+  ],
+  "uncodedFamilies": {
+    "note": "下列例外只有 HTTP 狀態與標題、沒有 code。App 目前只會呼叫公開與會員端點，後台一族不會出現在 App；公開端點的 AdminValidationException 等同 400「輸入內容有誤」。",
+    "byStatus": {
+      "400": "輸入內容有誤（AdminValidationException 一族，含 App 公開端點的裝置、廣告事件、診斷回報驗證）",
+      "403": "沒有權限／此功能不適用／共用內容唯讀",
+      "404": "找不到資料（各模組專屬標題）",
+      "409": "衝突（重複、已被變更、庫存不足…）",
+      "500": "伺服器發生未預期的錯誤（一律通用訊息，細節只進日誌）"
+    }
+  },
+  "pending": [
+    "【待決】雙語訊息：現行 ProblemDetails.detail 只有繁中；App 規劃書 §9.5 要求雙語，後端尚未提供英文訊息，App 端暫時只能顯示繁中或自備代碼對照。",
+    "【待決】retryable 欄位：規劃書 §9.5 要求回應帶「是否可重試」；現行回應沒有此欄位，App 端以 retryRule（依狀態碼）判斷。",
+    "【待決】沒有 code 的錯誤（400／403／404／409 的後台一族例外）：App 若需要依情境分流，後端要先補 code，這屬於後端改動，不在 shared/ 發明。",
+    "【待決】429（速率限制）與 5xx 在 ASP.NET 層由中介軟體直接回應時不一定是 ProblemDetails 格式，App 需容忍非 JSON 本文。"
+  ]
+}

@@ -4680,6 +4680,11 @@ Swagger／OpenAPI 只在 `ASPNETCORE_ENVIRONMENT=Development` 開放：`http://1
 （沒有掛 Swagger UI 頁面，本次只用建置期就有的 `Microsoft.AspNetCore.OpenApi`，之後要加互動式 UI 可疊 Scalar／Swashbuckle）。
 **正式環境（`ASPNETCORE_ENVIRONMENT=Production`）此端點回 404，已用容器實測驗證**（見下方「驗收紀錄」）。
 
+**建置期產生 OpenAPI（AP-8，2026-10-02）**：`Tcrfc.Api.csproj` 另外參照 `Microsoft.Extensions.ApiDescription.Server`（`PrivateAssets=all`，不進執行期），
+`OpenApiGenerateDocuments` 預設 `false`——一般建置與 Docker 建置完全不變。`shared/scripts/gen-openapi.sh` 傳 `-p:OpenApiGenerateDocuments=true` 建置，
+由記憶體內的 host 讀端點中繼資料產出文件，**不開 Kestrel、不連資料庫**（用寫死的假連線字串通過啟動檢查）。產出收斂後放進 `shared/openapi.json`，見 [`shared/README.md`](../../shared/README.md)。
+**改了端點、請求／回應型別或會員一族的錯誤代碼後，要跑 `./shared/scripts/gen-all.sh` 並提交 `shared/`**，否則 CI 的 `shared-contract` 會紅燈。
+
 ### 用容器跑（貼近正式環境的驗證）
 
 ```bash
