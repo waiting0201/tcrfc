@@ -26,7 +26,7 @@ export default defineNuxtConfig({
       // 不是「忘記帶環境變數時的靜默回退」——藍鯨容器一律明確帶 bw（docs/13 §6 紀律 2、5）。
       club: 'tcrfc',
       // NUXT_PUBLIC_SITE_ENV=prelaunch|production，見 docs/17-deployment.md §10.4。
-      // 骨架階段先接住這個變數，實際的三層防護（robots／標頭／Basic Auth）留給 S0-9 之後補完。
+      // 骨架階段先接住這個變數，實際的兩層防護（robots／標頭）留給 S0-9 之後補完。
       siteEnv: 'prelaunch',
       // S1-16：主站 06 單元（女子足球＝藍鯨官網入口頁）外連藍鯨官網的網址。藍鯨正式網域
       // 尚未定案（STATUS.md 阻塞清單），因此不寫死正式網域——比照 NUXT_PUBLIC_SITE_URL／

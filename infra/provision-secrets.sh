@@ -5,22 +5,24 @@
 #
 # 做什麼
 #   1. 用 az 取：SQL 伺服器位址與管理員登入名、兩個儲存體帳戶的連線字串、Public IP（全部唯讀）
-#   2. 用 openssl 產生 JWT 簽章金鑰與 Redis 密碼；互動輸入 SQL 管理員密碼、測試站 Basic Auth 帳密、ACME 信箱
+#   2. 用 openssl 產生 JWT 簽章金鑰與 Redis 密碼；互動輸入 SQL 管理員密碼、ACME 信箱
 #   3. 組出三個檔案，經 ssh 的 stdin 管線寫進 VM（本機不落地、不進命令列參數、不印出）：
 #        /opt/tcrfc/secrets/club.env      俱樂部（api 讀）
 #        /opt/tcrfc/secrets/charity.env   協會（api 讀）
-#        /opt/tcrfc/.env                  docker compose 用（網域、Redis 密碼、Basic Auth 雜湊）
+#        /opt/tcrfc/.env                  docker compose 用（網域、Redis 密碼）
 #      並建立 /opt/tcrfc/data-protection（Data Protection 金鑰環，docker-compose.yml 的 api 掛載它）
 #   4. 在 VM 上驗證：只顯示鍵名與「有值／空」，並從 VM 實際連一次兩個資料庫（SELECT 1）
 #
 # 可重跑
 #   - VM 上已存在的檔案會先問是否覆寫（預設不覆寫）
-#   - 覆寫時：JWT 金鑰、Redis 密碼、網域、Basic Auth 等「非 Azure 衍生」的值預設沿用舊檔，
+#   - 覆寫時：JWT 金鑰、Redis 密碼、網域等「非 Azure 衍生」的值預設沿用舊檔，
 #     只有你明確選擇才重新產生（重生 JWT 會讓所有已登入者被登出）；舊檔裡本腳本不管理的鍵會原樣保留
+#   - 2026-10-02 起測試站不再有 Basic Auth：舊 .env 若還有 PRELAUNCH_BASIC_AUTH_USER／_HASH，
+#     覆寫時不會寫回（屬「已淘汰的鍵」，不會被當成手動新增的鍵保留）
 #   - 連線字串一律以 az 查到的值與你輸入的 SQL 密碼重建
 #
 # 🔴 只負責「上線前（prelaunch）」設定。若 VM 上的 /opt/tcrfc/.env 已是 SITE_ENV=production，
-#    本腳本拒絕改它，避免把正式站設回上線前狀態（robots 全擋＋Basic Auth）。
+#    本腳本拒絕改它，避免把正式站設回上線前狀態（robots 全擋＋X-Robots-Tag）。
 #
 # 環境變數（皆可省略）：
 #   RG              資源群組，預設 rg-tcrfc-prod
@@ -58,19 +60,14 @@ az account show >/dev/null 2>&1 || die "請先 az login"
 [ -f "${ROOT}/docker-compose.yml" ] || die "找不到 ${ROOT}/docker-compose.yml"
 if [ -n "${SSH_KEY}" ] && [ ! -f "${SSH_KEY}" ]; then die "SSH_KEY 指向的檔案不存在：${SSH_KEY}"; fi
 
-# 與 compose 同版的 caddy 映像檔（產生 Basic Auth 雜湊用）
-CADDY_IMAGE=$(awk '/^[[:space:]]+image:[[:space:]]+caddy:/ { print $2; exit }' "${ROOT}/docker-compose.yml")
-case "${CADDY_IMAGE}" in
-  caddy:*) ;;
-  *) die "無法從 docker-compose.yml 解析 caddy 映像檔版本" ;;
-esac
-
 # 從 .env.example 取預設值（只取鍵名，不 source，避免執行檔案內容）
 example_get() {
   awk -v k="$1" 'index($0, k "=") == 1 { print substr($0, length(k) + 2); exit }' "${ROOT}/.env.example"
 }
 valid_domain() { printf '%s' "$1" | grep -Eq '^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$'; }
 
+# 已淘汰的鍵：不再管理、也不當成「手動新增」保留（舊檔覆寫時丟掉）
+COMPOSE_RETIRED_KEYS="PRELAUNCH_BASIC_AUTH_USER PRELAUNCH_BASIC_AUTH_HASH"
 DOMAIN_KEYS="TCRFC_DOMAIN BW_DOMAIN CHARITY_DOMAIN ADMIN_WEB_DOMAIN ADMIN_CHARITY_DOMAIN API_DOMAIN"
 for k in ${DOMAIN_KEYS}; do
   v=$(example_get "${k}")
@@ -276,42 +273,11 @@ if [ "${DO_CLUB}" = 1 ] || [ "${DO_CHARITY}" = 1 ]; then
   done
 fi
 
-BA_USER="" BA_HASH=""
 if [ "${DO_COMPOSE}" = 1 ]; then
-  step "測試站 Basic Auth 與 Let's Encrypt 信箱"
-  OLD_BA_USER=$(kv_get "${OLD_COMPOSE}" PRELAUNCH_BASIC_AUTH_USER)
-  OLD_BA_HASH=$(kv_get "${OLD_COMPOSE}" PRELAUNCH_BASIC_AUTH_HASH)
-  if [ -n "${OLD_BA_USER}" ] && [ -n "${OLD_BA_HASH}" ] && [ "${OLD_BA_USER}" != "change-me" ]; then
-    if ask_yes_no "沿用現有的 Basic Auth 帳號（${OLD_BA_USER}）與密碼？" y; then
-      BA_USER=${OLD_BA_USER}
-      BA_HASH=${OLD_BA_HASH}
-    fi
-  fi
-  if [ -z "${BA_USER}" ]; then
-    echo "   只給知道要看的人，不得與任何後台帳密相同。"
-    while true; do
-      read -rp "Basic Auth 帳號（3–32 字，英數與 . _ -）：" BA_USER || die "輸入中斷"
-      if printf '%s' "${BA_USER}" | grep -Eq '^[A-Za-z0-9._-]{3,32}$'; then break; fi
-      echo "   格式不符"
-    done
-    while true; do
-      read_secret_twice "Basic Auth 密碼（至少 12 字）"
-      if [ "${#SECRET_OUT}" -ge 12 ]; then break; fi
-      echo "   太短"
-    done
-    # 密碼走 stdin 進 VM 上的 caddy 容器產生 bcrypt 雜湊，不進命令列參數
-    BA_HASH=$(printf '%s\n' "${SECRET_OUT}" | vm "sudo docker run --rm -i '${CADDY_IMAGE}' caddy hash-password") \
-      || die "在 VM 上產生 Basic Auth 雜湊失敗（映像檔 ${CADDY_IMAGE} 拉取或執行失敗？）"
-    SECRET_OUT=""
-  fi
-  case "${BA_HASH}" in
-    '$2'*) ;;
-    *) die "Basic Auth 雜湊格式不符（預期 bcrypt，以 \$2 開頭）" ;;
-  esac
-  case "${BA_HASH}" in
-    *"'"* | *" "*) die "Basic Auth 雜湊含有空白或單引號" ;;
-  esac
-
+  step "Let's Encrypt 信箱"
+  for rk in ${COMPOSE_RETIRED_KEYS}; do
+    if [ -n "$(kv_get "${OLD_COMPOSE}" "${rk}")" ]; then info "舊檔的 ${rk} 已淘汰（測試站不再有 Basic Auth），不會寫回"; fi
+  done
   OLD_ACME=$(kv_get "${OLD_COMPOSE}" ACME_EMAIL)
   while true; do
     if [ -n "${OLD_ACME}" ] && [ "${OLD_ACME}" != "ops@example.tw" ]; then
@@ -331,7 +297,7 @@ fi
 # ── 組內容 ──────────────────────────────────────────────────────────────
 CLUB_MANAGED="CLUB_SQL_CONNECTION_STRING AZURE_BLOB_CONNECTION_STRING JWT_SIGNING_KEY_CLUB JWT_SIGNING_KEY_MEMBER"
 CHARITY_MANAGED="CHARITY_SQL_CONNECTION_STRING AZURE_BLOB_CONNECTION_STRING_CHARITY JWT_SIGNING_KEY_CHARITY"
-COMPOSE_MANAGED="GHCR_OWNER IMAGE_TAG SITE_ENV ${DOMAIN_KEYS} ACME_EMAIL CADDYFILE PRELAUNCH_BASIC_AUTH_USER PRELAUNCH_BASIC_AUTH_HASH REDIS_PASSWORD MEDIA_BASE_URL"
+COMPOSE_MANAGED="GHCR_OWNER IMAGE_TAG SITE_ENV ${DOMAIN_KEYS} ACME_EMAIL CADDYFILE REDIS_PASSWORD MEDIA_BASE_URL"
 
 conn_string() { # $1=資料庫名
   printf 'Server=tcp:%s,1433;Database=%s;User ID=%s;Password=%s;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;' \
@@ -374,15 +340,13 @@ EOF
 emit_compose() {
   cat <<EOF
 # /opt/tcrfc/.env — docker compose 用。由 infra/provision-secrets.sh 於 ${STAMP} 產生，權限 600、擁有者 runner。
-# 切到正式網址時手動編輯：六個網域換正式值、SITE_ENV=production、刪掉 CADDYFILE 與 PRELAUNCH_BASIC_AUTH_*
+# 切到正式網址時手動編輯：六個網域換正式值、SITE_ENV=production、註解掉 CADDYFILE
 # （infra/README.md §5）。之後本腳本會拒絕改這個檔案。
 GHCR_OWNER=$(carry GHCR_OWNER "${GHCR_OWNER}")
 IMAGE_TAG=$(carry IMAGE_TAG "${IMAGE_TAG}")
 SITE_ENV=prelaunch
 ${DOMAIN_LINES}ACME_EMAIL=${ACME_EMAIL}
 CADDYFILE=./deploy/Caddyfile.prelaunch
-PRELAUNCH_BASIC_AUTH_USER=${BA_USER}
-PRELAUNCH_BASIC_AUTH_HASH='${BA_HASH}'
 REDIS_PASSWORD=${REDIS_PW}
 # 站台照片（Blob 公開唯讀容器 images）的網址基底，前台執行期設定 NUXT_PUBLIC_MEDIA_BASE_URL 的來源（infra/README.md §4.9）。
 # 預設由 az 查出俱樂部儲存體帳戶；日後換成 Cloudflare 圖片網域時改這一行即可，本腳本會沿用手改過的值。
@@ -427,7 +391,7 @@ if [ "${DO_COMPOSE}" = 1 ]; then
 "
   done
   COMPOSE_CONTENT=$(emit_compose)
-  COMPOSE_CONTENT="${COMPOSE_CONTENT}$(append_unmanaged "${OLD_COMPOSE}" "${COMPOSE_MANAGED}")"
+  COMPOSE_CONTENT="${COMPOSE_CONTENT}$(append_unmanaged "${OLD_COMPOSE}" "${COMPOSE_MANAGED} ${COMPOSE_RETIRED_KEYS}")"
 fi
 
 # ── 摘要與確認（不顯示任何值）───────────────────────────────────────────────

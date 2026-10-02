@@ -646,7 +646,7 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 處理 | 依規劃書 §4.0：EXIF 轉正 → 長邊 ≤ 2560 → 去除全部中繼資料（含 GPS）→ WebP 品質 82。**不做**後台上傳才有的 1280／640／320 與 160px 衍生檔（靜態版面素材一張一物件） |
 | 屬性 | `Content-Type: image/webp`、`Cache-Control: public, max-age=604800`（物件鍵不含雜湊，不用 `immutable`） |
 | 上傳 | 使用者 Mac 執行 [`infra/upload-site-images.sh`](../infra/upload-site-images.sh)（容器化 ImageMagick、可重跑、`--dry-run`、不刪雲端物件）；認證預設 `az login` 加 **Storage Blob Data Contributor**（需使用者自行授權），或 `AUTH_MODE=key` |
-| 取捨（使用者已接受） | 容器匿名公開唯讀：**知道網址即可讀、不受測試站 Basic Auth 保護**，其中含未成年學員照片；與 §7 風險 11 同一類（公開圖片容器），正式上線前可改走 Cloudflare 圖片網域收緊 |
+| 取捨（使用者已接受） | 容器匿名公開唯讀：**知道網址即可讀、不需任何帳密（測試站本身也無帳密，2026-10-02）**，其中含未成年學員照片；與 §7 風險 11 同一類（公開圖片容器），正式上線前可改走 Cloudflare 圖片網域收緊 |
 | 與後台內容的關係 | 過渡素材。正式內容由後台上傳、走 `ImageProcessor`；對應位置之後不再引用 `site/…`，舊物件可手動清除 |
 
 操作手冊與疑難排解：[`infra/README.md`](../infra/README.md) §4.9。
@@ -712,7 +712,7 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 10 | **主鍵策略生效** | 寫入十萬列測試資料，叢集索引碎片率維持低檔（對照組：不加 `bigint` 叢集鍵的同結構表） |
 | 11 | **資料庫層級足夠** | 對首頁與新聞列表壓測，觀察 DTU 使用率與查詢等待；儲存空間告警已設定 |
 | 12 | **`noindex` 未遺失** | 回應標頭含 `X-Robots-Tag: noindex, nofollow`，`robots.txt` 為 `Disallow: /` |
-| 13 | **上線前三層防護生效**（§10.4） | 未持憑證訪問三個公開前台的 stg 網址得到 401；`curl -I` 任一 stg 網址含 `X-Robots-Tag: noindex, nofollow, noarchive`；兩個後台網址（stg 與正式）同樣含此標頭 |
+| 13 | **上線前兩層防護生效**（§10.4） | `curl -I` 任一 stg 網址含 `X-Robots-Tag: noindex, nofollow, noarchive`；兩個後台網址（stg 與正式）同樣含此標頭 |
 | 14 | **cookie 不跨網域環境**（§10.5） | 登入 `admin-stg.{$TCRFC_DOMAIN}` 後，瀏覽器開發者工具檢視 Set-Cookie 標頭**不含 `Domain` 屬性**（或使用 `__Host-` 前綴）；手動在瀏覽器把該 cookie 的 domain 改成 `.{$TCRFC_DOMAIN}` 重送請求到正式後台，**必須被拒** |
 | 15 | **切正式網址後 `SITE_ENV` 已改回 `production`、`CADDYFILE` 已取消** | 三個公開前台的 `robots.txt` 不再是 `Disallow: /`；`<head>` 的 `noindex` meta 已移除（呼應全域規定第 5 條）；`llms.txt` 可正常存取；`docker compose config` 顯示 `proxy` 掛的是 `deploy/Caddyfile`（不是 `.prelaunch`），未帶帳密也能正常存取前台 |
 
@@ -822,9 +822,11 @@ QR Code 編碼的是固定字串（網址），一旦印出並分發給合作店
 什麼要等正式網址」**：凡是還沒點火的，用暫用網址儘管做；凡是準備點火的（App 送審、QR 印製、會員卡首次發出），
 先確認網址已經是最終版本。
 
-### 10.4 🔴 上線前的站必須真的擋住：三層防護
+### 10.4 🔴 上線前的站必須擋住索引：兩層防護（測試站無帳密）
 
-不能只靠 meta `noindex`。以下三層**缺一不可**，理由各自不同：
+> 🔴 **2026-10-02 使用者決定：測試站不設 Basic Auth**（原第 3 層，「不用那麼複雜」）。**測試站無帳密，知道網址即可瀏覽；背後是正式資料庫，有人填表即為真實資料**（§10.9 待決 2 仍適用）。兩個後台仍有自己的登入與 2FA，並**建議**另在 Cloudflare 端加 Cloudflare Access（見下方「後台」段，不是本節必要層）。
+
+不能只靠 meta `noindex`。以下兩層**缺一不可**，理由各自不同：
 
 | 層 | 做法 | 擋的是什麼 | 擋不住什麼 |
 |---|---|---|---|
@@ -844,24 +846,16 @@ QR Code 編碼的是固定字串（網址），一旦印出並分發給合作店
 > 強制路徑**（藍鯨官網本身尚未開發，`STATUS.md` `BW-7` 待辦，這一項必須等該路由真的落地才能
 > 補上路徑本身，跟語系展開是兩件不同的事）。
 > ⚠️ **第 1 層（`X-Robots-Tag` 標頭）目前仍是無條件套用，沒有跟著這個變數切換**——真正上線時
-> 兩層要一起由本節「上線前三層防護」的完整程序處理，不是各自獨立切換。
-| 3．存取控制 | 三個公開前台（stg）：**HTTP Basic Auth**（`deploy/Caddyfile.prelaunch`，由 `.env` 的 `CADDYFILE` 指定，見 §10.8）；兩個後台（stg）：**建議 Cloudflare Access**（在 Cloudflare 端設定，email 一次性驗證碼，不改本檔案） | **真正的技術屏障**：沒有帳密／沒通過 Access 政策，連 HTML 本身都拿不到——爬蟲擋得住，意外分享的連結也擋得住 | 若設定有疏漏（例如忘記幫新開的子網域套用同一組保護），這層可能出現漏洞 |
+> 兩層要一起由本節「上線前兩層防護」的完整程序處理，不是各自獨立切換。
 
-**為什麼三層都要，不能只做第 3 層**：
-第 3 層是唯一的技術屏障，但**它是靠人維護的設定**——漏了一個網域、Access 政策設錯放行條件，
-第 3 層可能悄悄失效。第 1、2 層是**寫進應用程式與代理層設定裡的預設值**，就算第 3 層某處出錯，
-守規矩的爬蟲仍然會被第 1、2 層擋下——這是 defense-in-depth，不是重複勞動。
-**⚠️ 第 3 層沒設好時會「大聲失敗」**：`PRELAUNCH_BASIC_AUTH_HASH` 在 `docker-compose.yml` 裡是可為空的
-（正式期用不到），所以掛了 `Caddyfile.prelaunch` 卻忘記填帳密時，Caddy 會在啟動時因 bcrypt 雜湊解不出來
-而拒絕啟動。**這是刻意的設計**——寧可整個 `proxy` 起不來（立刻被發現），也不要悄悄變成一個沒有帳密保護、
-卻自以為受保護的公開站。
+**為什麼兩層都要**：兩層都是**自願遵守**的協議，不是技術屏障，所以第 1、2 層**寫進應用程式與代理層設定裡的預設值**，
+讓守規矩的爬蟲在任何一層漏掉時仍被另一層擋下（defense-in-depth）。**代價（使用者已接受）**：沒有技術屏障，
+不遵守規則的爬蟲、被分享出去的連結、猜到網址的人都看得到測試站，且頁面上的表單會寫進正式資料庫。
+因此**不要把測試站網址公開張貼**，上線前的清理成本見下節。
 
-**後台不用 Basic Auth 是因為它本來就有自己的登入系統與 2FA**（既有的存取控制），第 3 層改用
-Cloudflare Access 是**再加一層在應用程式登入頁之前**的網路層防護，理由同上。
-
-**為什麼公開前台用 Basic Auth 而不是 Cloudflare Access**：這個階段的公開前台要給客戶窗口與非技術團隊成員
-（可能沒有 Google／GitHub 帳號可綁 Access 政策）隨時查看，一組帳密最低摩擦；後台的使用者是固定的內部團隊，
-Cloudflare Access 的 email 驗證碼摩擦可以接受、防護等級也更高（後台含這個階段累積的真實個資，風險更高）。
+**後台**：兩個後台本來就有自己的登入系統與 2FA（既有的存取控制），上線前後都要先登入；
+**建議另加 Cloudflare Access**（email 一次性驗證碼，Cloudflare 端設定，不改本專案檔案），
+因為後台含這個階段累積的真實個資，風險更高。這是建議項，不是 §10.4 的必要層。
 
 #### ⚠️ 被索引後的清理成本
 
@@ -875,7 +869,7 @@ Cloudflare Access 的 email 驗證碼摩擦可以接受、防護等級也更高�
   用暫用網址代表這個內容——**稀釋、甚至誤導正式站上線後的排名**。
 - **若上線前已有真實使用者個資**（會員報名、表單留資）被索引，那已經不是 SEO 問題，是**個資外洩事件**。
 - **AI 爬蟲一旦抓取，可能已進入某些訓練資料的快照**，這類抓取沒有「請求移除」的機制可用——
-  這正是 `GEO-02` 要求「排除路徑」而不是「事後移除」的原因，上線前的站更需要在第一次部署就把三層防護做好，
+  這正是 `GEO-02` 要求「排除路徑」而不是「事後移除」的原因，上線前的站更需要在第一次部署就把兩層防護做好，
   不能想著「先上線，之後再擋」。
 
 ### 10.5 🔴 cookie 作用域陷阱
@@ -943,7 +937,7 @@ session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊�
 #### 切換步驟
 
 1. **正式 `.env` 就位**：`SITE_ENV=production`、**`CADDYFILE` 那一行註解掉**（回到預設的
-   `deploy/Caddyfile`，取消 Basic Auth）、六個網域依上面第 2 點的決定填正式值。
+   `deploy/Caddyfile`，拿掉上線前的 `X-Robots-Tag`）、六個網域依上面第 2 點的決定填正式值。
    **先不接 DNS**，讓新站先用 `stg.tcrfc.tw` 之類的暫用網址完整驗證過一輪（內容、表單、
    金流測試模式等），確認沒有明顯問題再進下一步。
 
@@ -974,8 +968,8 @@ session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊�
    - 確認首頁、canonical、sitemap 指向的是決定後的 canonical 網址（不是另一個）；
    - `X-Robots-Tag`／`robots.txt` 已經是**正式版**（`NUXT_PUBLIC_SITE_ENV=production`，不是
      `prelaunch` 的全擋）；
-   - **Basic Auth 已解除**（`CADDYFILE` 已註解掉）——沒帶帳密也能正常瀏覽，否則正式網域
-     一上線就是 401；
+   - **`CADDYFILE` 已註解掉**（回到正式版 Caddyfile，拿掉上線前的 `X-Robots-Tag`）——否則正式網域
+     一上線每個回應仍帶 `X-Robots-Tag: noindex`；
    - `<head>` 的 `noindex` meta **已經移除**（全域規定第 5 條：noindex 在正式上線前不移除，
      這一步就是移除的時間點——**不要提前移除，也不要忘記移除**）。
 
@@ -1018,11 +1012,11 @@ session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊�
 | [`docs/14-invariants.md`](14-invariants.md) | 新增 cookie 作用域、三類不可逆網域切換兩則不變量 |
 | [`docs/20-cicd.md`](20-cicd.md) §1 | 加一段釐清文字：區分「不建持久 CI staging 環境」與本節「上線前的暫用網址」 |
 | [`STATUS.md`](../STATUS.md) | `AP-9` 補「必須是最終網域」的條件；`B-4`／`B-7` 加一行指向本節；新增待確認事項（apex／`www`、Wix DNS 現況、上線前累積的資料是否清空） |
-| [`.env.example`](../.env.example) | 新增 `SITE_ENV`（值為 `prelaunch`／`production`）；新增暫用網域區塊與正式網域註解；新增 `CADDYFILE`、`PRELAUNCH_BASIC_AUTH_USER`／`PRELAUNCH_BASIC_AUTH_HASH` |
-| [`docker-compose.yml`](../docker-compose.yml) | `nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity` 新增 `NUXT_PUBLIC_SITE_ENV`；`api` 新增六個網域變數與 `CORS_ALLOWED_ORIGINS`（過去完全沒有，是本次盤點抓到的缺口）；`proxy` 的 Caddyfile 掛載改為 `${CADDYFILE:-./deploy/Caddyfile}`，並帶入兩個可為空的 Basic Auth 變數 |
+| [`.env.example`](../.env.example) | 新增 `SITE_ENV`（值為 `prelaunch`／`production`）；新增暫用網域區塊與正式網域註解；新增 `CADDYFILE`（原有的 `PRELAUNCH_BASIC_AUTH_USER`／`_HASH` 已於 2026-10-02 移除）|
+| [`docker-compose.yml`](../docker-compose.yml) | `nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity` 新增 `NUXT_PUBLIC_SITE_ENV`；`api` 新增六個網域變數與 `CORS_ALLOWED_ORIGINS`（過去完全沒有，是本次盤點抓到的缺口）；`proxy` 的 Caddyfile 掛載改為 `${CADDYFILE:-./deploy/Caddyfile}`，（原帶入的兩個 Basic Auth 變數已於 2026-10-02 移除）|
 | ~~`docker-compose.staging.yml`~~ | 🔴 **2026-09-21 撤銷、檔案已刪除**。理由：本專案只有本機開發與正式 VM 兩套環境，多一個名為 staging 的 compose 檔會讓人以為有第三套，與 [`20-cicd.md`](20-cicd.md) §1 直接牴觸。功能改由 `.env` 的 `CADDYFILE` 達成 |
 | [`deploy/Caddyfile`](../deploy/Caddyfile) | 兩個後台網址**永久**加 `X-Robots-Tag: noindex, nofollow, noarchive`（不分測試或正式，後台本來就不該被索引） |
-| `deploy/Caddyfile.prelaunch`（新檔，原名 `Caddyfile.staging`） | 三個公開前台加 HTTP Basic Auth（§10.4 第 3 層）。由 `.env` 的 `CADDYFILE` 指定掛載，**不需要 override 檔** |
+| `deploy/Caddyfile.prelaunch`（新檔，原名 `Caddyfile.staging`） | 三個公開前台加 `X-Robots-Tag` 標頭（§10.4 第 1 層的 proxy 保險；2026-10-02 起已拿掉 Basic Auth）。由 `.env` 的 `CADDYFILE` 指定掛載，**不需要 override 檔** |
 | [`deploy/README.md`](../deploy/README.md) | 新增「正式網址到位前怎麼起」一節（原名「測試環境怎麼起」，2026-09-21 改名並改寫，強調只有兩套環境） |
 
 ### 10.9 待決事項（🔴 不可由本檔代為決定）

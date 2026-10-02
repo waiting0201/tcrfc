@@ -269,7 +269,7 @@ GitHub Runners 頁面應顯示 `vm-tcrfc-prod` 為 Idle、label `tcrfc-vm`。
 ### 4.3 機密檔與設定鍵（`api` 在正式環境讀的每一個鍵）
 
 > 🔵 **一鍵做法：在自己的 Mac 執行 [`provision-secrets.sh`](provision-secrets.sh)。** 它用 `az` 取連線字串、用 `openssl` 產生 JWT 金鑰與 Redis 密碼、
-> 互動輸入 SQL 管理員密碼與測試站 Basic Auth，**經 ssh stdin 管線**寫進 VM 的 `club.env`／`charity.env`／`/opt/tcrfc/.env`（本機不落地、不進命令列、不印出），
+> 互動輸入 SQL 管理員密碼與 Let's Encrypt 信箱，**經 ssh stdin 管線**寫進 VM 的 `club.env`／`charity.env`／`/opt/tcrfc/.env`（本機不落地、不進命令列、不印出），
 > 並建立 Data Protection 金鑰環目錄，最後在 VM 上列出鍵名（有值／空）並實際連一次兩個資料庫。可重跑；已存在的檔案會先問是否覆寫，
 > **已有的 JWT 金鑰與 Redis 密碼預設沿用**，只有你選擇才重生。
 >
@@ -335,8 +335,8 @@ GitHub Runners 頁面應顯示 `vm-tcrfc-prod` 為 Idle、label `tcrfc-vm`。
 
 ⚠️ `ASPNETCORE_ENVIRONMENT`（Dockerfile 寫死 `Production`）不要在任何 env 檔覆寫；上述「未設時的行為」全部以它為前提。
 
-**compose 本身用的 `/opt/tcrfc/.env`**：`GHCR_OWNER`、`IMAGE_TAG`、`SITE_ENV`（缺則 compose 報錯）、六個 `*_DOMAIN`、`ACME_EMAIL`、`CADDYFILE`、`PRELAUNCH_BASIC_AUTH_USER`／`_HASH`、`REDIS_PASSWORD`、**`MEDIA_BASE_URL`**（站台照片的 Blob 網址基底，compose 轉成 `NUXT_PUBLIC_MEDIA_BASE_URL` 給兩個 Nuxt 前台；`provision-secrets.sh` 自動推出，見 §4.9；沒設＝空字串，不阻擋啟動）。
-腳本寫入 `SITE_ENV=prelaunch`、`CADDYFILE=./deploy/Caddyfile.prelaunch` 與 `.env.example` 的六個 stg 網域；Basic Auth 雜湊在 VM 上以與 compose 同版的 `caddy hash-password` 產生（密碼走 stdin）。
+**compose 本身用的 `/opt/tcrfc/.env`**：`GHCR_OWNER`、`IMAGE_TAG`、`SITE_ENV`（缺則 compose 報錯）、六個 `*_DOMAIN`、`ACME_EMAIL`、`CADDYFILE`、`REDIS_PASSWORD`、**`MEDIA_BASE_URL`**（站台照片的 Blob 網址基底，compose 轉成 `NUXT_PUBLIC_MEDIA_BASE_URL` 給兩個 Nuxt 前台；`provision-secrets.sh` 自動推出，見 §4.9；沒設＝空字串，不阻擋啟動）。
+腳本寫入 `SITE_ENV=prelaunch`、`CADDYFILE=./deploy/Caddyfile.prelaunch` 與 `.env.example` 的六個 stg 網域；測試站**沒有 Basic Auth**（2026-10-02 使用者決定拿掉）；舊 `.env` 若還有 `PRELAUNCH_BASIC_AUTH_USER`／`_HASH`，覆寫時不會寫回（無害，compose 已不讀）。
 不要填 `MSSQL_DEV_SA_PASSWORD`（只給本機開發）。**切正式網址時**手動編輯此檔（§5），之後腳本會因 `SITE_ENV=production` 拒絕改動它。
 
 > `.env` 放哪、deploy job 怎麼讀到它，`docs/20` §9a「CD 段還缺什麼」尚未定案（`deploy.yml` 部署段目前 `if: false`）。
@@ -391,7 +391,7 @@ GitHub Runners 頁面應顯示 `vm-tcrfc-prod` 為 Idle、label `tcrfc-vm`。
 
 - 因為 NSG 只放行 Cloudflare 段，**DNS 必須是 Proxied**；灰雲（DNS only）的流量會被 NSG 擋掉。
 - Caddy 首次簽憑證與 SSL 模式的順序見 [`deploy/README.md`](../deploy/README.md)「首次…」與 `deploy/Caddyfile` 第 35 行附近註解（HTTP-01 驗證經 Cloudflare 轉進 80 埠）。
-- 上線前三層防護（Basic Auth、`noindex`、後台 Cloudflare Access）見 `docs/17` §10.4，**DNS 一指過去就要先到位**。
+- 上線前兩層防護（`X-Robots-Tag` 標頭、`robots.txt` 全擋；後台另建議 Cloudflare Access）見 `docs/17` §10.4，**DNS 一指過去就要先到位**。
 
 ### 4.6 Cloudflare IP 段更新
 
@@ -561,7 +561,7 @@ curl -sI "$(grep '^MEDIA_BASE_URL=' /opt/tcrfc/.env | cut -d= -f2-)/site/hero-01
 
 **日後被後台內容取代**：站台照片是「上線前讓前台版面有真實照片」的過渡素材。正式內容（球員、新聞、課程等）走後台上傳後，圖片屬於各自的資料列、物件鍵由 `ImageProcessor` 產生（`images/` 下的其他前綴），前台改讀資料列的圖片欄位；對應位置不再引用 `site/…`。屆時 `site/` 底下用不到的物件可手動清除，本腳本與契約不需修改。
 
-**取捨（使用者已接受，2026-10-02）**：`images` 是**匿名公開唯讀**容器——**知道網址就讀得到**，**不受測試站 Basic Auth 保護**（Basic Auth 只擋三個前台網域，擋不到 `*.blob.core.windows.net`）。物件鍵可預測（如 `site/academy/life-01.webp`），其中含未成年學員照片；容器**不能列舉**，但無法防止有人猜網址或被轉貼。正式上線前若要收緊，做法見 §4.7（Cloudflare 圖片網域）與 §8 風險 1。
+**取捨（使用者已接受，2026-10-02）**：`images` 是**匿名公開唯讀**容器——**知道網址就讀得到**，**不需任何帳密**（測試站本身也無帳密，2026-10-02）。物件鍵可預測（如 `site/academy/life-01.webp`），其中含未成年學員照片；容器**不能列舉**，但無法防止有人猜網址或被轉貼。正式上線前若要收緊，做法見 §4.7（Cloudflare 圖片網域）與 §8 風險 1。
 
 **疑難排解**
 
@@ -578,15 +578,15 @@ curl -sI "$(grep '^MEDIA_BASE_URL=' /opt/tcrfc/.env | cut -d= -f2-)/site/hero-01
 
 🔴 **基礎設施一個字都不用改。** Bicep 不含任何網域；IP、NSG、SQL、儲存體在切換前後完全相同。
 切換只發生在 VM 的 `/opt/tcrfc/.env`、Cloudflare DNS 與（若有新網域）Caddy 憑證。
-完整策略、風險與驗證項在 [`docs/17-deployment.md` §10](../docs/17-deployment.md)（尤其 §10.4 三層防護、§10.6 主站切換、§10.7 時程表、§9 驗證 13–15），**以那邊為準，不在此重寫**。操作清單：
+完整策略、風險與驗證項在 [`docs/17-deployment.md` §10](../docs/17-deployment.md)（尤其 §10.4 兩層防護、§10.6 主站切換、§10.7 時程表、§9 驗證 13–15），**以那邊為準，不在此重寫**。操作清單：
 
 1. **確認前提**：正式網域的 DNS 控制權已到手（藍鯨 `B-4`、慈善 `B-7`、主站 apex／`www` 決定見 §10.9）；未到位的服務保持暫用網址，可分批切。
 2. 在 Cloudflare 為每個**正式網域**新增指向 `pip-tcrfc-prod` IP 的 Proxied **A** 記錄（`stg` 系列先不要刪）。
-3. 編輯 VM 上的 `/opt/tcrfc/.env`：把六個 `*_DOMAIN` 改成正式值；**`SITE_ENV=production`**；**註解掉 `CADDYFILE=`**（回到正式版 `deploy/Caddyfile`，拿掉 Basic Auth）。
+3. 編輯 VM 上的 `/opt/tcrfc/.env`：把六個 `*_DOMAIN` 改成正式值；**`SITE_ENV=production`**；**註解掉 `CADDYFILE=`**（回到正式版 `deploy/Caddyfile`，拿掉上線前的 `X-Robots-Tag`）。
 4. 在 VM 上 `docker compose up -d`（或觸發 `deploy.yml`，若部署段已啟用）重建受影響容器；Caddy 會為新網域自動簽憑證。
 5. 驗證（`docs/17` §9 第 15 項）：`robots.txt` 不再是 `Disallow: /`、`<head>` 無 `noindex`、`llms.txt` 可存取、`docker compose config` 顯示 proxy 掛的是 `deploy/Caddyfile`。
 6. 兩個後台網址永遠帶 `X-Robots-Tag: noindex, nofollow, noarchive`（`deploy/Caddyfile` 已永久設定），切換後也要確認。
-7. 舊 `stg` 子網域：確認無流量後再刪 DNS 記錄（或保留作為內部測試入口並維持 Basic Auth，由使用者決定）。
+7. 舊 `stg` 子網域：確認無流量後再刪 DNS 記錄（或保留作為內部測試入口由使用者決定）。
 
 ---
 

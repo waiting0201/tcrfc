@@ -16,25 +16,18 @@
 # 同一份 compose 結構，換 .env 的值就是換階段，不需要換檔案、不需要改程式碼。
 #
 # 對正式版（deploy/Caddyfile）只做一件事：三個公開前台（主站／藍鯨／慈善）加一道
-# HTTP Basic Auth，擋掉沒有帳密的訪客與所有爬蟲——這是 docs/17 §10.4 三層防護裡唯一
-# 真正的技術屏障；另外兩層（X-Robots-Tag 標頭、robots.txt 全擋）由 Nuxt 應用層依
-# NUXT_PUBLIC_SITE_ENV=prelaunch 輸出（見 docker-compose.yml 與 docs/17 §10.2、§10.4），
-# 不在這裡重複。
+# X-Robots-Tag "noindex, nofollow, noarchive" 標頭（docs/17 §10.4 兩層防護的第二層）。
+# 🔴 測試站沒有帳密（2026-10-02 使用者決定拿掉 Basic Auth）：知道網址即可瀏覽，背後是正式資料庫。
+# 另一層（X-Robots-Tag 標頭與 robots.txt 全擋）由 Nuxt 應用層依 NUXT_PUBLIC_SITE_ENV=prelaunch 輸出
+# （見 docker-compose.yml 與 docs/17 §10.2、§10.4），這裡是重複保險。
 #
-# 兩個後台（admin-web／admin-charity）不在這裡額外加 Basic Auth：
+# 兩個後台（admin-web／admin-charity）在這裡也沒有額外動作：
 #   - 它們本來就有自己的登入系統與 2FA，上線前到上線後都一樣要先登入才能用；
 #   - X-Robots-Tag noindex 對它們是「永久規則」，已經寫在 deploy/Caddyfile（正式版）裡，
 #     這裡沿用同一份不用重複；
 #   - 建議另外用 Cloudflare Access（在 Cloudflare 端設定 email 一次性驗證碼政策）加一層
 #     網路層防護，理由與怎麼做見 docs/17-deployment.md §10.4——那是 Cloudflare 端設定，
 #     不動這份檔案。
-#
-# 帳密怎麼產生（在 VM 或本機執行，caddy 執行檔內建這個子指令）：
-#   caddy hash-password --plaintext '<選一組密碼，不要沿用任何正式環境密碼>'
-# 把輸出的雜湊值填進 .env 的 PRELAUNCH_BASIC_AUTH_HASH，使用者名稱填進 PRELAUNCH_BASIC_AUTH_USER。
-# 🔴 這兩個變數在 docker-compose.yml 裡是「可為空」的（正式期用不到），所以掛了這份檔案卻
-# 忘記填值時，Caddy 會在啟動時因為 bcrypt 雜湊解不出來而失敗——那是刻意的：寧可起不來，
-# 也不要悄悄變成一個沒有帳密保護的公開測試站。
 {
 	servers {
 		trusted_proxies static \
@@ -49,12 +42,11 @@
 	email {$ACME_EMAIL}
 }
 
-# 三個公開前台共用的「上線前閘門」：Basic Auth ＋ 保險用的 X-Robots-Tag（見檔頭說明，
+# 三個公開前台共用的「上線前閘門」：保險用的 X-Robots-Tag（見檔頭說明，
 # 正式的 noindex 輸出來自 Nuxt 應用層的 NUXT_PUBLIC_SITE_ENV，這裡是額外一層而不是唯一來源）。
+# 2026-10-02 使用者決定拿掉 Basic Auth（測試站不需帳密即可瀏覽）；只保留 noindex 標頭。
+# 不被索引仍由 Nuxt 依 NUXT_PUBLIC_SITE_ENV=prelaunch 輸出的 X-Robots-Tag／robots.txt 全擋負責（docs/17 §10.4）。
 (prelaunch_gate) {
-	basic_auth {
-		{$PRELAUNCH_BASIC_AUTH_USER} {$PRELAUNCH_BASIC_AUTH_HASH}
-	}
 	header X-Robots-Tag "noindex, nofollow, noarchive"
 }
 
@@ -89,7 +81,7 @@
 	}
 }
 
-# ── 官網共用後台：不加 Basic Auth（見檔頭說明），noindex 沿用正式版設定 ────
+# ── 官網共用後台：不額外加閘門（見檔頭說明），noindex 沿用正式版設定 ────
 {$ADMIN_WEB_DOMAIN} {
 	header X-Robots-Tag "noindex, nofollow, noarchive"
 	encode zstd gzip
@@ -103,7 +95,7 @@
 	reverse_proxy admin-charity:8080
 }
 
-# ── API：不對瀏覽器直接顯示內容頁面，不需要 Basic Auth；標頭仍加，屬保險 ────
+# ── API：不對瀏覽器直接顯示內容頁面，不需要閘門；標頭仍加，屬保險 ────
 # 🔴🔴 這是修一個原本就存在、未被發現的漏洞，不是縱深防禦，理由同正式版
 # deploy/Caddyfile 對應段落（已本機實測驗證，不是只讀文件推論）。
 {$API_DOMAIN} {

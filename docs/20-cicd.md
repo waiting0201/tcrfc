@@ -434,7 +434,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 |---|---|---|---|
 | `CLUB_SQL_CONNECTION_STRING`、`AZURE_BLOB_CONNECTION_STRING`、`JWT_SIGNING_KEY_CLUB`、`JWT_SIGNING_KEY_MEMBER`（≥32 字元，兩者不同值） | `club.env` | 俱樂部（系統管理） | 必填；缺值或過短啟動失敗 |
 | `CHARITY_SQL_CONNECTION_STRING`、`AZURE_BLOB_CONNECTION_STRING_CHARITY`、`JWT_SIGNING_KEY_CHARITY` | `charity.env` | **協會**（不得與俱樂部共用任何值） | `CHARITY_SQL_CONNECTION_STRING` 漏設＝慈善平台無聲關閉 |
-| `REDIS_PASSWORD`、六個 `*_DOMAIN`、`SITE_ENV`、`CADDYFILE`、`ACME_EMAIL`、`PRELAUNCH_BASIC_AUTH_*`、`GHCR_OWNER`、`IMAGE_TAG` | `/opt/tcrfc/.env`（compose 用，暫定位置，見 §9a） | 俱樂部（系統管理） | `REDIS_PASSWORD` 不要再寫進 club.env |
+| `REDIS_PASSWORD`、六個 `*_DOMAIN`、`SITE_ENV`、`CADDYFILE`、`ACME_EMAIL`、`GHCR_OWNER`、`IMAGE_TAG` | `/opt/tcrfc/.env`（compose 用，暫定位置，見 §9a） | 俱樂部（系統管理） | `REDIS_PASSWORD` 不要再寫進 club.env |
 | `DATA_PROTECTION_KEYS_PATH` | compose 固定值（非機密）＋ VM `/opt/tcrfc/data-protection` bind mount | 俱樂部（系統管理） | 🔴 金鑰環，遺失＝已加密資料永久無法解密 |
 | 選用且**正式環境未到位時不設**：`PAYMENT_GATEWAY`／`INVOICE_ISSUER`（設 `fake` 會讓 Production 啟動失敗）、`EMAIL_SENDER`、`LINE_LOGIN_*`、`CHARITY_ALLOW_FAKE_PROVIDERS`、`TURNSTILE_SECRET_KEY_CHARITY`、`MEMBERSHIP_ACTIVATE_CREDENTIAL`、`AZURE_BLOB_PUBLIC_BASE_URL(_CHARITY)` | 對應檔案 | 俱樂部／協會 | 各鍵的未設行為見 `infra/README.md` §4.3 |
 | 🔵 **程式不讀**：`LINE_PAY_*`、`INVOICE_SERVICE_API_KEY_*`、`APNS_KEY_ID`／`.p8`／`FCM_SERVICE_ACCOUNT_JSON` | — | — | 商店與慈善的金流／發票憑證存在資料庫（後台設定頁，Data Protection 加密）；APNs／FCM 傳輸尚未實作。**舊表列的這些名稱是規劃階段示意，勿照填** |

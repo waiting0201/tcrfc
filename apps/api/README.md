@@ -6899,7 +6899,7 @@ Azurite，見下方小節）**，且 `AdminSeoTests.cs` 的設定讀寫測試已
   做完再擴充這支路由的 production 分支，不需要改動環境旗標判斷邏輯本身）。
 - **全站 `X-Robots-Tag` noindex 標頭完全沒有被觸碰**——這是任務指示明文要求本輪不要處理的部分
   （該標頭目前無條件套用，不看 `siteEnv`；上線時要不要也讓它跟著這個變數切換，是
-  `docs/17-deployment.md` §10.4「上線前三層防護」的完整機制要一併決定的事，不是這支檔案的職責）。
+  `docs/17-deployment.md` §10.4「上線前兩層防護」的完整機制要一併決定的事，不是這支檔案的職責）。
 
 **③ OG／canonical／noindex／keywords 真的有輸出到 HTML**——上一輪只把這些欄位加進
 `apps/api` 的 DTO，沒有接到任何前台頁面消費。`app/pages/zh/news/[slug]/index.vue`（目前

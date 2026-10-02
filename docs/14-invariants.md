@@ -297,7 +297,7 @@
   **③已發出（系統信寄出或實體印出）的會員卡 `/m/<token>` 連結**（同理，且長期轉址對驗證性質的連結是額外的安全風險）。
   **其餘一切**（前台內容、後台開發、API 開發、上線前的訪客互動）**都可以先用暫用網址做**，凡準備做上面三件事之一，先確認網址已是最終版本。
   ⚠️ **暫用網址（`stg.tcrfc.tw` 等）不是假資料沙盒**——同一套 Azure SQL／Blob／Redis（只有兩套環境的必然結果），上線前若對外開放互動，那些資料就是未來正式資料，不會在切網域時自動清空（此事尚未定案，見 `17` §10.9）。
-  **上線前的站必須真的擋住**（HTTP 標頭 ＋ `robots.txt` ＋ Basic Auth／Cloudflare Access 三層，缺一不可，理由與被索引後的清理成本見 `17` §10.4）——不能只靠 meta `noindex`。**掛了 `Caddyfile.prelaunch` 卻沒填帳密，Caddy 會直接啟動失敗**，那是刻意的。
+  **上線前的站必須真的擋住**（HTTP 標頭 ＋ `robots.txt` 兩層，缺一不可，理由與被索引後的清理成本見 `17` §10.4）——不能只靠 meta `noindex`。**測試站無帳密（2026-10-02 使用者決定拿掉 Basic Auth）：知道網址即可瀏覽，背後是正式資料庫，有人填表即為真實資料**，不要公開張貼測試站網址。
 - 🔴 **CI/CD：公開 repo ＋ self-hosted runner 的唯一地基**（見 [`20-cicd.md`](20-cicd.md) §4）：
   **Repo 設定的「Fork pull request workflows → Require approval for all outside collaborators」必須是開的。**
   ⛔ **不要以為「我們的 workflow 沒讓 fork 用 self-hosted」就安全**——fork PR 跑的是**該 fork 版本的 workflow 檔**，

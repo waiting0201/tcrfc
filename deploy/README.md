@@ -9,7 +9,7 @@
 | 檔案 | 用途 |
 |---|---|
 | [`Caddyfile`](Caddyfile) | 正式環境的 proxy 設定：依 Host 分流到五個上游、自動 TLS |
-| [`Caddyfile.prelaunch`](Caddyfile.prelaunch) | **同一台正式 VM 在正式網址到位前**用（不是另一套環境），與 `Caddyfile` 幾乎相同，差異只有三個公開前台加 HTTP Basic Auth（[`docs/17-deployment.md`](../docs/17-deployment.md) §10.4）。用 `.env` 的 `CADDYFILE` 指定，**沒有第二份 compose 檔** |
+| [`Caddyfile.prelaunch`](Caddyfile.prelaunch) | **同一台正式 VM 在正式網址到位前**用（不是另一套環境），與 `Caddyfile` 幾乎相同，差異只有三個公開前台加 `X-Robots-Tag` 標頭（無帳密；[`docs/17-deployment.md`](../docs/17-deployment.md) §10.4）。用 `.env` 的 `CADDYFILE` 指定，**沒有第二份 compose 檔** |
 | [`Caddyfile.dev`](Caddyfile.dev) | 本機開發用，明文 HTTP，`auto_https off` |
 | [`local-ddl.sh`](local-ddl.sh) | 把 `db/*.sql` 轉成本機 SQL Server 2022 相容版本（`json`→`nvarchar(max)`），不改動原始檔 |
 | [`dev/club.env.example`](dev/club.env.example)／[`dev/charity.env.example`](dev/charity.env.example) | 本機開發用機密範本，複製成同目錄下拿掉 `.example` 的檔名後使用（該檔名已被 `.gitignore` 排除） |
@@ -257,10 +257,9 @@ docker volume rm tcrfc_mssql_dev_data # 具名 volume 前綴是 compose 專案�
 cp .env.example .env
 #    其中三個值決定「現在是上線前階段」：
 #      SITE_ENV=prelaunch                       → Nuxt 輸出 robots.txt 全擋 ＋ noindex（第 1、2 層）
-#      CADDYFILE=./deploy/Caddyfile.prelaunch   → proxy 改掛加 Basic Auth 的設定（第 3 層）
+#      CADDYFILE=./deploy/Caddyfile.prelaunch   → proxy 改掛加 X-Robots-Tag 的設定（無帳密）
 #      TCRFC_DOMAIN=stg.tcrfc.tw（等六個）      → 暫用的 tcrfc.tw 子網域
-#    另外填 PRELAUNCH_BASIC_AUTH_USER／PRELAUNCH_BASIC_AUTH_HASH，雜湊用下面這行產生：
-#      docker run --rm caddy:2.9.1-alpine caddy hash-password --plaintext '<密碼>'
+#    測試站沒有帳密（2026-10-02 使用者決定拿掉 Basic Auth）：知道網址即可瀏覽，背後是正式資料庫
 
 # 2. DNS：五個暫用子網域（stg／bw-stg／charity-stg／admin-stg／admin-charity-stg，
 #    API_DOMAIN 另計）的 A/AAAA 記錄指到 VM 的靜態 Public IP，Cloudflare 代理（橘雲）
@@ -276,10 +275,9 @@ docker compose up -d
 取捨、128 筆 301、回滾程序）見 [`docs/17-deployment.md`](../docs/17-deployment.md) §10.6，
 **不是改個 `.env` 就結束**。
 
-⚠️ **上線前的三層防護**（HTTP 標頭、`robots.txt`、Basic Auth／Cloudflare Access）**不是可有可無的裝飾**，
-見 [`docs/17-deployment.md`](../docs/17-deployment.md) §10.4「為什麼三層都要」與「被索引後的清理成本」。
-掛了 `Caddyfile.prelaunch` 卻沒填帳密，Caddy 會直接啟動失敗——那是刻意的，寧可起不來也不要
-悄悄變成沒有保護的公開站。
+⚠️ **上線前的兩層防護**（HTTP 標頭、`robots.txt`；後台另建議 Cloudflare Access）**不是可有可無的裝飾**，
+見 [`docs/17-deployment.md`](../docs/17-deployment.md) §10.4「為什麼兩層都要」與「被索引後的清理成本」。
+**測試站沒有帳密**——知道網址即可瀏覽，且背後是正式資料庫（有人填表即為真實資料），不要公開張貼網址。
 兩個後台建議額外在 Cloudflare 端設定 Access（email 一次性驗證碼），這份檔案管不到，需要另外在
 Cloudflare Zero Trust 後台設定。
 
@@ -365,7 +363,7 @@ HTTP-01 的挑戰請求會先進 Cloudflare 邊緣、再被正常轉送到本機
 | `apps/api/Dockerfile` 的 `.NET 10`、`ENTRYPOINT ["dotnet","Tcrfc.Api.dll"]` | 版本與組件檔名為本次自行選定的預設值，未經 `docs/17`／`docs/20` 明文指定 | `backend-engineer` 建 `apps/api` 專案時確認／調整 |
 | `.env.example` 的網域值 | 現在填的是上線前暫用網域（`stg.tcrfc.tw` 等，見 `docs/17` §10.1），**可直接用**；正式網域範例留作註解，藍鯨與慈善網域尚未確定 | STATUS.md 阻塞清單 B-4／B-7；主站 apex／`www` 取捨見 `docs/17` §10.6 |
 | `deploy/Caddyfile`／`deploy/Caddyfile.prelaunch` 實際簽出憑證 | 完全沒測過（本機無公開 IP，暫用網域雖已可解析但尚未指向任何 VM） | Azure VM ＋ 靜態 Public IP 開通（S0-7） |
-| `CADDYFILE`／`PRELAUNCH_BASIC_AUTH_*` 端到端 | `caddy validate` 已在本機用 `caddy:2.9.1-alpine` 跑過、三種 `.env` 組合的 `docker compose config` 也已驗證；**真的用帳密登入一次**尚未測（沒有 VM） | 同上 |
+| `CADDYFILE` 端到端 | `caddy validate` 已在本機用 `caddy:2.9.1-alpine` 跑過、三種 `.env` 組合的 `docker compose config` 也已驗證；**實機看 `X-Robots-Tag` 標頭**尚未測（Basic Auth 已於 2026-10-02 移除） | 同上 |
 | VM 上的 self-hosted runner、`/opt/tcrfc/secrets/*` | 未建立 | S0-7（Azure 資源）、`docs/20-cicd.md` §9 |
 | `docker-compose.yml` 的 `env_file` 指向 `/opt/tcrfc/secrets/club.env`／`charity.env` | 這兩個絕對路徑在本機不存在，只有 VM 上會有 | 同上；本機開發用 `docker-compose.dev.yml` 覆寫成 `deploy/dev/*.env` |
 | `deploy/Dockerfile`／xcaddy 自訂 Caddy build（DNS-01 用） | **沒有建立**，只在本文件與 `Caddyfile` 註解裡記錄為「若 HTTP-01 出狀況的升級路徑」 | 只有 HTTP-01 真的行不通才需要 |
