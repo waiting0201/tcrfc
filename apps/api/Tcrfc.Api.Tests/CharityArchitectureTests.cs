@@ -67,9 +67,19 @@ public sealed class CharityArchitectureTests
     [Fact]
     public void 慈善後台每一支端點都必須先通過授權器_沒有任何端點能略過()
     {
-        var file = Path.Combine(CharityDir(), "Admin", "CharityAdminEndpoints.cs");
-        var routes = RouteCalls(file).ToList();
-        Assert.True(routes.Count >= 25, $"只掃到 {routes.Count} 支後台端點，遠低於預期——檔案結構可能已改變，需要同步更新這支測試。");
+        // 後台端點分散在兩個檔案（CH-3 的 N1–N3 與 CH-4／CH-5 的帳務與營運）；新增第三個端點檔時要把它加進這份清單。
+        var routes = new[] { "CharityAdminEndpoints.cs", "CharityAdminLedgerEndpoints.cs" }
+            .SelectMany(name => RouteCalls(Path.Combine(CharityDir(), "Admin", name)))
+            .ToList();
+        Assert.True(routes.Count >= 60, $"只掃到 {routes.Count} 支後台端點，遠低於預期——檔案結構可能已改變，需要同步更新這支測試。");
+
+        // 保險：Admin 資料夾裡所有含 Map 呼叫的檔案都必須在上面的清單內，否則新端點檔會悄悄躲過這項掃描。
+        var unlisted = Directory.EnumerateFiles(Path.Combine(CharityDir(), "Admin"), "*.cs")
+            .Where(f => RouteCalls(f).Any())
+            .Select(Path.GetFileName)
+            .Except(["CharityAdminEndpoints.cs", "CharityAdminLedgerEndpoints.cs"])
+            .ToList();
+        Assert.True(unlisted.Count == 0, "這些檔案定義了路由但沒有納入授權掃描：" + string.Join("、", unlisted));
 
         var violations = routes
             .Where(r => !LambdaCalls(r.Call, "AuthorizeAsync", "AuthorizeAnyAsync"))
@@ -116,6 +126,12 @@ public sealed class CharityArchitectureTests
             .Where(r => writeCalls.Contains(((MemberAccessExpressionSyntax)r.Call.Expression).Name.Identifier.Text) && !HasRateLimit(r.Call))
             .Select(r => $"POST/PUT/DELETE \"{r.Route}\" 沒有掛 RequireRateLimiting")
             .ToList();
+        // 徵信名單與成果回顧是公開的 GET，但前者會成批輸出人名（擋爬取）：一律掛 Read 限流。
+        violations.AddRange(routes
+            .Where(r => r.Route is "/credit-list" or "/impact" && !HasRateLimit(r.Call))
+            .Select(r => $"GET \"{r.Route}\" 沒有掛 RequireRateLimiting"));
+        Assert.Contains(routes, r => r.Route == "/credit-list");
+        Assert.Contains(routes, r => r.Route == "/impact");
         // 單筆查詢（結果頁）雖然是 GET，但單號是公開端點上唯一的「憑證」，必須擋大量枚舉。
         violations.AddRange(routes
             .Where(r => r.Route.StartsWith("/donations/{orderNo}", StringComparison.Ordinal) && r.Route == "/donations/{orderNo}" && !HasRateLimit(r.Call))
@@ -142,13 +158,20 @@ public sealed class CharityArchitectureTests
     }
 
     [Fact]
-    public void 慈善後台三個service的公開方法第一個參數都是CharityAdminScope_型別層強制授權()
+    public void 慈善後台所有service的公開方法第一個參數都是CharityAdminScope_型別層強制授權()
     {
         // 方法清單用反射抓：新增公開方法忘了要求 scope，這支測試會變紅。
         // 例外：純計算的 BuildQrTargetUrl（不碰資料）。
         var exempt = new HashSet<string> { "BuildQrTargetUrl" };
         var violations = new List<string>();
-        foreach (var type in new[] { typeof(CharityStoresAdminService), typeof(CharityProjectsAdminService), typeof(CharityDonationsAdminService) })
+
+        // 同一命名空間下凡是名稱以 AdminService／QueryService 結尾的類別都要納入——新增 service 時不會因為忘了更新清單而躲過檢查。
+        var services = typeof(CharityStoresAdminService).Assembly.GetTypes()
+            .Where(t => t.Namespace == typeof(CharityStoresAdminService).Namespace && t.IsClass && !t.IsNested
+                        && (t.Name.EndsWith("AdminService", StringComparison.Ordinal) || t.Name.EndsWith("QueryService", StringComparison.Ordinal)))
+            .ToList();
+        Assert.True(services.Count >= 9, $"只找到 {services.Count} 個後台 service，少於預期：{string.Join("、", services.Select(s => s.Name))}");
+        foreach (var type in services)
         {
             foreach (var method in type.GetMethods(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly))
             {

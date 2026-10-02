@@ -85,3 +85,15 @@ public sealed record RegenerateStoreSlugRequest
 }
 
 public sealed record AdminStoreSlugResponse(Guid Id, string Slug, string? QrTargetUrl);
+
+/// <summary>CSV 匯入的一列問題。<c>rowNumber</c> 是檔案裡的列號（表頭是第 1 列，第一筆資料是第 2 列），與 Excel 開啟時看到的列號一致。</summary>
+public sealed record AdminStoreImportRowIssueDto(int RowNumber, string Reason);
+
+/// <summary>批次匯入店家的結果。<b>整批驗證，任一列有錯就整批不寫入</b>（<c>importedCount</c> 為 0、<c>errors</c> 列出所有問題）；
+/// 加上 <c>skipDuplicates=true</c> 時，與既有店家重複的列改為略過並列在 <c>skipped</c>，其餘合格的照常匯入。</summary>
+public sealed record AdminStoreImportResultDto
+{
+    public required int ImportedCount { get; init; }
+    public required IReadOnlyList<AdminStoreImportRowIssueDto> Errors { get; init; }
+    public required IReadOnlyList<AdminStoreImportRowIssueDto> Skipped { get; init; }
+}

@@ -188,6 +188,114 @@ public sealed class CharityInvoiceService(
         return true;
     }
 
+    /// <summary>
+    /// N5「手動填入外部號碼」（規劃書 §6.5、§5.3「失敗重試或手動填入外部號碼」）：加值中心端已另行開立（或人員在加值中心後台補開）時，
+    /// 把號碼登記回本站，憑證轉為 <c>issued</c> 並寄出憑證通知。只允許尚未開立（<c>pending</c>／<c>failed</c>）、未作廢、捐款已付款的憑證。
+    /// 號碼重複（篩選唯一索引）回 409。
+    /// </summary>
+    public async Task<DonationInvoice> ManualIssueAsync(
+        Guid invoiceId, string invoiceNo, DateTime issuedAtUtc, Guid adminUserId, CancellationToken cancellationToken)
+    {
+        var invoice = await db.DonationInvoices
+            .Include(i => i.Donation).ThenInclude(d => d.DonationProject).ThenInclude(p => p.DonationProjectsI18ns)
+            .SingleOrDefaultAsync(i => i.Id == invoiceId, cancellationToken)
+            ?? throw new CharityNotFoundException("找不到這張憑證。");
+
+        if (invoice.IssueStatus == "issued")
+        {
+            throw new CharityConflictException("憑證已開立", "這張憑證已經有號碼，不需要再填入。");
+        }
+
+        if (invoice.VoidStatus != "none")
+        {
+            throw new CharityConflictException("憑證已作廢", "這張憑證已作廢或折讓，無法再填入號碼。");
+        }
+
+        if (invoice.Donation.Status != DonationStatus.Paid)
+        {
+            throw new CharityConflictException("無法填入", "只有已付款的捐款才能登記憑證號碼。");
+        }
+
+        if (await db.DonationInvoices.AsNoTracking().AnyAsync(i => i.InvoiceNo == invoiceNo && i.Id != invoiceId, cancellationToken))
+        {
+            throw new CharityConflictException("號碼重複", "這個憑證號碼已經登記在另一筆捐款上，請確認號碼是否正確。");
+        }
+
+        invoice.InvoiceNo = invoiceNo;
+        invoice.IssuedAt = issuedAtUtc;
+        invoice.IssueStatus = "issued";
+        invoice.UpdatedAt = DateTime.UtcNow;
+        invoice.UpdatedBy = adminUserId;
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex) when (ex.InnerException is Microsoft.Data.SqlClient.SqlException { Number: 2601 or 2627 })
+        {
+            throw new CharityConflictException("號碼重複", "這個憑證號碼已經登記在另一筆捐款上，請確認號碼是否正確。");
+        }
+
+        await SendIssuedNoticeAsync(invoice.Donation, invoice, cancellationToken);
+        return invoice;
+    }
+
+    /// <summary>
+    /// N5「作廢」：只限<b>開立當期內</b>（雙月期，規劃書 §5.4）；跨期請改用折讓。尚未開立的憑證（<c>pending</c>／<c>failed</c>）
+    /// 不需要對加值中心動作，直接標記作廢使其不再被背景工作開立。加值中心連不上丟 <see cref="InvoiceIssuerUnavailableException"/>（呼叫端轉 503）。
+    /// </summary>
+    public async Task VoidManuallyAsync(Guid invoiceId, string reason, Guid adminUserId, CancellationToken cancellationToken)
+    {
+        var invoice = await LoadOpenInvoiceAsync(invoiceId, cancellationToken);
+        var now = DateTime.UtcNow;
+        if (invoice.IssueStatus == "issued" && invoice.InvoiceNo is not null)
+        {
+            if (invoice.IssuedAt is not { } issuedAt || !CharityDonationRules.IsSameInvoicePeriod(issuedAt, now))
+            {
+                throw new CharityConflictException("已跨期", "這張憑證已經不在開立當期，無法作廢，請改用折讓。");
+            }
+
+            await issuer.VoidAsync(invoice.InvoiceNo, reason, cancellationToken);
+        }
+
+        ApplyVoid(invoice, "voided", reason, adminUserId, now);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>N5「折讓」：已開立的憑證才能折讓（全額，與退款同一套語意，規劃書 §5.4；部分折讓不在範圍）。</summary>
+    public async Task AllowanceManuallyAsync(Guid invoiceId, string reason, Guid adminUserId, CancellationToken cancellationToken)
+    {
+        var invoice = await LoadOpenInvoiceAsync(invoiceId, cancellationToken);
+        if (invoice.IssueStatus != "issued" || invoice.InvoiceNo is null)
+        {
+            throw new CharityConflictException("尚未開立", "只有已開立的憑證可以折讓；尚未開立的請直接作廢。");
+        }
+
+        await issuer.AllowanceAsync(invoice.InvoiceNo, invoice.Donation.Amount, reason, cancellationToken);
+        ApplyVoid(invoice, "allowance", reason, adminUserId, DateTime.UtcNow);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<DonationInvoice> LoadOpenInvoiceAsync(Guid invoiceId, CancellationToken cancellationToken)
+    {
+        var invoice = await db.DonationInvoices.Include(i => i.Donation).SingleOrDefaultAsync(i => i.Id == invoiceId, cancellationToken)
+            ?? throw new CharityNotFoundException("找不到這張憑證。");
+        if (invoice.VoidStatus != "none")
+        {
+            throw new CharityConflictException("憑證已作廢", "這張憑證已經作廢或折讓過了。");
+        }
+
+        return invoice;
+    }
+
+    private static void ApplyVoid(DonationInvoice invoice, string voidStatus, string reason, Guid adminUserId, DateTime now)
+    {
+        invoice.VoidStatus = voidStatus;
+        invoice.VoidReason = reason;
+        invoice.VoidedBy = adminUserId;
+        invoice.UpdatedAt = now;
+        invoice.UpdatedBy = adminUserId;
+    }
+
     private async Task MarkFailedAsync(Donation donation, DonationInvoice invoice, CancellationToken cancellationToken)
     {
         invoice.IssueStatus = "failed";
@@ -233,7 +341,7 @@ public sealed class CharityInvoiceService(
     /// <summary>協會自己的字軌（慈善庫 <c>payment_channels.invoice_prefix</c>）。環境依執行環境：正式環境讀 <c>production</c>，其餘讀 <c>sandbox</c>。</summary>
     private async Task<string> ResolveTrackPrefixAsync(CancellationToken cancellationToken)
     {
-        var channelEnvironment = environment.IsProduction() ? "production" : "sandbox";
+        var channelEnvironment = await CharityPaymentEnvironment.ResolveAsync(db, environment, PaymentChannelTypes.EInvoice, cancellationToken);
         var prefix = await db.PaymentChannels.AsNoTracking()
             .Where(c => c.ChannelType == "einvoice" && c.Environment == channelEnvironment)
             .Select(c => c.InvoicePrefix)

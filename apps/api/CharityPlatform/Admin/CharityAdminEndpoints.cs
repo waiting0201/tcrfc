@@ -22,6 +22,7 @@ public static class CharityAdminEndpoints
         MapStores(root.MapGroup("/stores"));
         MapProjects(root.MapGroup("/projects"));
         MapDonations(root.MapGroup("/donations"));
+        root.MapCharityAdminLedgerEndpoints();
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -37,6 +38,24 @@ public static class CharityAdminEndpoints
             var scope = await authorizer.AuthorizeAsync(http, CharityPermissions.StoreView, ct);
             return Results.Ok(await service.ListAsync(scope, keyword, status, page, pageSize, ct));
         }).WithName("CharityAdminListStores").Produces<PagedResult<AdminStoreListItemDto>>();
+
+        // 批次匯入店家（CSV，規劃書 §6.1）。body 是 CSV 原始位元組（UTF-8，有無 BOM 都可）。整批驗證：任一列有錯整批不寫入，回 400 並列出所有問題。
+        group.MapPost("/import", async (
+            bool? skipDuplicates, HttpContext http, ICharityAdminAuthorizer authorizer, CharityStoresAdminService service, CancellationToken ct) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(http, CharityPermissions.StoreManage, ct);
+            var csv = await CharityAdminLedgerEndpoints.ReadCsvBodyAsync(http.Request, ct);
+            var result = await service.ImportCsvAsync(scope, csv, skipDuplicates == true, ClientIpResolver.Resolve(http), ct);
+            return result.Errors.Count > 0 ? Results.BadRequest(result) : Results.Ok(result);
+        }).WithName("CharityAdminImportStoresCsv").Produces<AdminStoreImportResultDto>()
+          .Produces<AdminStoreImportResultDto>(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden).DisableAntiforgery();
+
+        group.MapGet("/import-template", async (
+            HttpContext http, ICharityAdminAuthorizer authorizer, CharityStoresAdminService service, CancellationToken ct) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(http, CharityPermissions.StoreManage, ct);
+            return Results.File(service.BuildImportTemplate(scope), "text/csv; charset=utf-8", "store-import-template.csv");
+        }).WithName("CharityAdminStoreImportTemplate").Produces(StatusCodes.Status200OK, contentType: "text/csv");
 
         // 批次匯出全部合作中店家的 QR（zip）。⚠️ 必須在 /{id:guid} 之前宣告（雖然 guid 約束已能區分，仍保持明確）。
         group.MapGet("/qr-export", async (
@@ -187,6 +206,16 @@ public static class CharityAdminEndpoints
         }).WithName("CharityAdminUpdateProject").Produces<AdminProjectDetailDto>()
           .Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden).Produces(StatusCodes.Status404NotFound).Produces(StatusCodes.Status409Conflict);
 
+        // 只編輯內文（區塊編輯器儲存用）：省略的欄位不變，不會碰到分潤與金額設定。
+        group.MapPut("/{id:guid}/content", async (
+            Guid id, UpdateProjectContentRequest request, HttpContext http, ICharityAdminAuthorizer authorizer, CharityProjectsAdminService service, CancellationToken ct) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(http, CharityPermissions.ProjectManage, ct);
+            var updated = await service.UpdateContentAsync(scope, id, request, ClientIpResolver.Resolve(http), ct);
+            return updated is null ? Results.NotFound() : Results.Ok(updated);
+        }).WithName("CharityAdminUpdateProjectContent").Produces<AdminProjectDetailDto>()
+          .Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status404NotFound);
+
         group.MapPost("/{id:guid}/publish", async (
             Guid id, HttpContext http, ICharityAdminAuthorizer authorizer, CharityProjectsAdminService service, CancellationToken ct) =>
         {
@@ -302,6 +331,15 @@ public static class CharityAdminEndpoints
             var scope = await authorizer.AuthorizeAsync(http, CharityPermissions.InvoiceIssue, ct);
             return Results.Ok(await service.ReissueInvoiceAsync(scope, id, ClientIpResolver.Resolve(http), ct));
         }).WithName("CharityAdminReissueInvoice").Produces<AdminDonationDetailDto>().Produces(StatusCodes.Status409Conflict);
+
+        // 隱藏／恢復徵信名單顯示（規劃書 §6.3 N3 操作）。
+        group.MapPost("/{id:guid}/credit-visibility", async (
+            Guid id, SetCreditVisibilityRequest request, HttpContext http, ICharityAdminAuthorizer authorizer,
+            CharityDonationsAdminService service, CancellationToken ct) =>
+        {
+            var scope = await authorizer.AuthorizeAsync(http, CharityPermissions.DonationHideCredit, ct);
+            return Results.Ok(await service.SetCreditVisibilityAsync(scope, id, request.Hidden, ClientIpResolver.Resolve(http), ct));
+        }).WithName("CharityAdminSetCreditVisibility").Produces<AdminCreditVisibilityDto>().Produces(StatusCodes.Status404NotFound);
 
         group.MapPost("/{id:guid}/recheck-payment", async (
             Guid id, HttpContext http, ICharityAdminAuthorizer authorizer, CharityDonationsAdminService service, CancellationToken ct) =>

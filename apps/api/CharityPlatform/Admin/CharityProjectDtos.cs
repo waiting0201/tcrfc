@@ -93,3 +93,14 @@ public sealed record UpsertProjectRequest
     public string? CharityProgramRefCode { get; init; }
     public int? SortOrder { get; init; }
 }
+
+/// <summary>只編輯項目內文（區塊編輯器儲存用）。<b>省略（<c>null</c>）的欄位不變</b>；說明內文送 <c>{}</c> 或 <c>[]</c>、其他欄位送空字串代表清空。</summary>
+public sealed record UpdateProjectContentRequest
+{
+    public string? OneLinerZh { get; init; }
+    public string? OneLinerEn { get; init; }
+    public JsonElement? DescriptionZh { get; init; }
+    public JsonElement? DescriptionEn { get; init; }
+    public string? FundUsageZh { get; init; }
+    public string? FundUsageEn { get; init; }
+}

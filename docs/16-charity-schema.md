@@ -73,7 +73,7 @@
 | `DonationStore` | **捐款合作店家**：名稱、**`logo_key` Logo 或照片**、類別、地址、聯絡人與電話、合作起訖、狀態、**`store_share_pct`**、**`store_slug`**（全站唯一、**不可由編號推導**、可重產且舊 QR 立即失效） | 🌐 🔒 | N1 |
 | `DonationProject` | **捐款項目**：名稱、封面、一句話說明、說明內文、款項用途、`project_slug`、最低／最高金額、**`project_share_pct`**、**`invoice_mode`**、上下架與排序、**撥付對象與慈善計畫的四個快照欄位** | 🌐 | N2 |
 | `DonationAmountOption` | 金額選項卡 `(donation_project_id, amount, sort_order)` | | N2 |
-| `Donation` | **捐款主檔**：`order_no`、金額、狀態、建立與付款時間、`donation_project_id`、`donation_store_id`（**可為空**）、捐款人姓名與 Email、具名／匿名、**分潤五欄快照**、發票欄位、退款原因與經辦人 | 🔒 📸 | N3 |
+| `Donation` | **捐款主檔**：`order_no`、金額、狀態、建立與付款時間、`donation_project_id`、`donation_store_id`（**可為空**）、捐款人姓名與 Email、具名／匿名、**`is_credit_hidden` 後台逐筆隱藏於徵信名單**（CH-5）、**分潤五欄快照**、發票欄位、退款原因與經辦人 | 🔒 📸 | N3 |
 | `DonationPayment` | 金流交易：交易識別碼、請求與確認時間、金額、狀態、`raw_response json`（**只存不查**） | 🔒 | N3 |
 | `DonationInvoice` | 發票／收據：類型、號碼、開立時間、載具或統編或收據資訊、狀態、**發票抬頭**（統編模式必填）、**收據抬頭**（預設帶入捐款人姓名**可修改**）、**年度彙總開立旗標**、作廢或折讓＋**原因與經辦人** | 🔒 📸 | N5 |
 | `Settlement` | 結算單：期間、`payee_type`（`store`／`project`）、對象、筆數、捐款總額、應付金額、狀態、匯款登記（**日期、方式、備註**三項） | | N4 |
@@ -230,6 +230,7 @@ erDiagram
     string_64 donor_name
     string_255 donor_email
     bool is_anonymous
+    bool is_credit_hidden
     decimal_5_2 store_share_pct_snapshot
     decimal_5_2 project_share_pct_snapshot
     int store_amount
@@ -373,6 +374,7 @@ erDiagram
 | 分潤五欄 | `store_share_pct_snapshot`／`project_share_pct_snapshot`（`decimal(5,2)`）→ `store_amount`／`project_amount`／`association_amount`（`int`，元）。**無條件捨去至整數元**，三者相加須等於 `amount` |
 | 約束 | `store_share_pct + project_share_pct <= 100`（N2 儲存時驗證，超過即擋下） |
 | 捐款人 | 只有 `donor_name`／`donor_email`／`is_anonymous`。🔴 **不建帳號、不歸戶、不得有 `member_id` 外鍵** |
+| 徵信名單 | **公開條件缺一不可**：`status = paid`、`is_anonymous = 0`（捐款人在表單明示選具名＝規劃書 §11.1「以明示同意為前提」）、`is_credit_hidden = 0`（後台逐筆隱藏，CH-5 新增，預設 0）、站台設定沒有整站關閉。**只輸出姓名**（同名去重、依姓名排序） |
 | 會員比對 | 僅以 Email **軟性比對**於 N3 查詢當下進行，**不寫入任何表、不建關聯欄位** |
 | `invoice_mode` | `b2c_invoice`／`donation_receipt`，**由 `DonationProject` 決定**，建單時快照 |
 | 退款 | **對外不受理**，後台保留人工退款供誤捐個案，記 `refund_reason` 與 `refunded_by`，**並寫 `AuditLog`** |
@@ -387,7 +389,9 @@ erDiagram
 | 計算基準 | **只計 `status = 'paid'` 的捐款**，用**捐款當下的快照百分比**。🔴 **改設定不追溯** |
 | 退款沖回 | 以**負項** `SettlementLine`（`is_clawback = true`）進入下一期，**不改原列、不重算已付款期間** |
 | `status` | `待結算` → `已結算` → `已付款`。**實際匯款在系統外執行**，系統只登記 `remitted_on` 與 `remit_note` |
-| 職責分離 | 標記「已付款」的人與執行匯款的人**不得為同一人**——**以權限碼分離，不落資料表** |
+| 職責分離 | 標記「已付款」的人與執行匯款的人**不得為同一人**——**以權限碼分離，不落資料表**（CH-4：`n4.settlement.execute` 與 `n4.settlement.mark_paid` 是兩個碼） |
+| 狀態異動歷程 | 每次異動（確認結算、登記付款）的經辦人與時間由 **`audit_logs`** 承載（append-only），不加欄位（[`16a`](16a-charity-field-audit.md) §0 結案） |
+| 負項明細 | 沖回的 `SettlementLine`：`is_clawback = 1`、`share_amount` 為**負數**（原分潤的反向）、`clawback_reason` 為「捐款單 {單號} 已退款：{原因}」。同一筆捐款對同一類對象至多一條正項、一條負項；`(settlement_id, donation_id, is_clawback)` 唯一 |
 
 ### 4.3 `DonationStore`
 
@@ -451,6 +455,7 @@ erDiagram
 | `Donation` | `(status, created_at)` | **異常佇列**：已扣款但確認失敗 |
 | `DonationInvoice` | `(issue_status, issued_at)` | 異常佇列：發票開立失敗 |
 | `SettlementLine` | `(settlement_id)`、`(donation_id)` | 沖回對應 |
+| `SettlementLine` | **唯一** `(settlement_id, donation_id, is_clawback)` | CH-4 新增：同一份結算單內一筆捐款最多一條正項、一條負項（資料層後盾；跨結算單的「每種對象只進一份」由應用程式以 `sp_getapplock` 串行化＋排除查詢保證） |
 | `AuditLog` | `(occurred_at desc)`、`(admin_user_id, occurred_at desc)`、`(target_type, target_id)` | 稽核查詢 |
 | 所有 `*_i18n` | `(locale)` | 翻譯狀態矩陣 |
 
@@ -513,7 +518,7 @@ erDiagram
   比照主站 `admin_refresh_tokens` 的先例（[`12` §2](12-database-schema.md) 把它歸為功能單元不是日誌）新增，**請確認**這個讀法；若不接受，替代方案是只發長效存取權杖（安全性較差，不建議）。
 - 🟡 **`carrier_type` 值域沒有定義**：種子（CH-1b）存的是中文標籤（`手機條碼載具`／`捐贈發票`／`統一編號`），API 寫入一律用代碼 `mobile_carrier`／`love_code`／`tax_id`，讀取時把舊的中文標籤正規化回代碼。是否要把種子改成代碼並加 `CHECK`，待裁決。
 - 🟡 **規劃書要求但資料模型沒有承載、本輪沒做的功能**（不自己發明欄位，列為待裁決）：
-  ① **徵信名單逐筆隱藏**（規劃書 §3.6「亦可逐筆隱藏」、§6.3「隱藏於徵信名單」）——`donations` 沒有隱藏旗標；
+  ① ~~**徵信名單逐筆隱藏**（規劃書 §3.6「亦可逐筆隱藏」、§6.3「隱藏於徵信名單」）——`donations` 沒有隱藏旗標~~ ✅ **2026-10-02 已解**：新增 `donations.is_credit_hidden`（見 §4.1、§12）；
   ② **N3 的「以 Email 軟性比對會員」**（§6.3）——v2.0 起本庫不得持有主站連線、Azure SQL 不支援跨庫查詢，只能由主站提供唯讀 API，**主站尚無此端點**；
   ③ **捐款人語系**（系統信要不要寄英文版）——`donations` 沒有記錄語系的欄位，目前系統信一律繁中；
   ④ **發票自動重試的嘗試次數**（§5.3「自動重試若干次（含退避）」）——`donation_invoices` 沒有嘗試次數欄位，目前是固定間隔重試＋總期限（預設 10 分鐘），不是指數退避。
@@ -538,3 +543,28 @@ erDiagram
 | **權限碼** | 沿用種子的 23 個；**新增 `n3.donation.recheck_payment`**（異常佇列的「重新確認付款結果」，系統管理員與客服／行政）。種子裡檢視者的 `scope_type = 'masked'` 不解讀——個資預設遮罩、`reveal` 才看明文是同一件事 |
 | **稽核** | 規劃書三類操作（退款、分潤設定、含個資匯出）＋個資明文檢視、店家 QR 網址重產、重寄感謝信、重開憑證、重新確認付款。稽核與被稽核的變更在同一次 `SaveChanges` 提交；`AuditLogger` 只有 `Stage`，沒有更新與刪除的方法 |
 
+---
+
+## 12. CH-3 補完／CH-4／CH-5 實作補記（執行層決定）
+
+> 2026-10-02，`backend-engineer`。以下是實作時規劃書與本檔都答不到、由執行層決定的事；契約在 [`apps/api/README.md`](../apps/api/README.md)「慈善 CH-3 補完／CH-4 帳務與報表／CH-5 延伸」。**資料表結構的變動只有兩處**：`donations.is_credit_hidden` 與 `settlement_lines` 的唯一索引；對帳的兩張表（`ReconciliationRun`／`ReconciliationDiscrepancy`）本來就在 §2.1b 與 DDL 裡，CH-4 只是實作了寫入它們的流程。
+
+| 議題 | 決定 |
+|---|---|
+| **店家 CSV 匯入的重複處理** | 規劃書只寫「可批次匯入（CSV）」。`store_slug` 由系統產生，沒有可靠的自然鍵能做更新，所以**匯入只做新增**；**繁中店名＋地址（去空白、不分大小寫）相同**視為重複，對照既有全部店家與檔案內較前面的列。預設重複＝錯誤、整批不寫入（比照主站 FAQ 匯入的整批驗證），所以同一份檔案重複匯入不會產生重複店家；`skipDuplicates=true` 改為略過並回報。一次最多 500 列、1 MB |
+| **結算單的狀態語意** | `pending`（待結算）＝**草稿**（可重算、可刪除，會納入期間內新符合的捐款與沖回）；`settled`（已結算）＝鎖定金額，只允許因退款而「扣除重出」；`paid`（已付款）＝完全鎖定。產生結算單的 `periodEnd` 必須早於今天（期間沒結束就結算，當天稍後付款的捐款會永遠漏掉） |
+| **一筆捐款只進一份結算單** | 對「店家」與「項目」各一份（兩個不同對象的撥付，規劃書 §8.1），但對同一類對象**最多進一份**（含草稿）。產生結算單的排除查詢讓「重按一次」天然冪等；產生／重算／確認／刪除草稿共用 `sp_getapplock` 串行化。同一對象的期間與既有結算單重疊時略過並說明 |
+| **分潤為 0 的捐款** | 不進結算單（沒有應付金額可寫）。無店家歸屬的捐款只進「項目」結算 |
+| **已付款後退款的沖回** | 下一次為該對象產生（或重算草稿）結算單時自動納入負項，**同一筆只沖回一次**。⚠️ 負項合計大於本期正項時，應付金額為負數——照常產生、允許登記付款（代表對象退款給協會）；要不要改為遞延，列為待裁決 |
+| **「已付款」與「執行結算」的權限分離** | 新增權限碼 `n4.settlement.mark_paid`（受限、非 sysadmin_only）。種子只有系統管理員持有 N4 的 `execute`／`mark_paid`——規劃書九個角色裡沒有財務，要落實「核對的人」與「登記付款的人」不同，需客戶決定指派 |
+| **對帳的比對規則** | 比對鍵是金流交易識別碼。本站側＝當天（台灣日期）付款成立且狀態 `paid` 或 `refunded` 的捐款（當天付款後來退款的不誤判為本站有金流無）；金流側剩下的若本站有同識別碼，差異連到該捐款單。`site_only` 的 `gateway_transaction_id` 留空（依 DDL 約定，本站的識別碼可由 `donation_id` 查到）。`(run_on, source)` 唯一，重跑同一天更新同一批次：新差異新增、既有保留、已一致的待處理差異自動標記已處理（附註，`resolved_by` 為空） |
+| **取不到金流明細** | 記成該日 `failed` 的批次（已有成功批次不覆蓋）並對外回 503，**絕不拿空清單去比對**（那會把當天所有捐款判成差異）。排程 30 分鐘後才重試 |
+| **差異處理狀態** | `pending`／`resolved` 兩值（沿用種子）；處理必須寫說明（2–255 字）、只能處理一次、**差異記錄不刪除** |
+| **對帳排程** | 台灣時間過了 `CHARITY_RECONCILIATION_AFTER_HOUR`（預設 4）後對昨天對帳一次。刻意不放進整合測試會直接呼叫的 `CharityMaintenanceRunner.RunOnceAsync` |
+| **本機對帳來源** | `FakePaymentReconciliationSource` 以本站自己的金流紀錄當金流端明細（永遠一致，只驗證流程）；差異偵測由測試的可編排替身驗證。正式串接卡 `B-7` |
+| **N5 憑證操作** | 作廢限**開立當期**（雙月期，跨期請折讓）；尚未開立的憑證作廢不呼叫加值中心；折讓限已開立、全額。手動填入外部號碼會寄出「憑證通知」信。**列表與 CSV 不含個資**（捐贈收據申報若需要捐款人身分證字號，須另走含個資授權，列為待裁決） |
+| **N6 報表口徑** | 期間依**付款時間**（轉換率的母體例外，依**建單時間**）；預設只計 `paid`，可切 `refunded`／`all`；「已結算」＝進了已確認或已付款的結算單。全部報表（含逐筆明細）不含捐款人個資。**不輸出「目標達成率」**（規劃書 §7.2 與 §1.2／§6.2 自相矛盾，見 [`16a`](16a-charity-field-audit.md) §0） |
+| **N7 環境切換** | 作用中環境存在 `settings`（`payment.active_environment.{channel_type}`），沒設定時依執行環境推定；切到正式前該環境必須已有憑證（電子發票另需字軌）。電子發票開立讀的字軌依作用中環境。金流憑證用專屬 Data Protection 用途（`Tcrfc.Charity.PaymentChannelCredential.v1`）加密、只寫不讀。假實作的環境防線（`CharityFakeGuard`）不因切到測試而放寬 |
+| **新增的權限碼** | `n4.settlement.mark_paid`（受限）、`n7.audit_log.view`（受限、`sysadmin_only`）、`n3.donation.hide_credit`（系統管理員、客服／行政）。以 EF migration `AddCh4Ch5Permissions` 補進既有的庫（冪等），新建庫由種子產生器的 `EXTRA_PERMISSIONS` 與 `db/prod/charity-reference-data.sql` 取得 |
+| **稽核動作** | 新增：店家批次匯入、徵信名單顯示調整、結算（產生／重算／確認／登記付款／刪除草稿）、對帳（手動／處理差異）、憑證（填入號碼／作廢／折讓／匯出）、站台設定、系統信樣板、金流憑證與環境切換、項目內文編輯。動作代碼與中文標籤在 `CharityAuditActions.Labels`（稽核查詢畫面用） |
+| **徵信名單與成果回顧** | 見 §4.1。成果回顧只輸出項目建立當下的快照（計畫名稱、公益團體名稱、參照碼），不即時查主站（§1 第 2 條）；導回主站的網址是 N7 設定的 `clubSiteUrl`（俱樂部官網網址），不自己組路徑 |
