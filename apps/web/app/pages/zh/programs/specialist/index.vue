@@ -15,6 +15,9 @@
 // 六大專項本身是固定分類介紹（既有靜態內容，非資料驅動），不覆寫；新增「目前開放
 // 報名的專項」區塊，有真實梯次時顯示，沒有（現況：programs 表 0 筆種子資料）時維持
 // 既有「站內不接受金流付款」提示,不臆造。
+// 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
+// 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
+// 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
 definePageMeta({ nav: 'programs', unit: '5.4' })
 
 const { lp, locale } = useLocale()
@@ -37,6 +40,8 @@ const { data: programDetail } = await useFetch(
   `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
   { query: { lang: locale.value }, immediate: !!firstProgram.value },
 )
+
+const { programs: registrablePrograms, hasRegistrable } = await useRegistrablePrograms('specialist_training', { enabled: isTcrfc.value })
 
 // G-12 常見問題快捷區塊：program_detail 掛載點，理由同 childrens-training/index.vue。
 const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
@@ -214,6 +219,8 @@ useCourseSchema(
   </div>
 </section>
 
+<ProgramRegistration v-if="isTcrfc && hasRegistrable" :programs="registrablePrograms" />
+
 <section class="band grain cta-band" aria-labelledby="sp-cta-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">5.4</span>
   <div class="band-inner container">
@@ -226,7 +233,7 @@ useCourseSchema(
     <p v-if="isTcrfc" class="section-lede">梯次、地點與費用將於報名開放時公告，站內不接受金流付款。</p>
     <p v-else class="section-lede">守門員基礎班須先填寫報名表單，其餘專項尚未推出。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a v-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/academy/')">線上報名</a>
+      <a v-if="isTcrfc" class="btn btn--primary" :href="hasRegistrable ? '#register' : lp('/zh/join/academy/')">線上報名</a>
       <a v-else class="btn btn--primary" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener">前往報名表單</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
     </div>

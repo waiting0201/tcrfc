@@ -61,16 +61,69 @@ const related = computed(() => {
   return items.slice(idx + 1, idx + 3)
 })
 
-// 對戰組合／比分：只有 7.2 比賽報導分類才有這組欄位（規劃書 3.7 節，見 article.vue
-// 原本的檔頭說明——這是該分類的特殊欄位，不是每篇文章都有），從標題解析，
-// 格式「{賽事} {主隊} {比分} {客隊}」。非 match 分類回傳 null，模板整段不顯示。
-const matchFields = computed(() => {
-  if (!article.value || article.value.categoryCode !== 'match') return null
-  const title = article.value.title ?? ''
-  const m = title.match(/^(\S+)\s+(.+?)\s+(\d+-\d+)\s+(.+)$/)
-  if (!m) return { competition: title, fixture: '—', score: '—' }
-  return { competition: m[1], fixture: `${m[2]} vs ${m[4]}`, score: m[3] }
+// ── 賽事資訊（規劃書 3.7：7.2 比賽報導的特殊欄位「關聯賽事、比分」）────────────────
+// 資料來源是文章自己的關聯賽事（ArticleDetailDto.relations 裡 targetType='match' 的那筆，
+// 後台 B2「關聯」欄位選的），不再用正規表示式從標題硬拆。關聯只帶賽事 id，名稱／比分
+// 要回頭查 GET /{club}/schedule（公開端點）依 id 找出那一場——有關聯才發請求。
+// 查不到（沒關聯、賽事不在回傳範圍內）就整塊不顯示，不留空白列或示範文字。
+// 「出賽名單」目前沒有公開讀取端點（apps/api 只有後台 C4 有 match_lineups），該列不顯示。
+interface RelatedMatch {
+  id: string
+  matchOn: string
+  homeAway: string | null
+  matchNo: number | null
+  opponent: string | null
+  competitionName: string | null
+  status: string | null
+  scoreHome: number | null
+  scoreAway: number | null
+}
+// useFetch 在本頁沒有帶回應型別（既有慣例，見檔內其他欄位的存取），relations／bodyJson 先轉成最小型別再用，
+// 不在這一輪替整頁補型別（前台 typecheck 既有錯誤不處理，但不新增）。
+type ArticleExtras = { relations?: { targetType: string, targetId: string }[], bodyJson?: string | null }
+const articleExtras = computed(() => article.value as unknown as ArticleExtras | null)
+const bodyJson = computed(() => articleExtras.value?.bodyJson ?? null)
+const relatedMatchId = computed(() => {
+  const rel = (articleExtras.value?.relations ?? []).find((r) => r.targetType === 'match')
+  return rel ? String(rel.targetId).toLowerCase() : null
 })
+const { data: scheduleData } = await useFetch<{ items: RelatedMatch[] }>(`/api/backend/${club}/schedule`, {
+  query: { pageSize: 100, lang: locale.value },
+  immediate: relatedMatchId.value !== null,
+})
+const matchFields = computed(() => {
+  const id = relatedMatchId.value
+  if (!id) return null
+  const m = (scheduleData.value?.items ?? []).find((x) => x.id.toLowerCase() === id)
+  if (!m) return null
+  const self = getClubAssets(club).nameZh
+  const opp = m.opponent ?? '—'
+  const finished = m.scoreHome != null && m.scoreAway != null
+  return {
+    competition: m.competitionName ?? '—',
+    fixture: m.homeAway === 'HOME' ? `${self} vs ${opp}` : `${opp} vs ${self}`,
+    score: finished ? `${m.scoreHome} : ${m.scoreAway}` : null,
+    scheduleHref: `${lp('/zh/schedule/')}#${fixtureId(m.matchOn, m.homeAway, m.matchNo)}`,
+    matchOn: m.matchOn,
+  }
+})
+
+// ── 社群分享（規劃書 3.7 詳情頁「社群分享」）──────────────────────────────────────
+// Facebook／LINE 用官方分享網址（不需任何金鑰），複製連結用 Clipboard API。分享的網址是
+// 這一站目前的絕對網址（siteConfig.url 為 runtime 可覆寫的站台網址，見檔內 canonical 說明）。
+const shareUrl = computed(() => `${(siteConfig.url ?? '').replace(/\/$/, '')}${route.path}`)
+const facebookShareHref = computed(() => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl.value)}`)
+const lineShareHref = computed(() => `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(shareUrl.value)}`)
+const copyState = ref<'idle' | 'done' | 'failed'>('idle')
+async function copyShareLink() {
+  try {
+    await navigator.clipboard.writeText(shareUrl.value)
+    copyState.value = 'done'
+  } catch {
+    copyState.value = 'failed'
+  }
+  setTimeout(() => { copyState.value = 'idle' }, 2500)
+}
 
 const eyebrow = computed(() => newsEyebrowText(article.value?.categoryCode ?? ''))
 const categoryBilingual = computed(() => newsCategoryBilingualLabel(article.value?.categoryCode ?? '', article.value?.categoryName))
@@ -254,18 +307,19 @@ watchEffect(() => {
         <div v-if="article?.tags?.length"><span class="article-meta-row__label">標籤</span>{{ article.tags.map((t) => t.name).filter(Boolean).join('、') }}</div>
       </div>
 
+      <!-- 內文（bodyJson：純文字或區塊 JSON，解析與消毒見 utils/news-body.ts；沒有內文就不顯示） -->
+      <NewsBody :body-json="bodyJson" />
+
       <template v-if="matchFields">
         <h3>賽事資訊</h3>
         <table class="match-fields">
           <tbody>
             <tr><th scope="row">賽事</th><td>{{ matchFields.competition }}</td></tr>
             <tr><th scope="row">對戰組合</th><td>{{ matchFields.fixture }}</td></tr>
-            <tr><th scope="row">比分</th><td>{{ matchFields.score }}</td></tr>
-            <tr><th scope="row">關聯賽事（賽程連結）</th><td>—</td></tr>
-            <tr><th scope="row">出賽名單</th><td>—</td></tr>
+            <tr v-if="matchFields.score"><th scope="row">比分</th><td>{{ matchFields.score }}</td></tr>
+            <tr><th scope="row">關聯賽事（賽程連結）</th><td><a :href="matchFields.scheduleHref">{{ newsSlashDate(matchFields.matchOn) }} 賽程</a></td></tr>
           </tbody>
         </table>
-        <p style="font-size:.82rem;color:var(--muted)">上表示範 7.2 比賽報導分類的特殊欄位（規劃書 3.7 節）；比分／對戰組合取自真實標題文字，其餘欄位將依個別文章內容填寫。</p>
       </template>
 
       <template v-if="cover">
@@ -273,20 +327,17 @@ watchEffect(() => {
         <div class="article-gallery">
           <figure>
             <!-- 主要內容圖：替代文字在這裡（hero 背景是裝飾，alt 留空避免同一張圖念兩次） -->
-            <img :src="cover.src" :alt="cover.alt" loading="lazy" :width="cover.width ?? undefined" :height="cover.height ?? undefined">
-            <figcaption>封面照片（已轉檔為網頁用尺寸）</figcaption>
-          </figure>
+            <img :src="cover.src" :alt="cover.alt" loading="lazy" :width="cover.width ?? undefined" :height="cover.height ?? undefined">          </figure>
         </div>
       </template>
 
       <h3>社群分享</h3>
-      <!-- 分享按鈕為結構性 UI，尚未串接真實分享 intent。此頁現在已經有逐篇真實網址了
-           （這是原本卡在這裡的前提），但實際接上 FB／LINE／複製連結屬於另一項工作，
-           本次任務範圍只到「有網址可以分享」，不含分享功能本身，故維持原樣未動。 -->
-      <div class="share-row" aria-label="分享文章（範本，尚未啟用）">
-        <button type="button" class="btn btn--light btn--sm" disabled>分享至 Facebook</button>
-        <button type="button" class="btn btn--light btn--sm" disabled>分享至 LINE</button>
-        <button type="button" class="btn btn--light btn--sm" disabled>複製連結</button>
+      <!-- Facebook／LINE 為官方分享網址（新分頁開啟，不需金鑰、不載入第三方腳本）；複製連結用 Clipboard API。 -->
+      <div class="share-row" role="group" aria-label="分享這篇文章">
+        <a class="btn btn--light btn--sm" :href="facebookShareHref" target="_blank" rel="noopener noreferrer">分享至 Facebook</a>
+        <a class="btn btn--light btn--sm" :href="lineShareHref" target="_blank" rel="noopener noreferrer">分享至 LINE</a>
+        <button type="button" class="btn btn--light btn--sm" @click="copyShareLink">複製連結</button>
+        <span class="share-row__status" role="status" aria-live="polite">{{ copyState === 'done' ? '已複製連結' : copyState === 'failed' ? '無法自動複製，請手動複製網址列' : '' }}</span>
       </div>
     </article>
 
@@ -323,7 +374,8 @@ watchEffect(() => {
 .article-gallery{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:1rem; }
 .article-gallery img{ width:100%; aspect-ratio:3/2; object-fit:cover; }
 .article-gallery figcaption{ font-size:.78rem; color:var(--muted); margin-top:.4rem; }
-.share-row{ display:flex; gap:.75rem; flex-wrap:wrap; }
+.share-row{ display:flex; gap:.75rem; flex-wrap:wrap; align-items:center; }
+.share-row__status{ font-size:.82rem; color:var(--muted); }
 .article-aside{ position:sticky; top:1.5rem; }
 .article-aside h3{ font-size:1rem; font-weight:800; margin-bottom:1rem; }
 .article-aside__list{ display:flex; flex-direction:column; gap:1rem; }

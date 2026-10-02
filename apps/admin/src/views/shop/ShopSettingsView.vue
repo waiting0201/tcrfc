@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 商店的設定與報表（對應前台「站內商店」的入口說明與購物政策）：商店設定、金流與發票、報表、發票捐贈碼。
- * 🔴 金流（LINE Pay）與電子發票尚未串接，取得商店號後才會啟用；前台結帳尚未上線。
+ * 🔴 前台商店與結帳流程已完成；正式線上付款（LINE Pay）與電子發票待取得商店號與發票服務後才啟用（目前只有介面與本機假實作）。
  * 各分頁依權限顯示：金流與發票憑證只有系統管理員。
  */
 import { computed, ref, watch } from 'vue'
@@ -44,7 +44,7 @@ watch(tab, (t) => router.replace({ query: { tab: t } }))
       <template #meta><FrontendUnitBanner module-code="S6" /></template>
     </PageHeader>
 
-    <el-alert class="shop-settings__banner" type="warning" show-icon :closable="false" title="金流（LINE Pay）與電子發票尚未串接，取得商店號後啟用。目前不能線上收款，也不會自動開立發票；商店的線上結帳尚未上線。" />
+    <el-alert class="shop-settings__banner" type="warning" show-icon :closable="false" title="前台商店與結帳流程已完成，但正式線上付款（LINE Pay）與電子發票要等取得商店號與發票服務後才會啟用。在那之前顧客可以瀏覽商品、加入購物車，但無法線上付款，也不會開立正式發票。" />
 
     <el-empty v-if="available.length === 0" description="你的帳號沒有這個模組任何分頁的檢視權限。" />
     <el-tabs v-else v-model="tab">

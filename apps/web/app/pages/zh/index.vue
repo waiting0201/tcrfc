@@ -173,6 +173,29 @@ const todayStr = new Date().toISOString().slice(0, 10)
 // S1-19 收斂進 shared/utils/club.ts 的 getFirstTeamCode()，不再各頁各自寫一份三元運算式。
 const firstTeamCode = computed(() => getFirstTeamCode(clubKey.value))
 
+// ---- 一線隊球員橫幅（`roster-strip`）：接 `GET /{club}/players?team=<一線隊代號>` ----
+// 取 5 位：有肖像（`photoUrl`，後端已套肖像同意 fail-closed，未同意者一律 null）的球員優先，
+// 不足 5 位再用其餘球員（以隊徽卡呈現，與一線隊頁同一做法）補滿，各自依背號排序。
+// 沒有任何球員資料（例：藍鯨名單尚未建立）整個橫幅不顯示，不沿用磐石寫死球員頂替。
+interface RosterPlayer {
+  id: string
+  shirtNo: number | null
+  position: string | null
+  name: string | null
+  photoUrl: string | null
+}
+const { data: rosterData } = await useFetch<PagedResponse<RosterPlayer>>(`/api/backend/${config.public.club}/players`, {
+  query: { team: firstTeamCode.value, pageSize: 100, lang: locale.value },
+})
+const ROSTER_STRIP_SIZE = 5
+const rosterStrip = computed<RosterPlayer[]>(() => {
+  const byNo = (a: RosterPlayer, b: RosterPlayer) => (a.shirtNo ?? 999) - (b.shirtNo ?? 999)
+  const all = (rosterData.value?.items ?? []).filter((p) => p.name)
+  const withPhoto = all.filter((p) => p.photoUrl).sort(byNo)
+  const without = all.filter((p) => !p.photoUrl).sort(byNo)
+  return [...withPhoto, ...without].slice(0, ROSTER_STRIP_SIZE).sort(byNo)
+})
+
 const d1Sorted = computed(() =>
   allMatches.value.filter((m) => m.teamCode === firstTeamCode.value).slice().sort((a, b) => a.matchOn.localeCompare(b.matchOn)),
 )
@@ -507,7 +530,7 @@ onBeforeUnmount(() => {
             <template v-if="heroNews.length">
               <a v-for="a in heroNews" :key="a.slug" class="hero-card clip-card clip-card--on-dark" :href="lp(`/zh/news/${a.slug}/`)">
                 <div class="hero-card__media">
-                  <img v-if="hasNewsCover(a.slug, clubKey)" :src="newsCoverSrc(a.slug)" alt="" loading="lazy" width="1280" height="853">
+                  <img v-if="newsCoverImg(a, clubKey)" :src="newsCoverImg(a, clubKey)!.src" alt="" loading="lazy" :width="newsCoverImg(a, clubKey)!.width ?? undefined" :height="newsCoverImg(a, clubKey)!.height ?? undefined">
                   <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
                 </div>
                 <div class="hero-card__body">
@@ -631,9 +654,9 @@ onBeforeUnmount(() => {
   </section>
 
   <!-- 一線隊球員橫幅（沿用 .stats-band 的深色帶樣式；數據區塊已移除）
-       球員名單屬動態內容（不進 club-copy.ts），藍鯨目前無已核可肖像可用的一線隊球員照片，
-       本區塊不顯示，不沿用磐石球員資料頂替。 -->
-  <section v-if="isTcrfc" class="band grain grain--2 stats-band" aria-labelledby="roster-strip-title">
+       資料來源：GET /api/backend/{club}/players?team=<一線隊>（見上方 script setup「一線隊球員橫幅」段）。
+       沒有球員資料時整個區塊不顯示；未取得肖像同意的球員 photoUrl 為 null，以隊徽卡呈現。 -->
+  <section v-if="rosterStrip.length > 0" class="band grain grain--2 stats-band" aria-labelledby="roster-strip-title">
     <div class="band-inner container">
       <div class="roster-strip">
         <div class="roster-strip__head">
@@ -641,25 +664,13 @@ onBeforeUnmount(() => {
           <a :href="lp('/zh/club/first-team/')">查看完整名單 →</a>
         </div>
         <div class="roster-row">
-          <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">9</span><img :src="siteImg('/assets/img/player-09-liu.jpg')" alt="9 號球員 劉選手" loading="lazy" width="620" height="620"></div>
-            <p class="roster-card__name">#9 劉建緯　FW</p>
-          </div>
-          <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">11</span><img :src="siteImg('/assets/img/player-11-yang.jpg')" alt="11 號球員 楊朝景，現效力香港九龍城" loading="lazy" width="620" height="620"></div>
-            <p class="roster-card__name">#11 楊朝景　旅外</p>
-          </div>
-          <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">27</span><img :src="siteImg('/assets/img/player-27-shi.jpg')" alt="27 號球員 施靖堂" loading="lazy" width="620" height="620"></div>
-            <p class="roster-card__name">#27 施靖堂　FW</p>
-          </div>
-          <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">44</span><img :src="siteImg('/assets/img/player-44-yamauchi.jpg')" alt="44 號球員 山內大空" loading="lazy" width="465" height="620"></div>
-            <p class="roster-card__name">#44 山內大空　FW</p>
-          </div>
-          <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">77</span><img :src="siteImg('/assets/img/player-77-lin.jpg')" alt="77 號球員 林偉傑" loading="lazy" width="465" height="620"></div>
-            <p class="roster-card__name">#77 林偉傑　FW</p>
+          <div v-for="p in rosterStrip" :key="p.id" class="roster-card">
+            <div class="roster-card__photo">
+              <span v-if="p.shirtNo != null" class="roster-card__num">{{ p.shirtNo }}</span>
+              <img v-if="p.photoUrl" :src="p.photoUrl" :alt="`${p.shirtNo != null ? `${p.shirtNo} 號球員 ` : ''}${p.name}`" loading="lazy" width="620" height="620">
+              <img v-else class="roster-card__crest" :src="assets.headerMark.src" alt="" loading="lazy" width="64" height="67">
+            </div>
+            <p class="roster-card__name">{{ p.shirtNo != null ? `#${p.shirtNo} ` : '' }}{{ p.name }}{{ p.position ? `　${p.position}` : '' }}</p>
           </div>
         </div>
       </div>
@@ -742,9 +753,9 @@ onBeforeUnmount(() => {
           :href="lp(`/zh/news/${article.slug}/`)"
         >
           <div v-if="NEWS_VARIANTS[i] === 'wide'" class="news-card__inner" style="display:flex;width:100%;">
-            <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(article.slug, clubKey) }]">
+            <div :class="['news-card__media', { 'news-card__media--noimg': !newsCoverImg(article, clubKey) }]">
               <span class="news-card__tag">{{ article.categoryName }}</span>
-              <img v-if="hasNewsCover(article.slug, clubKey)" :src="newsCoverSrc(article.slug)" :alt="article.title ?? ''" loading="lazy" width="1600" height="1067">
+              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
               <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">
@@ -753,9 +764,9 @@ onBeforeUnmount(() => {
             </div>
           </div>
           <template v-else>
-            <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(article.slug, clubKey) }]">
+            <div :class="['news-card__media', { 'news-card__media--noimg': !newsCoverImg(article, clubKey) }]">
               <span class="news-card__tag">{{ article.categoryName }}</span>
-              <img v-if="hasNewsCover(article.slug, clubKey)" :src="newsCoverSrc(article.slug)" :alt="article.title ?? ''" loading="lazy" width="1280" height="853">
+              <img v-if="newsCoverImg(article, clubKey)" :src="newsCoverImg(article, clubKey)!.src" :alt="newsCoverImg(article, clubKey)!.alt" loading="lazy" :width="newsCoverImg(article, clubKey)!.width ?? undefined" :height="newsCoverImg(article, clubKey)!.height ?? undefined">
               <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
             </div>
             <div class="news-card__body">
@@ -850,5 +861,9 @@ onBeforeUnmount(() => {
    properties」（docs/13-blue-whale-site.md §6 紀律 1）。 */
 .hero__media--pending {
   background: linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%);
+}
+/* 一線隊球員橫幅：未取得肖像同意的球員以隊徽置中顯示（不拉伸成滿版照片） */
+.roster-card__photo .roster-card__crest {
+  position: absolute; inset: 0; margin: auto; width: 40%; height: auto; object-fit: contain; opacity: .55;
 }
 </style>

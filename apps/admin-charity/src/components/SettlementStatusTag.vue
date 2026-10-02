@@ -5,7 +5,7 @@
  */
 import { computed } from 'vue'
 import SemanticTag from './SemanticTag.vue'
-import type { SettlementStatus } from '@/types/fixtures'
+import type { SettlementStatus } from '@/api/settlements'
 
 const props = defineProps<{ status: SettlementStatus }>()
 

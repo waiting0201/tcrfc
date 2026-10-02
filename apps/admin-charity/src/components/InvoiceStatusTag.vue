@@ -5,7 +5,7 @@
  */
 import { computed } from 'vue'
 import SemanticTag from './SemanticTag.vue'
-import type { InvoiceIssueStatus, InvoiceVoidStatus } from '@/types/fixtures'
+import type { InvoiceIssueStatus, InvoiceVoidStatus } from '@/types/invoice'
 
 const props = defineProps<{
   issueStatus: InvoiceIssueStatus

@@ -22,7 +22,7 @@ npm run preview   # 預覽 dist/，port 4174
 `db/seed/emit-charity-fixtures.py` 同時輸出三份內容相同的檔案（`db/seed／apps/web-charity／
 apps/admin-charity` 各一份）。
 
-> 🟡 **2026-10-02**：`N4`–`N7` 全部改接真 API 後，`src/data/fixtures.ts` 與 `fixtures/charity-fixtures.json` 已沒有畫面引用（原本手抄的 `reconciliationAudit.ts`、`session.ts` 已刪除）。
+> 🟡 **2026-10-02**：`N4`–`N7` 全部改接真 API 後，`src/data/fixtures.ts` 已刪除（狀態型別搬到 `src/types/invoice.ts`、`@/api/donations`、`@/api/settlements`），`fixtures/charity-fixtures.json` 已沒有畫面引用（原本手抄的 `reconciliationAudit.ts`、`session.ts` 也已刪除）。
 > 保留的原因只有一個：`db/seed/emit-charity-fixtures.py` 仍會輸出並檢查這份鏡射複本，`npm run lint` 的 `lint:fixtures` 因此仍會比對。
 > 要真正移除，須先請維護該腳本的人把本專案從匯出目標拿掉（與 `apps/web-charity` 的殘留檔案是同一件事）。
 
@@ -33,7 +33,7 @@ apps/admin-charity` 各一份）。
 定為 `apps/admin-charity`（docs/20-cicd.md §3），`db/seed/` 在那個 build context 之外，容器內
 建置時讀不到——這是本次任務用 `docker build` 實測才發現的落差，不能只靠 `npm run build` 判斷
 （那個指令是在有完整 repo 的檔案系統上跑，不會露出這個問題）。詳細理由見
-[`src/data/fixtures.ts`](src/data/fixtures.ts) 檔頭與 [`vite.config.ts`](vite.config.ts) 的註解。
+[`vite.config.ts`](vite.config.ts) 的註解。
 
 
 ## 專案結構

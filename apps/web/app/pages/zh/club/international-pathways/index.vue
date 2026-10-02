@@ -12,12 +12,67 @@
 // INTL_PATHWAY_CHINA_NOTE_BW（club-copy.ts）。地區頁籤對藍鯨改為 Japan／China（球員
 // 實際旅外地區），合作俱樂部 Logo 牆藍鯨維持空狀態（沒有可公開授權使用的海外合作
 // 俱樂部 Logo，不得挪用磐石三個海外俱樂部 Logo 充數）。
+//
+// 2026-10-02：海外合作俱樂部 Logo 牆（分區頁籤內的 Logo 與下方「合作俱樂部」牆）改接
+// E1 `GET /{club}/partners`（夥伴類型「國際夥伴」，與 9.1 our-partners 同一份資料、同一個
+// 過渡規則）：後台一旦建立任何國際夥伴就整批換成後台資料；磐石在後台一筆都還沒建時，沿用
+// 既有三個海外合作隊徽作過渡顯示（FALLBACK_INTL_TILES，S0-9 搬遷保留）；藍鯨不使用該備援
+// （E-83）。分區頁籤依夥伴的 `country` 欄位歸類（日本／香港／中國，其餘歸歐洲）。
+// ⚠️ 「分區資訊」的旅外球員案例（楊朝景、INTL_PATHWAY_*_NOTES_BW）與各地區說明文字仍是
+// 寫死內容，後端沒有對應型別（待決，見 apps/web/README.md）。
+import { PARTNER_TYPE_SECTIONS, pickLogoUrl, safeExternalUrl } from '#shared/utils/partners'
+
 definePageMeta({ nav: 'club', unit: '3.4' })
 
 const { lp } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+
+// ---- 海外合作俱樂部（E1 夥伴，類型＝國際夥伴）----
+interface IntlTile {
+  key: string
+  name: string
+  country: string | null
+  logo: string | null
+  alt: string
+  region: 'europe' | 'japan' | 'hk' | 'china'
+  href: string | null
+}
+const FALLBACK_INTL_TILES: IntlTile[] = [
+  { key: 'verona', name: 'Hellas Verona FC', country: '義大利 Italy', logo: siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp'), alt: 'Hellas Verona FC 標誌', region: 'europe', href: null },
+  { key: 'rayo', name: 'Rayo Ciudad Alcobendas CF', country: '西班牙 Spain', logo: siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png'), alt: 'Rayo Ciudad Alcobendas CF 標誌', region: 'europe', href: null },
+  { key: 'ahlen', name: 'Rot-Weiss Ahlen', country: '德國 Germany', logo: siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp'), alt: 'Rot-Weiss Ahlen 標誌', region: 'europe', href: null },
+]
+function regionOfCountry(country: string | null): IntlTile['region'] {
+  const c = (country ?? '').toLowerCase()
+  if (/日本|japan/.test(c)) return 'japan'
+  if (/香港|hong\s*kong/.test(c)) return 'hk'
+  if (/中國|中国|china/.test(c)) return 'china'
+  return 'europe'
+}
+const { partners } = await usePartnerList()
+const apiIntlTiles = computed<IntlTile[]>(() =>
+  partners.value
+    .filter((p) => p.partnerType === PARTNER_TYPE_SECTIONS[1].type && p.name)
+    .map((p) => ({
+      key: p.id,
+      name: p.name!,
+      country: p.country,
+      logo: pickLogoUrl(p),
+      alt: `${p.name} 標誌`,
+      region: regionOfCountry(p.country),
+      href: safeExternalUrl(p.websiteUrl),
+    })),
+)
+const intlTiles = computed<IntlTile[]>(() => {
+  if (apiIntlTiles.value.length) return apiIntlTiles.value
+  return isTcrfc.value ? FALLBACK_INTL_TILES : []
+})
+const tilesIn = (region: IntlTile['region']) => intlTiles.value.filter((t) => t.region === region)
+function tileSrc(t: IntlTile): string | null {
+  return t.logo
+}
 
 useSeoMeta({
   title: computed(() => getInternationalPathwaysSeo(clubKey.value).title),
@@ -123,20 +178,33 @@ onMounted(() => {
 
     <template v-if="isTcrfc">
       <div class="region-panel" id="panel-europe" role="tabpanel" aria-labelledby="tab-europe" data-region-panel="europe">
-        <p class="region-panel__desc">目前已建立聯繫的歐洲俱樂部，詳細合作內容與申請流程整理中。</p>
-        <div class="region-partners">
-          <div class="region-partner-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp')" alt="Hellas Verona FC 標誌" loading="lazy" width="1920" height="1960"><span>Hellas Verona FC<br><small>義大利 Italy</small></span></div>
-          <div class="region-partner-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png')" alt="Rayo Ciudad Alcobendas CF 標誌" loading="lazy" width="316" height="316"><span>Rayo Ciudad Alcobendas CF<br><small>西班牙 Spain</small></span></div>
-          <div class="region-partner-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp')" alt="Rot-Weiss Ahlen 標誌" loading="lazy" width="1920" height="2430"><span>Rot-Weiss Ahlen<br><small>德國 Germany</small></span></div>
+        <p class="region-panel__desc">{{ tilesIn('europe').length ? '目前已建立聯繫的歐洲俱樂部，詳細合作內容與申請流程整理中。' : '歐洲尚無正式合作俱樂部可公開，相關進展將更新於本頁。' }}</p>
+        <div v-if="tilesIn('europe').length" class="region-partners">
+          <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('europe')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+          </component>
         </div>
       </div>
 
       <div class="region-panel" id="panel-japan" role="tabpanel" aria-labelledby="tab-japan" data-region-panel="japan" hidden>
-        <p class="region-panel__desc">日本尚無正式合作俱樂部或協議可公開，相關進展將更新於本頁。</p>
+        <p class="region-panel__desc">{{ tilesIn('japan').length ? '日本的合作俱樂部：' : '日本尚無正式合作俱樂部或協議可公開，相關進展將更新於本頁。' }}</p>
+        <div v-if="tilesIn('japan').length" class="region-partners">
+          <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('japan')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+          </component>
+        </div>
       </div>
 
       <div class="region-panel" id="panel-hk" role="tabpanel" aria-labelledby="tab-hk" data-region-panel="hk" hidden>
-        <p class="region-panel__desc">香港暫無正式合作俱樂部標誌或協議文件，但已有一線隊球員實際旅外案例：</p>
+        <p class="region-panel__desc">{{ tilesIn('hk').length ? '香港的合作俱樂部，以及一線隊球員實際旅外案例：' : '香港暫無正式合作俱樂部標誌或協議文件，但已有一線隊球員實際旅外案例：' }}</p>
+        <div v-if="tilesIn('hk').length" class="region-partners">
+          <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('hk')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+          </component>
+        </div>
         <div class="hk-player-note clip-card clip-card--on-dark">
           <div class="hk-player-note__visual">
             <img src="/assets/brand/svg/tcrfc-mark-white.svg" alt="" width="48" height="50" aria-hidden="true">
@@ -152,7 +220,13 @@ onMounted(() => {
     </template>
     <template v-else>
       <div id="panel-japan" class="region-panel" role="tabpanel" aria-labelledby="tab-japan" data-region-panel="japan">
-        <p class="region-panel__desc">日本尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：</p>
+        <p class="region-panel__desc">{{ tilesIn('japan').length ? '日本的合作俱樂部，以及球員實際旅外案例：' : '日本尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：' }}</p>
+        <div v-if="tilesIn('japan').length" class="region-partners">
+          <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('japan')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+          </component>
+        </div>
         <div v-for="note in INTL_PATHWAY_JAPAN_NOTES_BW" :key="note.nameZh" class="hk-player-note clip-card clip-card--on-dark" style="margin-bottom:1rem;">
           <div class="hk-player-note__visual"><span aria-hidden="true">✈</span></div>
           <div>
@@ -163,7 +237,13 @@ onMounted(() => {
       </div>
 
       <div id="panel-china" class="region-panel" role="tabpanel" aria-labelledby="tab-china" data-region-panel="china" hidden>
-        <p class="region-panel__desc">中國尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：</p>
+        <p class="region-panel__desc">{{ tilesIn('china').length ? '中國的合作俱樂部，以及球員實際旅外案例：' : '中國尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：' }}</p>
+        <div v-if="tilesIn('china').length" class="region-partners">
+          <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('china')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+          </component>
+        </div>
         <div class="hk-player-note clip-card clip-card--on-dark">
           <div class="hk-player-note__visual"><span aria-hidden="true">✈</span></div>
           <div>
@@ -183,12 +263,10 @@ onMounted(() => {
         <p class="kicker">INTERNATIONAL PARTNERS</p>
         <h2 class="section-title" id="intl-partners-title">合作俱樂部</h2>
       </div>
-      <p class="section-lede">{{ isTcrfc ? '目前已取得標誌授權的合作俱樂部如下，更多合作內容持續更新中。' : '目前尚無可公開的海外合作俱樂部，相關進展將更新於本頁。' }}</p>
+      <p class="section-lede">{{ intlTiles.length ? '目前已取得標誌授權的合作俱樂部如下，更多合作內容持續更新中。' : '目前尚無可公開的海外合作俱樂部，相關進展將更新於本頁。' }}</p>
     </div>
-    <div v-if="isTcrfc" class="sponsor-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-      <div class="sponsor-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp')" alt="Hellas Verona FC 標誌" loading="lazy" width="200" height="200"></div>
-      <div class="sponsor-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png')" alt="Rayo Ciudad Alcobendas CF 標誌" loading="lazy" width="200" height="200"></div>
-      <div class="sponsor-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp')" alt="Rot-Weiss Ahlen 標誌" loading="lazy" width="200" height="200"></div>
+    <div v-if="intlTiles.length" class="sponsor-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+      <PartnerLogoTile v-for="t in intlTiles" :key="t.key" :name="t.name" :logo-url="tileSrc(t)" :href="t.href" external />
     </div>
   </div>
 </section>

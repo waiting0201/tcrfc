@@ -137,6 +137,9 @@
 | E-122 | 2026-10-02 | 慈善後台報表的趨勢條寫了 `var(--charity-info)`，但實際定義的變數只有 `--charity-info-text`／`-bg`（`--charity-info` 只出現在 `docs/22` §5 的速查表）；樣式表引用不存在的變數不會報錯，背景變透明，趨勢欄整欄看起來是空的，`vue-tsc`、eslint、`vite build`、禁用詞、對比度檢查全綠，是看截圖才發現 | ✅ `apps/admin-charity/scripts/check-css-vars.mjs`（掛進 `npm run lint`） |
 | E-123 | 2026-10-02 | 用 Python 讀寫 `Program.cs` 時沒保留換行，把混有 CRLF 的檔案整段正規化成 LF，一個 13 行的改動變成 47 行 diff，連沒碰的行都變了 | 無（`git diff --stat` 肉眼檢查抓到） |
 | E-124 | 2026-10-02 | 合併含新 migration（`AlignSchemaG1`、慈善 `AddCreditHiddenAndSettlementLineKey`／`AddCh4Ch5Permissions`）的程式後直接 push master，`deploy.yml` 換上新版 api，正式庫尚未跑 `db-migrate.yml`，測試站新聞 API 回 500 | push 前沒檢查「這批有沒有新 migration」 | push 前 `git diff Remote_GitHub/master --stat -- apps/api/Data/Migrations` 有輸出就先跑 `db-migrate.yml` | 無 |
+| E-130 | 2026-10-02 | 夏令營／冬令營頁拿英文代碼 `open`／`waitlist` 比對梯次狀態，但資料庫與公開 API 的 `sessions.status` 是中文字面值（開放／額滿／候補／已結束）——兩頁的「開放中梯次」永遠找不到，早鳥價與剩餘名額永遠顯示「待公告」，自 S1-15 起一直如此 | 狀態值憑印象寫成英文代碼，沒對 `db/club-schema.sql` 的 `CK_sessions_status`；測試資料為空所以沒人看到 | 判斷梯次狀態一律走 `app/utils/program-session.ts`；前台比對資料庫列舉值前先查 DDL 的 CHECK | ✅ `scripts/check-news-body.mjs`（掛進 `npm run lint`）釘住中文字面值與「英文 `open` 不是合法狀態」 |
+| E-131 | 2026-10-02 | 前台 BFF 代理 `server/api/backend/[...path].ts` 對 POST 的上游 4xx 直接讓 `$fetch` 的錯誤冒出去：Nitro 正式環境把它當未處理例外，`message` 一律變 `Server Error`、`data` 被拿掉。後端刻意寫給使用者的中文驗證訊息（「缺少必填欄位：xxx」「這個梯次的報名已經截止。」）在瀏覽器永遠看不到，只剩通用文案；S1-17 起七張表單都受影響 | 只用 curl 驗「成功」與「405」，沒驗過「上游 400 的訊息是否到得了 `useFormSubmit.extractErrorMessage`」；開發模式與正式建置的錯誤輸出不同 | 代理對上游 4xx 以 `createError({ statusCode, message })` 重丟，5xx 一律 502；新增代理路徑時**同時驗一次上游 400 的訊息**（本機假後端回 `{detail}` 看瀏覽器收到什麼） | 無（本次 curl 實測 400 訊息已帶出；尚無自動測試） |
+| E-132 | 2026-10-02 | 官方商品頁改接商店 API 時用了 `useShopInfo()`，整份商店資訊（含 `collectingSubjectName`「款項由台中磐石足球俱樂部代收」）被序列化進頁面 payload，藍鯨的 `/culture/merchandise/` HTML 因此出現「磐石」，被 `check-club-brand-leak.mjs` 抓到（頁面可見文字沒有） | 以為「沒有顯示的欄位就不算外洩」；Nuxt 會把 `useFetch`／`useAsyncData` 的整份回應放進 payload | 在藍鯨會渲染的頁面只取需要的欄位（`useAsyncData` 內只回傳 `collections`），不要直接用回傳整包商店資訊的 composable | ✅ `scripts/check-club-brand-leak.mjs`（需先把藍鯨站跑起來，未掛 lint，E-34） |
 
 ---
 
@@ -2448,3 +2451,23 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：push master 前一律跑 `git diff Remote_GitHub/master --stat -- apps/api/Data/Migrations apps/api/CharityPlatform/Data/Migrations`；有輸出就先向使用者說明並走 `db-migrate.yml`，套用後再 push。
 - **防呆**：無。可考慮在 `deploy.yml` 加一步：比對映像內 migration 清單與正式庫 `__EFMigrationsHistory`，有未套用的就中止部署。
 
+### E-130 梯次狀態用英文代碼比對，中文字面值的資料永遠不命中（2026-10-02，前台盤點）
+
+- **錯在哪**：`apps/web/app/pages/zh/programs/summer-camp/index.vue`、`winter-camp/index.vue` 以 `s.status === 'open' || s.status === 'waitlist'` 找「開放中梯次」；`sessions.status` 實際是 `開放`／`額滿`／`候補`／`已結束`（`CK_sessions_status`），API 原樣輸出。條件永遠為假，早鳥價、剩餘名額、梯次日期三格永遠「待公告」。因為種子資料沒有梯次，沒有人看過它失敗。
+- **根因（可改掉的行為）**：寫狀態比對時憑「狀態通常是英文代碼」的印象，沒有查 DDL；頁面只用空資料驗證，沒有一筆真實梯次走過。
+- **下次怎麼避免**：比對任何資料庫列舉值前，先 grep `db/club-schema.sql` 的 CHECK；用假後端帶一筆真實形狀的資料跑一次頁面。
+- **防呆**：✅ `app/utils/program-session.ts` 集中判斷（中文字面值、報名窗口、已結束），`scripts/check-news-body.mjs` 釘住「英文 `open` 不是合法狀態」。
+
+### E-131 BFF 代理吃掉上游 4xx 的錯誤訊息（2026-10-02，課程報名 P3）
+
+- **錯在哪**：`server/api/backend/[...path].ts` 的 POST 分支直接 `return await $fetch(...)`。上游回 400 時 `$fetch` 丟出的是 `FetchError`，不是 h3 錯誤；Nitro 正式環境對未處理例外只保留狀態碼、`message` 改成 `Server Error`、`data` 移除。`useFormSubmit.extractErrorMessage` 因此永遠讀不到後端的中文訊息，七張表單、FAQ 回饋、提案下載、課程報名的失敗畫面只會出現通用文案。
+- **根因（可改掉的行為）**：驗證代理時只測成功路徑與 405；開發模式（`nuxt dev`）會回完整錯誤，正式建置不會，所以本機看起來「有訊息」。
+- **下次怎麼避免**：新增或修改代理路徑時，用 `npm run build` 後的 `node .output/server/index.mjs` 對假後端送一次上游 400，確認瀏覽器收到的 `message` 是後端那句；不要只看 dev。
+- **防呆**：無（已在代理內對 4xx 以 `createError({ statusCode, message })` 重丟、5xx 一律 502；沒有自動測試，因為需要起 Nitro 與假後端）。
+
+### E-132 只用到系列清單卻拉整份商店資訊，把「代收」字串帶進藍鯨頁面 payload（2026-10-02，官方商品頁）
+
+- **錯在哪**：`culture/merchandise/index.vue` 改接 API 時呼叫 `useShopInfo()` 取系列清單，整份 `ShopInfo`（含 `collectingSubjectName` ＝「台中磐石足球俱樂部」）被 Nuxt 序列化進頁面 payload，藍鯨站該頁 HTML 出現「磐石」。頁面可見文字沒有，但 `check-club-brand-leak.mjs` 掃整份 HTML，命中 2 頁（zh／en）。
+- **根因（可改掉的行為）**：把「畫面沒顯示」等同於「沒外洩」；忘了 `useFetch`／`useAsyncData` 的回應整份進 payload。
+- **下次怎麼避免**：藍鯨會渲染的頁面只取需要的欄位（`useAsyncData` 內整理好再回傳），要共用整包商店資訊的頁面只限已在例外清單的 `/shop/`、`/checkout/`；改完跑 `check-club-brand-leak.mjs`。
+- **防呆**：✅ `scripts/check-club-brand-leak.mjs`（未掛 `npm run lint`，需先把藍鯨站跑起來，E-34）。

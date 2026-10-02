@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 發票捐贈碼：結帳時顧客可以選擇把電子發票捐贈給哪個團體。
- * 🔴 這份清單全系統共用、不分俱樂部（切換站台看到的是同一份）。電子發票尚未串接，前台結帳也尚未上線。
+ * 🔴 這份清單全系統共用、不分俱樂部（切換站台看到的是同一份）。前台結帳已有「捐贈發票」選項，電子發票正式開立待取得發票服務後啟用。
  */
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -80,7 +80,7 @@ async function remove(row: DonationCodeDto) {
 <template>
   <div class="codes">
     <div class="codes__bar">
-      <span class="codes__hint">這份清單全系統共用，不分俱樂部。電子發票尚未串接，前台結帳也尚未上線。</span>
+      <span class="codes__hint">這份清單全系統共用，不分俱樂部。顧客在結帳時可從這份清單選擇捐贈對象；電子發票正式開立要等取得發票服務後才會啟用。</span>
       <span class="codes__spacer" />
       <el-button v-if="canCreate" type="primary" @click="openDialog(null)">+ 新增捐贈碼</el-button>
     </div>

@@ -34,7 +34,7 @@ import { AdminApiError } from '@/api/http'
 import { formatMoney, formatRatio, formatTaipei } from '@/utils/format'
 import { hasPermission } from '@/auth/session'
 import { useBreakpoint } from '@/composables/useBreakpoint'
-import type { InvoiceIssueStatus, InvoiceVoidStatus } from '@/types/fixtures'
+import type { InvoiceIssueStatus, InvoiceVoidStatus } from '@/types/invoice'
 import type { DonationStatus } from '@/api/donations'
 
 const { breakpoint } = useBreakpoint()

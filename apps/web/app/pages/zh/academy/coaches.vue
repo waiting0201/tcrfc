@@ -1,14 +1,15 @@
 <script setup lang="ts">
 // app/pages/zh/academy/coaches.vue — 由 site/src/pages/zh/academy/coaches/index.html 轉來（S0-9 靜態頁搬遷）
 //
-// BW-C1（2026-09-29）：本頁對藍鯨重開（S2-8 曾以「沒有已核實、非過期的藍鯨青年隊
-// 教練名單」為由整頁 404，是誤用——藍鯨規劃書 §1.3 總則例外只有四項，不含 4.5，見
-// shared/utils/units.ts 檔頭）。教練名單本身仍缺（`content/blue-whale/squad/
-// coaching-staff.md` 標明「舊站教練經歷最新只到 2024，2025 賽季未更新」且無照片，
-// 拿可能已過期的名單當作現在的青年隊教練公開展示風險與臆造相近），這是「此頁此
-// 區塊內容缺漏」不是「整頁不存在」，改為顯示既有「收錄中」空狀態（比照 3.5 球員
-// 故事），不是 404。標題改「青年隊教練團」（不用「學院」字樣，見
-// check-club-brand-leak.mjs 詞表；04 對藍鯨依 docs/13 §3 一律稱「青年隊」）。
+// BW-C1（2026-09-29）：本頁對藍鯨重開（04 的 4.5 並不在藍鯨規劃書 §1.3 總則的例外之列）。
+// 標題對藍鯨改「青年隊教練團」（不用「學院」字樣，見 check-club-brand-leak.mjs 詞表；
+// 04 對藍鯨依 docs/13 §3 一律稱「青年隊」）。
+//
+// 2026-10-02：教練名單改接 `GET /{club}/staff`（C3 教練與職員，公開端點，照片已套肖像同意
+// fail-closed）。原本寫死 3 位磐石教練（含 1 張教練照）已移除。青年隊教練＝`teamCodes` 與
+// 該俱樂部青年梯隊代碼（getAcademyTeamTabs 的有效 teamCode）有交集的人員，不依賴 `team` 單值
+// 查詢參數（同一位教練可兼任多個梯隊）。沒有任何教練資料（例：藍鯨名單未建）時顯示既有
+// 「整理中」空狀態，不沿用磐石資料頂替。
 definePageMeta({ nav: "academy", unit: "4.5" })
 
 const { lp } = useLocale()
@@ -18,7 +19,29 @@ const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => getClubIdentity(clubKey.value))
 
 // S1-12d 收尾：梯隊代碼改讀 useSiteFacts(clubKey)（後端公開端點）。
-const { academyLabel } = useSiteFacts(clubKey.value)
+const { facts, academyLabel } = useSiteFacts(clubKey.value)
+
+// ---- 教練名單（C3 教練與職員）----
+interface CoachStaff {
+  id: string
+  name: string | null
+  title: string | null
+  licence: string | null
+  photoUrl: string | null
+  teamCodes: string[]
+}
+const { locale } = useLocale()
+const { data: staffData } = await useFetch<{ items: CoachStaff[] }>(`/api/backend/${config.public.club}/staff`, {
+  query: { pageSize: 200, lang: locale.value },
+})
+const youthTeamCodes = computed(() =>
+  getAcademyTeamTabs(clubKey.value, facts.value).map((t) => t.teamCode).filter((c): c is string => c !== null),
+)
+const coaches = computed(() =>
+  (staffData.value?.items ?? []).filter((s) => s.name && s.teamCodes?.some((c) => youthTeamCodes.value.includes(c))),
+)
+/** 「證照、專長與負責梯隊」區塊：至少有一位教練填了證照或負責梯隊才顯示列表，否則維持準備中說明。 */
+const coachDetails = computed(() => coaches.value.filter((c) => c.licence || c.teamCodes?.length))
 
 useSeoMeta({
   title: computed(() => getYouthCoachesSeo(clubKey.value).title),
@@ -57,43 +80,31 @@ const hero = computed(() => getYouthCoachesHero(clubKey.value))
          zh/news/[slug]/index.vue「article-body-title」），不影響版面。 -->
     <h2 id="coaches-list-title" class="visually-hidden">教練名單</h2>
 
-    <div v-if="isTcrfc" class="grid grid--3 person-grid">
-
-      <article class="person-card clip-card clip-card--outlined">
-        <div class="person-card__photo person-card__photo--empty">
+    <div v-if="coaches.length > 0" class="grid grid--3 person-grid">
+      <article v-for="c in coaches" :key="c.id" class="person-card clip-card clip-card--outlined">
+        <div v-if="c.photoUrl" class="person-card__photo">
+          <img :src="c.photoUrl" :alt="`${c.title ?? '教練'}${c.name}`" width="800" height="800" loading="lazy">
+        </div>
+        <div v-else class="person-card__photo person-card__photo--empty">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
         </div>
         <div class="person-card__body">
-          <p class="person-card__role">青訓總監</p>
-          <h3 class="person-card__name">徐翊</h3>
+          <p class="person-card__role">{{ c.title ?? '教練團成員' }}</p>
+          <h3 class="person-card__name">{{ c.name }}</h3>
         </div>
       </article>
-
-      <article class="person-card clip-card clip-card--outlined">
-        <div class="person-card__photo">
-          <img :src="siteImg('/assets/img/academy/coach-hsu-chih-chieh.jpg')" alt="青訓教練許志傑" width="800" height="800" loading="lazy">
-        </div>
-        <div class="person-card__body">
-          <p class="person-card__role">青訓教練</p>
-          <h3 class="person-card__name">許志傑</h3>
-        </div>
-      </article>
-
-      <article class="person-card clip-card clip-card--outlined">
-        <div class="person-card__photo person-card__photo--empty">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
-        </div>
-        <div class="person-card__body">
-          <p class="person-card__role">青訓教練</p>
-          <h3 class="person-card__name">黃聖傑</h3>
-        </div>
-      </article>
-
     </div>
-    <p v-else class="section-lede is-pending">教練名單整理中，待已核實、非過期的資料到位後將公布於本頁。</p>
+    <p v-else class="section-lede is-pending">教練名單整理中，待資料到位後將公布於本頁。</p>
 
     <h2 class="section-title" style="margin-top:4rem;">證照、專長與負責梯隊</h2>
-    <p class="section-lede" style="margin-top:.5rem;">相關資料準備中，稍後將於本頁公布。</p>
+    <ul v-if="coachDetails.length > 0" class="coach-detail-list">
+      <li v-for="c in coachDetails" :key="c.id">
+        <strong>{{ c.name }}</strong>
+        <span v-if="c.licence">　證照：{{ c.licence }}</span>
+        <span v-if="c.teamCodes?.length">　負責梯隊：{{ c.teamCodes.join('、') }}</span>
+      </li>
+    </ul>
+    <p v-else class="section-lede" style="margin-top:.5rem;">相關資料準備中，稍後將於本頁公布。</p>
   </div>
 </section>
 
@@ -138,4 +149,5 @@ const hero = computed(() => getYouthCoachesHero(clubKey.value))
 .person-card__role{ font-size:.72rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand-aa); }
 .person-card__name{ font-size:1.3rem; font-weight:900; color:var(--heading); margin-top:.25rem; }
 .person-card__pending{ margin-top:1rem; font-size:.82rem; }
+.coach-detail-list{ list-style:none; margin:1rem 0 0; padding:0; display:grid; gap:.5rem; line-height:1.7; }
 </style>

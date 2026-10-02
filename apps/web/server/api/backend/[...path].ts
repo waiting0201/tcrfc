@@ -36,6 +36,14 @@ const FAQ_FEEDBACK_PATH = /^[a-z][a-z0-9-]*\/faqs\/[a-z0-9-]+\/feedback$/
 // 真實 IP（見下方 forwardedIpHeaders）。
 const PROPOSAL_DOWNLOAD_REQUEST_PATH = /^[a-z][a-z0-9-]*\/proposals\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/download-requests$/i
 
+// ── 2026-10-02 新增：05 課程線上報名（P3）──────────────────────────────────────────
+// 規劃書 §3.5「報名流程（前台）…送出 → 產生報名編號」對應 apps/api
+// `POST /api/v1/{club}/programs/sessions/{sessionId}/registrations`（Features/Programs，
+// 掛 `public-submission` 限流依 IP 分區，所以同樣要轉發訪客真實 IP）。同樣只放行這一種路徑形狀
+// （sessionId 必須是 GUID）。這支代理不轉發任何認證，所以網頁前台報名一律不歸戶（member_id 為空，
+// 主站規劃書 §3.14：網頁前台維持不做報名歸戶）。
+const PROGRAM_REGISTRATION_PATH = /^[a-z][a-z0-9-]*\/programs\/sessions\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/registrations$/i
+
 // 兩條「檔案下載」GET 路徑不能走下面 GET 分支的 `$fetch`（它會把二進位內容當 JSON／文字解析，
 // 丟掉 Content-Type／Content-Disposition，也會在伺服器端自己跟著 302 走掉）：
 //   - 提案檔：`/{club}/proposals/downloads/{token}`，API 串流 PDF／ZIP（`Cache-Control: private,
@@ -103,7 +111,7 @@ export default defineEventHandler(async (event) => {
     return await $fetch(`/api/v1/${path}`, { baseURL: backendApiBase(), method, query })
   }
 
-  if (method !== 'POST' || !(FORM_SUBMISSION_PATH.test(path) || FAQ_FEEDBACK_PATH.test(path) || PROPOSAL_DOWNLOAD_REQUEST_PATH.test(path))) {
+  if (method !== 'POST' || !(FORM_SUBMISSION_PATH.test(path) || FAQ_FEEDBACK_PATH.test(path) || PROPOSAL_DOWNLOAD_REQUEST_PATH.test(path) || PROGRAM_REGISTRATION_PATH.test(path))) {
     throw createError({ statusCode: 405, statusMessage: 'Method Not Allowed' })
   }
 
@@ -130,10 +138,33 @@ export default defineEventHandler(async (event) => {
   // header_up 會覆蓋訪客自送的同名標頭；本容器沒有對外發布 port，只有 Caddy 連得進來。
   // 轉給 apps/api 時以「單一值」的 X-Forwarded-For 送出，對應 api 端信任 web 容器、ForwardLimit=1。
   // 取不到（本機開發沒有 Caddy）時不送標頭，不刻意造假。
-  return await $fetch(`/api/v1/${path}`, {
-    baseURL: backendApiBase(),
-    method,
-    body,
-    headers: forwardedIpHeaders(event),
-  })
+  //
+  // ── 上游 4xx 的錯誤訊息要帶得回瀏覽器（2026-10-02，課程報名 P3 的驗證錯誤呈現）─────────────
+  // $fetch 對上游 4xx 丟出的 FetchError 不是 h3 的「已處理錯誤」，Nitro 正式環境會把它當未處理例外：
+  // 狀態碼保留，但 `message` 一律變成 "Server Error"、`data` 整個拿掉——瀏覽器端永遠看不到後端刻意寫給
+  // 使用者的中文訊息（例：「這個梯次的報名已經截止。」「缺少必填欄位：xxx」，useFormSubmit 的
+  // extractErrorMessage 讀的就是這個）。改成：上游 4xx → 以 createError 重丟同狀態碼，訊息放 `message`
+  // （statusMessage 只能 ASCII，不放中文）；5xx 與連不上 → 一律 502，不洩漏上游內部訊息。
+  try {
+    return await $fetch(`/api/v1/${path}`, {
+      baseURL: backendApiBase(),
+      method,
+      body,
+      headers: forwardedIpHeaders(event),
+    })
+  }
+  catch (err: unknown) {
+    const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
+    if (typeof status === 'number' && status >= 400 && status < 500) {
+      const data = (err as { data?: unknown }).data
+      let message = ''
+      if (typeof data === 'string') message = data
+      else if (data && typeof data === 'object') {
+        const d = data as { detail?: unknown, message?: unknown, title?: unknown }
+        message = [d.detail, d.message, d.title].find((v): v is string => typeof v === 'string' && v.length > 0) ?? ''
+      }
+      throw createError({ statusCode: status, statusMessage: status === 429 ? 'Too Many Requests' : undefined, message: message || undefined })
+    }
+    throw createError({ statusCode: 502, statusMessage: 'Bad Gateway' })
+  }
 })

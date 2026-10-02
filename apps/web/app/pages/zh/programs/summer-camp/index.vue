@@ -14,6 +14,9 @@
 // （值域來源同 childrens-training/index.vue 檔頭說明）。現況「早鳥價／剩餘名額／梯次」
 // 三個既有的靜態示意值（`signup-preview`）改為有真實梯次時顯示真實數字，
 // 沒有梯次（現況：`programs` 表 0 筆種子資料）時維持既有「待公告」，不臆造金額。
+// 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
+// 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
+// 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
 definePageMeta({ nav: 'programs', unit: '5.2' })
 
 const { lp, locale } = useLocale()
@@ -35,12 +38,14 @@ const { data: programDetail } = await useFetch(
   `/api/backend/${config.public.club}/programs/${firstProgram.value?.slug ?? ''}`,
   { query: { lang: locale.value }, immediate: !!firstProgram.value },
 )
-/** 只取第一個開放中（狀態為 open／waitlist）的梯次呈現早鳥價與名額——本頁是單一課程
+/** 只取第一個開放中（狀態為 開放／額滿／候補且在報名窗口內，見 utils/program-session.ts）的梯次呈現早鳥價與名額——本頁是單一課程
  * 項目的行銷頁，不是梯次列表頁，多梯次的完整選擇留給報名流程本身（10.2／5.x 報名
  * 表單，不在本輪範圍）。 */
 const openSession = computed(() =>
-  (programDetail.value?.sessions ?? []).find((s) => s.status === 'open' || s.status === 'waitlist') ?? null,
+  (programDetail.value?.sessions ?? []).find((s) => isSessionRegistrable(s)) ?? null,
 )
+
+const { programs: registrablePrograms, hasRegistrable } = await useRegistrablePrograms('summer_camp', { enabled: isTcrfc.value })
 
 // G-12 常見問題快捷區塊：program_detail 掛載點，理由同 childrens-training/index.vue。
 const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
@@ -185,6 +190,8 @@ useCourseSchema(
   </div>
 </section>
 
+<ProgramRegistration v-if="isTcrfc && hasRegistrable" :programs="registrablePrograms" />
+
 <section class="band grain cta-band" aria-labelledby="sc-cta-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">5.2</span>
   <div class="band-inner container">
@@ -197,7 +204,8 @@ useCourseSchema(
     <p v-if="isTcrfc" class="section-lede">梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。</p>
     <p v-else class="section-lede">是否推出夏令營活動將視規劃進度公布，歡迎關注「推廣活動」總覽與官方社群最新消息。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a v-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
+      <a v-if="isTcrfc && hasRegistrable" class="btn btn--primary" href="#register">線上報名</a>
+      <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
     </div>
   </div>

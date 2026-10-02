@@ -140,7 +140,7 @@ async function save() {
           </el-form-item>
           <el-form-item label="待付款保留時間（分鐘）">
             <el-input-number v-model="form.pendingTimeoutMinutes" :min="5" :max="1440" :step="5" />
-            <p class="settings__hint">超過這段時間仍未付款的訂單，可到「訂單」按「釋回逾時未付款訂單」取消並釋回庫存（目前沒有自動排程，前台結帳上線時會改為自動）。</p>
+            <p class="settings__hint">超過這段時間仍未付款的訂單，系統會定時自動取消並釋回庫存；也可以到「訂單」按「釋回逾時未付款訂單」立即處理。</p>
           </el-form-item>
         </el-card>
 

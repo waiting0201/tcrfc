@@ -2,7 +2,7 @@
 /** 捐款單六態（docs/22-charity-ui.md §1.8：一律帶文字標籤，色相只是輔助辨識） */
 import { computed } from 'vue'
 import SemanticTag from './SemanticTag.vue'
-import type { DonationStatus } from '@/types/fixtures'
+import type { DonationStatus } from '@/api/donations'
 
 const props = defineProps<{ status: DonationStatus }>()
 

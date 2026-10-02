@@ -20,6 +20,9 @@
 // 皆 0 筆種子資料（db/seed 尚未涵蓋課程模組），故本輪只做到「接了 API、目前空清單」，
 // 「週期課表」維持既有示意空表列，不臆造梯次。若之後後台真的建立本類型課程，
 // 表格會自動改顯示真實梯次（星期／時段／分級／地點），不需要再改樣板。
+// 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
+// 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
+// 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
 definePageMeta({ nav: 'programs', unit: '5.1' })
 
 const { lp, locale } = useLocale()
@@ -56,6 +59,8 @@ const sessions = computed(() => programDetail.value?.sessions ?? [])
 function formatSchedule(raw: string | null | undefined): string {
   return formatWeeklySchedule(raw, locale.value, import.meta.dev ? (m) => console.warn(`[weekly-schedule] ${m}`) : undefined) ?? '—'
 }
+
+const { programs: registrablePrograms, hasRegistrable } = await useRegistrablePrograms('children_training', { enabled: isTcrfc.value })
 
 // G-12 常見問題快捷區塊：program_detail 掛載點（db/seed FAQ_EMBED_SLOTS「課程詳情頁
 // （5.x 各課程）」），四個固定掛載點之一，理由見 useFaqEmbed.ts 檔頭。
@@ -258,6 +263,8 @@ useCourseSchema(
   </div>
 </section>
 
+<ProgramRegistration v-if="isTcrfc && hasRegistrable" :programs="registrablePrograms" />
+
 <section class="band grain cta-band" aria-labelledby="cft-cta-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">5.1</span>
   <div class="band-inner container">
@@ -270,7 +277,7 @@ useCourseSchema(
     <p v-if="isTcrfc" class="section-lede">選擇合適的分級，開始每週規律的足球訓練。站內不接受金流付款，梯次確認後將個別通知繳費方式。</p>
     <p v-else class="section-lede">免試上、免測試、免入會費，現場個人報名即可加入；報名方式與課表請洽台中藍鯨官方 LINE。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a v-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/academy/')">線上報名</a>
+      <a v-if="isTcrfc" class="btn btn--primary" :href="hasRegistrable ? '#register' : lp('/zh/join/academy/')">線上報名</a>
       <a v-else-if="identity.social.line" class="btn btn--primary" :href="identity.social.line" target="_blank" rel="noopener">洽詢官方 LINE</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
     </div>

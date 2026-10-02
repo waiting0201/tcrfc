@@ -115,7 +115,7 @@
 | `settlementStatus`（S3 分帳標記） | 「分帳標記」：待結算／已結算——**人工旗標，不是狀態流程**，系統不計算應付金額、不產生結算單 |
 | `home_delivery`／`cvs_pickup`／`onsite_pickup`（S3） | 「宅配」／「超商取貨」／「現場自取」；`linepay`／`onsite` ＝「LINE Pay」／「現場收款」 |
 | `isManual`（S3） | 「手動建單」（現場收款、賽事日擺攤、現場補登；付款方式固定現場收款、當下扣庫存） |
-| `release-expired`（S3） | 「釋回逾時未付款訂單」（取消逾期未付款的訂單並釋回保留庫存；目前沒有自動排程） |
+| `release-expired`（S3） | 「釋回逾時未付款訂單」（立即取消逾期未付款的訂單並釋回保留庫存；系統另有定時自動處理，Production 預設每 60 秒） |
 | `picking-list`／`dispatch-slips`（S4） | 「揀貨單」／「出貨單」（畫面直接列印）；`overdue`（領取）＝「逾期未領」；`arrival-notified` ＝「記錄到店通知」（只記時間，不寄通知） |
 | `refund`：`requested`／`approved`／`received`／`processing`／`refunded`／`rejected`（S5） | 「申請中」／「已核准」／「已驗收退回品」／「退款處理中」／「已退款」／「已駁回」；`needsReturn` ＝「需要退回商品」；`restock` ＝「回補庫存」；「執行退款」只有系統管理員能做 |
 | `integrationConnected`（S6 憑證） | 「尚未串接，取得商店號後啟用」——金流與電子發票畫面必須明講，不得做成看起來可以真的收款 |

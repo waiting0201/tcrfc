@@ -1,4 +1,3 @@
-academy/coach-hsu-chih-chieh.jpg
 academy/life-01.jpg
 academy/life-02.jpg
 academy/life-03.jpg
@@ -22,13 +21,6 @@ hero-01.jpg
 hero-02.jpg
 hero-03.jpg
 merch/merch-jersey-01.jpg
-merch/merch-socks-01.jpg
-merch/merch-socks-02.jpg
-merch/merch-socks-03.jpg
-merch/merch-socks-04.jpg
-merch/merch-socks-05.jpg
-merch/merch-socks-06.jpg
-merch/merch-socks-07.jpg
 nav-about.jpg
 nav-academy.jpg
 nav-club.jpg
@@ -125,10 +117,6 @@ partners-intl/partner-intl-01-hellas-verona.webp
 partners-intl/partner-intl-02-rayo-alcobendas.png
 partners-intl/partner-intl-03-rot-weiss-ahlen.webp
 player-09-liu.jpg
-player-11-yang.jpg
-player-27-shi.jpg
-player-44-yamauchi.jpg
-player-77-lin.jpg
 programs/childrens-02.jpg
 programs/childrens-03.jpg
 programs/childrens-04.jpg

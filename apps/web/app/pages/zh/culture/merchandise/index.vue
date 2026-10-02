@@ -1,22 +1,60 @@
 <script setup lang="ts">
-// app/pages/zh/culture/merchandise/index.vue — 由 site/src/pages/zh/culture/merchandise/index.html 轉來
-// 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
+// app/pages/zh/culture/merchandise/index.vue — 8.3 官方商品（櫥窗頁）
+//
+// 2026-10-02：商品卡改接站內商店 API（`GET /api/shop/products`＋`GET /api/shop/info` 的系列清單，
+// 與 /zh/shop/ 同一份資料），原本寫死的兩款磐石商品（主場球衣、機能襪，含尺碼表與價格）、
+// 「Academy／Fan Collection 開發中」兩張空卡與「前端流程骨架」旗標已移除。商品、價格、尺寸、
+// 庫存全由後台商店模組（S1）維護；某系列沒有商品就不出現，整間店沒有商品顯示空狀態。
+// 藍鯨走同一個元件，只看自己俱樂部的商品（API 依站台範圍回傳），不再有磐石專屬分支。
+import type { PagedResponse } from '#shared/utils/api-types'
+import type { ShopCollection, ShopInfo, ShopProductListItem } from '#shared/utils/shop'
+
 definePageMeta({ nav: 'culture', unit: '8.3' })
 
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
 const config = useRuntimeConfig()
 const isTcrfc = computed(() => config.public.club !== 'bw')
-// BW-C1（品牌外洩全站盤點）：本頁內容與 shop/index.vue 高度重疊（同一批商品照片），
-// 理由與作法一併比照：主場球衣是磐石真實設計（桃紅配色、贊助標誌），不得沿用充當
-// 藍鯨商品，對藍鯨隱藏；機能襪無隊徽、六色皆通用，可共用。「舊官網選購」過渡期文案
-// 保留 www.tcrfc.tw 網域字面值，已列入 check-club-brand-leak.mjs 例外清單。
+// BW-C1（品牌外洩全站盤點）：頁首大圖是磐石主場球衣實拍，藍鯨用純色佔位。「舊官網選購」過渡期
+// 文案保留 www.tcrfc.tw 網域字面值，只對磐石輸出（check-club-brand-leak.mjs 檢查藍鯨站輸出）。
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const identity = computed(() => getClubIdentity(config.public.club))
 
+// 系列清單（名稱、說明、排序）取自 `GET /api/shop/info`；只留 `collections`，其餘欄位（含 `collectingSubjectName`
+// 「款項由台中磐石足球俱樂部代收」）不進頁面 payload——藍鯨站該字串只允許出現在 /shop/ 與 /checkout/
+// （check-club-brand-leak.mjs 例外清單），本頁不得因為共用 API 回應而把它序列化進藍鯨的 HTML。
+const { data: shopCollections } = await useAsyncData(
+  `merch-collections-${config.public.club}-${locale.value}`,
+  async () => {
+    const info = await $fetch<ShopInfo | null>('/api/shop/info', { query: { lang: locale.value } }).catch(() => null)
+    return info?.collections ?? []
+  },
+  { default: () => [] as ShopCollection[] },
+)
+const { data: productList } = await useFetch<PagedResponse<ShopProductListItem> | null>('/api/shop/products', {
+  query: { pageSize: 60, lang: locale.value },
+  key: `merch-products-${config.public.club}-${locale.value}`,
+  default: () => null,
+})
+const products = computed(() => productList.value?.items ?? [])
+/** 依後台系列排序分組；沒有商品的系列不顯示；未歸入任何系列的商品放最後的「其他商品」。 */
+const groups = computed(() => {
+  const list = products.value
+  const out: { slug: string, name: string, narrative: string | null, items: ShopProductListItem[] }[] = []
+  for (const c of shopCollections.value ?? []) {
+    const items = list.filter((p) => p.collectionSlug === c.slug)
+    if (items.length) out.push({ slug: c.slug, name: c.name || c.slug, narrative: c.narrative, items })
+  }
+  const known = new Set(out.flatMap((g) => g.items.map((p) => p.slug)))
+  const rest = list.filter((p) => !known.has(p.slug))
+  if (rest.length) out.push({ slug: 'other', name: out.length ? '其他商品' : '官方商品', narrative: null, items: rest })
+  return out
+})
+const hasProducts = computed(() => products.value.length > 0)
+
 useSeoMeta({
   title: computed(() => `官方商品 Merchandise｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`),
-  description: computed(() => (isTcrfc.value
-    ? '台中磐石足球俱樂部官方商品：俱樂部、學院、球迷三大系列。線上商店建置中，屆時可直接於本站選購。'
+  description: computed(() => (hasProducts.value
+    ? `${clubAssets.value.nameZh}官方商品：依系列瀏覽，於本站官方商店選尺寸與顏色、以 LINE Pay 付款並開立電子發票。`
     : `${clubAssets.value.nameZh}官方商品。商品內容由後台提供，目前尚無可顯示的商品。`)),
 })
 </script>
@@ -38,86 +76,46 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">8.3 Merchandise</p>
     <h1>官方商品<span class="en">Merchandise</span></h1>
-    <p v-if="isTcrfc" class="page-hero__lede">俱樂部、學院、球迷三大系列的官方商品。要選購請前往<a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
+    <p v-if="hasProducts" class="page-hero__lede">官方商品依系列瀏覽。要選購請前往<a :href="lp('/zh/shop/')" style="color:inherit;text-decoration:underline">官方商店</a>：選尺寸與顏色、加入購物車，以 LINE Pay 付款並開立電子發票。</p>
     <p v-else class="page-hero__lede">{{ clubAssets.shortNameZh }}官方商品資料由後台提供，目前尚無可顯示的內容。</p>
   </div>
 </section>
 
-<!-- SPEC 3.8 §8.3 — Club Collection 俱樂部商品（真實商品）——藍鯨無對應真實球衣照片，本區塊只對 tcrfc 顯示。 -->
-<section v-if="isTcrfc" class="band grain" id="club-collection" aria-labelledby="club-collection-title">
+<!-- SPEC 3.8 §8.3 — 依系列呈現官方商品（資料：站內商店 API）；沒有商品顯示空狀態 -->
+<section v-for="g in groups" :id="`collection-${g.slug}`" :key="g.slug" class="band" :aria-labelledby="`collection-${g.slug}-title`">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker kicker--on-dark">CLUB COLLECTION</p>
-        <h2 class="section-title" id="club-collection-title" style="color:#fff">俱樂部商品</h2>
+        <p class="kicker">COLLECTION</p>
+        <h2 :id="`collection-${g.slug}-title`" class="section-title">{{ g.name }}</h2>
       </div>
-      <p class="section-lede">主場球衣與訓練配件，桃紅戰袍是每一位台中磐石球迷的基本配備。</p>
+      <p v-if="g.narrative" class="section-lede">{{ g.narrative }}</p>
     </div>
-
-    <div class="grid grid--2">
-      <article class="merch-card">
-        <div class="merch-card__media">
-          <img :src="siteImg('/assets/img/merch/merch-jersey-01.jpg')" alt="台中磐石主場球衣 2026 賽季，球員身著桃紅色球衣、藍色滾邊，胸口印有 Joma、TCRFC 隊徽與贊助商標誌" loading="lazy" width="1600" height="1067">
-        </div>
-        <div class="merch-card__body">
-          <p class="merch-card__name">台中磐石主場球衣｜2026 賽季</p>
-          <p class="merch-card__price">價格以商店頁面為準</p>
-          <div class="table-scroll" style="margin-top:1rem">
-            <table class="size-table">
-              <caption class="visually-hidden">男裝上衣尺碼表（單位：公分）</caption>
-              <thead>
-                <tr><th scope="col">尺碼</th><th scope="col">衣長</th><th scope="col">胸圍</th><th scope="col">擺圍</th><th scope="col">袖長</th><th scope="col">袖口圍 1/2</th></tr>
-              </thead>
-              <tbody>
-                <tr><th scope="row">S</th><td>68</td><td>98</td><td>96</td><td>42</td><td>15.3</td></tr>
-                <tr><th scope="row">M</th><td>70</td><td>102</td><td>100</td><td>43.5</td><td>15.9</td></tr>
-                <tr><th scope="row">L</th><td>72</td><td>106</td><td>104</td><td>45</td><td>16.5</td></tr>
-                <tr><th scope="row">XL</th><td>74</td><td>110</td><td>108</td><td>46.5</td><td>17.1</td></tr>
-                <tr><th scope="row">2XL</th><td>76</td><td>114</td><td>112</td><td>48</td><td>17.7</td></tr>
-                <tr><th scope="row">3XL</th><td>78</td><td>118</td><td>116</td><td>49.5</td><td>18.3</td></tr>
-              </tbody>
-            </table>
+    <div class="product-grid">
+      <article v-for="p in g.items" :key="p.slug" class="product-card">
+        <a class="product-card__media" :href="lp(`/zh/shop/${p.slug}/`)" :aria-label="p.name || p.slug">
+          <span v-if="p.stockStatus === 'sold_out'" class="product-card__flag product-card__flag--muted">缺貨</span>
+          <span v-else-if="p.onSale" class="product-card__flag">優惠</span>
+          <span v-else-if="p.isNewArrival" class="product-card__flag">新上市</span>
+          <img v-if="p.imageThumbUrl || p.imageUrl" :src="(p.imageThumbUrl || p.imageUrl) ?? ''" :alt="p.name || ''" loading="lazy" width="640" height="640">
+        </a>
+        <div class="product-card__body">
+          <p class="product-card__name"><a :href="lp(`/zh/shop/${p.slug}/`)">{{ p.name || p.slug }}</a></p>
+          <div class="product-card__foot">
+            <template v-if="p.priceMin !== null">
+              <span :class="['price', { 'price--sale': p.onSale }]">{{ formatPriceRange(p.priceMin, p.priceMax) }}</span>
+              <span v-if="p.onSale && p.listPriceMin" class="price__was">{{ formatPrice(p.listPriceMin) }}</span>
+            </template>
+            <span v-else class="price__was">暫無販售</span>
           </div>
-          <p class="merch-card__fine">尺寸單位公分，因量測方式不同存在 1–3 公分誤差，屬合理範圍。</p>
-          <a class="btn btn--primary btn--block" :href="lp('/zh/shop/home-jersey-2026/')">選購 NT$1,200</a>
-        </div>
-      </article>
-
-      <article class="merch-card">
-        <div class="merch-card__media">
-          <ClubImg :src="siteImg('/assets/img/merch/merch-socks-01.jpg')" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" loading="lazy" width="1600" height="1600" />
-        </div>
-        <div class="merch-card__body">
-          <p class="merch-card__name">厚底緩震機能襪</p>
-          <p class="merch-card__price">價格以商店頁面為準</p>
-          <ul class="swatch-row" aria-label="可選顏色">
-            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-02.jpg')" alt="向日黃" loading="lazy" width="200" height="200" /><span>向日黃</span></li>
-            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-03.jpg')" alt="經典紅" loading="lazy" width="200" height="200" /><span>經典紅</span></li>
-            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-04.jpg')" alt="櫻桃紅" loading="lazy" width="200" height="200" /><span>櫻桃紅</span></li>
-            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-05.jpg')" alt="海軍藍" loading="lazy" width="200" height="200" /><span>海軍藍</span></li>
-            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-06.jpg')" alt="極簡黑" loading="lazy" width="200" height="200" /><span>極簡黑</span></li>
-            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-07.jpg')" alt="純淨白" loading="lazy" width="200" height="200" /><span>純淨白</span></li>
-          </ul>
-          <div class="table-scroll" style="margin-top:1rem">
-            <table class="size-table">
-              <caption class="visually-hidden">襪子尺碼表</caption>
-              <thead><tr><th scope="col">尺碼</th><th scope="col">腳長</th><th scope="col">筒長</th></tr></thead>
-              <tbody>
-                <tr><th scope="row">M</th><td>20–21 cm</td><td>15 cm</td></tr>
-                <tr><th scope="row">L</th><td>23–24 cm</td><td>17 cm</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <a class="btn btn--primary btn--block" :href="lp('/zh/shop/cushioned-socks/')">選購 NT$120</a>
+          <a class="btn btn--primary btn--sm btn--block" :href="lp(`/zh/shop/${p.slug}/`)" style="margin-top:1rem">{{ p.stockStatus === 'sold_out' ? '查看商品' : '選購' }}</a>
         </div>
       </article>
     </div>
   </div>
 </section>
 
-<!-- bw：商品資料由後台商店模組（S1）維護，後台尚未開發、目前沒有已核實的藍鯨商品，
-     依藍鯨規劃書 §2.1（行 136）「有內容就顯示，沒有就顯示空狀態」，不放磐石商品。 -->
-<section v-else id="club-collection" class="band" aria-labelledby="club-collection-title">
+<section v-if="!hasProducts" id="club-collection" class="band" aria-labelledby="club-collection-title">
   <div class="container">
     <div class="eyebrow-row">
       <div>
@@ -129,29 +127,7 @@ useSeoMeta({
   </div>
 </section>
 
-<!-- SPEC 3.8 §8.3 — Academy / Fan Collection（尚無商品） -->
-<section v-if="isTcrfc" id="other-collections" class="band" aria-labelledby="other-collections-title">
-  <div class="container">
-    <div class="eyebrow-row">
-      <div>
-        <p class="kicker">MORE COLLECTIONS</p>
-        <h2 class="section-title" id="other-collections-title">{{ identity.academyShortLabelZh }}商品／球迷商品</h2>
-      </div>
-    </div>
-    <div class="grid grid--2">
-      <div class="merch-card merch-card--empty">
-        <p class="merch-card__name">Academy Collection {{ identity.academyShortLabelZh }}商品</p>
-        <p class="pending-inline">商品開發中，敬請期待。</p>
-      </div>
-      <div class="merch-card merch-card--empty">
-        <p class="merch-card__name">Fan Collection 球迷商品</p>
-        <p class="pending-inline">商品開發中，敬請期待。</p>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section v-if="isTcrfc" class="band grain grain--2 store-band" aria-labelledby="store-cta-title">
+<section v-if="hasProducts" class="band grain grain--2 store-band" aria-labelledby="store-cta-title">
   <div class="band-inner container">
     <div class="store-band__grid" style="grid-template-columns:1fr">
       <div>
@@ -159,8 +135,7 @@ useSeoMeta({
         <h2 class="section-title" id="store-cta-title">前往官方商店</h2>
         <p>選尺寸與顏色、加入購物車，以 <strong>LINE Pay</strong> 付款並自動開立<strong>電子發票</strong>，可宅配、超商取貨或現場自取；訂單於會員中心查詢，未註冊者以訂單編號與 Email 查詢。</p>
         <p style="margin:1.25rem 0"><a class="btn btn--primary" :href="lp('/zh/shop/')">前往官方商店</a></p>
-        <p><span class="mock-flag mock-flag--on-dark">商店為前端流程骨架，尚未串接金流與後端</span></p>
-        <p class="store-band__fine">正式上線前，仍可透過舊官網 <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a> 的商店選購；站內商店上線後舊商店將停售。</p>
+        <p v-if="isTcrfc" class="store-band__fine">正式上線前，仍可透過舊官網 <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a> 的商店選購；站內商店上線後舊商店將停售。</p>
       </div>
     </div>
   </div>
@@ -170,28 +145,4 @@ useSeoMeta({
 <style>
 .is-pending{ color:var(--muted); font-style:italic; }
 .page-hero__bg--pending{ background:linear-gradient(160deg, var(--ink) 0%, var(--brand-deep) 100%); }
-
-/* 商品卡（merch-card）：建議收進共用 CSS */
-.merch-card{ background:var(--paper); border:1px solid var(--rule); display:flex; flex-direction:column; }
-.merch-card__media{ aspect-ratio:3/2; overflow:hidden; background:var(--paper-2); }
-.merch-card__media img{ width:100%; height:100%; object-fit:cover; }
-.merch-card__body{ padding:1.5rem 1.5rem 1.75rem; display:flex; flex-direction:column; gap:.4rem; }
-.merch-card__name{ font-size:1.1rem; font-weight:800; color:var(--heading); }
-.merch-card__price{ font-size:.82rem; color:var(--muted); }
-.merch-card__fine{ font-size:.74rem; color:var(--muted); margin-top:.5rem; }
-.merch-card__body .btn{ margin-top:1.25rem; }
-.merch-card--empty{ align-items:flex-start; gap:.85rem; padding:1.75rem; }
-
-/* 顏色色票列 */
-.swatch-row{ display:flex; flex-wrap:wrap; gap:.75rem; list-style:none; margin:.75rem 0 0; padding:0; }
-.swatch-row li{ display:flex; flex-direction:column; align-items:center; gap:.35rem; width:64px; }
-.swatch-row img{ width:56px; height:56px; object-fit:cover; border:1px solid var(--rule); }
-.swatch-row span{ font-size:.68rem; color:var(--muted); text-align:center; line-height:1.3; }
-
-/* 尺碼表 */
-.table-scroll{ overflow-x:auto; }
-.size-table{ width:100%; min-width:420px; border-collapse:collapse; font-size:.82rem; }
-.size-table th, .size-table td{ padding:.55rem .75rem; border:1px solid var(--rule); text-align:center; }
-.size-table thead th{ background:var(--paper-2); font-weight:800; color:var(--heading); }
-.size-table th[scope="row"]{ font-weight:800; background:var(--paper-2); }
 </style>

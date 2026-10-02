@@ -11,6 +11,9 @@
 // 本輪新增：讀真實 05 課程與活動公開 API 查詢 `program_type='winter_camp'`（同
 // summer-camp/index.vue 既有做法）。現況 `programs` 表 0 筆種子資料，故本輪只做到
 // 「接了 API、目前空清單」，既有「待公告」占位文字維持不變。
+// 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
+// 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
+// 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
 definePageMeta({ nav: 'programs', unit: '5.3' })
 
 const { lp, locale } = useLocale()
@@ -33,8 +36,10 @@ const { data: programDetail } = await useFetch(
   { query: { lang: locale.value }, immediate: !!firstProgram.value },
 )
 const openSession = computed(() =>
-  (programDetail.value?.sessions ?? []).find((s) => s.status === 'open' || s.status === 'waitlist') ?? null,
+  (programDetail.value?.sessions ?? []).find((s) => isSessionRegistrable(s)) ?? null,
 )
+
+const { programs: registrablePrograms, hasRegistrable } = await useRegistrablePrograms('winter_camp', { enabled: isTcrfc.value })
 
 // G-12 常見問題快捷區塊：program_detail 掛載點，理由同 childrens-training/index.vue。
 const { faqs } = useFaqEmbed(config.public.club, 'program_detail', locale.value)
@@ -140,6 +145,8 @@ useCourseSchema(
   </div>
 </section>
 
+<ProgramRegistration v-if="isTcrfc && hasRegistrable" :programs="registrablePrograms" />
+
 <section class="band grain cta-band" aria-labelledby="wc-cta-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">5.3</span>
   <div class="band-inner container">
@@ -151,7 +158,8 @@ useCourseSchema(
     </div>
     <p class="section-lede">梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a v-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
+      <a v-if="isTcrfc && hasRegistrable" class="btn btn--primary" href="#register">線上報名</a>
+      <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
     </div>
   </div>

@@ -3,7 +3,7 @@
  * 訂單（對應前台會員中心的「我的訂單」）。訂單狀態：待付款 → 已付款 → 備貨中 → 已出貨 → 已完成，
  * 另有已取消、退貨處理中、已退款。收件人視同會員個資：沒有「檢視完整個資」權限時一律遮罩，
  * 且關鍵字只比對訂單編號。藍鯨的訂單由磐石代收，只在藍鯨站台看得到。
- * 🔴 前台結帳與金流尚未上線：目前訂單只能由後台「現場收款」手動建立（賽事日擺攤、現場補登）。
+ * 🔴 前台結帳流程已完成，但正式線上付款待取得 LINE Pay 商店號：在那之前訂單只能由後台「現場收款」手動建立（賽事日擺攤、現場補登）。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -201,7 +201,7 @@ const go = (row: OrderListItemDto) => router.push(`/shop/orders/${row.id}`)
       <template #meta><FrontendUnitBanner module-code="S3" /></template>
     </PageHeader>
 
-    <el-alert class="orders__block" type="info" show-icon :closable="false" title="金流與電子發票尚未串接（取得商店號後啟用），前台結帳也尚未上線。目前訂單只能由後台「手動建單」以現場收款建立。" />
+    <el-alert class="orders__block" type="info" show-icon :closable="false" title="前台結帳流程已完成，但正式線上付款與電子發票要等取得商店號後才會啟用，所以目前訂單只能由後台「手動建單」以現場收款建立。" />
 
     <el-card shadow="never" class="orders__block">
       <div class="orders__row">
