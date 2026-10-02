@@ -13,6 +13,7 @@
     <!-- apps/api/Dockerfile 的 ENTRYPOINT 寫死 Tcrfc.Api.dll，元件名稱不得改動。 -->
     <AssemblyName>Tcrfc.Api</AssemblyName>
     <RootNamespace>Tcrfc.Api</RootNamespace>
+    <OpenApiGenerateDocuments Condition="'$(OpenApiGenerateDocuments)' == ''">false</OpenApiGenerateDocuments>
     <UserSecretsId>3f8c9a9a-3f2c-4b1a-9e1a-tcrfc-api-dev</UserSecretsId>
   </PropertyGroup>
 
@@ -22,6 +23,12 @@
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="7.1.0" />
+    <!-- AP-8（docs/19 §2）：建置期產生 OpenAPI 文件，不啟動 Kestrel、不連資料庫。只在 -p:OpenApiGenerateDocuments=true
+         時才產生（shared/scripts/gen-openapi.sh）；一般建置與 Docker 建置維持 false。PrivateAssets=all，不進執行期。 -->
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.12">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
     <PackageReference Include="StackExchange.Redis" Version="3.3.0" />
     <!-- 寫入端一次性 handoff（docs/20-cicd.md §5）：唯讀查詢仍走 Dapper，不受此影響。
          Design 套件只在建置期（scaffold／migrations）用得到，執行期不需要，故 PrivateAssets="all"

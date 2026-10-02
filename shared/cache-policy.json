@@ -1,0 +1,160 @@
+{
+  "$comment": "App 離線與快取時效表（手寫）。來源：App 規劃書 §2.4（時效表與兩條硬規則）、docs/19 §3／§4／§6.4／§7。兩端由本檔產生常數，不得各自寫死 TTL。要改時效先改規劃書 §2.4（同步鏈）再改本檔；本檔不得放規格以外的新時效。",
+  "version": 1,
+  "strategies": {
+    "refresh_on_launch": "啟動時嘗試更新；失敗則沿用本機值",
+    "pull_to_refresh": "使用者下拉更新",
+    "on_open": "開啟過才快取",
+    "after_login": "登入後立即快取，之後每次啟動嘗試更新",
+    "local_only_sync_on_login": "本機儲存，登入後與帳號同步",
+    "every_screen_entry": "每次進入畫面都向伺服器更新",
+    "prefetch_schedule": "預先下載當日檔期素材",
+    "never": "不快取"
+  },
+  "entries": [
+    {
+      "key": "member_card",
+      "label": "電子會員卡",
+      "strategy": "after_login",
+      "ttlSec": null,
+      "retention": "permanent",
+      "offline": true,
+      "cacheMetaKey": false,
+      "notes": "永久保留並標示同步時間；每份會籍一張卡各自有 last_verified_at（docs/19 §4）。token 不得進 SQLite（存安全儲存區）。"
+    },
+    {
+      "key": "matches",
+      "label": "賽程與賽果",
+      "strategy": "refresh_on_launch",
+      "ttlSec": 21600,
+      "retention": "ttl",
+      "offline": true,
+      "cacheMetaKey": true,
+      "notes": "啟動時更新整季；6 小時。"
+    },
+    {
+      "key": "news_list",
+      "label": "新聞列表",
+      "strategy": "pull_to_refresh",
+      "ttlSec": 1800,
+      "retention": "ttl",
+      "offline": true,
+      "cacheMetaKey": true,
+      "notes": "下拉更新；30 分鐘。"
+    },
+    {
+      "key": "news_detail",
+      "label": "新聞內文",
+      "strategy": "on_open",
+      "ttlSec": 2592000,
+      "retention": "ttl",
+      "offline": true,
+      "cacheMetaKey": true,
+      "notes": "開啟過即快取；30 天。"
+    },
+    {
+      "key": "partner_stores",
+      "label": "特約店家",
+      "strategy": "refresh_on_launch",
+      "ttlSec": 86400,
+      "retention": "ttl",
+      "offline": true,
+      "cacheMetaKey": true,
+      "notes": "啟動時更新；24 小時；離線可看店家資料但不含即時距離（座標只在記憶體，docs/19 §7）。"
+    },
+    {
+      "key": "teams_players",
+      "label": "球員與球隊",
+      "strategy": "refresh_on_launch",
+      "ttlSec": 86400,
+      "retention": "ttl",
+      "offline": true,
+      "cacheMetaKey": true,
+      "notes": "規劃書 §2.4 同一列「球員與球隊」；24 小時。"
+    },
+    {
+      "key": "follow_preferences",
+      "label": "追蹤偏好",
+      "strategy": "local_only_sync_on_login",
+      "ttlSec": null,
+      "retention": "permanent",
+      "offline": true,
+      "cacheMetaKey": false,
+      "notes": "本機儲存，登入後與帳號同步。"
+    },
+    {
+      "key": "membership_status",
+      "label": "會籍狀態與抽獎資格",
+      "strategy": "every_screen_entry",
+      "ttlSec": 0,
+      "retention": "none",
+      "offline": false,
+      "cacheMetaKey": false,
+      "notes": "🔴 不快取顯示為「有效」：不得以快取值宣告有效（規劃書 §2.4 硬規則 2、docs/17 §4『不得讀快取』）。"
+    },
+    {
+      "key": "ad_creatives",
+      "label": "廣告素材",
+      "strategy": "prefetch_schedule",
+      "ttlSec": null,
+      "retention": "until_schedule_end",
+      "offline": false,
+      "cacheMetaKey": false,
+      "notes": "預先下載當日檔期素材，檔期結束即清除；離線不計曝光（規劃書 §2.4 硬規則 1）。"
+    },
+    {
+      "key": "program_sessions",
+      "label": "課程梯次與名額",
+      "strategy": "never",
+      "ttlSec": 0,
+      "retention": "none",
+      "offline": false,
+      "cacheMetaKey": false,
+      "notes": "不快取（即時名額）。"
+    }
+  ],
+  "memberCard": {
+    "$comment": "規劃書 §2.4 硬規則 2、§3.6；實作位置見 docs/19 §4。",
+    "staleReminderDays": 7,
+    "lastSyncDisplayFormat": "YYYY-MM-DD HH:mm",
+    "staleDaysRule": "顯示天數取『牆鐘差』與『單調時鐘差』較大者",
+    "forbidden": [
+      "不得因逾期未同步而停用卡片或隱藏 QR",
+      "不得把『有效』渲染成即時保證；狀態與同步時間必須並陳"
+    ]
+  },
+  "appConfig": {
+    "$comment": "設定下發三層來源（docs/19 §7）。邊緣快取指令屬於 docs/19 §7 的執行層決定。",
+    "layers": ["cloudflare_static_json", "api_v1_app_config", "local_last_good"],
+    "edgeCacheControl": "max-age=60, stale-while-revalidate=60, stale-if-error=86400",
+    "recommendedUpdateReminderDays": 7
+  },
+  "adEventQueue": {
+    "$comment": "docs/19 §6.4；伺服器 24 小時就會拒收（規劃書 §2.4 硬規則 1、§7.5），本機留 48 小時只為診斷。",
+    "flushIntervalSec": 30,
+    "flushBatchSize": 50,
+    "maxBatchSize": 200,
+    "inflightTimeoutSec": 60,
+    "maxQueueLength": 2000,
+    "maxQueueAgeHours": 48,
+    "serverRejectOlderThanHours": 24,
+    "overflowPolicy": "FIFO 丟棄並記丟棄計數（走 M5 診斷回報）"
+  },
+  "images": {
+    "$comment": "docs/19 §3；規劃書 v3.9 縮圖規格。",
+    "listWidth": 320,
+    "detailWidths": [640, 1280],
+    "neverRequestOriginal": true,
+    "diskCacheLimitMbPerPlatform": 150,
+    "evictionPolicy": "LRU"
+  },
+  "network": {
+    "$comment": "docs/19 §3。",
+    "connectTimeoutSec": 10,
+    "readTimeoutSec": 20,
+    "retryBackoffSec": [1, 2, 4],
+    "retryJitter": true,
+    "maxRetries": 3,
+    "conditionalRequests": "列表端點一律送 If-None-Match；304 不換資料只更新 fetched_at"
+  }
+}

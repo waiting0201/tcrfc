@@ -1,0 +1,113 @@
+{
+  "$comment": "深連結與官網回退網址對照表（手寫）。來源：App 規劃書 §2.3 的 8 列對照表，一字不增。兩端據此產生路由表；universalLinkPaths 供 AP-9 產出 apple-app-site-association／assetlinks（Team ID 與 package name 填入後才能產，不在本檔）。要新增或改路由先改規劃書 §2.3（同步鏈）。",
+  "version": 1,
+  "scheme": "tcrfc",
+  "schemeNote": "scheme 維持 tcrfc://，不隨 App 名稱改為中性（規劃書 §2.3）。",
+  "domains": {
+    "club": "tcrfc.tw",
+    "blueWhale": null,
+    "blueWhaleNote": "【待決】藍鯨官網獨立網域與 DNS 控制權未定（STATUS B-4）；未解則藍鯨內容的 Universal Link 不得上線，退回自訂 scheme ＋ 網頁回退（規劃書 §2.3）。兩個網域的 Team ID 與 package name 相同。"
+  },
+  "routes": [
+    {
+      "id": "schedule",
+      "screen": "賽程（指定球隊）",
+      "deepLinks": ["tcrfc://schedule/d1", "tcrfc://schedule/bw1"],
+      "pattern": "tcrfc://schedule/{team}",
+      "params": { "team": { "enum": ["d1", "bw1"], "note": "隊別代號全站唯一（docs/14）；BW1 不是第二個 D1" } },
+      "webPath": "/zh/schedule/{team}/",
+      "webFallbackByParam": { "d1": "/zh/schedule/d1/", "bw1": null },
+      "webFallbackNote": "【待決】規劃書原文寫『藍鯨：官網尚無對應頁』；v2.0 之後藍鯨官網已決定建置（§2.3 註記），但藍鯨站的賽程網址未定。"
+    },
+    {
+      "id": "match",
+      "screen": "賽事詳情",
+      "deepLinks": ["tcrfc://match/{id}"],
+      "pattern": "tcrfc://match/{id}",
+      "params": { "id": { "type": "string" } },
+      "webPath": "/zh/schedule/{slug}"
+    },
+    {
+      "id": "news",
+      "screen": "新聞內文",
+      "deepLinks": ["tcrfc://news/{slug}"],
+      "pattern": "tcrfc://news/{slug}",
+      "params": { "slug": { "type": "string" } },
+      "webPath": "/zh/news/{slug}"
+    },
+    {
+      "id": "player",
+      "screen": "球員詳情",
+      "deepLinks": ["tcrfc://player/{slug}"],
+      "pattern": "tcrfc://player/{slug}",
+      "params": { "slug": { "type": "string" } },
+      "webPath": "/zh/club/first-team/player/{slug}"
+    },
+    {
+      "id": "store",
+      "screen": "特約店家詳情",
+      "deepLinks": ["tcrfc://store/{id}"],
+      "pattern": "tcrfc://store/{id}",
+      "params": { "id": { "type": "string" } },
+      "webPath": "/zh/perks/{slug}"
+    },
+    {
+      "id": "program",
+      "screen": "課程詳情",
+      "deepLinks": ["tcrfc://program/{slug}"],
+      "pattern": "tcrfc://program/{slug}",
+      "params": { "slug": { "type": "string" } },
+      "webPath": "/zh/programs/{slug}"
+    },
+    {
+      "id": "membercard",
+      "screen": "會員卡",
+      "deepLinks": ["tcrfc://membercard"],
+      "pattern": "tcrfc://membercard",
+      "params": {},
+      "webPath": null,
+      "webFallbackNote": "無對應公開頁（規劃書 §2.3）。"
+    },
+    {
+      "id": "upgrade",
+      "screen": "會籍升級",
+      "deepLinks": ["tcrfc://upgrade"],
+      "pattern": "tcrfc://upgrade",
+      "params": {},
+      "webPath": "/zh/member/upgrade/"
+    }
+  ],
+  "universalLinkPaths": [
+    "/zh/schedule/*",
+    "/zh/news/*",
+    "/zh/club/first-team/player/*",
+    "/zh/perks/*",
+    "/zh/programs/*",
+    "/zh/member/upgrade/"
+  ],
+  "universalLinkNotes": [
+    "universalLinkPaths 由 routes[].webPath 把 {參數} 換成 * 並排除 null 而來（check-shared.py 會驗證兩者一致）。",
+    "【待決】英文路徑（/en/...）的對應：規劃書 §2.3 對照表只列 /zh/，英文網址的路徑規則以主站規劃書的 URL 規則為準，確認後在此加入 /en/ 前綴的對應。",
+    "AASA 要同時列 dev 與 prod 兩個 appID（docs/19 §9）；assetlinks.json 沒有 paths，路徑限定寫在 Android 的 intent-filter。",
+    "部署 .well-known 的網域必須是最終正式網域（STATUS AP-9、docs/17 §10.3）。"
+  ],
+  "parseCases": [
+    { "input": "tcrfc://schedule/d1", "expect": { "route": "schedule", "params": { "team": "d1" } } },
+    { "input": "tcrfc://schedule/bw1", "expect": { "route": "schedule", "params": { "team": "bw1" } } },
+    { "input": "tcrfc://match/123", "expect": { "route": "match", "params": { "id": "123" } } },
+    { "input": "tcrfc://news/opening-day", "expect": { "route": "news", "params": { "slug": "opening-day" } } },
+    { "input": "tcrfc://player/chen-xiao-ming", "expect": { "route": "player", "params": { "slug": "chen-xiao-ming" } } },
+    { "input": "tcrfc://store/7", "expect": { "route": "store", "params": { "id": "7" } } },
+    { "input": "tcrfc://program/summer-camp", "expect": { "route": "program", "params": { "slug": "summer-camp" } } },
+    { "input": "tcrfc://membercard", "expect": { "route": "membercard", "params": {} } },
+    { "input": "tcrfc://upgrade", "expect": { "route": "upgrade", "params": {} } },
+    { "input": "https://tcrfc.tw/zh/schedule/d1/", "expect": { "route": "schedule", "params": { "team": "d1" } } },
+    { "input": "https://tcrfc.tw/zh/news/opening-day", "expect": { "route": "news", "params": { "slug": "opening-day" } } },
+    { "input": "https://tcrfc.tw/zh/club/first-team/player/chen-xiao-ming", "expect": { "route": "player", "params": { "slug": "chen-xiao-ming" } } },
+    { "input": "https://tcrfc.tw/zh/member/upgrade/", "expect": { "route": "upgrade", "params": {} } }
+  ],
+  "parseCaseNotes": [
+    "parseCases 只涵蓋規劃書 §2.3 明列的對應；未列出的輸入（未知路徑、缺參數、大小寫）如何處理【待決】，規劃書只規定『未安裝 App 的裝置一律回退至對應官網網址，不得顯示錯誤頁』。",
+    "https://tcrfc.tw/zh/schedule/d1/ 與 /zh/schedule/{slug}（賽事詳情）的路徑前綴相同：『schedule 之後是球隊代號』或『賽事 slug』如何區分【待決】——本檔的 https 案例只涵蓋 d1。"
+  ]
+}
