@@ -136,6 +136,7 @@
 | E-121 | 2026-10-02 | AP-3 的 `AppDeviceSessionTests` 在沒有資料庫的工作樹寫完、只確認「編譯通過」就交付；合併後實跑，「登出全部與變更密碼」一支穩定 401——測試先重放舊權杖觸發了重用偵測（程式正確，測試順序錯） | 「編譯通過」被當成「測試寫對了」 | 依賴資料庫的新測試沒實跑過，一律在回報標「未執行」，合併後由主 session 在有庫的環境補跑才算完成；工作樹缺 `appsettings.Development.json` 是根源 | 無 |
 | E-122 | 2026-10-02 | 慈善後台報表的趨勢條寫了 `var(--charity-info)`，但實際定義的變數只有 `--charity-info-text`／`-bg`（`--charity-info` 只出現在 `docs/22` §5 的速查表）；樣式表引用不存在的變數不會報錯，背景變透明，趨勢欄整欄看起來是空的，`vue-tsc`、eslint、`vite build`、禁用詞、對比度檢查全綠，是看截圖才發現 | ✅ `apps/admin-charity/scripts/check-css-vars.mjs`（掛進 `npm run lint`） |
 | E-123 | 2026-10-02 | 用 Python 讀寫 `Program.cs` 時沒保留換行，把混有 CRLF 的檔案整段正規化成 LF，一個 13 行的改動變成 47 行 diff，連沒碰的行都變了 | 無（`git diff --stat` 肉眼檢查抓到） |
+| E-124 | 2026-10-02 | 合併含新 migration（`AlignSchemaG1`、慈善 `AddCreditHiddenAndSettlementLineKey`／`AddCh4Ch5Permissions`）的程式後直接 push master，`deploy.yml` 換上新版 api，正式庫尚未跑 `db-migrate.yml`，測試站新聞 API 回 500 | push 前沒檢查「這批有沒有新 migration」 | push 前 `git diff Remote_GitHub/master --stat -- apps/api/Data/Migrations` 有輸出就先跑 `db-migrate.yml` | 無 |
 
 ---
 
@@ -2440,3 +2441,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：腳本改檔時沒先 `git diff --stat` 驗證改動規模、也沒用 `newline=''` 讀寫；「檔案可能混有 CRLF」是已知陷阱（EF scaffold 檔同類），卻沒有當成改任何既有檔前的固定動作。
 - **下次怎麼避免**：腳本改既有檔一律 `open(p, encoding='utf-8', newline='')` 讀寫，新插入文字沿用該區塊原有的換行；改完立刻 `git diff --stat` 比對行數是否與預期相符。
 - **防呆**：無。
+
+### E-124 有新 migration 卻先 push 部署，正式 api 讀不到新欄位（2026-10-02，主 session）
+- **錯在哪**：本批合併了主站 `AlignSchemaG1`（`articles.cover_width`／`cover_height`、`articles_i18n.cover_alt`）與慈善兩支 migration，使用者說 push 後直接推上 master；`deploy.yml` 只換映像檔、不跑 migration（docs/20 §5 刻意脫鉤），新版 api 查文章時讀不存在的欄位，`/api/v1/tcrfc/news` 回 500。
+- **根因（可改掉的行為）**：把「使用者核准 push」當成「可以部署」，沒有在 push 前檢查這批是否含 migration、也沒有提醒 docs/20 §5 的順序（先 `db-migrate.yml` 再 deploy）。
+- **下次怎麼避免**：push master 前一律跑 `git diff Remote_GitHub/master --stat -- apps/api/Data/Migrations apps/api/CharityPlatform/Data/Migrations`；有輸出就先向使用者說明並走 `db-migrate.yml`，套用後再 push。
+- **防呆**：無。可考慮在 `deploy.yml` 加一步：比對映像內 migration 清單與正式庫 `__EFMigrationsHistory`，有未套用的就中止部署。
+
