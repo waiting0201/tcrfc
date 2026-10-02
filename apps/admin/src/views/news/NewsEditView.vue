@@ -66,6 +66,9 @@ function emptyArticle(): NewsArticle {
     category: 'club',
     coverImageUrl: null,
     coverKey: null,
+    coverWidth: null,
+    coverHeight: null,
+    coverAlt: { zh: '', en: '' },
     isFeatured: false,
     status: 'draft',
     isSharedContent: false,
@@ -309,6 +312,13 @@ const isDirty = computed(() =>
 )
 useUnsavedChanges(isDirty)
 
+/** 有封面（已存或剛選了新圖）卻沒有中文圖片說明：只提示，不擋存檔（S0-7h，規劃書未要求必填）。 */
+const coverAltZhMissing = computed(() =>
+  !removeCover.value
+  && (!!form.coverKey || coverFile.value !== null)
+  && !form.coverAlt.zh.trim(),
+)
+
 const pageTitle = computed(() => (isCreate.value ? '新增文章' : '編輯文章'))
 // apps/api 的 /publish 同時接受 draft／scheduled 兩種起始狀態（見 apps/api/README.md「狀態轉換規則」），
 // 所以草稿與排程中都應該能直接按「發布」立刻生效（排程中的文章常見的操作就是「其實想現在就發」）。
@@ -327,6 +337,7 @@ function isEnEmpty(article: NewsArticle): boolean {
     && !article.seoDescription.en.trim()
     && !article.seoKeywords.en.trim()
     && !article.ogImageAlt.en.trim()
+    && !article.coverAlt.en.trim()
   )
 }
 
@@ -643,6 +654,24 @@ function retryLoad() {
               :disabled="saving"
             />
           </el-form-item>
+          <p v-if="form.coverKey && form.coverWidth && form.coverHeight" class="news-edit__hint">
+            目前封面尺寸：{{ form.coverWidth }} × {{ form.coverHeight }} 像素
+          </p>
+          <BilingualShortField
+            label="圖片說明"
+            :zh="form.coverAlt.zh"
+            :en="form.coverAlt.en"
+            placeholder="選填，用一句話描述圖片內容，供視障讀者的輔助工具朗讀"
+            @update:zh="(v) => (form.coverAlt.zh = v)"
+            @update:en="(v) => (form.coverAlt.en = v)"
+          />
+          <el-alert
+            v-if="coverAltZhMissing"
+            type="info"
+            :closable="false"
+            show-icon
+            title="建議補上中文圖片說明：沒有說明時，視障讀者的輔助工具只會念出文章標題，無法得知圖片內容。（不影響儲存）"
+          />
         </el-card>
 
         <el-card shadow="never" header="搜尋與分享設定" class="news-edit__section">

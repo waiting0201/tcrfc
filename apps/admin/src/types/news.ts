@@ -121,6 +121,11 @@ export interface NewsArticle {
   coverImageUrl: string | null
   /** 對應 API 的 coverKey，圖片上傳共用元件（S0-8）的物件鍵，見 apps/api/README.md */
   coverKey: string | null
+  /** 封面主檔實際寬高（S0-7h，唯讀，由後端上傳時寫入；沒有封面為 null）。不送回 API。 */
+  coverWidth: number | null
+  coverHeight: number | null
+  /** 封面圖片替代文字（S0-7h，逐語系，非必填；影響無障礙）。 */
+  coverAlt: Bilingual
   /** 置頂精選（規劃書§3.7、docs/03-admin-spec.md「置頂精選（限 3）」），逐俱樂部最多 3 篇 */
   isFeatured: boolean
   status: ContentStatus

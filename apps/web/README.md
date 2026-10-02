@@ -3189,6 +3189,26 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 2. `NUXT_API_INTERNAL_BASE=http://127.0.0.1:5299` 起兩個容器，走：商品→購物車→結帳（`PAYMENT_GATEWAY=fake` 時請款回假網址，可手動開 `…/checkout/complete/?orderNo=…&transactionId=FAKE-{訂單編號}` 模擬導回）→我的訂單；Production 設定下 `paymentAvailable=false` 應看到停用說明。
 3. 藍鯨容器：商品頁／結帳頁出現代收說明；首頁商店入口隨商品出現。
 
+## S0-7h 前台：新聞封面寬高與替代文字（2026-10-02，`frontend-architect`）
+
+串接公開 API 的 `coverUrl`／`coverWidth`／`coverHeight`／`coverAlt`（G 批）。`npm run lint` 0 錯誤、`npm run build` 通過；`nuxi typecheck` 新增檔案沒有新類型的錯誤（`useFetch` 回傳被推成 `{}` 的既有錯誤同樣出現在本頁，未動）。**未啟動 `apps/api`**：以 scratchpad 假後端（非專案檔）＋ `.output` 容器驗證 SSR 輸出。
+
+- 單一來源 `newsCoverImg()`（`app/utils/news.ts`）：有 `coverUrl` 用真封面，寬高取 API 值，**為 null 時不帶 `width`／`height`**；沒有 `coverUrl` 時沿用 mockup 本地照片（過渡，含其實際尺寸 1600×1067，藍鯨仍不輸出）；`alt` ＝ `coverAlt`（trim 非空）→ 文章標題。
+- 套用處：`NewsCard.vue`（主站、藍鯨共用，列表與 5 個分類頁）、文章詳情頁圖集圖、詳情頁「相關文章」卡片。詳情頁頂部 hero 背景圖是裝飾，`alt` 維持空（同一張圖只念一次，說明放在圖集那張）。
+- Article Schema：`ogImageWidth`／`ogImageHeight` 都有時 `image` 輸出 `ImageObject`（url、width、height），否則維持網址字串。
+- **未動**：首頁（`app/pages/zh/index.vue`）自己的三種新聞卡片變體（`NewsCard.vue` 檔頭明載不在共用範圍，且有 `check-homepage-fidelity`），仍用本地圖與舊 alt；列為待決。
+- 假後端驗證（curl SSR）：有寬高有說明 → `width="1280" height="720" alt="球員慶祝進球"`；有封面但寬高、說明皆 null → 無 width／height、alt 回退標題；Schema 為 `ImageObject`。
+
+### CH-6（11 章導流連結）盤點
+
+**早已在 S2-9 完成**（`app/composables/useCharityCta.ts` 讀 `GET /api/backend/{club}/charity/cta`；`charity/index.vue`、`our-impact`、`impact-stories`、`programs` 兩頁都用 `donateLink`）。本輪逐檔 grep 確認前台沒有寫死捐款網址。`STATUS.md` 的 CH-6 列因此過期（同 `E-118` 類型），本輪更正。未設定網址時的呈現見 STATUS／回報的待決事項。
+
+### 使用者實機驗收（API 5299 由使用者啟動）
+1. 後台新增一篇文章，上傳封面並填中英圖片說明、發布 → 前台 `/zh/news/` 卡片的 `<img>` 帶實際寬高與說明；`/en/news/…` 顯示英文說明（英文空白回中文）。
+2. 說明留空 → `alt` 為文章標題。無封面的文章維持佔位標誌。
+3. 查看詳情頁原始碼的 Article JSON-LD：`image` 為含寬高的 `ImageObject`。
+4. 藍鯨容器同上（藍鯨不會再出現磐石本地照片）。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

@@ -85,6 +85,44 @@ export function hasNewsCover(slug: string, club: 'tcrfc' | 'bw' = 'tcrfc'): bool
   return !NEWS_NO_COVER_SLUGS.has(slug)
 }
 
+/** 封面圖相關欄位（公開 API `ArticleListItemDto`／`ArticleDetailDto`，S0-7h G 批；無封面時三者皆 null）。 */
+export interface NewsCoverFields {
+  slug: string
+  title?: string | null
+  coverUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
+  coverAlt?: string | null
+}
+
+export interface NewsCoverImg {
+  src: string
+  /** 來自 API 的封面寬高；null 時模板不帶 width／height（不發明尺寸）。 */
+  width: number | null
+  height: number | null
+  /** 後台「圖片說明」（已依語系回退）；空值回退文章標題。 */
+  alt: string
+}
+
+/**
+ * 卡片／詳情封面圖的單一來源（S0-7h 前台）。
+ * 1. API 有 `coverUrl`（後台上傳的真封面）：用它，寬高取 `coverWidth`／`coverHeight`，null 就不帶。
+ * 2. 沒有 `coverUrl`、但是 mockup 時代的本地照片仍存在（`hasNewsCover`）：沿用本地圖與其實際尺寸 1600×1067
+ *    （過渡用，後台上傳封面後自然被 1. 取代）。
+ * 3. 兩者都沒有：回 null，呼叫端改畫佔位標誌。
+ * alt 一律「coverAlt（trim 後非空）→ 文章標題 → 空字串」。
+ */
+export function newsCoverImg(a: NewsCoverFields, club: 'tcrfc' | 'bw' = 'tcrfc'): NewsCoverImg | null {
+  const alt = a.coverAlt?.trim() || a.title?.trim() || ''
+  if (a.coverUrl) {
+    return { src: a.coverUrl, width: a.coverWidth ?? null, height: a.coverHeight ?? null, alt }
+  }
+  if (hasNewsCover(a.slug, club)) {
+    return { src: newsCoverSrc(a.slug), width: 1600, height: 1067, alt }
+  }
+  return null
+}
+
 /** 無封面圖時的佔位標誌（磐石＝磐石標誌、藍鯨＝藍鯨隊徽，藍鯨站不得出現磐石標誌）。 */
 export function newsFallbackMarkSrc(club: 'tcrfc' | 'bw' = 'tcrfc'): string {
   return club === 'bw' ? '/assets/brand/bw/bw-crest-512.png' : '/assets/brand/svg/tcrfc-mark-black.svg'

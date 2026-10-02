@@ -31,6 +31,8 @@ export interface AdminArticleLocaleContentDto {
   seoKeywords?: string | null
   /** 分享圖片替代文字（S1-12 驗收退回後補做），逐語系。對應 `articles_i18n.og_image_alt`。 */
   ogImageAlt?: string | null
+  /** 封面圖片替代文字（S0-7h G 批），逐語系，非必填。對應 `articles_i18n.cover_alt`。 */
+  coverAlt?: string | null
 }
 
 export interface AdminArticleContentInputDto {
@@ -62,6 +64,9 @@ export interface AdminArticleDetailDto {
   slug: string
   categoryCode: string
   coverKey?: string | null
+  /** 封面主檔縮小後的實際寬高（S0-7h G 批，唯讀；沒有封面為 null）。 */
+  coverWidth?: number | null
+  coverHeight?: number | null
   isFeatured: boolean
   status: 'draft' | 'published' | 'scheduled'
   publishedAt?: string | null
@@ -324,6 +329,7 @@ function localeToBilingualPair(zh: AdminArticleLocaleContentDto, en: AdminArticl
     seoDescription: { zh: zh.seoDescription ?? '', en: en?.seoDescription ?? '' },
     seoKeywords: { zh: zh.seoKeywords ?? '', en: en?.seoKeywords ?? '' },
     ogImageAlt: { zh: zh.ogImageAlt ?? '', en: en?.ogImageAlt ?? '' },
+    coverAlt: { zh: zh.coverAlt ?? '', en: en?.coverAlt ?? '' },
   }
 }
 
@@ -340,6 +346,9 @@ export function detailDtoToArticle(dto: AdminArticleDetailDto): NewsArticle {
     // apps/admin/README.md「圖片上傳共用元件的前端接線」已知限制。
     coverImageUrl: null,
     coverKey: dto.coverKey ?? null,
+    coverWidth: dto.coverWidth ?? null,
+    coverHeight: dto.coverHeight ?? null,
+    coverAlt: pair.coverAlt,
     isFeatured: dto.isFeatured,
     status: dto.status,
     statusAt: dto.publishedAt ?? undefined,
@@ -372,6 +381,9 @@ export function listItemDtoToArticle(dto: AdminArticleListItemDto): NewsArticle 
     category: dto.categoryCode as NewsCategory,
     coverImageUrl: null,
     coverKey: dto.coverKey ?? null,
+    coverWidth: null,
+    coverHeight: null,
+    coverAlt: { zh: '', en: '' },
     isFeatured: dto.isFeatured,
     status: dto.status,
     statusAt: dto.publishedAt ?? undefined,
@@ -435,6 +447,7 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
     && !article.seoDescription.en.trim()
     && !article.seoKeywords.en.trim()
     && !article.ogImageAlt.en.trim()
+    && !article.coverAlt.en.trim()
 
   return {
     slug: article.urlName,
@@ -449,6 +462,7 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
         seoDescription: article.seoDescription.zh || null,
         seoKeywords: article.seoKeywords.zh || null,
         ogImageAlt: article.ogImageAlt.zh || null,
+        coverAlt: article.coverAlt.zh || null,
       },
       en: isEnEmpty
         ? undefined
@@ -460,6 +474,7 @@ export function articleToSavePayload(article: NewsArticle): SaveArticlePayload {
             seoDescription: article.seoDescription.en || null,
             seoKeywords: article.seoKeywords.en || null,
             ogImageAlt: article.ogImageAlt.en || null,
+            coverAlt: article.coverAlt.en || null,
           },
     },
     // 一律明確帶出畫面目前的完整陣列，理由見 SaveArticlePayload 型別定義上的說明。

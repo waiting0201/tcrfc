@@ -2794,3 +2794,30 @@ npm run build   # vue-tsc -b && vite build，型別檢查與建置皆無錯誤
 5. 切換站台（藍鯨）：清單與徽章只含該俱樂部的申請。
 
 **未接與缺口**：後台訂單 API（`OrderListItemDto`／`OrderDetailDto`）沒有回 `buyer_email`，訪客訂單目前只顯示「非會員」與（遮罩）收件人；規劃書後台 S3 並未要求顯示買家 Email，所以沒有加。K1 會員名單／詳情的 LINE 綁定狀態、篩選早已接好。
+
+---
+
+## G 批畫面：文章封面圖片說明（S0-7h）、特約店家「由地址定位」（S2-5）（2026-10-02，`frontend-architect`）
+
+串接 `apps/api/README.md`「G 批」節。**尚未對真實 API 實機驗證**（G 批後端整合測試在撰寫當下也未執行，需先對 `tcrfc_club` 套用 migration `AlignSchemaG1`）。自動化檢查：`npm run lint`、`vue-tsc -b --noEmit`、`npm run build` 通過。
+
+**文章編輯（新聞與故事）**
+- 「封面圖片」區塊多「圖片說明」中、英兩個輸入框，存進 `content.zh.coverAlt`／`content.en.coverAlt`；**非必填**。有封面（已存或剛選了新圖）卻沒有中文說明時，顯示一則溫和提示（說明影響視障讀者的輔助工具；不擋存檔）。
+- 已有封面時，圖片下方顯示「目前封面尺寸：寬 × 高 像素」（讀 `coverWidth`／`coverHeight`，唯讀、不送回）。
+- 「英文四欄全空才省略 `en`」的判斷把 `coverAlt.en` 納入，避免只填英文圖片說明被當成沒有英文版。
+- 檔案：`src/types/news.ts`、`src/api/adminNews.ts`、`src/views/news/NewsEditView.vue`。
+
+**特約店家表單**
+- 「地圖座標」區塊：「由地址定位」按鈕（用中文地址呼叫 `POST …/partner-stores/locate`，**只把結果填進緯度／經度欄，不存檔**），旁邊「儲存時由地址定位」勾選（預設不勾，送 `autoLocate`）。
+- 結果提示用語依 `docs/06` §1：成功「已依地址填入座標，請確認」；404「查無此地址，請手動輸入座標」；400 顯示後端訊息；503「定位服務尚未啟用，請手動輸入座標」並**停用按鈕與勾選**；其他錯誤「定位服務暫時無法使用，請手動輸入座標」。
+- 儲存後依回應 `autoLocateStatus`：`located` 提示請確認、`not_found`／`unavailable` 提示改手動輸入、`skipped` 不提示；儲存一律成功，勾選於儲存後重置。已手動填寫座標時後端以手動為準。
+- 檔案：`src/api/adminPartnerStores.ts`、`src/views/members/PartnerStoreEditView.vue`。
+
+**實機驗收步驟**（請使用者啟動 `apps/api:5299`，Development 設 `GEOCODER=fake`；agent 不碰密碼）：
+1. 編輯一篇有封面的文章：圖片下方顯示尺寸；中文圖片說明留空 → 出現溫和提示，仍可儲存；填入中英說明儲存、重新整理後仍在。換一張大圖（>2560px）儲存後，尺寸顯示為縮小後的值。
+2. 移除封面後儲存：提示與尺寸消失。
+3. 新增特約店家，填中文地址後按「由地址定位」：緯度／經度被填入、提示請確認，此時**資料庫尚未變動**；沒有地址時按鈕停用。
+4. 不勾「儲存時由地址定位」、座標留空儲存：座標維持空。勾選後儲存：座標被補上並提示「請確認」；先手動填座標再勾選儲存：維持手動座標。
+5. 不設 `GEOCODER`（Production 預設）：按鈕按下後顯示「尚未啟用」並停用；勾選存檔仍成功。
+6. 查無地址（假定位器對不認得的地址回 404）：顯示「查無此地址」。
+

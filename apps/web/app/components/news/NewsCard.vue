@@ -17,13 +17,18 @@ interface NewsCardArticle {
   categoryName: string | null
   title: string | null
   publishedAt: string | null
+  // S0-7h：封面（公開 API 已依語系回退；無封面時皆為 null／缺省）
+  coverUrl?: string | null
+  coverWidth?: number | null
+  coverHeight?: number | null
+  coverAlt?: string | null
 }
 
 const props = withDefaults(defineProps<{ article: NewsCardArticle; hidden?: boolean }>(), { hidden: false })
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const cover = computed(() => hasNewsCover(props.article.slug, clubKey.value))
+const cover = computed(() => newsCoverImg(props.article, clubKey.value))
 
 // S1-13：卡片連結一律留在目前語系（lp()），不要在 en 頁面把讀者導回 zh 網址——
 // 這個元件被 news/index.vue 與 5 個分類頁共用，修一次全部生效。
@@ -42,7 +47,14 @@ const { lp } = useLocale()
   >
     <div :class="['news-card__media', { 'news-card__media--noimg': !cover }]">
       <span class="news-card__tag">{{ article.categoryName }}</span>
-      <img v-if="cover" :src="newsCoverSrc(article.slug)" alt="" loading="lazy" width="1600" height="1067">
+      <img
+        v-if="cover"
+        :src="cover.src"
+        :alt="cover.alt"
+        loading="lazy"
+        :width="cover.width ?? undefined"
+        :height="cover.height ?? undefined"
+      >
       <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
     </div>
     <div class="news-card__body">

@@ -49,7 +49,11 @@ export interface StoreLocaleContent {
   offerContent?: string | null
 }
 
+/** 儲存時「由地址定位」的結果（僅新增／更新回應有，`GET` 不帶）。 */
+export type AutoLocateStatus = 'skipped' | 'located' | 'not_found' | 'unavailable'
+
 export interface PartnerStoreDetailDto extends PartnerStoreListItemDto {
+  autoLocateStatus?: AutoLocateStatus | null
   businessHours?: string | null
   mapUrl?: string | null
   websiteUrl?: string | null
@@ -80,6 +84,8 @@ export interface SavePartnerStorePayload {
   status: StoreStatus
   isShared?: boolean
   removeImage?: boolean
+  /** 儲存時由中文地址定位（預設 false；沒有手動座標才會定位，手動座標永遠優先）。 */
+  autoLocate?: boolean
   content: BilingualContentInput<StoreLocaleContent>
 }
 
@@ -106,6 +112,14 @@ export function createPartnerStore(club: string, payload: SavePartnerStorePayloa
 
 export function updatePartnerStore(club: string, id: string, payload: SavePartnerStorePayload, image: File | null): Promise<PartnerStoreDetailDto> {
   return apiUploadRequest<PartnerStoreDetailDto>(`${stores(club)}/${id}`, buildMultipart(payload, { image }), { method: 'PUT' })
+}
+
+/**
+ * 「由地址定位」按鈕：只回候選座標，不寫入任何資料（人工確認後再儲存）。
+ * 404 查無、400 地址空白或過長、503 定位服務尚未串接（`error.status` 判斷）。
+ */
+export function locatePartnerStoreAddress(club: string, address: string): Promise<{ lat: number; lng: number }> {
+  return apiRequest<{ lat: number; lng: number }>(`${stores(club)}/locate`, { method: 'POST', body: { address } })
 }
 
 export function deletePartnerStore(club: string, id: string): Promise<void> {

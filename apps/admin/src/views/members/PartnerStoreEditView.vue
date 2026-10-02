@@ -20,7 +20,9 @@ import {
   createPartnerStore,
   getPartnerStore,
   getPartnerStoreFilters,
+  locatePartnerStoreAddress,
   updatePartnerStore,
+  type AutoLocateStatus,
   type PartnerStoreDetailDto,
   type SavePartnerStorePayload,
   type StoreStatus,
@@ -67,6 +69,14 @@ const categoryOptions = ref<string[]>([])
 const regionOptions = ref<string[]>([])
 /** 這筆是不是兩隊共用的店家（建立後才有意義）。 */
 const loadedShared = ref(false)
+
+/** 「儲存時由地址定位」勾選：預設不勾，不算表單內容（不影響離開提醒），每次載入／儲存後重置。 */
+const autoLocate = ref(false)
+/** 「由地址定位」按鈕的進行狀態與結果提示（人工確認後再儲存）。 */
+const locating = ref(false)
+/** 後端回 503＝定位服務尚未串接：按鈕與勾選都停用並說明，不讓人一直試。 */
+const locateUnavailable = ref(false)
+const locateNotice = ref<{ type: 'success' | 'warning' | 'info'; text: string } | null>(null)
 
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
@@ -131,6 +141,40 @@ const isDirty = computed(
 )
 useUnsavedChanges(isDirty)
 
+const canLocate = computed(() => !!form.addressZh.trim() && !locating.value && !locateUnavailable.value && !saving.value)
+
+async function handleLocate() {
+  const address = form.addressZh.trim()
+  if (!address) return
+  locating.value = true
+  locateNotice.value = null
+  try {
+    const { lat, lng } = await locatePartnerStoreAddress(activeClubId.value, address)
+    form.lat = lat
+    form.lng = lng
+    locateNotice.value = { type: 'success', text: '已依地址填入座標，請對照地圖確認無誤後再儲存。' }
+  } catch (error) {
+    if (error instanceof AdminApiError && error.status === 503) {
+      locateUnavailable.value = true
+      locateNotice.value = { type: 'info', text: '定位服務尚未啟用，請手動輸入座標。' }
+    } else if (error instanceof AdminApiError && error.kind === 'not-found') {
+      locateNotice.value = { type: 'warning', text: '查無此地址，請手動輸入座標。' }
+    } else if (error instanceof AdminApiError && error.kind === 'validation') {
+      locateNotice.value = { type: 'warning', text: error.message || '地址格式不正確，請修改後再試。' }
+    } else {
+      locateNotice.value = { type: 'warning', text: '定位服務暫時無法使用，請手動輸入座標。' }
+    }
+  } finally {
+    locating.value = false
+  }
+}
+
+const AUTO_LOCATE_NOTICE: Partial<Record<AutoLocateStatus, { type: 'success' | 'warning'; text: string }>> = {
+  located: { type: 'success', text: '已依地址填入座標，請確認是否正確；如有誤差可直接修改後再儲存。' },
+  not_found: { type: 'warning', text: '查無此地址，請手動輸入座標。' },
+  unavailable: { type: 'warning', text: '定位服務暫時無法使用，請手動輸入座標。' },
+}
+
 const isHttp = (v: string) => /^https?:\/\//i.test(v.trim())
 
 function validate(): boolean {
@@ -171,6 +215,8 @@ function buildPayload(): SavePartnerStorePayload {
       ),
     },
   }
+  // 只在勾選時才送；已有手動座標時後端以手動為準（不會覆寫）
+  if (autoLocate.value) payload.autoLocate = true
   if (form.slug.trim()) payload.slug = form.slug.trim()
   // 只有系統管理員能建立兩隊共同的店家；更新時後端會忽略這個欄位
   if (isCreate.value && isSuperAdmin.value && form.isShared) payload.isShared = true
@@ -181,6 +227,7 @@ async function handleSave() {
   if (readOnly.value || !validate()) return
   saving.value = true
   formError.value = null
+  locateNotice.value = null
   try {
     const saved = isCreate.value
       ? await createPartnerStore(activeClubId.value, buildPayload(), imageFile.value)
@@ -194,6 +241,9 @@ async function handleSave() {
     removeImage.value = false
     baselineJson.value = JSON.stringify(form)
     ElMessage.success('已儲存')
+    const hint = saved.autoLocateStatus ? AUTO_LOCATE_NOTICE[saved.autoLocateStatus] : undefined
+    if (hint) locateNotice.value = hint
+    autoLocate.value = false
   } catch (error) {
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
@@ -273,9 +323,16 @@ const backToList = () => router.push({ path: '/members/partner-stores', query: {
               <el-form-item label="經度（-180 到 180）"><el-input-number v-model="form.lng" :controls="false" :precision="6" :min="-180" :max="180" :value-on-clear="null" style="width: 100%" placeholder="例如 120.6736" /></el-form-item>
             </el-col>
           </el-row>
+          <div class="store-edit__locate">
+            <el-button size="small" :loading="locating" :disabled="!canLocate" @click="handleLocate">由地址定位</el-button>
+            <span v-if="locateUnavailable" class="store-edit__hint store-edit__hint--inline">定位服務尚未啟用，請手動輸入座標。</span>
+            <span v-else-if="!form.addressZh.trim()" class="store-edit__hint store-edit__hint--inline">請先在上方填寫中文地址。</span>
+          </div>
+          <el-checkbox v-model="autoLocate" :disabled="locateUnavailable">儲存時由地址定位</el-checkbox>
           <p class="store-edit__hint">
-            緯度與經度要一起填。請用地圖服務確認座標後手動輸入，系統目前還不提供「由地址自動定位」。
+            緯度與經度要一起填。「由地址定位」只會把結果填入欄位供你確認，不會自動儲存；勾選「儲存時由地址定位」則在儲存時依中文地址補上座標（已手動填寫座標時以手動為準）。找不到或服務無法使用時不影響儲存，請改為手動輸入。
           </p>
+          <el-alert v-if="locateNotice" :title="locateNotice.text" :type="locateNotice.type" show-icon class="store-edit__error" @close="locateNotice = null" />
           <el-button v-if="mapSearchUrl" tag="a" :href="mapSearchUrl" target="_blank" rel="noopener noreferrer" size="small">
             在地圖開啟目前地址查詢（另開分頁，僅供輔助）
           </el-button>
@@ -329,5 +386,7 @@ const backToList = () => router.push({ path: '/members/partner-stores', query: {
 .store-edit__meta { display: flex; flex-direction: column; gap: 4px; }
 .store-edit__error { margin-bottom: 16px; }
 .store-edit__section { margin-bottom: 16px; }
+.store-edit__locate { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
 .store-edit__hint { margin: 6px 0 12px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
+.store-edit__hint--inline { margin: 0; }
 </style>

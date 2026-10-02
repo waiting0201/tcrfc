@@ -74,7 +74,9 @@ const matchFields = computed(() => {
 
 const eyebrow = computed(() => newsEyebrowText(article.value?.categoryCode ?? ''))
 const categoryBilingual = computed(() => newsCategoryBilingualLabel(article.value?.categoryCode ?? '', article.value?.categoryName))
-const coverExists = computed(() => (article.value ? hasNewsCover(article.value.slug, club === 'bw' ? 'bw' : 'tcrfc') : false))
+const clubKey: 'tcrfc' | 'bw' = club === 'bw' ? 'bw' : 'tcrfc'
+// S0-7h：封面來源／寬高／替代文字集中在 newsCoverImg()（utils/news.ts）
+const cover = computed(() => (article.value ? newsCoverImg(article.value, clubKey) : null))
 
 // ── SEO／GEO ──────────────────────────────────────────────────────────────
 // canonical：交給 @nuxtjs/seo（nuxt-seo-utils）依 site.url ＋ 目前路徑自動產生，
@@ -176,7 +178,12 @@ watchEffect(() => {
       // 的完整網址），不是本地 mockup 靜態檔案的 hasNewsCover() 判斷——schemaEligible 判斷
       // 「這篇文章有沒有圖片」時用的就是 ogImageUrl，這裡要用同一份值，兩者才不會互相矛盾
       // （schemaEligible 說有圖，這裡卻因為 mockup 沒有那個檔案而輸出 undefined）。
-      image: a.ogImageUrl ?? undefined,
+      // S0-7h：寬高都有時輸出 ImageObject（url＋width＋height），否則維持單純網址字串（不發明尺寸）
+      image: a.ogImageUrl
+        ? (a.ogImageWidth && a.ogImageHeight
+            ? { '@type': 'ImageObject', url: a.ogImageUrl, width: a.ogImageWidth, height: a.ogImageHeight }
+            : a.ogImageUrl)
+        : undefined,
       articleSection: a.categoryName ?? undefined,
       author: { '@type': 'Organization', name: siteName.value },
       publisher: { '@type': 'Organization', name: siteName.value },
@@ -221,10 +228,10 @@ watchEffect(() => {
 <section class="page-hero page-hero--media">
   <img
     class="page-hero__bg"
-    :src="coverExists ? newsCoverSrc(article?.slug ?? '') : newsFallbackMarkSrc(club === 'bw' ? 'bw' : 'tcrfc')"
+    :src="cover ? cover.src : newsFallbackMarkSrc(clubKey)"
     alt=""
-    width="1600"
-    height="1067"
+    :width="cover ? (cover.width ?? undefined) : 1600"
+    :height="cover ? (cover.height ?? undefined) : 1067"
   >
   <div class="container">
     <p class="page-hero__eyebrow">{{ eyebrow }}</p>
@@ -261,11 +268,12 @@ watchEffect(() => {
         <p style="font-size:.82rem;color:var(--muted)">上表示範 7.2 比賽報導分類的特殊欄位（規劃書 3.7 節）；比分／對戰組合取自真實標題文字，其餘欄位將依個別文章內容填寫。</p>
       </template>
 
-      <template v-if="coverExists">
+      <template v-if="cover">
         <h3>圖集</h3>
         <div class="article-gallery">
           <figure>
-            <img :src="newsCoverSrc(article?.slug ?? '')" alt="" loading="lazy" width="1600" height="1067">
+            <!-- 主要內容圖：替代文字在這裡（hero 背景是裝飾，alt 留空避免同一張圖念兩次） -->
+            <img :src="cover.src" :alt="cover.alt" loading="lazy" :width="cover.width ?? undefined" :height="cover.height ?? undefined">
             <figcaption>封面照片（已轉檔為網頁用尺寸）</figcaption>
           </figure>
         </div>
@@ -286,9 +294,9 @@ watchEffect(() => {
       <h3 id="related-title">相關文章</h3>
       <div class="article-aside__list">
         <a v-for="r in related" :key="r.slug" class="news-card clip-card" :href="lp(`/zh/news/${r.slug}/`)" :data-title="newsTitleAttr(r.title)">
-          <div :class="['news-card__media', { 'news-card__media--noimg': !hasNewsCover(r.slug, club === 'bw' ? 'bw' : 'tcrfc') }]">
+          <div :class="['news-card__media', { 'news-card__media--noimg': !newsCoverImg(r, clubKey) }]">
             <span class="news-card__tag">{{ r.categoryName }}</span>
-            <img v-if="hasNewsCover(r.slug, club === 'bw' ? 'bw' : 'tcrfc')" :src="newsCoverSrc(r.slug)" alt="" loading="lazy" width="1600" height="1067">
+            <img v-if="newsCoverImg(r, clubKey)" :src="newsCoverImg(r, clubKey)!.src" :alt="newsCoverImg(r, clubKey)!.alt" loading="lazy" :width="newsCoverImg(r, clubKey)!.width ?? undefined" :height="newsCoverImg(r, clubKey)!.height ?? undefined">
             <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc('bw')" alt="" loading="lazy" width="64" height="63">
           </div>
           <div class="news-card__body">
