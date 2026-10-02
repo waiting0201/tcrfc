@@ -40,6 +40,9 @@ networks:
     ipam:
       config:
         - subnet: 172.28.238.0/24
+          # 自動分配只用後半段（.128 起），前半段保留給 ipv4_address 固定 IP。
+          # 沒有這行時，先啟動的 redis 會自動拿到 .2，最後才啟動的 proxy 撞 IP 起不來（E-114）。
+          ip_range: 172.28.238.128/25
 
 volumes:
   caddy_data:

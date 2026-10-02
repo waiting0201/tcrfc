@@ -124,6 +124,8 @@
 | E-110 | 2026-10-01 | `deploy.yml` 從 2026-09-25 起每次 push 都 `startup_failure`（呼叫 reusable workflow 的 job 沒授予被呼叫端要的 `packages: write`），六天、十餘次 push 沒人追；`actionlint` 通過所以本機看不出來。直到正式庫初始化要用 api 映像檔才發現 ghcr 從未有映像檔 | ⚠️ 無（建議：push 後檢查 `gh run list` 的結論，`startup_failure` 視同紅燈） |
 | E-111 | 2026-10-01 | 正式環境（Azure SQL）的 `json` 欄位是原生型別、只收物件／陣列，但本機與測試是 `nvarchar(max)`（什麼都收）：`partner_stores.business_hours` 被寫成 JSON 字串純量、新聞內文接受任意純文字、多個「只驗是合法 JSON」的輸入允許純量，正式後台儲存會 500，**整套 1,000+ 項測試全綠、本機實測也全綠**；直到拿 SQL Server 2025 原生 json 容器接原樣 DDL 演練才發現 | ✅ `Common/JsonColumn.cs` 統一守門（結構化輸入的純量回 400；自由文字欄位如營業時間、新聞內文包成 `{"text":"…"}`）；`JsonColumnTests`；`apps/api/scripts/native-json-test.sh`（原生 json 容器，可重跑）；`docs/14` 不變量。⚠️ CI 仍接 2022（建議改 2025，見 `docs/20` §5） |
 | E-112 | 2026-10-02 | 第一次要在 VM 起容器時才發現兩處「設定與產出沒對撞」：compose／`.env.example`／`provision-secrets.sh` 的 `IMAGE_TAG` 預設是 `latest`，但 `deploy.yml` 只推 `:master` 與 git SHA，照預設起會拉不到映像檔；主站 `nuxt-tcrfc` 沒給 `NUXT_PUBLIC_BLUE_WHALE_SITE_URL`，女足頁導往藍鯨站的連結落回 `nuxt.config.ts` 寫死的 `bw-stg.tcrfc.tw` | ⚠️ 無 |
+| E-113 | 2026-10-02 | S0-9 把 mockup 照片改成模板靜態 `src`（Vue 編譯器轉成 import）後，從未在沒有照片的乾淨 checkout 建置過；GitHub Actions 建 `tcrfc-nuxt-club` 失敗（UNRESOLVED_IMPORT） | ✅ `siteImg()` ＋ `npm run lint:site-images` 禁止繞過；照片改由 Blob 提供 |
+| E-114 | 2026-10-02 | 正式 VM 第一次 `docker compose up`：`proxy` 固定 `172.28.238.2`，但它依賴其他服務健康後才啟動，先起來的 `redis`（無固定 IP）被自動分到 `.2`，`proxy` 以「Address already in use」失敗 | ✅ `docker-compose.yml` 的 `internal` 網路加 `ip_range: 172.28.238.128/25`，自動分配不再落在固定 IP 段 |
 
 ---
 
@@ -2341,3 +2343,9 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：①「本機建置通過」被當成「CI 建置通過」，而兩者唯一的差別正是「不納版控的檔案存不存在」；②遇到「不納版控的資源是建置相依」時，選擇寫一段手動補檔說明，沒有把相依拿掉；③沒有任何機制禁止再寫出會被編譯成 import 的照片路徑。
 - **下次怎麼避免**：凡新增「不納版控的素材」，同一次交付先在 `git worktree` 乾淨環境跑 `npm ci && npm run lint && npm run build` 與 `docker build`；素材一律走執行期來源（`siteImg()`），不得成為建置相依。
 - **防呆**：✅ `npm run lint` 的 `lint:site-images`（`apps/web/scripts/check-site-images.mjs`）禁止任何不經 `siteImg(` 的 `/assets/img/…` 字串，並檢查 `scripts/site-images.txt` 與程式引用一致；✅ `.dockerignore` 排除 `public/assets/img`；✅ `docs/14` 不變量。⚠️ CI 目前沒有獨立的「乾淨 checkout 建置」關卡以外的檢查——`ci.yml` 本身就是乾淨 checkout，之後同類回歸會在 lint 先被攔下。
+
+### E-114 固定 IP 與自動分配共用同一段，啟動順序決定誰撞到誰（2026-10-02，部署）
+- **錯在哪**：`internal` 網路只設 `subnet`，`proxy`／`nuxt-tcrfc`／`nuxt-bw` 用 `ipv4_address` 固定 `.2`／`.3`／`.4`，其他服務自動分配也從 `.2` 開始。`proxy` 依賴其他服務健康才啟動，`.2` 早被 `redis` 拿走。
+- **根因（可改掉的行為）**：設固定 IP 時沒有同時把自動分配的範圍隔開；本機開發用另一份 compose、CI 只起 api，從沒在一次 `up` 裡同時起過全部 8 個容器。
+- **下次怎麼避免**：用 `ipv4_address` 就同時設 `ip_range` 把自動分配限縮到不重疊的範圍。
+- **防呆**：`ip_range: 172.28.238.128/25`。
