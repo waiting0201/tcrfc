@@ -1553,6 +1553,43 @@
         }
       }
     },
+    "/api/v1/ui-strings": {
+      "get": {
+        "tags": [
+          "SiteSettings"
+        ],
+        "description": "介面字串翻譯表（全站共用，不分俱樂部）：{ key: 文字 }，要求語系沒有值回退繁中。",
+        "operationId": "GetUiStrings",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicUiStringsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/{club}/achievements": {
       "get": {
         "tags": [
@@ -3465,6 +3502,47 @@
         }
       }
     },
+    "/api/v1/{club}/menus": {
+      "get": {
+        "tags": [
+          "SiteSettings"
+        ],
+        "description": "主選單、Mega Menu、頁尾選單（多層級，已依語系挑選標籤）。",
+        "operationId": "GetMenus",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicMenusDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/v1/{club}/milestones": {
       "get": {
         "tags": [
@@ -3664,6 +3742,106 @@
           },
           "404": {
             "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/{club}/newsletter/subscribe": {
+      "post": {
+        "tags": [
+          "Newsletter"
+        ],
+        "description": "頁尾電子報訂閱。回應不透露名單狀態；曾經退訂的信箱不會被改回訂閱。",
+        "operationId": "SubscribeNewsletter",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubscribeNewsletterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewsletterSubscribeResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "429": {
+            "description": "Too Many Requests"
+          }
+        }
+      }
+    },
+    "/api/v1/{club}/newsletter/unsubscribe": {
+      "post": {
+        "tags": [
+          "Newsletter"
+        ],
+        "description": "以退訂連結上的憑證退訂電子報（冪等）。",
+        "operationId": "UnsubscribeNewsletter",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UnsubscribeNewsletterRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NewsletterUnsubscribeResultDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "429": {
+            "description": "Too Many Requests"
           }
         }
       }
@@ -4028,6 +4206,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PlayerCareerStatsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/{club}/policies/{code}": {
+      "get": {
+        "tags": [
+          "SiteSettings"
+        ],
+        "description": "Cookie 政策、隱私權政策、會員條款（純文字）。沒有內容回 404。",
+        "operationId": "GetPolicy",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPolicyDto"
                 }
               }
             }
@@ -4535,6 +4762,91 @@
           },
           "404": {
             "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/{club}/search": {
+      "get": {
+        "tags": [
+          "Search"
+        ],
+        "description": "全站搜尋（新聞、FAQ、課程、球員、教練、慈善）。所有關鍵字都要命中；只回已發布內容。",
+        "operationId": "SearchSite",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponseDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "429": {
+            "description": "Too Many Requests"
           }
         }
       }
@@ -5684,6 +5996,47 @@
         }
       }
     },
+    "/api/v1/{club}/site-settings": {
+      "get": {
+        "tags": [
+          "SiteSettings"
+        ],
+        "description": "品牌（Logo、Favicon、品牌色）、維護模式、啟用語系、備援規則、日期數字格式、政策頁索引。",
+        "operationId": "GetSiteSettings",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicSiteSettingsDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/v1/{club}/sponsor-packages": {
       "get": {
         "tags": [
@@ -5967,6 +6320,161 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/TeamDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/{club}/trials": {
+      "get": {
+        "tags": [
+          "Trials"
+        ],
+        "operationId": "ListTrials",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teamCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicTrialDto"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/{club}/trials/{trialId}/registrations": {
+      "post": {
+        "tags": [
+          "Trials"
+        ],
+        "operationId": "SubmitTrialRegistration",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trialId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitTrialRegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TrialRegistrationSubmittedDto"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request"
+          },
+          "404": {
+            "description": "Not Found"
+          },
+          "409": {
+            "description": "Conflict"
+          },
+          "429": {
+            "description": "Too Many Requests"
+          }
+        }
+      }
+    },
+    "/api/v1/{club}/venues": {
+      "get": {
+        "tags": [
+          "SiteSettings"
+        ],
+        "description": "這個俱樂部用得到的場地（主場＋賽事／梯次／試訓引用的場地）：地址、經緯度、交通說明、照片。",
+        "operationId": "ListVenues",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PublicVenueDto"
                   }
                 }
               }
@@ -10036,6 +10544,25 @@
           }
         }
       },
+      "NewsletterSubscribeResultDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "NewsletterUnsubscribeResultDto": {
+        "required": [
+          "changed"
+        ],
+        "type": "object",
+        "properties": {
+          "changed": {
+            "type": "boolean"
+          }
+        }
+      },
       "PageBlockPublicDto": {
         "required": [
           "blockType",
@@ -11775,6 +12302,41 @@
           }
         }
       },
+      "PublicBrandDto": {
+        "type": "object",
+        "properties": {
+          "logoLightUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "logoDarkUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "faviconUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "brandColor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "brandSecondaryColor": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PublicCalendarEventDto": {
         "required": [
           "sourceType",
@@ -12190,6 +12752,60 @@
           }
         }
       },
+      "PublicFormatsDto": {
+        "type": "object",
+        "properties": {
+          "dateFormat": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "numberFormat": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "thousandsSeparator": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "decimalSeparator": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PublicLanguageDto": {
+        "required": [
+          "code",
+          "name",
+          "isDefault"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "fallbackCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "PublicLlmsContentDto": {
         "type": "object",
         "properties": {
@@ -12252,6 +12868,130 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "PublicMaintenanceDto": {
+        "required": [
+          "enabled"
+        ],
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PublicMenuItemDto": {
+        "required": [
+          "id",
+          "label",
+          "isExternal",
+          "children"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label": {
+            "type": "string"
+          },
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isExternal": {
+            "type": "boolean"
+          },
+          "children": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMenuItemDto"
+            }
+          }
+        }
+      },
+      "PublicMenusDto": {
+        "required": [
+          "main",
+          "mega",
+          "footer"
+        ],
+        "type": "object",
+        "properties": {
+          "main": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMenuItemDto"
+            }
+          },
+          "mega": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMenuItemDto"
+            }
+          },
+          "footer": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicMenuItemDto"
+            }
+          }
+        }
+      },
+      "PublicPolicyDto": {
+        "required": [
+          "code",
+          "title",
+          "body",
+          "updatedAt",
+          "isFallbackLocale"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PublicPolicyIndexDto": {
+        "required": [
+          "code",
+          "title",
+          "hasContent"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "hasContent": {
+            "type": "boolean"
           }
         }
       },
@@ -12511,6 +13251,252 @@
           }
         }
       },
+      "PublicSiteSettingsDto": {
+        "required": [
+          "brand",
+          "maintenance",
+          "languages",
+          "fallbackMode",
+          "formats",
+          "policies"
+        ],
+        "type": "object",
+        "properties": {
+          "brand": {
+            "$ref": "#/components/schemas/PublicBrandDto"
+          },
+          "maintenance": {
+            "$ref": "#/components/schemas/PublicMaintenanceDto"
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicLanguageDto"
+            }
+          },
+          "fallbackMode": {
+            "type": "string"
+          },
+          "formats": {
+            "$ref": "#/components/schemas/PublicFormatsDto"
+          },
+          "policies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicPolicyIndexDto"
+            }
+          }
+        }
+      },
+      "PublicTrialDto": {
+        "required": [
+          "id",
+          "trialOn",
+          "enrolledCount",
+          "status",
+          "isSignupOpen",
+          "acceptsWaitlist"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trialOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "teamCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "teamName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "audience": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "venueId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "venueName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "venueAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "venueLat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "venueLng": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "capacity": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "enrolledCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deadlineOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "status": {
+            "type": "string"
+          },
+          "isSignupOpen": {
+            "type": "boolean"
+          },
+          "acceptsWaitlist": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PublicUiStringsDto": {
+        "required": [
+          "locale",
+          "strings"
+        ],
+        "type": "object",
+        "properties": {
+          "locale": {
+            "type": "string"
+          },
+          "strings": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "PublicVenueDto": {
+        "required": [
+          "id",
+          "isHome"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "address": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "directions": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "lat": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "lng": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "photoUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "photoWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "photoHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "photoAlt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isHome": {
+            "type": "boolean"
+          }
+        }
+      },
       "RegisterAppDeviceRequest": {
         "required": [
           "platform"
@@ -12549,6 +13535,160 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "SearchFacetDto": {
+        "required": [
+          "type",
+          "label",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "SearchResponseDto": {
+        "required": [
+          "query",
+          "tokens",
+          "items",
+          "page",
+          "pageSize",
+          "totalCount",
+          "facets",
+          "truncated",
+          "isEmpty"
+        ],
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "tokens": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchResultItemDto"
+            }
+          },
+          "page": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "facets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SearchFacetDto"
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "isEmpty": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SearchResultItemDto": {
+        "required": [
+          "type",
+          "id",
+          "title",
+          "isFallbackLocale"
+        ],
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "subType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "snippet": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "date": {
+            "format": "date-time"
+          },
+          "categoryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "teamCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "imageUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           }
         }
       },
@@ -14118,6 +15258,86 @@
           }
         }
       },
+      "SubmitTrialRegistrationRequest": {
+        "type": "object",
+        "properties": {
+          "applicantName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "phone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "birthOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "guardianName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "guardianPhone": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "healthDeclaration": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SubscribeNewsletterRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "consent": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "website": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "TeamDto": {
         "required": [
           "id",
@@ -14188,6 +15408,32 @@
           }
         }
       },
+      "TrialRegistrationSubmittedDto": {
+        "required": [
+          "registrationNo",
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "registrationNo": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "UnsubscribeNewsletterRequest": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "UpdateAppSubscriptionsRequest": {
         "required": [
           "items"
@@ -14234,6 +15480,18 @@
     },
     {
       "name": "Programs"
+    },
+    {
+      "name": "Newsletter"
+    },
+    {
+      "name": "Trials"
+    },
+    {
+      "name": "Search"
+    },
+    {
+      "name": "SiteSettings"
     },
     {
       "name": "Forms"

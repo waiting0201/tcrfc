@@ -9299,3 +9299,134 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 4. **S0-7h 兩項**：置頂精選限 3 是否逐俱樂部、`publish`／`schedule` 狀態轉換規則——仍待客戶確認。
 5. **App 更新權杖「回應遺失重試」被登出**的容忍度——若實測太常發生，需向規劃書 §10.1 申請增列「前一把權杖雜湊」欄位。
 6. **單一裝置撤銷端點**是否需要對應 App 畫面（規劃書只要求登出全部裝置）。
+
+---
+
+## H 批（2026-10-02，`backend-engineer`）：A 儀表板、P4 試訓公開報名、G-09 電子報訂閱、G-02 全站搜尋、I 網站設定其餘子模組
+
+> 🔴 **本批的整合測試在撰寫當下沒有執行**：工作樹沒有 `appsettings.Development.json`、也不得載入 `.env`，依賴資料庫的新測試**只確認編譯通過**（`docs/18` `E-121` 同類情況，見該筆「升級」說明）。已實跑的是不需資料庫的測試——其中新增的 **`OfflineQueryTranslation` 離線翻譯冒煙工具**對本批所有 repository 的 EF 查詢做了「能翻譯成 SQL」的驗證（連線被拒＝通過，翻譯失敗＝紅燈，並有工具自我驗證）。**合併後先套 migration `AlignSchemaI1`（含 15 個新權限碼），再在有 `tcrfc_club` 的環境完整跑 `dotnet test`**；🔴 push 前先看 `git diff Remote_GitHub/master --stat -- apps/api/Data/Migrations`（`E-124`）——有新 migration 就先跑 `db-migrate.yml` 再讓 `deploy.yml` 換上新版 api。
+
+### 0. 先讀這幾點
+
+- **路徑慣例**：公開端點 `/api/v1/{club}/…`（`{club}` 是 `tcrfc`／`bw`），後台端點 `/api/v1/admin/{club}/…`。介面字串翻譯表與場地是全站共用主檔，路由仍掛 `{club}` 只為沿用俱樂部授權管線（同既有 `/venues`）。
+- **語系參數** `lang=zh|en`（預設 `zh`）；回應的文字都已依語系挑選，要求語系空白回退繁中。
+- **錯誤格式**同全站：`ProblemDetails`（`title`／`detail` 是日常中文，可直接顯示）；公開端點新增三個共用例外對應 400／404／409（`Common/PublicExceptions.cs`）。
+- **三個新限流政策**（`Common/PublicRateLimitPolicies.cs`，都可由設定覆寫額度，測試主機用寬鬆值）：`public-search`（每 IP 每分鐘 30）、`public-newsletter`（每 IP 每 10 分鐘 10，訂閱與退訂共用）、`public-trial-registration`（每 IP 每 5 分鐘 20）。超過回 `429`。
+- **權限碼 15 個新增**（module=I，`db/seed/generate-club-seed-sql.py`＋migration `AlignSchemaI1`，系統管理員全給）：
+
+| 權限碼 | 子模組 | 誰有 | 說明 |
+|---|---|---|---|
+| `site.menu.view`／`update` | I2 選單管理 | 僅系統管理員（`sysadmin_only`） | 每俱樂部一份 |
+| `site.global.view`／`update` | I3 全域設定 | 僅系統管理員 | Logo／Favicon／品牌色／政策頁／維護模式 |
+| `site.locale.view`／`update` | I4 多語系管理 | 僅系統管理員 | 語系、備援規則、日期數字格式、翻譯狀態總覽 |
+| `site.string.view`／`update`／`translate` | I4 字串翻譯表 | `sysadmin_only=0`；**翻譯人員被指派 `view`＋`translate`**（scope `translate_only`） | `update`＝新增／刪除／改繁中原文與分組；`translate`＝只能改非預設語系（伺服器強制） |
+| `site.venue.view`／`create`／`update`／`delete` | I5 場地管理 | 僅系統管理員 | 全站共用主檔（不帶 `club_id`） |
+| `site.edm.view`／`update` | I6 EDM 平台設定 | 僅系統管理員（受限） | 含金鑰，只寫不讀 |
+
+  儀表板**沒有專屬權限碼**（見 §1）。
+
+### 1. A 儀表板（規劃書 §4.1）
+
+三支 GET，權限＝呼叫者在該俱樂部持有「儀表板會用到的任一檢視／建立權限」（`AdminDashboardRepository.AllCandidateCodes`，含詢問、報名、梯次、試訓、贊助、新聞、FAQ、賽事、行事曆、球迷活動、會籍、翻譯人員的字串權限與全部快速入口的建立權限）；一個都沒有 → `403`。**每個區塊再依對應模組權限決定有沒有**——沒權限的區塊是 `null`／不在清單，**不是 0**。全部限定目前俱樂部（含兩隊共同內容）；日期用台灣當地日期；**不走快取**。
+
+| 端點 | 回應重點 |
+|---|---|
+| `GET /api/v1/admin/{club}/dashboard` | `todos[]`、`content`、`faq`、`upcoming[]`、`members`、`quickEntries[]`、`generatedAt` |
+| `GET /api/v1/admin/{club}/dashboard/conversion?period=week\|month` | 轉換概況：`totals`＋`buckets[]`（週＝最近 8 週、月＝最近 6 個月，由舊到新）＋`forms[]`（各表單送出數）；`400` 週期不合法 |
+| `GET /api/v1/admin/{club}/dashboard/traffic` | GA4 流量概況：`configured`／`message`／`from`／`to`／`overview`；**目前一律 `configured=false`**（接縫，見 `docs/17` §3） |
+
+- **`todos[]`**（規劃書列的四項，各自需對應檢視權限）：`enquiries_new`（狀態「新進」，依 G2 類別授權過濾）、`registrations_pending`（狀態「待確認」；課程報名需 `program.registration.view`、試訓報名需 `program.trial_registration.view`，各算各的）、`sessions_closing_soon`（7 天內報名截止、狀態「開放／候補」的梯次，`items` 最多 5 筆）、`sponsor_contracts_expiring`（到期提醒日已到、合約未到期，與 E2 清單「提醒中」同判定，`items` 最多 5 筆）。每項 `{ code, label, count, hint, items[{id,title,date}] }`。
+- **`content`**：`publishedThisMonth`／`draftCount`／`scheduledCount`（需 `content.article.view`，否則 `null`）；`untranslated[]`＝每個啟用的非預設語系一筆 `{ locale, localeName, count, byType[] }`（已有繁中、缺該語系；類別依各自檢視權限，**翻譯人員與語系管理者看全部類別**；目前只有英文，「日」未啟用所以不出現）。
+- **`faq`**：`topQuestions[]`（瀏覽數 Top 10）、`negativeFeedback[]`（👎 ≥ 3 且多於 👍，最多 10 題）。
+- **`upcoming[]`**（未來 14 天，最多 30 筆，依日期排序）：`{ source: match|session|trial|event|fan_event, id, date, time, title, teamCode, venueName, warnings[] }`。`warnings` 是日常中文：「尚未指派教練」（梯次的課程沒有教練）、「名額未滿（已報名 x／y）」、「尚未設定地點／場地」、「尚未設定開球時間」「尚未填寫對手」「尚未設定名額上限」…。行事曆自建事件只列起始時間落在區間內的（**不展開重複事件**）。
+- **`members`**：`activeMemberships`／`activePaidMemberships`／`expiringIn30Days`／`pendingUpgrades`（需 `member.membership.view`）。
+- **`quickEntries[]`**：`{ code, label }`，code＝`publish_news`／`add_match`／`add_session`／`add_faq`／`add_calendar_event`，只含呼叫者有建立權限的；前端依 code 對應畫面路由。
+- **轉換 bucket** `{ start, enquiries, registrations, proposalDownloads, newMembers, newPaidMemberships, renewals }`（各序列依權限，沒權限為 `null`）：詢問＝不含提案下載的表單送出；提案下載＝提案下載表單的送出（需 `business.lead.view`）；新註冊會員＝在本俱樂部新建立的會籍數；**新加入付費會籍＝某會籍的第一筆付款、續會＝第二筆以後的付款**（以 `membership_payments` 計，後台手動調整層級而沒有付款紀錄的不算）。
+
+### 2. P4 試訓公開端點（規劃書 §3.3「試訓場次列表 ＋ 線上報名」）
+
+| 端點 | 說明 |
+|---|---|
+| `GET /api/v1/{club}/trials?teamCode=&lang=` | 未結束且日期未過的場次，依日期由近到遠，最多 100 筆。每筆 `{ id, trialOn, teamCode, teamName, audience, venueId, venueName, venueAddress, venueLat, venueLng, capacity, enrolledCount, deadlineOn, status, isSignupOpen, acceptsWaitlist }`。`isSignupOpen`＝狀態「開放」且未過截止日；`acceptsWaitlist`＝「額滿／候補」且未過截止日（前台顯示「額滿候補」）。 |
+| `POST /api/v1/{club}/trials/{trialId}/registrations` | 限流 `public-trial-registration`。body `{ applicantName*, phone, email, birthOn, guardianName, guardianPhone, healthDeclaration, note }`（電話與 Email 至少一項；**未滿 18 歲家長姓名與電話必填**）。`200 { registrationNo, status }`，`status`＝`待確認`（已佔名額，佔滿時場次自動轉「額滿」）或 `候補`。`400` 驗證／`404` 場次不存在或屬於別的俱樂部／`409` 已結束、已過截止日（截止日當天仍可報名）、同姓名＋同電話或 Email 重複報名（取消的不算）。帶會員 Bearer 權杖會記 `member_id`（同課程報名）。 |
+
+- 名額用**單一條件式 UPDATE** 搶（並行搶最後一個名額只有一人成功，其餘候補），寫入 `registrations`（`trial_id` 非空）；後台 P4 名單與狀態流程沿用既有。
+- 個資：回應不含任何個資；健康聲明等欄位照既有課程報名存放（B-9 待決不阻擋）。**通知信未寄**（全系統仍無報名通知通路，同 P3）。
+
+### 3. G-09 電子報前台訂閱（規劃書 §3.0 G-09、後台 G3）
+
+| 端點 | 說明 |
+|---|---|
+| `POST /api/v1/{club}/newsletter/subscribe` | 限流 `public-newsletter`。body `{ email*, consent*: true, source?: footer\|home\|news\|app, website?: "" }` → `200 { status: "ok" }`。`consent` 非 true／信箱格式錯／來源不在白名單 → `400`。 |
+| `POST /api/v1/{club}/newsletter/unsubscribe` | body `{ token }` → `200 { changed }`；憑證無效（含拿別的俱樂部的憑證）→ `400`。冪等，找不到名單列也回成功（不透露）。 |
+
+- **決定（規劃書只寫「Footer 常駐，串接 EDM 平台」）**：① **單一確認**（勾選同意即訂閱）、不寄雙重確認信——規劃書沒要求，全系統寄信通路只承接五封會員信；② **退訂是黏著的**：曾退訂的信箱再從公開表單送出**不會**改回訂閱（回應與成功相同），因為沒有信箱驗證時任何人都能替別人重新訂閱，等於違反對方的退訂意願；要重新訂閱走後台（須註明原因）；③ 回應**不透露**名單狀態；④ 同意紀錄＝`subscribed_at` ＋ `source`（固定中文標籤：官網頁尾／官網首頁／官網新聞頁／行動 App）；⑤ 蜜罐欄位 `website`（有值就靜默丟棄）。
+- **退訂憑證**：`NewsletterUnsubscribeTokens`（Data Protection，purpose `Tcrfc.Newsletter.Unsubscribe.v1`），內容＝俱樂部＋信箱，**不過期**、只能退訂。目前**沒有寄信的呼叫端**（EDM 寄送在外部平台）；EDM 供應商串接時由該類別為每位訂閱者產生專屬退訂連結（前端需一頁 `/{lang}/newsletter/unsubscribe?token=…` 呼叫上面端點）。
+- EDM 同步仍是後台手動（`INewsletterEdmSync`，未串接）。
+
+### 4. G-02 全站搜尋（規劃書 §3.0）
+
+`GET /api/v1/{club}/search?q=&type=&lang=&page=&pageSize=`，限流 `public-search`，**只讀不寫**。
+
+- **範圍**：新聞（已發布且到時間，本俱樂部＋共同）、FAQ（已發布）、課程（已發布，僅本俱樂部）、球員（僅本俱樂部）、教練與團隊成員（本俱樂部＋共同，同公開名單）、慈善（已發布計畫＋事蹟紀錄）。只比對標題／名稱／摘要／簡介／職稱這類公開文字，**不比對個資欄位，也不比對區塊內文 json**。球員與教練照片遵守肖像同意 fail-closed（未同意 `imageUrl=null`）。
+- **參數**：`q` 必填（正規化：全形轉半形、小寫、壓縮空白；最多 100 字；拆成最多 5 個關鍵字，**全部都要命中**；非中日韓文字至少 2 個字元，否則 `400`）；`type` 選填 `news|faq|program|player|coach|charity`（其他 `400`）；`pageSize` 預設 20、最大 50。
+- **回應** `{ query, tokens[], items[], page, pageSize, totalCount, facets[{type,label,count}], truncated, isEmpty }`。`items[]` 每筆 `{ type, subType, id, slug, title, snippet, date, categoryCode, teamCode, imageUrl, isFallbackLocale }`；`snippet` 約 120 字、圍繞第一個命中處、已去標記；**高亮由前端用 `tokens` 在標題與摘錄上做**。`facets` 是各分類**精確**命中數（不受 `type` 篩選影響，供頁籤顯示數字）；每個分類最多取前 100 筆供翻頁，超過時 `truncated=true`。排序：標題含全部關鍵字（2 分）在前、其餘（1 分）在後，同分依 新聞→FAQ→課程→球員→教練→慈善，再依各類原順序。
+- **語系**：同時比對「要求語系」與「繁中」（英文版用繁中關鍵字也找得到未翻譯內容），顯示取要求語系、空白回退繁中並標 `isFallbackLocale=true`；繁中請求不會去比對英文欄位。
+- **引擎取捨：`LIKE`（`Contains`，EF 翻成 `CHARINDEX`），不用 SQL Server 全文檢索、不引入外部搜尋服務**——全站量級是一個俱樂部官網（新聞數百、人員數十、FAQ 數十），毫秒級；全文檢索要額外目錄／索引 DDL、migration 不能在交易內、繁中斷詞品質還要另外驗證，得不償失。**改用全文檢索的觸發條件**：任一類別超過約 1 萬列或 p95 超過 300ms；換法只換各類別 `Where`，端點與回應不變。`%`、`_`、`[` 只是普通字元（`SearchPublicTests` 驗證）。
+- **零結果**：`isEmpty=true` 時前台照既有流程呼叫 `POST /api/v1/{club}/faqs/search-misses` 記錄（本端點是 GET，**不寫入任何資料**；沒有把兩者整合成伺服器端自動寫入，避免 GET 有副作用與重複計數）。
+
+### 5. I 網站設定其餘子模組（規劃書 §4.9）
+
+**公開讀取**（全部 GET、不需登入；除場地外都有短暫快取，**後台儲存後立即失效**——維護模式不得延後生效）：
+
+| 端點 | 回應重點 |
+|---|---|
+| `GET /api/v1/{club}/menus?lang=` | `{ main[], mega[], footer[] }`，每項 `{ id, label, url, isExternal, children[] }`（多層級，兩個語系都沒標籤的項目不輸出）。內部連結 `url` 是不含語系前綴的路徑（`/about/`），前台自己接 `/zh`／`/en`。 |
+| `GET /api/v1/{club}/site-settings?lang=` | `brand{ logoLightUrl, logoDarkUrl, faviconUrl, brandColor, brandSecondaryColor }`、`maintenance{ enabled, message }`、`languages[{code,name,isDefault,fallbackCode}]`（啟用中）、`fallbackMode`（`show_default`／`hide`）、`formats{ dateFormat, numberFormat, thousandsSeparator, decimalSeparator }`、`policies[{code,title,hasContent}]` |
+| `GET /api/v1/{club}/policies/{code}?lang=` | `code`＝`cookie`／`privacy`／`member-terms`；`{ code, title, body, updatedAt, isFallbackLocale }`；**`body` 是純文字（空行分段），前台必須用文字節點輸出，不得 `v-html`**；沒有內容或代碼不存在 → `404` |
+| `GET /api/v1/ui-strings?lang=&group=` | 全站共用（不分俱樂部）：`{ locale, strings: { key: 文字 } }`，缺該語系回退繁中 |
+| `GET /api/v1/{club}/venues?lang=` | 這個俱樂部用得到的場地（主場＋賽事／梯次／試訓引用者；不快取）：`{ id, name, address, directions, lat, lng, photoUrl, photoWidth, photoHeight, photoAlt, isHome }` |
+
+**後台**：
+
+| 端點 | 權限 | 說明 |
+|---|---|---|
+| `GET /api/v1/admin/{club}/menus` | `site.menu.view` | `{ locations: [{ location: main\|mega\|footer, label, items[tree] }] }`，item `{ id, labelZh, labelEn, url, isExternal, children[] }` |
+| `PUT /api/v1/admin/{club}/menus/{location}` | `site.menu.update` | **整棵樹取代**：body `{ items: [{ id?, labelZh*, labelEn?, url?, isExternal, children? }] }`。有 `id` 沿用、沒有新增、既有不在請求裡就刪除；同層順序＝陣列順序。最多 3 層、每位置 100 項；葉節點必須有連結；內部連結須 `/` 開頭且不含空白／網域，外部連結須完整 http(s) 網址。`400` 不改動任何資料。後儲存者覆蓋先儲存者（無版本檢查） |
+| `GET`／`PUT /api/v1/admin/{club}/global-settings` | `site.global.view`／`update` | `PUT` 是 **multipart**：`payload`（JSON：`brandColor`、`brandSecondaryColor`（`#RRGGBB`）、`removeLogoLight`／`removeLogoDark`／`removeFavicon`、`cookiePolicy`／`privacyPolicy`／`memberTerms`（`{bodyZh,bodyEn}`，純文字，每則 ≤ 50,000 字）、`maintenanceEnabled`、`maintenanceMessageZh`／`En`（≤ 500 字））＋選填檔案 `logoLight`／`logoDark`／`favicon`。**非圖片欄位整份取代**；圖片不帶檔案且未勾移除＝維持原圖。切換維護模式寫敏感操作日誌。🔴 維護模式**只是旗標與訊息**，不會自動攔截其他公開端點，維護頁（G-10）由前台依 `site-settings.maintenance.enabled` 顯示 |
+| `GET /api/v1/admin/{club}/i18n/locales` | `site.locale.view`／`site.string.view`／`site.string.translate` 任一 | 語系清單 `{ code, name, isDefault, fallbackCode, isEnabled, sortOrder }` |
+| `PUT /api/v1/admin/{club}/i18n/locales/{code}` | `site.locale.update` | body `{ name, isEnabled, fallbackCode?, sortOrder }`；預設語系不能停用／不能設備援；備援不能是自己、必須存在且啟用、不能成環；被別的語系當備援時不能停用。**不提供新增語系**（見待決 2） |
+| `GET`／`PUT /api/v1/admin/{club}/i18n/settings` | `site.locale.view`／`update` | `{ fallbackMode: show_default\|hide, dateFormatZh/En, numberFormatZh/En }`。日期格式只收 `YYYY MMMM MMM MM M DD D` ＋ 分隔字元（空白 / - . , 年 月 日），且年月日都要有；數字格式只收範例字串（`1,234.56`／`1.234,56`／`1 234,56`）。**空白＝清除** |
+| `GET /api/v1/admin/{club}/i18n/overview?type=&missing=&keyword=&page=&pageSize=` | `site.locale.view` 或字串翻譯表任一權限 | 翻譯狀態總覽矩陣：`locales[]`（矩陣欄）、`summary[{type,typeLabel,total,missing{locale:筆數}}]`、`items[{type,typeLabel,id,label,isShared,done{locale:bool}}]`、`page`／`pageSize`（預設 50、最大 100）／`totalCount`。涵蓋 **9 類**：新聞、FAQ、課程、球員、教練、慈善計畫、夥伴、贊助商、首頁輪播；「完成」＝該語系側表列存在且**主要文字欄位**（標題／名稱／問題）非空。`missing=en` 篩「缺英文」 |
+| `GET /api/v1/admin/{club}/i18n/strings` | 字串翻譯表 `view`／`update`／`translate` 任一 | `?group=&keyword=&missing=en&page=&pageSize=`（預設 50、最大 100）→ `PagedResult<{ id, key, group, values{locale:文字}, updatedAt }>` |
+| `GET …/i18n/strings/groups` | 同上 | 分組清單 |
+| `POST …/i18n/strings` | `site.string.update`（`translate` 者 `403`） | body `{ key*, group?, values{ "zh-Hant"*, "en"? } }`；鍵格式 `^[a-z0-9][a-z0-9_-]*(\.[a-z0-9][a-z0-9_-]*)*$`（≤128）；重複 `409` |
+| `PUT …/i18n/strings/{id}` | `update` 或 `translate` | body `{ group?, values{} }`：**只處理有出現的語系**，空白＝刪除該語系翻譯（繁中不能清空）。🔴 只有 `translate` 的人：改繁中原文或分組 → **整個請求 `403`**（原樣重送視為沒改） |
+| `DELETE …/i18n/strings/{id}` | `site.string.update` | `204` |
+| `GET /api/v1/admin/{club}/venues` | `site.fact.view`／`team.match.view`／`site.venue.view` 任一 | 清單，**新增** `lat`／`lng`／`photoUrl`（原欄位不變） |
+| `GET /api/v1/admin/{club}/venues/{id}` | `site.venue.view` | 詳情 `{ id, lat, lng, photoUrl, photoWidth, photoHeight, sortOrder, zh{name,address,directions,photoAlt}, en?, usageCount, isHomeVenue, updatedAt }` |
+| `POST`／`PUT /api/v1/admin/{club}/venues[/{id}]` | `site.venue.create`／`update` | **multipart**：`payload`（`{ zh{name*,address,directions,photoAlt}, en?{…}, lat, lng, sortOrder, removePhoto }`）＋選填檔案 `photo`。緯度經度同時填或同時空白，範圍 ±90／±180；英文名稱空白＝刪除英文版；建立時不可 `removePhoto` |
+| `DELETE /api/v1/admin/{club}/venues/{id}` | `site.venue.delete` | 被賽事／梯次／試訓／行事曆事件／球迷會活動引用或登記為主場 → `409`（訊息說明原因），不連帶刪除 |
+| `POST /api/v1/admin/{club}/venues/locate` | `site.venue.create`／`update` 任一 | 「由地址定位」預覽，body `{ address }` → `{ lat, lng }`／`404` 查無／`503` 服務未啟用或故障；**不寫入任何資料** |
+| `GET`／`PUT /api/v1/admin/{club}/edm-settings` | `site.edm.view`／`update` | `{ enabled, provider, listId, senderEmail, apiKeyConfigured, integrationAvailable, updatedAt }`；`PUT` body 多 `apiKey`（留空＝維持原金鑰）、`clearApiKey`。🔴 **金鑰以 Data Protection 加密存放、只寫不讀**（任何回應都不含金鑰或其片段），設定／清除寫敏感操作日誌；啟用前必須有平台名稱與金鑰；`integrationAvailable=false`（供應商未定）時只是先存起來 |
+
+- **綱要**（先文件、再 DDL、再 migration）：`venues` 補 `photo_width`／`photo_height`、`venues_i18n` 補 `photo_alt`（圖片欄位組，規劃書 v3.5 §4.0）；`menu_items`／`ui_strings`／`locales`／`settings`／`newsletter_subscribers`／`registrations`／`trials` 早已存在。其餘設定鍵走 `settings`／`settings_i18n`（`policy.*`、`maintenance.*`、`i18n.*`、`edm.*`，詞彙集中於 `Features/SiteSettings/SiteSettingKeys.cs`）。migration **`AlignSchemaI1`**：冪等補欄位＋15 個權限碼與角色指派（以業務自然鍵「不存在才新增」，與種子／`db/prod` 兩條路徑誰先到都不會重複）。`Down` 只還原欄位，**刻意不移除權限碼**。
+- **Logo／Favicon／品牌色**：J4 俱樂部管理的圖片欄位維持唯讀，上傳入口在這裡（`clubs.logo_light_key`／`logo_dark_key`／`favicon_key`）。標誌類目前沒有寬高與 Alt 欄位（`docs/12d` §12 同一個既有落差）。
+
+### 6. 測試
+
+- **已實跑（不需資料庫）**：`SearchRepositoryOfflineTests`（關鍵字解析、萬用字元、摘錄、6 種類別查詢翻譯）、`SiteBackendOfflineTranslationTests`（儀表板全區塊與週／月轉換、試訓清單與報名驗證、前台選單／站台設定／政策／介面字串／場地、後台選單／全域設定／多語系／字串／EDM／場地查詢的 EF 翻譯，電子報驗證與退訂憑證往返、數字格式解析、**工具自我驗證**）、`PublicRateLimitPoliciesTests`（三個新政策）、`ArchitectureTests`（新公開 POST 端點都掛限流、公開 DTO 無孤立物件鍵）、`UserFacingMessageContentTests`（新例外訊息無權限碼／技術詞）。
+- **僅編譯、未實跑（需要資料庫）**：`DashboardApiTests`、`TrialsPublicTests`、`NewsletterPublicTests`、`SearchPublicTests`、`SiteMenusAndGlobalSettingsTests`、`SiteI18nStringsVenuesEdmTests`（共 47 項）。共用設定（選單、政策、維護模式、多語系、EDM）改動前後一律快照還原（`E-81`／`E-119`）；翻譯人員用測試內臨時建立的帳號（`SiteSettingsTest.CreateTranslatorAsync`），不依賴種子。**Logo／Favicon／場地照片上傳需要 Azurite，未涵蓋**。
+- 前端要做：儀表板畫面（`DashboardView.vue` 改接三支端點，移除 `data/dashboard.ts` 假資料）、`club/opportunities` 試訓表格與報名表單、頁尾電子報訂閱與退訂頁、全站搜尋頁（含高亮與分類頁籤）、後台 I 模組五個子畫面、前台選單／維護頁／政策頁／介面字串改讀 API。
+
+### 7. 本批的待決事項
+
+1. **雙重確認信（G-09）**：規劃書沒要求，目前單一確認＋退訂黏著。若要讓使用者能自行重新訂閱，需新增「待確認」狀態值（`newsletter_subscribers.status` 目前只有 `subscribed`／`unsubscribed`）並透過 `IEmailSender` 寄確認信。
+2. **第三語系擴充（G-01「新增語系時不需改動程式」）**：`RequestLocale.ToDbLocale` 目前只認 `en`，後台也不提供新增語系，與規劃書目標有落差；要做需讓語系判斷改讀 `locales` 表。
+3. **字型設定（I 多語系管理）**：規劃書只有「日期／數字格式與字型設定」一行字、沒有可選項目，字型又由設計系統決定——**本次不做**（日期／數字格式已做）。
+4. **Fallback「隱藏該頁」的執行**：後端只保存並公開 `fallbackMode`；各內容端點**不會**自動依它隱藏，要由前台依各 DTO 的語系回退標記執行（部分 DTO 還沒有回退標記）。
+5. **翻譯狀態總覽的涵蓋類別**：目前 9 類（見上）；頁面（區塊內文是雙語 JSON、沒有單一標題欄位）、賽事、商品、漫畫、行事曆事件等未納入，規劃書寫「每筆內容」，需確認要不要補。
+6. **儀表板待辦的項目**：照規劃書四項；「待出貨訂單」「待確認會籍申請」「候補」不在規劃書儀表板定義內，未放進待辦（會籍申請數在 `members.pendingUpgrades`）。FAQ 負評門檻（👎 ≥ 3 且多於 👍）、「即將截止」＝7 天、「即將到期」沿用 E2 提醒日，皆為執行層決定。
+7. **GA4 憑證**：服務帳戶與屬性 ID 未提供，流量區塊目前「尚未串接」（接縫 `IAnalyticsSource`，`docs/17` §3）。
+8. **EDM 供應商**：未定；設定欄位先備好（平台名稱、名單識別、寄件者、加密金鑰）。
+9. **試訓報名通知信**與課程報名一樣沒有寄送通路（全系統無報名通知）。

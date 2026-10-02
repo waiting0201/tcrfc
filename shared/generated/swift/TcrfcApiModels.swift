@@ -2532,6 +2532,26 @@ public struct MyMembershipsDto: Codable, Equatable, Sendable {
     }
 }
 
+public struct NewsletterSubscribeResultDto: Codable, Equatable, Sendable {
+    public var status: String?
+
+    public init(
+        status: String? = nil
+    ) {
+        self.status = status
+    }
+}
+
+public struct NewsletterUnsubscribeResultDto: Codable, Equatable, Sendable {
+    public var changed: Bool
+
+    public init(
+        changed: Bool
+    ) {
+        self.changed = changed
+    }
+}
+
 public struct PageBlockPublicDto: Codable, Equatable, Sendable {
     public var blockType: String
     public var content: JSONValue
@@ -3434,6 +3454,28 @@ public struct ProposalDownloadResultDto: Codable, Equatable, Sendable {
     }
 }
 
+public struct PublicBrandDto: Codable, Equatable, Sendable {
+    public var logoLightUrl: String?
+    public var logoDarkUrl: String?
+    public var faviconUrl: String?
+    public var brandColor: String?
+    public var brandSecondaryColor: String?
+
+    public init(
+        logoLightUrl: String? = nil,
+        logoDarkUrl: String? = nil,
+        faviconUrl: String? = nil,
+        brandColor: String? = nil,
+        brandSecondaryColor: String? = nil
+    ) {
+        self.logoLightUrl = logoLightUrl
+        self.logoDarkUrl = logoDarkUrl
+        self.faviconUrl = faviconUrl
+        self.brandColor = brandColor
+        self.brandSecondaryColor = brandSecondaryColor
+    }
+}
+
 public struct PublicCalendarEventDto: Codable, Equatable, Sendable {
     public var sourceType: String
     public var id: String
@@ -3680,6 +3722,44 @@ public struct PublicFormFieldDto: Codable, Equatable, Sendable {
     }
 }
 
+public struct PublicFormatsDto: Codable, Equatable, Sendable {
+    public var dateFormat: String?
+    public var numberFormat: String?
+    public var thousandsSeparator: String?
+    public var decimalSeparator: String?
+
+    public init(
+        dateFormat: String? = nil,
+        numberFormat: String? = nil,
+        thousandsSeparator: String? = nil,
+        decimalSeparator: String? = nil
+    ) {
+        self.dateFormat = dateFormat
+        self.numberFormat = numberFormat
+        self.thousandsSeparator = thousandsSeparator
+        self.decimalSeparator = decimalSeparator
+    }
+}
+
+public struct PublicLanguageDto: Codable, Equatable, Sendable {
+    public var code: String
+    public var name: String
+    public var isDefault: Bool
+    public var fallbackCode: String?
+
+    public init(
+        code: String,
+        name: String,
+        isDefault: Bool,
+        fallbackCode: String? = nil
+    ) {
+        self.code = code
+        self.name = name
+        self.isDefault = isDefault
+        self.fallbackCode = fallbackCode
+    }
+}
+
 public struct PublicLlmsContentDto: Codable, Equatable, Sendable {
     public var positioningZh: String?
     public var positioningEn: String?
@@ -3714,6 +3794,95 @@ public struct PublicLlmsContentDto: Codable, Equatable, Sendable {
         self.licenseEn = licenseEn
         self.contactZh = contactZh
         self.contactEn = contactEn
+    }
+}
+
+public struct PublicMaintenanceDto: Codable, Equatable, Sendable {
+    public var enabled: Bool
+    public var message: String?
+
+    public init(
+        enabled: Bool,
+        message: String? = nil
+    ) {
+        self.enabled = enabled
+        self.message = message
+    }
+}
+
+public struct PublicMenuItemDto: Codable, Equatable, Sendable {
+    public var id: String
+    public var label: String
+    public var url: String?
+    public var isExternal: Bool
+    public var children: [PublicMenuItemDto]
+
+    public init(
+        id: String,
+        label: String,
+        url: String? = nil,
+        isExternal: Bool,
+        children: [PublicMenuItemDto]
+    ) {
+        self.id = id
+        self.label = label
+        self.url = url
+        self.isExternal = isExternal
+        self.children = children
+    }
+}
+
+public struct PublicMenusDto: Codable, Equatable, Sendable {
+    public var main: [PublicMenuItemDto]
+    public var mega: [PublicMenuItemDto]
+    public var footer: [PublicMenuItemDto]
+
+    public init(
+        main: [PublicMenuItemDto],
+        mega: [PublicMenuItemDto],
+        footer: [PublicMenuItemDto]
+    ) {
+        self.main = main
+        self.mega = mega
+        self.footer = footer
+    }
+}
+
+public struct PublicPolicyDto: Codable, Equatable, Sendable {
+    public var code: String
+    public var title: String
+    public var body: String
+    public var updatedAt: JSONValue
+    public var isFallbackLocale: Bool
+
+    public init(
+        code: String,
+        title: String,
+        body: String,
+        updatedAt: JSONValue,
+        isFallbackLocale: Bool
+    ) {
+        self.code = code
+        self.title = title
+        self.body = body
+        self.updatedAt = updatedAt
+        self.isFallbackLocale = isFallbackLocale
+    }
+}
+
+public struct PublicPolicyIndexDto: Codable, Equatable, Sendable {
+    public var code: String
+    public var title: String
+    public var hasContent: Bool
+
+    public init(
+        code: String,
+        title: String,
+        hasContent: Bool
+    ) {
+        self.code = code
+        self.title = title
+        self.hasContent = hasContent
     }
 }
 
@@ -3874,6 +4043,139 @@ public struct PublicSiteFactsDto: Codable, Equatable, Sendable {
     }
 }
 
+public struct PublicSiteSettingsDto: Codable, Equatable, Sendable {
+    public var brand: PublicBrandDto
+    public var maintenance: PublicMaintenanceDto
+    public var languages: [PublicLanguageDto]
+    public var fallbackMode: String
+    public var formats: PublicFormatsDto
+    public var policies: [PublicPolicyIndexDto]
+
+    public init(
+        brand: PublicBrandDto,
+        maintenance: PublicMaintenanceDto,
+        languages: [PublicLanguageDto],
+        fallbackMode: String,
+        formats: PublicFormatsDto,
+        policies: [PublicPolicyIndexDto]
+    ) {
+        self.brand = brand
+        self.maintenance = maintenance
+        self.languages = languages
+        self.fallbackMode = fallbackMode
+        self.formats = formats
+        self.policies = policies
+    }
+}
+
+public struct PublicTrialDto: Codable, Equatable, Sendable {
+    public var id: String
+    public var trialOn: String
+    public var teamCode: String?
+    public var teamName: String?
+    public var audience: String?
+    public var venueId: String?
+    public var venueName: String?
+    public var venueAddress: String?
+    public var venueLat: Double?
+    public var venueLng: Double?
+    public var capacity: Int?
+    public var enrolledCount: Int
+    public var deadlineOn: String?
+    public var status: String
+    public var isSignupOpen: Bool
+    public var acceptsWaitlist: Bool
+
+    public init(
+        id: String,
+        trialOn: String,
+        teamCode: String? = nil,
+        teamName: String? = nil,
+        audience: String? = nil,
+        venueId: String? = nil,
+        venueName: String? = nil,
+        venueAddress: String? = nil,
+        venueLat: Double? = nil,
+        venueLng: Double? = nil,
+        capacity: Int? = nil,
+        enrolledCount: Int,
+        deadlineOn: String? = nil,
+        status: String,
+        isSignupOpen: Bool,
+        acceptsWaitlist: Bool
+    ) {
+        self.id = id
+        self.trialOn = trialOn
+        self.teamCode = teamCode
+        self.teamName = teamName
+        self.audience = audience
+        self.venueId = venueId
+        self.venueName = venueName
+        self.venueAddress = venueAddress
+        self.venueLat = venueLat
+        self.venueLng = venueLng
+        self.capacity = capacity
+        self.enrolledCount = enrolledCount
+        self.deadlineOn = deadlineOn
+        self.status = status
+        self.isSignupOpen = isSignupOpen
+        self.acceptsWaitlist = acceptsWaitlist
+    }
+}
+
+public struct PublicUiStringsDto: Codable, Equatable, Sendable {
+    public var locale: String
+    public var strings: [String: String]
+
+    public init(
+        locale: String,
+        strings: [String: String]
+    ) {
+        self.locale = locale
+        self.strings = strings
+    }
+}
+
+public struct PublicVenueDto: Codable, Equatable, Sendable {
+    public var id: String
+    public var name: String?
+    public var address: String?
+    public var directions: String?
+    public var lat: Double?
+    public var lng: Double?
+    public var photoUrl: String?
+    public var photoWidth: Int?
+    public var photoHeight: Int?
+    public var photoAlt: String?
+    public var isHome: Bool
+
+    public init(
+        id: String,
+        name: String? = nil,
+        address: String? = nil,
+        directions: String? = nil,
+        lat: Double? = nil,
+        lng: Double? = nil,
+        photoUrl: String? = nil,
+        photoWidth: Int? = nil,
+        photoHeight: Int? = nil,
+        photoAlt: String? = nil,
+        isHome: Bool
+    ) {
+        self.id = id
+        self.name = name
+        self.address = address
+        self.directions = directions
+        self.lat = lat
+        self.lng = lng
+        self.photoUrl = photoUrl
+        self.photoWidth = photoWidth
+        self.photoHeight = photoHeight
+        self.photoAlt = photoAlt
+        self.isHome = isHome
+    }
+}
+
 public struct RegisterAppDeviceRequest: Codable, Equatable, Sendable {
     public var platform: String
     public var osVersion: String?
@@ -3896,6 +4198,96 @@ public struct RegisterAppDeviceRequest: Codable, Equatable, Sendable {
         self.locale = locale
         self.pushToken = pushToken
         self.pushPermission = pushPermission
+    }
+}
+
+public struct SearchFacetDto: Codable, Equatable, Sendable {
+    public var type: String
+    public var label: String
+    public var count: Int
+
+    public init(
+        type: String,
+        label: String,
+        count: Int
+    ) {
+        self.type = type
+        self.label = label
+        self.count = count
+    }
+}
+
+public struct SearchResponseDto: Codable, Equatable, Sendable {
+    public var query: String
+    public var tokens: [String]
+    public var items: [SearchResultItemDto]
+    public var page: Int
+    public var pageSize: Int
+    public var totalCount: Int
+    public var facets: [SearchFacetDto]
+    public var truncated: Bool
+    public var isEmpty: Bool
+
+    public init(
+        query: String,
+        tokens: [String],
+        items: [SearchResultItemDto],
+        page: Int,
+        pageSize: Int,
+        totalCount: Int,
+        facets: [SearchFacetDto],
+        truncated: Bool,
+        isEmpty: Bool
+    ) {
+        self.query = query
+        self.tokens = tokens
+        self.items = items
+        self.page = page
+        self.pageSize = pageSize
+        self.totalCount = totalCount
+        self.facets = facets
+        self.truncated = truncated
+        self.isEmpty = isEmpty
+    }
+}
+
+public struct SearchResultItemDto: Codable, Equatable, Sendable {
+    public var type: String
+    public var subType: String?
+    public var id: String
+    public var slug: String?
+    public var title: String
+    public var snippet: String?
+    public var date: JSONValue?
+    public var categoryCode: String?
+    public var teamCode: String?
+    public var imageUrl: String?
+    public var isFallbackLocale: Bool
+
+    public init(
+        type: String,
+        subType: String? = nil,
+        id: String,
+        slug: String? = nil,
+        title: String,
+        snippet: String? = nil,
+        date: JSONValue? = nil,
+        categoryCode: String? = nil,
+        teamCode: String? = nil,
+        imageUrl: String? = nil,
+        isFallbackLocale: Bool
+    ) {
+        self.type = type
+        self.subType = subType
+        self.id = id
+        self.slug = slug
+        self.title = title
+        self.snippet = snippet
+        self.date = date
+        self.categoryCode = categoryCode
+        self.teamCode = teamCode
+        self.imageUrl = imageUrl
+        self.isFallbackLocale = isFallbackLocale
     }
 }
 
@@ -4784,6 +5176,56 @@ public struct SubmitProgramRegistrationRequest: Codable, Equatable, Sendable {
     }
 }
 
+public struct SubmitTrialRegistrationRequest: Codable, Equatable, Sendable {
+    public var applicantName: String?
+    public var phone: String?
+    public var email: String?
+    public var birthOn: String?
+    public var guardianName: String?
+    public var guardianPhone: String?
+    public var healthDeclaration: String?
+    public var note: String?
+
+    public init(
+        applicantName: String? = nil,
+        phone: String? = nil,
+        email: String? = nil,
+        birthOn: String? = nil,
+        guardianName: String? = nil,
+        guardianPhone: String? = nil,
+        healthDeclaration: String? = nil,
+        note: String? = nil
+    ) {
+        self.applicantName = applicantName
+        self.phone = phone
+        self.email = email
+        self.birthOn = birthOn
+        self.guardianName = guardianName
+        self.guardianPhone = guardianPhone
+        self.healthDeclaration = healthDeclaration
+        self.note = note
+    }
+}
+
+public struct SubscribeNewsletterRequest: Codable, Equatable, Sendable {
+    public var email: String?
+    public var consent: Bool?
+    public var source: String?
+    public var website: String?
+
+    public init(
+        email: String? = nil,
+        consent: Bool? = nil,
+        source: String? = nil,
+        website: String? = nil
+    ) {
+        self.email = email
+        self.consent = consent
+        self.source = source
+        self.website = website
+    }
+}
+
 public struct TeamDto: Codable, Equatable, Sendable {
     public var id: String
     public var code: String
@@ -4824,6 +5266,29 @@ public struct TeamDto: Codable, Equatable, Sendable {
         self.heroUrl = heroUrl
         self.logoUrl = logoUrl
         self.schemaEligible = schemaEligible
+    }
+}
+
+public struct TrialRegistrationSubmittedDto: Codable, Equatable, Sendable {
+    public var registrationNo: String
+    public var status: String
+
+    public init(
+        registrationNo: String,
+        status: String
+    ) {
+        self.registrationNo = registrationNo
+        self.status = status
+    }
+}
+
+public struct UnsubscribeNewsletterRequest: Codable, Equatable, Sendable {
+    public var token: String?
+
+    public init(
+        token: String? = nil
+    ) {
+        self.token = token
     }
 }
 

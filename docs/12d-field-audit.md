@@ -396,16 +396,18 @@
 
 **本批已補（`articles`）**：`cover_width`／`cover_height`／`articles_i18n.cover_alt`，並接上上傳流程（寬高來自主檔縮小後的實際尺寸）、後台與公開 DTO、OG 圖片回退；migration `AlignSchemaG1`。
 
+**H 批再補（`venues`，2026-10-02）**：`venues.photo_width`／`photo_height`／`venues_i18n.photo_alt`，接上場地管理（I5）的照片上傳、後台詳情與前台場地端點；migration `AlignSchemaI1`。**24 → 23 個缺寬高、30 → 29 個缺 Alt**（`venues.photo_key` 已移出下表）。
+
 **已完整（寬高＋Alt 俱全）**：`articles.cover_key`（本批）、`articles.og_image_key`、`pages.og_image_key`、`banners.image_key`、`milestones.image_key`、`ad_slots.fallback_image_key`、`ad_creatives.image_key`、`push_messages.image_key`。
 
 **仍有缺口（本批未動）**：
 
 | 缺什麼 | 欄位 |
 |---|---|
-| **寬高＋Alt 都缺**（24 個） | `teams.hero_key`、`players.photo_key`、`staff.photo_key`、`programs.cover_key`、`comic_characters.image_key`、`comic_episodes.cover_key`、`fan_events.cover_key`、`venues.photo_key`、`partner_stores.image_key`、`member_draws.cover_key`、`calendar_custom_events.cover_key`、`product_images.image_key`、`charities.logo_key`、`charity_programs.cover_key`、`charity_program_images.image_key`、`impact_record_images.image_key`；標誌／圖示類：`partners.logo_dark_key`／`logo_light_key`、`sponsors.logo_dark_key`／`logo_light_key`、`clubs.logo_light_key`／`logo_dark_key`／`favicon_key`、`app_layout_items.icon_key` |
+| **寬高＋Alt 都缺**（23 個） | `teams.hero_key`、`players.photo_key`、`staff.photo_key`、`programs.cover_key`、`comic_characters.image_key`、`comic_episodes.cover_key`、`fan_events.cover_key`、`partner_stores.image_key`、`member_draws.cover_key`、`calendar_custom_events.cover_key`、`product_images.image_key`、`charities.logo_key`、`charity_programs.cover_key`、`charity_program_images.image_key`、`impact_record_images.image_key`；標誌／圖示類：`partners.logo_dark_key`／`logo_light_key`、`sponsors.logo_dark_key`／`logo_light_key`、`clubs.logo_light_key`／`logo_dark_key`／`favicon_key`、`app_layout_items.icon_key` |
 | **有寬高、缺 Alt**（6 個） | `press_resources.cover_key`、`sponsor_activation_images.image_key`、`comic_pages.image_key`、`fan_event_images.image_key`、`impact_records.image_key`、`clubs.og_image_key` |
 
-合計：**24 個圖片欄位缺寬高、30 個缺 Alt**（前者全部也缺 Alt）。
+合計：**23 個圖片欄位缺寬高、29 個缺 Alt**（前者全部也缺 Alt；H 批補 `venues` 後的數字）。
 
 **補之前必須先決定的三件事（執行層無法代為決定）：**
 
@@ -422,4 +424,5 @@
 | v1.0 | 2026-09-20 | 首版，S0-3c 全表欄位盤點 |
 | v1.1 | 2026-09-21 | 新增 §9：S0-6c 灌種子資料時從實際 JSON 內容發現的落差（`Match.match_no` 真的缺；`intcup` 分類、學院教練隊別歸屬為資料缺口非欄位缺漏） |
 | v1.3 | 2026-10-02 | §11 `articles` 封面欄位組兩筆已補（S0-7h，migration `AlignSchemaG1`）；新增 §12 圖片欄位組全表重掃 |
+| v1.4 | 2026-10-02 | §12 `venues` 照片欄位組已補（H 批 I5，migration `AlignSchemaI1`）：24→23、30→29 |
 | v1.2 | 2026-09-21 | §9 `Match.match_no` 落差已解決：規格異動同步鏈跑完（規劃書 v3.12、`docs/12`／`12a`／`12b`、`db/club-schema.sql`），欄位補上 |

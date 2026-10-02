@@ -32,8 +32,8 @@
 -- MANIFEST forms=18
 -- MANIFEST home_sections=18
 -- MANIFEST locales=2
--- MANIFEST permissions=260
--- MANIFEST role_permissions=782
+-- MANIFEST permissions=275
+-- MANIFEST role_permissions=799
 -- ============================================================================
 
 SET ANSI_NULLS ON;
@@ -1463,6 +1463,186 @@ BEGIN
   SET @id = N'c28a5e28-536f-5341-abf9-94f4e406b4fb';
   INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
   VALUES (@id, N'site.fact.update', N'I', N'I1', N'site', N'update', 1, 0, 1, N'編輯網站設定（站台事實）', N'Update Site Facts');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.menu.view';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'a03e29a5-4ebe-5121-a2cc-d57c587587a7';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.menu.view', N'I', N'I2', N'site', N'view', 1, 0, 1, N'檢視選單管理', N'View Menus');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.menu.update';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'a24f9f0e-5f38-56f1-b93b-cb83ea23d847';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.menu.update', N'I', N'I2', N'site', N'update', 1, 0, 1, N'編輯主選單、Mega Menu 與頁尾選單', N'Update Menus');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.global.view';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'dd3c5b2c-f26e-5816-aad0-382e31ad7891';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.global.view', N'I', N'I3', N'site', N'view', 1, 0, 1, N'檢視全域設定', N'View Global Settings');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.global.update';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'5363d27f-da7a-5792-ab9c-edb9e73b970b';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.global.update', N'I', N'I3', N'site', N'update', 1, 0, 1, N'編輯 Logo、品牌色、Favicon、政策頁與維護模式', N'Update Global Settings');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.locale.view';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'029afe94-560e-5378-bf8c-e84eeea0adb5';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.locale.view', N'I', N'I4', N'site', N'view', 1, 0, 1, N'檢視多語系設定與翻譯狀態總覽', N'View Language Settings');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.locale.update';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'2e7391bc-0d91-5599-b2f2-b176cef39f16';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.locale.update', N'I', N'I4', N'site', N'update', 1, 0, 1, N'編輯啟用語系、備援規則與日期數字格式', N'Update Language Settings');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.string.view';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'f770c8ec-3936-50af-87ce-dbc33bbb42ef';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.string.view', N'I', N'I4', N'site', N'view', 0, 0, 0, N'檢視介面字串翻譯表', N'View UI Strings');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.string.update';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'9cfa154e-0421-5796-a51e-dcde6d3b344f';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.string.update', N'I', N'I4', N'site', N'update', 0, 0, 0, N'新增、刪除與編輯介面字串（含繁中原文）', N'Update UI Strings');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.string.translate';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'd4e9eca5-6bc9-5885-a95f-dc4b863324c7';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.string.translate', N'I', N'I4', N'site', N'update', 0, 0, 0, N'翻譯介面字串（僅非預設語系）', N'Translate UI Strings');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.venue.view';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'd3e346b5-60fe-51ec-b1d2-0f6892a300ec';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.venue.view', N'I', N'I5', N'site', N'view', 0, 0, 1, N'檢視場地管理', N'View Venues');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.venue.create';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'96b5d373-801b-5b30-b104-5efa3f0072e3';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.venue.create', N'I', N'I5', N'site', N'create', 0, 0, 1, N'新增場地', N'Create Venues');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.venue.update';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'42e5a581-e103-5acf-9716-addca6d4c0f8';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.venue.update', N'I', N'I5', N'site', N'update', 0, 0, 1, N'編輯場地（地址、經緯度、交通說明、照片）', N'Update Venues');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.venue.delete';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'274873b2-2104-577c-b624-d0342c8980bf';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.venue.delete', N'I', N'I5', N'site', N'delete', 0, 0, 1, N'刪除場地', N'Delete Venues');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.edm.view';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'd03e7fbe-4de1-570b-ab3f-bb462329ada8';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.edm.view', N'I', N'I6', N'site', N'view', 1, 1, 1, N'檢視 EDM 平台設定', N'View EDM Settings');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM permissions WHERE code = N'site.edm.update';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'4ca0536e-b18f-554b-b95a-ae2f237ebaa7';
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, is_club_scoped, is_restricted, sysadmin_only, name_zh, name_en)
+  VALUES (@id, N'site.edm.update', N'I', N'I6', N'site', N'update', 1, 1, 1, N'編輯 EDM 平台設定與憑證', N'Update EDM Settings');
   COMMIT TRANSACTION;
 END
 GO
@@ -3907,6 +4087,81 @@ GO
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.fact.update'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.fact.update'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.menu.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.menu.view'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.menu.update'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.menu.update'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.global.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.global.view'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.global.update'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.global.update'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.locale.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.locale.view'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.locale.update'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.locale.update'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.string.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.string.view'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.string.update'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.string.update'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.string.translate'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.string.translate'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.venue.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.venue.view'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.venue.create'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.venue.create'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.venue.update'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.venue.update'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.venue.delete'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.venue.delete'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.edm.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.edm.view'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.edm.update'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'site.edm.update'), N'all');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'business.partner.view'))
@@ -7277,6 +7532,16 @@ GO
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'viewer') AND permission_id = (SELECT id FROM permissions WHERE code = N'ad.report.view'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'viewer'), (SELECT id FROM permissions WHERE code = N'ad.report.view'), N'all');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'translator') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.string.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'translator'), (SELECT id FROM permissions WHERE code = N'site.string.view'), N'translate_only');
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'translator') AND permission_id = (SELECT id FROM permissions WHERE code = N'site.string.translate'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'translator'), (SELECT id FROM permissions WHERE code = N'site.string.translate'), N'translate_only');
 GO
 
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'content_editor') AND permission_id = (SELECT id FROM permissions WHERE code = N'app.layout.view'))

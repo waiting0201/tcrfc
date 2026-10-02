@@ -501,6 +501,23 @@ builder.Services.AddScoped<Tcrfc.Api.Features.AdminPartnerStores.AdminPartnerSto
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminBenefits.AdminBenefitsRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminTrials.AdminTrialsRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.AdminTrials.AdminTrialRegistrationsRepository>();
+// 2026-10-02：G-09 電子報訂閱、P4 試訓公開端點（退訂憑證用 Data Protection，purpose 獨立）。
+builder.Services.AddScoped<Tcrfc.Api.Features.Newsletter.NewsletterRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Newsletter.NewsletterUnsubscribeTokens>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Trials.TrialsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Search.SearchRepository>(); // G-02 全站搜尋（LIKE，不用全文檢索，取捨見該類別檔頭）
+// 2026-10-02：I 網站設定其餘子模組（I2 選單／I3 全域設定／I4 多語系與字串翻譯表／I6 EDM 設定）與公開讀取。
+builder.Services.AddScoped<Tcrfc.Api.Common.ClubSettingsEditor>();
+builder.Services.AddScoped<Tcrfc.Api.Features.SiteSettings.SiteSettingsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.AdminMenusRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.AdminGlobalSettingsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.TranslationStatusReader>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.AdminI18nRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.AdminUiStringsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminSiteSettings.AdminEdmSettingsRepository>();
+// 2026-10-02：A 儀表板；GA4 流量資料來源接縫（憑證未取得，預設「尚未串接」，見 docs/17 §3）。
+builder.Services.AddScoped<Tcrfc.Api.Features.AdminDashboard.AdminDashboardRepository>();
+builder.Services.AddSingleton<Tcrfc.Api.Features.AdminDashboard.IAnalyticsSource, Tcrfc.Api.Features.AdminDashboard.NotConfiguredAnalyticsSource>();
 
 // ── CORS：只允許設定來源，來源清單從環境變數讀，不寫死（docs/17-deployment.md §10.2） ─────
 // ── E 批（2026-10-01，S2-11／S3-2）：主站前台會員中心、會籍付款訂單、文化公開端點 ──────────────────────────
@@ -753,6 +770,41 @@ builder.Services.AddRateLimiter(options =>
         });
     });
 
+    // ── 2026-10-02：全站搜尋（G-02）、電子報訂閱（G-09）、試訓報名（P4）三個公開端點的限流，
+    // 額度與理由見 PublicRateLimitPolicies.Search／Newsletter／TrialRegistration，額度可由設定覆寫（測試主機用寬鬆值）。
+    options.AddPolicy(PublicRateLimitPolicies.Search, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = PublicRateLimitPolicies.ResolveSearchPermitLimit(configuration),
+            Window = PublicRateLimitPolicies.SearchWindow,
+            QueueLimit = 0,
+        });
+    });
+    options.AddPolicy(PublicRateLimitPolicies.Newsletter, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = PublicRateLimitPolicies.ResolveNewsletterPermitLimit(configuration),
+            Window = PublicRateLimitPolicies.NewsletterWindow,
+            QueueLimit = 0,
+        });
+    });
+    options.AddPolicy(PublicRateLimitPolicies.TrialRegistration, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = PublicRateLimitPolicies.ResolveTrialRegistrationPermitLimit(configuration),
+            Window = PublicRateLimitPolicies.TrialRegistrationWindow,
+            QueueLimit = 0,
+        });
+    });
     // ── 後台登入／更新權杖端點的依 IP 限流（2026-09-29，補齊 docs/14-invariants.md 對
     // AdminAuth 原本刻意留下的缺口；同日兩度修正——① 額度改成可設定值，見
     // AdminAuthRateLimitOptions.cs 檔頭「為什麼要從寫死的常數改成可設定值」；② 額度改讀
@@ -865,6 +917,16 @@ app.MapFaqsEndpoints();
 
 // ── S1-9：05 課程與活動公開讀取＋報名送出 ─────────────────────────────────
 app.MapProgramsEndpoints();
+Tcrfc.Api.Features.Newsletter.NewsletterEndpoints.MapNewsletterEndpoints(app);
+Tcrfc.Api.Features.Trials.TrialsEndpoints.MapTrialsEndpoints(app);
+Tcrfc.Api.Features.Search.SearchEndpoints.MapSearchEndpoints(app);
+Tcrfc.Api.Features.SiteSettings.SiteSettingsEndpoints.MapSiteSettingsEndpoints(app);
+Tcrfc.Api.Features.AdminSiteSettings.AdminMenusEndpoints.MapAdminMenusEndpoints(app);
+Tcrfc.Api.Features.AdminSiteSettings.AdminGlobalSettingsEndpoints.MapAdminGlobalSettingsEndpoints(app);
+Tcrfc.Api.Features.AdminSiteSettings.AdminI18nEndpoints.MapAdminI18nEndpoints(app);
+Tcrfc.Api.Features.AdminSiteSettings.AdminUiStringsEndpoints.MapAdminUiStringsEndpoints(app);
+Tcrfc.Api.Features.AdminSiteSettings.AdminEdmSettingsEndpoints.MapAdminEdmSettingsEndpoints(app);
+Tcrfc.Api.Features.AdminDashboard.AdminDashboardEndpoints.MapAdminDashboardEndpoints(app);
 
 // ── S1-10：10 表單中心公開讀取＋送出 ─────────────────────────────────────
 app.MapFormsEndpoints();

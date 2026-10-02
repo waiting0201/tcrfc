@@ -1350,6 +1350,8 @@ erDiagram
     decimal_9_6 lat
     decimal_9_6 lng
     string_500 photo_key
+    int photo_width
+    int photo_height
     int sort_order
   }
   menu_item {

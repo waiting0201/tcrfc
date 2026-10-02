@@ -253,6 +253,14 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             Tcrfc.Api.Features.AdminTrials.TrialNotFoundException trialNotFound =>
                 (StatusCodes.Status404NotFound, "找不到試訓場次", trialNotFound.Message),
 
+            // ── 2026-10-02：全站搜尋／電子報訂閱／試訓報名等公開端點（Common/PublicExceptions.cs）──────
+            PublicValidationException publicValidation =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", publicValidation.Message),
+            PublicNotFoundException publicNotFound =>
+                (StatusCodes.Status404NotFound, publicNotFound.Title, publicNotFound.Message),
+            PublicConflictException publicConflict =>
+                (StatusCodes.Status409Conflict, publicConflict.Title, publicConflict.Message),
+
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),
         };

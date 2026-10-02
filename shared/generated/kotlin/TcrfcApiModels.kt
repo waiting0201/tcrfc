@@ -1011,6 +1011,16 @@ data class MyMembershipsDto(
 )
 
 @Serializable
+data class NewsletterSubscribeResultDto(
+    val status: String? = null,
+)
+
+@Serializable
+data class NewsletterUnsubscribeResultDto(
+    val changed: Boolean,
+)
+
+@Serializable
 data class PageBlockPublicDto(
     val blockType: String,
     val content: JsonElement,
@@ -1365,6 +1375,15 @@ data class ProposalDownloadResultDto(
 )
 
 @Serializable
+data class PublicBrandDto(
+    val logoLightUrl: String? = null,
+    val logoDarkUrl: String? = null,
+    val faviconUrl: String? = null,
+    val brandColor: String? = null,
+    val brandSecondaryColor: String? = null,
+)
+
+@Serializable
 data class PublicCalendarEventDto(
     val sourceType: String,
     val id: String,
@@ -1462,6 +1481,22 @@ data class PublicFormFieldDto(
 )
 
 @Serializable
+data class PublicFormatsDto(
+    val dateFormat: String? = null,
+    val numberFormat: String? = null,
+    val thousandsSeparator: String? = null,
+    val decimalSeparator: String? = null,
+)
+
+@Serializable
+data class PublicLanguageDto(
+    val code: String,
+    val name: String,
+    val isDefault: Boolean,
+    val fallbackCode: String? = null,
+)
+
+@Serializable
 data class PublicLlmsContentDto(
     val positioningZh: String? = null,
     val positioningEn: String? = null,
@@ -1473,6 +1508,44 @@ data class PublicLlmsContentDto(
     val licenseEn: String? = null,
     val contactZh: String? = null,
     val contactEn: String? = null,
+)
+
+@Serializable
+data class PublicMaintenanceDto(
+    val enabled: Boolean,
+    val message: String? = null,
+)
+
+@Serializable
+data class PublicMenuItemDto(
+    val id: String,
+    val label: String,
+    val url: String? = null,
+    val isExternal: Boolean,
+    val children: List<PublicMenuItemDto>,
+)
+
+@Serializable
+data class PublicMenusDto(
+    val main: List<PublicMenuItemDto>,
+    val mega: List<PublicMenuItemDto>,
+    val footer: List<PublicMenuItemDto>,
+)
+
+@Serializable
+data class PublicPolicyDto(
+    val code: String,
+    val title: String,
+    val body: String,
+    val updatedAt: JsonElement,
+    val isFallbackLocale: Boolean,
+)
+
+@Serializable
+data class PublicPolicyIndexDto(
+    val code: String,
+    val title: String,
+    val hasContent: Boolean,
 )
 
 @Serializable
@@ -1540,6 +1613,57 @@ data class PublicSiteFactsDto(
 )
 
 @Serializable
+data class PublicSiteSettingsDto(
+    val brand: PublicBrandDto,
+    val maintenance: PublicMaintenanceDto,
+    val languages: List<PublicLanguageDto>,
+    val fallbackMode: String,
+    val formats: PublicFormatsDto,
+    val policies: List<PublicPolicyIndexDto>,
+)
+
+@Serializable
+data class PublicTrialDto(
+    val id: String,
+    val trialOn: String,
+    val teamCode: String? = null,
+    val teamName: String? = null,
+    val audience: String? = null,
+    val venueId: String? = null,
+    val venueName: String? = null,
+    val venueAddress: String? = null,
+    val venueLat: Double? = null,
+    val venueLng: Double? = null,
+    val capacity: Int? = null,
+    val enrolledCount: Int,
+    val deadlineOn: String? = null,
+    val status: String,
+    val isSignupOpen: Boolean,
+    val acceptsWaitlist: Boolean,
+)
+
+@Serializable
+data class PublicUiStringsDto(
+    val locale: String,
+    val strings: Map<String, String>,
+)
+
+@Serializable
+data class PublicVenueDto(
+    val id: String,
+    val name: String? = null,
+    val address: String? = null,
+    val directions: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    val photoUrl: String? = null,
+    val photoWidth: Int? = null,
+    val photoHeight: Int? = null,
+    val photoAlt: String? = null,
+    val isHome: Boolean,
+)
+
+@Serializable
 data class RegisterAppDeviceRequest(
     val platform: String,
     val osVersion: String? = null,
@@ -1547,6 +1671,41 @@ data class RegisterAppDeviceRequest(
     val locale: String? = null,
     val pushToken: String? = null,
     val pushPermission: String? = null,
+)
+
+@Serializable
+data class SearchFacetDto(
+    val type: String,
+    val label: String,
+    val count: Int,
+)
+
+@Serializable
+data class SearchResponseDto(
+    val query: String,
+    val tokens: List<String>,
+    val items: List<SearchResultItemDto>,
+    val page: Int,
+    val pageSize: Int,
+    val totalCount: Int,
+    val facets: List<SearchFacetDto>,
+    val truncated: Boolean,
+    val isEmpty: Boolean,
+)
+
+@Serializable
+data class SearchResultItemDto(
+    val type: String,
+    val subType: String? = null,
+    val id: String,
+    val slug: String? = null,
+    val title: String,
+    val snippet: String? = null,
+    val date: JsonElement? = null,
+    val categoryCode: String? = null,
+    val teamCode: String? = null,
+    val imageUrl: String? = null,
+    val isFallbackLocale: Boolean,
 )
 
 @Serializable
@@ -1895,6 +2054,26 @@ data class SubmitProgramRegistrationRequest(
 )
 
 @Serializable
+data class SubmitTrialRegistrationRequest(
+    val applicantName: String? = null,
+    val phone: String? = null,
+    val email: String? = null,
+    val birthOn: String? = null,
+    val guardianName: String? = null,
+    val guardianPhone: String? = null,
+    val healthDeclaration: String? = null,
+    val note: String? = null,
+)
+
+@Serializable
+data class SubscribeNewsletterRequest(
+    val email: String? = null,
+    val consent: Boolean? = null,
+    val source: String? = null,
+    val website: String? = null,
+)
+
+@Serializable
 data class TeamDto(
     val id: String,
     val code: String,
@@ -1908,6 +2087,17 @@ data class TeamDto(
     val heroUrl: String? = null,
     val logoUrl: String? = null,
     val schemaEligible: Boolean,
+)
+
+@Serializable
+data class TrialRegistrationSubmittedDto(
+    val registrationNo: String,
+    val status: String,
+)
+
+@Serializable
+data class UnsubscribeNewsletterRequest(
+    val token: String? = null,
 )
 
 @Serializable

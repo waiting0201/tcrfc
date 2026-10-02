@@ -358,6 +358,20 @@ services:
 ④ 接受風險並於 30 天內重新驗證座標（工程成本高，且仍有 iOS MapKit 問題）。
 條款會改版，**實際串接前須再讀一次最新版**。
 
+### H 批的接縫：GA4 流量資料來源、EDM 設定欄位、退訂憑證（2026-10-02，`backend-engineer`）
+
+同樣的做法：外部服務未到位就**以介面隔開、預設註冊「尚未串接」**，後台其餘邏輯照常運作，回應如實說明。
+
+| 接縫 | 介面與預設實作 | 卡在什麼 | 串接時要做什麼 |
+|---|---|---|---|
+| **GA4 流量資料（儀表板「流量概況」）** | `IAnalyticsSource`／`NotConfiguredAnalyticsSource`（`Features/AdminDashboard/AnalyticsSource.cs`，`ProviderName=null`）；`GET /api/v1/admin/{club}/dashboard/traffic` 目前一律回 `configured=false`＋「流量資料尚未串接」 | GA4 Data API 的**服務帳戶金鑰**與**各俱樂部的 GA4 屬性 ID**未取得（H1 追蹤碼管理只存「衡量 ID」`tracking.ga4_measurement_id`，那不是 Data API 要的屬性 ID） | 實作 `GetOverviewAsync`：GA4 Data API `runReport`（維度 `pagePath`／`sessionDefaultChannelGroup`，指標 `screenPageViews`／`sessions`，範圍 `AnalyticsQuery` 的起訖日，依 `ClubCode` 選屬性），換掉 `Program.cs` 的註冊。🔴 **實作必須自己快取**（Data API 有每日配額，儀表板每次載入不得直接打外部服務；建議 `IQueryCache` 5–15 分鐘）、自己設逾時，失敗回 `Configured=true`＋`Overview=null`＋日常中文訊息，**不得丟例外讓儀表板失敗**。服務帳戶金鑰進 VM 的 `secrets/`（不進 repo／映像檔），權限只給「檢視者」。 |
+| **EDM 平台設定欄位（I6）** | `AdminEdmSettingsRepository`（`Features/AdminSiteSettings/AdminEdmSettings.cs`）存 `settings` 的 `edm.*` 鍵；`INewsletterEdmSync` 仍是 `NotConfiguredEdmSync`（D 批） | 供應商未定 | 日後的 `INewsletterEdmSync` 實作透過 `AdminEdmSettingsRepository.TryGetApiKeyAsync(clubId)` 取回金鑰（Data Protection，purpose `Tcrfc.Edm.ApiKey.v1`）。**金鑰環遺失（容器重建沒掛 `DATA_PROTECTION_KEYS_PATH`）會讓已存的 EDM 金鑰永遠無法解密**——與推播權杖不同，管理者必須重新輸入（回傳 `null`，不丟例外） |
+| **電子報退訂憑證** | `NewsletterUnsubscribeTokens`（`Features/Newsletter/`，Data Protection，purpose `Tcrfc.Newsletter.Unsubscribe.v1`） | 目前沒有「寄信的呼叫端」（EDM 寄送在外部平台） | EDM 供應商串接時，用該類別為每位訂閱者產生專屬退訂連結（`/{lang}/newsletter/unsubscribe?token=…`，前台頁面呼叫 `POST /api/v1/{club}/newsletter/unsubscribe`）；憑證**不過期**，金鑰環遺失會讓**所有已寄出的退訂連結失效**（退不掉訂的法遵風險）——與其他 Data Protection 用途一樣，金鑰環必須持久化 |
+
+**新增的環境設定**（都是選填，只有測試與壓力情境需要調）：`PUBLIC_SEARCH_RATE_LIMIT_PERMITS`（預設 30／分鐘）、`PUBLIC_NEWSLETTER_RATE_LIMIT_PERMITS`（預設 10／10 分鐘）、`PUBLIC_TRIAL_REGISTRATION_RATE_LIMIT_PERMITS`（預設 20／5 分鐘）。
+
+**快取失效**：I 網站設定的前台讀取（選單、站台設定、政策頁、介面字串）與其他前台資料不同，**後台儲存後立即失效**（`SiteSettingsRepository.CacheEntities`）——維護模式不得延後生效；語系表是全站共用，變更時所有俱樂部的站台設定快取都清。這三類資料不在「不得讀快取」清單內（§4）。
+
 ---
 
 ## 4. 快取策略
@@ -741,7 +755,7 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 5 | **個資跨境存放** | 會員與**捐款人**個資存於日本（VM、Azure SQL、Blob 全在 Japan East） | ⚠️ **法務待確認**：個資法的跨境傳輸限制，以及協會與俱樂部間的委託處理約定須載明境外存放。⚠️ **改日本不等於解除這條**——仍是境外，只是接受度可能與美國不同，**結論要法務給不是我們推定** |
 | 6 | **Basic 層 2 GB 硬上限** | 寫滿即寫入失敗（非降速） | 儲存空間告警設在 1.5 GB；層級變更是線上作業，可即時升 S0 |
 | 7 | **快取陳舊造成錯誤決策** | 有人把 §4 禁用清單裡的資料加進快取 | 清單於 [`12`](12-database-schema.md) §12 與 [`14`](14-invariants.md) 交叉引用；write-invalidate ＋ TTL 兜底；驗證項逐條實測 |
-| 8 | **G-02 搜尋第一期不完整** | `LIKE` 比對做不到分類篩選與關鍵字高亮 | 登記為已知落差；升級路徑為 Azure SQL 內建全文檢索 |
+| 8 | **G-02 搜尋用 `LIKE`，不是全文檢索** | 繁中斷詞與相關度排序做不到；每類最多取前 100 筆供翻頁。✅ 分類篩選（`type`＋各類精確命中數 `facets`）與高亮所需資料（`tokens`＋`snippet`）已於 H 批（2026-10-02）在 `GET /api/v1/{club}/search` 提供（高亮由前端做） | 量級是一個俱樂部官網，毫秒級可接受；**改全文檢索的觸發條件**：任一類別超過約 1 萬列或 p95 超過 300ms（Azure SQL 內建全文檢索，只換各類別 `Where`，端點不變，見 `apps/api/README.md`「H 批」§4） |
 | 9 | ~~區域延遲與出口 IP 的時序耦合~~ **已解除** | **2026-09-20 於申請商店號前改為 Japan East**，正好趕在登記出口 IP 之前定案 | ✅ 此後再遷區域仍要改 LINE Pay 白名單，成本照舊高——**視同停機事件，不要再動** |
 | 10 | **App 在 API 全滅時無法宣告維護中** | 用來宣告「維護中」的設定端點與 API 同一個行程 | App 的設定、最低支援版本與維護模式另有一份**靜態備援放在 Cloudflare**（Workers KV／R2），不經 VM；強制更新畫面的版面與雙語文案打包進 App。見 [`19`](19-app-tech-stack.md) §7
 | 11 | ✅ **已結案（2026-10-01）**：~~公開圖片在「儲存體只允許 snet-app」下讀不到~~ → 使用者決定「公開容器＋Cloudflare」；**代價**：兩個儲存體帳戶失去 VNet 層隔離，`proposals` 只剩「無匿名存取＋共用金鑰保密」。原問題： 使用者 2026-10-01 決定儲存體只放行 VNet 規則、不開公開存取；但 `BlobImagePublicUrlResolver`／`BlobDocumentPublicUrlResolver` 回傳 blob 直連網址，訪客瀏覽器不在 `snet-app` | Bicep 已改：`images`／`videos`／`documents`／`charity-images` 為 `publicAccess: Blob`，`proposals` 私有。✅ **`apps/api` 公開網址基底已完成（2026-10-01）**：新增 `AZURE_BLOB_PUBLIC_BASE_URL`（俱樂部 `club.env`）／`AZURE_BLOB_PUBLIC_BASE_URL_CHARITY`（慈善 `charity.env`），四個解析器改組 `{base}/{容器}/{key}`，上傳與刪除仍走連線字串，未設定回退 `BlobContainerClient.Uri`，格式錯誤啟動即失敗（見 `apps/api/README.md`）。🔴 **剩餘待做**：Cloudflare 端 Host／SNI 處理待實測，見 `infra/README.md` §4.7 |

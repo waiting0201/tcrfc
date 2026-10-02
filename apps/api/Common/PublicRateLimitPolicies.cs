@@ -72,6 +72,40 @@ public static class PublicRateLimitPolicies
     public const string MemberWritePermitLimitConfigKey = "MEMBER_WRITE_RATE_LIMIT_PERMITS";
     public static readonly TimeSpan MemberWriteWindow = TimeSpan.FromMinutes(1);
 
+    /// <summary>
+    /// 2026-10-02（G-02 全站搜尋）：公開搜尋端點。是 GET，但一次查多張表的 LIKE，比一般讀取貴，所以仍要限流。
+    /// 每 IP 每分鐘 <see cref="SearchPermitLimit"/> 次（正常使用者邊打字邊搜也遠低於此；前台應 debounce 後再呼叫）。
+    /// 額度可用設定 <see cref="SearchPermitLimitConfigKey"/> 覆寫（測試主機用寬鬆值）。
+    /// </summary>
+    public const string Search = "public-search";
+    public const int SearchPermitLimit = 30;
+    public const string SearchPermitLimitConfigKey = "PUBLIC_SEARCH_RATE_LIMIT_PERMITS";
+    public static readonly TimeSpan SearchWindow = TimeSpan.FromMinutes(1);
+
+    /// <summary>2026-10-02（G-09 電子報訂閱）：頁尾訂閱表單。寫入名單的公開端點，同一個來源短時間內不該訂閱很多次：
+    /// 每 IP 每 10 分鐘 <see cref="NewsletterPermitLimit"/> 次。訂閱與退訂共用。額度可用 <see cref="NewsletterPermitLimitConfigKey"/> 覆寫。</summary>
+    public const string Newsletter = "public-newsletter";
+    public const int NewsletterPermitLimit = 10;
+    public const string NewsletterPermitLimitConfigKey = "PUBLIC_NEWSLETTER_RATE_LIMIT_PERMITS";
+    public static readonly TimeSpan NewsletterWindow = TimeSpan.FromMinutes(10);
+
+    /// <summary>2026-10-02（P4 試訓報名）：風險等級同課程報名（<see cref="Submission"/>，建立一筆含個資的業務紀錄），
+    /// 但獨立政策名稱與獨立計數，兩個功能不互搶額度；每 IP 每 5 分鐘 <see cref="TrialRegistrationPermitLimit"/> 次，
+    /// 可用 <see cref="TrialRegistrationPermitLimitConfigKey"/> 覆寫。</summary>
+    public const string TrialRegistration = "public-trial-registration";
+    public const int TrialRegistrationPermitLimit = 20;
+    public const string TrialRegistrationPermitLimitConfigKey = "PUBLIC_TRIAL_REGISTRATION_RATE_LIMIT_PERMITS";
+    public static readonly TimeSpan TrialRegistrationWindow = TimeSpan.FromMinutes(5);
+
+    public static int ResolveSearchPermitLimit(IConfiguration configuration)
+        => int.TryParse(configuration[SearchPermitLimitConfigKey], out var v) && v > 0 ? v : SearchPermitLimit;
+
+    public static int ResolveNewsletterPermitLimit(IConfiguration configuration)
+        => int.TryParse(configuration[NewsletterPermitLimitConfigKey], out var v) && v > 0 ? v : NewsletterPermitLimit;
+
+    public static int ResolveTrialRegistrationPermitLimit(IConfiguration configuration)
+        => int.TryParse(configuration[TrialRegistrationPermitLimitConfigKey], out var v) && v > 0 ? v : TrialRegistrationPermitLimit;
+
     public static int ResolveMemberAuthPermitLimit(IConfiguration configuration)
         => int.TryParse(configuration[MemberAuthPermitLimitConfigKey], out var v) && v > 0 ? v : MemberAuthPermitLimit;
 

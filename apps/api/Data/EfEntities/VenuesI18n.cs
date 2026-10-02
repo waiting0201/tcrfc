@@ -15,5 +15,7 @@ public partial class VenuesI18n
 
     public string? Directions { get; set; }
 
+    public string? PhotoAlt { get; set; }
+
     public virtual Venue Venue { get; set; } = null!;
 }

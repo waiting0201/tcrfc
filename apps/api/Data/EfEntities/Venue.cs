@@ -15,6 +15,10 @@ public partial class Venue
 
     public string? PhotoKey { get; set; }
 
+    public int? PhotoWidth { get; set; }
+
+    public int? PhotoHeight { get; set; }
+
     public int SortOrder { get; set; }
 
     public DateTime CreatedAt { get; set; }

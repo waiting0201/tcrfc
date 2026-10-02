@@ -7593,6 +7593,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.PhotoKey)
                 .HasMaxLength(500)
                 .HasColumnName("photo_key");
+            entity.Property(e => e.PhotoWidth).HasColumnName("photo_width");
+            entity.Property(e => e.PhotoHeight).HasColumnName("photo_height");
             entity.Property(e => e.RowSeq)
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
@@ -7628,6 +7630,9 @@ public partial class ClubDbContext : DbContext
                 .HasMaxLength(255)
                 .HasColumnName("address");
             entity.Property(e => e.Directions).HasColumnName("directions");
+            entity.Property(e => e.PhotoAlt)
+                .HasMaxLength(200)
+                .HasColumnName("photo_alt");
             entity.Property(e => e.Name)
                 .HasMaxLength(128)
                 .HasColumnName("name");
