@@ -191,6 +191,15 @@
       ]
     },
     {
+      "code": "geocoder_unavailable",
+      "httpStatus": [
+        503
+      ],
+      "exceptions": [
+        "FeatureNotConfiguredException"
+      ]
+    },
+    {
       "code": "idempotency_key_required",
       "httpStatus": [
         400

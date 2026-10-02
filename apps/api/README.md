@@ -9267,7 +9267,9 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 
 ### 3. S2-5 特約店家「由地址定位」
 
-- **規劃書沒有指定供應商**（只寫「由地址定位輔助按鈕，**人工確認後儲存**，不做執行期即時 geocoding」），所以比照 `IPaymentGateway` 慣例：`Features/Geocoding/IGeocoder`＋`NotConfiguredGeocoder`（正式預設）＋`LocalFakeGeocoder`（Development；`GEOCODER=fake` 在 Production 啟動即失敗）。**正式供應商列為待決**，設定方式寫在 `docs/17` §3「G 批的接縫」。
+- **供應商已定 Google Maps Geocoding API**（使用者 2026-10-02 拍板；規劃書只寫「由地址定位輔助按鈕，**人工確認後儲存**，不做執行期即時 geocoding」，供應商屬執行層）。比照 `IPaymentGateway` 慣例：`Features/Geocoding/IGeocoder`＋`GoogleGeocoder`（`GEOCODER=google`）＋`NotConfiguredGeocoder`（Production 預設）＋`LocalFakeGeocoder`（Development；`GEOCODER=fake` 在 Production 啟動即失敗）。金鑰 `GOOGLE_MAPS_GEOCODING_API_KEY`（`club.env`）缺值時**優雅降級**（比照 LINE 登入，預覽 503、存檔不阻擋，不讓啟動失敗）。使用者要做的 Google Cloud 設定與條款風險寫在 `docs/17` §3「G 批的接縫」。
+- **Google 版行為**（`GoogleGeocoder.cs`）：請求帶 `region=tw`、`language=zh-TW`、`components=country:TW`，逾時 5 秒，用 `IHttpClientFactory` 具名用戶端。`OK`→取**第一筆**；`ZERO_RESULTS`→查無（404／`not_found`）；`OVER_QUERY_LIMIT`／`OVER_DAILY_LIMIT`／`REQUEST_DENIED`／`INVALID_REQUEST`／`UNKNOWN_ERROR`／HTTP 非 2xx／網路錯誤／逾時／無法解析→拋 `FeatureNotConfiguredException`（`geocoder_unavailable`，503／`unavailable`），存檔不阻擋。**精度規則**：DTO 只有 lat／lng、無法標註精度，所以 `location_type=APPROXIMATE`（只到行政區／路段中心），或 `partial_match=true` 且不是 `ROOFTOP`，一律**當查無**（寧可請管理者手動輸入，也不回誤導的點）。呼叫端自行取消不算供應商故障。`LocateAsync`（預覽）也把 `HttpRequestException`／`TimeoutException` 轉成 503（原本會 500）。
+- 🔴 **金鑰不外洩**：Geocoding 只接受 `key` 查詢字串，`IHttpClientFactory` 預設會把完整 URL 寫進日誌，所以註冊用 `GoogleGeocoderRegistration.AddGoogleGeocoder`（內含 `RemoveAllLoggers()`）；程式只記狀態碼／狀態字串，不記 URL、`error_message`、例外訊息、地址原文，拋出的例外不帶 inner exception。
 - **端點**（權限 `member.store.create` 或 `member.store.update` 任一）：
   - `POST /api/v1/admin/{club}/partner-stores/locate`，body `{ "address": "…" }` → `200 { lat, lng }`／`404`（查無，訊息為日常中文）／`400`（空地址、超過 500 字）／`503 geocoder_not_configured`。**只回候選座標，不寫入任何資料**——這是「人工確認後儲存」的按鈕。
   - 新增／更新店家（multipart `payload`）新增 `autoLocate: bool`（預設 `false`）：`true` 且**沒有手動座標**時，儲存時由伺服器依**中文地址**定位。**手動 `lat`／`lng` 永遠優先**（可覆寫任何自動結果）；定位失敗**不阻擋存檔**，座標留空。
@@ -9275,7 +9277,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 - → **前端要做**：K4 店家表單地址旁加「由地址定位」按鈕（呼叫 `/locate`，把結果填進緯度／經度欄讓人確認）、表單加「儲存時由地址定位」勾選；儲存後依 `autoLocateStatus` 顯示提示（用語見 `docs/06` 對照表）。
 - **與任務敘述的差異**：交辦寫「後台存檔時自動定位」，規劃書寫「人工確認後儲存」。本批把自動定位做成**管理者明確勾選才發生**，預設不自動，兩者並存；是否要改成預設勾選屬產品決定。
 - 地址不寫入日誌；App 與前台訪客的請求永遠不會觸發定位。
-- 測試：`GeocoderTests` 3 項（不需資料庫）、`AdminPartnerStoreLocateTests` 4 項（權限、預覽不寫入與查無／空地址、自動定位的手動優先／未要求／查無／故障／更新、未串接時 503 與存檔仍成功）。
+- 測試：`GoogleGeocoderTests` 27 項（不需資料庫、**不打真實 Google API**，假 `HttpMessageHandler`：各狀態、精度規則、HTTP 非 2xx、網路錯誤、逾時、呼叫端取消、無法解析、缺金鑰不發請求，以及日誌／例外不含金鑰與地址；已用拿掉 `RemoveAllLoggers()` 做負向對照確認會變紅）、`GeocoderTests` 3 項（不需資料庫）、`AdminPartnerStoreLocateTests` 4 項（權限、預覽不寫入與查無／空地址、自動定位的手動優先／未要求／查無／故障／更新、未串接時 503 與存檔仍成功）。
 
 ### 4. AP-3（後端部分）App 更新權杖鏈
 
@@ -9290,7 +9292,8 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 
 ### 本批的待決事項
 
-1. **地址定位供應商**（Google／TGOS／Azure Maps）與預算——`docs/17` §3。
+1. ~~地址定位供應商~~ **已定 Google Maps（2026-10-02）**；剩**使用者申請並限制金鑰**、設預算告警與每日配額（`docs/17` §3），以及 🔴 **Google 條款對座標長期儲存（30 日）與「不得與非 Google 地圖併用」的法遵風險**（`docs/17` §7 風險 13，待使用者確認、未改設計）。
+1a. 後台店家表單（`apps/admin` `PartnerStoreEditView.vue`）目前把**任何 503** 都當成「定位服務尚未串接」而停用按鈕與勾選；Google 版的 `geocoder_unavailable`（供應商暫時故障／額度用盡）也是 503，會讓按鈕停用到重新整理頁面為止。前端若要區分，讀 ProblemDetails／回應的 `code`（`geocoder_not_configured` vs `geocoder_unavailable`）；影響小，未動前端。
 2. **標誌／圖示類圖片要不要 Alt**，以及其餘 24／30 個圖片欄位何時補——`docs/12d` §12。
 3. **自動定位要不要預設勾選**（目前預設不勾，符合「人工確認後儲存」）。
 4. **S0-7h 兩項**：置頂精選限 3 是否逐俱樂部、`publish`／`schedule` 狀態轉換規則——仍待客戶確認。

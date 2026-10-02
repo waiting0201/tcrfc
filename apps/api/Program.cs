@@ -580,8 +580,9 @@ else
     builder.Services.AddSingleton<Tcrfc.Api.Features.Shop.IInvoiceIssuer, Tcrfc.Api.Features.Shop.NotConfiguredInvoiceIssuer>(); // 取得發票服務後只換這一行，見 docs/17 §3
 }
 
-// 「由地址定位」接縫（S2-5，K4 特約店家）：規劃書沒有指定供應商，預設「尚未串接」；開發環境預設用本機假定位（絕不碰外部服務）。
-// GEOCODER=fake 在 Production 啟動就失敗——寧可起不來，也不要讓假座標出現在正式地圖上。
+// 「由地址定位」接縫（S2-5，K4 特約店家）：正式供應商 Google Maps Geocoding API（2026-10-02 拍板）。
+// GEOCODER=google 啟用；金鑰 GOOGLE_MAPS_GEOCODING_API_KEY 缺值時比照 LINE 登入的慣例優雅降級（端點回 503、存檔不阻擋），不讓啟動失敗。
+// GEOCODER=fake 在 Production 啟動就失敗——寧可起不來，也不要讓假座標出現在正式地圖上。開發環境預設用本機假定位（絕不碰外部服務）。
 var geocoderMode = builder.Configuration["GEOCODER"];
 var fakeGeocoder = string.Equals(geocoderMode, "fake", StringComparison.OrdinalIgnoreCase)
                    || (builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(geocoderMode));
@@ -594,9 +595,13 @@ if (fakeGeocoder)
 {
     builder.Services.AddSingleton<Tcrfc.Api.Features.Geocoding.IGeocoder, Tcrfc.Api.Features.Geocoding.LocalFakeGeocoder>();
 }
+else if (string.Equals(geocoderMode, "google", StringComparison.OrdinalIgnoreCase))
+{
+    Tcrfc.Api.Features.Geocoding.GoogleGeocoderRegistration.AddGoogleGeocoder(builder.Services); // 🔴 內含關閉 HttpClient URL 日誌（金鑰在查詢字串），見 GoogleGeocoder
+}
 else
 {
-    builder.Services.AddSingleton<Tcrfc.Api.Features.Geocoding.IGeocoder, Tcrfc.Api.Features.Geocoding.NotConfiguredGeocoder>(); // 選定供應商後只換這一行，見 docs/17 §3
+    builder.Services.AddSingleton<Tcrfc.Api.Features.Geocoding.IGeocoder, Tcrfc.Api.Features.Geocoding.NotConfiguredGeocoder>();
 }
 
 const string CorsPolicyName = "ClubFrontends";

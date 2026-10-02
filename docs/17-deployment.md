@@ -312,14 +312,51 @@ services:
 
 ### G 批的接縫：特約店家「由地址定位」（2026-10-02，`backend-engineer`，S2-5）
 
-**規劃書沒有指定 geocoding 供應商**（主站 §4.11 K4／App §3.8 只寫「由地址定位輔助按鈕，人工確認後儲存，不做執行期即時 geocoding」），所以同前幾批的做法：以介面隔開、預設「尚未串接」，**正式供應商列為待決**。
+**供應商已定 Google Maps（Geocoding API）**——使用者 2026-10-02 拍板。規劃書仍不指定供應商（主站 §4.11 K4／App §3.8 只寫「由地址定位輔助按鈕，人工確認後儲存，不做執行期即時 geocoding」），這是執行層決定。
 
-| 接縫 | 介面與預設實作 | 卡在什麼 | 串接時要做什麼 |
+| 接縫 | 介面與實作 | 狀態 | 串接時要做什麼 |
 |---|---|---|---|
-| **地址 → 經緯度** | `IGeocoder`／`NotConfiguredGeocoder`（正式；預覽按鈕回 503 `geocoder_not_configured`，儲存時勾「由地址定位」不阻擋存檔、回 `autoLocateStatus: "unavailable"`）、`LocalFakeGeocoder`（**只在 Development**；`GEOCODER=fake` 在 **Production 啟動即失敗**；同地址永遠同座標，地址含「查無」回查無、含「故障」模擬供應商故障）（`Features/Geocoding/IGeocoder.cs`） | **供應商未選定**（候選：Google Geocoding API／TGOS 國土測繪中心／Azure Maps；需客戶決定預算與資料可用範圍） | 實作 `GeocodeAsync`（查無回 `null`，供應商故障拋例外）；金鑰放環境變數／Key Vault，**不進版控**；🔴 **日誌不得記地址原文**；🔴 **只供後台 K4 在伺服器端呼叫，App 與前台訪客的請求永遠不得觸發**（規劃書：不做執行期 geocoding，使用者位置與查詢不得送出）；呼叫是一般 HTTPS 出站請求，不像 LINE Pay 需要登記出口 IP；注意供應商的條款是否允許「快取／長期儲存座標」（本系統會存進 `partner_stores.lat/lng`） |
+| **地址 → 經緯度** | `IGeocoder`；`GoogleGeocoder`（`GEOCODER=google`）、`NotConfiguredGeocoder`（Production 預設；預覽按鈕回 503 `geocoder_not_configured`，儲存時勾「由地址定位」不阻擋存檔、回 `autoLocateStatus: "unavailable"`）、`LocalFakeGeocoder`（**只在 Development**；`GEOCODER=fake` 在 **Production 啟動即失敗**）（`Features/Geocoding/`） | 🟡 **程式完成、待使用者申請金鑰**（見下方「使用者要做的設定」）；未實打真實 Google API | 使用者建好金鑰後放進 VM 的 `club.env`、`GEOCODER=google`，重啟 api 即生效，不需改程式 |
 
-**設定**：`GEOCODER`（`fake`＝本機假定位，Development 預設；Production 設了即啟動失敗）。供應商選定後新增該供應商的金鑰設定鍵，並只換 `Program.cs` 的註冊。
-**行為**（`apps/api/README.md`「G 批」節有完整契約）：`POST /api/v1/admin/{club}/partner-stores/locate` 只回候選座標、**不寫入任何資料**（符合「人工確認後儲存」）；新增／更新店家時請求帶 `autoLocate: true` 且**沒有手動座標**才由伺服器依中文地址定位，**手動座標永遠優先**，失敗不阻擋存檔。
+**設定**（都放 `club.env`；Production 預設兩者皆不設＝「尚未串接」）：
+
+| 鍵 | 說明 |
+|---|---|
+| `GEOCODER` | `google`＝正式；`fake`＝本機假定位（Development 預設，**Production 設了即啟動失敗**）；未設＝尚未串接 |
+| `GOOGLE_MAPS_GEOCODING_API_KEY` | Geocoding API 的**伺服器端**金鑰。`GEOCODER=google` 但沒有金鑰＝比照 LINE 登入的慣例優雅降級（預覽按鈕回 503、存檔不阻擋），**不讓啟動失敗** |
+
+**行為與狀態對應**（`apps/api/README.md`「G 批」節有完整契約）：請求固定帶 `region=tw`、`language=zh-TW`、`components=country:TW`，逾時 5 秒；`OK`→座標、`ZERO_RESULTS`→查無（404／`not_found`）；`OVER_QUERY_LIMIT`／`OVER_DAILY_LIMIT`／`REQUEST_DENIED`／`INVALID_REQUEST`／`UNKNOWN_ERROR`／HTTP 非 2xx／網路錯誤／逾時／無法解析→不可用（503 `geocoder_unavailable`／`unavailable`），存檔不被阻擋。**精度不足的結果（`APPROXIMATE`，或 `partial_match` 且不是 `ROOFTOP`）當查無**，因為 DTO 只有 lat／lng，無法標註精度。
+`POST /api/v1/admin/{club}/partner-stores/locate` 只回候選座標、**不寫入任何資料**（符合「人工確認後儲存」）；新增／更新店家時請求帶 `autoLocate: true` 且**沒有手動座標**才由伺服器依中文地址定位，**手動座標永遠優先**，失敗不阻擋存檔。
+🔴 **只供後台 K4 在伺服器端呼叫，App 與前台訪客的請求永遠不得觸發**（規劃書：不做執行期 geocoding，使用者位置與查詢不得送出）。🔴 **日誌不記地址原文**。
+
+🔴 **金鑰不得外洩**：Geocoding 只接受 `key` 查詢字串，而 .NET `IHttpClientFactory` 預設會把完整請求 URL 寫進 Information 日誌。對策：① 專用具名 HttpClient 以 `RemoveAllLoggers()` 關掉該日誌（`GoogleGeocoderRegistration.AddGoogleGeocoder`）；② 程式只記狀態碼／狀態字串，不記 URL、不記 Google 的 `error_message`（可能含伺服器 IP）、不記例外訊息；③ 拋出的例外不帶 inner exception。`GoogleGeocoderTests` 以同一個註冊方法驗證日誌與例外都不含金鑰（已用「拿掉 `RemoveAllLoggers()`」做負向對照，測試會變紅）。金鑰另有 Google 端的 IP 限制作第二層防護。
+
+#### 使用者要做的設定（Google Cloud；agent 不代辦、不申請金鑰）
+
+1. 在 Google Cloud Console 建專案（或沿用既有專案）並**綁定帳單帳戶**。帳單帳戶歸屬（俱樂部或代管）與 `docs/08` 的「Google Maps API 帳單帳戶歸屬」是同一個決定，建議一併決定。
+2. 於「API 與服務」**啟用 Geocoding API**（只啟用這一個；Android 地圖 SDK 用的是另一把金鑰，見 `docs/19` §地圖，**兩把金鑰不要共用**）。
+3. 建立 **API 金鑰**，限制條件兩項都要設：
+   - **API 限制**：只允許 **Geocoding API**；
+   - **應用程式限制**：**IP 位址**，只填 api 所在 VM 的**靜態 Public IP**（即本檔 §3「LINE Pay 的固定 IP」登記的同一個出口 IP；從 VM 出去的呼叫都走這個 IP）。⚠️ 換 VM／換區域＝換出口 IP，除了 LINE Pay 白名單，這把金鑰的 IP 限制也要同步改。
+4. 設定**預算與告警**（Billing → Budgets & alerts，例如 50%／90%／100% 通知）與**每日配額上限**（API 與服務 → Geocoding API → 配額 → 每日請求數；本系統只有後台管理者手動按鈕，用量極小，上限壓低即可）。
+5. 把金鑰放進 VM 的機密檔：`club.env` 加入 `GOOGLE_MAPS_GEOCODING_API_KEY='…'` 與 `GEOCODER=google`（值用單引號；`provision-secrets.sh` 會原樣保留手動新增的鍵），重啟 `api` 容器。**不要進版控、不要貼進對話或文件**。
+6. 驗收：後台特約店家表單輸入真實地址按「由地址定位」，確認回傳座標落在正確位置；再故意輸入亂打的地址確認顯示查無。
+
+#### 🔴 法遵風險：Google 條款限制座標的長期儲存（待使用者確認，**未改設計**）
+
+**查證結果（2026-10-02 查閱，Google Maps Platform Service Specific Terms，頁面標示最後修改 2026-06-10）**，出處 <https://cloud.google.com/maps-platform/terms/maps-service-terms> 第 6 節「Geocoding API」：
+
+- **6.3.1**：客戶得**暫時**快取 Geocoding API 的 lat／lng，**最長連續 30 個日曆日，期滿必須刪除**。
+- **6.3.2**：僅在「直接支援發起該請求的最終使用者功能」、「不得取代再次呼叫服務」、「快取資料須邏輯隔離於該最終使用者、不得跨多位使用者使用」的前提下，才可無限期快取。
+- **6.2**：**不得把 Geocoding API 的內容與非 Google 地圖併用**（6.1 允許不顯示 Google 地圖地單獨使用）。
+
+**與本系統的衝突**：人工確認後的座標會長期存進 `partner_stores.lat/lng`，**供全體 App 使用者共用**——不符合 6.3.2 的「單一最終使用者」隔離，30 天暫存期限也明顯短於資料生命週期；**iOS App 的地圖是 Apple MapKit（`docs/19` §地圖）**，等於把 Geocoding 結果標在非 Google 地圖上，直接碰 6.2。
+**這是條款解讀與授權風險，不是工程問題，結論要使用者（或法務／Google 銷售窗口）給，不是本檔推定**。可選方向（皆需使用者決定，**本次未改設計**）：
+① 把「由地址定位」只當**輔助工具**：座標由人工**在 Google 地圖上確認並自行輸入**，系統只存人工輸入值（需確認這樣是否仍算「快取 Geocoding 內容」——條款對「人工確認後覆寫」是否解除限制沒有明文，須詢問 Google）；
+② 改用條款允許長期儲存的供應商（如台灣國土測繪中心 TGOS 的地址定位服務，需另查其授權條款）；
+③ 向 Google 取得書面授權／改簽約；
+④ 接受風險並於 30 天內重新驗證座標（工程成本高，且仍有 iOS MapKit 問題）。
+條款會改版，**實際串接前須再讀一次最新版**。
 
 ---
 
@@ -709,6 +746,7 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 10 | **App 在 API 全滅時無法宣告維護中** | 用來宣告「維護中」的設定端點與 API 同一個行程 | App 的設定、最低支援版本與維護模式另有一份**靜態備援放在 Cloudflare**（Workers KV／R2），不經 VM；強制更新畫面的版面與雙語文案打包進 App。見 [`19`](19-app-tech-stack.md) §7
 | 11 | ✅ **已結案（2026-10-01）**：~~公開圖片在「儲存體只允許 snet-app」下讀不到~~ → 使用者決定「公開容器＋Cloudflare」；**代價**：兩個儲存體帳戶失去 VNet 層隔離，`proposals` 只剩「無匿名存取＋共用金鑰保密」。原問題： 使用者 2026-10-01 決定儲存體只放行 VNet 規則、不開公開存取；但 `BlobImagePublicUrlResolver`／`BlobDocumentPublicUrlResolver` 回傳 blob 直連網址，訪客瀏覽器不在 `snet-app` | Bicep 已改：`images`／`videos`／`documents`／`charity-images` 為 `publicAccess: Blob`，`proposals` 私有。✅ **`apps/api` 公開網址基底已完成（2026-10-01）**：新增 `AZURE_BLOB_PUBLIC_BASE_URL`（俱樂部 `club.env`）／`AZURE_BLOB_PUBLIC_BASE_URL_CHARITY`（慈善 `charity.env`），四個解析器改組 `{base}/{容器}/{key}`，上傳與刪除仍走連線字串，未設定回退 `BlobContainerClient.Uri`，格式錯誤啟動即失敗（見 `apps/api/README.md`）。🔴 **剩餘待做**：Cloudflare 端 Host／SNI 處理待實測，見 `infra/README.md` §4.7 |
 | 12 | **備份僅 Local 冗餘、無 LTR、PITR 7 天** | 使用者 2026-10-01 決定（見 §6「備份與還原」） | 已知取捨，不是缺漏；區域性災難或 7 天後才發現的誤刪無法回復 |
+| 13 | 🔴 **Google Geocoding 條款限制座標長期儲存、且不得與非 Google 地圖併用**（待使用者確認） | 供應商定為 Google Maps（2026-10-02）；條款 6.3.1 lat／lng 暫存最長 30 日、6.3.2 長期快取限單一最終使用者、6.2 禁與非 Google 地圖併用；本系統把座標長期存進 `partner_stores`、iOS 用 MapKit | **未改設計**，列為待使用者／法務確認；詳見 §3「G 批的接縫」末段（出處與選項） |
 
 ---
 

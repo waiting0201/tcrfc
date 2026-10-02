@@ -135,6 +135,7 @@
 | E-120 | 2026-10-02 | 為「公開讀取」限流加了一個把額度用盡的測試，放進既有的限流 fixture：測試主機的 `RemoteIpAddress` 是空的，所有請求落在同一個計數桶，用盡額度害同一個主機上另一項既有限流測試失敗（順序相依的偶發紅燈） | ✅ 獨立的 `CharityRecognitionRateLimitApiFixture`（自己的主機、自己的計數） |
 | E-121 | 2026-10-02 | AP-3 的 `AppDeviceSessionTests` 在沒有資料庫的工作樹寫完、只確認「編譯通過」就交付；合併後實跑，「登出全部與變更密碼」一支穩定 401——測試先重放舊權杖觸發了重用偵測（程式正確，測試順序錯） | 「編譯通過」被當成「測試寫對了」 | 依賴資料庫的新測試沒實跑過，一律在回報標「未執行」，合併後由主 session 在有庫的環境補跑才算完成；工作樹缺 `appsettings.Development.json` 是根源 | 無 |
 | E-122 | 2026-10-02 | 慈善後台報表的趨勢條寫了 `var(--charity-info)`，但實際定義的變數只有 `--charity-info-text`／`-bg`（`--charity-info` 只出現在 `docs/22` §5 的速查表）；樣式表引用不存在的變數不會報錯，背景變透明，趨勢欄整欄看起來是空的，`vue-tsc`、eslint、`vite build`、禁用詞、對比度檢查全綠，是看截圖才發現 | ✅ `apps/admin-charity/scripts/check-css-vars.mjs`（掛進 `npm run lint`） |
+| E-123 | 2026-10-02 | 用 Python 讀寫 `Program.cs` 時沒保留換行，把混有 CRLF 的檔案整段正規化成 LF，一個 13 行的改動變成 47 行 diff，連沒碰的行都變了 | 無（`git diff --stat` 肉眼檢查抓到） |
 
 ---
 
@@ -2432,3 +2433,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **防呆**：✅ [`apps/admin-charity/scripts/check-css-vars.mjs`](../apps/admin-charity/scripts/check-css-vars.mjs)，
   掛在 `npm run lint`（`lint:css-vars`）：src 內任何 `var(--x)` 引用，`--x` 必須在 src 某處被定義（`--el-*` 元件庫變數與有備用值的寫法除外）。
   已用故意寫錯的檔案驗證會失敗。⚠️ 只涵蓋 `apps/admin-charity`；`apps/web-charity`／`apps/admin`／`apps/web` 未掛同類檢查。
+
+### E-123 腳本改檔沒保留換行，混有 CRLF 的 `Program.cs` 被整段正規化（2026-10-02，S2-5 Google 定位）
+
+- **錯在哪**：用 Python `open(...).read()`／`write()`（預設 universal newlines）改 `apps/api/Program.cs`，該檔 985 行裡有 20 行是 CRLF、其餘是 LF，寫回後全變 LF，diff 從 13 行膨脹成 47 行，連未觸碰的 AP-3 那一行都被改動。
+- **根因（可改掉的行為）**：腳本改檔時沒先 `git diff --stat` 驗證改動規模、也沒用 `newline=''` 讀寫；「檔案可能混有 CRLF」是已知陷阱（EF scaffold 檔同類），卻沒有當成改任何既有檔前的固定動作。
+- **下次怎麼避免**：腳本改既有檔一律 `open(p, encoding='utf-8', newline='')` 讀寫，新插入文字沿用該區塊原有的換行；改完立刻 `git diff --stat` 比對行數是否與預期相符。
+- **防呆**：無。

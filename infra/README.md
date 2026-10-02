@@ -313,6 +313,7 @@ GitHub Runners 頁面應顯示 `vm-tcrfc-prod` 為 Idle、label `tcrfc-vm`。
 | `PAYMENT_GATEWAY` | club.env | **不設** | 未設 → 會籍付款「尚未串接」，端點如實回報；🔴 設成 `fake` → **Production 啟動失敗**（刻意）。LINE Pay 商店號（B-10）到位、實作換掉 DI 註冊後才有真值 |
 | `INVOICE_ISSUER` | club.env | **不設** | 同上，`fake` 在 Production 啟動失敗；商店發票「尚未串接」 |
 | `EMAIL_SENDER`／`EMAIL_OUTBOX_PATH` | — | **不設** | Production **永遠**用「尚未串接」實作（`localfile` 在 Production 不註冊，因信件含一次性權杖）：驗證信、重設密碼信不會寄出，呼叫端如實回報。寄信供應商（B-16）決定後才有新鍵 |
+| `GEOCODER`／`GOOGLE_MAPS_GEOCODING_API_KEY` | club.env | **不設**，使用者在 Google Cloud 建好**限定 Geocoding API＋限定 VM 出口 IP** 的金鑰後兩個一起填（`GEOCODER=google`） | 未設 → 後台「由地址定位」回 503、存檔不阻擋；🔴 `GEOCODER=fake` 在 Production 啟動失敗；只有 `GEOCODER=google` 缺金鑰＝同樣優雅降級。金鑰不得貼進對話或進版控。步驟與條款風險見 `docs/17` §3「G 批的接縫」 |
 | `LINE_LOGIN_CHANNEL_ID`／`_SECRET`／`LINE_LOGIN_REDIRECT_URIS` | club.env | **不設** | 三項缺一 → LINE 登入端點回 **503**（不假成功）。到位後三個一起填；`REDIRECT_URIS` 逗號分隔，須與 LINE Developers 登記的 Callback URL 逐字一致 |
 | `CHARITY_ALLOW_FAKE_PROVIDERS` | charity.env | **不設（絕不填 `true`）** | 未設 → 慈善金流／發票／寄信一律「尚未設定」，捐款頁顯示服務暫時無法使用；`true` 會讓假金流對任何交易回扣款成功、**把假捐款寫進正式資料庫**（`docs/17` §5） |
 | `TURNSTILE_SECRET_KEY_CHARITY` | charity.env | **不設** | ⚠️ 這一項**不是**「顯示尚未設定」：未設 → 人機驗證**一律放行**，只剩 IP 限流。設了之後前台必須同時有 `NUXT_PUBLIC_TURNSTILE_SITE_KEY`（目前 compose 的 `nuxt-charity` 沒有給）——**只設後端不設前端 → 沒有 token → 所有捐款被擋** |

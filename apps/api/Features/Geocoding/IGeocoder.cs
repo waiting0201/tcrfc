@@ -4,15 +4,14 @@ using Tcrfc.Api.Common;
 
 namespace Tcrfc.Api.Features.Geocoding;
 
-/// <summary><see cref="Provider"/>：供應商代碼（<c>fake</c>＝本機假實作），僅供日誌與後台顯示，不寫入資料庫。</summary>
+/// <summary><see cref="Provider"/>：供應商代碼（<c>google</c>／<c>fake</c>＝本機假實作），僅供日誌與後台顯示，不寫入資料庫。</summary>
 public sealed record GeocodeResult(decimal Lat, decimal Lng, string Provider);
 
 /// <summary>
 /// 「由地址定位」的接縫（S2-5，2026-10-02；主站規劃書 §4.11 K4、App 規劃書 §3.8／§16.2 第 9 項）。
-/// <b>規劃書沒有指定供應商</b>（只寫「由地址定位輔助按鈕，人工確認後儲存，不做執行期即時 geocoding」），
-/// 所以比照 <c>IPaymentGateway</c>／<c>IInvoiceIssuer</c> 的專案慣例：只定義介面，預設註冊
-/// <see cref="NotConfiguredGeocoder"/>（如實回報「尚未啟用」，不假裝成功），本機開發註冊 <see cref="LocalFakeGeocoder"/>。
-/// 正式供應商（Google Geocoding／TGOS／Azure Maps…）列為待決，選定後<b>只換 <c>Program.cs</c> 的註冊與實作</b>，見 docs/17 §3。
+/// 規劃書沒有指定供應商；<b>2026-10-02 使用者拍板正式供應商為 Google Maps Geocoding API</b>（<see cref="GoogleGeocoder"/>，<c>GEOCODER=google</c>）。
+/// 比照 <c>IPaymentGateway</c>／<c>IInvoiceIssuer</c> 的專案慣例：預設註冊 <see cref="NotConfiguredGeocoder"/>（如實回報「尚未啟用」，不假裝成功），
+/// 本機開發註冊 <see cref="LocalFakeGeocoder"/>。設定方式見 docs/17 §3「G 批的接縫」。
 /// 🔴 只供後台 K4 使用（管理者按鈕或存檔時由伺服器端呼叫）；<b>App 與前台訪客的任何請求都不得觸發本介面</b>
 /// （規劃書：不做執行期 geocoding，使用者位置與查詢不得送出）。🔴 實作不得把地址寫進日誌（可能含個資性質的地址）。
 /// </summary>
@@ -21,7 +20,7 @@ public interface IGeocoder
     /// <summary>false＝尚未串接，定位按鈕回 503。</summary>
     bool IsConfigured { get; }
 
-    /// <returns>查得座標；<c>null</c>＝供應商查無此地址（不是錯誤）。供應商故障請拋例外，由呼叫端決定降級方式。</returns>
+    /// <returns>查得座標；<c>null</c>＝供應商查無此地址（不是錯誤）。供應商故障請拋 <c>FeatureNotConfiguredException</c>（503；<c>HttpRequestException</c> 亦可，呼叫端同樣視為不可用）。</returns>
     Task<GeocodeResult?> GeocodeAsync(string address, CancellationToken cancellationToken);
 }
 

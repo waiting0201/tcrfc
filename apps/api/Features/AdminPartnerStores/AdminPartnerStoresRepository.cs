@@ -297,7 +297,15 @@ public sealed class AdminPartnerStoresRepository(
     public async Task<GeocodeResult?> LocateAsync(string? address, CancellationToken cancellationToken)
     {
         var trimmed = AdminInput.RequireText(address, "地址", 500);
-        return await geocoder.GeocodeAsync(trimmed, cancellationToken);
+        try
+        {
+            return await geocoder.GeocodeAsync(trimmed, cancellationToken);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TimeoutException)
+        {
+            // 供應商故障（含假實作）一律回 503 而非 500；不帶 inner exception（訊息可能含請求細節）。
+            throw new FeatureNotConfiguredException("定位服務暫時無法使用，請稍後再試，或直接輸入緯度與經度。", "geocoder_unavailable");
+        }
     }
 
     private static void Apply(PartnerStore store, UpsertAdminPartnerStoreRequest request, Validated v, decimal? lat, decimal? lng)
