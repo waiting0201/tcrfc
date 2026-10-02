@@ -52,6 +52,22 @@ public static class AdminPartnerStoresEndpoints
         })
         .WithName("AdminGetPartnerStore").Produces<AdminPartnerStoreDetailDto>().Produces(StatusCodes.Status404NotFound);
 
+        // POST /partner-stores/locate —— 「由地址定位」輔助按鈕（S2-5）。只回候選座標，不寫入任何資料；
+        // 規劃書：人工確認後才隨店家資料儲存。未設定定位服務回 503，查無此地址回 404（訊息為日常中文）。
+        group.MapPost("/locate", async (
+            string club, LocatePartnerStoreRequest request, HttpContext httpContext, IAdminClubAuthorizer authorizer,
+            AdminPartnerStoresRepository repository, CancellationToken cancellationToken) =>
+        {
+            await authorizer.AuthorizeAnyAsync(httpContext, club, [PermissionCreate, PermissionUpdate], cancellationToken);
+            var result = await repository.LocateAsync(request.Address, cancellationToken);
+            return result is null
+                ? Results.Json(new { message = "查無此地址的座標，請確認地址是否正確，或直接輸入緯度與經度。" }, statusCode: StatusCodes.Status404NotFound)
+                : Results.Ok(new LocatePartnerStoreResponse { Lat = result.Lat, Lng = result.Lng });
+        })
+        .WithName("AdminLocatePartnerStore").Produces<LocatePartnerStoreResponse>()
+        .Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status403Forbidden)
+        .Produces(StatusCodes.Status404NotFound).Produces(StatusCodes.Status503ServiceUnavailable);
+
         group.MapPost("", async (
             string club, HttpRequest httpRequest, HttpContext httpContext, IAdminClubAuthorizer authorizer,
             AdminPartnerStoresRepository repository, IImageStorageService images, IDocumentStorageService documents,

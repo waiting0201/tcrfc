@@ -17,14 +17,16 @@ public sealed class ArticlesRepository(
 
 
     private sealed record ArticleListRow(
-        Guid Id, bool IsShared, string Slug, string CategoryCode, string? CoverKey, bool IsFeatured, DateTime? PublishedAt);
+        Guid Id, bool IsShared, string Slug, string CategoryCode, string? CoverKey, int? CoverWidth, int? CoverHeight,
+        bool IsFeatured, DateTime? PublishedAt);
 
     private sealed record ArticleDetailRow(
-        Guid Id, bool IsShared, string Slug, string CategoryCode, string? CoverKey, bool IsFeatured,
-        int ViewCount, DateTime? PublishedAt, string? CanonicalPath, bool IsNoindex,
+        Guid Id, bool IsShared, string Slug, string CategoryCode, string? CoverKey, int? CoverWidth, int? CoverHeight,
+        bool IsFeatured, int ViewCount, DateTime? PublishedAt, string? CanonicalPath, bool IsNoindex,
         string? OgImageKey, int? OgImageWidth, int? OgImageHeight);
 
-    private sealed record ArticleI18nRow(Guid ArticleId, string Locale, string? Title, string? Summary, string? SeoTitle, string? SeoDescription);
+    private sealed record ArticleI18nRow(
+        Guid ArticleId, string Locale, string? Title, string? Summary, string? SeoTitle, string? SeoDescription, string? CoverAlt);
 
     // 單篇詳情專用：比 ArticleI18nRow 多一個 Body（含 JSON 內容，列表查詢不需要，不放進共用型別
     // 避免每次列表都多拉一個可能很大的欄位）、SeoKeywords 與 OgImageAlt（S1-12 新增，同理列表
@@ -33,7 +35,7 @@ public sealed class ArticlesRepository(
     // （docs/18-work-errors.md E-20），所以這裡跟 SQL 的 SELECT 清單逐一比對過。
     private sealed record ArticleDetailI18nRow(
         Guid ArticleId, string Locale, string? Title, string? Summary, string? SeoTitle, string? SeoDescription,
-        string? Body, string? SeoKeywords, string? OgImageAlt);
+        string? Body, string? SeoKeywords, string? OgImageAlt, string? CoverAlt);
 
     /// <summary>全站預設 OG 圖片（S1-12 驗收退回後補做，<c>Club.OgImageKey</c>），單頁優先序的
     /// 第二層，見 <see cref="ResolveOgImageAsync"/>。</summary>
@@ -81,6 +83,7 @@ public sealed class ArticlesRepository(
                     SELECT a.id AS Id,
                            CASE WHEN a.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
                            a.slug AS Slug, ac.code AS CategoryCode, a.cover_key AS CoverKey,
+                           a.cover_width AS CoverWidth, a.cover_height AS CoverHeight,
                            a.is_featured AS IsFeatured, a.published_at AS PublishedAt
                     FROM articles a
                     JOIN article_categories ac ON ac.id = a.article_category_id
@@ -133,6 +136,9 @@ public sealed class ArticlesRepository(
                         CategoryName = categoryNameByCode.GetValueOrDefault(r.CategoryCode),
                         CoverKey = r.CoverKey,
                         CoverUrl = imageUrlResolver.Resolve(r.CoverKey),
+                        CoverWidth = r.CoverKey is null ? null : r.CoverWidth,
+                        CoverHeight = r.CoverKey is null ? null : r.CoverHeight,
+                        CoverAlt = r.CoverKey is null ? null : RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt),
                         IsFeatured = r.IsFeatured,
                         PublishedAt = r.PublishedAt,
                         Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
@@ -171,6 +177,7 @@ public sealed class ArticlesRepository(
                     SELECT a.id AS Id,
                            CASE WHEN a.club_id IS NULL THEN CAST(1 AS bit) ELSE CAST(0 AS bit) END AS IsShared,
                            a.slug AS Slug, ac.code AS CategoryCode, a.cover_key AS CoverKey,
+                           a.cover_width AS CoverWidth, a.cover_height AS CoverHeight,
                            a.is_featured AS IsFeatured, a.view_count AS ViewCount, a.published_at AS PublishedAt,
                            a.canonical_path AS CanonicalPath, a.is_noindex AS IsNoindex,
                            a.og_image_key AS OgImageKey, a.og_image_width AS OgImageWidth, a.og_image_height AS OgImageHeight
@@ -191,7 +198,7 @@ public sealed class ArticlesRepository(
                 const string i18nSql = """
                     SELECT article_id AS ArticleId, locale AS Locale, title AS Title, summary AS Summary,
                            seo_title AS SeoTitle, seo_description AS SeoDescription, CAST(body AS nvarchar(max)) AS Body,
-                           seo_keywords AS SeoKeywords, og_image_alt AS OgImageAlt
+                           seo_keywords AS SeoKeywords, og_image_alt AS OgImageAlt, cover_alt AS CoverAlt
                     FROM articles_i18n
                     WHERE article_id = @ArticleId AND locale IN @Locales
                     """;
@@ -216,6 +223,7 @@ public sealed class ArticlesRepository(
 
                 var ogImage = await ResolveOgImageAsync(connection, article, scope.ClubId, ct);
                 var ogImageAlt = RequestLocale.Pick(requested?.OgImageAlt, fallback?.OgImageAlt);
+                var coverAlt = RequestLocale.Pick(requested?.CoverAlt, fallback?.CoverAlt);
                 var title = RequestLocale.Pick(requested?.Title, fallback?.Title);
 
                 // GEO-05（S1-12c）：單一來源見 SchemaRequiredFields 檔頭。image 直接用算好優先序
@@ -244,6 +252,9 @@ public sealed class ArticlesRepository(
                     CategoryName = categoryName,
                     CoverKey = article.CoverKey,
                     CoverUrl = imageUrlResolver.Resolve(article.CoverKey),
+                    CoverWidth = article.CoverKey is null ? null : article.CoverWidth,
+                    CoverHeight = article.CoverKey is null ? null : article.CoverHeight,
+                    CoverAlt = article.CoverKey is null ? null : coverAlt,
                     IsFeatured = article.IsFeatured,
                     ViewCount = article.ViewCount,
                     PublishedAt = article.PublishedAt,
@@ -260,7 +271,13 @@ public sealed class ArticlesRepository(
                     OgImageHeight = ogImage.Height,
                     // 只有「這篇文章自己有專屬 OG 圖片」時才有意義輸出 alt——全站預設圖與封面圖
                     // 回退時沒有對應的替代文字來源，見 ResolveOgImageAsync 的判斷。
-                    OgImageAlt = ogImage.Key == article.OgImageKey ? ogImageAlt : null,
+                    // S0-7h（2026-10-02）：封面圖回退時（優先序最後一層）改輸出封面 Alt——封面圖欄位組補齊後有了來源。
+                    OgImageAlt = ogImage.Source switch
+                    {
+                        OgImageSource.Own => ogImageAlt,
+                        OgImageSource.Cover => coverAlt,
+                        _ => null,
+                    },
                     Tags = tags,
                     CoreValueTags = coreValueTags,
                     Relations = relations,
@@ -271,23 +288,23 @@ public sealed class ArticlesRepository(
             cancellationToken);
     }
 
-    private readonly record struct ResolvedOgImage(string? Url, string? Key, int? Width, int? Height);
+    private enum OgImageSource { None, Own, Club, Cover }
+
+    private readonly record struct ResolvedOgImage(string? Url, string? Key, int? Width, int? Height, OgImageSource Source);
 
     /// <summary>
     /// OG 圖片優先序（S1-12 驗收退回後補做，主站規劃書 §4.8 H「單頁 SEO：…OG 圖文…」）：
     /// **這篇文章專屬的 OG 圖片 &gt; 全站預設 OG 圖片（<c>Club.OgImageKey</c>） &gt; 這篇文章的
-    /// 封面圖片（<c>cover_key</c>）**。全站預設圖與封面圖回退時**不輸出 alt**——兩者都沒有對應的
-    /// 替代文字來源（<c>Club</c> 沒有 OG 圖片替代文字欄位，<c>cover_key</c> 本身就沒有 alt 欄位，
-    /// 是既有落差，見 docs/14-invariants.md「其餘既有圖片欄位仍是同樣的缺口」），呼叫端
-    /// （<see cref="GetBySlugAsync"/>）依 <see cref="ResolvedOgImage.Key"/> 是否等於文章自己的
-    /// <c>OgImageKey</c> 判斷要不要一併輸出 alt。
+    /// 封面圖片（<c>cover_key</c>）**。全站預設圖回退時**不輸出 alt**（<c>Club</c> 沒有 OG 圖片替代
+    /// 文字欄位）；封面圖回退時輸出 <c>articles_i18n.cover_alt</c>（S0-7h，2026-10-02 補齊封面欄位組）。
+    /// 呼叫端（<see cref="GetBySlugAsync"/>）依 <see cref="ResolvedOgImage.Source"/> 決定輸出哪一個 alt。
     /// </summary>
     private async Task<ResolvedOgImage> ResolveOgImageAsync(
         System.Data.IDbConnection connection, ArticleDetailRow article, Guid clubId, CancellationToken cancellationToken)
     {
         if (!string.IsNullOrEmpty(article.OgImageKey))
         {
-            return new ResolvedOgImage(imageUrlResolver.Resolve(article.OgImageKey), article.OgImageKey, article.OgImageWidth, article.OgImageHeight);
+            return new ResolvedOgImage(imageUrlResolver.Resolve(article.OgImageKey), article.OgImageKey, article.OgImageWidth, article.OgImageHeight, OgImageSource.Own);
         }
 
         const string clubSql = """
@@ -299,15 +316,15 @@ public sealed class ArticlesRepository(
 
         if (club is not null && !string.IsNullOrEmpty(club.OgImageKey))
         {
-            return new ResolvedOgImage(imageUrlResolver.Resolve(club.OgImageKey), club.OgImageKey, club.OgImageWidth, club.OgImageHeight);
+            return new ResolvedOgImage(imageUrlResolver.Resolve(club.OgImageKey), club.OgImageKey, club.OgImageWidth, club.OgImageHeight, OgImageSource.Club);
         }
 
         if (!string.IsNullOrEmpty(article.CoverKey))
         {
-            return new ResolvedOgImage(imageUrlResolver.Resolve(article.CoverKey), article.CoverKey, null, null);
+            return new ResolvedOgImage(imageUrlResolver.Resolve(article.CoverKey), article.CoverKey, article.CoverWidth, article.CoverHeight, OgImageSource.Cover);
         }
 
-        return new ResolvedOgImage(null, null, null, null);
+        return new ResolvedOgImage(null, null, null, null, OgImageSource.None);
     }
 
     /// <summary>
@@ -351,7 +368,7 @@ public sealed class ArticlesRepository(
 
         const string sql = """
             SELECT article_id AS ArticleId, locale AS Locale, title AS Title, summary AS Summary,
-                   seo_title AS SeoTitle, seo_description AS SeoDescription
+                   seo_title AS SeoTitle, seo_description AS SeoDescription, cover_alt AS CoverAlt
             FROM articles_i18n
             WHERE article_id IN @ArticleIds AND locale IN @Locales
             """;

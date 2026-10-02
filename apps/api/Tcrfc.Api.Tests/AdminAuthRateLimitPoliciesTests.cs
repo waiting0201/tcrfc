@@ -20,6 +20,20 @@ namespace Tcrfc.Api.Tests;
 public sealed class AdminAuthRateLimitPoliciesTests
 {
     [Fact]
+    public void 驗證密碼端點未設定環境變數時使用嚴格預設額度()
+    {
+        var emptyConfiguration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>()).Build();
+        Assert.Equal(AdminAuthRateLimitOptions.CredentialCheckPermitLimitDefault,
+            AdminAuthRateLimitOptions.ResolveCredentialCheckPermitLimit(emptyConfiguration));
+        var bad = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
+        {
+            [AdminAuthRateLimitOptions.CredentialCheckPermitLimitConfigKey] = "-3",
+        }).Build();
+        Assert.Equal(AdminAuthRateLimitOptions.CredentialCheckPermitLimitDefault,
+            AdminAuthRateLimitOptions.ResolveCredentialCheckPermitLimit(bad));
+    }
+
+    [Fact]
     public void 未設定任何環境變數時_登入額度預設值是嚴格的個位數量級()
     {
         var emptyConfiguration = new ConfigurationBuilder().Build();

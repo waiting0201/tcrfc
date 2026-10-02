@@ -375,7 +375,7 @@ flowchart LR
 | `Page` | **●** | 靜態頁面主檔。**藍鯨官網入口頁亦屬此型別**。唯一鍵 `(club_id, slug)`。**S1-12 新增單頁 SEO 欄位**：`canonical_path`（手動覆寫網址正規化，可為空＝沿用自動產生的 canonical）、`is_noindex`、`is_excluded_from_sitemap`（皆 `bit`，預設 `0`）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做）＋ `pages_i18n.seo_keywords`／`og_image_alt`（逐語系） | 🌐 | B1 |
 | `PageBlock` | — | 頁面區塊（12 種型別，規劃書第 1012 行），`content json`（**只存不查**）、`sort_order`。**由 `Page` 推導** | 🌐 | B1 |
 | `PageVersion` | — | 版本歷程與還原點、預覽分享 token。**這是內容版本不是操作日誌** | | B1 |
-| `Article` | **○** | 新聞與故事。**空＝兩隊共同**；`slug` **維持全站唯一**（共同文章須有單一 canonical）。**S1-12 新增單頁 SEO 欄位**：`canonical_path`／`is_noindex`／`is_excluded_from_sitemap`（皆 `bit`，預設 `0`，最後一欄用於 Sitemap 排除，不影響新聞列表本身的顯示）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做，優先序高於既有 `cover_key`）＋ `articles_i18n.seo_keywords`／`og_image_alt`（逐語系） | 🌐 | B2 |
+| `Article` | **○** | 新聞與故事。**空＝兩隊共同**；`slug` **維持全站唯一**（共同文章須有單一 canonical）。**S1-12 新增單頁 SEO 欄位**：`canonical_path`／`is_noindex`／`is_excluded_from_sitemap`（皆 `bit`，預設 `0`，最後一欄用於 Sitemap 排除，不影響新聞列表本身的顯示）、`og_image_key`／`_width`／`_height`（OG 圖片覆寫，驗收退回後補做，優先序高於既有 `cover_key`）＋ `articles_i18n.seo_keywords`／`og_image_alt`（逐語系）。**S0-7h（2026-10-02）封面圖片欄位組補齊**：`cover_width`／`cover_height`（`int NULL`，存主檔縮小後的尺寸）＋ `articles_i18n.cover_alt`（`nvarchar(200) NULL`，逐語系），見 §12 第 49 點 | 🌐 | B2 |
 | `ArticleCategory` | — | 7.1–7.8 八分類。**刻意不加**——分類是內容主題，加了八個會變十六個 | 🌐 | B2 |
 | `Tag` | — | 標籤。**刻意不加**，同上 | 🌐 | B2 |
 | `ArticleTag` | — | `(article_id, tag_id)` | | B2 |
@@ -886,6 +886,12 @@ flowchart LR
     ② **`carts` 加兩條篩選唯一索引**：`(club_id, member_id)`（一個會員在一個俱樂部最多一台）、`anonymous_token`（**存權杖的 SHA-256，權杖本身不落庫**）；
     ③ **`store_invoices.carrier_id_encrypted` 由 `nvarchar(64)` 放寬為 `nvarchar(500)`**——Data Protection 密文遠超過 64；載具號碼不得明文存放（§4.13 受限欄位）。
     **刻意沒有的**：不新增「訂單過期時間」欄位（逾時＝`created_at` ＋ S6「待付款保留時間」，讀到時換算＋背景作業清掃）；不新增發票失敗原因欄位（記結構化日誌，`retry_count` 計次）；不為「超商取貨門市」加欄位（門市名稱／代碼寫入 `recipient_address`，出貨時 S4 另填 `shipments.store_branch_code`）；**不拆單**（`B-8` 未定案，現行禁止混買）。
+
+49. 🔴 **（G 批，2026-10-02）`articles` 封面圖片欄位組補齊（S0-7h）**——規劃書 v3.5 §4.0「圖片欄位是**一組**：物件鍵、寬、高、雙語 Alt」對 `articles.cover_key` 一直只落了一半（`docs/12d` §11 盤點）。`db/club-schema.sql` 與 migration `AlignSchemaG1` 同步（冪等：先查欄位是否已存在；**表數不變**）：
+    ① **`articles.cover_width`／`cover_height`**（`int NULL`）：存**主檔（縮小之後）**的尺寸，由上傳流程算出後與物件鍵同進同出（換圖寫新值、移除封面一併清空）；前台 `<img>` 必帶寬高以守 `CLS < 0.1`（規劃書 §7）。
+    ② **`articles_i18n.cover_alt`**（`nvarchar(200) NULL`）：封面替代文字，逐語系；英文空白時回退中文，兩者皆空前台改用文章標題。**不要求必填**（規劃書未要求，不發明）。
+    ③ 既有資料列三欄皆為 `NULL`；前台沒有寬高時不輸出寬高屬性、沒有 Alt 時回退標題。OG 圖片優先序最後一層（封面回退）改輸出封面寬高與封面 Alt。
+    ⚠️ **同一條規則在其他表的缺口不只這一張**——全表重掃見 [`docs/12d`](12d-field-audit.md) §12（24 個圖片欄位缺寬高、30 個缺 Alt），**本批只補 `articles`**，其餘待逐表補欄位並接上各自的後台上傳流程。
 
 ---
 

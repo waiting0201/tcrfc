@@ -686,6 +686,8 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.CoverKey)
                 .HasMaxLength(500)
                 .HasColumnName("cover_key");
+            entity.Property(e => e.CoverWidth).HasColumnName("cover_width");
+            entity.Property(e => e.CoverHeight).HasColumnName("cover_height");
             entity.Property(e => e.CreatedAt)
                 .HasPrecision(3)
                 .HasDefaultValueSql("(sysutcdatetime())")
@@ -867,6 +869,9 @@ public partial class ClubDbContext : DbContext
             entity.Property(e => e.OgImageAlt)
                 .HasMaxLength(200)
                 .HasColumnName("og_image_alt");
+            entity.Property(e => e.CoverAlt)
+                .HasMaxLength(200)
+                .HasColumnName("cover_alt");
             entity.Property(e => e.Summary).HasColumnName("summary");
             entity.Property(e => e.Title)
                 .HasMaxLength(200)

@@ -35,7 +35,7 @@
 
 | 側表 | 欄位 | 出處 |
 |---|---|---|
-| `article_i18n` | `title`、`summary`、`body(json)`、`seo_title`、`seo_description` | `docs/12` §2.2 範例、`docs/12a` §5.12 |
+| `article_i18n` | `title`、`summary`、`body(json)`、`seo_title`、`seo_description`（另有 `seo_keywords`、`og_image_alt`、`cover_alt`，見下方各節） | `docs/12` §2.2 範例、`docs/12a` §5.12 |
 | `faq_i18n` | 未逐欄明列；依 B4 原文（行1043）推定為 `question`、`answer` | `docs/12` §2.4／B4（行1042–1049） |
 | `match_i18n` | `opponent`、`venue` | `docs/12` §2.4（`Match.opponent_en`／`venue_en`，行1498） |
 | `member_draw_i18n` | `name`、`prize_description`、`rules`、`notes` | `docs/12` §2.4（K5，行1297） |
@@ -86,6 +86,10 @@
 > 文字，逐語系）**，理由與命名比照上面 `seo_keywords`，`article_i18n` 同步新增同名欄位。
 > 對應的圖片鍵／尺寸（`og_image_key`／`_width`／`_height`）不進 i18n 側表，落在主表，
 > 詳見 [`docs/12`](12-database-schema.md) §12 第 42 點。
+>
+> ✅ **（S0-7h，2026-10-02）`article_i18n` 新增 `cover_alt`（`string(200)`，封面圖片替代文字，逐語系，信心度高）**：
+> 依規劃書 v3.5 §4.0 圖片欄位組「物件鍵、寬、高、雙語 Alt」＋本檔 §1 判準表「圖片 `alt` 屬於進側表的欄位」。
+> 對應的 `cover_width`／`cover_height` 落在 `article` 主表，詳見 [`docs/12`](12-database-schema.md) §12 第 49 點。
 
 #### `PageBlock` → `page_block_i18n`
 

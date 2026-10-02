@@ -292,7 +292,7 @@ public sealed partial class MemberAuthService(
         member.UpdatedAt = now;
         await db.SaveChangesAsync(cancellationToken);
 
-        var tokens = await sessions.IssueAsync(member.Id, request.RememberMe, cancellationToken);
+        var tokens = await sessions.IssueAsync(member.Id, request.RememberMe, cancellationToken, request.DeviceInstallId);
         return (tokens, ToSummary(member));
     }
 
@@ -380,7 +380,7 @@ public sealed partial class MemberAuthService(
         member.UpdatedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
         await sessions.RevokeAllAsync(member.Id, cancellationToken);
-        var tokens = await sessions.IssueAsync(member.Id, persistent: false, cancellationToken);
+        var tokens = await sessions.IssueAsync(member.Id, persistent: false, cancellationToken, request.DeviceInstallId);
         return (tokens, ToSummary(member));
     }
 
@@ -472,7 +472,9 @@ public sealed partial class MemberAuthService(
         await db.MembershipOrders.Where(o => o.MemberId == memberId && (o.Status == "created" || o.Status == "pending_payment"))
             .ExecuteUpdateAsync(s => s.SetProperty(o => o.Status, "cancelled").SetProperty(o => o.UpdatedAt, now), cancellationToken);
         await db.AppDevices.Where(d => d.MemberId == memberId)
-            .ExecuteUpdateAsync(s => s.SetProperty(d => d.MemberId, (Guid?)null), cancellationToken);
+            .ExecuteUpdateAsync(s => s.SetProperty(d => d.MemberId, (Guid?)null)
+                .SetProperty(d => d.RefreshTokenHash, (string?)null).SetProperty(d => d.RefreshTokenExpiresAt, (DateTime?)null)
+                .SetProperty(d => d.RevokedAt, now), cancellationToken); // AP-3：App 更新權杖鏈一併撤銷
         await db.SaveChangesAsync(cancellationToken);
         await sessions.RevokeAllAsync(memberId, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
@@ -561,7 +563,7 @@ public sealed partial class MemberAuthService(
         {
             holder.LastLoginAt = DateTime.UtcNow;
             await db.SaveChangesAsync(cancellationToken);
-            var tokens = await sessions.IssueAsync(holder.Id, persistent: true, cancellationToken);
+            var tokens = await sessions.IssueAsync(holder.Id, persistent: true, cancellationToken, request.DeviceInstallId);
             return (new MemberLineCallbackDto { Status = "logged_in", Session = ToSessionDto(tokens, holder, exposeRefresh: false) }, tokens);
         }
 
@@ -614,7 +616,7 @@ public sealed partial class MemberAuthService(
         await memberships.EnsureRegisteredAsync(member.Id, member.Name, club.ClubId, cancellationToken); // LINE 已證明身分，直接成為一般會員
         await SendVerificationAsync(member, club, LangOrDefault(request.Lang), cancellationToken); // Email 仍需驗證（密碼登入與重設才安全）
 
-        var tokens = await sessions.IssueAsync(member.Id, persistent: true, cancellationToken);
+        var tokens = await sessions.IssueAsync(member.Id, persistent: true, cancellationToken, request.DeviceInstallId);
         return (ToSessionDto(tokens, member, exposeRefresh: false), tokens);
     }
 

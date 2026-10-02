@@ -19,7 +19,8 @@ public sealed record AdminStoreContentInput
 
 /// <summary>新增與更新共用（multipart：<c>payload</c> JSON ＋ 選填檔案欄位 <c>image</c>）。
 /// <c>ApplicableTier</c>：<c>all</c>（全會員）／<c>fan_club</c>（限付費）。<c>Status</c>：<c>published</c>（上架）／<c>draft</c>（下架）。
-/// <c>Lat</c>／<c>Lng</c> 兩個一起填或一起省略（人工確認後儲存；本系統不做即時地址轉座標）。
+/// <c>Lat</c>／<c>Lng</c> 兩個一起填或一起省略（手動填的座標永遠優先）。<c>AutoLocate</c>＝true 且沒填座標時，
+/// 儲存時由伺服器依中文地址自動定位（S2-5；失敗不阻擋存檔，結果見回應的 <c>autoLocateStatus</c>）。
 /// <c>BusinessHours</c> 是自由文字（例：「週一至週五 11:00–21:00」）。</summary>
 public sealed record UpsertAdminPartnerStoreRequest
 {
@@ -29,6 +30,9 @@ public sealed record UpsertAdminPartnerStoreRequest
     public string? Region { get; init; }
     public decimal? Lat { get; init; }
     public decimal? Lng { get; init; }
+
+    /// <summary>儲存時由地址自動定位（S2-5）。預設 false＝不自動定位（規劃書：人工確認後儲存）。</summary>
+    public bool AutoLocate { get; init; }
     public string? Phone { get; init; }
     public string? BusinessHours { get; init; }
     public string? MapUrl { get; init; }
@@ -105,6 +109,24 @@ public sealed record AdminPartnerStoreDetailDto
     public AdminStoreLocaleContent? En { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
+
+    /// <summary>只出現在新增／更新的回應（GET 為 <c>null</c>）：<c>skipped</c>（沒要求定位或已手動填座標）／
+    /// <c>located</c>（已自動填入座標，請在畫面上提示管理者確認）／<c>not_found</c>（查無此地址或沒有地址，座標留空）／
+    /// <c>unavailable</c>（定位服務未啟用或暫時故障，座標留空）。</summary>
+    public string? AutoLocateStatus { get; init; }
+}
+
+/// <summary>「由地址定位」預覽請求。</summary>
+public sealed record LocatePartnerStoreRequest
+{
+    public string? Address { get; init; }
+}
+
+/// <summary>「由地址定位」預覽結果：候選座標，<b>尚未儲存</b>，由管理者確認後隨店家資料一起送出。</summary>
+public sealed record LocatePartnerStoreResponse
+{
+    public required decimal Lat { get; init; }
+    public required decimal Lng { get; init; }
 }
 
 /// <summary>8.4 清單頁的分類與地區篩選項目：實際用過的值（自由文字，由店家資料自然形成）。</summary>

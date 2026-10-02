@@ -375,14 +375,43 @@
 
 | 表.欄位 | 問題 |
 |---|---|
-| `articles_i18n.cover_alt` | 🔴 **真的缺**。[`12c`](12c-i18n-tables.md) §1 的判準表**明文列出「圖片 `alt`」屬於進側表的欄位**，規劃書 §4.0 的圖片上傳通則也明訂「每個圖片欄位是**一組**欄位（物件鍵、寬、高、**雙語 Alt**）」。但 `articles_i18n` 只有 `title`／`summary`／`body`／`seo_title`／`seo_description`，**沒有 `cover_alt`**。⚠️ 影響的不只是 SEO——**封面圖沒有 Alt 是無障礙問題**，而新聞是前台露出最多圖片的單元 |
-| `articles.cover_width`／`cover_height` | 🔴 **真的缺**。同一條圖片上傳通則要求「資料列存的寬高」，而 `press_resources` 確實有 `cover_key`／`cover_width`／`cover_height` 三件套（`db/club-schema.sql` 第 371–373 行），**`articles` 卻只有 `cover_key`**（第 280 行）。⚠️ 前台缺寬高會**造成版面位移（CLS）**，而規劃書 §7 的效能目標明訂 `CLS < 0.1`，且「圖片必帶寬高」是那一節的硬性要求 |
+| `articles_i18n.cover_alt` | ✅ **已補（2026-10-02，S0-7h，見 §12）**。原問題：🔴 **真的缺**。[`12c`](12c-i18n-tables.md) §1 的判準表**明文列出「圖片 `alt`」屬於進側表的欄位**，規劃書 §4.0 的圖片上傳通則也明訂「每個圖片欄位是**一組**欄位（物件鍵、寬、高、**雙語 Alt**）」。但 `articles_i18n` 只有 `title`／`summary`／`body`／`seo_title`／`seo_description`，**沒有 `cover_alt`**。⚠️ 影響的不只是 SEO——**封面圖沒有 Alt 是無障礙問題**，而新聞是前台露出最多圖片的單元 |
+| `articles.cover_width`／`cover_height` | ✅ **已補（2026-10-02，S0-7h，見 §12）**。原問題：🔴 **真的缺**。同一條圖片上傳通則要求「資料列存的寬高」，而 `press_resources` 確實有 `cover_key`／`cover_width`／`cover_height` 三件套（`db/club-schema.sql` 第 371–373 行），**`articles` 卻只有 `cover_key`**（第 280 行）。⚠️ 前台缺寬高會**造成版面位移（CLS）**，而規劃書 §7 的效能目標明訂 `CLS < 0.1`，且「圖片必帶寬高」是那一節的硬性要求 |
 | `articles.no_index`／`canonical_url` | 🟡 **落點存疑，先不要補**。`apps/admin` 的 `NewsArticle` 前端型別有這兩個欄位，但資料表沒有。⚠️ **後台 mockup 的型別不是規格**——那是 `S0-12` 做可點 mockup 時自己定的假資料形狀。要先確認規劃書 §7（SEO）是否真的要求逐篇文章可覆寫 `noindex` 與 canonical，**確認前不得補欄位**（全域規定 2） |
 
+> ✅ **（2026-10-02）前兩筆已補，並已對全部帶圖片欄位的表重掃一次，結果見 §12。** 以下是補之前的原文：
+>
 > ⚠️ **這一節的三筆都只在新聞這一張表上核對過。** 圖片欄位組不完整很可能是**系統性**的
 > （`db/club-schema.sql` 裡多數 `*_key` 欄位旁邊都沒有 `_width`／`_height`，全庫沒有任何 `_alt` 欄位），
 > 但**本輪沒有全表重掃**，不要把這三筆當成「圖片欄位的問題就這些」。
 > 真的要處理時應該對全部帶圖片欄位的表重跑一次，比照 §1 的方法。
+
+---
+
+## §12 圖片欄位組全表重掃（2026-10-02，`S0-7h`）
+
+> 核對基準：規劃書 v3.5 §4.0「每一個圖片欄位是**一組**欄位：物件鍵、寬、高、**雙語 Alt 文字**」。
+> 方法：對 `db/club-schema.sql` 全部 `*_key` 圖片欄位（排除 `file_key`、`video_key`、`*_setting_key` 等非圖片鍵），逐一檢查同表有無 `<名稱>_width`／`_height`，
+> 且同表或其 `_i18n` 側表有無替代文字欄位（`*_alt`／`alt_text`）。**這是盤點不是規格**；補欄位前仍須確認該圖片是否真的需要 Alt（見下方「裝飾性圖片」）。
+
+**本批已補（`articles`）**：`cover_width`／`cover_height`／`articles_i18n.cover_alt`，並接上上傳流程（寬高來自主檔縮小後的實際尺寸）、後台與公開 DTO、OG 圖片回退；migration `AlignSchemaG1`。
+
+**已完整（寬高＋Alt 俱全）**：`articles.cover_key`（本批）、`articles.og_image_key`、`pages.og_image_key`、`banners.image_key`、`milestones.image_key`、`ad_slots.fallback_image_key`、`ad_creatives.image_key`、`push_messages.image_key`。
+
+**仍有缺口（本批未動）**：
+
+| 缺什麼 | 欄位 |
+|---|---|
+| **寬高＋Alt 都缺**（24 個） | `teams.hero_key`、`players.photo_key`、`staff.photo_key`、`programs.cover_key`、`comic_characters.image_key`、`comic_episodes.cover_key`、`fan_events.cover_key`、`venues.photo_key`、`partner_stores.image_key`、`member_draws.cover_key`、`calendar_custom_events.cover_key`、`product_images.image_key`、`charities.logo_key`、`charity_programs.cover_key`、`charity_program_images.image_key`、`impact_record_images.image_key`；標誌／圖示類：`partners.logo_dark_key`／`logo_light_key`、`sponsors.logo_dark_key`／`logo_light_key`、`clubs.logo_light_key`／`logo_dark_key`／`favicon_key`、`app_layout_items.icon_key` |
+| **有寬高、缺 Alt**（6 個） | `press_resources.cover_key`、`sponsor_activation_images.image_key`、`comic_pages.image_key`、`fan_event_images.image_key`、`impact_records.image_key`、`clubs.og_image_key` |
+
+合計：**24 個圖片欄位缺寬高、30 個缺 Alt**（前者全部也缺 Alt）。
+
+**補之前必須先決定的三件事（執行層無法代為決定）：**
+
+1. **裝飾性或標誌類圖片要不要 Alt**：`favicon`、App 圖示、合作夥伴／贊助商標誌的替代文字多半就是名稱本身（已在側表 `name`）。規劃書圖片通則寫「每個圖片欄位……雙語 Alt」，未區分；若要全部都有 Alt 欄位，標誌類可以直接沿用名稱當前台 alt 而不另開欄位——**這是規格解讀，需要主 session／客戶確認後再動欄位**。
+2. **補欄位 ≠ 補完**：每個缺口都要同時接上該模組的後台上傳流程（寫回寬高）、DTO、前台輸出，否則新欄位只是永遠為空的假象。`articles` 這一輪是示範：上傳流程已回傳 `UploadedImageInfo.Width/Height`，多數模組的 `ImageFieldUpdate` 也已帶著寬高，只是沒有欄位可寫。
+3. **既有資料列的寬高回填**：已上傳的圖片沒有寬高紀錄；新欄位預設 `NULL`，前台無寬高時不輸出寬高屬性（不阻斷）。要不要寫一次性回填腳本（讀 Blob 取實際尺寸）屬於維運決定。
 
 ---
 
@@ -392,4 +421,5 @@
 |---|---|---|
 | v1.0 | 2026-09-20 | 首版，S0-3c 全表欄位盤點 |
 | v1.1 | 2026-09-21 | 新增 §9：S0-6c 灌種子資料時從實際 JSON 內容發現的落差（`Match.match_no` 真的缺；`intcup` 分類、學院教練隊別歸屬為資料缺口非欄位缺漏） |
+| v1.3 | 2026-10-02 | §11 `articles` 封面欄位組兩筆已補（S0-7h，migration `AlignSchemaG1`）；新增 §12 圖片欄位組全表重掃 |
 | v1.2 | 2026-09-21 | §9 `Match.match_no` 落差已解決：規格異動同步鏈跑完（規劃書 v3.12、`docs/12`／`12a`／`12b`、`db/club-schema.sql`），欄位補上 |

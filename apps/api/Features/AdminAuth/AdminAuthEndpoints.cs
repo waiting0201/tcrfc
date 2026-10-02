@@ -45,6 +45,10 @@ public static class AdminAuthEndpoints
     /// 濫用的整體速率」與「對這支端點的一般性灌流量」，額度可以比登入寬鬆。</summary>
     public const string RefreshRateLimitPolicyName = "admin-refresh";
 
+    /// <summary>已登入後仍驗證密碼／TOTP 的端點（變更密碼、2FA 確認／停用）的依 IP 限流政策名稱，
+    /// 理由與額度見 <see cref="AdminAuthRateLimitOptions.CredentialCheckPermitLimitDefault"/>。</summary>
+    public const string CredentialCheckRateLimitPolicyName = "admin-credential-check";
+
     public static void MapAdminAuthEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/admin/auth").WithTags("AdminAuth");
@@ -117,8 +121,10 @@ public static class AdminAuthEndpoints
             return ok ? Results.NoContent() : Results.Json(new { message = "目前密碼不正確。" }, statusCode: StatusCodes.Status401Unauthorized);
         })
         .WithName("AdminChangePassword")
+        .RequireRateLimiting(CredentialCheckRateLimitPolicyName)
         .Produces(StatusCodes.Status204NoContent)
-        .Produces(StatusCodes.Status401Unauthorized);
+        .Produces(StatusCodes.Status401Unauthorized)
+        .Produces(StatusCodes.Status429TooManyRequests);
 
         group.MapPost("/2fa/setup", async (HttpContext httpContext, AdminAuthService authService, CancellationToken cancellationToken) =>
         {
@@ -137,6 +143,7 @@ public static class AdminAuthEndpoints
             return ok ? Results.NoContent() : Results.Json(new { message = "驗證碼不正確。" }, statusCode: StatusCodes.Status400BadRequest);
         })
         .WithName("AdminTwoFactorConfirm")
+        .RequireRateLimiting(CredentialCheckRateLimitPolicyName)
         .Produces(StatusCodes.Status204NoContent)
         .Produces(StatusCodes.Status400BadRequest);
 
@@ -160,6 +167,7 @@ public static class AdminAuthEndpoints
             return ok ? Results.NoContent() : Results.Json(new { message = "密碼不正確。" }, statusCode: StatusCodes.Status401Unauthorized);
         })
         .WithName("AdminTwoFactorDisable")
+        .RequireRateLimiting(CredentialCheckRateLimitPolicyName)
         .Produces(StatusCodes.Status204NoContent)
         .Produces(StatusCodes.Status401Unauthorized);
     }

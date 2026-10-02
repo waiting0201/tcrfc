@@ -13,11 +13,13 @@ namespace Tcrfc.Api.Features.AdminNews;
 /// 單一請求契約下沒有這個前提了（呼叫端可能根本不知道現在的 key 是什麼字串），需要一個明確的
 /// 「要不要變更」旗標，不能只看新值是不是 <c>null</c>。
 /// </summary>
-public readonly record struct CoverKeyUpdate(bool Change, string? NewKey)
+public readonly record struct CoverKeyUpdate(bool Change, string? NewKey, int? Width = null, int? Height = null)
 {
     /// <summary>維持資料庫目前的值，完全不碰這個欄位。</summary>
     public static readonly CoverKeyUpdate Keep = new(false, null);
 
-    /// <summary>換成新值——<paramref name="newKey"/> 為 <c>null</c> 代表「清空封面圖片」。</summary>
-    public static CoverKeyUpdate Set(string? newKey) => new(true, newKey);
+    /// <summary>換成新值——<paramref name="newKey"/> 為 <c>null</c> 代表「清空封面圖片」（寬高一併清空）。
+    /// S0-7h（2026-10-02）：新圖的寬高是主檔（縮小之後）的尺寸，來自上傳流程，與物件鍵同進同出。</summary>
+    public static CoverKeyUpdate Set(string? newKey, int? width = null, int? height = null)
+        => new(true, newKey, newKey is null ? null : width, newKey is null ? null : height);
 }

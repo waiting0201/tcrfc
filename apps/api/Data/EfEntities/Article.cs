@@ -17,6 +17,10 @@ public partial class Article
 
     public string? CoverKey { get; set; }
 
+    public int? CoverWidth { get; set; }
+
+    public int? CoverHeight { get; set; }
+
     public bool IsFeatured { get; set; }
 
     public int ViewCount { get; set; }

@@ -509,6 +509,7 @@ builder.Services.AddSingleton<Tcrfc.Api.Features.MemberAuth.ILineLoginClient, Tc
 builder.Services.AddSingleton<MemberTokenService>();
 builder.Services.AddSingleton<Tcrfc.Api.Features.MemberAuth.MemberSecureTokens>();
 builder.Services.AddScoped<MemberAuthenticator>();
+builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.AppDeviceSessionService>(); // AP-3：App 更新權杖鏈（掛 app_devices）
 builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.MemberSessionService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.MemberMembershipService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.MemberAuthService>();
@@ -577,6 +578,25 @@ if (fakeInvoice)
 else
 {
     builder.Services.AddSingleton<Tcrfc.Api.Features.Shop.IInvoiceIssuer, Tcrfc.Api.Features.Shop.NotConfiguredInvoiceIssuer>(); // 取得發票服務後只換這一行，見 docs/17 §3
+}
+
+// 「由地址定位」接縫（S2-5，K4 特約店家）：規劃書沒有指定供應商，預設「尚未串接」；開發環境預設用本機假定位（絕不碰外部服務）。
+// GEOCODER=fake 在 Production 啟動就失敗——寧可起不來，也不要讓假座標出現在正式地圖上。
+var geocoderMode = builder.Configuration["GEOCODER"];
+var fakeGeocoder = string.Equals(geocoderMode, "fake", StringComparison.OrdinalIgnoreCase)
+                   || (builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(geocoderMode));
+if (fakeGeocoder && builder.Environment.IsProduction())
+{
+    throw new InvalidOperationException("GEOCODER=fake 不得用於 Production 環境。");
+}
+
+if (fakeGeocoder)
+{
+    builder.Services.AddSingleton<Tcrfc.Api.Features.Geocoding.IGeocoder, Tcrfc.Api.Features.Geocoding.LocalFakeGeocoder>();
+}
+else
+{
+    builder.Services.AddSingleton<Tcrfc.Api.Features.Geocoding.IGeocoder, Tcrfc.Api.Features.Geocoding.NotConfiguredGeocoder>(); // 選定供應商後只換這一行，見 docs/17 §3
 }
 
 const string CorsPolicyName = "ClubFrontends";
@@ -769,6 +789,19 @@ builder.Services.AddRateLimiter(options =>
         {
             PermitLimit = AdminAuthRateLimitOptions.ResolveRefreshPermitLimit(configuration),
             Window = AdminAuthRateLimitOptions.RefreshWindow,
+            QueueLimit = 0,
+        });
+    });
+
+    // S1-18 收尾（2026-10-02）：已登入後仍驗證密碼／TOTP 的端點（變更密碼、2FA 確認／停用）。
+    options.AddPolicy(AdminAuthEndpoints.CredentialCheckRateLimitPolicyName, httpContext =>
+    {
+        var partitionKey = ClientIpResolver.Resolve(httpContext);
+        var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
+        return RateLimitPartition.GetFixedWindowLimiter(partitionKey, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = AdminAuthRateLimitOptions.ResolveCredentialCheckPermitLimit(configuration),
+            Window = AdminAuthRateLimitOptions.CredentialCheckWindow,
             QueueLimit = 0,
         });
     });

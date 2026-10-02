@@ -163,6 +163,20 @@ Kotlin 端的 `Json` 設定請用 `ignoreUnknownKeys = true`，讓後端新增�
 | 輪替 | **每次使用即輪替 ＋ 重用偵測**：舊權杖再被用到＝外洩，立即撤銷該裝置整條鏈 | |
 | 承載處 | `AppDevice` 的四個欄位（規劃書 **v3.11 §10.1** 已補） | §4.4 已定「一裝置只綁一個會員」，權杖鏈與裝置天然 1:1 |
 
+### 🔴 伺服器端實作（AP-3 後端，2026-10-02）
+
+| 項目 | 決定 |
+|---|---|
+| 入口 | 沿用 `POST /api/v1/member/auth/login`（`/line/callback`、`/line/complete`、`/change-password` 同理）——**請求帶 `deviceInstallId` 就把鏈掛在該裝置**，並強制 `tokenDelivery=body`；續期 `POST /member/auth/refresh`、登出 `POST /member/auth/logout` 帶 `refreshToken`，依權杖前綴 `ad1.` 分流到裝置鏈（網頁仍走 `member_refresh_tokens`）。**裝置須已先 `PUT /app/devices/{id}` 註冊**，否則 400 `device_not_registered` |
+| 權杖格式 | `ad1.{裝置列 id}.{簽發毫秒}.{32 bytes 亂數}.{HMAC 簽章}`；伺服器只存整串 SHA-256（`app_devices.refresh_token_hash`）。**簽章金鑰**由會員權杖金鑰（`JWT_SIGNING_KEY_MEMBER`，未設則由 `JWT_SIGNING_KEY_CLUB` 衍生）再以 HKDF（用途標籤 `tcrfc-app-refresh-token-v1`）衍生 |
+| 為什麼要簽章與簽發時間 | 規劃書 §10.1 只給四個欄位，**沒有「前一把權杖雜湊」**。輪替後舊權杖再被送來時，單靠雜湊不相符分不出「曾經合法、已被輪替掉（＝外洩）」與「亂猜的垃圾」。簽章通過＝確實核發過；簽發時間早於 `refresh_token_rotated_at`＝已被輪替掉。**簽章不合法一律無副作用拒絕**，所以亂送權杖不可能登出任何人。不必動綱要、不必改規劃書 |
+| 四個欄位的語意 | `refresh_token_hash`＝現行那把的雜湊；`refresh_token_expires_at`＝**90 天滑動**（核發與每次輪替都重算）；`refresh_token_rotated_at`＝**現行這把的簽發時間（毫秒精度，首次核發也寫入）**，嚴格遞增；`revoked_at`＝鏈被撤銷的時間（重新登入時清空） |
+| 輪替 | 條件式更新（比對舊雜湊且未撤銷），並行用同一把輪替只有一個成功；輸的那個等同重用 |
+| 重用偵測 | 簽章合法、雜湊不是現行那把、簽發時間早於上次輪替 → 撤銷整條鏈（雜湊與到期清空、`revoked_at` 設值、**解除 `member_id` 綁定**；裝置列與推播訂閱保留）。**鏈已撤銷後再被送來的舊權杖不再擴大處置** |
+| 撤銷時機 | 登出（只撤銷「現行那把」，過期或已輪替掉的舊權杖不能拿來登出別人）、登出全部裝置／變更密碼／重設密碼／刪除帳號（`MemberSessionService.RevokeAllAsync` 兩條鏈一併撤銷）、會員自己撤銷某裝置（`GET /member/devices`、`POST /member/devices/{deviceId}/revoke`，只能動自己名下的裝置，別人的一律 404）、會員被停用（輪替時發現即撤銷） |
+| 綁定 | 登入成功把 `member_id` 綁到該裝置（一個裝置同時只綁一個會員，後登入者取代）並同步 `push_topic_subscriptions.member_id`；登出／撤銷解除綁定 |
+| ⚠️ 已知取捨 | **行動網路下「伺服器已輪替、回應卻在途中遺失」，用戶端會拿舊權杖重試，會被判為重用而登出該裝置、需重新登入。** 因為沒有「前一把雜湊」欄位，無法安全容忍這種重試；寧可重新登入，不放寬重用偵測。若實測發現太常發生，選項是向規劃書申請增列一個欄位（先改規劃書 §10.1）做短暫寬限。存取權杖是無狀態 JWT，撤銷後最多再有效 15 分鐘（與網頁會員同一個取捨） |
+
 **安全儲存區**：
 
 - **iOS Keychain，`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`。**

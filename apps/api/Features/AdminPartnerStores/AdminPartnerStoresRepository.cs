@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
+using Tcrfc.Api.Features.Geocoding;
 using Tcrfc.Api.Features.Uploads;
 using Tcrfc.Api.Images;
 using Tcrfc.Api.Localization;
@@ -14,10 +15,17 @@ namespace Tcrfc.Api.Features.AdminPartnerStores;
 /// K4 特約店家（規劃書 §4.11 K4，產出前台 8.4 與 App「附近特約店家」）。<b>特約店家不是 Partner／Sponsor／DonationStore</b>
 /// （五種商業對象各建各的，docs/14）：無金流、無分潤、不核銷。<c>partner_stores.club_id</c> 可為空＝兩隊共同（§5.4）：
 /// 清單與詳情會一併列出共同店家（<c>isShared: true</c>），但<b>編輯與刪除只有系統管理員</b>（共同內容唯讀規則）；建立一律歸屬呼叫端俱樂部，
-/// 系統管理員可用 <c>isShared</c> 建立共同店家。座標 <c>lat／lng</c> 由人工填入確認後儲存（本系統不做即時地址轉座標，也不呼叫任何外部服務）。
+/// 系統管理員可用 <c>isShared</c> 建立共同店家。座標 <c>lat／lng</c> 由人工確認後儲存；「由地址定位」只在後台由管理者觸發（預覽按鈕或儲存時勾選自動定位，見 <c>ResolveCoordinatesAsync</c>），App 與訪客請求永遠不會觸發定位。
 /// </summary>
-public sealed class AdminPartnerStoresRepository(ClubDbContext db, IImagePublicUrlResolver imageUrls)
+public sealed class AdminPartnerStoresRepository(
+    ClubDbContext db, IImagePublicUrlResolver imageUrls, IGeocoder geocoder, ILogger<AdminPartnerStoresRepository> logger)
 {
+    /// <summary>S2-5「由地址定位」的結果狀態（只出現在寫入回應）。<c>skipped</c>＝沒有要求定位，或已手動填座標（手動值優先）。</summary>
+    public const string LocateSkipped = "skipped";
+    public const string LocateLocated = "located";
+    public const string LocateNotFound = "not_found";
+    public const string LocateUnavailable = "unavailable";
+
     private static readonly HashSet<string> Statuses = new(StringComparer.Ordinal) { "draft", "published" };
     private static readonly HashSet<string> Tiers = new(StringComparer.Ordinal) { "all", "fan_club" };
 
@@ -113,11 +121,12 @@ public sealed class AdminPartnerStoresRepository(ClubDbContext db, IImagePublicU
         {
             Id = id, ClubId = clubId, Slug = slug, ImageKey = image?.Key, CreatedAt = now, UpdatedAt = now, CreatedBy = operatorId, UpdatedBy = operatorId,
         };
-        Apply(store, request, v);
+        var (lat, lng, locateStatus) = await ResolveCoordinatesAsync(request, cancellationToken);
+        Apply(store, request, v, lat, lng);
         db.PartnerStores.Add(store);
         SetI18n(store, request.Content);
         await db.SaveChangesAsync(cancellationToken);
-        return (await GetByIdAsync(scope, id, cancellationToken))!;
+        return (await GetByIdAsync(scope, id, cancellationToken))! with { AutoLocateStatus = locateStatus };
     }
 
     public async Task<AdminPartnerStoreDetailDto?> UpdateAsync(
@@ -144,12 +153,14 @@ public sealed class AdminPartnerStoresRepository(ClubDbContext db, IImagePublicU
             store.ImageKey = image.Key;
         }
 
-        Apply(store, request, v);
+        var (lat, lng, locateStatus) = await ResolveCoordinatesAsync(request, cancellationToken);
+        Apply(store, request, v, lat, lng);
         store.UpdatedAt = DateTime.UtcNow;
         store.UpdatedBy = operatorId;
         SetI18n(store, request.Content);
         await db.SaveChangesAsync(cancellationToken);
-        return await GetByIdAsync(scope, id, cancellationToken);
+        var updated = await GetByIdAsync(scope, id, cancellationToken);
+        return updated is null ? null : updated with { AutoLocateStatus = locateStatus };
     }
 
     public async Task<bool> DeleteAsync(AdminClubScope scope, Guid id, OrphanedObjects orphans, CancellationToken cancellationToken)
@@ -243,13 +254,59 @@ public sealed class AdminPartnerStoresRepository(ClubDbContext db, IImagePublicU
         return new Validated(slug, category, region, phone, mapUrl, website, hours);
     }
 
-    private static void Apply(PartnerStore store, UpsertAdminPartnerStoreRequest request, Validated v)
+    /// <summary>
+    /// 座標決定規則（S2-5）：<b>手動填的座標永遠優先</b>（可覆寫任何自動結果）；兩者都沒填且 <c>AutoLocate</c> 為 true、
+    /// 又有中文地址時，才呼叫 <see cref="IGeocoder"/>。定位失敗（查無、未啟用、供應商故障）<b>一律不阻擋存檔</b>，
+    /// 座標留空並以狀態回報，讓後台提示「請手動輸入座標」。規劃書要求「人工確認後儲存」，所以自動定位只在管理者明確勾選
+    /// 「儲存時由地址定位」時才發生；單純預覽請用 <c>POST …/partner-stores/locate</c>，不寫入任何資料。
+    /// </summary>
+    private async Task<(decimal? Lat, decimal? Lng, string Status)> ResolveCoordinatesAsync(
+        UpsertAdminPartnerStoreRequest request, CancellationToken cancellationToken)
+    {
+        if (request.Lat is not null || !request.AutoLocate)
+        {
+            return (request.Lat, request.Lng, LocateSkipped);
+        }
+
+        var address = request.Content.Zh.Address?.Trim();
+        if (string.IsNullOrEmpty(address))
+        {
+            return (null, null, LocateNotFound);
+        }
+
+        try
+        {
+            var result = await geocoder.GeocodeAsync(address, cancellationToken);
+            return result is null
+                ? (null, null, LocateNotFound)
+                : (result.Lat, result.Lng, LocateLocated);
+        }
+        catch (FeatureNotConfiguredException)
+        {
+            return (null, null, LocateUnavailable);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or TimeoutException && !cancellationToken.IsCancellationRequested)
+        {
+            // 🔴 不記地址（個資性質）；只記例外型別。
+            logger.LogWarning("特約店家由地址定位失敗（供應商錯誤 {ExceptionType}），已略過自動定位。", ex.GetType().Name);
+            return (null, null, LocateUnavailable);
+        }
+    }
+
+    /// <summary>後台「由地址定位」預覽按鈕（只回候選座標，<b>不寫入任何資料</b>）。查無回 <c>null</c>；未啟用拋 <see cref="FeatureNotConfiguredException"/>。</summary>
+    public async Task<GeocodeResult?> LocateAsync(string? address, CancellationToken cancellationToken)
+    {
+        var trimmed = AdminInput.RequireText(address, "地址", 500);
+        return await geocoder.GeocodeAsync(trimmed, cancellationToken);
+    }
+
+    private static void Apply(PartnerStore store, UpsertAdminPartnerStoreRequest request, Validated v, decimal? lat, decimal? lng)
     {
         store.Category = v.Category;
         store.Region = v.Region;
         store.Address = string.IsNullOrWhiteSpace(request.Content.Zh.Address) ? null : request.Content.Zh.Address.Trim();
-        store.Lat = request.Lat;
-        store.Lng = request.Lng;
+        store.Lat = lat;
+        store.Lng = lng;
         store.Phone = v.Phone;
         store.BusinessHours = JsonColumn.WrapText(v.Hours); // json 欄位只收物件或陣列：自由文字包成 {"text":"…"}（docs/18 E-111）
         store.MapUrl = v.MapUrl;

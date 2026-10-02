@@ -484,50 +484,48 @@ public sealed class ArchitectureTests
     /// apps/api/README.md 對應段落），不強制要求掛限流政策。
     /// </summary>
     [Fact]
-    public void AdminAuth的登入與更新權杖端點必須掛限流政策()
+    public void AdminAuth所有認證端點除明列豁免外都必須掛限流政策()
     {
         var apiDir = Path.Combine(RepoRoot(), "apps", "api");
         var filePath = Path.Combine(apiDir, "Features", "AdminAuth", "AdminAuthEndpoints.cs");
         Assert.True(File.Exists(filePath), $"找不到 {filePath}——路徑可能已經搬動，需要同步更新這支測試。");
 
-        var sourceText = File.ReadAllText(filePath);
-        var tree = CSharpSyntaxTree.ParseText(sourceText, path: filePath);
+        var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(filePath), path: filePath);
 
-        var routesRequiringRateLimit = new HashSet<string>(StringComparer.Ordinal) { "/login", "/refresh" };
-        var foundRoutes = new HashSet<string>(StringComparer.Ordinal);
+        // 2026-10-02（S1-18 收尾）：由「只守 /login、/refresh」改為「檔案內所有 Map* 端點預設都要限流，
+        // 只有下列明列豁免」——日後新增認證端點忘了掛限流會直接紅燈。
+        // 豁免理由：/logout（只清 Cookie＋撤銷單筆權杖，無可濫用副作用）、/me（唯讀，需 JWT）、
+        // /2fa/setup（需 JWT，只產生尚未啟用的密鑰，不驗證任何憑證）。
+        var exempt = new HashSet<string>(StringComparer.Ordinal) { "/logout", "/me", "/2fa/setup" };
+        var mustLimit = new HashSet<string>(StringComparer.Ordinal)
+            { "/login", "/refresh", "/change-password", "/2fa/confirm", "/2fa/disable" };
+        var found = new HashSet<string>(StringComparer.Ordinal);
         var violations = new List<string>();
+        var verbs = new HashSet<string>(StringComparer.Ordinal) { "MapPost", "MapGet", "MapPut", "MapDelete", "MapPatch" };
 
         foreach (var invocation in tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
-            if (invocation.Expression is not MemberAccessExpressionSyntax { Name.Identifier.Text: "MapPost" })
+            if (invocation.Expression is not MemberAccessExpressionSyntax ma || !verbs.Contains(ma.Name.Identifier.Text))
             {
                 continue;
             }
 
             var firstArgument = invocation.ArgumentList.Arguments.FirstOrDefault()?.Expression;
-            if (firstArgument is not LiteralExpressionSyntax literal || literal.Token.ValueText is not { } route
-                || !routesRequiringRateLimit.Contains(route))
-            {
-                continue;
-            }
-
-            foundRoutes.Add(route);
+            if (firstArgument is not LiteralExpressionSyntax literal) { continue; }
+            var route = literal.Token.ValueText;
+            found.Add(route);
+            if (exempt.Contains(route)) { continue; }
 
             if (!ChainHasRequireRateLimiting(invocation))
             {
                 var lineNumber = tree.GetLineSpan(invocation.Span).StartLinePosition.Line + 1;
-                violations.Add(
-                    $"{filePath}:{lineNumber}: MapPost(\"{route}\") 沒有掛 .RequireRateLimiting(...)——" +
-                    "後台登入／更新權杖端點呼叫當下不需要先登入，一律要依 IP 限流（docs/14-invariants.md）。");
+                violations.Add($"{filePath}:{lineNumber}: {ma.Name.Identifier.Text}(\"{route}\") 沒有掛 .RequireRateLimiting(...)。");
             }
         }
 
-        Assert.True(routesRequiringRateLimit.SetEquals(foundRoutes),
-            $"預期在 {filePath} 找到 {string.Join("、", routesRequiringRateLimit)} 兩個 MapPost 路由，" +
-            $"實際找到 {string.Join("、", foundRoutes)}——路由字面值或檔案結構可能已經改變，需要同步更新這支測試。");
-
-        Assert.True(violations.Count == 0,
-            "後台登入／更新權杖端點沒有掛限流政策：\n" + string.Join("\n", violations));
+        Assert.True(mustLimit.IsSubsetOf(found) && exempt.IsSubsetOf(found),
+            $"預期路由 {string.Join("、", mustLimit.Concat(exempt))} 都存在，實際找到 {string.Join("、", found)}——需同步更新這支測試。");
+        Assert.True(violations.Count == 0, "後台認證端點沒有掛限流政策：\n" + string.Join("\n", violations));
     }
 
     /// <summary>從 <c>MapPost</c>（或其他寫入方法）呼叫節點沿著 fluent chain 往外層走
