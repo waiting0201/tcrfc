@@ -2,7 +2,7 @@ import type { NavGroup, NavChild, NavModule } from '@/types/nav'
 
 /**
  * 側欄導覽資料（docs/21-admin-ui.md §1）：14 個一級模組、6 組視覺分組。
- * 有子模組的模組渲染成 el-sub-menu（手風琴 unique-opened）；沒有子模組的（A／I）是葉節點。
+ * 有子模組的模組渲染成 el-sub-menu（手風琴 unique-opened）；沒有子模組的（A）是葉節點。
  * 全部模組都已有畫面（D 批完成後不再有佔位頁）；`implemented` 旗標目前不影響路由，新增模組時請同時新增路由。
  */
 export const NAV_GROUPS: NavGroup[] = [
@@ -41,7 +41,20 @@ export const NAV_GROUPS: NavGroup[] = [
           { code: 'H6', label: '結構化資料完整性檢查', path: '/seo/schema-completeness', implemented: true },
         ],
       },
-      { code: 'I', label: '網站設定', path: '/settings/site', implemented: true },
+      {
+        code: 'I',
+        label: '網站設定',
+        // 子項目依權限顯示（AppSidebar.vue 的 CHILD_VISIBILITY）：基本資料／選單／全域設定／場地／電子報平台
+        // 僅系統管理員；多語系的「介面字串」另開放給翻譯人員（只能改非繁中語系，伺服器強制）。
+        children: [
+          { code: 'I1', label: '基本資料與聯絡方式', path: '/settings/site', implemented: true },
+          { code: 'I2', label: '選單管理', path: '/settings/menus', implemented: true },
+          { code: 'I3', label: '全域設定', path: '/settings/global', implemented: true },
+          { code: 'I4', label: '多語系', path: '/settings/locales', implemented: true },
+          { code: 'I5', label: '場地管理', path: '/settings/venues', implemented: true },
+          { code: 'I6', label: '電子報平台', path: '/settings/edm', implemented: true },
+        ],
+      },
       {
         code: 'L',
         label: '行事曆管理',

@@ -11,6 +11,10 @@ const config = useRuntimeConfig()
 // club-copy.ts 文案鍵。
 const clubNameZh = computed(() => getClubAssets(config.public.club).nameZh)
 
+// I3 全域設定（H 批）：後台「政策與條款」填寫了隱私權政策就改顯示該內容（純文字、空行分段，以文字節點輸出，不得 v-html）；
+// 沒有內容（API 無資料或打不到）時沿用下方既有的靜態文字（過渡策略）。
+const { policy, paragraphs } = await usePolicy('privacy')
+
 useSeoMeta({
   title: computed(() => `隱私權政策 Privacy Policy｜${clubNameZh.value}`),
   description: computed(() => `${clubNameZh.value}隱私權政策：說明本站蒐集個人資料的類別、目的、利用方式與當事人權利。`),
@@ -39,7 +43,11 @@ useSeoMeta({
   <div class="band-inner container">
     <h2 class="visually-hidden" id="privacy-title">隱私權政策內文</h2>
 
-    <div class="prose">
+    <div v-if="policy" class="prose policy-body">
+      <p v-for="(para, i) in paragraphs" :key="i" class="policy-body__p">{{ para }}</p>
+      <p v-if="policy.updatedAt" class="policy-body__updated">最後更新：{{ policy.updatedAt.slice(0, 10).replaceAll('-', '/') }}</p>
+    </div>
+    <div v-else class="prose">
       <h2>一、適用範圍</h2>
 
       <h2>二、蒐集之個人資料類別</h2>
@@ -68,4 +76,7 @@ useSeoMeta({
 
 <style>
 .legal-band{ padding-block:clamp(3.5rem,6vw,6rem); }
+.policy-body{ max-width:78ch; }
+.policy-body__p{ white-space:pre-line; overflow-wrap:anywhere; margin:0 0 1.1rem; line-height:1.85; }
+.policy-body__updated{ margin-top:2rem; font-size:.82rem; color:var(--muted); }
 </style>

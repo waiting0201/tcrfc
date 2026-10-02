@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { menuItemHref, type PublicMenuItem } from '#shared/utils/site-settings'
 // app/components/SiteHeader.vue — 由 site/src/partials/header.html 轉來
 //
 // 🔴 DOM 結構與 class 一律不動（docs/14-invariants.md）；{{ROOT}} 在 mockup 是相對路徑，
@@ -43,6 +44,17 @@ const activeNav = computed(() => route.meta.nav as string | undefined)
 // （S1-13，shared/utils/locale.ts 的單一真實來源），不得改回寫死 /zh/——語系切換器
 // 本身另外用 switchTo()（見下方樣板），因為它要「切去另一個語系」，不是「留在目前語系」。
 const { locale, lp, switchTo } = useLocale()
+// I2 選單管理（H 批）：API 有主選單項目時改由 API 呈現，沒有時沿用下面寫死的既有選單（過渡策略，見 useSiteMenus.ts）。
+const { main: apiMain, mega: apiMega } = useSiteMenus()
+const useApiMenu = computed(() => apiMain.value.length > 0)
+/** 下拉面板內容：項目自己的子項目；沒有時，用「大選單」位置中連結相同的項目的子項目補上。 */
+function panelOf(item: PublicMenuItem): PublicMenuItem[] {
+  if (item.children.length > 0) return item.children
+  return item.url ? (apiMega.value.find((m) => m.url === item.url)?.children ?? []) : []
+}
+function hrefOf(item: PublicMenuItem): string | null {
+  return menuItemHref(item, lp)
+}
 // 購物車件數（S3-5）：讀 BFF 寫的非 HttpOnly 提示 Cookie，只在瀏覽器端有值（SSR 一律 0，不讓 HTML 帶出個人狀態）。
 const cartCount = useCartBadge()
 
@@ -128,9 +140,13 @@ function onMegaKeydown(e: KeyboardEvent) {
 
 const mainNavEl = ref<HTMLElement | null>(null)
 let megaItems: HTMLElement[] = []
+// 選單由 API 改版後會重新渲染 .has-mega：用 WeakSet 避免對同一個 <li> 重複綁定事件。
+const boundMega = new WeakSet<HTMLElement>()
 function bindMegaMenu() {
   megaItems = Array.from(mainNavEl.value?.querySelectorAll<HTMLElement>('.has-mega') ?? [])
   for (const li of megaItems) {
+    if (boundMega.has(li)) continue
+    boundMega.add(li)
     li.addEventListener('mouseenter', () => openMega(li))
     li.addEventListener('mouseleave', () => scheduleCloseMega(li))
     li.addEventListener('focusin', () => openMega(li))
@@ -139,6 +155,37 @@ function bindMegaMenu() {
     })
   }
 }
+
+// ---- 全站搜尋（G-02，H 批）：按鈕展開搜尋列，送出後前往搜尋結果頁 ----
+const searchOpen = ref(false)
+const searchQuery = ref('')
+const searchInputEl = ref<HTMLInputElement | null>(null)
+const searchBtnEl = ref<HTMLElement | null>(null)
+async function toggleSearch() {
+  searchOpen.value = !searchOpen.value
+  if (searchOpen.value) {
+    await nextTick()
+    searchInputEl.value?.focus()
+  }
+}
+function closeSearch() {
+  if (!searchOpen.value) return
+  searchOpen.value = false
+  searchBtnEl.value?.focus()
+}
+function submitSearch() {
+  const q = searchQuery.value.trim()
+  if (!q) {
+    searchInputEl.value?.focus()
+    return
+  }
+  searchOpen.value = false
+  return navigateTo({ path: lp('/zh/search/'), query: { q } })
+}
+function onSearchKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape') closeSearch()
+}
+watch(useApiMenu, () => nextTick(bindMegaMenu))
 
 onMounted(() => {
   document.addEventListener('scroll', onScroll, { passive: true })
@@ -191,7 +238,31 @@ onBeforeUnmount(() => {
       </NuxtLink>
 
       <nav ref="mainNavEl" class="main-nav" aria-label="主要導覽">
-        <ul>
+        <!-- I2 選單管理（H 批）：後台設定了主選單就改讀 API；下拉面板用項目的子項目（最多再一層）。
+             API 版沒有特色圖片與按鈕（那些是磐石專屬、不在選單資料內）。 -->
+        <ul v-if="useApiMenu">
+          <li v-for="item in apiMain" :key="item.id" :class="{ 'has-mega': panelOf(item).length > 0 }">
+            <a v-if="hrefOf(item)" :href="hrefOf(item)!" :aria-current="hrefOf(item) === route.path ? 'page' : undefined" v-bind="item.isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {}">{{ item.label }}</a>
+            <a v-else href="#" role="button" @click.prevent>{{ item.label }}</a>
+            <div v-if="panelOf(item).length > 0" class="mega" hidden>
+              <div class="container mega__inner">
+                <ul class="mega__list">
+                  <li v-for="child in panelOf(item)" :key="child.id">
+                    <a v-if="hrefOf(child)" :href="hrefOf(child)!" v-bind="child.isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {}">{{ child.label }}</a>
+                    <span v-else>{{ child.label }}</span>
+                    <ul v-if="child.children.length > 0" class="mega__sub">
+                      <li v-for="leaf in child.children" :key="leaf.id">
+                        <a v-if="hrefOf(leaf)" :href="hrefOf(leaf)!" v-bind="leaf.isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {}">{{ leaf.label }}</a>
+                        <span v-else>{{ leaf.label }}</span>
+                      </li>
+                    </ul>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </li>
+        </ul>
+        <ul v-else>
           <li class="has-mega">
             <a :href="lp('/zh/about/')" data-nav="about" :aria-current="activeNav === 'about' ? 'page' : undefined">{{ identity.aboutLabelZh }}</a>
             <div class="mega" hidden>
@@ -340,7 +411,7 @@ onBeforeUnmount(() => {
       </nav>
 
       <div class="header-actions">
-        <button class="icon-btn" type="button" aria-label="搜尋">
+        <button ref="searchBtnEl" class="icon-btn" type="button" aria-label="搜尋" :aria-expanded="searchOpen ? 'true' : 'false'" aria-controls="header-search" @click="toggleSearch">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" stroke-linecap="round" /></svg>
         </button>
         <a class="icon-btn" :href="lp('/zh/cart/')" :aria-label="cartCount > 0 ? `購物車（${cartCount} 件商品）` : '購物車'">
@@ -353,6 +424,14 @@ onBeforeUnmount(() => {
         </button>
       </div>
     </div>
+    <div v-if="searchOpen" id="header-search" class="header-search">
+      <form class="header-search__form" role="search" aria-label="全站搜尋" @submit.prevent="submitSearch" @keydown="onSearchKeydown">
+        <label class="visually-hidden" for="header-search-input">搜尋關鍵字</label>
+        <input id="header-search-input" ref="searchInputEl" v-model="searchQuery" type="search" name="q" maxlength="100" placeholder="搜尋新聞、常見問題、課程、球員、教練、慈善…" autocomplete="off" enterkeyhint="search">
+        <button type="submit" class="btn btn--primary btn--sm">搜尋</button>
+        <button type="button" class="btn btn--sm header-search__close" @click="closeSearch">關閉</button>
+      </form>
+    </div>
   </header>
 
   <div ref="mobileNavEl" class="mobile-nav" id="mobile-nav" role="dialog" aria-modal="true" aria-label="行動選單" @click="onMobileNavClick">
@@ -363,7 +442,13 @@ onBeforeUnmount(() => {
       </button>
     </div>
     <nav aria-label="行動主要導覽">
-      <ul>
+      <ul v-if="useApiMenu">
+        <li v-for="item in apiMain" :key="item.id">
+          <a v-if="hrefOf(item)" :href="hrefOf(item)!" v-bind="item.isExternal ? { target: '_blank', rel: 'noopener noreferrer' } : {}">{{ item.label }}</a>
+          <span v-else>{{ item.label }}</span>
+        </li>
+      </ul>
+      <ul v-else>
         <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }} ABOUT</a></li>
         <li><a :href="lp('/zh/club/')">俱樂部 CLUB</a></li>
         <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }} {{ identity.academyLabelEn }}</a></li>
@@ -393,3 +478,18 @@ onBeforeUnmount(() => {
     <a class="btn btn--dark btn--sm" :href="lp('/zh/join/general/')">聯絡我們</a>
   </div>
 </template>
+
+<style>
+/* 全站搜尋列（G-02，H 批）：貼在 sticky header 下緣，與 header 同寬同底色。 */
+.header-search{ border-top:1px solid var(--rule); background:rgba(255,255,255,.98); padding:.75rem 0; }
+.header-search__form{ display:flex; align-items:center; gap:.6rem; width:calc(100% - 3rem); max-width:1200px; margin-inline:auto; min-width:0; }
+.header-search__form input[type="search"]{ flex:1 1 auto; min-width:0; min-height:44px; padding:.6rem .9rem; border:1px solid var(--rule); background:#fff; font:inherit; font-size:.92rem; }
+.header-search__form .btn{ flex:0 0 auto; min-height:44px; }
+.header-search__close{ background:transparent; border:1px solid var(--rule); color:var(--text); }
+.mega__sub{ margin:.25rem 0 .5rem 1rem; display:flex; flex-direction:column; gap:.15rem; }
+.mega__sub a{ font-size:.85em; font-weight:500; }
+@media (max-width:640px){
+  .header-search__form{ width:calc(100% - 2rem); flex-wrap:wrap; }
+  .header-search__form input[type="search"]{ flex-basis:100%; }
+}
+</style>

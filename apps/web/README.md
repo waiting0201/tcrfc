@@ -3266,6 +3266,40 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 3. 後台建立「國際夥伴」→ 國際通道與 9.1 同步出現；刪光後回到三個過渡隊徽。
 4. 後台建立有商品的系列 → 官方商品頁依系列分組。
 
+## H 批前台：試訓、電子報、搜尋、選單／政策／維護／場地／介面字串（2026-10-02，`frontend-architect`）
+
+對應 `apps/api/README.md`「H 批」§2–§5；STATUS `S2-16`～`S2-19`。**一律「API 有資料才改用，沒資料沿用既有寫死內容」**（過渡策略），所以後台還沒填任何東西時前台外觀與改動前相同。
+
+| 項目 | 實作 | 沒資料／失敗時 |
+|---|---|---|
+| 試訓（P4） | `club/opportunities`：`usePublicTrials()` 讀 `GET trials`，`components/TrialSchedule.vue` 渲染表格＋報名表單（`POST trials/{id}/registrations`）。額滿候補、「我要報名／候補報名」按鈕、未成年（有填生日且未滿 18）家長姓名電話必填、電話或 Email 至少一項；健康聲明只收一個勾選（B-9，同課程報名）；後端 400／409 訊息直接顯示 | 表格顯示原本的「目前尚無公告中的試訓場次」，不顯示報名表 |
+| 電子報（G-09） | `SiteFooter.vue` 訂閱表單 `POST newsletter/subscribe`（`source: 'footer'`、勾選同意、蜜罐）；成功文案刻意中性（「已收到您的訂閱申請」），因為曾退訂者不會被改回訂閱且回應不透露名單狀態。退訂頁 `pages/zh/newsletter/unsubscribe/`（`/{lang}/newsletter/unsubscribe/?token=`）：**載入時不自動退訂**，需按「確認取消訂閱」才 `POST newsletter/unsubscribe`；noindex | 400 訊息顯示；無 token 顯示說明 |
+| 搜尋（G-02） | `SiteHeader.vue` 搜尋按鈕展開搜尋列 → `pages/zh/search/`（`/{lang}/search/?q=&type=&page=`）：分類頁籤與命中數（`facets`）、`tokens` 高亮、翻頁、400／429 訊息、`noindex, follow`、不在 sitemap。**不得 v-html**：`shared/utils/plain-text.ts` 的 `highlightSegments()` 把文字切段，樣板以文字節點＋`<mark>` 輸出。零結果（`isEmpty`）於**瀏覽器端**呼叫 `POST faqs/search-misses`（同一關鍵字一次）。慈善分類在藍鯨（單元 11 關閉）不顯示 | 搜尋暫時無法使用的訊息 |
+| 選單（I2） | `useSiteMenus()` 讀 `GET menus`：`SiteHeader` 主選單（項目的子項目＝下拉面板，面板空時用「大選單」位置中**連結相同**的項目的子項目補上，最多再一層）、行動版選單、`SiteFooter` 頁尾（有子項目的頂層項目＝一欄，其餘集中成「更多連結」欄）。內部連結 `/about/` 由 `menuItemHref()` 補 `/zh`／`/en`；外部連結只接受 http(s)，其他協定不輸出連結。API 版沒有特色圖片與按鈕（不在選單資料內） | 該位置 API 無項目 → 沿用寫死選單 |
+| 政策（I3） | `privacy`／`cookies` 頁用 `usePolicy()` 讀 `GET policies/{privacy\|cookie}`，純文字空行分段（`splitParagraphs()`，單行換行以 `white-space: pre-line`），**不得 v-html** | 404／無內容 → 沿用既有靜態章節 |
+| 維護模式（I3 / G-10） | `server/middleware/maintenance.ts`：每 15 秒（本機快取）讀 `GET site-settings`，`maintenance.enabled` 時**頁面請求**回 503＋簡單品牌化維護頁（`Retry-After`、`no-store`、noindex，訊息依路徑語系）。**放行**：`/m/*`（會員卡驗證）、`/{lang}/checkout/complete`、`/api/*`、`/_nuxt/*`、`/healthz`、`robots.txt`／`sitemap.xml`／`llms*.txt`、所有帶副檔名的靜態資源。API 打不到＝視為沒有維護（fail-open） | — |
+| 場地（I5） | `join/location`：`usePublicVenues()` 讀 `GET venues`，場地卡（名稱、地址、照片＋替代文字）、地圖（主場優先，用經緯度）、各場地交通說明與導航連結 | 無場地 → 沿用 `site-facts` 的既有三張卡／藍鯨場地清單 |
+| 介面字串（I4） | `useUiStrings()` 讀 `GET ui-strings`，`t('代號', '原文')` 查不到就回原文，**改成 `t()` 永遠安全**。目前只在頁尾電子報區接了 `newsletter.title／lede／button／consent／privacy_link／success／error／consent_required` 作為示範；**不全面替換**（寫死字串數以千計，逐一換風險與工程量過大，且每處都要先在後台建立字串） | 回原文 |
+
+### BFF 代理（`server/api/backend/[...path].ts`）
+- POST 新放行：`{club}/trials/{GUID}/registrations`、`{club}/newsletter/(subscribe|unsubscribe)`、`{club}/faqs/search-misses`（皆轉發訪客真實 IP 給限流）。
+- **GET 也保留上游 4xx 訊息**（`clientErrorFrom()`，與 POST 共用；5xx 的 GET 維持原樣丟出）。原本只有 POST 修過（E-131），搜尋的 400 訊息因此讀不到（已升級 E-131）。
+
+### 驗證（2026-10-02）
+- `nuxt typecheck`：新增 0 個錯誤（既有 156 個錯誤全在未動的檔案，與本批無關）；`npm run lint`：0 errors。
+- scratchpad 假後端（依契約）＋Chrome（CDP）實走 49 項：頁尾訂閱（未勾選／成功／400）、搜尋（展開、導向、高亮、XSS 以文字顯示、分類、零結果記錄一次、400、429）、試訓（表格、前端擋未成年、成功、重複 409 訊息、候補、無場次）、退訂（不自動送出、成功、無效、無 token、noindex、/en 路由）、政策／場地（有資料與無資料兩態、script 以文字顯示）、選單（有／無資料、外部連結、`javascript:` 不輸出、hover 開啟、/en 前綴）、手機 390 無橫向溢出。維護模式用 curl 驗：開啟後 `/zh/`、`/en/news/` 503，`/m/*`、`checkout/complete`、`robots.txt`、`/api/*`、靜態資源放行，關閉後 15 秒內恢復。
+- 藍鯨站（`NUXT_PUBLIC_CLUB=bw` 且帶 `NUXT_PUBLIC_SITE_NAME`）：`check-club-brand-leak.mjs` 154 條路由無殘留（例外清單 4 頁不變）、`check-club-image-leak.mjs` 通過。
+- 🔵 **未對真實 `apps/api` 實機驗收**（規定不啟動）；使用者啟動 5299 後的實走：後台建場地／選單／政策／試訓場次 → 前台對應頁出現；頁尾訂閱後到後台 G3 看名單。
+
+### 待決（規劃書沒寫、不擅自發明）
+1. **會員條款前台頁**：後端有 `policies/member-terms`，但前台沒有對應頁（註冊表單只有文字提到「會員條款」），後台填的內容目前無處顯示。要新增頁面（建議 `/{lang}/member/terms/`）並把註冊表單的「會員條款」改成連結嗎？
+2. **維護模式放行清單**：規劃書沒有寫維護時哪些頁面必須照常；目前放行 `/m/*`（店家查驗會籍）與付款完成導回頁，請確認是否還有其他（例如會員登入、訂單查詢）。
+3. **選單拖曳排序**：規劃書寫「拖曳排序」，後台目前用上移／下移按鈕。
+4. **大選單與主選單的關係**：規劃書列三個位置但沒說前台如何呈現「大選單」；目前以「主選單項目無子項目時，用連結相同的大選單項目補面板」處理。
+5. **介面字串全面替換**：是否要逐步把寫死字串換成 `t()`，以及優先順序。
+6. **Fallback「隱藏該頁」**：後端只存設定，前台尚未執行（見 `apps/api/README.md` H 批待決 4）。
+7. **試訓報名通知信**：後端無寄送通路，成功畫面只告知記下報名編號。
+
 ## 相關文件
 
 - [`docs/02-frontend-spec.md`](../../docs/02-frontend-spec.md) — 前台頁面規格

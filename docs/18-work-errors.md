@@ -141,6 +141,8 @@
 | E-130 | 2026-10-02 | 夏令營／冬令營頁拿英文代碼 `open`／`waitlist` 比對梯次狀態，但資料庫與公開 API 的 `sessions.status` 是中文字面值（開放／額滿／候補／已結束）——兩頁的「開放中梯次」永遠找不到，早鳥價與剩餘名額永遠顯示「待公告」，自 S1-15 起一直如此 | 狀態值憑印象寫成英文代碼，沒對 `db/club-schema.sql` 的 `CK_sessions_status`；測試資料為空所以沒人看到 | 判斷梯次狀態一律走 `app/utils/program-session.ts`；前台比對資料庫列舉值前先查 DDL 的 CHECK | ✅ `scripts/check-news-body.mjs`（掛進 `npm run lint`）釘住中文字面值與「英文 `open` 不是合法狀態」 |
 | E-131 | 2026-10-02 | 前台 BFF 代理 `server/api/backend/[...path].ts` 對 POST 的上游 4xx 直接讓 `$fetch` 的錯誤冒出去：Nitro 正式環境把它當未處理例外，`message` 一律變 `Server Error`、`data` 被拿掉。後端刻意寫給使用者的中文驗證訊息（「缺少必填欄位：xxx」「這個梯次的報名已經截止。」）在瀏覽器永遠看不到，只剩通用文案；S1-17 起七張表單都受影響 | 只用 curl 驗「成功」與「405」，沒驗過「上游 400 的訊息是否到得了 `useFormSubmit.extractErrorMessage`」；開發模式與正式建置的錯誤輸出不同 | 代理對上游 4xx 以 `createError({ statusCode, message })` 重丟，5xx 一律 502；新增代理路徑時**同時驗一次上游 400 的訊息**（本機假後端回 `{detail}` 看瀏覽器收到什麼） | 無（本次 curl 實測 400 訊息已帶出；尚無自動測試） |
 | E-132 | 2026-10-02 | 官方商品頁改接商店 API 時用了 `useShopInfo()`，整份商店資訊（含 `collectingSubjectName`「款項由台中磐石足球俱樂部代收」）被序列化進頁面 payload，藍鯨的 `/culture/merchandise/` HTML 因此出現「磐石」，被 `check-club-brand-leak.mjs` 抓到（頁面可見文字沒有） | 以為「沒有顯示的欄位就不算外洩」；Nuxt 會把 `useFetch`／`useAsyncData` 的整份回應放進 payload | 在藍鯨會渲染的頁面只取需要的欄位（`useAsyncData` 內只回傳 `collections`），不要直接用回傳整包商店資訊的 composable | ✅ `scripts/check-club-brand-leak.mjs`（需先把藍鯨站跑起來，未掛 lint，E-34） |
+| E-140 | 2026-10-02 | 後台 `http.ts` 的 `classifyByStatus` 對 5xx（含 503）建立 `AdminApiError` 時漏帶 `body`，特約店家編輯頁 `PartnerStoreEditView` 用 `error.body.code === 'geocoder_unavailable'` 區分「定位服務暫時故障」與「尚未啟用」的分支**永遠不會成立**：暫時故障被誤判成尚未啟用，按鈕被停用、提示錯誤（G 批上線至今） | G 批只靠讀程式與 lint 確認該分支存在，沒有用會回 503＋`code` 的假後端實際走過兩種 503；H 批場地管理要比照做時用假後端實走才抓到 | 凡依 `error.body.xxx` 分流的畫面，驗收時假後端必須各回一次對應的 `code`；`classifyByStatus` 所有分支都要把 `body` 帶進 `AdminApiError` | 無（已修；`verify-admin` 的定位三態是 scratchpad 腳本，未納版控） |
+| E-142 | 2026-10-02 | 頁尾電子報區新增「同意」勾選框，被凍結樣式表 `tcrfc.css` 的 `.newsletter input{ width:100%; padding:0 1rem }` 撐成整欄寬方塊、說明文字被擠成一字一行；lint／typecheck／build 全綠，看截圖才發現 | 往既有區塊加控制項前沒有 grep 凍結樣式表裡該區塊的元素選擇器 | 加控制項前先 grep 該區塊的樣式規則，在元件內用更高特異度覆寫，並看截圖 | 無 |
 
 ---
 
@@ -2473,9 +2475,25 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：新增或修改代理路徑時，用 `npm run build` 後的 `node .output/server/index.mjs` 對假後端送一次上游 400，確認瀏覽器收到的 `message` 是後端那句；不要只看 dev。
 - **防呆**：無（已在代理內對 4xx 以 `createError({ statusCode, message })` 重丟、5xx 一律 502；沒有自動測試，因為需要起 Nitro 與假後端）。
 
+- **升級（2026-10-02，H 批，同一類錯第二次發生）**：只修了 POST 分支，**GET 分支仍原樣丟出 `$fetch` 的錯誤**，全站搜尋 `GET search` 的 400（「英文關鍵字至少需要 2 個字元」）訊息因此在瀏覽器看不到，驗證腳本抓到。現在 POST／GET 共用 `clientErrorFrom(err)`（上游 4xx → `createError` 保留狀態碼與訊息；5xx 的 GET 維持原樣丟出、POST 一律 502）。**規則：BFF 代理新增或調整任何分支時，兩個方法都要用假後端各回一次 4xx，確認瀏覽器收到訊息。**
+
 ### E-132 只用到系列清單卻拉整份商店資訊，把「代收」字串帶進藍鯨頁面 payload（2026-10-02，官方商品頁）
 
 - **錯在哪**：`culture/merchandise/index.vue` 改接 API 時呼叫 `useShopInfo()` 取系列清單，整份 `ShopInfo`（含 `collectingSubjectName` ＝「台中磐石足球俱樂部」）被 Nuxt 序列化進頁面 payload，藍鯨站該頁 HTML 出現「磐石」。頁面可見文字沒有，但 `check-club-brand-leak.mjs` 掃整份 HTML，命中 2 頁（zh／en）。
 - **根因（可改掉的行為）**：把「畫面沒顯示」等同於「沒外洩」；忘了 `useFetch`／`useAsyncData` 的回應整份進 payload。
 - **下次怎麼避免**：藍鯨會渲染的頁面只取需要的欄位（`useAsyncData` 內整理好再回傳），要共用整包商店資訊的頁面只限已在例外清單的 `/shop/`、`/checkout/`；改完跑 `check-club-brand-leak.mjs`。
 - **防呆**：✅ `scripts/check-club-brand-leak.mjs`（未掛 `npm run lint`，需先把藍鯨站跑起來，E-34）。
+
+### E-140 後台 5xx 錯誤漏帶 `body`，依 `code` 分流的分支永遠不成立（2026-10-02，H 批場地管理）
+
+- **錯在哪**：`apps/admin/src/api/http.ts` 的 `classifyByStatus` 最後一行 `new AdminApiError('server', …, { status, detail })` 沒帶 `body`（只有行事曆衝突那條帶了）。`PartnerStoreEditView.vue` 的 `(error.body as { code?: string })?.code === 'geocoder_unavailable'` 因此恆為 `undefined`，後端回 503＋`geocoder_unavailable`（暫時故障，可再試）時被當成「尚未啟用」，「由地址定位」按鈕被永久停用。
+- **根因（可改掉的行為）**：驗收「分流邏輯」時只看到程式碼裡有這個分支，沒有讓假後端實際回兩種 503 各走一次。
+- **下次怎麼避免**：畫面依錯誤內容分流時，假後端每一種分流結果都回一次；`AdminApiError` 的每條建構路徑都帶 `body`。
+- **防呆**：無（已修 `http.ts`；場地編輯頁用同一個寫法，本次實走三態通過）。
+
+### E-142 在凍結的 `tcrfc.css` 容器內新增表單控制項，被容器層級的元素選擇器撐壞（2026-10-02，H 批頁尾電子報）
+
+- **錯在哪**：頁尾電子報區新增「同意」勾選框，`tcrfc.css` 的 `.newsletter input{ width:100%; min-height:46px; padding:0 1rem }` 把勾選框撐成整欄寬的方塊，旁邊的說明文字被擠成一字一行（lint、typecheck、build 全綠，看截圖才發現）。
+- **根因（可改掉的行為）**：往既有區塊加新元素前，沒有先 grep 凍結樣式表裡該區塊底下有沒有 `input`／`button`／`p` 這類元素選擇器。
+- **下次怎麼避免**：在 `tcrfc.css`（不得修改）管轄的區塊內加控制項前先 `grep -n "\.區塊名" public/assets/css/tcrfc.css`，用更高特異度的選擇器在元件內覆寫；新增元素後一定看一次截圖。
+- **防呆**：無。

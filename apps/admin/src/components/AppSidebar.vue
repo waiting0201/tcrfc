@@ -23,16 +23,17 @@ const route = useRoute()
 const router = useRouter()
 
 /**
- * `J 系統管理`、`H 搜尋與 AI 能見度`、`I 網站設定` 整組只有系統管理員看得到（`J`：規劃書 §6
+ * `J 系統管理`、`H 搜尋與 AI 能見度` 整組只有系統管理員看得到（`I 網站設定` 自 H 批起改依子項目權限碼顯示，見下方 `CHILD_VISIBILITY` 的 I1–I6）（`J`：規劃書 §6
  * 權限矩陣「系統」欄只有系統管理員打勾；`H`：`seo.setting.*`／`seo.redirect.*`／`seo.report.view`／
  * `seo.llms.*`／`seo.crawler.*`／`seo.schema.view` 六段權限碼全部 `sysadmin_only=1`，見
- * apps/api/README.md「S1-12」「S1-12a」「S1-12b」「S1-12c」各節「權限碼」；`I`：
- * `site.fact.view`／`site.fact.update` 亦為 `sysadmin_only=1`，見 apps/api/README.md「S1-12d」
- * 「權限」節——規劃書 §6 權限矩陣沒有「網站設定」欄，後端比照 `seo.*`／`system.*` 既有先例判斷）。
+ * apps/api/README.md「S1-12」「S1-12a」「S1-12b」「S1-12c」各節「權限碼」；`I`
+ * **不在此列（H 批起）**：`site.fact.*`／`site.menu.*`／`site.global.*`／`site.locale.*`／`site.venue.*`／
+ * `site.edm.*` 雖皆為 `sysadmin_only=1`，但字串翻譯表 `site.string.*` 開放翻譯人員，所以 `I` 改成
+ * 依子項目權限碼顯示（`CHILD_VISIBILITY` 的 I1–I6），翻譯人員只會看到「多語系」）。
  * 這裡只是選單可見度，不是安全邊界——真正的把關在後端每一個 `sysadmin_only` 權限碼與
  * `router/index.ts` 的第二層路由守衛。
  */
-const SYSADMIN_ONLY_MODULE_CODES = new Set(['J', 'H', 'I'])
+const SYSADMIN_ONLY_MODULE_CODES = new Set(['J', 'H'])
 
 /**
  * P1／P2／P3（課程與活動）：不是每個角色都看得到，見 `useProgramPermissions` 檔頭的完整角色
@@ -89,8 +90,23 @@ const appDeviceView = usePermission('app.device.view')
 const appConfigView = usePermission('app.config.view')
 const appCredentialView = usePermission('app.credential.view')
 const appDiagnosticView = usePermission('app.diagnostic.view')
+// I 網站設定（H 批）：子項目各看各的權限碼
+const siteFactView = usePermission('site.fact.view')
+const siteMenuView = usePermission('site.menu.view')
+const siteGlobalView = usePermission('site.global.view')
+const siteLocaleView = usePermission('site.locale.view')
+const siteStringView = usePermission('site.string.view')
+const siteStringTranslate = usePermission('site.string.translate')
+const siteVenueView = usePermission('site.venue.view')
+const siteEdmView = usePermission('site.edm.view')
 const { comicAvailable } = useClubFeatures()
 const CHILD_VISIBILITY: Record<string, () => boolean> = {
+  I1: () => siteFactView.value,
+  I2: () => siteMenuView.value,
+  I3: () => siteGlobalView.value,
+  I4: () => siteLocaleView.value || siteStringView.value || siteStringTranslate.value,
+  I5: () => siteVenueView.value,
+  I6: () => siteEdmView.value,
   // 藍鯨不設漫畫：切到藍鯨時側欄不顯示（後端也會回 403）
   F1: () => comicAvailable.value && comicPerm.canView.value,
   F2: () => fanEventPerm.canView.value,

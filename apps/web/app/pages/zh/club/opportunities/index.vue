@@ -16,6 +16,8 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 const { facts } = useSiteFacts(clubKey.value)
+// P4 試訓場次（H 批）：未結束的公開場次，API 失敗＝空陣列
+const { trials } = await usePublicTrials()
 const hero = computed(() => getPlayerOpportunitiesHero(clubKey.value))
 const joinBody = computed(() => getJoinFirstTeamBody(clubKey.value, facts.value))
 const foreignBody = computed(() => getForeignPlayerBody(clubKey.value, facts.value))
@@ -72,26 +74,8 @@ useFaqPageSchema(faqs)
       <p class="section-lede">日期、地點、對象、名額與報名截止，開放場次將公告於此。</p>
     </div>
 
-    <div class="table-wrap">
-      <table class="trial-table">
-        <caption class="visually-hidden">試訓場次列表</caption>
-        <thead>
-          <tr>
-            <th scope="col">日期</th>
-            <th scope="col">地點</th>
-            <th scope="col">對象</th>
-            <th scope="col">名額</th>
-            <th scope="col">報名截止</th>
-            <th scope="col">狀態</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="trial-table__pending-row">
-            <td colspan="6">目前尚無公告中的試訓場次，請關注官方社群公告。</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <!-- 試訓場次列表＋線上報名（P4，H 批）：資料來自 GET trials；沒有場次時元件自己顯示原本的「目前尚無公告中的試訓場次」。 -->
+    <TrialSchedule :trials="trials" />
     <a class="btn btn--dark btn--sm" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">登記試訓意願</a>
   </div>
 </section>
@@ -153,7 +137,7 @@ useFaqPageSchema(faqs)
 
 <style>
 /* 3.3 球員機會 — 試訓表格 pending 狀態、英文優先段落
-   .trial-table 與 3.1 .sched-table 結構相近，未來若試訓資料到位可考慮合併樣式收進共用 CSS */
+   .trial-table 與 3.1 .sched-table 結構相近（H 批起表格本體移到 components/TrialSchedule.vue，樣式仍留在這裡），未來若試訓資料到位可考慮合併樣式收進共用 CSS */
 .paper-2-band{ background:var(--paper-2); }
 .table-wrap{ overflow-x:auto; }
 .trial-table{ width:100%; min-width:640px; border-collapse:collapse; font-size:.86rem; }
