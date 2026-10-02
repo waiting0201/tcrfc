@@ -16,10 +16,13 @@ export const ADMIN_ROOT = '/api/v1/donation-platform/admin'
 export class AdminApiError extends Error {
   status: number
   detail: string
-  constructor(status: number, message: string) {
+  /** 回應本文（已解析的 JSON）。多數錯誤只有 detail；店家 CSV 匯入的 400 會帶逐列的錯誤清單，要從這裡取。 */
+  body: unknown
+  constructor(status: number, message: string, body: unknown = null) {
     super(message)
     this.status = status
     this.detail = message
+    this.body = body
   }
 }
 
@@ -37,7 +40,7 @@ async function readErrorBody(response: Response): Promise<ErrorBody | null> {
 
 function toError(status: number, body: ErrorBody | null): AdminApiError {
   const detail = body?.detail ?? body?.message
-  if (detail) return new AdminApiError(status, detail)
+  if (detail) return new AdminApiError(status, detail, body)
   const fallback: Record<number, string> = {
     400: '輸入的內容有誤，請檢查後再試一次。',
     401: '請先登入。',
@@ -49,7 +52,7 @@ function toError(status: number, body: ErrorBody | null): AdminApiError {
     501: '這個功能尚未提供。',
     503: '服務暫時無法使用，請稍後再試。',
   }
-  return new AdminApiError(status, fallback[status] ?? '伺服器發生未預期的錯誤，請稍後再試。')
+  return new AdminApiError(status, fallback[status] ?? '伺服器發生未預期的錯誤，請稍後再試。', body)
 }
 
 let redirecting = false
@@ -108,6 +111,13 @@ export async function apiUpload<T>(path: string, file: File): Promise<T> {
   const form = new FormData()
   form.append('file', file)
   const response = await doFetch(path, { method: 'POST', body: form }, false)
+  const text = await response.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
+/** 上傳原始位元組（店家 CSV 匯入）：body 就是檔案內容，不是 multipart。 */
+export async function apiPostRaw<T>(path: string, file: File, contentType: string): Promise<T> {
+  const response = await doFetch(path, { method: 'POST', body: file, headers: { 'Content-Type': contentType } }, false)
   const text = await response.text()
   return (text ? JSON.parse(text) : undefined) as T
 }

@@ -4,6 +4,17 @@ export function formatMoney(amount: number): string {
   return `NT$${amount.toLocaleString('zh-Hant-TW')}`
 }
 
+/** 可能為負數的金額（結算沖回、應付淨額）：負數顯示成「−NT$500」，不是「NT$-500」。 */
+export function formatMoneySigned(amount: number): string {
+  return amount < 0 ? `−${formatMoney(-amount)}` : formatMoney(amount)
+}
+
+/** 0–1 的比例 → 百分比字串（保留一位小數，整數不帶小數點）。 */
+export function formatRatio(ratio: number): string {
+  const pct = Math.round(ratio * 1000) / 10
+  return `${pct}%`
+}
+
 export function formatDate(iso: string | null | undefined): string {
   if (!iso) return '—'
   return iso.slice(0, 10)

@@ -205,17 +205,24 @@ async function togglePublish() {
     <el-form v-else v-loading="loading" label-position="top" class="project-edit__form">
       <h2 class="project-edit__section-title">基本資訊</h2>
       <BilingualShortField label="項目名稱" :zh="form.nameZh" :en="form.nameEn" required @update:zh="form.nameZh = $event" @update:en="form.nameEn = $event" />
-      <BilingualShortField label="一句話說明" :zh="form.oneLinerZh" :en="form.oneLinerEn" @update:zh="form.oneLinerZh = $event" @update:en="form.oneLinerEn = $event" />
+      <BilingualShortField v-if="!isEdit" label="一句話說明" :zh="form.oneLinerZh" :en="form.oneLinerEn" @update:zh="form.oneLinerZh = $event" @update:en="form.oneLinerEn = $event" />
 
       <h2 class="project-edit__section-title">內容</h2>
-      <el-tabs>
-        <el-tab-pane label="款項用途（中文）">
-          <el-input v-model="form.fundUsageZh" type="textarea" :rows="4" />
-        </el-tab-pane>
-        <el-tab-pane label="款項用途（英文）">
-          <el-input v-model="form.fundUsageEn" type="textarea" :rows="4" />
-        </el-tab-pane>
-      </el-tabs>
+      <template v-if="!isEdit">
+        <el-tabs>
+          <el-tab-pane label="款項用途（中文）">
+            <el-input v-model="form.fundUsageZh" type="textarea" :rows="4" />
+          </el-tab-pane>
+          <el-tab-pane label="款項用途（英文）">
+            <el-input v-model="form.fundUsageEn" type="textarea" :rows="4" />
+          </el-tab-pane>
+        </el-tabs>
+        <p class="project-edit__hint">項目說明的圖文排版，儲存後可到「編輯內文」補上。</p>
+      </template>
+      <template v-else>
+        <p class="project-edit__hint project-edit__hint--inline">一句話介紹、項目說明與善款用途（中英文）在獨立的畫面編輯，這裡儲存時不會更動它們。</p>
+        <el-button v-if="existing" @click="router.push(`/projects/${existing.id}/content`)">編輯內文</el-button>
+      </template>
 
       <h2 class="project-edit__section-title">封面圖</h2>
       <ImageUploader :existing-url="coverUrl" variant="photo" :saving="saving" @update:file="handleCoverUpdate" />
@@ -319,6 +326,10 @@ async function togglePublish() {
   margin: -8px 0 16px;
   font-size: 12px;
   color: var(--charity-admin-text-tertiary);
+}
+
+.project-edit__hint--inline {
+  margin: 0 0 var(--charity-admin-space-2);
 }
 
 .project-edit__actions {

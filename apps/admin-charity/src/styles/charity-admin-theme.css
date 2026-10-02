@@ -179,6 +179,25 @@ body {
   --el-table-row-hover-bg-color: var(--charity-admin-bg-surface-2);
 }
 
+/* 對話框的寬度是各畫面用 width="…px" 指定的（640、520、480…）；手機寬度不能超出視窗，否則內容被右側切掉。
+   Element Plus 的 el-dialog 對內嵌寬度沒有上限，這裡統一補上（2026-10-02 慈善 CH-3/4/5 畫面驗收時
+   在 390px 寬度實測抓到，見 docs/18 E-37 第 3 次再犯）。 */
+.el-dialog {
+  max-width: calc(100vw - 24px);
+}
+
+/* 勾選框的說明文字預設不換行（el-checkbox 本身是 nowrap），長一點的說明在手機寬度會把對話框撐出視窗。 */
+.el-dialog .el-checkbox {
+  white-space: normal;
+  height: auto;
+  align-items: flex-start;
+}
+
+.el-dialog .el-checkbox__label {
+  white-space: normal;
+  line-height: 1.6;
+}
+
 @media (max-width: 767px) {
   .admin-hide-on-mobile {
     display: none !important;

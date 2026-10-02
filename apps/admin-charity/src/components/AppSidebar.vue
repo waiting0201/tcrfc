@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { NAV_ITEMS } from '@/data/nav'
+import { hasAnyPermission } from '@/auth/session'
 
 const props = defineProps<{
   collapse: boolean
@@ -13,6 +15,10 @@ const emit = defineEmits<{
 const route = useRoute()
 const router = useRouter()
 
+// 依各模組檢視端點的權限碼決定要不要顯示；子頁（如 /stores/new）的選單高亮落在所屬模組。
+const visibleItems = computed(() => NAV_ITEMS.filter((item) => hasAnyPermission(item.anyOf)))
+const activePath = computed(() => NAV_ITEMS.find((item) => route.path === item.path || route.path.startsWith(`${item.path}/`))?.path ?? route.path)
+
 function handleSelect(path: string) {
   if (route.path !== path) router.push(path)
   emit('navigate')
@@ -22,13 +28,13 @@ function handleSelect(path: string) {
 <template>
   <div class="app-sidebar">
     <el-menu
-      :default-active="route.path"
+      :default-active="activePath"
       :collapse="props.collapse"
       :collapse-transition="false"
       class="app-sidebar__menu"
       @select="handleSelect"
     >
-      <el-menu-item v-for="item in NAV_ITEMS" :key="item.code" :index="item.path">
+      <el-menu-item v-for="item in visibleItems" :key="item.code" :index="item.path">
         <el-icon><Folder /></el-icon>
         <template #title>{{ item.label }}</template>
       </el-menu-item>
