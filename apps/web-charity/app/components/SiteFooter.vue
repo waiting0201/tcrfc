@@ -12,6 +12,7 @@ const { data: settings } = await useCharitySettings()
     <div class="container">
       <nav class="footer-links" aria-label="footer">
         <NuxtLink v-if="settings?.creditListEnabled" :to="`/${lang}/donors/`">{{ tr.footer.donors }}</NuxtLink>
+        <NuxtLink :to="`/${lang}/impact/`">{{ tr.footer.impact }}</NuxtLink>
         <NuxtLink :to="`/${lang}/privacy/`">{{ tr.footer.privacy }}</NuxtLink>
         <NuxtLink :to="`/${lang}/terms/`">{{ tr.footer.terms }}</NuxtLink>
       </nav>

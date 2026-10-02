@@ -9,6 +9,7 @@ import DangerConfirmDialog from '@/components/DangerConfirmDialog.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import MobileCardList from '@/components/MobileCardList.vue'
+import StoreImportDialog from '@/components/StoreImportDialog.vue'
 import {
   downloadAllStoreQr,
   downloadStoreQr,
@@ -62,6 +63,8 @@ function search() {
 
 watch(page, () => { void load() })
 onMounted(load)
+
+const importVisible = ref(false)
 
 // ── QR Code ───────────────────────────────────────────────────────────
 const qrStore = ref<StoreListItem | null>(null)
@@ -155,6 +158,7 @@ function statusLabel(s: string) {
             </el-dropdown-menu>
           </template>
         </el-dropdown>
+        <el-button v-if="canManage" @click="importVisible = true">批次匯入</el-button>
         <el-button v-if="canManage" type="primary" @click="router.push('/stores/new')">新增店家</el-button>
       </template>
     </PageHeader>
@@ -264,6 +268,8 @@ function statusLabel(s: string) {
     >
       舊的 QR Code 將立即失效（掃到舊碼的人會被視為沒有店家歸屬），需要重新列印。確定要為「{{ regenerateTarget?.nameZh }}」重新產生網址名稱嗎？
     </DangerConfirmDialog>
+
+    <StoreImportDialog v-model="importVisible" @imported="load" />
   </div>
 </template>
 

@@ -113,3 +113,34 @@ export interface PublicDonationResult {
   processing: boolean
   canRetry: boolean
 }
+
+/** `GET /credit-list`：只有姓名（不含金額、Email、店家、單號、時間）。`enabled=false` 時 `names` 為空。 */
+export interface PublicCreditList {
+  enabled: boolean
+  names: string[]
+  page: number
+  pageSize: number
+  totalCount: number
+}
+
+/** `GET /impact`：已上架項目依關聯的慈善計畫分組。名稱是快照；`clubSiteUrl` 為 null 代表不顯示導回連結。 */
+export interface PublicImpactProject {
+  slug: string
+  name: string
+  oneLiner: string | null
+  coverUrl: string | null
+  coverAlt: string | null
+}
+
+export interface PublicImpactProgram {
+  programRefCode: string | null
+  programName: string | null
+  charityName: string | null
+  projects: PublicImpactProject[]
+}
+
+export interface PublicImpact {
+  clubSiteUrl: string | null
+  programs: PublicImpactProgram[]
+  isFallback: boolean
+}

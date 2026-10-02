@@ -95,9 +95,10 @@ const modeLabel = (m: string) => (m === 'b2c_invoice' ? '電子發票' : '捐贈
       <el-table-column v-if="isDesktop" label="撥付對象" min-width="140">
         <template #default="{ row }: { row: ProjectListItem }">{{ row.charityName ?? '—' }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="170" fixed="right">
+      <el-table-column label="操作" width="230" fixed="right">
         <template #default="{ row }: { row: ProjectListItem }">
           <el-button v-if="canManage" size="small" text type="primary" @click="router.push(`/projects/${row.id}/edit`)">編輯</el-button>
+          <el-button v-if="canManage" size="small" text type="primary" @click="router.push(`/projects/${row.id}/content`)">編輯內文</el-button>
           <el-button v-if="canPublish" size="small" text :loading="busyId === row.id" @click="toggle(row)">
             {{ row.status === 'published' ? '下架' : '上架' }}
           </el-button>
@@ -117,6 +118,7 @@ const modeLabel = (m: string) => (m === 'b2c_invoice' ? '電子發票' : '捐贈
         <p class="project-list__card-meta">{{ modeLabel(item.invoiceMode) }}</p>
         <div class="project-list__card-actions">
           <el-button v-if="canManage" size="small" text type="primary" @click="router.push(`/projects/${item.id}/edit`)">編輯</el-button>
+          <el-button v-if="canManage" size="small" text type="primary" @click="router.push(`/projects/${item.id}/content`)">編輯內文</el-button>
           <el-button v-if="canPublish" size="small" text :loading="busyId === item.id" @click="toggle(item)">
             {{ item.status === 'published' ? '下架' : '上架' }}
           </el-button>

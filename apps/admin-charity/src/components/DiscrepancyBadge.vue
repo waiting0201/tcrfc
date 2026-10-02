@@ -4,7 +4,7 @@
  * 不是三種顏色的色塊——列印成黑白或色弱使用者仍能靠符號＋文字分辨。
  */
 import { computed } from 'vue'
-import type { DiscrepancyType } from '@/data/reconciliationAudit'
+import type { DiscrepancyType } from '@/api/reconciliation'
 
 const props = defineProps<{ type: DiscrepancyType }>()
 

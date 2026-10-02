@@ -2,6 +2,8 @@
 import { useLang } from './useLang'
 import { useCharityApi } from './useCharityApi'
 import type {
+  PublicCreditList,
+  PublicImpact,
   PublicProjectCard,
   PublicProjectDetail,
   PublicSettings,
@@ -59,6 +61,41 @@ export function useProjectDetail(slug: string) {
         throw error
       }
     },
+    { watch: [lang] },
+  )
+}
+
+export interface CreditListQuery {
+  projectSlug?: string
+  from?: string
+  to?: string
+  page: number
+}
+
+/** 捐款徵信名單（只有姓名）。篩選條件放在網址上，所以可以分享、重新整理後仍保留。 */
+export function useCreditList(query: () => CreditListQuery) {
+  const api = useCharityApi()
+  return useAsyncData<PublicCreditList | null>(
+    () => `charity-credit-list-${JSON.stringify(query())}`,
+    () => {
+      const q = query()
+      return api
+        .request<PublicCreditList>('/credit-list', {
+          query: { projectSlug: q.projectSlug, from: q.from, to: q.to, page: q.page, pageSize: 100 },
+        })
+        .catch(() => null)
+    },
+    { watch: [query] },
+  )
+}
+
+/** 成果回顧：`isFallback` 代表英文缺漏而回退繁中。 */
+export function useCharityImpact() {
+  const { lang } = useLang()
+  const api = useCharityApi()
+  return useAsyncData<PublicImpact | null>(
+    () => `charity-impact-${lang.value}`,
+    () => api.request<PublicImpact>('/impact', { query: { lang: lang.value } }).catch(() => null),
     { watch: [lang] },
   )
 }

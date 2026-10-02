@@ -16,6 +16,8 @@ import DangerConfirmDialog from '@/components/DangerConfirmDialog.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import ErrorState from '@/components/ErrorState.vue'
 import MobileCardList from '@/components/MobileCardList.vue'
+import ReconciliationPanel from '@/components/ReconciliationPanel.vue'
+import DiscrepancyBadge from '@/components/DiscrepancyBadge.vue'
 import {
   countAnomalies,
   exportDonations,
@@ -24,6 +26,7 @@ import {
   listDonations,
   recheckPayment,
   refundDonation,
+  setCreditVisibility,
   reissueInvoice,
   resendThanks,
   type Anomaly,
@@ -33,6 +36,7 @@ import {
   type DonationFilter,
   type DonationListItem,
 } from '@/api/donations'
+import { resolveDiscrepancy, type DiscrepancyType } from '@/api/reconciliation'
 import { listProjects, type ProjectListItem } from '@/api/projects'
 import { listStores, type StoreListItem } from '@/api/stores'
 import { AdminApiError } from '@/api/http'
@@ -52,8 +56,9 @@ const canRefund = computed(() => hasPermission('n3.donation.refund'))
 const canExport = computed(() => hasPermission('n3.donation.export'))
 const canRecheck = computed(() => hasPermission('n3.donation.recheck_payment'))
 const canReissue = computed(() => hasPermission('n5.donation_invoice.issue'))
+const canHideCredit = computed(() => hasPermission('n3.donation.hide_credit'))
 
-const activeTab = ref(route.query.tab === 'anomaly' ? 'anomaly' : 'list')
+const activeTab = ref(route.query.tab === 'anomaly' ? 'anomaly' : route.query.tab === 'recon' ? 'recon' : 'list')
 
 // ── 篩選與列表 ─────────────────────────────────────────────────────────
 const filters = reactive({
@@ -140,12 +145,6 @@ const ANOMALY_LABELS: Record<AnomalyKind, string> = {
   invoice_failed: '發票或收據開立失敗',
   invoice_void_pending: '已退款但發票未作廢',
   reconciliation: '對帳差異',
-}
-
-const DISCREPANCY_LABELS: Record<string, string> = {
-  site_only: '本站有、金流端沒有',
-  gateway_only: '金流端有、本站沒有',
-  amount_mismatch: '金額不一致',
 }
 
 function countOf(kind: AnomalyKind): number {
@@ -246,6 +245,52 @@ const canRecheckThis = computed(() => canRecheck.value && detail.value?.needsMan
 const canReissueThis = computed(() => canReissue.value && detail.value?.invoice?.issueStatus === 'failed')
 const canResendThis = computed(() => canReveal.value && detail.value?.status === 'paid')
 
+// ── 徵信名單：逐筆「不列入」 ───────────────────────────────────────────
+// 只有「具名」且「已完成」的捐款才可能出現在公開的徵信名單；匿名的本來就不會列入，所以不提供切換。
+const creditBusy = ref(false)
+const creditApplicable = computed(() => detail.value !== null && !detail.value.donor.isAnonymous)
+
+async function toggleCreditHidden(hidden: boolean) {
+  if (!detail.value || creditBusy.value) return
+  creditBusy.value = true
+  try {
+    const result = await setCreditVisibility(detail.value.id, hidden)
+    detail.value.isCreditHidden = result.isCreditHidden
+    const row = items.value.find((x) => x.id === result.donationId)
+    if (row) row.isCreditHidden = result.isCreditHidden
+    ElMessage.success(result.isCreditHidden ? '已設為不列入徵信名單' : '已恢復列入徵信名單')
+  } catch (error) {
+    ElMessage.error(error instanceof AdminApiError ? error.detail : '設定失敗，請稍後再試')
+  } finally {
+    creditBusy.value = false
+  }
+}
+
+// ── 異常處理裡的對帳差異：標記已處理 ──────────────────────────────────
+const resolveVisible = ref(false)
+const resolveTarget = ref<Anomaly | null>(null)
+
+function askResolve(row: Anomaly) {
+  resolveTarget.value = row
+  resolveVisible.value = true
+}
+
+async function confirmResolve(note: string) {
+  const target = resolveTarget.value
+  if (!target?.discrepancyId) return
+  if (note.length < 2) {
+    ElMessage.warning('處理備註至少 2 個字')
+    return
+  }
+  try {
+    await resolveDiscrepancy(target.discrepancyId, note)
+    ElMessage.success('已標記為已處理')
+    await Promise.all([loadAnomalies(), loadCounts()])
+  } catch (error) {
+    ElMessage.error(error instanceof AdminApiError ? error.detail : '標記失敗，請稍後再試')
+  }
+}
+
 // ── 匯出 ───────────────────────────────────────────────────────────────
 const exportVisible = ref(false)
 const exportPurpose = ref('')
@@ -343,6 +388,13 @@ function invoiceTypeLabel(d: DonationDetail['invoice']): string {
             <el-table-column label="狀態" width="100">
               <template #default="{ row }: { row: DonationListItem }"><DonationStatusTag :status="row.status" /></template>
             </el-table-column>
+            <el-table-column v-if="isDesktop" label="徵信名單" width="110">
+              <template #default="{ row }: { row: DonationListItem }">
+                <SemanticTag v-if="row.isCreditHidden" variant="neutral">不列入</SemanticTag>
+                <span v-else-if="row.isAnonymous" class="donation-list__muted">匿名</span>
+                <span v-else class="donation-list__muted">—</span>
+              </template>
+            </el-table-column>
             <el-table-column v-if="isDesktop" label="發票或收據" width="110">
               <template #default="{ row }: { row: DonationListItem }">
                 <InvoiceStatusTag
@@ -366,6 +418,7 @@ function invoiceTypeLabel(d: DonationDetail['invoice']): string {
                   {{ formatMoney(item.amount) }}・{{ item.projectName }}・{{ item.storeName ?? '無店家歸屬' }}<br>
                   {{ formatTaipei(item.createdAt) }}
                   <SemanticTag v-if="item.needsManualReview" variant="warning">待人工處理</SemanticTag>
+                  <SemanticTag v-if="item.isCreditHidden" variant="neutral">不列入徵信名單</SemanticTag>
                 </p>
               </div>
             </template>
@@ -391,24 +444,59 @@ function invoiceTypeLabel(d: DonationDetail['invoice']): string {
 
         <ErrorState v-if="anomalyError" :text="anomalyError" @retry="loadAnomalies" />
         <EmptyState v-else-if="!anomalyLoading && anomalies.length === 0" text="目前沒有這類異常" />
-        <el-table v-else v-loading="anomalyLoading" :data="anomalies" style="width: 100%" @row-click="(row: Anomaly) => row.donationId && openDetail(row.donationId)">
+        <el-table v-else-if="!isMobile" v-loading="anomalyLoading" :data="anomalies" style="width: 100%" @row-click="(row: Anomaly) => row.donationId && openDetail(row.donationId)">
           <el-table-column label="訂單編號" min-width="170">
             <template #default="{ row }: { row: Anomaly }">{{ row.orderNo ?? '—' }}</template>
           </el-table-column>
           <el-table-column label="金額" width="110" align="right">
             <template #default="{ row }: { row: Anomaly }">{{ row.amount !== null ? formatMoney(row.amount) : '—' }}</template>
           </el-table-column>
-          <el-table-column label="發生時間" width="150">
+          <el-table-column v-if="isDesktop" label="發生時間" width="150">
             <template #default="{ row }: { row: Anomaly }">{{ formatTaipei(row.occurredAt) }}</template>
           </el-table-column>
           <el-table-column v-if="anomalyKind === 'reconciliation'" label="差異類型" min-width="160">
-            <template #default="{ row }: { row: Anomaly }">{{ row.discrepancyType ? (DISCREPANCY_LABELS[row.discrepancyType] ?? row.discrepancyType) : '—' }}</template>
+            <template #default="{ row }: { row: Anomaly }">
+              <DiscrepancyBadge v-if="row.discrepancyType" :type="row.discrepancyType as DiscrepancyType" />
+              <span v-else>—</span>
+            </template>
           </el-table-column>
           <el-table-column v-if="anomalyKind === 'reconciliation'" label="處理狀態" width="110">
             <template #default="{ row }: { row: Anomaly }">{{ row.resolutionStatus === 'resolved' ? '已處理' : '待處理' }}</template>
           </el-table-column>
+          <el-table-column v-if="anomalyKind === 'reconciliation' && canRecheck" label="操作" width="130">
+            <template #default="{ row }: { row: Anomaly }">
+              <el-button v-if="row.resolutionStatus !== 'resolved' && row.discrepancyId" size="small" @click.stop="askResolve(row)">標記已處理</el-button>
+            </template>
+          </el-table-column>
         </el-table>
-        <p v-if="anomalyKind === 'reconciliation'" class="donation-list__hint">對帳差異目前只能查看；標記處理與對帳排程屬後續批次。</p>
+        <MobileCardList v-else :items="anomalies">
+          <template #default="{ item }: { item: Anomaly }">
+            <div class="donation-list__card" @click="item.donationId && openDetail(item.donationId)">
+              <div class="donation-list__card-head">
+                <strong>{{ item.orderNo ?? '（本站查無對應捐款單）' }}</strong>
+                <span v-if="anomalyKind === 'reconciliation'">{{ item.resolutionStatus === 'resolved' ? '已處理' : '待處理' }}</span>
+              </div>
+              <p class="donation-list__card-meta">
+                {{ item.amount !== null ? formatMoney(item.amount) : '—' }}・{{ formatTaipei(item.occurredAt) }}
+              </p>
+              <DiscrepancyBadge v-if="anomalyKind === 'reconciliation' && item.discrepancyType" :type="item.discrepancyType as DiscrepancyType" />
+              <el-button
+                v-if="anomalyKind === 'reconciliation' && canRecheck && item.resolutionStatus !== 'resolved' && item.discrepancyId"
+                size="small"
+                class="donation-list__card-action"
+                @click.stop="askResolve(item)"
+              >
+                標記已處理
+              </el-button>
+            </div>
+          </template>
+        </MobileCardList>
+        <p v-if="anomalyKind === 'reconciliation'" class="donation-list__hint">
+          這些是每日對帳發現的差異。處理完請標記為已處理並留下備註；想看整天的對帳結果、或手動重新對帳，請到「每日對帳」頁籤。
+        </p>
+      </el-tab-pane>
+      <el-tab-pane label="每日對帳" name="recon" lazy>
+        <ReconciliationPanel @open-donation="openDetail" @changed="loadCounts" />
       </el-tab-pane>
     </el-tabs>
 
@@ -435,7 +523,26 @@ function invoiceTypeLabel(d: DonationDetail['invoice']): string {
           <el-descriptions-item label="姓名">{{ detail.donor.name }}</el-descriptions-item>
           <el-descriptions-item label="Email">{{ detail.donor.email }}</el-descriptions-item>
           <el-descriptions-item label="具名或匿名">{{ detail.donor.isAnonymous ? '匿名' : '具名' }}</el-descriptions-item>
+          <el-descriptions-item label="徵信名單">
+            <template v-if="!creditApplicable">匿名捐款，不會列入徵信名單</template>
+            <template v-else>
+              <el-switch
+                :model-value="detail.isCreditHidden"
+                :disabled="!canHideCredit"
+                :loading="creditBusy"
+                inline-prompt
+                active-text="不列入"
+                inactive-text="列入"
+                aria-label="不列入公開的徵信名單"
+                @change="(v: string | number | boolean) => toggleCreditHidden(Boolean(v))"
+              />
+              <span class="donation-detail__credit-note">
+                {{ detail.isCreditHidden ? '這筆捐款不會出現在公開的徵信名單。' : '捐款完成後會依整站設定列入公開的徵信名單（只顯示姓名）。' }}
+              </span>
+            </template>
+          </el-descriptions-item>
         </el-descriptions>
+        <p v-if="creditApplicable && !canHideCredit" class="donation-detail__mask">你的角色沒有調整徵信名單的權限。</p>
         <p v-if="!detail.donor.revealed" class="donation-detail__mask">
           個資已遮罩。
           <el-button v-if="canReveal" size="small" type="primary" link @click="reveal">顯示完整個資（會記入稽核紀錄）</el-button>
@@ -501,6 +608,17 @@ function invoiceTypeLabel(d: DonationDetail['invoice']): string {
       確定要退還「{{ detail?.orderNo }}」的 {{ detail ? formatMoney(detail.amount) : '' }} 嗎？
     </DangerConfirmDialog>
 
+    <DangerConfirmDialog
+      v-model="resolveVisible"
+      title="標記差異已處理"
+      reason-label="處理備註"
+      confirm-text="標記為已處理"
+      audit-notice="請寫下處理結果。標記後無法改回待處理，這個操作會記入操作紀錄。"
+      @confirm="confirmResolve"
+    >
+      這筆對帳差異處理完了嗎？
+    </DangerConfirmDialog>
+
     <el-dialog v-model="exportVisible" title="匯出捐款明細" width="440px">
       <p class="donation-detail__mask">匯出內容包含捐款人個資，依目前篩選條件匯出，單次上限 5 萬筆。這次匯出會記入稽核紀錄。</p>
       <el-form-item label="用途備註（至少 4 個字）" required>
@@ -544,6 +662,21 @@ function invoiceTypeLabel(d: DonationDetail['invoice']): string {
 
 .donation-list__badge {
   margin-left: 6px;
+}
+
+.donation-list__card-action {
+  margin-top: var(--charity-admin-space-2);
+}
+
+.donation-list__muted {
+  color: var(--charity-admin-text-tertiary);
+}
+
+.donation-detail__credit-note {
+  display: block;
+  margin-top: var(--charity-admin-space-1);
+  font-size: 12px;
+  color: var(--charity-admin-text-secondary);
 }
 
 .donation-list__card {

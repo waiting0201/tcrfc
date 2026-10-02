@@ -153,8 +153,31 @@ export const dict = {
 
     donors: {
       heading: '捐款徵信名單',
-      disabled: '目前未開放徵信名單。',
-      pending: '徵信名單功能尚在準備中，開放後會在這裡列出選擇具名的捐款人姓名。',
+      disabled: '本頁功能暫未開放。',
+      intro: '感謝每一位捐款人。這裡只列出在捐款時勾選「具名」的捐款人姓名，不顯示捐款金額、聯絡方式與捐款時間。',
+      filterProject: '捐款項目',
+      filterAllProjects: '全部項目',
+      filterFrom: '捐款日期（起）',
+      filterTo: '捐款日期（迄）',
+      apply: '套用篩選',
+      clear: '清除條件',
+      total: '共 {count} 位',
+      empty: '目前沒有符合條件的名單。',
+      loadError: '暫時無法載入名單，請稍後重新整理頁面。',
+      prev: '上一頁',
+      next: '下一頁',
+      pageOf: '第 {page} 頁，共 {pages} 頁',
+    },
+
+    impact: {
+      heading: '成果回顧',
+      intro: '以下是{association}目前開放捐款的項目，依對應的公益計畫整理。完整的成果紀錄與故事，請到俱樂部官網查看。',
+      noProgram: '其他公益項目',
+      charity: '公益團體',
+      viewProject: '了解項目',
+      clubLink: '前往俱樂部官網，查看完整成果紀錄',
+      empty: '目前還沒有可以顯示的成果項目。',
+      loadError: '暫時無法載入成果回顧，請稍後重新整理頁面。',
     },
 
     privacy: {
@@ -172,6 +195,7 @@ export const dict = {
       privacy: '隱私權政策',
       terms: '捐款須知',
       donors: '捐款徵信名單',
+      impact: '成果回顧',
       contact: '聯絡方式',
       contactValue: '如有任何問題，請透過官方網站的聯絡表單與{association}聯繫。',
     },
@@ -325,8 +349,31 @@ export const dict = {
 
     donors: {
       heading: 'Donor recognition list',
-      disabled: 'The donor recognition list is not open at the moment.',
-      pending: 'The donor recognition list is still being prepared. Names of donors who choose to be listed will appear here once it opens.',
+      disabled: 'This page is not available at the moment.',
+      intro: 'Thank you to every donor. Only the names of donors who chose to be named when donating are listed here. Donation amounts, contact details and dates are never shown.',
+      filterProject: 'Program',
+      filterAllProjects: 'All programs',
+      filterFrom: 'Donated from',
+      filterTo: 'Donated until',
+      apply: 'Apply filters',
+      clear: 'Clear filters',
+      total: '{count} donors',
+      empty: 'No names match the selected filters.',
+      loadError: 'The list could not be loaded right now. Please refresh the page later.',
+      prev: 'Previous',
+      next: 'Next',
+      pageOf: 'Page {page} of {pages}',
+    },
+
+    impact: {
+      heading: 'Impact',
+      intro: 'These are the programs currently open for donations at {association}, grouped by the charity program they support. For the full impact records and stories, please visit the club website.',
+      noProgram: 'Other charity programs',
+      charity: 'Charity partner',
+      viewProject: 'View program',
+      clubLink: 'Visit the club website for the full impact records',
+      empty: 'There are no programs to show yet.',
+      loadError: 'The impact page could not be loaded right now. Please refresh the page later.',
     },
 
     privacy: {
@@ -344,6 +391,7 @@ export const dict = {
       privacy: 'Privacy Policy',
       terms: 'Donation Notice',
       donors: 'Donor Recognition List',
+      impact: 'Impact',
       contact: 'Contact',
       contactValue: 'For any questions, please contact {association} via the contact form on the official site.',
     },

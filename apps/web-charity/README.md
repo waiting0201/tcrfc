@@ -2,6 +2,7 @@
 
 Nuxt 4 SSR，捐款人使用、不登入不註冊。**已接真 API**（CH-2，2026-10-01）：掃碼落地頁 → 項目列表與詳情 →
 捐款表單 → 付款跳轉 → 付款返回（confirm／cancel）→ 結果頁（輪詢）→ 隱私權政策／捐款須知。
+**2026-10-02（CH-5）起另有捐款徵信名單 `/{lang}/donors/` 與成果回顧 `/{lang}/impact/`**，兩頁都接真 API。
 主辦與收款主體是**台灣足球策略發展協會**（不是俱樂部），CTA 與文案一律明示。**慈善平台明文不做 SEO／GEO**，全站 `noindex`。
 規格來源：[`docs/22-charity-ui.md`](../../docs/22-charity-ui.md)（版面）、[`docs/10-charity-donation-site.md`](../../docs/10-charity-donation-site.md)（功能）、
 後端契約見 [`apps/api/README.md`](../api/README.md)「慈善 CH-2／CH-3」。
@@ -69,7 +70,8 @@ npm run lint
 | `/{lang}/p/<project_slug>` | 項目詳情頁（含捐款表單；店家歸屬優先序 `?s=` > Cookie > 無） |
 | `/{lang}/pay/<order_no>` | 🔴 **僅測試環境**：模擬 LINE Pay 付款頁（見上表 `NUXT_PUBLIC_SIMULATED_PAYMENT`），正式環境回 404 |
 | `/{lang}/result/<order_no>` | 付款返回頁＋結果頁（`?transactionId=` → confirm、`?cancel=1` → cancel、其餘 → 查詢） |
-| `/{lang}/donors/` | 徵信名單（⚠️ 後端無端點，只顯示「未開放」或「準備中」） |
+| `/{lang}/donors/` | 捐款徵信名單（`GET /credit-list`）。只顯示姓名；可依項目與期間篩選（條件寫在網址上，可分享）；每頁 100 位。後台整站關閉（`enabled=false`）時**不是 404**，顯示「本頁功能暫未開放」。頁面帶 `robots` `noindex` |
+| `/{lang}/impact/` | 成果回顧（`GET /impact`）。已上架項目依關聯的慈善計畫分組，名稱是快照；後台設定了俱樂部官網網址才顯示「前往俱樂部官網」導回連結。`isFallback` 時顯示語系回退提示 |
 | `/{lang}/privacy/`、`/{lang}/terms/` | 內容來自 `GET /settings`（後台維護），前台不自編法律文字 |
 
 ## 相關文件
@@ -96,7 +98,8 @@ SSR 讀取走內網（結果隨 payload 帶到瀏覽器），**寫入與輪詢�
 
 ### 範圍縮減與缺口
 
-- **徵信名單**：後端無公開端點（CH-5），頁面不顯示任何名單、不用假資料頂替；`creditListEnabled=false` 時頁尾連結也隱藏。
+- **徵信名單**（2026-10-02 已接 `GET /credit-list`）：只輸出姓名，不顯示金額、Email、店家、單號、時間，也不顯示次數；頁尾入口只在 `creditListEnabled` 時顯示，但網址本身永遠打得開（整站關閉時顯示「本頁功能暫未開放」）。
+- **成果回顧**（2026-10-02 已接 `GET /impact`）：⚠️ `docs/22` 沒有這一頁的版面規格（§6.1 第 6 項），也沒有寫入口放在哪；目前版面是依資料結構做的**最小版本**（計畫分組＋項目連結），入口只放頁尾。版面與入口位置待規格補上後調整。
 - **Turnstile**：後端沒有「是否啟用」的查詢端點，前台以 `NUXT_PUBLIC_TURNSTILE_SITE_KEY` 決定要不要顯示，兩邊必須一起開（後端開、前台沒給 → 建單回 422）。**未以真實 site key 實測**（只驗證不給 key 時的流程）。
 - 「連回俱樂部官網 11 章成果紀錄」（規劃書 §3.1）：沒有確認的網址，不放猜測的連結。
 - 英文版協會名稱一律「the Association」＋中文正式名，不自創英文全名（docs/22 §6 第 5 項）。
@@ -117,6 +120,15 @@ SSR 讀取走內網（結果隨 payload 帶到瀏覽器），**寫入與輪詢�
 刪除後請一併移除 `nuxt.config.ts` 的 `ignore` 設定。注意 `db/seed/emit-charity-fixtures.py` 仍會產生並檢查 `apps/web-charity/fixtures/charity-fixtures.json`（`apps/admin-charity` 的 `lint:fixtures` 會呼叫它）：
 **要刪 `fixtures/` 之前，須先請維護該腳本的人把 web-charity 從匯出目標拿掉**，否則 admin-charity 的 lint 會失敗。Dockerfile 的「build context 缺口」註解已隨之失效。
 
+## CH-5 串接（2026-10-02）：徵信名單與成果回顧
+
+- 資料：`useCreditList`（`GET /credit-list?projectSlug&from&to&page&pageSize`）與 `useCharityImpact`（`GET /impact?lang`），SSR 讀取走內網、結果隨 payload 帶到瀏覽器。
+- 徵信頁篩選：項目下拉（取自 `GET /projects`）＋兩個日期欄（捐款日期起／迄）；按「套用篩選」才寫進網址（`?project=&from=&to=&page=`），所以可以分享、重新整理後仍保留；起日晚於迄日時按鈕停用。姓名以純文字輸出，不使用 `v-html`。
+- 英文版：路由與語系結構比照既有頁面（`/en/donors/`、`/en/impact/`），介面文字已備英文；**英文版的內容文案（協會簡介等）不在本次範圍**。成果回顧在英文缺漏時回退繁中並顯示既有的「本頁尚無此語系版本」提示。
+- 待決：期間篩選規劃書寫「下拉選單」但沒說粒度（年？月？），目前用日期欄；成果回顧版面與入口見上。
+- 驗證：以 scratchpad 假後端 ＋ `nuxt dev` ＋ Chrome 開發者協定驗證（姓名清單、篩選寫進網址並帶進 API 參數、清除條件、成果回顧分組與導回連結、`/en/` 結構與回退提示、390px 無溢位）。🔵 **實機驗收未做**。
+- 本機 `npm run typecheck` 需先 `node scripts/sync-fixtures.mjs` 產生 `.data/`（舊 mockup 殘留的 `server/utils/fixtures.ts` 會 import 它；見下方「殘留的舊 mockup 檔案」，這不是本輪造成的）。`npm run lint`、`npm run build` 不受影響。
+
 ### 驗收步驟（等使用者啟動 API 並合併後）
 
 1. 使用者啟動 `apps/api`（port 5299，並設 `CHARITY_SQL_CONNECTION_STRING`、`JWT_SIGNING_KEY_CHARITY`，`CORS_ALLOWED_ORIGINS` 含本站來源；本機假金流需 `Development`）。agent 不啟動 API、不碰密碼（E-56）。
@@ -125,3 +137,5 @@ SSR 讀取走內網（結果隨 payload 帶到瀏覽器），**寫入與輪詢�
 4. 重複：取消返回 → 結果頁「尚未完成」→「重新嘗試付款」沿用原單。
 5. 亂填店家 slug → 頁面降級為一般入口且可正常捐款。
 6. `curl -I /zh/` 確認 `X-Robots-Tag: noindex, nofollow`。
+7. **徵信名單**：先在後台把一筆具名捐款設為「不列入徵信名單」，開 `/zh/donors/` → 應只有姓名、沒有那一筆；用項目與日期篩選，網址參數隨之改變、重新整理仍保留；後台關閉整站徵信（站台設定）→ 同一網址顯示「本頁功能暫未開放」且頁尾入口消失；匿名捐款不會出現。
+8. **成果回顧**：開 `/zh/impact/` → 已上架且關聯慈善計畫的項目依計畫分組；後台沒填俱樂部官網網址時沒有導回連結，填了以後出現；`/en/impact/` 顯示語系回退提示。

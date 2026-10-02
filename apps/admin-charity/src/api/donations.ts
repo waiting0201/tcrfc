@@ -34,6 +34,7 @@ export interface DonationListItem {
   invoiceVoidStatus: string | null
   isAnonymous: boolean
   needsManualReview: boolean
+  isCreditHidden: boolean
 }
 
 export interface DonationDetail {
@@ -69,6 +70,7 @@ export interface DonationDetail {
   } | null
   refund: { reason: string | null; refundedByName: string | null } | null
   needsManualReview: boolean
+  isCreditHidden: boolean
   timeline: { at: string; kind: string; text: string; byName: string | null }[]
 }
 
@@ -101,6 +103,11 @@ export const resendThanks = (id: string) => apiRequest<{ sent: boolean }>(`${ROO
 export const reissueInvoice = (id: string) => apiRequest<DonationDetail>(`${ROOT}/${id}/invoice/reissue`, { method: 'POST' })
 export const listAnomalies = (kind?: AnomalyKind) => apiRequest<Anomaly[]>(`${ROOT}/anomalies${buildQuery({ kind })}`)
 export const countAnomalies = () => apiRequest<AnomalyCounts>(`${ROOT}/anomalies/counts`)
+
+export interface CreditVisibility { donationId: string; isAnonymous: boolean; isCreditHidden: boolean }
+/** 逐筆「不列入徵信名單」：`hidden=true` 隱藏、`false` 恢復。 */
+export const setCreditVisibility = (id: string, hidden: boolean) =>
+  apiRequest<CreditVisibility>(`${ROOT}/${id}/credit-visibility`, { method: 'POST', body: { hidden } })
 
 /** 含個資的明細匯出：`purpose`（用途備註，至少 4 字）必填，後端會寫稽核。 */
 export async function exportDonations(filter: DonationFilter, purpose: string): Promise<void> {

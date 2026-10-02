@@ -84,3 +84,18 @@ export const publishProject = (id: string) => apiRequest<ProjectDetail>(`${ROOT}
 export const unpublishProject = (id: string) => apiRequest<ProjectDetail>(`${ROOT}/${id}/unpublish`, { method: 'POST' })
 export const uploadProjectCover = (id: string, file: File) => apiUpload<ProjectDetail>(`${ROOT}/${id}/cover`, file)
 export const removeProjectCover = (id: string) => apiRequest<void>(`${ROOT}/${id}/cover`, { method: 'DELETE' })
+
+/**
+ * 只編輯內文三項。**省略（不放進物件）＝不變**；說明內文送空物件、其他欄位送空字串＝清空。
+ * 這個端點不碰分潤、金額選項與撥付對象，所以沒有分潤授權的角色也能存。
+ */
+export interface ProjectContentInput {
+  oneLinerZh?: string
+  oneLinerEn?: string
+  descriptionZh?: unknown
+  descriptionEn?: unknown
+  fundUsageZh?: string
+  fundUsageEn?: string
+}
+export const updateProjectContent = (id: string, input: ProjectContentInput) =>
+  apiRequest<ProjectDetail>(`${ROOT}/${id}/content`, { method: 'PUT', body: input })

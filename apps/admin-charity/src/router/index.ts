@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { isAuthenticated, isBootstrapped, markBootstrapped } from '@/auth/session'
+import { hasAnyPermission, isAuthenticated, isBootstrapped, markBootstrapped } from '@/auth/session'
 import { loadProfile, refreshAccessToken } from '@/api/auth'
+import { NAV_ITEMS } from '@/data/nav'
 
 const AdminLayout = () => import('@/layouts/AdminLayout.vue')
 const LoginView = () => import('@/views/LoginView.vue')
@@ -10,6 +11,7 @@ const StoreListView = () => import('@/views/stores/StoreListView.vue')
 const StoreEditView = () => import('@/views/stores/StoreEditView.vue')
 const ProjectListView = () => import('@/views/projects/ProjectListView.vue')
 const ProjectEditView = () => import('@/views/projects/ProjectEditView.vue')
+const ProjectContentView = () => import('@/views/projects/ProjectContentView.vue')
 const DonationListView = () => import('@/views/donations/DonationListView.vue')
 const SettlementView = () => import('@/views/settlements/SettlementView.vue')
 const InvoiceListView = () => import('@/views/invoices/InvoiceListView.vue')
@@ -22,7 +24,8 @@ const routes: RouteRecordRaw[] = [
     path: '/',
     component: AdminLayout,
     children: [
-      { path: '', redirect: '/stores' },
+      // 登入後落地在「第一個看得到的模組」：客服／行政沒有店家檢視權限，不能一律導去店家頁。
+      { path: '', redirect: () => NAV_ITEMS.find((item) => hasAnyPermission(item.anyOf))?.path ?? '/stores' },
       { path: 'stores', name: 'stores', component: StoreListView, meta: { label: '店家與 QR Code', code: 'N1' } },
       { path: 'stores/new', name: 'store-new', component: StoreEditView, meta: { label: '新增店家', code: 'N1' } },
       {
@@ -46,13 +49,18 @@ const routes: RouteRecordRaw[] = [
         props: true,
         meta: { label: '編輯捐款項目', code: 'N2' },
       },
+      {
+        path: 'projects/:projectKey/content',
+        name: 'project-content',
+        component: ProjectContentView,
+        props: true,
+        meta: { label: '編輯項目內文', code: 'N2' },
+      },
       { path: 'donations', name: 'donations', component: DonationListView, meta: { label: '捐款紀錄', code: 'N3' } },
-      // N4–N7 的後端尚未提供（回饋金結算、發票管理、報表、站台設定屬後續批次），畫面維持示範資料，
-      // 並由 AdminLayout 依 meta.demo 顯示「示範畫面」提示，避免被誤認為真實資料。
-      { path: 'settlements', name: 'settlements', component: SettlementView, meta: { label: '回饋金結算', code: 'N4', demo: true } },
-      { path: 'invoices', name: 'invoices', component: InvoiceListView, meta: { label: '發票與收據管理', code: 'N5', demo: true } },
-      { path: 'reports', name: 'reports', component: ReportView, meta: { label: '捐款報表', code: 'N6', demo: true } },
-      { path: 'settings', name: 'settings', component: SiteSettingView, meta: { label: '站台設定', code: 'N7', demo: true } },
+      { path: 'settlements', name: 'settlements', component: SettlementView, meta: { label: '回饋金結算', code: 'N4' } },
+      { path: 'invoices', name: 'invoices', component: InvoiceListView, meta: { label: '發票與收據管理', code: 'N5' } },
+      { path: 'reports', name: 'reports', component: ReportView, meta: { label: '捐款報表', code: 'N6' } },
+      { path: 'settings', name: 'settings', component: SiteSettingView, meta: { label: '站台設定', code: 'N7' } },
     ],
   },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },

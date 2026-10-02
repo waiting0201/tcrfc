@@ -34,6 +34,10 @@ export function hasPermission(code: string): boolean {
   return permissionSet.value.has(code)
 }
 
+export function hasAnyPermission(codes: readonly string[]): boolean {
+  return codes.some((code) => permissionSet.value.has(code))
+}
+
 export function setToken(accessToken: string, expiresAtUtc: string, username: string): void {
   state.accessToken = accessToken
   state.expiresAt = parseUtcMs(expiresAtUtc)

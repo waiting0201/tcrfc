@@ -1,5 +1,5 @@
 /** N1 店家管理與 QR Code：`/api/v1/donation-platform/admin/stores`。 */
-import { ADMIN_ROOT, apiBlob, apiRequest, apiUpload, buildQuery, saveBlob } from './http'
+import { ADMIN_ROOT, AdminApiError, apiBlob, apiPostRaw, apiRequest, apiUpload, buildQuery, saveBlob } from './http'
 import type { PagedResult } from './types'
 
 const ROOT = `${ADMIN_ROOT}/stores`
@@ -63,6 +63,35 @@ export async function downloadStoreQr(id: string, format: 'png' | 'svg', fallbac
 export async function downloadAllStoreQr(format: 'png' | 'svg'): Promise<void> {
   const { blob, filename } = await apiBlob(`${ROOT}/qr-export${buildQuery({ format })}`)
   saveBlob(blob, filename ?? 'store-qr-codes.zip')
+}
+
+// ── 批次匯入（CSV） ────────────────────────────────────────────────────
+
+export interface StoreImportIssue { rowNumber: number; reason: string }
+export interface StoreImportResult { importedCount: number; errors: StoreImportIssue[]; skipped: StoreImportIssue[] }
+
+/** 下載匯入範本（表頭＋一列範例，範本本身可直接匯入）。 */
+export async function downloadStoreImportTemplate(): Promise<void> {
+  const { blob, filename } = await apiBlob(`${ROOT}/import-template`)
+  saveBlob(blob, filename ?? 'store-import-template.csv')
+}
+
+/**
+ * 匯入店家 CSV。任一列有錯整批不寫入：後端回 400，本文是 `{ importedCount: 0, errors: [...] }`，
+ * 這種情況不當成例外往外丟，而是回傳結果讓畫面列出所有錯誤列；其他錯誤（403、413…）照常丟 `AdminApiError`。
+ */
+export async function importStores(file: File, skipDuplicates: boolean): Promise<StoreImportResult> {
+  try {
+    return await apiPostRaw<StoreImportResult>(`${ROOT}/import${buildQuery({ skipDuplicates })}`, file, 'text/csv')
+  } catch (error) {
+    if (error instanceof AdminApiError && error.status === 400) {
+      const body = error.body as Partial<StoreImportResult> | null
+      if (body && Array.isArray(body.errors)) {
+        return { importedCount: 0, errors: body.errors, skipped: body.skipped ?? [] }
+      }
+    }
+    throw error
+  }
 }
 
 /** 取 QR 圖的預覽（PNG Blob URL，呼叫端負責 revoke）。 */

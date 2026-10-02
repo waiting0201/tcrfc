@@ -79,6 +79,7 @@
 | E-31 | 2026-09-21 | 宣稱「對比度全部用公式實測過」，27 組裡 2 組沒驗到／驗錯（含反例數字、漏驗 overlay 層） | ✅ [`apps/admin/scripts/check-contrast.mjs`](../apps/admin/scripts/check-contrast.mjs)，已掛進 `npm run lint` |
 | E-32 | 2026-09-21 | 用 CDP 驗證深色 mockup 三斷點時，`/json/new` 在本機 Chrome 153 上只收 PUT，沿用舊版 GET 寫法直接 JSON parse 失敗 | ⚠️ 無 |
 | E-33 | 2026-09-21 | Element Plus 沒設語系，分頁器印出 `Total 8`／`20/page` 等英文——違反 §4.0，但禁用詞掃描只看 `.vue` 的 `<template>`，掃不到元件庫自帶文案 | ✅ `check-forbidden-terms.mjs` 加驗 `main.ts` 有設 `locale` |
+| E-37 | 2026-09-22<br>2026-10-02 | 響應式驗證只量 `document.documentElement.scrollWidth`，量不到**捲動容器內部與浮層**的溢出：表格（第一、二次）、`el-dialog` 內嵌寬度 640px 在 390px 被切掉（第三次，2026-10-02） | ✅ [`scripts/overflow-probe.mjs`](../scripts/overflow-probe.mjs)（逐元素掃描，含浮層；需連著開除錯埠的 Chrome 使用） |
 | E-38 | 2026-09-22 | `BlobImageStorageService` 的「容器已確保存在」旗標在呼叫 `CreateIfNotExistsAsync` **之前**就設成完成，第一次呼叫因故失敗後，旗標仍卡在「已完成」，之後每次呼叫都跳過建立、直接對不存在的容器寫入，得到的錯誤變成「容器不存在」蓋掉了真正的根因 | ✅ 改用 `SemaphoreSlim` 包住整段，`CreateIfNotExistsAsync` 成功後才設旗標 |
 | E-57 | 2026-09-25 | 規劃書與 `STATUS.md` 已經有答案的事，還拿去問使用者（第二次；第一次是把 `previousStartDate` 等實作選項丟給使用者） | ✅ 升級為 `CLAUDE.md` 全域規定第 14 條 |
 | E-58 | 2026-09-25 | S1-10 公開表單送出端點新增 Rate Limiting（依 IP 分區、5 分鐘固定視窗），`PermitLimit` 只用「正式環境訪客合理送出頻率」估出 10，沒有同時檢查「同一支整合測試檔案會呼叫這個端點幾次」——`WebApplicationFactory` 測試的所有請求共用同一個 `RemoteIpAddress`（TestServer 沒有真實連線），本輪新測試檔 11 次公開送出呼叫在同一視窗內就把額度用完，其中誘捕欄位測試收到 429 而非預期的 200，`dotnet test` 出現 1 項失敗 | ✅ 門檻改為 20 並在 `Program.cs` 對應段落寫清楚估算依據（含目前測試呼叫量），下次新增依連線分區的 Rate Limiting 政策時，門檻值要同時滿足「正式環境防護意義」與「同一分區內整合測試呼叫總量」兩個條件 |
@@ -133,6 +134,7 @@
 | E-119 | 2026-10-02 | N7 站台設定的整合測試改了共用本機庫上的單一份設定（`settings`／`email_templates`／`payment_channels`），還原時只還原 `value`，沒還原 `updated_by`：這些列已指向測試帳號，**測試帳號被外鍵擋住無法清理**，後續每個測試的 fixture 啟動清理都失敗（一次 6 項失敗，並留下殘骸要手動修） | ✅ 還原快照一併記錄 `updated_at`／`updated_by`／`created_by`；快照只要動共用設定就整組拍下 |
 | E-120 | 2026-10-02 | 為「公開讀取」限流加了一個把額度用盡的測試，放進既有的限流 fixture：測試主機的 `RemoteIpAddress` 是空的，所有請求落在同一個計數桶，用盡額度害同一個主機上另一項既有限流測試失敗（順序相依的偶發紅燈） | ✅ 獨立的 `CharityRecognitionRateLimitApiFixture`（自己的主機、自己的計數） |
 | E-121 | 2026-10-02 | AP-3 的 `AppDeviceSessionTests` 在沒有資料庫的工作樹寫完、只確認「編譯通過」就交付；合併後實跑，「登出全部與變更密碼」一支穩定 401——測試先重放舊權杖觸發了重用偵測（程式正確，測試順序錯） | 「編譯通過」被當成「測試寫對了」 | 依賴資料庫的新測試沒實跑過，一律在回報標「未執行」，合併後由主 session 在有庫的環境補跑才算完成；工作樹缺 `appsettings.Development.json` 是根源 | 無 |
+| E-122 | 2026-10-02 | 慈善後台報表的趨勢條寫了 `var(--charity-info)`，但實際定義的變數只有 `--charity-info-text`／`-bg`（`--charity-info` 只出現在 `docs/22` §5 的速查表）；樣式表引用不存在的變數不會報錯，背景變透明，趨勢欄整欄看起來是空的，`vue-tsc`、eslint、`vite build`、禁用詞、對比度檢查全綠，是看截圖才發現 | ✅ `apps/admin-charity/scripts/check-css-vars.mjs`（掛進 `npm run lint`） |
 
 ---
 
@@ -1176,9 +1178,25 @@ devDependency，只跑了 `npm run lint`／`npm run build` 就交付——**本�
      防護要能說出自己的覆蓋範圍，不然它給出的信心會超過它實際驗到的東西。
 - **防呆**：🟡 **部分**。`apps/admin`（本輪）與 `apps/admin-charity`（`CH-3a`）的表格都已改為 `v-if`，
   兩邊都用「逐元素掃描捲動容器」的方式重驗過。
-  ⛔ **但那個掃描目前是一次性的臨時腳本，沒有留在專案裡**——
-  下一個做響應式的人若沿用舊的 `document` 層級寫法，同一個洞會第三次出現。
-  **要留下來的是那支掃描腳本本身**，等 CI 建起來時一併納入（`docs/20-cicd.md`）。
+  ~~⛔ 但那個掃描目前是一次性的臨時腳本，沒有留在專案裡~~——**2026-10-02 已留下**：
+  [`scripts/overflow-probe.mjs`](../scripts/overflow-probe.mjs)（見下方第 3 次再犯）。仍未接進 CI（等 `docs/20-cicd.md` 的 E2E 關卡）。
+
+- **同類再犯 第 3 次（2026-10-02，慈善 CH-3/4/5 畫面，`frontend-architect`）**：這次不是表格，是**浮層**——
+  新做的對話框用 `width="640px"` 內嵌寬度，在 390px 螢幕被右側切掉；`el-dialog` 外層 `.el-overlay-dialog` 是 `overflow: auto`
+  的 `position: fixed` 容器，溢出被包在裡面，`document.documentElement.scrollWidth` 仍等於視窗寬（390），
+  第一輪「三斷點整頁無橫向溢位」全綠。另外同一輪還有：頁首操作按鈕被擠出畫面、`el-checkbox` 長說明不換行把對話框撐寬 9px、
+  `el-row` 的 gutter 負邊距、手機寬度仍用 `el-table` 顯示 5 欄以上的明細——**沒有一個**會被 document 層級的數字抓到。
+  依本檔規則 1 **不另開新編號**，把這筆升級：
+  · **上次寫的「那支掃描腳本沒有留在專案裡」就是這次再犯的直接原因之一**——我第一輪仍只量 document 層級，
+    第二輪才臨時寫了只掃 `.el-table` 的腳本（又漏掉浮層）。
+  · 本次已把探針留在專案裡：[`scripts/overflow-probe.mjs`](../scripts/overflow-probe.mjs)。連到開著
+    `--remote-debugging-port` 的 Chrome，對**目前這一頁**掃描所有元素：①`overflow-x` 非 visible 且 `scrollWidth > clientWidth` 的容器
+    （會一併列出撐出去的子孫元素）②右緣超出視窗且沒被祖先裁切的元素。頁籤列的內建捲動（左右箭頭）是明列的唯一豁免。
+    用它對 31 個畫面狀態（頁面、抽屜、對話框、各頁籤）× 390／820／1440 三種寬度共 93 個狀態跑過，第一次掃描就有十數個狀態不合格，修完後全部乾淨。
+  · **仍有的限制（防呆是部分的）**：探針量的是「目前畫面」，沒打開的對話框、沒切過去的頁籤量不到，需要驗收的人自己把畫面操作到那個狀態；
+    它也還沒有接進 CI（需要登入與操作流程，屬各專案的 E2E，等 `docs/20` 的 E2E 關卡）。
+  · 對話框寬度的根本修法：`charity-admin-theme.css` 對 `.el-dialog` 統一加 `max-width: calc(100vw - 24px)`；
+    `apps/admin`（主站後台）的對話框是否有同樣問題**沒有驗**，下一次動它時請用探針掃一次。
 
 > ⚠️ 與 `E-31`／`E-34`／`E-35`／`E-36` 同屬一族：**防護的實際效力與它給人的信心不相稱。**
 > 這一筆特別的地方在於它**不是覆蓋範圍不足，是量錯了東西**——
@@ -2399,3 +2417,18 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：把「編譯通過」當成「測試正確」交付；worktree 不含 gitignored 的 `apps/api/appsettings.Development.json`，所以依賴資料庫的測試在工作樹裡跑不起來，卻沒有要求合併後補跑。
 - **下次怎麼避免**：派工到 worktree 的後端任務，回報必須分列「已實跑」與「僅編譯」的測試；主 session 合併後在主工作目錄跑完整 `dotnet test` 才算完成。
 - **防呆**：無（靠合併後的完整測試）。
+
+### E-122 憑印象寫了不存在的 CSS 變數名稱，樣式悄悄失效（2026-10-02，慈善後台報表）
+
+- **錯在哪**：[`ReportView.vue`](../apps/admin-charity/src/views/reports/ReportView.vue) 的趨勢條寫成
+  `background: var(--charity-info)`。主題檔 `charity-admin-theme.css` 實際只定義 `--charity-info-text` 與 `--charity-info-bg`；
+  `--charity-info` 這個名字只存在於 [`22-charity-ui.md`](22-charity-ui.md) §5 的「色票速查表」（那張表用簡稱）。
+  瀏覽器對不存在的變數不報錯，屬性失效、背景透明，趨勢欄的橫條整欄不見。
+  `vue-tsc`、eslint、`vite build`、禁用詞掃描、對比度檢查**全部通過**，是看截圖才發現「與最高的比較」欄是空白的。
+- **根因（可改掉的行為）**：①變數名稱憑文件的速查表與印象寫，沒有回查實際定義它的檔案；
+  ②專案裡沒有任何檢查比對「引用的變數有沒有被定義」——現有的對比度檢查只驗**已定義**token 的色值；
+  ③「建置通過」被當成「樣式生效」，而樣式表的引用錯誤本來就不會讓建置失敗。
+- **下次怎麼避免**：寫 `var(--…)` 前先 `grep` 主題檔確認名稱；新畫面做完一定看一次實際截圖，不能只看檢查全綠。
+- **防呆**：✅ [`apps/admin-charity/scripts/check-css-vars.mjs`](../apps/admin-charity/scripts/check-css-vars.mjs)，
+  掛在 `npm run lint`（`lint:css-vars`）：src 內任何 `var(--x)` 引用，`--x` 必須在 src 某處被定義（`--el-*` 元件庫變數與有備用值的寫法除外）。
+  已用故意寫錯的檔案驗證會失敗。⚠️ 只涵蓋 `apps/admin-charity`；`apps/web-charity`／`apps/admin`／`apps/web` 未掛同類檢查。

@@ -82,5 +82,16 @@ withDefaults(
   .page-header__title {
     font-size: 17px;
   }
+
+  /* 手機寬度：標題占一行，操作按鈕換到下一行並可折行，避免右側按鈕被切出畫面外。 */
+  .page-header__row {
+    flex-wrap: wrap;
+  }
+
+  .page-header__actions {
+    flex-wrap: wrap;
+    flex-shrink: 1;
+    width: 100%;
+  }
 }
 </style>
