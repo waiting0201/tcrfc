@@ -48,7 +48,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/trencin-03.jpg" alt="" width="1920" height="1280">
+  <img class="page-hero__bg" :src="siteImg('/assets/img/trencin-03.jpg')" alt="" width="1920" height="1280">
   <div class="container">
     <p class="page-hero__eyebrow">11.1 Our Commitment</p>
     <h1>慈善理念<span class="en">Our Commitment</span></h1>

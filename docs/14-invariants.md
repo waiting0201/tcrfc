@@ -12,6 +12,12 @@
 
 ## 速查
 
+- 🔴 **客戶照片不得被 import 進建置，也不得進映像檔**（2026-10-02 使用者決定，`E-113`）。`apps/web/public/assets/img/`（含未成年學員肖像，不納版控）
+  一律寫成 `siteImg('/assets/img/…')`（`apps/web/app/utils/siteImage.ts`），**不得**寫靜態 `src="/assets/img/…"`、`import … from '/assets/img/…'`、
+  `new URL('/assets/img/…', import.meta.url)`、CSS `url(/assets/img/…)`——Nuxt 編譯器會把前兩者變成建置期 import，乾淨 checkout 直接 `UNRESOLVED_IMPORT`。
+  照片執行期來源是 Azure Blob（`NUXT_PUBLIC_MEDIA_BASE_URL`，物件鍵 `site/<路徑>.webp`）；`apps/web/.dockerignore` 排除 `public/assets/img`。
+  防呆：`npm run lint` 的 `lint:site-images`（`scripts/check-site-images.mjs`）＋ `scripts/site-images.txt` 一致性。看到文件寫「build 前先 rsync 照片」一律視為舊流程。
+
 - 🔵 **後台登入不強制變更密碼、不強制 2FA，正式環境亦同**（客戶 2026-09-30 裁決，主站規劃書 v3.15 §4.10 J1、§8〈安全〉）。
   變更密碼保留為帳號持有人**自行選用**（帳號安全頁）。🔵 **2FA 自 v3.17（使用者 2026-09-30 裁決）起後台介面暫不提供設定入口**（帳號安全頁不出現啟用選項；系統能力與資料欄位保留，日後可開放）；**已啟用 2FA 的帳號登入時仍須輸入驗證碼**（驗證流程保留）。
   `AdminUser.must_change_password`／`two_factor_*` 欄位保留，語意由「登入強制」改為「管理員可要求某帳號改密碼」與「使用者自選功能的狀態」。**`must_change_password` 預設 `0`**（新建帳號、種子帳號皆然；僅管理員代為重設他人密碼時才設 `1`，只是提示、不強制）。

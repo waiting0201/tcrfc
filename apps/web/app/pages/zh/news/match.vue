@@ -46,7 +46,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <ClubHeroBg src="/assets/img/nav-news.jpg" width="1920" height="1279" />
+  <ClubHeroBg :src="siteImg('/assets/img/nav-news.jpg')" width="1920" height="1279" />
   <div class="container">
     <p class="page-hero__eyebrow">7.2 Match Reports</p>
     <h1>比賽報導<span class="en">Match Reports</span></h1>

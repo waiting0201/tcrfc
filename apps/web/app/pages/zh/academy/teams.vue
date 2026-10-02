@@ -102,7 +102,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/academy/life-12.jpg" alt="" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/academy/life-12.jpg')" alt="" width="1600" height="900">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true"></div>
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '4.2 Our Teams' : '4.2' }}</p>

@@ -48,7 +48,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/fanclub/fanclub-event-04.jpg" alt="台中磐石球員、學員與球迷於球場合影留念" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/fanclub/fanclub-event-04.jpg')" alt="台中磐石球員、學員與球迷於球場合影留念" width="1600" height="900">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">8.2 Fan Club</p>
@@ -157,16 +157,16 @@ useSeoMeta({
     </ul>
     <div v-else-if="showStaticReview" class="grid grid--4" style="margin-top:1.25rem">
       <figure class="event-photo">
-        <img src="/assets/img/fanclub/fanclub-event-01.jpg" alt="球迷會周邊展示：主場球衣、TCRFC 球帽、背包與造型抱枕" loading="lazy" width="1600" height="1067">
+        <img :src="siteImg('/assets/img/fanclub/fanclub-event-01.jpg')" alt="球迷會周邊展示：主場球衣、TCRFC 球帽、背包與造型抱枕" loading="lazy" width="1600" height="1067">
       </figure>
       <figure class="event-photo">
-        <img src="/assets/img/fanclub/fanclub-event-02.jpg" alt="學院學員身著台中磐石球衣於球場圍網前合影" loading="lazy" width="1600" height="1067">
+        <img :src="siteImg('/assets/img/fanclub/fanclub-event-02.jpg')" alt="學院學員身著台中磐石球衣於球場圍網前合影" loading="lazy" width="1600" height="1067">
       </figure>
       <figure class="event-photo">
-        <img src="/assets/img/fanclub/fanclub-event-03.jpg" alt="三位學員手持桃紅色 TCRFC 加油棒於戶外合影" loading="lazy" width="1600" height="1067">
+        <img :src="siteImg('/assets/img/fanclub/fanclub-event-03.jpg')" alt="三位學員手持桃紅色 TCRFC 加油棒於戶外合影" loading="lazy" width="1600" height="1067">
       </figure>
       <figure class="event-photo">
-        <img src="/assets/img/fanclub/fanclub-event-04.jpg" alt="球員、學員與球迷於球場大合照" loading="lazy" width="1600" height="1067">
+        <img :src="siteImg('/assets/img/fanclub/fanclub-event-04.jpg')" alt="球員、學員與球迷於球場大合照" loading="lazy" width="1600" height="1067">
       </figure>
     </div>
     <p v-else class="is-pending" style="margin-top:1.25rem;">還沒有活動回顧。</p>

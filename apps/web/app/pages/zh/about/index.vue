@@ -38,7 +38,7 @@ useOrganizationSchema()
 </nav>
 
 <section class="page-hero page-hero--media">
-  <ClubHeroBg src="/assets/img/nav-about.jpg" width="1600" height="900" />
+  <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ aboutEyebrow('02', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>

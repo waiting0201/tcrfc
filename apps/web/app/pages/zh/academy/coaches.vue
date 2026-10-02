@@ -40,7 +40,7 @@ const hero = computed(() => getYouthCoachesHero(clubKey.value))
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無已核實、非過期的教練照片可用，不沿用磐石照片頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/academy/life-09.jpg" alt="" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/academy/life-09.jpg')" alt="" width="1600" height="900">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '4.5 Coaches' : '4.5' }}</p>
@@ -71,7 +71,7 @@ const hero = computed(() => getYouthCoachesHero(clubKey.value))
 
       <article class="person-card clip-card clip-card--outlined">
         <div class="person-card__photo">
-          <img src="/assets/img/academy/coach-hsu-chih-chieh.jpg" alt="青訓教練許志傑" width="800" height="800" loading="lazy">
+          <img :src="siteImg('/assets/img/academy/coach-hsu-chih-chieh.jpg')" alt="青訓教練許志傑" width="800" height="800" loading="lazy">
         </div>
         <div class="person-card__body">
           <p class="person-card__role">青訓教練</p>

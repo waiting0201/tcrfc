@@ -39,7 +39,7 @@ const hero = computed(() => getYouthLifeHero(clubKey.value))
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無已核實、已取得肖像同意的照片可用，不沿用磐石學員照片頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/academy/life-07.jpg" alt="" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/academy/life-07.jpg')" alt="" width="1600" height="900">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '4.6 Academy Life' : '4.6' }}</p>
@@ -60,19 +60,19 @@ const hero = computed(() => getYouthLifeHero(clubKey.value))
     </div>
 
     <div v-if="isTcrfc" class="gallery-grid">
-      <figure class="gallery-item"><img src="/assets/img/academy/life-01.jpg" alt="夜間訓練場上，學員盤球突破，一旁有對手球員防守" width="1600" height="1067" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-02.jpg" alt="訓練場上，學員全力衝刺進行折返跑練習" width="1600" height="1067" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-03.jpg" alt="夜間降雨中，學員帶球奔跑" width="1067" height="1600" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-04.jpg" alt="一對一防守練習中，兩名學員貼身盯防" width="1067" height="1600" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-05.jpg" alt="雨中訓練，學員帶球奔跑，隊友於後方跟進" width="1600" height="1066" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-06.jpg" alt="教練在一旁指導，學員練習盤球" width="1600" height="1067" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-07.jpg" alt="學員在球門前控球，臉上帶著笑容" width="1600" height="1067" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-08.jpg" alt="學員在觀眾席前盤球練習" width="1600" height="1067" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-09.jpg" alt="教練在球門邊指導學員進行對抗練習" width="1600" height="1067" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-10.jpg" alt="學員在角錐旁練習控球" width="1600" height="1067" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-11.jpg" alt="學員帶球推進，隊友伸手上前逼搶" width="1600" height="1067" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-12.jpg" alt="教練在球門邊向排成一列的學員講解訓練內容" width="1600" height="1067" loading="lazy"></figure>
-      <figure class="gallery-item"><img src="/assets/img/academy/life-13.jpg" alt="兩名學員在夜間訓練中爭搶皮球" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-01.jpg')" alt="夜間訓練場上，學員盤球突破，一旁有對手球員防守" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-02.jpg')" alt="訓練場上，學員全力衝刺進行折返跑練習" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-03.jpg')" alt="夜間降雨中，學員帶球奔跑" width="1067" height="1600" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-04.jpg')" alt="一對一防守練習中，兩名學員貼身盯防" width="1067" height="1600" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-05.jpg')" alt="雨中訓練，學員帶球奔跑，隊友於後方跟進" width="1600" height="1066" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-06.jpg')" alt="教練在一旁指導，學員練習盤球" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-07.jpg')" alt="學員在球門前控球，臉上帶著笑容" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-08.jpg')" alt="學員在觀眾席前盤球練習" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-09.jpg')" alt="教練在球門邊指導學員進行對抗練習" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-10.jpg')" alt="學員在角錐旁練習控球" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-11.jpg')" alt="學員帶球推進，隊友伸手上前逼搶" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-12.jpg')" alt="教練在球門邊向排成一列的學員講解訓練內容" width="1600" height="1067" loading="lazy"></figure>
+      <figure class="gallery-item"><img :src="siteImg('/assets/img/academy/life-13.jpg')" alt="兩名學員在夜間訓練中爭搶皮球" width="1600" height="1067" loading="lazy"></figure>
     </div>
   </div>
 </section>

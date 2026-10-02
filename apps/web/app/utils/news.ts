@@ -91,7 +91,7 @@ export function newsFallbackMarkSrc(club: 'tcrfc' | 'bw' = 'tcrfc'): string {
 }
 
 export function newsCoverSrc(slug: string): string {
-  return `/assets/img/news/${slug}.jpg`
+  return siteImg(`/assets/img/news/${slug}.jpg`)
 }
 
 /** ISO 時間字串（API publishedAt）→ <time datetime> 用的日期部分，例："2026-08-10" */

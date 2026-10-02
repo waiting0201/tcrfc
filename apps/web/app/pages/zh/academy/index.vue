@@ -36,7 +36,7 @@ const ctaTitle = computed(() => getAcademyHubCtaTitle(clubKey.value))
 </nav>
 
 <section class="page-hero page-hero--media">
-  <ClubHeroBg src="/assets/img/academy/life-05.jpg" width="1600" height="900" />
+  <ClubHeroBg :src="siteImg('/assets/img/academy/life-05.jpg')" width="1600" height="900" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '04 Academy' : '04' }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>

@@ -27,7 +27,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/news/2026-01-12-community-017.jpg" alt="台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場" width="1600" height="1068">
+  <img class="page-hero__bg" :src="siteImg('/assets/img/news/2026-01-12-community-017.jpg')" alt="台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場" width="1600" height="1068">
   <div class="container">
     <p class="page-hero__eyebrow">11 Charity &amp; Impact</p>
     <h1>慈善與社會影響<span class="en">Charity &amp; Impact</span></h1>
@@ -47,7 +47,7 @@ useSeoMeta({
     <div class="charity-nav-grid">
       <a class="charity-nav-card clip-card" :href="lp('/zh/charity/commitment/')">
         <div class="charity-nav-card__media">
-          <img src="/assets/img/trencin-03.jpg" alt="" width="1920" height="1280" loading="lazy">
+          <img :src="siteImg('/assets/img/trencin-03.jpg')" alt="" width="1920" height="1280" loading="lazy">
           <span class="badge charity-nav-card__num">11.1</span>
         </div>
         <div class="charity-nav-card__body">
@@ -61,7 +61,7 @@ useSeoMeta({
       </a>
       <a class="charity-nav-card clip-card" :href="lp('/zh/charity/programs/')">
         <div class="charity-nav-card__media">
-          <img src="/assets/img/news/2025-05-03-camps-056.jpg" alt="" width="1600" height="1200" loading="lazy">
+          <img :src="siteImg('/assets/img/news/2025-05-03-camps-056.jpg')" alt="" width="1600" height="1200" loading="lazy">
           <span class="badge charity-nav-card__num">11.2</span>
         </div>
         <div class="charity-nav-card__body">
@@ -75,7 +75,7 @@ useSeoMeta({
       </a>
       <a class="charity-nav-card clip-card" :href="lp('/zh/charity/impact-stories/')">
         <div class="charity-nav-card__media">
-          <img src="/assets/img/news/2026-01-12-community-017.jpg" alt="" width="1600" height="1068" loading="lazy">
+          <img :src="siteImg('/assets/img/news/2026-01-12-community-017.jpg')" alt="" width="1600" height="1068" loading="lazy">
           <span class="badge charity-nav-card__num">11.3</span>
         </div>
         <div class="charity-nav-card__body">
@@ -89,7 +89,7 @@ useSeoMeta({
       </a>
       <a class="charity-nav-card clip-card" :href="lp('/zh/charity/our-impact/')">
         <div class="charity-nav-card__media">
-          <img src="/assets/img/news/2025-06-11-community-050.jpg" alt="" width="1600" height="1068" loading="lazy">
+          <img :src="siteImg('/assets/img/news/2025-06-11-community-050.jpg')" alt="" width="1600" height="1068" loading="lazy">
           <span class="badge charity-nav-card__num">11.4</span>
         </div>
         <div class="charity-nav-card__body">

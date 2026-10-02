@@ -73,7 +73,7 @@ useCourseSchema(
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無對應的六大專項訓練照片可用，不沿用磐石照片頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/programs/specialist-06.jpg" alt="" width="1600" height="1067">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/programs/specialist-06.jpg')" alt="" width="1600" height="1067">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '5.4 Programs' : '5.4' }}</p>
@@ -197,11 +197,11 @@ useCourseSchema(
       <h2 id="sp-gallery-title">訓練與交流花絮</h2>
     </div>
     <div class="photo-grid">
-      <figure class="clip-card"><img src="/assets/img/programs/specialist-02.jpg" loading="lazy" width="1600" height="1067" alt="夜間球場上，一名球員盤球突破防守者，隊友於後方跟進"><figcaption>夜間友誼賽交流</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/specialist-03.jpg" loading="lazy" width="1600" height="1067" alt="兩名球員於場邊碰拳致意，其中一人身穿台中磐石白色訓練服"><figcaption>訓練後互動交流</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/specialist-04.jpg" loading="lazy" width="1600" height="1067" alt="教練於球場中央向圍成一圈的球員講解戰術"><figcaption>賽前戰術講解</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/specialist-05.jpg" loading="lazy" width="1600" height="1067" alt="身穿綠色背心的教練於球場上跑動示範"><figcaption>教練親自示範跑位</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/specialist-07.jpg" loading="lazy" width="1600" height="1067" alt="球員於夜間球場上準備射門，球場後方可見城市建築燈光"><figcaption>夜間場地訓練賽</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-02.jpg')" loading="lazy" width="1600" height="1067" alt="夜間球場上，一名球員盤球突破防守者，隊友於後方跟進"><figcaption>夜間友誼賽交流</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-03.jpg')" loading="lazy" width="1600" height="1067" alt="兩名球員於場邊碰拳致意，其中一人身穿台中磐石白色訓練服"><figcaption>訓練後互動交流</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-04.jpg')" loading="lazy" width="1600" height="1067" alt="教練於球場中央向圍成一圈的球員講解戰術"><figcaption>賽前戰術講解</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-05.jpg')" loading="lazy" width="1600" height="1067" alt="身穿綠色背心的教練於球場上跑動示範"><figcaption>教練親自示範跑位</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-07.jpg')" loading="lazy" width="1600" height="1067" alt="球員於夜間球場上準備射門，球場後方可見城市建築燈光"><figcaption>夜間場地訓練賽</figcaption></figure>
     </div>
   </div>
 </section>

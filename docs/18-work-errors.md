@@ -2335,3 +2335,9 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：各檔各自寫「合理的預設值」，沒有一步要求「把 compose 會拉的映像檔標籤對照 CI 會推的標籤」「把 `nuxt.config.ts` 的每個 `runtimeConfig.public` 網址鍵對照 compose 的 `environment:`」。因為在 VM 上從沒真的起過容器，兩者都沒有被執行期撞到。
 - **下次怎麼避免**：新增 `runtimeConfig.public` 中含網址的鍵時，同一次交付在 compose 對應服務加 `NUXT_PUBLIC_*` 覆寫；改 CI 推送標籤時 grep `IMAGE_TAG`。
 - **防呆**：無。
+
+### E-113 S0-9 把 mockup 照片搬成「建置期 import」後，從未在乾淨 checkout 建置過（2026-10-02，前端／CI）
+- **錯在哪**：S0-9 搬遷時 `<img src="/assets/img/…">` 全部留成靜態字串（約 140 處、49 個檔案）。Nuxt 的 Vue 編譯器把靜態的 `src` 轉成 `import "/assets/img/…"`，建置期必須解析到 `public/` 下的檔案；而這批客戶照片刻意不納版控（`E-26`）。結果本機（有照片）永遠綠，GitHub Actions 乾淨 checkout 建置 `UNRESOLVED_IMPORT`，映像檔從未成功產出。原 README 只寫「先 rsync 照片再 build」，等於把缺口寫成手冊步驟，而不是解掉它。
+- **根因（可改掉的行為）**：①「本機建置通過」被當成「CI 建置通過」，而兩者唯一的差別正是「不納版控的檔案存不存在」；②遇到「不納版控的資源是建置相依」時，選擇寫一段手動補檔說明，沒有把相依拿掉；③沒有任何機制禁止再寫出會被編譯成 import 的照片路徑。
+- **下次怎麼避免**：凡新增「不納版控的素材」，同一次交付先在 `git worktree` 乾淨環境跑 `npm ci && npm run lint && npm run build` 與 `docker build`；素材一律走執行期來源（`siteImg()`），不得成為建置相依。
+- **防呆**：✅ `npm run lint` 的 `lint:site-images`（`apps/web/scripts/check-site-images.mjs`）禁止任何不經 `siteImg(` 的 `/assets/img/…` 字串，並檢查 `scripts/site-images.txt` 與程式引用一致；✅ `.dockerignore` 排除 `public/assets/img`；✅ `docs/14` 不變量。⚠️ CI 目前沒有獨立的「乾淨 checkout 建置」關卡以外的檢查——`ci.yml` 本身就是乾淨 checkout，之後同類回歸會在 lint 先被攔下。

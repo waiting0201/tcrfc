@@ -72,7 +72,7 @@ const anyLogo = computed(() => charities.value.some((c) => c.logoUrl))
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/news/2025-06-11-community-050.jpg" alt="" width="1600" height="1068">
+  <img class="page-hero__bg" :src="siteImg('/assets/img/news/2025-06-11-community-050.jpg')" alt="" width="1600" height="1068">
   <div class="container">
     <p class="page-hero__eyebrow">11.4 Our Impact</p>
     <h1>影響力數據<span class="en">Our Impact</span></h1>

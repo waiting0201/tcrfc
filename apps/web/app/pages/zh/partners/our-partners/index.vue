@@ -91,13 +91,13 @@ useSeoMeta({
     <!-- 國際夥伴：後台尚未建立任何一筆時，磐石沿用既有三個海外合作隊徽（見檔頭說明），藍鯨顯示空格 -->
     <div v-else-if="sec.key === 'international' && isTcrfc" class="sponsor-grid">
       <div class="sponsor-tile">
-        <img src="/assets/img/partners-intl/partner-intl-01-hellas-verona.webp" alt="義大利 Hellas Verona FC 隊徽" loading="lazy" width="200" height="200">
+        <img :src="siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp')" alt="義大利 Hellas Verona FC 隊徽" loading="lazy" width="200" height="200">
       </div>
       <div class="sponsor-tile">
-        <img src="/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png" alt="西班牙 Rayo Ciudad Alcobendas CF 隊徽" loading="lazy" width="200" height="200">
+        <img :src="siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png')" alt="西班牙 Rayo Ciudad Alcobendas CF 隊徽" loading="lazy" width="200" height="200">
       </div>
       <div class="sponsor-tile">
-        <img src="/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp" alt="德國 Rot-Weiss Ahlen 隊徽" loading="lazy" width="200" height="200">
+        <img :src="siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp')" alt="德國 Rot-Weiss Ahlen 隊徽" loading="lazy" width="200" height="200">
       </div>
       <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
     </div>

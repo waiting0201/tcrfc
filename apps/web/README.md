@@ -12,17 +12,28 @@ runtime 環境變數決定品牌。
 
 ## 怎麼跑
 
-> 🔴 **先做這一步，否則 `npm run build` 會失敗**：`public/assets/img/` 的 158 張客戶照片
-> **不納版控**（含未成年學員肖像，GitHub repo 是公開的，見 `.gitignore` 與 [`docs/18`](../../docs/18-work-errors.md) `E-26`）。
-> 乾淨 clone 下來這個目錄是空的，而 Vite 會把 `<img src="/assets/...">` 編譯成 import——
-> **檔案不存在是 build-time 硬錯誤，不是 runtime 404**。先補檔再 build：
+> 🔴 **客戶照片不進建置、不進映像檔**（2026-10-02 使用者決定，[`docs/14`](../../docs/14-invariants.md)、[`docs/18`](../../docs/18-work-errors.md) `E-113`）。
+> `public/assets/img/` 的客戶照片**不納版控**（含未成年學員肖像，GitHub repo 是公開的，見 `.gitignore` 與 `E-26`），
+> 也**不得被 import 進建置**：Nuxt 的 Vue 編譯器會把模板裡**靜態**的 `src="/assets/img/…"` 轉成 import，檔案不存在
+> （乾淨 checkout、CI）就是 `UNRESOLVED_IMPORT`。全站一律寫 `:src="siteImg('/assets/img/…')"`
+> （[`app/utils/siteImage.ts`](app/utils/siteImage.ts)），**乾淨 checkout 不需要任何照片檔就能 `npm ci && npm run lint && npm run build`**。
+> `.dockerignore` 排除 `public/assets/img`，本機有照片時 `docker build` 也不會把它打包進映像檔。
 >
-> ```bash
-> rsync -a --ignore-existing site/src/assets/img/ apps/web/public/assets/img/
-> ```
+> **照片從哪來**（契約與基礎設施端的上傳流程見 [`infra/README.md`](../../infra/README.md) 的「站台照片」一節）：
 >
-> `site/src/assets/img/` 本身也不納版控，重建方式是 `bash site/tools/build-images.sh`（讀客戶收件夾）。
-> ⚠️ **部署映像檔時同理**——`docker build` 的環境必須先有這批檔案，見 [`docs/20`](../../docs/20-cicd.md)。
+> | `NUXT_PUBLIC_MEDIA_BASE_URL` | 行為 |
+> |---|---|
+> | 已設定（正式／預備環境，形如 `https://<帳戶>.blob.core.windows.net/images`，日後可換 CDN 網域） | `/assets/img/<路徑>.<原副檔名>` → `${base}/site/<路徑>.webp`。例：`/assets/img/academy/life-09.jpg` → `site/academy/life-09.webp`。`.svg` 不上傳、留在 repo，不轉換 |
+> | 未設定（本機開發） | 回退讀 `public/assets/img/<原路徑含原副檔名>`，行為不變。本機要看到照片仍需先補檔：`rsync -a --ignore-existing site/src/assets/img/ apps/web/public/assets/img/`（`site/src/assets/img/` 的重建方式是 `bash site/tools/build-images.sh`） |
+>
+> **「實際被引用的照片」清單**：[`scripts/site-images.txt`](scripts/site-images.txt)（每行一個 `public/assets/img/` 底下的相對路徑，原副檔名；
+> 供上傳腳本只傳被用到的照片）。產生方式：`npm run site-images:write`（需要本機有 `public/assets/img/`；＝程式裡的字面引用 ∪ 動態前綴目錄，
+> 目前動態前綴只有 `news/`，來自 `newsCoverSrc()` 依 slug 推導封面）。`npm run lint` 的 `lint:site-images`（`scripts/check-site-images.mjs`，**不需要照片**）檢查：
+> ① 任何 `/assets/img/…` 字串（含 `import … from`、靜態 `src=`、`url()`）必須直接是 `siteImg(` 的引數；② 清單與程式引用一致。**新增或移除照片引用後，先跑 `site-images:write` 再一起提交清單。**
+>
+> **其他說明**：本專案沒有使用 `@nuxt/image`／IPX，不存在執行期讀本機檔案縮圖的路徑；也沒有程式依賴 import 回傳的寬高
+> （所有 `<img>` 的 `width`／`height` 本來就是手寫屬性）。`apps/web/scripts/check-club-image-leak.mjs`（藍鯨圖片外洩檢查）
+> 看的是渲染後的 HTML：設了 `NUXT_PUBLIC_MEDIA_BASE_URL` 時磐石照片會是 Blob 網址（站外網址預設不在允許清單），仍會被判為外洩，方向正確；本機未設定時行為不變。
 
 
 ```bash
@@ -57,6 +68,7 @@ curl -s http://127.0.0.1:3002/zh/ | grep -o 'data-club="[a-z]*"'   # bw
 | `NUXT_PUBLIC_SITE_URL` | 🔴 只在 `docker run`，**絕不在 `docker build`** | canonical／sitemap／`hreflang`／Schema／`og:image` 的網域來源（`docs/13-blue-whale-site.md` §6 紀律 7、8） |
 | `NUXT_PUBLIC_SITE_NAME` | 🔴 只在 `docker run`，同 `NUXT_PUBLIC_SITE_URL` 的規則 | 覆寫 `nuxt.config.ts` 的 `site.name`（`og:site_name`／`<title>` 後綴／Schema.org `WebSite.name` 三處都跟著換，實測與 `SITE_URL` 同一套 priority-stack）。**藍鯨容器一律帶 `台中藍鯨`**，忘記帶就會悄悄顯示 `nuxt.config.ts` 裡的預設值 `TCRFC`（docs/13 §6 紀律 11） |
 | `NUXT_PUBLIC_SITE_ENV` | `docker run` | `prelaunch`／`production`，目前只接住變數，三層防護（見 `docs/17-deployment.md` §10.4）留給 S0-9 之後接上 |
+| `NUXT_PUBLIC_MEDIA_BASE_URL` | 選填：本機開發留空；正式／預備環境 `docker run`／compose 必給 | 站台靜態照片來源（Azure Blob `images` 容器公開網址或日後的 CDN 網域），網址＝`${值}/site/<路徑>.webp`；留空回退讀 `public/assets/img/` 原檔。規則見上方「客戶照片不進建置」與 `app/utils/siteImage.ts` |
 | `NUXT_PUBLIC_BLUE_WHALE_SITE_URL` | 選填，`docker run`（有內建 staging 預設值，不像 `SITE_URL` 一定要給） | 主站 06 單元（女子足球）外連藍鯨官網的按鈕網址，預設 `https://bw-stg.tcrfc.tw`。**S1-12d 收尾第二輪（2026-09-29）起降為備援值**：`womens/index.vue` 改以後端 `GET /api/v1/tcrfc/site-facts` 的 `blueWhaleSiteUrl` 為主要來源（後台 `I` 網站設定可維護），這個環境變數只在 API 打不到或該欄位尚未設定（`null`）時才生效，藍鯨正式網域定案後改後台設定值即可，不必再改這個環境變數或重新部署容器 |
 | `NITRO_PORT` / `NITRO_HOST` | 容器啟動 | `apps/web/Dockerfile` 已設定為 `3000` / `0.0.0.0` |
 

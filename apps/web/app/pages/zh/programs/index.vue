@@ -31,9 +31,9 @@ const ctaCards = computed(() => getProgramsHubCtaCards(clubKey.value))
 /** 導覽卡照片路徑——只有 tcrfc 既有卡片沿用原圖，藍鯨版一律 `hasPhoto: false`
  * （見 getProgramsHubCards 檔頭說明），不需要另外維護一份藍鯨照片路徑對照表。 */
 const CARD_PHOTOS: Record<string, string> = {
-  '5.1': '/assets/img/programs/childrens-03.jpg',
-  '5.2': '/assets/img/programs/summer-camp-05.jpg',
-  '5.4': '/assets/img/programs/specialist-06.jpg',
+  '5.1': siteImg('/assets/img/programs/childrens-03.jpg'),
+  '5.2': siteImg('/assets/img/programs/summer-camp-05.jpg'),
+  '5.4': siteImg('/assets/img/programs/specialist-06.jpg'),
 }
 </script>
 
@@ -48,7 +48,7 @@ const CARD_PHOTOS: Record<string, string> = {
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/nav-programs.jpg" alt="" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/nav-programs.jpg')" alt="" width="1600" height="900">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '05 Programs' : '05' }}</p>

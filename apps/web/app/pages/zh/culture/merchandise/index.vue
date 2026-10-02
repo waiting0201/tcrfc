@@ -33,7 +33,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/merch/merch-jersey-01.jpg" alt="球員身著台中磐石桃紅色主場球衣，胸前印有 Joma、TCRFC 隊徽與 San Pellegrino 贊助字樣" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/merch/merch-jersey-01.jpg')" alt="球員身著台中磐石桃紅色主場球衣，胸前印有 Joma、TCRFC 隊徽與 San Pellegrino 贊助字樣" width="1600" height="900">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">8.3 Merchandise</p>
@@ -57,7 +57,7 @@ useSeoMeta({
     <div class="grid grid--2">
       <article class="merch-card">
         <div class="merch-card__media">
-          <img src="/assets/img/merch/merch-jersey-01.jpg" alt="台中磐石主場球衣 2026 賽季，球員身著桃紅色球衣、藍色滾邊，胸口印有 Joma、TCRFC 隊徽與贊助商標誌" loading="lazy" width="1600" height="1067">
+          <img :src="siteImg('/assets/img/merch/merch-jersey-01.jpg')" alt="台中磐石主場球衣 2026 賽季，球員身著桃紅色球衣、藍色滾邊，胸口印有 Joma、TCRFC 隊徽與贊助商標誌" loading="lazy" width="1600" height="1067">
         </div>
         <div class="merch-card__body">
           <p class="merch-card__name">台中磐石主場球衣｜2026 賽季</p>
@@ -85,18 +85,18 @@ useSeoMeta({
 
       <article class="merch-card">
         <div class="merch-card__media">
-          <ClubImg src="/assets/img/merch/merch-socks-01.jpg" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" loading="lazy" width="1600" height="1600" />
+          <ClubImg :src="siteImg('/assets/img/merch/merch-socks-01.jpg')" alt="厚底緩震機能襪六色排列：向日黃、經典紅、櫻桃紅、海軍藍、極簡黑、純淨白" loading="lazy" width="1600" height="1600" />
         </div>
         <div class="merch-card__body">
           <p class="merch-card__name">厚底緩震機能襪</p>
           <p class="merch-card__price">價格以商店頁面為準</p>
           <ul class="swatch-row" aria-label="可選顏色">
-            <li><ClubImg src="/assets/img/merch/merch-socks-02.jpg" alt="向日黃" loading="lazy" width="200" height="200" /><span>向日黃</span></li>
-            <li><ClubImg src="/assets/img/merch/merch-socks-03.jpg" alt="經典紅" loading="lazy" width="200" height="200" /><span>經典紅</span></li>
-            <li><ClubImg src="/assets/img/merch/merch-socks-04.jpg" alt="櫻桃紅" loading="lazy" width="200" height="200" /><span>櫻桃紅</span></li>
-            <li><ClubImg src="/assets/img/merch/merch-socks-05.jpg" alt="海軍藍" loading="lazy" width="200" height="200" /><span>海軍藍</span></li>
-            <li><ClubImg src="/assets/img/merch/merch-socks-06.jpg" alt="極簡黑" loading="lazy" width="200" height="200" /><span>極簡黑</span></li>
-            <li><ClubImg src="/assets/img/merch/merch-socks-07.jpg" alt="純淨白" loading="lazy" width="200" height="200" /><span>純淨白</span></li>
+            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-02.jpg')" alt="向日黃" loading="lazy" width="200" height="200" /><span>向日黃</span></li>
+            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-03.jpg')" alt="經典紅" loading="lazy" width="200" height="200" /><span>經典紅</span></li>
+            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-04.jpg')" alt="櫻桃紅" loading="lazy" width="200" height="200" /><span>櫻桃紅</span></li>
+            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-05.jpg')" alt="海軍藍" loading="lazy" width="200" height="200" /><span>海軍藍</span></li>
+            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-06.jpg')" alt="極簡黑" loading="lazy" width="200" height="200" /><span>極簡黑</span></li>
+            <li><ClubImg :src="siteImg('/assets/img/merch/merch-socks-07.jpg')" alt="純淨白" loading="lazy" width="200" height="200" /><span>純淨白</span></li>
           </ul>
           <div class="table-scroll" style="margin-top:1rem">
             <table class="size-table">

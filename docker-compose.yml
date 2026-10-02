@@ -117,6 +117,9 @@ services:
       NUXT_PUBLIC_SITE_ENV: ${SITE_ENV:?請在 .env 設定 SITE_ENV=prelaunch 或 production（docs/17 §10.4）}
       NUXT_PUBLIC_API_BASE: https://${API_DOMAIN} # 瀏覽器端呼叫走公開網域
       NUXT_API_INTERNAL_BASE: http://api:8080 # SSR 階段走 Docker 內部網路，不繞 Caddy／Cloudflare
+      # 站台照片的網址基底（Azure Blob 公開唯讀容器 images，物件鍵 site/<路徑>.webp；infra/README.md §4.9）。
+      # 值來自 /opt/tcrfc/.env 的 MEDIA_BASE_URL；日後換 CDN 只改那個變數。未設＝空字串（前台不加基底）。
+      NUXT_PUBLIC_MEDIA_BASE_URL: ${MEDIA_BASE_URL:-}
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
     # 固定 IP（見上方 networks.internal.ipam 的說明）：api 服務的 TRUSTED_PROXY_IPS 靠這個
@@ -147,6 +150,7 @@ services:
       NUXT_PUBLIC_SITE_ENV: ${SITE_ENV:?請在 .env 設定 SITE_ENV=prelaunch 或 production（docs/17 §10.4）} # 見 nuxt-tcrfc 同名變數的註解
       NUXT_PUBLIC_API_BASE: https://${API_DOMAIN}
       NUXT_API_INTERNAL_BASE: http://api:8080
+      NUXT_PUBLIC_MEDIA_BASE_URL: ${MEDIA_BASE_URL:-} # 同 nuxt-tcrfc（藍鯨站與主站共用同一個圖片容器）
       REDIS_HOST: redis
       REDIS_PASSWORD: ${REDIS_PASSWORD:?}
     # 固定 IP（見上方 networks.internal.ipam 的說明）：api 服務的 TRUSTED_PROXY_IPS 靠這個

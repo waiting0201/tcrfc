@@ -53,7 +53,7 @@ onMounted(() => {
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無已核實可用的海外交流照片可用，不沿用磐石照片頂替（比照 academy/pathway.vue 既有做法） -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/trencin-01.jpg" alt="" width="1920" height="1279">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/trencin-01.jpg')" alt="" width="1920" height="1279">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '3.4 International Pathways' : '3.4' }}</p>
@@ -125,9 +125,9 @@ onMounted(() => {
       <div class="region-panel" id="panel-europe" role="tabpanel" aria-labelledby="tab-europe" data-region-panel="europe">
         <p class="region-panel__desc">目前已建立聯繫的歐洲俱樂部，詳細合作內容與申請流程整理中。</p>
         <div class="region-partners">
-          <div class="region-partner-tile"><img src="/assets/img/partners-intl/partner-intl-01-hellas-verona.webp" alt="Hellas Verona FC 標誌" loading="lazy" width="1920" height="1960"><span>Hellas Verona FC<br><small>義大利 Italy</small></span></div>
-          <div class="region-partner-tile"><img src="/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png" alt="Rayo Ciudad Alcobendas CF 標誌" loading="lazy" width="316" height="316"><span>Rayo Ciudad Alcobendas CF<br><small>西班牙 Spain</small></span></div>
-          <div class="region-partner-tile"><img src="/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp" alt="Rot-Weiss Ahlen 標誌" loading="lazy" width="1920" height="2430"><span>Rot-Weiss Ahlen<br><small>德國 Germany</small></span></div>
+          <div class="region-partner-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp')" alt="Hellas Verona FC 標誌" loading="lazy" width="1920" height="1960"><span>Hellas Verona FC<br><small>義大利 Italy</small></span></div>
+          <div class="region-partner-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png')" alt="Rayo Ciudad Alcobendas CF 標誌" loading="lazy" width="316" height="316"><span>Rayo Ciudad Alcobendas CF<br><small>西班牙 Spain</small></span></div>
+          <div class="region-partner-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp')" alt="Rot-Weiss Ahlen 標誌" loading="lazy" width="1920" height="2430"><span>Rot-Weiss Ahlen<br><small>德國 Germany</small></span></div>
         </div>
       </div>
 
@@ -186,9 +186,9 @@ onMounted(() => {
       <p class="section-lede">{{ isTcrfc ? '目前已取得標誌授權的合作俱樂部如下，更多合作內容持續更新中。' : '目前尚無可公開的海外合作俱樂部，相關進展將更新於本頁。' }}</p>
     </div>
     <div v-if="isTcrfc" class="sponsor-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-      <div class="sponsor-tile"><img src="/assets/img/partners-intl/partner-intl-01-hellas-verona.webp" alt="Hellas Verona FC 標誌" loading="lazy" width="200" height="200"></div>
-      <div class="sponsor-tile"><img src="/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png" alt="Rayo Ciudad Alcobendas CF 標誌" loading="lazy" width="200" height="200"></div>
-      <div class="sponsor-tile"><img src="/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp" alt="Rot-Weiss Ahlen 標誌" loading="lazy" width="200" height="200"></div>
+      <div class="sponsor-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp')" alt="Hellas Verona FC 標誌" loading="lazy" width="200" height="200"></div>
+      <div class="sponsor-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png')" alt="Rayo Ciudad Alcobendas CF 標誌" loading="lazy" width="200" height="200"></div>
+      <div class="sponsor-tile"><img :src="siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp')" alt="Rot-Weiss Ahlen 標誌" loading="lazy" width="200" height="200"></div>
     </div>
   </div>
 </section>

@@ -106,6 +106,12 @@ SQL_FQDN=$(az_value "SQL 伺服器位址" az sql server show -g "${RG}" -n "${SQ
 SQL_ADMIN=$(az_value "SQL 管理員登入名" az sql server show -g "${RG}" -n "${SQL_NAME}" --query administratorLogin -o tsv)
 SA_CLUB=$(az_single "俱樂部儲存體帳戶" az storage account list -g "${RG}" --query "[?starts_with(name, 'sttcrfcclub')].name" -o tsv)
 SA_CHARITY=$(az_single "慈善儲存體帳戶" az storage account list -g "${RG}" --query "[?starts_with(name, 'sttcrfccharity')].name" -o tsv)
+MEDIA_BASE_URL_DEFAULT="$(az_value "俱樂部儲存體 blob 端點" az storage account show -g "${RG}" -n "${SA_CLUB}" --query primaryEndpoints.blob -o tsv)"
+MEDIA_BASE_URL_DEFAULT="${MEDIA_BASE_URL_DEFAULT%/}/images"
+case "${MEDIA_BASE_URL_DEFAULT}" in
+  https://*.blob.core.windows.net/images) ;;
+  *) die "俱樂部 blob 端點格式異常，無法推出 MEDIA_BASE_URL" ;;
+esac
 BLOB_CLUB=$(az_value "俱樂部儲存體連線字串" az storage account show-connection-string -g "${RG}" -n "${SA_CLUB}" --query connectionString -o tsv)
 BLOB_CHARITY=$(az_value "慈善儲存體連線字串" az storage account show-connection-string -g "${RG}" -n "${SA_CHARITY}" --query connectionString -o tsv)
 info "SQL 伺服器：${SQL_NAME}"
@@ -325,7 +331,7 @@ fi
 # ── 組內容 ──────────────────────────────────────────────────────────────
 CLUB_MANAGED="CLUB_SQL_CONNECTION_STRING AZURE_BLOB_CONNECTION_STRING JWT_SIGNING_KEY_CLUB JWT_SIGNING_KEY_MEMBER"
 CHARITY_MANAGED="CHARITY_SQL_CONNECTION_STRING AZURE_BLOB_CONNECTION_STRING_CHARITY JWT_SIGNING_KEY_CHARITY"
-COMPOSE_MANAGED="GHCR_OWNER IMAGE_TAG SITE_ENV ${DOMAIN_KEYS} ACME_EMAIL CADDYFILE PRELAUNCH_BASIC_AUTH_USER PRELAUNCH_BASIC_AUTH_HASH REDIS_PASSWORD"
+COMPOSE_MANAGED="GHCR_OWNER IMAGE_TAG SITE_ENV ${DOMAIN_KEYS} ACME_EMAIL CADDYFILE PRELAUNCH_BASIC_AUTH_USER PRELAUNCH_BASIC_AUTH_HASH REDIS_PASSWORD MEDIA_BASE_URL"
 
 conn_string() { # $1=資料庫名
   printf 'Server=tcp:%s,1433;Database=%s;User ID=%s;Password=%s;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;' \
@@ -378,6 +384,9 @@ CADDYFILE=./deploy/Caddyfile.prelaunch
 PRELAUNCH_BASIC_AUTH_USER=${BA_USER}
 PRELAUNCH_BASIC_AUTH_HASH='${BA_HASH}'
 REDIS_PASSWORD=${REDIS_PW}
+# 站台照片（Blob 公開唯讀容器 images）的網址基底，前台執行期設定 NUXT_PUBLIC_MEDIA_BASE_URL 的來源（infra/README.md §4.9）。
+# 預設由 az 查出俱樂部儲存體帳戶；日後換成 Cloudflare 圖片網域時改這一行即可，本腳本會沿用手改過的值。
+MEDIA_BASE_URL=${MEDIA_URL}
 EOF
 }
 
@@ -402,6 +411,14 @@ if [ "${DO_COMPOSE}" = 1 ]; then
     old=$(kv_get "${OLD_COMPOSE}" "$1")
     if [ -n "${old}" ]; then printf '%s' "${old}"; else printf '%s' "$2"; fi
   }
+  MEDIA_URL=$(carry MEDIA_BASE_URL "${MEDIA_BASE_URL_DEFAULT}")
+  case "${MEDIA_URL}" in
+    https://*) ;;
+    *) die "MEDIA_BASE_URL 必須以 https:// 開頭：${MEDIA_URL}" ;;
+  esac
+  case "${MEDIA_URL}" in
+    */ | *[[:space:]]* | *\'* | *\"*) die "MEDIA_BASE_URL 不得以 / 結尾，也不得含空白或引號" ;;
+  esac
   DOMAIN_LINES=""
   for k in ${DOMAIN_KEYS}; do
     val=$(carry "${k}" "$(example_get "${k}")")

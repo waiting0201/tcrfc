@@ -124,9 +124,9 @@ interface HeroSlide {
 }
 /** 既有 3 張真實照片（tcrfc 既有素材，S0-9 搬遷保留），banners 沒有可用資料時的回退。 */
 const STATIC_TCRFC_HERO_SLIDES: HeroSlide[] = [
-  { kind: 'image', imageUrl: '/assets/img/hero-01.jpg', videoUrl: '', alt: '台中磐石球員於夜間賽事中振臂吶喊慶祝，場邊看板可見桃紅色 TCRFC 字樣', width: 2400, height: 1600, objectPosition: '58% 35%' },
-  { kind: 'image', imageUrl: '/assets/img/hero-02.jpg', videoUrl: '', alt: '台中磐石5號球員於夜間賽事中揮腳觸球，身後可見場邊看台的球員與觀眾', width: 2400, height: 1600, objectPosition: '56% 30%' },
-  { kind: 'image', imageUrl: '/assets/img/hero-03.jpg', videoUrl: '', alt: '台中磐石一線隊球員賽前肩併肩圍成一圈，互相激勵士氣', width: 2400, height: 1600, objectPosition: '55% 42%' },
+  { kind: 'image', imageUrl: siteImg('/assets/img/hero-01.jpg'), videoUrl: '', alt: '台中磐石球員於夜間賽事中振臂吶喊慶祝，場邊看板可見桃紅色 TCRFC 字樣', width: 2400, height: 1600, objectPosition: '58% 35%' },
+  { kind: 'image', imageUrl: siteImg('/assets/img/hero-02.jpg'), videoUrl: '', alt: '台中磐石5號球員於夜間賽事中揮腳觸球，身後可見場邊看台的球員與觀眾', width: 2400, height: 1600, objectPosition: '56% 30%' },
+  { kind: 'image', imageUrl: siteImg('/assets/img/hero-03.jpg'), videoUrl: '', alt: '台中磐石一線隊球員賽前肩併肩圍成一圈，互相激勵士氣', width: 2400, height: 1600, objectPosition: '55% 42%' },
 ]
 /** 只收「真的有完整網址可用」的輪播——image 模式要有 imageUrl；video 模式要海報圖與影片
  * 網址皆有，缺一律整則跳過，不得對缺欄位的資料猜網址（比不顯示更糟的是顯示壞圖）。 */
@@ -519,7 +519,7 @@ onBeforeUnmount(() => {
             <template v-else>
             <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
-                <img src="/assets/img/news-trencin.jpg" alt="台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流" loading="lazy" width="1280" height="853">
+                <img :src="siteImg('/assets/img/news-trencin.jpg')" alt="台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流" loading="lazy" width="1280" height="853">
               </div>
               <div class="hero-card__body">
                 <span class="hero-card__tag">消息 News</span>
@@ -528,7 +528,7 @@ onBeforeUnmount(() => {
             </a>
             <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
-                <img src="/assets/img/news-mcu.jpg" alt="台中磐石 7 號球員於夜間比賽中盤球突破銘傳大學白色球衣防線" loading="lazy" width="1280" height="855">
+                <img :src="siteImg('/assets/img/news-mcu.jpg')" alt="台中磐石 7 號球員於夜間比賽中盤球突破銘傳大學白色球衣防線" loading="lazy" width="1280" height="855">
               </div>
               <div class="hero-card__body">
                 <span class="hero-card__tag">比賽 Matches</span>
@@ -642,23 +642,23 @@ onBeforeUnmount(() => {
         </div>
         <div class="roster-row">
           <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">9</span><img src="/assets/img/player-09-liu.jpg" alt="9 號球員 劉選手" loading="lazy" width="620" height="620"></div>
+            <div class="roster-card__photo"><span class="roster-card__num">9</span><img :src="siteImg('/assets/img/player-09-liu.jpg')" alt="9 號球員 劉選手" loading="lazy" width="620" height="620"></div>
             <p class="roster-card__name">#9 劉建緯　FW</p>
           </div>
           <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">11</span><img src="/assets/img/player-11-yang.jpg" alt="11 號球員 楊朝景，現效力香港九龍城" loading="lazy" width="620" height="620"></div>
+            <div class="roster-card__photo"><span class="roster-card__num">11</span><img :src="siteImg('/assets/img/player-11-yang.jpg')" alt="11 號球員 楊朝景，現效力香港九龍城" loading="lazy" width="620" height="620"></div>
             <p class="roster-card__name">#11 楊朝景　旅外</p>
           </div>
           <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">27</span><img src="/assets/img/player-27-shi.jpg" alt="27 號球員 施靖堂" loading="lazy" width="620" height="620"></div>
+            <div class="roster-card__photo"><span class="roster-card__num">27</span><img :src="siteImg('/assets/img/player-27-shi.jpg')" alt="27 號球員 施靖堂" loading="lazy" width="620" height="620"></div>
             <p class="roster-card__name">#27 施靖堂　FW</p>
           </div>
           <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">44</span><img src="/assets/img/player-44-yamauchi.jpg" alt="44 號球員 山內大空" loading="lazy" width="465" height="620"></div>
+            <div class="roster-card__photo"><span class="roster-card__num">44</span><img :src="siteImg('/assets/img/player-44-yamauchi.jpg')" alt="44 號球員 山內大空" loading="lazy" width="465" height="620"></div>
             <p class="roster-card__name">#44 山內大空　FW</p>
           </div>
           <div class="roster-card">
-            <div class="roster-card__photo"><span class="roster-card__num">77</span><img src="/assets/img/player-77-lin.jpg" alt="77 號球員 林偉傑" loading="lazy" width="465" height="620"></div>
+            <div class="roster-card__photo"><span class="roster-card__num">77</span><img :src="siteImg('/assets/img/player-77-lin.jpg')" alt="77 號球員 林偉傑" loading="lazy" width="465" height="620"></div>
             <p class="roster-card__name">#77 林偉傑　FW</p>
           </div>
         </div>
@@ -706,7 +706,7 @@ onBeforeUnmount(() => {
            圖卡退為深色底＋scrim（.pillar-card 本身的底色），待藍鯨素材到位再換。 -->
       <div class="pillars-grid">
         <a v-for="(pillar, i) in pillars" :id="pillar.id" :key="pillar.enLabel" class="pillar-card clip-card clip-card--on-dark" :href="lp(pillar.href)">
-          <img v-if="isTcrfc" :src="['/assets/img/news-mcu.jpg', '/assets/img/trencin-04.jpg', '/assets/img/trencin-05.jpg', '/assets/img/news-w20.jpg'][i]" :alt="pillar.imgAlt" loading="lazy" :width="pillar.imgWidth" :height="pillar.imgHeight">
+          <img v-if="isTcrfc" :src="[siteImg('/assets/img/news-mcu.jpg'), siteImg('/assets/img/trencin-04.jpg'), siteImg('/assets/img/trencin-05.jpg'), siteImg('/assets/img/news-w20.jpg')][i]" :alt="pillar.imgAlt" loading="lazy" :width="pillar.imgWidth" :height="pillar.imgHeight">
           <div class="pillar-card__scrim" aria-hidden="true"></div>
           <div class="pillar-card__body">
             <p class="pillar-card__en">{{ pillar.enLabel }}</p>
@@ -792,7 +792,7 @@ onBeforeUnmount(() => {
           </li>
         </ul>
         <div v-else class="store-visual clip-card clip-card--on-dark">
-          <img src="/assets/img/player-09-liu.jpg" alt="球員身著台中磐石主場球衣" loading="lazy" width="620" height="620">
+          <img :src="siteImg('/assets/img/player-09-liu.jpg')" alt="球員身著台中磐石主場球衣" loading="lazy" width="620" height="620">
           <span class="store-visual__badge">台中磐石主場球衣</span>
         </div>
       </div>

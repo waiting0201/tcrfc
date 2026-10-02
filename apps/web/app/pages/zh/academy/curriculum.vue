@@ -33,7 +33,7 @@ const hero = computed(() => getAcademyCurriculumHero(clubKey.value))
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無青年隊訓練照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石學院照片頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/academy/life-06.jpg" alt="" width="1600" height="900">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/academy/life-06.jpg')" alt="" width="1600" height="900">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '4.4 Training &amp; Curriculum' : '4.4' }}</p>

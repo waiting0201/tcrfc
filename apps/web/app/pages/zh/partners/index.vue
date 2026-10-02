@@ -35,7 +35,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <ClubHeroBg src="/assets/img/nav-partners.jpg" width="1600" height="900" />
+  <ClubHeroBg :src="siteImg('/assets/img/nav-partners.jpg')" width="1600" height="900" />
   <div class="container">
     <p class="page-hero__eyebrow">09 Partners & Sponsors</p>
     <h1>合作夥伴與贊助<span class="en">Partners &amp; Sponsors</span></h1>

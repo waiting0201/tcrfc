@@ -76,7 +76,7 @@ const milestoneYears = computed(() => {
 </nav>
 
 <section class="page-hero page-hero--media">
-  <ClubHeroBg src="/assets/img/nav-about.jpg" width="1600" height="900" />
+  <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ aboutEyebrow('2.8', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
@@ -151,7 +151,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2024-11-05</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2024-11-05-international-082.jpg" alt="台中磐石與RC Alcobendas達成合作協議" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2024-11-05-international-082.jpg')" alt="台中磐石與RC Alcobendas達成合作協議" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">國際 International</p>
               <h4 class="timeline-item__title">台中磐石與 RC Alcobendas 達成合作協議</h4>
@@ -159,7 +159,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2024-12-18</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2024-12-18-club-079.jpg" alt="台中磐石有條件地通過甲級俱樂部認證" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2024-12-18-club-079.jpg')" alt="台中磐石有條件地通過甲級俱樂部認證" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">俱樂部 Club</p>
               <h4 class="timeline-item__title">有條件地通過甲級俱樂部認證</h4>
@@ -167,7 +167,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2024-12-18</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2024-12-18-club-080.jpg" alt="林教練獲最佳教練獎、楊朝景獲金靴獎" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2024-12-18-club-080.jpg')" alt="林教練獲最佳教練獎、楊朝景獲金靴獎" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">榮譽 Honours</p>
               <h4 class="timeline-item__title">林教練獲最佳教練獎、楊朝景獲金靴獎</h4>
@@ -183,7 +183,7 @@ const milestoneYears = computed(() => {
         <ol class="timeline-list">
           <li class="timeline-item">
             <p class="timeline-item__date">2025-01-07</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-01-07-club-078.jpg" alt="台中磐石獲臺中市政府運動局在合作及冠名上的認可" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-01-07-club-078.jpg')" alt="台中磐石獲臺中市政府運動局在合作及冠名上的認可" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">俱樂部 Club</p>
               <h4 class="timeline-item__title">獲臺中市政府運動局在合作及冠名上的認可</h4>
@@ -191,7 +191,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-04-11</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-04-11-club-061.jpg" alt="周宇杰加盟台中磐石" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-04-11-club-061.jpg')" alt="周宇杰加盟台中磐石" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">引援 Signing</p>
               <h4 class="timeline-item__title">周宇杰加盟台中磐石</h4>
@@ -199,7 +199,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-04-11</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-04-11-club-062.jpg" alt="廖奕盛加盟台中磐石" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-04-11-club-062.jpg')" alt="廖奕盛加盟台中磐石" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">引援 Signing</p>
               <h4 class="timeline-item__title">廖奕盛加盟台中磐石</h4>
@@ -207,7 +207,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-04-11</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-04-11-club-063.jpg" alt="旅德好手王義友加盟台中磐石" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-04-11-club-063.jpg')" alt="旅德好手王義友加盟台中磐石" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">引援 Signing</p>
               <h4 class="timeline-item__title">旅德好手王義友加盟台中磐石</h4>
@@ -215,7 +215,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-07-25</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-07-25-club-046.jpg" alt="2025台中磐石國際足球盃記者會" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-07-25-club-046.jpg')" alt="2025台中磐石國際足球盃記者會" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">俱樂部 Club</p>
               <h4 class="timeline-item__title">主辦「2025 台中磐石國際足球盃」，舉行賽前記者會</h4>
@@ -223,7 +223,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-07-27</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-07-27-international-043.jpg" alt="台中磐石與德國 Rot Weiss Ahlen 簽署合作諒解備忘錄" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-07-27-international-043.jpg')" alt="台中磐石與德國 Rot Weiss Ahlen 簽署合作諒解備忘錄" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">國際 International</p>
               <h4 class="timeline-item__title">與德國 Rot Weiss Ahlen 簽署合作諒解備忘錄</h4>
@@ -231,7 +231,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-07-30</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-07-30-international-040.jpg" alt="台中磐石將與義甲球會 Hellas Verona 簽署合作備忘錄" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-07-30-international-040.jpg')" alt="台中磐石將與義甲球會 Hellas Verona 簽署合作備忘錄" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">國際 International</p>
               <h4 class="timeline-item__title">與義甲球會 Hellas Verona 簽署合作備忘錄，推動台義足球交流</h4>
@@ -239,7 +239,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-11-03</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-11-03-club-027.jpg" alt="陳曉明出任台中磐石足球俱樂部技術顧問" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-11-03-club-027.jpg')" alt="陳曉明出任台中磐石足球俱樂部技術顧問" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">俱樂部 Club</p>
               <h4 class="timeline-item__title">陳曉明出任俱樂部技術顧問</h4>
@@ -247,7 +247,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-11-04</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2025-11-04-international-026.jpg" alt="台中磐石球員啟程赴義大利訓練，與維羅納合作邁出第一步" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-11-04-international-026.jpg')" alt="台中磐石球員啟程赴義大利訓練，與維羅納合作邁出第一步" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">國際 International</p>
               <h4 class="timeline-item__title">與義甲維羅納合作邁出第一步，球員啟程赴義大利訓練</h4>
@@ -263,7 +263,7 @@ const milestoneYears = computed(() => {
         <ol class="timeline-list">
           <li class="timeline-item">
             <p class="timeline-item__date">2026-01-12</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2026-01-12-community-017.jpg" alt="台中磐石攜手Subkarma深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2026-01-12-community-017.jpg')" alt="台中磐石攜手Subkarma深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">社區 Community</p>
               <h4 class="timeline-item__title">攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園</h4>
@@ -271,7 +271,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2026-02-06</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2026-02-06-international-016.jpg" alt="台中磐石5名球員獲義大利萊尼亞戈點名赴義訓練" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2026-02-06-international-016.jpg')" alt="台中磐石5名球員獲義大利萊尼亞戈點名赴義訓練" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">國際 International</p>
               <h4 class="timeline-item__title">5 名球員獲義大利萊尼亞戈點名赴義訓練</h4>
@@ -279,7 +279,7 @@ const milestoneYears = computed(() => {
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2026-08-10</p>
-            <div class="timeline-item__media"><img src="/assets/img/news/2026-08-10-international-000.jpg" alt="台中磐石與AS Trenčín深化青訓合作" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2026-08-10-international-000.jpg')" alt="台中磐石與AS Trenčín深化青訓合作" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
               <p class="timeline-item__tag">國際 International</p>
               <h4 class="timeline-item__title">與 AS Trenčín 深化青訓合作，共創台斯足球交流新篇章</h4>

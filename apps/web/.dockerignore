@@ -19,3 +19,7 @@ npm-debug.log*
 README.md
 Dockerfile
 .dockerignore
+
+# 🔴 客戶照片（含未成年學員肖像）不得進映像檔：照片走 Azure Blob（NUXT_PUBLIC_MEDIA_BASE_URL），
+# 見 apps/web/README.md 與 docs/14。本機有 rsync 過來的照片時，docker build 也不會打包。
+public/assets/img

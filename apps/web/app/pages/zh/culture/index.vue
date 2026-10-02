@@ -35,7 +35,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <ClubHeroBg src="/assets/img/nav-culture.jpg" width="1600" height="900" />
+  <ClubHeroBg :src="siteImg('/assets/img/nav-culture.jpg')" width="1600" height="900" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '08 TCRFC Culture' : '08 Culture' }}</p>
     <h1>{{ identity.cultureLabelZh }}<span class="en">Culture</span></h1>
@@ -67,7 +67,7 @@ useSeoMeta({
         </div>
       </a>
       <a class="unit-card" :href="lp('/zh/culture/fan-club/')">
-        <img v-if="isTcrfc" src="/assets/img/fanclub/fanclub-event-04.jpg" alt="" loading="lazy" width="1600" height="1067">
+        <img v-if="isTcrfc" :src="siteImg('/assets/img/fanclub/fanclub-event-04.jpg')" alt="" loading="lazy" width="1600" height="1067">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">8.2</p>
@@ -77,7 +77,7 @@ useSeoMeta({
         </div>
       </a>
       <a class="unit-card" :href="lp('/zh/culture/merchandise/')">
-        <img v-if="isTcrfc" src="/assets/img/merch/merch-jersey-01.jpg" alt="" loading="lazy" width="1600" height="1067">
+        <img v-if="isTcrfc" :src="siteImg('/assets/img/merch/merch-jersey-01.jpg')" alt="" loading="lazy" width="1600" height="1067">
         <div class="unit-card__scrim" aria-hidden="true"></div>
         <div class="unit-card__body">
           <p class="unit-card__num">8.3</p>

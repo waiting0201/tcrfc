@@ -80,7 +80,7 @@ useCourseSchema(
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨目前沒有對應的夏令營活動，不沿用磐石照片頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/programs/summer-camp-05.jpg" alt="" width="1600" height="1200">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/programs/summer-camp-05.jpg')" alt="" width="1600" height="1200">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '5.2 Programs' : '5.2' }}</p>
@@ -112,7 +112,7 @@ useCourseSchema(
     </div>
     <div class="grid grid--2">
       <figure class="clip-card" style="margin:0;">
-        <img src="/assets/img/programs/summer-camp-02.jpg" loading="lazy" width="1600" height="1200" alt="台中磐石與德國 Rot Weiss Ahlen 足球俱樂部代表於簽約儀式上握手，背板印有雙方隊徽與合作備忘錄字樣">
+        <img :src="siteImg('/assets/img/programs/summer-camp-02.jpg')" loading="lazy" width="1600" height="1200" alt="台中磐石與德國 Rot Weiss Ahlen 足球俱樂部代表於簽約儀式上握手，背板印有雙方隊徽與合作備忘錄字樣">
 
       </figure>
 
@@ -178,9 +178,9 @@ useCourseSchema(
       <h2 id="sc-gallery-title">往年花絮</h2>
     </div>
     <div class="photo-grid">
-      <figure class="clip-card"><img src="/assets/img/programs/summer-camp-03.jpg" loading="lazy" width="1600" height="1200" alt="一名學員於室外球場上凌空控球，展現盤球技巧動作"><figcaption>技巧練習片刻</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/summer-camp-04.jpg" loading="lazy" width="1600" height="1200" alt="穿著台中磐石白色球衣的兒童學員手比勝利手勢，於場邊補充水分"><figcaption>訓練空檔補水休息</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/summer-camp-06.jpg" loading="lazy" width="1600" height="1200" alt="教室內學員坐在課桌前，聆聽外籍教師以投影片進行課程說明"><figcaption>營隊課室活動</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/summer-camp-03.jpg')" loading="lazy" width="1600" height="1200" alt="一名學員於室外球場上凌空控球，展現盤球技巧動作"><figcaption>技巧練習片刻</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/summer-camp-04.jpg')" loading="lazy" width="1600" height="1200" alt="穿著台中磐石白色球衣的兒童學員手比勝利手勢，於場邊補充水分"><figcaption>訓練空檔補水休息</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/summer-camp-06.jpg')" loading="lazy" width="1600" height="1200" alt="教室內學員坐在課桌前，聆聽外籍教師以投影片進行課程說明"><figcaption>營隊課室活動</figcaption></figure>
     </div>
   </div>
 </section>

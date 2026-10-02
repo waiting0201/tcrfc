@@ -34,7 +34,7 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無已核實可用的訓練場景照片可用，不沿用磐石照片頂替（比照 academy/pathway.vue 既有做法） -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/trencin-05.jpg" alt="" width="1920" height="1279">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/trencin-05.jpg')" alt="" width="1920" height="1279">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ clubKey === 'bw' ? '3.2' : '3.2 Player Development' }}</p>

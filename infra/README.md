@@ -15,6 +15,7 @@
 | [`main.bicep`](main.bicep) | 入口，範圍是 resource group `rg-tcrfc-prod` |
 | [`main.bicepparam`](main.bicepparam) | 參數檔：Cloudflare IP 段寫在這裡；機密與個人化的值由環境變數帶入 |
 | [`provision-secrets.sh`](provision-secrets.sh) | 在 Mac 執行：把機密檔與金鑰環目錄寫進 VM 並驗證（§4.3） |
+| [`upload-site-images.sh`](upload-site-images.sh) | 在 Mac 執行：把前台的站台照片處理成 WebP 並上傳 Blob（§4.9） |
 | [`../deploy/prod-db-init.sh`](../deploy/prod-db-init.sh) | 在 VM 上執行：正式庫首次初始化（建表、參照資料、migration 歷史、第一個管理員；§4.8） |
 | [`cloud-init.yaml`](cloud-init.yaml) | VM 首次開機：安裝 Docker ＋ Compose、建 `runner` 使用者與 `/opt/tcrfc/` 目錄 |
 | [`modules/network.bicep`](modules/network.bicep) | VNet、`snet-app`、NSG、靜態 Public IP（含鎖） |
@@ -334,7 +335,7 @@ GitHub Runners 頁面應顯示 `vm-tcrfc-prod` 為 Idle、label `tcrfc-vm`。
 
 ⚠️ `ASPNETCORE_ENVIRONMENT`（Dockerfile 寫死 `Production`）不要在任何 env 檔覆寫；上述「未設時的行為」全部以它為前提。
 
-**compose 本身用的 `/opt/tcrfc/.env`**：`GHCR_OWNER`、`IMAGE_TAG`、`SITE_ENV`（缺則 compose 報錯）、六個 `*_DOMAIN`、`ACME_EMAIL`、`CADDYFILE`、`PRELAUNCH_BASIC_AUTH_USER`／`_HASH`、`REDIS_PASSWORD`。
+**compose 本身用的 `/opt/tcrfc/.env`**：`GHCR_OWNER`、`IMAGE_TAG`、`SITE_ENV`（缺則 compose 報錯）、六個 `*_DOMAIN`、`ACME_EMAIL`、`CADDYFILE`、`PRELAUNCH_BASIC_AUTH_USER`／`_HASH`、`REDIS_PASSWORD`、**`MEDIA_BASE_URL`**（站台照片的 Blob 網址基底，compose 轉成 `NUXT_PUBLIC_MEDIA_BASE_URL` 給兩個 Nuxt 前台；`provision-secrets.sh` 自動推出，見 §4.9；沒設＝空字串，不阻擋啟動）。
 腳本寫入 `SITE_ENV=prelaunch`、`CADDYFILE=./deploy/Caddyfile.prelaunch` 與 `.env.example` 的六個 stg 網域；Basic Auth 雜湊在 VM 上以與 compose 同版的 `caddy hash-password` 產生（密碼走 stdin）。
 不要填 `MSSQL_DEV_SA_PASSWORD`（只給本機開發）。**切正式網址時**手動編輯此檔（§5），之後腳本會因 `SITE_ENV=production` 拒絕改動它。
 
@@ -495,6 +496,83 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 ✅ **原生 `json` 不相容已於 2026-10-01 修正（`docs/20` §5、`docs/18` `E-111`）**：營業時間改存 `{"text":"…"}`，其餘 json 欄位寫入端以 `Common/JsonColumn.cs` 守門（純量回 400）。新聞內文 `body` 純文字寫入時包成 `{"text":"…"}`、讀取還原，對外不變，後台新聞照常可儲存；**初始化後請勿用舊版 api 映像檔**（舊版仍會把營業時間寫成字串純量而 500），以 `build-api` 在本修正之後建出的映像檔為準。
 
 ⚠️ **這支腳本使用 SQL 管理員帳號**（連線字串來自 `club.env`／`charity.env`），與 `api` 日常連線相同（§8 待決 4：之後建議改用最小權限的資料庫使用者）。
+
+### 4.9 站台照片（Blob）
+
+> 🔵 **使用者 2026-10-02 決定**：主站前台約 150 張客戶照片（`apps/web/public/assets/img/`，不納版控，含未成年學員）**不進 repo、不進映像檔**，改由 Azure Blob 提供。前台程式端的改法見 `STATUS.md` S0-9o；本節是上傳與設定。
+
+**契約（前台程式與本節一致，不得單方更改）**
+
+| 項目 | 值 |
+|---|---|
+| 儲存體 | 俱樂部帳戶 `sttcrfcclub<uniq>`（腳本用 `az` 查出，必須恰好一個） |
+| 容器 | `images`（匿名 blob 讀取，見 §2） |
+| 物件鍵 | `site/<public/assets/img 底下的相對路徑，副檔名改 .webp>`，例：`hero-01.jpg` → `site/hero-01.webp`；`.svg` 不上傳（隨前台建置） |
+| 前台設定 | `NUXT_PUBLIC_MEDIA_BASE_URL` ＝ `https://<帳戶>.blob.core.windows.net/images`（日後可換 CDN 網域）。compose 從 `/opt/tcrfc/.env` 的 **`MEDIA_BASE_URL`** 帶入兩個 Nuxt 前台（主站、藍鯨） |
+
+**處理規則（依主站規劃書 §4.0 圖片上傳通則，與後台「上傳即縮圖」的主檔規則一致）**
+
+1. 依 EXIF 方向轉正（先轉正再去 EXIF，否則方向資訊先被丟掉，照片會躺著）。
+2. 長邊超過 **2560px** 才等比縮小，不放大。
+3. 去除**全部**中繼資料（EXIF 含 GPS、拍攝裝置與時間、XMP、IPTC、內嵌 ICC）。腳本對每一張輸出立即驗證（WebP 格式、長邊 ≤ 2560、無任何 profile／EXIF），任何一張不過就中止、不上傳。
+4. 轉 **WebP 品質 82**（`-define webp:method=6`，壓縮最細；alpha 品質 100）。82 是照片的常用折衷：肉眼幾乎看不出與原圖差異，體積約為原 JPEG 的四成（現有素材約 59 MB → 約 25 MB）。要調整用 `QUALITY=<1–100>`；配方變了，已上傳的物件會因配方標記不同而被重傳。
+5. **不做** 1280／640／320 衍生檔與 160px 縮圖：那是後台上傳資料列圖片時的規則（物件鍵由主檔推導）；站台照片是靜態版面素材，一張一個物件，由前台直接引用。
+
+**工具**：容器化的 ImageMagick 7（預設 `dpokidov/imagemagick:latest`，可用 `IM_IMAGE` 換）。你只需要 Docker Desktop 與 `az`，不用另外安裝 ImageMagick。來源資料夾以**唯讀**掛載，腳本不寫、不刪、不改來源檔；處理結果寫在 `$TMPDIR` 下的暫存目錄，結束（含失敗）時一律清除。
+
+**Blob 屬性**：`Content-Type: image/webp`；`Cache-Control: public, max-age=604800`（7 天）。為什麼不是 `immutable` 加一年：物件鍵不含內容雜湊，同一把鍵日後可能被換圖，長快取會讓換圖最久一年看不到；7 天到期後瀏覽器用 ETag 重新驗證（未變動回 304，不重傳）。要讓換圖立即生效，日後走 Cloudflare 時清該網址的快取。
+
+**授權（只做一次）**：預設用你的 `az login` 身分上傳（`--auth-mode login`），需要帳戶上的 **Storage Blob Data Contributor**。訂閱 Owner **沒有**資料平面權限，所以多半要先授權。腳本讀不到容器時會停在上傳前並印出完整指令，形式如下（由你自己執行；角色約 1–5 分鐘生效）：
+
+```bash
+SA=$(az storage account list -g rg-tcrfc-prod --query "[?starts_with(name, 'sttcrfcclub')].name" -o tsv)
+az role assignment create \
+  --assignee "$(az ad signed-in-user show --query id -o tsv)" \
+  --role 'Storage Blob Data Contributor' \
+  --scope "$(az storage account show -g rg-tcrfc-prod -n "${SA}" --query id -o tsv)"
+```
+
+不想授權也可改用帳戶金鑰：`AUTH_MODE=key bash infra/upload-site-images.sh`（az 自己取金鑰，不會印出或進命令列；需要你對帳戶有 listKeys 權限，Owner／Contributor 有）。
+
+**步驟**
+
+```bash
+# 1. 先看會傳什麼（不處理、不上傳；不需要 docker）
+bash infra/upload-site-images.sh --dry-run
+
+# 2. 實際處理並上傳（約 1–3 分鐘；結尾會匿名 GET 一個物件確認公開可讀）
+bash infra/upload-site-images.sh
+
+# 3. 把網址基底寫進 VM 的 /opt/tcrfc/.env（見下），再部署前台
+```
+
+照片範圍＝`apps/web/scripts/site-images.txt`（前台實際引用的照片，由前台的 `lint:site-images` 維護）。清單不存在時退回「整個資料夾」並警告——那會把前台沒用到的照片（含未成年學員素材）也傳上去，請先確認清單在。`--all` 強制處理整個資料夾、`--list <檔案>` 指定別的清單、`--force` 無視雲端現況全部重傳。
+
+**重跑**：每個物件的 metadata（`srchash`）記著「處理配方＋來源檔 SHA-256」。重跑時來源與配方都沒變的略過，只傳有變的；中途失敗（網路、權限）直接重跑即可，已成功的不重傳。**腳本永遠不刪雲端物件**：清單縮小或改名後，舊物件留在 `site/` 底下，要清得自己用 `az storage blob delete` 或入口網站刪。
+
+**`MEDIA_BASE_URL` 寫進 VM**：重跑 [`provision-secrets.sh`](provision-secrets.sh)（選擇覆寫 `/opt/tcrfc/.env`）會自動從 `az` 推出預設值並寫入，手改過的值（例如換成 CDN 網域）會沿用。若 `/opt/tcrfc/.env` 已是 `SITE_ENV=production`，該腳本拒絕改它，請手動加一行 `MEDIA_BASE_URL=https://<帳戶>.blob.core.windows.net/images`，再 `docker compose up -d` 重建兩個 Nuxt 容器（這是**執行期**設定，不必重建映像檔）。
+
+**驗證**
+
+```bash
+curl -sI "$(grep '^MEDIA_BASE_URL=' /opt/tcrfc/.env | cut -d= -f2-)/site/hero-01.webp" | head -8
+# 預期：HTTP/2 200、content-type: image/webp、cache-control: public, max-age=604800
+```
+
+**日後被後台內容取代**：站台照片是「上線前讓前台版面有真實照片」的過渡素材。正式內容（球員、新聞、課程等）走後台上傳後，圖片屬於各自的資料列、物件鍵由 `ImageProcessor` 產生（`images/` 下的其他前綴），前台改讀資料列的圖片欄位；對應位置不再引用 `site/…`。屆時 `site/` 底下用不到的物件可手動清除，本腳本與契約不需修改。
+
+**取捨（使用者已接受，2026-10-02）**：`images` 是**匿名公開唯讀**容器——**知道網址就讀得到**，**不受測試站 Basic Auth 保護**（Basic Auth 只擋三個前台網域，擋不到 `*.blob.core.windows.net`）。物件鍵可預測（如 `site/academy/life-01.webp`），其中含未成年學員照片；容器**不能列舉**，但無法防止有人猜網址或被轉貼。正式上線前若要收緊，做法見 §4.7（Cloudflare 圖片網域）與 §8 風險 1。
+
+**疑難排解**
+
+| 現象 | 原因與處理 |
+|---|---|
+| `AuthorizationPermissionMismatch`／「You do not have the required permissions」 | 沒有 Storage Blob Data Contributor，照上面授權；剛授權完等幾分鐘再試 |
+| `docker 沒有在執行` | 開啟 Docker Desktop。`--dry-run` 不需要 docker |
+| 處理失敗：某張「輸出仍含中繼資料」或「長邊超過」 | 不上傳任何東西；把檔名連同訊息回報（來源未被動到） |
+| 警告「內嵌色彩設定檔不是 sRGB」 | 去除設定檔後顏色可能偏移；現有素材皆為 sRGB 或無設定檔，出現代表有新素材，請先確認色彩 |
+| 匿名 GET 不是 200 | 容器是否匿名 blob 讀取、帳戶是否允許公開網路（§2、§4.7） |
+| 前台網址仍是本機路徑 | VM `.env` 沒有 `MEDIA_BASE_URL` 或容器未重建（`docker compose config \| grep MEDIA`） |
 
 ## 5. 從測試網址切到正式網址
 

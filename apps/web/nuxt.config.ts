@@ -37,6 +37,12 @@ export default defineNuxtConfig({
       // 藍鯨官網的按鈕連結，所以可以在這裡直接給預設值（Nuxt runtimeConfig.public 對
       // NUXT_PUBLIC_* 環境變數的覆寫本來就是標準機制，不需要像 site.url 那樣特別留空）。
       blueWhaleSiteUrl: 'https://bw-stg.tcrfc.tw',
+      // NUXT_PUBLIC_MEDIA_BASE_URL：站台靜態照片的來源（Azure Blob `images` 容器，公開唯讀，
+      // 形如 https://<帳戶>.blob.core.windows.net/images，日後可換 CDN 網域）。
+      // 網址＝`${mediaBaseUrl}/site/<路徑>.webp`，對照規則在 app/utils/siteImage.ts。
+      // 🔴 留空＝本機開發：回退讀 `public/assets/img/` 原檔（不納版控）。正式環境一律要設，
+      // 且 `docker-compose.yml` 的 `nuxt-tcrfc`／`nuxt-bw` 都要帶（E-112 同類：新增網址鍵要同步 compose）。
+      mediaBaseUrl: '',
     },
   },
 

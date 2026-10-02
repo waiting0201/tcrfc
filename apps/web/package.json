@@ -8,7 +8,7 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "lint": "npm run lint:node-version && npm run lint:club-copy && npm run lint:match-status && npm run lint:homepage-fidelity && npm run lint:undefined-template-refs && npm run lint:fact-single-source && npm run lint:site-units-coverage && npm run lint:faq-schema && npm run lint:schema-batch2 && npm run lint:weekly-schedule && npm run lint:bw-units-citation && npm run lint:shop-lib && npm run lint:eslint",
+    "lint": "npm run lint:node-version && npm run lint:club-copy && npm run lint:match-status && npm run lint:homepage-fidelity && npm run lint:undefined-template-refs && npm run lint:fact-single-source && npm run lint:site-units-coverage && npm run lint:faq-schema && npm run lint:schema-batch2 && npm run lint:weekly-schedule && npm run lint:bw-units-citation && npm run lint:shop-lib && npm run lint:site-images && npm run lint:eslint",
     "lint:eslint": "eslint .",
     "lint:club-copy": "node scripts/check-club-copy.mjs",
     "lint:match-status": "node scripts/check-match-status.mjs",
@@ -21,6 +21,8 @@
     "lint:weekly-schedule": "node scripts/check-weekly-schedule.mjs",
     "lint:bw-units-citation": "node scripts/check-bw-units-citation.mjs",
     "lint:shop-lib": "node scripts/check-shop-lib.mjs",
+    "lint:site-images": "node scripts/check-site-images.mjs",
+    "site-images:write": "node scripts/check-site-images.mjs --write",
     "lint:node-version": "node ../../scripts/check-node-version.mjs"
   },
   "dependencies": {

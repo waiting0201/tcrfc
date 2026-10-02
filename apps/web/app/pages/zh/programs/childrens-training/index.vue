@@ -96,7 +96,7 @@ useCourseSchema(
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無已核實可用的兒童訓練照片可用，不沿用磐石照片頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/programs/childrens-03.jpg" alt="" width="1600" height="1067">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/programs/childrens-03.jpg')" alt="" width="1600" height="1067">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '5.1 Programs' : '5.1' }}</p>
@@ -239,12 +239,12 @@ useCourseSchema(
       <p>由台中磐石主辦的兒童足球嘉年華活動，邀集台中多所國小與地區球隊參與，是兒童足球訓練學員展現學習成果、與其他球隊交流的年度活動之一。</p>
     </div>
     <div class="photo-grid">
-      <figure class="clip-card"><img src="/assets/img/programs/childrens-02.jpg" loading="lazy" width="1600" height="1067" alt="台中磐石足球節活動現場，多支國小球隊球員席地而坐聆聽工作人員說明活動流程"><figcaption>台中磐石足球節：賽前集合說明</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/childrens-03.jpg" loading="lazy" width="1600" height="1067" alt="多支參賽國小足球隊學員與教練於場邊合影，手持隊旗與台中磐石活動布條"><figcaption>台中磐石足球節：參賽隊伍合影</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/childrens-04.jpg" loading="lazy" width="1600" height="1067" alt="兒童球員於場上爭搶控球，隊友於後方跟進包抄"><figcaption>台中磐石足球節：場上比賽</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/childrens-05.jpg" loading="lazy" width="1600" height="1067" alt="教練蹲低與一組兒童球員圍圈講解戰術板上的站位安排"><figcaption>台中磐石足球節：教練賽中講解</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/childrens-06.jpg" loading="lazy" width="1600" height="1067" alt="場邊觀眾為正在射門的兒童球員加油，家長舉傘遮陽觀賽"><figcaption>台中磐石足球節：場邊加油</figcaption></figure>
-      <figure class="clip-card"><img src="/assets/img/programs/childrens-07.jpg" loading="lazy" width="1600" height="1067" alt="兩名兒童球員在球場上近身爭搶球權"><figcaption>台中磐石足球節：一對一對抗</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-02.jpg')" loading="lazy" width="1600" height="1067" alt="台中磐石足球節活動現場，多支國小球隊球員席地而坐聆聽工作人員說明活動流程"><figcaption>台中磐石足球節：賽前集合說明</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-03.jpg')" loading="lazy" width="1600" height="1067" alt="多支參賽國小足球隊學員與教練於場邊合影，手持隊旗與台中磐石活動布條"><figcaption>台中磐石足球節：參賽隊伍合影</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-04.jpg')" loading="lazy" width="1600" height="1067" alt="兒童球員於場上爭搶控球，隊友於後方跟進包抄"><figcaption>台中磐石足球節：場上比賽</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-05.jpg')" loading="lazy" width="1600" height="1067" alt="教練蹲低與一組兒童球員圍圈講解戰術板上的站位安排"><figcaption>台中磐石足球節：教練賽中講解</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-06.jpg')" loading="lazy" width="1600" height="1067" alt="場邊觀眾為正在射門的兒童球員加油，家長舉傘遮陽觀賽"><figcaption>台中磐石足球節：場邊加油</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-07.jpg')" loading="lazy" width="1600" height="1067" alt="兩名兒童球員在球場上近身爭搶球權"><figcaption>台中磐石足球節：一對一對抗</figcaption></figure>
     </div>
 
   </div>

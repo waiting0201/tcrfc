@@ -43,7 +43,7 @@ const joinPlayerCard = computed(() => getHomeCtaTrio(clubKey.value, facts.value)
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img v-if="isTcrfc" class="page-hero__bg" src="/assets/img/nav-club.jpg" alt="" width="1920" height="1279">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/nav-club.jpg')" alt="" width="1920" height="1279">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '03 Football Club' : '03' }}</p>

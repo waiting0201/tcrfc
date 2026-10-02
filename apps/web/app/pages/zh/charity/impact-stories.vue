@@ -47,7 +47,7 @@ interface TimelineYear { key: string, label: string, items: TimelineItem[] }
 /** 後端沒有任何事蹟時的過渡內容（見檔頭）：三筆都有對應的俱樂部新聞報導。 */
 const STATIC_YEARS: TimelineYear[] = [
   { key: '2026', label: '2026', items: [{
-    key: 's-2026-01-12', date: '2026-01-12', imageUrl: '/assets/img/news/2026-01-12-community-017.jpg',
+    key: 's-2026-01-12', date: '2026-01-12', imageUrl: siteImg('/assets/img/news/2026-01-12-community-017.jpg'),
     imageAlt: '台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場', imageWidth: 640, imageHeight: 427, extraThumbs: [],
     title: '潭秀非營利幼兒園',
     facts: [
@@ -56,7 +56,7 @@ const STATIC_YEARS: TimelineYear[] = [
     ],
   }] },
   { key: '2025', label: '2025', items: [{
-    key: 's-2025-05-03', date: '2025-05-03', imageUrl: '/assets/img/news/2025-05-03-camps-056.jpg',
+    key: 's-2025-05-03', date: '2025-05-03', imageUrl: siteImg('/assets/img/news/2025-05-03-camps-056.jpg'),
     imageAlt: '2025台中磐石盃足球邀請賽活動現場', imageWidth: 640, imageHeight: 480, extraThumbs: [],
     title: '台中磐石盃少年足球隊伍',
     facts: [{ label: '相關活動', text: '2025 台中磐石盃足球邀請賽' }],
@@ -118,7 +118,7 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" src="/assets/img/news/2026-01-12-community-017.jpg" alt="" width="1600" height="1068">
+  <img class="page-hero__bg" :src="siteImg('/assets/img/news/2026-01-12-community-017.jpg')" alt="" width="1600" height="1068">
   <div class="container">
     <p class="page-hero__eyebrow">11.3 Impact Stories</p>
     <h1>慈善事蹟<span class="en">Impact Stories</span></h1>

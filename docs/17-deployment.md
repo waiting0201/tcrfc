@@ -636,6 +636,21 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 私有提案的下載 | **只經 API 串流**：訪客 `POST` 表單建立 Lead 後拿到 **30 分鐘**限時連結，`GET` 由 API 從私有容器串流，`Cache-Control: private, no-store` | 權杖用 ASP.NET Core Data Protection 的 time-limited protector 簽發（綁定俱樂部與檔案，不查庫）。⚠️ **金鑰環須持久化**（同 2FA 密鑰的既有要求，`DATA_PROTECTION_KEYS_PATH`）——容器重建後金鑰換掉，**已發出但未使用的連結會失效**（最多影響 30 分鐘內的連結，訪客重新填表即可，比 2FA 密鑰遺失輕微） |
 | Kestrel 請求主體上限 | 沿用 `圖片 10 MB ＋ 影片 50 MB ＋ 1 MB` 的總上限，足以容納「檔案 ≤ 50 MB ＋ 封面圖 ≤ 10 MB」的同一次 multipart 請求 | 不需要為檔案另外調高上限 |
 
+### 站台照片改由 Blob 提供（2026-10-02，`deployment-engineer`；使用者決定）
+
+主站前台約 150 張客戶照片（`apps/web/public/assets/img/`，不納版控、含未成年學員）**不進 repo、不進映像檔**，改放俱樂部儲存體 `images` 容器的 `site/` 前綴，前台執行期設定 `NUXT_PUBLIC_MEDIA_BASE_URL` 指向容器網址（compose 由 `/opt/tcrfc/.env` 的 `MEDIA_BASE_URL` 帶入，日後可換 Cloudflare 圖片網域）。
+
+| 項目 | 決定 |
+|---|---|
+| 物件鍵 | `site/<相對路徑，副檔名改 .webp>`；`.svg` 不上傳 |
+| 處理 | 依規劃書 §4.0：EXIF 轉正 → 長邊 ≤ 2560 → 去除全部中繼資料（含 GPS）→ WebP 品質 82。**不做**後台上傳才有的 1280／640／320 與 160px 衍生檔（靜態版面素材一張一物件） |
+| 屬性 | `Content-Type: image/webp`、`Cache-Control: public, max-age=604800`（物件鍵不含雜湊，不用 `immutable`） |
+| 上傳 | 使用者 Mac 執行 [`infra/upload-site-images.sh`](../infra/upload-site-images.sh)（容器化 ImageMagick、可重跑、`--dry-run`、不刪雲端物件）；認證預設 `az login` 加 **Storage Blob Data Contributor**（需使用者自行授權），或 `AUTH_MODE=key` |
+| 取捨（使用者已接受） | 容器匿名公開唯讀：**知道網址即可讀、不受測試站 Basic Auth 保護**，其中含未成年學員照片；與 §7 風險 11 同一類（公開圖片容器），正式上線前可改走 Cloudflare 圖片網域收緊 |
+| 與後台內容的關係 | 過渡素材。正式內容由後台上傳、走 `ImageProcessor`；對應位置之後不再引用 `site/…`，舊物件可手動清除 |
+
+操作手冊與疑難排解：[`infra/README.md`](../infra/README.md) §4.9。
+
 ### 備份與還原（J3「資料備份」，2026-09-30，`backend-engineer` 補記）
 
 規劃書 J3 寫「每日自動備份，可手動還原點」，`docs/12` §13.4 已判定它是基礎設施設定、**不是資料表也沒有後台 API**。本節記下實際做法與缺口，**這是執行層決定，不是規格**：
@@ -1216,6 +1231,11 @@ scripts/check-node-version.mjs` 離開碼 0；分別故意改壞 `apps/admin/Doc
 | VM 開 Trusted Launch、Boot diagnostics（受控儲存） | 零成本的強化，不需另開儲存體 |
 | 預算掛在資源群組範圍、起算日固定 `2026-10-01` | 部署身分不需訂閱層權限；起算日不隨每次部署改動 |
 | `infra-validate.yml` 獨立一支 | PR 只讀無憑證，與有 `id-token: write` 的 `infra.yml` 物理分離 |
+
+### 站台照片上傳與 `MEDIA_BASE_URL`（2026-10-02）
+
+- `infra/upload-site-images.sh` 是繼 `bootstrap.sh`、`provision-secrets.sh` 之後第三支給使用者在 Mac 執行的腳本，沿用 E-108 的規則：變數一律 `${VAR}`、`shellcheck -S warning` 通過、以假 `az`（`/bin/bash` 3.2）搭配真實 docker 從頭跑到尾、JMESPath 鍵只用 ASCII。決定與契約見 §6「站台照片改由 Blob 提供」。
+- `docker-compose.yml` 的 `nuxt-tcrfc`、`nuxt-bw` 帶 `NUXT_PUBLIC_MEDIA_BASE_URL: ${MEDIA_BASE_URL:-}`；`/opt/tcrfc/.env` 的 `MEDIA_BASE_URL` 由 `provision-secrets.sh` 從 `az` 推出（`https://<俱樂部帳戶>.blob.core.windows.net/images`），手改過的值（CDN 網域）重跑時沿用。這是執行期設定，改值不必重建映像檔。
 
 ### 不開的資源（刻意）
 

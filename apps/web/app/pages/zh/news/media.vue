@@ -57,7 +57,7 @@ useSeoMeta({
 </nav>
 
 <section class="page-hero page-hero--media">
-  <ClubHeroBg src="/assets/img/nav-news.jpg" width="1920" height="1279" />
+  <ClubHeroBg :src="siteImg('/assets/img/nav-news.jpg')" width="1920" height="1279" />
   <div class="container">
     <p class="page-hero__eyebrow">7.8 Media</p>
     <h1>媒體專區<span class="en">Media</span></h1>
