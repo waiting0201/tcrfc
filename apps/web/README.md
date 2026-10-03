@@ -66,9 +66,9 @@ curl -s http://127.0.0.1:3002/zh/ | grep -o 'data-club="[a-z]*"'   # bw
 |---|---|---|
 | `NUXT_PUBLIC_CLUB` | `docker run` / 容器啟動 | `tcrfc` 或 `bw`，決定品牌色、favicon、OG 圖、導覽單元開關 |
 | `NUXT_PUBLIC_SITE_URL` | 🔴 只在 `docker run`，**絕不在 `docker build`** | canonical／sitemap／`hreflang`／Schema／`og:image` 的網域來源（`docs/13-blue-whale-site.md` §6 紀律 7、8） |
-| `NUXT_PUBLIC_SITE_NAME` | 🔴 只在 `docker run`，同 `NUXT_PUBLIC_SITE_URL` 的規則 | 覆寫 `nuxt.config.ts` 的 `site.name`（`og:site_name`／`<title>` 後綴／Schema.org `WebSite.name` 三處都跟著換，實測與 `SITE_URL` 同一套 priority-stack）。**藍鯨容器一律帶 `台中藍鯨`**，忘記帶就會悄悄顯示 `nuxt.config.ts` 裡的預設值 `TCRFC`（docs/13 §6 紀律 11） |
+| `NUXT_PUBLIC_SITE_NAME` | 🔴 只在 `docker run`，同 `NUXT_PUBLIC_SITE_URL` 的規則 | 覆寫 `nuxt.config.ts` 的 `site.name`（`og:site_name`／`<title>` 後綴／Schema.org `WebSite.name` 三處都跟著換，實測與 `SITE_URL` 同一套 priority-stack）。**藍鯨容器一律帶 `台中藍鯨`**，忘記帶就會悄悄顯示 `nuxt.config.ts` 裡的預設值 `TCRFC`（docs/13 §6 紀律 11）。**CI 的 `compose-env` job（`scripts/check-compose-env.mjs`）會檢查 compose 兩個前台服務都有帶**；新增 `runtimeConfig.public` 的鍵（寫死預設值者）時 compose 必須同步覆寫，否則 CI 紅 |
 | `NUXT_PUBLIC_SITE_ENV` | `docker run` | `prelaunch`／`production`，目前只接住變數，兩層防護（見 `docs/17-deployment.md` §10.4）留給 S0-9 之後接上 |
-| `NUXT_PUBLIC_MEDIA_BASE_URL` | 選填：本機開發留空；正式／預備環境 `docker run`／compose 必給 | 站台靜態照片來源（Azure Blob `images` 容器公開網址或日後的 CDN 網域），網址＝`${值}/site/<路徑>.webp`；留空回退讀 `public/assets/img/` 原檔。規則見上方「客戶照片不進建置」與 `app/utils/siteImage.ts` |
+| `NUXT_PUBLIC_MEDIA_BASE_URL` | （compose 兩服務必帶，CI 檢查）選填：本機開發留空；正式／預備環境 `docker run`／compose 必給 | 站台靜態照片來源（Azure Blob `images` 容器公開網址或日後的 CDN 網域），網址＝`${值}/site/<路徑>.webp`；留空回退讀 `public/assets/img/` 原檔。規則見上方「客戶照片不進建置」與 `app/utils/siteImage.ts` |
 | `NUXT_PUBLIC_BLUE_WHALE_SITE_URL` | 選填，`docker run`（有內建 staging 預設值，不像 `SITE_URL` 一定要給） | 主站 06 單元（女子足球）外連藍鯨官網的按鈕網址，預設 `https://bw-stg.tcrfc.tw`。**S1-12d 收尾第二輪（2026-09-29）起降為備援值**：`womens/index.vue` 改以後端 `GET /api/v1/tcrfc/site-facts` 的 `blueWhaleSiteUrl` 為主要來源（後台 `I` 網站設定可維護），這個環境變數只在 API 打不到或該欄位尚未設定（`null`）時才生效，藍鯨正式網域定案後改後台設定值即可，不必再改這個環境變數或重新部署容器 |
 | `NITRO_PORT` / `NITRO_HOST` | 容器啟動 | `apps/web/Dockerfile` 已設定為 `3000` / `0.0.0.0` |
 

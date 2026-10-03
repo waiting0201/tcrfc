@@ -246,7 +246,7 @@ Client 直接報錯 code 64：Tags with side effect (<script> and <style>)
 
 | # | 紀律 | 不遵守會怎樣 |
 |---|---|---|
-| 11a | 🔴 **`nuxt.config.ts` 的 `site.name` 跟 `site.url` 是同一套 priority-stack，藍鯨容器一律要帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`**（已實測：同一份 build、只換這個 runtime 環境變數，`og:site_name`／`<title>` 後綴／Schema.org `WebSite.name` 三處都正確跟著換，不需重建）。`nuxt.config.ts` 裡寫的 `'TCRFC'`只是本機開發預設值 | 容器忘記帶這個變數，`og:site_name`、頁籤標題尾巴與 Schema.org 會悄悄顯示 `TCRFC`——跟紀律 7、8 講的 `SITE_URL` 是同一種「靜默錯誤」，不是規劃書規格，是這個預設值外洩 |
+| 11a | 🔴 **`nuxt.config.ts` 的 `site.name` 跟 `site.url` 是同一套 priority-stack，藍鯨容器一律要帶 `NUXT_PUBLIC_SITE_NAME=台中藍鯨`**（已實測：同一份 build、只換這個 runtime 環境變數，`og:site_name`／`<title>` 後綴／Schema.org `WebSite.name` 三處都正確跟著換，不需重建）。`nuxt.config.ts` 裡寫的 `'TCRFC'`只是本機開發預設值 | 容器忘記帶這個變數，`og:site_name`、頁籤標題尾巴與 Schema.org 會悄悄顯示 `TCRFC`——跟紀律 7、8 講的 `SITE_URL` 是同一種「靜默錯誤」，不是規劃書規格，是這個預設值外洩。**CI 由 `scripts/check-compose-env.mjs` 檢查**（`docker-compose.yml` 的 `nuxt-bw` 必須帶 `SITE_NAME=台中藍鯨`、`CLUB=bw`，見 `docs/18` E-112 升級段） |
 | 11 | 🔴 **文案依俱樂部切換一律走 `apps/web/shared/utils/club-copy.ts`，不得在頁面裡另外硬編碼俱樂部名稱、社群連結或 SEO 字串。** 型別是 `Record<'tcrfc'\|'bw', T \| null>`——新增一個文案鍵，兩家俱樂部的值都要填，只填一家會被 `npm run lint` 擋下（見下方 ⚠️），不是執行期靜默回退成磐石文案（這點刻意跟 `club.ts` 的 `getClubAssets()` 分開處理：資產一定兩份都有，靜默正規化輸入字串合理；文案不一定兩份都寫得出來，「兩份都要填」必須是型別層級的強制）。`T \| null` 的 `null` 專指「本站明文不顯示這個區塊」（比照紀律 8 對標誌的處理：缺素材不放假圖／假文，直接不顯示），不得拿 `null` 當「文案還沒寫」的暫存狀態——還沒寫的內容代表這個鍵目前根本不該存在，等文案生產出來才新增。藍鯨文案只能引用、節錄、重排 `content/blue-whale/` 的舊站原文，不得自行創作藍鯨沒說過的話；英文正式全名尚未確認（`ClubIdentity.brandTagEn` 對藍鯨一律 `null`），不得自行選一個顯示在頁面上 | 新增頁面時忘記查 `club-copy.ts`，就會重演「藍鯨站掛著藍鯨的皮講磐石的話」——SEO／頁首文案寫死磐石內容；更嚴重的是球員、新聞、賽程等**動態內容 0 素材的區塊沒有跟著隱藏**，導致藍鯨站直接顯示磐石的球員照片、比分與新聞標題 |
 
 > 🔴 **紀律 11 的兩個已知缺口，以及 2026-09-23 補上的機制（`S0-9n`）**

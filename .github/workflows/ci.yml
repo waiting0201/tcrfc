@@ -42,6 +42,7 @@ jobs:
       admin_charity: ${{ steps.filter.outputs.admin_charity }}
       api: ${{ steps.filter.outputs.api }}
       shared: ${{ steps.filter.outputs.shared }}
+      compose_env: ${{ steps.filter.outputs.compose_env }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -66,6 +67,12 @@ jobs:
               - '.node-version'
             api:
               - 'apps/api/**'
+            compose_env:
+              - 'docker-compose.yml'
+              - 'apps/web/nuxt.config.ts'
+              - 'apps/web-charity/nuxt.config.ts'
+              - 'scripts/check-compose-env.mjs'
+              - '.node-version'
             shared:
               - 'shared/**'
               - 'apps/api/**'
@@ -107,6 +114,23 @@ jobs:
     with:
       app_dir: apps/admin-charity
       image_name: tcrfc-admin-charity
+
+  # ── compose 的 NUXT_PUBLIC_* 覆寫檢查（E-112 升級）──────────────────────────
+  # nuxt.config.ts 的 runtimeConfig.public／site.name 是本機開發預設值，正式環境靠 docker-compose.yml
+  # 覆寫；漏帶不報錯、只會悄悄沿用預設值（藍鯨站顯示 TCRFC 就是這樣來的）。純文字解析、無相依。
+  compose-env:
+    name: docker-compose NUXT_PUBLIC_* 覆寫檢查
+    needs: changes
+    if: needs.changes.outputs.compose_env == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+      - run: node scripts/check-compose-env.mjs
 
   # ── apps/api（.NET）：真的接一個用完即丟的 SQL Server 容器跑 dotnet test，不 mock ──────
   # 對應 docs/20-cicd.md §1「不建 staging 分支／環境」：用 CI runner 本身當一次性 staging，

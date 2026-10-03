@@ -109,6 +109,7 @@ services:
       NUXT_PUBLIC_CLUB: tcrfc
       # ⛔ 只在這裡（run 階段）給，絕不在 build 階段給——docs/13 §6 紀律 7、8
       NUXT_PUBLIC_SITE_URL: https://${TCRFC_DOMAIN}
+      NUXT_PUBLIC_SITE_NAME: TCRFC # 明確帶值，與 nuxt-bw 對稱（docs/13 §6 紀律 11a）
       NUXT_PUBLIC_BLUE_WHALE_SITE_URL: https://${BW_DOMAIN} # 主站 04 女足頁導往藍鯨站；不給就落回 nuxt.config.ts 寫死的預設值
       # prelaunch／production 切換旗標（docs/17-deployment.md §10.4）：prelaunch 時輸出
       # robots.txt Disallow: / 與 X-Robots-Tag noindex，蓋掉 GEO-02 正式規則。
@@ -149,6 +150,7 @@ services:
     environment:
       NUXT_PUBLIC_CLUB: bw
       NUXT_PUBLIC_SITE_URL: https://${BW_DOMAIN}
+      NUXT_PUBLIC_SITE_NAME: 台中藍鯨 # 🔴 必帶，漏帶會讓 og:site_name／<title> 後綴／WebSite.name 顯示 TCRFC（docs/13 §6 紀律 11a、E-112 升級；scripts/check-compose-env.mjs 由 CI 檢查）
       NUXT_PUBLIC_SITE_ENV: ${SITE_ENV:?請在 .env 設定 SITE_ENV=prelaunch 或 production（docs/17 §10.4）} # 見 nuxt-tcrfc 同名變數的註解
       NUXT_PUBLIC_API_BASE: https://${API_DOMAIN}
       NUXT_API_INTERNAL_BASE: http://api:8080
