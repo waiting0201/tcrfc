@@ -71,6 +71,12 @@ jobs:
               - 'docker-compose.yml'
               - 'apps/web/nuxt.config.ts'
               - 'apps/web-charity/nuxt.config.ts'
+              - 'apps/admin/Dockerfile'
+              - 'apps/admin/nginx-spa.conf'
+              - 'apps/admin/index.html'
+              - 'apps/admin-charity/Dockerfile'
+              - 'apps/admin-charity/nginx-spa.conf'
+              - 'apps/admin-charity/index.html'
               - 'scripts/check-compose-env.mjs'
               - '.node-version'
             shared:

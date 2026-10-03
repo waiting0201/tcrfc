@@ -10,7 +10,9 @@ import { clearSession, getAccessToken } from '@/auth/session'
 import { refreshAccessToken } from './auth'
 import router from '@/router'
 
-export const API_BASE_URL = ((import.meta.env.VITE_API_BASE as string | undefined) || 'http://127.0.0.1:5299').replace(/\/$/, '')
+// API 位址的解析（執行期注入優先、正式建置不退回 127.0.0.1）集中在 runtimeConfig.ts
+export { API_BASE_URL } from './runtimeConfig'
+import { API_BASE_URL } from './runtimeConfig'
 export const ADMIN_ROOT = '/api/v1/donation-platform/admin'
 
 export class AdminApiError extends Error {

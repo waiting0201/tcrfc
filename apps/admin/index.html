@@ -20,6 +20,9 @@
         document.documentElement.setAttribute('data-club', 'tcrfc')
       }
     </script>
+    <!-- 執行期設定（API 位址）：容器啟動時由 nginx 在 /config.js 提供，必須先於 main.ts 載入；
+         本機開發讀的是 public/config.js 的空設定。 -->
+    <script src="/config.js"></script>
   </head>
   <body>
     <div id="app"></div>

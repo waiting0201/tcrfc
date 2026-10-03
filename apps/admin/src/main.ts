@@ -13,11 +13,23 @@ import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
 import App from './App.vue'
 import router from './router'
+import { API_BASE_URL } from './api/runtimeConfig'
 import './styles/admin-theme.css'
 
 // 深色是唯一主題，不做主題切換開關（docs/21 §7.0 使用者已拍板）。固定掛在掛載前，
 // 避免任何元件在 class 生效前先用預設（淺色）token 畫出一次再閃一次深色。
 document.documentElement.classList.add('dark')
+
+// 正式環境沒有 API 位址就不掛載（掛了每個請求都會送往錯誤的位址，症狀是令人摸不著頭緒的 CORS 錯誤）。
+// 直接用 DOM 顯示，不依賴 Vue／Element Plus。
+if (!API_BASE_URL) {
+  const box = document.getElementById('app')
+  if (box) {
+    box.style.cssText = 'padding:48px 24px;font:16px/1.7 system-ui,sans-serif;text-align:center;color:#c0392b'
+    box.textContent = '未設定 API 位址，無法登入。請聯絡系統管理員檢查後台容器的 ADMIN_API_BASE_URL 設定。'
+  }
+  throw new Error('未設定 API 位址（ADMIN_API_BASE_URL）')
+}
 
 const app = createApp(App)
 

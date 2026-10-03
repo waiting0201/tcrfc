@@ -16,8 +16,9 @@ import { clearSession, getAccessToken } from '@/auth/session'
 import { refreshAccessToken } from './adminAuth'
 import router from '@/router'
 
-export const API_BASE_URL = (import.meta.env.VITE_ADMIN_API_BASE_URL as string | undefined)?.replace(/\/$/, '')
-  || 'http://127.0.0.1:5299'
+// API 位址的解析（執行期注入優先、正式建置不退回 127.0.0.1）集中在 runtimeConfig.ts
+export { API_BASE_URL } from './runtimeConfig'
+import { API_BASE_URL } from './runtimeConfig'
 
 export type AdminApiErrorKind =
   | 'validation' // 400

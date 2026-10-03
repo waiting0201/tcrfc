@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// scripts/check-compose-env.mjs — docker-compose.yml 的 NUXT_PUBLIC_* 覆寫防漂移檢查
+// scripts/check-compose-env.mjs — docker-compose.yml 的 NUXT_PUBLIC_* 覆寫（含 SPA 後台執行期位址）防漂移檢查
 //
 // 背景（docs/18-work-errors.md E-112 升級段）：`nuxt.config.ts` 的 `runtimeConfig.public` 與 `site.name`
 // 裡寫的是「本機開發預設值」（'tcrfc'、'prelaunch'、'TCRFC'、staging 網址……），正式環境靠 compose 的
@@ -18,6 +18,11 @@
 //      SITE_NAME=TCRFC。
 //      ENV_ONLY：不在 runtimeConfig.public、由程式直接讀 process.env 的 NUXT_PUBLIC_*，只供反向檢查放行。
 //   4. 反向：compose 帶了 NUXT_PUBLIC_* 但 nuxt.config.ts 沒有對應鍵（打錯字會被 Nuxt 靜默忽略）。
+//
+//   5. SPA 後台（admin-web、admin-charity）：API 位址是「執行期注入」（容器啟動時由 docker-entrypoint.d
+//      產生 /config.js），compose 必須帶 ADMIN_API_BASE_URL，且值要指向 API_DOMAIN；漏帶時映像檔裡
+//      沒有任何預設可用，畫面會顯示「未設定 API 位址」（E-112 升級段第三次：舊版退回寫死的 127.0.0.1）。
+//      同時要求 Dockerfile 有複製 entrypoint 腳本、nginx-spa.conf 有 /config.js 的 no-store 設定。
 //
 // 用法：node scripts/check-compose-env.mjs（在 repo 任何位置執行皆可）。失敗結束碼 1。
 // CI：.github/workflows/ci.yml 的 compose-env job（改 docker-compose.yml 或兩份 nuxt.config.ts 時必跑）。
@@ -105,6 +110,36 @@ function parsePublicKeys(text) {
   return keys
 }
 
+// ── SPA 後台：執行期注入的 API 位址
+const SPA_APPS = [
+  { service: 'admin-web', dir: 'apps/admin' },
+  { service: 'admin-charity', dir: 'apps/admin-charity' },
+]
+const composeText = read('docker-compose.yml')
+const compose0 = parseComposeEnv(composeText)
+for (const { service, dir } of SPA_APPS) {
+  const env = compose0[service]
+  if (!env) { fail(`docker-compose.yml 找不到服務 ${service}`); continue }
+  if (!('ADMIN_API_BASE_URL' in env)) {
+    fail(`${service} 缺 ADMIN_API_BASE_URL：SPA 的 API 位址是執行期注入，漏帶畫面會顯示「未設定 API 位址」（E-112 升級段）`)
+  } else if (!/\$\{API_DOMAIN\b/.test(env.ADMIN_API_BASE_URL)) {
+    fail(`${service} 的 ADMIN_API_BASE_URL 必須指向 \${API_DOMAIN}，目前是「${env.ADMIN_API_BASE_URL}」`)
+  }
+  for (const k of Object.keys(env)) {
+    if (k.startsWith('VITE_')) fail(`${service} 的 ${k}：VITE_* 是建置期變數，容器執行期設了不會生效，請改用 ADMIN_API_BASE_URL`)
+  }
+  if (!/docker-entrypoint\.d\/40-runtime-config\.sh/.test(read(dir + '/Dockerfile'))) {
+    fail(`${dir}/Dockerfile 沒有複製 docker-entrypoint.d/40-runtime-config.sh（沒有它就不會產生 /config.js）`)
+  }
+  const nginx = read(dir + '/nginx-spa.conf')
+  if (!/location = \/config\.js[\s\S]*?no-store/.test(nginx)) {
+    fail(`${dir}/nginx-spa.conf 缺 location = /config.js（需 alias 到 /tmp/config.js 並設 Cache-Control: no-store）`)
+  }
+  if (!/<script src="\/config\.js"><\/script>/.test(read(dir + '/index.html'))) {
+    fail(`${dir}/index.html 沒有載入 /config.js`)
+  }
+}
+
 const toSnake = (k) => k.replace(/([A-Z])/g, '_$1').toUpperCase()
 const compose = parseComposeEnv(read('docker-compose.yml'))
 
@@ -147,4 +182,4 @@ if (errors.length) {
   for (const e of errors) console.error('  - ' + e)
   process.exit(1)
 }
-console.log('✓ docker-compose.yml 的 NUXT_PUBLIC_* 覆寫齊全（' + APPS.flatMap((a) => a.services).join('、') + '）')
+console.log('✓ docker-compose.yml 的 NUXT_PUBLIC_* 覆寫齊全（' + APPS.flatMap((a) => a.services).join('、') + '）；SPA 後台執行期位址齊全（' + SPA_APPS.map((a) => a.service).join('、') + '）')

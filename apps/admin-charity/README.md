@@ -97,7 +97,7 @@ docker rm -f t
 
 ### 資料來源
 
-- API 位址 `VITE_API_BASE`（預設 `http://127.0.0.1:5299`；🔴 這是 **build 階段**內嵌的環境變數，`docker-compose.yml` 對這個服務給的是執行期 `environment`，**Vite 不會讀到**——部署時需改成 build arg，見下方缺口）。
+- API 位址（`src/api/runtimeConfig.ts`）：**容器環境變數 `ADMIN_API_BASE_URL`**（執行期注入，容器啟動時產生 `/config.js`，`index.html` 先載入；換網域不必重建映像檔）＞ 建置期 `VITE_API_BASE`（本機開發 `.env` 用）＞ 僅 `npm run dev` 時退回 `http://127.0.0.1:5299`。🔴 正式建置找不到設定時**不退回 127.0.0.1**，畫面顯示「未設定 API 位址」並在 console 報錯。
   路徑一律 `/api/v1/donation-platform/admin/…`，程式在 `src/api/`：`http.ts`（fetch 封裝、401 自動換權杖重試）、`auth.ts`、`stores.ts`、`projects.ts`、`donations.ts`。
 - **登入**（`src/auth/session.ts`）：存取權杖只放記憶體；更新權杖是後端設的 HttpOnly Cookie `__Host-tcrfc-charity-admin-rt`（前端讀不到，`credentials: 'include'`）。
   重新整理頁面時路由守衛先靜默換一次權杖並載入 `/me`。**不共用 apps/admin 的程式碼與 Cookie**。兩階段驗證是選用的：帳號啟用後登入頁會多出驗證碼欄位。
@@ -117,7 +117,7 @@ docker rm -f t
 
 1. **分潤獨立授權**：店家／項目的分潤比例需要額外權限，沒有時畫面唯讀並提示，送出時省略該欄（後端視為不變）。
 2. **店家分潤＋項目分潤 ≤ 100%** 只由後端儲存時驗證（比對合作中店家／所有項目的最高值），前台不再模擬試算；錯誤訊息直接顯示。
-3. `docker-compose.yml` 的 `VITE_API_BASE` 是執行期環境變數，對 Vite 靜態建置無效；Dockerfile 需改成 `ARG VITE_API_BASE` 才會生效（屬部署層，本輪未動）。
+3. ~~`docker-compose.yml` 的 `VITE_API_BASE` 對 Vite 靜態建置無效~~ ✅ **2026-10-03 已解**：改為執行期注入（`ADMIN_API_BASE_URL` → `/config.js`，見上方「資料來源」）。這個缺口在此被記了一個月卻沒人關閉，正式機兩個後台因此無法登入（`docs/18` E-112 升級段第三次）。
 4. 本機 api 的 CORS 開發預設清單沒有 `http://localhost:5175`，要在 `CORS_ALLOWED_ORIGINS` 加上；且 Cookie 為 `SameSite=None; Secure`，本機需用 `localhost` 連線。
 
 ## CH-3 補完／CH-4／CH-5 畫面（2026-10-02）

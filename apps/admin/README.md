@@ -142,6 +142,17 @@ Element Plus 預設藍版本已整批換掉，**不做主題切換開關，不�
 
 ---
 
+## 環境變數（API 位址）
+
+| 變數 | 何時生效 | 用途 |
+|---|---|---|
+| `ADMIN_API_BASE_URL` | **容器執行期**（`docker run -e`／compose `environment`） | 啟動時由 `docker-entrypoint.d/40-runtime-config.sh` 產生 `/config.js`（`window.__TCRFC_CONFIG__.apiBaseUrl`），nginx 以 `Cache-Control: no-store` 提供，`index.html` 先於應用程式載入。換網域（`docs/17` §10）改 `.env` 的 `API_DOMAIN` 重建容器即可，**不必重建映像檔** |
+| `VITE_ADMIN_API_BASE_URL` | 建置期（本機開發 `.env.development`） | 見 `.env.example`；容器內不使用 |
+
+解析順序（`src/api/runtimeConfig.ts`）：`/config.js` ＞ `VITE_ADMIN_API_BASE_URL` ＞ **僅 `npm run dev`** 退回 `http://127.0.0.1:5299`。
+🔴 正式建置找不到設定時**不退回 127.0.0.1**：畫面顯示「未設定 API 位址」並在 console 報錯。
+部署後驗證：`curl https://tcrfc-admin.4webdemo.com/config.js`。本機開發（`npm run dev`）行為不變，讀的是 `public/config.js` 的空設定。
+
 ## 怎麼跑
 
 ```bash

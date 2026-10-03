@@ -205,8 +205,10 @@ services:
     image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-web:${TAG_ADMIN_WEB:-${IMAGE_TAG:-master}}
     restart: unless-stopped
     environment:
-      # SPA 的 API 基底網址；若專案設計成建置期注入，這裡要改成傳給 build 的 ARG，需同步調整 Dockerfile
-      VITE_API_BASE: https://${API_DOMAIN}
+      # SPA 的 API 基底網址：執行期注入（容器啟動時產生 /config.js，apps/admin/docker-entrypoint.d/
+      # 40-runtime-config.sh），換網域只改 .env 的 API_DOMAIN、不必重建映像檔。
+      # 漏帶時畫面會顯示「未設定 API 位址」；scripts/check-compose-env.mjs 會在 CI 擋下。
+      ADMIN_API_BASE_URL: https://${API_DOMAIN}
     networks: [internal]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
@@ -226,7 +228,8 @@ services:
     image: ghcr.io/${GHCR_OWNER:-waiting0201}/tcrfc-admin-charity:${TAG_ADMIN_CHARITY:-${IMAGE_TAG:-master}}
     restart: unless-stopped
     environment:
-      VITE_API_BASE: https://${API_DOMAIN}
+      # 同 admin-web：執行期注入（apps/admin-charity/docker-entrypoint.d/40-runtime-config.sh）
+      ADMIN_API_BASE_URL: https://${API_DOMAIN}
     networks: [internal]
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]

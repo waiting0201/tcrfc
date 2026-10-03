@@ -855,6 +855,7 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 | 電子發票服務 callback | 🔴 **外部、只能手動改**：發票服務商後台登記的通知網址 | 待 B-10（俱樂部 LINE Pay 商店號與發票管道）取得帳號後才有介面可設定，**現在無法預先準備** |
 | 會員卡 `/m/<token>` | 同 `NUXT_PUBLIC_SITE_URL`（是主站路由的一部分，不是獨立設定） | 連結本身零成本可改，**但一旦印出或寄出就不可逆**，見 §10.3 |
 | App `apple-app-site-association`／`assetlinks.json` | 內容由 `shared/deeplinks.json`（[`docs/19`](19-app-tech-stack.md) §2）產生；**部署到哪個網域是一次性選擇** | 見 §10.3 不可逆類第一項 |
+| 後台 SPA（`admin-web`／`admin-charity`）的 API 位址 | `docker-compose.yml` 的 `ADMIN_API_BASE_URL: https://${API_DOMAIN}`（**執行期注入**：容器啟動時由 `docker-entrypoint.d/40-runtime-config.sh` 產生 `/config.js`，nginx 以 `Cache-Control: no-store` 提供，`index.html` 先載入它） | 🔴 **2026-10-03 補上**：先前只在註解寫「執行期注入」、從未實作，正式映像檔退回寫死的 `http://127.0.0.1:5299`，兩個後台都無法登入（`E-112` 升級段第三次）。換網域只改 `.env` 的 `API_DOMAIN` 並重建容器、**不必重建映像檔**。漏帶時畫面顯示「未設定 API 位址」，`scripts/check-compose-env.mjs` 在 CI 擋下 |
 | CORS 允許來源 | **缺口，本次補上**：`api` 容器新增 `CORS_ALLOWED_ORIGINS`，組成同一組網域環境變數（見 §10.8） | 之前完全沒有這個變數，是本次盤點抓到的洞 |
 | CSP | 尚未定案（`apps/*` 專案尚未建立）；**建議**沿用同一組網域環境變數 ＋ 固定的第三方清單（LINE、Cloudflare、字型服務等）組出 `Content-Security-Policy` | 留給 `frontend-architect`／`backend-engineer` 建專案時定案，本節只定原則：不寫死、來源與 CORS 同一組變數 |
 | cookie 作用域 | **不設定 `Domain` 屬性，或用 `__Host-` 前綴** | 這條的「單一來源」反而是「不要設來源」——host-only 就不會有作用域問題，見 §10.5 |
@@ -866,7 +867,7 @@ B6 媒體專區（新聞稿 PDF、品牌識別包 ZIP）與 E3 贊助提案 PDF 
 
 | 級別 | 項目 | 說明 |
 |---|---|---|
-| 零成本 | canonical／sitemap／`hreflang`／Schema／`robots.txt`／`llms.txt`／CORS／系統信連結／`/m/<token>` 連結本身 | 全部從 `NUXT_PUBLIC_SITE_URL`／`CORS_ALLOWED_ORIGINS` 這類環境變數算出，**改 `.env` 重啟即生效，不必改程式** |
+| 零成本 | canonical／sitemap／`hreflang`／Schema／`robots.txt`／`llms.txt`／CORS／**兩個後台 SPA 的 API 位址（`ADMIN_API_BASE_URL`，容器啟動時產生 `/config.js`）**／系統信連結／`/m/<token>` 連結本身 | 全部從 `NUXT_PUBLIC_SITE_URL`／`CORS_ALLOWED_ORIGINS` 這類環境變數算出，**改 `.env` 重啟即生效，不必改程式** |
 | 低成本 | DNS 記錄、TLS 憑證（Caddy 自動簽發）、Cloudflare Access／Page Rules 設定 | 有 TTL／簽發等待（分鐘到數小時），但可控、可重來，**不會造成永久性損失** |
 | 中成本 | LINE Login callback URL、電子發票服務 callback、Search Console／GA4 Property | 外部服務手動改，部分有生效延遲，但**沒有作廢風險**，改完即可用 |
 | 高成本 | 已印刷但尚未派發的品牌素材（倉庫裡的傳單／名片）、社群平台 bio 連結 | 需要人工逐一更新，麻煩但可行，**無不可逆風險** |
@@ -1093,7 +1094,7 @@ session 會被瀏覽器自動帶到正式站**（反之亦然），即使兩邊�
 | [`docs/20-cicd.md`](20-cicd.md) §1 | 加一段釐清文字：區分「不建持久 CI staging 環境」與本節「上線前的暫用網址」 |
 | [`STATUS.md`](../STATUS.md) | `AP-9` 補「必須是最終網域」的條件；`B-4`／`B-7` 加一行指向本節；新增待確認事項（apex／`www`、Wix DNS 現況、上線前累積的資料是否清空） |
 | [`.env.example`](../.env.example) | 新增 `SITE_ENV`（值為 `prelaunch`／`production`）；新增暫用網域區塊與正式網域註解；新增 `CADDYFILE`（原有的 `PRELAUNCH_BASIC_AUTH_USER`／`_HASH` 已於 2026-10-02 移除）|
-| [`docker-compose.yml`](../docker-compose.yml) | `nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity` 新增 `NUXT_PUBLIC_SITE_ENV`；`api` 新增六個網域變數與 `CORS_ALLOWED_ORIGINS`（過去完全沒有，是本次盤點抓到的缺口）；`proxy` 的 Caddyfile 掛載改為 `${CADDYFILE:-./deploy/Caddyfile}`，（原帶入的兩個 Basic Auth 變數已於 2026-10-02 移除）|
+| [`docker-compose.yml`](../docker-compose.yml) | `admin-web`／`admin-charity` 的 `VITE_API_BASE` 改為 `ADMIN_API_BASE_URL`（2026-10-03，執行期注入，見 §10.2）；`nuxt-tcrfc`／`nuxt-bw`／`nuxt-charity` 新增 `NUXT_PUBLIC_SITE_ENV`；`api` 新增六個網域變數與 `CORS_ALLOWED_ORIGINS`（過去完全沒有，是本次盤點抓到的缺口）；`proxy` 的 Caddyfile 掛載改為 `${CADDYFILE:-./deploy/Caddyfile}`，（原帶入的兩個 Basic Auth 變數已於 2026-10-02 移除）|
 | ~~`docker-compose.staging.yml`~~ | 🔴 **2026-09-21 撤銷、檔案已刪除**。理由：本專案只有本機開發與正式 VM 兩套環境，多一個名為 staging 的 compose 檔會讓人以為有第三套，與 [`20-cicd.md`](20-cicd.md) §1 直接牴觸。功能改由 `.env` 的 `CADDYFILE` 達成 |
 | [`deploy/Caddyfile`](../deploy/Caddyfile) | 兩個後台網址**永久**加 `X-Robots-Tag: noindex, nofollow, noarchive`（不分測試或正式，後台本來就不該被索引） |
 | `deploy/Caddyfile.prelaunch`（新檔，原名 `Caddyfile.staging`） | 三個公開前台加 `X-Robots-Tag` 標頭（§10.4 第 1 層的 proxy 保險；2026-10-02 起已拿掉 Basic Auth）。由 `.env` 的 `CADDYFILE` 指定掛載，**不需要 override 檔** |

@@ -114,6 +114,16 @@
 > 若技術上真的窒礎難行（例如 Nuxt 的某些建置期常數無法做成 runtime config），**退路是兩個映像檔**，
 > 屆時回來改本節，不影響其他四個映像檔的設計。
 
+> 🔴 **兩個後台（`admin-web`／`admin-charity`）是純靜態 SPA，API 位址在「容器啟動時」注入，不在建置期。**
+> 建置（`docker build`）**不帶任何 `VITE_*` 變數**，同一個映像檔換網域不必重建：`nginx-unprivileged` 的
+> `/docker-entrypoint.d/40-runtime-config.sh` 依環境變數 `ADMIN_API_BASE_URL`（compose 帶 `https://${API_DOMAIN}`）
+> 產生 `/tmp/config.js`，nginx 在 `/config.js` 以 `Cache-Control: no-store` 提供，`index.html` 先於應用程式載入；
+> `src/api/runtimeConfig.ts` 優先讀 `window.__TCRFC_CONFIG__.apiBaseUrl`，其次 `import.meta.env`，**僅開發模式**才退回
+> `http://127.0.0.1:5299`——正式建置找不到設定時畫面顯示「未設定 API 位址」，不會默默打向 127.0.0.1。
+> 這條由 `ci.yml` 的 `compose-env` job（`scripts/check-compose-env.mjs`）把關：compose 漏帶 `ADMIN_API_BASE_URL`、
+> Dockerfile 沒複製 entrypoint、nginx 缺 `/config.js` 設定、`index.html` 沒載入 `/config.js` 都會擋下（`E-112` 升級段第三次）。
+> 部署後驗證：`curl https://tcrfc-admin.4webdemo.com/config.js` 應回 `apiBaseUrl: "https://tcrfc-api.4webdemo.com"`。
+
 ### Job 切法
 
 **全部平行、無相依**，用 `paths-filter`（如 `dorny/paths-filter`）依目錄變動決定哪些映像檔要重建：

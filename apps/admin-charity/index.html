@@ -8,6 +8,9 @@
     <!-- 後台不需要 SEO，但仍要擋掉搜尋引擎（CLAUDE.md 全域規定第 5 條，nginx 端也有一份 X-Robots-Tag） -->
     <meta name="robots" content="noindex, nofollow" />
     <title>慈善捐款平台後台</title>
+    <!-- 執行期設定（API 位址）：容器啟動時由 nginx 在 /config.js 提供，必須先於 main.ts 載入；
+         本機開發讀的是 public/config.js 的空設定。 -->
+    <script src="/config.js"></script>
   </head>
   <body>
     <div id="app"></div>
