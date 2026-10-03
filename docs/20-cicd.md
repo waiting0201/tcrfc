@@ -754,7 +754,7 @@ Cloudflare 清快取（選配）、`rollback.yml`。細節與取捨全在 **§4a
 | 5 | **ghcr 套件建立** | 第一次 `deploy.yml` 跑完會自動建立五個套件；手動把它們的 visibility 設為 **Public**（新套件預設常常是 private，要手動切） |
 | 6 | **GitHub Environments** | 建立 `production`（Deployment branches：僅 `master`；✅ 已建）與 `production-db`（同上 ＋ Required reviewers，至少 1 人；指令見 `infra/README.md`「資料庫 migration」）。🔴 `production-db` 要**先建**再跑 `db-migrate.yml`，否則 GitHub 會自動建立無保護的同名環境 |
 | 7 | **Cloudflare API Token**（選配） | 建立僅 `Zone.Cache Purge` 權限、限定對應 zone 的 token，存進 GitHub Secret `CLOUDFLARE_API_TOKEN`，並設 Actions Variables `CF_ZONE_ID_TCRFC`／`CF_ZONE_ID_BW`／`CF_ZONE_ID_CHARITY`。**沒設就略過清快取，不影響部署**（§4a） |
-| 8 | **首次建庫** | 🔵 在 VM 上以 runner 使用者執行 [`deploy/prod-db-init.sh`](../deploy/prod-db-init.sh)（`init`／`create-admin`／`verify`，步驟見 [`infra/README.md`](../infra/README.md) §4.8；設計見本檔 §5「正式庫首次初始化」）。EF 基準 migration 早已建立，這步只負責把它們寫進 `__EFMigrationsHistory` |
+| 8 | **首次建庫** | 🔵 在 VM 上以 runner 使用者執行 [`deploy/prod-db-init.sh`](../deploy/prod-db-init.sh)（`init`／`create-admin`／`verify`；忘記密碼或帳號被鎖時用 `reset-password`，步驟見 [`infra/README.md`](../infra/README.md) §4.8；設計見本檔 §5「正式庫首次初始化」）。EF 基準 migration 早已建立，這步只負責把它們寫進 `__EFMigrationsHistory` |
 | 9 | **LINE Pay 出口 IP 驗證** | 依 `17` §9 驗證 1，**這步驟獨立於 CI/CD，部署管線建好後跑一次即可**，之後除非換 VM 不必重跑 |
 | 10 | **首次部署演練** | 先在**非 LINE Pay 正式串接前**（即 §3.6 商店結帳上線前）完整跑一次 push → build → deploy → 健康檢查 → （刻意製造一次失敗）驗證自動回滾真的會動作 |
 
