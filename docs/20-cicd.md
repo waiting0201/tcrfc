@@ -383,6 +383,48 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 - ⚠️ 仍無法在本機驗證的前提：Azure SQL **資料庫相容性層級**（本機 2025 在 160 與 170 都通過，Azure 若停在更低層級才有差異）。建庫後請 `SELECT compatibility_level FROM sys.databases` 確認。
 - ⚪ **`MembershipOrderTests.已付款但開通出錯…`（與 json 無關，已修）**：原本斷言種子的 tcrfc `single` 方案 `ends_on IS NULL`，那是既有開發庫被手動改過的結果（新建庫是 `2027-05-02`），在任何新建庫上必失敗。改成**測試自己準備狀態**：先快照方案原本的 `ends_on`、改成過去日期觸發開通失敗、`finally` 原樣還原。
 
+### 🔵 正式庫的內容種子匯入與清除（2026-10-03，`deployment-engineer`；使用者決定）
+
+**為什麼**：正式庫初始化後內容表全是 0 筆，前後台串接無法在正式機驗收（全專案只有本機與正式兩套，`docs/14`）。使用者決定把本機種子的**內容**匯入正式庫、驗收完清除。這是**暫時性的驗收資料**，不是上線資料。
+
+**程序**：[`deploy/prod-seed-import.sh`](../deploy/prod-seed-import.sh)（在 VM 以 runner 執行；`source` 了 `prod-db-init.sh`，連線解析、`*.database.windows.net` 與庫名白名單、密碼只走環境變數、輸入庫名確認全部沿用，不另抄）。SQL 由 [`db/seed/generate-prod-content-sql.py`](../db/seed/generate-prod-content-sql.py) 自原種子產生器**按區段篩出**（`db/prod/club-content-seed.sql`、`charity-content-seed.sql`，納版控供審查；`--check` 可掛 CI）。
+
+| 子命令 | 做什麼 |
+|---|---|
+| `preflight <club\|charity>` | 唯讀：庫已初始化、尚無標記、**擁有的表全空**、藍鯨簡介為空 |
+| `import <club\|charity>` | 輸入「IMPORT 庫名」；整份 SQL 在**單一交易**（失敗整批回滾）；末尾寫資料庫延伸屬性 `tcrfc.seed_import`（庫名\|UTC 時間\|SQL sha256 前 12 碼）；匯入前後比對「帳號與假個資表」筆數必須不變；再跑 `verify` |
+| `verify` / `status` | `verify`：標記、107／11 張表逐表筆數＝`*-content-manifest.tsv`、`clubs.domain` 仍等於 `.env` 現值、再呼叫 `prod-db-init.sh verify`（含「沒有測試帳號」）。`status`：只印現況與和匯入時的差異 |
+| `clean` | 輸入「CLEAN 庫名」；單一交易，只動「擁有的表」，逐表整表刪除、被外鍵擋住就下一輪重試；最後還原藍鯨簡介、移除標記，並 `verify` |
+| `record-manifest` | 只給本機演練：把演練庫匯入後的實際筆數與 SQL sha256 寫入 manifest |
+
+**界線（每個種子區段必須明確歸類，新區段未歸類產生器就失敗）**：
+- **匯入（內容）**：球隊／球季／賽事／場地／球員／教練／賽程賽果／積分榜／新聞與標籤／里程碑／夥伴／贊助與方案／提案草稿／頁面／輪播／FAQ／課程梯次／行事曆／301 轉址／SEO 與站台事實設定／慈善與社會影響／媒體專區／榮譽／試訓場次／會籍方案與權益／特約店家／漫畫／球迷會活動／商店設定與商品庫存／App 深連結版面功能開關版本／廣告版位與檔期；慈善庫：公益團體與計畫唯讀複本、店家、項目與金額選項、設定、信件範本。
+- **參照資料**：已在正式庫，不重複插入（與 `generate-prod-reference-sql.py` 的 ALLOW 清單強制一致）。`clubs` 一列都不寫，`clubs.domain` 維持現值；只補藍鯨簡介。
+- **絕不匯入（帳號）**：`admin_users`／`admin_user_roles`／`admin_user_clubs`。
+- **預設不匯入（假個資／假交易）**：會員／會籍／會員卡／付款／球衣、試訓與活動報名、Lead、抽獎名單、電子報名單、訂單／出貨／退款、App 示範裝置／推播／診斷；慈善庫的捐款／金流／發票／結算／對帳／稽核／寄信紀錄與 `payment_channels`（sandbox 占位憑證）。
+- `charity.donation_url` 的本機占位值改為 `https://<CHARITY_DOMAIN>/`（取自 VM `.env`）。
+
+**清除的語意與限制**：
+1. 標記放延伸屬性而非資料表（不影響 `verify` 的表數核對）；擁有權是**表層級**——匯入前擁有的表必須全空，所以匯入後表內每一列都算這次匯入的。
+2. 驗收期間在這些表**手動新增的內容會一起被刪**（`clean` 會先列出筆數與匯入時不同的表）；子資料（`*_i18n`、賽事紀錄、圖片關聯）由外鍵 CASCADE 一併刪除。
+3. 若**擁有的表以外**的資料仍參照這些列（例如前台真有人填的試訓報名參照了匯入的試訓場次），`clean` 整個中止、不刪任何東西，並指出是哪個外鍵；先處理那些資料再清（已於演練驗證）。
+4. 本機演練（SQL Server 2022 轉換版 DDL 與 2025 原生 `json`＋原樣 DDL 各一次）：init→import→verify→clean→verify、重複匯入被拒、被外鍵擋住時回滾，皆通過。
+5. 匯入走資料庫直寫，**不經 API 的 write-invalidate**：Redis 內快取的空列表要等 TTL 或手動清（`docker exec` 進 redis 容器用其環境變數 `redis-cli -a "$REDIS_PASSWORD" FLUSHALL`，密碼不經過命令列）；Cloudflare 若快取了前台 HTML 另清（`cd-purge-cache.sh` 的做法）。
+
+**VM 上怎麼跑**（腳本還沒 push 前，用 DDL／migrations 與部署 commit 一致的暫存目錄；push 並部署後可改用 `~/tcrfc-src`）：以 `tar` 把 `deploy/prod-db-init.sh`、`deploy/prod-seed-import.sh` 與 `db/prod/*-content-*` 疊在 runner checkout 的 `db/`、`apps/api/**/Migrations` 之上。
+
+```bash
+sudo -iu runner
+cd ~/seed-import-src            # 或 repo 根目錄
+./deploy/prod-seed-import.sh preflight club && ./deploy/prod-seed-import.sh import club
+./deploy/prod-seed-import.sh preflight charity && ./deploy/prod-seed-import.sh import charity
+./deploy/prod-seed-import.sh verify club        # 隨時複查；status 看與匯入時的差異
+# 驗收結束：
+./deploy/prod-seed-import.sh clean club && ./deploy/prod-seed-import.sh clean charity
+```
+
+⚠️ 匯入內容含真人姓名（球員、教練，來源 JSON 已在版控）與【測試】標示資料；測試站目前無帳密、僅 `noindex`，驗收完請盡快 `clean`。
+
 ### 🔵 `db-migrate.yml` 實作（2026-10-02，`deployment-engineer`）
 
 > 檔案：[`.github/workflows/db-migrate.yml`](../.github/workflows/db-migrate.yml)、[`deploy/db-migrate.sh`](../deploy/db-migrate.sh)（`generate`／`pending`／`apply` 三個子命令，邏輯全在腳本，workflow 只傳 `env:`）、

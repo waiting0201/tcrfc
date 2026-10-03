@@ -547,4 +547,7 @@ main() {
   esac
 }
 
-main "$@"
+# 被 deploy/prod-seed-import.sh `source` 時只載入函式（共用同一套連線解析與防護），不執行 main
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi
