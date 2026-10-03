@@ -363,7 +363,8 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 2. **參照資料**：`db/prod/club-reference-data.sql`／`charity-reference-data.sql`（由 `db/seed/generate-prod-reference-sql.py` 自原種子產生器篩出，**不是**種子資料；清單與界線見 [`db/seed/README.md`](../db/seed/README.md)「正式庫的參照資料」）。
 3. **`__EFMigrationsHistory`**：自 `apps/api/**/Migrations/*.Designer.cs` 的 `[Migration("…")]` 取出全部 ID 寫入，`ProductVersion` 取自 `ModelSnapshot`（目前 `10.0.0`，與 `Microsoft.EntityFrameworkCore` 套件版本一致）。🔴 **這一步放最後，因為它就是「初始化完成」的標記**：有歷史表＝已完成（`init` 與 `wipe-partial` 都拒絕再動）；沒有歷史表但有物件＝中途失敗的半成品，只能用 `wipe-partial` 清掉重來。
 4. **驗證**：資料表／外鍵／視圖數（**自 DDL 去註解後計數**，不寫死：目前主站 **189／482／1**、慈善 **30／67／0**；STATUS S0-6b 當時的 144／380 與 29／65 已隨後來新增的表過期）、歷史筆數（主站 21、慈善 2；自 `Designer.cs` 動態計數，不寫死）、參照資料各表筆數（讀 SQL 檔頭的 `-- MANIFEST` 行）、中文編碼、沒有測試帳號、`clubs.domain` 不是佔位值。
-5. **第一個管理員**：`create-admin <club|charity>`，互動輸入，詳見 `infra/README.md` §4.8。
+5. **第一個管理員**：`create-admin <club|charity>`，互動輸入，詳見 `infra/README.md` §4.8。**登入帳號是一般字串**（2026-10-03：可用中文，去前後空白後非空、≤64、不含空白字元，不再限 Email／英數）；**密碼至少 9 字元**（原 10）。帳號以 UTF-16 十六進位字面值寫入 SQL（`CAST(0x… AS nvarchar)`），不把帳號文字放進 SQL 字串，沒有引號或 `$(` 注入面。
+6. **重設既有管理員密碼**：`reset-password <club|charity>`（2026-10-03 新增）。列出帳號 → 輸入要重設的登入帳號（可順便改登入帳號、啟用被停用的帳號）→ 輸入庫名確認 → 新密碼輸入兩次；更新 `password_hash`／`password_changed_at`、清除 `locked_until` 與 `failed_attempt_count`、撤銷該帳號所有 `admin_refresh_tokens`，整段同一交易。🔴 **要先 push 並部署新版 api 映像檔**（`docker pull` 到含 9 字元政策的版本），否則 `--hash-password` 仍拒絕 9 字元密碼。
 
 **DDL 是否等於「所有 migration 套用後」？（2026-10-01 逐項比對）**
 

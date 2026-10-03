@@ -130,6 +130,70 @@ public sealed class AdminAccountsTests(AdminWriteApiFixture fixture)
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("12345678", HttpStatusCode.BadRequest)]   // 8 字元：拒絕
+    [InlineData("123456789", HttpStatusCode.Created)]     // 9 字元：邊界，通過
+    public async Task 建立帳號_密碼長度邊界_9字元通過8字元拒絕(string password, HttpStatusCode expected)
+    {
+        using var client = await CreateSuperAdminClientAsync();
+        var username = $"test.pwlen.{Guid.NewGuid():N}";
+
+        try
+        {
+            var response = await client.PostAsJsonAsync("/api/v1/admin/accounts", new CreateAdminAccountRequest
+            {
+                Username = username,
+                DisplayName = "密碼長度邊界測試",
+                InitialPassword = password,
+            });
+            Assert.Equal(expected, response.StatusCode);
+        }
+        finally
+        {
+            await DeleteAccountByUsernameAsync(username);
+        }
+    }
+
+    [Fact]
+    public async Task 建立帳號_帳號可為中文_前後空白被去除_且可用該帳號登入()
+    {
+        using var adminClient = await CreateSuperAdminClientAsync();
+        var username = $"測試管理員{Guid.NewGuid():N}"[..20];
+        const string password = "InitialPassword-123";
+
+        try
+        {
+            var created = await CreateAccountAsync(adminClient, "  " + username + "  ", password, ["viewer"]);
+            Assert.Equal(username, created.Username);
+
+            using var ownClient = fixture.CreateClient();
+            // 登入端同樣 Trim，帶空白也要登入得了。
+            var login = await ownClient.PostAsJsonAsync("/api/v1/admin/auth/login", new LoginRequest(" " + username, password, null));
+            Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+        }
+        finally
+        {
+            await DeleteAccountByUsernameAsync(username);
+        }
+    }
+
+    [Theory]
+    [InlineData("   ")]
+    [InlineData("有 空白")]
+    public async Task 建立帳號_帳號為空或含空白_回400(string username)
+    {
+        using var client = await CreateSuperAdminClientAsync();
+
+        var response = await client.PostAsJsonAsync("/api/v1/admin/accounts", new CreateAdminAccountRequest
+        {
+            Username = username,
+            DisplayName = "帳號規則測試",
+            InitialPassword = "InitialPassword-123",
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
     [Fact]
     public async Task 停用帳號_立即撤銷既有更新權杖()
     {

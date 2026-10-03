@@ -113,8 +113,8 @@ function validate(): boolean {
     formError.value = '請輸入姓名'
     return false
   }
-  if (isCreate.value && form.initialPassword.length < 10) {
-    formError.value = '初始密碼長度至少需要 10 個字元'
+  if (isCreate.value && form.initialPassword.length < 9) {
+    formError.value = '初始密碼長度至少需要 9 個字元'
     return false
   }
   return true
@@ -188,11 +188,11 @@ async function toggleStatus() {
 async function handleResetPassword() {
   let newPassword = ''
   try {
-    const result = await ElMessageBox.prompt('請輸入新密碼（至少 10 個字元），設定後請透過站外管道轉交給使用者。', '重設密碼', {
+    const result = await ElMessageBox.prompt('請輸入新密碼（至少 9 個字元），設定後請透過站外管道轉交給使用者。', '重設密碼', {
       confirmButtonText: '重設',
       cancelButtonText: '取消',
       inputType: 'password',
-      inputValidator: (value: string) => (value && value.length >= 10) || '密碼長度至少需要 10 個字元',
+      inputValidator: (value: string) => (value && value.length >= 9) || '密碼長度至少需要 9 個字元',
     })
     newPassword = result.value
   } catch {
@@ -403,7 +403,7 @@ function handleBack() {
       <el-card shadow="never" header="基本資料" class="account-edit__section">
         <el-form label-position="top">
           <el-form-item label="帳號" required>
-            <el-input v-model="form.username" :disabled="!isCreate" placeholder="登入用帳號，建立後不可修改" />
+            <el-input v-model="form.username" :disabled="!isCreate" placeholder="登入用帳號，可用中文，不含空白，最多 64 字；建立後不可修改" />
           </el-form-item>
           <el-form-item label="姓名" required>
             <el-input v-model="form.displayName" />
@@ -417,7 +417,7 @@ function handleBack() {
             </el-select>
           </el-form-item>
           <el-form-item v-if="isCreate" label="初始密碼" required>
-            <el-input v-model="form.initialPassword" type="password" show-password placeholder="至少 10 個字元，建立後請透過站外管道轉交" />
+            <el-input v-model="form.initialPassword" type="password" show-password placeholder="至少 9 個字元，建立後請透過站外管道轉交" />
           </el-form-item>
           <el-form-item label="系統管理員">
             <el-switch v-model="form.isSuperAdmin" />

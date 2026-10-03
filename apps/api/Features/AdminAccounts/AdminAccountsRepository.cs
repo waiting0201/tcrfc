@@ -92,12 +92,14 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
     public async Task<AdminAccountDetailDto> CreateAsync(
         CreateAdminAccountRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
-        ValidateUsername(request.Username);
-        AdminAuthService.ValidatePasswordPolicy(request.InitialPassword, request.Username);
+        // 帳號是一般字串（可含中文等 Unicode）：先去前後空白再驗證，登入端同樣先 Trim。
+        var username = request.Username?.Trim() ?? string.Empty;
+        ValidateUsername(username);
+        AdminAuthService.ValidatePasswordPolicy(request.InitialPassword, username);
 
-        if (await dbContext.AdminUsers.AsNoTracking().AnyAsync(u => u.Username == request.Username, cancellationToken))
+        if (await dbContext.AdminUsers.AsNoTracking().AnyAsync(u => u.Username == username, cancellationToken))
         {
-            throw new AdminAccountUsernameConflictException(request.Username);
+            throw new AdminAccountUsernameConflictException(username);
         }
 
         if (request.PrimaryClubId is Guid primaryClubId)
@@ -111,7 +113,7 @@ public sealed class AdminAccountsRepository(ClubDbContext dbContext)
         var user = new AdminUser
         {
             Id = Guid.NewGuid(),
-            Username = request.Username,
+            Username = username,
             DisplayName = request.DisplayName,
             Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email,
             PrimaryClubId = request.PrimaryClubId,

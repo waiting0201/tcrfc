@@ -10,6 +10,9 @@
 #                                目標庫必須「完全沒有使用者物件」，否則拒絕；執行前要手動輸入庫名確認。
 #   create-admin <club|charity> 互動建立第一個管理員（密碼只在執行時由你輸入，不進命令列、不進 log）。
 #                                僅在 admin_users 為空時可執行。
+#   reset-password <club|charity> 重設既有管理員的密碼（登不進去時用）：列出帳號 → 輸入要重設的登入帳號 → 輸入庫名確認 →
+#                                新密碼輸入兩次（不顯示、不進命令列與 log）→ 更新密碼、清除鎖定與失敗次數、撤銷該帳號所有登入狀態；
+#                                可順便改登入帳號、啟用被停用的帳號。需要含 9 字元政策的 API 映像檔（先 push 並部署新版 api）。
 #   verify     <club|charity>   唯讀：核對表／外鍵／視圖數、migration 歷史、參照資料筆數、沒有測試帳號。
 #   wipe-partial <club|charity> 🔴 init 中途失敗（沒有 __EFMigrationsHistory 且 admin_users 為空）時，把半成品清乾淨以便重跑。
 #                                危險指令：要輸入庫名與 WIPE 確認。
@@ -27,6 +30,8 @@
 #
 # 安全模型：
 #   - 連線資訊從 env 檔解析後以環境變數（SQLCMD*）傳進容器：`docker run -e NAME` 不帶值，密碼不會出現在 ps／命令列／輸出。
+#   - 登入帳號是一般字串（可含中文；去前後空白、不得含空白、最長 64）。寫入 SQL 時一律轉成 UTF-16 十六進位字面值
+#     （CAST(0x… AS nvarchar)），不會把帳號文字放進 SQL 字串，沒有引號／`$(` 注入問題，也不受 sqlcmd 編碼影響。
 #   - 管理員密碼只經標準輸入（read -s → 管線 → `docker run -i`），雜湊以環境變數傳給 sqlcmd，SQL 檔裡只有 $(變數) 佔位。
 #   - 正式模式只允許 *.database.windows.net，且資料庫名必須是 tcrfc_club／tcrfc_charity（防止把主站 DDL 灌進慈善庫）。
 
@@ -415,6 +420,75 @@ cmd_verify() {
   cmd_verify_loaded
 }
 
+# ── 登入帳號處理（一般字串；規則同 API AdminAccountsRepository.ValidateUsername）────────────
+# 帳號以 UTF-16LE 十六進位傳入 SQL：長度以 UTF-16 單位計（與 .NET string.Length、nvarchar 一致，不受 shell locale 影響），
+# 且文字本身不進 SQL 字串（無注入面）。
+MIN_PASSWORD_LENGTH=9
+
+trim_ws() { # ${1}=字串；去前後空白
+  local v="${1}"
+  v="${v#"${v%%[![:space:]]*}"}"
+  v="${v%"${v##*[![:space:]]}"}"
+  printf '%s' "${v}"
+}
+
+utf16le_hex() { # ${1}=字串；印出不含 0x 的十六進位；不是合法 UTF-8 時回傳非 0
+  local out
+  out="$(printf '%s' "${1}" | iconv -f UTF-8 -t UTF-16LE 2>/dev/null | od -An -v -tx1 | tr -d ' \n')" || return 1
+  [[ -n "${out}" ]] || return 1
+  printf '%s' "${out}"
+}
+
+# 查既有帳號用的寬鬆檢查（舊帳號可能不符新規則）：非空、合法 UTF-8、無控制字元、長度 ≤ 191（慈善庫上限）
+username_lookup_hex() { # ${1}=已 trim 的帳號 → 印 0x… 字面值
+  local u="${1}" hex
+  [[ -n "${u}" ]] || die "帳號不可為空"
+  [[ ! "${u}" =~ [[:cntrl:]] ]] || die "帳號含控制字元"
+  hex="$(utf16le_hex "${u}")" || die "帳號不是合法的 UTF-8 文字"
+  [[ "${hex}" =~ ^[0-9a-f]+$ ]] || die "帳號編碼失敗"
+  (( ${#hex} / 4 <= 191 )) || die "帳號長度超過上限"
+  printf '0x%s' "${hex}"
+}
+
+# 新帳號的嚴格規則：非空、≤ 64、不含任何空白字元；中文等 Unicode 字元皆可
+username_strict_hex() { # ${1}=已 trim 的帳號 → 印 0x… 字面值
+  local u="${1}" hex
+  [[ ! "${u}" =~ [[:space:]] ]] || die "帳號不得含空白字元"
+  hex="$(username_lookup_hex "${u}")"
+  (( (${#hex} - 2) / 4 <= 64 )) || die "帳號長度不得超過 64 個字元"
+  printf '%s' "${hex}"
+}
+
+reject_test_username() { # 正式庫不接受測試帳號的命名
+  case "$(printf '%s' "${1}" | tr '[:upper:]' '[:lower:]')" in
+    sa@system.local|*.test|*.local|*@example.*) die "這是測試帳號的命名，正式庫不接受" ;;
+    *) ;;
+  esac
+}
+
+read_password_twice() { # ${1}=不得與之相同的帳號；結果放在全域 NEW_PASSWORD
+  local pw1 pw2
+  printf '   密碼（至少 %s 個字元，輸入時不顯示）：' "${MIN_PASSWORD_LENGTH}" >&2
+  read -rs pw1
+  echo >&2
+  printf '   再輸入一次：' >&2
+  read -rs pw2
+  echo >&2
+  [[ "${pw1}" == "${pw2}" ]] || die "兩次輸入不一致"
+  # 這裡的長度依 shell locale 計算（C locale 以位元組計，會偏鬆）；最終以 API 映像檔 --hash-password 的政策檢查為準
+  [[ "${#pw1}" -ge "${MIN_PASSWORD_LENGTH}" ]] || die "密碼至少 ${MIN_PASSWORD_LENGTH} 個字元"
+  [[ "$(printf '%s' "${pw1}" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "${1}" | tr '[:upper:]' '[:lower:]')" ]] || die "密碼不得與帳號相同"
+  NEW_PASSWORD="${pw1}"
+}
+
+hash_password() { # 從全域 NEW_PASSWORD 算 Argon2id 雜湊 → 放在全域 NEW_HASH，並清掉 NEW_PASSWORD
+  info "以 API 映像檔計算 Argon2id 雜湊（${API_IMAGE}；與登入驗證同一份程式）"
+  NEW_HASH="$(printf '%s\n' "${NEW_PASSWORD}" | docker run --rm -i "${API_IMAGE}" --hash-password)" \
+    || die "雜湊失敗（映像檔是否為含 --hash-password 且接受 ${MIN_PASSWORD_LENGTH} 字元的版本？要先 push 並部署新版 api 映像檔）"
+  NEW_PASSWORD=""
+  [[ "${NEW_HASH}" == '$argon2id$v=19$'* && "${NEW_HASH}" != *$'\n'* ]] || die "雜湊輸出格式不符，已中止"
+}
+
 cmd_create_admin() {
   load_target "${1:-}"
   require_tools
@@ -428,15 +502,13 @@ cmd_create_admin() {
   [[ "$(sql_scalar "SELECT COUNT(*) FROM admin_roles WHERE code = N'system_admin'")" == "1" ]] \
     || die "找不到 system_admin 角色（參照資料沒灌好？）"
 
-  local username display_name email pw1 pw2 hash
+  local username username_hex display_name email
   info "建立 ${DB_NAME} 的第一個管理員（系統管理員，可存取全部俱樂部；密碼只在這裡輸入，不會顯示、不會寫進任何檔案或 log）"
-  printf '   登入帳號（建議用本人 Email，3–64 字元，限英數與 . _ @ + -）：' >&2
+  printf '   登入帳號（一般字串，可用中文；不得含空白，最長 64 字元）：' >&2
   read -r username
-  [[ "${username}" =~ ^[A-Za-z0-9._@+-]{3,64}$ ]] || die "帳號格式不合"
-  case "${username}" in
-    sa@system.local|*.test|*.local|*@example.*) die "這是測試帳號的命名，正式庫不接受" ;;
-    *) ;;
-  esac
+  username="$(trim_ws "${username}")"
+  username_hex="$(username_strict_hex "${username}")"
+  reject_test_username "${username}"
   printf '   顯示名稱（最多 64 字元，不可含單引號）：' >&2
   read -r display_name
   [[ -n "${display_name}" && "${#display_name}" -le 64 && "${display_name}" != *"'"* && "${display_name}" != *'$('* ]] || die "顯示名稱不合"
@@ -447,20 +519,9 @@ cmd_create_admin() {
   fi
   # sqlcmd 把「值為空的環境變數」視為未定義，所以用 - 代表沒有 Email（SQL 端 NULLIF 轉回 NULL）
   [[ -n "${email}" ]] || email="-"
-  printf '   密碼（至少 10 字元，輸入時不顯示）：' >&2
-  read -rs pw1
-  echo >&2
-  printf '   再輸入一次：' >&2
-  read -rs pw2
-  echo >&2
-  [[ "${pw1}" == "${pw2}" ]] || die "兩次輸入不一致"
-  [[ "${#pw1}" -ge 10 ]] || die "密碼至少 10 字元"
-  [[ "$(printf '%s' "${pw1}" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "${username}" | tr '[:upper:]' '[:lower:]')" ]] || die "密碼不得與帳號相同"
-
-  info "以 API 映像檔計算 Argon2id 雜湊（${API_IMAGE}；與登入驗證同一份程式）"
-  hash="$(printf '%s\n' "${pw1}" | docker run --rm -i "${API_IMAGE}" --hash-password)" || die "雜湊失敗（映像檔是否為含 --hash-password 的版本？）"
-  pw1="" pw2=""
-  [[ "${hash}" == '$argon2id$v=19$'* && "${hash}" != *$'\n'* ]] || die "雜湊輸出格式不符，已中止"
+  read_password_twice "${username}"
+  hash_password
+  local hash="${NEW_HASH}"
 
   local sql_file="${WORK_DIR}/create-admin.sql"
   cat >"${sql_file}" <<'SQL'
@@ -474,19 +535,20 @@ IF @role_id IS NULL THROW 50002, N'找不到 system_admin 角色', 1;
 DECLARE @id uniqueidentifier = NEWID();
 INSERT INTO admin_users (id, username, display_name, email, password_hash, must_change_password, password_changed_at,
                          is_super_admin, two_factor_enabled, status)
-VALUES (@id, N'$(PRODINIT_ADMIN_USERNAME)', N'$(PRODINIT_ADMIN_DISPLAY)', NULLIF(N'$(PRODINIT_ADMIN_EMAIL)', N'-'),
+VALUES (@id, CAST($(PRODINIT_ADMIN_USERNAME_HEX) AS nvarchar(64)), N'$(PRODINIT_ADMIN_DISPLAY)', NULLIF(N'$(PRODINIT_ADMIN_EMAIL)', N'-'),
         N'$(PRODINIT_ADMIN_HASH)', 0, SYSUTCDATETIME(), 1, 0, N'active');
 INSERT INTO admin_user_roles (admin_user_id, admin_role_id) VALUES (@id, @role_id);
 COMMIT TRANSACTION;
 GO
 SQL
-  SQLCMD_DOCKER_EXTRA=(-v "${WORK_DIR}:/work/admin:ro" -e PRODINIT_ADMIN_USERNAME -e PRODINIT_ADMIN_DISPLAY -e PRODINIT_ADMIN_EMAIL -e PRODINIT_ADMIN_HASH)
-  PRODINIT_ADMIN_USERNAME="${username}" PRODINIT_ADMIN_DISPLAY="${display_name}" PRODINIT_ADMIN_EMAIL="${email}" PRODINIT_ADMIN_HASH="${hash}" \
+  SQLCMD_DOCKER_EXTRA=(-v "${WORK_DIR}:/work/admin:ro" -e PRODINIT_ADMIN_USERNAME_HEX -e PRODINIT_ADMIN_DISPLAY -e PRODINIT_ADMIN_EMAIL -e PRODINIT_ADMIN_HASH)
+  PRODINIT_ADMIN_USERNAME_HEX="${username_hex}" PRODINIT_ADMIN_DISPLAY="${display_name}" PRODINIT_ADMIN_EMAIL="${email}" PRODINIT_ADMIN_HASH="${hash}" \
     run_sql_file "/work/admin/create-admin.sql" "寫入管理員（${DB_NAME}）" "管理員沒有建立（整段在同一個交易內，已回滾）；修正後可直接重跑 create-admin ${TARGET}。"
   hash=""
 
   SQLCMD_DOCKER_EXTRA=()
   check_eq "admin_users 筆數" "1" "$(sql_scalar "SELECT COUNT(*) FROM admin_users")" || die "建立後筆數不符"
+  check_eq "帳號寫入後與輸入一致（UTF-16 往返）" "1" "$(sql_scalar "SELECT COUNT(*) FROM admin_users WHERE username = CAST(${username_hex} AS nvarchar(64))")" || die "帳號寫入後與輸入不一致"
   echo
   info "完成。請用剛才的帳號與密碼登入後台（兩階段驗證目前後台不提供設定入口，docs/14；密碼請存進密碼管理器，忘記只能由資料庫端重建）。"
   if [[ "${TARGET}" == "club" ]]; then
@@ -494,6 +556,91 @@ SQL
   else
     echo "   這個帳號是慈善後台的系統管理員（與主站後台是完全獨立的帳號體系）。"
   fi
+}
+
+cmd_reset_password() {
+  load_target "${1:-}"
+  require_tools
+  SQLCMD_DOCKER_EXTRA=()
+
+  local state
+  state="$(db_state)"
+  [[ "${state}" == "initialized" ]] || die "${DB_NAME} 狀態是 ${state}；請先 init ${TARGET}"
+
+  info "${DB_NAME} 的管理員帳號（不顯示密碼雜湊）"
+  sqlcmd_container -W -s' | ' -Q "SET NOCOUNT ON; SELECT username, display_name, status, CASE WHEN locked_until > SYSUTCDATETIME() THEN 'locked' ELSE '-' END AS locked, failed_attempt_count AS failed FROM admin_users ORDER BY username" \
+    || die "列出帳號失敗"
+  echo >&2
+
+  local username target_hex new_username="" new_hex="NULL" enable_flag=0 answer
+  printf '   要重設密碼的登入帳號（完整輸入，大小寫不拘）：' >&2
+  read -r username
+  username="$(trim_ws "${username}")"
+  target_hex="$(username_lookup_hex "${username}")"
+  [[ "$(sql_scalar "SELECT COUNT(*) FROM admin_users WHERE username = CAST(${target_hex} AS nvarchar(191))")" == "1" ]] \
+    || die "找不到這個登入帳號（請對照上面的列表）"
+  local acct_status
+  acct_status="$(sql_scalar "SELECT status FROM admin_users WHERE username = CAST(${target_hex} AS nvarchar(191))")"
+
+  printf '   新的登入帳號（直接按 Enter＝不改；一般字串、可用中文、不得含空白、最長 64 字元）：' >&2
+  read -r new_username
+  new_username="$(trim_ws "${new_username}")"
+  if [[ -n "${new_username}" ]]; then
+    new_hex="$(username_strict_hex "${new_username}")"
+    reject_test_username "${new_username}"
+    [[ "$(sql_scalar "SELECT COUNT(*) FROM admin_users WHERE username = CAST(${new_hex} AS nvarchar(64)) AND username <> CAST(${target_hex} AS nvarchar(191))")" == "0" ]] \
+      || die "新的登入帳號已被別的帳號使用"
+  fi
+  if [[ "${acct_status}" != "active" ]]; then
+    printf '   這個帳號目前狀態是「%s」（無法登入）。要一併啟用嗎？(y/N)：' "${acct_status}" >&2
+    read -r answer || answer=""
+    [[ "${answer}" == "y" || "${answer}" == "Y" ]] && enable_flag=1
+  fi
+
+  echo "   🔴 即將重設 ${DB_NAME} 的管理員密碼：帳號「${username}」${new_username:+，並把登入帳號改為「${new_username}」}；"
+  echo "      會清除鎖定與失敗次數，並讓該帳號目前所有登入狀態失效（需重新登入）。"
+  confirm "${DB_NAME}"
+
+  read_password_twice "${new_username:-${username}}"
+  hash_password
+  local hash="${NEW_HASH}"
+
+  local sql_file="${WORK_DIR}/reset-password.sql"
+  cat >"${sql_file}" <<'SQL'
+SET XACT_ABORT ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+BEGIN TRANSACTION;
+DECLARE @id uniqueidentifier = (SELECT id FROM admin_users WHERE username = CAST($(PRODINIT_TARGET_HEX) AS nvarchar(191)));
+IF @id IS NULL THROW 50003, N'找不到要重設的帳號', 1;
+DECLARE @new_username nvarchar(64) = CAST($(PRODINIT_NEW_HEX) AS nvarchar(64));
+IF @new_username IS NOT NULL AND EXISTS (SELECT 1 FROM admin_users WHERE username = @new_username AND id <> @id)
+  THROW 50004, N'新的登入帳號已被別的帳號使用', 1;
+UPDATE admin_users
+   SET password_hash = N'$(PRODINIT_ADMIN_HASH)',
+       password_changed_at = SYSUTCDATETIME(),
+       failed_attempt_count = 0,
+       locked_until = NULL,
+       username = COALESCE(@new_username, username),
+       status = CASE WHEN $(PRODINIT_ENABLE) = 1 THEN N'active' ELSE status END,
+       updated_at = SYSUTCDATETIME()
+ WHERE id = @id;
+UPDATE admin_refresh_tokens SET revoked_at = SYSUTCDATETIME() WHERE admin_user_id = @id AND revoked_at IS NULL;
+COMMIT TRANSACTION;
+GO
+SQL
+  SQLCMD_DOCKER_EXTRA=(-v "${WORK_DIR}:/work/reset:ro" -e PRODINIT_TARGET_HEX -e PRODINIT_NEW_HEX -e PRODINIT_ADMIN_HASH -e PRODINIT_ENABLE)
+  PRODINIT_TARGET_HEX="${target_hex}" PRODINIT_NEW_HEX="${new_hex}" PRODINIT_ADMIN_HASH="${hash}" PRODINIT_ENABLE="${enable_flag}" \
+    run_sql_file "/work/reset/reset-password.sql" "重設密碼（${DB_NAME}）" "密碼沒有更動（整段在同一個交易內，已回滾）；修正後可直接重跑 reset-password ${TARGET}。"
+  hash=""
+  SQLCMD_DOCKER_EXTRA=()
+
+  local final_hex="${target_hex}"
+  [[ "${new_hex}" == "NULL" ]] || final_hex="${new_hex}"
+  check_eq "密碼已更新且鎖定已清除" "1" "$(sql_scalar "SELECT COUNT(*) FROM admin_users WHERE username = CAST(${final_hex} AS nvarchar(191)) AND password_changed_at > DATEADD(minute, -5, SYSUTCDATETIME()) AND failed_attempt_count = 0 AND locked_until IS NULL")" \
+    || die "更新後核對不符，請檢查"
+  echo
+  info "完成。請用「${new_username:-${username}}」與剛才輸入的新密碼登入後台（舊的登入狀態已全部失效）。"
 }
 
 cmd_wipe_partial() {
@@ -540,6 +687,7 @@ main() {
     preflight) cmd_preflight "${2:-}" ;;
     init) cmd_init "${2:-}" ;;
     create-admin) cmd_create_admin "${2:-}" ;;
+    reset-password) cmd_reset_password "${2:-}" ;;
     verify) cmd_verify "${2:-}" ;;
     wipe-partial) cmd_wipe_partial "${2:-}" ;;
     -h|--help|help) usage 0 ;;

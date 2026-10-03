@@ -25,6 +25,10 @@ public sealed class AdminAuthService(
     // 5 次失敗鎖 15 分鐘——業界常見門檻（OWASP Authentication Cheat Sheet 建議範圍
     // 3–5 次），本專案沒有更嚴格的規劃書條文可依循，屬執行層判斷，見 apps/api/README.md。
     private const int MaxFailedAttempts = 5;
+
+    /// <summary>後台密碼最短長度（含）。2026-10-03 使用者裁決由 10 改 9；規劃書未寫死，屬執行層決定。
+    /// 前端兩個後台的提示與驗證、deploy/prod-db-init.sh 的提示必須同步。</summary>
+    public const int MinPasswordLength = 9;
     private static readonly TimeSpan LockoutDuration = TimeSpan.FromMinutes(15);
 
     // 2026-09-29（帳號枚舉時序側錄修正）：固定的假雜湊值，密碼隨便挑一組、鹽值隨機——內容本身
@@ -38,6 +42,8 @@ public sealed class AdminAuthService(
     public async Task<LoginResult> LoginAsync(
         string username, string password, string? totpCode, CancellationToken cancellationToken)
     {
+        // 與建立帳號時的正規化一致（建立時去前後空白）。
+        username = (username ?? string.Empty).Trim();
         var user = await db.AdminUsers.SingleOrDefaultAsync(u => u.Username == username, cancellationToken);
 
         if (user is null)
@@ -194,9 +200,9 @@ public sealed class AdminAuthService(
     /// 見 apps/api/README.md「密碼政策」段落列出的取捨。</summary>
     public static void ValidatePasswordPolicy(string password, string username)
     {
-        if (password.Length < 10)
+        if (password.Length < MinPasswordLength)
         {
-            throw new AdminAuthValidationException("密碼長度至少需要 10 個字元。");
+            throw new AdminAuthValidationException($"密碼長度至少需要 {MinPasswordLength} 個字元。");
         }
         if (string.Equals(password, username, StringComparison.OrdinalIgnoreCase))
         {

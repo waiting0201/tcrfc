@@ -283,6 +283,32 @@ public sealed class CharityAdminAuthTests(CharityApiFixture fx) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.OK, (await PostLoginAsync(anonymous, admin.Username, "NewPassword-12345")).StatusCode);
     }
 
+    [Theory]
+    [InlineData("12345678", HttpStatusCode.BadRequest)]   // 8 字元：拒絕
+    [InlineData("123456789", HttpStatusCode.NoContent)]   // 9 字元：邊界，通過
+    public async Task 改密碼_長度邊界_9字元通過8字元拒絕(string newPassword, HttpStatusCode expected)
+    {
+        var admin = await fx.CreateAdminAsync(isSuperAdmin: true);
+        using var client = fx.CreateClientFor(admin);
+
+        var response = await client.PostAsJsonAsync(AdminBase + "/auth/change-password", new ChangePasswordRequest(CharityApiFixture.TestPassword, newPassword), TestJson.WriteOptions);
+
+        Assert.Equal(expected, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task 帳號為中文字串_可登入且前後空白被忽略()
+    {
+        var admin = await fx.CreateAdminAsync(isSuperAdmin: true);
+        // 帳號是一般字串：改成中文（保留 ct- 前綴與網域，讓 CleanupAsync 仍清得掉）。
+        var chinese = $"ct-測試管理員{admin.Id:N}@{CharityApiFixture.TestEmailDomain}";
+        await fx.ExecuteAsync("UPDATE admin_users SET username = @u WHERE id = @id", ("@u", chinese), ("@id", admin.Id));
+
+        using var anonymous = fx.CreateClient();
+        Assert.Equal(HttpStatusCode.OK, (await PostLoginAsync(anonymous, chinese, CharityApiFixture.TestPassword)).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await PostLoginAsync(anonymous, "  " + chinese + " ", CharityApiFixture.TestPassword)).StatusCode);
+    }
+
     [Fact]
     public async Task 兩階段驗證_選用_已啟用者登入必須帶驗證碼_密鑰用慈善專屬用途加密()
     {

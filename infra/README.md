@@ -467,6 +467,7 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 # 3. 第一個管理員（互動輸入帳號、顯示名稱、Email、密碼兩次；密碼不顯示、不進命令列與 log）
 ./deploy/prod-db-init.sh create-admin club
 ./deploy/prod-db-init.sh create-admin charity    # 慈善後台是獨立帳號體系，由協會指定的人建立
+# 登入帳號是一般字串（可用中文；不得含空白、最長 64 字元）；密碼至少 9 字元
 
 # 4. 事後可隨時唯讀複查
 ./deploy/prod-db-init.sh verify club
@@ -483,7 +484,16 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 - 密碼只存在你的腦中／密碼管理器：Argon2id 雜湊由 `api` 映像檔（與登入驗證同一份程式）計算，密碼只走標準輸入。**不建立 `must_change_password`**：此旗標只是「管理員代為重設」的提示，不強制（`docs/14`），本人輸入的密碼不需要它。
 - 拒絕測試帳號命名（`sa@system.local`、`*.test`、`*.local`、`@example.*`）。🔴 **種子的 `sa@system.local`／`Admin@123` 絕不能出現在正式庫**；`verify` 會檢查。
 - 🟡 兩階段驗證：後台目前不提供設定入口（`docs/14`，v3.17 裁決），所以第一個管理員只有密碼保護。密碼請用高強度並存進密碼管理器。
-- 🟡 **唯一管理員忘記密碼**：後台沒有「忘記密碼」流程給管理員（只能由另一位系統管理員重設）。因此**建議上線後盡快再建第二個系統管理員**。萬一只有一個又忘記，補救是對資料庫更新 `admin_users.password_hash`（用 `docker run --rm -i <api 映像檔> --hash-password` 算雜湊，以 `sqlcmd` 的 `$(變數)` 帶入，不要把雜湊寫進命令列歷史）。
+- 🟡 **唯一管理員忘記密碼（或登入不進去）**：後台沒有「忘記密碼」流程給管理員（只能由另一位系統管理員重設）。因此**建議上線後盡快再建第二個系統管理員**。只有一個又登不進去時，用 **`reset-password`**（2026-10-03 新增，不必手寫 SQL）：
+
+  ```bash
+  sudo -iu runner
+  cd ~/tcrfc-src && git pull && git log -1 --format='%h %s'
+  docker pull ghcr.io/waiting0201/tcrfc-api:master      # 🔴 必須是含 9 字元政策的新版映像檔
+  ./deploy/prod-db-init.sh reset-password club          # 慈善後台改 charity
+  ```
+
+  流程：列出 `admin_users`（登入帳號、顯示名稱、狀態、是否鎖定、失敗次數，不顯示雜湊）→ 輸入要重設的登入帳號 → 可選：新的登入帳號（Enter＝不改）→ 帳號被停用時可選擇一併啟用 → 輸入庫名（`tcrfc_club`／`tcrfc_charity`）確認 → 新密碼輸入兩次（不顯示、不進命令列與 log）。腳本以 API 映像檔算 Argon2id 雜湊，更新 `password_hash`／`password_changed_at`、清除 `locked_until` 與 `failed_attempt_count`、撤銷該帳號所有更新權杖，整段同一交易，最後自動核對。
 
 **失敗與回復**
 
@@ -492,7 +502,7 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 | `preflight` 連不上 | 確認以 runner 身分、在 VM 內執行；SQL 防火牆只放行 `snet-app`，從別處連不上是預期（§4.3 末段）。`SQL_ADMIN_PASSWORD` 與 `club.env` 內不一致時重跑 `provision-secrets.sh` |
 | `init` 說「不是空的」 | 狀態 `initialized`＝已經做完了，改跑 `verify`；`partial`＝上次中途失敗或有人手動建過表，看輸出判斷，確認是 `init` 中斷後用 `wipe-partial <club\|charity>`（要輸入「WIPE <庫名>」；**有 `__EFMigrationsHistory` 或 `admin_users` 有資料一律拒絕**），再重跑 `init` |
 | 驗證有 `[不符]` | 腳本以非零離開、不會自動修。把完整輸出貼給 `backend-engineer`；**不要手動補資料讓它變綠** |
-| `create-admin` 失敗 | 整段在同一交易內，已回滾，修正後直接重跑 |
+| `create-admin`／`reset-password` 失敗 | 整段在同一交易內，已回滾，修正後直接重跑 |
 | `--hash-password` 失敗 | 映像檔不是含此功能的版本——確認 `deploy.yml` 的 `build-api` 已對該 commit 成功、`docker pull` 到最新 |
 | Azure SQL 回報 `json` 相關錯誤 | 先查資料庫相容性層級（`SELECT compatibility_level FROM sys.databases`）；本機 SQL Server 2025 在 160 與 170 都能建 `json` 欄位，但正式庫未實測（`docs/20` §5） |
 

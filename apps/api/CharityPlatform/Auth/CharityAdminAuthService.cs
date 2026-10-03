@@ -28,6 +28,8 @@ public sealed class CharityAdminAuthService(
     public async Task<LoginResult> LoginAsync(
         string username, string password, string? totpCode, CancellationToken cancellationToken)
     {
+        // 與主站一致：登入時去前後空白（帳號本身不得含空白）。
+        username = (username ?? string.Empty).Trim();
         var user = await db.AdminUsers.SingleOrDefaultAsync(u => u.Username == username, cancellationToken);
 
         if (user is null)

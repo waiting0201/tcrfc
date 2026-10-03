@@ -357,6 +357,9 @@
     ⑤ **推播權杖加密儲存、後台清單遮罩、完整值需 `app.device.reveal`**；⑥ **`app_credentials` 只存列管資訊，絕不存金鑰本身**；
     ⑦ **JSON 時間戳一律 UTC 帶 `Z`**（`Common/UtcDateTimeJsonConverter`，輸入無時區記號視為 UTC）；⑧ **EF `Where` lambda 內不得呼叫會丟驗證例外的函式**（`docs/18` `E-92`）。
   - **後台帳號用 `username` 登入不用 Email**：`AdminUser.username` UNIQUE，`email` 只作通知、不唯一、不作登入鍵。
+    **`username` 是一般字串**（2026-10-03 使用者裁決）：去前後空白後非空、≤64、不含空白字元，中文等 Unicode 皆可，不設最短長度；
+    **密碼至少 9 字元**（原 10）、不得等於帳號。建立與登入兩端都先 Trim。執行層決定、規劃書未寫死；常數在 `AdminAuthService.MinPasswordLength`，
+    兩個後台前端與 `deploy/prod-db-init.sh`（`MIN_PASSWORD_LENGTH`）要同步。
     種子超管 `sa@system.local`／`Admin@123`（雜湊儲存、不強制首次更換）——**它長得像 Email 但存在 `username` 欄**。
     **前台 `Member` 維持 Email ＋ LINE 登入不變，兩套帳號完全獨立。**
   - **雙語採 `<entity>_i18n` 側表**，不是並排 `zh_*`／`en_*` 欄位——為兌現「加第三語系不改程式」。快照表、後台角色表、UI 字串不走側表。
