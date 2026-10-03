@@ -426,7 +426,7 @@ push master / dispatch ─▶ changes ─▶ build-*（hosted，只建有變動�
 4. 本機演練（SQL Server 2022 轉換版 DDL 與 2025 原生 `json`＋原樣 DDL 各一次）：init→import→verify→clean→verify、重複匯入被拒、被外鍵擋住時回滾，皆通過。
 5. 匯入走資料庫直寫，**不經 API 的 write-invalidate**：Redis 內快取的空列表要等 TTL 或手動清（`docker exec` 進 redis 容器用其環境變數 `redis-cli -a "$REDIS_PASSWORD" FLUSHALL`，密碼不經過命令列）；Cloudflare 若快取了前台 HTML 另清（`cd-purge-cache.sh` 的做法）。
 
-**VM 上怎麼跑**（腳本還沒 push 前，用 DDL／migrations 與部署 commit 一致的暫存目錄；push 並部署後可改用 `~/tcrfc-src`）：以 `tar` 把 `deploy/prod-db-init.sh`、`deploy/prod-seed-import.sh` 與 `db/prod/*-content-*` 疊在 runner checkout 的 `db/`、`apps/api/**/Migrations` 之上。
+**VM 上怎麼跑**（腳本還沒 push 前，用 DDL／migrations 與部署 commit 一致的暫存目錄；push 並部署後改用 runner 的 checkout 目錄 `/opt/tcrfc/actions-runner/_work/tcrfc/tcrfc`，`~/tcrfc-src` 已退役）：以 `tar` 把 `deploy/prod-db-init.sh`、`deploy/prod-seed-import.sh` 與 `db/prod/*-content-*` 疊在 runner checkout 的 `db/`、`apps/api/**/Migrations` 之上。
 
 ```bash
 sudo -iu runner

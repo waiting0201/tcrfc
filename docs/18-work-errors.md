@@ -143,6 +143,7 @@
 | E-132 | 2026-10-02 | 官方商品頁改接商店 API 時用了 `useShopInfo()`，整份商店資訊（含 `collectingSubjectName`「款項由台中磐石足球俱樂部代收」）被序列化進頁面 payload，藍鯨的 `/culture/merchandise/` HTML 因此出現「磐石」，被 `check-club-brand-leak.mjs` 抓到（頁面可見文字沒有） | 以為「沒有顯示的欄位就不算外洩」；Nuxt 會把 `useFetch`／`useAsyncData` 的整份回應放進 payload | 在藍鯨會渲染的頁面只取需要的欄位（`useAsyncData` 內只回傳 `collections`），不要直接用回傳整包商店資訊的 composable | ✅ `scripts/check-club-brand-leak.mjs`（需先把藍鯨站跑起來，未掛 lint，E-34） |
 | E-140 | 2026-10-02 | 後台 `http.ts` 的 `classifyByStatus` 對 5xx（含 503）建立 `AdminApiError` 時漏帶 `body`，特約店家編輯頁 `PartnerStoreEditView` 用 `error.body.code === 'geocoder_unavailable'` 區分「定位服務暫時故障」與「尚未啟用」的分支**永遠不會成立**：暫時故障被誤判成尚未啟用，按鈕被停用、提示錯誤（G 批上線至今） | G 批只靠讀程式與 lint 確認該分支存在，沒有用會回 503＋`code` 的假後端實際走過兩種 503；H 批場地管理要比照做時用假後端實走才抓到 | 凡依 `error.body.xxx` 分流的畫面，驗收時假後端必須各回一次對應的 `code`；`classifyByStatus` 所有分支都要把 `body` 帶進 `AdminApiError` | 無（已修；`verify-admin` 的定位三態是 scratchpad 腳本，未納版控） |
 | E-142 | 2026-10-02 | 頁尾電子報區新增「同意」勾選框，被凍結樣式表 `tcrfc.css` 的 `.newsletter input{ width:100%; padding:0 1rem }` 撐成整欄寬方塊、說明文字被擠成一字一行；lint／typecheck／build 全綠，看截圖才發現 | 往既有區塊加控制項前沒有 grep 凍結樣式表裡該區塊的元素選擇器 | 加控制項前先 grep 該區塊的樣式規則，在元件內用更高特異度覆寫，並看截圖 | 無 |
+| E-143 | 2026-10-03 | 給使用者的 VM 操作步驟寫 `cd ~/tcrfc-src && git pull`，該目錄在首次 CD 後已退役，使用者在 VM 上得到 `not a git repository`；`infra/README.md` 兩處與 `docs/20` §5 一處也還指向它 | 無 |
 
 ---
 
@@ -2506,3 +2507,10 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：往既有區塊加新元素前，沒有先 grep 凍結樣式表裡該區塊底下有沒有 `input`／`button`／`p` 這類元素選擇器。
 - **下次怎麼避免**：在 `tcrfc.css`（不得修改）管轄的區塊內加控制項前先 `grep -n "\.區塊名" public/assets/css/tcrfc.css`，用更高特異度的選擇器在元件內覆寫；新增元素後一定看一次截圖。
 - **防呆**：無。
+
+### E-143 VM 操作步驟引用已退役的 `~/tcrfc-src`（2026-10-03，正式機重設密碼）
+
+- **錯在哪**：要使用者在 VM 上執行 `reset-password` 時，步驟寫 `cd ~/tcrfc-src && git pull`。`docs/20` §4a 早已定案「部署目錄＝runner 的 checkout `/opt/tcrfc/actions-runner/_work/tcrfc/tcrfc`，`~/tcrfc-src` 退役」，使用者照做得到 `fatal: not a git repository`。`infra/README.md` §4.8 的兩段指令與 `docs/20` §5 種子匯入段也仍寫 `~/tcrfc-src`，主 session 與子 agent 都是照抄這兩處。
+- **根因（可改掉的行為）**：寫「在 VM 上執行」的指令時，只抄最近一份文件裡的指令，沒有對照「部署目錄」的單一定案處（`docs/20` §4a）。退役決定寫進 `docs/20` 時，沒有 grep 全 repo 把其他引用一起改掉。
+- **下次怎麼避免**：給出任何 VM 上的 `cd` 路徑前，先 `grep -rn "tcrfc-src\|_work/tcrfc" docs infra deploy` 確認現行路徑；在部署目錄裡只做唯讀操作（不 `pull`／`checkout`／`compose up`）。退役某路徑或名稱時，同一次交付 grep 全 repo 清掉舊引用。
+- **防呆**：無（已把 `infra/README.md`、`docs/20` 的舊路徑改為 runner checkout 目錄）。

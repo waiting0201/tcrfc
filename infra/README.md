@@ -452,8 +452,8 @@ Cloudflare 偶爾會調整 IP 段（來源 <https://www.cloudflare.com/ips/>）�
 
 ```bash
 # 在 VM 上，以 runner 身分
-git clone --depth 1 https://github.com/waiting0201/tcrfc.git ~/tcrfc-src   # 之後更新用 git -C ~/tcrfc-src pull
-cd ~/tcrfc-src && git log -1 --format='%h %s'                               # 確認是預期的 commit
+cd /opt/tcrfc/actions-runner/_work/tcrfc/tcrfc                             # runner 的 checkout＝最近一次部署的 commit（~/tcrfc-src 已退役，docs/20 §4a）；只讀用，不要 pull／checkout／compose up
+git log -1 --format='%h %s'                                                 # 確認是預期的 commit
 docker pull ghcr.io/waiting0201/tcrfc-api:master                            # 取最新映像檔
 
 # 1. 唯讀預檢：連線、庫名、現況應為 empty
@@ -488,7 +488,8 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 
   ```bash
   sudo -iu runner
-  cd ~/tcrfc-src && git pull && git log -1 --format='%h %s'
+  cd /opt/tcrfc/actions-runner/_work/tcrfc/tcrfc        # 部署目錄，已是最新部署的 commit，不要 pull
+  git log -1 --format='%h %s'
   docker pull ghcr.io/waiting0201/tcrfc-api:master      # 🔴 必須是含 9 字元政策的新版映像檔
   ./deploy/prod-db-init.sh reset-password club          # 慈善後台改 charity
   ```
