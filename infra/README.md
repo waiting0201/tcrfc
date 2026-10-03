@@ -482,7 +482,7 @@ docker pull ghcr.io/waiting0201/tcrfc-api:master                            # �
 
 - 建的是**系統管理員**（`is_super_admin`，與 `system_admin` 角色）：不需另外授權俱樂部就能管理兩個俱樂部、能新增其他帳號。之後的帳號一律在後台「帳號與角色」建立；`create-admin` 只在 `admin_users` 為空時可用。
 - 密碼只存在你的腦中／密碼管理器：Argon2id 雜湊由 `api` 映像檔（與登入驗證同一份程式）計算，密碼只走標準輸入。**不建立 `must_change_password`**：此旗標只是「管理員代為重設」的提示，不強制（`docs/14`），本人輸入的密碼不需要它。
-- 拒絕測試帳號命名（`sa@system.local`、`*.test`、`*.local`、`@example.*`）。🔴 **種子的 `sa@system.local`／`Admin@123` 絕不能出現在正式庫**；`verify` 會檢查。
+- 拒絕測試帳號命名（`*.test`、`*.local`、`@example.*`）。**`sa@system.local` 例外允許**（2026-10-03 使用者裁決，可當正式管理員帳號名；它也是種子超管的名字、公開 repo 看得到，所以密碼一定要是重新設定的）。🔴 **種子的 `Admin@123` 等種子密碼絕不能出現在正式庫**：`verify` 改為比對「`admin_users.password_hash` 是否等於 `db/seed/generate-*-seed-sql.py` 裡任何一個種子雜湊」，命中即失敗。
 - 🟡 兩階段驗證：後台目前不提供設定入口（`docs/14`，v3.17 裁決），所以第一個管理員只有密碼保護。密碼請用高強度並存進密碼管理器。
 - 🟡 **唯一管理員忘記密碼（或登入不進去）**：後台沒有「忘記密碼」流程給管理員（只能由另一位系統管理員重設）。因此**建議上線後盡快再建第二個系統管理員**。只有一個又登不進去時，用 **`reset-password`**（2026-10-03 新增，不必手寫 SQL）：
 

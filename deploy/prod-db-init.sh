@@ -385,10 +385,12 @@ cmd_verify_loaded() {
   check_eq "中文編碼（locales.${zh_col} 首字碼位，繁＝32321）" "32321" \
     "$(sql_scalar "SELECT ISNULL(MAX(UNICODE(LEFT(${zh_col}, 1))), 0) FROM locales WHERE code = N'zh-Hant'")" || failures=$((failures + 1))
 
-  # 不得有測試帳號（種子超管、*.test、*.local）
+  # 不得有測試帳號：*.test／*.local（sa@system.local 例外，2026-10-03 使用者裁決）命名，或任何帳號的密碼雜湊仍等於種子雜湊
   local bad
-  bad="$(sql_scalar "SELECT COUNT(*) FROM admin_users WHERE username = N'sa@system.local' OR username LIKE N'%.test' OR username LIKE N'%@system.local' OR username LIKE N'%.local'")"
-  check_eq "測試帳號（sa@system.local／*.test／*.local）" "0" "${bad}" || failures=$((failures + 1))
+  bad="$(sql_scalar "SELECT COUNT(*) FROM admin_users WHERE (username LIKE N'%.test' OR username LIKE N'%.local') AND username <> N'sa@system.local'")"
+  check_eq "測試帳號命名（*.test／*.local，sa@system.local 除外）" "0" "${bad}" || failures=$((failures + 1))
+  bad="$(sql_scalar "SELECT COUNT(*) FROM admin_users WHERE password_hash IN ($(seed_password_hashes))")"
+  check_eq "密碼雜湊等於種子雜湊的帳號（種子帳號誤灌，或沿用 Admin@123 等種子密碼）" "0" "${bad}" || failures=$((failures + 1))
   ok "admin_users 筆數：$(sql_scalar "SELECT COUNT(*) FROM admin_users")"
 
   if [[ "${TARGET}" == "club" ]]; then
@@ -460,10 +462,22 @@ username_strict_hex() { # ${1}=已 trim 的帳號 → 印 0x… 字面值
 }
 
 reject_test_username() { # 正式庫不接受測試帳號的命名
-  case "$(printf '%s' "${1}" | tr '[:upper:]' '[:lower:]')" in
-    sa@system.local|*.test|*.local|*@example.*) die "這是測試帳號的命名，正式庫不接受" ;;
+  # 2026-10-03 使用者裁決：開放 sa@system.local 當正式管理員帳號名（它也是種子超管的名字、公開 repo 看得到；
+  # 密碼必須是重新設定的）。種子帳號誤灌的偵測因此改看「密碼雜湊是否等於種子雜湊」，見 cmd_verify 與 seed_password_hashes。
+  local lower
+  lower="$(printf '%s' "${1}" | tr '[:upper:]' '[:lower:]')"
+  [[ "${lower}" == "sa@system.local" ]] && return 0
+  case "${lower}" in
+    *.test|*.local|*@example.*) die "這是測試帳號的命名，正式庫不接受" ;;
     *) ;;
   esac
+}
+
+seed_password_hashes() { # 以 SQL IN 清單輸出 db/seed 產生器裡寫死的全部 Argon2id 種子雜湊（種子帳號誤灌的偵測依據）
+  local list
+  list="$(grep -ohE '\$argon2id\$[^"'"'"' ]+' "${REPO_ROOT}"/db/seed/generate-*-seed-sql.py | sort -u | sed "s/.*/N'&'/" | paste -sd, -)"
+  [[ -n "${list}" ]] || die "從 db/seed/generate-*-seed-sql.py 讀不到任何種子雜湊，無法檢查種子帳號"
+  printf '%s' "${list}"
 }
 
 read_password_twice() { # ${1}=不得與之相同的帳號；結果放在全域 NEW_PASSWORD
