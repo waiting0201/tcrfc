@@ -148,6 +148,10 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 
 > ⚠️ 這條漂移檢查只守本 repo 這一側（產生檔 = 後端現況）。**App 端（`tcrfc-app-ios`／`tcrfc-app-android`，AP-7）的檢查是另一件事**：它們固定在某個 `shared/` 版本，CI 比對自己取用的那份是否等於上游，見 `docs/19` §2。
 
+### `compose-env`：compose 的 `NUXT_PUBLIC_*` 覆寫檢查（`E-112` 升級，2026-10-03）
+
+`ci.yml` 另有 `compose-env` job（`scripts/check-compose-env.mjs`）：PR 改到 `docker-compose.yml`、`apps/web/nuxt.config.ts` 或 `apps/web-charity/nuxt.config.ts` 時，會檢查 compose 的 `NUXT_PUBLIC_*` 覆寫是否涵蓋 `nuxt.config.ts` 寫死的所有開發預設值，`nuxt-bw` 也必須帶 `SITE_NAME=台中藍鯨`、`CLUB=bw`。這個 job 只做純文字解析，不需要起容器、不使用 secrets。**它擋不住 VM 上 `.env` 填錯值**（例如 `BW_DOMAIN`）。
+
 **PR（`ci.yml`）**：`lint` → `unit test` → `docker build`（`push: false`，只驗證 Dockerfile 能建成）→ 整合測試（見 §1 的「CI 當 staging」）。
 **Push master（`deploy.yml`）**：同樣先 build，成功才 `push: true` 到 ghcr，再進部署 job。
 
