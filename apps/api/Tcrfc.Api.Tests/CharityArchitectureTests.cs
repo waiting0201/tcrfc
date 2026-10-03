@@ -67,8 +67,8 @@ public sealed class CharityArchitectureTests
     [Fact]
     public void 慈善後台每一支端點都必須先通過授權器_沒有任何端點能略過()
     {
-        // 後台端點分散在兩個檔案（CH-3 的 N1–N3 與 CH-4／CH-5 的帳務與營運）；新增第三個端點檔時要把它加進這份清單。
-        var routes = new[] { "CharityAdminEndpoints.cs", "CharityAdminLedgerEndpoints.cs" }
+        // 後台端點分散在三個檔案（CH-3 的 N1–N3、CH-4／CH-5 的帳務與營運、帳號與角色管理）；新增第三個端點檔時要把它加進這份清單。
+        var routes = new[] { "CharityAdminEndpoints.cs", "CharityAdminLedgerEndpoints.cs", "CharityAdminAccessEndpoints.cs" }
             .SelectMany(name => RouteCalls(Path.Combine(CharityDir(), "Admin", name)))
             .ToList();
         Assert.True(routes.Count >= 60, $"只掃到 {routes.Count} 支後台端點，遠低於預期——檔案結構可能已改變，需要同步更新這支測試。");
@@ -77,7 +77,7 @@ public sealed class CharityArchitectureTests
         var unlisted = Directory.EnumerateFiles(Path.Combine(CharityDir(), "Admin"), "*.cs")
             .Where(f => RouteCalls(f).Any())
             .Select(Path.GetFileName)
-            .Except(["CharityAdminEndpoints.cs", "CharityAdminLedgerEndpoints.cs"])
+            .Except(["CharityAdminEndpoints.cs", "CharityAdminLedgerEndpoints.cs", "CharityAdminAccessEndpoints.cs"])
             .ToList();
         Assert.True(unlisted.Count == 0, "這些檔案定義了路由但沒有納入授權掃描：" + string.Join("、", unlisted));
 

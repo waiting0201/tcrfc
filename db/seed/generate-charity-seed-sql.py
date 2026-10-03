@@ -307,9 +307,15 @@ EXTRA_PERMISSIONS = [
     ("n7.audit_log.view", "N7", "audit_log", "view", "檢視稽核紀錄", "View Audit Logs", True, True),
     # 規劃書 §6.3 N3 操作「隱藏於徵信名單」（客服受理捐款人要求時處理；改變公開頁面內容，所以獨立一個碼並寫稽核）。
     ("n3.donation.hide_credit", "N3", "donation", "execute", "隱藏或恢復徵信名單顯示", "Hide Donor From Credit List", False, False),
+    # 2026-10-03：後台帳號與角色管理（規劃書 §10）。比照主站 system.account.*／system.role.*：全部 sysadmin_only，只落在系統管理員身上。
+    ("n7.admin_account.view", "N7", "admin_account", "view", "檢視後台帳號", "View Admin Accounts", True, True),
+    ("n7.admin_account.manage", "N7", "admin_account", "update", "管理後台帳號", "Manage Admin Accounts", True, True),
+    ("n7.admin_role.view", "N7", "admin_role", "view", "檢視角色與權限", "View Roles & Permissions", True, True),
+    ("n7.admin_role.manage", "N7", "admin_role", "update", "管理角色與權限", "Manage Roles & Permissions", True, True),
 ]
 EXTRA_ROLE_PERMISSIONS = {
-    "system_admin": ["n3.donation.recheck_payment", "n4.settlement.mark_paid", "n7.audit_log.view", "n3.donation.hide_credit"],
+    "system_admin": ["n3.donation.recheck_payment", "n4.settlement.mark_paid", "n7.audit_log.view", "n3.donation.hide_credit",
+                     "n7.admin_account.view", "n7.admin_account.manage", "n7.admin_role.view", "n7.admin_role.manage"],
     "customer_service_admin": ["n3.donation.recheck_payment", "n3.donation.hide_credit"],
 }
 

@@ -123,6 +123,8 @@ public static class CharityPlatformRegistration
         services.AddScoped<CharityReportsAdminService>();
         services.AddScoped<CharitySettingsAdminService>();
         services.AddScoped<CharityAuditQueryService>();
+        services.AddScoped<CharityAdminAccountsService>();
+        services.AddScoped<CharityAdminRolesService>();
 
         // ── 背景維護（逾時轉換、憑證重試）：Development 預設關閉，見 CharityOptions.WorkersEnabled ──
         services.AddScoped<CharityMaintenanceRunner>();

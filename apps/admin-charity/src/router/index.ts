@@ -1,7 +1,8 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { hasAnyPermission, isAuthenticated, isBootstrapped, markBootstrapped } from '@/auth/session'
+import { authUser, isAuthenticated, isBootstrapped, markBootstrapped } from '@/auth/session'
 import { loadProfile, refreshAccessToken } from '@/api/auth'
-import { NAV_ITEMS } from '@/data/nav'
+import { NAV_ITEMS, isNavItemVisible } from '@/data/nav'
+import { ElMessage } from 'element-plus'
 
 const AdminLayout = () => import('@/layouts/AdminLayout.vue')
 const LoginView = () => import('@/views/LoginView.vue')
@@ -16,6 +17,10 @@ const DonationListView = () => import('@/views/donations/DonationListView.vue')
 const SettlementView = () => import('@/views/settlements/SettlementView.vue')
 const InvoiceListView = () => import('@/views/invoices/InvoiceListView.vue')
 const ReportView = () => import('@/views/reports/ReportView.vue')
+const AccountListView = () => import('@/views/system/AccountListView.vue')
+const AccountEditView = () => import('@/views/system/AccountEditView.vue')
+const RoleListView = () => import('@/views/system/RoleListView.vue')
+const RoleEditView = () => import('@/views/system/RoleEditView.vue')
 const SiteSettingView = () => import('@/views/settings/SiteSettingView.vue')
 
 const routes: RouteRecordRaw[] = [
@@ -25,7 +30,7 @@ const routes: RouteRecordRaw[] = [
     component: AdminLayout,
     children: [
       // 登入後落地在「第一個看得到的模組」：客服／行政沒有店家檢視權限，不能一律導去店家頁。
-      { path: '', redirect: () => NAV_ITEMS.find((item) => hasAnyPermission(item.anyOf))?.path ?? '/stores' },
+      { path: '', redirect: () => NAV_ITEMS.find(isNavItemVisible)?.path ?? '/stores' },
       { path: 'stores', name: 'stores', component: StoreListView, meta: { label: '店家與 QR Code', code: 'N1' } },
       { path: 'stores/new', name: 'store-new', component: StoreEditView, meta: { label: '新增店家', code: 'N1' } },
       {
@@ -61,6 +66,13 @@ const routes: RouteRecordRaw[] = [
       { path: 'invoices', name: 'invoices', component: InvoiceListView, meta: { label: '發票與收據管理', code: 'N5' } },
       { path: 'reports', name: 'reports', component: ReportView, meta: { label: '捐款報表', code: 'N6' } },
       { path: 'settings', name: 'settings', component: SiteSettingView, meta: { label: '站台設定', code: 'N7' } },
+      // 帳號與角色管理：只有系統管理員（`sysadminOnly`）；真正的授權邊界在後端，守衛只是提前導頁。
+      { path: 'system/accounts', name: 'system-account-list', component: AccountListView, meta: { label: '帳號', sysadminOnly: true } },
+      { path: 'system/accounts/new', name: 'system-account-new', component: AccountEditView, meta: { label: '新增帳號', sysadminOnly: true } },
+      { path: 'system/accounts/:id/edit', name: 'system-account-edit', component: AccountEditView, props: true, meta: { label: '編輯帳號', sysadminOnly: true } },
+      { path: 'system/roles', name: 'system-role-list', component: RoleListView, meta: { label: '角色與權限', sysadminOnly: true } },
+      { path: 'system/roles/new', name: 'system-role-new', component: RoleEditView, meta: { label: '新增角色', sysadminOnly: true } },
+      { path: 'system/roles/:id/edit', name: 'system-role-edit', component: RoleEditView, props: true, meta: { label: '編輯角色', sysadminOnly: true } },
     ],
   },
   { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
@@ -82,6 +94,10 @@ router.beforeEach(async (to) => {
   }
   if (to.name === 'login') return isAuthenticated.value ? { path: '/' } : true
   if (!isAuthenticated.value) return { name: 'login', query: to.fullPath === '/' ? undefined : { redirect: to.fullPath } }
+  if (to.meta.sysadminOnly && !authUser.value?.isSuperAdmin) {
+    ElMessage.error('你的帳號沒有權限進入這個頁面。')
+    return { path: '/' }
+  }
   return true
 })
 

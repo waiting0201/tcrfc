@@ -256,6 +256,11 @@ public class CharityApiFixture : WebApplicationFactory<Program>, IAsyncLifetime
             DELETE FROM donation_amount_options WHERE donation_project_id IN (SELECT id FROM donation_projects WHERE project_slug LIKE N'ct-%');
             DELETE FROM donation_projects WHERE project_slug LIKE N'ct-%';
             DELETE FROM donation_stores WHERE id IN (SELECT donation_store_id FROM donation_stores_i18n WHERE name LIKE N'CT店家%');
+            DELETE FROM admin_user_roles WHERE admin_role_id IN (SELECT id FROM admin_roles WHERE code LIKE N'ctrole[_]%');
+            DELETE FROM role_permissions WHERE admin_role_id IN (SELECT id FROM admin_roles WHERE code LIKE N'ctrole[_]%');
+            DELETE FROM admin_roles WHERE code LIKE N'ctrole[_]%';
+            UPDATE admin_roles SET created_by = NULL WHERE created_by IN (SELECT id FROM admin_users WHERE username LIKE N'ct-%@charity-test.invalid');
+            UPDATE admin_roles SET updated_by = NULL WHERE updated_by IN (SELECT id FROM admin_users WHERE username LIKE N'ct-%@charity-test.invalid');
             DELETE FROM admin_users WHERE username LIKE N'ct-%@charity-test.invalid';
             DELETE FROM role_permissions WHERE admin_role_id IN (SELECT id FROM admin_roles WHERE code LIKE N'ct-role-%');
             DELETE FROM admin_roles WHERE code LIKE N'ct-role-%';

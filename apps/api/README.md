@@ -9433,3 +9433,28 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 7. **GA4 憑證**：服務帳戶與屬性 ID 未提供，流量區塊目前「尚未串接」（接縫 `IAnalyticsSource`，`docs/17` §3）。
 8. **EDM 供應商**：未定；設定欄位先備好（平台名稱、名單識別、寄件者、加密金鑰）。
 9. **試訓報名通知信**與課程報名一樣沒有寄送通路（全系統無報名通知）。
+
+
+## 慈善後台帳號與角色管理（2026-10-03，`backend-engineer`）
+
+補上 `docs/16` §2.3 五張表（`AdminUser`／`AdminRole`／`AdminUserRole`／`Permission`／`RolePermission`）原本沒有任何管理端點的缺口。**照主站 `Features/AdminAccounts`／`Features/AdminRoles` 搬**，程式在 `CharityPlatform/Admin/`（`CharityAdminAccessEndpoints.cs`、`CharityAdminAccountsService.cs`、`CharityAdminRolesService.cs`、`CharityAdminAccessDtos.cs`），不引用 `ClubDbContext` 或主站型別（只借 `AdminAuthService.ValidatePasswordPolicy`，與慈善登入同一處既有借用）。前綴 `/api/v1/donation-platform/admin`。
+
+| 端點 | 權限碼 | 說明 |
+|---|---|---|
+| `GET /accounts?status&keyword&page&pageSize` | `n7.admin_account.view` | 預設 20 筆、上限 100；依帳號排序 |
+| `GET /accounts/{id}` | 同上 | 詳情；找不到 404 |
+| `POST /accounts` | `n7.admin_account.manage` | 201。建立者指定初始密碼（不寄信）；`mustChangePassword` 預設 `false` |
+| `PUT /accounts/{id}` | 同上 | 基本資料＋整份取代角色；不含密碼／狀態／2FA |
+| `POST /accounts/{id}/status` `{status}` | 同上 | `active`／`disabled`；停用立即撤銷全部更新權杖 |
+| `POST /accounts/{id}/reset-password` `{newPassword}` | 同上 | 204；`mustChangePassword=true`（僅提示）、清鎖定、撤銷工作階段 |
+| `POST /accounts/{id}/reset-totp` | 同上 | 204；清空 2FA 密鑰、撤銷工作階段 |
+| `GET /roles/permissions` | `n7.admin_role.view` | 權限碼字典 |
+| `GET /roles`、`GET /roles/{id}` | 同上 | 列表含 `assignedAccountCount`；詳情含權限指派 |
+| `POST /roles` | `n7.admin_role.manage` | 201。`code` 只能小寫英數底線；建立者永遠 `isSystem=false` |
+| `PUT /roles/{id}` | 同上 | 改名稱 |
+| `DELETE /roles/{id}` | 同上 | 204；系統角色 403、仍有帳號 409 |
+| `PUT /roles/{id}/permissions` | 同上 | 整份取代**非 `sysadmin_only`** 的指派；`sysadmin_only` 與未知碼 400（訊息只報筆數，不列權限碼） |
+
+**四個權限碼全為 `sysadmin_only`**（種子 `EXTRA_PERMISSIONS`、`db/prod/charity-reference-data.sql`、migration `AddAdminAccessPermissions` 三處同一組 UUID）。守則：帳號名稱是一般字串（可中文，前後去空白、≤64、不得含空白、全域唯一）；密碼下限 `AdminAuthService.MinPasswordLength`（9）、不得與帳號相同、雜湊走 `PasswordHasher`（Argon2id，與登入同一個）；**不得停用或降級最後一位啟用中的系統管理員（含自己，409）**；沒有刪除帳號端點。稽核動作 `admin_account.create／update／status／reset_password／reset_totp`、`admin_role.create／update／delete／permissions`，與變更同一次 `SaveChanges`，摘要只含筆數與布林，不含密碼與權限碼。
+
+**與主站形狀的差異**（慈善沒有的維度）：(1) 沒有 `/club-grants`、`/team-grants` 六支端點；(2) 帳號回應的 `primaryClubId`／`locale` 恆為 `null`、`clubGrants`／`teamGrants` 恆為 `[]`，請求裡的這兩欄接受但忽略；(3) 角色回應 `scopeMode` 恆為 `all_clubs`、`sortOrder` 取 `seq`、權限字典 `isClubScoped` 恆為 `false`，建立／更新角色的 `scopeMode` 可省略（忽略）；(4) `role_permissions.scope_type` 在慈善庫可為 `NULL`（種子即如此），回應補成 `all`，輸入沿用主站值域。測試：`CharityAdminAccessTests`（17 項）；測試角色代碼 `ctrole_*`，`CharityApiFixture.CleanupAsync` 清除並把被測試帳號寫入的 `admin_roles.created_by／updated_by` 設回 `NULL`。不在 App 契約內，`shared/scripts/gen-all.sh` 不必跑。

@@ -9,4 +9,6 @@ export interface NavItem {
    * 真正的授權一律由後端判斷。
    */
   anyOf: string[]
+  /** 只有系統管理員看得到（帳號與角色管理）；為 true 時 `anyOf` 不參與判斷。 */
+  sysadminOnly?: boolean
 }

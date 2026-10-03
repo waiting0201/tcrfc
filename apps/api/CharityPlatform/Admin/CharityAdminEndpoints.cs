@@ -23,6 +23,7 @@ public static class CharityAdminEndpoints
         MapProjects(root.MapGroup("/projects"));
         MapDonations(root.MapGroup("/donations"));
         root.MapCharityAdminLedgerEndpoints();
+        root.MapCharityAdminAccessEndpoints();
     }
 
     // ═══════════════════════════════════════════════════════════════════════

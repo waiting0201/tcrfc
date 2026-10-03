@@ -13,8 +13,8 @@
 -- 預期列數（deploy/prod-db-init.sh 灌完後逐表核對；`-- MANIFEST` 行是機器讀的）：
 -- MANIFEST admin_roles=9
 -- MANIFEST locales=2
--- MANIFEST permissions=27
--- MANIFEST role_permissions=49
+-- MANIFEST permissions=31
+-- MANIFEST role_permissions=53
 -- ============================================================================
 
 SET XACT_ABORT ON;
@@ -654,6 +654,26 @@ IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = N'n3.donation.hide_credit'
   VALUES (N'cc00616a-e768-54a0-8ce8-1a765f4a3aba', N'n3.donation.hide_credit', N'N', N'N3', N'donation', N'execute', N'隱藏或恢復徵信名單顯示', N'Hide Donor From Credit List', 0, 0);
 GO
 
+IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = N'n7.admin_account.view')
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, name_zh, name_en, is_restricted, sysadmin_only)
+  VALUES (N'f041a6f1-064d-534e-a1ec-83bf9d78e4f8', N'n7.admin_account.view', N'N', N'N7', N'admin_account', N'view', N'檢視後台帳號', N'View Admin Accounts', 1, 1);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = N'n7.admin_account.manage')
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, name_zh, name_en, is_restricted, sysadmin_only)
+  VALUES (N'09f486c6-2641-519f-90e2-59a0d1e8c46b', N'n7.admin_account.manage', N'N', N'N7', N'admin_account', N'update', N'管理後台帳號', N'Manage Admin Accounts', 1, 1);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = N'n7.admin_role.view')
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, name_zh, name_en, is_restricted, sysadmin_only)
+  VALUES (N'29c61d0d-48a9-567e-a957-aff843c4a462', N'n7.admin_role.view', N'N', N'N7', N'admin_role', N'view', N'檢視角色與權限', N'View Roles & Permissions', 1, 1);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM permissions WHERE code = N'n7.admin_role.manage')
+  INSERT INTO permissions (id, code, module_code, submodule_code, domain, action, name_zh, name_en, is_restricted, sysadmin_only)
+  VALUES (N'0382bb73-0515-54ae-8873-e11a8728ca56', N'n7.admin_role.manage', N'N', N'N7', N'admin_role', N'update', N'管理角色與權限', N'Manage Roles & Permissions', 1, 1);
+GO
+
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n3.donation.recheck_payment'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n3.donation.recheck_payment'), NULL);
@@ -672,6 +692,26 @@ GO
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n3.donation.hide_credit'))
   INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
   VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n3.donation.hide_credit'), NULL);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n7.admin_account.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n7.admin_account.view'), NULL);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n7.admin_account.manage'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n7.admin_account.manage'), NULL);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n7.admin_role.view'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n7.admin_role.view'), NULL);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'system_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n7.admin_role.manage'))
+  INSERT INTO role_permissions (admin_role_id, permission_id, scope_type)
+  VALUES ((SELECT id FROM admin_roles WHERE code = N'system_admin'), (SELECT id FROM permissions WHERE code = N'n7.admin_role.manage'), NULL);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM role_permissions WHERE admin_role_id = (SELECT id FROM admin_roles WHERE code = N'customer_service_admin') AND permission_id = (SELECT id FROM permissions WHERE code = N'n3.donation.recheck_payment'))

@@ -1,4 +1,5 @@
 import type { NavItem } from '@/types/nav'
+import { authUser, hasAnyPermission } from '@/auth/session'
 
 /**
  * 側欄導覽（docs/22-charity-ui.md §3.3）：單列頂欄 ＋ 平鋪清單側欄，7 個一級模組不分組、
@@ -19,4 +20,13 @@ export const NAV_ITEMS: NavItem[] = [
     frontendUnit: '站台文案、系統信、徵信名單',
     anyOf: ['n7.setting.view', 'n7.payment_channel.manage', 'n7.audit_log.view'],
   },
+  // 帳號與角色管理（規劃書 §10）：獨立後台自己的帳號體系，只有系統管理員看得到。
+  { code: 'ACCOUNTS', label: '帳號', path: '/system/accounts', frontendUnit: '（無對應前台頁面，後台帳號管理）', anyOf: [], sysadminOnly: true },
+  { code: 'ROLES', label: '角色與權限', path: '/system/roles', frontendUnit: '（無對應前台頁面，後台角色管理）', anyOf: [], sysadminOnly: true },
 ]
+
+/** 這個選單項目對目前登入者是否可見：系統管理員專屬項目看 `isSuperAdmin`，其餘看權限碼。 */
+export function isNavItemVisible(item: NavItem): boolean {
+  if (item.sysadminOnly) return authUser.value?.isSuperAdmin === true
+  return hasAnyPermission(item.anyOf)
+}

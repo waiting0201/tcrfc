@@ -68,6 +68,12 @@ public static class CharityPermissions
 
     /// <summary>🔴 查詢稽核紀錄。僅系統管理員（種子 <c>sysadmin_only</c>）：稽核本身含操作者與來源 IP。</summary>
     public const string AuditLogView = "n7.audit_log.view";
+
+    // 後台帳號與角色管理（規劃書 §10「完整的後台帳號權限表」）。比照主站 system.account.*／system.role.*：全部 sysadmin_only。
+    public const string AdminAccountView = "n7.admin_account.view";
+    public const string AdminAccountManage = "n7.admin_account.manage";
+    public const string AdminRoleView = "n7.admin_role.view";
+    public const string AdminRoleManage = "n7.admin_role.manage";
 }
 
 /// <summary>稽核紀錄的動作代碼（<c>audit_logs.action</c>，上限 32 字元）。</summary>
@@ -104,6 +110,17 @@ public static class CharityAuditActions
     public const string PaymentEnvironmentSwitch = "payment_channel.env_switch";
     public const string ProjectContentUpdate = "project.content_update";
 
+    // 後台帳號與角色管理（動作代碼上限 32 字元）
+    public const string AdminAccountCreate = "admin_account.create";
+    public const string AdminAccountUpdate = "admin_account.update";
+    public const string AdminAccountStatus = "admin_account.status";
+    public const string AdminAccountResetPassword = "admin_account.reset_password";
+    public const string AdminAccountResetTotp = "admin_account.reset_totp";
+    public const string AdminRoleCreate = "admin_role.create";
+    public const string AdminRoleUpdate = "admin_role.update";
+    public const string AdminRoleDelete = "admin_role.delete";
+    public const string AdminRolePermissions = "admin_role.permissions";
+
     /// <summary>動作代碼 → 日常中文（稽核紀錄查詢畫面的篩選與顯示用；介面不得顯示代碼本身，規劃書 §4.0）。</summary>
     public static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -135,6 +152,15 @@ public static class CharityAuditActions
         [PaymentCredentialSet] = "更新金流或發票憑證",
         [PaymentEnvironmentSwitch] = "切換金流或發票環境",
         [ProjectContentUpdate] = "編輯項目內文",
+        [AdminAccountCreate] = "建立後台帳號",
+        [AdminAccountUpdate] = "更新後台帳號",
+        [AdminAccountStatus] = "啟用或停用後台帳號",
+        [AdminAccountResetPassword] = "重設後台帳號密碼",
+        [AdminAccountResetTotp] = "重設後台帳號兩階段驗證",
+        [AdminRoleCreate] = "建立角色",
+        [AdminRoleUpdate] = "更新角色",
+        [AdminRoleDelete] = "刪除角色",
+        [AdminRolePermissions] = "調整角色權限",
     };
 }
 
@@ -150,6 +176,8 @@ public static class CharityAuditTargets
     public const string Setting = "setting";
     public const string EmailTemplate = "email_template";
     public const string PaymentChannel = "payment_channel";
+    public const string AdminAccount = "admin_account";
+    public const string AdminRole = "admin_role";
 
     public static readonly IReadOnlyDictionary<string, string> Labels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -163,5 +191,7 @@ public static class CharityAuditTargets
         [Setting] = "站台設定",
         [EmailTemplate] = "系統信樣板",
         [PaymentChannel] = "金流與發票憑證",
+        [AdminAccount] = "後台帳號",
+        [AdminRole] = "角色",
     };
 }

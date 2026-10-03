@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { NAV_ITEMS } from '@/data/nav'
-import { hasAnyPermission } from '@/auth/session'
+import { NAV_ITEMS, isNavItemVisible } from '@/data/nav'
 
 const props = defineProps<{
   collapse: boolean
@@ -16,7 +15,7 @@ const route = useRoute()
 const router = useRouter()
 
 // 依各模組檢視端點的權限碼決定要不要顯示；子頁（如 /stores/new）的選單高亮落在所屬模組。
-const visibleItems = computed(() => NAV_ITEMS.filter((item) => hasAnyPermission(item.anyOf)))
+const visibleItems = computed(() => NAV_ITEMS.filter(isNavItemVisible))
 const activePath = computed(() => NAV_ITEMS.find((item) => route.path === item.path || route.path.startsWith(`${item.path}/`))?.path ?? route.path)
 
 function handleSelect(path: string) {
