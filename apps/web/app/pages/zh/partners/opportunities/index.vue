@@ -160,7 +160,7 @@ async function onDownloadSubmit() {
       </article>
       <article class="plan-card">
         <p class="plan-card__num">02</p>
-        <h3 class="plan-card__title"><template v-if="isEn">{{ isTcrfc ? 'Academy Sponsorship' : PARTNERS_PLAN_YOUTH_EN_BW }}</template><template v-else>{{ identity.academyShortLabelZh }}贊助<span class="en">Academy Sponsorship</span></template></h3>
+        <h3 class="plan-card__title"><template v-if="isEn">{{ getPartnersPlanYouthTitleEn(club) }}</template><template v-else>{{ identity.academyShortLabelZh }}贊助<span class="en">{{ getPartnersPlanYouthTitleEn(club) }}</span></template></h3>
         <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
         <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
       </article>

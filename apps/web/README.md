@@ -3416,3 +3416,11 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - **`programs/[slug]`**：時段兩語系都走 `formatWeeklySchedule`。
 - **`FaqEmbedItem`**：補 `isFallbackLocale?`。
 - 假 API 補多月份賽程、`calendar/events` 與 JSON 時段，可重現上述問題。
+
+
+## 藍鯨 zh 頁磐石專屬詞外洩修正（2026-10-05，`frontend-architect`，docs/18 E-233）
+
+- **修正**：聯賽名（`leagueMentionZh`，藍鯨走 `facts.league.shortNameZh`）、7.2 導言、4.3 第三階段（藍鯨只到一線隊）、10.4 英文跟進句（固定英文區塊不得用 `isEn` 閘）、10.2 按鈕、zh 頁英文裝飾字（Academy → Youth）全進資料層；磐石輸出逐字不變。
+- **品牌外洩詞表新增**：`Academy`、`國際部`、`International Department`／`International department`、`企甲`、`乙級`、`一線隊／海外`、`First Team / Overseas`。全站 160 路由 0 命中（例外清單仍 4 筆、未增加）。
+- **協會英文名**：統一 `Taichung City Women's Football Association`（藍鯨規劃書英文版）。
+- **驗證**：藍鯨 SSR 實測對應頁（first-team、join、news/match、news/academy、academy、pathway、international-player、partners/opportunities，zh／en）；lint、兩站 build 通過。

@@ -11,6 +11,7 @@ const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const stage3 = computed(() => getAcademyPathwayStage3(clubKey.value))
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.value) : identity.value.academyLabelZh))
 
@@ -85,8 +86,8 @@ const hero = computed(() => (isEn.value ? getAcademyPathwayHeroEn(clubKey.value)
           <summary>
             <span class="path-step__num" aria-hidden="true">03</span>
             <span class="path-step__body">
-              <span class="path-step__en">{{ tx('Stage 3 · First Team / Overseas', 'Stage 3') }}</span>
-              <span class="path-step__zh">{{ tx('一線隊／海外', 'First Team / Overseas') }}</span>
+              <span class="path-step__en">{{ tx(stage3.stageEn, 'Stage 3') }}</span>
+              <span class="path-step__zh">{{ tx(stage3.zh, stage3.en) }}</span>
             </span>
             <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
           </summary>

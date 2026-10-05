@@ -113,7 +113,15 @@ const THIS_FILE_REL = 'apps/web/scripts/check-club-brand-leak.mjs'
 // ---------------------------------------------------------------------------
 // 詞表（理由見檔頭）
 // ---------------------------------------------------------------------------
-const FORBIDDEN_TERMS = ['磐石', 'TCRFC', '學院', 'Taichung Rock', 'www.tcrfc.tw']
+const FORBIDDEN_TERMS = [
+  '磐石', 'TCRFC', '學院', 'Taichung Rock', 'www.tcrfc.tw',
+  // E-229／E-233 防呆：2026-10 翻譯盤點在藍鯨站抓到的同類外洩，都是磐石專屬的單元名稱、部門與聯賽名。
+  'Academy', // 04 在藍鯨是「青年隊」，不叫 Academy（區分大小寫：網址路徑 /academy/ 是小寫、不算）
+  '國際部', // 藍鯨沒有國際部（10.4 國際球員詢問表單的「International Department」）
+  'International Department', 'International department',
+  '一線隊／海外', 'First Team / Overseas', // 藍鯨 4.3 發展路徑只到一線隊，不宣稱海外
+  '企甲', '乙級', // 藍鯨踢木蘭聯賽；聯賽名必須走 site-facts／clubIdentity，不得寫死磐石的企甲／乙級
+]
 
 // ---------------------------------------------------------------------------
 // 例外清單：只能往下減、不能往上加（見檔頭「棘輪」說明）。

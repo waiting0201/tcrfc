@@ -329,7 +329,7 @@ WHERE e.locale = N'en' AND {key};
 
     BW = "Taichung Blue Whale"
     BW_FULL = "Taichung Blue Whale Women's Football Club"
-    ASSOC = "Taichung Women's Football Association"  # 與 club-copy-en-core.ts／docs/06 §1.1 一致（規劃書英文版寫 Taichung City Women's Football Association，待客戶確認）
+    ASSOC = "Taichung City Women's Football Association"  # 與 club-copy-en-core.ts／docs/06 §1.1 一致（以藍鯨規劃書英文版為準，2026-10-05 定案）
     SIT = "Sport i Taiwan 2.0 sports hotspot"  # 運動 i 台灣 2.0 運動熱區：保守描述寫法，待客戶確認
 
     emit("-- （區段 61 續，不另開區段編號）藍鯨 bw 英文回填（B-5）：clubs_i18n 名稱與簡稱、各 *_i18n 的 en 列；只補缺的、不覆寫既有英文 ──")
@@ -553,7 +553,7 @@ WHERE e.locale = N'en' AND {key};
         ("足球人才教練暨 TDS 守門員人才培訓（教練講習）", "Football Talent Coach and TDS Goalkeeper Talent Training (Coaching Course)",
          "24 and 25 August 2025 (2 days). Coaches who hold a coaching qualification and currently lead a team are admitted first; NT$800 per person, paid in cash on the day (covers materials, insurance, lunch and so on). "
          "Supervising authorities: Sports Administration, Ministry of Education, and Taichung City Government Sports Bureau; organiser: National Taiwan Sport University; "
-         "co-organisers: Taichung Women's Football Association and the Taichung Blue Whale women's football team; supporting organisation: Chinese Taipei Football Association."),
+         "co-organisers: Taichung City Women's Football Association and the Taichung Blue Whale women's football team; supporting organisation: Chinese Taipei Football Association."),
         ("藍鯨 U12 女子足球班", "Blue Whale U12 Girls' Football Class",
          f"{P_COURSE} Girls and women only, every Monday, Wednesday and Friday, 1.5 hours per session, NT$200 per session; individual registration on site."),
         ("野團成人足球賽", "Pick-up Adult Football Matches",

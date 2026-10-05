@@ -11760,14 +11760,14 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw')
 GO
 
 INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
-SELECT b.id, N'en', N'Our Story | About Taichung Blue Whale | Taichung Blue Whale Women''s Football Club', N'Taichung Blue Whale Women''s Football Club was founded in Taichung in 2014 and belongs to the Taichung Women''s Football Association. Learn about the team''s position and the purpose it was founded for.'
+SELECT b.id, N'en', N'Our Story | About Taichung Blue Whale | Taichung Blue Whale Women''s Football Club', N'Taichung Blue Whale Women''s Football Club was founded in Taichung in 2014 and belongs to the Taichung City Women''s Football Association. Learn about the team''s position and the purpose it was founded for.'
 FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
 WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'about/our-story'
   AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
 
 UPDATE e SET
     e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'Our Story | About Taichung Blue Whale | Taichung Blue Whale Women''s Football Club' ELSE e.seo_title END,
-    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'Taichung Blue Whale Women''s Football Club was founded in Taichung in 2014 and belongs to the Taichung Women''s Football Association. Learn about the team''s position and the purpose it was founded for.' ELSE e.seo_description END
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'Taichung Blue Whale Women''s Football Club was founded in Taichung in 2014 and belongs to the Taichung City Women''s Football Association. Learn about the team''s position and the purpose it was founded for.' ELSE e.seo_description END
 FROM pages_i18n e
 JOIN pages b ON b.id = e.page_id
 JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
@@ -12045,14 +12045,14 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw')
 GO
 
 INSERT INTO programs_i18n (program_id, locale, name, intro)
-SELECT b.id, N'en', N'Football Talent Coach and TDS Goalkeeper Talent Training (Coaching Course)', N'24 and 25 August 2025 (2 days). Coaches who hold a coaching qualification and currently lead a team are admitted first; NT$800 per person, paid in cash on the day (covers materials, insurance, lunch and so on). Supervising authorities: Sports Administration, Ministry of Education, and Taichung City Government Sports Bureau; organiser: National Taiwan Sport University; co-organisers: Taichung Women''s Football Association and the Taichung Blue Whale women''s football team; supporting organisation: Chinese Taipei Football Association.'
+SELECT b.id, N'en', N'Football Talent Coach and TDS Goalkeeper Talent Training (Coaching Course)', N'24 and 25 August 2025 (2 days). Coaches who hold a coaching qualification and currently lead a team are admitted first; NT$800 per person, paid in cash on the day (covers materials, insurance, lunch and so on). Supervising authorities: Sports Administration, Ministry of Education, and Taichung City Government Sports Bureau; organiser: National Taiwan Sport University; co-organisers: Taichung City Women''s Football Association and the Taichung Blue Whale women''s football team; supporting organisation: Chinese Taipei Football Association.'
 FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
 WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'足球人才教練暨 TDS 守門員人才培訓（教練講習）'
   AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
 
 UPDATE e SET
     e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Football Talent Coach and TDS Goalkeeper Talent Training (Coaching Course)' ELSE e.name END,
-    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'24 and 25 August 2025 (2 days). Coaches who hold a coaching qualification and currently lead a team are admitted first; NT$800 per person, paid in cash on the day (covers materials, insurance, lunch and so on). Supervising authorities: Sports Administration, Ministry of Education, and Taichung City Government Sports Bureau; organiser: National Taiwan Sport University; co-organisers: Taichung Women''s Football Association and the Taichung Blue Whale women''s football team; supporting organisation: Chinese Taipei Football Association.' ELSE e.intro END
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'24 and 25 August 2025 (2 days). Coaches who hold a coaching qualification and currently lead a team are admitted first; NT$800 per person, paid in cash on the day (covers materials, insurance, lunch and so on). Supervising authorities: Sports Administration, Ministry of Education, and Taichung City Government Sports Bureau; organiser: National Taiwan Sport University; co-organisers: Taichung City Women''s Football Association and the Taichung Blue Whale women''s football team; supporting organisation: Chinese Taipei Football Association.' ELSE e.intro END
 FROM programs_i18n e
 JOIN programs b ON b.id = e.program_id
 JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
@@ -12394,13 +12394,13 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw')
 GO
 
 INSERT INTO settings_i18n (setting_id, locale, value)
-SELECT b.id, N'en', N'Taichung Blue Whale Women''s Football Club, part of the Taichung Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. The club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.'
+SELECT b.id, N'en', N'Taichung Blue Whale Women''s Football Club, part of the Taichung City Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. The club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.'
 FROM settings b JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
 WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'seo.default_description'
   AND NOT EXISTS (SELECT 1 FROM settings_i18n e WHERE e.setting_id = b.id AND e.locale = N'en');
 
 UPDATE e SET
-    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'Taichung Blue Whale Women''s Football Club, part of the Taichung Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. The club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.' ELSE e.value END
+    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'Taichung Blue Whale Women''s Football Club, part of the Taichung City Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. The club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.' ELSE e.value END
 FROM settings_i18n e
 JOIN settings b ON b.id = e.setting_id
 JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
@@ -12408,13 +12408,13 @@ WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw')
 GO
 
 INSERT INTO settings_i18n (setting_id, locale, value)
-SELECT b.id, N'en', N'Taichung Blue Whale Women''s Football Club belongs to the Taichung Women''s Football Association and is one of the teams of the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern style of football, and the club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan. Slogan: Taichung Blue Whale rides the waves towards the open ocean.'
+SELECT b.id, N'en', N'Taichung Blue Whale Women''s Football Club belongs to the Taichung City Women''s Football Association and is one of the teams of the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern style of football, and the club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan. Slogan: Taichung Blue Whale rides the waves towards the open ocean.'
 FROM settings b JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
 WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'geo.llms_positioning'
   AND NOT EXISTS (SELECT 1 FROM settings_i18n e WHERE e.setting_id = b.id AND e.locale = N'en');
 
 UPDATE e SET
-    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'Taichung Blue Whale Women''s Football Club belongs to the Taichung Women''s Football Association and is one of the teams of the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern style of football, and the club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan. Slogan: Taichung Blue Whale rides the waves towards the open ocean.' ELSE e.value END
+    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'Taichung Blue Whale Women''s Football Club belongs to the Taichung City Women''s Football Association and is one of the teams of the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern style of football, and the club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan. Slogan: Taichung Blue Whale rides the waves towards the open ocean.' ELSE e.value END
 FROM settings_i18n e
 JOIN settings b ON b.id = e.setting_id
 JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'

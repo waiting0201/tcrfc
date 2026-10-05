@@ -1102,12 +1102,12 @@ export interface AcademyHubCard {
 export function getAcademyHubCards(club: string, facts: SiteFacts): AcademyHubCard[] {
   if (normalizeClub(club) === 'bw') {
     return [
-      { num: '4.1', titleZh: '青年隊總覽', titleEn: 'Academy Overview', descZh: '認識青年隊定位與整體樣貌', href: '/zh/academy/overview/' },
+      { num: '4.1', titleZh: '青年隊總覽', titleEn: 'Youth Teams Overview', descZh: '認識青年隊定位與整體樣貌', href: '/zh/academy/overview/' },
       { num: '4.2', titleZh: '青年隊隊伍', titleEn: 'Our Teams', descZh: `${squadCodesLabel(facts)} 各梯隊名單、教練與賽程`, href: '/zh/academy/teams/' },
-      { num: '4.3', titleZh: '青年隊發展路徑', titleEn: 'Academy Pathway', descZh: '從 U12 到 U15、一線隊的成長路徑', href: '/zh/academy/pathway/' },
+      { num: '4.3', titleZh: '青年隊發展路徑', titleEn: 'Youth Pathway', descZh: '從 U12 到 U15、一線隊的成長路徑', href: '/zh/academy/pathway/' },
       { num: '4.4', titleZh: '訓練課程與課綱', titleEn: 'Training & Curriculum', descZh: '技術、戰術、體能、比賽判讀與品格五大面向', href: '/zh/academy/curriculum/' },
       { num: '4.5', titleZh: '青年隊教練團', titleEn: 'Coaches', descZh: '認識帶領各梯隊的教練團隊', href: '/zh/academy/coaches/' },
-      { num: '4.6', titleZh: '青年隊生活', titleEn: 'Academy Life', descZh: '訓練、比賽與活動的日常紀錄', href: '/zh/academy/life/' },
+      { num: '4.6', titleZh: '青年隊生活', titleEn: 'Youth Life', descZh: '訓練、比賽與活動的日常紀錄', href: '/zh/academy/life/' },
     ]
   }
   return [
@@ -1119,6 +1119,24 @@ export function getAcademyHubCards(club: string, facts: SiteFacts): AcademyHubCa
     { num: '4.6', titleZh: '學院生活', titleEn: 'Academy Life', descZh: '訓練、比賽與活動的日常紀錄', href: '/zh/academy/life/' },
     { num: '4.7', titleZh: '加入學院', titleEn: 'Join the Academy', descZh: '招生對象、遴選流程與線上申請', href: '/zh/academy/join/' },
   ]
+}
+
+/** 「加入球隊」CTA 內文中的聯賽稱呼：磐石逐字沿用既有 mockup 的「企甲聯賽」，藍鯨走事實層的聯賽簡稱（木蘭聯賽）。
+ * 🔴 俱樂部事實進資料層（紀律 11）：頁面不得寫死聯賽名（E-233：藍鯨 first-team／join／news-match 曾印出「企甲」）。 */
+export function leagueMentionZh(club: string, facts: SiteFacts): string {
+  return normalizeClub(club) === 'bw' ? (facts.league.shortNameZh ?? facts.league.nameZh) : '企甲聯賽'
+}
+
+/** 10.1「加入球隊」卡內文。`scope='first-team'` 只招一線隊（一線隊頁底部 CTA），`'all'` 含各梯隊（10.0 表單總覽）。 */
+export function getJoinPlayerCtaDescZh(club: string, facts: SiteFacts, scope: 'first-team' | 'all'): string {
+  const who = scope === 'first-team' ? '一線隊球員' : (normalizeClub(club) === 'bw' ? '一線隊與各梯隊球員' : '一線隊與各梯隊球員')
+  return `具備競技實力、渴望在${leagueMentionZh(club, facts)}舞台證明自己？我們持續招募${who}。`
+}
+
+/** 7.2 比賽報導頁導言（中文）。磐石逐字沿用既有；藍鯨不列企甲／乙級／總統盃（那是磐石的賽事清單），改走聯賽簡稱。 */
+export function getMatchReportsLedeZh(club: string, facts: SiteFacts): string {
+  if (normalizeClub(club) === 'bw') return `${leagueMentionZh(club, facts)}與各項賽事——一線隊與青年隊每場賽事的賽後報導。`
+  return '企甲聯賽、乙級聯賽、總統盃與熱身賽——一線隊與預備隊每場賽事的賽後報導。'
 }
 
 /** 底部 CTA 標題——bw 版不提「查看招生資訊」按鈕（4.7 對藍鯨關閉），呼叫端據此
@@ -1166,6 +1184,13 @@ export const JOIN_INDEX_HERO: ClubText<HeroCopy> = {
 // （人名／照片／具名系統），只需換抬頭字樣與 CTA 連結，不需要臆造新內容——與
 // 4.5／4.6（真實教練／真實照片，關閉不開放）不同，見 shared/utils/units.ts 說明。
 // ---------------------------------------------------------------------------
+
+/** 4.3 發展路徑第三階段名稱。磐石「一線隊／海外」；藍鯨只承諾 U12 → U15 → 一線隊（藍鯨規劃書 04 為青年隊、
+ * 本檔 `getAcademyPathwaySeo` bw 分支與 4.3 卡片說明皆不宣稱海外路徑），所以不得顯示「／海外」（E-233）。 */
+export function getAcademyPathwayStage3(club: string): { stageEn: string, zh: string, en: string } {
+  if (normalizeClub(club) === 'bw') return { stageEn: 'Stage 3 · First Team', zh: '一線隊', en: 'First Team' }
+  return { stageEn: 'Stage 3 · First Team / Overseas', zh: '一線隊／海外', en: 'First Team / Overseas' }
+}
 
 export function getAcademyPathwaySeo(club: string): SeoCopy {
   if (normalizeClub(club) === 'bw') {

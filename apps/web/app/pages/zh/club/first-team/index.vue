@@ -462,7 +462,7 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
       <div class="cta-card">
         <p class="cta-card__num">10.1</p>
         <p class="cta-card__title">{{ tx('加入一線隊', 'Join the First Team') }}</p>
-        <p class="cta-card__desc">{{ isEn ? `Have the competitive ability and want to prove yourself in ${ctaLeagueEn}? We are continuously recruiting First Team players.` : '具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊球員。' }}</p>
+        <p class="cta-card__desc">{{ isEn ? `Have the competitive ability and want to prove yourself in ${ctaLeagueEn}? We are continuously recruiting First Team players.` : getJoinPlayerCtaDescZh(clubKey, facts, 'first-team') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/join/player/')">{{ tx('填寫報名表', 'Fill in the registration form') }}</a>
       </div>
       <div class="cta-card">

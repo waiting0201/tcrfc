@@ -177,10 +177,11 @@
 | E-215 | 2026-10-05 | BFF `clientErrorFrom` 把上游 4xx 轉成 `createError` 時只保留 `message`（繁中），丟掉 `messageEn`／`code`；第一輪翻譯 agent 發現 /en/ 拿不到英文訊息，只在畫面層「偵測到中文就換成英文通用句」，沒有修傳遞鏈 | ✅ `extractErrorMessage(err, en)` 與 BFF `data.messageEn` 傳遞；✅ 假 API 加表單 400 路由（`dev-fixture-api.mjs`）可 curl 驗證 |
 | E-216 | 2026-10-05 | 假 API 的 `problem()` 把 `messageEn` 設成與繁中 `detail` 相同，掩蓋了 E-215 的資訊遺失（測了也看不出英文沒通過） | ✅ `problem()` 改為獨立英文 `messageEn` |
 | E-228 | 2026-10-05 | 主站英文分支寫死 `CLUB_NAME_EN`／`getClubIdentityEn()`／`Academy` 等磐石字樣；`isEn` 對藍鯨開啟後，英文藍鯨頁會印出 Taichung Rock FC（同一頁兩站共用、英文分支只為主站寫） | ✅ `useLocale.isEn` 藍鯨需 `enReadyBw` 才開（沒翻的頁不外洩）；✅ `check-club-brand-leak.mjs` 掃 zh／en |
-| E-229 | 2026-10-05 | 藍鯨詞表只含中文詞與 `TCRFC`／`Taichung Rock`，漏掉 `Academy`、部門名（International department）等英文通用詞，藍鯨 zh 頁的英文片段（10.2 按鈕寫 `Academy & Children's Training`）一直沒被抓到 | ⚠️ 無（建議詞表補 `Academy`，需先處理 zh 按鈕） |
+| E-229 | 2026-10-05 | 藍鯨詞表只含中文詞與 `TCRFC`／`Taichung Rock`，漏掉 `Academy`、部門名（International department）等英文通用詞，藍鯨 zh 頁的英文片段（10.2 按鈕寫 `Academy & Children's Training`）一直沒被抓到 | ✅ 2026-10-05 已補：`check-club-brand-leak.mjs` 詞表加 `Academy`、`國際部`、`International Department`、`企甲`、`乙級`、`一線隊／海外`、`First Team / Overseas`（見 E-233） |
 | E-230 | 2026-10-05 | JSON-LD 英文判斷用 `isEn`（頁面可見語系），藍鯨改為逐頁宣告後，未翻頁面的 JSON-LD 會變中文——把「頁面可見語系」與「URL／結構化資料語系」當同一件事 | ✅ 改用 `locale.value === 'en'` |
 | E-231 | 2026-10-05 | 頁面自己複製一份 `isEn` 邏輯（`line-callback.vue` 寫死「藍鯨不適用英文」），`useLocale` 規則改了副本不會跟著變；`schedule.vue` 賽事列直接印 `clubAssets.shortNameZh`，英文版殘留「台中磐石／台中藍鯨」 | ✅ `check-en-pages.mjs` 實機掃描抓到 |
 | E-232 | 2026-10-05 | `getForeignPlayerBody('bw')` 在 `site-facts` 藍鯨補了英文聯賽名後，藍鯨 zh 頁那段 `lang="en"` 文字悄悄變成「Taiwan's Taiwan Mulan Football League (台灣木蘭足球聯賽)」——補資料改變了既有輸出，沒有跑 zh 輸出比對 | ⚠️ 無（已把該函式固定回中文聯賽名，英文頁走 `getForeignPlayerBodyEnBw`） |
+| E-233 | 2026-10-05 | 藍鯨 zh 頁磐石專屬內容外洩：`first-team` 與 `join` 的 CTA 寫死「企甲聯賽」、`news/match` 導言寫「企甲／乙級」、`pathway` 第三階段「一線隊／海外」、`join/international-player` 英文表單印「International department」（`followUpEn` 被 `isEn` 閘住，但表單區塊固定英文）、10.2 按鈕 `Academy & Children's Training`、zh 頁的英文裝飾字 `Academy Overview`／`Academy News`／`Academy Sponsorship` | ✅ 詞表補入上述詞（`check-club-brand-leak.mjs`，藍鯨全站 160 路由跑過 0 命中） |
 | E-220 | 2026-10-05 | 英文化盤點只看主表欄位，把「賽程對手沒有英文**值**」誤判成「沒有英文**欄位**」，派出一張不必要的 migration 工作；`matches_i18n.opponent`、後台 `opponentEn`、公開 API 回退與 `isFallbackLocale` 早已存在 | ⚠️ 無（每張 `*_i18n` 側表的欄位在 `docs/12c`，查那份就知道） |
 | E-221 | 2026-10-05 | 後端寫死的英文標籤（`ApplicableTierLabel`）自己取名「Fan club members only」，與前台、`docs/06` §1.1 的「Paid Fan Club member」不一致 | ✅ `MembershipPublicTests` 斷言英文標籤；⚠️ 其他寫死英文字串仍無對照表檢查 |
 
@@ -2857,3 +2858,12 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **E-230**：頁面可見語系與 URL／結構化資料語系是兩件事。**避免**：JSON-LD、`llms`、hreflang 一律用 URL 語系；**防呆**：✅ 改為 `locale.value`。
 - **E-231**：自製 `isEn` 副本與硬寫短名。**避免**：全站只用 `useLocale().isEn`；英文版顯示俱樂部短名用 `clubNameEn`／`selfShortName` 類計算屬性，不直接印 `*Zh`；**防呆**：✅ `check-en-pages.mjs --bw`。
 - **E-232**：補資料（site-facts 的英文欄位）改變既有輸出且未比對。**避免**：補欄位後對受影響頁面的 zh 輸出做前後比對（藍鯨與磐石各一次）；**防呆**：無。
+
+### E-233 藍鯨 zh 頁的磐石專屬詞外洩（2026-10-05，官網）
+
+- **錯在哪**：見速查列。共 8 處，全在 zh 頁或「固定英文」的區塊，藍鯨 en 頁已由翻譯盤點處理過。
+- **根因（可改掉的行為）**：①品牌外洩詞表只收中文與品牌名，沒收「通用英文詞」（Academy、部門名）與「聯賽／賽事名」，自動檢查本來就看不到；②頁面把「與語系無關的固定區塊」（英文表單、zh 頁的英文裝飾字）用 `isEn` 當閘，zh 頁的藍鯨走到磐石的預設字串；③俱樂部事實（聯賽名、發展路徑終點、單元英文名）直接寫在頁面樣板，沒進資料層（違反紀律 11，E-229 同源）。
+- **下次怎麼避免**：新增或改動任何含俱樂部事實的字串，先進 `club-copy*.ts`／`site-facts` 依 club 切換；英文片段不論頁面語系都要經資料層；藍鯨 build 後跑 `check-club-brand-leak.mjs`。
+- **修正**：新增 `leagueMentionZh`／`getJoinPlayerCtaDescZh`／`getMatchReportsLedeZh`／`getAcademyPathwayStage3`（`club-copy.ts`）、`getJoinIntlFollowUpEn`／`getJoinAcademyButtonEn`／`getPartnersPlanYouthTitleEn`（`club-copy-en-biz.ts`），藍鯨 4.x 卡片英文標題改 Youth；藍鯨 4.3 第三階段只到「一線隊」（與該頁 SEO 及 4.3 卡片說明一致，不宣稱海外）。
+- **防呆**：有——詞表擴充；磐石站輸出逐字不變（tcrfc 實測）。
+- **同批**：協會英文名統一為 `Taichung City Women's Football Association`（以藍鯨規劃書英文版為準）：前台 `club-copy-en-core.ts`／`club-copy-en-club.ts`、種子來源 `en_backfill_seed.py`、docs/06 對照表；已重產 `db/prod/club-content-seed.sql`，兩支 `--check` 一致。

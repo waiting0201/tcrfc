@@ -9,6 +9,7 @@ definePageMeta({ nav: 'news', unit: '07', enReady: true, enReadyBw: true })
 const config = useRuntimeConfig()
 const club = config.public.club
 const clubKey: 'tcrfc' | 'bw' = club === 'bw' ? 'bw' : 'tcrfc'
+const { facts } = useSiteFacts(clubKey)
 
 // S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
 const { locale, lp, isEn, tx } = useLocale()
@@ -52,7 +53,7 @@ useSeoMeta({
     <p class="page-hero__eyebrow">7.2 Match Reports</p>
     <h1>{{ tx('比賽報導', 'Match Reports') }}<span v-if="!isEn" class="en">Match Reports</span></h1>
     <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('match', clubKey).lede }}</p>
-    <p v-else class="page-hero__lede">企甲聯賽、乙級聯賽、總統盃與熱身賽——一線隊與預備隊每場賽事的賽後報導。</p>
+    <p v-else class="page-hero__lede">{{ getMatchReportsLedeZh(club, facts) }}</p>
   </div>
 </section>
 

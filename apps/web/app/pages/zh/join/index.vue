@@ -15,7 +15,7 @@ const hero = computed(() => (isEn.value ? (isTcrfc.value ? JOIN_INDEX_HERO_EN : 
 const { facts } = useSiteFacts(clubKey.value)
 const academyCard = computed(() => (isEn.value ? (isTcrfc.value ? getJoinAcademyCardEn(facts.value) : getJoinAcademyCardEnBw(facts.value)) : getJoinAcademyCard(clubKey.value, facts.value)))
 // 藍鯨英文版不得出現 Academy：10.2 按鈕字樣 bw 用 Youth Team（zh 版維持既有字面，不動）。
-const academyBtn = computed(() => (isEn.value && !isTcrfc.value ? JOIN_ACADEMY_BUTTON_EN_BW : "Academy & Children's Training"))
+const academyBtn = computed(() => getJoinAcademyButtonEn(clubKey.value))
 const seoEn = computed(() => (isTcrfc.value ? JOIN_INDEX_SEO_EN : JOIN_INDEX_SEO_EN_BW))
 const intlDesc = computed(() => JOIN_INTL_DESC[clubKey.value])
 const identity = computed(() => getClubIdentity(clubKey.value))
@@ -63,7 +63,7 @@ useSeoMeta({
       <div class="cta-card">
         <p class="cta-card__num">10.1</p>
         <p class="cta-card__title">{{ tx('加入球隊', 'Join as a Player') }}</p>
-        <p class="cta-card__desc">{{ tx('具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊與各梯隊球員。', 'Got the ability and eager to prove yourself in the league? We are always recruiting players for the First Team and our age-group squads.') }}</p>
+        <p class="cta-card__desc">{{ tx(getJoinPlayerCtaDescZh(clubKey, facts, 'all'), 'Got the ability and eager to prove yourself in the league? We are always recruiting players for the First Team and our age-group squads.') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/join/player/')">Join as a Player</a>
       </div>
       <div class="cta-card">

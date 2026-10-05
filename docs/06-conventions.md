@@ -202,7 +202,7 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 | 一線隊 | First Team | 規劃書 |
 | U15／U14／U12 梯隊 | U15／U14／U12 squads（泛稱 age-group teams） | 規劃書 §3.4（Our Teams） |
 | 台中藍鯨（主站與藍鯨站英文內文） | 簡稱 **`Taichung Blue Whale`**（導覽、內文、標題）；全名 **`Taichung Blue Whale Women's Football Club`**（Schema、llms、頁尾、首次提及）。程式取 `BW_NAME_EN`／`BW_FULL_NAME_EN`（`club-copy.ts`） | **B-5 於 2026-10-05 客戶定案**。舊站變體 `Taichung Bluewhale`、`…Women's Football Team`、大小寫不一一律不用；`check-bw-en-name.mjs` 只允許這兩種寫法、擋其他變體。（初版曾寫「待確認、句內放中文名」，已隨定案更正；E-210 為更早的對照表與 B-5 牴觸事件） |
-| 臺中市女子足球協會 | Taichung Women's Football Association | **待客戶確認**（初稿，直譯） |
+| 臺中市女子足球協會 | Taichung City Women's Football Association | **以藍鯨規劃書英文版為準**（2026-10-05 使用者定案；前台與種子統一此寫法，不再用 `Taichung Women's Football Association`） |
 | 台灣足球策略發展協會 | Taiwan Football Strategic Development Association | **待客戶確認**（初稿，直譯；慈善平台的收款主體） |
 | 企業甲級足球聯賽（企甲） | 保守寫法：「the league」「the top-tier corporate league」；已寫死於 `site-facts.ts` 的 `Enterprise Premier League` 沿用；規劃書英文版縮寫為 TFPL | **正式英文名待客戶確認**；譯文優先用 `facts.league.nameEn`，不得自行拼出 Taiwan Football Premier League 全名 |
 | 全國乙級聯賽冠軍 | National Second Division champions | **待客戶確認**（直譯，已用於事實列） |
@@ -240,7 +240,7 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 新聞標題（第二輪）——預備隊 Taichung Rock FC Reserves、台中磐石國際足球盃 Taichung Rock FC International Cup、維羅納 Hellas Verona、臺中市政府運動局 Taichung City Government Sports Bureau、東京農業大學 Tokyo University of Agriculture、港超聯 Hong Kong Premier League；**標題內沒有英文來源的球隊／人名／學校（銘傳大學、陽信北競、南市台鋼、大同足球、台電／台灣電力、台中Futuro、新北航源、桃園國際、高雄先鋒、潭秀非營利幼兒園、南投縣雙龍國小、龜記茗品，及陳曉明、周宇杰、廖奕盛、王義友、孫恩祈、梁顥騰、高冠宇、楊朝景等）原樣保留中文，待客戶補英文名**；
 聯賽縮寫——規劃書英文版用 TFPL 指企業甲級聯賽，**但全名未出現，不得自行拼寫**。單元導覽短標籤「新聞」用 News（單元全名為 News & Stories）。
 
-**藍鯨站英文用詞（2026-10-05，B-5 定案後）**：台灣木蘭足球聯賽 Taiwan Mulan Football League、總統盃 President's Cup、CTFA／AFC club licence（AFC Club Licence；年份舊站 2019／規劃書 2023 待核對）、台中北屯太原足球場 Taichung Beitun Taiyuan Football Field、台中豐原體育場 Taichung Fengyuan Stadium、藍鯨盃 Blue Whale Cup、藍鯨 04 單元 Youth／Youth Teams（U15／U12 girls' teams，**不得出現 Academy**）。**待客戶確認的藍鯨專名（保守寫法）**：台中足球學校 Taichung Blue Whale Football School、運動 i 台灣 2.0 運動熱區 "Sport i Taiwan 2.0" Sports Hot Zone、小藍鯨社區足球學校 "Little Blue Whale" community football school、臺中市女子足球協會（藍鯨規劃書英文版 Taichung City Women's Football Association，前台與種子用 Taichung Women's Football Association，**需統一**）、教育部體育署 Sports Administration, Ministry of Education、陽信盃國際邀請賽（保留中文名＋描述）。人名（堀野博幸、包欣玄、蘇育萱等約 25 位）、學校（五權國中、惠文高中）、夥伴機構名沒有英文來源維持中文。
+**藍鯨站英文用詞（2026-10-05，B-5 定案後）**：台灣木蘭足球聯賽 Taiwan Mulan Football League、總統盃 President's Cup、CTFA／AFC club licence（AFC Club Licence；年份舊站 2019／規劃書 2023 待核對）、台中北屯太原足球場 Taichung Beitun Taiyuan Football Field、台中豐原體育場 Taichung Fengyuan Stadium、藍鯨盃 Blue Whale Cup、藍鯨 04 單元 Youth／Youth Teams（U15／U12 girls' teams，**不得出現 Academy**）。**待客戶確認的藍鯨專名（保守寫法）**：台中足球學校 Taichung Blue Whale Football School、運動 i 台灣 2.0 運動熱區 "Sport i Taiwan 2.0" Sports Hot Zone、小藍鯨社區足球學校 "Little Blue Whale" community football school、臺中市女子足球協會（藍鯨規劃書英文版 Taichung City Women's Football Association，前台與種子用 Taichung City Women's Football Association，**需統一**）、教育部體育署 Sports Administration, Ministry of Education、陽信盃國際邀請賽（保留中文名＋描述）。人名（堀野博幸、包欣玄、蘇育萱等約 25 位）、學校（五權國中、惠文高中）、夥伴機構名沒有英文來源維持中文。
 
 ⚠️ 人名、地名：球員與教練英文名一律取資料庫（`players_i18n`／`staff_i18n`）已有值；沒有的**不得自行音譯**，顯示中文原名。
 地址只翻成通用的英文地址格式不做，維持中文原文＋必要時加 Taichung 城市名。

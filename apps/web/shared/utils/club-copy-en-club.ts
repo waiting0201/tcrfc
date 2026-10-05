@@ -256,7 +256,7 @@ export const CLUB_WOMENS_SEO_EN: SeoCopy = {
 
 /** `OUR_STORY_BODY_BW`（藍鯨定位敘述）的英文翻譯，不增加原文沒有的資訊。協會名稱採對照表初稿寫法（待客戶確認）。 */
 export const WOMENS_STORY_BODY_EN =
-  "The " + BW_NAME_EN + " women's football team belongs to the Taichung Women's Football Association, is known for short as " + BW_NAME_EN + ", and is one of the teams in the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern way of playing football, with an emphasis on teamwork, and the whale's fin is an emblem of Taiwan, leading Taiwan football forward. " + BW_NAME_EN + " hopes to lift the culture of grassroots football in Taichung and drive the development of women's football in central Taiwan."
+  "The " + BW_NAME_EN + " women's football team belongs to the Taichung City Women's Football Association, is known for short as " + BW_NAME_EN + ", and is one of the teams in the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern way of playing football, with an emphasis on teamwork, and the whale's fin is an emblem of Taiwan, leading Taiwan football forward. " + BW_NAME_EN + " hopes to lift the culture of grassroots football in Taichung and drive the development of women's football in central Taiwan."
 
 /**
  * 06 女子足球頁面中含「Taichung Blue Whale」（對照表的描述性寫法，B-5 前不選正式全名）的英文句子，

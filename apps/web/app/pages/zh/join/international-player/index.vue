@@ -28,8 +28,8 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const intlSeoEn = computed(() => (isTcrfc.value ? getInternationalPlayerSeoEn() : getInternationalPlayerSeoEnBw()))
-// 藍鯨沒有「國際部」：英文跟進句改用 club 版（zh 與 tcrfc 版維持既有字面）。
-const followUpEn = computed(() => (isEn.value && !isTcrfc.value ? JOIN_INTL_FOLLOWUP_EN_BW : null))
+// 藍鯨沒有「國際部」：英文跟進句走資料層 club 版。🔴 表單區塊固定英文（zh 頁也是），所以不得再用 isEn 閘住（E-233：藍鯨 zh 頁曾印出 International department）。
+const followUpEn = computed(() => getJoinIntlFollowUpEn(clubKey.value))
 
 useSeoMeta({
   title: computed(() => (isEn.value ? intlSeoEn.value.title : getInternationalPlayerSeo(clubKey.value).title)),
@@ -114,7 +114,7 @@ async function onSubmit() {
       <FormStatusBanner
         :status="status"
         :error-message="errorMessage"
-        :success-message="followUpEn?.success ?? 'Enquiry received! A confirmation email has been sent to you. Our International department will follow up with you directly.'"
+        :success-message="followUpEn.success"
       />
       <form v-if="status !== 'success'" class="tcrfc-form" action="" method="post" lang="en" @submit.prevent="onSubmit">
         <!-- action left empty: this is a static site. Actual submission (auto-reply, notification email, backend record) is handled by a server or third-party form service. This markup is the front-end field layout and validation scaffold only. -->
@@ -232,7 +232,7 @@ async function onSubmit() {
         <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">Submit Enquiry</button>
 
         <div class="form-submit-note">
-          <p><strong>What happens after you submit?</strong> {{ followUpEn?.note ?? 'You will receive an automatic confirmation email immediately. Our International department will also receive a notification and follow up with you directly regarding next steps.' }}</p>
+          <p><strong>What happens after you submit?</strong> {{ followUpEn.note }}</p>
         </div>
       </form>
 

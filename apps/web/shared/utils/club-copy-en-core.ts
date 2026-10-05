@@ -70,7 +70,7 @@ export function getClubIdentityEn(): ClubIdentity {
  * - `academyLabelZh`／`academyShortLabelZh`：04 單元藍鯨叫 Youth Teams／Youth（不得出現 Academy）。
  * - `brandTagEn` 與繁中版一致為 null（eyebrow 只輸出編號）。
  * - 版權列最後一項（足球學校）舊站只有中文名，英文名無來源，採保守描述寫法 `Taichung Blue Whale Football School`（待客戶確認）。
- * - 臺中市女子足球協會用 `Taichung Women's Football Association`（初稿，待確認，見 docs/06）。
+ * - 臺中市女子足球協會用 `Taichung City Women's Football Association`（以藍鯨規劃書英文版為準，見 docs/06）。
  */
 const CLUB_IDENTITY_EN_BW: ClubIdentity = {
   aboutLabelZh: `About ${BW_NAME_EN}`,
@@ -80,8 +80,8 @@ const CLUB_IDENTITY_EN_BW: ClubIdentity = {
   academyShortLabelZh: 'Youth',
   brandTagEn: null,
   slogan: { zh: `${BW_NAME_EN} rides the waves towards the open ocean`, en: `${BW_NAME_EN} rides the waves towards the open ocean` },
-  footerBlurb: `${BW_FULL_NAME_EN}, part of the Taichung Women's Football Association, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football, and hopes to lift the grassroots football culture in Taichung and drive the development of women's football in central Taiwan.`,
-  copyrightZh: `© 2014 | Taichung Women's Football Association | ${BW_FULL_NAME_EN} | ${BW_NAME_EN} Football School`,
+  footerBlurb: `${BW_FULL_NAME_EN}, part of the Taichung City Women's Football Association, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football, and hopes to lift the grassroots football culture in Taichung and drive the development of women's football in central Taiwan.`,
+  copyrightZh: `© 2014 | Taichung City Women's Football Association | ${BW_FULL_NAME_EN} | ${BW_NAME_EN} Football School`,
   social: {
     facebook: 'https://www.facebook.com/tbwfc',
     instagram: 'https://instagram.com/tcbw2014',
@@ -327,7 +327,7 @@ export function getMilestonesHeroEn(facts: SiteFacts): HeroCopy {
 //
 // 來源一律是 club-copy.ts 的 bw 分支繁中原文（節錄自 content/blue-whale/ 舊站原文），只翻譯、不新增事實。
 // 名稱：簡稱 `BW_NAME_EN`、全名 `BW_FULL_NAME_EN`；聯賽名走 facts（`leagueEn`）。
-// 🔵 待客戶確認：臺中市女子足球協會英文名採 `Taichung Women's Football Association`（初稿，docs/06）；
+// 臺中市女子足球協會英文名以藍鯨規劃書英文版為準：`Taichung City Women's Football Association`（2026-10-05 定案，docs/06）；
 //   足球學校英文名無來源，採保守描述寫法 `Taichung Blue Whale Football School`。
 // ===========================================================================
 
@@ -335,7 +335,7 @@ export function getMilestonesHeroEn(facts: SiteFacts): HeroCopy {
 export function getHomeSeoEnBw(facts: SiteFacts): SeoCopy {
   return {
     title: `${BW_FULL_NAME_EN} | ${BW_NAME_EN} rides the waves towards the open ocean`,
-    description: `Official website of ${BW_FULL_NAME_EN}. Part of the Taichung Women's Football Association, founded in ${facts.foundedYear}, one of the teams of ${leagueEn(facts)} and five-time Mulan League champions. Three systems: the First Team, the Youth Teams and community programs.`,
+    description: `Official website of ${BW_FULL_NAME_EN}. Part of the Taichung City Women's Football Association, founded in ${facts.foundedYear}, one of the teams of ${leagueEn(facts)} and five-time Mulan League champions. Three systems: the First Team, the Youth Teams and community programs.`,
   }
 }
 
@@ -397,7 +397,7 @@ export function getAboutIndexHeroEnBw(facts: SiteFacts): HeroCopy {
   return {
     h1Zh: `About ${BW_NAME_EN}`,
     h1En: null,
-    lede: `${BW_FULL_NAME_EN} is part of the Taichung Women's Football Association, was founded in ${facts.foundedYear}, and is one of the teams of ${leagueEn(facts)}. These chapters take you through the team from its ideas to its organisation.`,
+    lede: `${BW_FULL_NAME_EN} is part of the Taichung City Women's Football Association, was founded in ${facts.foundedYear}, and is one of the teams of ${leagueEn(facts)}. These chapters take you through the team from its ideas to its organisation.`,
   }
 }
 
@@ -415,7 +415,7 @@ export const ABOUT_NAV_DESC_EN_BW = {
 export function getOurStorySeoEnBw(facts: SiteFacts): SeoCopy {
   return {
     title: `Our Story | About ${BW_NAME_EN} | ${BW_FULL_NAME_EN}`,
-    description: `${BW_FULL_NAME_EN} was founded in Taichung in ${facts.foundedYear} under the Taichung Women's Football Association. Learn about the team's positioning and founding purpose.`,
+    description: `${BW_FULL_NAME_EN} was founded in Taichung in ${facts.foundedYear} under the Taichung City Women's Football Association. Learn about the team's positioning and founding purpose.`,
   }
 }
 
@@ -423,13 +423,13 @@ export function getOurStoryHeroEnBw(facts: SiteFacts): HeroCopy {
   return {
     h1Zh: 'Our Story',
     h1En: null,
-    lede: `${BW_FULL_NAME_EN} was founded in ${facts.foundedYear} under the Taichung Women's Football Association, and is one of the teams of ${leagueEn(facts)}.`,
+    lede: `${BW_FULL_NAME_EN} was founded in ${facts.foundedYear} under the Taichung City Women's Football Association, and is one of the teams of ${leagueEn(facts)}.`,
   }
 }
 
 /** 對應 OUR_STORY_BODY_BW（舊站定位敘述的英文翻譯，未增刪）。 */
 export const OUR_STORY_BODY_EN_BW =
-  `${BW_FULL_NAME_EN}, part of the Taichung Women's Football Association and known for short as ${BW_NAME_EN}, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football with an emphasis on teamwork; the whale's fin is an emblem of Taiwan, leading Taiwan football forward. ${BW_NAME_EN} hopes to lift the grassroots football culture in Taichung and drive the development of women's football in central Taiwan.`
+  `${BW_FULL_NAME_EN}, part of the Taichung City Women's Football Association and known for short as ${BW_NAME_EN}, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football with an emphasis on teamwork; the whale's fin is an emblem of Taiwan, leading Taiwan football forward. ${BW_NAME_EN} hopes to lift the grassroots football culture in Taichung and drive the development of women's football in central Taiwan.`
 
 export const VISION_MISSION_SEO_EN_BW: SeoCopy = {
   title: `Development Vision | About ${BW_NAME_EN} | ${BW_FULL_NAME_EN}`,

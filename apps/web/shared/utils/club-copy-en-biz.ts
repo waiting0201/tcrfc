@@ -130,6 +130,26 @@ export const JOIN_INTL_FOLLOWUP_EN_BW = {
   note: 'You will receive an automatic confirmation email immediately. Our club will also receive a notification and follow up with you directly regarding next steps.',
 }
 
+/** 10.4 follow-up sentences by club. 🔴 The form block is always English (also on the zh page), so this must NOT be gated on the page locale:
+ * bw has no "International department" (E-233), tcrfc keeps its verbatim wording. */
+export function getJoinIntlFollowUpEn(club: string): { success: string, note: string } {
+  if (club === 'bw') return JOIN_INTL_FOLLOWUP_EN_BW
+  return {
+    success: 'Enquiry received! A confirmation email has been sent to you. Our International department will follow up with you directly.',
+    note: 'You will receive an automatic confirmation email immediately. Our International department will also receive a notification and follow up with you directly regarding next steps.',
+  }
+}
+
+/** 10.2 button label on the 10.0 hub: tcrfc "Academy & Children's Training", bw "Join the Youth Team" (never "Academy"). Used on both zh and en pages. */
+export function getJoinAcademyButtonEn(club: string): string {
+  return club === 'bw' ? JOIN_ACADEMY_BUTTON_EN_BW : "Academy & Children's Training"
+}
+
+/** 09 partners: unit-04 sponsorship plan title in English (zh page decoration and en page). */
+export function getPartnersPlanYouthTitleEn(club: string): string {
+  return club === 'bw' ? PARTNERS_PLAN_YOUTH_EN_BW : 'Academy Sponsorship'
+}
+
 // 09 Partners & Sponsors (bw) ------------------------------------------------
 
 export const PARTNERS_INDEX_LEDE_EN_BW = `Join forces with ${BW_NAME_EN} to reach the local community and the international football network through a women's football platform, creating value for your brand and the community alike.`
