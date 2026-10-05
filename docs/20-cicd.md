@@ -45,7 +45,7 @@
 |---|---|---|---|
 | push → `master` | `deploy.yml` | build（僅變動的應用）→ push ghcr → 部署 → 健康檢查 → 失敗自動回滾 → 清快取（選配） | build 用 hosted；部署用 self-hosted（label `tcrfc-vm`，`environment: production`） |
 | 手動（`workflow_dispatch`） | `deploy.yml` | **五個映像檔全部重建並推送**（不看變動範圍）。首次部署、映像檔遺失或要強制重建時用（2026-10-02 加，E-112）。映像檔標籤只有 `:master` 與 git SHA，**沒有 `:latest`**——`IMAGE_TAG` 預設 `master` | hosted |
-| `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ **`shared/` 契約漂移檢查**（`shared-contract` job，AP-8，見 §3；後台前端若日後有型別產生器再加另一個漂移檢查） | 一律 hosted |
+| `pull_request` → `master`（含 fork） | `ci.yml` | lint ＋ unit test ＋ `docker build`（**不 push**）＋ **`shared/` 契約漂移檢查**（`shared-contract` job，AP-8，見 §3；後台前端若日後有型別產生器再加另一個漂移檢查）＋ **正式庫種子一致性檢查**（`prod-seed` job，`E-157`，見 §3） | 一律 hosted |
 | 手動 | `db-migrate.yml` | 套用 EF Core migration，需 `production-db` 環境核准 | self-hosted |
 | 手動 | `rollback.yml` ✅ | 輸入 SHA，把正式 VM 退回那一版（映像檔標籤；不重建、不 migrate），§6 | self-hosted |
 
@@ -157,6 +157,19 @@ deploy/**              → 不建映像檔，但要跑部署 job（compose／pro
 | 與正式環境的關係 | `Tcrfc.Api.csproj` 的 `OpenApiGenerateDocuments` 預設 `false`（只在腳本傳 `-p:OpenApiGenerateDocuments=true` 時產生），Docker 建置與一般建置不受影響；**正式環境依然不公開 OpenAPI／swagger**（`Program.cs` 只在 `Development` 掛 `MapOpenApi`，[`17`](17-deployment.md) 風險表第 7 項） |
 
 > ⚠️ 這條漂移檢查只守本 repo 這一側（產生檔 = 後端現況）。**App 端（`tcrfc-app-ios`／`tcrfc-app-android`，AP-7）的檢查是另一件事**：它們固定在某個 `shared/` 版本，CI 比對自己取用的那份是否等於上游，見 `docs/19` §2。
+
+### `prod-seed`：正式庫種子一致性檢查（`E-157`，2026-10-05）
+
+`db/prod/*.sql`（內容種子與參照資料）是由開發種子（`db/seed/*.py`、`site/src/data/*.json`、`content/blue-whale/data/*.json`）**產生並提交**的檔案。改了種子卻沒重產，正式庫匯入的就是舊內容（`E-157`）。`ci.yml` 有獨立 job 把關：
+
+| 項目 | 內容 |
+|---|---|
+| 觸發 | `paths-filter` 的 `prod_seed` 輸出：`db/seed/**`、`db/prod/**`、`content/blue-whale/data/**`、`site/src/data/**` 任一有變動 |
+| 跑在哪 | `ubuntu-latest`（**GitHub-hosted**）；`permissions: contents: read`；**不使用任何 secrets、不推送、不碰 self-hosted**——符合 §4 防護鏈 |
+| 步驟 | `setup-python` → `python3 db/seed/generate-prod-content-sql.py --check` → `python3 db/seed/generate-prod-reference-sql.py --check`；任一回「不一致」即 exit 1 |
+| 為什麼不需要資料庫 | 兩支腳本只是在記憶體內重跑原產生器、與已提交的檔案比對文字；純 Python 標準庫，不連線、不需 `pip install` |
+| 失敗時 | 在本機執行 `python3 db/seed/generate-prod-content-sql.py`（與 `generate-prod-reference-sql.py`），把變更的 `db/prod/*.sql` 一起提交 |
+| 擋不住什麼 | 只守「提交的 `db/prod/*.sql` ＝ 現行種子產生結果」；**不驗證 SQL 能在資料庫執行**（那是 `deploy/prod-seed-import.sh` 演練的事） |
 
 ### `compose-env`：compose 的 `NUXT_PUBLIC_*` 覆寫檢查（`E-112` 升級，2026-10-03）
 
@@ -664,6 +677,7 @@ last migration.」且退出碼 1；刪掉那一行、確認 `git diff` 乾淨後
 | [`scripts/check-node-version.mjs`](../scripts/check-node-version.mjs) | 同上 | ✅ 掛進四個 `package.json` 的 `lint`，S0-9h |
 | [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | §1「觸發與分支」的 `ci.yml` | ✅ `pull_request` → 五個應用的 lint／build／docker build（`push: false`）／dotnet test |
 | `ci.yml` 的 `shared-contract` job、[`shared/scripts/`](../shared/scripts/) | §3「`shared-contract`」 | ✅ 2026-10-02（AP-8）：重新產生 `shared/` 後 `git diff --exit-code`；已用 actionlint 檢查 |
+| `ci.yml` 的 `prod-seed` job | §3「`prod-seed`」 | ✅ 2026-10-05（`E-157` 防呆）：`generate-prod-content-sql.py --check`／`generate-prod-reference-sql.py --check`；已用 actionlint 檢查，本機兩者皆「一致」 |
 | [`.github/workflows/_node-app.yml`](../.github/workflows/_node-app.yml) | 同上（內部用） | ✅ 四個 Node 應用共用的可重用 workflow（`push: false` 版） |
 | [`.github/workflows/_node-app-deploy.yml`](../.github/workflows/_node-app-deploy.yml) | §1／§2「映像檔要放哪裡」 | ✅ 四個 Node 應用共用的可重用 workflow（`push: true` 版，供 `deploy.yml` 呼叫） |
 | [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) | §1「觸發與分支」的 `deploy.yml` | ✅ build＋push 段（S0-7c）＋ **部署 job（2026-10-02 啟用，§4a）** |

@@ -43,6 +43,7 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       shared: ${{ steps.filter.outputs.shared }}
       compose_env: ${{ steps.filter.outputs.compose_env }}
+      prod_seed: ${{ steps.filter.outputs.prod_seed }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -79,6 +80,11 @@ jobs:
               - 'apps/admin-charity/index.html'
               - 'scripts/check-compose-env.mjs'
               - '.node-version'
+            prod_seed:
+              - 'db/seed/**'
+              - 'db/prod/**'
+              - 'content/blue-whale/data/**'
+              - 'site/src/data/**'
             shared:
               - 'shared/**'
               - 'apps/api/**'
@@ -361,3 +367,33 @@ jobs:
             echo "::error::shared/ 與 apps/api 不一致。請在本機執行 ./shared/scripts/gen-all.sh 並提交變更（docs/19 §2）。"
             exit 1
           fi
+
+  # ── 正式庫內容種子一致性檢查（docs/20 §3「prod-seed」、docs/18 E-157）──────────────────────
+  # 改了開發種子（db/seed/*.py、site/src/data、content/blue-whale/data）卻沒重產 db/prod/*.sql，
+  # 正式庫匯入的就是舊內容。這一步跑兩支產生器的 --check，與已提交檔案不一致即失敗。
+  #
+  # 🔴 公開 repo 防護鏈（docs/20 §4）：跑在 GitHub-hosted runner（ubuntu-latest），不碰 self-hosted；
+  # 不使用任何 secrets、不推送；權限只有 contents: read。純 Python 標準庫，不需要資料庫、不需要 pip install。
+  prod-seed:
+    name: 正式庫種子一致性檢查（generate-prod-*-sql.py --check）
+    needs: changes
+    if: needs.changes.outputs.prod_seed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: 內容種子（club／charity-content-seed.sql）
+        run: |
+          python3 db/seed/generate-prod-content-sql.py --check \
+            || { echo "::error::db/prod/*-content-seed.sql 與開發種子不一致。請在本機執行 python3 db/seed/generate-prod-content-sql.py 並一併提交（docs/18 E-157）。"; exit 1; }
+
+      - name: 參照資料（club／charity-reference-data.sql）
+        run: |
+          python3 db/seed/generate-prod-reference-sql.py --check \
+            || { echo "::error::db/prod/*-reference-data.sql 與開發種子不一致。請在本機執行 python3 db/seed/generate-prod-reference-sql.py 並一併提交（docs/18 E-157）。"; exit 1; }
