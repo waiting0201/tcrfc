@@ -1023,34 +1023,34 @@ useClubEventSchema(clubEvents, {
                 </div>
               </article>
             </div>
+          </div>
 
-            <!-- 俱樂部活動（規劃書 v3.13 §3.13「資料來源」第二列，S1-19 補完）。獨立於
-                 賽事列表之後，見檔頭「S1-19 補完」的整合方式說明。 -->
-            <div v-if="visibleClubEvents.length > 0" class="club-events-block">
-              <h3 class="month-heading">{{ tx('俱樂部活動 ', 'Club events') }}<span v-if="!isEn" class="en">Club Events</span></h3>
-              <div class="fixture-list">
-                <article v-for="e in visibleClubEvents" :id="`ce-${e.id}`" :key="e.id" class="fixture-card club-event-card">
-                  <div class="fixture-card__time">
-                    <span class="fixture-card__wd">{{ isEn ? eventTimeOf(e).weekdayEn : `${eventTimeOf(e).weekdayZh} ${eventTimeOf(e).weekdayEn}` }}</span>
-                    <span class="fixture-card__date">{{ eventTimeOf(e).day }}</span>
-                    <span class="fixture-card__mon">{{ eventTimeOf(e).monthAbbr }}</span>
-                    <time v-if="eventTimeOf(e).kickoff" class="fixture-card__kickoff" :datetime="e.startsAt">{{ eventTimeOf(e).kickoff }}</time>
+          <!-- 俱樂部活動（規劃書 v3.13 §3.13「資料來源」第二列，S1-19 補完）。獨立於
+               賽事列表之後，見檔頭「S1-19 補完」的整合方式說明。 -->
+          <div v-if="visibleClubEvents.length > 0" class="club-events-block">
+            <h3 class="month-heading">{{ tx('俱樂部活動 ', 'Club events') }}<span v-if="!isEn" class="en">Club Events</span></h3>
+            <div class="fixture-list">
+              <article v-for="e in visibleClubEvents" :id="`ce-${e.id}`" :key="e.id" class="fixture-card club-event-card">
+                <div class="fixture-card__time">
+                  <span class="fixture-card__wd">{{ isEn ? eventTimeOf(e).weekdayEn : `${eventTimeOf(e).weekdayZh} ${eventTimeOf(e).weekdayEn}` }}</span>
+                  <span class="fixture-card__date">{{ eventTimeOf(e).day }}</span>
+                  <span class="fixture-card__mon">{{ eventTimeOf(e).monthAbbr }}</span>
+                  <time v-if="eventTimeOf(e).kickoff" class="fixture-card__kickoff" :datetime="e.startsAt">{{ eventTimeOf(e).kickoff }}</time>
+                </div>
+                <div class="fixture-card__body">
+                  <div class="fixture-card__meta">
+                    <span class="tag tag--club-event">{{ tx('俱樂部活動', 'Club event') }}</span>
                   </div>
-                  <div class="fixture-card__body">
-                    <div class="fixture-card__meta">
-                      <span class="tag tag--club-event">{{ tx('俱樂部活動', 'Club event') }}</span>
-                    </div>
-                    <p class="club-event-card__title">{{ e.title }}</p>
-                    <p v-if="e.description" class="club-event-card__desc">{{ e.description }}</p>
-                    <p v-if="e.venueName" class="fixture-card__venue">
-                      <span>{{ e.venueName }}</span><a class="fixture-card__map" :href="venueMapUrl(e.venueName)" target="_blank" rel="noopener">{{ tx('地圖', 'Map') }}<span class="visually-hidden">{{ tx('（另開新視窗）', ' (opens in a new window)') }}</span></a>
-                    </p>
-                  </div>
-                  <div class="fixture-card__actions">
-                    <a v-if="e.ctaUrl" class="btn btn--primary btn--sm" :href="e.ctaUrl" target="_blank" rel="noopener">{{ tx('活動詳情', 'Event details') }}</a>
-                  </div>
-                </article>
-              </div>
+                  <p class="club-event-card__title">{{ e.title }}</p>
+                  <p v-if="e.description" class="club-event-card__desc">{{ e.description }}</p>
+                  <p v-if="e.venueName" class="fixture-card__venue">
+                    <span>{{ e.venueName }}</span><a class="fixture-card__map" :href="venueMapUrl(e.venueName)" target="_blank" rel="noopener">{{ tx('地圖', 'Map') }}<span class="visually-hidden">{{ tx('（另開新視窗）', ' (opens in a new window)') }}</span></a>
+                  </p>
+                </div>
+                <div class="fixture-card__actions">
+                  <a v-if="e.ctaUrl" class="btn btn--primary btn--sm" :href="e.ctaUrl" target="_blank" rel="noopener">{{ tx('活動詳情', 'Event details') }}</a>
+                </div>
+              </article>
             </div>
           </div>
 

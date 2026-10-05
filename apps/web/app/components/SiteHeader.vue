@@ -232,7 +232,7 @@ onBeforeUnmount(() => {
     </div>
   </div>
 
-  <header ref="headerEl" class="site-header" id="site-header">
+  <header ref="headerEl" class="site-header" :class="{ 'site-header--en': isEn }" id="site-header">
     <div class="container">
       <NuxtLink class="brand-lockup" :to="lp('/zh/')" :aria-label="tx(`${assets.nameZh} 首頁`, `${CLUB_NAME_EN} home`)">
         <img :src="assets.headerMark.src" alt="" aria-hidden="true" :width="assets.headerMark.width" :height="assets.headerMark.height">
@@ -481,6 +481,16 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
+/* 英文版主導覽比中文長很多（10 項約 860px 才排得下），套用 tcrfc.css 的中文間距在 1280／1440 寬會折成兩列（Charity 掉到第二行）。
+ * tcrfc.css 不可改，所以只在 `.site-header--en` 底下收斂：字距歸零、字級略小、間距縮小；中文版完全不受影響。
+ * 1081–1199px 連收斂後也排不下，改用與窄螢幕相同的漢堡選單（中文版維持 1080 斷點不變）。 */
+.site-header--en .main-nav ul{ gap:clamp(.5rem,.85vw,1rem); flex-wrap:nowrap; }
+.site-header--en .main-nav > ul > li > a{ font-size:.76rem; letter-spacing:0; }
+@media (min-width:1081px) and (max-width:1199px){
+  .site-header--en .main-nav{ display:none; }
+  .site-header--en .hamburger{ display:inline-flex; }
+  .site-header--en .header-actions .btn--primary{ display:none; }
+}
 /* 全站搜尋列（G-02，H 批）：貼在 sticky header 下緣，與 header 同寬同底色。 */
 .header-search{ border-top:1px solid var(--rule); background:rgba(255,255,255,.98); padding:.75rem 0; }
 .header-search__form{ display:flex; align-items:center; gap:.6rem; width:calc(100% - 3rem); max-width:1200px; margin-inline:auto; min-width:0; }

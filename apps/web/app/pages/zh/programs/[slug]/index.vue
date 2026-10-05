@@ -142,7 +142,7 @@ useCourseSchema(
     <p v-if="!program.sessions.length" class="is-pending">{{ tx('梯次尚未公布。', 'Sessions have not been announced yet.') }}</p>
     <div v-for="s in program.sessions" :key="s.id" class="signup-preview" style="margin-bottom:1rem;">
       <div class="signup-preview__row"><span>{{ tx('日期', 'Dates') }}</span><span class="signup-preview__value">{{ s.startOn ?? tx('待公告', 'To be announced') }}<template v-if="s.endOn">{{ tx(' ～ ', ' - ') }}{{ s.endOn }}</template></span></div>
-      <div v-if="s.weeklySchedule" class="signup-preview__row"><span>{{ tx('時段', 'Schedule') }}</span><span class="signup-preview__value">{{ isEn ? (formatWeeklySchedule(s.weeklySchedule, locale) ?? '—') : s.weeklySchedule }}</span></div>
+      <div v-if="s.weeklySchedule" class="signup-preview__row"><span>{{ tx('時段', 'Schedule') }}</span><span class="signup-preview__value">{{ formatWeeklySchedule(s.weeklySchedule, locale) ?? '—' }}</span></div>
       <div v-if="s.venueName" class="signup-preview__row"><span>{{ tx('地點', 'Venue') }}</span><span class="signup-preview__value">{{ s.venueName }}</span></div>
       <div class="signup-preview__row"><span>{{ tx('費用', 'Fee') }}</span><span class="signup-preview__value">{{ s.price != null ? `NT$ ${s.price}` : tx('待公告', 'To be announced') }}</span></div>
       <div v-if="s.capacity" class="signup-preview__row"><span>{{ tx('剩餘名額', 'Places left') }}</span><span class="signup-preview__value">{{ Math.max(s.capacity - s.enrolledCount, 0) }}</span></div>

@@ -19,6 +19,8 @@ export interface FaqEmbedItem {
   question: string | null
   answer: string | null
   categorySlugs: string[]
+  /** 英文頁遇到尚未翻譯、回退繁中的題目時為 true（局部英文提示 `hasFallbackLocale` 依此判斷）。 */
+  isFallbackLocale?: boolean
 }
 
 export function useFaqEmbed(club: string, slotCode: string, lang: string) {
