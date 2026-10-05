@@ -8,11 +8,13 @@ namespace Tcrfc.Api.Features.AdminMembers;
 public sealed record MemberListQuery(
     bool? CrossClub, string? Keyword, string? ClubCode, string? Tier, string? MembershipStatus, string? Status,
     string? SignupSource, bool? LineBound, DateOnly? RegisteredFrom, DateOnly? RegisteredTo, Guid? SeasonId,
-    int? ExpiringWithinDays, string? JerseyStatus, string? Locale, int? Page, int? PageSize, string? Purpose)
+    int? ExpiringWithinDays, string? JerseyStatus, string? Locale, int? Page, int? PageSize, string? Purpose,
+    bool? IncludeNoMembership = null)
 {
     public AdminMembersRepository.ListFilter ToFilter() => new()
     {
         CrossClub = CrossClub ?? false,
+        IncludeNoMembership = IncludeNoMembership ?? false,
         Keyword = Keyword,
         ClubCode = ClubCode,
         Tier = Tier,
@@ -46,7 +48,7 @@ public static class AdminMembersEndpoints
             .WithTags("AdminMembers")
             .WithDescription("K1 會員名單與檢視，需要登入與俱樂部授權。名單一律遮罩個資；完整個資需要解除遮罩權限。");
 
-        // GET /members?crossClub=&keyword=&clubCode=&tier=&membershipStatus=&status=&signupSource=&lineBound=&registeredFrom=&registeredTo=
+        // GET /members?crossClub=&includeNoMembership=&keyword=&clubCode=&tier=&membershipStatus=&status=&signupSource=&lineBound=&registeredFrom=&registeredTo=
         //            &seasonId=&expiringWithinDays=&jerseyStatus=&locale=&page=&pageSize=
         group.MapGet("", async (
             string club, [AsParameters] MemberListQuery query, HttpContext httpContext, IAdminClubAuthorizer authorizer,

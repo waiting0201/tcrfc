@@ -32,7 +32,7 @@ namespace Tcrfc.Api.Features.AdminRegistrations;
 /// 在這件事上沒有明確答案」，依任務指示停在這裡、寫進報告，不自行新增 <c>EmailLog.type</c> 值域
 /// 或串接簡訊服務。
 /// </summary>
-public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
+public sealed class AdminRegistrationsRepository(ClubDbContext dbContext, SensitiveActionLogger audit)
 {
     internal static readonly HashSet<string> AllowedStatuses =
         new(StringComparer.Ordinal) { "待確認", "已確認", "已繳費", "完成", "取消", "候補" };
@@ -125,7 +125,14 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
         var registration = await dbContext.Registrations.AsNoTracking()
             .FirstOrDefaultAsync(r => r.Id == id && r.ClubId == scope.ClubId, cancellationToken);
 
-        return registration is null ? null : ToDetailDto(registration);
+        if (registration is null)
+        {
+            return null;
+        }
+
+        var over = registration.SessionId is Guid sid && await dbContext.Sessions.AsNoTracking()
+            .AnyAsync(s => s.Id == sid && s.Capacity != null && s.EnrolledCount > s.Capacity, cancellationToken);
+        return ToDetailDto(registration) with { IsOverCapacity = over };
     }
 
     public async Task<AdminRegistrationDetailDto> CreateAsync(
@@ -133,6 +140,7 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
     {
         var status = request.Status ?? "待確認";
         Validate(request.ApplicantName, status);
+        var contact = ValidateContact(request.Phone, request.Email, request.GuardianPhone);
 
         var session = await dbContext.Sessions
             .FirstOrDefaultAsync(s => s.Id == request.SessionId && s.ClubId == scope.ClubId, cancellationToken)
@@ -152,11 +160,11 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
             SessionId = session.Id,
             MemberId = request.MemberId,
             ApplicantName = request.ApplicantName,
-            Phone = request.Phone,
-            Email = request.Email,
+            Phone = contact.Phone,
+            Email = contact.Email,
             BirthOn = request.BirthOn,
             GuardianName = request.GuardianName,
-            GuardianPhone = request.GuardianPhone,
+            GuardianPhone = contact.GuardianPhone,
             HealthDeclaration = request.HealthDeclaration,
             Note = request.Note,
             Status = status,
@@ -182,6 +190,7 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
         AdminClubScope scope, Guid id, UpdateAdminRegistrationRequest request, Guid? operatorId, CancellationToken cancellationToken)
     {
         Validate(request.ApplicantName, request.Status);
+        var contact = ValidateContact(request.Phone, request.Email, request.GuardianPhone);
 
         var registration = await dbContext.Registrations.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
         if (registration is null)
@@ -210,11 +219,11 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
         registration.SessionId = newSession.Id;
         registration.MemberId = request.MemberId;
         registration.ApplicantName = request.ApplicantName;
-        registration.Phone = request.Phone;
-        registration.Email = request.Email;
+        registration.Phone = contact.Phone;
+        registration.Email = contact.Email;
         registration.BirthOn = request.BirthOn;
         registration.GuardianName = request.GuardianName;
-        registration.GuardianPhone = request.GuardianPhone;
+        registration.GuardianPhone = contact.GuardianPhone;
         registration.HealthDeclaration = request.HealthDeclaration;
         registration.Note = request.Note;
         registration.Status = request.Status;
@@ -402,8 +411,19 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
     /// 不需要醫療類個資，這是資料最小化的判斷，不是遺漏。「簽到表列印」由前台／後台畫面直接把這份
     /// 清單資料印出即可，後端不需要另外產生 PDF。</summary>
     public async Task<string> ExportCsvAsync(
-        AdminClubScope scope, Guid? sessionId, string? status, CancellationToken cancellationToken, ExtraFilter? extra = null)
+        AdminClubScope scope, Guid? sessionId, string? status, string? purpose, CancellationToken cancellationToken, ExtraFilter? extra = null)
     {
+        // 規劃書 §4.4／§5 稽核規則：個資匯出須記錄誰、何時、幾筆、用途（比照 P4、K1 會員名單）。
+        string purposeText;
+        try
+        {
+            purposeText = AdminInput.RequireText(purpose, "匯出用途", 200);
+        }
+        catch (AdminValidationException ex)
+        {
+            throw new AdminRegistrationValidationException(ex.Message);
+        }
+
         var query = Filtered(scope, sessionId, status, extra);
 
         var rows = await query
@@ -430,7 +450,7 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
         var lines = new List<IEnumerable<string?>>
         {
             new[] { "報名編號", "課程名稱", "梯次開始日期", "學員姓名", "電話", "Email", "出生日期",
-                    "家長姓名", "家長電話", "狀態", "是否為會員", "備註", "建立時間" },
+                    "家長姓名", "家長電話", "狀態", "是否為會員", "備註", "建立時間（台灣時間）" },
         };
 
         lines.AddRange(rows.Select(r => new[]
@@ -447,9 +467,10 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
             r.Status,
             r.IsMember ? "是" : "否",
             r.Note,
-            r.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+            TaiwanClock.ToText(r.CreatedAt),
         }));
 
+        audit.Record(scope, "匯出課程報名名單", $"共 {rows.Count} 筆", rows.Count, purposeText);
         return CsvUtils.BuildCsv(lines);
     }
 
@@ -511,6 +532,20 @@ public sealed class AdminRegistrationsRepository(ClubDbContext dbContext)
         {
             throw new AdminRegistrationValidationException(
                 "狀態只能是「待確認」「已確認」「已繳費」「完成」「取消」或「候補」其中一種。");
+        }
+    }
+
+    /// <summary>電話、Email、家長電話的格式檢查（P3 後台代填／修改）。不要求「電話與 Email 至少一項」——現場代填可能兩者皆無。</summary>
+    private static (string? Phone, string? Email, string? GuardianPhone) ValidateContact(string? phone, string? email, string? guardianPhone)
+    {
+        try
+        {
+            return (AdminInput.OptionalPhone(phone, "電話"), AdminInput.OptionalEmail(email, "Email")?.ToLowerInvariant(),
+                AdminInput.OptionalPhone(guardianPhone, "家長電話"));
+        }
+        catch (AdminValidationException ex)
+        {
+            throw new AdminRegistrationValidationException(ex.Message);
         }
     }
 

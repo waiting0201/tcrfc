@@ -3307,3 +3307,24 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - [`docs/05-i18n-seo.md`](../../docs/05-i18n-seo.md) — 雙語、SEO、GEO
 - [`docs/18-work-errors.md`](../../docs/18-work-errors.md) — E-16／E-17／E-18，本次骨架踩到的三個坑
 - [`STATUS.md`](../../STATUS.md) — S0-9a（本次成果）、S0-9（完整搬遷，尚未開始）
+
+## 真 API 實機驗收缺陷修正（F1–F6，2026-10-03，`frontend-architect`）
+
+對真資料的 `apps/api`（`NUXT_API_INTERNAL_BASE=http://127.0.0.1:5299`）跑 production 建置、`tcrfc`＝3001、`bw`＝3002 驗出的缺陷。每一項都以 production 伺服器對真 API 重驗。
+
+| 編號 | 缺陷 | 修法（檔案） | 驗證 |
+|---|---|---|---|
+| F1 | 有真資料時 FAQPage JSON-LD 完全沒輸出（`E-145`） | `app/composables/useFaqPageSchema.ts`：改為 setup 同步階段呼叫一次 `useSchemaOrg(getter)`，不再用 `watchEffect` 內呼叫 `useSchemaOrg`（呼叫端 `useFetch` 沒 await，資料到達時已無作用中的 unhead 實體）。沒有合格題目時 getter 回空陣列，GEO-05 與 E-74 行為不變 | `/zh/faq/`＝10 題、`/zh/faq/join-team/`＝1 題、`/en/faq/`＝10 題，皆為 `["WebPage","FAQPage"]` 加 Question／Answer 節點；`check-faq-schema-live.mjs` 在 3001／3002 通過 |
+| F1 防呆 | 檢查腳本把「0 個 FAQPage」一律放行，且假設題目內嵌在 `mainEntity` | `scripts/check-faq-schema-live.mjs`：頁面渲染了 `<details id="q-…">` 卻無 FAQPage 節點即 fail；`mainEntity` 的 `@id` 引用解回 `@graph` 節點再驗 `name`／`acceptedAnswer.text` | 同上 |
+| F2 | 藍鯨站 SSR payload 帶入磐石 site-facts、已關閉分類名稱（`E-132` 升級） | `app/pages/zh/join/contact/index.vue`、`app/pages/zh/academy/overview.vue` 改成只依當前站台呼叫 `useSiteFacts(clubKey)`；`app/composables/useFaqCategories.ts`／`useFaqList.ts` 以 `transform` 在進 payload 前濾掉本站已關閉分類（`isFaqCategoryEnabledForClub`）；`scripts/check-club-brand-leak.mjs` 補 `/en/checkout/`、`/en/shop/` 的 `Taichung Rock` 例外，棘輪以 `TERM_ALIASES` 把中英文寫法視為同一筆例外 | bw 的 `/zh|en/join/contact/`、`/zh|en/academy/overview/`、`/zh|en/faq/` 的 HTML 不含 `site-facts-tcrfc`、磐石場地／地址、U14、學院招生；`check-club-brand-leak.mjs --base-url=http://127.0.0.1:3002` 通過（154 路由、4 筆例外） |
+| F3 | `/zh/club/first-team/` 水合不一致 | 根因在 `shared/utils/member.ts` `formatTaipeiDateTime`：Node 的 ICU 在日期與時間之間輸出 U+2009 細空格，瀏覽器輸出一般空格（肉眼相同）。改用 `formatToParts` 自行以固定字元組字，並用 `hourCycle: 'h23'` | dev 模式實測原本的訊息為 `Hydration text mismatch in p.fixtures-note`，修正後 `first-team`、`fan-club`（兩站）無水合訊息 |
+| F4 | `/en/` 沒有 `og:locale` | `nuxt-seo-utils` 只在語系碼含連字號時輸出 `og:locale`。`shared/utils/locale.ts` 新增 `OG_LOCALE_MAP`（zh→`zh_Hant`、en→`en_US`），`app/layouts/default.vue` 以 `useSeoMeta` 輸出 `og:locale` 與 `og:locale:alternate`。`docs/05` 沒有規定寫法，這是執行層決定 | `/zh/`＝`zh_Hant`＋alternate `en_US`；`/en/`、`/en/about/`＝`en_US`＋alternate `zh_Hant` |
+| F5 | 匿名訪客的 `POST /api/member-auth/refresh` 回 401，console 紅字 | `server/api/member-auth/refresh.post.ts`：沒有更新權杖 Cookie 時回 **204**（`no-store`）；`app/composables/useMemberSession.ts` 把空回應視為「確定沒登入」。更新權杖 Cookie 是 HttpOnly，瀏覽器端無法先判斷它在不在，所以由 BFF 回答；沒有 Cookie 這件事本來就是請求方自己帶來的，回應不含任何資訊，安全性不變。Cookie 存在但後端判定無效時仍是 401 並清 Cookie | 兩站的 `/zh/member/`、`/zh/cart/`、`/zh/checkout/`、`/zh/order/lookup/` 無 401 console 訊息 |
+| F6 | BFF 429 沒有 `Retry-After`、訊息是通用 JSON | **`apps/api` 的限流器沒有設 `OnRejected`，429 是空 body、不帶 `Retry-After`（已用 curl 直打確認），所以 BFF 沒有東西可轉傳。** `server/api/backend/[...path].ts` `clientErrorFrom`：上游若帶數字型 `Retry-After` 就轉傳（日後後端補上即生效）；上游沒給訊息時補「送出次數過多，請稍候幾分鐘再試。」，所有只讀 `message` 的表單（`useFormSubmit` 等）因此顯示得出可讀中文，不再退回通用的「請確認各欄位…」 | 對 `search` 端點連打 31 次，第 31 次回 429，body 的 `message` 為上述中文 |
+| N1 | 磐石新聞列表／首頁／詳情的相關文章，API `coverUrl` 為 null 的文章（如 `member-draw-test-draw-01`）請求不存在的 `/assets/img/news/{slug}.jpg` 回 404、破圖（`E-152`） | `app/utils/news.ts`：`hasNewsCover` 由「預設有圖、只有 `NEWS_NO_COVER_SLUGS` 沒圖」反轉為白名單 `NEWS_LOCAL_COVER_SLUGS`，來源是已納版控的 `scripts/site-images.txt`（`?raw` 於建置期讀入，與 Blob 上的 `site/news/*.webp` 一一對應）。**不看 `public/assets/img` 實體檔**——該目錄不納版控、不進映像檔，照實體檔會讓正式環境全部退回佔位。順序仍是 `coverUrl` → 白名單內的舊文章本地圖 → 佔位標誌；藍鯨一律無本地圖，行為不變。所有呼叫端（`NewsCard`、首頁、詳情、相關文章）都走 `newsCoverImg`，免改 | 對真 API：`/zh/news/` 52 個 `<img>` 的本地路徑全回 200，`member-draw-test-draw-01` 卡片為 `news-card__media--noimg` ＋ 隊徽佔位；有本地圖的舊文章仍顯示原圖；首頁無 404；藍鯨 `/zh/`、`/zh/news/` 輸出 0 張本地新聞圖 |
+
+### 內容觀察（只回報，未改動）
+
+- 「正式上線前，仍可透過舊官網 www.tcrfc.tw 的商店選購」：**寫死**在 `app/pages/zh/culture/merchandise/index.vue:138`，僅 `isTcrfc` 時顯示。
+- 「目前共收錄 N 篇真實報導」：「真實」兩字**寫死在程式**，N 來自資料。位置：`app/pages/zh/news/index.vue:59`（SEO description）與 `:78`（hero 說明）；分類頁 `news/community.vue:32-33`、`club.vue:32`、`camps-events.vue:32-33`、`match.vue:32-33`、`international.vue:32-33` 的描述也有同樣用字，其中磐石版連篇數都寫死（3／7／50／12 篇）。
+

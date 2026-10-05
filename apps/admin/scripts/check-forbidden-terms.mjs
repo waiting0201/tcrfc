@@ -146,6 +146,55 @@ function scanText(text) {
   return findings
 }
 
+// ── 第二層（docs/18 E-155 起）：腳本裡「會顯示給使用者的中文字串」與樣板文字中的技術外露 ──
+// 同一類錯（技術詞、內部代號、程式反引號、過期的開發備註外露到畫面）已犯過三次，只掃樣板抓不到
+// `formError.value = '…例如 my_orders…'`、`ElMessage.error('…`venues` 主檔…')` 這類寫在 script 裡的文字。
+// 規則只套在「含中文的字串常值」上（純英文識別字、import 路徑、CSS class 一律不管），降低誤報。
+const LEAK_PATTERNS = [
+  [/`/, '反引號（程式碼標記不該出現在畫面文字）'],
+  [/\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/, 'snake_case 內部代號'],
+  [/tcrfc:\/\//, '內部連結協定 tcrfc://'],
+  [/\bJSON\b/, '英文技術詞 JSON'],
+  [/百分位|\bP9[05]\b/, '統計術語（百分位）'],
+]
+
+function extractScriptBlock(source) {
+  const match = source.match(/<script[^>]*>([\s\S]*?)<\/script>/)
+  return match ? match[1] : ''
+}
+
+function stripComments(code) {
+  return code.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:'"`\\])\/\/[^\n]*/g, '$1')
+}
+
+function scriptStringLiterals(code) {
+  const out = []
+  const re = /'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"/g
+  let m
+  while ((m = re.exec(code))) out.push(m[1] ?? m[2] ?? '')
+  return out
+}
+
+function scanScriptLeaks(source) {
+  const code = stripComments(extractScriptBlock(source))
+  const findings = []
+  for (const lit of scriptStringLiterals(code)) {
+    if (!/[\u4e00-\u9fff]/.test(lit)) continue
+    for (const [re, why] of LEAK_PATTERNS) {
+      if (re.test(lit)) findings.push(`${why}：「${lit.length > 60 ? lit.slice(0, 60) + '…' : lit}」`)
+    }
+  }
+  return findings
+}
+
+function scanTemplateLeaks(displayText) {
+  const findings = []
+  for (const [re, why] of LEAK_PATTERNS) {
+    if (re.test(displayText)) findings.push(why)
+  }
+  return findings
+}
+
 function main() {
   const files = listVueFiles(SRC_DIR)
   let hasError = false
@@ -153,10 +202,8 @@ function main() {
   for (const file of files) {
     const source = readFileSync(file, 'utf-8')
     const template = extractTemplateBlock(source)
-    if (!template) continue
-
-    const displayText = extractDisplayText(template)
-    const findings = scanText(displayText)
+    const displayText = template ? extractDisplayText(template) : ''
+    const findings = [...(template ? scanText(displayText) : []), ...scanTemplateLeaks(displayText), ...scanScriptLeaks(source)]
 
     if (findings.length > 0) {
       hasError = true

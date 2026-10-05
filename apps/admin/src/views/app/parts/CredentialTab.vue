@@ -21,14 +21,14 @@ const canUpdate = usePermission('app.credential.update')
 const errText = (e: unknown, f: string) => (e instanceof AdminApiError ? e.message : f)
 
 const KINDS = [
-  { value: 'apns_key', label: '蘋果推播金鑰' },
-  { value: 'fcm_credential', label: 'Google 推播認證資料' },
+  { value: 'apns_key', label: 'Apple 推播金鑰' },
+  { value: 'fcm_credential', label: 'Google 推播憑證' },
   { value: 'apple_developer_program', label: '蘋果開發者計畫' },
   { value: 'google_play_account', label: 'Google Play 帳號' },
   { value: 'maps_api_key', label: '地圖服務金鑰' },
   { value: 'other', label: '其他' },
 ]
-const kindText = (r: CredentialDto) => KINDS.find((k) => k.value === r.kind)?.label ?? r.kindLabel
+const kindText = (r: CredentialDto) => r.kindLabel || (KINDS.find((k) => k.value === r.kind)?.label ?? r.kind)
 const healthTag = (h: string) => (h === 'ok' ? 'success' : h === 'due_soon' ? 'warning' : h === 'overdue' ? 'danger' : 'info')
 const healthText = (r: CredentialDto) => (r.health === 'ok' ? '正常' : r.health === 'due_soon' ? '即將屆期' : r.health === 'overdue' ? '已屆期' : '未設定期限')
 const dueText = (r: CredentialDto) => (r.nextDueOn ? `${r.nextDueOn}${r.daysUntilDue != null ? `（${r.daysUntilDue >= 0 ? `還有 ${r.daysUntilDue} 天` : `已逾 ${-r.daysUntilDue} 天`}）` : ''}` : '—')

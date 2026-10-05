@@ -14,6 +14,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import MobileCardList from '@/components/MobileCardList.vue'
+import ExportPurposeDialog from '@/components/ExportPurposeDialog.vue'
 import { useBreakpoint } from '@/composables/useBreakpoint'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminProgramSessions, type AdminSessionListItemDto } from '@/api/adminProgramSessions'
@@ -142,10 +143,14 @@ function openSignIn() {
   router.push(filters.sessionId ? { path: '/programs/enrollments/sign-in', query: { sessionId: filters.sessionId } } : '/programs/enrollments/sign-in')
 }
 
-async function handleExport() {
+const exportOpen = ref(false)
+
+async function handleExport(purpose: string) {
   exporting.value = true
   try {
-    await downloadAdminRegistrationsCsv(club.value, currentParams())
+    await downloadAdminRegistrationsCsv(club.value, currentParams(), purpose)
+    exportOpen.value = false
+    ElMessage.success('已匯出')
   } catch (error) {
     ElMessage.error(error instanceof AdminApiError ? error.message : '匯出失敗，請稍後再試')
   } finally {
@@ -299,7 +304,7 @@ function skippedName(id: string): string {
         <el-button @click="router.push('/programs/enrollments/waitlist')">候補遞補提醒</el-button>
         <el-button @click="openSignIn">簽到表</el-button>
         <div class="registration-list__filter-placeholder" />
-        <el-button v-if="canExportRegistrations" :loading="exporting" @click="handleExport">匯出 CSV</el-button>
+        <el-button v-if="canExportRegistrations" :loading="exporting" @click="exportOpen = true">匯出 CSV</el-button>
         <el-button v-if="canCreateRegistrations" type="primary" @click="handleAdd">+ 新增報名（後台代填）</el-button>
       </div>
       <p v-if="canExportRegistrations" class="registration-list__hint">匯出會依上方目前的篩選條件產生名單，不含健康聲明。</p>
@@ -408,6 +413,14 @@ function skippedName(id: string): string {
         <el-button type="primary" @click="batchResult = null">知道了</el-button>
       </template>
     </el-dialog>
+
+    <ExportPurposeDialog
+      v-model="exportOpen"
+      title="匯出課程報名名單"
+      description="名單含姓名、電話、Email、家長資料，不含健康聲明。會依上方目前的篩選條件匯出。"
+      :loading="exporting"
+      @confirm="handleExport"
+    />
   </div>
 </template>
 

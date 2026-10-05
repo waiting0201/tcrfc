@@ -245,7 +245,7 @@ const progressPercent = computed(() => {
           <el-descriptions-item label="每日曝光上限">{{ detail.dailyImpressionCap ? `${detail.dailyImpressionCap.toLocaleString()} 次` : '不限' }}</el-descriptions-item>
           <el-descriptions-item label="每人每日曝光上限">{{ detail.perDeviceDailyCap ? `${detail.perDeviceDailyCap} 次` : '不限' }}</el-descriptions-item>
           <el-descriptions-item label="合約金額">{{ detail.contractAmountLabel }}<el-tag v-if="detail.isAmountHidden" size="small" type="info" class="cd__tag">標示為不公開</el-tag></el-descriptions-item>
-          <el-descriptions-item label="審核">{{ detail.reviewedBy ? `${detail.reviewedBy}（${formatDateTime(detail.reviewedAt)}）` : '尚未審核' }}</el-descriptions-item>
+          <el-descriptions-item label="審核">{{ detail.reviewedBy ? `${detail.reviewedByName || '已審核'}（${formatDateTime(detail.reviewedAt)}）` : '尚未審核' }}</el-descriptions-item>
         </el-descriptions>
       </el-card>
 

@@ -144,6 +144,11 @@
 | E-140 | 2026-10-02 | 後台 `http.ts` 的 `classifyByStatus` 對 5xx（含 503）建立 `AdminApiError` 時漏帶 `body`，特約店家編輯頁 `PartnerStoreEditView` 用 `error.body.code === 'geocoder_unavailable'` 區分「定位服務暫時故障」與「尚未啟用」的分支**永遠不會成立**：暫時故障被誤判成尚未啟用，按鈕被停用、提示錯誤（G 批上線至今） | G 批只靠讀程式與 lint 確認該分支存在，沒有用會回 503＋`code` 的假後端實際走過兩種 503；H 批場地管理要比照做時用假後端實走才抓到 | 凡依 `error.body.xxx` 分流的畫面，驗收時假後端必須各回一次對應的 `code`；`classifyByStatus` 所有分支都要把 `body` 帶進 `AdminApiError` | 無（已修；`verify-admin` 的定位三態是 scratchpad 腳本，未納版控） |
 | E-142 | 2026-10-02 | 頁尾電子報區新增「同意」勾選框，被凍結樣式表 `tcrfc.css` 的 `.newsletter input{ width:100%; padding:0 1rem }` 撐成整欄寬方塊、說明文字被擠成一字一行；lint／typecheck／build 全綠，看截圖才發現 | 往既有區塊加控制項前沒有 grep 凍結樣式表裡該區塊的元素選擇器 | 加控制項前先 grep 該區塊的樣式規則，在元件內用更高特異度覆寫，並看截圖 | 無 |
 | E-143 | 2026-10-03 | 給使用者的 VM 操作步驟寫 `cd ~/tcrfc-src && git pull`，該目錄在首次 CD 後已退役，使用者在 VM 上得到 `not a git repository`；`infra/README.md` 兩處與 `docs/20` §5 一處也還指向它 | 無 |
+| E-148 | 2026-10-03 | K2 手動開通的會員選擇器搜不到 K1 現場建立（尚無任何會籍）的會員：名單端點預設只列「本俱樂部已有會籍」者，而 K1 建立→K2 開通正是它的第一個使用情境（後台實機驗收 B-1） | 名單端點的範圍規則是為 K1 名單設計，選擇器重用它時沒有走一遍「建立會員→開通」的串接情境；測試只驗了範圍不外洩，沒驗新建帳號找得到 | 凡把既有列表端點當「選擇器」重用的畫面，驗收要走完整串接（上一步剛建立的資料，下一步選得到）；範圍規則改動要同時回答「新建、尚未歸屬的資料可見嗎」 | ✅ `includeNoMembership=true`（`AdminMembersTests.名單_includeNoMembership…`） |
+| E-149 | 2026-10-03 | K5 產生公布稿草稿後刪除該新聞草稿回 500：`member_draws.announcement_article_id` 是不 cascade 的外鍵，`AdminArticlesRepository.DeleteAsync` 沒檢查被抽獎活動引用，直接撞外鍵（後台實機驗收 B-9） | 新增 K5 的外鍵時只想到「活動→文章」的寫入路徑，沒回頭盤點文章刪除端點會被誰參照 | 新增指向既有表、且不 cascade 的外鍵時，同一次 grep 該表所有刪除路徑，補「被引用則 409（或先解除關聯）」並寫測試 | ✅ 測試 `刪除公布稿文章…`（無自動掃描外鍵的機制） |
+| E-150 | 2026-10-03 | P4 後台代填試訓報名只驗姓名與狀態，沒有比照前台同一張 `registrations` 表的規則（聯絡方式至少一項、Email／電話格式、未成年須填家長）；P3 後台 Email 也不檢查，壞值直接寫入（後台實機驗收 B-3） | 同一張表的寫入驗證散在前台、P3、P4 三處各寫各的，後台端點「人為判斷」的註解被擴大解讀成「不需要驗證」 | 同一張表有多個寫入入口時，驗證抽成共用函式（`AdminInput.OptionalPhone`／`OptionalEmail`），新入口開工前先對照既有入口的驗證清單 | ✅ 測試 `試訓報名_後台代填驗證…`；無跨入口一致性掃描 |
+| E-151 | 2026-10-03 | 多個 CSV 匯出（P3、P4、G3、表單詢問、Lead）各自 `CreatedAt.ToString("yyyy-MM-dd HH:mm")`，輸出無標示的 UTC，使用者以為台灣時間而差 8 小時（後台實機驗收 B-5） | 資料庫時間戳存 UTC 是共識，但「輸出給人看的時間文字」沒有共用函式，每個匯出自己格式化 | 輸出時間文字一律走 `TaiwanClock.ToText`，表頭標「（台灣時間）」 | ✅ `TimestampFormatTests` 掃原始碼，禁止無 `AddHours(8)`／`UTC` 的 `yyyy-MM-dd HH:mm` 格式化 |
+| E-153 | 2026-10-05 | 後台 `classifyByStatus` 對 400／401／403／404／409 以外一律回固定的「伺服器發生未預期的錯誤」，後端 503 刻意回的白話 `detail`（「檔案儲存尚未設定」）被吞掉，使用者上傳失敗只看到通用訊息（第二輪重驗） | 寫錯誤分流時只列了「會有 detail 的狀態」，把 5xx 整類當作不可信；E-140 補了 `body` 卻沒回頭檢視 `message` 該不該顯示 `detail` | 錯誤訊息的取捨以「後端是否刻意提供白話 detail」判斷，503 顯示 detail、500 維持通用 | 無（以 Playwright 實際上傳驗證） |
 
 ---
 
@@ -2494,6 +2499,8 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：藍鯨會渲染的頁面只取需要的欄位（`useAsyncData` 內整理好再回傳），要共用整包商店資訊的頁面只限已在例外清單的 `/shop/`、`/checkout/`；改完跑 `check-club-brand-leak.mjs`。
 - **防呆**：✅ `scripts/check-club-brand-leak.mjs`（未掛 `npm run lint`，需先把藍鯨站跑起來，E-34）。
 
+- **升級（2026-10-03，真 API 實機驗收，同一類錯第二次發生）**：這次不是商店資訊，而是**把「當前站台」寫死成磐石、或兩邊各抓一份**：`join/contact/index.vue` 固定 `useSiteFacts('tcrfc')`、`academy/overview.vue` 為了同時取兩邊的梯隊代碼對 `tcrfc` 與 `bw` 各呼叫一次、`useFaqCategories` 把兩俱樂部共用的分類主檔整份（含藍鯨已關閉的「學院招生」）放進 payload。藍鯨站的 `__NUXT_DATA__` 因此帶著磐石場地、地址、梯隊代碼與已關閉單元的分類名稱，而頁面可見文字全部正確，所以 `check-club-brand-leak.mjs` 在**沒有對 bw 實際跑過**的那一輪完全沒被觸發。另外腳本的 `/en/checkout/`、`/en/shop/` 例外只列了中文詞「磐石」，漏掉英文名「Taichung Rock」，en 版長期是紅的。**規則：藍鯨會渲染的頁面，`useSiteFacts`／分類／清單類 composable 一律只依 `config.public.club` 取資料，且在 `transform` 內就濾掉本站不用的項目；要「兩邊各取一份」的頁面只限本來就 404 的單元（`/womens/`、`/charity/`、`/academy/join/`）。** 防呆：`check-club-brand-leak.mjs` 例外清單對同一實體的中英文寫法視為同一筆（`TERM_ALIASES`），補 en 例外不再被棘輪誤判為「新增例外」；交付任何改動 bw 可達頁面的變更前，必須對 bw 容器實跑這支腳本。
+
 ### E-140 後台 5xx 錯誤漏帶 `body`，依 `code` 分流的分支永遠不成立（2026-10-02，H 批場地管理）
 
 - **錯在哪**：`apps/admin/src/api/http.ts` 的 `classifyByStatus` 最後一行 `new AdminApiError('server', …, { status, detail })` 沒帶 `body`（只有行事曆衝突那條帶了）。`PartnerStoreEditView.vue` 的 `(error.body as { code?: string })?.code === 'geocoder_unavailable'` 因此恆為 `undefined`，後端回 503＋`geocoder_unavailable`（暫時故障，可再試）時被當成「尚未啟用」，「由地址定位」按鈕被永久停用。
@@ -2521,3 +2528,75 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：派工與驗收以「`N` 模組代號清單」為範圍，規劃書寫在模組表以外的機制功能（帳號權限、系統設定）沒有被拆成工作列；驗收時沒有回頭用「規劃書 §1 的後台範圍敘述」逐項比對。
 - **下次怎麼避免**：一個後台的驗收清單＝模組表 ＋ 規劃書明文的「另含」項目（帳號權限、系統設定、稽核）；開工前把這些拆成 `STATUS.md` 的獨立列。新建一個後台時，先比對主站後台的路由清單，主站有而它沒有的，逐一確認規劃書是否排除。
 - **防呆**：無（已補 API 與畫面）。
+
+### E-145 FAQPage JSON-LD 在真資料下整站消失，驗證腳本把「0 個 FAQPage」當成正確行為放行（2026-10-03，真 API 實機驗收）
+
+- **錯在哪**：`useFaqPageSchema()` 用 `watchEffect(() => { 題目為空就 return; useSchemaOrg(...) })`。呼叫端的 `useFetch` 沒有 await，setup 當下題目還是空陣列 → 第一次執行直接 return；資料到達後 watchEffect 重跑，但那時已不在 setup 的同步階段，`useHead` 沒有作用中的實體，輸出悄悄消失。頁面渲染 10 題，JSON-LD 只剩 WebSite／WebPage，沒有任何錯誤訊息。`check-faq-schema-live.mjs` 同時有兩個盲點：「找不到 FAQPage 一律通過（GEO-05 資料不足的正確行為）」，以及「題目應內嵌在 `mainEntity`」的假設與實際輸出（`mainEntity` 是 `@id` 引用，題目是 `@graph` 的獨立節點）不符——後者因為 S1-18a 時 `faqs` 是 0 筆從未被驗證過。
+- **根因（可改掉的行為）**：把「0 筆資料時的輸出」當成驗收完成，沒有在有資料的情況下實跑過一次；檢查腳本的「通過」條件沒有區分「資料不足所以不輸出」與「有資料卻沒輸出」。另外在 `watchEffect` 內呼叫 `useHead` 系列 composable（需要作用中的 Nuxt 實體）是反模式。
+- **下次怎麼避免**：結構化資料／head 輸出一律在 setup 同步階段呼叫一次，輸入給 getter（unhead 在 SSR 輸出時才解析，client 隨資料重算）；不得在 `watch`／`watchEffect` 內呼叫 `useHead`／`useSchemaOrg`。任何「資料為空時不輸出」的規則，驗證必須同時覆蓋空與非空兩種資料。檢查腳本的「通過」不得建立在「沒找到東西」上，要有一個獨立的證據（例如頁面實際渲染的題數）證明「確實沒東西可輸出」。
+- **防呆**：✅ `scripts/check-faq-schema-live.mjs`：頁面渲染了 `<details id="q-…">` 題目卻 0 個 FAQPage 節點會 fail；`mainEntity` 的 `@id` 引用會解回 `@graph` 節點再驗 `name`／`acceptedAnswer.text`。
+
+### E-148 K2 開通的會員選擇器搜不到現場建立的會員（2026-10-03，後台實機驗收 B-1）
+
+- **錯在哪**：K1 現場建立的會員尚無任何會籍；K2「手動開通／續會」的選擇器重用 `GET /members`，該端點預設只列「在目前俱樂部有會籍」的會員，所以搜會員編號永遠是空的。`crossClub=true` 也救不了（單一俱樂部資料範圍的角色只擴到授權俱樂部，且無會籍帳號只有系統管理員才看得到）。
+- **根因（可改掉的行為）**：把名單端點的範圍規則當成選擇器的規則重用，驗收只驗「不外洩他隊會員」，沒有走「建立會員→開通」這個最先發生的串接情境。
+- **下次怎麼避免**：把列表端點當選擇器用時，先寫「上一步剛建立、尚未歸屬的資料找得到嗎」的測試；範圍規則改動要同時回答新建資料的可見性。
+- **防呆**：✅ 新增 `includeNoMembership=true`（本俱樂部有會籍者＋任何俱樂部都沒有會籍者；全表判斷，不洩漏只在他隊有會籍者），`AdminMembersTests.名單_includeNoMembership…` 鎖定。
+
+### E-149 刪除新聞草稿撞抽獎公布稿外鍵回 500（2026-10-03，後台實機驗收 B-9）
+
+- **錯在哪**：K5 產生公布稿草稿後，`member_draws.announcement_article_id`（不 cascade）指向該文章；從最新消息刪除這篇草稿時 `DeleteAsync` 沒處理引用，SQL 外鍵違反變成 500。
+- **根因（可改掉的行為）**：新增外鍵時只想「活動寫入文章」那條路，沒有回頭盤點「文章的刪除路徑會被誰參照」。
+- **下次怎麼避免**：新增指向既有表且不 cascade 的外鍵時，同一次 grep 該表所有刪除路徑（含批次刪除），補「被引用→409 或先解除關聯」與測試。
+- **防呆**：✅ 活動已公布／已結案→409 並指出活動代碼，其餘狀態先解除關聯再刪；`AdminDrawsTests.刪除公布稿文章…` 鎖定。沒有自動掃描「外鍵×刪除路徑」的機制。
+
+### E-150 後台代填未比照前台驗證（2026-10-03，後台實機驗收 B-3）
+
+- **錯在哪**：P4 後台代填只驗姓名與狀態，沒有「電話與 Email 至少一項」「Email／電話格式」「未滿 18 歲須填家長」；P3 後台 Email 也不檢查。壞值直接寫進同一張 `registrations`。
+- **根因（可改掉的行為）**：同一張表有三個寫入入口（前台、P3、P4），驗證各寫各的；後台「人為判斷不擋名額」的註解被擴大成「不需要驗證」。
+- **下次怎麼避免**：同一張表新增寫入入口前，先逐項對照既有入口的驗證清單；驗證寫成共用函式（`AdminInput.OptionalPhone`／`OptionalEmail`）。名額可以不擋，資料格式不行。
+- **防呆**：✅ P4 補齊與前台同一套（舊報名本來就沒有聯絡方式者修改時不強制「至少一項」）；`AdminTrialsAndRegistrationsTests.試訓報名_後台代填驗證…`、P3 壞信箱／壞電話測試。
+
+### E-152 新聞封面「預設有圖、白名單沒圖」，沒封面的新文章請求不存在的本地圖回 404（2026-10-05，前台實機驗收 N1）
+
+- **錯在哪**：`apps/web/app/utils/news.ts` 的 `hasNewsCover` 對磐石站除了 `NEWS_NO_COVER_SLUGS` 之外一律回 true，API 回 `coverUrl: null` 的新文章（如後台新建的抽獎公布稿）會去載 `/assets/img/news/{slug}.jpg`，404 破圖。
+- **根因（可改掉的行為）**：mockup 搬遷時用「83 篇種子資料逐一比對」得出唯一例外，把一次性盤點結果寫成永久的反向規則；後台開始產生新文章後，「不在例外清單」不再代表「有本地圖」。
+- **下次怎麼避免**：「是否存在某資源」的判斷用**肯定清單**（有才用），不要用否定清單（沒有才排除）；新增資料來源（後台建稿）時回頭檢視既有的預設值假設。
+- **防呆**：✅ 白名單 `NEWS_LOCAL_COVER_SLUGS` 取自已納版控的 `scripts/site-images.txt`，`check-site-images.mjs` 已守它與引用一致；乾淨 checkout 同樣有清單，不依賴不納版控的照片目錄。無自動化測試（`apps/web` 目前無單元測試框架）。
+
+### E-151 CSV 匯出時間是無標示的 UTC（2026-10-03，後台實機驗收 B-5）
+
+- **錯在哪**：P3、P4、G3、表單詢問、Lead 的 CSV 各自 `CreatedAt.ToString("yyyy-MM-dd HH:mm")`，輸出 UTC 且沒有任何標示，使用者當成台灣時間讀，差 8 小時；K1／K3 的「註冊日期／登記日期」也是 UTC 日期，近午夜會差一天。
+- **根因（可改掉的行為）**：「資料庫存 UTC」是共識，但輸出給人看的時間文字沒有共用函式，每個匯出自己格式化；K5、S3 剛好各自做對了，沒有被提升成共用規則。
+- **下次怎麼避免**：輸出時間文字一律走 `TaiwanClock.ToText`（日期用 `TaiwanClock.ToDate`），表頭標「（台灣時間）」。
+- **防呆**：✅ `TimestampFormatTests` 掃原始碼，`yyyy-MM-dd HH:mm` 格式化必須同行含 `AddHours(8)`／`Add(Offset)` 或明寫 `UTC`。
+
+### E-146 K2 手動開通的會員搜尋沒帶 `crossClub`，K1 現場建立、尚無會籍的會員永遠搜不到（2026-10-03，後台實機驗收）
+
+- **錯在哪**：`MemberPicker.vue` 呼叫 `searchMembers(activeClubId, k)`，後端名單預設只列「在目前俱樂部有會籍」的會員；現場建立（K1）後還沒有任何會籍的人，正是 K2「手動開通／續會」最需要找到的對象，卻回「沒有符合的會員」。
+- **根因（可改掉的行為）**：把「挑會員」當成「會員名單的縮小版」直接重用名單端點，沒有回頭問「這個挑選器要找的人，是否包含還沒有會籍的人」；後端的資料範圍規則（`AdminMembersRepository.ResolveVisibilityAsync`）只讀了端點簽名、沒讀語意。
+- **下次怎麼避免**：重用既有端點做挑選器時，逐一列出「要找得到的對象」（例如尚無會籍、已到期、他隊會籍）並各用一筆真資料搜一次。
+- **防呆**：無（已改帶 `crossClub=true`）。⚠️ 注意 `crossClub` 只有系統管理員會包含「完全沒有會籍」的帳號，其他角色仍只含自己授權俱樂部的會籍持有人，後端另行補參數。
+
+### E-147 技術詞與「本輪沒做」的開發備註外露到後台畫面——同一類錯第三次（2026-10-03，後台實機驗收）
+
+- **錯在哪**：① 場地欄位畫面上寫「場地選單目前沒有可用清單（`venues` 主檔尚無對應後台端點），暫不開放選擇」（含程式反引號）——端點早已存在（I5／F2 都在用），過期的開發備註留在使用者介面上；同時 `venueId` 一律送 `null`，編輯既有梯次會把已設定的場地清掉。② M5／M2／推播表單出現 `ads_enabled`、`payment_mode（off／external／inapp）`、`schedule_d1`、`my_orders`、`tcrfc://`、「第 90 百分位」「API 錯誤」；上課時間表要求使用者手寫 JSON。
+- **根因（可改掉的行為）**：`check-forbidden-terms.mjs` 只掃 `<template>`，而這些字串寫在 `<script>` 的錯誤訊息、placeholder 常值與後端回傳的標籤裡；E-33 只補了元件庫語系，沒有把「script 內會顯示的字串」納入。端點補齊後，沒有回頭搜「因為缺端點而停用」的註解與提示字樣（同 E-118 的過期敘述類）。
+- **下次怎麼避免**：補齊某個「先前缺的端點」時，`grep -rn "尚無對應\|暫不開放\|本輪不" apps/admin/src` 清掉所有過期提示；使用者需要輸入的內部識別字，改成下拉、自動產生，或標明「由 App 工程團隊提供」。
+- **防呆**：✅ `apps/admin/scripts/check-forbidden-terms.mjs` 新增第二層（掛 `npm run lint`）：掃 `<script>` 內含中文的字串常值與樣板文字，抓反引號、snake_case 內部代號、`tcrfc://`、JSON、百分位。⚠️ 後端回傳的標籤與訊息（例如診斷類型、連線檢查、抽獎公告標題、「貨號」）腳本看不到，已逐項回報後端；前端以 key 對照白話名稱的做法只是補丁。
+- **第四次再犯（2026-10-05，第二輪重驗）**：憑證列管 `KINDS` 前端對照表蓋掉後端 `kindLabel`（文字還與後端不一致），連線檢查前端寫死「Cloudflare 邊緣節點」，推播下拉選項附 `（tcrfc://…）`。已改為優先用後端標籤、前端表只當退路，並去掉技術詞。仍屬「後端回傳標籤腳本看不到」，防呆缺口不變。
+- **同類再犯（2026-10-05，第二輪重驗，後端）**：K5 公布稿標題 E-147 時只修「名稱同時以【開頭且以】結尾」，「【測試】主場賽事日球迷抽獎」這種只有前綴括號的名稱仍變成「【【測試】…】中獎名單公布」。根因：只針對當時看到的那一個樣本寫條件，沒窮舉「無括號／前綴括號／整段括號／中間括號」。已改為「名稱內含任何【或】就不外包」，抽成 `AdminDrawsRepository.BuildAnnouncementTitle`，防呆 ✅ `ApiBoundaryBehaviorTests.公布稿標題_名稱含括號就不再外包括號`（四種情境）。後端產生的使用者可見文字，修條件前先列出輸入的所有形狀再寫測試。
+
+### E-153 後台把 503 的白話 `detail` 吞成通用錯誤（2026-10-05，後台第二輪重驗）
+
+- **錯在哪**：`http.ts` 的 `classifyByStatus` 只對 400／401／403／404／409 取 `detail`，其餘（含 503）一律「伺服器發生未預期的錯誤」。後端對「服務尚未啟用」刻意回 `{"title":"服務尚未啟用","detail":"檔案儲存尚未設定"}`，所有上傳點都只看到通用訊息。
+- **根因（可改掉的行為）**：把 5xx 整類視為內部錯誤而不外露，沒有區分「後端刻意給使用者看的 503」與「未預期的 500」；E-140 修 5xx 漏帶 `body` 時只補欄位，沒有回頭檢查同一函式的 `message`。
+- **下次怎麼避免**：改錯誤分流時，對每個狀態碼逐一問「後端有沒有寫給使用者看的 detail」，並用真實 503 路徑（未設定的服務）實走一次。
+- **防呆**：無。500 維持通用訊息，避免外露內部錯誤。
+
+### E-155 刪除端點缺必填 query 回 500、跨來源讀不到下載檔名與 Retry-After（2026-10-05，後台第二輪重驗）
+
+- **錯在哪**：① `DELETE /news/{id}`、`/pages/{id}` 把 `expectedUpdatedAt` 宣告成非可空 `DateTime`（必填 query），缺值時最小 API 在綁定階段丟 `BadHttpRequestException`，`ApiExceptionHandler` 沒有這個分支，落入通用 500。② CORS 政策沒 `WithExposedHeaders`，跨來源的瀏覽器讀不到 `Content-Disposition`（後台下載永遠用前端自組的退路檔名）。③ 限流 429 沒帶 `Retry-After`，前台 BFF 準備好轉傳也無從轉。
+- **根因（可改掉的行為）**：① 以為「參數沒給」會自然變 400，沒實測過框架的綁定例外在自訂全域例外處理下的狀態碼；② 寫 CORS 只想到「放行來源與憑證」，沒盤點前端要讀的回應標頭；③ 限流只設 `RejectionStatusCode`，沒補 `OnRejected`。
+- **下次怎麼避免**：新增端點的必填 query／本文，要實打一次「缺值」「格式錯」確認是 400 中文；前端會讀的回應標頭（下載檔名、等待秒數）要同時出現在 CORS expose 清單與測試。
+- **防呆**：✅ 全域 `BadHttpRequestException`→400（`ApiExceptionHandler`）；兩個刪除端點改 `DateTime?`＋`ConcurrencyInput.RequireExpectedUpdatedAt`（日常中文訊息）；`ArchitectureTests.端點handler不得宣告必填的DateTime或DateOnly_query參數` 掃描全部 Map 端點；`ApiBoundaryBehaviorTests`（缺值／格式錯／CORS expose）與 `AdminAuthRateLimitingTests`（429 帶 Retry-After）。

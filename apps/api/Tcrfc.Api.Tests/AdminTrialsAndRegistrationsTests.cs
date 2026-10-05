@@ -145,7 +145,7 @@ public sealed class AdminTrialsAndRegistrationsTests(AdminWriteApiFixture fixtur
 
             // 取消 r1 → 釋回名額（狀態維持額滿，由人工決定要不要重新開放）
             var cancelled = await BizTest.ReadAsync<AdminTrialRegistrationDetailDto>(await admin.PutAsync($"/api/v1/admin/tcrfc/trials/{id}/registrations/{r1.Id}",
-                BizTest.Json(new { applicantName = r1.ApplicantName, status = "取消" })));
+                BizTest.Json(new { applicantName = r1.ApplicantName, phone = r1.Phone, email = r1.Email, birthOn = r1.BirthOn, guardianName = r1.GuardianName, guardianPhone = r1.GuardianPhone, status = "取消" })));
             Assert.Equal("取消", cancelled.Status);
             Assert.Equal(1, (await Trial(admin, id)).EnrolledCount);
 
@@ -199,7 +199,7 @@ public sealed class AdminTrialsAndRegistrationsTests(AdminWriteApiFixture fixtur
 
             using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
             Assert.Equal(HttpStatusCode.Forbidden, (await service.PostAsync($"/api/v1/admin/tcrfc/trials/{id}/registrations", BizTest.Json(Reg("x")))).StatusCode);
-            var confirmed = await service.PutAsync($"/api/v1/admin/tcrfc/trials/{id}/registrations/{reg.Id}", BizTest.Json(new { applicantName = reg.ApplicantName, status = "已確認", healthDeclaration = reg.HealthDeclaration }));
+            var confirmed = await service.PutAsync($"/api/v1/admin/tcrfc/trials/{id}/registrations/{reg.Id}", BizTest.Json(new { applicantName = reg.ApplicantName, phone = reg.Phone, email = reg.Email, birthOn = reg.BirthOn, guardianName = reg.GuardianName, guardianPhone = reg.GuardianPhone, status = "已確認", healthDeclaration = reg.HealthDeclaration }));
             Assert.Equal(HttpStatusCode.OK, confirmed.StatusCode);
             Assert.Equal(HttpStatusCode.Forbidden, (await service.GetAsync($"/api/v1/admin/tcrfc/trials/{id}/registrations/export?purpose=x")).StatusCode);
 
@@ -210,6 +210,76 @@ public sealed class AdminTrialsAndRegistrationsTests(AdminWriteApiFixture fixtur
             Assert.Contains("【測試】匯出", csv);
             Assert.DoesNotContain("病史", csv);
             Assert.Equal(HttpStatusCode.NotFound, (await admin.GetAsync($"/api/v1/admin/tcrfc/trials/{Guid.NewGuid()}/registrations/export?purpose=x")).StatusCode);
+        }
+        finally
+        {
+            await BizTest.ExecuteSqlAsync("DELETE FROM registrations WHERE trial_id = @Id; DELETE FROM trials WHERE id = @Id;", ("@Id", id));
+        }
+    }
+
+    [Fact]
+    public async Task 試訓報名_後台代填驗證_聯絡方式_格式_未成年家長_與前台同一套規則()
+    {
+        using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
+        var created = await BizTest.ReadAsync<AdminTrialDetailDto>(await admin.PostAsync("/api/v1/admin/tcrfc/trials", BizTest.Json(TrialPayload(null, null, capacity: 1))));
+        var id = created.Id;
+        var url = $"/api/v1/admin/tcrfc/trials/{id}/registrations";
+        try
+        {
+            async Task<string> ExpectBadRequestAsync(object body)
+            {
+                var response = await admin.PostAsync(url, BizTest.Json(body));
+                Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+                return await response.Content.ReadAsStringAsync();
+            }
+
+            Assert.Contains("至少需要填寫一項", await ExpectBadRequestAsync(new { applicantName = "【測試】無聯絡", birthOn = "1990-01-01" }));
+            Assert.Contains("Email 的格式不正確", await ExpectBadRequestAsync(new { applicantName = "【測試】壞信箱", email = "not-an-email", birthOn = "1990-01-01" }));
+            Assert.Contains("電話的格式不正確", await ExpectBadRequestAsync(new { applicantName = "【測試】壞電話", phone = "abc-電話", birthOn = "1990-01-01" }));
+            Assert.Contains("家長電話的格式不正確", await ExpectBadRequestAsync(new { applicantName = "【測試】壞家長電話", phone = "0900-000-111", birthOn = "1990-01-01", guardianName = "家長", guardianPhone = "xx" }));
+            var minorYear = DateTime.UtcNow.AddHours(8).Year - 10;
+            Assert.Contains("未滿 18 歲", await ExpectBadRequestAsync(new { applicantName = "【測試】未成年", phone = "0900-000-111", birthOn = $"{minorYear}-06-15" }));
+            Assert.Contains("出生日期不正確", await ExpectBadRequestAsync(new { applicantName = "【測試】未來出生", phone = "0900-000-111", birthOn = "2999-01-01" }));
+
+            // 成年、只留電話也可以；未成年填妥家長也可以。
+            Assert.Equal(HttpStatusCode.Created, (await admin.PostAsync(url, BizTest.Json(new { applicantName = "【測試】成年只有電話", phone = "0900-000-111", birthOn = "1990-01-01" }))).StatusCode);
+            Assert.Equal(HttpStatusCode.Created, (await admin.PostAsync(url, BizTest.Json(new
+            {
+                applicantName = "【測試】未成年有家長", email = "Minor@Example.com", birthOn = $"{minorYear}-06-15", guardianName = "【測試】家長", guardianPhone = "0900-000-222", status = "候補",
+            }))).StatusCode);
+        }
+        finally
+        {
+            await BizTest.ExecuteSqlAsync("DELETE FROM registrations WHERE trial_id = @Id; DELETE FROM trials WHERE id = @Id;", ("@Id", id));
+        }
+    }
+
+    [Fact]
+    public async Task 試訓報名_後台代填可超出名額_回應帶是否超額旗標_匯出檔名含場次日期且時間為台灣時間()
+    {
+        using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
+        var created = await BizTest.ReadAsync<AdminTrialDetailDto>(await admin.PostAsync("/api/v1/admin/tcrfc/trials", BizTest.Json(TrialPayload(null, null, trialOn: "2027-03-21", capacity: 1))));
+        var id = created.Id;
+        try
+        {
+            var first = await BizTest.ReadAsync<AdminTrialRegistrationDetailDto>(await admin.PostAsync($"/api/v1/admin/tcrfc/trials/{id}/registrations", BizTest.Json(Reg("【測試】名額內"))));
+            Assert.False(first.IsOverCapacity);
+            // 規格只寫「額滿自動關閉、候補遞補提醒」，沒有禁止後台超額：不擋，但回應標示超額讓畫面警示。
+            var second = await BizTest.ReadAsync<AdminTrialRegistrationDetailDto>(await admin.PostAsync($"/api/v1/admin/tcrfc/trials/{id}/registrations", BizTest.Json(Reg("【測試】超額"))));
+            Assert.True(second.IsOverCapacity);
+            Assert.Equal(2, (await Trial(admin, id)).EnrolledCount);
+
+            var response = await admin.GetAsync($"/api/v1/admin/tcrfc/trials/{id}/registrations/export?purpose=%E5%90%8D%E5%96%AE");
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            var fileName = response.Content.Headers.ContentDisposition?.FileNameStar ?? response.Content.Headers.ContentDisposition?.FileName;
+            Assert.StartsWith("trial-registrations-tcrfc-20270321-", fileName);
+            Assert.DoesNotContain(id.ToString(), fileName);
+
+            // 報名時間輸出台灣時間（UTC+8），表頭標明。
+            var csv = Encoding.UTF8.GetString(await response.Content.ReadAsByteArrayAsync());
+            Assert.Contains("報名時間（台灣時間）", csv);
+            var expectedPrefix = DateTime.UtcNow.AddHours(8).ToString("yyyy-MM-dd");
+            Assert.Contains(expectedPrefix, csv);
         }
         finally
         {

@@ -47,6 +47,11 @@ const filters = reactive({ status: '', keyword: '', isMember: '' as '' | 'yes' |
 const exportOpen = ref(false)
 const exporting = ref(false)
 
+const overCapacity = computed(() => {
+  const t = trial.value
+  return !!t && t.capacity != null && t.enrolledCount > t.capacity
+})
+
 const trialTitle = computed(() => {
   const t = trial.value
   if (!t) return '試訓報名名單'
@@ -160,7 +165,7 @@ async function promote(row: TrialRegistrationListItemDto) {
 async function doExport(purpose: string) {
   exporting.value = true
   try {
-    await exportTrialRegistrations(club.value, props.id, { status: filters.status || undefined }, purpose)
+    await exportTrialRegistrations(club.value, props.id, { status: filters.status || undefined }, purpose, trial.value?.trialOn)
     exportOpen.value = false
     ElMessage.success('已匯出')
   } catch (error) {
@@ -185,6 +190,14 @@ const editPath = (row: TrialRegistrationListItemDto) => `/programs/trials/${prop
 
     <el-card v-if="trial" shadow="never" class="trial-reg-list__summary">
       已報名 {{ trial.enrolledCount }} / {{ trial.capacity ?? '不限' }} 人，候補 {{ trial.waitlistCount }} 人，場次狀態「{{ trial.status }}」。
+      <el-alert
+        v-if="overCapacity"
+        type="warning"
+        show-icon
+        :closable="false"
+        class="trial-reg-list__over"
+        :title="`已超過名額：這場名額 ${trial?.capacity} 人，目前已報名 ${trial?.enrolledCount} 人（超出 ${trial!.enrolledCount - trial!.capacity!} 人）。後台代填不會被擋，請確認場地與教練是否容納得下。`"
+      />
     </el-card>
 
     <el-card shadow="never" class="trial-reg-list__bar">
@@ -291,6 +304,7 @@ const editPath = (row: TrialRegistrationListItemDto) => `/programs/trials/${prop
 
 <style scoped>
 .trial-reg-list__summary { margin-bottom: 12px; font-size: 14px; }
+.trial-reg-list__over { margin-top: 8px; }
 .trial-reg-list__bar { margin-bottom: 12px; }
 .trial-reg-list__bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .trial-reg-list__keyword { width: 240px; max-width: 100%; }

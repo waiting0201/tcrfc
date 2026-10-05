@@ -1813,22 +1813,30 @@ END
     crea = new_id("ad_creative", "seed-ended")
     import datetime as _dt
     stat_rows = []
+    total_imp = 0  # delivered_total 必須等於日聚合的曝光加總（B-14：曾寫死 3900，與成效報表 4,674 對不上）
     for d in range(14):
         day = _dt.date.today() - _dt.timedelta(days=15 - d)
         for platform, share in (("ios", 6), ("android", 4)):
             imp = 100 + (d * 7) % 40 + share * 10
             stat_rows.append(f"('{day.isoformat()}', {esc(camp)}, {esc(crea)}, (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'{platform}', N'zh-Hant', {imp}, {imp // 25}, {imp * 8 // 10})")
+            total_imp += imp
     block(f"""
 IF NOT EXISTS (SELECT 1 FROM ad_campaigns WHERE id = {esc(camp)})
 BEGIN
   INSERT INTO ad_campaigns (id, advertiser_id, slot_id, name, starts_at, ends_at, weight, goal_type, goal_impressions, delivered_total, contract_amount, is_amount_hidden, status)
   VALUES ({esc(camp)}, {esc(new_id("advertiser", "a"))}, (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'【測試】已結束的曝光保證檔期',
-          DATEADD(day, -16, SYSUTCDATETIME()), DATEADD(day, -2, SYSUTCDATETIME()), 3, N'guaranteed', 5000, 3900, 30000, 1, N'ended');
+          DATEADD(day, -16, SYSUTCDATETIME()), DATEADD(day, -2, SYSUTCDATETIME()), 3, N'guaranteed', 5000, {total_imp}, 30000, 1, N'ended');
   INSERT INTO ad_creatives (id, campaign_id, locale, alt_text, title, cta_text, click_url, theme, review_status)
   VALUES ({esc(crea)}, {esc(camp)}, N'zh-Hant', N'【測試】素材替代文字', N'【測試】廣告標題', N'了解更多', N'https://example.com/ad', N'both', N'approved');
   INSERT INTO ad_daily_stats (stat_date, campaign_id, creative_id, slot_id, platform, locale, impressions, clicks, unique_devices) VALUES
     {(","+chr(10)+"    ").join(stat_rows)};
 END
+""")
+    # 修復已灌過舊種子（delivered_total 寫死 3900）的資料庫：只動這筆種子檔期，且只在兩邊不一致時更新。
+    block(f"""
+UPDATE ad_campaigns SET delivered_total = {total_imp}
+WHERE id = {esc(camp)} AND delivered_total <> {total_imp}
+  AND (SELECT COALESCE(SUM(impressions), 0) FROM ad_daily_stats WHERE campaign_id = {esc(camp)}) = {total_imp};
 """)
     draft = new_id("ad_campaign", "seed-draft")
     block(f"""

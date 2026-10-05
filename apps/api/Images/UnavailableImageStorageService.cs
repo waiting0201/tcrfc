@@ -9,9 +9,7 @@ namespace Tcrfc.Api.Images;
 public sealed class UnavailableImageStorageService : IImageStorageService
 {
     public Task<UploadedImageInfo> UploadAsync(byte[] rawBytes, string objectKeyPrefix, CancellationToken cancellationToken)
-        => throw new InvalidOperationException(
-            "圖片上傳功能尚未設定物件儲存（AZURE_BLOB_CONNECTION_STRING 未設定）。" +
-            "本機開發請參考 apps/api/README.md「本機開發：Azurite」。");
+        => throw new Tcrfc.Api.Common.FeatureNotConfiguredException("檔案儲存尚未設定", "storage_not_configured");
 
     public Task DeleteAsync(string? mainObjectKey, CancellationToken cancellationToken)
         // 刪除本來就是 fail-open 的收尾動作（見 IImageStorageService.DeleteAsync 上的說明），

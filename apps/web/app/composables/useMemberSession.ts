@@ -98,7 +98,12 @@ export function useMemberSession() {
     store.inflight = runExclusive(async () => {
       if (store.token && store.token !== rejected && store.expiresAt - Date.now() > SKEW_MS) return true
       try {
-        const session = await $fetch<MemberBrowserSession>('/api/member-auth/refresh', { method: 'POST' })
+        const session = await $fetch<MemberBrowserSession | null | undefined>('/api/member-auth/refresh', { method: 'POST' })
+        // 204（沒有更新權杖 Cookie＝匿名訪客）：確定沒登入，不是錯誤（F5）
+        if (!session) {
+          clear()
+          return false
+        }
         apply(session)
         return true
       }

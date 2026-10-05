@@ -6,15 +6,16 @@
  * 代填、公開報名、轉梯次），後台這裡只能檢視，見 `apps/api` `CreateAdminSessionRequest` 檔頭
  * 「刻意不開放後台直接填寫」的說明。
  *
- * ⚠️ **場地（`venueId`）本輪不提供選單**——`venues` 是共用主檔，但目前沒有任何後台端點可以
- * 列出場地清單，跟 `MatchEditView.vue` 賽事場地欄位遇到的既有缺口是同一個，這裡沿用同一個
- * 判斷不重複造：不送出 `venueId`（一律維持 `null`），已在 apps/admin/README.md 註記。
+ * 場地選單來自場地管理清單（`listAdminVenues`）；每週上課時間用 `WeeklyScheduleInput`（星期＋起訖時間），
+ * 對外仍是 `weekly_schedule` 的 JSON 文字。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
+import WeeklyScheduleInput from '@/components/WeeklyScheduleInput.vue'
+import { listAdminVenues, type AdminVenueListItemDto } from '@/api/adminVenues'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { activeClubId } from '@/auth/clubAccess'
@@ -38,6 +39,7 @@ const sessionId = ref<string | undefined>(route.params.id as string | undefined)
 
 const form = reactive({
   programId: '',
+  venueId: '',
   startOn: null as Date | null,
   endOn: null as Date | null,
   weeklySchedule: '',
@@ -53,6 +55,8 @@ const baselineJson = ref('')
 const enrolledCount = ref(0)
 
 const programs = ref<AdminProgramListItemDto[]>([])
+const venues = ref<AdminVenueListItemDto[]>([])
+const scheduleInput = ref<InstanceType<typeof WeeklyScheduleInput> | null>(null)
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
@@ -69,10 +73,14 @@ async function loadPrograms() {
 async function loadSession() {
   loadState.value = 'loading'
   try {
-    await loadPrograms()
+    await Promise.all([
+      loadPrograms(),
+      listAdminVenues(activeClubId.value).then((v) => { venues.value = v }).catch(() => { venues.value = [] }),
+    ])
     if (!isCreate.value && sessionId.value) {
       const detail = await getAdminProgramSession(activeClubId.value, sessionId.value)
       form.programId = detail.programId
+      form.venueId = detail.venueId ?? ''
       form.startOn = fromDateOnlyString(detail.startOn)
       form.endOn = fromDateOnlyString(detail.endOn)
       form.weeklySchedule = detail.weeklySchedule ?? ''
@@ -113,15 +121,13 @@ const pageTitle = computed(() =>
 )
 const isReadOnly = computed(() => !canManageSessions.value)
 
-function validateJson(): boolean {
-  if (!form.weeklySchedule.trim()) return true
-  try {
-    JSON.parse(form.weeklySchedule)
-    return true
-  } catch {
-    formError.value = '上課時間表不是合法的 JSON 格式，請確認內容（或留空）'
+function validateSchedule(): boolean {
+  const message = scheduleInput.value?.validate() ?? null
+  if (message) {
+    formError.value = message
     return false
   }
+  return true
 }
 
 function validate(): boolean {
@@ -134,14 +140,14 @@ function validate(): boolean {
     formError.value = '名額上限不能是負數'
     return false
   }
-  if (!validateJson()) return false
+  if (!validateSchedule()) return false
   return true
 }
 
 function buildPayload(): CreateSessionPayload {
   return {
     programId: form.programId,
-    venueId: null,
+    venueId: form.venueId || null,
     startOn: toDateOnlyString(form.startOn),
     endOn: toDateOnlyString(form.endOn),
     weeklySchedule: form.weeklySchedule || null,
@@ -268,11 +274,14 @@ function retryLoad() {
           </el-row>
 
           <el-form-item label="場地">
-            <p class="session-edit__hint">場地選單目前沒有可用清單（`venues` 主檔尚無對應後台端點），暫不開放選擇。</p>
+            <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
+              <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+            </el-select>
+            <p class="session-edit__hint">場地清單在「網站設定」的場地管理維護。</p>
           </el-form-item>
 
-          <el-form-item label="上課時間表（JSON，選填）">
-            <el-input v-model="form.weeklySchedule" type="textarea" :rows="4" placeholder="例如：{ mon: 18:00-19:30 }（合法 JSON）" />
+          <el-form-item label="每週上課時間（選填）">
+            <WeeklyScheduleInput ref="scheduleInput" v-model="form.weeklySchedule" :disabled="isReadOnly" />
           </el-form-item>
         </el-card>
 

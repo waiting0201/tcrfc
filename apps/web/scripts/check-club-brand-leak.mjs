@@ -133,8 +133,8 @@ const EXEMPT_PAGES = [
   },
   {
     route: '/en/checkout/',
-    terms: ['磐石'],
-    reason: '同上（同一份頁面檔案的 en 版本）。',
+    terms: ['磐石', 'Taichung Rock'],
+    reason: '同上（同一份頁面檔案的 en 版本）。en 版的揭露文案寫英文名「Taichung Rock FC」，不是「磐石」，F2（2026-10-03）補列。',
   },
   {
     route: '/zh/shop/',
@@ -143,8 +143,8 @@ const EXEMPT_PAGES = [
   },
   {
     route: '/en/shop/',
-    terms: ['磐石'],
-    reason: '同上（同一份頁面檔案的 en 版本）。',
+    terms: ['磐石', 'Taichung Rock'],
+    reason: '同上（同一份頁面檔案的 en 版本）。en 版的揭露文案寫英文名「Taichung Rock FC」，F2（2026-10-03）補列。',
   },
 ]
 
@@ -160,12 +160,16 @@ const routes = collectAllRoutes()
 // 比對維度是 `route|term` 這個組合，不是整筆物件（reason 文字可以改寫得更清楚，
 // 不算「新增例外」）。
 // ---------------------------------------------------------------------------
+// 棘輪比對時，「同一個實體的中英文寫法」視為同一個例外：en 版頁面揭露的是同一件事
+// （收款方／發票抬頭），只是寫英文名。沒有這張別名表，補列 en 例外會被誤判成「新增例外」。
+const TERM_ALIASES = { 'Taichung Rock': '磐石' }
+
 function exemptionKeys(pages) {
-  const keys = []
+  const keys = new Set()
   for (const p of pages) {
-    for (const t of p.terms) keys.push(`${p.route}|${t}`)
+    for (const t of p.terms) keys.add(`${p.route}|${TERM_ALIASES[t] ?? t}`)
   }
-  return keys
+  return [...keys]
 }
 
 function checkRatchet() {

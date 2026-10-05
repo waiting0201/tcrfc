@@ -31,6 +31,13 @@ public sealed class AdminMembersRepository(
     public sealed record ListFilter
     {
         public bool CrossClub { get; init; }
+
+        /// <summary>
+        /// 名單另外納入「在任何俱樂部都還沒有會籍」的會員（例如 K1 現場建立、尚未開通的帳號），供 K2 手動開通的會員選擇器使用。
+        /// 這類會員不屬於任何俱樂部，所以不會洩漏他隊會員；仍是遮罩輸出、關鍵字在無解除遮罩權限時只比對會員編號。
+        /// 與會籍相關的篩選（層級、會籍狀態、球季、即將到期、俱樂部代碼）同時使用時不生效。匯出一律忽略此旗標。
+        /// </summary>
+        public bool IncludeNoMembership { get; init; }
         public string? Keyword { get; init; }
         public string? ClubCode { get; init; }
         public string? Tier { get; init; }
@@ -76,6 +83,7 @@ public sealed class AdminMembersRepository(
         // 會籍相關條件都套在「同一份會籍」上（層級、狀態、球季、即將到期要同時成立於同一列，不是分散在兩份會籍）。
         var ms = db.Memberships.AsNoTracking().AsQueryable();
         var membershipRestricted = false;
+        var scopeOnly = true; // 會籍條件是否「只有」範圍限制（沒有使用者指定的會籍篩選）
         if (visibility.ClubIds is { } clubIds)
         {
             ms = ms.Where(x => clubIds.Contains(x.ClubId));
@@ -94,6 +102,7 @@ public sealed class AdminMembersRepository(
 
             ms = ms.Where(x => x.ClubId == clubId.Value);
             membershipRestricted = true;
+            scopeOnly = false;
         }
 
         if (!string.IsNullOrWhiteSpace(filter.Tier))
@@ -101,6 +110,7 @@ public sealed class AdminMembersRepository(
             AdminInput.OneOf(filter.Tier, MemberLabels.Tier.Keys.ToHashSet(), "會員層級", "「一般會員」或「球迷會員」");
             ms = ms.Where(x => x.Tier == filter.Tier);
             membershipRestricted = true;
+            scopeOnly = false;
         }
 
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
@@ -109,12 +119,14 @@ public sealed class AdminMembersRepository(
             AdminInput.OneOf(filter.MembershipStatus, MemberLabels.MembershipStatus.Keys.ToHashSet(), "會籍狀態", "「待確認」「有效」「已到期」或「已取消」");
             ms = ApplyEffectiveStatus(ms, filter.MembershipStatus, today);
             membershipRestricted = true;
+            scopeOnly = false;
         }
 
         if (filter.SeasonId is Guid seasonId)
         {
             ms = ms.Where(x => x.SeasonId == seasonId);
             membershipRestricted = true;
+            scopeOnly = false;
         }
 
         if (filter.ExpiringWithinDays is int days)
@@ -127,11 +139,21 @@ public sealed class AdminMembersRepository(
             var limit = today.AddDays(days);
             ms = ms.Where(x => x.Status == "active" && x.MembershipEndOn != null && x.MembershipEndOn >= today && x.MembershipEndOn <= limit);
             membershipRestricted = true;
+            scopeOnly = false;
         }
 
         if (membershipRestricted)
         {
-            query = query.Where(m => ms.Any(x => x.MemberId == m.Id));
+            if (filter.IncludeNoMembership && scopeOnly)
+            {
+                // 「本次可見俱樂部有會籍」或「任何俱樂部都沒有會籍」。後者用全表判斷（不套俱樂部範圍），才不會把
+                // 「只在他隊有會籍」的會員誤當成無會籍而洩漏出來。
+                query = query.Where(m => ms.Any(x => x.MemberId == m.Id) || !db.Memberships.Any(x => x.MemberId == m.Id));
+            }
+            else
+            {
+                query = query.Where(m => ms.Any(x => x.MemberId == m.Id));
+            }
         }
         else if (!visibility.IncludeMemberless)
         {
@@ -856,7 +878,7 @@ public sealed class AdminMembersRepository(
         AdminClubScope scope, ListFilter filter, string? purpose, CancellationToken cancellationToken)
     {
         var purposeText = AdminInput.RequireText(purpose, "匯出用途", 200);
-        var (query, visibility) = await BuildQueryAsync(scope, filter, cancellationToken);
+        var (query, visibility) = await BuildQueryAsync(scope, filter with { IncludeNoMembership = false }, cancellationToken);
         var members = await query.OrderBy(m => m.MemberNo).ToListAsync(cancellationToken);
         var summaries = members.Count == 0
             ? new Dictionary<Guid, IReadOnlyList<AdminMemberMembershipSummaryDto>>()
@@ -875,7 +897,7 @@ public sealed class AdminMembersRepository(
                 m.MemberNo, m.Name, m.Email, m.Phone,
                 s?.ClubName ?? s?.ClubCode, s?.SeasonCode, s?.TierLabel, s?.EffectiveStatusLabel, s?.EndOn?.ToString("yyyy-MM-dd"),
                 MemberLabels.Of(MemberLabels.SignupSource, m.SignupSource), MemberLabels.Of(MemberLabels.AccountStatus, display),
-                m.Locale is null ? null : MemberLabels.Of(MemberLabels.Locale, m.Locale), m.CreatedAt.ToString("yyyy-MM-dd"),
+                m.Locale is null ? null : MemberLabels.Of(MemberLabels.Locale, m.Locale), TaiwanClock.ToDate(m.CreatedAt).ToString("yyyy-MM-dd"),
             ];
             if (rows.Count == 0)
             {

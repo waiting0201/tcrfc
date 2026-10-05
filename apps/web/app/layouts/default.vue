@@ -47,6 +47,13 @@ useHead(() => {
   }
 })
 
+// F4（2026-10-03）：og:locale／og:locale:alternate。nuxt-seo-utils 對 `en`（無地區碼）
+// 不輸出 og:locale，這裡明確依語系表補上（zh 與模組自己輸出的 zh_Hant 同值，不衝突）。
+useSeoMeta({
+  ogLocale: () => OG_LOCALE_MAP[locale.value],
+  ogLocaleAlternate: () => [OG_LOCALE_MAP[otherLocale.value]],
+})
+
 // ── S1-13：「本頁尚無此語系版本」提示 ─────────────────────────────────────
 // docs/05-i18n-seo.md §1 Fallback 規則。en 頁面預設一律顯示（S1-13 當下沒有任何一頁
 // 真的翻譯完成）；真的有英文內容的頁面用 definePageMeta({ enReady: true }) 關掉，

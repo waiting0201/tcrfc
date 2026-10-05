@@ -230,7 +230,7 @@ const FIELD_KEY_PATTERN = /^[a-z][a-z0-9_]{0,63}$/
 function validateFieldForm(): boolean {
   fieldDialogError.value = null
   if (!FIELD_KEY_PATTERN.test(fieldForm.fieldKey)) {
-    fieldDialogError.value = '欄位代碼只能是英文小寫字母開頭，接英文小寫字母、數字或底線，長度 1–64（例如 experience、cooperation_direction）'
+    fieldDialogError.value = '欄位代碼只能使用小寫英文字母、數字與底線，須以英文字母開頭，長度 1–64 字'
     return false
   }
   const isDuplicate = fields.value.some(

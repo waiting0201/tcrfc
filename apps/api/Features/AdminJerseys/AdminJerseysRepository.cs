@@ -242,7 +242,7 @@ public sealed class AdminJerseysRepository(ClubDbContext db, IPermissionChecker 
         {
             j.Member.MemberNo, j.RecipientName, j.Phone, j.Size, MemberLabels.Of(MemberLabels.Delivery, j.DeliveryMethod), j.Address,
             MemberLabels.Of(MemberLabels.Jersey, j.Status), j.ShippedOn?.ToString("yyyy-MM-dd"), j.ReceivedOn?.ToString("yyyy-MM-dd"),
-            j.CreatedAt.ToString("yyyy-MM-dd"),
+            TaiwanClock.ToDate(j.CreatedAt).ToString("yyyy-MM-dd"),
         }));
         audit.Record(scope, "匯出球衣出貨清單", $"共 {rows.Count} 件", rows.Count, purposeText);
         return CsvUtils.BuildCsv(lines);

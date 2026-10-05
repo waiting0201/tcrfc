@@ -13,7 +13,7 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useViewUpdatePermissions, usePermission } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
-import { exportDrawPublic, generateRoster, listRoster, previewRoster, type DrawDetailDto, type RosterRowDto } from '@/api/adminDraws'
+import { eligibleCountText, exportDrawPublic, generateRoster, listRoster, previewRoster, type DrawDetailDto, type RosterRowDto } from '@/api/adminDraws'
 import { formatDateTime } from '@/utils/dateTime'
 
 const props = defineProps<{ draw: DrawDetailDto }>()
@@ -28,6 +28,8 @@ const errorText = (e: unknown, f: string) => (e instanceof AdminApiError ? e.mes
 const can = (a: string) => props.draw.availableActions.includes(a as never)
 
 const version = ref<number | undefined>(undefined)
+const revealed = ref(false)
+const revealing = ref(false)
 const filters = reactive({ keyword: '', winnersOnly: false })
 const rows = ref<RosterRowDto[]>([])
 const loading = ref(false)
@@ -35,6 +37,14 @@ const loadError = ref<string | null>(null)
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
+/** 姓名提示依 API 回傳的 isMasked 決定，不假設遮罩規則（沒有資料列時不下結論）。 */
+const nameHint = computed(() => {
+  if (rows.value.length === 0) return ''
+  const masked = rows.value.filter((r) => r.isMasked).length
+  if (masked === rows.value.length) return '姓名為遮罩顯示。'
+  if (masked === 0) return '姓名顯示為完整姓名，請妥善保管，勿外流。'
+  return '部分姓名為遮罩顯示。'
+})
 const hasRoster = computed(() => props.draw.rosterVersion > 0)
 
 async function load() {
@@ -46,7 +56,7 @@ async function load() {
   loading.value = true
   loadError.value = null
   try {
-    const result = await listRoster(club.value, props.draw.id, { version: version.value, keyword: filters.keyword.trim() || undefined, winnersOnly: filters.winnersOnly || undefined, page: page.value, pageSize: pageSize.value })
+    const result = await listRoster(club.value, props.draw.id, { version: version.value, keyword: filters.keyword.trim() || undefined, winnersOnly: filters.winnersOnly || undefined, reveal: revealed.value, page: page.value, pageSize: pageSize.value })
     rows.value = result.items
     total.value = result.totalCount
   } catch (error) {
@@ -57,6 +67,20 @@ async function load() {
     loading.value = false
   }
 }
+async function setReveal(value: boolean) {
+  if (value) {
+    try {
+      await ElMessageBox.confirm('即將顯示名單的完整姓名。這個動作會被系統記錄，請只在必要時使用；離開此頁後會回到遮罩狀態。', '顯示完整資料', { confirmButtonText: '確定顯示', cancelButtonText: '取消', type: 'warning' })
+    } catch {
+      return
+    }
+  }
+  revealing.value = true
+  revealed.value = value
+  await load()
+  if (value && loadError.value) revealed.value = false
+  revealing.value = false
+}
 function applyFilter() {
   page.value = 1
   load()
@@ -65,6 +89,7 @@ onMounted(load)
 watch(() => [props.draw.id, props.draw.rosterVersion, props.draw.winnerCount, props.draw.backupCount], () => {
   version.value = undefined
   page.value = 1
+  revealed.value = false
   load()
 })
 
@@ -146,7 +171,7 @@ async function doExport(purpose: string) {
     <el-card v-if="hasRoster" shadow="never" class="roster__block">
       <dl class="roster__dl">
         <div><dt>目前版本</dt><dd>第 {{ draw.rosterVersion }} 版</dd></div>
-        <div><dt>合格人數</dt><dd>{{ draw.totalCount }} 人</dd></div>
+        <div><dt>合格人數</dt><dd>{{ eligibleCountText(draw.totalCount) }}</dd></div>
         <div><dt>資格基準時間</dt><dd>{{ formatDateTime(draw.snapshotAt) }}</dd></div>
         <div><dt>鎖定</dt><dd>{{ formatDateTime(draw.lockedAt) }}（{{ draw.lockedByName || '—' }}）</dd></div>
         <div><dt>名單雜湊</dt><dd class="roster__hash">{{ draw.rosterHash || '—' }}</dd></div>
@@ -169,7 +194,7 @@ async function doExport(purpose: string) {
         <el-table :data="draw.versions" row-key="version" size="small">
           <el-table-column label="版本" width="70"><template #default="{ row }">第 {{ row.version }} 版</template></el-table-column>
           <el-table-column label="產生時間" width="150"><template #default="{ row }">{{ formatDateTime(row.generatedAt) }}</template></el-table-column>
-          <el-table-column label="合格人數" width="90" prop="totalCount" />
+          <el-table-column label="合格人數" width="90"><template #default="{ row }">{{ row.totalCount ?? '—' }}</template></el-table-column>
           <el-table-column label="狀態" min-width="180">
             <template #default="{ row }">
               <el-tag v-if="row.isCurrent" type="success" size="small">目前使用</el-tag>
@@ -187,9 +212,11 @@ async function doExport(purpose: string) {
           </el-input>
           <el-switch v-model="filters.winnersOnly" active-text="只看中獎與備取" @change="applyFilter" />
           <el-button type="primary" @click="applyFilter">搜尋</el-button>
+          <el-button v-if="canReveal && !revealed" :loading="revealing" @click="setReveal(true)">顯示完整資料</el-button>
+          <el-button v-if="revealed" :loading="revealing" @click="setReveal(false)">重新遮罩</el-button>
           <span class="roster__muted">目前檢視第 {{ version ?? draw.rosterVersion }} 版</span>
         </div>
-        <p class="roster__hint"><template v-if="!canReveal">你的帳號沒有檢視完整個資的權限，姓名顯示為遮罩，搜尋只比對序號與會員編號。</template><template v-else>姓名為遮罩格式（例如「王○明」）。</template></p>
+        <p class="roster__hint">{{ nameHint }}<template v-if="!canReveal">你的帳號沒有檢視完整個資的權限，搜尋只比對序號與會員編號。</template></p>
         <el-skeleton v-if="loading" :rows="5" animated />
         <el-empty v-else-if="loadError" :description="loadError"><el-button type="primary" @click="load">重新載入</el-button></el-empty>
         <el-empty v-else-if="rows.length === 0" description="沒有符合條件的名單" :image-size="64" />

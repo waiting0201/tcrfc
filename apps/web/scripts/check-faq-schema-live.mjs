@@ -152,6 +152,11 @@ for (const route of routes) {
 
   const html = await res.text()
   checkedCount++
+  let pageHasFaqPage = false
+  // F1（2026-10-03）防呆：頁面實際渲染了幾題 FAQ（<details id="q-…">，FaqAccordion 的標記）。
+  // 渲染了題目卻 0 個 FAQPage 節點＝輸出機制壞了（曾因 useFaqPageSchema 在資料到達前就 return，
+  // 真資料下整站 FAQPage 消失，而本腳本當時把「0 個」一律當成 GEO-05 的正確行為放行，E-145）。
+  const renderedFaqCount = (html.match(/<details[^>]*\sid="q-[^"]+"/g) ?? []).length
 
   for (const block of extractJsonLdBlocks(html)) {
     let parsed
@@ -184,10 +189,16 @@ for (const route of routes) {
     })
     if (!faqPageNode) continue
 
+    pageHasFaqPage = true
     pagesWithFaqPage++
-    const mainEntity = Array.isArray(faqPageNode.mainEntity)
+    const rawMainEntity = Array.isArray(faqPageNode.mainEntity)
       ? faqPageNode.mainEntity
       : faqPageNode.mainEntity ? [faqPageNode.mainEntity] : []
+    // nuxt-schema-org 輸出的是 @graph 扁平結構：mainEntity 是 `{ "@id": … }` 引用，題目本體是
+    // graph 裡的獨立 Question 節點。這支腳本先前假設題目內嵌在 mainEntity 裡，在 0 筆資料時從沒
+    // 被驗證過；有真資料後必須把引用解回節點才驗得到 name／acceptedAnswer（F1，2026-10-03）。
+    const byId = new Map(graph.filter((n) => n?.['@id']).map((n) => [n['@id'], n]))
+    const mainEntity = rawMainEntity.map((ref) => (ref && ref['@id'] && !ref.name ? (byId.get(ref['@id']) ?? ref) : ref))
 
     // E-74 修正後：FAQPage 缺 mainEntity 一律是錯誤，不再有「已知限制」白名單。
     if (mainEntity.length === 0) {
@@ -206,6 +217,13 @@ for (const route of routes) {
         })
       }
     }
+  }
+
+  if (renderedFaqCount > 0 && !pageHasFaqPage) {
+    shapeErrors.push({
+      route,
+      reason: `頁面渲染了 ${renderedFaqCount} 題 FAQ，但 JSON-LD 沒有任何 FAQPage 節點（GEO-06 輸出失敗，不是「資料不足」）`,
+    })
   }
 }
 
@@ -228,8 +246,8 @@ if (parseErrors.length === 0) {
 console.log('\n── FAQPage 形狀（mainEntity／name／acceptedAnswer.text）───')
 if (shapeErrors.length === 0) {
   if (pagesWithFaqPage === 0) {
-    console.log('ℹ️ 目前沒有任何一頁輸出 FAQPage——`apps/api` 未啟動或 `faqs` 表沒有種子資料時，')
-    console.log('   這是 GEO-05「資料不足時不輸出該型別」的正確行為，不是缺陷。')
+    console.log('ℹ️ 目前沒有任何一頁輸出 FAQPage，且沒有任何一頁渲染出 FAQ 題目（`apps/api` 未啟動或 `faqs` 表')
+    console.log('   沒有資料）——GEO-05「資料不足時不輸出該型別」的正確行為。頁面有題目卻沒輸出則會在上面 fail。')
   } else {
     console.log('✓ 全數通過（含頁面型別不得由網址猜測的檢查，見檔頭 E-74）')
   }

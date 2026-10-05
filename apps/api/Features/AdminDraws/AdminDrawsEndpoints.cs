@@ -155,12 +155,12 @@ public static class AdminDrawsEndpoints
           .Produces(StatusCodes.Status404NotFound).Produces(StatusCodes.Status409Conflict);
 
         group.MapGet("/{id:guid}/roster", async (
-            string club, Guid id, int? version, string? keyword, bool? winnersOnly, int? page, int? pageSize, HttpContext httpContext,
+            string club, Guid id, int? version, string? keyword, bool? winnersOnly, bool? reveal, int? page, int? pageSize, HttpContext httpContext,
             IAdminClubAuthorizer authorizer, AdminDrawsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, View, cancellationToken);
             var (p, ps) = PagingQuery.Normalize(page, pageSize, defaultPageSize: 50, maxPageSize: 200);
-            var rows = await repository.ListRosterAsync(scope, id, version, keyword, winnersOnly, p, ps, cancellationToken);
+            var rows = await repository.ListRosterAsync(scope, id, version, keyword, winnersOnly, p, ps, cancellationToken, reveal ?? false);
             return rows is null ? Results.NotFound() : Results.Ok(rows);
         }).WithName("AdminListDrawRoster").Produces<PagedResult<AdminRosterEntryDto>>().Produces(StatusCodes.Status404NotFound);
 

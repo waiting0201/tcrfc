@@ -110,6 +110,8 @@ public sealed record AdminTrialRegistrationDetailDto
     public required string Status { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
+    /// <summary>這筆報名所屬的試訓場次目前是否「報名人數已超過名額」（後台代填、遞補不擋超額，由承辦判斷；前台用這個旗標顯示警示）。名額未設定視為否。</summary>
+    public bool IsOverCapacity { get; init; }
 }
 
 /// <summary>後台代填試訓報名（電話／現場）。狀態省略＝待確認。額滿後可直接填「候補」；系統不會替你擋下超額（後台是人為判斷）。</summary>

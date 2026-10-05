@@ -519,7 +519,7 @@ public sealed class AdminArticlesRepository(
 
     /// <summary>回傳 <c>null</c>＝找不到（含跨俱樂部），<c>true</c>＝刪除成功。
     /// 共用內容唯讀例外由 <see cref="LoadTrackedForWriteAsync"/> 統一擋下。</summary>
-    public async Task<bool?> DeleteAsync(AdminClubScope scope, Guid id, DateTime expectedUpdatedAt, CancellationToken cancellationToken)
+    public async Task<bool?> DeleteAsync(AdminClubScope scope, Guid id, DateTime expectedUpdatedAt, CancellationToken cancellationToken, Guid? operatorId = null)
     {
         var article = await LoadTrackedForWriteAsync(scope, id, cancellationToken);
         if (article is null)
@@ -528,6 +528,27 @@ public sealed class AdminArticlesRepository(
         }
 
         ApplyConcurrencyToken(article, expectedUpdatedAt);
+
+        // K5 抽獎公布稿：member_draws.announcement_article_id 外鍵指向文章，沒處理會讓 DELETE 撞外鍵變成 500。
+        // 規則：活動已公布或已結案時，這篇就是對外的公布紀錄，不能刪（409，並指出是哪個活動）；
+        // 其餘狀態（草稿、名單已鎖定、已抽出、作廢）公布稿尚未對外生效，先解除關聯再刪，之後可重新產生公布稿。
+        var linkedDraws = await dbContext.MemberDraws
+            .Where(d => d.AnnouncementArticleId == article.Id).ToListAsync(cancellationToken);
+        var inUse = linkedDraws.FirstOrDefault(d => d.Status is "announced" or "closed");
+        if (inUse is not null)
+        {
+            throw new AdminConflictException(
+                "這篇文章正在被抽獎活動使用",
+                $"這篇文章是抽獎活動「{inUse.DrawCode}」的公布稿，活動已公布或已結案，不能刪除。");
+        }
+
+        foreach (var draw in linkedDraws)
+        {
+            draw.AnnouncementArticleId = null;
+            draw.UpdatedAt = DateTime.UtcNow;
+            draw.UpdatedBy = operatorId;
+        }
+
         var coverKey = article.CoverKey;
         var ogImageKey = article.OgImageKey;
         dbContext.Articles.Remove(article);

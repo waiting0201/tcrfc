@@ -27,13 +27,13 @@ public sealed partial class AdminAppConfigRepository(
 
     private static readonly IReadOnlyDictionary<string, string> KindLabels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["apns_key"] = "APNs 金鑰", ["fcm_credential"] = "FCM 認證資料", ["apple_developer_program"] = "Apple 開發者帳號會籍",
+        ["apns_key"] = "Apple 推播金鑰", ["fcm_credential"] = "Google 推播憑證", ["apple_developer_program"] = "Apple 開發者帳號會籍",
         ["google_play_account"] = "Google Play 開發者帳號", ["maps_api_key"] = "地圖服務金鑰", ["other"] = "其他",
     };
 
     private static readonly IReadOnlyDictionary<string, string> ReportTypeLabels = new Dictionary<string, string>(StringComparer.Ordinal)
     {
-        ["crash"] = "崩潰", ["abnormal_exit"] = "異常退出", ["api_error"] = "API 錯誤", ["startup_time"] = "啟動耗時", ["user_report"] = "使用者回報",
+        ["crash"] = "崩潰", ["abnormal_exit"] = "異常退出", ["api_error"] = "連線錯誤", ["startup_time"] = "啟動耗時", ["user_report"] = "使用者回報",
     };
 
     private static readonly IReadOnlyDictionary<string, string> ReportStatusLabels = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -227,7 +227,7 @@ public sealed partial class AdminAppConfigRepository(
 
     private static void Validate(UpsertAdminAppCredentialRequest r)
     {
-        AdminInput.OneOf(r.Kind, KindLabels.Keys.ToHashSet(StringComparer.Ordinal), "種類", "APNs 金鑰、FCM 認證資料、Apple 或 Google Play 開發者帳號、地圖金鑰或其他");
+        AdminInput.OneOf(r.Kind, KindLabels.Keys.ToHashSet(StringComparer.Ordinal), "種類", "Apple 推播金鑰、Google 推播憑證、Apple 或 Google Play 開發者帳號、地圖金鑰或其他");
         AdminInput.RequireText(r.Label, "名稱", 120);
         AdminInput.OptionalText(r.ExternalRef, "外部識別", 200);
         AdminInput.OptionalText(r.Note, "備註", 500);
@@ -278,7 +278,7 @@ public sealed partial class AdminAppConfigRepository(
         var q = dbContext.AppDiagnosticReports.AsNoTracking().AsQueryable();
         if (!string.IsNullOrEmpty(type))
         {
-            AdminInput.OneOf(type, ReportTypeLabels.Keys.ToHashSet(StringComparer.Ordinal), "回報類型", "「崩潰」「異常退出」「API 錯誤」「啟動耗時」或「使用者回報」");
+            AdminInput.OneOf(type, ReportTypeLabels.Keys.ToHashSet(StringComparer.Ordinal), "回報類型", "「崩潰」「異常退出」「連線錯誤」「啟動耗時」或「使用者回報」");
             q = q.Where(r => r.ReportType == type);
         }
 
@@ -363,7 +363,7 @@ public sealed partial class AdminAppConfigRepository(
 
     // ═════════ 連線檢查 ═════════
 
-    /// <summary>一次檢查 App 相關依賴：資料庫、推播傳輸（APNs／FCM）、邊緣靜態設定、憑證屆期、最低支援版本與診斷回報。「尚未串接」與「錯誤」分開顯示。</summary>
+    /// <summary>一次檢查 App 相關依賴：資料庫、推播服務（Apple 與 Google）、邊緣靜態設定、憑證屆期、最低支援版本與診斷回報。「尚未串接」與「錯誤」分開顯示。</summary>
     public async Task<AdminAppConnectionCheckDto> ConnectionCheckAsync(CancellationToken cancellationToken)
     {
         var items = new List<AdminAppConnectionCheckItemDto>();
@@ -384,12 +384,12 @@ public sealed partial class AdminAppConfigRepository(
         }
 
         items.Add(!transport.IsConfigured
-            ? Item("push_transport", "推播傳輸（APNs／FCM）", "not_configured", "尚未串接：APNs 與 FCM 金鑰尚未建立，推播批次會停在「失敗」並保留，串接後可重送。")
-            : Item("push_transport", "推播傳輸（APNs／FCM）", "ok", "已設定推播傳輸。"));
+            ? Item("push_transport", "推播服務（Apple 與 Google）", "not_configured", "尚未串接：Apple 與 Google 推播服務的金鑰尚未建立，推播批次會停在「失敗」並保留，串接後可重送。")
+            : Item("push_transport", "推播服務（Apple 與 Google）", "ok", "已設定推播服務。"));
 
         items.Add(publisher.IsConfigured
-            ? Item("edge_config", "邊緣靜態設定（Cloudflare）", "ok", "已串接邊緣靜態設定，M1／M5 存檔時會同步。")
-            : Item("edge_config", "邊緣靜態設定（Cloudflare）", "not_configured", "尚未串接 Cloudflare 靜態設定（邊緣備援來源）；API 掛掉時 App 讀不到維護與強制更新公告。"));
+            ? Item("edge_config", "備援設定來源", "ok", "已串接備援設定來源，App 的設定存檔時會同步。")
+            : Item("edge_config", "備援設定來源", "not_configured", "尚未串接備援設定來源；伺服器掛掉時 App 讀不到維護與強制更新公告。"));
 
         var creds = await ListCredentialsAsync(cancellationToken);
         var overdue = creds.Count(c => c.Health == "overdue");

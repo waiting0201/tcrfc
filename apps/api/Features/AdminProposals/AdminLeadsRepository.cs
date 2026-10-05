@@ -94,10 +94,10 @@ public sealed class AdminLeadsRepository(ClubDbContext dbContext)
                 e.SourcePath, e.UtmSource, e.Status, e.Tags, e.CreatedAt,
             }).ToListAsync(cancellationToken);
 
-        var lines = new List<IEnumerable<string?>> { new[] { "公司", "姓名", "Email", "下載的提案", "來源頁面", "UTM 來源", "跟進狀態", "標籤", "下載時間" } };
+        var lines = new List<IEnumerable<string?>> { new[] { "公司", "姓名", "Email", "下載的提案", "來源頁面", "UTM 來源", "跟進狀態", "標籤", "下載時間（台灣時間）" } };
         lines.AddRange(rows.Select(r => new[]
         {
-            r.Company, r.Name, r.Email, r.ProposalTitle, r.SourcePath, r.UtmSource, r.Status, r.Tags, r.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+            r.Company, r.Name, r.Email, r.ProposalTitle, r.SourcePath, r.UtmSource, r.Status, r.Tags, TaiwanClock.ToText(r.CreatedAt),
         }));
         return CsvUtils.BuildCsv(lines);
     }

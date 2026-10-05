@@ -118,13 +118,12 @@ public sealed class BlobDocumentPublicUrlResolver([FromKeyedServices("documents-
 public sealed class UnavailableDocumentStorageService : IDocumentStorageService
 {
     public Task<UploadedDocumentInfo> UploadAsync(DocumentBucket bucket, byte[] rawBytes, string objectKeyPrefix, CancellationToken cancellationToken)
-        => throw new InvalidOperationException(
-            "檔案上傳功能尚未設定物件儲存（AZURE_BLOB_CONNECTION_STRING 未設定）。本機開發請參考 apps/api/README.md「本機開發：Azurite」。");
+        => throw new Tcrfc.Api.Common.FeatureNotConfiguredException("檔案儲存尚未設定", "storage_not_configured");
 
     public Task DeleteAsync(DocumentBucket bucket, string? objectKey, CancellationToken cancellationToken) => Task.CompletedTask;
 
     public Task<DocumentReadResult?> OpenReadAsync(DocumentBucket bucket, string objectKey, CancellationToken cancellationToken)
-        => throw new InvalidOperationException("檔案儲存尚未設定（AZURE_BLOB_CONNECTION_STRING 未設定）。");
+        => throw new Tcrfc.Api.Common.FeatureNotConfiguredException("檔案儲存尚未設定", "storage_not_configured");
 }
 
 public sealed class UnavailableDocumentPublicUrlResolver : IDocumentPublicUrlResolver

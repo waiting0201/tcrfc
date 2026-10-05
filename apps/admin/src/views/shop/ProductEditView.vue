@@ -247,8 +247,8 @@ function openVariant(v: VariantDto | null) {
 async function saveVariant() {
   varFormError.value = null
   const sku = varForm.sku.trim()
-  if (!sku) return (varFormError.value = '請輸入規格編號')
-  if (/\s/.test(sku) || sku.length > 64) return (varFormError.value = '規格編號不可含空白，最多 64 字')
+  if (!sku) return (varFormError.value = '請輸入商品規格編號')
+  if (/\s/.test(sku) || sku.length > 64) return (varFormError.value = '商品規格編號不可含空白，最多 64 字')
   if (varForm.price === null || varForm.price < 0) return (varFormError.value = '售價不能是負數')
   if (varForm.salePrice !== null && (varForm.salePrice < 0 || varForm.salePrice > varForm.price)) return (varFormError.value = '促銷價必須介於 0 與售價之間')
   varSaving.value = true
@@ -402,7 +402,7 @@ async function moveVariant(index: number, delta: -1 | 1) {
           <p class="product-edit__hint">庫存量不能在這裡修改，請到「庫存」調整；新增規格時填的期初庫存會記成一筆進貨。有訂單的規格不能刪除，請改為停售。</p>
           <el-empty v-if="variants.length === 0" description="還沒有規格" :image-size="64" />
           <el-table v-else-if="!isMobile" :data="variants" row-key="id">
-            <el-table-column label="規格編號" min-width="120" prop="sku" />
+            <el-table-column label="商品規格編號" min-width="120" prop="sku" />
             <el-table-column label="尺寸／顏色" min-width="110"><template #default="{ row }">{{ row.label || '—' }}</template></el-table-column>
             <el-table-column label="售價" width="110">
               <template #default="{ row }">
@@ -452,7 +452,7 @@ async function moveVariant(index: number, delta: -1 | 1) {
     <el-dialog v-model="varDialog" :title="varForm.id ? '編輯規格' : '新增規格'" width="560px" :close-on-click-modal="false" class="product-edit__dialog">
       <el-alert v-if="varFormError" :title="varFormError" type="warning" show-icon class="product-edit__block" @close="varFormError = null" />
       <el-form label-position="top" :disabled="varForm.id ? !variantPerm.canUpdate.value : !variantPerm.canCreate.value">
-        <el-form-item label="規格編號" required>
+        <el-form-item label="商品規格編號" required>
           <el-input v-model="varForm.sku" maxlength="64" placeholder="不可含空白，全站不可重複（含另一個俱樂部）" />
         </el-form-item>
         <el-row :gutter="12">

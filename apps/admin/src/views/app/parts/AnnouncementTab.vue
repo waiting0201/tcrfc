@@ -61,7 +61,7 @@ async function save() {
   if (!form.messageZh.trim()) return void (formError.value = '請輸入中文公告內容')
   if (form.startsAt && form.endsAt && form.endsAt.getTime() <= form.startsAt.getTime()) return void (formError.value = '結束時間必須晚於開始時間')
   const link = form.linkUrl.trim()
-  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) return void (formError.value = '連結請用 tcrfc:// 或 http(s):// 開頭')
+  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) return void (formError.value = '連結格式不正確：請填網址（https:// 開頭）或 App 內頁面連結')
   saving.value = true
   formError.value = null
   const body = {
@@ -137,7 +137,7 @@ const periodText = (r: AnnouncementDto) => (r.startsAt || r.endsAt ? `${formatDa
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="an__block" />
       <el-form label-position="top">
         <BilingualShortField v-model:zh="form.messageZh" v-model:en="form.messageEn" label="公告內容（200 字內）" required />
-        <el-form-item label="點擊後前往（選填）"><el-input v-model="form.linkUrl" placeholder="tcrfc:// 開頭的 App 內連結，或 https 網址" /></el-form-item>
+        <el-form-item label="點擊後前往（選填）"><el-input v-model="form.linkUrl" placeholder="網址（https:// 開頭）或 App 內頁面連結" /></el-form-item>
         <el-row :gutter="12">
           <el-col :xs="24" :sm="12"><el-form-item label="開始時間（台灣時間，選填）"><el-date-picker v-model="form.startsAt" type="datetime" style="width: 100%" /></el-form-item></el-col>
           <el-col :xs="24" :sm="12"><el-form-item label="結束時間（台灣時間，選填）"><el-date-picker v-model="form.endsAt" type="datetime" style="width: 100%" /></el-form-item></el-col>

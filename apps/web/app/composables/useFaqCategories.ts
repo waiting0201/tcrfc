@@ -17,9 +17,14 @@ export interface FaqCategory {
 }
 
 export function useFaqCategories(lang: string) {
+  const club = useRuntimeConfig().public.club
+  // F2（2026-10-03）：在進入頁面 payload 之前就濾掉「對本站已關閉單元」的分類。分類主檔兩俱樂部
+  // 共用，原本整份進 payload，藍鯨站的 `__NUXT_DATA__` 因此帶著「學院招生」分類名稱
+  // （頁面可見文字雖已用 isFaqCategoryEnabledForClub 隱藏，payload 沒濾）。
   const { data } = useFetch<FaqCategory[]>('/api/backend/faq-categories', {
     query: { lang },
-    key: `faq-categories-${lang}`,
+    key: `faq-categories-${club}-${lang}`,
+    transform: (cats) => cats.filter((c) => isFaqCategoryEnabledForClub(c.slug, club)),
   })
   const categories = computed(() => data.value ?? [])
   return { categories }

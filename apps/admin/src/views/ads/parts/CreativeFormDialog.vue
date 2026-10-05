@@ -45,7 +45,7 @@ async function save() {
   if (!form.altText.trim()) return void (error.value = '請填寫圖片替代文字（給看不到圖片的人閱讀）')
   if (!props.creative && !image.value) return void (error.value = '請選擇素材圖片')
   const url = form.clickUrl.trim()
-  if (url && !/^(tcrfc:\/\/|https?:\/\/)/i.test(url)) return void (error.value = '點擊後前往的連結請用 tcrfc:// 或 http(s):// 開頭')
+  if (url && !/^(tcrfc:\/\/|https?:\/\/)/i.test(url)) return void (error.value = '點擊後前往的連結格式不正確：請填網址（https:// 開頭）或 App 內頁面連結')
   saving.value = true
   error.value = null
   const payload = {
@@ -94,7 +94,7 @@ async function save() {
         <el-col :xs="24" :sm="12"><el-form-item label="標題（選填）"><el-input v-model="form.title" maxlength="100" /></el-form-item></el-col>
         <el-col :xs="24" :sm="12"><el-form-item label="按鈕文案（選填）"><el-input v-model="form.ctaText" maxlength="30" /></el-form-item></el-col>
       </el-row>
-      <el-form-item label="點擊後前往（選填）"><el-input v-model="form.clickUrl" placeholder="App 內連結（tcrfc:// 開頭）或 https 網址" /></el-form-item>
+      <el-form-item label="點擊後前往（選填）"><el-input v-model="form.clickUrl" placeholder="網址（https:// 開頭）或 App 內頁面連結" /></el-form-item>
       <el-row :gutter="12">
         <el-col :xs="24" :sm="12">
           <el-form-item label="適用的畫面色調">

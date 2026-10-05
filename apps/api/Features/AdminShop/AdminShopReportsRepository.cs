@@ -139,7 +139,7 @@ public sealed class AdminShopReportsRepository(ClubDbContext db, ShopSettingsRea
             lines.Add(["低庫存規格數", s.LowStockCount.ToString()]);
             lines.Add(["缺貨規格數", s.OutOfStockCount.ToString()]);
             lines.Add([]);
-            lines.Add(["熱銷貨號", "商品名稱", "規格", "數量", "營收"]);
+            lines.Add(["熱銷商品規格編號", "商品名稱", "規格", "數量", "營收"]);
             lines.AddRange(s.TopSkus.Select(t => new[] { t.Sku, t.ProductName, t.VariantLabel, t.Quantity.ToString(), t.Revenue.ToString() }));
             count = s.TopSkus.Count + 8;
         }

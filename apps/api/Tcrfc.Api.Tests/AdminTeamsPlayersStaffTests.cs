@@ -29,6 +29,31 @@ public sealed class AdminTeamsPlayersStaffTests(AdminWriteApiFixture fixture)
     // ═════════════════════════════ C1 球隊 ═════════════════════════════
 
     [Fact]
+    public async Task 上傳_檔案儲存尚未設定_回503與中文訊息_不是500()
+    {
+        // AdminWriteApiFixture 沒有設定 AZURE_BLOB_CONNECTION_STRING，注入的是 Unavailable* 替身。
+        using var client = await CreateClientAsync("team.manager@tcrfc.test");
+        var code = $"Y{Guid.NewGuid():N}"[..4].ToUpperInvariant();
+        try
+        {
+            var form = AdminArticleMultipart.Build(new CreateAdminTeamRequest
+            {
+                Code = code, Type = "academy", Gender = "men",
+                Content = new AdminTeamContentInput { Zh = new AdminTeamLocaleContent { Name = "測試梯隊（儲存未設定）" } },
+            }, fileBytes: TestImages.SmallPng());
+            var response = await client.PostAsync("/api/v1/admin/tcrfc/teams", form);
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            var body = await response.Content.ReadAsStringAsync();
+            Assert.Contains("檔案儲存尚未設定", body);
+            Assert.DoesNotContain("AZURE_BLOB", body); // 不洩漏設定變數名稱
+        }
+        finally
+        {
+            await DeleteTeamByCodeAsync(code);
+        }
+    }
+
+    [Fact]
     public async Task Team_未登入_擋下()
     {
         using var client = fixture.CreateClient();

@@ -58,7 +58,7 @@ public sealed class AdminAdCampaignsRepository(ClubDbContext dbContext, AdCreati
     {
         await AdCampaignLifecycle.AdvanceAsync(dbContext, DateTime.UtcNow, cancellationToken);
         var c = await dbContext.AdCampaigns.AsNoTracking().Include(x => x.AdCreatives)
-            .Include(x => x.Advertiser).ThenInclude(a => a.AdvertisersI18ns).Include(x => x.Slot).ThenInclude(s => s.AdSlotsI18ns)
+            .Include(x => x.Advertiser).ThenInclude(a => a.AdvertisersI18ns).Include(x => x.Slot).ThenInclude(s => s.AdSlotsI18ns).Include(x => x.ReviewedByNavigation)
             .AsSplitQuery().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
         return c is null ? null : ToDetail(c, caller);
     }
@@ -411,7 +411,7 @@ public sealed class AdminAdCampaignsRepository(ClubDbContext dbContext, AdCreati
             ContractAmountLabel = !caller.CanViewAmount ? "不公開" : c.ContractAmount is null ? "尚未填寫" : $"NT$ {c.ContractAmount:N0}",
             IsAmountHidden = caller.CanViewAmount ? c.IsAmountHidden : null,
             Status = c.Status, StatusLabel = AdLabels.Of(AdLabels.CampaignStatus, c.Status), PauseReason = c.PauseReason,
-            ReviewedBy = c.ReviewedBy, ReviewedAt = c.ReviewedAt,
+            ReviewedBy = c.ReviewedBy, ReviewedByName = c.ReviewedByNavigation?.DisplayName, ReviewedAt = c.ReviewedAt,
             AvailableActions = AdCampaignLifecycle.AvailableActions(c.Status, caller.CanUpdate, caller.CanReview, caller.CanPause),
             Pacing = ComputePacing(c, DateTime.UtcNow),
             Creatives = c.AdCreatives.OrderBy(x => x.SortOrder).ThenBy(x => x.RowSeq).Select(creativeMapper.ToDto).ToList(),

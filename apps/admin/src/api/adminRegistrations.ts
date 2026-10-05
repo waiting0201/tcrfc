@@ -29,6 +29,8 @@ export interface AdminRegistrationListItemDto {
  */
 export interface AdminRegistrationDetailDto {
   id: string
+  /** 後端算好的「這筆所屬梯次是否已超過名額」；缺值時不顯示警示。 */
+  isOverCapacity?: boolean
   registrationNo: string
   sessionId?: string | null
   trialId?: string | null
@@ -111,8 +113,9 @@ export function updateAdminRegistration(
 }
 
 /** CSV 匯出，吃與清單同一組篩選；檔名由伺服器提供（沒給才用備用檔名）。 */
-export function downloadAdminRegistrationsCsv(club: string, params: ListAdminRegistrationsParams = {}): Promise<void> {
-  return downloadExport(`/api/v1/admin/${club}/registrations/export${buildQuery({ ...params })}`, `registrations-${club}.csv`)
+export function downloadAdminRegistrationsCsv(club: string, params: ListAdminRegistrationsParams = {}, purpose?: string): Promise<void> {
+  // 匯出用途與 P4／K3／G3 同名參數 `purpose`（後端記錄匯出人員、筆數與用途）
+  return downloadExport(`/api/v1/admin/${club}/registrations/export${buildQuery({ ...params, purpose })}`, `registrations-${club}.csv`)
 }
 
 /** 批次改狀態（1–200 筆）；已是該狀態或找不到的列進 `skipped`。 */

@@ -237,6 +237,7 @@ public sealed class AdminAdsTests(AdminWriteApiFixture fixture)
             var approved = await AppTest.ReadAsync<AdminAdCampaignDetailDto>(await ActAsync(biz, campaign.Id, "approve"));
             Assert.Equal("running", approved.Status);
             Assert.NotNull(approved.ReviewedAt);
+            Assert.False(string.IsNullOrWhiteSpace(approved.ReviewedByName)); // B-11 同類：審核者要有顯示名稱
 
             // 緊急暫停：原因必填
             Assert.Equal(HttpStatusCode.BadRequest, (await ActAsync(biz, campaign.Id, "pause")).StatusCode);

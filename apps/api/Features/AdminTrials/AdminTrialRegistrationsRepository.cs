@@ -63,14 +63,20 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
     {
         var r = await db.Registrations.AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == id && x.TrialId == trialId && x.ClubId == scope.ClubId, cancellationToken);
-        return r is null ? null : ToDetail(r);
+        if (r is null)
+        {
+            return null;
+        }
+
+        var over = await db.Trials.AsNoTracking().AnyAsync(t => t.Id == trialId && t.Capacity != null && t.EnrolledCount > t.Capacity, cancellationToken);
+        return ToDetail(r) with { IsOverCapacity = over };
     }
 
     public async Task<AdminTrialRegistrationDetailDto> CreateAsync(
         AdminClubScope scope, Guid trialId, CreateAdminTrialRegistrationRequest request, CancellationToken cancellationToken)
     {
         var status = request.Status ?? "待確認";
-        Validate(request.ApplicantName, status);
+        var input = Validate(request.ApplicantName, status, request.Phone, request.Email, request.BirthOn, request.GuardianName, request.GuardianPhone);
         var trial = await RequireTrialAsync(scope, trialId, cancellationToken);
         await ValidateMemberAsync(request.MemberId, cancellationToken);
 
@@ -79,8 +85,8 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
         var registration = new Registration
         {
             Id = Guid.NewGuid(), RegistrationNo = await GenerateNoAsync(scope.ClubCode, now, cancellationToken), ClubId = scope.ClubId, TrialId = trial.Id,
-            MemberId = request.MemberId, ApplicantName = request.ApplicantName.Trim(), Phone = request.Phone, Email = request.Email, BirthOn = request.BirthOn,
-            GuardianName = request.GuardianName, GuardianPhone = request.GuardianPhone, HealthDeclaration = request.HealthDeclaration, Note = request.Note,
+            MemberId = request.MemberId, ApplicantName = input.Name, Phone = input.Phone, Email = input.Email, BirthOn = request.BirthOn,
+            GuardianName = input.GuardianName, GuardianPhone = input.GuardianPhone, HealthDeclaration = request.HealthDeclaration, Note = request.Note,
             Status = status, CreatedAt = now, UpdatedAt = now, CreatedBy = scope.Identity.AdminUserId, UpdatedBy = scope.Identity.AdminUserId,
         };
         db.Registrations.Add(registration);
@@ -97,7 +103,6 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
     public async Task<AdminTrialRegistrationDetailDto?> UpdateAsync(
         AdminClubScope scope, Guid trialId, Guid id, UpdateAdminTrialRegistrationRequest request, CancellationToken cancellationToken)
     {
-        Validate(request.ApplicantName, request.Status);
         var registration = await db.Registrations.FirstOrDefaultAsync(
             r => r.Id == id && r.TrialId == trialId && r.ClubId == scope.ClubId, cancellationToken);
         if (registration is null)
@@ -105,18 +110,24 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
             return null;
         }
 
+        // 舊資料（本驗證上線前代填、原本就沒有任何聯絡方式）仍要能改狀態／取消，所以「至少一項聯絡方式」只對原本有聯絡方式的報名強制；
+        // 格式與未成年家長欄位的檢查一律照做。
+        var hadContact = registration.Phone is not null || registration.Email is not null;
+        var input = Validate(request.ApplicantName, request.Status, request.Phone, request.Email, request.BirthOn, request.GuardianName, request.GuardianPhone,
+            requireContact: hadContact);
+
         await ValidateMemberAsync(request.MemberId, cancellationToken);
         var oldOccupies = AdminTrialsRepository.Occupies(registration.Status);
         var newOccupies = AdminTrialsRepository.Occupies(request.Status);
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
         registration.MemberId = request.MemberId;
-        registration.ApplicantName = request.ApplicantName.Trim();
-        registration.Phone = request.Phone;
-        registration.Email = request.Email;
+        registration.ApplicantName = input.Name;
+        registration.Phone = input.Phone;
+        registration.Email = input.Email;
         registration.BirthOn = request.BirthOn;
-        registration.GuardianName = request.GuardianName;
-        registration.GuardianPhone = request.GuardianPhone;
+        registration.GuardianName = input.GuardianName;
+        registration.GuardianPhone = input.GuardianPhone;
         registration.HealthDeclaration = request.HealthDeclaration;
         registration.Note = request.Note;
         registration.Status = request.Status;
@@ -158,7 +169,7 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
     }
 
     /// <summary>名單 CSV（<c>program.trial_registration.export</c>，受限）。不含健康聲明。</summary>
-    public async Task<string?> ExportCsvAsync(AdminClubScope scope, Guid trialId, string? status, string? purpose, CancellationToken cancellationToken)
+    public async Task<(string Csv, DateOnly TrialOn)?> ExportCsvAsync(AdminClubScope scope, Guid trialId, string? status, string? purpose, CancellationToken cancellationToken)
     {
         var purposeText = AdminInput.RequireText(purpose, "匯出用途", 200);
         var trial = await db.Trials.AsNoTracking().FirstOrDefaultAsync(t => t.Id == trialId && t.ClubId == scope.ClubId, cancellationToken);
@@ -170,15 +181,15 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
         var rows = await Filter(scope, trialId, status, null, null).OrderBy(r => r.RowSeq).ToListAsync(cancellationToken);
         var lines = new List<IEnumerable<string?>>
         {
-            new[] { "報名編號", "試訓日期", "姓名", "電話", "Email", "出生日期", "家長姓名", "家長電話", "狀態", "是否為會員", "備註", "報名時間" },
+            new[] { "報名編號", "試訓日期", "姓名", "電話", "Email", "出生日期", "家長姓名", "家長電話", "狀態", "是否為會員", "備註", "報名時間（台灣時間）" },
         };
         lines.AddRange(rows.Select(r => new[]
         {
             r.RegistrationNo, trial.TrialOn.ToString("yyyy-MM-dd"), r.ApplicantName, r.Phone, r.Email, r.BirthOn?.ToString("yyyy-MM-dd"),
-            r.GuardianName, r.GuardianPhone, r.Status, r.MemberId != null ? "是" : "否", r.Note, r.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+            r.GuardianName, r.GuardianPhone, r.Status, r.MemberId != null ? "是" : "否", r.Note, TaiwanClock.ToText(r.CreatedAt),
         }));
         audit.Record(scope, "匯出試訓報名名單", $"試訓 {trialId}", rows.Count, purposeText);
-        return CsvUtils.BuildCsv(lines);
+        return (CsvUtils.BuildCsv(lines), trial.TrialOn);
     }
 
     public async Task<AdminTrialSignInSheetDto?> SignInSheetAsync(AdminClubScope scope, Guid trialId, CancellationToken cancellationToken)
@@ -215,10 +226,39 @@ public sealed class AdminTrialRegistrationsRepository(ClubDbContext db, AdminTri
 
     // ── 內部 ───────────────────────────────────────────
 
-    private static void Validate(string applicantName, string status)
+    private sealed record ValidatedInput(string Name, string? Phone, string? Email, string? GuardianName, string? GuardianPhone);
+
+    private const int AdultAge = 18;
+
+    /// <summary>比照前台 <c>TrialsRepository.Validate</c>：電話與 Email 至少一項、格式、出生日期合理、未滿 18 歲須填家長姓名與電話。
+    /// 後台代填與前台報名走同一套聯絡與監護人規則，只有「名額不擋」是後台才有的人為判斷。</summary>
+    private static ValidatedInput Validate(
+        string applicantName, string status, string? phone, string? email, DateOnly? birthOn, string? guardianName, string? guardianPhone,
+        bool requireContact = true)
     {
-        AdminInput.RequireText(applicantName, "姓名", 64);
+        var name = AdminInput.RequireText(applicantName, "姓名", 64);
         AdminInput.OneOf(status, Statuses, "狀態", "「待確認」「已確認」「已繳費」「完成」「取消」或「候補」");
+        var p = AdminInput.OptionalPhone(phone, "電話");
+        var e = AdminInput.OptionalEmail(email, "Email")?.ToLowerInvariant();
+        if (requireContact && p is null && e is null)
+        {
+            throw new AdminValidationException("電話與 Email 至少需要填寫一項，以便後續聯繫。");
+        }
+
+        var today = TaiwanClock.Today;
+        if (birthOn is { } birth && (birth > today || birth < today.AddYears(-100)))
+        {
+            throw new AdminValidationException("出生日期不正確，請重新確認。");
+        }
+
+        var gName = AdminInput.OptionalText(guardianName, "家長姓名", 64);
+        var gPhone = AdminInput.OptionalPhone(guardianPhone, "家長電話");
+        if (birthOn is { } b && b > today.AddYears(-AdultAge) && (gName is null || gPhone is null))
+        {
+            throw new AdminValidationException("報名者未滿 18 歲，請填寫家長（監護人）的姓名與電話。");
+        }
+
+        return new ValidatedInput(name, p, e, gName, gPhone);
     }
 
     private async Task ValidateMemberAsync(Guid? memberId, CancellationToken cancellationToken)

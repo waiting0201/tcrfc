@@ -61,7 +61,7 @@ public sealed class AdminAppPushRepository(
         return await q.OrderByDescending(m => m.RowSeq).Take(200).Select(m => new AdminPushMessageListItemDto
         {
             Id = m.Id, Kind = m.Kind, Status = m.Status, StatusLabel = m.Status, ScheduledAt = m.ScheduledAt, SentAt = m.SentAt, SentCount = m.SentCount,
-            DeliveredCount = m.DeliveredCount, OpenedCount = m.OpenedCount, CreatedBy = m.CreatedBy, CreatedAt = m.CreatedAt,
+            DeliveredCount = m.DeliveredCount, OpenedCount = m.OpenedCount, CreatedBy = m.CreatedBy, CreatedByName = m.CreatedByNavigation == null ? null : m.CreatedByNavigation.DisplayName, CreatedAt = m.CreatedAt,
             TitleZh = m.PushMessagesI18ns.Where(i => i.Locale == RequestLocale.DefaultDbLocale).Select(i => i.Title).FirstOrDefault(),
         }).ToListAsync(cancellationToken).ContinueWith(t => (IReadOnlyList<AdminPushMessageListItemDto>)t.Result.Select(x => x with { StatusLabel = StatusLabels.GetValueOrDefault(x.Status, x.Status) }).ToList(), cancellationToken);
     }
@@ -360,6 +360,7 @@ public sealed class AdminAppPushRepository(
 
     private async Task<PushMessage?> LoadAsync(Guid id, CancellationToken cancellationToken)
         => await dbContext.PushMessages.AsNoTracking().Include(m => m.PushMessagesI18ns).Include(m => m.PushMessageStats).Include(m => m.AudienceClub)
+            .Include(m => m.CreatedByNavigation).Include(m => m.ReviewedByNavigation)
             .AsSplitQuery().FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
 
     private static void RequireStatus(PushMessage m, string[] allowed, string message)
@@ -510,7 +511,7 @@ public sealed class AdminAppPushRepository(
         ImageKey = m.ImageKey, ImageUrl = imageUrls.Resolve(m.ImageKey), DeepLink = m.DeepLink, AudienceTier = m.AudienceTier,
         AudienceTierLabel = TierLabels.GetValueOrDefault(m.AudienceTier, m.AudienceTier), AudienceClubCode = m.AudienceClub?.Code,
         AudienceTeamCodes = PushAudienceSpec.ParseTeamCodes(m.AudienceTeamCodes), ScheduledAt = m.ScheduledAt, AudienceEstimate = m.AudienceEstimate,
-        CreatedBy = m.CreatedBy, ReviewedBy = m.ReviewedBy, ReviewedAt = m.ReviewedAt, RejectNote = m.RejectNote, SentAt = m.SentAt,
+        CreatedBy = m.CreatedBy, CreatedByName = m.CreatedByNavigation?.DisplayName, ReviewedBy = m.ReviewedBy, ReviewedByName = m.ReviewedByNavigation?.DisplayName, ReviewedAt = m.ReviewedAt, RejectNote = m.RejectNote, SentAt = m.SentAt,
         SentCount = m.SentCount, DeliveredCount = m.DeliveredCount, FailedCount = m.FailedCount, OpenedCount = m.OpenedCount, FailureMessage = m.FailureMessage,
         Stats = m.PushMessageStats.OrderBy(s => s.Platform).ThenBy(s => s.Locale).Select(s => new AdminPushStatRowDto
         {

@@ -352,8 +352,10 @@ export interface MemberSearchItemDto {
 
 /** 精簡版會員搜尋：只用來挑會員，回傳值一律遮罩。沒有解除遮罩權限時，關鍵字只比對會員編號。 */
 export async function searchMembers(club: string, keyword: string): Promise<MemberSearchItemDto[]> {
+  // includeNoMembership=true：本俱樂部的會籍持有人，加上「任何俱樂部都還沒有會籍」的人（現場建立、尚未開通），
+  // 不會洩漏他隊會員。
   const res = await apiRequest<PagedResult<MemberSearchItemDto>>(
-    `${club$(club)}/members${buildQuery({ keyword, pageSize: 10 })}`,
+    `${club$(club)}/members${buildQuery({ keyword, pageSize: 10, includeNoMembership: true })}`,
   )
   return res.items
 }

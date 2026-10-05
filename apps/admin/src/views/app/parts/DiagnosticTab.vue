@@ -22,6 +22,8 @@ const TYPES = [
   { value: 'crash', label: '崩潰' }, { value: 'abnormal_exit', label: '異常退出' }, { value: 'api_error', label: '連線錯誤' },
   { value: 'startup_time', label: '啟動耗時' }, { value: 'user_report', label: '使用者回報' },
 ]
+/** 類型名稱以本檔的白話對照為準，後端標籤只當備援（避免「API 錯誤」這類技術詞出現在畫面）。 */
+const typeText = (r: { reportType: string; reportTypeLabel: string }) => TYPES.find((t) => t.value === r.reportType)?.label ?? r.reportTypeLabel
 const STATUSES = [
   { value: 'new', label: '新回報' }, { value: 'reviewing', label: '處理中' }, { value: 'resolved', label: '已解決' }, { value: 'ignored', label: '略過' },
 ]
@@ -125,7 +127,7 @@ async function updateStatus() {
       <div class="dg__row">
         <strong>彙總</strong>
         <el-select v-model="days" class="dg__sel" @change="loadSummary"><el-option label="近 7 天" :value="7" /><el-option label="近 30 天" :value="30" /><el-option label="近 90 天" :value="90" /></el-select>
-        <span class="dg__muted">啟動耗時中位數 {{ summary?.startupMedianMs ?? '—' }} 毫秒・第 90 百分位 {{ summary?.startupP90Ms ?? '—' }} 毫秒</span>
+        <span class="dg__muted">App 啟動耗時：一半的啟動在 {{ summary?.startupMedianMs ?? '—' }} 毫秒內完成，九成在 {{ summary?.startupP90Ms ?? '—' }} 毫秒內完成</span>
       </div>
       <el-alert v-if="summaryError" type="warning" show-icon :closable="false" :title="summaryError" class="dg__mt" />
       <template v-if="summary">
@@ -138,7 +140,7 @@ async function updateStatus() {
           <el-table-column label="無崩潰裝置比例（近似）" min-width="160"><template #default="{ row }">{{ row.crashFreeDevicePercent != null ? `${row.crashFreeDevicePercent}%` : '—' }}</template></el-table-column>
         </el-table>
         <p v-else class="dg__muted dg__mt">這段期間沒有崩潰回報。</p>
-        <p v-if="summary.apiErrorNote" class="dg__muted">{{ summary.apiErrorNote }}</p>
+        <p class="dg__muted">連線錯誤目前只彙總回報次數；正式的錯誤比例由伺服器端監控提供。</p>
       </template>
     </el-card>
 
@@ -160,14 +162,14 @@ async function updateStatus() {
       <template v-else>
         <el-table v-if="!isMobile" :data="rows" row-key="id" @row-click="openDetail">
           <el-table-column label="時間（台灣時間）" width="160"><template #default="{ row }">{{ formatDateTime(row.occurredAt) }}</template></el-table-column>
-          <el-table-column label="類型" width="110" prop="reportTypeLabel" />
+          <el-table-column label="類型" width="110"><template #default="{ row }">{{ typeText(row) }}</template></el-table-column>
           <el-table-column label="平台與版本" width="170"><template #default="{ row }">{{ row.platformLabel }}・{{ row.appVersion || '—' }}<div class="dg__muted">系統 {{ row.osVersion || '—' }}</div></template></el-table-column>
           <el-table-column label="摘要" min-width="240"><template #default="{ row }">{{ row.summary || '（沒有摘要）' }}<span v-if="row.metricValue != null" class="dg__muted">&emsp;數值 {{ row.metricValue }}</span></template></el-table-column>
           <el-table-column label="處理狀態" width="110"><template #default="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.statusLabel }}</el-tag></template></el-table-column>
         </el-table>
         <MobileCardList v-else :rows="rows" row-key="id">
-          <template #title="{ row }">{{ row.summary || row.reportTypeLabel }}</template>
-          <template #meta="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.statusLabel }}</el-tag><span>{{ row.reportTypeLabel }}</span><span>{{ row.platformLabel }} {{ row.appVersion }}</span><span>{{ formatDateTime(row.occurredAt) }}</span></template>
+          <template #title="{ row }">{{ row.summary || typeText(row) }}</template>
+          <template #meta="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.statusLabel }}</el-tag><span>{{ typeText(row) }}</span><span>{{ row.platformLabel }} {{ row.appVersion }}</span><span>{{ formatDateTime(row.occurredAt) }}</span></template>
           <template #actions="{ row }"><el-button size="small" text type="primary" @click="openDetail(row)">查看</el-button></template>
         </MobileCardList>
         <el-pagination v-model:current-page="page" v-model:page-size="pageSize" :total="total" :page-sizes="[20, 50, 100]" :layout="isMobile ? 'prev, pager, next' : 'total, sizes, prev, pager, next'" :small="isMobile" class="dg__pager" @current-change="load" @size-change="applyFilter" />
@@ -178,7 +180,7 @@ async function updateStatus() {
       <template v-if="current">
         <el-descriptions :column="1" border>
           <el-descriptions-item label="時間（台灣時間）">{{ formatDateTime(current.occurredAt) }}</el-descriptions-item>
-          <el-descriptions-item label="類型">{{ current.reportTypeLabel }}</el-descriptions-item>
+          <el-descriptions-item label="類型">{{ typeText(current) }}</el-descriptions-item>
           <el-descriptions-item label="平台與版本">{{ current.platformLabel }}・{{ current.appVersion || '—' }}<template v-if="current.buildNumber">（建置 {{ current.buildNumber }}）</template>・系統 {{ current.osVersion || '—' }}</el-descriptions-item>
           <el-descriptions-item label="摘要">{{ current.summary || '（沒有摘要）' }}</el-descriptions-item>
         </el-descriptions>

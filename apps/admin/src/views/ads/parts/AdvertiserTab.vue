@@ -8,6 +8,7 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
 import { AdminApiError } from '@/api/http'
 import { nullIfBlank } from '@/api/adminCommon'
+import { isValidEmail, isValidPhone } from '@/utils/contactValidation'
 import {
   createAdvertiser,
   deleteAdvertiser,
@@ -93,6 +94,14 @@ async function save() {
   if (readOnly.value) return
   if (!form.nameZh.trim()) {
     formError.value = '請輸入廣告主的中文名稱'
+    return
+  }
+  if (form.contactEmail.trim() && !isValidEmail(form.contactEmail)) {
+    formError.value = '聯絡 Email 的格式不正確，請檢查後再儲存'
+    return
+  }
+  if (form.contactPhone.trim() && !isValidPhone(form.contactPhone)) {
+    formError.value = '聯絡電話的格式不正確，只能包含數字、+、-、空白與括號，且至少 6 碼數字'
     return
   }
   if (form.cooperationStartOn && form.cooperationEndOn && form.cooperationEndOn < form.cooperationStartOn) {

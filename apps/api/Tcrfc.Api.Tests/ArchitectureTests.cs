@@ -528,6 +528,64 @@ public sealed class ArchitectureTests
         Assert.True(violations.Count == 0, "後台認證端點沒有掛限流政策：\n" + string.Join("\n", violations));
     }
 
+    /// <summary>
+    /// 2026-10-05（刪除端點缺必填 query 回 500）：最小 API 的 handler 若宣告「非可空」的 <c>DateTime</c>／<c>DateOnly</c>
+    /// 且它不是路由值、也不是 <c>[FromBody]</c>／<c>[FromServices]</c>，就是必填 query——缺值時綁定階段丟
+    /// <c>BadHttpRequestException</c>，在 handler（授權與驗證）之前。一律改宣告可空並在 handler 內驗證，
+    /// 讓使用者拿到日常中文的 400（全域處理 <c>ApiExceptionHandler</c> 另有 BadHttpRequestException→400 兜底）。
+    /// </summary>
+    [Fact]
+    public void 端點handler不得宣告必填的DateTime或DateOnly_query參數()
+    {
+        var apiDir = Path.Combine(RepoRoot(), "apps", "api");
+        var violations = new List<string>();
+        var mapMethods = new HashSet<string> { "MapGet", "MapPost", "MapPut", "MapDelete", "MapPatch" };
+
+        foreach (var file in Directory.EnumerateFiles(apiDir, "*.cs", SearchOption.AllDirectories)
+                     .Where(f => !f.Contains($"{Path.DirectorySeparatorChar}obj{Path.DirectorySeparatorChar}")
+                              && !f.Contains($"{Path.DirectorySeparatorChar}bin{Path.DirectorySeparatorChar}")
+                              && !f.Contains("Tcrfc.Api.Tests")))
+        {
+            var tree = CSharpSyntaxTree.ParseText(File.ReadAllText(file));
+            foreach (var invocation in tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>())
+            {
+                if (invocation.Expression is not MemberAccessExpressionSyntax ma || !mapMethods.Contains(ma.Name.Identifier.Text))
+                {
+                    continue;
+                }
+
+                var args = invocation.ArgumentList.Arguments;
+                var route = args.Count > 0 ? args[0].Expression.ToString() : string.Empty;
+                var lambda = args.Select(a => a.Expression).OfType<ParenthesizedLambdaExpressionSyntax>().FirstOrDefault();
+                if (lambda is null)
+                {
+                    continue;
+                }
+
+                foreach (var parameter in lambda.ParameterList.Parameters)
+                {
+                    var type = parameter.Type?.ToString();
+                    if (type is not ("DateTime" or "DateOnly" or "System.DateTime" or "System.DateOnly"))
+                    {
+                        continue;
+                    }
+
+                    var name = parameter.Identifier.Text;
+                    var hasSource = parameter.AttributeLists.Count > 0;
+                    if (hasSource || route.Contains("{" + name))
+                    {
+                        continue;
+                    }
+
+                    var line = tree.GetLineSpan(parameter.Span).StartLinePosition.Line + 1;
+                    violations.Add($"{file}:{line}: {ma.Name.Identifier.Text} 的參數 `{type} {name}` 是必填 query，請改成 `{type}?` 並在 handler 內驗證。");
+                }
+            }
+        }
+
+        Assert.True(violations.Count == 0, string.Join("\n", violations));
+    }
+
     /// <summary>從 <c>MapPost</c>（或其他寫入方法）呼叫節點沿著 fluent chain 往外層走
     /// （<c>.WithName(...).WithTags(...).RequireRateLimiting(...).Produces(...)</c> 這種一路
     /// 串下去的寫法，語法樹上是一層層互相巢狀的 <c>MemberAccessExpression</c>／

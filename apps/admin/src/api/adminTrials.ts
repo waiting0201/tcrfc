@@ -99,6 +99,8 @@ export interface TrialRegistrationListItemDto {
 }
 
 export interface TrialRegistrationDetailDto extends TrialRegistrationListItemDto {
+  /** 後端算好的「這筆儲存後是否超過名額」；缺值時畫面退回自己計算。 */
+  isOverCapacity?: boolean
   trialId: string
   healthDeclaration?: string | null
   updatedAt: string
@@ -161,10 +163,17 @@ export function promoteTrialRegistration(club: string, trialId: string, regId: s
 }
 
 /** 名單 CSV（不含健康聲明）。`purpose` 必填，檔名由伺服器提供。 */
-export function exportTrialRegistrations(club: string, trialId: string, params: { status?: string }, purpose: string): Promise<void> {
+export function exportTrialRegistrations(
+  club: string,
+  trialId: string,
+  params: { status?: string },
+  purpose: string,
+  trialOn?: string | null,
+): Promise<void> {
+  // 檔名以伺服器 Content-Disposition 為準（downloadExport 已優先採用）；退路檔名不含識別碼，只用場次日期
   return downloadExport(
     `${regsBase(club, trialId)}/export${buildQuery({ status: params.status, purpose })}`,
-    `trial-registrations-${trialId}.csv`,
+    `試訓報名名單${trialOn ? `-${trialOn}` : ''}.csv`,
   )
 }
 

@@ -111,7 +111,7 @@ function validate(): string | null {
   if (!form.bodyZh.trim()) return '請輸入中文內文'
   if (form.titleEn.trim() && !form.bodyEn.trim()) return '有英文標題時請一併填寫英文內文（或清空英文標題）'
   const link = form.deepLink.trim()
-  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) return '連結請用 tcrfc:// 或 http(s):// 開頭'
+  if (link && !/^(tcrfc:\/\/|https?:\/\/)/i.test(link)) return '連結格式不正確：請填網址（https:// 開頭）或 App 內頁面連結'
   if (form.scheduledAt && form.scheduledAt.getTime() <= nowAsPickerDate().getTime()) return '預定發送時間不能是過去，沒填就是核可後立刻發送'
   return null
 }
@@ -187,9 +187,9 @@ const back = () => router.push(isCreate.value || !pushId.value ? '/app/push' : `
           <BilingualShortField v-model:zh="form.imageAltZh" v-model:en="form.imageAltEn" label="圖片替代文字" />
           <el-form-item label="點擊後前往（選填）">
             <el-select v-model="form.deepLink" filterable allow-create clearable default-first-option placeholder="選擇 App 內頁面，或自行輸入連結" style="width: 100%">
-              <el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="`${d.labelZh || d.code}（${d.appLink}）`" :value="d.appLink" />
+              <el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="d.labelZh || d.code" :value="d.appLink" />
             </el-select>
-            <div class="pe__hint">App 內連結以 tcrfc:// 開頭；也可以填 https 網址。</div>
+            <div class="pe__hint">可以填網頁網址（https:// 開頭），或 App 內頁面連結（不確定時請向 App 工程團隊確認）。</div>
           </el-form-item>
         </el-card>
 

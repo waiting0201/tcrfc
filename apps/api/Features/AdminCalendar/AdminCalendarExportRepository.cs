@@ -42,6 +42,10 @@ public sealed class AdminCalendarExportRepository(
         return canSeePrivate ? events : events.Where(e => e.SourceType != "custom" || e.IsPublic == true).ToList();
     }
 
+    /// <summary>俱樂部活動（custom）的起訖是 UTC 時間戳，輸出台灣時間；賽事與試訓本來就是台灣當地日期，不轉換。</summary>
+    private static DateTime Local(AdminCalendarEventDto e, DateTime value)
+        => e.SourceType == "custom" ? DateTime.SpecifyKind(value, DateTimeKind.Utc).AddHours(8) : value;
+
     public async Task<string> ExportCsvAsync(
         AdminClubScope scope, DateOnly from, DateOnly toExclusive, string? team, string? sourceType, Guid? venueId, string? status, string? type,
         CancellationToken cancellationToken)
@@ -54,9 +58,9 @@ public sealed class AdminCalendarExportRepository(
         lines.AddRange(events.Select(e => new[]
         {
             SourceLabels.GetValueOrDefault(e.SourceType, e.SourceType),
-            e.StartsAt.ToString("yyyy-MM-dd"),
-            e.IsAllDay ? null : e.SourceType == "match" ? e.Kickoff : e.StartsAt.ToString("HH:mm"),
-            e.EndsAt is { } end && !e.IsAllDay ? end.ToString("HH:mm") : null,
+            Local(e, e.StartsAt).ToString("yyyy-MM-dd"),
+            e.IsAllDay ? null : e.SourceType == "match" ? e.Kickoff : Local(e, e.StartsAt).ToString("HH:mm"),
+            e.EndsAt is { } end && !e.IsAllDay ? Local(e, end).ToString("HH:mm") : null,
             e.Title,
             string.Join("、", e.TeamCodes),
             e.VenueName,

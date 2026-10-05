@@ -228,7 +228,7 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
 
         var lines = new List<IEnumerable<string?>>
         {
-            new[] { "來源表單", "姓名", "聯絡方式", "內容摘要", "來源頁面", "UTM 來源", "狀態", "送出時間" },
+            new[] { "來源表單", "姓名", "聯絡方式", "內容摘要", "來源頁面", "UTM 來源", "狀態", "送出時間（台灣時間）" },
         };
 
         lines.AddRange(rows.Select(r => new[]
@@ -240,7 +240,7 @@ public sealed class AdminEnquiriesRepository(ClubDbContext dbContext, IPermissio
             r.SourcePath,
             r.UtmSource,
             r.Status,
-            r.CreatedAt.ToString("yyyy-MM-dd HH:mm"),
+            TaiwanClock.ToText(r.CreatedAt),
         }));
 
         return CsvUtils.BuildCsv(lines);

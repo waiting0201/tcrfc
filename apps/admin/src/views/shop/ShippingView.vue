@@ -219,11 +219,11 @@ const printNow = () => window.print()
       </div>
       <div class="ship-print__sheet">
         <h2 class="ship-print__title">揀貨單</h2>
-        <p class="ship-print__meta">共 {{ picking.orderCount }} 張訂單、{{ picking.totalQuantity }} 件商品・產生時間 {{ formatDateTime(picking.generatedAt) }}（只含已付款與備貨中的訂單，依規格編號加總）</p>
+        <p class="ship-print__meta">共 {{ picking.orderCount }} 張訂單、{{ picking.totalQuantity }} 件商品・產生時間 {{ formatDateTime(picking.generatedAt) }}（只含已付款與備貨中的訂單，依商品規格編號加總）</p>
         <p v-if="picking.lines.length === 0" class="ship-print__meta">目前沒有需要揀貨的品項。</p>
         <div v-else class="ship-print__scroll">
           <table class="ship-print__table">
-            <thead><tr><th>規格編號</th><th>商品</th><th>尺寸／顏色</th><th class="ship-print__num">數量</th><th class="ship-print__num">訂單數</th><th class="ship-print__check">已揀</th></tr></thead>
+            <thead><tr><th>商品規格編號</th><th>商品</th><th>尺寸／顏色</th><th class="ship-print__num">數量</th><th class="ship-print__num">訂單數</th><th class="ship-print__check">已揀</th></tr></thead>
             <tbody>
               <tr v-for="l in picking.lines" :key="l.sku"><td>{{ l.sku }}</td><td>{{ l.productName }}</td><td>{{ l.variantLabel || '—' }}</td><td class="ship-print__num">{{ l.quantity }}</td><td class="ship-print__num">{{ l.orderCount }}</td><td class="ship-print__check" /></tr>
             </tbody>
@@ -251,7 +251,7 @@ const printNow = () => window.print()
         </dl>
         <div class="ship-print__scroll">
           <table class="ship-print__table">
-            <thead><tr><th>規格編號</th><th>商品</th><th>尺寸／顏色</th><th class="ship-print__num">數量</th></tr></thead>
+            <thead><tr><th>商品規格編號</th><th>商品</th><th>尺寸／顏色</th><th class="ship-print__num">數量</th></tr></thead>
             <tbody><tr v-for="(i, idx) in s.items" :key="idx"><td>{{ i.sku }}</td><td>{{ i.productName }}</td><td>{{ i.variantLabel || '—' }}</td><td class="ship-print__num">{{ i.quantity }}</td></tr></tbody>
           </table>
         </div>

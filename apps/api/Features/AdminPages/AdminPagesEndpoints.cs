@@ -203,11 +203,11 @@ public static class AdminPagesEndpoints
 
         // DELETE /api/v1/admin/{club}/pages/{id}?expectedUpdatedAt=2026-09-24T03:00:00Z
         group.MapDelete("/{id:guid}", async (
-            string club, Guid id, DateTime expectedUpdatedAt, HttpContext httpContext,
+            string club, Guid id, DateTime? expectedUpdatedAt, HttpContext httpContext,
             IAdminClubAuthorizer authorizer, AdminPagesRepository repository, CancellationToken cancellationToken) =>
         {
             var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionDelete, cancellationToken);
-            var deleted = await repository.DeleteAsync(adminScope, id, expectedUpdatedAt, cancellationToken);
+            var deleted = await repository.DeleteAsync(adminScope, id, ConcurrencyInput.RequireExpectedUpdatedAt(expectedUpdatedAt), cancellationToken);
             return deleted is null ? Results.NotFound() : Results.NoContent();
         })
         .WithName("AdminDeletePage")

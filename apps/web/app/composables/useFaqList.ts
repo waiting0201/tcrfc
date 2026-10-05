@@ -29,6 +29,12 @@ export function useFaqList(club: string, lang: string, category?: string) {
   const { data } = useFetch<FaqListResponse>(`/api/backend/${club}/faqs`, {
     query: { lang, pageSize: 200, category },
     key: `faq-list-${club}-${category ?? 'all'}-${lang}`,
+    // F2（2026-10-03）：所屬分類「全部」對本站已關閉的題目（例如藍鯨的學院招生）不進 payload，
+    // 理由同 useFaqCategories。沒有分類標記的題目照舊保留。
+    transform: (res) => ({
+      ...res,
+      items: res.items.filter((f) => f.categorySlugs.length === 0 || f.categorySlugs.some((s) => isFaqCategoryEnabledForClub(s, club))),
+    }),
   })
   const faqs = computed(() => data.value?.items ?? [])
   const totalCount = computed(() => data.value?.totalCount ?? 0)

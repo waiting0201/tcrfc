@@ -165,6 +165,8 @@ export interface PushListItemDto {
   deliveredCount: number
   openedCount: number
   createdBy: string | null
+  /** 後端新增的顯示名稱；缺值時畫面顯示「—」，絕不顯示 createdBy（那是識別碼）。 */
+  createdByName?: string | null
   createdAt: string
 }
 export interface PushStatDto {
@@ -197,7 +199,9 @@ export interface PushDetailDto {
   scheduledAt: string | null
   audienceEstimate: number | null
   createdBy: string | null
+  createdByName?: string | null
   reviewedBy: string | null
+  reviewedByName?: string | null
   reviewedAt: string | null
   rejectNote: string | null
   sentAt: string | null

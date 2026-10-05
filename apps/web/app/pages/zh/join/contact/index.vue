@@ -21,9 +21,11 @@ const hero = computed(() => JOIN_CONTACT_HERO[clubKey.value])
 // S1-13 缺口①：hero.lede（兩個俱樂部版本皆有）含內嵌連結標記，v-html 渲染前
 // 用 localizeHtmlLinks() 把裡面的 /zh/join/ 換成目前語系版本。
 const ledeHtml = computed(() => localizeHtmlLinks(hero.value.lede, locale.value))
-// S1-12d 收尾：地址／主場名稱改讀 useSiteFacts('tcrfc')（後端公開端點）。下方地址區塊
-// 只在 isTcrfc 時渲染，固定讀 tcrfc 即可。
-const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts('tcrfc')
+// S1-12d 收尾：地址／主場名稱改讀 useSiteFacts（後端公開端點）。
+// 🔴 F2（2026-10-03）：原本固定 useSiteFacts('tcrfc')，藍鯨站也會抓磐石事實並整份序列化進
+// SSR payload（磐石的場地、地址與梯隊代碼外洩，頁面可見文字雖不顯示）。
+// 改依當前站台取事實；地址區塊仍只在 isTcrfc 時渲染。
+const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
   title: computed(() => JOIN_CONTACT_SEO[clubKey.value].title),

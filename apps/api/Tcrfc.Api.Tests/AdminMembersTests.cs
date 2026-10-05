@@ -104,6 +104,39 @@ public sealed class AdminMembersTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
+    public async Task 名單_includeNoMembership_納入尚無任何會籍的會員_不洩漏只在他隊有會籍的會員()
+    {
+        using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");
+        var member = await B1Test.CreateMemberAsync(service, "tcrfc", "no-membership");
+        try
+        {
+            // K1 現場建立、尚未開通：預設（只列本俱樂部有會籍者）看不到，這就是 K2 選擇器搜不到的原因。
+            Assert.Empty((await ListAsync(service, "tcrfc", $"?keyword={member.MemberNo}")).Items);
+            // 帶 includeNoMembership=true 才找得到（本俱樂部有會籍者 ＋ 任何俱樂部都沒有會籍者）。
+            var found = await ListAsync(service, "tcrfc", $"?keyword={member.MemberNo}&includeNoMembership=true");
+            var item = Assert.Single(found.Items);
+            Assert.True(item.IsMasked);
+            Assert.Empty(item.Memberships);
+
+            // 單一俱樂部資料範圍的角色（只授權 bw）同樣可用，且不會因此看到只在 tcrfc 有會籍的會員。
+            using var partner = await BizTest.ClientAsync(fixture, "partner.club@tcrfc.test");
+            Assert.Single((await ListAsync(partner, "bw", $"?keyword={member.MemberNo}&includeNoMembership=true")).Items);
+            var wide = await ListAsync(partner, "bw", "?includeNoMembership=true&pageSize=100");
+            Assert.DoesNotContain(wide.Items, i => i.MemberNo == "M900002"); // 只有 tcrfc 會籍
+            Assert.Contains(wide.Items, i => i.MemberNo == "M900001"); // 雙會籍：在 bw 有會籍
+            Assert.All(wide.Items.SelectMany(i => i.Memberships), m => Assert.Equal("bw", m.ClubCode));
+
+            // 與會籍篩選同時使用時不生效（層級、狀態等條件本來就只針對有會籍者）。
+            var withTier = await ListAsync(service, "tcrfc", $"?keyword={member.MemberNo}&includeNoMembership=true&tier=fan_club");
+            Assert.Empty(withTier.Items);
+        }
+        finally
+        {
+            await B1Test.DeleteMembersAsync(member.Id);
+        }
+    }
+
+    [Fact]
     public async Task 名單_篩選_註冊來源_帳號狀態_層級_未知代碼400()
     {
         using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");

@@ -100,7 +100,7 @@ const go = (row: PushListItemDto) => router.push(`/app/push/${row.id}`)
           <el-empty v-if="rows.length === 0" description="目前沒有推播批次（最多列出最近 200 筆）"><el-button v-if="canCreate" type="primary" @click="router.push('/app/push/new')">+ 新增第一則推播</el-button></el-empty>
           <template v-else>
             <el-table v-if="!isMobile" :data="rows" row-key="id" @row-click="go">
-              <el-table-column label="標題" min-width="220"><template #default="{ row }"><el-link type="primary" :underline="false">{{ row.titleZh || '（未填標題）' }}</el-link><div class="push__muted">建立者 {{ row.createdBy || '—' }}</div></template></el-table-column>
+              <el-table-column label="標題" min-width="220"><template #default="{ row }"><el-link type="primary" :underline="false">{{ row.titleZh || '（未填標題）' }}</el-link><div class="push__muted">建立者 {{ row.createdByName || '—' }}</div></template></el-table-column>
               <el-table-column label="狀態" width="110"><template #default="{ row }"><el-tag :type="pushStatusTag(row.status)" size="small">{{ row.statusLabel }}</el-tag></template></el-table-column>
               <el-table-column label="預定發送（台灣時間）" width="170"><template #default="{ row }">{{ formatDateTime(row.scheduledAt) || '核可後立刻' }}</template></el-table-column>
               <el-table-column label="實際發送" width="150"><template #default="{ row }">{{ formatDateTime(row.sentAt) || '—' }}</template></el-table-column>

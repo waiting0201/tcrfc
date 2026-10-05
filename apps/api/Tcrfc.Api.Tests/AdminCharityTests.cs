@@ -95,6 +95,14 @@ public sealed class AdminCharityTests(AdminWriteApiFixture fixture)
             Assert.Equal(HttpStatusCode.BadRequest, noImage.StatusCode);
             Assert.Contains("活動圖片", await noImage.Content.ReadAsStringAsync());
 
+            // B-2：影響力數據是件數／人數／金額類的累計值，不接受負數。
+            var negative = await client.PostAsync("/api/v1/admin/tcrfc/charity/metrics", BizTest.Json(new
+            {
+                value = -5, content = new { zh = new { name = "【測試】負數" } },
+            }));
+            Assert.Equal(HttpStatusCode.BadRequest, negative.StatusCode);
+            Assert.Contains("數值不可為負數", await negative.Content.ReadAsStringAsync());
+
             // 影響力數據：省略 isPublic ＝ 不公開（金額類預設不公開）；可不掛計畫
             var metric = await BizTest.ReadAsync<AdminImpactMetricDto>(await Created(client.PostAsync("/api/v1/admin/tcrfc/charity/metrics", BizTest.Json(new
             {

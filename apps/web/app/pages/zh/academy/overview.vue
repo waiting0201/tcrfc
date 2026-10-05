@@ -23,9 +23,9 @@ const identity = computed(() => getClubIdentity(clubKey.value))
 // S1-12d 收尾第二輪：hero／SEO／ACADEMY_POSITIONING 三者含成立年份／梯隊代碼事實，
 // club-copy.ts 已改為工廠函式，一併從既有的兩次 useSiteFacts() 呼叫多取 facts，
 // 不新增額外的 fetch。
-const { facts: tcrfcFacts, academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
-const { facts: bwFacts, academyLabel: bwAcademyLabel } = useSiteFacts('bw')
-const activeFacts = computed(() => (isTcrfc.value ? tcrfcFacts.value : bwFacts.value))
+// 🔴 F2（2026-10-03）：原本兩邊各呼叫一次，藍鯨站因此把磐石事實（場地、地址、梯隊代碼）
+// 序列化進 SSR payload。改為只依當前站台呼叫一次。
+const { facts: activeFacts, academyLabel } = useSiteFacts(clubKey.value)
 const hero = computed(() => getAcademyOverviewHero(clubKey.value, activeFacts.value))
 const positioning = computed(() => getAcademyPositioning(clubKey.value, activeFacts.value))
 
@@ -76,7 +76,7 @@ useSeoMeta({
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <span class="cta-card__title">{{ isTcrfc ? '學院隊伍' : '青年隊' }}</span>
-        <p class="cta-card__desc">{{ isTcrfc ? `查看 ${tcrfcAcademyLabel()} 各梯隊` : `查看 ${bwAcademyLabel()} 兩個梯隊` }}</p>
+        <p class="cta-card__desc">{{ isTcrfc ? `查看 ${academyLabel()} 各梯隊` : `查看 ${academyLabel()} 兩個梯隊` }}</p>
       </a>
       <!-- BW-C1：4.5 已重開（見 shared/utils/units.ts 檔頭），從原本綁在一起的
            isTcrfc 區塊拆出來，兩俱樂部都顯示；4.7（招生架構）維持關閉，只有磐石顯示。 -->

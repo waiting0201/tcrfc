@@ -5,13 +5,10 @@
 // 「分類 Tab（<a> 連結）」區塊。這裡集中兩件事：分類中繼資料（純靜態文案，不是
 // 從 API 拿的）、把 ArticleListItemDto 轉成卡片需要的顯示值（日期格式、封面圖）。
 //
-// 🔴 已知資料落差（回報用，不在此檔修補）：
-//   `apps/api` 的 ArticleListItemDto.coverKey 目前種子資料全為 NULL
-//   （apps/api/README.md「已知落差」／docs/12d-field-audit.md）。封面圖改用
-//   slug 對應 site/src/assets/img/news/{slug}.jpg 的既有檔名慣例（8 位隊別新聞圖
-//   全部依 slug 命名，已用 83 篇種子資料逐一核對）。NEWS_NO_COVER_SLUGS 是用同一批
-//   種子資料實際比對 public/assets/img/news/ 目錄得出的唯一例外（"2025-05-17-match-051"
-//   ＝「總統盃八強賽」，mockup 原本就用隊徽 mark 取代照片），不是憑印象猜的。
+// 封面圖規則（N1／E-152）：API 有 coverUrl 就用；沒有時，只有 scripts/site-images.txt 列出的
+// 舊文章才用本地 mockup 圖（NEWS_LOCAL_COVER_SLUGS 白名單），其餘畫佔位標誌，不發圖片請求。
+
+import siteImagesManifest from '~~/scripts/site-images.txt?raw'
 
 export interface NewsCategoryMeta {
   code: string
@@ -72,17 +69,27 @@ export function newsCategoryBilingualLabel(categoryCode: string, categoryNameZh:
   return meta ? `${zh} ${meta.enLabel}`.trim() : zh
 }
 
-/** 唯一已知缺封面圖的文章 slug（見檔頭說明），其餘一律用 newsCoverSrc() 推導路徑 */
-export const NEWS_NO_COVER_SLUGS: ReadonlySet<string> = new Set(['2025-05-17-match-051'])
+// 本地（mockup 時代）封面圖的「有圖」白名單。來源是已納版控的 scripts/site-images.txt
+// （與 Azure Blob 上 site/news/{slug}.webp 一一對應，check-site-images.mjs 守一致性），
+// 建置期以 ?raw 讀入。不看 public/assets/img 實體檔：該目錄不納版控、不進映像檔，
+// 乾淨 checkout 與正式環境都不存在，照實體檔會讓全部文章退回佔位。
+// 清單裡沒有的 slug（含新建、沒上傳封面的文章）＝沒有本地圖，一律畫佔位，不發圖片請求。
+
+export const NEWS_LOCAL_COVER_SLUGS: ReadonlySet<string> = new Set(
+  siteImagesManifest
+    .split(/\r?\n/)
+    .map((l: string) => /^news\/(.+)\.jpg$/.exec(l.trim())?.[1])
+    .filter((s: string | undefined): s is string => !!s),
+)
 
 /**
- * 本地封面圖（`public/assets/img/news/{slug}.jpg`）全部是**磐石**文章的照片（含未成年學員）。
- * 藍鯨站一律視為沒有本地封面（E-83：藍鯨站不得輸出任何磐石圖片），改走無圖佔位——
- * 藍鯨自己的封面圖將來由 API／媒體庫提供，不走這條本地路徑推導。
+ * 本地封面圖（news 目錄下的 slug.jpg）全部是**磐石**文章的照片（含未成年學員）。
+ * 藍鯨站一律視為沒有本地封面（E-83：藍鯨站不得輸出任何磐石圖片），改走無圖佔位。
+ * 磐石站只有清單內的舊文章才有本地圖（白名單），其餘回 false（E-152）。
  */
 export function hasNewsCover(slug: string, club: 'tcrfc' | 'bw' = 'tcrfc'): boolean {
   if (club === 'bw') return false
-  return !NEWS_NO_COVER_SLUGS.has(slug)
+  return NEWS_LOCAL_COVER_SLUGS.has(slug)
 }
 
 /** 封面圖相關欄位（公開 API `ArticleListItemDto`／`ArticleDetailDto`，S0-7h G 批；無封面時三者皆 null）。 */

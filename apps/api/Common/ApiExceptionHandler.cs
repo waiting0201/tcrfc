@@ -261,6 +261,13 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             PublicConflictException publicConflict =>
                 (StatusCodes.Status409Conflict, publicConflict.Title, publicConflict.Message),
 
+            // ── 最小 API 參數綁定失敗（缺必填 query／路由值格式錯／請求本文不是合法 JSON）：用戶端錯誤，不是 500。
+            //    訊息固定中文，不回傳框架英文原文（內含參數型別與名稱）。其餘狀態（如 413）保留原碼。
+            BadHttpRequestException badRequest when badRequest.StatusCode == StatusCodes.Status400BadRequest =>
+                (StatusCodes.Status400BadRequest, "輸入內容有誤", "請求缺少必要的參數，或參數格式不正確，請檢查後再試。"),
+            BadHttpRequestException badRequestOther =>
+                (badRequestOther.StatusCode, "請求無法處理", "請求內容不符合要求，請檢查後再試。"),
+
             _ =>
                 (StatusCodes.Status500InternalServerError, "伺服器發生未預期的錯誤", "請稍後再試；若持續發生請聯繫系統管理員。"),
         };

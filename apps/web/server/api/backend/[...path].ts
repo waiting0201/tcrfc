@@ -75,7 +75,7 @@ function forwardedIpHeaders(event: Parameters<typeof getRequestHeader>[0]): Reco
  * `data` 被拿掉——瀏覽器永遠看不到後端刻意寫給使用者的訊息。POST 分支早在課程報名時修過；H 批的全站搜尋（GET，
  * 400 會說明「英文關鍵字至少需要 2 個字元」）同樣需要，所以 GET 分支也走這個函式。回 null＝不是 4xx，呼叫端自行處理。
  */
-function clientErrorFrom(err: unknown) {
+function clientErrorFrom(err: unknown, event?: Parameters<typeof getRequestHeader>[0]) {
   const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
   if (typeof status !== 'number' || status < 400 || status >= 500) return null
   const data = (err as { data?: unknown }).data
@@ -84,6 +84,16 @@ function clientErrorFrom(err: unknown) {
   else if (data && typeof data === 'object') {
     const d = data as { detail?: unknown, message?: unknown, title?: unknown }
     message = [d.detail, d.message, d.title].find((v): v is string => typeof v === 'string' && v.length > 0) ?? ''
+  }
+  // F6（2026-10-03）：限流 429。apps/api 目前的 RateLimiter 沒有設 OnRejected，回應是空 body、
+  // 不帶 Retry-After（不改 apps/api），所以 BFF 這邊：① 上游若帶了 Retry-After 就轉傳（日後後端補上
+  // 即生效；此時 createError 之外還要在 event 上設標頭，h3 v1 的 createError 不帶 headers）；
+  // ② 上游沒給訊息時補一句可讀的中文，讓所有只讀 `message` 的表單（useFormSubmit 等）都顯示得出來，
+  // 而不是退回「請確認各欄位…」的通用錯誤。
+  if (status === 429) {
+    const retryAfter = (err as { response?: { headers?: Headers } } | null)?.response?.headers?.get('retry-after')
+    if (event && retryAfter && /^\d{1,6}$/.test(retryAfter)) setResponseHeader(event, 'retry-after', retryAfter)
+    message ||= '送出次數過多，請稍候幾分鐘再試。'
   }
   return createError({ statusCode: status, statusMessage: status === 429 ? 'Too Many Requests' : undefined, message: message || undefined })
 }
@@ -142,7 +152,7 @@ export default defineEventHandler(async (event) => {
     }
     catch (err: unknown) {
       // 4xx：保留後端訊息（上面說明）；5xx 與連不上維持原行為（原樣丟出）
-      throw clientErrorFrom(err) ?? err
+      throw clientErrorFrom(err, event) ?? err
     }
   }
 
@@ -189,6 +199,6 @@ export default defineEventHandler(async (event) => {
     })
   }
   catch (err: unknown) {
-    throw clientErrorFrom(err) ?? createError({ statusCode: 502, statusMessage: 'Bad Gateway' })
+    throw clientErrorFrom(err, event) ?? createError({ statusCode: 502, statusMessage: 'Bad Gateway' })
   }
 })

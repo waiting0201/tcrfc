@@ -45,6 +45,9 @@ public sealed class AdminAuthRateLimitingTests(AdminAuthRateLimitTestApiFixture 
         var exceeded = await client.PostAsJsonAsync("/api/v1/admin/auth/login",
             new LoginRequest("rate-limit-probe-exceeded@tcrfc.test", "WhateverPassword123", null));
         Assert.Equal(HttpStatusCode.TooManyRequests, exceeded.StatusCode);
+        // 429 要帶 Retry-After（秒），BFF 與後台據此顯示等待時間；固定視窗限流器的 lease 提供 RetryAfter metadata
+        Assert.True(exceeded.Headers.TryGetValues("Retry-After", out var retryAfter), "429 缺少 Retry-After 標頭。");
+        Assert.True(int.TryParse(retryAfter!.Single(), out var seconds) && seconds >= 1, "Retry-After 應為 >= 1 的整數秒。");
     }
 
     [Fact]

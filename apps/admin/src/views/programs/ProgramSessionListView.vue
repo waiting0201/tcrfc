@@ -76,6 +76,10 @@ function handleEdit(row: AdminSessionListItemDto) {
   router.push(`/programs/sessions/${row.id}/edit`)
 }
 
+function isOverCapacity(row: AdminSessionListItemDto): boolean {
+  return row.capacity != null && row.enrolledCount > row.capacity
+}
+
 function period(row: AdminSessionListItemDto): string {
   if (!row.startOn && !row.endOn) return '—'
   return `${row.startOn ?? '—'} ～ ${row.endOn ?? '—'}`
@@ -131,7 +135,10 @@ function priceLabel(row: AdminSessionListItemDto): string {
           <template #default="{ row }">{{ period(row) }}</template>
         </el-table-column>
         <el-table-column label="名額" width="110">
-          <template #default="{ row }">{{ row.enrolledCount }} / {{ row.capacity ?? '不限' }}</template>
+          <template #default="{ row }">
+            <span :class="{ 'session-list__over': isOverCapacity(row) }">{{ row.enrolledCount }} / {{ row.capacity ?? '不限' }}</span>
+            <el-tag v-if="isOverCapacity(row)" type="warning" size="small" class="session-list__over-tag">超額</el-tag>
+          </template>
         </el-table-column>
         <el-table-column label="費用" width="150">
           <template #default="{ row }">{{ priceLabel(row) }}</template>
@@ -155,6 +162,8 @@ function priceLabel(row: AdminSessionListItemDto): string {
 </template>
 
 <style scoped>
+.session-list__over { color: var(--el-color-warning-dark-2); font-weight: 600; }
+.session-list__over-tag { margin-left: 4px; }
 .session-list__filters {
   margin-bottom: 12px;
 }

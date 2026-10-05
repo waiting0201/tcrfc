@@ -234,7 +234,7 @@ const goEdit = (row: ProductListItemDto) => router.push(`/shop/products/${row.id
       <el-tab-pane v-if="productPerm.canView.value" label="商品" name="products">
         <el-card shadow="never" class="products__bar">
           <div class="products__row">
-            <el-input v-model="filters.keyword" placeholder="搜尋商品名稱、網址名稱或規格編號" clearable class="products__keyword" @keyup.enter="applyFilter" @clear="applyFilter">
+            <el-input v-model="filters.keyword" placeholder="搜尋商品名稱、網址名稱或商品規格編號" clearable class="products__keyword" @keyup.enter="applyFilter" @clear="applyFilter">
               <template #prefix><el-icon><Search /></el-icon></template>
             </el-input>
             <el-select v-model="filters.status" placeholder="狀態" clearable class="products__select" @change="applyFilter">

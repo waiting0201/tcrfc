@@ -109,16 +109,16 @@ public static class AdminRegistrationsEndpoints
         .Produces(StatusCodes.Status403Forbidden)
         .Produces(StatusCodes.Status404NotFound);
 
-        // GET /api/v1/admin/{club}/registrations/export?sessionId=&status=&programId=&keyword=&isMember=&dateFrom=&dateTo=  → CSV（Excel 可直接開啟）。
+        // GET /api/v1/admin/{club}/registrations/export?sessionId=&status=&programId=&keyword=&isMember=&dateFrom=&dateTo=&purpose=（必填）  → CSV（Excel 可直接開啟）。
         group.MapGet("/export", async (
-            string club, Guid? sessionId, string? status, Guid? programId, string? keyword, bool? isMember, DateOnly? dateFrom, DateOnly? dateTo,
+            string club, Guid? sessionId, string? status, Guid? programId, string? keyword, bool? isMember, DateOnly? dateFrom, DateOnly? dateTo, string? purpose,
             HttpContext httpContext, IAdminClubAuthorizer authorizer, AdminRegistrationsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, PermissionExport, cancellationToken);
             var extra = new AdminRegistrationsRepository.ExtraFilter(programId, keyword, isMember, dateFrom, dateTo);
-            var csv = await repository.ExportCsvAsync(scope, sessionId, status, cancellationToken, extra);
+            var csv = await repository.ExportCsvAsync(scope, sessionId, status, purpose, cancellationToken, extra);
             var bytes = CsvUtils.ToUtf8BytesWithBom(csv);
-            return Results.File(bytes, "text/csv; charset=utf-8", $"registrations-{club}-{DateTime.UtcNow:yyyyMMdd}.csv");
+            return Results.File(bytes, "text/csv; charset=utf-8", $"registrations-{club}-{TaiwanClock.Today:yyyyMMdd}.csv");
         })
         .WithName("AdminExportRegistrations")
         .Produces(StatusCodes.Status200OK)

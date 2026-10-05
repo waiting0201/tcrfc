@@ -372,7 +372,7 @@ public sealed partial class AdminDrawsRepository(
         => ComputeHash(drawCode, version, eligible.Select((e, i) => (i + 1, e.MemberNo, (string?)e.Name, (string?)e.Tier, e.EndOn)).ToList());
 
     public async Task<PagedResult<AdminRosterEntryDto>?> ListRosterAsync(
-        AdminClubScope scope, Guid id, int? version, string? keyword, bool? winnersOnly, int page, int pageSize, CancellationToken cancellationToken)
+        AdminClubScope scope, Guid id, int? version, string? keyword, bool? winnersOnly, int page, int pageSize, CancellationToken cancellationToken, bool reveal = false)
     {
         var draw = await db.MemberDraws.AsNoTracking().FirstOrDefaultAsync(d => d.Id == id && d.ClubId == scope.ClubId, cancellationToken);
         if (draw is null)
@@ -380,7 +380,14 @@ public sealed partial class AdminDrawsRepository(
             return null;
         }
 
+        // 與 K1 會員名單一致：名單預設遮罩，要 reveal=true 才解除，且需要 member.pii.reveal、每次解除寫敏感操作日誌。
+        // （有權限卻自動顯示完整姓名，會讓現場投影或截圖直接洩漏；也會每翻一頁就寫一筆日誌。）
         var canReveal = await CanRevealAsync(scope, cancellationToken);
+        if (reveal && !canReveal)
+        {
+            throw new AdminForbiddenException("你的角色不能檢視會員的完整個資，請洽系統管理員。");
+        }
+
         var v = version ?? draw.RosterVersion;
         var query = db.DrawRosters.AsNoTracking().Where(r => r.MemberDrawId == id && r.RosterVersion == v);
         if (winnersOnly == true)
@@ -393,12 +400,12 @@ public sealed partial class AdminDrawsRepository(
             var k = keyword.Trim();
             query = int.TryParse(k, out var serial)
                 ? query.Where(r => r.SerialNo == serial || r.MemberNoSnapshot.Contains(k))
-                : canReveal ? query.Where(r => r.MemberNoSnapshot.Contains(k) || (r.NameSnapshot != null && r.NameSnapshot.Contains(k))) : query.Where(r => r.MemberNoSnapshot.Contains(k));
+                : reveal ? query.Where(r => r.MemberNoSnapshot.Contains(k) || (r.NameSnapshot != null && r.NameSnapshot.Contains(k))) : query.Where(r => r.MemberNoSnapshot.Contains(k));
         }
 
         var total = await query.CountAsync(cancellationToken);
         var rows = await query.OrderBy(r => r.SerialNo).Skip((page - 1) * pageSize).Take(pageSize).ToListAsync(cancellationToken);
-        if (canReveal && rows.Count > 0)
+        if (reveal && rows.Count > 0)
         {
             audit.Record(scope, "檢視抽獎名單（完整姓名）", $"活動 {draw.DrawCode}／版本 {v}", rows.Count);
         }
@@ -407,9 +414,9 @@ public sealed partial class AdminDrawsRepository(
         {
             Items = rows.Select(r => new AdminRosterEntryDto
             {
-                SerialNo = r.SerialNo, MemberNo = r.MemberNoSnapshot, Name = canReveal ? r.NameSnapshot : PiiMasking.MaskName(r.NameSnapshot), Tier = r.TierSnapshot,
+                SerialNo = r.SerialNo, MemberNo = r.MemberNoSnapshot, Name = reveal ? r.NameSnapshot : PiiMasking.MaskName(r.NameSnapshot), Tier = r.TierSnapshot,
                 TierLabel = r.TierSnapshot is null ? null : MemberLabels.Of(MemberLabels.Tier, r.TierSnapshot), MembershipEndOn = r.MembershipEndOnSnapshot,
-                IsWinner = r.IsWinner, IsBackup = r.IsBackup, PrizeName = r.PrizeName, IsMasked = !canReveal,
+                IsWinner = r.IsWinner, IsBackup = r.IsBackup, PrizeName = r.PrizeName, IsMasked = !reveal,
             }).ToList(),
             Page = page, PageSize = pageSize, TotalCount = total,
         };
@@ -890,7 +897,7 @@ public sealed partial class AdminDrawsRepository(
             Slug = slug, CategoryCode = "club",
             Content = new AdminArticleContentInput
             {
-                Zh = new AdminArticleLocaleContent { Title = $"【{name}】中獎名單公布", Summary = $"「{name}」抽獎結果，名單依規定遮罩。", Body = JsonSerializer.Serialize(new { blocks }, BodyJson) },
+                Zh = new AdminArticleLocaleContent { Title = BuildAnnouncementTitle(name), Summary = $"「{name}」抽獎結果，名單依規定遮罩。", Body = JsonSerializer.Serialize(new { blocks }, BodyJson) },
             },
             Tags = [new AdminArticleTagInput { Slug = MemberDrawTagSlug, NameZh = "球迷會員抽獎", NameEn = "Member Draw" }],
         };
@@ -902,6 +909,13 @@ public sealed partial class AdminDrawsRepository(
         audit.Record(scope, "產生抽獎公布稿草稿", $"活動 {draw.DrawCode}／文章 {slug}", winners.Count);
         return new AdminAnnouncementDraftDto { ArticleId = articleId, ArticleSlug = slug, Draw = (await GetAsync(scope, id, cancellationToken))! };
     }
+
+    /// <summary>
+    /// 公布稿標題。活動名稱內含任何全形括號【或】（前綴「【測試】…」、整段「【…】」、中間夾括號皆是）就不再外包【】，
+    /// 否則會出現「【【測試】…】」雙層括號（E-149 同一類：後端產生的文字要對齊 docs/06 §1）。
+    /// </summary>
+    public static string BuildAnnouncementTitle(string name)
+        => name.AsSpan().IndexOfAny('【', '】') >= 0 ? $"{name} 中獎名單公布" : $"【{name}】中獎名單公布";
 
     public async Task<AdminDrawDetailDto?> LinkAnnouncementAsync(AdminClubScope scope, Guid id, LinkAdminAnnouncementRequest request, CancellationToken cancellationToken)
     {

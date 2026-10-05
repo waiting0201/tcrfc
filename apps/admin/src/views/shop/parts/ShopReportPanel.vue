@@ -119,7 +119,7 @@ async function doExport(purpose: string) {
       <el-card shadow="never" header="熱銷規格（前 10 名，依數量）" class="report__block">
         <el-empty v-if="summary.topSkus.length === 0" description="這段期間沒有銷售" :image-size="56" />
         <el-table v-else-if="!isMobile" :data="summary.topSkus" row-key="sku">
-          <el-table-column label="規格編號" min-width="120" prop="sku" />
+          <el-table-column label="商品規格編號" min-width="120" prop="sku" />
           <el-table-column label="商品" min-width="160" prop="productName" />
           <el-table-column label="尺寸／顏色" min-width="100"><template #default="{ row }">{{ row.variantLabel || '—' }}</template></el-table-column>
           <el-table-column label="數量" width="80" prop="quantity" />

@@ -175,7 +175,17 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             Assert.Single(locked.Versions);
             Assert.True(locked.Versions[0].IsCurrent);
             Assert.Contains("regenerate_roster", locked.AvailableActions);
-            var roster = await BizTest.ReadAsync<PagedResult<AdminRosterEntryDto>>(await service.GetAsync($"{Draws}/{draw.Id}/roster"));
+            // B-10：名單預設遮罩（與 K1 一致），要 reveal=true 才解除。
+            var maskedByDefault = await BizTest.ReadAsync<PagedResult<AdminRosterEntryDto>>(await service.GetAsync($"{Draws}/{draw.Id}/roster"));
+            Assert.All(maskedByDefault.Items, r => Assert.True(r.IsMasked));
+            Assert.DoesNotContain(maskedByDefault.Items, r => r.Name == "【測試】會員甲");
+            var roster = await BizTest.ReadAsync<PagedResult<AdminRosterEntryDto>>(await service.GetAsync($"{Draws}/{draw.Id}/roster?reveal=true"));
+            Assert.All(roster.Items, r => Assert.False(r.IsMasked));
+            using (var pr = await BizTest.ClientAsync(fixture, "pr.media@tcrfc.test"))
+            {
+                Assert.Equal(HttpStatusCode.Forbidden, (await pr.GetAsync($"{Draws}/{draw.Id}/roster?reveal=true")).StatusCode); // 沒有解除遮罩權限
+            }
+
             Assert.Equal(new[] { 1, 2 }, roster.Items.Select(r => r.SerialNo).ToArray());
             Assert.Equal(new[] { "M900001", "M900002" }, roster.Items.Select(r => r.MemberNo).ToArray()); // 依會員編號升冪
             Assert.All(roster.Items, r => Assert.Equal("球迷會員", r.TierLabel));
@@ -489,6 +499,43 @@ public sealed class AdminDrawsTests(AdminWriteApiFixture fixture)
             Assert.DoesNotContain("會員甲", rosterText);
             Assert.DoesNotContain("會員乙", rosterText);
             Assert.Equal(HttpStatusCode.Forbidden, (await pr.GetAsync("/api/v1/admin/tcrfc/members")).StatusCode);
+        }
+        finally
+        {
+            service.Dispose();
+            admin.Dispose();
+            await restore();
+            await CleanupAsync(code);
+        }
+    }
+
+    [Fact]
+    public async Task 刪除公布稿文章_作業中的活動先解除關聯可刪_已公布的活動回409而不是500()
+    {
+        var code = NewCode();
+        var (draw, service, admin, restore) = await LockedDrawAsync(code);
+        try
+        {
+            var url = $"{Draws}/{draw.Id}";
+            await C1Test.PutJsonAsync(service, $"{url}/winners", new { winners = new[] { new { serialNo = 1, prizeName = "【測試】簽名球衣" } } });
+            var draft = await BizTest.ReadAsync<AdminAnnouncementDraftDto>(await C1Test.PostEmptyAsync(service, $"{url}/announcement-draft"));
+            async Task<HttpResponseMessage> DeleteArticleAsync()
+            {
+                var article = await BizTest.ReadAsync<AdminArticleDetailDto>(await admin.GetAsync($"/api/v1/admin/tcrfc/news/{draft.ArticleId}"));
+                return await admin.DeleteAsync($"/api/v1/admin/tcrfc/news/{draft.ArticleId}?expectedUpdatedAt={Uri.EscapeDataString(article.UpdatedAt.ToString("o"))}");
+            }
+
+            // 已抽出、公布稿還只是草稿：解除關聯後刪除成功（原本撞外鍵回 500）。
+            Assert.Equal(HttpStatusCode.NoContent, (await DeleteArticleAsync()).StatusCode);
+            Assert.Null((await BizTest.ReadAsync<AdminDrawDetailDto>(await service.GetAsync(url))).AnnouncementArticleId);
+
+            // 可以重新產生公布稿；活動標為已公布後，這篇是對外紀錄，刪除回 409 並說明原因。
+            draft = await BizTest.ReadAsync<AdminAnnouncementDraftDto>(await C1Test.PostEmptyAsync(service, $"{url}/announcement-draft"));
+            await BizTest.ExecuteSqlAsync("UPDATE articles SET status = 'published', published_at = SYSUTCDATETIME() WHERE id = @A", ("@A", draft.ArticleId));
+            Assert.Equal(HttpStatusCode.OK, (await C1Test.PostEmptyAsync(service, $"{url}/mark-announced")).StatusCode);
+            var blocked = await DeleteArticleAsync();
+            Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
+            Assert.Contains(code, await blocked.Content.ReadAsStringAsync());
         }
         finally
         {

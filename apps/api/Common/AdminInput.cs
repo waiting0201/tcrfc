@@ -14,17 +14,21 @@ public static partial class AdminInput
     [GeneratedRegex(@"^[^@\s]+@[^@\s]+\.[^@\s]+$")]
     private static partial Regex EmailFormat();
 
+    /// <summary>標籤以英文字母或數字結尾（如「Email」）時，與後面的中文之間補一個空格（docs/06 §1 中英文間距）。</summary>
+    private static string Spaced(string label)
+        => label.Length > 0 && char.IsAsciiLetterOrDigit(label[^1]) ? label + " " : label;
+
     public static string RequireText(string? value, string label, int maxLength)
     {
         var trimmed = value?.Trim();
         if (string.IsNullOrEmpty(trimmed))
         {
-            throw new AdminValidationException($"{label}為必填欄位。");
+            throw new AdminValidationException($"{Spaced(label)}為必填欄位。");
         }
 
         if (trimmed.Length > maxLength)
         {
-            throw new AdminValidationException($"{label}不可超過 {maxLength} 個字。");
+            throw new AdminValidationException($"{Spaced(label)}不可超過 {maxLength} 個字。");
         }
 
         return trimmed;
@@ -41,7 +45,7 @@ public static partial class AdminInput
 
         if (trimmed.Length > maxLength)
         {
-            throw new AdminValidationException($"{label}不可超過 {maxLength} 個字。");
+            throw new AdminValidationException($"{Spaced(label)}不可超過 {maxLength} 個字。");
         }
 
         return trimmed;
@@ -57,7 +61,7 @@ public static partial class AdminInput
 
         if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
-            throw new AdminValidationException($"{label}必須是以 http:// 或 https:// 開頭的完整網址。");
+            throw new AdminValidationException($"{Spaced(label)}必須是以 http:// 或 https:// 開頭的完整網址。");
         }
 
         return text;
@@ -68,7 +72,20 @@ public static partial class AdminInput
         var text = OptionalText(value, label, 255);
         if (text is not null && !EmailFormat().IsMatch(text))
         {
-            throw new AdminValidationException($"{label}的格式不正確。");
+            throw new AdminValidationException($"{Spaced(label)}的格式不正確。");
+        }
+
+        return text;
+    }
+
+    /// <summary>選填電話：只允許數字、+、-、空白與括號（同會員註冊的規則），至少要有 6 碼數字，32 字以內。</summary>
+    public static string? OptionalPhone(string? value, string label)
+    {
+        var text = OptionalText(value, label, 32);
+        if (text is not null
+            && (!text.All(c => char.IsAsciiDigit(c) || c is '+' or '-' or ' ' or '(' or ')') || text.Count(char.IsAsciiDigit) < 6))
+        {
+            throw new AdminValidationException($"{Spaced(label)}的格式不正確，只能包含數字、+、-、空白與括號，且至少 6 碼數字。");
         }
 
         return text;
@@ -78,7 +95,7 @@ public static partial class AdminInput
     {
         if (start is not null && end is not null && end < start)
         {
-            throw new AdminValidationException($"{label}的結束日期不可早於開始日期。");
+            throw new AdminValidationException($"{Spaced(label)}的結束日期不可早於開始日期。");
         }
     }
 
@@ -86,7 +103,7 @@ public static partial class AdminInput
     {
         if (value is < 0)
         {
-            throw new AdminValidationException($"{label}不可為負數。");
+            throw new AdminValidationException($"{Spaced(label)}不可為負數。");
         }
 
         return value;
@@ -96,7 +113,7 @@ public static partial class AdminInput
     {
         if (value is null || !allowed.Contains(value))
         {
-            throw new AdminValidationException($"{label}只能是{allowedText}。");
+            throw new AdminValidationException($"{Spaced(label)}只能是{allowedText}。");
         }
 
         return value;
@@ -107,13 +124,13 @@ public static partial class AdminInput
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
-            throw new AdminValidationException($"{label}為必填欄位。");
+            throw new AdminValidationException($"{Spaced(label)}為必填欄位。");
         }
 
         if (slug.Length > 160 || !SlugFormat().IsMatch(slug))
         {
             throw new AdminValidationException(
-                $"{label}「{slug}」格式不正確：只能使用小寫英文字母、數字與連字號（-），" +
+                $"{Spaced(label)}「{slug}」格式不正確：只能使用小寫英文字母、數字與連字號（-），" +
                 "開頭與結尾不能是連字號，也不能連續兩個連字號，長度不可超過 160 字。");
         }
 
@@ -148,7 +165,7 @@ public static partial class AdminInput
 
         if (!JsonColumn.IsObjectOrArray(content))
         {
-            throw new AdminValidationException($"{label}不是合法的區塊內容格式，請確認編輯器的輸出。");
+            throw new AdminValidationException($"{Spaced(label)}不是合法的區塊內容格式，請確認編輯器的輸出。");
         }
 
         return content;

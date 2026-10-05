@@ -260,6 +260,20 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
             var created = await createResponse.Content.ReadFromJsonAsync<AdminRegistrationDetailDto>(TestJson.Options);
             Assert.NotNull(created);
             registrationId = created!.Id;
+            Assert.False(created.IsOverCapacity);
+
+            // B-3：P3 後台代填的 Email／電話格式也要檢查（原本不檢查，壞值會直接寫入）。
+            var badEmail = await client.PostAsJsonAsync("/api/v1/admin/bw/registrations", new CreateAdminRegistrationRequest
+            {
+                SessionId = sessionAId, ApplicantName = "壞信箱學員", Email = "not-an-email",
+            }, TestJson.WriteOptions);
+            Assert.Equal(HttpStatusCode.BadRequest, badEmail.StatusCode);
+            Assert.Contains("Email 的格式不正確", await badEmail.Content.ReadAsStringAsync());
+            var badPhone = await client.PostAsJsonAsync("/api/v1/admin/bw/registrations", new CreateAdminRegistrationRequest
+            {
+                SessionId = sessionAId, ApplicantName = "壞電話學員", Phone = "abc",
+            }, TestJson.WriteOptions);
+            Assert.Equal(HttpStatusCode.BadRequest, badPhone.StatusCode);
             Assert.Equal("待確認", created.Status); // 省略 Status 時預設待確認。
             Assert.StartsWith("BW-", created.RegistrationNo);
 
@@ -306,7 +320,9 @@ public sealed class AdminProgramsSessionsRegistrationsTests(AdminWriteApiFixture
     public async Task Registration_匯出CSV_有權限的角色可以匯出且格式正確()
     {
         using var client = await CreateClientAsync("academy.manager@tcrfc.test");
-        var response = await client.GetAsync("/api/v1/admin/bw/registrations/export");
+        // 個資匯出須填用途並寫稽核（規劃書「匯出須寫入稽核日誌」，比照 P4／K1）。
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.GetAsync("/api/v1/admin/bw/registrations/export")).StatusCode);
+        var response = await client.GetAsync("/api/v1/admin/bw/registrations/export?purpose=%E5%90%8D%E5%96%AE");
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
         Assert.StartsWith("text/csv", response.Content.Headers.ContentType?.MediaType);
         var bytes = await response.Content.ReadAsByteArrayAsync();

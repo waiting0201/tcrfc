@@ -200,7 +200,7 @@ const signed = (n: number) => (n > 0 ? `+${n}` : String(n))
       <el-tab-pane label="庫存清單" name="stock">
         <el-card shadow="never" class="inventory__bar">
           <div class="inventory__row">
-            <el-input v-model="filters.keyword" placeholder="搜尋商品名稱或規格編號" clearable class="inventory__keyword" @keyup.enter="applyFilter" @clear="applyFilter">
+            <el-input v-model="filters.keyword" placeholder="搜尋商品名稱或商品規格編號" clearable class="inventory__keyword" @keyup.enter="applyFilter" @clear="applyFilter">
               <template #prefix><el-icon><Search /></el-icon></template>
             </el-input>
             <el-select v-model="filters.status" placeholder="販售狀態" clearable class="inventory__select" @change="applyFilter">
@@ -222,7 +222,7 @@ const signed = (n: number) => (n > 0 ? `+${n}` : String(n))
           <template v-else>
             <el-table v-if="!isMobile" :data="rows" row-key="variantId">
               <el-table-column label="商品" min-width="180"><template #default="{ row }">{{ row.productName }}</template></el-table-column>
-              <el-table-column label="規格編號" min-width="120" prop="sku" />
+              <el-table-column label="商品規格編號" min-width="120" prop="sku" />
               <el-table-column label="尺寸／顏色" min-width="100"><template #default="{ row }">{{ row.label || '—' }}</template></el-table-column>
               <el-table-column label="庫存量" width="90" prop="stockQty" />
               <el-table-column label="已保留" width="90" prop="reservedQty" />

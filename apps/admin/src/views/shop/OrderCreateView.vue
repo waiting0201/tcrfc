@@ -153,7 +153,7 @@ async function handleSave() {
 
       <el-card shadow="never" header="訂購品項" class="order-create__block">
         <p v-if="!canSearchInventory" class="order-create__hint">你的帳號沒有檢視庫存的權限，無法搜尋商品規格。</p>
-        <el-select v-else v-model="picked" filterable remote clearable :remote-method="searchVariants" :loading="searching" placeholder="輸入商品名稱或規格編號搜尋，選取後加入" style="width: 100%" @change="addVariant">
+        <el-select v-else v-model="picked" filterable remote clearable :remote-method="searchVariants" :loading="searching" placeholder="輸入商品名稱或商品規格編號搜尋，選取後加入" style="width: 100%" @change="addVariant">
           <el-option v-for="o in variantOptions" :key="o.variantId" :label="`${o.productName} ${o.label || ''}（${o.sku}）可售 ${o.availableQty}`" :value="o.variantId" />
         </el-select>
         <el-empty v-if="lines.length === 0" description="還沒有加入品項" :image-size="56" />

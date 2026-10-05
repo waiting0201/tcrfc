@@ -304,12 +304,12 @@ public static class AdminArticlesEndpoints
 
         // DELETE /api/v1/admin/{club}/news/{id}?expectedUpdatedAt=2026-09-22T03:00:00Z
         group.MapDelete("/{id:guid}", async (
-            string club, Guid id, DateTime expectedUpdatedAt, HttpContext httpContext,
+            string club, Guid id, DateTime? expectedUpdatedAt, HttpContext httpContext,
             IAdminClubAuthorizer authorizer, AdminArticlesRepository repository,
             CancellationToken cancellationToken) =>
         {
             var adminScope = await authorizer.AuthorizeAsync(httpContext, club, PermissionDelete, cancellationToken);
-            var deleted = await repository.DeleteAsync(adminScope, id, expectedUpdatedAt, cancellationToken);
+            var deleted = await repository.DeleteAsync(adminScope, id, ConcurrencyInput.RequireExpectedUpdatedAt(expectedUpdatedAt), cancellationToken, adminScope.Identity.AdminUserId);
             return deleted is null ? Results.NotFound() : Results.NoContent();
         })
         .WithName("AdminDeleteNewsArticle")

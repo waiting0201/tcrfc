@@ -22,6 +22,22 @@ async function load() {
 }
 onMounted(load)
 const TAG: Record<string, 'success' | 'warning' | 'info' | 'danger'> = { ok: 'success', warning: 'warning', not_configured: 'info', error: 'danger' }
+/** 檢查項目的白話名稱與說明（以項目 key 對應；後端文字含服務原名，畫面改用日常說法）。 */
+const ITEM_TEXT: Record<string, { label: string; ok?: string; notConfigured?: string }> = {
+  push_transport: {
+    label: '手機推播服務（Apple 與 Google）',
+    ok: '已設定推播服務。',
+    notConfigured: '尚未串接：推播所需的 Apple 與 Google 金鑰尚未建立，推播批次會停在「失敗」並保留，串接後可重送。',
+  },
+  edge_config: {
+    label: '備援設定來源',
+    ok: '已串接備援設定檔，存檔時會同步。',
+    notConfigured: '尚未串接備援設定檔；主伺服器掛掉時，App 讀不到維護與強制更新公告。',
+  },
+}
+const itemLabel = (i: { key: string; label: string }) => ITEM_TEXT[i.key]?.label ?? i.label
+const itemMessage = (i: { key: string; status: string; message: string }) =>
+  (i.status === 'ok' ? ITEM_TEXT[i.key]?.ok : i.status === 'not_configured' ? ITEM_TEXT[i.key]?.notConfigured : undefined) ?? i.message
 const STATUS_TEXT: Record<string, string> = { ok: '正常', warning: '注意', not_configured: '尚未串接', error: '異常' }
 </script>
 
@@ -41,7 +57,7 @@ const STATUS_TEXT: Record<string, string> = { ok: '正常', warning: '注意', n
       <ul class="ct__list">
         <li v-for="i in data.items" :key="i.key">
           <el-tag :type="TAG[i.status]" size="small" class="ct__tag">{{ STATUS_TEXT[i.status] ?? i.statusLabel }}</el-tag>
-          <div><strong>{{ i.label }}</strong><div class="ct__muted">{{ i.message }}</div></div>
+          <div><strong>{{ itemLabel(i) }}</strong><div class="ct__muted">{{ itemMessage(i) }}</div></div>
         </li>
       </ul>
     </el-card>

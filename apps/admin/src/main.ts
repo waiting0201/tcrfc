@@ -15,6 +15,7 @@ import App from './App.vue'
 import router from './router'
 import { API_BASE_URL } from './api/runtimeConfig'
 import './styles/admin-theme.css'
+import { installInputNumberGuard } from './utils/inputNumberGuard'
 
 // 深色是唯一主題，不做主題切換開關（docs/21 §7.0 使用者已拍板）。固定掛在掛載前，
 // 避免任何元件在 class 生效前先用預設（淺色）token 畫出一次再閃一次深色。
@@ -39,5 +40,7 @@ for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
 }
 
 app.use(ElementPlus, { locale: zhTw })
+// 數字輸入框超出範圍被自動改值時要提示（全後台共用，見該檔說明）
+installInputNumberGuard()
 app.use(router)
 app.mount('#app')

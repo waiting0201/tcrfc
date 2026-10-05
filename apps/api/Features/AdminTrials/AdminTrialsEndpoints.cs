@@ -90,10 +90,12 @@ public static class AdminTrialsEndpoints
             AdminTrialRegistrationsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await authorizer.AuthorizeAsync(httpContext, club, RegExport, cancellationToken);
-            var csv = await repository.ExportCsvAsync(scope, id, status, purpose, cancellationToken);
-            return csv is null
+            var export = await repository.ExportCsvAsync(scope, id, status, purpose, cancellationToken);
+            // 檔名含場次日期（可讀），再接匯出日期；不放場次 GUID。
+            return export is null
                 ? Results.NotFound()
-                : Results.File(CsvUtils.ToUtf8BytesWithBom(csv), "text/csv; charset=utf-8", $"trial-registrations-{club}-{DateTime.UtcNow:yyyyMMdd}.csv");
+                : Results.File(CsvUtils.ToUtf8BytesWithBom(export.Value.Csv), "text/csv; charset=utf-8",
+                    $"trial-registrations-{club}-{export.Value.TrialOn:yyyyMMdd}-{TaiwanClock.Today:yyyyMMdd}.csv");
         })
         .WithName("AdminExportTrialRegistrations").Produces(StatusCodes.Status200OK).Produces(StatusCodes.Status400BadRequest).Produces(StatusCodes.Status404NotFound);
 

@@ -43,6 +43,8 @@ public sealed record AdminRegistrationDetailDto
     public required string Status { get; init; }
     public required DateTime CreatedAt { get; init; }
     public required DateTime UpdatedAt { get; init; }
+    /// <summary>這筆報名所屬的梯次目前是否「報名人數已超過名額」（後台代填、遞補不擋超額，由承辦判斷；前台用這個旗標顯示警示）。名額未設定視為否。</summary>
+    public bool IsOverCapacity { get; init; }
 }
 
 /// <summary>後台代填報名（電話／現場報名）。<c>P4</c>（試訓）不在本次範圍，故本檔只服務

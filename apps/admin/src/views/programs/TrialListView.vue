@@ -85,6 +85,10 @@ function quotaText(row: TrialListItemDto): string {
   return `${row.enrolledCount} / ${row.capacity ?? '不限'}`
 }
 
+function isOverCapacity(row: TrialListItemDto): boolean {
+  return row.capacity != null && row.enrolledCount > row.capacity
+}
+
 async function handleDelete(row: TrialListItemDto) {
   try {
     await ElMessageBox.confirm(`確定要刪除 ${row.trialOn} 的試訓場次嗎？刪除後無法復原。`, '刪除試訓場次', {
@@ -160,7 +164,10 @@ const go = (path: string) => router.push(path)
             <template #default="{ row }">{{ row.venueName || '—' }}</template>
           </el-table-column>
           <el-table-column label="已報名／名額" width="120">
-            <template #default="{ row }">{{ quotaText(row) }}</template>
+            <template #default="{ row }">
+              <span :class="{ 'trial-list__over': isOverCapacity(row) }">{{ quotaText(row) }}</span>
+              <el-tag v-if="isOverCapacity(row)" type="warning" size="small" class="trial-list__over-tag">超額</el-tag>
+            </template>
           </el-table-column>
           <el-table-column label="候補" width="70" prop="waitlistCount" />
           <el-table-column label="報名截止" width="120">
@@ -190,7 +197,7 @@ const go = (path: string) => router.push(path)
           <template #meta="{ row }">
             <el-tag :type="sessionStatusTagType(row.status)" size="small">{{ row.status }}</el-tag>
             <el-tag :type="row.isSignupOpen ? 'success' : 'info'" size="small">{{ row.isSignupOpen ? '開放報名中' : '未開放報名' }}</el-tag>
-            <span>已報名 {{ quotaText(row) }}</span>
+            <span :class="{ 'trial-list__over': isOverCapacity(row) }">已報名 {{ quotaText(row) }}<template v-if="isOverCapacity(row)">（超額）</template></span>
             <span>候補 {{ row.waitlistCount }} 人</span>
             <span>截止 {{ row.deadlineOn || '—' }}</span>
             <span>場地 {{ row.venueName || '—' }}</span>
@@ -211,6 +218,8 @@ const go = (path: string) => router.push(path)
 </template>
 
 <style scoped>
+.trial-list__over { color: var(--el-color-warning-dark-2); font-weight: 600; }
+.trial-list__over-tag { margin-left: 4px; }
 .trial-list__bar { margin-bottom: 12px; }
 .trial-list__bar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .trial-list__select { width: 160px; max-width: 100%; }

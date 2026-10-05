@@ -202,6 +202,9 @@ public sealed record AdminAdCampaignDetailDto
     public required string StatusLabel { get; init; }
     public string? PauseReason { get; init; }
     public Guid? ReviewedBy { get; init; }
+
+    /// <summary>審核者的顯示名稱；尚未審核或帳號已移除為 <c>null</c>（畫面顯示這個，不要顯示 GUID）。</summary>
+    public string? ReviewedByName { get; init; }
     public DateTime? ReviewedAt { get; init; }
     public required IReadOnlyList<string> AvailableActions { get; init; }
     public AdminAdPacingDto? Pacing { get; init; }

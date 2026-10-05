@@ -16,4 +16,8 @@ public static class TaiwanClock
 
     /// <summary>台灣當地日期的 00:00 → UTC 時間戳。</summary>
     public static DateTime StartOfDayUtc(DateOnly localDate) => DateTime.SpecifyKind(localDate.ToDateTime(TimeOnly.MinValue) - Offset, DateTimeKind.Utc);
+
+    /// <summary>UTC 時間戳 → 台灣當地時間文字 <c>yyyy-MM-dd HH:mm</c>（CSV 匯出用；docs/06 的日期時間格式，且統一用台灣時間，不再輸出無標示的 UTC）。</summary>
+    public static string ToText(DateTime utc)
+        => DateTime.SpecifyKind(utc, DateTimeKind.Utc).Add(Offset).ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 }

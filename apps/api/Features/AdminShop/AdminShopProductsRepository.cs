@@ -517,10 +517,10 @@ public sealed class AdminShopProductsRepository(
 
     private static string ValidateVariant(UpsertAdminVariantRequest request)
     {
-        var sku = AdminInput.RequireText(request.Sku, "貨號", 64);
+        var sku = AdminInput.RequireText(request.Sku, "商品規格編號", 64);
         if (sku.Any(char.IsWhiteSpace))
         {
-            throw new AdminValidationException("貨號不可包含空白。");
+            throw new AdminValidationException("商品規格編號不可包含空白。");
         }
 
         AdminInput.OptionalText(request.Size, "尺寸", 32);
@@ -574,8 +574,8 @@ public sealed class AdminShopProductsRepository(
         }
 
         throw clashes.Contains(scope.ClubId)
-            ? new AdminConflictException("貨號重複", $"貨號「{sku}」已經被這個俱樂部的另一個規格使用，請換一個。")
-            : new AdminConflictException("貨號無法使用", $"貨號「{sku}」無法使用，請換一個。");
+            ? new AdminConflictException("商品規格編號重複", $"商品規格編號「{sku}」已經被這個俱樂部的另一個規格使用，請換一個。")
+            : new AdminConflictException("商品規格編號無法使用", $"商品規格編號「{sku}」無法使用，請換一個。");
     }
 
     private async Task EnsureCollectionAsync(AdminClubScope scope, Guid? collectionId, CancellationToken cancellationToken)

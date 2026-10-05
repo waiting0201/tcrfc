@@ -99,8 +99,34 @@ const siteStringView = usePermission('site.string.view')
 const siteStringTranslate = usePermission('site.string.translate')
 const siteVenueView = usePermission('site.venue.view')
 const siteEdmView = usePermission('site.edm.view')
+// B 內容管理、C 球隊與賽事：先前沒有登記可見度，唯讀等角色會看到整組點進去全是 403 的選單
+const pageView = usePermission('content.page.view')
+const articleView = usePermission('content.article.view')
+const homeSectionView = usePermission('content.home_section.view')
+const bannerView = usePermission('content.banner.view')
+const faqView = usePermission('content.faq.view')
+const faqCategoryView = usePermission('content.faq_category.view')
+const teamView = usePermission('team.team.view')
+const playerView = usePermission('team.player.view')
+const staffView = usePermission('team.staff.view')
+const matchView = usePermission('team.match.view')
+const standingView = usePermission('team.standing.view')
+const competitionView = usePermission('team.competition.view')
 const { comicAvailable } = useClubFeatures()
+/** 同一個模組代號底下有多個頁面（C4 賽程／積分榜／賽事系列）時，依路徑各看各的權限。 */
+const PATH_VISIBILITY: Record<string, () => boolean> = {
+  '/teams/standings': () => standingView.value,
+  '/teams/competitions': () => competitionView.value,
+}
 const CHILD_VISIBILITY: Record<string, () => boolean> = {
+  B1: () => pageView.value,
+  B2: () => articleView.value,
+  B3: () => homeSectionView.value || bannerView.value,
+  B4: () => faqView.value || faqCategoryView.value,
+  C1: () => teamView.value,
+  C2: () => playerView.value,
+  C3: () => staffView.value,
+  C4: () => matchView.value,
   I1: () => siteFactView.value,
   I2: () => siteMenuView.value,
   I3: () => siteGlobalView.value,
@@ -159,7 +185,7 @@ const visibleGroups = computed<NavGroup[]>(() => {
       .map((mod) => {
         if (!mod.children) return mod
         const children = mod.children.filter((child) => {
-          const check = CHILD_VISIBILITY[child.code]
+          const check = PATH_VISIBILITY[child.path] ?? CHILD_VISIBILITY[child.code]
           return isSuperAdmin || !check || check()
         })
         return { ...mod, children }

@@ -38,16 +38,24 @@ import type { MaybeRefOrGetter } from 'vue'
 import { buildFaqSchemaQuestions, type FaqSchemaSourceItem } from '#shared/utils/faq-schema'
 
 export function useFaqPageSchema(items: MaybeRefOrGetter<FaqSchemaSourceItem[]>) {
-  watchEffect(() => {
+  // 🔴 F1（2026-10-03）：不能用 `watchEffect(() => { if 空 return; useSchemaOrg(...) })`。
+  // 呼叫端的 `useFetch` 沒有 await（FAQ 資料在 setup 當下還是空陣列），watchEffect 第一次執行時
+  // 題目是空的 → 直接 return；資料到了之後 watchEffect 重跑，但那時已經不在元件 setup 的
+  // 同步階段，`useSchemaOrg` 的 `useHead` 沒有作用中的 Nuxt／unhead 實體，輸出悄悄消失
+  // （頁面渲染 10 題、JSON-LD 卻只有 WebSite／WebPage，無任何錯誤訊息）。
+  // 改成在 setup 同步階段「一定呼叫一次」`useSchemaOrg`，輸入給 getter：unhead 在 SSR 輸出
+  // head 的時候才解析 `nodes`（那時 SSR 已等完所有 useFetch），client 端則隨資料變動重算。
+  // 沒有合格題目時 getter 回空陣列，GEO-05「資料不足時不輸出該型別」維持（連 `defineWebPage`
+  // 都不放進去，不會影響 E-74 的型別猜測行為）。
+  useSchemaOrg((() => {
     const questions = buildFaqSchemaQuestions(toValue(items))
-    if (questions.length === 0) return
-
-    useSchemaOrg([
+    if (questions.length === 0) return []
+    return [
       defineWebPage({ '@type': 'FAQPage' }),
       ...questions.map((q) => defineQuestion({
         question: q.question,
         answer: q.answer,
       })),
-    ])
-  })
+    ]
+  }) as unknown as Parameters<typeof useSchemaOrg>[0])
 }

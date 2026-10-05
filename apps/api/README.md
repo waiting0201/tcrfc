@@ -3940,7 +3940,7 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 | 方法 路徑 | 權限碼 | 說明 |
 |---|---|---|
 | `GET /registrations?sessionId=&status=&programId=&keyword=&isMember=&dateFrom=&dateTo=` | `program.registration.view` | 既有清單加進階篩選（回應形狀不變，仍是陣列）。`dateFrom`／`dateTo` 是報名建立日（含當天） |
-| `GET /registrations/export?…同上…` | `program.registration.export` | 既有 CSV 匯出也吃同一組篩選（欄位含課程名稱、梯次開始日期＝分組欄位） |
+| `GET /registrations/export?…同上…&purpose=` | `program.registration.export` | 既有 CSV 匯出也吃同一組篩選（欄位含課程名稱、梯次開始日期＝分組欄位）。**`purpose`（匯出用途，≤200 字）必填**，缺 → 400；每次匯出寫敏感操作日誌（誰、幾筆、用途，2026-10-03 起，比照 P4／K1）。建立時間以台灣時間輸出 |
 | `POST /registrations/batch/status` | `program.registration.update` | body `{ ids: [...], status }`（1–200 筆）→ `{ updatedCount, skipped: [{ id, reason }] }`。逐筆套用與單筆相同的名額連動；已是該狀態或找不到的進 `skipped` |
 | `POST /registrations/{id}/promote` | 同上 | 候補 → 已確認（佔名額）；非候補 → 400 |
 | `GET /registrations/waitlist-reminders` | `program.registration.view` | **候補遞補提醒清單**：有空位而且還有人候補的梯次 `[{ sessionId, programNameZh, startOn, endOn, capacity, enrolledCount, vacancy, waiting: [{ order, registrationId, registrationNo, applicantName, phone, guardianName, guardianPhone, queuedAt }] }]`（候補依報名先後排序）。通知信本輪不寄，由承辦依此清單電話聯繫 |
@@ -3952,7 +3952,7 @@ tcrfc：夥伴 5（五種類型各一，1 筆合作期間已結束）、贊助�
 
 | 方法 路徑 | 權限碼 | 說明 |
 |---|---|---|
-| `GET /members?crossClub=&keyword=&clubCode=&tier=&membershipStatus=&status=&signupSource=&lineBound=&registeredFrom=&registeredTo=&seasonId=&expiringWithinDays=&jerseyStatus=&locale=&page=&pageSize=` | `member.account.view` | 分頁（預設 20、上限 100）。**一律遮罩**。篩選：`tier`＝`registered`／`fan_club`；`membershipStatus`＝`pending`／`active`／`expired`／`cancelled`（依有效狀態）；`status`＝`active`／`unverified`／`suspended`／`deleted`（省略＝不含已刪除／已合併）；`signupSource`＝`web`／`line`／`admin`／`app`；`expiringWithinDays`＝1–366（有效會籍且到期日在這幾天內）；`jerseyStatus`＝`pending`／`shipped`／`received`；`locale`＝`zh-Hant`／`en`；會籍相關條件（層級／狀態／球季／即將到期／俱樂部）套在**同一份會籍**上 |
+| `GET /members?crossClub=&includeNoMembership=&keyword=&clubCode=&tier=&membershipStatus=&status=&signupSource=&lineBound=&registeredFrom=&registeredTo=&seasonId=&expiringWithinDays=&jerseyStatus=&locale=&page=&pageSize=` | `member.account.view` | 分頁（預設 20、上限 100）。**一律遮罩**。篩選：`tier`＝`registered`／`fan_club`；`membershipStatus`＝`pending`／`active`／`expired`／`cancelled`（依有效狀態）；`status`＝`active`／`unverified`／`suspended`／`deleted`（省略＝不含已刪除／已合併）；`signupSource`＝`web`／`line`／`admin`／`app`；`expiringWithinDays`＝1–366（有效會籍且到期日在這幾天內）；`jerseyStatus`＝`pending`／`shipped`／`received`；`locale`＝`zh-Hant`／`en`；會籍相關條件（層級／狀態／球季／即將到期／俱樂部）套在**同一份會籍**上 |
 | `GET /members/{id}?reveal=true` | `member.account.view`（`reveal` 另需 `member.pii.reveal`） | 詳情 |
 | `POST /members` → 201 | `member.account.create` | 現場入會（`signupSource = admin`）。**沒有設定登入密碼**，會員日後用「忘記密碼」自行設定；Email 視為未驗證；會員編號依 K2 的編號規則產生。Email 重複 → 409 |
 | `PUT /members/{id}/status` | `member.account.update` | `{ status: "active"｜"suspended", reason? }`。**沒有任何會籍的帳號只有系統管理員能處理**（受限帳號 → 404） |
@@ -9458,3 +9458,31 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 **四個權限碼全為 `sysadmin_only`**（種子 `EXTRA_PERMISSIONS`、`db/prod/charity-reference-data.sql`、migration `AddAdminAccessPermissions` 三處同一組 UUID）。守則：帳號名稱是一般字串（可中文，前後去空白、≤64、不得含空白、全域唯一）；密碼下限 `AdminAuthService.MinPasswordLength`（9）、不得與帳號相同、雜湊走 `PasswordHasher`（Argon2id，與登入同一個）；**不得停用或降級最後一位啟用中的系統管理員（含自己，409）**；沒有刪除帳號端點。稽核動作 `admin_account.create／update／status／reset_password／reset_totp`、`admin_role.create／update／delete／permissions`，與變更同一次 `SaveChanges`，摘要只含筆數與布林，不含密碼與權限碼。
 
 **與主站形狀的差異**（慈善沒有的維度）：(1) 沒有 `/club-grants`、`/team-grants` 六支端點；(2) 帳號回應的 `primaryClubId`／`locale` 恆為 `null`、`clubGrants`／`teamGrants` 恆為 `[]`，請求裡的這兩欄接受但忽略；(3) 角色回應 `scopeMode` 恆為 `all_clubs`、`sortOrder` 取 `seq`、權限字典 `isClubScoped` 恆為 `false`，建立／更新角色的 `scopeMode` 可省略（忽略）；(4) `role_permissions.scope_type` 在慈善庫可為 `NULL`（種子即如此），回應補成 `all`，輸入沿用主站值域。測試：`CharityAdminAccessTests`（17 項）；測試角色代碼 `ctrole_*`，`CharityApiFixture.CleanupAsync` 清除並把被測試帳號寫入的 `admin_roles.created_by／updated_by` 設回 `NULL`。不在 App 契約內，`shared/scripts/gen-all.sh` 不必跑。
+
+---
+
+## 後台實機驗收缺陷修正（2026-10-03，`backend-engineer`）
+
+> 來源：使用者用真實 API 走後台驗收（B-1〜B-14）。本節記錄行為與前端要用的參數／欄位；全部有測試。
+
+| 編號 | 行為 | 前端要點 |
+|---|---|---|
+| **B-1** K2 會員選擇器搜不到 K1 現場建立的會員 | `GET /members` 新增 **`includeNoMembership=true`**：列出「本俱樂部有會籍者」＋「**任何俱樂部都還沒有會籍者**」。**不用 `crossClub`**：`crossClub` 對單一俱樂部資料範圍的角色只會擴到「你有授權的俱樂部」，而且不含無會籍帳號（僅系統管理員含），所以救不了這個情境。無會籍帳號不屬於任何俱樂部、輸出仍遮罩、關鍵字在沒有 `member.pii.reveal` 時只比對會員編號，且「只在他隊有會籍」者用全表判斷排除，不會洩漏他隊會員。與會籍相關的篩選（`tier`／`membershipStatus`／`seasonId`／`expiringWithinDays`／`clubCode`）同時使用時此旗標不生效；匯出一律忽略此旗標 | K2 選擇器改打 `?keyword=…&includeNoMembership=true&pageSize=10`（不需要 `crossClub`） |
+| **B-2** B5 影響力數據負數 | `value < 0` → 400「數值不可為負數。」。規劃書 B5 的統計項目是件數／人數／金額累計，沒有負值情境 | 前端可加 `min=0` |
+| **B-3** P4 代填驗證、P3 補驗 | P4 建立／修改：姓名必填、**電話與 Email 至少一項**、Email 格式（存小寫）、電話格式（數字、`+ - 空白 ()`，≥6 碼數字）、出生日期不可為未來／超過 100 年、**未滿 18 歲須填家長姓名與電話**（同前台 `TrialsRepository`）。例外：修改一筆**原本就沒有任何聯絡方式**的舊報名時不強制「至少一項」（否則舊資料連取消都不行），其他檢查照做。P3 建立／修改：Email 格式、電話格式、家長電話格式（不強制聯絡方式與未成年家長，維持現場代填彈性）。共用 `AdminInput.OptionalPhone` | 錯誤訊息是日常中文，直接顯示 |
+| **B-4** 後台代填超額 | 規劃書 P3／P4 只寫「額滿自動關閉、候補遞補提醒」，**沒有禁止後台超額**，維持不擋。報名詳情（建立／修改／遞補／單筆讀取回應）新增 **`isOverCapacity`**（所屬梯次或試訓場次目前 `enrolledCount > capacity`；名額未設定＝`false`） | 建立／遞補後讀 `isOverCapacity` 顯示警示；列表頁可讀梯次／場次既有的 `capacity` 與 `enrolledCount` |
+| **B-5** CSV 時間 | 全部改輸出**台灣時間（UTC+8）**，新增 `TaiwanClock.ToText`，表頭加「（台灣時間）」：P4 報名時間、P3 建立時間、G3 訂閱／退訂時間、F 表單詢問送出時間、E3 Lead 下載時間；日期欄（K1 註冊日期、K3 登記日期）改用台灣日期；L 行事曆匯出的**俱樂部活動**起訖改台灣時間（賽事與試訓本來就是當地日期，不轉換）。K5／S3 原本就是台灣時間 | 無 |
+| **B-6** P3 匯出缺用途 | `GET /registrations/export` 加 **`purpose`**（必填，同 P4／K1／G3 的參數名）並寫稽核（見上表） | P3 匯出對話框要有「用途」欄位 |
+| **B-7** P4 匯出檔名 | 後端 `Content-Disposition` 檔名原本是 `trial-registrations-{club}-{匯出日}.csv`（不含 GUID，但看不出是哪個場次）；含 GUID 的檔名是前端 `apps/admin/src/api/adminTrials.ts:167` 自己組的（`trial-registrations-${trialId}.csv`）。後端現在改為 `trial-registrations-{club}-{場次日期yyyyMMdd}-{匯出日期yyyyMMdd}.csv`；P3 檔名日期改台灣日期 | 前端改用回應的檔名（或自組 `trial-registrations-{場次日期}.csv`），不要再放 GUID |
+| **B-9** K5 公布稿草稿刪除 500 | `DELETE /news/{id}` 遇到 `member_draws.announcement_article_id` 外鍵：活動為**已公布／已結案** → **409**「這篇文章是抽獎活動「{代碼}」的公布稿，活動已公布或已結案，不能刪除。」；其餘狀態（草稿、名單已鎖定、已抽出、作廢）→ **先解除關聯再刪**，之後可重新產生公布稿 | 409 訊息直接顯示 |
+| **B-10** K5 | (a) 列表 `rosterVersion=1`＋`totalCount=null` **不是錯**：`roster_version` 預設 1，草稿尚未產生名單時 `total_count` 為 null（種子 `TEST-DRAW-02` 就是草稿），語意為「尚無名單」。(b) 名單 `GET /draws/{id}/roster` 原本有 `member.pii.reveal` 就自動回完整姓名並每翻一頁寫一筆稽核，與 K1「預設遮罩、`reveal=true` 才解除」不一致，現已對齊：新增 **`reveal`** 參數（預設 `false`）；`reveal=true` 無權限 → 403，有權限才回完整姓名並寫稽核；`isMasked` 反映實際。名單關鍵字搜尋姓名同樣須 `reveal=true` | 名單頁預設顯示遮罩，加「顯示完整資料」按鈕（重打 `reveal=true`）。**獎品發放頁 `/draws/{id}/fulfilments` 未改**（它是編輯收件資訊用，現行有權限即顯示完整值並寫稽核），是否一併改由使用者決定 |
+| **B-11** 推播建立者／覆核者 | 推播列表項新增 **`createdByName`**；詳情新增 **`createdByName`**、**`reviewedByName`**（帳號顯示名稱；帳號已被移除或尚未覆核為 `null`） | 畫面顯示名稱，不顯示 GUID |
+| **B-14** 廣告累計曝光不一致 | 根因是**種子資料**：`ad_campaigns.delivered_total` 寫死 3900，而 `ad_daily_stats` 的曝光加總是 4,674。執行期兩者同源（`ad_events` 寫入時同步累加 `delivered_total`，日聚合由同一批事件產生），口徑一致、無程式缺陷。種子改為由日聚合加總算出，並附一段只修正這筆種子檔期的 `UPDATE`（兩邊不一致才動）。**已灌過舊種子的資料庫需重跑種子或手動 `UPDATE ad_campaigns SET delivered_total = (SELECT SUM(impressions) FROM ad_daily_stats WHERE campaign_id = ad_campaigns.id) WHERE name LIKE N'【測試】%'`** | 無 |
+| **上傳** 儲存未設定 | `Unavailable{Image,Video,Document}StorageService` 改丟 `FeatureNotConfiguredException` → **503**「檔案儲存尚未設定」（`code = storage_not_configured`，訊息不含變數名稱），不再是 500。刪除仍安靜略過 | 503 時提示「檔案儲存尚未設定」 |
+
+**本機驗上傳要設定的變數**（只列名稱，不寫值；Azurite 是本機 Blob 模擬器，見「本機開發：Azurite」）：`AZURE_BLOB_CONNECTION_STRING`（連到 Azurite 的 Blob 端點，Azurite 官方文件的開發用連線字串）。其餘 `AZURE_BLOB_CONTAINER_*`（`images`／`videos`／`documents`／`proposals`）有預設值，容器由程式自行建立；`AZURE_BLOB_PUBLIC_BASE_URL` 可不設（回退容器網址，Azurite 的 `http://127.0.0.1:10000/…` 在 Development 放行）。設定後**重啟 API** 才會改注入真實儲存。
+
+**同日追加（協調者回饋）**：(1) 廣告檔期詳情新增 `reviewedByName`（審核者顯示名稱）。(2) 後端產生的文字對齊 docs/06 §1：K5 公布稿標題活動名稱已含【】時不再重複加；診斷「API 錯誤」→「連線錯誤」（回報類型標籤、錯誤訊息、彙總說明 `ApiErrorNote`）；M5 連線檢查改「推播服務（Apple 與 Google）」「備援設定來源」，不再出現 APNs／FCM／Cloudflare／`M1／M5`；商店「貨號」→「商品規格編號」（驗證與衝突訊息、熱銷報表 CSV 欄名）；`AdminInput` 的欄位標籤以英文字母或數字結尾時與中文之間補空格（「Email 的格式不正確」）。M2 憑證種類顯示名稱改「Apple 推播金鑰」「Google 推播憑證」（內部代碼 `apns_key`／`fcm_credential` 不變）。**獎品發放頁 `/draws/{id}/fulfilments` 刻意維持現狀**：有 `member.pii.reveal` 就顯示完整收件資訊並寫稽核，因為這一頁要編輯收件人、電話與地址，遮罩值無法編輯。
+
+**同日追加（第二輪重驗，2026-10-05，`backend-engineer`）**：(1) 抽獎公布稿標題：活動名稱內含任何【或】就不再外包【】，改成「{名稱} 中獎名單公布」（`AdminDrawsRepository.BuildAnnouncementTitle`；無括號仍為「【名稱】中獎名單公布」）。(2) `DELETE /news/{id}`、`DELETE /pages/{id}` 缺 `expectedUpdatedAt` 回 **400**「缺少資料的最後更新時間…」（參數改 `DateTime?`，`ConcurrencyInput.RequireExpectedUpdatedAt`）；全站最小 API 綁定失敗（`BadHttpRequestException`，例如 query 值不是日期）一律 400 中文，不再 500；`ArchitectureTests` 掃描禁止 handler 宣告必填 `DateTime`／`DateOnly` query。其他同樣把 `expectedUpdatedAt` 放 query 的端點只有這兩支，其餘都放請求本文（由 DTO `required` 驗證）。(3) CORS 加 `WithExposedHeaders("Content-Disposition", "Retry-After")`，後台可讀到下載檔名。(4) 限流 429 加 `Retry-After`（`OnRejected` 取 `MetadataName.RetryAfter`，無 metadata 就不帶；單位秒、至少 1）。慈善平台的限流註冊在同一個 `RateLimiterOptions` 上，一併生效。測試：`ApiBoundaryBehaviorTests`、`AdminAuthRateLimitingTests`、`ArchitectureTests`。不動 `shared/` 契約。
+

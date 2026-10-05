@@ -32,7 +32,7 @@ public sealed partial class AppDiagnosticsIntake(ClubDbContext dbContext)
         {
             var platform = AppInput.RequirePlatform(r.Platform);
             var version = AppInput.OptionalVersion(r.AppVersion) ?? throw new AdminValidationException("缺少 App 版本號。");
-            AdminInput.OneOf(r.Type, Types, "回報類型", "「崩潰」「異常退出」「API 錯誤」「啟動耗時」或「使用者回報」");
+            AdminInput.OneOf(r.Type, Types, "回報類型", "「崩潰」「異常退出」「連線錯誤」「啟動耗時」或「使用者回報」");
             if (r.DeviceInstallId is not null)
             {
                 AppInput.RequireDeviceId(r.DeviceInstallId);

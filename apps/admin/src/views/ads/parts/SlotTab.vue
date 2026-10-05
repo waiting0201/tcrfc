@@ -77,7 +77,7 @@ const readOnly = computed(() => (editing.value ? !canUpdate.value : !canCreate.v
 async function save() {
   if (readOnly.value) return
   if (!editing.value && !/^[a-z0-9]+(_[a-z0-9]+)+$/.test(form.slotCode.trim())) {
-    formError.value = '版位代號請用「畫面_位置」的小寫英數字與底線，例如 home_top（建立後不能修改）'
+    formError.value = '版位代號只能使用小寫英文字母、數字與底線，且不可留空（建立後不能修改）'
     return
   }
   if (!form.nameZh.trim()) {
@@ -194,7 +194,7 @@ async function remove(row: AdSlotDto) {
       <el-alert v-if="readOnly" type="info" show-icon :closable="false" title="你的帳號只有檢視權限" class="slot__block" />
       <el-form label-position="top" :disabled="readOnly">
         <el-row :gutter="12">
-          <el-col :xs="24" :sm="12"><el-form-item label="版位代號（建立後不能修改）" required><el-input v-model="form.slotCode" :disabled="!!editing" placeholder="例如 home_top" /></el-form-item></el-col>
+          <el-col :xs="24" :sm="12"><el-form-item label="版位代號（建立後不能修改）" required><el-input v-model="form.slotCode" :disabled="!!editing" placeholder="小寫英文字母、數字與底線" /></el-form-item></el-col>
           <el-col :xs="24" :sm="12"><el-form-item label="狀態"><el-switch v-model="form.isActive" active-text="啟用" inactive-text="停用" /></el-form-item></el-col>
         </el-row>
         <BilingualShortField v-model:zh="form.nameZh" v-model:en="form.nameEn" label="版位名稱" required />
@@ -217,7 +217,7 @@ async function remove(row: AdSlotDto) {
         <el-row :gutter="12">
           <el-col :xs="24" :sm="12"><el-form-item label="備援圖片替代文字（中文）"><el-input v-model="form.fallbackAltZh" maxlength="200" /></el-form-item></el-col>
           <el-col :xs="24" :sm="12"><el-form-item label="備援圖片替代文字（英文）"><el-input v-model="form.fallbackAltEn" maxlength="200" /></el-form-item></el-col>
-          <el-col :xs="24"><el-form-item label="備援素材點擊後前往（選填）"><el-input v-model="form.fallbackLink" placeholder="App 內連結（tcrfc:// 開頭）或 https 網址" /></el-form-item></el-col>
+          <el-col :xs="24"><el-form-item label="備援素材點擊後前往（選填）"><el-input v-model="form.fallbackLink" placeholder="網址（https:// 開頭）或 App 內頁面連結" /></el-form-item></el-col>
         </el-row>
       </el-form>
       <p class="slot__hint">兒童向的畫面（課程列表、課程報名表、我的報名）不能設廣告版位，也不設慈善相關版位；違反時儲存會被系統擋下。</p>

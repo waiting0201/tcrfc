@@ -25,6 +25,7 @@ import {
   type TrialRegistrationDetailDto,
 } from '@/api/adminTrials'
 import { REGISTRATION_STATUS_ORDER } from '@/types/program'
+import { isUnder18, validateContact } from '@/utils/contactValidation'
 
 const props = defineProps<{ id: string }>()
 
@@ -51,6 +52,25 @@ const baselineJson = ref('')
 const registrationNo = ref('')
 const memberId = ref<string | null>(null)
 const trialLabel = ref('')
+const trialQuota = ref<{ capacity: number | null; enrolled: number } | null>(null)
+/** 會佔用名額的狀態（與狀態說明文字一致）。 */
+const OCCUPYING = ['待確認', '已確認', '已繳費', '完成']
+const originalStatus = ref<string | null>(null)
+/** 依「儲存後」的名額預估：新增、或由不佔名額改為佔名額，會多佔一個。 */
+const serverOver = ref<boolean | null>(null)
+const quotaWarning = computed(() => {
+  const q = trialQuota.value
+  if (!q || q.capacity == null) return ''
+  // 後端有回 isOverCapacity（已儲存的這筆）就以它為準；沒有、或尚未儲存的新增，才用前端預估
+  if (!isCreate.value && serverOver.value !== null && form.status === originalStatus.value) {
+    return serverOver.value ? `這場名額 ${q.capacity} 人，目前已報名 ${q.enrolled} 人，已超過名額。後台代填不會被擋，請確認場地與教練是否容納得下。` : ''
+  }
+  const willOccupy = OCCUPYING.includes(form.status)
+  const alreadyCounted = !isCreate.value && originalStatus.value !== null && OCCUPYING.includes(originalStatus.value)
+  const after = q.enrolled + (willOccupy && !alreadyCounted ? 1 : 0)
+  if (after <= q.capacity) return ''
+  return `這場名額 ${q.capacity} 人，目前已報名 ${q.enrolled} 人，儲存後會變成 ${after} 人，超過名額 ${after - q.capacity} 人。後台代填不會被擋，請確認場地與教練是否容納得下。`
+})
 
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
@@ -72,6 +92,8 @@ function applyDetail(d: TrialRegistrationDetailDto) {
   form.status = d.status
   registrationNo.value = d.registrationNo
   memberId.value = d.memberId ?? null
+  originalStatus.value = d.status
+  serverOver.value = typeof d.isOverCapacity === 'boolean' ? d.isOverCapacity : null
 }
 
 async function load() {
@@ -79,6 +101,7 @@ async function load() {
   try {
     const trial = await getTrial(activeClubId.value, props.id)
     trialLabel.value = `${trial.trialOn} ${trial.teamName || '俱樂部整體'}`
+    trialQuota.value = { capacity: trial.capacity ?? null, enrolled: trial.enrolledCount }
     if (!isCreate.value && regId.value) {
       applyDetail(await getTrialRegistration(activeClubId.value, props.id, regId.value))
     }
@@ -95,12 +118,16 @@ async function load() {
 }
 onMounted(load)
 
+const minor = computed(() => isUnder18(form.birthOn))
 const isDirty = computed(() => loadState.value === 'ready' && JSON.stringify(form) !== baselineJson.value)
 useUnsavedChanges(isDirty)
 
 function validate(): boolean {
   formError.value = null
   if (!form.applicantName.trim()) return (formError.value = '請輸入報名人姓名'), false
+  // 與公開報名同一套規則：電話或 Email 至少一項、格式正確、未滿 18 歲須有家長姓名與電話
+  const contactError = validateContact(form, { requireGuardianForMinor: true })
+  if (contactError) return (formError.value = contactError), false
   return true
 }
 
@@ -136,6 +163,10 @@ async function handleSave() {
     applyDetail(saved)
     baselineJson.value = JSON.stringify(form)
     ElMessage.success(wasCreate ? '已建立' : '已儲存')
+    // 已報名人數會隨儲存改變，重讀一次讓超額提示維持正確（失敗不影響儲存結果）
+    getTrial(activeClubId.value, props.id)
+      .then((t) => { trialQuota.value = { capacity: t.capacity ?? null, enrolled: t.enrolledCount } })
+      .catch(() => {})
   } catch (error) {
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
@@ -171,6 +202,7 @@ async function handleSave() {
 
     <template v-else>
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="trial-reg-edit__block" @close="formError = null" />
+      <el-alert v-if="quotaWarning" :title="quotaWarning" type="warning" show-icon :closable="false" class="trial-reg-edit__block" />
       <el-alert v-if="readOnly" title="你的帳號只能檢視這筆報名，不能修改。" type="info" show-icon :closable="false" class="trial-reg-edit__block" />
 
       <el-form label-position="top" :disabled="readOnly">
@@ -185,6 +217,7 @@ async function handleSave() {
         </el-card>
 
         <el-card shadow="never" header="報名人資料" class="trial-reg-edit__block">
+          <p class="trial-reg-edit__hint trial-reg-edit__hint--top">電話與 Email 至少填一項；報名者未滿 18 歲時，家長姓名與電話必填。</p>
           <el-row :gutter="12">
             <el-col :xs="24" :sm="12">
               <el-form-item label="報名人姓名" required><el-input v-model="form.applicantName" /></el-form-item>
@@ -193,16 +226,16 @@ async function handleSave() {
               <el-form-item label="生日"><el-date-picker v-model="form.birthOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" /></el-form-item>
             </el-col>
             <el-col :xs="24" :sm="12">
-              <el-form-item label="電話"><el-input v-model="form.phone" /></el-form-item>
+              <el-form-item label="電話" :required="!form.email.trim()"><el-input v-model="form.phone" /></el-form-item>
             </el-col>
             <el-col :xs="24" :sm="12">
-              <el-form-item label="Email"><el-input v-model="form.email" /></el-form-item>
+              <el-form-item label="Email" :required="!form.phone.trim()"><el-input v-model="form.email" /></el-form-item>
             </el-col>
             <el-col :xs="24" :sm="12">
-              <el-form-item label="家長姓名"><el-input v-model="form.guardianName" placeholder="選填，未成年建議填寫" /></el-form-item>
+              <el-form-item label="家長姓名" :required="minor"><el-input v-model="form.guardianName" placeholder="未滿 18 歲必填" /></el-form-item>
             </el-col>
             <el-col :xs="24" :sm="12">
-              <el-form-item label="家長電話"><el-input v-model="form.guardianPhone" placeholder="選填" /></el-form-item>
+              <el-form-item label="家長電話" :required="minor"><el-input v-model="form.guardianPhone" placeholder="未滿 18 歲必填" /></el-form-item>
             </el-col>
           </el-row>
         </el-card>
@@ -225,5 +258,6 @@ async function handleSave() {
 .trial-reg-edit { max-width: 780px; margin: 0 auto 88px; }
 .trial-reg-edit__block { margin-bottom: 16px; }
 .trial-reg-edit__meta { font-size: 13px; color: var(--admin-text-secondary); margin-left: 12px; }
+.trial-reg-edit__hint--top { margin: 0 0 12px; }
 .trial-reg-edit__hint { margin: 6px 0 0; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
 </style>

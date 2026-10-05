@@ -164,11 +164,11 @@ public sealed class AdminNewsletterRepository(ClubDbContext dbContext, Sensitive
     {
         var purposeText = AdminInput.RequireText(purpose, "匯出用途", 200);
         var rows = await Filter(scope, query).OrderBy(s => s.Email).ToListAsync(cancellationToken);
-        var lines = new List<IEnumerable<string?>> { new[] { "Email", "來源", "狀態", "訂閱時間", "退訂時間" } };
+        var lines = new List<IEnumerable<string?>> { new[] { "Email", "來源", "狀態", "訂閱時間（台灣時間）", "退訂時間（台灣時間）" } };
         lines.AddRange(rows.Select(r => (IEnumerable<string?>)new[]
         {
             CsvUtils.SafeCell(r.Email), CsvUtils.SafeCell(SourceLabel(r.Source)), StatusLabels[r.Status],
-            r.SubscribedAt?.ToString("yyyy-MM-dd HH:mm"), r.UnsubscribedAt?.ToString("yyyy-MM-dd HH:mm"),
+            r.SubscribedAt is { } sub ? TaiwanClock.ToText(sub) : null, r.UnsubscribedAt is { } unsub ? TaiwanClock.ToText(unsub) : null,
         }));
         audit.Record(scope, "匯出電子報名單", $"共 {rows.Count} 筆", rows.Count, purposeText);
         return CsvUtils.BuildCsv(lines);
@@ -197,7 +197,7 @@ public sealed class AdminNewsletterRepository(ClubDbContext dbContext, Sensitive
 
     internal static string NormalizeEmail(string? raw)
     {
-        var email = AdminInput.OptionalEmail(raw, "Email") ?? throw new AdminValidationException("Email為必填欄位。");
+        var email = AdminInput.OptionalEmail(raw, "Email") ?? throw new AdminValidationException("Email 為必填欄位。");
         return email.ToLowerInvariant();
     }
 

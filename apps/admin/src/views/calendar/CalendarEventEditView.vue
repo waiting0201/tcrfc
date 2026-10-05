@@ -2,9 +2,7 @@
 /**
  * `L2` 自建事件——編輯頁。對照 apps/api/README.md「S1-11」。
  *
- * ⚠️ **場地選單本輪不提供選擇介面**——跟 `MatchEditView.vue`／`ProgramSessionEditView.vue` 遇到的
- * 既有缺口相同：`venues` 是共用主檔，但整個系統目前沒有任何後台端點可以列出場地清單，沒有清單就
- * 做不出有意義的選單，`venueId` 因此一律不送出（省略＝維持不變／建立時等同不設定）。
+ * 場地選單來自場地管理清單（`listAdminVenues`），不選＝不設定場地。
  *
  * ⚠️ **L2 的 `.ics` 下載本輪未實作**——後端只做了單場賽事的 `.ics`（規劃書明確要求），自建事件
  * 加入行事曆的能力規劃書沒有明文要求，見 apps/api/README.md「S1-11」「規劃書沒寫清楚」第 7 點。
@@ -20,6 +18,7 @@ import ImageUploader from '@/components/ImageUploader.vue'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCalendarPermissions } from '@/composables/useCalendarPermissions'
 import { activeClubId } from '@/auth/clubAccess'
+import { listAdminVenues, type AdminVenueListItemDto } from '@/api/adminVenues'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
 import {
   createAdminCalendarCustomEvent,
@@ -44,6 +43,7 @@ const eventId = ref<string | undefined>(route.params.id as string | undefined)
 
 const form = reactive({
   eventTypeId: '' as string,
+  venueId: '' as string,
   startsAt: null as Date | null,
   endsAt: null as Date | null,
   isAllDay: false,
@@ -66,6 +66,7 @@ const exceptionDatePicker = ref<Date | null>(null)
 
 const eventTypes = ref<AdminEventTypeDto[]>([])
 const teams = ref<AdminTeamAdminListItemDto[]>([])
+const venues = ref<AdminVenueListItemDto[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
@@ -73,15 +74,18 @@ const formError = ref<string | null>(null)
 
 async function loadOptions() {
   try {
-    const [types, teamList] = await Promise.all([
+    const [types, teamList, venueList] = await Promise.all([
       listAdminCalendarEventTypes(activeClubId.value),
       listAdminClubTeams(activeClubId.value),
+      listAdminVenues(activeClubId.value).catch(() => [] as AdminVenueListItemDto[]),
     ])
     eventTypes.value = types
     teams.value = teamList
+    venues.value = venueList
   } catch {
     eventTypes.value = []
     teams.value = []
+    venues.value = []
   }
 }
 
@@ -92,6 +96,7 @@ async function loadEvent() {
     if (!isCreate.value && eventId.value) {
       const detail = await getAdminCalendarCustomEvent(activeClubId.value, eventId.value)
       form.eventTypeId = detail.eventTypeId ?? ''
+      form.venueId = detail.venueId ?? ''
       form.startsAt = utcToPickerDate(detail.startsAt)
       form.endsAt = utcToPickerDate(detail.endsAt)
       form.isAllDay = detail.isAllDay
@@ -170,6 +175,7 @@ function validate(): boolean {
 function buildPayload(): SaveCalendarCustomEventPayload {
   return {
     eventTypeId: form.eventTypeId || null,
+    venueId: form.venueId || null,
     // 全天活動：後端以「UTC 日期」整天計，送選擇日期的 00:00Z；一般活動送台灣時間換算後的 UTC
     startsAt: (form.isAllDay ? pickerDateToAllDayUtc(form.startsAt) : pickerDateToUtc(form.startsAt))!,
     endsAt: form.isAllDay ? pickerDateToAllDayUtc(form.endsAt) : pickerDateToUtc(form.endsAt),
@@ -351,9 +357,9 @@ function retryLoad() {
           </el-row>
 
           <el-form-item label="場地">
-            <p class="calendar-event-edit__hint">
-              場地選單目前沒有可用清單（`venues` 主檔尚無對應後台端點），暫不開放選擇。
-            </p>
+            <el-select v-model="form.venueId" clearable filterable placeholder="選填，不指定場地" style="width: 100%">
+              <el-option v-for="v in venues" :key="v.id" :label="v.nameZh" :value="v.id" />
+            </el-select>
           </el-form-item>
 
           <el-form-item label="所屬隊別（可複選；留空＝俱樂部活動）">

@@ -78,10 +78,20 @@ function openDialog(row: LayoutItemDto | null) {
   Object.assign(form, { itemKey: row?.itemKey ?? '', labelZh: row?.labelZh ?? '', labelEn: row?.labelEn ?? '', deepLinkId: row?.deepLinkId ?? '', iconKey: row?.iconKey ?? '', isEnabled: row?.isEnabled ?? true })
   visible.value = true
 }
+/** 項目識別碼由系統產生，使用者不需要填：優先沿用所選連結的識別名稱，已被占用或沒選連結就用隨機碼。 */
+function autoItemKey(): string {
+  const used = new Set(rows.value.map((r) => r.itemKey))
+  const fromLink = deepLinks.value.find((d) => d.id === form.deepLinkId)?.code
+  if (fromLink && !used.has(fromLink)) return fromLink
+  let key: string
+  do {
+    key = `item_${Math.random().toString(36).slice(2, 8)}`
+  } while (used.has(key))
+  return key
+}
 async function save() {
   if (!canUpdate.value) return
   if (!form.labelZh.trim()) return void (formError.value = '請輸入中文名稱')
-  if (!editing.value && !/^[a-z0-9]+(_[a-z0-9]+)*$/.test(form.itemKey.trim())) return void (formError.value = '項目代號請用小寫英數字與底線，例如 my_orders（建立後不能修改）')
   saving.value = true
   formError.value = null
   const body = {
@@ -92,7 +102,7 @@ async function save() {
   }
   try {
     if (editing.value) await updateLayoutItem(editing.value.id, body)
-    else await createLayoutItem({ ...body, kind: props.kind, itemKey: form.itemKey.trim() })
+    else await createLayoutItem({ ...body, kind: props.kind, itemKey: autoItemKey() })
     ElMessage.success('已儲存')
     visible.value = false
     await load()
@@ -167,12 +177,11 @@ const linkText = (r: LayoutItemDto) => deepLinks.value.find((d) => d.id === r.de
     <el-dialog v-model="visible" :title="editing ? `編輯${KIND_TEXT[kind]}` : `新增${KIND_TEXT[kind]}`" width="560px" :fullscreen="isMobile" :close-on-click-modal="false">
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="li__block" />
       <el-form label-position="top">
-        <el-form-item v-if="!editing" label="項目代號（建立後不能修改）" required><el-input v-model="form.itemKey" placeholder="例如 my_orders" /></el-form-item>
         <BilingualShortField v-model:zh="form.labelZh" v-model:en="form.labelEn" label="名稱" required />
         <el-form-item label="點擊後前往">
-          <el-select v-model="form.deepLinkId" clearable placeholder="不設定" style="width: 100%"><el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="d.labelZh || d.code" :value="d.id" /></el-select>
+          <el-select v-model="form.deepLinkId" clearable placeholder="不設定" style="width: 100%"><el-option v-for="d in deepLinks.filter((x) => x.isActive)" :key="d.id" :label="d.labelZh || '（未命名連結）'" :value="d.id" /></el-select>
         </el-form-item>
-        <el-form-item v-if="!fixedKind" label="圖示名稱（選填）"><el-input v-model="form.iconKey" placeholder="例如 ticket" /></el-form-item>
+        <el-form-item v-if="!fixedKind" label="圖示（選填）"><el-input v-model="form.iconKey" placeholder="選填，圖示名稱請向 App 工程團隊確認" /></el-form-item>
         <el-form-item label="顯示在 App"><el-switch v-model="form.isEnabled" /></el-form-item>
       </el-form>
       <template #footer>

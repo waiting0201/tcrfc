@@ -26,6 +26,18 @@ export const HREFLANG_MAP: Record<LocaleCode, string> = {
   en: 'en',
 }
 
+/**
+ * Open Graph 的 og:locale 寫法（語言_地區，底線）。`nuxt-seo-utils` 只在 currentLocale 含
+ * 連字號時才輸出 og:locale（`zh-Hant` → `zh_Hant` 有輸出，`en` 沒有），所以 en 頁面
+ * 沒有 og:locale（F4，2026-10-03）；由 app/layouts/default.vue 依這張表補上，
+ * 並以 og:locale:alternate 帶出另一個語系。docs/05 §1 沒有規定 og:locale 寫法，
+ * 這張表是執行層決定（en 用 en_US，Facebook／LINE 等爬蟲接受的標準值）。
+ */
+export const OG_LOCALE_MAP: Record<LocaleCode, string> = {
+  zh: 'zh_Hant',
+  en: 'en_US',
+}
+
 export function isLocaleCode(value: unknown): value is LocaleCode {
   return typeof value === 'string' && (SUPPORTED_LOCALES as readonly string[]).includes(value)
 }

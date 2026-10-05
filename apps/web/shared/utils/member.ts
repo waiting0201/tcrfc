@@ -311,15 +311,24 @@ export function formatTaipeiDateTime(iso: string | null | undefined, locale: 'zh
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return new Intl.DateTimeFormat(locale === 'zh' ? 'zh-TW' : 'en-GB', {
-    timeZone: 'Asia/Taipei',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  }).format(d)
+  // F3（2026-10-03）：不直接用 `.format()` 的字串。Node（SSR）與瀏覽器的 ICU 版本不同，日期與時間之間的
+  // 分隔字元不一樣（Node 輸出 U+2009 細空格、瀏覽器輸出一般空格），肉眼完全相同、字元不同，
+  // Vue 水合時報「Hydration text mismatch」。改用 formatToParts 取出各欄位、自己以固定字元組字。
+  // `hourCycle: 'h23'` 避免部分 ICU 把午夜顯示成 24:xx。
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat(locale === 'zh' ? 'zh-TW' : 'en-GB', {
+      timeZone: 'Asia/Taipei',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    }).formatToParts(d).map((p) => [p.type, p.value]),
+  ) as Record<string, string>
+  return locale === 'zh'
+    ? `${parts.year}/${parts.month}/${parts.day} ${parts.hour}:${parts.minute}`
+    : `${parts.day}/${parts.month}/${parts.year}, ${parts.hour}:${parts.minute}`
 }
 
 /** `yyyy-MM-dd` 是台灣當地日期（不是時間戳），不得丟給 `new Date()`（會被當 UTC 午夜、在負時區少一天）；直接改成斜線分隔顯示。 */

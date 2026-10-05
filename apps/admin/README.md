@@ -2859,3 +2859,42 @@ npm run build   # vue-tsc -b && vite build，型別檢查與建置皆無錯誤
 - 選單拖曳排序（先用上移／下移，鍵盤與觸控可用）。
 - Logo／Favicon／場地照片上傳需 Azurite，後端測試未涵蓋，真實上傳請實機確認。
 - 「字型設定」規劃書無選項，未做（同後端待決 3）。
+
+
+## 實機驗收缺陷修正（2026-10-03，`frontend-architect`）
+
+> 來源：使用者啟動 `apps/api` 後的後台實機驗收。**以下取代前文所有「場地選單未提供／`venues` 無後台端點」的敘述**（P2 梯次、L2 自建事件現已接上場地清單，與 F2、P4、C4 同一支 `listAdminVenues`）。
+
+| 編號 | 修法 |
+|---|---|
+| B-1 | `src/api/adminMemberships.ts` 的 `searchMembers` 帶 `includeNoMembership=true`（本俱樂部會籍持有人＋任何俱樂部都沒有會籍的人，不洩漏他隊會員；已取代最初的 `crossClub=true`）。 |
+| B-3／B-4 | 新增 `src/utils/contactValidation.ts`（電話／Email 至少一項、Email 與電話格式、未滿 18 歲家長必填，規則對照後端 `TrialsRepository` 與 `AdminInput`）。`TrialRegistrationEditView.vue`（P4 代填，含未成年家長）、`RegistrationEditView.vue`（P3，不要求家長）與 `AdvertiserTab.vue`（Email／電話）使用。試訓名額超額（已報名 > 名額）時，名單頁、場次列表、代填表單顯示警示，**不擋儲存**；代填表單依「儲存後」人數預估（新增或由不佔名額改佔名額會 +1）。 |
+| B-6 | P3 `RegistrationListView.vue` 的「匯出 CSV」改走 `ExportPurposeDialog`，`downloadAdminRegistrationsCsv(club, params, purpose)` 以查詢參數 `purpose` 送出（與 P4／K3／G3 同名）。 |
+| B-8 | `ProgramSessionEditView.vue`、`CalendarEventEditView.vue` 接上場地下拉；**同時修掉「梯次編輯永遠送 `venueId: null` 把既有場地清掉」**。每週上課時間改為新元件 `components/WeeklyScheduleInput.vue`（星期＋起訖時間，可多列，輸出仍是 `weekly_schedule` JSON）；舊格式資料（區間鍵、自由文字）不硬轉，顯示「舊格式」提示並原樣保留，按「重新填寫」才改。 |
+| B-10 | `api/adminDraws.ts` 的 `totalCount` 改可為空，`eligibleCountText(totalCount, rosterVersion)` 統一顯示：有數字「N 人」、已產生過名單但無數字「—」、從未試算「尚未試算」（列表、手機卡、詳情、名單分頁）。名單分頁姓名說明依 API 回傳的 `isMasked` 動態呈現（全遮罩／全未遮罩／部分）。 |
+| B-11 | 推播列表與詳情改顯示 `createdByName`／`reviewedByName`，缺值顯示「—」，絕不顯示 GUID。**同類**：廣告檔期詳情的審核者原本也印 GUID，改讀 `reviewedByName`，缺值只顯示「已審核」。 |
+| B-12 | `FlagTab.vue`：開關以白話名稱顯示（已知開關對照表，值仍送原代碼），新增改為下拉挑項目，「其他」才需要填識別名稱。`DeepLinkTab.vue`：表格不再顯示代號與 `tcrfc://` 欄位。`LayoutItemTab.vue`：項目代號由系統產生（優先沿用所選連結的識別名稱，已占用則隨機碼）。`DiagnosticTab.vue`：統計改白話、診斷類型以前端對照為準。`ConnectionTab.vue`：以項目 key 對照白話名稱與說明。推播、公告、廣告素材與版位的連結提示與錯誤訊息去掉 `tcrfc://`。商品規格統一寫「商品規格編號」（docs/06 §1）。 |
+| B-13 | 新增 `src/utils/inputNumberGuard.ts`（`main.ts` 安裝）：全後台 `el-input-number` 輸入超界或被四捨五入時，失焦後跳出警示「您輸入的 N 超過允許的最大值，已自動調整為 M」。文件層監聽，之後新增的數字框自動適用。 |
+| 側欄 | `AppSidebar.vue` 補上 B1–B4、C1–C4（含 C4 底下積分榜、賽事系列依路徑各自的權限碼）的可見度；原本這兩組沒登記，客服／行政等角色會看到整組點進去全是 403。檢視者（viewer）本來就持有多數模組的檢視權限，選單內容與其權限一致。 |
+
+**lint 第二層**：`scripts/check-forbidden-terms.mjs` 新增對 `<script>` 內含中文字串常值與樣板文字的掃描（反引號、snake_case 內部代號、`tcrfc://`、JSON、百分位）。
+
+**待後端／未解決**：後端標籤與訊息腳本與畫面都攔不住（診斷彙總 `apiErrorNote`、連線檢查文字、抽獎公告草稿標題 `AdminDrawsRepository.cs:900` 的「【{name}】中獎名單公布」、`AdminShopProductsRepository.cs` 的「貨號」、`AdminInput.OptionalEmail` 的「聯絡 Email的格式不正確」缺空格）。`createdByName`／`reviewedByName` 待後端新增前，推播顯示「—」。
+
+### 收尾輪（後端新欄位，2026-10-03）
+
+- **B-7**：`api/adminTrials.ts` 的 `exportTrialRegistrations` 退路檔名改為 `試訓報名名單-{場次日期}.csv`，不再含 GUID；`downloadExport` 本來就優先採用回應 `Content-Disposition` 的檔名。其他匯出的退路檔名都是固定中文或 `registrations-{club}.csv`，沒有 GUID。
+- **B-10**：`listRoster` 新增 `reveal` 參數；`DrawRosterPanel.vue` 預設遮罩，持有「檢視完整個資」權限者出現「顯示完整資料」（二次確認）與「重新遮罩」；離開頁面或切換活動即回遮罩。說明文字仍依 `isMasked`。
+- **B-4**：P4 代填頁優先採用詳情回應的 `isOverCapacity`（狀態未被改動時），否則退回前端預估；P3 代填頁有 `isOverCapacity=true` 時顯示警示。
+- 連線檢查文字以前端對照為準（「手機推播服務（Apple 與 Google）」「備援設定檔（Cloudflare 邊緣節點）」），與後端新說法略有差異，未雙寫。
+
+### 第二輪重驗修正（2026-10-05，`frontend-architect`）
+
+- **上傳 503 訊息**：`src/api/http.ts` 的 `classifyByStatus`，503 且後端有 `detail` 時照實顯示（例如「檔案儲存尚未設定」），不再被固定的「伺服器發生未預期的錯誤」蓋掉；500 與其他 5xx 仍是通用訊息、不外露後端內容。一般請求、上傳（`apiUploadRequest`）、下載三條路徑都走同一個函式，所有上傳點同時生效。
+- **B-4**：`RegistrationEditView.vue` 建立與更新後用回應的 `isOverCapacity` 更新警示；`ProgramSessionListView.vue` 已報名大於名額時顯示「超額」標籤（比照試訓列表）。
+- **B-10**：`eligibleCountText(totalCount)` 只看 `totalCount`：null 一律「尚未試算」，有數字「N 人」（後端 `rosterVersion` 預設就是 1，不能用來分流）。
+- **B-12**：`CredentialTab.vue` 優先用後端 `kindLabel`，前端對照表只當退路（改為「Apple 推播金鑰」「Google 推播憑證」）；`PushEditView.vue`「點擊後前往」選項只顯示白話名稱。
+- **B-13**：`inputNumberGuard.ts` 讀輸入框的 `aria-valuemin`／`aria-valuemax`，依實際原因提示「超過上限（最大 N）」「低於下限（最小 N）」或「超過允許的小數位數，已四捨五入」。
+- **M5**：`ConnectionTab.vue` 備援項目標籤改為「備援設定來源」。
+- **驗證**：`npm run lint`、`npm run build`、`check-forbidden-terms.mjs` 通過；Playwright 實走：新聞封面上傳顯示「檔案儲存尚未設定」、梯次列表 32／30 出現「超額」、P3 代填儲存後警示仍在、緯度輸入 95.5 提示「超過上限（最大 90）」、憑證分頁顯示「Apple 推播金鑰」「Google 推播憑證」、連線檢查顯示「備援設定來源」、推播下拉不含連結、抽獎名單「尚未試算」。
+- **M2（使用者已決定）**：「App 內連結」分頁表格不再顯示「網頁網址」欄（路徑含隊別代號，違反 docs/06 §1）；該欄為選填且可由人編輯，故編輯表單保留、改標為「沒有安裝 App 時改開的網頁（選填）」，placeholder 不含路徑。手機卡片本來就沒有此欄；全 `src` 無其他地方顯示 `webUrl`。

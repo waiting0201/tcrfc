@@ -170,7 +170,7 @@ public sealed class AdminNewsletterTests(AdminWriteApiFixture fixture)
             var bytes = await response.Content.ReadAsByteArrayAsync();
             Assert.Equal(new byte[] { 0xEF, 0xBB, 0xBF }, bytes[..3]);
             var text = Encoding.UTF8.GetString(bytes);
-            Assert.StartsWith("﻿Email,來源,狀態,訂閱時間,退訂時間", text);
+            Assert.StartsWith("﻿Email,來源,狀態,訂閱時間（台灣時間）,退訂時間（台灣時間）", text);
             Assert.Contains("'=zz-test-cmd@example.test", text);
             Assert.Contains("'+惡意來源", text);
             Assert.Contains("已退訂", text);

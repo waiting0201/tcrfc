@@ -171,7 +171,7 @@ const canDelete = computed(() => canCreate.value && (detail.value?.status === 'd
 
       <el-card shadow="never" class="pd__block">
         <div class="pd__head">
-          <div><el-tag :type="pushStatusTag(detail.status)">{{ detail.statusLabel }}</el-tag><span class="pd__muted">&emsp;建立者 {{ detail.createdBy || '—' }}<template v-if="detail.reviewedBy">・覆核者 {{ detail.reviewedBy }}（{{ formatDateTime(detail.reviewedAt) }}）</template></span></div>
+          <div><el-tag :type="pushStatusTag(detail.status)">{{ detail.statusLabel }}</el-tag><span class="pd__muted">&emsp;建立者 {{ detail.createdByName || '—' }}<template v-if="detail.reviewedBy">・覆核者 {{ detail.reviewedByName || '—' }}（{{ formatDateTime(detail.reviewedAt) }}）</template></span></div>
           <div class="pd__actions">
             <el-button v-for="a in actions" :key="a" :type="ACTION_TYPE[a]" :plain="a === 'cancel'" :loading="acting" @click="run(a)">{{ PUSH_ACTION_LABEL[a] }}</el-button>
             <el-button v-if="canEditDraft" @click="router.push(`/app/push/${detail.id}/edit`)">編輯</el-button>

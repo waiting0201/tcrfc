@@ -646,7 +646,10 @@ builder.Services.AddCors(options =>
             // 兩者缺一都會讓 Cookie 被瀏覽器悄悄丟棄（不是 CORS 錯誤，是請求「送出但沒帶
             // Cookie」，比較難察覺）。⛔ AllowCredentials 不能與 AllowAnyOrigin 併用
             // （規格明文禁止），這裡一律搭配明確的 WithOrigins 清單，符合限制。
-            policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials();
+            // WithExposedHeaders：跨來源時瀏覽器預設只讓前端讀得到「安全清單」標頭，Content-Disposition（下載檔名）
+            // 與 Retry-After（限流 429 的等待秒數）都不在其中，不 expose 就永遠讀到 null。
+            policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()
+                .WithExposedHeaders("Content-Disposition", "Retry-After");
         }
         // corsOrigins 為空（正式環境忘記設定）時刻意不呼叫 AllowAnyOrigin()——沒設定來源清單
         // 就是沒有任何瀏覽器來源被允許，比「忘記設定就開放全部」安全。
@@ -689,6 +692,19 @@ builder.Services.Configure<ForwardedHeadersOptions>(options => TrustedProxyConfi
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    // 429 帶 Retry-After（秒）：固定視窗限流器會在 lease metadata 提供 RetryAfter；沒有時（理論上不會）不補，
+    // 不自己猜數字。BFF 與後台依此顯示「請於 N 秒後再試」。
+    options.OnRejected = (context, _) =>
+    {
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+        {
+            context.HttpContext.Response.Headers.RetryAfter =
+                Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds)).ToString(System.Globalization.CultureInfo.InvariantCulture);
+        }
+
+        return ValueTask.CompletedTask;
+    };
 
     // 🔴 依「呼叫端 IP」分區，不是 AddFixedWindowLimiter 那種全站共用同一個計數的寫法——
     // 後者會讓所有訪客共用同一組額度，一個人洗流量就會擋到所有人，不是本來想要的「擋住單一

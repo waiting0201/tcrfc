@@ -15,7 +15,7 @@ import { useBreakpoint } from '@/composables/useBreakpoint'
 import { useViewUpdatePermissions } from '@/composables/useCrudPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { AdminApiError } from '@/api/http'
-import { deleteDraw, DRAW_STATUS_OPTIONS, getDrawNotice, listDraws, saveDrawNotice, type DrawListItemDto } from '@/api/adminDraws'
+import { deleteDraw, DRAW_STATUS_OPTIONS, eligibleCountText, getDrawNotice, listDraws, saveDrawNotice, type DrawListItemDto } from '@/api/adminDraws'
 import { formatDateTime } from '@/utils/dateTime'
 
 const router = useRouter()
@@ -186,7 +186,7 @@ const go = (row: DrawListItemDto) => router.push(`/members/lottery/${row.id}`)
           </el-table-column>
           <el-table-column label="狀態" width="110"><template #default="{ row }"><el-tag :type="statusTag(row.status)" size="small">{{ row.statusLabel }}</el-tag></template></el-table-column>
           <el-table-column label="資格基準時間" width="150"><template #default="{ row }">{{ formatDateTime(row.snapshotAt) || '未設定' }}</template></el-table-column>
-          <el-table-column label="合格人數" width="100"><template #default="{ row }">{{ row.rosterVersion > 0 ? `${row.totalCount} 人` : '尚未產生' }}</template></el-table-column>
+          <el-table-column label="合格人數" width="100"><template #default="{ row }">{{ eligibleCountText(row.totalCount) }}</template></el-table-column>
           <el-table-column label="中獎／備取／已發放" width="150"><template #default="{ row }">{{ row.winnerCount }} ／ {{ row.backupCount }} ／ {{ row.fulfilledCount }}</template></el-table-column>
           <el-table-column label="公布" width="110"><template #default="{ row }">{{ row.announcementStatusLabel || '—' }}</template></el-table-column>
           <el-table-column label="操作" width="130" fixed="right">
@@ -200,7 +200,7 @@ const go = (row: DrawListItemDto) => router.push(`/members/lottery/${row.id}`)
           <template #title="{ row }">{{ row.nameZh || '（未命名）' }}</template>
           <template #meta="{ row }">
             <el-tag :type="statusTag(row.status)" size="small">{{ row.statusLabel }}</el-tag>
-            <span>合格 {{ row.rosterVersion > 0 ? row.totalCount : 0 }} 人</span><span>中獎 {{ row.winnerCount }}・備取 {{ row.backupCount }}</span>
+            <span>合格 {{ eligibleCountText(row.totalCount) }}</span><span>中獎 {{ row.winnerCount }}・備取 {{ row.backupCount }}</span>
           </template>
           <template #actions="{ row }">
             <el-button size="small" text type="primary" @click="go(row)">管理</el-button>

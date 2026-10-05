@@ -34,7 +34,8 @@ export interface DrawListItemDto {
   status: DrawStatus
   statusLabel: string
   rosterVersion: number
-  totalCount: number
+  /** 尚未試算／產生名單時可能為 null，畫面不得顯示成「null 人」。 */
+  totalCount?: number | null
   winnerCount: number
   backupCount: number
   fulfilledCount: number
@@ -77,7 +78,7 @@ export interface DrawDetailDto extends DrawListItemDto {
   versions: {
     version: number
     snapshotAt?: string | null
-    totalCount: number
+    totalCount?: number | null
     rosterHash?: string | null
     generatedAt?: string | null
     generatedByName?: string | null
@@ -172,9 +173,10 @@ export function generateRoster(club: string, id: string, voidReason?: string): P
 export function listRoster(
   club: string,
   id: string,
-  params: { version?: number; keyword?: string; winnersOnly?: boolean; page?: number; pageSize?: number },
+  params: { version?: number; keyword?: string; winnersOnly?: boolean; page?: number; pageSize?: number; reveal?: boolean },
 ): Promise<PagedResult<RosterRowDto>> {
-  return apiRequest<PagedResult<RosterRowDto>>(`${base(club)}/${id}/roster${buildQuery(params)}`)
+  // reveal 預設不送＝後端回遮罩；true 需要「檢視完整個資」權限，否則 403
+  return apiRequest<PagedResult<RosterRowDto>>(`${base(club)}/${id}/roster${buildQuery({ ...params, reveal: params.reveal || undefined })}`)
 }
 export function saveWinners(
   club: string,
@@ -230,4 +232,12 @@ export function closeDraw(club: string, id: string): Promise<DrawDetailDto> {
 }
 export function voidDraw(club: string, id: string, reason: string): Promise<DrawDetailDto> {
   return apiRequest<DrawDetailDto>(`${base(club)}/${id}/void`, { method: 'POST', body: { reason } })
+}
+
+/**
+ * 合格人數的顯示文字：有數字顯示「N 人」；`totalCount` 為 null 一律顯示「尚未試算」。
+ * 後端語意：`rosterVersion=1` ＋ `totalCount=null` 代表尚無名單（版本預設就是 1），所以不能用版本號分流。
+ */
+export function eligibleCountText(totalCount: number | null | undefined): string {
+  return totalCount != null ? `${totalCount} 人` : '尚未試算'
 }

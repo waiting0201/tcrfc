@@ -266,6 +266,9 @@ public sealed record AdminPushMessageListItemDto
     public required int DeliveredCount { get; init; }
     public required int OpenedCount { get; init; }
     public Guid? CreatedBy { get; init; }
+
+    /// <summary>建立者的顯示名稱（畫面顯示這個，不要顯示 GUID）。帳號已被移除時為 <c>null</c>。</summary>
+    public string? CreatedByName { get; init; }
     public required DateTime CreatedAt { get; init; }
 }
 
@@ -286,7 +289,11 @@ public sealed record AdminPushMessageDto
     public DateTime? ScheduledAt { get; init; }
     public int? AudienceEstimate { get; init; }
     public Guid? CreatedBy { get; init; }
+    public string? CreatedByName { get; init; }
     public Guid? ReviewedBy { get; init; }
+
+    /// <summary>覆核者的顯示名稱；尚未覆核為 <c>null</c>。</summary>
+    public string? ReviewedByName { get; init; }
     public DateTime? ReviewedAt { get; init; }
     public string? RejectNote { get; init; }
     public DateTime? SentAt { get; init; }
@@ -537,7 +544,7 @@ public sealed record AdminAppDiagnosticSummaryDto
     /// <summary>啟動耗時的中位數與第 90 百分位（毫秒），依最近 <c>Days</c> 天的 <c>startup_time</c> 回報。</summary>
     public int? StartupMedianMs { get; init; }
     public int? StartupP90Ms { get; init; }
-    public string ApiErrorNote { get; init; } = "API 錯誤率需要分母（總請求數），目前診斷回報只收到錯誤次數，這裡只彙總次數；正式的錯誤率由伺服器端請求監控提供。";
+    public string ApiErrorNote { get; init; } = "連線錯誤的比率需要總請求數當分母，目前診斷回報只收到錯誤次數，這裡只彙總次數；正式的比率由伺服器端請求監控提供。";
 }
 
 public sealed record AdminAppDiagnosticVersionRowDto

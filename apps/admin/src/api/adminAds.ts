@@ -180,6 +180,8 @@ export interface CampaignDetailDto extends CampaignListItemDto {
   isAmountHidden: boolean | null
   pauseReason: string | null
   reviewedBy: string | null
+  /** 後端若提供顯示名稱就用；沒有時畫面只顯示「已審核」，不顯示識別碼。 */
+  reviewedByName?: string | null
   reviewedAt: string | null
   availableActions: CampaignAction[]
   pacing: CampaignPacingDto | null

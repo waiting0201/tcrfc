@@ -13,7 +13,14 @@ export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   const stored = readRefreshCookie(event)
   if (!stored) {
-    return memberProblem(event, 401, 'no_session', '尚未登入。')
+    // F5（2026-10-03）：匿名訪客進 /member／/cart／/checkout 等頁會先試著還原登入，這是「正常的
+    // 沒登入」不是錯誤，回 401 會讓 console 每頁一條紅字。改回 204（沒有內容＝沒有工作階段），
+    // 瀏覽器端（useMemberSession.refresh）把空回應視同「確定沒登入」。更新權杖 Cookie 是
+    // HttpOnly，瀏覽器端看不到它存不存在，所以由這裡回答；回應不含任何資訊（有沒有 Cookie
+    // 本來就是請求方自己帶來的），安全性不變。Cookie 存在但後端判定無效的 401 維持原樣。
+    setResponseStatus(event, 204)
+    setNoStore(event)
+    return null
   }
 
   let pending = inflight.get(stored.token)

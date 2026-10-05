@@ -89,6 +89,9 @@ function classifyByStatus(body: ErrorBody | null, status: number): AdminApiError
   }
   // 🔴 一定要帶 `body`：503 的 `code`（geocoder_unavailable＝暫時故障、其他＝尚未啟用）靠它區分，
   // 先前漏帶，「由地址定位」暫時故障會被誤判成尚未啟用而把按鈕停用（docs/18 E-140）。
+  // 503 是後端刻意回的「服務尚未啟用／暫時不可用」，`detail` 是寫給使用者看的白話文，照實顯示；
+  // 其他 5xx（尤其 500）可能是內部錯誤，一律只顯示通用訊息，不外露後端內容（docs/18 E-153）。
+  if (status === 503 && detail) return new AdminApiError('server', detail, { status, detail, body })
   return new AdminApiError('server', '伺服器發生未預期的錯誤，請稍後再試。', { status, detail, body })
 }
 

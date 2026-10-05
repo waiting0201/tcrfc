@@ -20,6 +20,7 @@ import { activeClubId } from '@/auth/clubAccess'
 import { listAdminProgramSessions, type AdminSessionListItemDto } from '@/api/adminProgramSessions'
 import { createAdminRegistration, getAdminRegistration, updateAdminRegistration } from '@/api/adminRegistrations'
 import { AdminApiError } from '@/api/http'
+import { validateContact } from '@/utils/contactValidation'
 import { REGISTRATION_STATUS_ORDER, type RegistrationStatus } from '@/types/program'
 import { dateOnlyToPickerDate as fromDateOnlyString, pickerDateToDateOnly as toDateOnlyString } from '@/utils/dateTime'
 
@@ -59,6 +60,7 @@ const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
 const formError = ref<string | null>(null)
+const overCapacity = ref(false)
 
 async function loadSessions() {
   try {
@@ -74,6 +76,7 @@ async function loadRegistration() {
     await loadSessions()
     if (!isCreate.value && registrationId.value) {
       const detail = await getAdminRegistration(activeClubId.value, registrationId.value)
+      overCapacity.value = detail.isOverCapacity === true
       form.sessionId = detail.sessionId ?? ''
       form.applicantName = detail.applicantName
       form.phone = detail.phone ?? ''
@@ -120,8 +123,12 @@ function validate(): boolean {
     formError.value = '請輸入報名人姓名'
     return false
   }
-  if (!form.phone.trim() && !form.email.trim()) {
-    formError.value = '電話與 Email 至少要填一項'
+  const contactError = validateContact(
+    { phone: form.phone, email: form.email, guardianPhone: form.guardianPhone },
+    { requireGuardianForMinor: false },
+  )
+  if (contactError) {
+    formError.value = contactError
     return false
   }
   return true
@@ -159,9 +166,11 @@ async function handleSave() {
       router.replace(`/programs/enrollments/${created.id}/edit`)
       registrationId.value = created.id
       registrationNo.value = created.registrationNo
+      overCapacity.value = created.isOverCapacity === true
     } else {
       const updated = await updateAdminRegistration(activeClubId.value, registrationId.value!, buildPayload())
       registrationNo.value = updated.registrationNo
+      overCapacity.value = updated.isOverCapacity === true
       ElMessage.success('已儲存')
     }
     baselineJson.value = JSON.stringify(form)
@@ -211,6 +220,14 @@ function retryLoad() {
     </el-card>
 
     <template v-else>
+      <el-alert
+        v-if="overCapacity"
+        type="warning"
+        show-icon
+        :closable="false"
+        title="這個梯次已超過名額。後台代填不會被擋，請確認場地與教練是否容納得下。"
+        class="registration-edit__form-error"
+      />
       <el-alert
         v-if="formError"
         :title="formError"

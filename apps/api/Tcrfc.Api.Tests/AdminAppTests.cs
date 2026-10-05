@@ -356,6 +356,11 @@ public sealed class AdminAppTests(AdminWriteApiFixture fixture)
             var detail = await AppTest.ReadAsync<AdminPushMessageDto>(await admin.GetAsync($"{Base}/push/messages/{draft.Id}"));
             Assert.Equal("pending_review", detail.Status);
             Assert.DoesNotContain("approve", detail.AvailableActions); // 建立者本人的畫面上沒有核可按鈕
+            // B-11：建立者要有顯示名稱（不是只有 GUID）；尚未覆核者為 null。
+            Assert.False(string.IsNullOrWhiteSpace(detail.CreatedByName));
+            Assert.Null(detail.ReviewedByName);
+            var listed = (await AppTest.ReadAsync<List<AdminPushMessageListItemDto>>(await admin.GetAsync($"{Base}/push/messages"))).Single(m => m.Id == draft.Id);
+            Assert.Equal(detail.CreatedByName, listed.CreatedByName);
             Assert.Equal("cancelled", (await AppTest.ReadAsync<AdminPushMessageDto>(await PushAction(admin, draft.Id, "cancel"))).Status);
         }
         finally

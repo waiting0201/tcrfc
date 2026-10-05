@@ -104,6 +104,8 @@ public sealed class AdminImpactMetricsRepository(ClubDbContext dbContext, IQuery
 
     private static void Validate(UpsertAdminImpactMetricRequest request)
     {
+        // 規劃書 B5「影響力數據」的統計項目是件數、人數、金額這類累計值，沒有允許負數的情境（例如要記錄減少量，應改以單位與項目名稱表達）。
+        AdminInput.OptionalNonNegative(request.Value, "數值");
         AdminInput.RequireText(request.Content.Zh.Name, "中文項目名稱", 64);
         AdminInput.OptionalText(request.Content.Zh.Unit, "單位", 16);
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))

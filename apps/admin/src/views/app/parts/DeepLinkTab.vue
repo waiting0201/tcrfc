@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** App 內連結對照表：App 內頁面的連結（tcrfc:// 開頭）與對應的網頁網址；有版面項目使用中的連結不能刪除。 */
+/** App 內連結對照表：App 內頁面的連結（tcrfc:// 開頭）與沒有安裝 App 時改開的網頁（表格不列出，只在編輯表單設定）；有版面項目使用中的連結不能刪除。 */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import MobileCardList from '@/components/MobileCardList.vue'
@@ -45,8 +45,8 @@ function openDialog(row: DeepLinkDto | null) {
 }
 async function save() {
   if (!canUpdate.value) return
-  if (!/^[a-z0-9]+(_[a-z0-9]+)*$/.test(form.code.trim())) return void (formError.value = '連結代號請用小寫英數字與底線，例如 my_orders')
-  if (!form.appLink.trim().startsWith('tcrfc://')) return void (formError.value = 'App 內連結必須以 tcrfc:// 開頭')
+  if (!/^[a-z0-9]+(_[a-z0-9]+)*$/.test(form.code.trim())) return void (formError.value = '識別名稱請用小寫英數字與底線，不可留空')
+  if (!form.appLink.trim().startsWith('tcrfc://')) return void (formError.value = 'App 內頁面連結格式不正確，請向 App 工程團隊確認')
   if (!form.labelZh.trim()) return void (formError.value = '請輸入中文名稱')
   saving.value = true
   formError.value = null
@@ -68,7 +68,7 @@ async function save() {
 }
 async function remove(row: DeepLinkDto) {
   try {
-    await ElMessageBox.confirm(`確定要刪除連結「${row.labelZh || row.code}」嗎？`, '刪除連結', { confirmButtonText: '刪除', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger', type: 'warning' })
+    await ElMessageBox.confirm(`確定要刪除連結「${row.labelZh || '（未命名連結）'}」嗎？`, '刪除連結', { confirmButtonText: '刪除', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger', type: 'warning' })
   } catch {
     return
   }
@@ -86,7 +86,7 @@ async function remove(row: DeepLinkDto) {
   <div>
     <el-card shadow="never" class="dl__block">
       <div class="dl__row">
-        <span class="dl__muted">App 內每個頁面都有一條「tcrfc://」開頭的連結，推播、公告與快捷入口都用這張表指向頁面；「網頁網址」是沒有安裝 App 時改開的網頁。</span>
+        <span class="dl__muted">App 內每個頁面都有一條專屬連結，推播、公告與快捷入口都用這張表指向頁面；沒有安裝 App 的人會改開對應的網頁。</span>
         <span class="dl__spacer" />
         <el-button v-if="canUpdate" type="primary" @click="openDialog(null)">+ 新增連結</el-button>
       </div>
@@ -97,9 +97,7 @@ async function remove(row: DeepLinkDto) {
       <el-empty v-if="rows.length === 0" description="還沒有連結" />
       <template v-else>
         <el-table v-if="!isMobile" :data="rows" row-key="id">
-          <el-table-column label="名稱" min-width="150"><template #default="{ row }">{{ row.labelZh || row.code }}<div class="dl__muted">代號 {{ row.code }}</div></template></el-table-column>
-          <el-table-column label="App 內連結" min-width="200" prop="appLink" />
-          <el-table-column label="網頁網址" min-width="200"><template #default="{ row }">{{ row.webUrl || '—' }}</template></el-table-column>
+          <el-table-column label="名稱" min-width="150"><template #default="{ row }">{{ row.labelZh || '（未命名連結）' }}</template></el-table-column>
           <el-table-column label="需要登入" width="90"><template #default="{ row }">{{ row.requiresLogin ? '是' : '否' }}</template></el-table-column>
           <el-table-column label="使用中" width="90"><template #default="{ row }"><el-tag :type="row.isActive ? 'success' : 'info'" size="small">{{ row.isActive ? '啟用' : '停用' }}</el-tag></template></el-table-column>
           <el-table-column label="被引用" width="80"><template #default="{ row }">{{ row.usedByCount }} 處</template></el-table-column>
@@ -111,8 +109,8 @@ async function remove(row: DeepLinkDto) {
           </el-table-column>
         </el-table>
         <MobileCardList v-else :rows="rows" row-key="id">
-          <template #title="{ row }">{{ row.labelZh || row.code }}</template>
-          <template #meta="{ row }"><el-tag :type="row.isActive ? 'success' : 'info'" size="small">{{ row.isActive ? '啟用' : '停用' }}</el-tag><span>{{ row.appLink }}</span><span>被引用 {{ row.usedByCount }} 處</span></template>
+          <template #title="{ row }">{{ row.labelZh || '（未命名連結）' }}</template>
+          <template #meta="{ row }"><el-tag :type="row.isActive ? 'success' : 'info'" size="small">{{ row.isActive ? '啟用' : '停用' }}</el-tag><span>被引用 {{ row.usedByCount }} 處</span></template>
           <template #actions="{ row }">
             <template v-if="canUpdate">
               <el-button size="small" text type="primary" @click="openDialog(row)">編輯</el-button>
@@ -127,9 +125,9 @@ async function remove(row: DeepLinkDto) {
       <el-alert v-if="formError" type="error" show-icon :closable="false" :title="formError" class="dl__block" />
       <el-form label-position="top">
         <BilingualShortField v-model:zh="form.labelZh" v-model:en="form.labelEn" label="名稱" required />
-        <el-form-item label="連結代號（不能重複）" required><el-input v-model="form.code" placeholder="例如 my_orders" /></el-form-item>
-        <el-form-item label="App 內連結（tcrfc:// 開頭）" required><el-input v-model="form.appLink" /></el-form-item>
-        <el-form-item label="網頁網址（選填）"><el-input v-model="form.webUrl" placeholder="沒有安裝 App 時改開的網頁" /></el-form-item>
+        <el-form-item label="識別名稱（不能重複，由 App 工程團隊提供）" required><el-input v-model="form.code" placeholder="請向 App 工程團隊確認" /></el-form-item>
+        <el-form-item label="App 內頁面連結（由 App 工程團隊提供）" required><el-input v-model="form.appLink" /></el-form-item>
+        <el-form-item label="沒有安裝 App 時改開的網頁（選填）"><el-input v-model="form.webUrl" placeholder="不需要時留空即可，如需設定請向網站工程團隊確認" /></el-form-item>
         <el-form-item label="進入前需要登入"><el-switch v-model="form.requiresLogin" /></el-form-item>
         <el-form-item label="啟用"><el-switch v-model="form.isActive" /></el-form-item>
       </el-form>
