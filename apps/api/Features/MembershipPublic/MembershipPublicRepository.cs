@@ -155,7 +155,7 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
             Slug = s.Slug, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), Category = s.Category, Region = s.Region, Address = address,
             Lat = s.Lat, Lng = s.Lng, Phone = s.Phone, BusinessHours = ReadHours(s.BusinessHours),
             OfferContent = RequestLocale.Pick(requested?.OfferContent, fallback?.OfferContent), ApplicableTier = s.ApplicableTier,
-            ApplicableTierLabel = dbLocale == "en" ? (s.ApplicableTier == "fan_club" ? "Fan club members only" : "All members") : (s.ApplicableTier == "fan_club" ? "限付費會員" : "全會員適用"),
+            ApplicableTierLabel = dbLocale == "en" ? (s.ApplicableTier == "fan_club" ? "Paid Fan Club members only" : "All members") : (s.ApplicableTier == "fan_club" ? "限付費會員" : "全會員適用"),
             MapUrl = s.MapUrl, WebsiteUrl = s.WebsiteUrl, ImageUrl = imageUrls.Resolve(s.ImageKey), IsShared = s.ClubId is null,
         };
     }

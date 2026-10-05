@@ -9624,3 +9624,7 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 
 結論：未發現超賣或名額錯算，只補測試，未改產品程式。
 
+## 英文化後端兩件（2026-10-05，`E-220`／`E-221`）
+
+- **賽程對手英文不需改結構**：`matches_i18n` 的 `en` 列存 `opponent`／`venue`，`matches.opponent` 是繁中預設與回退來源；`MatchDto.isFallbackLocale` 在英文 `opponent` 為空時為 true（現行行為正確）。後台 C4 `opponentEn`／`venueEn`（新增、修改、CSV）早已接好。缺的是英文資料，無來源不音譯，沒有 migration。
+- **`ApplicableTierLabel`**：`lang=en` 時為 `All members`／`Paid Fan Club members only`，以 `docs/06` §1.1 對照表為準；測試在 `MembershipPublicTests`。

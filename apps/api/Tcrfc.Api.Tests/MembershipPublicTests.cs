@@ -95,6 +95,10 @@ public sealed class MembershipPublicTests(AdminWriteApiFixture fixture)
         var cafe = all.EnumerateArray().First(s => s.GetProperty("slug").GetString() == "test-store-cafe");
         Assert.Equal("all", cafe.GetProperty("applicableTier").GetString());
         Assert.Equal("全會員適用", cafe.GetProperty("applicableTierLabel").GetString());
+        // 英文標籤須與前台、docs/06 §1.1 對照表一致（Paid Fan Club member），不得出現舊寫法 "Fan club members only"。
+        var enAll = await ReadJsonAsync(await client.GetAsync("/api/v1/tcrfc/partner-stores?lang=en"));
+        Assert.Equal("All members", enAll.EnumerateArray().First(s => s.GetProperty("slug").GetString() == "test-store-cafe").GetProperty("applicableTierLabel").GetString());
+        Assert.Equal("Paid Fan Club members only", enAll.EnumerateArray().First(s => s.GetProperty("slug").GetString() == "test-store-sports").GetProperty("applicableTierLabel").GetString());
         Assert.True(cafe.TryGetProperty("lat", out _) && cafe.TryGetProperty("lng", out _)); // 座標給 App 的附近地圖
         Assert.False(string.IsNullOrEmpty(cafe.GetProperty("name").GetString()));
 
