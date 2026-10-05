@@ -5,14 +5,14 @@
 import { formatTaipeiDateTime } from '#shared/utils/member'
 import type { FanEventDetail } from '#shared/utils/member'
 
-definePageMeta({ nav: 'culture', unit: '8.2', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.2', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const club = config.public.club
 const clubAssets = computed(() => getClubAssets(club))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(club)))
+const identity = computed(() => (isEn.value ? (club === 'bw' ? getClubIdentityEnBw() : getClubIdentityEn()) : getClubIdentity(club)))
 const slug = String(route.params.slug ?? '')
 
 const { data: detail, error } = await useFetch<FanEventDetail>(`/api/backend/${club}/fan-events/${encodeURIComponent(slug)}`, {
@@ -31,10 +31,10 @@ const isPast = computed(() => ev.value.phase === 'past')
 
 useSeoMeta({
   title: computed(() => (isEn.value
-    ? getFanEventSeoEn(ev.value.name, ev.value.startsAt ? formatTaipeiDateTime(ev.value.startsAt, locale.value) : '', ev.value.location).title
+    ? (club === 'bw' ? getFanEventSeoEnBw : getFanEventSeoEn)(ev.value.name, ev.value.startsAt ? formatTaipeiDateTime(ev.value.startsAt, locale.value) : '', ev.value.location).title
     : `${ev.value.name}｜球迷會活動｜${clubAssets.value.nameZh}`)),
   description: computed(() => (isEn.value
-    ? getFanEventSeoEn(ev.value.name, ev.value.startsAt ? formatTaipeiDateTime(ev.value.startsAt, locale.value) : '', ev.value.location).description
+    ? (club === 'bw' ? getFanEventSeoEnBw : getFanEventSeoEn)(ev.value.name, ev.value.startsAt ? formatTaipeiDateTime(ev.value.startsAt, locale.value) : '', ev.value.location).description
     : `${clubAssets.value.shortNameZh}球迷會活動「${ev.value.name}」：${ev.value.startsAt ? formatTaipeiDateTime(ev.value.startsAt, locale.value) : ''}${ev.value.location ? `，${ev.value.location}` : ''}。`)),
 })
 </script>

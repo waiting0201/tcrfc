@@ -23,25 +23,28 @@
 // getProgramsHubEnrolNoteBw 檔頭說明）。故 bw 版簡化為只收「加入青年隊」單一報名項目
 // （青年隊各梯隊試訓申請），不提供兒童訓練／專項訓練選項，不得對藍鯨假裝這些課程也接受
 // 這份表單線上報名。
-definePageMeta({ nav: '', unit: '10.2', enReady: true })
+definePageMeta({ nav: '', unit: '10.2', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const clubAssets = computed(() => getClubAssets(clubKey.value))
+const clubEn = computed(() => bizClubNameEn(clubKey.value))
 
 // S1-12d 收尾：梯隊代碼與主場改讀 useSiteFacts(clubKey)（後端公開端點，BW-C1 改為動態帶入）。
 const { academyLabel, primaryVenue } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
   title: computed(() => (isEn.value
-    ? 'Academy & Children\'s Training | Join / Contact | Taichung Rock FC'
+    ? (isTcrfc.value ? 'Academy & Children\'s Training | Join / Contact | Taichung Rock FC' : `Join the Youth Team | Join / Contact | ${clubEn.value}`)
     : isTcrfc.value
     ? '加入學院／兒童訓練 Academy & Children\'s Training｜加入與聯絡｜台中磐石足球俱樂部'
     : `加入青年隊 Join Youth Team｜加入與聯絡｜${clubAssets.value.nameZh}`)),
   description: computed(() => (isEn.value
-    ? `Register your child for the TCRFC Academy ${academyLabel(' / ')} squads, or for children's training and specialist training programs. Complete one form with the student's and parent's details, and the Academy and Programs departments will contact parents shortly.`
+    ? (isTcrfc.value
+      ? `Register your child for the TCRFC Academy ${academyLabel(' / ')} squads, or for children's training and specialist training programs. Complete one form with the student's and parent's details, and the Academy and Programs departments will contact parents shortly.`
+      : `Register your child for ${clubEn.value} Youth team ${academyLabel(' / ')} trials. Complete one form with the student's and parent's details, and the club will contact parents shortly.`)
     : isTcrfc.value
     ? `為孩子報名台中磐石足球學院 ${academyLabel()} 梯隊，或兒童訓練與專項訓練各類課程。一份表單填寫學員與家長資料，學院部與課程部將盡快與家長聯繫。`
     : `為孩子報名${clubAssets.value.shortNameZh}青年隊 ${academyLabel()} 試訓。一份表單填寫學員與家長資料，俱樂部將盡快與家長聯繫。`)),
@@ -108,7 +111,7 @@ async function onSubmit() {
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/join/')">{{ tx('加入與聯絡', 'Join / Contact') }}</a></li>
-      <li aria-current="page">{{ isEn ? 'Academy & Children\'s Training' : isTcrfc ? '加入學院／兒童訓練' : '加入青年隊' }}</li>
+      <li aria-current="page">{{ isEn ? (isTcrfc ? 'Academy & Children\'s Training' : 'Join the Youth Team') : isTcrfc ? '加入學院／兒童訓練' : '加入青年隊' }}</li>
     </ol>
   </div>
 </nav>
@@ -118,21 +121,21 @@ async function onSubmit() {
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? "10.2 Academy & Children's Training" : '10.2 Join Youth Team' }}</p>
     <h1 v-if="isTcrfc"><template v-if="isEn">Academy &amp; Children's Training</template><template v-else>加入學院／兒童訓練<span class="en">Academy &amp; Children's Training</span></template></h1>
-    <h1 v-else>加入青年隊<span class="en">Join Youth Team</span></h1>
+    <h1 v-else><template v-if="isEn">Join the Youth Team</template><template v-else>加入青年隊<span class="en">Join Youth Team</span></template></h1>
     <p v-if="isTcrfc" class="page-hero__lede"><template v-if="isEn">Whether you are applying for the TCRFC Academy U12 / U14 / U15 squads or registering for children's training and specialist training programs, this one form covers it all. Parents, please fill in the details below. Depending on the program you choose, we will pass your application to the Academy or Programs department to arrange trials and program information.</template><template v-else>不論是申請加入台中磐石足球學院 U12／U14／U15 梯隊，或是報名兒童訓練與專項訓練的各類課程，都在這一份表單完成。請家長協助填寫以下資料，我們會依你選擇的報名項目轉交學院部或課程部，安排後續試訓與課程說明。</template></p>
-    <p v-else class="page-hero__lede">申請加入{{ clubAssets.shortNameZh }}青年隊 {{ academyLabel() }} 試訓，請家長協助填寫以下資料，我們會盡快安排後續試訓與說明。</p>
+    <p v-else class="page-hero__lede"><template v-if="isEn">Apply for a {{ clubEn }} Youth team {{ academyLabel(' / ') }} trial. Parents, please fill in the details below and we will arrange the trial and information as soon as possible.</template><template v-else>申請加入{{ clubAssets.shortNameZh }}青年隊 {{ academyLabel() }} 試訓，請家長協助填寫以下資料，我們會盡快安排後續試訓與說明。</template></p>
   </div>
 </section>
 
 <section class="band form-band" aria-labelledby="form-title">
   <div class="container">
-    <h2 class="visually-hidden" id="form-title">{{ isEn ? 'Academy & Children\'s Training registration form' : isTcrfc ? '加入學院／兒童訓練報名表單' : '加入青年隊報名表單' }}</h2>
+    <h2 class="visually-hidden" id="form-title">{{ isEn ? (isTcrfc ? 'Academy & Children\'s Training registration form' : 'Join the Youth Team registration form') : isTcrfc ? '加入學院／兒童訓練報名表單' : '加入青年隊報名表單' }}</h2>
     <div class="form-layout form-layout--split">
       <FormStatusBanner
         :status="status"
         :error-message="errorMessage"
         :success-message="isEn
-          ? 'We have received the registration! An automatic reply has been sent to the parent\'s email address, and the Academy or Programs department will be in touch shortly, depending on the program chosen.'
+          ? (isTcrfc ? 'We have received the registration! An automatic reply has been sent to the parent\'s email address, and the Academy or Programs department will be in touch shortly, depending on the program chosen.' : 'We have received the registration! An automatic reply has been sent to the parent\'s email address, and the club will be in touch shortly.')
           : isTcrfc
           ? '已收到報名資料！系統已寄送自動回覆信到家長填寫的 Email，學院部或課程部會依報名項目盡快聯繫。'
           : '已收到報名資料！系統已寄送自動回覆信到家長填寫的 Email，俱樂部會盡快聯繫。'"
@@ -173,12 +176,12 @@ async function onSubmit() {
                    只是畫面上不再稱「學院」。 -->
               <select v-else id="a-program" v-model="program" name="program" required aria-describedby="a-program-error a-program-hint">
                 <option value="">{{ tx('請選擇', 'Please select') }}</option>
-                <option value="academy-u15">U15 青年隊</option>
-                <option value="academy-u12">U12 青年隊</option>
+                <option value="academy-u15">{{ tx('U15 青年隊', 'U15 Youth team') }}</option>
+                <option value="academy-u12">{{ tx('U12 青年隊', 'U12 Youth team') }}</option>
               </select>
               <p class="field-error" id="a-program-error" role="alert">{{ tx('請選擇想報名的項目', 'Please select a program') }}</p>
               <p v-if="isTcrfc" class="field-hint" id="a-program-hint"><template v-if="isEn">Academy squads are long-term training squads and require a trial; children's training and specialist training are graded programs that run in sessions. If you are not sure which suits your child, choose "Not sure yet" and we will recommend one based on age and level.</template><template v-else>學院梯隊為長期培訓編制，需經試訓；兒童訓練與專項訓練為分級課程，依梯次開課。不確定適合哪一種，選「尚未確定」即可，我們會依學員年齡與程度建議。</template></p>
-              <p v-else id="a-program-hint" class="field-hint">青年隊為長期培訓編制，需經試訓。兒童訓練與專項訓練請見<a :href="lp('/zh/programs/')">推廣活動</a>單元，現場個人報名。</p>
+              <p v-else id="a-program-hint" class="field-hint"><template v-if="isEn">The Youth team is a long-term training squad and requires a trial. For children's training and specialist training, see the <a :href="lp('/zh/programs/')">Programs</a> section, where registration is in person on site.</template><template v-else>青年隊為長期培訓編制，需經試訓。兒童訓練與專項訓練請見<a :href="lp('/zh/programs/')">推廣活動</a>單元，現場個人報名。</template></p>
             </div>
             <div class="form-field">
               <label for="a-location">{{ tx('偏好受訓地點', 'Preferred training location') }}</label>
@@ -272,7 +275,8 @@ async function onSubmit() {
         <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">{{ tx('送出報名', 'Submit') }}</button>
 
         <div class="form-submit-note">
-          <p v-if="isEn"><strong>What happens after you submit?</strong> An automatic reply is sent straight away to the parent's email address to confirm we have received the details. For Academy squads, the Academy Department will arrange trials and information sessions; for children's training or specialist training, the Programs Department will contact you to confirm session times.</p>
+          <p v-if="isEn && !isTcrfc"><strong>What happens after you submit?</strong> An automatic reply is sent straight away to the parent's email address to confirm we have received the details. The club also receives a notification and will arrange trials and information.</p>
+          <p v-else-if="isEn"><strong>What happens after you submit?</strong> An automatic reply is sent straight away to the parent's email address to confirm we have received the details. For Academy squads, the Academy Department will arrange trials and information sessions; for children's training or specialist training, the Programs Department will contact you to confirm session times.</p>
           <p v-else-if="isTcrfc"><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；報名學院梯隊由學院部窗口接手安排試訓與說明會，報名兒童訓練或專項訓練則由課程部窗口聯繫確認開課時段。</p>
           <p v-else><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；俱樂部會另外收到通知信，安排後續試訓與說明。</p>
         </div>
@@ -282,7 +286,7 @@ async function onSubmit() {
         <div class="form-sidebar__sticky">
         <div class="form-sidebar__card">
           <p class="form-sidebar__dept">{{ tx('收件單位', 'Handled by') }}</p>
-          <h2>{{ isEn ? 'Academy Department / Programs Department' : isTcrfc ? '學院部／課程部' : clubAssets.shortNameZh }}</h2>
+          <h2>{{ isEn ? (isTcrfc ? 'Academy Department / Programs Department' : clubEn) : isTcrfc ? '學院部／課程部' : clubAssets.shortNameZh }}</h2>
           <p v-if="isTcrfc" class="field-hint"><template v-if="isEn">Your application is passed to the relevant team based on the program you choose.</template><template v-else>依表單中選擇的報名項目轉交對應單位。</template></p>
         </div>
         <div class="form-sidebar__card">
@@ -293,7 +297,7 @@ async function onSubmit() {
             <li>{{ tx('專項訓練：守門員／前鋒／後衛／中場／體能與速度／高階訓練', 'Specialist training: goalkeeper, forward, defender, midfield, fitness and speed, advanced training') }}</li>
           </ul>
           <ul v-else>
-            <li>青年隊：{{ academyLabel() }} 試訓申請</li>
+            <li><template v-if="isEn">Youth team: {{ academyLabel(' / ') }} trial applications</template><template v-else>青年隊：{{ academyLabel() }} 試訓申請</template></li>
           </ul>
           <p v-if="isTcrfc" class="field-hint"><template v-if="isEn">If you are not sure which one suits your child, choose "Not sure yet" and we will recommend one based on age and level.</template><template v-else>不確定適合哪一項也沒關係，可選擇「尚未確定」，我們會依學員年齡與程度建議。</template></p>
         </div>

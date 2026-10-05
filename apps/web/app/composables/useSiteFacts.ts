@@ -104,7 +104,7 @@ function mergeSiteFacts(
     venues: zh.venues.map(
       (v, i): SiteFactVenue => ({
         nameZh: v.name,
-        nameEn: pickEn(en?.venues[i]?.name, null),
+        nameEn: pickEn(en?.venues[i]?.name, SITE_FACTS[club].venues.find((sv) => sv.nameZh === v.name)?.nameEn ?? null),
         address: v.address,
         isHomeGround: v.isHomeGround,
       }),

@@ -3,14 +3,15 @@
 // 後端一律回 202（不洩漏 Email 是否註冊），畫面也一律顯示同一句話。重設連結 1 小時有效、只能用一次。
 import { toMemberApiError } from '#shared/utils/member'
 
-definePageMeta({ nav: '', unit: '14', enReady: true })
+definePageMeta({ nav: '', unit: '14', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('forgotPassword', CLUB_NAME_EN).title : `忘記密碼｜${clubAssets.value.nameZh}`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('forgotPassword', clubNameEn.value).title : `忘記密碼｜${clubAssets.value.nameZh}`)),
   robots: 'noindex, nofollow',
 })
 

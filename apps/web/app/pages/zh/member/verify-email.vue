@@ -5,15 +5,16 @@
 // 成功後該俱樂部會自動建立免費（一般會員）會籍與第一張會員卡。連結 24 小時有效，失效時提供重寄。
 import { toMemberApiError } from '#shared/utils/member'
 
-definePageMeta({ nav: '', unit: '14', enReady: true })
+definePageMeta({ nav: '', unit: '14', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('verifyEmail', CLUB_NAME_EN).title : `Email 驗證｜${clubAssets.value.nameZh}`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('verifyEmail', clubNameEn.value).title : `Email 驗證｜${clubAssets.value.nameZh}`)),
   robots: 'noindex, nofollow',
 })
 
@@ -79,7 +80,7 @@ async function resend() {
     <div class="form-layout form-layout--narrow">
       <p v-if="state === 'checking'" class="mc-empty" role="status">{{ tx('驗證中…', 'Verifying…') }}</p>
       <div v-else-if="state === 'ok'" class="mc-alert mc-alert--ok" role="status">
-        <p v-if="isEn"><strong>Your email has been verified.</strong> Your account is now active, and a Registered member membership and digital membership card for {{ CLUB_NAME_EN }} have been created.</p>
+        <p v-if="isEn"><strong>Your email has been verified.</strong> Your account is now active, and a Registered member membership and digital membership card for {{ clubNameEn }} have been created.</p>
         <p v-else><strong>Email 驗證完成。</strong>您的帳號已啟用，並已建立{{ clubAssets.shortNameZh }}的一般會員會籍與電子會員卡。</p>
         <p><a class="btn btn--primary btn--sm" :href="lp('/zh/member/')">{{ tx('前往登入', 'Go to sign in') }}</a></p>
       </div>

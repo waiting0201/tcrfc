@@ -9,16 +9,17 @@
 //     同一頁換成會員中心，不需要 `?next=`。
 // 🔴 與會員中心同一套限制：noindex、`Cache-Control: no-store`（nuxt.config.ts routeRules `/zh/member/**` 已涵蓋）、
 // 所有個人資料只在瀏覽器端載入。單元代號沿用會員中心 '14'（check-site-units-coverage 已明文排除，GEO-02）。
-definePageMeta({ nav: '', unit: '14', enReady: true })
+definePageMeta({ nav: '', unit: '14', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const { isLoggedIn, restored, restore } = useMemberSession()
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('upgrade', CLUB_NAME_EN).title : `升級付費會籍｜會員中心｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('upgrade', CLUB_NAME_EN).description : `${clubAssets.value.nameZh}付費球迷會籍的權益對照與升級申請入口。`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('upgrade', clubNameEn.value).title : `升級付費會籍｜會員中心｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('upgrade', clubNameEn.value).description : `${clubAssets.value.nameZh}付費球迷會籍的權益對照與升級申請入口。`)),
   robots: 'noindex, nofollow',
 })
 

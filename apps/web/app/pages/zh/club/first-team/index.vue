@@ -19,7 +19,7 @@ import type { PlayerStatsResponse, StandingsResponse } from '#shared/utils/stand
 import type { PlayerDto } from '#shared/utils/player'
 import { playerPath } from '#shared/utils/player'
 
-definePageMeta({ nav: 'club', unit: '3.1', enReady: true })
+definePageMeta({ nav: 'club', unit: '3.1', enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
@@ -38,12 +38,13 @@ const { lp, locale, isEn, tx } = useLocale()
 // ——原本固定寫 useSiteFacts('tcrfc') 只是因為當時只有榮譽時間軸（isTcrfc 專屬區塊）
 // 用得到，現在 hero／SEO／intro 兩俱樂部都要讀，改成動態帶入目前 club。
 const { facts, primaryVenue } = useSiteFacts(clubKey.value)
-const hero = computed(() => (isEn.value ? getFirstTeamHeroEn(facts.value) : getFirstTeamHero(clubKey.value, facts.value)))
-const intro = computed(() => (isEn.value ? getFirstTeamIntroEn(facts.value) : getFirstTeamIntro(clubKey.value, facts.value)))
+// 英文版：磐石用 `*En`，藍鯨用 `*EnBw`（club-copy-en-club.ts 檔頭）。
+const hero = computed(() => (isEn.value ? (isTcrfc.value ? getFirstTeamHeroEn(facts.value) : getFirstTeamHeroEnBw(facts.value)) : getFirstTeamHero(clubKey.value, facts.value)))
+const intro = computed(() => (isEn.value ? (isTcrfc.value ? getFirstTeamIntroEn(facts.value) : getFirstTeamIntroEnBw(facts.value)) : getFirstTeamIntro(clubKey.value, facts.value)))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getFirstTeamSeoEn(facts.value) : getFirstTeamSeo(clubKey.value, facts.value)).title),
-  description: computed(() => (isEn.value ? getFirstTeamSeoEn(facts.value) : getFirstTeamSeo(clubKey.value, facts.value)).description),
+  title: computed(() => (isEn.value ? (isTcrfc.value ? getFirstTeamSeoEn(facts.value) : getFirstTeamSeoEnBw(facts.value)) : getFirstTeamSeo(clubKey.value, facts.value)).title),
+  description: computed(() => (isEn.value ? (isTcrfc.value ? getFirstTeamSeoEn(facts.value) : getFirstTeamSeoEnBw(facts.value)) : getFirstTeamSeo(clubKey.value, facts.value)).description),
 })
 
 // SportsTeam JSON-LD（GEO-05／S1-12f）：teamCode 依俱樂部算出（原本寫死 'D1'，藍鯨容器
@@ -156,7 +157,7 @@ function homeAwayLabel(homeAway: string | null): string {
 
 /** 賽程表「賽事」欄的對戰組合文字，依主客場把自家隊名排在正確的一邊。 */
 function matchupLabel(m: { homeAway: string | null; opponent: string | null }): string {
-  const self = isEn.value ? CLUB_NAME_EN : identity.value.shortNameZh
+  const self = isEn.value ? (isTcrfc.value ? CLUB_NAME_EN : BW_NAME_EN) : identity.value.shortNameZh
   const opponent = m.opponent ?? 'TBC'
   if (m.homeAway === 'away') return `${opponent} vs ${self}`
   return `${self} vs ${opponent}`
@@ -475,9 +476,9 @@ const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.val
            getPlayerDevelopmentSeo()／getPlayerDevelopmentHero()。 -->
       <div class="cta-card">
         <p class="cta-card__num">3.2</p>
-        <p class="cta-card__title">{{ isEn ? 'Player Development' : (isTcrfc ? '球員發展系統' : '球員培育重點') }}</p>
-        <p class="cta-card__desc">{{ isEn ? 'See how the First Team builds players\' professional competitiveness through eight modules.' : (isTcrfc ? '了解一線隊如何透過八大模組培養球員的職業競爭力。' : '了解一線隊如何透過八大面向持續培育球員。') }}</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/player-development/')">{{ isEn ? 'View Player Development' : (isTcrfc ? '查看發展系統' : '查看培育重點') }}</a>
+        <p class="cta-card__title">{{ isEn ? (isTcrfc ? 'Player Development' : CLUB_FIRST_TEAM_PD_CARD_EN_BW.title) : (isTcrfc ? '球員發展系統' : '球員培育重點') }}</p>
+        <p class="cta-card__desc">{{ isEn ? (isTcrfc ? 'See how the First Team builds players\' professional competitiveness through eight modules.' : CLUB_FIRST_TEAM_PD_CARD_EN_BW.desc) : (isTcrfc ? '了解一線隊如何透過八大模組培養球員的職業競爭力。' : '了解一線隊如何透過八大面向持續培育球員。') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/player-development/')">{{ isEn ? (isTcrfc ? 'View Player Development' : CLUB_FIRST_TEAM_PD_CARD_EN_BW.cta) : (isTcrfc ? '查看發展系統' : '查看培育重點') }}</a>
       </div>
     </div>
   </div>

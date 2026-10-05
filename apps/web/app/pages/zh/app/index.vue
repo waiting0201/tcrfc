@@ -8,11 +8,12 @@
 // App 尚未上架，兩者為空時顯示「即將上線」，只有 https 網址才會變成按鈕。功能描述只列 App 規劃書 §2.3
 // 對照表已有的畫面（賽程、新聞、球員、特約店家、課程、會員卡、會籍升級），不新增承諾。
 // 頁面 SEO 適用主站規範（App 規劃書 §1.3「SEO／GEO」列）：有 title／description，canonical 由全站機制產生。
-definePageMeta({ nav: '', unit: 'G-08', enReady: true })
+definePageMeta({ nav: '', unit: 'G-08', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 
 const httpsOnly = (u: unknown) => (typeof u === 'string' && /^https:\/\//i.test(u) ? u : null)
 const appStoreUrl = computed(() => httpsOnly(config.public.appStoreUrl))
@@ -20,8 +21,8 @@ const playStoreUrl = computed(() => httpsOnly(config.public.playStoreUrl))
 const available = computed(() => Boolean(appStoreUrl.value || playStoreUrl.value))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('app', CLUB_NAME_EN).title : `下載 App｜台中足球 Taichung Football｜${clubAssets.value.shortNameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('app', CLUB_NAME_EN).description : '台中足球 App：兩支球隊共同的官方 App，賽程、新聞、球員、特約店家、課程與電子會員卡，一個 App 全部帶著走。')),
+  title: computed(() => (isEn.value ? getShopSeoEn('app', clubNameEn.value).title : `下載 App｜台中足球 Taichung Football｜${clubAssets.value.shortNameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('app', clubNameEn.value).description : '台中足球 App：兩支球隊共同的官方 App，賽程、新聞、球員、特約店家、課程與電子會員卡，一個 App 全部帶著走。')),
 })
 
 const FEATURES: ReadonlyArray<{ title: string, desc: string }> = [

@@ -7,19 +7,20 @@
 // 球員故事版型」，本頁對藍鯨維持開放（版型承諾沿用），但沒有任何已核實、已取得肖像
 // 同意的藍鯨球員故事案例可用——藍鯨版改為空狀態（0 案例），不得挪用磐石球員（孫恩祈／
 // 山內大空／楊朝景）充數，見 club-copy.ts「03.5 球員故事」節。
-definePageMeta({ nav: 'club', unit: '3.5', enReady: true })
+definePageMeta({ nav: 'club', unit: '3.5', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
-const hero = computed(() => (isEn.value ? getPlayerStoriesHeroEn() : getPlayerStoriesHero(clubKey.value)))
-const emptyNote = computed(() => getPlayerStoriesEmptyNote(clubKey.value))
+// 英文版：磐石用 `*En`，藍鯨用 `*EnBw`／`*_EN_BW`（club-copy-en-club.ts 檔頭）。
+const hero = computed(() => (isEn.value ? (isTcrfc.value ? getPlayerStoriesHeroEn() : getPlayerStoriesHeroEnBw()) : getPlayerStoriesHero(clubKey.value)))
+const emptyNote = computed(() => (isEn.value ? CLUB_PLAYER_STORIES_EMPTY_NOTE_EN_BW : getPlayerStoriesEmptyNote(clubKey.value)))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getPlayerStoriesSeoEn() : getPlayerStoriesSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getPlayerStoriesSeoEn() : getPlayerStoriesSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerStoriesSeoEn() : getPlayerStoriesSeoEnBw()) : getPlayerStoriesSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerStoriesSeoEn() : getPlayerStoriesSeoEnBw()) : getPlayerStoriesSeo(clubKey.value)).description),
 })
 
 onMounted(() => {
@@ -138,7 +139,8 @@ onMounted(() => {
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">{{ tx('國際發展通道', 'International Pathways') }}</p>
         <p class="cta-card__desc">
-          <template v-if="isEn">Learn about the full route players take to Europe, Japan and Hong Kong.</template>
+          <template v-if="isEn && isTcrfc">Learn about the full route players take to Europe, Japan and Hong Kong.</template>
+          <template v-else-if="isEn">{{ CLUB_PLAYER_STORIES_INTL_CARD_DESC_EN_BW }}</template>
           <template v-else-if="isTcrfc">了解球員通往歐洲、日本、香港的完整路徑。</template>
           <template v-else>了解球員旅外日本、中國的真實案例。</template>
         </p>

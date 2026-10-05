@@ -6,10 +6,11 @@
 // `player-stories`，這個分類目前必然是 0 篇——跟 mockup 原本的「空狀態頁面」文案一致，
 // 差別只在於現在是「真的查詢後發現 0 篇」，不是寫死的假設。沒有 NewsFilterForm（比照
 // app/components/news/NewsFilterForm.vue 檔頭既有慣例：資料量太少不需要年月／關鍵字篩選）。
-definePageMeta({ nav: "news", unit: "07", enReady: true })
+definePageMeta({ nav: "news", unit: "07", enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
+const clubKey: 'tcrfc' | 'bw' = club === 'bw' ? 'bw' : 'tcrfc'
 const { locale, lp, isEn, tx } = useLocale()
 const { data } = await useFetch(`/api/backend/${club}/news`, {
   query: { category: 'player-stories', pageSize: 200, lang: locale.value },
@@ -20,8 +21,8 @@ const articles = computed(() => data.value?.items ?? [])
 // 分類導覽改用共用元件 NewsCategoryTabs（原本手刻複製一份，含寫死的「7.3 學院新聞」，
 // 該元件本輪已改為依俱樂部動態組字，見 app/components/news/NewsCategoryTabs.vue）。
 useSeoMeta({
-  title: computed(() => isEn.value ? getNewsCategorySeoEn('player-stories', null).title : `球員故事 Player Stories｜新聞 News｜${getClubAssets(club).nameZh}`),
-  description: computed(() => isEn.value ? getNewsCategorySeoEn('player-stories', null).description : `${getClubAssets(club).shortNameZh}球員故事與人物專訪，內容尚待客戶提供，目前為空狀態頁面。`),
+  title: computed(() => isEn.value ? getNewsCategorySeoEn('player-stories', null, clubKey).title : `球員故事 Player Stories｜新聞 News｜${getClubAssets(club).nameZh}`),
+  description: computed(() => isEn.value ? getNewsCategorySeoEn('player-stories', null, clubKey).description : `${getClubAssets(club).shortNameZh}球員故事與人物專訪，內容尚待客戶提供，目前為空狀態頁面。`),
 })
 </script>
 
@@ -41,7 +42,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">7.4 Player Stories</p>
     <h1>{{ tx('球員故事', 'Player Stories') }}<span v-if="!isEn" class="en">Player Stories</span></h1>
-    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('player-stories').lede }}</p>
+    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('player-stories', clubKey).lede }}</p>
     <p v-else class="page-hero__lede">球員的成長歷程與心路歷程專訪，內容陸續建置中。</p>
   </div>
 </section>

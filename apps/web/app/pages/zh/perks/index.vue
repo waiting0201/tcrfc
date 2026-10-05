@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // app/pages/zh/perks/index.vue — 由 site/src/pages/zh/perks/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
-definePageMeta({ nav: 'culture', unit: '08', enReady: true })
+definePageMeta({ nav: 'culture', unit: '08', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -9,7 +9,8 @@ const config = useRuntimeConfig()
 // privacy/index.vue；麵包屑第二層文字改讀既有的 identity.cultureLabelZh（原本已是
 // SiteHeader／SiteFooter 共用的既有欄位，本頁先前沒有引用，是既有缺口）。
 const clubAssets = computed(() => getClubAssets(config.public.club))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(config.public.club)))
+const identity = computed(() => (isEn.value ? (config.public.club === 'bw' ? getClubIdentityEnBw() : getClubIdentityEn()) : getClubIdentity(config.public.club)))
+const isTcrfc = computed(() => config.public.club !== 'bw')
 
 // S2-11（8.4 特約店家）：清單來自後台 K4（`partner-stores`，本俱樂部專屬＋兩隊共同、已上架且在合作期間內），
 // 篩選（類別／地區／適用層級）走網址 query，SSR 與無 JS 皆可用；沒有已上架店家時顯示誠實的空狀態。
@@ -32,9 +33,9 @@ function setFilter(key: 'category' | 'region' | 'tier', value: string) {
 const safeImg = (u: string | null) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? CLUB_PERKS_SEO_EN.title : `特約店家 Partner Perks｜${clubAssets.value.nameZh}`)),
+  title: computed(() => (isEn.value ? (isTcrfc.value ? CLUB_PERKS_SEO_EN : CLUB_PERKS_SEO_EN_BW).title : `特約店家 Partner Perks｜${clubAssets.value.nameZh}`)),
   description: computed(() => (isEn.value
-    ? CLUB_PERKS_SEO_EN.description
+    ? (isTcrfc.value ? CLUB_PERKS_SEO_EN : CLUB_PERKS_SEO_EN_BW).description
     : `${clubAssets.value.shortNameZh}會員的特約店家折扣清單。到店出示電子會員卡即可享有優惠，依店家標示適用一般會員或付費球迷會員。`)),
 })
 </script>
@@ -55,7 +56,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">Partner Perks</p>
     <h1>{{ tx('特約店家', 'Partner Perks') }}<span v-if="!isEn" class="en">Partner Perks</span></h1>
-    <p class="page-hero__lede">{{ isEn ? 'Local stores working with Taichung Rock. Members can enjoy offers by showing their digital membership card in store. This page is public and can be viewed without logging in.' : `與${clubAssets.shortNameZh}合作的在地店家，會員到店出示電子會員卡即可享有優惠。本頁公開，不需登入即可瀏覽。` }}</p>
+    <p class="page-hero__lede">{{ isEn ? (isTcrfc ? 'Local stores working with Taichung Rock. Members can enjoy offers by showing their digital membership card in store. This page is public and can be viewed without logging in.' : CLUB_PERKS_HERO_LEDE_EN_BW) : `與${clubAssets.shortNameZh}合作的在地店家，會員到店出示電子會員卡即可享有優惠。本頁公開，不需登入即可瀏覽。` }}</p>
   </div>
 </section>
 

@@ -28,18 +28,19 @@
 //
 // 分頁籤（ARIA tablist）行為改寫自 mockup 的 31 行 client script，邏輯逐條保留
 // （點擊切換、方向鍵／Home／End 鍵盤導覽、切換後 focus 移到該分頁籤）。
-definePageMeta({ nav: 'academy', unit: '4.2', enReady: true })
+definePageMeta({ nav: 'academy', unit: '4.2', enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
 const clubKey = computed<'tcrfc' | 'bw'>(() => (club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.value) : identity.value.academyLabelZh))
 // S1-12d 收尾第二輪：hero／SEO／分頁定義三者含梯隊代碼事實，club-copy.ts 已改為工廠函式。
 const { facts } = useSiteFacts(clubKey.value)
 // C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案；分頁 id／teamCode 與中文版相同）。
-const hero = computed(() => (isEn.value ? getAcademyTeamsHeroEn(facts.value) : getAcademyTeamsHero(clubKey.value, facts.value)))
-const tabs = computed(() => (isEn.value ? getAcademyTeamTabsEn(facts.value) : getAcademyTeamTabs(clubKey.value, facts.value)))
+const hero = computed(() => (isEn.value ? getAcademyTeamsHeroEn(facts.value, clubKey.value) : getAcademyTeamsHero(clubKey.value, facts.value)))
+const tabs = computed(() => (isEn.value ? getAcademyTeamTabsEn(facts.value, clubKey.value) : getAcademyTeamTabs(clubKey.value, facts.value)))
 /** 有真實 `Team.code` 可查詢的分頁（排除磐石的「其他年齡層」靜態說明分頁）。 */
 const teamTabs = computed(() => tabs.value.filter((t) => t.teamCode !== null))
 
@@ -81,7 +82,7 @@ function onTabKeydown(e: KeyboardEvent, index: number) {
   selectTab(ids[idx]!)
 }
 
-const seo = computed(() => (isEn.value ? getAcademyTeamsSeoEn(facts.value) : getAcademyTeamsSeo(clubKey.value, facts.value)))
+const seo = computed(() => (isEn.value ? getAcademyTeamsSeoEn(facts.value, clubKey.value) : getAcademyTeamsSeo(clubKey.value, facts.value)))
 useSeoMeta({
   title: computed(() => seo.value.title),
   description: computed(() => seo.value.description),
@@ -97,7 +98,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
-      <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
+      <li><a :href="lp('/zh/academy/')">{{ academyCrumb }}</a></li>
       <li aria-current="page">{{ hero.h1Zh }}</li>
     </ol>
   </div>
@@ -185,8 +186,8 @@ useSeoMeta({
            shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
       <a class="cta-card" :href="lp('/zh/academy/pathway/')">
         <span class="cta-card__num">4.3</span>
-        <span class="cta-card__title">{{ tx(isTcrfc ? '學院發展路徑' : '青年隊發展路徑', 'Academy Pathway') }}</span>
-        <p class="cta-card__desc">{{ tx(isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑', 'The pathway from U12 to the First Team and overseas') }}</p>
+        <span class="cta-card__title">{{ tx(isTcrfc ? '學院發展路徑' : '青年隊發展路徑', isTcrfc ? 'Academy Pathway' : 'Youth Pathway') }}</span>
+        <p class="cta-card__desc">{{ tx(isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑', isTcrfc ? 'The pathway from U12 to the First Team and overseas' : 'The pathway from U12 to the First Team') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/coaches/')">
         <span class="cta-card__num">4.5</span>

@@ -10,20 +10,22 @@
 // `COACH_TRAINING_BODY_BW`（逐字節錄舊站原文，紀律 11）。磐石版「合作學校列表」與
 // 「社區計畫」「教練培訓」兩段既有內容本來就是空白（客戶尚未提供），維持原樣，
 // 不臆造磐石的對應內容。
-definePageMeta({ nav: 'programs', unit: '5.5', enReady: true })
+definePageMeta({ nav: 'programs', unit: '5.5', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
-const hero = computed(() => (isEn.value ? getSchoolCommunityHeroEn() : getSchoolCommunityHero(clubKey.value)))
+const hero = computed(() => (isEn.value ? getSchoolCommunityHeroEn(clubKey.value) : getSchoolCommunityHero(clubKey.value)))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getSchoolCommunitySeoEn() : getSchoolCommunitySeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getSchoolCommunitySeoEn() : getSchoolCommunitySeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? getSchoolCommunitySeoEn(clubKey.value) : getSchoolCommunitySeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getSchoolCommunitySeoEn(clubKey.value) : getSchoolCommunitySeo(clubKey.value)).description),
 })
 
+const schoolPartners = computed(() => (isEn.value ? SCHOOL_PARTNERS_BW_EN : SCHOOL_PARTNERS_BW))
+const clubNameEn = computed(() => (isTcrfc.value ? 'Taichung Rock FC' : BW_NAME_EN))
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'school_community', pageSize: 5, lang: locale.value },
 })
@@ -79,17 +81,17 @@ useCourseSchema(
     <div class="grid grid--3">
       <div class="prose">
         <h2>{{ tx('校園合作方案', 'School Programs') }}</h2>
-        <p v-if="!isTcrfc">建教合作學校名單見下方「合作學校列表」。</p>
+        <p v-if="!isTcrfc">{{ tx('建教合作學校名單見下方「合作學校列表」。', 'See the "Partner Schools" list below for our industry-academia partner schools.') }}</p>
         <p v-else class="is-pending">{{ tx('內容準備中，稍後將於本頁公布。', 'Content is being prepared and will be published on this page soon.') }}</p>
       </div>
       <div class="prose">
         <h2>{{ tx('社區計畫', 'Community Projects') }}</h2>
-        <p v-if="!isTcrfc">{{ COMMUNITY_PROGRAM_BODY_BW }}</p>
+        <p v-if="!isTcrfc">{{ isEn ? COMMUNITY_PROGRAM_BODY_BW_EN : COMMUNITY_PROGRAM_BODY_BW }}</p>
         <p v-else class="is-pending">{{ tx('內容準備中，稍後將於本頁公布。', 'Content is being prepared and will be published on this page soon.') }}</p>
       </div>
       <div class="prose">
         <h2>{{ tx('教練培訓', 'Coach Education') }}</h2>
-        <p v-if="!isTcrfc">{{ COACH_TRAINING_BODY_BW }}</p>
+        <p v-if="!isTcrfc">{{ isEn ? COACH_TRAINING_BODY_BW_EN : COACH_TRAINING_BODY_BW }}</p>
         <p v-else class="is-pending">{{ tx('內容準備中，稍後將於本頁公布。', 'Content is being prepared and will be published on this page soon.') }}</p>
       </div>
     </div>
@@ -100,7 +102,7 @@ useCourseSchema(
   <div class="container">
     <div class="prose" style="margin-bottom:1.5rem;">
       <h2 id="sch-list-title">{{ tx('合作學校列表', 'Partner Schools') }}</h2>
-      <p v-if="!isTcrfc">台中藍鯨既有建教合作學校（女子足球隊）如下：</p>
+      <p v-if="!isTcrfc">{{ tx('台中藍鯨既有建教合作學校（女子足球隊）如下：', `The existing industry-academia partner schools (women's football teams) of ${BW_NAME_EN} are listed below:`) }}</p>
       <p v-else>{{ tx('合作學校名單將於客戶確認後公告於此處。', 'The list of partner schools will be published here once confirmed.') }}</p>
     </div>
     <div class="table-wrap">
@@ -109,10 +111,10 @@ useCourseSchema(
           <tr><th scope="col">{{ tx('學校／單位', 'School / organisation') }}</th><th scope="col">{{ tx('合作內容', 'Collaboration') }}</th><th scope="col">{{ tx('合作年度', 'Year') }}</th></tr>
         </thead>
         <tbody v-if="!isTcrfc">
-          <tr v-for="s in SCHOOL_PARTNERS_BW" :key="s.nameZh">
+          <tr v-for="s in schoolPartners" :key="s.nameZh">
             <td>{{ s.nameZh }}</td>
             <td>{{ s.contentZh }}</td>
-            <td :class="{ 'is-pending': !s.yearZh }">{{ s.yearZh ?? '未標明年度' }}</td>
+            <td :class="{ 'is-pending': !s.yearZh }">{{ s.yearZh ?? tx('未標明年度', SCHOOL_PARTNER_NO_YEAR_EN) }}</td>
           </tr>
         </tbody>
         <tbody v-else>
@@ -149,7 +151,7 @@ useCourseSchema(
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;max-width:60ch;">
       <h2 id="sch-form-title">{{ tx('洽談合作', 'Partnership Enquiries') }}</h2>
-      <p>{{ tx(`學校或社區單位如有合作意願，歡迎填寫以下表單，${getClubAssets(clubKey).shortNameZh}團隊將盡快與您聯繫。`, 'If your school or community organisation would like to work with us, please fill in the form below and the Taichung Rock FC team will be in touch as soon as possible.') }}</p>
+      <p>{{ tx(`學校或社區單位如有合作意願，歡迎填寫以下表單，${getClubAssets(clubKey).shortNameZh}團隊將盡快與您聯繫。`, `If your school or community organisation would like to work with us, please fill in the form below and the ${clubNameEn} team will be in touch as soon as possible.`) }}</p>
     </div>
 
     <form class="inquiry-form" onsubmit="return false;">
@@ -196,7 +198,7 @@ useCourseSchema(
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">PARTNER WITH US</p>
-        <h2 class="section-title" id="sch-cta-title">{{ tx(`與${getClubAssets(clubKey).shortNameZh}一起推廣足球`, 'Promote Football with Taichung Rock FC') }}</h2>
+        <h2 class="section-title" id="sch-cta-title">{{ tx(`與${getClubAssets(clubKey).shortNameZh}一起推廣足球`, `Promote Football with ${clubNameEn}`) }}</h2>
       </div>
     </div>
     <div class="hero__ctas" style="margin-top:1.5rem;">

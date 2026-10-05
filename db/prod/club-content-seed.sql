@@ -19,6 +19,7 @@
 -- DROPPED section=54 batches=1 reason=禁用表 tables=draw_roster_versions,draw_rosters,member_draws,member_draws_i18n
 -- DROPPED section=54 batches=1 reason=禁用表 tables=member_draws,member_draws_i18n
 -- DROPPED section=61 batches=2 reason=禁用表 tables=member_draws_i18n
+-- DROPPED section=61 batches=1 reason=參照表（正式庫已有） tables=clubs_i18n
 -- 匯入會寫入的表（清除程序只動這些表；匯入前必須全空）：
 -- OWNED achievements
 -- OWNED ad_campaigns
@@ -11032,6 +11033,1483 @@ FROM articles_i18n e
 JOIN articles b ON b.id = e.article_id
 JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
 WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2024-11-05-international-082';
+GO
+
+INSERT INTO competitions_i18n (competition_id, locale, name)
+SELECT b.id, N'en', N'Taiwan Mulan Football League'
+FROM competitions b JOIN competitions_i18n z ON z.competition_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'台灣木蘭女子足球聯賽'
+  AND NOT EXISTS (SELECT 1 FROM competitions_i18n e WHERE e.competition_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Taiwan Mulan Football League' ELSE e.name END
+FROM competitions_i18n e
+JOIN competitions b ON b.id = e.competition_id
+JOIN competitions_i18n z ON z.competition_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'台灣木蘭女子足球聯賽';
+GO
+
+INSERT INTO competitions_i18n (competition_id, locale, name)
+SELECT b.id, N'en', N'2025 National President''s Cup Football Championship'
+FROM competitions b JOIN competitions_i18n z ON z.competition_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'2025全國總統盃足球錦標賽'
+  AND NOT EXISTS (SELECT 1 FROM competitions_i18n e WHERE e.competition_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'2025 National President''s Cup Football Championship' ELSE e.name END
+FROM competitions_i18n e
+JOIN competitions b ON b.id = e.competition_id
+JOIN competitions_i18n z ON z.competition_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'2025全國總統盃足球錦標賽';
+GO
+
+INSERT INTO venues_i18n (venue_id, locale, name)
+SELECT b.id, N'en', N'Taichung Fengyuan Stadium'
+FROM venues b JOIN venues_i18n z ON z.venue_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.name = N'台中市立豐原體育場'
+  AND NOT EXISTS (SELECT 1 FROM venues_i18n e WHERE e.venue_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Taichung Fengyuan Stadium' ELSE e.name END
+FROM venues_i18n e
+JOIN venues b ON b.id = e.venue_id
+JOIN venues_i18n z ON z.venue_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.name = N'台中市立豐原體育場';
+GO
+
+INSERT INTO venues_i18n (venue_id, locale, name)
+SELECT b.id, N'en', N'Taichung Beitun Taiyuan Football Field'
+FROM venues b JOIN venues_i18n z ON z.venue_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.name = N'台中北屯太原足球場'
+  AND NOT EXISTS (SELECT 1 FROM venues_i18n e WHERE e.venue_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Taichung Beitun Taiyuan Football Field' ELSE e.name END
+FROM venues_i18n e
+JOIN venues b ON b.id = e.venue_id
+JOIN venues_i18n z ON z.venue_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.name = N'台中北屯太原足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Taichung Beitun Taiyuan Football Field'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'台中太原足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Taichung Beitun Taiyuan Football Field' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'台中太原足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Taichung Beitun Taiyuan Football Field'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'臺中太原足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Taichung Beitun Taiyuan Football Field' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'臺中太原足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Taichung Beitun Taiyuan Football Field'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'台中北屯太原足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Taichung Beitun Taiyuan Football Field' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'台中北屯太原足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Taichung Xitun Football Field'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'台中西屯足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Taichung Xitun Football Field' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'台中西屯足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Kaohsiung Nanzih Football Field'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'高雄楠梓足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Kaohsiung Nanzih Football Field' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'高雄楠梓足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Kaohsiung Nanzih Football Field'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'高雄市立楠梓足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Kaohsiung Nanzih Football Field' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'高雄市立楠梓足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Fu Jen Catholic University Football Field, New Taipei'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'新北輔仁大學足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Fu Jen Catholic University Football Field, New Taipei' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'新北輔仁大學足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Ming Chuan University Football Field, Guishan, Taoyuan'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'桃園龜山銘傳大學足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Ming Chuan University Football Field, Guishan, Taoyuan' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'桃園龜山銘傳大學足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Meilun Junior High School Football Field, Hualien'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'花蓮美崙國中足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Meilun Junior High School Football Field, Hualien' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'花蓮美崙國中足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Qingpu Football Field, Taoyuan'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'桃園青埔足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Qingpu Football Field, Taoyuan' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.venue = N'桃園青埔足球場';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'教練'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Coach' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'教練';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Head Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'總教練'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Head Coach' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'總教練';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Goalkeeper Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'守門教練'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Goalkeeper Coach' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'守門教練';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Athletic Trainer and Fitness Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'防護員兼體能教練'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Athletic Trainer and Fitness Coach' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'防護員兼體能教練';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, bio)
+SELECT b.id, N'en', N'2008  U-19 Asian Cup qualifiers, Chinese Taipei women''s national team: Head Coach
+2011  Shenzhen Universiade, Chinese Taipei women''s national team: Head Coach
+2013  East Asian Games, Chinese Taipei women''s football team: Coach
+2013  Kazan Universiade, Chinese Taipei women''s national team: Head Coach
+2014  East Asian Cup, Chinese Taipei women''s football team: Coach
+2014  Incheon Asian Games (Korea), Chinese Taipei women''s national team: Coach
+2015  Gwangju Universiade, Chinese Taipei women''s national team: Coach
+2016  Rio Olympics, Chinese Taipei women''s national team: Coach
+2014-2016  Taichung Blue Whale women''s football team, First Team: Head Coach
+2017  Taichung Blue Whale women''s football team, First Team: Coach
+2018-2024  Taichung Blue Whale women''s football team, First Team: Head Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'呂桂花'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.bio = CASE WHEN e.bio IS NULL OR e.bio = N'' OR e.bio = z.bio THEN N'2008  U-19 Asian Cup qualifiers, Chinese Taipei women''s national team: Head Coach
+2011  Shenzhen Universiade, Chinese Taipei women''s national team: Head Coach
+2013  East Asian Games, Chinese Taipei women''s football team: Coach
+2013  Kazan Universiade, Chinese Taipei women''s national team: Head Coach
+2014  East Asian Cup, Chinese Taipei women''s football team: Coach
+2014  Incheon Asian Games (Korea), Chinese Taipei women''s national team: Coach
+2015  Gwangju Universiade, Chinese Taipei women''s national team: Coach
+2016  Rio Olympics, Chinese Taipei women''s national team: Coach
+2014-2016  Taichung Blue Whale women''s football team, First Team: Head Coach
+2017  Taichung Blue Whale women''s football team, First Team: Coach
+2018-2024  Taichung Blue Whale women''s football team, First Team: Head Coach' ELSE e.bio END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'呂桂花';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, bio)
+SELECT b.id, N'en', N'2021-2023  Taichung Blue Whale: Coach
+2022-2023  Taichung Blue Whale U15 girls'' team: Coach
+2022-2024  Chinese Taipei women''s national team: Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'李彥廷'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.bio = CASE WHEN e.bio IS NULL OR e.bio = N'' OR e.bio = z.bio THEN N'2021-2023  Taichung Blue Whale: Coach
+2022-2023  Taichung Blue Whale U15 girls'' team: Coach
+2022-2024  Chinese Taipei women''s national team: Coach' ELSE e.bio END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'李彥廷';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, bio)
+SELECT b.id, N'en', N'2018  高雄陽信 women''s football team: Coach
+2016-2022  五權國民中學 girls'' football team: Head Coach
+2019-2024  Taichung Blue Whale women''s football team, First Team: Coach
+2022  Taichung Blue Whale Football Club U15 youth team: Head Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'鄭雅薰'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.bio = CASE WHEN e.bio IS NULL OR e.bio = N'' OR e.bio = z.bio THEN N'2018  高雄陽信 women''s football team: Coach
+2016-2022  五權國民中學 girls'' football team: Head Coach
+2019-2024  Taichung Blue Whale women''s football team, First Team: Coach
+2022  Taichung Blue Whale Football Club U15 youth team: Head Coach' ELSE e.bio END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'鄭雅薰';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, bio)
+SELECT b.id, N'en', N'2019-2024  Taichung Blue Whale women''s football team: Goalkeeper Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'張博翔'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.bio = CASE WHEN e.bio IS NULL OR e.bio = N'' OR e.bio = z.bio THEN N'2019-2024  Taichung Blue Whale women''s football team: Goalkeeper Coach' ELSE e.bio END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'張博翔';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, bio)
+SELECT b.id, N'en', N'2023-2024  Taichung Blue Whale women''s football team: Athletic Trainer and Fitness Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'邱毓芳'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.bio = CASE WHEN e.bio IS NULL OR e.bio = N'' OR e.bio = z.bio THEN N'2023-2024  Taichung Blue Whale women''s football team: Athletic Trainer and Fitness Coach' ELSE e.bio END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'邱毓芳';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2014', N'1. Formed the Taichung Blue Whale women''s football team to compete in the Mulan League
+2. Took part in the 1st Taiwan Mulan Football League
+3. 1,200 Facebook followers
+4. Small artificial-turf football pitch completed at National Taiwan Sport University'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2014'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2014' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Formed the Taichung Blue Whale women''s football team to compete in the Mulan League
+2. Took part in the 1st Taiwan Mulan Football League
+3. 1,200 Facebook followers
+4. Small artificial-turf football pitch completed at National Taiwan Sport University' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2014';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2015', N'1. Took part in the 2nd Taiwan Mulan Football League
+2. Helped set up the girls'' football team at 台中市五權國中
+3. Ran a D-licence coaching course'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2015'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2015' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 2nd Taiwan Mulan Football League
+2. Helped set up the girls'' football team at 台中市五權國中
+3. Ran a D-licence coaching course' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2015';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2016', N'1. Took part in the 3rd Taiwan Mulan Football League
+2. Established the central Taiwan elite women''s training centre
+3. Hosted the AFC Women''s Football Festival for the first time'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2016'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2016' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 3rd Taiwan Mulan Football League
+2. Established the central Taiwan elite women''s training centre
+3. Hosted the AFC Women''s Football Festival for the first time' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2016';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2017', N'1. Took part in the 3rd Taiwan Mulan Football League
+2. Held the 1st Blue Whale Cup football tournament
+3. Elite Women''s Football Training Centre renamed the Central Training Centre
+4. Appointed JFA S-licence coach 堀野博幸 as First Team head coach
+5. Held a regional coaching workshop
+6. Taichung Beitun Taiyuan Football Field opened
+7. First Taiwan Mulan Football League title in club history
+8. Facebook followers reached 6,500'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2017'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2017' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 3rd Taiwan Mulan Football League
+2. Held the 1st Blue Whale Cup football tournament
+3. Elite Women''s Football Training Centre renamed the Central Training Centre
+4. Appointed JFA S-licence coach 堀野博幸 as First Team head coach
+5. Held a regional coaching workshop
+6. Taichung Beitun Taiyuan Football Field opened
+7. First Taiwan Mulan Football League title in club history
+8. Facebook followers reached 6,500' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2017';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2018', N'1. Took part in the 4th Taiwan Mulan Football League
+2. Founded the Taichung Blue Whale football school
+3. Central Training Centre renamed the Blue Whale Central Football Training Centre
+4. First professional player 包欣玄 joined Taichung Blue Whale
+5. Helped 台中市惠文高中 set up a women''s football team
+6. Second Taiwan Mulan Football League title in club history'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2018'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2018' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 4th Taiwan Mulan Football League
+2. Founded the Taichung Blue Whale football school
+3. Central Training Centre renamed the Blue Whale Central Football Training Centre
+4. First professional player 包欣玄 joined Taichung Blue Whale
+5. Helped 台中市惠文高中 set up a women''s football team
+6. Second Taiwan Mulan Football League title in club history' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2018';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2019', N'1. Took part in the 5th Taiwan Mulan Football League
+2. Goalkeeper Tsai Ming-Jung moved abroad to Japan
+3. First Japanese player Tanaka Maho joined
+4. Campaigned for the construction of the Taichung football park
+5. Formed an esports squad to compete in the PES 2020 World Cup
+6. Third Taiwan Mulan Football League title in club history
+7. First time the league held Blue Whale home-match ticket sales
+8. Passed the AFC Club Licence certification
+9. Head coach Lu Kuei-Hua won the AFC 2019 Grassroots Leader Award
+10. Themed match days held at home throughout the whole year for the first time
+11. Founded the Blue Whale Girls cheerleading squad
+12. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2019'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2019' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 5th Taiwan Mulan Football League
+2. Goalkeeper Tsai Ming-Jung moved abroad to Japan
+3. First Japanese player Tanaka Maho joined
+4. Campaigned for the construction of the Taichung football park
+5. Formed an esports squad to compete in the PES 2020 World Cup
+6. Third Taiwan Mulan Football League title in club history
+7. First time the league held Blue Whale home-match ticket sales
+8. Passed the AFC Club Licence certification
+9. Head coach Lu Kuei-Hua won the AFC 2019 Grassroots Leader Award
+10. Themed match days held at home throughout the whole year for the first time
+11. Founded the Blue Whale Girls cheerleading squad
+12. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2019';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2020', N'1. Took part in the 6th Taiwan Mulan Football League
+2. First Hong Kong player 吳卓蔚 joined
+3. First US player 瑪芮兒 joined
+4. Goalkeeper Cheng Ssu-Yu moved abroad to Japan
+5. Player 蘇育萱 moved abroad to Japan
+6. Blue Whale home-match ticket sales held in the league
+7. Taichung Blue Whale U15 girls'' team took part in the 1st Taiwan Youth League
+8. First Taiwan Mulan Football League runners-up finish in club history
+9. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2020'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2020' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 6th Taiwan Mulan Football League
+2. First Hong Kong player 吳卓蔚 joined
+3. First US player 瑪芮兒 joined
+4. Goalkeeper Cheng Ssu-Yu moved abroad to Japan
+5. Player 蘇育萱 moved abroad to Japan
+6. Blue Whale home-match ticket sales held in the league
+7. Taichung Blue Whale U15 girls'' team took part in the 1st Taiwan Youth League
+8. First Taiwan Mulan Football League runners-up finish in club history
+9. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2020';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2021', N'1. Took part in the 8th Taiwan Mulan Football League
+2. Second Japanese player 日高偉織 joined
+3. First Thai player Sornsai Pitsamai joined
+4. First Thai goalkeeper 納塔魯亞牧塔納維奇 joined
+5. Fourth Taiwan Mulan Football League title in club history
+6. First Taiwan Mulan League Cup (MLC) title in club history
+7. Taichung Blue Whale U15 girls'' team took part in the 2nd Taiwan Youth League
+8. Taichung Blue Whale U18 girls'' team took part in the 2nd Taiwan Youth League
+9. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2021'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2021' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 8th Taiwan Mulan Football League
+2. Second Japanese player 日高偉織 joined
+3. First Thai player Sornsai Pitsamai joined
+4. First Thai goalkeeper 納塔魯亞牧塔納維奇 joined
+5. Fourth Taiwan Mulan Football League title in club history
+6. First Taiwan Mulan League Cup (MLC) title in club history
+7. Taichung Blue Whale U15 girls'' team took part in the 2nd Taiwan Youth League
+8. Taichung Blue Whale U18 girls'' team took part in the 2nd Taiwan Youth League
+9. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2021';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2022', N'1. Took part in the 9th Taiwan Mulan Football League
+2. Represented Taiwan at the AFC Women''s Club Championship (Thailand)
+3. Third Thai player in club history, Intamee Silawan, joined
+4. Held the first top-level football opening match, a success amid the pandemic
+5. Taichung Blue Whale U15 girls'' team took part in the 3rd Taiwan Youth League
+6. Taichung Blue Whale U18 girls'' team took part in the 3rd Taiwan Youth League
+7. Taichung Blue Whale U15 won the first Taiwan Youth League U15 girls'' title
+8. Second Taiwan Mulan Football League runners-up finish in club history
+9. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2022'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2022' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 9th Taiwan Mulan Football League
+2. Represented Taiwan at the AFC Women''s Club Championship (Thailand)
+3. Third Thai player in club history, Intamee Silawan, joined
+4. Held the first top-level football opening match, a success amid the pandemic
+5. Taichung Blue Whale U15 girls'' team took part in the 3rd Taiwan Youth League
+6. Taichung Blue Whale U18 girls'' team took part in the 3rd Taiwan Youth League
+7. Taichung Blue Whale U15 won the first Taiwan Youth League U15 girls'' title
+8. Second Taiwan Mulan Football League runners-up finish in club history
+9. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2022';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2023', N'1. Took part in the 10th Taiwan Mulan Football League
+2. Groundbreaking of the Taichung football park, with the club invited to the ceremony
+3. Player 蘇育萱 moved abroad to China
+4. Fourth Thai player in club history, 席菲拉萬茵樂敏, joined
+5. Fifth Thai player in club history, Saowalak Peng-ngam, joined
+6. Facebook followers reached 16,500
+7. Fifth Taiwan Mulan Football League title in club history
+8. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2023'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2023' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 10th Taiwan Mulan Football League
+2. Groundbreaking of the Taichung football park, with the club invited to the ceremony
+3. Player 蘇育萱 moved abroad to China
+4. Fourth Thai player in club history, 席菲拉萬茵樂敏, joined
+5. Fifth Thai player in club history, Saowalak Peng-ngam, joined
+6. Facebook followers reached 16,500
+7. Fifth Taiwan Mulan Football League title in club history
+8. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2023';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2024', N'1. Took part in the 11th Taiwan Mulan Football League
+2. Founded the Taichung Blue Whale U10 girls'' team
+3. Taichung Blue Whale U10 girls'' team took part in the Taichung Mayor''s Cup for the first time
+4. Invited to the Yangxin Cup International Invitational and won the title
+5. Represented Taiwan in the 2024/25 AFC Women''s Champions League and advanced from the group stage
+6. Third Taiwan Mulan Football League runners-up finish in club history
+7. Sixth Thai player in club history and second Thai goalkeeper, Waraporn Boonsing, joined
+8. Saowalak Peng-ngam, the club''s second foreign player, won the Taiwan Mulan Football League Golden Boot of the year
+9. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2024'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2024' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 11th Taiwan Mulan Football League
+2. Founded the Taichung Blue Whale U10 girls'' team
+3. Taichung Blue Whale U10 girls'' team took part in the Taichung Mayor''s Cup for the first time
+4. Invited to the Yangxin Cup International Invitational and won the title
+5. Represented Taiwan in the 2024/25 AFC Women''s Champions League and advanced from the group stage
+6. Third Taiwan Mulan Football League runners-up finish in club history
+7. Sixth Thai player in club history and second Thai goalkeeper, Waraporn Boonsing, joined
+8. Saowalak Peng-ngam, the club''s second foreign player, won the Taiwan Mulan Football League Golden Boot of the year
+9. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2024';
+GO
+
+INSERT INTO milestones_i18n (milestone_id, locale, title, description)
+SELECT b.id, N'en', N'2025', N'1. Took part in the 12th Taiwan Mulan Football League
+2. Represented Taiwan in the 2024-25 AFC Women''s Champions League quarter-final stage and finished among the top 8 in Asia
+3. Runners-up at the 2025 National President''s Cup Football Championship
+4. Seventh Thai player in club history and third goalkeeper, 邱瑪尼-通蒙戈, joined
+5. Second Thai player 冼仲意 joined
+6. Head coach Lu Kuei-Hua nominated for the AFC award for Asia''s best women''s team coach
+7. Jersey carried the name of a charitable organisation for the first time: 台中惠明盲校
+8. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme
+9. First interview with a British world-football magazine'
+FROM milestones b JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2025'
+  AND NOT EXISTS (SELECT 1 FROM milestones_i18n e WHERE e.milestone_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2025' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'1. Took part in the 12th Taiwan Mulan Football League
+2. Represented Taiwan in the 2024-25 AFC Women''s Champions League quarter-final stage and finished among the top 8 in Asia
+3. Runners-up at the 2025 National President''s Cup Football Championship
+4. Seventh Thai player in club history and third goalkeeper, 邱瑪尼-通蒙戈, joined
+5. Second Thai player 冼仲意 joined
+6. Head coach Lu Kuei-Hua nominated for the AFC award for Asia''s best women''s team coach
+7. Jersey carried the name of a charitable organisation for the first time: 台中惠明盲校
+8. Took on the Sport i Taiwan 2.0 sports hotspot promotion programme
+9. First interview with a British world-football magazine' ELSE e.description END
+FROM milestones_i18n e
+JOIN milestones b ON b.id = e.milestone_id
+JOIN milestones_i18n z ON z.milestone_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2025';
+GO
+
+INSERT INTO banners_i18n (banner_id, locale, title, subtitle, image_alt, cta_1_label, cta_1_url, cta_2_label, cta_2_url)
+SELECT b.id, N'en', N'Taichung Blue Whale rides the waves towards the open ocean', N'Taichung Blue Whale Women''s Football Club · Founded on 12 April 2014 · Five-time Taiwan Mulan Football League champions', N'[Test] Carousel image description (image not yet uploaded)', N'About Taichung Blue Whale', N'/en/about/', N'View schedule', N'/en/schedule/'
+FROM banners b JOIN banners_i18n z ON z.banner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'航向世界的藍鯨'
+  AND NOT EXISTS (SELECT 1 FROM banners_i18n e WHERE e.banner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Blue Whale rides the waves towards the open ocean' ELSE e.title END,
+    e.subtitle = CASE WHEN e.subtitle IS NULL OR e.subtitle = N'' OR e.subtitle = z.subtitle THEN N'Taichung Blue Whale Women''s Football Club · Founded on 12 April 2014 · Five-time Taiwan Mulan Football League champions' ELSE e.subtitle END,
+    e.image_alt = CASE WHEN e.image_alt IS NULL OR e.image_alt = N'' OR e.image_alt = z.image_alt THEN N'[Test] Carousel image description (image not yet uploaded)' ELSE e.image_alt END,
+    e.cta_1_label = CASE WHEN e.cta_1_label IS NULL OR e.cta_1_label = N'' OR e.cta_1_label = z.cta_1_label THEN N'About Taichung Blue Whale' ELSE e.cta_1_label END,
+    e.cta_1_url = CASE WHEN e.cta_1_url IS NULL OR e.cta_1_url = N'' OR e.cta_1_url = z.cta_1_url THEN N'/en/about/' ELSE e.cta_1_url END,
+    e.cta_2_label = CASE WHEN e.cta_2_label IS NULL OR e.cta_2_label = N'' OR e.cta_2_label = z.cta_2_label THEN N'View schedule' ELSE e.cta_2_label END,
+    e.cta_2_url = CASE WHEN e.cta_2_url IS NULL OR e.cta_2_url = N'' OR e.cta_2_url = z.cta_2_url THEN N'/en/schedule/' ELSE e.cta_2_url END
+FROM banners_i18n e
+JOIN banners b ON b.id = e.banner_id
+JOIN banners_i18n z ON z.banner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'航向世界的藍鯨';
+GO
+
+INSERT INTO banners_i18n (banner_id, locale, title, subtitle, image_alt, cta_1_label, cta_1_url)
+SELECT b.id, N'en', N'[Test] Second carousel slide title', N'[Test] This is test content. Please replace it in the back office before launch.', N'[Test] Carousel image description (image not yet uploaded)', N'Join as a Player', N'/en/join/player/'
+FROM banners b JOIN banners_i18n z ON z.banner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'【測試】第二張輪播標題'
+  AND NOT EXISTS (SELECT 1 FROM banners_i18n e WHERE e.banner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Second carousel slide title' ELSE e.title END,
+    e.subtitle = CASE WHEN e.subtitle IS NULL OR e.subtitle = N'' OR e.subtitle = z.subtitle THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.subtitle END,
+    e.image_alt = CASE WHEN e.image_alt IS NULL OR e.image_alt = N'' OR e.image_alt = z.image_alt THEN N'[Test] Carousel image description (image not yet uploaded)' ELSE e.image_alt END,
+    e.cta_1_label = CASE WHEN e.cta_1_label IS NULL OR e.cta_1_label = N'' OR e.cta_1_label = z.cta_1_label THEN N'Join as a Player' ELSE e.cta_1_label END,
+    e.cta_1_url = CASE WHEN e.cta_1_url IS NULL OR e.cta_1_url = N'' OR e.cta_1_url = z.cta_1_url THEN N'/en/join/player/' ELSE e.cta_1_url END
+FROM banners_i18n e
+JOIN banners b ON b.id = e.banner_id
+JOIN banners_i18n z ON z.banner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'【測試】第二張輪播標題';
+GO
+
+INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
+SELECT b.id, N'en', N'Our Story | About Taichung Blue Whale | Taichung Blue Whale Women''s Football Club', N'Taichung Blue Whale Women''s Football Club was founded in Taichung in 2014 and belongs to the Taichung Women''s Football Association. Learn about the team''s position and the purpose it was founded for.'
+FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'about/our-story'
+  AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'Our Story | About Taichung Blue Whale | Taichung Blue Whale Women''s Football Club' ELSE e.seo_title END,
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'Taichung Blue Whale Women''s Football Club was founded in Taichung in 2014 and belongs to the Taichung Women''s Football Association. Learn about the team''s position and the purpose it was founded for.' ELSE e.seo_description END
+FROM pages_i18n e
+JOIN pages b ON b.id = e.page_id
+JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'about/our-story';
+GO
+
+INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
+SELECT b.id, N'en', N'Vision | About Taichung Blue Whale | Taichung Blue Whale Women''s Football Club', N'The vision of Taichung Blue Whale Women''s Football Club: endless exploration, resilience in the face of difficulty, a more refined attitude, the most genuine impact, and a more far-reaching purpose.'
+FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'about/vision'
+  AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'Vision | About Taichung Blue Whale | Taichung Blue Whale Women''s Football Club' ELSE e.seo_title END,
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'The vision of Taichung Blue Whale Women''s Football Club: endless exploration, resilience in the face of difficulty, a more refined attitude, the most genuine impact, and a more far-reaching purpose.' ELSE e.seo_description END
+FROM pages_i18n e
+JOIN pages b ON b.id = e.page_id
+JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'about/vision';
+GO
+
+INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
+SELECT b.id, N'en', N'Club Slogan and Training Spirit | About Taichung Blue Whale | Taichung Blue Whale Women''s Football Club', N'The club slogan and training spirit of Taichung Blue Whale Women''s Football Club, and the design idea behind the blue whale on the club crest.'
+FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'about/philosophy'
+  AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'Club Slogan and Training Spirit | About Taichung Blue Whale | Taichung Blue Whale Women''s Football Club' ELSE e.seo_title END,
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'The club slogan and training spirit of Taichung Blue Whale Women''s Football Club, and the design idea behind the blue whale on the club crest.' ELSE e.seo_description END
+FROM pages_i18n e
+JOIN pages b ON b.id = e.page_id
+JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'about/philosophy';
+GO
+
+INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
+SELECT b.id, N'en', N'[Test] Draft page', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'test-draft-page'
+  AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'[Test] Draft page' ELSE e.seo_title END,
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.seo_description END
+FROM pages_i18n e
+JOIN pages b ON b.id = e.page_id
+JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'test-draft-page';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'Do I have to buy football boots to join the sessions?', N'No. If you would like to buy a pair, you can ask the coach.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'上課一定要買足球鞋嗎？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'Do I have to buy football boots to join the sessions?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'No. If you would like to buy a pair, you can ask the coach.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'上課一定要買足球鞋嗎？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'Can I pay by card or digital payment?', N'Card and digital payment services are not available.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'可以刷卡或數位支付嗎？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'Can I pay by card or digital payment?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'Card and digital payment services are not available.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'可以刷卡或數位支付嗎？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'Do I need a certain level to join the U15 girls'' team?', N'No experience is needed. As long as you learn with commitment, you will have the chance to grow together and become a player.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'U15 女子隊需要有程度才能參加嗎？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'Do I need a certain level to join the U15 girls'' team?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'No experience is needed. As long as you learn with commitment, you will have the chance to grow together and become a player.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'U15 女子隊需要有程度才能參加嗎？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'Can I try a single session first?', N'Yes. Attend the session on site and pay in cash afterwards; for the goalkeeper class, please fill in the registration form first.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'可以先上單堂嗎？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'Can I try a single session first?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'Yes. Attend the session on site and pay in cash afterwards; for the goalkeeper class, please fill in the registration form first.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'可以先上單堂嗎？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'Can I take a trial session with the U15 girls'' team?', N'Yes. The fee is NT$300 per session, paid on site.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'U15 女子隊可以試上嗎？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'Can I take a trial session with the U15 girls'' team?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'Yes. The fee is NT$300 per session, paid on site.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'U15 女子隊可以試上嗎？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'How do I know whether a session is on when the weather is unsettled?', N'For children''s classes, an announcement is posted in the LINE group 1.5 hours before the session; if there is no announcement, the session goes ahead as normal. Activity-type sessions are announced separately on the Taiyuan Football Field Facebook page.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'天氣不穩定怎麼知道今天要不要上課？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'How do I know whether a session is on when the weather is unsettled?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'For children''s classes, an announcement is posted in the LINE group 1.5 hours before the session; if there is no announcement, the session goes ahead as normal. Activity-type sessions are announced separately on the Taiyuan Football Field Facebook page.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'天氣不穩定怎麼知道今天要不要上課？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'Can I try a session first?', N'Yes. Please come to the session on site and pay in cash.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'可以先試上嗎？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'Can I try a session first?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'Yes. Please come to the session on site and pay in cash.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'可以先試上嗎？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'Can a younger brother join the same class as his older brother?', N'Not recommended. Please consider physical and mental readiness and the intensity of the activity; joining by force makes injury more likely.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'弟弟可以跟哥哥同一班嗎？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'Can a younger brother join the same class as his older brother?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'Not recommended. Please consider physical and mental readiness and the intensity of the activity; joining by force makes injury more likely.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'弟弟可以跟哥哥同一班嗎？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'Is the class only open to people with no experience?', N'The courses are introductory in nature, so no experience is needed. For advanced courses, please consider your own condition.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'沒有經驗才能參加嗎？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'Is the class only open to people with no experience?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'The courses are introductory in nature, so no experience is needed. For advanced courses, please consider your own condition.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'沒有經驗才能參加嗎？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'Can an absence be credited or refunded?', N'Fees are charged per session. An absence is not credited against fees and there are no make-up sessions.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'請假可以折抵退費嗎？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'Can an absence be credited or refunded?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'Fees are charged per session. An absence is not credited against fees and there are no make-up sessions.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.question = N'請假可以折抵退費嗎？';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Blue Whale Goalkeeper Foundation Class', N'A Sport i Taiwan 2.0 sports hotspot course. Ages 7–12, open to boys and girls with places reserved for girls, limited to 10 places, 1.5 hours per session, NT$200 per session; the registration form must be completed first.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨守門員基礎班'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Blue Whale Goalkeeper Foundation Class' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot course. Ages 7–12, open to boys and girls with places reserved for girls, limited to 10 places, 1.5 hours per session, NT$200 per session; the registration form must be completed first.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨守門員基礎班';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Blue Whale U15 Girls'' Football Class', N'A Sport i Taiwan 2.0 sports hotspot course. Ages 13 and above, girls and women only, every Friday, 1.5 hours per session, NT$200 per session; individual registration on site.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨 U15 女子足球班'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Blue Whale U15 Girls'' Football Class' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot course. Ages 13 and above, girls and women only, every Friday, 1.5 hours per session, NT$200 per session; individual registration on site.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨 U15 女子足球班';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Community Toddler Football Class', N'A Sport i Taiwan 2.0 sports hotspot course. Open to boys and girls, every Monday and Wednesday, 1.5 hours per session, NT$200 per session; individual registration on site.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'社區幼幼足球班'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Community Toddler Football Class' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot course. Open to boys and girls, every Monday and Wednesday, 1.5 hours per session, NT$200 per session; individual registration on site.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'社區幼幼足球班';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Children''s Football Day', N'A Sport i Taiwan 2.0 sports hotspot activity. Kindergarten and elementary school children, open to boys and girls, 3 hours per event, free of charge, groups only (please apply by private message on the Taiyuan Football Field Facebook page).'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'兒童足球日'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Children''s Football Day' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot activity. Kindergarten and elementary school children, open to boys and girls, 3 hours per event, free of charge, groups only (please apply by private message on the Taiyuan Football Field Facebook page).' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'兒童足球日';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Community Football School (Little Blue Whale)', N'A community football school founded in 2017 and nicknamed Little Blue Whale. It emphasises the joy of sport, physical health, teamwork and learning football skills, on an enclosed dedicated football pitch under experienced coaches. No audition, no test and no joining fee; individual registration on site. Regular price NT$300 per session, special flat price NT$200 per session, paid in cash on site for each single session.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'社區足球學校（小藍鯨）'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Community Football School (Little Blue Whale)' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A community football school founded in 2017 and nicknamed Little Blue Whale. It emphasises the joy of sport, physical health, teamwork and learning football skills, on an enclosed dedicated football pitch under experienced coaches. No audition, no test and no joining fee; individual registration on site. Regular price NT$300 per session, special flat price NT$200 per session, paid in cash on site for each single session.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'社區足球學校（小藍鯨）';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Football Talent Coach and TDS Goalkeeper Talent Training (Coaching Course)', N'24 and 25 August 2025 (2 days). Coaches who hold a coaching qualification and currently lead a team are admitted first; NT$800 per person, paid in cash on the day (covers materials, insurance, lunch and so on). Supervising authorities: Sports Administration, Ministry of Education, and Taichung City Government Sports Bureau; organiser: National Taiwan Sport University; co-organisers: Taichung Women''s Football Association and the Taichung Blue Whale women''s football team; supporting organisation: Chinese Taipei Football Association.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'足球人才教練暨 TDS 守門員人才培訓（教練講習）'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Football Talent Coach and TDS Goalkeeper Talent Training (Coaching Course)' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'24 and 25 August 2025 (2 days). Coaches who hold a coaching qualification and currently lead a team are admitted first; NT$800 per person, paid in cash on the day (covers materials, insurance, lunch and so on). Supervising authorities: Sports Administration, Ministry of Education, and Taichung City Government Sports Bureau; organiser: National Taiwan Sport University; co-organisers: Taichung Women''s Football Association and the Taichung Blue Whale women''s football team; supporting organisation: Chinese Taipei Football Association.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'足球人才教練暨 TDS 守門員人才培訓（教練講習）';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Blue Whale U12 Girls'' Football Class', N'A Sport i Taiwan 2.0 sports hotspot course. Girls and women only, every Monday, Wednesday and Friday, 1.5 hours per session, NT$200 per session; individual registration on site.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨 U12 女子足球班'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Blue Whale U12 Girls'' Football Class' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot course. Girls and women only, every Monday, Wednesday and Friday, 1.5 hours per session, NT$200 per session; individual registration on site.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨 U12 女子足球班';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Pick-up Adult Football Matches', N'A Sport i Taiwan 2.0 sports hotspot activity. Junior high school age and above, open to men and women, 2–3 hours per event, pitch fee NT$100 per person; register on site as a group (8 or more people) or as an individual.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'野團成人足球賽'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Pick-up Adult Football Matches' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot activity. Junior high school age and above, open to men and women, 2–3 hours per event, pitch fee NT$100 per person; register on site as a group (8 or more people) or as an individual.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'野團成人足球賽';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Blue Whale U8 Football Class', N'A Sport i Taiwan 2.0 sports hotspot course. Open to boys and girls, every Monday and Wednesday, 1.5 hours per session, NT$200 per session; individual registration on site.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨 U8 足球教室'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Blue Whale U8 Football Class' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot course. Open to boys and girls, every Monday and Wednesday, 1.5 hours per session, NT$200 per session; individual registration on site.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨 U8 足球教室';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Blue Whale U10 Football Class', N'A Sport i Taiwan 2.0 sports hotspot course. Open to boys and girls, every Monday and Wednesday, 1.5 hours per session, NT$200 per session; individual registration on site.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨 U10 足球教室'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Blue Whale U10 Football Class' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot course. Open to boys and girls, every Monday and Wednesday, 1.5 hours per session, NT$200 per session; individual registration on site.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨 U10 足球教室';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Blue Whale Free Play Day', N'A Sport i Taiwan 2.0 sports hotspot activity. All ages, open to boys and girls, 1.5 hours per event, free of charge, no registration needed.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨足球自由日'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Blue Whale Free Play Day' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot activity. All ages, open to boys and girls, 1.5 hours per event, free of charge, no registration needed.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'藍鯨足球自由日';
+GO
+
+INSERT INTO programs_i18n (program_id, locale, name, intro)
+SELECT b.id, N'en', N'Community Early-Years Football Class', N'A Sport i Taiwan 2.0 sports hotspot course. Open to boys and girls, every Monday and Wednesday, 1.5 hours per session, NT$200 per session; individual registration on site.'
+FROM programs b JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'幼兒社區足球班'
+  AND NOT EXISTS (SELECT 1 FROM programs_i18n e WHERE e.program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Community Early-Years Football Class' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'A Sport i Taiwan 2.0 sports hotspot course. Open to boys and girls, every Monday and Wednesday, 1.5 hours per session, NT$200 per session; individual registration on site.' ELSE e.intro END
+FROM programs_i18n e
+JOIN programs b ON b.id = e.program_id
+JOIN programs_i18n z ON z.program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'幼兒社區足球班';
+GO
+
+INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description)
+SELECT b.id, N'en', N'2024 Taichung Women''s Football Festival 「夏洛特的下午茶」', N'Sport i Taiwan and the Taichung Women''s Football Festival. Taichung Beitun Taiyuan Football Field; check-in at 15:30, start at 16:00, finish at 18:00. For girls in grades 1–5 of elementary school, with a promotion group and a competition group; a public-interest promotional event, free to attend throughout.'
+FROM calendar_custom_events b JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2024 台中女子足球節「夏洛特的下午茶」'
+  AND NOT EXISTS (SELECT 1 FROM calendar_custom_events_i18n e WHERE e.calendar_custom_event_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2024 Taichung Women''s Football Festival 「夏洛特的下午茶」' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'Sport i Taiwan and the Taichung Women''s Football Festival. Taichung Beitun Taiyuan Football Field; check-in at 15:30, start at 16:00, finish at 18:00. For girls in grades 1–5 of elementary school, with a promotion group and a competition group; a public-interest promotional event, free to attend throughout.' ELSE e.description END
+FROM calendar_custom_events_i18n e
+JOIN calendar_custom_events b ON b.id = e.calendar_custom_event_id
+JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'2024 台中女子足球節「夏洛特的下午茶」';
+GO
+
+INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] Open training session', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM calendar_custom_events b JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'【測試】公開訓練'
+  AND NOT EXISTS (SELECT 1 FROM calendar_custom_events_i18n e WHERE e.calendar_custom_event_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Open training session' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.description END
+FROM calendar_custom_events_i18n e
+JOIN calendar_custom_events b ON b.id = e.calendar_custom_event_id
+JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'【測試】公開訓練';
+GO
+
+INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] Fan meet-and-greet', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM calendar_custom_events b JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'【測試】球迷見面會'
+  AND NOT EXISTS (SELECT 1 FROM calendar_custom_events_i18n e WHERE e.calendar_custom_event_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Fan meet-and-greet' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.description END
+FROM calendar_custom_events_i18n e
+JOIN calendar_custom_events b ON b.id = e.calendar_custom_event_id
+JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.title = N'【測試】球迷見面會';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name)
+SELECT b.id, N'en', N'Taichung City Government'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'臺中市政府'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Taichung City Government' ELSE e.name END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'臺中市政府';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name)
+SELECT b.id, N'en', N'Taichung City Government Sports Bureau'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'臺中市政府運動局'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Taichung City Government Sports Bureau' ELSE e.name END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'臺中市政府運動局';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name)
+SELECT b.id, N'en', N'Sports Administration, Ministry of Education'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'教育部體育署'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Sports Administration, Ministry of Education' ELSE e.name END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'教育部體育署';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name)
+SELECT b.id, N'en', N'Department of Physical Education, National Taiwan Sport University'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'國立臺灣體育運動大學體育學系'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Department of Physical Education, National Taiwan Sport University' ELSE e.name END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'國立臺灣體育運動大學體育學系';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name)
+SELECT b.id, N'en', N'Pocari Sweat'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'寶礦力水得 Pocari Sweat'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Pocari Sweat' ELSE e.name END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'寶礦力水得 Pocari Sweat';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name)
+SELECT b.id, N'en', N'MIE Taiwan'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'MIE Taiwan'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'MIE Taiwan' ELSE e.name END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'MIE Taiwan';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name)
+SELECT b.id, N'en', N'SKECHERS'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'SKECHERS／思克威爾股份有限公司'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'SKECHERS' ELSE e.name END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'SKECHERS／思克威爾股份有限公司';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name)
+SELECT b.id, N'en', N'Defunc Taiwan'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'Defunc Taiwan'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Defunc Taiwan' ELSE e.name END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'Defunc Taiwan';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title, summary)
+SELECT b.id, N'en', N'[Test] Taichung Blue Whale club news sample', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'bw-test-news-club'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Taichung Blue Whale club news sample' ELSE e.title END,
+    e.summary = CASE WHEN e.summary IS NULL OR e.summary = N'' OR e.summary = z.summary THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.summary END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'bw-test-news-club';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title, summary)
+SELECT b.id, N'en', N'[Test] Taichung Blue Whale community event sample', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'bw-test-news-community'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Taichung Blue Whale community event sample' ELSE e.title END,
+    e.summary = CASE WHEN e.summary IS NULL OR e.summary = N'' OR e.summary = z.summary THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.summary END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'bw-test-news-community';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title, summary)
+SELECT b.id, N'en', N'[Test] Taichung Blue Whale match report sample', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'bw-test-news-match'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Taichung Blue Whale match report sample' ELSE e.title END,
+    e.summary = CASE WHEN e.summary IS NULL OR e.summary = N'' OR e.summary = z.summary THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.summary END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.slug = N'bw-test-news-match';
+GO
+
+INSERT INTO settings_i18n (setting_id, locale, value)
+SELECT b.id, N'en', N'Taiwan Mulan Football League'
+FROM settings b JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'site.league_name'
+  AND NOT EXISTS (SELECT 1 FROM settings_i18n e WHERE e.setting_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'Taiwan Mulan Football League' ELSE e.value END
+FROM settings_i18n e
+JOIN settings b ON b.id = e.setting_id
+JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'site.league_name';
+GO
+
+INSERT INTO settings_i18n (setting_id, locale, value)
+SELECT b.id, N'en', N'Mulan League'
+FROM settings b JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'site.league_short_name'
+  AND NOT EXISTS (SELECT 1 FROM settings_i18n e WHERE e.setting_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'Mulan League' ELSE e.value END
+FROM settings_i18n e
+JOIN settings b ON b.id = e.setting_id
+JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'site.league_short_name';
+GO
+
+INSERT INTO settings_i18n (setting_id, locale, value)
+SELECT b.id, N'en', N'{title} | Taichung Blue Whale Women''s Football Club'
+FROM settings b JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'seo.title_template'
+  AND NOT EXISTS (SELECT 1 FROM settings_i18n e WHERE e.setting_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'{title} | Taichung Blue Whale Women''s Football Club' ELSE e.value END
+FROM settings_i18n e
+JOIN settings b ON b.id = e.setting_id
+JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'seo.title_template';
+GO
+
+INSERT INTO settings_i18n (setting_id, locale, value)
+SELECT b.id, N'en', N'Taichung Blue Whale Women''s Football Club, part of the Taichung Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. The club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.'
+FROM settings b JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'seo.default_description'
+  AND NOT EXISTS (SELECT 1 FROM settings_i18n e WHERE e.setting_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'Taichung Blue Whale Women''s Football Club, part of the Taichung Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. The club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.' ELSE e.value END
+FROM settings_i18n e
+JOIN settings b ON b.id = e.setting_id
+JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'seo.default_description';
+GO
+
+INSERT INTO settings_i18n (setting_id, locale, value)
+SELECT b.id, N'en', N'Taichung Blue Whale Women''s Football Club belongs to the Taichung Women''s Football Association and is one of the teams of the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern style of football, and the club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan. Slogan: Taichung Blue Whale rides the waves towards the open ocean.'
+FROM settings b JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'geo.llms_positioning'
+  AND NOT EXISTS (SELECT 1 FROM settings_i18n e WHERE e.setting_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'Taichung Blue Whale Women''s Football Club belongs to the Taichung Women''s Football Association and is one of the teams of the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern style of football, and the club hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan. Slogan: Taichung Blue Whale rides the waves towards the open ocean.' ELSE e.value END
+FROM settings_i18n e
+JOIN settings b ON b.id = e.setting_id
+JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'geo.llms_positioning';
+GO
+
+INSERT INTO settings_i18n (setting_id, locale, value)
+SELECT b.id, N'en', N'Founded on 12 April 2014; plays in the Taiwan Mulan Football League; home ground is Taichung Beitun Taiyuan Football Field (current), and the home ground in the founding period was Taichung Fengyuan Stadium; a development pathway with the first team and the youth teams (U15 / U12) running in parallel.'
+FROM settings b JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'geo.llms_facts_summary'
+  AND NOT EXISTS (SELECT 1 FROM settings_i18n e WHERE e.setting_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'Founded on 12 April 2014; plays in the Taiwan Mulan Football League; home ground is Taichung Beitun Taiyuan Football Field (current), and the home ground in the founding period was Taichung Fengyuan Stadium; a development pathway with the first team and the youth teams (U15 / U12) running in parallel.' ELSE e.value END
+FROM settings_i18n e
+JOIN settings b ON b.id = e.setting_id
+JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND b.setting_key = N'geo.llms_facts_summary';
+GO
+
+INSERT INTO collections_i18n (collection_id, locale, name, narrative)
+SELECT b.id, N'en', N'[Test] Blue Whale collection', N'[Test] Placeholder brand narrative for the Blue Whale collection.'
+FROM collections b JOIN collections_i18n z ON z.collection_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨系列'
+  AND NOT EXISTS (SELECT 1 FROM collections_i18n e WHERE e.collection_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Blue Whale collection' ELSE e.name END,
+    e.narrative = CASE WHEN e.narrative IS NULL OR e.narrative = N'' OR e.narrative = z.narrative THEN N'[Test] Placeholder brand narrative for the Blue Whale collection.' ELSE e.narrative END
+FROM collections_i18n e
+JOIN collections b ON b.id = e.collection_id
+JOIN collections_i18n z ON z.collection_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨系列';
+GO
+
+INSERT INTO fan_events_i18n (fan_event_id, locale, name, description, location)
+SELECT b.id, N'en', N'[Test] Blue Whale fan day', N'[Test] Demo fan event hosted by Blue Whale.', N'[Test] No. 1, Test Road, Xitun District, Taichung City'
+FROM fan_events b JOIN fan_events_i18n z ON z.fan_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨球迷日'
+  AND NOT EXISTS (SELECT 1 FROM fan_events_i18n e WHERE e.fan_event_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Blue Whale fan day' ELSE e.name END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] Demo fan event hosted by Blue Whale.' ELSE e.description END,
+    e.location = CASE WHEN e.location IS NULL OR e.location = N'' OR e.location = z.location THEN N'[Test] No. 1, Test Road, Xitun District, Taichung City' ELSE e.location END
+FROM fan_events_i18n e
+JOIN fan_events b ON b.id = e.fan_event_id
+JOIN fan_events_i18n z ON z.fan_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨球迷日';
+GO
+
+INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note)
+SELECT b.id, N'en', N'Blue Whale Fan Club (Single)', N'[Test] Includes one membership card and one welcome jersey.'
+FROM membership_plans b JOIN membership_plans_i18n z ON z.membership_plan_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨球迷會員（單人）'
+  AND NOT EXISTS (SELECT 1 FROM membership_plans_i18n e WHERE e.membership_plan_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Blue Whale Fan Club (Single)' ELSE e.name END,
+    e.benefit_note = CASE WHEN e.benefit_note IS NULL OR e.benefit_note = N'' OR e.benefit_note = z.benefit_note THEN N'[Test] Includes one membership card and one welcome jersey.' ELSE e.benefit_note END
+FROM membership_plans_i18n e
+JOIN membership_plans b ON b.id = e.membership_plan_id
+JOIN membership_plans_i18n z ON z.membership_plan_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨球迷會員（單人）';
+GO
+
+INSERT INTO products_i18n (product_id, locale, name, narrative, tags)
+SELECT b.id, N'en', N'[Test] Blue Whale jersey', N'[Test] Placeholder product narrative.', N'[Test],Demo'
+FROM products b JOIN products_i18n z ON z.product_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨球衣'
+  AND NOT EXISTS (SELECT 1 FROM products_i18n e WHERE e.product_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Blue Whale jersey' ELSE e.name END,
+    e.narrative = CASE WHEN e.narrative IS NULL OR e.narrative = N'' OR e.narrative = z.narrative THEN N'[Test] Placeholder product narrative.' ELSE e.narrative END,
+    e.tags = CASE WHEN e.tags IS NULL OR e.tags = N'' OR e.tags = z.tags THEN N'[Test],Demo' ELSE e.tags END
+FROM products_i18n e
+JOIN products b ON b.id = e.product_id
+JOIN products_i18n z ON z.product_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨球衣';
+GO
+
+INSERT INTO partner_stores_i18n (partner_store_id, locale, name, offer_content)
+SELECT b.id, N'en', N'[Test] Blue Whale Demo Store', N'[Test] Exclusive offer for Blue Whale members'
+FROM partner_stores b JOIN partner_stores_i18n z ON z.partner_store_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨示範店家'
+  AND NOT EXISTS (SELECT 1 FROM partner_stores_i18n e WHERE e.partner_store_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Blue Whale Demo Store' ELSE e.name END,
+    e.offer_content = CASE WHEN e.offer_content IS NULL OR e.offer_content = N'' OR e.offer_content = z.offer_content THEN N'[Test] Exclusive offer for Blue Whale members' ELSE e.offer_content END
+FROM partner_stores_i18n e
+JOIN partner_stores b ON b.id = e.partner_store_id
+JOIN partner_stores_i18n z ON z.partner_store_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND z.name = N'【測試】藍鯨示範店家';
 GO
 
 EXEC sys.sp_addextendedproperty @name = N'tcrfc.seed_import', @value = N'$(IMPORT_BATCH)';

@@ -9,16 +9,17 @@
 // 🔴 S1-17 收尾修正（2026-09-29）：contact_title（職稱）、doc_file（採訪大綱文件上傳）在
 // 規格（§3.10 10.6「主要欄位」）與後端都沒有定義，原本畫面留著卻悄悄不送出，現已**從畫面
 // 移除**。
-definePageMeta({ nav: '', unit: '10.6', enReady: true })
+definePageMeta({ nav: '', unit: '10.6', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 // BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()，理由同 privacy/index.vue。
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubEn = computed(() => bizClubNameEn(config.public.club))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? 'Media Enquiries | Join / Contact | Taichung Rock FC' : `媒體詢問 Media Enquiries｜加入與聯絡｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? 'The Taichung Rock FC contact point for media interviews and collaboration enquiries. Provide your media details, interview topic and deadline, and our communications team will reply as soon as possible.' : `${clubAssets.value.nameZh}媒體採訪與合作詢問窗口。填寫媒體資料、採訪主題與截稿日，公關團隊將盡快回覆。`)),
+  title: computed(() => (isEn.value ? `Media Enquiries | Join / Contact | ${clubEn.value}` : `媒體詢問 Media Enquiries｜加入與聯絡｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? `The ${clubEn.value} contact point for media interviews and collaboration enquiries. Provide your media details, interview topic and deadline, and our communications team will reply as soon as possible.` : `${clubAssets.value.nameZh}媒體採訪與合作詢問窗口。填寫媒體資料、採訪主題與截稿日，公關團隊將盡快回覆。`)),
 })
 
 const COVERAGE_TYPE_LABELS: Record<string, string> = {

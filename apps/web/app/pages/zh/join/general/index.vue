@@ -10,7 +10,7 @@
 // 🔴 S1-17 收尾修正（2026-09-29）：phone（選填的聯絡電話）、doc_file（附件上傳）在規格
 // （§3.10 10.7「主要欄位」：姓名、Email、主旨、內容）與後端都沒有定義，原本畫面留著卻悄悄
 // 不送出，現已**從畫面移除**。
-definePageMeta({ nav: '', unit: '10.7', enReady: true })
+definePageMeta({ nav: '', unit: '10.7', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -19,10 +19,12 @@ const config = useRuntimeConfig()
 // 改讀 identity.academyShortLabelZh，不新造文案。
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const identity = computed(() => getClubIdentity(config.public.club))
+const clubEn = computed(() => bizClubNameEn(config.public.club))
+const isTcrfc = computed(() => config.public.club !== 'bw')
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? 'General Contact | Join / Contact | Taichung Rock FC' : `一般聯絡 General Contact｜加入與聯絡｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? 'Cannot find a suitable form? Leave us a message through the general contact form and the Taichung Rock FC administration team will pass it to the right person.' : `找不到適合的分類表單？透過一般聯絡表單留言，${clubAssets.value.nameZh}行政團隊會轉交給對應窗口處理。`)),
+  title: computed(() => (isEn.value ? `General Contact | Join / Contact | ${clubEn.value}` : `一般聯絡 General Contact｜加入與聯絡｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? `Cannot find a suitable form? Leave us a message through the general contact form and the ${clubEn.value} administration team will pass it to the right person.` : `找不到適合的分類表單？透過一般聯絡表單留言，${clubAssets.value.nameZh}行政團隊會轉交給對應窗口處理。`)),
 })
 
 const SUBJECT_LABELS: Record<string, string> = {
@@ -155,7 +157,7 @@ async function onSubmit() {
           <h2>{{ tx('找特定窗口？', 'Looking for a specific contact?') }}</h2>
           <ul>
             <li><a :href="lp('/zh/join/player/')">{{ tx('加入球隊', 'Join as a Player') }}</a></li>
-            <li><a :href="lp('/zh/join/academy/')">{{ isEn ? 'Join the Academy' : `加入${identity.academyShortLabelZh}` }}</a></li>
+            <li><a :href="lp('/zh/join/academy/')">{{ isEn ? (isTcrfc ? 'Join the Academy' : 'Join the Youth Team') : `加入${identity.academyShortLabelZh}` }}</a></li>
             <li><a :href="lp('/zh/join/partnership/')">{{ tx('贊助洽詢', 'Sponsorship enquiries') }}</a></li>
             <li><a :href="lp('/zh/join/media/')">{{ tx('媒體詢問', 'Media Enquiries') }}</a></li>
             <li><a :href="lp('/zh/join/')">{{ tx('查看全部七種表單', 'View all seven forms') }}</a></li>

@@ -18,7 +18,7 @@ const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 function tabLabel(cat: { code: string; label: string }): string {
   // 英文版（主站 /en/）：分類名稱照 docs/06 §1.1 對照表（shared/utils/club-copy-en-sched.ts）
-  if (isEn.value) return newsCategoryTabLabelEn(cat.code)
+  if (isEn.value) return newsCategoryTabLabelEn(cat.code, config.public.club === 'bw' ? 'bw' : 'tcrfc')
   return newsCategoryTabLabel(cat.code, config.public.club)
 }
 </script>

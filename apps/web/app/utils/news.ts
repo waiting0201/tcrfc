@@ -200,10 +200,10 @@ export function newsMonthLabelEn(month: string): string {
 
 /**
  * 英文版分類名稱（主站 /en/）：已知分類取 `NEWS_CATEGORY_EN`（docs/06 §1.1 對照表，例 Press & Media），
- * 未知分類退回 API 回傳的分類名稱（後端已依語系挑好）。藍鯨站不使用（`isEn` 在藍鯨恆為 false）。
+ * 未知分類退回 API 回傳的分類名稱（後端已依語系挑好）。藍鯨（B-5）傳 `club='bw'`：04 為 Youth News。
  */
-export function newsCategoryLabelEn(categoryCode: string, fallbackName: string | null | undefined): string {
-  return NEWS_CATEGORY_EN[categoryCode]?.label ?? fallbackName ?? ''
+export function newsCategoryLabelEn(categoryCode: string, fallbackName: string | null | undefined, club: 'tcrfc' | 'bw' = 'tcrfc'): string {
+  return newsCategoryBareLabelEn(categoryCode, club) ?? fallbackName ?? ''
 }
 
 export interface NewsTagOption {

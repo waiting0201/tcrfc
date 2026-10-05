@@ -83,12 +83,25 @@
 
 ## 英文欄位回填（區段 61，2026-10-05）——主站英文版的 `*_i18n` en 列
 
-[`en_backfill_seed.py`](en_backfill_seed.py) 由 `generate-club-seed-sql.py` 在所有區段之後呼叫，**只對 tcrfc**（藍鯨英文全名卡 B-5、全新英文生產 C-10，不補）補齊 en 列：新聞標題（`articles_i18n.title`，83 篇，第二輪；本文與摘要不存在故不補）、競賽名、賽程場地、教練職稱、輪播、頁面 SEO、FAQ、自建行事曆事件、夥伴、贊助、媒體專區、特約店家、慈善與社會影響、會員抽獎、`site.founding_title`。
+[`en_backfill_seed.py`](en_backfill_seed.py) 由 `generate-club-seed-sql.py` 在所有區段之後呼叫，補齊 en 列（第一、二輪只對 tcrfc；**第三輪補藍鯨 bw，見下方「第三輪：藍鯨」**）。以下為主站範圍：新聞標題（`articles_i18n.title`，83 篇，第二輪；本文與摘要不存在故不補）、競賽名、賽程場地、教練職稱、輪播、頁面 SEO、FAQ、自建行事曆事件、夥伴、贊助、媒體專區、特約店家、慈善與社會影響、會員抽獎、`site.founding_title`。
 
 - **為什麼另開區段**：各區段是「繁中列不存在才整批 INSERT」，已灌過的庫改來源不會補 en；回填用「缺 en 列就 INSERT、已有 en 列只填 NULL／空字串／與繁中完全相同的欄位」，**不覆寫後台改過的英文**，可重複執行。
 - **用詞**：照 [`docs/06`](../../docs/06-conventions.md) §1.1；聯賽沿用 `Enterprise Premier League`（正式名待客戶確認）；【測試】內容維持 `[Test] …` 標記；賽程場地英文名（台北田徑場等）為地名拼音＋通用場地詞，**待客戶確認**。
 - **刻意不補**：沒有英文來源的球員與教練姓名（不音譯，前台回退中文原名）；新聞標題內沒有英文來源的對手隊、人名、學校、地名（保留中文原名夾在英文句內，不音譯，清單待客戶補英文名）；`site.founding_date_display`（`SiteFactsTests` 用它驗證缺英文回退）；`site.contact_hours`／`contact_phone`（測試值）；頁面隱私／條款內文；`page_blocks` 與 `charity_programs_i18n.content` 這類 json 內文。
 - **正式庫內容種子**：`generate-prod-content-sql.py` 將區段 61 列為 `IMPORT`；`member_draws_i18n` 屬禁用表，該兩批自動剔除。改動後須重產 `db/prod/club-content-seed.sql` 並更新 `club-content-manifest.tsv` 的 sha256 與各 `*_i18n` 筆數（見該腳本 `--check`）。
+
+### 第三輪：藍鯨（bw，2026-10-05，B-5 定案）
+
+B-5 已於 2026-10-05 拍板：藍鯨英文簡稱 `Taichung Blue Whale`、全名 `Taichung Blue Whale Women's Football Club`（舊站 Bluewhale 等變體不用）。`en_backfill_seed.py` 檔尾（同一區段 61，不另開區段編號）補藍鯨，規則同前（缺 en 列就 INSERT、已有 en 列只補 NULL／空／與繁中相同者，冪等）。
+
+- **`clubs_i18n`**：`generate-club-seed-sql.py` §1 的 bw 首次建立區塊改為一併插入 en 列（原註解「簡稱英文一律不插」已更新）；既有庫由區段 61 補（已有 en 列只補 NULL）。🔴 `clubs_i18n` 是**參照表**，所以：① `db/prod/club-reference-data.sql` 會帶 en 列（`MANIFEST clubs_i18n=4`）；② 區段 61 內這一批在內容種子中被剔除（`DROPPED section=61 … tables=clubs_i18n`）。**已初始化完成的正式庫不會因重產檔案而得到藍鯨英文名稱**，需要另行補一次（見回報／STATUS）。
+- **補齊範圍（只動藍鯨）**：賽事系列 2、場地 2（豐原體育場、北屯太原）、賽程場地 21（10 種寫法）、教練職稱 4 種＋經歷 4 人、里程碑 12（含描述）、輪播 2、頁面 SEO 4、FAQ 10、課程與活動 12、自建行事曆事件 3、夥伴 8（只補有英文來源者）、新聞 3（【測試】）、站台設定 6（聯賽名／簡稱、SEO 標題樣板與預設描述、llms 定位與事實摘要）、【測試】商品／會籍／球迷活動／系列／特約店家。`teams`、`players`、`staff` 姓名、`calendar_team_settings` 早有 en 列，不動。
+- **用詞**：木蘭聯賽 Taiwan Mulan Football League；總統盃 President's Cup；`AFC Club Licence`；場地 Taichung Beitun Taiyuan Football Field（太原足球場各種寫法同一座）、Taichung Fengyuan Stadium；Blue Whale Cup；青年隊稱 Youth（U15／U12 girls' teams），**不得出現 Academy**；協會採 `Taichung Women's Football Association`（與 `club-copy-en-core.ts`、`docs/06` §1.1 一致；規劃書藍鯨英文版寫 Taichung City Women's Football Association，待客戶確認）。
+- **刻意保留中文（en 欄位留 NULL 或句內原樣保留，前台逐欄位回退）**：沒有英文來源的選手與教練人名（有資料庫英文列者用其羅馬拼音）、學校（五權國中、惠文高中）、公益機構（台中惠明盲校）、公司名夥伴（17 家）、活動名「夏洛特的下午茶」、場地地址與交通說明（含公車業者、管理單位）、`site.contact_hours`（測試值）、`clubs_i18n.description`。
+- **待客戶確認的寫法**：`Sport i Taiwan 2.0 sports hotspot`（運動 i 台灣 2.0 運動熱區）、Pick-up Adult Football Matches（野團）、`Taichung Blue Whale Football School`、賽程場地的地名拼音（Kaohsiung Nanzih、Qingpu、Meilun Junior High School、Ming Chuan University）、教育部體育署／國立臺灣體育運動大學的英文名、教練經歷中的賽事名（Chinese Taipei women's national team、East Asian Cup 等）、2022 里程碑「疫情有成舉辦首場頂級足球開門賽」原文語意不明（採字面譯）。
+- **品牌外洩**：藍鯨英文內容不含 Taichung Rock／TCRFC／Academy（詞表見 `apps/web/scripts/check-club-brand-leak.mjs`），產生的 SQL 已 grep 驗證。
+- **正式庫內容種子與 manifest**：重產 `club-content-seed.sql` 後，`club-content-manifest.tsv` 的 sha256 與各 `*_i18n` 筆數以腳本精準更新（斷言舊值）：articles_i18n +3、banners_i18n +1、calendar_custom_events_i18n +3、competitions_i18n +2、faqs_i18n +10、matches_i18n +21、milestones_i18n +12、pages_i18n +4、partner_stores_i18n +1、partners_i18n +8、programs_i18n +12、settings_i18n +6、venues_i18n +2。
+- **API 測試**：`AppContractBatch4Tests`（俱樂部簡稱）、`AppContractBatch5Tests`（後台簡稱讀寫）、`LocalizationFallbackTests`（俱樂部名稱）原本把「藍鯨沒有英文」當前提，已改為新定案值斷言；回退行為改經後台 `PUT /admin/clubs/{id}`（`en = null` 即刪列）自建並於 `finally` 還原。⚠️ 後台 PUT 的 `en = null` 會**刪掉英文列**，測試改動藍鯨時必須把原英文內容帶回。
 
 ## 這個目錄有什麼
 
@@ -391,7 +404,7 @@ C1 的測試值一律視為測試：所有 `【測試】`、`TEST-`、`SEED-` �
 ### 刻意沒種的（與原因）
 
 - **`seo.robots_custom_rules`**：會原樣寫進 `robots.txt`，沒有需求就不預設；**`tracking.*`（GA4／GTM／Meta Pixel／LINE）**：假的追蹤碼會讓前台載入無效腳本，沒有真實 ID 不種；**全站預設 OG 圖**：`clubs.og_image_key` 需要圖片上傳。三者都留空，等真實值。
-- **藍鯨英文**（`seo.title_template` en、`geo.llms_positioning`／`facts_summary` en）：英文正式全名待客戶確認（`docs/14`），不自行挑一個；`site.founding_title`／`site.league_name` en 同。
+- **藍鯨英文**（`seo.title_template` en、`geo.llms_positioning`／`facts_summary` en）：英文名已於 2026-10-05 定案（B-5：簡稱 `Taichung Blue Whale`、全名 `Taichung Blue Whale Women's Football Club`，見 `docs/14`），種子寫入時只用這兩種寫法；`site.founding_title`／`site.league_name` en 同。
 - **`site.founding_date`（tcrfc）**：成立月日至今沒有核實來源，日期欄位無法用前綴標示為測試，不種假日期。tcrfc 的 `site.founding_date_display` 英文也刻意不種（`SiteFactsTests` 用它驗證「缺英文時回退中文」）。
 - **課程教練連結（`program_staff`）、課程報名、詢問收件匣（`enquiries`）**：涉及個資或需要真實人員，不種。教練連結需要「課程與教練」的真實對應。（**會員／會籍與試訓報名已於 B1 補種虛構資料**，見上表：全部【測試】前綴與 `example.com`，不含任何真實個資。）
 - **磐石學院球隊 U15／U14／U12（`teams`）**：性別與年齡帶的真實定義沒有來源（`gender` 是必填），不臆測；`site.squad_codes` 已有這三個代碼但 `teams` 表沒有對應列（既有落差，`apps/api/README.md`「S1-12d」節已記）。

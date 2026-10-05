@@ -97,12 +97,16 @@
 import { venueAddressByName } from '#shared/utils/schema-batch2'
 import { resolveScheduleSlug } from '#shared/utils/schedule-route'
 
-definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule', enReady: true })
+definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule', enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
 const clubKey = computed<'tcrfc' | 'bw'>(() => (club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+/** 英文簡稱（磐石 Taichung Rock FC／藍鯨 Taichung Blue Whale，B-5）。 */
+const clubEn = computed(() => clubNameEn(clubKey.value))
+// 賽事列／詳情裡「我方球隊」顯示名：英文版用英文簡稱（C-6 收尾：先前殘留中文簡稱「台中磐石」「台中藍鯨」）。
+const selfShortName = computed(() => (isEn.value ? clubEn.value : clubAssets.value.shortNameZh))
 const clubAssets = computed(() => getClubAssets(club))
 /** 一線隊 `Team.code`：磐石 `D1`、藍鯨 `BW1`——單一來源見 shared/utils/club.ts。 */
 const firstTeamCode = computed(() => getFirstTeamCode(club))
@@ -683,7 +687,7 @@ function eventToVeventLines(m: MatchItem): string[] {
   const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000)
   const end = `${endDate.getUTCFullYear()}${pad(endDate.getUTCMonth() + 1)}${pad(endDate.getUTCDate())}T${pad(endDate.getUTCHours())}${pad(endDate.getUTCMinutes())}00Z`
   const title = isEn.value
-    ? `${CLUB_NAME_EN} vs ${opponent} (${[leagueNameEn.value, ha].filter(Boolean).join(' · ')})`
+    ? `${clubEn.value} vs ${opponent} (${[leagueNameEn.value, ha].filter(Boolean).join(' · ')})`
     : `${clubAssets.value.nameZh} vs ${opponent}（${leagueName.value}・${ha}）`
   const loc = venue === 'TBC' ? tx('場地未定', 'Venue TBC') : venue
   return [
@@ -696,7 +700,7 @@ function eventToVeventLines(m: MatchItem): string[] {
     `LOCATION:${icsEscape(loc)}`,
     // 內容依俱樂部（S1-19 修正——原本這句字面寫死「台中磐石足球俱樂部」，
     // 藍鯨容器下載的 .ics 會顯示錯誤的官方公告主體）。
-    `DESCRIPTION:${icsEscape(isEn.value ? `Fixtures are subject to change. Please refer to official announcements from ${CLUB_NAME_EN}.` : `賽程可能異動，請以${clubAssets.value.nameZh}官方公告為準。`)}`,
+    `DESCRIPTION:${icsEscape(isEn.value ? `Fixtures are subject to change. Please refer to official announcements from ${clubEn.value}.` : `賽程可能異動，請以${clubAssets.value.nameZh}官方公告為準。`)}`,
     'END:VEVENT',
   ]
 }
@@ -753,6 +757,7 @@ function scheduleSeoArgsEn() {
     seasonCode: defaultSeason.value === 'all' ? null : defaultSeason.value,
     matchCount: matches.value.length,
     squadLabel: clubAcademyLabel(' / '),
+    club: clubKey.value,
   }
 }
 
@@ -769,7 +774,8 @@ useSeoMeta({
 
 // SportsEvent JSON-LD（GEO-08）。siteConfig 已提前宣告於檔案開頭（供 .ics UID 使用），
 // 這裡直接沿用同一個結論，兩站各自跑出自己網域的絕對網址，不寫死 tcrfc.tw。
-const selfTeamName = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
+// Schema 用全名（B-5：Schema／llms／頁尾用 `…Women's Football Club`，內文用簡稱）。
+const selfTeamName = computed(() => (isEn.value ? (isTcrfc.value ? CLUB_NAME_EN : BW_FULL_NAME_EN) : getClubAssets(club).nameZh))
 
 // SportsEvent JSON-LD（GEO-08）的 status → schema.org 對照已收斂進
 // app/utils/schedule.ts 的 matchStatusSchemaOrg()（S0-9j）。此頁與畫面
@@ -860,7 +866,7 @@ useClubEventSchema(clubEvents, {
   <div class="container">
     <p class="page-hero__eyebrow">13 Schedule</p>
     <h1>{{ tx('賽事行事曆', 'Schedule') }}<span v-if="!isEn" class="en">Schedule</span></h1>
-    <p v-if="isEn" class="page-hero__lede">Full fixtures and results for the First Team and every Academy squad, all on one page. <strong>All times are local and subject to change</strong>; please refer to official announcements for confirmed times.</p>
+    <p v-if="isEn" class="page-hero__lede">Full fixtures and results for the First Team and every {{ isTcrfc ? 'Academy' : 'Youth' }} squad, all on one page. <strong>All times are local and subject to change</strong>; please refer to official announcements for confirmed times.</p>
     <p v-else class="page-hero__lede">一線隊與各梯隊的完整賽程與賽果，一頁掌握。<strong>所有時間為當地時間，可能異動</strong>，正式時間請以官方公告為準。</p>
     <p v-if="isEn && mounted && viewerTimeZone" class="page-hero__tz-note">Times have been converted to your device's time zone (<span class="en">{{ viewerTimeZone }}</span>); official Taiwan times are shown in each match's details.</p>
     <p v-else-if="mounted && viewerTimeZone" class="page-hero__tz-note">已依您目前的裝置時區（<span class="en">{{ viewerTimeZone }}</span>）換算顯示；台灣官方公告時間請見各賽事詳情。</p>
@@ -991,13 +997,13 @@ useClubEventSchema(clubEvents, {
                       <span class="fx-vs">VS</span>
                       <span class="fx-side fx-side--us">
                         <img class="fx-crest" :src="clubAssets.headerMark.src" width="26" height="28" alt="">
-                        <span class="fx-name">{{ clubAssets.shortNameZh }}</span>
+                        <span class="fx-name">{{ selfShortName }}</span>
                       </span>
                     </template>
                     <template v-else>
                       <span class="fx-side fx-side--us">
                         <img class="fx-crest" :src="clubAssets.headerMark.src" width="26" height="28" alt="">
-                        <span class="fx-name">{{ clubAssets.shortNameZh }}</span>
+                        <span class="fx-name">{{ selfShortName }}</span>
                       </span>
                       <span class="fx-vs">VS</span>
                       <span class="fx-side fx-side--them">
@@ -1075,9 +1081,9 @@ useClubEventSchema(clubEvents, {
       <template v-if="detailMatch">
         <p class="match-detail__comp">{{ isEn ? `${compTagLabelEn(detailMatch.competitionTag)} · Round ${detailMatch.roundNo} · ${mapMatchStatusEn(detailMatch.status).label}` : `${compTagLabel(detailMatch.competitionTag)} · 第 ${detailMatch.roundNo} 輪 · ${mapMatchStatus(detailMatch.status).label}` }}</p>
         <h3 id="match-detail-title" class="match-detail__title">
-          {{ haCode(detailMatch.homeAway) === 'home' ? clubAssets.shortNameZh : detailMatch.opponent }}
+          {{ haCode(detailMatch.homeAway) === 'home' ? selfShortName : detailMatch.opponent }}
           <span class="match-detail__vs">vs</span>
-          {{ haCode(detailMatch.homeAway) === 'home' ? detailMatch.opponent : clubAssets.shortNameZh }}
+          {{ haCode(detailMatch.homeAway) === 'home' ? detailMatch.opponent : selfShortName }}
         </h3>
         <p class="match-detail__time">{{ isEn ? timeOf(detailMatch).weekdayEn : timeOf(detailMatch).weekdayZh }} {{ detailMatch.matchOn }}<template v-if="timeOf(detailMatch).kickoff"> · {{ timeOf(detailMatch).kickoff }}</template></p>
         <p v-if="postponedLine(detailMatch.originalMatchOn, detailMatch.originalKickoff)" class="fixture-card__postponed">{{ postponedLine(detailMatch.originalMatchOn, detailMatch.originalKickoff) }}</p>

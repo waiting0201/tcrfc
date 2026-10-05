@@ -11,16 +11,17 @@
 import { toMemberApiError } from '#shared/utils/member'
 import type { ShopOrder } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('lookup', CLUB_NAME_EN).title : `訂單查詢 Order Lookup｜官方商店｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('lookup', CLUB_NAME_EN).description : `以訂單編號與 Email 查詢${clubAssets.value.shortNameZh}官方商店的訂單狀態、物流單號與電子發票；會員可直接於會員中心的「我的訂單」查看。`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('lookup', clubNameEn.value).title : `訂單查詢 Order Lookup｜官方商店｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('lookup', clubNameEn.value).description : `以訂單編號與 Email 查詢${clubAssets.value.shortNameZh}官方商店的訂單狀態、物流單號與電子發票；會員可直接於會員中心的「我的訂單」查看。`)),
   robots: 'noindex, nofollow',
 })
 

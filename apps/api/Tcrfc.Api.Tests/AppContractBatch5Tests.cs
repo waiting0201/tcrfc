@@ -223,7 +223,12 @@ public sealed class AppContractBatch5Tests(AdminWriteApiFixture fixture)
         var id = bw.GetProperty("id").GetGuid();
         var detail = await JsonAsync(await admin.GetAsync($"/api/v1/admin/clubs/{id}"));
         Assert.Equal("台中藍鯨", detail.GetProperty("zh").GetProperty("shortName").GetString());
-        Assert.Equal(JsonValueKind.Null, detail.GetProperty("en").ValueKind); // 藍鯨沒有英文內容（B-5）
+        // B-5 已於 2026-10-05 定案：藍鯨英文列由種子帶入（簡稱 Taichung Blue Whale、全名 Taichung Blue Whale Women's Football Club）
+        var originalEn = detail.GetProperty("en");
+        Assert.Equal(JsonValueKind.Object, originalEn.ValueKind);
+        Assert.Equal("Taichung Blue Whale", originalEn.GetProperty("shortName").GetString());
+        // 其餘請求原樣帶回英文內容：en = null 會刪除英文列（後台語意），測試不得破壞種子的藍鯨英文列
+        var enBack = new { name = ReadOrNull(originalEn, "name"), shortName = ReadOrNull(originalEn, "shortName"), description = ReadOrNull(originalEn, "description") };
 
         // 準備一份「改寫簡稱」的更新請求（其餘欄位原樣帶回），驗證完成後還原
         object Body(string zhShort, object? en) => new
@@ -234,12 +239,12 @@ public sealed class AppContractBatch5Tests(AdminWriteApiFixture fixture)
             content = new { zh = new { name = detail.GetProperty("zh").GetProperty("name").GetString(), shortName = zhShort, description = ReadOrNull(detail.GetProperty("zh"), "description") }, en },
         };
 
-        var tooLong = await admin.PutAsJsonAsync($"/api/v1/admin/clubs/{id}", Body(new string('x', 33), null), TestJson.WriteOptions);
+        var tooLong = await admin.PutAsJsonAsync($"/api/v1/admin/clubs/{id}", Body(new string('x', 33), enBack), TestJson.WriteOptions);
         Assert.Equal(HttpStatusCode.BadRequest, tooLong.StatusCode);
 
         try
         {
-            var changed = await admin.PutAsJsonAsync($"/api/v1/admin/clubs/{id}", Body("台中藍鯨（測試簡稱）", null), TestJson.WriteOptions);
+            var changed = await admin.PutAsJsonAsync($"/api/v1/admin/clubs/{id}", Body("台中藍鯨（測試簡稱）", enBack), TestJson.WriteOptions);
             Assert.Equal(HttpStatusCode.OK, changed.StatusCode);
             using var anonymous = fixture.CreateClient();
             Assert.Equal("台中藍鯨（測試簡稱）", (await JsonAsync(await anonymous.GetAsync("/api/v1/clubs/bw?lang=zh"))).GetProperty("shortName").GetString());
@@ -248,7 +253,7 @@ public sealed class AppContractBatch5Tests(AdminWriteApiFixture fixture)
         }
         finally
         {
-            Assert.Equal(HttpStatusCode.OK, (await admin.PutAsJsonAsync($"/api/v1/admin/clubs/{id}", Body("台中藍鯨", null), TestJson.WriteOptions)).StatusCode);
+            Assert.Equal(HttpStatusCode.OK, (await admin.PutAsJsonAsync($"/api/v1/admin/clubs/{id}", Body("台中藍鯨", enBack), TestJson.WriteOptions)).StatusCode);
         }
 
         Assert.Equal("台中藍鯨", await C1Test.ScalarAsync<string>("SELECT short_name FROM clubs_i18n WHERE club_id = @C AND locale = N'zh-Hant'", ("@C", id)));

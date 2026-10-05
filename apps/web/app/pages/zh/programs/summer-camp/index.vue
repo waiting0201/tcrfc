@@ -17,7 +17,7 @@
 // 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
 // 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
 // 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
-definePageMeta({ nav: 'programs', unit: '5.2', enReady: true })
+definePageMeta({ nav: 'programs', unit: '5.2', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -25,10 +25,10 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getSummerCampSeoEn() : getSummerCampSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getSummerCampSeoEn() : getSummerCampSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? getSummerCampSeoEn(clubKey.value) : getSummerCampSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getSummerCampSeoEn(clubKey.value) : getSummerCampSeo(clubKey.value)).description),
 })
-const hero = computed(() => (isEn.value ? getSummerCampHeroEn() : getSummerCampHero(clubKey.value)))
+const hero = computed(() => (isEn.value ? getSummerCampHeroEn(clubKey.value) : getSummerCampHero(clubKey.value)))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'summer_camp', pageSize: 5, lang: locale.value },
@@ -154,7 +154,7 @@ useCourseSchema(
         </div>
       </div>
     </template>
-    <p v-else class="section-lede is-pending">目前尚無對應的夏令營活動，如未來規劃將於本頁與官方社群公布。</p>
+    <p v-else class="section-lede is-pending">{{ tx('目前尚無對應的夏令營活動，如未來規劃將於本頁與官方社群公布。', 'There is no Summer Camp at the moment. If one is planned in future it will be announced on this page and on our official social channels.') }}</p>
   </div>
 </section>
 
@@ -199,11 +199,11 @@ useCourseSchema(
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">SUMMER CAMP</p>
-        <h2 class="section-title" id="sc-cta-title">{{ tx(isTcrfc ? '關注下一梯次夏令營' : '推廣活動最新消息', 'Follow the Next Summer Camp') }}</h2>
+        <h2 class="section-title" id="sc-cta-title">{{ tx(isTcrfc ? '關注下一梯次夏令營' : '推廣活動最新消息', isTcrfc ? 'Follow the Next Summer Camp' : 'Latest Programs News') }}</h2>
       </div>
     </div>
     <p v-if="isTcrfc" class="section-lede">{{ tx('梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。', 'Once sessions are announced they will be posted here and on our social accounts. Payment is not taken on this site.') }}</p>
-    <p v-else class="section-lede">是否推出夏令營活動將視規劃進度公布，歡迎關注「推廣活動」總覽與官方社群最新消息。</p>
+    <p v-else class="section-lede">{{ tx('是否推出夏令營活動將視規劃進度公布，歡迎關注「推廣活動」總覽與官方社群最新消息。', 'Whether a Summer Camp will be offered will be announced as plans progress. Please follow the Programs overview and the latest news on our official social channels.') }}</p>
     <div class="hero__ctas" style="margin-top:2rem;">
       <a v-if="isTcrfc && hasRegistrable" class="btn btn--primary" href="#register">{{ tx('線上報名', 'Register Online') }}</a>
       <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">{{ tx('加入候補通知', 'Join the Notification List') }}</a>

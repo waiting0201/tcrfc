@@ -60,7 +60,7 @@ export interface SiteFacts {
   /** 「＿＿年創立」／「＿＿年成立」這句完整顯示文字（沿用既有 club-copy.ts `foundedZh`
    * 的既有核實文字，這裡是唯一定義處，club-copy.ts 改為引用本檔）。 */
   foundedDisplayZh: string
-  /** 英文版（僅 tcrfc；bw 恆為 null——藍鯨英文全名卡 B-5）。後端 `?lang=en` 沒有英文值時
+  /** 英文版（兩個俱樂部都有；藍鯨的英文名稱 B-5 已於 2026-10-05 定案，事實值取自藍鯨規劃書英文版 §3）。後端 `?lang=en` 沒有英文值時
    * 會回退中文，`useSiteFacts` 合併時會剔除含中日文字元的值、改用本檔快照，絕不讓中文混進英文版。 */
   foundedDisplayEn: string | null
   /** 成立當年拿下的頭銜（僅 tcrfc 有這筆核實事實；bw 沒有「成立當年奪冠」這筆事實，
@@ -137,21 +137,21 @@ export const SITE_FACTS: Record<ClubCode, SiteFacts> = {
     foundedYear: '2014',
     foundingDateIso: '2014-04-12',
     foundedDisplayZh: '2014 年 4 月 12 日成立',
-    foundedDisplayEn: null,
+    foundedDisplayEn: 'Founded on 12 April 2014',
     // bw 沒有「成立當年奪冠」這筆核實事實，隊史第一座冠軍是 2017 年（見 club-copy.ts TIMELINE_BW）。
     foundingTitleZh: null,
     foundingTitleEn: null,
     league: {
       nameZh: '台灣木蘭足球聯賽',
-      nameEn: null,
+      nameEn: 'Taiwan Mulan Football League',
       shortNameZh: '木蘭聯賽',
     },
     venues: [
-      { nameZh: '台中北屯太原足球場', nameEn: null, address: null, isHomeGround: true },
-      { nameZh: '台中豐原體育場', nameEn: null, address: null, isHomeGround: true },
+      { nameZh: '台中北屯太原足球場', nameEn: 'Taichung Beitun Taiyuan Football Field', address: null, isHomeGround: true },
+      { nameZh: '台中豐原體育場', nameEn: 'Taichung Fengyuan Stadium', address: null, isHomeGround: true },
     ],
     squadStructureZh: '一線隊與青年隊（U15／U12）兩個梯隊並行的發展體系',
-    squadStructureEn: null,
+    squadStructureEn: 'A development system in which the First Team and the Youth teams (U15/U12) run in parallel',
     squadCodes: ['U15', 'U12'],
     // 舊站盤點：content/blue-whale/gap-analysis.md §2 單元 10「沒有任何實體地址、電話
     // 或聯絡表單」，不得自行臆測一個地址。

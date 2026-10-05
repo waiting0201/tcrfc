@@ -14,7 +14,7 @@
 // 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
 // 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
 // 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
-definePageMeta({ nav: 'programs', unit: '5.3', enReady: true })
+definePageMeta({ nav: 'programs', unit: '5.3', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -22,10 +22,10 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getWinterCampSeoEn() : getWinterCampSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getWinterCampSeoEn() : getWinterCampSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? getWinterCampSeoEn(clubKey.value) : getWinterCampSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getWinterCampSeoEn(clubKey.value) : getWinterCampSeo(clubKey.value)).description),
 })
-const hero = computed(() => (isEn.value ? getWinterCampHeroEn() : getWinterCampHero(clubKey.value)))
+const hero = computed(() => (isEn.value ? getWinterCampHeroEn(clubKey.value) : getWinterCampHero(clubKey.value)))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'winter_camp', pageSize: 5, lang: locale.value },

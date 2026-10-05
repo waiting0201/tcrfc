@@ -58,10 +58,10 @@ useSeoMeta({
 // docs/05-i18n-seo.md §1 Fallback 規則。en 頁面預設一律顯示（S1-13 當下沒有任何一頁
 // 真的翻譯完成）；真的有英文內容的頁面用 definePageMeta({ enReady: true }) 關掉，
 // 這個旗標與 unit／nav／bodyClass 同一種機制，不另開一套判斷式。
-// C-6／S2-13：`enReady` 只對主站有效；藍鯨站 /en/ 的英文未生產（B-5／C-10），一律顯示提示。
+// C-6／S2-13：主站看 `enReady`，藍鯨看 `enReadyBw`（藍鯨英文逐頁翻完才開，B-5 定案後）。
 const isBwSite = useRuntimeConfig().public.club === 'bw'
 const showLocaleFallbackNotice = computed(
-  () => locale.value === 'en' && (!route.meta.enReady || isBwSite),
+  () => locale.value === 'en' && !(isBwSite ? route.meta.enReadyBw : route.meta.enReady),
 )
 </script>
 

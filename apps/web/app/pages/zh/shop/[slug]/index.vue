@@ -10,7 +10,7 @@
 import { toMemberApiError } from '#shared/utils/member'
 import type { ShopProductDetail, ShopVariant } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true, enReadyBw: true })
 
 const route = useRoute()
 const { lp, locale, isEn, tx } = useLocale()
@@ -19,6 +19,8 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const clubAssets = computed(() => getClubAssets(clubKey.value))
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 const isBw = computed(() => clubKey.value === 'bw')
+const clubNameEn = computed(() => getShopClubNameEn(clubKey.value))
+const cultureLabel = computed(() => (isEn.value ? getShopCultureLabelEn(clubKey.value) : identity.value.cultureLabelZh))
 
 const slug = computed(() => String(route.params.slug))
 const { data: product } = await useFetch<ShopProductDetail | null>(() => `/api/shop/products/${slug.value}`, {
@@ -147,13 +149,13 @@ const shippingNote = computed(() => {
 
 const siteConfig = useSiteConfig()
 const pageUrl = computed(() => `${(siteConfig.url ?? '').replace(/\/$/, '')}${route.path}`)
-useProductSchema(product, { brandName: computed(() => (isEn.value ? CLUB_NAME_EN : clubAssets.value.shortNameZh)), pageUrl, sellerName: collectingSubject })
+useProductSchema(product, { brandName: computed(() => (isEn.value ? clubNameEn.value : clubAssets.value.shortNameZh)), pageUrl, sellerName: collectingSubject })
 
 useSeoMeta({
   title: computed(() => product.value?.seoTitle
-    || (isEn.value ? getShopProductSeoEn(CLUB_NAME_EN, product.value?.name).title : `${product.value?.name ?? '商品'}｜官方商店｜${clubAssets.value.nameZh}`)),
+    || (isEn.value ? getShopProductSeoEn(clubNameEn.value, product.value?.name).title : `${product.value?.name ?? '商品'}｜官方商店｜${clubAssets.value.nameZh}`)),
   description: computed(() => product.value?.seoDescription
-    || (isEn.value ? getShopProductSeoEn(CLUB_NAME_EN, product.value?.name).description : `${clubAssets.value.nameZh}官方商店「${product.value?.name ?? ''}」。以 LINE Pay 付款並開立電子發票。`)),
+    || (isEn.value ? getShopProductSeoEn(clubNameEn.value, product.value?.name).description : `${clubAssets.value.nameZh}官方商店「${product.value?.name ?? ''}」。以 LINE Pay 付款並開立電子發票。`)),
   ogImage: computed(() => images.value[0]?.url ?? undefined),
 })
 </script>
@@ -163,7 +165,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
-      <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
+      <li><a :href="lp('/zh/culture/')">{{ cultureLabel }}</a></li>
       <li><a :href="lp('/zh/shop/')">{{ tx('官方商店', 'Shop') }}</a></li>
       <li aria-current="page">{{ product?.name }}</li>
     </ol>
@@ -173,7 +175,10 @@ useSeoMeta({
 <!-- SPEC 3.8 §8.3 — 商品詳情：圖集、規格選擇（尺寸／顏色＝SKU）、尺碼表、原價與促銷價、庫存、運送與退換貨說明、加入購物車 -->
 <section class="band band--tight">
   <div class="container">
-    <p v-if="isBw && collectingSubject" class="mc-alert mc-alert--info" role="note">
+    <p v-if="isBw && collectingSubject && isEn" class="mc-alert mc-alert--info" role="note">
+      You are buying {{ clubNameEn }} merchandise. <strong>Payment is collected by {{ collectingSubject }}</strong>, and the invoice is also issued in the name of {{ collectingSubject }}.
+    </p>
+    <p v-else-if="isBw && collectingSubject" class="mc-alert mc-alert--info" role="note">
       您購買的是{{ clubAssets.nameZh }}的商品，<strong>款項由{{ collectingSubject }}代收</strong>，發票抬頭亦為{{ collectingSubject }}。
     </p>
     <p v-if="info && !paymentAvailable" class="mc-alert mc-alert--info" role="status">

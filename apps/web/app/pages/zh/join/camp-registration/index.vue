@@ -19,7 +19,7 @@
 // 健康聲明、緊急聯絡人」，沒有「家長聯絡」這一項（跟 10.2 不同），後端也沒有對應鍵。
 // ⚠️ 規格疑點：緊急聯絡人未必是家長本人，若客戶希望營隊報名也收家長聯絡方式，需先確認規格
 // 再新增欄位，不能自行加回畫面。
-definePageMeta({ nav: '', unit: '10.3', enReady: true })
+definePageMeta({ nav: '', unit: '10.3', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -29,10 +29,11 @@ const config = useRuntimeConfig()
 // 具體營隊名稱；表單本身是否該對藍鯨開放，留待營隊真的推出時再確認（不在本輪自行
 // 決定關閉）。
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubEn = computed(() => bizClubNameEn(config.public.club))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? 'Camp Registration | Join / Contact | Taichung Rock FC' : `營隊報名 Camp Registration｜加入與聯絡｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? 'Register for the Taichung Rock FC winter and summer football camps. Complete the student details, your preferred session, health declaration and emergency contact, and the Programs Department will confirm the session and availability with parents.' : `報名${clubAssets.value.shortNameZh}寒暑假足球營隊。填寫學員資料、希望報名的梯次、健康聲明與緊急聯絡人，課程部將盡快與家長確認梯次與名額。`)),
+  title: computed(() => (isEn.value ? `Camp Registration | Join / Contact | ${clubEn.value}` : `營隊報名 Camp Registration｜加入與聯絡｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? `Register for the ${clubEn.value} winter and summer football camps. Complete the student details, your preferred session, health declaration and emergency contact, and the Programs Department will confirm the session and availability with parents.` : `報名${clubAssets.value.shortNameZh}寒暑假足球營隊。填寫學員資料、希望報名的梯次、健康聲明與緊急聯絡人，課程部將盡快與家長確認梯次與名額。`)),
 })
 
 const EMERGENCY_RELATION_LABELS: Record<string, string> = {

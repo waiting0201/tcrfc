@@ -32,9 +32,14 @@ const config = useRuntimeConfig()
 const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
 // 英文版（主站 /en/）改用英文識別；`getClubIdentityEn` 見 shared/utils/club-copy-en-core.ts。
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(club.value)))
+// 藍鯨英文版（B-5，2026-10-05）：`getClubIdentityEnFor` 依俱樂部回藍鯨／磐石英文識別。
+const identity = computed(() => (isEn.value ? getClubIdentityEnFor(club.value) : getClubIdentity(club.value)))
 // 導覽下拉的特色照片全是磐石（含未成年學員）——藍鯨站不輸出，只留按鈕（E-83、check-club-image-leak.mjs）。
 const isTcrfc = computed(() => club.value === 'tcrfc')
+// 英文版的俱樂部專屬字樣：磐石 TCRFC／Academy，藍鯨 Taichung Blue Whale／Youth（藍鯨不得出現磐石字樣）。
+const nameEn = computed(() => (isTcrfc.value ? CLUB_NAME_EN : BW_NAME_EN))
+const tagEn = computed(() => (isTcrfc.value ? 'TCRFC' : BW_NAME_EN))
+const acaEn = computed(() => (isTcrfc.value ? 'Academy' : 'Youth'))
 const showWomens = computed(() => isUnitEnabledForClub('06', club.value))
 const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
 
@@ -234,7 +239,7 @@ onBeforeUnmount(() => {
 
   <header ref="headerEl" class="site-header" :class="{ 'site-header--en': isEn }" id="site-header">
     <div class="container">
-      <NuxtLink class="brand-lockup" :to="lp('/zh/')" :aria-label="tx(`${assets.nameZh} 首頁`, `${CLUB_NAME_EN} home`)">
+      <NuxtLink class="brand-lockup" :to="lp('/zh/')" :aria-label="tx(`${assets.nameZh} 首頁`, `${nameEn} home`)">
         <img :src="assets.headerMark.src" alt="" aria-hidden="true" :width="assets.headerMark.width" :height="assets.headerMark.height">
       </NuxtLink>
 
@@ -280,7 +285,7 @@ onBeforeUnmount(() => {
                 </ul>
                 <div class="mega__feature">
                   <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-about.jpg')" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" :href="lp('/zh/about/our-story/')">{{ tx(`認識${assets.shortNameZh}`, 'Get to know TCRFC') }}</a>
+                  <a class="btn btn--primary btn--sm" :href="lp('/zh/about/our-story/')">{{ tx(`認識${assets.shortNameZh}`, `Get to know ${tagEn}`) }}</a>
                 </div>
               </div>
             </div>
@@ -310,20 +315,20 @@ onBeforeUnmount(() => {
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li><a :href="lp('/zh/academy/overview/')">4.1 {{ tx(`${identity.academyShortLabelZh}總覽`, 'Academy Overview') }}</a></li>
+                  <li><a :href="lp('/zh/academy/overview/')">4.1 {{ tx(`${identity.academyShortLabelZh}總覽`, `${acaEn} Overview`) }}</a></li>
                   <li><a :href="lp('/zh/academy/teams/')">4.2 {{ tx(`${identity.academyShortLabelZh}隊伍`, 'Our Teams') }}</a></li>
-                  <li><a :href="lp('/zh/academy/pathway/')">4.3 {{ tx(`${identity.academyShortLabelZh}發展路徑`, 'Academy Pathway') }}</a></li>
+                  <li><a :href="lp('/zh/academy/pathway/')">4.3 {{ tx(`${identity.academyShortLabelZh}發展路徑`, `${acaEn} Pathway`) }}</a></li>
                   <li><a :href="lp('/zh/academy/curriculum/')">4.4 {{ tx('訓練課程與課綱', 'Training & Curriculum') }}</a></li>
                   <!-- BW-C1：4.5／4.6 已重開，只有 4.7（招生架構）維持關閉（藍鯨規劃書 §1.3
                        總則例外，見 shared/utils/units.ts 檔頭）。isUnitEnabledForClub
                        已隨 units.ts 更新自動反映，本身不必再改。 -->
                   <li v-if="isUnitEnabledForClub('4.5', club)"><a :href="lp('/zh/academy/coaches/')">4.5 {{ tx(`${identity.academyShortLabelZh}教練團`, 'Coaches') }}</a></li>
-                  <li v-if="isUnitEnabledForClub('4.6', club)"><a :href="lp('/zh/academy/life/')">4.6 {{ tx(`${identity.academyShortLabelZh}生活`, 'Academy Life') }}</a></li>
-                  <li v-if="isUnitEnabledForClub('4.7', club)"><a :href="lp('/zh/academy/join/')">4.7 {{ tx(`加入${identity.academyShortLabelZh}`, 'Join the Academy') }}</a></li>
+                  <li v-if="isUnitEnabledForClub('4.6', club)"><a :href="lp('/zh/academy/life/')">4.6 {{ tx(`${identity.academyShortLabelZh}生活`, `${acaEn} Life`) }}</a></li>
+                  <li v-if="isUnitEnabledForClub('4.7', club)"><a :href="lp('/zh/academy/join/')">4.7 {{ tx(`加入${identity.academyShortLabelZh}`, `Join the ${isTcrfc ? 'Academy' : 'Youth Teams'}`) }}</a></li>
                 </ul>
                 <div class="mega__feature">
                   <img v-if="isTcrfc" :src="siteImg('/assets/img/nav-academy.jpg')" alt="" width="440" height="280" loading="lazy">
-                  <a class="btn btn--primary btn--sm" :href="lp('/zh/join/academy/')">{{ tx(`加入${identity.academyShortLabelZh}`, 'Join the Academy') }}</a>
+                  <a class="btn btn--primary btn--sm" :href="lp('/zh/join/academy/')">{{ tx(`加入${identity.academyShortLabelZh}`, `Join the ${isTcrfc ? 'Academy' : 'Youth Teams'}`) }}</a>
                 </div>
               </div>
             </div>
@@ -358,7 +363,7 @@ onBeforeUnmount(() => {
                 <ul class="mega__list">
                   <li><a :href="lp('/zh/news/club/')">7.1 {{ tx('俱樂部新聞', 'Club News') }}</a></li>
                   <li><a :href="lp('/zh/news/match/')">7.2 {{ tx('比賽報導', 'Match Reports') }}</a></li>
-                  <li><a :href="lp('/zh/news/academy/')">7.3 {{ tx(`${identity.academyShortLabelZh}新聞`, 'Academy News') }}</a></li>
+                  <li><a :href="lp('/zh/news/academy/')">7.3 {{ tx(`${identity.academyShortLabelZh}新聞`, `${acaEn} News`) }}</a></li>
                   <li><a :href="lp('/zh/news/player-stories/')">7.4 {{ tx('球員故事', 'Player Stories') }}</a></li>
                   <li><a :href="lp('/zh/news/international/')">7.5 {{ tx('國際動態', 'International News') }}</a></li>
                   <li><a :href="lp('/zh/news/camps-events/')">7.6 {{ tx('營隊與活動', 'Camps & Events') }}</a></li>
@@ -377,8 +382,8 @@ onBeforeUnmount(() => {
             <div class="mega" hidden>
               <div class="container mega__inner">
                 <ul class="mega__list">
-                  <li v-if="isUnitEnabledForClub('8.1', club)"><a :href="lp('/zh/culture/manga/')">8.1 {{ tx(`${assets.shortNameZh}漫畫`, 'TCRFC Manga') }}</a></li>
-                  <li><a :href="lp('/zh/culture/fan-club/')">8.2 {{ tx(`${assets.shortNameZh}球迷會`, 'TCRFC Fan Club') }}</a></li>
+                  <li v-if="isUnitEnabledForClub('8.1', club)"><a :href="lp('/zh/culture/manga/')">8.1 {{ tx(`${assets.shortNameZh}漫畫`, `${tagEn} Manga`) }}</a></li>
+                  <li><a :href="lp('/zh/culture/fan-club/')">8.2 {{ tx(`${assets.shortNameZh}球迷會`, `${tagEn} Fan Club`) }}</a></li>
                   <li><a :href="lp('/zh/culture/merchandise/')">8.3 {{ tx('官方商品', 'Merchandise') }}</a></li>
                   <li><a :href="lp('/zh/shop/')">8.3 {{ tx('官方商店 SHOP', 'Official Store') }}</a></li>
                   <li><a :href="lp('/zh/perks/')">8.4 {{ tx('特約店家', 'Partner Perks') }}</a></li>
@@ -437,7 +442,7 @@ onBeforeUnmount(() => {
 
   <div ref="mobileNavEl" class="mobile-nav" id="mobile-nav" role="dialog" aria-modal="true" :aria-label="tx('行動選單', 'Mobile menu')" @click="onMobileNavClick">
     <div class="mobile-nav__top">
-      <img :src="assets.headerMark.src" :alt="tx(`${assets.nameZh}隊徽`, `${CLUB_NAME_EN} crest`)" width="33" height="34">
+      <img :src="assets.headerMark.src" :alt="tx(`${assets.nameZh}隊徽`, `${nameEn} crest`)" width="33" height="34">
       <button ref="closeBtnEl" class="mobile-nav__close" type="button" id="menu-close-btn" :aria-label="tx('關閉選單', 'Close menu')" @click="closeMobileNav">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
       </button>

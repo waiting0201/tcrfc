@@ -8,16 +8,17 @@
 import { toMemberApiError } from '#shared/utils/member'
 import type { ShopCart } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const isBw = computed(() => config.public.club === 'bw')
+const clubNameEn = computed(() => getShopClubNameEn(isBw.value ? 'bw' : 'tcrfc'))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('cart', CLUB_NAME_EN).title : `購物車 Cart｜官方商店｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('cart', CLUB_NAME_EN).description : `${clubAssets.value.shortNameZh}官方商店購物車：確認商品、規格與數量後前往結帳。`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('cart', clubNameEn.value).title : `購物車 Cart｜官方商店｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('cart', clubNameEn.value).description : `${clubAssets.value.shortNameZh}官方商店購物車：確認商品、規格與數量後前往結帳。`)),
   robots: 'noindex, nofollow',
 })
 
@@ -158,7 +159,8 @@ const shippingFee = computed(() => cart.value?.shipping.fee ?? 0)
           <p v-if="info && !paymentAvailable" class="mc-alert mc-alert--info" role="status">{{ tx('目前暫未開放線上付款，開放後即可結帳。', 'Online payment is not available yet. You can check out once it opens.') }}</p>
           <a v-if="cart?.canCheckout" class="btn btn--primary btn--block" :href="lp('/zh/checkout/')">{{ tx('前往結帳', 'Go to checkout') }}</a>
           <button v-else class="btn btn--primary btn--block" type="button" disabled>{{ tx('前往結帳', 'Go to checkout') }}</button>
-          <p v-if="isBw && info?.collectingSubjectName" class="summary__note">您購買的是{{ clubAssets.nameZh }}的商品，款項由{{ info.collectingSubjectName }}代收。</p>
+          <p v-if="isBw && info?.collectingSubjectName && isEn" class="summary__note">You are buying {{ clubNameEn }} merchandise. Payment is collected by {{ info.collectingSubjectName }}.</p>
+          <p v-else-if="isBw && info?.collectingSubjectName" class="summary__note">您購買的是{{ clubAssets.nameZh }}的商品，款項由{{ info.collectingSubjectName }}代收。</p>
           <p class="summary__note">{{ tx('結帳時以 LINE Pay 付款並開立電子發票。', 'Pay with LINE Pay at checkout. An e-invoice is issued automatically.') }}</p>
         </div>
       </aside>

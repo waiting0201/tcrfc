@@ -10,13 +10,13 @@
 //   - 端點冪等，找不到名單列也回成功（不透露名單狀態），所以成功文案只說「已完成退訂」。
 //   - 憑證無效（含拿別的俱樂部的憑證）→ 400，顯示「連結無效或已失效」。
 //   - noindex、nofollow（連結帶憑證）。
-definePageMeta({ nav: '', enReady: true })
+definePageMeta({ nav: '', enReady: true, enReadyBw: true })
 
 const route = useRoute()
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
-const clubNameZh = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
+const clubNameZh = computed(() => (isEn.value ? (club === 'bw' ? BW_NAME_EN : CLUB_NAME_EN) : getClubAssets(club).nameZh))
 
 useSeoMeta({
   title: computed(() => (isEn.value ? `Unsubscribe from the newsletter | ${clubNameZh.value}` : `取消訂閱電子報｜${clubNameZh.value}`)),

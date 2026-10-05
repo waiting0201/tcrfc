@@ -10,7 +10,7 @@ import type { PagedResponse } from '#shared/utils/api-types'
 import type { CoreValueDto } from '#shared/utils/core-values'
 import type { ShopProductListItem } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'home', unit: '01', bodyClass: 'page-home', enReady: true })
+definePageMeta({ nav: 'home', unit: '01', bodyClass: 'page-home', enReady: true, enReadyBw: true })
 
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：SEO、Hero 標語與
 // 底下幾個「真人真事」區塊（賽事戰績、球員名單、新聞、商店實拍照）分屬 shared/
@@ -26,11 +26,11 @@ const assets = computed(() => getClubAssets(clubKey.value))
 // 見 shared/utils/club-copy.ts 檔頭說明）。
 const { facts: siteFacts } = useSiteFacts(clubKey.value)
 // 英文版（主站 /en/）：文案取自 shared/utils/club-copy-en-core.ts（只回 tcrfc 英文值）。
-const heroCopy = computed(() => (isEn.value ? getHomeHeroEn(siteFacts.value) : getHomeHero(clubKey.value, siteFacts.value)))
-const pillars = computed(() => (isEn.value ? HOME_PILLARS_EN : HOME_PILLARS[clubKey.value]))
-const ctaTrio = computed(() => (isEn.value ? getHomeCtaTrioEn() : getHomeCtaTrio(clubKey.value, siteFacts.value)))
+const heroCopy = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getHomeHeroEnBw(siteFacts.value) : getHomeHeroEn(siteFacts.value)) : getHomeHero(clubKey.value, siteFacts.value)))
+const pillars = computed(() => (isEn.value ? (clubKey.value === 'bw' ? HOME_PILLARS_EN_BW : HOME_PILLARS_EN) : HOME_PILLARS[clubKey.value]))
+const ctaTrio = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getHomeCtaTrioEnBw(siteFacts.value) : getHomeCtaTrioEn()) : getHomeCtaTrio(clubKey.value, siteFacts.value)))
 // 對陣雙方與球員橫幅上的「我方」名稱：英文版用英文俱樂部名稱。
-const clubName = computed(() => (isEn.value ? CLUB_NAME_EN : assets.value.nameZh))
+const clubName = computed(() => (isEn.value ? (isTcrfc.value ? CLUB_NAME_EN : BW_NAME_EN) : assets.value.nameZh))
 
 // S1-13：club-copy.ts 裡的 ctaPrimaryHref／pillars[].href／ctaTrio[].href 三組欄位存的是
 // 「裸的 /zh/... 路徑」（該檔案的資料格式一律如此，不隨語系變化），樣板消費這些欄位時要
@@ -38,9 +38,11 @@ const clubName = computed(() => (isEn.value ? CLUB_NAME_EN : assets.value.nameZh
 // CTA 連結原本會把讀者導回 /zh/...），修法見下方樣板三處呼叫點。
 const { locale, lp, isEn, tx } = useLocale()
 
+const homeSeo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getHomeSeoEnBw(siteFacts.value) : getHomeSeoEn(siteFacts.value)) : getHomeSeo(clubKey.value, siteFacts.value)))
+
 useSeoMeta({
-  title: computed(() => (isEn.value ? getHomeSeoEn(siteFacts.value) : getHomeSeo(clubKey.value, siteFacts.value)).title),
-  description: computed(() => (isEn.value ? getHomeSeoEn(siteFacts.value) : getHomeSeo(clubKey.value, siteFacts.value)).description),
+  title: computed(() => homeSeo.value.title),
+  description: computed(() => homeSeo.value.description),
 })
 
 // Organization JSON-LD（GEO-05／S1-12f）。首頁是最適合放站台層級 Organization 結構化資料的
@@ -677,7 +679,7 @@ onBeforeUnmount(() => {
           </div>
         </article>
         <div v-if="otherTeamUpcoming.length === 0" class="match-card match-card--placeholder">
-          <p>{{ tx('青訓梯隊賽程尚未公開發布，敬請關注後續公告。', 'Academy age-group fixtures have not been published yet. Please check back for updates.') }}</p>
+          <p>{{ tx('青訓梯隊賽程尚未公開發布，敬請關注後續公告。', `${isTcrfc ? 'Academy' : 'Youth'} age-group fixtures have not been published yet. Please check back for updates.`) }}</p>
         </div>
       </div>
 
@@ -825,7 +827,7 @@ onBeforeUnmount(() => {
         <div>
           <p class="kicker kicker--on-dark">TEAM UP IN STYLE</p>
           <h2 class="section-title" id="store-title">{{ tx('官方商店', 'Official Store') }}</h2>
-          <p>{{ isTcrfc ? tx('主客場球衣、周邊配件與訓練服飾，穿上台中磐石桃紅，與球隊一起在場邊、場上同進退。', 'Home and away shirts, accessories and training wear. Put on Taichung Rock FC pink and stand with the team, on the touchline and on the pitch.') : `${assets.nameZh}官方商店，選購球隊商品，與球隊一起同進退。` }}</p>
+          <p>{{ isTcrfc ? tx('主客場球衣、周邊配件與訓練服飾，穿上台中磐石桃紅，與球隊一起在場邊、場上同進退。', 'Home and away shirts, accessories and training wear. Put on Taichung Rock FC pink and stand with the team, on the touchline and on the pitch.') : tx(`${assets.nameZh}官方商店，選購球隊商品，與球隊一起同進退。`, `The official ${BW_NAME_EN} store. Pick up team merchandise and stand with the team.`) }}</p>
           <a class="btn btn--primary" :href="lp('/zh/shop/')">{{ tx('前往官方商店 SHOP', 'Visit the Official Store') }}</a>
           <p class="store-band__fine">{{ tx('結帳以 LINE Pay 付款並開立電子發票。', 'Pay with LINE Pay at checkout; an electronic invoice is issued.') }}</p>
         </div>
@@ -854,7 +856,7 @@ onBeforeUnmount(() => {
           <p class="kicker">WITH THANKS TO</p>
           <h2 class="section-title" id="partners-title">{{ tx('合作夥伴', 'Our Partners') }}</h2>
         </div>
-        <p class="section-lede">{{ tx(`感謝以下夥伴支持${assets.nameZh}的每一步成長。`, `Thank you to the partners below for supporting every step of ${CLUB_NAME_EN}'s growth.`) }}</p>
+        <p class="section-lede">{{ tx(`感謝以下夥伴支持${assets.nameZh}的每一步成長。`, `Thank you to the partners below for supporting every step of ${clubName}'s growth.`) }}</p>
       </div>
 
       <div v-if="homePartnerTiles.length" class="sponsor-grid">
@@ -876,7 +878,7 @@ onBeforeUnmount(() => {
   <!-- SPEC 3.1 — Bottom CTA trio (10.1 / 10.2 / 10.5) -->
   <section v-if="isSectionEnabled('bottom_cta')" class="band grain cta-band" id="charity" aria-labelledby="cta-title">
     <div class="band-inner container">
-      <h2 class="visually-hidden" id="cta-title">{{ tx(`加入${assets.shortNameZh}`, 'Join TCRFC') }}</h2>
+      <h2 class="visually-hidden" id="cta-title">{{ tx(`加入${assets.shortNameZh}`, `Join ${isTcrfc ? 'TCRFC' : BW_NAME_EN}`) }}</h2>
       <div class="cta-grid">
         <div v-for="card in ctaTrio" :key="card.num" class="cta-card">
           <p class="cta-card__num">{{ card.num }}</p>

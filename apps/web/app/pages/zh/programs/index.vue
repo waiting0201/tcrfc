@@ -11,7 +11,7 @@
 // 對藍鯨隱藏，改顯示如實的報名說明（getProgramsHubEnrolNoteBw()）。五張導覽卡描述
 // 與底部 CTA 改讀 club-copy.ts 的 getProgramsHubCards()／getProgramsHubCtaCards()，
 // 沒有藍鯨自己照片的卡片改用既有的漸層佔位，不挪用磐石照片。
-definePageMeta({ nav: 'programs', unit: '05', enReady: true })
+definePageMeta({ nav: 'programs', unit: '05', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -19,15 +19,15 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getProgramsHubSeoEn() : getProgramsHubSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getProgramsHubSeoEn() : getProgramsHubSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? getProgramsHubSeoEn(clubKey.value) : getProgramsHubSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getProgramsHubSeoEn(clubKey.value) : getProgramsHubSeo(clubKey.value)).description),
 })
 // C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案）。
-const hero = computed(() => (isEn.value ? getProgramsHubHeroEn() : getProgramsHubHero(clubKey.value)))
-const intro = computed(() => (isEn.value ? getProgramsHubIntroEn() : getProgramsHubIntro(clubKey.value)))
-const cards = computed(() => (isEn.value ? getProgramsHubCardsEn() : getProgramsHubCards(clubKey.value)))
-const enrolNoteBw = getProgramsHubEnrolNoteBw()
-const ctaCards = computed(() => (isEn.value ? getProgramsHubCtaCardsEn() : getProgramsHubCtaCards(clubKey.value)))
+const hero = computed(() => (isEn.value ? getProgramsHubHeroEn(clubKey.value) : getProgramsHubHero(clubKey.value)))
+const intro = computed(() => (isEn.value ? getProgramsHubIntroEn(clubKey.value) : getProgramsHubIntro(clubKey.value)))
+const cards = computed(() => (isEn.value ? getProgramsHubCardsEn(clubKey.value) : getProgramsHubCards(clubKey.value)))
+const enrolNoteBw = computed(() => (isEn.value ? getProgramsHubEnrolNoteEnBw() : getProgramsHubEnrolNoteBw()))
+const ctaCards = computed(() => (isEn.value ? getProgramsHubCtaCardsEn(clubKey.value) : getProgramsHubCtaCards(clubKey.value)))
 const flowSteps = computed(() => (isEn.value ? ENROL_FLOW_STEPS_TCRFC_EN : ENROL_FLOW_STEPS_TCRFC))
 
 /** 導覽卡照片路徑——只有 tcrfc 既有卡片沿用原圖，藍鯨版一律 `hasPhoto: false`
@@ -114,7 +114,7 @@ const CARD_PHOTOS: Record<string, string> = {
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">HOW TO JOIN</p>
-        <h2 id="enroll-flow-title" class="section-title">如何報名</h2>
+        <h2 id="enroll-flow-title" class="section-title">{{ tx('如何報名', 'How to Register') }}</h2>
       </div>
     </div>
     <p class="section-lede">{{ enrolNoteBw }}</p>

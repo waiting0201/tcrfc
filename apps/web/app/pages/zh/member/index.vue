@@ -7,17 +7,18 @@
 // 🔴 會員頁不得被快取、不得被索引：頁面 `noindex`，回應 `Cache-Control: no-store`（nuxt.config.ts routeRules `/zh/member/**`），
 // 且所有會員資料只在瀏覽器端載入（SSR 輸出永遠是「載入中」殼，不含任何個人資料）。
 // 工作階段怎麼運作見 app/composables/useMemberSession.ts 檔頭。
-definePageMeta({ nav: '', unit: '14', enReady: true })
+definePageMeta({ nav: '', unit: '14', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const { isLoggedIn, restored, restore } = useMemberSession()
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('member', CLUB_NAME_EN).title : `會員中心 Member｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('member', CLUB_NAME_EN).description : `${clubAssets.value.nameZh}會員中心：登入與加入會員。會員享特約店家折扣，付費球迷會員另可獲得球衣。`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('member', clubNameEn.value).title : `會員中心 Member｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('member', clubNameEn.value).description : `${clubAssets.value.nameZh}會員中心：登入與加入會員。會員享特約店家折扣，付費球迷會員另可獲得球衣。`)),
   robots: 'noindex, nofollow',
 })
 
@@ -52,7 +53,7 @@ async function onLoggedOut() {
   <div class="container">
     <p class="page-hero__eyebrow">Member Centre</p>
     <h1>{{ tx('會員中心', 'Member Centre') }}<span v-if="!isEn" class="en">Member</span></h1>
-    <p v-if="isEn" class="page-hero__lede">Join {{ CLUB_NAME_EN }} as a member and show your membership card at partner stores to enjoy discounts. Upgrade to Paid Fan Club membership to also receive a jersey.</p>
+    <p v-if="isEn" class="page-hero__lede">Join {{ clubNameEn }} as a member and show your membership card at partner stores to enjoy discounts. Upgrade to Paid Fan Club membership to also receive a jersey.</p>
     <p v-else class="page-hero__lede">加入{{ clubAssets.shortNameZh }}會員，到特約店家出示會員卡即享折扣；升級付費球迷會員，另可獲得球衣。</p>
   </div>
 </section>

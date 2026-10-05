@@ -99,6 +99,15 @@ export const PARTNER_TYPE_SECTIONS = [
   { key: 'brand', type: '品牌夥伴', en: 'Brand Partners' },
 ] as const
 
+/**
+ * 俱樂部自訂夥伴類型的英文標題（藍鯨，B-5 2026-10-05）。類型值儲存的是中文字面值（不隨語系翻譯），
+ * 英文版區塊標題靠這張表；表上沒有的類型維持顯示原中文。英文為保守描述寫法，待客戶確認。
+ */
+export const PARTNER_CUSTOM_TYPE_EN: Readonly<Record<string, string>> = {
+  指導單位: 'Supervising Agencies',
+  官方合作夥伴: 'Official Partners',
+}
+
 /** 9.2 三個贊助等級（規劃書 §3.9，`SponsorDto.Tier` 的中文字面值）。 */
 export const SPONSOR_TIER_SECTIONS = [
   { key: 'title-sponsors', tier: '主贊助', en: 'Title Sponsors', heading: '主贊助' },

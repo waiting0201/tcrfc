@@ -46,7 +46,7 @@ const { lp, isEn } = useLocale()
     :data-title="newsTitleAttr(article.title)"
   >
     <div :class="['news-card__media', { 'news-card__media--noimg': !cover }]">
-      <span class="news-card__tag">{{ isEn ? newsCategoryLabelEn(article.categoryCode, article.categoryName) : article.categoryName }}</span>
+      <span class="news-card__tag">{{ isEn ? newsCategoryLabelEn(article.categoryCode, article.categoryName, clubKey) : article.categoryName }}</span>
       <img
         v-if="cover"
         :src="cover.src"

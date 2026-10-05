@@ -176,6 +176,11 @@
 | E-214 | 2026-10-05 | 多個 agent 並行做批次字串替換：共用 scratchpad 的腳本被別人覆寫、替換腳本中途失敗後重跑重複套用、英文字串的撇號未轉義產生語法錯誤 | ⚠️ 無（eslint／build 會抓到語法，抓不到重複套用） |
 | E-215 | 2026-10-05 | BFF `clientErrorFrom` 把上游 4xx 轉成 `createError` 時只保留 `message`（繁中），丟掉 `messageEn`／`code`；第一輪翻譯 agent 發現 /en/ 拿不到英文訊息，只在畫面層「偵測到中文就換成英文通用句」，沒有修傳遞鏈 | ✅ `extractErrorMessage(err, en)` 與 BFF `data.messageEn` 傳遞；✅ 假 API 加表單 400 路由（`dev-fixture-api.mjs`）可 curl 驗證 |
 | E-216 | 2026-10-05 | 假 API 的 `problem()` 把 `messageEn` 設成與繁中 `detail` 相同，掩蓋了 E-215 的資訊遺失（測了也看不出英文沒通過） | ✅ `problem()` 改為獨立英文 `messageEn` |
+| E-228 | 2026-10-05 | 主站英文分支寫死 `CLUB_NAME_EN`／`getClubIdentityEn()`／`Academy` 等磐石字樣；`isEn` 對藍鯨開啟後，英文藍鯨頁會印出 Taichung Rock FC（同一頁兩站共用、英文分支只為主站寫） | ✅ `useLocale.isEn` 藍鯨需 `enReadyBw` 才開（沒翻的頁不外洩）；✅ `check-club-brand-leak.mjs` 掃 zh／en |
+| E-229 | 2026-10-05 | 藍鯨詞表只含中文詞與 `TCRFC`／`Taichung Rock`，漏掉 `Academy`、部門名（International department）等英文通用詞，藍鯨 zh 頁的英文片段（10.2 按鈕寫 `Academy & Children's Training`）一直沒被抓到 | ⚠️ 無（建議詞表補 `Academy`，需先處理 zh 按鈕） |
+| E-230 | 2026-10-05 | JSON-LD 英文判斷用 `isEn`（頁面可見語系），藍鯨改為逐頁宣告後，未翻頁面的 JSON-LD 會變中文——把「頁面可見語系」與「URL／結構化資料語系」當同一件事 | ✅ 改用 `locale.value === 'en'` |
+| E-231 | 2026-10-05 | 頁面自己複製一份 `isEn` 邏輯（`line-callback.vue` 寫死「藍鯨不適用英文」），`useLocale` 規則改了副本不會跟著變；`schedule.vue` 賽事列直接印 `clubAssets.shortNameZh`，英文版殘留「台中磐石／台中藍鯨」 | ✅ `check-en-pages.mjs` 實機掃描抓到 |
+| E-232 | 2026-10-05 | `getForeignPlayerBody('bw')` 在 `site-facts` 藍鯨補了英文聯賽名後，藍鯨 zh 頁那段 `lang="en"` 文字悄悄變成「Taiwan's Taiwan Mulan Football League (台灣木蘭足球聯賽)」——補資料改變了既有輸出，沒有跑 zh 輸出比對 | ⚠️ 無（已把該函式固定回中文聯賽名，英文頁走 `getForeignPlayerBodyEnBw`） |
 | E-220 | 2026-10-05 | 英文化盤點只看主表欄位，把「賽程對手沒有英文**值**」誤判成「沒有英文**欄位**」，派出一張不必要的 migration 工作；`matches_i18n.opponent`、後台 `opponentEn`、公開 API 回退與 `isFallbackLocale` 早已存在 | ⚠️ 無（每張 `*_i18n` 側表的欄位在 `docs/12c`，查那份就知道） |
 | E-221 | 2026-10-05 | 後端寫死的英文標籤（`ApplicableTierLabel`）自己取名「Fan club members only」，與前台、`docs/06` §1.1 的「Paid Fan Club member」不一致 | ✅ `MembershipPublicTests` 斷言英文標籤；⚠️ 其他寫死英文字串仍無對照表檢查 |
 
@@ -2844,3 +2849,11 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **下次怎麼避免**：兩語系都要量版面（至少 1280／1440／窄寬）；非迴圈項目放迴圈外，驗證用多筆資料；凡是 API 的 JSON／代碼字串，兩個語系一律走同一個格式化函式，不得留原樣輸出分支。
 - **修正**：英文導覽在 `.site-header--en` 底下收斂字級、字距與間距（`SiteHeader.vue`，中文不變），1081–1199px 改用漢堡選單；俱樂部活動區塊移到月份迴圈外；時段兩語系都走 `formatWeeklySchedule`（無法解析顯示「—」）；`FaqEmbedItem` 補 `isFallbackLocale`。
 - **防呆**：無；本次以無頭 Chrome 量測（導覽單列、區塊數 3→1、時段文字）。假 API 已補多月份賽程、俱樂部活動與 JSON 時段資料可重現。
+
+### E-228 至 E-232 藍鯨英文版（2026-10-05，第三輪）
+
+- **E-228 錯在哪／根因**：英文分支原本只為主站寫，直接取 `CLUB_NAME_EN`、`getClubIdentityEn()`、字面 `Academy`；同一檔案兩站共用，`isEn` 對藍鯨開啟就會外洩磐石英文。根因是「英文分支＝主站英文」的隱含假設。**避免**：英文分支一律先問「藍鯨長什麼樣」，用 `isTcrfc` 分流或取站別參數；**防呆**：✅ `isEn` 藍鯨逐頁閘門、✅ `check-club-brand-leak`。
+- **E-229**：品牌外洩詞表只涵蓋中文詞與磐石英文專名。**避免**：新增英文版後詞表要補英文通用詞（Academy、部門名）；**防呆**：無，待補。
+- **E-230**：頁面可見語系與 URL／結構化資料語系是兩件事。**避免**：JSON-LD、`llms`、hreflang 一律用 URL 語系；**防呆**：✅ 改為 `locale.value`。
+- **E-231**：自製 `isEn` 副本與硬寫短名。**避免**：全站只用 `useLocale().isEn`；英文版顯示俱樂部短名用 `clubNameEn`／`selfShortName` 類計算屬性，不直接印 `*Zh`；**防呆**：✅ `check-en-pages.mjs --bw`。
+- **E-232**：補資料（site-facts 的英文欄位）改變既有輸出且未比對。**避免**：補欄位後對受影響頁面的 zh 輸出做前後比對（藍鯨與磐石各一次）；**防呆**：無。

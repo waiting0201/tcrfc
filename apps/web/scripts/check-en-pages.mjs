@@ -24,6 +24,8 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 const PAGES = resolve(HERE, '../app/pages/zh')
 const args = process.argv.slice(2)
 const ALL = args.includes('--all')
+// 藍鯨站（NUXT_PUBLIC_CLUB=bw）看 `enReadyBw` 旗標：node scripts/check-en-pages.mjs http://127.0.0.1:PORT --bw
+const FLAG = args.includes('--bw') ? 'enReadyBw' : 'enReady'
 const BASE = (args.find((a) => a.startsWith('http')) || 'http://127.0.0.1:3000').replace(/\/$/, '')
 
 function walk(dir) {
@@ -59,12 +61,12 @@ function visibleText(html) {
 
 // 已知、刻意保留的中文（回報時逐項說明）：法律同意／健康聲明（待法務，不自寫英文）、中文地址（無英文欄位）。
 // 其餘（人名、藍鯨中文名、輪播指示器）不在此豁免，掃到就是待處理或待確認事項。
-const KNOWN_ZH = [/隱私權政策/, /健康聲明|健康狀況/, /崇平路/]
+const KNOWN_ZH = [/隱私權政策/, /健康聲明|健康狀況/, /崇平路/, /^台中市.{2,12}[路街].*號$/]
 
 const routes = []
 for (const f of walk(PAGES)) {
   const src = readFileSync(f, 'utf8')
-  const ready = /enReady\s*:\s*true/.test(src)
+  const ready = new RegExp(`${FLAG}\\s*:\\s*true`).test(src)
   if (!ALL && !ready) continue
   const r = routeOf(f)
   if (r) routes.push({ route: r, ready })

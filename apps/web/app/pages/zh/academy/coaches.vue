@@ -10,13 +10,14 @@
 // 該俱樂部青年梯隊代碼（getAcademyTeamTabs 的有效 teamCode）有交集的人員，不依賴 `team` 單值
 // 查詢參數（同一位教練可兼任多個梯隊）。沒有任何教練資料（例：藍鯨名單未建）時顯示既有
 // 「整理中」空狀態，不沿用磐石資料頂替。
-definePageMeta({ nav: "academy", unit: "4.5", enReady: true })
+definePageMeta({ nav: "academy", unit: "4.5", enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.value) : identity.value.academyLabelZh))
 
 // S1-12d 收尾：梯隊代碼改讀 useSiteFacts(clubKey)（後端公開端點）。
 const { facts, academyLabel } = useSiteFacts(clubKey.value)
@@ -44,10 +45,10 @@ const coaches = computed(() =>
 const coachDetails = computed(() => coaches.value.filter((c) => c.licence || c.teamCodes?.length))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getYouthCoachesSeoEn() : getYouthCoachesSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getYouthCoachesSeoEn() : getYouthCoachesSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? getYouthCoachesSeoEn(clubKey.value) : getYouthCoachesSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getYouthCoachesSeoEn(clubKey.value) : getYouthCoachesSeo(clubKey.value)).description),
 })
-const hero = computed(() => (isEn.value ? getYouthCoachesHeroEn() : getYouthCoachesHero(clubKey.value)))
+const hero = computed(() => (isEn.value ? getYouthCoachesHeroEn(clubKey.value) : getYouthCoachesHero(clubKey.value)))
 </script>
 
 <template>
@@ -55,7 +56,7 @@ const hero = computed(() => (isEn.value ? getYouthCoachesHeroEn() : getYouthCoac
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
-      <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
+      <li><a :href="lp('/zh/academy/')">{{ academyCrumb }}</a></li>
       <li aria-current="page">{{ tx(identity.academyShortLabelZh + '教練團', 'Coaches') }}</li>
     </ol>
   </div>
@@ -124,7 +125,7 @@ const hero = computed(() => (isEn.value ? getYouthCoachesHeroEn() : getYouthCoac
       </a>
       <a class="cta-card" :href="lp('/zh/academy/life/')">
         <span class="cta-card__num">4.6</span>
-        <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '生活', 'Academy Life') }}</span>
+        <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '生活', isTcrfc ? 'Academy Life' : 'Youth Life') }}</span>
         <p class="cta-card__desc">{{ tx('訓練與比賽的日常紀錄', 'A day-to-day record of training and matches') }}</p>
       </a>
     </div>

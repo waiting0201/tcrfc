@@ -12,13 +12,15 @@ import type { PlayerCareerStatsResponse } from '#shared/utils/standings'
 import type { PlayerDto } from '#shared/utils/player'
 import { playerPath } from '#shared/utils/player'
 
-definePageMeta({ nav: 'club', unit: '3.1', enReady: true })
+definePageMeta({ nav: 'club', unit: '3.1', enReady: true, enReadyBw: true })
 
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const assets = computed(() => getClubAssets(clubKey.value))
 const teamCode = computed(() => (clubKey.value === 'tcrfc' ? 'D1' : 'BW1'))
+/** 英文版俱樂部名稱：磐石 `CLUB_NAME_EN`、藍鯨簡稱 `BW_NAME_EN`（B-5）。 */
+const clubNameEn = computed(() => (clubKey.value === 'tcrfc' ? CLUB_NAME_EN : BW_NAME_EN))
 const { lp, locale, isEn, tx } = useLocale()
 
 // 🔴 路由參數 `slug`（App 規劃書 §2.3：`tcrfc://player/{slug}` → `/zh/club/first-team/player/{slug}`）。
@@ -61,10 +63,10 @@ const footLabel = computed(() => {
 
 useSeoMeta({
   title: computed(() => (isEn.value
-    ? `${player.value?.shirtNo ? `${player.value.shirtNo} ` : ''}${player.value?.name ?? 'Player'} | First Team | ${CLUB_NAME_EN}`
+    ? `${player.value?.shirtNo ? `${player.value.shirtNo} ` : ''}${player.value?.name ?? 'Player'} | First Team | ${clubNameEn.value}`
     : `${player.value?.shirtNo ? `${player.value.shirtNo} ` : ''}${player.value?.name ?? '球員'}｜一線隊｜${assets.value.nameZh}`)),
   description: computed(() => (isEn.value
-    ? `Profile and season-by-season appearance statistics for ${CLUB_NAME_EN} First Team player ${player.value?.name ?? ''}.`
+    ? `Profile and season-by-season appearance statistics for ${clubNameEn.value} First Team player ${player.value?.name ?? ''}.`
     : `${assets.value.nameZh}一線隊球員${player.value?.name ?? ''}的基本資料與逐季出賽數據。`)),
 })
 /** 場上位置顯示（英文版把 GK／DF／MF／FW 轉成全名）。 */

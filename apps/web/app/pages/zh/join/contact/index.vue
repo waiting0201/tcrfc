@@ -6,7 +6,7 @@
 // .hours（PublicSiteFactsDto.contact 既有欄位，S1-17 主輪交付時漏綁，見 apps/web/README.md
 // 「S1-17」節「規格疑點」第 5 點）。兩俱樂部這兩個值目前在後台都還是 null，綁定後畫面仍只顯示
 // 標籤、不顯示值——這是資料現況，不是本次修正的缺陷。
-definePageMeta({ nav: '', unit: '10-contact', enReady: true })
+definePageMeta({ nav: '', unit: '10-contact', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 
@@ -17,7 +17,8 @@ const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => (isEn.value ? JOIN_CONTACT_HERO_EN : JOIN_CONTACT_HERO[clubKey.value]))
+const hero = computed(() => (isEn.value ? (isTcrfc.value ? JOIN_CONTACT_HERO_EN : JOIN_CONTACT_HERO_EN_BW) : JOIN_CONTACT_HERO[clubKey.value]))
+const seoEn = computed(() => (isTcrfc.value ? JOIN_CONTACT_SEO_EN : JOIN_CONTACT_SEO_EN_BW))
 // S1-13 缺口①：hero.lede（兩個俱樂部版本皆有）含內嵌連結標記，v-html 渲染前
 // 用 localizeHtmlLinks() 把裡面的 /zh/join/ 換成目前語系版本。
 const ledeHtml = computed(() => localizeHtmlLinks(hero.value.lede, locale.value))
@@ -28,8 +29,8 @@ const ledeHtml = computed(() => localizeHtmlLinks(hero.value.lede, locale.value)
 const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? JOIN_CONTACT_SEO_EN : JOIN_CONTACT_SEO[clubKey.value]).title),
-  description: computed(() => (isEn.value ? JOIN_CONTACT_SEO_EN : JOIN_CONTACT_SEO[clubKey.value]).description),
+  title: computed(() => (isEn.value ? seoEn.value : JOIN_CONTACT_SEO[clubKey.value]).title),
+  description: computed(() => (isEn.value ? seoEn.value : JOIN_CONTACT_SEO[clubKey.value]).description),
 })
 
 /** 從社群網址推導顯示用帳號（沿用 mockup 既有的 @handle 呈現方式，不新增資料欄位）。 */

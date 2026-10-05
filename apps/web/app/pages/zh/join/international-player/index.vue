@@ -20,15 +20,20 @@
 // 全部固定寫死「Taichung Rock FC」「TCRFC」「台中磐石足球俱樂部」「International
 // Department」，沒有任何俱樂部分支——10.4 從未被 units.ts 關閉，藍鯨訪客一直看得到
 // 這頁的磐石專屬機構名稱。改讀 club-copy.ts 的 getInternationalPlayerSeo() 等函式。
-definePageMeta({ nav: '', unit: '10.4', enReady: true })
+definePageMeta({ nav: '', unit: '10.4', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 
+const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const intlSeoEn = computed(() => (isTcrfc.value ? getInternationalPlayerSeoEn() : getInternationalPlayerSeoEnBw()))
+// 藍鯨沒有「國際部」：英文跟進句改用 club 版（zh 與 tcrfc 版維持既有字面）。
+const followUpEn = computed(() => (isEn.value && !isTcrfc.value ? JOIN_INTL_FOLLOWUP_EN_BW : null))
+
 useSeoMeta({
-  title: computed(() => (isEn.value ? getInternationalPlayerSeoEn().title : getInternationalPlayerSeo(clubKey.value).title)),
-  description: computed(() => (isEn.value ? getInternationalPlayerSeoEn().description : getInternationalPlayerSeo(clubKey.value).description)),
+  title: computed(() => (isEn.value ? intlSeoEn.value.title : getInternationalPlayerSeo(clubKey.value).title)),
+  description: computed(() => (isEn.value ? intlSeoEn.value.description : getInternationalPlayerSeo(clubKey.value).description)),
 })
 const hero = computed(() => getInternationalPlayerHero(clubKey.value))
 const consentAfterLink = computed(() => getInternationalPlayerConsentAfterLink(clubKey.value))
@@ -109,7 +114,7 @@ async function onSubmit() {
       <FormStatusBanner
         :status="status"
         :error-message="errorMessage"
-        success-message="Enquiry received! A confirmation email has been sent to you. Our International department will follow up with you directly."
+        :success-message="followUpEn?.success ?? 'Enquiry received! A confirmation email has been sent to you. Our International department will follow up with you directly.'"
       />
       <form v-if="status !== 'success'" class="tcrfc-form" action="" method="post" lang="en" @submit.prevent="onSubmit">
         <!-- action left empty: this is a static site. Actual submission (auto-reply, notification email, backend record) is handled by a server or third-party form service. This markup is the front-end field layout and validation scaffold only. -->
@@ -227,7 +232,7 @@ async function onSubmit() {
         <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">Submit Enquiry</button>
 
         <div class="form-submit-note">
-          <p><strong>What happens after you submit?</strong> You will receive an automatic confirmation email immediately. Our International department will also receive a notification and follow up with you directly regarding next steps.</p>
+          <p><strong>What happens after you submit?</strong> {{ followUpEn?.note ?? 'You will receive an automatic confirmation email immediately. Our International department will also receive a notification and follow up with you directly regarding next steps.' }}</p>
         </div>
       </form>
 

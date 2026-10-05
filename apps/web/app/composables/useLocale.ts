@@ -29,13 +29,13 @@ export function useLocale() {
 
   /**
    * 是否「顯示英文文案」（樣板用：`v-if="isEn"` 切換整段含標記的英文版面）。
-   * 🔴 只有主站（`tcrfc`）的 `/en/` 為 true。藍鯨站 `/en/` 維持現狀（繁中備援＋提示）：
-   * 藍鯨英文正式全名卡 B-5、英文內容是全新生產（C-10），不在主站英文版範圍，
-   * 因此 `isEn`／`tx` 在藍鯨站一律回傳繁中，不得讓藍鯨出現英文介面配中文內容的混合。
-   * 要判斷「URL 是不是 /en/」請用 `locale.value === 'en'`。
+   * 主站（`tcrfc`）：`/en/` 一律 true。
+   * 藍鯨（`bw`，B-5 於 2026-10-05 定案後開放英文版）：`/en/` 且該頁宣告 `enReadyBw: true` 才為 true——
+   * 藍鯨英文是逐頁翻完才開，**尚未翻的頁面整頁維持繁中（連同共用頁首頁尾）＋整頁提示**，不出現英文介面配中文內容、
+   * 更不會把主站英文（Taichung Rock FC）誤植到藍鯨。要判斷「URL 是不是 /en/」請用 `locale.value === 'en'`。
    */
   const club = useRuntimeConfig().public.club
-  const isEn = computed(() => locale.value === 'en' && club !== 'bw')
+  const isEn = computed(() => locale.value === 'en' && (club !== 'bw' || route.meta.enReadyBw === true))
 
   /**
    * 行內雙語取值：`tx('首頁', 'Home')`。zh 版回傳第一個參數，en 版回傳第二個。

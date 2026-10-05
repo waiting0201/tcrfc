@@ -8,7 +8,7 @@
 // 「外籍球員招募」兩段正文改為 `club-copy.ts` 工廠函式（`getJoinFirstTeamBody`／
 // `getForeignPlayerBody`），依規劃書 §1.3「四項以外不得另行設計」維持本頁對藍鯨開放。
 // 試訓場次表格兩俱樂部共用同一份通用空白狀態文字（無俱樂部專屬事實），不需要分支。
-definePageMeta({ nav: 'club', unit: '3.3', enReady: true })
+definePageMeta({ nav: 'club', unit: '3.3', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -18,13 +18,14 @@ const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const { facts } = useSiteFacts(clubKey.value)
 // P4 試訓場次（H 批）：未結束的公開場次，API 失敗＝空陣列
 const { trials } = await usePublicTrials()
-const hero = computed(() => (isEn.value ? getPlayerOpportunitiesHeroEn() : getPlayerOpportunitiesHero(clubKey.value)))
-const joinBody = computed(() => (isEn.value ? getJoinFirstTeamBodyEn(facts.value) : getJoinFirstTeamBody(clubKey.value, facts.value)))
-const foreignBody = computed(() => (isEn.value ? getForeignPlayerBodyEn(facts.value) : getForeignPlayerBody(clubKey.value, facts.value)))
+// 英文版：磐石用 `*En`，藍鯨用 `*EnBw`（club-copy-en-club.ts 檔頭）。
+const hero = computed(() => (isEn.value ? (isTcrfc.value ? getPlayerOpportunitiesHeroEn() : getPlayerOpportunitiesHeroEnBw()) : getPlayerOpportunitiesHero(clubKey.value)))
+const joinBody = computed(() => (isEn.value ? (isTcrfc.value ? getJoinFirstTeamBodyEn(facts.value) : getJoinFirstTeamBodyEnBw(facts.value)) : getJoinFirstTeamBody(clubKey.value, facts.value)))
+const foreignBody = computed(() => (isEn.value ? (isTcrfc.value ? getForeignPlayerBodyEn(facts.value) : getForeignPlayerBodyEnBw(facts.value)) : getForeignPlayerBody(clubKey.value, facts.value)))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getPlayerOpportunitiesSeoEn() : getPlayerOpportunitiesSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getPlayerOpportunitiesSeoEn() : getPlayerOpportunitiesSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerOpportunitiesSeoEn() : getPlayerOpportunitiesSeoEnBw()) : getPlayerOpportunitiesSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerOpportunitiesSeoEn() : getPlayerOpportunitiesSeoEnBw()) : getPlayerOpportunitiesSeo(clubKey.value)).description),
 })
 
 // G-12 常見問題快捷區塊：trials 掛載點（db/seed FAQ_EMBED_SLOTS「試訓頁（3.3）」），
@@ -56,7 +57,7 @@ useFaqPageSchema(faqs)
 <section class="band" id="join" aria-labelledby="join-title">
   <div class="band-inner container">
     <div class="prose">
-      <h2 id="join-title">{{ isEn ? 'Join Taichung Rock' : (isTcrfc ? '加入台中磐石 Join TCRFC' : '加入台中藍鯨') }}</h2>
+      <h2 id="join-title">{{ isEn ? (isTcrfc ? 'Join Taichung Rock' : CLUB_JOIN_HEADING_EN_BW) : (isTcrfc ? '加入台中磐石 Join TCRFC' : '加入台中藍鯨') }}</h2>
       <!-- GEO-03（S1-12d）：聯賽名稱為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
       <p>{{ joinBody }}</p>
     </div>
@@ -126,7 +127,8 @@ useFaqPageSchema(faqs)
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">{{ tx('國際發展通道', 'International Pathways') }}</p>
         <p class="cta-card__desc">
-          <template v-if="isEn">See how players can reach stages in Europe, Japan and Hong Kong through Taichung Rock.</template>
+          <template v-if="isEn && isTcrfc">See how players can reach stages in Europe, Japan and Hong Kong through Taichung Rock.</template>
+          <template v-else-if="isEn">{{ CLUB_OPPORTUNITIES_INTL_CARD_DESC_EN_BW }}</template>
           <template v-else-if="isTcrfc">了解球員如何透過台中磐石通往歐洲、日本、香港的舞台。</template>
           <template v-else>了解球員如何透過台中藍鯨旅外日本、中國。</template>
         </p>

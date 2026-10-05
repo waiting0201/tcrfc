@@ -18,7 +18,7 @@ namespace Tcrfc.Api.Tests;
 public sealed class LocalizationFallbackTests(ApiFixture fixture)
 {
     [Fact]
-    public async Task 俱樂部名稱_有英文的用英文_沒有的回退中文()
+    public async Task 俱樂部名稱_兩家都有英文名_lang為en時取英文()
     {
         using var client = fixture.CreateClient();
 
@@ -31,8 +31,10 @@ public sealed class LocalizationFallbackTests(ApiFixture fixture)
         // tcrfc 兩個語系都有英文名，?lang=en 應該拿到英文（README 驗收紀錄：Taichung Rock FC）。
         Assert.False(ContainsCjk(tcrfc.Name), $"tcrfc 在 lang=en 應為英文名，實際是「{tcrfc.Name}」");
 
-        // bw（台中藍鯨）name 只有 zh-Hant 列，README 驗收紀錄：?lang=en 回退成「台中藍鯨」。
-        Assert.True(ContainsCjk(bw.Name), $"bw 目前沒有英文俱樂部名，lang=en 應回退成中文，實際是「{bw.Name}」");
+        // bw（台中藍鯨）：B-5 已於 2026-10-05 定案（全名 Taichung Blue Whale Women's Football Club），種子帶入英文列，
+        // ?lang=en 取得英文名。俱樂部英文列缺失時的回退行為由 AppContractBatch4Tests 自建測資驗證（經後台移除英文列再還原）。
+        Assert.False(ContainsCjk(bw.Name), $"bw 在 lang=en 應為英文名（B-5 已定案），實際是「{bw.Name}」");
+        Assert.Equal("Taichung Blue Whale Women's Football Club", bw.Name);
     }
 
     [Fact]

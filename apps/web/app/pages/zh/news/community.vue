@@ -4,10 +4,11 @@
 // 6 個 news 分類頁共用同一份 client 篩選行為，已抽成 NewsListBody／NewsFilterForm／
 // NewsCategoryTabs 三個共用元件（docs/13-blue-whale-site.md §6，務必做成元件不要複製六次）。
 // 🔴 SSR 階段打真實 API（分類已在查詢時過濾），不做 client-only 抓取。
-definePageMeta({ nav: 'news', unit: '07', enReady: true })
+definePageMeta({ nav: 'news', unit: '07', enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
+const clubKey: 'tcrfc' | 'bw' = club === 'bw' ? 'bw' : 'tcrfc'
 
 // S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
 const { locale, lp, isEn, tx } = useLocale()
@@ -27,8 +28,8 @@ const month = ref('')
 const search = ref('')
 
 useSeoMeta({
-  title: computed(() => isEn.value ? getNewsCategorySeoEn('community', articles.value.length).title : (club === 'bw' ? `社區活動 Community｜新聞 News｜${getClubAssets(club).nameZh}` : "社區活動 Community｜新聞 News｜台中磐石足球俱樂部")),
-  description: computed(() => isEn.value ? getNewsCategorySeoEn('community', articles.value.length).description : (club === 'bw'
+  title: computed(() => isEn.value ? getNewsCategorySeoEn('community', articles.value.length, clubKey).title : (club === 'bw' ? `社區活動 Community｜新聞 News｜${getClubAssets(club).nameZh}` : "社區活動 Community｜新聞 News｜台中磐石足球俱樂部")),
+  description: computed(() => isEn.value ? getNewsCategorySeoEn('community', articles.value.length, clubKey).description : (club === 'bw'
     ? `${getClubAssets(club).shortNameZh}社區公益與地方合作活動紀錄，共 ${articles.value.length} 篇真實報導。`
     : "台中磐石社區公益與地方合作活動紀錄，共 3 篇真實報導，呼應「Community 社區共好」核心價值。")),
 })
@@ -50,7 +51,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">7.7 Community</p>
     <h1>{{ tx('社區活動', 'Community') }}<span v-if="!isEn" class="en">Community</span></h1>
-    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('community').lede }}</p>
+    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('community', clubKey).lede }}</p>
     <p v-else-if="club !== 'bw'" class="page-hero__lede">公益捐贈、學校交流、地方政府合作——台中磐石在球場之外的社區共好行動。</p>
     <p v-else class="page-hero__lede">公益捐贈、學校交流、地方政府合作——台中藍鯨在球場之外的社區共好行動。</p>
   </div>

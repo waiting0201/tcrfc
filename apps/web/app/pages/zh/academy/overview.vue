@@ -10,13 +10,14 @@
 //
 // unit 由粗粒度 '04' 改為 '4.1'，讓 units.ts 之後如果要單獨關閉某個 04 子頁
 // （比照本輪 4.7 的做法）不必牽動本頁——見 shared/utils/units.ts 說明。
-definePageMeta({ nav: "academy", unit: "4.1", enReady: true })
+definePageMeta({ nav: "academy", unit: "4.1", enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.value) : identity.value.academyLabelZh))
 
 // S1-12d 收尾：梯隊代碼改讀 useSiteFacts（後端公開端點）。本頁兩俱樂部皆會渲染，
 // 兩邊各自的梯隊代碼都要能取得，故各自呼叫一次。
@@ -27,9 +28,9 @@ const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdent
 // 序列化進 SSR payload。改為只依當前站台呼叫一次。
 const { facts: activeFacts, academyLabel } = useSiteFacts(clubKey.value)
 // C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案）。
-const hero = computed(() => (isEn.value ? getAcademyOverviewHeroEn() : getAcademyOverviewHero(clubKey.value, activeFacts.value)))
-const positioning = computed(() => (isEn.value ? getAcademyPositioningEn(activeFacts.value) : getAcademyPositioning(clubKey.value, activeFacts.value)))
-const seo = computed(() => (isEn.value ? getAcademyOverviewSeoEn() : getAcademyOverviewSeo(clubKey.value, activeFacts.value)))
+const hero = computed(() => (isEn.value ? getAcademyOverviewHeroEn(clubKey.value, activeFacts.value) : getAcademyOverviewHero(clubKey.value, activeFacts.value)))
+const positioning = computed(() => (isEn.value ? getAcademyPositioningEn(activeFacts.value, clubKey.value) : getAcademyPositioning(clubKey.value, activeFacts.value)))
+const seo = computed(() => (isEn.value ? getAcademyOverviewSeoEn(clubKey.value, activeFacts.value) : getAcademyOverviewSeo(clubKey.value, activeFacts.value)))
 
 useSeoMeta({
   title: computed(() => seo.value.title),
@@ -42,8 +43,8 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
-      <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
-      <li aria-current="page">{{ tx(isTcrfc ? '學院總覽' : '青年隊總覽', 'Academy Overview') }}</li>
+      <li><a :href="lp('/zh/academy/')">{{ academyCrumb }}</a></li>
+      <li aria-current="page">{{ tx(isTcrfc ? '學院總覽' : '青年隊總覽', isTcrfc ? 'Academy Overview' : 'Youth Teams Overview') }}</li>
     </ol>
   </div>
 </nav>
@@ -62,7 +63,7 @@ useSeoMeta({
 <section class="band">
   <div class="container">
     <div class="prose">
-      <h2>{{ tx(isTcrfc ? '學院定位' : '青年隊定位', 'Academy Positioning') }}</h2>
+      <h2>{{ tx(isTcrfc ? '學院定位' : '青年隊定位', isTcrfc ? 'Academy Positioning' : 'Youth Teams Positioning') }}</h2>
       <p>{{ positioning }}</p>
       <p v-if="isTcrfc">{{ tx('詳見', 'See') }} <a :href="lp('/zh/academy/pathway/')">{{ tx('4.3 學院發展路徑', '4.3 Academy Pathway') }}</a>{{ tx('。', '.') }}</p>
     </div>

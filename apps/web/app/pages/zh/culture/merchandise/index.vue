@@ -9,7 +9,7 @@
 import type { PagedResponse } from '#shared/utils/api-types'
 import type { ShopCollection, ShopInfo, ShopProductListItem } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -17,7 +17,7 @@ const isTcrfc = computed(() => config.public.club !== 'bw')
 // BW-C1（品牌外洩全站盤點）：頁首大圖是磐石主場球衣實拍，藍鯨用純色佔位。「舊官網選購」過渡期
 // 文案保留 www.tcrfc.tw 網域字面值，只對磐石輸出（check-club-brand-leak.mjs 檢查藍鯨站輸出）。
 const clubAssets = computed(() => getClubAssets(config.public.club))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(config.public.club)))
+const identity = computed(() => (isEn.value ? (config.public.club === 'bw' ? getClubIdentityEnBw() : getClubIdentityEn()) : getClubIdentity(config.public.club)))
 
 // 系列清單（名稱、說明、排序）取自 `GET /api/shop/info`；只留 `collections`，其餘欄位（含 `collectingSubjectName`
 // 「款項由台中磐石足球俱樂部代收」）不進頁面 payload——藍鯨站該字串只允許出現在 /shop/ 與 /checkout/
@@ -52,8 +52,8 @@ const groups = computed(() => {
 const hasProducts = computed(() => products.value.length > 0)
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getMerchandiseSeoEn(hasProducts.value).title : `官方商品 Merchandise｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getMerchandiseSeoEn(hasProducts.value).description : hasProducts.value
+  title: computed(() => (isEn.value ? (isTcrfc.value ? getMerchandiseSeoEn(hasProducts.value) : getMerchandiseSeoEnBw(hasProducts.value)).title : `官方商品 Merchandise｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? (isTcrfc.value ? getMerchandiseSeoEn(hasProducts.value) : getMerchandiseSeoEnBw(hasProducts.value)).description : hasProducts.value
     ? `${clubAssets.value.nameZh}官方商品：依系列瀏覽，於本站官方商店選尺寸與顏色、以 LINE Pay 付款並開立電子發票。`
     : `${clubAssets.value.nameZh}官方商品。商品內容由後台提供，目前尚無可顯示的商品。`)),
 })
@@ -138,7 +138,7 @@ useSeoMeta({
         <p v-if="isEn">Choose a size and colour, add to your cart, pay with <strong>LINE Pay</strong> and receive an automatic <strong>e-invoice</strong>. You can choose home delivery, convenience-store pickup or in-person pickup. Orders can be looked up in the Member Centre, and non-members can look up an order with the order number and email.</p>
         <p v-else>選尺寸與顏色、加入購物車，以 <strong>LINE Pay</strong> 付款並自動開立<strong>電子發票</strong>，可宅配、超商取貨或現場自取；訂單於會員中心查詢，未註冊者以訂單編號與 Email 查詢。</p>
         <p style="margin:1.25rem 0"><a class="btn btn--primary" :href="lp('/zh/shop/')">{{ tx('前往官方商店', 'Go to the official store') }}</a></p>
-        <p v-if="isEn" class="store-band__fine">Until the official launch, you can still buy from the shop on the old website <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a>; once the online store goes live, the old shop will stop selling.</p>
+        <p v-if="isEn && isTcrfc" class="store-band__fine">Until the official launch, you can still buy from the shop on the old website <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a>; once the online store goes live, the old shop will stop selling.</p>
         <p v-else-if="isTcrfc" class="store-band__fine">正式上線前，仍可透過舊官網 <a href="https://www.tcrfc.tw" target="_blank" rel="noopener" style="color:inherit">www.tcrfc.tw</a> 的商店選購；站內商店上線後舊商店將停售。</p>
       </div>
     </div>

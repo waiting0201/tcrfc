@@ -11,6 +11,7 @@ import type { GuardianRelationship, MemberRegistered } from '#shared/utils/membe
 const config = useRuntimeConfig()
 const { locale, lp, isEn, tx } = useLocale()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const { login } = useMemberSession()
 const line = useMemberLine()
 
@@ -213,7 +214,7 @@ async function onRegister() {
           <p v-if="isEn"><strong>Your account has been created (member number {{ registered.memberNo }}).</strong></p>
           <p v-else><strong>帳號已建立（會員編號 {{ registered.memberNo }}）。</strong></p>
           <p v-if="registered.emailSent">{{ tx(`我們已寄出驗證信到 ${reg.email}，請點信中連結完成驗證後再登入（連結 24 小時內有效）。`, `We have sent a verification email to ${reg.email}. Please click the link in it to verify your email before signing in (the link is valid for 24 hours).`) }}</p>
-          <p v-else-if="isEn">Your account has been created, but <strong>the verification email has not been sent yet</strong> (the email service is not active), so you cannot verify your email or sign in for now. Please contact {{ CLUB_NAME_EN }} for help. We apologise for the inconvenience.</p>
+          <p v-else-if="isEn">Your account has been created, but <strong>the verification email has not been sent yet</strong> (the email service is not active), so you cannot verify your email or sign in for now. Please contact {{ clubNameEn }} for help. We apologise for the inconvenience.</p>
           <p v-else>
             帳號已建立，但<strong>驗證信目前尚未寄出</strong>（寄信服務尚未啟用），暫時無法完成 Email 驗證與登入。
             請聯繫{{ clubAssets.nameZh }}客服協助，造成不便敬請見諒。
@@ -248,7 +249,7 @@ async function onRegister() {
           <div class="consent-block">
             <div class="checkbox-field">
               <input id="m-reg-consent" v-model="reg.consent" type="checkbox" name="consent" required>
-              <label v-if="isEn" for="m-reg-consent">I have read and agree to the <a :href="lp('/zh/privacy/')">Privacy Policy</a> and Membership Terms, and I agree that {{ CLUB_NAME_EN }} may use the personal data collected through this form to create my membership and provide related services. Members under 18 need their guardian's consent.<span class="req" aria-hidden="true">*</span></label>
+              <label v-if="isEn" for="m-reg-consent">I have read and agree to the <a :href="lp('/zh/privacy/')">Privacy Policy</a> and Membership Terms, and I agree that {{ clubNameEn }} may use the personal data collected through this form to create my membership and provide related services. Members under 18 need their guardian's consent.<span class="req" aria-hidden="true">*</span></label>
               <label v-else for="m-reg-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>與會員條款，並同意{{ clubAssets.nameZh }}依本表單蒐集之個人資料，用於會員身分建立與相關服務提供。未滿 18 歲須經監護人同意。<span class="req" aria-hidden="true">*</span></label>
             </div>
           </div>

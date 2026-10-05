@@ -15,7 +15,7 @@
 //   3. 卡片顯示順序（總教練→教練→守門員教練→體能教練→青訓總監→青訓教練→顧問）
 //      是 mockup 既有的人工編排順序，API 沒有 sort_order 欄位可用，這裡用姓名
 //      對照表排序重建，仍是真實姓名資料只是補上顯示順序，不是編資料內容。
-definePageMeta({ nav: 'about', unit: '02', enReady: true })
+definePageMeta({ nav: 'about', unit: '02', enReady: true, enReadyBw: true })
 
 // 文案依俱樂部切換：hero／SEO 取自 shared/utils/club-copy.ts；名單本身走既有 API
 // （動態內容，不進 club-copy.ts）——藍鯨 staff 表目前 0 筆真實資料（客戶尚未提供，
@@ -23,9 +23,9 @@ definePageMeta({ nav: 'about', unit: '02', enReady: true })
 const config = useRuntimeConfig()
 const club = config.public.club
 const clubKey = computed<'tcrfc' | 'bw'>(() => (club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
-const hero = computed(() => (isEn.value ? OUR_PEOPLE_HERO_EN : OUR_PEOPLE_HERO[clubKey.value]))
-const seo = computed(() => (isEn.value ? OUR_PEOPLE_SEO_EN : OUR_PEOPLE_SEO[clubKey.value]))
+const identity = computed(() => (isEn.value ? getClubIdentityEnFor(clubKey.value) : getClubIdentity(clubKey.value)))
+const hero = computed(() => (isEn.value ? (clubKey.value === 'bw' ? OUR_PEOPLE_HERO_EN_BW : OUR_PEOPLE_HERO_EN) : OUR_PEOPLE_HERO[clubKey.value]))
+const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? OUR_PEOPLE_SEO_EN_BW : OUR_PEOPLE_SEO_EN) : OUR_PEOPLE_SEO[clubKey.value]))
 
 // S1-13 判斷：這頁維持既有「一律同時抓 zh 與 en 兩種名稱」設計不變（不是本輪的
 // lang 參數 bug），只補上麵包屑連結要跟著目前路由語系走（見下方樣板 lp() 呼叫）——
@@ -183,7 +183,7 @@ watchEffect(() => {
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.4') : aboutEyebrow('2.4', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.4', clubKey) : aboutEyebrow('2.4', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>

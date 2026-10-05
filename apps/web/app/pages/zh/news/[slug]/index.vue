@@ -21,7 +21,7 @@
 // 若編輯把文章 slug 取名剛好撞上這 8 個分類代碼（或 'article'，見下方保留字清單），
 // 該篇文章會變成打不到、永遠顯示分類頁——這組保留字的建立端驗證由 apps/api
 // 另一位 agent 同步處理，不在本頁範圍，這裡只確保「靜態贏動態」這個路由層的前提成立。
-definePageMeta({ nav: 'news', unit: '07', enReady: true })
+definePageMeta({ nav: 'news', unit: '07', enReady: true, enReadyBw: true })
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -96,7 +96,7 @@ const matchFields = computed(() => {
   if (!id) return null
   const m = (scheduleData.value?.items ?? []).find((x) => x.id.toLowerCase() === id)
   if (!m) return null
-  const self = isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh
+  const self = isEn.value ? clubNameEn(clubKey) : getClubAssets(club).nameZh
   const opp = m.opponent ?? '—'
   const finished = m.scoreHome != null && m.scoreAway != null
   return {
@@ -125,14 +125,14 @@ async function copyShareLink() {
   setTimeout(() => { copyState.value = 'idle' }, 2500)
 }
 
-const eyebrow = computed(() => (isEn.value ? newsCategoryTabLabelEn(article.value?.categoryCode ?? '') : newsEyebrowText(article.value?.categoryCode ?? '')))
+const eyebrow = computed(() => (isEn.value ? newsCategoryTabLabelEn(article.value?.categoryCode ?? '', clubKey) : newsEyebrowText(article.value?.categoryCode ?? '')))
 const categoryBilingual = computed(() => (isEn.value
-  ? newsCategoryLabelEn(article.value?.categoryCode ?? '', article.value?.categoryName)
+  ? newsCategoryLabelEn(article.value?.categoryCode ?? '', article.value?.categoryName, clubKey)
   : newsCategoryBilingualLabel(article.value?.categoryCode ?? '', article.value?.categoryName)))
 /** 分類名稱（麵包屑、「查看所有…」按鈕用）：英文版取對照表，避免 API 回退成繁中時混語。 */
-const categoryName = computed(() => (isEn.value ? newsCategoryLabelEn(article.value?.categoryCode ?? '', article.value?.categoryName) : article.value?.categoryName))
+const categoryName = computed(() => (isEn.value ? newsCategoryLabelEn(article.value?.categoryCode ?? '', article.value?.categoryName, clubKey) : article.value?.categoryName))
 function relatedCategoryName(r: { categoryCode: string, categoryName: string | null }): string | null {
-  return isEn.value ? newsCategoryLabelEn(r.categoryCode, r.categoryName) : r.categoryName
+  return isEn.value ? newsCategoryLabelEn(r.categoryCode, r.categoryName, clubKey) : r.categoryName
 }
 /** 日期顯示：zh `2026/08/10`、en `10 Aug 2026`。 */
 function dateText(iso: string | null | undefined): string {
@@ -163,7 +163,9 @@ const cover = computed(() => (article.value ? newsCoverImg(article.value, clubKe
 // 沿用 mockup 逐字內容的既有落差，見回報），但本頁是全新頁面且兩站都會用到，
 // 寫死磐石名稱會讓藍鯨站的文章頁 SEO 標題與 Schema 都掛錯品牌，沒有理由沿用
 // 那個已知落差。
-const siteName = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
+const siteName = computed(() => (isEn.value ? clubNameEn(clubKey) : getClubAssets(club).nameZh))
+// Schema 的 author／publisher：藍鯨英文用全名（B-5），其餘與 siteName 相同。
+const schemaOrgName = computed(() => (isEn.value && clubKey === 'bw' ? BW_FULL_NAME_EN : siteName.value))
 
 useSeoMeta({
   title: computed(() =>
@@ -249,8 +251,8 @@ watchEffect(() => {
             : a.ogImageUrl)
         : undefined,
       articleSection: a.categoryName ?? undefined,
-      author: { '@type': 'Organization', name: siteName.value },
-      publisher: { '@type': 'Organization', name: siteName.value },
+      author: { '@type': 'Organization', name: schemaOrgName.value },
+      publisher: { '@type': 'Organization', name: schemaOrgName.value },
     }),
   ])
 })

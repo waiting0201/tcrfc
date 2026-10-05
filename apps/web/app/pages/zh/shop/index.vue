@@ -9,7 +9,7 @@
 import type { PagedResponse } from '#shared/utils/api-types'
 import type { ShopProductListItem } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true, enReadyBw: true })
 
 const COLLECTING_SUBJECT_FALLBACK = '台中磐石足球俱樂部'
 
@@ -20,11 +20,14 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const clubAssets = computed(() => getClubAssets(clubKey.value))
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 const isBw = computed(() => clubKey.value === 'bw')
+// 英文版俱樂部名稱與「文化」麵包屑（藍鯨用 BW_NAME_EN，磐石用 CLUB_NAME_EN）
+const clubNameEn = computed(() => getShopClubNameEn(clubKey.value))
+const cultureLabel = computed(() => (isEn.value ? getShopCultureLabelEn(clubKey.value) : identity.value.cultureLabelZh))
 
 const { info, paymentAvailable } = useShopInfo()
 const collectingSubject = computed(() => info.value?.collectingSubjectName || (isEn.value ? CLUB_NAME_EN : COLLECTING_SUBJECT_FALLBACK))
 // 英文頁：後台入口文案／配送名稱若英文欄位是空的，後端會回繁中備援，這時在內容上方提示
-const infoFallback = computed(() => isEn.value && shopHasCjk(info.value?.entryTitle, info.value?.entryIntro, ...(info.value?.deliveryMethods ?? []).map(d => d.label)))
+const infoFallback = computed(() => isEn.value && shopHasCjk(info.value?.entryTitle, info.value?.entryIntro, info.value?.collectingSubjectName, ...(info.value?.deliveryMethods ?? []).map(d => d.label)))
 
 // ── 篩選狀態（來自網址 query；形狀與 BFF 白名單一致，不合法的值視為沒有）──
 function one(v: unknown): string {
@@ -91,8 +94,8 @@ function pageHref(n: number): string {
 }
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('shop', CLUB_NAME_EN).title : `官方商店 Shop｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('shop', CLUB_NAME_EN).description : `${clubAssets.value.nameZh}官方商店。以 LINE Pay 付款、自動開立電子發票，可宅配、超商取貨或現場自取。`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('shop', clubNameEn.value).title : `官方商店 Shop｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('shop', clubNameEn.value).description : `${clubAssets.value.nameZh}官方商店。以 LINE Pay 付款、自動開立電子發票，可宅配、超商取貨或現場自取。`)),
 })
 </script>
 
@@ -102,7 +105,7 @@ useSeoMeta({
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
-      <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
+      <li><a :href="lp('/zh/culture/')">{{ cultureLabel }}</a></li>
       <li><a :href="lp('/zh/culture/merchandise/')">{{ tx('官方商品', 'Merchandise') }}</a></li>
       <li aria-current="page">{{ tx('官方商店', 'Shop') }}</li>
     </ol>
@@ -119,7 +122,10 @@ useSeoMeta({
 
 <section v-if="isBw || (info && !paymentAvailable)" class="band band--tight">
   <div class="container">
-    <p v-if="isBw" class="mc-alert mc-alert--info" role="note">
+    <p v-if="isBw && isEn" class="mc-alert mc-alert--info" role="note">
+      You are buying {{ clubNameEn }} merchandise. <strong>Payment is collected by {{ collectingSubject }}</strong>, and the invoice is also issued in the name of {{ collectingSubject }}.
+    </p>
+    <p v-else-if="isBw" class="mc-alert mc-alert--info" role="note">
       您購買的是{{ clubAssets.nameZh }}的商品，<strong>款項由{{ collectingSubject }}代收</strong>，發票抬頭亦為{{ collectingSubject }}。
     </p>
     <p v-if="info && !paymentAvailable" class="mc-alert mc-alert--info" role="status">

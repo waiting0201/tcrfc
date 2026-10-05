@@ -1,14 +1,14 @@
 <script setup lang="ts">
 // app/pages/zh/about/governance.vue — 由 site/src/pages/zh/about/governance/index.html 轉來（S0-9 靜態頁搬遷）
-definePageMeta({ nav: "about", unit: "02", enReady: true })
+definePageMeta({ nav: "about", unit: "02", enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const identity = computed(() => (isEn.value ? getClubIdentityEnFor(clubKey.value) : getClubIdentity(clubKey.value)))
 const hero = computed(() => (isEn.value ? GOVERNANCE_HERO_EN : GOVERNANCE_HERO[clubKey.value]))
-const seo = computed(() => (isEn.value ? GOVERNANCE_SEO_EN : GOVERNANCE_SEO[clubKey.value]))
+const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? GOVERNANCE_SEO_EN_BW : GOVERNANCE_SEO_EN) : GOVERNANCE_SEO[clubKey.value]))
 
 useSeoMeta({
   title: computed(() => seo.value.title),
@@ -30,7 +30,7 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.5') : aboutEyebrow('2.5', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.5', clubKey) : aboutEyebrow('2.5', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>

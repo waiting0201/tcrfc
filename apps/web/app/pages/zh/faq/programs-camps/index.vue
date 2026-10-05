@@ -9,14 +9,14 @@
 // BW-C1（2026-09-29）：unit '12.3' 已隨 05 課程頁（5.1–5.4）一併重開（S1-18 曾以
 // 「同 5.1／5.2 的關閉理由」為由關閉，該理由已於 units.ts 修正，見其檔頭說明），
 // 本頁對藍鯨開放。
-definePageMeta({ nav: '', unit: '12.3', enReady: true })
+definePageMeta({ nav: '', unit: '12.3', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
 const CATEGORY_SLUG = 'programs-camps'
 
-const siteName = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
+const siteName = computed(() => (isEn.value ? (club === 'bw' ? BW_NAME_EN : CLUB_NAME_EN) : getClubAssets(club).nameZh))
 const { categories } = useFaqCategories(locale.value)
 const { faqs, totalCount } = useFaqList(club, locale.value, CATEGORY_SLUG)
 

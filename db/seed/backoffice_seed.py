@@ -466,7 +466,7 @@ def _redirect_rows(club: str):
 # H1 全站 SEO 預設、H4 llms.txt 五區塊、H5 AI 爬蟲
 #   文案取自 club-copy.ts CLUB_IDENTITY（footerBlurb／slogan，已核實）與 site-facts（已核實事實）。
 #   ⛔ 不種：seo.robots_custom_rules（會直接寫進 robots.txt，沒有需求就不預設）、tracking.*（假的追蹤碼會讓前台載入
-#      無效腳本）、預設 OG 圖（需要圖片上傳）。⛔ 藍鯨英文：英文正式全名待客戶確認（docs/14），不自行挑一個。
+#      無效腳本）、預設 OG 圖（需要圖片上傳）。藍鯨英文名已於 2026-10-05 定案（B-5：簡稱 Taichung Blue Whale、全名 Taichung Blue Whale Women's Football Club，見 docs/14），種子只用這兩種寫法。
 # ============================================================================
 SEO_SETTINGS = {
     "tcrfc": {

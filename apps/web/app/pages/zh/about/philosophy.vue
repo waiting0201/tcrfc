@@ -4,15 +4,17 @@
 // 文案依俱樂部切換：磐石維持既有五大核心價值；藍鯨版換成 PHILOSOPHY_QUOTES_BW
 // （逐字節錄 content/blue-whale/club-profile.md §3 隊徽理念、口號、培訓精神）——
 // 兩者是不同的敘事框架，不強行套用磐石的五大核心價值結構到藍鯨身上（不得自行創作藍鯨沒說過的話）。
-definePageMeta({ nav: "about", unit: "02", enReady: true })
+definePageMeta({ nav: "about", unit: "02", enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
-const hero = computed(() => (isEn.value ? PHILOSOPHY_HERO_EN : PHILOSOPHY_HERO[clubKey.value]))
-const seo = computed(() => (isEn.value ? PHILOSOPHY_SEO_EN : PHILOSOPHY_SEO[clubKey.value]))
+const identity = computed(() => (isEn.value ? getClubIdentityEnFor(clubKey.value) : getClubIdentity(clubKey.value)))
+const hero = computed(() => (isEn.value ? (clubKey.value === 'bw' ? PHILOSOPHY_HERO_EN_BW : PHILOSOPHY_HERO_EN) : PHILOSOPHY_HERO[clubKey.value]))
+const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? PHILOSOPHY_SEO_EN_BW : PHILOSOPHY_SEO_EN) : PHILOSOPHY_SEO[clubKey.value]))
+
+const quotes = computed(() => (isEn.value ? PHILOSOPHY_QUOTES_EN_BW : PHILOSOPHY_QUOTES_BW))
 
 useSeoMeta({
   title: computed(() => seo.value.title),
@@ -34,7 +36,7 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.3') : aboutEyebrow('2.3', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.3', clubKey) : aboutEyebrow('2.3', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
@@ -43,14 +45,14 @@ useSeoMeta({
 <!-- 藍鯨版：隊徽理念、俱樂部口號、培訓精神——逐字節錄舊站原文（見 club-copy.ts PHILOSOPHY_QUOTES_BW）。 -->
 <section v-if="clubKey === 'bw'" class="band vm-band" aria-labelledby="bw-philosophy-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="bw-philosophy-title">俱樂部口號與培訓精神</h2>
+    <h2 class="visually-hidden" id="bw-philosophy-title">{{ tx('俱樂部口號與培訓精神', 'Club Slogan and Training Spirit') }}</h2>
     <div class="prose">
-      <h2>隊徽理念</h2>
-      <p>{{ PHILOSOPHY_QUOTES_BW.crestZh }}</p>
-      <h2>俱樂部口號</h2>
-      <p style="white-space:pre-line">{{ PHILOSOPHY_QUOTES_BW.sloganZh }}</p>
-      <h2>培訓精神</h2>
-      <p style="white-space:pre-line">{{ PHILOSOPHY_QUOTES_BW.spiritZh }}</p>
+      <h2>{{ tx('隊徽理念', 'Crest Concept') }}</h2>
+      <p>{{ quotes.crestZh }}</p>
+      <h2>{{ tx('俱樂部口號', 'Club Slogan') }}</h2>
+      <p style="white-space:pre-line">{{ quotes.sloganZh }}</p>
+      <h2>{{ tx('培訓精神', 'Training Spirit') }}</h2>
+      <p style="white-space:pre-line">{{ quotes.spiritZh }}</p>
     </div>
   </div>
 </section>

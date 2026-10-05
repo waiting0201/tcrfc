@@ -370,8 +370,9 @@ zh／en 兩筆 `<url>`，每筆都帶完整三條 hreflang alternate。
 - **整頁提示**：`layouts/default.vue` 對 `/en/` 頁顯示 `LocaleFallbackNotice`，除非該頁 `definePageMeta({ enReady: true })`；**藍鯨站 `/en/` 一律顯示**（英文未生產，B-5／C-10），`enReady` 只對主站有效。
 - **API 備援提示**：宣告 `enReady` 的頁面若同時有 API 內容（後端 `?lang=en` 逐欄位回退繁中，回應列帶 `isFallbackLocale`），在內容上方放 `<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(data)" partial />`（`app/utils/locale-fallback.ts`）。不放在 layout：SSR 時 layout 先於頁面資料轉譯。
 - **寫英文的方式**：`useLocale()` 的 `isEn`（**僅主站 `/en/` 為 true**，藍鯨恆 false）與 `tx(zh, en)`。短文字／屬性用 `tx()`，含標記的長段落用 `<template v-if="isEn">…</template><template v-else>原中文</template>`——**zh 版 DOM 逐字不變**。`club-copy.ts` 不加英文；英文版 SEO／Hero／導覽卡等寫在頂層檔 `shared/utils/club-copy-en-<群組>.ts`（`core`／`club`／`acad`／`biz`／`sched`／`shop`＋`units-en.ts`），命名 `FOO`→`FOO_EN`、`getFoo`→`getFooEn`，型別沿用原 interface（`*Zh` 欄位放英文值），**字串不得含中文**（`check-en-copy.mjs`，已掛進 `npm run lint`；配對檢查目前只警告）。
-- **用詞**：[`docs/06`](../../docs/06-conventions.md) §1.1。待確認的名詞用保守寫法；**藍鯨英文名一律 `BW_NAME_EN_PENDING`**。人名、英文地址沒有來源時維持中文，不音譯。
+- **用詞**：[`docs/06`](../../docs/06-conventions.md) §1.1。待確認的名詞用保守寫法；**藍鯨英文名一律 `BW_NAME_EN`**。人名、英文地址沒有來源時維持中文，不音譯。
 - **驗收**：`npm run build` 後以 `NUXT_PUBLIC_CLUB=tcrfc … node .output/server/index.mjs` 起前台（後端用 `scripts/dev-fixture-api.mjs` 或真 API），跑 `node scripts/check-en-pages.mjs http://127.0.0.1:PORT`：掃所有宣告 `enReady` 的 `/en/` 頁，可見文字（含 alt／aria-label／placeholder）不得有中文；刻意保留的中文（法律同意、健康聲明、中文地址）在腳本 `KNOWN_ZH` 白名單。動態路由（`[slug]`）需手動抽查。
+- **藍鯨站（2026-10-05 起）**：英文名 B-5 已定案（`BW_NAME_EN`／`BW_FULL_NAME_EN`）。藍鯨 `/en/` 逐頁開啟：頁面 `definePageMeta({ enReadyBw: true })` 才讓 `isEn` 為 true（沒宣告的藍鯨頁整頁維持繁中＋整頁提示，layout 看 `enReadyBw`）；頁面英文分支必須**感知俱樂部**（磐石英文留在 `isTcrfc`，藍鯨英文放藍鯨分支；藍鯨 `/en/` 不得出現 Taichung Rock／TCRFC／Academy，`check-club-brand-leak.mjs` 掃 zh／en）。`club-copy-en-*.ts` 的藍鯨變體命名見各檔檔頭（`FOO_EN_BW`／`getFooEnBw` 或選用 `club` 參數）。JSON-LD／`llms-en.txt` 的英文判斷用 URL 語系（`locale.value === 'en'`），不用 `isEn`。驗收：以 `NUXT_PUBLIC_CLUB=bw NUXT_PUBLIC_SITE_NAME=台中藍鯨` 起站，`node scripts/check-en-pages.mjs http://127.0.0.1:PORT --bw`（看 `enReadyBw`）。
 - **未納入英文版**：隱私權／Cookie 政策頁（待法務，不宣告 `enReady`）；新聞文章本文（API 依 lang 回傳）。
 
 **API 呼叫的 `lang` 參數**：`apps/api` 對 `?lang=zh|en` 已有完整逐欄位回退機制（見
@@ -3360,7 +3361,7 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 1. `llms.txt`／`llms-en.txt` 的預設代表頁清單用 `SITE_UNITS[].labelZh`，藍鯨輸出了「關於台中磐石／足球學院／台中磐石文化」→ 新增 `getUnitLabelZh(unit, club)`（`shared/utils/site-units.ts`），三個含俱樂部詞彙的單元改走 `getClubIdentity(club)`。
 2. `llms-en.txt` 寫死 `Taichung Blue Whale`，違反 B-5（英文正式全名客戶未指定，開發端不得自挑）→ 藍鯨在確認前用中文正式名。
 3. `useOrganizationSchema()` 合格時 SSR 不輸出 Organization（`watchEffect` 脫離注入脈絡；`useSchemaOrg(ref)` 在 server 只求值一次）→ 改 `useHead(() => …)`。**真資料下 `schemaEligible` 恆為 false，這條路徑一直沒被走過**。
-4. B-5 殘留已清（同日第二輪）：`club-copy.ts` 的藍鯨英文文案（SEO title／description、同意書、首頁 kicker、標語）全改用常數 `BW_NAME_EN_PENDING`（目前 `台中藍鯨`）；`scripts/check-bw-en-name.mjs`（`npm run lint:bw-en-name`）掃 app／shared／server 非註解行，出現任一種 `Taichung Blue Whale／Bluewhale` 寫法即失敗。⚠️ 標語英文原為舊站原句（句首是英文名），未定案前變成「台中藍鯨 rides the waves…」，定案後改常數即還原。
+4. B-5 殘留已清（同日第二輪）：`club-copy.ts` 的藍鯨英文文案（SEO title／description、同意書、首頁 kicker、標語）全改用常數 `BW_NAME_EN`（目前 `台中藍鯨`）；`scripts/check-bw-en-name.mjs`（`npm run lint:bw-en-name`）掃 app／shared／server 非註解行，出現任一種 `Taichung Blue Whale／Bluewhale` 寫法即失敗。⚠️ 標語英文原為舊站原句（句首是英文名），未定案前變成「台中藍鯨 rides the waves…」，定案後改常數即還原。
 
 
 ## 球員 slug 網址（3.1 球員詳情，2026-10-05，`frontend-architect`）

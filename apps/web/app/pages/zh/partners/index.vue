@@ -1,13 +1,14 @@
 <script setup lang="ts">
 // app/pages/zh/partners/index.vue — 由 site/src/pages/zh/partners/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
-definePageMeta({ nav: 'partners', unit: '09', enReady: true })
+definePageMeta({ nav: 'partners', unit: '09', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const isTcrfc = computed(() => config.public.club !== 'bw')
 // BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubEn = computed(() => bizClubNameEn(config.public.club))
 // 藍鯨規劃書 v1.9 §2.1：藍鯨不設 8.1 漫畫，贊助方案少一項（見 partners/opportunities）。
 // S2-7：後台已發布任何贊助方案時，方案數改讀實際張數（與 9.4 同一份資料、同一個換算）；沒有才用規劃書固定的九／八。
 const { packages } = await useSponsorPackages()
@@ -25,8 +26,8 @@ const planCountZh = computed(() => {
 })
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? 'Partners & Sponsors | Taichung Rock FC' : `合作夥伴與贊助 Partners & Sponsors｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? `The partners and sponsors of Taichung Rock FC, the value of becoming a partner, and an overview of our ${planCountEn.value} sponsorship packages.` : `${clubAssets.value.nameZh}的合作夥伴、贊助商、成為合作夥伴的價值主張，以及${planCountZh.value}種贊助方案總覽。`)),
+  title: computed(() => (isEn.value ? `Partners & Sponsors | ${clubEn.value}` : `合作夥伴與贊助 Partners & Sponsors｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? `The partners and sponsors of ${clubEn.value}, the value of becoming a partner, and an overview of our ${planCountEn.value} sponsorship packages.` : `${clubAssets.value.nameZh}的合作夥伴、贊助商、成為合作夥伴的價值主張，以及${planCountZh.value}種贊助方案總覽。`)),
 })
 </script>
 
@@ -46,7 +47,7 @@ useSeoMeta({
     <p class="page-hero__eyebrow">09 Partners & Sponsors</p>
     <h1><template v-if="isEn">Partners &amp; Sponsors</template><template v-else>合作夥伴與贊助<span class="en">Partners &amp; Sponsors</span></template></h1>
     <p v-if="isTcrfc" class="page-hero__lede"><template v-if="isEn">Join forces with Taichung Rock FC to reach the local community and the international football network through a professional football platform, creating value for your brand and the community alike.</template><template v-else>攜手台中磐石，透過職業足球平台觸及在地社群與國際足球網絡，共創品牌與社區的雙贏價值。</template></p>
-    <p v-else class="page-hero__lede">攜手台中藍鯨，透過女子足球平台觸及在地社群與國際足球網絡，共創品牌與社區的雙贏價值。</p>
+    <p v-else class="page-hero__lede"><template v-if="isEn">{{ PARTNERS_INDEX_LEDE_EN_BW }}</template><template v-else>攜手台中藍鯨，透過女子足球平台觸及在地社群與國際足球網絡，共創品牌與社區的雙贏價值。</template></p>
   </div>
 </section>
 
@@ -84,7 +85,7 @@ useSeoMeta({
         <div class="unit-card__body">
           <p class="unit-card__num">9.3</p>
           <p class="unit-card__title"><template v-if="isEn">Become a Partner</template><template v-else>成為合作夥伴<span class="en">Become a Partner</span></template></p>
-          <p class="unit-card__desc"><template v-if="isEn">Six value propositions and audience data: the reasons to partner with Taichung Rock FC.</template><template v-else>六大價值論述與受眾數據，了解與{{ clubAssets.shortNameZh }}合作的理由。</template></p>
+          <p class="unit-card__desc"><template v-if="isEn">Six value propositions and audience data: the reasons to partner with {{ clubEn }}.</template><template v-else>六大價值論述與受眾數據，了解與{{ clubAssets.shortNameZh }}合作的理由。</template></p>
           <span class="unit-card__link">{{ tx('了解價值', 'Learn more') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
         </div>
       </a>

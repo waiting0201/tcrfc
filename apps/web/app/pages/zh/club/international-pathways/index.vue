@@ -22,7 +22,7 @@
 // 寫死內容，後端沒有對應型別（待決，見 apps/web/README.md）。
 import { PARTNER_TYPE_SECTIONS, pickLogoUrl, safeExternalUrl } from '#shared/utils/partners'
 
-definePageMeta({ nav: 'club', unit: '3.4', enReady: true })
+definePageMeta({ nav: 'club', unit: '3.4', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -75,10 +75,20 @@ function tileSrc(t: IntlTile): string | null {
 }
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getInternationalPathwaysSeoEn() : getInternationalPathwaysSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getInternationalPathwaysSeoEn() : getInternationalPathwaysSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? (isTcrfc.value ? getInternationalPathwaysSeoEn() : getInternationalPathwaysSeoEnBw()) : getInternationalPathwaysSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? (isTcrfc.value ? getInternationalPathwaysSeoEn() : getInternationalPathwaysSeoEnBw()) : getInternationalPathwaysSeo(clubKey.value)).description),
 })
-const hero = computed(() => (isEn.value ? getInternationalPathwaysHeroEn() : getInternationalPathwaysHero(clubKey.value)))
+// 英文版：磐石用 `*En`，藍鯨用 `*EnBw`／`*_EN_BW`（club-copy-en-club.ts 檔頭）。
+const hero = computed(() => (isEn.value ? (isTcrfc.value ? getInternationalPathwaysHeroEn() : getInternationalPathwaysHeroEnBw()) : getInternationalPathwaysHero(clubKey.value)))
+/** 藍鯨旅外案例：名字走資料層（`INTL_PATHWAY_*_BW`，英文版取拉丁字母部分，沒有英文名者維持中文），敘述走英文版常數。 */
+const bwJapanNotes = computed(() => INTL_PATHWAY_JAPAN_NOTES_BW.map((n, i) => ({
+  name: isEn.value ? clubPlayerNameEn(n.nameZh) : n.nameZh,
+  desc: isEn.value ? (INTL_PATHWAY_JAPAN_NOTES_DESC_EN_BW[i] ?? '') : n.descZh,
+})))
+const bwChinaNote = computed(() => ({
+  name: isEn.value ? clubPlayerNameEn(INTL_PATHWAY_CHINA_NOTE_BW.nameZh) : INTL_PATHWAY_CHINA_NOTE_BW.nameZh,
+  desc: isEn.value ? INTL_PATHWAY_CHINA_NOTE_DESC_EN_BW : INTL_PATHWAY_CHINA_NOTE_BW.descZh,
+}))
 /** 國際夥伴 `country` 欄在英文版的顯示（可能含中文）。 */
 function countryText(t: IntlTile): string | null {
   return isEn.value ? clubCountryLabelEn(t.country) : t.country
@@ -176,9 +186,9 @@ onMounted(() => {
       <button type="button" class="region-tab" role="tab" id="tab-japan" aria-controls="panel-japan" aria-selected="false" data-region="japan" tabindex="-1">{{ tx('Japan 日本', 'Japan') }}</button>
       <button type="button" class="region-tab" role="tab" id="tab-hk" aria-controls="panel-hk" aria-selected="false" data-region="hk" tabindex="-1">{{ tx('Hong Kong 香港', 'Hong Kong') }}</button>
     </div>
-    <div v-else class="region-tabs" role="tablist" aria-label="選擇地區">
-      <button id="tab-japan" type="button" class="region-tab" role="tab" aria-controls="panel-japan" aria-selected="true" data-region="japan">Japan 日本</button>
-      <button id="tab-china" type="button" class="region-tab" role="tab" aria-controls="panel-china" aria-selected="false" data-region="china" tabindex="-1">China 中國</button>
+    <div v-else class="region-tabs" role="tablist" :aria-label="isEn ? CLUB_INTL_REGION_COPY_EN_BW.selectRegion : '選擇地區'">
+      <button id="tab-japan" type="button" class="region-tab" role="tab" aria-controls="panel-japan" aria-selected="true" data-region="japan">{{ isEn ? 'Japan' : 'Japan 日本' }}</button>
+      <button id="tab-china" type="button" class="region-tab" role="tab" aria-controls="panel-china" aria-selected="false" data-region="china" tabindex="-1">{{ isEn ? 'China' : 'China 中國' }}</button>
     </div>
 
     <template v-if="isTcrfc">
@@ -225,24 +235,24 @@ onMounted(() => {
     </template>
     <template v-else>
       <div id="panel-japan" class="region-panel" role="tabpanel" aria-labelledby="tab-japan" data-region-panel="japan">
-        <p class="region-panel__desc">{{ tilesIn('japan').length ? '日本的合作俱樂部，以及球員實際旅外案例：' : '日本尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：' }}</p>
+        <p class="region-panel__desc">{{ isEn ? (tilesIn('japan').length ? CLUB_INTL_REGION_COPY_EN_BW.japanHasTiles : CLUB_INTL_REGION_COPY_EN_BW.japanNoTiles) : (tilesIn('japan').length ? '日本的合作俱樂部，以及球員實際旅外案例：' : '日本尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：') }}</p>
         <div v-if="tilesIn('japan').length" class="region-partners">
           <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('japan')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
             <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="isEn ? `${t.name} logo` : t.alt" loading="lazy" width="200" height="200">
             <span>{{ t.name }}<template v-if="t.country"><br><small>{{ countryText(t) }}</small></template></span>
           </component>
         </div>
-        <div v-for="note in INTL_PATHWAY_JAPAN_NOTES_BW" :key="note.nameZh" class="hk-player-note clip-card clip-card--on-dark" style="margin-bottom:1rem;">
+        <div v-for="note in bwJapanNotes" :key="note.name" class="hk-player-note clip-card clip-card--on-dark" style="margin-bottom:1rem;">
           <div class="hk-player-note__visual"><span aria-hidden="true">✈</span></div>
           <div>
-            <p class="hk-player-note__name">{{ note.nameZh }}<span class="badge badge--on-dark">旅外</span></p>
-            <p class="hk-player-note__desc">{{ note.descZh }}</p>
+            <p class="hk-player-note__name">{{ note.name }}<span class="badge badge--on-dark">{{ isEn ? CLUB_INTL_REGION_COPY_EN_BW.abroadBadge : '旅外' }}</span></p>
+            <p class="hk-player-note__desc">{{ note.desc }}</p>
           </div>
         </div>
       </div>
 
       <div id="panel-china" class="region-panel" role="tabpanel" aria-labelledby="tab-china" data-region-panel="china" hidden>
-        <p class="region-panel__desc">{{ tilesIn('china').length ? '中國的合作俱樂部，以及球員實際旅外案例：' : '中國尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：' }}</p>
+        <p class="region-panel__desc">{{ isEn ? (tilesIn('china').length ? CLUB_INTL_REGION_COPY_EN_BW.chinaHasTiles : CLUB_INTL_REGION_COPY_EN_BW.chinaNoTiles) : (tilesIn('china').length ? '中國的合作俱樂部，以及球員實際旅外案例：' : '中國尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：') }}</p>
         <div v-if="tilesIn('china').length" class="region-partners">
           <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('china')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
             <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="isEn ? `${t.name} logo` : t.alt" loading="lazy" width="200" height="200">
@@ -252,8 +262,8 @@ onMounted(() => {
         <div class="hk-player-note clip-card clip-card--on-dark">
           <div class="hk-player-note__visual"><span aria-hidden="true">✈</span></div>
           <div>
-            <p class="hk-player-note__name">{{ INTL_PATHWAY_CHINA_NOTE_BW.nameZh }}<span class="badge badge--on-dark">旅外</span></p>
-            <p class="hk-player-note__desc">{{ INTL_PATHWAY_CHINA_NOTE_BW.descZh }}</p>
+            <p class="hk-player-note__name">{{ bwChinaNote.name }}<span class="badge badge--on-dark">{{ isEn ? CLUB_INTL_REGION_COPY_EN_BW.abroadBadge : '旅外' }}</span></p>
+            <p class="hk-player-note__desc">{{ bwChinaNote.desc }}</p>
           </div>
         </div>
       </div>

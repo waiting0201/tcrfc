@@ -6,25 +6,27 @@
 // 是 units.ts 明文關閉的單元（藍鯨規劃書 §3.4「04 不沿用招生與課程報名架構」），
 // bw 版導覽卡與底部 CTA 對應移除，不連到會 404 的頁面。改讀 club-copy.ts 的
 // getAcademyHubSeo()／getAcademyHubHero()／getAcademyHubCards()／getAcademyHubCtaTitle()。
-definePageMeta({ nav: "academy", unit: "04", enReady: true })
+definePageMeta({ nav: "academy", unit: "04", enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.value) : identity.value.academyLabelZh))
+const academyShort = computed(() => (isEn.value && !isTcrfc.value ? 'Youth Teams' : identity.value.academyShortLabelZh))
 
 const { facts } = useSiteFacts(clubKey.value)
 
 // C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案），其餘路徑沿用既有來源。
-const seo = computed(() => (isEn.value ? getAcademyHubSeoEn(facts.value) : getAcademyHubSeo(clubKey.value, facts.value)))
+const seo = computed(() => (isEn.value ? getAcademyHubSeoEn(facts.value, clubKey.value) : getAcademyHubSeo(clubKey.value, facts.value)))
 useSeoMeta({
   title: computed(() => seo.value.title),
   description: computed(() => seo.value.description),
 })
-const hero = computed(() => (isEn.value ? getAcademyHubHeroEn() : getAcademyHubHero(clubKey.value, facts.value)))
-const cards = computed(() => (isEn.value ? getAcademyHubCardsEn(facts.value) : getAcademyHubCards(clubKey.value, facts.value)))
-const ctaTitle = computed(() => (isEn.value ? ACADEMY_HUB_CTA_TITLE_EN : getAcademyHubCtaTitle(clubKey.value)))
+const hero = computed(() => (isEn.value ? getAcademyHubHeroEn(clubKey.value, facts.value) : getAcademyHubHero(clubKey.value, facts.value)))
+const cards = computed(() => (isEn.value ? getAcademyHubCardsEn(facts.value, clubKey.value) : getAcademyHubCards(clubKey.value, facts.value)))
+const ctaTitle = computed(() => (isEn.value ? (isTcrfc.value ? ACADEMY_HUB_CTA_TITLE_EN : ACADEMY_HUB_CTA_TITLE_EN_BW) : getAcademyHubCtaTitle(clubKey.value)))
 </script>
 
 <template>
@@ -32,7 +34,7 @@ const ctaTitle = computed(() => (isEn.value ? ACADEMY_HUB_CTA_TITLE_EN : getAcad
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
-      <li aria-current="page">{{ identity.academyLabelZh }}</li>
+      <li aria-current="page">{{ academyCrumb }}</li>
     </ol>
   </div>
 </nav>
@@ -51,10 +53,10 @@ const ctaTitle = computed(() => (isEn.value ? ACADEMY_HUB_CTA_TITLE_EN : getAcad
     <div class="eyebrow-row">
       <div>
         <p class="kicker">{{ isTcrfc ? 'Explore the Academy' : 'Explore the Youth Team' }}</p>
-        <h2 class="section-title">{{ identity.academyShortLabelZh }}{{ tx('導覽', ' Guide') }}</h2>
+        <h2 class="section-title">{{ academyShort }}{{ tx('導覽', ' Guide') }}</h2>
       </div>
       <p v-if="isTcrfc" class="section-lede">{{ tx('從總覽、隊伍到加入方式，七個子單元帶你認識台中磐石足球學院。', 'From the overview and our teams to how to join, seven sections introduce TCRFC Academy.') }}</p>
-      <p v-else class="section-lede">從總覽、隊伍到隊伍日常，六個子單元帶你認識台中藍鯨青年隊。</p>
+      <p v-else class="section-lede">{{ tx('從總覽、隊伍到隊伍日常，六個子單元帶你認識台中藍鯨青年隊。', `From the overview and our teams to everyday life, six sections introduce the ${BW_NAME_EN} Youth Teams.`) }}</p>
     </div>
 
     <div class="unit-nav-grid">

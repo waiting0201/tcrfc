@@ -15,7 +15,7 @@
 //   position = 場上位置選項的中文顯示文字（後端 position 是 text 型別，無選項限制，
 //     直接送顯示文字比送英文代碼對後台閱讀者更有意義）／experience = 足球經歷簡述／
 //     video_url = 影片連結／contact = 電話與 Email 合併（後端只有一個「聯絡方式」欄位）
-definePageMeta({ nav: '', unit: '10.1', enReady: true })
+definePageMeta({ nav: '', unit: '10.1', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -26,14 +26,19 @@ const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 // 不具名部門的既有做法），bw 版一律只講「俱樂部」。
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const { facts } = useSiteFacts(clubKey.value)
-const deptLabel = computed(() => (isEn.value ? 'Football Department' : isTcrfc.value ? '競技部' : clubAssets.value.shortNameZh))
+const clubEn = computed(() => bizClubNameEn(clubKey.value))
+const deptLabel = computed(() => (isEn.value ? (isTcrfc.value ? 'Football Department' : clubEn.value) : isTcrfc.value ? '競技部' : clubAssets.value.shortNameZh))
+// 英文句中的「負責單位」：磐石 the Football Department；藍鯨沒有已核實的部門名稱，一律 the club。
+const deptRefEn = computed(() => (isTcrfc.value ? 'the Football Department' : 'the club'))
 
 useSeoMeta({
   title: computed(() => (isEn.value
-    ? 'Join as a Player | Join / Contact | Taichung Rock FC'
+    ? `Join as a Player | Join / Contact | ${clubEn.value}`
     : `加入球隊 Join as a Player｜加入與聯絡｜${clubAssets.value.nameZh}`)),
   description: computed(() => (isEn.value
-    ? 'Taichung Rock FC is recruiting players for the First Team and age-group squads. Complete the Join as a Player form with your details, football background and a match video link, and the Football Department will get in touch.'
+    ? (isTcrfc.value
+      ? 'Taichung Rock FC is recruiting players for the First Team and age-group squads. Complete the Join as a Player form with your details, football background and a match video link, and the Football Department will get in touch.'
+      : `${clubEn.value} is recruiting players for the First Team. Complete the Join as a Player form with your details, football background and a match video link, and the club will get in touch.`)
     : isTcrfc.value
     ? '台中磐石足球俱樂部持續招募一線隊與各梯隊球員。填寫加入球隊表單，提供你的基本資料、足球背景與比賽影片連結，競技部將盡快與你聯繫。'
     : `${clubAssets.value.nameZh}持續招募一線隊球員。填寫加入球隊表單，提供你的基本資料、足球背景與比賽影片連結，俱樂部將盡快與你聯繫。`)),
@@ -86,7 +91,7 @@ async function onSubmit() {
     <p class="page-hero__eyebrow">10.1 Join as a Player</p>
     <h1><template v-if="isEn">Join as a Player</template><template v-else>{{ tx('加入球隊', 'Join as a Player') }}<span class="en">Join as a Player</span></template></h1>
     <p v-if="isTcrfc" class="page-hero__lede"><template v-if="isEn">Got the ability and eager to prove yourself in the league? The First Team and our age-group squads are always looking for new talent. Complete the form below and let the Football Department get to know you.</template><template v-else>具備競技實力、渴望在企甲聯賽舞台證明自己？台中磐石一線隊與各梯隊持續招募新血，填寫以下表單，讓競技部認識你。</template></p>
-    <p v-else class="page-hero__lede">具備競技實力、渴望在{{ facts.league.nameZh }}舞台證明自己？台中藍鯨一線隊持續招募新血，填寫以下表單，讓俱樂部認識你。</p>
+    <p v-else class="page-hero__lede"><template v-if="isEn">Got the ability and eager to prove yourself in {{ facts.league.nameEn ? `the ${facts.league.nameEn}` : 'the league' }}? The {{ clubEn }} First Team is always looking for new talent. Complete the form below and let the club get to know you.</template><template v-else>具備競技實力、渴望在{{ facts.league.nameZh }}舞台證明自己？台中藍鯨一線隊持續招募新血，填寫以下表單，讓俱樂部認識你。</template></p>
   </div>
 </section>
 
@@ -97,7 +102,7 @@ async function onSubmit() {
       <FormStatusBanner
         :status="status"
         :error-message="errorMessage"
-        :success-message="isEn ? `We have received your application! An automatic reply has been sent to the email address you provided, and the ${deptLabel} will be in touch soon.` : `已收到你的報名資料！系統已寄送自動回覆信到你填寫的 Email，${deptLabel}會盡快與你聯繫。`"
+        :success-message="isEn ? `We have received your application! An automatic reply has been sent to the email address you provided, and ${deptRefEn} will be in touch soon.` : `已收到你的報名資料！系統已寄送自動回覆信到你填寫的 Email，${deptLabel}會盡快與你聯繫。`"
       />
       <form v-if="status !== 'success'" class="tcrfc-form" action="" method="post" @submit.prevent="onSubmit">
         <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
@@ -190,7 +195,7 @@ async function onSubmit() {
         <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">{{ tx('送出報名', 'Submit') }}</button>
 
         <div class="form-submit-note">
-          <p><template v-if="isEn"><strong>What happens after you submit?</strong> An automatic reply is sent straight away to the email address you provided to confirm we have received your details. The {{ deptLabel }} also receives a notification and will follow up depending on the assessment (for example, with a trial invitation).</template><template v-else><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到你填寫的 Email，確認我們已收到資料；{{ deptLabel }}窗口會另外收到通知信，並視評估結果安排後續聯繫（如試訓邀請）。</template></p>
+          <p><template v-if="isEn"><strong>What happens after you submit?</strong> An automatic reply is sent straight away to the email address you provided to confirm we have received your details. {{ deptRefEn.charAt(0).toUpperCase() + deptRefEn.slice(1) }} also receives a notification and will follow up depending on the assessment (for example, with a trial invitation).</template><template v-else><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到你填寫的 Email，確認我們已收到資料；{{ deptLabel }}窗口會另外收到通知信，並視評估結果安排後續聯繫（如試訓邀請）。</template></p>
         </div>
       </form>
 

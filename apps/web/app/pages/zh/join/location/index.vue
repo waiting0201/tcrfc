@@ -1,12 +1,13 @@
 <script setup lang="ts">
 // app/pages/zh/join/location/index.vue — 由 site/src/pages/zh/join/location/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
-definePageMeta({ nav: '', unit: '10-location', enReady: true })
+definePageMeta({ nav: '', unit: '10-location', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
+const clubEn = computed(() => bizClubNameEn(clubKey.value))
 
 // BW-C1（品牌外洩全站盤點）：本頁原本 10-location 單元零俱樂部分支（既有缺口，見
 // apps/web/README.md「S1-12d」節「刻意不動的範圍」），固定讀 tcrfc。改為動態帶入
@@ -36,9 +37,9 @@ const primaryName = computed(() => apiPrimaryVenue.value?.name ?? (isEn.value ? 
 const venuesHaveZh = computed(() => venues.value.some((v) => /[\u3400-\u9fff]/.test(`${v.name}${v.address ?? ''}${v.directions ?? ''}`)))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? 'Location & Map | Join / Contact | Taichung Rock FC' : `場地位置與地圖 Location & Map｜加入與聯絡｜${getClubAssets(clubKey.value).nameZh}`)),
+  title: computed(() => (isEn.value ? `Location & Map | Join / Contact | ${clubEn.value}` : `場地位置與地圖 Location & Map｜加入與聯絡｜${getClubAssets(clubKey.value).nameZh}`)),
   description: computed(() => (isEn.value
-    ? 'Locations, maps and directions for the Taichung Rock FC training base, home ground and Academy venues.'
+    ? (isTcrfc.value ? 'Locations, maps and directions for the Taichung Rock FC training base, home ground and Academy venues.' : `Locations, maps and directions for the ${clubEn.value} home grounds and training venues.`)
     : isTcrfc.value
     ? '台中磐石足球俱樂部訓練基地、主場與學院場地的位置、地圖與交通指引。'
     : '台中藍鯨主場的位置、地圖與交通指引。')),
@@ -62,7 +63,7 @@ useSeoMeta({
     <p class="page-hero__eyebrow">Location &amp; Map</p>
     <h1><template v-if="isEn">Location &amp; Map</template><template v-else>{{ tx('場地位置與地圖', 'Location & Map') }}<span class="en">Location &amp; Map</span></template></h1>
     <p v-if="isTcrfc" class="page-hero__lede"><template v-if="isEn">The Taichung Rock FC training base, home ground and Academy venues are located in and around Beitun, Taichung. Below you will find each venue's location, map and directions.</template><template v-else>台中磐石的訓練基地、主場與學院場地分布於台中北屯一帶，以下整理各場地的位置、地圖與交通指引。</template></p>
-    <p v-else class="page-hero__lede">台中藍鯨的比賽與訓練場地分布於台中北屯一帶，以下整理各場地的位置、地圖與交通指引。</p>
+    <p v-else class="page-hero__lede"><template v-if="isEn">{{ clubEn }}'s match and training venues are located in and around Beitun, Taichung. Below you will find each venue's location, map and directions.</template><template v-else>台中藍鯨的比賽與訓練場地分布於台中北屯一帶，以下整理各場地的位置、地圖與交通指引。</template></p>
   </div>
 </section>
 
@@ -71,7 +72,7 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">{{ tx('場地一覽', 'Venues') }}</p>
-        <h2 class="section-title" id="venues-title">{{ isEn ? 'Training base, home ground and Academy venues' : isTcrfc ? '訓練基地・主場・學院場地' : '比賽與訓練場地' }}</h2>
+        <h2 class="section-title" id="venues-title">{{ isEn ? (isTcrfc ? 'Training base, home ground and Academy venues' : 'Match and training venues') : isTcrfc ? '訓練基地・主場・學院場地' : '比賽與訓練場地' }}</h2>
       </div>
     </div>
     <LocaleFallbackNotice v-if="isEn && venuesHaveZh" partial />
@@ -108,8 +109,8 @@ useSeoMeta({
          的場地清單（現況兩座，皆無地址，詳見 site-facts.ts），不挪用磐石的場地分類。 -->
     <div v-else class="grid grid--3">
       <article v-for="v in facts.venues" :key="v.nameZh" class="venue-card">
-        <p class="venue-card__label">{{ v.isHomeGround ? '主場' : '訓練場地' }}</p>
-        <h3 class="venue-card__name">{{ v.nameZh }}<span v-if="v.nameEn" class="en">{{ v.nameEn }}</span></h3>
+        <p class="venue-card__label">{{ v.isHomeGround ? tx('主場', 'Home ground') : tx('訓練場地', 'Training venue') }}</p>
+        <h3 class="venue-card__name"><template v-if="isEn">{{ v.nameEn ?? v.nameZh }}</template><template v-else>{{ v.nameZh }}<span v-if="v.nameEn" class="en">{{ v.nameEn }}</span></template></h3>
         <p class="venue-card__addr">{{ v.address ?? tx('地址資訊準備中，稍後將於本頁公布。', 'Address details are being prepared and will be published here soon.') }}</p>
       </article>
     </div>

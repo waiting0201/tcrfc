@@ -13,7 +13,7 @@
 // 且 Lead 追蹤的比較基準需要可重現的規則），固定挑「有目前語系檔案、版本號最大」的一份（pickProposal）。
 import { formatPackagePrice, pickProposal, proposalDownloadHref, splitBenefitList } from '#shared/utils/partners'
 
-definePageMeta({ nav: 'partners', unit: '9.4', enReady: true })
+definePageMeta({ nav: 'partners', unit: '9.4', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -23,6 +23,8 @@ const club = config.public.club
 // 「學院贊助」比照 join/partnership/index.vue 既有做法改讀 identity.academyShortLabelZh。
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const identity = computed(() => getClubIdentity(config.public.club))
+const clubEn = computed(() => bizClubNameEn(config.public.club))
+const isTcrfc = computed(() => config.public.club !== 'bw')
 // 藍鯨規劃書 v1.9 §2.1：藍鯨不設 8.1 漫畫，因此也沒有「漫畫內容合作」方案；
 // 方案數與後續編號跟著同一個單元開關走，不另寫俱樂部判斷。
 const mangaEnabled = computed(() => isUnitEnabledForClub('8.1', config.public.club))
@@ -55,11 +57,11 @@ const planCountEnCap = computed(() => planCountEn.value.charAt(0).toUpperCase() 
 const planNum = (n: number) => String(mangaEnabled.value || n < 6 ? n : n - 1).padStart(2, '0')
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? 'Sponsorship Opportunities | Partners & Sponsors | Taichung Rock FC' : `贊助方案 Sponsorship Opportunities｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
+  title: computed(() => (isEn.value ? `Sponsorship Opportunities | Partners & Sponsors | ${clubEn.value}` : `贊助方案 Sponsorship Opportunities｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
   description: computed(() => isEn.value
     ? (hasApiPackages.value
-      ? `Taichung Rock FC offers ${planCountEn.value} sponsorship packages: ${packages.value.map((p) => p.name).filter(Boolean).join(', ')}.`
-      : `Taichung Rock FC offers ${planCountEn.value} sponsorship packages: club, Academy, team, camp, international program, ${mangaEnabled.value ? 'manga content, ' : ''}merchandise, Fan Club and venue naming rights.`)
+      ? `${clubEn.value} offers ${planCountEn.value} sponsorship packages: ${packages.value.map((p) => p.name).filter(Boolean).join(', ')}.`
+      : `${clubEn.value} offers ${planCountEn.value} sponsorship packages: club, ${isTcrfc.value ? 'Academy' : 'Youth team'}, team, camp, international program, ${mangaEnabled.value ? 'manga content, ' : ''}merchandise, Fan Club and venue naming rights.`)
     : hasApiPackages.value
     ? `${clubAssets.value.nameZh}${planCountZh.value}種贊助方案：${packages.value.map((p) => p.name).filter(Boolean).join('、')}。`
     : `${clubAssets.value.nameZh}${planCountZh.value}種贊助方案：俱樂部、${identity.value.academyShortLabelZh}、球隊、營隊、國際計畫、${mangaEnabled.value ? '漫畫內容、' : ''}商品、球迷會、場館冠名。`),
@@ -128,7 +130,7 @@ async function onDownloadSubmit() {
     <p class="page-hero__eyebrow">9.4 Sponsorship Opportunities</p>
     <h1><template v-if="isEn">Sponsorship Opportunities</template><template v-else>{{ tx('贊助方案', 'Sponsorship Opportunities') }}<span class="en">Sponsorship Opportunities</span></template></h1>
     <p v-if="hasApiPackages" class="page-hero__lede"><template v-if="isEn">{{ planCountEnCap }} sponsorship packages to help you find the partnership scale that suits you best.</template><template v-else>{{ planCountZh }}種贊助方案，找到最適合的合作規模。</template></p>
-    <p v-else class="page-hero__lede"><template v-if="isEn">{{ planCountEnCap }} sponsorship packages, from the club, the Academy, teams and camps through to venue naming rights, to help you find the partnership scale that suits you best.</template><template v-else>{{ planCountZh }}種贊助方案，涵蓋俱樂部、{{ identity.academyShortLabelZh }}、球隊、營隊到場館冠名，找到最適合的合作規模。</template></p>
+    <p v-else class="page-hero__lede"><template v-if="isEn">{{ planCountEnCap }} sponsorship packages, from the club, {{ isTcrfc ? 'the Academy' : 'the Youth team' }}, teams and camps through to venue naming rights, to help you find the partnership scale that suits you best.</template><template v-else>{{ planCountZh }}種贊助方案，涵蓋俱樂部、{{ identity.academyShortLabelZh }}、球隊、營隊到場館冠名，找到最適合的合作規模。</template></p>
   </div>
 </section>
 
@@ -158,7 +160,7 @@ async function onDownloadSubmit() {
       </article>
       <article class="plan-card">
         <p class="plan-card__num">02</p>
-        <h3 class="plan-card__title"><template v-if="isEn">Academy Sponsorship</template><template v-else>{{ identity.academyShortLabelZh }}贊助<span class="en">Academy Sponsorship</span></template></h3>
+        <h3 class="plan-card__title"><template v-if="isEn">{{ isTcrfc ? 'Academy Sponsorship' : PARTNERS_PLAN_YOUTH_EN_BW }}</template><template v-else>{{ identity.academyShortLabelZh }}贊助<span class="en">Academy Sponsorship</span></template></h3>
         <p class="plan-card__desc">{{ tx('洽詢方案時將提供完整權益說明。', 'Full benefit details are provided when you enquire about this package.') }}</p>
         <a class="btn btn--light btn--sm" :href="lp('/zh/join/partnership/')">{{ tx('洽詢方案', 'Enquire about this package') }}</a>
       </article>

@@ -2,7 +2,11 @@
 // （俱樂部 03 單元、女子足球 06、特約店家／文化 08 的 SEO、Hero、導覽卡文字與資料標籤）
 //
 // 約定（英文版文案檔共通，群組代號 club）：
-// - 只提供 tcrfc 的英文值；藍鯨站英文版不在範圍（isEn 在藍鯨一律 false）。
+// - 預設匯出（`FOO_EN`／`getFooEn`）只提供 tcrfc 的英文值。
+// - 藍鯨（bw）英文版變體（B-5，2026-10-05）：常數命名 `FOO_EN_BW`、函式命名 `getFooEnBw(facts)`
+//   （不加參數、不動既有簽名的預設行為）。藍鯨英文只翻譯 `club-copy.ts` 的 bw 繁中原文，不新增事實；
+//   藍鯨名稱一律取 `BW_NAME_EN`；聯賽、場地、成立日期取自呼叫端傳入的 `facts`（單一來源）。
+//   人名沒有英文來源者維持中文，放在資料層（`INTL_PATHWAY_*_NOTES_BW`），不寫在本檔字串裡。
 // - 原匯出 `FOO`（常數）→ `FOO_EN`；原函式 `getFoo(club, facts)` → `getFooEn(facts)`。
 // - 型別沿用 club-copy.ts 的 interface，**欄位名稱不變但值是英文**（例如 `h1Zh` 欄位放英文 H1、
 //   `lede` 放英文導言、`titleZh`／`descZh` 放英文標題與敘述），頁面端只要把來源換成 `_EN` 即可，不必改渲染。
@@ -14,7 +18,7 @@
 
 import type { HeroCopy, SeoCopy, ClubHubStat, CtaCardCopy } from './club-copy'
 import type { SiteFacts } from './site-facts'
-import { BW_NAME_EN_PENDING } from './club-copy'
+import { BW_NAME_EN } from './club-copy'
 
 // ---------------------------------------------------------------------------
 // 共用小工具（本檔內部使用，不匯出）
@@ -247,31 +251,31 @@ export function getPlayerStoriesHeroEn(): HeroCopy {
 export const CLUB_WOMENS_SEO_EN: SeoCopy = {
   title: "Women's Football | Taichung Rock FC",
   description:
-    "An introduction to the " + BW_NAME_EN_PENDING + " women's team and the entry point to its official website. For the full squad, coaching staff, fixtures and results, please visit the " + BW_NAME_EN_PENDING + " official website.",
+    "An introduction to the " + BW_NAME_EN + " women's team and the entry point to its official website. For the full squad, coaching staff, fixtures and results, please visit the " + BW_NAME_EN + " official website.",
 }
 
 /** `OUR_STORY_BODY_BW`（藍鯨定位敘述）的英文翻譯，不增加原文沒有的資訊。協會名稱採對照表初稿寫法（待客戶確認）。 */
 export const WOMENS_STORY_BODY_EN =
-  "The " + BW_NAME_EN_PENDING + " women's football team belongs to the Taichung Women's Football Association, is known for short as " + BW_NAME_EN_PENDING + ", and is one of the teams in the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern way of playing football, with an emphasis on teamwork, and the whale's fin is an emblem of Taiwan, leading Taiwan football forward. " + BW_NAME_EN_PENDING + " hopes to lift the culture of grassroots football in Taichung and drive the development of women's football in central Taiwan."
+  "The " + BW_NAME_EN + " women's football team belongs to the Taichung Women's Football Association, is known for short as " + BW_NAME_EN + ", and is one of the teams in the Taiwan Mulan Football League. The blue whale is its symbol of a faster, stronger and more modern way of playing football, with an emphasis on teamwork, and the whale's fin is an emblem of Taiwan, leading Taiwan football forward. " + BW_NAME_EN + " hopes to lift the culture of grassroots football in Taichung and drive the development of women's football in central Taiwan."
 
 /**
  * 06 女子足球頁面中含「Taichung Blue Whale」（對照表的描述性寫法，B-5 前不選正式全名）的英文句子，
  * 集中在本檔，頁面不自己寫死藍鯨英文名（check-bw-en-name.mjs 只需對 club-copy-en-*.ts 開例外）。
  */
 export const CLUB_WOMENS_PAGE_EN = {
-  lede: "The " + BW_NAME_EN_PENDING + " women's team is a women's football team supported by Taichung Rock. For the squad list, fixtures, results and other details, please visit the women's football official website.",
-  introHeading: BW_NAME_EN_PENDING + " Women's Team",
-  crestAlt: BW_NAME_EN_PENDING + ' crest',
-  teamName: BW_NAME_EN_PENDING + " women's football team",
-  fullInfo: 'For the squad list, coaching staff, fixtures and results, please visit the ' + BW_NAME_EN_PENDING + ' official website',
-  officialHeading: 'For the full squad, fixtures and results, visit the ' + BW_NAME_EN_PENDING + ' website',
-  officialLede: 'The squad list, coaching staff, fixtures and match results are all presented on the ' + BW_NAME_EN_PENDING + ' official website.',
-  officialCta: 'Go to the ' + BW_NAME_EN_PENDING + ' official website',
+  lede: "The " + BW_NAME_EN + " women's team is a women's football team supported by Taichung Rock. For the squad list, fixtures, results and other details, please visit the women's football official website.",
+  introHeading: BW_NAME_EN + " Women's Team",
+  crestAlt: BW_NAME_EN + ' crest',
+  teamName: BW_NAME_EN + " women's football team",
+  fullInfo: 'For the squad list, coaching staff, fixtures and results, please visit the ' + BW_NAME_EN + ' official website',
+  officialHeading: 'For the full squad, fixtures and results, visit the ' + BW_NAME_EN + ' website',
+  officialLede: 'The squad list, coaching staff, fixtures and match results are all presented on the ' + BW_NAME_EN + ' official website.',
+  officialCta: 'Go to the ' + BW_NAME_EN + ' official website',
 } as const
 
 /** 球員故事頁空狀態說明（英文版，含藍鯨官網連結文字；HTML 結構由頁面負責）。 */
-export const CLUB_PLAYER_STORIES_BW_LINK_TEXT_EN = BW_NAME_EN_PENDING + " women's team website"
-export const CLUB_PLAYER_STORIES_BW_PREFIX_EN = 'For the ' + BW_NAME_EN_PENDING + ' squad and fixtures, see the '
+export const CLUB_PLAYER_STORIES_BW_LINK_TEXT_EN = BW_NAME_EN + " women's team website"
+export const CLUB_PLAYER_STORIES_BW_PREFIX_EN = 'For the ' + BW_NAME_EN + ' squad and fixtures, see the '
 
 /** 台中藍鯨女子足球隊的所屬聯賽英文名（docs/06 §1.1 對照表）。 */
 export const CLUB_WOMENS_LEAGUE_EN = 'Taiwan Mulan Football League'
@@ -351,5 +355,283 @@ export function getMangaEpisodeSeoEn(episodeNo: number, title: string): SeoCopy 
   return {
     title: `Episode ${episodeNo}: ${title} | TCRFC Manga | Taichung Rock FC`,
     description: `Read TCRFC Manga episode ${episodeNo}, "${title}", online for free with no login required.`,
+  }
+}
+
+
+// ===========================================================================
+// 藍鯨（bw）英文版變體：`FOO_EN_BW`／`getFooEnBw(facts)`
+// ===========================================================================
+
+/** 藍鯨場地清單的英文行文（「A and B」）；場地英文名缺漏時退回資料層原名稱。 */
+function bwVenuesEn(facts: SiteFacts): string {
+  const names = facts.venues.map((v) => v.nameEn ?? v.nameZh)
+  if (names.length <= 1) return names.join('')
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+/** 「Founded on 12 April 2014」→ 句中用的「founded on 12 April 2014」；缺英文值時只寫年份。 */
+function bwFoundedClauseEn(facts: SiteFacts): string {
+  const base = facts.foundedDisplayEn ?? `Founded in ${facts.foundedYear}`
+  return base.charAt(0).toLowerCase() + base.slice(1)
+}
+
+/** 俱樂部英文名稱後綴：`X | Taichung Blue Whale`（比照磐石的 `X | Taichung Rock FC`）。 */
+const BW_SUFFIX_EN = ' | ' + BW_NAME_EN
+
+// ---- 03 單元 hub ----
+
+export function getClubHubSeoEnBw(facts: SiteFacts): SeoCopy {
+  return {
+    title: 'Football Club' + BW_SUFFIX_EN,
+    description: `Overview of the ${BW_NAME_EN} Football Club section: the First Team, Player Development, Player Opportunities, International Pathways and Player Stories. The club was ${bwFoundedClauseEn(facts)} and competes in ${leagueEn(facts)}.`,
+  }
+}
+
+export function getClubHubHeroEnBw(facts: SiteFacts): HeroCopy {
+  return {
+    h1Zh: BW_NAME_EN + ' First Team',
+    h1En: null,
+    lede: `The club's first team, representing it in ${leagueEn(facts)}; the club was ${bwFoundedClauseEn(facts)}. Here you will find the squad list, the focus areas of player development, ways to join, and real cases of players who have gone abroad.`,
+  }
+}
+
+/** 統計卡——「5」沿用 `getClubHubStats` 既有字面值（隊史奪冠次數，club-profile.md §4 沿革逐條計數）。 */
+export function getClubHubStatsEnBw(facts: SiteFacts): ClubHubStat[] {
+  return [
+    { num: facts.foundedYear, labelZh: 'Year founded' },
+    { num: '5', labelZh: 'League titles won in the club\'s history' },
+    { num: String(facts.squadCodes.length), labelZh: 'Youth team age groups' },
+    { num: facts.league.nameEn ?? '', labelZh: 'League' },
+  ]
+}
+
+export const CLUB_HUB_OPPORTUNITIES_DESC_EN_BW =
+  'Joining ' + BW_NAME_EN + ', trial dates with online registration, and the recruitment channel for foreign players.'
+
+export const CLUB_HUB_PLAYER_STORIES_DESC_EN_BW =
+  'Real cases from the First Team and from players abroad, showing how each player got to where they are.'
+
+export const CLUB_HUB_INTL_DESC_EN_BW =
+  'Real cases of players who have gone abroad, regional information for Japan and China, and the overseas club-matching enquiry channel.'
+
+export const CLUB_HUB_INTL_CTA_DESC_EN_BW =
+  'Want to learn about cases of players going abroad to Japan and China? The International Pathways page explains the full route.'
+
+export const CLUB_HUB_CTA_TITLE_EN_BW = 'Join the ' + BW_NAME_EN + ' First Team'
+
+/** 底部 CTA 第一張卡「加入球隊」——對應 `getHomeCtaTrio('bw')` 第一筆。 */
+export function getClubHubJoinPlayerCardEnBw(facts: SiteFacts): CtaCardCopy {
+  return {
+    num: '10.1',
+    titleZh: 'Join the Squad',
+    descZh: `Have the competitive ability and want to prove yourself in ${leagueEn(facts)}? We are continuously recruiting First Team players.`,
+    ctaLabelZh: 'Fill in the registration form',
+    href: '/zh/join/player/',
+  }
+}
+
+// ---- 03.1 一線隊 ----
+
+export function getFirstTeamSeoEnBw(facts: SiteFacts): SeoCopy {
+  return {
+    title: 'First Team' + BW_SUFFIX_EN,
+    description: `The ${BW_NAME_EN} First Team: competing in ${leagueEn(facts)}, with five league titles in the club's history. The squad and fixtures are maintained in the back office and the content is being updated.`,
+  }
+}
+
+export function getFirstTeamHeroEnBw(facts: SiteFacts): HeroCopy {
+  return {
+    h1Zh: 'First Team',
+    h1En: null,
+    lede: `The ${BW_NAME_EN} First Team represents the club in ${leagueEn(facts)}. The club was ${bwFoundedClauseEn(facts)}, and the team has won the league title five times. Its home grounds are ${bwVenuesEn(facts)}.`,
+  }
+}
+
+export function getFirstTeamIntroEnBw(facts: SiteFacts): string {
+  return `The ${BW_NAME_EN} First Team was formed with the club in ${facts.foundedYear} and competes in ${leagueEn(facts)}, having won the league title five times in its history (2017, 2018, 2019, 2021 and 2023). The team's home grounds are ${bwVenuesEn(facts)}. The squad and the latest fixtures are maintained in the back office, and this page is being updated.`
+}
+
+/** 一線隊頁底部 CTA 卡 3.2 的英文（藍鯨：球員培育重點）。 */
+export const CLUB_FIRST_TEAM_PD_CARD_EN_BW = {
+  title: 'Player Development Priorities',
+  desc: 'See how the First Team keeps developing players through eight areas.',
+  cta: 'View Player Development Priorities',
+} as const
+
+// ---- 03.2 球員培育重點／03.3 球員機會／03.4 國際發展通道／03.5 球員故事 ----
+
+export function getPlayerDevelopmentSeoEnBw(): SeoCopy {
+  return {
+    title: 'Player Development Priorities' + BW_SUFFIX_EN,
+    description: `Player development priorities at ${BW_NAME_EN}: technical and tactical analysis, physical fitness training, match reading, mental resilience, video analysis, Individual Development Plans, nutrition and lifestyle, and education and language. The details of each area are being prepared.`,
+  }
+}
+
+export function getPlayerDevelopmentHeroEnBw(): HeroCopy {
+  return {
+    h1Zh: 'Player Development Priorities',
+    h1En: null,
+    lede: `From tactics to education and language, these eight areas are the focus of ${BW_NAME_EN} player development, supporting First Team and Youth team players as they keep growing. Select a card to read more.`,
+  }
+}
+
+/** 球員培育重點頁其餘藍鯨專屬英文句。 */
+export const CLUB_PLAYER_DEVELOPMENT_PAGE_EN_BW = {
+  summaryTitle: 'Eight areas, continued growth',
+  summaryDesc: 'The eight areas together support the growth of First Team and Youth team players, linking Youth team training with International Pathways to help players keep improving.',
+  ctaHeading: 'Join Player Development',
+  firstTeamDesc: 'See the First Team squad and season performances.',
+  joinDesc: 'Want to be part of the team? Fill in the registration form and start your journey.',
+} as const
+
+export function getPlayerOpportunitiesSeoEnBw(): SeoCopy {
+  return {
+    title: 'Player Opportunities' + BW_SUFFIX_EN,
+    description: `Player opportunities at ${BW_NAME_EN}: how to join the First Team, trial dates with online registration, and the recruitment channel for foreign players.`,
+  }
+}
+
+export function getPlayerOpportunitiesHeroEnBw(): HeroCopy {
+  return {
+    h1Zh: 'Player Opportunities',
+    h1En: null,
+    lede: `From joining the First Team and attending trials to the recruitment channel for foreign players, this page brings together every way into ${BW_NAME_EN} player opportunities.`,
+  }
+}
+
+export const CLUB_JOIN_HEADING_EN_BW = 'Join ' + BW_NAME_EN
+
+export function getJoinFirstTeamBodyEnBw(facts: SiteFacts): string {
+  return `The ${BW_NAME_EN} First Team represents the club in ${leagueEn(facts)} and continues to recruit players with the competitive ability to join the squad. After you submit the registration form, the club will contact you about the next steps of the assessment.`
+}
+
+export function getForeignPlayerBodyEnBw(facts: SiteFacts): string {
+  return `${BW_NAME_EN} First Team competes in ${leagueEn(facts)}. We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our club will follow up.`
+}
+
+/** 球員機會頁底部「國際發展通道」卡（藍鯨）。 */
+export const CLUB_OPPORTUNITIES_INTL_CARD_DESC_EN_BW =
+  'Learn how players have gone abroad to Japan and China through ' + BW_NAME_EN + '.'
+
+export function getInternationalPathwaysSeoEnBw(): SeoCopy {
+  return {
+    title: 'International Pathways' + BW_SUFFIX_EN,
+    description: `${BW_NAME_EN} International Pathways: real cases of players going abroad to Japan and China, and the channels for overseas trials and club-matching enquiries.`,
+  }
+}
+
+export function getInternationalPathwaysHeroEnBw(): HeroCopy {
+  return {
+    h1Zh: 'International Pathways',
+    h1En: null,
+    lede: `Starting from Taichung, ${BW_NAME_EN} players have gone abroad successfully to Japan and China, and the club keeps building routes for players to the international stage.`,
+  }
+}
+
+/** 旅外日本案例英文敘述（順序對應資料層 `INTL_PATHWAY_JAPAN_NOTES_BW`；名字由資料層取用）。 */
+export const INTL_PATHWAY_JAPAN_NOTES_DESC_EN_BW: readonly string[] = [
+  'Goalkeeper. Played for FC Fujizakura Yamanashi in Japan from 2019 to 2022 and returned to ' + BW_NAME_EN + ' in 2022.',
+  'Goalkeeper. Went abroad to Japan successfully in 2020 (the old website records only the year, not the club played for).',
+  'Went abroad to Japan successfully in 2019 (the old website records only the year, not the club played for).',
+]
+
+/** 旅外中國案例英文敘述（對應資料層 `INTL_PATHWAY_CHINA_NOTE_BW`）。 */
+export const INTL_PATHWAY_CHINA_NOTE_DESC_EN_BW =
+  'Went abroad to China successfully in 2023 (the old website records only the year, not the club played for).'
+
+/** 分區頁籤說明（藍鯨：日本／中國）。 */
+export const CLUB_INTL_REGION_COPY_EN_BW = {
+  selectRegion: 'Select a region',
+  japanHasTiles: 'Partner clubs in Japan, and real cases of players going abroad:',
+  japanNoTiles: 'There are no formal partner clubs or agreements in Japan that can be made public yet, but players have already gone abroad:',
+  chinaHasTiles: 'Partner clubs in China, and real cases of players going abroad:',
+  chinaNoTiles: 'There are no formal partner clubs or agreements in China that can be made public yet, but a player has already gone abroad:',
+  abroadBadge: 'Abroad',
+} as const
+
+/** 球員名顯示：資料層的名字含拉丁字母英文名者（如「蔡明容 Tsai Ming-Jung」）取英文部分，其餘維持原樣（不音譯）。 */
+export function clubPlayerNameEn(name: string): string {
+  const latin = name.replace(/[^ -~]+/g, ' ').replace(/\s+/g, ' ').trim()
+  return latin || name
+}
+
+export function getPlayerStoriesSeoEnBw(): SeoCopy {
+  return {
+    title: 'Player Stories' + BW_SUFFIX_EN,
+    description: `Player story cases from ${BW_NAME_EN}, recording each player's real journey from joining ${BW_NAME_EN} to a bigger stage. Cases are being added.`,
+  }
+}
+
+export function getPlayerStoriesHeroEnBw(): HeroCopy {
+  return {
+    h1Zh: 'Player Stories',
+    h1En: null,
+    lede: `Every player has a ${BW_NAME_EN} journey of their own. Verified player stories, with image consent obtained, will be added to this page.`,
+  }
+}
+
+export const CLUB_PLAYER_STORIES_EMPTY_NOTE_EN_BW =
+  'There are no verified player stories with image consent yet. Cases will be added as the squad list and image consents progress.'
+
+export const CLUB_PLAYER_STORIES_INTL_CARD_DESC_EN_BW =
+  'Learn about real cases of players going abroad to Japan and China.'
+
+// ---- 08 文化／特約店家／球迷會／商品（藍鯨不設漫畫） ----
+
+export const CLUB_CULTURE_LABEL_EN_BW = BW_NAME_EN + ' Culture'
+
+export function getCultureHubSeoEnBw(): SeoCopy {
+  return {
+    title: `${CLUB_CULTURE_LABEL_EN_BW} | Fan Club and Merchandise${BW_SUFFIX_EN}`,
+    description: `Explore the ${BW_NAME_EN} culture section: the ${BW_NAME_EN} Fan Club, official merchandise with the online store, and partner perks.`,
+  }
+}
+
+export const CLUB_CULTURE_PAGE_EN_BW = {
+  heroLede: `From the Fan Club and official merchandise to partner perks, ${CLUB_CULTURE_LABEL_EN_BW} is the most direct emotional link between ${BW_NAME_EN}, its fans and the community.`,
+  merchCardDesc: 'Official merchandise and the online store, with product content provided through the back office.',
+  fanClubCardTitle: BW_NAME_EN + ' Fan Club',
+} as const
+
+export const CLUB_PERKS_SEO_EN_BW: SeoCopy = {
+  title: 'Partner Perks' + BW_SUFFIX_EN,
+  description:
+    `Partner stores offering discounts to ${BW_NAME_EN} members. Show your digital membership card in store to enjoy the offer; each store states whether it applies to registered members or Paid Fan Club members.`,
+}
+
+export const CLUB_PERKS_HERO_LEDE_EN_BW =
+  `Local stores working with ${BW_NAME_EN}. Members can enjoy offers by showing their digital membership card in store. This page is public and can be viewed without logging in.`
+
+export function getPerksDetailSeoEnBw(storeName: string | null | undefined, offer: string | null | undefined): SeoCopy {
+  const name = storeName || 'Partner Perks'
+  return {
+    title: `${name} | Partner Perks${BW_SUFFIX_EN}`,
+    description: offer || `${storeName ?? ''} is a partner store for ${BW_NAME_EN} members.`,
+  }
+}
+
+export const CLUB_FAN_CLUB_SEO_EN_BW: SeoCopy = {
+  title: `Fan Club | ${CLUB_CULTURE_LABEL_EN_BW} | ${BW_NAME_EN}`,
+  description:
+    `Join the ${BW_NAME_EN} Fan Club: membership plans, a tier-by-tier comparison of member benefits, and fan event registration and reviews.`,
+}
+
+export const CLUB_FAN_CLUB_HERO_LEDE_EN_BW =
+  `Cheer with ${BW_NAME_EN} from the touchline. The Fan Club is the club's paid membership: besides a jersey, you get more discounts at partner stores and priority access to fan events.`
+
+export function getFanEventSeoEnBw(name: string, when: string, location: string | null | undefined): SeoCopy {
+  return {
+    title: `${name} | Fan Club Events${BW_SUFFIX_EN}`,
+    description: `${BW_NAME_EN} Fan Club event "${name}"${when ? `: ${when}` : ''}${location ? `, ${location}` : ''}.`,
+  }
+}
+
+export function getMerchandiseSeoEnBw(hasProducts: boolean): SeoCopy {
+  return {
+    title: `Merchandise | ${CLUB_CULTURE_LABEL_EN_BW} | ${BW_NAME_EN}`,
+    description: hasProducts
+      ? `${BW_NAME_EN} official merchandise: browse by collection, then choose a size and colour in the official store, pay with LINE Pay and receive an e-invoice.`
+      : `${BW_NAME_EN} official merchandise. Product content is provided through the back office and there is nothing to display yet.`,
   }
 }

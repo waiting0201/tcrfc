@@ -8,22 +8,23 @@
 // 圖片藝廊區塊對藍鯨改為顯示既有「收錄中」空狀態（比照 3.5 球員故事），不放任何
 // 照片，不是 404。標題改「青年隊生活」（不用「學院」字樣，見
 // check-club-brand-leak.mjs 詞表）。
-definePageMeta({ nav: "academy", unit: "4.6", enReady: true })
+definePageMeta({ nav: "academy", unit: "4.6", enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.value) : identity.value.academyLabelZh))
 
 // S1-12d 收尾：梯隊代碼改讀 useSiteFacts(clubKey)（後端公開端點）。
 const { academyLabel } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getYouthLifeSeoEn() : getYouthLifeSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getYouthLifeSeoEn() : getYouthLifeSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? getYouthLifeSeoEn(clubKey.value) : getYouthLifeSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getYouthLifeSeoEn(clubKey.value) : getYouthLifeSeo(clubKey.value)).description),
 })
-const hero = computed(() => (isEn.value ? getYouthLifeHeroEn() : getYouthLifeHero(clubKey.value)))
+const hero = computed(() => (isEn.value ? getYouthLifeHeroEn(clubKey.value) : getYouthLifeHero(clubKey.value)))
 </script>
 
 <template>
@@ -31,8 +32,8 @@ const hero = computed(() => (isEn.value ? getYouthLifeHeroEn() : getYouthLifeHer
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
-      <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
-      <li aria-current="page">{{ tx(identity.academyShortLabelZh + '生活', 'Academy Life') }}</li>
+      <li><a :href="lp('/zh/academy/')">{{ academyCrumb }}</a></li>
+      <li aria-current="page">{{ tx(identity.academyShortLabelZh + '生活', isTcrfc ? 'Academy Life' : 'Youth Life') }}</li>
     </ol>
   </div>
 </nav>

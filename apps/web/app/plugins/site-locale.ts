@@ -32,9 +32,13 @@ export default defineNuxtPlugin({
   name: 'tcrfc:site-locale',
   setup() {
     const route = useRoute()
+    const isBw = useRuntimeConfig().public.club === 'bw'
+    // 藍鯨 /en/ 的站名（<title> 後綴、og:site_name、WebSite.name）用英文簡稱（B-5 於 2026-10-05 定案）；
+    // zh 維持環境變數 NUXT_PUBLIC_SITE_NAME（「台中藍鯨」）。主站不覆寫（站名 TCRFC 兩語系相同）。
     updateSiteConfig({
       _context: 'tcrfc:site-locale',
       currentLocale: () => HREFLANG_MAP[resolveLocaleFromPath(route.path)],
+      ...(isBw ? { name: () => (resolveLocaleFromPath(route.path) === 'en' ? BW_NAME_EN : undefined) } : {}),
     })
   },
 })

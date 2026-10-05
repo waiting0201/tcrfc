@@ -72,7 +72,7 @@ public sealed class AppContractBatch4Tests(AdminWriteApiFixture fixture) : IAsyn
     // ═════════════ 俱樂部簡稱 ═════════════
 
     [Fact]
-    public async Task 俱樂部簡稱_磐石中英文_藍鯨中文有英文沒有_英文請求回退繁中()
+    public async Task 俱樂部簡稱_磐石與藍鯨皆有中英文_英文列缺失時回退繁中並標示未翻譯()
     {
         using var client = fixture.CreateClient();
         var tc = await JsonAsync(await client.GetAsync("/api/v1/clubs/tcrfc?lang=zh"));
@@ -81,12 +81,50 @@ public sealed class AppContractBatch4Tests(AdminWriteApiFixture fixture) : IAsyn
 
         var bw = await JsonAsync(await client.GetAsync("/api/v1/clubs/bw?lang=zh"));
         Assert.Equal("台中藍鯨", bw.GetProperty("shortName").GetString());
-        // 藍鯨英文一律沒有（B-5）：英文請求時簡稱回退繁中，名稱欄位標示未翻譯
+
+        // B-5 已於 2026-10-05 定案（簡稱 Taichung Blue Whale、全名 Taichung Blue Whale Women's Football Club）：
+        // 種子帶入藍鯨英文列，英文請求回英文值、不標示未翻譯。（原斷言「藍鯨英文為 NULL」已失效。）
         var bwEn = await JsonAsync(await client.GetAsync("/api/v1/clubs/bw?lang=en"));
-        Assert.Equal("台中藍鯨", bwEn.GetProperty("shortName").GetString());
-        Assert.True(bwEn.GetProperty("isFallbackLocale").GetBoolean());
-        var hasBwEnShort = await BizTest.ScalarGuidAsync("SELECT COALESCE((SELECT TOP 1 c.id FROM clubs c JOIN clubs_i18n i ON i.club_id = c.id WHERE c.code = 'bw' AND i.locale = N'en' AND i.short_name IS NOT NULL), CAST(0x0 AS uniqueidentifier))");
-        Assert.Equal(Guid.Empty, hasBwEnShort); // 資料層：藍鯨英文簡稱是 NULL
+        Assert.Equal("Taichung Blue Whale", bwEn.GetProperty("shortName").GetString());
+        Assert.Equal("Taichung Blue Whale Women's Football Club", bwEn.GetProperty("name").GetString());
+        Assert.False(bwEn.GetProperty("isFallbackLocale").GetBoolean());
+
+        // 回退行為自建測資（E-212：不拿種子的缺口當測資）：經後台移除藍鯨英文列（en = null 即刪列，並使公開快取失效），
+        // 驗證英文請求回退繁中且標示未翻譯，finally 一定把原英文內容寫回。
+        using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
+        var clubs = await JsonAsync(await admin.GetAsync("/api/v1/admin/clubs"));
+        var id = clubs.EnumerateArray().First(c => c.GetProperty("code").GetString() == "bw").GetProperty("id").GetGuid();
+        var detail = await JsonAsync(await admin.GetAsync($"/api/v1/admin/clubs/{id}"));
+        var originalEn = detail.GetProperty("en");
+        Assert.Equal(JsonValueKind.Object, originalEn.ValueKind);
+
+        static string? Str(JsonElement e, string name) => e.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
+        object Body(object? en) => new
+        {
+            domain = detail.GetProperty("domain").GetString(), brandColor = Str(detail, "brandColor"), brandSecondaryColor = Str(detail, "brandSecondaryColor"),
+            invoiceTitle = Str(detail, "invoiceTitle"), taxId = Str(detail, "taxId"), isCollectingSubject = detail.GetProperty("isCollectingSubject").GetBoolean(),
+            defaultLocale = detail.GetProperty("defaultLocale").GetString(), sortOrder = detail.GetProperty("sortOrder").GetInt32(), status = detail.GetProperty("status").GetString(),
+            content = new
+            {
+                zh = new { name = detail.GetProperty("zh").GetProperty("name").GetString(), shortName = Str(detail.GetProperty("zh"), "shortName"), description = Str(detail.GetProperty("zh"), "description") },
+                en,
+            },
+        };
+
+        try
+        {
+            Assert.Equal(HttpStatusCode.OK, (await admin.PutAsJsonAsync($"/api/v1/admin/clubs/{id}", Body(null), TestJson.WriteOptions)).StatusCode);
+            var fallback = await JsonAsync(await client.GetAsync("/api/v1/clubs/bw?lang=en"));
+            Assert.Equal("台中藍鯨", fallback.GetProperty("shortName").GetString());
+            Assert.True(fallback.GetProperty("isFallbackLocale").GetBoolean());
+        }
+        finally
+        {
+            var restore = new { name = Str(originalEn, "name"), shortName = Str(originalEn, "shortName"), description = Str(originalEn, "description") };
+            Assert.Equal(HttpStatusCode.OK, (await admin.PutAsJsonAsync($"/api/v1/admin/clubs/{id}", Body(restore), TestJson.WriteOptions)).StatusCode);
+        }
+
+        Assert.Equal("Taichung Blue Whale", (await JsonAsync(await client.GetAsync("/api/v1/clubs/bw?lang=en"))).GetProperty("shortName").GetString());
     }
 
     // ═════════════ 監護人同意（年齡閘門）═════════════

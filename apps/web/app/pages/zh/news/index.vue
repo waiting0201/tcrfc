@@ -8,10 +8,11 @@
 // markup 全站只出現一次，沒有複製六次的問題）。
 // 🔴 SSR 階段打真實 API，一次抓全部文章（pageSize=200，83 篇量級單頁載入可接受，
 // 原始 mockup script 註解本來就這樣寫）。
-definePageMeta({ nav: 'news', unit: '07', enReady: true })
+definePageMeta({ nav: 'news', unit: '07', enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
+const clubKey: 'tcrfc' | 'bw' = club === 'bw' ? 'bw' : 'tcrfc'
 // BW-C1（品牌外洩全站盤點）：title／description／hero lede 原本固定寫死「台中磐石
 // 足球俱樂部」，是本輪全站掃描才發現的既有缺口（本頁其餘內容——分類鈕、文章列表、
 // 篩選——本來就依 `club` 動態打 API，只有這三處文案沒有跟著動）。改讀既有的
@@ -55,8 +56,8 @@ const search = ref('')
 const filterTabCategories = computed(() => NEWS_CATEGORIES.filter((c) => c.code !== 'media'))
 
 useSeoMeta({
-  title: computed(() => isEn.value ? getNewsIndexSeoEn(totalCount.value).title : `最新消息 News & Stories｜${clubNameZh.value}`),
-  description: computed(() => isEn.value ? getNewsIndexSeoEn(totalCount.value).description : `${clubNameZh.value}新聞中心：俱樂部新聞、比賽報導、國際交流、營隊活動與社區公益，${totalCount.value} 篇真實報導依分類、年月與關鍵字瀏覽。`),
+  title: computed(() => isEn.value ? getNewsIndexSeoEn(totalCount.value, clubKey).title : `最新消息 News & Stories｜${clubNameZh.value}`),
+  description: computed(() => isEn.value ? getNewsIndexSeoEn(totalCount.value, clubKey).description : `${clubNameZh.value}新聞中心：俱樂部新聞、比賽報導、國際交流、營隊活動與社區公益，${totalCount.value} 篇真實報導依分類、年月與關鍵字瀏覽。`),
 })
 </script>
 
@@ -75,7 +76,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">07 News &amp; Stories</p>
     <h1>{{ tx('最新消息', 'News & Stories') }}<span v-if="!isEn" class="en">News &amp; Stories</span></h1>
-    <p v-if="isEn" class="page-hero__lede">{{ getNewsIndexHeroEn(totalCount).lede }}</p>
+    <p v-if="isEn" class="page-hero__lede">{{ getNewsIndexHeroEn(totalCount, clubKey).lede }}</p>
     <p v-else class="page-hero__lede">俱樂部公告、比賽報導、國際交流、營隊活動與社區公益，統一於新聞中心發布。目前共收錄 {{ totalCount }} 篇真實報導。</p>
   </div>
 </section>
@@ -115,7 +116,7 @@ useSeoMeta({
           :data-tab="cat.code"
           :aria-pressed="activeCat === cat.code"
           @click="activeCat = cat.code"
-        >{{ isEn ? newsCategoryTabLabelEn(cat.code) : newsCategoryTabLabel(cat.code, club) }}</button>
+        >{{ isEn ? newsCategoryTabLabelEn(cat.code, clubKey) : newsCategoryTabLabel(cat.code, club) }}</button>
       </nav>
       <NewsFilterForm v-model:tag="tag" v-model:year="year" v-model:month="month" v-model:search="search" :tags="tags" :years="years" :months="ALL_MONTHS" />
     </div>

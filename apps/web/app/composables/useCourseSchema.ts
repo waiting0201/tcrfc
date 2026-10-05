@@ -17,10 +17,11 @@ export function useCourseSchema(
   program: MaybeRefOrGetter<CourseSchemaSourceProgram | null>,
   opts: { providerName: MaybeRefOrGetter<string>; siteUrl: MaybeRefOrGetter<string> },
 ) {
-  const { isEn } = useLocale()
+  // JSON-LD 的語系看 URL（`locale`），不看 `isEn`：藍鯨未宣告 enReadyBw 的 /en/ 頁，結構化資料仍輸出英文（見 useSchemaOrgClub.ts）。
+  const { locale } = useLocale()
   watchEffect(() => {
     const node = buildCourseSchemaNode(toValue(program), {
-      locale: isEn.value ? 'en' : 'zh',
+      locale: locale.value === 'en' ? 'en' : 'zh',
       providerName: toValue(opts.providerName),
       siteUrl: toValue(opts.siteUrl),
     })

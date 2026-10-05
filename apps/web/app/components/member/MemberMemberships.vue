@@ -143,9 +143,11 @@ function canApply(m: MyMembership) {
 }
 const feeText = (n: number) => `NT$ ${n.toLocaleString(isEn.value ? 'en-US' : 'zh-TW')}`
 const collectingNote = (m: MyMembership) => (m.club.code === 'bw'
-  ? '藍鯨會籍的款項由台中磐石足球俱樂部代收，收款方與發票抬頭為台中磐石足球俱樂部；您申請的是台中藍鯨的會籍。'
+  ? (isEn.value
+      ? `Payments for ${BW_NAME_EN} memberships are collected by ${CLUB_NAME_EN}. The payee and the invoice name are ${CLUB_NAME_EN}; the membership you are applying for is with ${BW_NAME_EN}.`
+      : '藍鯨會籍的款項由台中磐石足球俱樂部代收，收款方與發票抬頭為台中磐石足球俱樂部；您申請的是台中藍鯨的會籍。')
   : '')
-const bwNameEn = BW_NAME_EN_PENDING // 藍鯨英文全名未定（B-5），英文句內放中文名
+const bwNameEn = BW_NAME_EN // B-5：藍鯨英文簡稱（2026-10-05 定案）
 </script>
 
 <template>

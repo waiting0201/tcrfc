@@ -12,16 +12,17 @@
 import { toMemberApiError } from '#shared/utils/member'
 import type { ShopOrder } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('complete', CLUB_NAME_EN).title : `訂單結果｜官方商店｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('complete', CLUB_NAME_EN).description : `${clubAssets.value.shortNameZh}官方商店訂單結果：顯示訂單編號、付款結果與電子發票開立狀態，並提供訂單查詢入口。`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('complete', clubNameEn.value).title : `訂單結果｜官方商店｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('complete', clubNameEn.value).description : `${clubAssets.value.shortNameZh}官方商店訂單結果：顯示訂單編號、付款結果與電子發票開立狀態，並提供訂單查詢入口。`)),
   robots: 'noindex, nofollow',
 })
 

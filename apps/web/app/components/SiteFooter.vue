@@ -18,8 +18,11 @@ import { menuItemHref, type PublicMenuItem } from '#shared/utils/site-settings'
 const config = useRuntimeConfig()
 const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(club.value)))
-const clubShortName = computed(() => (isEn.value ? CLUB_NAME_EN : assets.value.shortNameZh))
+// 藍鯨英文版（B-5，2026-10-05）：英文識別依俱樂部取，藍鯨英文不得出現磐石字樣（Academy／TCRFC／Taichung Rock）。
+const identity = computed(() => (isEn.value ? getClubIdentityEnFor(club.value) : getClubIdentity(club.value)))
+const clubNameEn = computed(() => (club.value === 'bw' ? BW_NAME_EN : CLUB_NAME_EN))
+const acaEn = computed(() => (club.value === 'bw' ? 'Youth' : 'Academy'))
+const clubShortName = computed(() => (isEn.value ? clubNameEn.value : assets.value.shortNameZh))
 const showWomens = computed(() => isUnitEnabledForClub('06', club.value))
 const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
 
@@ -104,7 +107,7 @@ async function onSubscribe() {
     <div class="container">
       <div class="footer-top">
         <div class="footer-brand">
-          <img class="footer-brand__logo" :src="assets.footerMark.src" :alt="isEn ? CLUB_NAME_EN : assets.nameZh" :width="assets.footerMark.width" :height="assets.footerMark.height">
+          <img class="footer-brand__logo" :src="assets.footerMark.src" :alt="isEn ? clubNameEn : assets.nameZh" :width="assets.footerMark.width" :height="assets.footerMark.height">
           <p>{{ identity.footerBlurb }}</p>
           <nav class="footer-social" :aria-label="tx('社群媒體', 'Social media')">
             <a v-if="identity.social.facebook" :href="identity.social.facebook" :aria-label="tx('前往 Facebook 粉絲專頁', 'Visit our Facebook page')" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 9h3V5h-3c-2.2 0-4 1.8-4 4v2H7v4h3v7h4v-7h3l1-4h-4v-2c0-.6.4-1 1-1z" /></svg></a>
@@ -136,13 +139,13 @@ async function onSubscribe() {
           </ul>
         </div>
         <div class="footer-col">
-          <h4 aria-level="2">{{ tx('青訓與課程', 'Academy & Programs') }}</h4>
+          <h4 aria-level="2">{{ tx('青訓與課程', `${acaEn} & Programs`) }}</h4>
           <ul>
             <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
             <li><a :href="lp('/zh/programs/')">{{ tx('課程與活動', 'Programs') }}</a></li>
             <li v-if="showWomens"><a :href="lp('/zh/womens/')">{{ tx('女子足球', "Women's Football") }}</a></li>
             <li><a :href="lp('/zh/join/player/')">{{ tx('加入球隊', 'Join as a Player') }}</a></li>
-            <li><a :href="lp('/zh/academy/join/')">{{ isEn ? 'Join the Academy' : '加入' + identity.academyShortLabelZh }}</a></li>
+            <li><a :href="lp('/zh/academy/join/')">{{ isEn ? `Join the ${club === 'bw' ? 'Youth Teams' : 'Academy'}` : '加入' + identity.academyShortLabelZh }}</a></li>
           </ul>
         </div>
         <div class="footer-col">

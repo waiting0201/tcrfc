@@ -8,11 +8,12 @@
 // 申請管道＝一般聯絡表單（10.6）；退款走後台 S5 人工審核，原路退回 LINE Pay。
 import type { ShopInfo } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const SECTIONS = [
   { id: 'notice', title: '購物須知', titleEn: 'Shopping information', key: 'policyNotice' },
   { id: 'shipping', title: '運送說明', titleEn: 'Shipping', key: 'policyShipping' },
@@ -37,8 +38,8 @@ const sections = computed(() => SECTIONS
 const bodyFallback = computed(() => isEn.value && shopHasCjk(...sections.value.map(s => s.body)))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('policy', CLUB_NAME_EN).title : `購物須知與退換貨政策｜官方商店｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('policy', CLUB_NAME_EN).description : `${clubAssets.value.nameZh}官方商店的購物須知、運送說明、退換貨政策與交易條款。`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('policy', clubNameEn.value).title : `購物須知與退換貨政策｜官方商店｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('policy', clubNameEn.value).description : `${clubAssets.value.nameZh}官方商店的購物須知、運送說明、退換貨政策與交易條款。`)),
 })
 </script>
 

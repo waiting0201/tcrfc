@@ -12,13 +12,13 @@
 // 因此每題只指派給「排序最前的一個分類」陳列一次（見下方 faqsByCategory），
 // 不是每個分類都重複顯示——多分類標記的用途是讓 G-12 嵌入區塊／未來搜尋能
 // 從多個主題撈到同一題，不是「首頁要多處重複顯示」。
-definePageMeta({ nav: '', unit: '12', enReady: true })
+definePageMeta({ nav: '', unit: '12', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
 
-const siteName = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
+const siteName = computed(() => (isEn.value ? (club === 'bw' ? BW_NAME_EN : CLUB_NAME_EN) : getClubAssets(club).nameZh))
 
 const { categories } = useFaqCategories(locale.value)
 const { faqs } = useFaqList(club, locale.value)

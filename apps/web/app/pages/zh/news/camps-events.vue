@@ -4,10 +4,11 @@
 // 6 個 news 分類頁共用同一份 client 篩選行為，已抽成 NewsListBody／NewsFilterForm／
 // NewsCategoryTabs 三個共用元件（docs/13-blue-whale-site.md §6，務必做成元件不要複製六次）。
 // 🔴 SSR 階段打真實 API（分類已在查詢時過濾），不做 client-only 抓取。
-definePageMeta({ nav: 'news', unit: '07', enReady: true })
+definePageMeta({ nav: 'news', unit: '07', enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
+const clubKey: 'tcrfc' | 'bw' = club === 'bw' ? 'bw' : 'tcrfc'
 
 // S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
 const { locale, lp, isEn, tx } = useLocale()
@@ -27,8 +28,8 @@ const month = ref('')
 const search = ref('')
 
 useSeoMeta({
-  title: computed(() => isEn.value ? getNewsCategorySeoEn('camps-events', articles.value.length).title : (club === 'bw' ? `營隊與活動 Camps & Events｜新聞 News｜${getClubAssets(club).nameZh}` : "營隊與活動 Camps & Events｜新聞 News｜台中磐石足球俱樂部")),
-  description: computed(() => isEn.value ? getNewsCategorySeoEn('camps-events', articles.value.length).description : (club === 'bw'
+  title: computed(() => isEn.value ? getNewsCategorySeoEn('camps-events', articles.value.length, clubKey).title : (club === 'bw' ? `營隊與活動 Camps & Events｜新聞 News｜${getClubAssets(club).nameZh}` : "營隊與活動 Camps & Events｜新聞 News｜台中磐石足球俱樂部")),
+  description: computed(() => isEn.value ? getNewsCategorySeoEn('camps-events', articles.value.length, clubKey).description : (club === 'bw'
     ? `${getClubAssets(club).shortNameZh}營隊與活動花絮及紀錄，共 ${articles.value.length} 篇真實報導。`
     : "台中磐石營隊、邀請賽與台中磐石國際足球盃活動花絮及紀錄，共 7 篇真實報導。")),
 })
@@ -50,7 +51,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">7.6 Camps & Events</p>
     <h1>{{ tx('營隊與活動', 'Camps & Events') }}<span v-if="!isEn" class="en">Camps & Events</span></h1>
-    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('camps-events').lede }}</p>
+    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('camps-events', clubKey).lede }}</p>
     <p v-else-if="club !== 'bw'" class="page-hero__lede">邀請賽、國際足球盃與各類活動花絮，記錄台中磐石主辦與參與的賽會現場。</p>
     <p v-else class="page-hero__lede">邀請賽與各類活動花絮，記錄台中藍鯨主辦與參與的賽會現場。</p>
   </div>

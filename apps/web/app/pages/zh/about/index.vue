@@ -3,19 +3,22 @@
 //
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：本頁 SEO／頁首／
 // 導覽卡描述一律取自 shared/utils/club-copy.ts，不在頁面內硬編碼俱樂部名稱。
-definePageMeta({ nav: "about", unit: "02", enReady: true })
+definePageMeta({ nav: "about", unit: "02", enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const identity = computed(() => (isEn.value ? getClubIdentityEnFor(clubKey.value) : getClubIdentity(clubKey.value)))
+const isBw = computed(() => clubKey.value === 'bw')
 const assets = computed(() => getClubAssets(clubKey.value))
+const nameEn = computed(() => (isBw.value ? BW_NAME_EN : CLUB_NAME_EN))
+const tagEn = computed(() => (isBw.value ? BW_NAME_EN : 'TCRFC'))
 // S1-12d 收尾第二輪：頁首 lede 含成立年份／聯賽事實，club-copy.ts 已改為工廠函式。
 const { facts } = useSiteFacts(clubKey.value)
-const hero = computed(() => (isEn.value ? getAboutIndexHeroEn(facts.value) : getAboutIndexHero(clubKey.value, facts.value)))
-const navDesc = computed(() => (isEn.value ? ABOUT_NAV_DESC_EN : ABOUT_NAV_DESC[clubKey.value]))
-const seo = computed(() => (isEn.value ? ABOUT_INDEX_SEO_EN : ABOUT_INDEX_SEO[clubKey.value]))
+const hero = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getAboutIndexHeroEnBw(facts.value) : getAboutIndexHeroEn(facts.value)) : getAboutIndexHero(clubKey.value, facts.value)))
+const navDesc = computed(() => (isEn.value ? (clubKey.value === 'bw' ? ABOUT_NAV_DESC_EN_BW : ABOUT_NAV_DESC_EN) : ABOUT_NAV_DESC[clubKey.value]))
+const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? ABOUT_INDEX_SEO_EN_BW : ABOUT_INDEX_SEO_EN) : ABOUT_INDEX_SEO[clubKey.value]))
 
 useSeoMeta({
   title: computed(() => seo.value.title),
@@ -41,7 +44,7 @@ useOrganizationSchema()
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('02') : aboutEyebrow('02', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('02', clubKey) : aboutEyebrow('02', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
@@ -53,9 +56,9 @@ useOrganizationSchema()
     <div class="eyebrow-row">
       <div>
         <p class="kicker">EIGHT CHAPTERS</p>
-        <h2 class="section-title" id="about-nav-title">{{ tx(`認識${assets.shortNameZh}`, 'Get to know TCRFC') }}</h2>
+        <h2 class="section-title" id="about-nav-title">{{ tx(`認識${assets.shortNameZh}`, `Get to know ${tagEn}`) }}</h2>
       </div>
-      <p class="section-lede">{{ tx(`從故事、理念到治理，逐篇了解${assets.nameZh}。`, 'From our story and philosophy to governance, learn about Taichung Rock FC chapter by chapter.') }}</p>
+      <p class="section-lede">{{ tx(`從故事、理念到治理，逐篇了解${assets.nameZh}。`, `From our story and philosophy to governance, learn about ${nameEn} chapter by chapter.`) }}</p>
     </div>
 
     <div class="about-nav-grid">

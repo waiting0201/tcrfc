@@ -21,7 +21,7 @@
 -- MANIFEST article_categories=8
 -- MANIFEST article_categories_i18n=16
 -- MANIFEST clubs=2
--- MANIFEST clubs_i18n=3
+-- MANIFEST clubs_i18n=4
 -- MANIFEST event_types=6
 -- MANIFEST event_types_i18n=12
 -- MANIFEST faq_categories=10
@@ -71,7 +71,8 @@ BEGIN
   SET @id = N'7bd7fca4-7989-5fb3-b14b-7d09de5b406c';
   INSERT INTO clubs (id, code, domain, brand_color, brand_secondary_color, is_collecting_subject, default_locale, sort_order, status)
   VALUES (@id, N'bw', N'$(CLUB_DOMAIN_BW)', N'#2196D5', N'#040000', 0, N'zh-Hant', 1, N'active');
-  INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'zh-Hant', N'台中藍鯨', N'台中藍鯨'); -- 簡稱英文一律不插（B-5：客戶尚未指定英文全名）
+  INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'zh-Hant', N'台中藍鯨', N'台中藍鯨');
+  INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'en', N'Taichung Blue Whale Women''s Football Club', N'Taichung Blue Whale'); -- B-5 已於 2026-10-05 定案
   COMMIT TRANSACTION;
 END
 GO

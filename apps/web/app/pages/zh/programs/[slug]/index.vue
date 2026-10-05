@@ -11,7 +11,7 @@
 // `content` 當純文字顯示（空行分段），**不使用 v-html**。
 import type { ProgramSessionLike } from '~/utils/program-session'
 
-definePageMeta({ nav: 'programs', unit: '05', enReady: true })
+definePageMeta({ nav: 'programs', unit: '05', enReady: true, enReadyBw: true })
 
 interface ProgramDetail {
   id: string
@@ -46,6 +46,7 @@ const config = useRuntimeConfig()
 const club = config.public.club
 const clubAssets = computed(() => getClubAssets(club))
 const isTcrfc = computed(() => club !== 'bw')
+const clubNameEn = computed(() => (isTcrfc.value ? 'Taichung Rock FC' : BW_NAME_EN))
 const slug = String(route.params.slug ?? '').trim()
 
 const { data: program, error } = await useFetch<ProgramDetail>(`/api/backend/${club}/programs/${encodeURIComponent(slug)}`, {
@@ -69,8 +70,8 @@ const ageText = computed(() => {
 })
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? `${program.value?.name ?? 'Program'} | Programs | Taichung Rock FC` : `${program.value?.name ?? '課程'}｜課程與活動｜${clubAssets.value.nameZh}`)),
-  description: computed(() => program.value?.intro ?? (isEn.value ? 'Program information from Taichung Rock FC.' : `${clubAssets.value.nameZh}的課程資訊。`)),
+  title: computed(() => (isEn.value ? `${program.value?.name ?? 'Program'} | Programs | ${clubNameEn.value}` : `${program.value?.name ?? '課程'}｜課程與活動｜${clubAssets.value.nameZh}`)),
+  description: computed(() => program.value?.intro ?? (isEn.value ? `Program information from ${clubNameEn.value}.` : `${clubAssets.value.nameZh}的課程資訊。`)),
 })
 
 const siteConfig = useSiteConfig()

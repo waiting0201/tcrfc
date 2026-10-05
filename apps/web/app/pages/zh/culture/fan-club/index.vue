@@ -8,14 +8,14 @@
 import { formatPlainDate, formatTaipeiDateTime } from '#shared/utils/member'
 import type { FanEvent } from '#shared/utils/member'
 
-definePageMeta({ nav: 'culture', unit: '8.2', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.2', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
 const isTcrfc = computed(() => club !== 'bw')
 const clubAssets = computed(() => getClubAssets(club))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(club)))
+const identity = computed(() => (isEn.value ? (club === 'bw' ? getClubIdentityEnBw() : getClubIdentityEn()) : getClubIdentity(club)))
 
 const { plans, failed: plansFailed } = await useMembershipPlans()
 const lang = locale.value
@@ -29,10 +29,10 @@ const feeText = (n: number) => `NT$ ${n.toLocaleString('zh-TW')}`
 const showStaticReview = computed(() => isTcrfc.value && (past.value ?? []).length === 0)
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? CLUB_FAN_CLUB_SEO_EN.title : isTcrfc.value
+  title: computed(() => (isEn.value ? (isTcrfc.value ? CLUB_FAN_CLUB_SEO_EN : CLUB_FAN_CLUB_SEO_EN_BW).title : isTcrfc.value
     ? '台中磐石球迷會 Fan Club｜台中磐石文化｜台中磐石足球俱樂部'
     : `球迷會｜${identity.value.cultureLabelZh}｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? CLUB_FAN_CLUB_SEO_EN.description : `加入${clubAssets.value.nameZh}球迷會：會籍方案、會員福利分級對照，以及球迷活動報名與回顧。`)),
+  description: computed(() => (isEn.value ? (isTcrfc.value ? CLUB_FAN_CLUB_SEO_EN : CLUB_FAN_CLUB_SEO_EN_BW).description : `加入${clubAssets.value.nameZh}球迷會：會籍方案、會員福利分級對照，以及球迷活動報名與回顧。`)),
 })
 </script>
 
@@ -42,7 +42,7 @@ useSeoMeta({
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
-      <li aria-current="page">{{ isEn ? 'TCRFC Fan Club' : (isTcrfc ? '台中磐石球迷會' : '球迷會') }}</li>
+      <li aria-current="page">{{ isEn ? (isTcrfc ? 'TCRFC Fan Club' : 'Fan Club') : (isTcrfc ? '台中磐石球迷會' : '球迷會') }}</li>
     </ol>
   </div>
 </nav>
@@ -52,10 +52,11 @@ useSeoMeta({
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true" />
   <div class="container">
     <p class="page-hero__eyebrow">8.2 Fan Club</p>
-    <h1 v-if="isEn">TCRFC Fan Club</h1>
+    <h1 v-if="isEn">{{ isTcrfc ? 'TCRFC Fan Club' : 'Fan Club' }}</h1>
     <h1 v-else-if="isTcrfc">台中磐石球迷會<span class="en">Fan Club</span></h1>
     <h1 v-else>球迷會<span class="en">Fan Club</span></h1>
-    <p v-if="isEn" class="page-hero__lede">Cheer with Taichung Rock from the touchline. The Fan Club is the club's paid membership: besides a jersey, you get more discounts at partner stores and priority access to fan events.</p>
+    <p v-if="isEn && !isTcrfc" class="page-hero__lede">{{ CLUB_FAN_CLUB_HERO_LEDE_EN_BW }}</p>
+    <p v-else-if="isEn" class="page-hero__lede">Cheer with Taichung Rock from the touchline. The Fan Club is the club's paid membership: besides a jersey, you get more discounts at partner stores and priority access to fan events.</p>
     <p v-else class="page-hero__lede">與{{ clubAssets.shortNameZh }}一起在場邊吶喊。球迷會即{{ clubAssets.shortNameZh }}的付費會籍，除了球衣，還能在特約店家享有更多折扣，並優先參與球迷活動。</p>
   </div>
 </section>

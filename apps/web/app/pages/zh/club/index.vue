@@ -8,7 +8,7 @@
 // 3.2／3.4 已於 BW-C1 重開（見 shared/utils/units.ts 檔頭），本輪移除舊有的隱藏判斷，
 // 改為 SEO／Hero／統計卡／單元卡描述／CTA 標題全部依俱樂部切換（getClubHubSeo 等，
 // club-copy.ts），版型與 DOM 結構不變。tcrfc 分支逐字沿用改動前的既有輸出。
-definePageMeta({ nav: 'club', unit: '03', enReady: true })
+definePageMeta({ nav: 'club', unit: '03', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -18,18 +18,19 @@ const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const { facts } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getClubHubSeoEn() : getClubHubSeo(clubKey.value, facts.value)).title),
-  description: computed(() => (isEn.value ? getClubHubSeoEn() : getClubHubSeo(clubKey.value, facts.value)).description),
+  title: computed(() => (isEn.value ? (isTcrfc.value ? getClubHubSeoEn() : getClubHubSeoEnBw(facts.value)) : getClubHubSeo(clubKey.value, facts.value)).title),
+  description: computed(() => (isEn.value ? (isTcrfc.value ? getClubHubSeoEn() : getClubHubSeoEnBw(facts.value)) : getClubHubSeo(clubKey.value, facts.value)).description),
 })
-const hero = computed(() => (isEn.value ? getClubHubHeroEn(facts.value) : getClubHubHero(clubKey.value, facts.value)))
-const stats = computed(() => (isEn.value ? getClubHubStatsEn(facts.value) : getClubHubStats(clubKey.value, facts.value)))
-const opportunitiesDesc = computed(() => (isEn.value ? CLUB_HUB_OPPORTUNITIES_DESC_EN : getClubHubOpportunitiesDesc(clubKey.value)))
-const playerStoriesDesc = computed(() => (isEn.value ? CLUB_HUB_PLAYER_STORIES_DESC_EN : getClubHubPlayerStoriesDesc(clubKey.value)))
-const ctaTitle = computed(() => (isEn.value ? CLUB_HUB_CTA_TITLE_EN : getClubHubCtaTitle(clubKey.value)))
+// 英文版：磐石用 `*_EN`，藍鯨用 `*_EN_BW`／`*EnBw`（club-copy-en-club.ts 檔頭）。
+const hero = computed(() => (isEn.value ? (isTcrfc.value ? getClubHubHeroEn(facts.value) : getClubHubHeroEnBw(facts.value)) : getClubHubHero(clubKey.value, facts.value)))
+const stats = computed(() => (isEn.value ? (isTcrfc.value ? getClubHubStatsEn(facts.value) : getClubHubStatsEnBw(facts.value)) : getClubHubStats(clubKey.value, facts.value)))
+const opportunitiesDesc = computed(() => (isEn.value ? (isTcrfc.value ? CLUB_HUB_OPPORTUNITIES_DESC_EN : CLUB_HUB_OPPORTUNITIES_DESC_EN_BW) : getClubHubOpportunitiesDesc(clubKey.value)))
+const playerStoriesDesc = computed(() => (isEn.value ? (isTcrfc.value ? CLUB_HUB_PLAYER_STORIES_DESC_EN : CLUB_HUB_PLAYER_STORIES_DESC_EN_BW) : getClubHubPlayerStoriesDesc(clubKey.value)))
+const ctaTitle = computed(() => (isEn.value ? (isTcrfc.value ? CLUB_HUB_CTA_TITLE_EN : CLUB_HUB_CTA_TITLE_EN_BW) : getClubHubCtaTitle(clubKey.value)))
 // 底部 CTA 第一張卡「加入球隊」——沿用首頁既有的 getHomeCtaTrio() 第一筆文案
 // （已依 facts.league.nameZh 動態帶入聯賽名稱，避免本頁自己重打一份「企甲聯賽」
 // 字面值，藍鯨會因此誤植磐石聯賽名稱）。
-const joinPlayerCard = computed(() => (isEn.value ? getClubHubJoinPlayerCardEn(facts.value) : getHomeCtaTrio(clubKey.value, facts.value)[0]!))
+const joinPlayerCard = computed(() => (isEn.value ? (isTcrfc.value ? getClubHubJoinPlayerCardEn(facts.value) : getClubHubJoinPlayerCardEnBw(facts.value)) : getHomeCtaTrio(clubKey.value, facts.value)[0]!))
 </script>
 
 <template>
@@ -102,7 +103,8 @@ const joinPlayerCard = computed(() => (isEn.value ? getClubHubJoinPlayerCardEn(f
         <p v-if="!isEn" class="unit-link-card__en">International Pathways</p>
         <p class="unit-link-card__zh">{{ tx('國際發展通道', 'International Pathways') }}</p>
         <p class="unit-link-card__desc">
-          <template v-if="isEn">The full route from local football to clubs abroad, regional information for Europe, Japan and Hong Kong, partner clubs, and trial scouting channels.</template>
+          <template v-if="isEn && isTcrfc">The full route from local football to clubs abroad, regional information for Europe, Japan and Hong Kong, partner clubs, and trial scouting channels.</template>
+          <template v-else-if="isEn">{{ CLUB_HUB_INTL_DESC_EN_BW }}</template>
           <template v-else-if="isTcrfc">在地到海外的完整路徑、歐洲／日本／香港分區、合作俱樂部與試訓球探管道。</template>
           <template v-else>在地到海外的真實旅外案例，日本／中國分區與海外媒合諮詢管道。</template>
         </p>
@@ -139,7 +141,8 @@ const joinPlayerCard = computed(() => (isEn.value ? getClubHubJoinPlayerCardEn(f
         <p class="cta-card__num">3.4</p>
         <p class="cta-card__title">{{ tx('海外發展諮詢', 'Overseas development enquiries') }}</p>
         <p class="cta-card__desc">
-          <template v-if="isEn">Want to know about partnership channels in Europe, Japan and Hong Kong? The International Pathways page explains the full route.</template>
+          <template v-if="isEn && isTcrfc">Want to know about partnership channels in Europe, Japan and Hong Kong? The International Pathways page explains the full route.</template>
+          <template v-else-if="isEn">{{ CLUB_HUB_INTL_CTA_DESC_EN_BW }}</template>
           <template v-else-if="isTcrfc">想了解歐洲、日本、香港的合作管道？國際發展通道頁面說明完整路徑。</template>
           <template v-else>想了解日本、中國的旅外案例？國際發展通道頁面說明完整路徑。</template>
         </p>

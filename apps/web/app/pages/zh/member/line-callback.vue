@@ -14,23 +14,24 @@ import { GUARDIAN_CONSENT_VERSION_PENDING, isMinorBirth, taipeiAge, toMemberApiE
 import type { GuardianRelationship, LineCallbackResult, MemberBrowserSession } from '#shared/utils/member'
 import type { LinePending } from '~/composables/useMemberLine'
 
-definePageMeta({ nav: '', unit: '14', enReady: true })
+definePageMeta({ nav: '', unit: '14', enReady: true, enReadyBw: true })
 
 const { lp, isEn: isEnPath } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 // 🔴 LINE 的導回網址固定是 `/zh/member/line-callback/`（兩個語系共用，見 useMemberLine.ts 檔頭），英文使用者回來時
 // 網址是 /zh/。所以英文與否＝網址是 /en/，或這次授權流程記下的語系是 en（onMounted 讀 sessionStorage 後才知道，
-// SSR 與 hydration 一律先出繁中，不會 mismatch）。藍鯨站（isEn 恆 false）不適用英文。
+// SSR 與 hydration 一律先出繁中，不會 mismatch）。藍鯨站同樣適用（B-5 後藍鯨英文版開放）。
 const pendingLocale = ref<'zh' | 'en'>('zh')
-const isEn = computed(() => isEnPath.value || (pendingLocale.value === 'en' && config.public.club !== 'bw'))
+const isEn = computed(() => isEnPath.value || pendingLocale.value === 'en')
 const tx = (zh: string, en: string): string => (isEn.value ? en : zh)
 const lpx = (path: string): string => (isEn.value ? localizePath(path, 'en') : lp(path))
 const { authedFetch, adopt } = useMemberSession()
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('lineCallback', CLUB_NAME_EN).title : `LINE 登入｜${clubAssets.value.nameZh}`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('lineCallback', clubNameEn.value).title : `LINE 登入｜${clubAssets.value.nameZh}`)),
   robots: 'noindex, nofollow',
 })
 

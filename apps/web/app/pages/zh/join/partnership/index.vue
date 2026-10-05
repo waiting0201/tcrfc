@@ -16,7 +16,7 @@
 // 🔴 S1-17 收尾修正（2026-09-29）：tax_id（統一編號）、contact_title（職稱）、doc_file
 // （提案文件上傳）在規格（§3.10 10.5「主要欄位」）與後端都沒有定義，原本畫面留著卻悄悄不
 // 送出，現已**從畫面移除**。
-definePageMeta({ nav: '', unit: '10.5', enReady: true })
+definePageMeta({ nav: '', unit: '10.5', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -26,12 +26,13 @@ const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const identity = computed(() => getClubIdentity(config.public.club))
 const isTcrfc = computed(() => config.public.club !== 'bw')
+const seoEnBw = getPartnershipFormSeoEnBw()
 // 藍鯨規劃書 v1.9 §2.1：藍鯨不設 8.1 漫畫，贊助方案不列「漫畫內容合作」。
 const mangaEnabled = computed(() => isUnitEnabledForClub('8.1', config.public.club))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? 'Partnership & Sponsorship | Join / Contact | Taichung Rock FC' : `合作夥伴與贊助洽詢 Partnership & Sponsorship｜加入與聯絡｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? 'Talk to Taichung Rock FC about partnership or sponsorship. Complete one form with your company details, partnership direction or the sponsorship packages you are interested in, and your budget range, and our Partnerships Department will be in touch.' : `與${clubAssets.value.nameZh}洽談合作或贊助。一份表單填寫公司資料、合作方向或感興趣的贊助方案與預算區間，商務部將盡快與你聯繫。`)),
+  title: computed(() => (isEn.value ? (isTcrfc.value ? 'Partnership & Sponsorship | Join / Contact | Taichung Rock FC' : seoEnBw.title) : `合作夥伴與贊助洽詢 Partnership & Sponsorship｜加入與聯絡｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? (!isTcrfc.value ? seoEnBw.description : 'Talk to Taichung Rock FC about partnership or sponsorship. Complete one form with your company details, partnership direction or the sponsorship packages you are interested in, and your budget range, and our Partnerships Department will be in touch.') : `與${clubAssets.value.nameZh}洽談合作或贊助。一份表單填寫公司資料、合作方向或感興趣的贊助方案與預算區間，商務部將盡快與你聯繫。`)),
 })
 
 const ENQUIRY_TYPE_MAP: Record<string, string> = { partnership: '合作夥伴', sponsorship: '贊助', both: '兩者' }
@@ -101,7 +102,7 @@ async function onSubmit() {
     <p class="page-hero__eyebrow">10.5 Partnership &amp; Sponsorship</p>
     <h1><template v-if="isEn">Partnership &amp; Sponsorship</template><template v-else>{{ tx('合作夥伴與贊助洽詢', 'Partnership & Sponsorship') }}<span class="en">Partnership &amp; Sponsorship</span></template></h1>
     <p v-if="isTcrfc" class="page-hero__lede"><template v-if="isEn">Join forces with Taichung Rock FC to reach the local community through a professional football platform and create value for your brand and the community alike. Whether you want to discuss a long-term partnership or a specific sponsorship package, this one form covers it. Fill in the details below and our Partnerships Department will get in touch to discuss the details.</template><template v-else>攜手台中磐石，透過職業足球平台觸及在地社群，共創品牌與社區的雙贏價值。不論你想談的是長期合作夥伴關係，或是特定的贊助方案，都在這一份表單完成。填寫以下資料，商務部將盡快與你聯繫討論細節。</template></p>
-    <p v-else class="page-hero__lede">攜手台中藍鯨，透過女子足球平台觸及在地社群，共創品牌與社區的雙贏價值。不論你想談的是長期合作夥伴關係，或是特定的贊助方案，都在這一份表單完成。填寫以下資料，俱樂部將盡快與你聯繫討論細節。</p>
+    <p v-else class="page-hero__lede"><template v-if="isEn">{{ PARTNERSHIP_FORM_LEDE_EN_BW }}</template><template v-else>攜手台中藍鯨，透過女子足球平台觸及在地社群，共創品牌與社區的雙贏價值。不論你想談的是長期合作夥伴關係，或是特定的贊助方案，都在這一份表單完成。填寫以下資料，俱樂部將盡快與你聯繫討論細節。</template></p>
   </div>
 </section>
 
@@ -229,7 +230,7 @@ async function onSubmit() {
             </div>
             <div class="checkbox-field">
               <input id="pn-plan-academy" v-model="plan" type="checkbox" name="plan" value="academy">
-              <label for="pn-plan-academy">{{ isEn ? 'Academy sponsorship' : PLAN_LABEL_MAP.academy }}</label>
+              <label for="pn-plan-academy">{{ isEn ? (isTcrfc ? 'Academy sponsorship' : PARTNERS_PLAN_YOUTH_LABEL_EN_BW) : PLAN_LABEL_MAP.academy }}</label>
             </div>
             <div class="checkbox-field">
               <input id="pn-plan-team" v-model="plan" type="checkbox" name="plan" value="team">

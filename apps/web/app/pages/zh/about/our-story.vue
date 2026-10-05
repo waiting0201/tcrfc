@@ -3,19 +3,20 @@
 //
 // 文案依俱樂部切換：hero／SEO 取自 shared/utils/club-copy.ts；藍鯨版內文
 // （OUR_STORY_BODY_BW）逐字節錄 content/blue-whale/club-profile.md §1，未新增文字。
-definePageMeta({ nav: "about", unit: "02", enReady: true })
+definePageMeta({ nav: "about", unit: "02", enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const identity = computed(() => (isEn.value ? getClubIdentityEnFor(clubKey.value) : getClubIdentity(clubKey.value)))
 // S1-12d 收尾第二輪：hero／SEO 含成立年份事實，club-copy.ts 已改為工廠函式；本頁 tcrfc
 // 專屬段落原本固定讀 useSiteFacts('tcrfc')，現在 hero／SEO 兩俱樂部都要讀，改為動態帶入
 // 目前 club（clubKey==='tcrfc' 時兩者等價）。
 const { facts, primaryVenue } = useSiteFacts(clubKey.value)
-const hero = computed(() => (isEn.value ? getOurStoryHeroEn(facts.value) : getOurStoryHero(clubKey.value, facts.value)))
-const seo = computed(() => (isEn.value ? getOurStorySeoEn(facts.value) : getOurStorySeo(clubKey.value, facts.value)))
+const hero = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getOurStoryHeroEnBw(facts.value) : getOurStoryHeroEn(facts.value)) : getOurStoryHero(clubKey.value, facts.value)))
+const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getOurStorySeoEnBw(facts.value) : getOurStorySeoEn(facts.value)) : getOurStorySeo(clubKey.value, facts.value)))
+const navDescEn = computed(() => (clubKey.value === 'bw' ? ABOUT_NAV_DESC_EN_BW : ABOUT_NAV_DESC_EN))
 // 英文版場地名稱優先用 API 的 en 回應；沒有時才退回中文原名（不自行音譯）。
 const venueName = computed(() => (isEn.value ? (primaryVenue.value.nameEn ?? primaryVenue.value.nameZh) : primaryVenue.value.nameZh))
 
@@ -39,7 +40,7 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.1') : aboutEyebrow('2.1', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.1', clubKey) : aboutEyebrow('2.1', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
@@ -65,7 +66,7 @@ useSeoMeta({
         </template>
       </div>
       <div v-else class="prose">
-        <p>{{ OUR_STORY_BODY_BW }}</p>
+        <p>{{ isEn ? OUR_STORY_BODY_EN_BW : OUR_STORY_BODY_BW }}</p>
       </div>
     </div>
   </div>
@@ -78,19 +79,19 @@ useSeoMeta({
       <div class="cta-card">
         <p class="cta-card__num">2.2</p>
         <p class="cta-card__title">{{ tx('願景與使命', 'Vision & Mission') }}</p>
-        <p class="cta-card__desc">{{ isEn ? ABOUT_NAV_DESC_EN.visionMission : `了解${ABOUT_NAV_DESC[clubKey].visionMission}` }}</p>
+        <p class="cta-card__desc">{{ isEn ? navDescEn.visionMission : `了解${ABOUT_NAV_DESC[clubKey].visionMission}` }}</p>
         <a class="btn btn--primary" :href="lp('/zh/about/vision-mission/')">{{ tx('前往閱讀', 'Read more') }}</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">2.7</p>
         <p class="cta-card__title">{{ tx('俱樂部歷程', 'Club History') }}</p>
-        <p class="cta-card__desc">{{ isEn ? ABOUT_NAV_DESC_EN.history : ABOUT_NAV_DESC[clubKey].history }}</p>
+        <p class="cta-card__desc">{{ isEn ? navDescEn.history : ABOUT_NAV_DESC[clubKey].history }}</p>
         <a class="btn btn--primary" :href="lp('/zh/about/history/')">{{ tx('前往閱讀', 'Read more') }}</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">2.8</p>
         <p class="cta-card__title">{{ tx('重要里程碑', 'Key Milestones') }}</p>
-        <p class="cta-card__desc">{{ tx('按年份檢視俱樂部的重要大事記。', ABOUT_NAV_DESC_EN.milestones) }}</p>
+        <p class="cta-card__desc">{{ tx('按年份檢視俱樂部的重要大事記。', navDescEn.milestones) }}</p>
         <a class="btn btn--primary" :href="lp('/zh/about/milestones/')">{{ tx('查看時間軸', 'View the timeline') }}</a>
       </div>
     </div>

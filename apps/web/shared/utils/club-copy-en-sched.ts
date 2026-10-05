@@ -1,7 +1,11 @@
 // shared/utils/club-copy-en-sched.ts — 主站（tcrfc）英文版文案：賽事行事曆（13）與新聞中心（07）
 //
 // 約定（英文版文案檔共通，群組代號 sched）：
-// - 只提供 tcrfc 的英文值；藍鯨站英文版不在範圍（isEn 在藍鯨一律 false）。
+// - 預設提供 tcrfc 的英文值；**藍鯨站英文版（B-5，2026-10-05）以選用參數 `club: 'tcrfc' | 'bw' = 'tcrfc'`
+//   取得藍鯨變體**（`getScheduleSeoEn` 以 args.club；`getNewsIndexSeoEn`／`getNewsIndexHeroEn`／
+//   `getNewsCategorySeoEn`／`getNewsCategoryHeroEn`／`newsCategoryTabLabelEn`／`newsCategoryBareLabelEn`
+//   以最後一個參數）。預設值不變，磐石輸出逐字不變。藍鯨簡稱一律 `BW_NAME_EN`（不得出現磐石字樣、
+//   04 單元藍鯨叫 Youth 不叫 Academy）。藍鯨文案只翻譯頁面 bw 分支的繁中原文，不新增事實。
 // - 原函式 `getFoo(club, facts)` → `getFooEn(...)`；型別沿用 club-copy.ts 的 interface，
 //   **欄位名稱不變但值是英文**（例如 `HeroCopy.h1Zh` 欄位放英文 H1，`h1En` 一律 null）。
 // - 檔內字串不得含中文字元（scripts 有檢查）；英文用詞一律照 docs/06-conventions.md §1.1 對照表。
@@ -9,7 +13,15 @@
 // - 頁面端的短字串與屬性用 `tx(zh, en)`；本檔只放「SEO、Hero、分類文案」等較長或多頁共用的英文。
 
 import type { HeroCopy, SeoCopy } from './club-copy'
+import { BW_NAME_EN } from './club-copy'
 import { CLUB_NAME_EN } from './club-copy-en-core'
+
+export type ClubKeyEn = 'tcrfc' | 'bw'
+
+/** 英文簡稱：磐石 `Taichung Rock FC`、藍鯨 `Taichung Blue Whale`（B-5）。其他頁面端也用它取代直接引用 CLUB_NAME_EN。 */
+export function clubNameEn(club: ClubKeyEn = 'tcrfc'): string {
+  return club === 'bw' ? BW_NAME_EN : CLUB_NAME_EN
+}
 
 // ---------------------------------------------------------------------------
 // 13 賽事行事曆
@@ -24,14 +36,18 @@ export interface ScheduleSeoArgsEn {
   matchCount: number
   /** 梯隊代碼組字（例如 "U15 / U14 / U12"），由呼叫端以 `academyLabel(' / ')` 取得 */
   squadLabel: string
+  /** 俱樂部；省略＝磐石。 */
+  club?: ClubKeyEn
 }
 
 export function getScheduleSeoEn(args: ScheduleSeoArgsEn): SeoCopy {
   const season = args.seasonCode ? `${args.seasonCode} ` : ''
   const league = args.leagueNameEn ?? 'the league'
+  const name = clubNameEn(args.club)
+  const youth = args.club === 'bw' ? 'Youth' : 'Academy'
   return {
-    title: `Schedule | ${CLUB_NAME_EN}`,
-    description: `Full fixtures and results for ${CLUB_NAME_EN}: ${args.matchCount} ${season}fixtures in ${league}, organised by team (First Team / Academy ${args.squadLabel}), with fixtures and results views, a calendar view and add-to-calendar for each match.`,
+    title: `Schedule | ${name}`,
+    description: `Full fixtures and results for ${name}: ${args.matchCount} ${season}fixtures in ${league}, organised by team (First Team / ${youth} ${args.squadLabel}), with fixtures and results views, a calendar view and add-to-calendar for each match.`,
   }
 }
 
@@ -39,14 +55,15 @@ export function getScheduleSeoEn(args: ScheduleSeoArgsEn): SeoCopy {
 // 07 新聞中心
 // ---------------------------------------------------------------------------
 
-export function getNewsIndexSeoEn(totalCount: number): SeoCopy {
+export function getNewsIndexSeoEn(totalCount: number, club: ClubKeyEn = 'tcrfc'): SeoCopy {
+  const name = clubNameEn(club)
   return {
-    title: `News & Stories | ${CLUB_NAME_EN}`,
-    description: `The ${CLUB_NAME_EN} news centre: club news, match reports, international exchange, camps and events, and community work. Browse ${totalCount} reports by category, month and keyword.`,
+    title: `News & Stories | ${name}`,
+    description: `The ${name} news centre: club news, match reports, international exchange, camps and events, and community work. Browse ${totalCount} reports by category, month and keyword.`,
   }
 }
 
-export function getNewsIndexHeroEn(totalCount: number): HeroCopy {
+export function getNewsIndexHeroEn(totalCount: number, _club: ClubKeyEn = 'tcrfc'): HeroCopy {
   return {
     h1Zh: 'News & Stories',
     h1En: null,
@@ -120,23 +137,73 @@ export const NEWS_CATEGORY_EN: Record<string, NewsCategoryCopyEn> = {
   },
 }
 
+/**
+ * 藍鯨（B-5）分類文案覆寫：只列與磐石不同的分類與欄位，其餘沿用 `NEWS_CATEGORY_EN`。
+ * 來源是各分類頁 bw 分支的繁中原文（節錄自舊站，只翻譯）；04 單元藍鯨叫 Youth，不得出現 Academy。
+ */
+const NEWS_CATEGORY_EN_BW: Record<string, Partial<NewsCategoryCopyEn>> = {
+  club: {
+    description: (c) => `${BW_NAME_EN} club news.${countSuffix(c)}`,
+  },
+  match: {
+    lede: `Post-match reports for the fixtures played by the teams of ${BW_NAME_EN}.`,
+    description: (c) => `Complete match reports for every ${BW_NAME_EN} team.${countSuffix(c)}`,
+  },
+  academy: {
+    label: 'Youth News',
+    lede: `Training updates and growth stories from every ${BW_NAME_EN} Youth squad. More content is on the way.`,
+    description: () => `News and updates from the ${BW_NAME_EN} Youth squads. Content is still being prepared.`,
+  },
+  'player-stories': {
+    description: () => `Player stories and interviews from ${BW_NAME_EN}. Content is still being prepared.`,
+  },
+  international: {
+    lede: `Partnerships with overseas clubs, players training abroad and transfers: a first-hand record of ${BW_NAME_EN} players looking to the world.`,
+    description: (c) => `${BW_NAME_EN} international news.${countSuffix(c)}`,
+  },
+  'camps-events': {
+    lede: `Invitational tournaments and event highlights: a record of the tournaments and events ${BW_NAME_EN} hosts and takes part in.`,
+    description: (c) => `Highlights and records from ${BW_NAME_EN} camps and events.${countSuffix(c)}`,
+  },
+  community: {
+    lede: `Charity donations, school exchanges and partnerships with local government: ${BW_NAME_EN}'s community work beyond the pitch.`,
+    description: (c) => `Records of ${BW_NAME_EN} charity and local partnership activities.${countSuffix(c)}`,
+  },
+  media: {
+    description: () => `${BW_NAME_EN} press and media: press releases, the high-resolution image library and media contact are being set up.`,
+  },
+}
+
+/** 取某分類的英文文案；`club='bw'` 時套用藍鯨覆寫。查無分類回 undefined。 */
+function newsCategoryEn(code: string, club: ClubKeyEn): NewsCategoryCopyEn | undefined {
+  const base = NEWS_CATEGORY_EN[code]
+  if (!base) return undefined
+  return club === 'bw' ? { ...base, ...NEWS_CATEGORY_EN_BW[code] } : base
+}
+
+/** 分類英文名稱（不含編號）：已知分類取對照表，未知退回 fallback。藍鯨 04 為 Youth News。 */
+export function newsCategoryBareLabelEn(code: string, club: ClubKeyEn = 'tcrfc'): string | undefined {
+  return newsCategoryEn(code, club)?.label
+}
+
+
 /** 分類 Tab 顯示字，例 "7.1 Club News"（與 zh 版 "7.1 俱樂部新聞" 同一編號格式）。 */
-export function newsCategoryTabLabelEn(code: string): string {
-  const c = NEWS_CATEGORY_EN[code]
+export function newsCategoryTabLabelEn(code: string, club: ClubKeyEn = 'tcrfc'): string {
+  const c = newsCategoryEn(code, club)
   return c ? `${c.num} ${c.label}` : ''
 }
 
-export function getNewsCategorySeoEn(code: string, count: number | null): SeoCopy {
-  const c = NEWS_CATEGORY_EN[code]
+export function getNewsCategorySeoEn(code: string, count: number | null, club: ClubKeyEn = 'tcrfc'): SeoCopy {
+  const c = newsCategoryEn(code, club)
   const label = c?.label ?? 'News'
   return {
-    title: `${label} | News | ${CLUB_NAME_EN}`,
+    title: `${label} | News | ${clubNameEn(club)}`,
     description: c ? c.description(count) : '',
   }
 }
 
-export function getNewsCategoryHeroEn(code: string): HeroCopy {
-  const c = NEWS_CATEGORY_EN[code]
+export function getNewsCategoryHeroEn(code: string, club: ClubKeyEn = 'tcrfc'): HeroCopy {
+  const c = newsCategoryEn(code, club)
   return { h1Zh: c?.label ?? 'News', h1En: null, lede: c?.lede ?? '' }
 }
 

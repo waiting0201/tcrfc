@@ -23,7 +23,7 @@
 // 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
 // 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
 // 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
-definePageMeta({ nav: 'programs', unit: '5.1', enReady: true })
+definePageMeta({ nav: 'programs', unit: '5.1', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -31,16 +31,18 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => getClubIdentity(clubKey.value))
 
+const classesBw = computed(() => (isEn.value ? CHILDRENS_TRAINING_CLASSES_BW_EN : CHILDRENS_TRAINING_CLASSES_BW))
 // BW-C1：改讀 useSiteFacts(clubKey)（後端公開端點），不再固定讀 tcrfc。
 const { facts, primaryVenue } = useSiteFacts(clubKey.value)
 // C-6／S2-13：英文版場地名取後端 en 回應的 nameEn，沒有就退回中文名（不自行音譯）。
-const venueName = computed(() => (isEn.value ? primaryVenue.value.nameEn : null) ?? primaryVenue.value.nameZh)
+// 藍鯨英文：後端 en 回應沒有場地英文名時，用規劃書英文版既有寫法（Taichung Beitun Taiyuan Football Field），不退回中文。
+const venueName = computed(() => (isEn.value ? (primaryVenue.value.nameEn ?? (isTcrfc.value ? null : BW_PRIMARY_VENUE_EN_FALLBACK)) : null) ?? primaryVenue.value.nameZh)
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getChildrensTrainingSeoEn() : getChildrensTrainingSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getChildrensTrainingSeoEn() : getChildrensTrainingSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? getChildrensTrainingSeoEn(clubKey.value) : getChildrensTrainingSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getChildrensTrainingSeoEn(clubKey.value) : getChildrensTrainingSeo(clubKey.value)).description),
 })
-const hero = computed(() => (isEn.value ? getChildrensTrainingHeroEn() : getChildrensTrainingHero(clubKey.value)))
+const hero = computed(() => (isEn.value ? getChildrensTrainingHeroEn(clubKey.value) : getChildrensTrainingHero(clubKey.value)))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'children_training', pageSize: 5, lang: locale.value },
@@ -147,17 +149,17 @@ useCourseSchema(
   <div class="container">
     <div class="grid grid--2">
       <div class="prose">
-        <h2>課程班別</h2>
-        <p>社區足球學校「小藍鯨」承接臺中市政府「運動 i 台灣 2.0」運動熱區推廣計畫，依年齡分為多種班別，免試上、免測試、免入會費。</p>
+        <h2>{{ tx('課程班別', 'Classes') }}</h2>
+        <p>{{ tx('社區足球學校「小藍鯨」承接臺中市政府「運動 i 台灣 2.0」運動熱區推廣計畫，依年齡分為多種班別，免試上、免測試、免入會費。', 'The "Little Blue Whale" community football school runs the Taichung City Government\'s "Sport i Taiwan 2.0" Sports Hot Zone program, with classes grouped by age. No trial class or assessment is required and there is no membership fee.') }}</p>
       </div>
     </div>
     <div class="table-wrap">
       <table class="data-table">
         <thead>
-          <tr><th scope="col">班別</th><th scope="col">適合年齡</th><th scope="col">費用</th></tr>
+          <tr><th scope="col">{{ tx('班別', 'Class') }}</th><th scope="col">{{ tx('適合年齡', 'Age') }}</th><th scope="col">{{ tx('費用', 'Fee') }}</th></tr>
         </thead>
         <tbody>
-          <tr v-for="c in CHILDRENS_TRAINING_CLASSES_BW" :key="c.nameZh">
+          <tr v-for="c in classesBw" :key="c.nameZh">
             <td>{{ c.nameZh }}</td>
             <td>{{ c.ageZh }}</td>
             <td>{{ c.feeZh }}</td>
@@ -174,7 +176,7 @@ useCourseSchema(
       <div class="prose">
         <h2>{{ tx('訓練地點', 'Training Venue') }}</h2>
         <p v-if="isTcrfc">{{ tx('兒童足球訓練主要於台中磐石主場地舉行，實際梯次場地將於報名頁面標示。', 'Children\'s Training is held mainly at the Taichung Rock FC home ground. The venue for each session will be shown on the registration page.') }}</p>
-        <p v-else>課程主要於{{ venueName }}舉行，實際梯次場地將依公告為準。</p>
+        <p v-else>{{ isEn ? `Classes are mainly held at ${venueName}. The actual venue for each session follows the announcement.` : `課程主要於${venueName}舉行，實際梯次場地將依公告為準。` }}</p>
       </div>
       <div class="fact-panel">
         <dl style="margin:0;">
@@ -279,10 +281,10 @@ useCourseSchema(
       </div>
     </div>
     <p v-if="isTcrfc" class="section-lede">{{ tx('選擇合適的分級，開始每週規律的足球訓練。站內不接受金流付款，梯次確認後將個別通知繳費方式。', 'Choose the right level and start regular weekly football training. Payment is not taken on this site; once your session is confirmed we will let you know how to pay.') }}</p>
-    <p v-else class="section-lede">免試上、免測試、免入會費，現場個人報名即可加入；報名方式與課表請洽台中藍鯨官方 LINE。</p>
+    <p v-else class="section-lede">{{ tx('免試上、免測試、免入會費，現場個人報名即可加入；報名方式與課表請洽台中藍鯨官方 LINE。', `No trial class or assessment is required and there is no membership fee. Register in person on site to join; for registration details and the timetable, contact the official ${BW_NAME_EN} LINE account.`) }}</p>
     <div class="hero__ctas" style="margin-top:2rem;">
       <a v-if="isTcrfc" class="btn btn--primary" :href="hasRegistrable ? '#register' : lp('/zh/join/academy/')">{{ tx('線上報名', 'Register Online') }}</a>
-      <a v-else-if="identity.social.line" class="btn btn--primary" :href="identity.social.line" target="_blank" rel="noopener">洽詢官方 LINE</a>
+      <a v-else-if="identity.social.line" class="btn btn--primary" :href="identity.social.line" target="_blank" rel="noopener">{{ tx('洽詢官方 LINE', 'Contact us on LINE') }}</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">{{ tx('回課程總覽', 'Back to Programs Overview') }}</a>
     </div>
   </div>

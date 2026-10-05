@@ -12,14 +12,15 @@
 // 🔴 類型值是中文字面值（標準五類＋俱樂部自訂，如藍鯨的「指導單位」），不隨語系翻譯；標準五類區塊
 // 標題的英文副標是版型固定文字，自訂類型沒有英文副標，只顯示後台填的類型名稱。
 import type { PublicPartner } from '#shared/utils/partners'
-import { PARTNER_TYPE_SECTIONS, groupByKnownType, pickLogoUrl, safeExternalUrl, formatPartnerPeriod } from '#shared/utils/partners'
+import { PARTNER_TYPE_SECTIONS, PARTNER_CUSTOM_TYPE_EN, groupByKnownType, pickLogoUrl, safeExternalUrl, formatPartnerPeriod } from '#shared/utils/partners'
 
-definePageMeta({ nav: 'partners', unit: '9.1', enReady: true })
+definePageMeta({ nav: 'partners', unit: '9.1', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const isTcrfc = computed(() => config.public.club !== 'bw')
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubEn = computed(() => bizClubNameEn(config.public.club))
 // 夥伴詳情的「共同參與的公益計畫」連結只在有 11 慈善單元的俱樂部顯示（藍鯨不設 11，連過去會 404）。
 const charityEnabled = isUnitEnabledForClub('11', config.public.club)
 
@@ -47,8 +48,8 @@ function isDark(i: number): boolean {
 }
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? 'Our Partners | Partners & Sponsors | Taichung Rock FC' : `合作夥伴 Our Partners｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? 'The partners of Taichung Rock FC, introduced by five types: strategic, international, training, education and brand.' : `${clubAssets.value.nameZh}的合作夥伴，依策略、國際、訓練、教育、品牌五大類型分區介紹。`)),
+  title: computed(() => (isEn.value ? `Our Partners | Partners & Sponsors | ${clubEn.value}` : `合作夥伴 Our Partners｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? `The partners of ${clubEn.value}, introduced by five types: strategic, international, training, education and brand.` : `${clubAssets.value.nameZh}的合作夥伴，依策略、國際、訓練、教育、品牌五大類型分區介紹。`)),
 })
 </script>
 
@@ -67,7 +68,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">9.1 Our Partners</p>
     <h1><template v-if="isEn">Our Partners</template><template v-else>{{ tx('合作夥伴', 'Our Partners') }}<span class="en">Our Partners</span></template></h1>
-    <p v-if="hasAnyPartner" class="page-hero__lede"><template v-if="isEn">The partners working with Taichung Rock FC, introduced by type: strategic, international, training, education and brand.</template><template v-else>與{{ clubAssets.shortNameZh }}攜手的合作夥伴，依策略、國際、訓練、教育、品牌等類型分區介紹。</template></p>
+    <p v-if="hasAnyPartner" class="page-hero__lede"><template v-if="isEn">The partners working with {{ clubEn }}, introduced by type: strategic, international, training, education and brand.</template><template v-else>與{{ clubAssets.shortNameZh }}攜手的合作夥伴，依策略、國際、訓練、教育、品牌等類型分區介紹。</template></p>
     <p v-else class="page-hero__lede"><template v-if="isEn">Below is the partner category structure. The partner list is being compiled.</template><template v-else>以下為合作夥伴分類架構，實際夥伴名單建置中。</template></p>
   </div>
 </section>
@@ -75,7 +76,7 @@ useSeoMeta({
 <!-- SPEC 3.9 §9.1 — 依類型分區：策略／國際／訓練／教育／品牌（＋俱樂部自訂類型）。Logo 牆＋夥伴詳情（合作內容、期間、連結） -->
 <section v-for="(sec, i) in sections" :id="sec.key" :key="sec.key" :class="bandClass(i)" :aria-labelledby="`${sec.key}-title`">
   <div :class="isDark(i) ? 'band-inner container' : 'container'">
-    <h2 :id="`${sec.key}-title`" class="section-title partner-type-title" :style="isDark(i) ? 'color:#fff' : undefined"><template v-if="isEn">{{ sec.en ?? sec.title }}</template><template v-else>{{ sec.title }}<span v-if="sec.en" class="en">{{ sec.en }}</span></template></h2>
+    <h2 :id="`${sec.key}-title`" class="section-title partner-type-title" :style="isDark(i) ? 'color:#fff' : undefined"><template v-if="isEn">{{ sec.en ?? PARTNER_CUSTOM_TYPE_EN[sec.title] ?? sec.title }}</template><template v-else>{{ sec.title }}<span v-if="sec.en" class="en">{{ sec.en }}</span></template></h2>
 
     <div v-if="sec.items.length" class="sponsor-grid">
       <PartnerLogoTile
@@ -129,8 +130,8 @@ useSeoMeta({
     <h2 class="visually-hidden" id="op-cta-title">{{ tx('成為合作夥伴', 'Become a Partner') }}</h2>
     <div class="cta-card" style="background:var(--ink);max-width:640px">
       <p class="cta-card__num">9.3</p>
-      <p class="cta-card__title"><template v-if="isEn">Want to become a partner of Taichung Rock FC?</template><template v-else>想成為{{ clubAssets.shortNameZh }}的合作夥伴？</template></p>
-      <p class="cta-card__desc"><template v-if="isEn">Learn about the six values of partnering with Taichung Rock FC, plus an overview of our audience data.</template><template v-else>了解與{{ clubAssets.shortNameZh }}合作的六大價值，以及受眾數據概況。</template></p>
+      <p class="cta-card__title"><template v-if="isEn">Want to become a partner of {{ clubEn }}?</template><template v-else>想成為{{ clubAssets.shortNameZh }}的合作夥伴？</template></p>
+      <p class="cta-card__desc"><template v-if="isEn">Learn about the six values of partnering with {{ clubEn }}, plus an overview of our audience data.</template><template v-else>了解與{{ clubAssets.shortNameZh }}合作的六大價值，以及受眾數據概況。</template></p>
       <a class="btn btn--primary" :href="lp('/zh/partners/become-a-partner/')">{{ tx('成為合作夥伴', 'Become a Partner') }}</a>
     </div>
   </div>

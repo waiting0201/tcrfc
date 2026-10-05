@@ -7,7 +7,7 @@
 // 檔頭）。八大主題本身是通用足球培訓詞彙，兩俱樂部共用；每個模組詳細內容本來就是
 // 「準備中」佔位文字（磐石版也是）。改為讀 getPlayerDevelopmentSeo()／
 // getPlayerDevelopmentHero()，藍鯨版避免使用「系統」這個暗示已建制機構框架的用詞。
-definePageMeta({ nav: 'club', unit: '3.2', enReady: true })
+definePageMeta({ nav: 'club', unit: '3.2', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -15,10 +15,11 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getPlayerDevelopmentSeoEn() : getPlayerDevelopmentSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getPlayerDevelopmentSeoEn() : getPlayerDevelopmentSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerDevelopmentSeoEn() : getPlayerDevelopmentSeoEnBw()) : getPlayerDevelopmentSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? (isTcrfc.value ? getPlayerDevelopmentSeoEn() : getPlayerDevelopmentSeoEnBw()) : getPlayerDevelopmentSeo(clubKey.value)).description),
 })
-const hero = computed(() => (isEn.value ? getPlayerDevelopmentHeroEn() : getPlayerDevelopmentHero(clubKey.value)))
+// 英文版：磐石用 `*En`，藍鯨用 `*EnBw`／`*_EN_BW`（club-copy-en-club.ts 檔頭）。
+const hero = computed(() => (isEn.value ? (isTcrfc.value ? getPlayerDevelopmentHeroEn() : getPlayerDevelopmentHeroEnBw()) : getPlayerDevelopmentHero(clubKey.value)))
 </script>
 
 <template>
@@ -27,7 +28,7 @@ const hero = computed(() => (isEn.value ? getPlayerDevelopmentHeroEn() : getPlay
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/club/')">{{ tx('俱樂部', 'Football Club') }}</a></li>
-      <li aria-current="page">{{ isEn ? 'Player Development' : `球員發展${clubKey === 'bw' ? '重點' : '系統'}` }}</li>
+      <li aria-current="page">{{ isEn ? hero.h1Zh : `球員發展${clubKey === 'bw' ? '重點' : '系統'}` }}</li>
     </ol>
   </div>
 </nav>
@@ -146,9 +147,10 @@ const hero = computed(() => (isEn.value ? getPlayerDevelopmentHeroEn() : getPlay
 
       <div class="module-card module-card--summary">
         <p class="module-card__summary-kicker">WHY IT MATTERS</p>
-        <p class="module-card__summary-title">{{ isEn ? 'Eight modules, one complete system' : (isTcrfc ? '八大模組，一套完整體系' : '八大面向，持續培育選手') }}</p>
+        <p class="module-card__summary-title">{{ isEn ? (isTcrfc ? 'Eight modules, one complete system' : CLUB_PLAYER_DEVELOPMENT_PAGE_EN_BW.summaryTitle) : (isTcrfc ? '八大模組，一套完整體系' : '八大面向，持續培育選手') }}</p>
         <p class="module-card__summary-desc">
-          <template v-if="isEn">The eight modules together form the development framework for First Team and age-group players, connecting Academy training with International Pathways as the core support system for players heading to the professional stage.</template>
+          <template v-if="isEn && !isTcrfc">{{ CLUB_PLAYER_DEVELOPMENT_PAGE_EN_BW.summaryDesc }}</template>
+          <template v-else-if="isEn">The eight modules together form the development framework for First Team and age-group players, connecting Academy training with International Pathways as the core support system for players heading to the professional stage.</template>
           <template v-else-if="isTcrfc">八大模組共同構成一線隊與各梯隊球員的養成框架，銜接學院訓練與國際發展通道，是選手邁向職業舞台的核心支持系統。</template>
           <template v-else>八大面向共同支持一線隊與青年隊球員的成長，銜接青年隊訓練與國際發展通道，協助選手持續進步。</template>
         </p>
@@ -160,18 +162,18 @@ const hero = computed(() => (isEn.value ? getPlayerDevelopmentHeroEn() : getPlay
 
 <section class="band grain cta-band" id="pd-cta" aria-labelledby="pd-cta-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="pd-cta-title">{{ isEn ? 'Join Player Development' : (isTcrfc ? '加入球員發展系統' : '加入球員培育重點') }}</h2>
+    <h2 class="visually-hidden" id="pd-cta-title">{{ isEn ? (isTcrfc ? 'Join Player Development' : CLUB_PLAYER_DEVELOPMENT_PAGE_EN_BW.ctaHeading) : (isTcrfc ? '加入球員發展系統' : '加入球員培育重點') }}</h2>
     <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
         <p class="cta-card__title">{{ tx('認識一線隊', 'Meet the First Team') }}</p>
-        <p class="cta-card__desc">{{ isEn ? 'See the First Team squad and season performances that Player Development supports.' : (isTcrfc ? '看看球員發展系統支持的一線隊陣容與賽季表現。' : '看看一線隊陣容與賽季表現。') }}</p>
+        <p class="cta-card__desc">{{ isEn ? (isTcrfc ? 'See the First Team squad and season performances that Player Development supports.' : CLUB_PLAYER_DEVELOPMENT_PAGE_EN_BW.firstTeamDesc) : (isTcrfc ? '看看球員發展系統支持的一線隊陣容與賽季表現。' : '看看一線隊陣容與賽季表現。') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">{{ tx('前往一線隊', 'Go to the First Team') }}</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">10.1</p>
         <p class="cta-card__title">{{ tx('加入球隊', 'Join the Squad') }}</p>
-        <p class="cta-card__desc">{{ tx('想成為體系內的一員？填寫報名表，開始你的旅程。', 'Want to be part of the system? Fill in the registration form and start your journey.') }}</p>
+        <p class="cta-card__desc">{{ isEn && !isTcrfc ? CLUB_PLAYER_DEVELOPMENT_PAGE_EN_BW.joinDesc : tx('想成為體系內的一員？填寫報名表，開始你的旅程。', 'Want to be part of the system? Fill in the registration form and start your journey.') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/join/player/')">{{ tx('填寫報名表', 'Fill in the registration form') }}</a>
       </div>
     </div>

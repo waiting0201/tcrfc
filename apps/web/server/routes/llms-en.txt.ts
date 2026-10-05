@@ -38,11 +38,11 @@ function enOnly(value: string | null | undefined): string | null {
  * 開發端預設英文段落（僅在後台 `geo.llms_*` 的 en／zh 欄位皆空時使用，見檔頭 fallback 說明）。
  * 只用規劃書已定案的事實：品牌主張、站台事實（先讀 `site-facts?lang=en`，缺值退回
  * `shared/utils/site-facts.ts` 的英文快照）與單元清單；不編造任何數字、獎項或聯絡方式。
- * 只對主站（tcrfc）提供；藍鯨英文全名卡 B-5，沿用既有保守字串。
+ * 兩個俱樂部都提供（藍鯨 B-5 已於 2026-10-05 定案：全名 `BW_FULL_NAME_EN`，事實取自藍鯨規劃書英文版 §3，
+ * 不編造任何數字、獎項或聯絡方式；藍鯨沒有實體地址與電話，聯絡段維持通用句）。
  */
 async function buildDefaultsEn(club: string): Promise<{ positioning: string, factsSummary: string } | null> {
-  if (club !== 'tcrfc') return null
-  const snapshot = SITE_FACTS.tcrfc
+  const snapshot = SITE_FACTS[club === 'bw' ? 'bw' : 'tcrfc']
   let api: PublicSiteFactsEn | null = null
   try {
     api = await $fetch<PublicSiteFactsEn>(`/api/v1/${club}/site-facts`, {
@@ -56,12 +56,17 @@ async function buildDefaultsEn(club: string): Promise<{ positioning: string, fac
   const founded = enOnly(api?.foundedDisplay) ?? snapshot.foundedDisplayEn
   const title = enOnly(api?.foundingTitle) ?? snapshot.foundingTitleEn
   const league = enOnly(api?.league?.name) ?? snapshot.league.nameEn
-  const home = (api?.venues ?? []).find((v) => v.isHomeGround && enOnly(v.name))
-  const venue = enOnly(home?.name) ?? snapshot.venues.find((v) => v.isHomeGround)?.nameEn ?? null
+  // 主場可能不只一個（藍鯨：太原足球場、豐原體育場），全部列出；API 沒有英文值時退回快照。
+  const apiHomes = (api?.venues ?? []).filter((v) => v.isHomeGround).map((v) => enOnly(v.name)).filter((v): v is string => !!v)
+  const snapHomes = snapshot.venues.filter((v) => v.isHomeGround).map((v) => v.nameEn).filter((v): v is string => !!v)
+  const venue = (apiHomes.length > 0 ? apiHomes : snapHomes).join(' and ') || null
   const squads = enOnly(api?.squadStructureSummary) ?? snapshot.squadStructureEn
 
-  const positioning = 'Taichung Rock FC is a football club in Taichung, Taiwan, with an Academy and a First Team. '
-    + 'Its brand promise is LOCAL ROOTS. GLOBAL PATHWAYS. This file helps AI systems understand the club and its key pages (GEO-01).'
+  const positioning = club === 'bw'
+    ? `${BW_FULL_NAME_EN} is a women's football club in Taichung, Taiwan, with a First Team and Youth teams (U15 and U12 girls' teams). `
+      + 'This file helps AI systems understand the club and its key pages (GEO-01).'
+    : 'Taichung Rock FC is a football club in Taichung, Taiwan, with an Academy and a First Team. '
+      + 'Its brand promise is LOCAL ROOTS. GLOBAL PATHWAYS. This file helps AI systems understand the club and its key pages (GEO-01).'
   const facts = [
     founded && `- ${founded}${title ? ` (${title})` : ''}.`,
     league && `- League: ${league}.`,
@@ -87,18 +92,15 @@ export default defineEventHandler(async (event) => {
     // apps/api 暫時連不上：整份回退到內建預設文字，見檔頭說明。
   }
 
-  // 🔴 藍鯨的英文正式全名客戶尚未指定（STATUS B-5；舊站並存 Taichung Bluewhale／Taichung Blue Whale Women's
-  // Football Team／Taichung blue whale 三種寫法），docs/13 §6 紀律 11：開發端不得自行挑一個。`llms-en.txt` 是 AI 爬蟲
-  // 直接讀的檔，選錯會一路汙染 AI 對藍鯨的稱呼（BW-7 驗收發現原本寫死 'Taichung Blue Whale'，已改）。
-  // 藍鯨在名稱確認前一律用中文正式名稱（與 og:site_name／Schema 的 NUXT_PUBLIC_SITE_NAME=台中藍鯨 一致）。
-  const siteName = assets.code === 'bw' ? assets.nameZh : 'Taichung Rock FC'
-  // 單元名稱：主站用英文對照表（units-en.ts）；藍鯨沿用繁中原名（getUnitLabelEn 對 bw 回傳繁中）。
+  // 藍鯨英文名 B-5 已於 2026-10-05 定案：`llms-en.txt` 是 AI 爬蟲直接讀的檔，標題與定位用全名
+  // `BW_FULL_NAME_EN`（舊站變體 Bluewhale／…Women's Football Team／大小寫不一一律不用，check-bw-en-name 擋）。
+  const siteName = assets.code === 'bw' ? BW_FULL_NAME_EN : 'Taichung Rock FC'
+  // 單元名稱：`getUnitLabelEn(unit, club)`（units-en.ts，主站與藍鯨各有英文對照；藍鯨 04 叫 Youth）。
   const defaultKeyPages = units.map((u) => `- ${getUnitLabelEn(u, club)}: ${u.path.replace(/^\/zh\//, '/en/')}`).join('\n')
   const defaults = await buildDefaultsEn(club)
 
-  // 🔴 回退順序改為：後台英文欄位 → 開發端預設英文（僅主站）→ 後台中文欄位 → 內建英文通用句。
+  // 🔴 回退順序：後台英文欄位 → 開發端預設英文（兩個俱樂部皆有）→ 後台中文欄位 → 內建英文通用句。
   // 原本「英文空就退中文」會讓爬蟲讀到的英文版混中文；後台沒填英文時寧可用有事實依據的預設英文。
-  // 藍鯨沒有預設英文（B-5），維持原順序（英文 → 中文 → 通用句）。
   const positioning = content.positioningEn?.trim() || defaults?.positioning || content.positioningZh?.trim()
     || `This file helps AI systems understand ${siteName}'s purpose and key pages (GEO-01).`
   const keyPages = content.keyPagesEn?.trim() || (defaults ? defaultKeyPages : content.keyPagesZh?.trim() || defaultKeyPages)

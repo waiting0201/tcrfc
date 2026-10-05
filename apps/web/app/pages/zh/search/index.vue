@@ -10,7 +10,7 @@
 // 🔴 搜尋頁本身 `noindex`（搜尋結果頁不該被收錄），也不在 sitemap（沒有 `unit` 宣告，SITE_UNITS 不含）。
 // 零結果：後端回 `isEmpty` 時，**前台**呼叫既有的 `POST faqs/search-misses` 記錄（搜尋端點是 GET，不寫入）；
 // 同一個關鍵字在同一個頁面載入只記一次。只在瀏覽器端記錄（SSR 不寫入，也避免爬蟲造成假資料）。
-definePageMeta({ nav: '', enReady: true })
+definePageMeta({ nav: '', enReady: true, enReadyBw: true })
 
 interface SearchItem {
   type: string
@@ -44,7 +44,7 @@ const route = useRoute()
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
-const clubNameZh = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
+const clubNameZh = computed(() => (isEn.value ? (club === 'bw' ? BW_NAME_EN : CLUB_NAME_EN) : getClubAssets(club).nameZh))
 
 const q = computed(() => (typeof route.query.q === 'string' ? route.query.q.trim() : ''))
 const type = computed(() => (typeof route.query.type === 'string' ? route.query.type : ''))

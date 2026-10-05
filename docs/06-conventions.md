@@ -15,7 +15,7 @@
 | 品牌主張 | 在地扎根 · 放眼世界 | LOCAL ROOTS. GLOBAL PATHWAYS. | | |
 | 俱樂部（全稱寫法） | — | TAICHUNG ROCK FOOTBALL CLUB | | Brand Deck 頁尾用法；一般情境一律用 `Taichung Rock FC` |
 | 一線隊 | 一線隊 | First Team | **`D1`** | 對外顯示用「一線隊／First Team」，`D1` 僅作代號 |
-| **合作球隊**（v3.0） | 台中藍鯨 | （待確認，B-5；英文內文暫放中文名） | **`TCBW`** | 隸屬**臺中市女子足球協會**，2014-04-12 成立。**與台中磐石是不同法人**。中文一律寫「**台中藍鯨**」，不單用「藍鯨」。英文正式全名**待藍鯨確認** |
+| **合作球隊**（v3.0） | 台中藍鯨 | **Taichung Blue Whale**（簡稱；全名 `Taichung Blue Whale Women's Football Club`） | **`TCBW`** | 隸屬**臺中市女子足球協會**，2014-04-12 成立。**與台中磐石是不同法人**。中文一律寫「**台中藍鯨**」，不單用「藍鯨」。英文名 **B-5 已於 2026-10-05 定案**（見 §1.1） |
 | **藍鯨一線隊**（v3.0） | 藍鯨一線隊 | Blue Whale First Team | **`BW1`** | **不是第二個 `D1`**——`Team.code` 全站唯一，不得改複合鍵 |
 | **藍鯨青年隊**（v3.0） | U15／U12 女子隊 | Youth Teams | `U15`/`U12` | ⚠️ **與磐石學院的 `U15`／`U12` 是不同球隊**，以 `club_id` 區隔 |
 | 學院梯隊 | U15／U14／U12 梯隊 | Academy Teams | `U15`/`U14`/`U12` | 日後可增 U18／U10 |
@@ -168,7 +168,7 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 ### 名稱與標誌的硬性規則
 
 1. **中文簡稱一律「台中磐石」。** 站上任何位置都不單獨出現「磐石」——`關於台中磐石`、`台中磐石文化`、`台中磐石足球學院`、`台中磐石球迷會`、`台中磐石漫畫` 皆同。
-1b. **藍鯨的中文一律寫「台中藍鯨」**，不單用「藍鯨」（比照磐石的規則）。**藍鯨的標誌、品牌色與英文正式名稱須由藍鯨提供**——**不得自行造標、不得從網頁截圖描摹、不得自行排字**；未到位前對應區塊不顯示，**不得放假圖或空 Logo 格**。
+1b. **藍鯨的中文一律寫「台中藍鯨」**，不單用「藍鯨」（比照磐石的規則）。**藍鯨的標誌與品牌色須由藍鯨提供**（英文名已於 2026-10-05 定案：簡稱 `Taichung Blue Whale`、全名 `Taichung Blue Whale Women's Football Club`，見 §1.1）——**不得自行造標、不得從網頁截圖描摹、不得自行排字**；未到位前對應區塊不顯示，**不得放假圖或空 Logo 格**。
 1c. **行動 App 對外名稱是中性的「台中足球 / Taichung Football」**（兩隊共同品牌），**但官網與所有主站文件仍是 TCRFC**——這兩者不衝突，是刻意的分工。
 2. **標誌只用 logo 主檔萃取的三種組合**（見 [`../brand/README.md`](../brand/README.md)）：
    - `tcrfc-mark-*.svg` 隊徽
@@ -201,7 +201,7 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 | 台中磐石足球學院／學院 | TCRFC Academy／the Academy | 規劃書 §3.4 |
 | 一線隊 | First Team | 規劃書 |
 | U15／U14／U12 梯隊 | U15／U14／U12 squads（泛稱 age-group teams） | 規劃書 §3.4（Our Teams） |
-| 台中藍鯨（出現在主站英文內文時） | **英文句內放中文名**，一律取 `BW_NAME_EN_PENDING`（`club-copy.ts`，值為「台中藍鯨」） | 本檔 §1；**正式英文全名待藍鯨確認（B-5），開發端不得自挑**，`check-bw-en-name.mjs` 擋寫死的 `Taichung Blue Whale`。本表初版（2026-10-05）曾寫「可用 Taichung Blue Whale 作描述性寫法」，與 B-5 牴觸，已更正（E-210） |
+| 台中藍鯨（主站與藍鯨站英文內文） | 簡稱 **`Taichung Blue Whale`**（導覽、內文、標題）；全名 **`Taichung Blue Whale Women's Football Club`**（Schema、llms、頁尾、首次提及）。程式取 `BW_NAME_EN`／`BW_FULL_NAME_EN`（`club-copy.ts`） | **B-5 於 2026-10-05 客戶定案**。舊站變體 `Taichung Bluewhale`、`…Women's Football Team`、大小寫不一一律不用；`check-bw-en-name.mjs` 只允許這兩種寫法、擋其他變體。（初版曾寫「待確認、句內放中文名」，已隨定案更正；E-210 為更早的對照表與 B-5 牴觸事件） |
 | 臺中市女子足球協會 | Taichung Women's Football Association | **待客戶確認**（初稿，直譯） |
 | 台灣足球策略發展協會 | Taiwan Football Strategic Development Association | **待客戶確認**（初稿，直譯；慈善平台的收款主體） |
 | 企業甲級足球聯賽（企甲） | 保守寫法：「the league」「the top-tier corporate league」；已寫死於 `site-facts.ts` 的 `Enterprise Premier League` 沿用；規劃書英文版縮寫為 TFPL | **正式英文名待客戶確認**；譯文優先用 `facts.league.nameEn`，不得自行拼出 Taiwan Football Premier League 全名 |
@@ -239,6 +239,8 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 商店與會員——統一編號 Unified Business Number、手機條碼載具 Mobile barcode carrier、入會球衣 Welcome jersey、超商取貨 Convenience-store pickup；
 新聞標題（第二輪）——預備隊 Taichung Rock FC Reserves、台中磐石國際足球盃 Taichung Rock FC International Cup、維羅納 Hellas Verona、臺中市政府運動局 Taichung City Government Sports Bureau、東京農業大學 Tokyo University of Agriculture、港超聯 Hong Kong Premier League；**標題內沒有英文來源的球隊／人名／學校（銘傳大學、陽信北競、南市台鋼、大同足球、台電／台灣電力、台中Futuro、新北航源、桃園國際、高雄先鋒、潭秀非營利幼兒園、南投縣雙龍國小、龜記茗品，及陳曉明、周宇杰、廖奕盛、王義友、孫恩祈、梁顥騰、高冠宇、楊朝景等）原樣保留中文，待客戶補英文名**；
 聯賽縮寫——規劃書英文版用 TFPL 指企業甲級聯賽，**但全名未出現，不得自行拼寫**。單元導覽短標籤「新聞」用 News（單元全名為 News & Stories）。
+
+**藍鯨站英文用詞（2026-10-05，B-5 定案後）**：台灣木蘭足球聯賽 Taiwan Mulan Football League、總統盃 President's Cup、CTFA／AFC club licence（AFC Club Licence；年份舊站 2019／規劃書 2023 待核對）、台中北屯太原足球場 Taichung Beitun Taiyuan Football Field、台中豐原體育場 Taichung Fengyuan Stadium、藍鯨盃 Blue Whale Cup、藍鯨 04 單元 Youth／Youth Teams（U15／U12 girls' teams，**不得出現 Academy**）。**待客戶確認的藍鯨專名（保守寫法）**：台中足球學校 Taichung Blue Whale Football School、運動 i 台灣 2.0 運動熱區 "Sport i Taiwan 2.0" Sports Hot Zone、小藍鯨社區足球學校 "Little Blue Whale" community football school、臺中市女子足球協會（藍鯨規劃書英文版 Taichung City Women's Football Association，前台與種子用 Taichung Women's Football Association，**需統一**）、教育部體育署 Sports Administration, Ministry of Education、陽信盃國際邀請賽（保留中文名＋描述）。人名（堀野博幸、包欣玄、蘇育萱等約 25 位）、學校（五權國中、惠文高中）、夥伴機構名沒有英文來源維持中文。
 
 ⚠️ 人名、地名：球員與教練英文名一律取資料庫（`players_i18n`／`staff_i18n`）已有值；沒有的**不得自行音譯**，顯示中文原名。
 地址只翻成通用的英文地址格式不做，維持中文原文＋必要時加 Taichung 城市名。

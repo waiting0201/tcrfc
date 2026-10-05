@@ -13,11 +13,12 @@
 import type { PublicSponsor } from '#shared/utils/partners'
 import { SPONSOR_TIER_SECTIONS, groupByKnownType, pickLogoUrl } from '#shared/utils/partners'
 
-definePageMeta({ nav: 'partners', unit: '9.2', enReady: true })
+definePageMeta({ nav: 'partners', unit: '9.2', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubEn = computed(() => bizClubNameEn(config.public.club))
 const charityEnabled = isUnitEnabledForClub('11', config.public.club)
 
 const { sponsors } = await useSponsorList()
@@ -45,8 +46,8 @@ const activations = computed(() => sponsors.value
   .sort((a, b) => (b.happenedOn ?? '').localeCompare(a.happenedOn ?? '')))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? 'Our Sponsors | Partners & Sponsors | Taichung Rock FC' : `贊助商 Our Sponsors｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? 'The sponsors of Taichung Rock FC, introduced by three tiers (Title, Official and Supporting), with sponsor stories and activation records.' : `${clubAssets.value.nameZh}的贊助商，依主贊助、官方、支持三個等級介紹，並收錄贊助故事與活動紀錄。`)),
+  title: computed(() => (isEn.value ? `Our Sponsors | Partners & Sponsors | ${clubEn.value}` : `贊助商 Our Sponsors｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? `The sponsors of ${clubEn.value}, introduced by three tiers (Title, Official and Supporting), with sponsor stories and activation records.` : `${clubAssets.value.nameZh}的贊助商，依主贊助、官方、支持三個等級介紹，並收錄贊助故事與活動紀錄。`)),
 })
 </script>
 
@@ -65,7 +66,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">9.2 Our Sponsors</p>
     <h1><template v-if="isEn">Our Sponsors</template><template v-else>{{ tx('贊助商', 'Our Sponsors') }}<span class="en">Our Sponsors</span></template></h1>
-    <p class="page-hero__lede"><template v-if="isEn">Thank you to every sponsor who supports Taichung Rock FC. Our sponsors are introduced below by tier.</template><template v-else>感謝每一位支持{{ clubAssets.shortNameZh }}的贊助夥伴，以下依贊助等級分區介紹。</template></p>
+    <p class="page-hero__lede"><template v-if="isEn">Thank you to every sponsor who supports {{ clubEn }}. Our sponsors are introduced below by tier.</template><template v-else>感謝每一位支持{{ clubAssets.shortNameZh }}的贊助夥伴，以下依贊助等級分區介紹。</template></p>
   </div>
 </section>
 

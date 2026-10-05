@@ -4,18 +4,18 @@
 // 文案依俱樂部切換：節點清單改用 ECOSYSTEM_NODES（藍鯨移除自我指涉的女子足球
 // 節點，04 依 docs/13-blue-whale-site.md §3 改為青年隊——這是規劃書已定的單元
 // 取捨，不是本頁自行決定的版型差異）。
-definePageMeta({ nav: "about", unit: "02", enReady: true })
+definePageMeta({ nav: "about", unit: "02", enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const identity = computed(() => (isEn.value ? getClubIdentityEnFor(clubKey.value) : getClubIdentity(clubKey.value)))
 const assets = computed(() => getClubAssets(clubKey.value))
-const hero = computed(() => (isEn.value ? ECOSYSTEM_HERO_EN : ECOSYSTEM_HERO[clubKey.value]))
-const seo = computed(() => (isEn.value ? ECOSYSTEM_SEO_EN : ECOSYSTEM_SEO[clubKey.value]))
+const hero = computed(() => (isEn.value ? (clubKey.value === 'bw' ? ECOSYSTEM_HERO_EN_BW : ECOSYSTEM_HERO_EN) : ECOSYSTEM_HERO[clubKey.value]))
+const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? ECOSYSTEM_SEO_EN_BW : ECOSYSTEM_SEO_EN) : ECOSYSTEM_SEO[clubKey.value]))
 // S1-12d 收尾第二輪：節點描述含聯賽名稱／梯隊代碼事實，club-copy.ts 已改為工廠函式。
 const { facts } = useSiteFacts(clubKey.value)
-const nodes = computed(() => (isEn.value ? getEcosystemNodesEn(facts.value) : getEcosystemNodes(clubKey.value, facts.value)))
-const title = computed(() => (isEn.value ? ECOSYSTEM_TITLE_EN : ECOSYSTEM_TITLE[clubKey.value]))
+const nodes = computed(() => (isEn.value ? (clubKey.value === 'bw' ? getEcosystemNodesEnBw(facts.value) : getEcosystemNodesEn(facts.value)) : getEcosystemNodes(clubKey.value, facts.value)))
+const title = computed(() => (isEn.value ? (clubKey.value === 'bw' ? ECOSYSTEM_TITLE_EN_BW : ECOSYSTEM_TITLE_EN) : ECOSYSTEM_TITLE[clubKey.value]))
 
 // S1-13：nodes[].href 是 club-copy.ts 裡的裸 /zh/... 路徑，消費時要套 lp()，
 // 同一個問題見 app/pages/zh/index.vue 的檔頭說明。
@@ -41,7 +41,7 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.6') : aboutEyebrow('2.6', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.6', clubKey) : aboutEyebrow('2.6', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>

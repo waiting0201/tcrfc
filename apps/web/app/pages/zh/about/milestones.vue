@@ -10,7 +10,7 @@
 // 與 charity/impact-stories 共用），已抽成 useYearChips() composable；時間軸本文
 // 逐字保留 mockup 內容，屬於「靜態頁」搬遷（搬遷方式同 21 個純靜態頁），不是
 // 「資料驅動頁」搬遷——不要誤以為這裡漏接了 API。
-definePageMeta({ nav: 'about', unit: '02', enReady: true })
+definePageMeta({ nav: 'about', unit: '02', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 
@@ -20,9 +20,9 @@ const { lp, locale, isEn, tx } = useLocale()
 // 指向該頁的說明，不沿用磐石的時間軸內容頂替。
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
-const hero = computed(() => (isEn.value ? getMilestonesHeroEn(facts.value) : MILESTONES_HERO[clubKey.value]))
-const seo = computed(() => (isEn.value ? MILESTONES_SEO_EN : MILESTONES_SEO[clubKey.value]))
+const identity = computed(() => (isEn.value ? getClubIdentityEnFor(clubKey.value) : getClubIdentity(clubKey.value)))
+const hero = computed(() => (isEn.value ? (clubKey.value === 'bw' ? MILESTONES_HERO_EN_BW : getMilestonesHeroEn(facts.value)) : MILESTONES_HERO[clubKey.value]))
+const seo = computed(() => (isEn.value ? (clubKey.value === 'bw' ? MILESTONES_SEO_EN_BW : MILESTONES_SEO_EN) : MILESTONES_SEO[clubKey.value]))
 // 英文版的年份文字取自事實單一來源（成立年份），不在樣板寫死。
 const { facts } = useSiteFacts(clubKey.value)
 
@@ -56,7 +56,7 @@ const { data: milestoneData } = await useFetch<MilestoneDto[]>(`/api/backend/${c
 const apiMilestones = computed(() => (milestoneData.value ?? []).filter((m) => m.title))
 const usingApi = computed(() => apiMilestones.value.length > 0)
 /** 藍鯨 hero 文案原寫「時間軸尚未依藍鯨資料重建」，後台有里程碑資料時這句就不成立，改用中性說明。 */
-const lede = computed(() => (usingApi.value && clubKey.value === 'bw' ? `${identity.value.shortNameZh}的重要里程碑，可依年份篩選查看。` : hero.value.lede))
+const lede = computed(() => (usingApi.value && clubKey.value === 'bw' ? (isEn.value ? MILESTONES_API_LEDE_EN_BW : `${getClubAssets(clubKey.value).shortNameZh}的重要里程碑，可依年份篩選查看。`) : hero.value.lede))
 const milestoneYears = computed(() => {
   const groups = new Map<string, MilestoneDto[]>()
   for (const m of apiMilestones.value) {
@@ -81,7 +81,7 @@ const milestoneYears = computed(() => {
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.8') : aboutEyebrow('2.8', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.8', clubKey) : aboutEyebrow('2.8', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ lede }}</p>
   </div>
@@ -116,8 +116,9 @@ const milestoneYears = computed(() => {
 
 <section v-if="!usingApi && clubKey !== 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title-bw">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="milestones-title-bw">重要里程碑</h2>
-    <p class="section-lede">本頁的年份篩選時間軸尚未依藍鯨資料重建，完整的 2014～2025 逐年沿革請見 <a :href="lp('/zh/about/history/')">2.7 俱樂部歷程</a>。</p>
+    <h2 class="visually-hidden" id="milestones-title-bw">{{ tx('重要里程碑', 'Key Milestones') }}</h2>
+    <p v-if="isEn" class="section-lede">The year-filter timeline on this page has not yet been rebuilt from {{ BW_NAME_EN }} data. For the complete year-by-year record from 2014 to 2025, see <a :href="lp('/zh/about/history/')">2.7 Club History</a>.</p>
+    <p v-else class="section-lede">本頁的年份篩選時間軸尚未依藍鯨資料重建，完整的 2014～2025 逐年沿革請見 <a :href="lp('/zh/about/history/')">2.7 俱樂部歷程</a>。</p>
   </div>
 </section>
 

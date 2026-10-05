@@ -4,14 +4,14 @@
 // 規劃書 3.12「分類頁：各主題獨立頁面，具備獨立 SEO 設定」——本輪先建 3–4 個高頻主題
 // （見 apps/web/README.md「S1-18」節取捨說明），本頁是其中之一。資料來源與 12 FAQ
 // 首頁同一套 composable（useFaqCategories／useFaqList），只是帶 category 篩選單一分類。
-definePageMeta({ nav: '', unit: '12', enReady: true })
+definePageMeta({ nav: '', unit: '12', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
 const CATEGORY_SLUG = 'fees-refunds'
 
-const siteName = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
+const siteName = computed(() => (isEn.value ? (club === 'bw' ? BW_NAME_EN : CLUB_NAME_EN) : getClubAssets(club).nameZh))
 const { categories } = useFaqCategories(locale.value)
 const { faqs, totalCount } = useFaqList(club, locale.value, CATEGORY_SLUG)
 

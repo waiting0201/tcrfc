@@ -3,15 +3,16 @@
 // 連結只能用一次（密碼一改就失效）；成功後全部裝置登出，並順便完成 Email 驗證。
 import { MEMBER_PASSWORD_HINT, MEMBER_PASSWORD_HINT_EN, passwordProblem, toMemberApiError } from '#shared/utils/member'
 
-definePageMeta({ nav: '', unit: '14', enReady: true })
+definePageMeta({ nav: '', unit: '14', enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
+const clubNameEn = computed(() => getShopClubNameEn(config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('resetPassword', CLUB_NAME_EN).title : `重設密碼｜${clubAssets.value.nameZh}`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('resetPassword', clubNameEn.value).title : `重設密碼｜${clubAssets.value.nameZh}`)),
   robots: 'noindex, nofollow',
 })
 

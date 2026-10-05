@@ -15,7 +15,7 @@
 import { toMemberApiError } from '#shared/utils/member'
 import type { CheckoutErrors, CheckoutForm, DeliveryCode, InvoiceType, ShopOrder } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true, enReadyBw: true })
 
 const COLLECTING_SUBJECT_FALLBACK = '台中磐石足球俱樂部'
 
@@ -24,10 +24,11 @@ const config = useRuntimeConfig()
 const club = computed(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const clubAssets = computed(() => getClubAssets(club.value))
 const isBw = computed(() => club.value === 'bw')
+const clubNameEn = computed(() => getShopClubNameEn(club.value))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getShopSeoEn('checkout', CLUB_NAME_EN).title : `結帳 Checkout｜官方商店｜${clubAssets.value.nameZh}`)),
-  description: computed(() => (isEn.value ? getShopSeoEn('checkout', CLUB_NAME_EN).description : `${clubAssets.value.shortNameZh}官方商店結帳：填寫收件資料、選擇配送方式與發票開立方式，確認後以 LINE Pay 完成付款。支援非會員結帳。`)),
+  title: computed(() => (isEn.value ? getShopSeoEn('checkout', clubNameEn.value).title : `結帳 Checkout｜官方商店｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('checkout', clubNameEn.value).description : `${clubAssets.value.shortNameZh}官方商店結帳：填寫收件資料、選擇配送方式與發票開立方式，確認後以 LINE Pay 完成付款。支援非會員結帳。`)),
   robots: 'noindex, nofollow',
 })
 
@@ -215,7 +216,10 @@ async function onSubmit() {
       <li>{{ tx('完成', 'Done') }}</li>
     </ol>
 
-    <p v-if="isBw" class="mc-alert mc-alert--info" role="note">
+    <p v-if="isBw && isEn" class="mc-alert mc-alert--info" role="note">
+      You are buying {{ clubNameEn }} merchandise. <strong>Payment is collected by {{ subject }}, and the invoice is also issued in the name of {{ subject }}</strong>.
+    </p>
+    <p v-else-if="isBw" class="mc-alert mc-alert--info" role="note">
       您購買的是{{ clubAssets.nameZh }}的商品，<strong>款項由{{ subject }}代收，發票抬頭亦為{{ subject }}</strong>。
     </p>
     <p v-if="info && !paymentAvailable" class="mc-alert mc-alert--error" role="alert">

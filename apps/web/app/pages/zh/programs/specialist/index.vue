@@ -18,7 +18,7 @@
 // 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
 // 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
 // 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
-definePageMeta({ nav: 'programs', unit: '5.4', enReady: true })
+definePageMeta({ nav: 'programs', unit: '5.4', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
@@ -26,11 +26,12 @@ const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'b
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getSpecialistTrainingSeoEn() : getSpecialistTrainingSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getSpecialistTrainingSeoEn() : getSpecialistTrainingSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? getSpecialistTrainingSeoEn(clubKey.value) : getSpecialistTrainingSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getSpecialistTrainingSeoEn(clubKey.value) : getSpecialistTrainingSeo(clubKey.value)).description),
 })
-const hero = computed(() => (isEn.value ? getSpecialistTrainingHeroEn() : getSpecialistTrainingHero(clubKey.value)))
+const hero = computed(() => (isEn.value ? getSpecialistTrainingHeroEn(clubKey.value) : getSpecialistTrainingHero(clubKey.value)))
 
+const gkClass = computed(() => (isEn.value ? { ...GOALKEEPER_CLASS_BW, ...GOALKEEPER_CLASS_BW_EN } : GOALKEEPER_CLASS_BW))
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'specialist_training', pageSize: 10, lang: locale.value },
 })
@@ -134,16 +135,17 @@ useCourseSchema(
 <section v-else class="band">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
-      <h2>目前提供的專項</h2>
-      <p>台中藍鯨目前提供守門員基礎班，其餘專項訓練尚未推出，後續開放將公布於本頁。</p>
+      <h2>{{ tx('目前提供的專項', 'Specialist Programs Currently Offered') }}</h2>
+      <p>{{ tx('台中藍鯨目前提供守門員基礎班，其餘專項訓練尚未推出，後續開放將公布於本頁。', `${BW_NAME_EN} currently offers a Goalkeeper Foundation Class. Other specialist training has not been launched yet; any future opening will be announced on this page.`) }}</p>
     </div>
 
     <div class="level-grid level-grid--specialist">
       <div class="level-card">
         <p class="level-card__num">01</p>
-        <h3>{{ GOALKEEPER_CLASS_BW.nameZh }}<span class="en">Goalkeeper</span></h3>
-        <p>適合年齡：{{ GOALKEEPER_CLASS_BW.ageZh }}。{{ GOALKEEPER_CLASS_BW.scheduleZh }}，{{ GOALKEEPER_CLASS_BW.feeZh }}。{{ GOALKEEPER_CLASS_BW.signupZh }}。</p>
-        <a class="btn btn--light" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener" style="margin-top:.75rem;">前往報名表單</a>
+        <h3>{{ gkClass.nameZh }}<span v-if="!isEn" class="en">Goalkeeper</span></h3>
+        <p v-if="isEn">Age: {{ gkClass.ageZh }}. {{ gkClass.scheduleZh }}, {{ gkClass.feeZh }}. {{ gkClass.signupZh }}.</p>
+        <p v-else>適合年齡：{{ gkClass.ageZh }}。{{ gkClass.scheduleZh }}，{{ gkClass.feeZh }}。{{ gkClass.signupZh }}。</p>
+        <a class="btn btn--light" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener" style="margin-top:.75rem;">{{ tx('前往報名表單', 'Go to the registration form') }}</a>
       </div>
     </div>
   </div>
@@ -234,10 +236,10 @@ useCourseSchema(
       </div>
     </div>
     <p v-if="isTcrfc" class="section-lede">{{ tx('梯次、地點與費用將於報名開放時公告，站內不接受金流付款。', 'Sessions, venues and fees will be announced when registration opens. Payment is not taken on this site.') }}</p>
-    <p v-else class="section-lede">守門員基礎班須先填寫報名表單，其餘專項尚未推出。</p>
+    <p v-else class="section-lede">{{ tx('守門員基礎班須先填寫報名表單，其餘專項尚未推出。', 'The Goalkeeper Foundation Class requires a registration form to be completed first. Other specialist programs have not been launched yet.') }}</p>
     <div class="hero__ctas" style="margin-top:2rem;">
       <a v-if="isTcrfc" class="btn btn--primary" :href="hasRegistrable ? '#register' : lp('/zh/join/academy/')">{{ tx('線上報名', 'Register Online') }}</a>
-      <a v-else class="btn btn--primary" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener">前往報名表單</a>
+      <a v-else class="btn btn--primary" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener">{{ tx('前往報名表單', 'Go to the registration form') }}</a>
       <a class="btn btn--light" :href="lp('/zh/programs/')">{{ tx('回課程總覽', 'Back to Programs Overview') }}</a>
     </div>
   </div>

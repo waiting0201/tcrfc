@@ -5,13 +5,13 @@
 // 店家的 `lat`／`lng` 是給行動 App 附近地圖用的，網頁前台只放地圖連結（`mapUrl`），不自行嵌第三方地圖。
 import type { PartnerStore } from '#shared/utils/member'
 
-definePageMeta({ nav: 'culture', unit: '08', enReady: true })
+definePageMeta({ nav: 'culture', unit: '08', enReady: true, enReadyBw: true })
 
 const { lp, locale, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
-const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(config.public.club)))
+const identity = computed(() => (isEn.value ? (config.public.club === 'bw' ? getClubIdentityEnBw() : getClubIdentityEn()) : getClubIdentity(config.public.club)))
 const club = config.public.club
 const slug = String(route.params.slug ?? '')
 
@@ -28,10 +28,10 @@ const safeImg = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(
 
 useSeoMeta({
   title: computed(() => (isEn.value
-    ? getPerksDetailSeoEn(store.value?.name, store.value?.offerContent).title
+    ? (config.public.club === 'bw' ? getPerksDetailSeoEnBw : getPerksDetailSeoEn)(store.value?.name, store.value?.offerContent).title
     : `${store.value?.name ?? '特約店家'}｜特約店家｜${clubAssets.value.nameZh}`)),
   description: computed(() => (isEn.value
-    ? getPerksDetailSeoEn(store.value?.name, store.value?.offerContent).description
+    ? (config.public.club === 'bw' ? getPerksDetailSeoEnBw : getPerksDetailSeoEn)(store.value?.name, store.value?.offerContent).description
     : (store.value?.offerContent ?? `${store.value?.name ?? ''}是${clubAssets.value.shortNameZh}會員的特約店家。`))),
 })
 </script>

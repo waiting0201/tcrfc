@@ -3,10 +3,11 @@
 import type { PressResource, PressResourceType } from '#shared/utils/press'
 import type { PagedResponse } from '#shared/utils/api-types'
 
-definePageMeta({ nav: "news", unit: "07", enReady: true })
+definePageMeta({ nav: "news", unit: "07", enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
+const clubKey: 'tcrfc' | 'bw' = club === 'bw' ? 'bw' : 'tcrfc'
 const isTcrfc = computed(() => club !== 'bw')
 const { lp, locale, isEn, tx } = useLocale()
 
@@ -38,8 +39,8 @@ const [pressReleases, brandKits, hiresImages] = await Promise.all([
 ])
 
 useSeoMeta({
-  title: computed(() => isEn.value ? getNewsCategorySeoEn('media', null).title : `媒體專區 Media｜新聞 News｜${getClubAssets(club).nameZh}`),
-  description: computed(() => isEn.value ? getNewsCategorySeoEn('media', null).description : (isTcrfc.value
+  title: computed(() => isEn.value ? getNewsCategorySeoEn('media', null, clubKey).title : `媒體專區 Media｜新聞 News｜${getClubAssets(club).nameZh}`),
+  description: computed(() => isEn.value ? getNewsCategorySeoEn('media', null, clubKey).description : (isTcrfc.value
     ? '台中磐石媒體專區：品牌識別包下載（隊徽 SVG／PNG、社群分享圖），新聞稿與高解析圖庫、媒體聯絡窗口建置中。'
     : '台中藍鯨媒體專區：新聞稿與高解析圖庫、媒體聯絡窗口建置中。')),
 })
@@ -61,7 +62,7 @@ useSeoMeta({
   <div class="container">
     <p class="page-hero__eyebrow">{{ tx('7.8 Media', '7.8 Press & Media') }}</p>
     <h1>{{ tx('媒體專區', 'Press & Media') }}<span v-if="!isEn" class="en">Media</span></h1>
-    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('media').lede }}</p>
+    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('media', clubKey).lede }}</p>
     <p v-else class="page-hero__lede">提供媒體夥伴新聞稿下載、品牌識別包（Logo／CIS）、高解析圖庫與媒體聯絡窗口。</p>
   </div>
 </section>

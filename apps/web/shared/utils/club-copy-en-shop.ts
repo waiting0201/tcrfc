@@ -7,6 +7,9 @@
 // - 檔內字串不得含中文字元（scripts 有檢查）；英文用詞一律照 docs/06-conventions.md §1.1 對照表。
 // - 品牌名稱由呼叫端以 `CLUB_NAME_EN`（club-copy-en-core.ts）帶入，不在此重複定義。
 
+import { BW_NAME_EN } from './club-copy'
+import { CLUB_NAME_EN } from './club-copy-en-core'
+
 export interface ShopSeoEn {
   title: string
   description: string
@@ -111,4 +114,20 @@ export const SHOP_INVOICE_LABEL_EN: Readonly<Record<'mobile_barcode' | 'citizen_
 /** 英文頁上，後端 `?lang=en` 逐欄位回退時沒有 `isFallbackLocale` 旗標的內容（商店入口與政策）：偵測是否含漢字，有就視為繁中備援。 */
 export function shopHasCjk(...values: Array<string | null | undefined>): boolean {
   return values.some(v => typeof v === 'string' && /[㐀-鿿]/.test(v))
+}
+
+// ---------------------------------------------------------------------------
+// 藍鯨（bw）英文版（B-5，2026-10-05）
+// 藍鯨變體命名：用「club 參數」而非另開一組 `_BW` 常數——本檔的函式都已吃 `club` 名稱字串，
+// 藍鯨只需要換名稱與少數藍鯨專屬句子。既有簽名與預設行為不變。
+// ---------------------------------------------------------------------------
+
+/** 英文版俱樂部簡稱：磐石 `Taichung Rock FC`、藍鯨 `Taichung Blue Whale`（B-5）。 */
+export function getShopClubNameEn(club: 'tcrfc' | 'bw'): string {
+  return club === 'bw' ? BW_NAME_EN : CLUB_NAME_EN
+}
+
+/** 麵包屑「俱樂部文化」英文標籤（磐石 `TCRFC Culture`、藍鯨 `Taichung Blue Whale Culture`）。 */
+export function getShopCultureLabelEn(club: 'tcrfc' | 'bw'): string {
+  return club === 'bw' ? `${BW_NAME_EN} Culture` : 'TCRFC Culture'
 }

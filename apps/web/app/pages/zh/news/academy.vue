@@ -6,10 +6,11 @@
 // `academy`，這個分類目前必然是 0 篇——跟 mockup 原本的「空狀態頁面」文案一致，
 // 差別只在於現在是「真的查詢後發現 0 篇」，不是寫死的假設。沒有 NewsFilterForm（比照
 // app/components/news/NewsFilterForm.vue 檔頭既有慣例：資料量太少不需要年月／關鍵字篩選）。
-definePageMeta({ nav: "news", unit: "07", enReady: true })
+definePageMeta({ nav: "news", unit: "07", enReady: true, enReadyBw: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
+const clubKey: 'tcrfc' | 'bw' = club === 'bw' ? 'bw' : 'tcrfc'
 const { locale, lp, isEn, tx } = useLocale()
 const { data } = await useFetch(`/api/backend/${club}/news`, {
   query: { category: 'academy', pageSize: 200, lang: locale.value },
@@ -21,11 +22,11 @@ const articles = computed(() => data.value?.items ?? [])
 // 一律稱「青年隊」；分類導覽改用共用元件 NewsCategoryTabs（原本手刻複製一份，該元件
 // 本輪已改為依俱樂部動態組字，見 app/components/news/NewsCategoryTabs.vue）。
 const identity = computed(() => getClubIdentity(club))
-const categoryLabelZh = computed(() => (isEn.value ? NEWS_CATEGORY_EN.academy!.label : `${identity.value.academyShortLabelZh}新聞`))
+const categoryLabelZh = computed(() => (isEn.value ? newsCategoryBareLabelEn('academy', clubKey) ?? '' : `${identity.value.academyShortLabelZh}新聞`))
 
 useSeoMeta({
-  title: computed(() => isEn.value ? getNewsCategorySeoEn('academy', null).title : `${categoryLabelZh.value} Academy News｜新聞 News｜${getClubAssets(club).nameZh}`),
-  description: computed(() => isEn.value ? getNewsCategorySeoEn('academy', null).description : (club === 'bw'
+  title: computed(() => isEn.value ? getNewsCategorySeoEn('academy', null, clubKey).title : `${categoryLabelZh.value} Academy News｜新聞 News｜${getClubAssets(club).nameZh}`),
+  description: computed(() => isEn.value ? getNewsCategorySeoEn('academy', null, clubKey).description : (club === 'bw'
     ? '台中藍鯨青年隊動態與各梯隊消息，內容尚待客戶提供，目前為空狀態頁面。'
     : '台中磐石足球學院動態與各梯隊消息，內容尚待客戶提供，目前為空狀態頁面。')),
 })
@@ -45,9 +46,9 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-news.jpg')" width="1920" height="1279" />
   <div class="container">
-    <p class="page-hero__eyebrow">7.3 Academy News</p>
+    <p class="page-hero__eyebrow">{{ isEn ? newsCategoryTabLabelEn('academy', clubKey) : '7.3 Academy News' }}</p>
     <h1>{{ categoryLabelZh }}<span v-if="!isEn" class="en">Academy News</span></h1>
-    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('academy').lede }}</p>
+    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('academy', clubKey).lede }}</p>
     <p v-else-if="club !== 'bw'" class="page-hero__lede">台中磐石足球學院各梯隊的訓練動態與成長紀錄，內容陸續建置中。</p>
     <p v-else class="page-hero__lede">台中藍鯨青年隊各梯隊的訓練動態與成長紀錄，內容陸續建置中。</p>
   </div>

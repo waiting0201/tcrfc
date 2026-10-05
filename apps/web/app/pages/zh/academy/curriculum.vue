@@ -5,19 +5,20 @@
 // 會直接顯示磐石內容，屬於既有缺口，見 units.ts 檔頭說明）。本頁全部既有內容都是
 // 「準備中」通用佔位文字，沒有磐石專屬真實事實，改為兩俱樂部共用同一份文案（只換
 // 抬頭與 CTA 連結），不需要臆造新內容。
-definePageMeta({ nav: "academy", unit: "4.4", enReady: true })
+definePageMeta({ nav: "academy", unit: "4.4", enReady: true, enReadyBw: true })
 
 const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const academyCrumb = computed(() => (isEn.value ? getAcademyUnitLabelEn(clubKey.value) : identity.value.academyLabelZh))
 
 useSeoMeta({
-  title: computed(() => (isEn.value ? getAcademyCurriculumSeoEn() : getAcademyCurriculumSeo(clubKey.value)).title),
-  description: computed(() => (isEn.value ? getAcademyCurriculumSeoEn() : getAcademyCurriculumSeo(clubKey.value)).description),
+  title: computed(() => (isEn.value ? getAcademyCurriculumSeoEn(clubKey.value) : getAcademyCurriculumSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getAcademyCurriculumSeoEn(clubKey.value) : getAcademyCurriculumSeo(clubKey.value)).description),
 })
-const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn() : getAcademyCurriculumHero(clubKey.value)))
+const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn(clubKey.value) : getAcademyCurriculumHero(clubKey.value)))
 </script>
 
 <template>
@@ -25,7 +26,7 @@ const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn() : getAcad
   <div class="container">
     <ol>
       <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
-      <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
+      <li><a :href="lp('/zh/academy/')">{{ academyCrumb }}</a></li>
       <li aria-current="page">{{ tx('訓練課程與課綱', 'Training & Curriculum') }}</li>
     </ol>
   </div>
@@ -116,8 +117,8 @@ const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn() : getAcad
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/academy/pathway/')">
         <span class="cta-card__num">4.3</span>
-        <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '發展路徑', 'Academy Pathway') }}</span>
-        <p class="cta-card__desc">{{ tx(isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑', 'The pathway from U12 to the First Team and overseas') }}</p>
+        <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '發展路徑', isTcrfc ? 'Academy Pathway' : 'Youth Pathway') }}</span>
+        <p class="cta-card__desc">{{ tx(isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑', isTcrfc ? 'The pathway from U12 to the First Team and overseas' : 'The pathway from U12 to the First Team') }}</p>
       </a>
       <!-- BW-C1：4.5 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
       <a class="cta-card" :href="lp('/zh/academy/coaches/')">
