@@ -58,6 +58,7 @@
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
 | [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖、協會立案證書。**不納版控**（客戶資產且含個資，GitHub repo 是公開的），clone 下來不會有這個資料夾 | 客戶提供素材 |
 | [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) | 給客戶放既有檔案的分類結構（83 個資料夾，對應 13 單元） | 內容收件 |
+| [`藍鯨_資料收件夾/`](藍鯨_資料收件夾/) | **台中藍鯨**的收件結構（68 個資料夾，編號同主站、不設 06／11、08 自 8.2 起），見 [`docs/07`](docs/07-content-pipeline.md) §2.1 | 內容收件 |
 | [`content/`](content/) | 抽出的結構化資料：2026/27 企甲賽程、舊官網 128 筆 URL 盤點 | 抽取產物 |
 | `.wrangler/` | Cloudflare Pages 部署快取 | 工具產生，勿手動改 |
 
@@ -110,7 +111,7 @@
 4. **所有前台可見的內容型別都要有 `zh` / `en` 雙欄位**，英文可空但欄位必須存在。
 5. **`noindex` 不要拿掉**（[`site/src/_headers`](site/src/_headers)），正式站上線前它不該被索引。
 6. **版控範圍**（`.gitignore` 有完整註解）：
-   - **不納管**：[`TCRFC_資料收件夾/`](TCRFC_資料收件夾/)、`reference/`、`site/src/assets/img/`、`output/*.pdf`、產生的 `.html`
+   - **不納管**：[`TCRFC_資料收件夾/`](TCRFC_資料收件夾/)、[`藍鯨_資料收件夾/`](藍鯨_資料收件夾/)、`reference/`、`site/src/assets/img/`、`output/*.pdf`、產生的 `.html`
    - **納管**：規劃書與客戶版母檔、里程碑母檔、`output/tools/`、[`docs/`](docs/)、[`db/`](db/)、[`brand/`](brand/)、[`site/src/`](site/src/) 其餘部分
    - **兩個 remote 內容相同**：`Remote_GitHub`（公開）與 `Remote_NAS`（離線備份）。未納管的素材備份走 NAS 的檔案層
    - **覆寫或刪除未納管的內容前先看過，git 救不回來**

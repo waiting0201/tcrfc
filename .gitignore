@@ -4,6 +4,8 @@
 # 結構若有調整，請改用 docs/07-content-pipeline.md 記錄，不要提交資料夾本身。
 TCRFC_資料收件夾/
 TCRFC_資料收件夾.zip
+藍鯨_資料收件夾/
+藍鯨_資料收件夾.zip
 
 # 打包產物（收件夾 zip 會隨結構調整重新產生）
 *.zip

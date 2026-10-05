@@ -3,6 +3,8 @@
 > 對應 [`07-content-pipeline.md`](07-content-pipeline.md) §3 階段一。
 > 掃描時間：2026-09-01。來源：[`../TCRFC_資料收件夾/`](../TCRFC_資料收件夾/)
 > **重掃方式**：本檔為快照，客戶補件後需重跑盤點並更新。
+> **範圍只有磐石。** 台中藍鯨另有一份收件夾 [`../藍鯨_資料收件夾/`](../藍鯨_資料收件夾/)（2026-10-05 建立，結構見 [`07`](07-content-pipeline.md) §2.1）；
+> 藍鯨舊站的既有素材盤點在 [`../content/blue-whale/gap-analysis.md`](../content/blue-whale/gap-analysis.md)，不在本檔。
 
 ---
 
