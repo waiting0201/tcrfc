@@ -10,7 +10,7 @@ import type { PagedResponse } from '#shared/utils/api-types'
 import type { CoreValueDto } from '#shared/utils/core-values'
 import type { ShopProductListItem } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'home', unit: '01', bodyClass: 'page-home' })
+definePageMeta({ nav: 'home', unit: '01', bodyClass: 'page-home', enReady: true })
 
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：SEO、Hero 標語與
 // 底下幾個「真人真事」區塊（賽事戰績、球員名單、新聞、商店實拍照）分屬 shared/
@@ -25,19 +25,22 @@ const assets = computed(() => getClubAssets(clubKey.value))
 // 事實，club-copy.ts 已改為工廠函式，改讀 useSiteFacts(club) 取得的 facts（單一來源，
 // 見 shared/utils/club-copy.ts 檔頭說明）。
 const { facts: siteFacts } = useSiteFacts(clubKey.value)
-const heroCopy = computed(() => getHomeHero(clubKey.value, siteFacts.value))
-const pillars = computed(() => HOME_PILLARS[clubKey.value])
-const ctaTrio = computed(() => getHomeCtaTrio(clubKey.value, siteFacts.value))
+// 英文版（主站 /en/）：文案取自 shared/utils/club-copy-en-core.ts（只回 tcrfc 英文值）。
+const heroCopy = computed(() => (isEn.value ? getHomeHeroEn(siteFacts.value) : getHomeHero(clubKey.value, siteFacts.value)))
+const pillars = computed(() => (isEn.value ? HOME_PILLARS_EN : HOME_PILLARS[clubKey.value]))
+const ctaTrio = computed(() => (isEn.value ? getHomeCtaTrioEn() : getHomeCtaTrio(clubKey.value, siteFacts.value)))
+// 對陣雙方與球員橫幅上的「我方」名稱：英文版用英文俱樂部名稱。
+const clubName = computed(() => (isEn.value ? CLUB_NAME_EN : assets.value.nameZh))
 
 // S1-13：club-copy.ts 裡的 ctaPrimaryHref／pillars[].href／ctaTrio[].href 三組欄位存的是
 // 「裸的 /zh/... 路徑」（該檔案的資料格式一律如此，不隨語系變化），樣板消費這些欄位時要
 // 套一層 lp() 換算成目前路由語系——這裡是本輪 curl 實測時抓到的真實回歸（英文首頁的三個
 // CTA 連結原本會把讀者導回 /zh/...），修法見下方樣板三處呼叫點。
-const { locale, lp } = useLocale()
+const { locale, lp, isEn, tx } = useLocale()
 
 useSeoMeta({
-  title: computed(() => getHomeSeo(clubKey.value, siteFacts.value).title),
-  description: computed(() => getHomeSeo(clubKey.value, siteFacts.value).description),
+  title: computed(() => (isEn.value ? getHomeSeoEn(siteFacts.value) : getHomeSeo(clubKey.value, siteFacts.value)).title),
+  description: computed(() => (isEn.value ? getHomeSeoEn(siteFacts.value) : getHomeSeo(clubKey.value, siteFacts.value)).description),
 })
 
 // Organization JSON-LD（GEO-05／S1-12f）。首頁是最適合放站台層級 Organization 結構化資料的
@@ -124,9 +127,9 @@ interface HeroSlide {
 }
 /** 既有 3 張真實照片（tcrfc 既有素材，S0-9 搬遷保留），banners 沒有可用資料時的回退。 */
 const STATIC_TCRFC_HERO_SLIDES: HeroSlide[] = [
-  { kind: 'image', imageUrl: siteImg('/assets/img/hero-01.jpg'), videoUrl: '', alt: '台中磐石球員於夜間賽事中振臂吶喊慶祝，場邊看板可見桃紅色 TCRFC 字樣', width: 2400, height: 1600, objectPosition: '58% 35%' },
-  { kind: 'image', imageUrl: siteImg('/assets/img/hero-02.jpg'), videoUrl: '', alt: '台中磐石5號球員於夜間賽事中揮腳觸球，身後可見場邊看台的球員與觀眾', width: 2400, height: 1600, objectPosition: '56% 30%' },
-  { kind: 'image', imageUrl: siteImg('/assets/img/hero-03.jpg'), videoUrl: '', alt: '台中磐石一線隊球員賽前肩併肩圍成一圈，互相激勵士氣', width: 2400, height: 1600, objectPosition: '55% 42%' },
+  { kind: 'image', imageUrl: siteImg('/assets/img/hero-01.jpg'), videoUrl: '', alt: tx('台中磐石球員於夜間賽事中振臂吶喊慶祝，場邊看板可見桃紅色 TCRFC 字樣', 'A Taichung Rock FC player celebrates with raised arms in a night match, with a pink TCRFC sign visible on the advertising boards'), width: 2400, height: 1600, objectPosition: '58% 35%' },
+  { kind: 'image', imageUrl: siteImg('/assets/img/hero-02.jpg'), videoUrl: '', alt: tx('台中磐石5號球員於夜間賽事中揮腳觸球，身後可見場邊看台的球員與觀眾', 'Taichung Rock FC number 5 strikes the ball in a night match, with players and spectators in the stand behind'), width: 2400, height: 1600, objectPosition: '56% 30%' },
+  { kind: 'image', imageUrl: siteImg('/assets/img/hero-03.jpg'), videoUrl: '', alt: tx('台中磐石一線隊球員賽前肩併肩圍成一圈，互相激勵士氣', 'Taichung Rock FC first team players stand shoulder to shoulder in a circle before kick-off, lifting each other\'s spirits'), width: 2400, height: 1600, objectPosition: '55% 42%' },
 ]
 /** 只收「真的有完整網址可用」的輪播——image 模式要有 imageUrl；video 模式要海報圖與影片
  * 網址皆有，缺一律整則跳過，不得對缺欄位的資料猜網址（比不顯示更糟的是顯示壞圖）。 */
@@ -218,8 +221,9 @@ function resultMetaLine(m: HomeMatch): string {
 function fixtureMetaLine(m: HomeMatch): string {
   const [, mo, d] = m.matchOn.split('-')
   const wd = matchWeekday(m.matchOn).zh
-  const haLabel = m.homeAway === 'AWAY' ? '客場' : m.homeAway === 'HOME' ? '主場' : ''
-  return [m.competitionName ?? '', `${Number(mo)}/${Number(d)}（${wd}）`, haLabel].filter(Boolean).join(' · ')
+  const haLabel = m.homeAway === 'AWAY' ? tx('客場', 'Away') : m.homeAway === 'HOME' ? tx('主場', 'Home') : ''
+  const dateLabel = isEn.value ? `${Number(mo)}/${Number(d)} (${matchWeekday(m.matchOn).en})` : `${Number(mo)}/${Number(d)}（${wd}）`
+  return [m.competitionName ?? '', dateLabel, haLabel].filter(Boolean).join(' · ')
 }
 
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000
@@ -276,6 +280,10 @@ const AUTOPLAY_MS = 4400
 
 const total = computed(() => heroSlides.value.length)
 let current = 0
+// 🔴 指示器（dots）的「目前張」必須是響應式狀態：`current` 是供動畫用的一般變數、不會觸發重繪，
+// 原本 dots 的 `is-active` 在樣板裡寫死 `i === 0`，輪播切換後粉紅指示器永遠停在第一顆。
+// 所有換張路徑（自動播放、箭頭、點指示器、滑動）都經 `goTo()`／`swapInstant()`，在那裡同步 `activeIndex`。
+const activeIndex = ref(0)
 let isAnimating = false
 let timer: ReturnType<typeof setInterval> | null = null
 let reduceMQ: MediaQueryList | null = null
@@ -286,7 +294,7 @@ function reduced() {
 
 function updateControls() {
   if (statusEl.value) {
-    statusEl.value.textContent = `目前顯示第 ${current + 1} 張，共 ${total.value} 張`
+    statusEl.value.textContent = tx(`目前顯示第 ${current + 1} 張，共 ${total.value} 張`, `Showing slide ${current + 1} of ${total.value}`)
   }
 }
 
@@ -296,6 +304,7 @@ function swapInstant(index: number) {
   slideEls.value[index]?.classList.add('is-active')
   slideEls.value[index]?.removeAttribute('aria-hidden')
   current = index
+  activeIndex.value = index
   updateControls()
 }
 
@@ -398,6 +407,7 @@ function goTo(index: number) {
   if (t === 0) return
   const next = ((index % t) + t) % t
   if (next === current || isAnimating) return
+  activeIndex.value = next // 指示器在轉場開始時就跟著走，不等動畫結束
   if (reduced()) swapInstant(next)
   else animateSwap(next)
 }
@@ -425,6 +435,25 @@ function onReduceMotionChange() {
   if (reduced()) stopAutoplay()
   else resumeAutoplay()
 }
+// 觸控滑動：水平位移 ≥ 50px 且大於垂直位移才換張（不吃掉頁面的垂直捲動）；左滑＝下一張。
+let touchX = 0
+let touchY = 0
+function onTouchStart(e: TouchEvent) {
+  const t = e.touches[0]
+  if (!t) return
+  touchX = t.clientX
+  touchY = t.clientY
+  pauseForInteraction()
+}
+function onTouchEnd(e: TouchEvent) {
+  const t = e.changedTouches[0]
+  if (t) {
+    const dx = t.clientX - touchX
+    const dy = t.clientY - touchY
+    if (Math.abs(dx) >= 50 && Math.abs(dx) > Math.abs(dy)) goTo(current + (dx < 0 ? 1 : -1))
+  }
+  resumeAutoplay()
+}
 function onHeroFocusout(e: FocusEvent) {
   if (!heroSectionEl.value?.contains(e.relatedTarget as Node)) resumeAutoplay()
 }
@@ -438,6 +467,8 @@ onMounted(() => {
   heroSectionEl.value?.addEventListener('mouseleave', resumeAutoplay)
   heroSectionEl.value?.addEventListener('focusin', pauseForInteraction)
   heroSectionEl.value?.addEventListener('focusout', onHeroFocusout)
+  heroSectionEl.value?.addEventListener('touchstart', onTouchStart, { passive: true })
+  heroSectionEl.value?.addEventListener('touchend', onTouchEnd, { passive: true })
   reduceMQ.addEventListener('change', onReduceMotionChange)
 
   updateControls()
@@ -450,22 +481,26 @@ onBeforeUnmount(() => {
   heroSectionEl.value?.removeEventListener('mouseleave', resumeAutoplay)
   heroSectionEl.value?.removeEventListener('focusin', pauseForInteraction)
   heroSectionEl.value?.removeEventListener('focusout', onHeroFocusout)
+  heroSectionEl.value?.removeEventListener('touchstart', onTouchStart)
+  heroSectionEl.value?.removeEventListener('touchend', onTouchEnd)
 })
 </script>
 
 <template>
-  <section v-if="isSectionEnabled('hero')" ref="heroSectionEl" class="hero" id="top" aria-label="首頁主視覺">
-    <div v-if="heroSlides.length > 0" ref="sliderEl" class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" :aria-label="`首頁主視覺輪播，共 ${heroSlides.length} 張`">
+  <!-- 英文版：新聞、球員、夥伴名稱等 API 內容若有後端回的繁中備援，於頁面頂端提示（版面文字已全數英文）。 -->
+  <LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(newsData) || hasFallbackLocale(rosterData) || hasFallbackLocale(homePartners))" partial />
+  <section v-if="isSectionEnabled('hero')" ref="heroSectionEl" class="hero" id="top" :aria-label="tx('首頁主視覺', 'Homepage hero')">
+    <div v-if="heroSlides.length > 0" ref="sliderEl" class="hero__media" id="hero-slider" role="group" aria-roledescription="carousel" :aria-label="tx(`首頁主視覺輪播，共 ${heroSlides.length} 張`, `Homepage hero carousel, ${heroSlides.length} slides`)">
       <ul class="hero__slides">
         <li
           v-for="(slide, i) in heroSlides"
           :key="`${slide.kind}-${slide.imageUrl}-${i}`"
           class="hero__slide"
-          :class="{ 'is-active': i === 0 }"
+          :class="{ 'is-active': i === activeIndex }"
           :aria-hidden="i === 0 ? undefined : 'true'"
           role="group"
           aria-roledescription="slide"
-          :aria-label="`第 ${i + 1} 張，共 ${heroSlides.length} 張`"
+          :aria-label="tx(`第 ${i + 1} 張，共 ${heroSlides.length} 張`, `Slide ${i + 1} of ${heroSlides.length}`)"
         >
           <video v-if="slide.kind === 'video'" :poster="slide.imageUrl" :width="slide.width" :height="slide.height" muted loop playsinline autoplay preload="metadata">
             <source :src="slide.videoUrl" type="video/mp4">
@@ -482,7 +517,7 @@ onBeforeUnmount(() => {
           >
         </li>
       </ul>
-      <p ref="statusEl" class="visually-hidden" id="hero-slide-status" aria-live="off" aria-atomic="true">{{ `目前顯示第 1 張，共 ${heroSlides.length} 張` }}</p>
+      <p ref="statusEl" class="visually-hidden" id="hero-slide-status" aria-live="off" aria-atomic="true">{{ tx(`目前顯示第 1 張，共 ${heroSlides.length} 張`, `Showing slide 1 of ${heroSlides.length}`) }}</p>
     </div>
     <!-- 沒有可用的輪播素材時（藍鯨首頁 hero 圖未下載、無授權狀態，content/blue-whale/
          gap-analysis.md §2；或 banners 資料表暫無資料）改用純色塊，不沿用磐石的照片頂替
@@ -498,7 +533,7 @@ onBeforeUnmount(() => {
             <h1 class="hero__headline" v-html="heroCopy.headlineZh"></h1>
             <p class="hero__sub" v-html="heroCopy.factLineZh"></p>
             <div class="hero__ctas">
-              <a class="btn btn--primary" :href="primaryCta ? primaryCta.href : lp(heroCopy.ctaPrimaryHref)">{{ primaryCta ? primaryCta.label : '加入球隊' }}</a>
+              <a class="btn btn--primary" :href="primaryCta ? primaryCta.href : lp(heroCopy.ctaPrimaryHref)">{{ primaryCta ? primaryCta.label : tx('加入球隊', HOME_JOIN_LABEL_EN) }}</a>
               <a class="btn btn--light" :href="lp(heroCopy.ctaSecondaryHref)">{{ heroCopy.ctaSecondaryLabelZh }}</a>
             </div>
             <div v-if="heroSlides.length > 1" class="hero__slider-nav">
@@ -511,9 +546,9 @@ onBeforeUnmount(() => {
                   :key="`dot-${slide.imageUrl}-${i}`"
                   type="button"
                   class="hero__dot"
-                  :class="{ 'is-active': i === 0 }"
+                  :class="{ 'is-active': i === activeIndex }"
                   role="tab"
-                  :aria-selected="i === 0 ? 'true' : 'false'"
+                  :aria-selected="i === activeIndex ? 'true' : 'false'"
                   aria-controls="hero-slider"
                   :aria-label="`第 ${i + 1} 張，共 ${heroSlides.length} 張`"
                   :data-hero-goto="i"
@@ -542,20 +577,20 @@ onBeforeUnmount(() => {
             <template v-else>
             <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
-                <img :src="siteImg('/assets/img/news-trencin.jpg')" alt="台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流" loading="lazy" width="1280" height="853">
+                <img :src="siteImg('/assets/img/news-trencin.jpg')" :alt="tx('台中磐石青訓球員與斯洛伐克 AS Trenčín 球員合影交流', 'Taichung Rock FC youth players pose for a group photo with players from AS Trenčín of Slovakia')" loading="lazy" width="1280" height="853">
               </div>
               <div class="hero-card__body">
-                <span class="hero-card__tag">消息 News</span>
-                <span class="hero-card__title">台中磐石與 AS Trenčín 深化青訓合作</span>
+                <span class="hero-card__tag">{{ tx('消息 News', 'News') }}</span>
+                <span class="hero-card__title">{{ tx('台中磐石與 AS Trenčín 深化青訓合作', 'Taichung Rock FC and AS Trenčín deepen youth development cooperation') }}</span>
               </div>
             </a>
             <a class="hero-card clip-card clip-card--on-dark" :href="lp('/zh/news/')">
               <div class="hero-card__media">
-                <img :src="siteImg('/assets/img/news-mcu.jpg')" alt="台中磐石 7 號球員於夜間比賽中盤球突破銘傳大學白色球衣防線" loading="lazy" width="1280" height="855">
+                <img :src="siteImg('/assets/img/news-mcu.jpg')" :alt="tx('台中磐石 7 號球員於夜間比賽中盤球突破銘傳大學白色球衣防線', 'Taichung Rock FC number 7 dribbles past the white-shirted Ming Chuan University defence in a night match')" loading="lazy" width="1280" height="855">
               </div>
               <div class="hero-card__body">
-                <span class="hero-card__tag">比賽 Matches</span>
-                <span class="hero-card__title">企甲聯賽：台中磐石 3-0 銘傳大學</span>
+                <span class="hero-card__tag">{{ tx('比賽 Matches', 'Matches') }}</span>
+                <span class="hero-card__title">{{ tx('企甲聯賽：台中磐石 3-0 銘傳大學', 'League match: Taichung Rock FC 3-0 Ming Chuan University') }}</span>
               </div>
             </a>
             </template>
@@ -579,14 +614,14 @@ onBeforeUnmount(() => {
       <div class="eyebrow-row">
         <div>
           <p class="kicker kicker--on-dark">MATCHDAY</p>
-          <h2 class="section-title" id="schedule-title">賽事行事曆</h2>
+          <h2 class="section-title" id="schedule-title">{{ tx('賽事行事曆', 'Schedule') }}</h2>
         </div>
       </div>
 
       <!-- 隊伍等級 chips：藍鯨青年隊只有 U15／U12（無 U14，見 db/seed 藍鯨隊伍名單），
            U14 chip 只在磐石顯示，不對藍鯨顯示不存在的隊別。 -->
-      <div class="team-chips" role="group" aria-label="選擇隊伍等級">
-        <button class="team-chip" type="button" :data-team="firstTeamCode" :aria-pressed="teamPanel === 'D1'" @click="teamPanel = 'D1'">一線隊 First Team</button>
+      <div class="team-chips" role="group" :aria-label="tx('選擇隊伍等級', 'Select a team')">
+        <button class="team-chip" type="button" :data-team="firstTeamCode" :aria-pressed="teamPanel === 'D1'" @click="teamPanel = 'D1'">{{ tx('一線隊 First Team', 'First Team') }}</button>
         <button class="team-chip" type="button" data-team="U15" :aria-pressed="teamPanel === 'other'" @click="teamPanel = 'other'">U15</button>
         <button v-if="isTcrfc" class="team-chip" type="button" data-team="U14" :aria-pressed="false" @click="teamPanel = 'other'">U14</button>
         <button class="team-chip" type="button" data-team="U12" :aria-pressed="false" @click="teamPanel = 'other'">U12</button>
@@ -594,40 +629,40 @@ onBeforeUnmount(() => {
 
       <div v-if="isSectionEnabled('upcoming_match')" class="match-grid" id="match-grid-d1" data-team-panel="D1" :hidden="teamPanel !== 'D1'">
         <article v-if="latestResult" class="match-card">
-          <div class="match-card__label"><span>最新戰績 LATEST RESULT</span></div>
+          <div class="match-card__label"><span>{{ tx('最新戰績 LATEST RESULT', 'LATEST RESULT') }}</span></div>
           <p class="match-card__meta">{{ resultMetaLine(latestResult) }}</p>
           <div class="match-card__fixture">
-            <span class="match-card__team">{{ assets.nameZh }}</span>
+            <span class="match-card__team">{{ clubName }}</span>
             <span class="match-card__score">{{ clubScore(latestResult) }}<span class="sep">:</span>{{ opponentScore(latestResult) }}</span>
             <span class="match-card__team match-card__team--away">{{ latestResult.opponent }}</span>
           </div>
         </article>
         <article v-else class="match-card match-card--placeholder">
-          <p>尚無已完賽數據，敬請鎖定近期賽事。</p>
+          <p>{{ tx('尚無已完賽數據，敬請鎖定近期賽事。', 'No completed matches yet. Stay tuned for upcoming fixtures.') }}</p>
         </article>
 
         <article v-if="previousResult" class="match-card">
-          <div class="match-card__label"><span>上一場 PREVIOUS</span></div>
+          <div class="match-card__label"><span>{{ tx('上一場 PREVIOUS', 'PREVIOUS') }}</span></div>
           <p class="match-card__meta">{{ resultMetaLine(previousResult) }}</p>
           <div class="match-card__fixture">
-            <span class="match-card__team">{{ assets.nameZh }}</span>
+            <span class="match-card__team">{{ clubName }}</span>
             <span class="match-card__score">{{ clubScore(previousResult) }}<span class="sep">:</span>{{ opponentScore(previousResult) }}</span>
             <span class="match-card__team match-card__team--away">{{ previousResult.opponent }}</span>
           </div>
         </article>
 
         <article v-if="nextFixture" class="match-card match-card--next">
-          <div class="match-card__label"><span>下一場 NEXT FIXTURE</span></div>
+          <div class="match-card__label"><span>{{ tx('下一場 NEXT FIXTURE', 'NEXT FIXTURE') }}</span></div>
           <p class="match-card__meta">{{ fixtureMetaLine(nextFixture) }}</p>
           <div class="match-card__fixture">
-            <span class="match-card__team">{{ assets.nameZh }}</span>
+            <span class="match-card__team">{{ clubName }}</span>
             <span class="match-card__vs">VS</span>
             <span class="match-card__team match-card__team--away">{{ nextFixture.opponent }}</span>
           </div>
-          <p class="match-card__scorers">{{ nextFixture.venue }}　賽程以官方公告為準</p>
+          <p class="match-card__scorers">{{ nextFixture.venue }}{{ tx('　賽程以官方公告為準', ' · Fixtures are subject to official announcements') }}</p>
         </article>
         <article v-else class="match-card match-card--placeholder">
-          <p>下一場賽程尚未公告，敬請關注後續公告。</p>
+          <p>{{ tx('下一場賽程尚未公告，敬請關注後續公告。', 'The next fixture has not been announced yet. Please check back for updates.') }}</p>
         </article>
       </div>
 
@@ -636,19 +671,19 @@ onBeforeUnmount(() => {
           <div class="match-card__label"><span>{{ m.teamCode }}</span></div>
           <p class="match-card__meta">{{ fixtureMetaLine(m) }}</p>
           <div class="match-card__fixture">
-            <span class="match-card__team">{{ assets.nameZh }}</span>
+            <span class="match-card__team">{{ clubName }}</span>
             <span class="match-card__vs">VS</span>
             <span class="match-card__team match-card__team--away">{{ m.opponent }}</span>
           </div>
         </article>
         <div v-if="otherTeamUpcoming.length === 0" class="match-card match-card--placeholder">
-          <p>青訓梯隊賽程尚未公開發布，敬請關注後續公告。</p>
+          <p>{{ tx('青訓梯隊賽程尚未公開發布，敬請關注後續公告。', 'Academy age-group fixtures have not been published yet. Please check back for updates.') }}</p>
         </div>
       </div>
 
       <div class="match-band__actions">
-        <a class="btn btn--light" :href="lp('/zh/schedule/')">查看完整行事曆</a>
-        <a class="btn btn--light" :href="lp('/zh/schedule/')">訂閱一線隊賽程 (.ics)</a>
+        <a class="btn btn--light" :href="lp('/zh/schedule/')">{{ tx('查看完整行事曆', 'View Full Schedule') }}</a>
+        <a class="btn btn--light" :href="lp('/zh/schedule/')">{{ tx('訂閱一線隊賽程 (.ics)', 'Subscribe to First Team Fixtures (.ics)') }}</a>
       </div>
     </div>
   </section>
@@ -660,17 +695,17 @@ onBeforeUnmount(() => {
     <div class="band-inner container">
       <div class="roster-strip">
         <div class="roster-strip__head">
-          <h3 id="roster-strip-title">一線隊球員 FIRST TEAM</h3>
-          <a :href="lp('/zh/club/first-team/')">查看完整名單 →</a>
+          <h3 id="roster-strip-title">{{ tx('一線隊球員 FIRST TEAM', 'FIRST TEAM') }}</h3>
+          <a :href="lp('/zh/club/first-team/')">{{ tx('查看完整名單 →', 'View the full squad →') }}</a>
         </div>
         <div class="roster-row">
           <div v-for="p in rosterStrip" :key="p.id" class="roster-card">
             <div class="roster-card__photo">
               <span v-if="p.shirtNo != null" class="roster-card__num">{{ p.shirtNo }}</span>
-              <img v-if="p.photoUrl" :src="p.photoUrl" :alt="`${p.shirtNo != null ? `${p.shirtNo} 號球員 ` : ''}${p.name}`" loading="lazy" width="620" height="620">
+              <img v-if="p.photoUrl" :src="p.photoUrl" :alt="`${p.shirtNo != null ? tx(`${p.shirtNo} 號球員 `, `Player ${p.shirtNo}: `) : ''}${p.name}`" loading="lazy" width="620" height="620">
               <img v-else class="roster-card__crest" :src="assets.headerMark.src" alt="" loading="lazy" width="64" height="67">
             </div>
-            <p class="roster-card__name">{{ p.shirtNo != null ? `#${p.shirtNo} ` : '' }}{{ p.name }}{{ p.position ? `　${p.position}` : '' }}</p>
+            <p class="roster-card__name">{{ p.shirtNo != null ? `#${p.shirtNo} ` : '' }}{{ p.name }}{{ p.position ? `${tx('　', ' · ')}${p.position}` : '' }}</p>
           </div>
         </div>
       </div>
@@ -686,19 +721,20 @@ onBeforeUnmount(() => {
       <div class="eyebrow-row">
         <div>
           <p class="kicker">OUR MISSION</p>
-          <h2 class="section-title" id="values-title">透過專業模式<br>培育選手追求卓越</h2>
+          <h2 v-if="isEn" class="section-title" id="values-title">Developing players who pursue excellence<br>through a professional model</h2>
+          <h2 v-else class="section-title" id="values-title">透過專業模式<br>培育選手追求卓越</h2>
         </div>
-        <p class="section-lede">從台中出發：培育本土選手邁向職業、成為在地榮耀的來源，並以足球讓世界看見台灣。</p>
+        <p class="section-lede">{{ tx('從台中出發：培育本土選手邁向職業、成為在地榮耀的來源，並以足球讓世界看見台灣。', 'Starting from Taichung: developing local players for the professional game, becoming a source of local pride, and letting the world see Taiwan football through the sport.') }}</p>
       </div>
       <div class="values-grid">
         <div v-for="v in coreValues" :key="v.code" class="value-card">
           <p class="value-card__num">{{ v.num }}</p>
           <p class="value-card__en">{{ v.nameEn }}</p>
-          <p class="value-card__zh">{{ v.nameZh }}</p>
-          <p v-if="v.desc" class="value-card__desc">{{ v.desc }}</p>
+          <p v-if="!isEn" class="value-card__zh">{{ v.nameZh }}</p>
+          <p v-if="isEn ? CORE_VALUE_DESCRIPTIONS_EN[v.code] : v.desc" class="value-card__desc">{{ isEn ? CORE_VALUE_DESCRIPTIONS_EN[v.code] : v.desc }}</p>
         </div>
       </div>
-      <p v-if="coreValuesMore" class="sponsor-more"><a :href="lp(coreValuesMore)">了解足球理念與五大核心價值 →</a></p>
+      <p v-if="coreValuesMore" class="sponsor-more"><a :href="lp(coreValuesMore)">{{ tx('了解足球理念與五大核心價值 →', 'Learn about our football philosophy and five core values →') }}</a></p>
     </div>
   </section>
 
@@ -709,7 +745,7 @@ onBeforeUnmount(() => {
       <div class="eyebrow-row">
         <div>
           <p class="kicker kicker--on-dark">WHAT WE DO</p>
-          <h2 class="section-title" id="pillars-title">四大支柱</h2>
+          <h2 class="section-title" id="pillars-title">{{ tx('四大支柱', 'Four Pillars') }}</h2>
         </div>
       </div>
       <!-- 四大支柱圖卡的四張照片全是磐石素材（news-mcu／trencin-04／trencin-05／news-w20，含磐石球員、
@@ -740,9 +776,9 @@ onBeforeUnmount(() => {
       <div class="eyebrow-row">
         <div>
           <p class="kicker">LATEST STORIES</p>
-          <h2 class="section-title" id="news-title">最新消息</h2>
+          <h2 class="section-title" id="news-title">{{ tx('最新消息', 'Latest News') }}</h2>
         </div>
-        <a class="btn btn--dark btn--sm" :href="lp('/zh/news/')">所有新聞</a>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/news/')">{{ tx('所有新聞', 'All News') }}</a>
       </div>
 
       <div class="news-mosaic">
@@ -788,23 +824,23 @@ onBeforeUnmount(() => {
       <div class="store-band__grid">
         <div>
           <p class="kicker kicker--on-dark">TEAM UP IN STYLE</p>
-          <h2 class="section-title" id="store-title">官方商店</h2>
-          <p>{{ isTcrfc ? '主客場球衣、周邊配件與訓練服飾，穿上台中磐石桃紅，與球隊一起在場邊、場上同進退。' : `${assets.nameZh}官方商店，選購球隊商品，與球隊一起同進退。` }}</p>
-          <a class="btn btn--primary" :href="lp('/zh/shop/')">前往官方商店 SHOP</a>
-          <p class="store-band__fine">結帳以 LINE Pay 付款並開立電子發票。</p>
+          <h2 class="section-title" id="store-title">{{ tx('官方商店', 'Official Store') }}</h2>
+          <p>{{ isTcrfc ? tx('主客場球衣、周邊配件與訓練服飾，穿上台中磐石桃紅，與球隊一起在場邊、場上同進退。', 'Home and away shirts, accessories and training wear. Put on Taichung Rock FC pink and stand with the team, on the touchline and on the pitch.') : `${assets.nameZh}官方商店，選購球隊商品，與球隊一起同進退。` }}</p>
+          <a class="btn btn--primary" :href="lp('/zh/shop/')">{{ tx('前往官方商店 SHOP', 'Visit the Official Store') }}</a>
+          <p class="store-band__fine">{{ tx('結帳以 LINE Pay 付款並開立電子發票。', 'Pay with LINE Pay at checkout; an electronic invoice is issued.') }}</p>
         </div>
         <ul v-if="shopEntryProducts.length" class="sh-entry-grid">
           <li v-for="p in shopEntryProducts" :key="p.slug" class="sh-entry-card">
             <a :href="lp(`/zh/shop/${p.slug}/`)">
               <img v-if="p.imageThumbUrl || p.imageUrl" :src="(p.imageThumbUrl || p.imageUrl) ?? ''" :alt="p.name || ''" loading="lazy" width="320" height="320">
               <span class="sh-entry-card__name">{{ p.name || p.slug }}</span>
-              <span class="sh-entry-card__price">{{ formatPriceRange(p.priceMin, p.priceMax) ?? '暫無販售' }}</span>
+              <span class="sh-entry-card__price">{{ formatPriceRange(p.priceMin, p.priceMax) ?? tx('暫無販售', 'Currently unavailable') }}</span>
             </a>
           </li>
         </ul>
         <div v-else class="store-visual clip-card clip-card--on-dark">
-          <img :src="siteImg('/assets/img/player-09-liu.jpg')" alt="球員身著台中磐石主場球衣" loading="lazy" width="620" height="620">
-          <span class="store-visual__badge">台中磐石主場球衣</span>
+          <img :src="siteImg('/assets/img/player-09-liu.jpg')" :alt="tx('球員身著台中磐石主場球衣', 'A player wearing the Taichung Rock FC home shirt')" loading="lazy" width="620" height="620">
+          <span class="store-visual__badge">{{ tx('台中磐石主場球衣', 'Taichung Rock FC home shirt') }}</span>
         </div>
       </div>
     </div>
@@ -816,9 +852,9 @@ onBeforeUnmount(() => {
       <div class="eyebrow-row">
         <div>
           <p class="kicker">WITH THANKS TO</p>
-          <h2 class="section-title" id="partners-title">合作夥伴</h2>
+          <h2 class="section-title" id="partners-title">{{ tx('合作夥伴', 'Our Partners') }}</h2>
         </div>
-        <p class="section-lede">感謝以下夥伴支持{{ assets.nameZh }}的每一步成長。</p>
+        <p class="section-lede">{{ tx(`感謝以下夥伴支持${assets.nameZh}的每一步成長。`, `Thank you to the partners below for supporting every step of ${CLUB_NAME_EN}'s growth.`) }}</p>
       </div>
 
       <div v-if="homePartnerTiles.length" class="sponsor-grid">
@@ -830,7 +866,7 @@ onBeforeUnmount(() => {
           :href="lp('/zh/partners/our-partners/')"
         />
       </div>
-      <p v-if="homePartnerTiles.length" class="sponsor-more"><a :href="lp('/zh/partners/our-partners/')">查看全部合作夥伴 →</a></p>
+      <p v-if="homePartnerTiles.length" class="sponsor-more"><a :href="lp('/zh/partners/our-partners/')">{{ tx('查看全部合作夥伴 →', 'View all partners →') }}</a></p>
       <div v-else class="sponsor-grid" aria-hidden="true">
         <div v-for="n in 10" :key="n" class="sponsor-tile sponsor-tile--empty"></div>
       </div>
@@ -840,7 +876,7 @@ onBeforeUnmount(() => {
   <!-- SPEC 3.1 — Bottom CTA trio (10.1 / 10.2 / 10.5) -->
   <section v-if="isSectionEnabled('bottom_cta')" class="band grain cta-band" id="charity" aria-labelledby="cta-title">
     <div class="band-inner container">
-      <h2 class="visually-hidden" id="cta-title">加入{{ assets.shortNameZh }}</h2>
+      <h2 class="visually-hidden" id="cta-title">{{ tx(`加入${assets.shortNameZh}`, 'Join TCRFC') }}</h2>
       <div class="cta-grid">
         <div v-for="card in ctaTrio" :key="card.num" class="cta-card">
           <p class="cta-card__num">{{ card.num }}</p>

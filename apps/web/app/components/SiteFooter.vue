@@ -18,13 +18,14 @@ import { menuItemHref, type PublicMenuItem } from '#shared/utils/site-settings'
 const config = useRuntimeConfig()
 const club = computed(() => config.public.club)
 const assets = computed(() => getClubAssets(club.value))
-const identity = computed(() => getClubIdentity(club.value))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(club.value)))
+const clubShortName = computed(() => (isEn.value ? CLUB_NAME_EN : assets.value.shortNameZh))
 const showWomens = computed(() => isUnitEnabledForClub('06', club.value))
 const showCharity = computed(() => isUnitEnabledForClub('11', club.value))
 
 // 頁尾導覽連結（本檔 19 處 href）一律用 lp() 換算成目前語系版本（S1-13，
 // shared/utils/locale.ts 單一真實來源）；語系切換器本身另外用 switchTo()。
-const { locale, lp, switchTo } = useLocale()
+const { locale, lp, switchTo, isEn, tx } = useLocale()
 
 // 贊助夥伴 Logo（主站規劃書 §2 全域導覽「Footer：…贊助夥伴 Logo 輪播…」，S2-7 接上）：
 // `GET /api/backend/{club}/partners?footer=true`（後台 E1 勾選「頁尾曝光」；只回合作期間涵蓋今天者，各俱樂部
@@ -48,7 +49,7 @@ const footerColumns = computed<FooterColumn[]>(() => {
     .filter((i) => i.children.length > 0)
     .map((i) => ({ id: i.id, title: i.label, links: i.children }))
   const loose = apiFooter.value.filter((i) => i.children.length === 0)
-  if (loose.length > 0) columns.push({ id: 'loose', title: '更多連結', links: loose })
+  if (loose.length > 0) columns.push({ id: 'loose', title: tx('更多連結', 'More links'), links: loose })
   return columns
 })
 function hrefOf(item: PublicMenuItem): string | null {
@@ -69,13 +70,13 @@ async function onSubscribe() {
   nlMessage.value = ''
   if (!nlConsent.value) {
     nlStatus.value = 'error'
-    nlMessage.value = t('newsletter.consent_required', '請先勾選同意，才能訂閱電子報。')
+    nlMessage.value = t('newsletter.consent_required', tx('請先勾選同意，才能訂閱電子報。', 'Please tick the consent box to subscribe to the newsletter.'))
     return
   }
   // 誘捕欄位有值＝機器人：安靜當作成功，不送出（端點本身另有依 IP 的限流）。
   if (nlWebsite.value) {
     nlStatus.value = 'success'
-    nlMessage.value = t('newsletter.success', '已收到您的訂閱申請，感謝您！')
+    nlMessage.value = t('newsletter.success', tx('已收到您的訂閱申請，感謝您！', 'We have received your subscription request. Thank you!'))
     return
   }
   nlStatus.value = 'submitting'
@@ -85,7 +86,7 @@ async function onSubscribe() {
       body: { email: nlEmail.value.trim(), consent: true, source: 'footer', website: nlWebsite.value || undefined },
     })
     nlStatus.value = 'success'
-    nlMessage.value = t('newsletter.success', '已收到您的訂閱申請，感謝您！')
+    nlMessage.value = t('newsletter.success', tx('已收到您的訂閱申請，感謝您！', 'We have received your subscription request. Thank you!'))
     nlEmail.value = ''
     nlConsent.value = false
   }
@@ -93,7 +94,7 @@ async function onSubscribe() {
     nlStatus.value = 'error'
     const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
     nlMessage.value = extractErrorMessage(err)
-      ?? (status === 429 ? '送出次數過多，請稍候幾分鐘再試。' : t('newsletter.error', '訂閱失敗，請確認 Email 格式後再試一次。'))
+      ?? (status === 429 ? tx('送出次數過多，請稍候幾分鐘再試。', 'Too many attempts. Please wait a few minutes and try again.') : t('newsletter.error', tx('訂閱失敗，請確認 Email 格式後再試一次。', 'Subscription failed. Please check your email address and try again.')))
   }
 }
 </script>
@@ -103,12 +104,12 @@ async function onSubscribe() {
     <div class="container">
       <div class="footer-top">
         <div class="footer-brand">
-          <img class="footer-brand__logo" :src="assets.footerMark.src" :alt="assets.nameZh" :width="assets.footerMark.width" :height="assets.footerMark.height">
+          <img class="footer-brand__logo" :src="assets.footerMark.src" :alt="isEn ? CLUB_NAME_EN : assets.nameZh" :width="assets.footerMark.width" :height="assets.footerMark.height">
           <p>{{ identity.footerBlurb }}</p>
-          <nav class="footer-social" aria-label="社群媒體">
-            <a v-if="identity.social.facebook" :href="identity.social.facebook" aria-label="前往 Facebook 粉絲專頁" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 9h3V5h-3c-2.2 0-4 1.8-4 4v2H7v4h3v7h4v-7h3l1-4h-4v-2c0-.6.4-1 1-1z" /></svg></a>
-            <a v-if="identity.social.instagram" :href="identity.social.instagram" aria-label="前往 Instagram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.2" cy="6.8" r="1" /></svg></a>
-            <a v-if="identity.social.youtube" :href="identity.social.youtube" aria-label="前往 YouTube 頻道" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="2" y="5.5" width="20" height="13" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M10 9.5l6 2.5-6 2.5z" /></svg></a>
+          <nav class="footer-social" :aria-label="tx('社群媒體', 'Social media')">
+            <a v-if="identity.social.facebook" :href="identity.social.facebook" :aria-label="tx('前往 Facebook 粉絲專頁', 'Visit our Facebook page')" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14 9h3V5h-3c-2.2 0-4 1.8-4 4v2H7v4h3v7h4v-7h3l1-4h-4v-2c0-.6.4-1 1-1z" /></svg></a>
+            <a v-if="identity.social.instagram" :href="identity.social.instagram" :aria-label="tx('前往 Instagram', 'Visit our Instagram')" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><circle cx="17.2" cy="6.8" r="1" /></svg></a>
+            <a v-if="identity.social.youtube" :href="identity.social.youtube" :aria-label="tx('前往 YouTube 頻道', 'Visit our YouTube channel')" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="2" y="5.5" width="20" height="13" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8" /><path d="M10 9.5l6 2.5-6 2.5z" /></svg></a>
           </nav>
         </div>
 
@@ -125,64 +126,64 @@ async function onSubscribe() {
         </template>
         <template v-else>
         <div class="footer-col">
-          <h4 aria-level="2">俱樂部</h4>
+          <h4 aria-level="2">{{ tx('俱樂部', 'Club') }}</h4>
           <ul>
             <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
-            <li><a :href="lp('/zh/club/first-team/')">一線隊</a></li>
-            <li><a :href="lp('/zh/schedule/')">賽事行事曆</a></li>
-            <li><a :href="lp('/zh/news/')">最新消息</a></li>
-            <li><a :href="lp('/zh/partners/')">合作夥伴與贊助</a></li>
+            <li><a :href="lp('/zh/club/first-team/')">{{ tx('一線隊', 'First Team') }}</a></li>
+            <li><a :href="lp('/zh/schedule/')">{{ tx('賽事行事曆', 'Schedule') }}</a></li>
+            <li><a :href="lp('/zh/news/')">{{ tx('最新消息', 'Latest news') }}</a></li>
+            <li><a :href="lp('/zh/partners/')">{{ tx('合作夥伴與贊助', 'Partners & Sponsors') }}</a></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h4 aria-level="2">青訓與課程</h4>
+          <h4 aria-level="2">{{ tx('青訓與課程', 'Academy & Programs') }}</h4>
           <ul>
             <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
-            <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
-            <li v-if="showWomens"><a :href="lp('/zh/womens/')">女子足球</a></li>
-            <li><a :href="lp('/zh/join/player/')">加入球隊</a></li>
-            <li><a :href="lp('/zh/academy/join/')">加入{{ identity.academyShortLabelZh }}</a></li>
+            <li><a :href="lp('/zh/programs/')">{{ tx('課程與活動', 'Programs') }}</a></li>
+            <li v-if="showWomens"><a :href="lp('/zh/womens/')">{{ tx('女子足球', "Women's Football") }}</a></li>
+            <li><a :href="lp('/zh/join/player/')">{{ tx('加入球隊', 'Join as a Player') }}</a></li>
+            <li><a :href="lp('/zh/academy/join/')">{{ isEn ? 'Join the Academy' : '加入' + identity.academyShortLabelZh }}</a></li>
           </ul>
         </div>
         <div class="footer-col">
-          <h4 aria-level="2">參與{{ assets.shortNameZh }}</h4>
+          <h4 aria-level="2">{{ isEn ? 'Get involved' : '參與' + assets.shortNameZh }}</h4>
           <ul>
             <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
-            <li><a :href="lp('/zh/shop/')">官方商店</a></li>
-            <li><a :href="lp('/zh/order/lookup/')">訂單查詢</a></li>
-            <li v-if="showCharity"><a :href="lp('/zh/charity/')">慈善與社會影響</a></li>
-            <li><a :href="lp('/zh/faq/')">常見問題 FAQ</a></li>
-            <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
-            <li><a :href="lp('/zh/join/location/')">場地位置與地圖</a></li>
-            <li><a :href="lp('/zh/app/')">下載 App</a></li>
+            <li><a :href="lp('/zh/shop/')">{{ tx('官方商店', 'Shop') }}</a></li>
+            <li><a :href="lp('/zh/order/lookup/')">{{ tx('訂單查詢', 'Order lookup') }}</a></li>
+            <li v-if="showCharity"><a :href="lp('/zh/charity/')">{{ tx('慈善與社會影響', 'Charity & Impact') }}</a></li>
+            <li><a :href="lp('/zh/faq/')">{{ tx('常見問題 FAQ', 'FAQ') }}</a></li>
+            <li><a :href="lp('/zh/join/')">{{ tx('加入與聯絡', 'Join / Contact') }}</a></li>
+            <li><a :href="lp('/zh/join/location/')">{{ tx('場地位置與地圖', 'Venues & map') }}</a></li>
+            <li><a :href="lp('/zh/app/')">{{ tx('下載 App', 'Download the app') }}</a></li>
           </ul>
         </div>
         </template>
         <div class="footer-col newsletter">
-          <h4 aria-level="2">{{ t('newsletter.title', '訂閱電子報') }}</h4>
-          <p>{{ t('newsletter.lede', `第一時間收到${assets.shortNameZh}賽事戰報與活動資訊。`) }}</p>
+          <h4 aria-level="2">{{ t('newsletter.title', tx('訂閱電子報', 'Newsletter')) }}</h4>
+          <p>{{ t('newsletter.lede', isEn ? `Get ${clubShortName} match reports and event news first.` : `第一時間收到${assets.shortNameZh}賽事戰報與活動資訊。`) }}</p>
           <form @submit.prevent="onSubscribe">
-            <label class="visually-hidden" for="newsletter-email">電子郵件地址</label>
-            <input id="newsletter-email" v-model="nlEmail" type="email" placeholder="輸入您的 Email" autocomplete="email" required maxlength="254">
+            <label class="visually-hidden" for="newsletter-email">{{ tx('電子郵件地址', 'Email address') }}</label>
+            <input id="newsletter-email" v-model="nlEmail" type="email" :placeholder="tx('輸入您的 Email', 'Enter your email')" autocomplete="email" required maxlength="254">
             <div class="visually-hidden" aria-hidden="true">
               <label for="newsletter-website">Leave this field blank</label>
               <input id="newsletter-website" v-model="nlWebsite" type="text" name="website" tabindex="-1" autocomplete="off">
             </div>
-            <button type="submit" :disabled="nlStatus === 'submitting'">{{ t('newsletter.button', '訂閱') }}</button>
+            <button type="submit" :disabled="nlStatus === 'submitting'">{{ t('newsletter.button', tx('訂閱', 'Subscribe')) }}</button>
           </form>
           <div class="newsletter__consent">
             <input id="newsletter-consent" v-model="nlConsent" type="checkbox">
-            <label for="newsletter-consent">{{ t('newsletter.consent', '我同意接收電子報，並已閱讀') }}<a :href="lp('/zh/privacy/')">{{ t('newsletter.privacy_link', '隱私權政策') }}</a></label>
+            <label for="newsletter-consent">{{ t('newsletter.consent', tx('我同意接收電子報，並已閱讀', 'I agree to receive the newsletter and have read the ')) }}<a :href="lp('/zh/privacy/')">{{ t('newsletter.privacy_link', tx('隱私權政策', 'Privacy Policy')) }}</a></label>
           </div>
           <p v-if="nlMessage" class="newsletter__status" :class="`newsletter__status--${nlStatus}`" :role="nlStatus === 'error' ? 'alert' : 'status'">{{ nlMessage }}</p>
         </div>
       </div>
 
-      <nav v-if="footerPartners.length" class="footer-partners" aria-label="合作夥伴">
-        <p class="footer-partners__label">合作夥伴</p>
+      <nav v-if="footerPartners.length" class="footer-partners" :aria-label="tx('合作夥伴', 'Partners')">
+        <p class="footer-partners__label">{{ tx('合作夥伴', 'Partners') }}</p>
         <ul class="footer-partners__list">
           <li v-for="p in footerPartners" :key="p.id">
-            <a v-if="safeExternalUrl(p.websiteUrl)" :href="safeExternalUrl(p.websiteUrl) ?? undefined" target="_blank" rel="noopener noreferrer" :aria-label="`${p.name}（另開新分頁）`">
+            <a v-if="safeExternalUrl(p.websiteUrl)" :href="safeExternalUrl(p.websiteUrl) ?? undefined" target="_blank" rel="noopener noreferrer" :aria-label="tx(`${p.name}（另開新分頁）`, `${p.name} (opens in a new tab)`)">
               <img v-if="p.logoDarkUrl ?? p.logoLightUrl" :src="p.logoDarkUrl ?? p.logoLightUrl ?? undefined" alt="" loading="lazy" width="120" height="48">
               <span v-else>{{ p.name }}</span>
             </a>
@@ -197,9 +198,9 @@ async function onSubscribe() {
       <div class="footer-bottom">
         <p>{{ identity.copyrightZh }}</p>
         <div class="legal-links">
-          <a :href="lp('/zh/privacy/')">隱私權政策</a>
-          <a :href="lp('/zh/cookies/')">Cookie 政策</a>
-          <div class="footer-lang lang-switch" role="group" aria-label="網站語言切換">
+          <a :href="lp('/zh/privacy/')">{{ tx('隱私權政策', 'Privacy Policy') }}</a>
+          <a :href="lp('/zh/cookies/')">{{ tx('Cookie 政策', 'Cookie Policy') }}</a>
+          <div class="footer-lang lang-switch" role="group" :aria-label="tx('網站語言切換', 'Site language')">
             <button type="button" :aria-current="locale === 'zh' ? 'true' : undefined" @click="switchTo('zh')">繁中</button><span aria-hidden="true">|</span><button type="button" :aria-current="locale === 'en' ? 'true' : undefined" @click="switchTo('en')">EN</button>
           </div>
         </div>
@@ -209,6 +210,11 @@ async function onSubscribe() {
 </template>
 
 <style>
+/* 頁尾底列對齊：政策連結（<a>，繼承 .76rem）與語系切換（<button>，瀏覽器預設字級 13.33px、自帶 padding）原本字級與基線不同，
+ * 語系切換看起來比左邊連結低一截、字也較大。統一字級／行高並讓 .legal-links 垂直置中。 */
+.footer-bottom .legal-links{ align-items:center; }
+.footer-bottom .footer-lang{ gap:.35em; line-height:1.5; }
+.footer-bottom .footer-lang button{ font:inherit; line-height:inherit; padding:0 .2em; min-height:0; }
 /* G-09 電子報訂閱回饋（H 批）：深色頁尾底，勾選同意與狀態訊息 */
 .newsletter__consent{ display:flex; align-items:flex-start; gap:.5rem; margin-top:.75rem; font-size:.78rem; line-height:1.5; color:var(--muted-dark); }
 .newsletter .newsletter__consent{ max-width:320px; }
