@@ -1,8 +1,13 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.13
-> **Date**: 2026-09-04 (v3.13 revision: 2026-09-23)
+> **Document version**: v3.14
+> **Date**: 2026-09-04 (v3.14 revision: 2026-10-05)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.14 revision summary — how match times are stored and displayed**
+> **No new feature; §3.2 "Time handling" is written as an implementable definition.** A match's date and kick-off time are recorded in Taipei
+> local time and all other time data in UTC; display converts to the device time zone, and the API also provides the converted UTC instant;
+> when the kick-off time is not set, only the date is shown, no kick-off reminder is scheduled, and the calendar entry is all-day. Landing point: §3.2.
 
 > **v3.13 revision summary — match status wording aligned with the main site (Chinese only)**
 > **No functional change.** The main site specification settles the Chinese match-status term as "延賽" (the
@@ -512,7 +517,10 @@ Adding U18 or U10 later requires only a new record in admin C1, with no app rele
 | **Venue navigation** | Opens system maps using the `Venue` coordinates. Falls back to an address search where coordinates are absent |
 | **Kick-off reminder** | Push two hours before kick-off, segmented by the **squads the user follows**. Can be turned off in settings |
 
-**Time handling**: stored as UTC, displayed in the device time zone, with "fixture times may change; official announcements prevail" shown on the detail screen.
+**Time handling**:
+- **A match's date and kick-off time** are recorded in **Taipei local time** (Taiwan time, no daylight saving); all other time data (announcement publishing, notification sending, order and membership timestamps, etc.) is recorded in Coordinated Universal Time (UTC).
+- **Display** converts the match time to the time zone of the user's device, with "fixture times may change; official announcements prevail" shown on the detail screen. So that the two platforms do not each derive it differently, the API also provides the converted UTC instant for the App to use directly.
+- **When the kick-off time is not yet set**: show the date only, labelled "Kick-off time TBC", with no default time; schedule no kick-off reminder; and add the match to the system calendar as an all-day event.
 
 **Not built**: live score updates, external league API integration — fixture data is maintained entirely by hand, consistent with the website rule. **Blue Whale fixtures are likewise not pulled from the Blue Whale website**; Blue Whale maintains them in the admin (8.6).
 
