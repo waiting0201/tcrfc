@@ -80,6 +80,30 @@ public sealed class MemberCenterTests(AdminWriteApiFixture fixture) : IAsyncLife
     }
 
     [Fact]
+    public async Task 加入俱樂部_高強度並行_16並行乘10輪_全部200同一份會籍_只有一份會籍與一張卡()
+    {
+        for (var round = 0; round < 10; round++)
+        {
+            var m = await _scope.CreateVerifiedMemberAsync($"center-join-race-{round}");
+            // 註冊時已自動建立磐石會籍；刪掉它，讓並行的 join 真的走「首次建立」路徑。
+            await BizTest.ExecuteSqlAsync(
+                "DELETE FROM member_cards WHERE membership_id IN (SELECT id FROM memberships WHERE member_id = @M); DELETE FROM memberships WHERE member_id = @M;", ("@M", m.MemberId));
+            var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => m.Client.PostAsync("/api/v1/tcrfc/member/memberships/join", null))));
+            var codes = string.Join(",", results.Select(r => (int)r.StatusCode));
+            Assert.True(results.All(r => r.StatusCode == HttpStatusCode.OK), $"第 {round} 輪：{codes}");
+            var ids = new HashSet<string?>();
+            foreach (var r in results)
+            {
+                ids.Add((await ReadJsonAsync(r)).GetProperty("id").GetString());
+            }
+
+            Assert.Single(ids);
+            Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM memberships WHERE member_id = @M", ("@M", m.MemberId)));
+            Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM member_cards WHERE membership_id IN (SELECT id FROM memberships WHERE member_id = @M)", ("@M", m.MemberId)));
+        }
+    }
+
+    [Fact]
     public async Task 到期前三十天顯示續會提示_已過期的會籍顯示已到期()
     {
         var m = await _scope.CreateVerifiedMemberAsync("center-renew");

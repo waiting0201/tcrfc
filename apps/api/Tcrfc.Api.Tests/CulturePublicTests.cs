@@ -79,16 +79,17 @@ public sealed class CulturePublicTests(AdminWriteApiFixture fixture) : IAsyncLif
     public async Task 漫畫_列表只含已發布且已到發布日的集數_最新集數即時判定_閱讀器資料含全部頁面與上下集導覽()
     {
         using var client = fixture.CreateClient();
-        // 種子的 3 集都是草稿 → 公開列表本來是空的
-        Assert.Equal(0, (await ReadJsonAsync(await client.GetAsync("/api/v1/tcrfc/comic/episodes"))).GetArrayLength());
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/v1/tcrfc/comic/episodes/latest")).StatusCode);
+        // 種子的第 1–3 集是草稿；第 101、102 集是「本機驗收測資」（區段 60，已發布）。本測試只看自己插入的 9000 段，
+        // 所以先確認 9000 段沒有殘留，其餘種子集數不納入斷言。
+        static List<JsonElement> Mine(JsonElement all) => all.EnumerateArray().Where(e => e.GetProperty("episodeNo").GetInt32() >= 9000).ToList();
+        Assert.Empty(Mine(await ReadJsonAsync(await client.GetAsync("/api/v1/tcrfc/comic/episodes"))));
 
         await InsertEpisodeAsync(9001, "published", "DATEADD(DAY, -10, CAST(SYSUTCDATETIME() AS date))", 3, "Episode 9001");
         await InsertEpisodeAsync(9002, "published", "DATEADD(DAY, -1, CAST(SYSUTCDATETIME() AS date))", 2);
         await InsertEpisodeAsync(9003, "published", "DATEADD(DAY, 7, CAST(SYSUTCDATETIME() AS date))", 2); // 未來發布日：還沒到
         await InsertEpisodeAsync(9004, "draft", null, 2); // 草稿
 
-        var list = (await ReadJsonAsync(await client.GetAsync("/api/v1/tcrfc/comic/episodes"))).EnumerateArray().ToList();
+        var list = Mine(await ReadJsonAsync(await client.GetAsync("/api/v1/tcrfc/comic/episodes")));
         Assert.Equal(new[] { 9002, 9001 }, list.Select(e => e.GetProperty("episodeNo").GetInt32()).ToArray()); // 新→舊
         Assert.True(list[0].GetProperty("isLatest").GetBoolean());
         Assert.False(list[1].GetProperty("isLatest").GetBoolean());
@@ -102,7 +103,8 @@ public sealed class CulturePublicTests(AdminWriteApiFixture fixture) : IAsyncLif
         Assert.Equal(3, detail.GetProperty("pages").GetArrayLength());
         Assert.Equal(new[] { 1, 2, 3 }, detail.GetProperty("pages").EnumerateArray().Select(p => p.GetProperty("pageNo").GetInt32()).ToArray());
         Assert.Equal(800, detail.GetProperty("pages")[0].GetProperty("width").GetInt32());
-        Assert.Equal(JsonValueKind.Null, detail.GetProperty("previousEpisodeNo").ValueKind);
+        // 9001 是 9000 段最小的一集；它的上一集若存在，只可能是種子的第 101／102 集（不得是 9000 段）
+        Assert.True(detail.GetProperty("previousEpisodeNo").ValueKind == JsonValueKind.Null || detail.GetProperty("previousEpisodeNo").GetInt32() < 9000);
         Assert.Equal(9002, detail.GetProperty("nextEpisodeNo").GetInt32());
         Assert.False(detail.GetProperty("isLatest").GetBoolean());
         Assert.Equal("Episode 9001", (await ReadJsonAsync(await client.GetAsync("/api/v1/tcrfc/comic/episodes/9001?lang=en"))).GetProperty("title").GetString());
@@ -267,6 +269,43 @@ public sealed class CulturePublicTests(AdminWriteApiFixture fixture) : IAsyncLif
         Assert.All(results, r => Assert.Equal(HttpStatusCode.Created, r.StatusCode));
         Assert.Equal(3, Convert.ToInt32(await ScalarAsync($"SELECT COUNT(*) FROM fan_event_registrations WHERE fan_event_id = '{eventId}' AND status = 'registered'")));
         Assert.Equal(5, Convert.ToInt32(await ScalarAsync($"SELECT COUNT(*) FROM fan_event_registrations WHERE fan_event_id = '{eventId}' AND status = 'waitlist'")));
+    }
+
+    [Fact]
+    public async Task 活動剩1名額_16個不同報名者並行_16並行乘10輪_恰好一個已報名_其餘候補_不超收()
+    {
+        // 語意：名額是硬上限，多出來的進候補（IsWaitlisted），不是拒絕（既有測試「並行報名不會超收名額_多出來的進候補」同語意）。
+        using var client = fixture.CreateClient();
+        for (var round = 0; round < 10; round++)
+        {
+            var slug = $"mtest-cap1-{round}";
+            var eventId = await InsertEventAsync(slug, 1, false);
+            var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(i => Task.Run(() =>
+                client.PostAsJsonAsync($"/api/v1/tcrfc/fan-events/{slug}/registrations", Guest($"c{round}-{i}"), TestJson.WriteOptions))));
+            var codes = string.Join(",", results.Select(r => (int)r.StatusCode));
+            Assert.True(results.All(r => r.StatusCode == HttpStatusCode.Created), $"第 {round} 輪：{codes}");
+            Assert.Equal(1, Convert.ToInt32(await ScalarAsync($"SELECT COUNT(*) FROM fan_event_registrations WHERE fan_event_id = '{eventId}' AND status = 'registered'")));
+            Assert.Equal(15, Convert.ToInt32(await ScalarAsync($"SELECT COUNT(*) FROM fan_event_registrations WHERE fan_event_id = '{eventId}' AND status = 'waitlist'")));
+        }
+    }
+
+    [Fact]
+    public async Task 同一人並行重複報名_高強度_16並行乘15輪_恰好一筆成立_其餘409_不得重複列或500()
+    {
+        using var client = fixture.CreateClient();
+        var slug = "mtest-dup-race";
+        var eventId = await InsertEventAsync(slug, null, false);
+        for (var round = 0; round < 15; round++)
+        {
+            var email = $"dup{round}-" + Guid.NewGuid().ToString("N") + "@example.test";
+            var body = new { applicantName = "並行重複", email };
+            var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() =>
+                client.PostAsJsonAsync($"/api/v1/tcrfc/fan-events/{slug}/registrations", body, TestJson.WriteOptions))));
+            var codes = string.Join(",", results.Select(r => (int)r.StatusCode));
+            Assert.True(results.All(r => r.StatusCode is HttpStatusCode.Created or HttpStatusCode.Conflict), $"第 {round} 輪：{codes}");
+            Assert.Equal(1, results.Count(r => r.StatusCode == HttpStatusCode.Created));
+            Assert.Equal(1, Convert.ToInt32(await ScalarAsync($"SELECT COUNT(*) FROM fan_event_registrations WHERE fan_event_id = '{eventId}' AND email = '{email}' AND status <> 'cancelled'")));
+        }
     }
 
     [Fact]

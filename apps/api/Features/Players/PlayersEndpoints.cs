@@ -31,5 +31,25 @@ public static class PlayersEndpoints
         .WithTags("Players")
         .Produces<PagedResult<PlayerDto>>()
         .Produces(StatusCodes.Status404NotFound);
+
+        // GET /api/v1/{club}/players/{slug}?lang=zh
+        // App 深連結 tcrfc://player/{slug}（App 規劃書 §2.3）與官網 /zh/club/first-team/player/{slug} 的解析端點。
+        // {slug} 也接受球員 id（Guid），見 PlayersRepository.GetBySlugAsync。
+        app.MapGet("/api/v1/{club}/players/{slug}", async (
+            string club,
+            string slug,
+            string? lang,
+            IClubResolver clubResolver,
+            PlayersRepository repository,
+            CancellationToken cancellationToken) =>
+        {
+            var scope = await clubResolver.ResolveAsync(club, cancellationToken);
+            var player = await repository.GetBySlugAsync(scope, slug, RequestLocale.ToDbLocale(lang), cancellationToken);
+            return player is null ? Results.NotFound() : Results.Ok(player);
+        })
+        .WithName("GetPlayer")
+        .WithTags("Players")
+        .Produces<PlayerDto>()
+        .Produces(StatusCodes.Status404NotFound);
     }
 }

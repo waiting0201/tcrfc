@@ -8,7 +8,7 @@ namespace Tcrfc.Api.Features.AdminCompetitions;
 
 /// <summary>J4「Competition 型別的後台維護端點」——俱樂部範圍（<c>competitions.club_id</c> 必填，
 /// 主站規劃書 §5.4），比照 <c>Features/AdminNews</c> 用 <see cref="AdminClubScope"/>。</summary>
-public sealed class AdminCompetitionsRepository(ClubDbContext dbContext)
+public sealed class AdminCompetitionsRepository(ClubDbContext dbContext, Tcrfc.Api.Caching.IQueryCache cache)
 {
     private static readonly HashSet<string> AllowedStatuses = new(StringComparer.Ordinal) { "draft", "published" };
 
@@ -117,6 +117,9 @@ public sealed class AdminCompetitionsRepository(ClubDbContext dbContext)
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        // 公開的賽事系列清單與賽程（competitionName／competitionCode 來自這裡）都要失效，否則 App 在 TTL 內讀到舊資料。
+        await cache.InvalidateAsync(Tcrfc.Api.Features.Competitions.CompetitionsRepository.CacheEntity, scope.ClubCode, cancellationToken);
+        await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
         return (await GetByIdAsync(scope, competition.Id, cancellationToken))!;
     }
 
@@ -165,6 +168,9 @@ public sealed class AdminCompetitionsRepository(ClubDbContext dbContext)
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        // 公開的賽事系列清單與賽程（competitionName／competitionCode 來自這裡）都要失效，否則 App 在 TTL 內讀到舊資料。
+        await cache.InvalidateAsync(Tcrfc.Api.Features.Competitions.CompetitionsRepository.CacheEntity, scope.ClubCode, cancellationToken);
+        await cache.InvalidateAsync("schedule", scope.ClubCode, cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
     }
 

@@ -145,6 +145,60 @@ public sealed class TrialsPublicTests(AdminWriteApiFixture fixture)
     }
 
     [Fact]
+    public async Task 試訓剩1名額_16個不同報名者並行_16並行乘10輪_恰好一個待確認_其餘候補_已報名數恰為一()
+    {
+        // 語意（規劃書 P4／試訓：額滿自動關閉、候補）：名額是硬上限，多出來的進候補，不是拒絕。
+        using var client = await BizTest.ClientAsync(fixture, null);
+        try
+        {
+            for (var round = 0; round < 10; round++)
+            {
+                var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 1);
+                var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(i => Task.Run(() =>
+                    RegisterAsync(client, "tcrfc", id, new { applicantName = $"{Marker} 搶{round}-{i}", phone = $"0944{round:00}{i:0000}" }))));
+                var dtos = new List<TrialRegistrationSubmittedDto>();
+                foreach (var r in results)
+                {
+                    Assert.True(r.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK, $"第 {round} 輪：{(int)r.StatusCode}");
+                    dtos.Add(await BizTest.ReadAsync<TrialRegistrationSubmittedDto>(r));
+                }
+
+                Assert.Equal(1, dtos.Count(r => r.Status == "待確認"));
+                Assert.Equal(15, dtos.Count(r => r.Status == "候補"));
+                Assert.Equal((1, "額滿"), await TrialStateAsync(id));
+            }
+        }
+        finally
+        {
+            await CleanupAsync();
+        }
+    }
+
+    [Fact]
+    public async Task 同一人並行重複報名_高強度_16並行乘10輪_恰好一筆成立_其餘409_已報名數只加一()
+    {
+        using var client = await BizTest.ClientAsync(fixture, null);
+        try
+        {
+            for (var round = 0; round < 10; round++)
+            {
+                var id = await InsertTrialAsync("tcrfc", Soon(), capacity: 50);
+                var body = new { applicantName = $"{Marker} 重複{round}", phone = $"0922000{round:000}" };
+                var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => RegisterAsync(client, "tcrfc", id, body))));
+                var codes = string.Join(",", results.Select(r => (int)r.StatusCode));
+                Assert.True(results.All(r => r.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK or HttpStatusCode.Conflict), $"第 {round} 輪：{codes}");
+                Assert.Equal(1, results.Count(r => r.StatusCode != HttpStatusCode.Conflict));
+                Assert.Equal(1, await C1Test.ScalarAsync<int>("SELECT COUNT(*) FROM registrations WHERE trial_id = @I AND status <> N'取消'", ("@I", id)));
+                Assert.Equal(1, (await TrialStateAsync(id)).Enrolled);
+            }
+        }
+        finally
+        {
+            await CleanupAsync();
+        }
+    }
+
+    [Fact]
     public async Task 並行搶最後一個名額_只有一人待確認_其餘候補_已報名數恰為一()
     {
         using var client = await BizTest.ClientAsync(fixture, null);

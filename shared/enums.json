@@ -1,0 +1,136 @@
+{
+  "$comment": "自動產生，請勿手改。產生器：shared/scripts/gen-enums.mjs（docs/19 §2）。來源是 db/club-schema.sql 的 CHECK 約束，不是規格；用戶端遇到不在清單內的值時須容錯（視為未知、不得當機）。",
+  "enums": {
+    "TeamDto.type": {
+      "values": [
+        "first_team",
+        "academy"
+      ],
+      "meaning": {
+        "first_team": "一線隊",
+        "academy": "學院／青年梯隊"
+      },
+      "note": "客戶端：非 first_team 一律視為學院梯隊。"
+    },
+    "TeamDto.gender": {
+      "values": [
+        "men",
+        "women",
+        "mixed"
+      ],
+      "meaning": {
+        "men": "男子",
+        "women": "女子",
+        "mixed": "混合"
+      }
+    },
+    "MatchDto.status": {
+      "values": [
+        "scheduled",
+        "live",
+        "played",
+        "postponed",
+        "cancelled"
+      ],
+      "meaning": {
+        "scheduled": "未開賽",
+        "live": "進行中",
+        "played": "已完賽",
+        "postponed": "延賽",
+        "cancelled": "取消"
+      },
+      "note": "資料庫欄位可為空（舊資料）；null 視為 scheduled。"
+    },
+    "ProgramSessionDto.statusCode／TrialDto.statusCode（梯次與試訓場次）": {
+      "values": [
+        "open",
+        "full",
+        "waitlist",
+        "ended"
+      ],
+      "items": [
+        {
+          "code": "open",
+          "literal": "開放",
+          "labelZh": "開放",
+          "labelEn": "Open"
+        },
+        {
+          "code": "full",
+          "literal": "額滿",
+          "labelZh": "額滿",
+          "labelEn": "Full"
+        },
+        {
+          "code": "waitlist",
+          "literal": "候補",
+          "labelZh": "候補",
+          "labelEn": "Waitlist"
+        },
+        {
+          "code": "ended",
+          "literal": "已結束",
+          "labelZh": "已結束",
+          "labelEn": "Ended"
+        }
+      ],
+      "note": "`status` 欄位仍是中文字面值（相容保留），新用戶端依 `statusCode` 分流、依語系顯示 `statusLabelZh`／`statusLabelEn`。DDL 值域與代碼表不一致時產生器失敗。"
+    },
+    "RegistrationDto.statusCode（課程與試訓報名：MemberRegistrationDto、*RegistrationSubmittedDto）": {
+      "values": [
+        "pending",
+        "confirmed",
+        "paid",
+        "completed",
+        "cancelled",
+        "waitlisted"
+      ],
+      "items": [
+        {
+          "code": "pending",
+          "literal": "待確認",
+          "labelZh": "待確認",
+          "labelEn": "Pending confirmation"
+        },
+        {
+          "code": "confirmed",
+          "literal": "已確認",
+          "labelZh": "已確認",
+          "labelEn": "Confirmed"
+        },
+        {
+          "code": "paid",
+          "literal": "已繳費",
+          "labelZh": "已繳費",
+          "labelEn": "Paid"
+        },
+        {
+          "code": "completed",
+          "literal": "完成",
+          "labelZh": "完成",
+          "labelEn": "Completed"
+        },
+        {
+          "code": "cancelled",
+          "literal": "取消",
+          "labelZh": "取消",
+          "labelEn": "Cancelled"
+        },
+        {
+          "code": "waitlisted",
+          "literal": "候補",
+          "labelZh": "候補",
+          "labelEn": "Waitlisted"
+        }
+      ],
+      "note": "課程報名沒有獨立付款資料表：`paid`／`completed` 即已繳費（由後台確認款項後更新）。"
+    },
+    "CompetitionDto.status（只回 published）": {
+      "values": [
+        "draft",
+        "published"
+      ],
+      "note": "公開端點只回 published，此列僅供對照後台。"
+    }
+  }
+}

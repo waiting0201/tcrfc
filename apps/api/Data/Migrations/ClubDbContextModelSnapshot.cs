@@ -3553,6 +3553,11 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("nvarchar(64)")
                         .HasColumnName("name");
 
+                    b.Property<string>("ShortName")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("short_name");
+
                     b.HasKey("ClubId", "Locale");
 
                     b.HasIndex(new[] { "Locale" }, "IX_clubs_i18n_locale");
@@ -6662,6 +6667,26 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("failed_attempt_count");
 
+                    b.Property<string>("GuardianConsentVersion")
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)")
+                        .HasColumnName("guardian_consent_version");
+
+                    b.Property<DateTime?>("GuardianConsentedAt")
+                        .HasPrecision(3)
+                        .HasColumnType("datetime2(3)")
+                        .HasColumnName("guardian_consented_at");
+
+                    b.Property<string>("GuardianName")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)")
+                        .HasColumnName("guardian_name");
+
+                    b.Property<string>("GuardianRelationship")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)")
+                        .HasColumnName("guardian_relationship");
+
                     b.Property<string>("InternalNote")
                         .HasColumnType("nvarchar(max)")
                         .HasColumnName("internal_note");
@@ -9163,6 +9188,12 @@ namespace Tcrfc.Api.Data.Migrations
                         .HasColumnType("int")
                         .HasColumnName("shirt_no");
 
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)")
+                        .HasColumnName("slug");
+
                     b.Property<string>("Status")
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)")
@@ -9190,6 +9221,11 @@ namespace Tcrfc.Api.Data.Migrations
                     b.HasKey("Id");
 
                     SqlServerKeyBuilderExtensions.IsClustered(b.HasKey("Id"), false);
+
+                    b.HasIndex(new[] { "Slug", "ClubId" }, "IX_players_slug_club");
+
+                    b.HasIndex(new[] { "ClubId", "Slug" }, "UQ_players_club_slug")
+                        .IsUnique();
 
                     b.HasIndex(new[] { "RowSeq" }, "UQ_players_row_seq")
                         .IsUnique();

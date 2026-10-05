@@ -36,6 +36,9 @@ public sealed record SponsorDto
     public required Guid Id { get; init; }
     public required string Slug { get; init; }
 
+    /// <summary>未翻譯標示（App 規劃書 §2.5）：請求英文而英文名稱是空的，回應是回退的繁中時為 true；請求繁中恆為 false。</summary>
+    public required bool IsFallbackLocale { get; init; }
+
     /// <summary>主贊助／官方贊助／支持夥伴。</summary>
     public string? Tier { get; init; }
     public required int SortOrder { get; init; }
@@ -57,6 +60,9 @@ public sealed record SponsorPackageDto
 {
     public required Guid Id { get; init; }
     public required string Slug { get; init; }
+
+    /// <summary>未翻譯標示（App 規劃書 §2.5）：請求英文而英文名稱是空的，回應是回退的繁中時為 true；請求繁中恆為 false。</summary>
+    public required bool IsFallbackLocale { get; init; }
     public required int SortOrder { get; init; }
     public string? Name { get; init; }
     public string? Content { get; init; }

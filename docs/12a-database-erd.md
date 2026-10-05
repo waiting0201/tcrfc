@@ -286,6 +286,7 @@ erDiagram
     uuid id PK
     uuid club_id FK
     uuid team_id FK
+    string_160 slug
     int shirt_no
     enum position
     date birth_on
@@ -719,6 +720,10 @@ erDiagram
     date birth_on
     string_255 line_user_id_encrypted
     string_64 line_user_id_hash UK
+    datetime guardian_consented_at
+    string_64 guardian_name
+    enum guardian_relationship
+    string_32 guardian_consent_version
     int failed_attempt_count
     datetime locked_until
     string_32 signup_source
@@ -1252,6 +1257,7 @@ erDiagram
     uuid club_id FK
     string_10 locale FK
     string_64 name
+    string_32 short_name
     text description
   }
   admin_user {

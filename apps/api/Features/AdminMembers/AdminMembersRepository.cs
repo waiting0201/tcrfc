@@ -452,6 +452,16 @@ public sealed class AdminMembersRepository(
             LastLoginAt = member.LastLoginAt,
             InternalNote = member.InternalNote,
             MergedIntoMemberNo = mergedNo,
+            GuardianConsent = member.GuardianConsentedAt is { } consentedAt
+                ? new AdminMemberGuardianConsentDto
+                {
+                    ConsentedAt = consentedAt,
+                    GuardianName = reveal ? member.GuardianName : PiiMasking.MaskName(member.GuardianName), // 🔒 受限個資，同 Member.name 的遮罩規則
+                    Relationship = member.GuardianRelationship,
+                    RelationshipLabel = member.GuardianRelationship switch { "parent" => "父母", "legal_guardian" => "法定監護人", _ => null },
+                    ConsentTextVersion = member.GuardianConsentVersion,
+                }
+                : null,
             Memberships = summaries.Select(s => new AdminMemberMembershipDetailDto
             {
                 Membership = s,

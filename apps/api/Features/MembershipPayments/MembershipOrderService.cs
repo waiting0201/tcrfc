@@ -90,6 +90,14 @@ public sealed partial class MembershipOrderService(
 
         if (open.Count > 0)
         {
+            // 並行的同一冪等鍵：快的請求可能在上面「查冪等鍵」之後、這裡之前插入了訂單，
+            // 那張未完成訂單其實就是這把鍵的結果，必須回它（200），不是 open_order_exists（E-172）。
+            if (open.Any(o => o.IdempotencyKey == idempotencyKey))
+            {
+                var same = await OrdersWithDetail().FirstAsync(o => o.MemberId == me.MemberId && o.IdempotencyKey == idempotencyKey, cancellationToken);
+                return (ToDto(await ExpireIfNeededAsync(same, cancellationToken), lang), false);
+            }
+
             throw new MemberConflictException("已有未完成的訂單", $"你已經有一張這個方案的未完成訂單（{open[0].OrderNo}），請先完成或取消它。", "open_order_exists");
         }
 

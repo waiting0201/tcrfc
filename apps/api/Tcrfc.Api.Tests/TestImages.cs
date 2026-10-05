@@ -41,6 +41,28 @@ public static class TestImages
         return stream.ToArray();
     }
 
+    /// <summary>
+    /// 指定尺寸、帶 GPS 與相機廠牌的 JPEG（不帶方向標記）——供「長寬比有限制」的上傳（如廣告素材 16:9）
+    /// 驗證去 EXIF（含 GPS）用，<see cref="JpegWithExifAndGps"/> 固定 3000×2000 不符合那些規格。
+    /// </summary>
+    public static byte[] JpegWithGps(int width, int height)
+    {
+        using var image = new Image<Rgba32>(width, height);
+        image.Mutate(x => x.BackgroundColor(Color.Orange));
+
+        var exif = new ExifProfile();
+        exif.SetValue(ExifTag.Make, "TestCameraCo");
+        exif.SetValue(ExifTag.GPSLatitudeRef, "N");
+        exif.SetValue(ExifTag.GPSLatitude, [new Rational(24, 1), new Rational(9, 1), new Rational(0, 1)]);
+        exif.SetValue(ExifTag.GPSLongitudeRef, "E");
+        exif.SetValue(ExifTag.GPSLongitude, [new Rational(120, 1), new Rational(41, 1), new Rational(0, 1)]);
+        image.Metadata.ExifProfile = exif;
+
+        using var stream = new MemoryStream();
+        image.Save(stream, new JpegEncoder { Quality = 90 });
+        return stream.ToArray();
+    }
+
     /// <summary>500×400 的 PNG，不帶任何中繼資料——驗證伺服器端接受 PNG 格式本身。</summary>
     public static byte[] SmallPng()
     {

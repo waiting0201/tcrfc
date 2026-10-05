@@ -60,7 +60,7 @@ public sealed class AdminPagesImageTests(AdminWriteAzuriteEnabledApiFixture fixt
         },
     };
 
-    [Fact]
+    [AzuriteFact]
     public async Task 圖文左右_夾檔案上傳成功_物件鍵含俱樂部頁面與區塊索引()
     {
         using var client = await ContentEditorClientAsync();
@@ -92,7 +92,7 @@ public sealed class AdminPagesImageTests(AdminWriteAzuriteEnabledApiFixture fixt
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 圖片藝廊_一次請求夾兩張圖_各自獨立的物件鍵()
     {
         using var client = await ContentEditorClientAsync();
@@ -131,7 +131,7 @@ public sealed class AdminPagesImageTests(AdminWriteAzuriteEnabledApiFixture fixt
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 補償交易_第一個區塊上傳成功但第二個區塊驗證失敗_已上傳的物件會被清掉()
     {
         using var client = await ContentEditorClientAsync();
@@ -156,7 +156,7 @@ public sealed class AdminPagesImageTests(AdminWriteAzuriteEnabledApiFixture fixt
         Assert.Equal(beforeCount, afterCount); // 沒有任何物件因為這次失敗的請求而多出來
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 換圖成功後_舊圖被刪除_新圖保留()
     {
         using var client = await ContentEditorClientAsync();
@@ -206,7 +206,7 @@ public sealed class AdminPagesImageTests(AdminWriteAzuriteEnabledApiFixture fixt
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 刪除頁面後_區塊圖片物件一併被刪除()
     {
         using var client = await ContentEditorClientAsync();
@@ -238,7 +238,7 @@ public sealed class AdminPagesImageTests(AdminWriteAzuriteEnabledApiFixture fixt
     /// 呼叫端傳入的 token 此時已經取消，第一個區塊已上傳的物件仍然會被補償刪除乾淨，不會因為
     /// <c>DeleteAsync</c> 對已取消的 token fail-open 吞例外而留下孤兒物件。
     /// </summary>
-    [Fact]
+    [AzuriteFact]
     public async Task 補償刪除沿用CancellationTokenNone_即使外層token已取消仍能清乾淨()
     {
         using var scope = fixture.Services.CreateScope();

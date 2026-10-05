@@ -46,7 +46,7 @@ public sealed class TeamsRepository(
 
                 var i18nById = await LoadI18nAsync(connection, rows.Select(r => r.Id), dbLocale, ct);
 
-                return rows.Select(r => Map(r, i18nById.GetValueOrDefault(r.Id), dbLocale)).ToList();
+                return rows.Select(r => Map(r, i18nById.GetValueOrDefault(r.Id), dbLocale, scope.ClubCode)).ToList();
             },
             cancellationToken);
     }
@@ -75,7 +75,7 @@ public sealed class TeamsRepository(
         return rows.GroupBy(r => r.TeamId).ToDictionary(g => g.Key, g => g.ToDictionary(r => r.Locale, r => r));
     }
 
-    private TeamDto Map(TeamRow row, Dictionary<string, TeamI18nRow>? i18n, string dbLocale)
+    private TeamDto Map(TeamRow row, Dictionary<string, TeamI18nRow>? i18n, string dbLocale, string clubCode)
     {
         var fallback = i18n?.GetValueOrDefault(RequestLocale.DefaultDbLocale);
         var requested = i18n?.GetValueOrDefault(dbLocale);
@@ -95,12 +95,14 @@ public sealed class TeamsRepository(
         {
             Id = row.Id,
             Code = row.Code,
+            ClubCode = clubCode,
             Type = row.Type,
             Gender = row.Gender,
             AgeBand = row.AgeBand,
             TeamColor = row.TeamColor,
             HeroKey = row.HeroKey,
             Name = name,
+            IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
             Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
             HeroUrl = imageUrlResolver.Resolve(row.HeroKey),
             LogoUrl = imageUrlResolver.Resolve(logoKey),

@@ -4,6 +4,9 @@ public abstract class AdminPlayerException(string message) : Exception(message);
 
 public sealed class AdminPlayerValidationException(string message) : AdminPlayerException(message);
 
+/// <summary>同一個俱樂部內網址代稱（<c>(club_id, slug)</c>）重複。對應 409。</summary>
+public sealed class AdminPlayerSlugConflictException(string message) : AdminPlayerException(message);
+
 /// <summary>圖片欄位插槽把「照片」對到 <c>players.photo_key</c> 三態，形狀比照
 /// <c>Features/AdminNews/CoverKeyUpdate.cs</c>。</summary>
 public readonly record struct PhotoKeyUpdate(bool Change, string? NewKey)

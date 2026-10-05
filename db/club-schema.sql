@@ -732,6 +732,9 @@ CREATE TABLE players (
   row_seq                  bigint IDENTITY(1,1) NOT NULL,
   club_id                  uniqueidentifier NOT NULL,
   team_id                  uniqueidentifier NOT NULL,
+  -- 網址代稱（2026-10-05）：App 規劃書 §2.3 深連結 tcrfc://player/{slug} 對應 /zh/club/first-team/player/{slug}。
+  -- [a-z0-9-]，唯一鍵 (club_id, slug)（弱讀法，見下方 UQ_players_club_slug）。
+  slug                     nvarchar(160)    NOT NULL,
   shirt_no                 int              NULL,
   position                 nvarchar(32)     NULL,
   birth_on                 date             NULL,
@@ -1711,6 +1714,8 @@ CREATE TABLE clubs_i18n (
   club_id         uniqueidentifier NOT NULL,
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(64)     NOT NULL,
+  -- 簡稱（2026-10-05）：磐石中文「台中磐石」英文「Taichung Rock FC」、藍鯨中文「台中藍鯨」；藍鯨英文一律 NULL（B-5：客戶尚未指定英文全名）。
+  short_name      nvarchar(32)     NULL,
   description     nvarchar(max)    NULL,
   CONSTRAINT PK_clubs_i18n PRIMARY KEY CLUSTERED (club_id, locale)
 );
@@ -1877,11 +1882,20 @@ CREATE TABLE members (
   failed_attempt_count        int              NOT NULL DEFAULT 0,
   locked_until                datetime2(3)     NULL,
   line_user_id_hash           char(64)         NULL,
+  -- 監護人同意（2026-10-05，主站規劃書「會員資料安全要求」、App 規劃書 §4.5「未滿 18 歲須經監護人同意方得註冊」）：
+  -- 同意時間為伺服器時間；guardian_name 屬受限個資（docs/12b §8，🔒，刪帳號時清除）；guardian_consent_version 為同意文案版本
+  -- （文案本身待法務 B-9）。四欄：成年註冊全空，未成年註冊前三欄必填（CK_members_guardian_consent）。
+  guardian_consented_at       datetime2(3)     NULL,
+  guardian_name               nvarchar(64)     NULL,
+  guardian_relationship       nvarchar(16)     NULL CHECK (guardian_relationship IN ('parent','legal_guardian')),
+  guardian_consent_version    nvarchar(32)     NULL,
   created_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at                  datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by                  uniqueidentifier NULL,
   updated_by                  uniqueidentifier NULL,
   CONSTRAINT PK_members PRIMARY KEY NONCLUSTERED (id),
+  -- 刪帳號會清掉 guardian_name 而保留同意時間與關係（個資清除優先、同意事實保留），所以只要求「有同意時間 → 有關係」，不要求姓名永遠存在。
+  CONSTRAINT CK_members_guardian_consent CHECK (guardian_consented_at IS NOT NULL OR (guardian_name IS NULL AND guardian_relationship IS NULL AND guardian_consent_version IS NULL)),
   CONSTRAINT UQ_members_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
@@ -2130,6 +2144,10 @@ CREATE TABLE partner_stores (
   created_by          uniqueidentifier NULL,
   updated_by          uniqueidentifier NULL,
   CONSTRAINT PK_partner_stores PRIMARY KEY NONCLUSTERED (id),
+  -- 座標（2026-10-05）：NULL＝未確認（App 不顯示、不計距離）；有值必須兩個都有、在範圍內、且不是 (0,0) 這類替代值。
+  CONSTRAINT CK_partner_stores_coords CHECK (
+    (lat IS NULL AND lng IS NULL)
+    OR (lat IS NOT NULL AND lng IS NOT NULL AND lat BETWEEN -90 AND 90 AND lng BETWEEN -180 AND 180 AND NOT (lat = 0 AND lng = 0))),
   CONSTRAINT UQ_partner_stores_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
@@ -3398,6 +3416,7 @@ ALTER TABLE settings              ADD CONSTRAINT UQ_settings_club_key           
 ALTER TABLE email_templates       ADD CONSTRAINT UQ_email_templates_club_code     UNIQUE (club_id, template_code);
 ALTER TABLE pages                 ADD CONSTRAINT UQ_pages_club_slug               UNIQUE (club_id, slug);
 ALTER TABLE press_resources       ADD CONSTRAINT UQ_press_resources_club_slug     UNIQUE (club_id, slug);
+ALTER TABLE players               ADD CONSTRAINT UQ_players_club_slug             UNIQUE (club_id, slug);
 ALTER TABLE home_sections         ADD CONSTRAINT UQ_home_sections_club_code       UNIQUE (club_id, section_code);
 ALTER TABLE faqs                  ADD CONSTRAINT UQ_faqs_club_slug                UNIQUE (club_id, slug);
 ALTER TABLE redirects             ADD CONSTRAINT UQ_redirects_club_path           UNIQUE (club_id, from_path);
@@ -3503,6 +3522,7 @@ CREATE INDEX IX_admin_user_clubs_user_active            ON admin_user_clubs (adm
 
 -- 帶 club_id 的內容表：(slug, club_id)，供路由解析（俱樂部專屬優先、回退共同）
 CREATE INDEX IX_pages_slug_club              ON pages (slug, club_id);
+CREATE INDEX IX_players_slug_club            ON players (slug, club_id);
 CREATE INDEX IX_press_resources_slug_club    ON press_resources (slug, club_id);
 CREATE INDEX IX_faqs_slug_club               ON faqs (slug, club_id);
 CREATE INDEX IX_faq_embed_slot_links_slot    ON faq_embed_slot_links (faq_embed_slot_id);

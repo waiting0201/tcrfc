@@ -71,7 +71,7 @@ public sealed class AdminNewsCoverFieldGroupTests(AdminWriteAzuriteEnabledApiFix
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 建立_上傳封面_寬高寫回資料列_雙語Alt一併保存()
     {
         using var client = await EditorClientAsync();
@@ -95,7 +95,7 @@ public sealed class AdminNewsCoverFieldGroupTests(AdminWriteAzuriteEnabledApiFix
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 大圖上傳_寬高存的是縮小後主檔尺寸_不是原始尺寸()
     {
         using var client = await EditorClientAsync();
@@ -115,7 +115,7 @@ public sealed class AdminNewsCoverFieldGroupTests(AdminWriteAzuriteEnabledApiFix
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 更新_不換圖只改Alt_寬高維持_換圖則更新寬高_移除封面則清空寬高但Alt仍可保留()
     {
         using var client = await EditorClientAsync();
@@ -152,7 +152,7 @@ public sealed class AdminNewsCoverFieldGroupTests(AdminWriteAzuriteEnabledApiFix
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 公開API_列表與詳情帶出封面寬高與依語系回退的Alt_封面當OG回退時用封面Alt()
     {
         using var client = await EditorClientAsync();
@@ -197,7 +197,7 @@ public sealed class AdminNewsCoverFieldGroupTests(AdminWriteAzuriteEnabledApiFix
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 沒有封面的文章_公開API的封面寬高與Alt一律為null()
     {
         using var client = await EditorClientAsync();

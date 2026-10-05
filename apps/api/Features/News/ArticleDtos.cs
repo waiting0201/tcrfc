@@ -25,6 +25,10 @@ public sealed record ArticleRelationDto
 public sealed record ArticleListItemDto
 {
     public required Guid Id { get; init; }
+    /// <summary>未翻譯標示（App 規劃書 §2.5「未翻譯 fallback 繁中並標示」、主站 G-01）：請求的是英文、而這筆的英文主要欄位（標題）是空的，回應內容是回退的繁中時為 true。
+    /// 請求繁中時恆為 false。用戶端據此顯示「本內容尚無英文版本」。</summary>
+    public required bool IsFallbackLocale { get; init; }
+
     public required string Slug { get; init; }
     public required string CategoryCode { get; init; }
     public string? CategoryName { get; init; }
@@ -61,6 +65,10 @@ public sealed record ArticleListItemDto
 public sealed record ArticleDetailDto
 {
     public required Guid Id { get; init; }
+    /// <summary>未翻譯標示（App 規劃書 §2.5「未翻譯 fallback 繁中並標示」、主站 G-01）：請求的是英文、而這筆的英文主要欄位（標題）是空的，回應內容是回退的繁中時為 true。
+    /// 請求繁中時恆為 false。用戶端據此顯示「本內容尚無英文版本」。</summary>
+    public required bool IsFallbackLocale { get; init; }
+
     public required string Slug { get; init; }
     public required string CategoryCode { get; init; }
     public string? CategoryName { get; init; }

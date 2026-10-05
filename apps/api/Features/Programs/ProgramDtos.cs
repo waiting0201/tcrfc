@@ -7,6 +7,9 @@ public sealed record ProgramListItemDto
 {
     public required Guid Id { get; init; }
     public required string Slug { get; init; }
+
+    /// <summary>未翻譯標示（App 規劃書 §2.5）：請求英文而英文名稱是空的，回應是回退的繁中時為 true；請求繁中恆為 false。</summary>
+    public required bool IsFallbackLocale { get; init; }
     public string? ProgramType { get; init; }
     public string? Audience { get; init; }
     public int? AgeMin { get; init; }
@@ -39,6 +42,10 @@ public sealed record ProgramSessionDto
     public DateTime? SignupOpensAt { get; init; }
     public DateTime? SignupClosesAt { get; init; }
     public required string Status { get; init; }
+    /// <summary>穩定狀態代碼（梯次 <c>open</c>／<c>full</c>／<c>waitlist</c>／<c>ended</c>），見 <c>shared/enums.json</c>；<c>status</c> 仍是中文字面值（相容保留）。</summary>
+    public required string StatusCode { get; init; }
+    public required string StatusLabelZh { get; init; }
+    public required string StatusLabelEn { get; init; }
     public Guid? VenueId { get; init; }
     public string? VenueName { get; init; }
     public string? VenueAddress { get; init; }
@@ -76,6 +83,9 @@ public sealed record ProgramDetailDto
 {
     public required Guid Id { get; init; }
     public required string Slug { get; init; }
+
+    /// <summary>未翻譯標示（App 規劃書 §2.5）：請求英文而英文名稱是空的，回應是回退的繁中時為 true；請求繁中恆為 false。</summary>
+    public required bool IsFallbackLocale { get; init; }
     public string? ProgramType { get; init; }
     public string? Audience { get; init; }
     public int? AgeMin { get; init; }
@@ -112,4 +122,9 @@ public sealed record ProgramRegistrationSubmittedDto
 {
     public required string RegistrationNo { get; init; }
     public required string Status { get; init; }
+    /// <summary>穩定狀態代碼（報名 <c>pending</c>／<c>waitlisted</c>），見 <c>shared/enums.json</c>；<c>status</c> 仍是中文字面值（相容保留）。</summary>
+    public required string StatusCode { get; init; }
+    public required string StatusLabelZh { get; init; }
+    public required string StatusLabelEn { get; init; }
+
 }

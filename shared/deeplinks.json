@@ -16,8 +16,8 @@
       "pattern": "tcrfc://schedule/{team}",
       "params": { "team": { "enum": ["d1", "bw1"], "note": "隊別代號全站唯一（docs/14）；BW1 不是第二個 D1" } },
       "webPath": "/zh/schedule/{team}/",
-      "webFallbackByParam": { "d1": "/zh/schedule/d1/", "bw1": null },
-      "webFallbackNote": "【待決】規劃書原文寫『藍鯨：官網尚無對應頁』；v2.0 之後藍鯨官網已決定建置（§2.3 註記），但藍鯨站的賽程網址未定。"
+      "webFallbackByParam": { "d1": "/zh/schedule/d1/", "bw1": "/zh/schedule/bw1/" },
+      "webFallbackNote": "藍鯨官網已決定建置（規劃書 §2.3 註記），其 /zh/schedule/bw1/ 與主站同一套頁面（apps/web 兩站共用，2026-10-05 完成）；但 bw1 的網址在藍鯨網域上，網域未定（STATUS B-4），domains.blueWhale 為 null 之前不得上線 Universal Link。官網未知隊別一律 302 回 /zh/schedule/（docs/19 §2）。"
     },
     {
       "id": "match",
@@ -25,7 +25,8 @@
       "deepLinks": ["tcrfc://match/{id}"],
       "pattern": "tcrfc://match/{id}",
       "params": { "id": { "type": "string" } },
-      "webPath": "/zh/schedule/{slug}"
+      "webPath": "/zh/schedule/{slug}",
+      "webFallbackNote": "官網以賽事 id（UUID）解析這一段：賽事目前沒有 slug 欄位，App 的 match 深連結參數也是 id；找不到的 id 302 回 /zh/schedule/（docs/19 §2）。"
     },
     {
       "id": "news",
@@ -41,7 +42,8 @@
       "deepLinks": ["tcrfc://player/{slug}"],
       "pattern": "tcrfc://player/{slug}",
       "params": { "slug": { "type": "string" } },
-      "webPath": "/zh/club/first-team/player/{slug}"
+      "webPath": "/zh/club/first-team/player/{slug}",
+      "webFallbackNote": "官網現階段以球員 id（UUID）解析這一段，API 補 slug 欄位後同一路徑自動接受 slug（docs/19 §2）；找不到 302 回 /zh/club/first-team/#roster。"
     },
     {
       "id": "store",
@@ -77,17 +79,24 @@
       "webPath": "/zh/member/upgrade/"
     }
   ],
+  "webLocales": ["zh", "en"],
   "universalLinkPaths": [
     "/zh/schedule/*",
     "/zh/news/*",
     "/zh/club/first-team/player/*",
     "/zh/perks/*",
     "/zh/programs/*",
-    "/zh/member/upgrade/"
+    "/zh/member/upgrade/",
+    "/en/schedule/*",
+    "/en/news/*",
+    "/en/club/first-team/player/*",
+    "/en/perks/*",
+    "/en/programs/*",
+    "/en/member/upgrade/"
   ],
   "universalLinkNotes": [
-    "universalLinkPaths 由 routes[].webPath 把 {參數} 換成 * 並排除 null 而來（check-shared.py 會驗證兩者一致）。",
-    "【待決】英文路徑（/en/...）的對應：規劃書 §2.3 對照表只列 /zh/，英文網址的路徑規則以主站規劃書的 URL 規則為準，確認後在此加入 /en/ 前綴的對應。",
+    "universalLinkPaths 由 routes[].webPath 把 {參數} 換成 * 並排除 null、再對 webLocales 的每個語系各展開一份而來（check-shared.py 會驗證兩者一致）。",
+    "英文路徑：官網每個 /zh/... 頁面自動有 /en/... 孿生路由（apps/web nuxt.config.ts pages:extend，docs/05 §1），路徑規則只換語系前綴；規劃書 §2.3 對照表只列 /zh/，/en/ 是官網 URL 規則的直接推論，不是新規格。",
     "AASA 要同時列 dev 與 prod 兩個 appID（docs/19 §9）；assetlinks.json 沒有 paths，路徑限定寫在 Android 的 intent-filter。",
     "部署 .well-known 的網域必須是最終正式網域（STATUS AP-9、docs/17 §10.3）。"
   ],
@@ -104,9 +113,14 @@
     { "input": "https://tcrfc.tw/zh/schedule/d1/", "expect": { "route": "schedule", "params": { "team": "d1" } } },
     { "input": "https://tcrfc.tw/zh/news/opening-day", "expect": { "route": "news", "params": { "slug": "opening-day" } } },
     { "input": "https://tcrfc.tw/zh/club/first-team/player/chen-xiao-ming", "expect": { "route": "player", "params": { "slug": "chen-xiao-ming" } } },
-    { "input": "https://tcrfc.tw/zh/member/upgrade/", "expect": { "route": "upgrade", "params": {} } }
+    { "input": "https://tcrfc.tw/zh/member/upgrade/", "expect": { "route": "upgrade", "params": {} } },
+    { "input": "https://tcrfc.tw/en/schedule/d1/", "expect": { "route": "schedule", "params": { "team": "d1" } } },
+    { "input": "https://tcrfc.tw/en/news/opening-day", "expect": { "route": "news", "params": { "slug": "opening-day" } } },
+    { "input": "https://tcrfc.tw/en/club/first-team/player/chen-xiao-ming", "expect": { "route": "player", "params": { "slug": "chen-xiao-ming" } } },
+    { "input": "https://tcrfc.tw/en/member/upgrade/", "expect": { "route": "upgrade", "params": {} } }
   ],
   "parseCaseNotes": [
+    "未知或缺參數的官網網址由官網 302 回上一層頁面（docs/19 §2「官網回退規則」），不在 deeplinks.json 範圍；App 端對無法解析的 tcrfc:// 連結如何處理仍屬 App 自己的決定。",
     "parseCases 只涵蓋規劃書 §2.3 明列的對應；未列出的輸入（未知路徑、缺參數、大小寫）如何處理【待決】，規劃書只規定『未安裝 App 的裝置一律回退至對應官網網址，不得顯示錯誤頁』。",
     "https://tcrfc.tw/zh/schedule/d1/ 與 /zh/schedule/{slug}（賽事詳情）的路徑前綴相同：『schedule 之後是球隊代號』或『賽事 slug』如何區分【待決】——本檔的 https 案例只涵蓋 d1。"
   ]

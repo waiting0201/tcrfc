@@ -16,7 +16,7 @@ public sealed class PartnersRepository(IClubSqlConnectionFactory connectionFacto
 {
     private sealed record PartnerRow(
         Guid Id, string Slug, string? PartnerType, string? Country, DateTime? StartOn, DateTime? EndOn, string? WebsiteUrl,
-        bool ShowInFooter, bool ShowOnHome, int SortOrder, string? LogoDarkKey, string? LogoLightKey, string? Name, string? Content);
+        bool ShowInFooter, bool ShowOnHome, int SortOrder, string? LogoDarkKey, string? LogoLightKey, string? Name, string? Content, bool IsFallbackLocale);
 
     private sealed record ProgramLinkRow(Guid PartnerId, string Slug, string? Name);
 
@@ -35,7 +35,8 @@ public sealed class PartnersRepository(IClubSqlConnectionFactory connectionFacto
                        p.show_in_footer AS ShowInFooter, p.show_on_home AS ShowOnHome, p.sort_order AS SortOrder,
                        p.logo_dark_key AS LogoDarkKey, p.logo_light_key AS LogoLightKey,
                        COALESCE(NULLIF(r.name, N''), d.name) AS Name,
-                       COALESCE(NULLIF(r.content, N''), d.content) AS Content
+                       COALESCE(NULLIF(r.content, N''), d.content) AS Content,
+                       CAST(CASE WHEN @Locale <> @DefaultLocale AND NULLIF(r.name, N'') IS NULL THEN 1 ELSE 0 END AS bit) AS IsFallbackLocale
                 FROM partners p
                 LEFT JOIN partners_i18n r ON r.partner_id = p.id AND r.locale = @Locale
                 LEFT JOIN partners_i18n d ON d.partner_id = p.id AND d.locale = @DefaultLocale
@@ -82,7 +83,7 @@ public sealed class PartnersRepository(IClubSqlConnectionFactory connectionFacto
                 StartOn = r.StartOn is null ? null : DateOnly.FromDateTime(r.StartOn.Value),
                 EndOn = r.EndOn is null ? null : DateOnly.FromDateTime(r.EndOn.Value),
                 WebsiteUrl = r.WebsiteUrl, ShowInFooter = r.ShowInFooter, ShowOnHome = r.ShowOnHome, SortOrder = r.SortOrder,
-                Name = r.Name, Content = r.Content,
+                Name = r.Name, IsFallbackLocale = r.IsFallbackLocale, Content = r.Content,
                 LogoDarkUrl = imageUrls.Resolve(r.LogoDarkKey), LogoLightUrl = imageUrls.Resolve(r.LogoLightKey),
                 CharityPrograms = links.GetValueOrDefault(r.Id) ?? [],
             }).ToList();

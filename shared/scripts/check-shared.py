@@ -140,7 +140,9 @@ def parse_link(routes, url: str):
         elif r["webPath"]:
             # 官網網址的參數名稱以 webPath 為準（match／store 的深連結叫 id、官網叫 slug；parseCases 目前只涵蓋名稱相同的列）
             url_path = re.match(r"^https://[^/]+(/.*)$", url)
-            m = template_to_regex(r["webPath"], r["params"]).match(url_path.group(1)) if url_path else None
+            # /en/... 與 /zh/... 同一條路徑規則（webLocales），比對前把語系前綴正規化成 webPath 的 /zh/
+            path = re.sub(r"^/(?:zh|en)/", "/zh/", url_path.group(1)) if url_path else None
+            m = template_to_regex(r["webPath"], r["params"]).match(path) if path else None
         else:
             m = None
         if m:
@@ -168,8 +170,10 @@ def check_deeplinks(dl) -> None:
             continue
         p = re.sub(r"\{\w+\}/?$", "*", r["webPath"])
         p = re.sub(r"\{\w+\}", "*", p)
-        if p not in derived:
-            derived.append(p)
+        for loc in dl.get("webLocales", ["zh"]):
+            q = re.sub(r"^/zh/", "/%s/" % loc, p)
+            if q not in derived:
+                derived.append(q)
     if sorted(derived) != sorted(dl["universalLinkPaths"]):
         fail(f"deeplinks.json：universalLinkPaths 與 routes[].webPath 不一致。應為 {sorted(derived)}，實際 {sorted(dl['universalLinkPaths'])}")
     for case in dl["parseCases"]:
@@ -265,6 +269,66 @@ def check_error_codes(ec) -> None:
                 fail(f"error-codes.json：{code} 的狀態碼 {s} 不是錯誤狀態")
     if not ec["codes"]:
         fail("error-codes.json：沒有任何代碼（掃描器可能壞了）")
+    # 統一錯誤結構（App 規劃書 §9.5，2026-10-05）：每個代碼都有英文訊息與 retryable；4xx 一律不可重試。
+    for item in ec["codes"]:
+        code = item["code"]
+        if not isinstance(item.get("messageEn"), str) or not item["messageEn"].strip():
+            fail(f"error-codes.json：{code} 缺 messageEn（請在 apps/api/Common/ApiErrorMessages.cs 補）")
+        if not isinstance(item.get("retryable"), bool):
+            fail(f"error-codes.json：{code} 缺 retryable")
+        elif item["retryable"] and any(s < 500 for s in item["httpStatus"]):
+            fail(f"error-codes.json：{code} 含 4xx 卻標 retryable=true（§9.5：4xx 不重試）")
+    defaults = ec.get("statusDefaults") or []
+    if not defaults:
+        fail("error-codes.json：缺 statusDefaults（依狀態的通用代碼）")
+    for d in defaults:
+        if not re.fullmatch(r"[a-z][a-z0-9]*(_[a-z0-9]+)*", d["code"]) or not d.get("messageEn"):
+            fail(f"error-codes.json：statusDefaults 的 {d.get('code')} 格式或英文訊息不對")
+    for field in ("code", "messageZh", "messageEn", "retryable"):
+        if field not in ec["envelope"]["fields"]:
+            fail(f"error-codes.json：envelope.fields 缺 {field}")
+
+
+# ── 6b. image-derivatives.json／enums.json（2026-10-05，缺口 A5／A10）──────────────────────────
+def check_image_derivatives(doc) -> None:
+    if not doc:
+        return
+    ext = doc["mainExtension"]
+    suffixes = {d["suffix"] for d in doc["derivatives"]}
+    if not {"1280", "640", "320", "thumb"} <= suffixes:
+        fail(f"image-derivatives.json：衍生檔不完整 {sorted(suffixes)}（規劃書 §4.0：1280／640／320＋方形縮圖）")
+    for ex in doc["examples"]:
+        main, suffix = ex["main"], ex["suffix"]
+        base, sep, rest = main.partition("?")
+        got = base[: -len(ext)] + f"-{suffix}" + ext + (sep + rest if sep else "")
+        if got != ex["expected"]:
+            fail(f"image-derivatives.json：範例推導不一致 {main} → {got} ≠ {ex['expected']}")
+
+
+def check_news_body(doc) -> None:
+    if not doc:
+        return
+    kinds = doc["blockKinds"]
+    if not {"p", "heading", "quote", "list", "image", "gallery"} <= set(kinds):
+        fail(f"news-body-blocks.json：區塊種類不完整 {sorted(kinds)}")
+    seen = {}
+    for kind, e in kinds.items():
+        for t in e["type"]:
+            if t in seen:
+                fail(f"news-body-blocks.json：type「{t}」同時屬於 {seen[t]} 與 {kind}")
+            seen[t] = kind
+    if "unknownTypeConvention" not in doc or not doc["safeUrl"]["sourceFound"]:
+        fail("news-body-blocks.json：缺未知型別約定或網址安全檢查來源")
+
+
+def check_enums(doc) -> None:
+    if not doc:
+        return
+    for name, e in doc["enums"].items():
+        if not e["values"] or len(set(e["values"])) != len(e["values"]):
+            fail(f"enums.json：{name} 值域為空或重複")
+    if doc["enums"]["TeamDto.type"]["values"] != ["first_team", "academy"]:
+        fail("enums.json：TeamDto.type 值域變了——App 端的「非 first_team 即學院」假設需要重新確認（docs/19 缺口 A10）")
 
 
 # ── 7. openapi.json ───────────────────────────────────────────────────────────
@@ -297,6 +361,9 @@ def main() -> int:
     check_deeplinks(dl)
     check_viewability(cases)
     check_error_codes(ec)
+    check_image_derivatives(load("image-derivatives.json"))
+    check_enums(load("enums.json"))
+    check_news_body(load("news-body-blocks.json"))
     check_openapi(oa)
     if errors:
         print(f"shared/ 一致性檢查失敗（{len(errors)} 項）：", file=sys.stderr)

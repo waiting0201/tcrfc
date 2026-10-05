@@ -24,6 +24,9 @@ public sealed record AdminPlayerListItemDto
     public required Guid Id { get; init; }
     public required Guid TeamId { get; init; }
     public required string TeamCode { get; init; }
+
+    /// <summary>網址代稱（後台稱「網址代稱」；App 深連結 <c>tcrfc://player/{slug}</c> 的 <c>{slug}</c>）。</summary>
+    public required string Slug { get; init; }
     public int? ShirtNo { get; init; }
     public string? Position { get; init; }
     public DateOnly? BirthOn { get; init; }
@@ -44,6 +47,7 @@ public sealed record AdminPlayerDetailDto
     public required Guid Id { get; init; }
     public required Guid TeamId { get; init; }
     public required string TeamCode { get; init; }
+    public required string Slug { get; init; }
     public int? ShirtNo { get; init; }
     public string? Position { get; init; }
     public DateOnly? BirthOn { get; init; }
@@ -72,6 +76,10 @@ public sealed record AdminPlayerDetailDto
 public sealed record CreateAdminPlayerRequest
 {
     public required Guid TeamId { get; init; }
+
+    /// <summary>網址代稱（<c>[a-z0-9-]</c>，同一俱樂部內唯一）。省略時由後端依英文姓名／隊別與背號自動產生
+    /// （見 <c>PlayerSlug.Suggest</c>）；重複回 409。</summary>
+    public string? Slug { get; init; }
     public int? ShirtNo { get; init; }
     public string? Position { get; init; }
     public DateOnly? BirthOn { get; init; }
@@ -92,6 +100,9 @@ public sealed record CreateAdminPlayerRequest
 public sealed record UpdateAdminPlayerRequest
 {
     public required Guid TeamId { get; init; }
+
+    /// <summary>網址代稱。省略（null）＝維持原值（不重新產生，以免 App 深連結失效）；有值就驗證格式與唯一性。</summary>
+    public string? Slug { get; init; }
     public int? ShirtNo { get; init; }
     public string? Position { get; init; }
     public DateOnly? BirthOn { get; init; }

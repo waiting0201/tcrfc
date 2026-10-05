@@ -87,7 +87,7 @@ ER 圖已給欄位與型別，本節只補**值域、唯一鍵與約束**——�
 | `MembershipPayment` | 手動開通時寫入：`club_id`＝**受益俱樂部**（目前操作的俱樂部）、`collecting_club_id`＝**收款主體俱樂部**（`clubs.is_collecting_subject = 1`，代收代付）；`method`：`linepay`／`onsite`；`handled_by`＝經辦人 |
 | `MembershipBenefit` | **不帶 `club_id`**，靠父表方案；`benefit_group`：`member_card`／`store_discount`／`jersey`／`event`；`status`：`draft`／`published`；側表 `name`／`description`／`group_label`（由分組代碼自動帶入雙語）／`free_value`／`paid_value` |
 | `JerseyIssue` | `membership_id`（可空，舊資料）；`status`：`pending`／`shipped`／`received`；`delivery_method`：`ship`（寄送，須有電話與地址）／`pickup`（到場領取，不能標「已寄出」）；件數不得超過方案 `jersey_quota` |
-| `PartnerStore` | `club_id` 可為空＝兩隊共同（**只有系統管理員能編輯**）；`applicable_tier`：`all`／`fan_club`；`status`：`draft`／`published`；`address` 存中文地址、`partner_stores_i18n.address` 只存英文；`business_hours` 是 `json` 欄位，後台把自由文字存成 **JSON 物件 `{"text":"…"}`**（⛔ 不是字串純量——原生 `json` 型別只收物件與陣列，`docs/18` `E-111`；讀取端相容舊的字串純量，對外 API 仍是純文字）；`lat`／`lng` 成對、人工確認後儲存（不做即時 geocoding） |
+| `PartnerStore` | **座標（2026-10-05）：`lat`／`lng` 要嘛都空（＝未確認，App 地圖不顯示、不計距離）、要嘛都有且在範圍內（緯度 -90–90、經度 -180–180）；`(0, 0)` 這類替代值一律不允許（`CK_partner_stores_coords`＋後台驗證）**。`club_id` 可為空＝兩隊共同（**只有系統管理員能編輯**）；`applicable_tier`：`all`／`fan_club`；`status`：`draft`／`published`；`address` 存中文地址、`partner_stores_i18n.address` 只存英文；`business_hours` 是 `json` 欄位，後台把自由文字存成 **JSON 物件 `{"text":"…"}`**（⛔ 不是字串純量——原生 `json` 型別只收物件與陣列，`docs/18` `E-111`；讀取端相容舊的字串純量，對外 API 仍是純文字）；`lat`／`lng` 成對、人工確認後儲存（不做即時 geocoding） |
 | `Trial`（P4） | `status`：`開放`／`額滿`／`候補`／`已結束`；`enrolled_count` 由報名狀態原子調整（待確認／已確認／已繳費／完成佔名額，取消與候補不佔）；達 `capacity` 時「開放」單向轉「額滿」 |
 | `CalendarTeamSetting`（L3） | `team_id` UNIQUE；`colour`／`sort_order` 空＝沿用 `teams.team_color`／`teams.sort_order`；`is_public = 0` 的隊別不出現在前台選單，其訂閱 feed 回 404 |
 
@@ -445,6 +445,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `Member` | `email`、`phone`、`birth_on` | 🔒 | 系統管理員、客服／行政 | 行 1320 |
 | 🔴 **`Registration`** | **`health_declaration`**（健康聲明） | **🔐 建議** | ⚠️ **待法務確認** | 行 373、1087 |
 | `Member` | `line_user_id_encrypted` | 🔐 | 系統管理員 | 行 1282 |
+| `Member` | `guardian_name`（監護人姓名，2026-10-05） | 🔒 | 系統管理員、客服／行政（同 `Member.email`，`member.pii.reveal`）；刪帳號時清除 | 主站「會員資料安全要求」、App §4.5 |
 | `JerseyIssue` | `recipient_name`、`address` | 🔒 | 系統管理員、客服／行政、出貨角色 | K3 |
 | `Order` | `recipient_name`、`recipient_phone`、`recipient_address` | 🔒 ⚖️ | 系統管理員、客服／行政、出貨角色 | 行 1327 |
 | `OrderItem`／`StoreInvoice` | 全表 | ⚖️ | — | 稅法保存，年限待確認第 28 點 |
@@ -609,6 +610,7 @@ RolePermission: scope_type 加值 own_clubs；scope_value json ❌ 刪除
 | `FormField`（S1-10） | `(form_id)`，**過濾唯一索引** `WHERE is_summary = 1`：同一張表單最多一個「內容摘要」欄位（`UQ_form_fields_one_summary_per_form`，第二道防線，主要防線在應用層；2026-10-01 對齊 DDL） |
 | `Locale` | `code` |
 | `PressResource` | `(club_id, slug)` |
+| `Player`（2026-10-05） | `(club_id, slug)`——`slug` 必填（網址代稱，App 深連結 `tcrfc://player/{slug}` 的 `{slug}`；弱讀法，見下方 NULL 語意段） |
 | `FaqEmbedSlot` | `code`（S1-8 新增） |
 | 所有 `*_i18n` | `(<entity>_id, locale)` |
 | 其餘內容表 | `(club_id, slug)`（`club_id` 必填者）或 `slug`（不帶 `club_id` 者） |

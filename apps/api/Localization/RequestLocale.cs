@@ -24,6 +24,13 @@ public static class RequestLocale
     /// <summary>
     /// 回退挑值：請求語系的值非空白就用它，否則用預設語系（<c>zh-Hant</c>）的值，兩者皆空白回傳 null。
     /// </summary>
+    /// <summary>
+    /// 未翻譯標示（App 規劃書 §2.5）：請求語系不是預設語系、且請求語系的主要欄位值是空白（所以 <see cref="Pick"/> 回退成預設語系的值）時為 true。
+    /// 主要欄位＝該型別的名稱或標題；整筆資料沒有任何可顯示文字時也視為回退。
+    /// </summary>
+    public static bool IsFallback(string dbLocale, string? requestedPrimaryValue)
+        => dbLocale != DefaultDbLocale && string.IsNullOrWhiteSpace(requestedPrimaryValue);
+
     public static string? Pick(string? requestedLocaleValue, string? defaultLocaleValue)
         => string.IsNullOrWhiteSpace(requestedLocaleValue) ? NullIfBlank(defaultLocaleValue) : requestedLocaleValue;
 

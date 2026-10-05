@@ -594,6 +594,33 @@ public sealed class ShopPublicTests(AdminWriteApiFixture fixture)
         Assert.Equal((10, 5), await StockAsync(v)); // 2（第一張）＋ 3（並行那張）
     }
 
+    [Fact]
+    public async Task 結帳冪等_高強度並行_16並行乘40輪_恰好一個201_其餘200同一張_庫存發票與保留異動只一份()
+    {
+        // 回歸 E-172（同類）：慢的請求在「查冪等鍵」之後、「讀購物車」之前，被快的請求成立訂單並清空購物車，
+        // 於是回 409 cart_empty（應回 200＋原訂單）。多輪、高並行以穩定抓到。
+        using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
+        await using var scope = new Scope();
+        var made = await NewProductAsync(scope, admin, "idem-stress", Club, ("M", 100, 100));
+        var v = made.Variants[0].Id;
+        for (var round = 0; round < 40; round++)
+        {
+            var token = await AddToCartAsync(scope, v, 1);
+            var key = "stress-" + Guid.NewGuid().ToString("N");
+            var body = Checkout(NewEmail());
+            var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => CheckoutAsync(token, body, key))));
+            var codes = string.Join(",", results.Select(r => $"{(int)r.Status}{(r.Status == HttpStatusCode.Conflict ? ":" + r.Json.GetProperty("code").GetString() : "")}"));
+            Assert.True(results.All(r => r.Status is HttpStatusCode.Created or HttpStatusCode.OK), $"第 {round} 輪：{codes}");
+            Assert.Equal(1, results.Count(r => r.Status == HttpStatusCode.Created));
+            Assert.Single(results.Select(r => r.Json.GetProperty("orderNo").GetString()).Distinct());
+            Assert.Equal(1, await C1Test.ScalarAsync<int>("SELECT COUNT(*) FROM orders WHERE idempotency_key = @K", ("@K", key)));
+            Assert.Equal(1, await C1Test.ScalarAsync<int>("SELECT COUNT(*) FROM store_invoices i JOIN orders o ON o.id = i.order_id WHERE o.idempotency_key = @K", ("@K", key)));
+            Assert.Equal(1, await C1Test.ScalarAsync<int>(
+                "SELECT COUNT(*) FROM inventory_movements m JOIN orders o ON o.id = m.order_id WHERE o.idempotency_key = @K AND m.movement_type = 'reserve'", ("@K", key)));
+            Assert.Equal((100, round + 1), await StockAsync(v)); // 每輪恰保留 1 件
+        }
+    }
+
     // ═══════════════════════════ 防超賣（並行）═══════════════════════════
 
     [Fact]
@@ -624,6 +651,92 @@ public sealed class ShopPublicTests(AdminWriteApiFixture fixture)
         Assert.Equal(3, await C1Test.ScalarAsync<int>("SELECT COUNT(*) FROM inventory_movements WHERE product_variant_id = @V AND movement_type = 'reserve'", ("@V", v)));
         var failedToken = tokens[Array.FindIndex(results, r => r.Status != HttpStatusCode.Created)];
         Assert.Equal(1, (await SendAsync(Client(), HttpMethod.Get, Url("cart"), null, (ShopCartService.CartTokenHeader, failedToken))).Json.GetProperty("itemCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task 防超賣_庫存1件_16個不同購物車並行_16並行乘10輪_恰好一張成立_其餘409庫存不足_庫存不為負_保留量為一()
+    {
+        using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
+        await using var scope = new Scope();
+        for (var round = 0; round < 10; round++)
+        {
+            var made = await NewProductAsync(scope, admin, $"last-one-{round}", Club, ("M", 100, 1));
+            var v = made.Variants[0].Id;
+            var tokens = new List<string>();
+            for (var i = 0; i < 16; i++)
+            {
+                tokens.Add(await AddToCartAsync(scope, v, 1));
+            }
+
+            var results = await Task.WhenAll(tokens.Select(t => Task.Run(() => CheckoutAsync(t, Checkout(NewEmail())))));
+            var codes = string.Join(",", results.Select(r => $"{(int)r.Status}{(r.Status == HttpStatusCode.Conflict ? ":" + r.Json.GetProperty("code").GetString() : "")}"));
+            Assert.True(results.All(r => r.Status is HttpStatusCode.Created or HttpStatusCode.Conflict), $"第 {round} 輪：{codes}");
+            Assert.Equal(1, results.Count(r => r.Status == HttpStatusCode.Created));
+            Assert.All(results.Where(r => r.Status == HttpStatusCode.Conflict), r => Assert.Equal("insufficient_stock", r.Json.GetProperty("code").GetString()));
+            Assert.Equal((1, 1), await StockAsync(v));
+            Assert.Equal(1, await C1Test.ScalarAsync<int>("SELECT COUNT(*) FROM order_items WHERE product_variant_id = @V", ("@V", v)));
+        }
+    }
+
+    [Fact]
+    public async Task 防超賣_取消與逾時釋放保留_和並行結帳交錯_保留量永遠等於有效訂單件數_不超賣不為負()
+    {
+        using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
+        await using var scope = new Scope();
+        var made = await NewProductAsync(scope, admin, "release-interleave", Club, ("M", 100, 2));
+        var v = made.Variants[0].Id;
+        for (var round = 0; round < 6; round++)
+        {
+            // 先把所有購物車建好（加入購物車時庫存還夠），再讓庫存的 2 件被保留，最後讓「取消」與 16 個新的結帳同時進來。
+            var seedTokens = new[] { await AddToCartAsync(scope, v, 1), await AddToCartAsync(scope, v, 1) };
+            var buyers = new List<string>();
+            for (var i = 0; i < 16; i++)
+            {
+                buyers.Add(await AddToCartAsync(scope, v, 1));
+            }
+
+            var seeded = new List<(string No, string Token)>();
+            foreach (var t in seedTokens)
+            {
+                var o = await CheckoutAsync(t, Checkout(NewEmail()));
+                Assert.Equal(HttpStatusCode.Created, o.Status);
+                seeded.Add((o.Json.GetProperty("orderNo").GetString()!, o.Json.GetProperty("accessToken").GetString()!));
+            }
+
+            if (round % 2 == 1)
+            {
+                // 奇數輪：兩張已逾時但沒人讀到的訂單——結帳端的「清掃逾時」與買家的「取消」同時搶著釋放同一批保留。
+                foreach (var (no, _) in seeded)
+                {
+                    await BizTest.ExecuteSqlAsync("UPDATE orders SET created_at = DATEADD(hour, -3, SYSUTCDATETIME()) WHERE order_no = @N", ("@N", no));
+                }
+            }
+
+            var cancels = seeded.Select(s => Task.Run(async () =>
+                (await SendAsync(Client(), HttpMethod.Post, Url($"orders/{s.No}/cancel"), null, (ShopOrderService.OrderTokenHeader, s.Token))).Status));
+            var checkouts = buyers.Select(t => Task.Run(async () => (await CheckoutAsync(t, Checkout(NewEmail()))).Status));
+            var statuses = await Task.WhenAll(cancels.Concat(checkouts));
+            Assert.All(statuses, st => Assert.True(st is HttpStatusCode.OK or HttpStatusCode.Created or HttpStatusCode.Conflict, $"第 {round} 輪非預期狀態 {st}"));
+
+            var (stock, reserved) = await StockAsync(v);
+            var active = await C1Test.ScalarAsync<int>(
+                "SELECT COALESCE(SUM(i.quantity), 0) FROM order_items i JOIN orders o ON o.id = i.order_id WHERE i.product_variant_id = @V AND o.order_status = @P", ("@V", v), ("@P", ShopLabels.Pending));
+            Assert.Equal(2, stock);
+            Assert.InRange(reserved, 0, stock);
+            Assert.Equal(active, reserved); // 保留量與「待付款訂單件數」一致，沒有漏釋放也沒有重複釋放
+
+            // 清空此輪留下的待付款訂單，下一輪重新開始。
+            await BizTest.ExecuteSqlAsync(
+                """
+                DECLARE @o TABLE (id uniqueidentifier);
+                INSERT INTO @o SELECT DISTINCT order_id FROM order_items WHERE product_variant_id = @V;
+                DELETE FROM store_invoices WHERE order_id IN (SELECT id FROM @o);
+                DELETE FROM inventory_movements WHERE order_id IN (SELECT id FROM @o);
+                DELETE FROM order_items WHERE order_id IN (SELECT id FROM @o);
+                DELETE FROM orders WHERE id IN (SELECT id FROM @o);
+                UPDATE product_variants SET reserved_qty = 0 WHERE id = @V;
+                """, ("@V", v));
+        }
     }
 
     [Fact]

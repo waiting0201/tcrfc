@@ -29,6 +29,14 @@ public sealed record MemberCardDto
     public required string Token { get; init; }
     public required int ReissueCount { get; init; }
     public DateTime? IssuedAt { get; init; }
+
+    /// <summary>
+    /// 伺服器產生這份回應的時刻（UTC，帶 <c>Z</c>；2026-10-05，缺口 B3）。行動 App 用它記「最後同步時間」並算會員卡 7 天提醒
+    /// （App 規劃書 §4：取牆鐘差與單調時鐘差較大者），**不依賴 HTTP <c>Date</c> 標頭**（標頭可能被代理改寫或快取，也可能缺）。
+    /// 會員卡端點永不快取（docs/14：會員卡驗證／會籍狀態不得讀快取），所以這個時刻就是「這張卡的有效狀態被確認的時刻」。
+    /// <see cref="IsValid"/>／<see cref="Status"/> 是以這個時刻判定的結果。
+    /// </summary>
+    public required DateTime ServerTime { get; init; }
 }
 
 public sealed record MemberPendingOrderDto
@@ -129,9 +137,63 @@ public sealed record MemberRegistrationDto
     public required Guid Id { get; init; }
     public required string RegistrationNo { get; init; }
     public required string ClubCode { get; init; }
+
+    /// <summary>報名狀態，中文字面值（<c>待確認</c>／<c>已確認</c>／<c>已繳費</c>／<c>完成</c>／<c>取消</c>／<c>候補</c>，相容保留；新用戶端請改用 <see cref="StatusCode"/>）。</summary>
     public required string Status { get; init; }
+
+    /// <summary>穩定代碼：<c>pending</c>／<c>confirmed</c>／<c>paid</c>／<c>completed</c>／<c>cancelled</c>／<c>waitlisted</c>（<c>shared/enums.json</c>）。
+    /// <b>繳費狀態就在這裡</b>：報名沒有獨立的付款資料表（課程報名不走線上金流，由後台確認款項後把狀態改成 <c>paid</c>），所以 <c>paid</c>／<c>completed</c> 代表已繳費；
+    /// 應繳金額見 <see cref="MemberRegistrationCourseDto.Price"/>。</summary>
+    public required string StatusCode { get; init; }
+    public required string StatusLabelZh { get; init; }
+    public required string StatusLabelEn { get; init; }
     public required string ApplicantName { get; init; }
     public Guid? SessionId { get; init; }
     public Guid? TrialId { get; init; }
     public required DateTime CreatedAt { get; init; }
+
+    /// <summary><c>session</c>（課程梯次）或 <c>trial</c>（試訓）。</summary>
+    public required string Kind { get; init; }
+
+    /// <summary>課程梯次報名的課程摘要；試訓報名為 null。</summary>
+    public MemberRegistrationCourseDto? Course { get; init; }
+
+    /// <summary>試訓報名的場次摘要；課程報名為 null。</summary>
+    public MemberRegistrationTrialDto? Trial { get; init; }
+
+    /// <summary>未翻譯標示：請求英文而課程名稱（試訓為球隊名稱）沒有英文版，摘要裡的名稱是回退的繁中。</summary>
+    public required bool IsFallbackLocale { get; init; }
+}
+
+/// <summary>我的報名裡的課程摘要（App 規劃書 §3.9、§9.2「我的報名」）。只用既有欄位：課程名稱、梯次期間與每週時段、場地、價格、梯次狀態。</summary>
+public sealed record MemberRegistrationCourseDto
+{
+    public required string ProgramSlug { get; init; }
+    public string? ProgramName { get; init; }
+    public DateOnly? StartOn { get; init; }
+    public DateOnly? EndOn { get; init; }
+
+    /// <summary>每週上課時段（JSON 文字，同 <c>ProgramSessionDto.weeklySchedule</c>）。</summary>
+    public string? WeeklySchedule { get; init; }
+    public string? VenueName { get; init; }
+    public string? VenueAddress { get; init; }
+
+    /// <summary>梯次定價（新台幣元）；沒定價為 null。早鳥價與期限一併帶出，用戶端自行判斷顯示。</summary>
+    public int? Price { get; init; }
+    public int? EarlyBirdPrice { get; init; }
+    public DateOnly? EarlyBirdUntil { get; init; }
+    public required string SessionStatusCode { get; init; }
+    public required string SessionStatusLabelZh { get; init; }
+    public required string SessionStatusLabelEn { get; init; }
+}
+
+public sealed record MemberRegistrationTrialDto
+{
+    public required DateOnly TrialOn { get; init; }
+    public string? TeamName { get; init; }
+    public string? VenueName { get; init; }
+    public string? VenueAddress { get; init; }
+    public required string TrialStatusCode { get; init; }
+    public required string TrialStatusLabelZh { get; init; }
+    public required string TrialStatusLabelEn { get; init; }
 }

@@ -64,7 +64,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
     /// <summary>🔴 跟 <see cref="AdminSeoTests"/> 同一個理由：這個測試會真的改動
     /// <c>tcrfc_club</c> 的 <c>clubs.og_image_key</c>（本機開發環境唯一一份，會反映到公開
     /// 端點），測試前後都要還原，不能留下痕跡。</summary>
-    [Fact]
+    [AzuriteFact]
     public async Task 全站預設OgImage_上傳後解析出網址_移除後清空()
     {
         using var client = await CreateSuperAdminClientAsync();
@@ -112,7 +112,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
 
     // ───────────────────────────── 文章 OG 圖片（含優先序） ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task 文章OgImage_專屬圖片優先於全站預設()
     {
         using var editorClient = await CreateContentEditorClientAsync();
@@ -187,7 +187,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 文章OgImage_沒有專屬圖片時回退全站預設()
     {
         using var editorClient = await CreateContentEditorClientAsync();
@@ -250,7 +250,7 @@ public sealed class AdminSeoImageTests(AdminWriteAzuriteEnabledApiFixture fixtur
 
     // ───────────────────────────── 頁面 OG 圖片（僅後台，無公開前台路由可驗，見任務回報） ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task 頁面OgImage_後台上傳後解析出網址()
     {
         using var editorClient = await CreateContentEditorClientAsync();

@@ -11,7 +11,10 @@
 | `openapi.json` | **產生** | `apps/api` 建置期產出的 OpenAPI 3.1，已排除後台、慈善平台、伺服器內部端點並正規化 |
 | `generated/swift/TcrfcApiModels.swift` | **產生** | Swift `Codable` DTO（183 個型別） |
 | `generated/kotlin/TcrfcApiModels.kt` | **產生** | Kotlin `@Serializable` DTO（同上） |
-| `error-codes.json` | **產生** | 從 `apps/api` 原始碼掃出的機器可讀錯誤代碼，加上錯誤信封、重試規則與待決缺口 |
+| `error-codes.json` | **產生** | 從 `apps/api` 原始碼掃出的機器可讀錯誤代碼（89 個），每個附 `messageEn`／`retryable`；錯誤信封（`code`／`messageZh`／`messageEn`／`retryable`，App 規劃書 §9.5）、依狀態的通用代碼 `statusDefaults`、重試規則與殘餘缺口 |
+| `image-derivatives.json` | **產生** | 圖片衍生檔網址命名規則（1280／640／320／thumb）、挑選建議與範例，來源 `apps/api/Images`（缺口 A5） |
+| `enums.json` | **產生** | 封閉值域（球隊 type／gender、賽事 status、梯次／試訓／報名的穩定狀態代碼與雙語標籤），來源 `db/club-schema.sql` 的 CHECK 與 `apps/api/Common/EnrollmentStatus.cs`（缺口 A10、C2） |
+| `news-body-blocks.json` | **產生** | 新聞內文 `bodyJson` 的區塊型別與別名、未知型別約定（忽略）、圖片網址安全規則；來源 `apps/web/app/utils/news-body.ts`（缺口 D2） |
 | `cache-schema.sql` | 手寫 | App 本機 SQLite 的共用 DDL，`-- migration: N` 區塊連號 |
 | `cache-policy.json` | 手寫 | 規劃書 §2.4 時效表逐 key，另含會員卡、事件佇列、圖片、網路常數 |
 | `deeplinks.json` | 手寫 | 規劃書 §2.3 的 8 條深連結、官網回退網址、`universalLinkPaths`、解析測資 |
@@ -44,4 +47,11 @@ CI 的 `shared-contract` job（[`docs/20-cicd.md`](../docs/20-cicd.md) §3）會
 
 ## 待決事項
 
-完整清單在 [`docs/19`](../docs/19-app-tech-stack.md) §2「目前 `shared/` 揭露的缺口」（錯誤結構缺雙語與 `retryable`、App 端點白名單、官網路徑落差、英文路徑、藍鯨網域、未知深連結行為、會員卡 7 天提醒跨重啟、曝光起點）。
+完整清單在 [`docs/19`](../docs/19-app-tech-stack.md) §2「目前 `shared/` 揭露的缺口」（App 端點白名單、官網路徑落差、英文路徑、藍鯨網域、未知深連結行為、會員卡 7 天提醒跨重啟、曝光起點）。
+
+
+## 肖像同意的契約（缺口 D1）
+
+`PlayerDto`／`StaffDto` 的 `portraitConsented`（布林）：**`photoUrl`／`photoKey` 非 null ⇒ `portraitConsented` 為 true**；為 false 時照片欄位一律 null，用戶端不得自行取得或顯示該人照片。
+只代表「官網層級的肖像同意已取得」——**同意的涵蓋範圍（App、商店頁面）目前沒有資料欄位**，是 App 規劃書 §16.2 第 14 項客戶待決事項，不可由這個欄位推定已涵蓋 App。
+布林刻意不區分「本人同意」與「監護人同意」，以免洩漏球員是否未成年。

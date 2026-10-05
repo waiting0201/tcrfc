@@ -143,6 +143,8 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 (StatusCodes.Status409Conflict, "一線隊已存在", firstTeamExists.Message),
             AdminPlayerValidationException playerValidation =>
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", playerValidation.Message),
+            AdminPlayerSlugConflictException playerSlugConflict =>
+                (StatusCodes.Status409Conflict, "網址代稱重複", playerSlugConflict.Message),
             AdminStaffValidationException staffValidation =>
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", staffValidation.Message),
             SharedStaffReadOnlyException sharedStaffReadOnly =>
@@ -296,6 +298,9 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
         {
             problem.Extensions["lockedUntil"] = locked.LockedUntilUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);
         }
+
+        // 統一錯誤結構（App 規劃書 §9.5）：補 code（沒有專屬代碼時依狀態）、messageZh／messageEn、retryable。相容擴充，不動既有欄位。
+        ApiErrorEnvelope.Fill(problem, statusCode);
 
         await httpContext.Response.WriteAsJsonAsync(problem, cancellationToken);
 

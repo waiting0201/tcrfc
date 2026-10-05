@@ -91,6 +91,7 @@ public sealed class AdServingService(ClubDbContext dbContext, IImagePublicUrlRes
             Items = chosen.Select(x => new AppAdItemDto
             {
                 CreativeId = x.Creative.Id, CampaignId = x.Campaign.Id, IsFallback = false, ImageUrl = imageUrls.Resolve(x.Creative.ImageKey),
+                ImageVariants = Variants(x.Creative.ImageKey),
                 ImageWidth = x.Creative.ImageWidth, ImageHeight = x.Creative.ImageHeight, VideoUrl = videoUrls.Resolve(x.Creative.VideoKey),
                 AltText = x.Creative.AltText, Title = x.Creative.Title, CtaText = x.Creative.CtaText, ClickUrl = x.Creative.ClickUrl, Theme = x.Creative.Theme,
             }).ToList(),
@@ -99,11 +100,77 @@ public sealed class AdServingService(ClubDbContext dbContext, IImagePublicUrlRes
 
     private AppAdItemDto FallbackItem(AdSlot slot, string dbLocale) => new()
     {
-        IsFallback = true, ImageUrl = imageUrls.Resolve(slot.FallbackImageKey), ImageWidth = slot.FallbackImageWidth, ImageHeight = slot.FallbackImageHeight,
+        IsFallback = true, ImageUrl = imageUrls.Resolve(slot.FallbackImageKey), ImageVariants = Variants(slot.FallbackImageKey),
+        ImageWidth = slot.FallbackImageWidth, ImageHeight = slot.FallbackImageHeight,
         AltText = RequestLocale.Pick(slot.AdSlotsI18ns.FirstOrDefault(i => i.Locale == dbLocale)?.FallbackAlt,
             slot.AdSlotsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale)?.FallbackAlt),
         ClickUrl = slot.FallbackLink,
     };
+
+    private AppAdImageVariantsDto? Variants(string? imageKey)
+    {
+        if (imageKey is null)
+        {
+            return null;
+        }
+
+        var u320 = imageUrls.Resolve(ImageObjectKey.ForLongEdge(imageKey, 320));
+        var u640 = imageUrls.Resolve(ImageObjectKey.ForLongEdge(imageKey, 640));
+        var u1280 = imageUrls.Resolve(ImageObjectKey.ForLongEdge(imageKey, 1280));
+        return u320 is null || u640 is null || u1280 is null ? null : new AppAdImageVariantsDto { Url320 = u320, Url640 = u640, Url1280 = u1280 };
+    }
+
+    /// <summary>
+    /// 預載目錄（App 規劃書 §2.4）：每個啟用版位底下，**今天（台北日）有效**的檔期素材——狀態為投放中、或已排程且今天開始，
+    /// 檔期尚未結束、今天內有重疊；只含已通過審核且未暫停的素材。不套用任何頻次或 pacing 判斷（見 <see cref="AppAdPrefetchResponse"/>）。
+    /// </summary>
+    public async Task<AppAdPrefetchResponse> PrefetchAsync(string? locale, string? theme, CancellationToken cancellationToken)
+    {
+        await AdCampaignLifecycle.AdvanceIfDueAsync(dbContext, cancellationToken);
+        var dbLocale = AdLabels.ToDbLocale(locale);
+        var now = DateTime.UtcNow;
+        var dayEnd = TaiwanClock.StartOfDayUtc(TaiwanClock.Today.AddDays(1));
+
+        var slots = await dbContext.AdSlots.AsNoTracking().Include(s => s.AdSlotsI18ns).Where(s => s.IsActive).OrderBy(s => s.RowSeq).ToListAsync(cancellationToken);
+        var campaigns = await dbContext.AdCampaigns.AsNoTracking()
+            .Where(c => (c.Status == AdCampaignLifecycle.Running || c.Status == AdCampaignLifecycle.Scheduled) && c.EndsAt > now && c.StartsAt < dayEnd)
+            .Include(c => c.AdCreatives).ToListAsync(cancellationToken);
+
+        var result = new List<AppAdPrefetchSlotDto>();
+        foreach (var slot in slots)
+        {
+            var items = new List<AppAdPrefetchItemDto>();
+            foreach (var c in campaigns.Where(c => c.SlotId == slot.Id).OrderBy(c => c.StartsAt))
+            {
+                var pool = c.AdCreatives.Where(x => x.ReviewStatus == "approved" && !x.IsPaused).ToList();
+                var byLocale = pool.Where(x => x.Locale == dbLocale).ToList();
+                if (byLocale.Count == 0) { byLocale = pool.Where(x => x.Locale == RequestLocale.DefaultDbLocale).ToList(); }
+                var themed = theme is "light" or "dark" ? byLocale.Where(x => x.Theme == theme || x.Theme == "both").ToList() : byLocale;
+                foreach (var x in themed.Count > 0 ? themed : byLocale)
+                {
+                    items.Add(new AppAdPrefetchItemDto
+                    {
+                        StartsAt = c.StartsAt, EndsAt = c.EndsAt, Weight = c.Weight,
+                        Item = new AppAdItemDto
+                        {
+                            CreativeId = x.Id, CampaignId = c.Id, IsFallback = false, ImageUrl = imageUrls.Resolve(x.ImageKey), ImageVariants = Variants(x.ImageKey),
+                            ImageWidth = x.ImageWidth, ImageHeight = x.ImageHeight, VideoUrl = videoUrls.Resolve(x.VideoKey),
+                            AltText = x.AltText, Title = x.Title, CtaText = x.CtaText, ClickUrl = x.ClickUrl, Theme = x.Theme,
+                        },
+                    });
+                }
+            }
+
+            result.Add(new AppAdPrefetchSlotDto
+            {
+                SlotCode = slot.SlotCode, RotationCap = slot.RotationCap, SessionImpressionCap = slot.SessionImpressionCap,
+                Fallback = slot.FallbackImageKey is null ? null : FallbackItem(slot, dbLocale),
+                Items = items,
+            });
+        }
+
+        return new AppAdPrefetchResponse { GeneratedAt = now, ValidUntil = dayEnd, DisclosureLabel = dbLocale == "en" ? "Ad" : "廣告", Slots = result };
+    }
 
     /// <summary>依權重的不重複加權隨機抽取，最多 <paramref name="take"/> 個。</summary>
     internal static List<(AdCampaign Campaign, AdCreative Creative)> WeightedSample(List<(AdCampaign Campaign, AdCreative Creative)> pool, int take)

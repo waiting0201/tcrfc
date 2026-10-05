@@ -90,6 +90,9 @@ public sealed partial class TrialsRepository(ClubDbContext db)
                 EnrolledCount = r.EnrolledCount,
                 DeadlineOn = r.DeadlineOn,
                 Status = r.Status,
+                StatusCode = EnrollmentStatus.OfSlot(r.Status).Code,
+                StatusLabelZh = EnrollmentStatus.OfSlot(r.Status).Zh,
+                StatusLabelEn = EnrollmentStatus.OfSlot(r.Status).En,
                 IsSignupOpen = r.Status == StatusOpen && deadlineOk,
                 AcceptsWaitlist = (r.Status == StatusFull || r.Status == StatusWaitlist) && deadlineOk,
             };
@@ -102,6 +105,10 @@ public sealed partial class TrialsRepository(ClubDbContext db)
         var input = Validate(request);
 
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
+
+        // 先鎖場次列，讓同一場試訓的報名串行化：否則同一人並行重複送出時，下面「查重複 → 插入」的檢查會同時通過，
+        // 產生兩筆報名並重複扣名額（E-172 同類：檢查與插入之間的空窗）。比照 FanEventsRepository 的做法。
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT id FROM trials WITH (UPDLOCK, ROWLOCK) WHERE id = {trialId} AND club_id = {scope.ClubId}", cancellationToken);
 
         var trial = await db.Trials.AsNoTracking()
             .Where(t => t.Id == trialId && t.ClubId == scope.ClubId)
@@ -153,7 +160,8 @@ public sealed partial class TrialsRepository(ClubDbContext db)
         await db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        return new TrialRegistrationSubmittedDto { RegistrationNo = registrationNo, Status = status };
+        var submitted = EnrollmentStatus.OfRegistration(status);
+        return new TrialRegistrationSubmittedDto { RegistrationNo = registrationNo, Status = status, StatusCode = submitted.Code, StatusLabelZh = submitted.Zh, StatusLabelEn = submitted.En };
     }
 
     private sealed record ValidatedInput(

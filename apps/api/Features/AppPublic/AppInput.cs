@@ -12,6 +12,23 @@ public static partial class AppInput
     [GeneratedRegex(@"^[A-Za-z0-9_\-:.]{1,64}$")]
     private static partial Regex TokenFormat();
 
+    /// <summary>
+    /// 匿名端點「須帶裝置識別」（App 規劃書 §9.3）的標頭名稱。值是 App 註冊裝置時使用的 <c>deviceInstallId</c>（同 <c>PUT /app/devices/{id}</c> 的路徑值）。
+    /// 🔵 決定（2026-10-05）：帶在標頭，不放網址（網址會進存取日誌與分享連結）。查詢參數 <c>deviceInstallId</c> 仍接受（相容既有用戶端），標頭優先。
+    /// 後端行為：有帶就驗證格式（不合 400）並用於「依裝置而異」的內容（公告條對象、通知中心、廣告頻次）；**沒帶不拒絕**——
+    /// 官網（apps/web）與其他非 App 用戶端共用同一套公開端點、不會帶，且規劃書 M2 本來就定義「沒帶裝置識別時只回全體對象內容、可邊緣快取」。
+    /// 其餘公開內容端點（賽程、新聞、球隊…）接受但忽略此標頭（內容不因裝置而異）。
+    /// </summary>
+    public const string DeviceHeaderName = "X-Device-Install-Id";
+
+    /// <summary>標頭優先、其次查詢參數；有值就驗證格式；都沒有回 null（允許，見 <see cref="DeviceHeaderName"/>）。</summary>
+    public static string? ResolveOptionalDeviceId(HttpContext http, string? queryValue)
+    {
+        var header = http.Request.Headers[DeviceHeaderName].ToString();
+        var value = !string.IsNullOrEmpty(header) ? header : queryValue;
+        return string.IsNullOrEmpty(value) ? null : RequireDeviceId(value);
+    }
+
     public static string RequireDeviceId(string? value)
     {
         if (string.IsNullOrEmpty(value) || !DeviceIdFormat().IsMatch(value))

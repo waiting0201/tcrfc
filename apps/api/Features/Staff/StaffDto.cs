@@ -8,9 +8,19 @@ namespace Tcrfc.Api.Features.Staff;
 public sealed record StaffDto
 {
     public required Guid Id { get; init; }
+    /// <summary>未翻譯標示（App 規劃書 §2.5「未翻譯 fallback 繁中並標示」、主站 G-01）：請求的是英文、而這筆的英文主要欄位（姓名）是空的，回應內容是回退的繁中時為 true。
+    /// 請求繁中時恆為 false。用戶端據此顯示「本內容尚無英文版本」。</summary>
+    public required bool IsFallbackLocale { get; init; }
+
     public string? StaffGroup { get; init; }
     public string? Licence { get; init; }
     public string? PhotoKey { get; init; }
+    /// <summary>
+    /// 肖像同意是否已取得（Android 缺口 D1）。契約同 <c>PlayerDto.PortraitConsented</c>：為 true 才可能有照片（<see cref="PhotoKey"/> 非 null ⇒ true）；
+    /// 只給布林、不洩漏是否未成年；<b>同意涵蓋範圍（官網／App／商店頁面）沒有欄位</b>，是 App 規劃書 §16.2 第 14 項的客戶待決事項，不可由此欄位推定已涵蓋 App。
+    /// </summary>
+    public required bool PortraitConsented { get; init; }
+
     public string? Name { get; init; }
     public string? Title { get; init; }
     public string? Bio { get; init; }

@@ -92,6 +92,13 @@ public sealed partial class ShopOrderService(
         var (cart, lines) = await carts.LoadLinesAsync(scope, owner, dbLocale, cancellationToken);
         if (cart is null || lines.Count == 0)
         {
+            // 並行的同一冪等鍵：快的請求可能在上面「查冪等鍵」之後、讀購物車之前成立訂單並清空購物車（E-172 同類，加固）。
+            var raced = await FindByIdempotencyKeyAsync(scope, idempotencyKey, fingerprint, lang, cancellationToken);
+            if (raced is not null)
+            {
+                return (raced, false);
+            }
+
             throw new MemberConflictException("購物車是空的", "購物車是空的，請先把商品加入購物車。", "cart_empty");
         }
 

@@ -112,7 +112,7 @@
 | `int` | 整數。**所有金額欄位都是 `int`，單位「元」** | **`int`**。見 [§1.3](#13-共通欄位) 的金額規則 |
 | `decimal(5,2)` | 百分比，`0.00`–`100.00` | **`decimal(5,2)`**。**只有分潤百分比用**，金額不用 |
 | `bool` | 真／假 | **`bit`** |
-| `date` / `datetime` | 日期／時間戳。`datetime` 一律存 **UTC**，前台依 `Asia/Taipei` 呈現 | **`date`** / **`datetime2(3)`**。⚠️ SQL Server 沒有 `timestamptz`，時區語意由應用層保證（EF Core 設 `DateTimeKind.Utc` convention） |
+| `date` / `datetime` | 日期／時間戳。`datetime` 一律存 **UTC**，前台依 `Asia/Taipei` 呈現。**唯一例外：賽事的 `match_on`＋`kickoff`（含 `original_*`）存台北當地時間**（App 規劃書 v3.14 §3.2，見 §12 第 31 點） | **`date`** / **`datetime2(3)`**。⚠️ SQL Server 沒有 `timestamptz`，時區語意由應用層保證（EF Core 設 `DateTimeKind.Utc` convention） |
 | `json` | 結構化但不需查詢的資料（區塊內容） | **原生 `json` 型別**（Azure SQL 已 GA，二進位儲存），不用 `nvarchar(max)`。**設計紀律仍是「只存不查」**，見 §1.4。🔴 **原生 `json` 只收物件或陣列，寫入純量（字串、數字、`true`、`null`）會被資料庫拒絕**（`docs/18` `E-111`）；自由文字欄位要存進 `json` 欄位時包成物件（例如 `partner_stores.business_hours` 存 `{"text":"…"}`） |
 | `enum(a,b,c)` | 有限值域 | **`nvarchar` ＋ CHECK 約束**（不用查表、不用數字碼）——值域演進最容易，且後台介面要顯示日常中文（[`06`](06-conventions.md)） |
 | `slug` | `string(160)`，`[a-z0-9-]`，**全站唯一或表內唯一**（逐表註明） | |
@@ -403,7 +403,7 @@ flowchart LR
 | `Competition` | **●** | **賽事系列**（`code`、名稱、類型、`season_id`）。v3.0 新增，App 的賽事篩選與 12 個月完整賽程靠它。`status` **收斂為 `draft`／`published`**（S1-8，見 [§12 第 33 點](#12-踩雷點)） | 🌐 |
 | `Season` | **●** | 賽季（`code` 如 `2026-27`、起訖日）。唯一鍵 `(club_id, code)`——**兩隊球季不同步** | |
 | `Team` | **●** | 球隊。**`code` UNIQUE（全站唯一，不得改複合鍵）**，值域 `D1`／**`BW1`**／`U15`／`U14`／`U12`；`type` = `first_team`／`academy`；**`gender`（`men`／`women`／`mixed`）**。`first_team` 為**每俱樂部至多一筆** | 🌐 |
-| `Player` | **●** | 球員：背號、位置、生日、身高體重、國籍、慣用腳、加入日期、狀態。**新增 `portrait_consent_status`**（肖像同意，S1-8，見 [§12 第 32 點](#12-踩雷點)） | 🌐 |
+| `Player` | **●** | 球員：背號、位置、生日、身高體重、國籍、慣用腳、加入日期、狀態。**新增 `portrait_consent_status`**（肖像同意，S1-8，見 [§12 第 32 點](#12-踩雷點)）。**新增 `slug`**（2026-10-05，網址代稱：App 規劃書 §2.3 深連結 `tcrfc://player/{slug}` → `/zh/club/first-team/player/{slug}`，`string(160)`、`[a-z0-9-]`，必填；唯一鍵 **`(club_id, slug)`**，兩隊的球員可各自有同一個 slug） | 🌐 |
 | `PlayerSeasonStat` | — | 逐季數據 `(player_id, season_id)`。**由 `Player` 推導** | |
 | `Staff` | **○** | 教練與團隊成員：證照、專長、分組。**空＝兩隊共同**（行政與醫療多為共用）。**新增 `portrait_consent_status`**（同 `Player`，S1-8） | 🌐 |
 | `StaffTeam` | — | `(staff_id, team_id)` 帶職務 | |
@@ -540,7 +540,7 @@ flowchart LR
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
-| `Club` | — | **俱樂部主檔**（v3.0 新增，後台 `J4`）：`code`、名稱（中／英）、標誌（**含 @2x／@3x 與深色版**）、品牌色、網域。**它自己就是俱樂部** | 🌐 |
+| `Club` | — | **俱樂部主檔**（v3.0 新增，後台 `J4`）：`code`、名稱（中／英）、**簡稱 `clubs_i18n.short_name`（2026-10-05，`nvarchar(32)` 可為空；磐石中文「台中磐石」英文「Taichung Rock FC」、藍鯨中文「台中藍鯨」、藍鯨英文**一律空**直到客戶指定英文全名 B-5，不得由開發端自挑）**、標誌（**含 @2x／@3x 與深色版**）、品牌色、網域。**它自己就是俱樂部** | 🌐 |
 | `AdminUser` | — | 後台帳號。**`username` 是唯一登入識別，不是 Email**；**`primary_club_id`** 只是站台切換器的預設值，**不是資料範圍** | 🔒 |
 | `AdminRole` | — | 角色。**`scope_mode`（`all_clubs`／`own_clubs`）**。規劃書角色是 `is_system = true` 的種子資料 | |
 | `AdminUserRole` | — | `(admin_user_id, role_id)`，多角色取聯集 | |
@@ -558,7 +558,7 @@ flowchart LR
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
-| `Member` | — | 會員帳號：會員編號、註冊來源、**LINE 綁定識別碼（加密）**、Email／電話／生日（受限）。🔴 **刻意不加 `club_id`**——Email 是登入鍵、LINE 綁定 1:1、個資法上的當事人是「人」不是「會籍」 | 🔒 |
+| `Member` | — | 會員帳號：會員編號、註冊來源、**LINE 綁定識別碼（加密）**、Email／電話／生日（受限）。**監護人同意（2026-10-05，主站規劃書「會員資料安全要求」、App 規劃書 §4.5「未滿 18 歲須經監護人同意方得註冊」）：`guardian_consented_at`（同意時間，伺服器時間）、`guardian_name`（🔒 受限，監護人姓名）、`guardian_relationship`（與當事人關係：`parent`／`legal_guardian`）、`guardian_consent_version`（同意文案版本，可為空；文案本身待法務 B-9）——四欄要嘛全空（成年註冊）要嘛前三欄全有（`CK_members_guardian_consent`）；生日是年齡閘門的依據，註冊流程生日必填**。🔴 **刻意不加 `club_id`**——Email 是登入鍵、LINE 綁定 1:1、個資法上的當事人是「人」不是「會籍」 | 🔒 |
 | `Membership` | **●** | **會籍（v3.0 新增）**：`member_id` × `club_id` × `season_id`、層級（`registered`／`fan_club`）、起訖、狀態。**一人每俱樂部一份** | 🔒 |
 | `MemberCard` | **●** | **電子會員卡，一張一列**；**`membership_id` 必填——每份會籍一張卡**。持卡人姓名、`token`（UNIQUE，**不可由會員編號推導**）、狀態、補發次數 | 🔒 |
 | `MembershipPlan` | **●** | 會籍方案：費用、`season_id`、期間、`card_quota`、`jersey_quota`、季中計價規則 | 🌐 |
@@ -692,7 +692,7 @@ flowchart LR
 28. **本檔不含行動 App 的十一個型別**。App 開發前**不得建立**這些表；`Member`／`PartnerStore`／`Venue`／`Registration`／`Match` 上 v2.5 為 App 加的欄位（`lat`／`lng`／`member_id`／英文欄位／`signup_source = 'app'`）**已經在綱要裡**，屆時不必改表結構。
 29. ⛔ **有五類資料不得讀快取**：庫存與商品可購買狀態、金流回呼的冪等檢查、會員卡 `/m/<token>` 驗證、會籍與訂單付款狀態、購物車。會員卡那條是**安全問題**——讀到陳舊值等於 token 撤銷機制失效。清單與規格依據在 [`17-deployment.md`](17-deployment.md) §4。
 30. 🔴 **`CalendarEvent` 不要試 indexed view**——SQL Server 明文禁止 indexed view 含 `UNION`／`UNION ALL`，而本表的定義就是 UNION。見 [§1.4](#14-dbms-相依的五件事已定案) 第 3 件。
-31. **`Match.original_match_on`／`original_kickoff`（v3.13）刻意沿用 `match_on`／`kickoff` 的兩欄配對寫法，不合併成單一 `datetime`**：這兩欄跟現行欄位一樣是「當地牆上時間」的展示值，不是可換算時區的時間戳（見 §1 型別詞彙表對 `datetime` 的定義——那是要求存 UTC 的時間戳，語意不同）；用 `datetime` 會讓同一張表同時存在兩種時間語意，前端也得寫兩套格式化邏輯。**兩欄皆可為空、不加 CHECK**——只有 `status = 'postponed'` 時才有意義；`matches.status` 本身的值域與 CHECK 已於 v3.14 定案（見本節第 35 點），但「當 status = 'postponed' 時 original_match_on 不得為空」這條額外規則規劃書未要求，是否必填仍交給後台 C4 表單驗證，不下推到 DB CHECK。
+31. **`Match.original_match_on`／`original_kickoff`（v3.13）刻意沿用 `match_on`／`kickoff` 的兩欄配對寫法，不合併成單一 `datetime`**：這兩欄跟現行欄位一樣是**台北當地時間**（App 規劃書 v3.14 §3.2 明定：賽事日期與開賽時間以台北當地時間存放，其餘時間戳存 UTC；`kickoff` 為空＝開賽時間未定），不是可換算時區的時間戳；換算後的 UTC 時刻只由 API 衍生欄位 `MatchDto.kickoffAt` 提供（見 §1 型別詞彙表對 `datetime` 的定義——那是要求存 UTC 的時間戳，語意不同）；用 `datetime` 會讓同一張表同時存在兩種時間語意，前端也得寫兩套格式化邏輯。**兩欄皆可為空、不加 CHECK**——只有 `status = 'postponed'` 時才有意義；`matches.status` 本身的值域與 CHECK 已於 v3.14 定案（見本節第 35 點），但「當 status = 'postponed' 時 original_match_on 不得為空」這條額外規則規劃書未要求，是否必填仍交給後台 C4 表單驗證，不下推到 DB CHECK。
 32. 🔴 **`Player`／`Staff.portrait_consent_status` 預設值必須是 `'not_consented'`（fail-closed）**（S1-8，藍鯨規劃書行 198／321、主站規劃書行 1361／1691）：同意未到位的球員與教練，公開讀取 API **不得回傳 `photo_key`**，前台以預設圖或純文字卡呈現，**不得放假圖**。三態（`not_consented`／`consented`／`consented_by_guardian`）不是布林值，因為未成年由監護人代為同意時後台需要能分辨是哪一種同意書；規劃書未提及同意日期或到期，**沒寫就不加**（**依 2026-09-24 客戶裁決，也不建同意書檔案留存或覈實流程**，見 [`15-out-of-scope-record.md`](15-out-of-scope-record.md)）。這是 `GEO-02`（AI 爬蟲排除未成年學員與球員照片路徑，行 1679）能落地執行的資料前提——沒有這個欄位，「排除未同意的素材」無從查詢起。✅ **後端已完成（S1-7a，2026-09-24）**：EF 實體與 migration `AlignSchemaS17a`、`Features/Players`／`Features/Staff` 公開端點 fail-closed 過濾、`AdminPlayers`／`AdminStaff` 讀寫端點，見 `apps/api/README.md`。🔴 **欄寬修正**：套用時發現 `nvarchar(20)` 裝不下最長值 `'consented_by_guardian'`（21 字元），已改為 `nvarchar(32)`（db/club-schema.sql 兩處），純執行層欄寬計算修正，三態值域與 fail-closed 語意不變。
 33. **7 張表的 `status` 已收斂為 `draft`／`published`，拿掉 `scheduled`**（S1-8，`press_resources`／`faqs`／`competitions`／`sponsor_packages`／`collections`／`products`／`charity_programs`）：`docs/14`（S0-7g，2026-09-24）已裁決規劃書只在 `B1` 頁面（行 1014）與 `B2` 新聞（行 1019）給了排程發布，其餘型別後台不提供排程選項。CHECK 曾允許寫入 `'scheduled'` 但沒有 `published_at` 欄位記錄排定時間，會製造「看起來支援排程、實際做不到」的假象，故收斂 CHECK 與後台能力對齊。**`Page`／`Article` 不受影響，維持三態**（它們有 `published_at` 且已接上 `ScheduledPublishRunner`）。⚠️ **`charity_programs` 是主站主檔**（B6，慈善獨立庫的 `CharityProgramRef` 是唯讀快照，本來就沒有 `status` 欄位，不受影響）。✅ **後端已完成（S1-7a，2026-09-24）**：migration `AlignSchemaS17a` 逐表動態查出既有（未命名）CHECK 並換成收斂後、明確命名的版本（`CK_<table>_status`）；套用前已查證 `tcrfc_club_dev` 這 7 張表皆為 0 筆 `status='scheduled'`，未搭配 DML 轉態。
 34. **FAQ 的 G-12 嵌入是「分類自動對應」＋「逐題額外指定」兩層疊加，不是互斥的兩選一**（S1-8，行 1029）：`FaqEmbedSlot` 只是站內已知掛載點的字典（`academy_admission`／`program_detail`／`trials`／`sponsorship`），**刻意不建「掛載點對應哪個分類」的對照表**——那是應用層的固定路由決定（例如 4.7 頁面固定拉「學院招生」分類），規劃書沒有要求這層可由後台配置，建表反而過度設計。`FaqEmbedSlotLink` 只承載「這一題額外也要出現在某個掛載點」的例外情形。**`faq_categories.is_enabled` 是軟停用**，取代先前「用刪除湊停用」的作法（刪除會經 `ON DELETE CASCADE` 解除分類關聯且不可逆）。✅ **後端已完成（S1-7a，2026-09-24）**：`faq_embed_slots` 種子四筆（DML，`db/seed/generate-club-seed-sql.py` §21）、FAQ 建立／更新可指定 `EmbedSlotIds`（省略維持不變、空陣列清空）、公開端點 `GET /api/v1/{club}/faqs/embeds/{code}`**只回傳「逐題額外指定」那一半**（「分類自動對應」由前台頁面另外查既有的 `?category=` 篩選自行合併，後端沒有掛載點對應分類的資料可查，見 `apps/api/README.md`）、`faq_categories.is_enabled` 公開分類清單依此過濾、後台改為 `PUT` 切換啟用停用（`DELETE` 仍是真刪除）。

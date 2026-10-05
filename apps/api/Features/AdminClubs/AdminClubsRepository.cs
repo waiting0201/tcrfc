@@ -8,7 +8,7 @@ namespace Tcrfc.Api.Features.AdminClubs;
 /// <summary>J4「俱樂部品牌與法人資料」——<c>Club</c> 型別的後台維護端點。全域（不分「目前站在哪個
 /// 俱樂部」，管的正是「有哪些俱樂部」這件事本身），比照 <c>ClubsRepository</c>（公開唯讀端點）的
 /// i18n 讀寫方式，但寫入走 EF Core（跟 <c>AdminArticlesRepository</c> 同一個既有慣例）。</summary>
-public sealed class AdminClubsRepository(ClubDbContext dbContext)
+public sealed class AdminClubsRepository(ClubDbContext dbContext, Tcrfc.Api.Caching.IQueryCache cache)
 {
     public async Task<IReadOnlyList<AdminClubListItemDto>> ListAsync(CancellationToken cancellationToken)
     {
@@ -141,6 +141,9 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext)
         }
 
         await dbContext.SaveChangesAsync(cancellationToken);
+        // 公開的俱樂部清單與單筆（含簡稱）要失效，否則 App 在 TTL 內讀到舊簡稱。
+        await cache.InvalidateAsync(Clubs.ClubsRepository.ListEntity, Caching.CacheDimensions.SharedClub, cancellationToken);
+        await cache.InvalidateAsync(Clubs.ClubsRepository.DetailEntity, club.Code, cancellationToken);
         return await GetByIdAsync(id, cancellationToken);
     }
 
@@ -155,6 +158,7 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext)
         }
 
         existing.Name = content.Name;
+        existing.ShortName = string.IsNullOrWhiteSpace(content.ShortName) ? null : content.ShortName.Trim();
         existing.Description = content.Description;
     }
 
@@ -192,6 +196,14 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext)
         {
             throw new AdminClubValidationException("中文名稱為必填欄位。");
         }
+
+        foreach (var (label, locale) in new[] { ("中文", (AdminClubLocaleContent?)content.Zh), ("英文", content.En) })
+        {
+            if (locale?.ShortName is { } shortName && shortName.Trim().Length > 32)
+            {
+                throw new AdminClubValidationException($"{label}簡稱最多 32 個字。");
+            }
+        }
     }
 
     private static AdminClubDetailDto ToDetailDto(Club club)
@@ -216,8 +228,8 @@ public sealed class AdminClubsRepository(ClubDbContext dbContext)
             DefaultLocale = club.DefaultLocale,
             SortOrder = club.SortOrder,
             Status = club.Status,
-            Zh = new AdminClubLocaleContent { Name = zh?.Name ?? club.Code, Description = zh?.Description },
-            En = en is null ? null : new AdminClubLocaleContent { Name = en.Name, Description = en.Description },
+            Zh = new AdminClubLocaleContent { Name = zh?.Name ?? club.Code, ShortName = zh?.ShortName, Description = zh?.Description },
+            En = en is null ? null : new AdminClubLocaleContent { Name = en.Name, ShortName = en.ShortName, Description = en.Description },
             CreatedAt = club.CreatedAt,
             UpdatedAt = club.UpdatedAt,
         };

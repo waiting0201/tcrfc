@@ -1889,3 +1889,57 @@ IF NOT EXISTS (SELECT 1 FROM app_diagnostic_reports WHERE id = {esc(new_id("app_
   VALUES ({esc(new_id("app_diag", str(i)))}, {esc(f"test-device-seed-{i:04d}")}, {esc(platform)}, {esc(ver)}, N'900', N'測試', DATEADD(day, -{i + 1}, SYSUTCDATETIME()), {esc(rtype)},
           {metric if metric is not None else 'NULL'}, {esc(summary)}, N'【測試】示範技術細節（不含個資）。', {esc(status)});
 """)
+
+    # ========================================================================
+    # 60. 本機驗收專用測資（2026-10-05）：補 S2-11 球衣登記與 S3-2 漫畫閱讀器「缺資料未驗」的最小假資料。
+    # 🔴 只給本機開發庫：不進正式庫（generate-prod-content-sql.py 分類為 PERSONAL），全部虛構、不含任何真實個資。
+    #   - 會員 M900101（單人方案，球衣 0／1 件）、M900102（家庭方案，球衣 0／3 件）：均為 tcrfc 2026-27 有效付費會籍、
+    #     Email 已驗證，登入密碼與其他種子會員相同（ContentEditor@123）。既有 M900001／M900002 的球衣額度已用滿或剩 1 件，
+    #     不足以走完「登記→達上限被擋→修改」整條路，故另建兩位。
+    #   - 漫畫第 101、102 集：已發布、各 3 頁（800×1200）。集號刻意取 101／102（遠低於測試用的 9000 段），
+    #     既有的 3 集草稿與測試互不干擾。圖片鍵在 seed-dev/comic/ 底下，**物件本身不在資料庫**：
+    #     先 `apps/api/scripts/dev-azurite.sh up`，再 `python3 db/seed/seed-dev-blobs.py` 把占位圖傳進 Azurite
+    #     （沒傳也能跑，只是閱讀器圖片載入失敗）。
+    # ========================================================================
+    emit("-- ── 60. 本機驗收測資：球衣登記用會員 M900101／M900102、漫畫閱讀器用第 101／102 集（僅本機開發庫，不進正式庫） ──")
+    tc = clubs["tcrfc"]
+    JERSEY_DEV_MEMBERS = [  # member no, name, email, phone, plan code, card holder note
+        ("M900101", "【測試】球衣登記單人", "jersey-single@example.com", "0900-000-101", "single", 1200),
+        ("M900102", "【測試】球衣登記家庭", "jersey-family@example.com", "0900-000-102", "family", 3000),
+    ]
+    for no, name, email, phone, plan, fee in JERSEY_DEV_MEMBERS:
+        mid = new_id("member", no)
+        msid = new_id("membership", no, "tcrfc", "2026-27")
+        plan_sql = f"(SELECT id FROM membership_plans WHERE club_id = {tc} AND season_id = {season_sq(tc, '2026-27')} AND code = {esc(plan)})"
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM members WHERE member_no = {esc(no)})
+BEGIN
+  INSERT INTO members (id, member_no, name, email, password_hash, phone, birth_on, signup_source, status, email_verified_at, last_login_at, internal_note, locale)
+  VALUES ({esc(mid)}, {esc(no)}, {esc(name)}, {esc(email)}, {esc(TEST_HASH)}, {esc(phone)}, N'1990-01-01', N'web', N'active',
+          SYSUTCDATETIME(), NULL, N'【測試】本機驗收用：球衣登記（見 backoffice_seed.py 區段 60）。', N'zh-Hant');
+  INSERT INTO memberships (id, member_id, club_id, season_id, tier, membership_start_on, membership_end_on, status, membership_plan_id)
+  VALUES ({esc(msid)}, {esc(mid)}, {tc}, {season_sq(tc, '2026-27')}, N'fan_club', N'2026-09-20', N'2027-05-02', N'active', {plan_sql});
+  INSERT INTO member_cards (id, membership_id, club_id, holder_name, token, status, issued_at)
+  VALUES ({esc(new_id("member_card", msid))}, {esc(msid)}, {tc}, {esc(name)},
+          {esc(hashlib.sha256(("seed-card-token|" + msid).encode()).hexdigest()[:43])}, N'active', SYSUTCDATETIME());
+  INSERT INTO membership_payments (id, membership_id, club_id, collecting_club_id, membership_plan_id, method, amount, paid_on, note, activated_start_on, activated_end_on)
+  VALUES ({esc(new_id("membership_payment", msid))}, {esc(msid)}, {tc}, {tc}, {plan_sql}, N'onsite', {fee}, N'2026-09-20', N'【測試】種子付款紀錄', N'2026-09-20', N'2027-05-02');
+END
+""")
+
+    for no, published_on, is_latest in ((101, "2026-09-01", 0), (102, "2026-09-15", 1)):
+        eid = new_id("comic_episode", "tcrfc", str(no))
+        pages_sql = "\n".join(
+            f"  INSERT INTO comic_pages (id, comic_episode_id, image_key, image_width, image_height, sort_order) "
+            f"VALUES ({esc(new_id('comic_page', 'tcrfc', str(no), str(p)))}, {esc(eid)}, N'seed-dev/comic/{no}/{p}.webp', 800, 1200, {p});"
+            for p in (1, 2, 3))
+        block(f"""
+IF NOT EXISTS (SELECT 1 FROM comic_episodes WHERE club_id = {tc} AND episode_no = {no})
+BEGIN
+  INSERT INTO comic_episodes (id, club_id, episode_no, cover_key, published_on, status, is_latest, view_count)
+  VALUES ({esc(eid)}, {tc}, {no}, N'seed-dev/comic/{no}/cover.webp', {esc(published_on)}, N'published', {is_latest}, 0);
+  INSERT INTO comic_episodes_i18n (comic_episode_id, locale, title) VALUES ({esc(eid)}, N'zh-Hant', {esc(f"【測試】驗收用第 {no} 集")});
+  INSERT INTO comic_episodes_i18n (comic_episode_id, locale, title) VALUES ({esc(eid)}, N'en', {esc(f"[Test] Review episode {no}")});
+{pages_sql}
+END
+""")

@@ -142,6 +142,7 @@ public sealed class ArticlesRepository(
                         IsFeatured = r.IsFeatured,
                         PublishedAt = r.PublishedAt,
                         Title = RequestLocale.Pick(requested?.Title, fallback?.Title),
+                        IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Title),
                         Summary = RequestLocale.Pick(requested?.Summary, fallback?.Summary),
                         Tags = tagsById.GetValueOrDefault(r.Id) ?? [],
                     };
@@ -259,6 +260,7 @@ public sealed class ArticlesRepository(
                     ViewCount = article.ViewCount,
                     PublishedAt = article.PublishedAt,
                     Title = title,
+                    IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Title),
                     Summary = RequestLocale.Pick(requested?.Summary, fallback?.Summary),
                     BodyJson = RequestLocale.Pick(JsonColumn.UnwrapText(requested?.Body), JsonColumn.UnwrapText(fallback?.Body)), // 純文字內文存成 {"text":"…"}，對外還原（E-111）
                     SeoTitle = RequestLocale.Pick(requested?.SeoTitle, fallback?.SeoTitle),

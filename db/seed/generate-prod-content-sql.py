@@ -64,6 +64,7 @@ CLUB_SECTIONS = {
     "53": "PERSONAL",  # 虛構訂單、出貨、退款（連帶庫存異動）
     "55": "PERSONAL",  # 電子報名單
     "59": "PERSONAL",  # App 示範裝置、推播送達、診斷回報
+    "60": "PERSONAL",  # 本機驗收專用（球衣登記會員、漫畫第 101／102 集，圖片鍵指向本機 Azurite 才有的物件）：只給本機開發庫
     # 內容資料
     **{s: "IMPORT" for s in [
         "1",  # 只留藍鯨簡介 UPDATE（clubs 本身是參照資料）

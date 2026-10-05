@@ -269,6 +269,33 @@ public sealed class AppDeviceSessionTests(AdminWriteApiFixture fixture) : IAsync
     }
 
     [Fact]
+    public async Task 刪除帳號_所有裝置的鏈被撤銷並解除綁定_舊權杖再也換不到新的()
+    {
+        var member = await _scope.CreateVerifiedMemberAsync("app-del");
+        var anonymous = _scope.Client();
+        var deviceA = await AppTest.RegisterDeviceAsync(anonymous);
+        var deviceB = await AppTest.RegisterDeviceAsync(anonymous, "android");
+        var a = await ReadSessionAsync(await LoginRawAsync(anonymous, member.Email, MemberTestScope.Password, deviceA));
+        var b = await ReadSessionAsync(await LoginRawAsync(anonymous, member.Email, MemberTestScope.Password, deviceB));
+
+        using var authed = _scope.Client(a.AccessToken);
+        var delete = new HttpRequestMessage(HttpMethod.Delete, "/api/v1/member/me")
+        {
+            Content = JsonContent.Create(new { password = MemberTestScope.Password }, options: TestJson.WriteOptions),
+        };
+        Assert.Equal(HttpStatusCode.NoContent, (await authed.SendAsync(delete)).StatusCode);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshRawAsync(anonymous, a.RefreshToken)).StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, (await RefreshRawAsync(anonymous, b.RefreshToken)).StatusCode);
+        foreach (var device in new[] { deviceA, deviceB })
+        {
+            var state = await StateAsync(device);
+            Assert.Null(state.MemberId); // 解除綁定（裝置列本身保留）
+            Assert.Null(state.Hash);
+        }
+    }
+
+    [Fact]
     public async Task 裝置撤銷_只能撤銷自己的裝置_別人的一律404()
     {
         var mine = await SetupAsync("app-rev-a");

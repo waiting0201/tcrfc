@@ -26,6 +26,7 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
 
     private sealed record MatchI18nRow(Guid MatchId, string Locale, string? Opponent, string? Venue);
     private sealed record CompetitionI18nRow(Guid CompetitionId, string Locale, string? Name);
+    private sealed record CompetitionCodeRow(Guid Id, string Code);
 
     /// <summary>
     /// 賽程與賽果。<c>matches.club_id</c> 是 50 張必填表之一（不是回退共同的 9 張），直接 <c>=</c> 過濾。
@@ -39,10 +40,12 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
     /// </summary>
     public async Task<PagedResult<MatchDto>> ListAsync(
         ClubScope scope, string? teamCode, string? seasonCode, string? status,
-        string dbLocale, int page, int pageSize, CancellationToken cancellationToken)
+        string dbLocale, int page, int pageSize, CancellationToken cancellationToken,
+        string? competitionCode = null, DateOnly? from = null, DateOnly? to = null)
     {
         var qualifier = $"{teamCode ?? CacheDimensions.NoQualifier}:{seasonCode ?? CacheDimensions.NoQualifier}:" +
-            $"{status ?? CacheDimensions.NoQualifier}:{page}:{pageSize}";
+            $"{status ?? CacheDimensions.NoQualifier}:{page}:{pageSize}:" +
+            $"{competitionCode ?? CacheDimensions.NoQualifier}:{from?.ToString("yyyy-MM-dd") ?? CacheDimensions.NoQualifier}:{to?.ToString("yyyy-MM-dd") ?? CacheDimensions.NoQualifier}";
 
         return await cache.GetOrCreateAsync(
             CacheEntity, scope.ClubCode, dbLocale, qualifier,
@@ -60,6 +63,9 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
                       AND (@TeamCode IS NULL OR t.code = @TeamCode)
                       AND (@SeasonCode IS NULL OR se.code = @SeasonCode)
                       AND (@Status IS NULL OR m.status = @Status)
+                      AND (@CompetitionCode IS NULL OR m.competition_id IN (SELECT cp.id FROM competitions cp WHERE cp.club_id = m.club_id AND cp.code = @CompetitionCode))
+                      AND (@From IS NULL OR m.match_on >= @From)
+                      AND (@To IS NULL OR m.match_on <= @To)
                     """;
 
                 var listSql = """
@@ -76,6 +82,9 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
                       AND (@TeamCode IS NULL OR t.code = @TeamCode)
                       AND (@SeasonCode IS NULL OR se.code = @SeasonCode)
                       AND (@Status IS NULL OR m.status = @Status)
+                      AND (@CompetitionCode IS NULL OR m.competition_id IN (SELECT cp.id FROM competitions cp WHERE cp.club_id = m.club_id AND cp.code = @CompetitionCode))
+                      AND (@From IS NULL OR m.match_on >= @From)
+                      AND (@To IS NULL OR m.match_on <= @To)
                     ORDER BY m.match_on, m.kickoff
                     OFFSET @Offset ROWS FETCH NEXT @PageSize ROWS ONLY
                     """;
@@ -83,6 +92,7 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
                 var parameters = new
                 {
                     scope.ClubId, TeamCode = teamCode, SeasonCode = seasonCode, Status = status,
+                    CompetitionCode = competitionCode, From = from?.ToDateTime(TimeOnly.MinValue), To = to?.ToDateTime(TimeOnly.MinValue),
                     Offset = (page - 1) * pageSize, PageSize = pageSize,
                 };
 
@@ -95,14 +105,68 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
                 var i18nById = await LoadI18nAsync(connection, matchIds, dbLocale, ct);
                 var competitionIds = rows.Select(r => r.CompetitionId).Where(id => id.HasValue).Select(id => id!.Value).Distinct().ToList();
                 var competitionNameById = await LoadCompetitionNamesAsync(connection, competitionIds, dbLocale, ct);
+                var competitionCodeById = await LoadCompetitionCodesAsync(connection, competitionIds, ct);
 
                 var items = rows
-                    .Select(r => Map(r, i18nById.GetValueOrDefault(r.Id), competitionNameById, dbLocale))
+                    .Select(r => Map(r, i18nById.GetValueOrDefault(r.Id), competitionNameById, competitionCodeById, dbLocale, scope.ClubCode))
                     .ToList();
 
                 return new PagedResult<MatchDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
             },
             cancellationToken);
+    }
+
+    /// <summary>
+    /// 單場賽事（App 規劃書 §9.2「賽事 列表／單筆」、深連結 <c>tcrfc://match/{id}</c>）。<paramref name="id"/> 是賽事 id（Guid）；
+    /// 別的俱樂部的賽事一律 <c>null</c>（硬過濾 <c>club_id</c>）。一場賽事掛在多支球隊時回第一支（依球隊排序）。找不到不快取。
+    /// </summary>
+    public async Task<MatchDto?> GetAsync(ClubScope scope, Guid id, string dbLocale, CancellationToken cancellationToken)
+    {
+        return await cache.GetOrCreateAsync<MatchDto?>(
+            CacheEntity, scope.ClubCode, dbLocale, $"detail:{id:N}",
+            async ct =>
+            {
+                using var connection = connectionFactory.CreateConnection();
+                const string sql = """
+                    SELECT TOP 1 m.id AS Id, m.competition_id AS CompetitionId, se.code AS SeasonCode, t.code AS TeamCode,
+                           m.match_on AS MatchOn, m.kickoff AS Kickoff, m.home_away AS HomeAway, m.opponent AS Opponent,
+                           m.competition AS CompetitionTag,
+                           m.status AS Status, m.score_home AS ScoreHome, m.score_away AS ScoreAway, m.round_no AS RoundNo,
+                           m.match_no AS MatchNo, m.original_match_on AS OriginalMatchOn, m.original_kickoff AS OriginalKickoff
+                    FROM matches m
+                    JOIN seasons se ON se.id = m.season_id
+                    JOIN match_teams mt ON mt.match_id = m.id
+                    JOIN teams t ON t.id = mt.team_id
+                    WHERE m.club_id = @ClubId AND m.id = @Id
+                    ORDER BY t.sort_order, t.code
+                    """;
+                var row = await connection.QueryFirstOrDefaultAsync<MatchRow>(
+                    new CommandDefinition(sql, new { scope.ClubId, Id = id }, cancellationToken: ct));
+                if (row is null)
+                {
+                    return null;
+                }
+
+                var i18nById = await LoadI18nAsync(connection, [row.Id], dbLocale, ct);
+                var competitionIds = row.CompetitionId is { } cid ? new List<Guid> { cid } : [];
+                var names = await LoadCompetitionNamesAsync(connection, competitionIds, dbLocale, ct);
+                var codes = await LoadCompetitionCodesAsync(connection, competitionIds, ct);
+                return Map(row, i18nById.GetValueOrDefault(row.Id), names, codes, dbLocale, scope.ClubCode);
+            },
+            cancellationToken);
+    }
+
+    private static async Task<Dictionary<Guid, string>> LoadCompetitionCodesAsync(
+        System.Data.IDbConnection connection, IReadOnlyList<Guid> competitionIds, CancellationToken cancellationToken)
+    {
+        if (competitionIds.Count == 0)
+        {
+            return [];
+        }
+
+        var rows = await connection.QueryAsync<CompetitionCodeRow>(new CommandDefinition(
+            "SELECT id AS Id, code AS Code FROM competitions WHERE id IN @Ids", new { Ids = competitionIds }, cancellationToken: cancellationToken));
+        return rows.ToDictionary(r => r.Id, r => r.Code);
     }
 
     private static async Task<Dictionary<Guid, Dictionary<string, MatchI18nRow>>> LoadI18nAsync(
@@ -163,7 +227,8 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
     }
 
     private static MatchDto Map(
-        MatchRow row, Dictionary<string, MatchI18nRow>? i18n, Dictionary<Guid, string?> competitionNameById, string dbLocale)
+        MatchRow row, Dictionary<string, MatchI18nRow>? i18n, Dictionary<Guid, string?> competitionNameById,
+        Dictionary<Guid, string> competitionCodeById, string dbLocale, string clubCode)
     {
         var fallbackI18n = i18n?.GetValueOrDefault(RequestLocale.DefaultDbLocale);
         var requestedI18n = i18n?.GetValueOrDefault(dbLocale);
@@ -194,10 +259,14 @@ public sealed class MatchesRepository(IClubSqlConnectionFactory connectionFactor
             Id = row.Id,
             SeasonCode = row.SeasonCode,
             TeamCode = row.TeamCode,
+            ClubCode = clubCode,
+            CompetitionCode = row.CompetitionId is { } ccid ? competitionCodeById.GetValueOrDefault(ccid) : null,
             MatchOn = DateOnly.FromDateTime(row.MatchOn),
             Kickoff = row.Kickoff,
+            KickoffAt = TaiwanClock.KickoffToUtc(DateOnly.FromDateTime(row.MatchOn), row.Kickoff),
             HomeAway = row.HomeAway,
             Opponent = opponent,
+            IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requestedI18n?.Opponent),
             Venue = venue,
             CompetitionTag = row.CompetitionTag,
             CompetitionName = competitionName,

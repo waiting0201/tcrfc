@@ -654,6 +654,15 @@ ORDER BY CASE WHEN club_id IS NULL THEN 1 ELSE 0 END
   但 `mcr.microsoft.com/azure-storage/azurite` 本身經實測拉取正常，只有 `docker-compose.dev.yml`
   常態跑的時候才用容器版本，測試追求的是啟動速度用 npm 套件版本）。
 
+**單獨起 Azurite（不開整套 compose，2026-10-05）**：只想在宿主機 `dotnet run` 驗證上傳時，用
+[`apps/api/scripts/dev-azurite.sh`](../apps/api/scripts/dev-azurite.sh)（`up`／`status`／`down`／`reset`）起一個 `tcrfc-azurite` 容器
+（同 compose 的 3.35.0 映像檔與 `--skipApiVersionCheck`，volume `tcrfc_azurite_dev`），再 `dotnet run --launch-profile http-azurite`。
+🔴 **公開讀取要預先建容器**：API 自建容器一律 `PublicAccessType.None`（正式環境的匿名 blob 讀取是 Bicep 設的，§13），
+本機若讓 API 自建，上傳成功但瀏覽器讀圖片網址 403、後台縮圖與前台圖片全破圖；
+[`db/seed/seed-dev-blobs.py`](../db/seed/seed-dev-blobs.py) 預先把 `images`／`videos`／`documents` 建成公開讀取（`proposals` 私有）並上傳漫畫占位圖。
+這兩支只給本機（腳本拒絕非本機端點），**正式環境設定未動**。與 compose 的 `azurite` 服務搶同一個 10000 埠，二選一。
+細節見 [`apps/api/README.md`](../apps/api/README.md)「本機開發：Azurite」。
+
 ### Hero 輪播影片上傳（v3.14，2026-09-24；`backend-engineer`）
 
 主站規劃書 §4.2 B3「Hero 輪播管理（排序、圖／影片、標題、CTA、上架期間）」原本只有圖片欄位可用，

@@ -4632,6 +4632,27 @@ dotnet run --no-launch-profile   # 明確不用 launchSettings，全靠上面的
 > 「怎麼跑」開頭「連線字串等機密一律用環境變數」的既有慣例——這個變數的值不是機密，是
 > 一個檔案系統路徑，不需要額外保護）。
 
+### 本機開發：Azurite（圖片／文件／影片上傳要用，2026-10-05）
+
+沒有 `AZURE_BLOB_CONNECTION_STRING` 時，所有上傳端點一律回「檔案儲存尚未設定」（503，正確行為）——要在本機實際驗證上傳
+（S2-1／S2-2／S2-3／S3-1／S3-3／AP-1 與各處圖片欄位），三步：
+
+```bash
+apps/api/scripts/dev-azurite.sh up                 # 1. 起 Azurite 容器（127.0.0.1:10000，volume 保留資料；status／down／reset 同一支）
+python3 db/seed/seed-dev-blobs.py                  # 2. 預建 images／videos／documents（公開讀取）與 proposals（私有）＋漫畫占位圖
+cd apps/api && dotnet run --launch-profile http-azurite   # 3. 啟動 API（launchSettings 的 http-azurite 設定檔多帶 UseDevelopmentStorage=true）
+```
+
+- **為什麼用 launch profile 而不是寫進 `appsettings.Development.json`**：上面「直接用 dotnet 跑」一節已說明，測試主機也會讀那個檔，
+  加了 Blob 連線會改變測試預期；launch profile 的環境變數只影響 `dotnet run`，不影響 `dotnet test`。
+- **第 2 步不能省**：API 自建容器時一律是私有（正式環境的公開讀取由 Bicep 設定，docs/17 §13）。本機若讓 API 自建，
+  上傳成功但瀏覽器直接讀圖片網址會 403，後台縮圖與前台圖片全部破圖。腳本預先把三個公開容器建成「匿名可讀 Blob」；
+  已被 API 建成私有的，執行 `python3 db/seed/seed-dev-blobs.py --fix-access`。
+- `UseDevelopmentStorage=true` 是 Azure SDK 內建簡寫，展開為 `127.0.0.1:10000`（已用 SDK 實際讀寫驗證）。**容器化跑法**（`docker compose`）
+  改連 compose 自己的 `azurite` 服務，與本節是二選一（兩者搶同一個 10000 埠，`dev-azurite.sh up` 偵測到會拒絕並說明）。
+- 腳本只動容器 `tcrfc-azurite` 與 volume `tcrfc_azurite_dev`；`seed-dev-blobs.py` 拒絕非本機端點的連線字串。
+- 驗證 §4.0 圖片上傳通則：`ImageUploadGeneralRuleAcrossModulesTests`（見「測試」）。
+
 ### 要連真的 Redis（選用）
 
 不帶 `REDIS_HOST` 時注入的是 `NoOpQueryCache`，**快取路徑完全不會被執行**——
@@ -9485,4 +9506,121 @@ Probe 驗收（`migrations add Probe` → `Up`／`Down` 空 → `migrations remo
 **同日追加（協調者回饋）**：(1) 廣告檔期詳情新增 `reviewedByName`（審核者顯示名稱）。(2) 後端產生的文字對齊 docs/06 §1：K5 公布稿標題活動名稱已含【】時不再重複加；診斷「API 錯誤」→「連線錯誤」（回報類型標籤、錯誤訊息、彙總說明 `ApiErrorNote`）；M5 連線檢查改「推播服務（Apple 與 Google）」「備援設定來源」，不再出現 APNs／FCM／Cloudflare／`M1／M5`；商店「貨號」→「商品規格編號」（驗證與衝突訊息、熱銷報表 CSV 欄名）；`AdminInput` 的欄位標籤以英文字母或數字結尾時與中文之間補空格（「Email 的格式不正確」）。M2 憑證種類顯示名稱改「Apple 推播金鑰」「Google 推播憑證」（內部代碼 `apns_key`／`fcm_credential` 不變）。**獎品發放頁 `/draws/{id}/fulfilments` 刻意維持現狀**：有 `member.pii.reveal` 就顯示完整收件資訊並寫稽核，因為這一頁要編輯收件人、電話與地址，遮罩值無法編輯。
 
 **同日追加（第二輪重驗，2026-10-05，`backend-engineer`）**：(1) 抽獎公布稿標題：活動名稱內含任何【或】就不再外包【】，改成「{名稱} 中獎名單公布」（`AdminDrawsRepository.BuildAnnouncementTitle`；無括號仍為「【名稱】中獎名單公布」）。(2) `DELETE /news/{id}`、`DELETE /pages/{id}` 缺 `expectedUpdatedAt` 回 **400**「缺少資料的最後更新時間…」（參數改 `DateTime?`，`ConcurrencyInput.RequireExpectedUpdatedAt`）；全站最小 API 綁定失敗（`BadHttpRequestException`，例如 query 值不是日期）一律 400 中文，不再 500；`ArchitectureTests` 掃描禁止 handler 宣告必填 `DateTime`／`DateOnly` query。其他同樣把 `expectedUpdatedAt` 放 query 的端點只有這兩支，其餘都放請求本文（由 DTO `required` 驗證）。(3) CORS 加 `WithExposedHeaders("Content-Disposition", "Retry-After")`，後台可讀到下載檔名。(4) 限流 429 加 `Retry-After`（`OnRejected` 取 `MetadataName.RetryAfter`，無 metadata 就不帶；單位秒、至少 1）。慈善平台的限流註冊在同一個 `RateLimiterOptions` 上，一併生效。測試：`ApiBoundaryBehaviorTests`、`AdminAuthRateLimitingTests`、`ArchitectureTests`。不動 `shared/` 契約。
+
+## 上傳端到端與驗收測資收尾（2026-10-05，`backend-engineer`）
+
+- **跨模組上傳通則測試** `ImageUploadGeneralRuleAcrossModulesTests`（真實 Azurite、真實 HTTP 管線、真實 SQL Server，6 項）：用 3000×2000、帶相機廠牌／方向／GPS 的 JPEG 打
+  夥伴 Logo（E1）、慈善團體 Logo 與事蹟圖片（B5）、媒體專區高解析圖（B6）、漫畫封面與內頁＋球迷活動封面（F1／F2）、商品圖集（S1）、廣告素材（E4–E6，16:9 的 3200×1800），
+  再**直接從 Azurite 取回每個物件**斷言 §4.0：`image/webp` 且位元組真是 WebP、主檔長邊 = min(來源, 2560)、衍生檔長邊 1280／640／320、`-thumb` 為 160×160、
+  除 `.webp` 外沒有任何物件（不留原檔）、Exif／IPTC／XMP／ICC 全為空（含 GPS）、每組恰 5 個物件。**未發現產品缺陷**。
+- **本機替身**：見上方「本機開發：Azurite」。重點是 API 自建容器預設私有，本機要預建公開容器（`db/seed/seed-dev-blobs.py`），否則圖片網址 403。
+- **驗收測資**：`backoffice_seed.py` 區段 60（球衣會員 `M900101`／`M900102`、漫畫第 101／102 集）；`DevAcceptanceSeedTests` 唯讀守門。
+  新增的兩位球迷會員同樣符合抽獎資格，`AdminDrawsTests` 以 `DevAcceptanceEligible` 計入；`CulturePublicTests` 改為只看 9000 段集數。
+- **AP-3 更新權杖鏈**：`AppDeviceSessionTests` 12 項全綠，新增「刪除帳號撤銷全部裝置的鏈並解除綁定」。
+- **全套**：`dotnet test` 1330／1330 通過（4 分 57 秒）。
+- **沒做**：整合測試在沒有 `azurite-blob` 時仍是拋例外（fixture 既有行為），沒有改成明確 skip——改動會影響約 20 個測試檔共用的 fixture，列為後續。
+
+## App 契約補強：球員 slug、統一錯誤結構、Azurite 缺失時 skip（2026-10-05，`backend-engineer`）
+
+### 1. 球員網址代稱 `players.slug`（App 規劃書 §2.3 `tcrfc://player/{slug}`）
+- **資料表**（先 docs/12／12a／12b §11.1，再 `db/club-schema.sql`）：`slug nvarchar(160) NOT NULL`、`[a-z0-9]+(-[a-z0-9]+)*`、唯一鍵 **`(club_id, slug)`**（`UQ_players_club_slug`）、索引 `(slug, club_id)`。兩個俱樂部可各有同一個 slug。
+- **EF migration `AddPlayerSlug`**：冪等（先查現況再動，正式庫是 DDL 建的）；既有列回填 `player-{row_seq}`。⚠️ 本機開發庫沒有 EF 歷史（DDL 建的），`dotnet ef database update` 會撞既有物件，已直接以同一組冪等陳述式套用；種子 `apply-seed.sh` 再把回填值換成漂亮代稱（只動「仍是回填值」的列，後台改過的不覆蓋）。
+- **公開端點**：`GET /api/v1/{club}/players` 每筆帶 `slug`；新增 `GET /api/v1/{club}/players/{slug}?lang=`（`{slug}` 也接受球員 id，大小寫不敏感；別的俱樂部的球員一律 404）。
+- **後台**（`/api/v1/admin/{club}/players`）：列表與詳情帶 `slug`；建立 `slug` 省略＝自動產生（英文姓名→`zz-slug-xxx`；沒有英文姓名→`隊別-背號`，撞名加序號），更新 `slug` 省略＝維持原值（不重新產生，避免深連結失效）；格式不合 400、同俱樂部重複 409「網址代稱重複」。介面用語「網址代稱」。
+- **種子**：`generate-club-seed-sql.py` 的 `player_slug()`（英文姓名 slugify，沒有用「隊別代號-背號」，撞名加背號）；磐石 28＋藍鯨 28 位。`db/prod/club-content-seed.sql` 已重產。
+- 測試：`AdminTeamsPlayersStaffTests` 新增 2 項（自動產生／指定／重複／格式／更新省略／跨俱樂部可重複；公開清單帶 slug、以 slug 與 id 查、別的俱樂部 404）。
+
+### 2. 統一錯誤結構（App 規劃書 §9.5）
+- 所有 ProblemDetails 加 `code`、`messageZh`（＝`detail`）、`messageEn`、`retryable`；**相容擴充**，`status`／`title`／`detail`／`instance`／既有 `code`／`lockedUntil` 不動。
+- 三條產生路徑都走 `Common/ApiErrorEnvelope.Fill`：`ApiExceptionHandler`（例外）、`AddProblemDetails(CustomizeProblemDetails)`＋`UseStatusCodePages()`（空本文的 404／401／429 等，如 `Results.NotFound()`、限流中介軟體；回應是 `application/problem+json`）、`Results.Problem(extensions: ApiErrorEnvelope.Extensions(...))`（行事曆改期衝突，`schedule_conflict`）。例外處理器沿用既有 `application/json`，本文結構相同。
+- `code`：有專屬代碼的沿用；其餘依狀態通用（400 `validation_failed`、401 `unauthenticated`、403 `forbidden`、404 `not_found`、405 `method_not_allowed`、409 `conflict`、413 `payload_too_large`、415 `unsupported_media_type`、423 `account_locked`、429 `rate_limited`、503 `service_unavailable`、其餘 5xx `server_error`）。
+- `retryable`：5xx＝true、4xx（含 423、429）＝false（規劃書 §9.5）；外部服務尚未設定的 503（`ApiErrorMessages.NonRetryableServerCodes`）＝false。429 另帶 `Retry-After` 標頭，要不要等待後重試規劃書未定義。
+- `messageEn`：`Common/ApiErrorMessages.cs` 登記的 84 個專屬代碼各有英文；沒登記的退回該狀態通用英文。英文不含動態值。**新增專屬 code 必須同步補英文**——`shared/scripts/gen-error-codes.mjs` 在缺漏時直接失敗（CI 的 shared-contract job 會紅燈）。
+- 測試：`ApiErrorEnvelopeTests`（15 項：例外／空本文／會員一族／後台 401／各狀態 `Fill` 對照）、`AdminAuthRateLimitingTests` 加 429 本文斷言。
+
+### 3. 沒有 Azurite 時明確 skip
+- `Fixtures/AzuriteLocator.cs`：單一入口找 `azurite-blob`（`AZURITE_EXECUTABLE_PATH` 指到不存在的檔案＝視為沒有，方便驗證 skip 路徑）；`[AzuriteFact]`／`[AzuriteTheory]` 在沒有時於探索階段標 skip 並印出原因，`AdminWriteAzuriteEnabledApiFixture` 不再拋例外。13 個測試檔共 72 項改用（`AdminTeamsPlayersStaffTests` 只改上傳那一個類別）。新增需要真實 Azurite 的測試請用這兩個屬性。實測 `AZURITE_EXECUTABLE_PATH=/nonexistent`：72 項 skip、其餘照跑。
+
+### 測試數字
+- `dotnet test` 全套 **1347／1347 通過、0 失敗、0 skip**（5 分 19 秒；有 Azurite）。1330 → 1347：+15 錯誤結構、+2 球員 slug。
+
+## App 契約缺口第三批（2026-10-05，`backend-engineer`；docs/19 §11c／§11d A1–A10）
+
+| 項目 | 實作 |
+|---|---|
+| 賽事系列清單 | `Features/Competitions/`：`GET /api/v1/{club}/competitions?season=&lang=`，只回已發布；`CompetitionsRepository.CacheEntity="competitions"`，後台 J4 寫入後失效它與 `schedule` |
+| 賽事 | `GET /api/v1/{club}/schedule/{id}`（Guid；別的俱樂部 404）；列表新增 `competition`（系列代碼）、`from`、`to`（含頭尾，from>to 回 400）；`MatchDto` 新增 `clubCode`、`competitionCode` |
+| 球隊 | `TeamDto` 新增 `clubCode`；`type`／`gender` 值域寫進 DTO 註解與 `shared/enums.json` |
+| ETag／304 | `Common/ConditionalGetMiddleware.cs`，白名單路徑（見 docs/19 §11e）；ETag＝回應本文 SHA-256，每次仍走完整管線，不新增快取層；CORS expose `ETag` |
+| 裝置識別 | `X-Device-Install-Id` 標頭（`AppInput.ResolveOptionalDeviceId`），layout／notifications／ads 採用，有帶驗證格式、沒帶不拒絕 |
+| layout | `AppLayoutItemDto.isExternal`；`shop`→`/{lang}/shop/`；`charity`→站台設定 `charity.donation_url`（未設定為 null）；`AppLayoutResponse.sponsorshipInquiryWebUrl` |
+| 未翻譯標示 | `RequestLocale.IsFallback`；`isFallbackLocale` 加在 Club／Team／Player／Staff／Competition／Match／ArticleListItem／ArticleDetail／FaqListItem |
+| shared | `image-derivatives.json`（解析 `apps/api/Images`）、`enums.json`（解析 DDL CHECK），`check-shared.py` 驗證 |
+| 測試 | `AppContractGapsTests` 13 項（賽事系列、賽程新篩選與單場、未翻譯標示、球隊值域、ETag 命中／弱驗證／多值／`*`／未命中、不得讀快取端點不帶 ETag、白名單路徑、layout 外連、裝置識別標頭） |
+| 全套 | `dotnet test` **1360／1360 通過**（6 分 38 秒） |
+| 未做 | `ClubDto` 簡稱（無欄位依據）；時間語意（待決，docs/19 §11f）；`isFallbackLocale` 尚未涵蓋夥伴、特約店家、課程、站台設定 |
+
+## App 契約缺口第四批（2026-10-05，`backend-engineer`；docs/19 §11h）
+
+| 項目 | 實作 |
+|---|---|
+| `kickoffAt` | `TaiwanClock.KickoffToUtc`；`MatchDto.kickoffAt`（衍生、可空）。時間語意調查見 docs/19 §11f |
+| 俱樂部簡稱 | docs/12／12a／12c → `db/club-schema.sql`（`clubs_i18n.short_name`）→ migration `AddClubShortNameGuardianConsent`（回填依俱樂部代碼與語系）→ 種子（磐石中英、藍鯨僅中文）→ `ClubDto.shortName`；`db/prod/club-reference-data.sql` 已重產 |
+| 監護人同意 | `Features/MemberAuth/MemberAgeGate.cs`（`Evaluate`：生日必填→足歲→未成年驗 `guardianConsent`）；`MemberRegisterRequest`／`MemberLineCompleteRequest` 新增 `GuardianConsent`；`members.guardian_*` 四欄＋`CK_members_guardian_consent`；刪帳號清 `guardian_name`；K1 `AdminMemberDetailDto.guardianConsent`（姓名遮罩）；5 個新錯誤碼（`ApiErrorMessages` 已登記英文）。既有測試的註冊請求全部補 `birthOn` |
+| 抽獎資訊 | `Features/MemberDraws/`：`GET /api/v1/member/draws`；不讀 `draw_rosters`，資格由 `memberships` 即時推得；`no-store` |
+| 會員卡 | `MemberCardDto.serverTime` |
+| 搜尋 | 球員結果 `slug` |
+| 店家座標 | DDL `CK_partner_stores_coords`；後台驗證 0,0／半邊／超範圍；定位回 (0,0) 視為沒定位到；`PartnerStorePublicDto` 註解寫明 null＝未確認 |
+| 未翻譯標示 | 夥伴、贊助商、贊助方案、課程（列表／詳情）、特約店家 |
+| 測試 | `AppContractBatch4Tests` 18 項；`MemberAuthTests`／`MemberTestSupport` 補生日 |
+| 全套 | `dotnet test` **1378／1378 通過**（5 分 17 秒） |
+| 未做 | 後台編輯俱樂部簡稱；會籍方案／權益的 `isFallbackLocale`；後台「現場入會」不套年齡閘門 |
+
+## App 契約缺口第五批（2026-10-05，`backend-engineer`；docs/19 §11j）
+
+| 項目 | 實作 |
+|---|---|
+| 我的報名 | `MemberRegistrationDto` 新增 `kind`／`course`／`trial`／穩定狀態代碼；`GET /member/registrations?lang=` |
+| 穩定狀態代碼 | `Common/EnrollmentStatus.cs`（中文字面值 → 代碼＋雙語標籤）；`ProgramSessionDto`、`TrialDto`、各報名結果 DTO 新增 `statusCode`／`statusLabelZh`／`statusLabelEn`；`shared/enums.json` 由它與 DDL CHECK 產生 |
+| 廣告 | 標頭參數進 openapi（`[FromHeader]`）；`AppAdItemDto.imageVariants`；`GET /app/ads/prefetch`（`AdServingService.PrefetchAsync`） |
+| 其他 | 方案與權益 `isFallbackLocale`；`AdminClubLocaleContent.shortName`（讀寫、清快取）；`PlayerDto`／`StaffDto.portraitConsented`；`shared/news-body-blocks.json` |
+| **E-170 防呆** | `MigrationsOnBlankDatabaseTests`：拋棄式資料庫（`tcrfc_migprobe_<guid>`）＋最新 DDL → 冪等契約內 migration 套用／回滾／再套用／冪等重跑；`TestDatabaseGuard` 規則的唯一刻意例外（只刪自己建的）。需要能建立資料庫的帳號（本機 sa、CI 的拋棄式 SQL Server 容器皆可） |
+| 順帶修 | 課程詳情對有夥伴／有日期的課程 500（`E-171`）；`AddClubShortNameGuardianConsent` 的 `Down`（匿名 CHECK、`EXEC`＋`QUOTENAME` 語法） |
+| 測試 | `AppContractBatch5Tests` 7 項、`MigrationsOnBlankDatabaseTests` 1 項、`AdminAdCreativeUploadTests` 補衍生檔網址斷言 |
+| 全套 | `dotnet test` **1386／1386 通過**（5 分 20 秒）。⚠️ 第一次全套曾有 `MembershipOrderTests.冪等鍵…` 並行競態偶發失敗一次——確認為產品競態，已修正，見 `E-172` 與本檔結尾「會籍訂單冪等鍵並行競態」節 |
+| 未做 | 肖像同意「涵蓋範圍」（待客戶 §16.2 #14）；`MemberRegistrationDto` 的繳費金額以外的繳費欄位（無資料依據） |
+
+## 會籍訂單冪等鍵並行競態（2026-10-05，`E-172`）
+
+- 現象：同一 `Idempotency-Key` 並行建立訂單時，偶發回 409 `open_order_exists`（應為 201 一次、其餘 200）。
+- 原因：「查冪等鍵」與「查同方案未完成訂單」之間有空窗，快的請求在此插入訂單，慢的請求把它當成別張未完成訂單。
+- 修正：`MembershipOrderService.CreateAsync` 在丟 `open_order_exists` 前，若未完成訂單中有同一冪等鍵者，回該訂單（`Created=false`→200）。唯一索引（`member_id`＋`idempotency_key`）撞號的既有 `catch` 保留。
+- 測試：`MembershipOrderTests.冪等鍵_高強度並行…`（16 並行×15 輪，每輪恰一個 201、其餘 200、只一張訂單）。
+- 規則：冪等路徑上「發現已存在就拒絕」的檢查，拒絕前先確認是否同一冪等鍵造成。
+
+### 冪等／防重複端點全面壓測（2026-10-05，`E-172` 升級）
+
+| 端點 | 機制 | 壓測結果 |
+|---|---|---|
+| 會籍訂單建立 | 冪等鍵＋唯一索引＋「未完成訂單」前再認同鍵 | 修好（見上節） |
+| 商店結帳 | 冪等鍵＋指紋＋唯一索引 | 80 輪無競態；加固 `cart_empty` 前再查冪等鍵 |
+| 慈善捐款建單 | 單號由冪等鍵推導＋唯一鍵 | 15 輪無競態 |
+| **試訓報名** | （原本無）→ 交易起手 `UPDLOCK` 鎖場次列 | **真競態已修**：同一人並行重複送出會多筆並重複扣名額 |
+| 活動報名 | 既有 `UPDLOCK` 活動列 | 15 輪無競態 |
+| 加入俱樂部 | 唯一鍵＋catch 讀現有 | 10 輪無競態 |
+| 課程梯次報名、表單送出 | 無「重複擋下」語意 | 不適用 |
+
+測試：`MembershipOrderTests`、`ShopPublicTests`、`CharityDonationFlowTests`、`TrialsPublicTests`、`CulturePublicTests`、`MemberCenterTests` 各一支「高強度」測試。規則見 `docs/14-invariants.md`。
+
+### 搶有限資源的並行壓測（2026-10-05）
+
+| 資源 | 語意依據 | 測試 | 結果 |
+|---|---|---|---|
+| 商店庫存 | 硬上限；超過回 409 `insufficient_stock`；庫存不得讀快取（docs/14、docs/17） | `ShopPublicTests` 剩 1 件、16 個不同購物車×10 輪；取消／逾時清掃與並行結帳交錯×6 輪 | 恰一張成立、庫存不為負、保留量＝待付款訂單件數 |
+| 課程梯次名額 | 規劃書 P2：額滿自動關閉、候補（硬上限，多的進候補） | `ProgramSessionCapacityRaceTests`（直接並行呼叫 `ProgramsRepository`，因公開端點有 20 次／5 分鐘的 IP 限流） | 恰一個待確認、其餘候補、已報名數＝上限、狀態額滿 |
+| 試訓場次名額 | 同上 | `TrialsPublicTests` 16×10 輪 | 同上 |
+| 活動名額 | 硬上限＋候補 | `CulturePublicTests` 16×10 輪 | 恰一個已報名、其餘候補 |
+| 會籍方案 | 無名額／限量欄位 | 略過 | — |
+
+結論：未發現超賣或名額錯算，只補測試，未改產品程式。
 

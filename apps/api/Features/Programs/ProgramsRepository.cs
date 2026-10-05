@@ -21,9 +21,10 @@ public sealed class ProgramsRepository(
     private sealed record ProgramI18nRow(string Locale, string? Name, string? Intro, string? Content);
     private sealed record StaffRow(Guid Id, string? Name);
     private sealed record PartnerRow(Guid Id, string Slug, string? Name, string? LogoDarkKey, string? LogoLightKey, string? WebsiteUrl);
+    // ⚠️ date 欄位一律 DateTime?（不是 DateOnly?）：Dapper 對 positional record 的建構子具現化要求型別逐一相符，見 docs/18 E-20；Map 時再轉 DateOnly。
     private sealed record SessionRow(
-        Guid Id, DateOnly? StartOn, DateOnly? EndOn, string? WeeklySchedule, int? Capacity, int EnrolledCount,
-        int? Price, int? EarlyBirdPrice, DateOnly? EarlyBirdUntil, DateTime? SignupOpensAt, DateTime? SignupClosesAt,
+        Guid Id, DateTime? StartOn, DateTime? EndOn, string? WeeklySchedule, int? Capacity, int EnrolledCount,
+        int? Price, int? EarlyBirdPrice, DateTime? EarlyBirdUntil, DateTime? SignupOpensAt, DateTime? SignupClosesAt,
         string Status, Guid? VenueId, string? VenueName, string? VenueAddress, decimal? VenueLat, decimal? VenueLng);
     private sealed record SessionGateRow(Guid Id, string? Status, DateTime? SignupOpensAt, DateTime? SignupClosesAt);
 
@@ -85,6 +86,7 @@ public sealed class ProgramsRepository(
                         CoverKey = r.CoverKey,
                         CoverUrl = imageUrlResolver.Resolve(r.CoverKey),
                         Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
+                        IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
                         Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
                         HasOpenSession = r.HasOpenSession,
                     };
@@ -137,12 +139,15 @@ public sealed class ProgramsRepository(
                     staffSql, new { ProgramId = program.Id, Locale = dbLocale, DefaultLocale = RequestLocale.DefaultDbLocale }, cancellationToken: ct))).AsList();
 
                 const string partnerSql = """
-                    SELECT pt.id AS Id, pt.slug AS Slug, pt.logo_dark_key AS LogoDarkKey, pt.logo_light_key AS LogoLightKey,
-                           pt.website_url AS WebsiteUrl,
+                    -- ⚠️ 欄位順序必須與 PartnerRow 建構子參數順序一致（Dapper 對 positional record 逐一對位）：Id, Slug, Name, LogoDarkKey, LogoLightKey, WebsiteUrl。
+                    -- 先前 Name 排在最後，有掛夥伴的課程（如藍鯨的社區足球學校）詳情會 500（2026-10-05 被未翻譯標示測試逮到）。
+                    SELECT pt.id AS Id, pt.slug AS Slug,
                            COALESCE(
                                (SELECT name FROM partners_i18n WHERE partner_id = pt.id AND locale = @Locale),
                                (SELECT name FROM partners_i18n WHERE partner_id = pt.id AND locale = @DefaultLocale)
-                           ) AS Name
+                           ) AS Name,
+                           pt.logo_dark_key AS LogoDarkKey, pt.logo_light_key AS LogoLightKey,
+                           pt.website_url AS WebsiteUrl
                     FROM program_partners pp
                     JOIN partners pt ON pt.id = pp.partner_id
                     WHERE pp.program_id = @ProgramId
@@ -184,6 +189,7 @@ public sealed class ProgramsRepository(
                     CoverKey = program.CoverKey,
                     CoverUrl = imageUrlResolver.Resolve(program.CoverKey),
                     Name = RequestLocale.Pick(requested?.Name, fallback?.Name),
+                    IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
                     Intro = RequestLocale.Pick(requested?.Intro, fallback?.Intro),
                     Content = RequestLocale.Pick(requested?.Content, fallback?.Content),
                     Staff = staff.Select(s => new ProgramStaffSummaryDto { Id = s.Id, Name = s.Name }).ToList(),
@@ -196,17 +202,20 @@ public sealed class ProgramsRepository(
                     Sessions = sessions.Select(s => new ProgramSessionDto
                     {
                         Id = s.Id,
-                        StartOn = s.StartOn,
-                        EndOn = s.EndOn,
+                        StartOn = s.StartOn is { } startOn ? DateOnly.FromDateTime(startOn) : null,
+                        EndOn = s.EndOn is { } endOn ? DateOnly.FromDateTime(endOn) : null,
                         WeeklySchedule = s.WeeklySchedule,
                         Capacity = s.Capacity,
                         EnrolledCount = s.EnrolledCount,
                         Price = s.Price,
                         EarlyBirdPrice = s.EarlyBirdPrice,
-                        EarlyBirdUntil = s.EarlyBirdUntil,
+                        EarlyBirdUntil = s.EarlyBirdUntil is { } earlyUntil ? DateOnly.FromDateTime(earlyUntil) : null,
                         SignupOpensAt = s.SignupOpensAt,
                         SignupClosesAt = s.SignupClosesAt,
                         Status = s.Status,
+                        StatusCode = EnrollmentStatus.OfSlot(s.Status).Code,
+                        StatusLabelZh = EnrollmentStatus.OfSlot(s.Status).Zh,
+                        StatusLabelEn = EnrollmentStatus.OfSlot(s.Status).En,
                         VenueId = s.VenueId,
                         VenueName = s.VenueName,
                         VenueAddress = s.VenueAddress,
@@ -320,7 +329,8 @@ public sealed class ProgramsRepository(
         transaction.Commit();
 
         await cache.InvalidateAsync(CacheEntity, scope.ClubCode, cancellationToken);
-        return new ProgramRegistrationSubmittedDto { RegistrationNo = registrationNo, Status = status };
+        var submitted = EnrollmentStatus.OfRegistration(status);
+        return new ProgramRegistrationSubmittedDto { RegistrationNo = registrationNo, Status = status, StatusCode = submitted.Code, StatusLabelZh = submitted.Zh, StatusLabelEn = submitted.En };
     }
 
     private static async Task<string> GenerateUniqueRegistrationNoAsync(

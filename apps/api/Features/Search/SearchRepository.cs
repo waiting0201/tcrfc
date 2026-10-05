@@ -268,14 +268,14 @@ public sealed partial class SearchRepository(ClubDbContext db, IImagePublicUrlRe
         var rows = await q.OrderBy(p => p.Team.SortOrder).ThenBy(p => p.ShirtNo).ThenBy(p => p.RowSeq).Take(PerTypeLimit)
             .Select(p => new
             {
-                p.Id, TeamCode = p.Team.Code, p.PhotoKey, p.PortraitConsentStatus,
+                p.Id, p.Slug, TeamCode = p.Team.Code, p.PhotoKey, p.PortraitConsentStatus,
                 NReq = p.PlayersI18ns.Where(i => i.Locale == c.Locale).Select(i => i.Name).FirstOrDefault(),
                 NDef = p.PlayersI18ns.Where(i => i.Locale == c.DefaultLocale).Select(i => i.Name).FirstOrDefault(),
                 BReq = p.PlayersI18ns.Where(i => i.Locale == c.Locale).Select(i => i.Bio).FirstOrDefault(),
                 BDef = p.PlayersI18ns.Where(i => i.Locale == c.DefaultLocale).Select(i => i.Bio).FirstOrDefault(),
             })
             .ToListAsync(ct);
-        return (count, rows.Select((r, i) => Make(c, SearchTypes.Player, null, r.Id, null, r.NReq, r.NDef, r.BReq, r.BDef,
+        return (count, rows.Select((r, i) => Make(c, SearchTypes.Player, null, r.Id, r.Slug, r.NReq, r.NDef, r.BReq, r.BDef,
             null, null, r.TeamCode, ConsentedPhoto(r.PortraitConsentStatus, r.PhotoKey), i)).ToList());
     }
 

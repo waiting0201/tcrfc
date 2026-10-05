@@ -32,7 +32,7 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
 
     // ═════════════ F1 ═════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task 漫畫_權限與藍鯨不設漫畫()
     {
         using var anonymous = await BizTest.ClientAsync(fixture, null);
@@ -61,7 +61,7 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
         Assert.Equal(HttpStatusCode.Forbidden, (await partner.GetAsync("/api/v1/admin/bw/comic/episodes")).StatusCode);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 漫畫企劃設定_雙語儲存與清除()
     {
         using var client = await BizTest.ClientAsync(fixture, "content.editor@tcrfc.test");
@@ -88,7 +88,7 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 漫畫角色_圖片換圖刪除_關聯球員_排序()
     {
         using var client = await BizTest.ClientAsync(fixture, "content.editor@tcrfc.test");
@@ -147,7 +147,7 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 漫畫集數_內頁批次上傳排序_最新集數自動判定_發布規則()
     {
         using var client = await BizTest.ClientAsync(fixture, "content.editor@tcrfc.test");
@@ -244,7 +244,7 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
         content = new { zh = new { name, description = "測試說明", location = "測試地點" }, en = new { name = "Test fan event" } },
     };
 
-    [Fact]
+    [AzuriteFact]
     public async Task 球迷活動_CRUD_封面_回顧圖集_關聯文章_網址名稱重複()
     {
         using var client = await BizTest.ClientAsync(fixture, "content.editor@tcrfc.test");
@@ -326,7 +326,7 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 球迷活動報名_名額候補_限付費會員_個資遮罩_已有報名不能刪除()
     {
         using var editor = await BizTest.ClientAsync(fixture, "content.editor@tcrfc.test");
@@ -409,7 +409,7 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
 
     // ═════════════ S1 商品圖集、K5 抽獎封面（圖片對真實 Azurite）═════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task 商品圖集_批次上傳_排序_刪除單張_刪除商品一併刪物件_假圖片整批不留物件()
     {
         using var admin = await BizTest.ClientAsync(fixture, "super.admin@tcrfc.test");
@@ -446,7 +446,7 @@ public sealed class AdminCultureTests(AdminWriteAzuriteEnabledApiFixture fixture
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 抽獎封面_上傳換圖移除_刪除草稿一併刪物件()
     {
         using var service = await BizTest.ClientAsync(fixture, "customer.service@tcrfc.test");

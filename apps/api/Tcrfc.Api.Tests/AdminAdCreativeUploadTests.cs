@@ -28,7 +28,7 @@ public sealed class AdminAdCreativeUploadTests(AdminWriteAzuriteEnabledApiFixtur
     private static HttpContent CreativePayload(string locale = "zh", string alt = "ZZTEST 素材說明", string? title = null, params (string Field, byte[] Bytes, string FileName, string ContentType)[] files)
         => BizTest.Multipart(new { locale, altText = alt, title, ctaText = "了解更多", clickUrl = "https://example.com/zz", theme = "both" }, files);
 
-    [Fact]
+    [AzuriteFact]
     public async Task 素材上傳_版位規格檢查_改內容回到待審_已排程後不能刪_刪除時物件一併刪除()
     {
         using var biz = await BizTest.ClientAsync(fixture, "business.sponsorship@tcrfc.test");
@@ -108,7 +108,7 @@ public sealed class AdminAdCreativeUploadTests(AdminWriteAzuriteEnabledApiFixtur
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 備援素材_版位沒有可投放檔期時回傳備援_未串接圖片時不回圖_移除備援素材_公開回應不含物件鍵()
     {
         using var biz = await BizTest.ClientAsync(fixture, "business.sponsorship@tcrfc.test");
@@ -131,6 +131,15 @@ public sealed class AdminAdCreativeUploadTests(AdminWriteAzuriteEnabledApiFixtur
             Assert.Null(item.CreativeId); // 備援素材不計曝光：沒有素材識別，App 的量測器不會啟動
             Assert.Equal("自家內容替代文字", item.AltText);
             Assert.Equal("https://example.com/house", item.ClickUrl);
+
+            // 衍生檔網址（Android 缺口 C5）：備援圖也走 §4.0 管線，320／640／1280 網址依 shared/image-derivatives.json 規則由主檔網址推導，且物件真的存在
+            Assert.NotNull(item.ImageVariants);
+            var stem = item.ImageUrl![..^".webp".Length];
+            Assert.Equal($"{stem}-320.webp", item.ImageVariants!.Url320);
+            Assert.Equal($"{stem}-640.webp", item.ImageVariants.Url640);
+            Assert.Equal($"{stem}-1280.webp", item.ImageVariants.Url1280);
+            var prefix = $"ads/slots/{slot.Id}/";
+            Assert.True(await CountAsync(fixture.InspectorContainer, prefix) >= 5, "備援圖主檔與四個衍生檔都應存在");
             var raw = await (await anonymous.GetAsync("/api/v1/app/ads/zztest_fallback?lang=en")).Content.ReadAsStringAsync();
             Assert.DoesNotContain("imageKey", raw, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("\"disclosureLabel\":\"Ad\"", raw);

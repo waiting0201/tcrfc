@@ -16,14 +16,14 @@ namespace Tcrfc.Api.Features.Sponsors;
 public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IImagePublicUrlResolver imageUrls)
 {
     private sealed record SponsorRow(
-        Guid Id, string Slug, string? Tier, int SortOrder, string? LogoDarkKey, string? LogoLightKey, string? Name, string? Content);
+        Guid Id, string Slug, string? Tier, int SortOrder, string? LogoDarkKey, string? LogoLightKey, string? Name, string? Content, bool IsFallbackLocale);
     private sealed record StoryRow(Guid SponsorId, string Slug, string? Title, string? Summary);
     private sealed record ActivationRow(Guid Id, Guid SponsorId, DateTime? HappenedOn, string? Title, string? ResultSummary);
     private sealed record ActivationImageRow(Guid ActivationId, string ImageKey, int? ImageWidth, int? ImageHeight);
     private sealed record ProgramLinkRow(Guid SponsorId, string Slug, string? Name);
     private sealed record PackageRow(
         Guid Id, string Slug, int SortOrder, bool IsPricePublic, int? PriceMin, int? PriceMax,
-        string? Name, string? Content, string? BenefitList, string? Audience);
+        string? Name, string? Content, string? BenefitList, string? Audience, bool IsFallbackLocale);
 
     public async Task<IReadOnlyList<SponsorDto>> ListSponsorsAsync(ClubScope scope, string dbLocale, CancellationToken cancellationToken)
     {
@@ -36,7 +36,8 @@ public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFacto
             const string sponsorSql = """
                 SELECT s.id AS Id, s.slug AS Slug, s.tier AS Tier, s.sort_order AS SortOrder,
                        s.logo_dark_key AS LogoDarkKey, s.logo_light_key AS LogoLightKey,
-                       COALESCE(NULLIF(r.name, N''), d.name) AS Name, COALESCE(NULLIF(r.content, N''), d.content) AS Content
+                       COALESCE(NULLIF(r.name, N''), d.name) AS Name, COALESCE(NULLIF(r.content, N''), d.content) AS Content,
+                       CAST(CASE WHEN @Locale <> @DefaultLocale AND NULLIF(r.name, N'') IS NULL THEN 1 ELSE 0 END AS bit) AS IsFallbackLocale
                 FROM sponsors s
                 LEFT JOIN sponsors_i18n r ON r.sponsor_id = s.id AND r.locale = @Locale
                 LEFT JOIN sponsors_i18n d ON d.sponsor_id = s.id AND d.locale = @DefaultLocale
@@ -99,7 +100,7 @@ public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFacto
 
             return (IReadOnlyList<SponsorDto>)sponsors.Select(s => new SponsorDto
             {
-                Id = s.Id, Slug = s.Slug, Tier = s.Tier, SortOrder = s.SortOrder, Name = s.Name, Content = s.Content,
+                Id = s.Id, Slug = s.Slug, Tier = s.Tier, SortOrder = s.SortOrder, Name = s.Name, IsFallbackLocale = s.IsFallbackLocale, Content = s.Content,
                 LogoDarkUrl = imageUrls.Resolve(s.LogoDarkKey), LogoLightUrl = imageUrls.Resolve(s.LogoLightKey),
                 Stories = stories.Where(x => x.SponsorId == s.Id).Select(x => new SponsorStoryDto { Slug = x.Slug, Title = x.Title, Summary = x.Summary }).ToList(),
                 Activations = activations.Where(a => a.SponsorId == s.Id).Select(a => new SponsorActivationDto
@@ -126,7 +127,8 @@ public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFacto
                        p.price_min AS PriceMin, p.price_max AS PriceMax,
                        COALESCE(NULLIF(r.name, N''), d.name) AS Name, COALESCE(NULLIF(r.content, N''), d.content) AS Content,
                        COALESCE(NULLIF(r.benefit_list, N''), d.benefit_list) AS BenefitList,
-                       COALESCE(NULLIF(r.audience, N''), d.audience) AS Audience
+                       COALESCE(NULLIF(r.audience, N''), d.audience) AS Audience,
+                       CAST(CASE WHEN @Locale <> @DefaultLocale AND NULLIF(r.name, N'') IS NULL THEN 1 ELSE 0 END AS bit) AS IsFallbackLocale
                 FROM sponsor_packages p
                 LEFT JOIN sponsor_packages_i18n r ON r.sponsor_package_id = p.id AND r.locale = @Locale
                 LEFT JOIN sponsor_packages_i18n d ON d.sponsor_package_id = p.id AND d.locale = @DefaultLocale
@@ -137,7 +139,7 @@ public sealed class SponsorsRepository(IClubSqlConnectionFactory connectionFacto
                 sql, new { scope.ClubId, Locale = dbLocale, DefaultLocale = RequestLocale.DefaultDbLocale }, cancellationToken: ct));
             return (IReadOnlyList<SponsorPackageDto>)rows.Select(r => new SponsorPackageDto
             {
-                Id = r.Id, Slug = r.Slug, SortOrder = r.SortOrder, Name = r.Name, Content = r.Content, BenefitList = r.BenefitList, Audience = r.Audience,
+                Id = r.Id, Slug = r.Slug, SortOrder = r.SortOrder, Name = r.Name, IsFallbackLocale = r.IsFallbackLocale, Content = r.Content, BenefitList = r.BenefitList, Audience = r.Audience,
                 PriceMin = r.IsPricePublic ? r.PriceMin : null, PriceMax = r.IsPricePublic ? r.PriceMax : null,
             }).ToList();
         }, cancellationToken);

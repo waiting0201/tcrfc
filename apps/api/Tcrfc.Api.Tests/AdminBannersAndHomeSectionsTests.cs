@@ -18,7 +18,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
 {
     // ───────────────────────────── Banner：授權 ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_未登入_擋下()
     {
         using var client = fixture.CreateClient();
@@ -26,7 +26,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_檢視者角色_可讀不可寫()
     {
         using var client = fixture.CreateClient();
@@ -42,7 +42,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         Assert.Equal(HttpStatusCode.Forbidden, createResponse.StatusCode);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_跨俱樂部_擋下_授權範圍內_成功()
     {
         // partner.club@tcrfc.test（合作球隊管理，own_clubs）只被授權 bw。
@@ -59,7 +59,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
 
     // ───────────────────────────── Banner：行為 ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_建立更新刪除完整生命週期_含換圖與刪圖()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -108,7 +108,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_圖片寬高由上傳結果自動填入_alt雙語()
     {
         // S1-7a：banners.media_type／image_width／image_height／banners_i18n.image_alt。
@@ -189,7 +189,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_建立時未帶圖片_400()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -198,7 +198,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_上架時間不早於下架時間_400()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -216,7 +216,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
 
     // ───────────────────────────── Banner：草稿／發布（v3.14） ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_新建立為草稿_公開端點看不到_發布後看得到_改回草稿後又看不到()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -255,7 +255,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_發布與改回草稿_檢視者角色被擋下_找不到的輪播404()
     {
         var created = await CreateBannerAsync(await CreateContentEditorClientAsync(), "測試發布權限", startAt: null, endAt: null, publish: false);
@@ -281,7 +281,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
 
     // ───────────────────────────── Banner：影片（v3.14） ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_影片模式_建立成功_海報圖與影片鍵皆有值_公開端點吐出videoKey()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -327,7 +327,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_影片模式_缺影片檔案_400_圖片模式送影片檔案_400()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -354,7 +354,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         Assert.Equal(HttpStatusCode.BadRequest, imageWithVideoResponse.StatusCode);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_影片格式不支援_400_影片超過大小上限_400()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -382,7 +382,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         Assert.Equal(HttpStatusCode.BadRequest, oversizedResponse.StatusCode);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Banner_影片模式切回圖片_清空影片鍵_再切回影片模式須重新上傳()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -447,7 +447,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
 
     // ───────────────────────────── HomeSection：授權與行為 ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task HomeSection_未登入_擋下()
     {
         using var client = fixture.CreateClient();
@@ -455,7 +455,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task HomeSection_列表回傳九個固定區塊()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -467,7 +467,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         Assert.Contains(sections, s => s.SectionCode == "bottom_cta");
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task HomeSection_更新開關與排序成功_檢視者角色被擋下()
     {
         using var viewerClient = fixture.CreateClient();
@@ -498,7 +498,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task HomeSection_非Hero區塊指定精選輪播_400()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -508,7 +508,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task HomeSection_Hero指定不存在的輪播_400_不存在的區塊代碼_404()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -526,7 +526,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
 
     // ───────────────────────────── 公開讀取 ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task Public_Banners_只回上架期間內的輪播()
     {
         using var client = await CreateContentEditorClientAsync();
@@ -553,7 +553,7 @@ public sealed class AdminBannersAndHomeSectionsTests(AdminWriteAzuriteEnabledApi
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Public_HomeSections_回傳九筆含停用區塊()
     {
         using var client = fixture.CreateClient();

@@ -35,7 +35,7 @@ public sealed class AdminBusinessUploadTests(AdminWriteAzuriteEnabledApiFixture 
 
     // ═════════════════════════ E1 夥伴 Logo ═════════════════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task 夥伴Logo_上傳_換圖刪舊_移除_刪除夥伴一併刪物件()
     {
         using var client = await BizTest.ClientAsync(fixture, "business.sponsorship@tcrfc.test");
@@ -91,7 +91,7 @@ public sealed class AdminBusinessUploadTests(AdminWriteAzuriteEnabledApiFixture 
 
     // ═════════════════════════ B6 媒體專區 ═════════════════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task 媒體專區_PDF與高解析圖_公開下載累計次數_格式與類別規則()
     {
         using var pr = await BizTest.ClientAsync(fixture, "pr.media@tcrfc.test");
@@ -171,7 +171,7 @@ public sealed class AdminBusinessUploadTests(AdminWriteAzuriteEnabledApiFixture 
 
     // ═════════════════════════ E3 提案：表單關卡與限時連結 ═════════════════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task 提案下載_檔案放私有容器_填表單才給限時連結_Lead帶提案_過期或竄改失效()
     {
         using var business = await BizTest.ClientAsync(fixture, "business.sponsorship@tcrfc.test");
@@ -266,7 +266,7 @@ public sealed class AdminBusinessUploadTests(AdminWriteAzuriteEnabledApiFixture 
 
     // ═════════════════════════ B5 事蹟紀錄圖集與公開端點 ═════════════════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task 事蹟紀錄_必填活動圖片_圖集加刪排序_公開端點三項核心資料()
     {
         using var editor = await BizTest.ClientAsync(fixture, "content.editor@tcrfc.test");
@@ -351,7 +351,7 @@ public sealed class AdminBusinessUploadTests(AdminWriteAzuriteEnabledApiFixture 
 
     // ═════════════════════════ E2 贊助活動圖集／C5 里程碑圖片 ═════════════════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task 贊助活動圖集與里程碑圖片_上傳與刪除()
     {
         using var business = await BizTest.ClientAsync(fixture, "business.sponsorship@tcrfc.test");

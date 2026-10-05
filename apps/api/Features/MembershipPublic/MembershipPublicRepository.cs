@@ -44,7 +44,7 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
             var fallback = p.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
             return new MembershipPlanPublicDto
             {
-                Code = p.Code, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), BenefitNote = RequestLocale.Pick(requested?.BenefitNote, fallback?.BenefitNote),
+                Code = p.Code, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), BenefitNote = RequestLocale.Pick(requested?.BenefitNote, fallback?.BenefitNote),
                 Fee = p.Fee, CardQuota = p.CardQuota, JerseyQuota = p.JerseyQuota, MidSeasonRule = p.MidSeasonRule, SeasonCode = p.Season.Code,
                 StartsOn = p.StartsOn ?? p.Season.StartOn, EndsOn = p.EndsOn ?? p.Season.EndOn,
             };
@@ -64,7 +64,7 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
             : await planQuery.AsSplitQuery().FirstOrDefaultAsync(p => p.Code == planCode, cancellationToken);
         if (plan is null)
         {
-            return string.IsNullOrWhiteSpace(planCode) ? new BenefitTablePublicDto { Groups = [] } : null;
+            return string.IsNullOrWhiteSpace(planCode) ? new BenefitTablePublicDto { Groups = [], IsFallbackLocale = false } : null;
         }
 
         var benefits = await db.MembershipBenefits.AsNoTracking().Include(b => b.MembershipBenefitsI18ns)
@@ -80,7 +80,7 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
                     var fallback = b.MembershipBenefitsI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
                     return new BenefitItemPublicDto
                     {
-                        Name = RequestLocale.Pick(requested?.Name, fallback?.Name), Description = RequestLocale.Pick(requested?.Description, fallback?.Description),
+                        Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), Description = RequestLocale.Pick(requested?.Description, fallback?.Description),
                         FreeValue = RequestLocale.Pick(requested?.FreeValue, fallback?.FreeValue), PaidValue = RequestLocale.Pick(requested?.PaidValue, fallback?.PaidValue),
                     };
                 }).ToList();
@@ -91,7 +91,7 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
 
         var planRequested = plan.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == dbLocale);
         var planFallback = plan.MembershipPlansI18ns.FirstOrDefault(i => i.Locale == RequestLocale.DefaultDbLocale);
-        return new BenefitTablePublicDto { PlanCode = plan.Code, PlanName = RequestLocale.Pick(planRequested?.Name, planFallback?.Name), Groups = groups };
+        return new BenefitTablePublicDto { PlanCode = plan.Code, PlanName = RequestLocale.Pick(planRequested?.Name, planFallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, planRequested?.Name), Groups = groups };
     }
 
     // ═══════════════════════════ 特約店家 ═══════════════════════════
@@ -152,7 +152,7 @@ public sealed class MembershipPublicRepository(ClubDbContext db, IImagePublicUrl
         var address = dbLocale == "en" ? RequestLocale.Pick(requested?.Address, s.Address) : s.Address;
         return new PartnerStorePublicDto
         {
-            Slug = s.Slug, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), Category = s.Category, Region = s.Region, Address = address,
+            Slug = s.Slug, Name = RequestLocale.Pick(requested?.Name, fallback?.Name), IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name), Category = s.Category, Region = s.Region, Address = address,
             Lat = s.Lat, Lng = s.Lng, Phone = s.Phone, BusinessHours = ReadHours(s.BusinessHours),
             OfferContent = RequestLocale.Pick(requested?.OfferContent, fallback?.OfferContent), ApplicableTier = s.ApplicableTier,
             ApplicableTierLabel = dbLocale == "en" ? (s.ApplicableTier == "fan_club" ? "Fan club members only" : "All members") : (s.ApplicableTier == "fan_club" ? "限付費會員" : "全會員適用"),

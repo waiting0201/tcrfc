@@ -24,7 +24,8 @@ public sealed record SearchResultItemDto
 
     public required Guid Id { get; init; }
 
-    /// <summary>有網址名稱的內容（新聞、FAQ、課程、慈善計畫）才有；前台用它組詳情頁連結。</summary>
+    /// <summary>有網址名稱的內容（新聞、FAQ、課程、慈善計畫、<b>球員</b>）才有；前台用它組詳情頁連結。球員的 slug 是 <c>players.slug</c>（2026-10-05 起），
+    /// 深連結 <c>tcrfc://player/{slug}</c>、<c>GET /{club}/players/{slug}</c> 皆用它。教練與團隊成員沒有 slug。</summary>
     public string? Slug { get; init; }
 
     public required string Title { get; init; }

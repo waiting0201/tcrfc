@@ -37,6 +37,10 @@ public sealed record PublicTrialDto
 
     /// <summary>狀態：<c>開放</c>／<c>額滿</c>／<c>候補</c>（已結束的場次不會出現在公開清單）。</summary>
     public required string Status { get; init; }
+    /// <summary>穩定狀態代碼（試訓場次 <c>open</c>／<c>full</c>／<c>waitlist</c>），見 <c>shared/enums.json</c>；<c>status</c> 仍是中文字面值（相容保留）。</summary>
+    public required string StatusCode { get; init; }
+    public required string StatusLabelZh { get; init; }
+    public required string StatusLabelEn { get; init; }
 
     /// <summary>true＝現在送出報名會直接佔名額（狀態「開放」且未過截止日）。</summary>
     public required bool IsSignupOpen { get; init; }
@@ -72,4 +76,8 @@ public sealed record TrialRegistrationSubmittedDto
 
     /// <summary><c>待確認</c>（已佔名額）或 <c>候補</c>（名額已滿，排入候補）。</summary>
     public required string Status { get; init; }
+    /// <summary>穩定狀態代碼（報名 <c>pending</c>／<c>waitlisted</c>），見 <c>shared/enums.json</c>；<c>status</c> 仍是中文字面值（相容保留）。</summary>
+    public required string StatusCode { get; init; }
+    public required string StatusLabelZh { get; init; }
+    public required string StatusLabelEn { get; init; }
 }

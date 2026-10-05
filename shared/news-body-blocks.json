@@ -1,0 +1,109 @@
+{
+  "$comment": "自動產生，請勿手改。產生器：shared/scripts/gen-news-body-blocks.mjs。來源是 apps/web/app/utils/news-body.ts 的 blockOf()（官網目前唯一解讀 bodyJson 的實作），不是規格；後端對 bodyJson 不解讀區塊型別。",
+  "field": "ArticleDetailDto.bodyJson（字串；可能是純文字，也可能是 JSON 文字）",
+  "backendContract": "後台目前送純文字：後端存成 {\"text\":\"…\"}，公開端點讀回「還原後的原文字」。物件／陣列原樣保存、原樣回傳（為區塊編輯器預留）。後端不驗證也不解讀區塊型別。",
+  "parseOrder": [
+    "null 或空白 → 沒有內文區塊",
+    "不是以 { 或 [ 開頭，或 JSON.parse 失敗 → 整段當純文字，空行分段",
+    "陣列 → 逐項當區塊解讀",
+    "物件：有 blocks（陣列）或 content（陣列）→ 逐項當區塊；否則把這個物件本身當單一區塊",
+    "區塊若本身是字串 → 當純文字"
+  ],
+  "blockKinds": {
+    "p": {
+      "type": [
+        "p",
+        "paragraph",
+        "text"
+      ],
+      "aliases": {},
+      "fields": {
+        "text": "string（空行分段，段內單一換行保留為斷行）"
+      }
+    },
+    "heading": {
+      "type": [
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "heading",
+        "subheading"
+      ],
+      "aliases": {
+        "h1": {
+          "level": 2
+        },
+        "h2": {
+          "level": 2
+        },
+        "heading": {
+          "level": 2
+        },
+        "h3": {
+          "level": 3
+        },
+        "h4": {
+          "level": 3
+        },
+        "subheading": {
+          "level": 3
+        }
+      },
+      "fields": {
+        "text": "string（必填，空白不輸出）"
+      }
+    },
+    "quote": {
+      "type": [
+        "blockquote",
+        "quote"
+      ],
+      "aliases": {},
+      "fields": {
+        "text": "string（必填）",
+        "cite|source": "string（選填，出處）"
+      }
+    },
+    "list": {
+      "type": [
+        "list",
+        "ol",
+        "ul"
+      ],
+      "aliases": {},
+      "fields": {
+        "items": "string[]（空項略過）",
+        "ordered": "boolean（選填；type 為 ol 時恆為有序）"
+      }
+    },
+    "image": {
+      "type": [
+        "image",
+        "img"
+      ],
+      "aliases": {},
+      "fields": {
+        "src|url": "string（必填，須通過安全網址檢查）",
+        "alt": "string（缺漏退回 caption）",
+        "caption": "string（選填）"
+      }
+    },
+    "gallery": {
+      "type": [
+        "gallery"
+      ],
+      "aliases": {},
+      "fields": {
+        "images": "{src|url, alt?, caption?}[]（沒有任何合法圖片則不輸出）"
+      }
+    }
+  },
+  "type": "區塊 `type` 不分大小寫（比對前轉小寫）。每種區塊的 `type` 清單含別名；`aliases` 標示別名帶來的差異（標題層級）。",
+  "unknownTypeConvention": "未知 type 的區塊一律**忽略**（不渲染、不報錯、不中止整篇）；沒有 type 但有 text 的物件當純文字段落；區塊解讀結果為空的也忽略。用戶端不得猜測或自創格式。",
+  "safeUrl": {
+    "rule": "圖片網址只放行 http(s):// 絕對網址與站內相對路徑（以單一 / 開頭，不得 // 或 /\\ 開頭）；其餘（javascript:、data:、vbscript:、protocol-relative）整個圖片區塊丟棄。",
+    "sourceFound": true
+  },
+  "rendering": "一律當文字渲染（自動跳脫），禁止當 HTML／富文本解析（XSS 防線）；網址只在通過上面的檢查後才可用於圖片來源。"
+}

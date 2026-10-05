@@ -1,7 +1,16 @@
 namespace Tcrfc.Api.Features.MemberAuth;
 
 /// <summary><c>TokenDelivery</c>：<c>cookie</c>（預設，瀏覽器：更新權杖放 HttpOnly Cookie，JS 碰不到）／<c>body</c>（App 與伺服器端代理：更新權杖放回應本文，由呼叫端存進安全儲存區）。</summary>
-public sealed record MemberRegisterRequest(string Club, string Email, string Password, string Name, string? Phone, DateOnly? BirthOn, string? Lang);
+/// <summary>
+/// 監護人同意（主站規劃書「會員資料安全要求」、App 規劃書 §4.5「未滿 18 歲須經監護人同意方得註冊」）。
+/// 只有「依生日判定未滿 18 歲」時才需要且才會被儲存；成年註冊帶了也不儲存（不蒐集不需要的個資）。
+/// 同意時間由伺服器填入，不接受用戶端傳值。<see cref="ConsentTextVersion"/> 是用戶端呈現的同意文案版本（文案本身待法務 B-9，這裡只記版本號，可省略）。
+/// </summary>
+public sealed record MemberGuardianConsentRequest(bool Consented, string? GuardianName, string? Relationship, string? ConsentTextVersion);
+
+/// <summary>註冊。<b><c>BirthOn</c> 必填</b>（年齡閘門，App 規劃書 §4.5）；未滿 18 歲須帶 <c>GuardianConsent</c>，否則 400
+/// <c>guardian_consent_required</c>（缺姓名 <c>guardian_name_required</c>、關係不合 <c>invalid_guardian_relationship</c>）。</summary>
+public sealed record MemberRegisterRequest(string Club, string Email, string Password, string Name, string? Phone, DateOnly? BirthOn, string? Lang, MemberGuardianConsentRequest? GuardianConsent = null);
 
 public sealed record MemberVerifyEmailRequest(string Token);
 
@@ -28,7 +37,7 @@ public sealed record MemberLineAuthorizeRequest(string Club, string Mode, string
 
 public sealed record MemberLineCallbackRequest(string Code, string State, string? TokenDelivery = null, string? DeviceInstallId = null);
 
-public sealed record MemberLineCompleteRequest(string Club, string Ticket, string Email, string? Name, string? Phone, DateOnly? BirthOn, string? Lang, string? TokenDelivery = null, string? DeviceInstallId = null);
+public sealed record MemberLineCompleteRequest(string Club, string Ticket, string Email, string? Name, string? Phone, DateOnly? BirthOn, string? Lang, string? TokenDelivery = null, string? DeviceInstallId = null, MemberGuardianConsentRequest? GuardianConsent = null);
 
 public sealed record MemberSummaryDto
 {

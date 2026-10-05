@@ -1,0 +1,89 @@
+{
+  "$comment": "自動產生，請勿手改。產生器：shared/scripts/gen-image-derivatives.mjs（docs/19 §2，缺口 A5）。來源是 apps/api/Images，不是規格；規格是主站規劃書 §4.0 圖片上傳通則。",
+  "mainExtension": ".webp",
+  "mainMaxLongEdgePx": 2560,
+  "webpQuality": 80,
+  "derivatives": [
+    {
+      "suffix": "1280",
+      "kind": "longEdge",
+      "longEdgePx": 1280,
+      "note": "等比縮小，長邊為此值；原圖較小時不放大（長邊以原圖為上限）"
+    },
+    {
+      "suffix": "640",
+      "kind": "longEdge",
+      "longEdgePx": 640,
+      "note": "等比縮小，長邊為此值；原圖較小時不放大（長邊以原圖為上限）"
+    },
+    {
+      "suffix": "320",
+      "kind": "longEdge",
+      "longEdgePx": 320,
+      "note": "等比縮小，長邊為此值；原圖較小時不放大（長邊以原圖為上限）"
+    },
+    {
+      "suffix": "thumb",
+      "kind": "squareThumbnail",
+      "sizePx": 160,
+      "note": "160×160 置中裁切方形縮圖（後台列表縮圖；App 一般不需要）"
+    }
+  ],
+  "rule": "由主檔網址（DTO 的 *Url，副檔名 .webp）推導：把副檔名前面插入「-{suffix}」，查詢字串與錨點原樣保留。 例：https://img.example.com/images/tcrfc/players/0b7c/photo.webp → https://img.example.com/images/tcrfc/players/0b7c/photo-640.webp。",
+  "pick": {
+    "note": "建議挑選：取「長邊 ≥ 顯示尺寸（px，含螢幕倍率）」的最小衍生檔；都不夠大才用主檔。",
+    "suffixesAscending": [
+      "320",
+      "640",
+      "1280"
+    ]
+  },
+  "examples": [
+    {
+      "main": "https://img.example.com/images/tcrfc/players/0b7c/photo.webp",
+      "suffix": "320",
+      "expected": "https://img.example.com/images/tcrfc/players/0b7c/photo-320.webp"
+    },
+    {
+      "main": "https://img.example.com/images/tcrfc/players/0b7c/photo.webp",
+      "suffix": "640",
+      "expected": "https://img.example.com/images/tcrfc/players/0b7c/photo-640.webp"
+    },
+    {
+      "main": "https://img.example.com/images/tcrfc/players/0b7c/photo.webp",
+      "suffix": "1280",
+      "expected": "https://img.example.com/images/tcrfc/players/0b7c/photo-1280.webp"
+    },
+    {
+      "main": "https://img.example.com/images/tcrfc/players/0b7c/photo.webp",
+      "suffix": "thumb",
+      "expected": "https://img.example.com/images/tcrfc/players/0b7c/photo-thumb.webp"
+    },
+    {
+      "main": "https://img.example.com/images/tcrfc/players/0b7c/photo.webp?v=3",
+      "suffix": "320",
+      "expected": "https://img.example.com/images/tcrfc/players/0b7c/photo-320.webp?v=3"
+    }
+  ],
+  "coverage": {
+    "note": "手動維護清單（新增圖片上傳欄位時補）：下列 DTO 欄位的圖片都走 §4.0 上傳管線，**保證有** 1280／640／320／thumb 衍生檔。",
+    "guaranteed": [
+      "PlayerDto.photoUrl",
+      "StaffDto.photoUrl",
+      "ClubDto.logoUrl／logoDarkUrl",
+      "ArticleListItemDto.coverUrl",
+      "AppAdItemDto.imageUrl（另有 imageVariants 直接帶網址）",
+      "MemberDrawDto.coverUrl",
+      "夥伴與贊助商的 logoDarkUrl／logoLightUrl",
+      "特約店家 imageUrl",
+      "課程 coverUrl",
+      "商品圖片"
+    ],
+    "notGuaranteed": [
+      "站台照片（infra/upload-site-images.sh 批次上傳，衍生檔有無與命名以該腳本為準，不保證）",
+      "影片（videoUrl）不適用",
+      "站外網址"
+    ]
+  },
+  "notDerivable": "主檔網址不是以 .webp 結尾（例如站外圖片、空值）時沒有衍生檔，請直接使用原網址或沒有圖片的預設畫面。"
+}

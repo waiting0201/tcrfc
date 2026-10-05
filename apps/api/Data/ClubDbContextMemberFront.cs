@@ -32,6 +32,25 @@ public partial class ClubDbContext
             entity.HasIndex(e => e.LineUserIdHash, "UQ_members_line_user_id_hash")
                 .IsUnique()
                 .HasFilter("[line_user_id_hash] IS NOT NULL");
+            entity.Property(e => e.GuardianConsentedAt)
+                .HasPrecision(3)
+                .HasColumnName("guardian_consented_at");
+            entity.Property(e => e.GuardianName)
+                .HasMaxLength(64)
+                .HasColumnName("guardian_name");
+            entity.Property(e => e.GuardianRelationship)
+                .HasMaxLength(16)
+                .HasColumnName("guardian_relationship");
+            entity.Property(e => e.GuardianConsentVersion)
+                .HasMaxLength(32)
+                .HasColumnName("guardian_consent_version");
+        });
+
+        modelBuilder.Entity<ClubsI18n>(entity =>
+        {
+            entity.Property(e => e.ShortName)
+                .HasMaxLength(32)
+                .HasColumnName("short_name");
         });
 
         modelBuilder.Entity<MembershipPayment>(entity =>

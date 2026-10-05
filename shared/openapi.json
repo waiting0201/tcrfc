@@ -39,6 +39,43 @@
         }
       }
     },
+    "/api/v1/app/ads/prefetch": {
+      "get": {
+        "tags": [
+          "AppPublic"
+        ],
+        "description": "行動 App 公開端點（匿名）：裝置、訂閱、設定、內容編排、通知、廣告、診斷。",
+        "operationId": "AppPrefetchAds",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "theme",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppAdPrefetchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/app/ads/{slotCode}": {
       "get": {
         "tags": [
@@ -65,6 +102,13 @@
           {
             "name": "deviceInstallId",
             "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Install-Id",
+            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -311,6 +355,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "X-Device-Install-Id",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -345,6 +396,13 @@
           {
             "name": "deviceInstallId",
             "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "X-Device-Install-Id",
+            "in": "header",
             "schema": {
               "type": "string"
             }
@@ -1112,6 +1170,41 @@
         }
       }
     },
+    "/api/v1/member/draws": {
+      "get": {
+        "tags": [
+          "MemberDraws"
+        ],
+        "operationId": "GetMyDraws",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MemberDrawDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        }
+      }
+    },
     "/api/v1/member/jerseys": {
       "get": {
         "tags": [
@@ -1493,6 +1586,15 @@
           "MemberCenter"
         ],
         "operationId": "GetMyRegistrations",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -2451,6 +2553,56 @@
           },
           "403": {
             "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/{club}/competitions": {
+      "get": {
+        "tags": [
+          "Competitions"
+        ],
+        "operationId": "ListCompetitions",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "season",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CompetitionDto"
+                  }
+                }
+              }
+            }
           },
           "404": {
             "description": "Not Found"
@@ -4216,6 +4368,54 @@
         }
       }
     },
+    "/api/v1/{club}/players/{slug}": {
+      "get": {
+        "tags": [
+          "Players"
+        ],
+        "operationId": "GetPlayer",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayerDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/v1/{club}/policies/{code}": {
       "get": {
         "tags": [
@@ -4718,6 +4918,29 @@
             }
           },
           {
+            "name": "competition",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
             "name": "lang",
             "in": "query",
             "schema": {
@@ -4756,6 +4979,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PagedResultOfMatchDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/v1/{club}/schedule/{id}": {
+      "get": {
+        "tags": [
+          "Schedule"
+        ],
+        "operationId": "GetMatch",
+        "parameters": [
+          {
+            "name": "club",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchDto"
                 }
               }
             }
@@ -6674,6 +6946,25 @@
           }
         }
       },
+      "AppAdImageVariantsDto": {
+        "required": [
+          "url320",
+          "url640",
+          "url1280"
+        ],
+        "type": "object",
+        "properties": {
+          "url320": {
+            "type": "string"
+          },
+          "url640": {
+            "type": "string"
+          },
+          "url1280": {
+            "type": "string"
+          }
+        }
+      },
       "AppAdItemDto": {
         "required": [
           "isFallback"
@@ -6721,6 +7012,16 @@
             ],
             "format": "int32"
           },
+          "imageVariants": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AppAdImageVariantsDto"
+              }
+            ]
+          },
           "videoUrl": {
             "type": [
               "null",
@@ -6756,6 +7057,106 @@
               "null",
               "string"
             ]
+          }
+        }
+      },
+      "AppAdPrefetchItemDto": {
+        "required": [
+          "item",
+          "startsAt",
+          "endsAt",
+          "weight"
+        ],
+        "type": "object",
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/AppAdItemDto"
+          },
+          "startsAt": {
+            "format": "date-time"
+          },
+          "endsAt": {
+            "format": "date-time"
+          },
+          "weight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "AppAdPrefetchResponse": {
+        "required": [
+          "generatedAt",
+          "validUntil",
+          "disclosureLabel",
+          "slots"
+        ],
+        "type": "object",
+        "properties": {
+          "generatedAt": {
+            "format": "date-time"
+          },
+          "validUntil": {
+            "format": "date-time"
+          },
+          "disclosureLabel": {
+            "type": "string"
+          },
+          "slots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppAdPrefetchSlotDto"
+            }
+          }
+        }
+      },
+      "AppAdPrefetchSlotDto": {
+        "required": [
+          "slotCode",
+          "items"
+        ],
+        "type": "object",
+        "properties": {
+          "slotCode": {
+            "type": "string"
+          },
+          "rotationCap": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "sessionImpressionCap": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "fallback": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AppAdItemDto"
+              }
+            ]
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AppAdPrefetchItemDto"
+            }
           }
         }
       },
@@ -7049,6 +7450,9 @@
               "null",
               "string"
             ]
+          },
+          "isExternal": {
+            "type": "boolean"
           }
         }
       },
@@ -7095,6 +7499,12 @@
             "items": {
               "$ref": "#/components/schemas/AppDeepLinkDto"
             }
+          },
+          "sponsorshipInquiryWebUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -7277,6 +7687,7 @@
       "ArticleDetailDto": {
         "required": [
           "id",
+          "isFallbackLocale",
           "slug",
           "categoryCode",
           "isFeatured",
@@ -7293,6 +7704,9 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "slug": {
             "type": "string"
@@ -7463,6 +7877,7 @@
       "ArticleListItemDto": {
         "required": [
           "id",
+          "isFallbackLocale",
           "slug",
           "categoryCode",
           "isFeatured",
@@ -7474,6 +7889,9 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "slug": {
             "type": "string"
@@ -7715,6 +8133,9 @@
         }
       },
       "BenefitItemPublicDto": {
+        "required": [
+          "isFallbackLocale"
+        ],
         "type": "object",
         "properties": {
           "name": {
@@ -7722,6 +8143,9 @@
               "null",
               "string"
             ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "description": {
             "type": [
@@ -7745,6 +8169,7 @@
       },
       "BenefitTablePublicDto": {
         "required": [
+          "isFallbackLocale",
           "groups"
         ],
         "type": "object",
@@ -7760,6 +8185,9 @@
               "null",
               "string"
             ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "groups": {
             "type": "array",
@@ -8141,6 +8569,7 @@
         "required": [
           "code",
           "name",
+          "isFallbackLocale",
           "domain",
           "defaultLocale",
           "schemaEligible"
@@ -8152,6 +8581,15 @@
           },
           "name": {
             "type": "string"
+          },
+          "shortName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "description": {
             "type": [
@@ -8447,6 +8885,61 @@
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "CompetitionDto": {
+        "required": [
+          "id",
+          "code",
+          "clubCode",
+          "seasonCode",
+          "isFallbackLocale",
+          "sortOrder"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "clubCode": {
+            "type": "string"
+          },
+          "seasonCode": {
+            "type": "string"
+          },
+          "compType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
+          },
+          "organizer": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "sortOrder": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
               "integer",
               "string"
             ],
@@ -8824,6 +9317,7 @@
       "FaqListItemDto": {
         "required": [
           "id",
+          "isFallbackLocale",
           "slug",
           "isShared",
           "sortOrder",
@@ -8834,6 +9328,9 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "slug": {
             "type": "string"
@@ -9110,7 +9607,9 @@
           "id",
           "seasonCode",
           "teamCode",
+          "clubCode",
           "matchOn",
+          "isFallbackLocale",
           "schemaEligible"
         ],
         "type": "object",
@@ -9125,6 +9624,15 @@
           "teamCode": {
             "type": "string"
           },
+          "clubCode": {
+            "type": "string"
+          },
+          "competitionCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "matchOn": {
             "type": "string",
             "format": "date"
@@ -9134,6 +9642,9 @@
               "null",
               "string"
             ]
+          },
+          "kickoffAt": {
+            "format": "date-time"
           },
           "homeAway": {
             "type": [
@@ -9146,6 +9657,9 @@
               "null",
               "string"
             ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "venue": {
             "type": [
@@ -9238,7 +9752,8 @@
           "statusLabel",
           "isValid",
           "token",
-          "reissueCount"
+          "reissueCount",
+          "serverTime"
         ],
         "type": "object",
         "properties": {
@@ -9293,6 +9808,9 @@
             "format": "int32"
           },
           "issuedAt": {
+            "format": "date-time"
+          },
+          "serverTime": {
             "format": "date-time"
           }
         }
@@ -9423,6 +9941,139 @@
           }
         }
       },
+      "MemberDrawAnnouncementDto": {
+        "required": [
+          "slug",
+          "categoryCode"
+        ],
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "categoryCode": {
+            "type": "string"
+          }
+        }
+      },
+      "MemberDrawClubDto": {
+        "required": [
+          "code"
+        ],
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "MemberDrawDto": {
+        "required": [
+          "id",
+          "drawCode",
+          "club",
+          "isFallbackLocale",
+          "status",
+          "statusLabel",
+          "isEligible"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "drawCode": {
+            "type": "string"
+          },
+          "club": {
+            "$ref": "#/components/schemas/MemberDrawClubDto"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "prizeDescription": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "rules": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "notes": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
+          },
+          "coverUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "occasion": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "occasionLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "snapshotAt": {
+            "format": "date-time"
+          },
+          "drawnAt": {
+            "format": "date-time"
+          },
+          "claimDeadlineOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "status": {
+            "type": "string"
+          },
+          "statusLabel": {
+            "type": "string"
+          },
+          "isEligible": {
+            "type": "boolean"
+          },
+          "announcement": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MemberDrawAnnouncementDto"
+              }
+            ]
+          }
+        }
+      },
       "MemberForgotPasswordRequest": {
         "required": [
           "email",
@@ -9438,6 +10089,38 @@
             "type": "string"
           },
           "lang": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "MemberGuardianConsentRequest": {
+        "required": [
+          "consented",
+          "guardianName",
+          "relationship",
+          "consentTextVersion"
+        ],
+        "type": "object",
+        "properties": {
+          "consented": {
+            "type": "boolean"
+          },
+          "guardianName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "relationship": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "consentTextVersion": {
             "type": [
               "null",
               "string"
@@ -9825,6 +10508,16 @@
               "null",
               "string"
             ]
+          },
+          "guardianConsent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MemberGuardianConsentRequest"
+              }
+            ]
           }
         }
       },
@@ -9999,6 +10692,16 @@
               "null",
               "string"
             ]
+          },
+          "guardianConsent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MemberGuardianConsentRequest"
+              }
+            ]
           }
         }
       },
@@ -10021,14 +10724,105 @@
           }
         }
       },
+      "MemberRegistrationCourseDto": {
+        "required": [
+          "programSlug",
+          "sessionStatusCode",
+          "sessionStatusLabelZh",
+          "sessionStatusLabelEn"
+        ],
+        "type": "object",
+        "properties": {
+          "programSlug": {
+            "type": "string"
+          },
+          "programName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "startOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "endOn": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "weeklySchedule": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "venueName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "venueAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "price": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "earlyBirdPrice": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "earlyBirdUntil": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "sessionStatusCode": {
+            "type": "string"
+          },
+          "sessionStatusLabelZh": {
+            "type": "string"
+          },
+          "sessionStatusLabelEn": {
+            "type": "string"
+          }
+        }
+      },
       "MemberRegistrationDto": {
         "required": [
           "id",
           "registrationNo",
           "clubCode",
           "status",
+          "statusCode",
+          "statusLabelZh",
+          "statusLabelEn",
           "applicantName",
-          "createdAt"
+          "createdAt",
+          "kind",
+          "isFallbackLocale"
         ],
         "type": "object",
         "properties": {
@@ -10043,6 +10837,15 @@
             "type": "string"
           },
           "status": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "string"
+          },
+          "statusLabelZh": {
+            "type": "string"
+          },
+          "statusLabelEn": {
             "type": "string"
           },
           "applicantName": {
@@ -10064,6 +10867,74 @@
           },
           "createdAt": {
             "format": "date-time"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "course": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MemberRegistrationCourseDto"
+              }
+            ]
+          },
+          "trial": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/MemberRegistrationTrialDto"
+              }
+            ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MemberRegistrationTrialDto": {
+        "required": [
+          "trialOn",
+          "trialStatusCode",
+          "trialStatusLabelZh",
+          "trialStatusLabelEn"
+        ],
+        "type": "object",
+        "properties": {
+          "trialOn": {
+            "type": "string",
+            "format": "date"
+          },
+          "teamName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "venueName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "venueAddress": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "trialStatusCode": {
+            "type": "string"
+          },
+          "trialStatusLabelZh": {
+            "type": "string"
+          },
+          "trialStatusLabelEn": {
+            "type": "string"
           }
         }
       },
@@ -10292,6 +11163,7 @@
       "MembershipPlanPublicDto": {
         "required": [
           "code",
+          "isFallbackLocale",
           "fee",
           "cardQuota",
           "jerseyQuota",
@@ -10309,6 +11181,9 @@
               "null",
               "string"
             ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "benefitNote": {
             "type": [
@@ -11278,6 +12153,7 @@
         "required": [
           "id",
           "slug",
+          "isFallbackLocale",
           "showInFooter",
           "showOnHome",
           "sortOrder",
@@ -11291,6 +12167,9 @@
           },
           "slug": {
             "type": "string"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "partnerType": {
             "type": [
@@ -11394,6 +12273,7 @@
       "PartnerStorePublicDto": {
         "required": [
           "slug",
+          "isFallbackLocale",
           "applicableTier",
           "applicableTierLabel",
           "isShared"
@@ -11408,6 +12288,9 @@
               "null",
               "string"
             ]
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "category": {
             "type": [
@@ -11574,7 +12457,10 @@
       "PlayerDto": {
         "required": [
           "id",
+          "slug",
+          "isFallbackLocale",
           "teamCode",
+          "portraitConsented",
           "schemaEligible"
         ],
         "type": "object",
@@ -11582,6 +12468,12 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "teamCode": {
             "type": "string"
@@ -11643,6 +12535,9 @@
               "null",
               "string"
             ]
+          },
+          "portraitConsented": {
+            "type": "boolean"
           },
           "name": {
             "type": [
@@ -11858,6 +12753,7 @@
         "required": [
           "id",
           "slug",
+          "isFallbackLocale",
           "staff",
           "partners",
           "sessions"
@@ -11870,6 +12766,9 @@
           },
           "slug": {
             "type": "string"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "programType": {
             "type": [
@@ -11955,6 +12854,7 @@
         "required": [
           "id",
           "slug",
+          "isFallbackLocale",
           "hasOpenSession"
         ],
         "type": "object",
@@ -11965,6 +12865,9 @@
           },
           "slug": {
             "type": "string"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "programType": {
             "type": [
@@ -12080,7 +12983,10 @@
       "ProgramRegistrationSubmittedDto": {
         "required": [
           "registrationNo",
-          "status"
+          "status",
+          "statusCode",
+          "statusLabelZh",
+          "statusLabelEn"
         ],
         "type": "object",
         "properties": {
@@ -12089,6 +12995,15 @@
           },
           "status": {
             "type": "string"
+          },
+          "statusCode": {
+            "type": "string"
+          },
+          "statusLabelZh": {
+            "type": "string"
+          },
+          "statusLabelEn": {
+            "type": "string"
           }
         }
       },
@@ -12096,7 +13011,10 @@
         "required": [
           "id",
           "enrolledCount",
-          "status"
+          "status",
+          "statusCode",
+          "statusLabelZh",
+          "statusLabelEn"
         ],
         "type": "object",
         "properties": {
@@ -12173,6 +13091,15 @@
             "format": "date-time"
           },
           "status": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "string"
+          },
+          "statusLabelZh": {
+            "type": "string"
+          },
+          "statusLabelEn": {
             "type": "string"
           },
           "venueId": {
@@ -13294,6 +14221,9 @@
           "trialOn",
           "enrolledCount",
           "status",
+          "statusCode",
+          "statusLabelZh",
+          "statusLabelEn",
           "isSignupOpen",
           "acceptsWaitlist"
         ],
@@ -13387,6 +14317,15 @@
             "format": "date"
           },
           "status": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "string"
+          },
+          "statusLabelZh": {
+            "type": "string"
+          },
+          "statusLabelEn": {
             "type": "string"
           },
           "isSignupOpen": {
@@ -14852,6 +15791,7 @@
         "required": [
           "id",
           "slug",
+          "isFallbackLocale",
           "sortOrder",
           "stories",
           "activations",
@@ -14865,6 +15805,9 @@
           },
           "slug": {
             "type": "string"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "tier": {
             "type": [
@@ -14928,6 +15871,7 @@
         "required": [
           "id",
           "slug",
+          "isFallbackLocale",
           "sortOrder"
         ],
         "type": "object",
@@ -14938,6 +15882,9 @@
           },
           "slug": {
             "type": "string"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "sortOrder": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -15017,6 +15964,8 @@
       "StaffDto": {
         "required": [
           "id",
+          "isFallbackLocale",
+          "portraitConsented",
           "teamCodes",
           "isShared",
           "schemaEligible"
@@ -15026,6 +15975,9 @@
           "id": {
             "type": "string",
             "format": "uuid"
+          },
+          "isFallbackLocale": {
+            "type": "boolean"
           },
           "staffGroup": {
             "type": [
@@ -15044,6 +15996,9 @@
               "null",
               "string"
             ]
+          },
+          "portraitConsented": {
+            "type": "boolean"
           },
           "name": {
             "type": [
@@ -15342,8 +16297,10 @@
         "required": [
           "id",
           "code",
+          "clubCode",
           "type",
           "gender",
+          "isFallbackLocale",
           "schemaEligible"
         ],
         "type": "object",
@@ -15353,6 +16310,9 @@
             "format": "uuid"
           },
           "code": {
+            "type": "string"
+          },
+          "clubCode": {
             "type": "string"
           },
           "type": {
@@ -15385,6 +16345,9 @@
               "string"
             ]
           },
+          "isFallbackLocale": {
+            "type": "boolean"
+          },
           "intro": {
             "type": [
               "null",
@@ -15411,7 +16374,10 @@
       "TrialRegistrationSubmittedDto": {
         "required": [
           "registrationNo",
-          "status"
+          "status",
+          "statusCode",
+          "statusLabelZh",
+          "statusLabelEn"
         ],
         "type": "object",
         "properties": {
@@ -15419,6 +16385,15 @@
             "type": "string"
           },
           "status": {
+            "type": "string"
+          },
+          "statusCode": {
+            "type": "string"
+          },
+          "statusLabelZh": {
+            "type": "string"
+          },
+          "statusLabelEn": {
             "type": "string"
           }
         }
@@ -15468,6 +16443,9 @@
     },
     {
       "name": "Schedule"
+    },
+    {
+      "name": "Competitions"
     },
     {
       "name": "Pages"
@@ -15525,6 +16503,9 @@
     },
     {
       "name": "MemberCenter"
+    },
+    {
+      "name": "MemberDraws"
     },
     {
       "name": "MembershipOrders"

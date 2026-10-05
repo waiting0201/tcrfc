@@ -20,7 +20,7 @@ public sealed class PlayersRepository(
     // 完全相符，型別對不上會整個 QueryAsync<PlayerRow> 丟 InvalidOperationException（見 docs/18
     // work-errors E-20）。在 Map() 裡再轉成 DTO 要的 DateOnly。
     private sealed record PlayerRow(
-        Guid Id, string TeamCode, int? ShirtNo, string? Position, DateTime? BirthOn,
+        Guid Id, string Slug, string TeamCode, int? ShirtNo, string? Position, DateTime? BirthOn,
         int? HeightCm, int? WeightKg, string? Nationality, string? PreferredFoot, string? PhotoKey,
         string PortraitConsentStatus);
 
@@ -54,7 +54,7 @@ public sealed class PlayersRepository(
                     """;
 
                 const string listSql = """
-                    SELECT p.id AS Id, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
+                    SELECT p.id AS Id, p.slug AS Slug, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
                            p.birth_on AS BirthOn, p.height_cm AS HeightCm, p.weight_kg AS WeightKg,
                            p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey,
                            p.portrait_consent_status AS PortraitConsentStatus
@@ -78,6 +78,46 @@ public sealed class PlayersRepository(
                 var items = rows.Select(r => Map(r, i18nById.GetValueOrDefault(r.Id), dbLocale)).ToList();
 
                 return new PagedResult<PlayerDto> { Items = items, Page = page, PageSize = pageSize, TotalCount = totalCount };
+            },
+            cancellationToken);
+    }
+
+    /// <summary>
+    /// 以網址代稱查單一球員（App 深連結 <c>tcrfc://player/{slug}</c> 的解析端點）。<paramref name="slugOrId"/> 也接受球員 id（Guid）——
+    /// 官網在 slug 全面上線前以 id 解析，兩種寫法都能查到同一位。<c>club_id</c> 一樣是硬過濾：別的俱樂部的球員一律當作不存在。
+    /// 找不到回 <c>null</c>（不快取）。
+    /// </summary>
+    public async Task<PlayerDto?> GetBySlugAsync(ClubScope scope, string slugOrId, string dbLocale, CancellationToken cancellationToken)
+    {
+        var key = slugOrId.Trim().ToLowerInvariant();
+        if (key.Length == 0 || key.Length > 160)
+        {
+            return null;
+        }
+
+        return await cache.GetOrCreateAsync<PlayerDto?>(
+            CacheEntity, scope.ClubCode, dbLocale, $"detail:{key}",
+            async ct =>
+            {
+                using var connection = connectionFactory.CreateConnection();
+                const string sql = """
+                    SELECT p.id AS Id, p.slug AS Slug, t.code AS TeamCode, p.shirt_no AS ShirtNo, p.position AS Position,
+                           p.birth_on AS BirthOn, p.height_cm AS HeightCm, p.weight_kg AS WeightKg,
+                           p.nationality AS Nationality, p.preferred_foot AS PreferredFoot, p.photo_key AS PhotoKey,
+                           p.portrait_consent_status AS PortraitConsentStatus
+                    FROM players p
+                    JOIN teams t ON t.id = p.team_id
+                    WHERE p.club_id = @ClubId AND (p.slug = @Key OR p.id = @Id)
+                    """;
+                var row = await connection.QueryFirstOrDefaultAsync<PlayerRow>(new CommandDefinition(
+                    sql, new { scope.ClubId, Key = key, Id = Guid.TryParse(key, out var id) ? id : Guid.Empty }, cancellationToken: ct));
+                if (row is null)
+                {
+                    return null;
+                }
+
+                var i18n = await LoadI18nAsync(connection, [row.Id], dbLocale, ct);
+                return Map(row, i18n.GetValueOrDefault(row.Id), dbLocale);
             },
             cancellationToken);
     }
@@ -124,6 +164,7 @@ public sealed class PlayersRepository(
         return new PlayerDto
         {
             Id = row.Id,
+            Slug = row.Slug,
             TeamCode = row.TeamCode,
             ShirtNo = row.ShirtNo,
             Position = row.Position,
@@ -133,7 +174,9 @@ public sealed class PlayersRepository(
             Nationality = row.Nationality,
             PreferredFoot = row.PreferredFoot,
             PhotoKey = photoKey,
+            PortraitConsented = row.PortraitConsentStatus is "consented" or "consented_by_guardian",
             Name = name,
+            IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
             Bio = RequestLocale.Pick(requested?.Bio, fallback?.Bio),
             PhotoUrl = imageUrlResolver.Resolve(photoKey),
             SchemaEligible = schemaEligible,

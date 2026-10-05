@@ -63,7 +63,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
 
     // ───────────────────────────── 圖片驗證失敗：碰不到資料庫，本來就不會留下任何東西 ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task 建立文章_夾假副檔名文字檔_回400_不建立文章_不留下任何物件()
     {
         using var client = fixture.CreateClient();
@@ -81,7 +81,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
         Assert.Equal(before, await CountBlobsUnderPrefixAsync()); // 沒有任何物件被寫進去
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 建立文章_夾空檔案_回400_不留下任何物件()
     {
         using var client = fixture.CreateClient();
@@ -95,7 +95,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
         Assert.Equal(before, await CountBlobsUnderPrefixAsync());
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 建立文章_夾超過10MB的檔案_回400_不留下任何物件()
     {
         using var client = fixture.CreateClient();
@@ -111,7 +111,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
         Assert.Equal(before, await CountBlobsUnderPrefixAsync());
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 不存在的俱樂部代碼_夾檔案_回404_不嘗試上傳()
     {
         using var client = fixture.CreateClient();
@@ -127,7 +127,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
 
     // ───────────────────────────── 🔴 核心：圖片已上傳成功，但資料列寫入失敗 → 回滾，不留孤兒物件 ─────────────────────────────
 
-    [Fact]
+    [AzuriteFact]
     public async Task 建立文章_網址名稱重複但夾了正常圖片_圖片已上傳成功但建立失敗_回滾不留孤兒物件()
     {
         using var client = fixture.CreateClient();
@@ -158,7 +158,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 更新文章_並行衝突但夾了正常圖片_圖片已上傳成功但更新失敗_回滾不留孤兒物件_舊封面圖片不受影響()
     {
         using var client = fixture.CreateClient();
@@ -203,7 +203,7 @@ public sealed class AdminNewsCoverUploadTests(AdminWriteAzuriteEnabledApiFixture
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 更新文章_同時夾檔案又勾選移除封面_回400_不嘗試上傳()
     {
         using var client = fixture.CreateClient();

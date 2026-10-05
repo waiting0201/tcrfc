@@ -147,7 +147,7 @@ public sealed class MemberCenterService(ClubDbContext db, IImagePublicUrlResolve
             Tier = membership.Tier, TierLabel = TierLabel(membership.Tier, en), ValidUntil = membership.MembershipEndOn,
             Status = valid ? "valid" : card.Status == "revoked" ? "revoked" : "expired",
             StatusLabel = en ? (valid ? "Valid" : card.Status == "revoked" ? "Revoked" : "Expired") : (valid ? "有效" : card.Status == "revoked" ? "已停用" : "已過期"),
-            IsValid = valid, Token = card.Token, ReissueCount = card.ReissueCount, IssuedAt = card.IssuedAt,
+            IsValid = valid, Token = card.Token, ReissueCount = card.ReissueCount, IssuedAt = card.IssuedAt, ServerTime = DateTime.UtcNow,
         };
     }
 
@@ -312,17 +312,72 @@ public sealed class MemberCenterService(ClubDbContext db, IImagePublicUrlResolve
     // ═══════════════════════════ 我的報名 ═══════════════════════════
 
     /// <summary>會員自己的課程／試訓報名（報名時帶著會員權杖才會記到 <c>member_id</c>；網頁前台不做報名歸戶，這是行動 App 的「我的報名」用，主站 §3.14／App §3.9）。</summary>
-    public async Task<IReadOnlyList<MemberRegistrationDto>> GetRegistrationsAsync(Guid memberId, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<MemberRegistrationDto>> GetRegistrationsAsync(Guid memberId, string lang, CancellationToken cancellationToken)
     {
+        var dbLocale = Localization.RequestLocale.ToDbLocale(lang);
+        var def = Localization.RequestLocale.DefaultDbLocale;
         var rows = await db.Registrations.AsNoTracking().Where(r => r.MemberId == memberId)
             .OrderByDescending(r => r.CreatedAt).Take(100)
-            .Select(r => new { r.Id, r.RegistrationNo, r.ClubId, r.Status, r.ApplicantName, r.SessionId, r.TrialId, r.CreatedAt })
+            .Select(r => new
+            {
+                r.Id, r.RegistrationNo, r.ClubId, r.Status, r.ApplicantName, r.SessionId, r.TrialId, r.CreatedAt,
+                Session = r.Session == null ? null : new
+                {
+                    ProgramSlug = r.Session.TrainingProgram.Slug,
+                    NameReq = r.Session.TrainingProgram.ProgramsI18ns.Where(i => i.Locale == dbLocale).Select(i => i.Name).FirstOrDefault(),
+                    NameDef = r.Session.TrainingProgram.ProgramsI18ns.Where(i => i.Locale == def).Select(i => i.Name).FirstOrDefault(),
+                    r.Session.StartOn, r.Session.EndOn, r.Session.WeeklySchedule, r.Session.Price, r.Session.EarlyBirdPrice, r.Session.EarlyBirdUntil,
+                    SessionStatus = r.Session.Status,
+                    VenueNameReq = r.Session.Venue == null ? null : r.Session.Venue.VenuesI18ns.Where(i => i.Locale == dbLocale).Select(i => i.Name).FirstOrDefault(),
+                    VenueNameDef = r.Session.Venue == null ? null : r.Session.Venue.VenuesI18ns.Where(i => i.Locale == def).Select(i => i.Name).FirstOrDefault(),
+                    VenueAddrReq = r.Session.Venue == null ? null : r.Session.Venue.VenuesI18ns.Where(i => i.Locale == dbLocale).Select(i => i.Address).FirstOrDefault(),
+                    VenueAddrDef = r.Session.Venue == null ? null : r.Session.Venue.VenuesI18ns.Where(i => i.Locale == def).Select(i => i.Address).FirstOrDefault(),
+                },
+                Trial = r.Trial == null ? null : new
+                {
+                    r.Trial.TrialOn,
+                    TrialStatus = r.Trial.Status,
+                    TeamReq = r.Trial.Team == null ? null : r.Trial.Team.TeamsI18ns.Where(i => i.Locale == dbLocale).Select(i => i.Name).FirstOrDefault(),
+                    TeamDef = r.Trial.Team == null ? null : r.Trial.Team.TeamsI18ns.Where(i => i.Locale == def).Select(i => i.Name).FirstOrDefault(),
+                    VenueNameReq = r.Trial.Venue == null ? null : r.Trial.Venue.VenuesI18ns.Where(i => i.Locale == dbLocale).Select(i => i.Name).FirstOrDefault(),
+                    VenueNameDef = r.Trial.Venue == null ? null : r.Trial.Venue.VenuesI18ns.Where(i => i.Locale == def).Select(i => i.Name).FirstOrDefault(),
+                    VenueAddrReq = r.Trial.Venue == null ? null : r.Trial.Venue.VenuesI18ns.Where(i => i.Locale == dbLocale).Select(i => i.Address).FirstOrDefault(),
+                    VenueAddrDef = r.Trial.Venue == null ? null : r.Trial.Venue.VenuesI18ns.Where(i => i.Locale == def).Select(i => i.Address).FirstOrDefault(),
+                },
+            })
             .ToListAsync(cancellationToken);
         var clubCodes = await db.Clubs.AsNoTracking().ToDictionaryAsync(c => c.Id, c => c.Code, cancellationToken);
-        return rows.Select(r => new MemberRegistrationDto
+        return rows.Select(r =>
         {
-            Id = r.Id, RegistrationNo = r.RegistrationNo, ClubCode = clubCodes.GetValueOrDefault(r.ClubId, string.Empty), Status = r.Status,
-            ApplicantName = r.ApplicantName, SessionId = r.SessionId, TrialId = r.TrialId, CreatedAt = r.CreatedAt,
+            var st = Common.EnrollmentStatus.OfRegistration(r.Status);
+            var courseSlotStatus = r.Session is null ? default : Common.EnrollmentStatus.OfSlot(r.Session.SessionStatus);
+            var trialSlotStatus = r.Trial is null ? default : Common.EnrollmentStatus.OfSlot(r.Trial.TrialStatus);
+            return new MemberRegistrationDto
+            {
+                Id = r.Id, RegistrationNo = r.RegistrationNo, ClubCode = clubCodes.GetValueOrDefault(r.ClubId, string.Empty), Status = r.Status,
+                StatusCode = st.Code, StatusLabelZh = st.Zh, StatusLabelEn = st.En,
+                ApplicantName = r.ApplicantName, SessionId = r.SessionId, TrialId = r.TrialId, CreatedAt = r.CreatedAt,
+                Kind = r.TrialId is not null ? "trial" : "session",
+                IsFallbackLocale = Localization.RequestLocale.IsFallback(dbLocale, r.Session is not null ? r.Session.NameReq : r.Trial?.TeamReq),
+                Course = r.Session is null ? null : new MemberRegistrationCourseDto
+                {
+                    ProgramSlug = r.Session.ProgramSlug,
+                    ProgramName = Localization.RequestLocale.Pick(r.Session.NameReq, r.Session.NameDef),
+                    StartOn = r.Session.StartOn, EndOn = r.Session.EndOn, WeeklySchedule = r.Session.WeeklySchedule,
+                    VenueName = Localization.RequestLocale.Pick(r.Session.VenueNameReq, r.Session.VenueNameDef),
+                    VenueAddress = Localization.RequestLocale.Pick(r.Session.VenueAddrReq, r.Session.VenueAddrDef),
+                    Price = r.Session.Price, EarlyBirdPrice = r.Session.EarlyBirdPrice, EarlyBirdUntil = r.Session.EarlyBirdUntil,
+                    SessionStatusCode = courseSlotStatus.Code, SessionStatusLabelZh = courseSlotStatus.Zh, SessionStatusLabelEn = courseSlotStatus.En,
+                },
+                Trial = r.Trial is null ? null : new MemberRegistrationTrialDto
+                {
+                    TrialOn = r.Trial.TrialOn,
+                    TeamName = Localization.RequestLocale.Pick(r.Trial.TeamReq, r.Trial.TeamDef),
+                    VenueName = Localization.RequestLocale.Pick(r.Trial.VenueNameReq, r.Trial.VenueNameDef),
+                    VenueAddress = Localization.RequestLocale.Pick(r.Trial.VenueAddrReq, r.Trial.VenueAddrDef),
+                    TrialStatusCode = trialSlotStatus.Code, TrialStatusLabelZh = trialSlotStatus.Zh, TrialStatusLabelEn = trialSlotStatus.En,
+                },
+            };
         }).ToList();
     }
 

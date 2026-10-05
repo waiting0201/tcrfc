@@ -83,6 +83,27 @@ def esc(value) -> str:
     return f"N'{s}'"
 
 
+def slugify_ascii(text: str) -> str:
+    """英文姓名 → [a-z0-9-]（"TSAI,MING-JUNG" → "tsai-ming-jung"）。全非 ASCII 字母數字時回傳空字串。"""
+    return re.sub(r"-{2,}", "-", re.sub(r"[^a-z0-9]+", "-", text.lower())).strip("-")
+
+
+def player_slug(name_en: str, team_code: str, shirt_no, taken: set) -> str:
+    """球員網址代稱（players.slug，App 規劃書 §2.3 深連結 tcrfc://player/{slug}）。
+    有英文姓名就用姓名；沒有（名單多數只有中文名，本腳本不做中文轉拼音以免亂猜）用「隊別代號-背號」。
+    同一俱樂部內撞名時加背號後綴，仍撞再加序號。確定性：同一份輸入永遠產生同一個值（種子可重跑）。"""
+    base = slugify_ascii(name_en or "") or slugify_ascii(f"{team_code}-{shirt_no}")
+    candidate = base
+    if candidate in taken:
+        candidate = f"{base}-{shirt_no}"
+    n = 2
+    while candidate in taken:
+        candidate = f"{base}-{shirt_no}-{n}"
+        n += 1
+    taken.add(candidate)
+    return candidate
+
+
 def load(name: str):
     path = DATA_DIR / name
     with path.open("r", encoding="utf-8") as f:
@@ -222,8 +243,8 @@ BEGIN
   SET @id = {esc(tcrfc_club_id)};
   INSERT INTO clubs (id, code, domain, brand_color, brand_secondary_color, is_collecting_subject, default_locale, sort_order, status)
   VALUES (@id, N'tcrfc', N'stg.tcrfc.tw', N'#E0218A', N'#231916', 1, N'zh-Hant', 0, N'active');
-  INSERT INTO clubs_i18n (club_id, locale, name) VALUES (@id, N'zh-Hant', N'台中磐石');
-  INSERT INTO clubs_i18n (club_id, locale, name) VALUES (@id, N'en', N'Taichung Rock FC');
+  INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'zh-Hant', N'台中磐石', N'台中磐石');
+  INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'en', N'Taichung Rock FC', N'Taichung Rock FC');
 END
 """)
 
@@ -240,7 +261,7 @@ BEGIN
   SET @id = {esc(bw_club_id)};
   INSERT INTO clubs (id, code, domain, brand_color, brand_secondary_color, is_collecting_subject, default_locale, sort_order, status)
   VALUES (@id, N'bw', N'bw-domain-pending.invalid', N'#2196D5', N'#040000', 0, N'zh-Hant', 1, N'active');
-  INSERT INTO clubs_i18n (club_id, locale, name) VALUES (@id, N'zh-Hant', N'台中藍鯨');
+  INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'zh-Hant', N'台中藍鯨', N'台中藍鯨'); -- 簡稱英文一律不插（B-5：客戶尚未指定英文全名）
 END
 """)
 
@@ -391,10 +412,12 @@ NEWS_CATEGORY_MAP = {
 # ============================================================================
 players = load("players.json")
 emit(f"-- ── 6. players：players.json 共 {len(players)} 筆，team_id 一律 D1 ─────────────────────")
+taken_slugs_d1: set = set()
 for p in players:
     shirt_no = p["number"]
     player_id = new_id("player", "D1", str(shirt_no))
     name_en = (p.get("name_en") or "").strip()
+    slug = player_slug(name_en, "d1", shirt_no, taken_slugs_d1)
     en_insert = (
         f"INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', {esc(name_en)});"
         if name_en
@@ -406,11 +429,16 @@ SELECT @id = pl.id FROM players pl WHERE pl.team_id = {TEAM_D1} AND pl.shirt_no 
 IF @id IS NULL
 BEGIN
   SET @id = {esc(player_id)};
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, {CLUB_TCRFC}, {TEAM_D1}, {esc(shirt_no)}, {esc(p.get("position"))});
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, {CLUB_TCRFC}, {TEAM_D1}, {esc(slug)}, {esc(shirt_no)}, {esc(p.get("position"))});
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', {esc(p["name_zh"])});
   {en_insert}
 END
+""")
+    # 已存在的庫（migration 回填的是 player-{row_seq}）補上漂亮的代稱；只動「仍是回填值」的列，後台改過的不覆蓋。冪等。
+    block(f"""
+UPDATE players SET slug = {esc(slug)}
+WHERE id = {esc(player_id)} AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 """)
 
 # ============================================================================
@@ -658,11 +686,13 @@ print(f"INFO: 藍鯨 matches 匯入 {bw_mulan_count} 筆（2023 木蘭）＋ {bw
 bw_players_2024 = load_bw("players-2024.json")
 emit(f"-- ── 14. players：藍鯨 2024 年度名單共 {len(bw_players_2024['players'])} 筆，team_id 一律 BW1 ──")
 emit("-- 背號 26 重複（史詠甄／瓦拉邦・汶廷），natural key 加姓名判斷，避免互相覆蓋。")
+taken_slugs_bw: set = set()
 for p in bw_players_2024["players"]:
     shirt_no = p["number"]
     name_zh = p["name_zh"]
     name_en = (p.get("name_en") or "").strip()
     bw_player_id = new_id("player", "BW1", str(shirt_no), name_zh)
+    slug = player_slug(name_en, "bw1", shirt_no, taken_slugs_bw)
     en_insert = (
         f"INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', {esc(name_en)});"
         if name_en
@@ -676,11 +706,15 @@ SELECT @id = pl.id FROM players pl
 IF @id IS NULL
 BEGIN
   SET @id = {esc(bw_player_id)};
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, {CLUB_BW}, {TEAM_BW1}, {esc(shirt_no)});
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, {CLUB_BW}, {TEAM_BW1}, {esc(slug)}, {esc(shirt_no)});
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', {esc(name_zh)});
   {en_insert}
 END
+""")
+    block(f"""
+UPDATE players SET slug = {esc(slug)}
+WHERE id = {esc(bw_player_id)} AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 """)
 
 # ============================================================================

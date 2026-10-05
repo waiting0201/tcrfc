@@ -137,6 +137,23 @@ public sealed class MembershipOrderTests(AdminWriteApiFixture fixture) : IAsyncL
     }
 
     [Fact]
+    public async Task 冪等鍵_高強度並行_每一輪都只回201或200且只成立一張_不得回open_order_exists_409()
+    {
+        // 回歸 E-172：同一鍵並行時，慢的請求在「查冪等鍵」之後、「查未完成訂單」之前，被快的請求插入訂單，
+        // 於是把「自己這把鍵的那張訂單」當成別張未完成訂單而回 409。多輪、高並行以穩定抓到。
+        for (var round = 0; round < 15; round++)
+        {
+            var racer = await _scope.CreateVerifiedMemberAsync($"order-race-{round}");
+            var raceKey = Key();
+            var results = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => racer.Client.SendAsync(Create("single", raceKey)))));
+            var codes = results.Select(r => (int)r.StatusCode).ToList();
+            Assert.True(results.All(r => r.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK), $"第 {round} 輪：{string.Join(",", codes)}");
+            Assert.Equal(1, results.Count(r => r.StatusCode == HttpStatusCode.Created));
+            Assert.Equal(1, await CountAsync("SELECT COUNT(*) FROM membership_orders WHERE member_id = @M", ("@M", racer.MemberId)));
+        }
+    }
+
+    [Fact]
     public async Task 別人的訂單一律404_取消後可以重新建立()
     {
         var a = await _scope.CreateVerifiedMemberAsync("order-owner");

@@ -48,6 +48,13 @@ public sealed class AdminAuthRateLimitingTests(AdminAuthRateLimitTestApiFixture 
         // 429 要帶 Retry-After（秒），BFF 與後台據此顯示等待時間；固定視窗限流器的 lease 提供 RetryAfter metadata
         Assert.True(exceeded.Headers.TryGetValues("Retry-After", out var retryAfter), "429 缺少 Retry-After 標頭。");
         Assert.True(int.TryParse(retryAfter!.Single(), out var seconds) && seconds >= 1, "Retry-After 應為 >= 1 的整數秒。");
+
+        // 統一錯誤結構（App 規劃書 §9.5）：中介軟體直接回的 429 也要有 code／雙語訊息／retryable（4xx 不自動重試）。
+        var body = await exceeded.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+        Assert.Equal("rate_limited", body.GetProperty("code").GetString());
+        Assert.False(body.GetProperty("retryable").GetBoolean());
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("messageZh").GetString()));
+        Assert.False(string.IsNullOrWhiteSpace(body.GetProperty("messageEn").GetString()));
     }
 
     [Fact]

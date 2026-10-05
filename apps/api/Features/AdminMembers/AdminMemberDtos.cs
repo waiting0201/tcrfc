@@ -118,6 +118,25 @@ public sealed record AdminMemberJerseyDto
     public DateOnly? ReceivedOn { get; init; }
 }
 
+/// <summary>會員註冊時的監護人同意紀錄（主站規劃書「會員資料安全要求」、App 規劃書 §4.5）。</summary>
+public sealed record AdminMemberGuardianConsentDto
+{
+    /// <summary>同意時間（伺服器時間，UTC）。</summary>
+    public required DateTime ConsentedAt { get; init; }
+
+    /// <summary>監護人姓名：完整值或遮罩值（<c>王○明</c>）；會員刪除帳號後為 <c>null</c>（已清除）。</summary>
+    public string? GuardianName { get; init; }
+
+    /// <summary><c>parent</c>／<c>legal_guardian</c>。</summary>
+    public string? Relationship { get; init; }
+
+    /// <summary>日常中文：父母／法定監護人。</summary>
+    public string? RelationshipLabel { get; init; }
+
+    /// <summary>同意文案版本（文案本身待法務 B-9）；沒記錄為 <c>null</c>。</summary>
+    public string? ConsentTextVersion { get; init; }
+}
+
 public sealed record AdminMemberDetailDto
 {
     public required Guid Id { get; init; }
@@ -143,6 +162,9 @@ public sealed record AdminMemberDetailDto
 
     /// <summary>這個帳號被合併到哪個帳號（會員編號）；沒有被合併為 <c>null</c>。</summary>
     public string? MergedIntoMemberNo { get; init; }
+
+    /// <summary>監護人同意紀錄（未滿 18 歲註冊者才有；成年註冊為 <c>null</c>）。監護人姓名屬受限個資，沒有解除遮罩時是遮罩值。</summary>
+    public AdminMemberGuardianConsentDto? GuardianConsent { get; init; }
     public required IReadOnlyList<AdminMemberMembershipDetailDto> Memberships { get; init; }
     public required IReadOnlyList<AdminMemberJerseyDto> JerseyIssues { get; init; }
     public required bool IsMasked { get; init; }

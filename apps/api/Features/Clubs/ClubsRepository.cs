@@ -13,15 +13,15 @@ public sealed class ClubsRepository(
 {
     // entity 字串是 IQueryCache.InvalidateAsync 日後比對用的鍵，兩個方法各自的資料形狀不同
     // （清單 vs 單筆），刻意分開兩個 entity 而不是共用一個。
-    private const string ListEntity = "clubs-list";
-    private const string DetailEntity = "club-detail";
+    public const string ListEntity = "clubs-list";
+    public const string DetailEntity = "club-detail";
 
     private sealed record ClubRow(
         Guid Id, string Code, string Domain, string? LogoLightKey, string? LogoDarkKey,
         string? FaviconKey, string? OgImageKey, string? BrandColor, string? BrandSecondaryColor,
         string DefaultLocale);
 
-    private sealed record ClubI18nRow(Guid ClubId, string Locale, string Name, string? Description);
+    private sealed record ClubI18nRow(Guid ClubId, string Locale, string Name, string? ShortName, string? Description);
 
     /// <summary>俱樂部清單（前台的站台選擇／導覽用）。<c>clubs</c> 不是 club_id 範圍內的資料——
     /// 它本身就是「有哪些俱樂部」的定義來源，因此這裡沒有 <see cref="ClubScope"/> 參數。
@@ -100,7 +100,7 @@ public sealed class ClubsRepository(
         System.Data.IDbConnection connection, IEnumerable<Guid> clubIds, string dbLocale, CancellationToken cancellationToken)
     {
         const string i18nSql = """
-            SELECT club_id AS ClubId, locale AS Locale, name AS Name, description AS Description
+            SELECT club_id AS ClubId, locale AS Locale, name AS Name, short_name AS ShortName, description AS Description
             FROM clubs_i18n
             WHERE club_id IN @ClubIds AND locale IN @Locales
             """;
@@ -136,6 +136,8 @@ public sealed class ClubsRepository(
         {
             Code = club.Code,
             Name = name,
+            ShortName = RequestLocale.Pick(requested?.ShortName, fallback?.ShortName),
+            IsFallbackLocale = RequestLocale.IsFallback(dbLocale, requested?.Name),
             Description = RequestLocale.Pick(requested?.Description, fallback?.Description),
             Domain = club.Domain,
             LogoLightKey = club.LogoLightKey,

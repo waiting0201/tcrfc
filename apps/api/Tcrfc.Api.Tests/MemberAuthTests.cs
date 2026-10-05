@@ -48,7 +48,7 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
         using var client = _scope.Client();
         var email = _scope.NewEmail("reg");
         var response = await client.PostAsync("/api/v1/member/auth/register",
-            Json(new { club = "tcrfc", email = email.ToUpperInvariant(), password = "Abcdefg1", name = "【M測試】註冊", lang = "en" }));
+            Json(new { birthOn = "1990-01-01", club = "tcrfc", email = email.ToUpperInvariant(), password = "Abcdefg1", name = "【M測試】註冊", lang = "en" }));
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
         var body = await ReadJsonAsync(response);
         Assert.True(body.GetProperty("emailVerificationRequired").GetBoolean());
@@ -66,20 +66,20 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
         var stored = await BizTest.ScalarGuidAsync("SELECT id FROM members WHERE email = @E AND password_hash LIKE '$argon2id$%' AND email_verified_at IS NULL", ("@E", email));
         Assert.NotEqual(Guid.Empty, stored);
 
-        var dup = await client.PostAsync("/api/v1/member/auth/register", Json(new { club = "tcrfc", email, password = "Abcdefg1", name = "重複" }));
+        var dup = await client.PostAsync("/api/v1/member/auth/register", Json(new { birthOn = "1990-01-01", club = "tcrfc", email, password = "Abcdefg1", name = "重複" }));
         Assert.Equal(HttpStatusCode.Conflict, dup.StatusCode);
         Assert.Equal("email_taken", CodeOf(await ReadJsonAsync(dup)));
 
         foreach (var weak in new[] { "short1", "allletters", "12345678", "password123" })
         {
-            var r = await client.PostAsync("/api/v1/member/auth/register", Json(new { club = "tcrfc", email = _scope.NewEmail("weak"), password = weak, name = "弱" }));
+            var r = await client.PostAsync("/api/v1/member/auth/register", Json(new { birthOn = "1990-01-01", club = "tcrfc", email = _scope.NewEmail("weak"), password = weak, name = "弱" }));
             Assert.Equal(HttpStatusCode.BadRequest, r.StatusCode);
         }
 
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/v1/member/auth/register",
-            Json(new { club = "tcrfc", email = "not-an-email", password = "Abcdefg1", name = "x" }))).StatusCode);
+            Json(new { birthOn = "1990-01-01", club = "tcrfc", email = "not-an-email", password = "Abcdefg1", name = "x" }))).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsync("/api/v1/member/auth/register",
-            Json(new { club = "nope", email = _scope.NewEmail("noclub"), password = "Abcdefg1", name = "x" }))).StatusCode);
+            Json(new { birthOn = "1990-01-01", club = "nope", email = _scope.NewEmail("noclub"), password = "Abcdefg1", name = "x" }))).StatusCode);
     }
 
     [Fact]
@@ -87,7 +87,7 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
     {
         using var client = _scope.Client();
         var email = _scope.NewEmail("verify");
-        await client.PostAsync("/api/v1/member/auth/register", Json(new { club = "tcrfc", email, password = "Abcdefg1", name = "【M測試】驗證" }));
+        await client.PostAsync("/api/v1/member/auth/register", Json(new { birthOn = "1990-01-01", club = "tcrfc", email, password = "Abcdefg1", name = "【M測試】驗證" }));
         var token = CapturingEmailSender.TokenOf(MemberTestDoubles.Email.LastTo(email, "verify")!);
 
         // 未驗證前不能登入（密碼正確才告知未驗證）
@@ -280,7 +280,7 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
 
         // 未驗證 Email 的人能收到重設信 → 視同控制信箱，順便完成驗證
         var email = _scope.NewEmail("reset-unverified");
-        await client.PostAsync("/api/v1/member/auth/register", Json(new { club = "tcrfc", email, password = "Abcdefg1", name = "x" }));
+        await client.PostAsync("/api/v1/member/auth/register", Json(new { birthOn = "1990-01-01", club = "tcrfc", email, password = "Abcdefg1", name = "x" }));
         await client.PostAsync("/api/v1/member/auth/forgot-password", Json(new { email, club = "tcrfc" }));
         var t2 = CapturingEmailSender.TokenOf(MemberTestDoubles.Email.LastTo(email, "reset")!);
         Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsync("/api/v1/member/auth/reset-password", Json(new { token = t2, newPassword = "Brand-new2pass" }))).StatusCode);
@@ -367,7 +367,7 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
             ("@N", m.MemberNo));
         Assert.NotEqual(Guid.Empty, cleared);
         // 同一個 Email 可以重新註冊（舊帳號已改寫）
-        var again = await client.PostAsync("/api/v1/member/auth/register", Json(new { club = "tcrfc", email = m.Email, password = "Abcdefg1", name = "再註冊" }));
+        var again = await client.PostAsync("/api/v1/member/auth/register", Json(new { birthOn = "1990-01-01", club = "tcrfc", email = m.Email, password = "Abcdefg1", name = "再註冊" }));
         Assert.Equal(HttpStatusCode.Created, again.StatusCode);
     }
 
@@ -464,13 +464,13 @@ public sealed class MemberAuthTests(AdminWriteApiFixture fixture) : IAsyncLifeti
 
         // 票據用途不能互換；Email 已有帳號 → 409（不自動併入）
         var existing = await _scope.CreateVerifiedMemberAsync("linemerge");
-        var conflict = await client.PostAsync("/api/v1/member/auth/line/complete", Json(new { club = "tcrfc", ticket, email = existing.Email, tokenDelivery = "body" }));
+        var conflict = await client.PostAsync("/api/v1/member/auth/line/complete", Json(new { birthOn = "1990-01-01", club = "tcrfc", ticket, email = existing.Email, tokenDelivery = "body" }));
         Assert.Equal(HttpStatusCode.Conflict, conflict.StatusCode);
         Assert.Equal("email_taken", CodeOf(await ReadJsonAsync(conflict)));
-        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/v1/member/auth/line/complete", Json(new { club = "tcrfc", ticket = state, email = _scope.NewEmail("x") }))).StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/v1/member/auth/line/complete", Json(new { birthOn = "1990-01-01", club = "tcrfc", ticket = state, email = _scope.NewEmail("x") }))).StatusCode);
 
         var email = _scope.NewEmail("lineuser");
-        var complete = await client.PostAsync("/api/v1/member/auth/line/complete", Json(new { club = "tcrfc", ticket, email, tokenDelivery = "body" }));
+        var complete = await client.PostAsync("/api/v1/member/auth/line/complete", Json(new { birthOn = "1990-01-01", club = "tcrfc", ticket, email, tokenDelivery = "body" }));
         Assert.Equal(HttpStatusCode.OK, complete.StatusCode);
         var session = await ReadJsonAsync(complete);
         Assert.Equal("LINE 小明", (await ReadJsonAsync(await _scope.Client(session.GetProperty("accessToken").GetString()).GetAsync("/api/v1/member/me"))).GetProperty("name").GetString());

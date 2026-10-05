@@ -118,6 +118,7 @@ public sealed partial class MemberAuthService(
         var name = RequireName(request.Name);
         var phone = OptionalPhone(request.Phone);
         var birthOn = OptionalBirthOn(request.BirthOn);
+        var guardian = MemberAgeGate.Evaluate(birthOn, request.GuardianConsent, DateTime.UtcNow); // 年齡閘門：生日必填、未滿 18 歲須監護人同意
         if (MemberPasswordPolicy.Validate(request.Password, emailAddress) is { } passwordError)
         {
             throw new MemberValidationException(passwordError, "weak_password");
@@ -134,10 +135,24 @@ public sealed partial class MemberAuthService(
             Phone = phone, BirthOn = birthOn, SignupSource = "web", Status = "active", Locale = DbLocale(request.Lang),
             CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
         };
+        ApplyGuardian(member, guardian);
         await SaveNewMemberAsync(member, club, cancellationToken);
 
         var emailSent = await SendVerificationAsync(member, club, LangOrDefault(request.Lang), cancellationToken);
         return new MemberRegisteredDto { MemberNo = member.MemberNo, EmailVerificationRequired = true, EmailSent = emailSent };
+    }
+
+    private static void ApplyGuardian(Member member, MemberAgeGate.GuardianRecord? guardian)
+    {
+        if (guardian is null)
+        {
+            return;
+        }
+
+        member.GuardianConsentedAt = guardian.ConsentedAtUtc;
+        member.GuardianName = guardian.GuardianName;
+        member.GuardianRelationship = guardian.Relationship;
+        member.GuardianConsentVersion = guardian.ConsentVersion;
     }
 
     /// <summary>配發會員編號並寫入；編號撞號（並行註冊）重試，Email 撞號回 409。</summary>
@@ -457,6 +472,7 @@ public sealed partial class MemberAuthService(
         member.Email = $"deleted-{member.MemberNo.ToLowerInvariant()}@deleted.invalid";
         member.Phone = null;
         member.BirthOn = null;
+        member.GuardianName = null; // 監護人姓名是第三人的個資，刪帳號一併清除；同意時間／關係／版本保留（同意事實，不含可識別資料）
         member.LineUserIdEncrypted = null;
         member.LineUserIdHash = null;
         member.PasswordHash = "!deleted-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
@@ -605,13 +621,16 @@ public sealed partial class MemberAuthService(
             throw new MemberConflictException("Email 已註冊", "這個 Email 已經有帳號了。請先用 Email 登入，再到會員設定綁定 LINE。", "email_taken");
         }
 
+        var lineBirthOn = OptionalBirthOn(request.BirthOn);
+        var lineGuardian = MemberAgeGate.Evaluate(lineBirthOn, request.GuardianConsent, DateTime.UtcNow); // LINE 註冊同樣適用年齡閘門
         var member = new Member
         {
             Id = Guid.NewGuid(), Name = name, Email = emailAddress, PasswordHash = "!line-" + Convert.ToHexString(RandomNumberGenerator.GetBytes(16)),
-            Phone = OptionalPhone(request.Phone), BirthOn = OptionalBirthOn(request.BirthOn), SignupSource = "line", Status = "active",
+            Phone = OptionalPhone(request.Phone), BirthOn = lineBirthOn, SignupSource = "line", Status = "active",
             Locale = DbLocale(request.Lang), LineUserIdEncrypted = secureTokens.ProtectLineUserId(ticket.LineUserId), LineUserIdHash = hash,
             LastLoginAt = DateTime.UtcNow, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow,
         };
+        ApplyGuardian(member, lineGuardian);
         await SaveNewMemberAsync(member, club, cancellationToken);
         await memberships.EnsureRegisteredAsync(member.Id, member.Name, club.ClubId, cancellationToken); // LINE 已證明身分，直接成為一般會員
         await SendVerificationAsync(member, club, LangOrDefault(request.Lang), cancellationToken); // Email 仍需驗證（密碼登入與重設才安全）

@@ -4,6 +4,10 @@ namespace Tcrfc.Api.Features.AdminClubs;
 public sealed record AdminClubLocaleContent
 {
     public required string Name { get; init; }
+
+    /// <summary>簡稱（<c>clubs_i18n.short_name</c>，最多 32 字）。磐石中文「台中磐石」、英文「Taichung Rock FC」、藍鯨中文「台中藍鯨」；
+    /// **藍鯨英文不由開發端填值**（B-5，客戶尚未指定英文全名），之後由後台人員在這裡填寫。省略／空白＝沒有簡稱（公開端點退回繁中簡稱或全名）。</summary>
+    public string? ShortName { get; init; }
     public string? Description { get; init; }
 }
 

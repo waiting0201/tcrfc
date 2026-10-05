@@ -15,6 +15,9 @@ public sealed record PartnerDto
     public required Guid Id { get; init; }
     public required string Slug { get; init; }
 
+    /// <summary>未翻譯標示（App 規劃書 §2.5）：請求英文而英文名稱是空的，回應是回退的繁中時為 true；請求繁中恆為 false。</summary>
+    public required bool IsFallbackLocale { get; init; }
+
     /// <summary>夥伴類型顯示文字（策略夥伴／國際夥伴／訓練夥伴／教育夥伴／品牌夥伴，或該俱樂部自訂的類型）。</summary>
     public string? PartnerType { get; init; }
     public string? Country { get; init; }

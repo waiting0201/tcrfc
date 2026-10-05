@@ -243,6 +243,13 @@ public sealed class AdminPartnerStoresRepository(
             throw new AdminValidationException("座標超出範圍：緯度須在 -90 到 90 之間，經度須在 -180 到 180 之間。");
         }
 
+        // 座標 (0,0) 是常見的「沒有座標」替代值（海上的幾內亞灣），不是任何一家店的位置；NULL 才代表「未確認」。
+        // DDL 另有 CK_partner_stores_coords 當最後防線（docs/12b §8）。
+        if (request.Lat == 0 && request.Lng == 0)
+        {
+            throw new AdminValidationException("座標 0, 0 不是有效的店家位置（那是「沒有座標」的替代值）。尚未確認座標請把緯度與經度都留空。");
+        }
+
         AdminInput.RequireText(request.Content.Zh.Name, "中文店名", 128);
         AdminInput.OptionalText(request.Content.Zh.Address, "中文地址", 500);
         if (request.Content.En is not null && !string.IsNullOrWhiteSpace(request.Content.En.Name))
@@ -277,7 +284,8 @@ public sealed class AdminPartnerStoresRepository(
         try
         {
             var result = await geocoder.GeocodeAsync(address, cancellationToken);
-            return result is null
+            // 定位服務回 (0,0) 視為沒定位到（同樣是替代值），不寫入。
+            return result is null || (result.Lat == 0 && result.Lng == 0)
                 ? (null, null, LocateNotFound)
                 : (result.Lat, result.Lng, LocateLocated);
         }

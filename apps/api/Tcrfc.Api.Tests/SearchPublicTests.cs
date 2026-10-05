@@ -122,7 +122,7 @@ public sealed class SearchPublicTests(AdminWriteApiFixture fixture)
         var id = Guid.NewGuid();
         await BizTest.ExecuteSqlAsync(
             """
-            INSERT INTO players (id, club_id, team_id) VALUES (@I, @Club, @T);
+            INSERT INTO players (id, club_id, team_id, slug) VALUES (@I, @Club, @T, N'zz-search-' + LEFT(CONVERT(nvarchar(36), @I), 8));
             INSERT INTO players_i18n (player_id, locale, name, bio) VALUES (@I, N'zh-Hant', @N, N'球員簡介');
             """,
             ("@I", id), ("@Club", clubId), ("@T", team), ("@N", nameZh));

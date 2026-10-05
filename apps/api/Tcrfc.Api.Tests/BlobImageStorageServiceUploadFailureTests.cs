@@ -47,7 +47,7 @@ public sealed class BlobImageStorageServiceUploadFailureTests(AdminWriteAzuriteE
         return count;
     }
 
-    [Theory]
+    [AzuriteTheory]
     [InlineData(1)] // 主檔本身（.webp 主鍵）寫入失敗，五個物件一個都還沒真的寫進去
     [InlineData(2)] // 第一個等比衍生檔（長邊 1280）失敗，此時主檔已經真的寫入成功
     [InlineData(3)] // 第二個等比衍生檔（長邊 640）失敗，此時主檔＋1280 已經真的寫入成功
@@ -73,7 +73,7 @@ public sealed class BlobImageStorageServiceUploadFailureTests(AdminWriteAzuriteE
         Assert.Equal(0, await CountBlobsUnderPrefixAsync(prefix));
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 補償刪除本身也失敗時_仍然拋出造成上傳失敗的原例外_不會被清理錯誤蓋掉()
     {
         var prefix = $"tcrfc/upload-failure-test/{Guid.NewGuid():N}";
@@ -97,7 +97,7 @@ public sealed class BlobImageStorageServiceUploadFailureTests(AdminWriteAzuriteE
         Assert.True(await CountBlobsUnderPrefixAsync(prefix) > 0);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task 請求在上傳途中被取消_補償刪除仍然執行_不留下殘留物件()
     {
         // 最常見的「寫到一半失敗」其實是使用者關掉頁面或請求逾時：cancellationToken 被取消。

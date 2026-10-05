@@ -139,6 +139,33 @@ public sealed class CharityDonationFlowTests(CharityApiFixture fx) : IAsyncLifet
     }
 
     [Fact]
+    public async Task 冪等_高強度並發_16並發乘15輪_恰好一個201_其餘200同一單_捐款與發票列各只一筆()
+    {
+        // E-172 同類壓測：慈善單號由冪等鍵推導，唯一鍵是唯一的並行防線。
+        var (_, slug) = await CreateProjectAsync(fx);
+        using var client = fx.CreateClient();
+        for (var round = 0; round < 15; round++)
+        {
+            var request = NewRequest(slug, 300);
+            var key = NewKey();
+            var responses = await Task.WhenAll(Enumerable.Range(0, 16).Select(_ => Task.Run(() => PostDonationAsync(client, request, key))));
+            var codes = string.Join(",", responses.Select(r => (int)r.StatusCode));
+            Assert.True(responses.All(r => r.StatusCode is HttpStatusCode.Created or HttpStatusCode.OK), $"第 {round} 輪：{codes}");
+            Assert.Equal(1, responses.Count(r => r.StatusCode == HttpStatusCode.Created));
+            var orderNos = new HashSet<string>();
+            foreach (var r in responses)
+            {
+                orderNos.Add((await r.Content.ReadFromJsonAsync<CreateDonationResponse>(TestJson.Options))!.OrderNo);
+            }
+
+            Assert.Single(orderNos);
+            Assert.Equal(1, await fx.ScalarAsync<int>("SELECT COUNT(*) FROM donations WHERE donor_email = @e", ("@e", request.DonorEmail!)));
+            Assert.Equal(1, await fx.ScalarAsync<int>(
+                "SELECT COUNT(*) FROM donation_invoices i JOIN donations d ON d.id = i.donation_id WHERE d.donor_email = @e", ("@e", request.DonorEmail!)));
+        }
+    }
+
+    [Fact]
     public async Task 冪等_同一個鍵送了不同金額_回409_不覆蓋原單()
     {
         var (_, slug) = await CreateProjectAsync(fx);

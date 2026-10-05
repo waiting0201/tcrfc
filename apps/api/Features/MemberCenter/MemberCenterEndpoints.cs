@@ -124,10 +124,10 @@ public static class MemberCenterEndpoints
 
         // ── 我的報名（行動 App 用；網頁前台不做報名歸戶）─────────────────────────
         app.MapGet("/api/v1/member/registrations", async (
-            HttpContext http, MemberAuthenticator authenticator, MemberCenterService center, CancellationToken ct) =>
+            string? lang, HttpContext http, MemberAuthenticator authenticator, MemberCenterService center, CancellationToken ct) =>
         {
             var me = await authenticator.RequireAsync(http, ct);
-            return Results.Ok(await center.GetRegistrationsAsync(me.MemberId, ct));
+            return Results.Ok(await center.GetRegistrationsAsync(me.MemberId, Lang(lang), ct));
         })
         .WithName("GetMyRegistrations")
         .WithTags("MemberCenter")

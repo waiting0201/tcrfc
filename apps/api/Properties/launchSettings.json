@@ -10,6 +10,16 @@
         "ASPNETCORE_ENVIRONMENT": "Development"
       }
     },
+    "http-azurite": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": false,
+      "applicationUrl": "http://127.0.0.1:5299",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AZURE_BLOB_CONNECTION_STRING": "UseDevelopmentStorage=true"
+      }
+    },
     "https": {
       "commandName": "Project",
       "dotnetRunMessages": true,

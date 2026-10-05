@@ -96,11 +96,14 @@ public static class AdminCalendarAdvancedEndpoints
         }
 
         var summary = string.Join("；", result.Conflicts.Take(3).Select(c => c.Description));
+        var detail = $"新的時段和 {result.Conflicts.Count} 件事件衝突：{summary}。確定要改期的話，請確認後再送出一次。";
         return Results.Problem(
             statusCode: StatusCodes.Status409Conflict,
             title: "排程衝突",
-            detail: $"新的時段和 {result.Conflicts.Count} 件事件衝突：{summary}。確定要改期的話，請確認後再送出一次。",
-            extensions: new Dictionary<string, object?> { ["conflicts"] = result.Conflicts, ["saved"] = false });
+            detail: detail,
+            extensions: Tcrfc.Api.Common.ApiErrorEnvelope.Extensions(
+                StatusCodes.Status409Conflict, "schedule_conflict", detail,
+                new Dictionary<string, object?> { ["conflicts"] = result.Conflicts, ["saved"] = false }));
     }
 
     private static void MapSettings(RouteGroupBuilder group)

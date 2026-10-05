@@ -1,23 +1,89 @@
 {
-  "$comment": "自動產生，請勿手改。產生器：shared/scripts/gen-error-codes.mjs（docs/19 §2）。來源是 apps/api 原始碼，不是規格；App 規劃書 §9.5 的目標結構與現況的差距見 pending。",
+  "$comment": "自動產生，請勿手改。產生器：shared/scripts/gen-error-codes.mjs（docs/19 §2）。來源是 apps/api 原始碼，不是規格；結構對應 App 規劃書 §9.5「錯誤代碼、雙語訊息、是否可重試」。",
   "envelope": {
-    "format": "application/problem+json（RFC 7807 ProblemDetails）",
+    "format": "application/problem+json 或 application/json（RFC 7807 ProblemDetails 形狀；例外處理器沿用 application/json，空本文補出的是 application/problem+json，欄位相同，請以本文解析、不要依 Content-Type 分流）",
     "fields": {
       "status": "HTTP 狀態碼（整數）",
       "title": "短標題（繁中）",
-      "detail": "可直接呈現給使用者的訊息（目前只有繁中，不洩漏內部實作細節）",
+      "detail": "可直接呈現給使用者的訊息（繁中，不洩漏內部實作細節）",
       "instance": "請求路徑",
-      "code": "機器可讀代碼——只有「會員一族」例外才有（見 codes）；缺少時 App 只能依 status 處理",
+      "code": "機器可讀代碼——所有錯誤都有。有專屬代碼的見 codes；其餘依狀態給通用代碼（見 statusDefaults）",
+      "messageZh": "繁中使用者訊息，恆等於 detail",
+      "messageEn": "英文使用者訊息：codes 內有專屬英文；沒有登記的代碼退回該狀態的通用英文。動態值（件數、訂單編號、商品名）不放進英文，需要顯示時用 messageZh 或自備字串表",
+      "retryable": "是否可重試（boolean）：5xx 為 true、4xx（含 423、429）為 false；例外：外部服務尚未設定的 503（codes 內 retryable=false）",
       "lockedUntil": "僅 account_locked（423）：解鎖時間，UTC ISO 8601"
-    }
+    },
+    "compatibility": "相容擴充：既有欄位一個不刪不改，舊版 App 忽略新增欄位即可。"
   },
   "retryRule": {
     "source": "App 規劃書 §9.5「網路錯誤與伺服器 5xx 可自動重試，採指數退避；4xx 不重試」",
-    "retryStatus": "status >= 500，或沒有收到回應的網路錯誤",
-    "noRetryStatus": "所有 4xx（含 423）",
+    "retryStatus": "status >= 500（回應的 retryable 為 true 時），或沒有收到回應的網路錯誤",
+    "noRetryStatus": "所有 4xx（含 423、429；429 另帶 Retry-After 標頭，要不要等待後由用戶端決定，規劃書未定義）",
     "backoff": "1／2／4 秒加 jitter，最多 3 次（docs/19 §3）",
     "exception": "付款訂單建立帶冪等鍵時，5xx 可即時以同一冪等鍵重試；不可暫存後補送（docs/19 §3）"
   },
+  "statusDefaults": [
+    {
+      "status": 400,
+      "code": "validation_failed",
+      "messageEn": "The request is invalid. Please check your input and try again."
+    },
+    {
+      "status": 401,
+      "code": "unauthenticated",
+      "messageEn": "Please sign in first."
+    },
+    {
+      "status": 403,
+      "code": "forbidden",
+      "messageEn": "You do not have permission to do this."
+    },
+    {
+      "status": 404,
+      "code": "not_found",
+      "messageEn": "The requested item could not be found."
+    },
+    {
+      "status": 405,
+      "code": "method_not_allowed",
+      "messageEn": "This request method is not allowed here."
+    },
+    {
+      "status": 409,
+      "code": "conflict",
+      "messageEn": "This action conflicts with the current state. Please refresh and try again."
+    },
+    {
+      "status": 413,
+      "code": "payload_too_large",
+      "messageEn": "The upload is too large. Please reduce its size and try again."
+    },
+    {
+      "status": 415,
+      "code": "unsupported_media_type",
+      "messageEn": "This content format is not supported."
+    },
+    {
+      "status": 423,
+      "code": "account_locked",
+      "messageEn": "Too many failed sign-in attempts. The account is temporarily locked. Please try again later or reset your password."
+    },
+    {
+      "status": 429,
+      "code": "rate_limited",
+      "messageEn": "Too many requests. Please try again later."
+    },
+    {
+      "status": 503,
+      "code": "service_unavailable",
+      "messageEn": "The service is temporarily unavailable. Please try again later."
+    },
+    {
+      "status": "5xx（其餘）",
+      "code": "server_error",
+      "messageEn": "Something went wrong on our side. Please try again later."
+    }
+  ],
   "codes": [
     {
       "code": "account_locked",
@@ -26,7 +92,9 @@
       ],
       "exceptions": [
         "MemberAccountLockedException"
-      ]
+      ],
+      "messageEn": "Too many failed sign-in attempts. The account is temporarily locked. Please try again later or reset your password.",
+      "retryable": false
     },
     {
       "code": "account_suspended",
@@ -35,7 +103,9 @@
       ],
       "exceptions": [
         "MemberForbiddenException"
-      ]
+      ],
+      "messageEn": "This account has been suspended. Please contact support.",
+      "retryable": false
     },
     {
       "code": "activation_failed",
@@ -44,7 +114,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "The membership could not be activated. Please contact support.",
+      "retryable": false
     },
     {
       "code": "activation_in_progress",
@@ -53,7 +125,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This order is being activated. Please refresh in a moment.",
+      "retryable": false
     },
     {
       "code": "already_fan_club",
@@ -62,7 +136,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "You are already a fan club member this season.",
+      "retryable": false
     },
     {
       "code": "already_registered",
@@ -71,7 +147,20 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "You have already registered for this event.",
+      "retryable": false
+    },
+    {
+      "code": "birth_on_required",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ],
+      "messageEn": "Please enter your date of birth (we need to confirm your age to register).",
+      "retryable": false
     },
     {
       "code": "card_revoked",
@@ -80,7 +169,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This membership card has been deactivated, so its QR code cannot be regenerated.",
+      "retryable": false
     },
     {
       "code": "cart_empty",
@@ -89,7 +180,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "Your cart could not be found. Please add items to the cart first.",
+      "retryable": false
     },
     {
       "code": "cart_full",
@@ -98,7 +191,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "Your cart is full. Please remove an item before adding another.",
+      "retryable": false
     },
     {
       "code": "cart_item_not_found",
@@ -107,7 +202,9 @@
       ],
       "exceptions": [
         "MemberNotFoundException"
-      ]
+      ],
+      "messageEn": "This item is not in your cart.",
+      "retryable": false
     },
     {
       "code": "collecting_subject_missing",
@@ -116,7 +213,9 @@
       ],
       "exceptions": [
         "FeatureNotConfiguredException"
-      ]
+      ],
+      "messageEn": "The shop is not open for checkout yet.",
+      "retryable": false
     },
     {
       "code": "confirmation_required",
@@ -125,7 +224,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please type DELETE to confirm deleting your account.",
+      "retryable": false
     },
     {
       "code": "conflict",
@@ -134,7 +235,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This action conflicts with the current state. Please refresh and try again.",
+      "retryable": false
     },
     {
       "code": "device_not_registered",
@@ -143,7 +246,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "This device is not registered. Please reopen the app and try again.",
+      "retryable": false
     },
     {
       "code": "email_not_verified",
@@ -152,7 +257,9 @@
       ],
       "exceptions": [
         "MemberForbiddenException"
-      ]
+      ],
+      "messageEn": "Please verify your email first using the link we sent, then sign in.",
+      "retryable": false
     },
     {
       "code": "email_taken",
@@ -161,7 +268,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This email is already registered. Please sign in, or use Forgot password to reset it.",
+      "retryable": false
     },
     {
       "code": "fan_club_required",
@@ -170,7 +279,9 @@
       ],
       "exceptions": [
         "MemberForbiddenException"
-      ]
+      ],
+      "messageEn": "This event is for paid fan club members only, and you do not have an active membership.",
+      "retryable": false
     },
     {
       "code": "forbidden",
@@ -179,7 +290,9 @@
       ],
       "exceptions": [
         "MemberForbiddenException"
-      ]
+      ],
+      "messageEn": "You do not have permission to do this.",
+      "retryable": false
     },
     {
       "code": "geocoder_not_configured",
@@ -188,7 +301,9 @@
       ],
       "exceptions": [
         "FeatureNotConfiguredException"
-      ]
+      ],
+      "messageEn": "Address lookup is not enabled. Please enter the latitude and longitude directly.",
+      "retryable": false
     },
     {
       "code": "geocoder_unavailable",
@@ -197,7 +312,31 @@
       ],
       "exceptions": [
         "FeatureNotConfiguredException"
-      ]
+      ],
+      "messageEn": "Address lookup is temporarily unavailable. Please try again later.",
+      "retryable": true
+    },
+    {
+      "code": "guardian_consent_required",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ],
+      "messageEn": "Members under 18 need a guardian's consent to register. Please have your guardian complete the consent.",
+      "retryable": false
+    },
+    {
+      "code": "guardian_name_required",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ],
+      "messageEn": "Please enter the guardian's name (up to 64 characters).",
+      "retryable": false
     },
     {
       "code": "idempotency_key_required",
@@ -206,7 +345,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please send an Idempotency-Key header (8 to 64 letters, digits, or - _ : .).",
+      "retryable": false
     },
     {
       "code": "idempotency_key_reused",
@@ -215,7 +356,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This idempotency key was already used for a different order. Please generate a new one.",
+      "retryable": false
     },
     {
       "code": "insufficient_stock",
@@ -224,7 +367,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "There is not enough stock for this item. Please adjust the quantity.",
+      "retryable": false
     },
     {
       "code": "internal_activation_disabled",
@@ -233,7 +378,9 @@
       ],
       "exceptions": [
         "FeatureNotConfiguredException"
-      ]
+      ],
+      "messageEn": "The internal activation endpoint is not enabled.",
+      "retryable": false
     },
     {
       "code": "invalid_address",
@@ -242,7 +389,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please enter a complete delivery address (up to 500 characters).",
+      "retryable": false
     },
     {
       "code": "invalid_birth_on",
@@ -251,7 +400,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The date of birth is not valid.",
+      "retryable": false
     },
     {
       "code": "invalid_carrier",
@@ -260,7 +411,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The mobile barcode carrier is not valid (a slash followed by 7 characters, for example /ABC+123).",
+      "retryable": false
     },
     {
       "code": "invalid_credential",
@@ -269,7 +422,9 @@
       ],
       "exceptions": [
         "MemberUnauthenticatedException"
-      ]
+      ],
+      "messageEn": "The credential is not valid.",
+      "retryable": false
     },
     {
       "code": "invalid_credentials",
@@ -278,7 +433,9 @@
       ],
       "exceptions": [
         "MemberUnauthenticatedException"
-      ]
+      ],
+      "messageEn": "The email or password is incorrect.",
+      "retryable": false
     },
     {
       "code": "invalid_delivery_method",
@@ -287,7 +444,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please choose a delivery method: home delivery, convenience store pickup, or on-site pickup.",
+      "retryable": false
     },
     {
       "code": "invalid_donation_code",
@@ -296,7 +455,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please choose an organization from the list (the donation code is not valid).",
+      "retryable": false
     },
     {
       "code": "invalid_email",
@@ -305,7 +466,31 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please enter a valid email address (the order confirmation is sent there).",
+      "retryable": false
+    },
+    {
+      "code": "invalid_guardian_consent_version",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ],
+      "messageEn": "The consent text version is not valid.",
+      "retryable": false
+    },
+    {
+      "code": "invalid_guardian_relationship",
+      "httpStatus": [
+        400
+      ],
+      "exceptions": [
+        "MemberValidationException"
+      ],
+      "messageEn": "Please choose the guardian's relationship to you (parent or legal guardian).",
+      "retryable": false
     },
     {
       "code": "invalid_locale",
@@ -314,7 +499,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The language must be zh or en.",
+      "retryable": false
     },
     {
       "code": "invalid_mode",
@@ -323,7 +510,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The mode must be login or bind.",
+      "retryable": false
     },
     {
       "code": "invalid_name",
@@ -332,7 +521,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please enter a name (up to 64 characters).",
+      "retryable": false
     },
     {
       "code": "invalid_note",
@@ -341,7 +532,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The note can be at most 500 characters.",
+      "retryable": false
     },
     {
       "code": "invalid_phone",
@@ -350,7 +543,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please enter a valid contact phone number.",
+      "retryable": false
     },
     {
       "code": "invalid_pickup_store",
@@ -359,7 +554,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please enter the pickup store name or code for convenience store pickup.",
+      "retryable": false
     },
     {
       "code": "invalid_quantity",
@@ -368,7 +565,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The quantity is out of the allowed range.",
+      "retryable": false
     },
     {
       "code": "invalid_recipient_name",
@@ -377,7 +576,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please enter the recipient name (up to 64 characters).",
+      "retryable": false
     },
     {
       "code": "invalid_redirect_uri",
@@ -386,7 +587,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The callback address is not allowed.",
+      "retryable": false
     },
     {
       "code": "invalid_tax_id",
@@ -395,7 +598,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The tax ID is not valid. Please check that it has 8 digits.",
+      "retryable": false
     },
     {
       "code": "invoice_required",
@@ -404,7 +609,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please choose how to receive the e-invoice (carrier, tax ID, or donation code).",
+      "retryable": false
     },
     {
       "code": "item_unavailable",
@@ -413,7 +620,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "An item is no longer available. Please remove it from your cart before checking out.",
+      "retryable": false
     },
     {
       "code": "jersey_locked",
@@ -422,7 +631,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This jersey has already been processed (shipped or collected) and can no longer be changed. Please contact support.",
+      "retryable": false
     },
     {
       "code": "jersey_quota_reached",
@@ -431,7 +642,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "You have registered all the jerseys included in this membership plan.",
+      "retryable": false
     },
     {
       "code": "line_already_bound",
@@ -440,7 +653,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "Your account is already linked to LINE.",
+      "retryable": false
     },
     {
       "code": "line_exchange_failed",
@@ -449,7 +664,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The LINE authorization is no longer valid. Please try again.",
+      "retryable": false
     },
     {
       "code": "line_in_use",
@@ -458,7 +675,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This LINE account is already linked to another member account.",
+      "retryable": false
     },
     {
       "code": "line_not_configured",
@@ -467,7 +686,9 @@
       ],
       "exceptions": [
         "FeatureNotConfiguredException"
-      ]
+      ],
+      "messageEn": "LINE sign-in is not enabled. Please sign in with your email first.",
+      "retryable": false
     },
     {
       "code": "line_unreachable",
@@ -476,7 +697,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "LINE cannot be reached right now. Please try again later.",
+      "retryable": false
     },
     {
       "code": "login_required",
@@ -485,7 +708,9 @@
       ],
       "exceptions": [
         "MemberUnauthenticatedException"
-      ]
+      ],
+      "messageEn": "This event is for paid fan club members only. Please sign in first.",
+      "retryable": false
     },
     {
       "code": "lookup_fields_required",
@@ -494,7 +719,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Please enter the order number and the email used for the order.",
+      "retryable": false
     },
     {
       "code": "not_configured",
@@ -503,7 +730,9 @@
       ],
       "exceptions": [
         "FeatureNotConfiguredException"
-      ]
+      ],
+      "messageEn": "This service is not enabled yet.",
+      "retryable": false
     },
     {
       "code": "not_fan_club",
@@ -512,7 +741,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "Only active fan club memberships can register jerseys.",
+      "retryable": false
     },
     {
       "code": "not_found",
@@ -521,7 +752,9 @@
       ],
       "exceptions": [
         "MemberNotFoundException"
-      ]
+      ],
+      "messageEn": "The requested item could not be found.",
+      "retryable": false
     },
     {
       "code": "open_order_exists",
@@ -530,7 +763,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "You already have an unfinished order for this plan. Please complete or cancel it first.",
+      "retryable": false
     },
     {
       "code": "order_expired",
@@ -539,7 +774,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This order has expired or was cancelled. Please place a new order.",
+      "retryable": false
     },
     {
       "code": "order_not_cancellable",
@@ -548,7 +785,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This order has been paid or is being shipped. Please contact support for returns or exchanges.",
+      "retryable": false
     },
     {
       "code": "order_not_found",
@@ -557,7 +796,9 @@
       ],
       "exceptions": [
         "MemberNotFoundException"
-      ]
+      ],
+      "messageEn": "No matching order was found. Please check the order number and the email used for the order.",
+      "retryable": false
     },
     {
       "code": "order_not_paid",
@@ -566,7 +807,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This order has not been paid yet, so it cannot be activated.",
+      "retryable": false
     },
     {
       "code": "order_not_payable",
@@ -575,7 +818,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This order cannot be paid in its current state.",
+      "retryable": false
     },
     {
       "code": "order_not_pending",
@@ -584,7 +829,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This order has no payment in progress to confirm.",
+      "retryable": false
     },
     {
       "code": "order_state_changed",
@@ -593,7 +840,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "Payment completed but the order had just expired. Please contact support; do not pay again.",
+      "retryable": false
     },
     {
       "code": "password_required",
@@ -602,7 +851,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "Your account can only sign in with LINE right now. Please set a password before unlinking LINE.",
+      "retryable": false
     },
     {
       "code": "payment_failed",
@@ -611,7 +862,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "Payment was not completed. Please try again from the payment page; if you were charged, contact support and do not pay again.",
+      "retryable": false
     },
     {
       "code": "payment_in_progress",
@@ -620,7 +873,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "A payment is being created for this order. Please refresh in a moment.",
+      "retryable": false
     },
     {
       "code": "payment_not_configured",
@@ -629,7 +884,9 @@
       ],
       "exceptions": [
         "FeatureNotConfiguredException"
-      ]
+      ],
+      "messageEn": "Online payment is not enabled yet. Please try again later or contact support.",
+      "retryable": false
     },
     {
       "code": "plan_closed",
@@ -638,7 +895,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This plan has ended and can no longer be purchased.",
+      "retryable": false
     },
     {
       "code": "plan_free",
@@ -647,7 +906,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "This plan does not require payment.",
+      "retryable": false
     },
     {
       "code": "plan_not_found",
@@ -656,7 +917,9 @@
       ],
       "exceptions": [
         "MemberNotFoundException"
-      ]
+      ],
+      "messageEn": "This membership plan could not be found.",
+      "retryable": false
     },
     {
       "code": "quantity_limit",
@@ -665,7 +928,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "The quantity exceeds the limit for a single item.",
+      "retryable": false
     },
     {
       "code": "region_not_deliverable",
@@ -674,7 +939,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "Sorry, we do not deliver to this area. Please choose convenience store pickup or on-site pickup.",
+      "retryable": false
     },
     {
       "code": "registration_closed",
@@ -683,7 +950,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "Registration for this event has closed or the event has already started.",
+      "retryable": false
     },
     {
       "code": "season_not_available",
@@ -692,7 +961,9 @@
       ],
       "exceptions": [
         "MemberConflictException"
-      ]
+      ],
+      "messageEn": "This club has no season open for joining right now. Please try again later.",
+      "retryable": false
     },
     {
       "code": "session_expired",
@@ -701,7 +972,9 @@
       ],
       "exceptions": [
         "MemberUnauthenticatedException"
-      ]
+      ],
+      "messageEn": "Your session has expired. Please sign in again.",
+      "retryable": false
     },
     {
       "code": "state_invalid",
@@ -710,7 +983,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The LINE authorization has expired. Please try again.",
+      "retryable": false
     },
     {
       "code": "ticket_invalid",
@@ -719,7 +994,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The LINE sign-up has expired. Please try again.",
+      "retryable": false
     },
     {
       "code": "token_invalid",
@@ -728,7 +1005,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The verification link is invalid or has expired. Please request a new verification email.",
+      "retryable": false
     },
     {
       "code": "transaction_mismatch",
@@ -737,7 +1016,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The payment transaction does not match.",
+      "retryable": false
     },
     {
       "code": "unauthenticated",
@@ -746,7 +1027,9 @@
       ],
       "exceptions": [
         "MemberUnauthenticatedException"
-      ]
+      ],
+      "messageEn": "Please sign in first.",
+      "retryable": false
     },
     {
       "code": "validation_failed",
@@ -755,7 +1038,9 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The request is invalid. Please check your input and try again.",
+      "retryable": false
     },
     {
       "code": "variant_not_found",
@@ -764,7 +1049,9 @@
       ],
       "exceptions": [
         "MemberNotFoundException"
-      ]
+      ],
+      "messageEn": "This item could not be found or is no longer available.",
+      "retryable": false
     },
     {
       "code": "weak_password",
@@ -773,11 +1060,13 @@
       ],
       "exceptions": [
         "MemberValidationException"
-      ]
+      ],
+      "messageEn": "The password is too weak. Please use at least 8 characters with letters and digits, and avoid common passwords.",
+      "retryable": false
     }
   ],
   "uncodedFamilies": {
-    "note": "下列例外只有 HTTP 狀態與標題、沒有 code。App 目前只會呼叫公開與會員端點，後台一族不會出現在 App；公開端點的 AdminValidationException 等同 400「輸入內容有誤」。",
+    "note": "下列例外沒有專屬代碼，回應的 code 是依狀態的通用代碼（見 statusDefaults），messageEn 為該狀態的通用英文。App 目前只會呼叫公開與會員端點，後台一族不會出現在 App；公開端點的 AdminValidationException 等同 400「輸入內容有誤」。",
     "byStatus": {
       "400": "輸入內容有誤（AdminValidationException 一族，含 App 公開端點的裝置、廣告事件、診斷回報驗證）",
       "403": "沒有權限／此功能不適用／共用內容唯讀",
@@ -787,9 +1076,7 @@
     }
   },
   "pending": [
-    "【待決】雙語訊息：現行 ProblemDetails.detail 只有繁中；App 規劃書 §9.5 要求雙語，後端尚未提供英文訊息，App 端暫時只能顯示繁中或自備代碼對照。",
-    "【待決】retryable 欄位：規劃書 §9.5 要求回應帶「是否可重試」；現行回應沒有此欄位，App 端以 retryRule（依狀態碼）判斷。",
-    "【待決】沒有 code 的錯誤（400／403／404／409 的後台一族例外）：App 若需要依情境分流，後端要先補 code，這屬於後端改動，不在 shared/ 發明。",
-    "【待決】429（速率限制）與 5xx 在 ASP.NET 層由中介軟體直接回應時不一定是 ProblemDetails 格式，App 需容忍非 JSON 本文。"
+    "【待決】沒有專屬 code 的錯誤（400／403／404／409 的後台一族例外）：現在有通用代碼（依狀態），App 若需要依情境分流，後端要再補專屬 code，這屬於後端改動，不在 shared/ 發明。",
+    "【待決】英文訊息不含動態值：需要「只剩 3 件」這類數字提示時，用戶端自備字串表或顯示 messageZh。"
   ]
 }

@@ -5484,6 +5484,10 @@ public partial class ClubDbContext : DbContext
 
             entity.ToTable("players");
 
+            entity.HasIndex(e => new { e.ClubId, e.Slug }, "UQ_players_club_slug").IsUnique();
+
+            entity.HasIndex(e => new { e.Slug, e.ClubId }, "IX_players_slug_club");
+
             entity.HasIndex(e => e.RowSeq, "UQ_players_row_seq")
                 .IsUnique()
                 .IsClustered();
@@ -5520,6 +5524,9 @@ public partial class ClubDbContext : DbContext
                 .ValueGeneratedOnAdd()
                 .HasColumnName("row_seq");
             entity.Property(e => e.ShirtNo).HasColumnName("shirt_no");
+            entity.Property(e => e.Slug)
+                .HasMaxLength(160)
+                .HasColumnName("slug");
             entity.Property(e => e.Status)
                 .HasMaxLength(16)
                 .HasColumnName("status");

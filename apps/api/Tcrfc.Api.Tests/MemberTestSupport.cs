@@ -121,7 +121,7 @@ internal sealed class MemberTestScope(WebApplicationFactory<Program> factory) : 
         var email = NewEmail(tag);
         var pwd = password ?? Password;
         var register = await anonymous.PostAsJsonAsync("/api/v1/member/auth/register",
-            new { club, email, password = pwd, name = "【M測試】" + tag, phone = "0900-000-111", lang = "zh" }, TestJson.WriteOptions);
+            new { club, email, password = pwd, name = "【M測試】" + tag, phone = "0900-000-111", birthOn = "1990-01-01", lang = "zh" }, TestJson.WriteOptions);
         Assert.Equal(HttpStatusCode.Created, register.StatusCode);
         var verifyMail = MemberTestDoubles.Email.LastTo(email, "verify") ?? throw new InvalidOperationException("沒有驗證信");
         var verify = await anonymous.PostAsJsonAsync("/api/v1/member/auth/verify-email", new { token = CapturingEmailSender.TokenOf(verifyMail) }, TestJson.WriteOptions);

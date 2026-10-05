@@ -387,6 +387,7 @@ builder.Services.AddScoped<ClubsRepository>();
 builder.Services.AddScoped<PlayersRepository>();
 builder.Services.AddScoped<Tcrfc.Api.Features.Staff.StaffRepository>();
 builder.Services.AddScoped<TeamsRepository>();
+builder.Services.AddScoped<Tcrfc.Api.Features.Competitions.CompetitionsRepository>();
 builder.Services.AddScoped<ArticlesRepository>();
 builder.Services.AddScoped<MatchesRepository>();
 builder.Services.AddScoped<PagesRepository>();
@@ -531,6 +532,7 @@ builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.MemberSessionService>()
 builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.MemberMembershipService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.MemberAuth.MemberAuthService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.MemberCenter.MemberCenterService>();
+builder.Services.AddScoped<Tcrfc.Api.Features.MemberDraws.MemberDrawsService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.MembershipPayments.MembershipActivationService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.MembershipPayments.MembershipOrderService>();
 builder.Services.AddScoped<Tcrfc.Api.Features.MembershipPublic.MembershipPublicRepository>();
@@ -649,7 +651,7 @@ builder.Services.AddCors(options =>
             // WithExposedHeaders：跨來源時瀏覽器預設只讓前端讀得到「安全清單」標頭，Content-Disposition（下載檔名）
             // 與 Retry-After（限流 429 的等待秒數）都不在其中，不 expose 就永遠讀到 null。
             policy.WithOrigins(corsOrigins).AllowAnyHeader().AllowAnyMethod().AllowCredentials()
-                .WithExposedHeaders("Content-Disposition", "Retry-After");
+                .WithExposedHeaders("Content-Disposition", "Retry-After", "ETag");
         }
         // corsOrigins 為空（正式環境忘記設定）時刻意不呼叫 AllowAnyOrigin()——沒設定來源清單
         // 就是沒有任何瀏覽器來源被允許，比「忘記設定就開放全部」安全。
@@ -885,7 +887,18 @@ builder.Services.AddOpenApi();
 
 // ── 統一例外處理：⛔ 不把資料庫例外訊息吐給呼叫端 ─────────────────────────────
 builder.Services.AddExceptionHandler<ApiExceptionHandler>();
-builder.Services.AddProblemDetails();
+// 統一錯誤結構（App 規劃書 §9.5）：UseStatusCodePages 為「空本文」的 401／403／404／429 等補 ProblemDetails 時，
+// 一併帶上 code／messageZh／messageEn／retryable（例外路徑見 ApiExceptionHandler，Results.Problem 見 ApiErrorEnvelope.Extensions）。
+builder.Services.AddProblemDetails(options =>
+{
+    options.CustomizeProblemDetails = context =>
+    {
+        var status = context.ProblemDetails.Status ?? context.HttpContext.Response.StatusCode;
+        context.ProblemDetails.Status = status;
+        context.ProblemDetails.Instance ??= context.HttpContext.Request.Path;
+        Tcrfc.Api.Common.ApiErrorEnvelope.Fill(context.ProblemDetails, status);
+    };
+});
 
 var app = builder.Build();
 
@@ -900,6 +913,8 @@ if (TrustedProxyConfiguration.IsEnabled(trustedProxyIps))
 }
 
 app.UseExceptionHandler();
+// 沒有本文的錯誤狀態（Results.NotFound()、中介軟體直接回 429 等）補成統一的 ProblemDetails；已有本文的回應不動。
+app.UseStatusCodePages();
 
 if (app.Environment.IsDevelopment())
 {
@@ -917,6 +932,8 @@ app.UseCors(CorsPolicyName);
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
+// 公開列表端點的 ETag／If-None-Match → 304（App 規劃書 §2.4；只掛白名單路徑，不碰「不得讀快取」的五類，見該類別檔頭）。
+app.UseMiddleware<Tcrfc.Api.Common.ConditionalGetMiddleware>();
 
 app.MapHealthEndpoints();
 app.MapClubsEndpoints();
@@ -925,6 +942,7 @@ app.MapStaffEndpoints();
 app.MapTeamsEndpoints();
 app.MapArticlesEndpoints();
 app.MapMatchesEndpoints();
+Tcrfc.Api.Features.Competitions.CompetitionsEndpoints.MapCompetitionsEndpoints(app);
 app.MapPagesEndpoints();
 
 // ── S1-6：B3／B4 公開讀取 ────────────────────────────────────────────────
@@ -1050,6 +1068,7 @@ app.MapAppPublicEndpoints();
 // ── E 批（2026-10-01）：會員中心與文化公開端點 ─────────────────────────────────────
 app.MapMemberAuthEndpoints();
 app.MapMemberCenterEndpoints();
+Tcrfc.Api.Features.MemberDraws.MemberDrawsEndpoints.MapMemberDrawsEndpoints(app);
 app.MapMembershipOrderEndpoints();
 app.MapMembershipPublicEndpoints();
 app.MapComicsEndpoints();

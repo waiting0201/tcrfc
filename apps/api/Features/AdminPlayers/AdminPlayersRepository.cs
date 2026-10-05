@@ -41,6 +41,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
                 p.Id,
                 p.TeamId,
                 TeamCode = p.Team.Code,
+                p.Slug,
                 p.ShirtNo,
                 p.Position,
                 p.BirthOn,
@@ -58,6 +59,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             Id = r.Id,
             TeamId = r.TeamId,
             TeamCode = r.TeamCode,
+            Slug = r.Slug,
             ShirtNo = r.ShirtNo,
             Position = r.Position,
             BirthOn = r.BirthOn,
@@ -97,12 +99,26 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             throw new AdminForbiddenException("你的球隊授權範圍不允許在這支球隊底下建立球員。");
         }
 
+        // 網址代稱：有指定就驗證，沒指定依英文姓名／隊別與背號自動產生；兩者都要在同一俱樂部內唯一。
+        string slug;
+        if (request.Slug is { } requested)
+        {
+            PlayerSlug.Validate(requested);
+            await EnsureSlugAvailableAsync(scope, requested, null, cancellationToken);
+            slug = requested;
+        }
+        else
+        {
+            slug = await MakeUniqueSlugAsync(scope, PlayerSlug.Suggest(request.Content.En?.Name, team.Code, request.ShirtNo, playerId), cancellationToken);
+        }
+
         var now = DateTime.UtcNow;
         var player = new Player
         {
             Id = playerId,
             ClubId = scope.ClubId,
             TeamId = team.Id,
+            Slug = slug,
             ShirtNo = request.ShirtNo,
             Position = request.Position,
             BirthOn = request.BirthOn,
@@ -166,6 +182,13 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             throw new AdminForbiddenException("你的球隊授權範圍不允許把球員指派到這支球隊。");
         }
 
+        if (request.Slug is { } newSlug && newSlug != player.Slug)
+        {
+            PlayerSlug.Validate(newSlug);
+            await EnsureSlugAvailableAsync(scope, newSlug, player.Id, cancellationToken);
+            player.Slug = newSlug;
+        }
+
         player.TeamId = team.Id;
         player.ShirtNo = request.ShirtNo;
         player.Position = request.Position;
@@ -199,6 +222,29 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
         await dbContext.SaveChangesAsync(cancellationToken);
         await cache.InvalidateAsync("players", scope.ClubCode, cancellationToken);
         return await GetByIdAsync(scope, id, cancellationToken);
+    }
+
+    /// <summary>同一俱樂部內網址代稱不可重複（<c>UQ_players_club_slug</c> 是最後防線，這裡先查好回日常中文 409）。</summary>
+    private async Task EnsureSlugAvailableAsync(AdminClubScope scope, string slug, Guid? exceptPlayerId, CancellationToken cancellationToken)
+    {
+        var taken = await dbContext.Players.AsNoTracking()
+            .AnyAsync(p => p.ClubId == scope.ClubId && p.Slug == slug && p.Id != exceptPlayerId, cancellationToken);
+        if (taken)
+        {
+            throw new AdminPlayerSlugConflictException($"網址代稱「{slug}」已經有另一位球員在使用，請換一個。");
+        }
+    }
+
+    private async Task<string> MakeUniqueSlugAsync(AdminClubScope scope, string baseSlug, CancellationToken cancellationToken)
+    {
+        var candidate = baseSlug;
+        for (var n = 2; await dbContext.Players.AsNoTracking().AnyAsync(p => p.ClubId == scope.ClubId && p.Slug == candidate, cancellationToken); n++)
+        {
+            var suffix = $"-{n}";
+            candidate = PlayerSlug.Truncate(baseSlug[..Math.Min(baseSlug.Length, PlayerSlug.MaxLength - suffix.Length)].TrimEnd('-')) + suffix;
+        }
+
+        return candidate;
     }
 
     /// <summary>🔴 跨俱樂部指派球隊在這裡擋下——<paramref name="teamId"/> 必須屬於
@@ -281,6 +327,7 @@ public sealed class AdminPlayersRepository(ClubDbContext dbContext, IQueryCache 
             Id = player.Id,
             TeamId = player.TeamId,
             TeamCode = player.Team.Code,
+            Slug = player.Slug,
             ShirtNo = player.ShirtNo,
             Position = player.Position,
             BirthOn = player.BirthOn,

@@ -32,14 +32,14 @@ public sealed class AdminSeoSchemaCompletenessTests(AdminWriteAzuriteEnabledApiF
 
     // ═════════════════════════════ 基本授權 ═════════════════════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task Report_未登入_擋下()
     {
         using var client = fixture.CreateClient();
         Assert.Equal(HttpStatusCode.Unauthorized, (await client.GetAsync(ReportPath)).StatusCode);
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Report_內容編輯角色_沒有sysadminonly權限_403()
     {
         // 矩陣「SEO／設定」欄除了內容編輯的「單頁 SEO」外，十個角色裡只有系統管理員打勾——
@@ -51,7 +51,7 @@ public sealed class AdminSeoSchemaCompletenessTests(AdminWriteAzuriteEnabledApiF
 
     // ═════════════════════════════ SportsEvent（matches）正反例 ═════════════════════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task SportsEvent_缺開球時間主客場場地賽事名稱_報表列出_公開端點不輸出_補齊後兩者恢復()
     {
         using var teamManager = await CreateClientAsync("team.manager@tcrfc.test");
@@ -123,7 +123,7 @@ public sealed class AdminSeoSchemaCompletenessTests(AdminWriteAzuriteEnabledApiF
 
     // ═════════════════════════════ Article（news）正反例 ═════════════════════════════
 
-    [Fact]
+    [AzuriteFact]
     public async Task Article_缺圖片_報表列出_公開端點不輸出_補上OG圖片後兩者恢復()
     {
         // 🔴 這個情境要確保「全站預設 OG 圖片」在測試期間確實是 null，否則即使這篇文章自己沒有

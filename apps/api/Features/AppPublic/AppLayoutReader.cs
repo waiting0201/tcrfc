@@ -23,12 +23,24 @@ public sealed class AppLayoutReader(ClubDbContext dbContext, IImagePublicUrlReso
         var items = await dbContext.AppLayoutItems.AsNoTracking().Include(i => i.AppLayoutItemsI18ns).Where(i => i.IsEnabled)
             .OrderBy(i => i.SortOrder).ThenBy(i => i.RowSeq).ToListAsync(cancellationToken);
 
+        // 沒有對應深連結的項目（慈善、商店）的外連網址：慈善＝後台 B5 的「捐款導流網址」（站台設定 charity.donation_url，外部網站）；
+        // 商店＝官網站內商店 /{lang}/shop/（相對路徑，與深連結 webUrl 同一慣例）。設定沒填就是 null，不猜。
+        var sitePrefix = db == "en" ? "/en" : "/zh";
+        var charityUrl = await ResolveCharityUrlAsync(cancellationToken);
+
         AppLayoutItemDto Map(AppLayoutItem i)
         {
             var link = i.DeepLinkId is { } id ? linkById.GetValueOrDefault(id) : null;
+            var webUrl = link?.WebUrl ?? i.ItemKey switch
+            {
+                "charity" => charityUrl,
+                "shop" => $"{sitePrefix}/shop/",
+                _ => null,
+            };
             return new AppLayoutItemDto
             {
-                Code = i.ItemKey, Icon = i.IconKey, DeepLink = link?.AppLink, WebUrl = link?.WebUrl,
+                Code = i.ItemKey, Icon = i.IconKey, DeepLink = link?.AppLink, WebUrl = webUrl,
+                IsExternal = webUrl is not null && (webUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) || webUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)),
                 Label = RequestLocale.Pick(i.AppLayoutItemsI18ns.FirstOrDefault(x => x.Locale == db)?.Label,
                     i.AppLayoutItemsI18ns.FirstOrDefault(x => x.Locale == RequestLocale.DefaultDbLocale)?.Label),
             };
@@ -71,6 +83,7 @@ public sealed class AppLayoutReader(ClubDbContext dbContext, IImagePublicUrlReso
                 Message = RequestLocale.Pick(a.AppAnnouncementsI18ns.FirstOrDefault(x => x.Locale == db)?.Message,
                     a.AppAnnouncementsI18ns.FirstOrDefault(x => x.Locale == RequestLocale.DefaultDbLocale)?.Message),
             }).ToList(),
+            SponsorshipInquiryWebUrl = $"{sitePrefix}/partners/become-a-partner/",
             DeepLinks = links.Select(l => new AppDeepLinkDto
             {
                 Code = l.Code, AppLink = l.AppLink, WebUrl = l.WebUrl, RequiresLogin = l.RequiresLogin,
@@ -78,6 +91,16 @@ public sealed class AppLayoutReader(ClubDbContext dbContext, IImagePublicUrlReso
                     l.AppDeepLinksI18ns.FirstOrDefault(x => x.Locale == RequestLocale.DefaultDbLocale)?.Label),
             }).ToList(),
         };
+    }
+
+    /// <summary>慈善導流網址：各俱樂部各有一筆 <c>charity.donation_url</c>（協會的外部慈善平台，通常相同）；取俱樂部排序最前且有填的一筆，沒有回 null。</summary>
+    private async Task<string?> ResolveCharityUrlAsync(CancellationToken cancellationToken)
+    {
+        var values = await dbContext.Settings.AsNoTracking()
+            .Where(s => s.SettingKey == "charity.donation_url" && s.SettingValue != null && s.SettingValue != "")
+            .OrderBy(s => s.Club.SortOrder).ThenBy(s => s.Club.Code)
+            .Select(s => s.SettingValue).ToListAsync(cancellationToken);
+        return values.FirstOrDefault(v => v!.StartsWith("https://", StringComparison.OrdinalIgnoreCase) || v.StartsWith("http://", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>App 通知中心（App 規劃書 §3.13、§9.2「通知中心 列表」）：已送出的推播，保留 90 天。帶裝置識別時只列「這台裝置是對象」的訊息；

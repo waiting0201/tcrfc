@@ -46,9 +46,16 @@ public sealed class AdminWriteAzuriteEnabledApiFixture : WebApplicationFactory<P
 
     public async Task InitializeAsync()
     {
+        // 沒有 azurite-blob：不丟例外、不啟動測試主機，這個 collection 的測試由 [AzuriteFact]／[AzuriteTheory]
+        // 在探索階段就標成 skip（附原因），其餘測試照常執行。
+        if (!AzuriteLocator.IsAvailable)
+        {
+            return;
+        }
+
         var connectionString = await TestDatabaseGuard.ResolveAndVerifyAsync();
 
-        var azuriteExecutablePath = ResolveAzuriteExecutablePath();
+        var azuriteExecutablePath = AzuriteLocator.Path!;
         var port = GetUnusedLocalPort();
         _dataDirectory = Directory.CreateTempSubdirectory("tcrfc-azurite-test-");
 
@@ -95,6 +102,11 @@ public sealed class AdminWriteAzuriteEnabledApiFixture : WebApplicationFactory<P
 
     public new async Task DisposeAsync()
     {
+        if (!AzuriteLocator.IsAvailable)
+        {
+            return; // 從未啟動過，沒有東西要收
+        }
+
         await base.DisposeAsync();
 
         Environment.SetEnvironmentVariable("AZURE_BLOB_CONNECTION_STRING", null);
@@ -119,31 +131,6 @@ public sealed class AdminWriteAzuriteEnabledApiFixture : WebApplicationFactory<P
                 // 收尾動作，不讓暫存目錄清不掉掩蓋測試本身的結果。
             }
         }
-    }
-
-    private static string ResolveAzuriteExecutablePath()
-    {
-        var overridePath = Environment.GetEnvironmentVariable("AZURITE_EXECUTABLE_PATH");
-        if (!string.IsNullOrWhiteSpace(overridePath) && File.Exists(overridePath))
-        {
-            return overridePath;
-        }
-
-        string[] candidates =
-        [
-            "/usr/local/bin/azurite-blob", // npm -g 安裝在 macOS／一般 Linux 的預設位置
-            "/opt/homebrew/bin/azurite-blob", // Apple Silicon 若透過其他方式安裝
-        ];
-
-        var found = candidates.FirstOrDefault(File.Exists);
-        if (found is not null)
-        {
-            return found;
-        }
-
-        throw new InvalidOperationException(
-            "找不到 azurite-blob 執行檔——這組測試需要一個真正在跑的 Azurite（不 mock）。"
-            + "請先 `npm install -g azurite`，或設定環境變數 AZURITE_EXECUTABLE_PATH 指到 azurite-blob 執行檔。");
     }
 
     private static async Task WaitForAzuriteReadyAsync(int port)

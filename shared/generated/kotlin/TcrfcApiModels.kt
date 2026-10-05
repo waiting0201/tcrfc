@@ -57,6 +57,13 @@ data class AppAdEventRejectionDto(
 )
 
 @Serializable
+data class AppAdImageVariantsDto(
+    val url320: String,
+    val url640: String,
+    val url1280: String,
+)
+
+@Serializable
 data class AppAdItemDto(
     val creativeId: String? = null,
     val campaignId: String? = null,
@@ -64,12 +71,38 @@ data class AppAdItemDto(
     val imageUrl: String? = null,
     val imageWidth: Int? = null,
     val imageHeight: Int? = null,
+    val imageVariants: AppAdImageVariantsDto? = null,
     val videoUrl: String? = null,
     val altText: String? = null,
     val title: String? = null,
     val ctaText: String? = null,
     val clickUrl: String? = null,
     val theme: String? = null,
+)
+
+@Serializable
+data class AppAdPrefetchItemDto(
+    val item: AppAdItemDto,
+    val startsAt: JsonElement,
+    val endsAt: JsonElement,
+    val weight: Int,
+)
+
+@Serializable
+data class AppAdPrefetchResponse(
+    val generatedAt: JsonElement,
+    val validUntil: JsonElement,
+    val disclosureLabel: String,
+    val slots: List<AppAdPrefetchSlotDto>,
+)
+
+@Serializable
+data class AppAdPrefetchSlotDto(
+    val slotCode: String,
+    val rotationCap: Int? = null,
+    val sessionImpressionCap: Int? = null,
+    val fallback: AppAdItemDto? = null,
+    val items: List<AppAdPrefetchItemDto>,
 )
 
 @Serializable
@@ -152,6 +185,7 @@ data class AppLayoutItemDto(
     val icon: String? = null,
     val deepLink: String? = null,
     val webUrl: String? = null,
+    val isExternal: Boolean? = null,
 )
 
 @Serializable
@@ -162,6 +196,7 @@ data class AppLayoutResponse(
     val moreItems: List<AppLayoutItemDto>,
     val announcements: List<AppAnnouncementDto>,
     val deepLinks: List<AppDeepLinkDto>,
+    val sponsorshipInquiryWebUrl: String? = null,
 )
 
 @Serializable
@@ -215,6 +250,7 @@ data class AppSubscriptionInput(
 @Serializable
 data class ArticleDetailDto(
     val id: String,
+    val isFallbackLocale: Boolean,
     val slug: String,
     val categoryCode: String,
     val categoryName: String? = null,
@@ -249,6 +285,7 @@ data class ArticleDetailDto(
 @Serializable
 data class ArticleListItemDto(
     val id: String,
+    val isFallbackLocale: Boolean,
     val slug: String,
     val categoryCode: String,
     val categoryName: String? = null,
@@ -307,6 +344,7 @@ data class BenefitGroupPublicDto(
 @Serializable
 data class BenefitItemPublicDto(
     val name: String? = null,
+    val isFallbackLocale: Boolean,
     val description: String? = null,
     val freeValue: String? = null,
     val paidValue: String? = null,
@@ -316,6 +354,7 @@ data class BenefitItemPublicDto(
 data class BenefitTablePublicDto(
     val planCode: String? = null,
     val planName: String? = null,
+    val isFallbackLocale: Boolean,
     val groups: List<BenefitGroupPublicDto>,
 )
 
@@ -410,6 +449,8 @@ data class CheckoutRequest(
 data class ClubDto(
     val code: String,
     val name: String,
+    val shortName: String? = null,
+    val isFallbackLocale: Boolean,
     val description: String? = null,
     val domain: String,
     val logoLightKey: String? = null,
@@ -472,6 +513,19 @@ data class ComicPagePublicDto(
     val imageThumbUrl: String? = null,
     val width: Int? = null,
     val height: Int? = null,
+)
+
+@Serializable
+data class CompetitionDto(
+    val id: String,
+    val code: String,
+    val clubCode: String,
+    val seasonCode: String,
+    val compType: String? = null,
+    val name: String? = null,
+    val isFallbackLocale: Boolean,
+    val organizer: String? = null,
+    val sortOrder: Int,
 )
 
 @Serializable
@@ -583,6 +637,7 @@ data class FaqFeedbackRequest(
 @Serializable
 data class FaqListItemDto(
     val id: String,
+    val isFallbackLocale: Boolean,
     val slug: String,
     val isShared: Boolean,
     val sortOrder: Int,
@@ -650,10 +705,14 @@ data class MatchDto(
     val id: String,
     val seasonCode: String,
     val teamCode: String,
+    val clubCode: String,
+    val competitionCode: String? = null,
     val matchOn: String,
     val kickoff: String? = null,
+    val kickoffAt: JsonElement? = null,
     val homeAway: String? = null,
     val opponent: String? = null,
+    val isFallbackLocale: Boolean,
     val venue: String? = null,
     val competitionTag: String? = null,
     val competitionName: String? = null,
@@ -683,6 +742,7 @@ data class MemberCardDto(
     val token: String,
     val reissueCount: Int,
     val issuedAt: JsonElement? = null,
+    val serverTime: JsonElement,
 )
 
 @Serializable
@@ -720,10 +780,52 @@ data class MemberDeviceDto(
 )
 
 @Serializable
+data class MemberDrawAnnouncementDto(
+    val slug: String,
+    val categoryCode: String,
+)
+
+@Serializable
+data class MemberDrawClubDto(
+    val code: String,
+    val name: String? = null,
+)
+
+@Serializable
+data class MemberDrawDto(
+    val id: String,
+    val drawCode: String,
+    val club: MemberDrawClubDto,
+    val name: String? = null,
+    val prizeDescription: String? = null,
+    val rules: String? = null,
+    val notes: String? = null,
+    val isFallbackLocale: Boolean,
+    val coverUrl: String? = null,
+    val occasion: String? = null,
+    val occasionLabel: String? = null,
+    val snapshotAt: JsonElement? = null,
+    val drawnAt: JsonElement? = null,
+    val claimDeadlineOn: String? = null,
+    val status: String,
+    val statusLabel: String,
+    val isEligible: Boolean,
+    val announcement: MemberDrawAnnouncementDto? = null,
+)
+
+@Serializable
 data class MemberForgotPasswordRequest(
     val email: String,
     val club: String,
     val lang: String? = null,
+)
+
+@Serializable
+data class MemberGuardianConsentRequest(
+    val consented: Boolean,
+    val guardianName: String? = null,
+    val relationship: String? = null,
+    val consentTextVersion: String? = null,
 )
 
 @Serializable
@@ -822,6 +924,7 @@ data class MemberLineCompleteRequest(
     val lang: String? = null,
     val tokenDelivery: String? = null,
     val deviceInstallId: String? = null,
+    val guardianConsent: MemberGuardianConsentRequest? = null,
 )
 
 @Serializable
@@ -871,6 +974,7 @@ data class MemberRegisterRequest(
     val phone: String? = null,
     val birthOn: String? = null,
     val lang: String? = null,
+    val guardianConsent: MemberGuardianConsentRequest? = null,
 )
 
 @Serializable
@@ -881,15 +985,50 @@ data class MemberRegisteredDto(
 )
 
 @Serializable
+data class MemberRegistrationCourseDto(
+    val programSlug: String,
+    val programName: String? = null,
+    val startOn: String? = null,
+    val endOn: String? = null,
+    val weeklySchedule: String? = null,
+    val venueName: String? = null,
+    val venueAddress: String? = null,
+    val price: Int? = null,
+    val earlyBirdPrice: Int? = null,
+    val earlyBirdUntil: String? = null,
+    val sessionStatusCode: String,
+    val sessionStatusLabelZh: String,
+    val sessionStatusLabelEn: String,
+)
+
+@Serializable
 data class MemberRegistrationDto(
     val id: String,
     val registrationNo: String,
     val clubCode: String,
     val status: String,
+    val statusCode: String,
+    val statusLabelZh: String,
+    val statusLabelEn: String,
     val applicantName: String,
     val sessionId: String? = null,
     val trialId: String? = null,
     val createdAt: JsonElement,
+    val kind: String,
+    val course: MemberRegistrationCourseDto? = null,
+    val trial: MemberRegistrationTrialDto? = null,
+    val isFallbackLocale: Boolean,
+)
+
+@Serializable
+data class MemberRegistrationTrialDto(
+    val trialOn: String,
+    val teamName: String? = null,
+    val venueName: String? = null,
+    val venueAddress: String? = null,
+    val trialStatusCode: String,
+    val trialStatusLabelZh: String,
+    val trialStatusLabelEn: String,
 )
 
 @Serializable
@@ -961,6 +1100,7 @@ data class MembershipOrderDto(
 data class MembershipPlanPublicDto(
     val code: String,
     val name: String? = null,
+    val isFallbackLocale: Boolean,
     val benefitNote: String? = null,
     val fee: Int,
     val cardQuota: Int,
@@ -1164,6 +1304,7 @@ data class PartnerCharityProgramDto(
 data class PartnerDto(
     val id: String,
     val slug: String,
+    val isFallbackLocale: Boolean,
     val partnerType: String? = null,
     val country: String? = null,
     val startOn: String? = null,
@@ -1189,6 +1330,7 @@ data class PartnerStoreFiltersDto(
 data class PartnerStorePublicDto(
     val slug: String,
     val name: String? = null,
+    val isFallbackLocale: Boolean,
     val category: String? = null,
     val region: String? = null,
     val address: String? = null,
@@ -1225,6 +1367,8 @@ data class PlayerCareerStatsDto(
 @Serializable
 data class PlayerDto(
     val id: String,
+    val slug: String,
+    val isFallbackLocale: Boolean,
     val teamCode: String,
     val shirtNo: Int? = null,
     val position: String? = null,
@@ -1234,6 +1378,7 @@ data class PlayerDto(
     val nationality: String? = null,
     val preferredFoot: String? = null,
     val photoKey: String? = null,
+    val portraitConsented: Boolean,
     val name: String? = null,
     val bio: String? = null,
     val photoUrl: String? = null,
@@ -1281,6 +1426,7 @@ data class PressResourceDto(
 data class ProgramDetailDto(
     val id: String,
     val slug: String,
+    val isFallbackLocale: Boolean,
     val programType: String? = null,
     val audience: String? = null,
     val ageMin: Int? = null,
@@ -1299,6 +1445,7 @@ data class ProgramDetailDto(
 data class ProgramListItemDto(
     val id: String,
     val slug: String,
+    val isFallbackLocale: Boolean,
     val programType: String? = null,
     val audience: String? = null,
     val ageMin: Int? = null,
@@ -1326,6 +1473,9 @@ data class ProgramPartnerSummaryDto(
 data class ProgramRegistrationSubmittedDto(
     val registrationNo: String,
     val status: String,
+    val statusCode: String,
+    val statusLabelZh: String,
+    val statusLabelEn: String,
 )
 
 @Serializable
@@ -1342,6 +1492,9 @@ data class ProgramSessionDto(
     val signupOpensAt: JsonElement? = null,
     val signupClosesAt: JsonElement? = null,
     val status: String,
+    val statusCode: String,
+    val statusLabelZh: String,
+    val statusLabelEn: String,
     val venueId: String? = null,
     val venueName: String? = null,
     val venueAddress: String? = null,
@@ -1638,6 +1791,9 @@ data class PublicTrialDto(
     val enrolledCount: Int,
     val deadlineOn: String? = null,
     val status: String,
+    val statusCode: String,
+    val statusLabelZh: String,
+    val statusLabelEn: String,
     val isSignupOpen: Boolean,
     val acceptsWaitlist: Boolean,
 )
@@ -1965,6 +2121,7 @@ data class SponsorActivationImageDto(
 data class SponsorDto(
     val id: String,
     val slug: String,
+    val isFallbackLocale: Boolean,
     val tier: String? = null,
     val sortOrder: Int,
     val name: String? = null,
@@ -1980,6 +2137,7 @@ data class SponsorDto(
 data class SponsorPackageDto(
     val id: String,
     val slug: String,
+    val isFallbackLocale: Boolean,
     val sortOrder: Int,
     val name: String? = null,
     val content: String? = null,
@@ -1999,9 +2157,11 @@ data class SponsorStoryDto(
 @Serializable
 data class StaffDto(
     val id: String,
+    val isFallbackLocale: Boolean,
     val staffGroup: String? = null,
     val licence: String? = null,
     val photoKey: String? = null,
+    val portraitConsented: Boolean,
     val name: String? = null,
     val title: String? = null,
     val bio: String? = null,
@@ -2077,12 +2237,14 @@ data class SubscribeNewsletterRequest(
 data class TeamDto(
     val id: String,
     val code: String,
+    val clubCode: String,
     val type: String,
     val gender: String,
     val ageBand: String? = null,
     val teamColor: String? = null,
     val heroKey: String? = null,
     val name: String? = null,
+    val isFallbackLocale: Boolean,
     val intro: String? = null,
     val heroUrl: String? = null,
     val logoUrl: String? = null,
@@ -2093,6 +2255,9 @@ data class TeamDto(
 data class TrialRegistrationSubmittedDto(
     val registrationNo: String,
     val status: String,
+    val statusCode: String,
+    val statusLabelZh: String,
+    val statusLabelEn: String,
 )
 
 @Serializable

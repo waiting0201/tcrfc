@@ -5,6 +5,8 @@ public sealed record MembershipPlanPublicDto
 {
     public required string Code { get; init; }
     public string? Name { get; init; }
+    /// <summary>未翻譯標示（App 規劃書 §2.5）：請求英文而英文方案名稱是空的，回應是回退的繁中時為 true；請求繁中恆為 false。</summary>
+    public required bool IsFallbackLocale { get; init; }
     public string? BenefitNote { get; init; }
     public required int Fee { get; init; }
     public required int CardQuota { get; init; }
@@ -18,6 +20,9 @@ public sealed record MembershipPlanPublicDto
 public sealed record BenefitItemPublicDto
 {
     public string? Name { get; init; }
+    /// <summary>未翻譯標示（App 規劃書 §2.5）：請求英文而英文權益名稱是空的，回應是回退的繁中時為 true；請求繁中恆為 false。</summary>
+    public required bool IsFallbackLocale { get; init; }
+
     public string? Description { get; init; }
     /// <summary>免費層對應值（「✓」「✗」或文字如「9 折」）。</summary>
     public string? FreeValue { get; init; }
@@ -37,6 +42,9 @@ public sealed record BenefitTablePublicDto
 {
     public string? PlanCode { get; init; }
     public string? PlanName { get; init; }
+    /// <summary>未翻譯標示（App 規劃書 §2.5）：請求英文而英文方案名稱是空的，回應是回退的繁中時為 true；請求繁中恆為 false。</summary>
+    public required bool IsFallbackLocale { get; init; }
+
     public required IReadOnlyList<BenefitGroupPublicDto> Groups { get; init; }
 }
 
@@ -44,10 +52,18 @@ public sealed record PartnerStorePublicDto
 {
     public required string Slug { get; init; }
     public string? Name { get; init; }
+
+    /// <summary>未翻譯標示（App 規劃書 §2.5）：請求英文而英文店名是空的，回應是回退的繁中時為 true；請求繁中恆為 false。</summary>
+    public required bool IsFallbackLocale { get; init; }
     public string? Category { get; init; }
     public string? Region { get; init; }
     public string? Address { get; init; }
+
+    /// <summary>緯度。<b><c>null</c>＝座標尚未確認</b>：App 地圖不顯示、不計距離、不排進「附近店家」。**不會**用 <c>0</c> 或 <c>(0,0)</c> 當替代值——
+    /// 後台驗證與資料庫 <c>CK_partner_stores_coords</c> 都不允許（有值時必與經度成對、在 -90～90、且不是 (0,0)）。</summary>
     public decimal? Lat { get; init; }
+
+    /// <summary>經度，規則同 <see cref="Lat"/>（-180～180）。</summary>
     public decimal? Lng { get; init; }
     public string? Phone { get; init; }
     public string? BusinessHours { get; init; }

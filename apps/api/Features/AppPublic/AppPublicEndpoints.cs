@@ -59,14 +59,20 @@ public static class AppPublicEndpoints
             return Results.Ok(new AppConfigResponse { GeneratedAt = doc.GeneratedAt, Ios = doc.Ios, Android = doc.Android, Evaluation = evaluation });
         }).WithName("AppGetConfig").Produces<AppConfigResponse>().Produces(StatusCodes.Status400BadRequest);
 
-        group.MapGet("/layout", async (string? lang, string? deviceInstallId, HttpContext http, AppLayoutReader reader, CancellationToken ct) =>
+        group.MapGet("/layout", async (
+            string? lang, string? deviceInstallId, [Microsoft.AspNetCore.Mvc.FromHeader(Name = AppInput.DeviceHeaderName)] string? deviceHeader,
+            HttpContext http, AppLayoutReader reader, CancellationToken ct) =>
         {
+            deviceInstallId = AppInput.ResolveOptionalDeviceId(http, deviceInstallId); // 標頭 X-Device-Install-Id 優先（§9.3）；deviceHeader 參數只為了讓 OpenAPI 記載這個標頭
             http.Response.Headers.CacheControl = string.IsNullOrEmpty(deviceInstallId) ? EdgeCacheable : NoStore;
             return Results.Ok(await reader.ReadAsync(lang, deviceInstallId, ct));
         }).WithName("AppGetLayout").Produces<AppLayoutResponse>();
 
-        group.MapGet("/notifications", async (string? lang, string? deviceInstallId, HttpContext http, AppLayoutReader reader, CancellationToken ct) =>
+        group.MapGet("/notifications", async (
+            string? lang, string? deviceInstallId, [Microsoft.AspNetCore.Mvc.FromHeader(Name = AppInput.DeviceHeaderName)] string? deviceHeader,
+            HttpContext http, AppLayoutReader reader, CancellationToken ct) =>
         {
+            deviceInstallId = AppInput.ResolveOptionalDeviceId(http, deviceInstallId);
             http.Response.Headers.CacheControl = string.IsNullOrEmpty(deviceInstallId) ? EdgeCacheable : NoStore;
             return Results.Ok(await reader.ListNotificationsAsync(lang, deviceInstallId, ct));
         }).WithName("AppListNotifications").Produces<IReadOnlyList<AppNotificationDto>>();
@@ -78,18 +84,25 @@ public static class AppPublicEndpoints
         .WithName("AppPushOpened").Produces(StatusCodes.Status204NoContent).Produces(StatusCodes.Status404NotFound);
 
         // GET /ads/{slotCode}?lang=zh&deviceInstallId=…&theme=dark —— 帶裝置識別才套用「每人頻次上限」，此時不可快取；沒帶則可短暫邊緣快取。
+        // 裝置識別（§9.3）：標頭 X-Device-Install-Id 優先，查詢參數 deviceInstallId 相容保留；每人頻次上限依解析出的識別計算。
+        // deviceHeader 參數只為了讓 OpenAPI 記載這個標頭，實際讀取在 AppInput.ResolveOptionalDeviceId。
         group.MapGet("/ads/{slotCode}", async (
-            string slotCode, string? lang, string? deviceInstallId, string? theme, HttpContext http, AdServingService service, CancellationToken ct) =>
+            string slotCode, string? lang, string? deviceInstallId, [Microsoft.AspNetCore.Mvc.FromHeader(Name = AppInput.DeviceHeaderName)] string? deviceHeader,
+            string? theme, HttpContext http, AdServingService service, CancellationToken ct) =>
         {
-            if (!string.IsNullOrEmpty(deviceInstallId))
-            {
-                AppInput.RequireDeviceId(deviceInstallId);
-            }
-
+            deviceInstallId = AppInput.ResolveOptionalDeviceId(http, deviceInstallId);
             var result = await service.ServeAsync(slotCode, lang, deviceInstallId, theme, ct);
             http.Response.Headers.CacheControl = string.IsNullOrEmpty(deviceInstallId) ? "public, max-age=60" : NoStore;
             return result is null ? Results.NotFound() : Results.Ok(result);
         }).WithName("AppServeAd").Produces<AppAdResponse>().Produces(StatusCodes.Status404NotFound);
+
+        // GET /ads/prefetch?lang=zh&theme=dark —— 當日檔期素材預載目錄（App 規劃書 §2.4）。對所有裝置相同、不套頻次判斷，可短暫邊緣快取。
+        // 路由 /ads/prefetch 與 /ads/{slotCode} 相鄰：字面路由優先於參數路由，所以版位代碼不得叫 prefetch（後台建立版位時另有代碼格式限制）。
+        group.MapGet("/ads/prefetch", async (string? lang, string? theme, HttpContext http, AdServingService service, CancellationToken ct) =>
+        {
+            http.Response.Headers.CacheControl = "public, max-age=60";
+            return Results.Ok(await service.PrefetchAsync(lang, theme, ct));
+        }).WithName("AppPrefetchAds").Produces<AppAdPrefetchResponse>();
 
         group.MapPost("/ads/events", async (AppAdEventBatchRequest request, AdEventIngestService service, CancellationToken ct) =>
             Results.Ok(await service.IngestAsync(request, ct)))

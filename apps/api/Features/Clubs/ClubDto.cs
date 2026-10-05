@@ -11,6 +11,15 @@ public sealed record ClubDto
 {
     public required string Code { get; init; }
     public required string Name { get; init; }
+
+    /// <summary>簡稱（<c>clubs_i18n.short_name</c>，2026-10-05）：中文「台中磐石」「台中藍鯨」；英文磐石為 <c>Taichung Rock FC</c>，
+    /// 藍鯨英文<b>一律沒有</b>（B-5：客戶尚未指定英文全名，開發端不自挑）——請求英文且該語系沒有簡稱時回退繁中簡稱（同其他欄位的回退規則）。
+    /// 沒有任何簡稱資料時為 <c>null</c>，用戶端退回 <see cref="Name"/>。</summary>
+    public string? ShortName { get; init; }
+
+    /// <summary>未翻譯標示（App 規劃書 §2.5「未翻譯 fallback 繁中並標示」、主站 G-01）：請求的是英文、而這筆的英文主要欄位（俱樂部名稱）是空的，回應內容是回退的繁中時為 true。
+    /// 請求繁中時恆為 false。用戶端據此顯示「本內容尚無英文版本」。</summary>
+    public required bool IsFallbackLocale { get; init; }
     public string? Description { get; init; }
     public required string Domain { get; init; }
     public string? LogoLightKey { get; init; }

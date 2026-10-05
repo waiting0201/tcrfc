@@ -11,6 +11,18 @@ public partial class Member
 
     /// <summary>LINE userId 的 SHA-256（小寫十六進位）。只供查找，不得匯出。</summary>
     public string? LineUserIdHash { get; set; }
+
+    /// <summary>監護人同意時間（伺服器時間，UTC；2026-10-05）。成年註冊為 null。未滿 18 歲註冊必填（主站規劃書「會員資料安全要求」、App 規劃書 §4.5）。</summary>
+    public DateTime? GuardianConsentedAt { get; set; }
+
+    /// <summary>監護人姓名——🔒 受限個資（docs/12b §8），後台遮罩、刪帳號時清除。</summary>
+    public string? GuardianName { get; set; }
+
+    /// <summary>與當事人關係：<c>parent</c>（父母）／<c>legal_guardian</c>（法定監護人）。</summary>
+    public string? GuardianRelationship { get; set; }
+
+    /// <summary>同意文案版本（文案本身待法務 B-9）；可為 null。</summary>
+    public string? GuardianConsentVersion { get; set; }
 }
 
 public partial class MembershipPayment

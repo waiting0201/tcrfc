@@ -13,6 +13,9 @@ public partial class Player
 
     public Guid TeamId { get; set; }
 
+    /// <summary>網址代稱（2026-10-05）：App 規劃書 §2.3 深連結 <c>tcrfc://player/{slug}</c>。<c>[a-z0-9-]</c>，唯一鍵 <c>(club_id, slug)</c>。</summary>
+    public string Slug { get; set; } = null!;
+
     public int? ShirtNo { get; set; }
 
     public string? Position { get; set; }

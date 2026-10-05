@@ -621,6 +621,111 @@ public sealed class AdminTeamsPlayersStaffTests(AdminWriteApiFixture fixture)
         await command.ExecuteNonQueryAsync();
     }
 
+    // ═════════════════════════════ 球員網址代稱（slug，2026-10-05）═════════════════════════════
+    // App 規劃書 §2.3：tcrfc://player/{slug} → /zh/club/first-team/player/{slug}。唯一鍵 (club_id, slug)。
+
+    private static MultipartFormDataContent PlayerForm(Guid teamId, string? slug, int shirtNo, string? nameEn = null, bool update = false)
+    {
+        var content = new AdminPlayerContentInput
+        {
+            Zh = new AdminPlayerLocaleContent { Name = "【測試】代稱球員" },
+            En = nameEn is null ? null : new AdminPlayerLocaleContent { Name = nameEn },
+        };
+        return update
+            ? AdminArticleMultipart.Build(new UpdateAdminPlayerRequest { TeamId = teamId, Slug = slug, ShirtNo = shirtNo, Content = content })
+            : AdminArticleMultipart.Build(new CreateAdminPlayerRequest { TeamId = teamId, Slug = slug, ShirtNo = shirtNo, Content = content });
+    }
+
+    [Fact]
+    public async Task Player_網址代稱_自動產生_指定_重複409_格式400_更新省略維持原值()
+    {
+        using var client = await CreateClientAsync("team.manager@tcrfc.test");
+        var teamId = await GetTeamIdAsync("tcrfc", "D1");
+        var tag = Guid.NewGuid().ToString("N")[..6];
+        var ids = new List<Guid>();
+        try
+        {
+            // 沒指定：有英文姓名 → 依姓名產生 [a-z0-9-]
+            var auto = await client.PostAsync("/api/v1/admin/tcrfc/players", PlayerForm(teamId, null, 91, nameEn: $"Zz Slug {tag}"));
+            Assert.Equal(HttpStatusCode.Created, auto.StatusCode);
+            var autoDto = (await auto.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!;
+            ids.Add(autoDto.Id);
+            Assert.Equal($"zz-slug-{tag}", autoDto.Slug);
+
+            // 沒指定也沒英文姓名 → 隊別代號-背號；再建一位同背號 → 自動加序號避開撞名
+            var byShirt = (await (await client.PostAsync("/api/v1/admin/tcrfc/players", PlayerForm(teamId, null, 92))).Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!;
+            ids.Add(byShirt.Id);
+            Assert.Equal("d1-92", byShirt.Slug);
+            var byShirt2 = (await (await client.PostAsync("/api/v1/admin/tcrfc/players", PlayerForm(teamId, null, 92))).Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!;
+            ids.Add(byShirt2.Id);
+            Assert.Equal("d1-92-2", byShirt2.Slug);
+
+            // 指定並重複 → 409（日常中文）；格式不合 → 400
+            var dup = await client.PostAsync("/api/v1/admin/tcrfc/players", PlayerForm(teamId, autoDto.Slug, 93));
+            Assert.Equal(HttpStatusCode.Conflict, dup.StatusCode);
+            Assert.Contains("網址代稱", await dup.Content.ReadAsStringAsync());
+            foreach (var bad in new[] { "Has-Upper", "has space", "-lead", "trail-", "dou--ble", "中文", new string('a', 161) })
+            {
+                Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsync("/api/v1/admin/tcrfc/players", PlayerForm(teamId, bad, 94))).StatusCode);
+            }
+
+            // 更新：省略（null）維持原值；改成別人的 → 409；改成新值成功；改成自己目前的值不算重複
+            var keep = (await (await client.PutAsync($"/api/v1/admin/tcrfc/players/{autoDto.Id}", PlayerForm(teamId, null, 91, update: true))).Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!;
+            Assert.Equal(autoDto.Slug, keep.Slug);
+            Assert.Equal(HttpStatusCode.Conflict, (await client.PutAsync($"/api/v1/admin/tcrfc/players/{autoDto.Id}", PlayerForm(teamId, byShirt.Slug, 91, update: true))).StatusCode);
+            var renamed = (await (await client.PutAsync($"/api/v1/admin/tcrfc/players/{autoDto.Id}", PlayerForm(teamId, $"zz-renamed-{tag}", 91, update: true))).Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!;
+            Assert.Equal($"zz-renamed-{tag}", renamed.Slug);
+            Assert.Equal(HttpStatusCode.OK, (await client.PutAsync($"/api/v1/admin/tcrfc/players/{autoDto.Id}", PlayerForm(teamId, $"zz-renamed-{tag}", 91, update: true))).StatusCode);
+
+            // 後台列表也帶 slug
+            var list = await client.GetFromJsonAsync<List<AdminPlayerListItemDto>>("/api/v1/admin/tcrfc/players", TestJson.Options);
+            Assert.Contains(list!, p => p.Id == autoDto.Id && p.Slug == $"zz-renamed-{tag}");
+
+            // 同一個代稱在「另一個俱樂部」可以重複（唯一鍵是 (club_id, slug)）：藍鯨建立同名代稱成功
+            using var superAdmin = await CreateClientAsync("super.admin@tcrfc.test");
+            var bwTeamId = await GetTeamIdAsync("bw", "BW1");
+            var bw = await superAdmin.PostAsync("/api/v1/admin/bw/players", PlayerForm(bwTeamId, $"zz-renamed-{tag}", 95));
+            Assert.Equal(HttpStatusCode.Created, bw.StatusCode);
+            ids.Add((await bw.Content.ReadFromJsonAsync<AdminPlayerDetailDto>(TestJson.Options))!.Id);
+        }
+        finally
+        {
+            foreach (var id in ids)
+            {
+                await DeletePlayerByIdAsync(id);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task Player_公開端點_清單帶slug_以slug或id查單一球員_別的俱樂部查不到()
+    {
+        using var client = fixture.CreateClient();
+        var list = await client.GetFromJsonAsync<PagedResult<JsonElement>>("/api/v1/tcrfc/players?team=D1&pageSize=200", TestJson.Options);
+        Assert.NotEmpty(list!.Items);
+        var slugs = list.Items.Select(i => i.GetProperty("slug").GetString()).ToList();
+        Assert.All(slugs, s => Assert.Matches("^[a-z0-9]+(-[a-z0-9]+)*$", s!));
+        Assert.Equal(slugs.Count, slugs.Distinct().Count()); // 同一俱樂部內不重複
+
+        var first = list.Items[0];
+        var slug = first.GetProperty("slug").GetString()!;
+        var bySlug = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tcrfc/players/{slug}", TestJson.Options);
+        Assert.Equal(first.GetProperty("id").GetGuid(), bySlug.GetProperty("id").GetGuid());
+        Assert.Equal(slug, bySlug.GetProperty("slug").GetString());
+
+        // 過渡期：官網以 id 解析，也查得到同一位；大小寫不敏感
+        var byId = await client.GetFromJsonAsync<JsonElement>($"/api/v1/tcrfc/players/{first.GetProperty("id").GetGuid()}", TestJson.Options);
+        Assert.Equal(slug, byId.GetProperty("slug").GetString());
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/v1/tcrfc/players/{slug.ToUpperInvariant()}")).StatusCode);
+
+        // 不存在、別的俱樂部的球員（藍鯨名單的代稱）一律 404，不洩漏存在
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/v1/tcrfc/players/zz-no-such-player")).StatusCode);
+        var bwList = await client.GetFromJsonAsync<PagedResult<JsonElement>>("/api/v1/bw/players?pageSize=200", TestJson.Options);
+        var bwOnly = bwList!.Items.Select(i => i.GetProperty("slug").GetString()!).First(s => !slugs.Contains(s));
+        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync($"/api/v1/tcrfc/players/{bwOnly}")).StatusCode);
+        Assert.Equal(HttpStatusCode.OK, (await client.GetAsync($"/api/v1/bw/players/{bwOnly}")).StatusCode);
+    }
+
     private static async Task DeletePlayerByIdAsync(Guid id)
     {
         await using var connection = new SqlConnection(RequireConnectionString());
@@ -712,7 +817,7 @@ public sealed class AdminTeamsPlayersStaffTests(AdminWriteApiFixture fixture)
 [Collection(AdminWriteAzuriteEnabledCollection.Name)]
 public sealed class AdminTeamsPlayersStaffUploadTests(AdminWriteAzuriteEnabledApiFixture fixture)
 {
-    [Fact]
+    [AzuriteFact]
     public async Task Team_建立與更新可上傳與移除主視覺圖片()
     {
         using var client = await CreateClientAsync("team.manager@tcrfc.test");
@@ -751,7 +856,7 @@ public sealed class AdminTeamsPlayersStaffUploadTests(AdminWriteAzuriteEnabledAp
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Player_建立成功含照片上傳()
     {
         using var client = await CreateClientAsync("team.manager@tcrfc.test");
@@ -781,7 +886,7 @@ public sealed class AdminTeamsPlayersStaffUploadTests(AdminWriteAzuriteEnabledAp
         }
     }
 
-    [Fact]
+    [AzuriteFact]
     public async Task Staff_建立成功含照片上傳()
     {
         using var client = await CreateClientAsync("team.manager@tcrfc.test");

@@ -10,7 +10,7 @@
 --   IMPORT    1, 2, 2b, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 24b, 24c, 25, 26, 27, 28, 29, 30, 31, 31b, 32, 33, 34, 35, 36, 37, 37b, 38, 39, 42, 43, 45, 46, 47, 48, 49, 50, 51, 52, 54, 56, 57, 58
 --   REFERENCE 0, 5, 18.1, 18.2, 18.3, 19, 20, 21, 22, 23
 --   ACCOUNTS  18.4
---   PERSONAL  44, 53, 55, 59
+--   PERSONAL  44, 53, 55, 59, 60
 -- 區段內剔除的批次（審查用）：
 -- DROPPED section=1 batches=2 reason=參照表（正式庫已有） tables=clubs,clubs_i18n
 -- DROPPED section=36 batches=3 reason=禁用表 tables=enquiries,enquiry_answers
@@ -268,12 +268,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'81e93288-fa80-5b46-a849-8d25a3698ac9';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 25, N'GK');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'igor-zavis', 25, N'GK');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'伊戈・澤維斯');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'Igor Zavis');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'igor-zavis'
+WHERE id = N'81e93288-fa80-5b46-a849-8d25a3698ac9' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -282,12 +286,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'0bf7f09e-c0fb-5e33-8bfb-b5f4af25f846';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 70, N'GK');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'andrea-boschi', 70, N'GK');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'安德烈亞・柏思祺');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'Andrea Boschi');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'andrea-boschi'
+WHERE id = N'0bf7f09e-c0fb-5e33-8bfb-b5f4af25f846' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -296,12 +304,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'c89e2728-1e82-5244-b54c-edb6626d510f';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 99, N'GK');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-99', 99, N'GK');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'林駿樺');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-99'
+WHERE id = N'c89e2728-1e82-5244-b54c-edb6626d510f' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -310,12 +322,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'55a0c420-2ff9-559a-a54d-bb2a6286c233';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 4, N'DF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-4', 4, N'DF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'蔡俊昇');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-4'
+WHERE id = N'55a0c420-2ff9-559a-a54d-bb2a6286c233' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -324,12 +340,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'1ea54380-a049-58da-b228-be1b1024800e';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 6, N'DF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-6', 6, N'DF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'孫恩祈');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-6'
+WHERE id = N'1ea54380-a049-58da-b228-be1b1024800e' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -338,12 +358,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'677fae19-73a8-52b0-863e-300db1e9c396';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 12, N'DF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-12', 12, N'DF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'李毓霖');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-12'
+WHERE id = N'677fae19-73a8-52b0-863e-300db1e9c396' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -352,12 +376,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'9c5e2be8-e0b4-5330-94c5-4b926d61a6ca';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 24, N'DF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'dominik-limprecht', 24, N'DF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'多米尼克・林普瑞希特');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'Dominik Limprecht');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'dominik-limprecht'
+WHERE id = N'9c5e2be8-e0b4-5330-94c5-4b926d61a6ca' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -366,12 +394,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'75cf5148-1a27-5417-b79e-ee2079ddc45f';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 48, N'DF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-48', 48, N'DF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'王義友');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-48'
+WHERE id = N'75cf5148-1a27-5417-b79e-ee2079ddc45f' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -380,12 +412,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'ba6ab51a-eace-556a-a03b-1438c7511995';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 66, N'DF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-66', 66, N'DF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'曾畇浩');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-66'
+WHERE id = N'ba6ab51a-eace-556a-a03b-1438c7511995' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -394,12 +430,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'4ec69fe4-b0ee-587f-82fa-580a1148c768';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 78, N'DF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'lorenzo-costa', 78, N'DF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'羅倫佐・柯思達');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'Lorenzo Costa');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'lorenzo-costa'
+WHERE id = N'4ec69fe4-b0ee-587f-82fa-580a1148c768' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -408,12 +448,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'0cc6c01e-a341-5b61-9202-85a0dd75c20d';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 5, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-5', 5, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'周宇杰');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-5'
+WHERE id = N'0cc6c01e-a341-5b61-9202-85a0dd75c20d' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -422,12 +466,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'78cdfc0c-2d3c-5327-bf27-b69c6f9e48b2';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 7, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-7', 7, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'龔致宇');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-7'
+WHERE id = N'78cdfc0c-2d3c-5327-bf27-b69c6f9e48b2' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -436,12 +484,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'9d322264-d203-545f-b817-bcf174e6739e';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 10, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'filip-ime-ek', 10, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'菲利普・希梅哲克');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'Filip Šimeček');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'filip-ime-ek'
+WHERE id = N'9d322264-d203-545f-b817-bcf174e6739e' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -450,12 +502,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'2d1e5240-48e6-5bfe-b025-88c8bbc0498e';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 11, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-11', 11, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'楊朝景');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-11'
+WHERE id = N'2d1e5240-48e6-5bfe-b025-88c8bbc0498e' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -464,12 +520,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'54c98904-723e-5952-be50-a282c38a3d86';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 13, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-13', 13, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'陳柏崴');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-13'
+WHERE id = N'54c98904-723e-5952-be50-a282c38a3d86' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -478,12 +538,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'4847ce98-75f4-532c-a159-e72f671397e3';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 16, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-16', 16, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'魏志荃');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-16'
+WHERE id = N'4847ce98-75f4-532c-a159-e72f671397e3' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -492,12 +556,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'823939ce-754c-529d-87e8-e0f86373df98';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 18, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'nichita-josan', 18, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'尼基塔・若桑');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'Nichita Josan');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'nichita-josan'
+WHERE id = N'823939ce-754c-529d-87e8-e0f86373df98' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -506,12 +574,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'fb00ca83-e024-557f-861d-df31a279acab';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 27, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-27', 27, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'施靖堂');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-27'
+WHERE id = N'fb00ca83-e024-557f-861d-df31a279acab' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -520,12 +592,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'4a48104a-e442-5b93-b726-d0db5928a8e5';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 29, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-29', 29, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'江均堯');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-29'
+WHERE id = N'4a48104a-e442-5b93-b726-d0db5928a8e5' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -534,12 +610,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'cd906d1e-eed0-5110-965c-6d160c965e7c';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 32, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-32', 32, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'柯岳廷');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-32'
+WHERE id = N'cd906d1e-eed0-5110-965c-6d160c965e7c' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -548,12 +628,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'c95819c5-ceae-5801-8c07-fc04b0871ebb';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 35, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-35', 35, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'李鴻均');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-35'
+WHERE id = N'c95819c5-ceae-5801-8c07-fc04b0871ebb' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -562,12 +646,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'ddb76f26-bf71-5f02-a6fa-f5533ef33d65';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 37, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-37', 37, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'梁顥騰');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-37'
+WHERE id = N'ddb76f26-bf71-5f02-a6fa-f5533ef33d65' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -576,12 +664,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'1351ef77-57af-5022-8efb-4d3c18e75c11';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 45, N'MF');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-45', 45, N'MF');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'胡淯翔');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-45'
+WHERE id = N'1351ef77-57af-5022-8efb-4d3c18e75c11' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -590,12 +682,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'5af62492-68a5-5c5f-a778-260533783577';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 9, N'FW');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-9', 9, N'FW');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'劉建緯');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-9'
+WHERE id = N'5af62492-68a5-5c5f-a778-260533783577' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -604,12 +700,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'5d8764df-1ff2-5222-ac6e-dde2d0e1134e';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 14, N'FW');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-14', 14, N'FW');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'李偉綸');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-14'
+WHERE id = N'5d8764df-1ff2-5222-ac6e-dde2d0e1134e' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -618,12 +718,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'f6c6d585-b256-5151-850d-fad180fd87c8';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 28, N'FW');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-28', 28, N'FW');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'陳治瑋');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-28'
+WHERE id = N'f6c6d585-b256-5151-850d-fad180fd87c8' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -632,12 +736,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'28f71881-6f0e-5a27-b4df-dbc4e6174ee9';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 44, N'FW');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-44', 44, N'FW');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'山內大空');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-44'
+WHERE id = N'28f71881-6f0e-5a27-b4df-dbc4e6174ee9' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -646,12 +754,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'a449c631-3c74-552d-b62f-3247ccb83461';
-  INSERT INTO players (id, club_id, team_id, shirt_no, position)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), 77, N'FW');
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no, position)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM teams WHERE code = N'D1'), N'd1-77', 77, N'FW');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'林偉傑');
   -- 無英文姓名（players.json name_en 為空字串），不插入 en 列
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'd1-77'
+WHERE id = N'a449c631-3c74-552d-b62f-3247ccb83461' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 -- ── 7. staff：staff.json 共 8 筆 ──────────────────────────────
@@ -2769,12 +2881,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'3d3ac5b7-874e-5699-8457-ff47b21b93c9';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 1);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'tsai-ming-jung', 1);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'蔡明容');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'TSAI,MING-JUNG');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'tsai-ming-jung'
+WHERE id = N'3d3ac5b7-874e-5699-8457-ff47b21b93c9' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2785,12 +2901,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'ba3afe94-b951-5419-8a11-f511130db235';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 2);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'chang-chi-lan', 2);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'張季蘭');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'CHANG,CHI-LAN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'chang-chi-lan'
+WHERE id = N'ba3afe94-b951-5419-8a11-f511130db235' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2801,12 +2921,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'c81d29c1-720e-5fd1-82f5-68620576a8e0';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 3);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'shen-yen-chun', 3);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'沈彥君');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'SHEN,YEN-CHUN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'shen-yen-chun'
+WHERE id = N'c81d29c1-720e-5fd1-82f5-68620576a8e0' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2817,12 +2941,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'55fab44b-c7a8-5669-92ea-15ce4114f931';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 5);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'huang-ke-sin', 5);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'黃可欣');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'HUANG,KE-SIN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'huang-ke-sin'
+WHERE id = N'55fab44b-c7a8-5669-92ea-15ce4114f931' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2833,12 +2961,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'f21f7655-b7fc-5c58-956e-c1d755154c73';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 6);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'intamee-silawan', 6);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'席拉萬茵樂敏');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'INTAMEE SILAWAN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'intamee-silawan'
+WHERE id = N'f21f7655-b7fc-5c58-956e-c1d755154c73' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2849,12 +2981,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'b191bc60-3030-5e30-b7d7-8dec47cc8c00';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 7);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'pan-shin-yu', 7);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'潘昕妤');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'PAN,SHIN-YU');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'pan-shin-yu'
+WHERE id = N'b191bc60-3030-5e30-b7d7-8dec47cc8c00' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2865,12 +3001,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'42874f77-6593-5e37-b988-dc953e168135';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 8);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'cheng-ssu-yu', 8);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'程思瑜');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'CHENG,SSU-YU');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'cheng-ssu-yu'
+WHERE id = N'42874f77-6593-5e37-b988-dc953e168135' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2881,12 +3021,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'db3c586a-9977-528b-aa4b-1f0316275844';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 9);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'nien-ching-yun', 9);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'粘菁云');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'NIEN,CHING-YUN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'nien-ching-yun'
+WHERE id = N'db3c586a-9977-528b-aa4b-1f0316275844' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2897,12 +3041,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'05a2a861-db18-5321-8994-9c3980edd437';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 12);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'wu-yu', 12);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'吳悠');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'WU,YU');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'wu-yu'
+WHERE id = N'05a2a861-db18-5321-8994-9c3980edd437' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2913,12 +3061,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'69a79d69-cfce-5c0b-a566-7791726a0608';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 13);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'saowalak-peng-ngam', 13);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'薩瓦拉克·彭甘');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'SAOWALAK PENG-NGAM');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'saowalak-peng-ngam'
+WHERE id = N'69a79d69-cfce-5c0b-a566-7791726a0608' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2929,12 +3081,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'5fa6f45b-2bef-5c69-bdc4-d50d73ccf0c5';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 14);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'tanaka-maho', 14);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'田中麻帆');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'TANAKA MAHO');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'tanaka-maho'
+WHERE id = N'5fa6f45b-2bef-5c69-bdc4-d50d73ccf0c5' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2945,12 +3101,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'0546e556-bc3f-5c2a-ace5-3a2a9bdbea5a';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 15);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'lin-ya-hsuan', 15);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'林雅萱');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'LIN,YA-HSUAN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'lin-ya-hsuan'
+WHERE id = N'0546e556-bc3f-5c2a-ace5-3a2a9bdbea5a' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2961,12 +3121,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'9a172e3f-bb3d-56fb-afc9-aa0762107387';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 16);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'chen-jin-wen', 16);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'陳妗文');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'CHEN,JIN-WEN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'chen-jin-wen'
+WHERE id = N'9a172e3f-bb3d-56fb-afc9-aa0762107387' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2977,12 +3141,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'78b2e202-028c-5702-a3e5-1597ff3c3f0e';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 17);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'lin-jing-xuan', 17);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'林靜萱');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'LIN,JING-XUAN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'lin-jing-xuan'
+WHERE id = N'78b2e202-028c-5702-a3e5-1597ff3c3f0e' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -2993,12 +3161,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'a50ec57d-7901-516b-b4a0-e33a5289f5f5';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 18);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'chiang-tzu-shan', 18);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'江子善');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'CHIANG,TZU-SHAN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'chiang-tzu-shan'
+WHERE id = N'a50ec57d-7901-516b-b4a0-e33a5289f5f5' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3009,12 +3181,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'b34ebbcf-0e57-5cba-9571-d1dd8852b4f5';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 19);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'sornsai-pitsamai', 19);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'皮薩邁．頌賽');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'SORNSAI PITSAMAI');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'sornsai-pitsamai'
+WHERE id = N'b34ebbcf-0e57-5cba-9571-d1dd8852b4f5' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3025,12 +3201,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'bfb33d31-88e3-5fcd-94f2-7c0194366e26';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 20);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'chen-tzu-chen', 20);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'陳姿蓁');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'CHEN,TZU-CHEN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'chen-tzu-chen'
+WHERE id = N'bfb33d31-88e3-5fcd-94f2-7c0194366e26' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3041,12 +3221,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'1006e5d1-b001-565c-a5bf-a7e574d0a287';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 21);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'huang-hui-shan', 21);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'黃薈珊');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'HUANG,HUI-SHAN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'huang-hui-shan'
+WHERE id = N'1006e5d1-b001-565c-a5bf-a7e574d0a287' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3057,12 +3241,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'0f9ec745-b9ea-5cd8-899c-f83edfa0dae6';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 22);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'li-pei-jung', 22);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'李佩容');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'LI,PEI-JUNG');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'li-pei-jung'
+WHERE id = N'0f9ec745-b9ea-5cd8-899c-f83edfa0dae6' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3073,12 +3261,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'd68002e5-ed4e-5b66-9425-dc073fc49556';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 23);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'liu-chien-yun', 23);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'劉千芸');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'LIU,CHIEN-YUN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'liu-chien-yun'
+WHERE id = N'd68002e5-ed4e-5b66-9425-dc073fc49556' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3089,12 +3281,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'170881df-cfa6-5620-94a4-7b8579da214e';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 24);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'lin-yu-syuan', 24);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'林妤璇');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'LIN,YU-SYUAN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'lin-yu-syuan'
+WHERE id = N'170881df-cfa6-5620-94a4-7b8579da214e' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3105,12 +3301,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'f6b25cd7-65c1-57fc-bfa1-7dd7cea93351';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 25);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'wu-fang-yu', 25);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'吳芳瑜');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'Wu Fang Yu');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'wu-fang-yu'
+WHERE id = N'f6b25cd7-65c1-57fc-bfa1-7dd7cea93351' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3121,12 +3321,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'cd821689-de76-532a-8df9-e9724000a92f';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 26);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'shih-yung-chen', 26);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'史詠甄');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'SHIH, YUNG-CHEN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'shih-yung-chen'
+WHERE id = N'cd821689-de76-532a-8df9-e9724000a92f' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3137,12 +3341,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'325d44f0-aa51-5300-9e9f-ed23f7b37a88';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 26);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'waraporn-boonsing', 26);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'瓦拉邦·汶廷');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'Waraporn Boonsing');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'waraporn-boonsing'
+WHERE id = N'325d44f0-aa51-5300-9e9f-ed23f7b37a88' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3153,12 +3361,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'14c8b342-c5d7-5ca4-b0f1-d3be036915a8';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 27);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'li-yi-syuan', 27);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'李翊瑄');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'Li,YI-SYUAN');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'li-yi-syuan'
+WHERE id = N'14c8b342-c5d7-5ca4-b0f1-d3be036915a8' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3169,12 +3381,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'05470b30-b800-58b0-8bff-a0238ebe6468';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 28);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'lin-chia-ying', 28);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'林佳盈');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'LIN CHIA-YING');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'lin-chia-ying'
+WHERE id = N'05470b30-b800-58b0-8bff-a0238ebe6468' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3185,12 +3401,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'c7f8321d-12bb-54f0-8644-9ed477ce34c7';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 29);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'liao-jie-ning', 29);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'廖婕甯');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'LIAO,JIE-NING');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'liao-jie-ning'
+WHERE id = N'c7f8321d-12bb-54f0-8644-9ed477ce34c7' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 DECLARE @id uniqueidentifier;
@@ -3201,12 +3421,16 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'e77d14ee-2c30-502d-967d-dee5998da0da';
-  INSERT INTO players (id, club_id, team_id, shirt_no)
-  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), 30);
+  INSERT INTO players (id, club_id, team_id, slug, shirt_no)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM teams WHERE code = N'BW1'), N'wu-ya-yu', 30);
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'zh-Hant', N'吳亞諭');
   INSERT INTO players_i18n (player_id, locale, name) VALUES (@id, N'en', N'WU,YA-YU');
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE players SET slug = N'wu-ya-yu'
+WHERE id = N'e77d14ee-2c30-502d-967d-dee5998da0da' AND slug = N'player-' + CONVERT(nvarchar(20), row_seq);
 GO
 
 -- ── 15. staff：藍鯨教練團共 5 人，全數連結 BW1 ──────────────
@@ -8704,40 +8928,45 @@ BEGIN
   BEGIN TRANSACTION;
   INSERT INTO ad_campaigns (id, advertiser_id, slot_id, name, starts_at, ends_at, weight, goal_type, goal_impressions, delivered_total, contract_amount, is_amount_hidden, status)
   VALUES (N'db15a997-1f96-5f2b-9282-1906014a62be', N'10729898-d78a-5d3b-99dc-b057e528043d', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'【測試】已結束的曝光保證檔期',
-          DATEADD(day, -16, SYSUTCDATETIME()), DATEADD(day, -2, SYSUTCDATETIME()), 3, N'guaranteed', 5000, 3900, 30000, 1, N'ended');
+          DATEADD(day, -16, SYSUTCDATETIME()), DATEADD(day, -2, SYSUTCDATETIME()), 3, N'guaranteed', 5000, 4674, 30000, 1, N'ended');
   INSERT INTO ad_creatives (id, campaign_id, locale, alt_text, title, cta_text, click_url, theme, review_status)
   VALUES (N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'zh-Hant', N'【測試】素材替代文字', N'【測試】廣告標題', N'了解更多', N'https://example.com/ad', N'both', N'approved');
   INSERT INTO ad_daily_stats (stat_date, campaign_id, creative_id, slot_id, platform, locale, impressions, clicks, unique_devices) VALUES
-    ('2026-09-18', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 160, 6, 128),
-    ('2026-09-18', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 140, 5, 112),
-    ('2026-09-19', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 167, 6, 133),
-    ('2026-09-19', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 147, 5, 117),
-    ('2026-09-20', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 174, 6, 139),
-    ('2026-09-20', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 154, 6, 123),
-    ('2026-09-21', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 181, 7, 144),
-    ('2026-09-21', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 161, 6, 128),
-    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 188, 7, 150),
-    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 168, 6, 134),
-    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 195, 7, 156),
-    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 175, 7, 140),
-    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 162, 6, 129),
-    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 142, 5, 113),
-    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 169, 6, 135),
-    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 149, 5, 119),
-    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 176, 7, 140),
-    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 156, 6, 124),
-    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 183, 7, 146),
-    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 163, 6, 130),
-    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 190, 7, 152),
-    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 170, 6, 136),
-    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 197, 7, 157),
-    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 177, 7, 141),
-    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 164, 6, 131),
-    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 144, 5, 115),
-    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 171, 6, 136),
-    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 151, 6, 120);
+    ('2026-09-20', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 160, 6, 128),
+    ('2026-09-20', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 140, 5, 112),
+    ('2026-09-21', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 167, 6, 133),
+    ('2026-09-21', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 147, 5, 117),
+    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 174, 6, 139),
+    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 154, 6, 123),
+    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 181, 7, 144),
+    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 161, 6, 128),
+    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 188, 7, 150),
+    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 168, 6, 134),
+    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 195, 7, 156),
+    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 175, 7, 140),
+    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 162, 6, 129),
+    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 142, 5, 113),
+    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 169, 6, 135),
+    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 149, 5, 119),
+    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 176, 7, 140),
+    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 156, 6, 124),
+    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 183, 7, 146),
+    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 163, 6, 130),
+    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 190, 7, 152),
+    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 170, 6, 136),
+    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 197, 7, 157),
+    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 177, 7, 141),
+    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 164, 6, 131),
+    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 144, 5, 115),
+    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 171, 6, 136),
+    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 151, 6, 120);
   COMMIT TRANSACTION;
 END
+GO
+
+UPDATE ad_campaigns SET delivered_total = 4674
+WHERE id = N'db15a997-1f96-5f2b-9282-1906014a62be' AND delivered_total <> 4674
+  AND (SELECT COALESCE(SUM(impressions), 0) FROM ad_daily_stats WHERE campaign_id = N'db15a997-1f96-5f2b-9282-1906014a62be') = 4674;
 GO
 
 IF NOT EXISTS (SELECT 1 FROM ad_campaigns WHERE id = N'7ee4f0cc-f0eb-589b-b68b-5dc2ec29d205')

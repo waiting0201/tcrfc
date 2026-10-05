@@ -12,6 +12,14 @@ namespace Tcrfc.Api.Features.Players;
 public sealed record PlayerDto
 {
     public required Guid Id { get; init; }
+
+    /// <summary>網址代稱（2026-10-05）：App 規劃書 §2.3 深連結 <c>tcrfc://player/{slug}</c> → <c>/zh/club/first-team/player/{slug}</c>。
+    /// 同一俱樂部內唯一（<c>(club_id, slug)</c>），<c>[a-z0-9-]</c>。</summary>
+    public required string Slug { get; init; }
+
+    /// <summary>未翻譯標示（App 規劃書 §2.5「未翻譯 fallback 繁中並標示」、主站 G-01）：請求的是英文、而這筆的英文主要欄位（姓名）是空的，回應內容是回退的繁中時為 true。
+    /// 請求繁中時恆為 false。用戶端據此顯示「本內容尚無英文版本」。</summary>
+    public required bool IsFallbackLocale { get; init; }
     public required string TeamCode { get; init; }
     public int? ShirtNo { get; init; }
     public string? Position { get; init; }
@@ -21,6 +29,14 @@ public sealed record PlayerDto
     public string? Nationality { get; init; }
     public string? PreferredFoot { get; init; }
     public string? PhotoKey { get; init; }
+    /// <summary>
+    /// 肖像同意是否已取得（Android 缺口 D1，2026-10-05）：<c>players.portrait_consent_status</c> 為 <c>consented</c>（本人）或 <c>consented_by_guardian</c>（未成年，監護人）時為 true，
+    /// <c>not_consented</c>（預設，fail-closed）為 false。<b>刻意只給布林</b>，不洩漏是否為未成年（那是監護人同意的細節）。
+    /// 契約：<see cref="PhotoUrl"/>／<see cref="PhotoKey"/> <b>非 null ⇒ 此值為 true</b>；此值為 false 時照片欄位一律 null，用戶端不得自行取得或顯示該人照片。
+    /// ⚠️ <b>同意的「涵蓋範圍」目前沒有資料欄位</b>：現有三態不分辨「涵蓋官網」或「涵蓋 App 與商店頁面」（App 規劃書 §12.2、§16.2 第 14 項「同意書是否涵蓋 App 與商店頁面」是客戶未回覆的待決事項）。
+    /// 所以這個值只代表「官網層級的肖像同意已取得」；App 要不要顯示照片須待該項決定，不可由此欄位推定已涵蓋 App。
+    /// </summary>
+    public required bool PortraitConsented { get; init; }
     public string? Name { get; init; }
     public string? Bio { get; init; }
 

@@ -150,6 +150,22 @@ public struct AppAdEventRejectionDto: Codable, Equatable, Sendable {
     }
 }
 
+public struct AppAdImageVariantsDto: Codable, Equatable, Sendable {
+    public var url320: String
+    public var url640: String
+    public var url1280: String
+
+    public init(
+        url320: String,
+        url640: String,
+        url1280: String
+    ) {
+        self.url320 = url320
+        self.url640 = url640
+        self.url1280 = url1280
+    }
+}
+
 public struct AppAdItemDto: Codable, Equatable, Sendable {
     public var creativeId: String?
     public var campaignId: String?
@@ -157,6 +173,7 @@ public struct AppAdItemDto: Codable, Equatable, Sendable {
     public var imageUrl: String?
     public var imageWidth: Int?
     public var imageHeight: Int?
+    public var imageVariants: AppAdImageVariantsDto?
     public var videoUrl: String?
     public var altText: String?
     public var title: String?
@@ -171,6 +188,7 @@ public struct AppAdItemDto: Codable, Equatable, Sendable {
         imageUrl: String? = nil,
         imageWidth: Int? = nil,
         imageHeight: Int? = nil,
+        imageVariants: AppAdImageVariantsDto? = nil,
         videoUrl: String? = nil,
         altText: String? = nil,
         title: String? = nil,
@@ -184,12 +202,73 @@ public struct AppAdItemDto: Codable, Equatable, Sendable {
         self.imageUrl = imageUrl
         self.imageWidth = imageWidth
         self.imageHeight = imageHeight
+        self.imageVariants = imageVariants
         self.videoUrl = videoUrl
         self.altText = altText
         self.title = title
         self.ctaText = ctaText
         self.clickUrl = clickUrl
         self.theme = theme
+    }
+}
+
+public struct AppAdPrefetchItemDto: Codable, Equatable, Sendable {
+    public var item: AppAdItemDto
+    public var startsAt: JSONValue
+    public var endsAt: JSONValue
+    public var weight: Int
+
+    public init(
+        item: AppAdItemDto,
+        startsAt: JSONValue,
+        endsAt: JSONValue,
+        weight: Int
+    ) {
+        self.item = item
+        self.startsAt = startsAt
+        self.endsAt = endsAt
+        self.weight = weight
+    }
+}
+
+public struct AppAdPrefetchResponse: Codable, Equatable, Sendable {
+    public var generatedAt: JSONValue
+    public var validUntil: JSONValue
+    public var disclosureLabel: String
+    public var slots: [AppAdPrefetchSlotDto]
+
+    public init(
+        generatedAt: JSONValue,
+        validUntil: JSONValue,
+        disclosureLabel: String,
+        slots: [AppAdPrefetchSlotDto]
+    ) {
+        self.generatedAt = generatedAt
+        self.validUntil = validUntil
+        self.disclosureLabel = disclosureLabel
+        self.slots = slots
+    }
+}
+
+public struct AppAdPrefetchSlotDto: Codable, Equatable, Sendable {
+    public var slotCode: String
+    public var rotationCap: Int?
+    public var sessionImpressionCap: Int?
+    public var fallback: AppAdItemDto?
+    public var items: [AppAdPrefetchItemDto]
+
+    public init(
+        slotCode: String,
+        rotationCap: Int? = nil,
+        sessionImpressionCap: Int? = nil,
+        fallback: AppAdItemDto? = nil,
+        items: [AppAdPrefetchItemDto]
+    ) {
+        self.slotCode = slotCode
+        self.rotationCap = rotationCap
+        self.sessionImpressionCap = sessionImpressionCap
+        self.fallback = fallback
+        self.items = items
     }
 }
 
@@ -373,19 +452,22 @@ public struct AppLayoutItemDto: Codable, Equatable, Sendable {
     public var icon: String?
     public var deepLink: String?
     public var webUrl: String?
+    public var isExternal: Bool?
 
     public init(
         code: String,
         label: String? = nil,
         icon: String? = nil,
         deepLink: String? = nil,
-        webUrl: String? = nil
+        webUrl: String? = nil,
+        isExternal: Bool? = nil
     ) {
         self.code = code
         self.label = label
         self.icon = icon
         self.deepLink = deepLink
         self.webUrl = webUrl
+        self.isExternal = isExternal
     }
 }
 
@@ -396,6 +478,7 @@ public struct AppLayoutResponse: Codable, Equatable, Sendable {
     public var moreItems: [AppLayoutItemDto]
     public var announcements: [AppAnnouncementDto]
     public var deepLinks: [AppDeepLinkDto]
+    public var sponsorshipInquiryWebUrl: String?
 
     public init(
         generatedAt: JSONValue,
@@ -403,7 +486,8 @@ public struct AppLayoutResponse: Codable, Equatable, Sendable {
         quickEntries: [AppLayoutItemDto],
         moreItems: [AppLayoutItemDto],
         announcements: [AppAnnouncementDto],
-        deepLinks: [AppDeepLinkDto]
+        deepLinks: [AppDeepLinkDto],
+        sponsorshipInquiryWebUrl: String? = nil
     ) {
         self.generatedAt = generatedAt
         self.homeSections = homeSections
@@ -411,6 +495,7 @@ public struct AppLayoutResponse: Codable, Equatable, Sendable {
         self.moreItems = moreItems
         self.announcements = announcements
         self.deepLinks = deepLinks
+        self.sponsorshipInquiryWebUrl = sponsorshipInquiryWebUrl
     }
 }
 
@@ -530,6 +615,7 @@ public struct AppSubscriptionInput: Codable, Equatable, Sendable {
 
 public struct ArticleDetailDto: Codable, Equatable, Sendable {
     public var id: String
+    public var isFallbackLocale: Bool
     public var slug: String
     public var categoryCode: String
     public var categoryName: String?
@@ -562,6 +648,7 @@ public struct ArticleDetailDto: Codable, Equatable, Sendable {
 
     public init(
         id: String,
+        isFallbackLocale: Bool,
         slug: String,
         categoryCode: String,
         categoryName: String? = nil,
@@ -593,6 +680,7 @@ public struct ArticleDetailDto: Codable, Equatable, Sendable {
         schemaEligible: Bool
     ) {
         self.id = id
+        self.isFallbackLocale = isFallbackLocale
         self.slug = slug
         self.categoryCode = categoryCode
         self.categoryName = categoryName
@@ -627,6 +715,7 @@ public struct ArticleDetailDto: Codable, Equatable, Sendable {
 
 public struct ArticleListItemDto: Codable, Equatable, Sendable {
     public var id: String
+    public var isFallbackLocale: Bool
     public var slug: String
     public var categoryCode: String
     public var categoryName: String?
@@ -644,6 +733,7 @@ public struct ArticleListItemDto: Codable, Equatable, Sendable {
 
     public init(
         id: String,
+        isFallbackLocale: Bool,
         slug: String,
         categoryCode: String,
         categoryName: String? = nil,
@@ -660,6 +750,7 @@ public struct ArticleListItemDto: Codable, Equatable, Sendable {
         tags: [ArticleTagDto]
     ) {
         self.id = id
+        self.isFallbackLocale = isFallbackLocale
         self.slug = slug
         self.categoryCode = categoryCode
         self.categoryName = categoryName
@@ -776,17 +867,20 @@ public struct BenefitGroupPublicDto: Codable, Equatable, Sendable {
 
 public struct BenefitItemPublicDto: Codable, Equatable, Sendable {
     public var name: String?
+    public var isFallbackLocale: Bool
     public var description: String?
     public var freeValue: String?
     public var paidValue: String?
 
     public init(
         name: String? = nil,
+        isFallbackLocale: Bool,
         description: String? = nil,
         freeValue: String? = nil,
         paidValue: String? = nil
     ) {
         self.name = name
+        self.isFallbackLocale = isFallbackLocale
         self.description = description
         self.freeValue = freeValue
         self.paidValue = paidValue
@@ -796,15 +890,18 @@ public struct BenefitItemPublicDto: Codable, Equatable, Sendable {
 public struct BenefitTablePublicDto: Codable, Equatable, Sendable {
     public var planCode: String?
     public var planName: String?
+    public var isFallbackLocale: Bool
     public var groups: [BenefitGroupPublicDto]
 
     public init(
         planCode: String? = nil,
         planName: String? = nil,
+        isFallbackLocale: Bool,
         groups: [BenefitGroupPublicDto]
     ) {
         self.planCode = planCode
         self.planName = planName
+        self.isFallbackLocale = isFallbackLocale
         self.groups = groups
     }
 }
@@ -1033,6 +1130,8 @@ public struct CheckoutRequest: Codable, Equatable, Sendable {
 public struct ClubDto: Codable, Equatable, Sendable {
     public var code: String
     public var name: String
+    public var shortName: String?
+    public var isFallbackLocale: Bool
     public var description: String?
     public var domain: String
     public var logoLightKey: String?
@@ -1051,6 +1150,8 @@ public struct ClubDto: Codable, Equatable, Sendable {
     public init(
         code: String,
         name: String,
+        shortName: String? = nil,
+        isFallbackLocale: Bool,
         description: String? = nil,
         domain: String,
         logoLightKey: String? = nil,
@@ -1068,6 +1169,8 @@ public struct ClubDto: Codable, Equatable, Sendable {
     ) {
         self.code = code
         self.name = name
+        self.shortName = shortName
+        self.isFallbackLocale = isFallbackLocale
         self.description = description
         self.domain = domain
         self.logoLightKey = logoLightKey
@@ -1201,6 +1304,40 @@ public struct ComicPagePublicDto: Codable, Equatable, Sendable {
         self.imageThumbUrl = imageThumbUrl
         self.width = width
         self.height = height
+    }
+}
+
+public struct CompetitionDto: Codable, Equatable, Sendable {
+    public var id: String
+    public var code: String
+    public var clubCode: String
+    public var seasonCode: String
+    public var compType: String?
+    public var name: String?
+    public var isFallbackLocale: Bool
+    public var organizer: String?
+    public var sortOrder: Int
+
+    public init(
+        id: String,
+        code: String,
+        clubCode: String,
+        seasonCode: String,
+        compType: String? = nil,
+        name: String? = nil,
+        isFallbackLocale: Bool,
+        organizer: String? = nil,
+        sortOrder: Int
+    ) {
+        self.id = id
+        self.code = code
+        self.clubCode = clubCode
+        self.seasonCode = seasonCode
+        self.compType = compType
+        self.name = name
+        self.isFallbackLocale = isFallbackLocale
+        self.organizer = organizer
+        self.sortOrder = sortOrder
     }
 }
 
@@ -1454,6 +1591,7 @@ public struct FaqFeedbackRequest: Codable, Equatable, Sendable {
 
 public struct FaqListItemDto: Codable, Equatable, Sendable {
     public var id: String
+    public var isFallbackLocale: Bool
     public var slug: String
     public var isShared: Bool
     public var sortOrder: Int
@@ -1463,6 +1601,7 @@ public struct FaqListItemDto: Codable, Equatable, Sendable {
 
     public init(
         id: String,
+        isFallbackLocale: Bool,
         slug: String,
         isShared: Bool,
         sortOrder: Int,
@@ -1471,6 +1610,7 @@ public struct FaqListItemDto: Codable, Equatable, Sendable {
         categorySlugs: [String]
     ) {
         self.id = id
+        self.isFallbackLocale = isFallbackLocale
         self.slug = slug
         self.isShared = isShared
         self.sortOrder = sortOrder
@@ -1616,10 +1756,14 @@ public struct MatchDto: Codable, Equatable, Sendable {
     public var id: String
     public var seasonCode: String
     public var teamCode: String
+    public var clubCode: String
+    public var competitionCode: String?
     public var matchOn: String
     public var kickoff: String?
+    public var kickoffAt: JSONValue?
     public var homeAway: String?
     public var opponent: String?
+    public var isFallbackLocale: Bool
     public var venue: String?
     public var competitionTag: String?
     public var competitionName: String?
@@ -1636,10 +1780,14 @@ public struct MatchDto: Codable, Equatable, Sendable {
         id: String,
         seasonCode: String,
         teamCode: String,
+        clubCode: String,
+        competitionCode: String? = nil,
         matchOn: String,
         kickoff: String? = nil,
+        kickoffAt: JSONValue? = nil,
         homeAway: String? = nil,
         opponent: String? = nil,
+        isFallbackLocale: Bool,
         venue: String? = nil,
         competitionTag: String? = nil,
         competitionName: String? = nil,
@@ -1655,10 +1803,14 @@ public struct MatchDto: Codable, Equatable, Sendable {
         self.id = id
         self.seasonCode = seasonCode
         self.teamCode = teamCode
+        self.clubCode = clubCode
+        self.competitionCode = competitionCode
         self.matchOn = matchOn
         self.kickoff = kickoff
+        self.kickoffAt = kickoffAt
         self.homeAway = homeAway
         self.opponent = opponent
+        self.isFallbackLocale = isFallbackLocale
         self.venue = venue
         self.competitionTag = competitionTag
         self.competitionName = competitionName
@@ -1688,6 +1840,7 @@ public struct MemberCardDto: Codable, Equatable, Sendable {
     public var token: String
     public var reissueCount: Int
     public var issuedAt: JSONValue?
+    public var serverTime: JSONValue
 
     public init(
         id: String,
@@ -1703,7 +1856,8 @@ public struct MemberCardDto: Codable, Equatable, Sendable {
         isValid: Bool,
         token: String,
         reissueCount: Int,
-        issuedAt: JSONValue? = nil
+        issuedAt: JSONValue? = nil,
+        serverTime: JSONValue
     ) {
         self.id = id
         self.membershipId = membershipId
@@ -1719,6 +1873,7 @@ public struct MemberCardDto: Codable, Equatable, Sendable {
         self.token = token
         self.reissueCount = reissueCount
         self.issuedAt = issuedAt
+        self.serverTime = serverTime
     }
 }
 
@@ -1804,6 +1959,93 @@ public struct MemberDeviceDto: Codable, Equatable, Sendable {
     }
 }
 
+public struct MemberDrawAnnouncementDto: Codable, Equatable, Sendable {
+    public var slug: String
+    public var categoryCode: String
+
+    public init(
+        slug: String,
+        categoryCode: String
+    ) {
+        self.slug = slug
+        self.categoryCode = categoryCode
+    }
+}
+
+public struct MemberDrawClubDto: Codable, Equatable, Sendable {
+    public var code: String
+    public var name: String?
+
+    public init(
+        code: String,
+        name: String? = nil
+    ) {
+        self.code = code
+        self.name = name
+    }
+}
+
+public struct MemberDrawDto: Codable, Equatable, Sendable {
+    public var id: String
+    public var drawCode: String
+    public var club: MemberDrawClubDto
+    public var name: String?
+    public var prizeDescription: String?
+    public var rules: String?
+    public var notes: String?
+    public var isFallbackLocale: Bool
+    public var coverUrl: String?
+    public var occasion: String?
+    public var occasionLabel: String?
+    public var snapshotAt: JSONValue?
+    public var drawnAt: JSONValue?
+    public var claimDeadlineOn: String?
+    public var status: String
+    public var statusLabel: String
+    public var isEligible: Bool
+    public var announcement: MemberDrawAnnouncementDto?
+
+    public init(
+        id: String,
+        drawCode: String,
+        club: MemberDrawClubDto,
+        name: String? = nil,
+        prizeDescription: String? = nil,
+        rules: String? = nil,
+        notes: String? = nil,
+        isFallbackLocale: Bool,
+        coverUrl: String? = nil,
+        occasion: String? = nil,
+        occasionLabel: String? = nil,
+        snapshotAt: JSONValue? = nil,
+        drawnAt: JSONValue? = nil,
+        claimDeadlineOn: String? = nil,
+        status: String,
+        statusLabel: String,
+        isEligible: Bool,
+        announcement: MemberDrawAnnouncementDto? = nil
+    ) {
+        self.id = id
+        self.drawCode = drawCode
+        self.club = club
+        self.name = name
+        self.prizeDescription = prizeDescription
+        self.rules = rules
+        self.notes = notes
+        self.isFallbackLocale = isFallbackLocale
+        self.coverUrl = coverUrl
+        self.occasion = occasion
+        self.occasionLabel = occasionLabel
+        self.snapshotAt = snapshotAt
+        self.drawnAt = drawnAt
+        self.claimDeadlineOn = claimDeadlineOn
+        self.status = status
+        self.statusLabel = statusLabel
+        self.isEligible = isEligible
+        self.announcement = announcement
+    }
+}
+
 public struct MemberForgotPasswordRequest: Codable, Equatable, Sendable {
     public var email: String
     public var club: String
@@ -1817,6 +2059,25 @@ public struct MemberForgotPasswordRequest: Codable, Equatable, Sendable {
         self.email = email
         self.club = club
         self.lang = lang
+    }
+}
+
+public struct MemberGuardianConsentRequest: Codable, Equatable, Sendable {
+    public var consented: Bool
+    public var guardianName: String?
+    public var relationship: String?
+    public var consentTextVersion: String?
+
+    public init(
+        consented: Bool,
+        guardianName: String? = nil,
+        relationship: String? = nil,
+        consentTextVersion: String? = nil
+    ) {
+        self.consented = consented
+        self.guardianName = guardianName
+        self.relationship = relationship
+        self.consentTextVersion = consentTextVersion
     }
 }
 
@@ -2040,6 +2301,7 @@ public struct MemberLineCompleteRequest: Codable, Equatable, Sendable {
     public var lang: String?
     public var tokenDelivery: String?
     public var deviceInstallId: String?
+    public var guardianConsent: MemberGuardianConsentRequest?
 
     public init(
         club: String,
@@ -2050,7 +2312,8 @@ public struct MemberLineCompleteRequest: Codable, Equatable, Sendable {
         birthOn: String? = nil,
         lang: String? = nil,
         tokenDelivery: String? = nil,
-        deviceInstallId: String? = nil
+        deviceInstallId: String? = nil,
+        guardianConsent: MemberGuardianConsentRequest? = nil
     ) {
         self.club = club
         self.ticket = ticket
@@ -2061,6 +2324,7 @@ public struct MemberLineCompleteRequest: Codable, Equatable, Sendable {
         self.lang = lang
         self.tokenDelivery = tokenDelivery
         self.deviceInstallId = deviceInstallId
+        self.guardianConsent = guardianConsent
     }
 }
 
@@ -2166,6 +2430,7 @@ public struct MemberRegisterRequest: Codable, Equatable, Sendable {
     public var phone: String?
     public var birthOn: String?
     public var lang: String?
+    public var guardianConsent: MemberGuardianConsentRequest?
 
     public init(
         club: String,
@@ -2174,7 +2439,8 @@ public struct MemberRegisterRequest: Codable, Equatable, Sendable {
         name: String,
         phone: String? = nil,
         birthOn: String? = nil,
-        lang: String? = nil
+        lang: String? = nil,
+        guardianConsent: MemberGuardianConsentRequest? = nil
     ) {
         self.club = club
         self.email = email
@@ -2183,6 +2449,7 @@ public struct MemberRegisterRequest: Codable, Equatable, Sendable {
         self.phone = phone
         self.birthOn = birthOn
         self.lang = lang
+        self.guardianConsent = guardianConsent
     }
 }
 
@@ -2202,34 +2469,129 @@ public struct MemberRegisteredDto: Codable, Equatable, Sendable {
     }
 }
 
+public struct MemberRegistrationCourseDto: Codable, Equatable, Sendable {
+    public var programSlug: String
+    public var programName: String?
+    public var startOn: String?
+    public var endOn: String?
+    public var weeklySchedule: String?
+    public var venueName: String?
+    public var venueAddress: String?
+    public var price: Int?
+    public var earlyBirdPrice: Int?
+    public var earlyBirdUntil: String?
+    public var sessionStatusCode: String
+    public var sessionStatusLabelZh: String
+    public var sessionStatusLabelEn: String
+
+    public init(
+        programSlug: String,
+        programName: String? = nil,
+        startOn: String? = nil,
+        endOn: String? = nil,
+        weeklySchedule: String? = nil,
+        venueName: String? = nil,
+        venueAddress: String? = nil,
+        price: Int? = nil,
+        earlyBirdPrice: Int? = nil,
+        earlyBirdUntil: String? = nil,
+        sessionStatusCode: String,
+        sessionStatusLabelZh: String,
+        sessionStatusLabelEn: String
+    ) {
+        self.programSlug = programSlug
+        self.programName = programName
+        self.startOn = startOn
+        self.endOn = endOn
+        self.weeklySchedule = weeklySchedule
+        self.venueName = venueName
+        self.venueAddress = venueAddress
+        self.price = price
+        self.earlyBirdPrice = earlyBirdPrice
+        self.earlyBirdUntil = earlyBirdUntil
+        self.sessionStatusCode = sessionStatusCode
+        self.sessionStatusLabelZh = sessionStatusLabelZh
+        self.sessionStatusLabelEn = sessionStatusLabelEn
+    }
+}
+
 public struct MemberRegistrationDto: Codable, Equatable, Sendable {
     public var id: String
     public var registrationNo: String
     public var clubCode: String
     public var status: String
+    public var statusCode: String
+    public var statusLabelZh: String
+    public var statusLabelEn: String
     public var applicantName: String
     public var sessionId: String?
     public var trialId: String?
     public var createdAt: JSONValue
+    public var kind: String
+    public var course: MemberRegistrationCourseDto?
+    public var trial: MemberRegistrationTrialDto?
+    public var isFallbackLocale: Bool
 
     public init(
         id: String,
         registrationNo: String,
         clubCode: String,
         status: String,
+        statusCode: String,
+        statusLabelZh: String,
+        statusLabelEn: String,
         applicantName: String,
         sessionId: String? = nil,
         trialId: String? = nil,
-        createdAt: JSONValue
+        createdAt: JSONValue,
+        kind: String,
+        course: MemberRegistrationCourseDto? = nil,
+        trial: MemberRegistrationTrialDto? = nil,
+        isFallbackLocale: Bool
     ) {
         self.id = id
         self.registrationNo = registrationNo
         self.clubCode = clubCode
         self.status = status
+        self.statusCode = statusCode
+        self.statusLabelZh = statusLabelZh
+        self.statusLabelEn = statusLabelEn
         self.applicantName = applicantName
         self.sessionId = sessionId
         self.trialId = trialId
         self.createdAt = createdAt
+        self.kind = kind
+        self.course = course
+        self.trial = trial
+        self.isFallbackLocale = isFallbackLocale
+    }
+}
+
+public struct MemberRegistrationTrialDto: Codable, Equatable, Sendable {
+    public var trialOn: String
+    public var teamName: String?
+    public var venueName: String?
+    public var venueAddress: String?
+    public var trialStatusCode: String
+    public var trialStatusLabelZh: String
+    public var trialStatusLabelEn: String
+
+    public init(
+        trialOn: String,
+        teamName: String? = nil,
+        venueName: String? = nil,
+        venueAddress: String? = nil,
+        trialStatusCode: String,
+        trialStatusLabelZh: String,
+        trialStatusLabelEn: String
+    ) {
+        self.trialOn = trialOn
+        self.teamName = teamName
+        self.venueName = venueName
+        self.venueAddress = venueAddress
+        self.trialStatusCode = trialStatusCode
+        self.trialStatusLabelZh = trialStatusLabelZh
+        self.trialStatusLabelEn = trialStatusLabelEn
     }
 }
 
@@ -2396,6 +2758,7 @@ public struct MembershipOrderDto: Codable, Equatable, Sendable {
 public struct MembershipPlanPublicDto: Codable, Equatable, Sendable {
     public var code: String
     public var name: String?
+    public var isFallbackLocale: Bool
     public var benefitNote: String?
     public var fee: Int
     public var cardQuota: Int
@@ -2408,6 +2771,7 @@ public struct MembershipPlanPublicDto: Codable, Equatable, Sendable {
     public init(
         code: String,
         name: String? = nil,
+        isFallbackLocale: Bool,
         benefitNote: String? = nil,
         fee: Int,
         cardQuota: Int,
@@ -2419,6 +2783,7 @@ public struct MembershipPlanPublicDto: Codable, Equatable, Sendable {
     ) {
         self.code = code
         self.name = name
+        self.isFallbackLocale = isFallbackLocale
         self.benefitNote = benefitNote
         self.fee = fee
         self.cardQuota = cardQuota
@@ -2900,6 +3265,7 @@ public struct PartnerCharityProgramDto: Codable, Equatable, Sendable {
 public struct PartnerDto: Codable, Equatable, Sendable {
     public var id: String
     public var slug: String
+    public var isFallbackLocale: Bool
     public var partnerType: String?
     public var country: String?
     public var startOn: String?
@@ -2917,6 +3283,7 @@ public struct PartnerDto: Codable, Equatable, Sendable {
     public init(
         id: String,
         slug: String,
+        isFallbackLocale: Bool,
         partnerType: String? = nil,
         country: String? = nil,
         startOn: String? = nil,
@@ -2933,6 +3300,7 @@ public struct PartnerDto: Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.slug = slug
+        self.isFallbackLocale = isFallbackLocale
         self.partnerType = partnerType
         self.country = country
         self.startOn = startOn
@@ -2965,6 +3333,7 @@ public struct PartnerStoreFiltersDto: Codable, Equatable, Sendable {
 public struct PartnerStorePublicDto: Codable, Equatable, Sendable {
     public var slug: String
     public var name: String?
+    public var isFallbackLocale: Bool
     public var category: String?
     public var region: String?
     public var address: String?
@@ -2983,6 +3352,7 @@ public struct PartnerStorePublicDto: Codable, Equatable, Sendable {
     public init(
         slug: String,
         name: String? = nil,
+        isFallbackLocale: Bool,
         category: String? = nil,
         region: String? = nil,
         address: String? = nil,
@@ -3000,6 +3370,7 @@ public struct PartnerStorePublicDto: Codable, Equatable, Sendable {
     ) {
         self.slug = slug
         self.name = name
+        self.isFallbackLocale = isFallbackLocale
         self.category = category
         self.region = region
         self.address = address
@@ -3060,6 +3431,8 @@ public struct PlayerCareerStatsDto: Codable, Equatable, Sendable {
 
 public struct PlayerDto: Codable, Equatable, Sendable {
     public var id: String
+    public var slug: String
+    public var isFallbackLocale: Bool
     public var teamCode: String
     public var shirtNo: Int?
     public var position: String?
@@ -3069,6 +3442,7 @@ public struct PlayerDto: Codable, Equatable, Sendable {
     public var nationality: String?
     public var preferredFoot: String?
     public var photoKey: String?
+    public var portraitConsented: Bool
     public var name: String?
     public var bio: String?
     public var photoUrl: String?
@@ -3076,6 +3450,8 @@ public struct PlayerDto: Codable, Equatable, Sendable {
 
     public init(
         id: String,
+        slug: String,
+        isFallbackLocale: Bool,
         teamCode: String,
         shirtNo: Int? = nil,
         position: String? = nil,
@@ -3085,12 +3461,15 @@ public struct PlayerDto: Codable, Equatable, Sendable {
         nationality: String? = nil,
         preferredFoot: String? = nil,
         photoKey: String? = nil,
+        portraitConsented: Bool,
         name: String? = nil,
         bio: String? = nil,
         photoUrl: String? = nil,
         schemaEligible: Bool
     ) {
         self.id = id
+        self.slug = slug
+        self.isFallbackLocale = isFallbackLocale
         self.teamCode = teamCode
         self.shirtNo = shirtNo
         self.position = position
@@ -3100,6 +3479,7 @@ public struct PlayerDto: Codable, Equatable, Sendable {
         self.nationality = nationality
         self.preferredFoot = preferredFoot
         self.photoKey = photoKey
+        self.portraitConsented = portraitConsented
         self.name = name
         self.bio = bio
         self.photoUrl = photoUrl
@@ -3206,6 +3586,7 @@ public struct PressResourceDto: Codable, Equatable, Sendable {
 public struct ProgramDetailDto: Codable, Equatable, Sendable {
     public var id: String
     public var slug: String
+    public var isFallbackLocale: Bool
     public var programType: String?
     public var audience: String?
     public var ageMin: Int?
@@ -3222,6 +3603,7 @@ public struct ProgramDetailDto: Codable, Equatable, Sendable {
     public init(
         id: String,
         slug: String,
+        isFallbackLocale: Bool,
         programType: String? = nil,
         audience: String? = nil,
         ageMin: Int? = nil,
@@ -3237,6 +3619,7 @@ public struct ProgramDetailDto: Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.slug = slug
+        self.isFallbackLocale = isFallbackLocale
         self.programType = programType
         self.audience = audience
         self.ageMin = ageMin
@@ -3255,6 +3638,7 @@ public struct ProgramDetailDto: Codable, Equatable, Sendable {
 public struct ProgramListItemDto: Codable, Equatable, Sendable {
     public var id: String
     public var slug: String
+    public var isFallbackLocale: Bool
     public var programType: String?
     public var audience: String?
     public var ageMin: Int?
@@ -3268,6 +3652,7 @@ public struct ProgramListItemDto: Codable, Equatable, Sendable {
     public init(
         id: String,
         slug: String,
+        isFallbackLocale: Bool,
         programType: String? = nil,
         audience: String? = nil,
         ageMin: Int? = nil,
@@ -3280,6 +3665,7 @@ public struct ProgramListItemDto: Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.slug = slug
+        self.isFallbackLocale = isFallbackLocale
         self.programType = programType
         self.audience = audience
         self.ageMin = ageMin
@@ -3326,13 +3712,22 @@ public struct ProgramPartnerSummaryDto: Codable, Equatable, Sendable {
 public struct ProgramRegistrationSubmittedDto: Codable, Equatable, Sendable {
     public var registrationNo: String
     public var status: String
+    public var statusCode: String
+    public var statusLabelZh: String
+    public var statusLabelEn: String
 
     public init(
         registrationNo: String,
-        status: String
+        status: String,
+        statusCode: String,
+        statusLabelZh: String,
+        statusLabelEn: String
     ) {
         self.registrationNo = registrationNo
         self.status = status
+        self.statusCode = statusCode
+        self.statusLabelZh = statusLabelZh
+        self.statusLabelEn = statusLabelEn
     }
 }
 
@@ -3349,6 +3744,9 @@ public struct ProgramSessionDto: Codable, Equatable, Sendable {
     public var signupOpensAt: JSONValue?
     public var signupClosesAt: JSONValue?
     public var status: String
+    public var statusCode: String
+    public var statusLabelZh: String
+    public var statusLabelEn: String
     public var venueId: String?
     public var venueName: String?
     public var venueAddress: String?
@@ -3368,6 +3766,9 @@ public struct ProgramSessionDto: Codable, Equatable, Sendable {
         signupOpensAt: JSONValue? = nil,
         signupClosesAt: JSONValue? = nil,
         status: String,
+        statusCode: String,
+        statusLabelZh: String,
+        statusLabelEn: String,
         venueId: String? = nil,
         venueName: String? = nil,
         venueAddress: String? = nil,
@@ -3386,6 +3787,9 @@ public struct ProgramSessionDto: Codable, Equatable, Sendable {
         self.signupOpensAt = signupOpensAt
         self.signupClosesAt = signupClosesAt
         self.status = status
+        self.statusCode = statusCode
+        self.statusLabelZh = statusLabelZh
+        self.statusLabelEn = statusLabelEn
         self.venueId = venueId
         self.venueName = venueName
         self.venueAddress = venueAddress
@@ -4083,6 +4487,9 @@ public struct PublicTrialDto: Codable, Equatable, Sendable {
     public var enrolledCount: Int
     public var deadlineOn: String?
     public var status: String
+    public var statusCode: String
+    public var statusLabelZh: String
+    public var statusLabelEn: String
     public var isSignupOpen: Bool
     public var acceptsWaitlist: Bool
 
@@ -4101,6 +4508,9 @@ public struct PublicTrialDto: Codable, Equatable, Sendable {
         enrolledCount: Int,
         deadlineOn: String? = nil,
         status: String,
+        statusCode: String,
+        statusLabelZh: String,
+        statusLabelEn: String,
         isSignupOpen: Bool,
         acceptsWaitlist: Bool
     ) {
@@ -4118,6 +4528,9 @@ public struct PublicTrialDto: Codable, Equatable, Sendable {
         self.enrolledCount = enrolledCount
         self.deadlineOn = deadlineOn
         self.status = status
+        self.statusCode = statusCode
+        self.statusLabelZh = statusLabelZh
+        self.statusLabelEn = statusLabelEn
         self.isSignupOpen = isSignupOpen
         self.acceptsWaitlist = acceptsWaitlist
     }
@@ -4948,6 +5361,7 @@ public struct SponsorActivationImageDto: Codable, Equatable, Sendable {
 public struct SponsorDto: Codable, Equatable, Sendable {
     public var id: String
     public var slug: String
+    public var isFallbackLocale: Bool
     public var tier: String?
     public var sortOrder: Int
     public var name: String?
@@ -4961,6 +5375,7 @@ public struct SponsorDto: Codable, Equatable, Sendable {
     public init(
         id: String,
         slug: String,
+        isFallbackLocale: Bool,
         tier: String? = nil,
         sortOrder: Int,
         name: String? = nil,
@@ -4973,6 +5388,7 @@ public struct SponsorDto: Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.slug = slug
+        self.isFallbackLocale = isFallbackLocale
         self.tier = tier
         self.sortOrder = sortOrder
         self.name = name
@@ -4988,6 +5404,7 @@ public struct SponsorDto: Codable, Equatable, Sendable {
 public struct SponsorPackageDto: Codable, Equatable, Sendable {
     public var id: String
     public var slug: String
+    public var isFallbackLocale: Bool
     public var sortOrder: Int
     public var name: String?
     public var content: String?
@@ -4999,6 +5416,7 @@ public struct SponsorPackageDto: Codable, Equatable, Sendable {
     public init(
         id: String,
         slug: String,
+        isFallbackLocale: Bool,
         sortOrder: Int,
         name: String? = nil,
         content: String? = nil,
@@ -5009,6 +5427,7 @@ public struct SponsorPackageDto: Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.slug = slug
+        self.isFallbackLocale = isFallbackLocale
         self.sortOrder = sortOrder
         self.name = name
         self.content = content
@@ -5037,9 +5456,11 @@ public struct SponsorStoryDto: Codable, Equatable, Sendable {
 
 public struct StaffDto: Codable, Equatable, Sendable {
     public var id: String
+    public var isFallbackLocale: Bool
     public var staffGroup: String?
     public var licence: String?
     public var photoKey: String?
+    public var portraitConsented: Bool
     public var name: String?
     public var title: String?
     public var bio: String?
@@ -5050,9 +5471,11 @@ public struct StaffDto: Codable, Equatable, Sendable {
 
     public init(
         id: String,
+        isFallbackLocale: Bool,
         staffGroup: String? = nil,
         licence: String? = nil,
         photoKey: String? = nil,
+        portraitConsented: Bool,
         name: String? = nil,
         title: String? = nil,
         bio: String? = nil,
@@ -5062,9 +5485,11 @@ public struct StaffDto: Codable, Equatable, Sendable {
         schemaEligible: Bool
     ) {
         self.id = id
+        self.isFallbackLocale = isFallbackLocale
         self.staffGroup = staffGroup
         self.licence = licence
         self.photoKey = photoKey
+        self.portraitConsented = portraitConsented
         self.name = name
         self.title = title
         self.bio = bio
@@ -5229,12 +5654,14 @@ public struct SubscribeNewsletterRequest: Codable, Equatable, Sendable {
 public struct TeamDto: Codable, Equatable, Sendable {
     public var id: String
     public var code: String
+    public var clubCode: String
     public var type: String
     public var gender: String
     public var ageBand: String?
     public var teamColor: String?
     public var heroKey: String?
     public var name: String?
+    public var isFallbackLocale: Bool
     public var intro: String?
     public var heroUrl: String?
     public var logoUrl: String?
@@ -5243,12 +5670,14 @@ public struct TeamDto: Codable, Equatable, Sendable {
     public init(
         id: String,
         code: String,
+        clubCode: String,
         type: String,
         gender: String,
         ageBand: String? = nil,
         teamColor: String? = nil,
         heroKey: String? = nil,
         name: String? = nil,
+        isFallbackLocale: Bool,
         intro: String? = nil,
         heroUrl: String? = nil,
         logoUrl: String? = nil,
@@ -5256,12 +5685,14 @@ public struct TeamDto: Codable, Equatable, Sendable {
     ) {
         self.id = id
         self.code = code
+        self.clubCode = clubCode
         self.type = type
         self.gender = gender
         self.ageBand = ageBand
         self.teamColor = teamColor
         self.heroKey = heroKey
         self.name = name
+        self.isFallbackLocale = isFallbackLocale
         self.intro = intro
         self.heroUrl = heroUrl
         self.logoUrl = logoUrl
@@ -5272,13 +5703,22 @@ public struct TeamDto: Codable, Equatable, Sendable {
 public struct TrialRegistrationSubmittedDto: Codable, Equatable, Sendable {
     public var registrationNo: String
     public var status: String
+    public var statusCode: String
+    public var statusLabelZh: String
+    public var statusLabelEn: String
 
     public init(
         registrationNo: String,
-        status: String
+        status: String,
+        statusCode: String,
+        statusLabelZh: String,
+        statusLabelEn: String
     ) {
         self.registrationNo = registrationNo
         self.status = status
+        self.statusCode = statusCode
+        self.statusLabelZh = statusLabelZh
+        self.statusLabelEn = statusLabelEn
     }
 }
 

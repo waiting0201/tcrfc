@@ -58,7 +58,14 @@ public sealed record AppLayoutItemDto
     /// <summary>圖示識別（App 內建圖示的名稱，不是物件儲存鍵）。</summary>
     public string? Icon { get; init; }
     public string? DeepLink { get; init; }
+
+    /// <summary>外連網址。相對路徑（<c>/zh/shop/</c>）＝官網站內頁，用戶端接上該俱樂部網域；絕對網址（<c>https://…</c>）＝外部網站，
+    /// 此時 <see cref="IsExternal"/> 為 true。慈善項目是外部網站（收受者為台灣足球策略發展協會，App 規劃書 §1.3／§3：須明示，不得讓使用者誤以為捐給俱樂部）。
+    /// 沒有對應網址（例如純 App 內畫面的項目）為 null。</summary>
     public string? WebUrl { get; init; }
+
+    /// <summary><see cref="WebUrl"/> 是否為站外網址（絕對網址）。外開前應先顯示「離開 App、收受者」說明。</summary>
+    public bool IsExternal { get; init; }
 }
 
 public sealed record AppAnnouncementDto
@@ -86,6 +93,9 @@ public sealed record AppLayoutResponse
     public required IReadOnlyList<AppLayoutItemDto> MoreItems { get; init; }
     public required IReadOnlyList<AppAnnouncementDto> Announcements { get; init; }
     public required IReadOnlyList<AppDeepLinkDto> DeepLinks { get; init; }
+
+    /// <summary>贊助／合作洽詢表單的官網相對路徑（<c>/zh/partners/become-a-partner/</c>），夥伴贊助畫面的「洽詢」按鈕外開用（App 規劃書 §3 夥伴贊助：導向官網的合作夥伴與贊助洽詢表單）。</summary>
+    public string? SponsorshipInquiryWebUrl { get; init; }
 }
 
 public sealed record AppNotificationDto
