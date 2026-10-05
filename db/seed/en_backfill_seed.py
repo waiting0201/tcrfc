@@ -6,7 +6,7 @@
 #   這樣新庫（從零灌）與舊庫（已有 zh 列）跑完結果相同，且可重複執行。
 #
 # 範圍：只有主站 tcrfc。藍鯨（bw）不補——英文全名卡 B-5、英文全新生產 C-10（docs/06 §1.1）。
-#       新聞文章（articles_i18n）本輪不翻。球員姓名沒有英文來源者不音譯（見回報）。
+#       新聞標題（articles_i18n.title）第二輪補（僅 tcrfc；本文不存在、藍鯨不補）。球員姓名沒有英文來源者不音譯（見回報）。
 #
 # 回填規則（fill）：
 #   1. 沒有 en 列 → INSERT 一列（只帶有值的欄位）。
@@ -21,6 +21,99 @@
 #    曾以「種子沒有這些英文」為前提；補上之後那幾條斷言要同步改。
 
 TEST_BODY_EN = "[Test] This is test content. Please replace it in the back office before launch."
+
+
+# ── 新聞標題英文（2026-10-05 第二輪；slug → title）。sentence case；聯賽名沿用 Enterprise Premier League；
+# 無英文來源的對手隊／人名／學校／地名一律保留中文原名。
+L = "Enterprise Premier League"
+S = "National Second Division"
+T = "Taichung Rock FC"
+TR = "Taichung Rock FC Reserves"
+NEWS_TITLES_EN = {
+"2026-08-10-international-000": f"{T} and AS Trenčín deepen youth development partnership, opening a new chapter in Taiwan-Slovakia football exchange",
+"2026-05-24-match-001": f"{L}: {T} 3-0 銘傳大學",
+"2026-05-17-match-002": f"{L}: {T} 1-2 陽信北競",
+"2026-05-10-match-003": f"{L}: {T} 2-4 南市台鋼",
+"2026-05-09-match-004": f"{S}: 陽信北競 Reserves 5-0 {TR}",
+"2026-05-03-match-005": f"{S}: {TR} 0-2 銘傳Desafio",
+"2026-05-03-match-006": f"{L}: {T} 1-0 大同足球",
+"2026-04-27-match-007": f"{L}: {T} 2-2 台電",
+"2026-04-25-match-008": f"{S}: 桃園國際 1-1 {TR}",
+"2026-04-19-match-009": f"{L}: 台中未來 0-1 {T}",
+"2026-04-18-match-010": f"{S}: {TR} 4-1 灣島",
+"2026-04-12-match-011": f"{L}: 新北航源 0-2 {T}",
+"2026-04-11-match-012": f"{S}: 高雄先鋒 4-1 {TR}",
+"2026-03-22-match-013": f"{S}: {TR} 5-2 新北航源輔大",
+"2026-03-09-match-014": f"{L}: {T} 1-1 銘傳大學",
+"2026-03-02-match-015": f"{L}: {T} 3-1 陽信北競",
+"2026-02-06-international-016": f"Widening international horizons: 5 {T} players called up to train in Italy by 萊尼亞戈",
+"2026-01-12-community-017": f"{T} teams up with Subkarma on local charity, donating English books to 潭秀非營利幼兒園",
+"2025-12-22-match-018": f"{L}: {T} 0-0 南市台鋼",
+"2025-12-14-match-019": f"{L}: {T} 0-1 大同足球隊",
+"2025-12-14-match-020": f"{L}: 台灣電力 1-2 {T}",
+"2025-12-09-match-021": f"{L}: 台灣電力 1-2 {T}",
+"2025-12-07-match-022": f"{L}: 台灣電力 1-2 {T}",
+"2025-12-01-match-023": f"{L}: 台中FUTURO 4-0 {T}",
+"2025-11-24-match-024": f"{S}: 銘傳大學Desafio 1-3 {TR}",
+"2025-11-24-match-025": f"{L}: 新北航源 3-0 {T}",
+"2025-11-04-international-026": f"First step in the Hellas Verona partnership: {T} players depart for training in Italy",
+"2025-11-03-club-027": f"陳曉明 appointed Technical Advisor of {T}",
+"2025-11-02-match-028": f"{L}: 銘傳大學 0-1 {T}",
+"2025-11-01-match-029": f"{S}: {TR} 2-0 桃園國際",
+"2025-10-26-match-030": f"{S}: 灣島 2-7 {TR}",
+"2025-10-26-match-031": f"{L}: 陽信北競 2-2 {T}",
+"2025-09-28-match-032": f"{L}: 南市台鋼 3-3 {T}",
+"2025-09-21-match-033": f"{L}: 大同足球 2-2 {T}",
+"2025-09-20-match-034": f"{S}: 新北航源輔大 1-0 {TR}",
+"2025-09-14-match-035": f"{L}: {T} 0-2 台灣電力",
+"2025-08-24-match-036": f"{L}: {T} 0-1 台中未來",
+"2025-08-18-match-037": f"{L}: {T} 2-1 新北航源",
+"2025-07-31-intcup-038": f"{T} International Cup: {T} vs 東方",
+"2025-07-31-intcup-039": f"{T} International Cup: 紅白艾倫 vs 台中Futuro",
+"2025-07-30-international-040": f"{T} to sign memorandum of cooperation with Serie A club Hellas Verona to advance Taiwan-Italy football exchange",
+"2025-07-29-intcup-041": f"{T} International Cup: {T} vs 紅白艾倫",
+"2025-07-29-intcup-042": f"{T} International Cup: 東方 vs 台中Futuro",
+"2025-07-27-international-043": f"{T} signs memorandum of understanding with Germany's Rot Weiss Ahlen",
+"2025-07-27-intcup-044": f"{T} International Cup: {T} vs 台中未來",
+"2025-07-27-intcup-045": f"{T} International Cup: 紅白艾倫 vs 東方",
+"2025-07-25-club-046": f"2025 {T} International Cup press conference",
+"2025-07-21-community-047": "Taichung City Government Sports Bureau flag presentation ceremony",
+"2025-07-12-club-048": f"2025 {T} International Cup kicks off",
+"2025-07-08-club-049": f"{T} and 龜記茗品 continue their partnership",
+"2025-06-11-community-050": f"{T} attends the graduation ceremony at 南投縣雙龍國小",
+"2025-05-17-match-051": f"President's Cup quarter-final: 台灣電力 1-1 (penalties 4-2) {T}",
+"2025-05-13-match-052": f"President's Cup: {T} 2-2 高大國光",
+"2025-05-13-match-053": f"President's Cup: {TR} 8-1 銘傳B",
+"2025-05-04-match-054": f"President's Cup: {T} 1-5 南市台鋼藍",
+"2025-05-04-match-055": f"President's Cup: {TR} 1-2 台中FUTURO",
+"2025-05-03-camps-056": f"2025 {T} Cup football invitational",
+"2025-04-29-match-057": f"President's Cup: 桃園國際灰 0-7 {TR}",
+"2025-04-28-match-058": f"President's Cup: 陽信北競 Reserves 2-3 {T}",
+"2025-04-12-match-059": f"President's Cup: {T} 2-1 新北輔大",
+"2025-04-12-match-060": f"President's Cup: {TR} 1-5 南市台鋼綠",
+"2025-04-11-club-061": f"周宇杰 joins {T}",
+"2025-04-11-club-062": f"廖奕盛 joins {T}",
+"2025-04-11-club-063": f"Germany-based 王義友 joins {T}",
+"2025-04-08-international-064": "孫恩祈 invited to stay on in Spain until the end of the season",
+"2025-04-07-match-065": f"Club friendly: 陽信北競 2-1 {T}",
+"2025-04-07-international-066": "梁顥騰 completes his training trip in Spain, deeply inspired",
+"2025-04-03-match-067": f"Fourth warm-up match: 陽信北競 vs {T}",
+"2025-04-02-match-068": f"Two {T} squads set out for the 2025 National President's Cup",
+"2025-03-29-match-069": f"Warm-up match: {T} 1-3 陽信北競",
+"2025-03-22-match-070": f"Third warm-up match: {T} vs 陽信北競",
+"2025-03-17-club-071": "高冠宇 called up to the Chinese Taipei national team",
+"2025-03-15-match-072": f"Warm-up match: {T} vs 台中Futuro",
+"2025-03-13-match-073": f"{T} take on 台中Futuro in a warm-up match",
+"2025-03-04-international-074": "Two players join training at RC Alcobendas in Spain",
+"2025-02-28-international-075": "Four players join training with the Tokyo University of Agriculture football team",
+"2025-02-19-international-076": "Japan training camp wrap-up",
+"2025-02-04-international-077": "楊朝景 transfers to Hong Kong Premier League club 九龍城",
+"2025-01-07-club-078": f"{T} recognised by the Taichung City Government Sports Bureau for cooperation and naming rights",
+"2024-12-18-club-079": f"{T} conditionally passes top-tier club certification",
+"2024-12-18-club-080": "Coach 林 wins Best Coach award, 楊朝景 wins Golden Boot",
+"2024-12-07-match-081": f"{S}: {T} 9-0 銘傳大學Desafio",
+"2024-11-05-international-082": f"{T} reaches cooperation agreement with RC Alcobendas",
+}
 
 
 def emit_all(*, emit, block, esc, clubs):
@@ -52,7 +145,7 @@ WHERE e.locale = N'en' AND {key};
     def club(extra=""):
         return f"b.club_id = {tcrfc}" + (f" AND {extra}" if extra else "")
 
-    emit("-- ── 61. 英文欄位回填（*_i18n 的 en 列；只補缺的、不覆寫既有英文；僅 tcrfc，藍鯨與新聞不在此列） ──")
+    emit("-- ── 61. 英文欄位回填（*_i18n 的 en 列；只補缺的、不覆寫既有英文；僅 tcrfc，藍鯨不在此列） ──")
 
     # ── 賽事系列：聯賽正式英文名待客戶確認，沿用 site-facts 既有的 Enterprise Premier League ──
     fill("competitions", "competitions_i18n", "competition_id",
@@ -218,3 +311,8 @@ WHERE e.locale = N'en' AND {key};
     #    site.contact_hours／contact_phone 是測試值，不翻 ──
     fill("settings", "settings_i18n", "setting_id", club("b.setting_key = N'site.founding_title'"),
          {"value": "National Second Division champions"})
+
+    # ── 新聞標題（只補 title；body／summary／SEO 繁中皆空故不補；用 slug 找主列）。
+    #    對手隊、人名、學校、地名沒有英文來源者保留中文原名，不音譯 ──
+    for slug, title in NEWS_TITLES_EN.items():
+        fill("articles", "articles_i18n", "article_id", club(f"b.slug = {esc(slug)}"), {"title": title})

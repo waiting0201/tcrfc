@@ -80,10 +80,16 @@ function clientErrorFrom(err: unknown, event?: Parameters<typeof getRequestHeade
   if (typeof status !== 'number' || status < 400 || status >= 500) return null
   const data = (err as { data?: unknown }).data
   let message = ''
+  // C-6 第二輪：上游 ProblemDetails 的 `messageEn`（統一錯誤結構）與 `code` 一併放進 createError 的 `data`，
+  // 瀏覽器端 `err.data.data.messageEn` 取得；否則 createError 只留 `message`，英文頁永遠拿不到英文訊息。
+  let messageEn = ''
+  let upstreamCode = ''
   if (typeof data === 'string') message = data
   else if (data && typeof data === 'object') {
-    const d = data as { detail?: unknown, message?: unknown, title?: unknown }
+    const d = data as { detail?: unknown, message?: unknown, title?: unknown, messageEn?: unknown, code?: unknown }
     message = [d.detail, d.message, d.title].find((v): v is string => typeof v === 'string' && v.length > 0) ?? ''
+    if (typeof d.messageEn === 'string') messageEn = d.messageEn.trim()
+    if (typeof d.code === 'string') upstreamCode = d.code
   }
   // F6（2026-10-03）：限流 429。apps/api 目前的 RateLimiter 沒有設 OnRejected，回應是空 body、
   // 不帶 Retry-After（不改 apps/api），所以 BFF 這邊：① 上游若帶了 Retry-After 就轉傳（日後後端補上
@@ -94,8 +100,14 @@ function clientErrorFrom(err: unknown, event?: Parameters<typeof getRequestHeade
     const retryAfter = (err as { response?: { headers?: Headers } } | null)?.response?.headers?.get('retry-after')
     if (event && retryAfter && /^\d{1,6}$/.test(retryAfter)) setResponseHeader(event, 'retry-after', retryAfter)
     message ||= '送出次數過多，請稍候幾分鐘再試。'
+    messageEn ||= 'Too many attempts. Please wait a few minutes and try again.'
   }
-  return createError({ statusCode: status, statusMessage: status === 429 ? 'Too Many Requests' : undefined, message: message || undefined })
+  return createError({
+    statusCode: status,
+    statusMessage: status === 429 ? 'Too Many Requests' : undefined,
+    message: message || undefined,
+    data: messageEn || upstreamCode ? { messageEn: messageEn || undefined, code: upstreamCode || undefined } : undefined,
+  })
 }
 
 export default defineEventHandler(async (event) => {

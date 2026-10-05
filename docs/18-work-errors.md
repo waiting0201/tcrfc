@@ -168,11 +168,16 @@
 | E-188 | 2026-10-05 | iOS 為「改測試」寫了 `open(p,'w').write(open(p).read())`：先以寫入模式開檔把檔案截成 0 位元組再讀，`CoreLogicTests.swift` 17 項測試無聲消失，綠燈的測試總數少了 9 項才發現 | 無（靠對照測試總數；改測試前先 `git diff --stat` 看有沒有整檔被清空） |
 | E-189 | 2026-10-05 | iOS 預覽用假 API（`FixtureContentAPI`）的呼叫紀錄陣列沒有鎖，四個廣告版位並行載入時同時 `append`，App 閃退（malloc: pointer being freed was not allocated）；單元測試序列呼叫抓不到，是模擬器開首頁截圖看到桌面才發現 | 有（鎖＋單元測試 `FixtureConcurrencyTests`；**升級為機制**：XCUITest 冒煙測試 `testOnboardingThreeStepsThenHomeWithConcurrentAdSlots` 在首頁四個廣告版位並行載入的情境下跑完整流程並斷言沒有閃退，`./scripts/smoke.sh`） |
 | E-205 | 2026-10-05 | 首頁輪播的指示器（粉紅 dots）永遠停在第一顆：樣板把 `is-active` 寫死成 `i === 0`，換張只更新了 slide 的 class 與朗讀文字，`current` 又是非響應式變數；從移植靜態 mockup 起就沒同步過，使用者回報才發現 | 無（便宜的靜態檢查會誤報；改以瀏覽器實測：自動、箭頭、點指示器、滑動四條路徑都要比對 slide 與 dot 同步） |
+| E-218 | 2026-10-05 | 官網三個英文化盤點才發現的既有缺陷：英文導覽列在 1280／1440 寬折成兩列；`schedule.vue` 把「俱樂部活動」區塊放在月份迴圈內（多月份重複渲染）；`programs/[slug]` 的「時段」中文版直接印 `weeklySchedule` 原始 JSON（英文版有 `formatWeeklySchedule`，中文版漏了） | 無（靠瀏覽器實測；JSON 外洩這類可由 `lint:weekly-schedule` 擴充掃樣板，未做） |
 | E-210 | 2026-10-05 | 英文用詞對照表（docs/06 §1.1）初版寫「台中藍鯨可用 Taichung Blue Whale 描述性寫法」，與 `docs/14` 既有的 B-5 規則（不得寫死藍鯨英文名）牴觸；三個翻譯 agent 照表寫進 `club-copy-en-*.ts` | ✅ `check-bw-en-name.mjs`（lint 當場紅燈） |
 | E-211 | 2026-10-05 | 英文版分派時只列頁面目錄，沒列「跨頁共用元件」歸屬：`TrialSchedule.vue`、`FanEventRegistration.vue` 被兩個 agent 同時指派，一個的批次替換腳本因舊字串消失而整批中止 | ⚠️ 無（靠動手前 `git diff` 確認） |
 | E-212 | 2026-10-05 | 種子補英文列後，4 組 `apps/api` 測試的前提「種子缺英文」失效（測試把種子的缺口當成回退行為的測資），已改為自建資料 | ⚠️ 無（類似 E-160，見條目） |
 | E-213 | 2026-10-05 | 後端 `?lang=en` 缺值時逐欄位回退繁中，前台直接取用就讓英文版（含 JSON-LD、`llms-en.txt`）悄悄混入中文，沒有任何建置或執行錯誤 | ✅ `useSiteFacts.pickEn`／`englishOnly`／`enOnly` 過濾；✅ `scripts/check-en-pages.mjs` 實機掃描 |
 | E-214 | 2026-10-05 | 多個 agent 並行做批次字串替換：共用 scratchpad 的腳本被別人覆寫、替換腳本中途失敗後重跑重複套用、英文字串的撇號未轉義產生語法錯誤 | ⚠️ 無（eslint／build 會抓到語法，抓不到重複套用） |
+| E-215 | 2026-10-05 | BFF `clientErrorFrom` 把上游 4xx 轉成 `createError` 時只保留 `message`（繁中），丟掉 `messageEn`／`code`；第一輪翻譯 agent 發現 /en/ 拿不到英文訊息，只在畫面層「偵測到中文就換成英文通用句」，沒有修傳遞鏈 | ✅ `extractErrorMessage(err, en)` 與 BFF `data.messageEn` 傳遞；✅ 假 API 加表單 400 路由（`dev-fixture-api.mjs`）可 curl 驗證 |
+| E-216 | 2026-10-05 | 假 API 的 `problem()` 把 `messageEn` 設成與繁中 `detail` 相同，掩蓋了 E-215 的資訊遺失（測了也看不出英文沒通過） | ✅ `problem()` 改為獨立英文 `messageEn` |
+| E-220 | 2026-10-05 | 英文化盤點只看主表欄位，把「賽程對手沒有英文**值**」誤判成「沒有英文**欄位**」，派出一張不必要的 migration 工作；`matches_i18n.opponent`、後台 `opponentEn`、公開 API 回退與 `isFallbackLocale` 早已存在 | ⚠️ 無（每張 `*_i18n` 側表的欄位在 `docs/12c`，查那份就知道） |
+| E-221 | 2026-10-05 | 後端寫死的英文標籤（`ApplicableTierLabel`）自己取名「Fan club members only」，與前台、`docs/06` §1.1 的「Paid Fan Club member」不一致 | ✅ `MembershipPublicTests` 斷言英文標籤；⚠️ 其他寫死英文字串仍無對照表檢查 |
 
 ---
 
@@ -2803,3 +2808,39 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：批次替換腳本放共用位置、沒有「全部斷言通過才寫檔」與冪等保護、未轉義產出字串。
 - **下次怎麼避免**：腳本放自己的子目錄；先全部斷言再寫檔，替換結果加「已套用就跳過」；產出含引號的字串後 grep 抽查。
 - **防呆**：無（語法錯有 eslint／build，重複套用沒有）。
+
+### E-220 把「缺英文值」誤判成「缺英文欄位」（2026-10-05）
+
+- **錯在哪**：英文化盤點看到 `matches.opponent` 是主表中文欄位、`MatchDto.isFallbackLocale` 全為 true，就判定「對手只有中文、沒有英文欄位」，要求先改 docs/12、DDL、migration。實際上 `matches_i18n(match_id, locale, opponent, venue)` 自 DDL 初版即有，EF、`MatchesRepository`、後台 C4 `OpponentEn`／`GET`／CSV 匯入全部已接；缺的只是**沒有英文來源的資料列**（`content/schedule` CSV 只有 `opponent_zh`，`docs/09` 已列為待客戶補件）。
+- **根因（可改掉的行為）**：從「主表有一欄中文」推論「沒有英文欄位」，沒有先查 `docs/12c` 側表清單與 `db/club-schema.sql` 的 `*_i18n`；也沒有分辨「結構缺」與「資料缺」。
+- **下次怎麼避免**：判定缺英文欄位前，先 `grep` `docs/12c` 與 `db/club-schema.sql` 的 `<entity>_i18n`；`isFallbackLocale` 為 true 先查資料列再懷疑綱要。英文值沒有來源就留空走回退，不自行音譯（對手球隊英文名待客戶提供，補件後走後台 C4 `opponentEn` 或 CSV 匯入）。
+- **防呆**：無。
+
+### E-221 後端寫死英文標籤與用詞對照表不一致（2026-10-05）
+
+- **錯在哪**：`MembershipPublicRepository` 的 `ApplicableTierLabel` 英文寫成「Fan club members only」，前台與 `docs/06` §1.1 一律用「Paid Fan Club members」，同一頁出現兩種稱呼。
+- **根因（可改掉的行為）**：後端自行寫死面向使用者的英文字串，沒有對照 `docs/06` 用詞表。
+- **下次怎麼避免**：後端新增或改動寫死的英文面向使用者字串前，先查 `docs/06` §1.1；英文用詞以對照表為準。
+- **防呆**：✅ `MembershipPublicTests` 斷言 `applicableTierLabel` 英文為「All members」／「Paid Fan Club members only」。
+
+### E-215 BFF 轉 4xx 時丟掉 `messageEn`，前台以畫面層偵測中文繞過（2026-10-05，主站英文版第二輪）
+
+- **錯在哪**：`server/api/backend/[...path].ts` 的 `clientErrorFrom` 以 `createError({ message })` 重丟上游 4xx，後端統一錯誤結構的 `messageEn`、`code` 在這一層被丟掉；`/en/` 的表單、試訓、課程報名、搜尋、電子報送出因此永遠拿不到英文訊息。第一輪 agent 在 `ProgramRegistration`／`TrialSchedule` 以「英文固定句＋`lang="zh-Hant"` 附中文原句」、在別處「含中文就換通用句」繞過。
+- **根因（可改掉的行為）**：只在畫面層處理症狀，沒有往回追「英文訊息在哪一層消失」；同時 E-216 的假 API 讓這個遺失測不出來。
+- **下次怎麼避免**：資料跨層傳遞（後端 → BFF → 瀏覽器）的欄位，驗收時用 curl 打 BFF 看實際 JSON，不只看畫面。
+- **防呆**：✅ BFF 現在放 `data.messageEn`／`data.code`；`extractErrorMessage(err, en)` 英文模式只吃 `messageEn`（含中文者丟棄）；假 API `/forms/*/submissions` 回 400＋英文 `messageEn`，可 `curl` 驗證。
+
+### E-216 假 API 的英文欄位與中文相同，掩蓋傳遞缺口（2026-10-05）
+
+- **錯在哪**：`scripts/dev-fixture-api.mjs` 的 `problem()` 回 `messageEn: detail`（中文），英文路徑即使壞了也「看起來有值」。
+- **根因（可改掉的行為）**：替身資料偷懶讓兩個語系欄位同值。
+- **下次怎麼避免**：替身的 `*En` 欄位必須是真英文，且與 zh 不同，才測得出語系路徑。
+- **防呆**：✅ `problem()` 已改為預設獨立英文訊息，可傳入具體英文。
+
+### E-218 英文導覽折行、俱樂部活動重複渲染、時段印原始 JSON（2026-10-05，官網）
+
+- **錯在哪**：① 英文主導覽 10 項約需 860px，套用 `tcrfc.css` 的中文間距在 1280／1440 寬折成兩列（Charity 掉第二行），1100 寬同樣擠不下；② `schedule.vue` 的 `club-events-block` 寫在 `v-for="group in monthGroups"` 內，N 個月就渲染 N 次（修前實測 3 個月＝3 個區塊、3 張重複卡片）；③ `programs/[slug]` 時段列 `isEn ? 格式化 : 原始字串`，中文版把 JSON 字串原樣印出。
+- **根因（可改掉的行為）**：①只用中文版驗收導覽寬度，英文長度沒量；②把「與月份無關的區塊」放進迴圈容器內，只用單月資料看過；③格式化函式只接在英文分支，以為中文版資料「本來就可讀」，沒用真實 JSON 格式資料驗。
+- **下次怎麼避免**：兩語系都要量版面（至少 1280／1440／窄寬）；非迴圈項目放迴圈外，驗證用多筆資料；凡是 API 的 JSON／代碼字串，兩個語系一律走同一個格式化函式，不得留原樣輸出分支。
+- **修正**：英文導覽在 `.site-header--en` 底下收斂字級、字距與間距（`SiteHeader.vue`，中文不變），1081–1199px 改用漢堡選單；俱樂部活動區塊移到月份迴圈外；時段兩語系都走 `formatWeeklySchedule`（無法解析顯示「—」）；`FaqEmbedItem` 補 `isFallbackLocale`。
+- **防呆**：無；本次以無頭 Chrome 量測（導覽單列、區塊數 3→1、時段文字）。假 API 已補多月份賽程、俱樂部活動與 JSON 時段資料可重現。

@@ -81,7 +81,7 @@ function isMinor(dateText: string): boolean | null {
 }
 
 function extractMessage(err: unknown): string | null {
-  const msg = extractErrorMessage(err)
+  const msg = extractErrorMessage(err, isEn.value)
   if (msg) return msg
   const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
   if (status === 429) return tx('送出次數過多，請稍候幾分鐘再試。', 'Too many submissions. Please wait a few minutes and try again.')

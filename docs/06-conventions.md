@@ -237,6 +237,7 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 活動／盃賽——台中磐石足球節 Taichung Rock FC Football Festival、台中磐石盃 Taichung Rock FC Cup、總統盃 President's Cup；
 慈善子頁——慈善理念 Our Commitment、慈善計畫 Charity Programs、慈善事蹟 Impact Stories、影響力數據 Our Impact；
 商店與會員——統一編號 Unified Business Number、手機條碼載具 Mobile barcode carrier、入會球衣 Welcome jersey、超商取貨 Convenience-store pickup；
+新聞標題（第二輪）——預備隊 Taichung Rock FC Reserves、台中磐石國際足球盃 Taichung Rock FC International Cup、維羅納 Hellas Verona、臺中市政府運動局 Taichung City Government Sports Bureau、東京農業大學 Tokyo University of Agriculture、港超聯 Hong Kong Premier League；**標題內沒有英文來源的球隊／人名／學校（銘傳大學、陽信北競、南市台鋼、大同足球、台電／台灣電力、台中Futuro、新北航源、桃園國際、高雄先鋒、潭秀非營利幼兒園、南投縣雙龍國小、龜記茗品，及陳曉明、周宇杰、廖奕盛、王義友、孫恩祈、梁顥騰、高冠宇、楊朝景等）原樣保留中文，待客戶補英文名**；
 聯賽縮寫——規劃書英文版用 TFPL 指企業甲級聯賽，**但全名未出現，不得自行拼寫**。單元導覽短標籤「新聞」用 News（單元全名為 News & Stories）。
 
 ⚠️ 人名、地名：球員與教練英文名一律取資料庫（`players_i18n`／`staff_i18n`）已有值；沒有的**不得自行音譯**，顯示中文原名。

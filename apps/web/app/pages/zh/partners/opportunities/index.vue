@@ -107,7 +107,7 @@ async function onDownloadSubmit() {
     dlStatus.value = 'error'
     dlError.value = (err as { statusCode?: number }).statusCode === 429
       ? tx('送出過於頻繁，請稍候幾分鐘再試。', 'Too many requests. Please wait a few minutes and try again.')
-      : (isEn.value ? null : extractErrorMessage(err)) ?? tx('送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用「前往贊助洽詢表單」與我們聯繫。', 'We could not submit your request. Please check that all fields are filled in correctly and try again. If the problem continues, please use the "Go to the sponsorship enquiry form" button to contact us.')
+      : extractErrorMessage(err, isEn.value) ?? tx('送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用「前往贊助洽詢表單」與我們聯繫。', 'We could not submit your request. Please check that all fields are filled in correctly and try again. If the problem continues, please use the "Go to the sponsorship enquiry form" button to contact us.')
   }
 }
 </script>
@@ -261,6 +261,7 @@ async function onDownloadSubmit() {
 </section>
 
 <!-- G-12 FAQ 快捷區塊：9.4 贊助方案常見問題 -->
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(faqs)" partial />
 <section id="sponsorship-faq" class="band" aria-labelledby="sponsorship-faq-title">
   <div class="container">
     <div class="eyebrow-row">

@@ -73,7 +73,7 @@ const { data: outcome, status } = await useAsyncData<SearchOutcome | null>(
       const message = code === 429
         ? tx('搜尋次數過多，請稍候一分鐘再試。', 'Too many searches. Please wait a minute and try again.')
         : (code === 400
-            ? (extractErrorMessage(err) ?? tx('搜尋條件不正確，請調整關鍵字後再試。', 'The search is not valid. Please adjust your keywords and try again.'))
+            ? (extractErrorMessage(err, isEn.value) ?? tx('搜尋條件不正確，請調整關鍵字後再試。', 'The search is not valid. Please adjust your keywords and try again.'))
             : tx('搜尋暫時無法使用，請稍後再試。', 'Search is temporarily unavailable. Please try again later.'))
       return { ok: false, message }
     }

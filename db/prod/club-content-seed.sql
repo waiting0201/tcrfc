@@ -8976,7 +8976,7 @@ IF NOT EXISTS (SELECT 1 FROM ad_campaigns WHERE id = N'7ee4f0cc-f0eb-589b-b68b-5
           DATEADD(day, 7, SYSUTCDATETIME()), DATEADD(day, 21, SYSUTCDATETIME()), 1, N'traffic', N'draft');
 GO
 
--- ── 61. 英文欄位回填（*_i18n 的 en 列；只補缺的、不覆寫既有英文；僅 tcrfc，藍鯨與新聞不在此列） ──
+-- ── 61. 英文欄位回填（*_i18n 的 en 列；只補缺的、不覆寫既有英文；僅 tcrfc，藍鯨不在此列） ──
 INSERT INTO competitions_i18n (competition_id, locale, name)
 SELECT b.id, N'en', N'Enterprise Premier League'
 FROM competitions b JOIN competitions_i18n z ON z.competition_id = b.id AND z.locale = N'zh-Hant'
@@ -9870,6 +9870,1168 @@ FROM settings_i18n e
 JOIN settings b ON b.id = e.setting_id
 JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
 WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.setting_key = N'site.founding_title';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC and AS Trenčín deepen youth development partnership, opening a new chapter in Taiwan-Slovakia football exchange'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-08-10-international-000'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC and AS Trenčín deepen youth development partnership, opening a new chapter in Taiwan-Slovakia football exchange' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-08-10-international-000';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 3-0 銘傳大學'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-24-match-001'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 3-0 銘傳大學' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-24-match-001';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 1-2 陽信北競'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-17-match-002'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 1-2 陽信北競' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-17-match-002';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 2-4 南市台鋼'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-10-match-003'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 2-4 南市台鋼' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-10-match-003';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: 陽信北競 Reserves 5-0 Taichung Rock FC Reserves'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-09-match-004'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: 陽信北競 Reserves 5-0 Taichung Rock FC Reserves' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-09-match-004';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: Taichung Rock FC Reserves 0-2 銘傳Desafio'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-03-match-005'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: Taichung Rock FC Reserves 0-2 銘傳Desafio' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-03-match-005';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 1-0 大同足球'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-03-match-006'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 1-0 大同足球' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-05-03-match-006';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 2-2 台電'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-27-match-007'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 2-2 台電' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-27-match-007';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: 桃園國際 1-1 Taichung Rock FC Reserves'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-25-match-008'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: 桃園國際 1-1 Taichung Rock FC Reserves' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-25-match-008';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 台中未來 0-1 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-19-match-009'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 台中未來 0-1 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-19-match-009';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: Taichung Rock FC Reserves 4-1 灣島'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-18-match-010'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: Taichung Rock FC Reserves 4-1 灣島' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-18-match-010';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 新北航源 0-2 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-12-match-011'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 新北航源 0-2 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-12-match-011';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: 高雄先鋒 4-1 Taichung Rock FC Reserves'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-11-match-012'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: 高雄先鋒 4-1 Taichung Rock FC Reserves' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-04-11-match-012';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: Taichung Rock FC Reserves 5-2 新北航源輔大'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-03-22-match-013'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: Taichung Rock FC Reserves 5-2 新北航源輔大' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-03-22-match-013';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 1-1 銘傳大學'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-03-09-match-014'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 1-1 銘傳大學' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-03-09-match-014';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 3-1 陽信北競'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-03-02-match-015'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 3-1 陽信北競' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-03-02-match-015';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Widening international horizons: 5 Taichung Rock FC players called up to train in Italy by 萊尼亞戈'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-02-06-international-016'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Widening international horizons: 5 Taichung Rock FC players called up to train in Italy by 萊尼亞戈' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-02-06-international-016';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC teams up with Subkarma on local charity, donating English books to 潭秀非營利幼兒園'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-01-12-community-017'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC teams up with Subkarma on local charity, donating English books to 潭秀非營利幼兒園' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2026-01-12-community-017';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 0-0 南市台鋼'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-22-match-018'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 0-0 南市台鋼' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-22-match-018';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 0-1 大同足球隊'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-14-match-019'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 0-1 大同足球隊' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-14-match-019';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-14-match-020'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-14-match-020';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-09-match-021'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-09-match-021';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-07-match-022'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 台灣電力 1-2 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-07-match-022';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 台中FUTURO 4-0 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-01-match-023'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 台中FUTURO 4-0 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-12-01-match-023';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: 銘傳大學Desafio 1-3 Taichung Rock FC Reserves'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-24-match-024'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: 銘傳大學Desafio 1-3 Taichung Rock FC Reserves' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-24-match-024';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 新北航源 3-0 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-24-match-025'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 新北航源 3-0 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-24-match-025';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'First step in the Hellas Verona partnership: Taichung Rock FC players depart for training in Italy'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-04-international-026'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'First step in the Hellas Verona partnership: Taichung Rock FC players depart for training in Italy' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-04-international-026';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'陳曉明 appointed Technical Advisor of Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-03-club-027'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'陳曉明 appointed Technical Advisor of Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-03-club-027';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 銘傳大學 0-1 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-02-match-028'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 銘傳大學 0-1 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-02-match-028';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: Taichung Rock FC Reserves 2-0 桃園國際'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-01-match-029'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: Taichung Rock FC Reserves 2-0 桃園國際' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-11-01-match-029';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: 灣島 2-7 Taichung Rock FC Reserves'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-10-26-match-030'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: 灣島 2-7 Taichung Rock FC Reserves' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-10-26-match-030';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 陽信北競 2-2 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-10-26-match-031'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 陽信北競 2-2 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-10-26-match-031';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 南市台鋼 3-3 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-09-28-match-032'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 南市台鋼 3-3 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-09-28-match-032';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: 大同足球 2-2 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-09-21-match-033'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: 大同足球 2-2 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-09-21-match-033';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: 新北航源輔大 1-0 Taichung Rock FC Reserves'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-09-20-match-034'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: 新北航源輔大 1-0 Taichung Rock FC Reserves' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-09-20-match-034';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 0-2 台灣電力'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-09-14-match-035'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 0-2 台灣電力' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-09-14-match-035';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 0-1 台中未來'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-08-24-match-036'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 0-1 台中未來' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-08-24-match-036';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Enterprise Premier League: Taichung Rock FC 2-1 新北航源'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-08-18-match-037'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Enterprise Premier League: Taichung Rock FC 2-1 新北航源' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-08-18-match-037';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC International Cup: Taichung Rock FC vs 東方'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-31-intcup-038'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC International Cup: Taichung Rock FC vs 東方' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-31-intcup-038';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC International Cup: 紅白艾倫 vs 台中Futuro'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-31-intcup-039'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC International Cup: 紅白艾倫 vs 台中Futuro' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-31-intcup-039';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC to sign memorandum of cooperation with Serie A club Hellas Verona to advance Taiwan-Italy football exchange'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-30-international-040'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC to sign memorandum of cooperation with Serie A club Hellas Verona to advance Taiwan-Italy football exchange' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-30-international-040';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC International Cup: Taichung Rock FC vs 紅白艾倫'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-29-intcup-041'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC International Cup: Taichung Rock FC vs 紅白艾倫' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-29-intcup-041';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC International Cup: 東方 vs 台中Futuro'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-29-intcup-042'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC International Cup: 東方 vs 台中Futuro' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-29-intcup-042';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC signs memorandum of understanding with Germany''s Rot Weiss Ahlen'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-27-international-043'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC signs memorandum of understanding with Germany''s Rot Weiss Ahlen' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-27-international-043';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC International Cup: Taichung Rock FC vs 台中未來'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-27-intcup-044'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC International Cup: Taichung Rock FC vs 台中未來' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-27-intcup-044';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC International Cup: 紅白艾倫 vs 東方'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-27-intcup-045'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC International Cup: 紅白艾倫 vs 東方' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-27-intcup-045';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'2025 Taichung Rock FC International Cup press conference'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-25-club-046'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2025 Taichung Rock FC International Cup press conference' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-25-club-046';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung City Government Sports Bureau flag presentation ceremony'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-21-community-047'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung City Government Sports Bureau flag presentation ceremony' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-21-community-047';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'2025 Taichung Rock FC International Cup kicks off'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-12-club-048'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2025 Taichung Rock FC International Cup kicks off' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-12-club-048';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC and 龜記茗品 continue their partnership'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-08-club-049'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC and 龜記茗品 continue their partnership' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-07-08-club-049';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC attends the graduation ceremony at 南投縣雙龍國小'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-06-11-community-050'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC attends the graduation ceremony at 南投縣雙龍國小' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-06-11-community-050';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'President''s Cup quarter-final: 台灣電力 1-1 (penalties 4-2) Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-17-match-051'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'President''s Cup quarter-final: 台灣電力 1-1 (penalties 4-2) Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-17-match-051';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'President''s Cup: Taichung Rock FC 2-2 高大國光'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-13-match-052'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'President''s Cup: Taichung Rock FC 2-2 高大國光' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-13-match-052';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'President''s Cup: Taichung Rock FC Reserves 8-1 銘傳B'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-13-match-053'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'President''s Cup: Taichung Rock FC Reserves 8-1 銘傳B' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-13-match-053';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'President''s Cup: Taichung Rock FC 1-5 南市台鋼藍'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-04-match-054'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'President''s Cup: Taichung Rock FC 1-5 南市台鋼藍' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-04-match-054';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'President''s Cup: Taichung Rock FC Reserves 1-2 台中FUTURO'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-04-match-055'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'President''s Cup: Taichung Rock FC Reserves 1-2 台中FUTURO' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-04-match-055';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'2025 Taichung Rock FC Cup football invitational'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-03-camps-056'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'2025 Taichung Rock FC Cup football invitational' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-05-03-camps-056';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'President''s Cup: 桃園國際灰 0-7 Taichung Rock FC Reserves'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-29-match-057'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'President''s Cup: 桃園國際灰 0-7 Taichung Rock FC Reserves' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-29-match-057';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'President''s Cup: 陽信北競 Reserves 2-3 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-28-match-058'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'President''s Cup: 陽信北競 Reserves 2-3 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-28-match-058';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'President''s Cup: Taichung Rock FC 2-1 新北輔大'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-12-match-059'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'President''s Cup: Taichung Rock FC 2-1 新北輔大' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-12-match-059';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'President''s Cup: Taichung Rock FC Reserves 1-5 南市台鋼綠'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-12-match-060'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'President''s Cup: Taichung Rock FC Reserves 1-5 南市台鋼綠' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-12-match-060';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'周宇杰 joins Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-11-club-061'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'周宇杰 joins Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-11-club-061';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'廖奕盛 joins Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-11-club-062'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'廖奕盛 joins Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-11-club-062';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Germany-based 王義友 joins Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-11-club-063'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Germany-based 王義友 joins Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-11-club-063';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'孫恩祈 invited to stay on in Spain until the end of the season'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-08-international-064'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'孫恩祈 invited to stay on in Spain until the end of the season' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-08-international-064';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Club friendly: 陽信北競 2-1 Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-07-match-065'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Club friendly: 陽信北競 2-1 Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-07-match-065';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'梁顥騰 completes his training trip in Spain, deeply inspired'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-07-international-066'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'梁顥騰 completes his training trip in Spain, deeply inspired' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-07-international-066';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Fourth warm-up match: 陽信北競 vs Taichung Rock FC'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-03-match-067'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Fourth warm-up match: 陽信北競 vs Taichung Rock FC' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-03-match-067';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Two Taichung Rock FC squads set out for the 2025 National President''s Cup'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-02-match-068'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Two Taichung Rock FC squads set out for the 2025 National President''s Cup' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-04-02-match-068';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Warm-up match: Taichung Rock FC 1-3 陽信北競'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-29-match-069'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Warm-up match: Taichung Rock FC 1-3 陽信北競' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-29-match-069';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Third warm-up match: Taichung Rock FC vs 陽信北競'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-22-match-070'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Third warm-up match: Taichung Rock FC vs 陽信北競' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-22-match-070';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'高冠宇 called up to the Chinese Taipei national team'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-17-club-071'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'高冠宇 called up to the Chinese Taipei national team' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-17-club-071';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Warm-up match: Taichung Rock FC vs 台中Futuro'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-15-match-072'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Warm-up match: Taichung Rock FC vs 台中Futuro' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-15-match-072';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC take on 台中Futuro in a warm-up match'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-13-match-073'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC take on 台中Futuro in a warm-up match' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-13-match-073';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Two players join training at RC Alcobendas in Spain'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-04-international-074'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Two players join training at RC Alcobendas in Spain' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-03-04-international-074';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Four players join training with the Tokyo University of Agriculture football team'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-02-28-international-075'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Four players join training with the Tokyo University of Agriculture football team' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-02-28-international-075';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Japan training camp wrap-up'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-02-19-international-076'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Japan training camp wrap-up' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-02-19-international-076';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'楊朝景 transfers to Hong Kong Premier League club 九龍城'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-02-04-international-077'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'楊朝景 transfers to Hong Kong Premier League club 九龍城' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-02-04-international-077';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC recognised by the Taichung City Government Sports Bureau for cooperation and naming rights'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-01-07-club-078'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC recognised by the Taichung City Government Sports Bureau for cooperation and naming rights' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2025-01-07-club-078';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC conditionally passes top-tier club certification'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2024-12-18-club-079'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC conditionally passes top-tier club certification' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2024-12-18-club-079';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Coach 林 wins Best Coach award, 楊朝景 wins Golden Boot'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2024-12-18-club-080'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Coach 林 wins Best Coach award, 楊朝景 wins Golden Boot' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2024-12-18-club-080';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'National Second Division: Taichung Rock FC 9-0 銘傳大學Desafio'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2024-12-07-match-081'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'National Second Division: Taichung Rock FC 9-0 銘傳大學Desafio' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2024-12-07-match-081';
+GO
+
+INSERT INTO articles_i18n (article_id, locale, title)
+SELECT b.id, N'en', N'Taichung Rock FC reaches cooperation agreement with RC Alcobendas'
+FROM articles b JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2024-11-05-international-082'
+  AND NOT EXISTS (SELECT 1 FROM articles_i18n e WHERE e.article_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Taichung Rock FC reaches cooperation agreement with RC Alcobendas' ELSE e.title END
+FROM articles_i18n e
+JOIN articles b ON b.id = e.article_id
+JOIN articles_i18n z ON z.article_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'2024-11-05-international-082';
 GO
 
 EXEC sys.sp_addextendedproperty @name = N'tcrfc.seed_import', @value = N'$(IMPORT_BATCH)';

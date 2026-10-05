@@ -26,7 +26,7 @@ export function useFormSubmit(formCode: string) {
   const config = useRuntimeConfig()
   const club = config.public.club
   const route = useRoute()
-  const { tx } = useLocale()
+  const { tx, isEn } = useLocale()
 
   const status = ref<FormSubmitStatus>('idle')
   /** 失敗時的訊息——一律顯示後端 400 回應的 `message`／`detail`（例如「缺少必填欄位：xxx」），
@@ -58,7 +58,7 @@ export function useFormSubmit(formCode: string) {
     }
     catch (err: unknown) {
       status.value = 'error'
-      errorMessage.value = extractErrorMessage(err) ?? genericError()
+      errorMessage.value = extractErrorMessage(err, isEn.value) ?? genericError()
     }
   }
 
@@ -76,10 +76,17 @@ export function useFormSubmit(formCode: string) {
  * `{ message }`／`{ detail }` 形狀，見 apps/api 的 PublicFormSubmissionValidationException
  * 系列例外如何被轉成 ProblemDetails）。取不到就回傳 null，交由呼叫端使用通用文案，
  * 不在這裡假設一定拿得到、也不把整包例外物件字串化塞給使用者看。 */
-export function extractErrorMessage(err: unknown): string | null {
+export function extractErrorMessage(err: unknown, en = false): string | null {
   if (!err || typeof err !== 'object') return null
   const data = (err as { data?: unknown }).data
   if (!data) return null
+  if (en) {
+    // 主站英文版（C-6 第二輪）：只吃後端 ProblemDetails 的 `messageEn`（BFF 把它放在 `data.data.messageEn`，
+    // 直通代理則在 `data.messageEn`）；沒有就回 null，由呼叫端用英文通用文案，**不把繁中訊息顯示在英文介面**。
+    const d = data as { messageEn?: unknown, data?: { messageEn?: unknown } }
+    const m = typeof d.messageEn === 'string' ? d.messageEn : (typeof d.data?.messageEn === 'string' ? d.data.messageEn : '')
+    return m.trim() && !/[\u3400-\u9fff]/.test(m) ? m.trim() : null
+  }
   if (typeof data === 'string') return data
   if (typeof data === 'object') {
     const detail = (data as { detail?: unknown; message?: unknown; title?: unknown })

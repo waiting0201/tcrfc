@@ -537,10 +537,10 @@ onBeforeUnmount(() => {
               <a class="btn btn--light" :href="lp(heroCopy.ctaSecondaryHref)">{{ heroCopy.ctaSecondaryLabelZh }}</a>
             </div>
             <div v-if="heroSlides.length > 1" class="hero__slider-nav">
-              <button type="button" class="hero__arrow hero__arrow--prev" data-hero-prev aria-controls="hero-slider" aria-label="上一張主視覺圖片" @click="goTo(current - 1)">
+              <button type="button" class="hero__arrow hero__arrow--prev" data-hero-prev aria-controls="hero-slider" :aria-label="tx('上一張主視覺圖片', 'Previous hero image')" @click="goTo(current - 1)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg>
               </button>
-              <div class="hero__dots" role="tablist" aria-label="選擇主視覺圖片">
+              <div class="hero__dots" role="tablist" :aria-label="tx('選擇主視覺圖片', 'Choose hero image')">
                 <button
                   v-for="(slide, i) in heroSlides"
                   :key="`dot-${slide.imageUrl}-${i}`"
@@ -550,12 +550,12 @@ onBeforeUnmount(() => {
                   role="tab"
                   :aria-selected="i === activeIndex ? 'true' : 'false'"
                   aria-controls="hero-slider"
-                  :aria-label="`第 ${i + 1} 張，共 ${heroSlides.length} 張`"
+                  :aria-label="tx(`第 ${i + 1} 張，共 ${heroSlides.length} 張`, `Slide ${i + 1} of ${heroSlides.length}`)"
                   :data-hero-goto="i"
                   @click="goTo(i)"
                 ></button>
               </div>
-              <button type="button" class="hero__arrow hero__arrow--next" data-hero-next aria-controls="hero-slider" aria-label="下一張主視覺圖片" @click="goTo(current + 1)">
+              <button type="button" class="hero__arrow hero__arrow--next" data-hero-next aria-controls="hero-slider" :aria-label="tx('下一張主視覺圖片', 'Next hero image')" @click="goTo(current + 1)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7" /></svg>
               </button>
             </div>

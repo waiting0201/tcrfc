@@ -10,7 +10,7 @@ const P1 = '22222222-2222-4222-8222-222222222222'
 const json = (res, code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)) }
 const match = (club) => ({ id: M1, seasonCode: '2025', teamCode: club === 'bw' ? 'BW1' : 'D1', matchOn: '2025-06-01', kickoff: '14:00', homeAway: 'home', opponent: '測試對手', venue: '測試球場', competitionTag: 'league', competitionName: '木蘭聯賽', status: 'played', scoreHome: 1, scoreAway: 0, roundNo: 3, matchNo: 12, originalMatchOn: null, originalKickoff: null, schemaEligible: MODE === 'full' })
 // 註冊年齡閘門（對照 apps/api `MemberAgeGate`）：生日必填→台北當地足歲→未滿 18 歲驗 guardianConsent。
-const problem = (res, code, detail) => { json(res, 400, { title: '輸入內容有誤', status: 400, detail, code, messageZh: detail, messageEn: detail, retryable: false }); return true }
+const problem = (res, code, detail, en) => { json(res, 400, { title: '輸入內容有誤', status: 400, detail, code, messageZh: detail, messageEn: en ?? 'The request could not be completed.', retryable: false }); return true }
 const taipeiToday = () => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10)
 function ageGate(res, b) {
   if (!b.birthOn) return problem(res, 'birth_on_required', '請填寫生日（註冊需要確認年齡）。')
@@ -25,6 +25,11 @@ function ageGate(res, b) {
   return null
 }
 http.createServer((req, res) => {
+  // C-6 第二輪：公開表單送出的 400（驗證英文版錯誤訊息直通：BFF `clientErrorFrom` 要把 messageEn 帶給瀏覽器）。
+  if (req.method === 'POST' && /\/forms\/[^/]+\/submissions$/.test(req.url)) {
+    req.resume(); req.on('end', () => json(res, 400, { title: '輸入內容有誤', status: 400, detail: '缺少必填欄位：姓名', code: 'missing_required_field', messageZh: '缺少必填欄位：姓名', messageEn: 'A required field is missing.', retryable: false }))
+    return
+  }
   if (req.method === 'POST' && /\/member\/auth\/(register|line\/complete)$/.test(req.url)) {
     let raw = ''; req.on('data', (c) => { raw += c }); req.on('end', () => {
       let b = {}; try { b = JSON.parse(raw) } catch { /* 空本文 */ }
@@ -44,7 +49,8 @@ http.createServer((req, res) => {
   const m = u.pathname.match(/^\/api\/v1\/(?:(tcrfc|bw)\/)?(.*)$/)
   if (!m) return json(res, 404, {})
   const club = m[1] || 'bw'; const rest = m[2]
-  if (rest === 'schedule') return json(res, 200, { items: MODE === 'full' ? [match(club)] : [], page: 1, pageSize: 200, totalCount: 1, totalPages: 1 })
+  if (rest === 'calendar/events') return json(res, 200, { items: MODE === 'full' ? [{ id: 'e1', sourceType: 'custom', startsAt: '2025-06-20T10:00:00Z', endsAt: null, isAllDay: false, title: '球迷見面會', venueName: '示範球場', eventTypeCode: 'fan', description: '示範活動', ctaUrl: null, coverUrl: null }] : [], page: 1, pageSize: 100, totalCount: 1, totalPages: 1 })
+  if (rest === 'schedule') return json(res, 200, { items: MODE === 'full' ? [match(club), { ...match(club), id: '11111111-1111-4111-8111-111111111112', matchOn: '2025-07-06', matchNo: 13, opponent: '測試對手二' }, { ...match(club), id: '11111111-1111-4111-8111-111111111113', matchOn: '2025-08-03', matchNo: 14, opponent: '測試對手三' }] : [], page: 1, pageSize: 200, totalCount: 1, totalPages: 1 })
   if (rest === 'players') return json(res, 200, { items: MODE === 'full' ? [{ id: P1, slug: 'test-player', teamCode: club === 'bw' ? 'BW1' : 'D1', shirtNo: 9, position: 'FW', name: '測試球員', schemaEligible: true, photoUrl: null }] : [], page: 1, pageSize: 100, totalCount: 1, totalPages: 1 })
   if (rest.startsWith('players/') && !rest.endsWith('/stats')) {
     const key = decodeURIComponent(rest.slice('players/'.length)).toLowerCase()
@@ -52,7 +58,7 @@ http.createServer((req, res) => {
   }
   if (rest.startsWith('players/') && rest.endsWith('/stats')) return json(res, 200, { playerId: P1, seasons: [] })
   if (rest === 'teams') return json(res, 200, MODE === 'full' ? [{ code: 'BW1', name: '台中藍鯨一線隊', logoUrl: 'https://example.test/logo.png', schemaEligible: true }, { code: 'BW-U15', name: 'U15', logoUrl: null, schemaEligible: false }] : [])
-  if (rest === 'programs/demo-camp') return json(res, 200, { id: '33333333-3333-4333-8333-333333333333', slug: 'demo-camp', audience: '國小學童', ageMin: 7, ageMax: 12, coverUrl: null, name: '示範營隊', intro: MODE === 'full' ? '示範營隊的簡介' : null, content: '第一段\n\n第二段', staff: [{ id: 's1', name: '教練甲' }], partners: [], sessions: [{ id: 'x1', startOn: '2099-07-01', endOn: '2099-07-05', weeklySchedule: null, capacity: 20, enrolledCount: 5, price: 3000, earlyBirdPrice: null, earlyBirdUntil: null, signupOpensAt: null, signupClosesAt: null, status: '開放', statusCode: 'open', statusLabelZh: '開放', statusLabelEn: 'Open', venueName: '示範球場', venueAddress: null }] })
+  if (rest === 'programs/demo-camp') return json(res, 200, { id: '33333333-3333-4333-8333-333333333333', slug: 'demo-camp', audience: '國小學童', ageMin: 7, ageMax: 12, coverUrl: null, name: '示範營隊', intro: MODE === 'full' ? '示範營隊的簡介' : null, content: '第一段\n\n第二段', staff: [{ id: 's1', name: '教練甲' }], partners: [], sessions: [{ id: 'x1', startOn: '2099-07-01', endOn: '2099-07-05', weeklySchedule: '{"mon":"18:00-19:30","wed":"18:00-19:30"}', capacity: 20, enrolledCount: 5, price: 3000, earlyBirdPrice: null, earlyBirdUntil: null, signupOpensAt: null, signupClosesAt: null, status: '開放', statusCode: 'open', statusLabelZh: '開放', statusLabelEn: 'Open', venueName: '示範球場', venueAddress: null }] })
   if (rest === 'seo/crawler-settings') return json(res, 200, { userAgents: [{ userAgent: 'GPTBot', allowed: true }, { userAgent: 'ClaudeBot', allowed: true }], excludePaths: ['/zh/member/', '/en/member/', '/zh/academy/teams/', '/en/academy/teams/', '/zh/academy/life/', '/en/academy/life/', '/m/', '/assets/img/academy/', '/assets/img/programs/'] })
   if (rest === 'seo/settings') return json(res, 200, { robotsCustomRules: null })
   if (rest === 'seo/redirects') return json(res, 200, [])

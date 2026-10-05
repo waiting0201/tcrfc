@@ -84,7 +84,7 @@ async function submit() {
     form.consent = false
   }
   catch (err) {
-    const e = toMemberApiError(err)
+    const e = toMemberApiError(err, undefined, isEn.value)
     error.value = errorText(e.code, e.detail)
     needFanClub.value = e.code === 'fan_club_required'
     if (e.code === 'login_required') needFanClub.value = false
@@ -101,7 +101,7 @@ async function cancel() {
     my.value = null
     result.value = null
   }
-  catch (err) { const e = toMemberApiError(err); error.value = errorText(e.code, e.detail) }
+  catch (err) { const e = toMemberApiError(err, undefined, isEn.value); error.value = errorText(e.code, e.detail) }
   finally { busy.value = false }
 }
 </script>

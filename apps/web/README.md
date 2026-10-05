@@ -3406,3 +3406,12 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - **輪播指示器**：`pages/zh/index.vue` 的 dots 原本 `is-active` 寫死 `i === 0`（見 docs/18 E-205），改綁響應式 `activeIndex`；`goTo()`／`swapInstant()` 是所有換張路徑（自動播放、箭頭、點指示器、滑動）的出口，在轉場開始時同步。新增觸控滑動（水平 ≥50px 且大於垂直位移才換張，左滑下一張，掛在 hero 區塊，不吃垂直捲動）。藍鯨共用同一個元件，但藍鯨目前沒有輪播素材（無 banner 時整段不掛載），本機假資料無法實測，行為同磐石。
 - **頁尾語系切換**：`SiteFooter.vue` 的 `<style>` 補 `.footer-bottom` 內 `.legal-links` 垂直置中、語系 `<button>` 改 `font:inherit`、`line-height:inherit`、去除預設 padding／min-height（`tcrfc.css` 不可改，所以在元件補）。
 - **驗證**：無頭 Chrome（CDP）對假 API 前後截圖與量測：輪播自動／箭頭／點指示器／觸控左右滑，slide 與 dot 同步；頁尾四種組合（1280／390 × zh／en）連結與語系切換 top／height 一致（修前高 23／偏低 3px，修後都是 18 同一基線）；兩站 build、lint 通過。
+
+
+## 英文導覽折行與三個既有缺陷（2026-10-05，`frontend-architect`，docs/18 E-218）
+
+- **英文導覽列**：`SiteHeader.vue` 的 `<style>` 在 `.site-header--en`（`isEn` 時加在 `<header>`）底下收斂：字級 .76rem、字距 0、間距 `clamp(.5rem,.85vw,1rem)`、`nowrap`；1081–1199px 英文版改顯示漢堡選單（中文版沿用 tcrfc.css 的 1080 斷點，完全不變）。實測 1280／1440 英文單列、中文單列不變、1024 與 1100（英文）為漢堡。
+- **`schedule.vue`**：「俱樂部活動」區塊移出 `monthGroups` 迴圈（修前 3 個月渲染 3 次）。
+- **`programs/[slug]`**：時段兩語系都走 `formatWeeklySchedule`。
+- **`FaqEmbedItem`**：補 `isFallbackLocale?`。
+- 假 API 補多月份賽程、`calendar/events` 與 JSON 時段，可重現上述問題。

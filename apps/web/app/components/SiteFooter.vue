@@ -93,7 +93,7 @@ async function onSubscribe() {
   catch (err: unknown) {
     nlStatus.value = 'error'
     const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
-    nlMessage.value = extractErrorMessage(err)
+    nlMessage.value = extractErrorMessage(err, isEn.value)
       ?? (status === 429 ? tx('送出次數過多，請稍候幾分鐘再試。', 'Too many attempts. Please wait a few minutes and try again.') : t('newsletter.error', tx('訂閱失敗，請確認 Email 格式後再試一次。', 'Subscription failed. Please check your email address and try again.')))
   }
 }
