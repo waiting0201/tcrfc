@@ -3,22 +3,23 @@
 //
 // 文案依俱樂部切換（docs/13-blue-whale-site.md §6 紀律 11）：本頁 SEO／頁首／
 // 導覽卡描述一律取自 shared/utils/club-copy.ts，不在頁面內硬編碼俱樂部名稱。
-definePageMeta({ nav: "about", unit: "02" })
+definePageMeta({ nav: "about", unit: "02", enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => getClubIdentity(clubKey.value))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 const assets = computed(() => getClubAssets(clubKey.value))
 // S1-12d 收尾第二輪：頁首 lede 含成立年份／聯賽事實，club-copy.ts 已改為工廠函式。
 const { facts } = useSiteFacts(clubKey.value)
-const hero = computed(() => getAboutIndexHero(clubKey.value, facts.value))
-const navDesc = computed(() => ABOUT_NAV_DESC[clubKey.value])
+const hero = computed(() => (isEn.value ? getAboutIndexHeroEn(facts.value) : getAboutIndexHero(clubKey.value, facts.value)))
+const navDesc = computed(() => (isEn.value ? ABOUT_NAV_DESC_EN : ABOUT_NAV_DESC[clubKey.value]))
+const seo = computed(() => (isEn.value ? ABOUT_INDEX_SEO_EN : ABOUT_INDEX_SEO[clubKey.value]))
 
 useSeoMeta({
-  title: computed(() => ABOUT_INDEX_SEO[clubKey.value].title),
-  description: computed(() => ABOUT_INDEX_SEO[clubKey.value].description),
+  title: computed(() => seo.value.title),
+  description: computed(() => seo.value.description),
 })
 
 // Organization JSON-LD（GEO-05／S1-12f），理由見 app/pages/zh/index.vue 同一段註解——
@@ -28,10 +29,10 @@ useOrganizationSchema()
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li aria-current="page">{{ identity.aboutLabelZh }}</li>
     </ol>
   </div>
@@ -40,7 +41,7 @@ useOrganizationSchema()
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ aboutEyebrow('02', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('02') : aboutEyebrow('02', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
@@ -52,68 +53,68 @@ useOrganizationSchema()
     <div class="eyebrow-row">
       <div>
         <p class="kicker">EIGHT CHAPTERS</p>
-        <h2 class="section-title" id="about-nav-title">認識{{ assets.shortNameZh }}</h2>
+        <h2 class="section-title" id="about-nav-title">{{ tx(`認識${assets.shortNameZh}`, 'Get to know TCRFC') }}</h2>
       </div>
-      <p class="section-lede">從故事、理念到治理，逐篇了解{{ assets.nameZh }}。</p>
+      <p class="section-lede">{{ tx(`從故事、理念到治理，逐篇了解${assets.nameZh}。`, 'From our story and philosophy to governance, learn about Taichung Rock FC chapter by chapter.') }}</p>
     </div>
 
     <div class="about-nav-grid">
       <a class="about-nav-card clip-card" :href="lp('/zh/about/our-story/')">
         <p class="about-nav-card__num">2.1</p>
         <p class="about-nav-card__en">Our Story</p>
-        <p class="about-nav-card__zh">我們的故事</p>
+        <p v-if="!isEn" class="about-nav-card__zh">我們的故事</p>
         <p class="about-nav-card__desc">{{ navDesc.ourStory }}</p>
-        <span class="about-nav-card__link">閱讀故事 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="about-nav-card__link">{{ tx('閱讀故事', 'Read our story') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" :href="lp('/zh/about/vision-mission/')">
         <p class="about-nav-card__num">2.2</p>
         <p class="about-nav-card__en">Vision &amp; Mission</p>
-        <p class="about-nav-card__zh">願景與使命</p>
+        <p v-if="!isEn" class="about-nav-card__zh">願景與使命</p>
         <p class="about-nav-card__desc">{{ navDesc.visionMission }}</p>
-        <span class="about-nav-card__link">了解願景 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="about-nav-card__link">{{ tx('了解願景', 'Our vision') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" :href="lp('/zh/about/philosophy/')">
         <p class="about-nav-card__num">2.3</p>
         <p class="about-nav-card__en">Our Philosophy</p>
-        <p class="about-nav-card__zh">足球理念</p>
+        <p v-if="!isEn" class="about-nav-card__zh">足球理念</p>
         <p class="about-nav-card__desc">{{ navDesc.philosophy }}</p>
-        <span class="about-nav-card__link">認識理念 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="about-nav-card__link">{{ tx('認識理念', 'Our philosophy') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" :href="lp('/zh/about/our-people/')">
         <p class="about-nav-card__num">2.4</p>
         <p class="about-nav-card__en">Our People</p>
-        <p class="about-nav-card__zh">團隊成員</p>
+        <p v-if="!isEn" class="about-nav-card__zh">團隊成員</p>
         <p class="about-nav-card__desc">{{ navDesc.ourPeople }}</p>
-        <span class="about-nav-card__link">查看團隊 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="about-nav-card__link">{{ tx('查看團隊', 'Meet the team') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" :href="lp('/zh/about/governance/')">
         <p class="about-nav-card__num">2.5</p>
         <p class="about-nav-card__en">Governance</p>
-        <p class="about-nav-card__zh">治理與管理</p>
-        <p class="about-nav-card__desc">組織架構、治理原則與公開文件。</p>
-        <span class="about-nav-card__link">了解治理 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <p v-if="!isEn" class="about-nav-card__zh">治理與管理</p>
+        <p class="about-nav-card__desc">{{ tx('組織架構、治理原則與公開文件。', ABOUT_NAV_DESC_EN.governance) }}</p>
+        <span class="about-nav-card__link">{{ tx('了解治理', 'Governance') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" :href="lp('/zh/about/ecosystem/')">
         <p class="about-nav-card__num">2.6</p>
         <p v-if="identity.brandTagEn" class="about-nav-card__en">{{ identity.brandTagEn }} Ecosystem</p>
         <p v-else class="about-nav-card__en">Ecosystem</p>
-        <p class="about-nav-card__zh">生態系</p>
+        <p v-if="!isEn" class="about-nav-card__zh">生態系</p>
         <p class="about-nav-card__desc">{{ navDesc.ecosystem }}</p>
-        <span class="about-nav-card__link">查看生態系 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="about-nav-card__link">{{ tx('查看生態系', 'View the ecosystem') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" :href="lp('/zh/about/history/')">
         <p class="about-nav-card__num">2.7</p>
         <p class="about-nav-card__en">Club History</p>
-        <p class="about-nav-card__zh">俱樂部歷程</p>
+        <p v-if="!isEn" class="about-nav-card__zh">俱樂部歷程</p>
         <p class="about-nav-card__desc">{{ navDesc.history }}</p>
-        <span class="about-nav-card__link">回顧歷程 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="about-nav-card__link">{{ tx('回顧歷程', 'Look back') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="about-nav-card clip-card" :href="lp('/zh/about/milestones/')">
         <p class="about-nav-card__num">2.8</p>
         <p class="about-nav-card__en">Key Milestones</p>
-        <p class="about-nav-card__zh">重要里程碑</p>
-        <p class="about-nav-card__desc">按年份檢視俱樂部的重要大事記。</p>
-        <span class="about-nav-card__link">查看時間軸 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <p v-if="!isEn" class="about-nav-card__zh">重要里程碑</p>
+        <p class="about-nav-card__desc">{{ tx('按年份檢視俱樂部的重要大事記。', ABOUT_NAV_DESC_EN.milestones) }}</p>
+        <span class="about-nav-card__link">{{ tx('查看時間軸', 'View the timeline') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
     </div>
   </div>

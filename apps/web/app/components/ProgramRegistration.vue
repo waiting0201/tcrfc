@@ -30,7 +30,7 @@ const HEALTH_DECLARATION_MARKER = '已勾選同意健康聲明（未蒐集健康
 
 const config = useRuntimeConfig()
 const club = config.public.club
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const clubAssets = getClubAssets(club)
 
 const registrable = computed(() => props.programs)
@@ -60,15 +60,18 @@ const website = ref('')
 type Phase = 'idle' | 'submitting' | 'success' | 'error'
 const phase = ref<Phase>('idle')
 const errorMessage = ref('')
+// 英文版：後端寫給使用者的訊息是日常中文，不翻譯、以 lang=zh-Hant 附在英文說明後面（C-6／S2-13）。
+const errorDetail = ref('')
 const result = ref<{ registrationNo: string, status: string, statusCode?: string, statusLabelZh?: string, statusLabelEn?: string, programName: string | null, sessionLabel: string } | null>(null)
 
 const GENERIC_ERROR = '送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用電話或 Email 聯繫我們。'
+const GENERIC_ERROR_EN = 'Submission failed. Please check that every field is filled in correctly and try again. If the problem persists, please contact us by phone or email.'
 
 function dateRange(s: SessionDto): string {
   const a = s.startOn?.replaceAll('-', '/')
   const b = s.endOn?.replaceAll('-', '/')
   if (a && b) return a === b ? a : `${a} – ${b}`
-  return a ?? b ?? '日期待公告'
+  return a ?? b ?? tx('日期待公告', 'Dates to be announced')
 }
 function schedule(s: SessionDto): string | null {
   return formatWeeklySchedule(s.weeklySchedule, locale.value)
@@ -82,26 +85,31 @@ function effectivePrice(s: SessionDto): { price: number, early: boolean } | null
 function remaining(s: SessionDto): string | null {
   if (s.capacity == null) return null
   const left = Math.max(s.capacity - s.enrolledCount, 0)
-  return left > 0 ? `剩餘 ${left} 名` : '名額已滿'
+  return left > 0 ? tx(`剩餘 ${left} 名`, `${left} left`) : tx('名額已滿', 'Full')
 }
 function sessionLabel(s: SessionDto): string {
-  return `${dateRange(s)}${schedule(s) ? `（${schedule(s)}）` : ''}`
+  return `${dateRange(s)}${schedule(s) ? tx(`（${schedule(s)}）`, ` (${schedule(s)})`) : ''}`
 }
 
 function extractMessage(err: unknown): string | null {
   const msg = extractErrorMessage(err)
-  if (msg) return msg
+  if (msg) {
+    if (!isEn.value) return msg
+    errorDetail.value = msg
+    return 'We could not submit your registration. The message from the system is shown below.'
+  }
   const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
-  if (status === 429) return '送出次數過多，請稍候幾分鐘再試。'
+  if (status === 429) return tx('送出次數過多，請稍候幾分鐘再試。', 'Too many submissions. Please wait a few minutes and try again.')
   return null
 }
 
 async function onSubmit() {
   if (phase.value === 'submitting' || !currentSession.value || !currentProgram.value) return
   errorMessage.value = ''
+  errorDetail.value = ''
   if (!phone.value.trim() && !email.value.trim()) {
     phase.value = 'error'
-    errorMessage.value = '聯絡電話與 Email 至少需要填寫一項，以便課程部與您聯繫。'
+    errorMessage.value = tx('聯絡電話與 Email 至少需要填寫一項，以便課程部與您聯繫。', 'Please provide at least a phone number or an email address so the programs team can contact you.')
     return
   }
   // 誘捕欄位有值＝機器人：安靜當作成功，不送出（端點本身另有依 IP 的限流）。
@@ -131,7 +139,7 @@ async function onSubmit() {
   }
   catch (err: unknown) {
     phase.value = 'error'
-    errorMessage.value = extractMessage(err) ?? GENERIC_ERROR
+    errorMessage.value = extractMessage(err) ?? (isEn.value ? GENERIC_ERROR_EN : GENERIC_ERROR)
   }
 }
 
@@ -144,6 +152,7 @@ function registerAnother() {
   result.value = null
   phase.value = 'idle'
   errorMessage.value = ''
+  errorDetail.value = ''
 }
 </script>
 
@@ -153,32 +162,32 @@ function registerAnother() {
     <div class="eyebrow-row">
       <div>
         <p class="kicker">REGISTER</p>
-        <h2 id="program-reg-title" class="section-title">線上報名</h2>
+        <h2 id="program-reg-title" class="section-title">{{ tx('線上報名', 'Online Registration') }}</h2>
       </div>
     </div>
-    <p class="section-lede">選擇梯次、填寫學員與聯絡資料後送出，系統會產生報名編號。課程費用不在站內付款，確認報名後由課程部另行通知繳費方式。</p>
+    <p class="section-lede">{{ tx('選擇梯次、填寫學員與聯絡資料後送出，系統會產生報名編號。課程費用不在站內付款，確認報名後由課程部另行通知繳費方式。', 'Choose a session, fill in the player and contact details and submit, and you will receive a registration number. Fees are not paid on this site: once your registration is confirmed, the programs team will let you know how to pay.') }}</p>
 
     <div v-if="phase === 'success'" class="form-status form-status--success" role="status">
       <template v-if="result">
-        <p><strong>報名資料已送出。</strong>您的報名編號是 <strong class="program-reg__no">{{ result.registrationNo }}</strong>，目前狀態：{{ statusLabel(result, locale) }}。</p>
-        <p v-if="result.statusCode === 'waitlisted'">這個梯次目前名額已滿，您已列入候補，有空位時課程部會依序與您聯繫。</p>
-        <p v-else>課程部會依您留下的聯絡方式與您確認梯次、名額與繳費方式。請記下報名編號，查詢時使用。</p>
+        <p><strong>{{ tx('報名資料已送出。', 'Your registration has been submitted.') }}</strong>{{ tx('您的報名編號是', ' Your registration number is') }} <strong class="program-reg__no">{{ result.registrationNo }}</strong>{{ tx('，目前狀態：', '. Current status: ') }}{{ statusLabel(result, locale) }}{{ tx('。', '.') }}</p>
+        <p v-if="result.statusCode === 'waitlisted'">{{ tx('這個梯次目前名額已滿，您已列入候補，有空位時課程部會依序與您聯繫。', 'This session is currently full and you have been placed on the waitlist. The programs team will contact you in order when a place opens up.') }}</p>
+        <p v-else>{{ tx('課程部會依您留下的聯絡方式與您確認梯次、名額與繳費方式。請記下報名編號，查詢時使用。', 'The programs team will confirm the session, your place and payment details using the contact information you left. Please keep your registration number for any enquiries.') }}</p>
         <p class="program-reg__summary">{{ result.programName }}　{{ result.sessionLabel }}</p>
       </template>
-      <p v-else>已收到您的報名資料。</p>
-      <p><button type="button" class="btn btn--light btn--sm" @click="registerAnother">為另一位學員報名</button></p>
+      <p v-else>{{ tx('已收到您的報名資料。', 'We have received your registration.') }}</p>
+      <p><button type="button" class="btn btn--light btn--sm" @click="registerAnother">{{ tx('為另一位學員報名', 'Register another player') }}</button></p>
     </div>
 
     <form v-else class="tcrfc-form program-reg__form" method="post" @submit.prevent="onSubmit">
       <HoneypotField v-model="website" />
 
-      <div v-if="phase === 'error'" class="form-status form-status--error" role="alert"><p>{{ errorMessage }}</p></div>
+      <div v-if="phase === 'error'" class="form-status form-status--error" role="alert"><p>{{ errorMessage }}<span v-if="errorDetail" lang="zh-Hant"> {{ errorDetail }}</span></p></div>
 
       <fieldset>
-        <legend>課程與梯次</legend>
+        <legend>{{ tx('課程與梯次', 'Program and Session') }}</legend>
         <div class="form-grid">
           <div v-if="registrable.length > 1" class="form-field form-field--full">
-            <label for="pr-program">課程</label>
+            <label for="pr-program">{{ tx('課程', 'Program') }}</label>
             <select id="pr-program" v-model="programSlug" name="program">
               <option v-for="p in registrable" :key="p.slug" :value="p.slug">{{ p.name }}</option>
             </select>
@@ -187,7 +196,7 @@ function registerAnother() {
             <p class="program-reg__program">{{ currentProgram.name }}</p>
           </div>
           <div class="form-field form-field--full">
-            <span id="pr-session-label" class="program-reg__legend">梯次<span class="req" aria-hidden="true">*</span></span>
+            <span id="pr-session-label" class="program-reg__legend">{{ tx('梯次', 'Session') }}<span class="req" aria-hidden="true">*</span></span>
             <ul class="program-reg__sessions" role="radiogroup" aria-labelledby="pr-session-label">
               <li v-for="s in currentProgram?.sessions ?? []" :key="s.id">
                 <label :class="['program-reg__session', { 'is-selected': sessionId === s.id }]">
@@ -198,46 +207,46 @@ function registerAnother() {
                     <span v-if="s.venueName">{{ s.venueName }}</span>
                   </span>
                   <span class="program-reg__session-meta">
-                    <span class="program-reg__badge">{{ SESSION_SIGNUP_LABEL[sessionSignupState(s)] }}</span>
-                    <span v-if="effectivePrice(s)">{{ effectivePrice(s)!.early ? '早鳥價 ' : '' }}{{ formatPrice(effectivePrice(s)!.price) }}</span>
+                    <span class="program-reg__badge">{{ sessionSignupLabel(sessionSignupState(s), locale) }}</span>
+                    <span v-if="effectivePrice(s)">{{ effectivePrice(s)!.early ? tx('早鳥價 ', 'Early-bird ') : '' }}{{ formatPrice(effectivePrice(s)!.price) }}</span>
                     <span v-if="remaining(s)">{{ remaining(s) }}</span>
                   </span>
                 </label>
               </li>
             </ul>
-            <p v-if="currentSession && sessionSignupState(currentSession) === 'waitlist'" class="field-hint">這個梯次目前名額已滿，送出後會列入候補，有空位時由課程部依序聯繫。</p>
+            <p v-if="currentSession && sessionSignupState(currentSession) === 'waitlist'" class="field-hint">{{ tx('這個梯次目前名額已滿，送出後會列入候補，有空位時由課程部依序聯繫。', 'This session is currently full. After you submit you will be placed on the waitlist, and the programs team will contact you in order when a place opens up.') }}</p>
           </div>
         </div>
       </fieldset>
 
       <fieldset>
-        <legend>學員資料</legend>
+        <legend>{{ tx('學員資料', 'Player Details') }}</legend>
         <div class="form-grid">
           <div class="form-field">
-            <label for="pr-name">學員姓名<span class="req" aria-hidden="true">*</span></label>
+            <label for="pr-name">{{ tx('學員姓名', 'Player name') }}<span class="req" aria-hidden="true">*</span></label>
             <input id="pr-name" v-model="applicantName" type="text" name="applicant_name" required autocomplete="off" maxlength="100">
           </div>
           <div class="form-field">
-            <label for="pr-dob">學員出生日期</label>
+            <label for="pr-dob">{{ tx('學員出生日期', 'Player date of birth') }}</label>
             <input id="pr-dob" v-model="birthOn" type="date" name="birth_on">
           </div>
         </div>
       </fieldset>
 
       <fieldset>
-        <legend>家長／緊急聯絡人</legend>
-        <p class="field-hint" style="margin-bottom:1rem;">未成年學員請填寫家長或緊急聯絡人。聯絡電話與 Email 至少填寫一項。</p>
+        <legend>{{ tx('家長／緊急聯絡人', 'Parent / Emergency Contact') }}</legend>
+        <p class="field-hint" style="margin-bottom:1rem;">{{ tx('未成年學員請填寫家長或緊急聯絡人。聯絡電話與 Email 至少填寫一項。', 'For players under 18, please provide a parent or emergency contact. Please provide at least a phone number or an email address.') }}</p>
         <div class="form-grid">
           <div class="form-field">
-            <label for="pr-guardian">家長／緊急聯絡人姓名</label>
+            <label for="pr-guardian">{{ tx('家長／緊急聯絡人姓名', 'Parent / emergency contact name') }}</label>
             <input id="pr-guardian" v-model="guardianName" type="text" name="guardian_name" autocomplete="name" maxlength="100">
           </div>
           <div class="form-field">
-            <label for="pr-guardian-phone">家長／緊急聯絡人電話</label>
+            <label for="pr-guardian-phone">{{ tx('家長／緊急聯絡人電話', 'Parent / emergency contact phone') }}</label>
             <input id="pr-guardian-phone" v-model="guardianPhone" type="tel" name="guardian_phone" autocomplete="tel" maxlength="32">
           </div>
           <div class="form-field">
-            <label for="pr-phone">聯絡電話</label>
+            <label for="pr-phone">{{ tx('聯絡電話', 'Phone') }}</label>
             <input id="pr-phone" v-model="phone" type="tel" name="phone" autocomplete="tel" maxlength="32">
           </div>
           <div class="form-field">
@@ -245,7 +254,7 @@ function registerAnother() {
             <input id="pr-email" v-model="email" type="email" name="email" autocomplete="email" maxlength="200">
           </div>
           <div class="form-field form-field--full">
-            <label for="pr-note">備註</label>
+            <label for="pr-note">{{ tx('備註', 'Notes') }}</label>
             <textarea id="pr-note" v-model="note" name="note" rows="3" maxlength="500" />
           </div>
         </div>
@@ -254,19 +263,19 @@ function registerAnother() {
       <div class="consent-block">
         <div class="checkbox-field">
           <input id="pr-health" v-model="healthConsent" type="checkbox" name="health_declaration" required>
-          <label for="pr-health">本人確認已據實告知學員的健康狀況（如過敏史、慢性病、目前服用藥物），如有變動將主動告知課程部。<span class="req" aria-hidden="true">*</span></label>
+          <label for="pr-health"><span v-if="isEn" lang="zh-Hant">本人確認已據實告知學員的健康狀況（如過敏史、慢性病、目前服用藥物），如有變動將主動告知課程部。</span><template v-else>本人確認已據實告知學員的健康狀況（如過敏史、慢性病、目前服用藥物），如有變動將主動告知課程部。</template><span class="req" aria-hidden="true">*</span></label>
         </div>
-        <p class="field-hint">本表單不蒐集健康細節，請於課程部聯繫時當面說明。</p>
+        <p class="field-hint">{{ tx('本表單不蒐集健康細節，請於課程部聯繫時當面說明。', 'This form does not collect health details. Please explain them in person when the programs team contacts you.') }}</p>
       </div>
 
       <div class="consent-block">
         <div class="checkbox-field">
           <input id="pr-privacy" v-model="privacyConsent" type="checkbox" name="privacy_consent" required>
-          <label for="pr-privacy">本人已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集學員與聯絡人之個人資料，用於處理本次報名之聯繫與課程安全作業。<span class="req" aria-hidden="true">*</span></label>
+          <label for="pr-privacy">{{ tx('本人已閱讀並同意', 'I have read and agree to the ') }}<a :href="lp('/zh/privacy/')">{{ tx('隱私權政策', 'Privacy Policy') }}</a>{{ isEn ? ', and I consent to Taichung Rock FC collecting the personal data of the player and contacts through this form, to be used for handling this registration and for program safety.' : `，並同意${clubAssets.nameZh}依本表單蒐集學員與聯絡人之個人資料，用於處理本次報名之聯繫與課程安全作業。` }}<span class="req" aria-hidden="true">*</span></label>
         </div>
       </div>
 
-      <button class="btn btn--primary btn--block" type="submit" :disabled="phase === 'submitting' || !currentSession">{{ phase === 'submitting' ? '送出中…' : '送出報名' }}</button>
+      <button class="btn btn--primary btn--block" type="submit" :disabled="phase === 'submitting' || !currentSession">{{ phase === 'submitting' ? tx('送出中…', 'Submitting...') : tx('送出報名', 'Submit Registration') }}</button>
     </form>
   </div>
 </section>

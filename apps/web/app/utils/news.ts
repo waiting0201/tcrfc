@@ -139,6 +139,8 @@ export function newsCoverSrc(slug: string): string {
   return siteImg(`/assets/img/news/${slug}.jpg`)
 }
 
+const MONTH_NAMES_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
 /** ISO 時間字串（API publishedAt）→ <time datetime> 用的日期部分，例："2026-08-10" */
 export function newsIsoDate(publishedAt: string | null | undefined): string {
   if (!publishedAt) return ''
@@ -149,6 +151,15 @@ export function newsIsoDate(publishedAt: string | null | undefined): string {
 export function newsSlashDate(publishedAt: string | null | undefined): string {
   const iso = newsIsoDate(publishedAt)
   return iso.replaceAll('-', '/')
+}
+
+/** 英文版日期（主站 /en/）：ISO 日期前 10 碼 → "10 Aug 2026"；格式不合回空字串。 */
+export function newsDateEn(publishedAt: string | null | undefined): string {
+  const iso = newsIsoDate(publishedAt)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return ''
+  const mon = MONTH_NAMES_EN[Number(m[2]) - 1]?.slice(0, 3)
+  return mon ? `${Number(m[3])} ${mon} ${m[1]}` : ''
 }
 
 /** data-year 篩選用：四碼年份 */
@@ -180,6 +191,19 @@ export function newsDistinctMonths(items: { publishedAt: string | null }[]): str
 
 export function newsMonthLabel(month: string): string {
   return `${Number.parseInt(month, 10)}月`
+}
+
+/** 英文版月份篩選選項文字（主站 /en/）：`'03'` → "March"。 */
+export function newsMonthLabelEn(month: string): string {
+  return MONTH_NAMES_EN[Number.parseInt(month, 10) - 1] ?? month
+}
+
+/**
+ * 英文版分類名稱（主站 /en/）：已知分類取 `NEWS_CATEGORY_EN`（docs/06 §1.1 對照表，例 Press & Media），
+ * 未知分類退回 API 回傳的分類名稱（後端已依語系挑好）。藍鯨站不使用（`isEn` 在藍鯨恆為 false）。
+ */
+export function newsCategoryLabelEn(categoryCode: string, fallbackName: string | null | undefined): string {
+  return NEWS_CATEGORY_EN[categoryCode]?.label ?? fallbackName ?? ''
 }
 
 export interface NewsTagOption {

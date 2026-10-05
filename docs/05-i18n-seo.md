@@ -24,6 +24,8 @@
 **後台支援**（I 模組）：翻譯狀態總覽矩陣（可篩「缺英文」）、字串翻譯表（按鈕／表單標籤／提示／錯誤訊息）、日期與數字格式、字型設定。
 **權限**：翻譯人員角色只能編輯 `en` 欄位，不能改繁中原文與發布狀態。
 
+🔵 **執行層決定（C-6／S2-13，2026-10-05）**：主站英文版由開發端產出初稿（STATUS C-6）。機制是頁面級 `enReady` 宣告＋API `isFallbackLocale` 的局部提示，英文寫在 `club-copy-en-*.ts` 與頁面 `tx()`／`isEn` 分支；**藍鯨站 `/en/` 不在本輪範圍，維持繁中備援＋提示**；法律文字（隱私權／Cookie／條款／監護人同意）不翻、待法務。用詞表在 [`06-conventions.md`](06-conventions.md) §1.1，機制細節見 [`apps/web/README.md`](../apps/web/README.md)「Fallback 與英文版機制」。不改規格本身。
+
 🔵 **執行層決定（S1-13，2026-09-25，`apps/web`）**：前台**不用 `@nuxtjs/i18n`**，
 改用 Nuxt 的 `pages:extend` hook 自動把每個 `/zh/...` 頁面複製成 `/en/...` 孿生路由
 （同一個檔案），`<html lang>`／hreflang／canonical 大小寫另外手刻，理由與完整落地細節

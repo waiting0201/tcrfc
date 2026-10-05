@@ -159,20 +159,20 @@ export function safeExternalUrl(url: string | null | undefined): string | null {
   return /^https?:\/\//i.test(url) ? url : null
 }
 
-/** 合作期間顯示：`2025-01-01 – 2026-12-31`；只有起日「2025-01-01 起」；只有迄日「至 2026-12-31」；都沒有回傳 null。 */
-export function formatPartnerPeriod(startOn: string | null, endOn: string | null): string | null {
+/** 合作期間顯示：`2025-01-01 – 2026-12-31`；只有起日「2025-01-01 起」；只有迄日「至 2026-12-31」；都沒有回傳 null。`en` 為 true 時改英文（From／Until）。 */
+export function formatPartnerPeriod(startOn: string | null, endOn: string | null, en = false): string | null {
   if (startOn && endOn) return `${startOn.replaceAll('-', '/')} – ${endOn.replaceAll('-', '/')}`
-  if (startOn) return `${startOn.replaceAll('-', '/')} 起`
-  if (endOn) return `至 ${endOn.replaceAll('-', '/')}`
+  if (startOn) return en ? `From ${startOn.replaceAll('-', '/')}` : `${startOn.replaceAll('-', '/')} 起`
+  if (endOn) return en ? `Until ${endOn.replaceAll('-', '/')}` : `至 ${endOn.replaceAll('-', '/')}`
   return null
 }
 
 /** 贊助方案價格區間文字；兩欄皆 null（後台未公開價格）回傳 null，頁面不得顯示任何價格。 */
-export function formatPackagePrice(min: number | null, max: number | null): string | null {
+export function formatPackagePrice(min: number | null, max: number | null, en = false): string | null {
   const fmt = (n: number) => `NT$${n.toLocaleString('en-US')}`
   if (min != null && max != null) return min === max ? fmt(min) : `${fmt(min)} – ${fmt(max)}`
-  if (min != null) return `${fmt(min)} 起`
-  if (max != null) return `最高 ${fmt(max)}`
+  if (min != null) return en ? `From ${fmt(min)}` : `${fmt(min)} 起`
+  if (max != null) return en ? `Up to ${fmt(max)}` : `最高 ${fmt(max)}`
   return null
 }
 

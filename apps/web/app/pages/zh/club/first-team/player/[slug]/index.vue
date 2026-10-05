@@ -12,14 +12,14 @@ import type { PlayerCareerStatsResponse } from '#shared/utils/standings'
 import type { PlayerDto } from '#shared/utils/player'
 import { playerPath } from '#shared/utils/player'
 
-definePageMeta({ nav: 'club', unit: '3.1' })
+definePageMeta({ nav: 'club', unit: '3.1', enReady: true })
 
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const assets = computed(() => getClubAssets(clubKey.value))
 const teamCode = computed(() => (clubKey.value === 'tcrfc' ? 'D1' : 'BW1'))
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 
 // 🔴 路由參數 `slug`（App 規劃書 §2.3：`tcrfc://player/{slug}` → `/zh/club/first-team/player/{slug}`）。
 // 正規網址是 slug；以 id（UUID）進來的舊連結／搜尋結果解析成功後 **301 到 slug 網址**，canonical 由全站機制依最終路徑產生，
@@ -55,55 +55,64 @@ const current = computed(() => seasons.value[0] ?? null)
 const FOOT: Record<string, string> = { right: '右腳', left: '左腳', both: '雙腳' }
 const footLabel = computed(() => {
   const f = player.value?.preferredFoot
-  return f ? (FOOT[f.toLowerCase()] ?? f) : null
+  if (!f) return null
+  return isEn.value ? clubFootLabelEn(f) : (FOOT[f.toLowerCase()] ?? f)
 })
 
 useSeoMeta({
-  title: computed(() => `${player.value?.shirtNo ? `${player.value.shirtNo} ` : ''}${player.value?.name ?? '球員'}｜一線隊｜${assets.value.nameZh}`),
-  description: computed(() => `${assets.value.nameZh}一線隊球員${player.value?.name ?? ''}的基本資料與逐季出賽數據。`),
+  title: computed(() => (isEn.value
+    ? `${player.value?.shirtNo ? `${player.value.shirtNo} ` : ''}${player.value?.name ?? 'Player'} | First Team | ${CLUB_NAME_EN}`
+    : `${player.value?.shirtNo ? `${player.value.shirtNo} ` : ''}${player.value?.name ?? '球員'}｜一線隊｜${assets.value.nameZh}`)),
+  description: computed(() => (isEn.value
+    ? `Profile and season-by-season appearance statistics for ${CLUB_NAME_EN} First Team player ${player.value?.name ?? ''}.`
+    : `${assets.value.nameZh}一線隊球員${player.value?.name ?? ''}的基本資料與逐季出賽數據。`)),
 })
+/** 場上位置顯示（英文版把 GK／DF／MF／FW 轉成全名）。 */
+const positionText = computed(() => (isEn.value ? clubPositionLabelEn(player.value?.position) : (player.value?.position ?? '—')))
+const hasFallback = computed(() => hasFallbackLocale(playerData.value))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
-      <li><a :href="lp('/zh/club/first-team/')">一線隊</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/club/')">{{ tx('俱樂部', 'Football Club') }}</a></li>
+      <li><a :href="lp('/zh/club/first-team/')">{{ tx('一線隊', 'First Team') }}</a></li>
       <li aria-current="page">{{ player?.name }}</li>
     </ol>
   </div>
 </nav>
 
+<LocaleFallbackNotice v-if="isEn && hasFallback" partial />
 <section class="player-hero" aria-labelledby="player-name">
   <div class="container player-hero__inner">
     <div class="player-hero__visual clip-card clip-card--on-dark">
-      <img v-if="player?.photoUrl" class="player-hero__photo" :src="player.photoUrl" :alt="`${player.name} 球員照片`" width="160" height="160">
+      <img v-if="player?.photoUrl" class="player-hero__photo" :src="player.photoUrl" :alt="isEn ? `Photo of ${player.name}` : `${player.name} 球員照片`" width="160" height="160">
       <template v-else>
         <img class="player-hero__crest" :src="assets.headerMark.src" alt="" width="140" height="146" aria-hidden="true">
         <span class="player-hero__num">{{ player?.shirtNo ?? '—' }}</span>
       </template>
     </div>
     <div class="player-hero__info">
-      <p class="player-hero__pos">{{ player?.position ?? '—' }}</p>
+      <p class="player-hero__pos">{{ positionText }}</p>
       <h1 id="player-name">{{ player?.name }}</h1>
-      <p class="player-hero__meta">一線隊 First Team<template v-if="player?.shirtNo"> · 背號 {{ player.shirtNo }}</template></p>
+      <p class="player-hero__meta">{{ tx('一線隊 First Team', 'First Team') }}<template v-if="player?.shirtNo"> · {{ tx('背號', 'No.') }} {{ player.shirtNo }}</template></p>
     </div>
   </div>
 </section>
 
 <section id="player-basic" class="band" aria-labelledby="player-basic-title">
   <div class="band-inner container">
-    <h2 id="player-basic-title" class="section-title">基本資料</h2>
+    <h2 id="player-basic-title" class="section-title">{{ tx('基本資料', 'Profile') }}</h2>
     <dl class="def-grid">
-      <div><dt>背號</dt><dd>{{ statCell(player?.shirtNo) }}</dd></div>
-      <div><dt>位置</dt><dd>{{ player?.position ?? '—' }}</dd></div>
-      <div><dt>所屬隊伍</dt><dd>一線隊 First Team</dd></div>
-      <div v-if="player?.nationality"><dt>國籍</dt><dd>{{ player.nationality }}</dd></div>
-      <div v-if="player?.heightCm"><dt>身高</dt><dd>{{ player.heightCm }} cm</dd></div>
-      <div v-if="player?.weightKg"><dt>體重</dt><dd>{{ player.weightKg }} kg</dd></div>
-      <div v-if="footLabel"><dt>慣用腳</dt><dd>{{ footLabel }}</dd></div>
+      <div><dt>{{ tx('背號', 'Shirt number') }}</dt><dd>{{ statCell(player?.shirtNo) }}</dd></div>
+      <div><dt>{{ tx('位置', 'Position') }}</dt><dd>{{ positionText }}</dd></div>
+      <div><dt>{{ tx('所屬隊伍', 'Team') }}</dt><dd>{{ tx('一線隊 First Team', 'First Team') }}</dd></div>
+      <div v-if="player?.nationality"><dt>{{ tx('國籍', 'Nationality') }}</dt><dd>{{ player.nationality }}</dd></div>
+      <div v-if="player?.heightCm"><dt>{{ tx('身高', 'Height') }}</dt><dd>{{ player.heightCm }} cm</dd></div>
+      <div v-if="player?.weightKg"><dt>{{ tx('體重', 'Weight') }}</dt><dd>{{ player.weightKg }} kg</dd></div>
+      <div v-if="footLabel"><dt>{{ tx('慣用腳', 'Preferred foot') }}</dt><dd>{{ footLabel }}</dd></div>
     </dl>
     <p v-if="player?.bio" class="sh-narrative">{{ player.bio }}</p>
   </div>
@@ -111,29 +120,29 @@ useSeoMeta({
 
 <section id="player-season" class="band paper-2-band" aria-labelledby="player-season-title">
   <div class="band-inner container">
-    <h2 id="player-season-title" class="section-title">本季出賽</h2>
+    <h2 id="player-season-title" class="section-title">{{ tx('本季出賽', 'This season') }}</h2>
     <template v-if="current">
-      <p class="section-lede">{{ current.seasonCode }} 賽季</p>
+      <p class="section-lede">{{ current.seasonCode }} {{ tx('賽季', 'season') }}</p>
       <dl class="def-grid">
-        <div><dt>出賽</dt><dd>{{ statCell(current.appearances) }}</dd></div>
-        <div><dt>進球</dt><dd>{{ statCell(current.goals) }}</dd></div>
-        <div><dt>助攻</dt><dd>{{ statCell(current.assists) }}</dd></div>
-        <div><dt>黃牌</dt><dd>{{ statCell(current.yellowCards) }}</dd></div>
-        <div><dt>紅牌</dt><dd>{{ statCell(current.redCards) }}</dd></div>
+        <div><dt>{{ tx('出賽', 'Appearances') }}</dt><dd>{{ statCell(current.appearances) }}</dd></div>
+        <div><dt>{{ tx('進球', 'Goals') }}</dt><dd>{{ statCell(current.goals) }}</dd></div>
+        <div><dt>{{ tx('助攻', 'Assists') }}</dt><dd>{{ statCell(current.assists) }}</dd></div>
+        <div><dt>{{ tx('黃牌', 'Yellow cards') }}</dt><dd>{{ statCell(current.yellowCards) }}</dd></div>
+        <div><dt>{{ tx('紅牌', 'Red cards') }}</dt><dd>{{ statCell(current.redCards) }}</dd></div>
       </dl>
     </template>
-    <p v-else>目前尚無本季出賽紀錄。</p>
+    <p v-else>{{ tx('目前尚無本季出賽紀錄。', 'There are no appearance records for this season yet.') }}</p>
   </div>
 </section>
 
 <section id="player-stats" class="band" aria-labelledby="player-stats-title">
   <div class="band-inner container">
-    <h2 id="player-stats-title" class="section-title">生涯數據</h2>
+    <h2 id="player-stats-title" class="section-title">{{ tx('生涯數據', 'Career statistics') }}</h2>
     <div v-if="seasons.length" class="sh-table-wrap">
       <table class="sh-stats-table">
-        <caption class="visually-hidden">{{ player?.name }} 逐季數據</caption>
+        <caption class="visually-hidden">{{ player?.name }} {{ tx('逐季數據', 'season-by-season statistics') }}</caption>
         <thead>
-          <tr><th scope="col">賽季</th><th scope="col">出賽</th><th scope="col">進球</th><th scope="col">助攻</th><th scope="col">黃牌</th><th scope="col">紅牌</th></tr>
+          <tr><th scope="col">{{ tx('賽季', 'Season') }}</th><th scope="col">{{ tx('出賽', 'Apps') }}</th><th scope="col">{{ tx('進球', 'Goals') }}</th><th scope="col">{{ tx('助攻', 'Assists') }}</th><th scope="col">{{ tx('黃牌', 'Yellow cards') }}</th><th scope="col">{{ tx('紅牌', 'Red cards') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="s in seasons" :key="s.seasonCode">
@@ -147,26 +156,26 @@ useSeoMeta({
         </tbody>
       </table>
     </div>
-    <p v-else>生涯數據準備中，稍後將於本頁公開。</p>
-    <p v-if="seasons.length" class="field-hint" style="margin-top:.75rem">數據由已結束的賽事紀錄自動彙總，或由後台手動登錄（以手動為準）。賽事紀錄沒有助攻資料，助攻欄「—」表示未記錄，不是 0。</p>
+    <p v-else>{{ tx('生涯數據準備中，稍後將於本頁公開。', 'Career statistics are being prepared and will be published on this page soon.') }}</p>
+    <p v-if="seasons.length" class="field-hint" style="margin-top:.75rem">{{ tx('數據由已結束的賽事紀錄自動彙總，或由後台手動登錄（以手動為準）。賽事紀錄沒有助攻資料，助攻欄「—」表示未記錄，不是 0。', 'Statistics are compiled automatically from completed match records, or entered manually in the back office (manual entry takes precedence). Match records have no assist data, so a dash in the assists column means not recorded, not zero.') }}</p>
   </div>
 </section>
 
 <section id="player-cta" class="band grain cta-band" aria-labelledby="player-cta-title">
   <div class="band-inner container">
-    <h2 id="player-cta-title" class="visually-hidden">回到一線隊</h2>
+    <h2 id="player-cta-title" class="visually-hidden">{{ tx('回到一線隊', 'Back to the First Team') }}</h2>
     <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
-        <p class="cta-card__title">回到球員名單</p>
-        <p class="cta-card__desc">查看一線隊完整球員名單。</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/first-team/#roster')">返回球員名單</a>
+        <p class="cta-card__title">{{ tx('回到球員名單', 'Back to the squad list') }}</p>
+        <p class="cta-card__desc">{{ tx('查看一線隊完整球員名單。', 'See the full First Team squad list.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/first-team/#roster')">{{ tx('返回球員名單', 'Return to the squad list') }}</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
-        <p class="cta-card__title">球員數據總表</p>
-        <p class="cta-card__desc">查看本賽季全隊球員數據與積分榜。</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/first-team/#player-stats')">查看球員數據</a>
+        <p class="cta-card__title">{{ tx('球員數據總表', 'Player statistics table') }}</p>
+        <p class="cta-card__desc">{{ tx('查看本賽季全隊球員數據與積分榜。', 'See this season\'s statistics for the whole squad and the league table.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/first-team/#player-stats')">{{ tx('查看球員數據', 'View player statistics') }}</a>
       </div>
     </div>
   </div>

@@ -17,18 +17,18 @@
 // 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
 // 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
 // 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
-definePageMeta({ nav: 'programs', unit: '5.2' })
+definePageMeta({ nav: 'programs', unit: '5.2', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => getSummerCampSeo(clubKey.value).title),
-  description: computed(() => getSummerCampSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getSummerCampSeoEn() : getSummerCampSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getSummerCampSeoEn() : getSummerCampSeo(clubKey.value)).description),
 })
-const hero = computed(() => getSummerCampHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getSummerCampHeroEn() : getSummerCampHero(clubKey.value)))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'summer_camp', pageSize: 5, lang: locale.value },
@@ -73,12 +73,12 @@ useCourseSchema(
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
-      <li aria-current="page">夏令營</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/programs/')">{{ tx('課程與活動', 'Programs') }}</a></li>
+      <li aria-current="page">{{ tx('夏令營', 'Summer Camp') }}</li>
     </ol>
   </div>
 </nav>
@@ -98,11 +98,11 @@ useCourseSchema(
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
       <div class="prose">
-        <h2>適合對象與課程內容</h2>
+        <h2>{{ tx('適合對象與課程內容', 'Who It Is For and What We Cover') }}</h2>
 
       </div>
       <div class="prose">
-        <h2>教練團</h2>
+        <h2>{{ tx('教練團', 'Coaching Team') }}</h2>
 
       </div>
     </div>
@@ -112,12 +112,12 @@ useCourseSchema(
 <section v-if="isTcrfc" class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
-      <h2>合作夥伴</h2>
-      <p>客戶收件夾內的歷史資料顯示台中磐石曾與以下單位合作，實際是否為夏令營之固定合作夥伴待客戶確認：</p>
+      <h2>{{ tx('合作夥伴', 'Partners') }}</h2>
+      <p>{{ tx('客戶收件夾內的歷史資料顯示台中磐石曾與以下單位合作，實際是否為夏令營之固定合作夥伴待客戶確認：', 'Historical records show that Taichung Rock FC has worked with the organisation below. Whether it is a regular Summer Camp partner is still to be confirmed:') }}</p>
     </div>
     <div class="grid grid--2">
       <figure class="clip-card" style="margin:0;">
-        <img :src="siteImg('/assets/img/programs/summer-camp-02.jpg')" loading="lazy" width="1600" height="1200" alt="台中磐石與德國 Rot Weiss Ahlen 足球俱樂部代表於簽約儀式上握手，背板印有雙方隊徽與合作備忘錄字樣">
+        <img :src="siteImg('/assets/img/programs/summer-camp-02.jpg')" loading="lazy" width="1600" height="1200" :alt="tx('台中磐石與德國 Rot Weiss Ahlen 足球俱樂部代表於簽約儀式上握手，背板印有雙方隊徽與合作備忘錄字樣', 'Representatives of Taichung Rock FC and German club Rot Weiss Ahlen shake hands at a signing ceremony, in front of a backdrop showing both club crests and the words memorandum of cooperation')">
 
       </figure>
 
@@ -130,27 +130,27 @@ useCourseSchema(
     <template v-if="isTcrfc">
       <div class="grid grid--2" style="align-items:start;">
         <div class="prose">
-          <h2>日期與地點</h2>
+          <h2>{{ tx('日期與地點', 'Dates and Venue') }}</h2>
 
         </div>
         <div class="prose">
-          <h2>報名（早鳥價／名額倒數）</h2>
+          <h2>{{ tx('報名（早鳥價／名額倒數）', 'Registration (Early-Bird Price / Places Left)') }}</h2>
 
         </div>
       </div>
 
       <div class="signup-preview">
         <div class="signup-preview__row">
-          <span>早鳥價</span>
-          <span class="signup-preview__value">{{ openSession?.earlyBirdPrice ? `NT$ ${openSession.earlyBirdPrice}` : '待公告' }}</span>
+          <span>{{ tx('早鳥價', 'Early-bird price') }}</span>
+          <span class="signup-preview__value">{{ openSession?.earlyBirdPrice ? `NT$ ${openSession.earlyBirdPrice}` : tx('待公告', 'To be announced') }}</span>
         </div>
         <div class="signup-preview__row">
-          <span>剩餘名額</span>
-          <span class="signup-preview__value">{{ openSession?.capacity ? Math.max(openSession.capacity - openSession.enrolledCount, 0) : '待公告' }}</span>
+          <span>{{ tx('剩餘名額', 'Places left') }}</span>
+          <span class="signup-preview__value">{{ openSession?.capacity ? Math.max(openSession.capacity - openSession.enrolledCount, 0) : tx('待公告', 'To be announced') }}</span>
         </div>
         <div class="signup-preview__row">
-          <span>梯次</span>
-          <span class="signup-preview__value">{{ openSession ? `${openSession.startOn} ～ ${openSession.endOn}` : '待公告' }}</span>
+          <span>{{ tx('梯次', 'Session') }}</span>
+          <span class="signup-preview__value">{{ openSession ? `${openSession.startOn}${tx(' ～ ', ' - ')}${openSession.endOn}` : tx('待公告', 'To be announced') }}</span>
         </div>
       </div>
     </template>
@@ -158,16 +158,17 @@ useCourseSchema(
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(faqs)" partial />
 <section class="band">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">FAQ</p>
-        <h2 class="section-title">夏令營常見問題</h2>
+        <h2 class="section-title">{{ tx('夏令營常見問題', 'Summer Camp FAQ') }}</h2>
       </div>
-      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+      <a :href="lp('/zh/faq/')">{{ tx('查看全部常見問題 →', 'View all FAQs →') }}</a>
     </div>
-    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">{{ tx('常見問題收錄中，稍後將於本頁公布。', 'FAQs are being compiled and will be published on this page soon.') }}</p>
     <dl v-else class="faq-embed-list">
       <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
         <dt>{{ f.question }}</dt>
@@ -180,12 +181,12 @@ useCourseSchema(
 <section v-if="isTcrfc" class="band" style="background:var(--paper-2);" aria-labelledby="sc-gallery-title">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
-      <h2 id="sc-gallery-title">往年花絮</h2>
+      <h2 id="sc-gallery-title">{{ tx('往年花絮', 'Past Highlights') }}</h2>
     </div>
     <div class="photo-grid">
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/summer-camp-03.jpg')" loading="lazy" width="1600" height="1200" alt="一名學員於室外球場上凌空控球，展現盤球技巧動作"><figcaption>技巧練習片刻</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/summer-camp-04.jpg')" loading="lazy" width="1600" height="1200" alt="穿著台中磐石白色球衣的兒童學員手比勝利手勢，於場邊補充水分"><figcaption>訓練空檔補水休息</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/summer-camp-06.jpg')" loading="lazy" width="1600" height="1200" alt="教室內學員坐在課桌前，聆聽外籍教師以投影片進行課程說明"><figcaption>營隊課室活動</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/summer-camp-03.jpg')" loading="lazy" width="1600" height="1200" :alt="tx('一名學員於室外球場上凌空控球，展現盤球技巧動作', 'A player juggles the ball in mid-air on an outdoor pitch, showing off ball skills')"><figcaption>{{ tx('技巧練習片刻', 'A moment of skills practice') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/summer-camp-04.jpg')" loading="lazy" width="1600" height="1200" :alt="tx('穿著台中磐石白色球衣的兒童學員手比勝利手勢，於場邊補充水分', 'A young camper in a Taichung Rock FC white kit makes a victory sign while rehydrating at the pitch side')"><figcaption>{{ tx('訓練空檔補水休息', 'Water break between drills') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/summer-camp-06.jpg')" loading="lazy" width="1600" height="1200" :alt="tx('教室內學員坐在課桌前，聆聽外籍教師以投影片進行課程說明', 'Campers sit at desks in a classroom listening to an international teacher present slides')"><figcaption>{{ tx('營隊課室活動', 'Classroom activity at camp') }}</figcaption></figure>
     </div>
   </div>
 </section>
@@ -198,15 +199,15 @@ useCourseSchema(
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">SUMMER CAMP</p>
-        <h2 class="section-title" id="sc-cta-title">{{ isTcrfc ? '關注下一梯次夏令營' : '推廣活動最新消息' }}</h2>
+        <h2 class="section-title" id="sc-cta-title">{{ tx(isTcrfc ? '關注下一梯次夏令營' : '推廣活動最新消息', 'Follow the Next Summer Camp') }}</h2>
       </div>
     </div>
-    <p v-if="isTcrfc" class="section-lede">梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。</p>
+    <p v-if="isTcrfc" class="section-lede">{{ tx('梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。', 'Once sessions are announced they will be posted here and on our social accounts. Payment is not taken on this site.') }}</p>
     <p v-else class="section-lede">是否推出夏令營活動將視規劃進度公布，歡迎關注「推廣活動」總覽與官方社群最新消息。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a v-if="isTcrfc && hasRegistrable" class="btn btn--primary" href="#register">線上報名</a>
-      <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
-      <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
+      <a v-if="isTcrfc && hasRegistrable" class="btn btn--primary" href="#register">{{ tx('線上報名', 'Register Online') }}</a>
+      <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">{{ tx('加入候補通知', 'Join the Notification List') }}</a>
+      <a class="btn btn--light" :href="lp('/zh/programs/')">{{ tx('回課程總覽', 'Back to Programs Overview') }}</a>
     </div>
   </div>
 </section>

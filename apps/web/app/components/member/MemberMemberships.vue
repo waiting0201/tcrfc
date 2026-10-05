@@ -14,7 +14,7 @@ import type { MembershipOrder, MembershipPlan, MyMembership, MyMemberships } fro
 defineProps<{ data: MyMemberships | null }>()
 const emit = defineEmits<{ changed: [] }>()
 
-const { locale, lp } = useLocale()
+const { locale, lp, isEn, tx } = useLocale()
 const { authedFetch } = useMemberSession()
 
 const safeUrl = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
@@ -30,11 +30,11 @@ async function join(code: string) {
     emit('changed')
   }
   catch (err) {
-    const e = toMemberApiError(err)
+    const e = toMemberApiError(err, undefined, isEn.value)
     joinMessage.value = {
       ...joinMessage.value,
       [code]: e.code === 'season_not_available'
-        ? `${e.detail} 球季開放後即可在此加入。`
+        ? `${e.detail} ${tx('球季開放後即可在此加入。', 'You can join here once the season opens.')}`
         : e.detail,
     }
   }
@@ -56,7 +56,7 @@ async function togglePlans(code: string) {
     const list = await $fetch<MembershipPlan[]>(`/api/backend/${code}/membership/plans`, { query: { lang: locale.value } })
     plans.value = { ...plans.value, [code]: list }
   }
-  catch (err) { plansError.value = { ...plansError.value, [code]: toMemberApiError(err).detail } }
+  catch (err) { plansError.value = { ...plansError.value, [code]: toMemberApiError(err, undefined, isEn.value).detail } }
   finally { plansLoading.value = '' }
 }
 
@@ -83,7 +83,10 @@ function clearKey(club: string, planCode: string) {
 }
 
 async function submitApplication(m: MyMembership, plan: MembershipPlan) {
-  if (!window.confirm(`確定送出「${plan.name}」的${m.tier === 'registered' ? '升級' : '續會'}申請嗎？\n送出後由工作人員與您聯繫完成收款與開通，網頁不會要求您線上付款。`)) return
+  const confirmText = isEn.value
+    ? `Submit your ${m.tier === 'registered' ? 'upgrade' : 'renewal'} request for "${plan.name}"?\nAfter you submit, our staff will contact you to complete payment and activation. This website will not ask you to pay online.`
+    : `確定送出「${plan.name}」的${m.tier === 'registered' ? '升級' : '續會'}申請嗎？\n送出後由工作人員與您聯繫完成收款與開通，網頁不會要求您線上付款。`
+  if (!window.confirm(confirmText)) return
   const key = `${m.club.code}:${plan.code}`
   submitBusy.value = key
   submitResult.value = { ...submitResult.value, [key]: { ok: false, text: '' } }
@@ -94,13 +97,13 @@ async function submitApplication(m: MyMembership, plan: MembershipPlan) {
       body: { planCode: plan.code },
     })
     clearKey(m.club.code, plan.code)
-    flash.value = `申請已送出（單號 ${order.orderNo}，${order.statusLabel}）。工作人員將與您聯繫完成收款與開通，網頁不會要求您線上付款。`
+    flash.value = tx(`申請已送出（單號 ${order.orderNo}，${order.statusLabel}）。工作人員將與您聯繫完成收款與開通，網頁不會要求您線上付款。`, `Your request has been submitted (reference ${order.orderNo}, ${order.statusLabel}). Our staff will contact you to complete payment and activation. This website will not ask you to pay online.`)
     openClub.value = ''
     emit('changed')
     await loadOrders()
   }
   catch (err) {
-    const e = toMemberApiError(err)
+    const e = toMemberApiError(err, undefined, isEn.value)
     // 這幾種是「這個申請已經不能（或不必）再送」，鍵可以丟掉；其餘（逾時／5xx）保留同一把鍵讓使用者重試
     if (e.status >= 400 && e.status < 500) clearKey(m.club.code, plan.code)
     submitResult.value = { ...submitResult.value, [key]: { ok: false, text: e.detail } }
@@ -123,7 +126,7 @@ onMounted(loadOrders)
 const cancelBusy = ref('')
 const orderError = ref('')
 async function cancelOrder(o: MembershipOrder) {
-  if (!window.confirm('確定取消這筆升級申請嗎？')) return
+  if (!window.confirm(tx('確定取消這筆升級申請嗎？', 'Cancel this upgrade request?'))) return
   cancelBusy.value = o.orderNo
   orderError.value = ''
   try {
@@ -131,25 +134,26 @@ async function cancelOrder(o: MembershipOrder) {
     await loadOrders()
     emit('changed')
   }
-  catch (err) { orderError.value = toMemberApiError(err).detail }
+  catch (err) { orderError.value = toMemberApiError(err, undefined, isEn.value).detail }
   finally { cancelBusy.value = '' }
 }
 
 function canApply(m: MyMembership) {
   return !m.pendingOrder && (m.tier === 'registered' || m.renewalDue || m.status === 'expired')
 }
-const feeText = (n: number) => `NT$ ${n.toLocaleString('zh-TW')}`
+const feeText = (n: number) => `NT$ ${n.toLocaleString(isEn.value ? 'en-US' : 'zh-TW')}`
 const collectingNote = (m: MyMembership) => (m.club.code === 'bw'
   ? '藍鯨會籍的款項由台中磐石足球俱樂部代收，收款方與發票抬頭為台中磐石足球俱樂部；您申請的是台中藍鯨的會籍。'
   : '')
+const bwNameEn = BW_NAME_EN_PENDING // 藍鯨英文全名未定（B-5），英文句內放中文名
 </script>
 
 <template>
   <div class="mc-memberships">
-    <p v-if="!data" class="mc-empty">會籍資料載入中…</p>
+    <p v-if="!data" class="mc-empty">{{ tx('會籍資料載入中…', 'Loading your memberships…') }}</p>
     <template v-else>
       <p v-if="flash" class="mc-alert mc-alert--ok" role="status">{{ flash }}</p>
-      <p v-if="data.memberships.length === 0" class="mc-empty">您目前還沒有任何會籍。{{ data.joinableClubs.length ? '可從下方加入俱樂部。' : '' }}</p>
+      <p v-if="data.memberships.length === 0" class="mc-empty">{{ tx('您目前還沒有任何會籍。', 'You do not have any memberships yet.') }}{{ data.joinableClubs.length ? tx('可從下方加入俱樂部。', ' You can join a club below.') : '' }}</p>
 
       <article v-for="m in data.memberships" :key="m.id" class="mc-membership">
         <header class="mc-membership__head">
@@ -158,45 +162,47 @@ const collectingNote = (m: MyMembership) => (m.club.code === 'bw'
           <span class="mc-badge" :class="m.status === 'active' ? 'mc-badge--ok' : 'mc-badge--off'">{{ m.statusLabel }}</span>
         </header>
         <dl class="mc-dl">
-          <div><dt>球季</dt><dd>{{ m.seasonCode }}</dd></div>
-          <div><dt>層級</dt><dd>{{ m.tierLabel }}</dd></div>
-          <div><dt>期間</dt><dd>{{ formatPlainDate(m.startOn) || '—' }} – {{ formatPlainDate(m.endOn) || '—' }}</dd></div>
-          <div v-if="m.planName"><dt>方案</dt><dd>{{ m.planName }}</dd></div>
-          <div><dt>會員卡</dt><dd>{{ m.cards.length }} 張<template v-if="m.cardQuota">（方案含 {{ m.cardQuota }} 張）</template></dd></div>
-          <div v-if="m.jerseyQuota"><dt>入會球衣</dt><dd>{{ m.jerseyQuota }} 件</dd></div>
+          <div><dt>{{ tx('球季', 'Season') }}</dt><dd>{{ m.seasonCode }}</dd></div>
+          <div><dt>{{ tx('層級', 'Tier') }}</dt><dd>{{ m.tierLabel }}</dd></div>
+          <div><dt>{{ tx('期間', 'Period') }}</dt><dd>{{ formatPlainDate(m.startOn) || '—' }} – {{ formatPlainDate(m.endOn) || '—' }}</dd></div>
+          <div v-if="m.planName"><dt>{{ tx('方案', 'Plan') }}</dt><dd>{{ m.planName }}</dd></div>
+          <div><dt>{{ tx('會員卡', 'Membership cards') }}</dt><dd>{{ isEn ? m.cards.length : `${m.cards.length} 張` }}<template v-if="m.cardQuota">{{ isEn ? ` (${m.cardQuota} included in the plan)` : `（方案含 ${m.cardQuota} 張）` }}</template></dd></div>
+          <div v-if="m.jerseyQuota"><dt>{{ tx('入會球衣', 'Welcome jersey') }}</dt><dd>{{ isEn ? m.jerseyQuota : `${m.jerseyQuota} 件` }}</dd></div>
         </dl>
 
         <p v-if="m.renewalDue" class="mc-alert mc-alert--info" role="status">
-          會籍將於 {{ formatPlainDate(m.endOn) }} 到期，可於下方申請續會。
+          {{ tx(`會籍將於 ${formatPlainDate(m.endOn)} 到期，可於下方申請續會。`, `Your membership expires on ${formatPlainDate(m.endOn)}. You can apply to renew below.`) }}
         </p>
         <p v-if="m.pendingOrder" class="mc-alert mc-alert--info" role="status">
-          升級／續會申請<strong>{{ m.pendingOrder.statusLabel }}</strong>（單號 {{ m.pendingOrder.orderNo }}）。工作人員將與您聯繫完成收款與開通，開通後此處會顯示「已開通」。
+          <template v-if="isEn">Your upgrade or renewal request is <strong>{{ m.pendingOrder.statusLabel }}</strong> (reference {{ m.pendingOrder.orderNo }}). Our staff will contact you to complete payment and activation, and this page will show it as activated once done.</template>
+          <template v-else>升級／續會申請<strong>{{ m.pendingOrder.statusLabel }}</strong>（單號 {{ m.pendingOrder.orderNo }}）。工作人員將與您聯繫完成收款與開通，開通後此處會顯示「已開通」。</template>
         </p>
 
         <div v-if="canApply(m)" class="mc-upgrade">
           <button type="button" class="btn btn--primary btn--sm" :aria-expanded="openClub === m.club.code" @click="togglePlans(m.club.code)">
-            {{ m.tier === 'registered' ? '升級付費球迷會員' : '申請續會' }}
+            {{ m.tier === 'registered' ? tx('升級付費球迷會員', 'Upgrade to Paid Fan Club member') : tx('申請續會', 'Apply to renew') }}
           </button>
           <div v-if="openClub === m.club.code" class="mc-plans">
-            <p v-if="plansLoading === m.club.code" class="mc-empty">載入方案中…</p>
+            <p v-if="plansLoading === m.club.code" class="mc-empty">{{ tx('載入方案中…', 'Loading plans…') }}</p>
             <p v-else-if="plansError[m.club.code]" class="mc-alert mc-alert--error" role="alert">{{ plansError[m.club.code] }}</p>
-            <p v-else-if="(plans[m.club.code] ?? []).length === 0" class="mc-empty">目前沒有開放申請的會籍方案。方案公布後即可在此申請。</p>
+            <p v-else-if="(plans[m.club.code] ?? []).length === 0" class="mc-empty">{{ tx('目前沒有開放申請的會籍方案。方案公布後即可在此申請。', 'There are no membership plans open for applications right now. You can apply here once plans are announced.') }}</p>
             <template v-else>
               <p class="mc-note">
-                <strong>付款方式：</strong>會費以 LINE Pay 收款連結或現場收款完成。網頁<strong>不會</strong>要求線上付款——送出申請後，由工作人員核對款項並開通會籍。
+                <template v-if="isEn"><strong>How to pay:</strong> Membership fees are collected through a LINE Pay payment link or in person. This website <strong>does not</strong> ask you to pay online. After you submit your request, our staff will check the payment and activate your membership.</template>
+                <template v-else><strong>付款方式：</strong>會費以 LINE Pay 收款連結或現場收款完成。網頁<strong>不會</strong>要求線上付款——送出申請後，由工作人員核對款項並開通會籍。</template>
               </p>
               <p v-if="collectingNote(m)" class="mc-note">{{ collectingNote(m) }}</p>
               <ul class="mc-planlist">
                 <li v-for="p in plans[m.club.code]" :key="p.code" class="mc-plan">
                   <div>
                     <p class="mc-plan__name">{{ p.name }}</p>
-                    <p class="mc-plan__fee">{{ feeText(p.fee) }}／{{ p.seasonCode }} 球季</p>
-                    <p class="mc-note mc-note--small">含會員卡 {{ p.cardQuota }} 張、球衣 {{ p.jerseyQuota }} 件<template v-if="p.startsOn || p.endsOn">；期間 {{ formatPlainDate(p.startsOn) }} – {{ formatPlainDate(p.endsOn) }}</template></p>
+                    <p class="mc-plan__fee">{{ feeText(p.fee) }}{{ isEn ? ' / ' : '／' }}{{ p.seasonCode }}{{ tx(' 球季', ' season') }}</p>
+                    <p class="mc-note mc-note--small">{{ isEn ? `Includes ${p.cardQuota} membership ${p.cardQuota === 1 ? 'card' : 'cards'} and ${p.jerseyQuota} ${p.jerseyQuota === 1 ? 'jersey' : 'jerseys'}` : `含會員卡 ${p.cardQuota} 張、球衣 ${p.jerseyQuota} 件` }}<template v-if="p.startsOn || p.endsOn">{{ isEn ? '; period ' : '；期間 ' }}{{ formatPlainDate(p.startsOn) }} – {{ formatPlainDate(p.endsOn) }}</template></p>
                     <p v-if="p.benefitNote" class="mc-note mc-note--small">{{ p.benefitNote }}</p>
-                    <p v-if="p.midSeasonRule" class="mc-note mc-note--small">季中入會：{{ p.midSeasonRule }}</p>
+                    <p v-if="p.midSeasonRule" class="mc-note mc-note--small">{{ tx('季中入會：', 'Joining mid-season: ') }}{{ p.midSeasonRule }}</p>
                   </div>
                   <button type="button" class="btn btn--dark btn--sm" :disabled="submitBusy === `${m.club.code}:${p.code}`" @click="submitApplication(m, p)">
-                    {{ submitBusy === `${m.club.code}:${p.code}` ? '送出中…' : '送出申請' }}
+                    {{ submitBusy === `${m.club.code}:${p.code}` ? tx('送出中…', 'Submitting…') : tx('送出申請', 'Submit request') }}
                   </button>
                   <p v-if="submitResult[`${m.club.code}:${p.code}`]?.text" class="mc-alert" :class="submitResult[`${m.club.code}:${p.code}`]!.ok ? 'mc-alert--ok' : 'mc-alert--error'" :role="submitResult[`${m.club.code}:${p.code}`]!.ok ? 'status' : 'alert'">{{ submitResult[`${m.club.code}:${p.code}`]!.text }}</p>
                 </li>
@@ -206,23 +212,23 @@ const collectingNote = (m: MyMembership) => (m.club.code === 'bw'
         </div>
       </article>
 
-      <section v-if="data.joinableClubs.length" class="mc-join" aria-label="加入俱樂部">
-        <h3>加入俱樂部</h3>
-        <p class="mc-note">同一個帳號可以同時擁有台中磐石與台中藍鯨的會籍，兩邊各自計算球季與到期日，各有一張會員卡。</p>
+      <section v-if="data.joinableClubs.length" class="mc-join" :aria-label="tx('加入俱樂部', 'Join a club')">
+        <h3>{{ tx('加入俱樂部', 'Join a club') }}</h3>
+        <p class="mc-note">{{ tx('同一個帳號可以同時擁有台中磐石與台中藍鯨的會籍，兩邊各自計算球季與到期日，各有一張會員卡。', 'One account can hold memberships with both Taichung Rock FC and ' + bwNameEn + '. Each club has its own season and expiry date, and its own membership card.') }}</p>
         <ul class="mc-joinlist">
           <li v-for="c in data.joinableClubs" :key="c.code">
             <span>{{ c.name }}</span>
-            <button type="button" class="btn btn--dark btn--sm" :disabled="joinBusy === c.code" @click="join(c.code)">{{ joinBusy === c.code ? '處理中…' : `加入${c.name}（免費一般會員）` }}</button>
+            <button type="button" class="btn btn--dark btn--sm" :disabled="joinBusy === c.code" @click="join(c.code)">{{ joinBusy === c.code ? tx('處理中…', 'Processing…') : tx(`加入${c.name}（免費一般會員）`, `Join ${c.name} (free Registered member)`) }}</button>
             <p v-if="joinMessage[c.code]" class="mc-alert mc-alert--info" role="status">{{ joinMessage[c.code] }}</p>
           </li>
         </ul>
       </section>
 
-      <section v-if="orders.length" class="mc-orders" aria-label="升級申請紀錄">
-        <h3>升級申請紀錄</h3>
+      <section v-if="orders.length" class="mc-orders" :aria-label="tx('升級申請紀錄', 'Upgrade requests')">
+        <h3>{{ tx('升級申請紀錄', 'Upgrade requests') }}</h3>
         <div class="table-scroll">
           <table class="mc-table">
-            <thead><tr><th scope="col">單號</th><th scope="col">方案</th><th scope="col">金額</th><th scope="col">狀態</th><th scope="col">申請時間</th><th scope="col"><span class="visually-hidden">操作</span></th></tr></thead>
+            <thead><tr><th scope="col">{{ tx('單號', 'Reference') }}</th><th scope="col">{{ tx('方案', 'Plan') }}</th><th scope="col">{{ tx('金額', 'Amount') }}</th><th scope="col">{{ tx('狀態', 'Status') }}</th><th scope="col">{{ tx('申請時間', 'Requested') }}</th><th scope="col"><span class="visually-hidden">{{ tx('操作', 'Actions') }}</span></th></tr></thead>
             <tbody>
               <tr v-for="o in orders" :key="o.orderNo">
                 <td class="mc-mono">{{ o.orderNo }}</td>
@@ -230,7 +236,7 @@ const collectingNote = (m: MyMembership) => (m.club.code === 'bw'
                 <td>{{ feeText(o.amount) }}</td>
                 <td>{{ o.statusLabel }}</td>
                 <td>{{ formatTaipeiDateTime(o.createdAt, locale) }}</td>
-                <td><button v-if="o.canCancel" type="button" class="mc-link" :disabled="cancelBusy === o.orderNo" @click="cancelOrder(o)">取消申請</button></td>
+                <td><button v-if="o.canCancel" type="button" class="mc-link" :disabled="cancelBusy === o.orderNo" @click="cancelOrder(o)">{{ tx('取消申請', 'Cancel request') }}</button></td>
               </tr>
             </tbody>
           </table>
@@ -238,7 +244,7 @@ const collectingNote = (m: MyMembership) => (m.club.code === 'bw'
         <p v-if="orderError" class="mc-alert mc-alert--error" role="alert">{{ orderError }}</p>
       </section>
 
-      <p class="mc-note">想比較權益？<a :href="lp('/zh/culture/fan-club/')">看球迷會方案與權益對照</a>。</p>
+      <p class="mc-note">{{ tx('想比較權益？', 'Want to compare benefits? ') }}<a :href="lp('/zh/culture/fan-club/')">{{ tx('看球迷會方案與權益對照', 'See Fan Club plans and the benefits comparison') }}</a>{{ tx('。', '.') }}</p>
     </template>
   </div>
 </template>

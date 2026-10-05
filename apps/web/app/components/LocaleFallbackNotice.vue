@@ -9,12 +9,21 @@
 // definePageMeta({ enReady: true }) 宣告「本頁已有真正的英文內容」時顯示。
 // 不擋內容——繁中內容原樣顯示在這則提示下方，這裡只是加註記，不是整頁不存在或轉址
 // （規劃書沒有「本頁不存在」這個選項，未翻譯內容本來就要求顯示繁中，見檔頭引述）。
+//
+// `partial`（C-6／S2-13）：頁面已宣告 enReady（版面文字是英文），但 API 內容有一部分
+// 後端回的是繁中備援（isFallbackLocale）時，由頁面自己放在內容上方、帶 partial，
+// 改說「部分內容只有繁體中文」，不再說整頁沒翻。判斷用 app/utils/locale-fallback.ts。
+defineProps<{ partial?: boolean }>()
 </script>
 
 <template>
   <div class="locale-fallback-notice" role="status">
     <div class="container">
-      <p>
+      <p v-if="partial">
+        Some of the content below is only available in Traditional Chinese for now.
+        <span lang="zh-Hant">部分內容尚無英文版本，以繁體中文顯示。</span>
+      </p>
+      <p v-else>
         This page has not been translated into English yet — showing the Traditional Chinese version below.
         <span lang="zh-Hant">本頁尚無英文版本，以下為繁體中文內容。</span>
       </p>

@@ -261,40 +261,41 @@ export type CheckoutErrors = Partial<Record<'email' | 'recipientName' | 'recipie
  * 結帳表單檢核。`memberFilled`＝已登入會員：姓名／Email／電話可由伺服器用帳號資料補，所以不強制（與後端一致），
  * 但**有填就要符合格式**。回傳空物件代表可以送出。
  */
-export function validateCheckout(form: CheckoutForm, memberFilled = false): CheckoutErrors {
+export function validateCheckout(form: CheckoutForm, memberFilled = false, en = false): CheckoutErrors {
+  const t = (zh: string, e: string) => (en ? e : zh)
   const errors: CheckoutErrors = {}
   const email = form.email.trim()
-  if (!email ? !memberFilled : (email.length > 255 || !EMAIL_SHAPE.test(email))) errors.email = '請填寫正確的 Email（訂單成立信會寄到這裡）。'
+  if (!email ? !memberFilled : (email.length > 255 || !EMAIL_SHAPE.test(email))) errors.email = t('請填寫正確的 Email（訂單成立信會寄到這裡）。', 'Please enter a valid email address (your order confirmation will be sent here).')
 
   const name = form.recipientName.trim()
-  if (!name ? !memberFilled : name.length > 64) errors.recipientName = '請填寫收件人姓名（最多 64 個字）。'
+  if (!name ? !memberFilled : name.length > 64) errors.recipientName = t('請填寫收件人姓名（最多 64 個字）。', 'Please enter the recipient name (up to 64 characters).')
 
   const phone = form.recipientPhone.trim()
-  if (!phone ? !memberFilled : !PHONE_SHAPE.test(phone)) errors.recipientPhone = '請填寫正確的聯絡電話。'
+  if (!phone ? !memberFilled : !PHONE_SHAPE.test(phone)) errors.recipientPhone = t('請填寫正確的聯絡電話。', 'Please enter a valid phone number.')
 
   if (form.deliveryMethod === 'home_delivery') {
     const address = form.recipientAddress.trim()
-    if (!address || address.length > 500) errors.recipientAddress = '宅配請填寫完整收件地址（最多 500 個字）。'
+    if (!address || address.length > 500) errors.recipientAddress = t('宅配請填寫完整收件地址（最多 500 個字）。', 'Please enter the full delivery address (up to 500 characters).')
   }
   else if (form.deliveryMethod === 'cvs_pickup') {
     const store = form.pickupStore.trim()
-    if (!store || store.length > 200) errors.pickupStore = '超商取貨請填寫取貨門市名稱或代碼。'
+    if (!store || store.length > 200) errors.pickupStore = t('超商取貨請填寫取貨門市名稱或代碼。', 'Please enter the pickup store name or code.')
   }
 
-  if (form.customerNote.trim().length > 500) errors.customerNote = '備註最多 500 個字。'
+  if (form.customerNote.trim().length > 500) errors.customerNote = t('備註最多 500 個字。', 'Notes can be up to 500 characters.')
 
   switch (form.invoiceType) {
     case 'mobile_barcode':
-      if (!MOBILE_BARCODE_SHAPE.test(form.carrierId.trim().toUpperCase())) errors.carrierId = '手機條碼載具格式不正確（斜線開頭共 8 碼，例如 /ABC+123）。'
+      if (!MOBILE_BARCODE_SHAPE.test(form.carrierId.trim().toUpperCase())) errors.carrierId = t('手機條碼載具格式不正確（斜線開頭共 8 碼，例如 /ABC+123）。', 'The mobile barcode carrier format is incorrect (8 characters starting with a slash, e.g. /ABC+123).')
       break
     case 'citizen_cert':
-      if (!CITIZEN_CERT_SHAPE.test(form.carrierId.trim().toUpperCase())) errors.carrierId = '自然人憑證載具格式不正確（2 個英文字母加 14 位數字）。'
+      if (!CITIZEN_CERT_SHAPE.test(form.carrierId.trim().toUpperCase())) errors.carrierId = t('自然人憑證載具格式不正確（2 個英文字母加 14 位數字）。', 'The Citizen Digital Certificate carrier format is incorrect (2 letters followed by 14 digits).')
       break
     case 'tax_id':
-      if (!isValidTaxId(form.taxId.trim())) errors.taxId = '統一編號不正確，請確認 8 位數字。'
+      if (!isValidTaxId(form.taxId.trim())) errors.taxId = t('統一編號不正確，請確認 8 位數字。', 'The Unified Business Number is not valid. Please check the 8 digits.')
       break
     case 'donation':
-      if (!form.donationCode.trim()) errors.donationCode = '請從清單中選擇要捐贈的團體。'
+      if (!form.donationCode.trim()) errors.donationCode = t('請從清單中選擇要捐贈的團體。', 'Please choose an organisation to donate to from the list.')
       break
   }
   return errors
@@ -362,7 +363,7 @@ function cell(v: unknown): string {
  *   1. `{ columns|headers: string[], rows: (string|number)[][] , unit?, note?, caption? }`
  *   2. `{ rows: Record<string, string|number>[] }` 或直接陣列 `Record<string, string|number>[]`——欄名取第一列的鍵順序
  */
-export function parseSizeChart(raw: unknown): SizeChartTable | null {
+export function parseSizeChart(raw: unknown, en = false): SizeChartTable | null {
   if (!raw) return null
   let value: unknown = raw
   if (typeof value === 'string') {
@@ -383,7 +384,7 @@ export function parseSizeChart(raw: unknown): SizeChartTable | null {
     if (Array.isArray(h)) headers = h.map(cell)
     if (typeof o.caption === 'string' && o.caption.trim()) caption = o.caption.trim()
     if (typeof o.note === 'string' && o.note.trim()) note = o.note.trim()
-    else if (typeof o.unit === 'string' && o.unit.trim()) note = `單位：${o.unit.trim()}`
+    else if (typeof o.unit === 'string' && o.unit.trim()) note = `${en ? 'Unit' : '單位'}${en ? ': ' : '：'}${o.unit.trim()}`
   }
   if (!Array.isArray(rowsRaw) || rowsRaw.length === 0) return null
 

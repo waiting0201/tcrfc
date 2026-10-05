@@ -10,7 +10,7 @@
 // 🔴 搜尋頁本身 `noindex`（搜尋結果頁不該被收錄），也不在 sitemap（沒有 `unit` 宣告，SITE_UNITS 不含）。
 // 零結果：後端回 `isEmpty` 時，**前台**呼叫既有的 `POST faqs/search-misses` 記錄（搜尋端點是 GET，不寫入）；
 // 同一個關鍵字在同一個頁面載入只記一次。只在瀏覽器端記錄（SSR 不寫入，也避免爬蟲造成假資料）。
-definePageMeta({ nav: '' })
+definePageMeta({ nav: '', enReady: true })
 
 interface SearchItem {
   type: string
@@ -41,10 +41,10 @@ type SearchOutcome = { ok: true, res: SearchResponse } | { ok: false, message: s
 const PAGE_SIZE = 20
 
 const route = useRoute()
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
-const clubNameZh = computed(() => getClubAssets(club).nameZh)
+const clubNameZh = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
 
 const q = computed(() => (typeof route.query.q === 'string' ? route.query.q.trim() : ''))
 const type = computed(() => (typeof route.query.type === 'string' ? route.query.type : ''))
@@ -53,8 +53,8 @@ const input = ref(q.value)
 watch(q, (v) => { input.value = v })
 
 useSeoMeta({
-  title: computed(() => `${q.value ? `搜尋：${q.value}` : '搜尋'}｜${clubNameZh.value}`),
-  description: computed(() => `${clubNameZh.value}官方網站全站搜尋。`),
+  title: computed(() => (isEn.value ? `${q.value ? `Search: ${q.value}` : 'Search'} | ${clubNameZh.value}` : `${q.value ? `搜尋：${q.value}` : '搜尋'}｜${clubNameZh.value}`)),
+  description: computed(() => (isEn.value ? `Site-wide search on the official ${clubNameZh.value} website.` : `${clubNameZh.value}官方網站全站搜尋。`)),
   robots: 'noindex, follow',
 })
 
@@ -71,8 +71,10 @@ const { data: outcome, status } = await useAsyncData<SearchOutcome | null>(
     catch (err: unknown) {
       const code = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
       const message = code === 429
-        ? '搜尋次數過多，請稍候一分鐘再試。'
-        : (code === 400 ? (extractErrorMessage(err) ?? '搜尋條件不正確，請調整關鍵字後再試。') : '搜尋暫時無法使用，請稍後再試。')
+        ? tx('搜尋次數過多，請稍候一分鐘再試。', 'Too many searches. Please wait a minute and try again.')
+        : (code === 400
+            ? (extractErrorMessage(err) ?? tx('搜尋條件不正確，請調整關鍵字後再試。', 'The search is not valid. Please adjust your keywords and try again.'))
+            : tx('搜尋暫時無法使用，請稍後再試。', 'Search is temporarily unavailable. Please try again later.'))
       return { ok: false, message }
     }
   },
@@ -90,7 +92,14 @@ const facets = computed(() => (res.value?.facets ?? []).filter((f) => f.type !==
 const totalHits = computed(() => facets.value.reduce((sum, f) => sum + f.count, 0))
 const totalPages = computed(() => Math.max(1, Math.ceil((res.value?.totalCount ?? 0) / PAGE_SIZE)))
 
-const TYPE_LABEL: Record<string, string> = { news: '新聞', faq: '常見問題', program: '課程', player: '球員', coach: '教練與團隊', charity: '慈善' }
+const TYPE_LABEL = computed<Record<string, string>>(() => ({
+  news: tx('新聞', 'News'),
+  faq: tx('常見問題', 'FAQ'),
+  program: tx('課程', 'Programs'),
+  player: tx('球員', 'Players'),
+  coach: tx('教練與團隊', 'Coaches & Staff'),
+  charity: tx('慈善', 'Charity'),
+}))
 
 /** 結果 → 前台詳情連結（內部路徑，不含語系前綴，交給 lp()）。 */
 function resultPath(item: SearchItem): string {
@@ -137,11 +146,11 @@ watch(
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">搜尋</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx('搜尋', 'Search') }}</li>
     </ol>
   </div>
 </nav>
@@ -149,47 +158,60 @@ watch(
 <section class="page-hero">
   <div class="container">
     <p class="page-hero__eyebrow">Search</p>
-    <h1>搜尋<span class="en">Search</span></h1>
-    <p class="page-hero__lede">搜尋新聞、常見問題、課程、球員、教練與慈善事蹟。多個關鍵字請用空白分隔，結果必須包含全部關鍵字。</p>
+    <h1><template v-if="isEn">Search</template><template v-else>搜尋<span class="en">Search</span></template></h1>
+    <p class="page-hero__lede">{{ tx('搜尋新聞、常見問題、課程、球員、教練與慈善事蹟。多個關鍵字請用空白分隔，結果必須包含全部關鍵字。', 'Search news, FAQs, programs, players, coaches and charity stories. Separate multiple keywords with spaces; results must contain all of the keywords.') }}</p>
   </div>
 </section>
 
 <section class="band search-band" aria-labelledby="search-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="search-title">搜尋結果</h2>
+    <h2 class="visually-hidden" id="search-title">{{ tx('搜尋結果', 'Search results') }}</h2>
 
-    <form class="search-form" role="search" aria-label="站內搜尋" @submit.prevent="submit">
-      <label class="visually-hidden" for="search-page-input">搜尋關鍵字</label>
-      <input id="search-page-input" v-model="input" type="search" name="q" maxlength="100" placeholder="輸入關鍵字" autocomplete="off" enterkeyhint="search">
-      <button type="submit" class="btn btn--primary">搜尋</button>
+    <form class="search-form" role="search" :aria-label="tx('站內搜尋', 'Search this site')" @submit.prevent="submit">
+      <label class="visually-hidden" for="search-page-input">{{ tx('搜尋關鍵字', 'Search keywords') }}</label>
+      <input id="search-page-input" v-model="input" type="search" name="q" maxlength="100" :placeholder="tx('輸入關鍵字', 'Enter keywords')" autocomplete="off" enterkeyhint="search">
+      <button type="submit" class="btn btn--primary">{{ tx('搜尋', 'Search') }}</button>
     </form>
 
-    <p v-if="!q" class="search-hint">請輸入關鍵字開始搜尋。</p>
+    <p v-if="!q" class="search-hint">{{ tx('請輸入關鍵字開始搜尋。', 'Enter a keyword to start searching.') }}</p>
 
     <div v-else-if="errorMessage" class="form-status form-status--error" role="alert"><p>{{ errorMessage }}</p></div>
 
     <template v-else-if="res">
       <p class="search-summary" role="status">
+        <template v-if="isEn">
+          <template v-if="res.isEmpty || totalHits === 0">No content found for &ldquo;{{ res.query }}&rdquo;.</template>
+          <template v-else>
+            Found {{ totalHits }} {{ totalHits === 1 ? 'result' : 'results' }} for &ldquo;{{ res.query }}&rdquo;<template v-if="res.truncated"> (only the first 100 in each category are listed; add more keywords to narrow your search)</template>.
+          </template>
+        </template>
+        <template v-else>
         <template v-if="res.isEmpty || totalHits === 0">找不到與「{{ res.query }}」相關的內容。</template>
         <template v-else>
           「{{ res.query }}」共找到 {{ totalHits }} 筆結果<template v-if="res.truncated">（每個分類只列出最前面的 100 筆，請加入更多關鍵字縮小範圍）</template>。
         </template>
+        </template>
       </p>
 
-      <nav v-if="facets.length > 0 && totalHits > 0" class="search-facets" aria-label="結果分類">
+      <nav v-if="facets.length > 0 && totalHits > 0" class="search-facets" :aria-label="tx('結果分類', 'Result categories')">
         <ul>
           <li>
-            <NuxtLink :to="pageLink({ type: '' })" :aria-current="type === '' ? 'true' : undefined">全部（{{ totalHits }}）</NuxtLink>
+            <NuxtLink :to="pageLink({ type: '' })" :aria-current="type === '' ? 'true' : undefined">{{ tx('全部', 'All') }}{{ tx('（', ' (') }}{{ totalHits }}{{ tx('）', ')') }}</NuxtLink>
           </li>
           <li v-for="f in facets" :key="f.type">
-            <NuxtLink :to="pageLink({ type: f.type })" :aria-current="type === f.type ? 'true' : undefined">{{ f.label || TYPE_LABEL[f.type] }}（{{ f.count }}）</NuxtLink>
+            <NuxtLink :to="pageLink({ type: f.type })" :aria-current="type === f.type ? 'true' : undefined">{{ f.label || TYPE_LABEL[f.type] }}{{ tx('（', ' (') }}{{ f.count }}{{ tx('）', ')') }}</NuxtLink>
           </li>
         </ul>
       </nav>
 
       <div v-if="res.isEmpty || totalHits === 0" class="search-empty">
-        <p>建議您：</p>
-        <ul>
+        <p>{{ tx('建議您：', 'Suggestions:') }}</p>
+        <ul v-if="isEn">
+          <li>Check your keywords for typos, or try shorter, more general words.</li>
+          <li>Use fewer keywords (every keyword must appear for a result to match).</li>
+          <li>Browse the <a :href="lp('/zh/faq/')">FAQ</a>, or <a :href="lp('/zh/join/general/')">contact us</a>.</li>
+        </ul>
+        <ul v-else>
           <li>檢查關鍵字是否有錯字，或改用較短、較通用的詞。</li>
           <li>減少關鍵字的數量（所有關鍵字都必須出現才算符合）。</li>
           <li>前往<a :href="lp('/zh/faq/')">常見問題</a>瀏覽，或<a :href="lp('/zh/join/general/')">聯絡我們</a>。</li>
@@ -203,7 +225,7 @@ watch(
             <p class="search-item__meta">
               <span class="search-item__type">{{ TYPE_LABEL[item.type] ?? item.type }}</span>
               <span v-if="item.date">{{ dateText(item.date) }}</span>
-              <span v-if="item.isFallbackLocale">（尚無此語系版本，顯示繁體中文）</span>
+              <span v-if="item.isFallbackLocale">{{ tx('（尚無此語系版本，顯示繁體中文）', '(No English version yet; showing Traditional Chinese)') }}</span>
             </p>
             <h3 class="search-item__title">
               <a :href="lp(resultPath(item))"><template v-for="(seg, i) in highlightSegments(item.title, tokens)" :key="i"><mark v-if="seg.hit">{{ seg.text }}</mark><template v-else>{{ seg.text }}</template></template></a>
@@ -213,14 +235,14 @@ watch(
         </li>
       </ol>
 
-      <nav v-if="totalPages > 1" class="search-pager" aria-label="搜尋結果分頁">
-        <NuxtLink v-if="page > 1" :to="pageLink({ page: page - 1 })" rel="prev">上一頁</NuxtLink>
-        <span aria-current="page">第 {{ page }} / {{ totalPages }} 頁</span>
-        <NuxtLink v-if="page < totalPages" :to="pageLink({ page: page + 1 })" rel="next">下一頁</NuxtLink>
+      <nav v-if="totalPages > 1" class="search-pager" :aria-label="tx('搜尋結果分頁', 'Search results pages')">
+        <NuxtLink v-if="page > 1" :to="pageLink({ page: page - 1 })" rel="prev">{{ tx('上一頁', 'Previous') }}</NuxtLink>
+        <span aria-current="page">{{ tx(`第 ${page} / ${totalPages} 頁`, `Page ${page} of ${totalPages}`) }}</span>
+        <NuxtLink v-if="page < totalPages" :to="pageLink({ page: page + 1 })" rel="next">{{ tx('下一頁', 'Next') }}</NuxtLink>
       </nav>
     </template>
 
-    <p v-else-if="status === 'pending'" class="search-hint" role="status">搜尋中…</p>
+    <p v-else-if="status === 'pending'" class="search-hint" role="status">{{ tx('搜尋中…', 'Searching…') }}</p>
   </div>
 </section>
 </template>

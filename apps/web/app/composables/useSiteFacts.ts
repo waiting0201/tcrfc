@@ -74,6 +74,15 @@ function normalizeClub(club: string): ClubCode {
  * （代表 API 整個打不到）才整組退回靜態快照，不做「部分欄位退回、部分欄位打 API」
  * 的混合狀態——那會讓同一個俱樂部的事實一部分來自後端、一部分來自可能已經過期的
  * 靜態快照，違反 GEO-03「單一維護處」的精神。 */
+const CJK_RE = /[\u3000-\u303f\u3400-\u9fff\uff00-\uffef]/
+
+/** 後端 `?lang=en` 在英文值缺漏時會回退中文；英文欄位只收不含中日文字元的值，
+ * 否則改用靜態快照的英文（可能為 null），避免英文版混入中文。 */
+function pickEn(fromApi: string | null | undefined, fallback: string | null): string | null {
+  const v = fromApi?.trim()
+  return v && !CJK_RE.test(v) ? v : fallback
+}
+
 function mergeSiteFacts(
   club: ClubCode,
   zh: PublicSiteFactsDto | null,
@@ -84,21 +93,24 @@ function mergeSiteFacts(
     foundedYear: zh.foundedYear,
     foundingDateIso: zh.foundingDateIso,
     foundedDisplayZh: zh.foundedDisplay,
+    foundedDisplayEn: pickEn(en?.foundedDisplay, SITE_FACTS[club].foundedDisplayEn),
     foundingTitleZh: zh.foundingTitle,
+    foundingTitleEn: pickEn(en?.foundingTitle, SITE_FACTS[club].foundingTitleEn),
     league: {
       nameZh: zh.league.name,
-      nameEn: en?.league.name ?? null,
+      nameEn: pickEn(en?.league.name, SITE_FACTS[club].league.nameEn),
       shortNameZh: zh.league.shortName,
     },
     venues: zh.venues.map(
       (v, i): SiteFactVenue => ({
         nameZh: v.name,
-        nameEn: en?.venues[i]?.name ?? null,
+        nameEn: pickEn(en?.venues[i]?.name, null),
         address: v.address,
         isHomeGround: v.isHomeGround,
       }),
     ),
     squadStructureZh: zh.squadStructureSummary,
+    squadStructureEn: pickEn(en?.squadStructureSummary, SITE_FACTS[club].squadStructureEn),
     squadCodes: zh.squadCodes,
     contact: {
       address: zh.contact.address,

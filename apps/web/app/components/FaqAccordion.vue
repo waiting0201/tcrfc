@@ -29,13 +29,15 @@ interface FaqAccordionItem {
   answer: string | null
 }
 
-const props = withDefaults(defineProps<{
+const props = defineProps<{
   faqs: FaqAccordionItem[]
   club: string
   emptyText?: string
-}>(), {
-  emptyText: '本主題常見問題收錄中，稍後將於本頁公布。',
-})
+}>()
+
+// 英文版（主站 /en/）的預設空狀態文字與回饋按鈕文字；呼叫端有傳 emptyText 時仍以傳入值為準。
+const { tx } = useLocale()
+const emptyMessage = computed(() => props.emptyText ?? tx('本主題常見問題收錄中，稍後將於本頁公布。', 'Questions for this topic are being compiled and will be published here soon.'))
 
 const validFaqs = computed(() => props.faqs.filter((f) => f.question && f.answer))
 
@@ -75,7 +77,7 @@ onMounted(() => {
 </script>
 
 <template>
-<p v-if="validFaqs.length === 0" class="faq-accordion-empty">{{ emptyText }}</p>
+<p v-if="validFaqs.length === 0" class="faq-accordion-empty">{{ emptyMessage }}</p>
 <div v-else class="accordion">
   <details
     v-for="f in validFaqs"
@@ -91,19 +93,19 @@ onMounted(() => {
     <div class="accordion-item__a">
       <p>{{ f.answer }}</p>
       <div class="accordion-item__feedback">
-        <span>這則說明有幫助嗎？</span>
+        <span>{{ tx('這則說明有幫助嗎？', 'Was this answer helpful?') }}</span>
         <button
           type="button"
           class="fb-btn"
           :aria-pressed="pressed[f.id] === 'up'"
-          aria-label="有幫助"
+          :aria-label="tx('有幫助', 'Helpful')"
           @click="submitFeedback(f, true)"
         >👍</button>
         <button
           type="button"
           class="fb-btn"
           :aria-pressed="pressed[f.id] === 'down'"
-          aria-label="沒有幫助"
+          :aria-label="tx('沒有幫助', 'Not helpful')"
           @click="submitFeedback(f, false)"
         >👎</button>
       </div>

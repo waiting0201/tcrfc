@@ -3,27 +3,28 @@
 //
 // 文案依俱樂部切換：磐石維持既有雙欄 Vision/Mission；藍鯨版改用 VISION_ITEMS
 // 逐字節錄 content/blue-whale/club-profile.md §5「發展願景」五節（見 club-copy.ts）。
-definePageMeta({ nav: "about", unit: "02" })
+definePageMeta({ nav: "about", unit: "02", enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => VISION_MISSION_HERO[clubKey.value])
-const items = computed(() => VISION_ITEMS[clubKey.value])
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const hero = computed(() => (isEn.value ? VISION_MISSION_HERO_EN : VISION_MISSION_HERO[clubKey.value]))
+const items = computed(() => (isEn.value ? VISION_ITEMS_EN : VISION_ITEMS[clubKey.value]))
+const seo = computed(() => (isEn.value ? VISION_MISSION_SEO_EN : VISION_MISSION_SEO[clubKey.value]))
 
 useSeoMeta({
-  title: computed(() => VISION_MISSION_SEO[clubKey.value].title),
-  description: computed(() => VISION_MISSION_SEO[clubKey.value].description),
+  title: computed(() => seo.value.title),
+  description: computed(() => seo.value.description),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
       <li aria-current="page">{{ hero.h1Zh }}</li>
     </ol>
@@ -33,7 +34,7 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.2', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.2') : aboutEyebrow('2.2', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
@@ -50,7 +51,7 @@ useSeoMeta({
       </div>
     </div>
 
-    <p v-if="clubKey === 'tcrfc'" class="vm-footnote">俱樂部品牌主張與五大核心價值可先參考 <a :href="lp('/zh/about/philosophy/')">2.3 足球理念</a>。</p>
+    <p v-if="clubKey === 'tcrfc'" class="vm-footnote"><template v-if="isEn">For our brand promise and five core values, see <a :href="lp('/zh/about/philosophy/')">2.3 Our Philosophy</a>.</template><template v-else>俱樂部品牌主張與五大核心價值可先參考 <a :href="lp('/zh/about/philosophy/')">2.3 足球理念</a>。</template></p>
     <p v-else class="vm-footnote">俱樂部口號與培訓精神可先參考 <a :href="lp('/zh/about/philosophy/')">2.3 俱樂部口號與培訓精神</a>。</p>
   </div>
 </section>

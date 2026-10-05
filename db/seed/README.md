@@ -81,6 +81,15 @@
 - 漫畫圖片的**物件**不在資料庫：先 `apps/api/scripts/dev-azurite.sh up`，再 `python3 db/seed/seed-dev-blobs.py` 傳占位圖（含 1280／640／320／thumb 衍生檔，鍵 `seed-dev/comic/{集}/{頁}.webp`）。
 - 守門測試：`DevAcceptanceSeedTests`（唯讀，種子被改掉或庫重建沒灌這一段會先紅燈）。已存在的開發庫補灌：`apply-seed.sh`（冪等，只補缺的列）。
 
+## 英文欄位回填（區段 61，2026-10-05）——主站英文版的 `*_i18n` en 列
+
+[`en_backfill_seed.py`](en_backfill_seed.py) 由 `generate-club-seed-sql.py` 在所有區段之後呼叫，**只對 tcrfc**（藍鯨英文全名卡 B-5、全新英文生產 C-10，不補；新聞 `articles_i18n` 本輪不翻）補齊 en 列：競賽名、賽程場地、教練職稱、輪播、頁面 SEO、FAQ、自建行事曆事件、夥伴、贊助、媒體專區、特約店家、慈善與社會影響、會員抽獎、`site.founding_title`。
+
+- **為什麼另開區段**：各區段是「繁中列不存在才整批 INSERT」，已灌過的庫改來源不會補 en；回填用「缺 en 列就 INSERT、已有 en 列只填 NULL／空字串／與繁中完全相同的欄位」，**不覆寫後台改過的英文**，可重複執行。
+- **用詞**：照 [`docs/06`](../../docs/06-conventions.md) §1.1；聯賽沿用 `Enterprise Premier League`（正式名待客戶確認）；【測試】內容維持 `[Test] …` 標記；賽程場地英文名（台北田徑場等）為地名拼音＋通用場地詞，**待客戶確認**。
+- **刻意不補**：沒有英文來源的球員與教練姓名（不音譯，前台回退中文原名）；`site.founding_date_display`（`SiteFactsTests` 用它驗證缺英文回退）；`site.contact_hours`／`contact_phone`（測試值）；頁面隱私／條款內文；`page_blocks` 與 `charity_programs_i18n.content` 這類 json 內文。
+- **正式庫內容種子**：`generate-prod-content-sql.py` 將區段 61 列為 `IMPORT`；`member_draws_i18n` 屬禁用表，該兩批自動剔除。改動後須重產 `db/prod/club-content-seed.sql` 並更新 `club-content-manifest.tsv` 的 sha256 與各 `*_i18n` 筆數（見該腳本 `--check`）。
+
 ## 這個目錄有什麼
 
 | 檔案 | 用途 |

@@ -19,7 +19,7 @@ import type { PlayerStatsResponse, StandingsResponse } from '#shared/utils/stand
 import type { PlayerDto } from '#shared/utils/player'
 import { playerPath } from '#shared/utils/player'
 
-definePageMeta({ nav: 'club', unit: '3.1' })
+definePageMeta({ nav: 'club', unit: '3.1', enReady: true })
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
@@ -31,19 +31,19 @@ const assets = computed(() => getClubAssets(clubKey.value))
  * D1，全站代號唯一）。 */
 const teamCode = computed(() => (isTcrfc.value ? 'D1' : 'BW1'))
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 
 // S1-12d 收尾第二輪：hero／SEO／球隊介紹三者都含主場／成立年份／首季頭銜／聯賽事實，
 // club-copy.ts 已改為工廠函式，一次呼叫 useSiteFacts(clubKey.value) 即可覆蓋整頁需求
 // ——原本固定寫 useSiteFacts('tcrfc') 只是因為當時只有榮譽時間軸（isTcrfc 專屬區塊）
 // 用得到，現在 hero／SEO／intro 兩俱樂部都要讀，改成動態帶入目前 club。
 const { facts, primaryVenue } = useSiteFacts(clubKey.value)
-const hero = computed(() => getFirstTeamHero(clubKey.value, facts.value))
-const intro = computed(() => getFirstTeamIntro(clubKey.value, facts.value))
+const hero = computed(() => (isEn.value ? getFirstTeamHeroEn(facts.value) : getFirstTeamHero(clubKey.value, facts.value)))
+const intro = computed(() => (isEn.value ? getFirstTeamIntroEn(facts.value) : getFirstTeamIntro(clubKey.value, facts.value)))
 
 useSeoMeta({
-  title: computed(() => getFirstTeamSeo(clubKey.value, facts.value).title),
-  description: computed(() => getFirstTeamSeo(clubKey.value, facts.value).description),
+  title: computed(() => (isEn.value ? getFirstTeamSeoEn(facts.value) : getFirstTeamSeo(clubKey.value, facts.value)).title),
+  description: computed(() => (isEn.value ? getFirstTeamSeoEn(facts.value) : getFirstTeamSeo(clubKey.value, facts.value)).description),
 })
 
 // SportsTeam JSON-LD（GEO-05／S1-12f）：teamCode 依俱樂部算出（原本寫死 'D1'，藍鯨容器
@@ -148,6 +148,7 @@ const nextScheduledFixture = computed(() =>
 )
 
 function homeAwayLabel(homeAway: string | null): string {
+  if (isEn.value) return clubHomeAwayLabelEn(homeAway)
   if (homeAway === 'home') return '主場'
   if (homeAway === 'away') return '客場'
   return '—'
@@ -155,7 +156,7 @@ function homeAwayLabel(homeAway: string | null): string {
 
 /** 賽程表「賽事」欄的對戰組合文字，依主客場把自家隊名排在正確的一邊。 */
 function matchupLabel(m: { homeAway: string | null; opponent: string | null }): string {
-  const self = identity.value.shortNameZh
+  const self = isEn.value ? CLUB_NAME_EN : identity.value.shortNameZh
   const opponent = m.opponent ?? 'TBC'
   if (m.homeAway === 'away') return `${opponent} vs ${self}`
   return `${self} vs ${opponent}`
@@ -163,24 +164,38 @@ function matchupLabel(m: { homeAway: string | null; opponent: string | null }): 
 
 function formatMatchDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-')
+  if (isEn.value) return `${y}/${m}/${d} (${clubWeekdayShortEn(matchWeekday(dateStr).en)})`
   return `${y}/${m}/${d}（${matchWeekday(dateStr).zh}）`
 }
+
+/** 賽程列／成績列的賽事狀態文字（延賽、取消、比賽中）。 */
+function matchStatusText(status: string | null): string {
+  const meta = mapMatchStatus(status)
+  return isEn.value ? mapMatchStatusEn(status).label : meta.label
+}
+
+/** 榮譽時間軸備援一筆（磐石成立首年頭銜）的英文敘述；頭銜英文值缺漏時不輸出。 */
+const foundingHonourDescEn = computed(() => (facts.value.foundingTitleEn
+  ? `The club won the ${facts.value.foundingTitleEn} title in its first year and, the following year, was promoted to compete in ${facts.value.league.nameEn ? `the ${facts.value.league.nameEn}` : 'the league'}.`
+  : ''))
+/** 底部「加入一線隊」卡的聯賽名稱（英文版）。 */
+const ctaLeagueEn = computed(() => (facts.value.league.nameEn ? `the ${facts.value.league.nameEn}` : 'the league'))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
-      <li aria-current="page">一線隊</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/club/')">{{ tx('俱樂部', 'Football Club') }}</a></li>
+      <li aria-current="page">{{ tx('一線隊', 'First Team') }}</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero page-hero--media">
   <!-- 藍鯨無一線隊合影照片可用（客戶尚未提供，肖像同意狀態未知），不沿用磐石球員合影頂替 -->
-  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/club/first-team-01-squad.jpg')" :alt="`台中磐石一線隊球員於${primaryVenue.nameZh}合影`" width="1920" height="1280">
+  <img v-if="isTcrfc" class="page-hero__bg" :src="siteImg('/assets/img/club/first-team-01-squad.jpg')" :alt="isEn ? `Taichung Rock First Team players posing together at ${primaryVenue.nameEn ?? primaryVenue.nameZh}` : `台中磐石一線隊球員於${primaryVenue.nameZh}合影`" width="1920" height="1280">
   <div v-else class="page-hero__bg page-hero__bg--pending" aria-hidden="true"></div>
   <div class="container">
     <p class="page-hero__eyebrow">{{ isTcrfc ? '3.1 First Team' : '3.1' }}</p>
@@ -189,10 +204,12 @@ function formatMatchDate(dateStr: string): string {
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(playersData) || hasFallbackLocale(scheduleData))" partial />
+
 <section class="band" id="team-overview" aria-labelledby="team-overview-title">
   <div class="band-inner container">
     <div class="prose">
-      <h2 id="team-overview-title">球隊介紹</h2>
+      <h2 id="team-overview-title">{{ tx('球隊介紹', 'Team introduction') }}</h2>
       <p>{{ intro }}</p>
     </div>
   </div>
@@ -203,26 +220,26 @@ function formatMatchDate(dateStr: string): string {
     <div class="eyebrow-row">
       <div>
         <p class="kicker">SQUAD</p>
-        <h2 class="section-title" id="roster-title">球員名單</h2>
+        <h2 class="section-title" id="roster-title">{{ tx('球員名單', 'Squad') }}</h2>
       </div>
-      <p class="section-lede">{{ players.length }} 名一線隊註冊球員，依背號排序。未取得肖像使用同意的球員以隊徽卡呈現，不顯示照片。</p>
+      <p class="section-lede">{{ isEn ? `${players.length} registered First Team players, ordered by shirt number. Players without photo consent are shown with a crest card instead of a photo.` : `${players.length} 名一線隊註冊球員，依背號排序。未取得肖像使用同意的球員以隊徽卡呈現，不顯示照片。` }}</p>
     </div>
 
-    <p v-if="players.length === 0" class="roster-note">名單準備中，稍後將於本頁公布。</p>
+    <p v-if="players.length === 0" class="roster-note">{{ tx('名單準備中，稍後將於本頁公布。', 'The squad list is being prepared and will be published on this page soon.') }}</p>
     <div v-else class="player-grid" id="player-grid">
       <article v-for="p in players" :key="p.id" class="player-card clip-card" :data-pos="p.position">
         <div class="player-card__visual">
-          <img v-if="p.photoUrl" :src="p.photoUrl" :alt="`${p.name} 球員照片`" width="300" height="300" loading="lazy" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
+          <img v-if="p.photoUrl" :src="p.photoUrl" :alt="isEn ? `Photo of ${p.name}` : `${p.name} 球員照片`" width="300" height="300" loading="lazy" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover;">
           <img class="player-card__crest" :src="assets.headerMark.src" alt="" width="64" height="67" aria-hidden="true">
           <span class="player-card__num">{{ p.shirtNo ?? '—' }}</span>
         </div>
         <div class="player-card__body">
-          <span class="player-card__pos">{{ p.position ?? '—' }}</span>
+          <span class="player-card__pos">{{ isEn ? clubPositionLabelEn(p.position) : (p.position ?? '—') }}</span>
           <p class="player-card__name"><a class="sh-player-link" :href="lp(playerPath(p.slug || p.id))">{{ p.name }}</a></p>
         </div>
       </article>
     </div>
-    <p v-if="players.length > 0" class="roster-note">2026/27 賽季{{ players.length }}人名單，依背號排序（球員位置分類與篩選未提供）。</p>
+    <p v-if="players.length > 0" class="roster-note">{{ isEn ? `2026/27 season squad of ${players.length} players, ordered by shirt number (position grouping and filtering are not available).` : `2026/27 賽季${players.length}人名單，依背號排序（球員位置分類與篩選未提供）。` }}</p>
   </div>
 </section>
 
@@ -231,18 +248,18 @@ function formatMatchDate(dateStr: string): string {
     <div class="eyebrow-row">
       <div>
         <p class="kicker">STAFF</p>
-        <h2 class="section-title" id="coaches-title">教練團</h2>
+        <h2 class="section-title" id="coaches-title">{{ tx('教練團', 'Coaching staff') }}</h2>
       </div>
     </div>
-    <p v-if="coaches.length === 0" class="roster-note">教練陣容準備中，稍後將於本頁公布。</p>
+    <p v-if="coaches.length === 0" class="roster-note">{{ tx('教練陣容準備中，稍後將於本頁公布。', 'The coaching staff list is being prepared and will be published on this page soon.') }}</p>
     <div v-else class="coach-grid">
       <article v-for="c in coaches" :key="c.id" class="coach-card clip-card">
         <div class="coach-card__visual">
-          <img v-if="c.photoUrl" :src="c.photoUrl" :alt="`${c.name} 教練照片`" width="240" height="150" loading="lazy" style="width:100%; height:100%; object-fit:cover;">
+          <img v-if="c.photoUrl" :src="c.photoUrl" :alt="isEn ? `Photo of ${c.name}` : `${c.name} 教練照片`" width="240" height="150" loading="lazy" style="width:100%; height:100%; object-fit:cover;">
           <img v-else :src="assets.headerMark.src" alt="" width="52" height="55" aria-hidden="true">
         </div>
         <div class="coach-card__body">
-          <p class="coach-card__role">{{ c.title ?? '教練團成員' }}</p>
+          <p class="coach-card__role">{{ c.title ?? tx('教練團成員', 'Coaching staff member') }}</p>
           <p class="coach-card__name">{{ c.name }}</p>
         </div>
       </article>
@@ -255,26 +272,27 @@ function formatMatchDate(dateStr: string): string {
     <div class="eyebrow-row">
       <div>
         <p class="kicker">SEASON</p>
-        <h2 class="section-title" id="fixtures-title">賽程表</h2>
+        <h2 class="section-title" id="fixtures-title">{{ tx('賽程表', 'Fixtures') }}</h2>
       </div>
       <div class="fixtures-actions">
-        <a class="btn btn--dark btn--sm" :href="lp('/zh/schedule/')">查看完整行事曆</a>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/schedule/')">{{ tx('查看完整行事曆', 'View the full schedule') }}</a>
       </div>
     </div>
-    <p class="fixtures-note">資料與行事曆「一線隊」分類同源，實際時間與場地請以官方最新公告為準（部分場地標示為 <b>TBC</b> 表示尚未確定）。</p>
+    <p v-if="isEn" class="fixtures-note">This data comes from the same source as the First Team category of the schedule. Please refer to the latest official announcements for actual times and venues (a venue marked <b>TBC</b> has not been confirmed yet).</p>
+    <p v-else class="fixtures-note">資料與行事曆「一線隊」分類同源，實際時間與場地請以官方最新公告為準（部分場地標示為 <b>TBC</b> 表示尚未確定）。</p>
 
-    <p v-if="fixtures.length === 0" class="fixtures-note">賽程準備中，稍後將於本頁公布。</p>
+    <p v-if="fixtures.length === 0" class="fixtures-note">{{ tx('賽程準備中，稍後將於本頁公布。', 'The fixture list is being prepared and will be published on this page soon.') }}</p>
     <div v-else class="table-wrap">
       <table class="sched-table">
-        <caption class="visually-hidden">一線隊賽程</caption>
+        <caption class="visually-hidden">{{ tx('一線隊賽程', 'First Team fixtures') }}</caption>
         <thead>
           <tr>
-            <th scope="col">輪次</th>
-            <th scope="col">日期</th>
-            <th scope="col">開賽</th>
-            <th scope="col">主客</th>
-            <th scope="col">賽事</th>
-            <th scope="col">場地</th>
+            <th scope="col">{{ tx('輪次', 'Round') }}</th>
+            <th scope="col">{{ tx('日期', 'Date') }}</th>
+            <th scope="col">{{ tx('開賽', 'Kick-off') }}</th>
+            <th scope="col">{{ tx('主客', 'Home/Away') }}</th>
+            <th scope="col">{{ tx('賽事', 'Match') }}</th>
+            <th scope="col">{{ tx('場地', 'Venue') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -286,7 +304,7 @@ function formatMatchDate(dateStr: string): string {
             <td>
               {{ matchupLabel(m) }}
               <template v-if="mapMatchStatus(m.status).code === 'finished'">（{{ m.scoreHome }} : {{ m.scoreAway }}）</template>
-              <template v-else-if="mapMatchStatus(m.status).code !== 'upcoming'">　{{ mapMatchStatus(m.status).label }}</template>
+              <template v-else-if="mapMatchStatus(m.status).code !== 'upcoming'">　{{ matchStatusText(m.status) }}</template>
             </td>
             <td>{{ m.venue ?? 'TBC' }}</td>
           </tr>
@@ -301,7 +319,7 @@ function formatMatchDate(dateStr: string): string {
     <div class="eyebrow-row">
       <div>
         <p class="kicker">RESULTS &amp; STANDINGS</p>
-        <h2 class="section-title" id="results-title">成績與積分榜</h2>
+        <h2 class="section-title" id="results-title">{{ tx('成績與積分榜', 'Results & League Table') }}</h2>
       </div>
     </div>
 
@@ -315,27 +333,30 @@ function formatMatchDate(dateStr: string): string {
         </li>
       </ul>
     </template>
+    <p v-else-if="nextScheduledFixture && isEn">
+      No matches have been completed this season yet. The next match is on {{ formatMatchDate(nextScheduledFixture.matchOn) }}, {{ homeAwayLabel(nextScheduledFixture.homeAway) }} against {{ nextScheduledFixture.opponent ?? 'TBC' }}.
+    </p>
     <p v-else-if="nextScheduledFixture">
       本季目前尚無已完賽數據，下一場為 {{ formatMatchDate(nextScheduledFixture.matchOn) }}
       {{ homeAwayLabel(nextScheduledFixture.homeAway) }}對{{ nextScheduledFixture.opponent ?? 'TBC' }}。
     </p>
-    <p v-else>本季目前尚無已完賽數據，賽程尚未公布。</p>
+    <p v-else>{{ tx('本季目前尚無已完賽數據，賽程尚未公布。', 'No matches have been completed this season yet, and the fixtures have not been published.') }}</p>
 
-    <h3 class="sh-subhead" id="standings">積分榜<template v-if="shownSeason">　{{ shownSeason }}</template></h3>
+    <h3 class="sh-subhead" id="standings">{{ tx('積分榜', 'League table') }}<template v-if="shownSeason">{{ tx('　', ' ') }}{{ shownSeason }}</template></h3>
     <form v-if="seasonOptions.length > 1" class="sh-season-form" method="get" :action="route.path">
       <div>
-        <label for="season-select">賽季</label>
+        <label for="season-select">{{ tx('賽季', 'Season') }}</label>
         <select id="season-select" name="season">
           <option v-for="c in seasonOptions" :key="c" :value="c" :selected="c === shownSeason">{{ c }}</option>
         </select>
       </div>
-      <button class="btn btn--dark btn--sm" type="submit">切換賽季</button>
+      <button class="btn btn--dark btn--sm" type="submit">{{ tx('切換賽季', 'Switch season') }}</button>
     </form>
     <div v-if="standingRows.length" class="sh-table-wrap">
       <table class="sh-stats-table">
-        <caption class="visually-hidden">{{ shownSeason }} 賽季積分榜</caption>
+        <caption class="visually-hidden">{{ shownSeason }} {{ tx('賽季積分榜', 'season league table') }}</caption>
         <thead>
-          <tr><th scope="col">名次</th><th scope="col">球隊</th><th scope="col">出賽</th><th scope="col">積分</th></tr>
+          <tr><th scope="col">{{ tx('名次', 'Rank') }}</th><th scope="col">{{ tx('球隊', 'Team') }}</th><th scope="col">{{ tx('出賽', 'Played') }}</th><th scope="col">{{ tx('積分', 'Points') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="(r, i) in standingRows" :key="`${r.teamName}-${i}`">
@@ -347,8 +368,11 @@ function formatMatchDate(dateStr: string): string {
         </tbody>
       </table>
     </div>
-    <p v-else class="fixtures-note" style="margin-top:1rem;">本賽季積分榜尚無資料，後台登錄後將於此公布。</p>
-    <p v-if="standingRows.length" class="fixtures-note">
+    <p v-else class="fixtures-note" style="margin-top:1rem;">{{ tx('本賽季積分榜尚無資料，後台登錄後將於此公布。', 'There is no league table data for this season yet; it will be published here once it has been entered.') }}</p>
+    <p v-if="standingRows.length && isEn" class="fixtures-note">
+      The league table is maintained manually by the club or imported from figures published by the league organiser; official positions are as announced by the league<template v-if="standings?.updatedAt">; last updated {{ formatTaipeiDateTime(standings.updatedAt, locale) }}</template>.
+    </p>
+    <p v-else-if="standingRows.length" class="fixtures-note">
       積分榜由本俱樂部手動維護或匯入聯賽主辦單位公告的資料，實際名次以聯賽公告為準<template v-if="standings?.updatedAt">；最後更新 {{ formatTaipeiDateTime(standings.updatedAt, locale) }}</template>。
     </p>
   </div>
@@ -359,24 +383,24 @@ function formatMatchDate(dateStr: string): string {
     <div class="eyebrow-row">
       <div>
         <p class="kicker">PLAYER STATS</p>
-        <h2 class="section-title" id="player-stats-title">球員數據</h2>
+        <h2 class="section-title" id="player-stats-title">{{ tx('球員數據', 'Player statistics') }}</h2>
       </div>
-      <p v-if="shownSeason" class="section-lede">{{ shownSeason }} 賽季</p>
+      <p v-if="shownSeason" class="section-lede">{{ shownSeason }} {{ tx('賽季', 'season') }}</p>
     </div>
     <div v-if="statRows.length" class="sh-table-wrap">
       <table class="sh-stats-table">
-        <caption class="visually-hidden">{{ shownSeason }} 賽季球員數據</caption>
+        <caption class="visually-hidden">{{ shownSeason }} {{ tx('賽季球員數據', 'season player statistics') }}</caption>
         <thead>
           <tr>
-            <th scope="col">球員</th><th scope="col">背號</th><th scope="col">位置</th>
-            <th scope="col">出賽</th><th scope="col">進球</th><th scope="col">助攻</th><th scope="col">黃牌</th><th scope="col">紅牌</th>
+            <th scope="col">{{ tx('球員', 'Player') }}</th><th scope="col">{{ tx('背號', 'No.') }}</th><th scope="col">{{ tx('位置', 'Position') }}</th>
+            <th scope="col">{{ tx('出賽', 'Apps') }}</th><th scope="col">{{ tx('進球', 'Goals') }}</th><th scope="col">{{ tx('助攻', 'Assists') }}</th><th scope="col">{{ tx('黃牌', 'Yellow cards') }}</th><th scope="col">{{ tx('紅牌', 'Red cards') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="r in statRows" :key="r.playerId">
             <td><a class="sh-player-link" :href="lp(playerPath(slugById.get(r.playerId) ?? r.playerId))">{{ r.name ?? '—' }}</a></td>
             <td>{{ statCell(r.shirtNo) }}</td>
-            <td>{{ r.position ?? '—' }}</td>
+            <td>{{ isEn ? clubPositionLabelEn(r.position) : (r.position ?? '—') }}</td>
             <td>{{ statCell(r.appearances) }}</td>
             <td>{{ statCell(r.goals) }}</td>
             <td :class="{ 'is-null': r.assists === null }">{{ statCell(r.assists) }}</td>
@@ -386,8 +410,12 @@ function formatMatchDate(dateStr: string): string {
         </tbody>
       </table>
     </div>
-    <p v-else class="roster-note">本賽季尚無球員數據。</p>
-    <p v-if="statRows.length" class="fixtures-note">
+    <p v-else class="roster-note">{{ tx('本賽季尚無球員數據。', 'There are no player statistics for this season yet.') }}</p>
+    <p v-if="statRows.length && isEn" class="fixtures-note">
+      Statistics are compiled automatically from completed match records (an appearance means a place in the starting line-up, plus substitutes who recorded a goal or a card in that match). Match records have no assist data, so the assists column shows a dash to mean not recorded, not zero.
+      <template v-if="hasManualStat">Some players' figures were entered manually in the back office, and the manual entry takes precedence.</template>
+    </p>
+    <p v-else-if="statRows.length" class="fixtures-note">
       數據由已結束的賽事紀錄自動彙總（出賽＝先發名單，加上雖列替補但該場有進球或黃紅牌者）；賽事紀錄沒有助攻資料，助攻欄顯示「—」表示未記錄，不是 0。
       <template v-if="hasManualStat">部分球員的數據為後台手動登錄，以手動登錄為準。</template>
     </p>
@@ -400,7 +428,7 @@ function formatMatchDate(dateStr: string): string {
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">ACHIEVEMENTS</p>
-        <h2 class="section-title" id="honours-title">榮譽時間軸</h2>
+        <h2 class="section-title" id="honours-title">{{ tx('榮譽時間軸', 'Honours timeline') }}</h2>
       </div>
     </div>
     <div class="honours-layout" :style="isTcrfc ? undefined : 'grid-template-columns:1fr'">
@@ -415,12 +443,12 @@ function formatMatchDate(dateStr: string): string {
         <!-- GEO-03（S1-12d）：成立年份／首季頭銜／聯賽為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
         <li class="timeline-item">
           <p class="timeline-item__year">{{ facts.foundedYear }}</p>
-          <p class="timeline-item__title">{{ facts.foundingTitleZh }}</p>
-          <p class="timeline-item__desc">俱樂部創立首年即拿下{{ facts.foundingTitleZh }}，隔年晉升{{ facts.league.nameZh }}出賽。</p>
+          <p class="timeline-item__title">{{ isEn ? facts.foundingTitleEn : facts.foundingTitleZh }}</p>
+          <p class="timeline-item__desc">{{ isEn ? foundingHonourDescEn : `俱樂部創立首年即拿下${facts.foundingTitleZh}，隔年晉升${facts.league.nameZh}出賽。` }}</p>
         </li>
       </ol>
       <figure v-if="isTcrfc" class="honours-photo clip-card clip-card--on-dark">
-        <img :src="siteImg('/assets/img/club/first-team-02-trophy.jpg')" alt="台中磐石獲得的獎盃，攝於俱樂部榮譽紀錄留影" loading="lazy" width="1920" height="1280">
+        <img :src="siteImg('/assets/img/club/first-team-02-trophy.jpg')" :alt="tx('台中磐石獲得的獎盃，攝於俱樂部榮譽紀錄留影', 'A trophy won by Taichung Rock, photographed as a keepsake of the club\'s honours record')" loading="lazy" width="1920" height="1280">
       </figure>
     </div>
   </div>
@@ -428,28 +456,28 @@ function formatMatchDate(dateStr: string): string {
 
 <section class="band grain cta-band" id="first-team-cta" aria-labelledby="first-team-cta-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="first-team-cta-title">加入一線隊</h2>
+    <h2 class="visually-hidden" id="first-team-cta-title">{{ tx('加入一線隊', 'Join the First Team') }}</h2>
     <div class="cta-grid">
       <div class="cta-card">
         <p class="cta-card__num">10.1</p>
-        <p class="cta-card__title">加入一線隊</p>
-        <p class="cta-card__desc">具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊球員。</p>
-        <a class="btn btn--primary" :href="lp('/zh/join/player/')">填寫報名表</a>
+        <p class="cta-card__title">{{ tx('加入一線隊', 'Join the First Team') }}</p>
+        <p class="cta-card__desc">{{ isEn ? `Have the competitive ability and want to prove yourself in ${ctaLeagueEn}? We are continuously recruiting First Team players.` : '具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊球員。' }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/join/player/')">{{ tx('填寫報名表', 'Fill in the registration form') }}</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">3.3</p>
-        <p class="cta-card__title">試訓場次</p>
-        <p class="cta-card__desc">查看近期試訓場次日期、地點與報名方式。</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/opportunities/')">前往球員機會</a>
+        <p class="cta-card__title">{{ tx('試訓場次', 'Trial sessions') }}</p>
+        <p class="cta-card__desc">{{ tx('查看近期試訓場次日期、地點與報名方式。', 'See the dates, venues and registration details of upcoming trial sessions.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/opportunities/')">{{ tx('前往球員機會', 'Go to Player Opportunities') }}</a>
       </div>
       <!-- BW-C1：3.2 已重開（見 shared/utils/units.ts 檔頭），藍鯨版標題與敘述避免
            「系統」這個暗示已建制機構框架的用詞，理由同 club-copy.ts
            getPlayerDevelopmentSeo()／getPlayerDevelopmentHero()。 -->
       <div class="cta-card">
         <p class="cta-card__num">3.2</p>
-        <p class="cta-card__title">{{ isTcrfc ? '球員發展系統' : '球員培育重點' }}</p>
-        <p class="cta-card__desc">{{ isTcrfc ? '了解一線隊如何透過八大模組培養球員的職業競爭力。' : '了解一線隊如何透過八大面向持續培育球員。' }}</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/player-development/')">{{ isTcrfc ? '查看發展系統' : '查看培育重點' }}</a>
+        <p class="cta-card__title">{{ isEn ? 'Player Development' : (isTcrfc ? '球員發展系統' : '球員培育重點') }}</p>
+        <p class="cta-card__desc">{{ isEn ? 'See how the First Team builds players\' professional competitiveness through eight modules.' : (isTcrfc ? '了解一線隊如何透過八大模組培養球員的職業競爭力。' : '了解一線隊如何透過八大面向持續培育球員。') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/player-development/')">{{ isEn ? 'View Player Development' : (isTcrfc ? '查看發展系統' : '查看培育重點') }}</a>
       </div>
     </div>
   </div>

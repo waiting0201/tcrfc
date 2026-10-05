@@ -26,6 +26,7 @@ export function useFormSubmit(formCode: string) {
   const config = useRuntimeConfig()
   const club = config.public.club
   const route = useRoute()
+  const { tx } = useLocale()
 
   const status = ref<FormSubmitStatus>('idle')
   /** 失敗時的訊息——一律顯示後端 400 回應的 `message`／`detail`（例如「缺少必填欄位：xxx」），
@@ -35,7 +36,10 @@ export function useFormSubmit(formCode: string) {
    * 才使用下面的通用文案。 */
   const errorMessage = ref('')
 
-  const GENERIC_ERROR = '送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用電話或 Email 聯繫我們。'
+  const genericError = () => tx(
+    '送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用電話或 Email 聯繫我們。',
+    'We could not submit your form. Please check that all fields are filled in correctly and try again. If the problem continues, please contact us by phone or email.',
+  )
 
   async function submit(answers: Record<string, string>, options: FormSubmitOptions = {}) {
     status.value = 'submitting'
@@ -54,7 +58,7 @@ export function useFormSubmit(formCode: string) {
     }
     catch (err: unknown) {
       status.value = 'error'
-      errorMessage.value = extractErrorMessage(err) ?? GENERIC_ERROR
+      errorMessage.value = extractErrorMessage(err) ?? genericError()
     }
   }
 

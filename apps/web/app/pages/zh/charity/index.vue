@@ -1,37 +1,45 @@
 <script setup lang="ts">
 // app/pages/zh/charity/index.vue — 由 site/src/pages/zh/charity/index/index.html 轉來（S0-9 靜態頁搬遷）
-definePageMeta({ nav: "charity", unit: "11", bodyClass: "page-charity" })
+definePageMeta({ nav: "charity", unit: "11", bodyClass: "page-charity", enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 
 // S2-9（CH-6）：球迷捐款導流網址與文案讀後台 B5 設定（`GET /api/backend/{club}/charity/cta`），不寫死。
 // 本站不處理金流、不放金額選項／捐款表單；收受者是台灣足球策略發展協會，不是俱樂部（規劃書 §3.11）。
 const { cta, donationUrl, corporateLink } = await useCharityCta()
 /** 後台文案只有「提到協會」才採用；沒提到就退回本頁固定文案（固定文案已明示收受者），避免讓人誤以為是捐給俱樂部。 */
-const fanCtaText = computed(() => (cta.value.fanCta?.includes(CHARITY_RECIPIENT) ? cta.value.fanCta : null))
+// 英文版：後端 `?lang=en` 逐欄位回退繁中，含中日文字的值一律不用，退回本頁固定英文文案。
+const enOnly = (s: string | null) => (s && !/[\u3400-\u9fff]/.test(s) ? s : null)
+const fanCtaText = computed(() => (isEn.value
+  ? (cta.value.fanCta?.includes(CHARITY_RECIPIENT_EN) ? enOnly(cta.value.fanCta) : null)
+  : (cta.value.fanCta?.includes(CHARITY_RECIPIENT) ? cta.value.fanCta : null)))
+const corporateCtaText = computed(() => (isEn.value ? enOnly(cta.value.corporateCta) : cta.value.corporateCta))
+const donationCtaText = computed(() => (isEn.value ? enOnly(cta.value.donationCta) : cta.value.donationCta))
 
 useSeoMeta({
-  title: "慈善與社會影響 Charity & Impact｜台中磐石足球俱樂部",
-  description: "台中磐石足球俱樂部的慈善與社會影響單元：慈善理念與投入領域、慈善計畫、事蹟紀錄、影響力數據，以及企業合作與球迷捐款兩種參與方式。",
+  title: computed(() => (isEn.value ? 'Charity & Impact | Taichung Rock FC' : "慈善與社會影響 Charity & Impact｜台中磐石足球俱樂部")),
+  description: computed(() => (isEn.value
+    ? 'Charity & Impact at Taichung Rock FC: our charitable philosophy and focus areas, charity programs, impact stories and impact data, plus two ways to take part: corporate partnerships and fan donations.'
+    : "台中磐石足球俱樂部的慈善與社會影響單元：慈善理念與投入領域、慈善計畫、事蹟紀錄、影響力數據，以及企業合作與球迷捐款兩種參與方式。")),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">慈善與社會影響</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx('慈善與社會影響', 'Charity & Impact') }}</li>
     </ol>
   </div>
 </nav>
 
 <section class="page-hero page-hero--media">
-  <img class="page-hero__bg" :src="siteImg('/assets/img/news/2026-01-12-community-017.jpg')" alt="台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場" width="1600" height="1068">
+  <img class="page-hero__bg" :src="siteImg('/assets/img/news/2026-01-12-community-017.jpg')" :alt="tx('台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場', 'Taichung Rock FC and Subkarma donating English books at a non-profit kindergarten')" width="1600" height="1068">
   <div class="container">
     <p class="page-hero__eyebrow">11 Charity &amp; Impact</p>
-    <h1>慈善與社會影響<span class="en">Charity &amp; Impact</span></h1>
-    <p class="page-hero__lede">台中磐石足球俱樂部秉持「<strong>Community 社區共好</strong>」核心價值，以足球為媒介投入公益。這裡集結俱樂部的慈善理念、公益計畫、事蹟紀錄與影響力數據，也是企業合作與球迷捐款的入口。</p>
+    <h1><template v-if="isEn">Charity &amp; Impact</template><template v-else>{{ tx('慈善與社會影響', 'Charity & Impact') }}<span class="en">Charity &amp; Impact</span></template></h1>
+    <p class="page-hero__lede"><template v-if="isEn">Guided by its core value of <strong>Community</strong>, Taichung Rock FC uses football as a medium for public-interest work. This is where you will find the club's charitable philosophy, charity programs, impact stories and impact data, as well as the entry point for corporate partnerships and fan donations.</template><template v-else>台中磐石足球俱樂部秉持「<strong>Community 社區共好</strong>」核心價值，以足球為媒介投入公益。這裡集結俱樂部的慈善理念、公益計畫、事蹟紀錄與影響力數據，也是企業合作與球迷捐款的入口。</template></p>
   </div>
 </section>
 
@@ -41,7 +49,7 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">EXPLORE</p>
-        <h2 class="section-title" id="charity-explore-title">慈善單元導覽</h2>
+        <h2 class="section-title" id="charity-explore-title">{{ tx('慈善單元導覽', 'Charity & Impact sections') }}</h2>
       </div>
     </div>
     <div class="charity-nav-grid">
@@ -51,10 +59,10 @@ useSeoMeta({
           <span class="badge charity-nav-card__num">11.1</span>
         </div>
         <div class="charity-nav-card__body">
-          <p class="charity-nav-card__en">Our Commitment</p>
-          <h3 class="charity-nav-card__zh">慈善理念</h3>
-          <p class="charity-nav-card__desc">理念與投入領域</p>
-          <span class="charity-nav-card__link">前往了解
+          <p v-if="!isEn" class="charity-nav-card__en">Our Commitment</p>
+          <h3 class="charity-nav-card__zh">{{ tx('慈善理念', 'Our Commitment') }}</h3>
+          <p class="charity-nav-card__desc">{{ tx('理念與投入領域', 'Philosophy and focus areas') }}</p>
+          <span class="charity-nav-card__link">{{ tx('前往了解', 'Learn more') }}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
         </div>
@@ -65,10 +73,10 @@ useSeoMeta({
           <span class="badge charity-nav-card__num">11.2</span>
         </div>
         <div class="charity-nav-card__body">
-          <p class="charity-nav-card__en">Charity Programs</p>
-          <h3 class="charity-nav-card__zh">慈善計畫</h3>
-          <p class="charity-nav-card__desc">計畫列表與詳情</p>
-          <span class="charity-nav-card__link">前往了解
+          <p v-if="!isEn" class="charity-nav-card__en">Charity Programs</p>
+          <h3 class="charity-nav-card__zh">{{ tx('慈善計畫', 'Charity Programs') }}</h3>
+          <p class="charity-nav-card__desc">{{ tx('計畫列表與詳情', 'Program list and details') }}</p>
+          <span class="charity-nav-card__link">{{ tx('前往了解', 'Learn more') }}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
         </div>
@@ -79,10 +87,10 @@ useSeoMeta({
           <span class="badge charity-nav-card__num">11.3</span>
         </div>
         <div class="charity-nav-card__body">
-          <p class="charity-nav-card__en">Impact Stories</p>
-          <h3 class="charity-nav-card__zh">慈善事蹟</h3>
-          <p class="charity-nav-card__desc">時間軸紀錄</p>
-          <span class="charity-nav-card__link">前往了解
+          <p v-if="!isEn" class="charity-nav-card__en">Impact Stories</p>
+          <h3 class="charity-nav-card__zh">{{ tx('慈善事蹟', 'Impact Stories') }}</h3>
+          <p class="charity-nav-card__desc">{{ tx('時間軸紀錄', 'A timeline of records') }}</p>
+          <span class="charity-nav-card__link">{{ tx('前往了解', 'Learn more') }}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
         </div>
@@ -93,10 +101,10 @@ useSeoMeta({
           <span class="badge charity-nav-card__num">11.4</span>
         </div>
         <div class="charity-nav-card__body">
-          <p class="charity-nav-card__en">Our Impact</p>
-          <h3 class="charity-nav-card__zh">影響力數據</h3>
-          <p class="charity-nav-card__desc">累計統計與夥伴團體</p>
-          <span class="charity-nav-card__link">前往了解
+          <p v-if="!isEn" class="charity-nav-card__en">Our Impact</p>
+          <h3 class="charity-nav-card__zh">{{ tx('影響力數據', 'Our Impact') }}</h3>
+          <p class="charity-nav-card__desc">{{ tx('累計統計與夥伴團體', 'Cumulative statistics and partner organisations') }}</p>
+          <span class="charity-nav-card__link">{{ tx('前往了解', 'Learn more') }}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </span>
         </div>
@@ -111,20 +119,20 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">GET INVOLVED</p>
-        <h2 class="section-title" id="involved-title">一起參與</h2>
+        <h2 class="section-title" id="involved-title">{{ tx('一起參與', 'Get involved') }}</h2>
       </div>
-      <p class="section-lede">不論是企業還是球迷，都有合適的參與方式。</p>
+      <p class="section-lede">{{ tx('不論是企業還是球迷，都有合適的參與方式。', 'There is a way for both businesses and fans to take part.') }}</p>
     </div>
     <div class="cta-grid">
       <a class="cta-card" :href="corporateLink.href" :target="corporateLink.external ? '_blank' : undefined" :rel="corporateLink.external ? 'noopener noreferrer' : undefined">
         <span class="cta-card__num">9.4</span>
-        <span class="cta-card__title">企業合作公益專案</span>
-        <p class="cta-card__desc">{{ cta.corporateCta ?? '攜手企業推動長期公益方案，詳見合作夥伴的贊助方案頁面。' }}</p>
+        <span class="cta-card__title">{{ tx('企業合作公益專案', 'Corporate charity partnerships') }}</span>
+        <p class="cta-card__desc">{{ corporateCtaText ?? tx('攜手企業推動長期公益方案，詳見合作夥伴的贊助方案頁面。', 'Working with companies on long-term charity programs. See the sponsorship packages in the Partners section.') }}</p>
       </a>
       <a class="cta-card" href="#donate">
         <span class="cta-card__num">01</span>
-        <span class="cta-card__title">球迷捐款</span>
-        <p class="cta-card__desc">{{ fanCtaText ?? '透過台灣足球策略發展協會的慈善捐款平台線上捐款，支持指定的捐款項目。' }}</p>
+        <span class="cta-card__title">{{ tx('球迷捐款', 'Fan donations') }}</span>
+        <p class="cta-card__desc">{{ fanCtaText ?? tx('透過台灣足球策略發展協會的慈善捐款平台線上捐款，支持指定的捐款項目。', 'Donate online through the charity donation platform of the Taiwan Football Strategic Development Association to support the donation item of your choice.') }}</p>
       </a>
     </div>
   </div>
@@ -135,9 +143,9 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">SUPPORT TCRFC</p>
-        <h2 class="section-title" id="donate-title">球迷捐款</h2>
+        <h2 class="section-title" id="donate-title">{{ tx('球迷捐款', 'Fan donations') }}</h2>
       </div>
-      <p class="section-lede">球迷捐款由<strong>台灣足球策略發展協會</strong>主辦的獨立<strong>慈善捐款平台</strong>承接，以合作店家的 QR Code 為主要入口，可線上完成付款並開立電子發票或捐贈收據；本站不處理金流。<strong>捐款由協會收受，不是捐給台中磐石。</strong></p>
+      <p class="section-lede"><template v-if="isEn">Fan donations are handled by the independent <strong>charity donation platform</strong> run by the <strong>Taiwan Football Strategic Development Association</strong>. The main entry point is the QR code at partner stores. You can pay online and receive an electronic invoice or donation receipt; this website does not process payments. <strong>Donations are received by the Association, not by Taichung Rock FC.</strong></template><template v-else>球迷捐款由<strong>台灣足球策略發展協會</strong>主辦的獨立<strong>慈善捐款平台</strong>承接，以合作店家的 QR Code 為主要入口，可線上完成付款並開立電子發票或捐贈收據；本站不處理金流。<strong>捐款由協會收受，不是捐給台中磐石。</strong></template></p>
     </div>
 
     <!-- 三步驟流程，樣式沿用 /zh/perks/ 的 .usage-steps（同一種「怎麼做」版型，跨頁一致） -->
@@ -145,39 +153,39 @@ useSeoMeta({
       <li>
         <span class="usage-steps__num">1</span>
         <div>
-          <h3>掃碼或前往平台</h3>
-          <p>在合作的餐廳、飲料店掃描店內的 QR Code，或直接前往協會的慈善捐款平台。</p>
+          <h3>{{ tx('掃碼或前往平台', 'Scan the code or go to the platform') }}</h3>
+          <p>{{ tx('在合作的餐廳、飲料店掃描店內的 QR Code，或直接前往協會的慈善捐款平台。', 'Scan the QR code in a partner restaurant or drink shop, or go straight to the Association\'s charity donation platform.') }}</p>
         </div>
       </li>
       <li>
         <span class="usage-steps__num">2</span>
         <div>
-          <h3>選擇捐款項目</h3>
-          <p>瀏覽平台上的捐款項目，選擇想支持的項目並讀完說明。</p>
+          <h3>{{ tx('選擇捐款項目', 'Choose a donation item') }}</h3>
+          <p>{{ tx('瀏覽平台上的捐款項目，選擇想支持的項目並讀完說明。', 'Browse the donation items on the platform, choose the one you would like to support and read its description.') }}</p>
         </div>
       </li>
       <li>
         <span class="usage-steps__num">3</span>
         <div>
-          <h3>完成捐款</h3>
-          <p>於頁面下方完成捐款。<strong>不需要註冊、不需要登入</strong>。</p>
+          <h3>{{ tx('完成捐款', 'Complete your donation') }}</h3>
+          <p><template v-if="isEn">Complete your donation at the bottom of the page. <strong>No registration or login is required</strong>.</template><template v-else>於頁面下方完成捐款。<strong>不需要註冊、不需要登入</strong>。</template></p>
         </div>
       </li>
     </ol>
 
     <div class="donate-note">
-      <p><strong>具名／匿名：</strong>捐款者可選擇具名或匿名，具名者將列於捐款徵信名單，僅顯示姓名、不顯示金額；金額類數據原則上不公開（見 <a :href="lp('/zh/charity/our-impact/')">11.4 影響力數據</a>）。款項的運用成果會回到 <a :href="lp('/zh/charity/impact-stories/')">11.3 慈善事蹟紀錄</a> 長期陳列。</p>
+      <p><template v-if="isEn"><strong>Named / anonymous:</strong> Donors can choose to donate under their name or anonymously. Named donors are listed in the donor acknowledgement list with their name only, not the amount; amount data is generally not made public (see <a :href="lp('/zh/charity/our-impact/')">11.4 Our Impact</a>). The results of how donations are used are kept on permanent display in <a :href="lp('/zh/charity/impact-stories/')">11.3 Impact Stories</a>.</template><template v-else><strong>具名／匿名：</strong>捐款者可選擇具名或匿名，具名者將列於捐款徵信名單，僅顯示姓名、不顯示金額；金額類數據原則上不公開（見 <a :href="lp('/zh/charity/our-impact/')">11.4 {{ tx('影響力數據', 'Our Impact') }}</a>）。款項的運用成果會回到 <a :href="lp('/zh/charity/impact-stories/')">11.3 慈善事蹟紀錄</a> 長期陳列。</template></p>
     </div>
 
     <div class="donate-action">
       <template v-if="donationUrl">
         <!-- 導流網址與文案來自後台 B5 設定（S2-9）；後端強制該文案點明「台灣足球策略發展協會」 -->
-        <a class="btn btn--primary" :href="donationUrl" target="_blank" rel="noopener noreferrer">前往台灣足球策略發展協會慈善捐款平台（另開新分頁）</a>
-        <p v-if="cta.donationCta" class="donate-action__note">{{ cta.donationCta }}</p>
+        <a class="btn btn--primary" :href="donationUrl" target="_blank" rel="noopener noreferrer">{{ tx('前往台灣足球策略發展協會慈善捐款平台（另開新分頁）', 'Go to the Taiwan Football Strategic Development Association charity donation platform (opens in a new tab)') }}</a>
+        <p v-if="donationCtaText" class="donate-action__note">{{ donationCtaText }}</p>
       </template>
       <template v-else>
-        <button class="btn btn--primary" type="button" disabled aria-disabled="true">前往協會慈善捐款平台（網域待定）</button>
-        <p class="pending-inline">慈善捐款平台網域待補 —— 客戶尚未確認網域名稱，捐款平台亦尚未開發。上方按鈕目前為 disabled 佔位。平台主辦與收款主體為台灣足球策略發展協會（規劃書 v1.4），CTA 文案須明示收受者。後台「慈善與社會影響」設定捐款網址後，此處會自動換成可點擊的外連按鈕。</p>
+        <button class="btn btn--primary" type="button" disabled aria-disabled="true">{{ tx('前往協會慈善捐款平台（網域待定）', 'Go to the Association\'s charity donation platform (domain to be confirmed)') }}</button>
+        <p class="pending-inline"><template v-if="isEn">The charity donation platform domain is still to be confirmed: the domain name has not yet been settled and the donation platform has not yet been built. The button above is currently a disabled placeholder. The platform is organised by, and donations are received by, the Taiwan Football Strategic Development Association, and the call-to-action text must state the recipient clearly. Once a donation URL is set under Charity & Impact in the admin, this will automatically become a clickable external link.</template><template v-else>慈善捐款平台網域待補 —— 客戶尚未確認網域名稱，捐款平台亦尚未開發。上方按鈕目前為 disabled 佔位。平台主辦與收款主體為台灣足球策略發展協會（規劃書 v1.4），CTA 文案須明示收受者。後台「慈善與社會影響」設定捐款網址後，此處會自動換成可點擊的外連按鈕。</template></p>
       </template>
     </div>
   </div>
@@ -186,22 +194,22 @@ useSeoMeta({
 <section class="band grain cta-band" aria-labelledby="charity-cta-title">
   <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">11</span>
   <div class="band-inner container">
-    <h2 class="section-title" id="charity-cta-title">想進一步了解？</h2>
+    <h2 class="section-title" id="charity-cta-title">{{ tx('想進一步了解？', 'Want to know more?') }}</h2>
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/charity/impact-stories/')">
         <span class="cta-card__num">11.3</span>
-        <span class="cta-card__title">看看我們做過的事</span>
-        <p class="cta-card__desc">慈善事蹟時間軸紀錄</p>
+        <span class="cta-card__title">{{ tx('看看我們做過的事', 'See what we have done') }}</span>
+        <p class="cta-card__desc">{{ tx('慈善事蹟時間軸紀錄', 'A timeline of our charity impact stories') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/partners/opportunities/')">
         <span class="cta-card__num">9.4</span>
-        <span class="cta-card__title">洽談企業合作</span>
-        <p class="cta-card__desc">長期公益專案與贊助方案</p>
+        <span class="cta-card__title">{{ tx('洽談企業合作', 'Discuss corporate partnerships') }}</span>
+        <p class="cta-card__desc">{{ tx('長期公益專案與贊助方案', 'Long-term charity programs and sponsorship packages') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/join/general/')">
         <span class="cta-card__num">10.7</span>
-        <span class="cta-card__title">聯絡我們</span>
-        <p class="cta-card__desc">其他公益相關詢問</p>
+        <span class="cta-card__title">{{ tx('聯絡我們', 'Contact us') }}</span>
+        <p class="cta-card__desc">{{ tx('其他公益相關詢問', 'Other charity-related enquiries') }}</p>
       </a>
     </div>
   </div>

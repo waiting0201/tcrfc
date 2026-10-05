@@ -3,14 +3,15 @@
 //
 // 文案依俱樂部切換：藍鯨版逐字節錄 content/blue-whale/club-profile.md §4
 // 「沿革 HISTORY（2014–2025，原文照錄）」，見 club-copy.ts 的 HISTORY_YEARS_BW。
-definePageMeta({ nav: "about", unit: "02" })
+definePageMeta({ nav: "about", unit: "02", enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => HISTORY_HERO[clubKey.value])
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const hero = computed(() => (isEn.value ? HISTORY_HERO_EN : HISTORY_HERO[clubKey.value]))
+const seo = computed(() => (isEn.value ? getHistorySeoEn(facts.value) : getHistorySeo(clubKey.value, facts.value)))
 // S1-12d 收尾第二輪：SEO description（tcrfc 版）含成立年份事實，club-copy.ts 已改為工廠
 // 函式；本頁 tcrfc 專屬段落原本固定讀 useSiteFacts('tcrfc')，改為動態帶入目前 club
 // （clubKey==='tcrfc' 時兩者等價，HISTORY_HERO 本身不含事實，維持既有 ClubText 靜態物件）。
@@ -20,18 +21,18 @@ const { facts } = useSiteFacts(clubKey.value)
 const ledeHtml = computed(() => localizeHtmlLinks(hero.value.lede, locale.value))
 
 useSeoMeta({
-  title: computed(() => getHistorySeo(clubKey.value, facts.value).title),
-  description: computed(() => getHistorySeo(clubKey.value, facts.value).description),
+  title: computed(() => seo.value.title),
+  description: computed(() => seo.value.description),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
-      <li aria-current="page">俱樂部歷程</li>
+      <li aria-current="page">{{ tx('俱樂部歷程', 'Club History') }}</li>
     </ol>
   </div>
 </nav>
@@ -39,7 +40,7 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.7', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.7') : aboutEyebrow('2.7', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <!-- tcrfc 版 lede 含既有 mockup 的內嵌連結標記（見 club-copy.ts HISTORY_HERO 註解），故用 v-html；
          bw 版是純文字，v-html 對它是安全的 no-op（沒有標記可解析）。內容全部來自本頁資料層，非使用者輸入。 -->
@@ -49,10 +50,11 @@ useSeoMeta({
 
 <section class="band history-band" aria-labelledby="history-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="history-title">俱樂部歷程</h2>
+    <h2 class="visually-hidden" id="history-title">{{ tx('俱樂部歷程', 'Club History') }}</h2>
     <div v-if="clubKey === 'tcrfc'" class="prose">
       <!-- GEO-03（S1-12d）：成立年份／首季頭銜為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
-      <p>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ facts.foundedYear }} 年</strong>在台中成立，成立當年即拿下<strong>{{ facts.foundingTitleZh }}</strong>，並持續擴展一線隊、學院與國際交流網絡。</p>
+      <p v-if="isEn">Taichung Rock FC was founded in Taichung in <strong>{{ facts.foundedYear }}</strong> and won the <strong>National Second Division</strong> title in its founding year. The club has since continued to expand the First Team, the Academy and its international exchange network.</p>
+      <p v-else>台中磐石足球俱樂部（Taichung Rock FC）於 <strong>{{ facts.foundedYear }} 年</strong>在台中成立，成立當年即拿下<strong>{{ facts.foundingTitleZh }}</strong>，並持續擴展一線隊、學院與國際交流網絡。</p>
     </div>
     <div v-else class="prose history-years">
       <div v-for="y in HISTORY_YEARS_BW" :key="y.year" class="history-year">

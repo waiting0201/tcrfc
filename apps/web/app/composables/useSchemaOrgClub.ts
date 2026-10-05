@@ -21,6 +21,22 @@
 // 為 `null` 時不輸出 `address` 欄位（藍鯨現況實際上已有真實地址，見 apps/api/README.md
 // 「S1-12d」節「已知資料落差」，會如實顯示，不是本檔判斷有誤）。
 
+const CJK_RE = /[\u3000-\u303f\u3400-\u9fff\uff00-\uffef]/
+
+/** 英文版 JSON-LD 的字串不得混入中文：後端 `?lang=en` 缺值時回退中文，這裡改用 `fallback`
+ * （沒有可用英文時為 undefined＝整欄不輸出，比照 GEO-05「資料不足時不輸出」）。 */
+function englishOnly<T extends string | undefined | null>(value: string | null | undefined, fallback: T): string | T {
+  const v = value?.trim()
+  return v && !CJK_RE.test(v) ? v : fallback
+}
+
+/** 俱樂部英文名：只有主站有定案（docs/06 §1.1）；藍鯨英文全名卡 B-5，不自挑——bw 為 undefined。
+ * （藍鯨站 `isEn` 恆為 false，這張表只是型別完整性與防呆。） */
+const EN_CLUB_NAME: Record<string, string | undefined> = {
+  tcrfc: 'Taichung Rock FC',
+  bw: undefined,
+}
+
 interface ClubSchemaData {
   name: string
   domain: string
@@ -43,9 +59,14 @@ export function useOrganizationSchema() {
   const club = config.public.club
   const siteConfig = useSiteConfig()
   const { facts } = useSiteFacts(club)
+  const { isEn } = useLocale()
+  // 主站 /en/：名稱走 `?lang=en`（後端缺英文時回退中文，下方 `englishOnly` 擋掉，改用品牌英文名）。
+  // 地址維持中文原文（docs/06 §1.1：不自行翻成英文地址格式）。
+  const lang = isEn.value ? 'en' : 'zh'
 
   const { data } = useFetch<ClubSchemaData>(`/api/backend/clubs/${club}`, {
-    key: `org-schema-${club}`,
+    key: `org-schema-${club}-${lang}`,
+    query: { lang },
   })
 
   // 🔴 BW-7 驗收修正（2026-10-05）：原本是 `watchEffect(() => { ... useSchemaOrg([...]) })`，**合格時 SSR 完全不輸出
@@ -70,7 +91,7 @@ export function useOrganizationSchema() {
           '@context': 'https://schema.org',
           '@type': 'Organization',
           '@id': `${siteUrl}/#organization`,
-          name: c.name,
+          name: isEn.value ? englishOnly(c.name, EN_CLUB_NAME[club]) : c.name,
           url: siteUrl,
           logo: c.logoUrl ?? undefined,
           // GEO-03／GEO-04：成立年份／主場地址與明文同一來源（useSiteFacts），資料不明時
@@ -93,9 +114,12 @@ export function useSportsTeamSchema(teamCode: string) {
   const club = config.public.club
   const siteConfig = useSiteConfig()
   const { facts, primaryVenue } = useSiteFacts(club)
+  const { isEn } = useLocale()
+  const lang = isEn.value ? 'en' : 'zh'
 
   const { data } = useFetch<TeamSchemaData[]>(`/api/backend/${club}/teams`, {
-    key: `team-schema-${club}`,
+    key: `team-schema-${club}-${lang}`,
+    query: { lang },
   })
 
   useHead(() => {
@@ -109,13 +133,21 @@ export function useSportsTeamSchema(teamCode: string) {
         innerHTML: JSON.stringify({
           '@context': 'https://schema.org',
           '@type': 'SportsTeam',
-          name: team.name,
+          // 英文版：球隊名取 `?lang=en`，缺英文（回退中文）時改用 team code，不混入中文。
+          name: isEn.value ? englishOnly(team.name, team.code) : team.name,
           url: siteUrl || undefined,
           logo: team.logoUrl ?? undefined,
           sport: 'Soccer',
           // GEO-03／GEO-04：所屬聯賽與主場與明文同一來源（useSiteFacts），數值必須一致。
-          memberOf: { '@type': 'SportsOrganization', name: facts.value.league.nameZh },
-          location: { '@type': 'Place', name: primaryVenue.value.nameZh },
+          // 英文版：聯賽／場地用 nameEn（聯賽英文名「待客戶確認」，沿用既有值）；缺則退回中文全名。
+          memberOf: {
+            '@type': 'SportsOrganization',
+            name: (isEn.value && facts.value.league.nameEn) || facts.value.league.nameZh,
+          },
+          location: {
+            '@type': 'Place',
+            name: (isEn.value && primaryVenue.value.nameEn) || primaryVenue.value.nameZh,
+          },
         }),
       }],
     }

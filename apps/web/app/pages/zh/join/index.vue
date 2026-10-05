@@ -1,18 +1,18 @@
 <script setup lang="ts">
 // app/pages/zh/join/index.vue — 由 site/src/pages/zh/join/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
-definePageMeta({ nav: '', unit: '10' })
+definePageMeta({ nav: '', unit: '10', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 
 // 文案依俱樂部切換：hero／SEO 與 10.2 卡片取自 club-copy.ts（藍鯨依
 // docs/13-blue-whale-site.md §3 用「青年隊」，不沿用磐石學院的招生用詞）。
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const hero = computed(() => JOIN_INDEX_HERO[clubKey.value])
+const hero = computed(() => (isEn.value ? JOIN_INDEX_HERO_EN : JOIN_INDEX_HERO[clubKey.value]))
 // S1-12d 收尾第二輪：10.2 卡片描述含梯隊代碼事實，club-copy.ts 已改為工廠函式。
 const { facts } = useSiteFacts(clubKey.value)
-const academyCard = computed(() => getJoinAcademyCard(clubKey.value, facts.value))
+const academyCard = computed(() => (isEn.value ? getJoinAcademyCardEn(facts.value) : getJoinAcademyCard(clubKey.value, facts.value)))
 const intlDesc = computed(() => JOIN_INTL_DESC[clubKey.value])
 const identity = computed(() => getClubIdentity(clubKey.value))
 // S0-9n（2026-09-23）：10.6「場地位置與地圖」卡片說明字面寫死「學院場地」，藍鯨站因此
@@ -20,17 +20,17 @@ const identity = computed(() => getClubIdentity(clubKey.value))
 // 與 SiteHeader 同一種修法：沿用既有欄位 identity.academyShortLabelZh，不新造文案。
 
 useSeoMeta({
-  title: computed(() => JOIN_INDEX_SEO[clubKey.value].title),
-  description: computed(() => JOIN_INDEX_SEO[clubKey.value].description),
+  title: computed(() => (isEn.value ? JOIN_INDEX_SEO_EN : JOIN_INDEX_SEO[clubKey.value]).title),
+  description: computed(() => (isEn.value ? JOIN_INDEX_SEO_EN : JOIN_INDEX_SEO[clubKey.value]).description),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">加入與聯絡</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx('加入與聯絡', 'Join / Contact') }}</li>
     </ol>
   </div>
 </nav>
@@ -49,17 +49,17 @@ useSeoMeta({
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker kicker--on-dark">七種表單</p>
-        <h2 class="section-title" id="join-forms-title" style="color:#fff">選擇最符合你需求的表單</h2>
+        <p class="kicker kicker--on-dark">{{ tx('七種表單', 'Seven forms') }}</p>
+        <h2 class="section-title" id="join-forms-title" style="color:#fff">{{ tx('選擇最符合你需求的表單', 'Choose the form that best fits your needs') }}</h2>
       </div>
-      <p class="section-lede on-dark">每個表單各自獨立設計欄位，並直接送達對應的負責部門處理。</p>
+      <p class="section-lede on-dark">{{ tx('每個表單各自獨立設計欄位，並直接送達對應的負責部門處理。', 'Each form has its own fields and goes straight to the department responsible.') }}</p>
     </div>
 
     <div class="cta-grid">
       <div class="cta-card">
         <p class="cta-card__num">10.1</p>
-        <p class="cta-card__title">加入球隊</p>
-        <p class="cta-card__desc">具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊與各梯隊球員。</p>
+        <p class="cta-card__title">{{ tx('加入球隊', 'Join as a Player') }}</p>
+        <p class="cta-card__desc">{{ tx('具備競技實力、渴望在企甲聯賽舞台證明自己？我們持續招募一線隊與各梯隊球員。', 'Got the ability and eager to prove yourself in the league? We are always recruiting players for the First Team and our age-group squads.') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/join/player/')">Join as a Player</a>
       </div>
       <div class="cta-card">
@@ -70,8 +70,8 @@ useSeoMeta({
       </div>
       <div class="cta-card">
         <p class="cta-card__num">10.3</p>
-        <p class="cta-card__title">營隊報名</p>
-        <p class="cta-card__desc">寒暑假期間的短期足球營隊，讓孩子在密集訓練中快速累積比賽經驗。</p>
+        <p class="cta-card__title">{{ tx('營隊報名', 'Camp Registration') }}</p>
+        <p class="cta-card__desc">{{ tx('寒暑假期間的短期足球營隊，讓孩子在密集訓練中快速累積比賽經驗。', 'Short football camps during the winter and summer breaks give children intensive training and a quick way to build match experience.') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">Camp Registration</a>
       </div>
       <div class="cta-card">
@@ -82,20 +82,20 @@ useSeoMeta({
       </div>
       <div class="cta-card">
         <p class="cta-card__num">10.5</p>
-        <p class="cta-card__title">合作夥伴與贊助洽詢</p>
-        <p class="cta-card__desc">長期合作夥伴關係或特定贊助方案，都在同一份表單洽詢，由商務部統一接手。</p>
+        <p class="cta-card__title">{{ tx('合作夥伴與贊助洽詢', 'Partnership & Sponsorship') }}</p>
+        <p class="cta-card__desc">{{ tx('長期合作夥伴關係或特定贊助方案，都在同一份表單洽詢，由商務部統一接手。', 'Long-term partnerships or specific sponsorship packages are all handled through one form, managed by our Partnerships Department.') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/join/partnership/')">Partnership &amp; Sponsorship</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">10.6</p>
-        <p class="cta-card__title">媒體詢問</p>
-        <p class="cta-card__desc">採訪邀約、新聞稿需求或媒體合作，公關團隊將盡快回覆採訪相關安排。</p>
+        <p class="cta-card__title">{{ tx('媒體詢問', 'Media Enquiries') }}</p>
+        <p class="cta-card__desc">{{ tx('採訪邀約、新聞稿需求或媒體合作，公關團隊將盡快回覆採訪相關安排。', 'For interview requests, press release needs or media collaboration, our communications team will reply as soon as possible with interview arrangements.') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/join/media/')">Media Enquiries</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">10.7</p>
-        <p class="cta-card__title">一般聯絡</p>
-        <p class="cta-card__desc">以上分類都不符合你的需求？透過一般聯絡表單，我們會轉交給對應窗口。</p>
+        <p class="cta-card__title">{{ tx('一般聯絡', 'General Contact') }}</p>
+        <p class="cta-card__desc">{{ tx('以上分類都不符合你的需求？透過一般聯絡表單，我們會轉交給對應窗口。', 'None of the categories above fit? Use the general contact form and we will pass your message to the right person.') }}</p>
         <a class="btn btn--primary" :href="lp('/zh/join/general/')">General Contact</a>
       </div>
     </div>
@@ -106,20 +106,20 @@ useSeoMeta({
   <div class="container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker">場地與聯絡資訊</p>
-        <h2 class="section-title" id="join-info-title">找到我們</h2>
+        <p class="kicker">{{ tx('場地與聯絡資訊', 'Venues and contact details') }}</p>
+        <h2 class="section-title" id="join-info-title">{{ tx('找到我們', 'Find us') }}</h2>
       </div>
     </div>
     <div class="grid grid--2">
       <a class="clip-card join-info-card" :href="lp('/zh/join/location/')">
         <p class="join-info-card__num">Location</p>
-        <p class="join-info-card__title">場地位置與地圖</p>
-        <p class="join-info-card__desc">訓練基地、主場與{{ identity.academyShortLabelZh }}場地的位置與交通指引。</p>
+        <p class="join-info-card__title">{{ tx('場地位置與地圖', 'Location & Map') }}</p>
+        <p class="join-info-card__desc"><template v-if="isEn">Locations and directions for our training base, home ground and Academy venues.</template><template v-else>訓練基地、主場與{{ identity.academyShortLabelZh }}場地的位置與交通指引。</template></p>
       </a>
       <a class="clip-card join-info-card" :href="lp('/zh/join/contact/')">
         <p class="join-info-card__num">Contact</p>
-        <p class="join-info-card__title">聯絡資訊</p>
-        <p class="join-info-card__desc">電話、Email、地址、營業時間與各部門分機。</p>
+        <p class="join-info-card__title">{{ tx('聯絡資訊', 'Contact Information') }}</p>
+        <p class="join-info-card__desc">{{ tx('電話、Email、地址、營業時間與各部門分機。', 'Phone, email, address, opening hours and department extensions.') }}</p>
       </a>
     </div>
   </div>

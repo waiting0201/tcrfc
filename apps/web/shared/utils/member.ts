@@ -285,6 +285,7 @@ export interface MemberApiError {
 // ── 註冊年齡閘門與監護人同意（主站規劃書「會員資料安全要求」：未滿 18 歲須經監護人同意方得註冊）──
 export type GuardianRelationship = 'parent' | 'legal_guardian'
 export const GUARDIAN_RELATIONSHIP_LABEL: Record<GuardianRelationship, string> = { parent: '父母', legal_guardian: '法定監護人' }
+export const GUARDIAN_RELATIONSHIP_LABEL_EN: Record<GuardianRelationship, string> = { parent: 'Parent', legal_guardian: 'Legal guardian' }
 
 /** 🔴 同意文案待法務定稿（B-9）。送出的版本號固定標成 `pending-legal`，後台 K1 看得到「文案未定稿」；
  * 法務定稿後換成正式版本號（並改掉 `MemberAgeGuardian.vue` 的佔位說明），不得在此之前自擬法律條文。 */
@@ -319,8 +320,12 @@ export function isMinorBirth(birthOn: string, now?: Date): boolean {
   return age !== null && age < ADULT_AGE
 }
 
-/** 從 `$fetch` 拋出的例外取出 ProblemDetails。代理一律原樣轉回後端的狀態碼與本文，所以 `err.data` 就是 ProblemDetails。 */
-export function toMemberApiError(err: unknown, fallback = '操作失敗，請稍後再試一次。'): MemberApiError {
+/**
+ * 從 `$fetch` 拋出的例外取出 ProblemDetails。代理一律原樣轉回後端的狀態碼與本文，所以 `err.data` 就是 ProblemDetails。
+ * `en`＝主站英文版（`useLocale().isEn`）：優先用 ProblemDetails 的 `messageEn`；沒有就用呼叫端給的（英文）`fallback`，
+ * 不把繁中 `detail` 顯示在英文介面上。預設 `en = false`，zh 行為與過去完全相同。
+ */
+export function toMemberApiError(err: unknown, fallback = '操作失敗，請稍後再試一次。', en = false): MemberApiError {
   const e = err as { status?: number, statusCode?: number, data?: unknown } | null
   const status = e?.status ?? e?.statusCode ?? 0
   const data = e?.data
@@ -330,13 +335,16 @@ export function toMemberApiError(err: unknown, fallback = '操作失敗，請稍
   if (data && typeof data === 'object') {
     const d = data as Record<string, unknown>
     if (typeof d.code === 'string') code = d.code
-    if (typeof d.detail === 'string') detail = d.detail
+    if (en) {
+      if (typeof d.messageEn === 'string' && d.messageEn.trim()) detail = d.messageEn
+    }
+    else if (typeof d.detail === 'string') detail = d.detail
     else if (typeof d.message === 'string' && status > 0 && status < 500) detail = d.message
     if (typeof d.lockedUntil === 'string') lockedUntil = d.lockedUntil
   }
   if (!detail) {
-    if (status === 429) detail = '操作太頻繁，請稍後再試。'
-    else if (status === 0 || status >= 500) detail = '服務暫時無法使用，請稍後再試。'
+    if (status === 429) detail = en ? 'Too many attempts. Please try again later.' : '操作太頻繁，請稍後再試。'
+    else if (status === 0 || status >= 500) detail = en ? 'The service is temporarily unavailable. Please try again later.' : '服務暫時無法使用，請稍後再試。'
     else detail = fallback
   }
   return { status, code, detail, lockedUntil }
@@ -385,11 +393,12 @@ export function safeNextPath(raw: unknown): string | null {
 }
 
 /** 密碼規則（與後端一致：8–128 字元、含英文字母與數字；是否為常見弱密碼由後端判斷）。 */
-export function passwordProblem(pw: string): string | null {
-  if (pw.length < 8) return '密碼至少需要 8 個字元。'
-  if (pw.length > 128) return '密碼不可超過 128 個字元。'
-  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return '密碼需同時包含英文字母與數字。'
+export function passwordProblem(pw: string, en = false): string | null {
+  if (pw.length < 8) return en ? 'Your password must be at least 8 characters.' : '密碼至少需要 8 個字元。'
+  if (pw.length > 128) return en ? 'Your password must not exceed 128 characters.' : '密碼不可超過 128 個字元。'
+  if (!/[A-Za-z]/.test(pw) || !/\d/.test(pw)) return en ? 'Your password must include both letters and numbers.' : '密碼需同時包含英文字母與數字。'
   return null
 }
 
 export const MEMBER_PASSWORD_HINT = '8–128 個字元，需同時包含英文字母與數字。'
+export const MEMBER_PASSWORD_HINT_EN = '8–128 characters, including both letters and numbers.'

@@ -10,9 +10,9 @@
 // 與 charity/impact-stories 共用），已抽成 useYearChips() composable；時間軸本文
 // 逐字保留 mockup 內容，屬於「靜態頁」搬遷（搬遷方式同 21 個純靜態頁），不是
 // 「資料驅動頁」搬遷——不要誤以為這裡漏接了 API。
-definePageMeta({ nav: 'about', unit: '02' })
+definePageMeta({ nav: 'about', unit: '02', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 
 // 文案依俱樂部切換：hero／SEO 取自 club-copy.ts。藍鯨這一輪不重建本頁的年份
 // 篩選時間軸元件（12 年份、資料量與磐石的 3 年份差異太大，須另外設計互動），
@@ -20,12 +20,15 @@ const { lp, locale } = useLocale()
 // 指向該頁的說明，不沿用磐石的時間軸內容頂替。
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => MILESTONES_HERO[clubKey.value])
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const hero = computed(() => (isEn.value ? getMilestonesHeroEn(facts.value) : MILESTONES_HERO[clubKey.value]))
+const seo = computed(() => (isEn.value ? MILESTONES_SEO_EN : MILESTONES_SEO[clubKey.value]))
+// 英文版的年份文字取自事實單一來源（成立年份），不在樣板寫死。
+const { facts } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: computed(() => MILESTONES_SEO[clubKey.value].title),
-  description: computed(() => MILESTONES_SEO[clubKey.value].description),
+  title: computed(() => seo.value.title),
+  description: computed(() => seo.value.description),
 })
 
 const { activeYear, isPressed, isPanelHidden } = useYearChips()
@@ -65,12 +68,12 @@ const milestoneYears = computed(() => {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
-      <li aria-current="page">重要里程碑</li>
+      <li aria-current="page">{{ tx('重要里程碑', 'Key Milestones') }}</li>
     </ol>
   </div>
 </nav>
@@ -78,7 +81,7 @@ const milestoneYears = computed(() => {
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.8', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.8') : aboutEyebrow('2.8', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ lede }}</p>
   </div>
@@ -86,10 +89,10 @@ const milestoneYears = computed(() => {
 
 <section v-if="usingApi" class="band milestones-band" aria-labelledby="milestones-title-api">
   <div class="band-inner container">
-    <h2 id="milestones-title-api" class="visually-hidden">重要里程碑時間軸</h2>
+    <h2 id="milestones-title-api" class="visually-hidden">{{ tx('重要里程碑時間軸', 'Key milestones timeline') }}</h2>
 
-    <div class="year-filter" role="group" aria-label="選擇年份">
-      <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">全部</button>
+    <div class="year-filter" role="group" :aria-label="tx('選擇年份', 'Select a year')">
+      <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">{{ tx('全部', 'All') }}</button>
       <button v-for="y in milestoneYears" :key="y.year" class="year-chip" type="button" :data-year="y.year" :aria-pressed="isPressed(y.year)" @click="activeYear = y.year">{{ y.year }}</button>
     </div>
 
@@ -120,10 +123,10 @@ const milestoneYears = computed(() => {
 
 <section v-if="!usingApi && clubKey === 'tcrfc'" class="band milestones-band" aria-labelledby="milestones-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="milestones-title">重要里程碑時間軸</h2>
+    <h2 class="visually-hidden" id="milestones-title">{{ tx('重要里程碑時間軸', 'Key milestones timeline') }}</h2>
 
-    <div class="year-filter" role="group" aria-label="選擇年份">
-      <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">全部</button>
+    <div class="year-filter" role="group" :aria-label="tx('選擇年份', 'Select a year')">
+      <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">{{ tx('全部', 'All') }}</button>
       <button class="year-chip" type="button" data-year="2024" :aria-pressed="isPressed('2024')" @click="activeYear = '2024'">2024</button>
       <button class="year-chip" type="button" data-year="2025" :aria-pressed="isPressed('2025')" @click="activeYear = '2025'">2025</button>
       <button class="year-chip" type="button" data-year="2026" :aria-pressed="isPressed('2026')" @click="activeYear = '2026'">2026</button>
@@ -138,39 +141,39 @@ const milestoneYears = computed(() => {
           <li class="timeline-item">
             <p class="timeline-item__date">2024</p>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">俱樂部 Club</p>
-              <h4 class="timeline-item__title">台中磐石足球俱樂部成立</h4>
+              <p class="timeline-item__tag">{{ tx('俱樂部 Club', 'Club') }}</p>
+              <h4 class="timeline-item__title">{{ tx('台中磐石足球俱樂部成立', 'Taichung Rock FC is founded') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2024</p>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">俱樂部 Club</p>
-              <h4 class="timeline-item__title">全國乙級聯賽冠軍</h4>
+              <p class="timeline-item__tag">{{ tx('俱樂部 Club', 'Club') }}</p>
+              <h4 class="timeline-item__title">{{ tx('全國乙級聯賽冠軍', 'National Second Division champions') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2024-11-05</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2024-11-05-international-082.jpg')" alt="台中磐石與RC Alcobendas達成合作協議" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2024-11-05-international-082.jpg')" :alt="tx('台中磐石與RC Alcobendas達成合作協議', 'Taichung Rock FC and RC Alcobendas reach a cooperation agreement')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">國際 International</p>
-              <h4 class="timeline-item__title">台中磐石與 RC Alcobendas 達成合作協議</h4>
+              <p class="timeline-item__tag">{{ tx('國際 International', 'International') }}</p>
+              <h4 class="timeline-item__title">{{ tx('台中磐石與 RC Alcobendas 達成合作協議', 'Taichung Rock FC reaches a cooperation agreement with RC Alcobendas') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2024-12-18</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2024-12-18-club-079.jpg')" alt="台中磐石有條件地通過甲級俱樂部認證" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2024-12-18-club-079.jpg')" :alt="tx('台中磐石有條件地通過甲級俱樂部認證', 'Taichung Rock FC conditionally passes top-tier club accreditation')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">俱樂部 Club</p>
-              <h4 class="timeline-item__title">有條件地通過甲級俱樂部認證</h4>
+              <p class="timeline-item__tag">{{ tx('俱樂部 Club', 'Club') }}</p>
+              <h4 class="timeline-item__title">{{ tx('有條件地通過甲級俱樂部認證', 'Conditionally passes top-tier club accreditation') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2024-12-18</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2024-12-18-club-080.jpg')" alt="林教練獲最佳教練獎、楊朝景獲金靴獎" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2024-12-18-club-080.jpg')" :alt="tx('林教練獲最佳教練獎、楊朝景獲金靴獎', '林教練 wins the Best Coach award and 楊朝景 wins the Golden Boot')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">榮譽 Honours</p>
-              <h4 class="timeline-item__title">林教練獲最佳教練獎、楊朝景獲金靴獎</h4>
+              <p class="timeline-item__tag">{{ tx('榮譽 Honours', 'Honours') }}</p>
+              <h4 class="timeline-item__title">{{ tx('林教練獲最佳教練獎、楊朝景獲金靴獎', '林教練 wins the Best Coach award and 楊朝景 wins the Golden Boot') }}</h4>
             </div>
           </li>
         </ol>
@@ -183,74 +186,74 @@ const milestoneYears = computed(() => {
         <ol class="timeline-list">
           <li class="timeline-item">
             <p class="timeline-item__date">2025-01-07</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-01-07-club-078.jpg')" alt="台中磐石獲臺中市政府運動局在合作及冠名上的認可" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-01-07-club-078.jpg')" :alt="tx('台中磐石獲臺中市政府運動局在合作及冠名上的認可', 'Taichung Rock FC recognised by the Taichung City Government Sports Bureau for cooperation and title naming')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">俱樂部 Club</p>
-              <h4 class="timeline-item__title">獲臺中市政府運動局在合作及冠名上的認可</h4>
+              <p class="timeline-item__tag">{{ tx('俱樂部 Club', 'Club') }}</p>
+              <h4 class="timeline-item__title">{{ tx('獲臺中市政府運動局在合作及冠名上的認可', 'Recognised by the Taichung City Government Sports Bureau for cooperation and title naming') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-04-11</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-04-11-club-061.jpg')" alt="周宇杰加盟台中磐石" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-04-11-club-061.jpg')" :alt="tx('周宇杰加盟台中磐石', '周宇杰 joins Taichung Rock FC')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">引援 Signing</p>
-              <h4 class="timeline-item__title">周宇杰加盟台中磐石</h4>
+              <p class="timeline-item__tag">{{ tx('引援 Signing', 'Signing') }}</p>
+              <h4 class="timeline-item__title">{{ tx('周宇杰加盟台中磐石', '周宇杰 joins Taichung Rock FC') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-04-11</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-04-11-club-062.jpg')" alt="廖奕盛加盟台中磐石" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-04-11-club-062.jpg')" :alt="tx('廖奕盛加盟台中磐石', '廖奕盛 joins Taichung Rock FC')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">引援 Signing</p>
-              <h4 class="timeline-item__title">廖奕盛加盟台中磐石</h4>
+              <p class="timeline-item__tag">{{ tx('引援 Signing', 'Signing') }}</p>
+              <h4 class="timeline-item__title">{{ tx('廖奕盛加盟台中磐石', '廖奕盛 joins Taichung Rock FC') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-04-11</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-04-11-club-063.jpg')" alt="旅德好手王義友加盟台中磐石" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-04-11-club-063.jpg')" :alt="tx('旅德好手王義友加盟台中磐石', 'Germany-based player 王義友 joins Taichung Rock FC')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">引援 Signing</p>
-              <h4 class="timeline-item__title">旅德好手王義友加盟台中磐石</h4>
+              <p class="timeline-item__tag">{{ tx('引援 Signing', 'Signing') }}</p>
+              <h4 class="timeline-item__title">{{ tx('旅德好手王義友加盟台中磐石', 'Germany-based player 王義友 joins Taichung Rock FC') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-07-25</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-07-25-club-046.jpg')" alt="2025台中磐石國際足球盃記者會" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-07-25-club-046.jpg')" :alt="tx('2025台中磐石國際足球盃記者會', 'Press conference for the 2025 Taichung Rock FC International Football Cup')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">俱樂部 Club</p>
-              <h4 class="timeline-item__title">主辦「2025 台中磐石國際足球盃」，舉行賽前記者會</h4>
+              <p class="timeline-item__tag">{{ tx('俱樂部 Club', 'Club') }}</p>
+              <h4 class="timeline-item__title">{{ tx('主辦「2025 台中磐石國際足球盃」，舉行賽前記者會', 'Hosts the “2025 Taichung Rock FC International Football Cup” and holds a pre-tournament press conference') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-07-27</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-07-27-international-043.jpg')" alt="台中磐石與德國 Rot Weiss Ahlen 簽署合作諒解備忘錄" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-07-27-international-043.jpg')" :alt="tx('台中磐石與德國 Rot Weiss Ahlen 簽署合作諒解備忘錄', 'Taichung Rock FC signs a memorandum of understanding on cooperation with Rot Weiss Ahlen of Germany')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">國際 International</p>
-              <h4 class="timeline-item__title">與德國 Rot Weiss Ahlen 簽署合作諒解備忘錄</h4>
+              <p class="timeline-item__tag">{{ tx('國際 International', 'International') }}</p>
+              <h4 class="timeline-item__title">{{ tx('與德國 Rot Weiss Ahlen 簽署合作諒解備忘錄', 'Signs a memorandum of understanding on cooperation with Rot Weiss Ahlen of Germany') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-07-30</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-07-30-international-040.jpg')" alt="台中磐石將與義甲球會 Hellas Verona 簽署合作備忘錄" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-07-30-international-040.jpg')" :alt="tx('台中磐石將與義甲球會 Hellas Verona 簽署合作備忘錄', 'Taichung Rock FC to sign a memorandum of cooperation with Serie A club Hellas Verona')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">國際 International</p>
-              <h4 class="timeline-item__title">與義甲球會 Hellas Verona 簽署合作備忘錄，推動台義足球交流</h4>
+              <p class="timeline-item__tag">{{ tx('國際 International', 'International') }}</p>
+              <h4 class="timeline-item__title">{{ tx('與義甲球會 Hellas Verona 簽署合作備忘錄，推動台義足球交流', 'Signs a memorandum of cooperation with Serie A club Hellas Verona to promote Taiwan–Italy football exchange') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-11-03</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-11-03-club-027.jpg')" alt="陳曉明出任台中磐石足球俱樂部技術顧問" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-11-03-club-027.jpg')" :alt="tx('陳曉明出任台中磐石足球俱樂部技術顧問', '陳曉明 becomes technical adviser to Taichung Rock FC')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">俱樂部 Club</p>
-              <h4 class="timeline-item__title">陳曉明出任俱樂部技術顧問</h4>
+              <p class="timeline-item__tag">{{ tx('俱樂部 Club', 'Club') }}</p>
+              <h4 class="timeline-item__title">{{ tx('陳曉明出任俱樂部技術顧問', '陳曉明 becomes the club\'s technical adviser') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2025-11-04</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-11-04-international-026.jpg')" alt="台中磐石球員啟程赴義大利訓練，與維羅納合作邁出第一步" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2025-11-04-international-026.jpg')" :alt="tx('台中磐石球員啟程赴義大利訓練，與維羅納合作邁出第一步', 'Taichung Rock FC players leave for training in Italy as cooperation with Verona takes its first step')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">國際 International</p>
-              <h4 class="timeline-item__title">與義甲維羅納合作邁出第一步，球員啟程赴義大利訓練</h4>
+              <p class="timeline-item__tag">{{ tx('國際 International', 'International') }}</p>
+              <h4 class="timeline-item__title">{{ tx('與義甲維羅納合作邁出第一步，球員啟程赴義大利訓練', 'Cooperation with Serie A side Verona takes its first step as players leave for training in Italy') }}</h4>
             </div>
           </li>
         </ol>
@@ -263,26 +266,26 @@ const milestoneYears = computed(() => {
         <ol class="timeline-list">
           <li class="timeline-item">
             <p class="timeline-item__date">2026-01-12</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2026-01-12-community-017.jpg')" alt="台中磐石攜手Subkarma深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2026-01-12-community-017.jpg')" :alt="tx('台中磐石攜手Subkarma深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園', 'Taichung Rock FC partners with Subkarma on local community work, donating English books to the 潭秀非營利幼兒園 non-profit kindergarten')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">社區 Community</p>
-              <h4 class="timeline-item__title">攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園</h4>
+              <p class="timeline-item__tag">{{ tx('社區 Community', 'Community') }}</p>
+              <h4 class="timeline-item__title">{{ tx('攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園', 'Partners with Subkarma on local community work, donating English books to the 潭秀非營利幼兒園 non-profit kindergarten') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2026-02-06</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2026-02-06-international-016.jpg')" alt="台中磐石5名球員獲義大利萊尼亞戈點名赴義訓練" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2026-02-06-international-016.jpg')" :alt="tx('台中磐石5名球員獲義大利萊尼亞戈點名赴義訓練', '5 Taichung Rock FC players are selected to train in Italy by the Italian club 萊尼亞戈')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">國際 International</p>
-              <h4 class="timeline-item__title">5 名球員獲義大利萊尼亞戈點名赴義訓練</h4>
+              <p class="timeline-item__tag">{{ tx('國際 International', 'International') }}</p>
+              <h4 class="timeline-item__title">{{ tx('5 名球員獲義大利萊尼亞戈點名赴義訓練', '5 players are selected to train in Italy by the Italian club 萊尼亞戈') }}</h4>
             </div>
           </li>
           <li class="timeline-item">
             <p class="timeline-item__date">2026-08-10</p>
-            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2026-08-10-international-000.jpg')" alt="台中磐石與AS Trenčín深化青訓合作" loading="lazy" width="640" height="427"></div>
+            <div class="timeline-item__media"><img :src="siteImg('/assets/img/news/2026-08-10-international-000.jpg')" :alt="tx('台中磐石與AS Trenčín深化青訓合作', 'Taichung Rock FC deepens youth development cooperation with AS Trenčín')" loading="lazy" width="640" height="427"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">國際 International</p>
-              <h4 class="timeline-item__title">與 AS Trenčín 深化青訓合作，共創台斯足球交流新篇章</h4>
+              <p class="timeline-item__tag">{{ tx('國際 International', 'International') }}</p>
+              <h4 class="timeline-item__title">{{ tx('與 AS Trenčín 深化青訓合作，共創台斯足球交流新篇章', 'Deepens youth development cooperation with AS Trenčín, opening a new chapter in Taiwan–Slovakia football exchange') }}</h4>
             </div>
           </li>
         </ol>

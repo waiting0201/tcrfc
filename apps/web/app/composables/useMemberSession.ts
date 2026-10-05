@@ -189,6 +189,6 @@ export function useMemberSession() {
 function loginRequiredError() {
   return Object.assign(new Error('login_required'), {
     status: 401,
-    data: { code: 'login_required', detail: '登入已過期，請重新登入。' },
+    data: { code: 'login_required', detail: '登入已過期，請重新登入。', messageEn: 'Your session has expired. Please sign in again.' },
   })
 }

@@ -2329,6 +2329,11 @@ backoffice_seed.emit_all(
     season_sq=season_sq, venue_by_keyword_sq=venue_by_keyword_sq, category_sq=category_sq,
 )
 
+# 61. 英文欄位回填（*_i18n 的 en 列，僅 tcrfc）：放在所有區段之後，確保繁中列都已存在。見 en_backfill_seed.py 檔頭。
+import en_backfill_seed  # noqa: E402
+
+en_backfill_seed.emit_all(emit=emit, block=block, esc=esc, clubs={"tcrfc": CLUB_TCRFC, "bw": CLUB_BW})
+
 if "--reset-admin-accounts" in sys.argv:
     # 🔴 丟掉上面（一般模式）已經累積的全部輸出，只印重設用的 UPDATE 陳述式——
     # ADMIN_USERS 此時已經跑過一輪迴圈填好，重用同一份資料，不重新定義。見檔頭說明。

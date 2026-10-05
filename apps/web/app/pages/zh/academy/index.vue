@@ -6,30 +6,32 @@
 // 是 units.ts 明文關閉的單元（藍鯨規劃書 §3.4「04 不沿用招生與課程報名架構」），
 // bw 版導覽卡與底部 CTA 對應移除，不連到會 404 的頁面。改讀 club-copy.ts 的
 // getAcademyHubSeo()／getAcademyHubHero()／getAcademyHubCards()／getAcademyHubCtaTitle()。
-definePageMeta({ nav: "academy", unit: "04" })
+definePageMeta({ nav: "academy", unit: "04", enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
-const identity = computed(() => getClubIdentity(clubKey.value))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 
 const { facts } = useSiteFacts(clubKey.value)
 
+// C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案），其餘路徑沿用既有來源。
+const seo = computed(() => (isEn.value ? getAcademyHubSeoEn(facts.value) : getAcademyHubSeo(clubKey.value, facts.value)))
 useSeoMeta({
-  title: computed(() => getAcademyHubSeo(clubKey.value, facts.value).title),
-  description: computed(() => getAcademyHubSeo(clubKey.value, facts.value).description),
+  title: computed(() => seo.value.title),
+  description: computed(() => seo.value.description),
 })
-const hero = computed(() => getAcademyHubHero(clubKey.value, facts.value))
-const cards = computed(() => getAcademyHubCards(clubKey.value, facts.value))
-const ctaTitle = computed(() => getAcademyHubCtaTitle(clubKey.value))
+const hero = computed(() => (isEn.value ? getAcademyHubHeroEn() : getAcademyHubHero(clubKey.value, facts.value)))
+const cards = computed(() => (isEn.value ? getAcademyHubCardsEn(facts.value) : getAcademyHubCards(clubKey.value, facts.value)))
+const ctaTitle = computed(() => (isEn.value ? ACADEMY_HUB_CTA_TITLE_EN : getAcademyHubCtaTitle(clubKey.value)))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li aria-current="page">{{ identity.academyLabelZh }}</li>
     </ol>
   </div>
@@ -49,16 +51,16 @@ const ctaTitle = computed(() => getAcademyHubCtaTitle(clubKey.value))
     <div class="eyebrow-row">
       <div>
         <p class="kicker">{{ isTcrfc ? 'Explore the Academy' : 'Explore the Youth Team' }}</p>
-        <h2 class="section-title">{{ identity.academyShortLabelZh }}導覽</h2>
+        <h2 class="section-title">{{ identity.academyShortLabelZh }}{{ tx('導覽', ' Guide') }}</h2>
       </div>
-      <p v-if="isTcrfc" class="section-lede">從總覽、隊伍到加入方式，七個子單元帶你認識台中磐石足球學院。</p>
+      <p v-if="isTcrfc" class="section-lede">{{ tx('從總覽、隊伍到加入方式，七個子單元帶你認識台中磐石足球學院。', 'From the overview and our teams to how to join, seven sections introduce TCRFC Academy.') }}</p>
       <p v-else class="section-lede">從總覽、隊伍到隊伍日常，六個子單元帶你認識台中藍鯨青年隊。</p>
     </div>
 
     <div class="unit-nav-grid">
       <a v-for="(c, i) in cards" :key="c.num" class="unit-nav-card clip-card" :class="{ 'unit-nav-card--cta': isTcrfc && i === cards.length - 1 }" :href="lp(c.href)">
         <span class="unit-nav-card__num">{{ c.num }}</span>
-        <span class="unit-nav-card__en">{{ c.titleEn }}</span>
+        <span v-if="!isEn" class="unit-nav-card__en">{{ c.titleEn }}</span>
         <span class="unit-nav-card__zh">{{ c.titleZh }}</span>
         <span class="unit-nav-card__desc">{{ c.descZh }}</span>
         <span class="unit-nav-card__arrow" aria-hidden="true">→</span>
@@ -74,8 +76,8 @@ const ctaTitle = computed(() => getAcademyHubCtaTitle(clubKey.value))
       <h2 class="section-title" style="color:#fff;">{{ ctaTitle }}</h2>
     </div>
     <div class="cta-strip__actions">
-      <a class="btn btn--primary" :href="lp('/zh/join/academy/')">線上申請</a>
-      <a v-if="isTcrfc" class="btn btn--light" :href="lp('/zh/academy/join/')">查看招生資訊</a>
+      <a class="btn btn--primary" :href="lp('/zh/join/academy/')">{{ tx('線上申請', 'Apply Online') }}</a>
+      <a v-if="isTcrfc" class="btn btn--light" :href="lp('/zh/academy/join/')">{{ tx('查看招生資訊', 'View Admissions Info') }}</a>
     </div>
   </div>
 </section>

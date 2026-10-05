@@ -8,9 +8,9 @@
 // App 尚未上架，兩者為空時顯示「即將上線」，只有 https 網址才會變成按鈕。功能描述只列 App 規劃書 §2.3
 // 對照表已有的畫面（賽程、新聞、球員、特約店家、課程、會員卡、會籍升級），不新增承諾。
 // 頁面 SEO 適用主站規範（App 規劃書 §1.3「SEO／GEO」列）：有 title／description，canonical 由全站機制產生。
-definePageMeta({ nav: '', unit: 'G-08' })
+definePageMeta({ nav: '', unit: 'G-08', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
 
@@ -20,8 +20,8 @@ const playStoreUrl = computed(() => httpsOnly(config.public.playStoreUrl))
 const available = computed(() => Boolean(appStoreUrl.value || playStoreUrl.value))
 
 useSeoMeta({
-  title: computed(() => `下載 App｜台中足球 Taichung Football｜${clubAssets.value.shortNameZh}`),
-  description: '台中足球 App：兩支球隊共同的官方 App，賽程、新聞、球員、特約店家、課程與電子會員卡，一個 App 全部帶著走。',
+  title: computed(() => (isEn.value ? getShopSeoEn('app', CLUB_NAME_EN).title : `下載 App｜台中足球 Taichung Football｜${clubAssets.value.shortNameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('app', CLUB_NAME_EN).description : '台中足球 App：兩支球隊共同的官方 App，賽程、新聞、球員、特約店家、課程與電子會員卡，一個 App 全部帶著走。')),
 })
 
 const FEATURES: ReadonlyArray<{ title: string, desc: string }> = [
@@ -31,14 +31,15 @@ const FEATURES: ReadonlyArray<{ title: string, desc: string }> = [
   { title: '課程', desc: '查看課程資訊與報名。' },
   { title: '電子會員卡與會籍', desc: '會員卡隨身帶著，會籍升級也在 App 內申請。' },
 ]
+const features = computed(() => (isEn.value ? SHOP_APP_FEATURES_EN : FEATURES))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">下載 App</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx('下載 App', 'Download the app') }}</li>
     </ol>
   </div>
 </nav>
@@ -46,28 +47,28 @@ const FEATURES: ReadonlyArray<{ title: string, desc: string }> = [
 <section class="page-hero">
   <div class="container">
     <p class="page-hero__eyebrow">Mobile App</p>
-    <h1>台中足球 App<span class="en">Taichung Football</span></h1>
-    <p class="page-hero__lede">兩支球隊共同的官方 App。已安裝 App 的裝置，點開官網上的賽程、新聞、球員等連結會直接開啟 App。</p>
+    <h1>{{ isEn ? 'Taichung Football app' : '台中足球 App' }}<span v-if="!isEn" class="en">Taichung Football</span></h1>
+    <p class="page-hero__lede">{{ tx('兩支球隊共同的官方 App。已安裝 App 的裝置，點開官網上的賽程、新聞、球員等連結會直接開啟 App。', 'The official app shared by both teams. On a device with the app installed, links to fixtures, news, players and more on the website open the app directly.') }}</p>
   </div>
 </section>
 
 <section class="band" aria-labelledby="app-download-title">
   <div class="band-inner container">
-    <h2 id="app-download-title" class="section-title">下載</h2>
+    <h2 id="app-download-title" class="section-title">{{ tx('下載', 'Download') }}</h2>
     <p v-if="available" class="app-stores">
-      <a v-if="appStoreUrl" class="btn btn--primary" :href="appStoreUrl" target="_blank" rel="noopener noreferrer">App Store<span class="visually-hidden">（另開新視窗）</span></a>
-      <a v-if="playStoreUrl" class="btn btn--dark" :href="playStoreUrl" target="_blank" rel="noopener noreferrer">Google Play<span class="visually-hidden">（另開新視窗）</span></a>
+      <a v-if="appStoreUrl" class="btn btn--primary" :href="appStoreUrl" target="_blank" rel="noopener noreferrer">App Store<span class="visually-hidden">{{ tx('（另開新視窗）', ' (opens in a new window)') }}</span></a>
+      <a v-if="playStoreUrl" class="btn btn--dark" :href="playStoreUrl" target="_blank" rel="noopener noreferrer">Google Play<span class="visually-hidden">{{ tx('（另開新視窗）', ' (opens in a new window)') }}</span></a>
     </p>
-    <p v-else class="app-coming-soon" role="status">App 即將上線，上架後這裡會提供 App Store 與 Google Play 的下載連結。</p>
+    <p v-else class="app-coming-soon" role="status">{{ tx('App 即將上線，上架後這裡會提供 App Store 與 Google Play 的下載連結。', 'The app is coming soon. Once it is published, download links for the App Store and Google Play will appear here.') }}</p>
 
-    <h2 class="section-title" style="margin-top:3.5rem;">App 裡有什麼</h2>
+    <h2 class="section-title" style="margin-top:3.5rem;">{{ tx('App 裡有什麼', 'What is in the app') }}</h2>
     <div class="app-features">
-      <div v-for="f in FEATURES" :key="f.title" class="feature-card">
+      <div v-for="f in features" :key="f.title" class="feature-card">
         <p class="feature-card__title">{{ f.title }}</p>
         <p class="feature-card__desc">{{ f.desc }}</p>
       </div>
     </div>
-    <p class="app-note">還沒安裝也沒關係：所有內容都能在官網瀏覽，<a :href="lp('/zh/schedule/')">賽事行事曆</a>、<a :href="lp('/zh/news/')">最新消息</a>與<a :href="lp('/zh/club/first-team/')">一線隊</a>與 App 內容一致。</p>
+    <p class="app-note"><template v-if="isEn">You do not need the app to follow along: everything can be browsed on the website. The <a :href="lp('/zh/schedule/')">schedule</a>, <a :href="lp('/zh/news/')">latest news</a> and <a :href="lp('/zh/club/first-team/')">First Team</a> pages match what is in the app.</template><template v-else>還沒安裝也沒關係：所有內容都能在官網瀏覽，<a :href="lp('/zh/schedule/')">賽事行事曆</a>、<a :href="lp('/zh/news/')">最新消息</a>與<a :href="lp('/zh/club/first-team/')">一線隊</a>與 App 內容一致。</template></p>
   </div>
 </section>
 </template>

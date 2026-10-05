@@ -9,20 +9,22 @@
 import type { PagedResponse } from '#shared/utils/api-types'
 import type { ShopProductListItem } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3' })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
 
 const COLLECTING_SUBJECT_FALLBACK = '台中磐石足球俱樂部'
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const clubAssets = computed(() => getClubAssets(clubKey.value))
-const identity = computed(() => getClubIdentity(clubKey.value))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 const isBw = computed(() => clubKey.value === 'bw')
 
 const { info, paymentAvailable } = useShopInfo()
-const collectingSubject = computed(() => info.value?.collectingSubjectName || COLLECTING_SUBJECT_FALLBACK)
+const collectingSubject = computed(() => info.value?.collectingSubjectName || (isEn.value ? CLUB_NAME_EN : COLLECTING_SUBJECT_FALLBACK))
+// 英文頁：後台入口文案／配送名稱若英文欄位是空的，後端會回繁中備援，這時在內容上方提示
+const infoFallback = computed(() => isEn.value && shopHasCjk(info.value?.entryTitle, info.value?.entryIntro, ...(info.value?.deliveryMethods ?? []).map(d => d.label)))
 
 // ── 篩選狀態（來自網址 query；形狀與 BFF 白名單一致，不合法的值視為沒有）──
 function one(v: unknown): string {
@@ -89,19 +91,20 @@ function pageHref(n: number): string {
 }
 
 useSeoMeta({
-  title: computed(() => `官方商店 Shop｜${clubAssets.value.nameZh}`),
-  description: computed(() => `${clubAssets.value.nameZh}官方商店。以 LINE Pay 付款、自動開立電子發票，可宅配、超商取貨或現場自取。`),
+  title: computed(() => (isEn.value ? getShopSeoEn('shop', CLUB_NAME_EN).title : `官方商店 Shop｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('shop', CLUB_NAME_EN).description : `${clubAssets.value.nameZh}官方商店。以 LINE Pay 付款、自動開立電子發票，可宅配、超商取貨或現場自取。`)),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<LocaleFallbackNotice v-if="infoFallback" partial />
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
-      <li><a :href="lp('/zh/culture/merchandise/')">官方商品</a></li>
-      <li aria-current="page">官方商店</li>
+      <li><a :href="lp('/zh/culture/merchandise/')">{{ tx('官方商品', 'Merchandise') }}</a></li>
+      <li aria-current="page">{{ tx('官方商店', 'Shop') }}</li>
     </ol>
   </div>
 </nav>
@@ -109,8 +112,8 @@ useSeoMeta({
 <section class="page-hero">
   <div class="container">
     <p class="page-hero__eyebrow">8.3 Official Shop</p>
-    <h1>{{ info?.entryTitle || '官方商店' }}<span class="en">Shop</span></h1>
-    <p class="page-hero__lede">{{ info?.entryIntro || '選好尺寸與顏色加入購物車，以 LINE Pay 付款，系統自動開立電子發票。' }}</p>
+    <h1>{{ info?.entryTitle || tx('官方商店', 'Shop') }}<span v-if="!isEn" class="en">Shop</span></h1>
+    <p class="page-hero__lede">{{ info?.entryIntro || tx('選好尺寸與顏色加入購物車，以 LINE Pay 付款，系統自動開立電子發票。', 'Choose your size and colour, add to your cart and pay with LINE Pay. An e-invoice is issued automatically.') }}</p>
   </div>
 </section>
 
@@ -120,7 +123,7 @@ useSeoMeta({
       您購買的是{{ clubAssets.nameZh }}的商品，<strong>款項由{{ collectingSubject }}代收</strong>，發票抬頭亦為{{ collectingSubject }}。
     </p>
     <p v-if="info && !paymentAvailable" class="mc-alert mc-alert--info" role="status">
-      目前暫未開放線上付款。您可以先瀏覽商品並加入購物車，開放付款後再結帳。
+      {{ tx('目前暫未開放線上付款。您可以先瀏覽商品並加入購物車，開放付款後再結帳。', 'Online payment is not available yet. You can browse and add items to your cart now, and check out once payment opens.') }}
     </p>
   </div>
 </section>
@@ -128,108 +131,108 @@ useSeoMeta({
 <!-- SPEC 3.8 §8.3 — 商品列表：分類、價格、尺寸、顏色篩選與排序 -->
 <section class="band band--tight" aria-labelledby="filters-title">
   <div class="container">
-    <h2 id="filters-title" class="visually-hidden">商品篩選</h2>
+    <h2 id="filters-title" class="visually-hidden">{{ tx('商品篩選', 'Filter products') }}</h2>
     <form class="filter-row" method="get" :action="route.path">
       <div class="filter-field">
-        <label for="f-collection">系列</label>
+        <label for="f-collection">{{ tx('系列', 'Collection') }}</label>
         <select id="f-collection" name="collection">
-          <option value="" :selected="!filters.collection">全部商品</option>
+          <option value="" :selected="!filters.collection">{{ tx('全部商品', 'All products') }}</option>
           <option v-for="c in collectionOptions" :key="c.slug" :value="c.slug" :selected="filters.collection === c.slug">{{ c.name || c.slug }}</option>
         </select>
       </div>
       <div class="filter-field">
-        <label for="f-size">尺寸</label>
+        <label for="f-size">{{ tx('尺寸', 'Size') }}</label>
         <select id="f-size" name="size">
-          <option value="" :selected="!filters.size">不限</option>
+          <option value="" :selected="!filters.size">{{ tx('不限', 'Any') }}</option>
           <option v-for="s in sizeOptions" :key="s" :value="s" :selected="filters.size === s">{{ s }}</option>
         </select>
       </div>
       <div class="filter-field">
-        <label for="f-colour">顏色</label>
+        <label for="f-colour">{{ tx('顏色', 'Colour') }}</label>
         <select id="f-colour" name="colour">
-          <option value="" :selected="!filters.colour">不限</option>
+          <option value="" :selected="!filters.colour">{{ tx('不限', 'Any') }}</option>
           <option v-for="c in colourOptions" :key="c" :value="c" :selected="filters.colour === c">{{ c }}</option>
         </select>
       </div>
       <div class="filter-field sh-price-field">
-        <label for="f-min">價格（NT$）</label>
+        <label for="f-min">{{ tx('價格（NT$）', 'Price (NT$)') }}</label>
         <span class="sh-price-range">
-          <input id="f-min" type="number" name="minPrice" inputmode="numeric" min="0" step="1" placeholder="最低" :value="filters.minPrice" aria-label="最低價格">
+          <input id="f-min" type="number" name="minPrice" inputmode="numeric" min="0" step="1" :placeholder="tx('最低', 'Min')" :value="filters.minPrice" :aria-label="tx('最低價格', 'Minimum price')">
           <span aria-hidden="true">–</span>
-          <input id="f-max" type="number" name="maxPrice" inputmode="numeric" min="0" step="1" placeholder="最高" :value="filters.maxPrice" aria-label="最高價格">
+          <input id="f-max" type="number" name="maxPrice" inputmode="numeric" min="0" step="1" :placeholder="tx('最高', 'Max')" :value="filters.maxPrice" :aria-label="tx('最高價格', 'Maximum price')">
         </span>
       </div>
       <div class="filter-field">
-        <label for="f-sort">排序</label>
+        <label for="f-sort">{{ tx('排序', 'Sort by') }}</label>
         <select id="f-sort" name="sort">
-          <option value="" :selected="!filters.sort">預設排序</option>
-          <option value="newest" :selected="filters.sort === 'newest'">最新上架</option>
-          <option value="price_asc" :selected="filters.sort === 'price_asc'">價格由低到高</option>
-          <option value="price_desc" :selected="filters.sort === 'price_desc'">價格由高到低</option>
+          <option value="" :selected="!filters.sort">{{ tx('預設排序', 'Default order') }}</option>
+          <option value="newest" :selected="filters.sort === 'newest'">{{ tx('最新上架', 'Newest') }}</option>
+          <option value="price_asc" :selected="filters.sort === 'price_asc'">{{ tx('價格由低到高', 'Price: low to high') }}</option>
+          <option value="price_desc" :selected="filters.sort === 'price_desc'">{{ tx('價格由高到低', 'Price: high to low') }}</option>
         </select>
       </div>
       <div class="filter-field">
         <span class="sh-check">
           <input id="f-new" type="checkbox" name="isNew" value="true" :checked="filters.isNew === 'true'">
-          <label for="f-new">只看新上市</label>
+          <label for="f-new">{{ tx('只看新上市', 'New arrivals only') }}</label>
         </span>
       </div>
       <div class="filter-field">
-        <button class="btn btn--primary btn--sm" type="submit">套用篩選</button>
+        <button class="btn btn--primary btn--sm" type="submit">{{ tx('套用篩選', 'Apply filters') }}</button>
       </div>
       <div v-if="hasFilters" class="filter-field">
-        <a class="sh-clear" :href="route.path">清除篩選</a>
+        <a class="sh-clear" :href="route.path">{{ tx('清除篩選', 'Clear filters') }}</a>
       </div>
     </form>
-    <p v-if="list" class="result-count" role="status">共 {{ totalCount }} 件商品</p>
+    <p v-if="list" class="result-count" role="status">{{ isEn ? `${totalCount} ${totalCount === 1 ? 'product' : 'products'}` : `共 ${totalCount} 件商品` }}</p>
   </div>
 </section>
 
 <section class="band band--tight" aria-labelledby="products-title">
   <div class="container">
-    <h2 id="products-title" class="visually-hidden">商品列表</h2>
+    <h2 id="products-title" class="visually-hidden">{{ tx('商品列表', 'Products') }}</h2>
 
-    <p v-if="loadFailed" class="mc-alert mc-alert--error" role="alert">商品資料暫時無法載入，請稍後再試。</p>
+    <p v-if="loadFailed" class="mc-alert mc-alert--error" role="alert">{{ tx('商品資料暫時無法載入，請稍後再試。', 'Products could not be loaded right now. Please try again later.') }}</p>
 
     <div v-else-if="items.length" class="product-grid">
       <article v-for="p in items" :key="p.slug" class="product-card">
         <a class="product-card__media" :href="lp(`/zh/shop/${p.slug}/`)" :aria-label="p.name || p.slug">
-          <span v-if="p.stockStatus === 'sold_out'" class="product-card__flag product-card__flag--muted">缺貨</span>
-          <span v-else-if="p.onSale" class="product-card__flag">優惠</span>
-          <span v-else-if="p.isNewArrival" class="product-card__flag">新上市</span>
+          <span v-if="p.stockStatus === 'sold_out'" class="product-card__flag product-card__flag--muted">{{ tx('缺貨', 'Sold out') }}</span>
+          <span v-else-if="p.onSale" class="product-card__flag">{{ tx('優惠', 'Sale') }}</span>
+          <span v-else-if="p.isNewArrival" class="product-card__flag">{{ tx('新上市', 'New') }}</span>
           <img v-if="p.imageThumbUrl || p.imageUrl" :src="(p.imageThumbUrl || p.imageUrl) ?? ''" :alt="p.name || ''" loading="lazy" width="640" height="640">
         </a>
         <div class="product-card__body">
           <p class="product-card__name"><a :href="lp(`/zh/shop/${p.slug}/`)">{{ p.name || p.slug }}</a></p>
           <p v-if="p.sizes.length || p.colours.length" class="product-card__opts">
-            <template v-if="p.sizes.length">尺寸 {{ p.sizes.join('／') }}</template>
-            <template v-if="p.sizes.length && p.colours.length">・</template>
-            <template v-if="p.colours.length">{{ p.colours.length }} 色可選</template>
+            <template v-if="p.sizes.length">{{ tx('尺寸', 'Sizes') }} {{ p.sizes.join(isEn ? ' / ' : '／') }}</template>
+            <template v-if="p.sizes.length && p.colours.length">{{ isEn ? ' · ' : '・' }}</template>
+            <template v-if="p.colours.length">{{ isEn ? `${p.colours.length} ${p.colours.length === 1 ? 'colour' : 'colours'} available` : `${p.colours.length} 色可選` }}</template>
           </p>
           <div class="product-card__foot">
             <template v-if="p.priceMin !== null">
               <span :class="['price', { 'price--sale': p.onSale }]">{{ formatPriceRange(p.priceMin, p.priceMax) }}</span>
               <span v-if="p.onSale && p.listPriceMin" class="price__was">{{ formatPrice(p.listPriceMin) }}</span>
             </template>
-            <span v-else class="price__was">暫無販售</span>
+            <span v-else class="price__was">{{ tx('暫無販售', 'Not available') }}</span>
           </div>
-          <a class="btn btn--primary btn--sm btn--block" :href="lp(`/zh/shop/${p.slug}/`)" style="margin-top:1rem">{{ p.stockStatus === 'sold_out' ? '查看商品' : '選購' }}</a>
+          <a class="btn btn--primary btn--sm btn--block" :href="lp(`/zh/shop/${p.slug}/`)" style="margin-top:1rem">{{ p.stockStatus === 'sold_out' ? tx('查看商品', 'View product') : tx('選購', 'Shop now') }}</a>
         </div>
       </article>
     </div>
 
     <div v-else class="editorial-note">
       <template v-if="hasFilters">
-        <p>沒有符合條件的商品，請調整篩選條件。</p>
-        <p style="margin-top:.75rem"><a class="sh-clear" :href="route.path">清除篩選</a></p>
+        <p>{{ tx('沒有符合條件的商品，請調整篩選條件。', 'No products match your filters. Please adjust them and try again.') }}</p>
+        <p style="margin-top:.75rem"><a class="sh-clear" :href="route.path">{{ tx('清除篩選', 'Clear filters') }}</a></p>
       </template>
-      <p v-else>商品準備中，敬請期待。</p>
+      <p v-else>{{ tx('商品準備中，敬請期待。', 'Products are coming soon.') }}</p>
     </div>
 
-    <nav v-if="totalPages > 1" class="sh-pager" aria-label="商品分頁">
-      <a v-if="page > 1" class="btn btn--light btn--sm" :href="pageHref(page - 1)" rel="prev">上一頁</a>
-      <span class="sh-pager__now" aria-current="page">第 {{ page }} ／ {{ totalPages }} 頁</span>
-      <a v-if="page < totalPages" class="btn btn--light btn--sm" :href="pageHref(page + 1)" rel="next">下一頁</a>
+    <nav v-if="totalPages > 1" class="sh-pager" :aria-label="tx('商品分頁', 'Product pages')">
+      <a v-if="page > 1" class="btn btn--light btn--sm" :href="pageHref(page - 1)" rel="prev">{{ tx('上一頁', 'Previous') }}</a>
+      <span class="sh-pager__now" aria-current="page">{{ isEn ? `Page ${page} of ${totalPages}` : `第 ${page} ／ ${totalPages} 頁` }}</span>
+      <a v-if="page < totalPages" class="btn btn--light btn--sm" :href="pageHref(page + 1)" rel="next">{{ tx('下一頁', 'Next') }}</a>
     </nav>
   </div>
 </section>
@@ -237,29 +240,36 @@ useSeoMeta({
 <section class="band grain" aria-labelledby="shop-info-title">
   <div class="band-inner container">
     <p class="kicker kicker--on-dark">SHOP INFO</p>
-    <h2 id="shop-info-title" class="section-title" style="color:#fff">購物須知</h2>
+    <h2 id="shop-info-title" class="section-title" style="color:#fff">{{ tx('購物須知', 'Shopping information') }}</h2>
     <div class="grid grid--3" style="margin-top:2rem">
       <div class="clip-card clip-card--on-dark">
-        <h3>付款方式</h3>
-        <p>結帳一律以 <strong>LINE Pay</strong> 付款，收款方為{{ collectingSubject }}。本站不經手也不儲存信用卡資料。</p>
+        <h3>{{ tx('付款方式', 'Payment') }}</h3>
+        <p v-if="isEn">All orders are paid with <strong>LINE Pay</strong>, and payment is collected by {{ collectingSubject }}. This website does not handle or store credit card details.</p>
+        <p v-else>結帳一律以 <strong>LINE Pay</strong> 付款，收款方為{{ collectingSubject }}。本站不經手也不儲存信用卡資料。</p>
       </div>
       <div class="clip-card clip-card--on-dark">
-        <h3>電子發票</h3>
-        <p>結帳時開立電子發票，可選擇手機條碼載具、自然人憑證載具、統一編號或捐贈碼；退貨時同步作廢或折讓。</p>
+        <h3>{{ tx('電子發票', 'E-invoice') }}</h3>
+        <p>{{ tx('結帳時開立電子發票，可選擇手機條碼載具、自然人憑證載具、統一編號或捐贈碼；退貨時同步作廢或折讓。', 'An e-invoice is issued at checkout. You can choose a mobile barcode carrier, a Citizen Digital Certificate carrier, a Unified Business Number or a donation code. If you return an item, the invoice is voided or a discount note is issued.') }}</p>
       </div>
       <div class="clip-card clip-card--on-dark">
-        <h3>配送方式</h3>
+        <h3>{{ tx('配送方式', 'Delivery') }}</h3>
         <p v-if="info && info.deliveryMethods.length">
-          {{ info.deliveryMethods.map(d => d.label).join('、') }}。
-          <template v-if="info.shippingFee > 0">運費 {{ formatPrice(info.shippingFee) }}<template v-if="info.freeShippingThreshold">，單筆滿 {{ formatPrice(info.freeShippingThreshold) }} 免運</template>；現場自取免運費。</template>
-          <template v-else>運費全面免收。</template>
+          {{ info.deliveryMethods.map(d => d.label).join(isEn ? ', ' : '、') }}{{ isEn ? '.' : '。' }}
+          <template v-if="isEn">
+            <template v-if="info.shippingFee > 0">Shipping is {{ formatPrice(info.shippingFee) }}<template v-if="info.freeShippingThreshold">, free on orders of {{ formatPrice(info.freeShippingThreshold) }} or more</template>; on-site pickup has no shipping fee.</template>
+            <template v-else>Shipping is free.</template>
+          </template>
+          <template v-else>
+            <template v-if="info.shippingFee > 0">運費 {{ formatPrice(info.shippingFee) }}<template v-if="info.freeShippingThreshold">，單筆滿 {{ formatPrice(info.freeShippingThreshold) }} 免運</template>；現場自取免運費。</template>
+            <template v-else>運費全面免收。</template>
+          </template>
         </p>
-        <p v-else>宅配到府、超商取貨（僅取貨，不在門市付款）、主場賽事日或俱樂部現場自取。</p>
+        <p v-else>{{ tx('宅配到府、超商取貨（僅取貨，不在門市付款）、主場賽事日或俱樂部現場自取。', 'Home delivery, convenience-store pickup (pickup only, no payment at the store), or pickup on home match days or at the club.') }}</p>
       </div>
     </div>
     <p style="margin-top:2rem;display:flex;gap:1rem;flex-wrap:wrap">
-      <a class="btn btn--light" :href="lp('/zh/order/lookup/')">查詢訂單</a>
-      <a class="btn btn--light" :href="lp('/zh/shop/policy/')">購物須知與退換貨政策</a>
+      <a class="btn btn--light" :href="lp('/zh/order/lookup/')">{{ tx('查詢訂單', 'Order lookup') }}</a>
+      <a class="btn btn--light" :href="lp('/zh/shop/policy/')">{{ tx('購物須知與退換貨政策', 'Shopping information and returns policy') }}</a>
     </p>
   </div>
 </section>

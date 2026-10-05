@@ -14,9 +14,9 @@
 import type { PublicPartner } from '#shared/utils/partners'
 import { PARTNER_TYPE_SECTIONS, groupByKnownType, pickLogoUrl, safeExternalUrl, formatPartnerPeriod } from '#shared/utils/partners'
 
-definePageMeta({ nav: 'partners', unit: '9.1' })
+definePageMeta({ nav: 'partners', unit: '9.1', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const isTcrfc = computed(() => config.public.club !== 'bw')
 const clubAssets = computed(() => getClubAssets(config.public.club))
@@ -47,18 +47,18 @@ function isDark(i: number): boolean {
 }
 
 useSeoMeta({
-  title: computed(() => `合作夥伴 Our Partners｜合作夥伴與贊助｜${clubAssets.value.nameZh}`),
-  description: computed(() => `${clubAssets.value.nameZh}的合作夥伴，依策略、國際、訓練、教育、品牌五大類型分區介紹。`),
+  title: computed(() => (isEn.value ? 'Our Partners | Partners & Sponsors | Taichung Rock FC' : `合作夥伴 Our Partners｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? 'The partners of Taichung Rock FC, introduced by five types: strategic, international, training, education and brand.' : `${clubAssets.value.nameZh}的合作夥伴，依策略、國際、訓練、教育、品牌五大類型分區介紹。`)),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/partners/')">夥伴</a></li>
-      <li aria-current="page">合作夥伴</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/partners/')">{{ tx('夥伴', 'Partners') }}</a></li>
+      <li aria-current="page">{{ tx('合作夥伴', 'Our Partners') }}</li>
     </ol>
   </div>
 </nav>
@@ -66,16 +66,16 @@ useSeoMeta({
 <section class="page-hero">
   <div class="container">
     <p class="page-hero__eyebrow">9.1 Our Partners</p>
-    <h1>合作夥伴<span class="en">Our Partners</span></h1>
-    <p v-if="hasAnyPartner" class="page-hero__lede">與{{ clubAssets.shortNameZh }}攜手的合作夥伴，依策略、國際、訓練、教育、品牌等類型分區介紹。</p>
-    <p v-else class="page-hero__lede">以下為合作夥伴分類架構，實際夥伴名單建置中。</p>
+    <h1><template v-if="isEn">Our Partners</template><template v-else>{{ tx('合作夥伴', 'Our Partners') }}<span class="en">Our Partners</span></template></h1>
+    <p v-if="hasAnyPartner" class="page-hero__lede"><template v-if="isEn">The partners working with Taichung Rock FC, introduced by type: strategic, international, training, education and brand.</template><template v-else>與{{ clubAssets.shortNameZh }}攜手的合作夥伴，依策略、國際、訓練、教育、品牌等類型分區介紹。</template></p>
+    <p v-else class="page-hero__lede"><template v-if="isEn">Below is the partner category structure. The partner list is being compiled.</template><template v-else>以下為合作夥伴分類架構，實際夥伴名單建置中。</template></p>
   </div>
 </section>
 
 <!-- SPEC 3.9 §9.1 — 依類型分區：策略／國際／訓練／教育／品牌（＋俱樂部自訂類型）。Logo 牆＋夥伴詳情（合作內容、期間、連結） -->
 <section v-for="(sec, i) in sections" :id="sec.key" :key="sec.key" :class="bandClass(i)" :aria-labelledby="`${sec.key}-title`">
   <div :class="isDark(i) ? 'band-inner container' : 'container'">
-    <h2 :id="`${sec.key}-title`" class="section-title partner-type-title" :style="isDark(i) ? 'color:#fff' : undefined">{{ sec.title }}<span v-if="sec.en" class="en">{{ sec.en }}</span></h2>
+    <h2 :id="`${sec.key}-title`" class="section-title partner-type-title" :style="isDark(i) ? 'color:#fff' : undefined"><template v-if="isEn">{{ sec.en ?? sec.title }}</template><template v-else>{{ sec.title }}<span v-if="sec.en" class="en">{{ sec.en }}</span></template></h2>
 
     <div v-if="sec.items.length" class="sponsor-grid">
       <PartnerLogoTile
@@ -91,18 +91,18 @@ useSeoMeta({
     <!-- 國際夥伴：後台尚未建立任何一筆時，磐石沿用既有三個海外合作隊徽（見檔頭說明），藍鯨顯示空格 -->
     <div v-else-if="sec.key === 'international' && isTcrfc" class="sponsor-grid">
       <div class="sponsor-tile">
-        <img :src="siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp')" alt="義大利 Hellas Verona FC 隊徽" loading="lazy" width="200" height="200">
+        <img :src="siteImg('/assets/img/partners-intl/partner-intl-01-hellas-verona.webp')" :alt="tx('義大利 Hellas Verona FC 隊徽', 'Hellas Verona FC crest (Italy)')" loading="lazy" width="200" height="200">
       </div>
       <div class="sponsor-tile">
-        <img :src="siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png')" alt="西班牙 Rayo Ciudad Alcobendas CF 隊徽" loading="lazy" width="200" height="200">
+        <img :src="siteImg('/assets/img/partners-intl/partner-intl-02-rayo-alcobendas.png')" :alt="tx('西班牙 Rayo Ciudad Alcobendas CF 隊徽', 'Rayo Ciudad Alcobendas CF crest (Spain)')" loading="lazy" width="200" height="200">
       </div>
       <div class="sponsor-tile">
-        <img :src="siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp')" alt="德國 Rot-Weiss Ahlen 隊徽" loading="lazy" width="200" height="200">
+        <img :src="siteImg('/assets/img/partners-intl/partner-intl-03-rot-weiss-ahlen.webp')" :alt="tx('德國 Rot-Weiss Ahlen 隊徽', 'Rot-Weiss Ahlen crest (Germany)')" loading="lazy" width="200" height="200">
       </div>
-      <div class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
+      <div class="sponsor-tile sponsor-tile--empty"><span>{{ tx('尚未公開', 'Not yet announced') }}</span></div>
     </div>
     <div v-else class="sponsor-grid">
-      <div v-for="n in 4" :key="n" class="sponsor-tile sponsor-tile--empty"><span>尚未公開</span></div>
+      <div v-for="n in 4" :key="n" class="sponsor-tile sponsor-tile--empty"><span>{{ tx('尚未公開', 'Not yet announced') }}</span></div>
     </div>
 
     <!-- 夥伴詳情：合作內容、合作期間、國家、官方網站、共同參與的公益計畫；都沒有的欄位整列不顯示 -->
@@ -111,13 +111,13 @@ useSeoMeta({
         <h3 class="partner-roster__name">{{ p.name }}</h3>
         <p v-if="p.country || formatPartnerPeriod(p.startOn, p.endOn)" class="partner-roster__meta">
           <span v-if="p.country">{{ p.country }}</span>
-          <span v-if="formatPartnerPeriod(p.startOn, p.endOn)">合作期間 {{ formatPartnerPeriod(p.startOn, p.endOn) }}</span>
+          <span v-if="formatPartnerPeriod(p.startOn, p.endOn)">{{ tx('合作期間', 'Partnership period') }} {{ formatPartnerPeriod(p.startOn, p.endOn, isEn) }}</span>
         </p>
         <p v-if="p.content" class="partner-roster__content">{{ p.content }}</p>
-        <p v-if="safeExternalUrl(p.websiteUrl)" class="partner-roster__link"><a :href="safeExternalUrl(p.websiteUrl) ?? undefined" target="_blank" rel="noopener noreferrer">官方網站（另開新分頁）</a></p>
+        <p v-if="safeExternalUrl(p.websiteUrl)" class="partner-roster__link"><a :href="safeExternalUrl(p.websiteUrl) ?? undefined" target="_blank" rel="noopener noreferrer">{{ tx('官方網站（另開新分頁）', 'Official website (opens in a new tab)') }}</a></p>
         <p v-if="charityEnabled && p.charityPrograms.length" class="partner-roster__link">
-          共同參與的公益計畫：
-          <template v-for="(c, ci) in p.charityPrograms" :key="c.slug"><span v-if="ci">、</span><a :href="lp(`/zh/charity/programs/${c.slug}/`)">{{ c.name ?? c.slug }}</a></template>
+          {{ tx('共同參與的公益計畫：', 'Charity programs we take part in together:') }}
+          <template v-for="(c, ci) in p.charityPrograms" :key="c.slug"><span v-if="ci">{{ tx('、', ', ') }}</span><a :href="lp(`/zh/charity/programs/${c.slug}/`)">{{ c.name ?? c.slug }}</a></template>
         </p>
       </li>
     </ul>
@@ -126,12 +126,12 @@ useSeoMeta({
 
 <section class="band" aria-labelledby="op-cta-title">
   <div class="container">
-    <h2 class="visually-hidden" id="op-cta-title">成為合作夥伴</h2>
+    <h2 class="visually-hidden" id="op-cta-title">{{ tx('成為合作夥伴', 'Become a Partner') }}</h2>
     <div class="cta-card" style="background:var(--ink);max-width:640px">
       <p class="cta-card__num">9.3</p>
-      <p class="cta-card__title">想成為{{ clubAssets.shortNameZh }}的合作夥伴？</p>
-      <p class="cta-card__desc">了解與{{ clubAssets.shortNameZh }}合作的六大價值，以及受眾數據概況。</p>
-      <a class="btn btn--primary" :href="lp('/zh/partners/become-a-partner/')">成為合作夥伴</a>
+      <p class="cta-card__title"><template v-if="isEn">Want to become a partner of Taichung Rock FC?</template><template v-else>想成為{{ clubAssets.shortNameZh }}的合作夥伴？</template></p>
+      <p class="cta-card__desc"><template v-if="isEn">Learn about the six values of partnering with Taichung Rock FC, plus an overview of our audience data.</template><template v-else>了解與{{ clubAssets.shortNameZh }}合作的六大價值，以及受眾數據概況。</template></p>
+      <a class="btn btn--primary" :href="lp('/zh/partners/become-a-partner/')">{{ tx('成為合作夥伴', 'Become a Partner') }}</a>
     </div>
   </div>
 </section>

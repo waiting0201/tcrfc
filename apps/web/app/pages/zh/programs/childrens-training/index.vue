@@ -23,9 +23,9 @@
 // 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
 // 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
 // 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
-definePageMeta({ nav: 'programs', unit: '5.1' })
+definePageMeta({ nav: 'programs', unit: '5.1', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
@@ -33,12 +33,14 @@ const identity = computed(() => getClubIdentity(clubKey.value))
 
 // BW-C1：改讀 useSiteFacts(clubKey)（後端公開端點），不再固定讀 tcrfc。
 const { facts, primaryVenue } = useSiteFacts(clubKey.value)
+// C-6／S2-13：英文版場地名取後端 en 回應的 nameEn，沒有就退回中文名（不自行音譯）。
+const venueName = computed(() => (isEn.value ? primaryVenue.value.nameEn : null) ?? primaryVenue.value.nameZh)
 
 useSeoMeta({
-  title: computed(() => getChildrensTrainingSeo(clubKey.value).title),
-  description: computed(() => getChildrensTrainingSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getChildrensTrainingSeoEn() : getChildrensTrainingSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getChildrensTrainingSeoEn() : getChildrensTrainingSeo(clubKey.value)).description),
 })
-const hero = computed(() => getChildrensTrainingHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getChildrensTrainingHeroEn() : getChildrensTrainingHero(clubKey.value)))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'children_training', pageSize: 5, lang: locale.value },
@@ -89,12 +91,12 @@ useCourseSchema(
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
-      <li aria-current="page">兒童足球訓練</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/programs/')">{{ tx('課程與活動', 'Programs') }}</a></li>
+      <li aria-current="page">{{ tx('兒童足球訓練', 'Children\'s Training') }}</li>
     </ol>
   </div>
 </nav>
@@ -114,26 +116,26 @@ useCourseSchema(
   <div class="container">
     <div class="grid grid--2">
       <div class="prose">
-        <h2>課程分級</h2>
-        <p>兒童足球訓練依學員年齡與足球經驗分為三個等級，各級課程內容與訓練節奏將依報名梯次公告。</p>
+        <h2>{{ tx('課程分級', 'Program Levels') }}</h2>
+        <p>{{ tx('兒童足球訓練依學員年齡與足球經驗分為三個等級，各級課程內容與訓練節奏將依報名梯次公告。', 'Children\'s Training has three levels based on age and football experience. Content and training pace for each level will be announced with each registration session.') }}</p>
       </div>
     </div>
 
     <div class="level-grid">
       <div class="level-card">
         <p class="level-card__num">Level 01</p>
-        <h3>混齡體驗<span class="en" style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem;">Mixed-age</span></h3>
-        <p>不同年齡層學員一同參與，以遊戲化方式認識足球，建立對球的基本熟悉度與運動樂趣。</p>
+        <h3>{{ tx('混齡體驗', 'Mixed-Age Introduction') }}<span v-if="!isEn" class="en" style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem;">Mixed-age</span></h3>
+        <p>{{ tx('不同年齡層學員一同參與，以遊戲化方式認識足球，建立對球的基本熟悉度與運動樂趣。', 'Players of different ages take part together, getting to know football through games and building familiarity with the ball and the joy of being active.') }}</p>
       </div>
       <div class="level-card">
         <p class="level-card__num">Level 02</p>
-        <h3>初學<span class="en" style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem;">Beginner</span></h3>
-        <p>建立基礎控球、傳接與跑動概念，養成規律練習習慣，為進一步的技巧訓練打底。</p>
+        <h3>{{ tx('初學', 'Beginner') }}<span v-if="!isEn" class="en" style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem;">Beginner</span></h3>
+        <p>{{ tx('建立基礎控球、傳接與跑動概念，養成規律練習習慣，為進一步的技巧訓練打底。', 'Build the basics of ball control, passing and movement, and develop a regular practice habit that lays the foundation for further skill training.') }}</p>
       </div>
       <div class="level-card">
         <p class="level-card__num">Level 03</p>
-        <h3>技巧發展<span class="en" style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem;">Skill Development</span></h3>
-        <p>已具備基礎能力的學員，加強個人技術、戰術理解與比賽情境應用。</p>
+        <h3>{{ tx('技巧發展', 'Skill Development') }}<span v-if="!isEn" class="en" style="display:block;font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:.15rem;">Skill Development</span></h3>
+        <p>{{ tx('已具備基礎能力的學員，加強個人技術、戰術理解與比賽情境應用。', 'For players who already have a solid base: strengthen individual technique, tactical understanding and application in match situations.') }}</p>
       </div>
     </div>
 
@@ -170,21 +172,22 @@ useCourseSchema(
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
       <div class="prose">
-        <h2>訓練地點</h2>
-        <p v-if="isTcrfc">兒童足球訓練主要於台中磐石主場地舉行，實際梯次場地將於報名頁面標示。</p>
-        <p v-else>課程主要於{{ primaryVenue.nameZh }}舉行，實際梯次場地將依公告為準。</p>
+        <h2>{{ tx('訓練地點', 'Training Venue') }}</h2>
+        <p v-if="isTcrfc">{{ tx('兒童足球訓練主要於台中磐石主場地舉行，實際梯次場地將於報名頁面標示。', 'Children\'s Training is held mainly at the Taichung Rock FC home ground. The venue for each session will be shown on the registration page.') }}</p>
+        <p v-else>課程主要於{{ venueName }}舉行，實際梯次場地將依公告為準。</p>
       </div>
       <div class="fact-panel">
         <dl style="margin:0;">
-          <dt>主要場地</dt>
-          <dd>{{ primaryVenue.nameZh }}</dd>
+          <dt>{{ tx('主要場地', 'Main venue') }}</dt>
+          <dd>{{ venueName }}</dd>
           <template v-if="facts.contact.address">
-            <dt>地址</dt>
-            <dd>{{ facts.contact.address }}</dd>
+            <dt>{{ tx('地址', 'Address') }}</dt>
+            <dd v-if="isEn"><span lang="zh-Hant">{{ facts.contact.address }}</span></dd>
+            <dd v-else>{{ facts.contact.address }}</dd>
           </template>
           <template v-if="isTcrfc">
-            <dt>地圖</dt>
-            <dd><a href="https://www.google.com/maps/search/?api=1&query=%E8%A5%BF%E5%B1%AF%E8%B6%B3%E7%90%83%E5%A0%B4%20%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B7%2011%20%E5%BC%84%2041%20%E8%99%9F" target="_blank" rel="noopener">在 Google 地圖開啟 <span class="visually-hidden">（新分頁開啟）</span></a></dd>
+            <dt>{{ tx('地圖', 'Map') }}</dt>
+            <dd><a href="https://www.google.com/maps/search/?api=1&query=%E8%A5%BF%E5%B1%AF%E8%B6%B3%E7%90%83%E5%A0%B4%20%E5%8F%B0%E4%B8%AD%E5%B8%82%E5%8C%97%E5%B1%AF%E5%8D%80%E5%B4%87%E5%B9%B3%E8%B7%AF%E4%BA%8C%E6%AE%B5%E6%99%AF%E8%B0%B7%E5%B7%B7%2011%20%E5%BC%84%2041%20%E8%99%9F" target="_blank" rel="noopener">{{ tx('在 Google 地圖開啟', 'Open in Google Maps') }} <span class="visually-hidden">{{ tx('（新分頁開啟）', '(opens in a new tab)') }}</span></a></dd>
           </template>
         </dl>
       </div>
@@ -196,21 +199,21 @@ useCourseSchema(
 <section class="band">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
-      <h2>週期課表</h2>
-      <p v-if="sessions.length === 0">梯次尚未開放報名，時段與適合分級將於後台建立梯次後自動顯示於本頁。</p>
-      <p v-else>目前開放中的梯次如下，時段為每週固定上課時間，實際場地請以梯次公告為準。</p>
+      <h2>{{ tx('週期課表', 'Weekly Timetable') }}</h2>
+      <p v-if="sessions.length === 0">{{ tx('梯次尚未開放報名，時段與適合分級將於後台建立梯次後自動顯示於本頁。', 'Sessions are not open for registration yet. Schedules and suitable levels will appear on this page automatically once sessions are created.') }}</p>
+      <p v-else>{{ tx('目前開放中的梯次如下，時段為每週固定上課時間，實際場地請以梯次公告為準。', 'The sessions currently open are listed below. Times are the fixed weekly class times; please refer to the session notice for the actual venue.') }}</p>
     </div>
     <div class="table-wrap">
       <table class="data-table">
         <thead>
-          <tr><th scope="col">時段</th><th scope="col">分級／人數</th><th scope="col">地點</th></tr>
+          <tr><th scope="col">{{ tx('時段', 'Schedule') }}</th><th scope="col">{{ tx('分級／人數', 'Level / Enrolled') }}</th><th scope="col">{{ tx('地點', 'Venue') }}</th></tr>
         </thead>
         <tbody>
-          <tr v-if="sessions.length === 0"><td colspan="3" class="is-pending">梯次資訊準備中</td></tr>
+          <tr v-if="sessions.length === 0"><td colspan="3" class="is-pending">{{ tx('梯次資訊準備中', 'Session information is being prepared') }}</td></tr>
           <tr v-for="s in sessions" :key="s.id">
             <td>{{ formatSchedule(s.weeklySchedule) }}</td>
-            <td>{{ s.enrolledCount }}{{ s.capacity ? ` / ${s.capacity}` : '' }} 人</td>
-            <td>{{ s.venueName ?? primaryVenue.nameZh }}</td>
+            <td>{{ s.enrolledCount }}{{ s.capacity ? ` / ${s.capacity}` : '' }}{{ tx(' 人', ' enrolled') }}</td>
+            <td>{{ s.venueName ?? venueName }}</td>
           </tr>
         </tbody>
       </table>
@@ -218,16 +221,17 @@ useCourseSchema(
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(faqs)" partial />
 <section class="band">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">FAQ</p>
-        <h2 class="section-title">兒童足球訓練常見問題</h2>
+        <h2 class="section-title">{{ tx('兒童足球訓練常見問題', 'Children\'s Training FAQ') }}</h2>
       </div>
-      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+      <a :href="lp('/zh/faq/')">{{ tx('查看全部常見問題 →', 'View all FAQs →') }}</a>
     </div>
-    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">{{ tx('常見問題收錄中，稍後將於本頁公布。', 'FAQs are being compiled and will be published on this page soon.') }}</p>
     <dl v-else class="faq-embed-list">
       <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
         <dt>{{ f.question }}</dt>
@@ -240,16 +244,16 @@ useCourseSchema(
 <section v-if="isTcrfc" class="band" style="background:var(--paper-2);" aria-labelledby="cft-gallery-title">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
-      <h2 id="cft-gallery-title">活動花絮：台中磐石足球節</h2>
-      <p>由台中磐石主辦的兒童足球嘉年華活動，邀集台中多所國小與地區球隊參與，是兒童足球訓練學員展現學習成果、與其他球隊交流的年度活動之一。</p>
+      <h2 id="cft-gallery-title">{{ tx('活動花絮：台中磐石足球節', 'Event Highlights: Taichung Rock FC Football Festival') }}</h2>
+      <p>{{ tx('由台中磐石主辦的兒童足球嘉年華活動，邀集台中多所國小與地區球隊參與，是兒童足球訓練學員展現學習成果、與其他球隊交流的年度活動之一。', 'A children\'s football carnival hosted by Taichung Rock FC, bringing together primary schools and local teams from across Taichung. It is one of the annual events where Children\'s Training players show what they have learned and meet other teams.') }}</p>
     </div>
     <div class="photo-grid">
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-02.jpg')" loading="lazy" width="1600" height="1067" alt="台中磐石足球節活動現場，多支國小球隊球員席地而坐聆聽工作人員說明活動流程"><figcaption>台中磐石足球節：賽前集合說明</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-03.jpg')" loading="lazy" width="1600" height="1067" alt="多支參賽國小足球隊學員與教練於場邊合影，手持隊旗與台中磐石活動布條"><figcaption>台中磐石足球節：參賽隊伍合影</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-04.jpg')" loading="lazy" width="1600" height="1067" alt="兒童球員於場上爭搶控球，隊友於後方跟進包抄"><figcaption>台中磐石足球節：場上比賽</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-05.jpg')" loading="lazy" width="1600" height="1067" alt="教練蹲低與一組兒童球員圍圈講解戰術板上的站位安排"><figcaption>台中磐石足球節：教練賽中講解</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-06.jpg')" loading="lazy" width="1600" height="1067" alt="場邊觀眾為正在射門的兒童球員加油，家長舉傘遮陽觀賽"><figcaption>台中磐石足球節：場邊加油</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-07.jpg')" loading="lazy" width="1600" height="1067" alt="兩名兒童球員在球場上近身爭搶球權"><figcaption>台中磐石足球節：一對一對抗</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-02.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('台中磐石足球節活動現場，多支國小球隊球員席地而坐聆聽工作人員說明活動流程', 'Players from several primary-school teams sit on the ground at the Football Festival listening to staff explain the schedule')"><figcaption>{{ tx('台中磐石足球節：賽前集合說明', 'Football Festival: pre-match briefing') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-03.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('多支參賽國小足球隊學員與教練於場邊合影，手持隊旗與台中磐石活動布條', 'Players and coaches from the participating primary-school teams pose for a group photo at the pitch side, holding team flags and a Taichung Rock FC event banner')"><figcaption>{{ tx('台中磐石足球節：參賽隊伍合影', 'Football Festival: participating teams group photo') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-04.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('兒童球員於場上爭搶控球，隊友於後方跟進包抄', 'Young players challenge for the ball on the pitch while a teammate follows up from behind')"><figcaption>{{ tx('台中磐石足球節：場上比賽', 'Football Festival: on-pitch match') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-05.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('教練蹲低與一組兒童球員圍圈講解戰術板上的站位安排', 'A coach crouches with a group of young players in a circle, explaining positions on a tactics board')"><figcaption>{{ tx('台中磐石足球節：教練賽中講解', 'Football Festival: coach\'s in-game briefing') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-06.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('場邊觀眾為正在射門的兒童球員加油，家長舉傘遮陽觀賽', 'Spectators cheer on a young player taking a shot, with parents holding umbrellas against the sun')"><figcaption>{{ tx('台中磐石足球節：場邊加油', 'Football Festival: cheering from the sidelines') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/childrens-07.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('兩名兒童球員在球場上近身爭搶球權', 'Two young players battle closely for possession')"><figcaption>{{ tx('台中磐石足球節：一對一對抗', 'Football Festival: one-on-one duel') }}</figcaption></figure>
     </div>
 
   </div>
@@ -257,8 +261,8 @@ useCourseSchema(
 <section v-else class="band" style="background:var(--paper-2);" aria-labelledby="cft-gallery-title">
   <div class="container">
     <div class="prose">
-      <h2 id="cft-gallery-title">活動花絮</h2>
-      <p class="is-pending">活動花絮整理中，稍後將於本頁公布。</p>
+      <h2 id="cft-gallery-title">{{ tx('活動花絮', 'Event Highlights') }}</h2>
+      <p class="is-pending">{{ tx('活動花絮整理中，稍後將於本頁公布。', 'Event highlights are being compiled and will be published on this page soon.') }}</p>
     </div>
   </div>
 </section>
@@ -271,15 +275,15 @@ useCourseSchema(
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">{{ isTcrfc ? 'ENROL NOW' : 'JOIN US' }}</p>
-        <h2 class="section-title" id="cft-cta-title">立即為孩子報名</h2>
+        <h2 class="section-title" id="cft-cta-title">{{ tx('立即為孩子報名', 'Register Your Child Now') }}</h2>
       </div>
     </div>
-    <p v-if="isTcrfc" class="section-lede">選擇合適的分級，開始每週規律的足球訓練。站內不接受金流付款，梯次確認後將個別通知繳費方式。</p>
+    <p v-if="isTcrfc" class="section-lede">{{ tx('選擇合適的分級，開始每週規律的足球訓練。站內不接受金流付款，梯次確認後將個別通知繳費方式。', 'Choose the right level and start regular weekly football training. Payment is not taken on this site; once your session is confirmed we will let you know how to pay.') }}</p>
     <p v-else class="section-lede">免試上、免測試、免入會費，現場個人報名即可加入；報名方式與課表請洽台中藍鯨官方 LINE。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a v-if="isTcrfc" class="btn btn--primary" :href="hasRegistrable ? '#register' : lp('/zh/join/academy/')">線上報名</a>
+      <a v-if="isTcrfc" class="btn btn--primary" :href="hasRegistrable ? '#register' : lp('/zh/join/academy/')">{{ tx('線上報名', 'Register Online') }}</a>
       <a v-else-if="identity.social.line" class="btn btn--primary" :href="identity.social.line" target="_blank" rel="noopener">洽詢官方 LINE</a>
-      <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
+      <a class="btn btn--light" :href="lp('/zh/programs/')">{{ tx('回課程總覽', 'Back to Programs Overview') }}</a>
     </div>
   </div>
 </section>

@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   const raw = await readBody<Record<string, unknown>>(event).catch(() => null)
   if (!raw || typeof raw.code !== 'string' || typeof raw.state !== 'string') {
-    return memberProblem(event, 400, 'invalid_body', 'LINE 授權資料不完整。')
+    return memberProblem(event, 400, 'invalid_body', 'LINE 授權資料不完整。', 'The LINE authorisation data is incomplete.')
   }
   const bearer = readBearer(event)
   const res = await callUpstream(event, 'POST', 'member/auth/line/callback', {

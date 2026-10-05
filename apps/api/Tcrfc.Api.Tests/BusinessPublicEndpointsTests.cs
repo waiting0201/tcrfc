@@ -40,7 +40,22 @@ public sealed class BusinessPublicEndpointsTests(AdminWriteApiFixture fixture)
 
         // 沒有英文版：英文請求回退中文名稱（不是空白）
         var en = await BizTest.ReadAsync<List<PartnerDto>>(await client.GetAsync("/api/v1/tcrfc/partners?lang=en"));
-        Assert.Equal("【測試】示範教育夥伴", en.Single(p => p.Slug == "test-partner-education").Name);
+        // 回退規則不依賴種子（種子已補英文列）：自建一個只有繁中名稱的夥伴，英文請求應回退繁中名稱。
+        var zhOnlySlug = BizTest.Unique("test-partner-zhonly");
+        var zhOnlyId = Guid.NewGuid();
+        try
+        {
+            var clubId = await BizTest.ScalarGuidAsync("SELECT id FROM clubs WHERE code = N'tcrfc'");
+            await BizTest.ExecuteSqlAsync("INSERT INTO partners (id, club_id, slug) VALUES (@Id, @C, @Slug)", ("@Id", zhOnlyId), ("@C", clubId), ("@Slug", zhOnlySlug));
+            await BizTest.ExecuteSqlAsync("INSERT INTO partners_i18n (partner_id, locale, name) VALUES (@Id, N'zh-Hant', N'【測試】僅繁中夥伴')", ("@Id", zhOnlyId));
+            var enWithZhOnly = await BizTest.ReadAsync<List<PartnerDto>>(await client.GetAsync("/api/v1/tcrfc/partners?lang=en"));
+            Assert.Equal("【測試】僅繁中夥伴", enWithZhOnly.Single(p => p.Slug == zhOnlySlug).Name);
+        }
+        finally
+        {
+            await BizTest.ExecuteSqlAsync("DELETE FROM partners_i18n WHERE partner_id = @Id; DELETE FROM partners WHERE id = @Id", ("@Id", zhOnlyId));
+        }
+
         Assert.Equal("Test Strategic Partner", en.Single(p => p.Slug == "test-partner-strategic").Name);
 
         // 資料依俱樂部分開：藍鯨看不到磐石的測試夥伴，未知俱樂部 404

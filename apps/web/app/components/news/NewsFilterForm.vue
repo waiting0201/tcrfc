@@ -15,34 +15,36 @@ const tag = defineModel<string>('tag', { default: '' })
 const year = defineModel<string>('year', { default: '' })
 const month = defineModel<string>('month', { default: '' })
 const search = defineModel<string>('search', { default: '' })
+// 英文版（主站 /en/）文案：短字串用 tx()，月份名稱用 newsMonthLabelEn()
+const { isEn, tx } = useLocale()
 </script>
 
 <template>
-  <form class="filter-row" role="search" onsubmit="return false;" aria-label="標籤、年月篩選與關鍵字搜尋">
+  <form class="filter-row" role="search" onsubmit="return false;" :aria-label="tx('標籤、年月篩選與關鍵字搜尋', 'Filter by tag, year and month, or search by keyword')">
     <div v-if="tags.length > 0" class="filter-field">
-      <label for="filter-tag">標籤</label>
+      <label for="filter-tag">{{ tx('標籤', 'Tag') }}</label>
       <select id="filter-tag" v-model="tag">
-        <option value="">全部標籤</option>
+        <option value="">{{ tx('全部標籤', 'All tags') }}</option>
         <option v-for="t in tags" :key="t.slug" :value="t.slug">{{ t.name }}</option>
       </select>
     </div>
     <div class="filter-field">
-      <label for="filter-year">年份</label>
+      <label for="filter-year">{{ tx('年份', 'Year') }}</label>
       <select id="filter-year" v-model="year">
-        <option value="">全部年份</option>
+        <option value="">{{ tx('全部年份', 'All years') }}</option>
         <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
       </select>
     </div>
     <div class="filter-field">
-      <label for="filter-month">月份</label>
+      <label for="filter-month">{{ tx('月份', 'Month') }}</label>
       <select id="filter-month" v-model="month">
-        <option value="">全部月份</option>
-        <option v-for="m in months" :key="m" :value="m">{{ newsMonthLabel(m) }}</option>
+        <option value="">{{ tx('全部月份', 'All months') }}</option>
+        <option v-for="m in months" :key="m" :value="m">{{ isEn ? newsMonthLabelEn(m) : newsMonthLabel(m) }}</option>
       </select>
     </div>
     <div class="filter-field filter-field--search">
-      <label for="filter-search">關鍵字搜尋</label>
-      <input id="filter-search" v-model="search" type="search" placeholder="搜尋文章標題…" autocomplete="off">
+      <label for="filter-search">{{ tx('關鍵字搜尋', 'Keyword search') }}</label>
+      <input id="filter-search" v-model="search" type="search" :placeholder="tx('搜尋文章標題…', 'Search article titles…')" autocomplete="off">
     </div>
   </form>
 </template>

@@ -7,27 +7,27 @@
 // 檔頭）。八大主題本身是通用足球培訓詞彙，兩俱樂部共用；每個模組詳細內容本來就是
 // 「準備中」佔位文字（磐石版也是）。改為讀 getPlayerDevelopmentSeo()／
 // getPlayerDevelopmentHero()，藍鯨版避免使用「系統」這個暗示已建制機構框架的用詞。
-definePageMeta({ nav: 'club', unit: '3.2' })
+definePageMeta({ nav: 'club', unit: '3.2', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => getPlayerDevelopmentSeo(clubKey.value).title),
-  description: computed(() => getPlayerDevelopmentSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getPlayerDevelopmentSeoEn() : getPlayerDevelopmentSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getPlayerDevelopmentSeoEn() : getPlayerDevelopmentSeo(clubKey.value)).description),
 })
-const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getPlayerDevelopmentHeroEn() : getPlayerDevelopmentHero(clubKey.value)))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
-      <li aria-current="page">球員發展{{ clubKey === 'bw' ? '重點' : '系統' }}</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/club/')">{{ tx('俱樂部', 'Football Club') }}</a></li>
+      <li aria-current="page">{{ isEn ? 'Player Development' : `球員發展${clubKey === 'bw' ? '重點' : '系統'}` }}</li>
     </ol>
   </div>
 </nav>
@@ -45,18 +45,18 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
 
 <section class="band" id="modules" aria-labelledby="modules-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="modules-title">八大發展模組</h2>
+    <h2 class="visually-hidden" id="modules-title">{{ tx('八大發展模組', 'The eight development modules') }}</h2>
 
     <div class="module-grid">
       <details class="module-card">
         <summary>
           <span class="module-card__num">01</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
-          <span class="module-card__title">技術戰術分析<span class="en">Technical &amp; Tactical Analysis</span></span>
+          <span class="module-card__title">{{ tx('技術戰術分析', 'Technical & Tactical Analysis') }}<span v-if="!isEn" class="en">Technical &amp; Tactical Analysis</span></span>
           <svg class="module-card__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </summary>
         <div class="module-card__detail">
-          <p>詳細內容準備中，稍後將於本頁公開。</p>
+          <p>{{ tx('詳細內容準備中，稍後將於本頁公開。', 'Details are being prepared and will be published on this page soon.') }}</p>
         </div>
       </details>
 
@@ -64,11 +64,11 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
         <summary>
           <span class="module-card__num">02</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 20V10M12 20V4M18 20v-7"/></svg>
-          <span class="module-card__title">體能訓練<span class="en">Physical Fitness Training</span></span>
+          <span class="module-card__title">{{ tx('體能訓練', 'Physical Fitness Training') }}<span v-if="!isEn" class="en">Physical Fitness Training</span></span>
           <svg class="module-card__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </summary>
         <div class="module-card__detail">
-          <p>詳細內容準備中，稍後將於本頁公開。</p>
+          <p>{{ tx('詳細內容準備中，稍後將於本頁公開。', 'Details are being prepared and will be published on this page soon.') }}</p>
         </div>
       </details>
 
@@ -76,11 +76,11 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
         <summary>
           <span class="module-card__num">03</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
-          <span class="module-card__title">比賽判讀<span class="en">Match Reading</span></span>
+          <span class="module-card__title">{{ tx('比賽判讀', 'Match Reading') }}<span v-if="!isEn" class="en">Match Reading</span></span>
           <svg class="module-card__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </summary>
         <div class="module-card__detail">
-          <p>詳細內容準備中，稍後將於本頁公開。</p>
+          <p>{{ tx('詳細內容準備中，稍後將於本頁公開。', 'Details are being prepared and will be published on this page soon.') }}</p>
         </div>
       </details>
 
@@ -88,11 +88,11 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
         <summary>
           <span class="module-card__num">04</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 21s-7-4.35-9-9a5 5 0 0 1 9-3 5 5 0 0 1 9 3c-2 4.65-9 9-9 9z"/></svg>
-          <span class="module-card__title">心理韌性<span class="en">Mental Resilience</span></span>
+          <span class="module-card__title">{{ tx('心理韌性', 'Mental Resilience') }}<span v-if="!isEn" class="en">Mental Resilience</span></span>
           <svg class="module-card__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </summary>
         <div class="module-card__detail">
-          <p>詳細內容準備中，稍後將於本頁公開。</p>
+          <p>{{ tx('詳細內容準備中，稍後將於本頁公開。', 'Details are being prepared and will be published on this page soon.') }}</p>
         </div>
       </details>
 
@@ -100,11 +100,11 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
         <summary>
           <span class="module-card__num">05</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="1"/><path d="M10 9l5 3-5 3z"/></svg>
-          <span class="module-card__title">影片分析<span class="en">Video Analysis</span></span>
+          <span class="module-card__title">{{ tx('影片分析', 'Video Analysis') }}<span v-if="!isEn" class="en">Video Analysis</span></span>
           <svg class="module-card__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </summary>
         <div class="module-card__detail">
-          <p>詳細內容準備中，稍後將於本頁公開。</p>
+          <p>{{ tx('詳細內容準備中，稍後將於本頁公開。', 'Details are being prepared and will be published on this page soon.') }}</p>
         </div>
       </details>
 
@@ -112,11 +112,11 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
         <summary>
           <span class="module-card__num">06</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 19V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13"/><path d="M4 19h16M9 10h6"/></svg>
-          <span class="module-card__title">IDP 個人發展計畫<span class="en">Individual Development Plan</span></span>
+          <span class="module-card__title">{{ tx('IDP 個人發展計畫', 'Individual Development Plan') }}<span v-if="!isEn" class="en">Individual Development Plan</span></span>
           <svg class="module-card__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </summary>
         <div class="module-card__detail">
-          <p>詳細內容準備中，稍後將於本頁公開。</p>
+          <p>{{ tx('詳細內容準備中，稍後將於本頁公開。', 'Details are being prepared and will be published on this page soon.') }}</p>
         </div>
       </details>
 
@@ -124,11 +124,11 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
         <summary>
           <span class="module-card__num">07</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 2a5 5 0 0 0-5 5c0 3 2 4 2 7h6c0-3 2-4 2-7a5 5 0 0 0-5-5z"/><path d="M9 21h6M10 18h4"/></svg>
-          <span class="module-card__title">營養與生活<span class="en">Nutrition &amp; Lifestyle</span></span>
+          <span class="module-card__title">{{ tx('營養與生活', 'Nutrition & Lifestyle') }}<span v-if="!isEn" class="en">Nutrition &amp; Lifestyle</span></span>
           <svg class="module-card__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </summary>
         <div class="module-card__detail">
-          <p>詳細內容準備中，稍後將於本頁公開。</p>
+          <p>{{ tx('詳細內容準備中，稍後將於本頁公開。', 'Details are being prepared and will be published on this page soon.') }}</p>
         </div>
       </details>
 
@@ -136,22 +136,23 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
         <summary>
           <span class="module-card__num">08</span>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3L2 8l10 5 10-5-10-5z"/><path d="M6 10.5V16c0 1.5 3 3 6 3s6-1.5 6-3v-5.5"/></svg>
-          <span class="module-card__title">教育與語言<span class="en">Education &amp; Language</span></span>
+          <span class="module-card__title">{{ tx('教育與語言', 'Education & Language') }}<span v-if="!isEn" class="en">Education &amp; Language</span></span>
           <svg class="module-card__chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
         </summary>
         <div class="module-card__detail">
-          <p>詳細內容準備中，稍後將於本頁公開。</p>
+          <p>{{ tx('詳細內容準備中，稍後將於本頁公開。', 'Details are being prepared and will be published on this page soon.') }}</p>
         </div>
       </details>
 
       <div class="module-card module-card--summary">
         <p class="module-card__summary-kicker">WHY IT MATTERS</p>
-        <p class="module-card__summary-title">{{ isTcrfc ? '八大模組，一套完整體系' : '八大面向，持續培育選手' }}</p>
+        <p class="module-card__summary-title">{{ isEn ? 'Eight modules, one complete system' : (isTcrfc ? '八大模組，一套完整體系' : '八大面向，持續培育選手') }}</p>
         <p class="module-card__summary-desc">
-          <template v-if="isTcrfc">八大模組共同構成一線隊與各梯隊球員的養成框架，銜接學院訓練與國際發展通道，是選手邁向職業舞台的核心支持系統。</template>
+          <template v-if="isEn">The eight modules together form the development framework for First Team and age-group players, connecting Academy training with International Pathways as the core support system for players heading to the professional stage.</template>
+          <template v-else-if="isTcrfc">八大模組共同構成一線隊與各梯隊球員的養成框架，銜接學院訓練與國際發展通道，是選手邁向職業舞台的核心支持系統。</template>
           <template v-else>八大面向共同支持一線隊與青年隊球員的成長，銜接青年隊訓練與國際發展通道，協助選手持續進步。</template>
         </p>
-        <a class="module-card__summary-link" :href="lp('/zh/club/international-pathways/')">查看國際發展通道 →</a>
+        <a class="module-card__summary-link" :href="lp('/zh/club/international-pathways/')">{{ tx('查看國際發展通道 →', 'View International Pathways →') }}</a>
       </div>
     </div>
   </div>
@@ -159,19 +160,19 @@ const hero = computed(() => getPlayerDevelopmentHero(clubKey.value))
 
 <section class="band grain cta-band" id="pd-cta" aria-labelledby="pd-cta-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="pd-cta-title">{{ isTcrfc ? '加入球員發展系統' : '加入球員培育重點' }}</h2>
+    <h2 class="visually-hidden" id="pd-cta-title">{{ isEn ? 'Join Player Development' : (isTcrfc ? '加入球員發展系統' : '加入球員培育重點') }}</h2>
     <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
-        <p class="cta-card__title">認識一線隊</p>
-        <p class="cta-card__desc">{{ isTcrfc ? '看看球員發展系統支持的一線隊陣容與賽季表現。' : '看看一線隊陣容與賽季表現。' }}</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
+        <p class="cta-card__title">{{ tx('認識一線隊', 'Meet the First Team') }}</p>
+        <p class="cta-card__desc">{{ isEn ? 'See the First Team squad and season performances that Player Development supports.' : (isTcrfc ? '看看球員發展系統支持的一線隊陣容與賽季表現。' : '看看一線隊陣容與賽季表現。') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">{{ tx('前往一線隊', 'Go to the First Team') }}</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">10.1</p>
-        <p class="cta-card__title">加入球隊</p>
-        <p class="cta-card__desc">想成為體系內的一員？填寫報名表，開始你的旅程。</p>
-        <a class="btn btn--primary" :href="lp('/zh/join/player/')">填寫報名表</a>
+        <p class="cta-card__title">{{ tx('加入球隊', 'Join the Squad') }}</p>
+        <p class="cta-card__desc">{{ tx('想成為體系內的一員？填寫報名表，開始你的旅程。', 'Want to be part of the system? Fill in the registration form and start your journey.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/join/player/')">{{ tx('填寫報名表', 'Fill in the registration form') }}</a>
       </div>
     </div>
   </div>

@@ -5,31 +5,31 @@
 // 會直接顯示磐石內容，屬於既有缺口，見 units.ts 檔頭說明）。本頁全部既有內容都是
 // 「準備中」通用佔位文字，沒有磐石專屬真實事實，改為兩俱樂部共用同一份文案（只換
 // 抬頭與 CTA 連結），不需要臆造新內容。
-definePageMeta({ nav: "academy", unit: "4.3" })
+definePageMeta({ nav: "academy", unit: "4.3", enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
-const identity = computed(() => getClubIdentity(clubKey.value))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 
 // S1-12d 收尾：梯隊代碼改讀 useSiteFacts(clubKey)（後端公開端點）。
 const { academyLabel } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: computed(() => getAcademyPathwaySeo(clubKey.value).title),
-  description: computed(() => getAcademyPathwaySeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getAcademyPathwaySeoEn() : getAcademyPathwaySeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getAcademyPathwaySeoEn() : getAcademyPathwaySeo(clubKey.value)).description),
 })
-const hero = computed(() => getAcademyPathwayHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getAcademyPathwayHeroEn() : getAcademyPathwayHero(clubKey.value)))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
-      <li aria-current="page">{{ identity.academyShortLabelZh }}發展路徑</li>
+      <li aria-current="page">{{ tx(identity.academyShortLabelZh + '發展路徑', 'Academy Pathway') }}</li>
     </ol>
   </div>
 </nav>
@@ -55,12 +55,12 @@ const hero = computed(() => getAcademyPathwayHero(clubKey.value))
             <span class="path-step__num" aria-hidden="true">01</span>
             <span class="path-step__body">
               <span class="path-step__en">Stage 1 · U12</span>
-              <span class="path-step__zh">起步階段</span>
+              <span class="path-step__zh">{{ tx('起步階段', 'Foundation Stage') }}</span>
             </span>
-            <span class="path-step__chevron" aria-hidden="true">＋</span>
+            <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
           </summary>
           <div class="path-step__detail">
-            <p>詳細說明準備中，稍後將於本頁公布。</p>
+            <p>{{ tx('詳細說明準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
           </div>
         </details>
       </li>
@@ -70,12 +70,12 @@ const hero = computed(() => getAcademyPathwayHero(clubKey.value))
             <span class="path-step__num" aria-hidden="true">02</span>
             <span class="path-step__body">
               <span class="path-step__en">Stage 2 · U15</span>
-              <span class="path-step__zh">深化階段</span>
+              <span class="path-step__zh">{{ tx('深化階段', 'Development Stage') }}</span>
             </span>
-            <span class="path-step__chevron" aria-hidden="true">＋</span>
+            <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
           </summary>
           <div class="path-step__detail">
-            <p>詳細說明準備中，稍後將於本頁公布。</p>
+            <p>{{ tx('詳細說明準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
           </div>
         </details>
       </li>
@@ -84,13 +84,13 @@ const hero = computed(() => getAcademyPathwayHero(clubKey.value))
           <summary>
             <span class="path-step__num" aria-hidden="true">03</span>
             <span class="path-step__body">
-              <span class="path-step__en">Stage 3 · First Team / Overseas</span>
-              <span class="path-step__zh">一線隊／海外</span>
+              <span class="path-step__en">{{ tx('Stage 3 · First Team / Overseas', 'Stage 3') }}</span>
+              <span class="path-step__zh">{{ tx('一線隊／海外', 'First Team / Overseas') }}</span>
             </span>
-            <span class="path-step__chevron" aria-hidden="true">＋</span>
+            <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
           </summary>
           <div class="path-step__detail">
-            <p>詳細說明準備中，稍後將於本頁公布。</p>
+            <p>{{ tx('詳細說明準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
           </div>
         </details>
       </li>
@@ -104,19 +104,19 @@ const hero = computed(() => getAcademyPathwayHero(clubKey.value))
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
-        <span class="cta-card__title">{{ identity.academyShortLabelZh }}隊伍</span>
-        <p class="cta-card__desc">查看 {{ academyLabel() }} 各梯隊</p>
+        <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '隊伍', 'Our Teams') }}</span>
+        <p class="cta-card__desc">{{ tx(`查看 ${academyLabel()} 各梯隊`, `View the ${academyLabel(', ')} squads`) }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/curriculum/')">
         <span class="cta-card__num">4.4</span>
-        <span class="cta-card__title">訓練課程與課綱</span>
-        <p class="cta-card__desc">五大訓練面向與週期規劃</p>
+        <span class="cta-card__title">{{ tx('訓練課程與課綱', 'Training & Curriculum') }}</span>
+        <p class="cta-card__desc">{{ tx('五大訓練面向與週期規劃', 'Five training pillars and how the training cycle is planned') }}</p>
       </a>
       <!-- 4.7 加入學院對藍鯨已整頁關閉（既有 units.ts，S1-15），不連結一個會 404 的頁面。 -->
       <a v-if="isTcrfc" class="cta-card" :href="lp('/zh/academy/join/')">
         <span class="cta-card__num">4.7</span>
-        <span class="cta-card__title">加入學院</span>
-        <p class="cta-card__desc">招生對象與遴選流程</p>
+        <span class="cta-card__title">{{ tx('加入學院', 'Join the Academy') }}</span>
+        <p class="cta-card__desc">{{ tx('招生對象與遴選流程', 'Who we recruit and how selection works') }}</p>
       </a>
     </div>
   </div>

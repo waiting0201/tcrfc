@@ -78,6 +78,7 @@ CLUB_SECTIONS = {
         "51", "52",
         "54",  # 只剩 member.draw_notice_confirmed 設定；抽獎名單（含會員快照）依禁用表剔除
         "56", "57", "58",
+        "61",  # 英文欄位回填（只補 en 列；member_draws_i18n 依禁用表剔除）
     ]},
 }
 CHARITY_SECTIONS = {

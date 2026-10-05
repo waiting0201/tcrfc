@@ -20,15 +20,15 @@
 // 全部固定寫死「Taichung Rock FC」「TCRFC」「台中磐石足球俱樂部」「International
 // Department」，沒有任何俱樂部分支——10.4 從未被 units.ts 關閉，藍鯨訪客一直看得到
 // 這頁的磐石專屬機構名稱。改讀 club-copy.ts 的 getInternationalPlayerSeo() 等函式。
-definePageMeta({ nav: '', unit: '10.4' })
+definePageMeta({ nav: '', unit: '10.4', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 
 useSeoMeta({
-  title: computed(() => getInternationalPlayerSeo(clubKey.value).title),
-  description: computed(() => getInternationalPlayerSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getInternationalPlayerSeoEn().title : getInternationalPlayerSeo(clubKey.value).title)),
+  description: computed(() => (isEn.value ? getInternationalPlayerSeoEn().description : getInternationalPlayerSeo(clubKey.value).description)),
 })
 const hero = computed(() => getInternationalPlayerHero(clubKey.value))
 const consentAfterLink = computed(() => getInternationalPlayerConsentAfterLink(clubKey.value))
@@ -82,11 +82,11 @@ async function onSubmit() {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑 Breadcrumb">
+<nav class="breadcrumb" :aria-label="tx('麵包屑 Breadcrumb', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁 Home</a></li>
-      <li><a :href="lp('/zh/join/')">加入與聯絡 Join / Contact</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁 Home', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/join/')">{{ tx('加入與聯絡 Join / Contact', 'Join / Contact') }}</a></li>
       <li aria-current="page">International Player Enquiries</li>
     </ol>
   </div>
@@ -96,9 +96,9 @@ async function onSubmit() {
   <span class="ghost-num ghost-num--dark" aria-hidden="true">10.4</span>
   <div class="container">
     <p class="page-hero__eyebrow">10.4 {{ deptLabel }}</p>
-    <h1 lang="en">International Player Enquiries<span class="zh-sub" lang="zh-Hant">國際球員詢問</span></h1>
+    <h1 lang="en">International Player Enquiries<span v-if="!isEn" class="zh-sub" lang="zh-Hant">國際球員詢問</span></h1>
     <p class="page-hero__lede" lang="en">{{ hero.leadEn }}</p>
-    <p class="page-hero__lede zh-sub-para" lang="zh-Hant">{{ hero.leadZh }}</p>
+    <p v-if="!isEn" class="page-hero__lede zh-sub-para" lang="zh-Hant">{{ hero.leadZh }}</p>
   </div>
 </section>
 
@@ -116,20 +116,20 @@ async function onSubmit() {
         <HoneypotField v-model="website" />
 
         <fieldset>
-          <legend>Player Information <span class="zh-sub-inline" lang="zh-Hant">球員基本資料</span></legend>
+          <legend>Player Information <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">球員基本資料</span></legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="ip-name">Full Name <span class="zh-sub-inline" lang="zh-Hant">姓名</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-name">Full Name <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">姓名</span><span class="req" aria-hidden="true">*</span></label>
               <input id="ip-name" v-model="fullName" type="text" name="full_name" required autocomplete="name" aria-describedby="ip-name-error">
               <p class="field-error" id="ip-name-error" role="alert">Please enter your full name</p>
             </div>
             <div class="form-field">
-              <label for="ip-nationality">Nationality <span class="zh-sub-inline" lang="zh-Hant">國籍</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-nationality">Nationality <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">國籍</span><span class="req" aria-hidden="true">*</span></label>
               <input id="ip-nationality" v-model="nationality" type="text" name="nationality" required autocomplete="country-name" aria-describedby="ip-nationality-error">
               <p class="field-error" id="ip-nationality-error" role="alert">Please enter your nationality</p>
             </div>
             <div class="form-field">
-              <label for="ip-passport">Passport Number <span class="zh-sub-inline" lang="zh-Hant">護照號碼（選填）</span></label>
+              <label for="ip-passport">Passport Number <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">護照號碼（選填）</span></label>
               <input id="ip-passport" v-model="passportNumber" type="text" name="passport_number" autocomplete="off" aria-describedby="ip-passport-hint">
               <p class="field-hint" id="ip-passport-hint">Optional at enquiry stage; may be requested later if we proceed with a trial or contract.</p>
             </div>
@@ -137,10 +137,10 @@ async function onSubmit() {
         </fieldset>
 
         <fieldset>
-          <legend>Football Background <span class="zh-sub-inline" lang="zh-Hant">足球背景</span></legend>
+          <legend>Football Background <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">足球背景</span></legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="ip-position">Position <span class="zh-sub-inline" lang="zh-Hant">場上位置</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-position">Position <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">場上位置</span><span class="req" aria-hidden="true">*</span></label>
               <select id="ip-position" v-model="position" name="position" required aria-describedby="ip-position-error">
                 <option value="">Select</option>
                 <option value="gk">Goalkeeper (GK)</option>
@@ -162,13 +162,13 @@ async function onSubmit() {
               <input id="ip-level" v-model="playingLevel" type="text" name="playing_level" placeholder="e.g. semi-professional, university league, national youth team">
             </div>
             <div class="form-field form-field--full">
-              <label for="ip-experience">Career Summary <span class="zh-sub-inline" lang="zh-Hant">足球經歷簡述</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-experience">Career Summary <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">足球經歷簡述</span><span class="req" aria-hidden="true">*</span></label>
               <textarea id="ip-experience" v-model="careerSummary" name="career_summary" required aria-describedby="ip-experience-hint ip-experience-error"></textarea>
               <p class="field-hint" id="ip-experience-hint">Clubs, leagues, honours or representative caps — a brief summary is enough.</p>
               <p class="field-error" id="ip-experience-error" role="alert">Please summarise your football career</p>
             </div>
             <div class="form-field form-field--full">
-              <label for="ip-video">Video Highlight Link <span class="zh-sub-inline" lang="zh-Hant">影片連結</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-video">Video Highlight Link <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">影片連結</span><span class="req" aria-hidden="true">*</span></label>
               <input id="ip-video" v-model="videoUrl" type="url" name="video_url" required placeholder="https://" aria-describedby="ip-video-hint ip-video-error">
               <p class="field-hint" id="ip-video-hint">A publicly viewable link (YouTube, cloud drive, etc.) speeds up our evaluation.</p>
               <p class="field-error" id="ip-video-error" role="alert">Please provide a video link</p>
@@ -177,10 +177,10 @@ async function onSubmit() {
         </fieldset>
 
         <fieldset>
-          <legend>Visa Status <span class="zh-sub-inline" lang="zh-Hant">簽證狀態</span></legend>
+          <legend>Visa Status <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">簽證狀態</span></legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="ip-visa">Current Visa Status <span class="zh-sub-inline" lang="zh-Hant">簽證狀態</span><span class="req" aria-hidden="true">*</span></label>
+              <label for="ip-visa">Current Visa Status <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">簽證狀態</span><span class="req" aria-hidden="true">*</span></label>
               <select id="ip-visa" v-model="visaStatus" name="visa_status" required aria-describedby="ip-visa-error">
                 <option value="">Select</option>
                 <option value="not_in_taiwan">Not currently in Taiwan</option>
@@ -194,7 +194,7 @@ async function onSubmit() {
         </fieldset>
 
         <fieldset>
-          <legend>Contact Information <span class="zh-sub-inline" lang="zh-Hant">聯絡方式</span></legend>
+          <legend>Contact Information <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">聯絡方式</span></legend>
           <div class="form-grid">
             <div class="form-field">
               <label for="ip-email">Email<span class="req" aria-hidden="true">*</span></label>
@@ -212,7 +212,7 @@ async function onSubmit() {
         <div class="consent-block">
           <div class="checkbox-field">
             <input id="ip-consent" v-model="consent" type="checkbox" name="consent" required aria-describedby="ip-consent-error">
-            <label for="ip-consent">I have read and agree to the <a :href="lp('/zh/privacy/')">Privacy Policy</a>{{ consentAfterLink.en }} <span class="req" aria-hidden="true">*</span><span class="zh-sub-inline" lang="zh-Hant">{{ consentAfterLink.zh }}</span></label>
+            <label for="ip-consent">I have read and agree to the <a :href="lp('/zh/privacy/')">Privacy Policy</a>{{ consentAfterLink.en }} <span class="req" aria-hidden="true">*</span><span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">{{ consentAfterLink.zh }}</span></label>
           </div>
           <p class="field-error" id="ip-consent-error" role="alert">Please check the consent box to continue</p>
           
@@ -234,7 +234,7 @@ async function onSubmit() {
       <aside class="form-sidebar">
         <div class="form-sidebar__sticky">
         <div class="form-sidebar__card">
-          <p class="form-sidebar__dept">Handled by <span class="zh-sub-inline" lang="zh-Hant">收件單位</span></p>
+          <p class="form-sidebar__dept">Handled by <span v-if="!isEn" class="zh-sub-inline" lang="zh-Hant">收件單位</span></p>
           <h2 lang="en">{{ deptLabel }}</h2>
           
         </div>

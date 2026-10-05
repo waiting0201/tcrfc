@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   const raw = await readBody<Record<string, unknown>>(event).catch(() => null)
   if (!raw || typeof raw.ticket !== 'string' || typeof raw.email !== 'string' || typeof raw.club !== 'string') {
-    return memberProblem(event, 400, 'invalid_body', '請填寫 Email。')
+    return memberProblem(event, 400, 'invalid_body', '請填寫 Email。', 'Please enter your email address.')
   }
   const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
   // 監護人同意（未滿 18 歲）：只挑契約內的四個欄位轉發，型別不對就不帶（由後端回 guardian_consent_required）。

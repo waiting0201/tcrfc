@@ -21,7 +21,7 @@
 // 若編輯把文章 slug 取名剛好撞上這 8 個分類代碼（或 'article'，見下方保留字清單），
 // 該篇文章會變成打不到、永遠顯示分類頁——這組保留字的建立端驗證由 apps/api
 // 另一位 agent 同步處理，不在本頁範圍，這裡只確保「靜態贏動態」這個路由層的前提成立。
-definePageMeta({ nav: 'news', unit: '07' })
+definePageMeta({ nav: 'news', unit: '07', enReady: true })
 
 const route = useRoute()
 const config = useRuntimeConfig()
@@ -29,7 +29,7 @@ const club = config.public.club
 
 // S1-13：lang 跟隨目前路由語系（/zh/news/{slug} 或 /en/news/{slug}，兩者是同一個
 // component 檔案複製出來的孿生路由，見 nuxt.config.ts 的 pages:extend），不再寫死 'zh'。
-const { locale, lp } = useLocale()
+const { locale, lp, isEn, tx } = useLocale()
 
 // slug 用函式形式傳給 useFetch key／URL，確保「從一篇相關文章點到另一篇」這種
 // client-side 導覽（同一個路由元件、只有 params.slug 變化）會重新打 API，
@@ -96,7 +96,7 @@ const matchFields = computed(() => {
   if (!id) return null
   const m = (scheduleData.value?.items ?? []).find((x) => x.id.toLowerCase() === id)
   if (!m) return null
-  const self = getClubAssets(club).nameZh
+  const self = isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh
   const opp = m.opponent ?? '—'
   const finished = m.scoreHome != null && m.scoreAway != null
   return {
@@ -125,8 +125,19 @@ async function copyShareLink() {
   setTimeout(() => { copyState.value = 'idle' }, 2500)
 }
 
-const eyebrow = computed(() => newsEyebrowText(article.value?.categoryCode ?? ''))
-const categoryBilingual = computed(() => newsCategoryBilingualLabel(article.value?.categoryCode ?? '', article.value?.categoryName))
+const eyebrow = computed(() => (isEn.value ? newsCategoryTabLabelEn(article.value?.categoryCode ?? '') : newsEyebrowText(article.value?.categoryCode ?? '')))
+const categoryBilingual = computed(() => (isEn.value
+  ? newsCategoryLabelEn(article.value?.categoryCode ?? '', article.value?.categoryName)
+  : newsCategoryBilingualLabel(article.value?.categoryCode ?? '', article.value?.categoryName)))
+/** 分類名稱（麵包屑、「查看所有…」按鈕用）：英文版取對照表，避免 API 回退成繁中時混語。 */
+const categoryName = computed(() => (isEn.value ? newsCategoryLabelEn(article.value?.categoryCode ?? '', article.value?.categoryName) : article.value?.categoryName))
+function relatedCategoryName(r: { categoryCode: string, categoryName: string | null }): string | null {
+  return isEn.value ? newsCategoryLabelEn(r.categoryCode, r.categoryName) : r.categoryName
+}
+/** 日期顯示：zh `2026/08/10`、en `10 Aug 2026`。 */
+function dateText(iso: string | null | undefined): string {
+  return isEn.value ? newsDateEn(iso) : newsSlashDate(iso)
+}
 const clubKey: 'tcrfc' | 'bw' = club === 'bw' ? 'bw' : 'tcrfc'
 // S0-7h：封面來源／寬高／替代文字集中在 newsCoverImg()（utils/news.ts）
 const cover = computed(() => (article.value ? newsCoverImg(article.value, clubKey) : null))
@@ -152,16 +163,16 @@ const cover = computed(() => (article.value ? newsCoverImg(article.value, clubKe
 // 沿用 mockup 逐字內容的既有落差，見回報），但本頁是全新頁面且兩站都會用到，
 // 寫死磐石名稱會讓藍鯨站的文章頁 SEO 標題與 Schema 都掛錯品牌，沒有理由沿用
 // 那個已知落差。
-const siteName = computed(() => getClubAssets(club).nameZh)
+const siteName = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
 
 useSeoMeta({
   title: computed(() =>
-    article.value ? `${article.value.title}｜新聞 News｜${siteName.value}` : '',
+    article.value ? (isEn.value ? `${article.value.title} | News | ${siteName.value}` : `${article.value.title}｜新聞 News｜${siteName.value}`) : '',
   ),
   description: computed(() => {
     const a = article.value
     if (!a) return ''
-    return a.seoDescription || a.summary || `${a.title ?? ''} — ${siteName.value}新聞中心`
+    return a.seoDescription || a.summary || (isEn.value ? `${a.title ?? ''} — ${siteName.value} news centre` : `${a.title ?? ''} — ${siteName.value}新聞中心`)
   }),
   // ── S1-12 驗收退回後補做：Meta Keywords／OG 圖文／noindex 真的要輸出到 HTML ──────────
   // 上一輪只把這些欄位加進 apps/api 的 DTO，沒有接到任何前台頁面消費，這裡是第一個（也是
@@ -169,7 +180,7 @@ useSeoMeta({
   // 沒有對應的後端 SEO 資料可讀，見 apps/api/README.md「S1-12」段「Sitemap 只涵蓋 Article」
   // 同一個理由）。
   keywords: computed(() => article.value?.seoKeywords ?? undefined),
-  ogTitle: computed(() => (article.value ? `${article.value.title}｜${siteName.value}` : undefined)),
+  ogTitle: computed(() => (article.value ? `${article.value.title}${isEn.value ? ' | ' : '｜'}${siteName.value}` : undefined)),
   ogDescription: computed(() => article.value?.seoDescription || article.value?.summary || undefined),
   // ogImage 已經是 apps/api 算好優先序（這篇文章專屬 > 全站預設 > 這篇文章的封面圖片）之後
   // 的完整網址，這裡直接用，不在前台重新判斷一次優先序（單一真實來源）。
@@ -256,8 +267,8 @@ watchEffect(() => {
   useSchemaOrg([
     defineBreadcrumb({
       itemListElement: [
-        { name: '首頁', item: `${siteUrl}${lp('/zh/')}` },
-        { name: '新聞 News', item: `${siteUrl}${lp('/zh/news/')}` },
+        { name: tx('首頁', 'Home'), item: `${siteUrl}${lp('/zh/')}` },
+        { name: tx('新聞 News', 'News'), item: `${siteUrl}${lp('/zh/news/')}` },
         { name: a.categoryName ?? undefined, item: `${siteUrl}${lp(`/zh/news/${a.categoryCode}/`)}` },
         { name: a.title ?? undefined },
       ],
@@ -267,12 +278,12 @@ watchEffect(() => {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/news/')">新聞 News</a></li>
-      <li><a :href="lp(`/zh/news/${article?.categoryCode}/`)">{{ article?.categoryName }}</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/news/')">{{ tx('新聞 News', 'News') }}</a></li>
+      <li><a :href="lp(`/zh/news/${article?.categoryCode}/`)">{{ categoryName }}</a></li>
       <li aria-current="page">{{ article?.title }}</li>
     </ol>
   </div>
@@ -289,41 +300,43 @@ watchEffect(() => {
   <div class="container">
     <p class="page-hero__eyebrow">{{ eyebrow }}</p>
     <h1>{{ article?.title }}</h1>
-    <p class="page-hero__lede">{{ newsSlashDate(article?.publishedAt) }} 發布</p>
+    <p class="page-hero__lede">{{ isEn ? `Published ${newsDateEn(article?.publishedAt)}` : `${newsSlashDate(article?.publishedAt)} 發布` }}</p>
   </div>
 </section>
+
+<LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(article) || hasFallbackLocale(related))" partial />
 
 <section class="band" aria-labelledby="article-body-title">
   <div class="band-inner container article-layout">
     <article class="prose">
-      <h2 class="visually-hidden" id="article-body-title">文章內容</h2>
+      <h2 class="visually-hidden" id="article-body-title">{{ tx('文章內容', 'Article content') }}</h2>
 
       <div class="article-meta-row">
-        <div><span class="article-meta-row__label">發布日期</span><time :datetime="newsIsoDate(article?.publishedAt)">{{ newsSlashDate(article?.publishedAt) }}</time></div>
-        <div><span class="article-meta-row__label">分類</span><a :href="lp(`/zh/news/${article?.categoryCode}/`)">{{ categoryBilingual }}</a></div>
-        <div><span class="article-meta-row__label">作者</span>{{ siteName }}</div>
+        <div><span class="article-meta-row__label">{{ tx('發布日期', 'Published') }}</span><time :datetime="newsIsoDate(article?.publishedAt)">{{ dateText(article?.publishedAt) }}</time></div>
+        <div><span class="article-meta-row__label">{{ tx('分類', 'Category') }}</span><a :href="lp(`/zh/news/${article?.categoryCode}/`)">{{ categoryBilingual }}</a></div>
+        <div><span class="article-meta-row__label">{{ tx('作者', 'Author') }}</span>{{ siteName }}</div>
         <!-- S1-17 新增：標籤（規劃書 3.7「詳情頁：…標籤…」，ArticleDetailDto.tags 是 S1-5
              就已回傳的既有欄位，先前沒有前台頁面消費）。沒有標籤時整格不顯示，不留空欄位。 -->
-        <div v-if="article?.tags?.length"><span class="article-meta-row__label">標籤</span>{{ article.tags.map((t) => t.name).filter(Boolean).join('、') }}</div>
+        <div v-if="article?.tags?.length"><span class="article-meta-row__label">{{ tx('標籤', 'Tags') }}</span>{{ article.tags.map((t) => t.name).filter(Boolean).join(isEn ? ', ' : '、') }}</div>
       </div>
 
       <!-- 內文（bodyJson：純文字或區塊 JSON，解析與消毒見 utils/news-body.ts；沒有內文就不顯示） -->
       <NewsBody :body-json="bodyJson" />
 
       <template v-if="matchFields">
-        <h3>賽事資訊</h3>
+        <h3>{{ tx('賽事資訊', 'Match information') }}</h3>
         <table class="match-fields">
           <tbody>
-            <tr><th scope="row">賽事</th><td>{{ matchFields.competition }}</td></tr>
-            <tr><th scope="row">對戰組合</th><td>{{ matchFields.fixture }}</td></tr>
-            <tr v-if="matchFields.score"><th scope="row">比分</th><td>{{ matchFields.score }}</td></tr>
-            <tr><th scope="row">關聯賽事（賽程連結）</th><td><a :href="matchFields.scheduleHref">{{ newsSlashDate(matchFields.matchOn) }} 賽程</a></td></tr>
+            <tr><th scope="row">{{ tx('賽事', 'Competition') }}</th><td>{{ matchFields.competition }}</td></tr>
+            <tr><th scope="row">{{ tx('對戰組合', 'Fixture') }}</th><td>{{ matchFields.fixture }}</td></tr>
+            <tr v-if="matchFields.score"><th scope="row">{{ tx('比分', 'Score') }}</th><td>{{ matchFields.score }}</td></tr>
+            <tr><th scope="row">{{ tx('關聯賽事（賽程連結）', 'Related match (schedule link)') }}</th><td><a :href="matchFields.scheduleHref">{{ isEn ? `Schedule: ${newsDateEn(matchFields.matchOn)}` : `${newsSlashDate(matchFields.matchOn)} 賽程` }}</a></td></tr>
           </tbody>
         </table>
       </template>
 
       <template v-if="cover">
-        <h3>圖集</h3>
+        <h3>{{ tx('圖集', 'Gallery') }}</h3>
         <div class="article-gallery">
           <figure>
             <!-- 主要內容圖：替代文字在這裡（hero 背景是裝飾，alt 留空避免同一張圖念兩次） -->
@@ -331,32 +344,32 @@ watchEffect(() => {
         </div>
       </template>
 
-      <h3>社群分享</h3>
+      <h3>{{ tx('社群分享', 'Share') }}</h3>
       <!-- Facebook／LINE 為官方分享網址（新分頁開啟，不需金鑰、不載入第三方腳本）；複製連結用 Clipboard API。 -->
-      <div class="share-row" role="group" aria-label="分享這篇文章">
-        <a class="btn btn--light btn--sm" :href="facebookShareHref" target="_blank" rel="noopener noreferrer">分享至 Facebook</a>
-        <a class="btn btn--light btn--sm" :href="lineShareHref" target="_blank" rel="noopener noreferrer">分享至 LINE</a>
-        <button type="button" class="btn btn--light btn--sm" @click="copyShareLink">複製連結</button>
-        <span class="share-row__status" role="status" aria-live="polite">{{ copyState === 'done' ? '已複製連結' : copyState === 'failed' ? '無法自動複製，請手動複製網址列' : '' }}</span>
+      <div class="share-row" role="group" :aria-label="tx('分享這篇文章', 'Share this article')">
+        <a class="btn btn--light btn--sm" :href="facebookShareHref" target="_blank" rel="noopener noreferrer">{{ tx('分享至 Facebook', 'Share on Facebook') }}</a>
+        <a class="btn btn--light btn--sm" :href="lineShareHref" target="_blank" rel="noopener noreferrer">{{ tx('分享至 LINE', 'Share on LINE') }}</a>
+        <button type="button" class="btn btn--light btn--sm" @click="copyShareLink">{{ tx('複製連結', 'Copy link') }}</button>
+        <span class="share-row__status" role="status" aria-live="polite">{{ copyState === 'done' ? tx('已複製連結', 'Link copied') : copyState === 'failed' ? tx('無法自動複製，請手動複製網址列', 'Could not copy automatically. Please copy the address from your browser bar.') : '' }}</span>
       </div>
     </article>
 
     <aside class="article-aside" aria-labelledby="related-title">
-      <h3 id="related-title">相關文章</h3>
+      <h3 id="related-title">{{ tx('相關文章', 'Related articles') }}</h3>
       <div class="article-aside__list">
         <a v-for="r in related" :key="r.slug" class="news-card clip-card" :href="lp(`/zh/news/${r.slug}/`)" :data-title="newsTitleAttr(r.title)">
           <div :class="['news-card__media', { 'news-card__media--noimg': !newsCoverImg(r, clubKey) }]">
-            <span class="news-card__tag">{{ r.categoryName }}</span>
+            <span class="news-card__tag">{{ relatedCategoryName(r) }}</span>
             <img v-if="newsCoverImg(r, clubKey)" :src="newsCoverImg(r, clubKey)!.src" :alt="newsCoverImg(r, clubKey)!.alt" loading="lazy" :width="newsCoverImg(r, clubKey)!.width ?? undefined" :height="newsCoverImg(r, clubKey)!.height ?? undefined">
             <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc('bw')" alt="" loading="lazy" width="64" height="63">
           </div>
           <div class="news-card__body">
-            <p class="news-card__meta"><time :datetime="newsIsoDate(r.publishedAt)">{{ newsSlashDate(r.publishedAt) }}</time></p>
+            <p class="news-card__meta"><time :datetime="newsIsoDate(r.publishedAt)">{{ dateText(r.publishedAt) }}</time></p>
             <p class="news-card__title">{{ r.title }}</p>
           </div>
         </a>
       </div>
-      <a class="btn btn--dark btn--block" :href="lp(`/zh/news/${article?.categoryCode}/`)" style="margin-top:1.5rem">查看所有{{ article?.categoryName }}</a>
+      <a class="btn btn--dark btn--block" :href="lp(`/zh/news/${article?.categoryCode}/`)" style="margin-top:1.5rem">{{ isEn ? `View all ${categoryName}` : `查看所有${article?.categoryName}` }}</a>
     </aside>
   </div>
 </section>

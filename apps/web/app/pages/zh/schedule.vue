@@ -97,7 +97,7 @@
 import { venueAddressByName } from '#shared/utils/schema-batch2'
 import { resolveScheduleSlug } from '#shared/utils/schedule-route'
 
-definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule' })
+definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule', enReady: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
@@ -114,7 +114,8 @@ const { facts: clubFacts, academyLabel: clubAcademyLabel } = useSiteFacts(club)
 // S1-13：lang 改跟隨目前路由語系（/zh/ 或 /en/），不再寫死 'zh'——apps/api 對
 // ?lang=en 已有完整欄位回退機制（apps/api/README.md「已知落差」段的真實 curl 驗證），
 // 前台只要把正確的語系傳過去即可，不需要在這裡自己做回退判斷。
-const { locale, lp } = useLocale()
+// 英文版（主站 /en/）：isEn／tx 見 app/composables/useLocale.ts；zh 版輸出逐字不變。
+const { locale, lp, isEn, tx } = useLocale()
 const { data } = await useFetch(`/api/backend/${club}/schedule`, { query: { pageSize: 200, lang: locale.value } })
 const matches = computed(() => data.value?.items ?? [])
 
@@ -216,21 +217,21 @@ const teamTabs = computed<ScheduleTeamTab[]>(() => {
     .filter((t) => t.teamCode !== null)
     .map((t) => ({ id: t.teamCode!.toLowerCase(), filter: t.teamCode!, zh: t.labelZh, en: null }))
   return [
-    { id: 'all', filter: 'all', zh: '全部', en: null },
-    { id: 'first-team', filter: firstTeamCode.value, zh: '一線隊', en: isTcrfc.value ? 'First Team' : null },
+    { id: 'all', filter: 'all', zh: tx('全部', 'All'), en: null },
+    { id: 'first-team', filter: firstTeamCode.value, zh: tx('一線隊', 'First Team'), en: isTcrfc.value && !isEn.value ? 'First Team' : null },
     ...youthTabs,
-    { id: 'club', filter: 'club', zh: '俱樂部活動', en: null },
+    { id: 'club', filter: 'club', zh: tx('俱樂部活動', 'Club events'), en: null },
   ]
 })
 
 /** 隊別頭部標題與「無此隊別資料」文案共用的顯示字，見 `teamHeadName`／`emptyDesc`。 */
 function teamHeadLabel(filter: string): string {
-  if (filter === 'all') return '全部隊別'
-  if (filter === 'club') return '俱樂部活動'
+  if (filter === 'all') return tx('全部隊別', 'All teams')
+  if (filter === 'club') return tx('俱樂部活動', 'Club events')
   const tab = teamTabs.value.find((t) => t.filter === filter)
-  if (!tab) return '全部隊別'
+  if (!tab) return tx('全部隊別', 'All teams')
   if (tab.filter === firstTeamCode.value) return tab.en ? `${tab.zh} ${tab.en}` : tab.zh
-  return `${tab.zh} 梯隊`
+  return isEn.value ? `${tab.zh} squad` : `${tab.zh} 梯隊`
 }
 
 /** 賽季篩選（規劃書 v3.13 §3.13「分頁與篩選」：賽季，預設當季，可回溯往季）。
@@ -330,9 +331,15 @@ function computeNextMatchCountdown(): string | null {
   const instant = matchInstantUtc(upcoming.matchOn, upcoming.kickoff)
   if (!instant) return null
   const diffMs = instant.getTime() - Date.now()
-  if (diffMs <= 0) return '比賽即將開始'
+  if (diffMs <= 0) return tx('比賽即將開始', 'The match is about to start')
   const days = Math.floor(diffMs / 86_400_000)
   const hours = Math.floor((diffMs % 86_400_000) / 3_600_000)
+  if (isEn.value) {
+    const u = (n: number, w: string) => `${n} ${w}${n === 1 ? '' : 's'}`
+    if (days > 0) return `Next match in ${u(days, 'day')} ${u(hours, 'hour')}`
+    const mins = Math.floor((diffMs % 3_600_000) / 60_000)
+    return hours > 0 ? `Next match in ${u(hours, 'hour')} ${u(mins, 'minute')}` : `Next match in ${u(mins, 'minute')}`
+  }
   if (days > 0) return `距離下一場比賽尚有 ${days} 天 ${hours} 小時`
   const minutes = Math.floor((diffMs % 3_600_000) / 60_000)
   return hours > 0 ? `距離下一場比賽尚有 ${hours} 小時 ${minutes} 分鐘` : `距離下一場比賽尚有 ${minutes} 分鐘`
@@ -363,6 +370,11 @@ onMounted(() => {
 onBeforeUnmount(() => {
   if (countdownTimer) clearInterval(countdownTimer)
 })
+
+/** 延賽原定時間文字：zh「原定 …」、en「Originally scheduled …」。 */
+function postponedLine(originalMatchOn: string | null, originalKickoff: string | null): string | null {
+  return isEn.value ? postponedNoteEn(originalMatchOn, originalKickoff) : postponedNote(originalMatchOn, originalKickoff)
+}
 
 function cardStatusCode(m: MatchItem): string {
   return mapMatchStatus(m.status).code
@@ -415,10 +427,20 @@ const teamHeadName = computed(() => teamHeadLabel(state.team))
 // GEO-03（S1-12d）：聯賽名稱為單一來源（useSiteFacts 讀後端 API），不在此重複寫死
 // 字面值（改動前本頁不論 club 皆寫死磐石的聯賽全名，藍鯨容器會顯示錯誤的聯賽名稱）。
 const leagueName = computed(() => clubFacts.value.league.nameZh)
+// 英文版：聯賽英文名只取 facts.league.nameEn，沒有就不自創全名（docs/06 §1.1「企業甲級足球聯賽」列）。
+const leagueNameEn = computed(() => clubFacts.value.league.nameEn)
+const leagueProseEn = computed(() => leagueNameEn.value ?? 'the league')
 // S1-19 補完：賽季不再字面寫死「2026/27」（對藍鯨本來就是錯的事實，藍鯨球季代碼是
 // 「2023」「2025」），改讀 `state.season`（見 `availableSeasons`／`defaultSeason`）。
-const seasonLabel = computed(() => (state.season === 'all' ? '全部賽季' : `${state.season} 賽季`))
+const seasonLabel = computed(() => (state.season === 'all'
+  ? tx('全部賽季', 'All seasons')
+  : (isEn.value ? `${state.season} season` : `${state.season} 賽季`)))
 const teamHeadMeta = computed(() => {
+  if (isEn.value) {
+    if (state.team === 'club') return `${visibleClubEvents.value.length} club ${visibleClubEvents.value.length === 1 ? 'event' : 'events'}`
+    const tail = state.mode === 'results' ? 'Results' : `${visibleMatches.value.length} ${visibleMatches.value.length === 1 ? 'fixture' : 'fixtures'}`
+    return [seasonLabel.value, leagueNameEn.value, tail].filter(Boolean).join(' · ')
+  }
   if (state.team === 'club') return `共 ${visibleClubEvents.value.length} 則俱樂部活動`
   return state.mode === 'results'
     ? `${seasonLabel.value} · ${leagueName.value} · 賽果`
@@ -426,6 +448,12 @@ const teamHeadMeta = computed(() => {
 })
 const isEmpty = computed(() => mounted.value && visibleMatches.value.length === 0 && visibleClubEvents.value.length === 0)
 const emptyDesc = computed(() => {
+  if (isEn.value) {
+    if (state.team === 'club') return 'There are no announced club events yet (press conferences, signing sessions, fan meet-ups and so on). Please follow our official social channels and latest news.'
+    if (state.mode === 'results') return `No completed matches yet (${seasonLabel.value}). Results will be added once matches are played.`
+    if (state.team !== 'all' && state.team !== firstTeamCode.value) return `Fixtures for ${teamHeadLabel(state.team)} are not available yet. They will be added to this page once the schedule is confirmed.`
+    return 'No fixtures are scheduled for this combination of team, competition type and home / away.'
+  }
   if (state.team === 'club') return '目前尚無公告的俱樂部活動（記者會、簽名會、球迷見面會等），請持續關注官方社群與最新消息。'
   if (state.mode === 'results') return `本季（${seasonLabel.value}）尚未有已完成的賽事，賽果會在比賽結束後更新。`
   // 一線隊（D1／BW1）與「全部」皆已有真實賽事資料，其餘（各梯隊）尚無賽程可用。
@@ -494,7 +522,7 @@ function renderCalendar() {
   root.innerHTML = ''
   const visible = visibleMatches.value
   if (visible.length === 0) {
-    root.innerHTML = '<p class="sched-empty__desc">此篩選條件下沒有可顯示於月曆的賽事。</p>'
+    root.innerHTML = `<p class="sched-empty__desc">${tx('此篩選條件下沒有可顯示於月曆的賽事。', 'No matches to show on the calendar for these filters.')}</p>`
     return
   }
   const byMonth = new Map<string, CalDayEvent[]>()
@@ -504,7 +532,7 @@ function renderCalendar() {
     if (!byMonth.has(key)) byMonth.set(key, [])
     byMonth.get(key)!.push({ day, id: fixtureId(m.matchOn, m.homeAway, m.matchNo), opponent: m.opponent ?? '' })
   }
-  const DOW = ['日', '一', '二', '三', '四', '五', '六']
+  const DOW = isEn.value ? ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'] : ['日', '一', '二', '三', '四', '五', '六']
   for (const key of Array.from(byMonth.keys()).sort()) {
     const [yStr, mStr] = key.split('-')
     const y = Number(yStr)
@@ -520,7 +548,7 @@ function renderCalendar() {
       grouped.get(ev.day)!.push(ev)
     }
     const monthTitleId = `cal-month-${key}`
-    let html = `<div class="cal-month"><p class="cal-month__title" id="${monthTitleId}">${calMonthTitle(key)}</p><div class="cal-grid" aria-labelledby="${monthTitleId}">`
+    let html = `<div class="cal-month"><p class="cal-month__title" id="${monthTitleId}">${isEn.value ? calMonthTitleEn(key) : calMonthTitle(key)}</p><div class="cal-grid" aria-labelledby="${monthTitleId}">`
     for (const w of DOW) html += `<span class="cal-dow" aria-hidden="true">${w}</span>`
     for (let i = 0; i < firstDow; i++) html += '<span class="cal-day cal-day--pad" aria-hidden="true"></span>'
     for (let d = 1; d <= daysInMonth; d++) {
@@ -530,10 +558,14 @@ function renderCalendar() {
         continue
       }
       const ids = evs.map((ev) => ev.id).join(',')
-      const opponents = evs.map((ev) => ev.opponent).filter(Boolean).join('、')
-      const label = evs.length > 1
-        ? `${calMonthTitle(key)} ${d} 日，共 ${evs.length} 場賽事：對 ${opponents}，查看詳情`
-        : `${calMonthTitle(key)} ${d} 日對 ${opponents}，查看詳情`
+      const opponents = evs.map((ev) => ev.opponent).filter(Boolean).join(isEn.value ? ', ' : '、')
+      const label = isEn.value
+        ? (evs.length > 1
+            ? `${calDayLabelEn(key, d)}: ${evs.length} matches vs ${opponents}. View details`
+            : `${calDayLabelEn(key, d)}: vs ${opponents}. View details`)
+        : (evs.length > 1
+            ? `${calMonthTitle(key)} ${d} 日，共 ${evs.length} 場賽事：對 ${opponents}，查看詳情`
+            : `${calMonthTitle(key)} ${d} 日對 ${opponents}，查看詳情`)
       const countBadge = evs.length > 1 ? `<sup class="cal-day__count" aria-hidden="true">${evs.length}</sup>` : ''
       html += `<span class="cal-day cal-day--match"><a href="#${escapeHtml(evs[0]!.id)}" data-cal-link data-targets="${escapeHtml(ids)}" aria-label="${escapeHtml(label)}">${d}${countBadge}</a></span>`
     }
@@ -645,13 +677,15 @@ function eventToVeventLines(m: MatchItem): string[] {
   const kickoff = m.kickoff ?? '00:00'
   const opponent = m.opponent ?? ''
   const venue = m.venue ?? ''
-  const ha = haCode(m.homeAway) === 'home' ? '主場' : '客場'
+  const ha = haCode(m.homeAway) === 'home' ? tx('主場', 'Home') : tx('客場', 'Away')
   const start = toUtcIcs(date, kickoff)
   const startDate = new Date(`${date}T${kickoff}:00+08:00`)
   const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000)
   const end = `${endDate.getUTCFullYear()}${pad(endDate.getUTCMonth() + 1)}${pad(endDate.getUTCDate())}T${pad(endDate.getUTCHours())}${pad(endDate.getUTCMinutes())}00Z`
-  const title = `${clubAssets.value.nameZh} vs ${opponent}（${leagueName.value}・${ha}）`
-  const loc = venue === 'TBC' ? '場地未定' : venue
+  const title = isEn.value
+    ? `${CLUB_NAME_EN} vs ${opponent} (${[leagueNameEn.value, ha].filter(Boolean).join(' · ')})`
+    : `${clubAssets.value.nameZh} vs ${opponent}（${leagueName.value}・${ha}）`
+  const loc = venue === 'TBC' ? tx('場地未定', 'Venue TBC') : venue
   return [
     'BEGIN:VEVENT',
     `UID:${icsEscape(fixtureId(m.matchOn, m.homeAway, m.matchNo))}@${uidHost.value}`,
@@ -662,12 +696,12 @@ function eventToVeventLines(m: MatchItem): string[] {
     `LOCATION:${icsEscape(loc)}`,
     // 內容依俱樂部（S1-19 修正——原本這句字面寫死「台中磐石足球俱樂部」，
     // 藍鯨容器下載的 .ics 會顯示錯誤的官方公告主體）。
-    `DESCRIPTION:${icsEscape(`賽程可能異動，請以${clubAssets.value.nameZh}官方公告為準。`)}`,
+    `DESCRIPTION:${icsEscape(isEn.value ? `Fixtures are subject to change. Please refer to official announcements from ${CLUB_NAME_EN}.` : `賽程可能異動，請以${clubAssets.value.nameZh}官方公告為準。`)}`,
     'END:VEVENT',
   ]
 }
 function downloadIcs(filename: string, veventBlocks: string[][]) {
-  const rawLines = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${club === 'bw' ? 'TCBW' : 'TCRFC'}//Schedule//ZH`, 'CALSCALE:GREGORIAN']
+  const rawLines = ['BEGIN:VCALENDAR', 'VERSION:2.0', `PRODID:-//${club === 'bw' ? 'TCBW' : 'TCRFC'}//Schedule//${isEn.value ? 'EN' : 'ZH'}`, 'CALSCALE:GREGORIAN']
     .concat(veventBlocks.flat())
     .concat(['END:VCALENDAR'])
   // RFC 5545 行折疊（見 foldIcsLine 檔頭），逐行補上規定的 CRLF（含最後一行，
@@ -699,22 +733,33 @@ function onShareClick(m: MatchItem) {
       }, 2000)
     })
   } else {
-    window.prompt('複製此賽事連結：', shareUrl)
+    window.prompt(tx('複製此賽事連結：', 'Copy this match link:'), shareUrl)
   }
 }
 
 function onBulkIcs() {
   const visible = visibleMatches.value
   if (visible.length === 0) {
-    window.alert('目前檢視沒有可下載的賽事。')
+    window.alert(tx('目前檢視沒有可下載的賽事。', 'There are no matches in the current view to download.'))
     return
   }
   downloadIcs(`${club}-schedule-${state.team}-${state.mode}.ics`, visible.map(eventToVeventLines))
 }
 
+/** 英文版 SEO 參數（事實由 useSiteFacts 與賽程回應取得，不在 club-copy-en-sched.ts 寫死）。 */
+function scheduleSeoArgsEn() {
+  return {
+    leagueNameEn: leagueNameEn.value,
+    seasonCode: defaultSeason.value === 'all' ? null : defaultSeason.value,
+    matchCount: matches.value.length,
+    squadLabel: clubAcademyLabel(' / '),
+  }
+}
+
 useSeoMeta({
-  title: computed(() => `賽事行事曆 Schedule｜${getClubAssets(club).nameZh}`),
+  title: computed(() => (isEn.value ? getScheduleSeoEn(scheduleSeoArgsEn()).title : `賽事行事曆 Schedule｜${getClubAssets(club).nameZh}`)),
   description: computed(() => {
+    if (isEn.value) return getScheduleSeoEn(scheduleSeoArgsEn()).description
     // S1-19 補完：賽季不再字面寫死「2026/27」（對藍鯨是錯的事實，藍鯨球季代碼是
     // 「2023」「2025」，見 availableSeasons／seasonLabel 的既有說明）。
     const seasonPart = defaultSeason.value === 'all' ? '' : `${defaultSeason.value} `
@@ -724,7 +769,7 @@ useSeoMeta({
 
 // SportsEvent JSON-LD（GEO-08）。siteConfig 已提前宣告於檔案開頭（供 .ics UID 使用），
 // 這裡直接沿用同一個結論，兩站各自跑出自己網域的絕對網址，不寫死 tcrfc.tw。
-const selfTeamName = computed(() => getClubAssets(club).nameZh)
+const selfTeamName = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
 
 // SportsEvent JSON-LD（GEO-08）的 status → schema.org 對照已收斂進
 // app/utils/schedule.ts 的 matchStatusSchemaOrg()（S0-9j）。此頁與畫面
@@ -744,7 +789,7 @@ const sportsEvents = computed(() => {
     const oppTeam = { '@type': 'SportsTeam', name: m.opponent }
     const homeTeam = isHome ? selfTeam : oppTeam
     const awayTeam = isHome ? oppTeam : selfTeam
-    const roundLabel = m.roundNo ? `第${m.roundNo}輪：` : ''
+    const roundLabel = m.roundNo ? (isEn.value ? `Round ${m.roundNo}: ` : `第${m.roundNo}輪：`) : ''
     nodes.push({
       '@type': 'SportsEvent',
       name: `${m.competitionName} ${roundLabel}${homeTeam.name} vs ${awayTeam.name}`,
@@ -801,11 +846,11 @@ useClubEventSchema(clubEvents, {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">賽事行事曆</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx('賽事行事曆', 'Schedule') }}</li>
     </ol>
   </div>
 </nav>
@@ -814,19 +859,23 @@ useClubEventSchema(clubEvents, {
   <span class="ghost-num ghost-num--dark" aria-hidden="true">13</span>
   <div class="container">
     <p class="page-hero__eyebrow">13 Schedule</p>
-    <h1>賽事行事曆<span class="en">Schedule</span></h1>
-    <p class="page-hero__lede">一線隊與各梯隊的完整賽程與賽果，一頁掌握。<strong>所有時間為當地時間，可能異動</strong>，正式時間請以官方公告為準。</p>
-    <p v-if="mounted && viewerTimeZone" class="page-hero__tz-note">已依您目前的裝置時區（<span class="en">{{ viewerTimeZone }}</span>）換算顯示；台灣官方公告時間請見各賽事詳情。</p>
+    <h1>{{ tx('賽事行事曆', 'Schedule') }}<span v-if="!isEn" class="en">Schedule</span></h1>
+    <p v-if="isEn" class="page-hero__lede">Full fixtures and results for the First Team and every Academy squad, all on one page. <strong>All times are local and subject to change</strong>; please refer to official announcements for confirmed times.</p>
+    <p v-else class="page-hero__lede">一線隊與各梯隊的完整賽程與賽果，一頁掌握。<strong>所有時間為當地時間，可能異動</strong>，正式時間請以官方公告為準。</p>
+    <p v-if="isEn && mounted && viewerTimeZone" class="page-hero__tz-note">Times have been converted to your device's time zone (<span class="en">{{ viewerTimeZone }}</span>); official Taiwan times are shown in each match's details.</p>
+    <p v-else-if="mounted && viewerTimeZone" class="page-hero__tz-note">已依您目前的裝置時區（<span class="en">{{ viewerTimeZone }}</span>）換算顯示；台灣官方公告時間請見各賽事詳情。</p>
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(data) || hasFallbackLocale(clubEventsData))" partial />
+
 <section class="band schedule-band" aria-labelledby="schedule-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="schedule-title">賽事行事曆</h2>
+    <h2 class="visually-hidden" id="schedule-title">{{ tx('賽事行事曆', 'Schedule') }}</h2>
 
     <!-- 隊別分頁（第一層分類） -->
     <div class="team-tabs" data-team-tabs>
-      <div class="team-tabs__list" role="tablist" aria-label="選擇隊別">
+      <div class="team-tabs__list" role="tablist" :aria-label="tx('選擇隊別', 'Select a team')">
         <button
           v-for="(tab, i) in teamTabs" :key="tab.id"
           :ref="(el) => (tabRefs[tab.id] = el as HTMLElement)"
@@ -849,16 +898,19 @@ useClubEventSchema(clubEvents, {
                沒有 webcal feed 端點（見檔頭「S1-19 補完」），不自行產生假網址，改為誠實
                告知現況並指向下方「訂閱賽程」區塊既有的 .ics 下載功能。 -->
           <p v-if="mounted && nextMatchCountdown" class="sched-teamhead__countdown">{{ nextMatchCountdown }}</p>
-          <p v-if="state.team !== 'all' && state.team !== 'club'" class="sched-teamhead__subscribe-note">
+          <p v-if="isEn && state.team !== 'all' && state.team !== 'club'" class="sched-teamhead__subscribe-note">
+            A calendar subscription (<span class="en">webcal</span>) link for {{ teamHeadName }} is not available yet. For now, use the <span class="en">.ics</span> download below or on any match card to get the fixtures.
+          </p>
+          <p v-else-if="state.team !== 'all' && state.team !== 'club'" class="sched-teamhead__subscribe-note">
             {{ teamHeadName }}專屬的行事曆訂閱（<span class="en">webcal</span>）網址尚未上線（後端訂閱 feed 端點待開發，見下方「訂閱賽程」說明）；目前請於下方或各賽事卡片使用 <span class="en">.ics</span> 下載取得賽程。
           </p>
         </div>
 
         <!-- 次層控制列 -->
         <div class="sched-controls">
-          <div class="sched-controls__group" role="group" aria-label="賽程或賽果">
-            <button type="button" class="sched-toggle" data-mode="fixtures" :aria-pressed="state.mode === 'fixtures'" @click="setMode('fixtures')">賽程 <span class="en">Fixtures</span></button>
-            <button type="button" class="sched-toggle" data-mode="results" :aria-pressed="state.mode === 'results'" @click="setMode('results')">賽果 <span class="en">Results</span></button>
+          <div class="sched-controls__group" role="group" :aria-label="tx('賽程或賽果', 'Fixtures or results')">
+            <button type="button" class="sched-toggle" data-mode="fixtures" :aria-pressed="state.mode === 'fixtures'" @click="setMode('fixtures')">{{ tx('賽程 ', 'Fixtures') }}<span v-if="!isEn" class="en">Fixtures</span></button>
+            <button type="button" class="sched-toggle" data-mode="results" :aria-pressed="state.mode === 'results'" @click="setMode('results')">{{ tx('賽果 ', 'Results') }}<span v-if="!isEn" class="en">Results</span></button>
           </div>
 
           <!-- 規劃書 v3.13 §3.13「行動版次要篩選收合於『篩選』按鈕內」。桌面版由 CSS
@@ -866,48 +918,48 @@ useClubEventSchema(clubEvents, {
           <button
             type="button" class="sched-filters-toggle" :aria-expanded="filtersOpen"
             aria-controls="sched-filters-panel" @click="filtersOpen = !filtersOpen"
-          >篩選 <span class="en">Filters</span></button>
+          >{{ tx('篩選 ', 'Filters') }}<span v-if="!isEn" class="en">Filters</span></button>
 
           <div id="sched-filters-panel" class="sched-controls__selects" :class="{ 'is-open': filtersOpen }">
             <label class="sched-select">
-              <span class="visually-hidden">賽季</span>
+              <span class="visually-hidden">{{ tx('賽季', 'Season') }}</span>
               <select v-model="state.season" data-season :disabled="availableSeasons.length === 0">
-                <option value="all">全部賽季</option>
-                <option v-for="s in availableSeasons" :key="s" :value="s">{{ s }} 賽季</option>
+                <option value="all">{{ tx('全部賽季', 'All seasons') }}</option>
+                <option v-for="s in availableSeasons" :key="s" :value="s">{{ isEn ? `${s} season` : `${s} 賽季` }}</option>
               </select>
             </label>
             <label class="sched-select">
-              <span class="visually-hidden">賽事類型</span>
+              <span class="visually-hidden">{{ tx('賽事類型', 'Competition type') }}</span>
               <select data-comp-filter v-model="state.comp">
-                <option value="all">賽事類型：全部</option>
-                <option value="league">聯賽</option>
-                <option value="cup">盃賽</option>
-                <option value="friendly">友誼賽</option>
-                <option value="other">其他</option>
+                <option value="all">{{ tx('賽事類型：全部', 'Competition: All') }}</option>
+                <option value="league">{{ tx('聯賽', 'League') }}</option>
+                <option value="cup">{{ tx('盃賽', 'Cup') }}</option>
+                <option value="friendly">{{ tx('友誼賽', 'Friendly') }}</option>
+                <option value="other">{{ tx('其他', 'Other') }}</option>
               </select>
             </label>
             <label class="sched-select">
-              <span class="visually-hidden">主客場</span>
+              <span class="visually-hidden">{{ tx('主客場', 'Home or away') }}</span>
               <select data-ha-filter v-model="state.ha">
-                <option value="all">主客場：全部</option>
-                <option value="home">主場</option>
-                <option value="away">客場</option>
+                <option value="all">{{ tx('主客場：全部', 'Home / away: All') }}</option>
+                <option value="home">{{ tx('主場', 'Home') }}</option>
+                <option value="away">{{ tx('客場', 'Away') }}</option>
               </select>
             </label>
           </div>
 
-          <div class="sched-controls__group" role="group" aria-label="檢視方式">
-            <button type="button" class="sched-toggle" data-view="list" :aria-pressed="state.view === 'list'" @click="setView('list')">列表 <span class="en">List</span></button>
-            <button type="button" class="sched-toggle" data-view="calendar" :aria-pressed="state.view === 'calendar'" @click="setView('calendar')">月曆 <span class="en">Calendar</span></button>
+          <div class="sched-controls__group" role="group" :aria-label="tx('檢視方式', 'View')">
+            <button type="button" class="sched-toggle" data-view="list" :aria-pressed="state.view === 'list'" @click="setView('list')">{{ tx('列表 ', 'List') }}<span v-if="!isEn" class="en">List</span></button>
+            <button type="button" class="sched-toggle" data-view="calendar" :aria-pressed="state.view === 'calendar'" @click="setView('calendar')">{{ tx('月曆 ', 'Calendar') }}<span v-if="!isEn" class="en">Calendar</span></button>
           </div>
         </div>
 
-        <p class="sched-official-note">賽程如有異動，一律以俱樂部官方公告與{{ leagueName }}主辦單位公告為準。</p>
+        <p class="sched-official-note">{{ isEn ? `Fixtures are subject to change. Announcements from the club and from the organiser of ${leagueProseEn} take precedence.` : `賽程如有異動，一律以俱樂部官方公告與${leagueName}主辦單位公告為準。` }}</p>
 
         <!-- 列表檢視 -->
         <div class="sched-view" data-view-panel="list" :hidden="state.view !== 'list'">
           <div v-for="group in monthGroups" :key="group.key" class="month-group" :data-month="group.key" :hidden="isGroupHidden(group.key)">
-            <h3 class="month-heading">{{ monthHeading(group.key) }}</h3>
+            <h3 class="month-heading">{{ isEn ? monthHeadingEn(group.key) : monthHeading(group.key) }}</h3>
             <div class="fixture-list">
               <article
                 v-for="m in group.items" :key="m.id"
@@ -918,18 +970,18 @@ useClubEventSchema(clubEvents, {
                 :hidden="isCardHidden(m)"
               >
                 <div class="fixture-card__time">
-                  <span class="fixture-card__wd">{{ timeOf(m).weekdayZh }} {{ timeOf(m).weekdayEn }}</span>
+                  <span class="fixture-card__wd">{{ isEn ? timeOf(m).weekdayEn : `${timeOf(m).weekdayZh} ${timeOf(m).weekdayEn}` }}</span>
                   <span class="fixture-card__date">{{ timeOf(m).day }}</span>
                   <span class="fixture-card__mon">{{ timeOf(m).monthAbbr }}</span>
                   <time v-if="timeOf(m).kickoff" class="fixture-card__kickoff" :datetime="matchInstantUtc(m.matchOn, m.kickoff)?.toISOString()">{{ timeOf(m).kickoff }}</time>
                 </div>
                 <div class="fixture-card__body">
                   <div class="fixture-card__meta">
-                    <span :class="['tag', `tag--${m.competitionTag}`]">{{ compTagLabel(m.competitionTag) }}</span>
-                    <span class="fixture-card__round">第 {{ m.roundNo }} 輪</span>
-                    <span :class="['status-pill', `status-pill--${mapMatchStatus(m.status).code}`]">{{ mapMatchStatus(m.status).label }}</span>
+                    <span :class="['tag', `tag--${m.competitionTag}`]">{{ isEn ? compTagLabelEn(m.competitionTag) : compTagLabel(m.competitionTag) }}</span>
+                    <span class="fixture-card__round">{{ isEn ? `Round ${m.roundNo}` : `第 ${m.roundNo} 輪` }}</span>
+                    <span :class="['status-pill', `status-pill--${mapMatchStatus(m.status).code}`]">{{ isEn ? mapMatchStatusEn(m.status).label : mapMatchStatus(m.status).label }}</span>
                   </div>
-                  <p v-if="postponedNote(m.originalMatchOn, m.originalKickoff)" class="fixture-card__postponed">{{ postponedNote(m.originalMatchOn, m.originalKickoff) }}</p>
+                  <p v-if="postponedLine(m.originalMatchOn, m.originalKickoff)" class="fixture-card__postponed">{{ postponedLine(m.originalMatchOn, m.originalKickoff) }}</p>
                   <div class="fixture-card__matchup">
                     <template v-if="haCode(m.homeAway) === 'away'">
                       <span class="fx-side fx-side--them">
@@ -955,19 +1007,19 @@ useClubEventSchema(clubEvents, {
                     </template>
                   </div>
                   <p class="fixture-card__venue">
-                    <span :class="['ha-pill', haCode(m.homeAway) === 'home' ? 'ha-pill--home' : 'ha-pill--away']">{{ haCode(m.homeAway) === 'home' ? '主場 HOME' : '客場 AWAY' }}</span>
+                    <span :class="['ha-pill', haCode(m.homeAway) === 'home' ? 'ha-pill--home' : 'ha-pill--away']">{{ haCode(m.homeAway) === 'home' ? tx('主場 HOME', 'Home') : tx('客場 AWAY', 'Away') }}</span>
                     <template v-if="m.venue === 'TBC'">
-                      <span class="tbc-note">場地未定 · VENUE TBC</span>
+                      <span class="tbc-note">{{ tx('場地未定 · VENUE TBC', 'Venue TBC') }}</span>
                     </template>
                     <template v-else>
-                      <span>{{ m.venue }}</span><a class="fixture-card__map" :href="venueMapUrl(m.venue ?? '')" target="_blank" rel="noopener">地圖<span class="visually-hidden">（另開新視窗）</span></a>
+                      <span>{{ m.venue }}</span><a class="fixture-card__map" :href="venueMapUrl(m.venue ?? '')" target="_blank" rel="noopener">{{ tx('地圖', 'Map') }}<span class="visually-hidden">{{ tx('（另開新視窗）', ' (opens in a new window)') }}</span></a>
                     </template>
                   </p>
                 </div>
                 <div class="fixture-card__actions">
-                  <button type="button" class="btn btn--outline btn--sm" data-detail-btn @click="openDetail(m)">賽事詳情</button>
-                  <button type="button" class="btn btn--primary btn--sm" data-ics-btn @click="onIcsClick(m)">加入行事曆 <span class="en">.ics</span></button>
-                  <button type="button" class="btn btn--dark btn--sm" data-share-btn @click="onShareClick(m)">{{ copiedId === fixtureId(m.matchOn, m.homeAway, m.matchNo) ? '連結已複製' : '分享此賽事' }}</button>
+                  <button type="button" class="btn btn--outline btn--sm" data-detail-btn @click="openDetail(m)">{{ tx('賽事詳情', 'Match details') }}</button>
+                  <button type="button" class="btn btn--primary btn--sm" data-ics-btn @click="onIcsClick(m)">{{ tx('加入行事曆 ', 'Add to calendar ') }}<span class="en">.ics</span></button>
+                  <button type="button" class="btn btn--dark btn--sm" data-share-btn @click="onShareClick(m)">{{ copiedId === fixtureId(m.matchOn, m.homeAway, m.matchNo) ? tx('連結已複製', 'Link copied') : tx('分享此賽事', 'Share this match') }}</button>
                 </div>
               </article>
             </div>
@@ -975,27 +1027,27 @@ useClubEventSchema(clubEvents, {
             <!-- 俱樂部活動（規劃書 v3.13 §3.13「資料來源」第二列，S1-19 補完）。獨立於
                  賽事列表之後，見檔頭「S1-19 補完」的整合方式說明。 -->
             <div v-if="visibleClubEvents.length > 0" class="club-events-block">
-              <h3 class="month-heading">俱樂部活動 <span class="en">Club Events</span></h3>
+              <h3 class="month-heading">{{ tx('俱樂部活動 ', 'Club events') }}<span v-if="!isEn" class="en">Club Events</span></h3>
               <div class="fixture-list">
                 <article v-for="e in visibleClubEvents" :id="`ce-${e.id}`" :key="e.id" class="fixture-card club-event-card">
                   <div class="fixture-card__time">
-                    <span class="fixture-card__wd">{{ eventTimeOf(e).weekdayZh }} {{ eventTimeOf(e).weekdayEn }}</span>
+                    <span class="fixture-card__wd">{{ isEn ? eventTimeOf(e).weekdayEn : `${eventTimeOf(e).weekdayZh} ${eventTimeOf(e).weekdayEn}` }}</span>
                     <span class="fixture-card__date">{{ eventTimeOf(e).day }}</span>
                     <span class="fixture-card__mon">{{ eventTimeOf(e).monthAbbr }}</span>
                     <time v-if="eventTimeOf(e).kickoff" class="fixture-card__kickoff" :datetime="e.startsAt">{{ eventTimeOf(e).kickoff }}</time>
                   </div>
                   <div class="fixture-card__body">
                     <div class="fixture-card__meta">
-                      <span class="tag tag--club-event">俱樂部活動</span>
+                      <span class="tag tag--club-event">{{ tx('俱樂部活動', 'Club event') }}</span>
                     </div>
                     <p class="club-event-card__title">{{ e.title }}</p>
                     <p v-if="e.description" class="club-event-card__desc">{{ e.description }}</p>
                     <p v-if="e.venueName" class="fixture-card__venue">
-                      <span>{{ e.venueName }}</span><a class="fixture-card__map" :href="venueMapUrl(e.venueName)" target="_blank" rel="noopener">地圖<span class="visually-hidden">（另開新視窗）</span></a>
+                      <span>{{ e.venueName }}</span><a class="fixture-card__map" :href="venueMapUrl(e.venueName)" target="_blank" rel="noopener">{{ tx('地圖', 'Map') }}<span class="visually-hidden">{{ tx('（另開新視窗）', ' (opens in a new window)') }}</span></a>
                     </p>
                   </div>
                   <div class="fixture-card__actions">
-                    <a v-if="e.ctaUrl" class="btn btn--primary btn--sm" :href="e.ctaUrl" target="_blank" rel="noopener">活動詳情</a>
+                    <a v-if="e.ctaUrl" class="btn btn--primary btn--sm" :href="e.ctaUrl" target="_blank" rel="noopener">{{ tx('活動詳情', 'Event details') }}</a>
                   </div>
                 </article>
               </div>
@@ -1003,7 +1055,7 @@ useClubEventSchema(clubEvents, {
           </div>
 
           <div class="sched-empty" data-empty-state :hidden="!isEmpty">
-            <p class="sched-empty__title">目前沒有符合條件的賽事</p>
+            <p class="sched-empty__title">{{ tx('目前沒有符合條件的賽事', 'No matches match your filters') }}</p>
             <p class="sched-empty__desc" data-empty-desc>{{ emptyDesc }}</p>
           </div>
         </div>
@@ -1019,28 +1071,28 @@ useClubEventSchema(clubEvents, {
     <!-- 單場賽事詳情彈窗（規劃書 v3.13 §3.13「動作按鈕：賽事詳情」／「前台功能：事件
          詳情」）。原生 <dialog>：內建 focus trap、Escape 關閉、::backdrop。 -->
     <dialog ref="detailDialog" class="match-detail" aria-labelledby="match-detail-title" @click="onDetailDialogClick" @close="detailMatch = null">
-      <button type="button" class="match-detail__close" aria-label="關閉賽事詳情" @click="closeDetail">✕</button>
+      <button type="button" class="match-detail__close" :aria-label="tx('關閉賽事詳情', 'Close match details')" @click="closeDetail">✕</button>
       <template v-if="detailMatch">
-        <p class="match-detail__comp">{{ compTagLabel(detailMatch.competitionTag) }} · 第 {{ detailMatch.roundNo }} 輪 · {{ mapMatchStatus(detailMatch.status).label }}</p>
+        <p class="match-detail__comp">{{ isEn ? `${compTagLabelEn(detailMatch.competitionTag)} · Round ${detailMatch.roundNo} · ${mapMatchStatusEn(detailMatch.status).label}` : `${compTagLabel(detailMatch.competitionTag)} · 第 ${detailMatch.roundNo} 輪 · ${mapMatchStatus(detailMatch.status).label}` }}</p>
         <h3 id="match-detail-title" class="match-detail__title">
           {{ haCode(detailMatch.homeAway) === 'home' ? clubAssets.shortNameZh : detailMatch.opponent }}
           <span class="match-detail__vs">vs</span>
           {{ haCode(detailMatch.homeAway) === 'home' ? detailMatch.opponent : clubAssets.shortNameZh }}
         </h3>
-        <p class="match-detail__time">{{ timeOf(detailMatch).weekdayZh }} {{ detailMatch.matchOn }}<template v-if="timeOf(detailMatch).kickoff"> · {{ timeOf(detailMatch).kickoff }}</template></p>
-        <p v-if="postponedNote(detailMatch.originalMatchOn, detailMatch.originalKickoff)" class="fixture-card__postponed">{{ postponedNote(detailMatch.originalMatchOn, detailMatch.originalKickoff) }}</p>
+        <p class="match-detail__time">{{ isEn ? timeOf(detailMatch).weekdayEn : timeOf(detailMatch).weekdayZh }} {{ detailMatch.matchOn }}<template v-if="timeOf(detailMatch).kickoff"> · {{ timeOf(detailMatch).kickoff }}</template></p>
+        <p v-if="postponedLine(detailMatch.originalMatchOn, detailMatch.originalKickoff)" class="fixture-card__postponed">{{ postponedLine(detailMatch.originalMatchOn, detailMatch.originalKickoff) }}</p>
         <p class="match-detail__venue">
-          <span :class="['ha-pill', haCode(detailMatch.homeAway) === 'home' ? 'ha-pill--home' : 'ha-pill--away']">{{ haCode(detailMatch.homeAway) === 'home' ? '主場 HOME' : '客場 AWAY' }}</span>
+          <span :class="['ha-pill', haCode(detailMatch.homeAway) === 'home' ? 'ha-pill--home' : 'ha-pill--away']">{{ haCode(detailMatch.homeAway) === 'home' ? tx('主場 HOME', 'Home') : tx('客場 AWAY', 'Away') }}</span>
           <template v-if="detailMatch.venue === 'TBC'">
-            <span class="tbc-note">場地未定 · VENUE TBC</span>
+            <span class="tbc-note">{{ tx('場地未定 · VENUE TBC', 'Venue TBC') }}</span>
           </template>
           <template v-else>
-            <span>{{ detailMatch.venue }}</span><a class="fixture-card__map" :href="venueMapUrl(detailMatch.venue ?? '')" target="_blank" rel="noopener">地圖<span class="visually-hidden">（另開新視窗）</span></a>
+            <span>{{ detailMatch.venue }}</span><a class="fixture-card__map" :href="venueMapUrl(detailMatch.venue ?? '')" target="_blank" rel="noopener">{{ tx('地圖', 'Map') }}<span class="visually-hidden">{{ tx('（另開新視窗）', ' (opens in a new window)') }}</span></a>
           </template>
         </p>
         <div class="match-detail__actions">
-          <button type="button" class="btn btn--primary btn--sm" @click="onIcsClick(detailMatch)">加入行事曆 <span class="en">.ics</span></button>
-          <button type="button" class="btn btn--dark btn--sm" @click="onShareClick(detailMatch)">{{ copiedId === fixtureId(detailMatch.matchOn, detailMatch.homeAway, detailMatch.matchNo) ? '連結已複製' : '分享此賽事' }}</button>
+          <button type="button" class="btn btn--primary btn--sm" @click="onIcsClick(detailMatch)">{{ tx('加入行事曆 ', 'Add to calendar ') }}<span class="en">.ics</span></button>
+          <button type="button" class="btn btn--dark btn--sm" @click="onShareClick(detailMatch)">{{ copiedId === fixtureId(detailMatch.matchOn, detailMatch.homeAway, detailMatch.matchNo) ? tx('連結已複製', 'Link copied') : tx('分享此賽事', 'Share this match') }}</button>
         </div>
       </template>
     </dialog>
@@ -1048,10 +1100,12 @@ useClubEventSchema(clubEvents, {
     <!-- 訂閱 -->
     <div class="sched-subscribe">
       <div class="sched-subscribe__copy">
-        <h2 class="section-title" style="color:var(--heading);">訂閱賽程</h2>
-        <p>下載目前篩選結果的完整賽程 <span class="en">.ics</span> 檔，匯入 Google 日曆、Apple 行事曆或 Outlook；也可以在任一場賽事卡片上按「加入行事曆」單獨下載該場比賽。</p>
-        <button type="button" class="btn btn--dark" data-ics-bulk-btn @click="onBulkIcs">下載目前檢視賽程 <span class="en">.ics</span></button>
-        <p class="sched-subscribe__fine">依隊別自動更新的 <span class="en">webcal://</span> 訂閱網址（訂閱後賽程異動會自動同步至個人行事曆）需要後台持續產生動態行事曆檔案，屬於後續系統開發項目，目前尚未上線；現在請使用上方 <span class="en">.ics</span> 下載功能取得賽程。</p>
+        <h2 class="section-title" style="color:var(--heading);">{{ tx('訂閱賽程', 'Subscribe to the schedule') }}</h2>
+        <p v-if="isEn">Download the full schedule for your current filters as an <span class="en">.ics</span> file and import it into Google Calendar, Apple Calendar or Outlook. You can also press "Add to calendar" on any match card to download that match on its own.</p>
+        <p v-else>下載目前篩選結果的完整賽程 <span class="en">.ics</span> 檔，匯入 Google 日曆、Apple 行事曆或 Outlook；也可以在任一場賽事卡片上按「加入行事曆」單獨下載該場比賽。</p>
+        <button type="button" class="btn btn--dark" data-ics-bulk-btn @click="onBulkIcs">{{ tx('下載目前檢視賽程 ', 'Download current fixtures ') }}<span class="en">.ics</span></button>
+        <p v-if="isEn" class="sched-subscribe__fine">Per-team <span class="en">webcal://</span> subscription links, which keep your personal calendar in sync when fixtures change, are not available yet. For now, please use the <span class="en">.ics</span> download above to get the schedule.</p>
+        <p v-else class="sched-subscribe__fine">依隊別自動更新的 <span class="en">webcal://</span> 訂閱網址（訂閱後賽程異動會自動同步至個人行事曆）需要後台持續產生動態行事曆檔案，屬於後續系統開發項目，目前尚未上線；現在請使用上方 <span class="en">.ics</span> 下載功能取得賽程。</p>
       </div>
     </div>
 
@@ -1061,23 +1115,23 @@ useClubEventSchema(clubEvents, {
 <section class="band grain cta-band" aria-labelledby="sched-cta-title">
   <span class="ghost-num" aria-hidden="true">13</span>
   <div class="band-inner container">
-    <h2 class="section-title" id="sched-cta-title">相關連結</h2>
+    <h2 class="section-title" id="sched-cta-title">{{ tx('相關連結', 'Related links') }}</h2>
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/club/first-team/')">
         <span class="cta-card__num">3.1</span>
-        <span class="cta-card__title">一線隊<span v-if="isTcrfc" class="en"> First Team</span></span>
-        <p class="cta-card__desc">認識球員名單、教練團與成績積分榜</p>
+        <span class="cta-card__title">{{ tx('一線隊', 'First Team') }}<span v-if="isTcrfc && !isEn" class="en"> First Team</span></span>
+        <p class="cta-card__desc">{{ tx('認識球員名單、教練團與成績積分榜', 'Meet the squad, the coaching staff and the league table') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
         <!-- S1-19：原本字面寫死「學院隊伍」，藍鯨規劃書 §3.4 本單元是「青年隊」不是學院。 -->
-        <span class="cta-card__title">{{ isTcrfc ? '學院隊伍' : '青年隊' }}</span>
-        <p class="cta-card__desc">{{ clubAcademyLabel() }} 梯隊介紹</p>
+        <span class="cta-card__title">{{ isEn ? 'Our Teams' : (isTcrfc ? '學院隊伍' : '青年隊') }}</span>
+        <p class="cta-card__desc">{{ isEn ? `Meet the ${clubAcademyLabel(' / ')} squads` : `${clubAcademyLabel()} 梯隊介紹` }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/join/general/')">
         <span class="cta-card__num">10.7</span>
-        <span class="cta-card__title">聯絡我們</span>
-        <p class="cta-card__desc">媒體、球迷或家長的賽程相關詢問</p>
+        <span class="cta-card__title">{{ tx('聯絡我們', 'Contact us') }}</span>
+        <p class="cta-card__desc">{{ tx('媒體、球迷或家長的賽程相關詢問', 'Schedule enquiries from media, fans and parents') }}</p>
       </a>
     </div>
   </div>

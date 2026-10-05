@@ -8,7 +8,7 @@
 // markup 全站只出現一次，沒有複製六次的問題）。
 // 🔴 SSR 階段打真實 API，一次抓全部文章（pageSize=200，83 篇量級單頁載入可接受，
 // 原始 mockup script 註解本來就這樣寫）。
-definePageMeta({ nav: 'news', unit: '07' })
+definePageMeta({ nav: 'news', unit: '07', enReady: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
@@ -19,7 +19,7 @@ const club = config.public.club
 const clubNameZh = computed(() => getClubAssets(club).nameZh)
 
 // S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
-const { locale, lp } = useLocale()
+const { locale, lp, isEn, tx } = useLocale()
 const { data } = await useFetch(`/api/backend/${club}/news`, {
   query: { pageSize: 200, lang: locale.value },
 })
@@ -55,17 +55,17 @@ const search = ref('')
 const filterTabCategories = computed(() => NEWS_CATEGORIES.filter((c) => c.code !== 'media'))
 
 useSeoMeta({
-  title: computed(() => `最新消息 News & Stories｜${clubNameZh.value}`),
-  description: computed(() => `${clubNameZh.value}新聞中心：俱樂部新聞、比賽報導、國際交流、營隊活動與社區公益，${totalCount.value} 篇真實報導依分類、年月與關鍵字瀏覽。`),
+  title: computed(() => isEn.value ? getNewsIndexSeoEn(totalCount.value).title : `最新消息 News & Stories｜${clubNameZh.value}`),
+  description: computed(() => isEn.value ? getNewsIndexSeoEn(totalCount.value).description : `${clubNameZh.value}新聞中心：俱樂部新聞、比賽報導、國際交流、營隊活動與社區公益，${totalCount.value} 篇真實報導依分類、年月與關鍵字瀏覽。`),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">新聞 News</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx('新聞 News', 'News') }}</li>
     </ol>
   </div>
 </nav>
@@ -74,8 +74,9 @@ useSeoMeta({
   <ClubHeroBg :src="siteImg('/assets/img/nav-news.jpg')" width="1920" height="1279" />
   <div class="container">
     <p class="page-hero__eyebrow">07 News &amp; Stories</p>
-    <h1>最新消息<span class="en">News &amp; Stories</span></h1>
-    <p class="page-hero__lede">俱樂部公告、比賽報導、國際交流、營隊活動與社區公益，統一於新聞中心發布。目前共收錄 {{ totalCount }} 篇真實報導。</p>
+    <h1>{{ tx('最新消息', 'News & Stories') }}<span v-if="!isEn" class="en">News &amp; Stories</span></h1>
+    <p v-if="isEn" class="page-hero__lede">{{ getNewsIndexHeroEn(totalCount).lede }}</p>
+    <p v-else class="page-hero__lede">俱樂部公告、比賽報導、國際交流、營隊活動與社區公益，統一於新聞中心發布。目前共收錄 {{ totalCount }} 篇真實報導。</p>
   </div>
 </section>
 
@@ -83,10 +84,10 @@ useSeoMeta({
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
-        <p class="kicker">FEATURED · 精選置頂</p>
-        <h2 class="section-title" id="featured-title">焦點報導</h2>
+        <p class="kicker">{{ tx('FEATURED · 精選置頂', 'FEATURED') }}</p>
+        <h2 class="section-title" id="featured-title">{{ tx('焦點報導', 'Featured stories') }}</h2>
       </div>
-      <p class="section-lede">俱樂部近期最受關注的三則報導。</p>
+      <p class="section-lede">{{ tx('俱樂部近期最受關注的三則報導。', 'The three stories getting the most attention at the club right now.') }}</p>
     </div>
     <div class="featured-grid">
       <NewsCard v-for="a in featured" :key="a.slug" :article="a" />
@@ -99,14 +100,14 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker" style="color:var(--brand)">ALL STORIES</p>
-        <h2 class="section-title" id="all-news-title" style="color:#fff">全部新聞</h2>
+        <h2 class="section-title" id="all-news-title" style="color:#fff">{{ tx('全部新聞', 'All news') }}</h2>
       </div>
-      <p class="section-lede" style="color:var(--muted-dark)">依分類、年月或關鍵字瀏覽全部 {{ totalCount }} 篇報導。</p>
+      <p class="section-lede" style="color:var(--muted-dark)">{{ isEn ? `Browse all ${totalCount} reports by category, month or keyword.` : `依分類、年月或關鍵字瀏覽全部 ${totalCount} 篇報導。` }}</p>
     </div>
 
     <div class="news-toolbar">
-      <nav class="cat-tabs" aria-label="新聞分類篩選">
-        <button type="button" data-tab="all" :aria-pressed="activeCat === 'all'" @click="activeCat = 'all'">全部</button>
+      <nav class="cat-tabs" :aria-label="tx('新聞分類篩選', 'Filter news by category')">
+        <button type="button" data-tab="all" :aria-pressed="activeCat === 'all'" @click="activeCat = 'all'">{{ tx('全部', 'All') }}</button>
         <button
           v-for="cat in filterTabCategories"
           :key="cat.code"
@@ -114,10 +115,12 @@ useSeoMeta({
           :data-tab="cat.code"
           :aria-pressed="activeCat === cat.code"
           @click="activeCat = cat.code"
-        >{{ newsCategoryTabLabel(cat.code, club) }}</button>
+        >{{ isEn ? newsCategoryTabLabelEn(cat.code) : newsCategoryTabLabel(cat.code, club) }}</button>
       </nav>
       <NewsFilterForm v-model:tag="tag" v-model:year="year" v-model:month="month" v-model:search="search" :tags="tags" :years="years" :months="ALL_MONTHS" />
     </div>
+
+    <LocaleFallbackNotice v-if="isEn && hasFallbackLocale(data)" partial />
 
     <NewsListBody :articles="articles" :active-cat="activeCat" :tag="tag" :year="year" :month="month" :search="search" dark />
   </div>

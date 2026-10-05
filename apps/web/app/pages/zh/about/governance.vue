@@ -1,27 +1,28 @@
 <script setup lang="ts">
 // app/pages/zh/about/governance.vue — 由 site/src/pages/zh/about/governance/index.html 轉來（S0-9 靜態頁搬遷）
-definePageMeta({ nav: "about", unit: "02" })
+definePageMeta({ nav: "about", unit: "02", enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => GOVERNANCE_HERO[clubKey.value])
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const hero = computed(() => (isEn.value ? GOVERNANCE_HERO_EN : GOVERNANCE_HERO[clubKey.value]))
+const seo = computed(() => (isEn.value ? GOVERNANCE_SEO_EN : GOVERNANCE_SEO[clubKey.value]))
 
 useSeoMeta({
-  title: computed(() => GOVERNANCE_SEO[clubKey.value].title),
-  description: computed(() => GOVERNANCE_SEO[clubKey.value].description),
+  title: computed(() => seo.value.title),
+  description: computed(() => seo.value.description),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
-      <li aria-current="page">治理與管理</li>
+      <li aria-current="page">{{ tx('治理與管理', 'Governance') }}</li>
     </ol>
   </div>
 </nav>
@@ -29,7 +30,7 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.5', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.5') : aboutEyebrow('2.5', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
@@ -40,11 +41,11 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">DOWNLOADS</p>
-        <h2 class="section-title" id="gov-docs-title">公開文件</h2>
+        <h2 class="section-title" id="gov-docs-title">{{ tx('公開文件', 'Public Documents') }}</h2>
       </div>
     </div>
 
-    <p class="section-lede" style="margin-top:1rem;">目前尚無可供下載的公開文件。</p>
+    <p class="section-lede" style="margin-top:1rem;">{{ tx('目前尚無可供下載的公開文件。', 'There are no public documents available to download at the moment.') }}</p>
   </div>
 </section>
 </template>

@@ -32,7 +32,7 @@ const cover = computed(() => newsCoverImg(props.article, clubKey.value))
 
 // S1-13：卡片連結一律留在目前語系（lp()），不要在 en 頁面把讀者導回 zh 網址——
 // 這個元件被 news/index.vue 與 5 個分類頁共用，修一次全部生效。
-const { lp } = useLocale()
+const { lp, isEn } = useLocale()
 </script>
 
 <template>
@@ -46,7 +46,7 @@ const { lp } = useLocale()
     :data-title="newsTitleAttr(article.title)"
   >
     <div :class="['news-card__media', { 'news-card__media--noimg': !cover }]">
-      <span class="news-card__tag">{{ article.categoryName }}</span>
+      <span class="news-card__tag">{{ isEn ? newsCategoryLabelEn(article.categoryCode, article.categoryName) : article.categoryName }}</span>
       <img
         v-if="cover"
         :src="cover.src"
@@ -58,7 +58,7 @@ const { lp } = useLocale()
       <img v-else class="news-card__media-mark" :src="newsFallbackMarkSrc(clubKey)" alt="" loading="lazy" width="64" height="67">
     </div>
     <div class="news-card__body">
-      <p class="news-card__meta"><time :datetime="newsIsoDate(article.publishedAt)">{{ newsSlashDate(article.publishedAt) }}</time></p>
+      <p class="news-card__meta"><time :datetime="newsIsoDate(article.publishedAt)">{{ isEn ? newsDateEn(article.publishedAt) : newsSlashDate(article.publishedAt) }}</time></p>
       <p class="news-card__title">{{ article.title }}</p>
     </div>
   </a>

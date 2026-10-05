@@ -13,9 +13,9 @@
 import type { CharityProgramListItem } from '#shared/utils/charity'
 import type { PagedResponse } from '#shared/utils/api-types'
 
-definePageMeta({ nav: 'charity', unit: '11' })
+definePageMeta({ nav: 'charity', unit: '11', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const club = config.public.club
@@ -40,18 +40,20 @@ function pageHref(n: number): string {
 }
 
 useSeoMeta({
-  title: '慈善計畫 Charity Programs｜慈善與社會影響｜台中磐石足球俱樂部',
-  description: '台中磐石足球俱樂部的慈善計畫列表與詳情：計畫緣起、受贈公益團體、捐助內容、執行過程與活動圖片藝廊。',
+  title: computed(() => (isEn.value ? 'Charity Programs | Charity & Impact | Taichung Rock FC' : '慈善計畫 Charity Programs｜慈善與社會影響｜台中磐石足球俱樂部')),
+  description: computed(() => (isEn.value
+    ? 'The charity programs of Taichung Rock FC, with details of each: background, beneficiary charity, what was donated, how it was carried out and a photo gallery.'
+    : '台中磐石足球俱樂部的慈善計畫列表與詳情：計畫緣起、受贈公益團體、捐助內容、執行過程與活動圖片藝廊。')),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/charity/')">慈善與社會影響</a></li>
-      <li aria-current="page">慈善計畫</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/charity/')">{{ tx('慈善與社會影響', 'Charity & Impact') }}</a></li>
+      <li aria-current="page">{{ tx('慈善計畫', 'Charity Programs') }}</li>
     </ol>
   </div>
 </nav>
@@ -60,14 +62,16 @@ useSeoMeta({
   <span class="ghost-num ghost-num--dark" aria-hidden="true" style="left:var(--edge);bottom:-1.8rem;">11.2</span>
   <div class="container">
     <p class="page-hero__eyebrow">11.2 Charity Programs</p>
-    <h1>慈善計畫<span class="en">Charity Programs</span></h1>
-    <p class="page-hero__lede">俱樂部正在進行與已完成的公益計畫，包含計畫緣起、受贈公益團體與捐助內容。</p>
+    <h1><template v-if="isEn">Charity Programs</template><template v-else>{{ tx('慈善計畫', 'Charity Programs') }}<span class="en">Charity Programs</span></template></h1>
+    <p class="page-hero__lede">{{ tx('俱樂部正在進行與已完成的公益計畫，包含計畫緣起、受贈公益團體與捐助內容。', 'Charity programs the club is currently running or has completed, including each program\'s background, beneficiary charity and what was donated.') }}</p>
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(data)" partial />
+
 <section class="band programs-band" aria-labelledby="programs-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="programs-title">慈善計畫列表</h2>
+    <h2 class="visually-hidden" id="programs-title">{{ tx('慈善計畫列表', 'Charity program list') }}</h2>
 
     <div v-if="programs.length" class="program-grid">
       <a v-for="p in programs" :key="p.id" class="program-card" :href="lp(`/zh/charity/programs/${p.slug}/`)">
@@ -76,28 +80,28 @@ useSeoMeta({
         </div>
         <div class="program-card__body">
           <div class="program-card__meta-row">
-            <span :class="['status-chip', p.progress === 'completed' ? 'status-chip--done' : 'status-chip--ongoing']">{{ progressLabel(p.progress) }}</span>
+            <span :class="['status-chip', p.progress === 'completed' ? 'status-chip--done' : 'status-chip--ongoing']">{{ progressLabel(p.progress, isEn) }}</span>
           </div>
           <h3 class="program-card__name">{{ p.name }}</h3>
           <dl class="program-card__facts">
-            <div v-if="p.targetAudience"><dt>對象</dt><dd>{{ p.targetAudience }}</dd></div>
-            <div v-if="programPeriod(p.startOn, p.endOn)"><dt>期間</dt><dd>{{ programPeriod(p.startOn, p.endOn) }}</dd></div>
-            <div v-if="p.charityName"><dt>受贈團體</dt><dd>{{ p.charityName }}</dd></div>
+            <div v-if="p.targetAudience"><dt>{{ tx('對象', 'Audience') }}</dt><dd>{{ p.targetAudience }}</dd></div>
+            <div v-if="programPeriod(p.startOn, p.endOn)"><dt>{{ tx('期間', 'Period') }}</dt><dd>{{ programPeriod(p.startOn, p.endOn, isEn) }}</dd></div>
+            <div v-if="p.charityName"><dt>{{ tx('受贈團體', 'Beneficiary') }}</dt><dd>{{ p.charityName }}</dd></div>
           </dl>
         </div>
       </a>
     </div>
 
-    <nav v-if="totalPages > 1" class="pager" aria-label="慈善計畫分頁">
-      <a v-if="page > 1" class="btn btn--dark btn--sm" :href="pageHref(page - 1)" rel="prev">上一頁</a>
-      <span class="pager__info">第 {{ page }} 頁／共 {{ totalPages }} 頁</span>
-      <a v-if="page < totalPages" class="btn btn--dark btn--sm" :href="pageHref(page + 1)" rel="next">下一頁</a>
+    <nav v-if="totalPages > 1" class="pager" :aria-label="tx('慈善計畫分頁', 'Charity programs pagination')">
+      <a v-if="page > 1" class="btn btn--dark btn--sm" :href="pageHref(page - 1)" rel="prev">{{ tx('上一頁', 'Previous') }}</a>
+      <span class="pager__info"><template v-if="isEn">Page {{ page }} of {{ totalPages }}</template><template v-else>第 {{ page }} 頁／共 {{ totalPages }} 頁</template></span>
+      <a v-if="page < totalPages" class="btn btn--dark btn--sm" :href="pageHref(page + 1)" rel="next">{{ tx('下一頁', 'Next') }}</a>
     </nav>
 
     <div v-if="!programs.length" class="empty-state">
-      <p class="empty-state__title">尚無已公開的慈善計畫</p>
-      <p class="empty-state__desc">俱樂部的公益投入持續進行中，個別計畫的緣起、受贈團體與捐助內容確認後將於此公開。歡迎企業洽談長期公益合作方案。</p>
-      <a class="btn btn--dark btn--sm" :href="lp('/zh/partners/opportunities/')">洽談企業合作</a>
+      <p class="empty-state__title">{{ tx('尚無已公開的慈善計畫', 'No charity programs published yet') }}</p>
+      <p class="empty-state__desc">{{ tx('俱樂部的公益投入持續進行中，個別計畫的緣起、受贈團體與捐助內容確認後將於此公開。歡迎企業洽談長期公益合作方案。', 'The club\'s charity work is ongoing. The background, beneficiary and donation details of each program will be published here once confirmed. Companies are welcome to discuss long-term charity partnerships.') }}</p>
+      <a class="btn btn--dark btn--sm" :href="lp('/zh/partners/opportunities/')">{{ tx('洽談企業合作', 'Discuss corporate partnerships') }}</a>
     </div>
   </div>
 </section>
@@ -105,22 +109,22 @@ useSeoMeta({
 <section class="band grain cta-band" aria-labelledby="programs-cta-title">
   <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">11.2</span>
   <div class="band-inner container">
-    <h2 class="section-title" id="programs-cta-title">相關內容</h2>
+    <h2 class="section-title" id="programs-cta-title">{{ tx('相關內容', 'Related content') }}</h2>
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/charity/impact-stories/')">
         <span class="cta-card__num">11.3</span>
-        <span class="cta-card__title">慈善事蹟</span>
-        <p class="cta-card__desc">已落地的公益行動時間軸</p>
+        <span class="cta-card__title">{{ tx('慈善事蹟', 'Impact Stories') }}</span>
+        <p class="cta-card__desc">{{ tx('已落地的公益行動時間軸', 'A timeline of the charity actions we have carried out') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/news/community/')">
         <span class="cta-card__num">7.7</span>
-        <span class="cta-card__title">社區活動新聞</span>
-        <p class="cta-card__desc">與慈善計畫相關的即時報導</p>
+        <span class="cta-card__title">{{ tx('社區活動新聞', 'Community news') }}</span>
+        <p class="cta-card__desc">{{ tx('與慈善計畫相關的即時報導', 'Timely reports related to our charity programs') }}</p>
       </a>
       <a class="cta-card" :href="donateLink.href" :target="donateLink.external ? '_blank' : undefined" :rel="donateLink.external ? 'noopener noreferrer' : undefined">
         <span class="cta-card__num">01</span>
-        <span class="cta-card__title">支持特定計畫</span>
-        <p class="cta-card__desc">球迷捐款由{{ CHARITY_RECIPIENT }}的慈善捐款平台承接，捐款時可指定支持的項目</p>
+        <span class="cta-card__title">{{ tx('支持特定計畫', 'Support a specific program') }}</span>
+        <p class="cta-card__desc"><template v-if="isEn">Fan donations are handled by the charity donation platform of the {{ CHARITY_RECIPIENT_EN }}. You can choose which item to support when you donate.</template><template v-else>球迷捐款由{{ CHARITY_RECIPIENT }}的慈善捐款平台承接，捐款時可指定支持的項目</template></p>
       </a>
     </div>
   </div>

@@ -150,6 +150,7 @@
   **行動 App 對外名稱是中性的「台中足球 / Taichung Football」**（兩隊共同品牌），**但官網與所有主站文件仍是 TCRFC**——這兩者不衝突，是刻意的分工。
   **藍鯨的中文一律寫「台中藍鯨」**，不單用「藍鯨」（比照磐石的規則）。英文正式全名待確認（B-5）。🔴 **程式碼不得寫死任何一種 `Taichung Blue Whale` 寫法**：英文句子需要藍鯨名稱時用 `club-copy.ts` 的 `BW_NAME_EN_PENDING`（目前是中文名），定案後只改該常數；`apps/web/scripts/check-bw-en-name.mjs` 掛 `npm run lint` 會擋。
   **藍鯨的法人歸屬與營運關係見 [`15-out-of-scope-record.md`](15-out-of-scope-record.md)——那些不寫進規劃書。**
+- **英文版（C-6）只覆蓋主站**：`useLocale().isEn` 僅主站 `/en/` 為 true，藍鯨 `/en/` 維持繁中備援＋提示；`enReady` 對藍鯨無效（layout 一律顯示提示）。**英文值一律來自 `club-copy-en-*.ts`／頁面 `tx()`，不得在 `club-copy.ts` 加英文；取用後端英文欄位要過濾中文回退**（E-213）；英文用詞照 [`06`](06-conventions.md) §1.1，待確認名詞不得自挑（E-210）。
 - **標誌**：只用 [`brand/svg/`](../brand/svg/) 由 `.ai` 萃取的三種組合（隊徽／隊徽＋TCRFC 英文版／隊徽＋TCRFC＋台中磐石足球俱樂部 中文版）。
   **不得自行排字、不得加 `SINCE` 或年份。**
 - **雙語**：繁中（預設）＋英文，URL 以 `/zh/`、`/en/` 區隔，架構須預留第三語系。

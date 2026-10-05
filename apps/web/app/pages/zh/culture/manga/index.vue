@@ -7,12 +7,12 @@
 // 資料不足時顯示誠實的空狀態（後端種子的 3 集都是草稿，公開列表目前是空的），不放示意集數。
 import type { ComicAbout, ComicCharacter, ComicEpisode } from '#shared/utils/member'
 
-definePageMeta({ nav: 'culture', unit: '8.1' })
+definePageMeta({ nav: 'culture', unit: '8.1', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
-const identity = computed(() => getClubIdentity(club))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(club)))
 
 const lang = locale.value
 const [{ data: about }, { data: characters }, { data: episodes }, { data: latest }] = await Promise.all([
@@ -28,18 +28,20 @@ const safeImg = (u: string | null | undefined) => (u && /^(https:\/\/|\/)/.test(
 const fmtDate = (d: string | null) => formatPlainDate(d)
 
 useSeoMeta({
-  title: '台中磐石漫畫 TCRFC Manga｜台中磐石文化｜台中磐石足球俱樂部',
-  description: '台中磐石漫畫是台中磐石足球俱樂部的原創漫畫企劃：世界觀設定、角色卡牆與集數線上閱讀器，全部免費開放、不需登入。',
+  title: computed(() => (isEn.value ? CLUB_MANGA_SEO_EN.title : '台中磐石漫畫 TCRFC Manga｜台中磐石文化｜台中磐石足球俱樂部')),
+  description: computed(() => (isEn.value
+    ? CLUB_MANGA_SEO_EN.description
+    : '台中磐石漫畫是台中磐石足球俱樂部的原創漫畫企劃：世界觀設定、角色卡牆與集數線上閱讀器，全部免費開放、不需登入。')),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
-      <li aria-current="page">台中磐石漫畫</li>
+      <li aria-current="page">{{ tx('台中磐石漫畫', 'TCRFC Manga') }}</li>
     </ol>
   </div>
 </nav>
@@ -47,8 +49,9 @@ useSeoMeta({
 <section class="page-hero">
   <div class="container">
     <p class="page-hero__eyebrow">8.1 TCRFC Manga / Comics</p>
-    <h1>台中磐石漫畫<span class="en">Manga / Comics</span></h1>
-    <p class="page-hero__lede">以台中磐石為原型的原創漫畫企劃，角色設定與球員故事交織。全部集數<b style="color:#fff">免費開放、不需登入、無付費牆</b>。</p>
+    <h1>{{ tx('台中磐石漫畫', 'TCRFC Manga') }}<span v-if="!isEn" class="en">Manga / Comics</span></h1>
+    <p v-if="isEn" class="page-hero__lede">An original comic project inspired by Taichung Rock, weaving together character design and player stories. Every episode is <b style="color:#fff">free to read, with no login and no paywall</b>.</p>
+    <p v-else class="page-hero__lede">以台中磐石為原型的原創漫畫企劃，角色設定與球員故事交織。全部集數<b style="color:#fff">免費開放、不需登入、無付費牆</b>。</p>
   </div>
 </section>
 
@@ -58,19 +61,19 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">LATEST EPISODE</p>
-        <h2 id="latest-title" class="section-title">最新集數</h2>
+        <h2 id="latest-title" class="section-title">{{ tx('最新集數', 'Latest episode') }}</h2>
       </div>
     </div>
     <div class="mg-latest">
-      <a class="mg-latest__cover" :href="lp(`/zh/culture/manga/${latest.episodeNo}/`)" :aria-label="`閱讀第 ${latest.episodeNo} 集：${latest.title}`">
-        <img v-if="safeImg(latest.coverUrl)" :src="safeImg(latest.coverUrl)!" :alt="`第 ${latest.episodeNo} 集封面`" width="480" height="640">
+      <a class="mg-latest__cover" :href="lp(`/zh/culture/manga/${latest.episodeNo}/`)" :aria-label="isEn ? `Read episode ${latest.episodeNo}: ${latest.title}` : `閱讀第 ${latest.episodeNo} 集：${latest.title}`">
+        <img v-if="safeImg(latest.coverUrl)" :src="safeImg(latest.coverUrl)!" :alt="isEn ? `Cover of episode ${latest.episodeNo}` : `第 ${latest.episodeNo} 集封面`" width="480" height="640">
         <span v-else>EP{{ String(latest.episodeNo).padStart(2, '0') }}</span>
       </a>
       <div>
-        <p class="mg-latest__no">第 {{ latest.episodeNo }} 集</p>
+        <p class="mg-latest__no">{{ isEn ? `Episode ${latest.episodeNo}` : `第 ${latest.episodeNo} 集` }}</p>
         <h3 class="mg-latest__title">{{ latest.title }}</h3>
-        <p v-if="latest.publishedOn" class="mc-note mc-note--small">發布日 {{ fmtDate(latest.publishedOn) }}　共 {{ latest.pageCount }} 頁</p>
-        <p><a class="btn btn--primary" :href="lp(`/zh/culture/manga/${latest.episodeNo}/`)">開始閱讀</a></p>
+        <p v-if="latest.publishedOn" class="mc-note mc-note--small">{{ isEn ? `Published ${fmtDate(latest.publishedOn)}, ${latest.pageCount} pages` : `發布日 ${fmtDate(latest.publishedOn)}　共 ${latest.pageCount} 頁` }}</p>
+        <p><a class="btn btn--primary" :href="lp(`/zh/culture/manga/${latest.episodeNo}/`)">{{ tx('開始閱讀', 'Start reading') }}</a></p>
       </div>
     </div>
   </div>
@@ -82,12 +85,12 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">ABOUT THE PROJECT</p>
-        <h2 id="about-project-title" class="section-title">{{ about?.title || '關於企劃' }}</h2>
+        <h2 id="about-project-title" class="section-title">{{ about?.title || tx('關於企劃', 'About the project') }}</h2>
       </div>
     </div>
     <div class="prose">
       <p v-for="(p, i) in paragraphs" :key="i">{{ p }}</p>
-      <p v-if="paragraphs.length === 0">企劃介紹準備中，稍後將於本頁公開。</p>
+      <p v-if="paragraphs.length === 0">{{ tx('企劃介紹準備中，稍後將於本頁公開。', 'The project introduction is being prepared and will be published on this page soon.') }}</p>
     </div>
   </div>
 </section>
@@ -98,9 +101,9 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">CHARACTERS</p>
-        <h2 id="characters-title" class="section-title" style="color:#fff">角色介紹</h2>
+        <h2 id="characters-title" class="section-title" style="color:#fff">{{ tx('角色介紹', 'Characters') }}</h2>
       </div>
-      <p class="section-lede">角色設定可關聯一線隊原型球員。</p>
+      <p class="section-lede">{{ tx('角色設定可關聯一線隊原型球員。', 'A character can be linked to the First Team player it is modelled on.') }}</p>
     </div>
 
     <div v-if="(characters ?? []).length > 0" class="grid grid--4 char-wall">
@@ -113,7 +116,7 @@ useSeoMeta({
         <p v-if="c.description" class="char-card__desc">{{ c.description }}</p>
       </article>
     </div>
-    <p v-else class="char-card__pending" style="margin-top:1.5rem;">角色設定尚未公開，敬請期待。</p>
+    <p v-else class="char-card__pending" style="margin-top:1.5rem;">{{ tx('角色設定尚未公開，敬請期待。', 'The characters have not been revealed yet. Stay tuned.') }}</p>
   </div>
 </section>
 
@@ -123,44 +126,44 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">EPISODES</p>
-        <h2 id="episodes-title" class="section-title">集數列表</h2>
+        <h2 id="episodes-title" class="section-title">{{ tx('集數列表', 'Episodes') }}</h2>
       </div>
     </div>
     <div v-if="(episodes ?? []).length > 0" class="grid grid--3">
       <article v-for="e in episodes" :key="e.episodeNo" class="ep-card">
         <a class="ep-card__link" :href="lp(`/zh/culture/manga/${e.episodeNo}/`)">
           <div class="ep-card__cover">
-            <img v-if="safeImg(e.coverThumbUrl || e.coverUrl)" :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="`第 ${e.episodeNo} 集封面`" loading="lazy" width="480" height="640">
+            <img v-if="safeImg(e.coverThumbUrl || e.coverUrl)" :src="safeImg(e.coverThumbUrl || e.coverUrl)!" :alt="isEn ? `Cover of episode ${e.episodeNo}` : `第 ${e.episodeNo} 集封面`" loading="lazy" width="480" height="640">
             <span v-else>EP{{ String(e.episodeNo).padStart(2, '0') }}</span>
           </div>
           <p class="ep-card__title">
-            <strong>第 {{ e.episodeNo }} 集　{{ e.title }}</strong>
-            <span v-if="e.isLatest" class="mc-badge mc-badge--ok" style="margin-left:.5rem;">最新</span>
-            <br><span class="mc-note mc-note--small">{{ fmtDate(e.publishedOn) }}　{{ e.pageCount }} 頁</span>
+            <strong>{{ isEn ? `Episode ${e.episodeNo}: ${e.title}` : `第 ${e.episodeNo} 集　${e.title}` }}</strong>
+            <span v-if="e.isLatest" class="mc-badge mc-badge--ok" style="margin-left:.5rem;">{{ tx('最新', 'Latest') }}</span>
+            <br><span class="mc-note mc-note--small">{{ isEn ? `${fmtDate(e.publishedOn)}, ${e.pageCount} pages` : `${fmtDate(e.publishedOn)}　${e.pageCount} 頁` }}</span>
           </p>
         </a>
       </article>
     </div>
-    <p v-else class="is-pending">尚未發布任何集數，敬請期待。</p>
+    <p v-else class="is-pending">{{ tx('尚未發布任何集數，敬請期待。', 'No episodes have been published yet. Stay tuned.') }}</p>
   </div>
 </section>
 
 <!-- SPEC 3.1 — 頁尾 CTA -->
 <section class="band" aria-labelledby="manga-cta-title">
   <div class="container">
-    <h2 id="manga-cta-title" class="visually-hidden">加入球迷會看更多台中磐石文化內容</h2>
+    <h2 id="manga-cta-title" class="visually-hidden">{{ tx('加入球迷會看更多台中磐石文化內容', 'Join the Fan Club for more Taichung Rock culture content') }}</h2>
     <div class="grid grid--2">
       <div class="cta-card" style="background:var(--ink)">
         <p class="cta-card__num">8.2</p>
-        <p class="cta-card__title">加入台中磐石球迷會</p>
-        <p class="cta-card__desc">成為球迷會成員，優先參與球迷活動，並享有特約店家折扣與入會球衣。</p>
-        <a class="btn btn--primary" :href="lp('/zh/culture/fan-club/')">前往球迷會</a>
+        <p class="cta-card__title">{{ tx('加入台中磐石球迷會', 'Join the TCRFC Fan Club') }}</p>
+        <p class="cta-card__desc">{{ tx('成為球迷會成員，優先參與球迷活動，並享有特約店家折扣與入會球衣。', 'Become a Fan Club member to get priority for fan events, partner store discounts and a membership jersey.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/culture/fan-club/')">{{ tx('前往球迷會', 'Go to the Fan Club') }}</a>
       </div>
       <div class="cta-card" style="background:var(--ink)">
         <p class="cta-card__num">8.3</p>
-        <p class="cta-card__title">官方商品</p>
-        <p class="cta-card__desc">把台中磐石漫畫角色與球隊主場球衣一起帶回家。</p>
-        <a class="btn btn--primary" :href="lp('/zh/culture/merchandise/')">看官方商品</a>
+        <p class="cta-card__title">{{ tx('官方商品', 'Merchandise') }}</p>
+        <p class="cta-card__desc">{{ tx('把台中磐石漫畫角色與球隊主場球衣一起帶回家。', 'Take the TCRFC Manga characters and the team\'s home jersey home with you.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/culture/merchandise/')">{{ tx('看官方商品', 'View merchandise') }}</a>
       </div>
     </div>
   </div>

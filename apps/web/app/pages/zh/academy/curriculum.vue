@@ -5,28 +5,28 @@
 // 會直接顯示磐石內容，屬於既有缺口，見 units.ts 檔頭說明）。本頁全部既有內容都是
 // 「準備中」通用佔位文字，沒有磐石專屬真實事實，改為兩俱樂部共用同一份文案（只換
 // 抬頭與 CTA 連結），不需要臆造新內容。
-definePageMeta({ nav: "academy", unit: "4.4" })
+definePageMeta({ nav: "academy", unit: "4.4", enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
-const identity = computed(() => getClubIdentity(clubKey.value))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 
 useSeoMeta({
-  title: computed(() => getAcademyCurriculumSeo(clubKey.value).title),
-  description: computed(() => getAcademyCurriculumSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getAcademyCurriculumSeoEn() : getAcademyCurriculumSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getAcademyCurriculumSeoEn() : getAcademyCurriculumSeo(clubKey.value)).description),
 })
-const hero = computed(() => getAcademyCurriculumHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getAcademyCurriculumHeroEn() : getAcademyCurriculumHero(clubKey.value)))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
-      <li aria-current="page">訓練課程與課綱</li>
+      <li aria-current="page">{{ tx('訓練課程與課綱', 'Training & Curriculum') }}</li>
     </ol>
   </div>
 </nav>
@@ -47,39 +47,39 @@ const hero = computed(() => getAcademyCurriculumHero(clubKey.value))
     <div class="eyebrow-row">
       <div>
         <p class="kicker">Five Pillars</p>
-        <h2 class="section-title">五大訓練面向</h2>
+        <h2 class="section-title">{{ tx('五大訓練面向', 'Five Training Pillars') }}</h2>
       </div>
     </div>
     <div class="values-grid">
       <div class="value-card clip-card">
         <span class="value-card__num">01</span>
-        <span class="value-card__en">Technical</span>
-        <span class="value-card__zh">技術</span>
-        <p class="value-card__desc">球感、控球、傳接與射門等基本功，是戰術與比賽表現的基礎。</p>
+        <span v-if="!isEn" class="value-card__en">Technical</span>
+        <span class="value-card__zh">{{ tx('技術', 'Technical') }}</span>
+        <p class="value-card__desc">{{ tx('球感、控球、傳接與射門等基本功，是戰術與比賽表現的基礎。', 'Ball feel, ball control, passing, receiving and shooting: the fundamentals that underpin tactics and match performance.') }}</p>
       </div>
       <div class="value-card clip-card">
         <span class="value-card__num">02</span>
-        <span class="value-card__en">Tactical</span>
-        <span class="value-card__zh">戰術</span>
-        <p class="value-card__desc">個人與團隊的攻守觀念、站位與空間判讀。</p>
+        <span v-if="!isEn" class="value-card__en">Tactical</span>
+        <span class="value-card__zh">{{ tx('戰術', 'Tactical') }}</span>
+        <p class="value-card__desc">{{ tx('個人與團隊的攻守觀念、站位與空間判讀。', 'Individual and team ideas in attack and defence, positioning and reading space.') }}</p>
       </div>
       <div class="value-card clip-card">
         <span class="value-card__num">03</span>
-        <span class="value-card__en">Physical</span>
-        <span class="value-card__zh">體能</span>
-        <p class="value-card__desc">速度、爆發力、耐力與協調性，支撐高強度比賽節奏。</p>
+        <span v-if="!isEn" class="value-card__en">Physical</span>
+        <span class="value-card__zh">{{ tx('體能', 'Physical') }}</span>
+        <p class="value-card__desc">{{ tx('速度、爆發力、耐力與協調性，支撐高強度比賽節奏。', 'Speed, power, endurance and coordination to sustain the tempo of high-intensity matches.') }}</p>
       </div>
       <div class="value-card clip-card">
         <span class="value-card__num">04</span>
-        <span class="value-card__en">Game Reading</span>
-        <span class="value-card__zh">比賽判讀</span>
-        <p class="value-card__desc">閱讀場上局勢、即時做出決策的能力。</p>
+        <span v-if="!isEn" class="value-card__en">Game Reading</span>
+        <span class="value-card__zh">{{ tx('比賽判讀', 'Game Reading') }}</span>
+        <p class="value-card__desc">{{ tx('閱讀場上局勢、即時做出決策的能力。', 'The ability to read the game and make decisions in real time.') }}</p>
       </div>
       <div class="value-card clip-card">
         <span class="value-card__num">05</span>
-        <span class="value-card__en">Character</span>
-        <span class="value-card__zh">品格</span>
-        <p class="value-card__desc">團隊精神、紀律與運動家精神的培養。</p>
+        <span v-if="!isEn" class="value-card__en">Character</span>
+        <span class="value-card__zh">{{ tx('品格', 'Character') }}</span>
+        <p class="value-card__desc">{{ tx('團隊精神、紀律與運動家精神的培養。', 'Building team spirit, discipline and sportsmanship.') }}</p>
       </div>
     </div>
   </div>
@@ -87,24 +87,24 @@ const hero = computed(() => getAcademyCurriculumHero(clubKey.value))
 
 <section class="band">
   <div class="container">
-    <h2 class="section-title">課綱與週期規劃表</h2>
-    <p class="section-lede" style="margin-top:.5rem;">各面向的具體課綱內容與週期（年度／學期／週）訓練配比，待客戶資料到位後填入下表。</p>
+    <h2 class="section-title">{{ tx('課綱與週期規劃表', 'Syllabus and Training-Cycle Plan') }}</h2>
+    <p class="section-lede" style="margin-top:.5rem;">{{ tx('各面向的具體課綱內容與週期（年度／學期／週）訓練配比，待客戶資料到位後填入下表。', 'The detailed syllabus and training-cycle breakdown (season / term / week) for each pillar will be added to the table below once the information is ready.') }}</p>
     <div class="data-table-wrap" style="margin-top:2rem;">
       <table class="data-table">
-        <caption class="visually-hidden">五大訓練面向課綱與週期規劃表</caption>
+        <caption class="visually-hidden">{{ tx('五大訓練面向課綱與週期規劃表', 'Syllabus and training-cycle plan for the five training pillars') }}</caption>
         <thead>
           <tr>
-            <th scope="col">面向</th>
-            <th scope="col">課綱重點</th>
-            <th scope="col">週期規劃</th>
+            <th scope="col">{{ tx('面向', 'Pillar') }}</th>
+            <th scope="col">{{ tx('課綱重點', 'Syllabus highlights') }}</th>
+            <th scope="col">{{ tx('週期規劃', 'Cycle plan') }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr><th scope="row">技術</th><td class="pending-cell">內容準備中</td><td class="pending-cell">內容準備中</td></tr>
-          <tr><th scope="row">戰術</th><td class="pending-cell">內容準備中</td><td class="pending-cell">內容準備中</td></tr>
-          <tr><th scope="row">體能</th><td class="pending-cell">內容準備中</td><td class="pending-cell">內容準備中</td></tr>
-          <tr><th scope="row">比賽判讀</th><td class="pending-cell">內容準備中</td><td class="pending-cell">內容準備中</td></tr>
-          <tr><th scope="row">品格</th><td class="pending-cell">內容準備中</td><td class="pending-cell">內容準備中</td></tr>
+          <tr><th scope="row">{{ tx('技術', 'Technical') }}</th><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td></tr>
+          <tr><th scope="row">{{ tx('戰術', 'Tactical') }}</th><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td></tr>
+          <tr><th scope="row">{{ tx('體能', 'Physical') }}</th><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td></tr>
+          <tr><th scope="row">{{ tx('比賽判讀', 'Game Reading') }}</th><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td></tr>
+          <tr><th scope="row">{{ tx('品格', 'Character') }}</th><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -116,20 +116,20 @@ const hero = computed(() => getAcademyCurriculumHero(clubKey.value))
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/academy/pathway/')">
         <span class="cta-card__num">4.3</span>
-        <span class="cta-card__title">{{ identity.academyShortLabelZh }}發展路徑</span>
-        <p class="cta-card__desc">{{ isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑' }}</p>
+        <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '發展路徑', 'Academy Pathway') }}</span>
+        <p class="cta-card__desc">{{ tx(isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑', 'The pathway from U12 to the First Team and overseas') }}</p>
       </a>
       <!-- BW-C1：4.5 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
       <a class="cta-card" :href="lp('/zh/academy/coaches/')">
         <span class="cta-card__num">4.5</span>
-        <span class="cta-card__title">{{ identity.academyShortLabelZh }}教練團</span>
-        <p class="cta-card__desc">認識帶領各梯隊的教練</p>
+        <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '教練團', 'Coaches') }}</span>
+        <p class="cta-card__desc">{{ tx('認識帶領各梯隊的教練', 'Meet the coaches who lead each squad') }}</p>
       </a>
       <!-- 4.7 加入學院對藍鯨已整頁關閉（既有 units.ts，S1-15），不連結一個會 404 的頁面。 -->
       <a v-if="isTcrfc" class="cta-card" :href="lp('/zh/academy/join/')">
         <span class="cta-card__num">4.7</span>
-        <span class="cta-card__title">加入學院</span>
-        <p class="cta-card__desc">招生對象與遴選流程</p>
+        <span class="cta-card__title">{{ tx('加入學院', 'Join the Academy') }}</span>
+        <p class="cta-card__desc">{{ tx('招生對象與遴選流程', 'Who we recruit and how selection works') }}</p>
       </a>
     </div>
   </div>

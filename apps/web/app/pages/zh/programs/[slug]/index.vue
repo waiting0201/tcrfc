@@ -11,7 +11,7 @@
 // `content` 當純文字顯示（空行分段），**不使用 v-html**。
 import type { ProgramSessionLike } from '~/utils/program-session'
 
-definePageMeta({ nav: 'programs', unit: '05' })
+definePageMeta({ nav: 'programs', unit: '05', enReady: true })
 
 interface ProgramDetail {
   id: string
@@ -40,7 +40,7 @@ interface ProgramDetail {
   }>
 }
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const club = config.public.club
@@ -64,12 +64,13 @@ const registrable = computed(() => (isTcrfc.value && program.value && openSessio
 const ageText = computed(() => {
   const p = program.value
   if (!p || p.ageMin == null) return null
+  if (isEn.value) return p.ageMax != null ? `${p.ageMin}–${p.ageMax} years` : `${p.ageMin} years and over`
   return p.ageMax != null ? `${p.ageMin}–${p.ageMax} 歲` : `${p.ageMin} 歲以上`
 })
 
 useSeoMeta({
-  title: computed(() => `${program.value?.name ?? '課程'}｜課程與活動｜${clubAssets.value.nameZh}`),
-  description: computed(() => program.value?.intro ?? `${clubAssets.value.nameZh}的課程資訊。`),
+  title: computed(() => (isEn.value ? `${program.value?.name ?? 'Program'} | Programs | Taichung Rock FC` : `${program.value?.name ?? '課程'}｜課程與活動｜${clubAssets.value.nameZh}`)),
+  description: computed(() => program.value?.intro ?? (isEn.value ? 'Program information from Taichung Rock FC.' : `${clubAssets.value.nameZh}的課程資訊。`)),
 })
 
 const siteConfig = useSiteConfig()
@@ -83,11 +84,12 @@ useCourseSchema(
 
 <template>
 <template v-if="program">
-<nav class="breadcrumb" aria-label="麵包屑">
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(program)" partial />
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/programs/')">{{ tx('課程與活動', 'Programs') }}</a></li>
       <li aria-current="page">{{ program.name }}</li>
     </ol>
   </div>
@@ -106,22 +108,22 @@ useCourseSchema(
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
       <div class="prose">
-        <h2>課程內容</h2>
+        <h2>{{ tx('課程內容', 'Program Details') }}</h2>
         <p v-if="program.audience || ageText">
-          <template v-if="program.audience">適合對象：{{ program.audience }}</template>
-          <template v-if="program.audience && ageText">｜</template>
-          <template v-if="ageText">年齡：{{ ageText }}</template>
+          <template v-if="program.audience">{{ tx('適合對象：', 'Suitable for: ') }}{{ program.audience }}</template>
+          <template v-if="program.audience && ageText">{{ tx('｜', ' | ') }}</template>
+          <template v-if="ageText">{{ tx('年齡：', 'Age: ') }}{{ ageText }}</template>
         </p>
         <p v-for="(para, i) in paragraphs" :key="i">{{ para }}</p>
-        <p v-if="!paragraphs.length && !program.intro" class="is-pending">課程內容整理中，稍後公布。</p>
+        <p v-if="!paragraphs.length && !program.intro" class="is-pending">{{ tx('課程內容整理中，稍後公布。', 'Program details are being compiled and will be published soon.') }}</p>
       </div>
       <div class="prose">
         <template v-if="program.staff.length">
-          <h2>教練團</h2>
+          <h2>{{ tx('教練團', 'Coaching Team') }}</h2>
           <ul><li v-for="s in program.staff" :key="s.id">{{ s.name }}</li></ul>
         </template>
         <template v-if="program.partners.length">
-          <h2>合作夥伴</h2>
+          <h2>{{ tx('合作夥伴', 'Partners') }}</h2>
           <ul>
             <li v-for="p in program.partners" :key="p.id">
               <a v-if="p.websiteUrl && /^https:\/\//i.test(p.websiteUrl)" :href="p.websiteUrl" target="_blank" rel="noopener noreferrer">{{ p.name }}</a>
@@ -136,14 +138,14 @@ useCourseSchema(
 
 <section class="band" style="background:var(--paper-2);">
   <div class="container">
-    <div class="prose"><h2>梯次與地點</h2></div>
-    <p v-if="!program.sessions.length" class="is-pending">梯次尚未公布。</p>
+    <div class="prose"><h2>{{ tx('梯次與地點', 'Sessions and Venue') }}</h2></div>
+    <p v-if="!program.sessions.length" class="is-pending">{{ tx('梯次尚未公布。', 'Sessions have not been announced yet.') }}</p>
     <div v-for="s in program.sessions" :key="s.id" class="signup-preview" style="margin-bottom:1rem;">
-      <div class="signup-preview__row"><span>日期</span><span class="signup-preview__value">{{ s.startOn ?? '待公告' }}<template v-if="s.endOn"> ～ {{ s.endOn }}</template></span></div>
-      <div v-if="s.weeklySchedule" class="signup-preview__row"><span>時段</span><span class="signup-preview__value">{{ s.weeklySchedule }}</span></div>
-      <div v-if="s.venueName" class="signup-preview__row"><span>地點</span><span class="signup-preview__value">{{ s.venueName }}</span></div>
-      <div class="signup-preview__row"><span>費用</span><span class="signup-preview__value">{{ s.price != null ? `NT$ ${s.price}` : '待公告' }}</span></div>
-      <div v-if="s.capacity" class="signup-preview__row"><span>剩餘名額</span><span class="signup-preview__value">{{ Math.max(s.capacity - s.enrolledCount, 0) }}</span></div>
+      <div class="signup-preview__row"><span>{{ tx('日期', 'Dates') }}</span><span class="signup-preview__value">{{ s.startOn ?? tx('待公告', 'To be announced') }}<template v-if="s.endOn">{{ tx(' ～ ', ' - ') }}{{ s.endOn }}</template></span></div>
+      <div v-if="s.weeklySchedule" class="signup-preview__row"><span>{{ tx('時段', 'Schedule') }}</span><span class="signup-preview__value">{{ isEn ? (formatWeeklySchedule(s.weeklySchedule, locale) ?? '—') : s.weeklySchedule }}</span></div>
+      <div v-if="s.venueName" class="signup-preview__row"><span>{{ tx('地點', 'Venue') }}</span><span class="signup-preview__value">{{ s.venueName }}</span></div>
+      <div class="signup-preview__row"><span>{{ tx('費用', 'Fee') }}</span><span class="signup-preview__value">{{ s.price != null ? `NT$ ${s.price}` : tx('待公告', 'To be announced') }}</span></div>
+      <div v-if="s.capacity" class="signup-preview__row"><span>{{ tx('剩餘名額', 'Places left') }}</span><span class="signup-preview__value">{{ Math.max(s.capacity - s.enrolledCount, 0) }}</span></div>
     </div>
   </div>
 </section>
@@ -153,9 +155,9 @@ useCourseSchema(
 <section class="band">
   <div class="container">
     <div class="hero__ctas">
-      <a v-if="registrable.length" class="btn btn--primary" href="#register">線上報名</a>
-      <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
-      <a class="btn btn--dark" :href="lp('/zh/programs/')">回課程總覽</a>
+      <a v-if="registrable.length" class="btn btn--primary" href="#register">{{ tx('線上報名', 'Register Online') }}</a>
+      <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">{{ tx('加入候補通知', 'Join the Notification List') }}</a>
+      <a class="btn btn--dark" :href="lp('/zh/programs/')">{{ tx('回課程總覽', 'Back to Programs Overview') }}</a>
     </div>
   </div>
 </section>

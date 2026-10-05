@@ -3,12 +3,12 @@
 import type { PressResource, PressResourceType } from '#shared/utils/press'
 import type { PagedResponse } from '#shared/utils/api-types'
 
-definePageMeta({ nav: "news", unit: "07" })
+definePageMeta({ nav: "news", unit: "07", enReady: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
 const isTcrfc = computed(() => club !== 'bw')
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 
 // BW-C1（品牌外洩全站盤點）：title／description 原本固定寫死「台中磐石足球俱樂部」；
 // 分類導覽改用共用元件 NewsCategoryTabs（理由同 academy.vue／player-stories.vue）；
@@ -38,20 +38,20 @@ const [pressReleases, brandKits, hiresImages] = await Promise.all([
 ])
 
 useSeoMeta({
-  title: computed(() => `媒體專區 Media｜新聞 News｜${getClubAssets(club).nameZh}`),
-  description: computed(() => (isTcrfc.value
+  title: computed(() => isEn.value ? getNewsCategorySeoEn('media', null).title : `媒體專區 Media｜新聞 News｜${getClubAssets(club).nameZh}`),
+  description: computed(() => isEn.value ? getNewsCategorySeoEn('media', null).description : (isTcrfc.value
     ? '台中磐石媒體專區：品牌識別包下載（隊徽 SVG／PNG、社群分享圖），新聞稿與高解析圖庫、媒體聯絡窗口建置中。'
     : '台中藍鯨媒體專區：新聞稿與高解析圖庫、媒體聯絡窗口建置中。')),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/news/')">新聞 News</a></li>
-      <li aria-current="page">媒體專區</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/news/')">{{ tx('新聞 News', 'News') }}</a></li>
+      <li aria-current="page">{{ tx('媒體專區', 'Press & Media') }}</li>
     </ol>
   </div>
 </nav>
@@ -59,69 +59,76 @@ useSeoMeta({
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-news.jpg')" width="1920" height="1279" />
   <div class="container">
-    <p class="page-hero__eyebrow">7.8 Media</p>
-    <h1>媒體專區<span class="en">Media</span></h1>
-    <p class="page-hero__lede">提供媒體夥伴新聞稿下載、品牌識別包（Logo／CIS）、高解析圖庫與媒體聯絡窗口。</p>
+    <p class="page-hero__eyebrow">{{ tx('7.8 Media', '7.8 Press & Media') }}</p>
+    <h1>{{ tx('媒體專區', 'Press & Media') }}<span v-if="!isEn" class="en">Media</span></h1>
+    <p v-if="isEn" class="page-hero__lede">{{ getNewsCategoryHeroEn('media').lede }}</p>
+    <p v-else class="page-hero__lede">提供媒體夥伴新聞稿下載、品牌識別包（Logo／CIS）、高解析圖庫與媒體聯絡窗口。</p>
   </div>
 </section>
 
 <section class="band" aria-labelledby="media-tabs-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="media-tabs-title">新聞分類導覽</h2>
+    <h2 class="visually-hidden" id="media-tabs-title">{{ tx('新聞分類導覽', 'News category navigation') }}</h2>
     <div class="news-toolbar">
       <NewsCategoryTabs active="media" />
     </div>
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(pressReleases) || hasFallbackLocale(brandKits) || hasFallbackLocale(hiresImages))" partial />
+
 <section v-if="isTcrfc" class="band grain grain--2" aria-labelledby="brandkit-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker" style="color:var(--brand)">7.8.1</p>
-        <h2 class="section-title" id="brandkit-title" style="color:#fff">品牌識別包</h2>
+        <h2 class="section-title" id="brandkit-title" style="color:#fff">{{ tx('品牌識別包', 'Brand kit') }}</h2>
       </div>
-      <p class="section-lede" style="color:var(--muted-dark)">直接向量萃取自 logo 主檔（<code>reference/TCR_logo_CMYK.ai</code>），可下載使用；請勿重繪或改動標誌造型。</p>
+      <p v-if="isEn" class="section-lede" style="color:var(--muted-dark)">Extracted directly as vector artwork from the master logo file (<code>reference/TCR_logo_CMYK.ai</code>) and free to download. Please do not redraw or alter the crest.</p>
+      <p v-else class="section-lede" style="color:var(--muted-dark)">直接向量萃取自 logo 主檔（<code>reference/TCR_logo_CMYK.ai</code>），可下載使用；請勿重繪或改動標誌造型。</p>
     </div>
 
     <div class="grid grid--3" style="margin-top:2.5rem">
       <div class="value-card">
         <p class="value-card__num">MARK</p>
-        <p class="value-card__zh">隊徽（飛鳥）</p>
-        <p class="value-card__desc">單獨隊徽圖形，適合小尺寸應用（社群大頭貼、favicon 等）。</p>
+        <p class="value-card__zh">{{ tx('隊徽（飛鳥）', 'Club crest (bird)') }}</p>
+        <p class="value-card__desc">{{ tx('單獨隊徽圖形，適合小尺寸應用（社群大頭貼、favicon 等）。', 'The crest on its own, suited to small uses such as social profile pictures and favicons.') }}</p>
         <p style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.5rem">
-          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-mark-pink.svg" download>桃紅 SVG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-mark-black.svg" download>黑 SVG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-mark-white.svg" download>白 SVG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/png/tcrfc-mark-pink-512.png" download>桃紅 PNG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/png/tcrfc-mark-white-512.png" download>白 PNG</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-mark-pink.svg" download>{{ tx('桃紅 SVG', 'Pink SVG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-mark-black.svg" download>{{ tx('黑 SVG', 'Black SVG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-mark-white.svg" download>{{ tx('白 SVG', 'White SVG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/png/tcrfc-mark-pink-512.png" download>{{ tx('桃紅 PNG', 'Pink PNG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/png/tcrfc-mark-white-512.png" download>{{ tx('白 PNG', 'White PNG') }}</a>
         </p>
       </div>
       <div class="value-card">
         <p class="value-card__num">STACKED</p>
-        <p class="value-card__zh">隊徽＋TCRFC</p>
-        <p class="value-card__desc">隊徽疊加英文簡稱的直式組合，適合方形版位。</p>
+        <p class="value-card__zh">{{ tx('隊徽＋TCRFC', 'Crest + TCRFC') }}</p>
+        <p class="value-card__desc">{{ tx('隊徽疊加英文簡稱的直式組合，適合方形版位。', 'A stacked lockup of the crest above the TCRFC wordmark, suited to square placements.') }}</p>
         <p style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.5rem">
-          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-stacked-pink.svg" download>桃紅 SVG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-stacked-black.svg" download>黑 SVG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-stacked-white.svg" download>白 SVG</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-stacked-pink.svg" download>{{ tx('桃紅 SVG', 'Pink SVG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-stacked-black.svg" download>{{ tx('黑 SVG', 'Black SVG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-stacked-white.svg" download>{{ tx('白 SVG', 'White SVG') }}</a>
         </p>
       </div>
       <div class="value-card">
         <p class="value-card__num">FULL</p>
-        <p class="value-card__zh">完整組合標誌</p>
-        <p class="value-card__desc">隊徽＋TCRFC＋「台中磐石足球俱樂部」全稱，適合正式文件與新聞稿封面。</p>
+        <p class="value-card__zh">{{ tx('完整組合標誌', 'Full lockup') }}</p>
+        <p class="value-card__desc">{{ tx('隊徽＋TCRFC＋「台中磐石足球俱樂部」全稱，適合正式文件與新聞稿封面。', 'The crest, TCRFC and the full club name, suited to formal documents and press release covers.') }}</p>
         <p style="display:flex;gap:.75rem;flex-wrap:wrap;margin-top:.5rem">
-          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-full-pink.svg" download>桃紅 SVG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-full-black.svg" download>黑 SVG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-full-white.svg" download>白 SVG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/png/tcrfc-full-black-2048.png" download>黑 PNG</a>
-          <a class="btn btn--dark btn--sm" href="/assets/brand/png/tcrfc-full-white-2048.png" download>白 PNG</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-full-pink.svg" download>{{ tx('桃紅 SVG', 'Pink SVG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-full-black.svg" download>{{ tx('黑 SVG', 'Black SVG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/svg/tcrfc-full-white.svg" download>{{ tx('白 SVG', 'White SVG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/png/tcrfc-full-black-2048.png" download>{{ tx('黑 PNG', 'Black PNG') }}</a>
+          <a class="btn btn--dark btn--sm" href="/assets/brand/png/tcrfc-full-white-2048.png" download>{{ tx('白 PNG', 'White PNG') }}</a>
         </p>
       </div>
     </div>
 
-    <p style="margin-top:2.5rem;color:var(--muted-dark);font-size:.9rem">另可下載社群分享圖（<span class="en">1200×630</span>，品牌黑底＋反白標誌＋雙語主張）：
+    <p v-if="isEn" style="margin-top:2.5rem;color:var(--muted-dark);font-size:.9rem">A social share image is also available (<span class="en">1200×630</span>, brand black background with a reversed crest and the bilingual tagline):
+      <a class="btn btn--primary btn--sm" href="/assets/brand/social/og-image.png" download style="margin-left:.75rem">Download share image PNG</a>
+    </p>
+    <p v-else style="margin-top:2.5rem;color:var(--muted-dark);font-size:.9rem">另可下載社群分享圖（<span class="en">1200×630</span>，品牌黑底＋反白標誌＋雙語主張）：
       <a class="btn btn--primary btn--sm" href="/assets/brand/social/og-image.png" download style="margin-left:.75rem">下載分享圖 PNG</a>
     </p>
   </div>
@@ -131,18 +138,18 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker" style="color:var(--brand)">7.8.1</p>
-        <h2 class="section-title" id="brandkit-title" style="color:#fff">品牌識別包</h2>
+        <h2 class="section-title" id="brandkit-title" style="color:#fff">{{ tx('品牌識別包', 'Brand kit') }}</h2>
       </div>
     </div>
-    <p v-if="!brandKits.length" style="margin-top:1.5rem;color:var(--muted-dark)">品牌識別包（隊徽向量檔、社群分享圖）尚未提供，稍後將於本頁公布。</p>
+    <p v-if="!brandKits.length" style="margin-top:1.5rem;color:var(--muted-dark)">{{ tx('品牌識別包（隊徽向量檔、社群分享圖）尚未提供，稍後將於本頁公布。', 'The brand kit (crest vector files and social share image) is not available yet. It will be published on this page soon.') }}</p>
     <ul v-else class="press-list press-list--dark">
       <li v-for="r in brandKits" :key="r.id" class="press-item">
         <div class="press-item__main">
           <p class="press-item__title">{{ r.title }}</p>
           <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
-          <p class="press-item__meta">{{ [slashDate(r.publishedOn), fileKindLabel(r.fileExtension), formatFileSize(r.fileBytes)].filter(Boolean).join(' · ') }}</p>
+          <p class="press-item__meta">{{ [slashDate(r.publishedOn), isEn ? fileKindLabelEn(r.fileExtension) : fileKindLabel(r.fileExtension), formatFileSize(r.fileBytes)].filter(Boolean).join(' · ') }}</p>
         </div>
-        <a v-if="pressDownloadHref(club, r.slug)" class="btn btn--primary btn--sm" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="`下載：${r.title}`">下載</a>
+        <a v-if="pressDownloadHref(club, r.slug)" class="btn btn--primary btn--sm" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="isEn ? `Download: ${r.title}` : `下載：${r.title}`">{{ tx('下載', 'Download') }}</a>
       </li>
     </ul>
   </div>
@@ -151,15 +158,15 @@ useSeoMeta({
 <!-- 磐石：後台 B6 另外建立的品牌識別包資源，列在靜態識別包之後（兩者並存） -->
 <section v-if="isTcrfc && brandKits.length" class="band grain grain--2" aria-labelledby="brandkit-more-title">
   <div class="band-inner container">
-    <h2 class="section-title" id="brandkit-more-title" style="color:#fff">更多識別素材</h2>
+    <h2 class="section-title" id="brandkit-more-title" style="color:#fff">{{ tx('更多識別素材', 'More brand assets') }}</h2>
     <ul class="press-list press-list--dark">
       <li v-for="r in brandKits" :key="r.id" class="press-item">
         <div class="press-item__main">
           <p class="press-item__title">{{ r.title }}</p>
           <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
-          <p class="press-item__meta">{{ [slashDate(r.publishedOn), fileKindLabel(r.fileExtension), formatFileSize(r.fileBytes)].filter(Boolean).join(' · ') }}</p>
+          <p class="press-item__meta">{{ [slashDate(r.publishedOn), isEn ? fileKindLabelEn(r.fileExtension) : fileKindLabel(r.fileExtension), formatFileSize(r.fileBytes)].filter(Boolean).join(' · ') }}</p>
         </div>
-        <a v-if="pressDownloadHref(club, r.slug)" class="btn btn--primary btn--sm" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="`下載：${r.title}`">下載</a>
+        <a v-if="pressDownloadHref(club, r.slug)" class="btn btn--primary btn--sm" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="isEn ? `Download: ${r.title}` : `下載：${r.title}`">{{ tx('下載', 'Download') }}</a>
       </li>
     </ul>
   </div>
@@ -170,7 +177,7 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">7.8.2</p>
-        <h2 class="section-title" id="press-title">新聞稿下載</h2>
+        <h2 class="section-title" id="press-title">{{ tx('新聞稿下載', 'Press releases') }}</h2>
       </div>
     </div>
     <ul v-if="pressReleases.length" class="press-list">
@@ -178,12 +185,12 @@ useSeoMeta({
         <div class="press-item__main">
           <p class="press-item__title">{{ r.title }}</p>
           <p v-if="r.description" class="press-item__desc">{{ r.description }}</p>
-          <p class="press-item__meta">{{ [slashDate(r.publishedOn), fileKindLabel(r.fileExtension), formatFileSize(r.fileBytes)].filter(Boolean).join(' · ') }}</p>
+          <p class="press-item__meta">{{ [slashDate(r.publishedOn), isEn ? fileKindLabelEn(r.fileExtension) : fileKindLabel(r.fileExtension), formatFileSize(r.fileBytes)].filter(Boolean).join(' · ') }}</p>
         </div>
-        <a v-if="pressDownloadHref(club, r.slug)" class="btn btn--dark btn--sm" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="`下載：${r.title}`">下載</a>
+        <a v-if="pressDownloadHref(club, r.slug)" class="btn btn--dark btn--sm" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="isEn ? `Download: ${r.title}` : `下載：${r.title}`">{{ tx('下載', 'Download') }}</a>
       </li>
     </ul>
-    <p v-else class="press-empty">新聞稿整理中，稍後將於本頁公布。</p>
+    <p v-else class="press-empty">{{ tx('新聞稿整理中，稍後將於本頁公布。', 'Press releases are being prepared and will be published on this page soon.') }}</p>
   </div>
 </section>
 
@@ -192,18 +199,18 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">7.8.3</p>
-        <h2 class="section-title" id="gallery-title">高解析圖庫</h2>
+        <h2 class="section-title" id="gallery-title">{{ tx('高解析圖庫', 'High-resolution image library') }}</h2>
       </div>
     </div>
     <ul v-if="hiresImages.length" class="press-gallery">
       <li v-for="r in hiresImages" :key="r.id">
-        <a v-if="pressDownloadHref(club, r.slug)" class="press-gallery__item" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="`下載高解析圖：${r.title}`">
+        <a v-if="pressDownloadHref(club, r.slug)" class="press-gallery__item" :href="pressDownloadHref(club, r.slug) ?? undefined" :aria-label="isEn ? `Download high-resolution image: ${r.title}` : `下載高解析圖：${r.title}`">
           <img v-if="r.coverUrl" :src="r.coverUrl" :alt="r.description ?? r.title ?? ''" loading="lazy" width="640" height="427">
           <span class="press-gallery__cap">{{ r.title }}<small v-if="formatFileSize(r.fileBytes)"> · {{ formatFileSize(r.fileBytes) }}</small></span>
         </a>
       </li>
     </ul>
-    <p v-else class="press-empty">高解析圖庫整理中，稍後將於本頁公布。</p>
+    <p v-else class="press-empty">{{ tx('高解析圖庫整理中，稍後將於本頁公布。', 'The high-resolution image library is being prepared and will be published on this page soon.') }}</p>
   </div>
 </section>
 
@@ -212,11 +219,11 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">7.8.4 · 10.6</p>
-        <h2 class="section-title" id="mediacontact-title">媒體聯絡窗口</h2>
+        <h2 class="section-title" id="mediacontact-title">{{ tx('媒體聯絡窗口', 'Media contact') }}</h2>
       </div>
     </div>
-    <p class="press-empty">媒體採訪、轉載授權與資料索取，請透過媒體聯絡表單與我們聯繫。</p>
-    <p><a class="btn btn--dark btn--sm" :href="lp('/zh/join/media/')">前往媒體聯絡表單</a></p>
+    <p class="press-empty">{{ tx('媒體採訪、轉載授權與資料索取，請透過媒體聯絡表單與我們聯繫。', 'For interviews, reprint permissions and information requests, please contact us through the media enquiry form.') }}</p>
+    <p><a class="btn btn--dark btn--sm" :href="lp('/zh/join/media/')">{{ tx('前往媒體聯絡表單', 'Go to the media enquiry form') }}</a></p>
   </div>
 </section>
 </template>

@@ -216,7 +216,7 @@ if (missingEnSibling.length > 0) {
     + `本檢查**沒有**涵蓋它們。`,
   )
   console.log(
-    `     這是現況不是缺陷——apps/web 目前只有 zh 頁面上線，英文版尚未開工（STATUS.md C-10）。`
+    `     這是現況不是缺陷——主站英文版（C-6）的英文寫在 shared/utils/club-copy-en-*.ts（由 check-en-copy.mjs 檢查），藍鯨英文尚未開工（STATUS.md C-10）。`
     + `英文版開工時要把這裡改成硬性檢查。`,
   )
 }

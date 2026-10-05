@@ -7,19 +7,19 @@
 // 球員故事版型」，本頁對藍鯨維持開放（版型承諾沿用），但沒有任何已核實、已取得肖像
 // 同意的藍鯨球員故事案例可用——藍鯨版改為空狀態（0 案例），不得挪用磐石球員（孫恩祈／
 // 山內大空／楊朝景）充數，見 club-copy.ts「03.5 球員故事」節。
-definePageMeta({ nav: 'club', unit: '3.5' })
+definePageMeta({ nav: 'club', unit: '3.5', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
-const hero = computed(() => getPlayerStoriesHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getPlayerStoriesHeroEn() : getPlayerStoriesHero(clubKey.value)))
 const emptyNote = computed(() => getPlayerStoriesEmptyNote(clubKey.value))
 
 useSeoMeta({
-  title: computed(() => getPlayerStoriesSeo(clubKey.value).title),
-  description: computed(() => getPlayerStoriesSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getPlayerStoriesSeoEn() : getPlayerStoriesSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getPlayerStoriesSeoEn() : getPlayerStoriesSeo(clubKey.value)).description),
 })
 
 onMounted(() => {
@@ -39,12 +39,12 @@ onMounted(() => {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
-      <li aria-current="page">球員故事</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/club/')">{{ tx('俱樂部', 'Football Club') }}</a></li>
+      <li aria-current="page">{{ tx('球員故事', 'Player Stories') }}</li>
     </ol>
   </div>
 </nav>
@@ -60,15 +60,15 @@ onMounted(() => {
 
 <section class="band" id="stories" aria-labelledby="stories-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="stories-title">球員故事案例</h2>
+    <h2 class="visually-hidden" id="stories-title">{{ tx('球員故事案例', 'Player story cases') }}</h2>
 
     <template v-if="isTcrfc">
-      <div class="pos-filter" role="group" aria-label="依類別篩選球員故事">
-        <button type="button" class="pos-chip" data-cat-filter="ALL" aria-pressed="true">全部 3</button>
-        <button type="button" class="pos-chip" data-cat-filter="academy" aria-pressed="false">學院 0</button>
-        <button type="button" class="pos-chip" data-cat-filter="first-team" aria-pressed="false">一線隊 2</button>
-        <button type="button" class="pos-chip" data-cat-filter="overseas" aria-pressed="false">海外 1</button>
-        <button type="button" class="pos-chip" data-cat-filter="womens" aria-pressed="false">女足 0</button>
+      <div class="pos-filter" role="group" :aria-label="tx('依類別篩選球員故事', 'Filter player stories by category')">
+        <button type="button" class="pos-chip" data-cat-filter="ALL" aria-pressed="true">{{ tx('全部 3', 'All 3') }}</button>
+        <button type="button" class="pos-chip" data-cat-filter="academy" aria-pressed="false">{{ tx('學院 0', 'Academy 0') }}</button>
+        <button type="button" class="pos-chip" data-cat-filter="first-team" aria-pressed="false">{{ tx('一線隊 2', 'First Team 2') }}</button>
+        <button type="button" class="pos-chip" data-cat-filter="overseas" aria-pressed="false">{{ tx('海外 1', 'Overseas 1') }}</button>
+        <button type="button" class="pos-chip" data-cat-filter="womens" aria-pressed="false">{{ tx('女足 0', 'Women\'s 0') }}</button>
       </div>
 
       <div class="story-grid" id="story-grid">
@@ -78,8 +78,8 @@ onMounted(() => {
             <span class="story-card__num">6</span>
           </div>
           <div class="story-card__body">
-            <span class="story-card__tag">一線隊 First Team</span>
-            <p class="story-card__name">孫恩祈<span class="story-card__pos">後衛 DF · 背號 6</span></p>
+            <span class="story-card__tag">{{ tx('一線隊 First Team', 'First Team') }}</span>
+            <p class="story-card__name">孫恩祈<span class="story-card__pos">{{ tx('後衛 DF · 背號 6', 'Defender (DF) · No. 6') }}</span></p>
 
           </div>
         </article>
@@ -90,8 +90,8 @@ onMounted(() => {
             <span class="story-card__num">44</span>
           </div>
           <div class="story-card__body">
-            <span class="story-card__tag">一線隊 First Team</span>
-            <p class="story-card__name">山內大空<span class="story-card__pos">前鋒 FW · 背號 44</span></p>
+            <span class="story-card__tag">{{ tx('一線隊 First Team', 'First Team') }}</span>
+            <p class="story-card__name">山內大空<span class="story-card__pos">{{ tx('前鋒 FW · 背號 44', 'Forward (FW) · No. 44') }}</span></p>
 
           </div>
         </article>
@@ -102,15 +102,16 @@ onMounted(() => {
             <span class="story-card__num">11</span>
           </div>
           <div class="story-card__body">
-            <span class="story-card__tag">海外 Overseas</span>
-            <p class="story-card__name">楊朝景<span class="story-card__pos">中場 MF · 背號 11 · 現效力香港九龍城</span></p>
+            <span class="story-card__tag">{{ tx('海外 Overseas', 'Overseas') }}</span>
+            <p class="story-card__name">楊朝景<span class="story-card__pos">{{ tx('中場 MF · 背號 11 · 現效力香港九龍城', 'Midfielder (MF) · No. 11 · currently playing for Kowloon City in Hong Kong') }}</span></p>
 
           </div>
         </article>
       </div>
 
       <div class="story-empty-note">
-        <p><b>學院</b>與<b>女足</b>類別目前尚無已建立的球員故事案例。台中藍鯨的球員名單與賽程請見<a href="https://www.tcbw2014.com/" target="_blank" rel="noopener">台中藍鯨女子隊官網</a>（另開新分頁）。</p>
+        <p v-if="isEn">There are no player stories in the <b>Academy</b> or <b>Women's</b> categories yet. {{ CLUB_PLAYER_STORIES_BW_PREFIX_EN }}<a href="https://www.tcbw2014.com/" target="_blank" rel="noopener">{{ CLUB_PLAYER_STORIES_BW_LINK_TEXT_EN }}</a> (opens in a new tab).</p>
+        <p v-else><b>學院</b>與<b>女足</b>類別目前尚無已建立的球員故事案例。台中藍鯨的球員名單與賽程請見<a href="https://www.tcbw2014.com/" target="_blank" rel="noopener">台中藍鯨女子隊官網</a>（另開新分頁）。</p>
       </div>
     </template>
 
@@ -124,23 +125,24 @@ onMounted(() => {
 
 <section class="band grain cta-band" id="stories-cta" aria-labelledby="stories-cta-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="stories-cta-title">分享你的故事</h2>
+    <h2 class="visually-hidden" id="stories-cta-title">{{ tx('分享你的故事', 'Share your story') }}</h2>
     <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
-        <p class="cta-card__title">認識一線隊</p>
-        <p class="cta-card__desc">查看完整球員名單、教練團與本季賽程。</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
+        <p class="cta-card__title">{{ tx('認識一線隊', 'Meet the First Team') }}</p>
+        <p class="cta-card__desc">{{ tx('查看完整球員名單、教練團與本季賽程。', 'See the full squad list, the coaching staff and this season\'s fixtures.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">{{ tx('前往一線隊', 'Go to the First Team') }}</a>
       </div>
       <!-- BW-C1：3.4 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
       <div class="cta-card">
         <p class="cta-card__num">3.4</p>
-        <p class="cta-card__title">國際發展通道</p>
+        <p class="cta-card__title">{{ tx('國際發展通道', 'International Pathways') }}</p>
         <p class="cta-card__desc">
-          <template v-if="isTcrfc">了解球員通往歐洲、日本、香港的完整路徑。</template>
+          <template v-if="isEn">Learn about the full route players take to Europe, Japan and Hong Kong.</template>
+          <template v-else-if="isTcrfc">了解球員通往歐洲、日本、香港的完整路徑。</template>
           <template v-else>了解球員旅外日本、中國的真實案例。</template>
         </p>
-        <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">查看國際通道</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">{{ tx('查看國際通道', 'View International Pathways') }}</a>
       </div>
     </div>
   </div>

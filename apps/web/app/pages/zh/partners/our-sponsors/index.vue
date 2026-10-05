@@ -13,9 +13,9 @@
 import type { PublicSponsor } from '#shared/utils/partners'
 import { SPONSOR_TIER_SECTIONS, groupByKnownType, pickLogoUrl } from '#shared/utils/partners'
 
-definePageMeta({ nav: 'partners', unit: '9.2' })
+definePageMeta({ nav: 'partners', unit: '9.2', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
 const charityEnabled = isUnitEnabledForClub('11', config.public.club)
@@ -45,18 +45,18 @@ const activations = computed(() => sponsors.value
   .sort((a, b) => (b.happenedOn ?? '').localeCompare(a.happenedOn ?? '')))
 
 useSeoMeta({
-  title: computed(() => `贊助商 Our Sponsors｜合作夥伴與贊助｜${clubAssets.value.nameZh}`),
-  description: computed(() => `${clubAssets.value.nameZh}的贊助商，依主贊助、官方、支持三個等級介紹，並收錄贊助故事與活動紀錄。`),
+  title: computed(() => (isEn.value ? 'Our Sponsors | Partners & Sponsors | Taichung Rock FC' : `贊助商 Our Sponsors｜合作夥伴與贊助｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? 'The sponsors of Taichung Rock FC, introduced by three tiers (Title, Official and Supporting), with sponsor stories and activation records.' : `${clubAssets.value.nameZh}的贊助商，依主贊助、官方、支持三個等級介紹，並收錄贊助故事與活動紀錄。`)),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/partners/')">夥伴</a></li>
-      <li aria-current="page">贊助商</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/partners/')">{{ tx('夥伴', 'Partners') }}</a></li>
+      <li aria-current="page">{{ tx('贊助商', 'Our Sponsors') }}</li>
     </ol>
   </div>
 </nav>
@@ -64,21 +64,21 @@ useSeoMeta({
 <section class="page-hero">
   <div class="container">
     <p class="page-hero__eyebrow">9.2 Our Sponsors</p>
-    <h1>贊助商<span class="en">Our Sponsors</span></h1>
-    <p class="page-hero__lede">感謝每一位支持{{ clubAssets.shortNameZh }}的贊助夥伴，以下依贊助等級分區介紹。</p>
+    <h1><template v-if="isEn">Our Sponsors</template><template v-else>{{ tx('贊助商', 'Our Sponsors') }}<span class="en">Our Sponsors</span></template></h1>
+    <p class="page-hero__lede"><template v-if="isEn">Thank you to every sponsor who supports Taichung Rock FC. Our sponsors are introduced below by tier.</template><template v-else>感謝每一位支持{{ clubAssets.shortNameZh }}的贊助夥伴，以下依贊助等級分區介紹。</template></p>
   </div>
 </section>
 
 <!-- SPEC 3.9 §9.2 — 依等級：主贊助／官方／支持（＋俱樂部自訂等級） -->
 <section v-for="(tier, i) in tiers" :id="tier.key" :key="tier.key" :class="bandClass(i)" :aria-labelledby="`${tier.key}-title`">
   <div :class="isDark(i) ? 'band-inner container' : 'container'">
-    <h2 :id="`${tier.key}-title`" class="section-title partner-type-title" :style="isDark(i) ? 'color:#fff' : undefined">{{ tier.title }}<span v-if="tier.en" class="en">{{ tier.en }}</span></h2>
+    <h2 :id="`${tier.key}-title`" class="section-title partner-type-title" :style="isDark(i) ? 'color:#fff' : undefined"><template v-if="isEn">{{ tier.en ?? tier.title }}</template><template v-else>{{ tier.title }}<span v-if="tier.en" class="en">{{ tier.en }}</span></template></h2>
 
     <div v-if="tier.items.length" class="sponsor-grid" :style="tier.key === 'title-sponsors' ? 'grid-template-columns:repeat(3,minmax(0,1fr))' : undefined">
       <PartnerLogoTile v-for="s in tier.items" :key="s.id" :name="s.name" :logo-url="pickLogoUrl(s)" />
     </div>
     <div v-else class="sponsor-grid" :style="tier.key === 'title-sponsors' ? 'grid-template-columns:repeat(3,minmax(0,1fr))' : undefined">
-      <div v-for="n in (tier.key === 'title-sponsors' ? 3 : 5)" :key="n" class="sponsor-tile sponsor-tile--empty" :style="tier.key === 'title-sponsors' ? 'aspect-ratio:16/9' : undefined"><span>尚未公開</span></div>
+      <div v-for="n in (tier.key === 'title-sponsors' ? 3 : 5)" :key="n" class="sponsor-tile sponsor-tile--empty" :style="tier.key === 'title-sponsors' ? 'aspect-ratio:16/9' : undefined"><span>{{ tx('尚未公開', 'Not yet announced') }}</span></div>
     </div>
 
     <ul v-if="rosterItems(tier.items).length" class="partner-roster">
@@ -86,8 +86,8 @@ useSeoMeta({
         <h3 class="partner-roster__name">{{ s.name }}</h3>
         <p v-if="s.content" class="partner-roster__content">{{ s.content }}</p>
         <p v-if="charityEnabled && s.charityPrograms.length" class="partner-roster__link">
-          共同參與的公益計畫：
-          <template v-for="(c, ci) in s.charityPrograms" :key="c.slug"><span v-if="ci">、</span><a :href="lp(`/zh/charity/programs/${c.slug}/`)">{{ c.name ?? c.slug }}</a></template>
+          {{ tx('共同參與的公益計畫：', 'Charity programs we take part in together:') }}
+          <template v-for="(c, ci) in s.charityPrograms" :key="c.slug"><span v-if="ci">{{ tx('、', ', ') }}</span><a :href="lp(`/zh/charity/programs/${c.slug}/`)">{{ c.name ?? c.slug }}</a></template>
         </p>
       </li>
     </ul>
@@ -100,7 +100,7 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">SPONSOR STORIES</p>
-        <h2 class="section-title" id="sponsor-stories-title">贊助故事</h2>
+        <h2 class="section-title" id="sponsor-stories-title">{{ tx('贊助故事', 'Sponsor Stories') }}</h2>
       </div>
     </div>
     <div class="grid grid--3">
@@ -112,7 +112,7 @@ useSeoMeta({
         </span>
       </a>
       <article v-if="!stories.length" class="story-card">
-        <p>贊助故事準備中，稍後將於本頁公布。</p>
+        <p>{{ tx('贊助故事準備中，稍後將於本頁公布。', 'Sponsor stories are being prepared and will be published here soon.') }}</p>
       </article>
     </div>
   </div>
@@ -121,11 +121,11 @@ useSeoMeta({
 <!-- SPEC 3.9 §9.2 — 贊助活動紀錄 -->
 <section class="band grain" id="sponsor-activity" aria-labelledby="sponsor-activity-title">
   <div class="band-inner container">
-    <h2 class="section-title" id="sponsor-activity-title" style="color:#fff">贊助活動紀錄</h2>
+    <h2 class="section-title" id="sponsor-activity-title" style="color:#fff">{{ tx('贊助活動紀錄', 'Sponsor activations') }}</h2>
     <div class="table-scroll" style="margin-top:1.75rem">
       <table class="benefit-table">
         <thead>
-          <tr><th scope="col">日期</th><th scope="col">活動</th><th scope="col">合作贊助商</th></tr>
+          <tr><th scope="col">{{ tx('日期', 'Date') }}</th><th scope="col">{{ tx('活動', 'Activity') }}</th><th scope="col">{{ tx('合作贊助商', 'Sponsor') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="a in activations" :key="a.id">
@@ -139,7 +139,7 @@ useSeoMeta({
             </td>
             <td>{{ a.sponsorName }}</td>
           </tr>
-          <tr v-if="!activations.length"><td colspan="3">活動紀錄準備中，稍後將於本頁公布。</td></tr>
+          <tr v-if="!activations.length"><td colspan="3">{{ tx('活動紀錄準備中，稍後將於本頁公布。', 'Activation records are being prepared and will be published here soon.') }}</td></tr>
         </tbody>
       </table>
     </div>

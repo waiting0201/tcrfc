@@ -22,9 +22,9 @@
 // 寫死內容，後端沒有對應型別（待決，見 apps/web/README.md）。
 import { PARTNER_TYPE_SECTIONS, pickLogoUrl, safeExternalUrl } from '#shared/utils/partners'
 
-definePageMeta({ nav: 'club', unit: '3.4' })
+definePageMeta({ nav: 'club', unit: '3.4', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
@@ -60,7 +60,7 @@ const apiIntlTiles = computed<IntlTile[]>(() =>
       name: p.name!,
       country: p.country,
       logo: pickLogoUrl(p),
-      alt: `${p.name} 標誌`,
+      alt: isEn.value ? `${p.name} logo` : `${p.name} 標誌`,
       region: regionOfCountry(p.country),
       href: safeExternalUrl(p.websiteUrl),
     })),
@@ -75,10 +75,14 @@ function tileSrc(t: IntlTile): string | null {
 }
 
 useSeoMeta({
-  title: computed(() => getInternationalPathwaysSeo(clubKey.value).title),
-  description: computed(() => getInternationalPathwaysSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getInternationalPathwaysSeoEn() : getInternationalPathwaysSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getInternationalPathwaysSeoEn() : getInternationalPathwaysSeo(clubKey.value)).description),
 })
-const hero = computed(() => getInternationalPathwaysHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getInternationalPathwaysHeroEn() : getInternationalPathwaysHero(clubKey.value)))
+/** 國際夥伴 `country` 欄在英文版的顯示（可能含中文）。 */
+function countryText(t: IntlTile): string | null {
+  return isEn.value ? clubCountryLabelEn(t.country) : t.country
+}
 
 onMounted(() => {
   const tabs = document.querySelectorAll<HTMLButtonElement>('.region-tab')
@@ -96,12 +100,12 @@ onMounted(() => {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
-      <li aria-current="page">國際發展通道</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/club/')">{{ tx('俱樂部', 'Football Club') }}</a></li>
+      <li aria-current="page">{{ tx('國際發展通道', 'International Pathways') }}</li>
     </ol>
   </div>
 </nav>
@@ -122,43 +126,44 @@ onMounted(() => {
     <div class="eyebrow-row">
       <div>
         <p class="kicker">THE PATHWAY</p>
-        <h2 class="section-title" id="pathway-overview-title">路徑總覽</h2>
+        <h2 class="section-title" id="pathway-overview-title">{{ tx('路徑總覽', 'Pathway overview') }}</h2>
       </div>
     </div>
     <ol class="pathway-flow">
       <li class="pathway-step">
         <span class="pathway-step__num">01</span>
-        <p class="pathway-step__zh">在地</p>
-        <p class="pathway-step__en">Local Roots</p>
+        <p class="pathway-step__zh">{{ tx('在地', 'Local Roots') }}</p>
+        <p v-if="!isEn" class="pathway-step__en">Local Roots</p>
       </li>
       <li class="pathway-step__arrow" aria-hidden="true">→</li>
       <li class="pathway-step">
         <span class="pathway-step__num">02</span>
-        <p class="pathway-step__zh">國內職業</p>
-        <p class="pathway-step__en">Domestic Pro</p>
+        <p class="pathway-step__zh">{{ tx('國內職業', 'Domestic Pro') }}</p>
+        <p v-if="!isEn" class="pathway-step__en">Domestic Pro</p>
       </li>
       <li class="pathway-step__arrow" aria-hidden="true">→</li>
       <li class="pathway-step">
         <span class="pathway-step__num">03</span>
-        <p class="pathway-step__zh">海外訓練</p>
-        <p class="pathway-step__en">Overseas Training</p>
+        <p class="pathway-step__zh">{{ tx('海外訓練', 'Overseas Training') }}</p>
+        <p v-if="!isEn" class="pathway-step__en">Overseas Training</p>
       </li>
       <li class="pathway-step__arrow" aria-hidden="true">→</li>
       <li class="pathway-step">
         <span class="pathway-step__num">04</span>
-        <p class="pathway-step__zh">海外俱樂部</p>
-        <p class="pathway-step__en">Clubs Abroad</p>
+        <p class="pathway-step__zh">{{ tx('海外俱樂部', 'Clubs Abroad') }}</p>
+        <p v-if="!isEn" class="pathway-step__en">Clubs Abroad</p>
       </li>
     </ol>
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(partners)" partial />
 <section class="band grain regions-band" id="regions" aria-labelledby="regions-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">BY REGION</p>
-        <h2 class="section-title" id="regions-title">分區資訊</h2>
+        <h2 class="section-title" id="regions-title">{{ tx('分區資訊', 'Regional information') }}</h2>
       </div>
     </div>
 
@@ -166,10 +171,10 @@ onMounted(() => {
          藍鯨：Japan／China 兩分區（真實旅外球員案例，見 club-copy.ts
          INTL_PATHWAY_JAPAN_NOTES_BW／INTL_PATHWAY_CHINA_NOTE_BW），沒有可公開的
          海外合作俱樂部 Logo，故不設 Europe 分區。 -->
-    <div v-if="isTcrfc" class="region-tabs" role="tablist" aria-label="選擇地區">
-      <button type="button" class="region-tab" role="tab" id="tab-europe" aria-controls="panel-europe" aria-selected="true" data-region="europe">Europe 歐洲</button>
-      <button type="button" class="region-tab" role="tab" id="tab-japan" aria-controls="panel-japan" aria-selected="false" data-region="japan" tabindex="-1">Japan 日本</button>
-      <button type="button" class="region-tab" role="tab" id="tab-hk" aria-controls="panel-hk" aria-selected="false" data-region="hk" tabindex="-1">Hong Kong 香港</button>
+    <div v-if="isTcrfc" class="region-tabs" role="tablist" :aria-label="tx('選擇地區', 'Select a region')">
+      <button type="button" class="region-tab" role="tab" id="tab-europe" aria-controls="panel-europe" aria-selected="true" data-region="europe">{{ tx('Europe 歐洲', 'Europe') }}</button>
+      <button type="button" class="region-tab" role="tab" id="tab-japan" aria-controls="panel-japan" aria-selected="false" data-region="japan" tabindex="-1">{{ tx('Japan 日本', 'Japan') }}</button>
+      <button type="button" class="region-tab" role="tab" id="tab-hk" aria-controls="panel-hk" aria-selected="false" data-region="hk" tabindex="-1">{{ tx('Hong Kong 香港', 'Hong Kong') }}</button>
     </div>
     <div v-else class="region-tabs" role="tablist" aria-label="選擇地區">
       <button id="tab-japan" type="button" class="region-tab" role="tab" aria-controls="panel-japan" aria-selected="true" data-region="japan">Japan 日本</button>
@@ -178,31 +183,31 @@ onMounted(() => {
 
     <template v-if="isTcrfc">
       <div class="region-panel" id="panel-europe" role="tabpanel" aria-labelledby="tab-europe" data-region-panel="europe">
-        <p class="region-panel__desc">{{ tilesIn('europe').length ? '目前已建立聯繫的歐洲俱樂部，詳細合作內容與申請流程整理中。' : '歐洲尚無正式合作俱樂部可公開，相關進展將更新於本頁。' }}</p>
+        <p class="region-panel__desc">{{ tilesIn('europe').length ? tx('目前已建立聯繫的歐洲俱樂部，詳細合作內容與申請流程整理中。', 'European clubs we are currently in contact with. Details of the partnership and the application process are being prepared.') : tx('歐洲尚無正式合作俱樂部可公開，相關進展將更新於本頁。', 'There are no formal partner clubs in Europe that can be made public yet. Updates will be posted on this page.') }}</p>
         <div v-if="tilesIn('europe').length" class="region-partners">
           <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('europe')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
-            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
-            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="isEn ? `${t.name} logo` : t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ countryText(t) }}</small></template></span>
           </component>
         </div>
       </div>
 
       <div class="region-panel" id="panel-japan" role="tabpanel" aria-labelledby="tab-japan" data-region-panel="japan" hidden>
-        <p class="region-panel__desc">{{ tilesIn('japan').length ? '日本的合作俱樂部：' : '日本尚無正式合作俱樂部或協議可公開，相關進展將更新於本頁。' }}</p>
+        <p class="region-panel__desc">{{ tilesIn('japan').length ? tx('日本的合作俱樂部：', 'Partner clubs in Japan:') : tx('日本尚無正式合作俱樂部或協議可公開，相關進展將更新於本頁。', 'There are no formal partner clubs or agreements in Japan that can be made public yet. Updates will be posted on this page.') }}</p>
         <div v-if="tilesIn('japan').length" class="region-partners">
           <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('japan')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
-            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
-            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="isEn ? `${t.name} logo` : t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ countryText(t) }}</small></template></span>
           </component>
         </div>
       </div>
 
       <div class="region-panel" id="panel-hk" role="tabpanel" aria-labelledby="tab-hk" data-region-panel="hk" hidden>
-        <p class="region-panel__desc">{{ tilesIn('hk').length ? '香港的合作俱樂部，以及一線隊球員實際旅外案例：' : '香港暫無正式合作俱樂部標誌或協議文件，但已有一線隊球員實際旅外案例：' }}</p>
+        <p class="region-panel__desc">{{ tilesIn('hk').length ? tx('香港的合作俱樂部，以及一線隊球員實際旅外案例：', 'Partner clubs in Hong Kong, and a real case of a First Team player going abroad:') : tx('香港暫無正式合作俱樂部標誌或協議文件，但已有一線隊球員實際旅外案例：', 'There is no formal partner club logo or agreement in Hong Kong yet, but a First Team player has already gone abroad:') }}</p>
         <div v-if="tilesIn('hk').length" class="region-partners">
           <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('hk')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
-            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
-            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="isEn ? `${t.name} logo` : t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ countryText(t) }}</small></template></span>
           </component>
         </div>
         <div class="hk-player-note clip-card clip-card--on-dark">
@@ -211,9 +216,9 @@ onMounted(() => {
             <span>11</span>
           </div>
           <div>
-            <p class="hk-player-note__name">楊朝景<span class="badge badge--on-dark">旅外</span></p>
-            <p class="hk-player-note__desc">一線隊 11 號中場，目前效力於香港九龍城（Kowloon City）。</p>
-            <a :href="lp('/zh/club/player-stories/')">查看球員故事 →</a>
+            <p class="hk-player-note__name">楊朝景<span class="badge badge--on-dark">{{ tx('旅外', 'Abroad') }}</span></p>
+            <p class="hk-player-note__desc">{{ tx('一線隊 11 號中場，目前效力於香港九龍城（Kowloon City）。', 'First Team No. 11, a midfielder, currently playing for Kowloon City in Hong Kong.') }}</p>
+            <a :href="lp('/zh/club/player-stories/')">{{ tx('查看球員故事 →', 'View Player Stories →') }}</a>
           </div>
         </div>
       </div>
@@ -223,8 +228,8 @@ onMounted(() => {
         <p class="region-panel__desc">{{ tilesIn('japan').length ? '日本的合作俱樂部，以及球員實際旅外案例：' : '日本尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：' }}</p>
         <div v-if="tilesIn('japan').length" class="region-partners">
           <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('japan')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
-            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
-            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="isEn ? `${t.name} logo` : t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ countryText(t) }}</small></template></span>
           </component>
         </div>
         <div v-for="note in INTL_PATHWAY_JAPAN_NOTES_BW" :key="note.nameZh" class="hk-player-note clip-card clip-card--on-dark" style="margin-bottom:1rem;">
@@ -240,8 +245,8 @@ onMounted(() => {
         <p class="region-panel__desc">{{ tilesIn('china').length ? '中國的合作俱樂部，以及球員實際旅外案例：' : '中國尚無正式合作俱樂部或協議可公開，但已有球員實際旅外案例：' }}</p>
         <div v-if="tilesIn('china').length" class="region-partners">
           <component :is="t.href ? 'a' : 'div'" v-for="t in tilesIn('china')" :key="t.key" class="region-partner-tile" :href="t.href || undefined" :target="t.href ? '_blank' : undefined" :rel="t.href ? 'noopener noreferrer' : undefined">
-            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="t.alt" loading="lazy" width="200" height="200">
-            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ t.country }}</small></template></span>
+            <img v-if="tileSrc(t)" :src="tileSrc(t)!" :alt="isEn ? `${t.name} logo` : t.alt" loading="lazy" width="200" height="200">
+            <span>{{ t.name }}<template v-if="t.country"><br><small>{{ countryText(t) }}</small></template></span>
           </component>
         </div>
         <div class="hk-player-note clip-card clip-card--on-dark">
@@ -261,9 +266,9 @@ onMounted(() => {
     <div class="eyebrow-row">
       <div>
         <p class="kicker">INTERNATIONAL PARTNERS</p>
-        <h2 class="section-title" id="intl-partners-title">合作俱樂部</h2>
+        <h2 class="section-title" id="intl-partners-title">{{ tx('合作俱樂部', 'Partner clubs') }}</h2>
       </div>
-      <p class="section-lede">{{ intlTiles.length ? '目前已取得標誌授權的合作俱樂部如下，更多合作內容持續更新中。' : '目前尚無可公開的海外合作俱樂部，相關進展將更新於本頁。' }}</p>
+      <p class="section-lede">{{ intlTiles.length ? tx('目前已取得標誌授權的合作俱樂部如下，更多合作內容持續更新中。', 'The partner clubs whose logos we are authorised to show are listed below, with more partnership content being added.') : tx('目前尚無可公開的海外合作俱樂部，相關進展將更新於本頁。', 'There are no overseas partner clubs that can be made public yet. Updates will be posted on this page.') }}</p>
     </div>
     <div v-if="intlTiles.length" class="sponsor-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
       <PartnerLogoTile v-for="t in intlTiles" :key="t.key" :name="t.name" :logo-url="tileSrc(t)" :href="t.href" external />
@@ -275,14 +280,14 @@ onMounted(() => {
   <div class="band-inner container">
     <div class="grid grid--2">
       <div class="prose">
-        <h2 id="scouting-title">試訓球探 Trials &amp; Scouting</h2>
-        <p>透過一線隊賽事表現與訓練紀錄，尋找具備海外試訓潛力的球員。</p>
+        <h2 id="scouting-title">{{ tx('試訓球探 Trials & Scouting', 'Trials & Scouting') }}</h2>
+        <p>{{ tx('透過一線隊賽事表現與訓練紀錄，尋找具備海外試訓潛力的球員。', 'We look for players with the potential to trial overseas, based on First Team match performances and training records.') }}</p>
 
       </div>
       <div class="prose">
-        <h2>海外俱樂部媒合 Finding Clubs Abroad</h2>
-        <p>提供有意海外發展的球員諮詢服務，協助釐清方向與所需準備。</p>
-        <a class="btn btn--primary" :href="lp('/zh/join/international-player/')">預約海外媒合諮詢</a>
+        <h2>{{ tx('海外俱樂部媒合 Finding Clubs Abroad', 'Finding Clubs Abroad') }}</h2>
+        <p>{{ tx('提供有意海外發展的球員諮詢服務，協助釐清方向與所需準備。', 'We offer a consultation service for players interested in developing overseas, helping to clarify direction and the preparation needed.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/join/international-player/')">{{ tx('預約海外媒合諮詢', 'Book an overseas club-matching consultation') }}</a>
       </div>
     </div>
   </div>

@@ -38,7 +38,8 @@ export function clearLinePending() {
 
 export function useMemberLine() {
   const config = useRuntimeConfig()
-  const { locale } = useLocale()
+  const { locale, isEn, tx } = useLocale()
+  const lineUnavailable = () => tx('LINE 登入目前暫不提供，請改用 Email 登入。', 'LINE login is currently unavailable. Please sign in with your email instead.')
   const { authedFetch } = useMemberSession()
   const route = useRoute()
 
@@ -53,7 +54,7 @@ export function useMemberLine() {
       // 只接受導向 LINE 官方網域，避免後端設定錯誤或被竄改時把使用者導去別處
       const url = new URL(out.authorizeUrl)
       if (url.protocol !== 'https:' || !/(^|\.)line\.me$/.test(url.hostname)) {
-        return 'LINE 登入目前暫不提供，請改用 Email 登入。'
+        return lineUnavailable()
       }
       const pending: LinePending = {
         state: out.state,
@@ -67,8 +68,8 @@ export function useMemberLine() {
       return null
     }
     catch (err) {
-      const e = toMemberApiError(err)
-      if (e.status === 503 || e.code === 'line_not_configured') return 'LINE 登入目前暫不提供，請改用 Email 登入。'
+      const e = toMemberApiError(err, undefined, isEn.value)
+      if (e.status === 503 || e.code === 'line_not_configured') return lineUnavailable()
       return e.detail
     }
   }

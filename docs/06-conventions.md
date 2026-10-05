@@ -15,7 +15,7 @@
 | 品牌主張 | 在地扎根 · 放眼世界 | LOCAL ROOTS. GLOBAL PATHWAYS. | | |
 | 俱樂部（全稱寫法） | — | TAICHUNG ROCK FOOTBALL CLUB | | Brand Deck 頁尾用法；一般情境一律用 `Taichung Rock FC` |
 | 一線隊 | 一線隊 | First Team | **`D1`** | 對外顯示用「一線隊／First Team」，`D1` 僅作代號 |
-| **合作球隊**（v3.0） | 台中藍鯨 | Taichung Blue Whale | **`TCBW`** | 隸屬**臺中市女子足球協會**，2014-04-12 成立。**與台中磐石是不同法人**。中文一律寫「**台中藍鯨**」，不單用「藍鯨」。英文正式全名**待藍鯨確認** |
+| **合作球隊**（v3.0） | 台中藍鯨 | （待確認，B-5；英文內文暫放中文名） | **`TCBW`** | 隸屬**臺中市女子足球協會**，2014-04-12 成立。**與台中磐石是不同法人**。中文一律寫「**台中藍鯨**」，不單用「藍鯨」。英文正式全名**待藍鯨確認** |
 | **藍鯨一線隊**（v3.0） | 藍鯨一線隊 | Blue Whale First Team | **`BW1`** | **不是第二個 `D1`**——`Team.code` 全站唯一，不得改複合鍵 |
 | **藍鯨青年隊**（v3.0） | U15／U12 女子隊 | Youth Teams | `U15`/`U12` | ⚠️ **與磐石學院的 `U15`／`U12` 是不同球隊**，以 `club_id` 區隔 |
 | 學院梯隊 | U15／U14／U12 梯隊 | Academy Teams | `U15`/`U14`/`U12` | 日後可增 U18／U10 |
@@ -183,6 +183,64 @@ Meta／LINE）取得識別碼才填得進來，翻譯成中文說法反而讓人
 
 **五大核心價值**（同時是全站內容標籤）
 `Players First 以球員為本`｜`Excellence 追求卓越`｜`Global Pathways 國際發展`｜`Community 社區共好`｜`Integrity 誠信專業`
+
+---
+
+### 1.1 英文用詞對照表（2026-10-05，主站英文版 C-6／S2-13）
+
+> **英文版所有文案（樣板、`club-copy.ts`、種子的 `en` 欄位）一律照本表。** 來源優先序：規劃書英文版（`output/*_EN.md`）→ 本檔 §1 與
+> [`14-invariants.md`](14-invariants.md) 既有寫法 → 本表由開發端擬定的初稿（標「初稿」）。**規劃書與 docs 都沒有、又屬專有名詞者標「待客戶確認」，
+> 譯文採保守寫法（描述性或用代稱），不自創看似官方的名稱。** 範圍只有主站（`tcrfc`）；藍鯨英文全名卡 B-5，**藍鯨站不適用本表**。
+> 寫法：句首以外用 sentence case；標題用 Title Case；`TCRFC` 保留大寫；運動項目稱 football（不寫 soccer）。
+
+| 中文 | English | 來源／狀態 |
+|---|---|---|
+| 台中磐石足球俱樂部／台中磐石 | Taichung Rock FC（全稱 TAICHUNG ROCK FOOTBALL CLUB，僅頁尾／品牌用） | 規劃書 §1.3、本檔 §1 |
+| 俱樂部（泛稱）／本俱樂部 | the club | 初稿 |
+| 在地扎根 · 放眼世界 | LOCAL ROOTS. GLOBAL PATHWAYS. | 規劃書 |
+| 台中磐石足球學院／學院 | TCRFC Academy／the Academy | 規劃書 §3.4 |
+| 一線隊 | First Team | 規劃書 |
+| U15／U14／U12 梯隊 | U15／U14／U12 squads（泛稱 age-group teams） | 規劃書 §3.4（Our Teams） |
+| 台中藍鯨（出現在主站英文內文時） | **英文句內放中文名**，一律取 `BW_NAME_EN_PENDING`（`club-copy.ts`，值為「台中藍鯨」） | 本檔 §1；**正式英文全名待藍鯨確認（B-5），開發端不得自挑**，`check-bw-en-name.mjs` 擋寫死的 `Taichung Blue Whale`。本表初版（2026-10-05）曾寫「可用 Taichung Blue Whale 作描述性寫法」，與 B-5 牴觸，已更正（E-210） |
+| 臺中市女子足球協會 | Taichung Women's Football Association | **待客戶確認**（初稿，直譯） |
+| 台灣足球策略發展協會 | Taiwan Football Strategic Development Association | **待客戶確認**（初稿，直譯；慈善平台的收款主體） |
+| 企業甲級足球聯賽（企甲） | 保守寫法：「the league」「the top-tier corporate league」；已寫死於 `site-facts.ts` 的 `Enterprise Premier League` 沿用；規劃書英文版縮寫為 TFPL | **正式英文名待客戶確認**；譯文優先用 `facts.league.nameEn`，不得自行拼出 Taiwan Football Premier League 全名 |
+| 全國乙級聯賽冠軍 | National Second Division champions | **待客戶確認**（直譯，已用於事實列） |
+| 台灣木蘭足球聯賽 | Taiwan Mulan Football League | 規劃書英文版 |
+| 西屯足球場 | Xitun Football Field | `site-facts.ts`、種子既有 |
+| 賽事行事曆／賽程 | Schedule／Fixtures；賽果 Results；積分榜 Standings（League table） | 規劃書 §3.13 |
+| 主場／客場 | Home／Away | 規劃書 |
+| 延賽／取消 | Postponed／Cancelled | 初稿 |
+| 單元名稱（導覽） | About TCRFC／Football Club／Academy／Programs／Women's Football／News & Stories／Culture／Partners & Sponsors／Join / Contact／Charity & Impact／FAQ／Schedule／Shop／Member Centre | 規劃書 §2、§2.2 |
+| 球員發展系統／球員發展機會／國際發展通道／球員故事 | Player Development／Player Opportunities／International Pathways／Player Stories | 規劃書 §3.3 |
+| 學院總覽／梯隊／發展路徑／訓練與課程／教練團／學院生活／加入學院 | Academy Overview／Our Teams／Academy Pathway／Training & Curriculum／Coaches／Academy Life／Join the Academy | 規劃書 §3.4 |
+| 兒童足球訓練／夏令營／冬令營／專項訓練／校園與社區 | Children's Training／Summer Camp／Winter Camp／Specialist Training／School & Community | 規劃書 §3.5 |
+| 我們的夥伴／我們的贊助商／成為夥伴／贊助機會 | Our Partners／Our Sponsors／Become a Partner／Sponsorship Opportunities | 規劃書 §3.9 |
+| 贊助簡報下載 | Sponsorship Deck | 規劃書 |
+| 加入球隊／學院與兒童訓練報名／營隊報名／國際球員洽詢／合作與贊助洽詢／媒體洽詢／一般聯絡 | Join as a Player／Academy & Children's Training／Camp Registration／International Player Enquiries／Partnership & Sponsorship／Media Enquiries／General Contact | 規劃書 §3.10 |
+| 漫畫／球迷會／官方商品與線上商店／特約店家 | Manga／Fan Club／Merchandise & Online Store／Partner Perks | 規劃書 §3.8 |
+| 會員中心／一般會員／付費球迷會員／會籍／會員卡 | Member Centre／Registered member／Paid Fan Club member／Membership／Membership card | 規劃書英文版 |
+| 購物車／結帳／訂單查詢 | Cart／Checkout／Order lookup | 規劃書 §2 |
+| 慈善與社會影響 | Charity & Impact | 規劃書 §3.11 |
+| 常見問題 | FAQ | 規劃書 |
+| 新聞／新聞稿／媒體專區 | News／Press release／Press & Media | 規劃書 |
+| 里程碑／榮譽 | Milestones／Honours（英式拼寫，與規劃書英文版一致） | 規劃書英文版 |
+| 五大核心價值 | Players First／Excellence／Global Pathways／Community／Integrity | 本檔 §4 |
+| 教練／總教練／助理教練／守門員教練／體能教練／領隊／球探 | Coach／Head Coach／Assistant Coach／Goalkeeper Coach／Fitness Coach／Team Manager／Scout | 初稿；**已有 `staff_i18n` en 職稱時以資料為準** |
+| 位置：門將／後衛／中場／前鋒 | Goalkeeper／Defender／Midfielder／Forward | 初稿 |
+| 隱私權政策／Cookie 政策／會員條款／監護人同意 | Privacy Policy／Cookie Policy／Membership Terms／Guardian Consent | **內文不翻，維持「pending legal review」佔位**（英文版翻譯規則見 [`05-i18n-seo.md`](05-i18n-seo.md) §1） |
+
+**翻譯過程新增、尚待客戶確認的寫法（2026-10-05，開發端初稿，非官方名稱）**：
+賽程場地——台北田徑場 Taipei Athletics Stadium、台南市立足球場 Tainan Municipal Football Stadium、楠梓足球場 Nanzih Football Field、汐止綜合運動場 Xizhi Sports Complex、輔仁大學足球場 Fu Jen Catholic University Football Field（地名拼音＋通用場地詞）；
+賽事狀態——Upcoming／Live／Finished／Postponed／Cancelled（`MATCH_STATUS_MAP.labelEn`）；
+職稱——青訓教練 Youth Development Coach、青訓總監 Director of Youth Development、顧問 Advisor／Technical Adviser；部門——競技部 Football Department、學院部 Academy Department、課程部 Programs Department、商務部 Partnerships Department；
+活動／盃賽——台中磐石足球節 Taichung Rock FC Football Festival、台中磐石盃 Taichung Rock FC Cup、總統盃 President's Cup；
+慈善子頁——慈善理念 Our Commitment、慈善計畫 Charity Programs、慈善事蹟 Impact Stories、影響力數據 Our Impact；
+商店與會員——統一編號 Unified Business Number、手機條碼載具 Mobile barcode carrier、入會球衣 Welcome jersey、超商取貨 Convenience-store pickup；
+聯賽縮寫——規劃書英文版用 TFPL 指企業甲級聯賽，**但全名未出現，不得自行拼寫**。單元導覽短標籤「新聞」用 News（單元全名為 News & Stories）。
+
+⚠️ 人名、地名：球員與教練英文名一律取資料庫（`players_i18n`／`staff_i18n`）已有值；沒有的**不得自行音譯**，顯示中文原名。
+地址只翻成通用的英文地址格式不做，維持中文原文＋必要時加 Taichung 城市名。
 
 ---
 

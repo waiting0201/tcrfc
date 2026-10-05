@@ -15,7 +15,7 @@
 //   3. 卡片顯示順序（總教練→教練→守門員教練→體能教練→青訓總監→青訓教練→顧問）
 //      是 mockup 既有的人工編排順序，API 沒有 sort_order 欄位可用，這裡用姓名
 //      對照表排序重建，仍是真實姓名資料只是補上顯示順序，不是編資料內容。
-definePageMeta({ nav: 'about', unit: '02' })
+definePageMeta({ nav: 'about', unit: '02', enReady: true })
 
 // 文案依俱樂部切換：hero／SEO 取自 shared/utils/club-copy.ts；名單本身走既有 API
 // （動態內容，不進 club-copy.ts）——藍鯨 staff 表目前 0 筆真實資料（客戶尚未提供，
@@ -23,15 +23,16 @@ definePageMeta({ nav: 'about', unit: '02' })
 const config = useRuntimeConfig()
 const club = config.public.club
 const clubKey = computed<'tcrfc' | 'bw'>(() => (club === 'bw' ? 'bw' : 'tcrfc'))
-const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => OUR_PEOPLE_HERO[clubKey.value])
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
+const hero = computed(() => (isEn.value ? OUR_PEOPLE_HERO_EN : OUR_PEOPLE_HERO[clubKey.value]))
+const seo = computed(() => (isEn.value ? OUR_PEOPLE_SEO_EN : OUR_PEOPLE_SEO[clubKey.value]))
 
 // S1-13 判斷：這頁維持既有「一律同時抓 zh 與 en 兩種名稱」設計不變（不是本輪的
 // lang 參數 bug），只補上麵包屑連結要跟著目前路由語系走（見下方樣板 lp() 呼叫）——
 // 這頁本身固定顯示「中文姓名為主、英文姓名為輔」的卡片版面，/en/about/our-people/
 // 這個孿生路由目前會顯示同一種版面（不是英文為主的版面），這是刻意先不做的頁面內容
 // 設計決策，留給往後真的要做「英文為主」版面時再處理，不在 S1-13 框架範圍內。
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 
 const [{ data: zhData }, { data: enData }] = await Promise.all([
   useFetch(`/api/backend/${club}/staff`, { query: { pageSize: 100, lang: 'zh' } }),
@@ -67,13 +68,20 @@ interface PersonCard {
   schemaEligible: boolean
   /** 已套用肖像同意 fail-closed 規則後的完整照片網址，未同意者恆為 null（S1-7a）。 */
   photoUrl: string | null
+  /** 英文版（/en/）顯示用：姓名、職稱、簡介一律取資料庫 en 側表已有的值，沒有就退回中文原值（不自行音譯／翻譯）。 */
+  displayName: string
+  displayRole: string | null
+  displayBio: string | null
 }
 
 // mockup 卡片顯示職稱與 API title 不同的唯一例外
 const CARD_ROLE_OVERRIDE: Record<string, string> = { chen: '技術顧問' }
+// 英文版同一張卡片的職稱：優先用 en 側表的職稱；沒有時，陳曉明的卡片沿用既有的「技術顧問」覆寫（對應 Technical Adviser）。
+const CARD_ROLE_OVERRIDE_EN: Record<string, string> = { chen: 'Technical Adviser' }
 
 const people = computed<PersonCard[]>(() => {
   const zh = zhData.value?.items ?? []
+  const enItems = new Map((enData.value?.items ?? []).map((s) => [s.id, s]))
   const enById = new Map((enData.value?.items ?? []).map((s) => [s.id, s.name]))
   const bySlug = new Map(DISPLAY_ORDER.map((d) => [d.name, d.slug]))
   return zh
@@ -91,6 +99,9 @@ const people = computed<PersonCard[]>(() => {
         photoKey: s.photoKey,
         schemaEligible: s.schemaEligible,
         photoUrl: s.photoUrl,
+        displayName: en && en !== s.name ? en : (s.name ?? ''),
+        displayRole: (slug in CARD_ROLE_OVERRIDE_EN ? CARD_ROLE_OVERRIDE_EN[slug] : null) ?? enItems.get(s.id)?.title ?? s.title,
+        displayBio: enItems.get(s.id)?.bio ?? null,
       }
     })
     .sort((a, b) => {
@@ -103,7 +114,7 @@ const people = computed<PersonCard[]>(() => {
 const coaching = computed(() => people.value.filter((p) => p.role !== '顧問'))
 const advisory = computed(() => people.value.filter((p) => p.role === '顧問'))
 
-const BIO_PLACEHOLDER = '簡介準備中，稍後將於本頁公開。'
+const bioPlaceholder = computed(() => tx('簡介準備中，稍後將於本頁公開。', 'A profile is being prepared and will be published here soon.'))
 
 const modalOpen = ref(false)
 const activePerson = ref<PersonCard | null>(null)
@@ -129,8 +140,8 @@ onMounted(() => document.addEventListener('keydown', onKeydown))
 onBeforeUnmount(() => document.removeEventListener('keydown', onKeydown))
 
 useSeoMeta({
-  title: computed(() => OUR_PEOPLE_SEO[clubKey.value].title),
-  description: computed(() => OUR_PEOPLE_SEO[clubKey.value].description),
+  title: computed(() => seo.value.title),
+  description: computed(() => seo.value.description),
 })
 
 // Person JSON-LD（GEO-05／S1-12f）：本頁是「教練頁面」候選中唯一目前有真實資料可顯示的頁面
@@ -149,8 +160,8 @@ watchEffect(() => {
         // @id 會被 nuxt-schema-org 合併成「一個」Person（8 位教練只輸出最後一位，且被當成整站的主體）。
         // 見 docs/18-work-errors.md E-96。
         '@id': `person-${p.id}`,
-        name: p.nameZh,
-        jobTitle: p.role ?? undefined,
+        name: isEn.value ? p.displayName : p.nameZh,
+        jobTitle: (isEn.value ? p.displayRole : p.role) ?? undefined,
         image: p.photoUrl ?? undefined,
       }),
     ),
@@ -159,12 +170,12 @@ watchEffect(() => {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/about/')">{{ identity.aboutLabelZh }}</a></li>
-      <li aria-current="page">團隊成員</li>
+      <li aria-current="page">{{ tx('團隊成員', 'Our People') }}</li>
     </ol>
   </div>
 </nav>
@@ -172,7 +183,7 @@ watchEffect(() => {
 <section class="page-hero page-hero--media">
   <ClubHeroBg :src="siteImg('/assets/img/nav-about.jpg')" width="1600" height="900" />
   <div class="container">
-    <p class="page-hero__eyebrow">{{ aboutEyebrow('2.4', clubKey) }}</p>
+    <p class="page-hero__eyebrow">{{ isEn ? aboutEyebrowEn('2.4') : aboutEyebrow('2.4', clubKey) }}</p>
     <h1>{{ hero.h1Zh }}<span v-if="hero.h1En" class="en">{{ hero.h1En }}</span></h1>
     <p class="page-hero__lede">{{ hero.lede }}</p>
   </div>
@@ -183,14 +194,14 @@ watchEffect(() => {
     <div class="eyebrow-row">
       <div>
         <p class="kicker">COACHING STAFF</p>
-        <h2 class="section-title" id="people-coaching-title">教練團</h2>
+        <h2 class="section-title" id="people-coaching-title">{{ tx('教練團', 'Coaching Staff') }}</h2>
       </div>
     </div>
 
     <div class="people-grid">
       <button v-for="p in coaching" :key="p.id" type="button" class="people-card" :data-person="p.slug" @click="openModal(p)">
-        <span class="people-card__role">{{ p.cardRole }}</span>
-        <span class="people-card__name">{{ p.nameZh }}<span v-if="p.nameEn" class="en">{{ p.nameEn }}</span></span>
+        <span class="people-card__role">{{ isEn ? p.displayRole : p.cardRole }}</span>
+        <span class="people-card__name">{{ isEn ? p.displayName : p.nameZh }}<span v-if="p.nameEn && !isEn" class="en">{{ p.nameEn }}</span></span>
       </button>
     </div>
   </div>
@@ -201,14 +212,14 @@ watchEffect(() => {
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">ADVISORY</p>
-        <h2 class="section-title" id="people-advisory-title" style="color:#fff;">顧問</h2>
+        <h2 class="section-title" id="people-advisory-title" style="color:#fff;">{{ tx('顧問', 'Advisers') }}</h2>
       </div>
     </div>
 
     <div class="people-grid people-grid--on-dark">
       <button v-for="p in advisory" :key="p.id" type="button" class="people-card people-card--on-dark" :data-person="p.slug" @click="openModal(p)">
-        <span class="people-card__role">{{ p.cardRole }}</span>
-        <span class="people-card__name">{{ p.nameZh }}<span v-if="p.nameEn" class="en">{{ p.nameEn }}</span></span>
+        <span class="people-card__role">{{ isEn ? p.displayRole : p.cardRole }}</span>
+        <span class="people-card__name">{{ isEn ? p.displayName : p.nameZh }}<span v-if="p.nameEn && !isEn" class="en">{{ p.nameEn }}</span></span>
       </button>
     </div>
   </div>
@@ -218,13 +229,13 @@ watchEffect(() => {
 <div class="people-modal" id="people-modal" :hidden="!modalOpen">
   <div class="people-modal__scrim" data-close @click="closeModal"></div>
   <div class="people-modal__panel" role="dialog" aria-modal="true" aria-labelledby="people-modal-name">
-    <button ref="closeBtnEl" type="button" class="people-modal__close" data-close aria-label="關閉" @click="closeModal">
+    <button ref="closeBtnEl" type="button" class="people-modal__close" data-close :aria-label="tx('關閉', 'Close')" @click="closeModal">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
     </button>
     <span class="people-modal__photo" id="people-modal-photo" aria-hidden="true"></span>
-    <p class="people-modal__role" id="people-modal-role">{{ activePerson?.role }}</p>
-    <h3 class="people-modal__name" id="people-modal-name">{{ activePerson?.nameEn ? `${activePerson.nameZh} ${activePerson.nameEn}` : activePerson?.nameZh }}</h3>
-    <p class="people-modal__bio" id="people-modal-bio">{{ activePerson ? (activePerson.bio || BIO_PLACEHOLDER) : '' }}</p>
+    <p class="people-modal__role" id="people-modal-role">{{ isEn ? activePerson?.displayRole : activePerson?.role }}</p>
+    <h3 class="people-modal__name" id="people-modal-name">{{ isEn ? activePerson?.displayName : (activePerson?.nameEn ? `${activePerson.nameZh} ${activePerson.nameEn}` : activePerson?.nameZh) }}</h3>
+    <p class="people-modal__bio" id="people-modal-bio">{{ activePerson ? ((isEn ? activePerson.displayBio : activePerson.bio) || bioPlaceholder) : '' }}</p>
   </div>
 </div>
 </template>

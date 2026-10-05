@@ -17,8 +17,10 @@ export function useCourseSchema(
   program: MaybeRefOrGetter<CourseSchemaSourceProgram | null>,
   opts: { providerName: MaybeRefOrGetter<string>; siteUrl: MaybeRefOrGetter<string> },
 ) {
+  const { isEn } = useLocale()
   watchEffect(() => {
     const node = buildCourseSchemaNode(toValue(program), {
+      locale: isEn.value ? 'en' : 'zh',
       providerName: toValue(opts.providerName),
       siteUrl: toValue(opts.siteUrl),
     })

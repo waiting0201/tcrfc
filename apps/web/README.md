@@ -366,11 +366,13 @@ zh／en 兩筆 `<url>`，每筆都帶完整三條 hreflang alternate。
 換語系（不跳回首頁，`docs/05-i18n-seo.md` §1「切換行為」）。DOM／class 一律不動，
 只加 `@click` 與把靜態 `aria-current="true"` 改成依 `locale` 動態算。
 
-**Fallback**：`docs/05-i18n-seo.md` §1 規則是「未翻譯內容顯示繁中，並標示本頁尚無
-此語系版本」，`app/components/LocaleFallbackNotice.vue` 落實這件事——`en` 路由預設
-一律顯示這則提示（因為 S1-13 當下沒有任何一頁真的翻譯完成），頁面本身的中文內容原樣
-顯示在提示下方。真的做完英文翻譯的頁面用 `definePageMeta({ enReady: true })` 關掉
-提示，這個旗標與既有 `unit`／`nav`／`bodyClass` 同一種機制。
+**Fallback 與英文版機制（C-6／S2-13，2026-10-05 更新）**：`docs/05-i18n-seo.md` §1 規則是「未翻譯內容顯示繁中，並標示本頁尚無此語系版本」。
+- **整頁提示**：`layouts/default.vue` 對 `/en/` 頁顯示 `LocaleFallbackNotice`，除非該頁 `definePageMeta({ enReady: true })`；**藍鯨站 `/en/` 一律顯示**（英文未生產，B-5／C-10），`enReady` 只對主站有效。
+- **API 備援提示**：宣告 `enReady` 的頁面若同時有 API 內容（後端 `?lang=en` 逐欄位回退繁中，回應列帶 `isFallbackLocale`），在內容上方放 `<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(data)" partial />`（`app/utils/locale-fallback.ts`）。不放在 layout：SSR 時 layout 先於頁面資料轉譯。
+- **寫英文的方式**：`useLocale()` 的 `isEn`（**僅主站 `/en/` 為 true**，藍鯨恆 false）與 `tx(zh, en)`。短文字／屬性用 `tx()`，含標記的長段落用 `<template v-if="isEn">…</template><template v-else>原中文</template>`——**zh 版 DOM 逐字不變**。`club-copy.ts` 不加英文；英文版 SEO／Hero／導覽卡等寫在頂層檔 `shared/utils/club-copy-en-<群組>.ts`（`core`／`club`／`acad`／`biz`／`sched`／`shop`＋`units-en.ts`），命名 `FOO`→`FOO_EN`、`getFoo`→`getFooEn`，型別沿用原 interface（`*Zh` 欄位放英文值），**字串不得含中文**（`check-en-copy.mjs`，已掛進 `npm run lint`；配對檢查目前只警告）。
+- **用詞**：[`docs/06`](../../docs/06-conventions.md) §1.1。待確認的名詞用保守寫法；**藍鯨英文名一律 `BW_NAME_EN_PENDING`**。人名、英文地址沒有來源時維持中文，不音譯。
+- **驗收**：`npm run build` 後以 `NUXT_PUBLIC_CLUB=tcrfc … node .output/server/index.mjs` 起前台（後端用 `scripts/dev-fixture-api.mjs` 或真 API），跑 `node scripts/check-en-pages.mjs http://127.0.0.1:PORT`：掃所有宣告 `enReady` 的 `/en/` 頁，可見文字（含 alt／aria-label／placeholder）不得有中文；刻意保留的中文（法律同意、健康聲明、中文地址）在腳本 `KNOWN_ZH` 白名單。動態路由（`[slug]`）需手動抽查。
+- **未納入英文版**：隱私權／Cookie 政策頁（待法務，不宣告 `enReady`）；新聞文章本文（API 依 lang 回傳）。
 
 **API 呼叫的 `lang` 參數**：`apps/api` 對 `?lang=zh|en` 已有完整逐欄位回退機制（見
 `apps/api/README.md`），問題只在前台過去把它寫死成 `'zh'`。S1-13 把用到這個參數的
@@ -3397,3 +3399,10 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - **會員中心「我的報名」**：**網頁前台不做**（主站規劃書 §3.14「本站網頁前台經評估後不納入」，僅行動 App 提供；同本檔第 3125 行）。`MemberRegistrationDto` 的 `course`／`trial` 摘要與 `statusCode` 是給 App 用的，官網不需套用。
 - 假 API：梯次與報名回應補 `statusCode`／標籤。
 - 驗證：lint 0 error、兩站 build 通過；`program-session.ts` 以 node 單元驗過（open／full／ended／舊字面值／未知代碼／標籤退回）。
+
+
+## 首頁輪播指示器同步與頁尾語系切換對齊（2026-10-05，`frontend-architect`）
+
+- **輪播指示器**：`pages/zh/index.vue` 的 dots 原本 `is-active` 寫死 `i === 0`（見 docs/18 E-205），改綁響應式 `activeIndex`；`goTo()`／`swapInstant()` 是所有換張路徑（自動播放、箭頭、點指示器、滑動）的出口，在轉場開始時同步。新增觸控滑動（水平 ≥50px 且大於垂直位移才換張，左滑下一張，掛在 hero 區塊，不吃垂直捲動）。藍鯨共用同一個元件，但藍鯨目前沒有輪播素材（無 banner 時整段不掛載），本機假資料無法實測，行為同磐石。
+- **頁尾語系切換**：`SiteFooter.vue` 的 `<style>` 補 `.footer-bottom` 內 `.legal-links` 垂直置中、語系 `<button>` 改 `font:inherit`、`line-height:inherit`、去除預設 padding／min-height（`tcrfc.css` 不可改，所以在元件補）。
+- **驗證**：無頭 Chrome（CDP）對假 API 前後截圖與量測：輪播自動／箭頭／點指示器／觸控左右滑，slide 與 dot 同步；頁尾四種組合（1280／390 × zh／en）連結與語系切換 top／height 一致（修前高 23／偏低 3px，修後都是 18 同一基線）；兩站 build、lint 通過。

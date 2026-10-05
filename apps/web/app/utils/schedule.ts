@@ -47,6 +47,26 @@ export function calMonthTitle(monthKey: string): string {
   return `${MONTH_ZH[m! - 1]} ${y}`
 }
 
+// ---- 英文版（主站 /en/）日期顯示：一律英文月份全名，24 小時制時間（避免跨時區誤讀 AM／PM）----
+const MONTH_EN_TITLE = MONTH_EN_FULL.map((n) => n.charAt(0) + n.slice(1).toLowerCase())
+
+/** 月份分組標題（英文版），例："September 2026" */
+export function monthHeadingEn(monthKey: string): string {
+  const [y, m] = monthKey.split('-').map(Number)
+  return `${MONTH_EN_TITLE[m! - 1]} ${y}`
+}
+
+/** 月曆檢視標題（英文版），與 {@link monthHeadingEn} 相同格式。 */
+export function calMonthTitleEn(monthKey: string): string {
+  return monthHeadingEn(monthKey)
+}
+
+/** 月曆某一天的完整英文日期，例："September 5, 2026"（供 aria-label 用）。 */
+export function calDayLabelEn(monthKey: string, day: number): string {
+  const [y, m] = monthKey.split('-').map(Number)
+  return `${MONTH_EN_TITLE[m! - 1]} ${day}, ${y}`
+}
+
 /**
  * `matches.status`（DB／API 字面值）→ 畫面顯示碼／文字／schema.org 型別的**全站唯一對照表**。
  *
@@ -77,18 +97,20 @@ interface MatchStatusMeta {
   code: string
   /** 畫面用：status-pill 中文顯示文字 */
   label: string
+  /** 畫面用：status-pill 英文顯示文字（主站英文版，docs/06 §1.1：延賽／取消 → Postponed／Cancelled） */
+  labelEn: string
   /** SportsEvent JSON-LD（GEO-08）用：schema.org EventStatusType */
   schemaOrg: string
 }
 
 const MATCH_STATUS_MAP: Record<string, MatchStatusMeta> = {
-  scheduled: { code: 'upcoming', label: '未開始', schemaOrg: 'https://schema.org/EventScheduled' },
-  played: { code: 'finished', label: '已結束', schemaOrg: 'https://schema.org/EventCompleted' },
-  postponed: { code: 'postponed', label: '延賽', schemaOrg: 'https://schema.org/EventPostponed' },
-  cancelled: { code: 'cancelled', label: '取消', schemaOrg: 'https://schema.org/EventCancelled' },
+  scheduled: { code: 'upcoming', label: '未開始', labelEn: 'Upcoming', schemaOrg: 'https://schema.org/EventScheduled' },
+  played: { code: 'finished', label: '已結束', labelEn: 'Finished', schemaOrg: 'https://schema.org/EventCompleted' },
+  postponed: { code: 'postponed', label: '延賽', labelEn: 'Postponed', schemaOrg: 'https://schema.org/EventPostponed' },
+  cancelled: { code: 'cancelled', label: '取消', labelEn: 'Cancelled', schemaOrg: 'https://schema.org/EventCancelled' },
   // schema.org 沒有「進行中」對應的 EventStatusType（官方列舉只有 Scheduled／Cancelled／
   // Postponed／Rescheduled／MovedOnline），比賽進行中維持算 EventScheduled 最接近事實。
-  live: { code: 'live', label: '比賽中', schemaOrg: 'https://schema.org/EventScheduled' },
+  live: { code: 'live', label: '比賽中', labelEn: 'Live', schemaOrg: 'https://schema.org/EventScheduled' },
 }
 
 /** 未知或空值一律 fallback 為「未開始」，與 mockup 原本 switch 的 default 行為一致 */
@@ -97,6 +119,12 @@ const DEFAULT_STATUS_META: MatchStatusMeta = MATCH_STATUS_MAP.scheduled!
 export function mapMatchStatus(status: string | null): { code: string; label: string } {
   const meta = (status && MATCH_STATUS_MAP[status]) || DEFAULT_STATUS_META
   return { code: meta.code, label: meta.label }
+}
+
+/** 英文版：同 {@link mapMatchStatus}，`label` 為英文（Upcoming／Finished／Postponed／Cancelled／Live）。 */
+export function mapMatchStatusEn(status: string | null): { code: string; label: string } {
+  const meta = (status && MATCH_STATUS_MAP[status]) || DEFAULT_STATUS_META
+  return { code: meta.code, label: meta.labelEn }
 }
 
 /** SportsEvent JSON-LD（GEO-08）用，見 `schedule.vue` 的 `sportsEvents`。
@@ -120,6 +148,12 @@ export function matchStatusSchemaOrg(status: string | null): string {
 export function postponedNote(originalMatchOn: string | null, originalKickoff: string | null): string | null {
   if (!originalMatchOn) return null
   return originalKickoff ? `原定 ${originalMatchOn} ${originalKickoff}` : `原定 ${originalMatchOn}`
+}
+
+/** 英文版：「Originally scheduled 2026-10-03 19:30」。規則同 {@link postponedNote}。 */
+export function postponedNoteEn(originalMatchOn: string | null, originalKickoff: string | null): string | null {
+  if (!originalMatchOn) return null
+  return originalKickoff ? `Originally scheduled ${originalMatchOn} ${originalKickoff}` : `Originally scheduled ${originalMatchOn}`
 }
 
 // ---------------------------------------------------------------------------
@@ -230,6 +264,21 @@ export function compTagLabel(comp: string | null): string {
     case 'league':
     default:
       return '聯賽 LEAGUE'
+  }
+}
+
+/** 英文版：賽事類型標籤（League／Cup／Friendly／Other）。 */
+export function compTagLabelEn(comp: string | null): string {
+  switch (comp) {
+    case 'cup':
+      return 'Cup'
+    case 'friendly':
+      return 'Friendly'
+    case 'other':
+      return 'Other'
+    case 'league':
+    default:
+      return 'League'
   }
 }
 

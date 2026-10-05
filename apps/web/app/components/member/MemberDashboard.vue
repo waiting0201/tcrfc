@@ -9,16 +9,16 @@ import type { MemberCard, MyMemberships } from '#shared/utils/member'
 
 const emit = defineEmits<{ loggedOut: [] }>()
 
-const { locale, lp } = useLocale()
+const { locale, lp, isEn, tx } = useLocale()
 const { member, authedFetch, logout } = useMemberSession()
 
 type Tab = 'memberships' | 'cards' | 'orders' | 'jerseys' | 'profile'
-const TABS: ReadonlyArray<{ id: Tab, label: string }> = [
-  { id: 'memberships', label: '我的會籍' },
-  { id: 'cards', label: '電子會員卡' },
-  { id: 'orders', label: '我的訂單' },
-  { id: 'jerseys', label: '球衣登記' },
-  { id: 'profile', label: '個人資料與安全' },
+const TABS: ReadonlyArray<{ id: Tab, label: string, labelEn: string }> = [
+  { id: 'memberships', label: '我的會籍', labelEn: 'My memberships' },
+  { id: 'cards', label: '電子會員卡', labelEn: 'Digital membership card' },
+  { id: 'orders', label: '我的訂單', labelEn: 'My orders' },
+  { id: 'jerseys', label: '球衣登記', labelEn: 'Jersey registration' },
+  { id: 'profile', label: '個人資料與安全', labelEn: 'Profile and security' },
 ]
 const tab = ref<Tab>('memberships')
 onMounted(() => {
@@ -48,14 +48,14 @@ async function loadMemberships() {
   try {
     memberships.value = await authedFetch<MyMemberships>('/api/backend/member/memberships', { query: { lang: locale.value } })
   }
-  catch (err) { error.value = toMemberApiError(err).detail }
+  catch (err) { error.value = toMemberApiError(err, undefined, isEn.value).detail }
 }
 async function loadCards() {
   try {
     const out = await authedFetch<MemberCard[] | { cards: MemberCard[] }>('/api/backend/member/cards', { query: { lang: locale.value } })
     cards.value = Array.isArray(out) ? out : out.cards
   }
-  catch (err) { error.value = toMemberApiError(err).detail }
+  catch (err) { error.value = toMemberApiError(err, undefined, isEn.value).detail }
 }
 async function reload() {
   await Promise.all([loadMemberships(), loadCards()])
@@ -71,16 +71,16 @@ async function onLogout() {
 <template>
   <div class="mc-dashboard">
     <div class="mc-welcome">
-      <p>您好，<strong>{{ member?.name }}</strong>　<span class="mc-mono">{{ member?.memberNo }}</span></p>
-      <button type="button" class="mc-link" @click="onLogout">登出</button>
+      <p>{{ tx('您好，', 'Hello, ') }}<strong>{{ member?.name }}</strong>{{ isEn ? ' ' : '　' }}<span class="mc-mono">{{ member?.memberNo }}</span></p>
+      <button type="button" class="mc-link" @click="onLogout">{{ tx('登出', 'Sign out') }}</button>
     </div>
 
     <p v-if="member && !member.emailVerified" class="mc-alert mc-alert--info" role="status">
-      您的 Email 尚未驗證，部分功能（例如送出升級申請）需要先完成驗證。
+      {{ tx('您的 Email 尚未驗證，部分功能（例如送出升級申請）需要先完成驗證。', 'Your email address has not been verified yet. Some features, such as submitting an upgrade request, require verification first.') }}
     </p>
     <p v-if="error" class="mc-alert mc-alert--error" role="alert">{{ error }}</p>
 
-    <div class="mc-tabs" role="tablist" aria-label="會員中心功能" @keydown="onTabKey">
+    <div class="mc-tabs" role="tablist" :aria-label="tx('會員中心功能', 'Member Centre sections')" @keydown="onTabKey">
       <button
         v-for="t in TABS"
         :id="`mtab-${t.id}`"
@@ -92,7 +92,7 @@ async function onLogout() {
         :aria-controls="`mpanel-${t.id}`"
         :tabindex="tab === t.id ? 0 : -1"
         @click="select(t.id)"
-      >{{ t.label }}</button>
+      >{{ isEn ? t.labelEn : t.label }}</button>
     </div>
 
     <div v-show="tab === 'memberships'" id="mpanel-memberships" role="tabpanel" aria-labelledby="mtab-memberships" tabindex="0">
@@ -101,7 +101,7 @@ async function onLogout() {
     </div>
     <div v-show="tab === 'cards'" id="mpanel-cards" role="tabpanel" aria-labelledby="mtab-cards" tabindex="0">
       <MemberCards :cards="cards" @changed="loadCards" />
-      <p class="mc-note">想找哪裡可以使用？<a :href="lp('/zh/perks/')">查看特約店家清單</a>。</p>
+      <p class="mc-note">{{ tx('想找哪裡可以使用？', 'Wondering where to use it? ') }}<a :href="lp('/zh/perks/')">{{ tx('查看特約店家清單', 'See the list of partner stores') }}</a>{{ tx('。', '.') }}</p>
     </div>
     <div v-show="tab === 'orders'" id="mpanel-orders" role="tabpanel" aria-labelledby="mtab-orders" tabindex="0">
       <MemberOrders v-if="tab === 'orders'" />

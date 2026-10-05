@@ -12,13 +12,13 @@
 // 因此每題只指派給「排序最前的一個分類」陳列一次（見下方 faqsByCategory），
 // 不是每個分類都重複顯示——多分類標記的用途是讓 G-12 嵌入區塊／未來搜尋能
 // 從多個主題撈到同一題，不是「首頁要多處重複顯示」。
-definePageMeta({ nav: '', unit: '12' })
+definePageMeta({ nav: '', unit: '12', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
 
-const siteName = computed(() => getClubAssets(club).nameZh)
+const siteName = computed(() => (isEn.value ? CLUB_NAME_EN : getClubAssets(club).nameZh))
 
 const { categories } = useFaqCategories(locale.value)
 const { faqs } = useFaqList(club, locale.value)
@@ -56,12 +56,16 @@ const totalCategorizedCount = computed(() =>
 )
 
 useSeoMeta({
-  title: () => `常見問題 FAQ｜${siteName.value}`,
+  title: () => (isEn.value ? `FAQ | ${siteName.value}` : `常見問題 FAQ｜${siteName.value}`),
   description: () => {
     // 🔴 主題名稱一律由 visibleCategories 動態組出，不寫死十個分類的中文名稱——
     // 寫死會在藍鯨容器印出「學院招生」等已關閉分類的名稱，觸發
     // check-club-brand-leak.mjs 的「學院」禁詞命中（見 apps/web/README.md「S1-18」節）。
-    const topicNames = visibleCategories.value.map((cat) => cat.name).filter(Boolean).join('、')
+    const topicNames = visibleCategories.value.map((cat) => cat.name).filter(Boolean).join(isEn.value ? ', ' : '、')
+    if (isEn.value) {
+      const topicPartEn = topicNames ? `, covering topics such as ${topicNames}` : ''
+      return `Frequently asked questions about ${siteName.value}, organised by topic${topicPartEn}. ${totalCategorizedCount.value} ${totalCategorizedCount.value === 1 ? 'question is' : 'questions are'} currently included.`
+    }
     const topicPart = topicNames ? `，涵蓋${topicNames}等主題` : ''
     return `${siteName.value}常見問題集，依主題分類整理${topicPart}，目前共收錄 ${totalCategorizedCount.value} 題。`
   },
@@ -113,14 +117,17 @@ const noResult = computed(() => isSearching.value && totalVisible.value === 0)
 // 已經是「每題只指派給第一個可見分類」的去重結果（見上方檔頭說明），
 // buildFaqSchemaQuestions() 的 id 去重是第二層防呆，不是本頁需要仰賴的機制。
 useFaqPageSchema(computed(() => [...faqsByCategory.value.values()].flat()))
+
+// 英文版：後端 `?lang=en` 逐欄位回退繁中，FAQ 回應沒有旗標，偵測漢字決定是否提示「部分內容只有繁體中文」。
+const hasZhContent = computed(() => isEn.value && faqs.value.some((f) => /[\u3400-\u9fff]/.test(`${f.question ?? ''}${f.answer ?? ''}`)))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">常見問題</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx('常見問題', 'FAQ') }}</li>
     </ol>
   </div>
 </nav>
@@ -129,32 +136,37 @@ useFaqPageSchema(computed(() => [...faqsByCategory.value.values()].flat()))
   <span class="ghost-num ghost-num--dark" aria-hidden="true">12</span>
   <div class="container">
     <p class="page-hero__eyebrow">12 FAQ</p>
-    <h1>常見問題<span class="en">FAQ</span></h1>
-    <p class="page-hero__lede">依主題分類整理的常見問題，可直接搜尋關鍵字，或分享單題連結給需要的人。目前共收錄 {{ totalCategorizedCount }} 題。</p>
+    <h1><template v-if="isEn">FAQ</template><template v-else>常見問題<span class="en">FAQ</span></template></h1>
+    <p class="page-hero__lede">{{ isEn ? `Frequently asked questions organised by topic. Search by keyword, or share a link to a single question with anyone who needs it. ${totalCategorizedCount} ${totalCategorizedCount === 1 ? 'question is' : 'questions are'} currently included.` : `依主題分類整理的常見問題，可直接搜尋關鍵字，或分享單題連結給需要的人。目前共收錄 ${totalCategorizedCount} 題。` }}</p>
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="hasZhContent" partial />
+
 <section class="band faq-band" aria-labelledby="faq-title">
   <div class="band-inner container">
-    <h2 id="faq-title" class="visually-hidden">常見問題搜尋與分類</h2>
+    <h2 id="faq-title" class="visually-hidden">{{ tx('常見問題搜尋與分類', 'FAQ search and topics') }}</h2>
 
     <div class="faq-search">
-      <label class="visually-hidden" for="faq-search-input">搜尋常見問題</label>
+      <label class="visually-hidden" for="faq-search-input">{{ tx('搜尋常見問題', 'Search the FAQ') }}</label>
       <input
         id="faq-search-input"
         v-model="search"
         type="search"
-        placeholder="輸入關鍵字搜尋問題與答案…"
+        :placeholder="tx('輸入關鍵字搜尋問題與答案…', 'Search questions and answers by keyword…')"
         autocomplete="off"
       >
     </div>
 
     <p v-if="noResult" class="faq-no-result">
+      <template v-if="isEn">No matching questions found. Please feel free to <a :href="lp('/zh/join/general/')">contact us</a> and we will reply to your question as soon as we can.</template>
+      <template v-else>
       沒有找到符合的問題。歡迎直接
       <a :href="lp('/zh/join/general/')">聯絡我們</a>，我們會盡快回覆你的問題。
+      </template>
     </p>
 
-    <nav v-if="!isSearching" class="faq-topics" aria-label="常見問題主題">
+    <nav v-if="!isSearching" class="faq-topics" :aria-label="tx('常見問題主題', 'FAQ topics')">
       <a v-for="cat in visibleCategories" :key="cat.id" class="faq-topic-card" :href="`#topic-${cat.slug}`">{{ cat.name }}</a>
     </nav>
 
@@ -168,15 +180,15 @@ useFaqPageSchema(computed(() => [...faqsByCategory.value.values()].flat()))
       >
         <div class="faq-category__head">
           <h2 class="faq-category__title">{{ cat.name }}</h2>
-          <a v-if="dedicatedPageFor(cat.slug)" class="faq-category__more" :href="lp(dedicatedPageFor(cat.slug) ?? '/zh/faq/')">獨立主題頁 →</a>
+          <a v-if="dedicatedPageFor(cat.slug)" class="faq-category__more" :href="lp(dedicatedPageFor(cat.slug) ?? '/zh/faq/')">{{ tx('獨立主題頁 →', 'Topic page →') }}</a>
         </div>
         <FaqAccordion :faqs="visibleByCategory.get(cat.slug) ?? []" :club="club" />
       </section>
     </div>
 
     <div class="faq-fallback-cta">
-      <p>沒有找到你要的答案？</p>
-      <a class="btn btn--primary" :href="lp('/zh/join/general/')">聯絡我們 10.7</a>
+      <p>{{ tx('沒有找到你要的答案？', 'Could not find the answer you need?') }}</p>
+      <a class="btn btn--primary" :href="lp('/zh/join/general/')">{{ tx('聯絡我們 10.7', 'Contact Us 10.7') }}</a>
     </div>
   </div>
 </section>

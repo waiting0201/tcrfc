@@ -14,12 +14,12 @@ import type { CharityProgramDetail, ImpactRecord } from '#shared/utils/charity'
 import type { PagedResponse } from '#shared/utils/api-types'
 import { pickLogoUrl } from '#shared/utils/partners'
 
-definePageMeta({ nav: 'charity', unit: '11' })
+definePageMeta({ nav: 'charity', unit: '11', enReady: true })
 
 const route = useRoute()
 const config = useRuntimeConfig()
 const club = config.public.club
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const { donateLink } = await useCharityCta()
 
 const slug = computed(() => String(route.params.slug))
@@ -36,14 +36,20 @@ const { data: recordsData } = await useFetch<PagedResponse<ImpactRecord>>(`/api/
 const records = computed(() => recordsData.value?.items ?? [])
 
 const blocks = computed(() => parseContentBlocks(program.value?.content))
-const period = computed(() => programPeriod(program.value?.startOn ?? null, program.value?.endOn ?? null))
-const clubName = computed(() => getClubAssets(club).nameZh)
+const period = computed(() => programPeriod(program.value?.startOn ?? null, program.value?.endOn ?? null, isEn.value))
+const clubName = computed(() => (isEn.value ? 'Taichung Rock FC' : getClubAssets(club).nameZh))
 
 useSeoMeta({
-  title: computed(() => `${program.value?.name ?? '慈善計畫'}｜慈善計畫 Charity Programs｜${clubName.value}`),
+  title: computed(() => (isEn.value
+    ? `${program.value?.name ?? 'Charity program'} | Charity Programs | ${clubName.value}`
+    : `${program.value?.name ?? '慈善計畫'}｜慈善計畫 Charity Programs｜${clubName.value}`)),
   description: computed(() => {
     const p = program.value
     if (!p) return ''
+    if (isEn.value) {
+      return [p.targetAudience ? `Audience: ${p.targetAudience}` : '', p.donationContent ? `Donated: ${p.donationContent}` : '', p.charity?.name ? `Beneficiary charity: ${p.charity.name}` : '']
+        .filter(Boolean).join('; ').slice(0, 160) || `${clubName.value} charity program "${p.name ?? ''}"`
+    }
     return [p.targetAudience ? `對象：${p.targetAudience}` : '', p.donationContent ? `捐助內容：${p.donationContent}` : '', p.charity?.name ? `受贈公益團體：${p.charity.name}` : '']
       .filter(Boolean).join('；').slice(0, 160) || `${clubName.value}慈善計畫「${p.name ?? ''}」`
   }),
@@ -52,16 +58,18 @@ useSeoMeta({
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/charity/')">慈善與社會影響</a></li>
-      <li><a :href="lp('/zh/charity/programs/')">慈善計畫</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/charity/')">{{ tx('慈善與社會影響', 'Charity & Impact') }}</a></li>
+      <li><a :href="lp('/zh/charity/programs/')">{{ tx('慈善計畫', 'Charity Programs') }}</a></li>
       <li aria-current="page">{{ program?.name }}</li>
     </ol>
   </div>
 </nav>
+
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale([program, records])" partial />
 
 <section :class="['page-hero', { 'page-hero--media': program?.coverUrl }]">
   <img v-if="program?.coverUrl" class="page-hero__bg" :src="program.coverUrl" alt="" width="1600" height="1000">
@@ -69,7 +77,7 @@ useSeoMeta({
     <p class="page-hero__eyebrow">11.2 Charity Programs</p>
     <h1>{{ program?.name }}</h1>
     <p class="page-hero__lede">
-      <span :class="['status-chip', program?.progress === 'completed' ? 'status-chip--done' : 'status-chip--ongoing']">{{ progressLabel(program?.progress ?? '') }}</span>
+      <span :class="['status-chip', program?.progress === 'completed' ? 'status-chip--done' : 'status-chip--ongoing']">{{ progressLabel(program?.progress ?? '', isEn) }}</span>
       <template v-if="period"> {{ period }}</template>
     </p>
   </div>
@@ -78,7 +86,7 @@ useSeoMeta({
 <section class="band" aria-labelledby="program-origin-title">
   <div class="band-inner container program-detail">
     <article class="prose">
-      <h2 id="program-origin-title">計畫緣起與執行過程</h2>
+      <h2 id="program-origin-title">{{ tx('計畫緣起與執行過程', 'Background and implementation') }}</h2>
       <template v-if="blocks.length">
         <template v-for="(b, i) in blocks" :key="i">
           <h3 v-if="b.kind === 'h'">{{ b.text }}</h3>
@@ -86,28 +94,28 @@ useSeoMeta({
           <p v-else class="program-detail__para">{{ b.text }}</p>
         </template>
       </template>
-      <p v-else class="is-pending">計畫緣起與執行過程整理中，稍後將於本頁公布。</p>
+      <p v-else class="is-pending">{{ tx('計畫緣起與執行過程整理中，稍後將於本頁公布。', 'The background and implementation of this program are being compiled and will be published here soon.') }}</p>
 
-      <h2 v-if="program?.donationContent">捐助內容</h2>
+      <h2 v-if="program?.donationContent">{{ tx('捐助內容', 'Donation details') }}</h2>
       <p v-if="program?.donationContent" class="program-detail__para">{{ program.donationContent }}</p>
     </article>
 
     <aside class="program-detail__aside" aria-labelledby="program-facts-title">
-      <h2 id="program-facts-title" class="program-detail__aside-title">計畫資訊</h2>
+      <h2 id="program-facts-title" class="program-detail__aside-title">{{ tx('計畫資訊', 'Program details') }}</h2>
       <dl class="program-facts">
-        <div v-if="program?.targetAudience"><dt>對象</dt><dd>{{ program.targetAudience }}</dd></div>
-        <div v-if="period"><dt>期間</dt><dd>{{ period }}</dd></div>
-        <div><dt>狀態</dt><dd>{{ progressLabel(program?.progress ?? '') }}</dd></div>
+        <div v-if="program?.targetAudience"><dt>{{ tx('對象', 'Audience') }}</dt><dd>{{ program.targetAudience }}</dd></div>
+        <div v-if="period"><dt>{{ tx('期間', 'Period') }}</dt><dd>{{ period }}</dd></div>
+        <div><dt>{{ tx('狀態', 'Status') }}</dt><dd>{{ progressLabel(program?.progress ?? '', isEn) }}</dd></div>
       </dl>
 
       <template v-if="program?.charity">
-        <h3 class="program-detail__aside-sub">受贈公益團體</h3>
+        <h3 class="program-detail__aside-sub">{{ tx('受贈公益團體', 'Beneficiary charity') }}</h3>
         <div class="charity-org">
           <img v-if="program.charity.logoUrl" :src="program.charity.logoUrl" :alt="`${program.charity.name ?? ''} Logo`" loading="lazy" width="96" height="96">
           <div>
             <p class="charity-org__name">{{ program.charity.name }}</p>
             <p v-if="program.charity.intro" class="charity-org__intro">{{ program.charity.intro }}</p>
-            <p v-if="safeExternalUrl(program.charity.websiteUrl)" class="charity-org__intro"><a :href="safeExternalUrl(program.charity.websiteUrl) ?? undefined" target="_blank" rel="noopener noreferrer">團體網站（另開新分頁）</a></p>
+            <p v-if="safeExternalUrl(program.charity.websiteUrl)" class="charity-org__intro"><a :href="safeExternalUrl(program.charity.websiteUrl) ?? undefined" target="_blank" rel="noopener noreferrer">{{ tx('團體網站（另開新分頁）', 'Charity website (opens in a new tab)') }}</a></p>
           </div>
         </div>
       </template>
@@ -117,10 +125,10 @@ useSeoMeta({
 
 <section v-if="program?.images.length" class="band" aria-labelledby="program-gallery-title">
   <div class="container">
-    <h2 id="program-gallery-title" class="section-title">活動圖片藝廊</h2>
+    <h2 id="program-gallery-title" class="section-title">{{ tx('活動圖片藝廊', 'Activity photo gallery') }}</h2>
     <ul class="program-gallery">
       <li v-for="(img, i) in program.images" :key="i">
-        <a :href="img.imageUrl" target="_blank" rel="noopener noreferrer" :aria-label="`${program.name ?? ''} 活動圖片 ${i + 1}（另開新分頁）`">
+        <a :href="img.imageUrl" target="_blank" rel="noopener noreferrer" :aria-label="isEn ? `${program.name ?? ''} activity photo ${i + 1} (opens in a new tab)` : `${program.name ?? ''} 活動圖片 ${i + 1}（另開新分頁）`">
           <img :src="img.thumbUrl ?? img.imageUrl" alt="" loading="lazy" width="480" height="320">
         </a>
       </li>
@@ -130,22 +138,22 @@ useSeoMeta({
 
 <section v-if="records.length" class="band" aria-labelledby="program-records-title">
   <div class="container">
-    <h2 id="program-records-title" class="section-title">執行紀錄</h2>
+    <h2 id="program-records-title" class="section-title">{{ tx('執行紀錄', 'Implementation records') }}</h2>
     <ol class="program-records">
       <li v-for="r in records" :key="r.id" class="program-records__item">
-        <p class="program-records__date">{{ slashDate(r.happenedOn) ?? '日期未標' }}<span v-if="r.location"> · {{ r.location }}</span></p>
+        <p class="program-records__date">{{ slashDate(r.happenedOn) ?? tx('日期未標', 'Undated') }}<span v-if="r.location"> · {{ r.location }}</span></p>
         <p class="program-records__title">{{ r.charityName }}</p>
-        <p v-if="r.donationContent" class="program-records__desc">捐助內容：{{ r.donationContent }}</p>
+        <p v-if="r.donationContent" class="program-records__desc">{{ tx('捐助內容：', 'Donated: ') }}{{ r.donationContent }}</p>
         <p v-if="r.briefDescription" class="program-records__desc">{{ r.briefDescription }}</p>
       </li>
     </ol>
-    <p style="margin-top:1.5rem"><a class="btn btn--dark btn--sm" :href="lp('/zh/charity/impact-stories/')">查看全部慈善事蹟</a></p>
+    <p style="margin-top:1.5rem"><a class="btn btn--dark btn--sm" :href="lp('/zh/charity/impact-stories/')">{{ tx('查看全部慈善事蹟', 'View all impact stories') }}</a></p>
   </div>
 </section>
 
 <section v-if="program?.partners.length || program?.sponsors.length" class="band sponsor-band" aria-labelledby="program-sponsors-title">
   <div class="container">
-    <h2 id="program-sponsors-title" class="section-title">共同參與的夥伴與贊助商</h2>
+    <h2 id="program-sponsors-title" class="section-title">{{ tx('共同參與的夥伴與贊助商', 'Partners and sponsors taking part') }}</h2>
     <div class="sponsor-grid">
       <PartnerLogoTile v-for="p in program.partners" :key="`p-${p.slug}`" :name="p.name" :logo-url="pickLogoUrl(p)" :href="lp('/zh/partners/our-partners/')" />
       <PartnerLogoTile v-for="s in program.sponsors" :key="`s-${s.slug}`" :name="s.name" :logo-url="pickLogoUrl(s)" :href="lp('/zh/partners/our-sponsors/')" />
@@ -155,7 +163,7 @@ useSeoMeta({
 
 <section v-if="program?.articles.length" class="band" aria-labelledby="program-articles-title">
   <div class="container">
-    <h2 id="program-articles-title" class="section-title">相關報導</h2>
+    <h2 id="program-articles-title" class="section-title">{{ tx('相關報導', 'Related news') }}</h2>
     <ul class="program-articles">
       <li v-for="a in program.articles" :key="a.slug"><a :href="lp(`/zh/news/${a.slug}/`)">{{ a.title }}</a></li>
     </ul>
@@ -164,17 +172,17 @@ useSeoMeta({
 
 <section class="band grain cta-band" aria-labelledby="program-cta-title">
   <div class="band-inner container">
-    <h2 class="section-title" id="program-cta-title">一起參與</h2>
+    <h2 class="section-title" id="program-cta-title">{{ tx('一起參與', 'Get involved') }}</h2>
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/charity/programs/')">
         <span class="cta-card__num">11.2</span>
-        <span class="cta-card__title">所有慈善計畫</span>
-        <p class="cta-card__desc">回到計畫列表</p>
+        <span class="cta-card__title">{{ tx('所有慈善計畫', 'All charity programs') }}</span>
+        <p class="cta-card__desc">{{ tx('回到計畫列表', 'Back to the program list') }}</p>
       </a>
       <a class="cta-card" :href="donateLink.href" :target="donateLink.external ? '_blank' : undefined" :rel="donateLink.external ? 'noopener noreferrer' : undefined">
         <span class="cta-card__num">01</span>
-        <span class="cta-card__title">球迷捐款</span>
-        <p class="cta-card__desc">球迷捐款由{{ CHARITY_RECIPIENT }}的慈善捐款平台承接，不是捐給{{ clubName }}</p>
+        <span class="cta-card__title">{{ tx('球迷捐款', 'Fan donations') }}</span>
+        <p class="cta-card__desc"><template v-if="isEn">Fan donations are handled by the charity donation platform of the {{ CHARITY_RECIPIENT_EN }}, not donated to {{ clubName }}.</template><template v-else>球迷捐款由{{ CHARITY_RECIPIENT }}的慈善捐款平台承接，不是捐給{{ clubName }}</template></p>
       </a>
     </div>
   </div>

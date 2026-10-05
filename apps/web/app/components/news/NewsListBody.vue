@@ -41,8 +41,11 @@ const props = withDefaults(
 
 // 兩種文案：news/index 有分類鈕（提示可換分類），5 個分類頁沒有分類鈕（提示換年月）——
 // 逐字比對 mockup 原文，不是隨意精簡。
+const { isEn, tx } = useLocale()
 const emptyText = computed(() =>
-  props.dark ? '這個篩選條件目前沒有符合的文章，換個分類或關鍵字看看。' : '這個篩選條件目前沒有符合的文章，換個年月或關鍵字看看。',
+  props.dark
+    ? tx('這個篩選條件目前沒有符合的文章，換個分類或關鍵字看看。', 'No articles match these filters. Try a different category or keyword.')
+    : tx('這個篩選條件目前沒有符合的文章，換個年月或關鍵字看看。', 'No articles match these filters. Try a different month or keyword.'),
 )
 // :style="undefined" 在 Vue SSR 仍會印出空字串 style=""（mockup 沒有分類鈕的
 // 5 個分類頁完全沒有這個屬性），改用 v-bind 物件展開，物件沒有 style 鍵時才會
@@ -86,7 +89,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <p id="result-count" class="result-count" v-bind="resultCountAttrs" aria-live="polite">共 {{ resultCount }} 篇</p>
+  <p id="result-count" class="result-count" v-bind="resultCountAttrs" aria-live="polite">{{ isEn ? `${resultCount} ${resultCount === 1 ? 'article' : 'articles'}` : `共 ${resultCount} 篇` }}</p>
 
   <div class="news-list-grid">
     <NewsCard
@@ -100,6 +103,6 @@ onMounted(() => {
   <div id="news-empty" class="news-empty" :hidden="!isEmpty" v-bind="emptyAttrs">{{ emptyText }}</div>
 
   <div class="load-more-row">
-    <button id="load-more" type="button" class="btn btn--light" :hidden="!hasMore" @click="loadMore">載入更多</button>
+    <button id="load-more" type="button" class="btn btn--light" :hidden="!hasMore" @click="loadMore">{{ tx('載入更多', 'Load more') }}</button>
   </div>
 </template>

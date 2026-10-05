@@ -7,7 +7,7 @@
 defineProps<{ active: string }>()
 
 // S1-13：8 個分類頁共用這支元件，一次修好全部生效，見 news/NewsCard.vue 同理。
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 
 // BW-C1（品牌外洩全站盤點）：`NEWS_CATEGORIES` 的 'academy' 項目 label 固定寫死
 // 「7.3 學院新聞」，藍鯨依 docs/13-blue-whale-site.md §3 一律稱「青年隊」——本輪盤點
@@ -17,12 +17,14 @@ const { lp } = useLocale()
 // news/index.vue 的 <button data-tab> 篩選鈕也呼叫同一支函式，不要各自算一次）。
 const config = useRuntimeConfig()
 function tabLabel(cat: { code: string; label: string }): string {
+  // 英文版（主站 /en/）：分類名稱照 docs/06 §1.1 對照表（shared/utils/club-copy-en-sched.ts）
+  if (isEn.value) return newsCategoryTabLabelEn(cat.code)
   return newsCategoryTabLabel(cat.code, config.public.club)
 }
 </script>
 
 <template>
-  <nav class="cat-tabs" aria-label="新聞分類">
+  <nav class="cat-tabs" :aria-label="tx('新聞分類', 'News categories')">
     <a
       v-for="cat in NEWS_CATEGORIES"
       :key="cat.code"

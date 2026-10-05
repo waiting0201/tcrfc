@@ -1,15 +1,15 @@
 <script setup lang="ts">
 // app/pages/zh/perks/index.vue — 由 site/src/pages/zh/perks/index.html 轉來
 // 🔴 main 內容與 mockup 逐段一致，DOM 結構、class、文字內容不動；{{ROOT}} 已由 codemod-root.mjs 轉為絕對路徑。
-definePageMeta({ nav: 'culture', unit: '08' })
+definePageMeta({ nav: 'culture', unit: '08', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 // BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()／getClubIdentity()，理由同
 // privacy/index.vue；麵包屑第二層文字改讀既有的 identity.cultureLabelZh（原本已是
 // SiteHeader／SiteFooter 共用的既有欄位，本頁先前沒有引用，是既有缺口）。
 const clubAssets = computed(() => getClubAssets(config.public.club))
-const identity = computed(() => getClubIdentity(config.public.club))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(config.public.club)))
 
 // S2-11（8.4 特約店家）：清單來自後台 K4（`partner-stores`，本俱樂部專屬＋兩隊共同、已上架且在合作期間內），
 // 篩選（類別／地區／適用層級）走網址 query，SSR 與無 JS 皆可用；沒有已上架店家時顯示誠實的空狀態。
@@ -32,18 +32,20 @@ function setFilter(key: 'category' | 'region' | 'tier', value: string) {
 const safeImg = (u: string | null) => (u && /^(https:\/\/|\/)/.test(u) ? u : null)
 
 useSeoMeta({
-  title: computed(() => `特約店家 Partner Perks｜${clubAssets.value.nameZh}`),
-  description: computed(() => `${clubAssets.value.shortNameZh}會員的特約店家折扣清單。到店出示電子會員卡即可享有優惠，依店家標示適用一般會員或付費球迷會員。`),
+  title: computed(() => (isEn.value ? CLUB_PERKS_SEO_EN.title : `特約店家 Partner Perks｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value
+    ? CLUB_PERKS_SEO_EN.description
+    : `${clubAssets.value.shortNameZh}會員的特約店家折扣清單。到店出示電子會員卡即可享有優惠，依店家標示適用一般會員或付費球迷會員。`)),
 })
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/culture/')">{{ identity.cultureLabelZh }}</a></li>
-      <li aria-current="page">特約店家</li>
+      <li aria-current="page">{{ tx('特約店家', 'Partner Perks') }}</li>
     </ol>
   </div>
 </nav>
@@ -52,48 +54,49 @@ useSeoMeta({
   <span class="ghost-num ghost-num--dark" aria-hidden="true">08</span>
   <div class="container">
     <p class="page-hero__eyebrow">Partner Perks</p>
-    <h1>特約店家<span class="en">Partner Perks</span></h1>
-    <p class="page-hero__lede">與{{ clubAssets.shortNameZh }}合作的在地店家，會員到店出示電子會員卡即可享有優惠。本頁公開，不需登入即可瀏覽。</p>
+    <h1>{{ tx('特約店家', 'Partner Perks') }}<span v-if="!isEn" class="en">Partner Perks</span></h1>
+    <p class="page-hero__lede">{{ isEn ? 'Local stores working with Taichung Rock. Members can enjoy offers by showing their digital membership card in store. This page is public and can be viewed without logging in.' : `與${clubAssets.shortNameZh}合作的在地店家，會員到店出示電子會員卡即可享有優惠。本頁公開，不需登入即可瀏覽。` }}</p>
   </div>
 </section>
 
 <!-- SPEC 3.8 §8.4 — 店家清單（依類別與地區篩選） -->
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(stores)" partial />
 <section class="band" id="stores" aria-labelledby="stores-title">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">STORE LIST</p>
-        <h2 class="section-title" id="stores-title">合作店家</h2>
+        <h2 class="section-title" id="stores-title">{{ tx('合作店家', 'Partner stores') }}</h2>
       </div>
-      <a class="btn btn--dark btn--sm" :href="lp('/zh/member/#tab-register')">加入會員</a>
+      <a class="btn btn--dark btn--sm" :href="lp('/zh/member/#tab-register')">{{ tx('加入會員', 'Join as a member') }}</a>
     </div>
 
-    <div class="store-filters" role="group" aria-label="店家篩選">
+    <div class="store-filters" role="group" :aria-label="tx('店家篩選', 'Filter stores')">
       <div class="store-filters__group">
-        <label class="store-filters__label" for="sf-category">類別</label>
+        <label class="store-filters__label" for="sf-category">{{ tx('類別', 'Category') }}</label>
         <select id="sf-category" :value="filterQuery.category" @change="setFilter('category', ($event.target as HTMLSelectElement).value)">
-          <option value="">全部類別</option>
+          <option value="">{{ tx('全部類別', 'All categories') }}</option>
           <option v-for="c in filters.categories" :key="c" :value="c">{{ c }}</option>
         </select>
       </div>
       <div class="store-filters__group">
-        <label class="store-filters__label" for="sf-region">地區</label>
+        <label class="store-filters__label" for="sf-region">{{ tx('地區', 'Region') }}</label>
         <select id="sf-region" :value="filterQuery.region" @change="setFilter('region', ($event.target as HTMLSelectElement).value)">
-          <option value="">全部地區</option>
+          <option value="">{{ tx('全部地區', 'All regions') }}</option>
           <option v-for="r in filters.regions" :key="r" :value="r">{{ r }}</option>
         </select>
       </div>
       <div class="store-filters__group">
-        <label class="store-filters__label" for="sf-tier">適用層級</label>
+        <label class="store-filters__label" for="sf-tier">{{ tx('適用層級', 'Eligible tier') }}</label>
         <select id="sf-tier" :value="filterQuery.tier" @change="setFilter('tier', ($event.target as HTMLSelectElement).value)">
-          <option value="">全部</option>
-          <option value="all">全會員適用</option>
-          <option value="fan_club">限付費會員</option>
+          <option value="">{{ tx('全部', 'All') }}</option>
+          <option value="all">{{ tx('全會員適用', 'All members') }}</option>
+          <option value="fan_club">{{ tx('限付費會員', 'Paid Fan Club members only') }}</option>
         </select>
       </div>
     </div>
 
-    <p class="result-count" role="status">{{ pending ? '載入中…' : `共 ${stores.length} 家店家` }}</p>
+    <p class="result-count" role="status">{{ pending ? tx('載入中…', 'Loading…') : (isEn ? `${stores.length} ${stores.length === 1 ? 'store' : 'stores'}` : `共 ${stores.length} 家店家`) }}</p>
 
     <div v-if="stores.length > 0" class="grid grid--3 store-grid">
       <article v-for="st in stores" :key="st.slug" class="store-card">
@@ -116,8 +119,11 @@ useSeoMeta({
       </article>
     </div>
     <div v-else class="pending-note">
-      <template v-if="failed">店家名單暫時無法載入，請稍後再試。</template>
-      <template v-else-if="filtered">沒有符合條件的店家，請調整篩選條件。</template>
+      <template v-if="failed">{{ tx('店家名單暫時無法載入，請稍後再試。', 'The store list cannot be loaded right now. Please try again later.') }}</template>
+      <template v-else-if="filtered">{{ tx('沒有符合條件的店家，請調整篩選條件。', 'No stores match your filters. Please adjust them and try again.') }}</template>
+      <template v-else-if="isEn">
+        <strong>The partner store list has not been announced yet</strong> — there are no partner stores listed at the moment. Once the list is announced, this page will show each store's offer, address, opening hours and eligible tier.
+      </template>
       <template v-else>
         <strong>合作店家名單尚未公布</strong> —— 目前沒有已上架的特約店家。名單公布後會在這裡顯示每家店的優惠內容、地址、營業時間與適用層級。
       </template>
@@ -129,39 +135,39 @@ useSeoMeta({
 <section class="band paper-2-band" id="how-to-use" aria-labelledby="how-title">
   <div class="container">
     <p class="kicker">HOW TO USE</p>
-    <h2 class="section-title" id="how-title">怎麼使用</h2>
+    <h2 class="section-title" id="how-title">{{ tx('怎麼使用', 'How to use') }}</h2>
 
     <ol class="usage-steps">
       <li>
         <span class="usage-steps__num">1</span>
         <div>
-          <h3>加入會員</h3>
-          <p>以 Email 或 LINE 加入，完成驗證後即可在會員中心取得電子會員卡。</p>
+          <h3>{{ tx('加入會員', 'Join as a member') }}</h3>
+          <p>{{ tx('以 Email 或 LINE 加入，完成驗證後即可在會員中心取得電子會員卡。', 'Sign up with your email or LINE. Once you have been verified, you can get your digital membership card in the Member Centre.') }}</p>
         </div>
       </li>
       <li>
         <span class="usage-steps__num">2</span>
         <div>
-          <h3>到店出示會員卡</h3>
-          <p>結帳前出示會員中心的電子會員卡，店家目視查驗即可。卡片上的 QR Code 可由店家掃描，開啟後僅顯示會籍是否有效，不會顯示其他個人資料。</p>
+          <h3>{{ tx('到店出示會員卡', 'Show your card in store') }}</h3>
+          <p>{{ tx('結帳前出示會員中心的電子會員卡，店家目視查驗即可。卡片上的 QR Code 可由店家掃描，開啟後僅顯示會籍是否有效，不會顯示其他個人資料。', 'Before you pay, show the digital membership card from the Member Centre and the store will check it by eye. The store can also scan the QR code on the card, which only shows whether the membership is valid and no other personal data.') }}</p>
         </div>
       </li>
       <li>
         <span class="usage-steps__num">3</span>
         <div>
-          <h3>享有折扣</h3>
-          <p>各店優惠內容與適用層級以本頁標示為準。標示「限付費會員」者，需為有效期內的球迷會員。</p>
+          <h3>{{ tx('享有折扣', 'Enjoy the discount') }}</h3>
+          <p>{{ tx('各店優惠內容與適用層級以本頁標示為準。標示「限付費會員」者，需為有效期內的球迷會員。', 'Each store\'s offer and eligible tier are as shown on this page. Offers marked "Paid Fan Club members only" require a Fan Club membership that is still valid.') }}</p>
         </div>
       </li>
     </ol>
 
     <div class="notes-block">
-      <h3 class="notes-block__title">注意事項</h3>
+      <h3 class="notes-block__title">{{ tx('注意事項', 'Please note') }}</h3>
       <ul>
-        <li>優惠內容與適用條件由各店家提供，實際以店家現場公告為準。</li>
-        <li>除另有標示外，恕不與店家其他優惠或活動併用。</li>
-        <li>會籍到期後即無法使用特約店家優惠，請留意會員卡上的有效期限。</li>
-        <li>俱樂部保留調整合作店家與優惠內容的權利，異動將於本頁更新。</li>
+        <li>{{ tx('優惠內容與適用條件由各店家提供，實際以店家現場公告為準。', 'Offers and conditions are provided by each store; the notice displayed in store takes precedence.') }}</li>
+        <li>{{ tx('除另有標示外，恕不與店家其他優惠或活動併用。', 'Unless stated otherwise, offers cannot be combined with other store promotions or events.') }}</li>
+        <li>{{ tx('會籍到期後即無法使用特約店家優惠，請留意會員卡上的有效期限。', 'Partner store offers can no longer be used once the membership expires, so please check the expiry date on your membership card.') }}</li>
+        <li>{{ tx('俱樂部保留調整合作店家與優惠內容的權利，異動將於本頁更新。', 'The club reserves the right to change partner stores and offers, and changes will be updated on this page.') }}</li>
       </ul>
     </div>
   </div>
@@ -172,12 +178,12 @@ useSeoMeta({
   <div class="container">
     <div class="perks-cta">
       <div>
-        <h2 class="section-title" id="join-cta-title">還不是會員？</h2>
-        <p class="section-lede">免費加入即可享標示「全會員適用」的店家折扣；升級付費球迷會員，另可獲得球衣與更多店家優惠。</p>
+        <h2 class="section-title" id="join-cta-title">{{ tx('還不是會員？', 'Not a member yet?') }}</h2>
+        <p class="section-lede">{{ tx('免費加入即可享標示「全會員適用」的店家折扣；升級付費球迷會員，另可獲得球衣與更多店家優惠。', 'Join for free to enjoy store discounts marked "All members"; upgrade to a Paid Fan Club member to also receive a jersey and more store offers.') }}</p>
       </div>
       <div class="perks-cta__actions">
-        <a class="btn btn--primary" :href="lp('/zh/member/#tab-register')">加入會員</a>
-        <a class="btn btn--dark" :href="lp('/zh/culture/fan-club/')">了解付費會籍</a>
+        <a class="btn btn--primary" :href="lp('/zh/member/#tab-register')">{{ tx('加入會員', 'Join as a member') }}</a>
+        <a class="btn btn--dark" :href="lp('/zh/culture/fan-club/')">{{ tx('了解付費會籍', 'About paid membership') }}</a>
       </div>
     </div>
   </div>

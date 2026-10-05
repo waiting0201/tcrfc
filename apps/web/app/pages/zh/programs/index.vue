@@ -11,22 +11,24 @@
 // 對藍鯨隱藏，改顯示如實的報名說明（getProgramsHubEnrolNoteBw()）。五張導覽卡描述
 // 與底部 CTA 改讀 club-copy.ts 的 getProgramsHubCards()／getProgramsHubCtaCards()，
 // 沒有藍鯨自己照片的卡片改用既有的漸層佔位，不挪用磐石照片。
-definePageMeta({ nav: 'programs', unit: '05' })
+definePageMeta({ nav: 'programs', unit: '05', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => getProgramsHubSeo(clubKey.value).title),
-  description: computed(() => getProgramsHubSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getProgramsHubSeoEn() : getProgramsHubSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getProgramsHubSeoEn() : getProgramsHubSeo(clubKey.value)).description),
 })
-const hero = computed(() => getProgramsHubHero(clubKey.value))
-const intro = computed(() => getProgramsHubIntro(clubKey.value))
-const cards = computed(() => getProgramsHubCards(clubKey.value))
+// C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案）。
+const hero = computed(() => (isEn.value ? getProgramsHubHeroEn() : getProgramsHubHero(clubKey.value)))
+const intro = computed(() => (isEn.value ? getProgramsHubIntroEn() : getProgramsHubIntro(clubKey.value)))
+const cards = computed(() => (isEn.value ? getProgramsHubCardsEn() : getProgramsHubCards(clubKey.value)))
 const enrolNoteBw = getProgramsHubEnrolNoteBw()
-const ctaCards = computed(() => getProgramsHubCtaCards(clubKey.value))
+const ctaCards = computed(() => (isEn.value ? getProgramsHubCtaCardsEn() : getProgramsHubCtaCards(clubKey.value)))
+const flowSteps = computed(() => (isEn.value ? ENROL_FLOW_STEPS_TCRFC_EN : ENROL_FLOW_STEPS_TCRFC))
 
 /** 導覽卡照片路徑——只有 tcrfc 既有卡片沿用原圖，藍鯨版一律 `hasPhoto: false`
  * （見 getProgramsHubCards 檔頭說明），不需要另外維護一份藍鯨照片路徑對照表。 */
@@ -38,11 +40,11 @@ const CARD_PHOTOS: Record<string, string> = {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">{{ isTcrfc ? '課程與活動' : '推廣活動' }}</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx(isTcrfc ? '課程與活動' : '推廣活動', 'Programs') }}</li>
     </ol>
   </div>
 </nav>
@@ -77,9 +79,9 @@ const CARD_PHOTOS: Record<string, string> = {
         </div>
         <div class="nav-card__body">
           <p class="nav-card__num">{{ c.num }}</p>
-          <p class="nav-card__title">{{ c.titleZh }}<span class="en">{{ c.titleEn }}</span></p>
+          <p class="nav-card__title">{{ c.titleZh }}<span v-if="!isEn" class="en">{{ c.titleEn }}</span></p>
           <p class="nav-card__desc">{{ c.descZh }}</p>
-          <span class="nav-card__link">查看詳情
+          <span class="nav-card__link">{{ tx('查看詳情', 'View details') }}
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
           </span>
         </div>
@@ -96,13 +98,13 @@ const CARD_PHOTOS: Record<string, string> = {
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">HOW TO ENROL</p>
-        <h2 id="enroll-flow-title" class="section-title">線上報名流程</h2>
+        <h2 id="enroll-flow-title" class="section-title">{{ tx('線上報名流程', 'Online Registration Process') }}</h2>
       </div>
     </div>
-    <p class="section-lede">所有課程與營隊皆透過同一套線上流程報名，站內不接受金流付款。</p>
+    <p class="section-lede">{{ tx('所有課程與營隊皆透過同一套線上流程報名，站內不接受金流付款。', 'All programs and camps use the same online registration process. Payment is not taken on this site.') }}</p>
 
     <ol class="flow-steps">
-      <li v-for="(step, i) in ENROL_FLOW_STEPS_TCRFC" :key="i"><h3>{{ step.titleZh }}</h3><p>{{ step.descZh }}</p></li>
+      <li v-for="(step, i) in flowSteps" :key="i"><h3>{{ step.titleZh }}</h3><p>{{ step.descZh }}</p></li>
     </ol>
   </div>
 </section>
@@ -125,7 +127,7 @@ const CARD_PHOTOS: Record<string, string> = {
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">GET STARTED</p>
-        <h2 id="programs-cta-title" class="section-title">準備好開始了嗎？</h2>
+        <h2 id="programs-cta-title" class="section-title">{{ tx('準備好開始了嗎？', 'Ready to Get Started?') }}</h2>
       </div>
     </div>
     <div class="cta-grid">

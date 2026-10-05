@@ -60,9 +60,13 @@ export interface SiteFacts {
   /** 「＿＿年創立」／「＿＿年成立」這句完整顯示文字（沿用既有 club-copy.ts `foundedZh`
    * 的既有核實文字，這裡是唯一定義處，club-copy.ts 改為引用本檔）。 */
   foundedDisplayZh: string
+  /** 英文版（僅 tcrfc；bw 恆為 null——藍鯨英文全名卡 B-5）。後端 `?lang=en` 沒有英文值時
+   * 會回退中文，`useSiteFacts` 合併時會剔除含中日文字元的值、改用本檔快照，絕不讓中文混進英文版。 */
+  foundedDisplayEn: string | null
   /** 成立當年拿下的頭銜（僅 tcrfc 有這筆核實事實；bw 沒有「成立當年奪冠」這筆事實，
    * 隊史頭銜是逐年累積的，見 club-copy.ts `TIMELINE_BW`，不放進這裡）。 */
   foundingTitleZh: string | null
+  foundingTitleEn: string | null
   /** 目前所屬聯賽（現役聯賽本身，不含歷年賽季或盃賽名稱——那些是 club-copy.ts
    * `HISTORY_YEARS_BW`／`TIMELINE_BW` 的既有歷史記錄陣列，本檔不重複收錄逐年事件）。 */
   league: SiteFactLeague
@@ -71,6 +75,7 @@ export interface SiteFacts {
   /** 梯隊組成的簡短描述（體系層級敘述，供 Organization／SportsTeam 以外找不到更精準
    * 型別時的明文使用）。 */
   squadStructureZh: string
+  squadStructureEn: string | null
   /** 梯隊年齡層代碼清單（不含「一線隊」本身、不含 API 篩選用的俱樂部代碼前綴——那是
    * club-copy.ts `ACADEMY_TEAM_TABS` 的職責，這裡只放「有哪些年齡層」這個事實本身，
    * `ACADEMY_TEAM_TABS` 的 `labelZh`／`id` 由這裡衍生，避免兩處各寫一份年齡層清單）。 */
@@ -102,7 +107,9 @@ export const SITE_FACTS: Record<ClubCode, SiteFacts> = {
     // 確切成立月日未核實（現有素材只提供年份），不臆測，JSON-LD foundingDate 因此為 null。
     foundingDateIso: null,
     foundedDisplayZh: '2024 年創立',
+    foundedDisplayEn: 'Founded in 2024',
     foundingTitleZh: '全國乙級聯賽冠軍',
+    foundingTitleEn: 'National Second Division champions',
     league: {
       nameZh: '企業甲級聯賽',
       nameEn: 'Enterprise Premier League',
@@ -117,6 +124,7 @@ export const SITE_FACTS: Record<ClubCode, SiteFacts> = {
       },
     ],
     squadStructureZh: '一線隊與足球學院（U15／U14／U12）三個梯隊並行的發展體系',
+    squadStructureEn: 'A development system in which the First Team and the Academy squads (U15/U14/U12) run in parallel',
     squadCodes: ['U15', 'U14', 'U12'],
     contact: {
       address: '台中市北屯區崇平路二段景谷巷 11 弄 41 號',
@@ -129,8 +137,10 @@ export const SITE_FACTS: Record<ClubCode, SiteFacts> = {
     foundedYear: '2014',
     foundingDateIso: '2014-04-12',
     foundedDisplayZh: '2014 年 4 月 12 日成立',
+    foundedDisplayEn: null,
     // bw 沒有「成立當年奪冠」這筆核實事實，隊史第一座冠軍是 2017 年（見 club-copy.ts TIMELINE_BW）。
     foundingTitleZh: null,
+    foundingTitleEn: null,
     league: {
       nameZh: '台灣木蘭足球聯賽',
       nameEn: null,
@@ -141,6 +151,7 @@ export const SITE_FACTS: Record<ClubCode, SiteFacts> = {
       { nameZh: '台中豐原體育場', nameEn: null, address: null, isHomeGround: true },
     ],
     squadStructureZh: '一線隊與青年隊（U15／U12）兩個梯隊並行的發展體系',
+    squadStructureEn: null,
     squadCodes: ['U15', 'U12'],
     // 舊站盤點：content/blue-whale/gap-analysis.md §2 單元 10「沒有任何實體地址、電話
     // 或聯絡表單」，不得自行臆測一個地址。

@@ -11,6 +11,9 @@
 /** 捐款收受者名稱（慈善規劃書 v1.4／主站規劃書 §3.11）；前台固定文案點明收受者時使用的唯一字面值。 */
 export const CHARITY_RECIPIENT = '台灣足球策略發展協會'
 
+/** 英文版固定文案點明收受者時使用（docs/06 §1.1 英文用詞對照表，待客戶確認的直譯）。 */
+export const CHARITY_RECIPIENT_EN = 'Taiwan Football Strategic Development Association'
+
 export interface CharityCta {
   donationUrl: string | null
   donationCta: string | null
@@ -107,7 +110,8 @@ export interface ImpactSummary {
   charities: PublicCharityOrg[]
 }
 
-export function progressLabel(progress: string): string {
+export function progressLabel(progress: string, en = false): string {
+  if (en) return progress === 'completed' ? 'Completed' : 'Ongoing'
   return progress === 'completed' ? '已完成' : '進行中'
 }
 
@@ -117,12 +121,12 @@ export function slashDate(iso: string | null | undefined): string | null {
 }
 
 /** 計畫期間文字：起訖都有「2026/01/12 – 2026/06/30」；只有起日「2026/01/12 起」；都沒有 null。 */
-export function programPeriod(startOn: string | null, endOn: string | null): string | null {
+export function programPeriod(startOn: string | null, endOn: string | null, en = false): string | null {
   const s = slashDate(startOn)
   const e = slashDate(endOn)
   if (s && e) return `${s} – ${e}`
-  if (s) return `${s} 起`
-  if (e) return `至 ${e}`
+  if (s) return en ? `From ${s}` : `${s} 起`
+  if (e) return en ? `Until ${e}` : `至 ${e}`
   return null
 }
 

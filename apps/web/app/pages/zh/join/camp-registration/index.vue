@@ -19,9 +19,9 @@
 // 健康聲明、緊急聯絡人」，沒有「家長聯絡」這一項（跟 10.2 不同），後端也沒有對應鍵。
 // ⚠️ 規格疑點：緊急聯絡人未必是家長本人，若客戶希望營隊報名也收家長聯絡方式，需先確認規格
 // 再新增欄位，不能自行加回畫面。
-definePageMeta({ nav: '', unit: '10.3' })
+definePageMeta({ nav: '', unit: '10.3', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 // BW-C1（品牌外洩全站盤點）：改讀既有的 getClubAssets()。⚠️ 規格疑點：藍鯨目前沒有
 // 已開放的寒／暑令營活動（5.2／5.3 現況皆為「尚未推出」，見 club-copy.ts
@@ -31,8 +31,8 @@ const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: computed(() => `營隊報名 Camp Registration｜加入與聯絡｜${clubAssets.value.nameZh}`),
-  description: computed(() => `報名${clubAssets.value.shortNameZh}寒暑假足球營隊。填寫學員資料、希望報名的梯次、健康聲明與緊急聯絡人，課程部將盡快與家長確認梯次與名額。`),
+  title: computed(() => (isEn.value ? 'Camp Registration | Join / Contact | Taichung Rock FC' : `營隊報名 Camp Registration｜加入與聯絡｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? 'Register for the Taichung Rock FC winter and summer football camps. Complete the student details, your preferred session, health declaration and emergency contact, and the Programs Department will confirm the session and availability with parents.' : `報名${clubAssets.value.shortNameZh}寒暑假足球營隊。填寫學員資料、希望報名的梯次、健康聲明與緊急聯絡人，課程部將盡快與家長確認梯次與名額。`)),
 })
 
 const EMERGENCY_RELATION_LABELS: Record<string, string> = {
@@ -66,12 +66,12 @@ async function onSubmit() {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
-      <li aria-current="page">營隊報名</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/join/')">{{ tx('加入與聯絡', 'Join / Contact') }}</a></li>
+      <li aria-current="page">{{ tx('營隊報名', 'Camp Registration') }}</li>
     </ol>
   </div>
 </nav>
@@ -80,123 +80,125 @@ async function onSubmit() {
   <span class="ghost-num ghost-num--dark" aria-hidden="true">10.3</span>
   <div class="container">
     <p class="page-hero__eyebrow">10.3 Camp Registration</p>
-    <h1>營隊報名<span class="en">Camp Registration</span></h1>
-    <p class="page-hero__lede">寒暑假期間的短期足球營隊，讓孩子在密集訓練中快速累積比賽經驗。請家長協助填寫以下資料，課程部將確認梯次與名額後與你聯繫。</p>
+    <h1><template v-if="isEn">Camp Registration</template><template v-else>{{ tx('營隊報名', 'Camp Registration') }}<span class="en">Camp Registration</span></template></h1>
+    <p class="page-hero__lede"><template v-if="isEn">Short football camps during the winter and summer breaks give children intensive training and a quick way to build match experience. Parents, please fill in the details below, and the Programs Department will contact you once the session and availability are confirmed.</template><template v-else>寒暑假期間的短期足球營隊，讓孩子在密集訓練中快速累積比賽經驗。請家長協助填寫以下資料，課程部將確認梯次與名額後與你聯繫。</template></p>
   </div>
 </section>
 
 <section class="band form-band" aria-labelledby="form-title">
   <div class="container">
-    <h2 class="visually-hidden" id="form-title">營隊報名表單</h2>
+    <h2 class="visually-hidden" id="form-title">{{ tx('營隊報名表單', 'Camp registration form') }}</h2>
     <div class="form-layout form-layout--split">
       <FormStatusBanner
         :status="status"
         :error-message="errorMessage"
-        success-message="已收到營隊報名資料！系統已寄送自動回覆信到家長填寫的 Email，課程部會盡快確認梯次與名額。"
+        :success-message="tx('已收到營隊報名資料！系統已寄送自動回覆信到家長填寫的 Email，課程部會盡快確認梯次與名額。', 'We have received the camp registration! An automatic reply has been sent to the parent\'s email address, and the Programs Department will confirm the session and availability shortly.')"
       />
       <form v-if="status !== 'success'" class="tcrfc-form" action="" method="post" @submit.prevent="onSubmit">
         <!-- action 留空：本站為純靜態站，實際送出（寄發自動回覆信／通知信／寫入後台）由後端或第三方表單服務接手，此處僅完成前端欄位配置與必填驗證骨架 -->
         <HoneypotField v-model="website" />
 
         <fieldset>
-          <legend>營隊梯次</legend>
+          <legend>{{ tx('營隊梯次', 'Camp session') }}</legend>
           <div class="form-grid">
             <div class="form-field form-field--full">
-              <label for="cp-session">希望報名的梯次<span class="req" aria-hidden="true">*</span></label>
-              <input id="cp-session" v-model="campSession" type="text" name="camp_session" required placeholder="例：2027 年暑假足球營" aria-describedby="cp-session-hint cp-session-error">
-              <p class="field-hint" id="cp-session-hint">目前梯次日期尚未公布，請填寫大略期望時段（如寒假／暑假），課程部會與最新開課資訊比對後回覆。</p>
-              <p class="field-error" id="cp-session-error" role="alert">請填寫希望報名的梯次</p>
+              <label for="cp-session">{{ tx('希望報名的梯次', 'Preferred session') }}<span class="req" aria-hidden="true">*</span></label>
+              <input id="cp-session" v-model="campSession" type="text" name="camp_session" required :placeholder="tx('例：2027 年暑假足球營', 'e.g. 2027 summer football camp')" aria-describedby="cp-session-hint cp-session-error">
+              <p class="field-hint" id="cp-session-hint">{{ tx('目前梯次日期尚未公布，請填寫大略期望時段（如寒假／暑假），課程部會與最新開課資訊比對後回覆。', 'Session dates have not been announced yet. Please enter your approximate preferred period (for example, winter or summer break), and the Programs Department will check it against the latest schedule and reply.') }}</p>
+              <p class="field-error" id="cp-session-error" role="alert">{{ tx('請填寫希望報名的梯次', 'Please enter your preferred session') }}</p>
             </div>
           </div>
           
         </fieldset>
 
         <fieldset>
-          <legend>學員資料</legend>
+          <legend>{{ tx('學員資料', 'Student details') }}</legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="cp-name">學員姓名<span class="req" aria-hidden="true">*</span></label>
+              <label for="cp-name">{{ tx('學員姓名', "Student's name") }}<span class="req" aria-hidden="true">*</span></label>
               <input id="cp-name" v-model="studentName" type="text" name="student_name" required autocomplete="name" aria-describedby="cp-name-error">
-              <p class="field-error" id="cp-name-error" role="alert">請填寫學員姓名</p>
+              <p class="field-error" id="cp-name-error" role="alert">{{ tx('請填寫學員姓名', 'Please enter the student\'s name') }}</p>
             </div>
             <div class="form-field">
-              <label for="cp-dob">學員出生日期<span class="req" aria-hidden="true">*</span></label>
+              <label for="cp-dob">{{ tx('學員出生日期', "Student's date of birth") }}<span class="req" aria-hidden="true">*</span></label>
               <input id="cp-dob" v-model="studentDob" type="date" name="student_dob" required aria-describedby="cp-dob-error">
-              <p class="field-error" id="cp-dob-error" role="alert">請填寫學員出生日期</p>
+              <p class="field-error" id="cp-dob-error" role="alert">{{ tx('請填寫學員出生日期', 'Please enter the student\'s date of birth') }}</p>
             </div>
             <div class="form-field form-field--full">
+              <p v-if="isEn" class="field-hint">The health declaration below is pending legal review and is shown in Traditional Chinese.</p>
               <div class="checkbox-field">
                 <input id="cp-health-declaration" v-model="healthDeclarationConsent" type="checkbox" name="health_declaration" required aria-describedby="cp-health-declaration-error">
                 <label for="cp-health-declaration">本人確認已據實告知學員的過敏史、慢性病、目前服用藥物等健康狀況，如有變動將主動告知課程部。<span class="req" aria-hidden="true">*</span></label>
               </div>
-              <p class="field-error" id="cp-health-declaration-error" role="alert">請勾選健康聲明</p>
+              <p class="field-error" id="cp-health-declaration-error" role="alert">{{ tx('請勾選健康聲明', 'Please tick the box for the health declaration') }}</p>
             </div>
           </div>
         </fieldset>
 
         <fieldset>
-          <legend>緊急聯絡人</legend>
+          <legend>{{ tx('緊急聯絡人', 'Emergency contact') }}</legend>
           <div class="form-grid">
             <div class="form-field">
-              <label for="cp-emg-name">緊急聯絡人姓名<span class="req" aria-hidden="true">*</span></label>
+              <label for="cp-emg-name">{{ tx('緊急聯絡人姓名', 'Emergency contact name') }}<span class="req" aria-hidden="true">*</span></label>
               <input id="cp-emg-name" v-model="emergencyName" type="text" name="emergency_name" required autocomplete="name" aria-describedby="cp-emg-name-error">
-              <p class="field-error" id="cp-emg-name-error" role="alert">請填寫緊急聯絡人姓名</p>
+              <p class="field-error" id="cp-emg-name-error" role="alert">{{ tx('請填寫緊急聯絡人姓名', 'Please enter the emergency contact name') }}</p>
             </div>
             <div class="form-field">
-              <label for="cp-emg-phone">緊急聯絡人電話<span class="req" aria-hidden="true">*</span></label>
+              <label for="cp-emg-phone">{{ tx('緊急聯絡人電話', 'Emergency contact phone number') }}<span class="req" aria-hidden="true">*</span></label>
               <input id="cp-emg-phone" v-model="emergencyPhone" type="tel" name="emergency_phone" required autocomplete="tel" aria-describedby="cp-emg-phone-error">
-              <p class="field-error" id="cp-emg-phone-error" role="alert">請填寫緊急聯絡人電話</p>
+              <p class="field-error" id="cp-emg-phone-error" role="alert">{{ tx('請填寫緊急聯絡人電話', 'Please enter the emergency contact phone number') }}</p>
             </div>
             <div class="form-field form-field--full">
-              <label for="cp-emg-relation">與學員關係<span class="req" aria-hidden="true">*</span></label>
+              <label for="cp-emg-relation">{{ tx('與學員關係', 'Relationship to the student') }}<span class="req" aria-hidden="true">*</span></label>
               <select id="cp-emg-relation" v-model="emergencyRelation" name="emergency_relation" required aria-describedby="cp-emg-relation-error">
-                <option value="">請選擇</option>
-                <option value="father">父親</option>
-                <option value="mother">母親</option>
-                <option value="grandparent">祖父母／外祖父母</option>
-                <option value="relative">其他親屬</option>
-                <option value="other">其他</option>
+                <option value="">{{ tx('請選擇', 'Please select') }}</option>
+                <option value="father">{{ tx('父親', 'Father') }}</option>
+                <option value="mother">{{ tx('母親', 'Mother') }}</option>
+                <option value="grandparent">{{ tx('祖父母／外祖父母', 'Grandparent') }}</option>
+                <option value="relative">{{ tx('其他親屬', 'Other relative') }}</option>
+                <option value="other">{{ tx('其他', 'Other') }}</option>
               </select>
-              <p class="field-error" id="cp-emg-relation-error" role="alert">請選擇與學員關係</p>
+              <p class="field-error" id="cp-emg-relation-error" role="alert">{{ tx('請選擇與學員關係', 'Please select your relationship to the student') }}</p>
             </div>
           </div>
         </fieldset>
 
         <div class="consent-block">
+          <p v-if="isEn" class="field-hint">The consent notice below is pending legal review and is shown in Traditional Chinese.</p>
           <div class="checkbox-field">
             <input id="cp-consent" v-model="consent" type="checkbox" name="consent" required aria-describedby="cp-consent-error">
             <label for="cp-consent">本人為上述學員之家長／法定監護人，已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意{{ clubAssets.nameZh }}依本表單蒐集學員、家長與緊急聯絡人之個人資料及健康聲明內容，用於處理本次營隊報名之聯繫、安全與應變作業。<span class="req" aria-hidden="true">*</span></label>
           </div>
-          <p class="field-error" id="cp-consent-error" role="alert">請勾選同意個資蒐集聲明</p>
+          <p class="field-error" id="cp-consent-error" role="alert">{{ tx('請勾選同意個資蒐集聲明', 'Please tick the box to agree to the personal data collection notice') }}</p>
           
         </div>
 
         <div class="form-turnstile">
           <!-- Cloudflare Turnstile 防機器人驗證：sitekey 待客戶申請 Cloudflare 帳號後設定，見 https://developers.cloudflare.com/turnstile/ -->
-          <div class="cf-turnstile" data-sitekey="" role="group" aria-label="機器人驗證"></div>
-          <p class="field-hint">此表單由 Cloudflare Turnstile 防護，驗證元件將於 sitekey 設定後生效。</p>
+          <div class="cf-turnstile" data-sitekey="" role="group" :aria-label="tx('機器人驗證', 'Bot verification')"></div>
+          <p class="field-hint">{{ tx('此表單由 Cloudflare Turnstile 防護，驗證元件將於 sitekey 設定後生效。', 'This form is protected by Cloudflare Turnstile. The verification widget will take effect once the site key is configured.') }}</p>
         </div>
 
-        <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">送出報名</button>
+        <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">{{ tx('送出報名', 'Submit') }}</button>
 
         <div class="form-submit-note">
-          <p><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；課程部窗口會另外收到通知信，並與家長確認梯次、名額與繳費方式。</p>
+          <p><template v-if="isEn"><strong>What happens after you submit?</strong> An automatic reply is sent straight away to the parent's email address to confirm we have received the details. The Programs Department also receives a notification and will contact parents to confirm the session, availability and payment method.</template><template v-else><strong>送出後會發生什麼事？</strong> 系統會立即寄送自動回覆信到家長填寫的 Email，確認我們已收到資料；課程部窗口會另外收到通知信，並與家長確認梯次、名額與繳費方式。</template></p>
         </div>
       </form>
 
       <aside class="form-sidebar">
         <div class="form-sidebar__sticky">
         <div class="form-sidebar__card">
-          <p class="form-sidebar__dept">收件單位</p>
-          <h2>課程部</h2>
+          <p class="form-sidebar__dept">{{ tx('收件單位', 'Handled by') }}</p>
+          <h2>{{ tx('課程部', 'Programs Department') }}</h2>
           
         </div>
         <div class="form-sidebar__card">
-          <h2>填寫前可以先準備</h2>
+          <h2>{{ tx('填寫前可以先準備', 'Before you start') }}</h2>
           <ul>
-            <li>學員的健康與過敏史資訊</li>
-            <li>一位可隨時聯絡到的緊急聯絡人</li>
-            <li>希望報名的梯次或時段</li>
+            <li>{{ tx('學員的健康與過敏史資訊', 'The student\'s health and allergy information') }}</li>
+            <li>{{ tx('一位可隨時聯絡到的緊急聯絡人', 'An emergency contact who can be reached at any time') }}</li>
+            <li>{{ tx('希望報名的梯次或時段', 'The session or time period you would like to join') }}</li>
           </ul>
         </div>
         </div>

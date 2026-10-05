@@ -13,16 +13,18 @@
 import type { ImpactRecord } from '#shared/utils/charity'
 import type { PagedResponse } from '#shared/utils/api-types'
 
-definePageMeta({ nav: 'charity', unit: '11' })
+definePageMeta({ nav: 'charity', unit: '11', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const club = config.public.club
 const { donateLink } = await useCharityCta()
 
 useSeoMeta({
-  title: '慈善事蹟紀錄 Impact Stories｜慈善與社會影響｜台中磐石足球俱樂部',
-  description: '台中磐石足球俱樂部的慈善事蹟時間軸：受贈公益團體、捐助內容與活動圖片紀錄，支援年份篩選。',
+  title: computed(() => (isEn.value ? 'Impact Stories | Charity & Impact | Taichung Rock FC' : '慈善事蹟紀錄 Impact Stories｜慈善與社會影響｜台中磐石足球俱樂部')),
+  description: computed(() => (isEn.value
+    ? 'A timeline of the charity impact stories of Taichung Rock FC: beneficiary charities, what was donated and photo records, with a year filter.'
+    : '台中磐石足球俱樂部的慈善事蹟時間軸：受贈公益團體、捐助內容與活動圖片紀錄，支援年份篩選。')),
 })
 
 const { data } = await useFetch<PagedResponse<ImpactRecord>>(`/api/backend/${club}/charity/records`, {
@@ -48,18 +50,18 @@ interface TimelineYear { key: string, label: string, items: TimelineItem[] }
 const STATIC_YEARS: TimelineYear[] = [
   { key: '2026', label: '2026', items: [{
     key: 's-2026-01-12', date: '2026-01-12', imageUrl: siteImg('/assets/img/news/2026-01-12-community-017.jpg'),
-    imageAlt: '台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場', imageWidth: 640, imageHeight: 427, extraThumbs: [],
+    imageAlt: tx('台中磐石攜手 Subkarma 捐贈英語書籍走進潭秀非營利幼兒園活動現場', 'Taichung Rock FC and Subkarma donating English books at a non-profit kindergarten'), imageWidth: 640, imageHeight: 427, extraThumbs: [],
     title: '潭秀非營利幼兒園',
     facts: [
-      { label: '捐助內容', text: '英語書籍（與 Subkarma 合作捐贈）' },
-      { label: '相關報導', text: '台中磐石攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園', href: '/zh/news/community/' },
+      { label: tx('捐助內容', 'Donated'), text: tx('英語書籍（與 Subkarma 合作捐贈）', 'English-language books (donated in partnership with Subkarma)') },
+      { label: tx('相關報導', 'Related news'), text: tx('台中磐石攜手 Subkarma 深耕在地公益，捐贈英語書籍走進潭秀非營利幼兒園', 'Taichung Rock FC and Subkarma deepen local charity work, donating English books to a non-profit kindergarten'), href: '/zh/news/community/' },
     ],
   }] },
   { key: '2025', label: '2025', items: [{
     key: 's-2025-05-03', date: '2025-05-03', imageUrl: siteImg('/assets/img/news/2025-05-03-camps-056.jpg'),
-    imageAlt: '2025台中磐石盃足球邀請賽活動現場', imageWidth: 640, imageHeight: 480, extraThumbs: [],
+    imageAlt: tx('2025台中磐石盃足球邀請賽活動現場', 'The 2025 Taichung Rock FC Cup football invitational'), imageWidth: 640, imageHeight: 480, extraThumbs: [],
     title: '台中磐石盃少年足球隊伍',
-    facts: [{ label: '相關活動', text: '2025 台中磐石盃足球邀請賽' }],
+    facts: [{ label: tx('相關活動', 'Related event'), text: tx('2025 台中磐石盃足球邀請賽', '2025 Taichung Rock FC Cup football invitational') }],
   }] },
   { key: '2024', label: '2024', items: [{
     key: 's-2024-07-23', date: '2024-07-23', imageUrl: null, imageAlt: '', imageWidth: 640, imageHeight: 427, extraThumbs: [],
@@ -79,19 +81,19 @@ const years = computed<TimelineYear[]>(() => {
     const key = y == null ? 'undated' : String(y)
     let g = groups.get(key)
     if (!g) {
-      g = { key, label: y == null ? '未標日期' : String(y), items: [] }
+      g = { key, label: y == null ? tx('未標日期', 'Undated') : String(y), items: [] }
       groups.set(key, g)
     }
     const facts: TimelineFact[] = []
-    if (r.donationContent) facts.push({ label: '捐助內容', text: r.donationContent })
-    if (r.location) facts.push({ label: '地點', text: r.location })
-    if (r.briefDescription) facts.push({ label: '說明', text: r.briefDescription })
-    if (r.programSlug) facts.push({ label: '所屬計畫', text: r.programName ?? r.programSlug, href: `/zh/charity/programs/${r.programSlug}/` })
+    if (r.donationContent) facts.push({ label: tx('捐助內容', 'Donated'), text: r.donationContent })
+    if (r.location) facts.push({ label: tx('地點', 'Location'), text: r.location })
+    if (r.briefDescription) facts.push({ label: tx('說明', 'Description'), text: r.briefDescription })
+    if (r.programSlug) facts.push({ label: tx('所屬計畫', 'Program'), text: r.programName ?? r.programSlug, href: `/zh/charity/programs/${r.programSlug}/` })
     g.items.push({
       key: r.id,
       date: r.happenedOn ?? '',
       imageUrl: r.imageUrl,
-      imageAlt: r.charityName ? `${r.charityName} 活動照片` : '',
+      imageAlt: r.charityName ? (isEn.value ? `${r.charityName} activity photo` : `${r.charityName} 活動照片`) : '',
       imageWidth: r.imageWidth ?? 640,
       imageHeight: r.imageHeight ?? 427,
       extraThumbs: r.images.slice(0, 2).map((i) => i.thumbUrl ?? i.imageUrl),
@@ -107,12 +109,12 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/charity/')">慈善與社會影響</a></li>
-      <li aria-current="page">慈善事蹟</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/charity/')">{{ tx('慈善與社會影響', 'Charity & Impact') }}</a></li>
+      <li aria-current="page">{{ tx('慈善事蹟', 'Impact Stories') }}</li>
     </ol>
   </div>
 </nav>
@@ -121,17 +123,19 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
   <img class="page-hero__bg" :src="siteImg('/assets/img/news/2026-01-12-community-017.jpg')" alt="" width="1600" height="1068">
   <div class="container">
     <p class="page-hero__eyebrow">11.3 Impact Stories</p>
-    <h1>慈善事蹟<span class="en">Impact Stories</span></h1>
-    <p class="page-hero__lede">每一筆紀錄呈現三項核心資料：<strong>公益團體名稱、捐助內容與活動圖片</strong>，忠實呈現俱樂部已落地的公益行動。</p>
+    <h1><template v-if="isEn">Impact Stories</template><template v-else>{{ tx('慈善事蹟', 'Impact Stories') }}<span class="en">Impact Stories</span></template></h1>
+    <p class="page-hero__lede"><template v-if="isEn">Each record presents three key pieces of information: <strong>the name of the charity, what was donated and photos of the activity</strong>, giving a faithful account of the charity work the club has carried out.</template><template v-else>每一筆紀錄呈現三項核心資料：<strong>公益團體名稱、捐助內容與活動圖片</strong>，忠實呈現俱樂部已落地的公益行動。</template></p>
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && (!usingApi || hasFallbackLocale(data))" partial />
+
 <section class="band impact-band" aria-labelledby="impact-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="impact-title">慈善事蹟時間軸</h2>
+    <h2 class="visually-hidden" id="impact-title">{{ tx('慈善事蹟時間軸', 'Impact stories timeline') }}</h2>
 
-    <div class="year-filter" role="group" aria-label="選擇年份">
-      <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">全部</button>
+    <div class="year-filter" role="group" :aria-label="tx('選擇年份', 'Select a year')">
+      <button class="year-chip" type="button" data-year="all" :aria-pressed="isPressed('all')" @click="activeYear = 'all'">{{ tx('全部', 'All') }}</button>
       <button v-for="y in years" :key="y.key" class="year-chip" type="button" :data-year="y.key" :aria-pressed="isPressed(y.key)" @click="activeYear = y.key">{{ y.label }}</button>
     </div>
 
@@ -143,7 +147,7 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
             <p v-if="it.date" class="timeline-item__date">{{ it.date }}</p>
             <div v-if="it.imageUrl" class="timeline-item__media"><img :src="it.imageUrl" :alt="it.imageAlt" loading="lazy" :width="it.imageWidth" :height="it.imageHeight"></div>
             <div class="timeline-item__body">
-              <p class="timeline-item__tag">公益團體 Beneficiary</p>
+              <p class="timeline-item__tag">{{ tx('公益團體 Beneficiary', 'Beneficiary') }}</p>
               <h4 class="timeline-item__title">{{ it.title }}</h4>
               <dl v-if="it.facts.length" class="impact-facts">
                 <div v-for="f in it.facts" :key="f.label">
@@ -159,29 +163,29 @@ const { activeYear, isPressed, isPanelHidden } = useYearChips()
         </ol>
       </section>
     </div>
-    <p v-if="usingApi && totalCount > apiRecords.length" class="impact-more">目前顯示最新 {{ apiRecords.length }} 筆，共 {{ totalCount }} 筆紀錄。</p>
+    <p v-if="usingApi && totalCount > apiRecords.length" class="impact-more"><template v-if="isEn">Showing the latest {{ apiRecords.length }} of {{ totalCount }} records.</template><template v-else>目前顯示最新 {{ apiRecords.length }} 筆，共 {{ totalCount }} 筆紀錄。</template></p>
   </div>
 </section>
 
 <section class="band grain cta-band" aria-labelledby="impact-cta-title">
   <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">11.3</span>
   <div class="band-inner container">
-    <h2 class="section-title" id="impact-cta-title">相關內容</h2>
+    <h2 class="section-title" id="impact-cta-title">{{ tx('相關內容', 'Related content') }}</h2>
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/charity/our-impact/')">
         <span class="cta-card__num">11.4</span>
-        <span class="cta-card__title">影響力數據</span>
-        <p class="cta-card__desc">累計統計與夥伴團體列表</p>
+        <span class="cta-card__title">{{ tx('影響力數據', 'Our Impact') }}</span>
+        <p class="cta-card__desc">{{ tx('累計統計與夥伴團體列表', 'Cumulative statistics and a list of partner organisations') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/charity/programs/')">
         <span class="cta-card__num">11.2</span>
-        <span class="cta-card__title">慈善計畫</span>
-        <p class="cta-card__desc">正在進行與已完成的公益計畫</p>
+        <span class="cta-card__title">{{ tx('慈善計畫', 'Charity Programs') }}</span>
+        <p class="cta-card__desc">{{ tx('正在進行與已完成的公益計畫', 'Ongoing and completed charity programs') }}</p>
       </a>
       <a class="cta-card" :href="donateLink.href" :target="donateLink.external ? '_blank' : undefined" :rel="donateLink.external ? 'noopener noreferrer' : undefined">
         <span class="cta-card__num">01</span>
-        <span class="cta-card__title">支持我們</span>
-        <p class="cta-card__desc">企業合作與球迷捐款兩種參與方式；球迷捐款由{{ CHARITY_RECIPIENT }}的慈善捐款平台承接</p>
+        <span class="cta-card__title">{{ tx('支持我們', 'Support us') }}</span>
+        <p class="cta-card__desc"><template v-if="isEn">Two ways to take part: corporate partnerships and fan donations. Fan donations are handled by the charity donation platform of the {{ CHARITY_RECIPIENT_EN }}.</template><template v-else>企業合作與球迷捐款兩種參與方式；球迷捐款由{{ CHARITY_RECIPIENT }}的慈善捐款平台承接</template></p>
       </a>
     </div>
   </div>

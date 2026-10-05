@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   if (!bearer) return memberProblem(event, 401, 'login_required', '請先登入。')
   const raw = await readBody<Record<string, unknown>>(event).catch(() => null)
   if (!raw || typeof raw.newPassword !== 'string') {
-    return memberProblem(event, 400, 'invalid_body', '請輸入新密碼。')
+    return memberProblem(event, 400, 'invalid_body', '請輸入新密碼。', 'Please enter a new password.')
   }
   const stored = readRefreshCookie(event)
   const res = await callUpstream(event, 'POST', 'member/auth/change-password', {

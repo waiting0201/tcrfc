@@ -19,7 +19,7 @@ const HEALTH_DECLARATION_MARKER = '已勾選同意健康聲明（未蒐集健康
 
 const config = useRuntimeConfig()
 const club = config.public.club
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const clubAssets = getClubAssets(club)
 
 /** 可報名（開放或額滿候補）的場次。 */
@@ -29,13 +29,14 @@ function dateText(d: string | null): string {
   return d ? d.replaceAll('-', '/') : '—'
 }
 function quotaText(t: PublicTrial): string {
-  if (t.capacity == null) return `已報名 ${t.enrolledCount} 人（名額不限）`
+  if (t.capacity == null) return isEn.value ? `${t.enrolledCount} registered (no limit on places)` : `已報名 ${t.enrolledCount} 人（名額不限）`
   const left = Math.max(t.capacity - t.enrolledCount, 0)
+  if (isEn.value) return left > 0 ? `${left} places left (${t.capacity} in total)` : `Full (${t.capacity} places in total)`
   return left > 0 ? `剩餘 ${left} 名（共 ${t.capacity} 名）` : `名額已滿（共 ${t.capacity} 名）`
 }
 function statusText(t: PublicTrial): string {
-  if (t.isSignupOpen) return '開放報名'
-  if (t.acceptsWaitlist) return '額滿候補'
+  if (t.isSignupOpen) return tx('開放報名', 'Open for registration')
+  if (t.acceptsWaitlist) return tx('額滿候補', 'Full, waitlist open')
   return statusLabel(t, locale.value)
 }
 
@@ -62,10 +63,10 @@ const phase = ref<Phase>('idle')
 const errorMessage = ref('')
 const result = ref<{ registrationNo: string, status: string, statusCode?: string, statusLabelZh?: string, statusLabelEn?: string, trialLabel: string } | null>(null)
 
-const GENERIC_ERROR = '送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用電話或 Email 聯繫我們。'
+const GENERIC_ERROR = computed(() => tx('送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用電話或 Email 聯繫我們。', 'Submission failed. Please check that every field is filled in correctly and try again; if it keeps happening, please contact us by phone or email instead.'))
 
 function trialLabel(t: PublicTrial): string {
-  return [dateText(t.trialOn), t.venueName, t.teamName].filter(Boolean).join('　')
+  return [dateText(t.trialOn), t.venueName, t.teamName].filter(Boolean).join(isEn.value ? ' · ' : '　')
 }
 
 /** 依出生日期（YYYY-MM-DD）算是否未滿 18 歲；沒填或格式不對回 null（交給後端判斷）。 */
@@ -83,7 +84,7 @@ function extractMessage(err: unknown): string | null {
   const msg = extractErrorMessage(err)
   if (msg) return msg
   const status = (err as { statusCode?: number, status?: number } | null)?.statusCode ?? (err as { status?: number } | null)?.status
-  if (status === 429) return '送出次數過多，請稍候幾分鐘再試。'
+  if (status === 429) return tx('送出次數過多，請稍候幾分鐘再試。', 'Too many submissions. Please wait a few minutes and try again.')
   return null
 }
 
@@ -97,12 +98,12 @@ async function onSubmit() {
   errorMessage.value = ''
   if (!phone.value.trim() && !email.value.trim()) {
     phase.value = 'error'
-    errorMessage.value = '聯絡電話與 Email 至少需要填寫一項，以便與您聯繫。'
+    errorMessage.value = tx('聯絡電話與 Email 至少需要填寫一項，以便與您聯繫。', 'Please fill in at least one of phone number or email so we can contact you.')
     return
   }
   if (isMinor(birthOn.value) && (!guardianName.value.trim() || !guardianPhone.value.trim())) {
     phase.value = 'error'
-    errorMessage.value = '未滿 18 歲的報名者，請填寫家長／緊急聯絡人的姓名與電話。'
+    errorMessage.value = tx('未滿 18 歲的報名者，請填寫家長／緊急聯絡人的姓名與電話。', 'Registrants under 18 must provide the name and phone number of a parent or emergency contact.')
     return
   }
   // 誘捕欄位有值＝機器人：安靜當作成功，不送出（端點本身另有依 IP 的限流）。
@@ -132,7 +133,7 @@ async function onSubmit() {
   }
   catch (err: unknown) {
     phase.value = 'error'
-    errorMessage.value = extractMessage(err) ?? GENERIC_ERROR
+    errorMessage.value = extractMessage(err) ?? GENERIC_ERROR.value
   }
 }
 
@@ -151,34 +152,34 @@ function registerAnother() {
 <div class="trial-schedule">
   <div class="table-wrap">
     <table class="trial-table">
-      <caption class="visually-hidden">試訓場次列表</caption>
+      <caption class="visually-hidden">{{ tx('試訓場次列表', 'Trial sessions') }}</caption>
       <thead>
         <tr>
-          <th scope="col">日期</th>
-          <th scope="col">地點</th>
-          <th scope="col">對象</th>
-          <th scope="col">名額</th>
-          <th scope="col">報名截止</th>
-          <th scope="col">狀態</th>
-          <th scope="col"><span class="visually-hidden">報名</span></th>
+          <th scope="col">{{ tx('日期', 'Date') }}</th>
+          <th scope="col">{{ tx('地點', 'Venue') }}</th>
+          <th scope="col">{{ tx('對象', 'Who it is for') }}</th>
+          <th scope="col">{{ tx('名額', 'Places') }}</th>
+          <th scope="col">{{ tx('報名截止', 'Registration deadline') }}</th>
+          <th scope="col">{{ tx('狀態', 'Status') }}</th>
+          <th scope="col"><span class="visually-hidden">{{ tx('報名', 'Register') }}</span></th>
         </tr>
       </thead>
       <tbody>
         <tr v-if="trials.length === 0" class="trial-table__pending-row">
-          <td colspan="7">目前尚無公告中的試訓場次，請關注官方社群公告。</td>
+          <td colspan="7">{{ tx('目前尚無公告中的試訓場次，請關注官方社群公告。', 'There are no trial sessions announced at the moment. Please follow our official social media channels for announcements.') }}</td>
         </tr>
         <tr v-for="t in trials" :key="t.id">
           <td>{{ dateText(t.trialOn) }}</td>
           <td>
-            {{ t.venueName ?? '地點待公告' }}
+            {{ t.venueName ?? tx('地點待公告', 'Venue to be announced') }}
             <span v-if="t.venueAddress" class="trial-table__sub">{{ t.venueAddress }}</span>
           </td>
-          <td>{{ [t.teamName, t.audience].filter(Boolean).join('　') || '—' }}</td>
+          <td>{{ [t.teamName, t.audience].filter(Boolean).join(isEn ? ' · ' : '　') || '—' }}</td>
           <td>{{ quotaText(t) }}</td>
           <td>{{ t.deadlineOn ? dateText(t.deadlineOn) : '—' }}</td>
           <td><span class="trial-table__status">{{ statusText(t) }}</span></td>
           <td>
-            <button v-if="t.isSignupOpen || t.acceptsWaitlist" type="button" class="btn btn--dark btn--sm" @click="chooseTrial(t.id)">{{ t.isSignupOpen ? '我要報名' : '候補報名' }}</button>
+            <button v-if="t.isSignupOpen || t.acceptsWaitlist" type="button" class="btn btn--dark btn--sm" @click="chooseTrial(t.id)">{{ t.isSignupOpen ? tx('我要報名', 'Register') : tx('候補報名', 'Join waitlist') }}</button>
           </td>
         </tr>
       </tbody>
@@ -186,18 +187,19 @@ function registerAnother() {
   </div>
 
   <div v-if="registrable.length > 0" id="trial-register" class="trial-reg">
-    <h3 class="trial-reg__title">試訓線上報名</h3>
-    <p class="section-lede">選擇場次並填寫資料後送出，系統會產生報名編號。名額已滿的場次會列入候補，有空位時依序聯繫。</p>
+    <h3 class="trial-reg__title">{{ tx('試訓線上報名', 'Trial online registration') }}</h3>
+    <p class="section-lede">{{ tx('選擇場次並填寫資料後送出，系統會產生報名編號。名額已滿的場次會列入候補，有空位時依序聯繫。', 'Choose a session, fill in your details and submit, and the system will give you a registration number. Sessions that are full will place you on a waitlist, and we will contact people in order when a place opens up.') }}</p>
 
     <div v-if="phase === 'success'" class="form-status form-status--success" role="status">
       <template v-if="result">
-        <p><strong>報名資料已送出。</strong>您的報名編號是 <strong class="trial-reg__no">{{ result.registrationNo }}</strong>，目前狀態：{{ statusLabel(result, locale) }}。</p>
-        <p v-if="result.statusCode === 'waitlisted'">這場試訓目前名額已滿，您已列入候補，有空位時我們會依序與您聯繫。</p>
-        <p v-else>我們會依您留下的聯絡方式與您確認試訓細節。請記下報名編號，查詢時使用。</p>
+        <p v-if="isEn"><strong>Your registration has been submitted.</strong> Your registration number is <strong class="trial-reg__no">{{ result.registrationNo }}</strong>, current status: {{ statusLabel(result, locale) }}.</p>
+        <p v-else><strong>報名資料已送出。</strong>您的報名編號是 <strong class="trial-reg__no">{{ result.registrationNo }}</strong>，目前狀態：{{ statusLabel(result, locale) }}。</p>
+        <p v-if="result.statusCode === 'waitlisted'">{{ tx('這場試訓目前名額已滿，您已列入候補，有空位時我們會依序與您聯繫。', 'This trial session is currently full and you have been placed on the waitlist. We will contact people in order when a place opens up.') }}</p>
+        <p v-else>{{ tx('我們會依您留下的聯絡方式與您確認試訓細節。請記下報名編號，查詢時使用。', 'We will confirm the trial details using the contact details you left. Please note down your registration number to use when you enquire.') }}</p>
         <p class="trial-reg__summary">{{ result.trialLabel }}</p>
       </template>
-      <p v-else>已收到您的報名資料。</p>
-      <p><button type="button" class="btn btn--light btn--sm" @click="registerAnother">為另一位報名</button></p>
+      <p v-else>{{ tx('已收到您的報名資料。', 'We have received your registration.') }}</p>
+      <p><button type="button" class="btn btn--light btn--sm" @click="registerAnother">{{ tx('為另一位報名', 'Register someone else') }}</button></p>
     </div>
 
     <form v-else class="tcrfc-form trial-reg__form" method="post" @submit.prevent="onSubmit">
@@ -206,10 +208,10 @@ function registerAnother() {
       <div v-if="phase === 'error'" class="form-status form-status--error" role="alert"><p>{{ errorMessage }}</p></div>
 
       <fieldset>
-        <legend>試訓場次</legend>
+        <legend>{{ tx('試訓場次', 'Trial session') }}</legend>
         <div class="form-grid">
           <div class="form-field form-field--full">
-            <span id="tr-trial-label" class="trial-reg__legend">場次<span class="req" aria-hidden="true">*</span></span>
+            <span id="tr-trial-label" class="trial-reg__legend">{{ tx('場次', 'Session') }}<span class="req" aria-hidden="true">*</span></span>
             <ul class="trial-reg__list" role="radiogroup" aria-labelledby="tr-trial-label">
               <li v-for="t in registrable" :key="t.id">
                 <label :class="['trial-reg__option', { 'is-selected': trialId === t.id }]">
@@ -217,34 +219,34 @@ function registerAnother() {
                   <span class="trial-reg__option-main">
                     <strong>{{ dateText(t.trialOn) }}</strong>
                     <span v-if="t.venueName">{{ t.venueName }}</span>
-                    <span v-if="t.teamName || t.audience">{{ [t.teamName, t.audience].filter(Boolean).join('　') }}</span>
+                    <span v-if="t.teamName || t.audience">{{ [t.teamName, t.audience].filter(Boolean).join(isEn ? ' · ' : '　') }}</span>
                   </span>
                   <span class="trial-reg__option-meta">
                     <span class="trial-reg__badge">{{ statusText(t) }}</span>
                     <span>{{ quotaText(t) }}</span>
-                    <span v-if="t.deadlineOn">截止 {{ dateText(t.deadlineOn) }}</span>
+                    <span v-if="t.deadlineOn">{{ tx('截止', 'Deadline') }} {{ dateText(t.deadlineOn) }}</span>
                   </span>
                 </label>
               </li>
             </ul>
-            <p v-if="currentTrial && !currentTrial.isSignupOpen && currentTrial.acceptsWaitlist" class="field-hint">這場試訓目前名額已滿，送出後會列入候補，有空位時依序聯繫。</p>
+            <p v-if="currentTrial && !currentTrial.isSignupOpen && currentTrial.acceptsWaitlist" class="field-hint">{{ tx('這場試訓目前名額已滿，送出後會列入候補，有空位時依序聯繫。', 'This trial session is currently full. If you submit, you will be placed on the waitlist and contacted in order when a place opens up.') }}</p>
           </div>
         </div>
       </fieldset>
 
       <fieldset>
-        <legend>報名者資料</legend>
+        <legend>{{ tx('報名者資料', 'Registrant details') }}</legend>
         <div class="form-grid">
           <div class="form-field">
-            <label for="tr-name">姓名<span class="req" aria-hidden="true">*</span></label>
+            <label for="tr-name">{{ tx('姓名', 'Name') }}<span class="req" aria-hidden="true">*</span></label>
             <input id="tr-name" v-model="applicantName" type="text" name="applicant_name" required autocomplete="name" maxlength="100">
           </div>
           <div class="form-field">
-            <label for="tr-dob">出生日期</label>
+            <label for="tr-dob">{{ tx('出生日期', 'Date of birth') }}</label>
             <input id="tr-dob" v-model="birthOn" type="date" name="birth_on" autocomplete="bday">
           </div>
           <div class="form-field">
-            <label for="tr-phone">聯絡電話</label>
+            <label for="tr-phone">{{ tx('聯絡電話', 'Phone number') }}</label>
             <input id="tr-phone" v-model="phone" type="tel" name="phone" autocomplete="tel" maxlength="32">
           </div>
           <div class="form-field">
@@ -252,34 +254,36 @@ function registerAnother() {
             <input id="tr-email" v-model="email" type="email" name="email" autocomplete="email" maxlength="200">
           </div>
         </div>
-        <p class="field-hint">聯絡電話與 Email 至少填寫一項。</p>
+        <p class="field-hint">{{ tx('聯絡電話與 Email 至少填寫一項。', 'Please fill in at least one of phone number and email.') }}</p>
       </fieldset>
 
       <fieldset>
-        <legend>家長／緊急聯絡人</legend>
-        <p class="field-hint" style="margin-bottom:1rem;">未滿 18 歲的報名者必須填寫家長或緊急聯絡人的姓名與電話。</p>
+        <legend>{{ tx('家長／緊急聯絡人', 'Parent / emergency contact') }}</legend>
+        <p class="field-hint" style="margin-bottom:1rem;">{{ tx('未滿 18 歲的報名者必須填寫家長或緊急聯絡人的姓名與電話。', 'Registrants under 18 must provide the name and phone number of a parent or emergency contact.') }}</p>
         <div class="form-grid">
           <div class="form-field">
-            <label for="tr-guardian">家長／緊急聯絡人姓名</label>
+            <label for="tr-guardian">{{ tx('家長／緊急聯絡人姓名', 'Parent / emergency contact name') }}</label>
             <input id="tr-guardian" v-model="guardianName" type="text" name="guardian_name" maxlength="100">
           </div>
           <div class="form-field">
-            <label for="tr-guardian-phone">家長／緊急聯絡人電話</label>
+            <label for="tr-guardian-phone">{{ tx('家長／緊急聯絡人電話', 'Parent / emergency contact phone') }}</label>
             <input id="tr-guardian-phone" v-model="guardianPhone" type="tel" name="guardian_phone" maxlength="32">
           </div>
           <div class="form-field form-field--full">
-            <label for="tr-note">備註</label>
+            <label for="tr-note">{{ tx('備註', 'Notes') }}</label>
             <textarea id="tr-note" v-model="note" name="note" rows="3" maxlength="500" />
           </div>
         </div>
       </fieldset>
+
+      <p v-if="isEn" class="field-hint">The two consent statements below are shown in Traditional Chinese only, as they are legal wording.</p>
 
       <div class="consent-block">
         <div class="checkbox-field">
           <input id="tr-health" v-model="healthConsent" type="checkbox" name="health_declaration" required>
           <label for="tr-health">本人確認已據實告知報名者的健康狀況（如過敏史、慢性病、目前服用藥物），如有變動將主動告知。<span class="req" aria-hidden="true">*</span></label>
         </div>
-        <p class="field-hint">本表單不蒐集健康細節，請於我們聯繫時當面說明。</p>
+        <p class="field-hint">{{ tx('本表單不蒐集健康細節，請於我們聯繫時當面說明。', 'This form does not collect health details. Please explain them in person when we contact you.') }}</p>
       </div>
 
       <div class="consent-block">
@@ -289,7 +293,7 @@ function registerAnother() {
         </div>
       </div>
 
-      <button class="btn btn--primary btn--block" type="submit" :disabled="phase === 'submitting' || !currentTrial">{{ phase === 'submitting' ? '送出中…' : '送出試訓報名' }}</button>
+      <button class="btn btn--primary btn--block" type="submit" :disabled="phase === 'submitting' || !currentTrial">{{ phase === 'submitting' ? tx('送出中…', 'Submitting…') : tx('送出試訓報名', 'Submit trial registration') }}</button>
     </form>
   </div>
 </div>

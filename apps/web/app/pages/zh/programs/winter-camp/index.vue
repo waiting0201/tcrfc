@@ -14,18 +14,18 @@
 // 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
 // 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
 // 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
-definePageMeta({ nav: 'programs', unit: '5.3' })
+definePageMeta({ nav: 'programs', unit: '5.3', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => getWinterCampSeo(clubKey.value).title),
-  description: computed(() => getWinterCampSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getWinterCampSeoEn() : getWinterCampSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getWinterCampSeoEn() : getWinterCampSeo(clubKey.value)).description),
 })
-const hero = computed(() => getWinterCampHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getWinterCampHeroEn() : getWinterCampHero(clubKey.value)))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'winter_camp', pageSize: 5, lang: locale.value },
@@ -62,12 +62,12 @@ useCourseSchema(
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
-      <li aria-current="page">冬令營</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/programs/')">{{ tx('課程與活動', 'Programs') }}</a></li>
+      <li aria-current="page">{{ tx('冬令營', 'Winter Camp') }}</li>
     </ol>
   </div>
 </nav>
@@ -85,12 +85,12 @@ useCourseSchema(
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
       <div class="prose">
-        <h2>適合對象與課程內容</h2>
-        <p>適合對象與課程內容將於梯次公告時同步發布。</p>
+        <h2>{{ tx('適合對象與課程內容', 'Who It Is For and What We Cover') }}</h2>
+        <p>{{ tx('適合對象與課程內容將於梯次公告時同步發布。', 'Who the camp is for and what it covers will be published together with the session announcement.') }}</p>
       </div>
       <div class="prose">
-        <h2>教練團</h2>
-        <p>教練團陣容將於梯次公告時同步發布。</p>
+        <h2>{{ tx('教練團', 'Coaching Team') }}</h2>
+        <p>{{ tx('教練團陣容將於梯次公告時同步發布。', 'The coaching team will be announced together with the session announcement.') }}</p>
       </div>
     </div>
   </div>
@@ -100,42 +100,43 @@ useCourseSchema(
   <div class="container">
     <div class="grid grid--2" style="align-items:start;">
       <div class="prose">
-        <h2>日期與地點</h2>
-        <p>確切日期與地點將於梯次公告時公布。</p>
+        <h2>{{ tx('日期與地點', 'Dates and Venue') }}</h2>
+        <p>{{ tx('確切日期與地點將於梯次公告時公布。', 'The exact dates and venue will be announced with the session announcement.') }}</p>
       </div>
       <div class="prose">
-        <h2>報名（早鳥價／名額倒數）</h2>
-        <p>報名方式與早鳥優惠將於開放報名時公布。</p>
+        <h2>{{ tx('報名（早鳥價／名額倒數）', 'Registration (Early-Bird Price / Places Left)') }}</h2>
+        <p>{{ tx('報名方式與早鳥優惠將於開放報名時公布。', 'How to register and any early-bird offer will be announced when registration opens.') }}</p>
       </div>
     </div>
 
     <div class="signup-preview">
       <div class="signup-preview__row">
-        <span>早鳥價</span>
-        <span class="signup-preview__value">{{ openSession?.earlyBirdPrice ? `NT$ ${openSession.earlyBirdPrice}` : '待公告' }}</span>
+        <span>{{ tx('早鳥價', 'Early-bird price') }}</span>
+        <span class="signup-preview__value">{{ openSession?.earlyBirdPrice ? `NT$ ${openSession.earlyBirdPrice}` : tx('待公告', 'To be announced') }}</span>
       </div>
       <div class="signup-preview__row">
-        <span>剩餘名額</span>
-        <span class="signup-preview__value">{{ openSession?.capacity ? Math.max(openSession.capacity - openSession.enrolledCount, 0) : '待公告' }}</span>
+        <span>{{ tx('剩餘名額', 'Places left') }}</span>
+        <span class="signup-preview__value">{{ openSession?.capacity ? Math.max(openSession.capacity - openSession.enrolledCount, 0) : tx('待公告', 'To be announced') }}</span>
       </div>
       <div class="signup-preview__row">
-        <span>梯次</span>
-        <span class="signup-preview__value">{{ openSession ? `${openSession.startOn} ～ ${openSession.endOn}` : '待公告' }}</span>
+        <span>{{ tx('梯次', 'Session') }}</span>
+        <span class="signup-preview__value">{{ openSession ? `${openSession.startOn}${tx(' ～ ', ' - ')}${openSession.endOn}` : tx('待公告', 'To be announced') }}</span>
       </div>
     </div>
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(faqs)" partial />
 <section class="band">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">FAQ</p>
-        <h2 class="section-title">冬令營常見問題</h2>
+        <h2 class="section-title">{{ tx('冬令營常見問題', 'Winter Camp FAQ') }}</h2>
       </div>
-      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+      <a :href="lp('/zh/faq/')">{{ tx('查看全部常見問題 →', 'View all FAQs →') }}</a>
     </div>
-    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">{{ tx('常見問題收錄中，稍後將於本頁公布。', 'FAQs are being compiled and will be published on this page soon.') }}</p>
     <dl v-else class="faq-embed-list">
       <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
         <dt>{{ f.question }}</dt>
@@ -153,14 +154,14 @@ useCourseSchema(
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">WINTER CAMP</p>
-        <h2 class="section-title" id="wc-cta-title">關注下一梯次冬令營</h2>
+        <h2 class="section-title" id="wc-cta-title">{{ tx('關注下一梯次冬令營', 'Follow the Next Winter Camp') }}</h2>
       </div>
     </div>
-    <p class="section-lede">梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。</p>
+    <p class="section-lede">{{ tx('梯次公告後將於此頁與社群帳號同步發布，站內不接受金流付款。', 'Once sessions are announced they will be posted here and on our social accounts. Payment is not taken on this site.') }}</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a v-if="isTcrfc && hasRegistrable" class="btn btn--primary" href="#register">線上報名</a>
-      <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">加入候補通知</a>
-      <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
+      <a v-if="isTcrfc && hasRegistrable" class="btn btn--primary" href="#register">{{ tx('線上報名', 'Register Online') }}</a>
+      <a v-else-if="isTcrfc" class="btn btn--primary" :href="lp('/zh/join/camp-registration/')">{{ tx('加入候補通知', 'Join the Notification List') }}</a>
+      <a class="btn btn--light" :href="lp('/zh/programs/')">{{ tx('回課程總覽', 'Back to Programs Overview') }}</a>
     </div>
   </div>
 </section>

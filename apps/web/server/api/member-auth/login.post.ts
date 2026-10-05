@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   assertSameOrigin(event)
   const raw = await readBody<Record<string, unknown>>(event).catch(() => null)
   if (!raw || typeof raw.email !== 'string' || typeof raw.password !== 'string') {
-    return memberProblem(event, 400, 'invalid_body', '請輸入 Email 與密碼。')
+    return memberProblem(event, 400, 'invalid_body', '請輸入 Email 與密碼。', 'Please enter your email and password.')
   }
   const rememberMe = raw.rememberMe === true
   const res = await callUpstream(event, 'POST', 'member/auth/login', {

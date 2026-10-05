@@ -16,7 +16,7 @@ const props = defineProps<{ event: FanEvent, initialMy: FanEventDetail['myRegist
 const config = useRuntimeConfig()
 const club = config.public.club
 const route = useRoute()
-const { locale, lp } = useLocale()
+const { locale, lp, isEn, tx } = useLocale()
 const { isLoggedIn, restored, restore, authedFetch } = useMemberSession()
 
 const my = ref<FanEventDetail['myRegistration']>(props.initialMy)
@@ -41,6 +41,21 @@ const error = ref('')
 const needFanClub = ref(false)
 const result = ref<{ status: string, statusLabel: string, isWaitlisted: boolean } | null>(null)
 
+/** 報名狀態文字：英文版依狀態代碼翻譯（POST 回應沒帶語系，statusLabel 會是繁中）；其他狀態沿用後端文字。 */
+const EN_STATUS: Record<string, string> = { registered: 'Registered', waitlist: 'Waitlisted', waitlisted: 'Waitlisted', attended: 'Attended', cancelled: 'Cancelled' }
+function statusText(status: string, label: string): string {
+  return isEn.value ? (EN_STATUS[status] ?? label) : label
+}
+/** 後端錯誤訊息為繁中；英文版對已知代碼改用英文說明，其餘退回通用英文訊息。 */
+function errorText(code: string | undefined, detail: string): string {
+  if (!isEn.value) return detail
+  if (code === 'fan_club_required') return 'This event is for paid Fan Club members only. Please upgrade your membership in the Member Centre.'
+  if (code === 'login_required') return 'Please log in to register for this event.'
+  return /[\u3400-\u9fff]/.test(detail)
+    ? 'We could not complete your registration. Please check the details and try again, or contact us.'
+    : detail
+}
+
 const closed = computed(() => !props.event.isRegistrationOpen)
 const paidOnlyBlocked = computed(() => props.event.isPaidMembersOnly && restored.value && !isLoggedIn.value)
 
@@ -50,9 +65,9 @@ async function submit() {
   const url = `/api/backend/${club}/fan-events/${props.event.slug}/registrations`
   const loggedIn = isLoggedIn.value
   if (!loggedIn) {
-    if (!form.applicantName.trim()) { error.value = '請輸入姓名。'; return }
-    if (!form.phone.trim() && !form.email.trim()) { error.value = '請至少填寫手機或 Email，方便活動聯繫。'; return }
-    if (!form.consent) { error.value = '請先閱讀並勾選同意隱私權政策。'; return }
+    if (!form.applicantName.trim()) { error.value = tx('請輸入姓名。', 'Please enter your name.'); return }
+    if (!form.phone.trim() && !form.email.trim()) { error.value = tx('請至少填寫手機或 Email，方便活動聯繫。', 'Please enter at least a mobile number or an email address so we can contact you about the event.'); return }
+    if (!form.consent) { error.value = tx('請先閱讀並勾選同意隱私權政策。', 'Please read the Privacy Policy and tick the box to agree.'); return }
   }
   busy.value = true
   try {
@@ -70,7 +85,7 @@ async function submit() {
   }
   catch (err) {
     const e = toMemberApiError(err)
-    error.value = e.detail
+    error.value = errorText(e.code, e.detail)
     needFanClub.value = e.code === 'fan_club_required'
     if (e.code === 'login_required') needFanClub.value = false
   }
@@ -78,7 +93,7 @@ async function submit() {
 }
 
 async function cancel() {
-  if (!window.confirm('確定要取消報名嗎？')) return
+  if (!window.confirm(tx('確定要取消報名嗎？', 'Are you sure you want to cancel your registration?'))) return
   busy.value = true
   error.value = ''
   try {
@@ -86,61 +101,62 @@ async function cancel() {
     my.value = null
     result.value = null
   }
-  catch (err) { error.value = toMemberApiError(err).detail }
+  catch (err) { const e = toMemberApiError(err); error.value = errorText(e.code, e.detail) }
   finally { busy.value = false }
 }
 </script>
 
 <template>
   <div class="fe-reg">
-    <p v-if="event.registrationDeadlineAt" class="mc-note">報名截止：{{ formatTaipeiDateTime(event.registrationDeadlineAt, locale) }}</p>
+    <p v-if="event.registrationDeadlineAt" class="mc-note">{{ tx('報名截止：', 'Registration deadline: ') }}{{ formatTaipeiDateTime(event.registrationDeadlineAt, locale) }}</p>
 
     <div v-if="my" class="mc-alert mc-alert--ok" role="status">
-      <p>您的報名狀態：<strong>{{ my.statusLabel }}</strong></p>
-      <p><button type="button" class="mc-link" :disabled="busy" @click="cancel">取消報名</button></p>
+      <p><template v-if="isEn">Your registration status: <strong>{{ statusText(my.status, my.statusLabel) }}</strong></template><template v-else>您的報名狀態：<strong>{{ my.statusLabel }}</strong></template></p>
+      <p><button type="button" class="mc-link" :disabled="busy" @click="cancel">{{ tx('取消報名', 'Cancel registration') }}</button></p>
     </div>
 
     <template v-else>
       <div v-if="result && !isLoggedIn" class="mc-alert mc-alert--ok" role="status">
-        <p><strong>{{ result.statusLabel }}。</strong>{{ result.isWaitlisted ? '目前名額已滿，您已列入候補，若有名額會與您聯繫。' : '活動相關訊息將以您留的聯絡方式通知。' }}</p>
+        <p><strong>{{ isEn ? statusText(result.status, result.statusLabel) + '.' : result.statusLabel + '。' }}</strong>{{ result.isWaitlisted ? tx('目前名額已滿，您已列入候補，若有名額會與您聯繫。', 'The event is currently full and you have been added to the waitlist. We will contact you if a place becomes available.') : tx('活動相關訊息將以您留的聯絡方式通知。', 'We will send event updates using the contact details you provided.') }}</p>
       </div>
 
-      <p v-else-if="closed" class="mc-alert mc-alert--info" role="status">此活動目前不開放報名（已截止或已開始）。</p>
+      <p v-else-if="closed" class="mc-alert mc-alert--info" role="status">{{ tx('此活動目前不開放報名（已截止或已開始）。', 'Registration for this event is not open at the moment (the deadline has passed or the event has started).') }}</p>
 
       <div v-else-if="paidOnlyBlocked" class="mc-alert mc-alert--info" role="status">
-        <p>此活動<strong>限付費球迷會員</strong>報名。請先登入會員帳號。</p>
-        <p><a class="btn btn--primary btn--sm" :href="loginHref">登入會員</a>　<a class="btn btn--dark btn--sm" :href="lp('/zh/culture/fan-club/')">了解球迷會</a></p>
+        <p><template v-if="isEn">This event is open to <strong>paid Fan Club members</strong> only. Please log in to your member account first.</template><template v-else>此活動<strong>限付費球迷會員</strong>報名。請先登入會員帳號。</template></p>
+        <p><a class="btn btn--primary btn--sm" :href="loginHref">{{ tx('登入會員', 'Log in') }}</a>　<a class="btn btn--dark btn--sm" :href="lp('/zh/culture/fan-club/')">{{ tx('了解球迷會', 'About the Fan Club') }}</a></p>
       </div>
 
       <form v-else class="tcrfc-form fe-reg__form" novalidate @submit.prevent="submit">
         <fieldset>
-          <legend>{{ event.isFull ? '登記候補' : '活動報名' }}</legend>
-          <p v-if="event.isFull" class="mc-note">目前名額已滿，送出後會列入候補，若有名額會與您聯繫。</p>
-          <p v-if="event.isPaidMembersOnly" class="mc-note">此活動限付費球迷會員；系統會核對您的會籍。</p>
+          <legend>{{ event.isFull ? tx('登記候補', 'Join the waitlist') : tx('活動報名', 'Event registration') }}</legend>
+          <p v-if="event.isFull" class="mc-note">{{ tx('目前名額已滿，送出後會列入候補，若有名額會與您聯繫。', 'The event is currently full. If you submit, you will be added to the waitlist and we will contact you if a place becomes available.') }}</p>
+          <p v-if="event.isPaidMembersOnly" class="mc-note">{{ tx('此活動限付費球迷會員；系統會核對您的會籍。', 'This event is for paid Fan Club members only. We will check your membership.') }}</p>
           <div class="form-grid">
             <template v-if="!isLoggedIn">
               <div class="form-field">
-                <label for="fe-name">姓名<span class="req" aria-hidden="true">*</span></label>
+                <label for="fe-name">{{ tx('姓名', 'Name') }}<span class="req" aria-hidden="true">*</span></label>
                 <input id="fe-name" v-model="form.applicantName" type="text" maxlength="60" autocomplete="name">
               </div>
               <div class="form-field">
-                <label for="fe-phone">手機</label>
+                <label for="fe-phone">{{ tx('手機', 'Mobile number') }}</label>
                 <input id="fe-phone" v-model="form.phone" type="tel" maxlength="30" autocomplete="tel">
               </div>
               <div class="form-field">
                 <label for="fe-email">Email</label>
                 <input id="fe-email" v-model="form.email" type="email" maxlength="200" autocomplete="email">
-                <p class="field-hint">手機與 Email 至少填一項。</p>
+                <p class="field-hint">{{ tx('手機與 Email 至少填一項。', 'Please provide at least a mobile number or an email address.') }}</p>
               </div>
             </template>
-            <p v-else class="mc-note form-field--full">以會員身分報名，不需再填個人資料。<a :href="lp('/zh/member/')">會員中心</a></p>
+            <p v-else class="mc-note form-field--full"><template v-if="isEn">You are registering as a member, so you do not need to fill in your personal details again. <a :href="lp('/zh/member/')">Member Centre</a></template><template v-else>以會員身分報名，不需再填個人資料。<a :href="lp('/zh/member/')">會員中心</a></template></p>
             <div class="form-field form-field--full">
-              <label for="fe-note">備註</label>
+              <label for="fe-note">{{ tx('備註', 'Notes') }}</label>
               <textarea id="fe-note" v-model="form.note" maxlength="500" rows="3" />
             </div>
           </div>
         </fieldset>
         <div v-if="!isLoggedIn" class="consent-block">
+          <p v-if="isEn" class="field-hint">The consent notice below is pending legal review and is shown in Traditional Chinese.</p>
           <div class="checkbox-field">
             <input id="fe-consent" v-model="form.consent" type="checkbox">
             <label for="fe-consent">我已閱讀並同意<a :href="lp('/zh/privacy/')">隱私權政策</a>，並同意主辦單位依本表單蒐集之個人資料，用於活動報名與聯繫。<span class="req" aria-hidden="true">*</span></label>
@@ -148,9 +164,9 @@ async function cancel() {
         </div>
         <div v-if="error" class="mc-alert mc-alert--error" role="alert">
           <p>{{ error }}</p>
-          <p v-if="needFanClub"><a href="#" @click.prevent="navigateTo(lp('/zh/member/'))">前往會員中心升級球迷會員</a></p>
+          <p v-if="needFanClub"><a href="#" @click.prevent="navigateTo(lp('/zh/member/'))">{{ tx('前往會員中心升級球迷會員', 'Go to the Member Centre to upgrade to a Fan Club membership') }}</a></p>
         </div>
-        <button type="submit" class="btn btn--primary" :disabled="busy">{{ busy ? '送出中…' : (event.isFull ? '登記候補' : '送出報名') }}</button>
+        <button type="submit" class="btn btn--primary" :disabled="busy">{{ busy ? tx('送出中…', 'Submitting...') : (event.isFull ? tx('登記候補', 'Join the waitlist') : tx('送出報名', 'Submit registration')) }}</button>
       </form>
     </template>
     <p v-if="error && my" class="mc-alert mc-alert--error" role="alert">{{ error }}</p>

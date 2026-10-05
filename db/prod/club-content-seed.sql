@@ -7,7 +7,7 @@
 -- 內容仍帶有【測試】前綴與 example.com 信箱（標示用）；驗收結束後用 deploy/prod-seed-import.sh clean 全部清除。
 -- 整份檔案由 deploy/prod-seed-import.sh 包在單一交易內執行（開頭 BEGIN TRANSACTION、結尾寫延伸屬性並 COMMIT）。
 -- 區段分類：
---   IMPORT    1, 2, 2b, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 24b, 24c, 25, 26, 27, 28, 29, 30, 31, 31b, 32, 33, 34, 35, 36, 37, 37b, 38, 39, 42, 43, 45, 46, 47, 48, 49, 50, 51, 52, 54, 56, 57, 58
+--   IMPORT    1, 2, 2b, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 24, 24b, 24c, 25, 26, 27, 28, 29, 30, 31, 31b, 32, 33, 34, 35, 36, 37, 37b, 38, 39, 42, 43, 45, 46, 47, 48, 49, 50, 51, 52, 54, 56, 57, 58, 61
 --   REFERENCE 0, 5, 18.1, 18.2, 18.3, 19, 20, 21, 22, 23
 --   ACCOUNTS  18.4
 --   PERSONAL  44, 53, 55, 59, 60
@@ -18,6 +18,7 @@
 -- DROPPED section=50 batches=4 reason=禁用表 tables=fan_event_registrations
 -- DROPPED section=54 batches=1 reason=禁用表 tables=draw_roster_versions,draw_rosters,member_draws,member_draws_i18n
 -- DROPPED section=54 batches=1 reason=禁用表 tables=member_draws,member_draws_i18n
+-- DROPPED section=61 batches=2 reason=禁用表 tables=member_draws_i18n
 -- 匯入會寫入的表（清除程序只動這些表；匯入前必須全空）：
 -- OWNED achievements
 -- OWNED ad_campaigns
@@ -8973,6 +8974,902 @@ IF NOT EXISTS (SELECT 1 FROM ad_campaigns WHERE id = N'7ee4f0cc-f0eb-589b-b68b-5
   INSERT INTO ad_campaigns (id, advertiser_id, slot_id, name, starts_at, ends_at, weight, goal_type, status)
   VALUES (N'7ee4f0cc-f0eb-589b-b68b-5dc2ec29d205', N'a75e1365-ffae-5753-a26b-e1a88146c771', (SELECT id FROM ad_slots WHERE slot_code = N'home_mid'), N'【測試】草稿檔期',
           DATEADD(day, 7, SYSUTCDATETIME()), DATEADD(day, 21, SYSUTCDATETIME()), 1, N'traffic', N'draft');
+GO
+
+-- ── 61. 英文欄位回填（*_i18n 的 en 列；只補缺的、不覆寫既有英文；僅 tcrfc，藍鯨與新聞不在此列） ──
+INSERT INTO competitions_i18n (competition_id, locale, name)
+SELECT b.id, N'en', N'Enterprise Premier League'
+FROM competitions b JOIN competitions_i18n z ON z.competition_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'企業甲級足球聯賽'
+  AND NOT EXISTS (SELECT 1 FROM competitions_i18n e WHERE e.competition_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'Enterprise Premier League' ELSE e.name END
+FROM competitions_i18n e
+JOIN competitions b ON b.id = e.competition_id
+JOIN competitions_i18n z ON z.competition_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'企業甲級足球聯賽';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'TBC'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'TBC'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'TBC' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'TBC';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Xitun Football Field'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'西屯足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Xitun Football Field' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'西屯足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Taipei Athletics Stadium'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'台北田徑場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Taipei Athletics Stadium' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'台北田徑場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Tainan Municipal Football Stadium'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'台南市立足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Tainan Municipal Football Stadium' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'台南市立足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Nanzih Football Field'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'楠梓足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Nanzih Football Field' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'楠梓足球場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Xizhi Sports Complex'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'汐止綜合運動場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Xizhi Sports Complex' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'汐止綜合運動場';
+GO
+
+INSERT INTO matches_i18n (match_id, locale, venue)
+SELECT b.id, N'en', N'Fu Jen Catholic University Football Field'
+FROM matches b JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'輔仁大學足球場'
+  AND NOT EXISTS (SELECT 1 FROM matches_i18n e WHERE e.match_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.venue = CASE WHEN e.venue IS NULL OR e.venue = N'' OR e.venue = z.venue THEN N'Fu Jen Catholic University Football Field' ELSE e.venue END
+FROM matches_i18n e
+JOIN matches b ON b.id = e.match_id
+JOIN matches_i18n z ON z.match_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.venue = N'輔仁大學足球場';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Goalkeeper Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'守門員教練'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Goalkeeper Coach' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'守門員教練';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'教練'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Coach' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'教練';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Head Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'總教練'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Head Coach' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'總教練';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Youth Development Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'青訓教練'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Youth Development Coach' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'青訓教練';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Youth Development Director'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'青訓總監'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Youth Development Director' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'青訓總監';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Advisor'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'顧問'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Advisor' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'顧問';
+GO
+
+INSERT INTO staff_i18n (staff_id, locale, title)
+SELECT b.id, N'en', N'Fitness Coach'
+FROM staff b JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'體能教練'
+  AND NOT EXISTS (SELECT 1 FROM staff_i18n e WHERE e.staff_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'Fitness Coach' ELSE e.title END
+FROM staff_i18n e
+JOIN staff b ON b.id = e.staff_id
+JOIN staff_i18n z ON z.staff_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'體能教練';
+GO
+
+INSERT INTO banners_i18n (banner_id, locale, title, subtitle, image_alt, cta_1_label, cta_1_url, cta_2_label, cta_2_url)
+SELECT b.id, N'en', N'LOCAL ROOTS. GLOBAL PATHWAYS.', N'Taichung Rock FC · Founded in 2024 · 2024 National Second Division champions', N'[Test] Carousel image description (image not yet uploaded)', N'About TCRFC', N'/en/about/', N'View schedule', N'/en/schedule/'
+FROM banners b JOIN banners_i18n z ON z.banner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'在地扎根 放眼世界'
+  AND NOT EXISTS (SELECT 1 FROM banners_i18n e WHERE e.banner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'LOCAL ROOTS. GLOBAL PATHWAYS.' ELSE e.title END,
+    e.subtitle = CASE WHEN e.subtitle IS NULL OR e.subtitle = N'' OR e.subtitle = z.subtitle THEN N'Taichung Rock FC · Founded in 2024 · 2024 National Second Division champions' ELSE e.subtitle END,
+    e.image_alt = CASE WHEN e.image_alt IS NULL OR e.image_alt = N'' OR e.image_alt = z.image_alt THEN N'[Test] Carousel image description (image not yet uploaded)' ELSE e.image_alt END,
+    e.cta_1_label = CASE WHEN e.cta_1_label IS NULL OR e.cta_1_label = N'' OR e.cta_1_label = z.cta_1_label THEN N'About TCRFC' ELSE e.cta_1_label END,
+    e.cta_1_url = CASE WHEN e.cta_1_url IS NULL OR e.cta_1_url = N'' OR e.cta_1_url = z.cta_1_url THEN N'/en/about/' ELSE e.cta_1_url END,
+    e.cta_2_label = CASE WHEN e.cta_2_label IS NULL OR e.cta_2_label = N'' OR e.cta_2_label = z.cta_2_label THEN N'View schedule' ELSE e.cta_2_label END,
+    e.cta_2_url = CASE WHEN e.cta_2_url IS NULL OR e.cta_2_url = N'' OR e.cta_2_url = z.cta_2_url THEN N'/en/schedule/' ELSE e.cta_2_url END
+FROM banners_i18n e
+JOIN banners b ON b.id = e.banner_id
+JOIN banners_i18n z ON z.banner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'在地扎根 放眼世界';
+GO
+
+INSERT INTO banners_i18n (banner_id, locale, title, subtitle, image_alt, cta_1_label, cta_1_url)
+SELECT b.id, N'en', N'[Test] Second carousel slide title', N'[Test] This is test content. Please replace it in the back office before launch.', N'[Test] Carousel image description (image not yet uploaded)', N'Join as a Player', N'/en/join/player/'
+FROM banners b JOIN banners_i18n z ON z.banner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】第二張輪播標題'
+  AND NOT EXISTS (SELECT 1 FROM banners_i18n e WHERE e.banner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Second carousel slide title' ELSE e.title END,
+    e.subtitle = CASE WHEN e.subtitle IS NULL OR e.subtitle = N'' OR e.subtitle = z.subtitle THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.subtitle END,
+    e.image_alt = CASE WHEN e.image_alt IS NULL OR e.image_alt = N'' OR e.image_alt = z.image_alt THEN N'[Test] Carousel image description (image not yet uploaded)' ELSE e.image_alt END,
+    e.cta_1_label = CASE WHEN e.cta_1_label IS NULL OR e.cta_1_label = N'' OR e.cta_1_label = z.cta_1_label THEN N'Join as a Player' ELSE e.cta_1_label END,
+    e.cta_1_url = CASE WHEN e.cta_1_url IS NULL OR e.cta_1_url = N'' OR e.cta_1_url = z.cta_1_url THEN N'/en/join/player/' ELSE e.cta_1_url END
+FROM banners_i18n e
+JOIN banners b ON b.id = e.banner_id
+JOIN banners_i18n z ON z.banner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】第二張輪播標題';
+GO
+
+INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
+SELECT b.id, N'en', N'Vision & Mission | About TCRFC | Taichung Rock FC', N'The vision and mission of Taichung Rock FC: developing local Taichung players through a professional pathway towards the professional stage, and showing the world Taiwan through football.'
+FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'about/vision-mission'
+  AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'Vision & Mission | About TCRFC | Taichung Rock FC' ELSE e.seo_title END,
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'The vision and mission of Taichung Rock FC: developing local Taichung players through a professional pathway towards the professional stage, and showing the world Taiwan through football.' ELSE e.seo_description END
+FROM pages_i18n e
+JOIN pages b ON b.id = e.page_id
+JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'about/vision-mission';
+GO
+
+INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
+SELECT b.id, N'en', N'Our Philosophy | About TCRFC | Taichung Rock FC', N'The football philosophy and five core values of Taichung Rock FC: Players First, Excellence, Global Pathways, Community and Integrity.'
+FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'about/philosophy'
+  AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'Our Philosophy | About TCRFC | Taichung Rock FC' ELSE e.seo_title END,
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'The football philosophy and five core values of Taichung Rock FC: Players First, Excellence, Global Pathways, Community and Integrity.' ELSE e.seo_description END
+FROM pages_i18n e
+JOIN pages b ON b.id = e.page_id
+JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'about/philosophy';
+GO
+
+INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description)
+SELECT b.id, N'en', N'[Test] Draft page', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM pages b JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'test-draft-page'
+  AND NOT EXISTS (SELECT 1 FROM pages_i18n e WHERE e.page_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.seo_title = CASE WHEN e.seo_title IS NULL OR e.seo_title = N'' OR e.seo_title = z.seo_title THEN N'[Test] Draft page' ELSE e.seo_title END,
+    e.seo_description = CASE WHEN e.seo_description IS NULL OR e.seo_description = N'' OR e.seo_description = z.seo_description THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.seo_description END
+FROM pages_i18n e
+JOIN pages b ON b.id = e.page_id
+JOIN pages_i18n z ON z.page_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.slug = N'test-draft-page';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about joining the team?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】加入球隊的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about joining the team?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】加入球隊的常見問題範例？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about Academy admissions?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】學院招生的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about Academy admissions?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】學院招生的常見問題範例？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about program and camp registration?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】課程與營隊報名的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about program and camp registration?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】課程與營隊報名的常見問題範例？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about fees and refunds?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】費用與退費的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about fees and refunds?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】費用與退費的常見問題範例？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about trials?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】試訓的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about trials?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】試訓的常見問題範例？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about international pathways and overseas players?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】國際發展與海外球員的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about international pathways and overseas players?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】國際發展與海外球員的常見問題範例？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about women''s football?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】女子足球的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about women''s football?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】女子足球的常見問題範例？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about the fan club and merchandise?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】球迷會與商品的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about the fan club and merchandise?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】球迷會與商品的常見問題範例？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about partnerships and sponsorship?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】合作與贊助的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about partnerships and sponsorship?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】合作與贊助的常見問題範例？';
+GO
+
+INSERT INTO faqs_i18n (faq_id, locale, question, answer)
+SELECT b.id, N'en', N'[Test] Sample question about other topics?', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM faqs b JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】其他的常見問題範例？'
+  AND NOT EXISTS (SELECT 1 FROM faqs_i18n e WHERE e.faq_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.question = CASE WHEN e.question IS NULL OR e.question = N'' OR e.question = z.question THEN N'[Test] Sample question about other topics?' ELSE e.question END,
+    e.answer = CASE WHEN e.answer IS NULL OR e.answer = N'' OR e.answer = z.answer THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.answer END
+FROM faqs_i18n e
+JOIN faqs b ON b.id = e.faq_id
+JOIN faqs_i18n z ON z.faq_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.question = N'【測試】其他的常見問題範例？';
+GO
+
+INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] New season press conference', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM calendar_custom_events b JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】新賽季記者會'
+  AND NOT EXISTS (SELECT 1 FROM calendar_custom_events_i18n e WHERE e.calendar_custom_event_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] New season press conference' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.description END
+FROM calendar_custom_events_i18n e
+JOIN calendar_custom_events b ON b.id = e.calendar_custom_event_id
+JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】新賽季記者會';
+GO
+
+INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] Fan meet-and-greet', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM calendar_custom_events b JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】球迷見面會'
+  AND NOT EXISTS (SELECT 1 FROM calendar_custom_events_i18n e WHERE e.calendar_custom_event_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Fan meet-and-greet' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.description END
+FROM calendar_custom_events_i18n e
+JOIN calendar_custom_events b ON b.id = e.calendar_custom_event_id
+JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】球迷見面會';
+GO
+
+INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] Weekly open training session', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM calendar_custom_events b JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】每週公開訓練'
+  AND NOT EXISTS (SELECT 1 FROM calendar_custom_events_i18n e WHERE e.calendar_custom_event_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Weekly open training session' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.description END
+FROM calendar_custom_events_i18n e
+JOIN calendar_custom_events b ON b.id = e.calendar_custom_event_id
+JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】每週公開訓練';
+GO
+
+INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] Venue closure notice', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM calendar_custom_events b JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】場地休館公告'
+  AND NOT EXISTS (SELECT 1 FROM calendar_custom_events_i18n e WHERE e.calendar_custom_event_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Venue closure notice' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.description END
+FROM calendar_custom_events_i18n e
+JOIN calendar_custom_events b ON b.id = e.calendar_custom_event_id
+JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】場地休館公告';
+GO
+
+INSERT INTO calendar_custom_events_i18n (calendar_custom_event_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] Internal staff meeting (not public)', N'[Test] This is test content. Please replace it in the back office before launch.'
+FROM calendar_custom_events b JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】內部工作會議（不公開）'
+  AND NOT EXISTS (SELECT 1 FROM calendar_custom_events_i18n e WHERE e.calendar_custom_event_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Internal staff meeting (not public)' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] This is test content. Please replace it in the back office before launch.' ELSE e.description END
+FROM calendar_custom_events_i18n e
+JOIN calendar_custom_events b ON b.id = e.calendar_custom_event_id
+JOIN calendar_custom_events_i18n z ON z.calendar_custom_event_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】內部工作會議（不公開）';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name, content)
+SELECT b.id, N'en', N'[Test] Demo Strategic Partner', N'[Test] A strategic partnership to advance local football development together.'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範策略夥伴'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Strategic Partner' ELSE e.name END,
+    e.content = CASE WHEN e.content IS NULL OR e.content = N'' OR e.content = z.content THEN N'[Test] A strategic partnership to advance local football development together.' ELSE e.content END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範策略夥伴';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name, content)
+SELECT b.id, N'en', N'[Test] Demo International Partner', N'[Test] International scouting and exchange partnership.'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範國際夥伴'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo International Partner' ELSE e.name END,
+    e.content = CASE WHEN e.content IS NULL OR e.content = N'' OR e.content = z.content THEN N'[Test] International scouting and exchange partnership.' ELSE e.content END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範國際夥伴';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name, content)
+SELECT b.id, N'en', N'[Test] Demo Training Partner', N'[Test] Physical and technical training partnership.'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範訓練夥伴'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Training Partner' ELSE e.name END,
+    e.content = CASE WHEN e.content IS NULL OR e.content = N'' OR e.content = z.content THEN N'[Test] Physical and technical training partnership.' ELSE e.content END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範訓練夥伴';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name, content)
+SELECT b.id, N'en', N'[Test] Demo Education Partner', N'[Test] Campus and community football promotion partnership.'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範教育夥伴'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Education Partner' ELSE e.name END,
+    e.content = CASE WHEN e.content IS NULL OR e.content = N'' OR e.content = z.content THEN N'[Test] Campus and community football promotion partnership.' ELSE e.content END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範教育夥伴';
+GO
+
+INSERT INTO partners_i18n (partner_id, locale, name)
+SELECT b.id, N'en', N'[Test] Demo Brand Partner'
+FROM partners b JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範品牌夥伴'
+  AND NOT EXISTS (SELECT 1 FROM partners_i18n e WHERE e.partner_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Brand Partner' ELSE e.name END
+FROM partners_i18n e
+JOIN partners b ON b.id = e.partner_id
+JOIN partners_i18n z ON z.partner_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範品牌夥伴';
+GO
+
+INSERT INTO sponsors_i18n (sponsor_id, locale, name, content)
+SELECT b.id, N'en', N'[Test] Demo Main Sponsor', N'[Test] Sponsorship details: for demonstration only. Please replace in the back office before launch.'
+FROM sponsors b JOIN sponsors_i18n z ON z.sponsor_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範主贊助商'
+  AND NOT EXISTS (SELECT 1 FROM sponsors_i18n e WHERE e.sponsor_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Main Sponsor' ELSE e.name END,
+    e.content = CASE WHEN e.content IS NULL OR e.content = N'' OR e.content = z.content THEN N'[Test] Sponsorship details: for demonstration only. Please replace in the back office before launch.' ELSE e.content END
+FROM sponsors_i18n e
+JOIN sponsors b ON b.id = e.sponsor_id
+JOIN sponsors_i18n z ON z.sponsor_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範主贊助商';
+GO
+
+INSERT INTO sponsors_i18n (sponsor_id, locale, name, content)
+SELECT b.id, N'en', N'[Test] Demo Official Sponsor', N'[Test] Sponsorship details: for demonstration only. Please replace in the back office before launch.'
+FROM sponsors b JOIN sponsors_i18n z ON z.sponsor_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範官方贊助商'
+  AND NOT EXISTS (SELECT 1 FROM sponsors_i18n e WHERE e.sponsor_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Official Sponsor' ELSE e.name END,
+    e.content = CASE WHEN e.content IS NULL OR e.content = N'' OR e.content = z.content THEN N'[Test] Sponsorship details: for demonstration only. Please replace in the back office before launch.' ELSE e.content END
+FROM sponsors_i18n e
+JOIN sponsors b ON b.id = e.sponsor_id
+JOIN sponsors_i18n z ON z.sponsor_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範官方贊助商';
+GO
+
+INSERT INTO sponsors_i18n (sponsor_id, locale, name, content)
+SELECT b.id, N'en', N'[Test] Demo Supporting Partner', N'[Test] Sponsorship details: for demonstration only. Please replace in the back office before launch.'
+FROM sponsors b JOIN sponsors_i18n z ON z.sponsor_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範支持夥伴'
+  AND NOT EXISTS (SELECT 1 FROM sponsors_i18n e WHERE e.sponsor_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Supporting Partner' ELSE e.name END,
+    e.content = CASE WHEN e.content IS NULL OR e.content = N'' OR e.content = z.content THEN N'[Test] Sponsorship details: for demonstration only. Please replace in the back office before launch.' ELSE e.content END
+FROM sponsors_i18n e
+JOIN sponsors b ON b.id = e.sponsor_id
+JOIN sponsors_i18n z ON z.sponsor_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範支持夥伴';
+GO
+
+INSERT INTO sponsor_activations_i18n (sponsor_activation_id, locale, title, result_summary)
+SELECT b.id, N'en', N'[Test] Demo sponsor activation: opening match fan day', N'[Test] About 500 attendees on site and 100,000 social media impressions (demo figures).'
+FROM sponsor_activations b JOIN sponsor_activations_i18n z ON z.sponsor_activation_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範贊助活動：開幕戰球迷日'
+  AND NOT EXISTS (SELECT 1 FROM sponsor_activations_i18n e WHERE e.sponsor_activation_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Demo sponsor activation: opening match fan day' ELSE e.title END,
+    e.result_summary = CASE WHEN e.result_summary IS NULL OR e.result_summary = N'' OR e.result_summary = z.result_summary THEN N'[Test] About 500 attendees on site and 100,000 social media impressions (demo figures).' ELSE e.result_summary END
+FROM sponsor_activations_i18n e
+JOIN sponsor_activations b ON b.id = e.sponsor_activation_id
+JOIN sponsor_activations_i18n z ON z.sponsor_activation_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範贊助活動：開幕戰球迷日';
+GO
+
+INSERT INTO sponsor_activations_i18n (sponsor_activation_id, locale, title, result_summary)
+SELECT b.id, N'en', N'[Test] Demo sponsor activation: youth training experience camp', N'[Test] 60 children took part (demo figures).'
+FROM sponsor_activations b JOIN sponsor_activations_i18n z ON z.sponsor_activation_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範贊助活動：青訓體驗營'
+  AND NOT EXISTS (SELECT 1 FROM sponsor_activations_i18n e WHERE e.sponsor_activation_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Demo sponsor activation: youth training experience camp' ELSE e.title END,
+    e.result_summary = CASE WHEN e.result_summary IS NULL OR e.result_summary = N'' OR e.result_summary = z.result_summary THEN N'[Test] 60 children took part (demo figures).' ELSE e.result_summary END
+FROM sponsor_activations_i18n e
+JOIN sponsor_activations b ON b.id = e.sponsor_activation_id
+JOIN sponsor_activations_i18n z ON z.sponsor_activation_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範贊助活動：青訓體驗營';
+GO
+
+INSERT INTO press_resources_i18n (press_resource_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] Demo press release', N'[Test] Demo description. This entry has no actual file (placeholder); please upload a file in the back office and then set it to visible.'
+FROM press_resources b JOIN press_resources_i18n z ON z.press_resource_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範新聞稿'
+  AND NOT EXISTS (SELECT 1 FROM press_resources_i18n e WHERE e.press_resource_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Demo press release' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] Demo description. This entry has no actual file (placeholder); please upload a file in the back office and then set it to visible.' ELSE e.description END
+FROM press_resources_i18n e
+JOIN press_resources b ON b.id = e.press_resource_id
+JOIN press_resources_i18n z ON z.press_resource_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範新聞稿';
+GO
+
+INSERT INTO press_resources_i18n (press_resource_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] Demo brand kit', N'[Test] Demo description. This entry has no actual file (placeholder); please upload a file in the back office and then set it to visible.'
+FROM press_resources b JOIN press_resources_i18n z ON z.press_resource_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範品牌識別包'
+  AND NOT EXISTS (SELECT 1 FROM press_resources_i18n e WHERE e.press_resource_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Demo brand kit' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] Demo description. This entry has no actual file (placeholder); please upload a file in the back office and then set it to visible.' ELSE e.description END
+FROM press_resources_i18n e
+JOIN press_resources b ON b.id = e.press_resource_id
+JOIN press_resources_i18n z ON z.press_resource_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範品牌識別包';
+GO
+
+INSERT INTO press_resources_i18n (press_resource_id, locale, title, description)
+SELECT b.id, N'en', N'[Test] Demo high-resolution images', N'[Test] Demo description. This entry has no actual file (placeholder); please upload a file in the back office and then set it to visible.'
+FROM press_resources b JOIN press_resources_i18n z ON z.press_resource_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範高解析圖'
+  AND NOT EXISTS (SELECT 1 FROM press_resources_i18n e WHERE e.press_resource_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Demo high-resolution images' ELSE e.title END,
+    e.description = CASE WHEN e.description IS NULL OR e.description = N'' OR e.description = z.description THEN N'[Test] Demo description. This entry has no actual file (placeholder); please upload a file in the back office and then set it to visible.' ELSE e.description END
+FROM press_resources_i18n e
+JOIN press_resources b ON b.id = e.press_resource_id
+JOIN press_resources_i18n z ON z.press_resource_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.title = N'【測試】示範高解析圖';
+GO
+
+INSERT INTO partner_stores_i18n (partner_store_id, locale, name, offer_content)
+SELECT b.id, N'en', N'[Test] Demo Gym', N'[Test] One free trial class (draft, not yet listed)'
+FROM partner_stores b JOIN partner_stores_i18n z ON z.partner_store_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範健身房'
+  AND NOT EXISTS (SELECT 1 FROM partner_stores_i18n e WHERE e.partner_store_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Gym' ELSE e.name END,
+    e.offer_content = CASE WHEN e.offer_content IS NULL OR e.offer_content = N'' OR e.offer_content = z.offer_content THEN N'[Test] One free trial class (draft, not yet listed)' ELSE e.offer_content END
+FROM partner_stores_i18n e
+JOIN partner_stores b ON b.id = e.partner_store_id
+JOIN partner_stores_i18n z ON z.partner_store_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範健身房';
+GO
+
+INSERT INTO charities_i18n (charity_id, locale, name, intro)
+SELECT b.id, N'en', N'[Test] Demo Charity A', N'[Test] This is a demo charity profile.'
+FROM charities b JOIN charities_i18n z ON z.charity_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範公益團體甲'
+  AND NOT EXISTS (SELECT 1 FROM charities_i18n e WHERE e.charity_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Charity A' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'[Test] This is a demo charity profile.' ELSE e.intro END
+FROM charities_i18n e
+JOIN charities b ON b.id = e.charity_id
+JOIN charities_i18n z ON z.charity_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範公益團體甲';
+GO
+
+INSERT INTO charities_i18n (charity_id, locale, name, intro)
+SELECT b.id, N'en', N'[Test] Demo Charity B', N'[Test] Another demo charity.'
+FROM charities b JOIN charities_i18n z ON z.charity_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範公益團體乙'
+  AND NOT EXISTS (SELECT 1 FROM charities_i18n e WHERE e.charity_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo Charity B' ELSE e.name END,
+    e.intro = CASE WHEN e.intro IS NULL OR e.intro = N'' OR e.intro = z.intro THEN N'[Test] Another demo charity.' ELSE e.intro END
+FROM charities_i18n e
+JOIN charities b ON b.id = e.charity_id
+JOIN charities_i18n z ON z.charity_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範公益團體乙';
+GO
+
+INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, donation_content)
+SELECT b.id, N'en', N'[Test] Demo charity program: football donations to rural areas', N'[Test] Children in rural areas', N'[Test] 50 footballs and 100 training bibs (demo figures)'
+FROM charity_programs b JOIN charity_programs_i18n z ON z.charity_program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範慈善計畫：偏鄉足球捐贈'
+  AND NOT EXISTS (SELECT 1 FROM charity_programs_i18n e WHERE e.charity_program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo charity program: football donations to rural areas' ELSE e.name END,
+    e.target_audience = CASE WHEN e.target_audience IS NULL OR e.target_audience = N'' OR e.target_audience = z.target_audience THEN N'[Test] Children in rural areas' ELSE e.target_audience END,
+    e.donation_content = CASE WHEN e.donation_content IS NULL OR e.donation_content = N'' OR e.donation_content = z.donation_content THEN N'[Test] 50 footballs and 100 training bibs (demo figures)' ELSE e.donation_content END
+FROM charity_programs_i18n e
+JOIN charity_programs b ON b.id = e.charity_program_id
+JOIN charity_programs_i18n z ON z.charity_program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範慈善計畫：偏鄉足球捐贈';
+GO
+
+INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, donation_content)
+SELECT b.id, N'en', N'[Test] Demo charity program: charity match', N'[Test] Children in rural areas', N'[Test] 50 footballs and 100 training bibs (demo figures)'
+FROM charity_programs b JOIN charity_programs_i18n z ON z.charity_program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範慈善計畫：公益義賽'
+  AND NOT EXISTS (SELECT 1 FROM charity_programs_i18n e WHERE e.charity_program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo charity program: charity match' ELSE e.name END,
+    e.target_audience = CASE WHEN e.target_audience IS NULL OR e.target_audience = N'' OR e.target_audience = z.target_audience THEN N'[Test] Children in rural areas' ELSE e.target_audience END,
+    e.donation_content = CASE WHEN e.donation_content IS NULL OR e.donation_content = N'' OR e.donation_content = z.donation_content THEN N'[Test] 50 footballs and 100 training bibs (demo figures)' ELSE e.donation_content END
+FROM charity_programs_i18n e
+JOIN charity_programs b ON b.id = e.charity_program_id
+JOIN charity_programs_i18n z ON z.charity_program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範慈善計畫：公益義賽';
+GO
+
+INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, donation_content)
+SELECT b.id, N'en', N'[Test] Demo charity program (draft)', N'[Test] Children in rural areas', N'[Test] 50 footballs and 100 training bibs (demo figures)'
+FROM charity_programs b JOIN charity_programs_i18n z ON z.charity_program_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範慈善計畫（草稿）'
+  AND NOT EXISTS (SELECT 1 FROM charity_programs_i18n e WHERE e.charity_program_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Demo charity program (draft)' ELSE e.name END,
+    e.target_audience = CASE WHEN e.target_audience IS NULL OR e.target_audience = N'' OR e.target_audience = z.target_audience THEN N'[Test] Children in rural areas' ELSE e.target_audience END,
+    e.donation_content = CASE WHEN e.donation_content IS NULL OR e.donation_content = N'' OR e.donation_content = z.donation_content THEN N'[Test] 50 footballs and 100 training bibs (demo figures)' ELSE e.donation_content END
+FROM charity_programs_i18n e
+JOIN charity_programs b ON b.id = e.charity_program_id
+JOIN charity_programs_i18n z ON z.charity_program_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】示範慈善計畫（草稿）';
+GO
+
+INSERT INTO impact_metrics_i18n (impact_metric_id, locale, name, unit)
+SELECT b.id, N'en', N'[Test] Partner charities', N'orgs'
+FROM impact_metrics b JOIN impact_metrics_i18n z ON z.impact_metric_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】合作公益團體數'
+  AND NOT EXISTS (SELECT 1 FROM impact_metrics_i18n e WHERE e.impact_metric_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Partner charities' ELSE e.name END,
+    e.unit = CASE WHEN e.unit IS NULL OR e.unit = N'' OR e.unit = z.unit THEN N'orgs' ELSE e.unit END
+FROM impact_metrics_i18n e
+JOIN impact_metrics b ON b.id = e.impact_metric_id
+JOIN impact_metrics_i18n z ON z.impact_metric_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】合作公益團體數';
+GO
+
+INSERT INTO impact_metrics_i18n (impact_metric_id, locale, name, unit)
+SELECT b.id, N'en', N'[Test] Total donation items', N'items'
+FROM impact_metrics b JOIN impact_metrics_i18n z ON z.impact_metric_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】累計捐助項次'
+  AND NOT EXISTS (SELECT 1 FROM impact_metrics_i18n e WHERE e.impact_metric_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Total donation items' ELSE e.name END,
+    e.unit = CASE WHEN e.unit IS NULL OR e.unit = N'' OR e.unit = z.unit THEN N'items' ELSE e.unit END
+FROM impact_metrics_i18n e
+JOIN impact_metrics b ON b.id = e.impact_metric_id
+JOIN impact_metrics_i18n z ON z.impact_metric_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】累計捐助項次';
+GO
+
+INSERT INTO impact_metrics_i18n (impact_metric_id, locale, name, unit)
+SELECT b.id, N'en', N'[Test] Total donation amount (not public)', N'NTD'
+FROM impact_metrics b JOIN impact_metrics_i18n z ON z.impact_metric_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】累計捐助金額（不公開）'
+  AND NOT EXISTS (SELECT 1 FROM impact_metrics_i18n e WHERE e.impact_metric_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.name = CASE WHEN e.name IS NULL OR e.name = N'' OR e.name = z.name THEN N'[Test] Total donation amount (not public)' ELSE e.name END,
+    e.unit = CASE WHEN e.unit IS NULL OR e.unit = N'' OR e.unit = z.unit THEN N'NTD' ELSE e.unit END
+FROM impact_metrics_i18n e
+JOIN impact_metrics b ON b.id = e.impact_metric_id
+JOIN impact_metrics_i18n z ON z.impact_metric_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'【測試】累計捐助金額（不公開）';
+GO
+
+INSERT INTO impact_records_i18n (impact_record_id, locale, donation_content, location, brief_description)
+SELECT b.id, N'en', N'[Test] 50 footballs and 100 training bibs (demo figures)', N'[Test] Demo location: Nantou County', N'[Test] Demo summary.'
+FROM impact_records b JOIN impact_records_i18n z ON z.impact_record_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.donation_content = N'【測試】足球 50 顆、訓練背心 100 件（示範數字）'
+  AND NOT EXISTS (SELECT 1 FROM impact_records_i18n e WHERE e.impact_record_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.donation_content = CASE WHEN e.donation_content IS NULL OR e.donation_content = N'' OR e.donation_content = z.donation_content THEN N'[Test] 50 footballs and 100 training bibs (demo figures)' ELSE e.donation_content END,
+    e.location = CASE WHEN e.location IS NULL OR e.location = N'' OR e.location = z.location THEN N'[Test] Demo location: Nantou County' ELSE e.location END,
+    e.brief_description = CASE WHEN e.brief_description IS NULL OR e.brief_description = N'' OR e.brief_description = z.brief_description THEN N'[Test] Demo summary.' ELSE e.brief_description END
+FROM impact_records_i18n e
+JOIN impact_records b ON b.id = e.impact_record_id
+JOIN impact_records_i18n z ON z.impact_record_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.donation_content = N'【測試】足球 50 顆、訓練背心 100 件（示範數字）';
+GO
+
+INSERT INTO impact_records_i18n (impact_record_id, locale, donation_content, location)
+SELECT b.id, N'en', N'[Test] 5 scholarships (demo figures)', N'[Test] Demo location: Taichung City'
+FROM impact_records b JOIN impact_records_i18n z ON z.impact_record_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.donation_content = N'【測試】獎助學金 5 名（示範數字）'
+  AND NOT EXISTS (SELECT 1 FROM impact_records_i18n e WHERE e.impact_record_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.donation_content = CASE WHEN e.donation_content IS NULL OR e.donation_content = N'' OR e.donation_content = z.donation_content THEN N'[Test] 5 scholarships (demo figures)' ELSE e.donation_content END,
+    e.location = CASE WHEN e.location IS NULL OR e.location = N'' OR e.location = z.location THEN N'[Test] Demo location: Taichung City' ELSE e.location END
+FROM impact_records_i18n e
+JOIN impact_records b ON b.id = e.impact_record_id
+JOIN impact_records_i18n z ON z.impact_record_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.donation_content = N'【測試】獎助學金 5 名（示範數字）';
+GO
+
+INSERT INTO settings_i18n (setting_id, locale, value)
+SELECT b.id, N'en', N'National Second Division champions'
+FROM settings b JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.setting_key = N'site.founding_title'
+  AND NOT EXISTS (SELECT 1 FROM settings_i18n e WHERE e.setting_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.value = CASE WHEN e.value IS NULL OR e.value = N'' OR e.value = z.value THEN N'National Second Division champions' ELSE e.value END
+FROM settings_i18n e
+JOIN settings b ON b.id = e.setting_id
+JOIN settings_i18n z ON z.setting_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND b.setting_key = N'site.founding_title';
 GO
 
 EXEC sys.sp_addextendedproperty @name = N'tcrfc.seed_import', @value = N'$(IMPORT_BATCH)';

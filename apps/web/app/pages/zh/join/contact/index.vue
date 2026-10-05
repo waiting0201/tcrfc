@@ -6,9 +6,9 @@
 // .hours（PublicSiteFactsDto.contact 既有欄位，S1-17 主輪交付時漏綁，見 apps/web/README.md
 // 「S1-17」節「規格疑點」第 5 點）。兩俱樂部這兩個值目前在後台都還是 null，綁定後畫面仍只顯示
 // 標籤、不顯示值——這是資料現況，不是本次修正的缺陷。
-definePageMeta({ nav: '', unit: '10-contact' })
+definePageMeta({ nav: '', unit: '10-contact', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 
 // 文案依俱樂部切換：hero／SEO 與社群連結取自 club-copy.ts。藍鯨無實體地址、
 // 電話與各部門分機（舊站盤點：content/blue-whale/gap-analysis.md §2 單元 10，
@@ -17,7 +17,7 @@ const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const identity = computed(() => getClubIdentity(clubKey.value))
-const hero = computed(() => JOIN_CONTACT_HERO[clubKey.value])
+const hero = computed(() => (isEn.value ? JOIN_CONTACT_HERO_EN : JOIN_CONTACT_HERO[clubKey.value]))
 // S1-13 缺口①：hero.lede（兩個俱樂部版本皆有）含內嵌連結標記，v-html 渲染前
 // 用 localizeHtmlLinks() 把裡面的 /zh/join/ 換成目前語系版本。
 const ledeHtml = computed(() => localizeHtmlLinks(hero.value.lede, locale.value))
@@ -28,8 +28,8 @@ const ledeHtml = computed(() => localizeHtmlLinks(hero.value.lede, locale.value)
 const { facts: tcrfcFacts, primaryVenue: tcrfcVenue } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: computed(() => JOIN_CONTACT_SEO[clubKey.value].title),
-  description: computed(() => JOIN_CONTACT_SEO[clubKey.value].description),
+  title: computed(() => (isEn.value ? JOIN_CONTACT_SEO_EN : JOIN_CONTACT_SEO[clubKey.value]).title),
+  description: computed(() => (isEn.value ? JOIN_CONTACT_SEO_EN : JOIN_CONTACT_SEO[clubKey.value]).description),
 })
 
 /** 從社群網址推導顯示用帳號（沿用 mockup 既有的 @handle 呈現方式，不新增資料欄位）。 */
@@ -40,12 +40,12 @@ function socialHandle(url: string): string {
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
-      <li aria-current="page">聯絡資訊</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/join/')">{{ tx('加入與聯絡', 'Join / Contact') }}</a></li>
+      <li aria-current="page">{{ tx('聯絡資訊', 'Contact Information') }}</li>
     </ol>
   </div>
 </nav>
@@ -61,14 +61,14 @@ function socialHandle(url: string): string {
 
 <section class="band" aria-labelledby="contact-title">
   <div class="container">
-    <h2 class="visually-hidden" id="contact-title">聯絡資訊列表</h2>
+    <h2 class="visually-hidden" id="contact-title">{{ tx('聯絡資訊列表', 'Contact information list') }}</h2>
     <div class="contact-grid">
       <!-- S1-17 收尾修正（2026-09-29）：電話改讀 useSiteFacts('tcrfc').contact.phone
            （PublicSiteFactsDto.contact 既有欄位，先前這裡從未綁定，見 apps/web/README.md
            「S1-17」節「規格疑點」）。目前後台兩俱樂部皆未填值，phone 為 null 時不顯示
            假資料，只顯示標籤。 -->
       <div v-if="isTcrfc" class="contact-item">
-        <p class="contact-item__label">電話</p>
+        <p class="contact-item__label">{{ tx('電話', 'Phone') }}</p>
         <p v-if="tcrfcFacts.contact.phone" class="contact-item__value">{{ tcrfcFacts.contact.phone }}</p>
       </div>
 
@@ -80,24 +80,24 @@ function socialHandle(url: string): string {
       <!-- GEO-03（S1-12d）：地址／主場名稱為單一來源（useSiteFacts 讀後端 API），不在此
            重複寫死字面值。 -->
       <div v-if="isTcrfc" class="contact-item">
-        <p class="contact-item__label">地址</p>
+        <p class="contact-item__label">{{ tx('地址', 'Address') }}</p>
         <p class="contact-item__value">{{ tcrfcFacts.contact.address }}</p>
-        <p class="field-hint">主場：{{ tcrfcVenue.nameZh }}。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</p>
+        <p class="field-hint"><template v-if="isEn">Home ground: {{ tcrfcVenue.nameEn ?? tcrfcVenue.nameZh }}. For the exact location of each venue, see <a :href="lp('/zh/join/location/')">Location &amp; Map</a>.</template><template v-else>主場：{{ tcrfcVenue.nameZh }}。各場地詳細位置見<a :href="lp('/zh/join/location/')">場地位置與地圖</a>。</template></p>
       </div>
 
       <!-- S1-17 收尾修正（2026-09-29）：營業時間改讀 useSiteFacts('tcrfc').contact.hours，
            同上，hours 為 null 時只顯示標籤。 -->
       <div v-if="isTcrfc" class="contact-item">
-        <p class="contact-item__label">營業時間</p>
+        <p class="contact-item__label">{{ tx('營業時間', 'Opening hours') }}</p>
         <p v-if="tcrfcFacts.contact.hours" class="contact-item__value">{{ tcrfcFacts.contact.hours }}</p>
       </div>
 
       <div v-if="isTcrfc" class="contact-item contact-item--full">
-        <p class="contact-item__label">各部門分機</p>
+        <p class="contact-item__label">{{ tx('各部門分機', 'Department extensions') }}</p>
       </div>
 
       <div class="contact-item contact-item--full">
-        <p class="contact-item__label">社群連結</p>
+        <p class="contact-item__label">{{ tx('社群連結', 'Social media') }}</p>
         <ul class="contact-social">
           <li v-if="identity.social.facebook">
             <a :href="identity.social.facebook" target="_blank" rel="noopener">
@@ -119,7 +119,7 @@ function socialHandle(url: string): string {
           </li>
           <li v-if="identity.social.line">
             <a :href="identity.social.line" target="_blank" rel="noopener">
-              LINE 官方帳號
+              {{ tx('LINE 官方帳號', 'LINE Official Account') }}
             </a>
           </li>
         </ul>
@@ -131,11 +131,11 @@ function socialHandle(url: string): string {
 <section class="band grain" aria-labelledby="cta-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">10</span>
   <div class="band-inner container" style="text-align:center">
-    <p class="kicker kicker--on-dark" style="justify-content:center">找不到你要的資訊？</p>
-    <h2 class="section-title" id="cta-title" style="color:#fff">直接透過表單聯絡我們</h2>
-    <p class="section-lede on-dark" style="margin-inline:auto">七種表單各自送達對應部門，會比一般聯絡信箱更快得到回覆。</p>
+    <p class="kicker kicker--on-dark" style="justify-content:center">{{ tx('找不到你要的資訊？', 'Can\'t find what you are looking for?') }}</p>
+    <h2 class="section-title" id="cta-title" style="color:#fff">{{ tx('直接透過表單聯絡我們', 'Contact us directly through a form') }}</h2>
+    <p class="section-lede on-dark" style="margin-inline:auto">{{ tx('七種表單各自送達對應部門，會比一般聯絡信箱更快得到回覆。', 'Each of the seven forms goes straight to the relevant department, so you will get a faster reply than through the general contact email.') }}</p>
     <div style="margin-top:2rem">
-      <a class="btn btn--primary" :href="lp('/zh/join/')">查看所有表單</a>
+      <a class="btn btn--primary" :href="lp('/zh/join/')">{{ tx('查看所有表單', 'View all forms') }}</a>
     </div>
   </div>
 </section>

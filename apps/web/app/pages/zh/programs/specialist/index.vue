@@ -18,18 +18,18 @@
 // 2026-10-02：磐石的「線上報名」接 P3（規劃書 §3.5 報名流程：選梯次→學員／家長資料→健康聲明→報名編號），
 // 見 components/ProgramRegistration.vue。藍鯨的線上報名與收費是待確認事項（藍鯨規劃書 §10 第 8 點），不接。
 // 目前沒有收得到報名的梯次時，CTA 維持原本的詢問表單路徑。
-definePageMeta({ nav: 'programs', unit: '5.4' })
+definePageMeta({ nav: 'programs', unit: '5.4', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
 useSeoMeta({
-  title: computed(() => getSpecialistTrainingSeo(clubKey.value).title),
-  description: computed(() => getSpecialistTrainingSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getSpecialistTrainingSeoEn() : getSpecialistTrainingSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getSpecialistTrainingSeoEn() : getSpecialistTrainingSeo(clubKey.value)).description),
 })
-const hero = computed(() => getSpecialistTrainingHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getSpecialistTrainingHeroEn() : getSpecialistTrainingHero(clubKey.value)))
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
   query: { type: 'specialist_training', pageSize: 10, lang: locale.value },
@@ -66,12 +66,12 @@ useCourseSchema(
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
-      <li aria-current="page">專項訓練</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/programs/')">{{ tx('課程與活動', 'Programs') }}</a></li>
+      <li aria-current="page">{{ tx('專項訓練', 'Specialist Training') }}</li>
     </ol>
   </div>
 </nav>
@@ -90,40 +90,40 @@ useCourseSchema(
 <section v-if="isTcrfc" class="band">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
-      <h2>六大專項</h2>
-      <p>每一專項皆有明確的訓練目標與適合對象，學員可依自身位置或想加強的能力選擇課程。</p>
+      <h2>{{ tx('六大專項', 'Six Specialist Programs') }}</h2>
+      <p>{{ tx('每一專項皆有明確的訓練目標與適合對象，學員可依自身位置或想加強的能力選擇課程。', 'Each program has clear training objectives and a target group, so players can choose according to their position or the ability they want to develop.') }}</p>
     </div>
 
     <div class="level-grid level-grid--specialist">
       <div class="level-card">
         <p class="level-card__num">01</p>
-        <h3>守門員<span class="en">Goalkeeper</span></h3>
-        <p>撲救技術、位置判讀、出擊時機與腳下技術訓練。</p>
+        <h3>{{ tx('守門員', 'Goalkeeper') }}<span v-if="!isEn" class="en">Goalkeeper</span></h3>
+        <p>{{ tx('撲救技術、位置判讀、出擊時機與腳下技術訓練。', 'Shot-stopping, positioning, timing of when to come out, and footwork with the ball.') }}</p>
       </div>
       <div class="level-card">
         <p class="level-card__num">02</p>
-        <h3>前鋒<span class="en">Forward</span></h3>
-        <p>射門終結、無球跑位與禁區內處理球的決策訓練。</p>
+        <h3>{{ tx('前鋒', 'Forward') }}<span v-if="!isEn" class="en">Forward</span></h3>
+        <p>{{ tx('射門終結、無球跑位與禁區內處理球的決策訓練。', 'Finishing, movement off the ball and decision-making when handling the ball in the box.') }}</p>
       </div>
       <div class="level-card">
         <p class="level-card__num">03</p>
-        <h3>後衛<span class="en">Defender</span></h3>
-        <p>一對一防守、區域協防與由守轉攻的出球能力。</p>
+        <h3>{{ tx('後衛', 'Defender') }}<span v-if="!isEn" class="en">Defender</span></h3>
+        <p>{{ tx('一對一防守、區域協防與由守轉攻的出球能力。', 'One-on-one defending, zonal cover and the ability to play out from defence into attack.') }}</p>
       </div>
       <div class="level-card">
         <p class="level-card__num">04</p>
-        <h3>中場<span class="en">Midfield</span></h3>
-        <p>控球轉移、視野掌握與攻守轉換節奏的訓練。</p>
+        <h3>{{ tx('中場', 'Midfield') }}<span v-if="!isEn" class="en">Midfield</span></h3>
+        <p>{{ tx('控球轉移、視野掌握與攻守轉換節奏的訓練。', 'Ball retention and switching play, awareness of the field and the rhythm of transitions between attack and defence.') }}</p>
       </div>
       <div class="level-card">
         <p class="level-card__num">05</p>
-        <h3>體能與速度<span class="en">Fitness &amp; Speed</span></h3>
-        <p>爆發力、敏捷度與比賽所需體能基礎的系統訓練。</p>
+        <h3>{{ tx('體能與速度', 'Fitness & Speed') }}<span v-if="!isEn" class="en">Fitness &amp; Speed</span></h3>
+        <p>{{ tx('爆發力、敏捷度與比賽所需體能基礎的系統訓練。', 'Systematic training in power, agility and the fitness base that matches demand.') }}</p>
       </div>
       <div class="level-card">
         <p class="level-card__num">06</p>
-        <h3>高階訓練<span class="en">Advanced</span></h3>
-        <p>面向具一定基礎的學員，強化戰術理解與比賽強度適應。</p>
+        <h3>{{ tx('高階訓練', 'Advanced Training') }}<span v-if="!isEn" class="en">Advanced</span></h3>
+        <p>{{ tx('面向具一定基礎的學員，強化戰術理解與比賽強度適應。', 'For players with a solid base, strengthening tactical understanding and adaptation to match intensity.') }}</p>
       </div>
     </div>
 
@@ -149,15 +149,16 @@ useCourseSchema(
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(programList)" partial />
 <section class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">OPEN NOW</p>
-        <h2 class="section-title">目前開放報名的專項</h2>
+        <h2 class="section-title">{{ tx('目前開放報名的專項', 'Programs Open for Registration') }}</h2>
       </div>
     </div>
-    <p v-if="openPrograms.length === 0" class="is-pending" style="margin-top:1.5rem;">目前尚無開放報名中的專項梯次，請關注官方社群公告。</p>
+    <p v-if="openPrograms.length === 0" class="is-pending" style="margin-top:1.5rem;">{{ tx('目前尚無開放報名中的專項梯次，請關注官方社群公告。', 'There are no specialist sessions open for registration at the moment. Please follow our official social channels for announcements.') }}</p>
     <ul v-else class="open-program-list">
       <li v-for="p in openPrograms" :key="p.id" class="open-program-item">
         <span class="open-program-item__name">{{ p.name }}</span>
@@ -167,16 +168,17 @@ useCourseSchema(
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(faqs)" partial />
 <section class="band">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">FAQ</p>
-        <h2 class="section-title">專項訓練常見問題</h2>
+        <h2 class="section-title">{{ tx('專項訓練常見問題', 'Specialist Training FAQ') }}</h2>
       </div>
-      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+      <a :href="lp('/zh/faq/')">{{ tx('查看全部常見問題 →', 'View all FAQs →') }}</a>
     </div>
-    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">{{ tx('常見問題收錄中，稍後將於本頁公布。', 'FAQs are being compiled and will be published on this page soon.') }}</p>
     <dl v-else class="faq-embed-list">
       <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
         <dt>{{ f.question }}</dt>
@@ -189,8 +191,9 @@ useCourseSchema(
 <section v-if="isTcrfc" class="band" style="background:var(--paper-2);">
   <div class="container">
     <div class="prose">
-      <h2>教練資格</h2>
-      <p>依客戶提供之「台中磐石成人足球訓練營」宣傳資料，台中磐石專項訓練教練團具備 <span class="en">AFC</span> 教練證照。</p>
+      <h2>{{ tx('教練資格', 'Coaching Qualifications') }}</h2>
+      <p v-if="isEn">According to promotional material for the Taichung Rock FC adult football training camp, the Specialist Training coaching team hold <span class="en">AFC</span> coaching licences.</p>
+      <p v-else>依客戶提供之「台中磐石成人足球訓練營」宣傳資料，台中磐石專項訓練教練團具備 <span class="en">AFC</span> 教練證照。</p>
     </div>
 
   </div>
@@ -199,22 +202,22 @@ useCourseSchema(
 <section v-if="isTcrfc" class="band" aria-labelledby="sp-gallery-title">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;">
-      <h2 id="sp-gallery-title">訓練與交流花絮</h2>
+      <h2 id="sp-gallery-title">{{ tx('訓練與交流花絮', 'Training and Exchange Highlights') }}</h2>
     </div>
     <div class="photo-grid">
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-02.jpg')" loading="lazy" width="1600" height="1067" alt="夜間球場上，一名球員盤球突破防守者，隊友於後方跟進"><figcaption>夜間友誼賽交流</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-03.jpg')" loading="lazy" width="1600" height="1067" alt="兩名球員於場邊碰拳致意，其中一人身穿台中磐石白色訓練服"><figcaption>訓練後互動交流</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-04.jpg')" loading="lazy" width="1600" height="1067" alt="教練於球場中央向圍成一圈的球員講解戰術"><figcaption>賽前戰術講解</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-05.jpg')" loading="lazy" width="1600" height="1067" alt="身穿綠色背心的教練於球場上跑動示範"><figcaption>教練親自示範跑位</figcaption></figure>
-      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-07.jpg')" loading="lazy" width="1600" height="1067" alt="球員於夜間球場上準備射門，球場後方可見城市建築燈光"><figcaption>夜間場地訓練賽</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-02.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('夜間球場上，一名球員盤球突破防守者，隊友於後方跟進', 'On a pitch at night, a player dribbles past a defender while a teammate follows behind')"><figcaption>{{ tx('夜間友誼賽交流', 'Evening friendly exchange') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-03.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('兩名球員於場邊碰拳致意，其中一人身穿台中磐石白色訓練服', 'Two players bump fists at the pitch side, one wearing a Taichung Rock FC white training top')"><figcaption>{{ tx('訓練後互動交流', 'Chatting after training') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-04.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('教練於球場中央向圍成一圈的球員講解戰術', 'A coach explains tactics to players gathered in a circle at the centre of the pitch')"><figcaption>{{ tx('賽前戰術講解', 'Pre-match tactics talk') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-05.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('身穿綠色背心的教練於球場上跑動示範', 'A coach in a green bib demonstrates a movement while running on the pitch')"><figcaption>{{ tx('教練親自示範跑位', 'Coach demonstrating off-the-ball runs') }}</figcaption></figure>
+      <figure class="clip-card"><img :src="siteImg('/assets/img/programs/specialist-07.jpg')" loading="lazy" width="1600" height="1067" :alt="tx('球員於夜間球場上準備射門，球場後方可見城市建築燈光', 'A player lines up a shot on a pitch at night, with city building lights in the background')"><figcaption>{{ tx('夜間場地訓練賽', 'Evening practice match') }}</figcaption></figure>
     </div>
   </div>
 </section>
 <section v-else class="band" aria-labelledby="sp-gallery-title">
   <div class="container">
     <div class="prose">
-      <h2 id="sp-gallery-title">訓練與交流花絮</h2>
-      <p class="is-pending">花絮整理中，稍後將於本頁公布。</p>
+      <h2 id="sp-gallery-title">{{ tx('訓練與交流花絮', 'Training and Exchange Highlights') }}</h2>
+      <p class="is-pending">{{ tx('花絮整理中，稍後將於本頁公布。', 'Highlights are being compiled and will be published on this page soon.') }}</p>
     </div>
   </div>
 </section>
@@ -227,15 +230,15 @@ useCourseSchema(
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">SPECIALIST TRAINING</p>
-        <h2 class="section-title" id="sp-cta-title">選擇你的專項</h2>
+        <h2 class="section-title" id="sp-cta-title">{{ tx('選擇你的專項', 'Choose Your Specialism') }}</h2>
       </div>
     </div>
-    <p v-if="isTcrfc" class="section-lede">梯次、地點與費用將於報名開放時公告，站內不接受金流付款。</p>
+    <p v-if="isTcrfc" class="section-lede">{{ tx('梯次、地點與費用將於報名開放時公告，站內不接受金流付款。', 'Sessions, venues and fees will be announced when registration opens. Payment is not taken on this site.') }}</p>
     <p v-else class="section-lede">守門員基礎班須先填寫報名表單，其餘專項尚未推出。</p>
     <div class="hero__ctas" style="margin-top:2rem;">
-      <a v-if="isTcrfc" class="btn btn--primary" :href="hasRegistrable ? '#register' : lp('/zh/join/academy/')">線上報名</a>
+      <a v-if="isTcrfc" class="btn btn--primary" :href="hasRegistrable ? '#register' : lp('/zh/join/academy/')">{{ tx('線上報名', 'Register Online') }}</a>
       <a v-else class="btn btn--primary" :href="GOALKEEPER_CLASS_BW.signupUrl" target="_blank" rel="noopener">前往報名表單</a>
-      <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
+      <a class="btn btn--light" :href="lp('/zh/programs/')">{{ tx('回課程總覽', 'Back to Programs Overview') }}</a>
     </div>
   </div>
 </section>

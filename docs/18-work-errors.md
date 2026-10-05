@@ -167,6 +167,12 @@
 | E-187 | 2026-10-05 | iOS 網路層把「5xx／斷網重試 3 次」套在**所有**請求，包含更新權杖續期與重產 QR、加入俱樂部等有副作用的 POST——續期被重試會用已輪替的舊權杖，被後端判為重用而撤銷整條登入鏈；對照 Android 的決定才發現 | 有（`testStateChangingPostsAreNeverRetried`；`APIRequest.retryable` 預設只 GET／PUT） |
 | E-188 | 2026-10-05 | iOS 為「改測試」寫了 `open(p,'w').write(open(p).read())`：先以寫入模式開檔把檔案截成 0 位元組再讀，`CoreLogicTests.swift` 17 項測試無聲消失，綠燈的測試總數少了 9 項才發現 | 無（靠對照測試總數；改測試前先 `git diff --stat` 看有沒有整檔被清空） |
 | E-189 | 2026-10-05 | iOS 預覽用假 API（`FixtureContentAPI`）的呼叫紀錄陣列沒有鎖，四個廣告版位並行載入時同時 `append`，App 閃退（malloc: pointer being freed was not allocated）；單元測試序列呼叫抓不到，是模擬器開首頁截圖看到桌面才發現 | 有（鎖＋單元測試 `FixtureConcurrencyTests`；**升級為機制**：XCUITest 冒煙測試 `testOnboardingThreeStepsThenHomeWithConcurrentAdSlots` 在首頁四個廣告版位並行載入的情境下跑完整流程並斷言沒有閃退，`./scripts/smoke.sh`） |
+| E-205 | 2026-10-05 | 首頁輪播的指示器（粉紅 dots）永遠停在第一顆：樣板把 `is-active` 寫死成 `i === 0`，換張只更新了 slide 的 class 與朗讀文字，`current` 又是非響應式變數；從移植靜態 mockup 起就沒同步過，使用者回報才發現 | 無（便宜的靜態檢查會誤報；改以瀏覽器實測：自動、箭頭、點指示器、滑動四條路徑都要比對 slide 與 dot 同步） |
+| E-210 | 2026-10-05 | 英文用詞對照表（docs/06 §1.1）初版寫「台中藍鯨可用 Taichung Blue Whale 描述性寫法」，與 `docs/14` 既有的 B-5 規則（不得寫死藍鯨英文名）牴觸；三個翻譯 agent 照表寫進 `club-copy-en-*.ts` | ✅ `check-bw-en-name.mjs`（lint 當場紅燈） |
+| E-211 | 2026-10-05 | 英文版分派時只列頁面目錄，沒列「跨頁共用元件」歸屬：`TrialSchedule.vue`、`FanEventRegistration.vue` 被兩個 agent 同時指派，一個的批次替換腳本因舊字串消失而整批中止 | ⚠️ 無（靠動手前 `git diff` 確認） |
+| E-212 | 2026-10-05 | 種子補英文列後，4 組 `apps/api` 測試的前提「種子缺英文」失效（測試把種子的缺口當成回退行為的測資），已改為自建資料 | ⚠️ 無（類似 E-160，見條目） |
+| E-213 | 2026-10-05 | 後端 `?lang=en` 缺值時逐欄位回退繁中，前台直接取用就讓英文版（含 JSON-LD、`llms-en.txt`）悄悄混入中文，沒有任何建置或執行錯誤 | ✅ `useSiteFacts.pickEn`／`englishOnly`／`enOnly` 過濾；✅ `scripts/check-en-pages.mjs` 實機掃描 |
+| E-214 | 2026-10-05 | 多個 agent 並行做批次字串替換：共用 scratchpad 的腳本被別人覆寫、替換腳本中途失敗後重跑重複套用、英文字串的撇號未轉義產生語法錯誤 | ⚠️ 無（eslint／build 會抓到語法，抓不到重複套用） |
 
 ---
 
@@ -2751,3 +2757,49 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：只在「App 已經開著再點深連結」的情境手動驗過，沒有走「冷啟動帶著深連結進來」；單元測試覆蓋的是解析器，不是導覽時序。同一類（執行環境才會壞）E-163 已記過一次。
 - **下次怎麼避免**：任何「收到外部事件就導覽」的程式，都要用冷啟動情境（`ActivityScenario.launch(intent)`）驗；導覽前先等導覽圖就緒（`nav.currentBackStackEntryFlow.first()`）。
 - **防呆**：✅ `SmokeTest` 深連結 Intent 案例（冷啟動帶連結）；README「冒煙測試」；CI（AP-7）要跑。
+
+### E-205 首頁輪播指示器不跟著換張（2026-10-05，官網 `pages/zh/index.vue`）
+
+- **錯在哪**：dots 的 `is-active` 在樣板裡是 `i === 0`、`aria-selected` 同，輪播狀態用普通變數 `current` 驅動 DOM class；換張（自動、箭頭、點 dot）後 slide 變了、粉紅指示器仍停第一顆。另外沒有觸控滑動（規格期待的拖曳／滑動不存在）。
+- **根因（可改掉的行為）**：把靜態 mockup 的命令式輪播搬進 Vue 時，只搬了「操作 DOM class」的程式，樣板裡原本靜態的初始狀態沒有改成響應式綁定；驗收只看自動播放的圖有沒有動，沒對照指示器。
+- **下次怎麼避免**：搬移有「目前狀態」的元件，樣板中凡是寫死索引／初始值的 class 與 aria 都要綁到響應式狀態；驗收用瀏覽器逐路徑比對「畫面與指示器」。
+- **修正**：新增響應式 `activeIndex`，`goTo()`／`swapInstant()` 統一同步；加觸控滑動（水平 ≥50px 且大於垂直位移，掛在 hero 區塊）。
+- **防呆**：無（靜態檢查會誤報，成本不划算）；本次以無頭 Chrome（CDP）對假 API 實測：自動播放、箭頭、點指示器、觸控左右滑，slide 與 dot 皆同步。
+- **同批小修**：頁尾語系切換（`<button>`）字級與基線和左邊政策連結（`<a>`）不同，看起來偏低偏大；`SiteFooter.vue` 補 `font:inherit`、`.legal-links` 垂直置中，量測四個寬度／語系下三者 top／height 一致。這項是 `tcrfc.css` 不可改的限制下，在元件樣式補的對齊。
+
+
+### E-210 英文用詞對照表與 B-5 牴觸（2026-10-05，主站英文版）
+
+- **錯在哪**：docs/06 §1.1 初版把「台中藍鯨」英文列為 `Taichung Blue Whale`（並於 §1 既有列也是），而 `docs/14` 已明文「程式碼不得寫死藍鯨英文名，英文句內用 `BW_NAME_EN_PENDING`」。翻譯 agent 依表在 `club-copy-en-core.ts`／`club-copy-en-club.ts`／`MemberMemberships.vue` 寫死 14 處，`check-bw-en-name.mjs` 紅燈。
+- **根因（可改掉的行為）**：寫對照表時只查規劃書與 docs/06，沒有掃 `docs/14` 的名稱寫法與 B-5；而且我把一個「待客戶確認」的詞填成具體寫法，違背自己派工單上「不自創」的規則。
+- **下次怎麼避免**：新建任何名稱對照表前，先 grep `docs/14`、`STATUS.md` 的 B-* 待確認項；**待確認的名稱欄位只能寫「待確認」＋暫代做法**，不得填看似正式的值。
+- **防呆**：✅ `apps/web/scripts/check-bw-en-name.mjs`。已改 14 處為 `BW_NAME_EN_PENDING`，docs/06 兩列已更正。
+
+### E-211 英文版分派漏列跨頁共用元件（2026-10-05）
+
+- **錯在哪**：派七個群組時以頁面目錄切分，`TrialSchedule.vue`（club 與 acad 皆列）、`FanEventRegistration.vue`（club 與 biz 皆列）被重複指派；acad 的腳本因舊字串不在而整批中止，沒有互相覆蓋純屬運氣。
+- **根因（可改掉的行為）**：切分只看 `app/pages/` 目錄，沒有先 grep 元件被哪些頁面使用就分組。
+- **下次怎麼避免**：派多個 agent 改同一批檔案前，先列「檔案 → 唯一擁有者」表，共用元件單獨指定一人；agent 動手前先 `git diff` 該檔。
+- **防呆**：無。
+
+### E-212 種子補英文使 API 測試前提失效（2026-10-05）
+
+- **錯在哪**：`LocalizationFallbackTests`（2）、`AppContractGapsTests`、`BusinessPublicEndpointsTests` 各一條，斷言 tcrfc 種子「沒有英文列」所以回退為中文；種子補 en 後這些測試會紅（與 E-160 同形）。
+- **根因（可改掉的行為）**：測試拿種子的缺口當回退行為的測資，而不是自己建立無英文列的資料；改種子 i18n 前沒有 grep `lang=en` 測試。
+- **下次怎麼避免**：改種子的 `*_i18n` 前先 `grep -rn "lang=en\|isFallbackLocale" apps/api/Tcrfc.Api.Tests`；回退行為的測試自建測資。
+- **修正**：四條測試改為自建「沒有英文列」的資料（`finally` 清理），完整 `dotnet test` 1397 條全綠。
+- **防呆**：無（建議歸併到「種子擴充漏掃推導式斷言」同類：種子層級前提不得寫進測試斷言）。
+
+### E-213 後端英文欄位缺值回退中文，前台直接取用就混語（2026-10-05）
+
+- **錯在哪**：`RequestLocale.Pick` 在 en 缺值時回繁中，`site-facts?lang=en` 等回應因此帶中文；前台若直接取用，英文頁、JSON-LD、`llms-en.txt` 混入中文且完全沒有錯誤。
+- **根因（可改掉的行為）**：把「欄位有值」當成「欄位是英文」。
+- **下次怎麼避免**：凡取用後端英文欄位，一律過濾含中日文字元者後再退到靜態英文快照或 null；英文版驗收用 `check-en-pages.mjs` 看渲染結果，不是看程式。
+- **防呆**：✅ `useSiteFacts.pickEn`、`useSchemaOrgClub.englishOnly`、`llms-en.txt.ts enOnly`；✅ `apps/web/scripts/check-en-pages.mjs`（實機掃描宣告 `enReady` 的 /en/ 頁，需起前台，不掛 lint）。
+
+### E-214 並行批次字串替換的三種翻車（2026-10-05）
+
+- **錯在哪**：① 多個 agent 共用同一 scratchpad，`rep.py` 被別人覆寫（`F` 未定義）；② 替換腳本中途失敗，已存檔的檔再跑一次會重複套用；③ 產生 JS 字串時英文撇號未轉義（`'Children's ...'`）。
+- **根因（可改掉的行為）**：批次替換腳本放共用位置、沒有「全部斷言通過才寫檔」與冪等保護、未轉義產出字串。
+- **下次怎麼避免**：腳本放自己的子目錄；先全部斷言再寫檔，替換結果加「已套用就跳過」；產出含引號的字串後 grep 抽查。
+- **防呆**：無（語法錯有 eslint／build，重複套用沒有）。

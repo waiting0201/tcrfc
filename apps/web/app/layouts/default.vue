@@ -34,7 +34,7 @@ useHead(() => ({
 // 語系」——這是 hreflang 規格本身的語意（x-default 是「不符合任何列出語系時」的預設
 // 導向，不是「目前頁面的語系」）。
 const siteConfig = useSiteConfig()
-const { locale, otherLocale } = useLocale()
+const { locale, otherLocale, tx } = useLocale()
 useHead(() => {
   const siteUrl = (siteConfig.url ?? '').replace(/\/$/, '')
   const zhPath = locale.value === 'zh' ? route.fullPath : localizePath(route.fullPath, 'zh')
@@ -58,11 +58,15 @@ useSeoMeta({
 // docs/05-i18n-seo.md §1 Fallback 規則。en 頁面預設一律顯示（S1-13 當下沒有任何一頁
 // 真的翻譯完成）；真的有英文內容的頁面用 definePageMeta({ enReady: true }) 關掉，
 // 這個旗標與 unit／nav／bodyClass 同一種機制，不另開一套判斷式。
-const showLocaleFallbackNotice = computed(() => locale.value === 'en' && !route.meta.enReady)
+// C-6／S2-13：`enReady` 只對主站有效；藍鯨站 /en/ 的英文未生產（B-5／C-10），一律顯示提示。
+const isBwSite = useRuntimeConfig().public.club === 'bw'
+const showLocaleFallbackNotice = computed(
+  () => locale.value === 'en' && (!route.meta.enReady || isBwSite),
+)
 </script>
 
 <template>
-  <a class="skip-link" href="#main">跳至主要內容</a>
+  <a class="skip-link" href="#main">{{ tx('跳至主要內容', 'Skip to main content') }}</a>
   <SiteHeader />
   <LocaleFallbackNotice v-if="showLocaleFallbackNotice" />
   <main id="main">

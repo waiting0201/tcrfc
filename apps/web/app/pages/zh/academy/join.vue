@@ -3,17 +3,17 @@
 // S1-15：unit 由粗粒度 '04' 改為 '4.7'，讓 units.ts 能單獨關閉「加入學院」
 // 這一頁（招生流程與費用是磐石專屬內容，藍鯨規劃書 §3.4 明文不沿用），
 // 不影響同單元其餘頁面（4.1／4.2 仍然開放，見 units.ts 的說明）。
-definePageMeta({ nav: "academy", unit: "4.7" })
+definePageMeta({ nav: "academy", unit: "4.7", enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 
 // S1-12d 收尾：梯隊代碼改讀 useSiteFacts('tcrfc')（後端公開端點）。
 const { academyLabel: tcrfcAcademyLabel } = useSiteFacts('tcrfc')
 
 useSeoMeta({
-  title: "加入學院 Join the Academy｜台中磐石足球學院｜台中磐石足球俱樂部",
-  description: "台中磐石足球學院招生對象、遴選流程與試訓資訊。費用與試訓場次等細節資料收集中，歡迎透過線上申請與我們聯繫。",
+  title: computed(() => (isEn.value ? getAcademyJoinSeoEn().title : "加入學院 Join the Academy｜台中磐石足球學院｜台中磐石足球俱樂部")),
+  description: computed(() => (isEn.value ? getAcademyJoinSeoEn().description : "台中磐石足球學院招生對象、遴選流程與試訓資訊。費用與試訓場次等細節資料收集中，歡迎透過線上申請與我們聯繫。")),
 })
 
 // G-12 常見問題快捷區塊（S1-15）：讀後台「額外」指定出現在 academy_admission
@@ -28,12 +28,12 @@ useFaqPageSchema(faqs)
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/academy/')">足球學院</a></li>
-      <li aria-current="page">加入學院</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/academy/')">{{ tx('足球學院', 'TCRFC Academy') }}</a></li>
+      <li aria-current="page">{{ tx('加入學院', 'Join the Academy') }}</li>
     </ol>
   </div>
 </nav>
@@ -42,9 +42,9 @@ useFaqPageSchema(faqs)
   <ClubHeroBg :src="siteImg('/assets/img/academy/life-02.jpg')" width="1600" height="900" />
   <div class="container">
     <p class="page-hero__eyebrow">4.7 Join the Academy</p>
-    <h1>加入學院<span class="en">Join the Academy</span></h1>
+    <h1>{{ tx('加入學院', 'Join the Academy') }}<span v-if="!isEn" class="en">Join the Academy</span></h1>
     <p class="page-hero__lede">
-      想成為台中磐石足球學院的一員嗎？了解招生對象、遴選流程與試訓資訊，跨出加入台中磐石的第一步。
+      {{ tx('想成為台中磐石足球學院的一員嗎？了解招生對象、遴選流程與試訓資訊，跨出加入台中磐石的第一步。', 'Want to become part of TCRFC Academy? Learn who we recruit, how selection works and how trials run, and take the first step towards joining Taichung Rock FC.') }}
     </p>
   </div>
 </section>
@@ -52,8 +52,12 @@ useFaqPageSchema(faqs)
 <section class="band">
   <div class="container">
     <div class="prose">
-      <h2>招生對象</h2>
-      <p>
+      <h2>{{ tx('招生對象', 'Who We Recruit') }}</h2>
+      <p v-if="isEn">
+        TCRFC Academy runs age-group squads at <a :href="lp('/zh/academy/teams/')">{{ tcrfcAcademyLabel(', ') }} and other age groups</a>,
+        recruiting players of the matching ages who are passionate about football. Registration age ranges, school-year equivalents and places will be updated on this page once the admissions brochure is confirmed.
+      </p>
+      <p v-else>
         台中磐石足球學院依 <a :href="lp('/zh/academy/teams/')">{{ tcrfcAcademyLabel('、') }} 及其他年齡層</a> 設立分齡梯隊，
         招收對應年齡層、對足球有熱忱的學員。詳細報名年齡區間、就讀年級對照與名額，待招生簡章確認後更新於本頁。
       </p>
@@ -63,8 +67,8 @@ useFaqPageSchema(faqs)
 
 <section class="band">
   <div class="container">
-    <h2 class="section-title">遴選流程</h2>
-    <p class="section-lede" style="margin-top:.5rem;">下列為一般性招生流程架構，實際步驟與時程待客戶提供之招生簡章確認。</p>
+    <h2 class="section-title">{{ tx('遴選流程', 'Selection Process') }}</h2>
+    <p class="section-lede" style="margin-top:.5rem;">{{ tx('下列為一般性招生流程架構，實際步驟與時程待客戶提供之招生簡章確認。', 'The steps below outline a general admissions process. Actual steps and timing will be confirmed once the admissions brochure is available.') }}</p>
 
     <ol class="path-track" style="margin-top:2.5rem;">
       <li class="path-step">
@@ -73,12 +77,12 @@ useFaqPageSchema(faqs)
             <span class="path-step__num" aria-hidden="true">01</span>
             <span class="path-step__body">
               <span class="path-step__en">Step 1</span>
-              <span class="path-step__zh">線上報名</span>
+              <span class="path-step__zh">{{ tx('線上報名', 'Online application') }}</span>
             </span>
-            <span class="path-step__chevron" aria-hidden="true">＋</span>
+            <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
           </summary>
           <div class="path-step__detail">
-            <p>詳細說明準備中，稍後將於本頁公布。</p>
+            <p>{{ tx('詳細說明準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
           </div>
         </details>
       </li>
@@ -88,12 +92,12 @@ useFaqPageSchema(faqs)
             <span class="path-step__num" aria-hidden="true">02</span>
             <span class="path-step__body">
               <span class="path-step__en">Step 2</span>
-              <span class="path-step__zh">試訓</span>
+              <span class="path-step__zh">{{ tx('試訓', 'Trial') }}</span>
             </span>
-            <span class="path-step__chevron" aria-hidden="true">＋</span>
+            <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
           </summary>
           <div class="path-step__detail">
-            <p>詳細說明準備中，稍後將於本頁公布。</p>
+            <p>{{ tx('詳細說明準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
           </div>
         </details>
       </li>
@@ -103,12 +107,12 @@ useFaqPageSchema(faqs)
             <span class="path-step__num" aria-hidden="true">03</span>
             <span class="path-step__body">
               <span class="path-step__en">Step 3</span>
-              <span class="path-step__zh">評估</span>
+              <span class="path-step__zh">{{ tx('評估', 'Assessment') }}</span>
             </span>
-            <span class="path-step__chevron" aria-hidden="true">＋</span>
+            <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
           </summary>
           <div class="path-step__detail">
-            <p>詳細說明準備中，稍後將於本頁公布。</p>
+            <p>{{ tx('詳細說明準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
           </div>
         </details>
       </li>
@@ -118,12 +122,12 @@ useFaqPageSchema(faqs)
             <span class="path-step__num" aria-hidden="true">04</span>
             <span class="path-step__body">
               <span class="path-step__en">Step 4</span>
-              <span class="path-step__zh">錄取通知</span>
+              <span class="path-step__zh">{{ tx('錄取通知', 'Offer of a place') }}</span>
             </span>
-            <span class="path-step__chevron" aria-hidden="true">＋</span>
+            <span class="path-step__chevron" aria-hidden="true">{{ tx('＋', '+') }}</span>
           </summary>
           <div class="path-step__detail">
-            <p>詳細說明準備中，稍後將於本頁公布。</p>
+            <p>{{ tx('詳細說明準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
           </div>
         </details>
       </li>
@@ -133,21 +137,21 @@ useFaqPageSchema(faqs)
 
 <section class="band">
   <div class="container">
-    <h2 class="section-title">費用與資訊表</h2>
+    <h2 class="section-title">{{ tx('費用與資訊表', 'Fees and Information') }}</h2>
     <div class="data-table-wrap" style="margin-top:2rem;">
       <table class="data-table">
-        <caption class="visually-hidden">學院費用與資訊表</caption>
+        <caption class="visually-hidden">{{ tx('學院費用與資訊表', 'Academy fees and information') }}</caption>
         <thead>
           <tr>
-            <th scope="col">項目</th>
-            <th scope="col">內容</th>
+            <th scope="col">{{ tx('項目', 'Item') }}</th>
+            <th scope="col">{{ tx('內容', 'Details') }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr><th scope="row">報名費</th><td class="pending-cell">內容準備中</td></tr>
-          <tr><th scope="row">月費／期費</th><td class="pending-cell">內容準備中</td></tr>
-          <tr><th scope="row">裝備需求</th><td class="pending-cell">內容準備中</td></tr>
-          <tr><th scope="row">保險</th><td class="pending-cell">內容準備中</td></tr>
+          <tr><th scope="row">{{ tx('報名費', 'Registration fee') }}</th><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td></tr>
+          <tr><th scope="row">{{ tx('月費／期費', 'Monthly / term fee') }}</th><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td></tr>
+          <tr><th scope="row">{{ tx('裝備需求', 'Kit requirements') }}</th><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td></tr>
+          <tr><th scope="row">{{ tx('保險', 'Insurance') }}</th><td class="pending-cell">{{ tx('內容準備中', 'Content being prepared') }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -157,24 +161,25 @@ useFaqPageSchema(faqs)
 <section class="band grain" style="padding-block:clamp(3.5rem,6vw,5.5rem);">
   <div class="container" style="text-align:center;">
     <p class="kicker kicker--on-dark">Take the first step</p>
-    <h2 class="section-title" style="color:#fff;">線上申請加入台中磐石足球學院</h2>
+    <h2 class="section-title" style="color:#fff;">{{ tx('線上申請加入台中磐石足球學院', 'Apply Online to Join TCRFC Academy') }}</h2>
     <p class="section-lede" style="color:var(--muted-dark); margin-inline:auto; margin-top:.75rem;">
-      填寫申請表單，我們將由學院部與你聯繫後續試訓安排。
+      {{ tx('填寫申請表單，我們將由學院部與你聯繫後續試訓安排。', 'Fill in the application form and the Academy team will contact you about trial arrangements.') }}
     </p>
-    <a class="btn btn--primary" style="margin-top:2rem;" :href="lp('/zh/join/academy/')">前往線上申請</a>
+    <a class="btn btn--primary" style="margin-top:2rem;" :href="lp('/zh/join/academy/')">{{ tx('前往線上申請', 'Go to the Online Application') }}</a>
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(faqs)" partial />
 <section class="band">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">FAQ</p>
-        <h2 class="section-title">學院招生常見問題</h2>
+        <h2 class="section-title">{{ tx('學院招生常見問題', 'Academy Admissions FAQ') }}</h2>
       </div>
-      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+      <a :href="lp('/zh/faq/')">{{ tx('查看全部常見問題 →', 'View all FAQs →') }}</a>
     </div>
-    <p v-if="faqs.length === 0" class="roster-note" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <p v-if="faqs.length === 0" class="roster-note" style="margin-top:1.5rem;">{{ tx('常見問題收錄中，稍後將於本頁公布。', 'FAQs are being compiled and will be published on this page soon.') }}</p>
     <dl v-else class="faq-embed-list">
       <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
         <dt>{{ f.question }}</dt>

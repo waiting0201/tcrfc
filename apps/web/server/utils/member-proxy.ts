@@ -130,7 +130,7 @@ export async function callUpstream(
     }
   }
   catch {
-    const body = { status: 502, title: 'Bad Gateway', code: 'upstream_unavailable', detail: '服務暫時無法使用，請稍後再試。' }
+    const body = { status: 502, title: 'Bad Gateway', code: 'upstream_unavailable', detail: '服務暫時無法使用，請稍後再試。', messageEn: DEFAULT_MESSAGE_EN.upstream_unavailable }
     return { status: 502, contentType: 'application/problem+json', retryAfter: null, text: JSON.stringify(body), json: body }
   }
 }
@@ -172,11 +172,19 @@ export function assertSameOrigin(event: H3Event): void {
   }
 }
 
-function problem(event: H3Event, status: number, code: string, detail: string): string {
+/** BFF 自己產生的錯誤的英文訊息（主站 /en/ 前端優先吃 `messageEn`，後端 ProblemDetails 同名欄位）。 */
+const DEFAULT_MESSAGE_EN: Record<string, string> = {
+  login_required: 'Please sign in first.',
+  idempotency_key_required: 'A valid Idempotency-Key is required.',
+  invalid_body: 'The data submitted is not in the correct format.',
+  upstream_unavailable: 'The service is temporarily unavailable. Please try again later.',
+}
+
+function problem(event: H3Event, status: number, code: string, detail: string, messageEn?: string): string {
   setNoStore(event)
   setResponseStatus(event, status)
   setResponseHeader(event, 'content-type', 'application/problem+json')
-  return JSON.stringify({ status, title: code, code, detail })
+  return JSON.stringify({ status, title: code, code, detail, messageEn: messageEn ?? DEFAULT_MESSAGE_EN[code] ?? detail })
 }
 
 /** 取得本次請求要轉給後端的 Authorization；形狀不對視同沒帶。 */

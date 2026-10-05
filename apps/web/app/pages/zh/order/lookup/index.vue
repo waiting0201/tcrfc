@@ -11,16 +11,16 @@
 import { toMemberApiError } from '#shared/utils/member'
 import type { ShopOrder } from '#shared/utils/shop'
 
-definePageMeta({ nav: 'culture', unit: '8.3' })
+definePageMeta({ nav: 'culture', unit: '8.3', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: computed(() => `訂單查詢 Order Lookup｜官方商店｜${clubAssets.value.nameZh}`),
-  description: computed(() => `以訂單編號與 Email 查詢${clubAssets.value.shortNameZh}官方商店的訂單狀態、物流單號與電子發票；會員可直接於會員中心的「我的訂單」查看。`),
+  title: computed(() => (isEn.value ? getShopSeoEn('lookup', CLUB_NAME_EN).title : `訂單查詢 Order Lookup｜官方商店｜${clubAssets.value.nameZh}`)),
+  description: computed(() => (isEn.value ? getShopSeoEn('lookup', CLUB_NAME_EN).description : `以訂單編號與 Email 查詢${clubAssets.value.shortNameZh}官方商店的訂單狀態、物流單號與電子發票；會員可直接於會員中心的「我的訂單」查看。`)),
   robots: 'noindex, nofollow',
 })
 
@@ -36,7 +36,7 @@ const order = ref<ShopOrder | null>(null)
 const notice = ref('')
 const acting = ref(false)
 
-const NOT_FOUND = '找不到符合的訂單，請確認訂單編號與下單時填寫的 Email。'
+const NOT_FOUND = computed(() => tx('找不到符合的訂單，請確認訂單編號與下單時填寫的 Email。', 'We could not find a matching order. Please check your order number and the email you used when ordering.'))
 
 async function run(body: { orderNo: string, email: string } | { token: string }) {
   submitting.value = true
@@ -47,8 +47,8 @@ async function run(body: { orderNo: string, email: string } | { token: string })
     order.value = await lookupOrder(body)
   }
   catch (err) {
-    const e = toMemberApiError(err, NOT_FOUND)
-    problem.value = e.status === 404 || e.status === 400 ? (e.status === 404 ? NOT_FOUND : e.detail) : e.detail
+    const e = toMemberApiError(err, NOT_FOUND.value, isEn.value)
+    problem.value = e.status === 404 || e.status === 400 ? (e.status === 404 ? NOT_FOUND.value : e.detail) : e.detail
   }
   finally {
     submitting.value = false
@@ -59,8 +59,8 @@ async function onSubmit() {
   errors.value = {}
   const no = orderNo.value.trim()
   const mail = email.value.trim()
-  if (!no) errors.value.orderNo = '請填寫訂單編號'
-  if (!mail || !EMAIL_SHAPE.test(mail)) errors.value.email = '請填寫有效的 Email'
+  if (!no) errors.value.orderNo = tx('請填寫訂單編號', 'Please enter your order number')
+  if (!mail || !EMAIL_SHAPE.test(mail)) errors.value.email = tx('請填寫有效的 Email', 'Please enter a valid email address')
   if (Object.keys(errors.value).length) return
   await run({ orderNo: no, email: mail })
 }
@@ -85,10 +85,10 @@ async function retryPay() {
       window.location.assign(next.paymentUrl)
       return
     }
-    problem.value = '無法取得付款連結，請稍後再試。'
+    problem.value = tx('無法取得付款連結，請稍後再試。', 'We could not get the payment link. Please try again later.')
   }
   catch (err) {
-    problem.value = toMemberApiError(err, '無法前往付款，請稍後再試。').detail
+    problem.value = toMemberApiError(err, tx('無法前往付款，請稍後再試。', 'We could not take you to payment. Please try again later.'), isEn.value).detail
   }
   finally {
     acting.value = false
@@ -101,10 +101,10 @@ async function cancelPending() {
   problem.value = ''
   try {
     order.value = await cancelOrder(order.value.orderNo)
-    notice.value = '訂單已取消，商品庫存已釋回。'
+    notice.value = tx('訂單已取消，商品庫存已釋回。', 'Your order has been cancelled and the stock has been released.')
   }
   catch (err) {
-    problem.value = toMemberApiError(err, '取消失敗，請稍後再試。').detail
+    problem.value = toMemberApiError(err, tx('取消失敗，請稍後再試。', 'We could not cancel the order. Please try again later.'), isEn.value).detail
   }
   finally {
     acting.value = false
@@ -116,12 +116,12 @@ const canAct = computed(() => !!order.value && !order.value.isMasked && order.va
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/shop/')">官方商店</a></li>
-      <li aria-current="page">訂單查詢</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/shop/')">{{ tx('官方商店', 'Shop') }}</a></li>
+      <li aria-current="page">{{ tx('訂單查詢', 'Order lookup') }}</li>
     </ol>
   </div>
 </nav>
@@ -129,8 +129,8 @@ const canAct = computed(() => !!order.value && !order.value.isMasked && order.va
 <section class="page-hero">
   <div class="container">
     <p class="page-hero__eyebrow">Order Lookup</p>
-    <h1>訂單查詢<span class="en">Order Lookup</span></h1>
-    <p class="page-hero__lede">沒有註冊會員也能查詢：輸入訂單編號與下單時填寫的 Email 即可。</p>
+    <h1>{{ tx('訂單查詢', 'Order lookup') }}<span v-if="!isEn" class="en">Order Lookup</span></h1>
+    <p class="page-hero__lede">{{ tx('沒有註冊會員也能查詢：輸入訂單編號與下單時填寫的 Email 即可。', 'You do not need to be a member: just enter your order number and the email you used when ordering.') }}</p>
   </div>
 </section>
 
@@ -138,25 +138,25 @@ const canAct = computed(() => !!order.value && !order.value.isMasked && order.va
 <section class="band form-band" aria-labelledby="lookup-title">
   <div class="container">
     <div class="form-layout form-layout--narrow">
-      <p v-if="session.isLoggedIn.value" class="mc-alert mc-alert--info" role="note">您已登入，可以直接到<a :href="lp('/zh/member/#orders')">會員中心的「我的訂單」</a>查看全部訂單。</p>
+      <p v-if="session.isLoggedIn.value" class="mc-alert mc-alert--info" role="note"><template v-if="isEn">You are signed in. You can go straight to <a :href="lp('/zh/member/#orders')">My Orders in the Member Centre</a> to see all your orders.</template><template v-else>您已登入，可以直接到<a :href="lp('/zh/member/#orders')">會員中心的「我的訂單」</a>查看全部訂單。</template></p>
 
       <form class="tcrfc-form" novalidate @submit.prevent="onSubmit">
-        <h2 id="lookup-title" class="section-title">查詢我的訂單</h2>
+        <h2 id="lookup-title" class="section-title">{{ tx('查詢我的訂單', 'Look up my order') }}</h2>
         <div class="form-grid" style="margin-top:1.5rem">
           <div class="form-field form-field--full">
-            <label for="ol-no">訂單編號<span class="req" aria-hidden="true">*</span></label>
+            <label for="ol-no">{{ tx('訂單編號', 'Order number') }}<span class="req" aria-hidden="true">*</span></label>
             <input id="ol-no" v-model="orderNo" type="text" autocomplete="off" autocapitalize="characters" maxlength="32" placeholder="TR-20261001-ABC123" :aria-invalid="!!errors.orderNo" aria-describedby="ol-no-error">
             <p v-if="errors.orderNo" id="ol-no-error" class="field-error is-shown" role="alert">{{ errors.orderNo }}</p>
           </div>
           <div class="form-field form-field--full">
-            <label for="ol-email">下單時填寫的 Email<span class="req" aria-hidden="true">*</span></label>
+            <label for="ol-email">{{ tx('下單時填寫的 Email', 'Email used when ordering') }}<span class="req" aria-hidden="true">*</span></label>
             <input id="ol-email" v-model="email" type="email" autocomplete="email" maxlength="255" :aria-invalid="!!errors.email" aria-describedby="ol-email-error">
             <p v-if="errors.email" id="ol-email-error" class="field-error is-shown" role="alert">{{ errors.email }}</p>
           </div>
         </div>
         <div class="form-submit-note">
-          <button class="btn btn--primary" type="submit" :disabled="submitting">{{ submitting ? '查詢中…' : '查詢訂單' }}</button>
-          <p class="field-hint" style="margin-top:.85rem">查得的內容包含品項、金額、付款狀態、出貨狀態與物流單號、電子發票號碼，以及退換貨申請方式。</p>
+          <button class="btn btn--primary" type="submit" :disabled="submitting">{{ submitting ? tx('查詢中…', 'Searching…') : tx('查詢訂單', 'Look up order') }}</button>
+          <p class="field-hint" style="margin-top:.85rem">{{ tx('查得的內容包含品項、金額、付款狀態、出貨狀態與物流單號、電子發票號碼，以及退換貨申請方式。', 'Results include the items, amounts, payment status, shipping status and tracking number, e-invoice number, and how to request a return or exchange.') }}</p>
         </div>
       </form>
 
@@ -164,21 +164,23 @@ const canAct = computed(() => !!order.value && !order.value.isMasked && order.va
       <p v-if="notice" class="mc-alert mc-alert--info" role="status">{{ notice }}</p>
 
       <div v-if="order" style="margin-top:2rem" aria-live="polite">
-        <h2 class="mc-h3">查詢結果</h2>
+        <h2 class="mc-h3">{{ tx('查詢結果', 'Result') }}</h2>
         <ShopOrderView :order="order" />
         <p v-if="canAct" class="mc-actions">
-          <button v-if="order.canPay" class="btn btn--linepay" type="button" :disabled="acting || (info !== null && !paymentAvailable)" @click="retryPay">{{ acting ? '處理中…' : '前往 LINE Pay 付款' }}</button>
-          <button v-if="order.canCancel" class="btn btn--light" type="button" :disabled="acting" @click="cancelPending">取消訂單</button>
+          <button v-if="order.canPay" class="btn btn--linepay" type="button" :disabled="acting || (info !== null && !paymentAvailable)" @click="retryPay">{{ acting ? tx('處理中…', 'Processing…') : tx('前往 LINE Pay 付款', 'Go to LINE Pay to pay') }}</button>
+          <button v-if="order.canCancel" class="btn btn--light" type="button" :disabled="acting" @click="cancelPending">{{ tx('取消訂單', 'Cancel order') }}</button>
         </p>
-        <p v-if="canAct && info && !paymentAvailable" class="mc-note mc-note--small">目前暫未開放線上付款，請稍後再試。</p>
-        <p v-else-if="order.isMasked && order.paymentStatus === 'pending'" class="mc-note mc-note--small">此訂單尚未付款。若要繼續付款，請使用訂單成立信中的連結進入本頁。</p>
+        <p v-if="canAct && info && !paymentAvailable" class="mc-note mc-note--small">{{ tx('目前暫未開放線上付款，請稍後再試。', 'Online payment is not available yet. Please try again later.') }}</p>
+        <p v-else-if="order.isMasked && order.paymentStatus === 'pending'" class="mc-note mc-note--small">{{ tx('此訂單尚未付款。若要繼續付款，請使用訂單成立信中的連結進入本頁。', 'This order has not been paid. To continue paying, please open this page from the link in your order confirmation email.') }}</p>
       </div>
 
       <div class="editorial-note" style="margin-top:2.5rem">
-        <h3>已經是會員？</h3>
-        <p>登入後於<a :href="lp('/zh/member/')">會員中心</a>的「我的訂單」可直接看到全部訂單，不需要逐筆輸入編號。</p>
-        <h3 style="margin-top:1.5rem">要退貨或換貨？</h3>
-        <p>依消費者保護法享七日猶豫期。請以<a :href="lp('/zh/join/general/')">一般聯絡表單</a>提出申請，我們會人工確認後處理退款與發票作廢或折讓。詳見<a :href="lp('/zh/shop/policy/#returns')">購物須知與退換貨政策</a>。</p>
+        <h3>{{ tx('已經是會員？', 'Already a member?') }}</h3>
+        <p v-if="isEn">Sign in and open My Orders in the <a :href="lp('/zh/member/')">Member Centre</a> to see all your orders without entering each number.</p>
+        <p v-else>登入後於<a :href="lp('/zh/member/')">會員中心</a>的「我的訂單」可直接看到全部訂單，不需要逐筆輸入編號。</p>
+        <h3 style="margin-top:1.5rem">{{ tx('要退貨或換貨？', 'Need to return or exchange an item?') }}</h3>
+        <p v-if="isEn">Under Taiwan's Consumer Protection Act you have a seven-day cooling-off period. Please submit a request through the <a :href="lp('/zh/join/general/')">general contact form</a>. We will check it manually, then process the refund and void the invoice or issue a discount note. See <a :href="lp('/zh/shop/policy/#returns')">Shopping information and returns policy</a>.</p>
+        <p v-else>依消費者保護法享七日猶豫期。請以<a :href="lp('/zh/join/general/')">一般聯絡表單</a>提出申請，我們會人工確認後處理退款與發票作廢或折讓。詳見<a :href="lp('/zh/shop/policy/#returns')">購物須知與退換貨政策</a>。</p>
       </div>
     </div>
   </div>

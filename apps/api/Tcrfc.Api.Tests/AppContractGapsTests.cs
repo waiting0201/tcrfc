@@ -42,10 +42,36 @@ public sealed class AppContractGapsTests(AdminWriteApiFixture fixture)
         Assert.DoesNotContain("enterprise-a", bw); // 別的俱樂部的系列不外洩
         Assert.Contains("mulan", bw);
 
-        // 種子的賽事系列只有繁中名稱：請求英文時回退繁中並標示
-        var en = (await JsonAsync(await client.GetAsync("/api/v1/tcrfc/competitions?lang=en"))).EnumerateArray().ToList();
-        Assert.All(en, c => Assert.True(c.GetProperty("isFallbackLocale").GetBoolean()));
-        Assert.Equal(tcrfc.Select(c => c.GetProperty("name").GetString()), en.Select(c => c.GetProperty("name").GetString()));
+        // 英文缺漏的回退規則：不依賴種子（種子已補英文列），自建一個只有繁中名稱的系列與一個有英文名稱的系列。
+        var clubId = await BizTest.ScalarGuidAsync("SELECT id FROM clubs WHERE code = N'tcrfc'");
+        var seasonId = await BizTest.ScalarGuidAsync("SELECT id FROM seasons WHERE club_id = @C AND code = N'2026-27'", ("@C", clubId));
+        var codeZhOnly = BizTest.Unique("cgz");
+        var codeWithEn = BizTest.Unique("cge");
+        var idZhOnly = Guid.NewGuid();
+        var idWithEn = Guid.NewGuid();
+        try
+        {
+            await BizTest.ExecuteSqlAsync(
+                "INSERT INTO competitions (id, club_id, season_id, code, status) VALUES (@A, @C, @S, @CA, N'published'), (@B, @C, @S, @CB, N'published')",
+                ("@A", idZhOnly), ("@B", idWithEn), ("@C", clubId), ("@S", seasonId), ("@CA", codeZhOnly), ("@CB", codeWithEn));
+            await BizTest.ExecuteSqlAsync(
+                "INSERT INTO competitions_i18n (competition_id, locale, name) VALUES (@A, N'zh-Hant', N'測試僅繁中系列'), (@B, N'zh-Hant', N'測試有英文系列'), (@B, N'en', N'Test Series With English')",
+                ("@A", idZhOnly), ("@B", idWithEn));
+
+            var en = (await JsonAsync(await client.GetAsync("/api/v1/tcrfc/competitions?lang=en"))).EnumerateArray().ToList();
+            var enZhOnly = en.Single(c => c.GetProperty("code").GetString() == codeZhOnly);
+            Assert.True(enZhOnly.GetProperty("isFallbackLocale").GetBoolean());
+            Assert.Equal("測試僅繁中系列", enZhOnly.GetProperty("name").GetString()); // 回退繁中名稱
+            var enWithEn = en.Single(c => c.GetProperty("code").GetString() == codeWithEn);
+            Assert.False(enWithEn.GetProperty("isFallbackLocale").GetBoolean());
+            Assert.Equal("Test Series With English", enWithEn.GetProperty("name").GetString());
+        }
+        finally
+        {
+            await BizTest.ExecuteSqlAsync(
+                "DELETE FROM competitions_i18n WHERE competition_id IN (@A, @B); DELETE FROM competitions WHERE id IN (@A, @B)",
+                ("@A", idZhOnly), ("@B", idWithEn));
+        }
 
         // 球季篩選
         var season = tcrfc[0].GetProperty("seasonCode").GetString();

@@ -10,13 +10,13 @@
 // 該俱樂部青年梯隊代碼（getAcademyTeamTabs 的有效 teamCode）有交集的人員，不依賴 `team` 單值
 // 查詢參數（同一位教練可兼任多個梯隊）。沒有任何教練資料（例：藍鯨名單未建）時顯示既有
 // 「整理中」空狀態，不沿用磐石資料頂替。
-definePageMeta({ nav: "academy", unit: "4.5" })
+definePageMeta({ nav: "academy", unit: "4.5", enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
-const identity = computed(() => getClubIdentity(clubKey.value))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 
 // S1-12d 收尾：梯隊代碼改讀 useSiteFacts(clubKey)（後端公開端點）。
 const { facts, academyLabel } = useSiteFacts(clubKey.value)
@@ -44,19 +44,19 @@ const coaches = computed(() =>
 const coachDetails = computed(() => coaches.value.filter((c) => c.licence || c.teamCodes?.length))
 
 useSeoMeta({
-  title: computed(() => getYouthCoachesSeo(clubKey.value).title),
-  description: computed(() => getYouthCoachesSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getYouthCoachesSeoEn() : getYouthCoachesSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getYouthCoachesSeoEn() : getYouthCoachesSeo(clubKey.value)).description),
 })
-const hero = computed(() => getYouthCoachesHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getYouthCoachesHeroEn() : getYouthCoachesHero(clubKey.value)))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
-      <li aria-current="page">{{ identity.academyShortLabelZh }}教練團</li>
+      <li aria-current="page">{{ tx(identity.academyShortLabelZh + '教練團', 'Coaches') }}</li>
     </ol>
   </div>
 </nav>
@@ -72,39 +72,40 @@ const hero = computed(() => getYouthCoachesHero(clubKey.value))
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(staffData)" partial />
 <section class="band" aria-labelledby="coaches-list-title">
   <div class="container">
     <!-- S1-12e（GEO-07）：這裡原本直接從 H1 跳到教練卡片的 h3（人名），中間沒有 h2，
          違反「H2/H3 不跳階」。加一個視覺隱藏的 h2 補上大綱層級，比照本站既有的
          `.visually-hidden` 標題慣例（見 zh/member/index.vue「member-title」、
          zh/news/[slug]/index.vue「article-body-title」），不影響版面。 -->
-    <h2 id="coaches-list-title" class="visually-hidden">教練名單</h2>
+    <h2 id="coaches-list-title" class="visually-hidden">{{ tx('教練名單', 'Coaching staff') }}</h2>
 
     <div v-if="coaches.length > 0" class="grid grid--3 person-grid">
       <article v-for="c in coaches" :key="c.id" class="person-card clip-card clip-card--outlined">
         <div v-if="c.photoUrl" class="person-card__photo">
-          <img :src="c.photoUrl" :alt="`${c.title ?? '教練'}${c.name}`" width="800" height="800" loading="lazy">
+          <img :src="c.photoUrl" :alt="isEn ? `${c.title ?? 'Coach'} ${c.name}` : `${c.title ?? '教練'}${c.name}`" width="800" height="800" loading="lazy">
         </div>
         <div v-else class="person-card__photo person-card__photo--empty">
           <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg>
         </div>
         <div class="person-card__body">
-          <p class="person-card__role">{{ c.title ?? '教練團成員' }}</p>
+          <p class="person-card__role">{{ c.title ?? tx('教練團成員', 'Coaching staff member') }}</p>
           <h3 class="person-card__name">{{ c.name }}</h3>
         </div>
       </article>
     </div>
-    <p v-else class="section-lede is-pending">教練名單整理中，待資料到位後將公布於本頁。</p>
+    <p v-else class="section-lede is-pending">{{ tx('教練名單整理中，待資料到位後將公布於本頁。', 'The coaching list is being compiled and will be published here once the information is ready.') }}</p>
 
-    <h2 class="section-title" style="margin-top:4rem;">證照、專長與負責梯隊</h2>
+    <h2 class="section-title" style="margin-top:4rem;">{{ tx('證照、專長與負責梯隊', 'Licences, Specialisms and Squads') }}</h2>
     <ul v-if="coachDetails.length > 0" class="coach-detail-list">
       <li v-for="c in coachDetails" :key="c.id">
         <strong>{{ c.name }}</strong>
-        <span v-if="c.licence">　證照：{{ c.licence }}</span>
-        <span v-if="c.teamCodes?.length">　負責梯隊：{{ c.teamCodes.join('、') }}</span>
+        <span v-if="c.licence">{{ tx('　證照：', ' | Licence: ') }}{{ c.licence }}</span>
+        <span v-if="c.teamCodes?.length">{{ tx('　負責梯隊：', ' | Squads: ') }}{{ c.teamCodes.join(tx('、', ', ')) }}</span>
       </li>
     </ul>
-    <p v-else class="section-lede" style="margin-top:.5rem;">相關資料準備中，稍後將於本頁公布。</p>
+    <p v-else class="section-lede" style="margin-top:.5rem;">{{ tx('相關資料準備中，稍後將於本頁公布。', 'Details are being prepared and will be published on this page soon.') }}</p>
   </div>
 </section>
 
@@ -113,18 +114,18 @@ const hero = computed(() => getYouthCoachesHero(clubKey.value))
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/academy/teams/')">
         <span class="cta-card__num">4.2</span>
-        <span class="cta-card__title">{{ identity.academyShortLabelZh }}隊伍</span>
-        <p class="cta-card__desc">查看 {{ academyLabel() }} 各梯隊</p>
+        <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '隊伍', 'Our Teams') }}</span>
+        <p class="cta-card__desc">{{ tx(`查看 ${academyLabel()} 各梯隊`, `View the ${academyLabel(', ')} squads`) }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/curriculum/')">
         <span class="cta-card__num">4.4</span>
-        <span class="cta-card__title">訓練課程與課綱</span>
-        <p class="cta-card__desc">五大訓練面向與週期規劃</p>
+        <span class="cta-card__title">{{ tx('訓練課程與課綱', 'Training & Curriculum') }}</span>
+        <p class="cta-card__desc">{{ tx('五大訓練面向與週期規劃', 'Five training pillars and how the training cycle is planned') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/life/')">
         <span class="cta-card__num">4.6</span>
-        <span class="cta-card__title">{{ identity.academyShortLabelZh }}生活</span>
-        <p class="cta-card__desc">訓練與比賽的日常紀錄</p>
+        <span class="cta-card__title">{{ tx(identity.academyShortLabelZh + '生活', 'Academy Life') }}</span>
+        <p class="cta-card__desc">{{ tx('訓練與比賽的日常紀錄', 'A day-to-day record of training and matches') }}</p>
       </a>
     </div>
   </div>

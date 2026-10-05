@@ -28,22 +28,23 @@
 //
 // 分頁籤（ARIA tablist）行為改寫自 mockup 的 31 行 client script，邏輯逐條保留
 // （點擊切換、方向鍵／Home／End 鍵盤導覽、切換後 focus 移到該分頁籤）。
-definePageMeta({ nav: 'academy', unit: '4.2' })
+definePageMeta({ nav: 'academy', unit: '4.2', enReady: true })
 
 const config = useRuntimeConfig()
 const club = config.public.club
 const clubKey = computed<'tcrfc' | 'bw'>(() => (club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
-const identity = computed(() => getClubIdentity(clubKey.value))
+const identity = computed(() => (isEn.value ? getClubIdentityEn() : getClubIdentity(clubKey.value)))
 // S1-12d 收尾第二輪：hero／SEO／分頁定義三者含梯隊代碼事實，club-copy.ts 已改為工廠函式。
 const { facts } = useSiteFacts(clubKey.value)
-const hero = computed(() => getAcademyTeamsHero(clubKey.value, facts.value))
-const tabs = computed(() => getAcademyTeamTabs(clubKey.value, facts.value))
+// C-6／S2-13：主站 /en/ 讀 shared/utils/club-copy-en-acad.ts（英文版文案；分頁 id／teamCode 與中文版相同）。
+const hero = computed(() => (isEn.value ? getAcademyTeamsHeroEn(facts.value) : getAcademyTeamsHero(clubKey.value, facts.value)))
+const tabs = computed(() => (isEn.value ? getAcademyTeamTabsEn(facts.value) : getAcademyTeamTabs(clubKey.value, facts.value)))
 /** 有真實 `Team.code` 可查詢的分頁（排除磐石的「其他年齡層」靜態說明分頁）。 */
 const teamTabs = computed(() => tabs.value.filter((t) => t.teamCode !== null))
 
 // S1-13：lang 跟隨目前路由語系，見 app/pages/zh/schedule.vue 同一處的說明。
-const { locale, lp } = useLocale()
+const { locale, lp, isEn, tx } = useLocale()
 const [{ data: playersData }, { data: staffData }, { data: scheduleData }] = await Promise.all([
   useFetch(`/api/backend/${club}/players`, { query: { pageSize: 200, lang: locale.value } }),
   useFetch(`/api/backend/${club}/staff`, { query: { pageSize: 200, lang: locale.value } }),
@@ -80,9 +81,10 @@ function onTabKeydown(e: KeyboardEvent, index: number) {
   selectTab(ids[idx]!)
 }
 
+const seo = computed(() => (isEn.value ? getAcademyTeamsSeoEn(facts.value) : getAcademyTeamsSeo(clubKey.value, facts.value)))
 useSeoMeta({
-  title: computed(() => getAcademyTeamsSeo(clubKey.value, facts.value).title),
-  description: computed(() => getAcademyTeamsSeo(clubKey.value, facts.value).description),
+  title: computed(() => seo.value.title),
+  description: computed(() => seo.value.description),
 })
 
 // ⛔ 本頁刻意不輸出 Person JSON-LD（S1-12f，2026-09-25）：梯隊球員是未成年學員。主站規劃書 GEO-02
@@ -91,10 +93,10 @@ useSeoMeta({
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
       <li><a :href="lp('/zh/academy/')">{{ identity.academyLabelZh }}</a></li>
       <li aria-current="page">{{ hero.h1Zh }}</li>
     </ol>
@@ -111,16 +113,17 @@ useSeoMeta({
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && (hasFallbackLocale(playersData) || hasFallbackLocale(staffData) || hasFallbackLocale(scheduleData))" partial />
 <section class="band" aria-labelledby="team-tabs-title">
   <div class="container">
     <!-- S1-12e（GEO-07）：分頁面板內的「名單」「教練」「賽程與成績」都是 h3，中間
          沒有 h2，原本從 H1 直接跳到 h3。加一個視覺隱藏的 h2 補上大綱層級，
          比照 zh/academy/coaches.vue 同一輪的修法，不影響版面（分頁按鈕本身另有
          role="tab" 與 aria-controls／aria-labelledby，跟這個 h2 是兩件事，互不取代）。 -->
-    <h2 id="team-tabs-title" class="visually-hidden">梯隊名單、教練與賽程</h2>
+    <h2 id="team-tabs-title" class="visually-hidden">{{ tx('梯隊名單、教練與賽程', 'Squad rosters, coaches and fixtures') }}</h2>
 
     <div class="team-tabs" data-team-tabs>
-      <div class="team-tabs__list" role="tablist" :aria-label="`${identity.academyShortLabelZh}年齡層`">
+      <div class="team-tabs__list" role="tablist" :aria-label="tx(`${identity.academyShortLabelZh}年齡層`, 'Age groups')">
         <button
           v-for="(tab, idx) in tabs" :key="tab.id"
           :ref="(el) => (tabRefs[tab.id] = el as HTMLElement)"
@@ -137,38 +140,38 @@ useSeoMeta({
       >
         <div class="grid grid--2" style="margin-top:1.5rem;">
           <div>
-            <h3>名單</h3>
-            <p v-if="playersForTeam(tab.teamCode!).length === 0">名單準備中，稍後將於本頁公布。</p>
+            <h3>{{ tx('名單', 'Roster') }}</h3>
+            <p v-if="playersForTeam(tab.teamCode!).length === 0">{{ tx('名單準備中，稍後將於本頁公布。', 'The roster is being prepared and will be published on this page soon.') }}</p>
             <ul v-else>
               <li v-for="p in playersForTeam(tab.teamCode!)" :key="p.id">{{ p.name }}</li>
             </ul>
           </div>
           <div>
-            <h3>教練</h3>
-            <p v-if="staffForTeam(tab.teamCode!).length === 0">教練陣容準備中，稍後將於本頁公布。</p>
+            <h3>{{ tx('教練', 'Coaches') }}</h3>
+            <p v-if="staffForTeam(tab.teamCode!).length === 0">{{ tx('教練陣容準備中，稍後將於本頁公布。', 'The coaching lineup is being prepared and will be published on this page soon.') }}</p>
             <ul v-else>
-              <li v-for="s in staffForTeam(tab.teamCode!)" :key="s.id">{{ s.name }}　{{ s.title }}</li>
+              <li v-for="s in staffForTeam(tab.teamCode!)" :key="s.id">{{ s.name }}{{ tx('　', ' - ') }}{{ s.title }}</li>
             </ul>
           </div>
         </div>
         <div style="margin-top:2rem;">
-          <h3>賽程與成績</h3>
-          <p v-if="matchesForTeam(tab.teamCode!).length === 0">賽程與成績準備中，稍後將於本頁公布。</p>
+          <h3>{{ tx('賽程與成績', 'Fixtures & Results') }}</h3>
+          <p v-if="matchesForTeam(tab.teamCode!).length === 0">{{ tx('賽程與成績準備中，稍後將於本頁公布。', 'Fixtures and results are being prepared and will be published on this page soon.') }}</p>
           <ul v-else>
             <li v-for="m in matchesForTeam(tab.teamCode!)" :key="m.id">
-              {{ m.matchOn }}　{{ m.homeAway === 'home' ? '主場' : m.homeAway === 'away' ? '客場' : '' }}
-              對 {{ m.opponent }}
-              <template v-if="mapMatchStatus(m.status).code === 'finished'">　{{ m.scoreHome }} : {{ m.scoreAway }}</template>
+              {{ m.matchOn }}{{ tx('　', ' | ') }}{{ m.homeAway === 'home' ? tx('主場', 'Home') : m.homeAway === 'away' ? tx('客場', 'Away') : '' }}
+              {{ tx('對', 'vs') }} {{ m.opponent }}
+              <template v-if="mapMatchStatus(m.status).code === 'finished'">{{ tx('　', ' | ') }}{{ m.scoreHome }} : {{ m.scoreAway }}</template>
             </li>
           </ul>
           <button type="button" class="btn btn--dark btn--sm" style="margin-top:1.25rem;" disabled aria-disabled="true">
-            訂閱本隊行事曆（待整隊訂閱功能上線）
+            {{ tx('訂閱本隊行事曆（待整隊訂閱功能上線）', 'Subscribe to this squad\'s calendar (available once squad subscriptions launch)') }}
           </button>
         </div>
       </div>
 
       <div v-if="isTcrfc" class="team-tabs__panel" id="panel-other" role="tabpanel" aria-labelledby="tab-other" tabindex="0" :hidden="active !== 'other'">
-        <p>其他年齡層梯隊資訊準備中，稍後將於本頁公布。</p>
+        <p>{{ tx('其他年齡層梯隊資訊準備中，稍後將於本頁公布。', 'Information on the other age-group squads is being prepared and will be published on this page soon.') }}</p>
       </div>
     </div>
 
@@ -182,18 +185,18 @@ useSeoMeta({
            shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
       <a class="cta-card" :href="lp('/zh/academy/pathway/')">
         <span class="cta-card__num">4.3</span>
-        <span class="cta-card__title">{{ isTcrfc ? '學院發展路徑' : '青年隊發展路徑' }}</span>
-        <p class="cta-card__desc">{{ isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑' }}</p>
+        <span class="cta-card__title">{{ tx(isTcrfc ? '學院發展路徑' : '青年隊發展路徑', 'Academy Pathway') }}</span>
+        <p class="cta-card__desc">{{ tx(isTcrfc ? '從 U12 到一線隊／海外的成長路徑' : '從 U12 到一線隊的成長路徑', 'The pathway from U12 to the First Team and overseas') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/academy/coaches/')">
         <span class="cta-card__num">4.5</span>
-        <span class="cta-card__title">{{ isTcrfc ? '學院教練團' : '青年隊教練團' }}</span>
-        <p class="cta-card__desc">認識帶領各梯隊的教練</p>
+        <span class="cta-card__title">{{ tx(isTcrfc ? '學院教練團' : '青年隊教練團', 'Coaches') }}</span>
+        <p class="cta-card__desc">{{ tx('認識帶領各梯隊的教練', 'Meet the coaches who lead each squad') }}</p>
       </a>
       <a class="cta-card" :href="lp('/zh/schedule/')">
         <span class="cta-card__num">{{ isTcrfc ? '06' : '13' }}</span>
-        <span class="cta-card__title">賽事行事曆</span>
-        <p class="cta-card__desc">查看俱樂部完整賽事時程</p>
+        <span class="cta-card__title">{{ tx('賽事行事曆', 'Schedule') }}</span>
+        <p class="cta-card__desc">{{ tx('查看俱樂部完整賽事時程', 'See the full match schedule') }}</p>
       </a>
     </div>
   </div>

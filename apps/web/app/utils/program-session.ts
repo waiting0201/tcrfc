@@ -88,3 +88,15 @@ export const SESSION_SIGNUP_LABEL: Record<SessionSignupState, string> = {
   not_yet: '尚未開放報名',
   closed: '已截止',
 }
+
+/** 英文版標籤（C-6／S2-13）。zh 沿用 `SESSION_SIGNUP_LABEL`，en 版由 `sessionSignupLabel(state, locale)` 取值。 */
+export const SESSION_SIGNUP_LABEL_EN: Record<SessionSignupState, string> = {
+  open: 'Register now',
+  waitlist: 'Full - join waitlist',
+  not_yet: 'Registration not open yet',
+  closed: 'Closed',
+}
+
+export function sessionSignupLabel(state: SessionSignupState, locale: 'zh' | 'en' = 'zh'): string {
+  return locale === 'en' ? SESSION_SIGNUP_LABEL_EN[state] : SESSION_SIGNUP_LABEL[state]
+}

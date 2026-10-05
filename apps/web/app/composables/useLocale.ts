@@ -27,5 +27,26 @@ export function useLocale() {
     return navigateTo(localizePath(route.fullPath, target))
   }
 
-  return { locale, otherLocale, lp, switchTo }
+  /**
+   * 是否「顯示英文文案」（樣板用：`v-if="isEn"` 切換整段含標記的英文版面）。
+   * 🔴 只有主站（`tcrfc`）的 `/en/` 為 true。藍鯨站 `/en/` 維持現狀（繁中備援＋提示）：
+   * 藍鯨英文正式全名卡 B-5、英文內容是全新生產（C-10），不在主站英文版範圍，
+   * 因此 `isEn`／`tx` 在藍鯨站一律回傳繁中，不得讓藍鯨出現英文介面配中文內容的混合。
+   * 要判斷「URL 是不是 /en/」請用 `locale.value === 'en'`。
+   */
+  const club = useRuntimeConfig().public.club
+  const isEn = computed(() => locale.value === 'en' && club !== 'bw')
+
+  /**
+   * 行內雙語取值：`tx('首頁', 'Home')`。zh 版回傳第一個參數，en 版回傳第二個。
+   * 用在樣板文字、屬性（`:aria-label="tx(..)"`）與 script 內的字串；整段含 `<strong>`／`<a>`
+   * 的長文改用 `<template v-if="isEn">…</template><template v-else>…</template>`，
+   * 兩種寫法都讓 zh 版 DOM 與翻譯前逐字相同（compare-dom 不受影響）。
+   * en 參數只放「自然的英文」；專有名詞照 docs/06 §1.1 英文用詞對照表。
+   */
+  function tx(zh: string, en: string): string {
+    return isEn.value ? en : zh
+  }
+
+  return { locale, otherLocale, isEn, lp, switchTo, tx }
 }

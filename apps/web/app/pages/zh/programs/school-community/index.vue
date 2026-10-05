@@ -10,18 +10,18 @@
 // `COACH_TRAINING_BODY_BW`（逐字節錄舊站原文，紀律 11）。磐石版「合作學校列表」與
 // 「社區計畫」「教練培訓」兩段既有內容本來就是空白（客戶尚未提供），維持原樣，
 // 不臆造磐石的對應內容。
-definePageMeta({ nav: 'programs', unit: '5.5' })
+definePageMeta({ nav: 'programs', unit: '5.5', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 
-const hero = computed(() => getSchoolCommunityHero(clubKey.value))
+const hero = computed(() => (isEn.value ? getSchoolCommunityHeroEn() : getSchoolCommunityHero(clubKey.value)))
 
 useSeoMeta({
-  title: computed(() => getSchoolCommunitySeo(clubKey.value).title),
-  description: computed(() => getSchoolCommunitySeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getSchoolCommunitySeoEn() : getSchoolCommunitySeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getSchoolCommunitySeoEn() : getSchoolCommunitySeo(clubKey.value)).description),
 })
 
 const { data: programList } = await useFetch(`/api/backend/${config.public.club}/programs`, {
@@ -55,12 +55,12 @@ useCourseSchema(
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/programs/')">課程與活動</a></li>
-      <li aria-current="page">校園與社區</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/programs/')">{{ tx('課程與活動', 'Programs') }}</a></li>
+      <li aria-current="page">{{ tx('校園與社區', 'School & Community') }}</li>
     </ol>
   </div>
 </nav>
@@ -78,19 +78,19 @@ useCourseSchema(
   <div class="container">
     <div class="grid grid--3">
       <div class="prose">
-        <h2>校園合作方案</h2>
+        <h2>{{ tx('校園合作方案', 'School Programs') }}</h2>
         <p v-if="!isTcrfc">建教合作學校名單見下方「合作學校列表」。</p>
-        <p v-else class="is-pending">內容準備中，稍後將於本頁公布。</p>
+        <p v-else class="is-pending">{{ tx('內容準備中，稍後將於本頁公布。', 'Content is being prepared and will be published on this page soon.') }}</p>
       </div>
       <div class="prose">
-        <h2>社區計畫</h2>
+        <h2>{{ tx('社區計畫', 'Community Projects') }}</h2>
         <p v-if="!isTcrfc">{{ COMMUNITY_PROGRAM_BODY_BW }}</p>
-        <p v-else class="is-pending">內容準備中，稍後將於本頁公布。</p>
+        <p v-else class="is-pending">{{ tx('內容準備中，稍後將於本頁公布。', 'Content is being prepared and will be published on this page soon.') }}</p>
       </div>
       <div class="prose">
-        <h2>教練培訓</h2>
+        <h2>{{ tx('教練培訓', 'Coach Education') }}</h2>
         <p v-if="!isTcrfc">{{ COACH_TRAINING_BODY_BW }}</p>
-        <p v-else class="is-pending">內容準備中，稍後將於本頁公布。</p>
+        <p v-else class="is-pending">{{ tx('內容準備中，稍後將於本頁公布。', 'Content is being prepared and will be published on this page soon.') }}</p>
       </div>
     </div>
   </div>
@@ -99,14 +99,14 @@ useCourseSchema(
 <section class="band" style="background:var(--paper-2);" aria-labelledby="sch-list-title">
   <div class="container">
     <div class="prose" style="margin-bottom:1.5rem;">
-      <h2 id="sch-list-title">合作學校列表</h2>
+      <h2 id="sch-list-title">{{ tx('合作學校列表', 'Partner Schools') }}</h2>
       <p v-if="!isTcrfc">台中藍鯨既有建教合作學校（女子足球隊）如下：</p>
-      <p v-else>合作學校名單將於客戶確認後公告於此處。</p>
+      <p v-else>{{ tx('合作學校名單將於客戶確認後公告於此處。', 'The list of partner schools will be published here once confirmed.') }}</p>
     </div>
     <div class="table-wrap">
       <table class="data-table">
         <thead>
-          <tr><th scope="col">學校／單位</th><th scope="col">合作內容</th><th scope="col">合作年度</th></tr>
+          <tr><th scope="col">{{ tx('學校／單位', 'School / organisation') }}</th><th scope="col">{{ tx('合作內容', 'Collaboration') }}</th><th scope="col">{{ tx('合作年度', 'Year') }}</th></tr>
         </thead>
         <tbody v-if="!isTcrfc">
           <tr v-for="s in SCHOOL_PARTNERS_BW" :key="s.nameZh">
@@ -125,16 +125,17 @@ useCourseSchema(
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(faqs)" partial />
 <section class="band">
   <div class="container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">FAQ</p>
-        <h2 class="section-title">校園與社區常見問題</h2>
+        <h2 class="section-title">{{ tx('校園與社區常見問題', 'School & Community FAQ') }}</h2>
       </div>
-      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+      <a :href="lp('/zh/faq/')">{{ tx('查看全部常見問題 →', 'View all FAQs →') }}</a>
     </div>
-    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">{{ tx('常見問題收錄中，稍後將於本頁公布。', 'FAQs are being compiled and will be published on this page soon.') }}</p>
     <dl v-else class="faq-embed-list">
       <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
         <dt>{{ f.question }}</dt>
@@ -147,21 +148,21 @@ useCourseSchema(
 <section class="band" aria-labelledby="sch-form-title">
   <div class="container">
     <div class="prose" style="margin-bottom:1.75rem;max-width:60ch;">
-      <h2 id="sch-form-title">洽談合作</h2>
-      <p>學校或社區單位如有合作意願，歡迎填寫以下表單，{{ getClubAssets(clubKey).shortNameZh }}團隊將盡快與您聯繫。</p>
+      <h2 id="sch-form-title">{{ tx('洽談合作', 'Partnership Enquiries') }}</h2>
+      <p>{{ tx(`學校或社區單位如有合作意願，歡迎填寫以下表單，${getClubAssets(clubKey).shortNameZh}團隊將盡快與您聯繫。`, 'If your school or community organisation would like to work with us, please fill in the form below and the Taichung Rock FC team will be in touch as soon as possible.') }}</p>
     </div>
 
     <form class="inquiry-form" onsubmit="return false;">
       <div class="field">
-        <label for="sch-org">學校／單位名稱 <span aria-hidden="true">*</span></label>
+        <label for="sch-org">{{ tx('學校／單位名稱', 'School / organisation name') }} <span aria-hidden="true">*</span></label>
         <input type="text" id="sch-org" name="org" autocomplete="organization" required>
       </div>
       <div class="field">
-        <label for="sch-contact">聯絡人姓名 <span aria-hidden="true">*</span></label>
+        <label for="sch-contact">{{ tx('聯絡人姓名', 'Contact name') }} <span aria-hidden="true">*</span></label>
         <input type="text" id="sch-contact" name="contact" autocomplete="name" required>
       </div>
       <div class="field">
-        <label for="sch-phone">聯絡電話 <span aria-hidden="true">*</span></label>
+        <label for="sch-phone">{{ tx('聯絡電話', 'Phone') }} <span aria-hidden="true">*</span></label>
         <input type="tel" id="sch-phone" name="phone" autocomplete="tel" required>
       </div>
       <div class="field">
@@ -169,21 +170,21 @@ useCourseSchema(
         <input type="email" id="sch-email" name="email" autocomplete="email" required>
       </div>
       <div class="field field--full">
-        <label for="sch-type">合作類型</label>
+        <label for="sch-type">{{ tx('合作類型', 'Type of partnership') }}</label>
         <select id="sch-type" name="type">
-          <option value="">請選擇</option>
-          <option value="school">校園合作方案</option>
-          <option value="community">社區計畫</option>
-          <option value="coach-training">教練培訓</option>
-          <option value="other">其他</option>
+          <option value="">{{ tx('請選擇', 'Please select') }}</option>
+          <option value="school">{{ tx('校園合作方案', 'School program') }}</option>
+          <option value="community">{{ tx('社區計畫', 'Community project') }}</option>
+          <option value="coach-training">{{ tx('教練培訓', 'Coach education') }}</option>
+          <option value="other">{{ tx('其他', 'Other') }}</option>
         </select>
       </div>
       <div class="field field--full">
-        <label for="sch-message">洽談需求說明</label>
+        <label for="sch-message">{{ tx('洽談需求說明', 'What you have in mind') }}</label>
         <textarea id="sch-message" name="message" rows="5"></textarea>
       </div>
       <div class="field field--full">
-        <button class="btn btn--primary" type="submit">送出洽談需求</button>
+        <button class="btn btn--primary" type="submit">{{ tx('送出洽談需求', 'Send Enquiry') }}</button>
       </div>
     </form>
   </div>
@@ -195,12 +196,12 @@ useCourseSchema(
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">PARTNER WITH US</p>
-        <h2 class="section-title" id="sch-cta-title">與{{ getClubAssets(clubKey).shortNameZh }}一起推廣足球</h2>
+        <h2 class="section-title" id="sch-cta-title">{{ tx(`與${getClubAssets(clubKey).shortNameZh}一起推廣足球`, 'Promote Football with Taichung Rock FC') }}</h2>
       </div>
     </div>
     <div class="hero__ctas" style="margin-top:1.5rem;">
-      <a class="btn btn--light" :href="lp('/zh/programs/')">回課程總覽</a>
-      <a class="btn btn--light" :href="lp('/zh/partners/')">合作夥伴與贊助</a>
+      <a class="btn btn--light" :href="lp('/zh/programs/')">{{ tx('回課程總覽', 'Back to Programs Overview') }}</a>
+      <a class="btn btn--light" :href="lp('/zh/partners/')">{{ tx('合作夥伴與贊助', 'Partners & Sponsors') }}</a>
     </div>
   </div>
 </section>

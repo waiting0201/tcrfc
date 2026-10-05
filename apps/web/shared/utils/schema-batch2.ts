@@ -136,6 +136,8 @@ export interface CourseSchemaOpts {
    * （比照 apps/api SchemaCompleteness.cs 對 Course 的同一句既有註解）。 */
   providerName: string
   siteUrl: string
+  /** 輸出語系；只影響本檔自己組的字串（`educationalLevel` 的年齡單位）。省略＝'zh'（既有輸出逐字不變）。 */
+  locale?: 'zh' | 'en'
 }
 
 /**
@@ -164,7 +166,9 @@ export function buildCourseSchemaNode(
     provider: { name: opts.providerName, url: opts.siteUrl.replace(/\/$/, '') || undefined },
   }
   if (program!.ageMin != null && program!.ageMax != null) {
-    node.educationalLevel = `${program!.ageMin}–${program!.ageMax} 歲`
+    node.educationalLevel = opts.locale === 'en'
+      ? `Ages ${program!.ageMin}–${program!.ageMax}`
+      : `${program!.ageMin}–${program!.ageMax} 歲`
   }
   return node
 }

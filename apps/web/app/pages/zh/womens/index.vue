@@ -24,9 +24,9 @@
 // 本頁只會在 tcrfc 容器渲染（bw 容器對單元 '06' 全站 404，見
 // shared/utils/units.ts BLUE_WHALE_DISABLED_UNITS），因此下面所有藍鯨資料一律
 // 明確帶 club='bw'，不是讀 config.public.club（那永遠是 'tcrfc'）。
-definePageMeta({ nav: 'womens', unit: '06' })
+definePageMeta({ nav: 'womens', unit: '06', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 
 const bwAssets = getClubAssets('bw')
@@ -45,18 +45,35 @@ const blueWhaleSiteUrl = computed(
 )
 
 useSeoMeta({
-  title: '女子足球 Women\'s Football｜台中磐石足球俱樂部',
-  description:
-    '台中藍鯨女子隊的介紹與官網入口。完整球員名單、教練陣容、賽程與成績請至台中藍鯨官方網站。',
+  title: computed(() => (isEn.value ? CLUB_WOMENS_SEO_EN.title : '女子足球 Women\'s Football｜台中磐石足球俱樂部')),
+  description: computed(() => (isEn.value
+    ? CLUB_WOMENS_SEO_EN.description
+    : '台中藍鯨女子隊的介紹與官網入口。完整球員名單、教練陣容、賽程與成績請至台中藍鯨官方網站。')),
 })
+
+// 英文版：藍鯨的成立日期、聯賽、場地、梯隊體系都由 facts 取值；facts 沒有英文值時
+// 聯賽用對照表的 Taiwan Mulan Football League、場地維持中文原名（不自創譯名）。
+const bwFoundedText = computed(() => (isEn.value
+  ? clubFoundedLabelEn(bwFacts.value.foundingDateIso, bwFacts.value.foundedYear)
+  : bwFacts.value.foundedDisplayZh))
+const bwLeagueText = computed(() => (isEn.value
+  ? (bwFacts.value.league.nameEn ?? CLUB_WOMENS_LEAGUE_EN)
+  : bwFacts.value.league.nameZh))
+const bwVenueText = computed(() => (isEn.value
+  ? bwFacts.value.venues.map((v) => v.nameEn ?? v.nameZh).join(', ')
+  : bwFacts.value.venues.map((v) => v.nameZh).join('、')))
+const bwSquadText = computed(() => (isEn.value
+  ? clubWomensSquadStructureEn(bwFacts.value.squadCodes)
+  : bwFacts.value.squadStructureZh))
+const academySquadsEn = computed(() => tcrfcFacts.value.squadCodes.join('/'))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">女子足球</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx('女子足球', "Women's Football") }}</li>
     </ol>
   </div>
 </nav>
@@ -66,8 +83,8 @@ useSeoMeta({
   <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.8rem;color:rgba(255,255,255,.06);">06</span>
   <div class="container">
     <p class="page-hero__eyebrow">06 Women's Football</p>
-    <h1>女子足球<span class="en">Women's Football</span></h1>
-    <p class="page-hero__lede">台中藍鯨女子隊是台中磐石支持的女子足球隊伍。球員名單、賽程與成績等詳細資訊，請至女足官方網站查詢。</p>
+    <h1>{{ tx('女子足球', "Women's Football") }}<span v-if="!isEn" class="en">Women's Football</span></h1>
+    <p class="page-hero__lede">{{ tx('台中藍鯨女子隊是台中磐石支持的女子足球隊伍。球員名單、賽程與成績等詳細資訊，請至女足官方網站查詢。', CLUB_WOMENS_PAGE_EN.lede) }}</p>
   </div>
 </section>
 
@@ -77,28 +94,28 @@ useSeoMeta({
   <div class="container">
     <div class="women-intro">
       <div class="prose">
-        <h2>台中藍鯨女子隊</h2>
-        <p>{{ OUR_STORY_BODY_BW }}</p>
+        <h2>{{ tx('台中藍鯨女子隊', CLUB_WOMENS_PAGE_EN.introHeading) }}</h2>
+        <p>{{ isEn ? WOMENS_STORY_BODY_EN : OUR_STORY_BODY_BW }}</p>
       </div>
       <figure class="women-visual">
-        <img :src="bwAssets.headerMark.src" width="140" height="138" loading="lazy" alt="台中藍鯨隊徽">
+        <img :src="bwAssets.headerMark.src" width="140" height="138" loading="lazy" :alt="tx('台中藍鯨隊徽', CLUB_WOMENS_PAGE_EN.crestAlt)">
       </figure>
     </div>
 
     <div class="fact-panel" style="margin-top:2rem;max-width:520px;">
       <dl style="margin:0;">
-        <dt>隊伍名稱</dt>
-        <dd>台中藍鯨女子足球隊</dd>
-        <dt>成立</dt>
-        <dd>{{ bwFacts.foundedDisplayZh }}</dd>
-        <dt>所屬聯賽</dt>
-        <dd>{{ bwFacts.league.nameZh }}</dd>
-        <dt>主場</dt>
-        <dd>{{ bwFacts.venues.map((v) => v.nameZh).join('、') }}</dd>
-        <dt>梯隊體系</dt>
-        <dd>{{ bwFacts.squadStructureZh }}</dd>
-        <dt>完整資訊</dt>
-        <dd>球員名單、教練陣容、賽程與成績請至台中藍鯨官方網站</dd>
+        <dt>{{ tx('隊伍名稱', 'Team name') }}</dt>
+        <dd>{{ tx('台中藍鯨女子足球隊', CLUB_WOMENS_PAGE_EN.teamName) }}</dd>
+        <dt>{{ tx('成立', 'Founded') }}</dt>
+        <dd>{{ bwFoundedText }}</dd>
+        <dt>{{ tx('所屬聯賽', 'League') }}</dt>
+        <dd>{{ bwLeagueText }}</dd>
+        <dt>{{ tx('主場', 'Home grounds') }}</dt>
+        <dd>{{ bwVenueText }}</dd>
+        <dt>{{ tx('梯隊體系', 'Squad structure') }}</dt>
+        <dd>{{ bwSquadText }}</dd>
+        <dt>{{ tx('完整資訊', 'Full information') }}</dt>
+        <dd>{{ tx('球員名單、教練陣容、賽程與成績請至台中藍鯨官方網站', CLUB_WOMENS_PAGE_EN.fullInfo) }}</dd>
       </dl>
     </div>
   </div>
@@ -109,13 +126,13 @@ useSeoMeta({
   <span class="ghost-num ghost-num--dark" aria-hidden="true">TCBW</span>
   <div class="band-inner container" style="text-align:center;">
     <p class="kicker kicker--on-dark" style="justify-content:center;">OFFICIAL SITE</p>
-    <h2 class="section-title" id="women-official-title" style="color:#fff;">完整名單、賽程與成績請至台中藍鯨官網</h2>
-    <p class="section-lede on-dark" style="margin-inline:auto;">球員名單、教練陣容、賽程與比賽成績等資訊，皆由台中藍鯨官方網站呈現。</p>
+    <h2 class="section-title" id="women-official-title" style="color:#fff;">{{ tx('完整名單、賽程與成績請至台中藍鯨官網', CLUB_WOMENS_PAGE_EN.officialHeading) }}</h2>
+    <p class="section-lede on-dark" style="margin-inline:auto;">{{ tx('球員名單、教練陣容、賽程與比賽成績等資訊，皆由台中藍鯨官方網站呈現。', CLUB_WOMENS_PAGE_EN.officialLede) }}</p>
     <div class="hero__ctas" style="margin-top:2rem;justify-content:center;">
       <a class="btn btn--primary" :href="blueWhaleSiteUrl" target="_blank" rel="noopener">
-        前往台中藍鯨官方網站
+        {{ tx('前往台中藍鯨官方網站', CLUB_WOMENS_PAGE_EN.officialCta) }}
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true" style="margin-left:.4em;vertical-align:-2px;"><path d="M7 17L17 7M9 7h8v8"/></svg>
-        <span class="visually-hidden">（新分頁開啟）</span>
+        <span class="visually-hidden">{{ tx('（新分頁開啟）', '(opens in a new tab)') }}</span>
       </a>
     </div>
   </div>
@@ -127,27 +144,27 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker">JOIN TCRFC</p>
-        <h2 class="section-title" id="women-cta-title" style="color:var(--heading);">更多方式參與台中磐石</h2>
+        <h2 class="section-title" id="women-cta-title" style="color:var(--heading);">{{ tx('更多方式參與台中磐石', 'More ways to get involved with Taichung Rock') }}</h2>
       </div>
     </div>
     <div class="cta-grid">
       <div class="cta-card clip-card" style="background:var(--paper-2);color:var(--heading);">
-        <p class="cta-card__num" style="color:var(--brand-aa);">台中磐石學院</p>
-        <p class="cta-card__title">加入足球學院</p>
-        <p class="cta-card__desc" style="color:var(--muted);">{{ tcrfcAcademyLabel() }} 梯隊，培育下一代球員。</p>
-        <a class="btn btn--dark btn--sm" :href="lp('/zh/academy/join/')">了解更多</a>
+        <p class="cta-card__num" style="color:var(--brand-aa);">{{ tx('台中磐石學院', 'TCRFC Academy') }}</p>
+        <p class="cta-card__title">{{ tx('加入足球學院', 'Join the Academy') }}</p>
+        <p class="cta-card__desc" style="color:var(--muted);">{{ isEn ? `${academySquadsEn} squads, developing the next generation of players.` : `${tcrfcAcademyLabel()} 梯隊，培育下一代球員。` }}</p>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/academy/join/')">{{ tx('了解更多', 'Learn more') }}</a>
       </div>
       <div class="cta-card clip-card" style="background:var(--paper-2);color:var(--heading);">
-        <p class="cta-card__num" style="color:var(--brand-aa);">課程與活動</p>
-        <p class="cta-card__title">兒童足球訓練</p>
-        <p class="cta-card__desc" style="color:var(--muted);">分齡分級課程，適合初次接觸足球的孩子。</p>
-        <a class="btn btn--dark btn--sm" :href="lp('/zh/programs/childrens-training/')">了解更多</a>
+        <p class="cta-card__num" style="color:var(--brand-aa);">{{ tx('課程與活動', 'Programs') }}</p>
+        <p class="cta-card__title">{{ tx('兒童足球訓練', "Children's Training") }}</p>
+        <p class="cta-card__desc" style="color:var(--muted);">{{ tx('分齡分級課程，適合初次接觸足球的孩子。', 'Age-grouped and level-based classes, suited to children trying football for the first time.') }}</p>
+        <a class="btn btn--dark btn--sm" :href="lp('/zh/programs/childrens-training/')">{{ tx('了解更多', 'Learn more') }}</a>
       </div>
       <div class="cta-card clip-card" style="background:var(--paper-2);color:var(--heading);">
-        <p class="cta-card__num" style="color:var(--brand-aa);">聯絡我們</p>
-        <p class="cta-card__title">有其他問題？</p>
-        <p class="cta-card__desc" style="color:var(--muted);">歡迎直接與台中磐石團隊聯繫。</p>
-        <a class="btn btn--primary btn--sm" :href="lp('/zh/join/general/')">聯絡我們</a>
+        <p class="cta-card__num" style="color:var(--brand-aa);">{{ tx('聯絡我們', 'Contact us') }}</p>
+        <p class="cta-card__title">{{ tx('有其他問題？', 'Other questions?') }}</p>
+        <p class="cta-card__desc" style="color:var(--muted);">{{ tx('歡迎直接與台中磐石團隊聯繫。', 'Feel free to contact the Taichung Rock team directly.') }}</p>
+        <a class="btn btn--primary btn--sm" :href="lp('/zh/join/general/')">{{ tx('聯絡我們', 'Contact us') }}</a>
       </div>
     </div>
   </div>

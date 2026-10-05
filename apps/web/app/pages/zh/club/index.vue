@@ -8,9 +8,9 @@
 // 3.2／3.4 已於 BW-C1 重開（見 shared/utils/units.ts 檔頭），本輪移除舊有的隱藏判斷，
 // 改為 SEO／Hero／統計卡／單元卡描述／CTA 標題全部依俱樂部切換（getClubHubSeo 等，
 // club-copy.ts），版型與 DOM 結構不變。tcrfc 分支逐字沿用改動前的既有輸出。
-definePageMeta({ nav: 'club', unit: '03' })
+definePageMeta({ nav: 'club', unit: '03', enReady: true })
 
-const { lp } = useLocale()
+const { lp, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
@@ -18,26 +18,26 @@ const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const { facts } = useSiteFacts(clubKey.value)
 
 useSeoMeta({
-  title: computed(() => getClubHubSeo(clubKey.value, facts.value).title),
-  description: computed(() => getClubHubSeo(clubKey.value, facts.value).description),
+  title: computed(() => (isEn.value ? getClubHubSeoEn() : getClubHubSeo(clubKey.value, facts.value)).title),
+  description: computed(() => (isEn.value ? getClubHubSeoEn() : getClubHubSeo(clubKey.value, facts.value)).description),
 })
-const hero = computed(() => getClubHubHero(clubKey.value, facts.value))
-const stats = computed(() => getClubHubStats(clubKey.value, facts.value))
-const opportunitiesDesc = computed(() => getClubHubOpportunitiesDesc(clubKey.value))
-const playerStoriesDesc = computed(() => getClubHubPlayerStoriesDesc(clubKey.value))
-const ctaTitle = computed(() => getClubHubCtaTitle(clubKey.value))
+const hero = computed(() => (isEn.value ? getClubHubHeroEn(facts.value) : getClubHubHero(clubKey.value, facts.value)))
+const stats = computed(() => (isEn.value ? getClubHubStatsEn(facts.value) : getClubHubStats(clubKey.value, facts.value)))
+const opportunitiesDesc = computed(() => (isEn.value ? CLUB_HUB_OPPORTUNITIES_DESC_EN : getClubHubOpportunitiesDesc(clubKey.value)))
+const playerStoriesDesc = computed(() => (isEn.value ? CLUB_HUB_PLAYER_STORIES_DESC_EN : getClubHubPlayerStoriesDesc(clubKey.value)))
+const ctaTitle = computed(() => (isEn.value ? CLUB_HUB_CTA_TITLE_EN : getClubHubCtaTitle(clubKey.value)))
 // 底部 CTA 第一張卡「加入球隊」——沿用首頁既有的 getHomeCtaTrio() 第一筆文案
 // （已依 facts.league.nameZh 動態帶入聯賽名稱，避免本頁自己重打一份「企甲聯賽」
 // 字面值，藍鯨會因此誤植磐石聯賽名稱）。
-const joinPlayerCard = computed(() => getHomeCtaTrio(clubKey.value, facts.value)[0]!)
+const joinPlayerCard = computed(() => (isEn.value ? getClubHubJoinPlayerCardEn(facts.value) : getHomeCtaTrio(clubKey.value, facts.value)[0]!))
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li aria-current="page">俱樂部</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li aria-current="page">{{ tx('俱樂部', 'Football Club') }}</li>
     </ol>
   </div>
 </nav>
@@ -53,7 +53,7 @@ const joinPlayerCard = computed(() => getHomeCtaTrio(clubKey.value, facts.value)
 </section>
 
 <section class="band grain grain--2 stats-band" aria-labelledby="club-stats-title">
-  <h2 class="visually-hidden" id="club-stats-title">俱樂部一線隊數據</h2>
+  <h2 class="visually-hidden" id="club-stats-title">{{ tx('俱樂部一線隊數據', 'Club First Team statistics') }}</h2>
   <div class="band-inner container">
     <div class="stats-grid">
       <div v-for="s in stats" :key="s.labelZh" class="stat">
@@ -70,49 +70,50 @@ const joinPlayerCard = computed(() => getHomeCtaTrio(clubKey.value, facts.value)
     <div class="eyebrow-row">
       <div>
         <p class="kicker">IN THIS SECTION</p>
-        <h2 class="section-title" id="unit-links-title">本單元內容</h2>
+        <h2 class="section-title" id="unit-links-title">{{ tx('本單元內容', 'In this section') }}</h2>
       </div>
-      <p class="section-lede">從球隊本身、養成系統，到通往職業與海外的每一步。</p>
+      <p class="section-lede">{{ tx('從球隊本身、養成系統，到通往職業與海外的每一步。', 'From the team itself and its development system to every step towards the professional game and overseas.') }}</p>
     </div>
 
     <div class="unit-links">
       <a class="unit-link-card clip-card" :href="lp('/zh/club/first-team/')">
         <p class="unit-link-card__num">3.1</p>
-        <p class="unit-link-card__en">First Team</p>
-        <p class="unit-link-card__zh">一線隊</p>
-        <p class="unit-link-card__desc">球隊介紹、球員名單與位置篩選、教練團、賽程表（含 .ics 訂閱）、成績與積分榜、榮譽時間軸。</p>
-        <span class="unit-link-card__cta">查看一線隊 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <p v-if="!isEn" class="unit-link-card__en">First Team</p>
+        <p class="unit-link-card__zh">{{ tx('一線隊', 'First Team') }}</p>
+        <p class="unit-link-card__desc">{{ tx('球隊介紹、球員名單與位置篩選、教練團、賽程表（含 .ics 訂閱）、成績與積分榜、榮譽時間軸。', 'Team introduction, squad list, coaching staff, fixtures (with .ics subscription), results and league table, and the honours timeline.') }}</p>
+        <span class="unit-link-card__cta">{{ tx('查看一線隊', 'View the First Team') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="unit-link-card clip-card" :href="lp('/zh/club/player-development/')">
         <p class="unit-link-card__num">3.2</p>
-        <p class="unit-link-card__en">Player Development</p>
-        <p class="unit-link-card__zh">球員發展系統</p>
-        <p class="unit-link-card__desc">技術戰術、體能、比賽判讀、心理韌性、影片分析、IDP、營養生活、教育語言，八大面向完整說明。</p>
-        <span class="unit-link-card__cta">認識發展系統 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <p v-if="!isEn" class="unit-link-card__en">Player Development</p>
+        <p class="unit-link-card__zh">{{ tx('球員發展系統', 'Player Development') }}</p>
+        <p class="unit-link-card__desc">{{ tx('技術戰術、體能、比賽判讀、心理韌性、影片分析、IDP、營養生活、教育語言，八大面向完整說明。', 'Technical and tactical work, fitness, match reading, mental resilience, video analysis, IDP, nutrition and lifestyle, and education and language: all eight areas explained.') }}</p>
+        <span class="unit-link-card__cta">{{ tx('認識發展系統', 'Explore Player Development') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="unit-link-card clip-card" :href="lp('/zh/club/opportunities/')">
         <p class="unit-link-card__num">3.3</p>
-        <p class="unit-link-card__en">Player Opportunities</p>
-        <p class="unit-link-card__zh">球員機會</p>
+        <p v-if="!isEn" class="unit-link-card__en">Player Opportunities</p>
+        <p class="unit-link-card__zh">{{ tx('球員機會', 'Player Opportunities') }}</p>
         <p class="unit-link-card__desc">{{ opportunitiesDesc }}</p>
-        <span class="unit-link-card__cta">查看機會 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="unit-link-card__cta">{{ tx('查看機會', 'View opportunities') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="unit-link-card clip-card" :href="lp('/zh/club/international-pathways/')">
         <p class="unit-link-card__num">3.4</p>
-        <p class="unit-link-card__en">International Pathways</p>
-        <p class="unit-link-card__zh">國際發展通道</p>
+        <p v-if="!isEn" class="unit-link-card__en">International Pathways</p>
+        <p class="unit-link-card__zh">{{ tx('國際發展通道', 'International Pathways') }}</p>
         <p class="unit-link-card__desc">
-          <template v-if="isTcrfc">在地到海外的完整路徑、歐洲／日本／香港分區、合作俱樂部與試訓球探管道。</template>
+          <template v-if="isEn">The full route from local football to clubs abroad, regional information for Europe, Japan and Hong Kong, partner clubs, and trial scouting channels.</template>
+          <template v-else-if="isTcrfc">在地到海外的完整路徑、歐洲／日本／香港分區、合作俱樂部與試訓球探管道。</template>
           <template v-else>在地到海外的真實旅外案例，日本／中國分區與海外媒合諮詢管道。</template>
         </p>
-        <span class="unit-link-card__cta">了解國際通道 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="unit-link-card__cta">{{ tx('了解國際通道', 'Explore International Pathways') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
       <a class="unit-link-card clip-card" :href="lp('/zh/club/player-stories/')">
         <p class="unit-link-card__num">3.5</p>
-        <p class="unit-link-card__en">Player Stories</p>
-        <p class="unit-link-card__zh">球員故事</p>
+        <p v-if="!isEn" class="unit-link-card__en">Player Stories</p>
+        <p class="unit-link-card__zh">{{ tx('球員故事', 'Player Stories') }}</p>
         <p class="unit-link-card__desc">{{ playerStoriesDesc }}</p>
-        <span class="unit-link-card__cta">閱讀球員故事 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        <span class="unit-link-card__cta">{{ tx('閱讀球員故事', 'Read Player Stories') }} <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
       </a>
     </div>
   </div>
@@ -126,22 +127,23 @@ const joinPlayerCard = computed(() => getHomeCtaTrio(clubKey.value, facts.value)
         <p class="cta-card__num">10.1</p>
         <p class="cta-card__title">{{ joinPlayerCard.titleZh }}</p>
         <p class="cta-card__desc">{{ joinPlayerCard.descZh }}</p>
-        <a class="btn btn--primary" :href="lp('/zh/join/player/')">填寫報名表</a>
+        <a class="btn btn--primary" :href="lp('/zh/join/player/')">{{ tx('填寫報名表', 'Fill in the registration form') }}</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">3.3</p>
-        <p class="cta-card__title">查看試訓資訊</p>
-        <p class="cta-card__desc">試訓場次日期、地點、對象與名額，一次掌握球員機會頁面。</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/opportunities/')">前往球員機會</a>
+        <p class="cta-card__title">{{ tx('查看試訓資訊', 'Trial information') }}</p>
+        <p class="cta-card__desc">{{ tx('試訓場次日期、地點、對象與名額，一次掌握球員機會頁面。', 'Trial dates, venues, who each session is for and the places available, all on the Player Opportunities page.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/opportunities/')">{{ tx('前往球員機會', 'Go to Player Opportunities') }}</a>
       </div>
       <div class="cta-card">
         <p class="cta-card__num">3.4</p>
-        <p class="cta-card__title">海外發展諮詢</p>
+        <p class="cta-card__title">{{ tx('海外發展諮詢', 'Overseas development enquiries') }}</p>
         <p class="cta-card__desc">
-          <template v-if="isTcrfc">想了解歐洲、日本、香港的合作管道？國際發展通道頁面說明完整路徑。</template>
+          <template v-if="isEn">Want to know about partnership channels in Europe, Japan and Hong Kong? The International Pathways page explains the full route.</template>
+          <template v-else-if="isTcrfc">想了解歐洲、日本、香港的合作管道？國際發展通道頁面說明完整路徑。</template>
           <template v-else>想了解日本、中國的旅外案例？國際發展通道頁面說明完整路徑。</template>
         </p>
-        <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">了解國際通道</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">{{ tx('了解國際通道', 'Explore International Pathways') }}</a>
       </div>
     </div>
   </div>

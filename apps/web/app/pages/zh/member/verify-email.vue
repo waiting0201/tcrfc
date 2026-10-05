@@ -5,15 +5,15 @@
 // 成功後該俱樂部會自動建立免費（一般會員）會籍與第一張會員卡。連結 24 小時有效，失效時提供重寄。
 import { toMemberApiError } from '#shared/utils/member'
 
-definePageMeta({ nav: '', unit: '14' })
+definePageMeta({ nav: '', unit: '14', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const route = useRoute()
 const config = useRuntimeConfig()
 const clubAssets = computed(() => getClubAssets(config.public.club))
 
 useSeoMeta({
-  title: computed(() => `Email 驗證｜${clubAssets.value.nameZh}`),
+  title: computed(() => (isEn.value ? getShopSeoEn('verifyEmail', CLUB_NAME_EN).title : `Email 驗證｜${clubAssets.value.nameZh}`)),
   robots: 'noindex, nofollow',
 })
 
@@ -24,7 +24,7 @@ onMounted(async () => {
   const token = typeof route.query.token === 'string' ? route.query.token : ''
   if (!token) {
     state.value = 'bad'
-    message.value = '驗證連結不完整，請回到信件重新點擊連結。'
+    message.value = tx('驗證連結不完整，請回到信件重新點擊連結。', 'The verification link is incomplete. Please click the link in the email again.')
     return
   }
   try {
@@ -33,7 +33,7 @@ onMounted(async () => {
   }
   catch (err) {
     state.value = 'bad'
-    message.value = toMemberApiError(err, '驗證連結無效或已過期。').detail
+    message.value = toMemberApiError(err, tx('驗證連結無效或已過期。', 'This verification link is invalid or has expired.'), isEn.value).detail
   }
 })
 
@@ -41,27 +41,27 @@ const email = ref('')
 const resendBusy = ref(false)
 const resendMessage = ref('')
 async function resend() {
-  if (!email.value.trim()) { resendMessage.value = '請輸入註冊用的 Email。'; return }
+  if (!email.value.trim()) { resendMessage.value = tx('請輸入註冊用的 Email。', 'Please enter the email address you registered with.'); return }
   resendBusy.value = true
   try {
     await $fetch('/api/backend/member/auth/resend-verification', {
       method: 'POST',
       body: { email: email.value.trim(), club: config.public.club, lang: locale.value },
     })
-    resendMessage.value = '若此 Email 已註冊且尚未驗證，驗證信將於稍後寄出，請檢查信箱（含垃圾信件匣）。'
+    resendMessage.value = tx('若此 Email 已註冊且尚未驗證，驗證信將於稍後寄出，請檢查信箱（含垃圾信件匣）。', 'If this email address is registered and not yet verified, a verification email will be sent shortly. Please check your inbox, including your spam folder.')
   }
-  catch (err) { resendMessage.value = toMemberApiError(err).detail }
+  catch (err) { resendMessage.value = toMemberApiError(err, undefined, isEn.value).detail }
   finally { resendBusy.value = false }
 }
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/member/')">會員中心</a></li>
-      <li aria-current="page">Email 驗證</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/member/')">{{ tx('會員中心', 'Member Centre') }}</a></li>
+      <li aria-current="page">{{ tx('Email 驗證', 'Email verification') }}</li>
     </ol>
   </div>
 </nav>
@@ -69,18 +69,19 @@ async function resend() {
 <section class="page-hero">
   <div class="container">
     <p class="page-hero__eyebrow">Member Centre</p>
-    <h1>Email 驗證<span class="en">Verify Email</span></h1>
+    <h1>{{ tx('Email 驗證', 'Email verification') }}<span v-if="!isEn" class="en">Verify Email</span></h1>
   </div>
 </section>
 
 <section class="band member-band" aria-labelledby="verify-title">
   <div class="band-inner container">
-    <h2 id="verify-title" class="visually-hidden">Email 驗證結果</h2>
+    <h2 id="verify-title" class="visually-hidden">{{ tx('Email 驗證結果', 'Email verification result') }}</h2>
     <div class="form-layout form-layout--narrow">
-      <p v-if="state === 'checking'" class="mc-empty" role="status">驗證中…</p>
+      <p v-if="state === 'checking'" class="mc-empty" role="status">{{ tx('驗證中…', 'Verifying…') }}</p>
       <div v-else-if="state === 'ok'" class="mc-alert mc-alert--ok" role="status">
-        <p><strong>Email 驗證完成。</strong>您的帳號已啟用，並已建立{{ clubAssets.shortNameZh }}的一般會員會籍與電子會員卡。</p>
-        <p><a class="btn btn--primary btn--sm" :href="lp('/zh/member/')">前往登入</a></p>
+        <p v-if="isEn"><strong>Your email has been verified.</strong> Your account is now active, and a Registered member membership and digital membership card for {{ CLUB_NAME_EN }} have been created.</p>
+        <p v-else><strong>Email 驗證完成。</strong>您的帳號已啟用，並已建立{{ clubAssets.shortNameZh }}的一般會員會籍與電子會員卡。</p>
+        <p><a class="btn btn--primary btn--sm" :href="lp('/zh/member/')">{{ tx('前往登入', 'Go to sign in') }}</a></p>
       </div>
       <template v-else>
         <div class="mc-alert mc-alert--error" role="alert">
@@ -88,14 +89,14 @@ async function resend() {
         </div>
         <form class="tcrfc-form" novalidate @submit.prevent="resend">
           <fieldset>
-            <legend>重寄驗證信</legend>
+            <legend>{{ tx('重寄驗證信', 'Resend verification email') }}</legend>
             <div class="form-field">
-              <label for="ve-email">註冊用的 Email</label>
+              <label for="ve-email">{{ tx('註冊用的 Email', 'Email address you registered with') }}</label>
               <input id="ve-email" v-model="email" type="email" autocomplete="email" maxlength="200">
             </div>
           </fieldset>
           <p v-if="resendMessage" class="mc-alert mc-alert--info" role="status">{{ resendMessage }}</p>
-          <button type="submit" class="btn btn--primary btn--block" :disabled="resendBusy">{{ resendBusy ? '處理中…' : '重寄驗證信' }}</button>
+          <button type="submit" class="btn btn--primary btn--block" :disabled="resendBusy">{{ resendBusy ? tx('處理中…', 'Processing…') : tx('重寄驗證信', 'Resend verification email') }}</button>
         </form>
       </template>
     </div>

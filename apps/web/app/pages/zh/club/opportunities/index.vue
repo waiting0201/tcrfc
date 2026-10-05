@@ -8,9 +8,9 @@
 // 「外籍球員招募」兩段正文改為 `club-copy.ts` 工廠函式（`getJoinFirstTeamBody`／
 // `getForeignPlayerBody`），依規劃書 §1.3「四項以外不得另行設計」維持本頁對藍鯨開放。
 // 試訓場次表格兩俱樂部共用同一份通用空白狀態文字（無俱樂部專屬事實），不需要分支。
-definePageMeta({ nav: 'club', unit: '3.3' })
+definePageMeta({ nav: 'club', unit: '3.3', enReady: true })
 
-const { lp, locale } = useLocale()
+const { lp, locale, isEn, tx } = useLocale()
 const config = useRuntimeConfig()
 const clubKey = computed<'tcrfc' | 'bw'>(() => (config.public.club === 'bw' ? 'bw' : 'tcrfc'))
 const isTcrfc = computed(() => clubKey.value === 'tcrfc')
@@ -18,13 +18,13 @@ const isTcrfc = computed(() => clubKey.value === 'tcrfc')
 const { facts } = useSiteFacts(clubKey.value)
 // P4 試訓場次（H 批）：未結束的公開場次，API 失敗＝空陣列
 const { trials } = await usePublicTrials()
-const hero = computed(() => getPlayerOpportunitiesHero(clubKey.value))
-const joinBody = computed(() => getJoinFirstTeamBody(clubKey.value, facts.value))
-const foreignBody = computed(() => getForeignPlayerBody(clubKey.value, facts.value))
+const hero = computed(() => (isEn.value ? getPlayerOpportunitiesHeroEn() : getPlayerOpportunitiesHero(clubKey.value)))
+const joinBody = computed(() => (isEn.value ? getJoinFirstTeamBodyEn(facts.value) : getJoinFirstTeamBody(clubKey.value, facts.value)))
+const foreignBody = computed(() => (isEn.value ? getForeignPlayerBodyEn(facts.value) : getForeignPlayerBody(clubKey.value, facts.value)))
 
 useSeoMeta({
-  title: computed(() => getPlayerOpportunitiesSeo(clubKey.value).title),
-  description: computed(() => getPlayerOpportunitiesSeo(clubKey.value).description),
+  title: computed(() => (isEn.value ? getPlayerOpportunitiesSeoEn() : getPlayerOpportunitiesSeo(clubKey.value)).title),
+  description: computed(() => (isEn.value ? getPlayerOpportunitiesSeoEn() : getPlayerOpportunitiesSeo(clubKey.value)).description),
 })
 
 // G-12 常見問題快捷區塊：trials 掛載點（db/seed FAQ_EMBED_SLOTS「試訓頁（3.3）」），
@@ -34,12 +34,12 @@ useFaqPageSchema(faqs)
 </script>
 
 <template>
-<nav class="breadcrumb" aria-label="麵包屑">
+<nav class="breadcrumb" :aria-label="tx('麵包屑', 'Breadcrumb')">
   <div class="container">
     <ol>
-      <li><a :href="lp('/zh/')">首頁</a></li>
-      <li><a :href="lp('/zh/club/')">俱樂部</a></li>
-      <li aria-current="page">球員機會</li>
+      <li><a :href="lp('/zh/')">{{ tx('首頁', 'Home') }}</a></li>
+      <li><a :href="lp('/zh/club/')">{{ tx('俱樂部', 'Football Club') }}</a></li>
+      <li aria-current="page">{{ tx('球員機會', 'Player Opportunities') }}</li>
     </ol>
   </div>
 </nav>
@@ -56,11 +56,11 @@ useFaqPageSchema(faqs)
 <section class="band" id="join" aria-labelledby="join-title">
   <div class="band-inner container">
     <div class="prose">
-      <h2 id="join-title">{{ isTcrfc ? '加入台中磐石 Join TCRFC' : '加入台中藍鯨' }}</h2>
+      <h2 id="join-title">{{ isEn ? 'Join Taichung Rock' : (isTcrfc ? '加入台中磐石 Join TCRFC' : '加入台中藍鯨') }}</h2>
       <!-- GEO-03（S1-12d）：聯賽名稱為單一來源 site-facts.ts，不在此重複寫死字面值。 -->
       <p>{{ joinBody }}</p>
     </div>
-    <a class="btn btn--primary" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">填寫加入球隊報名表</a>
+    <a class="btn btn--primary" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">{{ tx('填寫加入球隊報名表', 'Fill in the squad registration form') }}</a>
   </div>
 </section>
 
@@ -69,27 +69,28 @@ useFaqPageSchema(faqs)
     <div class="eyebrow-row">
       <div>
         <p class="kicker">TRIALS</p>
-        <h2 class="section-title" id="trials-title">試訓場次</h2>
+        <h2 class="section-title" id="trials-title">{{ tx('試訓場次', 'Trial sessions') }}</h2>
       </div>
-      <p class="section-lede">日期、地點、對象、名額與報名截止，開放場次將公告於此。</p>
+      <p class="section-lede">{{ tx('日期、地點、對象、名額與報名截止，開放場次將公告於此。', 'Dates, venues, who each session is for, places available and registration deadlines. Open sessions will be announced here.') }}</p>
     </div>
 
     <!-- 試訓場次列表＋線上報名（P4，H 批）：資料來自 GET trials；沒有場次時元件自己顯示原本的「目前尚無公告中的試訓場次」。 -->
     <TrialSchedule :trials="trials" />
-    <a class="btn btn--dark btn--sm" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">登記試訓意願</a>
+    <a class="btn btn--dark btn--sm" :href="lp('/zh/join/player/')" style="margin-top:1.5rem">{{ tx('登記試訓意願', 'Register your interest in a trial') }}</a>
   </div>
 </section>
 
+<LocaleFallbackNotice v-if="isEn && hasFallbackLocale(faqs)" partial />
 <section id="trials-faq" class="band" aria-labelledby="trials-faq-title">
   <div class="band-inner container">
     <div class="eyebrow-row">
       <div>
         <p class="kicker">FAQ</p>
-        <h2 id="trials-faq-title" class="section-title">球員機會常見問題</h2>
+        <h2 id="trials-faq-title" class="section-title">{{ tx('球員機會常見問題', 'Player Opportunities FAQ') }}</h2>
       </div>
-      <a :href="lp('/zh/faq/')">查看全部常見問題 →</a>
+      <a :href="lp('/zh/faq/')">{{ tx('查看全部常見問題 →', 'View all FAQs →') }}</a>
     </div>
-    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">常見問題收錄中，稍後將於本頁公布。</p>
+    <p v-if="faqs.length === 0" class="is-pending" style="margin-top:1.5rem;">{{ tx('常見問題收錄中，稍後將於本頁公布。', 'FAQs are being compiled and will be published on this page soon.') }}</p>
     <dl v-else class="faq-embed-list">
       <div v-for="f in faqs" :key="f.id" class="faq-embed-item">
         <dt>{{ f.question }}</dt>
@@ -112,23 +113,24 @@ useFaqPageSchema(faqs)
 
 <section class="band grain cta-band" id="opp-cta" aria-labelledby="opp-cta-title">
   <div class="band-inner container">
-    <h2 class="visually-hidden" id="opp-cta-title">相關頁面</h2>
+    <h2 class="visually-hidden" id="opp-cta-title">{{ tx('相關頁面', 'Related pages') }}</h2>
     <div class="cta-grid" style="grid-template-columns:repeat(2,minmax(0,1fr))">
       <div class="cta-card">
         <p class="cta-card__num">3.1</p>
-        <p class="cta-card__title">認識一線隊</p>
-        <p class="cta-card__desc">加入前，先了解一線隊陣容、教練團與賽程。</p>
-        <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">前往一線隊</a>
+        <p class="cta-card__title">{{ tx('認識一線隊', 'Meet the First Team') }}</p>
+        <p class="cta-card__desc">{{ tx('加入前，先了解一線隊陣容、教練團與賽程。', 'Before you join, get to know the First Team squad, the coaching staff and the fixtures.') }}</p>
+        <a class="btn btn--primary" :href="lp('/zh/club/first-team/')">{{ tx('前往一線隊', 'Go to the First Team') }}</a>
       </div>
       <!-- BW-C1：3.4 已重開（見 shared/utils/units.ts 檔頭），移除既有的 isTcrfc 隱藏。 -->
       <div class="cta-card">
         <p class="cta-card__num">3.4</p>
-        <p class="cta-card__title">國際發展通道</p>
+        <p class="cta-card__title">{{ tx('國際發展通道', 'International Pathways') }}</p>
         <p class="cta-card__desc">
-          <template v-if="isTcrfc">了解球員如何透過台中磐石通往歐洲、日本、香港的舞台。</template>
+          <template v-if="isEn">See how players can reach stages in Europe, Japan and Hong Kong through Taichung Rock.</template>
+          <template v-else-if="isTcrfc">了解球員如何透過台中磐石通往歐洲、日本、香港的舞台。</template>
           <template v-else>了解球員如何透過台中藍鯨旅外日本、中國。</template>
         </p>
-        <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">查看國際通道</a>
+        <a class="btn btn--primary" :href="lp('/zh/club/international-pathways/')">{{ tx('查看國際通道', 'View International Pathways') }}</a>
       </div>
     </div>
   </div>
