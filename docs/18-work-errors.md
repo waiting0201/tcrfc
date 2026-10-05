@@ -149,6 +149,24 @@
 | E-150 | 2026-10-03 | P4 後台代填試訓報名只驗姓名與狀態，沒有比照前台同一張 `registrations` 表的規則（聯絡方式至少一項、Email／電話格式、未成年須填家長）；P3 後台 Email 也不檢查，壞值直接寫入（後台實機驗收 B-3） | 同一張表的寫入驗證散在前台、P3、P4 三處各寫各的，後台端點「人為判斷」的註解被擴大解讀成「不需要驗證」 | 同一張表有多個寫入入口時，驗證抽成共用函式（`AdminInput.OptionalPhone`／`OptionalEmail`），新入口開工前先對照既有入口的驗證清單 | ✅ 測試 `試訓報名_後台代填驗證…`；無跨入口一致性掃描 |
 | E-151 | 2026-10-03 | 多個 CSV 匯出（P3、P4、G3、表單詢問、Lead）各自 `CreatedAt.ToString("yyyy-MM-dd HH:mm")`，輸出無標示的 UTC，使用者以為台灣時間而差 8 小時（後台實機驗收 B-5） | 資料庫時間戳存 UTC 是共識，但「輸出給人看的時間文字」沒有共用函式，每個匯出自己格式化 | 輸出時間文字一律走 `TaiwanClock.ToText`，表頭標「（台灣時間）」 | ✅ `TimestampFormatTests` 掃原始碼，禁止無 `AddHours(8)`／`UTC` 的 `yyyy-MM-dd HH:mm` 格式化 |
 | E-153 | 2026-10-05 | 後台 `classifyByStatus` 對 400／401／403／404／409 以外一律回固定的「伺服器發生未預期的錯誤」，後端 503 刻意回的白話 `detail`（「檔案儲存尚未設定」）被吞掉，使用者上傳失敗只看到通用訊息（第二輪重驗） | 寫錯誤分流時只列了「會有 detail 的狀態」，把 5xx 整類當作不可信；E-140 補了 `body` 卻沒回頭檢視 `message` 該不該顯示 `detail` | 錯誤訊息的取捨以「後端是否刻意提供白話 detail」判斷，503 顯示 detail、500 維持通用 | 無（以 Playwright 實際上傳驗證） |
+| E-156 | 2026-10-05 | 先前判讀「上傳端點未驗只是缺 `AZURE_BLOB_CONNECTION_STRING`」不完整：本機即使補了 Azurite，API 自建的容器一律私有，上傳成功但瀏覽器讀圖片網址 403、全站圖片破圖，上傳端到端驗收仍然驗不了 | ✅ `seed-dev-blobs.py` 預建公開容器、`dev-azurite.sh`、`http-azurite` 設定檔，見下方條目 |
+| E-157 | 2026-10-05 | 修了種子（B-14 廣告曝光數字）卻沒重產 `db/prod/club-content-seed.sql`，`generate-prod-content-sql.py --check` 回「不一致」（本輪補種子區段 60 時才發現） | ✅ `ci.yml` 的 `prod-seed` job（見 `docs/20` §3） |
+| E-158 | 2026-10-05 | 藍鯨的 `llms.txt`／`llms-en.txt` 預設代表頁清單輸出「關於台中磐石／足球學院／台中磐石文化」（`SITE_UNITS[].labelZh` 是磐石版名稱），`llms-en.txt` 還寫死 `Taichung Blue Whale`（B-5：英文全名客戶未指定，開發端不得自挑）；`check-club-brand-leak` 只掃 HTML 頁面，兩份純文字檔一直沒被掃到 | ✅ `getUnitLabelZh(unit, club)`；`check-club-brand-leak.mjs` 路由清單加入 `/llms.txt`、`/llms-en.txt` |
+| E-159 | 2026-10-05 | `useOrganizationSchema()` 用 `watchEffect` ＋ `useSchemaOrg`，**合格時 SSR 也不輸出 Organization**；因真資料下 `schemaEligible` 恆為 false，「合格時輸出」這條路徑從來沒被走過，GEO-05「資料不足不輸出」的驗收只證明了一半 | ⚠️ 無自動檢查（需要能回 `schemaEligible=true` 的假 API），改以 `useHead(() => …)` 函式形式修正，並在 `apps/web/README.md` 記錄 fixture 驗證方式 |
+| E-160 | 2026-10-05 | 擴充開發種子（區段 60 加兩位球迷會員）前只 grep 了「會員編號」相關測試，漏掉「合格名單＝全部有效球迷會員」這種**由資料推導的數量**；全套測試 3 項 `AdminDrawsTests` 失敗（預期 2 實得 4） | ⚠️ 無（靠擴種子前掃推導式斷言；本輪已改測試並加 `DevAcceptanceSeedTests` 守門） |
+| E-170 | 2026-10-05 | migration 的清理 SQL 寫了 `([lat] IS NULL) <> ([lng] IS NULL)`——T-SQL 不能拿布林表達式做比較；因為包在 `EXEC(N'…')` 裡，錯誤只印一行「Incorrect syntax near '<'」，**後面的 `ALTER TABLE … ADD CONSTRAINT` 照樣成功**，清理那步靜默沒做（手動套用到開發庫時才從輸出發現） | ✅ `MigrationsOnBlankDatabaseTests`（空白庫＋最新 DDL 實際執行契約內的全部 migration：套用→回滾→再套用→冪等重跑；已驗證重新放回壞語句會紅燈） |
+| E-171 | 2026-10-05 | 公開課程詳情 `GET /{club}/programs/{slug}` 對**有掛夥伴**或**梯次有日期**的課程回 500：`PartnerRow` 的 SQL 欄位順序與 positional record 建構子不一致、`SessionRow` 用 `DateOnly?`（`E-20` 同一類錯誤第二次）；種子的藍鯨社區足球學校一直壞著，沒有測試逐一讀過每個課程詳情，第五批寫「未翻譯標示」測試時才發現 | ✅ `AppContractBatch5Tests.公開課程梯次與試訓場次…每個課程詳情都能讀`（逐一讀兩俱樂部全部課程詳情） |
+| E-172 | 2026-10-05 | 會籍訂單建立（`POST /member/membership-orders`）同一冪等鍵並行時，慢的請求在「查冪等鍵」之後、「查未完成訂單」之前被快的請求插入訂單，把**自己這把鍵的那張訂單**當成別張未完成訂單而回 409 `open_order_exists`（應回 200＋原訂單）；全套測試偶發一次、被當成不穩定測試放著（第五批），16 並行迴圈 15 輪即在第 4 輪重現 | ✅ `MembershipOrderTests.冪等鍵_高強度並行…`（16 並行×15 輪，修正前紅燈已驗證）；同類壓測已套到商店結帳、慈善捐款、試訓報名、活動報名、加入俱樂部 |
+| E-161 | 2026-10-05 | 並行派出的兩個 agent（backend-engineer、frontend-architect）各自在 `docs/18` 開了 **E-158**，撞號；主 session 合併時改後端那筆為 E-160 | ⚠️ 無（靠派工時預先分配編號） |
+| E-162 | 2026-10-05 | iOS 專案的 xcconfig 設了 `PRODUCT_NAME`，專案層級設定套到測試 target，`xcodebuild test` 報重複輸出 | 無（建置即報錯，當日修正） |
+| E-190 | 2026-10-05 | Android 冷啟動被深連結叫起時，深連結處理比 NavHost 設好導覽圖還早執行，`navigate`／`graph` 丟 `IllegalStateException`（setGraph() 之前）而閃退；單元測試全綠、手動只測過「App 已在執行時再點連結」，冒煙測試第一次跑就抓到 | ✅ `SmokeTest` 的深連結 Intent 案例（match、player、news、store、program、schedule） |
+| E-163 | 2026-10-05 | Android 深連結解析器的 Regex 寫了未跳脫的 `}`（`\\{(\\w+)}`）：JVM 單元測試全過，但 Android 的 ICU 正規式報 `PatternSyntaxException`，實機點「完成引導」進主畫面即閃退 | ✅ **instrumented 冒煙測試**（`tcrfc-app-android` 的 `SmokeTest`，`./gradlew connectedDevDebugAndroidTest`，2026-10-05 起；見 E-190） |
+| E-164 | 2026-10-05 | 主 session 把 Android 的「開賽提醒預設關閉」當成兩端共同決定轉給 iOS，沒有先核對 App 規劃書 §6.2（賽事提醒預設「開」）；iOS 依規劃書回報才更正 | ⚠️ 無（靠轉述前查規格） |
+| E-185 | 2026-10-05 | iOS 自行把「台中磐石足球俱樂部」剝成「磐石」顯示，違反主站規劃書 §0 第 2 點（中文簡稱寫「台中磐石」、不得單獨用「磐石」）；由主 session 審查指出 | 無（改顯示全名並加測試；後端補 `ClubDto.shortName` 後接上） |
+| E-186 | 2026-10-05 | iOS 電子會員卡的 QR 在畫面上是一整塊空白：`UIImage(ciImage:)` 在 SwiftUI 不會繪出；單元測試只斷言「回傳非 nil」所以沒擋住，是模擬器截圖才看到 | 有（單元測試 `testQRImageIsBitmapBackedNotBlank`；**升級為機制（E-189 同批）**：XCUITest 冒煙測試 `testMemberCardShowsAScannableLookingQR` 在真的 App 畫面上截圖斷言 QR 有深淺像素，`./scripts/smoke.sh`，已用「改回 `UIImage(ciImage:)`」實測會失敗） |
+| E-187 | 2026-10-05 | iOS 網路層把「5xx／斷網重試 3 次」套在**所有**請求，包含更新權杖續期與重產 QR、加入俱樂部等有副作用的 POST——續期被重試會用已輪替的舊權杖，被後端判為重用而撤銷整條登入鏈；對照 Android 的決定才發現 | 有（`testStateChangingPostsAreNeverRetried`；`APIRequest.retryable` 預設只 GET／PUT） |
+| E-188 | 2026-10-05 | iOS 為「改測試」寫了 `open(p,'w').write(open(p).read())`：先以寫入模式開檔把檔案截成 0 位元組再讀，`CoreLogicTests.swift` 17 項測試無聲消失，綠燈的測試總數少了 9 項才發現 | 無（靠對照測試總數；改測試前先 `git diff --stat` 看有沒有整檔被清空） |
+| E-189 | 2026-10-05 | iOS 預覽用假 API（`FixtureContentAPI`）的呼叫紀錄陣列沒有鎖，四個廣告版位並行載入時同時 `append`，App 閃退（malloc: pointer being freed was not allocated）；單元測試序列呼叫抓不到，是模擬器開首頁截圖看到桌面才發現 | 有（鎖＋單元測試 `FixtureConcurrencyTests`；**升級為機制**：XCUITest 冒煙測試 `testOnboardingThreeStepsThenHomeWithConcurrentAdSlots` 在首頁四個廣告版位並行載入的情境下跑完整流程並斷言沒有閃退，`./scripts/smoke.sh`） |
 
 ---
 
@@ -2600,3 +2618,136 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **根因（可改掉的行為）**：① 以為「參數沒給」會自然變 400，沒實測過框架的綁定例外在自訂全域例外處理下的狀態碼；② 寫 CORS 只想到「放行來源與憑證」，沒盤點前端要讀的回應標頭；③ 限流只設 `RejectionStatusCode`，沒補 `OnRejected`。
 - **下次怎麼避免**：新增端點的必填 query／本文，要實打一次「缺值」「格式錯」確認是 400 中文；前端會讀的回應標頭（下載檔名、等待秒數）要同時出現在 CORS expose 清單與測試。
 - **防呆**：✅ 全域 `BadHttpRequestException`→400（`ApiExceptionHandler`）；兩個刪除端點改 `DateTime?`＋`ConcurrencyInput.RequireExpectedUpdatedAt`（日常中文訊息）；`ArchitectureTests.端點handler不得宣告必填的DateTime或DateOnly_query參數` 掃描全部 Map 端點；`ApiBoundaryBehaviorTests`（缺值／格式錯／CORS expose）與 `AdminAuthRateLimitingTests`（429 帶 Retry-After）。
+
+### E-156 「上傳未驗」只當成缺環境變數，漏掉本機容器預設私有（2026-10-05，上傳端到端收尾）
+
+- **錯在哪**：STATUS 與驗收紀錄把 S2-1／S2-2／S2-3／S3-1／S3-3／AP-1「上傳未驗」歸因於本機未設 `AZURE_BLOB_CONNECTION_STRING`，接法只想到「補一個連線字串」。實際即使指到 Azurite，`BlobImageStorageService` 自建容器是 `PublicAccessType.None`（正式環境的匿名 blob 讀取由 Bicep 設定），圖片網址在瀏覽器一律 403，後台縮圖與前台圖片都破圖；而且此前 `apps/api/README.md` 多處引用「本機開發：Azurite」一節，該節標題其實不存在。
+- **根因（可改掉的行為）**：只看「服務有沒有接上」，沒走到「瀏覽器真的讀得到結果」這一步；引用文件章節名稱時沒回頭確認章節存在。
+- **下次怎麼避免**：替身（Azurite、假金流）上線前，用匿名客戶端實際讀一次產出物的公開網址；文件互相引用章節名稱時 grep 標題確認存在。
+- **防呆**：✅ `db/seed/seed-dev-blobs.py` 預建公開容器（拒絕非本機端點）；`apps/api/scripts/dev-azurite.sh`；`launchSettings.json` 的 `http-azurite`；`ImageUploadGeneralRuleAcrossModulesTests` 直接從 Azurite 取回物件逐項斷言 §4.0。⚠️ 「匿名可讀」本身沒有自動測試（整合測試走 SDK 帶金鑰，不經匿名路徑），靠 README 步驟。
+
+### E-157 改了種子沒重產正式庫內容種子（2026-10-05，上傳端到端收尾）
+
+- **錯在哪**：先前修正 B-14（廣告曝光種子不一致）改了 `backoffice_seed.py`，卻沒重產 `db/prod/club-content-seed.sql`；`python3 db/seed/generate-prod-content-sql.py --check` 因此回「不一致」（`ad_campaigns.delivered_total` 與 `ad_daily_stats` 數字）。本輪新增種子區段 60 時才發現並一併重產。
+- **根因（可改掉的行為）**：`db/seed/README.md` 寫了「改了原產生器後執行重新產生並一併提交」，但改種子時沒有跑 `--check` 的固定動作，產生器的輸出與已提交檔案可以悄悄分叉。
+- **下次怎麼避免**：改 `generate-club-seed-sql.py`／`backoffice_seed.py` 後固定跑 `generate-prod-content-sql.py --check` 與 `generate-prod-reference-sql.py --check`，不一致就重產一併提交。
+- **防呆**：✅ `.github/workflows/ci.yml` 的 `prod-seed` job（2026-10-05）：PR 動到種子或 `db/prod/` 時，以 GitHub-hosted runner 跑 `generate-prod-content-sql.py --check` 與 `generate-prod-reference-sql.py --check`，不一致即失敗；不用 secrets、不需資料庫。見 [`docs/20`](20-cicd.md) §3。
+
+### E-158 共用常數含俱樂部詞彙、純文字檔不在品牌殘留檢查範圍（2026-10-05，BW-7 藍鯨 GEO 驗收）
+
+- **錯在哪**：`llms.txt` 的預設「代表頁面」清單直接輸出 `SITE_UNITS[].labelZh`，其中 02／04／08 三個單元名稱本身含磐石詞彙（「關於台中磐石」「足球學院」「台中磐石文化」），藍鯨站的 AI 爬蟲檔因此混入磐石事實，且是中英兩份都有；`llms-en.txt` 另把藍鯨英文名寫死成 `Taichung Blue Whale`，等於替客戶選了三種寫法中的一種（B-5、docs/13 紀律 11）。
+- **根因（可改掉的行為）**：①把 `SITE_UNITS` 當「兩站共用的中性清單」，沒檢查欄位值是否含俱樂部詞彙（它原本只服務 sitemap，只用 `path`，`labelZh` 是後來 `llms.txt` 才開始用）；②品牌殘留檢查的路由清單是從頁面檔案樹算出來的，**不在檔案樹裡的輸出（`llms.txt`、`robots.txt`、`sitemap.xml`）全在檢查之外**。
+- **下次怎麼避免**：共用常數被新消費者使用時，逐欄檢查值是否含俱樂部專屬詞彙；新增任何「不是頁面」的對外輸出（純文字、XML、JSON-LD 以外的端點），同時加進品牌殘留檢查。
+- **防呆**：✅ `getUnitLabelZh(unit, club)`；`check-club-brand-leak.mjs` 掃 `/llms.txt`、`/llms-en.txt`（`robots.txt`／`sitemap.xml` 目前只有路徑沒有名稱，未加）。✅ B-5 英文名：`club-copy.ts` 新增 `BW_NAME_EN_PENDING`（目前中文名，定案後只改一處），`scripts/check-bw-en-name.mjs`（掛 `npm run lint`）掃出任何 `Taichung Blue Whale／Bluewhale` 寫法即失敗；規則記於 `docs/14` 藍鯨名稱段。
+
+### E-159 只驗了「資料不足不輸出」，沒驗「資料齊全會輸出」（2026-10-05，BW-8 藍鯨 Schema 驗收）
+
+- **錯在哪**：`useOrganizationSchema()` 的 `watchEffect` 在 `useFetch` 尚未回來時第一次執行，資料到手後才呼叫 `useSchemaOrg`，已脫離元件注入脈絡；改成 `useSchemaOrg(computed)` 也沒用，nuxt-schema-org 在 server 端對 ref 只求值一次。結果 `schemaEligible=true` 時首頁與關於頁**完全沒有** Organization 節點。
+- **根因（可改掉的行為）**：真資料的 `schemaEligible` 恆為 false，驗收時只看到「沒輸出」就當作 GEO-05 正確，**沒有讓資料變成合格再看一次**；兩個分支只驗了一個。`SportsTeam` 用 `useHead(() => …)` 是對的，同檔兩個 composable 寫法不一致當時沒被當成警訊。
+- **下次怎麼避免**：任何「條件式輸出」的功能，驗收要兩個分支都走（用假 API 或測資讓條件成立）；同檔兩個做同一件事的函式寫法不同時，先弄懂為什麼。
+- **防呆**：⚠️ 無自動檢查（需要可回 `schemaEligible=true` 的假 API）。已改為 `useHead(() => …)`，並於 `apps/web/README.md` 留下 fixture 驗證步驟。
+
+### E-160 擴充種子漏掃「由資料推導的數量」斷言（2026-10-05，上傳端到端收尾）
+
+- **錯在哪**：補 S2-11 球衣登記驗收資料時新增兩位「有效球迷會員」，只搜尋了測試裡的會員編號與會員總數斷言，沒想到抽獎合格名單的定義就是「有效球迷會籍」，`AdminDrawsTests` 把「合格人數＝2」「roster 序號 1、2」寫死；全套測試 3 項失敗（1327／1330）。
+- **根因（可改掉的行為）**：盤點「會被新種子影響的斷言」時只依「我新增的欄位值」去 grep，沒有依「新資料會被哪些**查詢條件**納入」反向盤點（球迷會員 → 抽獎名單、報表、公開統計）。
+- **下次怎麼避免**：擴充共用種子前，先列出新列符合的所有業務條件（tier、status、期間），再 grep 這些條件對應的查詢與測試；跑全套而不是只跑相關檔案。
+- **防呆**：⚠️ 無自動防呆。本輪處置：`AdminDrawsTests` 以常數 `DevAcceptanceEligible` 明示「種子合格名單含驗收會員」，`DevAcceptanceSeedTests` 唯讀守門種子存在。已有的做法見 `patterns_seed_expansion_safety`（先派唯讀 QA 盤點基線假設）——這次沒做，下次擴種子前照做。
+
+
+### E-161 並行 agent 各自開 docs/18 新號而撞號（2026-10-05，主 session 派工）
+
+- **錯在哪**：同時派 backend-engineer 與 frontend-architect，兩者都「讀最新號＋1」開了 E-158；後端那筆事後改為 E-160（`STATUS.md` 第 9 節引用一併改）。
+- **根因（可改掉的行為）**：派並行任務時只切分了**程式目錄**，沒有切分**共用的流水號資源**（`docs/18` 編號），讓各 agent 依「讀檔當下的最大號」自行取號。
+- **下次怎麼避免**：並行派工、且可能寫 `docs/18` 時，在每個 prompt 預先分配不重疊的號段（例如 A 用 E-170–E-174、B 用 E-175–E-179），或要求以 `E-TBD-<agent>` 佔位、由主 session 合併時編號。合併前一律 `grep -c "^| E-NNN"` 檢查重號。
+- **再犯（2026-10-05，同日）**：派工時分配了 `docs/18` 號段，卻沒分配 `docs/19` §11 的小節號；四個 agent 各自「取下一個字母」，出現兩個 §11e、兩個 §11i。主 session 改為 §11e-1（Android Phase B，與其 §11e-2／§11e-3 成系列）與 §11j（後端第五批），並逐一修正 STATUS、apps/api/README 與 docs/19 內的引用。**規則升級：並行派工時，所有「流水號資源」（錯誤編號、文件小節號、migration 名稱）都要在 prompt 裡預先分配，或要求以 `TBD-<agent>` 佔位由主 session 合併。**
+- **防呆**：⚠️ 無自動防呆。
+
+### E-162 xcconfig 設了 `PRODUCT_NAME`，專案層級設定同時套到測試 target 而產生重複輸出（2026-10-05，iOS AP-2）
+
+- **錯在哪**：iOS 專案 `Config/*.xcconfig` 寫了 `PRODUCT_NAME = TcrfcApp`，xcconfig 是專案層級，連單元測試 target 也被改名成 `TcrfcApp`，`xcodebuild test` 報 `Multiple commands produce …TcrfcApp.swiftmodule`。
+- **根因（可改掉的行為）**：把「只屬於某個 target 的值」放進專案層級的 xcconfig；target 名稱本來就等於產品名，根本不必設。
+- **下次怎麼避免**：xcconfig 只放環境差異（API 網址、bundle id 以外的建置條件）；target 專屬設定寫在 `project.yml` 該 target 的 `settings`。新增建置設定後立刻跑一次 `xcodebuild test`。
+- **防呆**：無（建置當下即報錯，當日修正）。
+
+### E-163 Regex 在 JVM 單元測試通過、Android 執行期閃退（2026-10-05，Android AP-2）
+
+- **錯在哪**：`DeepLinkParser.webFallback` 用 `Regex("\\{(\\w+)}")`，JVM 的 `java.util.regex` 容許未跳脫的 `}`，Android 的 ICU 實作不容許；單元測試 69 項全綠，模擬器上一進主畫面就 `PatternSyntaxException`。
+- **根因（可改掉的行為）**：只用 JVM 單元測試當「能跑」的證據，沒有在模擬器走過主流程；兩個平台的正規式方言不同。
+- **下次怎麼避免**：寫 Regex 時 `{`、`}` 一律成對跳脫；Android 的每個畫面交付前至少在模擬器走一遍（引導→各分頁→一條深連結）。
+- **防呆**：✅ 2026-10-05 升級成機制（同類第三次：Android E-163、iOS E-186／E-189 皆為「單元測試全綠、打開畫面才壞」）：`app/src/androidTest/.../SmokeTest.kt` 以 dev flavor 預覽資料在模擬器走過引導三步、五個分頁、賽事詳情、新聞全文、會員卡（QR 非空白）、課程、店家、設定、抽獎資訊與 Intent 深連結，一條指令 `./gradlew connectedDevDebugAndroidTest`（README「冒煙測試」）；CI（AP-7）必須跑這組。
+
+
+### E-185 自行推導俱樂部簡稱，違反名稱規則（2026-10-05，iOS AP-2／AP-3）
+
+- **錯在哪**：`ClubDisplay.shortName` 以剝除「台中」與「足球俱樂部」等前後綴推導簡稱，球隊分頁、新聞來源、卡片都顯示「磐石」「藍鯨」。主站規劃書 §0 第 2 點規定中文簡稱一律寫「台中磐石」，**不得單獨用「磐石」**（`docs/14` 名稱寫法）。
+- **根因（可改掉的行為）**：遇到「DTO 沒有簡稱欄位」時自行發明推導規則，而沒有先掃 `docs/14` 的名稱寫法與規劃書 §0；回報裡把它當成「契約缺口」列出，卻已經先照自己的寫法上線。
+- **下次怎麼避免**：任何對外顯示的名稱，**資料沒給就顯示全名**，缺欄位列進回報等後端補；動手前掃 `docs/14` 名稱寫法。
+- **防呆**：有（`ClubDisplayTests.testClubNamesAreNeverAbbreviatedByTheApp`）；Android 端建議同樣加一條。
+
+### E-186 QR Code 畫成空白、單元測試只驗「非 nil」（2026-10-05，iOS AP-3）
+
+- **錯在哪**：`QRImage.make` 回傳 `UIImage(ciImage:)`，在 SwiftUI `Image(uiImage:)` 裡不繪出，會員卡 QR 區是一塊白色方框；`testQRImageGenerates` 只 `XCTAssertNotNil`，全綠。
+- **根因（可改掉的行為）**：產生影像類輸出時只驗「有東西回來」，沒驗「內容真的畫得出來」；而且交付前沒有先在模擬器看過那個畫面（截圖才發現）。
+- **下次怎麼避免**：影像／圖形類功能的測試要檢查**像素**（含深淺兩種值）；每個新畫面交付前至少截一次圖看過。
+- **防呆**：有——單元測試 `testQRImageIsBitmapBackedNotBlank`，以及 **XCUITest 冒煙測試**（`./scripts/smoke.sh`）在真的畫面截圖斷言 QR 非空白（2026-10-05 升級為機制，已用改回舊寫法實測會失敗）。
+
+### E-187 網路層對有副作用的 POST 也自動重試，續期可能被判為重用（2026-10-05，iOS AP-3）
+
+- **錯在哪**：`APIClient.send` 對所有請求在 5xx／斷網時重試 3 次，包含 `POST /member/auth/refresh`、重產 QR token、加入俱樂部、註冊、改密碼、刪除帳號。更新權杖每次使用即輪替，回應遺失後用舊權杖重試會被後端判為重用、撤銷整條鏈（`docs/19` §4 已知取捨）。
+- **根因（可改掉的行為）**：把 AP-2 為「讀取端點」寫的重試規則原樣沿用到會員寫入端點，沒有重讀 `docs/19` §3 對「付款特例」的判準與 §4 的取捨；是看到 Android 的決定才發現。
+- **下次怎麼避免**：新增任何 POST／DELETE 端點前先問「重送會不會重複副作用或觸發重用偵測」；重試預設只給冪等方法，需要的另行明示。
+- **防呆**：有（`APIRequest.retryable` 預設值＋`testStateChangingPostsAreNeverRetried`）。
+
+### E-170 migration 清理語句是無效 T-SQL，錯誤被 EXEC 與批次吞掉（2026-10-05，第四批 `AddClubShortNameGuardianConsent`）
+
+- **錯在哪**：`partner_stores` 座標約束的前置清理用了 `([lat] IS NULL) <> ([lng] IS NULL)`（SQL Server 沒有布林型別可比較）。語句在 `EXEC(N'…')` 內，編譯錯誤只讓該語句失敗、不中止批次，同一個 `BEGIN…END` 的下一句 `ADD CONSTRAINT` 照常成功——結果約束加上了、清理沒做。若庫裡真有半邊座標或 (0,0)，約束會因既有資料違反而整句失敗；本機庫碰巧沒有這類資料才沒出事。
+- **根因（可改掉的行為）**：migration 的 SQL 只寫、沒有在任何資料庫上執行過就交付；把多句 DDL／DML 包在 `EXEC` 與 `IF…BEGIN…END` 裡，讓語法錯誤變成「印一行就繼續」。
+- **下次怎麼避免**：寫完 migration 先用 sqlcmd 在開發庫真的跑一次並**看完整輸出**（`-b` 不夠，`EXEC` 內的錯誤不會觸發）；條件改用 `(a IS NULL AND b IS NOT NULL) OR (a IS NOT NULL AND b IS NULL)`；有清理再加約束的 migration，兩步分開成兩個 `migrationBuilder.Sql`，讓任一步失敗都不會被後一步掩蓋。
+- **防呆**：✅ **`MigrationsOnBlankDatabaseTests`（2026-10-05 第五批補上，掛在既有 `dotnet test`，CI 的拋棄式 SQL Server 容器也會跑）**：建一個拋棄式資料庫（`tcrfc_migprobe_<guid>`，只刪自己建的）→ 套用最新 `db/club-schema.sql`（json→nvarchar(max)）→ 把冪等契約起點（`AlignIndexesWithDdl2`）之前的 migration 標為已套用 → 套用其餘全部 → **回滾（每支 `Down` 執行）→ 再套用（每支 `Up` 本體真的執行）→ 清歷史冪等重跑**。ADO.NET 下批次內任何 T-SQL 錯誤（含 `EXEC` 內）都會丟 `SqlException`。已實測：把壞語句放回去，測試紅燈。此測試同時逮到本次 migration 的 `Down` 兩個問題（DDL 建的庫上值域 CHECK 是匿名、`EXEC(N'…' + QUOTENAME())` 語法不合法）。歷史 migration（起點之前）是 EF 直接產生的非冪等 `CreateTable`／`AddColumn`，不在契約內；新 migration 時間戳必晚於起點，自動落入契約。
+
+
+### E-188 改檔的腳本先截斷檔案，測試無聲少了一整檔（2026-10-05，iOS AP-4）
+
+- **錯在哪**：批次修改腳本裡有一行多餘的 `open(p,'w').write(open(p).read())`（想「存回去」），Python 先以寫入模式開檔（清空）再讀，`CoreLogicTests.swift` 變成空檔。`xcodebuild test` 仍然 TEST SUCCEEDED（空檔沒有失敗的測試），只有「執行測試數」從預期的約 160 變成 139。
+- **根因（可改掉的行為）**：只看「全綠」不看「測試數量」；腳本裡寫了沒有目的的讀寫。
+- **下次怎麼避免**：改完測試先 `git diff --stat` 檢查有沒有檔案整份被清空；全套測試跑完要核對**測試數**不低於上次。腳本不寫「原檔讀回寫回」的無用操作。
+- **防呆**：無（本輪從 git 還原並補回；建議 CI 對測試數設下限）。
+
+### E-164 轉述 agent 的執行層決定前沒核對規劃書（2026-10-05，主 session 派工）
+
+- **錯在哪**：Android 回報「開賽提醒預設關閉」，主 session 直接列為「執行層決定」請 iOS 對齊；App 規劃書 §6.2 的通知類型表明定賽事提醒預設「開」。iOS 依規劃書實作並回報不一致，才改請 Android 對齊規劃書。
+- **根因（可改掉的行為）**：把 agent 自定的值一律當成「規劃書沒寫的執行層決定」轉述，沒有先查規劃書對應章節是否已有規定。
+- **下次怎麼避免**：轉述任何「請另一端對齊」的決定前，逐項用 `grep` 查規劃書是否已有規定（預設值、上限、時間點特別容易有）；有規定就以規劃書為準，沒有才當執行層決定並寫進 docs/19。
+- **再犯（2026-10-05，同日）**：轉述後端回報的「離線曝光帶原始發生時間回傳」給兩端時，沒核對 App 規劃書 §2.4 硬規則 1「離線時不得計算廣告曝光」，Android 實作後依規劃書提出疑義才更正。**升級**：該條規則寫進 `docs/14` 廣告版位條下；主 session 轉述「請另一端照做」的指示前，對指示中每個帶數值或預設值、或涉及個資／計費／計數的項目，先 `grep` 規劃書原文並在指示裡附上章節號，沒有出處的才標為執行層決定。
+- **防呆**：⚠️ 無。
+
+### E-171 課程詳情對有夥伴或有日期的課程 500（2026-10-05，第五批）
+
+- **錯在哪**：`ProgramsRepository` 的課程夥伴查詢把 `Name` 排在 SQL 最後，但 `PartnerRow` positional record 的建構子是 `(Id, Slug, Name, LogoDarkKey, LogoLightKey, WebsiteUrl)`，Dapper 逐一對位失敗（`A parameterless default constructor or one matching signature … is required`）；修好後又露出 `SessionRow` 把 `date` 欄位宣告成 `DateOnly?`（`E-20`），有日期的梯次一樣失敗。兩者都是既有缺陷，只有「有掛夥伴／有日期」的課程會觸發，既有測試只讀了不含這些資料的課程。
+- **根因（可改掉的行為）**：Dapper positional record 的規則（欄位順序、`date`→`DateTime`）只寫在 `E-20` 與少數檔頭註解，沒有靠型別或測試強制；公開讀取端點的測試只抽樣、沒有「把種子裡每一筆都讀一遍」。**同一類錯第二次**：`E-20` 已升級，這次補的是覆蓋面。
+- **下次怎麼避免**：新增或修改 Dapper positional record 時，SQL 欄位別名順序抄建構子參數順序；`date` 一律 `DateTime?`；公開詳情端點的測試要把種子裡**每一筆**都讀一遍（含有關聯資料的）。
+- **防呆**：✅ 逐一讀全部課程詳情的測試。⚠️ 其他 repository 的 positional record 沒有同樣的全量測試——有需要再逐個補。
+
+### E-172 會籍訂單同一冪等鍵並行回 409 open_order_exists（2026-10-05）
+
+- **錯在哪**：`MembershipOrderService.CreateAsync` 的流程是「查冪等鍵 → 其他檢查 → 查同方案未完成訂單 → 插入」。同一鍵並行時，慢的請求通過第一步（當時沒有訂單），但在第三步看到快的請求剛插入的 `created` 訂單，就丟 `open_order_exists`（409）。冪等語意要求同一鍵一律回第一次的結果（201／200）。唯一鍵撞號後的 `catch` 只涵蓋「插入時才撞」，沒涵蓋「檢查時就看到對方」。
+- **根因（可改掉的行為）**：全套 `dotnet test` 偶發失敗一次，因單獨重跑與全套重跑都過就判「與本批無關、未處理」；原測試只有 6 並行×1 輪，機率低到抓不到。**偶發失敗的並行測試應先視為產品競態，用迴圈加大並行度重現，重現不了才能談測試不穩。**
+- **下次怎麼避免**：冪等路徑上，任何「發現已有東西存在就拒絕」的檢查，拒絕之前都要先確認那個東西是不是**同一把冪等鍵**造成的，是就回原結果。偶發紅燈一律記錄並用迴圈重現，不放著。
+- **防呆**：✅ `MembershipOrderTests.冪等鍵_高強度並行…`。✅ 已把同樣壓測套到其餘冪等／防重複端點（見下方「再犯與升級」）。
+
+
+### E-189 預覽用假 API 的紀錄陣列沒有鎖，並行呼叫閃退（2026-10-05，iOS AP-4）
+
+- **錯在哪**：`FixtureContentAPI.calls` 是普通陣列，首頁四個廣告版位各自 `Task` 並行呼叫 `ad(...)`，同時 `append` 造成記憶體損毀，App 啟動即閃退。
+- **根因（可改掉的行為）**：把假實作當成「只在單執行緒測試用」而沒有考慮它也被 Debug 建置的真畫面並行使用；測試全是序列呼叫，抓不到。
+- **下次怎麼避免**：被 UI 並行使用的假實作與共用紀錄一律加鎖；新增並行載入的畫面後，**先在模擬器真的打開那個畫面**（E-186 同一教訓：看過才算交付）。
+- **防呆**：有——鎖、並行呼叫單元測試，以及 **XCUITest 冒煙測試**（`./scripts/smoke.sh`，首頁廣告版位並行載入情境；AP-7 CI 要跑）。
+- **再犯與升級（同日，全端點壓測）**：盤點所有冪等／防重複的建立端點並各加「16 並行 × 多輪」測試。結果：① **試訓報名 `TrialsRepository.SubmitRegistrationAsync` 是同類真競態**——同一人並行重複送出，「查重複 → 插入」同時通過，產生多筆報名並重複扣名額（修正前紅燈）；修法比照活動報名，交易一開始先 `UPDLOCK` 鎖場次列使同一場報名串行化。② 商店結帳：查冪等鍵與讀購物車之間理論上有空窗（快的請求清空購物車 → 慢的回 409 `cart_empty`），**80 輪未重現**，仍加固（`cart_empty` 前再查一次冪等鍵）。③ 慈善捐款（單號由冪等鍵推導＋唯一鍵）、活動報名（已 `UPDLOCK` 活動列）、加入俱樂部（唯一鍵＋catch 讀現有）壓測皆無競態。④ 課程梯次報名與表單送出本來就沒有「重複擋下」語意，不適用。**升級**：不抽共用輔助（各處的「拒絕檢查」領域不同，抽象不出一個安全的共用形狀），改以 `docs/14` 的規則與各端點的壓測測試當機制。
+
+### E-190 冷啟動深連結在導覽圖建立前就導覽而閃退（2026-10-05，Android AP-5 冒煙測試）
+
+- **錯在哪**：`MainShell` 的 `LaunchedEffect` 一收到佇列中的深連結就 `nav.navigate(...)`／`nav.graph`，冷啟動時它可能比 `NavHost` 設好導覽圖還早執行，丟 `IllegalStateException: You must call setGraph() before calling getGraph()`——被深連結（含日後的 App Links、推播點擊）叫起的 App 直接閃退。
+- **根因（可改掉的行為）**：只在「App 已經開著再點深連結」的情境手動驗過，沒有走「冷啟動帶著深連結進來」；單元測試覆蓋的是解析器，不是導覽時序。同一類（執行環境才會壞）E-163 已記過一次。
+- **下次怎麼避免**：任何「收到外部事件就導覽」的程式，都要用冷啟動情境（`ActivityScenario.launch(intent)`）驗；導覽前先等導覽圖就緒（`nav.currentBackStackEntryFlow.first()`）。
+- **防呆**：✅ `SmokeTest` 深連結 Intent 案例（冷啟動帶連結）；README「冒煙測試」；CI（AP-7）要跑。
