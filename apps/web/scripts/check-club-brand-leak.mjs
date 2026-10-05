@@ -153,7 +153,9 @@ function findExemption(route, term) {
 }
 
 // 路由清單：與 check-club-image-leak.mjs 共用 scripts/lib/collect-routes.mjs
-const routes = collectAllRoutes()
+// 🔴 另掃兩份給 AI 爬蟲讀的純文字檔：`llms.txt`／`llms-en.txt` 不是頁面，不在檔案樹裡，但它們的預設代表頁清單
+// 曾輸出磐石專屬的單元名稱（BW-7 驗收，E-158），只掃 HTML 抓不到。
+const routes = [...collectAllRoutes(), '/llms.txt', '/llms-en.txt']
 
 // ---------------------------------------------------------------------------
 // 例外清單棘輪：這一版的 EXEMPT_PAGES 必須是上一版的子集合（只能減少）。

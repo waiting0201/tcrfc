@@ -48,23 +48,40 @@ export function useOrganizationSchema() {
     key: `org-schema-${club}`,
   })
 
-  watchEffect(() => {
+  // 🔴 BW-7 驗收修正（2026-10-05）：原本是 `watchEffect(() => { ... useSchemaOrg([...]) })`，**合格時 SSR 完全不輸出
+  // Organization**——實測（fixture API 回 schemaEligible=true）首頁沒有任何 Organization 節點。根因兩層：
+  //   1. `watchEffect` 回呼第一次同步執行時 `useFetch` 還沒回來（這裡刻意不 await），之後資料到手時才呼叫
+  //      `useSchemaOrg`，已脫離元件的注入脈絡；
+  //   2. 改成 `useSchemaOrg(computed(...))` 也不行：nuxt-schema-org 在 server 端對 ref 只 `toValue` 一次（呼叫當下），
+  //      資料仍是 null。
+  // 之前沒被發現是因為真資料下 schemaEligible 恆為 false（見檔頭），「合格時輸出」這條路徑從未被實際走過。
+  // 改成與下方 SportsTeam 同一種寫法：`useHead(() => ...)` 以**函式**傳入，SSR 在所有 await 完成後、輸出標籤時才求值。
+  // 輸出的是手刻 JSON-LD（不經 nuxt-schema-org 的 graph 合併）：Organization 本來就只在這個 composable 輸出一次，
+  // 沒有需要合併的同 @id 節點。不合格時回空物件、完全不輸出（GEO-05）。
+  useHead(() => {
     const c = data.value
-    if (!c?.schemaEligible) return
+    if (!c?.schemaEligible) return {}
     const siteUrl = (siteConfig.url ?? '').replace(/\/$/, '') || `https://${c.domain}`
-    useSchemaOrg([
-      defineOrganization({
-        name: c.name,
-        url: siteUrl,
-        logo: c.logoUrl ?? undefined,
-        // GEO-03／GEO-04：成立年份／主場地址與明文同一來源（useSiteFacts），資料不明時
-        // 整欄不輸出（不臆測），比照 GEO-05「資料不足時不輸出該欄位」的一貫原則。
-        foundingDate: facts.value.foundingDateIso ?? undefined,
-        address: facts.value.contact.address
-          ? { '@type': 'PostalAddress', streetAddress: facts.value.contact.address, addressCountry: 'TW' }
-          : undefined,
-      }),
-    ])
+    return {
+      script: [{
+        key: 'organization-schema',
+        type: 'application/ld+json',
+        innerHTML: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          '@id': `${siteUrl}/#organization`,
+          name: c.name,
+          url: siteUrl,
+          logo: c.logoUrl ?? undefined,
+          // GEO-03／GEO-04：成立年份／主場地址與明文同一來源（useSiteFacts），資料不明時
+          // 整欄不輸出（不臆測），比照 GEO-05「資料不足時不輸出該欄位」的一貫原則。
+          foundingDate: facts.value.foundingDateIso ?? undefined,
+          address: facts.value.contact.address
+            ? { '@type': 'PostalAddress', streetAddress: facts.value.contact.address, addressCountry: 'TW' }
+            : undefined,
+        }),
+      }],
+    }
   })
 }
 

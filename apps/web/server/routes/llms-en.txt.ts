@@ -33,8 +33,12 @@ export default defineEventHandler(async (event) => {
     // apps/api 暫時連不上：整份回退到內建預設文字，見檔頭說明。
   }
 
-  const siteName = assets.code === 'bw' ? 'Taichung Blue Whale' : 'Taichung Rock FC'
-  const defaultKeyPages = units.map((u) => `- ${u.labelZh}: ${u.path.replace(/^\/zh\//, '/en/')}`).join('\n')
+  // 🔴 藍鯨的英文正式全名客戶尚未指定（STATUS B-5；舊站並存 Taichung Bluewhale／Taichung Blue Whale Women's
+  // Football Team／Taichung blue whale 三種寫法），docs/13 §6 紀律 11：開發端不得自行挑一個。`llms-en.txt` 是 AI 爬蟲
+  // 直接讀的檔，選錯會一路汙染 AI 對藍鯨的稱呼（BW-7 驗收發現原本寫死 'Taichung Blue Whale'，已改）。
+  // 藍鯨在名稱確認前一律用中文正式名稱（與 og:site_name／Schema 的 NUXT_PUBLIC_SITE_NAME=台中藍鯨 一致）。
+  const siteName = assets.code === 'bw' ? assets.nameZh : 'Taichung Rock FC'
+  const defaultKeyPages = units.map((u) => `- ${getUnitLabelZh(u, club)}: ${u.path.replace(/^\/zh\//, '/en/')}`).join('\n')
 
   const positioning = content.positioningEn?.trim() || content.positioningZh?.trim()
     || `This file helps AI systems understand ${siteName}'s purpose and key pages (GEO-01).`

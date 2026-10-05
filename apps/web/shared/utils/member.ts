@@ -282,6 +282,43 @@ export interface MemberApiError {
   lockedUntil: string | null
 }
 
+// ── 註冊年齡閘門與監護人同意（主站規劃書「會員資料安全要求」：未滿 18 歲須經監護人同意方得註冊）──
+export type GuardianRelationship = 'parent' | 'legal_guardian'
+export const GUARDIAN_RELATIONSHIP_LABEL: Record<GuardianRelationship, string> = { parent: '父母', legal_guardian: '法定監護人' }
+
+/** 🔴 同意文案待法務定稿（B-9）。送出的版本號固定標成 `pending-legal`，後台 K1 看得到「文案未定稿」；
+ * 法務定稿後換成正式版本號（並改掉 `MemberAgeGuardian.vue` 的佔位說明），不得在此之前自擬法律條文。 */
+export const GUARDIAN_CONSENT_VERSION_PENDING = 'pending-legal'
+export const ADULT_AGE = 18
+
+export interface GuardianConsentBody {
+  consented: boolean
+  guardianName: string
+  relationship: GuardianRelationship
+  consentTextVersion: string
+}
+
+/** 台北當地日期（`YYYY-MM-DD`）。與後端 `TaiwanClock.ToDate` 同一時區（UTC+8，無日光節約），不依賴使用者裝置時區。 */
+export function taipeiToday(now: Date = new Date()): string {
+  return new Date(now.getTime() + 8 * 3600_000).toISOString().slice(0, 10)
+}
+
+/** 依台北當地日期算足歲；生日格式不合或晚於今天回 `null`（交給後端的範圍檢查擋）。 */
+export function taipeiAge(birthOn: string, now: Date = new Date()): number | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(birthOn)
+  if (!m) return null
+  const [by, bm, bd] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const [ty, tm, td] = taipeiToday(now).split('-').map(Number) as [number, number, number]
+  let age = ty - by
+  if (tm < bm || (tm === bm && td < bd)) age -= 1
+  return age < 0 ? null : age
+}
+
+export function isMinorBirth(birthOn: string, now?: Date): boolean {
+  const age = taipeiAge(birthOn, now)
+  return age !== null && age < ADULT_AGE
+}
+
 /** 從 `$fetch` 拋出的例外取出 ProblemDetails。代理一律原樣轉回後端的狀態碼與本文，所以 `err.data` 就是 ProblemDetails。 */
 export function toMemberApiError(err: unknown, fallback = '操作失敗，請稍後再試一次。'): MemberApiError {
   const e = err as { status?: number, statusCode?: number, data?: unknown } | null

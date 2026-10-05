@@ -154,6 +154,7 @@ async function onSubscribe() {
             <li><a :href="lp('/zh/faq/')">常見問題 FAQ</a></li>
             <li><a :href="lp('/zh/join/')">加入與聯絡</a></li>
             <li><a :href="lp('/zh/join/location/')">場地位置與地圖</a></li>
+            <li><a :href="lp('/zh/app/')">下載 App</a></li>
           </ul>
         </div>
         </template>

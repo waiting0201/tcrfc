@@ -1,14 +1,16 @@
 <script setup lang="ts">
-// app/pages/zh/club/first-team/player/[id]/index.vue — 3.1 球員詳情頁（S3-9；取代原本寫死楊朝景示範資料的「範本」頁）
+// app/pages/zh/club/first-team/player/[slug]/index.vue — 3.1 球員詳情頁（S3-9；取代原本寫死楊朝景示範資料的「範本」頁）
 //
 // 主站規劃書 §3.3 3.1「點擊進入球員詳情頁（基本資料、生涯數據、本季出賽、相關新聞、影片）」。
-// 資料：球員基本資料取自 `GET /{club}/players?team=`（與一線隊名單同一份，沒有單一球員端點）；
+// 資料：球員基本資料取自 `GET /{club}/players/{slug}?lang=`（slug 與 id 都接受、大小寫不敏感；別隊球員 404）；
 // 逐季數據 `GET /{club}/players/{id}/stats`（新→舊；後台手動輸入的球季數據以手動為準，否則由已結束賽事自動彙總）。
 // 🔴 助攻自動彙總時為 `null`（賽事紀錄沒有助攻資料）→ 顯示「—」，不是 0。
 // 🔴 照片只用後端給的 `photoUrl`（肖像同意 fail-closed，未同意為 null → 改用隊徽卡）；不顯示生日（未成年球員個資不上網頁）。
-// 🔴 找不到（不存在／別隊／別隊球員）一律真 404。動態路由不在 collect-routes 的檢查範圍，所以本頁沒有任何固定的磐石字樣。
+// 🔴 找不到（不存在／別隊／別隊球員）不 404，302 回名單頁（App 深連結回退，docs/19 §2）。動態路由不在 collect-routes 的檢查範圍，所以本頁沒有任何固定的磐石字樣。
 // 「相關新聞」「影片」兩區塊沒有公開資料來源（球員與文章／影片沒有可查詢的關聯端點），不放空殼；見 README 缺口。
 import type { PlayerCareerStatsResponse } from '#shared/utils/standings'
+import type { PlayerDto } from '#shared/utils/player'
+import { playerPath } from '#shared/utils/player'
 
 definePageMeta({ nav: 'club', unit: '3.1' })
 
@@ -19,35 +21,33 @@ const assets = computed(() => getClubAssets(clubKey.value))
 const teamCode = computed(() => (clubKey.value === 'tcrfc' ? 'D1' : 'BW1'))
 const { lp, locale } = useLocale()
 
-const id = computed(() => String(route.params.id))
-if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id.value)) {
-  throw createError({ statusCode: 404, statusMessage: 'Not Found' })
-}
+// 🔴 路由參數 `slug`（App 規劃書 §2.3：`tcrfc://player/{slug}` → `/zh/club/first-team/player/{slug}`）。
+// 正規網址是 slug；以 id（UUID）進來的舊連結／搜尋結果解析成功後 **301 到 slug 網址**，canonical 由全站機制依最終路徑產生，
+// 所以永遠指向 slug 網址（不會有兩個網址同內容）。參數認不得（不存在、別隊）時**不顯示 404**：App 未安裝的裝置點到深連結
+// 一律回退官網、不得顯示錯誤頁（規劃書 §2.3），所以 302 回名單頁（docs/19 §2 的回退規則）。
+const slugParam = computed(() => String(route.params.slug ?? '').trim())
 
-interface PlayerRow {
-  id: string
-  teamCode: string
-  shirtNo: number | null
-  position: string | null
-  heightCm: number | null
-  weightKg: number | null
-  nationality: string | null
-  preferredFoot: string | null
-  name: string | null
-  bio: string | null
-  photoUrl: string | null
-}
-const { data: playersData } = await useFetch<{ items: PlayerRow[] }>(`/api/backend/${config.public.club}/players`, {
-  query: { team: teamCode.value, pageSize: 100, lang: locale.value },
-  key: `first-team-players-${config.public.club}-${locale.value}`,
-})
-const player = computed(() => (playersData.value?.items ?? []).find(p => p.id.toLowerCase() === id.value.toLowerCase()) ?? null)
+const { data: playerData } = await useFetch<PlayerDto | null>(
+  () => `/api/backend/${config.public.club}/players/${encodeURIComponent(slugParam.value)}`,
+  {
+    query: { lang: locale.value },
+    key: `player-${config.public.club}-${locale.value}-${slugParam.value.toLowerCase()}`,
+    default: () => null,
+  },
+)
+// 只接一線隊球員（梯隊球員有自己的頁面規劃，且此頁文案寫死「一線隊」）。
+const player = computed(() => (playerData.value && playerData.value.teamCode === teamCode.value ? playerData.value : null))
 if (!player.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Not Found' })
+  await navigateTo(`${lp('/zh/club/first-team/')}#roster`, { redirectCode: 302, replace: true })
+} else if (player.value.slug && player.value.slug !== slugParam.value) {
+  // id 網址、或大小寫不同 → 301 到 slug 正規網址（`lp()` 負責 /en/ 前綴）。
+  await navigateTo(lp(playerPath(player.value.slug)), { redirectCode: 301, replace: true })
 }
+const id = computed(() => player.value?.id ?? '')
 
 const { data: career } = await useFetch<PlayerCareerStatsResponse | null>(() => `/api/backend/${config.public.club}/players/${id.value}/stats`, {
   default: () => null,
+  immediate: Boolean(player.value),
 })
 const seasons = computed(() => career.value?.seasons ?? [])
 const current = computed(() => seasons.value[0] ?? null)

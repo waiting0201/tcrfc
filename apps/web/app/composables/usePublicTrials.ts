@@ -18,6 +18,9 @@ export interface PublicTrial {
   enrolledCount: number
   deadlineOn: string | null
   status: string
+  statusCode?: string
+  statusLabelZh?: string
+  statusLabelEn?: string
   /** 狀態「開放」且未過截止日。 */
   isSignupOpen: boolean
   /** 「額滿／候補」且未過截止日：前台顯示「額滿候補」，仍可報名（列入候補）。 */

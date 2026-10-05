@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // app/pages/zh/perks/[slug].vue — 8.4 特約店家詳情（S2-11）
-// 資料：`GET {club}/partner-stores/{slug}`；草稿、合作期間外、別隊店家一律 404（後端已處理，這裡轉成 404 頁）。
+// 資料：`GET {club}/partner-stores/{slug}`；草稿、合作期間外、別隊店家後端回 404，這裡不顯示錯誤頁，
+// 302 回特約店家清單（App 規劃書 §2.3：`tcrfc://store/{id}` 的回退網址「不得顯示錯誤頁」，docs/19 §2）。
 // 店家的 `lat`／`lng` 是給行動 App 附近地圖用的，網頁前台只放地圖連結（`mapUrl`），不自行嵌第三方地圖。
 import type { PartnerStore } from '#shared/utils/member'
 
@@ -19,7 +20,7 @@ const { data: store, error } = await useFetch<PartnerStore>(`/api/backend/${club
   key: `partner-store-${club}-${slug}-${locale.value}`,
 })
 if (error.value || !store.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Not Found' })
+  await navigateTo(lp('/zh/perks/'), { redirectCode: 302, replace: true })
 }
 
 const safeUrl = (u: string | null | undefined) => (u && /^https?:\/\//i.test(u) ? u : null)

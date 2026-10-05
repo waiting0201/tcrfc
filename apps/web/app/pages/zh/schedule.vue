@@ -95,6 +95,7 @@
 // 需要明確 import（比照 app/composables/useSiteFacts.ts／useFaqPageSchema.ts 既有慣例，
 // shared/utils/ 不像 app/utils/ 會被自動引入）。
 import { venueAddressByName } from '#shared/utils/schema-batch2'
+import { resolveScheduleSlug } from '#shared/utils/schedule-route'
 
 definePageMeta({ nav: 'schedule', unit: '13', bodyClass: 'page-schedule' })
 
@@ -240,6 +241,39 @@ const availableSeasons = computed(() => Array.from(new Set(matches.value.map((m)
 const defaultSeason = computed(() => availableSeasons.value.at(-1) ?? 'all')
 
 const state = reactive({ team: 'all', mode: 'fixtures', comp: 'all', ha: 'all', view: 'list', season: defaultSeason.value })
+
+// ---- App 深連結回退網址：`/schedule/{隊別}`（`tcrfc://schedule/d1`）與 `/schedule/{賽事 id}`
+// （`tcrfc://match/{id}`）。規劃書 App §2.3 對照表；解析規則與未知參數的回退見 docs/19 §2。
+// 🔴 同一個元件服務三種網址（`/schedule/`、`/schedule/{隊別}/`、`/schedule/{賽事 id}/`），第二條路由在
+// nuxt.config.ts 的 `pages:extend` 加、指向本檔，所以 definePageMeta（單元 13）兩站一致。
+// 解析結果在 SSR 就決定（初始 `state` 一次到位），hydration 兩邊相同；不認得的參數
+// 一律 302 回 `/schedule/`（規劃書只規定「不得顯示錯誤頁」，不是 404）。
+const scheduleRoute = useRoute()
+const routeSlug = computed(() => {
+  const raw = scheduleRoute.params.slug
+  return typeof raw === 'string' ? raw : ''
+})
+const scheduleTarget = computed(() => resolveScheduleSlug(
+  routeSlug.value,
+  teamTabs.value.map((t) => ({ id: t.id, filter: t.filter })),
+  matches.value,
+))
+const deepLinkedMatch = computed(() => {
+  const t = scheduleTarget.value
+  return t.kind === 'match' ? (matches.value.find((m) => m.id === t.matchId) ?? null) : null
+})
+if (scheduleTarget.value.kind === 'team') {
+  state.team = scheduleTarget.value.filter
+}
+else if (deepLinkedMatch.value) {
+  const m = deepLinkedMatch.value
+  state.team = m.teamCode
+  if (m.seasonCode) state.season = m.seasonCode
+  state.mode = mapMatchStatus(m.status).code === 'finished' ? 'results' : 'fixtures'
+}
+else if (scheduleTarget.value.kind === 'unknown') {
+  await navigateTo(lp('/zh/schedule/'), { redirectCode: 302, replace: true })
+}
 const mounted = ref(false)
 /** 月曆點擊某天或帶 #fx-... 造訪時，即使不符目前篩選也要強制顯示這些場次——
  * 同一天可能不只一場賽事，S1-19 改為集合（見 `renderCalendar`／`jumpToMatches` 檔頭說明），
@@ -320,6 +354,11 @@ onMounted(() => {
     nextMatchCountdown.value = computeNextMatchCountdown()
   }, 60_000)
   handleInitialHash()
+  if (deepLinkedMatch.value) {
+    const m = deepLinkedMatch.value
+    forcedVisibleIds.value = new Set([fixtureId(m.matchOn, m.homeAway, m.matchNo)])
+    openDetail(m)
+  }
 })
 onBeforeUnmount(() => {
   if (countdownTimer) clearInterval(countdownTimer)

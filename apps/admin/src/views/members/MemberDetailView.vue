@@ -30,6 +30,12 @@ const { canUpdate } = useCrudPermissions('member.account')
 const club = computed(() => activeClubId.value)
 
 const member = ref<MemberDetailDto | null>(null)
+/** 同意文案版本：`pending-legal` 是前台在法務定稿前送出的暫存版本，用日常中文顯示。 */
+function guardianVersionLabel(v: string | null | undefined): string {
+  if (!v) return '未記錄'
+  return v === 'pending-legal' ? '文案尚未定稿（待法務）' : v
+}
+
 const revealed = ref(false)
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
@@ -246,6 +252,16 @@ function money(n: number): string {
         <div v-if="canUpdate && !isDeleted" class="member-detail__actions">
           <el-button :type="isSuspended ? 'primary' : 'danger'" plain :loading="acting" @click="handleToggleStatus">{{ isSuspended ? '啟用帳號' : '停用帳號' }}</el-button>
         </div>
+      </el-card>
+
+      <el-card v-if="member.guardianConsent" shadow="never" header="監護人同意（未滿 18 歲註冊）" class="member-detail__block">
+        <el-descriptions :column="columns" border class="member-detail__desc">
+          <el-descriptions-item label="同意時間">{{ formatDateTime(member.guardianConsent.consentedAt) }}</el-descriptions-item>
+          <el-descriptions-item label="監護人姓名">{{ member.guardianConsent.guardianName || '已清除' }}</el-descriptions-item>
+          <el-descriptions-item label="與會員的關係">{{ member.guardianConsent.relationshipLabel || '—' }}</el-descriptions-item>
+          <el-descriptions-item label="同意文案版本">{{ guardianVersionLabel(member.guardianConsent.consentTextVersion) }}</el-descriptions-item>
+        </el-descriptions>
+        <p v-if="member.isMasked" class="member-detail__muted">監護人姓名已遮罩，與會員姓名同一條規則：按上方「顯示完整資料」解除（會留下稽核紀錄）。</p>
       </el-card>
 
       <el-card shadow="never" header="會籍" class="member-detail__block">

@@ -24,6 +24,8 @@ const form = reactive({
   code: '',
   domain: '',
   nameZh: '',
+  shortNameZh: '',
+  shortNameEn: '',
   descriptionZh: '',
   nameEn: '',
   descriptionEn: '',
@@ -54,6 +56,8 @@ async function loadClub() {
       form.nameZh = detail.zh.name
       form.descriptionZh = detail.zh.description ?? ''
       form.nameEn = detail.en?.name ?? ''
+      form.shortNameZh = detail.zh.shortName ?? ''
+      form.shortNameEn = detail.en?.shortName ?? ''
       form.descriptionEn = detail.en?.description ?? ''
       form.brandColor = detail.brandColor ?? ''
       form.brandSecondaryColor = detail.brandSecondaryColor ?? ''
@@ -83,10 +87,11 @@ useUnsavedChanges(isDirty)
 
 const pageTitle = computed(() => (isCreate.value ? '新增俱樂部' : `編輯俱樂部：${form.nameZh}`))
 
-/** 英文名稱是必填才有意義的欄位（跟中文一樣，`AdminClubLocaleContent.name` 是必填字串），
- * 沒有英文名稱就視為「還沒有英文版本」，不整份送出（避免送出一個沒有名稱的英文版本）。 */
+/** 沒有任何英文內容（名稱、簡稱、簡介全空）才視為「還沒有英文版本」而不送 `content.en`。
+ * 🔴 後端 PUT 省略 `content.en` 會**刪掉整列英文內容**；所以只要英文簡稱或簡介有值、英文名稱卻空著，
+ * 不能默默省略（會把已填的英文簡稱／簡介吃掉），改在 validate() 擋下並要求補英文名稱。 */
 function isEnEmpty(): boolean {
-  return !form.nameEn.trim()
+  return !form.nameEn.trim() && !form.shortNameEn.trim() && !form.descriptionEn.trim()
 }
 
 function validate(): boolean {
@@ -103,6 +108,14 @@ function validate(): boolean {
     formError.value = '請輸入中文名稱'
     return false
   }
+  if (form.shortNameZh.trim().length > 32 || form.shortNameEn.trim().length > 32) {
+    formError.value = '簡稱最多 32 個字'
+    return false
+  }
+  if (!isEnEmpty() && !form.nameEn.trim()) {
+    formError.value = '有填英文簡稱或英文簡介時，請一併填寫英文名稱，否則英文內容不會被儲存'
+    return false
+  }
   return true
 }
 
@@ -111,8 +124,8 @@ async function handleSave() {
   saving.value = true
   try {
     const content = {
-      zh: { name: form.nameZh.trim(), description: form.descriptionZh || null },
-      en: isEnEmpty() ? undefined : { name: form.nameEn.trim(), description: form.descriptionEn || null },
+      zh: { name: form.nameZh.trim(), shortName: form.shortNameZh.trim() || null, description: form.descriptionZh || null },
+      en: isEnEmpty() ? undefined : { name: form.nameEn.trim(), shortName: form.shortNameEn.trim() || null, description: form.descriptionEn || null },
     }
     if (isCreate.value) {
       const created = await createAdminClub({
@@ -208,6 +221,14 @@ function handleBack() {
             @update:zh="(v) => (form.nameZh = v)"
             @update:en="(v) => (form.nameEn = v)"
           />
+          <BilingualShortField
+            label="簡稱"
+            :zh="form.shortNameZh"
+            :en="form.shortNameEn"
+            @update:zh="(v) => (form.shortNameZh = v)"
+            @update:en="(v) => (form.shortNameEn = v)"
+          />
+          <p class="club-edit__hint">用在空間有限的地方，例如 App 的分頁標籤；最多 32 字，留空代表沒有簡稱。英文簡稱請依客戶確認的正式寫法填寫，不要自行翻譯。</p>
           <BilingualShortField
             label="簡介"
             :zh="form.descriptionZh"

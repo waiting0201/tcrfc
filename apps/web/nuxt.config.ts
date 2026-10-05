@@ -43,6 +43,11 @@ export default defineNuxtConfig({
       // 🔴 留空＝本機開發：回退讀 `public/assets/img/` 原檔（不納版控）。正式環境一律要設，
       // 且 `docker-compose.yml` 的 `nuxt-tcrfc`／`nuxt-bw` 都要帶（E-112 同類：新增網址鍵要同步 compose）。
       mediaBaseUrl: '',
+      // NUXT_PUBLIC_APP_STORE_URL／NUXT_PUBLIC_PLAY_STORE_URL：`/zh/app/` App 下載頁的兩個商店網址（App 規劃書 §2.3
+      // 「對官網的依賴」第 2 點）。App 上架前兩者皆空＝頁面顯示「即將上線」、不放任何下載按鈕；上架後由
+      // `docker run`／compose 帶入，不必重新 build。選填（不像 mediaBaseUrl 必須進 compose）：空值就是正確的預設行為。
+      appStoreUrl: '',
+      playStoreUrl: '',
     },
   },
 
@@ -207,6 +212,14 @@ export default defineNuxtConfig({
   // 職責是把訪客導去 /zh/ 或 /en/，見 app/middleware/redirect-root.ts。
   hooks: {
     'pages:extend'(pages) {
+      // App 深連結回退網址（App 規劃書 §2.3，docs/19 §2）：`/zh/schedule/{隊別代號｜賽事 id}/`
+      // 與既有的 `/zh/schedule/` 共用同一個元件檔（賽事行事曆本體不拆檔），第二條路由在這裡加。
+      // 必須在下面 /en/ 複製之前加，英文孿生路由才會一併產生。解析規則見
+      // shared/utils/schedule-route.ts；不認得的參數由元件 302 回 `/schedule/`。
+      const schedulePage = pages.find((p) => p.path === '/zh/schedule')
+      if (schedulePage) {
+        pages.push({ ...schedulePage, name: `${schedulePage.name}-slug`, path: '/zh/schedule/:slug()' })
+      }
       const clones: typeof pages = []
       for (const page of pages) {
         if (page.path === '/zh' || page.path.startsWith('/zh/')) {

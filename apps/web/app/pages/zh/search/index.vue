@@ -98,7 +98,7 @@ function resultPath(item: SearchItem): string {
     case 'news': return `/zh/news/${item.slug}/`
     case 'faq': return item.slug ? `/zh/faq/#q-${item.slug}` : '/zh/faq/'
     case 'program': return '/zh/programs/'
-    case 'player': return `/zh/club/first-team/player/${item.id}/`
+    case 'player': return playerPath(item.slug || item.id)
     case 'coach': return '/zh/club/first-team/'
     case 'charity': return item.subType === 'program' && item.slug ? `/zh/charity/programs/${item.slug}/` : '/zh/charity/impact-stories/'
     default: return '/zh/'

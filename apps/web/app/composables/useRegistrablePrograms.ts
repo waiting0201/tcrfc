@@ -20,6 +20,9 @@ export interface RegistrableSession {
   signupOpensAt: string | null
   signupClosesAt: string | null
   status: string
+  statusCode?: string
+  statusLabelZh?: string
+  statusLabelEn?: string
   venueName: string | null
 }
 

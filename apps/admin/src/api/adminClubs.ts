@@ -7,6 +7,8 @@ import { apiRequest } from './http'
 
 export interface AdminClubLocaleContent {
   name: string
+  /** 簡稱（最多 32 字，空白＝無簡稱），用在空間有限的地方，例如 App 分頁標籤。 */
+  shortName?: string | null
   description?: string | null
 }
 

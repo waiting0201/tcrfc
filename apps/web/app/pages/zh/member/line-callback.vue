@@ -10,8 +10,8 @@
 // 後端缺 LINE 憑證回 503：顯示「暫不提供」，不是錯誤頁。
 //
 // ⚠️ 導回網址 `/zh/member/line-callback/` 必須登記在後端 `LINE_LOGIN_REDIRECT_URIS` 與 LINE Developers 的 Callback URL。
-import { toMemberApiError } from '#shared/utils/member'
-import type { LineCallbackResult, MemberBrowserSession } from '#shared/utils/member'
+import { GUARDIAN_CONSENT_VERSION_PENDING, isMinorBirth, taipeiAge, toMemberApiError } from '#shared/utils/member'
+import type { GuardianRelationship, LineCallbackResult, MemberBrowserSession } from '#shared/utils/member'
 import type { LinePending } from '~/composables/useMemberLine'
 
 definePageMeta({ nav: '', unit: '14' })
@@ -30,7 +30,8 @@ useSeoMeta({
 const state = ref<'working' | 'signup' | 'error'>('working')
 const message = ref('')
 const ticket = ref('')
-const form = reactive({ email: '', name: '', phone: '' })
+const form = reactive({ email: '', name: '', phone: '', birthOn: '' })
+const guardian = ref<{ consented: boolean, name: string, relationship: GuardianRelationship | '' }>({ consented: false, name: '', relationship: '' })
 const busy = ref(false)
 const formError = ref('')
 let pendingInfo: LinePending | null = null
@@ -98,6 +99,15 @@ onMounted(async () => {
 async function complete() {
   formError.value = ''
   if (!form.email.trim()) { formError.value = '請輸入 Email。'; return }
+  if (!form.birthOn) { formError.value = '請填寫生日。'; return }
+  if (taipeiAge(form.birthOn) === null) { formError.value = '生日格式不正確，或晚於今天。'; return }
+  const minor = isMinorBirth(form.birthOn)
+  if (minor) {
+    const g = guardian.value
+    if (!g.name.trim()) { formError.value = '請填寫監護人姓名。'; return }
+    if (!g.relationship) { formError.value = '請選擇監護人與會員的關係。'; return }
+    if (!g.consented) { formError.value = '未滿 18 歲須經監護人同意，請由監護人勾選同意。'; return }
+  }
   busy.value = true
   try {
     const session = await $fetch<MemberBrowserSession>('/api/member-auth/line-complete', {
@@ -108,6 +118,11 @@ async function complete() {
         email: form.email.trim(),
         name: form.name.trim() || undefined,
         phone: form.phone.trim() || undefined,
+        birthOn: form.birthOn,
+        // 文案版本標 pending-legal：同意條款待法務定稿（B-9）。
+        guardianConsent: minor
+          ? { consented: true, guardianName: guardian.value.name.trim(), relationship: guardian.value.relationship, consentTextVersion: GUARDIAN_CONSENT_VERSION_PENDING }
+          : undefined,
         lang: pendingInfo?.locale ?? 'zh',
       },
     })
@@ -168,6 +183,7 @@ async function complete() {
               <label for="lc-phone">手機</label>
               <input id="lc-phone" v-model="form.phone" type="tel" autocomplete="tel" maxlength="30">
             </div>
+            <MemberAgeGuardian v-model:birth-on="form.birthOn" v-model:guardian="guardian" id-prefix="lc" />
           </div>
         </fieldset>
         <p v-if="formError" class="mc-alert mc-alert--error" role="alert">{{ formError }}</p>

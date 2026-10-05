@@ -19,7 +19,7 @@ const HEALTH_DECLARATION_MARKER = '已勾選同意健康聲明（未蒐集健康
 
 const config = useRuntimeConfig()
 const club = config.public.club
-const { lp } = useLocale()
+const { lp, locale } = useLocale()
 const clubAssets = getClubAssets(club)
 
 /** 可報名（開放或額滿候補）的場次。 */
@@ -36,7 +36,7 @@ function quotaText(t: PublicTrial): string {
 function statusText(t: PublicTrial): string {
   if (t.isSignupOpen) return '開放報名'
   if (t.acceptsWaitlist) return '額滿候補'
-  return t.status
+  return statusLabel(t, locale.value)
 }
 
 // ── 表單狀態 ──
@@ -60,7 +60,7 @@ const website = ref('')
 type Phase = 'idle' | 'submitting' | 'success' | 'error'
 const phase = ref<Phase>('idle')
 const errorMessage = ref('')
-const result = ref<{ registrationNo: string, status: string, trialLabel: string } | null>(null)
+const result = ref<{ registrationNo: string, status: string, statusCode?: string, statusLabelZh?: string, statusLabelEn?: string, trialLabel: string } | null>(null)
 
 const GENERIC_ERROR = '送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用電話或 Email 聯繫我們。'
 
@@ -111,7 +111,7 @@ async function onSubmit() {
   phase.value = 'submitting'
   const trial = currentTrial.value
   try {
-    const res = await $fetch<{ registrationNo: string, status: string }>(
+    const res = await $fetch<{ registrationNo: string, status: string, statusCode?: string, statusLabelZh?: string, statusLabelEn?: string }>(
       `/api/backend/${club}/trials/${trial.id}/registrations`,
       {
         method: 'POST',
@@ -191,8 +191,8 @@ function registerAnother() {
 
     <div v-if="phase === 'success'" class="form-status form-status--success" role="status">
       <template v-if="result">
-        <p><strong>報名資料已送出。</strong>您的報名編號是 <strong class="trial-reg__no">{{ result.registrationNo }}</strong>，目前狀態：{{ result.status }}。</p>
-        <p v-if="result.status === '候補'">這場試訓目前名額已滿，您已列入候補，有空位時我們會依序與您聯繫。</p>
+        <p><strong>報名資料已送出。</strong>您的報名編號是 <strong class="trial-reg__no">{{ result.registrationNo }}</strong>，目前狀態：{{ statusLabel(result, locale) }}。</p>
+        <p v-if="result.statusCode === 'waitlisted'">這場試訓目前名額已滿，您已列入候補，有空位時我們會依序與您聯繫。</p>
         <p v-else>我們會依您留下的聯絡方式與您確認試訓細節。請記下報名編號，查詢時使用。</p>
         <p class="trial-reg__summary">{{ result.trialLabel }}</p>
       </template>

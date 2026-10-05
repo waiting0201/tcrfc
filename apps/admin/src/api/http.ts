@@ -80,7 +80,7 @@ function classifyByStatus(body: ErrorBody | null, status: number): AdminApiError
   if (status === 403) return new AdminApiError('forbidden', detail || '你沒有權限執行這個操作。', { status, detail })
   if (status === 404) return new AdminApiError('not-found', detail || '找不到這筆資料', { status, detail })
   if (status === 409) {
-    if (title === '網址名稱重複') return new AdminApiError('slug-conflict', detail, { status, detail })
+    if (title === '網址名稱重複' || title === '網址代稱重複') return new AdminApiError('slug-conflict', detail, { status, detail })
     if (title === '資料已被變更') return new AdminApiError('concurrency-conflict', detail, { status, detail })
     if (title === '置頂精選已達上限') return new AdminApiError('featured-limit', detail, { status, detail })
     if (title === '狀態轉換不允許') return new AdminApiError('status-conflict', detail, { status, detail })

@@ -60,7 +60,7 @@ const website = ref('')
 type Phase = 'idle' | 'submitting' | 'success' | 'error'
 const phase = ref<Phase>('idle')
 const errorMessage = ref('')
-const result = ref<{ registrationNo: string, status: string, programName: string | null, sessionLabel: string } | null>(null)
+const result = ref<{ registrationNo: string, status: string, statusCode?: string, statusLabelZh?: string, statusLabelEn?: string, programName: string | null, sessionLabel: string } | null>(null)
 
 const GENERIC_ERROR = '送出失敗，請確認各欄位已正確填寫後再試一次；若持續發生，請改用電話或 Email 聯繫我們。'
 
@@ -110,7 +110,7 @@ async function onSubmit() {
   phase.value = 'submitting'
   const session = currentSession.value
   try {
-    const res = await $fetch<{ registrationNo: string, status: string }>(
+    const res = await $fetch<{ registrationNo: string, status: string, statusCode?: string, statusLabelZh?: string, statusLabelEn?: string }>(
       `/api/backend/${club}/programs/sessions/${session.id}/registrations`,
       {
         method: 'POST',
@@ -160,8 +160,8 @@ function registerAnother() {
 
     <div v-if="phase === 'success'" class="form-status form-status--success" role="status">
       <template v-if="result">
-        <p><strong>報名資料已送出。</strong>您的報名編號是 <strong class="program-reg__no">{{ result.registrationNo }}</strong>，目前狀態：{{ result.status }}。</p>
-        <p v-if="result.status === '候補'">這個梯次目前名額已滿，您已列入候補，有空位時課程部會依序與您聯繫。</p>
+        <p><strong>報名資料已送出。</strong>您的報名編號是 <strong class="program-reg__no">{{ result.registrationNo }}</strong>，目前狀態：{{ statusLabel(result, locale) }}。</p>
+        <p v-if="result.statusCode === 'waitlisted'">這個梯次目前名額已滿，您已列入候補，有空位時課程部會依序與您聯繫。</p>
         <p v-else>課程部會依您留下的聯絡方式與您確認梯次、名額與繳費方式。請記下報名編號，查詢時使用。</p>
         <p class="program-reg__summary">{{ result.programName }}　{{ result.sessionLabel }}</p>
       </template>

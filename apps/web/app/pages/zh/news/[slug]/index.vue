@@ -38,20 +38,20 @@ const { data: article } = await useFetch(() => `/api/backend/${club}/news/${rout
   query: { lang: locale.value },
 })
 
-// 🔴 找不到的 slug（不存在／草稿／排程中——公開 API 本來就只回已發布文章）一律回
-// 真正的 404，不得回 200 配空版面（任務指示明文禁止，那會讓搜尋引擎收錄一堆空頁）。
-// createError 是本專案既有的 404 慣例，與 app/middleware/unit-gate.global.ts 同一種
-// 寫法；Nuxt 在 SSR 階段會把它轉成真正的 HTTP 404 狀態碼（已用
-// curl -o /dev/null -w '%{http_code}' 對存在／不存在的 slug 各自實測過，見驗收紀錄）。
+// 🔴 找不到的 slug（不存在／草稿／排程中——公開 API 本來就只回已發布文章）→ 302 回新聞列表，
+// **不回 200 配空版面**（那會讓搜尋引擎收錄一堆空頁），也**不顯示 404 錯誤頁**：App 規劃書 §2.3
+// 規定未安裝 App 的裝置點到 `tcrfc://news/{slug}` 的回退網址「不得顯示錯誤頁」（docs/19 §2）。
+// 2026-10 之前這裡是 createError 404，改為轉址的取捨：下架文章的舊網址不再給搜尋引擎 404 訊號，
+// 但站台上線前本來就全站 noindex，上線後下架文章的收斂交給後台 H 的 301 轉址管理。
 if (!article.value) {
-  throw createError({ statusCode: 404, statusMessage: 'Not Found' })
+  await navigateTo(lp('/zh/news/'), { redirectCode: 302, replace: true })
 }
 
 // 相關文章：同分類、依 API 既有排序（發布時間新到舊）找目前這篇之後的兩篇。
 // 邏輯沿用 article.vue 原本的寫法，差別只在分類改成「這篇文章自己的分類」
 // （article.value.categoryCode），不是寫死 'match'。
 const { data: categoryList } = await useFetch(`/api/backend/${club}/news`, {
-  query: { category: article.value.categoryCode, pageSize: 200, lang: locale.value },
+  query: { category: article.value?.categoryCode, pageSize: 200, lang: locale.value },
 })
 
 const related = computed(() => {

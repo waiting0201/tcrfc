@@ -22,6 +22,7 @@
 // 會在忘記時擋下（見 scripts/check-site-units-coverage.mjs）。
 
 import { isUnitEnabledForClub } from './units'
+import { getClubIdentity } from './club-copy'
 
 export interface SiteUnit {
   /** 單元代號，對照規劃書與 docs/14-invariants.md */
@@ -50,4 +51,20 @@ export const SITE_UNITS: readonly SiteUnit[] = [
 
 export function getEnabledSiteUnits(club: string): SiteUnit[] {
   return SITE_UNITS.filter((unit) => isUnitEnabledForClub(unit.code, club))
+}
+
+/**
+ * 單元在「某個俱樂部」的顯示名稱（`llms.txt` 代表頁清單用）。`SITE_UNITS[].labelZh` 是磐石版名稱，
+ * 其中三個單元名稱本身含俱樂部詞彙（02 關於台中磐石／04 足球學院／08 台中磐石文化），直接輸出給藍鯨
+ * 會讓藍鯨的 `llms.txt` 出現磐石事實（BW-7 驗收發現，2026-10-05）。這三個改走 `getClubIdentity(club)`
+ * 既有欄位（SiteHeader／SiteFooter 同一份），其餘單元名稱兩站相同。
+ */
+export function getUnitLabelZh(unit: SiteUnit, club: string): string {
+  const identity = getClubIdentity(club)
+  switch (unit.code) {
+    case '02': return identity.aboutLabelZh
+    case '04': return identity.academyLabelZh
+    case '08': return identity.cultureLabelZh
+    default: return unit.labelZh
+  }
 }

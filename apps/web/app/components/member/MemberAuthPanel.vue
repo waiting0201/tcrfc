@@ -5,8 +5,8 @@
 //   - 登入：Email＋密碼、記住我、LINE 一鍵登入；失敗依後端 `code` 區分（未驗證信箱／帳號鎖定／停用）。
 //   - 加入會員：Email 註冊，寄驗證信後才能登入（驗證前不能以密碼登入）。
 // 🔴 寄信供應商尚未串接時（後端 `emailSent=false`），如實告知「驗證信尚未寄出」，不假裝成功。
-import { MEMBER_PASSWORD_HINT, formatTaipeiDateTime, passwordProblem, toMemberApiError } from '#shared/utils/member'
-import type { MemberRegistered } from '#shared/utils/member'
+import { GUARDIAN_CONSENT_VERSION_PENDING, MEMBER_PASSWORD_HINT, formatTaipeiDateTime, isMinorBirth, passwordProblem, taipeiAge, toMemberApiError } from '#shared/utils/member'
+import type { GuardianRelationship, MemberRegistered } from '#shared/utils/member'
 
 const config = useRuntimeConfig()
 const { locale, lp } = useLocale()
@@ -88,7 +88,8 @@ async function resend(email: string) {
 }
 
 // ── 註冊 ──
-const reg = reactive({ name: '', phone: '', email: '', password: '', consent: false })
+const reg = reactive({ name: '', phone: '', email: '', password: '', consent: false, birthOn: '' })
+const regGuardian = ref<{ consented: boolean, name: string, relationship: GuardianRelationship | '' }>({ consented: false, name: '', relationship: '' })
 const regBusy = ref(false)
 const regError = ref('')
 const registered = ref<MemberRegistered | null>(null)
@@ -100,6 +101,15 @@ async function onRegister() {
   if (!reg.email.trim()) { regError.value = '請輸入 Email。'; return }
   const pw = passwordProblem(reg.password)
   if (pw) { regError.value = pw; return }
+  if (!reg.birthOn) { regError.value = '請填寫生日。'; return }
+  if (taipeiAge(reg.birthOn) === null) { regError.value = '生日格式不正確，或晚於今天。'; return }
+  const minor = isMinorBirth(reg.birthOn)
+  if (minor) {
+    const g = regGuardian.value
+    if (!g.name.trim()) { regError.value = '請填寫監護人姓名。'; return }
+    if (!g.relationship) { regError.value = '請選擇監護人與會員的關係。'; return }
+    if (!g.consented) { regError.value = '未滿 18 歲須經監護人同意，請由監護人勾選同意。'; return }
+  }
   if (!reg.consent) { regError.value = '請先閱讀並勾選同意隱私權政策與會員條款。'; return }
   regBusy.value = true
   try {
@@ -111,6 +121,11 @@ async function onRegister() {
         password: reg.password,
         name: reg.name.trim(),
         phone: reg.phone.trim(),
+        birthOn: reg.birthOn,
+        // 成年不送監護人資料（後端也不儲存）；文案版本標 pending-legal（B-9，同意條款待法務定稿）。
+        guardianConsent: minor
+          ? { consented: true, guardianName: regGuardian.value.name.trim(), relationship: regGuardian.value.relationship, consentTextVersion: GUARDIAN_CONSENT_VERSION_PENDING }
+          : undefined,
         lang: locale.value,
       },
     })
@@ -225,6 +240,7 @@ async function onRegister() {
                 <input id="m-reg-password" v-model="reg.password" type="password" name="password" required autocomplete="new-password" aria-describedby="m-reg-password-hint" maxlength="128">
                 <p id="m-reg-password-hint" class="field-hint">{{ MEMBER_PASSWORD_HINT }}</p>
               </div>
+              <MemberAgeGuardian v-model:birth-on="reg.birthOn" v-model:guardian="regGuardian" id-prefix="m-reg" />
             </div>
           </fieldset>
           <div class="consent-block">

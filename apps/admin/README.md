@@ -2898,3 +2898,34 @@ npm run build   # vue-tsc -b && vite build，型別檢查與建置皆無錯誤
 - **M5**：`ConnectionTab.vue` 備援項目標籤改為「備援設定來源」。
 - **驗證**：`npm run lint`、`npm run build`、`check-forbidden-terms.mjs` 通過；Playwright 實走：新聞封面上傳顯示「檔案儲存尚未設定」、梯次列表 32／30 出現「超額」、P3 代填儲存後警示仍在、緯度輸入 95.5 提示「超過上限（最大 90）」、憑證分頁顯示「Apple 推播金鑰」「Google 推播憑證」、連線檢查顯示「備援設定來源」、推播下拉不含連結、抽獎名單「尚未試算」。
 - **M2（使用者已決定）**：「App 內連結」分頁表格不再顯示「網頁網址」欄（路徑含隊別代號，違反 docs/06 §1）；該欄為選填且可由人編輯，故編輯表單保留、改標為「沒有安裝 App 時改開的網頁（選填）」，placeholder 不含路徑。手機卡片本來就沒有此欄；全 `src` 無其他地方顯示 `webUrl`。
+
+
+## 球員「網址代稱」欄位（C2 球員，2026-10-05，`frontend-architect`）
+
+對照 `apps/api/README.md` 結尾「球員網址代稱」節。球員編輯畫面（`PlayerEditView.vue`）「基本資料」加「網址代稱」欄位，請求 `slug` 為選填。
+
+- **建立**：留空由後端依英文姓名（沒有則「隊別-背號」）自動產生；儲存後欄位回填實際值。
+- **更新**：留空＝維持原值（欄位旁寫明）；**改成不同的值時顯示警示**，說明舊的球員頁連結（含已分享的連結與 App 內連結）會失效。
+- **驗證**：前端先擋格式（小寫英文、數字、連字號，不能以連字號開頭或結尾），後端 400 訊息原樣顯示；重複 409「網址代稱重複」由 `api/http.ts` 歸為 `slug-conflict`（與新聞「網址名稱重複」同一類）並顯示後端 `detail`。
+- **用語**：介面只用「網址代稱」，不出現 slug（docs/06 §1）；欄位說明「出現在球員頁網址，建議用英文小寫與連字號；同一個俱樂部內不能重複」。
+- **統一錯誤結構**：`http.ts` 只讀 `title`／`detail`／`message`，後端新增的 `code`／`messageZh`／`messageEn`／`retryable` 為相容擴充，不受影響。
+- **驗證**：`npm run lint`（含 forbidden-terms、editview-reactivity）與 `npm run build` 通過。**未對真 API 實機驗**（需使用者啟動 `apps/api`）。
+
+
+## K1 會員詳情：監護人同意紀錄（2026-10-05，`frontend-architect`）
+
+後端 `AdminMemberDetailDto.guardianConsent`（未滿 18 歲註冊者才有；成年為 null）。`MemberDetailView.vue` 在「帳號資料」下新增「監護人同意（未滿 18 歲註冊）」卡片：同意時間、監護人姓名、與會員的關係（父母／法定監護人）、同意文案版本。
+
+- **姓名遮罩**：後端依既有 `member.pii.reveal` 與 `reveal` 參數回遮罩或完整值，前端沿用頁首「顯示完整資料／重新遮罩」同一組按鈕與稽核（不另做第二套）；遮罩時卡片註明；帳號刪除後姓名為 null 顯示「已清除」。
+- **版本**：`pending-legal`（前台在法務定稿前送出的暫存版本，B-9）顯示為「文案尚未定稿（待法務）」，其他值原樣顯示；沒記錄顯示「未記錄」。
+- **J4 俱樂部「簡稱」**：後端 `clubs_i18n.short_name` 已有，但 J4 後台 API（`AdminClubLocaleContent` 只有 `name`／`description`）**沒有可寫入簡稱的欄位**（後端 README 也列「後台編輯俱樂部簡稱」未做），所以**未加畫面欄位**，等後端補上請求／回應欄位後再接。
+- **驗證**：`npm run lint`、`npm run build` 通過；未對真 API 實機驗。
+
+
+## J4 俱樂部「簡稱」（2026-10-05，`frontend-architect`）
+
+`GET／PUT /admin/clubs/{id}` 的 `content.zh`／`content.en` 新增 `shortName`（最多 32 字，空白＝無簡稱）。`ClubEditView.vue` 在名稱下加「簡稱」雙語欄位，說明「用在空間有限的地方，例如 App 的分頁標籤」，前端先擋超過 32 字；藍鯨英文簡稱不預填，欄位旁註明依客戶確認的正式寫法。
+
+🔴 **既有風險已修**：後端 PUT 省略 `content.en` 會刪掉整列英文內容。舊畫面只看英文名稱是否為空，若英文名稱空著、英文簡介有值，送出時會省略 `content.en` 而悄悄刪光。現在 `isEnEmpty()` 要英文名稱、簡稱、簡介**全空**才省略；有任何英文內容卻沒有英文名稱時，儲存前提示補英文名稱。（三欄全清空仍會刪掉英文列，這是預期行為。）
+
+驗證：lint、build 通過；未對真 API 實機驗。

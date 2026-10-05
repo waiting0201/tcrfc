@@ -39,6 +39,7 @@ const playerId = ref<string | undefined>(route.params.id as string | undefined)
 
 const form = reactive({
   teamId: '',
+  slug: '',
   shirtNo: null as number | null,
   position: '',
   birthOn: null as Date | null,
@@ -55,6 +56,8 @@ const form = reactive({
   bioEn: '',
 })
 const baselineJson = ref('')
+// 載入時的網址代稱：改了它會讓舊的球員頁連結失效，要在欄位旁提醒。
+const originalSlug = ref('')
 const photoKey = ref<string | null>(null)
 const photoFile = ref<File | null>(null)
 const removePhoto = ref(false)
@@ -74,6 +77,8 @@ async function loadPlayer() {
     if (!isCreate.value && playerId.value) {
       const detail = await getAdminPlayer(activeClubId.value, playerId.value)
       form.teamId = detail.teamId
+      form.slug = detail.slug ?? ''
+      originalSlug.value = detail.slug ?? ''
       form.shirtNo = detail.shirtNo ?? null
       form.position = detail.position ?? ''
       form.birthOn = fromDateOnlyString(detail.birthOn)
@@ -113,6 +118,9 @@ const isDirty = computed(
 )
 useUnsavedChanges(isDirty)
 
+const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/
+const slugChanged = computed(() => !isCreate.value && !!originalSlug.value && !!form.slug.trim() && form.slug.trim() !== originalSlug.value)
+
 const pageTitle = computed(() => (isCreate.value ? '新增球員' : `編輯球員：${form.nameZh || '（未命名）'}`))
 
 // 🔴 既有球員的所屬球隊不在這個帳號的可寫清單內時（例如學院管理者打開一線隊球員），後端
@@ -138,6 +146,11 @@ function validate(): boolean {
     formError.value = '請輸入中文姓名'
     return false
   }
+  const slug = form.slug.trim()
+  if (slug && !SLUG_PATTERN.test(slug)) {
+    formError.value = '網址代稱只能用英文小寫、數字與連字號（例如 lin-zhi-ming），且不能以連字號開頭或結尾'
+    return false
+  }
   if (form.shirtNo != null && (form.shirtNo < 1 || form.shirtNo > 99)) {
     formError.value = '背號只能是 1 到 99 之間的整數'
     return false
@@ -148,6 +161,8 @@ function validate(): boolean {
 function buildPayload(): SavePlayerPayload {
   return {
     teamId: form.teamId,
+    // 留空＝建立時自動產生、更新時維持原值（見 SavePlayerPayload.slug）。
+    slug: form.slug.trim() || undefined,
     shirtNo: form.shirtNo,
     position: form.position || null,
     birthOn: toDateOnlyString(form.birthOn),
@@ -178,6 +193,8 @@ async function handleSave() {
       router.replace(`/teams/players/${created.id}/edit`)
       playerId.value = created.id
       photoKey.value = created.photoKey ?? null
+      form.slug = created.slug ?? ''
+      originalSlug.value = created.slug ?? ''
     } else {
       const updated = await updateAdminPlayer(
         activeClubId.value,
@@ -186,6 +203,8 @@ async function handleSave() {
         photoFile.value,
       )
       photoKey.value = updated.photoKey ?? null
+      form.slug = updated.slug ?? form.slug
+      originalSlug.value = updated.slug ?? originalSlug.value
       ElMessage.success('已儲存')
     }
     photoFile.value = null
@@ -278,6 +297,21 @@ function retryLoad() {
               </el-form-item>
             </el-col>
           </el-row>
+
+          <el-form-item label="網址代稱">
+            <el-input
+              v-model="form.slug"
+              maxlength="160"
+              :placeholder="isCreate ? '留空會依英文姓名自動產生' : '例如 lin-zhi-ming'"
+              clearable
+            />
+            <p class="player-edit__hint">
+              出現在球員頁網址，建議用英文小寫與連字號；同一個俱樂部內不能重複。{{ isCreate ? '留空會自動產生。' : '留空則維持目前的代稱。' }}
+            </p>
+            <p v-if="slugChanged" class="player-edit__hint player-edit__hint--warning">
+              修改網址代稱後，舊的球員頁連結（包含已分享出去的連結與 App 內的連結）會失效，請確認後再儲存。
+            </p>
+          </el-form-item>
 
           <BilingualShortField
             label="姓名"

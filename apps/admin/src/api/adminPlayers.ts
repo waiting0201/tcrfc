@@ -15,6 +15,8 @@ export interface AdminPlayerContentInputDto {
 
 export interface AdminPlayerListItemDto {
   id: string
+  /** 網址代稱（後台稱「網址代稱」，前台球員頁網址與 App 深連結用）。 */
+  slug?: string | null
   teamId: string
   teamCode: string
   shirtNo?: number | null
@@ -31,6 +33,7 @@ export interface AdminPlayerListItemDto {
 
 export interface AdminPlayerDetailDto {
   id: string
+  slug?: string | null
   teamId: string
   teamCode: string
   shirtNo?: number | null
@@ -63,6 +66,11 @@ export interface ListAdminPlayersParams {
  */
 export interface SavePlayerPayload {
   teamId: string
+  /**
+   * 網址代稱，選填：建立時省略＝後端自動產生；更新時省略＝維持原值（不重新產生）。
+   * 格式 `[a-z0-9]+(-[a-z0-9]+)*`（錯 400）；同俱樂部重複 409「網址代稱重複」，後端訊息原樣顯示。
+   */
+  slug?: string
   shirtNo?: number | null
   position?: string | null
   birthOn?: string | null

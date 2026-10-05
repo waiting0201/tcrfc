@@ -22,6 +22,8 @@ runtime 環境變數決定品牌。
 > **照片從哪來**（契約與基礎設施端的上傳流程見 [`infra/README.md`](../../infra/README.md) 的「站台照片」一節）：
 >
 > | `NUXT_PUBLIC_MEDIA_BASE_URL` | 行為 |
+| `NUXT_PUBLIC_APP_STORE_URL` | 選填：App 上架前留空 | `/zh/app/` App 下載頁的 App Store 網址（只接受 `https://`）。空＝顯示「即將上線」、不放按鈕。**不寫死、不臆造**（App 規劃書 §2.3） |
+| `NUXT_PUBLIC_PLAY_STORE_URL` | 選填：同上 | 同上，Google Play 網址 |
 > |---|---|
 > | 已設定（正式／預備環境，形如 `https://<帳戶>.blob.core.windows.net/images`，日後可換 CDN 網域） | `/assets/img/<路徑>.<原副檔名>` → `${base}/site/<路徑>.webp`。例：`/assets/img/academy/life-09.jpg` → `site/academy/life-09.webp`。`.svg` 不上傳、留在 repo，不轉換 |
 > | 未設定（本機開發） | 回退讀 `public/assets/img/<原路徑含原副檔名>`，行為不變。本機要看到照片仍需先補檔：`rsync -a --ignore-existing site/src/assets/img/ apps/web/public/assets/img/`（`site/src/assets/img/` 的重建方式是 `bash site/tools/build-images.sh`） |
@@ -3159,7 +3161,7 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 | 首頁官方商店入口 | 🟢 前 3 件上架商品（名稱／圖／價，不顯示庫存）；磐石無商品維持靜態入口，藍鯨無商品整區不顯示 |
 | 首頁核心價值 | 🟢 `home/core-values`（排序、名稱）＋前台依 `code` 補說明；API 空／失敗退回同順序備援；仍只對磐石顯示（藍鯨版標籤文字待確認） |
 | 3.1 一線隊積分榜／球員數據 | 🟢 `standings`、`stats/players`，球季 `?season=`；**助攻 `null` 顯示「—」、0 顯示 0**；無資料誠實空狀態 |
-| 球員詳情（取代「範本」頁） | 🟢 `/zh/club/first-team/player/{id}/`：基本資料＋`players/{id}/stats` 本季與逐季；名單卡片連過去；舊 `/player/` 302 回名單 |
+| 球員詳情（取代「範本」頁） | 🟢 `/zh/club/first-team/player/{slug}/`（2026-10-05 起以 slug 為正規網址，id 301，見結尾「球員 slug 網址」節）：基本資料＋`players/{id}/stats` 本季與逐季；名單卡片連過去；舊 `/player/` 302 回名單 |
 | 11.1 慈善理念 | 🟢 讀 `pages/charity/commitment`（區塊於伺服器端正規化為純文字節點、連結白名單）；無頁面／無可渲染區塊維持靜態內容 |
 
 ### 規格判斷與範圍縮減（非規格，請裁決）
@@ -3328,3 +3330,70 @@ API 失敗＝空資料，頁面落回既有空狀態或過渡內容，不出 500
 - 「正式上線前，仍可透過舊官網 www.tcrfc.tw 的商店選購」：**寫死**在 `app/pages/zh/culture/merchandise/index.vue:138`，僅 `isTcrfc` 時顯示。
 - 「目前共收錄 N 篇真實報導」：「真實」兩字**寫死在程式**，N 來自資料。位置：`app/pages/zh/news/index.vue:59`（SEO description）與 `:78`（hero 說明）；分類頁 `news/community.vue:32-33`、`club.vue:32`、`camps-events.vue:32-33`、`match.vue:32-33`、`international.vue:32-33` 的描述也有同樣用字，其中磐石版連篇數都寫死（3／7／50／12 篇）。
 
+---
+
+## App 深連結回退頁與藍鯨 GEO 驗收（2026-10-05）
+
+### 新增／改動的路由
+
+| 路由（`/zh/`、`/en/` 皆有） | 檔案 | 說明 |
+|---|---|---|
+| `/schedule/{隊別代號｜賽事 id}/` | `app/pages/zh/schedule.vue`（**同一檔第二條路由**，`nuxt.config.ts` `pages:extend` 加 `/zh/schedule/:slug()`，`/en/` 由既有複製 hook 自動產生） | 解析函式 `shared/utils/schedule-route.ts`；隊別→切分頁，賽事 id→切到該隊別／賽季／模式並自動開詳情彈窗；認不得→302 `/schedule/` |
+| `/club/first-team/player/{slug}/` | `app/pages/zh/club/first-team/player/[slug]/index.vue`（原 `[id]`，`git mv`） | 現階段以 UUID `id` 解析；`PlayerRow.slug` 後端補欄位後自動接受；找不到→302 `/club/first-team/#roster`（原 404） |
+| `/member/upgrade/` | `app/pages/zh/member/upgrade/index.vue` | 單元 `14`，noindex、no-store；已登入＝會員中心「我的會籍」，未登入＝權益對照表＋登入 |
+| `/app/` | `app/pages/zh/app/index.vue` | App 下載頁，單元代號 `G-08`（站務頁），頁尾「下載 App」連結，sitemap 收錄（`server/utils/sitemap-urls.ts` `EXTRA_PUBLIC_PATHS`）。文案不出現任一俱樂部名稱 |
+| `/programs/{slug}/` | `app/pages/zh/programs/[slug]/index.vue` | 五個靜態課程頁優先；其餘 slug 以 `GET /{club}/programs/{slug}` 渲染課程詳情（版型沿用既有課程頁，線上報名只磐石，Course Schema 資料不足不輸出）；查無或後端錯誤 302 `/programs/` |
+| `/news/{未知 slug}/`、`/perks/{未知 slug}/` | 既有 `[slug]` 頁 | `createError(404)` 改為 302 回列表（App 規劃書 §2.3「不得顯示錯誤頁」） |
+
+規則總表與取捨見 [`docs/19`](../../docs/19-app-tech-stack.md) §2「官網回退規則」。`scripts/check-deeplink-pages.mjs`（`npm run lint:deeplink-pages`）逐列確認 `shared/deeplinks.json` 的 `webPath` 都有頁面。
+
+### 驗證方式與誠實的範圍
+
+- **未對真 API 驗**：本機 `apps/api` 沒在跑（由使用者啟動），以 `scripts/dev-fixture-api.mjs` 的 fixture API（Node http，回 `schedule`／`players`／`teams`／`clubs/{club}`／`seo/*`，可切 full／empty 兩種資料量）驗證。`NUXT_PUBLIC_CLUB=bw`＋`NUXT_PUBLIC_SITE_ENV=production`＋`NUXT_API_INTERNAL_BASE` 指向 fixture。
+- curl：21 個網址的狀態碼與轉址目標（隊別 200、別站隊別 302、不存在賽事 302、`/en/` 保留語系、`/womens/` 在藍鯨 404 仍成立）；Chrome（CDP）確認賽事 id 網址自動開彈窗、隊別網址選中對應分頁、無 console 錯誤。
+- 兩站各 `npm run build` 一次、`npm run lint`（0 error，既有 warning 不變）、`check-club-brand-leak`（藍鯨 158 條路由無磐石詞彙殘留）皆過。
+
+### BW-7／BW-8 發現並修正
+
+1. `llms.txt`／`llms-en.txt` 的預設代表頁清單用 `SITE_UNITS[].labelZh`，藍鯨輸出了「關於台中磐石／足球學院／台中磐石文化」→ 新增 `getUnitLabelZh(unit, club)`（`shared/utils/site-units.ts`），三個含俱樂部詞彙的單元改走 `getClubIdentity(club)`。
+2. `llms-en.txt` 寫死 `Taichung Blue Whale`，違反 B-5（英文正式全名客戶未指定，開發端不得自挑）→ 藍鯨在確認前用中文正式名。
+3. `useOrganizationSchema()` 合格時 SSR 不輸出 Organization（`watchEffect` 脫離注入脈絡；`useSchemaOrg(ref)` 在 server 只求值一次）→ 改 `useHead(() => …)`。**真資料下 `schemaEligible` 恆為 false，這條路徑一直沒被走過**。
+4. B-5 殘留已清（同日第二輪）：`club-copy.ts` 的藍鯨英文文案（SEO title／description、同意書、首頁 kicker、標語）全改用常數 `BW_NAME_EN_PENDING`（目前 `台中藍鯨`）；`scripts/check-bw-en-name.mjs`（`npm run lint:bw-en-name`）掃 app／shared／server 非註解行，出現任一種 `Taichung Blue Whale／Bluewhale` 寫法即失敗。⚠️ 標語英文原為舊站原句（句首是英文名），未定案前變成「台中藍鯨 rides the waves…」，定案後改常數即還原。
+
+
+## 球員 slug 網址（3.1 球員詳情，2026-10-05，`frontend-architect`）
+
+後端 `players.slug` 完成後的前端接線（App 規劃書 §2.3 `tcrfc://player/{slug}`）。
+
+- **解析**：`app/pages/zh/club/first-team/player/[slug]/index.vue` 改打 `GET /{club}/players/{slug}?lang=`（slug、id 皆可，大小寫不敏感，別隊 404），取代原本「抓整份名單再比對」。只接一線隊（`D1`／`BW1`）球員。
+- **正規網址與重複內容**：正規形式是 `/{zh|en}/club/first-team/player/{slug}/`。以 id（UUID）或大小寫不同進來，解析成功後 **301** 到 slug 網址（保留 `/en/` 前綴）；canonical 由全站機制依最終路徑產生，所以永遠指向 slug 網址。找不到（不存在、別隊、梯隊）維持 **302 回名單**（App 深連結回退，docs/19 §2）。
+- **改用 slug 的地方**：一線隊名單卡片、球員數據總表（只有 `playerId`，由同頁名單反查 slug，查不到才退回 id 再被 301）、全站搜尋結果（`SearchResultItemDto.slug` 對球員目前為空，退回 id 網址、由詳情頁 301；後端若補上即自動生效）、sitemap（`server/utils/sitemap-urls.ts` `getPlayerUrls`：只列一線隊、排除出生日期已知未滿 18 歲者，與 Person Schema 同一道閘門）、Person Schema 的 `url`（無 slug 不輸出 `url`）。
+- **型別**：`PlayerDto`、`playerPath()` 在 `shared/utils/player.ts`（對照 `shared/openapi.json`）。
+- **假 API**：`scripts/dev-fixture-api.mjs` 的球員帶 `slug: 'test-player'`，並新增 `GET players/{slug｜id}`（找不到回含統一錯誤結構的 404）。
+- **統一錯誤結構**：前台代理與 `extractErrorMessage()` 讀的是既有 `detail`／`title`，後端新增 `code`／`messageZh`／`messageEn`／`retryable` 為相容擴充，不受影響，未改用新欄位。
+- **驗證**：`npm run lint`（0 error）、兩站 build 通過；假 API 實測（藍鯨站）：slug 200＋canonical 與 Person `url` 指向 slug、id／大小寫不同 301（`/zh/`、`/en/` 皆保留語系）、不存在 302、sitemap 含 `/zh/` 與 `/en/` slug 網址。**未對真 API 驗。**
+
+
+## 註冊年齡閘門與監護人同意（會員 S2-11，2026-10-05，`frontend-architect`）
+
+主站規劃書「會員資料安全要求」：未滿 18 歲須經監護人同意方得註冊。後端 `MemberAgeGate`：`birthOn` 必填（缺＝400 `birth_on_required`）；依台北當地日期算足歲，未滿 18 歲須帶 `guardianConsent { consented, guardianName(≤64), relationship(parent｜legal_guardian), consentTextVersion? }`，成年不蒐集。
+
+- **畫面**：Email 註冊（`MemberAuthPanel.vue`）與 LINE 完成註冊（`pages/zh/member/line-callback.vue`）共用 `components/member/MemberAgeGuardian.vue`：生日欄位＋未滿 18 歲才出現的監護人區塊。判斷用 `shared/utils/member.ts` 的 `taipeiAge()`／`isMinorBirth()`（台北 UTC+8，不依裝置時區；與後端同一算法，單元驗過 UTC 17:00 跨日邊界），真正把關仍是後端。
+- 🔴 **同意文案待法務（B-9）**：區塊只放「同意條款文字待法務定稿」的佔位說明，**不自擬法律條文**；送出的 `consentTextVersion` 固定 `GUARDIAN_CONSENT_VERSION_PENDING = 'pending-legal'`。法務定稿後：換版本號常數、改佔位說明、（若條文要顯示）接政策端點。後台 K1 把此值顯示為「文案尚未定稿（待法務）」，正式環境不會誤以為已定稿。
+- **LINE 代理**：`server/api/member-auth/line-complete.post.ts` 補轉發 `guardianConsent`（只挑契約四欄）；Email 註冊走既有通用代理，body 原樣轉發。
+- **錯誤**：`birth_on_required`、`guardian_consent_required`、`guardian_name_required`、`invalid_guardian_relationship`、`invalid_guardian_consent_version` 一律顯示後端 `detail`（`toMemberApiError` 既有行為）；前端另在送出前擋同樣的缺漏，訊息相同意思。
+- **假 API**：`scripts/dev-fixture-api.mjs` 新增 `POST member/auth/register`／`line/complete`，照 `MemberAgeGate` 驗證五種錯誤碼。
+- **英文頁 fallback 標示（`isFallbackLocale`）**：已有一致機制，不另補——`layouts/default.vue` 對所有 `/en/` 頁（目前沒有任何頁宣告 `enReady`）顯示 `LocaleFallbackNotice`「尚無英文版本，顯示繁體中文」；全站搜尋逐筆再標示。⚠️ 日後有頁面宣告 `enReady: true` 時，其 API 回應的 `isFallbackLocale`（新聞、FAQ、政策、球員、課程等）須餵給同一個提示，不要各頁自做一套。
+- **驗證**：lint 0 error、兩站 build 通過；假 API＋無頭瀏覽器：未成年缺監護人被擋、補齊後 body 帶 `guardianConsent`＋`pending-legal` 註冊成功、成年不顯示監護人區塊、LINE 完成代理對未成年缺同意回 400 `guardian_consent_required`。**未對真 API 驗；LINE 完成頁未在瀏覽器實走（需 LINE 憑證），只驗代理與共用元件。**
+
+
+## 狀態改讀穩定代碼 `statusCode`（05 課程、試訓，2026-10-05，`frontend-architect`）
+
+課程梯次、試訓場次與兩種報名結果（`*RegistrationSubmittedDto`）新增 `statusCode`／`statusLabelZh`／`statusLabelEn`（代碼表 `shared/enums.json`；`status` 中文字面值保留相容）。
+
+- **判斷**：`app/utils/program-session.ts` 的 `sessionSignupState` 改依 `statusCode`（`sessionStatusCode()`；舊回應沒有代碼時才由字面值反查）。報名結果「候補」判斷改 `statusCode === 'waitlisted'`（`ProgramRegistration.vue`、`TrialSchedule.vue`）。
+- **顯示**：`statusLabel(obj, locale)`——後端標籤優先，其次本地代碼表，再其次字面 `status`／代碼本身。
+- **未知代碼容錯**：標籤不丟錯；梯次狀態未知保守視為「已截止」（不假裝能報名，後端仍是最終裁判）。新增代碼時同步 `program-session.ts` 的 `STATUS_LABELS`。
+- **會員中心「我的報名」**：**網頁前台不做**（主站規劃書 §3.14「本站網頁前台經評估後不納入」，僅行動 App 提供；同本檔第 3125 行）。`MemberRegistrationDto` 的 `course`／`trial` 摘要與 `statusCode` 是給 App 用的，官網不需套用。
+- 假 API：梯次與報名回應補 `statusCode`／標籤。
+- 驗證：lint 0 error、兩站 build 通過；`program-session.ts` 以 node 單元驗過（open／full／ended／舊字面值／未知代碼／標籤退回）。

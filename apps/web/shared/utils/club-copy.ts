@@ -158,6 +158,14 @@ export interface ClubIdentity {
 // 吃 facts 參數的工廠函式去養一個沒人用的欄位，不如直接刪掉，需要「＿＿年創立」
 // 這句文字的頁面一律呼叫 `useSiteFacts(club).facts.value.foundedDisplayZh`
 // （見下方各 `getXxx()` 工廠函式的既有用法）。
+/**
+ * 🔴 藍鯨「英文文案裡的俱樂部名稱」唯一來源（STATUS B-5）。客戶尚未指定英文正式全名（舊站並存
+ * `Taichung Bluewhale`／`Taichung Blue Whale Women's Football Team`／`Taichung blue whale` 三種寫法），
+ * 開發端不得自挑，所以英文句子裡一律放中文名。B-5 定案後**只改這一個常數**。
+ * `scripts/check-club-copy.mjs` 會掃出上述英文寫法，寫死就 lint 失敗。
+ */
+export const BW_NAME_EN_PENDING = '台中藍鯨'
+
 export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
   tcrfc: {
     aboutLabelZh: '關於台中磐石',
@@ -183,13 +191,12 @@ export const CLUB_IDENTITY: Record<ClubCode, ClubIdentity> = {
     academyLabelZh: '青年隊',
     academyLabelEn: 'YOUTH',
     academyShortLabelZh: '青年隊',
-    // 🔴 不得自行選定英文正式全名（舊站並存 Taichung Bluewhale／Taichung Blue
-    // Whale Women's Football Team／Taichung blue whale 三種寫法，待客戶確認）。
+    // 🔴 不得自行選定英文正式全名（B-5，見 BW_NAME_EN_PENDING）。
     brandTagEn: null,
     // 沿用舊站首頁已公開發布的中英文標語原文（content/blue-whale/club-profile.md §3），
-    // 不是新譯——首頁一句英文說明「Taichung Blue Whale rides the waves towards
-    // the open ocean」是舊站自己配的英文文案，不是我方新生產翻譯。
-    slogan: { zh: '航向世界的藍鯨', en: 'Taichung Blue Whale rides the waves towards the open ocean' },
+    // 不是新譯。⚠️ 舊站英文句首是英文名，B-5 未定前改放
+    // `BW_NAME_EN_PENDING`（中文名），定案後句子即與舊站一致。
+    slogan: { zh: '航向世界的藍鯨', en: `${BW_NAME_EN_PENDING} rides the waves towards the open ocean` },
     // 直接節錄 content/blue-whale/club-profile.md §1「定位敘述（原文）」兩句，未新增文字。
     footerBlurb:
       '隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。',
@@ -264,7 +271,7 @@ export function getHomeSeo(club: string, facts: SiteFacts): SeoCopy {
 export function getHomeHero(club: string, facts: SiteFacts): HomeHeroCopy {
   if (normalizeClub(club) === 'bw') {
     return {
-      kickerEn: 'Taichung Blue Whale rides the waves towards the open ocean',
+      kickerEn: `${BW_NAME_EN_PENDING} rides the waves towards the open ocean`,
       headlineZh: '航向世界<br>的藍鯨',
       // 「五度」是對 content/blue-whale/club-profile.md §4 沿革逐條「隊史第 X 座台灣
       // 木蘭聯賽冠軍」明文出現次數的計數（2017／2018／2019／2021／2023 共五次），
@@ -1315,7 +1322,7 @@ export function getJoinFirstTeamBody(club: string, facts: SiteFacts): string {
 export function getForeignPlayerBody(club: string, facts: SiteFacts): string {
   const leagueLabel = facts.league.nameEn ? `${facts.league.nameEn} (${facts.league.nameZh})` : facts.league.nameZh
   if (normalizeClub(club) === 'bw') {
-    return `Taichung Bluewhale Women's Football Team First Team competes in Taiwan's ${leagueLabel}. We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our club will follow up.`
+    return `${BW_NAME_EN_PENDING} First Team competes in Taiwan's ${leagueLabel}. We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our club will follow up.`
   }
   return `Taichung Rock FC (TCRFC) First Team competes in Taiwan's ${leagueLabel}. We welcome enquiries from foreign players interested in trialling or joining the squad. Please use the international enquiry form below and our International Department will follow up.`
 }
@@ -1952,9 +1959,9 @@ export function getProgramsHubEnrolNoteBw(): string {
 export function getInternationalPlayerSeo(club: string): SeoCopy {
   if (normalizeClub(club) === 'bw') {
     return {
-      title: 'International Player Enquiries 國際球員詢問｜Join / Contact｜Taichung Blue Whale',
+      title: `International Player Enquiries 國際球員詢問｜Join / Contact｜${BW_NAME_EN_PENDING}`,
       description:
-        'Interested in playing for Taichung Blue Whale in Taiwan? Submit your football background, video highlights and visa status and our club will follow up.',
+        `Interested in playing for ${BW_NAME_EN_PENDING} in Taiwan? Submit your football background, video highlights and visa status and our club will follow up.`,
     }
   }
   return {
@@ -1982,7 +1989,7 @@ export function getInternationalPlayerHero(club: string): { leadEn: string; lead
 export function getInternationalPlayerConsentAfterLink(club: string): { en: string; zh: string } {
   if (normalizeClub(club) === 'bw') {
     return {
-      en: ', and consent to Taichung Blue Whale collecting the personal data submitted in this form for the purpose of processing this player enquiry.',
+      en: `, and consent to ${BW_NAME_EN_PENDING} collecting the personal data submitted in this form for the purpose of processing this player enquiry.`,
       zh: '本人已閱讀並同意隱私權政策，並同意台中藍鯨依本表單蒐集之個人資料，用於處理本次國際球員詢問。',
     }
   }

@@ -69,11 +69,51 @@ async function getShopProductUrls(club: string): Promise<SitemapUrlEntry[]> {
   }
 }
 
+interface PlayersResponse {
+  items?: Array<{ slug?: string | null, teamCode: string, birthOn?: string | null }>
+}
+
+/**
+ * 3.1 球員詳情（`/zh/club/first-team/player/{slug}/`）：正規網址是 slug（id 網址會 301，不列）。
+ * 只列一線隊（詳情頁只接一線隊球員，其餘會 302 回名單）、且排除出生日期已知未滿 18 歲者（未成年個資不主動送進索引，
+ * 與 Person Schema 的閘門同一條規則）。公開端點單次最多 100 筆，一線隊名單遠低於此；失敗回空陣列。
+ */
+async function getPlayerUrls(club: string): Promise<SitemapUrlEntry[]> {
+  if (!isUnitEnabledForClub('3.1', club)) return []
+  const teamCode = club === 'bw' ? 'BW1' : 'D1'
+  try {
+    const res = await $fetch<PlayersResponse>(`/api/v1/${club}/players`, {
+      baseURL: backendApiBase(),
+      query: { team: teamCode, pageSize: 100 },
+    })
+    const now = new Date()
+    const isMinor = (birthOn?: string | null) => {
+      if (!birthOn) return false
+      const [y, m, d] = birthOn.split('-').map(Number)
+      if (!y || !m || !d) return false
+      let age = now.getUTCFullYear() - y
+      if (now.getUTCMonth() + 1 < m || (now.getUTCMonth() + 1 === m && now.getUTCDate() < d)) age -= 1
+      return age < 18
+    }
+    return (res?.items ?? [])
+      .filter((p) => p.slug && p.teamCode === teamCode && !isMinor(p.birthOn))
+      .map((p) => ({ loc: `/zh/club/first-team/player/${p.slug}/` }))
+  } catch {
+    return []
+  }
+}
+
+/** 不屬於 13 個單元、但是公開且該被收錄的站務頁（兩站相同）。目前只有 App 下載頁（App 規劃書 §2.3）。
+ * 會員中心（含 `/member/upgrade/`）、隱私權與 Cookie 政策不在此列（GEO-02／站務法遵頁，維持既有排除）。 */
+const EXTRA_PUBLIC_PATHS: readonly string[] = ['/zh/app/']
+
 export async function getSitemapUrls(club: string): Promise<SitemapUrlEntry[]> {
   const unitUrls: SitemapUrlEntry[] = [
     ...getEnabledSiteUnits(club).map((unit) => ({ loc: unit.path })),
+    ...EXTRA_PUBLIC_PATHS.map((loc) => ({ loc })),
     ...await getCharityProgramUrls(club),
     ...await getShopProductUrls(club),
+    ...await getPlayerUrls(club),
   ]
 
   try {

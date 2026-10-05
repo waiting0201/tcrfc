@@ -16,6 +16,8 @@
 // 且本頁目前唯一能引用的藍鯨舊站文字（content/blue-whale/club-profile.md）沒有逐年
 // 可查證的獎盃時間軸，不得比照磐石那樣編一個出來。
 import type { PlayerStatsResponse, StandingsResponse } from '#shared/utils/standings'
+import type { PlayerDto } from '#shared/utils/player'
+import { playerPath } from '#shared/utils/player'
 
 definePageMeta({ nav: 'club', unit: '3.1' })
 
@@ -52,12 +54,14 @@ useSportsTeamSchema(teamCode.value)
 // S3-9（2026-10-01）起接上 `standings`／`stats/players`（見下方「S3-9」段與 apps/web/README.md「S3-5／S3-5a／S3-9」節） ----
 const club = config.public.club
 const [{ data: playersData }, { data: staffData }, { data: scheduleData }] = await Promise.all([
-  useFetch(`/api/backend/${club}/players`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
+  useFetch<{ items: PlayerDto[] }>(`/api/backend/${club}/players`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
   useFetch(`/api/backend/${club}/staff`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
   useFetch(`/api/backend/${club}/schedule`, { query: { team: teamCode.value, pageSize: 100, lang: locale.value } }),
 ])
 
 const players = computed(() => playersData.value?.items ?? [])
+/** 數據總表只有 playerId，網址要用 slug 正規形式：由名單反查（查不到才退回 id，詳情頁會 301 到 slug）。 */
+const slugById = computed(() => new Map(players.value.map((p: PlayerDto) => [p.id, p.slug] as const)))
 
 // ---- S3-9：積分榜與球員數據（自動彙總）----
 // `GET /{club}/standings`（C4 手動維護或匯入，只有 名次／出賽／積分）與 `GET /{club}/stats/players`
@@ -114,16 +118,19 @@ function isKnownMinor(birthOn: string | null | undefined): boolean {
   if (now.getUTCMonth() + 1 < m || (now.getUTCMonth() + 1 === m && now.getUTCDate() < d)) age -= 1
   return age < 18
 }
+const siteUrl = (useSiteConfig().url ?? '').replace(/\/$/, '')
 watchEffect(() => {
-  const eligible = players.value.filter((p: { id?: string, schemaEligible?: boolean, name?: string | null, birthOn?: string | null }) =>
+  const eligible = players.value.filter((p: PlayerDto) =>
     p.schemaEligible && p.name && !isKnownMinor(p.birthOn))
   if (eligible.length === 0) return
   useSchemaOrg(
-    eligible.map((p: { id: string, name: string, position?: string | null, photoUrl?: string | null }) =>
+    eligible.map((p: { id: string, slug?: string, name: string, position?: string | null, photoUrl?: string | null }) =>
       definePerson({
         // 唯一 @id（見 about/our-people.vue 同一處說明、docs/18 E-96）：不給就全部合併成站台身分節點。
         '@id': `player-${p.id}`,
         name: p.name,
+        // 詳情頁的正規網址（slug）；沒有 slug 時不輸出 url，不拿 id 網址頂替（id 網址會 301，不是正規形式）。
+        url: p.slug ? `${siteUrl}${lp(playerPath(p.slug))}` : undefined,
         jobTitle: p.position ?? undefined,
         image: p.photoUrl ?? undefined,
       }),
@@ -211,7 +218,7 @@ function formatMatchDate(dateStr: string): string {
         </div>
         <div class="player-card__body">
           <span class="player-card__pos">{{ p.position ?? '—' }}</span>
-          <p class="player-card__name"><a class="sh-player-link" :href="lp(`/zh/club/first-team/player/${p.id}/`)">{{ p.name }}</a></p>
+          <p class="player-card__name"><a class="sh-player-link" :href="lp(playerPath(p.slug || p.id))">{{ p.name }}</a></p>
         </div>
       </article>
     </div>
@@ -367,7 +374,7 @@ function formatMatchDate(dateStr: string): string {
         </thead>
         <tbody>
           <tr v-for="r in statRows" :key="r.playerId">
-            <td><a class="sh-player-link" :href="lp(`/zh/club/first-team/player/${r.playerId}/`)">{{ r.name ?? '—' }}</a></td>
+            <td><a class="sh-player-link" :href="lp(playerPath(slugById.get(r.playerId) ?? r.playerId))">{{ r.name ?? '—' }}</a></td>
             <td>{{ statCell(r.shirtNo) }}</td>
             <td>{{ r.position ?? '—' }}</td>
             <td>{{ statCell(r.appearances) }}</td>

@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
     // apps/api 暫時連不上：整份回退到內建預設文字，見檔頭說明。
   }
 
-  const defaultKeyPages = units.map((u) => `- [${u.labelZh}](${u.path})`).join('\n')
+  const defaultKeyPages = units.map((u) => `- [${getUnitLabelZh(u, club)}](${u.path})`).join('\n')
 
   const lines = [
     `# ${assets.nameZh}`,

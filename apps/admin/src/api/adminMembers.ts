@@ -133,11 +133,21 @@ export interface MemberJerseyIssueDto {
   receivedOn: string | null
 }
 
+/** 未滿 18 歲註冊者的監護人同意紀錄；成年註冊為 null。姓名是受限個資，未解除遮罩時為遮罩值，帳號刪除後為 null。 */
+export interface MemberGuardianConsentDto {
+  consentedAt: string
+  guardianName: string | null
+  relationship: string | null
+  relationshipLabel: string | null
+  consentTextVersion: string | null
+}
+
 export interface MemberDetailDto extends Omit<MemberListItemDto, 'memberships'> {
   birthOn: string | null
   emailVerifiedAt: string | null
   internalNote: string | null
   mergedIntoMemberNo: string | null
+  guardianConsent?: MemberGuardianConsentDto | null
   canReveal: boolean
   memberships: MemberMembershipDetailDto[]
   jerseyIssues: MemberJerseyIssueDto[]

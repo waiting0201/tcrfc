@@ -7,6 +7,11 @@ export default defineEventHandler(async (event) => {
     return memberProblem(event, 400, 'invalid_body', '請填寫 Email。')
   }
   const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined)
+  // 監護人同意（未滿 18 歲）：只挑契約內的四個欄位轉發，型別不對就不帶（由後端回 guardian_consent_required）。
+  const g = raw.guardianConsent && typeof raw.guardianConsent === 'object' ? raw.guardianConsent as Record<string, unknown> : null
+  const guardianConsent = g
+    ? { consented: g.consented === true, guardianName: str(g.guardianName), relationship: str(g.relationship), consentTextVersion: str(g.consentTextVersion) }
+    : undefined
   const res = await callUpstream(event, 'POST', 'member/auth/line/complete', {
     body: {
       club: raw.club,
@@ -15,6 +20,7 @@ export default defineEventHandler(async (event) => {
       name: str(raw.name),
       phone: str(raw.phone),
       birthOn: str(raw.birthOn),
+      guardianConsent,
       lang: raw.lang === 'en' ? 'en' : 'zh',
       tokenDelivery: 'body',
     },

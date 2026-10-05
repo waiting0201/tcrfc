@@ -11,7 +11,7 @@
  */
 import assert from 'node:assert/strict'
 import { parseNewsBody, safeUrl } from '../app/utils/news-body.ts'
-import { isSessionRegistrable, sessionSignupState } from '../app/utils/program-session.ts'
+import { isSessionRegistrable, sessionSignupState, statusLabel } from '../app/utils/program-session.ts'
 
 let n = 0
 let failures = 0
@@ -72,8 +72,22 @@ t('梯次狀態是中文字面值：開放／額滿／候補可報名，已結�
   assert.equal(isSessionRegistrable({ status: '開放' }, now), true)
   assert.equal(isSessionRegistrable({ status: '已結束' }, now), false)
 })
-t('英文代碼 open 不是合法的「開放」（舊 bug：永遠找不到開放梯次）', () => {
-  assert.equal(sessionSignupState({ status: 'open' }, now), 'waitlist')
+t('字面值欄位放英文 open 不是合法的「開放」（舊 bug）；未知狀態保守視為已截止', () => {
+  assert.equal(sessionSignupState({ status: 'open' }, now), 'closed')
+})
+t('statusCode 為準：open／full／waitlist／ended，未知代碼容錯為不可報名；statusCode 優先於字面值', () => {
+  assert.equal(sessionSignupState({ statusCode: 'open' }, now), 'open')
+  assert.equal(sessionSignupState({ statusCode: 'full' }, now), 'waitlist')
+  assert.equal(sessionSignupState({ statusCode: 'waitlist' }, now), 'waitlist')
+  assert.equal(sessionSignupState({ statusCode: 'ended' }, now), 'closed')
+  assert.equal(sessionSignupState({ statusCode: 'brand_new' }, now), 'closed')
+  assert.equal(sessionSignupState({ statusCode: 'ended', status: '開放' }, now), 'closed')
+})
+t('statusLabel：後端標籤優先、本地代碼表次之、未知代碼退回字面值或代碼', () => {
+  assert.equal(statusLabel({ statusCode: 'waitlisted' }, 'en'), 'Waitlisted')
+  assert.equal(statusLabel({ statusCode: 'paid', statusLabelEn: 'Paid!' }, 'en'), 'Paid!')
+  assert.equal(statusLabel({ statusCode: 'x', status: '新狀態' }, 'en'), '新狀態')
+  assert.equal(statusLabel({ statusCode: 'x' }, 'zh'), 'x')
 })
 t('報名窗口：尚未開放、已截止都不可報名', () => {
   assert.equal(sessionSignupState({ status: '開放', signupOpensAt: '2026-11-01T00:00:00Z' }, now), 'not_yet')

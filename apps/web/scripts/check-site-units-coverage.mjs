@@ -55,6 +55,7 @@ const SITE_UNITS_FILE = resolve(HERE, '../shared/utils/site-units.ts')
 // ---------------------------------------------------------------------------
 const EXCLUDED_TOP_LEVEL_UNITS = new Map([
   ['14', '會員中心——docs/14-invariants.md GEO-02：AI 爬蟲與代表頁清單明文排除會員中心，且為登入後內容，不適用未登入可讀的 sitemap／llms 前提。'],
+  ['G-08', 'App 下載頁（`/zh/app/`，App 規劃書 §2.3 對官網的要求）——站務頁，不屬於 13 個單元架構；公開頁，sitemap 由 server/utils/sitemap-urls.ts 的 EXTRA_PUBLIC_PATHS 單獨收錄。'],
   ['G-07', '站務法遵頁面（隱私權政策／Cookie 政策）——不屬於主站規劃書 13 個單元架構，是每站必備的通用頁面，非「單元」概念涵蓋範圍。'],
 ])
 
