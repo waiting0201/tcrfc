@@ -3,7 +3,7 @@
   "code": "bw",
   "founded_on": "2014-04-12",
   "description_zh": "臺中市女子足球協會－台中藍鯨女子足球隊，簡稱台中藍鯨，成立於 2014 年 4 月 12 日，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。俱樂部口號：「藍色的天空是我們心中夢想的方向，閃爍的陽光是走向夢想的力量，草地上揮灑汗水是成長過往堅定信仰，有你在身旁就不再徬徨，此時此刻，我們與我們的球迷站在一起，一起迎向世界。」",
-  "english_name_note": "英文正式全名舊站有三種寫法並存（Taichung Bluewhale／Taichung Blue Whale Women's Football Team／Taichung blue whale），不自行挑一個，clubs_i18n 不插 en 列（docs/13 踩雷點 17）",
+  "english_name_note": "英文名稱 2026-10-05 已定：簡稱 Taichung Blue Whale、全名 Taichung Blue Whale Women's Football Club（docs/13 踩雷點 17）；舊站的其他寫法不沿用",
   "social_links_not_seeded": {
     "_comment": "以下事實已取得，但 Setting 機制目前沒有任何既有 setting_key 命名慣例可依循（tcrfc 自己都還沒有 seed 過這類設定），本次不自行發明 key 名稱寫入 settings 表，僅記錄於此供回報與未來建檔使用",
     "email": "fbbh2014@gmail.com",

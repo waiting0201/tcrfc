@@ -22,9 +22,9 @@
 | 旗下球隊 | 台中藍鯨成人女子足球隊、台中藍鯨 U15 青少年女子足球隊、台中藍鯨 U12 青少年女子足球隊 |
 | 建教合作 | 國立台灣體育運動大學女子足球隊、臺中市立五權國民中學女子足球隊、南投縣立水里國民中學女子足球隊、彰化縣立永靖國民中學女子足球隊、臺中市篤行國小女子足球隊 |
 
-> ⚠️ **英文名有三種寫法並存**，舊站自己就不一致：
+> ✅ **英文名稱已於 2026-10-05 定案**（簡稱 `Taichung Blue Whale`、全名 `Taichung Blue Whale Women's Football Club`），舊站的寫法一律不沿用。舊站原本的三種寫法如下，僅供對照：
 > `Taichung Bluewhale`（俱樂部資訊表）／`Taichung Blue Whale Women's Football Team`（一線隊頁）／
-> `Taichung blue whale`（頁首）。**新站要統一，且英文正式全名仍待客戶確認**（docs/13 §5 第 2 項）。
+> `Taichung blue whale`（頁首）。
 
 ### 資格認證
 

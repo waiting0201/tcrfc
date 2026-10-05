@@ -1,10 +1,15 @@
 # Taichung Blue Whale — Official Website Functional Specification
 
-> **Document version**: v1.9
-> **Date**: 2026-09-10 (v1.9 revision: 2026-09-30)
-> **Content principal**: Taichung Blue Whale Women's Football Team
+> **Document version**: v1.10
+> **Date**: 2026-09-10 (v1.10 revision: 2026-10-05)
+> **Content principal**: Taichung Blue Whale Women's Football Club
+> **English name**: short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club` (usage in §8.2)
 > **System principal**: **shares the admin and database** of the Taichung Rock FC official website
-> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.9*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.10*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v1.10 revision summary — the official English name is settled**
+> **No functional changes.** Taichung Blue Whale's English name is: **short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club`**; no other spelling is used.
+> The full name is used in formal contexts and on first mention (Schema `name` / `legalName`, the `llms.txt` headings, the footer byline, legal terms); the short form is used in running text and headings. Landing points: §8.2 brand-asset table and usage, §7 point 1, §10 item 2.
 
 > **v1.9 revision summary — `08` Culture has no comic**
 > Taichung Blue Whale has no comic. **The rule in §1.3 has five section-level exceptions** (§2.1): `06` and `11` are not built, `04` is YOUTH, `08` does not build `8.1` Comic, and `09` must be zoned.
@@ -31,8 +36,8 @@
 
 > **v1.4 revision summary — brand colours settled, sampled from the crest**
 > 1. **Brand colours follow the crest** (§8.1): primary `#2196D5`, AA-safe variant for small text `#1A78AA`, dark `#040000`. All seven brand variables are listed with their contrast verification.
-> 2. **§8.2 Brand assets**: a **raster master** of the crest is in hand (3299 × 3243 at 300dpi, transparent PNG), sufficient for the web, @2x / @3x rasters, the favicon and the OG image; **the vector original and the official English name are still outstanding**.
-> 3. **§10 item 2** narrows to those two outstanding items.
+> 2. **§8.2 Brand assets**: a **raster master** of the crest is in hand (3299 × 3243 at 300dpi, transparent PNG), sufficient for the web, @2x / @3x rasters, the favicon and the OG image; **the vector original is still outstanding**.
+> 3. **§10 item 2** narrows to that one outstanding item.
 
 > **v1.3 revision summary — advertising module identifiers**
 > **No functional changes; identifiers only.** The advertising module is **`E4–E6`**, in step with website specification v3.3.
@@ -315,7 +320,7 @@ Records that must be created:
 
 Follows main-site specification chapter 7 (**both the nine SEO foundations and `GEO-01`–`GEO-09` apply**). Four points specific to this site:
 
-1. **Both languages launch together** (`/zh/` and `/en/`). The existing Blue Whale site is Chinese only, and an English edition materially helps visibility for an AFC-licensed club playing international invitationals. **Blue Whale must supply the official English name and the full English copy.**
+1. **Both languages launch together** (`/zh/` and `/en/`). The existing Blue Whale site is Chinese only, and an English edition materially helps visibility for an AFC-licensed club playing international invitationals. The English name is settled (§8.2); **Blue Whale must supply the full English copy.**
 2. **Canonical attribution for shared content**: articles with a null `club_id` appear on both sites. **One site must own the canonical URL** (the recommendation is the main site, with this site linking across), or two canonicals amount to duplicate content. To be confirmed (§10).
 3. **301 redirects from the old site**: the existing Google Sites sections must be mapped one by one to preserve search equity. Its URLs contain Chinese-language paths, so the mapping has to be compiled by hand.
 4. **GEO files are this site's own** (main-site `GEO-01`, `GEO-02`, `GEO-09`): this site has **its own `llms.txt` in both languages and its own `robots.txt`**, shared with nothing. Its key facts — **founded 2014-04-12, AFC club licence, the Taiwan Mulan Football League, home grounds at Taiyuan Football Field and Fengyuan Stadium, the mascot Bruwei** — follow `GEO-03` (one place of maintenance site-wide) and `GEO-04` (structured data and explicit text together). **For shared content (`club_id` null), the factual account belongs to whichever site holds the canonical; this site links across and does not restate it.**
@@ -362,7 +367,7 @@ Every value is **sampled from the crest** rather than chosen freely. The primary
 | High-density raster @2x / @3x | ✅ **Derivable from the raster master** (3299px covers the app's card face and the app icon) |
 | Brand colours (web values) | ✅ **Settled**: sampled from the crest, see §8.1 |
 | Brand colours (print references, PANTONE / CMYK) | 🔴 **Not supplied** — print work must not be commissioned against the web values |
-| Official English name | 🔴 **Unconfirmed** (the existing site says `Taichung Blue Whale`; whether that is the formal full name needs confirming) |
+| English name | ✅ **Settled**: short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club` (usage below) |
 | favicon / OG image | ✅ **Derivable from the raster master** |
 
 > 🔴 **The vector master is still to be obtained** (`.ai` / `.svg` / `.eps`). **Never draw a substitute mark, never trace one from a website screenshot, never set the name in type yourself, and never scale up a raster and pass it off as vector.**
@@ -370,6 +375,15 @@ Every value is **sampled from the crest** rather than chosen freely. The primary
 > **Large-format print, single-colour and reversed-out variants, and anything that needs recolouring or extracting part of the mark still require the vector file.** The second-generation logo has been in use since 2016, so an original should exist.
 > Where an asset is still missing, the corresponding areas **are not rendered** — **no placeholder imagery and no empty logo box.**
 > This matches the main site's existing rule (its `brand/` marks are all extracted from the master `.ai` file and never set by hand).
+
+**Usage of the English name** (identical on both sites and in the app; the whole system has only these two forms):
+
+| Form | Where it is used |
+|---|---|
+| **`Taichung Blue Whale Women's Football Club`** (full name) | Formal contexts and first mention: Schema `name` / `legalName`, the headings of `llms.txt` and `llms-en.txt`, the footer byline, legal terms and the privacy policy, press-release bylines |
+| **`Taichung Blue Whale`** (short form) | Running text, headings, navigation, social and share cards |
+
+> No other spelling is used (different capitalisation, run together as one word, ending in `Team`, or just `Blue Whale`). In Chinese the name is written 台中藍鯨, never 藍鯨 alone.
 
 ---
 
@@ -398,7 +412,7 @@ Every value is **sampled from the crest** rather than chosen freely. The primary
 | # | Item | Blocks |
 |---|---|---|
 | 1 | **The domain**: name, who owns it, who manages DNS. ⚠️ **App deep links require a controllable domain** (§2.3) | Launch and app deep links |
-| 2 | **The two remaining Blue Whale brand assets**: the **vector** logo master (with a dark variant) and the **official English name**. Web colour values, high-density rasters, the favicon and the OG image are all covered by the raster master (§8.1, §8.2) | Print work, single-colour and reversed-out variants; bylines on the English pages |
+| 2 | **The one remaining Blue Whale brand asset**: the **vector** logo master (with a dark variant). Web colour values, high-density rasters, the favicon and the OG image are all covered by the raster master (§8.1, §8.2) | Print work, single-colour and reversed-out variants |
 | 3 | **Player and coaching-staff data**: names (zh/en), numbers, positions, photographs, biographies, **likeness consent** | 03 First Team, 04 Youth (§3.3) |
 | 4 | **Twelve months of fixture data**: Mulan League, cups and international invitationals — dates, opponents, venues, home or away | 13 Schedule (§3.7) |
 | 5 | **Whether orders must be split by club at checkout** | The shop's checkout flow, shipment documents and return credit notes (§5.2) |

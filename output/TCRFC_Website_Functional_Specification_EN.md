@@ -1,9 +1,12 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.17
-> **Date**: 2026-08-14 (v3.17 revision: 2026-09-30)
+> **Document version**: v3.18
+> **Date**: 2026-08-14 (v3.18 revision: 2026-10-05)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.17*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.18*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.18 revision summary — Taichung Blue Whale's English name is settled
+> **No functional changes.** Taichung Blue Whale's English name is the short form `Taichung Blue Whale` and the full name `Taichung Blue Whale Women's Football Club` (usage in the Blue Whale specification §8.2). Item 38 in section 10 narrows to the vector master and the print colour references. Landing point: section 10, item 38.
 
 > **v3.17 revision summary — the admin account security page does not offer a two-factor authentication (2FA) setup entry for now**
 > **No new features; this tightens the sign-in flow description.** The admin interface has no entry for enabling 2FA; the system keeps the 2FA capability so it can be opened up later; an account that has already enabled 2FA must still enter the verification code at sign-in; account holders can still change their own password. Landing points: 4.10 J1, section 8 non-functional requirements (Security row).
@@ -85,7 +88,7 @@
 > 5. **§5.4 nullable `club_id`** narrows to **7 tables**.
 
 > **v3.4 revision summary — Blue Whale brand colours settled**
-> **No functional changes.** Item 38 in section 10 narrows: Blue Whale's **web colour values are settled** (sampled from the crest; values in the Blue Whale specification §8.1), and a **raster master** of the crest now covers high-density rasters, the favicon and the OG image. **Still outstanding: the vector master, print colour references, and the official English name.**
+> **No functional changes.** Item 38 in section 10 narrows: Blue Whale's **web colour values are settled** (sampled from the crest; values in the Blue Whale specification §8.1), and a **raster master** of the crest now covers high-density rasters, the favicon and the OG image. **Still outstanding: the vector master and print colour references.**
 
 > **v3.3 revision summary — identifiers in the `E` business module**
 > **No functional changes; identifiers only.** `E` runs **E1–E6**: E1 Partners / E2 Sponsors & Packages / E3 Sponsorship Deck & Download Tracking / **E4–E6 mobile app advertising** (advertisers & slots, flights & creatives, performance reports). Products and SKUs are maintained in `S1`. The admin module tree lists E1–E6 in full.
@@ -1855,7 +1858,7 @@ Implementing each of the nine "GEO & SEO FOUNDATION" fundamentals:
 35. **Blue Whale core-value tags**: the tag mechanism follows the Blue Whale specification's section 1.3 general rule; still to confirm is whether the tag wording reuses TCRFC's five phrases or Blue Whale sets its own (Blue Whale specification section 10 item 13). **This affects scope estimation and pricing.**
 36. **Shared content and canonical attribution**: articles with a null `club_id` appear on both sites — which site owns the canonical URL? The recommendation is this site, with the Blue Whale site linking across; to be confirmed.
 37. **The Blue Whale domain**: name, who owns it, who manages DNS. ⚠️ If the app is to support deep links into Blue Whale content, **that domain must be controlled by a party who can place** `.well-known/apple-app-site-association` and `assetlinks.json` on it.
-38. **The three Blue Whale brand assets still outstanding**: the **vector** logo master (with a dark variant), **print colour references** (PANTONE / CMYK), and the **official English name**. Web colour values are settled (sampled from the crest) and the raster master already covers @2x / @3x rasters, the favicon and the OG image — values and status in the Blue Whale specification §8.1 and §8.2. **The vector file, when obtained, must not be a redrawn mark, a screenshot trace, or an upscaled raster**; where an asset is still missing the corresponding areas are not rendered, with no placeholder imagery and no empty logo box.
+38. **The two Blue Whale brand assets still outstanding**: the **vector** logo master (with a dark variant) and **print colour references** (PANTONE / CMYK). Blue Whale's English name is settled (short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club`; usage in the Blue Whale specification §8.2). Web colour values are settled (sampled from the crest) and the raster master already covers @2x / @3x rasters, the favicon and the OG image — values and status in the Blue Whale specification §8.1 and §8.2. **The vector file, when obtained, must not be a redrawn mark, a screenshot trace, or an upscaled raster**; where an asset is still missing the corresponding areas are not rendered, with no placeholder imagery and no empty logo box.
 
 
 ---

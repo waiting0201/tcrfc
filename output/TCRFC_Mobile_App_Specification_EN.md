@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.14
-> **Date**: 2026-09-04 (v3.14 revision: 2026-10-05)
+> **Document version**: v3.15
+> **Date**: 2026-09-04 (v3.15 revision: 2026-10-05)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.15 revision summary — Taichung Blue Whale's English name is settled
+> **No functional changes.** Taichung Blue Whale's English name is the short form `Taichung Blue Whale` and the full name `Taichung Blue Whale Women's Football Club` (usage in the Blue Whale specification §8.2); §16.2 item 1 narrows to the vector master. Landing point: §16.2 item 1.
 
 > **v3.14 revision summary — how match times are stored and displayed**
 > **No new feature; §3.2 "Time handling" is written as an implementable definition.** A match's date and kick-off time are recorded in Taipei
@@ -58,7 +61,7 @@
 > **v3.5 revision summary — Blue Whale brand colours settled**
 > **No functional changes.**
 > 1. **§13 brand consistency**: Blue Whale's colours now cite the settled values in the Blue Whale specification §8.1 (primary `#2196D5`, AA-safe `#1A78AA` for small text, dark `#040000`).
-> 2. **§16.2 item 1** narrows: the raster master of the crest is in hand, so **the app icon and the membership card face (including @2x / @3x) are no longer blocked**; the vector master and the official English name remain outstanding.
+> 2. **§16.2 item 1** narrows: the raster master of the crest is in hand, so **the app icon and the membership card face (including @2x / @3x) are no longer blocked**; the vector master remains outstanding.
 
 > **v3.4 revision summary — advertising module identifiers**
 > **No functional changes; identifiers only.** The three advertising submodules are **`E4` (advertisers & slots) / `E5` (flights & creatives) / `E6` (performance reports)**, defined in sections 8.7–8.9, in step with website specification v3.3.
@@ -1754,7 +1757,7 @@ App icon (all sizes), launch screen, store screenshots (all device sizes, both l
 
 | # | Item | Impact |
 |---|---|---|
-| 1 | **The two Blue Whale brand assets still outstanding**: the **vector** logo master (with a dark variant) and the **official English name** | First-run onboarding, club sections, **the membership card face** and the app icon **can now be built** — the raster master (3299 × 3243 at 300dpi) covers @2x / @3x and the 1024 app icon, and the brand colours are settled (Blue Whale specification §8.1). The vector master blocks **dark and single-colour card faces, and any print work**. **Never redraw the crest, never trace it from a website screenshot, never scale up a raster and pass it off as vector** |
+| 1 | **The one Blue Whale brand asset still outstanding**: the **vector** logo master (with a dark variant). The English name is settled (short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club`; usage in the Blue Whale specification §8.2) | First-run onboarding, club sections, **the membership card face** and the app icon **can now be built** — the raster master (3299 × 3243 at 300dpi) covers @2x / @3x and the 1024 app icon, and the brand colours are settled (Blue Whale specification §8.1). The vector master blocks **dark and single-colour card faces, and any print work**. **Never redraw the crest, never trace it from a website screenshot, never scale up a raster and pass it off as vector** |
 | 2 | **Blue Whale's 12 months of fixtures**: dates, opponents, venues, home or away, for league and every cup competition | 3.2 is the app's first feature. **`content/` currently holds only the 2026/27 Premier League schedule; neither club's cup fixtures nor the Blue Whale league schedule have been supplied** |
 | 3 | **Blue Whale's players and coaching staff**: names (zh/en), numbers, positions, photographs, biographies, **and likeness consent** | 3.3 cannot be signed off. Minors require a guardian's consent |
 | 4 | **Ownership and DNS control of the Blue Whale website's domain** | 2.3. A Universal Link can only be bound to a domain you own; without control, **Blue Whale deep links must not ship** |

@@ -1,9 +1,9 @@
 # Taichung Blue Whale — Official Website Feature Overview (Client Edition)
 
-> **Document version**: v1.6
-> **Date**: 2026-09-14 (v1.6 revision: 2026-09-30)
-> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.9
-> **Content principal**: Taichung Blue Whale Women's Football Team
+> **Document version**: v1.7
+> **Date**: 2026-09-14 (v1.7 revision: 2026-10-05)
+> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.10
+> **Content principal**: Taichung Blue Whale Women's Football Club
 
 > **How to read this document**
 > This is a plain-language **feature overview** of the Taichung Blue Whale website, written so that anyone who does not read technical documents can still confirm what the site will contain and who maintains it.
@@ -227,5 +227,5 @@ The Blue Whale site reuses the Taichung Rock site's **layout system** — cards,
 ---
 
 > Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.6
-> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.9　·　11 sections plus the member area　·　Chinese and English
+> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.10　·　11 sections plus the member area　·　Chinese and English
 > **Shares the admin and database of the Taichung Rock FC website; content and brand remain separate.**
