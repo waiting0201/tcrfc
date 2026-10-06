@@ -7,7 +7,7 @@
 > 🔴 **本檔不得引入規劃書沒有的規格。** 每一個列出的欄位都標了信心度與規劃書行號依據；
 > 找不到依據的欄位一律不列，改在 §4／§5 說明推論理由或問題所在。
 >
-> 來源：主站規劃書 v3.18（`output/TCRFC_前後台功能規劃書.md`，1858 行）。行號皆指此檔。
+> 來源：主站規劃書 v3.20（`output/TCRFC_前後台功能規劃書.md`，1867 行）。行號皆指此檔。
 
 ---
 
@@ -27,7 +27,7 @@
 2. **只有規劃書寫「（中／英）」「雙語」「皆須中英」等字樣才算信心度「高」**；規劃書只列出欄位名稱、
    沒有語系標記的，算信心度「中」（功能描述到了，逐欄雙語與否要靠 `docs/04`／`docs/12` §5.2 的通則「所有具前台展示的型別皆需支援 zh/en」補足）。
 3. **主表 ERD 已經放了某段文字型欄位在主表（不是側表）的，優先尊重 ERD 的既有決定**，本檔不重複建側表欄位
-   （例如 `Standing.team_name` 是自由文字留在主表，不建側表）。**`Match.opponent` 不屬此例**：主表 `matches.opponent` 是繁中預設值，英文值存 `matches_i18n` 的 `en` 列（下表 `match_i18n`，`E-220`）。
+   （例如 `page_blocks.content` 的區塊 JSON 留主表）。**`Match.opponent` 不屬此例**；**`Standing.team_name`／`Achievement.competition_name`／`placing`／`Proposal.title`／`Program.audience`／`MembershipPlan.mid_season_rule` 也不屬此例**（2026-10-06 稽核 D 類：這幾處在 ERD 主表是自由文字，但前台 `/en/` 直接顯示，全域規定 4 要求雙語，已搬進側表，見 §3.2／§3.3／§3.9 與 §5 第 4、5 點）：主表 `matches.opponent` 是繁中預設值，英文值存 `matches_i18n` 的 `en` 列（下表 `match_i18n`，`E-220`）。
 
 ---
 
@@ -174,17 +174,18 @@
 | `title` | `string(64)` | 中 | 同上 |
 | `bio` | `text` | 中 | 同上（含「專長、經歷」與「簡介」） |
 
-#### `Standing` → `standing_i18n`
+#### `Standing` → `standings_i18n`（2026-10-06 稽核 D 類新建）
 
-**無欄位可列。** `docs/12a` §5.2 明訂 `standing.team_name` 是主表自由文字（「對手隊名是自由文字不是 `Team`」），
-規劃書 C4（行1090–1095）也只寫「積分榜：手動維護表格」，沒有任何雙語欄位描述，不建 `standing_i18n`。
-✅ **已解決（2026-09-22）**：`docs/12` §4.2 已拿掉 🌐，見 [§5](#5-發現的問題) 第 4 點。
+| 欄位 | 型別 | 信心度 | 依據 |
+|---|---|---|---|
+| `team_name` | `string(128)` | 高 | 積分榜的對手隊名是自由文字（`docs/12a` §5.2），前台 `/en/schedule` 積分榜直接顯示；全域規定 4。**搬自 `standings.team_name`**（主表欄位已刪）。比照 `matches_i18n.opponent`：對手球隊英文名無來源者 `en` 列留空走回退，不自行音譯 |
 
-#### `Achievement` → `achievement_i18n`
+#### `Achievement` → `achievements_i18n`（2026-10-06 稽核 D 類新建）
 
-**無欄位可列。** `docs/12a` §5.2 的 `achievement` 主表把 `competition_name`／`placing` 都放在主表（非側表），
-規劃書 C5（行1097）只寫「年份、賽事、名次、關聯球隊」，沒有雙語標記，不建 `achievement_i18n`。
-✅ **已解決（2026-09-22）**：`docs/12` §4.2 已拿掉 🌐，見 [§5](#5-發現的問題) 第 4 點。
+| 欄位 | 型別 | 信心度 | 依據 |
+|---|---|---|---|
+| `competition_name` | `string(128)` | 高 | 行1097「年份、賽事、名次、關聯球隊」，前台 2.7 榮譽牆顯示賽事名；**搬自 `achievements.competition_name`** |
+| `placing` | `string(64)` | 高 | 同上，名次（「冠軍」→「Champions」）；**搬自 `achievements.placing`**，長度由 32 放寬為 64（英文名次較長，如 "National Second Division champions"） |
 
 #### `Milestone` → `milestone_i18n`
 
@@ -205,6 +206,7 @@
 | `name` | `string(128)` | 高 | 行1106：「欄位：**名稱**、**簡介**…課程內容（區塊編輯）…」 |
 | `intro` | `text` | 高 | 同上 |
 | `content` | `json` | 高 | 同上（「課程內容（區塊編輯）」，比照 `PageBlock` 走區塊 JSON） |
+| `audience` | `string(64)` | 高 | **2026-10-06 稽核 D 類新增，搬自 `programs.audience`（原 `string(32)`）**。課程「對象」的文字描述（自由文字，如「6–12 歲兒童」）；**年齡區間是數字，`age_min`／`age_max` 留主表**，不雙語 |
 
 #### `Session` → `session_i18n`
 
@@ -251,12 +253,11 @@
 | `benefit_list` | `text` | 中 | 同上（「權益清單」未標語系，型別暫定文字非結構化陣列） |
 | `audience` | `string(128)` | 中 | 同上（「適合對象」未標語系） |
 
-#### `Proposal` → `proposal_i18n`
+#### `Proposal` → `proposals_i18n`（2026-10-06 稽核 D 類新建）
 
-**不建議建立。** `docs/12a` §5.5 的 `proposal.title` 是**主表的單一欄位**（`string_128`，非側表），
-多語言需求已由子表 `ProposalFile(locale, file_key)` 承載（每語系各自一份 PDF）。
-行1138「上傳提案 PDF（可多版本／多語系）」講的是 PDF 檔案本身的語系，不是 `Proposal` 標題要雙語。
-✅ **已解決（2026-09-22）**：`docs/12` §4.4 已拿掉 `Proposal` 的 🌐，見 [§5](#5-發現的問題) 第 5 點。
+| 欄位 | 型別 | 信心度 | 依據 |
+|---|---|---|---|
+| `title` | `string(128)` | 高 | 提案標題顯示在前台 9.4 下載頁與 Lead 表單。**搬自 `proposals.title`**（主表欄位已刪）。⚠️ 行1138「多版本／多語系」指 PDF 檔案語系，仍由 `ProposalFile(locale, file_key)` 承載，**與本側表的 `locale` 是兩件事、互不取代** |
 
 ---
 
@@ -353,6 +354,7 @@
 |---|---|---|---|
 | `name` | `string(64)` | 高 | 行1271：「方案設定：…**方案名稱（中／英）**…權益說明…」 |
 | `benefit_note` | `text` | 中 | 同上（「權益說明」未標語系；注意條目層級的權益已由既有的 `membership_benefit_i18n` 承載，此為方案層級的概述文字） |
+| `mid_season_rule` | `string(255)` | 高 | **2026-10-06 稽核 D 類新增，搬自 `membership_plans.mid_season_rule`**。K2「季中計價規則」是給會員看的規則說明文字（購買頁／方案卡顯示），不是計算參數；計價用的數字另有欄位 |
 
 #### `PartnerStore` → `partner_store_i18n`
 
@@ -487,16 +489,16 @@
    `impact_records_i18n`，`docs/12a` §5.9 已補畫 `impact_record_i18n` 實體。公益團體名稱透過 `charity_id`
    關聯到 `Charity`／`charity_i18n` 取得，不重複儲存於本側表。
 
-4. **`Standing`／`Achievement`／`Session`／`Season` 四張表 🌐 標記過寬** —— ✅ **已解決（2026-09-22，
-   `docs/12` §4.2／§4.3 已拿掉這四個 🌐）**。`db/club-schema.sql` 逐表核實：規劃書與 ERD 全文查無任何文字型
-   欄位（`Standing.team_name`、`Achievement.competition_name`／`placing` 已是主表自由文字非側表候選；
-   `Session`／`Season` 全部欄位是日期／數字／狀態），不建 `standings_i18n`／`achievements_i18n`／
-   `sessions_i18n`／`seasons_i18n`，DDL 逐表留有理由註解。**規劃書沒有要求這四張雙語，🌐 是 `docs/12` 自己
-   標的**——這是文件勘誤，不是產品範圍決定；若日後規劃書真的新增雙語需求，才需要先改規劃書再補側表。
+4. **`Standing`／`Achievement`／`Session`／`Season` 四張表的 🌐 標記** —— 🔄 **2026-10-06 修正（稽核 D 類）：
+   `Standing`／`Achievement` 改為有側表，`Session`／`Season` 維持沒有**。2026-09-22 的裁決（拿掉四個 🌐、不建
+   `standings_i18n`／`achievements_i18n`）以「規劃書沒有雙語標記」為由，**是錯的**：全域規定 4 是通則，與第 8 點
+   `FormField` 同一類錯。`Standing.team_name`（積分榜對手隊名）、`Achievement.competition_name`／`placing`（榮譽的賽事與名次）
+   前台 `/en/` 直接顯示，已建 `standings_i18n`／`achievements_i18n` 並搬移欄位（遷移 `db/migrations/20261006_d-bilingual-gaps_*.sql`）。
+   `Session`／`Season` 全部欄位是日期／數字／狀態／代碼，**仍不建** `sessions_i18n`／`seasons_i18n`。
 
-5. **`Proposal` 🌐 誤標** —— ✅ **已解決（2026-09-22，`docs/12` §4.4 已拿掉 🌐）**。規劃書行1138
-   「多版本／多語系」指的是 **PDF 檔案本身**的語系，由 `ProposalFile(locale, file_key)` 承載，
-   `proposal.title` 在 ERD 主表是單一欄位；`db/club-schema.sql` 已核實不建 `proposals_i18n`。
+5. **`Proposal` 🌐 標記** —— 🔄 **2026-10-06 修正（稽核 D 類）：改建 `proposals_i18n.title`**。2026-09-22 的判斷
+   （行1138「多版本／多語系」只講 PDF，故標題單一欄位）對 PDF 的部分仍然成立（`ProposalFile(locale, file_key)` 不變），
+   但漏了標題本身會顯示在前台下載頁，`/en/` 不能是中文標題。
 
 6. **`Form` 顯示名稱來源** —— ✅ **已拍板（2026-09-22，使用者決定）：維持寫死，不給後台編輯**。
    7 類表單（如「10.1 Join as a Player 加入球隊」）的中英文顯示名稱維持規劃書 §3.10 固定表格的樣子，

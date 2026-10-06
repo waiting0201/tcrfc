@@ -2,7 +2,7 @@
 
 > **Document version**: v1.7
 > **Date**: 2026-09-14 (v1.7 revision: 2026-10-05)
-> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.10
+> **Corresponds to**: *TCRFC Taichung Blue Whale Website Functional Specification* v1.11
 > **Content principal**: Taichung Blue Whale Women's Football Club
 
 > **How to read this document**
@@ -127,7 +127,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | **Teams** | Teams | Blue Whale first team, U15, U12 | Blue Whale's teams |
 | | Players | Squad, numbers, positions, photographs, biographies | Blue Whale's players |
 | | Coaches and staff | Coaching and administrative staff | Blue Whale's staff |
-| | Fixtures & Results | **Fixtures, results, tables** (bulk import supported) | Blue Whale's fixtures |
+| | Fixtures & Results | **Fixtures, results, tables, season management** (bulk import supported) | Blue Whale's fixtures |
 | | Honours and milestones | Titles and notable records | Blue Whale's records |
 | **Programmes** | All | Courses, intakes, registrations, trials | Used if Blue Whale runs outreach |
 | **Business** | Partners | The partner wall | **Blue Whale's own partners** |
@@ -136,7 +136,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | | Advertising slots | App advertising, flights, performance | **Shared; no Blue Whale access** |
 | **Culture** | Comic | Characters, episodes | **Not used on this site** |
 | | Supporters' club events | Event scheduling | Blue Whale's events |
-| **Enquiries** | Form designer | Building form fields | Blue Whale's forms |
+| **Enquiries** | Form designer | Viewing form fields; setting notifications, auto-replies and CAPTCHA | Blue Whale's forms |
 | | Inbox | Form submissions | Blue Whale's submissions |
 | | Newsletter list | Subscriptions and unsubscribes | Blue Whale's list |
 | **Search & AI visibility** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** | Blue Whale's pages (**its own settings**) |
@@ -144,7 +144,7 @@ This is a collect-and-remit arrangement. It changes nothing for the customer —
 | **System** | Accounts | Admin accounts | **Shared; administrators only** |
 | | Roles and permissions | Who can do what | **Shared; administrators only** |
 | | Audit and backup | Operation records and backups | **Shared; administrators only** |
-| | Clubs and authorisation | Club branding, legal details, account authorisations | **Shared; administrators only** |
+| | Clubs and authorisation | Club basic and legal details, account authorisations | **Shared; administrators only** |
 | **Members** | Member list | Member records (personal data masked by role) | **Blue Whale memberships only** |
 | | Memberships and plans | Activation, renewal, expiry | Blue Whale's memberships |
 | | Shirt fulfilment | Sizes and issue records | Blue Whale's fulfilment |
@@ -227,5 +227,5 @@ The Blue Whale site reuses the Taichung Rock site's **layout system** — cards,
 ---
 
 > Taichung Blue Whale　·　Official Website Feature Overview (Client Edition) v1.6
-> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.10　·　11 sections plus the member area　·　Chinese and English
+> Based on the *TCRFC Taichung Blue Whale Website Functional Specification* v1.11　·　11 sections plus the member area　·　Chinese and English
 > **Shares the admin and database of the Taichung Rock FC website; content and brand remain separate.**

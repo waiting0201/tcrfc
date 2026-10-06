@@ -124,6 +124,8 @@
   `apps/api/Features/AdminPages/PageBlockContentProcessor.cs` 檔頭。**日後任何「只存不查」JSON 欄位
   需要雙語時，先確認資料庫是否已經拒絕建側表**（`docs/12` §1 第 3 條「主表已放的欄位優先」），
   拒絕了就走這個巢狀物件慣例，不要另外發明第三種雙語形狀。
+- 🔴🔴 **多個 agent 並行時，任何 agent 都不得執行改動工作樹或索引的 git 指令**（`git stash`、`git checkout -- <path>`、`git reset`、`git restore`、`git clean`、`git switch`），只能用唯讀指令（`git diff`、`git show HEAD:<path>`、`git log`）或另開 `git worktree`（`docs/18` `E-281`，2026-10-06：一次 `git stash` 收走 170 個未提交檔案）。主流程派工時，prompt 必須寫明這條禁令。
+- 🔴 **前台看得到的文字欄位一律要有 zh／en，判準是「前台會不會顯示」，不是「規劃書有沒有逐表標雙語」**（`docs/18` `E-280`，2026-10-06）：全域規定 4 是通則。新增或審查資料表時，凡是前台會顯示的自由文字（名稱、名次、隊名、對象、規則說明、標題），一律放進 `*_i18n` 側表（`zh-Hant` 必存、`en` 可缺），不得以「規劃書沒寫雙語」為由留在主表單一欄位。
 - 🔴🔴 **寫入 `json` 欄位的內容必須是 JSON 物件或陣列，輸入驗證不符一律回 400，不得讓它走到資料庫變成 500**（`docs/18` `E-111`，2026-10-01）：正式環境（Azure SQL）的 `json` 是**原生型別**，字串、數字、`true`／`false`、`null` 字面值、空字串全部被拒（`Msg 13609`）；本機 2022 與預設測試用的 `nvarchar(max)` 什麼都收，**只在 2022 上綠不代表正式環境能寫**。共同守門在 `apps/api/Common/JsonColumn.cs`（`IsObjectOrArray`）：空白視為 `NULL`、其餘必須是物件或陣列。**自由文字**存進 json 欄位要包成物件（`JsonColumn.WrapText` → `{"text":"…"}`，如 `partner_stores.business_hours`；新聞內文 `articles_i18n.body` 收純文字時同樣包成 `{"text":"…"}`、物件／陣列輸入原樣存為區塊編輯器保留，用 `NormalizeTextOrStructured`），**所有讀取端一律 `UnwrapText` 還原，對外契約維持純文字**（相容舊字串純量）；**外部原始回應**（金流）用 `CoerceToObject`。新增或改動 json 欄位的寫入路徑，要在 `JsonColumnTests` 補測，並跑 `apps/api/scripts/native-json-test.sh`（SQL Server 2025 原生 json 容器＋原樣 DDL）。12 個 json 欄位清單見 `docs/20` §5。
 - 🔴 **`players`／`staff.portrait_consent_status` 預設值永遠是 `'not_consented'`，改成別的預設值是個資事故**
   （S1-8，2026-09-24；藍鯨規劃書行 198／321：「球員照片須有肖像同意（未成年須監護人同意）。同意未到位
@@ -145,6 +147,7 @@
   🔵 **後台主色也依目前操作的俱樂部切換**（使用者 2026-09-30 裁決，主站規劃書 v3.16 §4.0 站台切換器）：切到藍鯨用上述藍鯨色、切回磐石用桃紅，**色值沿用兩隊已定案品牌色、不另立**。此條**推翻** [`docs/21`](21-admin-ui.md) §5.1／§13.3 的「切換站台不換主色」。
   **不自行配色**——主色與深色是隊徽上的實際用色，其餘四個由主色依對比度需求推導。
   🔴 **印刷色票（PANTONE／CMYK）仍未提供，印刷品不得依這組 RGB 發包。**
+  🔒 **後台不提供品牌設定**（使用者 2026-10-06，主站規劃書 v3.20）：兩個官網的標誌、Favicon、品牌主色與輔助色**只由前台靜態資產與 `tcrfc.css` design tokens 定義**，後台沒有任何入口可改；`Club` 型別不存標誌、Favicon、品牌色。**後台介面自己的主色切換不在此限**。App 的兩隊標誌與品牌色為內建資源。
 - **名稱寫法**：中文簡稱一律「**台中磐石**」，不單獨用「磐石」。英文名一律 `Taichung Rock FC`
   （全稱 `TAICHUNG ROCK FOOTBALL CLUB`）。舊稿的 `Taichung Cornerstone RFC` 已汰換，看到視為錯誤。
   **行動 App 對外名稱是中性的「台中足球 / Taichung Football」**（兩隊共同品牌），**但官網與所有主站文件仍是 TCRFC**——這兩者不衝突，是刻意的分工。

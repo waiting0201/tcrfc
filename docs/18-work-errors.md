@@ -187,6 +187,11 @@
 | E-234 | 2026-10-06 | 後台頂欄的鈴鐺是 v1 版面的視覺佔位（`AppTopbar.vue` 寫死 `<el-badge :value="3">`、無點擊、無資料），上線到測試站後**使用者點了才發現沒有作用**；假數字「3」讓它看起來像真的有 3 筆通知。根因：照設計稿搭版面時把「之後才會有資料」的元件做成完整外觀，卻沒有標示未接線、也沒有列進待辦，後續各模組串接 API 時沒有人回頭盤點全域元件。已改為接儀表板「待辦提醒」（使用者決定）。**下次怎麼避免**：佔位元件不得顯示假數據（數字、徽章、狀態），未接線就不渲染或明確標示「尚未啟用」，並在 STATUS 留一列 | ⚠️ 無（可加「`:value=` 為數字字面值」的 lint 規則，未做） |
 | E-275 | 2026-10-06 | S2-20 六批並行遷移，為避免同時 build 互相覆蓋 `dist`，主 session 指示各批「只跑 `npx vue-tsc --noEmit` 與 `npm run lint`」。但 `npm run build` 用的是 `vue-tsc -b`（依 `tsconfig.app.json` 等專案參照檢查），`--noEmit` 對根 `tsconfig.json` 不會檢查到 `src/`，**兩個型別錯誤因此全部漏過**：`SlotTab.vue` 的 `watch([image, removeImage])` 寫在宣告之前（執行時還會踩暫時性死區）、`DrawWinnersPanel.vue` 的 `:reveal` 回傳陣列；直到收尾 agent 單獨跑 build 才抓到。根因：替代檢查時沒確認它與正式 build 的檢查範圍相同。**下次怎麼避免**：並行時改跑既有的 `npm run typecheck`（＝`vue-tsc -b --noEmit`，與 build 同一套專案參照、不寫 `dist`）；派工提示寫明 | ⚠️ 無（靠派工提示） |
 | E-276 | 2026-10-06 | S2-20 欄位鍵核對：批次把 20 個頁面的 `el-form-item` 換成 `FormField` 補 anchor，換完才發現這些頁面根本沒有 `provideFormErrors()`、catch 也沒呼叫 `applyApiError`——anchor 註冊到一份獨立空實例上，後端欄位錯誤永遠標不到格子（型別檢查、lint、build 全綠）。根因：把「有 anchor」當成「錯誤會標到欄位」，沒驗證接線的另外兩端（provide、套用）。**下次怎麼避免**：新增 anchor 的同一次改動，同時檢查該頁有 `provideFormErrors` 與送出 catch 的 `applyApiError`（`grep -L applyApiError` 對照含 `<FormField` 的檔案）。 | ⚠️ 無 |
+| E-277 | 2026-10-06 | 後台→前台串接稽核派工：六個 agent 共用一份 prompt 範本，第一個送出時 `{SCOPE}` 佔位符沒替換，agent 拿到沒有範圍的任務直接退回，浪費一輪並延後該組。根因：先寫範本再逐份填，第一份在填之前就送出，送出前沒有掃未替換的佔位符。**下次怎麼避免**：並行派工時每份 prompt 寫成完整文字、不留 `{…}` 佔位符；必須用範本時，送出前確認 prompt 內不含 `{` 加大寫字的片段。 | ⚠️ 無（agent 會拒絕空範圍，屬事後攔截） |
+| E-278 | 2026-10-06 | 稽核修正派工要求「寫 `player_season_stats`（`source=manual`）」，但該表**沒有 `source` 欄位**——公開端的 `source=manual` 是由「這一列存在」推得；照字面做會去新增欄位或寫不存在的欄位。同批另發現 `SeoRepository` 檔頭仍寫「寫入端刻意不呼叫 `InvalidateAsync`」，與 B-22 要修的行為相反，文件與程式不符。根因：派工與稽核引用欄位名稱時沒對照 `db/club-schema.sql` 與現有讀取程式。**下次怎麼避免**：派工提示出現資料表欄位名稱時，先 `grep` DDL 確認欄位存在；改某模組行為前先搜該模組檔頭註解，把相反的敘述一起改掉。 | ✅ 已在 `SeoRepository` 檔頭改寫、README 註明「列存在＝手動」；防呆：無 |
+| E-279 | 2026-10-06 | 公開行事曆「俱樂部活動」不展開重複規則、不分球隊、不看活動類型是否公開（詳見下方 E-279 段落）。根因：同一份資料三條公開讀取路徑各寫一份篩選 SQL，新規則只補一條。**下次怎麼避免**：可見性條件抽成單一方法共用。（後端 agent 原誤編為 E-234 與既有編號重複，已改號） | ✅ `CalendarPublicTests` 5 項 |
+| E-280 | 2026-10-06 | 榮譽（賽事名稱、名次）、積分榜隊名、課程適合對象、會籍方案季中規則、提案標題都只有單一欄位，英文頁顯示中文（後台→前台串接稽核 D 類）。2026-09-22 曾裁決榮譽、積分榜、提案「不建側表」。根因：判斷要不要雙語時，以「規劃書有沒有逐表標雙語」為準，沒有回到全域規定 4「前台可見內容一律 zh／en」的通則。**下次怎麼避免**：審查或新增資料表時，以「前台會不會顯示這段文字」判斷，會顯示就進 `*_i18n`。已補三張側表與兩個側表欄位（`db/migrations/20261006_d-bilingual-gaps_*`）。 | ⚠️ 寫入 `docs/14`；無自動掃描 |
+| E-281 | 2026-10-06 | 後台 agent 為了比較 ESLint 警告是否既有，在多個 agent 並行寫入同一工作樹時執行 `git stash`／`git stash pop`：stash 收走全部 170 個未提交的追蹤檔案（含使用者先前的改動與當天各輪成果），pop 因另一個 agent 同時改檔而衝突中止，工作樹只剩 HEAD＋零星新改動，另外三個 agent 繼續在缺檔的基礎上寫入。主流程停下三個 agent、備份後 `checkout` 半成品檔案再 `stash pop` 還原，三組重跑。根因：把 `git stash` 當成「只影響自己」的比較工具，沒有意識到它作用於整個共用工作樹；派工 prompt 只寫「不要 commit／push」，沒有禁止其他改動工作樹狀態的 git 指令。**下次怎麼避免**：並行派工時，所有 agent 一律不得執行 `git stash`、`git checkout -- <path>`、`git reset`、`git restore`、`git clean` 等改動工作樹或索引的指令；要比較基準用 `git diff`、`git show HEAD:<path>` 或另開 `git worktree`。 | ✅ 寫入 `docs/14`；派工 prompt 範本加禁令 |
 
 ---
 
@@ -2870,3 +2875,20 @@ D 批 `AppPublicTests` 的診斷彙總測試斷言「啟動耗時中位數 ＝ �
 - **修正**：新增 `leagueMentionZh`／`getJoinPlayerCtaDescZh`／`getMatchReportsLedeZh`／`getAcademyPathwayStage3`（`club-copy.ts`）、`getJoinIntlFollowUpEn`／`getJoinAcademyButtonEn`／`getPartnersPlanYouthTitleEn`（`club-copy-en-biz.ts`），藍鯨 4.x 卡片英文標題改 Youth；藍鯨 4.3 第三階段只到「一線隊」（與該頁 SEO 及 4.3 卡片說明一致，不宣稱海外）。
 - **防呆**：有——詞表擴充；磐石站輸出逐字不變（tcrfc 實測）。
 - **同批**：協會英文名統一為 `Taichung City Women's Football Association`（以藍鯨規劃書英文版為準）：前台 `club-copy-en-core.ts`／`club-copy-en-club.ts`、種子來源 `en_backfill_seed.py`、docs/06 對照表；已重產 `db/prod/club-content-seed.sql`，兩支 `--check` 一致。
+
+### E-279 公開行事曆「俱樂部活動」不展開重複規則、不分球隊、不看活動類型是否公開（2026-10-06，API）
+
+- **錯在哪**：`CalendarRepository.ListClubEventsAsync` 只過濾 `club_id`／`is_public`，重複活動只回一筆、掛在球隊的活動混進 `team=club`、`event_types.is_public=0` 的類型其下活動照樣輸出（月曆模式與 `calendar/feed.ics` 同樣漏掉類型公開檢查）。檔頭還把「不展開」寫成「已知簡化」。
+- **根因（可改掉的行為）**：同一份資料有三條公開讀取路徑（列表、月曆、ICS），各自手寫一份 SQL 篩選條件，後來補的規則（球隊、類型）只補在其中一條；把已知缺口寫成註解而不是補完。
+- **下次怎麼避免**：公開讀取的可見性條件（is_public、類型公開、球隊歸屬）抽成單一方法再共用；註解寫「已知簡化」前先問使用者看得到的行為是否正確。
+- **修正**：列表與月曆模式共用 `LoadCustomOccurrencesAsync`；ICS 補類型公開過濾。同批：新增 DTO 欄位原命名 `OccurrenceKey` 被 `ArchitectureTests`（E-64 物件鍵必須有 Url）擋下，改名 `OccurrenceId`。
+- **防呆**：有——`CalendarPublicTests` 新增展開、例外日、區間邊界、team 篩選、類型不公開共 5 項。
+
+### E-282 重跑時沿用半成品，把全域設定 `PUT` 由 multipart 改成純 JSON，與後台畫面實際送法不符（2026-10-06，API）
+
+- **錯在哪**：稽核 D 類／移除後台品牌設定的前一次嘗試被中止後，工作樹留下半成品：`AdminGlobalSettingsEndpoints` 的 `PUT` 因為「已沒有檔案欄位」就被改成直接綁 JSON body。但後台畫面（`apps/admin/src/api/adminSiteSettings.ts`）依任務約定仍以 `multipart/form-data` 的 `payload` 欄位送出，照半成品上線會全部回 400「請求格式錯誤，需要 multipart/form-data」。重跑時逐檔對照任務敘述才抓到，測試（`PutGlobalAsync` 走 `BizTest.Multipart`）本來也會擋下。
+- **根因（可改掉的行為）**：移除欄位時順手簡化了請求的傳輸格式，沒有先對照呼叫端（前端 API client）目前實際的送法；傳輸格式與欄位內容是兩個獨立的契約。
+- **下次怎麼避免**：刪欄位只動欄位，不動內容類型；要改傳輸格式必須先 grep 前端 client 與測試輔助函式的呼叫方式，並在任務裡明講。接手半成品時先逐項對照任務敘述，不假設已做的部分正確。
+- **修正**：`PUT` 仍用 `AdminMultipartForm.ReadAsync` 讀 `payload`、不再處理任何檔案欄位；新增測試確認舊版客戶端夾帶 `brandColor`／`removeLogoLight` 時被忽略而非報錯。
+- **防呆**：有——`SiteMenusAndGlobalSettingsTests.全域設定_驗證_…_舊版品牌欄位被忽略` 與既有以 multipart 送出的全域設定測試。
+

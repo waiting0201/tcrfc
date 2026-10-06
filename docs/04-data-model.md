@@ -12,7 +12,7 @@
 
 | 型別 | 說明 | 主要關聯 |
 |---|---|---|
-| `Club` | **俱樂部（v3.0 新增）**：代號（`TCRFC`／`TCBW`）、名稱、標誌、品牌色、前台網域，**另含法人欄位**（法人全名、型態、統編、是否為收款主體）。**內容主體與收款法人在此第一次分離** | Team、Article、Sponsor、Partner、Membership、Order |
+| `Club` | **俱樂部（v3.0 新增）**：代號（`TCRFC`／`TCBW`）、名稱、前台網域，**另含法人欄位**（法人全名、型態、統編、是否為收款主體）。**內容主體與收款法人在此第一次分離** | Team、Article、Sponsor、Partner、Membership、Order |
 | `Competition` | **賽事系列（v3.0 新增）**：與 `Match.competition` 四值 enum **並存不取代**。🏛 必填 | Match、Season、Club |
 | `Page` | 靜態頁面（含區塊）；**藍鯨官網入口頁亦屬此型別**。🏛 必填 | SEO、多語系 |
 | `Article` | 新聞與故事。🏛 **可為空＝兩隊共同** | Category、Tag、Player、Team、Match、Program |

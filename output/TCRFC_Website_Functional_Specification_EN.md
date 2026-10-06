@@ -1,9 +1,17 @@
 # TCRFC — Official Website Functional Specification (Public Site & Admin CMS)
 
-> **Document version**: v3.18
-> **Date**: 2026-08-14 (v3.18 revision: 2026-10-05)
+> **Document version**: v3.20
+> **Date**: 2026-08-14 (v3.20 revision: 2026-10-06)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
-> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.18*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 前後台功能規劃書 v3.20*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v3.20 revision summary — logos, favicons and brand colours of the two sites are defined by front-end static assets and styles**
+> **The admin offers no brand settings.** The logos, favicons and brand colours (primary and secondary) of the Taichung Rock and Taichung Blue Whale websites are defined solely by front-end static assets and styles (design tokens); the admin does not configure them. The fields of 4.9 module I "Global settings" and 4.10 J4 club records, and the 5.1 `Club` type, are narrowed accordingly to name, domain, locale and legal details; the admin's primary colour still follows the club being worked on, as the admin interface's own palette. Landing points: 4.9 Global settings, 4.10 J4, 5.1 `Club`.
+
+> **v3.19 revision summary — C4 gains season management; G1 form fields are predefined by the system**
+> **Both changes concern admin functionality and do not affect public pages.**
+> ① **C4 Fixtures & Results gains "Season management"**: the admin can add, edit and delete seasons, with the fields season code (e.g. `2026/27`, unique within a club), start date and end date; seasons are created per club; a season referenced by matches, standings, honours, season stats, memberships or similar records cannot be deleted; the "current season" is the season whose start-to-end range contains today. Landing point: 4.3 C4.
+> ② **For the seven public forms (10.1–10.7) in G1 Form Designer and the E3 proposal download form, the fields are predefined by the system**: the admin views the field list (name, type, required or not, options) and can set notification recipients, auto-reply content (zh / en), the CAPTCHA toggle and the post-submission redirect. Landing point: 4.7 G1, 4.5 E3.
 
 > **v3.18 revision summary — Taichung Blue Whale's English name is settled
 > **No functional changes.** Taichung Blue Whale's English name is the short form `Taichung Blue Whale` and the full name `Taichung Blue Whale Women's Football Club` (usage in the Blue Whale specification §8.2). Item 38 in section 10 narrows to the vector master and the print colour references. Landing point: section 10, item 38.
@@ -104,7 +112,7 @@
 
 > **v3.0 revision summary — multi-club architecture; Taichung Blue Whale joins the system**
 > 1. **The system is a multi-club architecture**: a new **Taichung Blue Whale official website** (separate domain, separate front-end project, bilingual) **shares this admin and database, but the two clubs' data flows are separated**. It has its own specification: [`TCRFC_台中藍鯨官網功能規劃書.md`](TCRFC_台中藍鯨官網功能規劃書.md) (v1.0). This site's own pages and section structure are **unchanged**.
-> 2. **New `Club` and `Competition` types** as first-class main-site types. `Club` carries both the **content identity** (name, logo, brand colours, domain) and the **fields needed to issue documents** (`legal_entity_name` / `tax_id` / `is_payment_subject`) — **the first time these two are separated**, because a brand name and an invoice title are not necessarily the same, and only the club flagged as the collecting entity appears in checkout and invoicing.
+> 2. **New `Club` and `Competition` types** as first-class main-site types. `Club` carries both the **content identity** (name, domain) and the **fields needed to issue documents** (`legal_entity_name` / `tax_id` / `is_payment_subject`) — **the first time these two are separated**, because a brand name and an invoice title are not necessarily the same, and only the club flagged as the collecting entity appears in checkout and invoicing.
 > 3. **`club_id` becomes a system-wide dimension**: roughly 40 tables gain a mandatory `club_id`, 8 allow it to be null (**null means "shared by both clubs"**), and the rest derive it from a parent and do not store it. Criteria and the full list are in 5.4. **`Team.club_id` is mandatory**, while **`Team.code` stays globally unique and must not become a composite key** (it is the calendar-subscription identifier and the `/schedule/d1/` path, already in public circulation). Blue Whale's first team is `BW1`.
 > 4. **A new `Team.gender`** (`men` / `women` / `mixed`) — gender is an attribute of a team, not a kind of team. The `first_team` constraint is "**at most one per club**". Section 3.6 【06】 Women's Football is **an entry point to the Blue Whale site**, with Blue Whale's `Team` / `Player` / `Match` records all created in this database.
 > 5. **Membership is one per person per club**: a new `Membership` type (`member_id` × `club_id` × `season_id`); `tier` / `membership_start_on` / `membership_end_on` **belong to it**. **`Member` remains one account per person** (email is the login key, the LINE binding is 1:1 with a person, and the data subject under privacy law is the person, not the membership). The two clubs' **seasons are not aligned**; expiry and renewal are calculated separately.
@@ -914,7 +922,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 │   ├── J1 Accounts
 │   ├── J2 Roles & permissions
 │   ├── J3 Audit & backup
-│   └── J4 **Clubs & authorisation** (new in v3.0: club brand and legal-entity data, club and team authorisation for admin accounts)
+│   └── J4 **Clubs & authorisation** (new in v3.0: club basic and legal-entity data, club and team authorisation for admin accounts)
 ├── K. Members
 │   ├── K1 Member list and detail
 │   ├── K2 Membership and plans
@@ -1103,6 +1111,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - Match record: season, competition (league / cup), date and time, home/away, opponent, venue, status (upcoming / live / finished / postponed / cancelled), **match number** (the official fixture number assigned by the league, recorded separately from "round" — a single round can contain several matches, each with its own official number), **original date and original time** (populated only when status is "postponed"; records the date and time the fixture was originally scheduled for, so it can be shown here and on the fixture card)
 - Result: score, scorers with timings, cards, line-up, link to the match report (7.2)
 - **League table**: maintained manually or imported from CSV
+- **Season management**: add, edit and delete seasons, with the fields season code (e.g. `2026/27`, unique within a club), start date and end date. **Seasons are created per club** (the two clubs' seasons are not aligned); **a season referenced by matches, standings, honours, season stats, memberships or similar records cannot be deleted**; the "current season" is the season whose start-to-end range contains today
 - **Maintenance approach: entirely manual** (no external league API integration). Both **CSV bulk import** of a full season and single-match entry are provided to reduce data-entry effort
 
 #### C5 Honours & Milestones
@@ -1147,7 +1156,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 - **Package management (9.4)**: content, rights schedule, price range (can be hidden), and ordering for the nine packages
 
 #### E3 Sponsorship Deck & Download Tracking
-- Upload the deck PDF (multiple versions / languages), configure the download form fields
+- Upload the deck PDF (multiple versions / languages); the download form's fields (company, name, email, consent) are predefined by the system, so the admin does not add, delete or change fields, and notification settings sit in G1
 - **Lead list**: who downloaded, company, timestamp, source page; exportable to CSV with follow-up status flags
 
 #### E4–E6 Mobile App Advertising (added in v2.5)
@@ -1181,8 +1190,8 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 ### 4.7 G. Forms & Enquiries
 
 #### G1 Form Designer
-- Create and edit form fields (text, dropdown, multi-select, date, file upload, consent checkbox)
-- Per form: notification recipients (multiple allowed), auto-reply template, CAPTCHA toggle, post-submission redirect
+- The fields of the seven public forms (10.1–10.7) and the proposal download form are predefined by the system; the admin views the field list (name, type, required or not, options) and cannot add or delete fields, nor change field codes, required flags or options
+- Per form: notification recipients (multiple allowed), auto-reply content (zh / en), CAPTCHA toggle, post-submission redirect
 
 #### G2 Enquiry Inbox
 - A unified inbox with tabs by form type (10.1–10.7 + deck downloads + **donation enquiries**)
@@ -1231,7 +1240,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
   - **Social platforms**: Instagram [`@tcr_fc_2024`](https://www.instagram.com/tcr_fc_2024), Facebook [`TCRFC2024`](https://www.facebook.com/TCRFC2024), YouTube [`@TCRFC-2024`](https://www.youtube.com/@TCRFC-2024)
   - **Taichung Blue Whale official website** URL (for the 06 entry point). ⚠️ **From v3.0 the Blue Whale site is built by this system** on its own domain, so this holds the new domain; the existing [`https://www.tcbw2014.com/`](https://www.tcbw2014.com/) is 301-redirected once the new site is live
   - EDM platform configuration
-- **Global settings**: logo, brand colours, favicon, cookie policy, privacy policy, **membership terms**, maintenance-mode toggle
+- **Global settings**: cookie policy, privacy policy, **membership terms**, maintenance-mode toggle
 
 ---
 
@@ -1256,13 +1265,13 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 | Feature | Description |
 |---|---|
-| Club records | Create and maintain `Club`: code, name and intro (zh/en), **logos (light/dark), favicon, OG image, primary and secondary brand colours**, front-end domain, website URL, default locale, sort order, status |
+| Club records | Create and maintain `Club`: code, name and intro (zh/en), **OG image**, front-end domain, website URL, default locale, sort order, status |
 | **Invoicing details** | Invoice title, tax ID, **whether it is a collecting entity**. ⚠️ **Only this club is currently a collecting entity**; setting this wrongly would misattribute funds and invoices |
 | **Club authorisation** | Assign which clubs an admin account may reach (`AdminUserClub`), with **grant and expiry dates**. Expiry is automatic — nobody has to remember to revoke it |
 | **Team authorisation** | Assign which teams an account may maintain (`AdminUserTeam`), for row-level limits such as "an academy manager may not change first-team fixtures" |
 | Permissions | **System administrators only.** The partner club manager role must not reach this module — otherwise it could escalate its own privileges |
 
-> **When brand assets are not yet available**: until a `Club`'s logo and brand colours are supplied, the corresponding areas of the front end **are not rendered**. **Do not substitute placeholder imagery, do not leave an empty logo box, and never draw a substitute mark or trace one from a screenshot.**
+> **When brand assets are not yet available**: the logos, favicons and brand colours of the two sites are defined by front-end static assets and styles and are not configured in the admin; until they are supplied, the corresponding areas of the front end **are not rendered**. **Do not substitute placeholder imagery, do not leave an empty logo box, and never draw a substitute mark or trace one from a screenshot.**
 
 ---
 
@@ -1498,7 +1507,7 @@ TCRFC Admin (multi-club: Taichung Rock TCRFC / Taichung Blue Whale TCBW)
 
 | Type | Description | Key relationships |
 |---|---|---|
-| `Club` | **Club (new in v3.0)**: code (`TCRFC` / `TCBW`), name and intro (zh/en), logos (light/dark), favicon, OG image, primary and secondary brand colours, **front-end domain**, website URL, default locale, sort order, status. **Plus the fields needed to issue documents**: invoice title, tax ID, and **`is_payment_subject`**. **This is where the brand name and the invoice title are separated** — only the club flagged as the collecting entity appears in checkout and invoicing | Team, Article, Sponsor, Partner, Membership, Order, AdminUserClub |
+| `Club` | **Club (new in v3.0)**: code (`TCRFC` / `TCBW`), name and intro (zh/en), OG image, **front-end domain**, website URL, default locale, sort order, status. **Plus the fields needed to issue documents**: invoice title, tax ID, and **`is_payment_subject`**. **This is where the brand name and the invoice title are separated** — only the club flagged as the collecting entity appears in checkout and invoicing | Team, Article, Sponsor, Partner, Membership, Order, AdminUserClub |
 | `Competition` | **Competition series (new in v3.0)**: code, name (zh/en), type (mapping to `Match.competition`'s four values), season, organiser, sort order, status. 🏛 mandatory. **Coexists with `Match.competition` rather than replacing it** — the latter is a coarse enum, the former is a named actual competition (TFPL, Taiwan Mulan Football League, President's Cup…); when both clubs play a same-named cup, **each gets its own record** | Match, Season, Club |
 | `Page` | Static page (with blocks); **the Blue Whale site entry page is also this type**. 🏛 mandatory (both sites will have `about` / `contact` / `privacy`, so the `slug` unique key becomes `(club_id, slug)`) | SEO, languages |
 | `Article` | News and stories | Category, Tag, Player, Team, Match, Program |

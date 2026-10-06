@@ -339,7 +339,6 @@ erDiagram
     uuid id PK
     uuid club_id FK
     uuid season_id FK
-    string_128 team_name
     int rank
     int played
     int points
@@ -350,8 +349,6 @@ erDiagram
     uuid season_id FK
     uuid team_id FK
     int year
-    string_128 competition_name
-    string_32 placing
   }
   milestone {
     uuid id PK
@@ -369,6 +366,7 @@ erDiagram
 > ⚠️ **`competition`（賽事系列）與 `match.competition` 四值 enum 並存不互相取代**：後者是粗分類，前者是有名字的實際賽事。
 > 賽程卡片顯示 `competition` 名稱，篩選面板的「賽事類型」仍用 enum。
 > ⚠️ `match.opponent` 與 `standing.team_name` 是**自由文字**，不建對手球隊表——賽事全部人工維護、不串外部 API。
+> 🔵 **2026-10-06（稽核 D 類，雙語缺口）**：`standing.team_name`、`achievement.competition_name`／`placing`、`program.audience`、`proposal.title`、`membership_plan.mid_season_rule` 已從主表屬性移除，改在 `standings_i18n`／`achievements_i18n`／`programs_i18n`／`proposals_i18n`／`membership_plans_i18n`（側表依 §5.12 慣例不入圖，欄位清單見 `docs/12c`）。
 > 🔵 **`competition_i18n`（`name`／`organizer`）已補畫**——`docs/12c` §5 第 1 點的舊稿記錄「兩張 ERD 圖沒有補畫側表」，
 > 已於本次同步（S0-3b／S0-3c）解決，不再是待辦。
 
@@ -446,7 +444,6 @@ erDiagram
     uuid club_id FK
     slug slug UK
     string_32 program_type
-    string_32 audience
     int age_min
     int age_max
     enum status
@@ -618,7 +615,6 @@ erDiagram
   proposal {
     uuid id PK
     uuid club_id FK
-    string_128 title
     int version_no
     enum status
   }
@@ -785,7 +781,6 @@ erDiagram
     int fee
     int card_quota
     int jersey_quota
-    string_255 mid_season_rule
     int sort_order
     enum status
   }
@@ -1240,12 +1235,7 @@ erDiagram
     uuid id PK
     string_16 code UK
     string_128 domain UK
-    string_255 logo_light_key
-    string_255 logo_dark_key
-    string_255 favicon_key
     string_255 og_image_key
-    string_16 brand_color
-    string_16 brand_secondary_color
     string_64 invoice_title
     string_16 tax_id
     bool is_collecting_subject

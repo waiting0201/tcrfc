@@ -412,24 +412,25 @@ flowchart LR
 | `MatchGoal` | — | 進球（球員、時間、類型） | |
 | `MatchCard` | — | 黃紅牌 | |
 | `MatchLineup` | — | 先發與替補名單 | |
-| `Standing` | **●** | 積分榜 `(season_id, team_name, ...)`。**對手隊名是自由文字不是 `Team`** | |
-| `Achievement` | **●** | 榮譽（年份、賽事、名次、隊伍） | |
+| `Standing` | **●** | 積分榜 `(season_id, rank, played, points)`。**對手隊名是自由文字不是 `Team`**，隊名在側表 `standings_i18n.team_name`（2026-10-06 起，稽核 D 類） | 🌐 |
+| `Achievement` | **●** | 榮譽（年份、隊伍；賽事名 `competition_name`、名次 `placing` 在側表 `achievements_i18n`，2026-10-06 起，稽核 D 類） | 🌐 |
 | `Milestone` | **●** | 里程碑時間軸。E1a 補：圖片欄位組（`image_key`／`image_width`／`image_height`，替代文字在側表 `image_alt`）、`is_visible`（是否顯示於時間軸） | 🌐 |
 
 > ⚠️ **`Team` 是兩隊各自的隊伍**：磐石 `D1`／`U15`／`U14`／`U12`，藍鯨 `BW1` 與其青年隊。
 > **兩隊都有「一線隊」，所以任何同時呈現兩隊賽事的畫面，每張卡片都必須標球隊。**
 > ⚠️ `Match.opponent`、`Standing` 的對手都是**字串**，不建對手球隊表——賽事全部人工維護。
-> ✅ **`Season`／`Standing`／`Achievement` 不建 `*_i18n` 側表**（2026-09-22 核實）：規劃書與 ERD 全文查無這三張的
-> 任何文字型欄位（`Standing.team_name`、`Achievement.competition_name`／`placing` 已是主表自由文字，非側表候選；
-> `Season` 全文沒有描述任何文字欄位）。此前 🌐 標記過寬，`db/club-schema.sql` 已核實不建 `seasons_i18n`／
-> `standings_i18n`／`achievements_i18n`（各表建表註解同理由）。若日後規劃書真的新增雙語需求（例如球季別名），
-> 才需要先改規劃書再補側表。
+> 🔄 **`Standing`／`Achievement` 改為有 `*_i18n` 側表**（2026-10-06，稽核 D 類「雙語缺口」，**推翻 2026-09-22 的裁決**）：
+> 當時的判準是「規劃書有沒有寫雙語標記」，漏了**全域規定 4（所有前台可見的內容型別都要有 zh／en 雙欄位）是通則、不需要規劃書逐表重申**
+> （與 `docs/12c` §5 第 8 點 `FormField` 的修正同一個錯），也漏了 `matches.opponent`／`matches_i18n.opponent` 的先例：
+> 積分榜隊名與榮譽的賽事名、名次在 `/en/` 直接顯示，不能是中文。`standings_i18n(standing_id, locale, team_name)`、
+> `achievements_i18n(achievement_id, locale, competition_name, placing)`；主表的三個文字欄位**搬走並刪除**（兩階段遷移，
+> `db/migrations/20261006_d-bilingual-gaps_*.sql`）。**`Season` 仍不建 `seasons_i18n`**（全部欄位是代碼、日期、狀態；球季顯示名稱由代碼 `2026-27` 推導，是格式化不是翻譯）。
 
 ### 4.3 P 課程與活動（6）
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
-| `Program` | **●** | 課程／營隊／專項項目：類型、對象、年齡區間、區塊內容 | 🌐 |
+| `Program` | **●** | 課程／營隊／專項項目：類型、年齡區間（數字，`age_min`／`age_max`，留主表）、區塊內容；**對象文字 `audience` 在側表 `programs_i18n.audience`**（2026-10-06 起，稽核 D 類，自由文字所以要雙語） | 🌐 |
 | `ProgramStaff` | — | `(program_id, staff_id)` 教練團 | |
 | `ProgramPartner` | — | `(program_id, partner_id)` 合作單位 | |
 | `Session` | **●** | 梯次／場次：期間、時段、場地、名額、已報名數、價格、報名起訖、狀態。**永不進 `CalendarEvent`** | |
@@ -447,7 +448,7 @@ flowchart LR
 | `Partner` | **●** | 合作夥伴（B2B Logo 牆）：Logo **深底／淺底兩版**、類型、國家、合作內容與期間、官網、排序、曝光位置。**合作內容 `content` 在側表 `partners_i18n`**（E1a 補） | 🌐 |
 | `Sponsor` | **●** | 贊助商：Logo 兩版、**等級**、合約期間、贊助內容、聯絡窗口、到期提醒、排序 | 🌐 |
 | `SponsorPackage` | **●** | 贊助方案（9 種）：內容、權益清單、適合對象、價格區間（**可設不公開**）、上下架。`status` **收斂為 `draft`／`published`**（S1-8） | 🌐 |
-| `Proposal` | **●** | 提案簡介（多版本、多語 PDF）。`status` **收斂為 `draft`／`published`、`NOT NULL DEFAULT 'draft'`**（E1a） | |
+| `Proposal` | **●** | 提案簡介（多版本、多語 PDF）；**標題 `title` 在側表 `proposals_i18n`**（2026-10-06 起，稽核 D 類）。`status` **收斂為 `draft`／`published`、`NOT NULL DEFAULT 'draft'`**（E1a） | |
 | `ProposalFile` | — | `(proposal_id, locale, file_key, version)` | |
 | `SponsorActivation` | **●** | **贊助活動（Activations）**（E2）：活動日期、排序；名稱與成效摘要在 `sponsor_activations_i18n`。**E1a 新增**（`docs/12d` 記過的「型別總表缺席」） | 🌐 |
 | `SponsorActivationImage` | — | 贊助活動圖集：`(sponsor_activation_id, image_key, image_width, image_height, sort_order)` | |
@@ -455,9 +456,9 @@ flowchart LR
 
 > 🔴 **兩隊的夥伴與贊助商須分區呈現不得混列**（合約是各自簽的）。同一家公司同時是兩隊的夥伴時**各建一筆**。
 > ⚠️ **提案下載的 Lead 名單仍走 `Enquiry`**，不另建 Lead 表。**E1a 新增 `enquiries.proposal_id`**（可為空，`ON DELETE SET NULL`）記錄下載的是哪一份提案（9.4「可 A/B 版本」）。
-> ✅ **`Proposal` 不建 `*_i18n` 側表**（2026-09-22 核實）：規劃書行 1111「多版本／多語系」指的是 **PDF 檔案本身**
-> 的語系，由 `ProposalFile(locale, file_key)` 承載；`proposal.title` 是單一欄位，不是要有中英文標題。此前 🌐
-> 標記是把「檔案多語」誤讀成「資料列多語」，`db/club-schema.sql` 已核實不建 `proposals_i18n`。
+> 🔄 **`Proposal` 改為有 `proposals_i18n(proposal_id, locale, title)`**（2026-10-06，稽核 D 類，**推翻 2026-09-22 的裁決**）：
+> 「多版本／多語系」確實指 **PDF 檔案本身**（由 `ProposalFile(locale, file_key)` 承載，這一點不變），但那只解決檔案語系；
+> 提案**標題**會顯示在前台下載頁與 Lead 表單，`/en/` 不能顯示中文標題，所以標題另走側表。`proposal_files.locale` 與 `proposals_i18n.locale` 是兩件事、互不取代。
 > ⚠️ 商品一律在 `S1` 維護，`ProductShowcase` **綱要中不存在**。**`E4` 現在是「廣告主與版位管理」**（行動 App），看到舊文件寫 `E4 商品櫥窗` 一律視為錯誤。
 
 ### 4.5 F 文化模組（7）
@@ -502,7 +503,7 @@ flowchart LR
 > 只在 G2 收件匣分頁清單與 `Enquiry` 型別說明兩處被提及，見 `apps/api/README.md`「S1-10」段的
 > 完整說明）。九筆 `Form`／預設 `FormField` 種子資料見 `db/seed/generate-club-seed-sql.py`
 > 對應段落，兩俱樂部（`tcrfc`／`bw`）各自種一份，欄位內容依規劃書 §3.10 逐表單的欄位清單設定
-> 為預設值，允許後台 G1 表單設計器事後調整（新增／編輯／刪除動態欄位）。
+> 為系統預先定義的欄位（規劃書 v3.19 起，後台 G1 只檢視欄位清單，不新增、刪除，也不改欄位代碼、必填與選項）。
 
 ### 4.7 I 網站設定（2）
 
@@ -540,7 +541,7 @@ flowchart LR
 
 | 表 | `club_id` | 用途 | 標記 |
 |---|---|---|---|
-| `Club` | — | **俱樂部主檔**（v3.0 新增，後台 `J4`）：`code`、名稱（中／英）、**簡稱 `clubs_i18n.short_name`（2026-10-05，`nvarchar(32)` 可為空；磐石中文「台中磐石」英文「Taichung Rock FC」、藍鯨中文「台中藍鯨」、藍鯨英文**一律空**直到客戶指定英文全名 B-5，不得由開發端自挑）**、標誌（**含 @2x／@3x 與深色版**）、品牌色、網域。**它自己就是俱樂部** | 🌐 |
+| `Club` | — | **俱樂部主檔**（v3.0 新增，後台 `J4`）：`code`、名稱（中／英）、**簡稱 `clubs_i18n.short_name`（2026-10-05，`nvarchar(32)` 可為空；磐石中文「台中磐石」英文「Taichung Rock FC」、藍鯨中文「台中藍鯨」、藍鯨英文**一律空**直到客戶指定英文全名 B-5，不得由開發端自挑）**、網域（**標誌、Favicon、品牌色不在資料庫**：v3.20 起由前台靜態資產與 CSS 定義）。**它自己就是俱樂部** | 🌐 |
 | `AdminUser` | — | 後台帳號。**`username` 是唯一登入識別，不是 Email**；**`primary_club_id`** 只是站台切換器的預設值，**不是資料範圍** | 🔒 |
 | `AdminRole` | — | 角色。**`scope_mode`（`all_clubs`／`own_clubs`）**。規劃書角色是 `is_system = true` 的種子資料 | |
 | `AdminUserRole` | — | `(admin_user_id, role_id)`，多角色取聯集 | |
@@ -561,7 +562,7 @@ flowchart LR
 | `Member` | — | 會員帳號：會員編號、註冊來源、**LINE 綁定識別碼（加密）**、Email／電話／生日（受限）。**監護人同意（2026-10-05，主站規劃書「會員資料安全要求」、App 規劃書 §4.5「未滿 18 歲須經監護人同意方得註冊」）：`guardian_consented_at`（同意時間，伺服器時間）、`guardian_name`（🔒 受限，監護人姓名）、`guardian_relationship`（與當事人關係：`parent`／`legal_guardian`）、`guardian_consent_version`（同意文案版本，可為空；文案本身待法務 B-9）——四欄要嘛全空（成年註冊）要嘛前三欄全有（`CK_members_guardian_consent`）；生日是年齡閘門的依據，註冊流程生日必填**。🔴 **刻意不加 `club_id`**——Email 是登入鍵、LINE 綁定 1:1、個資法上的當事人是「人」不是「會籍」 | 🔒 |
 | `Membership` | **●** | **會籍（v3.0 新增）**：`member_id` × `club_id` × `season_id`、層級（`registered`／`fan_club`）、起訖、狀態。**一人每俱樂部一份** | 🔒 |
 | `MemberCard` | **●** | **電子會員卡，一張一列**；**`membership_id` 必填——每份會籍一張卡**。持卡人姓名、`token`（UNIQUE，**不可由會員編號推導**）、狀態、補發次數 | 🔒 |
-| `MembershipPlan` | **●** | 會籍方案：費用、`season_id`、期間、`card_quota`、`jersey_quota`、季中計價規則 | 🌐 |
+| `MembershipPlan` | **●** | 會籍方案：費用、`season_id`、期間、`card_quota`、`jersey_quota`；**季中計價規則文字 `mid_season_rule` 在側表 `membership_plans_i18n`**（2026-10-06 起，稽核 D 類；它是給會員看的規則說明，不是計算參數） | 🌐 |
 | `MembershipPayment` | **●** | 會籍付款與開通：方式、金額、日期、**經辦人**、開通起訖；**`collecting_club_id`（收款法人）**供代收代付分帳 | 🔒 |
 | `MembershipOrder` | **●** | **（E 批新增）會籍付款訂單**：訂單編號、受益俱樂部（`club_id`）與收款主體（`collecting_club_id`）、方案、**伺服器重算的金額**、**冪等鍵**（`(member_id, idempotency_key)` 唯一）、狀態機（App 規劃書 §5.3）。與商店 `Order` 分開 | 🔒 |
 | `MemberRefreshToken` | — | **（E 批新增）會員網頁登入的更新權杖**：只存雜湊、輪替鏈、重放偵測；同 `AdminRefreshToken`，**不是日誌表**。App 的權杖鏈在 `AppDevice` | — |
@@ -710,8 +711,7 @@ flowchart LR
     套用前已查證 `tcrfc_club_dev` 這兩張表皆為 0 筆資料，純 DDL 變更，不需搭配任何 DML 轉態。
     後端 API 見 `apps/api/README.md`「S1-9」段；migration 名稱 `AlignSchemaS19Programs`。
 37. 🔴 **（S1-10，2026-09-25）`form_fields` 新增 `options_json` 欄位，並補齊三個從未約束過的
-    值域**：G1「表單設計器」規劃書明文要求下拉／多選兩種欄位型別（行 1159「文字、下拉、多選、
-    日期、檔案上傳、同意條款」），但 `form_fields` 原本沒有任何欄位能存下拉選項清單——
+    值域**：前台表單有下拉／多選兩種欄位型別（規劃書 §3.10 各表單欄位清單），但 `form_fields` 原本沒有任何欄位能存下拉選項清單——
     `validation_rule nvarchar(255)` 是給正規表示式或格式驗證用，語意不同，硬塞選項清單會讓同一欄
     身兼兩種用途。新增 `options_json nvarchar(1000) NULL`（JSON 字串陣列，例如
     `'["choice1","choice2"]'`，`field_type` 不是 `select`／`multiselect` 時維持 `NULL`）。
@@ -739,7 +739,7 @@ flowchart LR
     **規劃書明文要求的欄位不能因為實作不便而略過**，改為新增 `is_summary bit NOT NULL DEFAULT 0`
     （`field_type` 不限，但實務上只有 `text`／`textarea` 型別的欄位適合當摘要）。**沿用
     `name`／`contact` 兩個慣例欄位鍵的同一套機制**（`docs/12` §4.6「Enquiry 涵蓋 7 類表單」段落
-    附註）：G1 表單設計器可以把任一欄位標記為「這是內容摘要」，同一張表單**最多一個**欄位可標記
+    附註）：內容摘要欄位由種子資料預先標記（v3.19 起後台 G1 不能更動欄位，也就不能改標記），同一張表單**最多一個**欄位可標記
     （應用層強制，見 `AdminFormsRepository`），G2 收件匣清單／CSV 匯出依此鍵取值，沒有標記的表單
     （例如 `camp_registration`／`proposal_download` 沒有敘述性文字欄位）內容摘要維持 `null`，
     不是缺陷。種子資料把每個表單「最像敘述性文字」的欄位標記為摘要（`join_player`／
@@ -806,8 +806,8 @@ flowchart LR
     改圖片上傳共用元件而刻意唯讀，見 `apps/api/Features/AdminClubs/AdminClubDtos.cs` 的既有
     註解）——查證後判斷不新建第二個欄位重複儲存同一份「全站預設 OG 圖片」，改為
     **補上 `clubs.og_image_width`／`og_image_height` 兩欄**（原本只有 key，沒有尺寸），寫入路徑
-    改由 `Features/AdminSeo`（H 模組的「全站 SEO 預設」表單）呼叫，`Features/AdminClubs` 既有的
-    `logo_light_key`／`logo_dark_key`／`favicon_key` 三個品牌欄位維持原本刻意唯讀，不受影響。
+    改由 `Features/AdminSeo`（H 模組的「全站 SEO 預設」表單）呼叫，`clubs` 原有的
+    `logo_light_key`／`logo_dark_key`／`favicon_key`／`brand_color`／`brand_secondary_color` 五個品牌欄位已於 2026-10-06 刪除（主站規劃書 v3.20：標誌、Favicon、品牌色由前台靜態資產與 CSS 定義，後台不設定）。
     圖片上傳走既有 S0-8 共用插槽機制（`UploadSlotPolicy` 新增 `articles.og`／`pages.og`／
     `clubs.ogImage` 三格，`Features/Uploads/ImageFieldUpdate` 是新增的共用三態結構，供
     `Features/AdminNews`／`AdminPages`／`AdminSeo` 三處共用，不重複各自宣告一份）。
@@ -903,6 +903,19 @@ flowchart LR
        - `edm.enabled`／`edm.provider`／`edm.list_id`／`edm.sender_email`（單一值）、`edm.api_key_encrypted`（**Data Protection 密文，只寫不讀**）（`setting_group='edm'`）。
     ④ **權限碼 15 個**（`site.menu.*`／`site.global.*`／`site.locale.*`／`site.string.*`／`site.venue.*`／`site.edm.*`，見 [`12b`](12b-database-tables.md) §7.4「H 批」）：permissions 260 → **275**、role_permissions 782 → **799**（系統管理員 15 ＋ 翻譯人員 2）。**已建好的庫只能靠 migration 取得**（`db/prod/club-reference-data.sql` 與種子是新建庫用的同一份定義，id 為同一組決定性 UUID）。
     ⑤ **刻意沒有的**：不建「翻譯狀態」表（總覽由各內容側表即時計算，「完成」＝該語系側表列存在且主要文字欄位非空）；不為標誌／Favicon 補寬高與 Alt（`docs/12d` §12 同一個既有落差）；不新增語系（`RequestLocale` 只認 `en`，見 `apps/api/README.md` H 批待決 2）。
+
+51. 🔴 **（稽核 D 類，2026-10-06）雙語缺口：五個前台可見文字欄位搬進 `*_i18n` 側表**——全域規定 4 的補做，不是新增規格。
+    ① `standings.team_name` → **新表** `standings_i18n(standing_id, locale, team_name)`；② `achievements.competition_name`／`placing`
+    → **新表** `achievements_i18n(achievement_id, locale, competition_name, placing)`（`placing` 由 32 放寬為 64，英文名次較長）；
+    ③ `programs.audience` → **既有** `programs_i18n.audience`（`nvarchar(64)`，原 32）；④ `membership_plans.mid_season_rule` →
+    **既有** `membership_plans_i18n.mid_season_rule`（`nvarchar(255)`）；⑤ `proposals.title` → **新表** `proposals_i18n(proposal_id, locale, title)`。
+    新表依 §2.2 形狀（複合主鍵、`ON DELETE CASCADE`、`IX_*_i18n_locale`）；三張新表的文字欄位**皆可為空**（比照既有側表，`zh-Hant` 必存由應用層保證）。
+    **主表舊欄位搬走後刪除**——**兩階段**（`docs/20` §5「擴張／收縮」）：`db/migrations/20261006_d-bilingual-gaps_1-expand.sql`
+    建表／補欄並把既有中文值搬進 `zh-Hant` 列（冪等、只補空欄、不建 `en` 列），新版 api 上線驗證後才跑
+    `…_2-contract.sql` 刪舊欄位（刪前逐表比對 `zh-Hant` 列與舊欄位一致，不一致整批回滾）。
+    🔴 **不得再用「主表放中文、側表放英文」的混合寫法**（`matches.opponent` 是 2026-09 前的既有先例，不擴大）：這五處一律 `zh-Hant` 列為準、`en` 列可缺。
+    ⚠️ **反例記錄**：2026-09-22 曾以「規劃書與 ERD 查無雙語標記」為由裁決這三張不建側表，是把「規劃書沒逐表重申」誤讀成「不需要」（同 `docs/12c` §5 第 8 點）。
+    **聯賽簡稱不在此列**：`site.league_short_name` 本來就是逐語系設定（`settings_i18n`），結構無缺口；缺的是資料——磐石 `en`／`zh-Hant` 皆無簡稱值（企業甲級聯賽沒有通用簡稱），藍鯨 `zh-Hant`＝「木蘭聯賽」、`en`＝「Mulan League」（種子 `en_backfill_seed.py`）。磐石簡稱待客戶提供，後台「網站設定」可填，不需要改綱要。
 
 ---
 
@@ -1062,7 +1075,7 @@ App 規劃書寫明這些型別「共用主站資料庫」。**原本（2026-09-
 | `PlayerSeasonStat` `MatchTeam` `MatchGoal` `MatchCard` `MatchLineup` | C2／C4（行 889–904） | 逐季數據、進球、卡、名單 |
 | `StaffTeam` `ProgramStaff` `ProgramPartner` `SponsorPackageLink` | C3／P1／E2 | 多對多 |
 | `ComicPage` | F1（行 968–974） | 內頁批次上傳與排序 |
-| `Form` `FormField` `EnquiryAnswer` | G1（行 984–990） | 表單設計器的動態欄位 |
+| `Form` `FormField` `EnquiryAnswer` | G1（行 984–990） | 表單欄位（系統預先定義，後台 G1 只檢視） |
 | `Proposal` `ProposalFile` | E3（行 943–948） | 多版本多語 PDF。**Lead 仍走 `Enquiry`** |
 | `MemberCard` | 3.14 電子會員卡；`card_quota`（行 1283） | 一份會籍可多張卡，每張一組 token |
 | `JerseyIssue` | K3（行 1056–1061） | `jersey_quota` 可 > 1，逐件登記 |

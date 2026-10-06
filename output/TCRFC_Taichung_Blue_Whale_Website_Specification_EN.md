@@ -1,11 +1,14 @@
 # Taichung Blue Whale — Official Website Functional Specification
 
-> **Document version**: v1.10
-> **Date**: 2026-09-10 (v1.10 revision: 2026-10-05)
+> **Document version**: v1.11
+> **Date**: 2026-09-10 (v1.11 revision: 2026-10-06)
 > **Content principal**: Taichung Blue Whale Women's Football Club
 > **English name**: short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club` (usage in §8.2)
 > **System principal**: **shares the admin and database** of the Taichung Rock FC official website
-> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.10*. Section numbering matches the Traditional Chinese edition 1:1.
+> **Note**: This is the English edition of *TCRFC 台中藍鯨官網功能規劃書 v1.11*. Section numbering matches the Traditional Chinese edition 1:1.
+
+> **v1.11 revision summary — the Blue Whale site's logo, favicon and brand colours are defined by front-end static assets and styles**
+> **No new functionality.** The Blue Whale site's logo, favicon and brand colours (the seven brand variables) are defined solely by front-end static assets and styles; the admin does not configure them (per main-site specification v3.20). Landing points: §8.1, the `Club` record in §3.
 
 > **v1.10 revision summary — the official English name is settled**
 > **No functional changes.** Taichung Blue Whale's English name is: **short form `Taichung Blue Whale`, full name `Taichung Blue Whale Women's Football Club`**; no other spelling is used.
@@ -305,7 +308,7 @@ Records that must be created:
 
 | Type | Content |
 |---|---|
-| `Club` | One record: `code = TCBW`, `is_payment_subject = false` (collection uses the main site's single configuration), this site's domain, Blue Whale's brand colours and logos. Invoice-title and tax-ID fields are filled with the actual values |
+| `Club` | One record: `code = TCBW`, `is_payment_subject = false` (collection uses the main site's single configuration), this site's domain. Invoice-title and tax-ID fields are filled with the actual values |
 | `Team` | `BW1` (first team, `gender = women`, `type = first_team`), U15, U12 |
 | `Season` | Blue Whale's own seasons (not aligned with Taichung Rock's) |
 | `Competition` | Taiwan Mulan Football League, President's Cup, international invitationals, AFC competitions |
@@ -332,6 +335,8 @@ Follows main-site specification chapter 7 (**both the nine SEO foundations and `
 
 ### 8.1 Reuse the main site's templates; replace only the brand variables
 
+> **The logo, favicon and brand colours are defined by front-end static assets and styles; the admin does not configure them.**
+>
 > **This section *is* the "only brand difference" referred to in §1.3.** Apart from the seven variables below and the crest, the Blue Whale site's visual design is identical to the main site: **no separate design proposal, no layout changes, no different typeface or spacing system**.
 
 The main site's front end concentrates all colour in one set of design tokens, and its layout components (cards, clipped corners, oversized numerals, colour bands) are brand-agnostic. **This site reuses the same templates and components and replaces only the brand variables**: the primary colour, an AA-safe variant, a hover-brightened variant, a solid-button hover variant, and three dark neutrals.

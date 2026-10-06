@@ -1,8 +1,11 @@
 # TCRFC Taichung Rock FC — Mobile App Functional Specification
 
-> **Document version**: v3.15
-> **Date**: 2026-09-04 (v3.15 revision: 2026-10-05)
+> **Document version**: v3.16
+> **Date**: 2026-09-04 (v3.16 revision: 2026-10-06)
 > **Brand promise**: LOCAL ROOTS. GLOBAL PATHWAYS.
+
+> **v3.16 revision summary — both clubs' crests and brand colours are bundled app resources**
+> **No new functionality.** Both clubs' crests (with @2x / @3x and dark variants) and brand colours ship inside the app and are not served by the API or configured in the admin (per main-site specification v3.20). Landing points: §10.1 `Club` field table, §9.2 club list.
 
 > **v3.15 revision summary — Taichung Blue Whale's English name is settled
 > **No functional changes.** Taichung Blue Whale's English name is the short form `Taichung Blue Whale` and the full name `Taichung Blue Whale Women's Football Club` (usage in the Blue Whale specification §8.2); §16.2 item 1 narrows to the vector master. Landing point: §16.2 item 1.
@@ -1277,7 +1280,7 @@ E. Commercial                        (extends the existing module)
 >
 > ⚠️ **Data scope is a precondition of the multi-club architecture, not an optimisation that can wait**: once `club_id` reaches roughly 40 tables, every admin list query has to decide whether to filter. Build it single-club now and adding it later means rewriting the whole query layer.
 >
-> Only one thing here concerns the app: **`Club`'s high-density raster (@2x/@3x) and dark-variant crests are an app-specific requirement** — the web only needs SVG. They must be uploaded when the `Club` record is created; see 10.1 and 16.2.
+> Only one thing here concerns the app: **the two clubs' high-density raster (@2x/@3x) and dark-variant crests are an app-specific requirement** — the web only needs SVG. These assets and the brand colours ship inside the app; see 16.2.
 
 ### 8.7 E4 Advertisers and slots
 
@@ -1329,7 +1332,7 @@ This is the project's first API specification. It sits here rather than in a fou
 |---|---|---|---|
 | Device | Register / update | Anonymous | `AppDevice` creation and push token updates |
 | Settings | Read | Anonymous | Minimum supported version, feature flags, maintenance mode |
-| **Clubs** | List | Anonymous | `Club` records and crests, for club sections and follow settings (v2.0) |
+| **Clubs** | List | Anonymous | `Club` records (code, name), for club sections and follow settings (v2.0) |
 | **Competitions** | List | Anonymous | `Competition`, for the third fixture filter level (v2.0) |
 | Fixtures | List / single | Anonymous | Filterable by **squad, club, competition**, and period |
 | Squads and players | List / single | Anonymous | Filterable by club |
@@ -1429,10 +1432,10 @@ This is the project's first API specification. It sits here rather than in a fou
 
 | Type | Fields the app needs | Use in the app |
 |---|---|---|
-| `Club` | `code`, name (zh/en), crest (**with @2x/@3x and dark variants**), brand colour | Dual crests side by side, content-source labelling, **membership card branding (one card per membership from v3.0)**, sponsor zoning |
+| `Club` | `code`, name (zh/en), crest (**with @2x/@3x and dark variants**) and brand colour are bundled app resources, matched by `code` | Dual crests side by side, content-source labelling, **membership card branding (one card per membership from v3.0)**, sponsor zoning |
 | `Competition` | `code`, name (zh/en), type, `season_id` | Competition filtering across the twelve-month fixture list |
 
-> ⚠️ **High-density raster and dark-variant crests are an app-specific requirement** — the web only needs SVG. They must be uploaded when the `Club` record is created in the main site's `J4`; see 16.2.
+> ⚠️ **High-density raster and dark-variant crests are an app-specific requirement** — the web only needs SVG. They ship inside the app; see 16.2 item 1.
 
 > **`Competition` and `Match.competition` coexist and do not replace one another**: the latter is a four-value category (league / cup / friendly / other), the former is a named competition. Fixture cards show the `Competition` name; the filter sheet still uses the enum. **Both are kept** so that existing data and the website fixture page are not broken.
 

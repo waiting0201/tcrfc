@@ -137,7 +137,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 | **Teams** | Teams | First team, academy age groups, Blue Whale first team |
 | | Players | Squad, numbers, positions, photographs, biographies |
 | | Coaches and staff | Coaching and administrative staff |
-| | Fixtures & Results | **Fixtures, results, tables** (bulk import supported) |
+| | Fixtures & Results | **Fixtures, results, tables, season management** (bulk import supported) |
 | | Honours and milestones | Titles and notable records |
 | **Programmes** | Courses and camps | Regular courses and short camps |
 | | Intakes and sessions | Dates and places available |
@@ -151,7 +151,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 | | Performance reports | Impressions and clicks |
 | **Culture** | Comic | Characters, episodes, reading settings |
 | | Supporters' club events | Event scheduling (the roster lives in module K) |
-| **Enquiries** | Form designer | Building form fields |
+| **Enquiries** | Form designer | Viewing form fields; setting notifications, auto-replies and CAPTCHA |
 | | Inbox | Seven form types plus proposal downloads and donation enquiries |
 | | Newsletter list | Subscriptions and unsubscribes |
 | **Search & AI visibility** | — | Titles and descriptions, sitemap, structured data, **settings that help AI understand the site** |
@@ -159,7 +159,7 @@ Membership covers **one thing only — belonging**, at two tiers:
 | **System** | Accounts | Admin accounts |
 | | Roles and permissions | Who can do what |
 | | Audit and backup | Operation records and backups |
-| | Clubs and authorisation | **Club branding and legal details; each account's club authorisations** |
+| | Clubs and authorisation | **Club basic and legal details; each account's club authorisations** |
 | **Members** | Member list | Member records (personal data masked by role) |
 | | Memberships and plans | Activation, renewal, expiry |
 | | Shirt fulfilment | Sizes and issue records |
