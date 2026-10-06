@@ -1,5 +1,5 @@
 /**
- * 卡片層級的語言分頁範圍（LangTabsCard 提供、雙語欄位與 LangPane 取用）。
+ * 語言分頁範圍（整頁或整個對話框一個）（LangTabsBar 提供、雙語欄位與 LangPane 取用）。
  *
  * 每張卡片一個獨立的範圍：目前語言預設中文、各卡互不影響；切換分頁只是畫面狀態，
  * 不算表單的未儲存變更。欄位向範圍「登記」自己，範圍據此算出分頁標籤上的
@@ -73,7 +73,7 @@ export function provideLangScope(langs: Lang[], idPrefix: string): LangScope {
   return scope
 }
 
-/** 不在任何 LangTabsCard 內時回傳 null（雙語欄位的過渡退路依此判斷）。 */
+/** 不在任何 LangTabsBar 內時回傳 null（雙語欄位的過渡退路依此判斷）。 */
 export function useLangScope(): LangScope | null {
   return inject(LANG_SCOPE_KEY, null)
 }

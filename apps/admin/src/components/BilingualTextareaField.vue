@@ -34,14 +34,14 @@ const emit = defineEmits<{
 
 const { scope, keyZh, keyEn } = useBilingualField(props, 'BilingualTextareaField')
 
-// 以下兩行只給過渡期的舊版畫面（沒放進 LangTabsCard）使用
+// 以下兩行只給過渡期的舊版畫面（沒放進 LangTabsBar）使用
 const { breakpoint } = useBreakpoint()
 const isMobile = computed(() => breakpoint.value === 'mobile')
 const isUntranslated = computed(() => !props.en.trim())
 </script>
 
 <template>
-  <!-- 在 LangTabsCard 內：只顯示目前語言，兩種語言都留在 DOM（v-show）；未翻譯與錯誤數由分頁標籤呈現 -->
+  <!-- 在 LangTabsBar 內：只顯示目前語言，兩種語言都留在 DOM（v-show）；未翻譯與錯誤數由分頁標籤呈現 -->
   <template v-if="scope">
     <FormField v-show="scope.current.value === 'zh'" :field="keyZh()" :label="`${label}（中文）`" :required="required" lang="zh">
       <el-input
@@ -67,7 +67,7 @@ const isUntranslated = computed(() => !props.en.trim())
     </FormField>
   </template>
 
-  <!-- 過渡期舊版（第 4 階段刪除）：不在 LangTabsCard 內時維持原本的並排／手機分頁 -->
+  <!-- 過渡期舊版（第 4 階段刪除）：不在 LangTabsBar 內時維持原本的並排／手機分頁 -->
   <template v-else>
     <div v-if="!isMobile" class="bilingual-textarea-field">
       <el-form-item :label="`${label}（中文）`" :required="required" class="bilingual-textarea-field__col">

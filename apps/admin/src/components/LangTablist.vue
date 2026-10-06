@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** LangTabsCard 的分頁列（內部元件）：role=tablist，方向鍵／Home／End 切換，標籤文字帶未翻譯與錯誤數。 */
+/** LangTabsBar 的分頁列（內部元件）：role=tablist，方向鍵／Home／End 切換，標籤文字帶未翻譯與錯誤數。 */
 import { computed } from 'vue'
 import { LANG_LABEL, type LangScope } from '@/composables/useLangScope'
 

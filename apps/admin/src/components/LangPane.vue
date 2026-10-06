@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * 語言分頁裡的自訂內容（例如新聞內文的編輯器）。放在 LangTabsCard 內，每種語言一個：
+ * 語言分頁裡的自訂內容（例如新聞內文的編輯器）。放在 LangTabsBar 內，每種語言一個：
  *
- *   <LangTabsCard header="內容">
+ *   <LangTabsBar>
  *     <LangPane lang="zh" field="bodyZh">…</LangPane>
  *     <LangPane lang="en" field="bodyEn" :untranslated="!!zhHasValue && !enHasValue">…</LangPane>
- *   </LangTabsCard>
+ *   </LangTabsBar>
  *
  * - 用 v-show 留在 DOM，輸入狀態與編輯器不會因切換而遺失。
  * - `field`：這個語言內容的欄位鍵，供分頁標籤計算「需修正」數（欄位本身的錯誤用 FormField 顯示）。
@@ -23,7 +23,7 @@ const props = withDefaults(defineProps<{ lang: Lang; field?: string; untranslate
 const emit = defineEmits<{ (e: 'show'): void }>()
 
 const scope = useLangScope()
-if (!scope && import.meta.env.DEV) console.warn('[LangPane] 必須放在 LangTabsCard 內。')
+if (!scope && import.meta.env.DEV) console.warn('[LangPane] 必須放在 LangTabsBar 內。')
 
 let unregister: (() => void) | null = null
 onMounted(() => {

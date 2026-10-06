@@ -2,7 +2,7 @@
  * 編輯頁的欄位錯誤（鍵 → 訊息）與「定位到第一個錯誤」。
  *
  * 用法：頁面 setup 裡 `const formErrors = provideFormErrors()`，其餘元件（FormField、雙語欄位、
- * LangTabsCard、EditActionBar 的狀態列）用 `useFormErrors()` 取同一份。
+ * LangTabsBar、EditActionBar 的狀態列）用 `useFormErrors()` 取同一份。
  * 欄位鍵是程式內部識別（`nameZh`、`slug`），**絕不顯示在畫面上**。
  */
 import { inject, nextTick, provide, reactive, computed, type InjectionKey } from 'vue'

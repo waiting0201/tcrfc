@@ -14,7 +14,7 @@ import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
-import LangTabsCard from '@/components/LangTabsCard.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
@@ -215,83 +215,85 @@ function retryLoad() {
       />
 
       <el-form label-position="top">
-        <EditLayout>
-          <template #main>
-            <el-card shadow="never" header="基本資料">
-              <el-row :gutter="12">
-                <el-col :span="8">
-                  <FormField field="code" label="隊別代號" required>
-                    <el-input v-model="form.code" placeholder="例如 D1、BW1、U15" />
-                  </FormField>
-                </el-col>
-                <el-col :span="8">
-                  <FormField field="type" label="類型" required>
-                    <el-select v-model="form.type" style="width: 100%" @change="formErrors.clear('type')">
-                      <el-option v-for="(label, value) in TEAM_TYPE_LABEL" :key="value" :label="label" :value="value" />
-                    </el-select>
-                  </FormField>
-                </el-col>
-                <el-col :span="8">
-                  <FormField field="gender" label="性別" required>
-                    <el-select v-model="form.gender" style="width: 100%" @change="formErrors.clear('gender')">
-                      <el-option v-for="(label, value) in TEAM_GENDER_LABEL" :key="value" :label="label" :value="value" />
-                    </el-select>
-                  </FormField>
-                </el-col>
-              </el-row>
-              <el-row :gutter="12">
-                <el-col :span="8">
-                  <el-form-item label="年齡層">
-                    <el-input v-model="form.ageBand" placeholder="選填，例如 U15" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="代表色">
-                    <el-input v-model="form.teamColor" placeholder="選填，例如 #E0218A" />
-                  </el-form-item>
-                </el-col>
-                <el-col :span="8">
-                  <el-form-item label="排序">
-                    <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
-                  </el-form-item>
-                </el-col>
-              </el-row>
-            </el-card>
+        <LangTabsBar>
+          <EditLayout>
+            <template #main>
+              <el-card shadow="never" header="基本資料">
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <FormField field="code" label="隊別代號" required>
+                      <el-input v-model="form.code" placeholder="例如 D1、BW1、U15" />
+                    </FormField>
+                  </el-col>
+                  <el-col :span="8">
+                    <FormField field="type" label="類型" required>
+                      <el-select v-model="form.type" style="width: 100%" @change="formErrors.clear('type')">
+                        <el-option v-for="(label, value) in TEAM_TYPE_LABEL" :key="value" :label="label" :value="value" />
+                      </el-select>
+                    </FormField>
+                  </el-col>
+                  <el-col :span="8">
+                    <FormField field="gender" label="性別" required>
+                      <el-select v-model="form.gender" style="width: 100%" @change="formErrors.clear('gender')">
+                        <el-option v-for="(label, value) in TEAM_GENDER_LABEL" :key="value" :label="label" :value="value" />
+                      </el-select>
+                    </FormField>
+                  </el-col>
+                </el-row>
+                <el-row :gutter="12">
+                  <el-col :span="8">
+                    <el-form-item label="年齡層">
+                      <el-input v-model="form.ageBand" placeholder="選填，例如 U15" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="代表色">
+                      <el-input v-model="form.teamColor" placeholder="選填，例如 #E0218A" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="8">
+                    <el-form-item label="排序">
+                      <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+              </el-card>
 
-            <LangTabsCard header="名稱與簡介">
-              <BilingualShortField
-                field="name"
-                label="名稱"
-                :zh="form.nameZh"
-                :en="form.nameEn"
-                required
-                @update:zh="(v) => (form.nameZh = v)"
-                @update:en="(v) => (form.nameEn = v)"
-              />
-              <BilingualTextareaField
-                field="intro"
-                label="簡介"
-                :zh="form.introZh"
-                :en="form.introEn"
-                @update:zh="(v) => (form.introZh = v)"
-                @update:en="(v) => (form.introEn = v)"
-              />
-            </LangTabsCard>
-          </template>
-
-          <template #aside>
-            <el-card shadow="never" header="主視覺">
-              <FormField field="hero" label="主視覺圖片">
-                <ImageUploader
-                  v-model:file="heroFile"
-                  v-model:remove-cover="removeHero"
-                  :has-existing-image="!!heroKey"
-                  :disabled="saving"
+              <el-card shadow="never" header="名稱與簡介">
+                <BilingualShortField
+                  field="name"
+                  label="名稱"
+                  :zh="form.nameZh"
+                  :en="form.nameEn"
+                  required
+                  @update:zh="(v) => (form.nameZh = v)"
+                  @update:en="(v) => (form.nameEn = v)"
                 />
-              </FormField>
-            </el-card>
-          </template>
-        </EditLayout>
+                <BilingualTextareaField
+                  field="intro"
+                  label="簡介"
+                  :zh="form.introZh"
+                  :en="form.introEn"
+                  @update:zh="(v) => (form.introZh = v)"
+                  @update:en="(v) => (form.introEn = v)"
+                />
+              </el-card>
+            </template>
+
+            <template #aside>
+              <el-card shadow="never" header="主視覺">
+                <FormField field="hero" label="主視覺圖片">
+                  <ImageUploader
+                    v-model:file="heroFile"
+                    v-model:remove-cover="removeHero"
+                    :has-existing-image="!!heroKey"
+                    :disabled="saving"
+                  />
+                </FormField>
+              </el-card>
+            </template>
+          </EditLayout>
+        </LangTabsBar>
       </el-form>
 
       <EditActionBar>
