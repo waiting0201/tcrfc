@@ -257,7 +257,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band grain" aria-labelledby="shop-info-title">
+<section class="band grain shop-info-band" aria-labelledby="shop-info-title">
   <div class="band-inner container">
     <p class="kicker kicker--on-dark">SHOP INFO</p>
     <h2 id="shop-info-title" class="section-title" style="color:#fff">{{ tx('購物須知', 'Shopping information') }}</h2>
@@ -300,4 +300,11 @@ useSeoMeta({
 .product-card__tags{ display:flex; flex-wrap:wrap; gap:.25rem .6rem; }
 .sh-tag{ font-size:.78rem; font-weight:700; color:var(--brand-aa); text-decoration:none; }
 .sh-tag:hover, .sh-tag:focus-visible{ text-decoration:underline; }
+/* 購物須知（深底）：.grain 只給深色底、不設文字色，卡片也沒有底色與內距——
+   文字沿用頁面預設深色字會疊在深底上看不見。比照 .cta-band／.cta-card 的深底寫法，只用 design tokens。 */
+.shop-info-band{ color:#fff; }
+.shop-info-band .clip-card{ background:var(--ink-2); border:1px solid rgba(255,255,255,.08); padding:2rem 1.75rem 2.25rem; }
+.shop-info-band .clip-card h3{ color:#fff; font-size:1.15rem; font-weight:700; margin:0 0 .75rem; }
+.shop-info-band .clip-card p{ color:var(--muted-dark); line-height:1.7; margin:0; }
+.shop-info-band .clip-card strong{ color:#fff; }
 </style>
