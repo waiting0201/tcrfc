@@ -167,6 +167,10 @@ function validate(): Record<string, string> {
   if (!form.startsAt) errors.startsAt = '請選擇開始時間'
   else if (form.endsAt && form.endsAt < form.startsAt) errors.endsAt = '結束時間不能早於開始時間'
   if (!form.titleZh.trim()) errors.titleZh = '請輸入中文標題'
+  const cta = form.ctaUrl.trim()
+  if (cta && !/^https?:\/\/\S+$/i.test(cta) && !(/^\/(?![/\\])\S*$/.test(cta))) {
+    errors.ctaUrl = '連結要以 https:// 或 http:// 開頭的完整網址，或以 / 開頭的站內路徑'
+  }
   if (form.descriptionEn.trim() && !form.titleEn.trim()) {
     errors.titleEn = '有英文說明時請一併填寫英文標題（或清空英文說明）'
   }
@@ -377,7 +381,8 @@ function retryLoad() {
                 </FormField>
 
                 <FormField field="ctaUrl" label="外部連結或 CTA 網址">
-                  <el-input v-model="form.ctaUrl" placeholder="選填，例如報名連結" />
+                  <el-input v-model="form.ctaUrl" placeholder="選填，例如 https://… 或 /zh/programs/" />
+                  <p class="calendar-event-edit__hint">以 https:// 或 http:// 開頭的完整網址，或以 / 開頭的站內路徑。</p>
                 </FormField>
               </el-card>
 

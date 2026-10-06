@@ -48,7 +48,7 @@ CSV 匯入匯出）、**H3 孤立頁面偵測**（唯讀報表，畫面上把偵
 
 ✅ **S1-9 前端接線（2026-09-25）：P1 項目／P2 梯次與場次／P3 報名管理三組列表＋編輯畫面全新
 完成**——接上同名後端（見 `apps/api/README.md`「S1-9」）。**P1**：類型／狀態篩選、雙語名稱與
-簡介、課程內容（區塊編輯器的原始 JSON，只驗證語法）、教練團多選（接 C3 既有清單）、封面圖
+簡介、課程內容（區塊編輯器，與靜態頁同格式）、教練團多選（接 C3 既有清單）、封面圖
 （沿用 S0-8 共用元件，選檔不上傳、儲存才上傳）。**P2**：所屬項目建立後鎖定不可改、名額上限與
 已報名數（唯讀，由報名寫入路徑維護）、費用與早鳥、報名起訖時間、狀態（留空自動判定額滿）。
 **P3**：梯次／狀態篩選、後台代填報名、處理報名（確認／取消／轉梯次／候補／備註／學員資料整份
@@ -285,7 +285,7 @@ apps/admin/
 │   │   ├── adminPages.ts       # B1 頁面管理，S1-4 新增，見下方「頁面管理」
 │   │   ├── adminAccounts.ts    # J1 帳號 ＋ J4 掛在帳號底下的俱樂部／球隊授權
 │   │   ├── adminRoles.ts       # J2 角色與權限
-│   │   ├── adminClubs.ts       # J4 俱樂部主檔（標誌／favicon／OG 圖唯讀，見該檔案檔頭）
+│   │   ├── adminClubs.ts       # J4 俱樂部主檔（OG 圖鍵唯讀；標誌／favicon／品牌色已於主站規劃書 v3.20 移除）
 │   │   ├── adminCompetitions.ts # C4 賽事系列（S1-4 新增 `listAdminSeasons`，見下方「賽事系列」）
 │   │   └── adminTeams.ts       # J4 球隊授權下拉選單，S1-4 新增（原 `publicClubs.ts` 已隨站台切換器改接 `/auth/me` 一併刪除）
 │   ├── data/                 # 假資料與靜態設定，見下方「假資料放哪」
@@ -585,9 +585,9 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
   俱樂部）、`sysadmin_only` 的權限碼一律禁用勾選（避免存檔才被後端拒絕）。
 - **J4 俱樂部與授權管理**（`ClubListView.vue`／`ClubEditView.vue`）：俱樂部主檔 CRUD（代碼建立後
   不可改）、法人資料（發票抬頭、統一編號、是否為收款主體，附警語提醒收款主體目前只有俱樂部）、
-  品牌色。🔴 **標誌／favicon／OG 圖三組欄位本輪唯讀**（另一位 backend agent 同時在改圖片上傳，
-  任務指示要求不要動它，見 `src/api/adminClubs.ts` 檔頭）——畫面只顯示「已設定」／「尚未設定」，
-  不提供上傳，之後應比照新聞封面圖片的 multipart 契約補上。
+  （品牌色、標誌、favicon 已於 2026-10-06 隨主站規劃書 v3.20 移除，改由前台靜態資產與 CSS 定義）。
+  畫面只剩「社群分享圖片」唯讀卡（已設定／尚未設定）；後端 `AdminClubs` 本來就不寫 OG 圖，
+  上傳入口在 H1 全站設定，故本頁不補上傳。
 
 ## 賽事系列（C4 的支援型別，S1，2026-09-24；賽季下拉選單於 S1-4 補上；C4 主體已於 S1-8 完成）
 
@@ -649,6 +649,7 @@ headless Chrome + CDP（`Emulation.setDeviceMetricsOverride` 固定桌面寬度 
   `serializeBlocksForSubmit`），逐條對齊 `PageBlockContentProcessor.cs` 的驗證規則做前端預檢，
   **後端仍是最終依據**，這裡只是減少一次不必要的往返 |
 | `src/api/adminPages.ts` | 對照 `AdminPageDtos.cs` 的完整端點清單 |
+| `src/components/pageBlocks/PageBlockListEditor.vue` | 區塊清單（新增／排序／刪除＋逐區塊編輯），靜態頁與 P1 課程內容共用；`allowedTypes` 限制可新增類型 |
 | `src/components/pageBlocks/PageBlockEditor.vue` | 單一區塊的內容編輯，依 `blockType` 切換欄位；
   圖片欄位直接重用 `ImageUploader.vue`（`v-model:file`／`v-model:remove-cover` 對到
   `ImageSlotState.file`／`cleared`） |
@@ -1695,10 +1696,12 @@ cd apps/api/Tcrfc.Api.Tests && dotnet test --no-build
 
 - **P1**（`src/views/programs/ProgramItemListView.vue`／`ProgramItemEditView.vue`）：類型
   （5 種）／狀態（草稿／已發布）篩選；雙語名稱＋簡介（`BilingualShortField`／
-  `BilingualTextareaField`）；課程內容以**原始 JSON 文字欄位**呈現（區塊編輯器輸出，後端只驗證
-  語法合法性、不驗證區塊結構，見 `apps/api` `AdminProgramLocaleContent` 檔頭——B1 頁面的
-  `pageBlocks/` 是針對 `Page` 模型設計，區塊型別完全不同，沒有可重用的既有元件，判斷比照後端
-  自身「不超出範圍另外發明一套」）；教練團多選（接 C3 既有 `listAdminStaff`）；封面圖沿用 S0-8
+  `BilingualTextareaField`）；課程內容（2026-10-06 稽核 A-5）改為**重用靜態頁的區塊編輯器**
+  （`PageBlockListEditor.vue`，由 `PageEditView.vue` 抽出共用），存成與靜態頁相同的區塊 JSON 陣列
+  `[{blockType, content}]`（區塊內雙語欄位為 `{zh,en}`）；只開放不需圖片上傳的 7 種（文字、引言、數據卡、
+  步驟條、時間軸、表格、CTA），**只有一份區塊清單**，儲存時同一份 JSON 寫進中文版（英文版有建立時一併寫入）；
+  舊的純文字內容載入時轉成一個文字區塊，不支援的區塊類型原樣保留；後端 `ValidateContentJson` 只驗語法，不需改；
+  教練團多選（接 C3 既有 `listAdminStaff`）；封面圖沿用 S0-8
   共用元件 `ImageUploader.vue`（選檔不上傳、儲存才上傳）。
 - **P2**（`ProgramSessionListView.vue`／`ProgramSessionEditView.vue`）：所屬項目建立後鎖定
   不可改（`UpdateAdminSessionRequest` 本來就沒有這個欄位）；名額上限可填、**已報名數唯讀**
@@ -1738,8 +1741,7 @@ cd apps/api/Tcrfc.Api.Tests && dotnet test --no-build
 - **場地選單**：`sessions.venueId` 沒有提供選擇介面——`venues` 是共用主檔，但目前沒有任何後台
   端點可以列出場地清單，跟 `MatchEditView.vue` 賽事場地欄位遇到的既有缺口相同（見該檔案檔頭），
   沿用同一個判斷不重複造，畫面上顯示原因說明。
-- **合作夥伴選單**：P1 的 `partnerIds`（關聯 E1）沒有提供選擇介面——E1 合作夥伴管理（`S2-1`）
-  尚未開發，沒有清單可以選。
+- **合作夥伴選單**（B-9）：P1 的 `partnerIds` 為多選下拉，列出本俱樂部已發布的夥伴（`listPartners`），已選但未發布的夥伴仍顯示。
 - **會員選單**：P3 的 `memberId` 沒有提供選擇或搜尋介面——K1 會員系統尚未開發，前台也沒有會員
   登入能串接，畫面上只唯讀顯示既有值（若有）。
 
@@ -2924,7 +2926,7 @@ npm run build   # vue-tsc -b && vite build，型別檢查與建置皆無錯誤
 - **儀表板**（`views/DashboardView.vue`，`api/adminDashboard.ts`）：三支端點各自載入、各自失敗。待辦（點擊到清單；詢問與梯次可直接開單筆）、內容概況（含各語言未翻譯數）、常見問題概況、未來 14 天行程（異常提醒以日常中文標籤顯示、不顯示隊別代號）、會籍概況、快速入口（依後端清單，代號對應畫面路由）、轉換概況（每週 8 週／每月 6 個月，長條圖＋各序列合計＋各表單送出數）、流量概況（目前顯示「流量統計尚未串接」與後端說明）。**回 `null`、不在清單或 403 的區塊整塊不顯示，不是顯示 0**；主資料 403＝「沒有可顯示在儀表板的項目」。假資料檔 `data/dashboard.ts` 已刪。
 - **網站設定改為選單群組**（`data/nav.ts`、`AppSidebar.vue`）：基本資料與聯絡方式（原 `SiteFactsView`，路徑不變）、選單管理、全域設定、多語系、場地管理、電子報平台。`I` 不再整組僅系統管理員可見，改依 `site.fact／menu／global／locale／string／venue／edm.view` 顯示子項；翻譯人員只看到「多語系」。
 - **選單管理**（`MenuSettingsView.vue`＋`parts/MenuNodeList.vue`＋`parts/menuNode.ts`）：三個位置分頁各自儲存；遞迴樹編輯、最多 3 層／100 項、上移下移、雙語、外部連結勾選；前端驗證與後端一致（葉節點必填連結、站內 `/` 開頭、外部 http(s)）；`PUT` 整棵樹取代，儲存會刪除既有項目時先二次確認，儲存後重讀取得新 id。
-- **全域設定**（`GlobalSettingsView.vue`）：三個標誌圖（沿用 `ImageUploader`，選檔不上傳、按儲存才送 multipart）、品牌色（挑選器＋`#RRGGBB`）、三份政策純文字（中英各一，≤50,000 字）、維護模式（開啟必填中文訊息；切換時二次確認）。
+- **全域設定**（`GlobalSettingsView.vue`）：（標誌圖與品牌色已於 2026-10-06 移除，見文末）三份政策純文字（中英各一，≤50,000 字）、維護模式（開啟必填中文訊息；切換時二次確認）。
 - **多語系**（`LocaleSettingsView.vue`＋`parts/*Panel.vue`）：語言設定（啟用／備援／排序，預設語言不可停用；未翻譯處理方式；日期／數字格式預設選項）、翻譯狀態總覽（9 類摘要卡＋矩陣＋篩選缺英文／關鍵字／分頁）、介面字串翻譯表（分組／關鍵字／缺英文篩選、新增、編輯、刪除）。**翻譯人員**（只有 `site.string.translate`）：看不到語言設定；編輯視窗中字串代號、分組、繁中原文唯讀，送出只含非繁中語系（伺服器強制，改繁中整個請求 403）；無新增、刪除。
 - **場地管理**（`VenueListView.vue`／`VenueEditView.vue`，`api/adminVenues.ts`）：列表（照片縮圖、座標）、新增編輯（雙語名稱／地址／交通說明、經緯度、照片＋替代文字）、**由地址定位**比照特約店家（503 依 `code` 區分：`geocoder_unavailable`＝暫時故障可再試；其他＝尚未啟用並停用按鈕）、刪除被引用／主場 409 訊息顯示。
 - **電子報平台**（`EdmSettingsView.vue`）：金鑰只寫不讀——畫面只顯示「已設定金鑰」，留空維持、輸入新值更換、勾「清除」刪除（兩者互斥）；啟用前必填平台名稱與金鑰；供應商未選定時說明設定會先存起來。
@@ -3017,3 +3019,35 @@ npm run build   # vue-tsc -b && vite build，型別檢查與建置皆無錯誤
 - 權限：儀表板沒有專屬權限碼，判斷沿用後端——`getDashboard` 回 403（帳號沒有任何儀表板相關權限）就整個隱藏鈴鐺；其他失敗只是不顯示徽章，點開顯示「無法取得待辦，請稍後再試」，不彈錯誤訊息。
 - 無障礙：`<button>`，`aria-label` 帶筆數（「待辦提醒，共 N 筆」），Esc 關閉；手機沿用同一個彈出層。
 - apps/admin 目前沒有單元測試框架，未補測試；計算邏輯是純函式，之後若導入框架可直接測。
+
+## 後台欄位串接稽核：賽季管理等六項畫面（2026-10-06，`frontend-architect`，docs/23）
+
+API 契約以 `apps/api/README.md`「後台欄位串接稽核的後端修正」為準。型別檢查、`npm run lint`（含 `check-edit-layout`，基準維持 0）、`npm run build` 皆通過；**未實機驗證**（依規定未啟動 `apps/api`），專案沒有單元測試框架。
+
+| 項 | 畫面與行為 | 檔案 |
+|---|---|---|
+| **賽季管理（新）** | 球隊管理群組新增「賽季」（`/teams/seasons`，側欄排在「賽程與賽果」之後、「積分榜」之前）。列表欄位：賽季代碼、開始／結束日期、「當季」標籤（今天〔台北時間〕落在起訖內，純畫面判斷）、使用中筆數與明細（後端 `usage`）。新增／編輯用對話框（沒有雙語欄位，依 docs/21 §3 用對話框）；欄位錯誤鍵 `code`／`startOn`（含期間重疊 409）／`endOn` 標到欄位。刪除：`inUse` 時按鈕停用並以提示顯示使用情形；仍收到 409／403 時以對話框完整顯示後端訊息並重抓清單。權限比照賽程：`useCrudPermissions('team.match')` 控制新增／編輯／刪除按鈕，側欄接受 `team.match.view` 或 `team.competition.view`（後端清單同）。寫入需整個俱樂部的球隊授權，畫面不預判，由後端 403 訊息顯示。`GET /admin/{club}/seasons` 網址沒變，賽事系列、賽程、積分榜、榮譽頁的賽季下拉（`listAdminSeasons`）原樣可用 | `views/teams/SeasonListView.vue`、`api/adminSeasons.ts`、`router/index.ts`、`data/nav.ts`、`components/AppSidebar.vue` |
+| **球員賽季數據** | 球員編輯頁（僅編輯模式）主欄新增「賽季數據」卡片，每個賽季一列：來源標籤（手動／自動彙總／無資料）、自動彙總值、目前手動值、五個數字輸入（出賽、進球、助攻、黃牌、紅牌）。「儲存為手動值」＝PUT；「清除手動值，改回自動彙總」＝DELETE（需確認，僅來源為手動時出現）。**每個賽季各自立即儲存**，卡片說明固定一行「這裡的變更會立即儲存」（比照 docs/21 §3.4）。每列自帶一份 `provideFormErrors`（五個欄位鍵每季相同，共用頁面那份會標錯列），`applyApiError` 標到該列欄位。助攻沒有自動來源，編輯起點從 0 開始；球隊不在授權範圍（整頁唯讀）或沒有 `team.player.update` 時輸入停用 | `views/teams/parts/PlayerSeasonStatsPanel.vue`、`PlayerSeasonStatRow.vue`、`api/adminPlayers.ts` |
+| **進球類型下拉** | 賽事編輯頁進球列改為下拉：一般進球（空值）／頭槌／點球／自由球／烏龍球／其他。舊資料載入時以 `types/match.ts` 的 `parseGoalType` 對照後端同義詞（含「烏龍」「own goal」字樣一律烏龍球，與後端 `IsOwnGoal` 一致）。**對不上的舊自由文字（例如「遠射」）**：下拉選「其他」並在列下提示「原本寫的是…，儲存後會歸為其他」。後端寫入端不收未知文字（400），無法原樣保留，所以選擇「提示後歸為其他」而非靜默覆寫或送出後被拒。錯誤鍵 `goals[i].goalType` 依逐層去尾退回標到進球表格的 `goals` 錨點 | `views/teams/MatchEditView.vue`、`types/match.ts` |
+| **表單設計器鎖定** | 後端 DTO 沒有回傳鎖定旗標，前端以 `types/forms.ts` 的 `FIELD_LOCKED_FORM_CODES`（對照 `FormCatalog.FieldLockedCodes`：10.1–10.7 七類＋提案下載；捐助洽詢不鎖；**後端清單異動時要手動同步**）判斷。鎖定表單：頁面加說明「這張表單的欄位由網站固定，只能修改題目文字與通知設定」；隱藏「新增欄位」「刪除」；欄位對話框的欄位代碼、型別、必填、驗證規則停用，選項值只顯示（不能新增／刪除），仍可改題目文字中英、選項英文顯示文字、內容摘要；排序（上移／下移）、收件通知、自動回覆、防機器人驗證、導向頁照舊。送出欄位時結構欄位一律用載入時的原值，避免空值差異被後端判為有改動。導向頁提示改為「站內路徑，以 / 開頭」，前端驗證同步收緊（不收完整網址、`//`、`/\`） | `views/forms/FormEditView.vue`、`types/forms.ts` |
+| **訂單詳情** | 「訂購資訊」新增買家 Email（有值才顯示，遮罩值原樣顯示；訂單詳情沒有獨立的「顯示完整個資」按鈕，遮罩由後端依 `shop.order.reveal` 決定，遮罩提示文字擴寫為涵蓋收件人、買家 Email、載具號碼）。發票區塊新增開立方式、載具號碼、統一編號、捐贈碼（各自有值才顯示）；開立／作廢狀態改顯示 `issueStatusLabel`／`voidStatusLabel`（舊欄位只作缺值回退） | `views/shop/OrderDetailView.vue`、`api/adminShop.ts` |
+| **追蹤碼與 CTA 連結** | SEO 設定四個追蹤碼與行事曆自建活動 `ctaUrl` 原本就已有 `FormField`、`provideFormErrors` 與 catch 的 `applyApiError`（E-276 三項檢查皆在），後端 400 鍵 `ga4MeasurementId`／`gtmContainerId`／`metaPixelId`／`lineTagId`／`ctaUrl` 可標到欄位；本次補輸入框下方的格式提示，並在前端先做同規則檢查（GA4 `G-`、GTM `GTM-`〔大小寫不拘，後端轉大寫〕、Meta Pixel 純數字 5–20 位、LINE Tag 英數與連字號；`ctaUrl` 為 `http(s)://` 或單一 `/` 開頭） | `views/seo/SeoSettingsView.vue`、`views/calendar/CalendarEventEditView.vue` |
+
+## 站台事實新欄位與品牌設定移除（2026-10-06，主站規劃書 v3.20，API 契約見 `apps/api/README.md` C-2）
+
+- **站台事實**（`SiteFactsView.vue`、`api/adminSiteFacts.ts`）新增：聯絡 Email、社群連結（Facebook／Instagram／YouTube／LINE，https，網域白名單由後端把關）、各部門窗口（最多 20 筆；名稱中文必填，Email 與分機至少一項）、頁尾品牌簡介（中英；填英文時中文必填）。欄位錯誤鍵依後端（`contactEmail`、`facebookUrl`…、`departments[i].*`、`footerBlurbZh|En`）標到欄位。
+- **移除品牌設定**：`GlobalSettingsView.vue` 不再有標誌淺／深底、Favicon 上傳與品牌色挑選；`adminSiteSettings.ts` 的 `brand`、`removeLogo*`、`removeFavicon`、`brandColor*` 與上傳檔案參數移除（PUT 仍走 multipart `payload`，不附檔）；`ClubEditView.vue`、`adminClubs.ts` 移除品牌色與標誌鍵。OG 分享圖保留，仍在 H1 全站設定上傳。
+- 驗證：`npm run lint`（含 `check-edit-layout`，基準 0）、`npm run build`（含 vue-tsc）通過；未實機驗證。
+
+## D 類雙語欄位：榮譽、積分榜、課程、會籍方案、提案（2026-10-06，`frontend-architect`，API 契約見 `apps/api/README.md`「稽核 D 類雙語缺口」）
+
+| 畫面 | 新增欄位（上限，空白＝清除英文） | 版型 | 檔案 |
+|---|---|---|---|
+| 榮譽（對話框） | 賽事名稱英文（128）、名次英文（64）；名次中文上限 32→64 | 對話框自己一組 `LangTabsBar variant="bare"`＋`BilingualShortField` | `views/honours/HonoursView.vue`、`api/adminHonours.ts` |
+| 積分榜（對話框） | 球隊名稱英文（128）；中文上限 128 | 同上；驗證改進 `formErrors`（檔案轉為嚴格後，`formError.value = '字串'` 被 lint 擋下） | `views/teams/StandingListView.vue`、`api/adminStandings.ts` |
+| 積分榜 CSV 匯入 | 可多第六欄「球隊名稱（英文）」；五欄照舊可匯 | 頁面說明與匯入確認框都寫明：**整季替換，沒有英文欄＝該賽季英文名稱全部清空**。專案沒有 CSV 範本下載，故只有文字說明 | 同上 |
+| 課程項目 | 適合對象英文（64）；中文上限 64 | 整頁分頁＋`BilingualShortField`（原三欄列中的一格） | `views/programs/ProgramItemEditView.vue`、`api/adminPrograms.ts` |
+| 會籍方案 | 期中加入規則英文（255）；中文上限由 500 改 255 | `BilingualTextareaField`；PUT 整份取代，每次都帶 `midSeasonRuleEn` | `views/members/MembershipPlanEditView.vue`、`api/adminMemberships.ts` |
+| 提案 | 提案名稱英文（128） | 頁面原本沒有語言分頁，整個 `EditLayout` 包進 `LangTabsBar` | `views/business/ProposalEditView.vue`、`api/adminProposals.ts` |
+
+列表一律維持顯示中文。各頁原本就有 `provideFormErrors` 與 catch 的 `applyApiError`（E-276 檢查通過）；前端驗證上限比照後端。驗證：`npm run build`、`npm run lint`（`check-edit-layout` 基準 0）、eslint 0 errors 通過；未實機驗證。

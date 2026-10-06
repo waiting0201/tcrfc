@@ -1,7 +1,6 @@
 /**
  * J4「俱樂部與法人資料」，對照 `Features/AdminClubs/AdminClubDtos.cs`。全域端點，需要系統管理員。
- * ⚠️ 標誌／favicon／OG 圖三組欄位本輪唯讀（見 apps/api/README.md「執行層判斷」第 5 點），
- * 這裡的型別因此只讀不寫這三組欄位。
+ * 標誌、favicon、品牌色已於主站規劃書 v3.20 移除（前台靜態資產與 CSS 定義）；OG 圖鍵唯讀。
  */
 import { apiRequest } from './http'
 
@@ -33,12 +32,7 @@ export interface AdminClubDetailDto {
   id: string
   code: string
   domain: string
-  logoLightKey?: string | null
-  logoDarkKey?: string | null
-  faviconKey?: string | null
   ogImageKey?: string | null
-  brandColor?: string | null
-  brandSecondaryColor?: string | null
   invoiceTitle?: string | null
   taxId?: string | null
   isCollectingSubject: boolean
@@ -63,8 +57,6 @@ export interface CreateAdminClubPayload {
   code: string
   domain: string
   content: AdminClubContentInput
-  brandColor?: string | null
-  brandSecondaryColor?: string | null
   invoiceTitle?: string | null
   taxId?: string | null
   isCollectingSubject: boolean
@@ -77,8 +69,6 @@ export interface CreateAdminClubPayload {
 export interface UpdateAdminClubPayload {
   domain: string
   content: AdminClubContentInput
-  brandColor?: string | null
-  brandSecondaryColor?: string | null
   invoiceTitle?: string | null
   taxId?: string | null
   isCollectingSubject: boolean

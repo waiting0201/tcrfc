@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
  * J4 俱樂部主檔編輯頁。
- * 標誌／favicon／OG 圖在本頁只顯示是否已設定；上傳入口在 I3 全域設定（標誌淺底／深底、分頁小圖示）
- * 與 H1 全站設定（社群分享圖片），兩處都走 §4.0 上傳通則，本頁不重複做一份上傳。
+ * 標誌、favicon、品牌色（主站規劃書 v3.20）由前台靜態資產與 CSS 定義，後台不設定。
+ * 社群分享圖片在本頁只顯示是否已設定；上傳入口在 H1 全站設定，本頁不重複做一份上傳。
  */
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -34,8 +34,6 @@ const form = reactive({
   descriptionZh: '',
   nameEn: '',
   descriptionEn: '',
-  brandColor: '',
-  brandSecondaryColor: '',
   invoiceTitle: '',
   taxId: '',
   isCollectingSubject: true,
@@ -43,7 +41,7 @@ const form = reactive({
   sortOrder: 0,
   status: 'active',
 })
-const logoKeys = reactive({ logoLightKey: null as string | null, logoDarkKey: null as string | null, faviconKey: null as string | null, ogImageKey: null as string | null })
+const ogImageKey = ref<string | null>(null)
 const baselineJson = ref('')
 
 const loadState = ref<'loading' | 'ready' | 'error'>('loading')
@@ -66,18 +64,13 @@ async function loadClub() {
       form.shortNameZh = detail.zh.shortName ?? ''
       form.shortNameEn = detail.en?.shortName ?? ''
       form.descriptionEn = detail.en?.description ?? ''
-      form.brandColor = detail.brandColor ?? ''
-      form.brandSecondaryColor = detail.brandSecondaryColor ?? ''
       form.invoiceTitle = detail.invoiceTitle ?? ''
       form.taxId = detail.taxId ?? ''
       form.isCollectingSubject = detail.isCollectingSubject
       form.defaultLocale = detail.defaultLocale
       form.sortOrder = detail.sortOrder
       form.status = detail.status ?? 'active'
-      logoKeys.logoLightKey = detail.logoLightKey ?? null
-      logoKeys.logoDarkKey = detail.logoDarkKey ?? null
-      logoKeys.faviconKey = detail.faviconKey ?? null
-      logoKeys.ogImageKey = detail.ogImageKey ?? null
+      ogImageKey.value = detail.ogImageKey ?? null
     }
     baselineJson.value = JSON.stringify(form)
     loadState.value = 'ready'
@@ -129,8 +122,6 @@ async function handleSave() {
         code: form.code.trim(),
         domain: form.domain.trim(),
         content,
-        brandColor: form.brandColor || null,
-        brandSecondaryColor: form.brandSecondaryColor || null,
         invoiceTitle: form.invoiceTitle || null,
         taxId: form.taxId || null,
         isCollectingSubject: form.isCollectingSubject,
@@ -144,8 +135,6 @@ async function handleSave() {
       await updateAdminClub(clubId.value!, {
         domain: form.domain.trim(),
         content,
-        brandColor: form.brandColor || null,
-        brandSecondaryColor: form.brandSecondaryColor || null,
         invoiceTitle: form.invoiceTitle || null,
         taxId: form.taxId || null,
         isCollectingSubject: form.isCollectingSubject,
@@ -268,21 +257,12 @@ function handleBack() {
             </el-form-item>
           </el-card>
 
-          <el-card shadow="never" header="品牌設定" class="club-edit__section">
-            <el-form-item label="主色（十六進位色碼）">
-              <el-input v-model="form.brandColor" placeholder="例如 #E0218A" />
-            </el-form-item>
-            <el-form-item label="次要色（十六進位色碼）">
-              <el-input v-model="form.brandSecondaryColor" placeholder="選填" />
-            </el-form-item>
+          <el-card shadow="never" header="社群分享圖片" class="club-edit__section">
             <p class="club-edit__note">
-              標誌與瀏覽器分頁小圖示請到「網站設定 → 全域設定」上傳；社群分享圖片請到「搜尋與 AI 能見度 → 全站設定」上傳。這裡只顯示目前是否已設定。
+              標誌、瀏覽器分頁小圖示與品牌色由網站前台統一設計，後台不再設定。社群分享圖片請到「搜尋與 AI 能見度 → 全站設定」上傳，這裡只顯示目前是否已設定。
             </p>
             <ul class="club-edit__logo-status">
-              <li>淺底標誌：{{ logoKeys.logoLightKey ? '已設定' : '尚未設定' }}</li>
-              <li>深底標誌：{{ logoKeys.logoDarkKey ? '已設定' : '尚未設定' }}</li>
-              <li>favicon：{{ logoKeys.faviconKey ? '已設定' : '尚未設定' }}</li>
-              <li>社群分享圖片：{{ logoKeys.ogImageKey ? '已設定' : '尚未設定' }}</li>
+              <li>社群分享圖片：{{ ogImageKey ? '已設定' : '尚未設定' }}</li>
             </ul>
           </el-card>
         </LangTabsBar>

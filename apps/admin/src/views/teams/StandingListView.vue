@@ -24,6 +24,8 @@ import {
 } from '@/api/adminStandings'
 import { AdminApiError } from '@/api/http'
 import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import BilingualShortField from '@/components/BilingualShortField.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 
 const formErrors = provideFormErrors()
@@ -84,13 +86,14 @@ const isEmpty = computed(() => !loading.value && !loadError.value && standings.v
 interface StandingFormState {
   id: string | null
   teamName: string
+  teamNameEn: string
   rank: number | null
   played: number | null
   points: number | null
 }
 
 function emptyForm(): StandingFormState {
-  return { id: null, teamName: '', rank: null, played: null, points: null }
+  return { id: null, teamName: '', teamNameEn: '', rank: null, played: null, points: null }
 }
 
 const dialogVisible = ref(false)
@@ -116,6 +119,7 @@ function openEditDialog(row: AdminStandingListItemDto) {
   Object.assign(form, {
     id: row.id,
     teamName: row.teamName,
+    teamNameEn: row.teamNameEn ?? '',
     rank: row.rank ?? null,
     played: row.played ?? null,
     points: row.points ?? null,
@@ -126,8 +130,12 @@ function openEditDialog(row: AdminStandingListItemDto) {
 }
 
 async function saveForm() {
-  if (!form.teamName.trim()) {
-    formError.value = '請輸入球隊名稱'
+  const errors: Record<string, string> = {}
+  if (!form.teamName.trim()) errors.teamName = '請輸入球隊名稱（中文）'
+  else if (form.teamName.trim().length > 128) errors.teamName = '球隊名稱（中文）最多 128 字'
+  if (form.teamNameEn.trim().length > 128) errors.teamNameEn = '球隊名稱（英文）最多 128 字'
+  if (formErrors.replaceAll(errors)) {
+    await formErrors.focusFirst()
     return
   }
   saving.value = true
@@ -137,6 +145,7 @@ async function saveForm() {
     const payload = {
       seasonId: seasonId.value,
       teamName: form.teamName.trim(),
+      teamNameEn: form.teamNameEn.trim() || null,
       rank: form.rank,
       played: form.played,
       points: form.points,
@@ -205,7 +214,7 @@ async function handleCsvFileChange(event: Event) {
 
   try {
     await ElMessageBox.confirm(
-      '匯入會先完全刪除這份 CSV 檔案內賽季代碼所屬賽季的全部既有積分榜資料，再整批寫入檔案內容，這個動作無法復原。確定要匯入嗎？',
+      '匯入會先完全刪除這份 CSV 檔案內賽季代碼所屬賽季的全部既有積分榜資料（包含英文球隊名稱），再整批寫入檔案內容，這個動作無法復原。沒有附「球隊名稱（英文）」欄的檔案，該賽季的英文名稱會全部清空。確定要匯入嗎？',
       '確認匯入（整季替換）',
       { confirmButtonText: '匯入並取代', cancelButtonText: '取消', confirmButtonClass: 'el-button--danger', type: 'warning' },
     )
@@ -251,6 +260,8 @@ async function handleCsvFileChange(event: Event) {
       </div>
       <p class="standing-list__hint">
         CSV 匯入是「整季替換」：匯入會先清除檔案內賽季代碼所屬賽季的全部既有資料，再整批寫入檔案內容，不是逐列更新。
+        檔案可在最後多一欄「球隊名稱（英文）」；只有五欄的檔案照舊可以匯入，但
+        <strong>沒有英文欄就代表該賽季所有球隊的英文名稱都會被清空</strong>，要保留英文名稱請務必附上第六欄。
       </p>
     </el-card>
 
@@ -291,12 +302,22 @@ async function handleCsvFileChange(event: Event) {
     <el-dialog v-model="dialogVisible" :title="dialogMode === 'create' ? '新增積分榜列' : '編輯積分榜列'" width="480px">
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="standing-list__form-error" @close="formError = null" />
       <el-form label-position="top">
+       <LangTabsBar variant="bare">
         <FormField field="seasonId" label="賽季">
           <el-input :model-value="seasonCode" disabled />
         </FormField>
-        <FormField field="teamName" label="球隊名稱" required>
-          <el-input v-model="form.teamName" placeholder="例如：台中磐石，或聯賽其他球隊名稱" />
-        </FormField>
+        <BilingualShortField
+          field-zh="teamName"
+          field-en="teamNameEn"
+          label="球隊名稱"
+          :zh="form.teamName"
+          :en="form.teamNameEn"
+          required
+          :maxlength="128"
+          placeholder="例如：台中磐石，或聯賽其他球隊名稱"
+          @update:zh="(v: string) => (form.teamName = v)"
+          @update:en="(v: string) => (form.teamNameEn = v)"
+        />
         <el-form-item label="名次（選填）">
           <el-input-number v-model="form.rank" :min="1" style="width: 100%" />
         </el-form-item>
@@ -306,6 +327,7 @@ async function handleCsvFileChange(event: Event) {
         <el-form-item label="積分（選填）">
           <el-input-number v-model="form.points" :min="0" style="width: 100%" />
         </el-form-item>
+       </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>

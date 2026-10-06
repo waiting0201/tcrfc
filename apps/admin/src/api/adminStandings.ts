@@ -14,6 +14,7 @@ export interface AdminStandingListItemDto {
   seasonId: string
   seasonCode: string
   teamName: string
+  teamNameEn?: string | null
   rank?: number | null
   played?: number | null
   points?: number | null
@@ -25,6 +26,7 @@ export interface AdminStandingDetailDto {
   seasonId: string
   seasonCode: string
   teamName: string
+  teamNameEn?: string | null
   rank?: number | null
   played?: number | null
   points?: number | null
@@ -35,6 +37,7 @@ export interface AdminStandingDetailDto {
 export interface SaveStandingPayload {
   seasonId: string
   teamName: string
+  teamNameEn?: string | null
   rank?: number | null
   played?: number | null
   points?: number | null

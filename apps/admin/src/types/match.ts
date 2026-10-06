@@ -71,3 +71,58 @@ export function matchCompetitionTagLabel(value: string | null | undefined): stri
 export function matchCardTypeLabel(value: string): string {
   return MATCH_CARD_TYPE_LABEL[value as MatchCardType] ?? value
 }
+
+// ── 進球類型（match_goals.goal_type，apps/api/README.md 稽核 A-1）──────────────────────────
+// 後端值域固定：空值＝一般進球，其餘五個代碼。寫入端也接受常見同義詞，但畫面一律用下拉。
+
+export type MatchGoalType = '' | 'header' | 'penalty' | 'free_kick' | 'own_goal' | 'other'
+
+export const MATCH_GOAL_TYPE_LABEL: Record<MatchGoalType, string> = {
+  '': '一般進球',
+  header: '頭槌',
+  penalty: '點球',
+  free_kick: '自由球',
+  own_goal: '烏龍球',
+  other: '其他',
+}
+
+export const MATCH_GOAL_TYPE_ORDER: MatchGoalType[] = ['', 'header', 'penalty', 'free_kick', 'own_goal', 'other']
+
+/** 對照後端 `MatchGoalTypes.TryNormalize` 的同義詞表（小寫比對）。 */
+const GOAL_TYPE_SYNONYMS: Record<string, MatchGoalType> = {
+  頭槌: 'header',
+  頭球: 'header',
+  點球: 'penalty',
+  十二碼: 'penalty',
+  罰球: 'penalty',
+  pk: 'penalty',
+  自由球: 'free_kick',
+  直接自由球: 'free_kick',
+  任意球: 'free_kick',
+  freekick: 'free_kick',
+  'free-kick': 'free_kick',
+  烏龍球: 'own_goal',
+  烏龍: 'own_goal',
+  owngoal: 'own_goal',
+  'own-goal': 'own_goal',
+  og: 'own_goal',
+  其他: 'other',
+}
+
+/**
+ * 載入舊資料：後端回的 `goalType` 可能是新代碼、舊的中文自由文字或空值。
+ * 對得上就換成選項；對不上（例如「遠射」）選「其他」，並把原文字帶出來讓畫面提示——
+ * 後端寫入端不收未知文字（400），無法原樣保留，儲存時會歸為「其他」。
+ * 烏龍球的判斷與後端 `IsOwnGoal` 一致（含「烏龍」「own goal」字樣一律視為烏龍球），避免舊資料被誤算成進球。
+ */
+export function parseGoalType(raw: string | null | undefined): { value: MatchGoalType; legacyText: string } {
+  const text = (raw ?? '').trim()
+  if (!text) return { value: '', legacyText: '' }
+  const lower = text.toLowerCase()
+  if (lower in MATCH_GOAL_TYPE_LABEL && lower !== '') return { value: lower as MatchGoalType, legacyText: '' }
+  const hit = GOAL_TYPE_SYNONYMS[lower] ?? GOAL_TYPE_SYNONYMS[text]
+  if (hit) return { value: hit, legacyText: '' }
+  const squeezed = lower.replace(/[\s_-]/g, '')
+  if (text.includes('烏龍') || squeezed.includes('owngoal')) return { value: 'own_goal', legacyText: '' }
+  return { value: 'other', legacyText: text }
+}

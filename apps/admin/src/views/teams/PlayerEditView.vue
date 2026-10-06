@@ -20,6 +20,7 @@ import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminClubTeams, type AdminTeamAdminListItemDto } from '@/api/adminTeams'
 import { useWritableTeamScope } from '@/composables/useWritableTeamScope'
+import PlayerSeasonStatsPanel from './parts/PlayerSeasonStatsPanel.vue'
 import { createAdminPlayer, getAdminPlayer, updateAdminPlayer, type SavePlayerPayload } from '@/api/adminPlayers'
 import { AdminApiError } from '@/api/http'
 import {
@@ -399,6 +400,14 @@ function retryLoad() {
                   <p class="player-edit__hint">未同意時前台不顯示照片（會改用預設圖或純文字卡呈現）；未成年球員須由監護人代簽同意。</p>
                 </FormField>
               </el-card>
+
+              <PlayerSeasonStatsPanel
+                v-if="!isCreate && playerId"
+                class="player-edit__section"
+                :club="activeClubId"
+                :player-id="playerId"
+                :readonly="isReadOnly"
+              />
             </template>
 
             <template #aside>

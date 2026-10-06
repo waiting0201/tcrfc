@@ -42,12 +42,15 @@ import { AdminApiError } from '@/api/http'
 import {
   MATCH_CARD_TYPE_ORDER,
   MATCH_COMPETITION_TAG_ORDER,
+  MATCH_GOAL_TYPE_LABEL,
+  MATCH_GOAL_TYPE_ORDER,
   MATCH_HOME_AWAY_ORDER,
   MATCH_STATUS_ORDER,
   matchCardTypeLabel,
   matchCompetitionTagLabel,
   matchHomeAwayLabel,
   matchStatusLabel,
+  parseGoalType,
 } from '@/types/match'
 
 const route = useRoute()
@@ -64,7 +67,8 @@ const router = useRouter()
 const isCreate = computed(() => route.name === 'match-new')
 const matchId = ref<string | undefined>(route.params.id as string | undefined)
 
-type GoalRow = AdminMatchGoalInput
+/** 畫面用的進球列：`legacyGoalType` 是舊資料裡對不上選項的自由文字（只用來提示，不送出）。 */
+type GoalRow = AdminMatchGoalInput & { legacyGoalType: string }
 type CardRow = AdminMatchCardInput
 type LineupRow = AdminMatchLineupInput
 
@@ -189,7 +193,10 @@ async function loadMatch() {
       form.matchNo = detail.matchNo ?? null
       form.originalMatchOn = detail.originalMatchOn ?? ''
       form.originalKickoff = detail.originalKickoff ?? ''
-      form.goals = detail.goals.map((g) => ({ playerId: g.playerId, minute: g.minute ?? null, goalType: g.goalType ?? '' }))
+      form.goals = detail.goals.map((g) => {
+        const parsed = parseGoalType(g.goalType)
+        return { playerId: g.playerId, minute: g.minute ?? null, goalType: parsed.value, legacyGoalType: parsed.legacyText }
+      })
       form.cards = detail.cards.map((c) => ({ playerId: c.playerId, cardType: c.cardType, minute: c.minute ?? null }))
       form.lineups = detail.lineups.map((l) => ({ playerId: l.playerId, isStarter: l.isStarter }))
       await Promise.all([loadCompetitionsForSeason(form.seasonId), loadPlayersForTeams(form.teamIds)])
@@ -344,7 +351,7 @@ function clearRowErrors() {
   formErrors.clear('lineups')
 }
 function addGoal() {
-  form.goals.push({ playerId: '', minute: null, goalType: '' })
+  form.goals.push({ playerId: '', minute: null, goalType: '', legacyGoalType: '' })
   formErrors.clear('goals')
 }
 function addCard() {
@@ -581,7 +588,10 @@ function addLineup() {
                 </el-table-column>
                 <el-table-column label="類型（選填）" min-width="160">
                   <template #default="{ row }">
-                    <el-input v-model="row.goalType" placeholder="例如：頭槌、點球、烏龍球" />
+                    <el-select v-model="row.goalType" style="width: 100%" @change="row.legacyGoalType = ''">
+                      <el-option v-for="v in MATCH_GOAL_TYPE_ORDER" :key="v" :label="MATCH_GOAL_TYPE_LABEL[v]" :value="v" />
+                    </el-select>
+                    <p v-if="row.legacyGoalType" class="match-edit__hint">原本寫的是「{{ row.legacyGoalType }}」，系統無法對應，儲存後會歸為「其他」。</p>
                   </template>
                 </el-table-column>
                 <el-table-column v-if="!isReadOnly" label="操作" width="80">

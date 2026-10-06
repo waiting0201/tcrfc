@@ -18,6 +18,14 @@ export interface AdminSiteFactVenueDto {
   address?: string | null
 }
 
+/** 各部門窗口一列（C-2）。`email` 與 `phoneExtension` 至少一項；最多 20 筆。 */
+export interface SiteFactDepartment {
+  nameZh: string
+  nameEn?: string | null
+  email?: string | null
+  phoneExtension?: string | null
+}
+
 /** 對照 `AdminSiteFactsDto`。 */
 export interface AdminSiteFactsDto {
   foundedYear?: string | null
@@ -41,6 +49,15 @@ export interface AdminSiteFactsDto {
    * 目標）。**概念上只屬於台中磐石（`tcrfc`）**——藍鯨官網本身沒有 06 單元，`bw` 俱樂部下這個鍵
    * 預期恆為 `null`。`null`＝尚未設定；有值時必為 `https://` 開頭的絕對網址。 */
   blueWhaleSiteUrl?: string | null
+  /** C-2：聯絡 Email、社群連結（https，網域白名單由後端把關）、部門窗口、頁尾品牌簡介。 */
+  contactEmail?: string | null
+  facebookUrl?: string | null
+  instagramUrl?: string | null
+  youtubeUrl?: string | null
+  lineUrl?: string | null
+  departments?: SiteFactDepartment[] | null
+  footerBlurbZh?: string | null
+  footerBlurbEn?: string | null
 }
 
 /** 對照 `UpdateSiteFactVenueRequest`。`id` 有值＝更新既有場地（找不到回 400，不會被誤當成新增），
@@ -72,6 +89,15 @@ export interface UpdateSiteFactsRequest {
   contactHoursZh?: string | null
   contactHoursEn?: string | null
   blueWhaleSiteUrl?: string | null
+  /** C-2：聯絡 Email、社群連結（https，網域白名單由後端把關）、部門窗口、頁尾品牌簡介。 */
+  contactEmail?: string | null
+  facebookUrl?: string | null
+  instagramUrl?: string | null
+  youtubeUrl?: string | null
+  lineUrl?: string | null
+  departments?: SiteFactDepartment[] | null
+  footerBlurbZh?: string | null
+  footerBlurbEn?: string | null
 }
 
 export function getAdminSiteFacts(club: string): Promise<AdminSiteFactsDto> {

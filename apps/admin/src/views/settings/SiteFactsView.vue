@@ -68,7 +68,29 @@ interface SiteFactsForm {
   contactHoursZh: string
   contactHoursEn: string
   blueWhaleSiteUrl: string
+  contactEmail: string
+  facebookUrl: string
+  instagramUrl: string
+  youtubeUrl: string
+  lineUrl: string
+  footerBlurbZh: string
+  footerBlurbEn: string
 }
+
+interface DepartmentRow {
+  nameZh: string
+  nameEn: string
+  email: string
+  phoneExtension: string
+}
+
+const DEPARTMENT_MAX = 20
+const SOCIALS = [
+  { field: 'facebookUrl', label: 'Facebook 粉絲專頁', placeholder: 'https:// 開頭的 Facebook 粉絲專頁網址' },
+  { field: 'instagramUrl', label: 'Instagram', placeholder: 'https:// 開頭的 Instagram 帳號網址' },
+  { field: 'youtubeUrl', label: 'YouTube 頻道', placeholder: 'https:// 開頭的 YouTube 頻道網址' },
+  { field: 'lineUrl', label: 'LINE 官方帳號', placeholder: 'https:// 開頭的 LINE 官方帳號加入好友網址' },
+] as const
 
 interface SquadCodeRow {
   value: string
@@ -99,6 +121,13 @@ function emptyForm(): SiteFactsForm {
     contactHoursZh: '',
     contactHoursEn: '',
     blueWhaleSiteUrl: '',
+    contactEmail: '',
+    facebookUrl: '',
+    instagramUrl: '',
+    youtubeUrl: '',
+    lineUrl: '',
+    footerBlurbZh: '',
+    footerBlurbEn: '',
   }
 }
 
@@ -107,6 +136,7 @@ const loadErrorMessage = ref('')
 const form = reactive<SiteFactsForm>(emptyForm())
 const squadCodes = reactive<SquadCodeRow[]>([])
 const homeVenues = reactive<HomeVenueRow[]>([])
+const departments = reactive<DepartmentRow[]>([])
 const baselineJson = ref('')
 
 // 全站場地清單（S1-12d 後續補完新增的唯讀端點），供「選擇既有場地加入」下拉選單與新建列的
@@ -123,7 +153,7 @@ const formError = ref<string | null>(null)
 const formErrors = provideFormErrors()
 
 function snapshot() {
-  return JSON.stringify({ form, squadCodes, homeVenues })
+  return JSON.stringify({ form, squadCodes, homeVenues, departments })
 }
 
 function applyLoaded(dto: AdminSiteFactsDto) {
@@ -143,6 +173,23 @@ function applyLoaded(dto: AdminSiteFactsDto) {
   form.contactHoursZh = dto.contactHoursZh ?? ''
   form.contactHoursEn = dto.contactHoursEn ?? ''
   form.blueWhaleSiteUrl = dto.blueWhaleSiteUrl ?? ''
+  form.contactEmail = dto.contactEmail ?? ''
+  form.facebookUrl = dto.facebookUrl ?? ''
+  form.instagramUrl = dto.instagramUrl ?? ''
+  form.youtubeUrl = dto.youtubeUrl ?? ''
+  form.lineUrl = dto.lineUrl ?? ''
+  form.footerBlurbZh = dto.footerBlurbZh ?? ''
+  form.footerBlurbEn = dto.footerBlurbEn ?? ''
+  departments.splice(
+    0,
+    departments.length,
+    ...(dto.departments ?? []).map((d) => ({
+      nameZh: d.nameZh,
+      nameEn: d.nameEn ?? '',
+      email: d.email ?? '',
+      phoneExtension: d.phoneExtension ?? '',
+    })),
+  )
 
   squadCodes.splice(0, squadCodes.length, ...dto.squadCodes.map((c) => ({ value: c })))
   homeVenues.splice(
@@ -204,6 +251,18 @@ function removeSquadCode(index: number) {
   formErrors.clear('squadCodes')
 }
 
+function addDepartment() {
+  if (departments.length >= DEPARTMENT_MAX) return
+  departments.push({ nameZh: '', nameEn: '', email: '', phoneExtension: '' })
+  formErrors.clear('departments')
+}
+
+function removeDepartment(index: number) {
+  departments.splice(index, 1)
+  // 列刪除後索引會位移，舊的逐列錯誤已不準
+  formErrors.clearAll()
+}
+
 function addHomeVenue() {
   homeVenues.push({ id: null, nameZh: '', nameEn: '', address: '' })
   formErrors.clear('homeVenues')
@@ -253,6 +312,30 @@ function validate(): Record<string, string> {
     errors.blueWhaleSiteUrl = '台中藍鯨官網網址格式不正確，須為 https:// 開頭的完整網址。'
   }
 
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const PHONE_EXT_RE = /^[0-9+\-# ()]+$/
+  if (form.contactEmail.trim() && !EMAIL_RE.test(form.contactEmail.trim())) {
+    errors.contactEmail = '聯絡 Email 格式不正確，請填寫像 service@example.com 這樣的地址。'
+  }
+  for (const s of SOCIALS) {
+    const v = form[s.field].trim()
+    if (v && !isValidHttpsUrl(v)) errors[s.field] = `${s.label}網址格式不正確，須為 https:// 開頭的完整網址。`
+  }
+  if (departments.length > DEPARTMENT_MAX) errors.departments = `各部門窗口最多 ${DEPARTMENT_MAX} 筆，請刪除多餘的列。`
+  departments.forEach((d, i) => {
+    if (!d.nameZh.trim()) errors[`departments[${i}].nameZh`] = '請填寫部門名稱（中文），或刪除這一列'
+    if (!d.email.trim() && !d.phoneExtension.trim()) {
+      errors[`departments[${i}].email`] = 'Email 與電話分機至少要填一項'
+    }
+    if (d.email.trim() && !EMAIL_RE.test(d.email.trim())) errors[`departments[${i}].email`] = 'Email 格式不正確'
+    if (d.phoneExtension.trim() && !PHONE_EXT_RE.test(d.phoneExtension.trim())) {
+      errors[`departments[${i}].phoneExtension`] = '分機只能填數字與 + - # ( ) 和空白'
+    }
+  })
+  if (form.footerBlurbEn.trim() && !form.footerBlurbZh.trim()) {
+    errors.footerBlurbZh = '填寫英文簡介時，請先填寫中文簡介'
+  }
+
   return errors
 }
 
@@ -298,6 +381,19 @@ async function handleSave() {
       contactHoursZh: form.contactHoursZh.trim() || null,
       contactHoursEn: form.contactHoursEn.trim() || null,
       blueWhaleSiteUrl: form.blueWhaleSiteUrl.trim() || null,
+      contactEmail: form.contactEmail.trim() || null,
+      facebookUrl: form.facebookUrl.trim() || null,
+      instagramUrl: form.instagramUrl.trim() || null,
+      youtubeUrl: form.youtubeUrl.trim() || null,
+      lineUrl: form.lineUrl.trim() || null,
+      departments: departments.map((d) => ({
+        nameZh: d.nameZh.trim(),
+        nameEn: d.nameEn.trim() || null,
+        email: d.email.trim() || null,
+        phoneExtension: d.phoneExtension.trim() || null,
+      })),
+      footerBlurbZh: form.footerBlurbZh.trim() || null,
+      footerBlurbEn: form.footerBlurbEn.trim() || null,
     })
     applyLoaded(saved)
     ElMessage.success('已儲存')
@@ -528,6 +624,81 @@ async function handleSave() {
                   placeholder="例如：平日 09:00–18:00"
                   @update:zh="(v) => (form.contactHoursZh = v)"
                   @update:en="(v) => (form.contactHoursEn = v)"
+                />
+                <FormField field="contactEmail" label="聯絡 Email（選填）">
+                  <el-input v-model="form.contactEmail" placeholder="例如：service@example.com，會顯示在網站聯絡資訊" />
+                </FormField>
+              </el-form>
+            </el-card>
+
+            <el-card shadow="never" header="社群連結">
+              <el-form label-position="top">
+                <FormField v-for="s in SOCIALS" :key="s.field" :field="s.field" :label="`${s.label}（選填）`">
+                  <el-input v-model="form[s.field]" :placeholder="s.placeholder" />
+                </FormField>
+              </el-form>
+            </el-card>
+
+            <el-card shadow="never" header="各部門窗口">
+              <p class="site-facts__hint">
+                最多 {{ DEPARTMENT_MAX }} 筆。每個部門的 Email 與電話分機至少填一項。
+              </p>
+              <FormField field="departments" label="">
+                <div v-if="departments.length > 0" class="site-facts__venue-list">
+                  <el-card v-for="(dept, index) in departments" :key="index" shadow="never" class="site-facts__venue-card">
+                    <div class="site-facts__venue-head">
+                      <span class="site-facts__venue-index">窗口 {{ index + 1 }}</span>
+                      <div class="site-facts__venue-head-actions">
+                        <el-button-group class="site-facts__order-buttons">
+                          <el-button :disabled="index === 0" @click="moveItem(departments, index, -1)">
+                            <el-icon><ArrowUp /></el-icon>
+                          </el-button>
+                          <el-button :disabled="index === departments.length - 1" @click="moveItem(departments, index, 1)">
+                            <el-icon><ArrowDown /></el-icon>
+                          </el-button>
+                        </el-button-group>
+                        <el-button text type="danger" @click="removeDepartment(index)">刪除</el-button>
+                      </div>
+                    </div>
+                    <el-form label-position="top">
+                      <BilingualShortField
+                        :field-zh="`departments[${index}].nameZh`"
+                        :field-en="`departments[${index}].nameEn`"
+                        label="部門名稱"
+                        :zh="dept.nameZh"
+                        :en="dept.nameEn"
+                        required
+                        placeholder="例如：媒體聯絡"
+                        @update:zh="(v) => (dept.nameZh = v)"
+                        @update:en="(v) => (dept.nameEn = v)"
+                      />
+                      <FormField :field="`departments[${index}].email`" label="Email">
+                        <el-input v-model="dept.email" placeholder="例如：media@example.com" />
+                      </FormField>
+                      <FormField :field="`departments[${index}].phoneExtension`" label="電話分機">
+                        <el-input v-model="dept.phoneExtension" placeholder="例如：102，只能填數字與 + - # ( ) 和空白" class="site-facts__short-input" />
+                      </FormField>
+                    </el-form>
+                  </el-card>
+                </div>
+                <el-empty v-else description="目前沒有設定任何部門窗口" :image-size="64" />
+              </FormField>
+              <el-button class="site-facts__add-button" :disabled="departments.length >= DEPARTMENT_MAX" @click="addDepartment">
+                + 新增部門窗口
+              </el-button>
+            </el-card>
+
+            <el-card shadow="never" header="頁尾品牌簡介">
+              <el-form label-position="top">
+                <BilingualTextareaField
+                  field="footerBlurb"
+                  label="頁尾品牌簡介（選填）"
+                  :zh="form.footerBlurbZh"
+                  :en="form.footerBlurbEn"
+                  :rows="3"
+                  placeholder="顯示在網站每一頁最下方的一小段品牌介紹；沒填則使用網站預設文字"
+                  @update:zh="(v) => (form.footerBlurbZh = v)"
+                  @update:en="(v) => (form.footerBlurbEn = v)"
                 />
               </el-form>
             </el-card>

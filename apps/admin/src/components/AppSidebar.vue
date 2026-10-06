@@ -117,6 +117,8 @@ const { comicAvailable } = useClubFeatures()
 const PATH_VISIBILITY: Record<string, () => boolean> = {
   '/teams/standings': () => standingView.value,
   '/teams/competitions': () => competitionView.value,
+  // 賽季清單後端接受 team.match.view 或 team.competition.view 任一
+  '/teams/seasons': () => matchView.value || competitionView.value,
 }
 const CHILD_VISIBILITY: Record<string, () => boolean> = {
   B1: () => pageView.value,

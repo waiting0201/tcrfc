@@ -47,6 +47,27 @@ export const FORM_CODE_LABEL: Record<FormCode, string> = {
   donation_enquiry: '捐助洽詢',
 }
 
+/**
+ * 欄位由網站固定的表單（10.1–10.7 七類＋提案下載）——對照後端 `FormCatalog.FieldLockedCodes`。
+ * 後端 API 沒有回傳「是否鎖定」旗標，這裡以同一份清單判斷；**後端清單異動時要手動同步**
+ * （同上方表單代碼對照的限制）。後端對鎖定表單另有硬性檢查（新增／刪除欄位與改結構一律 400），
+ * 這份清單只決定畫面要不要隱藏／唯讀，不是安全邊界。`donation_enquiry` 刻意不鎖。
+ */
+export const FIELD_LOCKED_FORM_CODES: ReadonlySet<string> = new Set<FormCode>([
+  'join_player',
+  'academy_children_training',
+  'camp_registration',
+  'international_player_enquiry',
+  'partnership_sponsorship',
+  'media_enquiry',
+  'general_contact',
+  'proposal_download',
+])
+
+export function isFormFieldsLocked(formCode: string): boolean {
+  return FIELD_LOCKED_FORM_CODES.has(formCode)
+}
+
 export function formCodeLabel(formCode: string): string {
   return FORM_CODE_LABEL[formCode as FormCode] ?? formCode
 }

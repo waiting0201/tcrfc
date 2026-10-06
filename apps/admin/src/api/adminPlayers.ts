@@ -123,3 +123,62 @@ export function updateAdminPlayer(
     method: 'PUT',
   })
 }
+
+// ── 賽季數據（apps/api/README.md「後台欄位串接稽核的後端修正」B-13）─────────────────────────
+// 權限：檢視 `team.player.view`、寫入 `team.player.update`＋球員的球隊列級授權。
+// 「這一列存在」就是手動（`player_season_stats` 沒有 source 欄位），所以清除＝刪除該列，
+// 公開端自動回到賽事彙總。
+
+export type PlayerSeasonStatSource = 'manual' | 'auto' | 'none'
+
+export interface PlayerSeasonStatValues {
+  appearances: number
+  goals: number
+  /** 自動彙總沒有助攻資料來源，恆為 null。 */
+  assists: number | null
+  yellowCards: number
+  redCards: number
+}
+
+export interface AdminPlayerSeasonStatDto {
+  seasonId: string
+  seasonCode: string
+  startOn: string
+  endOn: string
+  source: PlayerSeasonStatSource
+  manual?: PlayerSeasonStatValues | null
+  auto?: PlayerSeasonStatValues | null
+}
+
+export interface AdminPlayerSeasonStatsDto {
+  playerId: string
+  items: AdminPlayerSeasonStatDto[]
+}
+
+export interface SetPlayerSeasonStatPayload {
+  appearances: number
+  goals: number
+  assists: number
+  yellowCards: number
+  redCards: number
+}
+
+export function getAdminPlayerSeasonStats(club: string, playerId: string): Promise<AdminPlayerSeasonStatsDto> {
+  return apiRequest<AdminPlayerSeasonStatsDto>(`/api/v1/admin/${club}/players/${playerId}/season-stats`)
+}
+
+export function setAdminPlayerSeasonStat(
+  club: string,
+  playerId: string,
+  seasonId: string,
+  payload: SetPlayerSeasonStatPayload,
+): Promise<AdminPlayerSeasonStatDto> {
+  return apiRequest<AdminPlayerSeasonStatDto>(`/api/v1/admin/${club}/players/${playerId}/season-stats/${seasonId}`, {
+    method: 'PUT',
+    body: payload,
+  })
+}
+
+export function clearAdminPlayerSeasonStat(club: string, playerId: string, seasonId: string): Promise<void> {
+  return apiRequest<void>(`/api/v1/admin/${club}/players/${playerId}/season-stats/${seasonId}`, { method: 'DELETE' })
+}

@@ -27,6 +27,8 @@ import {
   type MilestoneDto,
 } from '@/api/adminHonours'
 import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import BilingualShortField from '@/components/BilingualShortField.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 
 const formErrors = provideFormErrors()
@@ -68,7 +70,7 @@ async function loadAchievements() {
 const dialog = ref(false)
 const saving = ref(false)
 const dialogError = ref<string | null>(null)
-const form = reactive({ id: null as string | null, seasonId: '', teamId: '', year: null as number | null, competitionName: '', placing: '' })
+const form = reactive({ id: null as string | null, seasonId: '', teamId: '', year: null as number | null, competitionName: '', competitionNameEn: '', placing: '', placingEn: '' })
 // 既有榮譽的球隊不在可寫範圍內＝唯讀
 const dialogReadOnly = computed(() => {
   if (form.id) return !achievementPerm.canUpdate.value || !isWritable(form.teamId)
@@ -85,6 +87,8 @@ function openDialog(a: AchievementDto | null) {
     year: a?.year ?? null,
     competitionName: a?.competitionName ?? '',
     placing: a?.placing ?? '',
+    competitionNameEn: a?.competitionNameEn ?? '',
+    placingEn: a?.placingEn ?? '',
   })
   dialog.value = true
 }
@@ -92,12 +96,16 @@ function openDialog(a: AchievementDto | null) {
 async function saveAchievement() {
   if (!form.seasonId) return void (dialogError.value = '請選擇球季')
   if (!form.teamId) return void (dialogError.value = '請選擇球隊')
-  if (!form.competitionName.trim()) return void (dialogError.value = '請輸入賽事名稱')
-  if (!form.placing.trim()) return void (dialogError.value = '請輸入名次，例如「冠軍」')
+  if (!form.competitionName.trim()) return void (dialogError.value = '請輸入賽事名稱（中文）')
+  if (!form.placing.trim()) return void (dialogError.value = '請輸入名次（中文），例如「冠軍」')
+  if (form.competitionName.trim().length > 128) return void (dialogError.value = '賽事名稱（中文）最多 128 字')
+  if (form.competitionNameEn.trim().length > 128) return void (dialogError.value = '賽事名稱（英文）最多 128 字')
+  if (form.placing.trim().length > 64) return void (dialogError.value = '名次（中文）最多 64 字')
+  if (form.placingEn.trim().length > 64) return void (dialogError.value = '名次（英文）最多 64 字')
   saving.value = true
   dialogError.value = null
   formErrors.clearAll()
-  const payload = { seasonId: form.seasonId, teamId: form.teamId, year: form.year, competitionName: form.competitionName.trim(), placing: form.placing.trim() }
+  const payload = { seasonId: form.seasonId, teamId: form.teamId, year: form.year, competitionName: form.competitionName.trim(), competitionNameEn: form.competitionNameEn.trim() || null, placing: form.placing.trim(), placingEn: form.placingEn.trim() || null }
   try {
     if (form.id) await updateAchievement(club.value, form.id, payload)
     else await createAchievement(club.value, payload)
@@ -281,6 +289,7 @@ watch(club, () => {
       <el-alert v-if="dialogError" :title="dialogError" type="warning" show-icon class="honours__block" @close="dialogError = null" />
       <el-alert v-if="form.id && dialogReadOnly" title="你沒有這支球隊的管理範圍，只能檢視。" type="info" show-icon :closable="false" class="honours__block" />
       <el-form label-position="top" :disabled="dialogReadOnly">
+       <LangTabsBar variant="bare">
         <FormField field="teamId" label="球隊" required>
           <el-select v-model="form.teamId" filterable placeholder="請選擇球隊" style="width: 100%">
             <el-option v-for="t in (form.id ? teams : writableTeams)" :key="t.id" :label="t.nameZh || '（未命名球隊）'" :value="t.id" :disabled="!isWritable(t.id)" />
@@ -290,8 +299,31 @@ watch(club, () => {
           <el-select v-model="form.seasonId" placeholder="請選擇球季" style="width: 100%"><el-option v-for="s in seasons" :key="s.id" :label="s.code" :value="s.id" /></el-select>
         </FormField>
         <FormField field="year" label="年份"><el-input-number v-model="form.year" :min="1900" :max="2200" :controls="false" placeholder="不填＝球季開始年份" style="width: 100%" /></FormField>
-        <FormField field="competitionName" label="賽事名稱" required><el-input v-model="form.competitionName" maxlength="128" placeholder="例如 企業甲級聯賽" /></FormField>
-        <FormField field="placing" label="名次" required><el-input v-model="form.placing" maxlength="32" placeholder="例如 冠軍" /></FormField>
+        <BilingualShortField
+            field-zh="competitionName"
+            field-en="competitionNameEn"
+            label="賽事名稱"
+            :zh="form.competitionName"
+            :en="form.competitionNameEn"
+            required
+            :maxlength="128"
+            placeholder="例如 企業甲級聯賽"
+            @update:zh="(v: string) => (form.competitionName = v)"
+            @update:en="(v: string) => (form.competitionNameEn = v)"
+          />
+          <BilingualShortField
+            field-zh="placing"
+            field-en="placingEn"
+            label="名次"
+            :zh="form.placing"
+            :en="form.placingEn"
+            required
+            :maxlength="64"
+            placeholder="例如 冠軍"
+            @update:zh="(v: string) => (form.placing = v)"
+            @update:en="(v: string) => (form.placingEn = v)"
+          />
+       </LangTabsBar>
       </el-form>
       <template #footer>
         <el-button @click="dialog = false">關閉</el-button>

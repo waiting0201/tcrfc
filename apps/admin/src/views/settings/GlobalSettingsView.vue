@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * I 全域設定（規劃書 §4.9「全域設定」；apps/api/README.md「H 批」§5）：標誌與品牌色、三份政策頁
+ * I 全域設定（規劃書 §4.9「全域設定」；apps/api/README.md「H 批」§5）：三份政策頁
  * （Cookie 政策／隱私權政策／會員條款，**純文字**、空行分段，前台以文字節點輸出）、維護模式。
  *
- * - `PUT` 是 multipart：`payload` ＋ 選填檔案 `logoLight`／`logoDark`／`favicon`。非圖片欄位**整份取代**；
- *   圖片沒選檔且沒勾移除＝維持原圖。選了新檔就不送移除（兩者同時給後端回 400）。
+ * - 標誌、Favicon、品牌色已於主站規劃書 v3.20 移出後台（前台靜態資產與 CSS 定義）。
+ * - `PUT` 仍是 multipart（`payload` 欄位），不附檔案；所有欄位**整份取代**。
  * - 🔴 維護模式**只是旗標與訊息**，不會自動攔截其他公開端點；前台依設定顯示維護頁。切換會留下系統紀錄。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
@@ -12,7 +12,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
-import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
@@ -37,7 +36,6 @@ const club = computed(() => activeClubId.value)
 
 const POLICY_MAX = 50000
 const MAINTENANCE_MAX = 500
-const COLOR_RE = /^#[0-9A-Fa-f]{6}$/
 
 const loadState = ref<'loading' | 'ready' | 'error'>('loading')
 const loadErrorMessage = ref('')
@@ -52,8 +50,6 @@ function revealPolicy(key: string) {
 }
 
 const form = reactive({
-  brandColor: '',
-  brandSecondaryColor: '',
   cookieZh: '',
   cookieEn: '',
   privacyZh: '',
@@ -70,35 +66,11 @@ const maintenanceUpdatedAt = ref<string | null>(null)
 /** 載入當下伺服器端的維護狀態（用來決定切換時要不要確認）。 */
 const loadedMaintenance = ref(false)
 
-// 三張圖：各自的新檔案、移除意圖、現有網址
-interface ImageSlot {
-  file: File | null
-  remove: boolean
-  url: string | null
-  has: boolean
-}
-const logoLight = reactive<ImageSlot>({ file: null, remove: false, url: null, has: false })
-const logoDark = reactive<ImageSlot>({ file: null, remove: false, url: null, has: false })
-const favicon = reactive<ImageSlot>({ file: null, remove: false, url: null, has: false })
-// 選檔或移除圖片就清掉該欄位的錯誤（上傳元件不會冒泡 DOM 事件）
-watch(() => [logoLight.file, logoLight.remove], () => formErrors.clear('logoLight'))
-watch(() => [logoDark.file, logoDark.remove], () => formErrors.clear('logoDark'))
-watch(() => [favicon.file, favicon.remove], () => formErrors.clear('favicon'))
-
-function resetSlot(slot: ImageSlot, url: string | null | undefined) {
-  slot.file = null
-  slot.remove = false
-  slot.url = url ?? null
-  slot.has = !!url
-}
-
 function policyOf(policies: AdminPolicy[], code: string): AdminPolicy | undefined {
   return policies.find((p) => p.code === code)
 }
 
 function apply(d: AdminGlobalSettingsDto) {
-  form.brandColor = d.brand.brandColor ?? ''
-  form.brandSecondaryColor = d.brand.brandSecondaryColor ?? ''
   const cookie = policyOf(d.policies, 'cookie')
   const privacy = policyOf(d.policies, 'privacy')
   const terms = policyOf(d.policies, 'member-terms')
@@ -116,9 +88,6 @@ function apply(d: AdminGlobalSettingsDto) {
   form.maintenanceMessageEn = d.maintenance.messageEn ?? ''
   maintenanceUpdatedAt.value = d.maintenance.updatedAt ?? null
   loadedMaintenance.value = d.maintenance.enabled
-  resetSlot(logoLight, d.brand.logoLightUrl)
-  resetSlot(logoDark, d.brand.logoDarkUrl)
-  resetSlot(favicon, d.brand.faviconUrl)
   baselineJson.value = JSON.stringify(form)
 }
 
@@ -138,23 +107,13 @@ watch(club, load)
 const isDirty = computed(
   () =>
     loadState.value === 'ready' &&
-    (JSON.stringify(form) !== baselineJson.value ||
-      [logoLight, logoDark, favicon].some((s) => !!s.file || s.remove)),
+    JSON.stringify(form) !== baselineJson.value,
 )
 useUnsavedChanges(isDirty)
-
-/** 色彩挑選器清除時會送出 null，統一當成空字串。 */
-const str = (v: unknown): string => (typeof v === 'string' ? v : '')
 
 /** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
 function validate(): Record<string, string> {
   const errors: Record<string, string> = {}
-  if (str(form.brandColor).trim() && !COLOR_RE.test(str(form.brandColor).trim())) {
-    errors.brandColor = '主要品牌色格式不正確，請填寫像 #1A3C6E 這樣以 # 開頭的六碼色碼，或留空。'
-  }
-  if (str(form.brandSecondaryColor).trim() && !COLOR_RE.test(str(form.brandSecondaryColor).trim())) {
-    errors.brandSecondaryColor = '輔助品牌色格式不正確，請填寫像 #1A3C6E 這樣以 # 開頭的六碼色碼，或留空。'
-  }
   for (const p of POLICY_BLOCKS) {
     if (form[p.zh].length > POLICY_MAX) errors[p.zh] = `${p.title}（中文）最多 ${POLICY_MAX.toLocaleString()} 字。`
     if (form[p.en].length > POLICY_MAX) errors[p.en] = `${p.title}（英文）最多 ${POLICY_MAX.toLocaleString()} 字。`
@@ -163,13 +122,6 @@ function validate(): Record<string, string> {
     errors.maintenanceMessageZh = '開啟維護模式前，請先填寫繁體中文的維護訊息，訪客才知道發生什麼事。'
   }
   return errors
-}
-
-function slotFile(slot: ImageSlot): File | null {
-  return slot.file
-}
-function slotRemove(slot: ImageSlot): boolean {
-  return !slot.file && slot.remove
 }
 
 async function handleSave() {
@@ -199,11 +151,6 @@ async function handleSave() {
     const saved = await updateAdminGlobalSettings(
       club.value,
       {
-        brandColor: str(form.brandColor).trim() || null,
-        brandSecondaryColor: str(form.brandSecondaryColor).trim() || null,
-        removeLogoLight: slotRemove(logoLight),
-        removeLogoDark: slotRemove(logoDark),
-        removeFavicon: slotRemove(favicon),
         cookiePolicy: { bodyZh: form.cookieZh, bodyEn: form.cookieEn },
         privacyPolicy: { bodyZh: form.privacyZh, bodyEn: form.privacyEn },
         memberTerms: { bodyZh: form.termsZh, bodyEn: form.termsEn },
@@ -211,7 +158,6 @@ async function handleSave() {
         maintenanceMessageZh: form.maintenanceMessageZh,
         maintenanceMessageEn: form.maintenanceMessageEn,
       },
-      { logoLight: slotFile(logoLight), logoDark: slotFile(logoDark), favicon: slotFile(favicon) },
     )
     apply(saved)
     ElMessage.success('已儲存')
@@ -251,28 +197,6 @@ const POLICY_BLOCKS = [
         <LangTabsBar>
           <EditLayout>
             <template #main>
-              <el-card shadow="never" header="品牌色">
-                <el-row :gutter="16">
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="brandColor" label="主要品牌色">
-                      <div class="global-settings__color">
-                        <el-color-picker v-model="form.brandColor" :predefine="[]" aria-label="主要品牌色挑選器" @change="formErrors.clear('brandColor')" />
-                        <el-input v-model="form.brandColor" maxlength="7" placeholder="#1A3C6E，留空使用預設" clearable />
-                      </div>
-                    </FormField>
-                  </el-col>
-                  <el-col :xs="24" :sm="12">
-                    <FormField field="brandSecondaryColor" label="輔助品牌色">
-                      <div class="global-settings__color">
-                        <el-color-picker v-model="form.brandSecondaryColor" aria-label="輔助品牌色挑選器" @change="formErrors.clear('brandSecondaryColor')" />
-                        <el-input v-model="form.brandSecondaryColor" maxlength="7" placeholder="#RRGGBB，留空使用預設" clearable />
-                      </div>
-                    </FormField>
-                  </el-col>
-                </el-row>
-                <p class="global-settings__hint">請確認色碼與背景的對比足夠，文字才讀得清楚。</p>
-              </el-card>
-
               <el-card shadow="never" header="政策與條款">
                 <p class="global-settings__hint">內容是純文字，用空白行分段，不支援粗體、連結等格式。每則最多 {{ POLICY_MAX.toLocaleString() }} 字；英文留空時，英文版前台會顯示中文內容。</p>
                 <el-collapse v-model="openPolicies">
@@ -322,21 +246,6 @@ const POLICY_BLOCKS = [
                 <div v-if="maintenanceUpdatedAt" class="global-settings__hint">最近更新：{{ formatDateTime(maintenanceUpdatedAt) }}</div>
               </el-card>
             </template>
-
-            <template #aside>
-              <el-card shadow="never" header="標誌與網站圖示">
-                <p class="global-settings__hint">此處維護目前選取俱樂部的標誌。選好檔案後要按「儲存」才會上傳。</p>
-                <FormField field="logoLight" label="標誌（淺色背景用）">
-                  <ImageUploader v-model:file="logoLight.file" v-model:remove-cover="logoLight.remove" variant="logo" :min-width="0" :min-height="0" :has-existing-image="logoLight.has" :existing-preview-url="logoLight.url" :disabled="saving || !canUpdate" />
-                </FormField>
-                <FormField field="logoDark" label="標誌（深色背景用）">
-                  <ImageUploader v-model:file="logoDark.file" v-model:remove-cover="logoDark.remove" variant="logo" :min-width="0" :min-height="0" :has-existing-image="logoDark.has" :existing-preview-url="logoDark.url" :disabled="saving || !canUpdate" />
-                </FormField>
-                <FormField field="favicon" label="瀏覽器分頁小圖示">
-                  <ImageUploader v-model:file="favicon.file" v-model:remove-cover="favicon.remove" variant="logo" :min-width="0" :min-height="0" :has-existing-image="favicon.has" :existing-preview-url="favicon.url" :disabled="saving || !canUpdate" />
-                </FormField>
-              </el-card>
-            </template>
           </EditLayout>
         </LangTabsBar>
       </el-form>
@@ -352,6 +261,5 @@ const POLICY_BLOCKS = [
 .global-settings { max-width: 1200px; margin: 0 auto; min-width: 0; }
 .global-settings__block { margin-bottom: 16px; }
 .global-settings__hint { margin: 0 0 12px; font-size: 12px; color: var(--admin-text-tertiary); line-height: 1.6; }
-.global-settings__color { display: flex; align-items: center; gap: 12px; width: 100%; }
 .global-settings__tag { margin-left: 8px; }
 </style>

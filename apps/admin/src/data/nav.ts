@@ -83,6 +83,7 @@ export const NAV_GROUPS: NavGroup[] = [
           // 不硬塞進同一頁——三者的操作頻率與資料形狀差異太大（前者逐場維護、後者整季表格、
           // 支援型別偶爾才新增一筆）。
           { code: 'C4', label: '賽程與賽果', path: '/teams/matches', implemented: true },
+          { code: 'C4', label: '賽季', path: '/teams/seasons', implemented: true },
           { code: 'C4', label: '積分榜', path: '/teams/standings', implemented: true },
           { code: 'C4', label: '賽事系列', path: '/teams/competitions', implemented: true },
           { code: 'C5', label: '榮譽與里程碑', path: '/teams/honours', implemented: true },

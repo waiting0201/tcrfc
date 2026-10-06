@@ -233,6 +233,7 @@ function onRefundCreated(id: string | null) {
               <div><dt>販售俱樂部</dt><dd>{{ order.sellingClubName }}</dd></div>
               <div v-if="order.collectingClubName"><dt>收款主體</dt><dd>{{ order.collectingClubName }}</dd></div>
               <div><dt>買家</dt><dd>{{ order.isMember ? `會員 ${order.memberNo || ''}` : '非會員' }}</dd></div>
+              <div v-if="order.buyerEmail"><dt>買家 Email</dt><dd>{{ order.buyerEmail }}</dd></div>
               <div><dt>付款方式</dt><dd>{{ order.paymentMethodLabel }}</dd></div>
               <div><dt>付款狀態</dt><dd>{{ order.paymentStatusLabel }}</dd></div>
               <div v-if="order.linepayTransactionId"><dt>金流交易編號</dt><dd>{{ order.linepayTransactionId }}</dd></div>
@@ -252,7 +253,7 @@ function onRefundCreated(id: string | null) {
               <div><dt>地址</dt><dd>{{ order.recipientAddress || '—' }}</dd></div>
               <div><dt>顧客備註</dt><dd>{{ order.customerNote || '—' }}</dd></div>
             </dl>
-            <p v-if="order.isMasked" class="order-detail__hint">你的帳號沒有檢視完整個資的權限，收件人資料顯示為遮罩。</p>
+            <p v-if="order.isMasked" class="order-detail__hint">你的帳號沒有檢視完整個資的權限，收件人、買家 Email 與發票載具號碼顯示為遮罩。</p>
           </el-card>
         </el-col>
       </el-row>
@@ -302,8 +303,12 @@ function onRefundCreated(id: string | null) {
             <dl v-else class="order-detail__dl">
               <div><dt>發票號碼</dt><dd>{{ order.invoice.invoiceNo || '—' }}</dd></div>
               <div><dt>開立時間</dt><dd>{{ formatDateTime(order.invoice.issuedAt) || '—' }}</dd></div>
-              <div><dt>開立狀態</dt><dd>{{ order.invoice.issueStatus || '—' }}</dd></div>
-              <div><dt>作廢狀態</dt><dd>{{ order.invoice.voidStatus || '—' }}</dd></div>
+              <div><dt>開立狀態</dt><dd>{{ order.invoice.issueStatusLabel || order.invoice.issueStatus || '—' }}</dd></div>
+              <div><dt>作廢狀態</dt><dd>{{ order.invoice.voidStatusLabel || order.invoice.voidStatus || '—' }}</dd></div>
+              <div v-if="order.invoice.typeLabel"><dt>開立方式</dt><dd>{{ order.invoice.typeLabel }}</dd></div>
+              <div v-if="order.invoice.carrierId"><dt>載具號碼</dt><dd>{{ order.invoice.carrierId }}</dd></div>
+              <div v-if="order.invoice.taxId"><dt>統一編號</dt><dd>{{ order.invoice.taxId }}</dd></div>
+              <div v-if="order.invoice.donationCode"><dt>捐贈碼</dt><dd>{{ order.invoice.donationCode }}</dd></div>
             </dl>
           </el-card>
         </el-col>

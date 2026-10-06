@@ -43,6 +43,7 @@ export interface PlanLocaleContent {
 
 export interface MembershipPlanDetailDto extends MembershipPlanListItemDto {
   midSeasonRule?: string | null
+  midSeasonRuleEn?: string | null
   zh: PlanLocaleContent
   en?: PlanLocaleContent | null
   createdAt: string
@@ -55,6 +56,8 @@ export interface SavePlanPayload {
   cardQuota: number
   jerseyQuota: number
   midSeasonRule?: string | null
+  /** 選填（≤255）；空白＝清除英文。PUT 整份取代。 */
+  midSeasonRuleEn?: string | null
   startsOn?: string | null
   endsOn?: string | null
   sortOrder: number

@@ -32,7 +32,7 @@ import {
   type AdminFormFieldDto,
 } from '@/api/adminForms'
 import { AdminApiError } from '@/api/http'
-import { formCodeLabel, FIELD_TYPE_ORDER, FIELD_TYPE_LABEL, FIELD_TYPES_REQUIRING_OPTIONS, type FormFieldTypeCode } from '@/types/forms'
+import { formCodeLabel, isFormFieldsLocked, FIELD_TYPE_ORDER, FIELD_TYPE_LABEL, FIELD_TYPES_REQUIRING_OPTIONS, type FormFieldTypeCode } from '@/types/forms'
 
 const route = useRoute()
 const router = useRouter()
@@ -54,6 +54,10 @@ const form = reactive({
 const baselineJson = ref('')
 const formCode = ref('')
 const fields = ref<AdminFormFieldDto[]>([])
+/** 欄位由網站固定的表單：不能新增／刪除欄位，也不能改欄位代碼、型別、必填、驗證規則與選項值（後端同樣擋）。 */
+const fieldsLocked = computed(() => isFormFieldsLocked(formCode.value))
+/** 可編輯欄位清單與固定欄位共用一個操作欄的顯示條件。 */
+const showFieldActions = computed(() => canManageForms.value)
 
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
@@ -106,8 +110,8 @@ function validate(): Record<string, string> {
   const mailError = emailError(form.notifyEmails)
   if (mailError) errors.notifyEmails = mailError
   const p = form.redirectPath.trim()
-  if (p && !p.startsWith('/') && !/^https?:\/\//i.test(p)) {
-    errors.redirectPath = '送出後導向的網址要用「/」開頭的相對路徑，或完整的 http(s):// 網址'
+  if (p && (!p.startsWith('/') || p.startsWith('//') || p.startsWith('/\\'))) {
+    errors.redirectPath = '送出後導向的位置要填站內路徑，以「/」開頭（例如 /zh/thank-you/），不能填完整網址'
   }
   return errors
 }
@@ -240,6 +244,15 @@ const FIELD_KEY_PATTERN = /^[a-z][a-z0-9_]{0,63}$/
 /** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
 function validateFieldForm(): Record<string, string> {
   const errors: Record<string, string> = {}
+  if (fieldsLocked.value) {
+    // 鎖定表單只能改題目文字與選項英文顯示文字；結構欄位唯讀、不檢查
+    if (!fieldForm.labelZh.trim()) errors.labelZh = '題目文字（中文）為必填欄位'
+    const filledCount = fieldForm.optionLabelsEn.filter((v) => v.trim()).length
+    if (filledCount > 0 && filledCount < fieldForm.optionLabelsEn.length) {
+      errors.optionLabelsEn = '選項的英文顯示文字要嘛每一項都填，要嘛整組留空（尚未翻譯），不能只填一部分'
+    }
+    return errors
+  }
   if (!FIELD_KEY_PATTERN.test(fieldForm.fieldKey)) {
     errors.fieldKey = '欄位代碼只能使用小寫英文字母、數字與底線，須以英文字母開頭，長度 1–64 字'
   } else {
@@ -269,17 +282,31 @@ async function submitFieldDialog() {
   }
   fieldSaving.value = true
   try {
-    const payload = {
-      fieldKey: fieldForm.fieldKey,
-      fieldType: fieldForm.fieldType,
-      labelZh: fieldForm.labelZh.trim(),
-      labelEn: fieldForm.labelEn.trim() || null,
-      isRequired: fieldForm.isRequired,
-      validationRule: fieldForm.validationRule.trim() || null,
-      options: fieldNeedsOptions.value ? fieldForm.options : null,
-      optionLabelsEn: buildOptionLabelsEnPayload(),
-      isSummary: fieldForm.isSummary,
-    }
+    // 鎖定表單：結構欄位一律原樣送回目前的值（後端比對有差異即 400），避免表單轉換造成的空值／空陣列差異
+    const original = fieldsLocked.value ? fields.value.find((f) => f.id === editingFieldId.value) : undefined
+    const payload = original
+      ? {
+          fieldKey: original.fieldKey,
+          fieldType: original.fieldType,
+          labelZh: fieldForm.labelZh.trim(),
+          labelEn: fieldForm.labelEn.trim() || null,
+          isRequired: original.isRequired,
+          validationRule: original.validationRule ?? null,
+          options: original.options ?? null,
+          optionLabelsEn: buildOptionLabelsEnPayload(),
+          isSummary: fieldForm.isSummary,
+        }
+      : {
+          fieldKey: fieldForm.fieldKey,
+          fieldType: fieldForm.fieldType,
+          labelZh: fieldForm.labelZh.trim(),
+          labelEn: fieldForm.labelEn.trim() || null,
+          isRequired: fieldForm.isRequired,
+          validationRule: fieldForm.validationRule.trim() || null,
+          options: fieldNeedsOptions.value ? fieldForm.options : null,
+          optionLabelsEn: buildOptionLabelsEnPayload(),
+          isSummary: fieldForm.isSummary,
+        }
     if (fieldDialogMode.value === 'create') {
       // 不自己算 sortOrder——後端省略時會自動接在最後一個欄位之後（見 `createAdminFormField` 註解）。
       await createAdminFormField(activeClubId.value, formId.value!, { ...payload })
@@ -419,7 +446,8 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
             <el-input v-model="form.notifyEmails" placeholder="例如 academy@tcrfc.tw, office@tcrfc.tw" />
           </FormField>
           <FormField field="redirectPath" label="送出後導向頁（選填，留空維持在原頁顯示送出成功）">
-            <el-input v-model="form.redirectPath" placeholder="例如 /zh/thank-you/ 或完整網址" />
+            <el-input v-model="form.redirectPath" placeholder="站內路徑，以 / 開頭，例如 /zh/thank-you/" />
+            <p class="form-edit__hint">只能填站內路徑，以 / 開頭；不能填完整網址。</p>
           </FormField>
           <el-form-item label="防機器人驗證">
             <el-switch v-model="form.captchaEnabled" />
@@ -443,11 +471,19 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
       </el-form>
 
       <el-card shadow="never" header="表單欄位" class="form-edit__section">
+        <el-alert
+          v-if="fieldsLocked"
+          title="這張表單的欄位由網站固定，只能修改題目文字與通知設定"
+          type="info"
+          show-icon
+          :closable="false"
+          class="form-edit__form-error"
+        />
         <div class="form-edit__fields-toolbar">
-          <p class="form-edit__hint">
+          <p v-if="!fieldsLocked" class="form-edit__hint">
             「姓名」「聯絡方式」兩個慣用欄位代碼（<code>name</code>／<code>contact</code>）會被收件匣拿來顯示對應欄位，改名或刪除會讓收件匣那兩欄顯示空白。
           </p>
-          <el-button v-if="canManageForms" type="primary" @click="openCreateFieldDialog">+ 新增欄位</el-button>
+          <el-button v-if="canManageForms && !fieldsLocked" type="primary" @click="openCreateFieldDialog">+ 新增欄位</el-button>
         </div>
 
         <el-table v-if="fields.length > 0" :data="fields" row-key="id">
@@ -478,17 +514,17 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
               <span v-else>—</span>
             </template>
           </el-table-column>
-          <el-table-column v-if="canManageForms" label="操作" width="180" fixed="right">
+          <el-table-column v-if="showFieldActions" label="操作" :width="fieldsLocked ? 140 : 180" fixed="right">
             <template #default="{ row }">
               <el-button size="small" text @click="moveField(row, -1)">上移</el-button>
               <el-button size="small" text @click="moveField(row, 1)">下移</el-button>
               <el-button size="small" text type="primary" @click="openEditFieldDialog(row)">編輯</el-button>
-              <el-button size="small" text type="danger" @click="handleDeleteField(row)">刪除</el-button>
+              <el-button v-if="!fieldsLocked" size="small" text type="danger" @click="handleDeleteField(row)">刪除</el-button>
             </template>
           </el-table-column>
         </el-table>
         <el-empty v-else description="這張表單目前沒有任何欄位">
-          <el-button v-if="canManageForms" type="primary" @click="openCreateFieldDialog">+ 新增第一個欄位</el-button>
+          <el-button v-if="canManageForms && !fieldsLocked" type="primary" @click="openCreateFieldDialog">+ 新增第一個欄位</el-button>
         </el-empty>
       </el-card>
 
@@ -507,10 +543,18 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
       :close-on-click-modal="false"
     >
       <el-alert v-if="fieldDialogError" :title="fieldDialogError" type="warning" show-icon class="form-edit__dialog-error" />
+      <el-alert
+        v-if="fieldsLocked"
+        title="這張表單的欄位由網站固定，只能修改題目文字與通知設定；欄位代碼、型別、必填與選項內容不能更動。"
+        type="info"
+        show-icon
+        :closable="false"
+        class="form-edit__dialog-error"
+      />
       <el-form label-position="top">
        <LangTabsBar variant="bare">
         <FormField field="fieldKey" label="欄位代碼（英文小寫，例如 experience）" required>
-          <el-input v-model="fieldForm.fieldKey" placeholder="英文小寫字母開頭，可含數字與底線" />
+          <el-input v-model="fieldForm.fieldKey" :disabled="fieldsLocked" placeholder="英文小寫字母開頭，可含數字與底線" />
         </FormField>
         <BilingualShortField
           field="label"
@@ -523,7 +567,7 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
           @update:en="(v) => (fieldForm.labelEn = v)"
         />
         <FormField field="fieldType" label="欄位型別" required>
-          <el-select v-model="fieldForm.fieldType" style="width: 100%">
+          <el-select v-model="fieldForm.fieldType" :disabled="fieldsLocked" style="width: 100%">
             <el-option v-for="t in FIELD_TYPE_ORDER" :key="t" :label="FIELD_TYPE_LABEL[t]" :value="t" />
           </el-select>
           <p v-if="fieldForm.fieldType === 'file'" class="form-edit__hint form-edit__hint--warning">
@@ -531,7 +575,7 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
           </p>
         </FormField>
         <el-form-item label="是否必填">
-          <el-switch v-model="fieldForm.isRequired" />
+          <el-switch v-model="fieldForm.isRequired" :disabled="fieldsLocked" />
         </el-form-item>
         <FormField v-if="fieldNeedsOptions" field="options" label="選項清單（下拉／多選必填，至少一項；英文顯示文字選填，要嘛全部填、要嘛全部留空）">
          <div>
@@ -540,18 +584,18 @@ async function swapSortOrder(a: AdminFormFieldDto, b: AdminFormFieldDto) {
             <div v-for="(opt, index) in fieldForm.options" :key="opt" class="form-edit__option-row">
               <span class="form-edit__option-row-zh">{{ opt }}</span>
               <el-input v-model="fieldForm.optionLabelsEn[index]" placeholder="英文顯示文字（選填）" />
-              <el-button text type="danger" @click="removeOption(index)">刪除</el-button>
+              <el-button v-if="!fieldsLocked" text type="danger" @click="removeOption(index)">刪除</el-button>
             </div>
            </div>
           </FormField>
-          <div class="form-edit__option-add">
+          <div v-if="!fieldsLocked" class="form-edit__option-add">
             <el-input v-model="newOptionText" placeholder="輸入選項內容（中文）後按新增" @keyup.enter="addOption" />
             <el-button @click="addOption">新增選項</el-button>
           </div>
          </div>
         </FormField>
         <FormField v-if="!['select', 'multiselect', 'consent', 'file'].includes(fieldForm.fieldType)" field="validationRule" label="驗證規則（選填，正規表示式）">
-          <el-input v-model="fieldForm.validationRule" placeholder="例如電話格式，留空表示不額外驗證格式" />
+          <el-input v-model="fieldForm.validationRule" :disabled="fieldsLocked" placeholder="例如電話格式，留空表示不額外驗證格式" />
         </FormField>
         <el-form-item label="標記為內容摘要">
           <el-switch v-model="fieldForm.isSummary" />

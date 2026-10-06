@@ -404,12 +404,31 @@ export interface OrderDetailDto {
   settlementNote?: string | null
   items: OrderItemDto[]
   shipment?: ShipmentDto | null
-  invoice?: { invoiceNo?: string | null; issuedAt?: string | null; issueStatus?: string | null; voidStatus?: string | null } | null
+  /** 買家 Email（客服聯絡用）；沒有檢視完整個資權限時是遮罩值，照原樣顯示。 */
+  buyerEmail?: string | null
+  invoice?: OrderInvoiceDto | null
   refunds: { id: string; status: string; statusLabel: string; refundAmount: number; reason: string; createdAt: string }[]
   availableActions: OrderAction[]
   isMasked: boolean
   canReveal: boolean
   updatedAt: string
+}
+
+/** 訂單發票摘要（對照 `AdminOrderInvoiceDto`）；`*Label` 是日常中文，畫面一律顯示 Label。 */
+export interface OrderInvoiceDto {
+  invoiceNo?: string | null
+  issuedAt?: string | null
+  issueStatus?: string | null
+  issueStatusLabel?: string | null
+  voidStatus?: string | null
+  voidStatusLabel?: string | null
+  /** 開立方式代碼（mobile_barcode／citizen_cert／tax_id／donation），畫面不顯示，只顯示 `typeLabel`。 */
+  type?: string | null
+  typeLabel?: string | null
+  /** 載具號碼：視同個資，無權限時為遮罩值。 */
+  carrierId?: string | null
+  taxId?: string | null
+  donationCode?: string | null
 }
 
 export interface CreateOrderPayload {

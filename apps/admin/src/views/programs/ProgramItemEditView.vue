@@ -2,15 +2,13 @@
 /**
  * P1 課程／營隊項目——編輯頁。對照 apps/api/README.md「S1-9」。
  *
- * ⚠️ **合作夥伴（`partnerIds`，關聯 E1）本輪不提供選擇介面**——E1 合作夥伴管理（`S2-1`）尚未
- * 開發，後台目前沒有任何端點可以列出俱樂部的合作夥伴清單，沒有清單就做不出有意義的選單
- * （比照 `MatchEditView.vue` 場地選單「沒有清單就不做」的既有先例）。`partnerIds` 因此一律不
- * 送出（省略＝維持不變），已在 apps/admin/README.md 回報這個相依關係。
- *
- * ⚠️ **課程內容（`content`，區塊編輯）本輪以純 JSON 文字欄位呈現**——後端只驗證語法合法性，
- * 不驗證區塊結構（規劃書沒有像 B1 頁面那樣明訂區塊型別清單，見 `apps/api`
- * `AdminProgramLocaleContent` 檔頭），沒有現成的區塊編輯器可以重用（B1 的 `pageBlocks/` 是
- * 針對 `Page` 模型設計，區塊型別完全不同），比照後端自身「不超出範圍另外發明一套」的判斷。
+ * 課程內容（`content`）重用靜態頁（B1）的區塊編輯器（`PageBlockListEditor`），存成與靜態頁相同的
+ * 區塊 JSON 陣列 `[{ blockType, content }]`（區塊內的雙語欄位是 `{ zh, en }`，由前台依語系擇一）。
+ * - 只開放不需要圖片上傳的 7 種區塊（文字、引言、數據卡、步驟條、時間軸、表格、CTA）：
+ *   課程儲存端點沒有區塊圖片的上傳通道，前台也只渲染這幾種。
+ * - 只有一份區塊清單（雙語欄位在區塊內編輯），儲存時同一份 JSON 寫進中文版，英文版有建立時一併寫入。
+ * - 舊資料若不是區塊 JSON（純文字），載入時轉成一個「文字」區塊，內容不會遺失；
+ *   區塊 JSON 裡本編輯器不支援的類型原樣保留、儲存時附在最後。
  */
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -25,11 +23,15 @@ import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import LangTabsBar from '@/components/LangTabsBar.vue'
+import PageBlockListEditor from '@/components/pageBlocks/PageBlockListEditor.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useProgramPermissions } from '@/composables/useProgramPermissions'
 import { activeClubId } from '@/auth/clubAccess'
 import { listAdminStaff, type AdminStaffListItemDto } from '@/api/adminStaff'
+import { listPartners, type PartnerListItemDto } from '@/api/adminPartners'
+import { parseBlockContent, serializeBlocksForSubmit, PageBlockValidationError } from '@/utils/pageBlockSerializer'
+import { createEmptyBlock, type PageBlockState, type PageBlockType } from '@/types/pageBlocks'
 import { createAdminProgram, getAdminProgram, updateAdminProgram, type SaveProgramPayload } from '@/api/adminPrograms'
 import { AdminApiError } from '@/api/http'
 import { PROGRAM_TYPE_LABEL, PROGRAM_TYPE_ORDER, type ProgramType } from '@/types/program'
@@ -48,6 +50,7 @@ const form = reactive({
   slug: '',
   programType: '' as ProgramType | '',
   audience: '',
+  audienceEn: '',
   ageMin: null as number | null,
   ageMax: null as number | null,
   status: 'draft' as 'draft' | 'published',
@@ -55,16 +58,58 @@ const form = reactive({
   nameEn: '',
   introZh: '',
   introEn: '',
-  contentZh: '',
-  contentEn: '',
   staffIds: [] as string[],
+  partnerIds: [] as string[],
 })
+
+/** 課程內容可用的區塊類型：不含需要圖片上傳的「圖文左右」「圖片藝廊」，也不含前台尚未渲染的類型。 */
+const CONTENT_BLOCK_TYPES: PageBlockType[] = ['text', 'quote', 'stat_cards', 'steps', 'timeline', 'table', 'cta']
+const blocks = ref<PageBlockState[]>([])
+/** 區塊 JSON 裡本編輯器不支援的區塊（舊資料），原樣保留、儲存時附在最後。 */
+const preservedBlocks = ref<unknown[]>([])
+
+/** 把後端存的內容字串轉成區塊清單。非 JSON 的舊純文字轉成一個文字區塊。 */
+function parseContent(zhRaw: string | null | undefined, enRaw: string | null | undefined): { blocks: PageBlockState[]; preserved: unknown[] } {
+  const zh = (zhRaw ?? '').trim()
+  const en = (enRaw ?? '').trim()
+  const source = zh || en
+  if (!source) return { blocks: [], preserved: [] }
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(source)
+  } catch {
+    parsed = undefined
+  }
+  if (Array.isArray(parsed)) {
+    const result: PageBlockState[] = []
+    const preserved: unknown[] = []
+    for (const item of parsed) {
+      const raw = (item ?? {}) as { blockType?: unknown; content?: unknown }
+      if (typeof raw.blockType === 'string' && (CONTENT_BLOCK_TYPES as string[]).includes(raw.blockType)) {
+        const block = createEmptyBlock(raw.blockType as PageBlockType)
+        block.content = parseBlockContent(raw.blockType as PageBlockType, raw.content)
+        result.push(block)
+      } else {
+        preserved.push(item)
+      }
+    }
+    return { blocks: result, preserved }
+  }
+  // 純文字（或不是區塊清單的 JSON）：整段轉成一個文字區塊，中英各自帶入，不遺失內容。
+  const block = createEmptyBlock('text')
+  block.content = { body: { zh, en: en !== zh ? en : '' } }
+  return { blocks: [block], preserved: [] }
+}
 const baselineJson = ref('')
+function snapshot(): string {
+  return JSON.stringify({ form, blocks: blocks.value })
+}
 const coverKey = ref<string | null>(null)
 const coverFile = ref<File | null>(null)
 const removeCover = ref(false)
 
 const staffOptions = ref<AdminStaffListItemDto[]>([])
+const partnerOptions = ref<{ id: string; label: string }[]>([])
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
@@ -82,15 +127,26 @@ async function loadStaffOptions() {
   }
 }
 
+/** 列出本俱樂部已發布的夥伴；已選但目前未發布的夥伴由 `loadProgram` 補進選項，避免顯示成一串編號。 */
+async function loadPartnerOptions() {
+  try {
+    const list: PartnerListItemDto[] = await listPartners(activeClubId.value)
+    partnerOptions.value = list.filter((p) => p.isActive).map((p) => ({ id: p.id, label: p.nameZh || p.slug }))
+  } catch {
+    partnerOptions.value = []
+  }
+}
+
 async function loadProgram() {
   loadState.value = 'loading'
   try {
-    await loadStaffOptions()
+    await Promise.all([loadStaffOptions(), loadPartnerOptions()])
     if (!isCreate.value && programId.value) {
       const detail = await getAdminProgram(activeClubId.value, programId.value)
       form.slug = detail.slug
       form.programType = (detail.programType as ProgramType) ?? ''
       form.audience = detail.audience ?? ''
+      form.audienceEn = detail.audienceEn ?? ''
       form.ageMin = detail.ageMin ?? null
       form.ageMax = detail.ageMax ?? null
       form.status = (detail.status as 'draft' | 'published') ?? 'draft'
@@ -98,14 +154,21 @@ async function loadProgram() {
       form.nameEn = detail.en?.name ?? ''
       form.introZh = detail.zh.intro ?? ''
       form.introEn = detail.en?.intro ?? ''
-      form.contentZh = detail.zh.content ?? ''
-      form.contentEn = detail.en?.content ?? ''
+      const parsed = parseContent(detail.zh.content, detail.en?.content)
+      blocks.value = parsed.blocks
+      preservedBlocks.value = parsed.preserved
       form.staffIds = detail.staff.map((s) => s.staffId)
+      form.partnerIds = detail.partners.map((p) => p.partnerId)
+      for (const p of detail.partners) {
+        if (!partnerOptions.value.some((o) => o.id === p.partnerId)) {
+          partnerOptions.value.push({ id: p.partnerId, label: `${p.slug}（未發布）` })
+        }
+      }
       coverKey.value = detail.coverKey ?? null
     }
     coverFile.value = null
     removeCover.value = false
-    baselineJson.value = JSON.stringify(form)
+    baselineJson.value = snapshot()
     loadState.value = 'ready'
   } catch (error) {
     if (error instanceof AdminApiError && error.kind === 'not-found') {
@@ -120,7 +183,7 @@ async function loadProgram() {
 onMounted(loadProgram)
 
 const isDirty = computed(
-  () => loadState.value === 'ready' && (JSON.stringify(form) !== baselineJson.value || coverFile.value !== null || removeCover.value),
+  () => loadState.value === 'ready' && (snapshot() !== baselineJson.value || coverFile.value !== null || removeCover.value),
 )
 useUnsavedChanges(isDirty)
 
@@ -128,18 +191,7 @@ const pageTitle = computed(() => (isCreate.value ? '新增課程／營隊項目'
 const isReadOnly = computed(() => !canManageItems.value)
 
 function isEnEmpty(): boolean {
-  return !form.nameEn.trim() && !form.introEn.trim() && !form.contentEn.trim()
-}
-
-/** JSON 語法先在前端擋一次——後端只驗證語法合法性（見檔頭說明）。留空視為沒有內容，不驗證。 */
-function isInvalidJson(value: string): boolean {
-  if (!value.trim()) return false
-  try {
-    JSON.parse(value)
-    return false
-  } catch {
-    return true
-  }
+  return !form.nameEn.trim() && !form.introEn.trim()
 }
 
 /** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
@@ -147,27 +199,48 @@ function validate(): Record<string, string> {
   const errors: Record<string, string> = {}
   if (!form.slug.trim()) errors.slug = '請輸入網址代稱'
   if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  if (form.audience.trim().length > 64) errors.audience = '適合對象（中文）最多 64 字'
+  if (form.audienceEn.trim().length > 64) errors.audienceEn = '適合對象（英文）最多 64 字'
   if (form.ageMin != null && form.ageMax != null && form.ageMin > form.ageMax) {
     errors.ageMax = '最小年齡不能大於最大年齡'
   }
-  if (isInvalidJson(form.contentZh)) errors.contentZh = '中文的課程內容格式不正確，請確認內容或留空'
-  if (isInvalidJson(form.contentEn)) errors.contentEn = '英文的課程內容格式不正確，請確認內容或留空'
+  // 區塊內容的驗證在序列化工具裡（遇錯即丟例外），逐區塊各跑一次，每個區塊最多標一則錯誤。
+  blocks.value.forEach((block, index) => {
+    try {
+      serializeBlocksForSubmit([block])
+    } catch (error) {
+      errors[`blocks[${index}]`] =
+        error instanceof PageBlockValidationError
+          ? error.message.replace(/^第 \d+ 個區塊/, `第 ${index + 1} 個區塊`)
+          : '這個區塊的內容有誤，請檢查後再試'
+    }
+  })
   return errors
 }
 
+/** 區塊清單 → 與靜態頁相同的區塊 JSON 陣列文字；沒有任何區塊就回 `null`（這個項目沒有內文）。 */
+function buildContentJson(): string | null {
+  const serialized = serializeBlocksForSubmit(blocks.value).blocks
+  const all = [...serialized, ...preservedBlocks.value]
+  return all.length > 0 ? JSON.stringify(all) : null
+}
+
 function buildPayload(): SaveProgramPayload {
+  const contentJson = buildContentJson()
   return {
     slug: form.slug.trim(),
     programType: form.programType || null,
-    audience: form.audience || null,
+    audience: form.audience.trim() || null,
+    audienceEn: form.audienceEn.trim() || null,
     ageMin: form.ageMin,
     ageMax: form.ageMax,
     status: form.status,
     content: {
-      zh: { name: form.nameZh.trim(), intro: form.introZh || null, content: form.contentZh || null },
-      en: isEnEmpty() ? undefined : { name: form.nameEn || null, intro: form.introEn || null, content: form.contentEn || null },
+      zh: { name: form.nameZh.trim(), intro: form.introZh || null, content: contentJson },
+      en: isEnEmpty() ? undefined : { name: form.nameEn || null, intro: form.introEn || null, content: contentJson },
     },
     staffIds: form.staffIds,
+    partnerIds: form.partnerIds,
   }
 }
 
@@ -198,7 +271,7 @@ async function handleSave() {
     }
     coverFile.value = null
     removeCover.value = false
-    baselineJson.value = JSON.stringify(form)
+    baselineJson.value = snapshot()
   } catch (error) {
     if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
@@ -281,9 +354,16 @@ function retryLoad() {
                     </FormField>
                   </el-col>
                   <el-col :span="8">
-                    <el-form-item label="適合對象">
-                      <el-input v-model="form.audience" placeholder="例如 國小中低年級" />
-                    </el-form-item>
+                    <BilingualShortField
+                      field="audience"
+                      label="適合對象"
+                      :zh="form.audience"
+                      :en="form.audienceEn"
+                      :maxlength="64"
+                      placeholder="例如 國小中低年級"
+                      @update:zh="(v: string) => (form.audience = v)"
+                      @update:en="(v: string) => (form.audienceEn = v)"
+                    />
                   </el-col>
                 </el-row>
                 <el-row :gutter="12">
@@ -327,17 +407,10 @@ function retryLoad() {
               </el-card>
 
               <el-card shadow="never" header="課程內容">
-                <p class="program-item-edit__hint">
-                  區塊編輯器的原始 JSON 輸出（選填）。後端只檢查語法是否為合法 JSON，不檢查區塊結構；留空表示這個語言版本沒有內文。
-                </p>
-                <BilingualTextareaField
-                  field="content"
-                  label="內容（JSON）"
-                  :zh="form.contentZh"
-                  :en="form.contentEn"
-                  :rows="6"
-                  @update:zh="(v) => (form.contentZh = v)"
-                  @update:en="(v) => (form.contentEn = v)"
+                <PageBlockListEditor
+                  v-model="blocks"
+                  :allowed-types="CONTENT_BLOCK_TYPES"
+                  empty-hint="目前還沒有任何課程內容，從下方選一種類型開始新增；留空表示這個項目沒有內文。"
                 />
               </el-card>
 
@@ -348,9 +421,9 @@ function retryLoad() {
                   </el-select>
                 </FormField>
                 <FormField field="partnerIds" label="合作夥伴">
-                  <p class="program-item-edit__hint">
-                    合作夥伴管理（E1）尚未開發，後台目前沒有清單可以選擇，這裡暫不開放設定。
-                  </p>
+                  <el-select v-model="form.partnerIds" multiple filterable placeholder="請選擇合作夥伴（可複選）" style="width: 100%">
+                    <el-option v-for="p in partnerOptions" :key="p.id" :label="p.label" :value="p.id" />
+                  </el-select>
                 </FormField>
               </el-card>
             </template>
@@ -387,12 +460,5 @@ function retryLoad() {
 
 .program-item-edit__form-error {
   margin-bottom: 16px;
-}
-
-.program-item-edit__hint {
-  margin: 0 0 8px;
-  font-size: 12px;
-  color: var(--admin-text-tertiary);
-  line-height: 1.6;
 }
 </style>

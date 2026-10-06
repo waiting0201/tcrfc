@@ -111,6 +111,15 @@ function validate(): Record<string, string> {
   const errors: Record<string, string> = {}
   if (!form.titleTemplateZh.trim()) errors.titleTemplateZh = '請輸入標題樣板（中文）'
   if (!form.defaultDescriptionZh.trim()) errors.defaultDescriptionZh = '請輸入預設描述（中文）'
+  // 追蹤碼格式（對照後端白名單；GA4／GTM 大小寫不拘，後端會轉大寫；空白＝不啟用）
+  const ga4 = form.ga4MeasurementId.trim()
+  if (ga4 && !/^G-[A-Z0-9]{4,20}$/i.test(ga4)) errors.ga4MeasurementId = 'GA4 評估 ID 要以「G-」開頭，後面接 4 到 20 個英數字，例如 G-ABC123XYZ9'
+  const gtm = form.gtmContainerId.trim()
+  if (gtm && !/^GTM-[A-Z0-9]{4,12}$/i.test(gtm)) errors.gtmContainerId = 'GTM 容器 ID 要以「GTM-」開頭，後面接 4 到 12 個英數字，例如 GTM-ABC1234'
+  const pixel = form.metaPixelId.trim()
+  if (pixel && !/^[0-9]{5,20}$/.test(pixel)) errors.metaPixelId = 'Meta Pixel ID 只能是 5 到 20 位的純數字'
+  const line = form.lineTagId.trim()
+  if (line && !/^[A-Za-z0-9-]{1,64}$/.test(line)) errors.lineTagId = 'LINE Tag ID 只能用英數字與連字號，最多 64 字'
   return errors
 }
 
@@ -228,15 +237,19 @@ async function handleSave() {
                 <p class="seo-settings__hint">填寫後會自動注入到前台所有頁面，留白表示不啟用該項追蹤。</p>
                 <FormField field="ga4MeasurementId" label="GA4 評估 ID">
                   <el-input v-model="form.ga4MeasurementId" placeholder="例如：G-XXXXXXXXXX" />
+                  <p class="seo-settings__hint">以「G-」開頭，後面接英數字。</p>
                 </FormField>
                 <FormField field="gtmContainerId" label="GTM 容器 ID">
                   <el-input v-model="form.gtmContainerId" placeholder="例如：GTM-XXXXXXX" />
+                  <p class="seo-settings__hint">以「GTM-」開頭，後面接英數字。</p>
                 </FormField>
                 <FormField field="metaPixelId" label="Meta Pixel ID">
-                  <el-input v-model="form.metaPixelId" placeholder="選填" />
+                  <el-input v-model="form.metaPixelId" placeholder="選填，純數字" />
+                  <p class="seo-settings__hint">只填純數字。</p>
                 </FormField>
                 <FormField field="lineTagId" label="LINE Tag ID">
-                  <el-input v-model="form.lineTagId" placeholder="選填" />
+                  <el-input v-model="form.lineTagId" placeholder="選填，英數字與連字號" />
+                  <p class="seo-settings__hint">只能用英數字與連字號。</p>
                 </FormField>
               </el-card>
             </template>

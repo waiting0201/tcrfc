@@ -56,13 +56,6 @@ export interface AdminPolicy {
 }
 
 export interface AdminGlobalSettingsDto {
-  brand: {
-    logoLightUrl?: string | null
-    logoDarkUrl?: string | null
-    faviconUrl?: string | null
-    brandColor?: string | null
-    brandSecondaryColor?: string | null
-  }
   policies: AdminPolicy[]
   maintenance: { enabled: boolean; messageZh?: string | null; messageEn?: string | null; updatedAt?: string | null }
 }
@@ -73,11 +66,6 @@ export interface PolicyInput {
 }
 
 export interface UpdateGlobalSettingsPayload {
-  brandColor: string | null
-  brandSecondaryColor: string | null
-  removeLogoLight: boolean
-  removeLogoDark: boolean
-  removeFavicon: boolean
   cookiePolicy: PolicyInput
   privacyPolicy: PolicyInput
   memberTerms: PolicyInput
@@ -93,9 +81,9 @@ export function getAdminGlobalSettings(club: string): Promise<AdminGlobalSetting
 export function updateAdminGlobalSettings(
   club: string,
   payload: UpdateGlobalSettingsPayload,
-  files: { logoLight: File | null; logoDark: File | null; favicon: File | null },
 ): Promise<AdminGlobalSettingsDto> {
-  return apiUploadRequest<AdminGlobalSettingsDto>(`${club$(club)}/global-settings`, buildMultipart(payload, files), { method: 'PUT' })
+  // 仍走 multipart（`payload` 欄位），不再附任何檔案；標誌與 Favicon 已於 v3.20 移出後台。
+  return apiUploadRequest<AdminGlobalSettingsDto>(`${club$(club)}/global-settings`, buildMultipart(payload), { method: 'PUT' })
 }
 
 // ───────────── 多語系 ─────────────

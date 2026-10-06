@@ -42,6 +42,7 @@ const form = reactive({
   cardQuota: 1,
   jerseyQuota: 0,
   midSeasonRule: '',
+  midSeasonRuleEn: '',
   startsOn: '',
   endsOn: '',
   sortOrder: 0,
@@ -74,6 +75,7 @@ function applyDetail(d: MembershipPlanDetailDto) {
   form.cardQuota = d.cardQuota
   form.jerseyQuota = d.jerseyQuota
   form.midSeasonRule = d.midSeasonRule ?? ''
+  form.midSeasonRuleEn = d.midSeasonRuleEn ?? ''
   form.startsOn = d.startsOn ?? ''
   form.endsOn = d.endsOn ?? ''
   form.sortOrder = d.sortOrder
@@ -114,6 +116,8 @@ function validate(): Record<string, string> {
   const errors: Record<string, string> = {}
   if (!form.seasonId) errors.seasonId = '請選擇球季'
   if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  if (form.midSeasonRule.trim().length > 255) errors.midSeasonRule = '期中加入規則（中文）最多 255 字'
+  if (form.midSeasonRuleEn.trim().length > 255) errors.midSeasonRuleEn = '期中加入規則（英文）最多 255 字'
   if (!/^[a-z0-9-]{1,32}$/.test(form.code.trim())) errors.code = '方案代號只能用小寫英文字母、數字與連字號，最多 32 字'
   if (form.fee === null || form.fee < 0) errors.fee = '費用不能是負數'
   if (form.cardQuota < 1 || form.cardQuota > 10) errors.cardQuota = '會員卡數上限要在 1 到 10 之間'
@@ -130,6 +134,7 @@ function buildPayload(): SavePlanPayload {
     cardQuota: form.cardQuota,
     jerseyQuota: form.jerseyQuota,
     midSeasonRule: nullIfBlank(form.midSeasonRule),
+    midSeasonRuleEn: nullIfBlank(form.midSeasonRuleEn),
     startsOn: form.startsOn || null,
     endsOn: form.endsOn || null,
     sortOrder: form.sortOrder,
@@ -230,9 +235,17 @@ const backToList = () => router.push({ path: '/members/plans', query: { tab: 'pl
                   <el-col :xs="24" :sm="8"><FormField field="cardQuota" label="會員卡數上限（1–10）" required><el-input-number v-model="form.cardQuota" :min="1" :max="10" style="width: 100%" @change="formErrors.clear('cardQuota')" /></FormField></el-col>
                   <el-col :xs="24" :sm="8"><FormField field="jerseyQuota" label="球衣件數上限（0–10）" required><el-input-number v-model="form.jerseyQuota" :min="0" :max="10" style="width: 100%" @change="formErrors.clear('jerseyQuota')" /></FormField></el-col>
                 </el-row>
-                <FormField field="midSeasonRule" label="期中加入規則">
-                  <el-input v-model="form.midSeasonRule" type="textarea" :rows="2" maxlength="500" show-word-limit placeholder="例如：球季中途加入，費用不打折" />
-                </FormField>
+                <BilingualTextareaField
+                  field="midSeasonRule"
+                  label="期中加入規則"
+                  :zh="form.midSeasonRule"
+                  :en="form.midSeasonRuleEn"
+                  :rows="2"
+                  :maxlength="255"
+                  placeholder="例如：球季中途加入，費用不打折"
+                  @update:zh="(v: string) => (form.midSeasonRule = v)"
+                  @update:en="(v: string) => (form.midSeasonRuleEn = v)"
+                />
                 <el-row :gutter="12">
                   <el-col :xs="24" :sm="12"><el-form-item label="方案開始日"><el-date-picker v-model="form.startsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></el-form-item></el-col>
                   <el-col :xs="24" :sm="12"><FormField field="endsOn" label="方案結束日"><el-date-picker v-model="form.endsOn" type="date" value-format="YYYY-MM-DD" style="width: 100%" @change="formErrors.clear('endsOn')" /></FormField></el-col>

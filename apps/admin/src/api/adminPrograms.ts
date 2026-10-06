@@ -8,7 +8,7 @@ import { apiRequest, apiUploadRequest } from './http'
 export interface AdminProgramLocaleContentDto {
   name?: string | null
   intro?: string | null
-  /** `programs_i18n.content`（區塊編輯器輸出的 JSON 文字）。後端只驗證語法合法性，不驗證區塊
+  /** `programs_i18n.content`（與靜態頁相同的區塊 JSON 陣列文字）。後端只驗證語法合法性，不驗證區塊
    * 結構——規劃書沒有像 B1 頁面那樣明訂區塊型別清單，見 `apps/api` `AdminProgramLocaleContent` 檔頭。 */
   content?: string | null
 }
@@ -23,6 +23,7 @@ export interface AdminProgramListItemDto {
   slug: string
   programType?: string | null
   audience?: string | null
+  audienceEn?: string | null
   ageMin?: number | null
   ageMax?: number | null
   status: string
@@ -48,6 +49,7 @@ export interface AdminProgramDetailDto {
   slug: string
   programType?: string | null
   audience?: string | null
+  audienceEn?: string | null
   ageMin?: number | null
   ageMax?: number | null
   status: string
@@ -68,12 +70,15 @@ export interface SaveProgramPayload {
   slug: string
   programType?: string | null
   audience?: string | null
+  audienceEn?: string | null
   ageMin?: number | null
   ageMax?: number | null
   status?: string | null
   content: AdminProgramContentInputDto
   /** 省略＝維持不變、空陣列＝清空（比照 `UpdateAdminStaffRequest.Teams` 既有語意）。 */
   staffIds?: string[]
+  /** 合作夥伴（本俱樂部的夥伴）。省略＝維持不變、空陣列＝清空。 */
+  partnerIds?: string[]
 }
 
 export interface UpdateProgramPayload extends SaveProgramPayload {

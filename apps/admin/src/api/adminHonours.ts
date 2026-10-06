@@ -14,7 +14,9 @@ export interface AchievementDto {
   teamNameZh?: string | null
   year?: number | null
   competitionName?: string | null
+  competitionNameEn?: string | null
   placing?: string | null
+  placingEn?: string | null
   updatedAt: string
 }
 
@@ -23,7 +25,11 @@ export interface SaveAchievementPayload {
   teamId: string
   year?: number | null
   competitionName: string
+  /** 選填；空白＝清除英文。上限 128。 */
+  competitionNameEn?: string | null
   placing: string
+  /** 選填；空白＝清除英文。上限 64。 */
+  placingEn?: string | null
 }
 
 const achievementBase = (club: string) => `/api/v1/admin/${club}/achievements`

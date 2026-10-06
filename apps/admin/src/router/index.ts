@@ -33,6 +33,7 @@ const StaffListView = () => import('@/views/teams/StaffListView.vue')
 const StaffEditView = () => import('@/views/teams/StaffEditView.vue')
 const MatchListView = () => import('@/views/teams/MatchListView.vue')
 const MatchEditView = () => import('@/views/teams/MatchEditView.vue')
+const SeasonListView = () => import('@/views/teams/SeasonListView.vue')
 const StandingListView = () => import('@/views/teams/StandingListView.vue')
 const ProgramItemListView = () => import('@/views/programs/ProgramItemListView.vue')
 const ProgramItemEditView = () => import('@/views/programs/ProgramItemEditView.vue')
@@ -222,6 +223,7 @@ const IMPLEMENTED_ROUTES: RouteRecordRaw[] = [
     props: true,
     meta: { label: '編輯賽事', code: 'C4' },
   },
+  { path: '/teams/seasons', name: 'season-list', component: SeasonListView, meta: { label: '賽季', code: 'C4' } },
   { path: '/teams/standings', name: 'standing-list', component: StandingListView, meta: { label: '積分榜', code: 'C4' } },
   {
     path: '/teams/competitions',

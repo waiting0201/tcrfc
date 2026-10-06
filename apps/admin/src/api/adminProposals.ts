@@ -25,6 +25,7 @@ export interface ProposalFileDto {
 export interface ProposalListItemDto {
   id: string
   title: string
+  titleEn?: string | null
   versionNo: number
   status: ProposalStatus
   locales: ProposalLocale[]
@@ -36,6 +37,7 @@ export interface ProposalListItemDto {
 export interface ProposalDetailDto {
   id: string
   title: string
+  titleEn?: string | null
   versionNo: number
   status: ProposalStatus
   files: ProposalFileDto[]
@@ -46,6 +48,8 @@ export interface ProposalDetailDto {
 
 export interface SaveProposalPayload {
   title: string
+  /** 選填（≤128）；空白＝清除英文。 */
+  titleEn?: string | null
   versionNo: number
   status: ProposalStatus
 }

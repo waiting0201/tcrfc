@@ -9,6 +9,8 @@ import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
 import FormErrorStatus from '@/components/FormErrorStatus.vue'
 import FormField from '@/components/FormField.vue'
+import LangTabsBar from '@/components/LangTabsBar.vue'
+import BilingualShortField from '@/components/BilingualShortField.vue'
 import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { useCrudPermissions } from '@/composables/useCrudPermissions'
@@ -34,7 +36,7 @@ const isCreate = computed(() => route.name === 'proposal-new')
 const proposalId = ref<string | undefined>(route.params.id as string | undefined)
 const { canCreate, canUpdate } = useCrudPermissions('business.proposal')
 
-const form = reactive({ title: '', versionNo: 1, status: 'draft' as 'draft' | 'published' })
+const form = reactive({ title: '', titleEn: '', versionNo: 1, status: 'draft' as 'draft' | 'published' })
 const files = ref<ProposalFileDto[]>([])
 const leadCount = ref(0)
 const baselineJson = ref('')
@@ -49,6 +51,7 @@ const pageTitle = computed(() => (isCreate.value ? '新增提案' : `編輯：${
 
 function apply(d: ProposalDetailDto) {
   form.title = d.title
+  form.titleEn = d.titleEn ?? ''
   form.versionNo = d.versionNo
   form.status = d.status
   files.value = d.files
@@ -77,7 +80,9 @@ useUnsavedChanges(isDirty)
 /** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
 function validate(): Record<string, string> {
   const errors: Record<string, string> = {}
-  if (!form.title.trim()) errors.title = '請輸入提案名稱'
+  if (!form.title.trim()) errors.title = '請輸入提案名稱（中文）'
+  if (form.title.trim().length > 128) errors.title = '提案名稱（中文）最多 128 字'
+  if (form.titleEn.trim().length > 128) errors.titleEn = '提案名稱（英文）最多 128 字'
   if (isCreate.value && form.status === 'published') {
     errors.status = '新提案還沒有檔案，請先存成草稿，上傳檔案後再發布'
   } else if (!isCreate.value && form.status === 'published' && files.value.length === 0) {
@@ -95,7 +100,7 @@ async function handleSave() {
   }
   saving.value = true
   try {
-    const payload = { title: form.title.trim(), versionNo: form.versionNo, status: form.status }
+    const payload = { title: form.title.trim(), titleEn: form.titleEn.trim() || null, versionNo: form.versionNo, status: form.status }
     const saved = isCreate.value
       ? await createProposal(activeClubId.value, payload)
       : await updateProposal(activeClubId.value, proposalId.value!, payload)
@@ -203,11 +208,22 @@ const back = () => router.push('/business/proposals')
     <template v-else>
       <el-alert v-if="formError" :title="formError" type="warning" show-icon class="proposal-edit__block" @close="formError = null" />
       <el-alert v-if="readOnly" title="你的帳號只能檢視提案，不能修改。" type="info" show-icon :closable="false" class="proposal-edit__block" />
+      <LangTabsBar>
       <EditLayout>
         <template #main>
           <el-form label-position="top" :disabled="readOnly">
             <el-card shadow="never" header="提案資料">
-              <FormField field="title" label="提案名稱" required><el-input v-model="form.title" maxlength="128" /></FormField>
+              <BilingualShortField
+                field-zh="title"
+                field-en="titleEn"
+                label="提案名稱"
+                :zh="form.title"
+                :en="form.titleEn"
+                required
+                :maxlength="128"
+                @update:zh="(v: string) => (form.title = v)"
+                @update:en="(v: string) => (form.titleEn = v)"
+              />
               <el-row :gutter="12">
                 <el-col :xs="24" :sm="12"><FormField field="versionNo" label="版本號（用來區分不同版本的成效）"><el-input-number v-model="form.versionNo" :min="1" /></FormField></el-col>
                 <el-col :xs="24" :sm="12">
@@ -254,6 +270,7 @@ const back = () => router.push('/business/proposals')
           </el-card>
         </template>
       </EditLayout>
+      </LangTabsBar>
       <EditActionBar v-if="!readOnly">
         <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>

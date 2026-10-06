@@ -13,7 +13,7 @@ import PageHeader from '@/components/PageHeader.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
-import PageBlockEditor from '@/components/pageBlocks/PageBlockEditor.vue'
+import PageBlockListEditor from '@/components/pageBlocks/PageBlockListEditor.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
 import EditActionBar from '@/components/EditActionBar.vue'
 import EditLayout from '@/components/EditLayout.vue'
@@ -39,7 +39,7 @@ import {
 } from '@/api/adminPages'
 import { AdminApiError } from '@/api/http'
 import { parseBlockFromDto, serializeBlocksForSubmit, PageBlockValidationError } from '@/utils/pageBlockSerializer'
-import { createEmptyBlock, PAGE_BLOCK_TYPE_LABEL, PAGE_BLOCK_TYPES, type PageBlockState, type PageBlockType } from '@/types/pageBlocks'
+import { PAGE_BLOCK_TYPE_LABEL, type PageBlockState, type PageBlockType } from '@/types/pageBlocks'
 import { formatDateTime, nowAsPickerDate, pickerDateToUtc } from '@/utils/dateTime'
 
 const route = useRoute()
@@ -223,13 +223,6 @@ async function confirmEnglishSeoRemovalIfNeeded(): Promise<boolean> {
     }
   }
   return true
-}
-
-/** 區塊新增、刪除、排序後索引會錯位，所有區塊的舊錯誤一律清掉（下次儲存會重新檢查）。 */
-function clearBlockErrors() {
-  for (const key of Object.keys(formErrors.errors)) {
-    if (key.startsWith('blocks')) formErrors.clear(key)
-  }
 }
 
 /** 一次檢查全部，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。
@@ -423,37 +416,6 @@ function handlePreview() {
 
 function retryLoad() {
   loadPage()
-}
-
-// ── 內容區塊：新增／排序／刪除 ────────────────────────────────────────────
-const addBlockType = ref<PageBlockType>('text')
-
-function addBlock() {
-  blocks.value.push(createEmptyBlock(addBlockType.value))
-  clearBlockErrors()
-}
-
-function moveBlock(index: number, delta: number) {
-  const target = index + delta
-  if (target < 0 || target >= blocks.value.length) return
-  const [item] = blocks.value.splice(index, 1)
-  blocks.value.splice(target, 0, item)
-  clearBlockErrors()
-}
-
-async function removeBlock(index: number) {
-  try {
-    await ElMessageBox.confirm('確定要刪除這個區塊嗎？', '確認刪除', {
-      confirmButtonText: '刪除',
-      cancelButtonText: '取消',
-      confirmButtonClass: 'el-button--danger',
-      type: 'warning',
-    })
-  } catch {
-    return
-  }
-  blocks.value.splice(index, 1)
-  clearBlockErrors()
 }
 
 // ── 預覽連結（顯示並可複製） ─────────────────────────────────────────────
@@ -692,28 +654,7 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
         </el-card>
 
         <el-card shadow="never" header="內容區塊" class="page-edit__section">
-          <p v-if="blocks.length === 0" class="page-edit__hint">這個頁面目前還沒有任何內容區塊，從下方選一種類型開始新增。</p>
-
-          <div v-for="(block, index) in blocks" :key="block.localKey" class="page-edit__block">
-            <div class="page-edit__block-toolbar">
-              <span class="page-edit__block-type">{{ blockTypeLabel(block.blockType) }}</span>
-              <div class="page-edit__block-actions">
-                <el-button size="small" text :disabled="index === 0" @click="moveBlock(index, -1)">上移</el-button>
-                <el-button size="small" text :disabled="index === blocks.length - 1" @click="moveBlock(index, 1)">下移</el-button>
-                <el-button size="small" text type="danger" @click="removeBlock(index)">刪除區塊</el-button>
-              </div>
-            </div>
-            <FormField :field="`blocks[${index}]`">
-              <PageBlockEditor :block-type="block.blockType" :content="block.content" :block-index="index" />
-            </FormField>
-          </div>
-
-          <div class="page-edit__add-block">
-            <el-select v-model="addBlockType" style="width: 200px">
-              <el-option v-for="type in PAGE_BLOCK_TYPES" :key="type" :label="PAGE_BLOCK_TYPE_LABEL[type]" :value="type" />
-            </el-select>
-            <el-button type="primary" plain @click="addBlock">+ 新增區塊</el-button>
-          </div>
+          <PageBlockListEditor v-model="blocks" empty-hint="這個頁面目前還沒有任何內容區塊，從下方選一種類型開始新增。" />
         </el-card>
 
         <el-card v-if="!isCreate" shadow="never" header="預覽連結" class="page-edit__section">
@@ -877,32 +818,6 @@ function summarizeBlock(dto: AdminPageBlockDto): string {
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--admin-text-tertiary);
-}
-
-.page-edit__block {
-  border: 1px solid var(--admin-border);
-  border-radius: 4px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.page-edit__block-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--admin-border);
-}
-
-.page-edit__block-type {
-  font-weight: 500;
-  color: var(--admin-text-primary);
-}
-
-.page-edit__add-block {
-  display: flex;
-  gap: 8px;
 }
 
 .page-edit__preview-link {
