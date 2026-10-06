@@ -52,6 +52,7 @@ public static class ApiErrorMessages
         ["cart_item_not_found"] = "This item is not in your cart.",
         ["collecting_subject_missing"] = "The shop is not open for checkout yet.",
         ["confirmation_required"] = "Please type DELETE to confirm deleting your account.",
+        ["captcha_failed"] = "The human verification did not pass. Please refresh the page and try again.",
         ["conflict"] = "This action conflicts with the current state. Please refresh and try again.",
         ["device_not_registered"] = "This device is not registered. Please reopen the app and try again.",
         ["email_not_verified"] = "Please verify your email first using the link we sent, then sign in.",

@@ -251,6 +251,21 @@ builder.Services.AddScoped<Tcrfc.Api.Features.Programs.ProgramsRepository>();
 // ── S1-10：G1 表單設計器／G2 詢問收件匣 ＋ 10 表單中心公開讀取與送出 ──────────────
 builder.Services.AddScoped<AdminFormsRepository>();
 builder.Services.AddScoped<AdminEnquiriesRepository>();
+// 公開表單的 Cloudflare Turnstile 驗證：設了 TURNSTILE_SECRET_KEY 才啟用，否則放行（只剩 IP 限流＋honeypot）。
+{
+    var clubTurnstileSecret = builder.Configuration[Tcrfc.Api.Security.CloudflareClubTurnstileVerifier.SecretConfigKey];
+    if (string.IsNullOrWhiteSpace(clubTurnstileSecret))
+    {
+        builder.Services.AddSingleton<Tcrfc.Api.Security.IClubTurnstileVerifier, Tcrfc.Api.Security.NotConfiguredClubTurnstileVerifier>();
+    }
+    else
+    {
+        builder.Services.AddHttpClient(Tcrfc.Api.Security.CloudflareClubTurnstileVerifier.HttpClientName, client => client.Timeout = TimeSpan.FromSeconds(5));
+        builder.Services.AddSingleton<Tcrfc.Api.Security.IClubTurnstileVerifier>(sp => new Tcrfc.Api.Security.CloudflareClubTurnstileVerifier(
+            sp.GetRequiredService<IHttpClientFactory>().CreateClient(Tcrfc.Api.Security.CloudflareClubTurnstileVerifier.HttpClientName),
+            clubTurnstileSecret, sp.GetRequiredService<ILogger<Tcrfc.Api.Security.CloudflareClubTurnstileVerifier>>()));
+    }
+}
 builder.Services.AddScoped<FormsRepository>();
 
 // ── S1-11：L1 行事曆總覽／L2 自建事件 ＋ 13 賽事行事曆公開讀取（含單場 .ics） ──────

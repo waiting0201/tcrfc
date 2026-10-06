@@ -317,6 +317,7 @@ emit_club() {
 # club.env — 俱樂部機密（api 讀）。由 infra/provision-secrets.sh 於 ${STAMP} 產生，權限 600、擁有者 runner。
 # 值用單引號包起來：compose 的 env_file 會把未加引號的 \$ 當變數展開。鍵名與用途見 infra/README.md §4.3。
 # 刻意不放：PAYMENT_GATEWAY／INVOICE_ISSUER／EMAIL_SENDER（正式環境不得設 fake／localfile，未設＝「尚未串接」）、
+#   TURNSTILE_SECRET_KEY（未設＝公開表單不做人機驗證，只剩 IP 限流＋honeypot；須與 /opt/tcrfc/.env 的 TURNSTILE_SITE_KEY 一起設，見 infra/README.md §4.3）、
 #   LINE_LOGIN_*（未設＝LINE 登入端點回 503）、GEOCODER／GOOGLE_MAPS_GEOCODING_API_KEY（未設＝「由地址定位」回 503；使用者建好金鑰後手動加，本腳本會原樣保留）、AZURE_BLOB_PUBLIC_BASE_URL（Cloudflare 圖片網域就緒後再加）。
 CLUB_SQL_CONNECTION_STRING='$(conn_string tcrfc_club)'
 AZURE_BLOB_CONNECTION_STRING='${BLOB_CLUB}'

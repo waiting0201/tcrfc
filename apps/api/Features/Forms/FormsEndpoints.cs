@@ -1,3 +1,4 @@
+using Tcrfc.Api.Common;
 using Tcrfc.Api.Localization;
 using Tcrfc.Api.Security;
 
@@ -29,11 +30,13 @@ public static class FormsEndpoints
 
         // POST /api/v1/{club}/forms/{formCode}/submissions
         app.MapPost("/api/v1/{club}/forms/{formCode}/submissions", async (
-            string club, string formCode, SubmitFormRequest request,
+            string club, string formCode, SubmitFormRequest request, HttpContext httpContext,
             IClubResolver clubResolver, FormsRepository repository, CancellationToken cancellationToken) =>
         {
             var scope = await clubResolver.ResolveAsync(club, cancellationToken);
-            var result = await repository.SubmitAsync(scope, formCode, request, cancellationToken);
+            var result = await repository.SubmitAsync(
+                scope, formCode, request, cancellationToken,
+                captchaRemoteIp: ClientIpResolver.Resolve(httpContext), verifyCaptcha: true);
             return Results.Ok(result);
         })
         .WithName("SubmitPublicForm")
@@ -42,6 +45,7 @@ public static class FormsEndpoints
         .Produces<SubmitFormResultDto>()
         .Produces(StatusCodes.Status400BadRequest)
         .Produces(StatusCodes.Status404NotFound)
+        .Produces(StatusCodes.Status422UnprocessableEntity)
         .Produces(StatusCodes.Status429TooManyRequests);
     }
 }

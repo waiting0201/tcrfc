@@ -3214,6 +3214,9 @@
           "404": {
             "description": "Not Found"
           },
+          "422": {
+            "description": "Unprocessable Entity"
+          },
           "429": {
             "description": "Too Many Requests"
           }
@@ -16141,6 +16144,12 @@
             ]
           },
           "website": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "turnstileToken": {
             "type": [
               "null",
               "string"

@@ -3024,16 +3024,20 @@ fail-closed）。清單／匯出用集合過濾整批資料；詳情／更新單
 任何合適的敘述性文字欄位，刻意不標記**——這三個表單的內容摘要在清單與匯出上一律是 `null`，
 是設計上的必然結果，不是遺漏。
 
-### 濫用防護（規劃書「防機器人（reCAPTCHA / Turnstile）」，本輪沒有做的部分）
+### 濫用防護（規劃書「防機器人（reCAPTCHA / Turnstile）」，S1-17 已串接 Turnstile）
 
-全系統沒有串接任何 CAPTCHA 服務的憑證或後端驗證邏輯，串接需要申請站台金鑰、決定環境變數、
-寫一支呼叫外部 siteverify API 的服務——這是獨立的執行層基礎建設決定，不在本次任務範圍，比照 S1-9
-對簡訊通路的既有處理方式（回報缺口，不自行發明）。本輪改用兩層不需要外部服務的防線：
-① `Program.cs` 對 `POST .../submissions` 掛 ASP.NET Core 內建 Rate Limiting（依呼叫端 IP 分區，
-固定視窗 5 分鐘 20 次，超過回 429，`QueueLimit=0`）；② `SubmitFormRequest.Website` 誘捕欄位
-（honeypot，填了值就安靜回成功但不寫入任何資料）。`PublicFormDto.CaptchaEnabled` 旗標本身**沒有
-對應的伺服器端驗證**——前端讀到 `true` 時應該渲染 CAPTCHA 元件，但送出端點目前不會真的驗證 token，
-真正串接 Turnstile／reCAPTCHA 留給日後有服務憑證時再補。
+三層防線：① `Program.cs` 對 `POST .../submissions` 掛 ASP.NET Core 內建 Rate Limiting（依訪客真實 IP 分區，固定視窗 5 分鐘 20 次，超過回 429，`QueueLimit=0`）；
+② `SubmitFormRequest.Website` 誘捕欄位（honeypot，填了值就安靜回成功但不寫入任何資料，**排在人機驗證之前**）；
+③ **Cloudflare Turnstile**（`Security/ClubTurnstileVerifier.cs`，與慈善平台的 `ITurnstileVerifier` 刻意各自一份、互不引用）。
+
+- 契約：`SubmitFormRequest.TurnstileToken`（JSON `turnstileToken`，選填）。
+- 設定鍵 `TURNSTILE_SECRET_KEY`（club.env，主站與藍鯨共用；慈善是另一把 `TURNSTILE_SECRET_KEY_CHARITY`）。**未設＝`NotConfiguredClubTurnstileVerifier`，一律放行**（只剩①②）。
+- **只有該表單 `forms.captcha_enabled = true` 且已設密鑰時才驗證**；旗標關閉不驗。（`captcha_enabled` 種子預設為開，部署端一設密鑰，前台就必須同時有 `TURNSTILE_SITE_KEY`，見 `infra/README.md` §4.3。）
+- 缺 token 或驗證失敗 → **422**，ProblemDetails `code = captcha_failed`，訊息「人機驗證未通過，請重新整理頁面後再試一次。」（`CaptchaFailedException : ICodedApiException`）。
+- 傳給 siteverify 的 `remoteip` 用 `ClientIpResolver.Resolve`（`TRUSTED_PROXY_IPS` 解析後的訪客真實 IP），不是原始 `RemoteIpAddress`。
+- Cloudflare 服務本身異常（逾時 5 秒、5xx、連線失敗、回應無法解析）→ **放行**並記 warning（fail-open，IP 限流與 honeypot 仍在）。
+- 驗證只掛在公開表單端點（`FormsRepository.SubmitAsync(..., verifyCaptcha: true)`）。提案下載 `POST proposals/{id}/download-requests` 內部重用 `SubmitAsync` 但**不驗證**（它的請求沒有 token 欄位，規劃書沒寫要求）；該端點只有 IP 限流。
+- 測試：`ClubTurnstileTests.cs`（假驗證器端點整合 ＋ 假 `HttpMessageHandler` 驗證器單元，不連網）。
 
 ### 🔴🔴🔴 修正：限流原本依賴的不是訪客真實 IP（審查回饋，2026-09-25）
 

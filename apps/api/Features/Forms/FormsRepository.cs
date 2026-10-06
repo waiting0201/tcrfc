@@ -11,15 +11,12 @@ namespace Tcrfc.Api.Features.Forms;
 /// <summary>
 /// 7 類表單 ＋ 提案下載 ＋ 捐助洽詢的公開讀取與送出端點（主站規劃書 §3.10）。
 ///
-/// ### 濫用防護（規劃書寫「防機器人（reCAPTCHA / Turnstile）」，本輪沒有做的部分）
-/// 全系統目前沒有串接任何 CAPTCHA 服務的憑證或後端驗證邏輯（不像圖片上傳有
-/// <c>AZURE_BLOB_CONNECTION_STRING</c> 這種既有的「選填但有落地」模式）。串接 Turnstile／
-/// reCAPTCHA 需要申請站台金鑰、決定放哪個環境變數、寫一支呼叫外部 siteverify API 的服務——
-/// 這是獨立的執行層基礎建設決定，不在「G1／G2／表單公開端點」這次任務範圍內，比照 S1-9
-/// 對簡訊通路的既有處理方式（回報缺口，不自行發明）。**本輪改用兩層不需要外部服務的防線**：
-/// ① <c>Program.cs</c> 對 <c>POST .../submissions</c> 掛 ASP.NET Core 內建 Rate Limiting
-/// （依 IP 分區，固定視窗），② <see cref="SubmitFormRequest.Website"/> 誘捕欄位——都是「沒有寫的
-/// 執行層做法自己決定」的具體選擇，寫在這裡供之後接上真正 CAPTCHA 服務時參考。
+/// ### 濫用防護（規劃書「防機器人（reCAPTCHA / Turnstile）」）
+/// 三層：① <c>Program.cs</c> 對 <c>POST .../submissions</c> 掛 Rate Limiting（依訪客真實 IP 分區）；
+/// ② <see cref="SubmitFormRequest.Website"/> 誘捕欄位（命中安靜回成功，且排在人機驗證之前）；
+/// ③ Cloudflare Turnstile（<see cref="IClubTurnstileVerifier"/>）：該表單 <c>captcha_enabled = true</c> 且部署端設定了
+/// <c>TURNSTILE_SECRET_KEY</c> 才驗證，缺 token／驗證失敗拋 <see cref="CaptchaFailedException"/>（422 <c>captcha_failed</c>）。
+/// 只有公開表單端點傳 <c>captchaRemoteIp</c> 才會驗證；提案下載等內部重用 <c>SubmitAsync</c> 的呼叫不帶，不受影響。
 ///
 /// ### 動態欄位驗證
 /// <c>form_fields</c> 是 G1 表單設計器可自由編修的動態欄位，本檔依 <see cref="FormFieldTypes"/>
@@ -29,7 +26,7 @@ namespace Tcrfc.Api.Features.Forms;
 /// 管理者能設定，非公開輸入，仍比照縱深防禦原則加上逾時）。**不接受未知的 <c>field_key</c>**：
 /// 送出內容包含任何不屬於這張表單的鍵一律整批拒絕（400），避免累積垃圾資料。
 /// </summary>
-public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache)
+public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory, IQueryCache cache, IClubTurnstileVerifier turnstile)
 {
     private const string CacheEntity = "forms";
 
@@ -74,7 +71,7 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
     /// <c>Features/Proposals</c> 傳入，寫進 <c>enquiries.proposal_id</c>，讓 Lead 名單知道下載的是哪一份提案（A/B 版本）；
     /// 一般表單送出一律為 <c>null</c>。</param>
     public async Task<SubmitFormResultDto> SubmitAsync(
-        ClubScope scope, string formCode, SubmitFormRequest request, CancellationToken cancellationToken, Guid? proposalId = null)
+        ClubScope scope, string formCode, SubmitFormRequest request, CancellationToken cancellationToken, Guid? proposalId = null, string? captchaRemoteIp = null, bool verifyCaptcha = false)
     {
         // 誘捕欄位有值＝機器人：安靜回成功、不寫入任何資料，避免讓機器人知道自己被擋下。
         if (!string.IsNullOrEmpty(request.Website))
@@ -89,6 +86,13 @@ public sealed class FormsRepository(IClubSqlConnectionFactory connectionFactory,
         if (form is null)
         {
             throw new PublicFormNotFoundException("找不到指定的表單。");
+        }
+
+        // 人機驗證排在 honeypot 之後、欄位驗證之前：便宜的擋法先做，且不讓機器人靠 400 訊息探測欄位。
+        if (verifyCaptcha && form.CaptchaEnabled && turnstile.IsEnabled
+            && !await turnstile.VerifyAsync(request.TurnstileToken, captchaRemoteIp, cancellationToken))
+        {
+            throw new CaptchaFailedException();
         }
 
         var fields = await LoadFieldsAsync(connection, form.Id, null, cancellationToken);

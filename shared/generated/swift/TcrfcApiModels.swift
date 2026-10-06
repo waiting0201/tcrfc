@@ -5544,19 +5544,22 @@ public struct SubmitFormRequest: Codable, Equatable, Sendable {
     public var utmSource: String?
     public var utmCampaign: String?
     public var website: String?
+    public var turnstileToken: String?
 
     public init(
         answers: [String: String],
         sourcePath: String? = nil,
         utmSource: String? = nil,
         utmCampaign: String? = nil,
-        website: String? = nil
+        website: String? = nil,
+        turnstileToken: String? = nil
     ) {
         self.answers = answers
         self.sourcePath = sourcePath
         self.utmSource = utmSource
         self.utmCampaign = utmCampaign
         self.website = website
+        self.turnstileToken = turnstileToken
     }
 }
 

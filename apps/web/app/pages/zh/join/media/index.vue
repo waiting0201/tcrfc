@@ -37,7 +37,7 @@ const deadline = ref('')
 const consent = ref(false)
 const website = ref('')
 
-const { status, errorMessage, submit } = useFormSubmit('media_enquiry')
+const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken } = useFormSubmit('media_enquiry')
 
 async function onSubmit() {
   const coverageLabel = COVERAGE_TYPE_LABELS[coverageType.value]
@@ -156,10 +156,8 @@ async function onSubmit() {
           
         </div>
 
-        <div class="form-turnstile">
-          <!-- Cloudflare Turnstile 防機器人驗證：sitekey 待客戶申請 Cloudflare 帳號後設定，見 https://developers.cloudflare.com/turnstile/ -->
-          <div class="cf-turnstile" data-sitekey="" role="group" :aria-label="tx('機器人驗證', 'Bot verification')"></div>
-          <p class="field-hint">{{ tx('此表單由 Cloudflare Turnstile 防護，驗證元件將於 sitekey 設定後生效。', 'This form is protected by Cloudflare Turnstile. The verification widget will take effect once the site key is configured.') }}</p>
+        <div v-if="captchaActive" class="form-turnstile">
+          <FormTurnstile ref="captchaWidget" :site-key="siteKey" @token="onCaptchaToken" />
         </div>
 
         <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">{{ tx('送出詢問', 'Submit enquiry') }}</button>

@@ -235,6 +235,9 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             SharedContentReadOnlyException sharedContentReadOnly =>
                 (StatusCodes.Status403Forbidden, "共用內容唯讀", sharedContentReadOnly.Message),
 
+            Tcrfc.Api.Features.Forms.CaptchaFailedException captchaFailed =>
+                (StatusCodes.Status422UnprocessableEntity, "人機驗證未通過", captchaFailed.Message),
+
             // ── E 批新增：主站前台會員中心／會員付款訂單／球迷會活動報名（Common/MemberExceptions.cs）─────────────
             MemberValidationException memberValidation =>
                 (StatusCodes.Status400BadRequest, "輸入內容有誤", memberValidation.Message),

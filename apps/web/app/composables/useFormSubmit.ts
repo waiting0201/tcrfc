@@ -28,6 +28,29 @@ export function useFormSubmit(formCode: string) {
   const route = useRoute()
   const { tx, isEn } = useLocale()
 
+  const siteKey = (config.public.turnstileSiteKey as string | undefined)?.trim() ?? ''
+
+  // 防機器人驗證（Cloudflare Turnstile）：site key 有值「且」該表單公開設定 captchaEnabled === true
+  // 才顯示元件並要求權杖。表單定義取自 `GET /api/v1/{club}/forms/{formCode}`（PublicFormDto.captchaEnabled，
+  // 經同源代理），只在瀏覽器端掛載後取一次——取不到就視為不需要驗證（後端是最後防線，會自己擋）。
+  const captchaEnabled = ref(false)
+  const captchaToken = ref<string | null>(null)
+  /** 頁面以 `ref="captchaWidget"` 綁到 `<FormTurnstile>`，送出失敗時由這裡 reset。 */
+  const captchaWidget = ref<{ reset: () => void } | null>(null)
+
+  onMounted(async () => {
+    if (!siteKey) return
+    try {
+      const def = await $fetch<{ captchaEnabled?: boolean }>(`/api/backend/${club}/forms/${formCode}`, {
+        query: { lang: isEn.value ? 'en' : 'zh' },
+      })
+      captchaEnabled.value = def?.captchaEnabled === true
+    }
+    catch {
+      captchaEnabled.value = false
+    }
+  })
+
   const status = ref<FormSubmitStatus>('idle')
   /** 失敗時的訊息——一律顯示後端 400 回應的 `message`／`detail`（例如「缺少必填欄位：xxx」），
    * 這是後端刻意設計成「可以直接顯示給使用者看」的訊息（不含欄位技術代碼以外的內部細節，
@@ -42,8 +65,14 @@ export function useFormSubmit(formCode: string) {
   )
 
   async function submit(answers: Record<string, string>, options: FormSubmitOptions = {}) {
-    status.value = 'submitting'
     errorMessage.value = ''
+    const captchaRequired = !!siteKey && captchaEnabled.value
+    if (captchaRequired && !captchaToken.value) {
+      status.value = 'error'
+      errorMessage.value = tx('請先完成人機驗證。', 'Please complete the verification first.')
+      return
+    }
+    status.value = 'submitting'
 
     try {
       await $fetch(`/api/backend/${club}/forms/${formCode}/submissions`, {
@@ -52,13 +81,21 @@ export function useFormSubmit(formCode: string) {
           answers,
           sourcePath: route.fullPath,
           website: options.website || undefined,
+          turnstileToken: captchaRequired ? captchaToken.value ?? undefined : undefined,
         },
       })
       status.value = 'success'
     }
     catch (err: unknown) {
       status.value = 'error'
-      errorMessage.value = extractErrorMessage(err, isEn.value) ?? genericError()
+      errorMessage.value = isCaptchaFailed(err)
+        ? tx('人機驗證未通過，請重新整理頁面後再試一次。', 'Verification failed. Please refresh the page and try again.')
+        : extractErrorMessage(err, isEn.value) ?? genericError()
+    }
+    finally {
+      // 權杖只能用一次：不論成功或失敗都換新的（失敗後使用者可修改欄位再送）。
+      if (captchaRequired && status.value !== 'success') captchaWidget.value?.reset()
+      if (captchaRequired) captchaToken.value = null
     }
   }
 
@@ -69,7 +106,17 @@ export function useFormSubmit(formCode: string) {
     errorMessage.value = ''
   }
 
-  return { status, errorMessage, submit, reset }
+  /** 目前是否要顯示並要求人機驗證（給頁面 `v-if` 用）。 */
+  const captchaActive = computed(() => !!siteKey && captchaEnabled.value)
+  function onCaptchaToken(value: string | null) { captchaToken.value = value }
+
+  return { status, errorMessage, submit, reset, siteKey, captchaActive, captchaWidget, onCaptchaToken }
+}
+
+/** 後端 422 `captcha_failed`（BFF 把上游 ProblemDetails 的 code 放在 `err.data.data.code`）。 */
+function isCaptchaFailed(err: unknown): boolean {
+  const e = err as { data?: { code?: unknown, data?: { code?: unknown } } } | null
+  return e?.data?.data?.code === 'captcha_failed' || e?.data?.code === 'captcha_failed'
 }
 
 /** 從 $fetch 拋出的例外中取出後端回傳的中文錯誤訊息（400 的 body 一律是純文字或

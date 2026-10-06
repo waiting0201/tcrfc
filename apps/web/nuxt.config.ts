@@ -25,6 +25,9 @@ export default defineNuxtConfig({
       // NUXT_PUBLIC_CLUB=tcrfc|bw，容器啟動時給。預設 tcrfc 是本機開發的合理預設值，
       // 不是「忘記帶環境變數時的靜默回退」——藍鯨容器一律明確帶 bw（docs/13 §6 紀律 2、5）。
       club: 'tcrfc',
+      // NUXT_PUBLIC_TURNSTILE_SITE_KEY：Cloudflare Turnstile 網站金鑰（主站與藍鯨共用同一把）。
+      // 空字串＝公開表單不顯示人機驗證、不送權杖；有值且表單 captchaEnabled 才啟用（見 useFormSubmit）。
+      turnstileSiteKey: '',
       // NUXT_PUBLIC_SITE_ENV=prelaunch|production，見 docs/17-deployment.md §10.4。
       // 骨架階段先接住這個變數，實際的兩層防護（robots／標頭）留給 S0-9 之後補完。
       siteEnv: 'prelaunch',

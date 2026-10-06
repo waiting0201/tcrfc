@@ -34,9 +34,8 @@ public sealed record PublicFormDto
     public required string FormNameZh { get; init; }
     public required string FormNameEn { get; init; }
 
-    /// <summary>⚠️ **這個旗標本身沒有對應的伺服器端驗證**——全系統目前沒有串接任何 CAPTCHA
-    /// 服務（Turnstile／reCAPTCHA），見 <c>FormsRepository.SubmitAsync</c> 檔頭「濫用防護」段。
-    /// 前端讀到 <c>true</c> 時應該渲染 CAPTCHA 元件，但送出端點目前不會真的驗證 token。</summary>
+    /// <summary>前端讀到 <c>true</c> 時渲染 Turnstile 元件，送出時把權杖放進 <c>turnstileToken</c>。
+    /// 伺服器端只有在部署端設定了 <c>TURNSTILE_SECRET_KEY</c> 時才驗證（未設定＝一律放行），見 <c>FormsRepository.SubmitAsync</c>。</summary>
     public required bool CaptchaEnabled { get; init; }
 
     public required IReadOnlyList<PublicFormFieldDto> Fields { get; init; }
@@ -53,6 +52,10 @@ public sealed record SubmitFormRequest
     public string? UtmSource { get; init; }
     public string? UtmCampaign { get; init; }
     public string? Website { get; init; }
+
+    /// <summary>Cloudflare Turnstile 前端元件產生的權杖。表單 <c>captcha_enabled = true</c> 且部署端已設定
+    /// <c>TURNSTILE_SECRET_KEY</c> 時必填，缺漏或驗證失敗回 422 <c>captcha_failed</c>；否則忽略。</summary>
+    public string? TurnstileToken { get; init; }
 }
 
 public sealed record SubmitFormResultDto

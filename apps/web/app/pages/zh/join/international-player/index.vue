@@ -64,7 +64,7 @@ const phone = ref('')
 const consent = ref(false)
 const website = ref('')
 
-const { status, errorMessage, submit } = useFormSubmit('international_player_enquiry')
+const { status, errorMessage, submit, siteKey, captchaActive, captchaWidget, onCaptchaToken } = useFormSubmit('international_player_enquiry')
 
 async function onSubmit() {
   const background = [
@@ -223,10 +223,8 @@ async function onSubmit() {
           
         </div>
 
-        <div class="form-turnstile">
-          <!-- Cloudflare Turnstile anti-bot widget: sitekey pending client's Cloudflare account setup, see https://developers.cloudflare.com/turnstile/ -->
-          <div class="cf-turnstile" data-sitekey="" role="group" aria-label="Bot verification"></div>
-          <p class="field-hint">This form is protected by Cloudflare Turnstile; the widget activates once a sitekey is configured.</p>
+        <div v-if="captchaActive" class="form-turnstile">
+          <FormTurnstile ref="captchaWidget" :site-key="siteKey" @token="onCaptchaToken" />
         </div>
 
         <button class="btn btn--primary btn--block" type="submit" :disabled="status === 'submitting'">Submit Enquiry</button>

@@ -173,7 +173,7 @@
 | E-211 | 2026-10-05 | 英文版分派時只列頁面目錄，沒列「跨頁共用元件」歸屬：`TrialSchedule.vue`、`FanEventRegistration.vue` 被兩個 agent 同時指派，一個的批次替換腳本因舊字串消失而整批中止 | ⚠️ 無（靠動手前 `git diff` 確認） |
 | E-212 | 2026-10-05 | 種子補英文列後，4 組 `apps/api` 測試的前提「種子缺英文」失效（測試把種子的缺口當成回退行為的測資），已改為自建資料 | ⚠️ 無（類似 E-160，見條目） |
 | E-213 | 2026-10-05 | 後端 `?lang=en` 缺值時逐欄位回退繁中，前台直接取用就讓英文版（含 JSON-LD、`llms-en.txt`）悄悄混入中文，沒有任何建置或執行錯誤 | ✅ `useSiteFacts.pickEn`／`englishOnly`／`enOnly` 過濾；✅ `scripts/check-en-pages.mjs` 實機掃描 |
-| E-214 | 2026-10-05 | 多個 agent 並行做批次字串替換：共用 scratchpad 的腳本被別人覆寫、替換腳本中途失敗後重跑重複套用、英文字串的撇號未轉義產生語法錯誤 | ⚠️ 無（eslint／build 會抓到語法，抓不到重複套用） |
+| E-214 | 2026-10-05 | 多個 agent 並行做批次字串替換：共用 scratchpad 的腳本被別人覆寫、替換腳本中途失敗後重跑重複套用、英文字串的撇號未轉義產生語法錯誤 | ⚠️ 無（eslint／build 會抓到語法，抓不到重複套用）。🔴 **2026-10-06 同類第二次**：S1-17 Turnstile 前後端並行時，前端 agent 為比對基準下了 `git stash`／`stash pop`，同時收走後端 agent 寫到一半的檔案（事後核對未受損）→ **已升級為 [`14`](14-invariants.md) 不變量**：並行時禁用改動整個工作樹的 git 指令，派工提示必寫 |
 | E-215 | 2026-10-05 | BFF `clientErrorFrom` 把上游 4xx 轉成 `createError` 時只保留 `message`（繁中），丟掉 `messageEn`／`code`；第一輪翻譯 agent 發現 /en/ 拿不到英文訊息，只在畫面層「偵測到中文就換成英文通用句」，沒有修傳遞鏈 | ✅ `extractErrorMessage(err, en)` 與 BFF `data.messageEn` 傳遞；✅ 假 API 加表單 400 路由（`dev-fixture-api.mjs`）可 curl 驗證 |
 | E-216 | 2026-10-05 | 假 API 的 `problem()` 把 `messageEn` 設成與繁中 `detail` 相同，掩蓋了 E-215 的資訊遺失（測了也看不出英文沒通過） | ✅ `problem()` 改為獨立英文 `messageEn` |
 | E-228 | 2026-10-05 | 主站英文分支寫死 `CLUB_NAME_EN`／`getClubIdentityEn()`／`Academy` 等磐石字樣；`isEn` 對藍鯨開啟後，英文藍鯨頁會印出 Taichung Rock FC（同一頁兩站共用、英文分支只為主站寫） | ✅ `useLocale.isEn` 藍鯨需 `enReadyBw` 才開（沒翻的頁不外洩）；✅ `check-club-brand-leak.mjs` 掃 zh／en |

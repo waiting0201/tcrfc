@@ -1311,7 +1311,7 @@ mockup 前台欄位數量對不齊（mockup 是完整 UX 設計稿，欄位遠�
 | 必填驗證 | ✅ 移除 `<form novalidate>`，改用瀏覽器原生驗證（`required`／`type=email`／`type=url`／`type=date` 皆為 mockup 既有屬性，只是先前 `novalidate` 讓它們完全失效）。**未做**：逐欄位 JS 自訂訊息（`.field-error` 段落，`.field-error{display:none}` 的 CSS 規則本來就存在，但 mockup 從未有任何腳本觸發它顯示——維持這個既有落差，改用瀏覽器原生提示） |
 | 送出後自動回覆信／通知信／寫入後台 | 🔵 已由 `apps/api` 端實作（`FormsRepository.SubmitAsync` 寫入 `enquiries`／`enquiry_answers`），Email 通知另見 `apps/api` README；本輪只負責前台送出，未驗證信件是否真的寄出（未啟動 `apps/api`） |
 | 個資同意條款勾選 | ✅ 既有 `consent` 核取方塊，`required` 屬性現在真的生效（見上方必填驗證） |
-| 防機器人（reCAPTCHA／Turnstile） | 🔵 既有 Cloudflare Turnstile 佔位（`data-sitekey=""`，sitekey 待客戶申請帳號，維持既有落差不動）＋ **本輪新增**誘捕欄位（`HoneypotField`）與（`apps/api` 端既有的）Rate Limiting，兩者都是不需要外部服務金鑰的防線 |
+| 防機器人（Cloudflare Turnstile） | ✅ **已串接**（S1-17）。7 張表單頁以 `FormTurnstile.vue` 取代舊 `data-sitekey=""` 佔位。**只有 runtimeConfig `public.turnstileSiteKey`（環境變數 `NUXT_PUBLIC_TURNSTILE_SITE_KEY`，主站與藍鯨共用同一把）有值「且」該表單公開設定 `captchaEnabled === true` 時才顯示並要求權杖**（`useFormSubmit` 在瀏覽器端掛載後以 `GET /api/backend/{club}/forms/{formCode}` 取 `captchaEnabled`；Cloudflare 腳本只在需要時才載入）。送出 body 帶 `turnstileToken`，缺權杖前台先擋；後端 422 `captcha_failed` 顯示「人機驗證未通過」並 reset，權杖一次性。🔴 **前後端兩邊要一起設**：後端需有對應 secret，只設一邊不會生效（前端沒 key＝不顯示、後端若啟用驗證則會 422）。另有誘捕欄位（`HoneypotField`）與 `apps/api` 的 Rate Limiting。`ProgramRegistration`／`TrialSchedule` 走各自的報名端點、不經表單送出端點，不在此範圍。**CSP**：專案目前沒有設 CSP／frame-src，無須放行 `challenges.cloudflare.com` |
 | 檔案上傳（履歷／影片連結） | 🔴 影片連結（`video_url`）已送出；**檔案本身無法上傳**——`apps/api` 的 `FormFieldTypes.File` 註解明文「本輪未建立真正的檔案上傳通路」，屬既有缺口非本輪造成，各表單的檔案欄位維持在畫面上但不送出任何內容 |
 
 ### Location & Map：各項需求對照
