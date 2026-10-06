@@ -16,18 +16,18 @@ internal static class TagSlugFormat
     private static readonly Regex Format = new(@"^[a-z0-9]+(-[a-z0-9]+)*$", RegexOptions.Compiled);
 
     /// <summary>驗證不合格一律丟 <see cref="AdminArticleValidationException"/>（400）。</summary>
-    public static void Validate(string slug)
+    public static void Validate(string slug, string? field = null)
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
-            throw new AdminArticleValidationException("標籤的網址名稱為必填欄位。");
+            throw new AdminArticleValidationException("標籤的網址名稱為必填欄位。", field);
         }
 
         if (!Format.IsMatch(slug))
         {
             throw new AdminArticleValidationException(
                 $"標籤的網址名稱「{slug}」格式不正確：只能使用小寫英文字母、數字與連字號（-）組成，" +
-                "開頭與結尾不能是連字號，也不能連續出現兩個連字號，請修改後再試一次。");
+                "開頭與結尾不能是連字號，也不能連續出現兩個連字號，請修改後再試一次。", field);
         }
     }
 }

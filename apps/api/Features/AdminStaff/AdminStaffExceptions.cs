@@ -2,7 +2,10 @@ namespace Tcrfc.Api.Features.AdminStaff;
 
 public abstract class AdminStaffException(string message) : Exception(message);
 
-public sealed class AdminStaffValidationException(string message) : AdminStaffException(message);
+public sealed class AdminStaffValidationException(string message, string? field = null) : AdminStaffException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary>
 /// <c>staff.club_id IS NULL</c>（兩隊共同的教練／團隊成員）透過俱樂部範圍端點寫入時一律擋下——

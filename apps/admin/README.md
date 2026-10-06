@@ -319,6 +319,80 @@ apps/admin/
 reactive 單例，因為目前狀態之間沒有複雜耦合；之後模組多起來、狀態間有耦合時再評估要不要導入正式
 的狀態管理框架。
 
+## 編輯頁共用元件：語言分頁卡片、兩欄版面、欄位錯誤（2026-10-06，試點 `TeamEditView`／`NewsEditView`）
+
+**執行層決定**（規劃書 §4.0 沒有版面規則，詳見 `docs/21` §3）：每張雙語卡片一組「中文／英文」分頁；上傳欄位放右側欄；
+驗證錯誤（前端與後端）都標到欄位。第 3 階段其餘編輯頁照這份寫法遷移。
+
+| 元件／函式 | 用途 |
+|---|---|
+| `EditLayout`（`#main`／`#aside`） | 兩欄版面。**容器寬度 ≥ 880px** 才兩欄（`container-type: inline-size`，不是視窗斷點），不足時主欄在上、側欄在下，側欄不 sticky；沒有 `#aside` 是單欄；底部留白 88px 給 `EditActionBar`。對話框、`*Tab`／`*Panel` 不用 |
+| `LangTabsCard`（`header`、`langs`＝`['zh','en']`、`variant`＝`card｜bare`） | 一張卡片一組語言分頁，各卡獨立、預設中文；切分頁不算未儲存變更、唯讀時仍可切換；標籤文字帶「（N 項尚未翻譯）」「⚠ N 處需修正」；內容用 `v-show` 留在 DOM。對話框與 `*Tab`／`*Panel` 用 `variant="bare"` |
+| `BilingualShortField`／`BilingualTextareaField`（新增 `field`、`fieldZh?`、`fieldEn?`、`maxlength?`） | `field="name"` → 錯誤鍵 `nameZh`／`nameEn`。在 `LangTabsCard` 內只顯示目前語言；**不在其內仍是舊版並排畫面，並在開發模式 `console.warn`（過渡用，第 4 階段刪）**，`field` 因此暫為選填 |
+| `LangPane`（`lang`、`field?`、`untranslated?`，事件 `show`） | 自訂雙語內容（如新聞內文編輯器）。`show` 在窗格由隱藏變顯示後觸發，編輯器在這裡重排／重算高度 |
+| `FormField`（`field`、`label`、`required`、`lang?`、`reveal?`） | 包 `el-form-item`：`data-field`、2px 危險色外框、`⚠`＋訊息（`role="alert"`）、第一個可聚焦元件加 `aria-invalid`／`aria-describedby`；輸入即清該鍵錯誤（`el-select` 這類不冒泡 DOM 事件的請在更新處理函式呼叫 `formErrors.clear(key)`） |
+| `provideFormErrors()`／`useFormErrors()` | `set/get/has/clear/clearAll/replaceAll(record): boolean/count`、`registerAnchor`、`focusFirst()`（文件順序最前 → 切語言 → `reveal` → 捲到畫面中央 → 聚焦；`prefers-reduced-motion` 時不做平滑捲動）、`applyApiError(err): boolean`（有欄位鍵對不到回 `false`，交給頁首提示） |
+| `EditActionBar` 的 `#status`＋`FormErrorStatus` | 底部操作列左側「有 N 處需要修正」＋「前往下一處」，外層 `aria-live="polite"` |
+| `api/http.ts` | `AdminApiError.fieldErrors`（鍵經 `normalizeFieldKey`，`content.zh.name` → `nameZh`；每鍵取第一則）、`code`；400／409／422 都帶 `body`；網址名稱重複沒有 `errors` 時補 `{ slug: detail }` |
+
+**陣列鍵的前綴退回**：`applyApiError` 對不到精確鍵的 anchor 時，逐層去掉尾段再找（`tags[2].slug` → `tags[2]` → `tags`），找到就把訊息標在那個群組 anchor 上。
+所以陣列型區塊（標籤、核心價值、關聯）整塊包一個 `FormField field="tags"`／`"coreValueTags"`／`"relations"` 即可，不必為每一列各設 anchor；
+同一群組有多則錯誤只標第一則。群組的新增／移除／選擇處理函式要自己 `formErrors.clear(群組鍵)`。
+對話框內的欄位（如排程時間 `publishAt`）直接用頁面同一份 `formErrors`（provide/inject 跟元件樹走，Teleport 不影響），
+`FormField` 傳 `:reveal` 重新打開對話框；送出失敗時不要先關對話框。
+上傳欄位用 `FormField` 外包 `ImageUploader`，並 `watch([檔案, 移除旗標], () => formErrors.clear(鍵))`。
+
+**欄位鍵只在程式內對照，絕不顯示在畫面上**（`check-forbidden-terms` 只掃樣板的畫面文字，鍵寫在 `field` 屬性不會被掃，但也不得寫進任何文案）。
+頁首 `el-alert` 只留給沒有欄位歸屬的錯誤。
+
+頁面寫法範例：
+
+```vue
+<script setup lang="ts">
+const formErrors = provideFormErrors()
+const formError = ref<string | null>(null) // 只放沒有欄位歸屬的錯誤
+
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.title.zh.trim()) errors.titleZh = '請輸入中文標題'
+  if (!form.urlName.trim()) errors.slug = '請輸入網址名稱'
+  return errors // 一次檢查全部，不要遇到第一個就 return
+}
+
+async function handleSave() {
+  formError.value = null
+  if (formErrors.replaceAll(validate())) { await formErrors.focusFirst(); return }
+  try { /* 儲存 */ } catch (error) {
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
+    formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
+  }
+}
+</script>
+
+<template>
+  <el-form label-position="top">
+    <EditLayout>
+      <template #main>
+        <LangTabsCard header="基本資訊">
+          <BilingualShortField field="title" label="標題" required :zh="form.title.zh" :en="form.title.en" … />
+          <FormField field="slug" label="網址名稱" required><el-input v-model="form.urlName" /></FormField>
+        </LangTabsCard>
+      </template>
+      <template #aside>
+        <el-card shadow="never" header="封面圖片"><ImageUploader … /></el-card>
+      </template>
+    </EditLayout>
+  </el-form>
+  <EditActionBar>
+    <template #status><FormErrorStatus /></template>
+    <el-button type="primary" @click="handleSave">儲存</el-button>
+  </EditActionBar>
+</template>
+```
+
+欄位在頁面層 `el-tabs` 分頁或摺疊區裡時，`FormField` 傳 `:reveal="() => (activeTab = 'xxx')"`，`focusFirst()` 會先打開再捲動。
+未翻譯數＝中文有值且英文空。對比度：錯誤外框與訊息色（`--admin-danger-text`）已納入 `check-contrast.mjs`【4】對五層背景驗算。
+
 ## 檢查腳本：禁用詞掃描
 
 `npm run lint` = `eslint .` + `node scripts/check-forbidden-terms.mjs`。後者對應規劃書 §4.0 後台設計

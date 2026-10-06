@@ -5128,6 +5128,22 @@ migration，這裡沒有自己加）。
   `ILogger`**，⛔ 不會出現在 HTTP 回應裡。本次開發期間實際踩過的兩個 500（見下方「開發過程踩的坑」）
   都是先看伺服器端日誌才找到根因，而不是看回應內容——這正是這個設計要達成的效果。
 
+### 欄位錯誤（`errors`，2026-10-06）
+
+後台編輯頁要把驗證失敗標到欄位，所以 400／409 的回應可以多帶 `errors`（欄位鍵 → 訊息陣列，與 `ValidationProblemDetails` 形狀相容）：
+
+```json
+{ "status": 400, "title": "輸入內容有誤", "detail": "中文標題為必填欄位。",
+  "errors": { "titleZh": ["中文標題為必填欄位。"] }, "code": "...", "messageZh": "...", "retryable": false }
+```
+
+- **`detail` 不變**；`errors` 是相容擴充。沒有欄位歸屬的錯誤（請求格式錯誤、`payload` 解析失敗、並行衝突、狀態轉換不合法）**不帶** `errors`，前端退回頁首提示。
+- **怎麼帶**：驗證例外（所有 `*ValidationException`、`AdminValidationException`、`AdminConflictException`、網址名稱／隊別代號重複類）建構子都有選填 `field`（`new AdminArticleValidationException("…", "slug")`），實作 `Common/FieldApiException.cs` 的 `IFieldApiException`。`AdminInput` 的 `RequireText`／`OptionalText`／`OptionalHttpUrl` 等同樣有選填 `field`，往下傳。`ApiExceptionHandler` 只在 400／409 輸出；鍵格式不合法會被丟棄並記警告。**新增 `*ValidationException` 必須實作 `IFieldApiException`**（`ArchitectureTests` 守著）。
+- **欄位鍵規則**：邏輯欄位名，不是資料庫欄位名；camelCase；雙語欄位 `xxxZh`／`xxxEn`（`FieldKey.Bi("title", "zh")`）；陣列元素 `blocks[2].bodyEn`（`FieldKey.Item("blocks", 2, "bodyEn")`）；網址名稱重複類固定 `slug`。格式 regex：`^[a-z][A-Za-z0-9]*(\[\d+\])?(\.[a-z][A-Za-z0-9]*(\[\d+\])?)*$`（`FieldKey.Pattern()`）。前端表單狀態用平的鍵（`nameZh`），與這裡對齊。
+- **鍵是給前端對應用，絕不出現在訊息文字裡**（訊息仍是日常中文，docs/06 §1）；`AdminFieldErrorsTests` 逐則斷言。
+- **補鍵的優先順序**：唯一性、跨欄位、依資料庫狀態的規則先補；請求格式錯誤不補。補鍵時順便把技術味訊息改白話（不回顯內部代碼、不提「資料庫欄位」）。
+- **已補鍵的模組**：`Features/AdminTeams`（`code`／`type`／`gender`／`nameZh`／`hero`）、`Features/AdminNews`（`titleZh`／`slug`／`category`／`publishAt`／`tags[i].slug`／`tags[i].nameZh`／`coreValueTags[i]`／`relations[i].targetType`／`relations[i].targetId`／`cover`／`ogImage`）。其餘模組的拋出點尚未補鍵（行為不變，仍只有 `detail`）。
+
 ---
 
 ## 🔴🔴🔴 寫入端點開發模式開關（❌ 2026-09-23 起已整支刪除，見上方「S1」整節「開發模式開關：已刪除」）

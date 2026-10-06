@@ -86,4 +86,7 @@ public static class CalendarEndpoints
     }
 }
 
-public sealed class CalendarQueryValidationException(string message) : Exception(message);
+public sealed class CalendarQueryValidationException(string message, string? field = null) : Exception(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}

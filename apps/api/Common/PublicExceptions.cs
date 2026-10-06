@@ -5,7 +5,10 @@ namespace Tcrfc.Api.Common;
 /// 與 <see cref="AdminValidationException"/> 形狀相同，但名稱不帶 Admin，避免公開端點的程式碼看起來像是後台輸入驗證。
 /// 訊息一律是日常中文，會原樣顯示給訪客，<b>不得內插資料庫欄位名、資料表名或例外細節</b>。
 /// </summary>
-public sealed class PublicValidationException(string message) : Exception(message);
+public sealed class PublicValidationException(string message, string? field = null) : Exception(message), IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = FieldKey.Single(field, message);
+}
 
 /// <summary>公開端點要求的資源不存在（或對目前俱樂部不可見）。對應 404；<see cref="Title"/> 是給畫面的短標題。</summary>
 public sealed class PublicNotFoundException(string title, string message) : Exception(message)

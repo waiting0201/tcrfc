@@ -8,7 +8,10 @@ namespace Tcrfc.Api.Features.AdminSeo;
 public abstract class AdminSeoException(string message) : Exception(message);
 
 /// <summary>呼叫端輸入不合法（缺必填欄位、網址格式不對、CSV 表頭或欄位數不對……）。對應 400。</summary>
-public sealed class AdminSeoValidationException(string message) : AdminSeoException(message);
+public sealed class AdminSeoValidationException(string message, string? field = null) : AdminSeoException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary><c>UQ_redirects_club_path</c>（<c>club_id, from_path</c>）已被同俱樂部的其他轉址規則
 /// 使用。對應 409。單筆建立時才會丟出——CSV 批次匯入走 upsert 語意，不會撞到這個例外，見

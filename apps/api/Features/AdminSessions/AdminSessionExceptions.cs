@@ -2,7 +2,10 @@ namespace Tcrfc.Api.Features.AdminSessions;
 
 public abstract class AdminSessionException(string message) : Exception(message);
 
-public sealed class AdminSessionValidationException(string message) : AdminSessionException(message);
+public sealed class AdminSessionValidationException(string message, string? field = null) : AdminSessionException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary><c>ProgramId</c> 指向的課程項目不存在，或不屬於這個俱樂部——對應 400
 /// （不是 404：梯次本身的路由沒有問題，是請求內容裡指定的關聯目標有問題，比照

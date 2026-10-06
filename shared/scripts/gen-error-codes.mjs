@@ -202,6 +202,7 @@ const doc = {
       messageEn: '英文使用者訊息：codes 內有專屬英文；沒有登記的代碼退回該狀態的通用英文。動態值（件數、訂單編號、商品名）不放進英文，需要顯示時用 messageZh 或自備字串表',
       retryable: '是否可重試（boolean）：5xx 為 true、4xx（含 423、429）為 false；例外：外部服務尚未設定的 503（codes 內 retryable=false）',
       lockedUntil: '僅 account_locked（423）：解鎖時間，UTC ISO 8601',
+      errors: '僅 400／409 且錯誤能歸屬到表單欄位時才有（後台編輯頁）：欄位鍵 → 訊息陣列（與 ValidationProblemDetails 形狀相容）。鍵是邏輯欄位的 camelCase 名稱，雙語為 xxxZh／xxxEn，陣列元素為 blocks[2].bodyEn；鍵只給用戶端對應欄位，不得顯示在畫面上。沒有欄位歸屬的錯誤沒有此欄位，仍只靠 detail。規則見 apps/api/README.md「欄位錯誤」',
     },
     compatibility: '相容擴充：既有欄位一個不刪不改，舊版 App 忽略新增欄位即可。',
   },

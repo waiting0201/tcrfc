@@ -4,4 +4,7 @@ namespace Tcrfc.Api.Features.AdminBanners;
 public abstract class AdminBannerException(string message) : Exception(message);
 
 /// <summary>呼叫端輸入不合法（缺圖片、上架時間早於下架時間……）。對應 400。</summary>
-public sealed class AdminBannerValidationException(string message) : AdminBannerException(message);
+public sealed class AdminBannerValidationException(string message, string? field = null) : AdminBannerException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}

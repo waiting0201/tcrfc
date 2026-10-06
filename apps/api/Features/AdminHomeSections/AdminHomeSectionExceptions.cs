@@ -5,4 +5,7 @@ namespace Tcrfc.Api.Features.AdminHomeSections;
 public abstract class AdminHomeSectionException(string message) : Exception(message);
 
 /// <summary>呼叫端輸入不合法（非 Hero 區塊卻指定精選輪播、精選輪播不存在或不屬於這個俱樂部……）。對應 400。</summary>
-public sealed class AdminHomeSectionValidationException(string message) : AdminHomeSectionException(message);
+public sealed class AdminHomeSectionValidationException(string message, string? field = null) : AdminHomeSectionException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}

@@ -8,11 +8,17 @@ namespace Tcrfc.Api.Features.AdminFaqs;
 public abstract class AdminFaqException(string message) : Exception(message);
 
 /// <summary>呼叫端輸入不合法（缺必填欄位、狀態值不合法、分類不存在……）。對應 400。</summary>
-public sealed class AdminFaqValidationException(string message) : AdminFaqException(message);
+public sealed class AdminFaqValidationException(string message, string? field = null) : AdminFaqException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary><c>UQ_faqs_club_slug</c>（<c>club_id, slug</c>）已被同俱樂部的其他題目使用。對應 409。</summary>
 public sealed class FaqSlugConflictException(string slug)
-    : AdminFaqException($"網址名稱「{slug}」已經被這個俱樂部的其他題目使用，請換一個。");
+    : AdminFaqException($"網址名稱「{slug}」已經被這個俱樂部的其他題目使用，請換一個。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("slug", Message);
+}
 
 /// <summary>
 /// 共同內容（<c>faqs.club_id IS NULL</c>，兩隊共用）對受範圍限制的請求一律唯讀
@@ -24,4 +30,7 @@ public sealed class SharedFaqReadOnlyException()
 
 /// <summary><c>UQ_faq_categories_slug</c> 已被其他分類使用。對應 409。</summary>
 public sealed class FaqCategorySlugConflictException(string slug)
-    : AdminFaqException($"分類網址名稱「{slug}」已經被使用，請換一個。");
+    : AdminFaqException($"分類網址名稱「{slug}」已經被使用，請換一個。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("slug", Message);
+}

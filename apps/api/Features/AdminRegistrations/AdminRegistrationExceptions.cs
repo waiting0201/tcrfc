@@ -2,7 +2,10 @@ namespace Tcrfc.Api.Features.AdminRegistrations;
 
 public abstract class AdminRegistrationException(string message) : Exception(message);
 
-public sealed class AdminRegistrationValidationException(string message) : AdminRegistrationException(message);
+public sealed class AdminRegistrationValidationException(string message, string? field = null) : AdminRegistrationException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary><c>SessionId</c> 指向的梯次不存在，或不屬於這個俱樂部。</summary>
 public sealed class SessionNotFoundForRegistrationException()

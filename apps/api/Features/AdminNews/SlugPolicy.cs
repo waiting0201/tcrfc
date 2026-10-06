@@ -73,7 +73,7 @@ internal static class SlugPolicy
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
-            throw new AdminArticleValidationException("網址名稱為必填欄位。");
+            throw new AdminArticleValidationException("網址名稱為必填欄位。", "slug");
         }
 
         if (!SlugFormat.IsMatch(slug))
@@ -81,21 +81,21 @@ internal static class SlugPolicy
             throw new AdminArticleValidationException(
                 $"網址名稱「{slug}」格式不正確：只能使用小寫英文字母、數字與連字號（-）組成，" +
                 "開頭與結尾不能是連字號，也不能連續出現兩個連字號（例如大寫字母、空白、斜線、句點都不能出現）。" +
-                "請修改後再試一次。");
+                "請修改後再試一次。", "slug");
         }
 
         if (slug.All(char.IsAsciiDigit))
         {
             throw new AdminArticleValidationException(
                 $"網址名稱「{slug}」不能整段只有數字，請加入能代表文章內容的文字（例如日期或分類關鍵字），" +
-                "避免之後跟其他以數字排序或分頁用途的網址搞混。");
+                "避免之後跟其他以數字排序或分頁用途的網址搞混。", "slug");
         }
 
         if (ReservedSlugs.Contains(slug))
         {
             throw new AdminArticleValidationException(
                 $"網址名稱「{slug}」是系統保留給分類頁面使用的名稱，這篇文章不能使用這個名稱，" +
-                "請換一個能代表這篇文章內容的網址名稱（例如加上日期或關鍵字，像現有文章慣用的「2024-12-18-club-079」這種寫法）。");
+                "請換一個能代表這篇文章內容的網址名稱（例如加上日期或關鍵字，像現有文章慣用的「2024-12-18-club-079」這種寫法）。", "slug");
         }
     }
 }

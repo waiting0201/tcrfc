@@ -7,11 +7,17 @@ namespace Tcrfc.Api.Features.AdminPages;
 public abstract class AdminPageException(string message) : Exception(message);
 
 /// <summary>輸入不合法：網址名稱格式錯誤、區塊型別不支援、區塊內容缺必填欄位、排程時間不在未來……。對應 400。</summary>
-public sealed class AdminPageValidationException(string message) : AdminPageException(message);
+public sealed class AdminPageValidationException(string message, string? field = null) : AdminPageException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary><c>UQ_pages_club_slug (club_id, slug)</c> 已被同俱樂部的其他頁面使用。對應 409。</summary>
 public sealed class PageSlugConflictException(string slug)
-    : AdminPageException($"網址名稱「{slug}」在這個俱樂部底下已經被使用，請換一個。");
+    : AdminPageException($"網址名稱「{slug}」在這個俱樂部底下已經被使用，請換一個。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("slug", Message);
+}
 
 /// <summary>樂觀並行衝突：呼叫端宣稱看到的 <c>updated_at</c> 跟資料庫目前的值對不起來。對應 409，⛔ 不做「後寫的贏」。</summary>
 public sealed class PageConcurrencyConflictException()

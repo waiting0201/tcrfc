@@ -358,6 +358,13 @@ public sealed class UserFacingMessageContentTests
 
         foreach (var arg in argumentList.Arguments)
         {
+            // 欄位鍵（例外建構子的選填 field 引數，如 "slug"、FieldKey.Bi("title", "zh")）是給前端對應欄位用的機器可讀字串，
+            // 不是使用者看得到的訊息，不在這條規則的範圍；訊息本身不得含鍵名由 AdminFieldErrorsTests 逐則斷言。
+            if (IsFieldKeyArgument(arg.Expression))
+            {
+                continue;
+            }
+
             if (ExpressionMightLeak(arg.Expression, semanticModel, new HashSet<ISymbol>(SymbolEqualityComparer.Default), depth: 0))
             {
                 var lineSpan = creationNode.SyntaxTree.GetLineSpan(creationNode.Span);
@@ -365,6 +372,12 @@ public sealed class UserFacingMessageContentTests
             }
         }
     }
+
+    private static bool IsFieldKeyArgument(ExpressionSyntax expr)
+        => expr is LiteralExpressionSyntax literal
+               && literal.IsKind(SyntaxKind.StringLiteralExpression)
+               && Tcrfc.Api.Common.FieldKey.IsValid(literal.Token.ValueText)
+           || expr is InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax { Expression: IdentifierNameSyntax { Identifier.Text: "FieldKey" } } };
 
     private static string Format(SyntaxTree tree, SyntaxNode node, string label)
     {

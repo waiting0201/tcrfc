@@ -489,7 +489,7 @@ public sealed class AdminArticlesRepository(
     {
         if (request.PublishAt <= DateTime.UtcNow)
         {
-            throw new AdminArticleValidationException("排程發布時間必須晚於現在。");
+            throw new AdminArticleValidationException("排程發布時間必須晚於現在。", "publishAt");
         }
 
         var article = await LoadTrackedForWriteAsync(scope, id, cancellationToken);
@@ -831,7 +831,7 @@ public sealed class AdminArticlesRepository(
         var category = await dbContext.ArticleCategories.AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code == categoryCode, cancellationToken);
 
-        return category ?? throw new AdminArticleValidationException($"找不到分類代碼「{categoryCode}」。");
+        return category ?? throw new AdminArticleValidationException("找不到所選的分類，請重新選擇。", "category");
     }
 
     /// <summary>
@@ -847,9 +847,10 @@ public sealed class AdminArticlesRepository(
         var result = new List<Tag>();
         var seenSlugs = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var input in inputs)
+        for (var index = 0; index < inputs.Count; index++)
         {
-            TagSlugFormat.Validate(input.Slug);
+            var input = inputs[index];
+            TagSlugFormat.Validate(input.Slug, FieldKey.Item("tags", index, "slug"));
             if (!seenSlugs.Add(input.Slug))
             {
                 continue; // 同一次請求重複送同一個標籤，容錯忽略，不視為錯誤。
@@ -863,7 +864,7 @@ public sealed class AdminArticlesRepository(
                 if (string.IsNullOrWhiteSpace(input.NameZh))
                 {
                     throw new AdminArticleValidationException(
-                        $"標籤「{input.Slug}」尚未建立，新增標籤時必須提供中文名稱。");
+                        $"標籤「{input.Slug}」尚未建立，新增標籤時必須提供中文名稱。", FieldKey.Item("tags", index, "nameZh"));
                 }
 
                 var now = DateTime.UtcNow;
@@ -889,13 +890,14 @@ public sealed class AdminArticlesRepository(
         var result = new List<string>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        foreach (var value in values)
+        for (var index = 0; index < values.Count; index++)
         {
+            var value = values[index];
             if (!AllowedCoreValueTags.Contains(value))
             {
                 throw new AdminArticleValidationException(
-                    $"核心價值標籤「{value}」不是合法值，合法值只有「以球員為本」「追求卓越」「國際發展」" +
-                    "「社區共好」「誠信專業」（規劃書五大核心價值）對應的五個系統代碼。");
+                    "核心價值只能從「以球員為本」「追求卓越」「國際發展」「社區共好」「誠信專業」五項中選擇，請重新選擇。",
+                    FieldKey.Item("coreValueTags", index));
             }
 
             if (seen.Add(value))
@@ -936,12 +938,14 @@ public sealed class AdminArticlesRepository(
         var result = new List<ArticleRelation>();
         var seen = new HashSet<(string TargetType, Guid TargetId)>();
 
-        foreach (var input in inputs)
+        for (var index = 0; index < inputs.Count; index++)
         {
+            var input = inputs[index];
             if (!AllowedRelationTargetTypes.Contains(input.TargetType))
             {
                 throw new AdminArticleValidationException(
-                    $"關聯類型「{input.TargetType}」不支援，只能關聯球員、球隊、賽事、課程或夥伴其中一種。");
+                    "關聯的類型只能是球員、球隊、賽事、課程或夥伴其中一種，請重新選擇。",
+                    FieldKey.Item("relations", index, "targetType"));
             }
 
             if (!seen.Add((input.TargetType, input.TargetId)))
@@ -967,8 +971,9 @@ public sealed class AdminArticlesRepository(
             if (!exists)
             {
                 throw new AdminArticleValidationException(
-                    $"找不到這筆關聯的目標資料（{RelationTargetTypeLabel(input.TargetType)}），" +
-                    "或者它不屬於這篇文章所屬的俱樂部——關聯目標必須跟文章屬於同一個俱樂部。");
+                    $"找不到這筆關聯的{RelationTargetTypeLabel(input.TargetType)}，" +
+                    "或者它不屬於這篇文章所屬的俱樂部，請重新選擇。",
+                    FieldKey.Item("relations", index, "targetId"));
             }
 
             result.Add(new ArticleRelation { ArticleId = articleId, TargetType = input.TargetType, TargetId = input.TargetId });
@@ -1005,7 +1010,7 @@ public sealed class AdminArticlesRepository(
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Title))
         {
-            throw new AdminArticleValidationException("中文標題為必填欄位。");
+            throw new AdminArticleValidationException("中文標題為必填欄位。", FieldKey.Bi("title", "zh"));
         }
     }
 

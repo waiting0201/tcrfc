@@ -6,12 +6,16 @@ namespace Tcrfc.Api.Common;
 /// <c>AdminXxxValidationException</c>，本批六個模組型別與語意完全相同（400／409／403），不再逐模組複製六份。
 /// 訊息一律是日常中文（規劃書 §4.0：介面不得出現資料表名、欄位名或英文技術詞）。
 /// </summary>
-public sealed class AdminValidationException(string message) : Exception(message);
+public sealed class AdminValidationException(string message, string? field = null) : Exception(message), IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = FieldKey.Single(field, message);
+}
 
 /// <summary>唯一性衝突或「仍被引用所以不能刪」。對應 409；<see cref="Title"/> 是給畫面的短標題。</summary>
-public sealed class AdminConflictException(string title, string message) : Exception(message)
+public sealed class AdminConflictException(string title, string message, string? field = null) : Exception(message), IFieldApiException
 {
     public string Title { get; } = title;
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = FieldKey.Single(field, message);
 }
 
 /// <summary>共同內容（<c>club_id IS NULL</c>，兩隊共用）透過俱樂部範圍端點寫入時一律擋下，

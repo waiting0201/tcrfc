@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Tcrfc.Api.Caching;
+using Tcrfc.Api.Common;
 using Tcrfc.Api.Data;
 using Tcrfc.Api.Data.EfEntities;
 using Tcrfc.Api.Localization;
@@ -320,11 +321,11 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
     {
         if (string.IsNullOrWhiteSpace(code))
         {
-            throw new AdminTeamValidationException("隊別代號為必填欄位。");
+            throw new AdminTeamValidationException("隊別代號為必填欄位。", "code");
         }
         if (code.Length > 8)
         {
-            throw new AdminTeamValidationException("隊別代號長度不能超過 8 個字元（資料庫欄位上限）。");
+            throw new AdminTeamValidationException("隊別代號不可超過 8 個字元。", "code");
         }
     }
 
@@ -332,7 +333,7 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
     {
         if (!AllowedTypes.Contains(type))
         {
-            throw new AdminTeamValidationException("球隊類型只能是「first_team」（一線隊）或「academy」（學院梯隊）。");
+            throw new AdminTeamValidationException("球隊類型只能選「一線隊」或「學院梯隊」。", "type");
         }
     }
 
@@ -340,7 +341,7 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
     {
         if (!AllowedGenders.Contains(gender))
         {
-            throw new AdminTeamValidationException("性別欄位只能是「men」「women」或「mixed」。");
+            throw new AdminTeamValidationException("性別只能選「男子」「女子」或「男女混合」。", "gender");
         }
     }
 
@@ -348,7 +349,7 @@ public sealed class AdminTeamsRepository(ClubDbContext dbContext, IQueryCache ca
     {
         if (string.IsNullOrWhiteSpace(content.Zh.Name))
         {
-            throw new AdminTeamValidationException("中文名稱為必填欄位。");
+            throw new AdminTeamValidationException("中文名稱為必填欄位。", FieldKey.Bi("name", "zh"));
         }
     }
 

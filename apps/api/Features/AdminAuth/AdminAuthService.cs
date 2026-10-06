@@ -380,4 +380,7 @@ public sealed class AdminAuthService(
     }
 }
 
-public sealed class AdminAuthValidationException(string message) : Exception(message);
+public sealed class AdminAuthValidationException(string message, string? field = null) : Exception(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}

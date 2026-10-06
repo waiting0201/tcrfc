@@ -2,7 +2,10 @@ namespace Tcrfc.Api.Features.AdminClubs;
 
 public abstract class AdminClubException(string message) : Exception(message);
 
-public sealed class AdminClubValidationException(string message) : AdminClubException(message);
+public sealed class AdminClubValidationException(string message, string? field = null) : AdminClubException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary><c>clubs.code</c> 全域唯一（<c>UQ_clubs_code</c>）已被使用。對應 409。</summary>
 public sealed class AdminClubCodeConflictException(string code)

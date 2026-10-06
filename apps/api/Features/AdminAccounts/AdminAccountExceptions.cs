@@ -5,7 +5,10 @@ namespace Tcrfc.Api.Features.AdminAccounts;
 public abstract class AdminAccountException(string message) : Exception(message);
 
 /// <summary>輸入不合法（帳號名稱格式、密碼不符政策、俱樂部代碼不存在……）。對應 400。</summary>
-public sealed class AdminAccountValidationException(string message) : AdminAccountException(message);
+public sealed class AdminAccountValidationException(string message, string? field = null) : AdminAccountException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary><c>admin_users.username</c> 全域唯一已被使用。對應 409。</summary>
 public sealed class AdminAccountUsernameConflictException(string username)

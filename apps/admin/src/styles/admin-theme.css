@@ -233,6 +233,17 @@ body {
   --el-table-row-hover-bg-color: var(--admin-bg-surface-2);
 }
 
+/* ── 欄位驗證錯誤（docs/22 §1.8 先例：不只靠顏色）──────────────────────────────
+   錯誤欄位的外框由 1px 中性色改成 2px 危險色（形狀改變）；錯誤文字與「⚠」由 FormField 自畫。
+   危險文字色 --admin-danger-text 對五層背景都 ≥ 3:1（check-contrast.mjs【4】已驗） */
+html.dark .el-form-item.is-error .el-input__wrapper,
+html.dark .el-form-item.is-error .el-textarea__inner,
+html.dark .el-form-item.is-error .el-select__wrapper,
+html.dark .el-form-item.is-error .el-input__wrapper.is-focus,
+html.dark .el-form-item.is-error .el-textarea__inner:focus {
+  box-shadow: 0 0 0 2px var(--admin-danger-text) inset;
+}
+
 /* 手機寬度下的通用調整（§8） */
 @media (max-width: 767px) {
   .admin-hide-on-mobile {

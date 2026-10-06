@@ -177,12 +177,12 @@ public static class AdminArticlesEndpoints
 
             if (file is not null && request.RemoveCover)
             {
-                throw new AdminArticleValidationException("不能同時上傳新的封面圖片與移除封面圖片，請擇一。");
+                throw new AdminArticleValidationException("不能同時上傳新的封面圖片與移除封面圖片，請擇一。", "cover");
             }
 
             if (ogImageFile is not null && request.RemoveOgImage)
             {
-                throw new AdminArticleValidationException("不能同時上傳新的 OG 圖片與移除 OG 圖片，請擇一。");
+                throw new AdminArticleValidationException("不能同時上傳新的分享圖片與移除分享圖片，請擇一。", "ogImage");
             }
 
             string? uploadedKey = null;

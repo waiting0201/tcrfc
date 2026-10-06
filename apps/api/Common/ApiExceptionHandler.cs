@@ -297,6 +297,31 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
             problem.Extensions["code"] = coded.Code;
         }
 
+        // 欄位歸屬：只有 400／409 才帶 errors（欄位鍵 → 訊息陣列，與 ValidationProblemDetails 形狀相容），前端據此把訊息標到欄位。
+        // detail 不變（沒有欄位歸屬的畫面仍靠它顯示）。格式不合法的鍵是程式錯誤，丟棄並記警告，不讓錯誤回應本身壞掉。
+        if (exception is IFieldApiException fieldError
+            && fieldError.FieldErrors.Count > 0
+            && statusCode is StatusCodes.Status400BadRequest or StatusCodes.Status409Conflict)
+        {
+            var errors = new Dictionary<string, string[]>();
+            foreach (var (key, message) in fieldError.FieldErrors)
+            {
+                if (FieldKey.IsValid(key))
+                {
+                    errors[key] = [message];
+                }
+                else
+                {
+                    logger.LogWarning("欄位錯誤的鍵格式不合法，已略過：{Key}", key);
+                }
+            }
+
+            if (errors.Count > 0)
+            {
+                problem.Extensions["errors"] = errors;
+            }
+        }
+
         if (exception is MemberAccountLockedException locked)
         {
             problem.Extensions["lockedUntil"] = locked.LockedUntilUtc.ToString("yyyy-MM-ddTHH:mm:ss.fffZ", System.Globalization.CultureInfo.InvariantCulture);

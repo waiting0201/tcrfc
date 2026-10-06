@@ -4,7 +4,10 @@ public abstract class AdminRoleException(string message) : Exception(message);
 
 /// <summary>輸入不合法（角色代碼格式、<c>scope_mode</c>／<c>scope_type</c> 不在值域內、
 /// 權限碼不存在……）。對應 400。</summary>
-public sealed class AdminRoleValidationException(string message) : AdminRoleException(message);
+public sealed class AdminRoleValidationException(string message, string? field = null) : AdminRoleException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary><c>admin_roles.code</c> 全域唯一已被使用。對應 409。</summary>
 public sealed class AdminRoleCodeConflictException(string code)

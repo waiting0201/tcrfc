@@ -181,6 +181,16 @@ function pairsFor(BG, P) {
     ['focus 外框 on surface-2', pr, surface2, AA_UI],
     ['focus 外框 on overlay', pr, overlay, AA_UI],
     ['focus 外框 on input', pr, input, AA_UI],
+
+    // 欄位驗證錯誤外框（2px 危險色）：UI 元件門檻 3:1，五層背景都要驗（錯誤欄位可能出現在對話框＝overlay）
+    ['錯誤欄位外框 on canvas', '#FFAD94', canvas, AA_UI],
+    ['錯誤欄位外框 on surface', '#FFAD94', surface, AA_UI],
+    ['錯誤欄位外框 on surface-2', '#FFAD94', surface2, AA_UI],
+    ['錯誤欄位外框 on overlay', '#FFAD94', overlay, AA_UI],
+    ['錯誤欄位外框 on input', '#FFAD94', input, AA_UI],
+    // 錯誤訊息文字（FormField 的 ⚠＋訊息、分頁標籤的「N 處需修正」）：置於 surface／surface-2／overlay，4.5:1
+    ['錯誤訊息文字 on surface-2', '#FFAD94', surface2, AA_TEXT],
+    ['錯誤訊息文字 on overlay', '#FFAD94', overlay, AA_TEXT],
   ]
   return pairs
 }

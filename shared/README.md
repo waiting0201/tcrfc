@@ -11,7 +11,7 @@
 | `openapi.json` | **產生** | `apps/api` 建置期產出的 OpenAPI 3.1，已排除後台、慈善平台、伺服器內部端點並正規化 |
 | `generated/swift/TcrfcApiModels.swift` | **產生** | Swift `Codable` DTO（183 個型別） |
 | `generated/kotlin/TcrfcApiModels.kt` | **產生** | Kotlin `@Serializable` DTO（同上） |
-| `error-codes.json` | **產生** | 從 `apps/api` 原始碼掃出的機器可讀錯誤代碼（89 個），每個附 `messageEn`／`retryable`；錯誤信封（`code`／`messageZh`／`messageEn`／`retryable`，App 規劃書 §9.5）、依狀態的通用代碼 `statusDefaults`、重試規則與殘餘缺口 |
+| `error-codes.json` | **產生** | 從 `apps/api` 原始碼掃出的機器可讀錯誤代碼（89 個），每個附 `messageEn`／`retryable`；錯誤信封（`code`／`messageZh`／`messageEn`／`retryable`，App 規劃書 §9.5）、依狀態的通用代碼 `statusDefaults`、重試規則與殘餘缺口；錯誤信封另有選填 `errors`（僅後台 400／409：欄位鍵 → 訊息陣列，鍵格式見 `apps/api/README.md`「欄位錯誤」，App 用不到、可忽略） |
 | `image-derivatives.json` | **產生** | 圖片衍生檔網址命名規則（1280／640／320／thumb）、挑選建議與範例，來源 `apps/api/Images`（缺口 A5） |
 | `enums.json` | **產生** | 封閉值域（球隊 type／gender、賽事 status、梯次／試訓／報名的穩定狀態代碼與雙語標籤），來源 `db/club-schema.sql` 的 CHECK 與 `apps/api/Common/EnrollmentStatus.cs`（缺口 A10、C2） |
 | `news-body-blocks.json` | **產生** | 新聞內文 `bodyJson` 的區塊型別與別名、未知型別約定（忽略）、圖片網址安全規則；來源 `apps/web/app/utils/news-body.ts`（缺口 D2） |

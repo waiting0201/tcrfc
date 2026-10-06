@@ -18,24 +18,24 @@ public static partial class AdminInput
     private static string Spaced(string label)
         => label.Length > 0 && char.IsAsciiLetterOrDigit(label[^1]) ? label + " " : label;
 
-    public static string RequireText(string? value, string label, int maxLength)
+    public static string RequireText(string? value, string label, int maxLength, string? field = null)
     {
         var trimmed = value?.Trim();
         if (string.IsNullOrEmpty(trimmed))
         {
-            throw new AdminValidationException($"{Spaced(label)}為必填欄位。");
+            throw new AdminValidationException($"{Spaced(label)}為必填欄位。", field);
         }
 
         if (trimmed.Length > maxLength)
         {
-            throw new AdminValidationException($"{Spaced(label)}不可超過 {maxLength} 個字。");
+            throw new AdminValidationException($"{Spaced(label)}不可超過 {maxLength} 個字。", field);
         }
 
         return trimmed;
     }
 
     /// <summary>選填文字：空白視為沒有（回傳 <c>null</c>）。</summary>
-    public static string? OptionalText(string? value, string label, int maxLength)
+    public static string? OptionalText(string? value, string label, int maxLength, string? field = null)
     {
         var trimmed = value?.Trim();
         if (string.IsNullOrEmpty(trimmed))
@@ -45,15 +45,15 @@ public static partial class AdminInput
 
         if (trimmed.Length > maxLength)
         {
-            throw new AdminValidationException($"{Spaced(label)}不可超過 {maxLength} 個字。");
+            throw new AdminValidationException($"{Spaced(label)}不可超過 {maxLength} 個字。", field);
         }
 
         return trimmed;
     }
 
-    public static string? OptionalHttpUrl(string? value, string label, int maxLength = 500)
+    public static string? OptionalHttpUrl(string? value, string label, int maxLength = 500, string? field = null)
     {
-        var text = OptionalText(value, label, maxLength);
+        var text = OptionalText(value, label, maxLength, field);
         if (text is null)
         {
             return null;
@@ -61,77 +61,77 @@ public static partial class AdminInput
 
         if (!Uri.TryCreate(text, UriKind.Absolute, out var uri) || (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp))
         {
-            throw new AdminValidationException($"{Spaced(label)}必須是以 http:// 或 https:// 開頭的完整網址。");
+            throw new AdminValidationException($"{Spaced(label)}必須是以 http:// 或 https:// 開頭的完整網址。", field);
         }
 
         return text;
     }
 
-    public static string? OptionalEmail(string? value, string label)
+    public static string? OptionalEmail(string? value, string label, string? field = null)
     {
-        var text = OptionalText(value, label, 255);
+        var text = OptionalText(value, label, 255, field);
         if (text is not null && !EmailFormat().IsMatch(text))
         {
-            throw new AdminValidationException($"{Spaced(label)}的格式不正確。");
+            throw new AdminValidationException($"{Spaced(label)}的格式不正確。", field);
         }
 
         return text;
     }
 
     /// <summary>選填電話：只允許數字、+、-、空白與括號（同會員註冊的規則），至少要有 6 碼數字，32 字以內。</summary>
-    public static string? OptionalPhone(string? value, string label)
+    public static string? OptionalPhone(string? value, string label, string? field = null)
     {
-        var text = OptionalText(value, label, 32);
+        var text = OptionalText(value, label, 32, field);
         if (text is not null
             && (!text.All(c => char.IsAsciiDigit(c) || c is '+' or '-' or ' ' or '(' or ')') || text.Count(char.IsAsciiDigit) < 6))
         {
-            throw new AdminValidationException($"{Spaced(label)}的格式不正確，只能包含數字、+、-、空白與括號，且至少 6 碼數字。");
+            throw new AdminValidationException($"{Spaced(label)}的格式不正確，只能包含數字、+、-、空白與括號，且至少 6 碼數字。", field);
         }
 
         return text;
     }
 
-    public static void DateRange(DateOnly? start, DateOnly? end, string label)
+    public static void DateRange(DateOnly? start, DateOnly? end, string label, string? field = null)
     {
         if (start is not null && end is not null && end < start)
         {
-            throw new AdminValidationException($"{Spaced(label)}的結束日期不可早於開始日期。");
+            throw new AdminValidationException($"{Spaced(label)}的結束日期不可早於開始日期。", field);
         }
     }
 
-    public static int? OptionalNonNegative(int? value, string label)
+    public static int? OptionalNonNegative(int? value, string label, string? field = null)
     {
         if (value is < 0)
         {
-            throw new AdminValidationException($"{Spaced(label)}不可為負數。");
+            throw new AdminValidationException($"{Spaced(label)}不可為負數。", field);
         }
 
         return value;
     }
 
-    public static string OneOf(string? value, IReadOnlySet<string> allowed, string label, string allowedText)
+    public static string OneOf(string? value, IReadOnlySet<string> allowed, string label, string allowedText, string? field = null)
     {
         if (value is null || !allowed.Contains(value))
         {
-            throw new AdminValidationException($"{Spaced(label)}只能是{allowedText}。");
+            throw new AdminValidationException($"{Spaced(label)}只能是{allowedText}。", field);
         }
 
         return value;
     }
 
     /// <summary>網址名稱：小寫英文字母、數字與連字號，比照 <c>FaqSlugPolicy</c> 的格式規則。</summary>
-    public static string Slug(string slug, string label = "網址名稱")
+    public static string Slug(string slug, string label = "網址名稱", string? field = "slug")
     {
         if (string.IsNullOrWhiteSpace(slug))
         {
-            throw new AdminValidationException($"{Spaced(label)}為必填欄位。");
+            throw new AdminValidationException($"{Spaced(label)}為必填欄位。", field);
         }
 
         if (slug.Length > 160 || !SlugFormat().IsMatch(slug))
         {
             throw new AdminValidationException(
                 $"{Spaced(label)}「{slug}」格式不正確：只能使用小寫英文字母、數字與連字號（-），" +
-                "開頭與結尾不能是連字號，也不能連續兩個連字號，長度不可超過 160 字。");
+                "開頭與結尾不能是連字號，也不能連續兩個連字號，長度不可超過 160 字。", field);
         }
 
         return slug;
@@ -156,7 +156,7 @@ public static partial class AdminInput
     /// <summary>區塊編輯器整段 JSON 的檢查（不驗證區塊結構），理由同 <c>AdminProgramsRepository.ValidateContentJson</c>。
     /// 除了語法，還要求根節點是<b>物件或陣列</b>：正式環境的 json 欄位是原生 json 型別，純量（字串、數字、
     /// true、null）會被資料庫拒絕而變成 500（docs/18 E-111），所以在這裡擋成 400。</summary>
-    public static string? OptionalJson(string? content, string label)
+    public static string? OptionalJson(string? content, string label, string? field = null)
     {
         if (string.IsNullOrWhiteSpace(content))
         {
@@ -165,7 +165,7 @@ public static partial class AdminInput
 
         if (!JsonColumn.IsObjectOrArray(content))
         {
-            throw new AdminValidationException($"{Spaced(label)}不是合法的區塊內容格式，請確認編輯器的輸出。");
+            throw new AdminValidationException($"{Spaced(label)}不是合法的區塊內容格式，請確認編輯器的輸出。", field);
         }
 
         return content;

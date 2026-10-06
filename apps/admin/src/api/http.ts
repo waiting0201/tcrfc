@@ -41,13 +41,26 @@ export class AdminApiError extends Error {
   detail?: string
   /** 原始的錯誤本文（ProblemDetails 加上端點自帶欄位），例如改期衝突的 `conflicts`。 */
   body?: unknown
+  /**
+   * 後端標到欄位的驗證錯誤：欄位鍵 → 第一則訊息。鍵已正規化成前端欄位鍵（`nameZh`、`slug`、`blocks[2].bodyEn`），
+   * 只在程式內對照用，**不得顯示在畫面上**。沒有欄位資訊時為 `undefined`。
+   */
+  fieldErrors?: Record<string, string>
+  /** 後端的錯誤代碼（如有）。 */
+  code?: string
 
-  constructor(kind: AdminApiErrorKind, message: string, options?: { status?: number; detail?: string; body?: unknown }) {
+  constructor(
+    kind: AdminApiErrorKind,
+    message: string,
+    options?: { status?: number; detail?: string; body?: unknown; fieldErrors?: Record<string, string>; code?: string },
+  ) {
     super(message)
     this.kind = kind
     this.status = options?.status
     this.detail = options?.detail
     this.body = options?.body
+    this.fieldErrors = options?.fieldErrors
+    this.code = options?.code
   }
 }
 
@@ -56,6 +69,46 @@ interface ErrorBody {
   title?: string
   detail?: string
   message?: string
+  code?: string
+  /** ProblemDetails extension（與 ValidationProblemDetails 相容）：欄位鍵 → 訊息陣列（或單一字串）。 */
+  errors?: Record<string, string[] | string>
+}
+
+const lowerFirst = (s: string) => (s ? s.charAt(0).toLowerCase() + s.slice(1) : s)
+const upperFirst = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s)
+
+/**
+ * 後端欄位鍵 → 前端欄位鍵。後端約定的鍵已是 camelCase（`nameZh`、`blocks[2].bodyEn`），原樣通過；
+ * 另相容 ASP.NET 模型繫結慣用的路徑形式，例如 `content.zh.name`（或 `Content.Zh.Name`）轉成 `nameZh`。
+ */
+export function normalizeFieldKey(raw: string): string {
+  const key = raw.replace(/^\$\./, '')
+  const parts = key.split('.')
+  if (parts.length >= 3 && lowerFirst(parts[0]) === 'content') {
+    const lang = parts[1].toLowerCase()
+    if (lang === 'zh' || lang === 'en') {
+      const rest = parts.slice(2).map(lowerFirst)
+      const [head, ...tail] = rest
+      const suffix = upperFirst(lang)
+      // `content.zh.name` → `nameZh`；`content.zh.blocks[2].body` 這類巢狀只在最後一段加語言後綴
+      if (tail.length === 0) return `${head}${suffix}`
+      return `${[head, ...tail.slice(0, -1)].join('.')}.${tail[tail.length - 1]}${suffix}`
+    }
+  }
+  return parts.map(lowerFirst).join('.')
+}
+
+function parseFieldErrors(body: ErrorBody | null): Record<string, string> | undefined {
+  const raw = body?.errors
+  if (!raw || typeof raw !== 'object') return undefined
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw)) {
+    const msg = Array.isArray(v) ? v.find((m) => typeof m === 'string' && m.trim()) : typeof v === 'string' ? v : undefined
+    if (!msg || !msg.trim()) continue
+    const key = normalizeFieldKey(k)
+    if (!(key in out)) out[key] = msg
+  }
+  return Object.keys(out).length > 0 ? out : undefined
 }
 
 /**
@@ -74,18 +127,25 @@ function looksLikeSessionExpired(body: ErrorBody | null): boolean {
 function classifyByStatus(body: ErrorBody | null, status: number): AdminApiError {
   const detail = body?.detail ?? body?.message ?? ''
   const title = body?.title
+  const fieldErrors = parseFieldErrors(body)
+  const code = body?.code
 
-  if (status === 400) return new AdminApiError('validation', detail || '輸入內容有誤', { status, detail })
+  if (status === 400 || status === 422) {
+    return new AdminApiError('validation', detail || '輸入內容有誤', { status, detail, body, fieldErrors, code })
+  }
   if (status === 401) return new AdminApiError('invalid-credential', detail || '帳號或密碼不正確。', { status, detail })
   if (status === 403) return new AdminApiError('forbidden', detail || '你沒有權限執行這個操作。', { status, detail })
   if (status === 404) return new AdminApiError('not-found', detail || '找不到這筆資料', { status, detail })
   if (status === 409) {
-    if (title === '網址名稱重複' || title === '網址代稱重複') return new AdminApiError('slug-conflict', detail, { status, detail })
-    if (title === '資料已被變更') return new AdminApiError('concurrency-conflict', detail, { status, detail })
-    if (title === '置頂精選已達上限') return new AdminApiError('featured-limit', detail, { status, detail })
-    if (title === '狀態轉換不允許') return new AdminApiError('status-conflict', detail, { status, detail })
-    if (title === '排程衝突') return new AdminApiError('schedule-conflict', detail || '這個時段與其他行程衝突', { status, detail, body })
-    return new AdminApiError('unknown', detail || '這筆資料目前無法這樣操作', { status, detail })
+    if (title === '網址名稱重複' || title === '網址代稱重複') {
+      // 後端沒帶欄位資訊時，網址名稱重複固定標到 `slug`
+      return new AdminApiError('slug-conflict', detail, { status, detail, body, fieldErrors: fieldErrors ?? (detail ? { slug: detail } : undefined), code })
+    }
+    if (title === '資料已被變更') return new AdminApiError('concurrency-conflict', detail, { status, detail, body, fieldErrors, code })
+    if (title === '置頂精選已達上限') return new AdminApiError('featured-limit', detail, { status, detail, body, fieldErrors, code })
+    if (title === '狀態轉換不允許') return new AdminApiError('status-conflict', detail, { status, detail, body, fieldErrors, code })
+    if (title === '排程衝突') return new AdminApiError('schedule-conflict', detail || '這個時段與其他行程衝突', { status, detail, body, fieldErrors, code })
+    return new AdminApiError('unknown', detail || '這筆資料目前無法這樣操作', { status, detail, body, fieldErrors, code })
   }
   // 🔴 一定要帶 `body`：503 的 `code`（geocoder_unavailable＝暫時故障、其他＝尚未啟用）靠它區分，
   // 先前漏帶，「由地址定位」暫時故障會被誤判成尚未啟用而把按鈕停用（docs/18 E-140）。

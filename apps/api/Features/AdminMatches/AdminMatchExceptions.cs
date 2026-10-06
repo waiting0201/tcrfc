@@ -2,7 +2,10 @@ namespace Tcrfc.Api.Features.AdminMatches;
 
 public abstract class AdminMatchException(string message) : Exception(message);
 
-public sealed class AdminMatchValidationException(string message) : AdminMatchException(message);
+public sealed class AdminMatchValidationException(string message, string? field = null) : AdminMatchException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary>「場次編號同季同聯賽唯一」（主站規劃書 §4.3 C4）——<c>(club_id, season_id,
 /// competition_id, match_no)</c> 在應用層檢查（<c>matches.match_no</c> 沒有 DB 唯一索引，

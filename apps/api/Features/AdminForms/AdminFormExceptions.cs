@@ -1,7 +1,10 @@
 namespace Tcrfc.Api.Features.AdminForms;
 
 /// <summary>G1 表單設計器輸入驗證失敗——統一轉 400，比照既有 <c>AdminProgramValidationException</c> 家族。</summary>
-public sealed class AdminFormValidationException(string message) : Exception(message);
+public sealed class AdminFormValidationException(string message, string? field = null) : Exception(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary>同一張表單內 <c>field_key</c> 重複——比照 <c>ArticleSlugConflictException</c> 轉 409。
 /// 🔴 DB 層沒有 <c>UNIQUE (form_id, field_key)</c>（本輪判斷只在應用層擋，見

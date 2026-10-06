@@ -9,9 +9,10 @@ public interface ICodedApiException
 }
 
 /// <summary>輸入有誤。對應 400。</summary>
-public sealed class MemberValidationException(string message, string code = "validation_failed") : Exception(message), ICodedApiException
+public sealed class MemberValidationException(string message, string code = "validation_failed", string? field = null) : Exception(message), ICodedApiException, IFieldApiException
 {
     public string Code { get; } = code;
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = FieldKey.Single(field, message);
 }
 
 /// <summary>沒有登入、權杖無效或帳號已停用。對應 401。</summary>

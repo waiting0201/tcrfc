@@ -65,7 +65,8 @@ public sealed class AdminNewsSlugPolicyTests(AdminWriteApiFixture fixture)
         var response = await client.PostAsync("/api/v1/admin/tcrfc/news", AdminArticleMultipart.Build(NewDraftRequest(reservedWord)));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        var body = await response.Content.ReadAsStringAsync();
+        // 只檢查給人看的 detail：回應的 errors 以欄位鍵 slug 標到欄位（給前端對應用），鍵不算訊息文字。
+        var body = (await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>()).GetProperty("detail").GetString()!;
         Assert.DoesNotContain("slug", body, StringComparison.OrdinalIgnoreCase); // ⛔ 訊息不得出現英文技術詞（docs/06 §1）
         Assert.Contains("網址名稱", body);
         Assert.Contains(reservedWord, body); // 訊息要點出實際送出的值，不是只講規則

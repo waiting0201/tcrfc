@@ -2,14 +2,20 @@
 /**
  * C1 球隊——編輯頁。對照 apps/api/README.md「S1-7」。
  */
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import FrontendUnitBanner from '@/components/FrontendUnitBanner.vue'
 import PageHeader from '@/components/PageHeader.vue'
 import BilingualShortField from '@/components/BilingualShortField.vue'
 import BilingualTextareaField from '@/components/BilingualTextareaField.vue'
+import EditActionBar from '@/components/EditActionBar.vue'
+import EditLayout from '@/components/EditLayout.vue'
+import FormErrorStatus from '@/components/FormErrorStatus.vue'
+import FormField from '@/components/FormField.vue'
 import ImageUploader from '@/components/ImageUploader.vue'
+import LangTabsCard from '@/components/LangTabsCard.vue'
+import { provideFormErrors } from '@/composables/useFormErrors'
 import { useUnsavedChanges } from '@/composables/useUnsavedChanges'
 import { activeClubId } from '@/auth/clubAccess'
 import {
@@ -52,7 +58,11 @@ const removeHero = ref(false)
 const loadState = ref<'loading' | 'ready' | 'error' | 'not-found'>('loading')
 const loadErrorMessage = ref('')
 const saving = ref(false)
+/** 頁首提示：只放「沒有對到欄位」的錯誤；欄位錯誤標在欄位上（formErrors）。 */
 const formError = ref<string | null>(null)
+const formErrors = provideFormErrors()
+// 選檔或移除主視覺就清掉該欄位的錯誤
+watch([heroFile, removeHero], () => formErrors.clear('hero'))
 
 async function loadTeam() {
   loadState.value = 'loading'
@@ -98,17 +108,12 @@ function isEnEmpty(): boolean {
   return !form.nameEn.trim() && !form.introEn.trim()
 }
 
-function validate(): boolean {
-  formError.value = null
-  if (!form.code.trim()) {
-    formError.value = '請輸入隊別代號'
-    return false
-  }
-  if (!form.nameZh.trim()) {
-    formError.value = '請輸入中文名稱'
-    return false
-  }
-  return true
+/** 一次檢查全部必填，回傳 欄位鍵 → 訊息（鍵只在程式內對照，不顯示）。 */
+function validate(): Record<string, string> {
+  const errors: Record<string, string> = {}
+  if (!form.code.trim()) errors.code = '請輸入隊別代號'
+  if (!form.nameZh.trim()) errors.nameZh = '請輸入中文名稱'
+  return errors
 }
 
 function buildPayload(): SaveTeamPayload {
@@ -127,9 +132,12 @@ function buildPayload(): SaveTeamPayload {
 }
 
 async function handleSave() {
-  if (!validate()) return
-  saving.value = true
   formError.value = null
+  if (formErrors.replaceAll(validate())) {
+    await formErrors.focusFirst()
+    return
+  }
+  saving.value = true
   try {
     if (isCreate.value) {
       const created = await createAdminClubTeam(activeClubId.value, buildPayload(), heroFile.value)
@@ -151,6 +159,8 @@ async function handleSave() {
     removeHero.value = false
     baselineJson.value = JSON.stringify(form)
   } catch (error) {
+    // 後端標到欄位的錯誤直接標在欄位上；對不到欄位的才放頁首
+    if (error instanceof AdminApiError && formErrors.applyApiError(error)) return
     formError.value = error instanceof AdminApiError ? error.message : '儲存失敗，請稍後再試'
   } finally {
     saving.value = false
@@ -205,123 +215,100 @@ function retryLoad() {
       />
 
       <el-form label-position="top">
-        <el-card shadow="never" header="基本資料" class="team-edit__section">
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="隊別代號" required>
-                <el-input v-model="form.code" placeholder="例如 D1、BW1、U15" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="類型" required>
-                <el-select v-model="form.type" style="width: 100%">
-                  <el-option v-for="(label, value) in TEAM_TYPE_LABEL" :key="value" :label="label" :value="value" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="性別" required>
-                <el-select v-model="form.gender" style="width: 100%">
-                  <el-option v-for="(label, value) in TEAM_GENDER_LABEL" :key="value" :label="label" :value="value" />
-                </el-select>
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-row :gutter="12">
-            <el-col :span="8">
-              <el-form-item label="年齡層">
-                <el-input v-model="form.ageBand" placeholder="選填，例如 U15" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="代表色">
-                <el-input v-model="form.teamColor" placeholder="選填，例如 #E0218A" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="排序">
-                <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
-              </el-form-item>
-            </el-col>
-          </el-row>
+        <EditLayout>
+          <template #main>
+            <el-card shadow="never" header="基本資料">
+              <el-row :gutter="12">
+                <el-col :span="8">
+                  <FormField field="code" label="隊別代號" required>
+                    <el-input v-model="form.code" placeholder="例如 D1、BW1、U15" />
+                  </FormField>
+                </el-col>
+                <el-col :span="8">
+                  <FormField field="type" label="類型" required>
+                    <el-select v-model="form.type" style="width: 100%" @change="formErrors.clear('type')">
+                      <el-option v-for="(label, value) in TEAM_TYPE_LABEL" :key="value" :label="label" :value="value" />
+                    </el-select>
+                  </FormField>
+                </el-col>
+                <el-col :span="8">
+                  <FormField field="gender" label="性別" required>
+                    <el-select v-model="form.gender" style="width: 100%" @change="formErrors.clear('gender')">
+                      <el-option v-for="(label, value) in TEAM_GENDER_LABEL" :key="value" :label="label" :value="value" />
+                    </el-select>
+                  </FormField>
+                </el-col>
+              </el-row>
+              <el-row :gutter="12">
+                <el-col :span="8">
+                  <el-form-item label="年齡層">
+                    <el-input v-model="form.ageBand" placeholder="選填，例如 U15" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="代表色">
+                    <el-input v-model="form.teamColor" placeholder="選填，例如 #E0218A" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="排序">
+                    <el-input-number v-model="form.sortOrder" :min="0" style="width: 100%" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+            </el-card>
 
-          <BilingualShortField
-            label="名稱"
-            :zh="form.nameZh"
-            :en="form.nameEn"
-            required
-            @update:zh="(v) => (form.nameZh = v)"
-            @update:en="(v) => (form.nameEn = v)"
-          />
-          <BilingualTextareaField
-            label="簡介"
-            :zh="form.introZh"
-            :en="form.introEn"
-            @update:zh="(v) => (form.introZh = v)"
-            @update:en="(v) => (form.introEn = v)"
-          />
-        </el-card>
+            <LangTabsCard header="名稱與簡介">
+              <BilingualShortField
+                field="name"
+                label="名稱"
+                :zh="form.nameZh"
+                :en="form.nameEn"
+                required
+                @update:zh="(v) => (form.nameZh = v)"
+                @update:en="(v) => (form.nameEn = v)"
+              />
+              <BilingualTextareaField
+                field="intro"
+                label="簡介"
+                :zh="form.introZh"
+                :en="form.introEn"
+                @update:zh="(v) => (form.introZh = v)"
+                @update:en="(v) => (form.introEn = v)"
+              />
+            </LangTabsCard>
+          </template>
 
-        <el-card shadow="never" header="主視覺" class="team-edit__section">
-          <el-form-item label="主視覺圖片">
-            <ImageUploader
-              v-model:file="heroFile"
-              v-model:remove-cover="removeHero"
-              :has-existing-image="!!heroKey"
-              :disabled="saving"
-            />
-          </el-form-item>
-        </el-card>
+          <template #aside>
+            <el-card shadow="never" header="主視覺">
+              <FormField field="hero" label="主視覺圖片">
+                <ImageUploader
+                  v-model:file="heroFile"
+                  v-model:remove-cover="removeHero"
+                  :has-existing-image="!!heroKey"
+                  :disabled="saving"
+                />
+              </FormField>
+            </el-card>
+          </template>
+        </EditLayout>
       </el-form>
 
-      <div class="team-edit__action-bar">
+      <EditActionBar>
+        <template #status><FormErrorStatus /></template>
         <el-button type="primary" :loading="saving" @click="handleSave">儲存</el-button>
-      </div>
+      </EditActionBar>
     </template>
   </div>
 </template>
 
 <style scoped>
 .team-edit {
-  max-width: 780px;
-  margin: 0 auto 88px;
+  max-width: 1200px;
+  margin: 0 auto;
 }
 
 .team-edit__form-error {
   margin-bottom: 16px;
-}
-
-.team-edit__section {
-  margin-bottom: 16px;
-}
-
-.team-edit__action-bar {
-  position: fixed;
-  bottom: 0;
-  left: var(--admin-sidebar-width-expanded);
-  right: 0;
-  background: var(--admin-bg-surface-2);
-  border-top: 1px solid var(--admin-border);
-  padding: 12px 24px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  z-index: 10;
-}
-
-@media (max-width: 1023px) {
-  .team-edit__action-bar {
-    left: 0;
-  }
-}
-
-@media (max-width: 767px) {
-  .team-edit__action-bar {
-    justify-content: stretch;
-  }
-
-  .team-edit__action-bar :deep(.el-button) {
-    flex: 1;
-  }
 }
 </style>

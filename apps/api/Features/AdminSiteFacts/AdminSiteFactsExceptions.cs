@@ -7,4 +7,7 @@ namespace Tcrfc.Api.Features.AdminSiteFacts;
 public abstract class AdminSiteFactsException(string message) : Exception(message);
 
 /// <summary>呼叫端輸入不合法（缺必填欄位、找不到指定的既有場地……）。對應 400。</summary>
-public sealed class AdminSiteFactsValidationException(string message) : AdminSiteFactsException(message);
+public sealed class AdminSiteFactsValidationException(string message, string? field = null) : AdminSiteFactsException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}

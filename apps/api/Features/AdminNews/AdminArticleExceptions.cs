@@ -8,11 +8,17 @@ namespace Tcrfc.Api.Features.AdminNews;
 public abstract class AdminArticleException(string message) : Exception(message);
 
 /// <summary>呼叫端輸入不合法（缺必填欄位、分類代碼不存在、排程時間不在未來……）。對應 400。</summary>
-public sealed class AdminArticleValidationException(string message) : AdminArticleException(message);
+public sealed class AdminArticleValidationException(string message, string? field = null) : AdminArticleException(message), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors { get; } = Tcrfc.Api.Common.FieldKey.Single(field, message);
+}
 
 /// <summary><c>articles.slug</c> 全站唯一（<c>UQ_articles_slug</c>，不是複合鍵，見 README）已被其他文章使用。對應 409。</summary>
 public sealed class ArticleSlugConflictException(string slug)
-    : AdminArticleException($"網址名稱「{slug}」已經被使用，請換一個。");
+    : AdminArticleException($"網址名稱「{slug}」已經被使用，請換一個。"), Tcrfc.Api.Common.IFieldApiException
+{
+    public IReadOnlyDictionary<string, string> FieldErrors => Tcrfc.Api.Common.FieldKey.Single("slug", Message);
+}
 
 /// <summary>
 /// 樂觀並行衝突：呼叫端宣稱看到的 <c>updated_at</c> 跟資料庫目前的值對不起來，代表這段時間

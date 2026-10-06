@@ -214,7 +214,7 @@ public static class AdminTeamsEndpoints
 
             if (file is not null && request.RemoveHero)
             {
-                throw new AdminTeamValidationException("不能同時上傳新的主視覺圖片與移除主視覺圖片，請擇一。");
+                throw new AdminTeamValidationException("不能同時上傳新的主視覺圖片與移除主視覺圖片，請擇一。", "hero");
             }
 
             string? uploadedKey = null;

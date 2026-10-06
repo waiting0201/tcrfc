@@ -611,4 +611,23 @@ public sealed class ArchitectureTests
 
         return false;
     }
+
+    /// <summary>後台表單要把驗證錯誤標到欄位（<c>errors</c>），前提是每個驗證例外都能帶欄位鍵。
+    /// 新增 <c>*ValidationException</c> 時若漏實作 <see cref="Tcrfc.Api.Common.IFieldApiException"/>，
+    /// 該模組之後就無法補欄位歸屬——在這裡擋下，不等到前端發現。</summary>
+    [Fact]
+    public void 所有ValidationException都必須實作IFieldApiException()
+    {
+        var apiAssembly = typeof(Tcrfc.Api.Common.ApiExceptionHandler).Assembly;
+        var missing = apiAssembly.GetTypes()
+            .Where(t => t.Name.EndsWith("ValidationException", StringComparison.Ordinal) && typeof(Exception).IsAssignableFrom(t))
+            .Where(t => !typeof(Tcrfc.Api.Common.IFieldApiException).IsAssignableFrom(t))
+            .Select(t => t.FullName)
+            .ToList();
+
+        Assert.True(missing.Count == 0, "以下驗證例外沒有實作 IFieldApiException：" + string.Join("、", missing));
+
+        // 衝突類的通用例外同樣要能帶欄位（網址名稱重複等）。
+        Assert.True(typeof(Tcrfc.Api.Common.IFieldApiException).IsAssignableFrom(typeof(Tcrfc.Api.Common.AdminConflictException)));
+    }
 }
