@@ -123,7 +123,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section v-if="isBw || (info && !paymentAvailable)" class="band band--tight">
+<section v-if="isBw || (info && !paymentAvailable)" class="band band--tight sh-notice-band">
   <div class="container">
     <p v-if="isBw && isEn" class="mc-alert mc-alert--info" role="note">
       You are buying {{ clubNameEn }} merchandise. <strong>Payment is collected by {{ collectingSubject }}</strong>, and the invoice is also issued in the name of {{ collectingSubject }}.
@@ -138,7 +138,7 @@ useSeoMeta({
 </section>
 
 <!-- SPEC 3.8 §8.3 — 商品列表：分類、價格、尺寸、顏色篩選與排序 -->
-<section class="band band--tight" aria-labelledby="filters-title">
+<section class="band band--tight sh-filter-band" aria-labelledby="filters-title">
   <div class="container">
     <h2 id="filters-title" class="visually-hidden">{{ tx('商品篩選', 'Filter products') }}</h2>
     <form class="filter-row" method="get" :action="route.path">
@@ -205,7 +205,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band band--tight" aria-labelledby="products-title">
+<section class="band band--tight sh-products-band" aria-labelledby="products-title">
   <div class="container">
     <h2 id="products-title" class="visually-hidden">{{ tx('商品列表', 'Products') }}</h2>
 
@@ -300,6 +300,12 @@ useSeoMeta({
 .product-card__tags{ display:flex; flex-wrap:wrap; gap:.25rem .6rem; }
 .sh-tag{ font-size:.78rem; font-weight:700; color:var(--brand-aa); text-decoration:none; }
 .sh-tag:hover, .sh-tag:focus-visible{ text-decoration:underline; }
+/* 提示／篩選／商品列表三段連續：各自的 .band--tight 上下內距疊加後，篩選列上下空白過大（桌機約 50px／120px）。
+   篩選列與上下文屬同一個操作區，收成上 1.5rem、下接商品列表 2rem。 */
+.sh-notice-band{ padding-bottom:0; }
+.sh-filter-band{ padding-block:1.5rem 0; }
+.sh-filter-band .result-count{ margin-top:1rem; margin-bottom:0; }
+.sh-products-band{ padding-top:2rem; }
 /* 購物須知（深底）：.grain 只給深色底、不設文字色，卡片也沒有底色與內距——
    文字沿用頁面預設深色字會疊在深底上看不見。比照 .cta-band／.cta-card 的深底寫法，只用 design tokens。 */
 .shop-info-band{ color:#fff; }
