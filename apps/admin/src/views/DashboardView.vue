@@ -23,10 +23,10 @@ import {
   type ConversionPeriod,
   type DashboardDto,
   type DashboardUpcomingItem,
-  type DashboardTodo,
   type TrafficDto,
 } from '@/api/adminDashboard'
 import { formatDateTime } from '@/utils/dateTime'
+import { todoItemRoute, todoRoute } from '@/utils/todoRoutes'
 
 const router = useRouter()
 const club = computed(() => activeClubId.value)
@@ -106,25 +106,6 @@ watch(club, loadAll)
 watch(period, loadConversion)
 
 // ───────────── 待辦 ─────────────
-
-/** 待辦項目的前往位置（內部識別只用來查路由，不顯示）。 */
-const TODO_ROUTES: Record<string, string> = {
-  enquiries_new: '/inquiries/inbox',
-  registrations_pending: '/programs/enrollments',
-  sessions_closing_soon: '/programs/sessions',
-  sponsor_contracts_expiring: '/business/sponsorships',
-}
-
-function todoRoute(todo: DashboardTodo): string | null {
-  return TODO_ROUTES[todo.code] ?? null
-}
-
-/** 能直接開到單筆的待辦（詢問、梯次），其餘開到清單頁。 */
-function todoItemRoute(todo: DashboardTodo, id: string): string | null {
-  if (todo.code === 'enquiries_new') return `/inquiries/inbox/${id}/edit`
-  if (todo.code === 'sessions_closing_soon') return `/programs/sessions/${id}/edit`
-  return todoRoute(todo)
-}
 
 function go(path: string | null) {
   if (path) void router.push(path)

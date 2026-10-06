@@ -184,6 +184,7 @@
 | E-233 | 2026-10-05 | 藍鯨 zh 頁磐石專屬內容外洩：`first-team` 與 `join` 的 CTA 寫死「企甲聯賽」、`news/match` 導言寫「企甲／乙級」、`pathway` 第三階段「一線隊／海外」、`join/international-player` 英文表單印「International department」（`followUpEn` 被 `isEn` 閘住，但表單區塊固定英文）、10.2 按鈕 `Academy & Children's Training`、zh 頁的英文裝飾字 `Academy Overview`／`Academy News`／`Academy Sponsorship` | ✅ 詞表補入上述詞（`check-club-brand-leak.mjs`，藍鯨全站 160 路由跑過 0 命中） |
 | E-220 | 2026-10-05 | 英文化盤點只看主表欄位，把「賽程對手沒有英文**值**」誤判成「沒有英文**欄位**」，派出一張不必要的 migration 工作；`matches_i18n.opponent`、後台 `opponentEn`、公開 API 回退與 `isFallbackLocale` 早已存在 | ⚠️ 無（每張 `*_i18n` 側表的欄位在 `docs/12c`，查那份就知道） |
 | E-221 | 2026-10-05 | 後端寫死的英文標籤（`ApplicableTierLabel`）自己取名「Fan club members only」，與前台、`docs/06` §1.1 的「Paid Fan Club member」不一致 | ✅ `MembershipPublicTests` 斷言英文標籤；⚠️ 其他寫死英文字串仍無對照表檢查 |
+| E-234 | 2026-10-06 | 後台頂欄的鈴鐺是 v1 版面的視覺佔位（`AppTopbar.vue` 寫死 `<el-badge :value="3">`、無點擊、無資料），上線到測試站後**使用者點了才發現沒有作用**；假數字「3」讓它看起來像真的有 3 筆通知。根因：照設計稿搭版面時把「之後才會有資料」的元件做成完整外觀，卻沒有標示未接線、也沒有列進待辦，後續各模組串接 API 時沒有人回頭盤點全域元件。已改為接儀表板「待辦提醒」（使用者決定）。**下次怎麼避免**：佔位元件不得顯示假數據（數字、徽章、狀態），未接線就不渲染或明確標示「尚未啟用」，並在 STATUS 留一列 | ⚠️ 無（可加「`:value=` 為數字字面值」的 lint 規則，未做） |
 
 ---
 
