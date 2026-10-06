@@ -119,7 +119,7 @@ useSeoMeta({
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">GET INVOLVED</p>
-        <h2 class="section-title" id="involved-title">{{ tx('一起參與', 'Get involved') }}</h2>
+        <h2 class="section-title" id="involved-title" style="color:#fff">{{ tx('一起參與', 'Get involved') }}</h2>
       </div>
       <p class="section-lede">{{ tx('不論是企業還是球迷，都有合適的參與方式。', 'There is a way for both businesses and fans to take part.') }}</p>
     </div>
@@ -194,7 +194,7 @@ useSeoMeta({
 <section class="band grain cta-band" aria-labelledby="charity-cta-title">
   <span class="ghost-num" aria-hidden="true" style="left:var(--edge);bottom:-1.5rem;color:rgba(255,255,255,.06);">11</span>
   <div class="band-inner container">
-    <h2 class="section-title" id="charity-cta-title">{{ tx('想進一步了解？', 'Want to know more?') }}</h2>
+    <h2 class="section-title" id="charity-cta-title" style="color:#fff">{{ tx('想進一步了解？', 'Want to know more?') }}</h2>
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/charity/impact-stories/')">
         <span class="cta-card__num">11.3</span>

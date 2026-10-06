@@ -1266,7 +1266,7 @@ useClubEventSchema(clubEvents, {
                       <span v-if="safeColour(e.eventTypeColour)" aria-hidden="true" :style="{ display: 'inline-block', width: '0.6em', height: '0.6em', borderRadius: '50%', marginRight: '0.4em', background: safeColour(e.eventTypeColour)! }"></span>
                       <span v-if="eventIconGlyph(e.eventTypeIcon)" aria-hidden="true">{{ eventIconGlyph(e.eventTypeIcon) }} </span>{{ e.eventTypeName || tx('俱樂部活動', 'Club event') }}
                     </span>
-                    <span v-if="e.isRecurring" class="tag">{{ tx('定期活動', 'Recurring') }}</span>
+                    <span v-if="e.isRecurring" class="tag tag--recurring">{{ tx('定期活動', 'Recurring') }}</span>
                   </div>
                   <p class="club-event-card__title">{{ e.title }}</p>
                   <p v-if="e.description" class="club-event-card__desc">{{ e.description }}</p>
@@ -1348,7 +1348,7 @@ useClubEventSchema(clubEvents, {
 <section class="band grain cta-band" aria-labelledby="sched-cta-title">
   <span class="ghost-num" aria-hidden="true">13</span>
   <div class="band-inner container">
-    <h2 class="section-title" id="sched-cta-title">{{ tx('相關連結', 'Related links') }}</h2>
+    <h2 class="section-title" id="sched-cta-title" style="color:#fff">{{ tx('相關連結', 'Related links') }}</h2>
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/club/first-team/')">
         <span class="cta-card__num">3.1</span>
@@ -1519,6 +1519,8 @@ useClubEventSchema(clubEvents, {
    的既有版面（同一個 class），只新增卡片內文與標籤兩個小元件。 */
 .club-events-block{ margin-top:2.5rem; }
 .tag--club-event{ background:var(--muted); }
+/* 「定期活動」：.tag 固定白字，必須自帶底色，否則白字疊在白底卡片上看不見 */
+.tag--recurring{ background:var(--ink-2); }
 .club-event-card__title{ font-weight:800; font-size:1rem; color:var(--heading); margin-bottom:.4rem; }
 .club-event-card__desc{ font-size:.85rem; color:var(--text); line-height:1.6; margin-bottom:.5rem; }
 

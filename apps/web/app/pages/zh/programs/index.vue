@@ -136,7 +136,7 @@ const CARD_PHOTOS: Record<string, string> = {
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">HOW TO ENROL</p>
-        <h2 id="enroll-flow-title" class="section-title">{{ tx('線上報名流程', 'Online Registration Process') }}</h2>
+        <h2 id="enroll-flow-title" class="section-title" style="color:#fff">{{ tx('線上報名流程', 'Online Registration Process') }}</h2>
       </div>
     </div>
     <p class="section-lede">{{ tx('所有課程與營隊皆透過同一套線上流程報名，站內不接受金流付款。', 'All programs and camps use the same online registration process. Payment is not taken on this site.') }}</p>
@@ -152,7 +152,7 @@ const CARD_PHOTOS: Record<string, string> = {
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">HOW TO JOIN</p>
-        <h2 id="enroll-flow-title" class="section-title">{{ tx('如何報名', 'How to Register') }}</h2>
+        <h2 id="enroll-flow-title" class="section-title" style="color:#fff">{{ tx('如何報名', 'How to Register') }}</h2>
       </div>
     </div>
     <p class="section-lede">{{ enrolNoteBw }}</p>
@@ -165,7 +165,7 @@ const CARD_PHOTOS: Record<string, string> = {
     <div class="eyebrow-row">
       <div>
         <p class="kicker kicker--on-dark">GET STARTED</p>
-        <h2 id="programs-cta-title" class="section-title">{{ tx('準備好開始了嗎？', 'Ready to Get Started?') }}</h2>
+        <h2 id="programs-cta-title" class="section-title" style="color:#fff">{{ tx('準備好開始了嗎？', 'Ready to Get Started?') }}</h2>
       </div>
     </div>
     <div class="cta-grid">

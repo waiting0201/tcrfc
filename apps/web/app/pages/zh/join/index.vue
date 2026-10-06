@@ -48,7 +48,7 @@ useSeoMeta({
   </div>
 </section>
 
-<section class="band grain" aria-labelledby="join-forms-title">
+<section class="band grain join-forms-band" aria-labelledby="join-forms-title">
   <span class="ghost-num ghost-num--dark" aria-hidden="true">09</span>
   <div class="band-inner container">
     <div class="eyebrow-row">
@@ -131,6 +131,9 @@ useSeoMeta({
 </template>
 
 <style>
+/* 深底表單卡：.grain 只設底色不設文字色，卡片標題沿用預設深色字會看不見（比照 .cta-band 的白字） */
+.join-forms-band{ color:#fff; }
+
 /* 僅本頁使用：Location／Contact 兩張淺色導覽卡（沿用 .clip-card 切角，但用亮底） */
 .join-info-card{
   display:block; padding:2rem clamp(1.5rem,3vw,2.25rem); background:var(--paper-2);

@@ -172,7 +172,7 @@ useSeoMeta({
 
 <section class="band grain cta-band" aria-labelledby="program-cta-title">
   <div class="band-inner container">
-    <h2 class="section-title" id="program-cta-title">{{ tx('一起參與', 'Get involved') }}</h2>
+    <h2 class="section-title" id="program-cta-title" style="color:#fff">{{ tx('一起參與', 'Get involved') }}</h2>
     <div class="cta-grid">
       <a class="cta-card" :href="lp('/zh/charity/programs/')">
         <span class="cta-card__num">11.2</span>
