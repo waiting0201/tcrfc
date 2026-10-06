@@ -35,7 +35,7 @@
 | **資料庫綱要** | ✅ **v3.0 已同步、可轉 DDL**（2026-09-20，[`docs/12-database-schema.md`](docs/12-database-schema.md)）。**103 張表**，`club_id` **50 必填／9 可為空／43 不加**。原「v3.0 落差」的 **13 項**必須以規劃書為準的事項（**第 13 項為 v3.5 的圖片欄位直傳：`MediaAsset`／`MediaFolder`／`MediaUsage` 三表移除、10 處外鍵改欄位組**）；**§0／§1.4／§7 權限模型／女足相關敘述已先行更新**，但 **§4 資料表總覽、17 張 ERD、§6 五節明細、§11.1 唯一鍵表、§14 檢核表尚未逐一改寫**。**轉 DDL 前必須完成** |
 | **技術選型** | ✅ **已定案**（2026-09-18，見 [`docs/17`](docs/17-deployment.md)）：**Nuxt 4 SSR ＋ .NET／EF Core＋Dapper ＋ Azure SQL ＋ Azure Blob ＋ Redis**，跑在**單一 Azure VM（Japan East／東京）** 的 Docker 上（前台三個、後台兩個、API 一個、快取一個），Cloudflare 在前。**規劃書仍不記技術選型**（§1.3 明文排除），結果只在導航層；**App 客戶端另見 [`docs/19`](docs/19-app-tech-stack.md)**。`docs/12` §1.4 的**五件事已全部定案** |
 | **部署與金流前提** | 🔴 **LINE Pay 正式環境須登記付款伺服器的出口 IP**——這條外部約束是選「自架 VM ＋ 靜態 Public IP」的原因，也是規劃書 v3.8／v2.4 唯一新增的內容。**改機器＝改白名單，等同停機事件**。⚠️ 另有**五類資料不得讀快取**（庫存、金流冪等、會員卡驗證、會籍與訂單狀態、購物車），見 [`docs/14`](docs/14-invariants.md) |
-| 網站本體 | 🟡 **前後台功能與 API 串接已完成一輪**（2026-10-01）：`apps/web`（Nuxt 4，主站＋藍鯨）、`apps/admin`、`apps/web-charity`、`apps/admin-charity`、`apps/api`（1014 項測試全綠）。**金流、發票、寄信只有介面＋本機假實作**（卡 `B-7`／`B-10`／`B-16`）；**尚未對真實 API 實機驗收**；行動 App 客戶端未開始。逐項見 [`STATUS.md`](STATUS.md) |
+| 網站本體 | 🟡 **前後台功能與 API 串接已完成一輪**（2026-10-01）：`apps/web`（Nuxt 4，主站＋藍鯨）、`apps/admin`、`apps/web-charity`、`apps/admin-charity`、`apps/api`（1014 項測試全綠）。**金流、發票、寄信只有介面＋本機假實作**（卡 `B-7`／`B-10`／`B-16`）；**尚未對真實 API 實機驗收**；行動 App 客戶端（`mobile/ios`、`mobile/android`）Phase A／B 已完成、C／D 做完不需外部服務的部分，推播與上架未做。逐項見 [`STATUS.md`](STATUS.md) |
 | 內容 | 🔄 **已首批交件**（456MB／212 張原始照片／113 篇文稿）。盤點見 [`docs/09-intake-inventory.md`](docs/09-intake-inventory.md)。**阻塞：文稿全為 `.gdoc` 捷徑，本機讀不到** |
 | 版本控制 | ✅ 已 `git init`。收件夾與大型素材未納管，覆寫或刪除前仍請先看過內容 |
 
@@ -55,6 +55,7 @@
 | [`docs/`](docs/) | 從規劃書拆解的工作文件 | 導航層（本專案自用） |
 | [`db/`](db/) | **資料庫 DDL**：`club-schema.sql`（主站）與 `charity-schema.sql`（慈善獨立庫）。**綱要的真實來源是 [`docs/12`](docs/12-database-schema.md)／[`docs/16`](docs/16-charity-schema.md)，改綱要要先改文件再改 DDL** | 交付物 |
 | [`shared/`](shared/) | **行動 App 契約目錄**（AP-8）：由 `apps/api` 產生的 OpenAPI、Swift／Kotlin DTO、錯誤碼，加手寫的 SQLite DDL、快取時效、深連結、廣告可見度測資。**後端改 API 後要跑 `shared/scripts/gen-all.sh`**，CI 會檢查漂移，見 [`shared/README.md`](shared/README.md) | 執行層產物 |
+| `mobile/` | **行動 App 原始碼**：`mobile/ios`（Swift）與 `mobile/android`（Kotlin），**各自是獨立的私有 git repo**。**不納版控**（`.gitignore` 排除整個資料夾）——之後會含簽章金鑰，本 repo 是公開的。🔴 **不得 `git add -f`、不得改成 submodule**，見 [`docs/19`](docs/19-app-tech-stack.md) §1 | 私有 repo（不在本 repo 版控） |
 | [`brand/`](brand/) | 由 `.ai` 萃取的 SVG 標誌、favicon／PWA icon、OG 圖，說明見 [`brand/README.md`](brand/README.md) | **品牌資產庫** |
 | [`reference/`](reference/) | 品牌簡報 pptx、sitemap 圖、Logo 主檔 `TCR_logo_CMYK.ai`、參考網站截圖、協會立案證書。**不納版控**（客戶資產且含個資，GitHub repo 是公開的），clone 下來不會有這個資料夾 | 客戶提供素材 |
 | [`TCRFC_資料收件夾/`](TCRFC_資料收件夾/) | 給客戶放既有檔案的分類結構（83 個資料夾，對應 13 單元） | 內容收件 |
@@ -111,7 +112,7 @@
 4. **所有前台可見的內容型別都要有 `zh` / `en` 雙欄位**，英文可空但欄位必須存在。
 5. **`noindex` 不要拿掉**（[`site/src/_headers`](site/src/_headers)），正式站上線前它不該被索引。
 6. **版控範圍**（`.gitignore` 有完整註解）：
-   - **不納管**：[`TCRFC_資料收件夾/`](TCRFC_資料收件夾/)、[`藍鯨_資料收件夾/`](藍鯨_資料收件夾/)、`reference/`、`site/src/assets/img/`、`output/*.pdf`、產生的 `.html`
+   - **不納管**：`mobile/`（App 私有 repo）、[`TCRFC_資料收件夾/`](TCRFC_資料收件夾/)、[`藍鯨_資料收件夾/`](藍鯨_資料收件夾/)、`reference/`、`site/src/assets/img/`、`output/*.pdf`、產生的 `.html`
    - **納管**：規劃書與客戶版母檔、里程碑母檔、`output/tools/`、[`docs/`](docs/)、[`db/`](db/)、[`brand/`](brand/)、[`site/src/`](site/src/) 其餘部分
    - **兩個 remote 內容相同**：`Remote_GitHub`（公開）與 `Remote_NAS`（離線備份）。未納管的素材備份走 NAS 的檔案層
    - **覆寫或刪除未納管的內容前先看過，git 救不回來**

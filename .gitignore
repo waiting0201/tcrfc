@@ -98,3 +98,10 @@ __pycache__/
 
 # 壓測輸出（deploy/loadtest/README.md）
 deploy/loadtest/*.json
+
+# ── 行動 App 原始碼（私有 repo，只是放在本資料夾底下）─────────
+# mobile/ios、mobile/android 各自是獨立的 git repo（tcrfc-app-ios／tcrfc-app-android），
+# 之後會含 .p8、keystore、service account JSON。本 repo 是公開的，
+# docs/19 §1 規定 App 原始碼不得進公開 repo——這條漏掉就等於把簽章金鑰推上 GitHub。
+# 不要用 `git add -f` 加入任何 mobile/ 底下的檔案，也不要轉成 submodule。
+/mobile/

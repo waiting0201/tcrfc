@@ -2,7 +2,7 @@
 
 > 🔵 **執行層產物，不是規格。** 設計與理由見 [`docs/19-app-tech-stack.md`](../docs/19-app-tech-stack.md) §2；要新增欄位語意，先改 App 規劃書（同步鏈）。
 > 目的：把「後端與兩個 App 對同一件事的理解」做成**同一份輸入產生兩端程式碼**的機制，不靠紀律（docs/19 §11 緩解 1）。
-> App 客戶端 repo（`tcrfc-app-ios`／`tcrfc-app-android`，AP-7）還沒建立；本目錄是它們將來要取用的上游。
+> 本目錄是 App 客戶端（`tcrfc-app-ios`／`tcrfc-app-android`）取用的上游。兩個 App 是獨立的私有 repo，本機放在 `mobile/ios`、`mobile/android`（`.gitignore` 排除，見 `docs/19` §1），以各自的 `scripts/sync-shared.sh` 單向取用；遠端 repo 與 CI 屬 AP-7。
 
 ## 內容
 

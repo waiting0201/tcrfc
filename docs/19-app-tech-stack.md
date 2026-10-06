@@ -75,6 +75,8 @@ Kotlin 2.x／JDK 17／AGP 8.x，`minSdk 29`，**`targetSdk` 跟隨 Play 的當�
 **兩個獨立 private repo**：`tcrfc-app-ios`、`tcrfc-app-android`。
 🔴 **必須 private**——`CLAUDE.md` 第 7 條寫明現有 repo 是公開的，而 App repo 會含 provisioning profile、keystore、`.p8`、service account JSON。**App 原始碼不得放進現有的公開 repo。**
 
+**本機放置位置（2026-10-06）**：兩個 repo 實體放在本 repo 底下的 `mobile/ios`、`mobile/android`，方便同一個編輯器一起開；它們**仍是各自獨立的 git repo**，本 repo 以 `.gitignore` 的 `/mobile/` 整個排除。🔴 **不得 `git add -f` 其中任何檔案，也不得改成 submodule**（submodule 只記 commit 指標，但會把私有 repo 的存在與網址公開）。App 的 `scripts/sync-shared.sh` 預設上游是上兩層的本 repo，放到別處時以 `TCRFC_REPO` 指定。
+
 ---
 
 ## 2. 不重複做兩次：`shared/` 契約目錄
@@ -458,7 +460,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 
 ## 11c. iOS 客戶端 Phase A 的執行層決定（AP-2，2026-10-05）
 
-> App 原始碼在 **`/Users/tim/webapps/tcrfc-app-ios`**（私有 repo，本機 `git init`，**尚未建 GitHub repo、無 remote**）。建置、`shared/` 同步與環境設定見該 repo 的 `README.md`。下列是本檔其他章節沒有、實作時定下的決定。
+> App 原始碼在 **`mobile/ios`**（`tcrfc-app-ios` 私有 repo，本機 `git init`，**尚未建 GitHub repo、無 remote**；本 repo 以 `.gitignore` 排除，見 §1）。建置、`shared/` 同步與環境設定見該 repo 的 `README.md`。下列是本檔其他章節沒有、實作時定下的決定。
 
 | 項目 | 決定 |
 |---|---|
@@ -476,7 +478,7 @@ Feature flag 命名 **`{模組}_{功能}` 小寫蛇形**：`ads_enabled`、`map_
 
 ## 11d. Android 客戶端 Phase A 的執行層決定（AP-2，2026-10-05）
 
-> App 原始碼在 **`/Users/tim/webapps/tcrfc-app-android`**（私有 repo，本機 `git init`，**未建 GitHub repo、無 remote**）。建置、`shared/` 同步與環境設定見該 repo 的 `README.md`。
+> App 原始碼在 **`mobile/android`**（`tcrfc-app-android` 私有 repo，本機 `git init`，**未建 GitHub repo、無 remote**；本 repo 以 `.gitignore` 排除，見 §1）。建置、`shared/` 同步與環境設定見該 repo 的 `README.md`。
 
 | 項目 | 決定 |
 |---|---|
