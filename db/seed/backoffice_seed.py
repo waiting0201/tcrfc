@@ -41,12 +41,15 @@ PAGES = {
     "tcrfc": [
         {
             "slug": "about/vision-mission",
-            "status": "published",
+            "status": "draft",
             "seo_title": "願景與使命 Vision & Mission｜關於台中磐石｜台中磐石足球俱樂部",
             "seo_description": "台中磐石足球俱樂部的願景與使命：透過專業化培育體系，讓台中在地選手邁向職業舞台，並以足球讓世界看見台灣。",
             "blocks": [
-                ("text", {"body": bi("<h2>願景</h2><p>從台中出發，培育本土選手邁向職業舞台，成為在地榮耀的來源。</p>")}),
-                ("text", {"body": bi("<h2>使命</h2><p>以扎實的訓練體系與國際連結，讓世界看見台灣足球。</p>")}),
+                # 區塊 text 只支援純文字段落（前台以空行分段、不渲染 HTML／標題），故「願景／使命」用步驟條表達標題與內文
+                ("steps", {"items": [
+                    {"title": bi("願景"), "description": bi("從台中出發，培育本土選手邁向職業舞台，成為在地榮耀的來源。")},
+                    {"title": bi("使命"), "description": bi("以扎實的訓練體系與國際連結，讓世界看見台灣足球。")},
+                ]}),
                 ("quote", {"text": bi("在地扎根．放眼世界", "LOCAL ROOTS. GLOBAL PATHWAYS."),
                           "attribution": bi("台中磐石足球俱樂部")}),
                 ("cta", {"text": bi("想進一步認識台中磐石？"), "buttonLabel": bi("關於台中磐石"),
@@ -55,13 +58,15 @@ PAGES = {
         },
         {
             "slug": "about/philosophy",
-            "status": "published",
+            "status": "draft",
             "seo_title": "足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部",
             "seo_description": "台中磐石足球俱樂部的足球理念與五大核心價值：以球員為本、追求卓越、國際發展、社區共好、誠信專業。",
             "blocks": [
-                ("text", {"body": bi("<p>透過專業模式，培育選手追求卓越，讓世界看見台灣足球。</p>")}),
-                ("text", {"body": bi("<h2>五大核心價值</h2><ul><li>以球員為本</li><li>追求卓越</li><li>國際發展</li>"
-                                     "<li>社區共好</li><li>誠信專業</li></ul>")}),
+                ("text", {"body": bi("透過專業模式，培育選手追求卓越，讓世界看見台灣足球。")}),
+                ("steps", {"items": [
+                    {"title": bi("以球員為本")}, {"title": bi("追求卓越")}, {"title": bi("國際發展")},
+                    {"title": bi("社區共好")}, {"title": bi("誠信專業")},
+                ]}),
             ],
         },
         {
@@ -69,25 +74,25 @@ PAGES = {
             "status": "draft",
             "seo_title": TEST + "草稿頁面",
             "seo_description": TEST_BODY,
-            "blocks": [("text", {"body": bi("<p>" + TEST_BODY + "</p>")})],
+            "blocks": [("text", {"body": bi(TEST_BODY)})],
         },
     ],
     "bw": [
         {
             "slug": "about/our-story",
-            "status": "published",
+            "status": "draft",
             "seo_title": "我們的故事｜關於台中藍鯨｜台中藍鯨女子足球隊",
             "seo_description": "台中藍鯨女子足球隊 2014 年成立於台中，隸屬臺中市女子足球協會。認識這支球隊的定位與成立宗旨。",
             "blocks": [
                 # 逐字取自 club-copy.ts OUR_STORY_BODY_BW（節錄自 content/blue-whale/club-profile.md §1）
-                ("text", {"body": bi("<p>隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，簡稱為台中藍鯨，是台灣木蘭足球聯賽的球隊之一。"
+                ("text", {"body": bi("隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，簡稱為台中藍鯨，是台灣木蘭足球聯賽的球隊之一。"
                                      "以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，重視團隊合作，鯨翅為台灣意象代表"
-                                     "引領台灣足球向前邁進。台中藍鯨希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。</p>")}),
+                                     "引領台灣足球向前邁進。台中藍鯨希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。")}),
             ],
         },
         {
             "slug": "about/vision",
-            "status": "published",
+            "status": "draft",
             "seo_title": "發展願景｜關於台中藍鯨｜台中藍鯨女子足球隊",
             "seo_description": "台中藍鯨女子足球隊的發展願景：無止盡的探索、不怕難的堅韌、更細膩的態度、最真實的影響、更深遠之目的。",
             "blocks": [
@@ -104,7 +109,7 @@ PAGES = {
         },
         {
             "slug": "about/philosophy",
-            "status": "published",
+            "status": "draft",
             "seo_title": "俱樂部口號與培訓精神｜關於台中藍鯨｜台中藍鯨女子足球隊",
             "seo_description": "台中藍鯨女子足球隊的俱樂部口號與培訓精神，以及隊徽「藍鯨」象徵的設計理念。",
             "blocks": [
@@ -124,7 +129,7 @@ PAGES = {
             "status": "draft",
             "seo_title": TEST + "草稿頁面",
             "seo_description": TEST_BODY,
-            "blocks": [("text", {"body": bi("<p>" + TEST_BODY + "</p>")})],
+            "blocks": [("text", {"body": bi(TEST_BODY)})],
         },
     ],
 }
@@ -761,9 +766,14 @@ END
         for rank, played, points in rows:
             name = f"{TEST}隊伍 {chr(64 + rank)}"
             block(f"""
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = {club_sq} AND season_id = {season} AND team_name = {esc(name)})
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES ({esc(new_id("standing", club_code, season_code, name))}, {club_sq}, {season}, {esc(name)}, {rank}, {played}, {points});
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = {club_sq} AND s.season_id = {season} AND i.team_name = {esc(name)})
+BEGIN
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES ({esc(new_id("standing", club_code, season_code, name))}, {club_sq}, {season}, {rank}, {played}, {points});
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES ({esc(new_id("standing", club_code, season_code, name))}, N'zh-Hant', {esc(name)});
+END
 """)
 
     # ── 30. L2 自建事件 ──────────────────────────────────────────────────────
@@ -993,9 +1003,14 @@ END
     emit("-- ── 36. proposals／enquiries：E3 提案（兩份 A/B 草稿，沒有檔案）與三筆 Lead（全部【測試】） ──")
     for slug_key, title, version in (("a", "【測試】贊助提案簡介（A 版）", 1), ("b", "【測試】贊助提案簡介（B 版）", 2)):
         block(f"""
-IF NOT EXISTS (SELECT 1 FROM proposals WHERE club_id = {tc} AND title = {esc(title)})
-  INSERT INTO proposals (id, club_id, title, version_no, status)
-  VALUES ({esc(new_id("proposal", "tcrfc", slug_key))}, {tc}, {esc(title)}, {version}, N'draft');
+IF NOT EXISTS (SELECT 1 FROM proposals p JOIN proposals_i18n i ON i.proposal_id = p.id AND i.locale = N'zh-Hant'
+               WHERE p.club_id = {tc} AND i.title = {esc(title)})
+BEGIN
+  INSERT INTO proposals (id, club_id, version_no, status)
+  VALUES ({esc(new_id("proposal", "tcrfc", slug_key))}, {tc}, {version}, N'draft');
+  INSERT INTO proposals_i18n (proposal_id, locale, title)
+  VALUES ({esc(new_id("proposal", "tcrfc", slug_key))}, N'zh-Hant', {esc(title)});
+END
 """)
     LEADS_TEST = [
         ("a", "【測試】示範公司甲", "【測試】聯絡人甲", "lead-a@example.com", "/zh/partners/sponsorship/", "新進"),
@@ -1048,7 +1063,7 @@ END
     ]
     for slug, org, zh, en, start, end, status, pinned, order in PROGRAMS_TEST:
         pid = new_id("charity_program", "tcrfc", slug)
-        content = jdump([{"blockType": "text", "content": {"body": bi("<p>【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。</p>")}}])
+        content = jdump([{"blockType": "text", "content": {"body": bi("【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。")}}])
         en_sql = (f"  INSERT INTO charity_programs_i18n (charity_program_id, locale, name) VALUES (@id, N'en', {esc(en)});" if en else "")
         block(f"""
 DECLARE @id uniqueidentifier;
@@ -1142,9 +1157,14 @@ END
     for k, (year, comp, placing) in enumerate((
         (2026, "【測試】示範盃賽", "冠軍"), (2025, "【測試】示範聯賽", "第三名"), (2024, "【測試】示範友誼賽", "亞軍"))):
         block(f"""
-IF NOT EXISTS (SELECT 1 FROM achievements WHERE club_id = {tc} AND competition_name = {esc(comp)})
-  INSERT INTO achievements (id, club_id, season_id, team_id, year, competition_name, placing)
-  VALUES ({esc(new_id("achievement", "tcrfc", str(k)))}, {tc}, {season_sq(tc, "2026-27")}, {D1}, {year}, {esc(comp)}, {esc(placing)});
+IF NOT EXISTS (SELECT 1 FROM achievements a JOIN achievements_i18n i ON i.achievement_id = a.id AND i.locale = N'zh-Hant'
+               WHERE a.club_id = {tc} AND i.competition_name = {esc(comp)})
+BEGIN
+  INSERT INTO achievements (id, club_id, season_id, team_id, year)
+  VALUES ({esc(new_id("achievement", "tcrfc", str(k)))}, {tc}, {season_sq(tc, "2026-27")}, {D1}, {year});
+  INSERT INTO achievements_i18n (achievement_id, locale, competition_name, placing)
+  VALUES ({esc(new_id("achievement", "tcrfc", str(k)))}, N'zh-Hant', {esc(comp)}, {esc(placing)});
+END
 """)
 
     # ========================================================================
@@ -1210,9 +1230,9 @@ END
         block(f"""
 IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = {clubs[ccode]} AND season_id = {season_sq(clubs[ccode], season)} AND code = {esc(code)})
 BEGIN
-  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, mid_season_rule, sort_order, starts_on, ends_on, status)
-  VALUES ({esc(pid)}, {clubs[ccode]}, {season_sq(clubs[ccode], season)}, {esc(code)}, {fee}, {cards}, {jerseys}, {esc(rule)}, {order}, {esc(starts)}, {esc(ends)}, N'published');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES ({esc(pid)}, N'zh-Hant', {esc(zh)}, {esc(note)});
+  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
+  VALUES ({esc(pid)}, {clubs[ccode]}, {season_sq(clubs[ccode], season)}, {esc(code)}, {fee}, {cards}, {jerseys}, {order}, {esc(starts)}, {esc(ends)}, N'published');
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES ({esc(pid)}, N'zh-Hant', {esc(zh)}, {esc(note)}, {esc(rule)});
   INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES ({esc(pid)}, N'en', {esc(en)}, NULL);
 END
 """)

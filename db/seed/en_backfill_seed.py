@@ -152,6 +152,29 @@ WHERE e.locale = N'en' AND {key};
          club(f"z.name = {esc('企業甲級足球聯賽')}"),
          {"name": "Enterprise Premier League"})
 
+    # ── 稽核 D 類（2026-10-06）：積分榜隊名、榮譽、提案標題、會籍季中規則的英文（全為【測試】值，不分俱樂部，以繁中文字為鍵）──
+    for i in range(12):
+        fill("standings", "standings_i18n", "standing_id", f"z.team_name = {esc('【測試】隊伍 ' + chr(65 + i))}",
+             {"team_name": f"[Test] Team {chr(65 + i)}"})
+    for zh_c, en_c, zh_p, en_p in [
+        ("【測試】示範盃賽", "[Test] Demo cup", "冠軍", "Champions"),
+        ("【測試】示範聯賽", "[Test] Demo league", "第三名", "3rd place"),
+        ("【測試】示範友誼賽", "[Test] Demo friendly", "亞軍", "Runners-up"),
+    ]:
+        fill("achievements", "achievements_i18n", "achievement_id", f"z.competition_name = {esc(zh_c)}",
+             {"competition_name": en_c, "placing": en_p})
+    for zh_t, en_t in [
+        ("【測試】贊助提案簡介（A 版）", "[Test] Sponsorship proposal (Version A)"),
+        ("【測試】贊助提案簡介（B 版）", "[Test] Sponsorship proposal (Version B)"),
+    ]:
+        fill("proposals", "proposals_i18n", "proposal_id", f"z.title = {esc(zh_t)}", {"title": en_t})
+    for zh_r, en_r in [
+        ("【測試】季中入會照比例計價", "[Test] Pro-rated pricing for mid-season sign-ups"),
+        ("【測試】季中入會不折價", "[Test] No discount for mid-season sign-ups"),
+    ]:
+        fill("membership_plans", "membership_plans_i18n", "membership_plan_id", f"z.mid_season_rule = {esc(zh_r)}",
+             {"mid_season_rule": en_r})
+
     # ── 賽程場地（matches_i18n.venue，自由文字）：場地英文名待客戶確認，採地名拼音＋通用場地詞 ──
     for zh, en in [
         ("TBC", "TBC"),

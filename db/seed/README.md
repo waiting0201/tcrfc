@@ -454,3 +454,10 @@ G3 電子報名單 5 筆（`example.com`）、M2 深連結 9 條與首頁九個�
 E4–E6 版位 2／廣告主 2／檔期 2（含 1 個已結束檔期與 14 天日聚合示範）、M3／M4／M5 示範裝置 5 台（**沒有推播權杖**）、推播 2 則、診斷回報 3 筆。權限碼 38 個與角色指派在 `generate-club-seed-sql.py`。
 **沒有圖片**（廣告素材與備援 `image_key` 為 NULL）。🔴 **驗證一律跑 `./db/seed/apply-seed.sh` 本身並確認輸出沒有 `Msg`**（`docs/18` `E-94`：超長單行 SQL 會被 `sqlcmd` 從標準輸入讀取時切斷）。
 測試對這批資料的約定見 `apps/api/README.md` D 批「測試」：測試資料用 `ZZTEST`／`test-dev-`／`zz-test-` 前綴，會動共用設定的測試拍照還原。
+
+## 2026-10-06 種子調整（靜態頁草稿、藍鯨核心價值關閉、聯絡與社群）
+
+- **靜態頁種子一律 `draft`**（磐石 `about/vision-mission`、`about/philosophy`；藍鯨 `about/our-story`、`about/vision`、`about/philosophy`）：前台已改為「CMS 有已發布內容就顯示 CMS」，種子文案比前台寫死版精簡，發布會讓頁面變差；內容補齊後由後台發布。`text` 區塊 body 只放純文字（空行分段），**不得含 HTML**；需要標題／清單時用 `steps` 等區塊（見 `apps/api/Features/AdminPages/PageBlockTypes.cs`）。
+- **藍鯨首頁 `core_values` 預設 `is_enabled = 0`**（磐石不變）。
+- **聯絡與社群 setting**（`CONTACT_SEEDS`，`generate-club-seed-sql.py`）：`site.social_facebook／instagram／youtube`（藍鯨另有 `site.social_line`、`site.contact_email`）寫 `settings.setting_value`；`site.footer_blurb` 逐語系寫 `settings_i18n`（en 取自 `apps/web/shared/utils/club-copy-en-core.ts`）。部門窗口不種。
+- `clubs` 不再有品牌欄位（標誌、Favicon、品牌色）；遷移 `db/migrations/20261006_club-brand-drop_2-contract.sql`。

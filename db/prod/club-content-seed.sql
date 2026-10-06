@@ -22,6 +22,7 @@
 -- DROPPED section=61 batches=1 reason=參照表（正式庫已有） tables=clubs_i18n
 -- 匯入會寫入的表（清除程序只動這些表；匯入前必須全空）：
 -- OWNED achievements
+-- OWNED achievements_i18n
 -- OWNED ad_campaigns
 -- OWNED ad_creatives
 -- OWNED ad_daily_stats
@@ -103,6 +104,7 @@
 -- OWNED programs
 -- OWNED programs_i18n
 -- OWNED proposals
+-- OWNED proposals_i18n
 -- OWNED redirects
 -- OWNED seasons
 -- OWNED sessions
@@ -119,6 +121,7 @@
 -- OWNED staff_i18n
 -- OWNED staff_teams
 -- OWNED standings
+-- OWNED standings_i18n
 -- OWNED tags
 -- OWNED tags_i18n
 -- OWNED teams
@@ -4565,6 +4568,178 @@ END
 GO
 
 DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.social_facebook';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'be3ffc40-aea4-5a28-8e76-be394930393f';
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'site.social_facebook', N'https://www.facebook.com/TCRFC2024', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.social_instagram';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'0b1d4eb6-af56-5030-b668-a12f050cef77';
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'site.social_instagram', N'https://www.instagram.com/tcr_fc_2024', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.social_youtube';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'f0c730e8-1ba2-5056-a7a0-5b6b439ec318';
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'site.social_youtube', N'https://www.youtube.com/@TCRFC-2024', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.footer_blurb';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'd50816cc-ebc4-5f9f-8b42-23d365828379';
+  INSERT INTO settings (id, club_id, setting_key, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'site.footer_blurb', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (
+  SELECT 1 FROM settings_i18n si JOIN settings s ON s.id = si.setting_id
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.footer_blurb' AND si.locale = N'zh-Hant'
+)
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO settings_i18n (setting_id, locale, value)
+  SELECT s.id, N'zh-Hant', N'台中磐石足球俱樂部致力於透過專業模式，培育選手追求卓越，讓世界看見台灣足球。' FROM settings s
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.footer_blurb';
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (
+  SELECT 1 FROM settings_i18n si JOIN settings s ON s.id = si.setting_id
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.footer_blurb' AND si.locale = N'en'
+)
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO settings_i18n (setting_id, locale, value)
+  SELECT s.id, N'en', N'Taichung Rock FC develops players who pursue excellence through a professional model, so the world can see Taiwan football.' FROM settings s
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.setting_key = N'site.footer_blurb';
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.social_facebook';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'de48ac01-1dbf-50cb-a096-de5314e38c68';
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'site.social_facebook', N'https://www.facebook.com/tbwfc', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.social_instagram';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'4b373e77-80b5-58ee-bab3-a47c0524e699';
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'site.social_instagram', N'https://instagram.com/tcbw2014', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.social_youtube';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'4b4a45cc-0945-5689-b432-7e40467c596b';
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'site.social_youtube', N'https://www.youtube.com/@user-xu1wm3xx1w', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.social_line';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'c1667937-8534-51b4-93a6-ad9ac9fee289';
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'site.social_line', N'https://lin.ee/CS65qCR', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.contact_email';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'fd0c329c-bcee-599f-a262-3b61cddae0fd';
+  INSERT INTO settings (id, club_id, setting_key, setting_value, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'site.contact_email', N'fbbh2014@gmail.com', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
+SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND setting_key = N'site.footer_blurb';
+IF @id IS NULL
+BEGIN
+  BEGIN TRANSACTION;
+  SET @id = N'70f3941b-d85e-5188-8c43-3d5f941c6648';
+  INSERT INTO settings (id, club_id, setting_key, setting_group)
+  VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'site.footer_blurb', N'site');
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (
+  SELECT 1 FROM settings_i18n si JOIN settings s ON s.id = si.setting_id
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.setting_key = N'site.footer_blurb' AND si.locale = N'zh-Hant'
+)
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO settings_i18n (setting_id, locale, value)
+  SELECT s.id, N'zh-Hant', N'隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。' FROM settings s
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.setting_key = N'site.footer_blurb';
+  COMMIT TRANSACTION;
+END
+GO
+
+IF NOT EXISTS (
+  SELECT 1 FROM settings_i18n si JOIN settings s ON s.id = si.setting_id
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.setting_key = N'site.footer_blurb' AND si.locale = N'en'
+)
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO settings_i18n (setting_id, locale, value)
+  SELECT s.id, N'en', N'Taichung Blue Whale Women''s Football Club, part of the Taichung City Women''s Football Association, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football, and hopes to lift the grassroots football culture in Taichung and drive the development of women''s football in central Taiwan.' FROM settings s
+  WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.setting_key = N'site.footer_blurb';
+  COMMIT TRANSACTION;
+END
+GO
+
+DECLARE @id uniqueidentifier;
 SELECT @id = id FROM settings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND setting_key = N'site.blue_whale_site_url';
 IF @id IS NULL
 BEGIN
@@ -4621,13 +4796,12 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'cbb3f2ea-6ae5-5f41-adfb-ccf2a96ee5b1';
-  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'about/vision-mission', N'published', '2026-09-30T00:00:00');
+  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'about/vision-mission', N'draft', NULL);
   INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'願景與使命 Vision & Mission｜關於台中磐石｜台中磐石足球俱樂部', N'台中磐石足球俱樂部的願景與使命：透過專業化培育體系，讓台中在地選手邁向職業舞台，並以足球讓世界看見台灣。');
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'55fb2d41-a67e-5427-a1df-ef4e54ead483', @id, N'text', N'{"body":{"zh":"<h2>願景</h2><p>從台中出發，培育本土選手邁向職業舞台，成為在地榮耀的來源。</p>","en":null}}', 0);
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'81ecf86e-9e93-5193-8ea8-612266658fca', @id, N'text', N'{"body":{"zh":"<h2>使命</h2><p>以扎實的訓練體系與國際連結，讓世界看見台灣足球。</p>","en":null}}', 1);
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'a768304b-534b-5702-bd9f-6733f0c36c86', @id, N'quote', N'{"text":{"zh":"在地扎根．放眼世界","en":"LOCAL ROOTS. GLOBAL PATHWAYS."},"attribution":{"zh":"台中磐石足球俱樂部","en":null}}', 2);
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'89dd40e6-1424-5bb6-a468-894ccadd0e8b', @id, N'cta', N'{"text":{"zh":"想進一步認識台中磐石？","en":null},"buttonLabel":{"zh":"關於台中磐石","en":null},"buttonUrl":"/zh/about/"}', 3);
-  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'2d47faad-76c8-5118-ab59-892a4b27327f', @id, 1, N'{"seo":{"zh":{"seoTitle":"願景與使命 Vision & Mission｜關於台中磐石｜台中磐石足球俱樂部","seoDescription":"台中磐石足球俱樂部的願景與使命：透過專業化培育體系，讓台中在地選手邁向職業舞台，並以足球讓世界看見台灣。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"<h2>願景</h2><p>從台中出發，培育本土選手邁向職業舞台，成為在地榮耀的來源。</p>","en":null}}},{"blockType":"text","content":{"body":{"zh":"<h2>使命</h2><p>以扎實的訓練體系與國際連結，讓世界看見台灣足球。</p>","en":null}}},{"blockType":"quote","content":{"text":{"zh":"在地扎根．放眼世界","en":"LOCAL ROOTS. GLOBAL PATHWAYS."},"attribution":{"zh":"台中磐石足球俱樂部","en":null}}},{"blockType":"cta","content":{"text":{"zh":"想進一步認識台中磐石？","en":null},"buttonLabel":{"zh":"關於台中磐石","en":null},"buttonUrl":"/zh/about/"}}]}', N'7a14bf65bc30087bea379c8183b22f76488803b7068bea043cad3b60169ec99a');
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'55fb2d41-a67e-5427-a1df-ef4e54ead483', @id, N'steps', N'{"items":[{"title":{"zh":"願景","en":null},"description":{"zh":"從台中出發，培育本土選手邁向職業舞台，成為在地榮耀的來源。","en":null}},{"title":{"zh":"使命","en":null},"description":{"zh":"以扎實的訓練體系與國際連結，讓世界看見台灣足球。","en":null}}]}', 0);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'81ecf86e-9e93-5193-8ea8-612266658fca', @id, N'quote', N'{"text":{"zh":"在地扎根．放眼世界","en":"LOCAL ROOTS. GLOBAL PATHWAYS."},"attribution":{"zh":"台中磐石足球俱樂部","en":null}}', 1);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'a768304b-534b-5702-bd9f-6733f0c36c86', @id, N'cta', N'{"text":{"zh":"想進一步認識台中磐石？","en":null},"buttonLabel":{"zh":"關於台中磐石","en":null},"buttonUrl":"/zh/about/"}', 2);
+  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'2d47faad-76c8-5118-ab59-892a4b27327f', @id, 1, N'{"seo":{"zh":{"seoTitle":"願景與使命 Vision & Mission｜關於台中磐石｜台中磐石足球俱樂部","seoDescription":"台中磐石足球俱樂部的願景與使命：透過專業化培育體系，讓台中在地選手邁向職業舞台，並以足球讓世界看見台灣。"}},"blocks":[{"blockType":"steps","content":{"items":[{"title":{"zh":"願景","en":null},"description":{"zh":"從台中出發，培育本土選手邁向職業舞台，成為在地榮耀的來源。","en":null}},{"title":{"zh":"使命","en":null},"description":{"zh":"以扎實的訓練體系與國際連結，讓世界看見台灣足球。","en":null}}]}},{"blockType":"quote","content":{"text":{"zh":"在地扎根．放眼世界","en":"LOCAL ROOTS. GLOBAL PATHWAYS."},"attribution":{"zh":"台中磐石足球俱樂部","en":null}}},{"blockType":"cta","content":{"text":{"zh":"想進一步認識台中磐石？","en":null},"buttonLabel":{"zh":"關於台中磐石","en":null},"buttonUrl":"/zh/about/"}}]}', N'7a14bf65bc30087bea379c8183b22f76488803b7068bea043cad3b60169ec99a');
   COMMIT TRANSACTION;
 END
 GO
@@ -4638,11 +4812,11 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'f51f3fe3-399a-5f55-8ac5-0679d72e48cc';
-  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'about/philosophy', N'published', '2026-09-30T00:00:00');
+  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'about/philosophy', N'draft', NULL);
   INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部', N'台中磐石足球俱樂部的足球理念與五大核心價值：以球員為本、追求卓越、國際發展、社區共好、誠信專業。');
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'd2d351b2-be49-5430-a4a9-f5a0a7cee541', @id, N'text', N'{"body":{"zh":"<p>透過專業模式，培育選手追求卓越，讓世界看見台灣足球。</p>","en":null}}', 0);
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'89624843-cf98-507d-9561-99cfab4a2903', @id, N'text', N'{"body":{"zh":"<h2>五大核心價值</h2><ul><li>以球員為本</li><li>追求卓越</li><li>國際發展</li><li>社區共好</li><li>誠信專業</li></ul>","en":null}}', 1);
-  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'06b3c71a-0ddd-5f14-8a99-901a7e5d0ada', @id, 1, N'{"seo":{"zh":{"seoTitle":"足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部","seoDescription":"台中磐石足球俱樂部的足球理念與五大核心價值：以球員為本、追求卓越、國際發展、社區共好、誠信專業。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"<p>透過專業模式，培育選手追求卓越，讓世界看見台灣足球。</p>","en":null}}},{"blockType":"text","content":{"body":{"zh":"<h2>五大核心價值</h2><ul><li>以球員為本</li><li>追求卓越</li><li>國際發展</li><li>社區共好</li><li>誠信專業</li></ul>","en":null}}}]}', N'152257a532d7ddcc78db424ea3e236d8e52d31e5573616a6780ffac68e325a6f');
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'd2d351b2-be49-5430-a4a9-f5a0a7cee541', @id, N'text', N'{"body":{"zh":"透過專業模式，培育選手追求卓越，讓世界看見台灣足球。","en":null}}', 0);
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'89624843-cf98-507d-9561-99cfab4a2903', @id, N'steps', N'{"items":[{"title":{"zh":"以球員為本","en":null}},{"title":{"zh":"追求卓越","en":null}},{"title":{"zh":"國際發展","en":null}},{"title":{"zh":"社區共好","en":null}},{"title":{"zh":"誠信專業","en":null}}]}', 1);
+  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'06b3c71a-0ddd-5f14-8a99-901a7e5d0ada', @id, 1, N'{"seo":{"zh":{"seoTitle":"足球理念 Our Philosophy｜關於台中磐石｜台中磐石足球俱樂部","seoDescription":"台中磐石足球俱樂部的足球理念與五大核心價值：以球員為本、追求卓越、國際發展、社區共好、誠信專業。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"透過專業模式，培育選手追求卓越，讓世界看見台灣足球。","en":null}}},{"blockType":"steps","content":{"items":[{"title":{"zh":"以球員為本","en":null}},{"title":{"zh":"追求卓越","en":null}},{"title":{"zh":"國際發展","en":null}},{"title":{"zh":"社區共好","en":null}},{"title":{"zh":"誠信專業","en":null}}]}}]}', N'152257a532d7ddcc78db424ea3e236d8e52d31e5573616a6780ffac68e325a6f');
   COMMIT TRANSACTION;
 END
 GO
@@ -4655,8 +4829,8 @@ BEGIN
   SET @id = N'0bff00eb-952b-534d-8ccf-cc3c155fdf33';
   INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-draft-page', N'draft', NULL);
   INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'【測試】草稿頁面', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'a4136aec-8e6c-595b-be4d-e7c105646d17', @id, N'text', N'{"body":{"zh":"<p>【測試】這是測試用內容，正式內容上線前請於後台替換。</p>","en":null}}', 0);
-  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'0bccdb77-f861-5234-8b72-dd4c8a0a6caf', @id, 1, N'{"seo":{"zh":{"seoTitle":"【測試】草稿頁面","seoDescription":"【測試】這是測試用內容，正式內容上線前請於後台替換。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"<p>【測試】這是測試用內容，正式內容上線前請於後台替換。</p>","en":null}}}]}', N'dd9724fb3842fea4b8ea5bd090a0ac5057c358b6d6cdeca66f50ef96519079a9');
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'a4136aec-8e6c-595b-be4d-e7c105646d17', @id, N'text', N'{"body":{"zh":"【測試】這是測試用內容，正式內容上線前請於後台替換。","en":null}}', 0);
+  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'0bccdb77-f861-5234-8b72-dd4c8a0a6caf', @id, 1, N'{"seo":{"zh":{"seoTitle":"【測試】草稿頁面","seoDescription":"【測試】這是測試用內容，正式內容上線前請於後台替換。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"【測試】這是測試用內容，正式內容上線前請於後台替換。","en":null}}}]}', N'dd9724fb3842fea4b8ea5bd090a0ac5057c358b6d6cdeca66f50ef96519079a9');
   COMMIT TRANSACTION;
 END
 GO
@@ -4667,10 +4841,10 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'0249604e-b3c3-5842-aa82-9da7bb785584';
-  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'about/our-story', N'published', '2026-09-30T00:00:00');
+  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'about/our-story', N'draft', NULL);
   INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'我們的故事｜關於台中藍鯨｜台中藍鯨女子足球隊', N'台中藍鯨女子足球隊 2014 年成立於台中，隸屬臺中市女子足球協會。認識這支球隊的定位與成立宗旨。');
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'10b433d8-089c-59da-92cf-3daeacbb481a', @id, N'text', N'{"body":{"zh":"<p>隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，簡稱為台中藍鯨，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，重視團隊合作，鯨翅為台灣意象代表引領台灣足球向前邁進。台中藍鯨希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。</p>","en":null}}', 0);
-  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'4d7d19dc-25bf-5810-8620-0077ea90f808', @id, 1, N'{"seo":{"zh":{"seoTitle":"我們的故事｜關於台中藍鯨｜台中藍鯨女子足球隊","seoDescription":"台中藍鯨女子足球隊 2014 年成立於台中，隸屬臺中市女子足球協會。認識這支球隊的定位與成立宗旨。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"<p>隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，簡稱為台中藍鯨，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，重視團隊合作，鯨翅為台灣意象代表引領台灣足球向前邁進。台中藍鯨希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。</p>","en":null}}}]}', N'4b6c0faea53c05fd12abecdf98c211dc575fc676f5580eff556346db6ce6fd84');
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'10b433d8-089c-59da-92cf-3daeacbb481a', @id, N'text', N'{"body":{"zh":"隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，簡稱為台中藍鯨，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，重視團隊合作，鯨翅為台灣意象代表引領台灣足球向前邁進。台中藍鯨希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。","en":null}}', 0);
+  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'4d7d19dc-25bf-5810-8620-0077ea90f808', @id, 1, N'{"seo":{"zh":{"seoTitle":"我們的故事｜關於台中藍鯨｜台中藍鯨女子足球隊","seoDescription":"台中藍鯨女子足球隊 2014 年成立於台中，隸屬臺中市女子足球協會。認識這支球隊的定位與成立宗旨。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，簡稱為台中藍鯨，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，重視團隊合作，鯨翅為台灣意象代表引領台灣足球向前邁進。台中藍鯨希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。","en":null}}}]}', N'4b6c0faea53c05fd12abecdf98c211dc575fc676f5580eff556346db6ce6fd84');
   COMMIT TRANSACTION;
 END
 GO
@@ -4681,7 +4855,7 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'4f4114c6-2eb3-56c8-b86f-b0c5e588e423';
-  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'about/vision', N'published', '2026-09-30T00:00:00');
+  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'about/vision', N'draft', NULL);
   INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'發展願景｜關於台中藍鯨｜台中藍鯨女子足球隊', N'台中藍鯨女子足球隊的發展願景：無止盡的探索、不怕難的堅韌、更細膩的態度、最真實的影響、更深遠之目的。');
   INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'd8b88cb2-e5c4-52b9-88fe-6e77cc98a32c', @id, N'quote', N'{"text":{"zh":"追尋卓越 止於至善（Pursuit of Brilliance）","en":null}}', 0);
   INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'34607684-f866-54fc-a3bc-ea82d124c924', @id, N'steps', N'{"items":[{"title":{"zh":"無止盡的探索","en":null},"description":{"zh":"提昇及普及大台中足球水準，吸收更專業精進足球技術，追上亞洲足球技術水平迎接世界潮流。","en":null}},{"title":{"zh":"不怕難的堅韌","en":null},"description":{"zh":"創造足球運動文化與風氣，以球迷為本讓足球比賽呈現更有水準，場內技術提升，場外足球比賽氛圍更加提升。","en":null}},{"title":{"zh":"更細膩的態度","en":null},"description":{"zh":"增加足球選手發展管道，讓選手有更好的發展空間，家長支持，學校支持，政府支持，產業支持，民眾支持。","en":null}},{"title":{"zh":"最真實的影響","en":null},"description":{"zh":"建立台中為台灣足球之都的美名與榮耀，健康正向的足球風氣，連結喜愛足球運動的球迷及選手所追求的足球夢想。","en":null}},{"title":{"zh":"更深遠之目的","en":null},"description":{"zh":"持續回饋社會，致力為人們創造更美好的生活，深信我們能帶來改變，幫助人們以全新的方式彼此分享與連結，讓世界更加和諧。","en":null}}]}', 1);
@@ -4696,7 +4870,7 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'a0b242e4-5f52-56c1-9787-05cef7837386';
-  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'about/philosophy', N'published', '2026-09-30T00:00:00');
+  INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'about/philosophy', N'draft', NULL);
   INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'俱樂部口號與培訓精神｜關於台中藍鯨｜台中藍鯨女子足球隊', N'台中藍鯨女子足球隊的俱樂部口號與培訓精神，以及隊徽「藍鯨」象徵的設計理念。');
   INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'6e1bb4e2-de93-5487-8623-5262b42527cc', @id, N'quote', N'{"text":{"zh":"以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態、重視團隊合作，鯨翅為台灣意象代表引領台灣足球向前邁進。","en":null},"attribution":{"zh":"隊徽設計理念","en":null}}', 0);
   INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'81fb083f-e197-5177-b3bc-571bea9df9a5', @id, N'quote', N'{"text":{"zh":"藍色的天空是我們心中夢想的方向，閃爍的陽光是走向夢想的力量，草地上揮灑汗水是成長過往 堅定信仰，有你在身旁 就不再徬徨，此時此刻，我們與我們的球迷站在一起。一起迎向世界。","en":null},"attribution":{"zh":"俱樂部口號","en":null}}', 1);
@@ -4714,8 +4888,8 @@ BEGIN
   SET @id = N'cbec7002-8e82-51ba-a531-c52c92cdd2f6';
   INSERT INTO pages (id, club_id, slug, status, published_at) VALUES (@id, (SELECT id FROM clubs WHERE code = N'bw'), N'test-draft-page', N'draft', NULL);
   INSERT INTO pages_i18n (page_id, locale, seo_title, seo_description) VALUES (@id, N'zh-Hant', N'【測試】草稿頁面', N'【測試】這是測試用內容，正式內容上線前請於後台替換。');
-  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'96c2c600-c646-5ca0-b53d-aec16d43055a', @id, N'text', N'{"body":{"zh":"<p>【測試】這是測試用內容，正式內容上線前請於後台替換。</p>","en":null}}', 0);
-  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'08f96e6f-33ca-5947-8713-717f08e98ad5', @id, 1, N'{"seo":{"zh":{"seoTitle":"【測試】草稿頁面","seoDescription":"【測試】這是測試用內容，正式內容上線前請於後台替換。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"<p>【測試】這是測試用內容，正式內容上線前請於後台替換。</p>","en":null}}}]}', N'7bf9a378ec208031dd1e56a095dbb184172b4d089c9450b33e6a8b90c0b70fdc');
+  INSERT INTO page_blocks (id, page_id, block_type, content, sort_order) VALUES (N'96c2c600-c646-5ca0-b53d-aec16d43055a', @id, N'text', N'{"body":{"zh":"【測試】這是測試用內容，正式內容上線前請於後台替換。","en":null}}', 0);
+  INSERT INTO page_versions (id, page_id, version_no, snapshot, preview_token) VALUES (N'08f96e6f-33ca-5947-8713-717f08e98ad5', @id, 1, N'{"seo":{"zh":{"seoTitle":"【測試】草稿頁面","seoDescription":"【測試】這是測試用內容，正式內容上線前請於後台替換。"}},"blocks":[{"blockType":"text","content":{"body":{"zh":"【測試】這是測試用內容，正式內容上線前請於後台替換。","en":null}}}]}', N'7bf9a378ec208031dd1e56a095dbb184172b4d089c9450b33e6a8b90c0b70fdc');
   COMMIT TRANSACTION;
 END
 GO
@@ -5288,64 +5462,148 @@ END
 GO
 
 -- ── 29. standings：C4 積分榜（全部測試值，沒有真實積分來源） ──
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND team_name = N'【測試】隊伍 A')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'c0be4279-b76f-5ce1-8ea9-367e8ebc35e4', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'【測試】隊伍 A', 1, 3, 9);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND i.team_name = N'【測試】隊伍 A')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'c0be4279-b76f-5ce1-8ea9-367e8ebc35e4', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), 1, 3, 9);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'c0be4279-b76f-5ce1-8ea9-367e8ebc35e4', N'zh-Hant', N'【測試】隊伍 A');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND team_name = N'【測試】隊伍 B')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'8beb5319-135e-5103-abb6-a5e500f4b9a7', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'【測試】隊伍 B', 2, 3, 7);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND i.team_name = N'【測試】隊伍 B')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'8beb5319-135e-5103-abb6-a5e500f4b9a7', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), 2, 3, 7);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'8beb5319-135e-5103-abb6-a5e500f4b9a7', N'zh-Hant', N'【測試】隊伍 B');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND team_name = N'【測試】隊伍 C')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'ea420597-6742-5986-b9a4-ec972c9d46d7', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'【測試】隊伍 C', 3, 3, 6);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND i.team_name = N'【測試】隊伍 C')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'ea420597-6742-5986-b9a4-ec972c9d46d7', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), 3, 3, 6);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'ea420597-6742-5986-b9a4-ec972c9d46d7', N'zh-Hant', N'【測試】隊伍 C');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND team_name = N'【測試】隊伍 D')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'bab061f1-44e8-5fb7-b9ee-74d4c0446cba', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'【測試】隊伍 D', 4, 3, 4);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND i.team_name = N'【測試】隊伍 D')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'bab061f1-44e8-5fb7-b9ee-74d4c0446cba', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), 4, 3, 4);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'bab061f1-44e8-5fb7-b9ee-74d4c0446cba', N'zh-Hant', N'【測試】隊伍 D');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND team_name = N'【測試】隊伍 E')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'06179fa4-2372-5fcb-8f9c-090a795c0efe', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'【測試】隊伍 E', 5, 3, 3);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND i.team_name = N'【測試】隊伍 E')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'06179fa4-2372-5fcb-8f9c-090a795c0efe', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), 5, 3, 3);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'06179fa4-2372-5fcb-8f9c-090a795c0efe', N'zh-Hant', N'【測試】隊伍 E');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND team_name = N'【測試】隊伍 F')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'75cf2815-9b03-5fc5-a11e-d8d3096144c8', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'【測試】隊伍 F', 6, 3, 1);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND i.team_name = N'【測試】隊伍 F')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'75cf2815-9b03-5fc5-a11e-d8d3096144c8', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), 6, 3, 1);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'75cf2815-9b03-5fc5-a11e-d8d3096144c8', N'zh-Hant', N'【測試】隊伍 F');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND team_name = N'【測試】隊伍 A')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'b26edb98-7e6e-5f04-8caf-166a88a2330b', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), N'【測試】隊伍 A', 1, 15, 40);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND i.team_name = N'【測試】隊伍 A')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'b26edb98-7e6e-5f04-8caf-166a88a2330b', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), 1, 15, 40);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'b26edb98-7e6e-5f04-8caf-166a88a2330b', N'zh-Hant', N'【測試】隊伍 A');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND team_name = N'【測試】隊伍 B')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'2e4a522c-8350-588e-ab51-a558850a1e27', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), N'【測試】隊伍 B', 2, 15, 34);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND i.team_name = N'【測試】隊伍 B')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'2e4a522c-8350-588e-ab51-a558850a1e27', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), 2, 15, 34);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'2e4a522c-8350-588e-ab51-a558850a1e27', N'zh-Hant', N'【測試】隊伍 B');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND team_name = N'【測試】隊伍 C')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'b7af59c8-202c-57fc-b62a-a3aade2651b4', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), N'【測試】隊伍 C', 3, 15, 28);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND i.team_name = N'【測試】隊伍 C')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'b7af59c8-202c-57fc-b62a-a3aade2651b4', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), 3, 15, 28);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'b7af59c8-202c-57fc-b62a-a3aade2651b4', N'zh-Hant', N'【測試】隊伍 C');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND team_name = N'【測試】隊伍 D')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'9a36686f-b452-51be-a9b1-56c964f968e8', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), N'【測試】隊伍 D', 4, 15, 21);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND i.team_name = N'【測試】隊伍 D')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'9a36686f-b452-51be-a9b1-56c964f968e8', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), 4, 15, 21);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'9a36686f-b452-51be-a9b1-56c964f968e8', N'zh-Hant', N'【測試】隊伍 D');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND team_name = N'【測試】隊伍 E')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'9aafd2df-8750-5393-a9a1-8490469124e8', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), N'【測試】隊伍 E', 5, 15, 12);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND i.team_name = N'【測試】隊伍 E')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'9aafd2df-8750-5393-a9a1-8490469124e8', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), 5, 15, 12);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'9aafd2df-8750-5393-a9a1-8490469124e8', N'zh-Hant', N'【測試】隊伍 E');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM standings WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND team_name = N'【測試】隊伍 F')
-  INSERT INTO standings (id, club_id, season_id, team_name, rank, played, points)
-  VALUES (N'0f317c2c-38b7-51e7-82a0-209c858e221c', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), N'【測試】隊伍 F', 6, 15, 5);
+IF NOT EXISTS (SELECT 1 FROM standings s JOIN standings_i18n i ON i.standing_id = s.id AND i.locale = N'zh-Hant'
+               WHERE s.club_id = (SELECT id FROM clubs WHERE code = N'bw') AND s.season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023') AND i.team_name = N'【測試】隊伍 F')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO standings (id, club_id, season_id, rank, played, points)
+  VALUES (N'0f317c2c-38b7-51e7-82a0-209c858e221c', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2023'), 6, 15, 5);
+  INSERT INTO standings_i18n (standing_id, locale, team_name)
+  VALUES (N'0f317c2c-38b7-51e7-82a0-209c858e221c', N'zh-Hant', N'【測試】隊伍 F');
+  COMMIT TRANSACTION;
+END
 GO
 
 -- ── 30. calendar_custom_events：L2 自建事件（bw 一筆真實過往活動、其餘測試） ──
@@ -6838,14 +7096,28 @@ END
 GO
 
 -- ── 36. proposals／enquiries：E3 提案（兩份 A/B 草稿，沒有檔案）與三筆 Lead（全部【測試】） ──
-IF NOT EXISTS (SELECT 1 FROM proposals WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND title = N'【測試】贊助提案簡介（A 版）')
-  INSERT INTO proposals (id, club_id, title, version_no, status)
-  VALUES (N'be52716b-00dc-5195-be6a-02e9e2571a64', (SELECT id FROM clubs WHERE code = N'tcrfc'), N'【測試】贊助提案簡介（A 版）', 1, N'draft');
+IF NOT EXISTS (SELECT 1 FROM proposals p JOIN proposals_i18n i ON i.proposal_id = p.id AND i.locale = N'zh-Hant'
+               WHERE p.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND i.title = N'【測試】贊助提案簡介（A 版）')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO proposals (id, club_id, version_no, status)
+  VALUES (N'be52716b-00dc-5195-be6a-02e9e2571a64', (SELECT id FROM clubs WHERE code = N'tcrfc'), 1, N'draft');
+  INSERT INTO proposals_i18n (proposal_id, locale, title)
+  VALUES (N'be52716b-00dc-5195-be6a-02e9e2571a64', N'zh-Hant', N'【測試】贊助提案簡介（A 版）');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM proposals WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND title = N'【測試】贊助提案簡介（B 版）')
-  INSERT INTO proposals (id, club_id, title, version_no, status)
-  VALUES (N'd5980014-01ab-5b4e-a698-fbfb8a4db12f', (SELECT id FROM clubs WHERE code = N'tcrfc'), N'【測試】贊助提案簡介（B 版）', 2, N'draft');
+IF NOT EXISTS (SELECT 1 FROM proposals p JOIN proposals_i18n i ON i.proposal_id = p.id AND i.locale = N'zh-Hant'
+               WHERE p.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND i.title = N'【測試】贊助提案簡介（B 版）')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO proposals (id, club_id, version_no, status)
+  VALUES (N'd5980014-01ab-5b4e-a698-fbfb8a4db12f', (SELECT id FROM clubs WHERE code = N'tcrfc'), 2, N'draft');
+  INSERT INTO proposals_i18n (proposal_id, locale, title)
+  VALUES (N'd5980014-01ab-5b4e-a698-fbfb8a4db12f', N'zh-Hant', N'【測試】贊助提案簡介（B 版）');
+  COMMIT TRANSACTION;
+END
 GO
 
 -- ── 37. charities／charity_programs／impact_records／impact_metrics／settings：B5 慈善與社會影響（tcrfc，全部【測試】） ──
@@ -6886,7 +7158,7 @@ BEGIN
   INSERT INTO charity_programs (id, club_id, slug, charity_id, start_on, end_on, status, sort_order, is_pinned)
   VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-charity-program-a', (SELECT id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-a'), N'2026-03-01', NULL, N'published', 0, 1);
   INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, content, donation_content)
-  VALUES (@id, N'zh-Hant', N'【測試】示範慈善計畫：偏鄉足球捐贈', N'【測試】偏鄉學童', N'[{"blockType":"text","content":{"body":{"zh":"<p>【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。</p>","en":null}}}]', N'【測試】足球 50 顆、訓練背心 100 件（示範數字）');
+  VALUES (@id, N'zh-Hant', N'【測試】示範慈善計畫：偏鄉足球捐贈', N'【測試】偏鄉學童', N'[{"blockType":"text","content":{"body":{"zh":"【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。","en":null}}}]', N'【測試】足球 50 顆、訓練背心 100 件（示範數字）');
   INSERT INTO charity_programs_i18n (charity_program_id, locale, name) VALUES (@id, N'en', N'Test Charity Program A');
   COMMIT TRANSACTION;
 END
@@ -6901,7 +7173,7 @@ BEGIN
   INSERT INTO charity_programs (id, club_id, slug, charity_id, start_on, end_on, status, sort_order, is_pinned)
   VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-charity-program-b', (SELECT id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-b'), N'2025-05-01', N'2025-12-31', N'published', 1, 0);
   INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, content, donation_content)
-  VALUES (@id, N'zh-Hant', N'【測試】示範慈善計畫：公益義賽', N'【測試】偏鄉學童', N'[{"blockType":"text","content":{"body":{"zh":"<p>【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。</p>","en":null}}}]', N'【測試】足球 50 顆、訓練背心 100 件（示範數字）');
+  VALUES (@id, N'zh-Hant', N'【測試】示範慈善計畫：公益義賽', N'【測試】偏鄉學童', N'[{"blockType":"text","content":{"body":{"zh":"【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。","en":null}}}]', N'【測試】足球 50 顆、訓練背心 100 件（示範數字）');
 
   COMMIT TRANSACTION;
 END
@@ -6916,7 +7188,7 @@ BEGIN
   INSERT INTO charity_programs (id, club_id, slug, charity_id, start_on, end_on, status, sort_order, is_pinned)
   VALUES (@id, (SELECT id FROM clubs WHERE code = N'tcrfc'), N'test-charity-program-c', (SELECT id FROM charities WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND slug = N'test-org-a'), N'2026-10-01', NULL, N'draft', 2, 0);
   INSERT INTO charity_programs_i18n (charity_program_id, locale, name, target_audience, content, donation_content)
-  VALUES (@id, N'zh-Hant', N'【測試】示範慈善計畫（草稿）', N'【測試】偏鄉學童', N'[{"blockType":"text","content":{"body":{"zh":"<p>【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。</p>","en":null}}}]', N'【測試】足球 50 顆、訓練背心 100 件（示範數字）');
+  VALUES (@id, N'zh-Hant', N'【測試】示範慈善計畫（草稿）', N'【測試】偏鄉學童', N'[{"blockType":"text","content":{"body":{"zh":"【測試】計畫緣起與內容：示範用，正式內容上線前請於後台替換。","en":null}}}]', N'【測試】足球 50 顆、訓練背心 100 件（示範數字）');
 
   COMMIT TRANSACTION;
 END
@@ -7172,19 +7444,40 @@ END
 GO
 
 -- ── 39. achievements：C5 榮譽（tcrfc 一線隊，三筆【測試】） ──
-IF NOT EXISTS (SELECT 1 FROM achievements WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND competition_name = N'【測試】示範盃賽')
-  INSERT INTO achievements (id, club_id, season_id, team_id, year, competition_name, placing)
-  VALUES (N'2353250f-271c-53ef-b407-c291d1035640', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), (SELECT id FROM teams WHERE code = N'D1'), 2026, N'【測試】示範盃賽', N'冠軍');
+IF NOT EXISTS (SELECT 1 FROM achievements a JOIN achievements_i18n i ON i.achievement_id = a.id AND i.locale = N'zh-Hant'
+               WHERE a.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND i.competition_name = N'【測試】示範盃賽')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO achievements (id, club_id, season_id, team_id, year)
+  VALUES (N'2353250f-271c-53ef-b407-c291d1035640', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), (SELECT id FROM teams WHERE code = N'D1'), 2026);
+  INSERT INTO achievements_i18n (achievement_id, locale, competition_name, placing)
+  VALUES (N'2353250f-271c-53ef-b407-c291d1035640', N'zh-Hant', N'【測試】示範盃賽', N'冠軍');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM achievements WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND competition_name = N'【測試】示範聯賽')
-  INSERT INTO achievements (id, club_id, season_id, team_id, year, competition_name, placing)
-  VALUES (N'37d6ca91-4426-5140-b5e8-137028e4b5cc', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), (SELECT id FROM teams WHERE code = N'D1'), 2025, N'【測試】示範聯賽', N'第三名');
+IF NOT EXISTS (SELECT 1 FROM achievements a JOIN achievements_i18n i ON i.achievement_id = a.id AND i.locale = N'zh-Hant'
+               WHERE a.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND i.competition_name = N'【測試】示範聯賽')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO achievements (id, club_id, season_id, team_id, year)
+  VALUES (N'37d6ca91-4426-5140-b5e8-137028e4b5cc', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), (SELECT id FROM teams WHERE code = N'D1'), 2025);
+  INSERT INTO achievements_i18n (achievement_id, locale, competition_name, placing)
+  VALUES (N'37d6ca91-4426-5140-b5e8-137028e4b5cc', N'zh-Hant', N'【測試】示範聯賽', N'第三名');
+  COMMIT TRANSACTION;
+END
 GO
 
-IF NOT EXISTS (SELECT 1 FROM achievements WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND competition_name = N'【測試】示範友誼賽')
-  INSERT INTO achievements (id, club_id, season_id, team_id, year, competition_name, placing)
-  VALUES (N'453deaab-0847-58c7-92d7-28329af43b75', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), (SELECT id FROM teams WHERE code = N'D1'), 2024, N'【測試】示範友誼賽', N'亞軍');
+IF NOT EXISTS (SELECT 1 FROM achievements a JOIN achievements_i18n i ON i.achievement_id = a.id AND i.locale = N'zh-Hant'
+               WHERE a.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND i.competition_name = N'【測試】示範友誼賽')
+BEGIN
+  BEGIN TRANSACTION;
+  INSERT INTO achievements (id, club_id, season_id, team_id, year)
+  VALUES (N'453deaab-0847-58c7-92d7-28329af43b75', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), (SELECT id FROM teams WHERE code = N'D1'), 2024);
+  INSERT INTO achievements_i18n (achievement_id, locale, competition_name, placing)
+  VALUES (N'453deaab-0847-58c7-92d7-28329af43b75', N'zh-Hant', N'【測試】示範友誼賽', N'亞軍');
+  COMMIT TRANSACTION;
+END
 GO
 
 -- ── 42. trials／trials_i18n／registrations：P4 試訓場次與報名（tcrfc 一線隊、bw 青年隊，全部【測試】） ──
@@ -7225,9 +7518,9 @@ GO
 IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'single')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, mid_season_rule, sort_order, starts_on, ends_on, status)
-  VALUES (N'17b2fc21-71fd-541c-a642-b29ce43a5248', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'single', 1200, 1, 1, N'【測試】季中入會照比例計價', 0, N'2026-09-13', N'2027-05-02', N'published');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'17b2fc21-71fd-541c-a642-b29ce43a5248', N'zh-Hant', N'【測試】球迷會員（單人）', N'【測試】含會員卡一張、入會球衣一件。');
+  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
+  VALUES (N'17b2fc21-71fd-541c-a642-b29ce43a5248', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'single', 1200, 1, 1, 0, N'2026-09-13', N'2027-05-02', N'published');
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES (N'17b2fc21-71fd-541c-a642-b29ce43a5248', N'zh-Hant', N'【測試】球迷會員（單人）', N'【測試】含會員卡一張、入會球衣一件。', N'【測試】季中入會照比例計價');
   INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'17b2fc21-71fd-541c-a642-b29ce43a5248', N'en', N'Fan Club Member (Single)', NULL);
   COMMIT TRANSACTION;
 END
@@ -7236,9 +7529,9 @@ GO
 IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27') AND code = N'family')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, mid_season_rule, sort_order, starts_on, ends_on, status)
-  VALUES (N'3a03b84d-5772-54cf-ba29-a356f1c47180', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'family', 3000, 3, 3, N'【測試】季中入會不折價', 1, N'2026-09-13', N'2027-05-02', N'published');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'3a03b84d-5772-54cf-ba29-a356f1c47180', N'zh-Hant', N'【測試】球迷會員（家庭）', N'【測試】1 位成人＋2 位小童，含會員卡三張、球衣三件。');
+  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
+  VALUES (N'3a03b84d-5772-54cf-ba29-a356f1c47180', (SELECT id FROM clubs WHERE code = N'tcrfc'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND code = N'2026-27'), N'family', 3000, 3, 3, 1, N'2026-09-13', N'2027-05-02', N'published');
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES (N'3a03b84d-5772-54cf-ba29-a356f1c47180', N'zh-Hant', N'【測試】球迷會員（家庭）', N'【測試】1 位成人＋2 位小童，含會員卡三張、球衣三件。', N'【測試】季中入會不折價');
   INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'3a03b84d-5772-54cf-ba29-a356f1c47180', N'en', N'Fan Club Member (Family)', NULL);
   COMMIT TRANSACTION;
 END
@@ -7247,9 +7540,9 @@ GO
 IF NOT EXISTS (SELECT 1 FROM membership_plans WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND season_id = (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025') AND code = N'single')
 BEGIN
   BEGIN TRANSACTION;
-  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, mid_season_rule, sort_order, starts_on, ends_on, status)
-  VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025'), N'single', 800, 1, 1, N'【測試】季中入會照比例計價', 0, N'2025-04-23', N'2025-06-15', N'published');
-  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', N'zh-Hant', N'【測試】藍鯨球迷會員（單人）', N'【測試】含會員卡一張、入會球衣一件。');
+  INSERT INTO membership_plans (id, club_id, season_id, code, fee, card_quota, jersey_quota, sort_order, starts_on, ends_on, status)
+  VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', (SELECT id FROM clubs WHERE code = N'bw'), (SELECT id FROM seasons WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND code = N'2025'), N'single', 800, 1, 1, 0, N'2025-04-23', N'2025-06-15', N'published');
+  INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note, mid_season_rule) VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', N'zh-Hant', N'【測試】藍鯨球迷會員（單人）', N'【測試】含會員卡一張、入會球衣一件。', N'【測試】季中入會照比例計價');
   INSERT INTO membership_plans_i18n (membership_plan_id, locale, name, benefit_note) VALUES (N'4002c0fb-ee7e-5122-9dca-4a5c1d7d2cee', N'en', N'Blue Whale Fan Club (Single)', NULL);
   COMMIT TRANSACTION;
 END
@@ -8934,34 +9227,34 @@ BEGIN
   INSERT INTO ad_creatives (id, campaign_id, locale, alt_text, title, cta_text, click_url, theme, review_status)
   VALUES (N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'zh-Hant', N'【測試】素材替代文字', N'【測試】廣告標題', N'了解更多', N'https://example.com/ad', N'both', N'approved');
   INSERT INTO ad_daily_stats (stat_date, campaign_id, creative_id, slot_id, platform, locale, impressions, clicks, unique_devices) VALUES
-    ('2026-09-20', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 160, 6, 128),
-    ('2026-09-20', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 140, 5, 112),
-    ('2026-09-21', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 167, 6, 133),
-    ('2026-09-21', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 147, 5, 117),
-    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 174, 6, 139),
-    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 154, 6, 123),
-    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 181, 7, 144),
-    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 161, 6, 128),
-    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 188, 7, 150),
-    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 168, 6, 134),
-    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 195, 7, 156),
-    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 175, 7, 140),
-    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 162, 6, 129),
-    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 142, 5, 113),
-    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 169, 6, 135),
-    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 149, 5, 119),
-    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 176, 7, 140),
-    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 156, 6, 124),
-    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 183, 7, 146),
-    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 163, 6, 130),
-    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 190, 7, 152),
-    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 170, 6, 136),
-    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 197, 7, 157),
-    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 177, 7, 141),
-    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 164, 6, 131),
-    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 144, 5, 115),
-    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 171, 6, 136),
-    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 151, 6, 120);
+    ('2026-09-21', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 160, 6, 128),
+    ('2026-09-21', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 140, 5, 112),
+    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 167, 6, 133),
+    ('2026-09-22', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 147, 5, 117),
+    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 174, 6, 139),
+    ('2026-09-23', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 154, 6, 123),
+    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 181, 7, 144),
+    ('2026-09-24', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 161, 6, 128),
+    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 188, 7, 150),
+    ('2026-09-25', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 168, 6, 134),
+    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 195, 7, 156),
+    ('2026-09-26', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 175, 7, 140),
+    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 162, 6, 129),
+    ('2026-09-27', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 142, 5, 113),
+    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 169, 6, 135),
+    ('2026-09-28', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 149, 5, 119),
+    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 176, 7, 140),
+    ('2026-09-29', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 156, 6, 124),
+    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 183, 7, 146),
+    ('2026-09-30', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 163, 6, 130),
+    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 190, 7, 152),
+    ('2026-10-01', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 170, 6, 136),
+    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 197, 7, 157),
+    ('2026-10-02', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 177, 7, 141),
+    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 164, 6, 131),
+    ('2026-10-03', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 144, 5, 115),
+    ('2026-10-04', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'ios', N'zh-Hant', 171, 6, 136),
+    ('2026-10-04', N'db15a997-1f96-5f2b-9282-1906014a62be', N'8c9cb2a9-2eb5-500c-9ee4-dffeee520b24', (SELECT id FROM ad_slots WHERE slot_code = N'home_top'), N'android', N'zh-Hant', 151, 6, 120);
   COMMIT TRANSACTION;
 END
 GO
@@ -8990,6 +9283,275 @@ FROM competitions_i18n e
 JOIN competitions b ON b.id = e.competition_id
 JOIN competitions_i18n z ON z.competition_id = b.id AND z.locale = N'zh-Hant'
 WHERE e.locale = N'en' AND b.club_id = (SELECT id FROM clubs WHERE code = N'tcrfc') AND z.name = N'企業甲級足球聯賽';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team A'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 A'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team A' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 A';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team B'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 B'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team B' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 B';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team C'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 C'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team C' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 C';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team D'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 D'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team D' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 D';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team E'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 E'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team E' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 E';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team F'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 F'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team F' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 F';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team G'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 G'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team G' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 G';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team H'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 H'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team H' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 H';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team I'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 I'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team I' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 I';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team J'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 J'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team J' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 J';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team K'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 K'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team K' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 K';
+GO
+
+INSERT INTO standings_i18n (standing_id, locale, team_name)
+SELECT b.id, N'en', N'[Test] Team L'
+FROM standings b JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.team_name = N'【測試】隊伍 L'
+  AND NOT EXISTS (SELECT 1 FROM standings_i18n e WHERE e.standing_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.team_name = CASE WHEN e.team_name IS NULL OR e.team_name = N'' OR e.team_name = z.team_name THEN N'[Test] Team L' ELSE e.team_name END
+FROM standings_i18n e
+JOIN standings b ON b.id = e.standing_id
+JOIN standings_i18n z ON z.standing_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.team_name = N'【測試】隊伍 L';
+GO
+
+INSERT INTO achievements_i18n (achievement_id, locale, competition_name, placing)
+SELECT b.id, N'en', N'[Test] Demo cup', N'Champions'
+FROM achievements b JOIN achievements_i18n z ON z.achievement_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.competition_name = N'【測試】示範盃賽'
+  AND NOT EXISTS (SELECT 1 FROM achievements_i18n e WHERE e.achievement_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.competition_name = CASE WHEN e.competition_name IS NULL OR e.competition_name = N'' OR e.competition_name = z.competition_name THEN N'[Test] Demo cup' ELSE e.competition_name END,
+    e.placing = CASE WHEN e.placing IS NULL OR e.placing = N'' OR e.placing = z.placing THEN N'Champions' ELSE e.placing END
+FROM achievements_i18n e
+JOIN achievements b ON b.id = e.achievement_id
+JOIN achievements_i18n z ON z.achievement_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.competition_name = N'【測試】示範盃賽';
+GO
+
+INSERT INTO achievements_i18n (achievement_id, locale, competition_name, placing)
+SELECT b.id, N'en', N'[Test] Demo league', N'3rd place'
+FROM achievements b JOIN achievements_i18n z ON z.achievement_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.competition_name = N'【測試】示範聯賽'
+  AND NOT EXISTS (SELECT 1 FROM achievements_i18n e WHERE e.achievement_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.competition_name = CASE WHEN e.competition_name IS NULL OR e.competition_name = N'' OR e.competition_name = z.competition_name THEN N'[Test] Demo league' ELSE e.competition_name END,
+    e.placing = CASE WHEN e.placing IS NULL OR e.placing = N'' OR e.placing = z.placing THEN N'3rd place' ELSE e.placing END
+FROM achievements_i18n e
+JOIN achievements b ON b.id = e.achievement_id
+JOIN achievements_i18n z ON z.achievement_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.competition_name = N'【測試】示範聯賽';
+GO
+
+INSERT INTO achievements_i18n (achievement_id, locale, competition_name, placing)
+SELECT b.id, N'en', N'[Test] Demo friendly', N'Runners-up'
+FROM achievements b JOIN achievements_i18n z ON z.achievement_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.competition_name = N'【測試】示範友誼賽'
+  AND NOT EXISTS (SELECT 1 FROM achievements_i18n e WHERE e.achievement_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.competition_name = CASE WHEN e.competition_name IS NULL OR e.competition_name = N'' OR e.competition_name = z.competition_name THEN N'[Test] Demo friendly' ELSE e.competition_name END,
+    e.placing = CASE WHEN e.placing IS NULL OR e.placing = N'' OR e.placing = z.placing THEN N'Runners-up' ELSE e.placing END
+FROM achievements_i18n e
+JOIN achievements b ON b.id = e.achievement_id
+JOIN achievements_i18n z ON z.achievement_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.competition_name = N'【測試】示範友誼賽';
+GO
+
+INSERT INTO proposals_i18n (proposal_id, locale, title)
+SELECT b.id, N'en', N'[Test] Sponsorship proposal (Version A)'
+FROM proposals b JOIN proposals_i18n z ON z.proposal_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.title = N'【測試】贊助提案簡介（A 版）'
+  AND NOT EXISTS (SELECT 1 FROM proposals_i18n e WHERE e.proposal_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Sponsorship proposal (Version A)' ELSE e.title END
+FROM proposals_i18n e
+JOIN proposals b ON b.id = e.proposal_id
+JOIN proposals_i18n z ON z.proposal_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.title = N'【測試】贊助提案簡介（A 版）';
+GO
+
+INSERT INTO proposals_i18n (proposal_id, locale, title)
+SELECT b.id, N'en', N'[Test] Sponsorship proposal (Version B)'
+FROM proposals b JOIN proposals_i18n z ON z.proposal_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.title = N'【測試】贊助提案簡介（B 版）'
+  AND NOT EXISTS (SELECT 1 FROM proposals_i18n e WHERE e.proposal_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.title = CASE WHEN e.title IS NULL OR e.title = N'' OR e.title = z.title THEN N'[Test] Sponsorship proposal (Version B)' ELSE e.title END
+FROM proposals_i18n e
+JOIN proposals b ON b.id = e.proposal_id
+JOIN proposals_i18n z ON z.proposal_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.title = N'【測試】贊助提案簡介（B 版）';
+GO
+
+INSERT INTO membership_plans_i18n (membership_plan_id, locale, mid_season_rule)
+SELECT b.id, N'en', N'[Test] Pro-rated pricing for mid-season sign-ups'
+FROM membership_plans b JOIN membership_plans_i18n z ON z.membership_plan_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.mid_season_rule = N'【測試】季中入會照比例計價'
+  AND NOT EXISTS (SELECT 1 FROM membership_plans_i18n e WHERE e.membership_plan_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.mid_season_rule = CASE WHEN e.mid_season_rule IS NULL OR e.mid_season_rule = N'' OR e.mid_season_rule = z.mid_season_rule THEN N'[Test] Pro-rated pricing for mid-season sign-ups' ELSE e.mid_season_rule END
+FROM membership_plans_i18n e
+JOIN membership_plans b ON b.id = e.membership_plan_id
+JOIN membership_plans_i18n z ON z.membership_plan_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.mid_season_rule = N'【測試】季中入會照比例計價';
+GO
+
+INSERT INTO membership_plans_i18n (membership_plan_id, locale, mid_season_rule)
+SELECT b.id, N'en', N'[Test] No discount for mid-season sign-ups'
+FROM membership_plans b JOIN membership_plans_i18n z ON z.membership_plan_id = b.id AND z.locale = N'zh-Hant'
+WHERE z.mid_season_rule = N'【測試】季中入會不折價'
+  AND NOT EXISTS (SELECT 1 FROM membership_plans_i18n e WHERE e.membership_plan_id = b.id AND e.locale = N'en');
+
+UPDATE e SET
+    e.mid_season_rule = CASE WHEN e.mid_season_rule IS NULL OR e.mid_season_rule = N'' OR e.mid_season_rule = z.mid_season_rule THEN N'[Test] No discount for mid-season sign-ups' ELSE e.mid_season_rule END
+FROM membership_plans_i18n e
+JOIN membership_plans b ON b.id = e.membership_plan_id
+JOIN membership_plans_i18n z ON z.membership_plan_id = b.id AND z.locale = N'zh-Hant'
+WHERE e.locale = N'en' AND z.mid_season_rule = N'【測試】季中入會不折價';
 GO
 
 INSERT INTO matches_i18n (match_id, locale, venue)

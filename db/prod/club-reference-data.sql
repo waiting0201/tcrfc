@@ -55,8 +55,8 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'f7cb2444-e607-57fc-aea5-6aa11239d4ea';
-  INSERT INTO clubs (id, code, domain, brand_color, brand_secondary_color, is_collecting_subject, default_locale, sort_order, status)
-  VALUES (@id, N'tcrfc', N'$(CLUB_DOMAIN_TCRFC)', N'#E0218A', N'#231916', 1, N'zh-Hant', 0, N'active');
+  INSERT INTO clubs (id, code, domain, is_collecting_subject, default_locale, sort_order, status)
+  VALUES (@id, N'tcrfc', N'$(CLUB_DOMAIN_TCRFC)', 1, N'zh-Hant', 0, N'active');
   INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'zh-Hant', N'台中磐石', N'台中磐石');
   INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'en', N'Taichung Rock FC', N'Taichung Rock FC');
   COMMIT TRANSACTION;
@@ -69,8 +69,8 @@ IF @id IS NULL
 BEGIN
   BEGIN TRANSACTION;
   SET @id = N'7bd7fca4-7989-5fb3-b14b-7d09de5b406c';
-  INSERT INTO clubs (id, code, domain, brand_color, brand_secondary_color, is_collecting_subject, default_locale, sort_order, status)
-  VALUES (@id, N'bw', N'$(CLUB_DOMAIN_BW)', N'#2196D5', N'#040000', 0, N'zh-Hant', 1, N'active');
+  INSERT INTO clubs (id, code, domain, is_collecting_subject, default_locale, sort_order, status)
+  VALUES (@id, N'bw', N'$(CLUB_DOMAIN_BW)', 0, N'zh-Hant', 1, N'active');
   INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'zh-Hant', N'台中藍鯨', N'台中藍鯨');
   INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'en', N'Taichung Blue Whale Women''s Football Club', N'Taichung Blue Whale'); -- B-5 已於 2026-10-05 定案
   COMMIT TRANSACTION;
@@ -7784,7 +7784,7 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM home_sections WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND section_code = N'core_values')
   INSERT INTO home_sections (id, club_id, section_code, is_enabled, sort_order)
-  VALUES (N'50517eea-07ef-5d9b-b6c0-0f4b8cfcf939', (SELECT id FROM clubs WHERE code = N'bw'), N'core_values', 1, 1);
+  VALUES (N'50517eea-07ef-5d9b-b6c0-0f4b8cfcf939', (SELECT id FROM clubs WHERE code = N'bw'), N'core_values', 0, 1);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM home_sections WHERE club_id = (SELECT id FROM clubs WHERE code = N'bw') AND section_code = N'ecosystem_nav')

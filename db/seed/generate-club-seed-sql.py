@@ -241,8 +241,8 @@ SELECT @id = id FROM clubs WHERE code = N'tcrfc';
 IF @id IS NULL
 BEGIN
   SET @id = {esc(tcrfc_club_id)};
-  INSERT INTO clubs (id, code, domain, brand_color, brand_secondary_color, is_collecting_subject, default_locale, sort_order, status)
-  VALUES (@id, N'tcrfc', N'stg.tcrfc.tw', N'#E0218A', N'#231916', 1, N'zh-Hant', 0, N'active');
+  INSERT INTO clubs (id, code, domain, is_collecting_subject, default_locale, sort_order, status)
+  VALUES (@id, N'tcrfc', N'stg.tcrfc.tw', 1, N'zh-Hant', 0, N'active');
   INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'zh-Hant', N'台中磐石', N'台中磐石');
   INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'en', N'Taichung Rock FC', N'Taichung Rock FC');
 END
@@ -260,8 +260,8 @@ SELECT @id = id FROM clubs WHERE code = N'bw';
 IF @id IS NULL
 BEGIN
   SET @id = {esc(bw_club_id)};
-  INSERT INTO clubs (id, code, domain, brand_color, brand_secondary_color, is_collecting_subject, default_locale, sort_order, status)
-  VALUES (@id, N'bw', N'bw-domain-pending.invalid', N'#2196D5', N'#040000', 0, N'zh-Hant', 1, N'active');
+  INSERT INTO clubs (id, code, domain, is_collecting_subject, default_locale, sort_order, status)
+  VALUES (@id, N'bw', N'bw-domain-pending.invalid', 0, N'zh-Hant', 1, N'active');
   INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'zh-Hant', N'台中藍鯨', N'台中藍鯨');
   INSERT INTO clubs_i18n (club_id, locale, name, short_name) VALUES (@id, N'en', N'Taichung Blue Whale Women''s Football Club', N'Taichung Blue Whale'); -- B-5 已於 2026-10-05 定案
 END
@@ -1876,7 +1876,8 @@ END
 # 代碼與預設排序須與 apps/api/Features/AdminHomeSections/HomeSectionCatalog.cs 逐一對應
 # （C# 與本腳本各自宣告一份同樣的九個代碼，這是既有慣例——比照 SlugPolicy.cs 檔頭記錄的
 # 「多處字面值常數，各自宣告，靠命名一致與 code review 維持同步」，不是自動化比對）。
-# 全部區塊起始狀態為啟用（is_enabled=1），排序依規劃書 §3.1 首頁九大區塊表格列出的順序。
+# 全部區塊起始狀態為啟用（is_enabled=1），**唯一例外：藍鯨的 core_values 預設停用**（2026-10-06，
+# 藍鯨版核心價值文案待客戶確認；磐石不變），客戶確認後由後台啟用。排序依規劃書 §3.1 首頁九大區塊表格列出的順序。
 # ============================================================================
 HOME_SECTIONS = [
     "hero", "core_values", "ecosystem_nav", "upcoming_match", "recent_fixtures",
@@ -1891,7 +1892,7 @@ for club_code in ("tcrfc", "bw"):
         block(f"""
 IF NOT EXISTS (SELECT 1 FROM home_sections WHERE club_id = {club_ref} AND section_code = {esc(section_code)})
   INSERT INTO home_sections (id, club_id, section_code, is_enabled, sort_order)
-  VALUES ({esc(section_id)}, {club_ref}, {esc(section_code)}, 1, {i});
+  VALUES ({esc(section_id)}, {club_ref}, {esc(section_code)}, {0 if (club_code == "bw" and section_code == "core_values") else 1}, {i});
 """)
 
 # ============================================================================
@@ -2273,6 +2274,30 @@ for (club_sq, club_code, founded_year, founding_date_iso, founding_date_display_
     # 用它驗證「缺英文時回退中文」，且成立月日（site.founding_date）至今沒有核實來源，不種假日期。
     emit_site_setting_value(club_sq, club_code, "site.contact_phone", "04-0000-0000")
     emit_site_setting_i18n(club_sq, club_code, "site.contact_hours", "【測試】平日 09:00–18:00", None)
+
+# 🔵 2026-10-06（後端 C-2 新增的聯絡資訊與社群連結 setting key，apps/api/README.md C-2）：社群連結（單一值）、
+# 頁尾品牌簡介（逐語系）、bw 的聯絡 Email。皆為客戶官方公開資訊，URL 通過後端白名單（https＋網域）。
+# 部門窗口（site.contact_departments）不種。en 簡介取自 apps/web/shared/utils/club-copy-en-core.ts 的 footerBlurb。
+CONTACT_SEEDS = {
+    CLUB_TCRFC: ("tcrfc", {
+        "site.social_facebook": "https://www.facebook.com/TCRFC2024",
+        "site.social_instagram": "https://www.instagram.com/tcr_fc_2024",
+        "site.social_youtube": "https://www.youtube.com/@TCRFC-2024",
+    }, "台中磐石足球俱樂部致力於透過專業模式，培育選手追求卓越，讓世界看見台灣足球。",
+       'Taichung Rock FC develops players who pursue excellence through a professional model, so the world can see Taiwan football.'),
+    CLUB_BW: ("bw", {
+        "site.social_facebook": "https://www.facebook.com/tbwfc",
+        "site.social_instagram": "https://instagram.com/tcbw2014",
+        "site.social_youtube": "https://www.youtube.com/@user-xu1wm3xx1w",
+        "site.social_line": "https://lin.ee/CS65qCR",
+        "site.contact_email": "fbbh2014@gmail.com",
+    }, "隸屬於臺中市女子足球協會之台中藍鯨女子足球隊，是台灣木蘭足球聯賽的球隊之一。以「藍鯨」作為象徵，代表追求更快、更堅強、更現代化的足球型態，希望能帶動台中足球基層環境風氣，帶動中部地區女子足球的發展。",
+       "Taichung Blue Whale Women's Football Club, part of the Taichung City Women's Football Association, is one of the teams of the Taiwan Mulan Football League. Taking the blue whale as its symbol, it stands for a faster, stronger and more modern style of football, and hopes to lift the grassroots football culture in Taichung and drive the development of women's football in central Taiwan."),
+}
+for _club_sq, (_code, _values, _blurb_zh, _blurb_en) in CONTACT_SEEDS.items():
+    for _k, _v in _values.items():
+        emit_site_setting_value(_club_sq, _code, _k, _v)
+    emit_site_setting_i18n(_club_sq, _code, "site.footer_blurb", _blurb_zh, _blurb_en)
 
 # site.blue_whale_site_url（主站規劃書 §3.6「06 女子足球」入口頁「前往台中藍鯨官網」按鈕）：
 # 概念上只屬於台中磐石（tcrfc），只種這一筆，不種 bw——藍鯨官網本身沒有 06 單元（見

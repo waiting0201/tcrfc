@@ -88,7 +88,8 @@
          §3.1 的側表草案與主表重複，依 docs/12c §1 第 3 條「主表已放的
          欄位優先尊重主表」不建 page_blocks_i18n。無殘留疑義。
      (e) seasons／standings／achievements／sessions／proposals：
-         ✅ 已確認（2026-09-22）不建對應 *_i18n 表——docs/12 曾標🌐，
+         🔄 2026-10-06 更新：standings／achievements／proposals 已改建 *_i18n（稽核 D 類，見各表註解與 docs/12c §5 第 4、5 點）；
+         seasons／sessions 仍不建。以下為 2026-09-22 當時的裁決，保留作歷史——docs/12 曾標🌐，
          但 docs/12c §5 第 4、5 點核對後找不到任何可列的側表欄位（規劃書
          與 ERD 全文查無文字型欄位），docs/12 §4.2／§4.3／§4.4 已同步
          拿掉這 5 個 🌐 標記。
@@ -920,14 +921,14 @@ CREATE TABLE match_lineups (
 );
 
 -- 積分榜。對手隊名是自由文字，不是 Team。
--- ✅ 已確認（2026-09-22）：docs/12 曾標🌐，但 team_name 已是主表自由文字，規劃書無其他文字欄位
--- （docs/12c §3.2／§5 第 4 點），不建 standings_i18n；docs/12 §4.2 已同步拿掉 🌐。
+-- 🔄 2026-10-06（稽核 D 類，雙語缺口）：team_name 移入 standings_i18n。2026-09-22 的「不建 standings_i18n」裁決作廢——
+-- 當時只問「規劃書有沒有寫雙語」，漏了全域規定 4（所有前台可見內容型別皆須 zh／en 雙欄位）與 matches.opponent 的先例：
+-- 對手隊名前台 /en/ 會直接顯示，英文版不能出現中文隊名。docs/12 §4.2、docs/12c §3.2。
 CREATE TABLE standings (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   season_id       uniqueidentifier NOT NULL,
-  team_name       nvarchar(128)    NOT NULL,
   rank            int              NULL,
   played          int              NULL,
   points          int              NULL,
@@ -939,9 +940,15 @@ CREATE TABLE standings (
   CONSTRAINT UQ_standings_row_seq UNIQUE CLUSTERED (row_seq)
 );
 
+CREATE TABLE standings_i18n (
+  standing_id     uniqueidentifier NOT NULL,
+  locale          nvarchar(10)     NOT NULL,
+  team_name       nvarchar(128)    NULL,
+  CONSTRAINT PK_standings_i18n PRIMARY KEY CLUSTERED (standing_id, locale)
+);
+
 -- 榮譽（年份、賽事、名次、隊伍）。
--- ✅ 已確認（2026-09-22）：docs/12 曾標🌐，但 competition_name／placing 已是主表欄位，規劃書無其他文字欄位
--- （docs/12c §5 第 4 點），不建 achievements_i18n；docs/12 §4.2 已同步拿掉 🌐。
+-- 🔄 2026-10-06（稽核 D 類）：competition_name／placing 移入 achievements_i18n（理由同 standings）。
 CREATE TABLE achievements (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -949,14 +956,20 @@ CREATE TABLE achievements (
   season_id         uniqueidentifier NOT NULL,
   team_id           uniqueidentifier NOT NULL,
   year              int              NULL,
-  competition_name  nvarchar(128)    NULL,
-  placing           nvarchar(32)     NULL,
   created_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   updated_at        datetime2(3)     NOT NULL DEFAULT SYSUTCDATETIME(),
   created_by        uniqueidentifier NULL,
   updated_by        uniqueidentifier NULL,
   CONSTRAINT PK_achievements PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_achievements_row_seq UNIQUE CLUSTERED (row_seq)
+);
+
+CREATE TABLE achievements_i18n (
+  achievement_id    uniqueidentifier NOT NULL,
+  locale            nvarchar(10)     NOT NULL,
+  competition_name  nvarchar(128)    NULL,
+  placing           nvarchar(64)     NULL,
+  CONSTRAINT PK_achievements_i18n PRIMARY KEY CLUSTERED (achievement_id, locale)
 );
 
 -- 里程碑時間軸。
@@ -994,13 +1007,13 @@ CREATE TABLE milestones_i18n (
    ============================================================================ */
 
 -- 課程／營隊／專項項目：類型、對象、年齡區間、區塊內容。
+-- 🔄 2026-10-06（稽核 D 類）：audience（對象的文字描述，自由文字）移入 programs_i18n；年齡區間 age_min／age_max 是數字，留主表。
 CREATE TABLE programs (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
   slug            nvarchar(160)    NOT NULL,
   program_type    nvarchar(32)     NULL,
-  audience        nvarchar(32)     NULL,
   age_min         int              NULL,
   age_max         int              NULL,
   status          nvarchar(16)     NULL,
@@ -1024,6 +1037,7 @@ CREATE TABLE programs_i18n (
   locale          nvarchar(10)     NOT NULL,
   name            nvarchar(128)    NULL,
   intro           nvarchar(max)    NULL,
+  audience        nvarchar(64)     NULL,
   content         json             NULL,
   CONSTRAINT PK_programs_i18n PRIMARY KEY CLUSTERED (program_id, locale)
 );
@@ -1245,13 +1259,13 @@ CREATE TABLE sponsor_package_links (
   CONSTRAINT PK_sponsor_package_links PRIMARY KEY CLUSTERED (sponsor_id, sponsor_package_id)
 );
 
--- 提案簡介（多版本、多語 PDF）。title 為單一欄位，多語需求由 proposal_files 承載，不建 proposals_i18n。
--- ✅ 已確認（2026-09-22，docs/12c §5 第 5 點）：docs/12 §4.4 已同步拿掉 Proposal 的 🌐。
+-- 提案簡介（多版本、多語 PDF）。
+-- 🔄 2026-10-06（稽核 D 類）：title 移入 proposals_i18n。2026-09-22 的「title 為單一欄位、多語由 proposal_files 承載」裁決作廢——
+-- proposal_files 管的是 PDF 檔案語系，管不到標題；前台 /en/ 下載頁會顯示標題。
 CREATE TABLE proposals (
   id              uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq         bigint IDENTITY(1,1) NOT NULL,
   club_id         uniqueidentifier NOT NULL,
-  title           nvarchar(128)    NOT NULL,
   version_no      int              NOT NULL DEFAULT 1,
   -- E1-a（2026-09-30）：收斂為 draft／published（理由同 press_resources：不提供排程）。published＝前台
   -- 「取得下載連結」流程可用；draft 不可下載。原為可為空且無約束。
@@ -1263,6 +1277,13 @@ CREATE TABLE proposals (
   CONSTRAINT PK_proposals PRIMARY KEY NONCLUSTERED (id),
   CONSTRAINT UQ_proposals_row_seq UNIQUE CLUSTERED (row_seq),
   CONSTRAINT CK_proposals_status CHECK (status IN ('draft','published'))
+);
+
+CREATE TABLE proposals_i18n (
+  proposal_id     uniqueidentifier NOT NULL,
+  locale          nvarchar(10)     NOT NULL,
+  title           nvarchar(128)    NULL,
+  CONSTRAINT PK_proposals_i18n PRIMARY KEY CLUSTERED (proposal_id, locale)
 );
 
 -- (proposal_id, locale, file_key, version) 之形狀（docs/12 §4.4）；version_no 對應 ERD 未逐欄畫出但文字明列的欄位。
@@ -1678,23 +1699,20 @@ CREATE TABLE venues_i18n (
    4.8 J 系統管理
    ============================================================================ */
 
--- 俱樂部主檔（後台 J4）。它自己不帶 club_id。刪除 RESTRICT——有任何帶 club_id 的資料就不得刪。
+-- 俱樂部主檔（後台 J4）。它自己不帶 club_id。
+-- 品牌欄位（兩站標誌、Favicon、品牌色）2026-10-06 已刪除：主站規劃書 v3.20 改由前台靜態資產與 CSS 定義，後台不設定；
+-- 只保留 og_image_key／寬高（全站預設 OG 圖，H 模組）。遷移見 db/migrations/20261006_club-brand-drop_2-contract.sql。刪除 RESTRICT——有任何帶 club_id 的資料就不得刪。
 -- 名稱與簡介走 clubs_i18n（見檔頭 (a)(b)），規劃書「簡介（中／英）」落點是 clubs_i18n.description。
 CREATE TABLE clubs (
   id                        uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq                   bigint IDENTITY(1,1) NOT NULL,
   code                      nvarchar(16)     NOT NULL,
   domain                    nvarchar(128)    NOT NULL,
-  logo_light_key            nvarchar(255)    NULL,
-  logo_dark_key             nvarchar(255)    NULL,
-  favicon_key               nvarchar(255)    NULL,
   og_image_key              nvarchar(255)    NULL,
   -- S1-12（H 全站 SEO 預設，驗收退回後補做，2026-09-25）：og_image_key 早已存在（J4 品牌欄位），
   -- 這兩欄補上尺寸，讓公開端點能輸出 og:image:width／og:image:height。
   og_image_width            int              NULL,
   og_image_height           int              NULL,
-  brand_color               nvarchar(16)     NULL,
-  brand_secondary_color     nvarchar(16)     NULL,
   invoice_title             nvarchar(64)     NULL,
   tax_id                    nvarchar(16)     NULL,
   is_collecting_subject     bit              NOT NULL DEFAULT 1,
@@ -1950,6 +1968,7 @@ CREATE TABLE member_cards (
 
 -- 會籍方案：費用、season、期間、card_quota、jersey_quota、季中計價規則。
 -- code 為 docs/12b §11.1 唯一鍵 (club_id, season_id, code) 直接指名的欄位，ERD 主表屬性未逐一畫出，本檔據此補上。
+-- 🔄 2026-10-06（稽核 D 類）：季中計價規則 mid_season_rule 是給人看的規則說明文字，移入 membership_plans_i18n。
 CREATE TABLE membership_plans (
   id                uniqueidentifier NOT NULL DEFAULT NEWID(),
   row_seq           bigint IDENTITY(1,1) NOT NULL,
@@ -1959,7 +1978,6 @@ CREATE TABLE membership_plans (
   fee               int              NOT NULL,
   card_quota        int              NOT NULL DEFAULT 1,
   jersey_quota      int              NOT NULL DEFAULT 0,
-  mid_season_rule   nvarchar(255)    NULL,
   sort_order        int              NOT NULL DEFAULT 0,
   -- B1（2026-09-30）：規劃書 K2 方案設定「期間起訖」「上下架」的落點。status 值域 draft（下架）／published（上架）。
   starts_on         date             NULL,
@@ -1978,6 +1996,7 @@ CREATE TABLE membership_plans_i18n (
   locale               nvarchar(10)   NOT NULL,
   name                 nvarchar(64)   NULL,
   benefit_note          nvarchar(max) NULL,
+  mid_season_rule       nvarchar(255) NULL,
   CONSTRAINT PK_membership_plans_i18n PRIMARY KEY CLUSTERED (membership_plan_id, locale)
 );
 
@@ -3556,6 +3575,9 @@ CREATE INDEX IX_staff_i18n_locale                    ON staff_i18n (locale);
 CREATE INDEX IX_matches_i18n_locale                  ON matches_i18n (locale);
 CREATE INDEX IX_milestones_i18n_locale               ON milestones_i18n (locale);
 CREATE INDEX IX_programs_i18n_locale                 ON programs_i18n (locale);
+CREATE INDEX IX_standings_i18n_locale                ON standings_i18n (locale);
+CREATE INDEX IX_achievements_i18n_locale             ON achievements_i18n (locale);
+CREATE INDEX IX_proposals_i18n_locale                ON proposals_i18n (locale);
 CREATE INDEX IX_partners_i18n_locale                 ON partners_i18n (locale);
 CREATE INDEX IX_sponsors_i18n_locale                 ON sponsors_i18n (locale);
 CREATE INDEX IX_sponsor_packages_i18n_locale         ON sponsor_packages_i18n (locale);
@@ -3857,9 +3879,11 @@ ALTER TABLE match_lineups   ADD CONSTRAINT FK_match_lineups_match   FOREIGN KEY 
 ALTER TABLE match_lineups   ADD CONSTRAINT FK_match_lineups_player  FOREIGN KEY (player_id) REFERENCES players(id);
 ALTER TABLE standings       ADD CONSTRAINT FK_standings_club        FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE standings       ADD CONSTRAINT FK_standings_season      FOREIGN KEY (season_id) REFERENCES seasons(id);
+ALTER TABLE standings_i18n  ADD CONSTRAINT FK_standings_i18n_standing FOREIGN KEY (standing_id) REFERENCES standings(id) ON DELETE CASCADE;
 ALTER TABLE achievements    ADD CONSTRAINT FK_achievements_club     FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE achievements    ADD CONSTRAINT FK_achievements_season   FOREIGN KEY (season_id) REFERENCES seasons(id);
 ALTER TABLE achievements    ADD CONSTRAINT FK_achievements_team     FOREIGN KEY (team_id) REFERENCES teams(id);
+ALTER TABLE achievements_i18n ADD CONSTRAINT FK_achievements_i18n_achievement FOREIGN KEY (achievement_id) REFERENCES achievements(id) ON DELETE CASCADE;
 ALTER TABLE milestones      ADD CONSTRAINT FK_milestones_club       FOREIGN KEY (club_id) REFERENCES clubs(id);
 ALTER TABLE milestones_i18n ADD CONSTRAINT FK_milestones_i18n_ms    FOREIGN KEY (milestone_id) REFERENCES milestones(id) ON DELETE CASCADE;
 
@@ -3901,6 +3925,7 @@ ALTER TABLE sponsor_packages_i18n ADD CONSTRAINT FK_sponsor_packages_i18n_pkg   
 ALTER TABLE sponsor_package_links ADD CONSTRAINT FK_sponsor_package_links_sponsor FOREIGN KEY (sponsor_id) REFERENCES sponsors(id) ON DELETE CASCADE;
 ALTER TABLE sponsor_package_links ADD CONSTRAINT FK_sponsor_package_links_pkg     FOREIGN KEY (sponsor_package_id) REFERENCES sponsor_packages(id) ON DELETE CASCADE;
 ALTER TABLE proposals             ADD CONSTRAINT FK_proposals_club               FOREIGN KEY (club_id) REFERENCES clubs(id);
+ALTER TABLE proposals_i18n        ADD CONSTRAINT FK_proposals_i18n_proposal      FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE CASCADE;
 ALTER TABLE proposal_files        ADD CONSTRAINT FK_proposal_files_proposal      FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE CASCADE;
 ALTER TABLE enquiries             ADD CONSTRAINT FK_enquiries_proposal           FOREIGN KEY (proposal_id) REFERENCES proposals(id) ON DELETE SET NULL;
 ALTER TABLE sponsor_activations   ADD CONSTRAINT FK_sponsor_activations_club     FOREIGN KEY (club_id) REFERENCES clubs(id);
